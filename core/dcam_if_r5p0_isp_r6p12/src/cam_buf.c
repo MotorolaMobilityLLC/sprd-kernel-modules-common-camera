@@ -43,8 +43,8 @@
 #ifdef ION
 #include "ion.h"
 #endif
-#if 1
-//#ifdef CAM_BUF_DEBUG
+
+#ifdef CAM_BUF_DEBUG
 #define CAM_BUF_TRACE                      pr_info
 #else
 #define CAM_BUF_TRACE                      pr_debug
@@ -618,7 +618,7 @@ int sprd_cam_buf_addr_map(struct cam_buf_info *buf_info)
 			max(s_cambuf_mapsize[idx][dev_index],
 				s_cambuf_max_mapsize[idx][dev_index]);
 		atomic_inc(&s_cambuf_mapcnt[idx]);
-		pr_info("%s%d, iova 0x%08x size 0x%x total %d 0x%x\n",
+		pr_debug("%s%d, iova 0x%08x size 0x%x total %d 0x%x\n",
 			name,
 			idx,
 			(uint32_t)buf_info->iova[i],
@@ -762,10 +762,9 @@ int sprd_cam_buf_alloc(struct cam_buf_info *buf_info, uint32_t idx,
 			goto failed;
 		}
 
-		pr_info("dmabuf_p[%p], buf[%p], size 0x%x size 0x%x, heap %d\n",
+		pr_debug("dmabuf_p[%p], buf[%p], size 0x%x, heap %d\n",
 			buf_info->dmabuf_p[i],
 			buf_info->buf[i],
-			(int)size,
 			(int)buf_info->size[i],
 			heap_type);
 	}
@@ -775,7 +774,7 @@ int sprd_cam_buf_alloc(struct cam_buf_info *buf_info, uint32_t idx,
 	buf_info->num = num;
 	for (i = 0; i < num; i++)
 		atomic_add(buf_info->size[i], &s_cambuf_allocsize[idx]);
-	pr_debug("alloc %d buffer ok, idx %d total 0x%x\n",
+	CAM_BUF_TRACE("alloc %d buffer ok, idx %d total 0x%x\n",
 		num, idx, atomic_read(&s_cambuf_allocsize[idx]));
 	return 0;
 

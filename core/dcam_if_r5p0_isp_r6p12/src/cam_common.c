@@ -41,7 +41,7 @@ int sprd_cam_com_raw_pitch_calc(uint16_t isloose, uint16_t width)
 
 		fetchraw_pitch = width / 16 * 20 + mod16_words * 4;
 
-		pr_info("width 0x%x, pitch 0x%x\n", width, fetchraw_pitch);
+		pr_debug("width 0x%x, pitch 0x%x\n", width, fetchraw_pitch);
 		return fetchraw_pitch;
 	} else {
 		return (width * 2);

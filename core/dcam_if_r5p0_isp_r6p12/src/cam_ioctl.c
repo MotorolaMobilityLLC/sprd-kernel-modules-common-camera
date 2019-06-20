@@ -2106,9 +2106,8 @@ static int sprd_camioctl_camera_raw_pipeline_cfg(struct camera_file *camerafile)
 		size_t size;
 		int i;
 
-		pr_info("bin path max out w = %d, h = %d w = %d, h = %d\n",
-			path_bin->max_out_size.w, path_bin->max_out_size.h,
-			path->out_size.w, path->out_size.h);
+		pr_debug("bin path max out w = %d, h = %d\n",
+			path_bin->max_out_size.w, path_bin->max_out_size.h);
 		path = path_bin;
 		if (!ctx->need_downsizer)
 			size = sprd_cam_com_raw_pitch_calc(0, path->out_size.w)
