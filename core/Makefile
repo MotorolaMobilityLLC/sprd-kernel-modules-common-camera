@@ -1,12 +1,10 @@
-#ifneq ($(strip $(TARGET_BOARD_CAMERA_ISP_VERSION)),)
-
 LOCAL_PATH := $(PWD)
-ISP_VER := dcam_if_r5p0_isp_r6p12
+ISP_DIR := $(BSP_BOARD_CAMERA_MODULE_ISP_VERSION)
 
 sprd_camera-objs :=
 
 # target source files
-SRC := $(shell find $(LOCAL_PATH)/$(ISP_VER) -name "*.c")
+SRC := $(shell find $(LOCAL_PATH)/$(ISP_DIR) -name "*.c")
 LOCAL_SRC := $(SRC:$(LOCAL_PATH)/%=%)
 sprd_camera-objs += $(LOCAL_SRC:%.c=%.o)
 
@@ -17,7 +15,8 @@ obj-m += sprd_camera.o
 ccflags-y += -I$(LOCAL_PATH)/../common
 ccflags-y += -I$(LOCAL_PATH)/../interface
 ccflags-y += -I$(LOCAL_PATH)/../sensor
-ccflags-y += -I$(LOCAL_PATH)/$(ISP_VER)/inc
+ccflags-y += -I$(LOCAL_PATH)/../flash/flash_drv
+ccflags-y += -I$(LOCAL_PATH)/$(ISP_DIR)/inc
 ccflags-y += -I$(BSP_KERNEL_PATH)/drivers/staging/android/ion
 
 .PHONY:modules
@@ -31,4 +30,3 @@ modules_install:
 clean:
 	make -C $(BSP_KERNEL_PATH) O=$(BSP_KERNEL_OUT) M=`pwd` $@
 
-#endif

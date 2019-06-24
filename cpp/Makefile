@@ -1,12 +1,10 @@
-#ifneq ($(strip $(TARGET_BOARD_CAMERA_CPP_VERSION)),)
-
 LOCAL_PATH := $(PWD)
-CPP_VER := lite_r4p0
+CPP_DIR := $(BSP_BOARD_CAMERA_MODULE_CPP_VERSION)
 
 sprd_cpp-objs :=
 
 # target source files
-SRC := $(shell find $(LOCAL_PATH)/$(CPP_VER) -name "*.c")
+SRC := $(shell find $(LOCAL_PATH)/$(CPP_DIR) -name "*.c")
 LOCAL_SRC := $(SRC:$(LOCAL_PATH)/%=%)
 sprd_cpp-objs += $(LOCAL_SRC:%.c=%.o)
 
@@ -28,4 +26,3 @@ modules_install:
 clean:
 	make -C $(BSP_KERNEL_PATH) O=$(BSP_KERNEL_OUT) M=`pwd` $@
 
-#endif
