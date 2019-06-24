@@ -18,7 +18,7 @@
 #include <linux/delay.h>
 
 #include "dcam_drv.h"
-//#include "flash_drv.h"
+#include "flash_drv.h"
 
 struct flash_led_task {
 	struct sprd_img_set_flash set_flash;

@@ -121,6 +121,8 @@ struct camera_path_spec {
 	struct sprd_ebd_control ebd_ctrl;
 	uint32_t assoc_idx;/*dcam cowork with isp path*/
 	uint32_t buf_num;
+	/*0 = stream, 1 = fetch*/
+	uint32_t run_mode;
 	uint32_t need_downsizer;
 	struct zoom_info_t zoom_info;
 	unsigned char bin_crop_bypass;

@@ -77,7 +77,7 @@ int sprd_rot_drv_parm_check(
 		return -EINVAL;
 	}
 
-	pr_info("format %d angle %d w %d h %d\n",
+	pr_debug("format %d angle %d w %d h %d\n",
 		parm->format, parm->angle, parm->size.w, parm->size.h);
 	pr_debug("src mfd %u y:u:v 0x%x 0x%x 0x%x\n", parm->src_addr.mfd[0],
 		parm->src_addr.y, parm->src_addr.u, parm->src_addr.v);
@@ -284,7 +284,7 @@ void sprd_rot_drv_start(struct rot_drv_private *p)
 	reg_wr(p, CPP_ROTATION_SRC_ADDR, p->rot_src_addr);
 	reg_wr(p, CPP_ROTATION_DES_ADDR, p->rot_dst_addr);
 
-	pr_info("rot:src addr:0x%x, dst addr:0x%x\n",
+	pr_debug("rot:src addr:0x%x, dst addr:0x%x\n",
 			p->rot_src_addr, p->rot_dst_addr);
 
 	reg_wr(p, CPP_ROTATION_OFFSET_START, 0x0);

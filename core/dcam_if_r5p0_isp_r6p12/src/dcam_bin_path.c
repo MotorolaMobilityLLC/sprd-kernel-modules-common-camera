@@ -344,6 +344,9 @@ int sprd_dcam_bin_path_cfg_set(enum dcam_id idx,
 	case DCAM_PATH_ASSOC:
 		bin_path->assoc_idx = *(uint32_t *)param;
 		break;
+	case DCAM_PATH_RUN_MODE:
+		bin_path->run_mode = *(uint32_t *)param;
+		break;
 	case DCAM_PATH_NEED_DOWNSIZER:
 		bin_path->need_downsizer = *(uint32_t *)param;
 		break;

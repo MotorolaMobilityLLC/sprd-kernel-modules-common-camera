@@ -25,6 +25,8 @@
 #define pr_fmt(fmt) "dcam_int: %d %d %s : "\
 	fmt, current->pid, __LINE__, __func__
 
+#define FRM_QUEUE_THRESHOLD_NUM   2
+
 typedef void (*dcam_isr) (enum dcam_id idx, enum dcam_irq_id irq_id,
 			void *param);
 
@@ -300,6 +302,14 @@ static void sprd_dcamint_full_path_done(enum dcam_id idx,
 		full_path->need_wait = 0;
 	} else {
 		struct camera_frame frame;
+		int cur_nodes = 0;
+
+		cur_nodes =
+			sprd_cam_queue_frm_cur_nodes(&full_path->frame_queue);
+		if (cur_nodes < FRM_QUEUE_THRESHOLD_NUM) {
+			pr_info("discard frame cur_nodes %d\n", cur_nodes);
+			return;
+		}
 
 		rtn = sprd_cam_queue_frm_dequeue(
 			&full_path->frame_queue, &frame);
@@ -403,6 +413,15 @@ static void sprd_dcamint_bin_path_done(enum dcam_id idx,
 		bin_path->need_wait = 0;
 	} else {
 		struct camera_frame frame;
+		int cur_nodes = 0;
+
+		cur_nodes =
+			sprd_cam_queue_frm_cur_nodes(&bin_path->frame_queue);
+		if (!bin_path->run_mode &&
+			cur_nodes < FRM_QUEUE_THRESHOLD_NUM) {
+			pr_info("discard frame cur_nodes %d\n", cur_nodes);
+			return;
+		}
 
 		rtn = sprd_cam_queue_frm_dequeue(
 			&bin_path->frame_queue, &frame);
@@ -480,11 +499,19 @@ static void sprd_dcamint_aem_done(enum dcam_id idx, enum dcam_irq_id irq_id,
 	struct cam_statis_buf node;
 	struct camera_frame frame_info;
 	struct cam_statis_module *module = NULL;
+	int cur_nodes = 0;
 
 	memset(&frame_info, 0x00, sizeof(frame_info));
 	dcam_dev = (struct dcam_module *)param;
 	module = &dcam_dev->statis_module_info;
 	statis_heap = &module->aem_statis_frm_queue;
+
+	cur_nodes =
+		sprd_cam_queue_frm_cur_nodes(statis_heap);
+	if (cur_nodes < FRM_QUEUE_THRESHOLD_NUM) {
+		pr_info("discard frame cur_nodes %d\n", cur_nodes);
+		return;
+	}
 
 	rtn = sprd_cam_queue_frm_dequeue(statis_heap, &node);
 	if (rtn) {
@@ -589,10 +616,18 @@ static void sprd_dcamint_afm_done(enum dcam_id idx,
 	struct cam_statis_buf node;
 	struct camera_frame frame_info;
 	struct cam_statis_module *module = NULL;
+	int cur_nodes = 0;
 
 	dcam_dev = (struct dcam_module *)param;
 	module = &dcam_dev->statis_module_info;
 	statis_heap = &module->afm_statis_frm_queue;
+
+	cur_nodes =
+		sprd_cam_queue_frm_cur_nodes(statis_heap);
+	if (cur_nodes < FRM_QUEUE_THRESHOLD_NUM) {
+		pr_info("discard frame cur_nodes %d\n", cur_nodes);
+		return;
+	}
 
 	memset(&node, 0x00, sizeof(node));
 	memset(&frame_info, 0x00, sizeof(frame_info));
@@ -629,11 +664,19 @@ static void sprd_dcamint_vch2_done(enum dcam_id idx,
 	struct cam_statis_buf node;
 	struct camera_frame frame_info;
 	struct cam_statis_module *module = NULL;
+	int cur_nodes = 0;
 
 	memset(&frame_info, 0x00, sizeof(frame_info));
 	dcam_dev = (struct dcam_module *)param;
 	module = &dcam_dev->statis_module_info;
 	statis_heap = &module->pdaf_statis_frm_queue;
+
+	cur_nodes =
+		sprd_cam_queue_frm_cur_nodes(statis_heap);
+	if (cur_nodes < FRM_QUEUE_THRESHOLD_NUM) {
+		pr_info("discard frame cur_nodes %d\n", cur_nodes);
+		return;
+	}
 
 	/*dequeue the statis buf from a array*/
 	rtn = sprd_cam_queue_frm_dequeue(statis_heap, &node);
@@ -684,11 +727,19 @@ static void sprd_dcamint_pdaf_done(enum dcam_id idx,
 	struct cam_statis_buf node;
 	struct camera_frame frame_info;
 	struct cam_statis_module *module = NULL;
+	int cur_nodes = 0;
 
 	memset(&frame_info, 0x00, sizeof(frame_info));
 	dcam_dev = (struct dcam_module *)param;
 	module = &dcam_dev->statis_module_info;
 	statis_heap = &module->pdaf_statis_frm_queue;
+
+	cur_nodes =
+		sprd_cam_queue_frm_cur_nodes(statis_heap);
+	if (cur_nodes < FRM_QUEUE_THRESHOLD_NUM) {
+		pr_info("discard frame cur_nodes %d\n", cur_nodes);
+		return;
+	}
 
 	/*dequeue the statis buf from a array*/
 	rtn = sprd_cam_queue_frm_dequeue(statis_heap, &node);
@@ -739,11 +790,19 @@ static void sprd_dcamint_ebd_done(enum dcam_id idx,
 	struct cam_statis_buf node;
 	struct camera_frame frame_info;
 	struct cam_statis_module *module = NULL;
+	int cur_nodes = 0;
 
 	memset(&frame_info, 0x00, sizeof(frame_info));
 	dcam_dev = (struct dcam_module *)param;
 	module = &dcam_dev->statis_module_info;
 	statis_heap = &module->ebd_statis_frm_queue;
+
+	cur_nodes =
+		sprd_cam_queue_frm_cur_nodes(statis_heap);
+	if (cur_nodes < FRM_QUEUE_THRESHOLD_NUM) {
+		pr_info("discard frame cur_nodes %d\n", cur_nodes);
+		return;
+	}
 
 	rtn = sprd_cam_queue_frm_dequeue(statis_heap, &node);
 	if (rtn) {

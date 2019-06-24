@@ -100,14 +100,14 @@ static int sprd_scaledrv_param_check(
 		scale_param->src_format != SCALE_YUV422) ||
 		(scale_param->dst_format != SCALE_YUV420 &&
 		scale_param->dst_format != SCALE_YUV422)) {
-		pr_info("get invalid format src %d dst %d\n",
+		pr_debug("get invalid format src %d dst %d\n",
 			scale_param->src_format, scale_param->dst_format);
 		return -1;
 	}
 
 	if (scale_param->rect_size.w < scale_param->dst_size.w ||
 		scale_param->rect_size.h < scale_param->dst_size.h) {
-		pr_info("get invalid zoom ratio dst %d src %d\n",
+		pr_debug("get invalid zoom ratio dst %d src %d\n",
 			scale_param->dst_size.w, scale_param->rect_size.w);
 		return -1;
 	}
@@ -116,7 +116,7 @@ static int sprd_scaledrv_param_check(
 			(scale_param->dst_size.w * 64)
 			|| scale_param->rect_size.h >
 			(scale_param->dst_size.h * 64)) {
-			pr_info("get invalid src %d %d, dst%d %d\n",
+			pr_debug("get invalid src %d %d, dst%d %d\n",
 				scale_param->rect_size.w,
 				scale_param->rect_size.h,
 				scale_param->dst_size.w,
@@ -128,7 +128,7 @@ static int sprd_scaledrv_param_check(
 			(scale_param->dst_size.w * 32)
 			|| scale_param->rect_size.h >
 			(scale_param->dst_size.h * 32)) {
-			pr_info("get invalid src %d %d, dst%d %d\n",
+			pr_debug("get invalid src %d %d, dst%d %d\n",
 				scale_param->rect_size.w,
 				scale_param->rect_size.h,
 				scale_param->dst_size.w,
@@ -139,54 +139,54 @@ static int sprd_scaledrv_param_check(
 
 	if (scale_param->rect_size.w > SCALE_FRAME_WIDTH_MAX ||
 		scale_param->rect_size.h > SCALE_FRAME_HEIGHT_MAX) {
-		pr_info("get invalid input size %d %d\n",
+		pr_debug("get invalid input size %d %d\n",
 			scale_param->rect_size.w, scale_param->rect_size.h);
 		return -1;
 	}
 	if (scale_param->src_size.w % 8 != 0) {
-		pr_info("get invalid org src pitch %d\n",
+		pr_debug("get invalid org src pitch %d\n",
 			scale_param->rect_size.w);
 		return -1;
 	}
 
 	if (scale_param->src_format == SCALE_YUV420) {
 		if (scale_param->rect_size.h % 2 != 0) {
-			pr_info("get insrc height align 2: %d\n",
+			pr_debug("get insrc height align 2: %d\n",
 				scale_param->rect_size.y);
 			return -1;
 		}
 		if (scale_param->rect_size.y % 2 != 0) {
-			pr_info("get invalid src offset y align 2: %d\n",
+			pr_debug("get invalid src offset y align 2: %d\n",
 				scale_param->rect_size.y);
 			return -1;
 		}
 	}
 	if (scale_param->rect_size.w % 4 != 0) {
-		pr_info("get invalid src width align 4: %d\n",
+		pr_debug("get invalid src width align 4: %d\n",
 			scale_param->rect_size.y);
 		return -1;
 	}
 	if (scale_param->rect_size.x % 2 != 0) {
-		pr_info("get invalid src offset x align 2: %d\n",
+		pr_debug("get invalid src offset x align 2: %d\n",
 			scale_param->rect_size.x);
 		return -1;
 	}
 
 	if (scale_param->dst_size.w > SCALE_FRAME_OUT_WIDTH_MAX
 		|| scale_param->dst_size.h > SCALE_FRAME_HEIGHT_MAX) {
-		pr_info("get invalid output size %d %d over 768\n",
+		pr_debug("get invalid output size %d %d over 768\n",
 			scale_param->dst_size.w, scale_param->dst_size.h);
 		return -1;
 	}
 	if (scale_param->dst_size.w % 8 != 0) {
-		pr_info("get invalid dst width %d\n",
+		pr_debug("get invalid dst width %d\n",
 			scale_param->dst_size.w);
 		return -1;
 	}
 
 	if ((scale_param->dst_format == SCALE_YUV420)
 		&& (scale_param->dst_size.h % 2 != 0)) {
-		pr_info("get invalid scale output height %d\n",
+		pr_debug("get invalid scale output height %d\n",
 			scale_param->dst_size.h);
 		return -1;
 	}
@@ -640,7 +640,7 @@ int sprd_scale_drv_start(struct sprd_cpp_scale_cfg_parm *parm,
 	sprd_scaledrv_get_params(p, &scale_cap_aram);
 	ret = sprd_scaledrv_param_check(&scale_cap_aram);
 	if (ret) {
-		pr_info("Please use sofeware to scale\n");
+		pr_debug("Please use sofeware to scale\n");
 		return -1;
 	}
 	sprd_scaledrv_src_pitch_set(p);
@@ -712,7 +712,7 @@ int sprd_scale_drv_capability_get(
 
 	ret = sprd_scaledrv_param_check(scale_param);
 	if (ret) {
-		pr_info("Please use sofeware to scale\n");
+		pr_debug("Please use sofeware to scale\n");
 		return -1;
 	}
 

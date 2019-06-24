@@ -2541,6 +2541,10 @@ static int sprd_camioctl_bin_path_cfg(struct camera_path_spec *bin_path,
 		DCAM_PATH_ASSOC,
 		&bin_path->assoc_idx);
 
+	ret = sprd_dcam_bin_path_cfg_set(idx,
+		DCAM_PATH_RUN_MODE,
+		&bin_path->run_mode);
+
 	param = 1;
 	ret = sprd_dcam_bin_path_cfg_set(idx, DCAM_PATH_ENABLE, &param);
 	if (unlikely(ret)) {
@@ -3005,6 +3009,7 @@ config_fetch:
 	path->out_fmt = DCAM_RAWRGB;
 	path->pixel_depth = 10;
 	path->buf_num = 1;
+	path->run_mode = 1;
 	isp_path->assoc_idx = 1 << CAMERA_BIN_PATH;
 	ret = sprd_isp_drv_path_cfg_set(dev->isp_dev_handle,
 		ISP_PATH_IDX_CAP, ISP_PATH_ASSOC, &isp_path->assoc_idx);
@@ -3147,6 +3152,7 @@ static int sprd_camioctl_dcam_fetch_stop(enum dcam_id idx,
 
 	sprd_dcam_bin_path_unmap(fetch_idx);
 	path->is_work = 0;
+	path->run_mode = 0;
 	path->status = PATH_IDLE;
 	path->assoc_idx = 0;
 
@@ -3966,9 +3972,7 @@ static int sprd_camioctl_io_flash_cfg(struct camera_file *camerafile,
 		ret = -EFAULT;
 		return ret;
 	}
-#if 0
 	ret = sprd_flash_cfg(&cfg_parm);
-#endif
 	mutex_unlock(&dev->cam_mutex);
 	CAM_TRACE("config flash, ret %d\n", ret);
 

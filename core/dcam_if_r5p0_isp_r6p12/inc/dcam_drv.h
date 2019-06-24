@@ -113,6 +113,7 @@ enum dcam_cfg_id {
 	DCAM_PATH_ASSOC,
 	DCAM_PATH_NEED_DOWNSIZER,
 	DCAM_PATH_ZOOM_INFO,
+	DCAM_PATH_RUN_MODE,
 
 	DCAM_FETCH_DATA_PACKET,
 	DCAM_FETCH_DATA_ENDIAN,
@@ -211,6 +212,7 @@ struct dcam_path_desc {
 	uint32_t buf_num; /*buf num share with isp*/
 	void *private_data;
 	uint32_t assoc_idx;
+	uint32_t run_mode;
 	uint32_t need_downsizer;
 	struct cam_4in1_addr addr_4in1[DCAM_FRM_QUEUE_LENGTH];
 	struct camera_size out_size_latest;
