@@ -4,6 +4,12 @@ CSI_DIR := $(BSP_BOARD_CAMERA_MODULE_CSI_VERSION)
 
 sprd_camera-objs :=
 
+# target source files
+ifeq ($(BSP_BOARD_CAMERA_MODULE_ISP_VERSION),dcam_r6p0_isp_r6p91)
+SRC := $(shell find $(LOCAL_PATH)/$(ISP_DIR) -name "*.c")
+LOCAL_SRC := $(SRC:$(LOCAL_PATH)/%=%)
+sprd_camera-objs += $(LOCAL_SRC:%.c=%.o)
+else
 COMMON_SRC := $(wildcard $(LOCAL_PATH)/common/*.c)
 COMMON_DIR := $(notdir $(COMMON_SRC))
 COMMON_OBJ := $(patsubst %c, common/%o, $(COMMON_DIR))
@@ -25,6 +31,7 @@ sprd_camera-objs += $(COMMON_OBJ)
 endif
 
 sprd_camera-objs += $(CAM_OBJ) $(CAM_BLOCK_OBJ)
+endif
 
 ifeq ($(CONFIG_COMPAT),y)
 sprd_camera-objs += $(CAM_COMPAT_OBJ)
@@ -44,6 +51,9 @@ ccflags-y += -I$(LOCAL_PATH)/../sensor/csi2/sprd/$(CSI_DIR)
 ccflags-y += -I$(LOCAL_PATH)/../flash/flash_drv
 ccflags-y += -I$(LOCAL_PATH)/$(ISP_DIR)/inc
 ccflags-y += -I$(BSP_KERNEL_PATH)/drivers/staging/android/ion
+ifeq ($(BSP_BOARD_CAMERA_MODULE_ISP_VERSION),dcam_r6p0_isp_r6p91)
+ccflags-y += -I$(LOCAL_PATH)/$(ISP_DIR)/common
+endif
 
 .PHONY:modules
 
