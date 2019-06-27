@@ -60,6 +60,7 @@ struct flash_driver_data {
 	int gpio_tab[FLASH_IC_GPIO_MAX];
 	void *priv;
 	struct flash_ic_cfg flash_cfg;
+	u32 torch_led_index;
 };
 /* Static Variables Definitions */
 
@@ -193,6 +194,7 @@ static int sprd_flash_ic_open_torch(void *drvd, uint8_t idx)
 	if (!drv_data)
 		return -EFAULT;
 
+	idx = drv_data->torch_led_index;
 	if (drv_data->i2c_info) {
 		flash_ic_driver_reg_read(drv_data->i2c_info, 0x0a, &data);
 		flash_ic_driver_reg_read(drv_data->i2c_info, 0x0b, &data);
@@ -231,6 +233,7 @@ static int sprd_flash_ic_close_torch(void *drvd, uint8_t idx)
 	if (!drv_data)
 		return -EFAULT;
 
+	idx = drv_data->torch_led_index;
 	if (SPRD_FLASH_LED0 & idx) {
 		gpio_id = drv_data->gpio_tab[1];
 		if (gpio_is_valid(gpio_id)) {
@@ -404,6 +407,7 @@ static int sprd_flash_ic_cfg_value_torch(void *drvd, uint8_t idx,
 	if (!drv_data)
 		return -EFAULT;
 
+	idx = drv_data->torch_led_index;
 	if (drv_data->i2c_info) {
 		if (SPRD_FLASH_LED0 & idx)
 			flash_ic_driver_reg_write(drv_data->i2c_info,
@@ -535,7 +539,10 @@ static int sprd_flash_ic_driver_probe(struct i2c_client *client,
 			 "sprd,lvfm-enable", &pdata->flash_cfg.lvfm_enable);
 	if (ret)
 		pr_info("lvfm-enable no cfg\n");
-
+	ret = of_property_read_u32(dev->of_node,
+				"torch-led-idx", &pdata->torch_led_index);
+	if (ret)
+		pdata->torch_led_index = SPRD_FLASH_LED0;
 
 	for (j = 0; j < FLASH_IC_GPIO_MAX; j++) {
 		gpio[j] = of_get_named_gpio(dev->of_node,
