@@ -1,17 +1,39 @@
-LOCAL_PATH := $(PWD)
+LOCAL_PATH := $(shell cd $(BSP_ROOT_DIR)/modules/camera/core; pwd)
 ISP_DIR := $(BSP_BOARD_CAMERA_MODULE_ISP_VERSION)
 
 sprd_camera-objs :=
 
-# target source files
-SRC := $(shell find $(LOCAL_PATH)/$(ISP_DIR) -name "*.c")
-LOCAL_SRC := $(SRC:$(LOCAL_PATH)/%=%)
-sprd_camera-objs += $(LOCAL_SRC:%.c=%.o)
+ifeq ($(BSP_BOARD_CAMERA_MODULE_ISP_VERSION),dcam_if_r4p0_isp_r6p11)
+COMMON_SRC := $(wildcard $(LOCAL_PATH)/common/*.c)
+COMMON_DIR := $(notdir $(COMMON_SRC))
+COMMON_OBJ := $(patsubst %c, common/%o, $(COMMON_DIR))
+endif
+
+CAM_SRC := $(wildcard $(LOCAL_PATH)/$(ISP_DIR)/src/*.c)
+CAM_DIR := $(notdir $(CAM_SRC))
+CAM_OBJ := $(patsubst %c, $(ISP_DIR)/src/%o, $(CAM_DIR))
+
+CAM_BLOCK_SRC := $(wildcard $(LOCAL_PATH)/$(ISP_DIR)/block/*.c)
+CAM_BLOCK_DIR := $(notdir $(CAM_BLOCK_SRC))
+CAM_BLOCK_OBJ := $(patsubst %c, $(ISP_DIR)/block/%o, $(CAM_BLOCK_DIR))
+
+CAM_COMPAT_SRC := $(wildcard $(LOCAL_PATH)/$(ISP_DIR)/compat/*.c)
+CAM_COMPAT_DIR := $(notdir $(CAM_COMPAT_SRC))
+CAM_COMPAT_OBJ := $(patsubst %c, $(ISP_DIR)/compat/%o, $(CAM_COMPAT_DIR))
+
+sprd_camera-objs += $(COMMON_OBJ) $(CAM_OBJ) $(CAM_BLOCK_OBJ)
+
+ifeq ($(CONFIG_COMPAT),y)
+sprd_camera-objs += $(CAM_COMPAT_OBJ)
+endif
 
 # target
 obj-m += sprd_camera.o
 
 # target includes
+ifeq ($(BSP_BOARD_CAMERA_MODULE_ISP_VERSION),dcam_if_r4p0_isp_r6p11)
+ccflags-y += -I$(LOCAL_PATH)/common
+endif
 ccflags-y += -I$(LOCAL_PATH)/../common
 ccflags-y += -I$(LOCAL_PATH)/../interface
 ccflags-y += -I$(LOCAL_PATH)/../sensor

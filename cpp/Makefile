@@ -1,4 +1,4 @@
-LOCAL_PATH := $(PWD)
+LOCAL_PATH := $(shell cd $(BSP_ROOT_DIR)/modules/camera/cpp; pwd)
 CPP_DIR := $(BSP_BOARD_CAMERA_MODULE_CPP_VERSION)
 
 sprd_cpp-objs :=

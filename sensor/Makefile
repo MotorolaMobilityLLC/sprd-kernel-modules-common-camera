@@ -1,13 +1,14 @@
-LOCAL_PATH := $(PWD)
-
-ifeq ($(BSP_BOARD_CAMERA_MODULE_CSI_VERSION),r2p0)
-CSI_DIR := receiver_r2p0
-endif
+LOCAL_PATH := $(shell cd $(BSP_ROOT_DIR)/modules/camera/sensor; pwd)
+CSI_DIR := $(BSP_BOARD_CAMERA_MODULE_CSI_VERSION)
 
 # target source files
 sprd_sensor-objs := sprd_sensor_core.o \
-				sprd_sensor_drv.o \
-				compat_sensor_drv.o
+				sprd_sensor_drv.o
+
+# compat ioctl for 32-bit user
+ifeq ($(CONFIG_COMPAT),y)
+sprd_sensor-objs += compat_sensor_drv.o
+endif
 
 CSI_SRC := $(shell find $(LOCAL_PATH)/csi2/csi_sprd/$(CSI_DIR) -name "*.c")
 LOCAL_CSI_SRC := $(CSI_SRC:$(LOCAL_PATH)/%=%)
