@@ -17,7 +17,6 @@
 #include <linux/sprd_iommu.h>
 #include <linux/vmalloc.h>
 #include "ion.h"
-#include "ion_priv.h"
 
 #ifdef pr_fmt
 #undef pr_fmt

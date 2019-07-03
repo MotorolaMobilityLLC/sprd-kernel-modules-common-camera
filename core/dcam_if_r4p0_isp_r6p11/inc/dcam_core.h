@@ -14,9 +14,8 @@
 #ifndef _DCAM_CORE_HEADER_
 #define _DCAM_CORE_HEADER_
 
-#include <linux/wakelock.h>
-#include <video/sprd_img.h>
-#include <video/sprd_mm.h>
+#include "sprd_img.h"
+#include "sprd_mm.h"
 #include "sprd_isp_hw.h"
 #include "flash_drv.h"
 #include "dcam_block.h"
@@ -24,21 +23,21 @@
 #include "isp_drv.h"
 #include "isp_statis_buf.h"
 
-#define IMG_DEVICE_NAME		"sprd_image"
-#define CAMERA_INVALID_FOURCC	0xFFFFFFFF
-#define CAMERA_QUEUE_LENGTH	96
-#define CAMERA_TIMING_LEN	16
+#define IMG_DEVICE_NAME                 "sprd_image"
+#define CAMERA_INVALID_FOURCC           0xFFFFFFFF
+#define CAMERA_QUEUE_LENGTH             96
+#define CAMERA_TIMING_LEN               16
 
-#define CAMERA_ZOOM_LEVEL_MAX	4
-#define CAMERA_ZOOM_STEP(x, y)	(((x) - (y)) / CAMERA_ZOOM_LEVEL_MAX)
-#define CAMERA_PIXEL_ALIGNED	4
-#define CAMERA_WIDTH(w)		((w) & ~(CAMERA_PIXEL_ALIGNED - 1))
-#define CAMERA_HEIGHT(h)	((h) & ~(CAMERA_PIXEL_ALIGNED - 1))
+#define CAMERA_ZOOM_LEVEL_MAX           4
+#define CAMERA_ZOOM_STEP(x, y)          (((x) - (y)) / CAMERA_ZOOM_LEVEL_MAX)
+#define CAMERA_PIXEL_ALIGNED            4
+#define CAMERA_WIDTH(w)                 ((w) & ~(CAMERA_PIXEL_ALIGNED - 1))
+#define CAMERA_HEIGHT(h)                ((h) & ~(CAMERA_PIXEL_ALIGNED - 1))
 
-#define DEF_DUMP2LOG_MAX_WORD_SIZE 0x200
-#define SBLK_NAME(name) #name
+#define DEF_DUMP2LOG_MAX_WORD_SIZE      0x200
+#define SBLK_NAME(name)                 #name
 
-#define DCAM_TIMEOUT			1500
+#define DCAM_TIMEOUT                    1500
 
 enum {
 	PATH_IDLE = 0x00,
@@ -265,10 +264,10 @@ struct camera_group {
 	unsigned int isp_count;
 	atomic_t camera_opened;
 	struct camera_dev *dev[DCAM_ID_MAX];
-	struct ion_client *cam_ion_client[DCAM_ID_MAX];
+	//struct ion_client *cam_ion_client[DCAM_ID_MAX];
 	struct platform_device *pdev;
 	struct camera_dev_dbg_info dbg_info;
-	struct wake_lock wakelock;
+	struct wakeup_source ws;
 	struct mutex camera_dualcam_mutex;
 	struct completion dualcam_recovery_com;
 };

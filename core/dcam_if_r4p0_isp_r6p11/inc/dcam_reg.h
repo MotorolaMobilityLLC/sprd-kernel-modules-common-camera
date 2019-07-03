@@ -15,11 +15,11 @@
 
 extern unsigned long s_dcam_regbase[];
 
-#define DCAM_BASE(idx)				(s_dcam_regbase[idx])
-#define DCAM0_CFG				    (0x0000UL)
-#define DCAM0_CONTROL				(0x0004UL)
-#define DCAM0_FULL_CFG				(0x0008UL)
-#define DCAM0_FULL_CROP_START	    (0x000CUL)
+#define DCAM_BASE(idx)              (s_dcam_regbase[idx])
+#define DCAM0_CFG                   (0x0000UL)
+#define DCAM0_CONTROL               (0x0004UL)
+#define DCAM0_FULL_CFG              (0x0008UL)
+#define DCAM0_FULL_CROP_START       (0x000CUL)
 #define DCAM0_FULL_CROP_SIZE        (0x0010UL)
 #define DCAM0_CAM_BIN_CFG           (0x0014UL)
 #define DCAM0_BIN_CROP_START        (0x0018UL)
@@ -151,43 +151,43 @@ extern unsigned long s_dcam_regbase[];
 #define DCAM_AXIM_DBG_STS           (0x0004UL)
 #define DCAM_AXIM_WORD_ENDIAN       (0x000CUL)
 
-#define DCAM_MMU_EN		    (0x0100UL)
+#define DCAM_MMU_EN                 (0x0100UL)
 #define DCAM_MMU_VAOR_ADDR_RD       (0x0118UL)
 #define DCAM_MMU_VAOR_ADDR_WR       (0x011CUL)
 #define DCAM_MMU_INV_ADDR_RD        (0x0120UL)
 #define DCAM_MMU_INV_ADDR_WR        (0x0124UL)
 #define DCAM_MMU_PT_UPDATE_QOS      (0x0134UL)
-#define DCAM_MMU_STS		    (0x0160UL)
+#define DCAM_MMU_STS                (0x0160UL)
 #define DCAM_MMU_PT_UPDATE_QOS_MASK (0xF)
 
 #define DCAM_AXIM_AQOS_MASK         (0x1E70F0F)
 
-#define DCAM_CAP_SKIP_FRM_MAX			16
-#define DCAM_FRM_DECI_FAC_MAX			4
-#define DCAM_CAP_FRAME_WIDTH_MAX		4224
-#define DCAM_CAP_FRAME_HEIGHT_MAX		3136
+#define DCAM_CAP_SKIP_FRM_MAX       16
+#define DCAM_FRM_DECI_FAC_MAX       4
+#define DCAM_CAP_FRAME_WIDTH_MAX    4224
+#define DCAM_CAP_FRAME_HEIGHT_MAX   3136
 
-#define DCAM_ISP_LINE_BUF_LENGTH		4224
-#define DCAM_SCALING_THRESHOLD			2600
+#define DCAM_ISP_LINE_BUF_LENGTH    4224
+#define DCAM_SCALING_THRESHOLD      2600
 
-#define DCAM_CAP_X_DECI_FAC_MAX		4
-#define DCAM_CAP_Y_DECI_FAC_MAX		4
-#define CAMERA_SC_COEFF_UP_MAX			4
-#define CAMERA_SC_COEFF_DOWN_MAX			4
-#define CAMERA_PATH_DECI_FAC_MAX			4
+#define DCAM_CAP_X_DECI_FAC_MAX     4
+#define DCAM_CAP_Y_DECI_FAC_MAX     4
+#define CAMERA_SC_COEFF_UP_MAX      4
+#define CAMERA_SC_COEFF_DOWN_MAX    4
+#define CAMERA_PATH_DECI_FAC_MAX    4
 
-#define DCAM_IRQ				IRQ_DCAM_INT
+#define DCAM_IRQ                    IRQ_DCAM_INT
 
-#define DCAM0_CFG_PATH_FULL	BIT(0)
-#define DCAM0_CFG_PATH_BIN	BIT(1)
-#define DCAM0_CFG_PATH_AEM	BIT(2)
-#define DCAM0_CFG_PATH_PDAF	BIT(3)
-#define DCAM0_CFG_PATH_VCH2	BIT(4)
-#define DCAM0_CFG_PATH_VCH3	BIT(5)
-#define DCAM1_CFG_PATH_FULL	BIT(0)
-#define DCAM1_CFG_PATH_BIN	BIT(1)
-#define DCAM1_CFG_PATH_AEM	BIT(2)
-#define DCAM1_CFG_PATH_VCH	BIT(3)
+#define DCAM0_CFG_PATH_FULL         BIT(0)
+#define DCAM0_CFG_PATH_BIN          BIT(1)
+#define DCAM0_CFG_PATH_AEM          BIT(2)
+#define DCAM0_CFG_PATH_PDAF         BIT(3)
+#define DCAM0_CFG_PATH_VCH2         BIT(4)
+#define DCAM0_CFG_PATH_VCH3         BIT(5)
+#define DCAM1_CFG_PATH_FULL         BIT(0)
+#define DCAM1_CFG_PATH_BIN          BIT(1)
+#define DCAM1_CFG_PATH_AEM          BIT(2)
+#define DCAM1_CFG_PATH_VCH          BIT(3)
 
 enum dcam_id {
 	DCAM_ID_0 = 0,

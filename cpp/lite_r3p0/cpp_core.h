@@ -18,11 +18,13 @@
 #include <linux/of_device.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
-#include <video/sprd_mm.h>
 #include <linux/dma-buf.h>
 #include <linux/scatterlist.h>
 #include <linux/sprd_iommu.h>
 #include <linux/sprd_ion.h>
+
+#include "sprd_mm.h"
+
 
 struct cpp_iommu_info {
 	struct device *dev;

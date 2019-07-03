@@ -28,19 +28,19 @@
 #include <linux/semaphore.h>
 #include <linux/uaccess.h>
 #include <linux/vmalloc.h>
+#include <video/sprd_mmsys_pw_domain.h>
 
 #if defined(CONFIG_COMPAT)
 #include <linux/compat.h>
 #endif
 
-#include <video/sprd_cpp.h>
-
-#include "cam_common.h"
+#include "cpp_common.h"
 #include "cpp_reg.h"
+#include "sprd_cpp.h"
 #include "rot_drv.h"
 #include "scale_drv.h"
 #include "dma_drv.h"
-#include "cam_pw_domain.h"
+
 
 #ifdef pr_fmt
 #undef pr_fmt
@@ -60,6 +60,10 @@
 #else
 #define CPP_IRQ_LINE_MASK       0x7UL
 #endif
+
+static const char * const syscon_name[] = {
+	"cpp_rst"
+};
 
 enum cpp_irq_id {
 	CPP_SCALE_DONE = 0,
@@ -101,6 +105,12 @@ struct scif_device {
 
 typedef void (*cpp_isr_func) (void *);
 
+struct register_gpr {
+	struct regmap *gpr;
+	unsigned int reg;
+	unsigned int mask;
+};
+
 struct cpp_device {
 	atomic_t users;
 	spinlock_t hw_lock;
@@ -128,7 +138,7 @@ struct cpp_device {
 	struct clk *cpp_axi_eb;
 	struct clk *clk_mm_eb;
 
-	struct regmap *cam_ahb_gpr;
+	struct register_gpr syscon_regs[ARRAY_SIZE(syscon_name)];
 };
 
 typedef void (*cpp_isr) (struct cpp_device *dev);
@@ -243,14 +253,15 @@ static int cpp_module_enable(struct cpp_device *dev)
 			goto fail;
 		}
 
-		regmap_update_bits(dev->cam_ahb_gpr, MM_AHB_RESET,
-				CPP_AHB_RESET_BIT,
-				(unsigned int)CPP_AHB_RESET_BIT);
+		regmap_update_bits(dev->syscon_regs[0].gpr,
+			dev->syscon_regs[0].reg,
+			dev->syscon_regs[0].mask,
+			dev->syscon_regs[0].mask);
 		udelay(2);
-
-		regmap_update_bits(dev->cam_ahb_gpr, MM_AHB_RESET,
-				CPP_AHB_RESET_BIT,
-				~(unsigned int)CPP_AHB_RESET_BIT);
+		regmap_update_bits(dev->syscon_regs[0].gpr,
+			dev->syscon_regs[0].reg,
+			dev->syscon_regs[0].mask,
+			~dev->syscon_regs[0].mask);
 
 		reg_awr(dev, CPP_MMU_EN, (0xfffffffe));
 		reg_owr(dev, MMU_PPN_RANGE1, (0xfff));
@@ -434,7 +445,7 @@ static long sprd_cpp_ioctl(struct file *file, unsigned int cmd,
 	struct scif_device *scif = NULL;
 	struct dmaif_device *dmaif = NULL;
 	struct sprd_cpp_rot_cfg_parm rot_parm;
-	struct sprd_cpp_scale_cfg_parm sc_parm;
+	struct sprd_cpp_scale_cfg_parm *sc_parm;
 	struct sprd_cpp_dma_cfg_parm dma_parm;
 	struct sprd_cpp_scale_capability sc_cap_param;
 	struct sprd_cpp_size s_sc_cap = {0, 0};
@@ -443,6 +454,11 @@ static long sprd_cpp_ioctl(struct file *file, unsigned int cmd,
 	dev = file->private_data;
 	if (!dev)
 		return -EFAULT;
+
+	memset(&rot_parm, 0x00, sizeof(rot_parm));
+	memset(&dma_parm, 0x00, sizeof(dma_parm));
+	memset(&sc_cap_param, 0x00, sizeof(sc_cap_param));
+	memset(&s_sc_cap, 0x00, sizeof(s_sc_cap));
 
 	switch (cmd) {
 	case SPRD_CPP_IO_OPEN_ROT:
@@ -534,22 +550,30 @@ static long sprd_cpp_ioctl(struct file *file, unsigned int cmd,
 			return -EFAULT;
 		}
 
+		sc_parm = kzalloc(sizeof(*sc_parm), GFP_KERNEL);
+		if (sc_parm == NULL) {
+			pr_err("fail to alloc memory\n");
+			return -EFAULT;
+		}
+
 		mutex_lock(&scif->sc_mutex);
 
-		ret = copy_from_user(&sc_parm,
-					(void __user *)arg, sizeof(sc_parm));
+		ret = copy_from_user(sc_parm,
+					(void __user *)arg, sizeof(*sc_parm));
 		if (ret) {
 			mutex_unlock(&scif->sc_mutex);
+			kfree(sc_parm);
 			return -EFAULT;
 		}
 
 		scif->drv_priv.iommu_src.dev = &dev->pdev->dev;
 		scif->drv_priv.iommu_dst.dev = &dev->pdev->dev;
 
-		ret = cpp_scale_start(&sc_parm, &scif->drv_priv);
+		ret = cpp_scale_start(sc_parm, &scif->drv_priv);
 		if (ret) {
 			cpp_scale_stop(&scif->drv_priv);
 			mutex_unlock(&scif->sc_mutex);
+			kfree(sc_parm);
 			pr_err("fail to start scaler\n");
 			return -EFAULT;
 		}
@@ -560,12 +584,14 @@ static long sprd_cpp_ioctl(struct file *file, unsigned int cmd,
 		if (rtn == 0) {
 			cpp_scale_stop(&scif->drv_priv);
 			mutex_unlock(&scif->sc_mutex);
+			kfree(sc_parm);
 			pr_err("fail to get scaling done com\n");
 			return -EBUSY;
 		}
 
 		cpp_scale_stop(&scif->drv_priv);
 		mutex_unlock(&scif->sc_mutex);
+		kfree(sc_parm);
 		break;
 	}
 
@@ -841,12 +867,16 @@ static const struct file_operations cpp_fops = {
 
 static int sprd_cpp_probe(struct platform_device *pdev)
 {
+	int i;
 	int ret = 0;
 	int irq = 0;
 	struct cpp_device *dev = NULL;
 	struct resource *res = NULL;
-	struct regmap *cam_ahb_gpr = NULL;
 	struct device_node *np_isp;
+	struct device_node *np;
+	const char *pname;
+	struct regmap *tregmap;
+	unsigned int args[2];
 
 	dev = devm_kzalloc(&pdev->dev, sizeof(*dev), GFP_KERNEL);
 	if (!dev)
@@ -872,12 +902,6 @@ static int sprd_cpp_probe(struct platform_device *pdev)
 	dev->cpp_axi_eb = devm_clk_get(&pdev->dev, "cpp_axi_eb");
 	if (IS_ERR(dev->cpp_axi_eb))
 		return PTR_ERR(dev->cpp_axi_eb);
-
-	cam_ahb_gpr = syscon_regmap_lookup_by_phandle(pdev->dev.of_node,
-			"sprd,cam-ahb-syscon");
-	if (IS_ERR(cam_ahb_gpr))
-		return PTR_ERR(cam_ahb_gpr);
-	dev->cam_ahb_gpr = cam_ahb_gpr;
 
 	/* hw: cpp,isp use the same clk
 	 * so read isp_clk, isp_clk_parent from isp node
@@ -928,6 +952,27 @@ static int sprd_cpp_probe(struct platform_device *pdev)
 	dev->md.this_device->platform_data = (void *)dev;
 	platform_set_drvdata(pdev, (void *)dev);
 
+	/* read global register */
+	for (i = 0; i < ARRAY_SIZE(syscon_name); i++) {
+		pname = syscon_name[i];
+		tregmap =  syscon_regmap_lookup_by_name(np, pname);
+		if (IS_ERR_OR_NULL(tregmap)) {
+			pr_err("fail to read %s regmap\n", pname);
+			continue;
+		}
+		ret = syscon_get_args_by_name(np, pname, 2, args);
+		if (ret != 2) {
+			pr_err("fail to read %s args, ret %d\n",
+				pname, ret);
+			continue;
+		}
+		dev->syscon_regs[i].gpr = tregmap;
+		dev->syscon_regs[i].reg = args[0];
+		dev->syscon_regs[i].mask = args[1];
+		pr_info("dts[%s] 0x%x 0x%x\n", pname,
+			dev->syscon_regs[i].reg, dev->syscon_regs[i].mask);
+	}
+
 	pr_info("cpp probe OK\n");
 
 	return 0;
@@ -945,7 +990,7 @@ static int sprd_cpp_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static const struct of_device_id of_match_table_rot[] = {
+static const struct of_device_id of_match_table[] = {
 	{ .compatible = "sprd,cpp", },
 	{},
 };
@@ -954,28 +999,14 @@ static struct platform_driver sprd_cpp_driver = {
 	.probe = sprd_cpp_probe,
 	.remove = sprd_cpp_remove,
 	.driver = {
-/*		.owner = THIS_MODULE, */
+		.owner = THIS_MODULE,
 		.name = CPP_DEVICE_NAME,
-		.of_match_table = of_match_ptr(of_match_table_rot),
+		.of_match_table = of_match_ptr(of_match_table),
 	},
 };
 
-static int __init sprd_cpp_init(void)
-{
-	int ret = 0;
+module_platform_driver(sprd_cpp_driver);
 
-	ret = platform_driver_register(&sprd_cpp_driver);
-	pr_info("init ret %d\n", ret);
-
-	return ret;
-}
-
-static void sprd_cpp_exit(void)
-{
-	platform_driver_unregister(&sprd_cpp_driver);
-}
-
-module_init(sprd_cpp_init);
-module_exit(sprd_cpp_exit);
-MODULE_DESCRIPTION("R3P0 Lite Cpp Driver");
+MODULE_DESCRIPTION("R3P0 Lite CPP Driver");
+MODULE_AUTHOR("Multimedia_Camera@Unisoc");
 MODULE_LICENSE("GPL");

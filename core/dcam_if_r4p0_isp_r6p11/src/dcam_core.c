@@ -32,12 +32,10 @@
 
 #include "dcam_core.h"
 #include "dcam_buf.h"
-#include "cam_pw_domain.h"
 #include "sprd_sensor_drv.h"
 #if defined(CONFIG_COMPAT)
 #include "compat_isp_drv.h"
 #endif
-#include "csi_api.h"
 
 /* Macro Definitions */
 #ifdef pr_fmt
@@ -2222,7 +2220,7 @@ static int sprd_img_k_open(struct inode *node, struct file *file)
 	is_dual_cam_dore = 0;
 	dual_cam_cap_sta = 0;
 
-	wake_lock(&camerafile->grp->wakelock);
+	__pm_stay_awake(&camerafile->grp->ws);
 	pr_info("sprd_img: open end!\n");
 
 	return 0;
@@ -2270,8 +2268,7 @@ static int sprd_img_k_release(struct inode *node, struct file *file)
 		}
 
 		mutex_destroy(&camerafile->grp->camera_dualcam_mutex);
-
-		wake_unlock(&camerafile->grp->wakelock);
+		__pm_relax(&camerafile->grp->ws);
 	}
 
 	vfree(camerafile);
@@ -2922,6 +2919,7 @@ static int sprd_camera_stream_on(struct camera_file *camerafile)
 		goto exit;
 	}
 
+#if 0
 	if (dev->init_inptr.statis_valid) {
 		group->cam_ion_client[idx] =
 			sprd_ion_client_get(dev->init_inptr.dev_fd);
@@ -2929,6 +2927,7 @@ static int sprd_camera_stream_on(struct camera_file *camerafile)
 			pr_err("fail to get ion client fd 0x%lx\n",
 				dev->init_inptr.dev_fd);
 	}
+#endif
 
 	ret = sprd_img_queue_init(&dev->queue);
 	if (unlikely(ret != 0)) {
@@ -3118,6 +3117,7 @@ static int sprd_camera_stream_off(struct camera_group *group,
 
 		atomic_set(&dev->stream_on, 0);
 
+#if 0
 		if (dev->init_inptr.statis_valid) {
 			if (group->cam_ion_client[idx]) {
 				sprd_ion_client_put(
@@ -3125,7 +3125,7 @@ static int sprd_camera_stream_off(struct camera_group *group,
 				group->cam_ion_client[idx] = NULL;
 			}
 		}
-
+#endif
 		ret = sprd_dcam_module_deinit(idx);
 		if (unlikely(ret)) {
 			pr_err("fail to deinit dcam module\n");
@@ -3951,7 +3951,7 @@ static ssize_t sprd_img_read(struct file *file, char __user *u_data,
 			read_op.parm.frame.length = node.reserved[0];
 			read_op.parm.frame.sec = node.time.tv_sec;
 			read_op.parm.frame.usec = node.time.tv_usec;
-			read_op.parm.frame.monoboottime = node.boot_time.tv64;
+			read_op.parm.frame.monoboottime = node.boot_time;
 			read_op.parm.frame.frm_base_id = path->frm_id_base;
 			read_op.parm.frame.img_fmt = path->fourcc;
 			read_op.parm.frame.yaddr = node.yaddr;
@@ -3983,7 +3983,9 @@ static ssize_t sprd_img_read(struct file *file, char __user *u_data,
 					= node.irq_property;
 				pr_info("DCAM_CORE: error evt %d\n",
 					read_op.evt);
+			#if 0
 				csi_api_reg_trace();
+			#endif
 
 			}
 		}
@@ -4568,16 +4570,9 @@ static int sprd_img_probe(struct platform_device *pdev)
 	image_dev.this_device->platform_data = (void *)group;
 	group->pdev = pdev;
 	atomic_set(&group->camera_opened, 0);
-	wake_lock_init(&group->wakelock, WAKE_LOCK_SUSPEND,
-		       "Camera Sys Wakelock");
+	wakeup_source_init(&group->ws, "Camera Sys Wakelock");
 
 	pr_info("sprd img probe pdev name %s\n", pdev->name);
-	ret = sprd_cam_pw_domain_init(pdev);
-	if (ret) {
-		pr_err("fail to init pw domain\n");
-		goto err_exit;
-	}
-
 	pr_info("sprd dcam dev name %s\n", pdev->dev.init_name);
 	ret = sprd_dcam_parse_dt(pdev->dev.of_node, &group->dcam_count);
 	if (ret) {
@@ -4659,7 +4654,7 @@ static int sprd_img_remove(struct platform_device *pdev)
 	group = image_dev.this_device->platform_data;
 	sprd_isp_drv_deinit();
 	sprd_dcam_drv_deinit();
-	wake_lock_destroy(&group->wakelock);
+	wakeup_source_trash(&group->ws);
 
 	misc_deregister(&image_dev);
 	vfree(group);

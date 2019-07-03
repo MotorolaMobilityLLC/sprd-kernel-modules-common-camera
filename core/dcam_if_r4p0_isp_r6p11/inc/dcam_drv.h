@@ -14,7 +14,8 @@
 #define _DCAM_DRV_H_
 
 #include <linux/platform_device.h>
-#include <video/sprd_img.h>
+
+#include "sprd_img.h"
 #include "sprd_isp_hw.h"
 #include "dcam_reg.h"
 #include "cam_iommu.h"

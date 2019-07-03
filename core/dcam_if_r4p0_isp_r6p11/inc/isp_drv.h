@@ -14,124 +14,125 @@
 #ifndef _ISP_DRV_HEADER_
 #define _ISP_DRV_HEADER_
 
-#include <linux/types.h>
-#include <linux/of.h>
-#include <linux/platform_device.h>
 #include <linux/bitops.h>
 #include <linux/kfifo.h>
-#include <video/sprd_img.h>
+#include <linux/of.h>
+#include <linux/platform_device.h>
+#include <linux/types.h>
 
+#include "sprd_img.h"
 #include "sprd_isp_hw.h"
 #include "isp_reg.h"
 #include "dcam_drv.h"
 #include "cam_iommu.h"
 
-#define ISP_PATH_FRAME_WIDTH_MAX		4224
-#define ISP_PATH_FRAME_HEIGHT_MAX		3168
-#define ISP_PATH1_LINE_BUF_LENGTH		2592
-#define ISP_PATH2_LINE_BUF_LENGTH		2592
-#define ISP_PATH3_LINE_BUF_LENGTH		2592
 
-#define ISP_FMCU_CMD_Q_SIZE		0x4000
-#define ISP_QUEUE_LENGTH			16
-#define ISP_SCL0_MAX_WIDTH			2304
-#define ISP_ONLINE_ZFACTOR_MAX		2
-#define ISP_BUF_QUEUE_LENGTH		16
-#define ISP_BING4AWB_NUM			2
-#define ISP_STATISTICS_BUF_MAX		4
-#define ISP_STATISTICS_QUEUE_LEN	8
-#define ISP_IMG_OUTPUT_PATH_MAX		3
-#define ISP_FRM_QUEUE_LENGTH		7
-#define ISP_PIXEL_ALIGN_WIDTH		4
-#define ISP_PIXEL_ALIGN_HEIGHT		2
-#define ISP_RAW_AFM_ITEM		40
-#define ISP_FRGB_GAMMA_BUF_SIZE     (257 * 4 + 4)
-#define ISP_NLM_BUF_SIZE            (1024 * 4 + 4)
-#define LENS_W_BUF_SIZE             (512)
+#define ISP_PATH_FRAME_WIDTH_MAX                        4224
+#define ISP_PATH_FRAME_HEIGHT_MAX                       3168
+#define ISP_PATH1_LINE_BUF_LENGTH                       2592
+#define ISP_PATH2_LINE_BUF_LENGTH                       2592
+#define ISP_PATH3_LINE_BUF_LENGTH                       2592
 
-#define ISP_LOWEST_ADDR            0x800
+#define ISP_FMCU_CMD_Q_SIZE                             0x4000
+#define ISP_QUEUE_LENGTH                                16
+#define ISP_SCL0_MAX_WIDTH                              2304
+#define ISP_ONLINE_ZFACTOR_MAX                          2
+#define ISP_BUF_QUEUE_LENGTH                            16
+#define ISP_BING4AWB_NUM                                2
+#define ISP_STATISTICS_BUF_MAX                          4
+#define ISP_STATISTICS_QUEUE_LEN                        8
+#define ISP_IMG_OUTPUT_PATH_MAX                         3
+#define ISP_FRM_QUEUE_LENGTH                            7
+#define ISP_PIXEL_ALIGN_WIDTH                           4
+#define ISP_PIXEL_ALIGN_HEIGHT                          2
+#define ISP_RAW_AFM_ITEM                                40
+#define ISP_FRGB_GAMMA_BUF_SIZE                         (257 * 4 + 4)
+#define ISP_NLM_BUF_SIZE                                (1024 * 4 + 4)
+#define LENS_W_BUF_SIZE                                 (512)
+
+#define ISP_LOWEST_ADDR                                 0x800
 #define ISP_ADDR_INVALID(addr)     \
-			((unsigned long)(addr) < (unsigned long)ISP_LOWEST_ADDR)
+                ((unsigned long)(addr) < (unsigned long)ISP_LOWEST_ADDR)
 
-#define ISP_PATH_TIMEOUT			msecs_to_jiffies(500)
+#define ISP_PATH_TIMEOUT                        msecs_to_jiffies(500)
 
-#define ISP_PATH_PRE_FRM_CNT_MAX			32
-#define ISP_PATH_CAP_FRM_CNT_MAX			32
-#define ISP_PATH_VID_FRM_CNT_MAX			32
-#define ISP_PATH_0_FRM_CNT_MAX				48
+#define ISP_PATH_PRE_FRM_CNT_MAX                        32
+#define ISP_PATH_CAP_FRM_CNT_MAX                        32
+#define ISP_PATH_VID_FRM_CNT_MAX                        32
+#define ISP_PATH_0_FRM_CNT_MAX                          48
 
-#define ISP_SC_COEFF_BUF_COUNT				20
-#define ISP_SC_COEFF_BUF_SIZE			(24 << 10)
-#define ISP_SC_COEFF_COEF_SIZE			(1 << 10)
-#define ISP_SC_COEFF_TMP_SIZE			(21 << 10)
-#define ISP_PATH_SCL_COUNT	5
+#define ISP_SC_COEFF_BUF_COUNT                          20
+#define ISP_SC_COEFF_BUF_SIZE                           (24 << 10)
+#define ISP_SC_COEFF_COEF_SIZE                          (1 << 10)
+#define ISP_SC_COEFF_TMP_SIZE                           (21 << 10)
+#define ISP_PATH_SCL_COUNT                              5
 
-#define ISP_SC_H_COEF_SIZE				0xC0
-#define ISP_SC_V_COEF_SIZE				0x210
-#define ISP_SC_V_CHROM_COEF_SIZE			0x210
+#define ISP_SC_H_COEF_SIZE                              0xC0
+#define ISP_SC_V_COEF_SIZE                              0x210
+#define ISP_SC_V_CHROM_COEF_SIZE                        0x210
 
-#define ISP_SC_COEFF_H_NUM			(ISP_SC_H_COEF_SIZE/4)
-#define ISP_SC_COEFF_V_NUM			(ISP_SC_V_COEF_SIZE/4)
-#define ISP_SC_COEFF_V_CHROMA_NUM		(ISP_SC_V_CHROM_COEF_SIZE/4)
+#define ISP_SC_COEFF_H_NUM                      (ISP_SC_H_COEF_SIZE/4)
+#define ISP_SC_COEFF_V_NUM                      (ISP_SC_V_COEF_SIZE/4)
+#define ISP_SC_COEFF_V_CHROMA_NUM               (ISP_SC_V_CHROM_COEF_SIZE/4)
 
-#define ISP_LSC_BUF_SIZE			(32 * 1024)
+#define ISP_LSC_BUF_SIZE                        (32 * 1024)
 
-#define OFFLINE_BUFFER_NUM	2
+#define OFFLINE_BUFFER_NUM                      2
 
-#define ISP_OFF_BUF_BIN		0x00UL
-#define ISP_OFF_BUF_FULL	0x01UL
-#define ISP_OFF_BUF_BOTH	0x02UL
-#define ISP_OFF_BUF_NONE	0x03UL
+#define ISP_OFF_BUF_BIN                         0x00UL
+#define ISP_OFF_BUF_FULL                        0x01UL
+#define ISP_OFF_BUF_BOTH                        0x02UL
+#define ISP_OFF_BUF_NONE                        0x03UL
 
 /* Dynamic switch isp clk */
-#define ISP_CLK_P_P		BIT_0	/* for normale,preview, video */
-#define ISP_CLK_P_C		BIT_1	/* for capture */
-#define ISP_CLK_P_S		BIT_2	/* for slow motion */
+#define ISP_CLK_P_P             BIT_0   /* for normale,preview, video */
+#define ISP_CLK_P_C             BIT_1   /* for capture */
+#define ISP_CLK_P_S             BIT_2   /* for slow motion */
 
 /* isp iommu channel r/w type */
-#define ISP_IOMMU_CH_AR	SPRD_IOMMU_EX_CH_READ
-#define ISP_IOMMU_CH_AW	SPRD_IOMMU_EX_CH_WRITE
+#define ISP_IOMMU_CH_AR                         SPRD_IOMMU_EX_CH_READ
+#define ISP_IOMMU_CH_AW                         SPRD_IOMMU_EX_CH_WRITE
 
 /* isp outstanding mask */
-#define ISP_AXI_ITI2AXIM_ROSTD_MASK 0x0000FF00
+#define ISP_AXI_ITI2AXIM_ROSTD_MASK             0x0000FF00
 
 /* AXI ID for isp */
 /* rd */
-#define AR_ID_CFG	(BIT_0)
-#define AR_ID_BPC	(BIT_1)
-#define AR_ID_LSC	(BIT_2)
-#define AR_ID_FMCU	(BIT_3)
-#define AR_ID_FETCH_Y	(BIT_4)
-#define AR_ID_FETCH_U	(BIT_5)
-#define AR_ID_FETCH_V	(BIT_6)
+#define AR_ID_CFG                               (BIT_0)
+#define AR_ID_BPC                               (BIT_1)
+#define AR_ID_LSC                               (BIT_2)
+#define AR_ID_FMCU                              (BIT_3)
+#define AR_ID_FETCH_Y                           (BIT_4)
+#define AR_ID_FETCH_U                           (BIT_5)
+#define AR_ID_FETCH_V                           (BIT_6)
 
 /* wr */
-#define AW_ID_STORE_O_Y	(BIT_0)
-#define AW_ID_STORE_O_U	(BIT_1)
-#define AW_ID_STORE_O_V	(BIT_2)
-#define	AW_ID_AEM	(BIT_3)
-#define	AW_ID_AFL_GLB	(BIT_4)
-#define	AW_ID_AFL_REGION	(BIT_5)
-#define	AW_ID_BINNING	(BIT_6)
-#define	AW_ID_BPC	(BIT_7)
-#define	AW_ID_STORE_VID_Y	(BIT_8)
-#define	AW_ID_STORE_VID_U	(BIT_9)
-#define	AW_ID_STORE_VID_V	(BIT_10)
-#define	AW_ID_STORE_VID_YUV	\
+#define AW_ID_STORE_O_Y                         (BIT_0)
+#define AW_ID_STORE_O_U                         (BIT_1)
+#define AW_ID_STORE_O_V                         (BIT_2)
+#define AW_ID_AEM                               (BIT_3)
+#define AW_ID_AFL_GLB                           (BIT_4)
+#define AW_ID_AFL_REGION                        (BIT_5)
+#define AW_ID_BINNING                           (BIT_6)
+#define AW_ID_BPC                               (BIT_7)
+#define AW_ID_STORE_VID_Y                       (BIT_8)
+#define AW_ID_STORE_VID_U                       (BIT_9)
+#define AW_ID_STORE_VID_V                       (BIT_10)
+#define AW_ID_STORE_VID_YUV     \
 	(AW_ID_STORE_VID_Y | AW_ID_STORE_VID_U | AW_ID_STORE_VID_V)
-#define	AW_ID_STORE_PRE_CAP_Y	(BIT_11)
-#define	AW_ID_STORE_PRE_CAP_U	(BIT_12)
-#define	AW_ID_STORE_PRE_CAP_V	(BIT_13)
-#define	AW_ID_STORE_PRE_CAP_YUV	\
+#define AW_ID_STORE_PRE_CAP_Y                   (BIT_11)
+#define AW_ID_STORE_PRE_CAP_U                   (BIT_12)
+#define AW_ID_STORE_PRE_CAP_V                   (BIT_13)
+#define AW_ID_STORE_PRE_CAP_YUV \
 	(AW_ID_STORE_PRE_CAP_Y | AW_ID_STORE_PRE_CAP_U | AW_ID_STORE_PRE_CAP_V)
 
-#define	ISP_SBLK_MAP_CNT 3
-#define ISP_SBLK_MAP_SIZE (sizeof(int) * BITS_PER_BYTE) /* unit: bit */
+#define ISP_SBLK_MAP_CNT                        3
+#define ISP_SBLK_MAP_SIZE       (sizeof(int) * BITS_PER_BYTE) /* unit: bit */
 
 /* get map id by number of sub-blk */
-#define isp_dbg_g_sblk_map(nr)  ((nr) / ISP_SBLK_MAP_SIZE)
+#define isp_dbg_g_sblk_map(nr)                  ((nr) / ISP_SBLK_MAP_SIZE)
 /* get bit site in a word */
-#define isp_dbg_g_sblk_site(nr) ((nr) % ISP_SBLK_MAP_SIZE)
+#define isp_dbg_g_sblk_site(nr)                 ((nr) % ISP_SBLK_MAP_SIZE)
 /* update map using byp_flag on bit_site */
 #define isp_dbg_u_sblk_map(map, bit_site, byp_flag) \
 	(((map) & ~(1 << (bit_site))) | ((byp_flag) << (bit_site)))

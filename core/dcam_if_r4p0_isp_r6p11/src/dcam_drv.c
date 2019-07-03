@@ -11,31 +11,32 @@
  * GNU General Public License for more details.
  */
 
+#include <dt-bindings/soc/sprd,sharkle-regs.h>
+#include <dt-bindings/soc/sprd,sharkle-mask.h>
 #include <linux/bitops.h>
 #include <linux/clk.h>
+#include <linux/completion.h>
 #include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/kthread.h>
-#include <linux/mfd/syscon/sprd-glb.h>
 #include <linux/mfd/syscon.h>
 #include <linux/printk.h>
 #include <linux/regmap.h>
 #include <linux/semaphore.h>
-#include <linux/completion.h>
 #include <linux/slab.h>
 #include <linux/sprd_ion.h>
+#include <linux/sprd_iommu.h>
 #include <linux/videodev2.h>
 #include <linux/vmalloc.h>
-#include <linux/wakelock.h>
-#include <linux/sprd_iommu.h>
-#include <video/sprd_mm.h>
+#include <video/sprd_mmsys_pw_domain.h>
+
+#include "sprd_mm.h"
 #include "dcam_drv.h"
 #include "gen_scale_coef.h"
 #include "getyuvinput.h"
-#include "cam_pw_domain.h"
 #include "isp_drv.h"
 #include "dcam_buf.h"
 #include "dcam_core.h"

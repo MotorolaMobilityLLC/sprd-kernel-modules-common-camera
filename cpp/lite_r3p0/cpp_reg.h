@@ -13,8 +13,8 @@
 #ifndef _CPP_REG_H_
 #define _CPP_REG_H_
 
-#define MM_AHB_RESET                  (0x0004UL)	/* need to check */
-#define CPP_AHB_RESET_BIT              (1 << 15)	/* need to check */
+//#define MM_AHB_RESET                  (0x0004UL)	/* need to check */
+//#define CPP_AHB_RESET_BIT              (1 << 15)	/* need to check */
 
 #define CPP_BASE                       0x00
 

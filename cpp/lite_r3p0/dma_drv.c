@@ -18,10 +18,9 @@
 #include <linux/of_device.h>
 #include <linux/regmap.h>
 
-#include <video/sprd_cpp.h>
-
-#include "../../common/cam_common.h"
+#include "cpp_common.h"
 #include "cpp_reg.h"
+#include "sprd_cpp.h"
 #include "dma_drv.h"
 
 #ifdef pr_fmt

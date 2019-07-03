@@ -11,12 +11,14 @@
  * GNU General Public License for more details.
  */
 #include <linux/err.h>
-#include <linux/sprd_iommu.h>
-#include <linux/sprd_ion.h>
-#include "cam_iommu.h"
 #include <linux/list.h>
 #include <linux/mutex.h>
 #include <linux/slab.h>
+#include <linux/sprd_iommu.h>
+#include <linux/sprd_ion.h>
+
+#include "cam_iommu.h"
+
 
 struct fd_map_dma {
 	struct list_head list;
@@ -143,6 +145,7 @@ int pfiommu_get_addr(struct pfiommu_info *pfinfo)
 	return ret;
 }
 
+#if 0
 int pfiommu_check_addr(struct pfiommu_info *pfinfo)
 {
 	struct fd_map_dma *fd_dma = NULL;
@@ -162,6 +165,7 @@ int pfiommu_check_addr(struct pfiommu_info *pfinfo)
 	}
 	return sprd_ion_check_phys_addr(pfinfo->dmabuf_p[0]);
 }
+#endif
 
 int pfiommu_free_addr(struct pfiommu_info *pfinfo)
 {

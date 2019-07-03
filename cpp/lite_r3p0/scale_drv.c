@@ -18,10 +18,9 @@
 #include <linux/of_device.h>
 #include <linux/semaphore.h>
 
-#include <uapi/video/sprd_cpp.h>
-
-#include "../../common/cam_common.h"
+#include "cpp_common.h"
 #include "cpp_reg.h"
+#include "sprd_cpp.h"
 #include "cpp_core.h"
 #include "scale_drv.h"
 

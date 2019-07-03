@@ -15,7 +15,8 @@
 #define _REG_ISP_H_
 
 #include <linux/types.h>
-#include <video/sprd_mm.h>
+
+#include "sprd_mm.h"
 
 #ifdef pr_fmt
 #undef pr_fmt
