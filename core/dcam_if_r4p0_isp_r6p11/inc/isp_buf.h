@@ -47,8 +47,6 @@ int isp_offline_init_buf(
 	struct isp_offline_desc *off_desc, uint8_t off_type, bool queue_only);
 int isp_offline_get_buf(
 	struct isp_offline_desc *off_desc, uint8_t off_type);
-int isp_offline_reset_buf(
-	struct isp_offline_desc *off_desc, uint8_t off_type);
 int isp_offline_put_buf(
 	struct isp_offline_desc *off_desc, uint8_t off_type);
 int isp_offline_buf_iommu_map(

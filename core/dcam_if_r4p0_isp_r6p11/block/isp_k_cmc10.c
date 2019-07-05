@@ -13,7 +13,8 @@
 
 
 #include <linux/uaccess.h>
-#include <video/sprd_mm.h>
+
+#include "sprd_mm.h"
 #include "sprd_isp_hw.h"
 #include "isp_drv.h"
 

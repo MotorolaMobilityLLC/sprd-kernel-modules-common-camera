@@ -951,6 +951,7 @@ static int sprd_cpp_probe(struct platform_device *pdev)
 	dev->pdev = pdev;
 	dev->md.this_device->platform_data = (void *)dev;
 	platform_set_drvdata(pdev, (void *)dev);
+	np = pdev->dev.of_node;
 
 	/* read global register */
 	for (i = 0; i < ARRAY_SIZE(syscon_name); i++) {

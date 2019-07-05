@@ -12,7 +12,8 @@
  */
 
 #include <linux/uaccess.h>
-#include <video/sprd_mm.h>
+
+#include "sprd_mm.h"
 #include "dcam_block.h"
 #include "dcam_drv.h"
 #include "dcam_buf.h"

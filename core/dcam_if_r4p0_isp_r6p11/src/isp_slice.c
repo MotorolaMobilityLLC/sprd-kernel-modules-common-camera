@@ -15,7 +15,8 @@
 #include <linux/kthread.h>
 #include <linux/vmalloc.h>
 #include <linux/slab.h>
-#include <video/sprd_mm.h>
+
+#include "sprd_mm.h"
 #include "isp_slice.h"
 
 #ifdef pr_fmt

@@ -556,8 +556,9 @@ struct isp_statis_buf_node {
 struct isp_buf_info {
 	char name[ISP_BUF_SHORT_NAME_LEN+1];
 	size_t size;
-	void *client;
-	void *handle;
+	struct dma_buf *dmabuf_p;
+	void *buf;
+	size_t buf_size;
 	void *sw_addr;
 	void *hw_addr;
 };
@@ -697,8 +698,9 @@ struct isp_path_desc {
 };
 
 struct offline_ion_buf {
-	struct ion_client *client;
-	struct ion_handle *handle;
+	struct dma_buf *dmabuf_p;
+	void *buf;
+	size_t buf_size;
 	struct camera_addr addr;
 };
 

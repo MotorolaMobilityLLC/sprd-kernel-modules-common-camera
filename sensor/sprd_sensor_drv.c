@@ -28,10 +28,10 @@
 #include <linux/regulator/consumer.h>
 #include <linux/sched.h>
 
+#include "sprd_mm.h"
 #include "csi_api.h"
 #include "sprd_sensor_core.h"
 #include "sprd_sensor_drv.h"
-#include <sprd_mm.h>
 
 #ifdef pr_fmt
 #undef pr_fmt

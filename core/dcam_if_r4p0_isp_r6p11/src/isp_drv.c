@@ -21,9 +21,10 @@
 #include <linux/kthread.h>
 #include <linux/pagemap.h>
 #include <linux/sprd_iommu.h>
-#include <linux/mfd/syscon/sprd-glb.h>
-#include <video/sprd_mm.h>
-#include <video/sprd_img.h>
+#include <video/sprd_mmsys_pw_domain.h>
+
+#include "sprd_mm.h"
+#include "sprd_img.h"
 #include "isp_buf.h"
 #include "isp_statis_buf.h"
 #include "isp_drv.h"
@@ -32,23 +33,21 @@
 #include "isp_slice.h"
 #include "gen_scale_coef.h"
 #include "isp_slw.h"
-#include "cam_pw_domain.h"
 #include "isp_block.h"
 #include "dcam_core.h"
 #include "ion.h"
-#include "ion_priv.h"
 
-#define ISP_OFF_PRODUCER_Q_SIZE_MAX	2
-#define ISP_OFF_PRODUCER_Q_SIZE_MIN	1
-#define ISP_OFF_CONSUMER_Q_SIZE		2
-#define ISP_OFF_CONSUMER_Q_SIZE_MULTI	4
-#define ISP_HDR_FRM_NUM		3
-#define ISP_3DNR_NUM            5
-#define ISP_AXI_STOP_TIMEOUT	1000
-#define ISP_SCALER_CFG_MASK	0x21800000
-#define LSC_BUF_NAME		"2D_LSC"
-#define WAIT_CNT_MS		50
-#define FMCU_STOP_WAIT_CNT	(WAIT_CNT_MS * 2)
+#define ISP_OFF_PRODUCER_Q_SIZE_MAX             2
+#define ISP_OFF_PRODUCER_Q_SIZE_MIN             1
+#define ISP_OFF_CONSUMER_Q_SIZE                 2
+#define ISP_OFF_CONSUMER_Q_SIZE_MULTI           4
+#define ISP_HDR_FRM_NUM                         3
+#define ISP_3DNR_NUM                            5
+#define ISP_AXI_STOP_TIMEOUT                    1000
+#define ISP_SCALER_CFG_MASK                     0x21800000
+#define LSC_BUF_NAME                            "2D_LSC"
+#define WAIT_CNT_MS                             50
+#define FMCU_STOP_WAIT_CNT                      (WAIT_CNT_MS * 2)
 
 #ifdef pr_fmt
 #undef pr_fmt
@@ -56,7 +55,18 @@
 #define pr_fmt(fmt) "ISP_DRV (%d): %s %d: " \
 	fmt, current->pid, __func__, __LINE__
 
-#define ISP_OTHER_ID(iid)	(iid == ISP_ID_0 ? ISP_ID_1 : ISP_ID_0)
+#define ISP_OTHER_ID(iid)       (iid == ISP_ID_0 ? ISP_ID_1 : ISP_ID_0)
+
+struct register_gpr {
+	struct regmap *gpr;
+	uint32_t reg;
+	uint32_t mask;
+};
+
+enum {
+	ISP_FMCU_RESET = 0,
+	ISP_HW_RESET
+};
 
 struct platform_device *s_isp_pdev;
 struct isp_pipe_dev *g_isp_dev_parray[ISP_MAX_COUNT];
@@ -71,7 +81,6 @@ static struct clk *isp0_axi_eb;
 static struct clk *isp0_eb;
 struct isp_ch_irq s_isp_irq[ISP_MAX_COUNT];
 static struct mutex isp_module_sema[ISP_MAX_COUNT];
-static struct regmap *cam_ahb_gpr;
 
 static spinlock_t isp_glb_reg_axi_lock[ISP_MAX_COUNT];
 static spinlock_t isp_glb_reg_mask_lock[ISP_MAX_COUNT];
@@ -81,6 +90,13 @@ static atomic_t isp_enable_lock;
 /* Dynamic switch isp clk: flag D0-D15 for iid 0 */
 static DEFINE_SPINLOCK(isp_clk_pr);
 static int isp_clk_flag;
+
+static const char * const syscon_name[] = {
+	"fmcu_rst",
+	"hw_rst"
+};
+static struct register_gpr syscon_regs[ARRAY_SIZE(syscon_name)];
+
 struct isp_clk_gate isp_clk_gt;
 unsigned int is_dual_cam;
 unsigned int is_dual_cam_dore;
@@ -296,14 +312,15 @@ EXPORT_SYMBOL(isp_dbg_dump_fmcu_cmd_q);
 
 static void sprd_isp_reset_fmcu(void)
 {
-	unsigned int flag = 0;
-
-	flag = BIT(7);
-	regmap_update_bits(cam_ahb_gpr,
-	REG_MM_AHB_AHB_RST, flag, flag);
+	regmap_update_bits(syscon_regs[ISP_FMCU_RESET].gpr,
+		syscon_regs[ISP_FMCU_RESET].reg,
+		syscon_regs[ISP_FMCU_RESET].mask,
+		syscon_regs[ISP_FMCU_RESET].mask);
 	udelay(1);
-	regmap_update_bits(cam_ahb_gpr,
-	REG_MM_AHB_AHB_RST, flag, ~flag);
+	regmap_update_bits(syscon_regs[ISP_FMCU_RESET].gpr,
+		syscon_regs[ISP_FMCU_RESET].reg,
+		syscon_regs[ISP_FMCU_RESET].mask,
+		~syscon_regs[ISP_FMCU_RESET].mask);
 }
 
 static int offline_bin_thread_loop(void *arg)
@@ -581,20 +598,21 @@ static void sprd_isp_glb_reg_owr(unsigned int idx, unsigned long addr,
 static void do_reset_isp_hw(struct isp_pipe_dev *dev)
 {
 	unsigned int idx = dev->com_idx;
-	unsigned int flag = 0;
 	struct isp_cctx_desc *cctx_desc = NULL;
 
 	cctx_desc = dev->module_info.cctx_desc;
 
-	flag = BIT(5) | BIT(6) | BIT(7);
-	regmap_update_bits(cam_ahb_gpr,
-		REG_MM_AHB_AHB_RST, flag, flag);
+	regmap_update_bits(syscon_regs[ISP_HW_RESET].gpr,
+		syscon_regs[ISP_HW_RESET].reg,
+		syscon_regs[ISP_HW_RESET].mask,
+		syscon_regs[ISP_HW_RESET].mask);
 	udelay(1);
-	regmap_update_bits(cam_ahb_gpr,
-		REG_MM_AHB_AHB_RST, flag, ~flag);
+	regmap_update_bits(syscon_regs[ISP_HW_RESET].gpr,
+		syscon_regs[ISP_HW_RESET].reg,
+		syscon_regs[ISP_HW_RESET].mask,
+		~syscon_regs[ISP_HW_RESET].mask);
 
-	sprd_isp_glb_reg_awr(idx, ISP_AXI_ITI2AXIM_CTRL,
-				~BIT_26, ISP_AXI_REG);
+	sprd_isp_glb_reg_awr(idx, ISP_AXI_ITI2AXIM_CTRL, ~BIT_26, ISP_AXI_REG);
 	/*
 	 * After do_reset_isp_hw, isp cfg map buf
 	 * will be reset together, so it's necessary
@@ -4372,27 +4390,31 @@ void sprd_isp_drv_deinit(void)
 
 int sprd_isp_parse_dt(struct device_node *dn, unsigned int *isp_count)
 {
+	int ret = 0;
 	int i = 0;
 	unsigned int count = 0;
 	unsigned int offbuf_count = ISP_FRM_QUEUE_LENGTH;
 	void __iomem *reg_base;
-	struct device_node *isp_node = NULL;
+	struct device_node *np = NULL;
 	struct resource res = {0};
+	const char *pname;
+	struct regmap *tregmap;
+	unsigned int args[2];
 
 	pr_info("isp dev device node %s, full name %s\n",
 		dn->name, dn->full_name);
-	isp_node = of_parse_phandle(dn, "sprd,isp", 0);
-	if (isp_node == NULL) {
+	np = of_parse_phandle(dn, "sprd,isp", 0);
+	if (np == NULL) {
 		pr_err("fail to parse the property of sprd,isp\n");
 		return -EFAULT;
 	}
 
 	pr_info("after isp dev device node %s, full name %s\n",
-		isp_node->name, isp_node->full_name);
-	s_isp_pdev = of_find_device_by_node(isp_node);
+		np->name, np->full_name);
+	s_isp_pdev = of_find_device_by_node(np);
 	pr_info("sprd s_isp_pdev name %s\n", s_isp_pdev->name);
-	if (of_device_is_compatible(isp_node, "sprd,isp")) {
-		if (of_property_read_u32_index(isp_node,
+	if (of_device_is_compatible(np, "sprd,isp")) {
+		if (of_property_read_u32_index(np,
 			"sprd,isp-count", 0, &count)) {
 			pr_err("fail to parse the property of sprd,isp-count\n");
 			return -EINVAL;
@@ -4403,7 +4425,7 @@ int sprd_isp_parse_dt(struct device_node *dn, unsigned int *isp_count)
 		 * considering HDR not supported and alleviate memory usage
 		 * for low-end device.
 		 */
-		if (of_property_read_u32_index(isp_node,
+		if (of_property_read_u32_index(np,
 			"sprd,isp-offbuf-count", 0, &offbuf_count)) {
 			pr_info("fail to parse. set offline buffer count to 5.\n");
 		}
@@ -4425,41 +4447,55 @@ int sprd_isp_parse_dt(struct device_node *dn, unsigned int *isp_count)
 
 		s_isp_count = count;
 		*isp_count = count;
-		isp0_eb = of_clk_get_by_name(isp_node, "isp_eb");
+		isp0_eb = of_clk_get_by_name(np, "isp_eb");
 		if (IS_ERR(isp0_eb)) {
 			pr_err("fail to get isp0_eb\n");
 			return PTR_ERR(isp0_eb);
 		}
 
-		isp0_axi_eb = of_clk_get_by_name(isp_node,
-			"isp_axi_eb");
+		isp0_axi_eb = of_clk_get_by_name(np, "isp_axi_eb");
 		if (IS_ERR(isp0_axi_eb)) {
 			pr_err("fail to get isp0_axi_eb\n");
 			return PTR_ERR(isp0_axi_eb);
 		}
 
-		isp0_clk = of_clk_get_by_name(isp_node, "isp_clk");
+		isp0_clk = of_clk_get_by_name(np, "isp_clk");
 		if (IS_ERR(isp0_clk)) {
 			pr_err("fail to get isp0_clk\n");
 			return PTR_ERR(isp0_clk);
 		}
 
-		isp0_clk_parent = of_clk_get_by_name(isp_node,
-			"isp_clk_parent");
+		isp0_clk_parent = of_clk_get_by_name(np, "isp_clk_parent");
 		if (IS_ERR(isp0_clk_parent)) {
 			pr_err("fail to get isp0_clk_parent\n");
 			return PTR_ERR(isp0_clk_parent);
 		}
 
-		cam_ahb_gpr = syscon_regmap_lookup_by_phandle(isp_node,
-			"sprd,cam-ahb-syscon");
-		if (IS_ERR(cam_ahb_gpr))
-			return PTR_ERR(cam_ahb_gpr);
-
 		isp0_clk_default = clk_get_parent(isp0_clk);
 		if (IS_ERR(isp0_clk_default)) {
 			pr_err("fail to get isp0_clk_default\n");
 			return PTR_ERR(isp0_clk_default);
+		}
+
+		/* read global register */
+		for (i = 0; i < ARRAY_SIZE(syscon_name); i++) {
+			pname = syscon_name[i];
+			tregmap =  syscon_regmap_lookup_by_name(np, pname);
+			if (IS_ERR_OR_NULL(tregmap)) {
+				pr_err("fail to read %s regmap\n", pname);
+				continue;
+			}
+			ret = syscon_get_args_by_name(np, pname, 2, args);
+			if (ret != 2) {
+				pr_err("fail to read %s args, ret %d\n",
+					pname, ret);
+				continue;
+			}
+			syscon_regs[i].gpr = tregmap;
+			syscon_regs[i].reg = args[0];
+			syscon_regs[i].mask = args[1];
+			pr_info("dts[%s] 0x%x 0x%x\n", pname,
+				syscon_regs[i].reg, syscon_regs[i].mask);
 		}
 
 		for (i = 0; i < count; i++) {
@@ -4469,13 +4505,13 @@ int sprd_isp_parse_dt(struct device_node *dn, unsigned int *isp_count)
 			 * and of_iomap use index 0 to get res and reg_base,
 			 * avoiding to change isp reg property in dts.
 			 */
-			if (of_address_to_resource(isp_node, 0, &res))
+			if (of_address_to_resource(np, 0, &res))
 				pr_err("fail to get isp phys addr\n");
 
 			isp_phys_base[i] = (unsigned long)res.start;
 			pr_info("isp phys reg base is %lx\n", isp_phys_base[i]);
 
-			reg_base = of_iomap(isp_node, 0);
+			reg_base = of_iomap(np, 0);
 			if (!reg_base) {
 				pr_err("fail to get isp reg_base %d\n", i);
 				return -ENXIO;
@@ -4483,7 +4519,7 @@ int sprd_isp_parse_dt(struct device_node *dn, unsigned int *isp_count)
 
 			s_isp_regbase[i] = (unsigned long)reg_base;
 
-			s_isp_irq[i].ch0 = irq_of_parse_and_map(isp_node, i);
+			s_isp_irq[i].ch0 = irq_of_parse_and_map(np, i);
 			if (s_isp_irq[i].ch0 <= 0) {
 				pr_err("fail to get isp irq %d\n", i);
 				return -EFAULT;

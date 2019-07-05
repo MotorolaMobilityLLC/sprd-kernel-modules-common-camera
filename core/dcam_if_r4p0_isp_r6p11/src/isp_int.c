@@ -13,6 +13,7 @@
 
 #include <linux/interrupt.h>
 #include <linux/uaccess.h>
+
 #include "isp_int.h"
 #include "isp_buf.h"
 #include "isp_path.h"
@@ -20,13 +21,11 @@
 #include "isp_slw.h"
 #include "isp_statis_buf.h"
 #include "isp_reg.h"
-
 #include "dcam_core.h"
 
 #define ION
 #ifdef ION
 #include "ion.h"
-#include "ion_priv.h"
 #endif
 
 #ifdef pr_fmt
