@@ -3190,8 +3190,7 @@ static int sprd_camioctl_dcam_out_size(struct camera_dev *dev,
 
 	CAM_TRACE("%d: dcam out size\n", idx);
 	mutex_lock(&dev->cam_mutex);
-	ret = copy_from_user(&parm, (void __user *)arg,
-		sizeof(struct sprd_dcam_path_size));
+	ret = copy_from_user(&parm, (void __user *)arg, sizeof(parm));
 	if (ret) {
 		pr_err("fail to get user info ret %d\n", ret);
 		ret = -EFAULT;
@@ -3209,8 +3208,7 @@ static int sprd_camioctl_dcam_out_size(struct camera_dev *dev,
 	parm.dcam_out_w = parm.dcam_in_w;
 	parm.dcam_out_h = parm.dcam_in_h;
 
-	ret = copy_to_user((void __user *)arg, &parm,
-		sizeof(struct sprd_dcam_path_size));
+	ret = copy_to_user((void __user *)arg, &parm, sizeof(parm));
 	if (ret) {
 		pr_err("fail to copy to user, ret = %d\n", ret);
 		ret = -EFAULT;
@@ -3235,8 +3233,7 @@ static int sprd_camioctl_io_cap_mode_set(struct camera_file *camerafile,
 	ctx = &dev->cam_ctx;
 
 	mutex_lock(&dev->cam_mutex);
-	ret = copy_from_user(&mode, (void __user *) arg,
-			sizeof(uint32_t));
+	ret = copy_from_user(&mode, (void __user *)arg, sizeof(mode));
 	if (ret) {
 		pr_err("fail to get user info\n");
 		ret = -EFAULT;
@@ -3263,8 +3260,7 @@ static int sprd_camioctl_io_cap_skip_num_set(struct camera_file *camerafile,
 	ctx = &dev->cam_ctx;
 
 	mutex_lock(&dev->cam_mutex);
-	ret = copy_from_user(&skip_num, (void __user *)arg,
-			sizeof(uint32_t));
+	ret = copy_from_user(&skip_num, (void __user *)arg, sizeof(skip_num));
 	if (ret) {
 		pr_err("fail to get user info\n");
 		ret = -EFAULT;
@@ -3291,8 +3287,7 @@ static int sprd_camioctl_io_sensor_size_set(struct camera_file *camerafile,
 	ctx = &dev->cam_ctx;
 
 	mutex_lock(&dev->cam_mutex);
-	ret = copy_from_user(&size, (void __user *)arg,
-				sizeof(struct sprd_img_size));
+	ret = copy_from_user(&size, (void __user *)arg, sizeof(size));
 	if (ret) {
 		pr_err("fail to get user info %d\n", ret);
 		ret = -EFAULT;
@@ -3320,8 +3315,7 @@ static int sprd_camioctl_io_sensor_trim_set(struct camera_file *camerafile,
 	ctx = &dev->cam_ctx;
 
 	mutex_lock(&dev->cam_mutex);
-	ret = copy_from_user(&rect, (void __user *)arg,
-				sizeof(struct sprd_img_rect));
+	ret = copy_from_user(&rect, (void __user *)arg, sizeof(rect));
 	if (ret) {
 		pr_err("fail to get user info %d\n", ret);
 		ret = -EFAULT;
@@ -3349,42 +3343,48 @@ static int sprd_camioctl_io_frm_id_base_set(struct camera_file *camerafile,
 			struct camera_dev *dev, unsigned long arg)
 {
 	int ret = 0;
-	struct sprd_img_parm parm;
+	struct sprd_img_parm *p = NULL;
 	enum dcam_id idx = DCAM_ID_0;
 	struct camera_context *ctx = NULL;
 
 	idx = camerafile->idx;
 	ctx = &dev->cam_ctx;
 
+	p = kzalloc(sizeof(*p), GFP_KERNEL);
+	if (p == NULL) {
+		pr_err("fail to alloc memory\n");
+		return -ENOMEM;
+	}
+
 	mutex_lock(&dev->cam_mutex);
-	ret = copy_from_user(&parm, (void __user *)arg,
-				sizeof(struct sprd_img_parm));
+	ret = copy_from_user(p, (void __user *)arg, sizeof(*p));
 	if (ret) {
 		pr_err("fail to get user info ret %d\n", ret);
 		ret = -EFAULT;
 		mutex_unlock(&dev->cam_mutex);
+		kfree(p);
 		return ret;
 	}
 
-	switch (parm.channel_id) {
+	switch (p->channel_id) {
 	case CAMERA_FULL_PATH:
 	case CAMERA_BIN_PATH:
 	case CAMERA_PRE_PATH:
 	case CAMERA_VID_PATH:
 	case CAMERA_CAP_PATH:
 	case CAMERA_PDAF_PATH:
-		ctx->cam_path[parm.channel_id].frm_id_base =
-			parm.frame_base_id;
+		ctx->cam_path[p->channel_id].frm_id_base = p->frame_base_id;
 		break;
 	default:
-		pr_err("fail to get valid channel ID, %d\n",
-			parm.channel_id);
+		pr_err("fail to get valid channel ID, %d\n", p->channel_id);
 		mutex_unlock(&dev->cam_mutex);
+		kfree(p);
 		return ret;
 	}
 	mutex_unlock(&dev->cam_mutex);
 	CAM_TRACE("%d: channel %d, base id 0x%x\n",
-			idx, parm.channel_id, parm.frame_base_id);
+			idx, p->channel_id, p->frame_base_id);
+	kfree(p);
 
 	return ret;
 }
@@ -3393,20 +3393,27 @@ static int sprd_camioctl_io_crop_set(struct camera_file *camerafile,
 			struct camera_dev *dev, unsigned long arg)
 {
 	int ret = 0;
-	struct sprd_img_parm parm;
+	struct sprd_img_parm *p = NULL;
+
+	p = kzalloc(sizeof(*p), GFP_KERNEL);
+	if (p == NULL) {
+		pr_err("fail to alloc memory\n");
+		return -ENOMEM;
+	}
 
 	mutex_lock(&dev->cam_mutex);
-	ret = copy_from_user(&parm, (void __user *)arg,
-				sizeof(struct sprd_img_parm));
+	ret = copy_from_user(p, (void __user *)arg, sizeof(*p));
 	if (ret) {
 		pr_err("fail to get user info ret %d\n", ret);
 		ret = -EFAULT;
 		mutex_unlock(&dev->cam_mutex);
+		kfree(p);
 		return ret;
 	}
 
-	ret = sprd_camioctl_crop_set(dev, &parm);
+	ret = sprd_camioctl_crop_set(dev, p);
 	mutex_unlock(&dev->cam_mutex);
+	kfree(p);
 
 	return ret;
 }
@@ -3465,7 +3472,7 @@ static int sprd_camioctl_io_output_size_set(struct camera_file *camerafile,
 			struct camera_dev *dev, unsigned long arg)
 {
 	int ret = 0;
-	struct sprd_img_parm parm;
+	struct sprd_img_parm *p= NULL;
 	enum dcam_id idx = DCAM_ID_0;
 	struct camera_context *ctx = NULL;
 	struct dcam_module *module = NULL;
@@ -3473,39 +3480,46 @@ static int sprd_camioctl_io_output_size_set(struct camera_file *camerafile,
 	idx = camerafile->idx;
 	ctx = &dev->cam_ctx;
 
+	p = kzalloc(sizeof(*p), GFP_KERNEL);
+	if (p == NULL) {
+		pr_err("fail to alloc memory\n");
+		return -ENOMEM;
+	}
+
 	CAM_TRACE("%d: set output size\n", idx);
 	mutex_lock(&dev->cam_mutex);
-	ret = copy_from_user(&parm, (void __user *)arg,
-			sizeof(struct sprd_img_parm));
+	ret = copy_from_user(p, (void __user *)arg, sizeof(*p));
 	if (ret) {
 		pr_err("fail to get user info ret %d\n", ret);
 		ret = -EFAULT;
 		mutex_unlock(&dev->cam_mutex);
+		kfree(p);
 		return ret;
 	}
 
-	ctx->dst_size.w = parm.dst_size.w;
-	ctx->dst_size.h = parm.dst_size.h;
-	ctx->pxl_fmt = parm.pixel_fmt;
-	ctx->sn_fmt = parm.sn_fmt;
-	ctx->need_isp_tool = parm.need_isp_tool;
-	ctx->need_isp = parm.need_isp;
-	ctx->path_input_rect.x = parm.crop_rect.x;
-	ctx->path_input_rect.y = parm.crop_rect.y;
-	ctx->path_input_rect.w = parm.crop_rect.w;
-	ctx->path_input_rect.h = parm.crop_rect.h;
-	ctx->scene_mode = parm.scene_mode;
-	ctx->is_high_fps = parm.is_high_fps;
-	ctx->high_fps_skip_num = parm.high_fps_skip_num;
+	ctx->dst_size.w = p->dst_size.w;
+	ctx->dst_size.h = p->dst_size.h;
+	ctx->pxl_fmt = p->pixel_fmt;
+	ctx->sn_fmt = p->sn_fmt;
+	ctx->need_isp_tool = p->need_isp_tool;
+	ctx->need_isp = p->need_isp;
+	ctx->path_input_rect.x = p->crop_rect.x;
+	ctx->path_input_rect.y = p->crop_rect.y;
+	ctx->path_input_rect.w = p->crop_rect.w;
+	ctx->path_input_rect.h = p->crop_rect.h;
+	ctx->scene_mode = p->scene_mode;
+	ctx->is_high_fps = p->is_high_fps;
+	ctx->high_fps_skip_num = p->high_fps_skip_num;
 
-	if (parm.slowmotion)
-		ctx->is_slow_motion = parm.slowmotion;
+	if (p->slowmotion)
+		ctx->is_slow_motion = p->slowmotion;
 
 	module = sprd_dcam_drv_module_get(idx);
 	module->is_high_fps = ctx->is_high_fps;
 	module->high_fps_skip_num = ctx->high_fps_skip_num;
 
 	mutex_unlock(&dev->cam_mutex);
+	kfree(p);
 
 	return ret;
 }
@@ -3520,9 +3534,7 @@ static int sprd_camioctl_io_sensor_if_set(struct camera_file *camerafile,
 	idx = camerafile->idx;
 
 	CAM_TRACE("%d: set sensor if\n", idx);
-	ret = copy_from_user(&sensor,
-			(void __user *)arg,
-			sizeof(struct sprd_img_sensor_if));
+	ret = copy_from_user(&sensor, (void __user *)arg, sizeof(sensor));
 	if (unlikely(ret)) {
 		pr_err("fail to copy form user%d\n", ret);
 		ret = -EFAULT;
@@ -3539,24 +3551,31 @@ static int sprd_camioctl_io_frame_addr_set(struct camera_file *camerafile,
 			struct camera_dev *dev, unsigned long arg)
 {
 	int ret = 0;
-	struct sprd_img_parm parm;
+	struct sprd_img_parm *p = NULL;
 	enum dcam_id idx = DCAM_ID_0;
 
 	idx = camerafile->idx;
 
+	p = kzalloc(sizeof(*p), GFP_KERNEL);
+	if (p == NULL) {
+		pr_err("fail to alloc memory\n");
+		return -ENOMEM;
+	}
+
 	CAM_TRACE("%d: set frame addr\n", idx);
 	mutex_lock(&dev->cam_mutex);
-	ret = copy_from_user(&parm, (void __user *)arg,
-				sizeof(struct sprd_img_parm));
+	ret = copy_from_user(p, (void __user *)arg, sizeof(*p));
 	if (ret) {
 		pr_err("fail to get user info ret %d\n", ret);
 		ret = -EFAULT;
 		mutex_unlock(&dev->cam_mutex);
+		kfree(p);
 		return ret;
 	}
 
-	ret = sprd_camioctl_frame_addr_set(camerafile, dev, &parm);
+	ret = sprd_camioctl_frame_addr_set(camerafile, dev, p);
 	mutex_unlock(&dev->cam_mutex);
+	kfree(p);
 
 	return ret;
 }
@@ -3565,24 +3584,31 @@ static int sprd_camioctl_io_path_frm_deci(struct camera_file *camerafile,
 			struct camera_dev *dev, unsigned long arg)
 {
 	int ret = 0;
-	struct sprd_img_parm parm;
+	struct sprd_img_parm *p = NULL;
 	struct camera_path_spec *path = NULL;
 	struct camera_context *ctx = NULL;
 
 	ctx = &dev->cam_ctx;
 
+	p = kzalloc(sizeof(*p), GFP_KERNEL);
+	if (p == NULL) {
+		pr_err("fail to alloc memory\n");
+		return -ENOMEM;
+	}
+
 	mutex_lock(&dev->cam_mutex);
-	ret = copy_from_user(&parm, (void __user *)arg,
-				sizeof(struct sprd_img_parm));
+	ret = copy_from_user(p, (void __user *)arg, sizeof(*p));
 	if (ret) {
 		pr_err("fail to get user info ret %d\n", ret);
 		ret = -EFAULT;
 		mutex_unlock(&dev->cam_mutex);
+		kfree(p);
 		return ret;
 	}
-	path = &ctx->cam_path[parm.channel_id];
-	path->path_frm_deci = parm.deci;
+	path = &ctx->cam_path[p->channel_id];
+	path->path_frm_deci = p->deci;
 	mutex_unlock(&dev->cam_mutex);
+	kfree(p);
 
 	return ret;
 }
@@ -3765,9 +3791,7 @@ static int sprd_camioctl_io_fmt_get(struct camera_file *camerafile,
 	struct sprd_img_get_fmt fmt_desc;
 
 	CAM_TRACE("get fmt\n");
-	ret = copy_from_user(&fmt_desc,
-				(void __user *)arg,
-				sizeof(struct sprd_img_get_fmt));
+	ret = copy_from_user(&fmt_desc, (void __user *)arg, sizeof(fmt_desc));
 	if (ret) {
 		ret = -EFAULT;
 		pr_err("fail to copy from user\n");
@@ -3779,9 +3803,7 @@ static int sprd_camioctl_io_fmt_get(struct camera_file *camerafile,
 	fmt = &dcam_img_fmt[fmt_desc.index];
 	fmt_desc.fmt = fmt->fourcc;
 
-	ret = copy_to_user((void __user *)arg,
-			&fmt_desc,
-			sizeof(struct sprd_img_get_fmt));
+	ret = copy_to_user((void __user *)arg, &fmt_desc, sizeof(fmt_desc));
 	if (ret) {
 		ret = -EFAULT;
 		pr_err("fail to copy to user\n");
@@ -3802,8 +3824,7 @@ static int sprd_camioctl_io_ch_id_get(struct camera_file *camerafile,
 
 	CAM_TRACE("get free channel\n");
 	sprd_camioctl_free_channel_get(dev, &channel_id, ctx->scene_mode);
-	ret = copy_to_user((void __user *)arg, &channel_id,
-			sizeof(uint32_t));
+	ret = copy_to_user((void __user *)arg, &channel_id, sizeof(channel_id));
 	if (ret) {
 		pr_err("fail to copy to user, ret = %d\n", ret);
 		ret = -EFAULT;
@@ -3824,8 +3845,7 @@ static int sprd_camioctl_io_time_get(struct camera_file *camerafile,
 	sprd_cam_com_timestamp(&time);
 	utime.sec = time.tv_sec;
 	utime.usec = time.tv_usec;
-	ret = copy_to_user((void __user *)arg, &utime,
-				sizeof(struct sprd_img_time));
+	ret = copy_to_user((void __user *)arg, &utime, sizeof(utime));
 	if (ret) {
 		pr_err("fail to get time info %d\n", ret);
 		ret = -EFAULT;
@@ -3845,7 +3865,7 @@ static int sprd_camioctl_io_fmt_check(struct camera_file *camerafile,
 	CAM_TRACE("check fmt\n");
 	ret = copy_from_user(&img_format,
 				(void __user *)arg,
-				sizeof(struct sprd_img_format));
+				sizeof(img_format));
 	if (ret) {
 		ret = -EFAULT;
 		pr_err("fail to get img_format\n");
@@ -3917,7 +3937,7 @@ static int sprd_camioctl_io_fmt_check(struct camera_file *camerafile,
 
 	ret = copy_to_user((void __user *)arg,
 			&img_format,
-			sizeof(struct sprd_img_format));
+			sizeof(img_format));
 	if (ret) {
 		ret = -EFAULT;
 		pr_err("fail to copy to user\n");
@@ -3932,26 +3952,33 @@ static int sprd_camioctl_io_shrink_set(struct camera_file *camerafile,
 			struct camera_dev *dev, unsigned long arg)
 {
 	int ret = 0;
-	struct sprd_img_parm parm;
+	struct sprd_img_parm *p = NULL;
 	struct camera_path_spec *path = NULL;
 	struct camera_context *ctx = NULL;
 
 	ctx = &dev->cam_ctx;
 
+	p = kzalloc(sizeof(*p), GFP_KERNEL);
+	if (p == NULL) {
+		pr_err("fail to alloc memory\n");
+		return -ENOMEM;
+	}
+
 	mutex_lock(&dev->cam_mutex);
-	ret = copy_from_user(&parm, (void __user *)arg,
-				sizeof(struct sprd_img_parm));
+	ret = copy_from_user(p, (void __user *)arg, sizeof(*p));
 	if (ret) {
 		pr_err("fail to get user info ret %d\n", ret);
 		ret = -EFAULT;
 		mutex_unlock(&dev->cam_mutex);
+		kfree(p);
 		return ret;
 	}
-	path = &ctx->cam_path[parm.channel_id];
-	path->regular_desc = parm.regular_desc;
+	path = &ctx->cam_path[p->channel_id];
+	path->regular_desc = p->regular_desc;
 	mutex_unlock(&dev->cam_mutex);
 	CAM_TRACE("channel %d, regular mode %d\n",
-		parm.channel_id, path->regular_desc.regular_mode);
+		p->channel_id, path->regular_desc.regular_mode);
+	kfree(p);
 
 	return ret;
 }
@@ -3963,9 +3990,7 @@ static int sprd_camioctl_io_flash_cfg(struct camera_file *camerafile,
 	struct sprd_flash_cfg_param cfg_parm;
 
 	mutex_lock(&dev->cam_mutex);
-	ret = copy_from_user(&cfg_parm,
-				(void __user *)arg,
-				sizeof(struct sprd_flash_cfg_param));
+	ret = copy_from_user(&cfg_parm, (void __user *)arg, sizeof(cfg_parm));
 	if (ret) {
 		pr_err("fail to copy from user %d\n", ret);
 		mutex_unlock(&dev->cam_mutex);
@@ -3983,29 +4008,35 @@ static int sprd_camioctl_io_pdaf_control(struct camera_file *camerafile,
 			struct camera_dev *dev, unsigned long arg)
 {
 	int ret = 0;
-	struct sprd_img_parm parm;
+	struct sprd_img_parm *p = NULL;
 	struct camera_path_spec *path = NULL;
 	struct camera_context *ctx = NULL;
 
 	ctx = &dev->cam_ctx;
 
+	p = kzalloc(sizeof(*p), GFP_KERNEL);
+	if (p == NULL) {
+		pr_err("fail to alloc memory\n");
+		return -ENOMEM;
+	}
+
 	mutex_lock(&dev->cam_mutex);
-	ret = copy_from_user(&parm, (void __user *)arg,
-				sizeof(struct sprd_img_parm));
+	ret = copy_from_user(p, (void __user *)arg, sizeof(*p));
 	if (ret) {
 		pr_err("fail to get user info ret %d\n", ret);
 		ret = -EFAULT;
 		mutex_unlock(&dev->cam_mutex);
+		kfree(p);
 		return ret;
 	}
-	path = &ctx->cam_path[parm.channel_id];
-	path->pdaf_ctrl.mode = parm.pdaf_ctrl.mode;
-	path->pdaf_ctrl.phase_data_type =
-		parm.pdaf_ctrl.phase_data_type;
+	path = &ctx->cam_path[p->channel_id];
+	path->pdaf_ctrl.mode = p->pdaf_ctrl.mode;
+	path->pdaf_ctrl.phase_data_type = p->pdaf_ctrl.phase_data_type;
 	mutex_unlock(&dev->cam_mutex);
 	CAM_TRACE("channel %d, pdaf mode %d type %d\n",
-		parm.channel_id, path->pdaf_ctrl.mode,
+		p->channel_id, path->pdaf_ctrl.mode,
 		path->pdaf_ctrl.phase_data_type);
+	kfree(p);
 
 	return ret;
 }
@@ -4014,26 +4045,33 @@ static int sprd_camioctl_io_ebd_control(struct camera_file *camerafile,
 			struct camera_dev *dev, unsigned long arg)
 {
 	int ret = 0;
-	struct sprd_img_parm parm;
+	struct sprd_img_parm *p = NULL;
 	struct camera_path_spec *path = NULL;
 	struct camera_context *ctx = NULL;
 
 	ctx = &dev->cam_ctx;
 
+	p = kzalloc(sizeof(*p), GFP_KERNEL);
+	if (p == NULL) {
+		pr_err("fail to alloc memory\n");
+		return -ENOMEM;
+	}
+
 	mutex_lock(&dev->cam_mutex);
-	ret = copy_from_user(&parm, (void __user *)arg,
-				sizeof(struct sprd_img_parm));
+	ret = copy_from_user(p, (void __user *)arg, sizeof(*p));
 	if (ret) {
 		pr_err("fail to get user info ret %d\n", ret);
 		ret = -EFAULT;
 		mutex_unlock(&dev->cam_mutex);
+		kfree(p);
 		return ret;
 	}
-	path = &ctx->cam_path[parm.channel_id];
-	path->ebd_ctrl.mode = parm.ebd_ctrl.mode;
-	path->ebd_ctrl.image_vc = parm.ebd_ctrl.image_vc;
-	path->ebd_ctrl.image_dt = parm.ebd_ctrl.image_dt;
+	path = &ctx->cam_path[p->channel_id];
+	path->ebd_ctrl.mode = p->ebd_ctrl.mode;
+	path->ebd_ctrl.image_vc = p->ebd_ctrl.image_vc;
+	path->ebd_ctrl.image_dt = p->ebd_ctrl.image_dt;
 	mutex_unlock(&dev->cam_mutex);
+	kfree(p);
 
 	return ret;
 }
@@ -4082,7 +4120,7 @@ static int sprd_camioctl_io_capture_start(struct camera_file *camerafile,
 
 	mutex_lock(&dev->cam_mutex);
 	ret = copy_from_user(&capture_param, (void __user *)arg,
-			sizeof(struct sprd_img_capture_param));
+			sizeof(capture_param));
 	if (ret) {
 		pr_err("fail to get user info\n");
 		ret = -EFAULT;
@@ -4165,42 +4203,48 @@ static int sprd_camioctl_io_path_skip_num_set(struct camera_file *camerafile,
 			struct camera_dev *dev, unsigned long arg)
 {
 	int ret = 0;
-	struct sprd_img_parm parm;
+	struct sprd_img_parm *p = NULL;
 	enum dcam_id idx = DCAM_ID_0;
 	struct camera_context *ctx = NULL;
 
 	idx = camerafile->idx;
 	ctx = &dev->cam_ctx;
 
+	p = kzalloc(sizeof(*p), GFP_KERNEL);
+	if (p == NULL) {
+		pr_err("fail to alloc memory\n");
+		return -ENOMEM;
+	}
+
 	mutex_lock(&dev->cam_mutex);
-	ret = copy_from_user(&parm, (void __user *)arg,
-				sizeof(struct sprd_img_parm));
+	ret = copy_from_user(p, (void __user *)arg, sizeof(*p));
 	if (ret) {
 		pr_err("fail to copy from user %d\n", ret);
 		ret = -EFAULT;
 		mutex_unlock(&dev->cam_mutex);
+		kfree(p);
 		return ret;
 	}
 
-	switch (parm.channel_id) {
+	switch (p->channel_id) {
 	case CAMERA_FULL_PATH:
 	case CAMERA_BIN_PATH:
 	case CAMERA_PRE_PATH:
 	case CAMERA_VID_PATH:
 	case CAMERA_CAP_PATH:
 	case CAMERA_PDAF_PATH:
-		ctx->cam_path[parm.channel_id].skip_num =
-			parm.skip_num;
+		ctx->cam_path[p->channel_id].skip_num = p->skip_num;
 		break;
 	default:
-		pr_err("fail to get valid channel ID, %d\n",
-			parm.channel_id);
+		pr_err("fail to get valid channel ID, %d\n", p->channel_id);
 		mutex_unlock(&dev->cam_mutex);
+		kfree(p);
 		return ret;
 	}
 	mutex_unlock(&dev->cam_mutex);
 	CAM_TRACE("%d: channel %d, skip_num %d\n",
-			idx, parm.channel_id, parm.skip_num);
+			idx, p->channel_id, p->skip_num);
+	kfree(p);
 
 	return ret;
 }
@@ -4233,8 +4277,7 @@ static int sprd_camioctl_io_sensor_max_size_set(struct camera_file *camerafile,
 	ctx = &dev->cam_ctx;
 
 	mutex_lock(&dev->cam_mutex);
-	ret = copy_from_user(&size, (void __user *)arg,
-				sizeof(struct sprd_img_size));
+	ret = copy_from_user(&size, (void __user *)arg, sizeof(size));
 	if (ret || !size.w || !size.h) {
 		pr_err("fail to get user info ret %d\n", ret);
 		ret = -EFAULT;
@@ -4288,7 +4331,7 @@ static int sprd_camioctl_io_statis_buf_set(struct camera_file *camerafile,
 	mutex_lock(&dev->cam_mutex);
 	ret = copy_from_user(&parm_inptr,
 				(void __user *)arg,
-				sizeof(struct isp_statis_buf_input));
+				sizeof(parm_inptr));
 	if (ret != 0) {
 		pr_err("fail to copy_from_user\n");
 		ret = -EFAULT;
@@ -4333,8 +4376,7 @@ static int sprd_camioctl_io_cfg_param(struct camera_file *camerafile,
 
 	mutex_lock(&dev->cam_mutex);
 
-	ret = copy_from_user((void *)&param,
-		(void __user *)arg, sizeof(param));
+	ret = copy_from_user((void *)&param, (void __user *)arg, sizeof(param));
 	if (ret != 0) {
 		pr_err("fail to copy from user, ret = %d\n",
 			ret);
@@ -4346,11 +4388,11 @@ static int sprd_camioctl_io_cfg_param(struct camera_file *camerafile,
 		if (param.property ==
 				ISP_PRO_FETCH_RAW_BLOCK) {
 			struct isp_dev_fetch_info *fetch_info =
-			&dev->fetch_info;
+				&dev->fetch_info;
 
 			ret = copy_from_user((void *)fetch_info,
-			param.property_param,
-			sizeof(struct isp_dev_fetch_info));
+				param.property_param,
+				sizeof(*fetch_info));
 			if (ret != 0)
 				pr_err("fail to copy user\n");
 		} else if (dev->raw_cap == 1
@@ -4432,9 +4474,7 @@ static int sprd_camioctl_io_raw_cap(struct camera_file *camerafile,
 
 	isp_dev = (struct isp_pipe_dev *)dev->isp_dev_handle;
 	memset((void *)&raw_cap, 0x00, sizeof(raw_cap));
-	ret = copy_from_user(&raw_cap,
-			(void __user *)arg,
-			sizeof(struct isp_raw_proc_info));
+	ret = copy_from_user(&raw_cap, (void __user *)arg, sizeof(raw_cap));
 	if (ret != 0) {
 		pr_err("fail to copy_from_user\n");
 		ret = -EFAULT;
@@ -4462,8 +4502,7 @@ static int sprd_camioctl_io_dcam_res_get(struct camera_file *camerafile,
 
 	group = camerafile->grp;
 
-	ret = copy_from_user(&res, (void __user *)arg,
-				sizeof(struct sprd_img_res));
+	ret = copy_from_user(&res, (void __user *)arg, sizeof(res));
 	if (ret) {
 		ret = -EFAULT;
 		pr_err("fail to copy from user!\n");
@@ -4504,8 +4543,7 @@ static int sprd_camioctl_io_dcam_res_get(struct camera_file *camerafile,
 	camerafile->idx = idx;
 	group->mode_inited |= 1 << idx;
 
-	ret = copy_to_user((void __user *)arg, &res,
-				sizeof(struct sprd_img_res));
+	ret = copy_to_user((void __user *)arg, &res, sizeof(res));
 	if (ret) {
 		ret = -EFAULT;
 		pr_err("fail to copy to user\n");
@@ -4527,8 +4565,7 @@ static int sprd_camioctl_io_dcam_res_put(struct camera_file *camerafile,
 	idx = camerafile->idx;
 	group = camerafile->grp;
 
-	ret = copy_from_user(&res, (void __user *)arg,
-				sizeof(struct sprd_img_res));
+	ret = copy_from_user(&res, (void __user *)arg, sizeof(res));
 	if (ret) {
 		ret = -EFAULT;
 		pr_err("fail to copy_from_user!\n");
@@ -4570,8 +4607,7 @@ static int sprd_camioctl_io_dcam_res_put(struct camera_file *camerafile,
 		ret = -EFAULT;
 		goto exit;
 	}
-	ret = copy_to_user((void __user *)arg, &res,
-			sizeof(struct sprd_img_res));
+	ret = copy_to_user((void __user *)arg, &res, sizeof(res));
 	if (ret) {
 		ret = -EFAULT;
 		pr_err("fail to copy_to_user!\n");
@@ -4656,8 +4692,7 @@ static int sprd_camioctl_io_function_mode_set(struct camera_file *camerafile,
 	CAM_TRACE("%d: set function mode\n", idx);
 	memset((void *)&parm, 0, sizeof(parm));
 	mutex_lock(&dev->cam_mutex);
-	ret = copy_from_user(&parm, (void __user *)arg,
-		sizeof(struct sprd_img_function_mode));
+	ret = copy_from_user(&parm, (void __user *)arg, sizeof(parm));
 	if (ret) {
 		pr_err("fail to get user info ret %d\n", ret);
 		ret = -EFAULT;
@@ -4752,51 +4787,52 @@ static int sprd_camioctl_io_4in1_raw_addr_set(struct camera_file *camerafile,
 	uint32_t i = 0;
 	enum dcam_id idx = DCAM_ID_0;
 	struct camera_path_spec *path = NULL;
-	struct sprd_img_parm parm;
+	struct sprd_img_parm *p = NULL;
 	struct camera_addr frame_addr;
 
 	if (!dev || !camerafile) {
-		ret = -EFAULT;
 		pr_err("fail to get valid input ptr\n");
-		goto exit;
+		return -EFAULT;
 	}
 
-	memset((void *)&parm, 0, sizeof(parm));
+	p = kzalloc(sizeof(*p), GFP_KERNEL);
+	if (p == NULL) {
+		pr_err("fail to alloc memory\n");
+		return -ENOMEM;
+	}
+
 	memset((void *)&frame_addr, 0, sizeof(frame_addr));
 	mutex_lock(&dev->cam_mutex);
-	ret = copy_from_user(&parm, (void __user *)arg,
-				sizeof(struct sprd_img_parm));
+	ret = copy_from_user(p, (void __user *)arg, sizeof(*p));
 	if (ret) {
 		pr_err("fail to get user info ret %d\n", ret);
 		ret = -EFAULT;
-		mutex_unlock(&dev->cam_mutex);
 		goto exit;
 	}
 
 	idx = camerafile->idx;
 	path = &dev->cam_ctx.cam_path[CAMERA_FULL_PATH];
-	path->buf_num = parm.buffer_count;
+	path->buf_num = p->buffer_count;
 
-	pr_debug("4in1 addr %x %d\n", parm.fd_array[0], parm.buffer_count);
+	pr_debug("4in1 addr %x %d\n", p->fd_array[0], p->buffer_count);
 	if (atomic_read(&dev->stream_on) == 1 &&
 		path->status == PATH_RUN) {
 
-		for (i = 0; i < parm.buffer_count; i++) {
-			if (parm.fd_array[i] == 0) {
+		for (i = 0; i < p->buffer_count; i++) {
+			if (p->fd_array[i] == 0) {
 				pr_err("fail to get 4in1 raw fd\n");
 				ret = -EINVAL;
-				mutex_unlock(&dev->cam_mutex);
 				goto exit;
 			}
-			frame_addr.yaddr = parm.frame_addr_array[i].y;
-			frame_addr.uaddr = parm.frame_addr_array[i].u;
-			frame_addr.vaddr = parm.frame_addr_array[i].v;
-			frame_addr.yaddr_vir = parm.frame_addr_vir_array[i].y;
-			frame_addr.uaddr_vir = parm.frame_addr_vir_array[i].u;
-			frame_addr.vaddr_vir = parm.frame_addr_vir_array[i].v;
-			frame_addr.mfd_y = parm.fd_array[i];
-			frame_addr.mfd_u = parm.fd_array[i];
-			frame_addr.mfd_v = parm.fd_array[i];
+			frame_addr.yaddr = p->frame_addr_array[i].y;
+			frame_addr.uaddr = p->frame_addr_array[i].u;
+			frame_addr.vaddr = p->frame_addr_array[i].v;
+			frame_addr.yaddr_vir = p->frame_addr_vir_array[i].y;
+			frame_addr.uaddr_vir = p->frame_addr_vir_array[i].u;
+			frame_addr.vaddr_vir = p->frame_addr_vir_array[i].v;
+			frame_addr.mfd_y = p->fd_array[i];
+			frame_addr.mfd_u = p->fd_array[i];
+			frame_addr.mfd_v = p->fd_array[i];
 			frame_addr.buf_info.dev = &camerafile->grp->pdev->dev;
 
 			ret = sprd_dcam_full_path_cfg_set(idx,
@@ -4804,27 +4840,25 @@ static int sprd_camioctl_io_4in1_raw_addr_set(struct camera_file *camerafile,
 				&frame_addr);
 			if (unlikely(ret)) {
 				pr_err("fail to cfg full_path 4in1 raw addr\n");
-				mutex_unlock(&dev->cam_mutex);
 				goto exit;
 			}
 		}
 	} else {
-		for (i = 0; i < parm.buffer_count; i++) {
-			if (unlikely(parm.fd_array[i] == 0)) {
+		for (i = 0; i < p->buffer_count; i++) {
+			if (unlikely(p->fd_array[i] == 0)) {
 				pr_err("fail to get 4in1 raw fd\n");
 				ret = -EINVAL;
-				mutex_unlock(&dev->cam_mutex);
 				goto exit;
 			}
-			frame_addr.yaddr = parm.frame_addr_array[i].y;
-			frame_addr.uaddr = parm.frame_addr_array[i].u;
-			frame_addr.vaddr = parm.frame_addr_array[i].v;
-			frame_addr.yaddr_vir = parm.frame_addr_vir_array[i].y;
-			frame_addr.uaddr_vir = parm.frame_addr_vir_array[i].u;
-			frame_addr.vaddr_vir = parm.frame_addr_vir_array[i].v;
-			frame_addr.mfd_y = parm.fd_array[i];
-			frame_addr.mfd_u = parm.fd_array[i];
-			frame_addr.mfd_v = parm.fd_array[i];
+			frame_addr.yaddr = p->frame_addr_array[i].y;
+			frame_addr.uaddr = p->frame_addr_array[i].u;
+			frame_addr.vaddr = p->frame_addr_array[i].v;
+			frame_addr.yaddr_vir = p->frame_addr_vir_array[i].y;
+			frame_addr.uaddr_vir = p->frame_addr_vir_array[i].u;
+			frame_addr.vaddr_vir = p->frame_addr_vir_array[i].v;
+			frame_addr.mfd_y = p->fd_array[i];
+			frame_addr.mfd_u = p->fd_array[i];
+			frame_addr.mfd_v = p->fd_array[i];
 			frame_addr.buf_info.dev = &camerafile->grp->pdev->dev;
 
 			ret = sprd_cam_queue_buf_write(
@@ -4835,9 +4869,10 @@ static int sprd_camioctl_io_4in1_raw_addr_set(struct camera_file *camerafile,
 				frame_addr.mfd_y, frame_addr.mfd_u);
 		}
 	}
-	mutex_unlock(&dev->cam_mutex);
 
 exit:
+	mutex_unlock(&dev->cam_mutex);
+	kfree(p);
 	return ret;
 }
 
@@ -4845,26 +4880,28 @@ static int sprd_camioctl_io_4in1_post_proc(struct camera_file *camerafile,
 	struct camera_dev *dev, unsigned long arg)
 {
 	int ret = 0;
-	struct sprd_img_parm parm;
+	struct sprd_img_parm *p = NULL;
 	struct isp_dev_fetch_info *fetch_info = NULL;
 	struct camera_path_spec *path = NULL;
 	struct camera_group *group = NULL;
 	enum dcam_id idx = DCAM_ID_0;
 
 	if (!camerafile || !dev) {
-		ret = -EFAULT;
 		pr_err("fail to get valid input ptr\n");
-		goto exit;
+		return -EFAULT;
 	}
 
-	memset((void *)&parm, 0, sizeof(parm));
+	p = kzalloc(sizeof(*p), GFP_KERNEL);
+	if (p == NULL) {
+		pr_err("fail to alloc memory\n");
+		return -ENOMEM;
+	}
+
 	mutex_lock(&dev->cam_mutex);
-	ret = copy_from_user(&parm, (void __user *)arg,
-				sizeof(struct sprd_img_parm));
+	ret = copy_from_user(p, (void __user *)arg, sizeof(*p));
 	if (ret) {
 		pr_err("fail to get user info ret %d\n", ret);
 		ret = -EFAULT;
-		mutex_unlock(&dev->cam_mutex);
 		goto exit;
 	}
 
@@ -4873,23 +4910,23 @@ static int sprd_camioctl_io_4in1_post_proc(struct camera_file *camerafile,
 
 	path = &dev->cam_ctx.cam_path[CAMERA_CAP_PATH];
 	fetch_info = &dev->fetch_info;
-	fetch_info->fetch_addr.img_fd = parm.fd_array[0];
+	fetch_info->fetch_addr.img_fd = p->fd_array[0];
 	fetch_info->fetch_addr.offset.x = 0;
 	fetch_info->size.width = path->in_size.w;
 	fetch_info->size.height = path->in_size.h;
 	sprd_dcam_drv_4in1_info_get(dev->cam_ctx.need_4in1);
 
-	pr_debug("4in1 post mfd %x w %d h %d\n", parm.fd_array[0],
+	pr_debug("4in1 post mfd %x w %d h %d\n", p->fd_array[0],
 		fetch_info->size.width, fetch_info->size.height);
 	ret = sprd_camioctl_dcam_fetch_start(idx, DCAM_ID_1, group);
 	if (ret) {
-		mutex_unlock(&dev->cam_mutex);
 		pr_err("fail to start fetch\n");
 		goto exit;
 	}
-	mutex_unlock(&dev->cam_mutex);
 
 exit:
+	mutex_unlock(&dev->cam_mutex);
+	kfree(p);
 	return ret;
 }
 
@@ -4909,8 +4946,7 @@ static int sprd_camioctl_io_path_rect_get(struct camera_file *camerafile,
 
 	memset((void *)&parm, 0, sizeof(parm));
 	mutex_lock(&dev->cam_mutex);
-	ret = copy_from_user(&parm, (void __user *)arg,
-				sizeof(struct sprd_img_path_rect));
+	ret = copy_from_user(&parm, (void __user *)arg, sizeof(parm));
 	if (ret) {
 		pr_err("fail to get user info ret %d\n", ret);
 		ret = -EFAULT;
@@ -4934,8 +4970,7 @@ static int sprd_camioctl_io_path_rect_get(struct camera_file *camerafile,
 		parm.af_valid_rect.x, parm.af_valid_rect.y,
 		parm.af_valid_rect.w, parm.af_valid_rect.h);
 
-	ret = copy_to_user((void __user *)arg, &parm,
-			sizeof(struct sprd_img_path_rect));
+	ret = copy_to_user((void __user *)arg, &parm, sizeof(parm));
 	if (ret) {
 		ret = -EFAULT;
 		pr_err("fail to copy to user\n");
