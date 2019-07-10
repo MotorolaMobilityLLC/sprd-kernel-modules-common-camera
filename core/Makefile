@@ -3,11 +3,9 @@ ISP_DIR := $(BSP_BOARD_CAMERA_MODULE_ISP_VERSION)
 
 sprd_camera-objs :=
 
-ifeq ($(BSP_BOARD_CAMERA_MODULE_ISP_VERSION),dcam_if_r4p0_isp_r6p11)
 COMMON_SRC := $(wildcard $(LOCAL_PATH)/common/*.c)
 COMMON_DIR := $(notdir $(COMMON_SRC))
 COMMON_OBJ := $(patsubst %c, common/%o, $(COMMON_DIR))
-endif
 
 CAM_SRC := $(wildcard $(LOCAL_PATH)/$(ISP_DIR)/src/*.c)
 CAM_DIR := $(notdir $(CAM_SRC))
@@ -21,7 +19,11 @@ CAM_COMPAT_SRC := $(wildcard $(LOCAL_PATH)/$(ISP_DIR)/compat/*.c)
 CAM_COMPAT_DIR := $(notdir $(CAM_COMPAT_SRC))
 CAM_COMPAT_OBJ := $(patsubst %c, $(ISP_DIR)/compat/%o, $(CAM_COMPAT_DIR))
 
-sprd_camera-objs += $(COMMON_OBJ) $(CAM_OBJ) $(CAM_BLOCK_OBJ)
+ifeq ($(BSP_BOARD_CAMERA_MODULE_ISP_VERSION),dcam_if_r4p0_isp_r6p11)
+sprd_camera-objs += $(COMMON_OBJ)
+endif
+
+sprd_camera-objs += $(CAM_OBJ) $(CAM_BLOCK_OBJ)
 
 ifeq ($(CONFIG_COMPAT),y)
 sprd_camera-objs += $(CAM_COMPAT_OBJ)
