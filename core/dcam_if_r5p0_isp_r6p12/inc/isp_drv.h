@@ -311,6 +311,7 @@ struct isp_k_block {
 	uint32_t need_4in1;
 	uint32_t seed0_for_mode1;
 	uint32_t shape_mode;
+	uint32_t fetch_cnt_4in1;
 };
 
 struct isp_store_info {

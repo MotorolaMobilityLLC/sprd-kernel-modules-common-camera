@@ -180,7 +180,9 @@ struct camera_dev {
 	enum isp_id isp_id;/* attached isp ch id */
 	uint32_t cap_flag;
 	uint32_t raw_cap;
-	uint32_t raw_phase;
+	uint32_t raw_fetch_cnt;
+	struct camera_addr raw_addr[2];
+	uint32_t raw_fetch_total;
 	uint32_t zoom_ratio;
 	uint32_t isp_work;
 	struct isp_dev_fetch_info fetch_info;

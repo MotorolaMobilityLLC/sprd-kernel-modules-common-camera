@@ -26,6 +26,10 @@ struct cam_io_ctrl_descr {
 	char *ioctl_str;
 };
 
+#define DCAM_FETCH_ONLY_ONE(dev)	(dev->raw_fetch_total == 1)
+#define DCAM_FIRST_FETCH(dev)	(dev->raw_fetch_cnt == 1)
+#define DCAM_LAST_FETCH(dev)	(dev->raw_fetch_cnt == 2)
+
 static const struct cam_io_ctrl_descr cam_ioctl_desc[] = {
 	{SPRD_IMG_IO_SET_MODE,            "SPRD_IMG_IO_SET_MODE"},
 	{SPRD_IMG_IO_SET_CAP_SKIP_NUM,    "SPRD_IMG_IO_SET_CAP_SKIP_NUM"},
@@ -93,6 +97,9 @@ static const struct cam_io_ctrl_descr cam_ioctl_desc[] = {
 	{SPRD_IMG_IO_SET_4IN1_ADDR,       "SPRD_IMG_IO_SET_4IN1_ADDR"},
 	{SPRD_IMG_IO_4IN1_POST_PROC,      "SPRD_IMG_IO_4IN1_POST_PROC"},
 };
+
+static int sprd_camioctl_dcam_fetch_start(enum dcam_id idx,
+	enum dcam_id fetch_idx, struct camera_group *group);
 
 static int sprd_camioctl_path_capability_get(
 	struct cam_path_capability *capacity)
@@ -539,6 +546,7 @@ static int sprd_camioctl_bin_tx_done(struct camera_frame *frame, void *param)
 	struct camera_path_spec *path =
 		&dev->cam_ctx.cam_path[CAMERA_BIN_PATH];
 	struct dcam_module *dcam_module = NULL;
+	struct isp_pipe_dev *isp_dev = NULL;
 	struct camera_group *group = (struct camera_group *)dev->grp;
 
 	if (dev->cam_ctx.need_4in1 && dev->cam_ctx.need_isp_tool != 1) {
@@ -549,8 +557,29 @@ static int sprd_camioctl_bin_tx_done(struct camera_frame *frame, void *param)
 				sprd_cam_debug_dump(
 					dev->grp->dump_work, frame);
 			}
-			sprd_isp_path_4in1_raw_proc_start(dev->isp_dev_handle,
-				frame);
+			if (DCAM_FETCH_ONLY_ONE(dev)
+				|| DCAM_LAST_FETCH(dev)) {
+				/*
+				 * aw_fetch_total < 2 for raw capture ;
+				 * fetch_cnt ==2 for 4in1
+				*/
+				pr_debug("bin tx done : 2nd fetch done\n");
+				isp_dev  = (struct isp_pipe_dev *)
+					dev->isp_dev_handle;
+				dev->raw_fetch_cnt = 0;
+				isp_dev->isp_k_param.fetch_cnt_4in1 =
+					dev->raw_fetch_cnt;
+				sprd_isp_path_4in1_raw_proc_start(dev->isp_dev_handle,
+					frame);
+			} else {
+				/*
+				 * 4in1 first fetch done,
+				 * then start the second fetch
+				*/
+				pr_debug("bin tx done : 1st fetch done\n");
+				sprd_camioctl_dcam_fetch_start(dev->idx,
+					DCAM_ID_1, group);
+			}
 			dcam_module->cap_4in1 = 0;
 			return ret;
 		}
@@ -563,14 +592,19 @@ static int sprd_camioctl_bin_tx_done(struct camera_frame *frame, void *param)
 		}
 	}
 
-	if (dev->raw_cap && dev->raw_phase == 0) {
+	if (dev->raw_cap) {
 		if (group->dump_dcamraw) {
 			sprd_cam_debug_dump
 				(dev->grp->dump_work, frame);
 		}
-		sprd_isp_path_raw_proc_start(dev->isp_dev_handle,
-			CAMERA_BIN_PATH, frame);
-		dev->raw_phase = 1;
+		if (DCAM_FETCH_ONLY_ONE(dev)
+			|| DCAM_LAST_FETCH(dev)) {
+			sprd_isp_path_raw_proc_start(dev->isp_dev_handle,
+				CAMERA_BIN_PATH, frame);
+		} else {
+			sprd_camioctl_dcam_fetch_start(dev->idx,
+				dev->idx, group);
+		}
 	} else if (path->assoc_idx != 0) {
 		if ((atomic_read(&dev->stream_on) == 1)) {
 			sprd_isp_path_offline_frame_set(dev->isp_dev_handle,
@@ -1312,7 +1346,7 @@ static int sprd_camioctl_bin_path_cap_check(uint32_t fourcc,
 		bin_path->out_fmt, ctx->is_loose);
 	bin_path->out_size.w = f->width;
 	bin_path->out_size.h = f->height;
-
+	bin_path->src_sel = 0;
 	bin_path->is_work = 1;
 
 	return 0;
@@ -1845,6 +1879,7 @@ static int sprd_camioctl_bin_size_get(struct camera_path_spec *pre,
 				bin->in_rect.h = bin->in_size.h;
 				bin->out_size = pre->in_size;
 			}
+			bin->src_sel = 1;
 			bin->is_work = 1;
 			bin->assoc_idx = 1 << CAMERA_PRE_PATH;
 			bin->out_fmt = DCAM_RAWRGB;
@@ -1928,6 +1963,7 @@ static int sprd_camioctl_bin_size_get(struct camera_path_spec *pre,
 				bin->in_rect.h = bin->in_size.h;
 				bin->out_size = vid->in_size;
 			}
+			bin->src_sel = 1;
 			bin->is_work = 1;
 			bin->assoc_idx |= 1 << CAMERA_VID_PATH;
 			bin->out_fmt = DCAM_RAWRGB;
@@ -2013,6 +2049,7 @@ static int sprd_camioctl_camera_raw_pipeline_cfg(struct camera_file *camerafile)
 	}
 
 	if (ctx->need_4in1 && path_bin->is_work) {
+		path_bin->src_sel = 0;
 		path_bin->in_size.w = path_bin->in_size.w >> 1;
 		path_bin->in_size.h = path_bin->in_size.h >> 1;
 		path_bin->in_rect.w = path_bin->in_rect.w >> 1;
@@ -2034,45 +2071,29 @@ static int sprd_camioctl_camera_raw_pipeline_cfg(struct camera_file *camerafile)
 	if (path_full->is_work) {
 		path = path_full;
 		if (ctx->need_4in1 && ctx->need_isp_tool != 1) {
+
 			struct camera_addr cam_addr = {0};
 			struct camera_size size_tmp = {0};
 			size_t size;
-			uint32_t param = 0;
 
-			if (ctx->need_isp_tool)
-				size_tmp = path_full->out_size;
-			else
-				size_tmp = path_cap->in_size;
-
-			path = &dev1->cam_ctx.cam_path[CAMERA_BIN_PATH];
-			path->buf_num = 1;
-
+			pr_debug("fetch twice\n");
+			size_tmp = path_cap->in_size;
 			size = sprd_cam_com_raw_pitch_calc(0, size_tmp.w)
 				* size_tmp.h;
 			sprd_cam_buf_alloc(&cam_addr.buf_info,
 				DCAM_ID_1,
 				&s_dcam_pdev->dev, size, 1,
 				CAM_BUF_SWAP_TYPE);
-			sprd_dcam_bin_path_clear(DCAM_ID_1);
-			param = 1;
-			ret = sprd_dcam_bin_path_cfg_set(DCAM_ID_1,
-				DCAM_PATH_ENABLE, &param);
-			if (unlikely(ret)) {
-				pr_err("fail to enable bin_path\n");
-				return ret;
-			}
-			ret = sprd_dcam_bin_path_cfg_set(DCAM_ID_1,
-				DCAM_PATH_BUF_NUM, &path->buf_num);
-			if (unlikely(ret)) {
-				pr_err("fail to cfg bin_path buf num\n");
-				return ret;
-			}
-			ret = sprd_dcam_bin_path_cfg_set(DCAM_ID_1,
-				DCAM_PATH_OUTPUT_ADDR, &cam_addr);
-			if (unlikely(ret)) {
-				pr_err("fail to cfg bin_path addr %d\n", ret);
-				return ret;
-			}
+			sprd_cam_buf_addr_map(&cam_addr.buf_info);
+			dev->raw_addr[0] = cam_addr;
+
+			sprd_cam_buf_alloc(&cam_addr.buf_info,
+				DCAM_ID_1,
+				&s_dcam_pdev->dev, size, 1,
+				CAM_BUF_SWAP_TYPE);
+			sprd_cam_buf_addr_map(&cam_addr.buf_info);
+			dev->raw_addr[1] = cam_addr;
+			dev->raw_fetch_total = 2;
 		} else if (path_full->assoc_idx != 0
 			&& !ctx->need_4in1) {
 			struct camera_addr cam_addr = {0};
@@ -2474,6 +2495,13 @@ static int sprd_camioctl_bin_path_cfg(struct camera_path_spec *bin_path,
 		goto exit;
 	}
 
+	ret = sprd_dcam_bin_path_cfg_set(idx, DCAM_PATH_SRC_SEL,
+		&bin_path->src_sel);
+	if (unlikely(ret)) {
+		pr_err("fail to cfg bin_path src\n");
+		goto exit;
+	}
+
 	ret = sprd_dcam_bin_path_cfg_set(idx, DCAM_PATH_INPUT_SIZE,
 		&bin_path->in_size);
 	if (unlikely(ret)) {
@@ -2618,15 +2646,13 @@ static int sprd_camioctl_dcam_cfg(struct camera_dev *dev)
 		bin_path->status = PATH_RUN;
 	}
 	/* for dcam 3dnr_me */
-	if (ctx->need_3dnr) {
-		size.w = ctx->cap_in_size.w;
-		size.h = ctx->cap_in_size.h;
-		ret = sprd_dcam_drv_3dnr_fast_me_info_get(idx, ctx->need_3dnr,
-			&size);
-		if (unlikely(ret)) {
-			pr_err("fail to cfg_nr3_fast_me info\n");
-			goto exit;
-		}
+	size.w = ctx->cap_in_size.w;
+	size.h = ctx->cap_in_size.h;
+	ret = sprd_dcam_drv_3dnr_fast_me_info_get(idx, ctx->need_3dnr,
+		&size);
+	if (unlikely(ret)) {
+		pr_err("fail to cfg_nr3_fast_me info\n");
+		goto exit;
 	}
 
 	if (dev->init_inptr.statis_valid) {
@@ -2952,7 +2978,10 @@ static int sprd_camioctl_dcam_fetch_start(enum dcam_id idx,
 	uint32_t tmp = 0;
 	uint32_t addr = 0;
 	struct dcam_module *dcam_module = NULL;
+	struct isp_pipe_dev *isp_dev = NULL;
 	struct dcam_path_desc *full_path = sprd_dcam_drv_full_path_get(idx);
+	int hblank = 0;
+	int burst_gap = 0;
 
 	if (!dev) {
 		pr_err("fail to get valid input ptr\n");
@@ -2964,7 +2993,7 @@ static int sprd_camioctl_dcam_fetch_start(enum dcam_id idx,
 	size = dev->fetch_info.size;
 	path = &group->dev[fetch_idx]->cam_ctx.cam_path[CAMERA_BIN_PATH];
 	isp_path = &dev->cam_ctx.cam_path[CAMERA_CAP_PATH];
-	if (!dev->raw_cap)
+	if (!dev->raw_cap || dev->raw_fetch_cnt)
 		goto config_fetch;
 
 	/*enable dcam 1*/
@@ -2990,11 +3019,32 @@ static int sprd_camioctl_dcam_fetch_start(enum dcam_id idx,
 	memset((void *)&cam_addr, 0, sizeof(cam_addr));
 	sprd_cam_buf_alloc(&cam_addr.buf_info, idx, &s_dcam_pdev->dev,
 		image_size, 1, CAM_BUF_SWAP_TYPE);
-	sprd_cam_queue_buf_write(&path->buf_queue,
-		&cam_addr);
-	sprd_dcam_bin_path_clear(fetch_idx);
+	sprd_cam_buf_addr_map(&cam_addr.buf_info);
+	dev->raw_addr[0] = cam_addr;
+	dev->raw_fetch_total = 1;
+	if (fetch_idx == DCAM_ID_1) {
+		uint32_t rgb_gain_bypass =
+			DCAM_REG_RD(fetch_idx, ISP_RGBG_PARAM) & BIT_0;
+		uint32_t lsc_bypass =
+			DCAM_REG_RD(fetch_idx, ISP_LENS_LOAD_EB) & BIT_0;
+		uint32_t awb_bypass =
+			DCAM_REG_RD(fetch_idx, ISP_AWBC_PARAM) & BIT_0;
+
+		if (!rgb_gain_bypass && !lsc_bypass  && !awb_bypass) {
+			pr_debug("fetch twice\n");
+			/*pre process frame*/
+			sprd_cam_buf_alloc(&cam_addr.buf_info, idx,
+			&s_dcam_pdev->dev, image_size, 1, CAM_BUF_SWAP_TYPE);
+			sprd_cam_buf_addr_map(&cam_addr.buf_info);
+			dev->raw_addr[1] = cam_addr;
+			dev->raw_fetch_total++;
+		}
+	}
 
 config_fetch:
+	dev->raw_fetch_cnt++;
+	isp_dev  = (struct isp_pipe_dev *)dev->isp_dev_handle;
+	isp_dev->isp_k_param.fetch_cnt_4in1 = dev->raw_fetch_cnt;
 	/*config fetch*/
 	path->is_work = 1;
 	path->status = PATH_RUN;
@@ -3010,6 +3060,7 @@ config_fetch:
 	path->pixel_depth = 10;
 	path->buf_num = 1;
 	path->run_mode = 1;
+	path->src_sel = 0;
 	isp_path->assoc_idx = 1 << CAMERA_BIN_PATH;
 	ret = sprd_isp_drv_path_cfg_set(dev->isp_dev_handle,
 		ISP_PATH_IDX_CAP, ISP_PATH_ASSOC, &isp_path->assoc_idx);
@@ -3017,6 +3068,22 @@ config_fetch:
 		pr_err("fail to config isp path\n");
 		goto exit;
 	}
+
+	if (DCAM_FETCH_ONLY_ONE(dev)
+		|| DCAM_LAST_FETCH(dev)) {
+		/*
+		 * DCAM_FETCH_ONLY_ONE  is  for raw capture ;
+		 * fetch_cnt == 2  for 4in1 last fetch or dul cap last
+		*/
+		pr_debug("fetch 2nd  buffer\n");
+		sprd_cam_queue_buf_write(&path->buf_queue,
+			&dev->raw_addr[0]);
+	} else {
+		pr_debug("fetch 1st  buffer\n");
+		sprd_cam_queue_buf_write(&path->buf_queue,
+			&dev->raw_addr[1]);
+	}
+	sprd_dcam_bin_path_clear(fetch_idx);
 
 	ret = sprd_camioctl_bin_path_cfg(path, fetch_idx);
 	if (unlikely(ret)) {
@@ -3046,29 +3113,62 @@ config_fetch:
 			&dcam_module->statis_module_info, &dev->init_inptr);
 		sprd_cam_statistic_buf_set(
 			&dcam_module->statis_module_info);
+		hblank = 0XFF;
+		burst_gap = 0X0F;
 	} else {
 		DCAM_REG_MWR(fetch_idx, ISP_AEM_PARAM, BIT_0, 1);
 		DCAM_REG_MWR(fetch_idx, ISP_RAW_AFM_FRAM_CTRL, BIT_0, 1);
 		DCAM_REG_MWR(fetch_idx, ISP_ANTI_FLICKER_FRAM_CTRL, BIT_0, 1);
 		DCAM_REG_MWR(fetch_idx, DCAM_NR3_PARA1, BIT_0, 1);
+		hblank = 0X01;
+		burst_gap = 0X01;
 	}
-	sprd_dcam_drv_irq_mask_en(fetch_idx);
 
-	sprd_dcam_drv_force_copy(fetch_idx, ALL_COPY);
+	if (!DCAM_FETCH_ONLY_ONE(dev)) {
+		if (DCAM_FIRST_FETCH(dev)) {
+			pr_debug("fetch: 1st  only open BLC & Rgb_gain yrandom\n");
+			DCAM_REG_MWR(fetch_idx,
+				DCAM_MIPI_CAP_CFG, BIT_18, ~BIT_18);
+			DCAM_REG_MWR(fetch_idx,
+				ISP_RGBG_PARAM, BIT_0, ~BIT_0);
+			DCAM_REG_MWR(fetch_idx,
+				ISP_RGBG_YRANDOM_PARAM0, BIT_0, ~BIT_0);
+
+			DCAM_REG_MWR(fetch_idx, ISP_LENS_LOAD_EB, BIT_0, BIT_0);
+			DCAM_REG_MWR(fetch_idx, ISP_AWBC_PARAM, BIT_0, BIT_0);
+			DCAM_REG_MWR(fetch_idx, ISP_BPC_PARAM, 0x0F, 0x0F);
+			DCAM_REG_MWR(fetch_idx, ISP_GRGB_CTRL, BIT_0, BIT_0);
+		} else {
+			pr_debug("fetch: 2nd  close BLC & Rgb_gain&yrandom, open other sublock\n");
+			DCAM_REG_MWR(fetch_idx,
+				DCAM_MIPI_CAP_CFG, BIT_18, BIT_18);
+			DCAM_REG_MWR(fetch_idx,
+				ISP_RGBG_PARAM, BIT_0, BIT_0);
+			DCAM_REG_MWR(fetch_idx,
+				ISP_RGBG_PARAM, 0xFFFF << 16, 0xFFFF << 16);
+			DCAM_REG_MWR(fetch_idx,
+				ISP_RGBG_YRANDOM_PARAM0, BIT_0, BIT_0);
+			DCAM_REG_MWR(fetch_idx,
+				ISP_LENS_LOAD_EB, BIT_0, ~BIT_0);
+			DCAM_REG_MWR(fetch_idx, ISP_AWBC_PARAM, BIT_0, ~BIT_0);
+			DCAM_REG_MWR(fetch_idx, ISP_BPC_PARAM, 0x0F, 0x0);
+			DCAM_REG_MWR(fetch_idx, ISP_GRGB_CTRL, BIT_0, ~BIT_0);
+		}
+	}
 
 	/*config fetch*/
 	param = 0;
 	ret = sprd_dcam_fetch_cfg_set(fetch_idx,
 		DCAM_FETCH_DATA_PACKET, &param);
 	if (unlikely(ret)) {
-		pr_err("fail to enable full_path\n");
+		pr_err("fail to  cfg fetch packet\n");
 		goto exit;
 	}
 
 	ret = sprd_dcam_fetch_cfg_set(fetch_idx,
 		DCAM_FETCH_INPUT_RECT, &rect);
 	if (unlikely(ret)) {
-		pr_err("fail to cfg full_path input rect\n");
+		pr_err("fail to cfg fetch input rect\n");
 		goto exit;
 	}
 
@@ -3076,19 +3176,29 @@ config_fetch:
 	ret = sprd_dcam_fetch_cfg_set(fetch_idx,
 		DCAM_FETCH_DATA_ENDIAN, &param);
 	if (unlikely(ret)) {
-		pr_err("fail to cfg full_path data endian\n");
+		pr_err("fail to cfg fetch data endian\n");
 		goto exit;
 	}
 
-	memset((void *)&cam_addr, 0, sizeof(cam_addr));
-	cam_addr.buf_info.dev = &s_dcam_pdev->dev;
-	cam_addr.buf_info.type = CAM_BUF_USER_TYPE;
-	cam_addr.buf_info.num = 1;
-	cam_addr.mfd_y = dev->fetch_info.fetch_addr.img_fd;
-	cam_addr.yaddr = dev->fetch_info.fetch_addr.offset.x;
-	if (!dev->raw_cap) {
+	ret = sprd_dcam_fetch_cfg_set(fetch_idx,
+		DCAM_FETCH_HBLANK, &hblank);
+	if (unlikely(ret)) {
+		pr_err("fail to cfg fetch hblank\n");
+		goto exit;
+	}
+
+	ret = sprd_dcam_fetch_cfg_set(fetch_idx,
+		DCAM_FETCH_BURST_GAP, &burst_gap);
+	if (unlikely(ret)) {
+		pr_err("fail to cfg fetch burst gap\n");
+		goto exit;
+	}
+
+	if (!dev->raw_cap && DCAM_FIRST_FETCH(dev)) {
+		/*for 4in1 capture*/
 		for (i = 0; i < full_path->buf_num; i++) {
-			if (full_path->addr_4in1[i].mfd == cam_addr.mfd_y) {
+			if (full_path->addr_4in1[i].mfd ==
+				dev->fetch_info.fetch_addr.img_fd) {
 				addr = full_path->addr_4in1[i].iova;
 				break;
 			}
@@ -3097,9 +3207,22 @@ config_fetch:
 			pr_err("fail to find mfd %d\n", cam_addr.mfd_y);
 			return -EFAULT;
 		}
+		pr_debug("fetch: 1st set fetch register\n");
 		addr += cam_addr.yaddr;
 		DCAM_AXIM_WR(REG_DCAM_IMG_FETCH_RADDR, addr);
 	} else {
+		memset((void *)&cam_addr, 0, sizeof(cam_addr));
+		if (DCAM_FIRST_FETCH(dev)) {
+			/*for raw capture*/
+			cam_addr.buf_info.dev = &s_dcam_pdev->dev;
+			cam_addr.buf_info.type = CAM_BUF_USER_TYPE;
+			cam_addr.buf_info.num = 1;
+			cam_addr.mfd_y = dev->fetch_info.fetch_addr.img_fd;
+			cam_addr.yaddr = dev->fetch_info.fetch_addr.offset.x;
+		} else {
+			pr_debug("fetch: 2nd set fetch register\n");
+			cam_addr = dev->raw_addr[1];
+		}
 		ret = sprd_dcam_fetch_cfg_set(fetch_idx,
 			DCAM_FETCH_INPUT_ADDR, &cam_addr);
 		if (unlikely(ret)) {
@@ -3107,6 +3230,9 @@ config_fetch:
 			goto exit;
 		}
 	}
+
+	sprd_dcam_drv_irq_mask_en(fetch_idx);
+	sprd_dcam_drv_force_copy(fetch_idx, ALL_COPY);
 
 	/*start dcam1 and isp fetch flow*/
 	param = 1;
@@ -3143,12 +3269,20 @@ static int sprd_camioctl_dcam_fetch_stop(enum dcam_id idx,
 	path = &group->dev[fetch_idx]->cam_ctx.cam_path[CAMERA_BIN_PATH];
 
 	dcam_module = sprd_dcam_drv_module_get(fetch_idx);
-	if (dev->raw_cap) {
-		sprd_cam_buf_addr_unmap(
-			&dcam_module->dcam_fetch.frame.buf_info);
+
+	if (dev->raw_fetch_total != 0) {
+		int i = 0;
+
+		while (i < dev->raw_fetch_total)  {
+			sprd_cam_buf_addr_unmap(&dev->raw_addr[i].buf_info);
+			i++;
+		}
+	}
+	dev->raw_fetch_total = 0;
+
+	if (dev->raw_cap)
 		sprd_cam_statistic_unmap(
 			&dcam_module->statis_module_info.img_statis_buf);
-	}
 
 	sprd_dcam_bin_path_unmap(fetch_idx);
 	path->is_work = 0;
@@ -4463,7 +4597,7 @@ static int sprd_camioctl_io_raw_cap(struct camera_file *camerafile,
 		atomic_set(&dev->stream_on, 1);
 	}
 	dev->raw_cap = 1;
-	dev->raw_phase = 0;
+	dev->raw_fetch_cnt = 0;
 
 	if (!dev->isp_dev_handle) {
 		ret = -EFAULT;
@@ -4918,6 +5052,8 @@ static int sprd_camioctl_io_4in1_post_proc(struct camera_file *camerafile,
 
 	pr_debug("4in1 post mfd %x w %d h %d\n", p->fd_array[0],
 		fetch_info->size.width, fetch_info->size.height);
+	dev->raw_fetch_cnt = 0;
+
 	ret = sprd_camioctl_dcam_fetch_start(idx, DCAM_ID_1, group);
 	if (ret) {
 		pr_err("fail to start fetch\n");

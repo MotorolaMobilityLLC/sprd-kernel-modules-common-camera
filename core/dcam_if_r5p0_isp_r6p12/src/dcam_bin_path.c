@@ -131,6 +131,7 @@ void sprd_dcam_bin_path_clear(enum dcam_id idx)
 	sprd_cam_queue_buf_clear(&bin_path->buf_queue);
 	sprd_cam_queue_frm_clear(&bin_path->frame_queue);
 	sprd_cam_queue_buf_clear(&bin_path->coeff_queue);
+	bin_path->src_sel = 0;
 	bin_path->valid = 0;
 	bin_path->status = DCAM_ST_STOP;
 	bin_path->output_frame_count = 0;

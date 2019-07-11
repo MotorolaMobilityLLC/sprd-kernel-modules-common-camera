@@ -2412,7 +2412,7 @@ int sprd_isp_drv_start(void *isp_handle)
 		}
 	}
 
-	if (cap->valid && cap->nr3_param.need_3dnr) {
+	if (cap->valid && (!dev->is_raw_capture)) {
 		nr3_dev = (struct isp_nr3_param *)&cap->nr3_param;
 		nr3_buf = (struct cam_buf_info *)&nr3_dev->buf_info;
 		size = nr3_dev->sns_max_size.width *
@@ -2591,6 +2591,12 @@ int sprd_isp_drv_cap_start(void *handle,
 	if (!is_irq)
 		dev->cap_flag = cap_flag;
 
+	if (dev->cap_flag == DCAM_CAPTURE_START_3DNR)
+		module->isp_path[ISP_SCL_CAP].nr3_param.need_3dnr = 1;
+	else
+		module->isp_path[ISP_SCL_CAP].nr3_param.need_3dnr = 0;
+
+	pr_info("dev cap_flag %d\n", dev->cap_flag);
 	zsl_num = sprd_cam_queue_frm_cur_nodes(&module->full_zsl_queue);
 	if (zsl_num == 0
 		|| cap_flag == DCAM_CAPTURE_START_WITH_FLASH

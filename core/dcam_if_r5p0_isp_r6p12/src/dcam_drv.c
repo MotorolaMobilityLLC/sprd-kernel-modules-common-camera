@@ -616,6 +616,7 @@ int sprd_dcam_drv_start(enum dcam_id idx)
 	unsigned long image_vc = 0;
 	unsigned long image_data_type = IMG_TYPE_RAW;
 	unsigned long image_mode = 1;
+	struct camera_size size = {0};
 
 	if (DCAM_ADDR_INVALID(s_p_dcam_mod[idx])) {
 		pr_err("fail to get valid input ptr\n");
@@ -644,7 +645,6 @@ int sprd_dcam_drv_start(enum dcam_id idx)
 		((image_data_type & 0x3F) << 8) | (image_mode & 0x3);
 
 	if (cap_en == 0) {
-
 		if (idx != DCAM_ID_2)
 			DCAM_REG_WR(idx, DCAM_IMAGE_CONTROL, reg_val);
 		else
@@ -665,16 +665,6 @@ int sprd_dcam_drv_start(enum dcam_id idx)
 				DCAM_INIT_MASK_REG);
 		}
 
-		/* Cap force copy */
-		sprd_dcam_drv_force_copy(idx, ALL_COPY);
-		/* Cap Enable */
-		sprd_dcam_drv_glb_reg_mwr(idx, DCAM_CFG, BIT_0, BIT_0,
-				DCAM_CONTROL_REG);
-	}
-
-	if (s_p_dcam_mod[idx]->need_nr3) {
-		struct camera_size size = {0};
-
 		size.w = s_p_dcam_mod[idx]->me_param.cap_in_size_w;
 		size.h = s_p_dcam_mod[idx]->me_param.cap_in_size_h;
 		rtn = sprd_dcam_drv_3dnr_me_set(idx, &size);
@@ -685,19 +675,25 @@ int sprd_dcam_drv_start(enum dcam_id idx)
 		DCAM_REG_WR(idx, DCAM_NR3_BASE_WADDR,
 			s_p_dcam_mod[idx]->statis_module_info
 			.aem_buf_reserved.phy_addr);
-	}
 
-	if (sprd_dcam_drv_chip_id_get() == SHARKL3)
-		reg_val = (0x0 << 20) | (0xA << 12) | (0x8 << 8) |
-					(0xD << 4) | 0xA;
-	else
-		reg_val = (0x0 << 20) | (0xB << 12) | (0x2 << 8) |
-					(0xE << 4) | 0xB;
-	sprd_dcam_drv_glb_reg_mwr(idx,
-			DCAM_AXIM_CTRL,
-			DCAM_AXIM_AQOS_MASK,
-			reg_val,
-			DCAM_AXIM_REG);
+		if (sprd_dcam_drv_chip_id_get() == SHARKL3)
+			reg_val = (0x0 << 20) | (0xA << 12) | (0x8 << 8) |
+						(0xD << 4) | 0xA;
+		else
+			reg_val = (0x0 << 20) | (0xB << 12) | (0x2 << 8) |
+						(0xE << 4) | 0xB;
+		sprd_dcam_drv_glb_reg_mwr(idx,
+				DCAM_AXIM_CTRL,
+				DCAM_AXIM_AQOS_MASK,
+				reg_val,
+				DCAM_AXIM_REG);
+
+		/* Cap force copy */
+		sprd_dcam_drv_force_copy(idx, ALL_COPY);
+		/* Cap Enable */
+		sprd_dcam_drv_glb_reg_mwr(idx, DCAM_CFG, BIT_0, BIT_0,
+				DCAM_CONTROL_REG);
+	}
 
 	return -rtn;
 }

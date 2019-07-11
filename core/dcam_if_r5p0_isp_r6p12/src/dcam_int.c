@@ -232,10 +232,6 @@ static void sprd_dcamint_3dnr_done(enum dcam_id idx,
 	struct dcam_module *dcam_dev = NULL;
 
 	dcam_dev = (struct dcam_module *)param;
-
-	if (!dcam_dev->need_nr3)
-		return;
-
 	dcam_dev->fast_me.bin_mv_ready_cnt++;
 	dcam_dev->fast_me.full_mv_ready_cnt++;
 	if (dcam_dev->fast_me.bin_mv_ready_cnt > 1)
@@ -288,6 +284,7 @@ static void sprd_dcamint_full_path_done(enum dcam_id idx,
 	enum dcam_drv_rtn rtn = DCAM_RTN_SUCCESS;
 	struct dcam_module *dcam_dev = NULL;
 	struct dcam_path_desc *full_path = sprd_dcam_drv_full_path_get(idx);
+	uint32_t mv_ready_cnt = 0;
 
 	if (DCAM_ADDR_INVALID(full_path))
 		return;
@@ -332,8 +329,8 @@ static void sprd_dcamint_full_path_done(enum dcam_id idx,
 				frame.buf_info.mfd[1],
 				(uint32_t)frame.buf_info.iova[0] + frame.yaddr);
 
-			if (dcam_dev->need_nr3) {
-				uint32_t mv_ready_cnt =
+			if (full_path->src_sel) {
+				mv_ready_cnt =
 					dcam_dev->fast_me.full_mv_ready_cnt;
 				if (mv_ready_cnt == 0) {
 					dcam_dev->fast_me.full_frame_cnt++;
@@ -396,6 +393,7 @@ static void sprd_dcamint_bin_path_done(enum dcam_id idx,
 	enum dcam_drv_rtn rtn = DCAM_RTN_SUCCESS;
 	struct dcam_module *dcam_dev = NULL;
 	struct dcam_path_desc *bin_path = sprd_dcam_drv_bin_path_get(idx);
+	uint32_t mv_ready_cnt = 0;
 
 	if (DCAM_ADDR_INVALID(bin_path))
 		return;
@@ -444,8 +442,8 @@ static void sprd_dcamint_bin_path_done(enum dcam_id idx,
 				frame.buf_info.mfd[1],
 				(uint32_t)frame.buf_info.iova[0] + frame.yaddr);
 
-			if (dcam_dev->need_nr3) {
-				uint32_t mv_ready_cnt =
+			if (bin_path->src_sel) {
+				mv_ready_cnt =
 					dcam_dev->fast_me.bin_mv_ready_cnt;
 				if (mv_ready_cnt == 0) {
 					dcam_dev->fast_me.bin_frame_cnt++;
@@ -462,7 +460,7 @@ static void sprd_dcamint_bin_path_done(enum dcam_id idx,
 				} else {
 					dcam_dev->fast_me.bin_mv_ready_cnt = 0;
 					dcam_dev->fast_me.bin_frame_cnt = 0;
-					pr_err("DCAM%d:fail to 3DNR bin mv_cnt err\n",
+					pr_err("DCAM%d:fail to bin mv_cnt err\n",
 						idx);
 					return;
 				}

@@ -165,8 +165,6 @@ void isp_3dnr_config_param(uint32_t idx, enum isp_operate_type type_id,
 	ISP_REG_WR(idx, ISP_STORE_LITE_ADDR1, val);
 	val = nr3_store->st_pitch & 0xFFFF;
 	ISP_REG_WR(idx, ISP_STORE_LITE_PITCH, val);
-	ISP_REG_MWR(idx, ISP_STORE_LITE_SHADOW_CLR,
-		BIT_0, nr3_store->shadow_clr);
 
 	/*config crop*/
 	crop = &param->crop;

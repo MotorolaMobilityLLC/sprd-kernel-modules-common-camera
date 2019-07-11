@@ -110,18 +110,22 @@ int sprd_dcam_fetch_cfg_set(enum dcam_id idx, enum dcam_cfg_id id, void *param)
 			frame->buf_info.offset[1] = p_addr->uaddr;
 			frame->buf_info.offset[2] = p_addr->vaddr;
 
-			/*may need update iommu here*/
-			rtn = sprd_cam_buf_sg_table_get(&frame->buf_info);
-			if (rtn) {
-				pr_err("fail to cfg input addr!\n");
-				rtn = DCAM_RTN_PATH_ADDR_ERR;
-				break;
-			}
-			rtn = sprd_cam_buf_addr_map(&frame->buf_info);
-			if (rtn) {
-				pr_err("fail to cfg input addr!\n");
-				rtn = DCAM_RTN_PATH_ADDR_ERR;
-				break;
+			if (!(p_addr->buf_info.state
+				& CAM_BUF_STATE_MAPPING_DCAM)) {
+				/*may need update iommu here*/
+				rtn =
+				sprd_cam_buf_sg_table_get(&frame->buf_info);
+				if (rtn) {
+					pr_err("fail to cfg input addr!\n");
+					rtn = DCAM_RTN_PATH_ADDR_ERR;
+					break;
+				}
+				rtn = sprd_cam_buf_addr_map(&frame->buf_info);
+				if (rtn) {
+					pr_err("fail to cfg input addr!\n");
+					rtn = DCAM_RTN_PATH_ADDR_ERR;
+					break;
+				}
 			}
 			addr = frame->buf_info.iova[0] + frame->yaddr;
 			DCAM_AXIM_WR(REG_DCAM_IMG_FETCH_RADDR,
@@ -130,6 +134,20 @@ int sprd_dcam_fetch_cfg_set(enum dcam_id idx, enum dcam_cfg_id id, void *param)
 				p_addr->yaddr, frame->buf_info.mfd[0]);
 			DCAM_TRACE("fetch addr 0x%x\n",
 				(uint32_t)addr);
+		}
+		break;
+	case DCAM_FETCH_HBLANK:
+		{
+			uint32_t hblank = *(uint32_t *)param;
+
+			fetch_desc->hblank = hblank;
+		}
+		break;
+	case DCAM_FETCH_BURST_GAP:
+		{
+			uint32_t gap = *(uint32_t *)param;
+
+			fetch_desc->burst_gap = gap;
 		}
 		break;
 	case DCAM_FETCH_START:
@@ -141,9 +159,9 @@ int sprd_dcam_fetch_cfg_set(enum dcam_id idx, enum dcam_cfg_id id, void *param)
 				BIT(16), 0 << 16);
 			DCAM_REG_MWR(idx, DCAM_MIPI_CAP_CFG, BIT(0), BIT(0));
 			DCAM_AXIM_MWR(REG_DCAM_IMG_FETCH_CTRL,
-				0x0F << 12, 0x0F << 12);
+				0x0F << 12, fetch_desc->burst_gap << 12);
 			DCAM_AXIM_MWR(REG_DCAM_IMG_FETCH_CTRL,
-				0xFF << 4, 0xFF << 4);
+				0xFF << 4, fetch_desc->hblank << 4);
 			DCAM_AXIM_WR(REG_DCAM_IMG_FETCH_START, BIT(0));
 		} else {
 			DCAM_AXIM_MWR(REG_DCAM_IMG_FETCH_CTRL,

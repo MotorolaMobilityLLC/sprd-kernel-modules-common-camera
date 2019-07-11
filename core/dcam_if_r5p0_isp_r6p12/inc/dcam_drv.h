@@ -119,6 +119,8 @@ enum dcam_cfg_id {
 	DCAM_FETCH_DATA_ENDIAN,
 	DCAM_FETCH_INPUT_RECT,
 	DCAM_FETCH_INPUT_ADDR,
+	DCAM_FETCH_HBLANK,
+	DCAM_FETCH_BURST_GAP,
 	DCAM_FETCH_START,
 	DCAM_CFG_ID_E_MAX
 };
@@ -170,6 +172,8 @@ struct dcam_cap_desc {
 
 struct dcam_fetch_desc {
 	int is_loose;
+	int hblank;
+	int burst_gap;
 	struct camera_rect input_rect;
 	struct camera_frame frame;
 };

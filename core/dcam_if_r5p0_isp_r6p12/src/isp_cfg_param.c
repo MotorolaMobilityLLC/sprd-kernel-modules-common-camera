@@ -120,6 +120,12 @@ int sprd_isp_cfg_param(void *param,
 	isp_k_param->need_4in1 = dev->need_4in1;
 	if (dev->need_4in1) {
 		idx1 = idx;
+		if (isp_param.scene_id == 1
+			&& dev->isp_k_param.fetch_cnt_4in1 > 0) {
+			pr_debug("4in1 fetch moment do not need to config param\n");
+			return ret;
+		}
+
 		if (isp_param.scene_id == 1)
 			ISP_SET_ISP_ID(idx1, DCAM_ID_1);
 		else

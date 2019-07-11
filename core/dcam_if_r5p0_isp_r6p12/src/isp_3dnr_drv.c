@@ -404,7 +404,7 @@ int sprd_isp_3dnr_release(void *isp_handle)
 			return ret;
 		}
 	}
-	if (path_cap->valid && path_cap->nr3_param.need_3dnr) {
+	if (path_cap->valid && (!dev->is_raw_capture)) {
 		buf = (struct cam_buf_info *)&path_cap->nr3_param.buf_info;
 		ret = sprd_cam_buf_addr_unmap(buf);
 		if (ret) {
