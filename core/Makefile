@@ -1,5 +1,6 @@
 LOCAL_PATH := $(shell cd $(BSP_ROOT_DIR)/modules/camera/core; pwd)
 ISP_DIR := $(BSP_BOARD_CAMERA_MODULE_ISP_VERSION)
+CSI_DIR := $(BSP_BOARD_CAMERA_MODULE_CSI_VERSION)
 
 sprd_camera-objs :=
 
@@ -39,6 +40,7 @@ endif
 ccflags-y += -I$(LOCAL_PATH)/../common
 ccflags-y += -I$(LOCAL_PATH)/../interface
 ccflags-y += -I$(LOCAL_PATH)/../sensor
+ccflags-y += -I$(LOCAL_PATH)/../sensor/csi2/sprd/$(CSI_DIR)
 ccflags-y += -I$(LOCAL_PATH)/../flash/flash_drv
 ccflags-y += -I$(LOCAL_PATH)/$(ISP_DIR)/inc
 ccflags-y += -I$(BSP_KERNEL_PATH)/drivers/staging/android/ion

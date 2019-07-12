@@ -32,8 +32,8 @@
 #include "isp_path.h"
 #include "isp_3dnr_drv.h"
 #include "cam_flash.h"
-
 #include "sprd_sensor_drv.h"
+#include "csi_api.h"
 #ifdef CONFIG_COMPAT
 #include "cam_drv_compat.h"
 #endif
@@ -771,9 +771,7 @@ static ssize_t sprd_camcore_read(struct file *file,
 				read_op.parm.frame.irq_type = node.irq_type;
 				read_op.parm.frame.irq_property
 					= node.irq_property;
-			#if 0
 				csi_api_reg_trace();
-			#endif
 				sprd_dcam_drv_reg_trace(idx);
 			}
 		}

@@ -10,7 +10,7 @@ ifeq ($(CONFIG_COMPAT),y)
 sprd_sensor-objs += compat_sensor_drv.o
 endif
 
-CSI_SRC := $(shell find $(LOCAL_PATH)/csi2/csi_sprd/$(CSI_DIR) -name "*.c")
+CSI_SRC := $(shell find $(LOCAL_PATH)/csi2/sprd/$(CSI_DIR) -name "*.c")
 LOCAL_CSI_SRC := $(CSI_SRC:$(LOCAL_PATH)/%=%)
 sprd_sensor-objs += $(LOCAL_CSI_SRC:%.c=%.o)
 
@@ -20,7 +20,7 @@ obj-m += sprd_sensor.o
 # target includes
 ccflags-y += -I$(LOCAL_PATH)/../common
 ccflags-y += -I$(LOCAL_PATH)/../interface
-ccflags-y += -I$(LOCAL_PATH)/csi2/csi_sprd/$(CSI_DIR)
+ccflags-y += -I$(LOCAL_PATH)/csi2/sprd/$(CSI_DIR)
 
 .PHONY:modules
 

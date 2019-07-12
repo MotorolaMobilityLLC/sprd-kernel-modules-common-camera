@@ -295,6 +295,7 @@ void csi_api_reg_trace(void)
 {
 	csi_dump_reg();
 }
+EXPORT_SYMBOL(csi_api_reg_trace);
 
 int csi_api_switch(int sensor_id)
 {

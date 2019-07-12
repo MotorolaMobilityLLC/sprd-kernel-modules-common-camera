@@ -423,6 +423,7 @@ void csi_api_reg_trace(void)
 	for (i = 0; i < CSI_MAX_COUNT; i++)
 		csi_reg_trace(i);
 }
+EXPORT_SYMBOL(csi_api_reg_trace);
 
 int csi_api_switch(int sensor_id)
 {
