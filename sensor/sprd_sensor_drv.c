@@ -1204,6 +1204,7 @@ exit:
 	pr_debug("sensor w done, ret %d\n", ret);
 	return ret;
 }
+EXPORT_SYMBOL(sprd_sensor_write_i2c);
 
 int sprd_sensor_write_muti_i2c(struct sensor_muti_aec_i2c_tag *muti_aec_i2c)
 {

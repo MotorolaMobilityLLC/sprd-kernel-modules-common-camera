@@ -4412,7 +4412,6 @@ int sprd_isp_parse_dt(struct device_node *dn, unsigned int *isp_count)
 	pr_info("after isp dev device node %s, full name %s\n",
 		np->name, np->full_name);
 	s_isp_pdev = of_find_device_by_node(np);
-	pr_info("sprd s_isp_pdev name %s\n", s_isp_pdev->name);
 	if (of_device_is_compatible(np, "sprd,isp")) {
 		if (of_property_read_u32_index(np,
 			"sprd,isp-count", 0, &count)) {
@@ -4557,8 +4556,7 @@ int isp_path_cap_with_vid_set_next_frm(struct isp_pipe_dev *dev)
 		path->output_frame_count--;
 	}
 	if (frame.pfinfo.buf[0] != NULL) {
-		kaddr = ion_heap_map_kernel(NULL,
-				(struct ion_buffer *)frame.pfinfo.buf[0]);
+		kaddr = sprd_ion_map_kernel(frame.pfinfo.dmabuf_p[0], 0);
 		size = ((struct ion_buffer *)(frame.pfinfo.buf[0]))->size;
 		if (IS_ERR(kaddr))
 			pr_err("fail to map kernel memory");
