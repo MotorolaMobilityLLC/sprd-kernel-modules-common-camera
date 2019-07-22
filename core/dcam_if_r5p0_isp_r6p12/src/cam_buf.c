@@ -381,7 +381,6 @@ static int sprd_cambuf_unmap(struct cam_buf_info *buf_info)
 		memset(&unmap_data, 0x00, sizeof(unmap_data));
 		if (sprd_iommu_attach_device(buf_info->dev) == 0) {
 			if (buf_info->type == CAM_BUF_KERNEL_TYPE) {
-				sprd_ion_unmap_kernel(buf_info->dmabuf_p[i], 0);
 				buf_info->kaddr[i] = NULL;
 				buf_info->state &= ~CAM_BUF_STATE_MAPPING;
 			} else if (buf_info->type == CAM_BUF_SWAP_TYPE) {
@@ -591,6 +590,7 @@ int sprd_cam_buf_addr_map(struct cam_buf_info *buf_info)
 			iommu_data.buf = buf_info->buf[i];
 			iommu_data.iova_size = buf_info->size[i];
 			iommu_data.ch_type = SPRD_IOMMU_FM_CH_RW;
+			iommu_data.sg_offset = buf_info->offset[i];
 			pr_debug("start map buf %p size 0x%x\n",
 				buf_info->buf[i],
 				(int)iommu_data.iova_size);
@@ -601,7 +601,7 @@ int sprd_cam_buf_addr_map(struct cam_buf_info *buf_info)
 				ret = -EFAULT;
 				goto failed;
 			}
-			buf_info->iova[i] = iommu_data.iova_addr + buf_info->offset[i];
+			buf_info->iova[i] = iommu_data.iova_addr;
 		} else {
 			ret = sprd_ion_get_phys_addr(-1,
 					buf_info->dmabuf_p[i],
@@ -693,7 +693,7 @@ int sprd_cam_buf_addr_unmap(struct cam_buf_info *buf_info)
 			continue;
 
 		if (sprd_iommu_attach_device(buf_info->dev) == 0) {
-			unmap_data.iova_addr = buf_info->iova[i] - buf_info->offset[i];
+			unmap_data.iova_addr = buf_info->iova[i];
 			unmap_data.iova_size = buf_info->size[i];
 			unmap_data.ch_type = SPRD_IOMMU_FM_CH_RW;
 			unmap_data.table = NULL;
