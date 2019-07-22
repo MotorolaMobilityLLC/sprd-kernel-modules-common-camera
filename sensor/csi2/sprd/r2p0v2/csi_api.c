@@ -36,6 +36,12 @@
 #define pr_fmt(fmt) "CSI_API: %d %s: "\
 	fmt, __LINE__, __func__
 
+#ifdef CONFIG_PHYS_ADDR_T_64BIT
+#define PRIx64 "llx"
+#else
+#define PRIx64 "x"
+#endif
+
 static struct csi_dt_node_info *s_csi_dt_info_p[SPRD_SENSOR_ID_MAX];
 
 static struct csi_dt_node_info *csi_get_dt_node_data(int sensor_id)
@@ -128,9 +134,9 @@ int csi_api_dt_node_init(struct device *dev, struct device_node *dn,
 
 	of_property_read_u32_index(dn, "sprd,csi-id", 0, &csi_info->id);
 
-	pr_info("csi %d ,reg phy addr base:0x%p ,size:0x%p , reg base %lx\n",
-			csi_info->id, (void *)res.start,
-			(void *)resource_size(&res),
+	pr_info("csi %d ,reg phy addr base 0x%"PRIx64", size 0x%"PRIx64", reg base 0x%lx\n",
+			csi_info->id, res.start,
+			resource_size(&res),
 			csi_info->reg_base);
 
 	/* read clocks */
