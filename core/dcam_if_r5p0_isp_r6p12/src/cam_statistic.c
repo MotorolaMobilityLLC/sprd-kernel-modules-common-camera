@@ -140,11 +140,11 @@ int sprd_cam_statistic_queue_init(struct cam_statis_module *module,
 			ISP_STATISTICS_QUEUE_LEN, "afm frm_queue");
 		ret = sprd_cam_queue_frm_init(
 			&module->pdaf_statis_frm_queue,
-			sizeof(struct camera_frame),
+			sizeof(struct cam_statis_buf),
 			ISP_STATISTICS_QUEUE_LEN, "pdaf frm_queue");
 		ret = sprd_cam_queue_frm_init(
 			&module->ebd_statis_frm_queue,
-			sizeof(struct camera_frame),
+			sizeof(struct cam_statis_buf),
 			ISP_STATISTICS_QUEUE_LEN, "embedded line frm_queue");
 	} else if (module_flag == ISP_DEV_STATIS) {
 		ret = sprd_cam_queue_buf_init(&module->hist_statis_queue,

@@ -664,7 +664,6 @@ static void sprd_dcamint_vch2_done(enum dcam_id idx,
 	struct cam_statis_module *module = NULL;
 	int cur_nodes = 0;
 
-	return;
 	memset(&frame_info, 0x00, sizeof(frame_info));
 	dcam_dev = (struct dcam_module *)param;
 	module = &dcam_dev->statis_module_info;
