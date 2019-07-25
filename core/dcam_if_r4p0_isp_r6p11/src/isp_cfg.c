@@ -452,10 +452,12 @@ static int isp_cctx_init_hw(struct isp_cctx_desc *cctx_desc,
 			    s_cfg_settings.cap1_th);
 	}
 
+#if 0
 #ifdef CONFIG_64BIT
 	__flush_dcache_area(work_buf_va, ISP_REG_SIZE);
 #else
 	flush_kernel_vmap_range(work_buf_va, ISP_REG_SIZE);
+#endif
 #endif
 
 	ISP_HREG_WR(iid, cfg_cmd_addr[iid][sid], work_buf_pa);

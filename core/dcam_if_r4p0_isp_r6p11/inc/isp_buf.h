@@ -67,5 +67,6 @@ int isp_gen_buf_alloc(struct isp_buf_info *buf_info);
 int isp_gen_buf_free(struct isp_buf_info *buf_info);
 int isp_gen_buf_hw_map(struct isp_buf_info *buf_info);
 int isp_gen_buf_hw_unmap(struct isp_buf_info *buf_info);
+void *isp_buf_get_kaddr(int fd);
 #endif
 

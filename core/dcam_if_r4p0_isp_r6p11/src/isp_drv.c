@@ -1893,6 +1893,8 @@ static int sprd_isp_pipeline_proc_bin(void *handle)
 
 	do_shadow_clr(dev, idx, 0);
 	isp_dbg_bypass_sblk(dev, idx);
+	ISP_REG_MWR(idx, ISP_RGB_AFM_PARAM, BIT_0, 1);
+	ISP_REG_MWR(idx, ISP_HIST_PARAM, BIT_0, 1);
 
 	ISP_REG_MWR(idx, ISP_HIST_PARAM, BIT_0 | BIT_1, 0x2);
 	ISP_REG_MWR(idx, ISP_HIST_CFG_READY, BIT_0, 1);

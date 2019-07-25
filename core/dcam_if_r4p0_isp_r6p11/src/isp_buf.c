@@ -965,8 +965,12 @@ int isp_gen_buf_alloc(struct isp_buf_info *buf_info)
 			buf_info->hw_addr = (void *)(phys_addr - MM_ION_OFFSET);
 		}
 
-		buf_info->sw_addr = phys_to_virt(
-				(unsigned long)buf_info->hw_addr);
+		buf_info->sw_addr = sprd_ion_map_kernel(buf_info->dmabuf_p, 0);
+		if (IS_ERR_OR_NULL(buf_info->sw_addr)) {
+			pr_err("fail to map kernel virtual address\n");
+			ret = -EFAULT;
+			goto map_failed;
+		}
 	}
 
 	return 0;
@@ -1108,4 +1112,28 @@ int isp_buf_recycle(struct offline_buf_desc *buf_desc,
 failed:
 	pr_err("fail to recycle buf, args error!\n");
 	return ret;
+}
+
+void *isp_buf_get_kaddr(int fd)
+{
+	struct dma_buf *dmabuf_p;
+	void *kaddr = NULL;
+
+	if (fd <= 0)
+		return 0;
+
+	dmabuf_p = dma_buf_get(fd);
+	if (IS_ERR_OR_NULL(dmabuf_p)) {
+		pr_err("fail to get dma buf %p\n", dmabuf_p);
+		return 0;
+	}
+
+	kaddr = sprd_ion_map_kernel(dmabuf_p, 0);
+	if (IS_ERR_OR_NULL(kaddr)) {
+		pr_err("fail to map kernel vir_addr\n");
+	}
+
+	dma_buf_put(dmabuf_p);
+
+	return kaddr;
 }
