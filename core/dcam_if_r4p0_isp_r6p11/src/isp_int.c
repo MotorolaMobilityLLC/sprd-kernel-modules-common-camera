@@ -438,8 +438,6 @@ static int isp_get_afm_statistic(unsigned int com_idx,
 	unsigned int *afm_statis = NULL;
 	enum isp_id iid = ISP_ID_0;
 
-	afm_statis = (unsigned int *)isp_buf_get_kaddr(node->pfinfo.mfd[0]);
-#if 0
 #ifdef CONFIG_64BIT
 	afm_statis =
 		(unsigned int *)(((unsigned long)node->kaddr[0]) |
@@ -447,7 +445,7 @@ static int isp_get_afm_statistic(unsigned int com_idx,
 #else
 	afm_statis = (unsigned int *)(node->kaddr[0]);
 #endif
-#endif
+
 	if (!afm_statis) {
 		ret = -1;
 		pr_err("fail to alloc memory\n");
@@ -1261,7 +1259,6 @@ static int isp_get_hist_statistic(unsigned int com_idx,
 	uint64_t *hist_statis = NULL;
 	uint32_t isp_core_pmu_en = 0;
 
-#if 0
 #ifdef CONFIG_64BIT
 	hist_statis =
 		(uint64_t *)(((unsigned long)node->kaddr[0]) |
@@ -1269,9 +1266,7 @@ static int isp_get_hist_statistic(unsigned int com_idx,
 #else
 	hist_statis = (uint64_t *)(node->kaddr[0]);
 #endif
-#endif
 
-	hist_statis = (uint64_t *)isp_buf_get_kaddr(node->pfinfo.mfd[0]);
 	if (!hist_statis) {
 		ret = -1;
 		pr_err("fail to get correct hist memory\n");
@@ -1294,9 +1289,7 @@ static int isp_get_hist_statistic(unsigned int com_idx,
 			(unsigned long) hist_statis[max_item-1]);
 	} else {
 		ret = -1;
-	#if 0
 		pr_err("fail to access hist memory ionbuffer %p\n", ionbuffer);
-	#endif
 		return ret;
 	}
 

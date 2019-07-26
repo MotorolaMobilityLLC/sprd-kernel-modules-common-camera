@@ -240,14 +240,15 @@ int sprd_isp_cfg_statis_buf(struct isp_pipe_dev *dev,
 	frm_statis_isp.buf_property = frm_statis_dcam.buf_property
 		= parm->buf_property;
 
+	kaddr1 = (unsigned long)isp_buf_get_kaddr(parm->mfd);
+	pr_info("kaddr = 0x%lx\n", kaddr1);
+
 #ifdef CONFIG_64BIT
-	kaddr1 = (unsigned long)parm->kaddr[1];
-	pr_info("kaddr = %p\n",
-		(unsigned int *)(((unsigned long)parm->kaddr[0]) |
-				 (kaddr1 << 32)));
+	parm->kaddr[0] = (unsigned int)(kaddr1 && 0xffffffff);
+	parm->kaddr[1] = (unsigned int)((kaddr1 >> 32) && 0xffffffff);
 #else
-	kaddr1 = (unsigned long)parm->kaddr[0];
-	pr_info("kaddr = %p\n", (unsigned int *)kaddr1);
+	parm->kaddr[0] = (unsigned int)kaddr1;
+	parm->kaddr[1] = 0;
 #endif
 
 	/* mapping iommu buffer for ISP */
