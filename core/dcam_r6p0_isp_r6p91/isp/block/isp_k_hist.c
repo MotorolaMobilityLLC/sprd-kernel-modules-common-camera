@@ -54,7 +54,7 @@ static int32_t isp_k_hist_block(struct isp_io_param *param)
 	else
 		ISP_REG_MWR(ISP_HIST_PARAM, BIT_1, 0);
 
-	if (hist_info.bypass)
+	if (1)
 		ISP_REG_OWR(ISP_HIST_PARAM, BIT_0);
 	else
 		ISP_REG_MWR(ISP_HIST_PARAM, BIT_0, 0);

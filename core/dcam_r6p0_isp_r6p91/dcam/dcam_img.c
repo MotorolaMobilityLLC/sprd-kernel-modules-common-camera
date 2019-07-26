@@ -344,7 +344,7 @@ static int img_get_timestamp(struct timeval *tv)
 static int sprd_img_setflash(struct sprd_img_set_flash *set_flash)
 {
 	/* need to do this later */
-	//sprd_flash_ctrl(set_flash);
+	sprd_flash_ctrl(set_flash);
 	DCAM_TRACE("sprd_img_setflash: flash_mode 0x%x.\n",
 		set_flash->led0_status);
 	return 0;

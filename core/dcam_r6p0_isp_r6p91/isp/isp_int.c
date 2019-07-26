@@ -473,7 +473,8 @@ static void isp_hist_done(void *isp_handle)
 		return;
 	}
 
-	if (node.phy_addr != module->hist_buf_reserved.phy_addr) {
+	if (node.kaddr[0] &&
+	    node.phy_addr != module->hist_buf_reserved.phy_addr) {
 		rtn = isp_get_hist_statistic(&node);
 
 		frame_info.buf_size = node.buf_size;
