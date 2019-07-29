@@ -143,6 +143,22 @@ int pfiommu_get_addr(struct pfiommu_info *pfinfo)
 	return ret;
 }
 
+unsigned int pfiommu_get_kaddr(struct pfiommu_info *pfinfo)
+{
+	unsigned int kaddr = 0;
+
+	if (pfinfo->size[0] <= 0)
+		return 0;
+
+	if (sprd_iommu_attach_device(pfinfo->dev) == 0) {
+		kaddr = (unsigned int) sprd_ion_map_kernel(pfinfo->dmabuf_p[0], 0);
+	} else {
+		kaddr = pfinfo->iova[0];
+	}
+
+	return kaddr;
+}
+
 int pfiommu_check_addr(struct pfiommu_info *pfinfo)
 {
 	struct fd_map_dma *fd_dma = NULL;

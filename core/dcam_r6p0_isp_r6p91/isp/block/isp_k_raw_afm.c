@@ -250,7 +250,7 @@ static int32_t isp_k_raw_afm_bypass(struct isp_io_param *param)
 		return -1;
 	}
 
-	if (1)
+	if (bypass)
 		ISP_REG_OWR(ISP_RGB_AFM_PARAM, BIT_0);
 	else
 		ISP_REG_MWR(ISP_RGB_AFM_PARAM, BIT_0, 0);

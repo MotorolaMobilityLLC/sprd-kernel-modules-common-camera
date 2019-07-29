@@ -2875,6 +2875,7 @@ static int sprd_img_k_open(struct inode *node, struct file *file)
 		pr_err("sprd_img_k_open fail alloc.\n");
 		return ret;
 	}
+	pr_info("dev:0x%x", (unsigned int)dev);
 
 	mutex_init(&dev->dcam_mutex);
 	init_completion(&dev->irq_com);

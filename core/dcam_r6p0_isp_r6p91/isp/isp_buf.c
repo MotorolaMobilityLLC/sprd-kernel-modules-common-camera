@@ -218,7 +218,12 @@ int sprd_isp_cfg_statis_buf(struct isp_pipe_dev *dev,
 	       sizeof(struct isp_statis_buf));
 	aem_iova_addr = frm_statis.pfinfo.iova[0];
 	aem_vir_addr = parm->vir_addr;
-	aem_kaddr = (unsigned long)parm->kaddr[0];
+	aem_kaddr = pfiommu_get_kaddr(&frm_statis.pfinfo);
+	if (aem_kaddr == 0) {
+		pr_err("fail to get statis buf kaddr\n");
+		pfiommu_free_addr(&frm_statis.pfinfo);
+		return -1;
+	}
 
 	statis_mem_size = frm_statis.pfinfo.size[0];
 	/*split the big buffer to some little buffer*/

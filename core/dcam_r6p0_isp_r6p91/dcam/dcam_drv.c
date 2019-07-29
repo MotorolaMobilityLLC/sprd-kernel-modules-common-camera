@@ -3776,6 +3776,7 @@ static int  _dcam_internal_init(void)
 	int                     ret = 0;
 
 	s_p_dcam_mod = vzalloc(sizeof(struct dcam_module));
+	pr_info("s_p_dcam_mod: 0x%x", (unsigned int)s_p_dcam_mod);
 
 	if (DCAM_ADDR_INVALID(s_p_dcam_mod)) {
 		pr_err("zero pointer\n");

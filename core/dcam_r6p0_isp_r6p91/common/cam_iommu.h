@@ -32,6 +32,7 @@ int  pfiommu_put_sg_table(void);
 void dma_buffer_list_clear(void);
 int pfiommu_check_addr(struct pfiommu_info *pfinfo);
 int pfiommu_get_addr(struct pfiommu_info *pfinfo);
+unsigned int pfiommu_get_kaddr(struct pfiommu_info *pfinfo);
 int pfiommu_free_addr(struct pfiommu_info *pfinfo);
 int pfiommu_free_addr_with_id(struct pfiommu_info *pfinfo,
 	enum sprd_iommu_chtype ctype, unsigned int cid);
