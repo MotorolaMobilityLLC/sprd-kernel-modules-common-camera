@@ -16,6 +16,7 @@
 #include <linux/io.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/of_address.h>
 #include <linux/of_device.h>
 #include <linux/of_irq.h>
@@ -68,6 +69,7 @@ void csi_api_set_mode_size(uint32_t width, uint32_t height)
 {
 	csi_set_mode_size(width, height);
 }
+EXPORT_SYMBOL(csi_api_set_mode_size);
 
 /* csi src 0 soc, 1 sensor, and csi test pattern clk */
 static int csi_ipg_set_clk(int sensor_id)
@@ -461,6 +463,7 @@ void csi_api_reg_trace(void)
 		csi_reg_trace(0);
 
 }
+EXPORT_SYMBOL(csi_api_reg_trace);
 
 int csi_api_switch(int sensor_id)
 {

@@ -40,7 +40,7 @@
 #include "flash_drv.h"
 #include "img_scale.h"
 #include "img_rot.h"
-//#include "csi_api.h"
+#include "csi_api.h"
 //#include "csi_driver.h"
 //#include <video/sprd_mmsys_pw_domain.h>
 #include <linux/delay.h>
@@ -3143,7 +3143,7 @@ static long sprd_img_k_ioctl(struct file *file, unsigned int cmd,
 		}
 		dev->dcam_cxt.cap_in_size.w = size.w;
 		dev->dcam_cxt.cap_in_size.h = size.h;
-		//csi_api_set_mode_size(size.w, size.h);
+		csi_api_set_mode_size(size.w, size.h);
 		mutex_unlock(&dev->dcam_mutex);
 		DCAM_TRACE("sensor size %d %d.\n",
 			dev->dcam_cxt.cap_in_size.w,
@@ -3830,7 +3830,7 @@ static ssize_t sprd_img_read(struct file *file, char __user *u_data,
 				read_op.parm.frame.mfd);
 		} else {
 			if (read_op.evt == IMG_TIMEOUT) {
-				//csi_api_reg_trace();
+				csi_api_reg_trace();
 				sprd_img_print_reg();
 				print_isp_regs();
 			}

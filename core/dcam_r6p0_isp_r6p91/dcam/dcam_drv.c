@@ -28,7 +28,7 @@
 #include "dcam_drv.h"
 #include "gen_scale_coef.h"
 #include <video/sprd_mmsys_pw_domain.h>
-//#include "csi_api.h"
+#include "csi_api.h"
 #include <linux/regmap.h>
 #include <linux/mfd/syscon.h>
 //#include <linux/mfd/syscon/sprd-glb.h>
@@ -3533,7 +3533,7 @@ static int32_t    _dcam_err_pre_proc(void)
 	s_p_dcam_mod->err_happened = 1;
 	pr_info("err, 0x%x.\n", REG_RD(DCAM_INT_STS));
 
-	//csi_api_reg_trace();
+	csi_api_reg_trace();
 	_dcam_reg_trace();
 	print_isp_regs();
 	dcam_stop(1);
