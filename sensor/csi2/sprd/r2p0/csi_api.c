@@ -364,8 +364,8 @@ int csi_api_mipi_phy_cfg(void)
 	return ret;
 }
 
-int csi_api_open(int bps_per_lane, int phy_id, int lane_num,
-			int sensor_id, int is_pattern)
+int csi_api_open(int bps_per_lane, int phy_id, int lane_num, int sensor_id, int is_pattern,
+	int is_cphy, uint64_t lane_seq)
 {
 	int ret = 0;
 	struct csi_dt_node_info *dt_info = csi_get_dt_node_data(sensor_id);

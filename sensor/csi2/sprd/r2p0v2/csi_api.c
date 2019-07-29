@@ -249,8 +249,8 @@ int csi_api_mipi_phy_cfg(void)
 	return 0;
 }
 
-int csi_api_open(int bps_per_lane, int phy_id, int lane_num,
-		int sensor_id, int is_pattern)
+int csi_api_open(int bps_per_lane, int phy_id, int lane_num, int sensor_id, int is_pattern,
+	int is_cphy, uint64_t lane_seq)
 {
 	int ret = 0;
 

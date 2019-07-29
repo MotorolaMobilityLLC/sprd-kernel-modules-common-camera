@@ -49,13 +49,14 @@ static int sprd_sensor_mipi_if_open(struct sprd_sensor_file_tag *p_file,
 	int ret = 0;
 
 	ret = csi_api_open(if_cfg->bps_per_lane, if_cfg->phy_id,
-			   if_cfg->lane_num, p_file->sensor_id, csi_pattern);
+			   if_cfg->lane_num, p_file->sensor_id, csi_pattern,
+			   if_cfg->is_cphy, if_cfg->lane_seq);
 	if (ret) {
 		pr_err("fail to open csi %d\n", ret);
 		return ret;
 	}
 	p_file->mipi_state = SPRD_SENSOR_MIPI_STATE_ON_E;
-	p_file->phy_id = if_cfg->phy_id;
+	p_file->phy_id = if_cfg->is_cphy == 1 ? 5 : if_cfg->phy_id;
 	p_file->if_type = SPRD_SENSOR_INTERFACE_MIPI_E;
 	pr_info("open csi successfully\n");
 
@@ -391,8 +392,8 @@ static int sprd_sensor_io_if_cfg(struct sprd_sensor_file_tag *p_file,
 	if (ret)
 		return ret;
 
-	pr_info("type %d open %d mipi state %d\n", if_cfg.if_type,
-		if_cfg.is_open, p_file->mipi_state);
+	pr_info("ret = %d,type %d open %d mipi state %d  is cphy %d\n",
+		ret, if_cfg.if_type, if_cfg.is_open, p_file->mipi_state, if_cfg.is_cphy);
 	if (if_cfg.if_type == SPRD_SENSOR_INTERFACE_MIPI_E) {
 		if (if_cfg.is_open == SPRD_SENSOR_INTERFACE_OPEN) {
 			if (p_file->mipi_state == SPRD_SENSOR_MIPI_STATE_OFF_E)
@@ -644,8 +645,14 @@ exit:
 static int sprd_sensor_file_release(struct inode *node, struct file *file)
 {
 	int ret = 0;
+	int i = 0;
 	struct sprd_sensor_file_tag *p_file = file->private_data;
 	struct sprd_sensor_core_module_tag *p_mod = NULL;
+	int power[3][2] = {
+		{SPRD_SENSOR_AVDD_GPIO_TAG_E, SENSOR_REGULATOR_CAMAVDD_ID_E},
+		{SPRD_SENSOR_DVDD_GPIO_TAG_E, SENSOR_REGULATOR_CAMDVDD_ID_E},
+		{SPRD_SENSOR_IOVDD_GPIO_TAG_E, SENSOR_REGULATOR_VDDIO_E},
+	};
 
 	if (!p_file)
 		return -EINVAL;
@@ -659,6 +666,13 @@ static int sprd_sensor_file_release(struct inode *node, struct file *file)
 	if (p_file->mipi_state == SPRD_SENSOR_MIPI_STATE_ON_E) {
 		pr_info("sensor %d mipi close\n", p_file->sensor_id);
 		ret = sprd_sensor_mipi_if_close(p_file);
+	}
+	for (i = 0; i < 3; i++) {
+		ret = sprd_sensor_set_voltage_by_gpio(p_file->sensor_id,
+				0, power[i][0]);
+		if (ret)
+			ret = sprd_sensor_set_voltage(p_file->sensor_id,
+					0, power[i][1]);
 	}
 	if (atomic_dec_return(&p_mod->total_users) == 0) {
 		sprd_cam_domain_disable();

@@ -478,6 +478,7 @@ struct sprd_img_function_mode {
 	uint32_t need_4in1;
 	uint32_t need_3dnr; /* l5, not use,moved to sprd_img_3dnr_mode */
 	uint32_t dual_cam;
+	uint32_t need_afbc;
 };
 #pragma pack(pop)
 
@@ -504,6 +505,9 @@ struct sprd_img_mipi_if {
 	uint32_t is_loose;
 	uint32_t lane_num;
 	uint32_t pclk;
+	uint32_t is_cphy;
+	uint32_t lane_switch_eb;
+	uint64_t lane_seq;/*default 0x01234*/
 };
 
 struct sprd_img_sensor_if {
