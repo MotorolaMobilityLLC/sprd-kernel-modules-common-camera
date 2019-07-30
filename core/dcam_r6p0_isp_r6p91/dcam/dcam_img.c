@@ -2897,6 +2897,7 @@ static int sprd_img_k_open(struct inode *node, struct file *file)
 	ret = dcam_create_flash_thread(dev);
 	if (unlikely(ret != 0)) {
 		pr_err("Failed to create flash thread.\n");
+		dev->flash_thread = NULL;
 		ret = -EIO;
 		goto exit;
 	}
@@ -2904,6 +2905,7 @@ static int sprd_img_k_open(struct inode *node, struct file *file)
 	ret = sprd_img_create_zoom_thread(dev);
 	if (unlikely(ret != 0)) {
 		pr_err("Failed to create zoom thread.\n");
+		dev->zoom_thread = NULL;
 		ret = -EIO;
 		goto exit;
 	}
