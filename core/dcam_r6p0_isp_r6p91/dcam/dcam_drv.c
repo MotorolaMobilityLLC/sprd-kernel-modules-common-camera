@@ -221,7 +221,6 @@ static int                      s_dcam_irq;
 static struct completion dcam_resizer_com;
 static DEFINE_MUTEX(dcam_scale_sema);
 static DEFINE_MUTEX(dcam_module_sema);
-static DEFINE_SPINLOCK(dcam_mod_lock);
 static DEFINE_SPINLOCK(dcam_lock);
 static DEFINE_SPINLOCK(dcam_glb_reg_cfg_lock);
 static DEFINE_SPINLOCK(dcam_glb_reg_control_lock);
@@ -3799,16 +3798,12 @@ static int  _dcam_internal_init(void)
 }
 static void _dcam_internal_deinit(void)
 {
-	unsigned long flag;
-
-	spin_lock_irqsave(&dcam_mod_lock, flag);
 	if (DCAM_ADDR_INVALID(s_p_dcam_mod)) {
 		pr_info("Invalid addr, %p", s_p_dcam_mod);
 	} else {
 		vfree(s_p_dcam_mod);
 		s_p_dcam_mod = NULL;
 	}
-	spin_unlock_irqrestore(&dcam_mod_lock, flag);
 }
 
 int32_t dcam_module_init(enum dcam_cap_if_mode if_mode,
