@@ -41,8 +41,6 @@
 
 #define DCAM_SCALE_DOWN_MAX 4
 
-typedef unsigned long addr_t;
-
 /*
  * Supported dcam_if index. Number 0&1 for dcam_if and 2 for dcam_if_lite.
  */
