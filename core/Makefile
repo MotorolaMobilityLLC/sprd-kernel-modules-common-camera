@@ -1,6 +1,7 @@
 LOCAL_PATH := $(shell cd $(BSP_ROOT_DIR)/modules/camera/core; pwd)
 ISP_DIR := $(BSP_BOARD_CAMERA_MODULE_ISP_VERSION)
 CSI_DIR := $(BSP_BOARD_CAMERA_MODULE_CSI_VERSION)
+ADAPT_DIR := $(BSP_BOARD_CAMERA_MODULE_ISP_ADAPT_VERSION)
 
 sprd_camera-objs :=
 
@@ -18,9 +19,19 @@ CAM_SRC := $(wildcard $(LOCAL_PATH)/$(ISP_DIR)/src/*.c)
 CAM_DIR := $(notdir $(CAM_SRC))
 CAM_OBJ := $(patsubst %c, $(ISP_DIR)/src/%o, $(CAM_DIR))
 
+ifeq ($(BSP_BOARD_CAMERA_MODULE_ISP_VERSION),isp2.6)
+CAM_BLOCK_SRC := $(wildcard $(LOCAL_PATH)/$(ISP_DIR)/adpt/$(ADAPT_DIR)/block/*.c)
+CAM_BLOCK_DIR := $(notdir $(CAM_BLOCK_SRC))
+CAM_BLOCK_OBJ := $(patsubst %c, $(ISP_DIR)/adpt/$(ADAPT_DIR)/block/%o, $(CAM_BLOCK_DIR))
+
+CAM_ADPT_SRC := $(wildcard $(LOCAL_PATH)/$(ISP_DIR)/adpt/$(ADAPT_DIR)/*.c)
+CAM_ADPT_DIR := $(notdir $(CAM_ADPT_SRC))
+CAM_ADPT_OBJ := $(patsubst %c, $(ISP_DIR)/adpt/$(ADAPT_DIR)/%o, $(CAM_ADPT_DIR))
+else
 CAM_BLOCK_SRC := $(wildcard $(LOCAL_PATH)/$(ISP_DIR)/block/*.c)
 CAM_BLOCK_DIR := $(notdir $(CAM_BLOCK_SRC))
 CAM_BLOCK_OBJ := $(patsubst %c, $(ISP_DIR)/block/%o, $(CAM_BLOCK_DIR))
+endif
 
 CAM_COMPAT_SRC := $(wildcard $(LOCAL_PATH)/$(ISP_DIR)/compat/*.c)
 CAM_COMPAT_DIR := $(notdir $(CAM_COMPAT_SRC))
@@ -28,6 +39,10 @@ CAM_COMPAT_OBJ := $(patsubst %c, $(ISP_DIR)/compat/%o, $(CAM_COMPAT_DIR))
 
 ifeq ($(BSP_BOARD_CAMERA_MODULE_ISP_VERSION),dcam_if_r4p0_isp_r6p11)
 sprd_camera-objs += $(COMMON_OBJ)
+endif
+
+ifeq ($(BSP_BOARD_CAMERA_MODULE_ISP_VERSION),isp2.6)
+sprd_camera-objs += $(CAM_ADPT_OBJ)
 endif
 
 sprd_camera-objs += $(CAM_OBJ) $(CAM_BLOCK_OBJ)
@@ -53,6 +68,11 @@ ccflags-y += -I$(LOCAL_PATH)/$(ISP_DIR)/inc
 ccflags-y += -I$(BSP_KERNEL_PATH)/drivers/staging/android/ion
 ifeq ($(BSP_BOARD_CAMERA_MODULE_ISP_VERSION),dcam_r6p0_isp_r6p91)
 ccflags-y += -I$(LOCAL_PATH)/$(ISP_DIR)/common
+endif
+
+ifeq ($(BSP_BOARD_CAMERA_MODULE_ISP_VERSION),isp2.6)
+ccflags-y += -I$(LOCAL_PATH)/$(ISP_DIR)/adpt/$(ADAPT_DIR)/inc
+ccflags-y += -DPROJ_SHARKL3
 endif
 
 .PHONY:modules
