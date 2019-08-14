@@ -2352,11 +2352,11 @@ static int  dcam_cfg_path_full_source(void *dcam_handle,
 
 	if (lowlux_4in1) {
 		dev->lowlux_4in1 = 1;
-		DCAM_REG_MWR(dev->idx, DCAM_FULL_CFG, BIT(2), BIT(2));
+		DCAM_REG_MWR(dev->idx, DCAM_FULL_CFG, BIT(4), BIT(4));
 		dev->skip_4in1 = 1; /* auto copy, so need skip 1 frame */
 	} else {
 		dev->lowlux_4in1 = 0;
-		DCAM_REG_MWR(dev->idx, DCAM_FULL_CFG, BIT(2), 0);
+		DCAM_REG_MWR(dev->idx, DCAM_FULL_CFG, BIT(4), 0);
 		dev->skip_4in1 = 1;
 	}
 	pr_info("dev%d lowlux %d, skip_4in1 %d, full src: %s\n", dev->idx,
