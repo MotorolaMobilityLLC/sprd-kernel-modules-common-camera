@@ -521,6 +521,7 @@ int dcam_start_path(void *dcam_handle, struct dcam_path_desc *path)
 	int ret = 0;
 	uint32_t idx;
 	uint32_t path_id;
+	uint32_t value;
 	struct dcam_pipe_dev *dev = NULL;
 	struct isp_img_rect rect; /* for 3dnr */
 
@@ -555,11 +556,9 @@ int dcam_start_path(void *dcam_handle, struct dcam_path_desc *path)
 
 		DCAM_REG_MWR(idx,
 			DCAM_CAM_BIN_CFG, BIT_0, path->is_loose);
-		DCAM_REG_MWR(idx, DCAM_CAM_BIN_CFG,
-				BIT_16, !!dev->slowmotion_count << 16);
-		DCAM_REG_MWR(idx, DCAM_CAM_BIN_CFG,
-				BIT_19 | BIT_18 | BIT_17,
-				(dev->slowmotion_count & 7) << 17);
+
+		value = (dev->slowmotion_count << 1) | !!dev->slowmotion_count;
+		DCAM_REG_WR(idx, DCAM_MODE, value & 0xf);
 
 		/* bin_path_en */
 		DCAM_REG_MWR(idx, DCAM_CFG, BIT_2, (1 << 2));
@@ -911,3 +910,26 @@ struct dcam_cfg_entry *dcam_get_cfg_func(uint32_t index)
 		return NULL;
 	}
 }
+
+static struct dcam_if dcam_if_r5p0[DCAM_ID_MAX] = {
+	{
+		.version = 0x0500,
+		.idx = 0,
+		.slowmotion_path = BIT(DCAM_PATH_BIN),
+	},
+	{
+		.version = 0x0500,
+		.idx = 1,
+		.slowmotion_path = BIT(DCAM_PATH_BIN),
+	},
+	{
+		.version = 0x0500,
+		.idx = 2,
+		.slowmotion_path = 0,
+	}
+};
+
+struct dcam_if *dcam_get_dcam_if(enum dcam_id idx) {
+	return &dcam_if_r5p0[idx];
+}
+

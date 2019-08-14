@@ -234,6 +234,8 @@ int dcam_k_afm_skipnum(struct dcam_dev_param *param)
 
 	skip_num = param->afm.skip_num;
 
+	pr_info("DCAM%u AFM set skip_num %u\n", idx, skip_num);
+
 	DCAM_REG_MWR(idx, ISP_AFM_FRM_CTRL, 0xF0, (skip_num & 0xF) << 4);
 
 	/* afm_skip_num_clr */

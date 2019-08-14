@@ -114,7 +114,6 @@ int dcam_k_aem_win(struct dcam_dev_param *param)
 
 int dcam_k_aem_skip_num(struct dcam_dev_param *param)
 {
-	struct dcam_pipe_dev *dev;
 	int ret = 0;
 	uint32_t idx = param->idx;
 	uint32_t val = 0;
@@ -126,16 +125,7 @@ int dcam_k_aem_skip_num(struct dcam_dev_param *param)
 		return 0;
 	param->aem.update &= (~(_UPDATE_SKIP));
 
-	/*
-	 * use hardware slow motion feature
-	 * TODO: handle skip_num not equal to slowmotion_count - 1
-	 */
-	dev = param->dev;
-	if (dev->slowmotion_count) {
-		pr_info("DCAM%u AEM ignore skip_num %u, slowmotion_count %u\n",
-			dev->idx, param->aem.skip_num, dev->slowmotion_count);
-		return 0;
-	}
+	pr_info("DCAM%u AEM set skip_num %u\n", idx, param->aem.skip_num);
 
 	val = (param->aem.skip_num & 0xF) << 4;
 	DCAM_REG_MWR(idx, DCAM_AEM_FRM_CTRL0, 0xF0, val);

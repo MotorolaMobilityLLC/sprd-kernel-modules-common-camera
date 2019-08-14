@@ -94,6 +94,11 @@ static const unsigned long dcam2_store_addr[DCAM_PATH_MAX] = {
 	ISP_NR3_WADDR,
 	ISP_BPC_OUT_ADDR,
 };
+
+/*
+ * TODO slow motion
+ * remove unused address for AEM and HIST
+ */
 static const unsigned long slowmotion_store_addr[3][4] = {
 	{
 		DCAM_BIN_BASE_WADDR0,
@@ -437,6 +442,7 @@ int dcam_path_set_store_frm(void *dcam_handle,
 {
 	struct dcam_pipe_dev *dev = NULL;
 	struct camera_frame *frame = NULL, *saved = NULL;
+	struct dcam_if *dcam = NULL;
 	uint32_t idx = 0, path_id = 0;
 	unsigned long flags = 0, addr = 0;
 	const int _bin = 0, _aem = 1, _hist = 2;
@@ -550,13 +556,15 @@ int dcam_path_set_store_frm(void *dcam_handle,
 			    frame->buf.iova[0] + STATIS_PDAF_BUF_SIZE / 2);
 	}
 
+	dcam = dcam_get_dcam_if(idx);
 	if (dev->slowmotion_count && !dev->index_to_set &&
-	    (path_id == DCAM_PATH_AEM || path_id == DCAM_PATH_HIST)) {
+	    (path_id == DCAM_PATH_AEM || path_id == DCAM_PATH_HIST) &&
+	    dcam && (dcam->slowmotion_path & BIT(path_id))) {
 		/* configure reserved buffer for AEM and hist */
 		frame = camera_dequeue(&path->reserved_buf_queue);
 		if (!frame) {
 			pr_debug("DCAM%u %s buffer unavailable\n",
-			       idx, to_path_name(path_id));
+				 idx, to_path_name(path_id));
 			return -ENOMEM;
 		}
 

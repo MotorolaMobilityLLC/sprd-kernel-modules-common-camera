@@ -957,3 +957,35 @@ struct cfg_entry *dcam_get_cfg_func(uint32_t index)
 		return NULL;
 	}
 }
+
+static struct dcam_if dcam_if_lite_r2p0[DCAM_ID_MAX] = {
+	{
+		.version = 0x0200,
+		.idx = 0,
+		.slowmotion_path =
+			BIT(DCAM_PATH_BIN) |
+			BIT(DCAM_PATH_AEM) |
+			BIT(DCAM_PATH_HIST),
+	},
+	{
+		.version = 0x0200,
+		.idx = 1,
+		.slowmotion_path =
+			BIT(DCAM_PATH_BIN) |
+			BIT(DCAM_PATH_AEM) |
+			BIT(DCAM_PATH_HIST),
+	},
+	{
+		.version = 0x0200,
+		.idx = 2,
+		.slowmotion_path =
+			BIT(DCAM_PATH_BIN) |
+			BIT(DCAM_PATH_AEM) |
+			BIT(DCAM_PATH_HIST),
+	}
+};
+
+struct dcam_if *dcam_get_dcam_if(enum dcam_id idx) {
+	return &dcam_if_lite_r2p0[idx];
+}
+

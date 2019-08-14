@@ -3,6 +3,19 @@
 
 #include "dcam_core.h"
 
+/*
+ * Specify dcam_if properties for different IPs.
+ *
+ * @version         :IP version
+ * @idx             :dcam_if index
+ * @slowmotion_path :accumulation of paths which supports slow motion
+ */
+struct dcam_if {
+	uint32_t version;
+	uint32_t idx;
+	uint32_t slowmotion_path;
+};
+
 void dcam_force_copy(struct dcam_pipe_dev *dev, uint32_t id);
 void dcam_auto_copy(struct dcam_pipe_dev *dev, uint32_t id);
 void dcam_init_default(struct dcam_pipe_dev *dev);
@@ -26,5 +39,7 @@ int dcam_update_path_size(struct dcam_pipe_dev *dev,
 			struct dcam_path_desc *path);
 struct dcam_cfg_entry *dcam_get_cfg_func(uint32_t index);
 uint32_t dcam_get_path_ctrl_id(uint32_t path_id);
+/* caller should guarantee idx is valid */
+struct dcam_if *dcam_get_dcam_if(uint32_t idx);
 
 #endif

@@ -24,7 +24,7 @@ extern unsigned long g_dcam_mmubase;
 #define DCAM_IP_REVISION            (0x0000UL)
 #define DCAM_CONTROL                (0x0004UL)
 #define DCAM_CFG                    (0x0008UL)
-#define DCAM_SPARE_CTRL             (0x000CUL)
+#define DCAM_MODE                   (0x000CUL)
 #define DCAM_BIN_BASE_WADDR0        (0x0010UL)
 #define DCAM_BIN_BASE_WADDR1        (0x0014UL)
 #define DCAM_BIN_BASE_WADDR2        (0x0018UL)
