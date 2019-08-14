@@ -270,9 +270,7 @@ int csi_api_dt_node_init(struct device *dev, struct device_node *dn,
 
 	csi_info->phy.anlg_phy_g10_syscon = regmap_syscon;
 
-
 	csi_reg_base_save(csi_info, sensor_id);
-	csi_phy_power_down(csi_info, sensor_id, 1);
 
 	s_csi_dt_info_p[sensor_id] = csi_info;
 	pr_info("csi dt info:sensor_id :%d, csi_info:0x%p\n",
