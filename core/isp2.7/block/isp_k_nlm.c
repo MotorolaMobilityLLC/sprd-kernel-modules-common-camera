@@ -215,30 +215,32 @@ static int isp_k_nlm_imblance(
 		struct isp_io_param *param, uint32_t idx)
 {
 	int ret = 0;
-	struct isp_dev_nlm_imblance imblance_info;
+	struct isp_dev_nlm_imblance_v1 imblance_info;
 
 	ret = copy_from_user((void *)&imblance_info,
 			(void __user *)param->property_param,
-			sizeof(struct isp_dev_nlm_imblance));
+			sizeof(struct isp_dev_nlm_imblance_v1));
 	if (ret != 0) {
 		pr_err("fail to copy from user, ret = %d\n", ret);
 		return  ret;
 	}
 
 	/* new added below */
-	ISP_REG_MWR(idx, ISP_NLM_PARA, BIT_7,
-			(imblance_info.nlm_imblance_en)<<7);
-	if (imblance_info.nlm_imblance_en == 0)
+	ISP_REG_MWR(idx, ISP_NLM_IMBLANCE_CTRL, BIT_0,
+			imblance_info.nlm_imblance_bypass);
+	if (imblance_info.nlm_imblance_bypass == 1)
 		return 0;
 
+	ISP_REG_MWR(idx, ISP_NLM_IMBLANCE_CTRL, BIT_1,
+			imblance_info.imblance_radial_1D_en);
 	ISP_REG_WR(idx, ISP_NLM_IMBLANCE_PARA1,
-		(imblance_info.nlm_imblance_slash_edge_thr & 0xff) |
-		((imblance_info.nlm_imblance_hv_edge_thr & 0xff) << 8) |
-		((imblance_info.nlm_imblance_S_baohedu2 & 0xff) << 16) |
-		((imblance_info.nlm_imblance_S_baohedu1 & 0xff) << 24));
+		(imblance_info.nlm_imblance_slash_edge_thr[0] & 0xff) |
+		((imblance_info.nlm_imblance_hv_edge_thr[0] & 0xff) << 8) |
+		((imblance_info.nlm_imblance_S_baohedu[0][0] & 0xff) << 16) |
+		((imblance_info.nlm_imblance_S_baohedu[0][1] & 0xff) << 24));
 	ISP_REG_WR(idx, ISP_NLM_IMBLANCE_PARA2,
-		(imblance_info.nlm_imblance_slash_flat_thr & 0x3ff) |
-		((imblance_info.nlm_imblance_hv_flat_thr & 0x3ff) << 10));
+		(imblance_info.nlm_imblance_slash_flat_thr[0] & 0x3ff) |
+		((imblance_info.nlm_imblance_hv_flat_thr[0] & 0x3ff) << 10));
 	ISP_REG_WR(idx, ISP_NLM_IMBLANCE_PARA3,
 		(imblance_info.nlm_imblance_flag3_frez & 0x3ff) |
 		((imblance_info.nlm_imblance_flag3_lum & 0x3ff) << 10) |
@@ -269,7 +271,7 @@ static int isp_k_nlm_imblance(
 		(imblance_info.nlm_imblance_lum3_flag0_r & 0x7ff) |
 		((imblance_info.nlm_imblance_lum3_flag0_rs & 0x7ff) << 11));
 	ISP_REG_WR(idx, ISP_NLM_IMBLANCE_PARA12,
-		(imblance_info.nlm_imblance_diff & 0x3ff) |
+		(imblance_info.nlm_imblance_diff[0] & 0x3ff) |
 		((imblance_info.nlm_imblance_lum3_flag1_r & 0x7ff) << 10));
 	ISP_REG_WR(idx, ISP_NLM_IMBLANCE_PARA13,
 		(imblance_info.nlm_imblance_faceRmax & 0xffff) |
@@ -280,6 +282,56 @@ static int isp_k_nlm_imblance(
 	ISP_REG_WR(idx, ISP_NLM_IMBLANCE_PARA15,
 		(imblance_info.nlm_imblance_faceGmax & 0xffff) |
 		((imblance_info.nlm_imblance_faceGmin & 0xffff) << 16));
+	ISP_REG_WR(idx, ISP_NLM_IMBLANCE_PARA16,
+		(imblance_info.nlm_imblance_hv_edge_thr[1] & 0xff) |
+		((imblance_info.nlm_imblance_hv_edge_thr[2] & 0xff) << 8) |
+		((imblance_info.nlm_imblance_slash_edge_thr[2] & 0xff) << 16) |
+		((imblance_info.nlm_imblance_slash_edge_thr[1] & 0xff) << 24));
+	ISP_REG_WR(idx, ISP_NLM_IMBLANCE_PARA17,
+		(imblance_info.nlm_imblance_hv_flat_thr[2] & 0x3ff << 16) |
+		(imblance_info.nlm_imblance_hv_flat_thr[1] & 0x3ff));
+	ISP_REG_WR(idx, ISP_NLM_IMBLANCE_PARA18,
+		(imblance_info.nlm_imblance_slash_flat_thr[2] & 0x3ff << 16) |
+		(imblance_info.nlm_imblance_slash_flat_thr[1] & 0x3ff));
+	ISP_REG_WR(idx, ISP_NLM_IMBLANCE_PARA19,
+		(imblance_info.nlm_imblance_S_baohedu[1][0] & 0xff) |
+		((imblance_info.nlm_imblance_S_baohedu[2][0] & 0xff) << 8) |
+		((imblance_info.nlm_imblance_S_baohedu[1][1] & 0xff) << 16) |
+		((imblance_info.nlm_imblance_S_baohedu[2][1] & 0xff) << 24));
+	ISP_REG_WR(idx, ISP_NLM_IMBLANCE_PARA20,
+		(imblance_info.nlm_imblance_lum2_flag3_r & 0x7ff << 16) |
+		(imblance_info.nlm_imblance_lum1_flag3_r & 0x7ff));
+	ISP_REG_WR(idx, ISP_NLM_IMBLANCE_PARA21,
+		(imblance_info.imblance_sat_lumth & 0x3ff << 16) |
+		(imblance_info.nlm_imblance_lum3_flag3_r & 0x7ff ));
+	ISP_REG_WR(idx, ISP_NLM_IMBLANCE_PARA22,
+		(imblance_info.nlm_imblance_diff[2] & 0x3ff << 16) |
+		(imblance_info.nlm_imblance_diff[1] & 0x3ff ));
+	ISP_REG_WR(idx, ISP_NLM_IMBLANCE_PARA23,
+		(imblance_info.nlm_imblance_ff_wt1 & 0x3ff << 16) |
+		(imblance_info.nlm_imblance_ff_wt0 & 0x3ff ));
+	ISP_REG_WR(idx, ISP_NLM_IMBLANCE_PARA24,
+		(imblance_info.nlm_imblance_ff_wt3 & 0x3ff << 16) |
+		(imblance_info.nlm_imblance_ff_wt2 & 0x3ff ));
+	ISP_REG_WR(idx, ISP_NLM_IMBLANCE_PARA25,
+		(imblance_info.nlm_imblance_ff_wr0 & 0xff) |
+		((imblance_info.nlm_imblance_ff_wr1 & 0xff) << 8) |
+		((imblance_info.nlm_imblance_ff_wr2 & 0xff) << 16) |
+		((imblance_info.nlm_imblance_ff_wr3 & 0xff) << 24));
+	ISP_REG_WR(idx, ISP_NLM_IMBLANCE_PARA26,
+		(imblance_info.nlm_imblance_ff_wr4 & 0xff) |
+		((imblance_info.imblance_radial_1D_coef_r0 & 0xff) << 8) |
+		((imblance_info.imblance_radial_1D_coef_r1 & 0xff) << 16) |
+		((imblance_info.imblance_radial_1D_coef_r2 & 0xff) << 24));
+	ISP_REG_WR(idx, ISP_NLM_IMBLANCE_PARA27,
+		(imblance_info.imblance_radial_1D_coef_r3 & 0xff) |
+		((imblance_info.imblance_radial_1D_coef_r4 & 0xff) << 8) |
+		((imblance_info.imblance_radial_1D_protect_ratio_max & 0x7ff) << 16));
+	ISP_REG_WR(idx, ISP_NLM_IMBLANCE_PARA28,
+		(imblance_info.imblance_radial_1D_center_x & 0xffff << 16) |
+		(imblance_info.imblance_radial_1D_center_y & 0xffff ));
+	ISP_REG_WR(idx, ISP_NLM_IMBLANCE_PARA29,
+		(imblance_info.imblance_radial_1D_radius_thr & 0xffff ));
 
 	return ret;
 }
