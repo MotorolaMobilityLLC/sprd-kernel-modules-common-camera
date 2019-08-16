@@ -2134,7 +2134,7 @@ static int set_fmcu_cfg(struct isp_fmcu_ctx_desc *fmcu,
 		base =  ISP_FMCU0_BASE;
 	else
 		base =  ISP_FMCU1_BASE;
-	addr = ISP_GET_REG(base + ISP_FMCU_CMD);
+	addr = ISP_GET_REG(ISP_FMCU0_BASE + ISP_FMCU_CMD);
 	cmd = CFG_TRIGGER_PULSE;
 	FMCU_PUSH(fmcu, addr, cmd);
 
@@ -2786,11 +2786,11 @@ int isp_set_slices_fmcu_cmds(
 		cmd = 1;
 		FMCU_PUSH(fmcu, addr, cmd);
 
-		addr = ISP_GET_REG(base + ISP_FMCU_CMD);
+		addr = ISP_GET_REG(ISP_FMCU0_BASE + ISP_FMCU_CMD);
 		cmd = shadow_done_cmd[ctx_idx];
 		FMCU_PUSH(fmcu, addr, cmd);
 
-		addr = ISP_GET_REG(base + ISP_FMCU_CMD);
+		addr = ISP_GET_REG(ISP_FMCU0_BASE + ISP_FMCU_CMD);
 		cmd = all_done_cmd[ctx_idx];
 		FMCU_PUSH(fmcu, addr, cmd);
 	}
@@ -3167,11 +3167,11 @@ int isp_set_slw_fmcu_cmds(void *fmcu_handle, struct isp_pipe_context *pctx)
 	cmd = 1;
 	FMCU_PUSH(fmcu, addr, cmd);
 
-	addr = ISP_GET_REG(base + ISP_FMCU_CMD);
+	addr = ISP_GET_REG(ISP_FMCU0_BASE + ISP_FMCU_CMD);
 	cmd = shadow_done_cmd[ctx_idx];
 	FMCU_PUSH(fmcu, addr, cmd);
 
-	addr = ISP_GET_REG(base + ISP_FMCU_CMD);
+	addr = ISP_GET_REG(ISP_FMCU0_BASE + ISP_FMCU_CMD);
 	cmd = all_done_cmd[ctx_idx];
 	FMCU_PUSH(fmcu, addr, cmd);
 

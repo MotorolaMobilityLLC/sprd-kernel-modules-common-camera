@@ -16,9 +16,6 @@
 
 #include "dcam_core.h"
 
-#define DCAM_PATH_WMAX			5000
-#define DCAM_PATH_HMAX			4000
-
 #define DCAM_PATH_WMAX_ROC1			6000
 #define DCAM_PATH_HMAX_ROC1			4000
 

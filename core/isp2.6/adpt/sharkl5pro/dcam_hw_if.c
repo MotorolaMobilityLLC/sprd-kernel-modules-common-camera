@@ -19,19 +19,19 @@
 #include "dcam_path.h"
 #include "dcam_hw_if.h"
 #include <sprd_mm.h>
-#include "mm_ahb_l5pro.h"
 
 #define DCAMX_STOP_TIMEOUT 2000
 #define DCAM_AXI_STOP_TIMEOUT 2000
 #define DCAM_AXIM_AQOS_MASK (0x30FFFF)
 
+extern atomic_t s_dcam_working;
 static const struct bypass_tag dcam_tb_bypass[] = {
 	[_E_4IN1] = {"4in1", DCAM_MIPI_CAP_CFG, 12}, /* 0x100.b12 */
 	[_E_PDAF] = {"pdaf", DCAM_PPE_FRM_CTRL0, 1}, /* 0x120.b1 */
 	[_E_LSC]  = {"lsc", DCAM_LENS_LOAD_ENABLE, 0}, /* 0x138.b0 */
 	[_E_AEM]  = {"aem",  DCAM_AEM_FRM_CTRL0, 0}, /* 0x150.b0 */
 	[_E_HIST] = {"hist", DCAM_HIST_FRM_CTRL0, 0}, /* 0x160.b0 */
-	[_E_AFL]  = {"afl",  ISP_AFL_FRM_CTRL, 0}, /* 0x170.b0 */
+	[_E_AFL]  = {"afl",  ISP_AFL_FRM_CTRL0, 0}, /* 0x170.b0 */
 	[_E_AFM]  = {"afm",  ISP_AFM_FRM_CTRL, 0}, /* 0x1A0.b0 */
 	[_E_BPC]  = {"bpc",  ISP_BPC_PARAM, 0}, /* 0x200.b0 */
 	[_E_BLC]  = {"blc",  DCAM_BLC_PARA_R_B, 31}, /* 0x268.b31 */
@@ -64,7 +64,7 @@ static uint32_t dcam_trace_regs[] = {
 		ISP_BPC_PARAM,
 		DCAM_AEM_FRM_CTRL0,
 		ISP_AFM_FRM_CTRL,
-		ISP_AFL_FRM_CTRL,
+		ISP_AFL_FRM_CTRL0,
 		DCAM_HIST_FRM_CTRL0,
 		NR3_FAST_ME_PARAM,
 		DCAM_FULL_BASE_WADDR,
@@ -231,6 +231,10 @@ void dcam_init_default(struct dcam_pipe_dev *dev)
 	DCAM_REG_MWR(idx, ISP_RGBG_YRANDOM_PARAMETER0,
 		BIT_0,
 		bypass);
+	/*bypas ppi*/
+	DCAM_REG_MWR(idx, ISP_PPI_PARAM,
+		BIT_0,
+		bypass);
 	/*bypass LSCM*/
 	DCAM_REG_MWR(idx, DCAM_LSCM_FRM_CTRL0,
 		BIT_0,
@@ -270,7 +274,7 @@ void dcam_init_default(struct dcam_pipe_dev *dev)
 		BIT_0,
 		bypass);
 	/*bypass nr3*/
-	DCAM_REG_WR(idx, DCAM_NR3_FAST_ME_PARAM, 0x109);
+	DCAM_REG_WR(idx, NR3_FAST_ME_PARAM, 0x109);
 	/*bypass GTM*/
 	DCAM_REG_MWR(idx, DCAM_GTM_GLB_CTRL,
 		BIT_0,
@@ -290,9 +294,9 @@ int dcam_reset(struct dcam_pipe_dev *dev)
 	struct sprd_cam_hw_info *hw = dev->hw;
 	uint32_t time_out = 0, flag = 0;
 	uint32_t reset_bit[DCAM_ID_MAX] = {
-		BIT_MM_AHB_DCAM0_SOFT_RST,
-		BIT_MM_AHB_DCAM1_SOFT_RST,
-		BIT_MM_AHB_DCAM2_SOFT_RST
+		BIT(5),
+		BIT(4),
+		BIT(3)
 	};
 	uint32_t sts_bit[DCAM_ID_MAX] = {
 		BIT(12), BIT(13), BIT(14)
@@ -313,10 +317,10 @@ int dcam_reset(struct dcam_pipe_dev *dev)
 	} else {
 		flag = reset_bit[idx];
 		regmap_update_bits(hw->cam_ahb_gpr,
-			REG_MM_AHB_AHB_RST, flag, flag);
+			0x0004, flag, flag);
 		udelay(10);
 		regmap_update_bits(hw->cam_ahb_gpr,
-			REG_MM_AHB_AHB_RST, flag, ~flag);
+			0x0004, flag, ~flag);
 	}
 
 	DCAM_REG_MWR(idx, DCAM_INT_CLR,
@@ -352,13 +356,13 @@ void dcam_init_axim(struct sprd_cam_hw_info *hw)
 	} else {
 		/* reset dcam all (0/1/2/bus) */
 		regmap_update_bits(hw->cam_ahb_gpr,
-			REG_MM_AHB_AHB_RST,
-			BIT_MM_AHB_DCAM_ALL_SOFT_RST,
-			BIT_MM_AHB_DCAM_ALL_SOFT_RST);
+			0x0004,
+			BIT(23),
+			BIT(23));
 		udelay(10);
 		regmap_update_bits(hw->cam_ahb_gpr,
-			REG_MM_AHB_AHB_RST,
-			BIT_MM_AHB_DCAM_ALL_SOFT_RST, 0);
+			0x0004,
+			BIT(23), 0);
 	}
 
 	/* AXIM shared by all dcam, should be init once only...*/
@@ -439,15 +443,24 @@ int dcam_set_mipi_cap(struct dcam_pipe_dev *dev,
 			BIT_8 | BIT_9 | BIT_10 | BIT_11,
 				cap_info->frm_skip << 8);
 
+	/* for C-phy */
+	if (dev->path[idx].is_cphy == 1)
+		DCAM_REG_MWR(idx, DCAM_MIPI_CAP_CFG, BIT_31, BIT_31);
+
 	/* bypass 4in1 */
 	if (cap_info->is_4in1) { /* 4in1 use sum, not avrg */
 		DCAM_REG_MWR(idx, DCAM_BAYER_INFO_CFG, BIT_1,
-						(0) << 1);
+						(1) << 1);
 		DCAM_REG_MWR(idx, DCAM_BAYER_INFO_CFG, BIT_2, 0 << 2);
 	}
 	DCAM_REG_MWR(idx, DCAM_BAYER_INFO_CFG, BIT_0, !cap_info->is_4in1);
 
-	pr_info("wuyi bayer_info = 0x%x", DCAM_REG_RD(idx, DCAM_BAYER_INFO_CFG));
+	/* > 24M */
+	if (cap_info->is_bigsize) {
+		DCAM_REG_MWR(idx, DCAM_BAYER_INFO_CFG, BIT_2, 1 << 2);
+		DCAM_REG_MWR(idx, DCAM_BAYER_INFO_CFG, BIT_0, 0);
+	}
+
 	pr_info("cap size : %d %d %d %d\n",
 		cap_info->cap_size.start_x, cap_info->cap_size.start_y,
 		cap_info->cap_size.size_x, cap_info->cap_size.size_y);
@@ -508,6 +521,7 @@ int dcam_hwsim_extra(enum dcam_id idx)
 		pr_info("bpc<0x%x>[0x%x]\n", 0x0200, DCAM_REG_RD(idx, 0x0200));
 
 #if 0
+
 		uint32_t val;
 
 		val = (1 & 0x1) |
@@ -593,8 +607,6 @@ int dcam_start_path(void *dcam_handle, struct dcam_path_desc *path)
 
 	switch (path_id) {
 	case  DCAM_PATH_FULL:
-
-		pr_info("full _path\n");
 		DCAM_REG_MWR(idx, DCAM_PATH_ENDIAN,
 			BIT_17 |  BIT_16, path->endian.y_endian << 16);
 
@@ -697,12 +709,12 @@ int dcam_stop_path(void *dcam_handle, struct dcam_path_desc *path)
 	case  DCAM_PATH_FULL:
 		reg_val = 0;
 		DCAM_REG_MWR(idx, DCAM_PATH_STOP, BIT_0, 1);
-		DCAM_REG_MWR(idx, DCAM_CFG, BIT_1, (0 << 1));
+		DCAM_REG_MWR(idx, DCAM_FULL_CFG, BIT_0, 0);
 		break;
 
 	case  DCAM_PATH_BIN:
 		DCAM_REG_MWR(idx, DCAM_PATH_STOP, BIT_1, 1 << 1);
-		DCAM_REG_MWR(idx, DCAM_CFG, BIT_2, (0 << 2));
+		DCAM_REG_MWR(idx, DCAM_CAM_BIN_CFG, BIT_0, 0);
 		break;
 	case  DCAM_PATH_PDAF:
 		DCAM_REG_MWR(idx, DCAM_PATH_STOP, BIT_2, 1 << 2);
@@ -829,7 +841,7 @@ int dcam_stop(struct dcam_pipe_dev *dev)
 	return ret;
 }
 
-static int dcam_update_path_size(
+int dcam_update_path_size(
 	struct dcam_pipe_dev *dev, struct dcam_path_desc *path)
 {
 	int ret = 0;
@@ -933,25 +945,22 @@ static int dcam_update_path_size(
 
 /* todo: enable block config one by one */
 /* because parameters from user may be illegal when bringup*/
-static struct cfg_entry cfg_func_tab[DCAM_BLOCK_TOTAL] = {
+static struct dcam_cfg_entry dcam_cfg_func_tab[DCAM_BLOCK_TOTAL] = {
 [DCAM_BLOCK_BLC - DCAM_BLOCK_BASE]     = {DCAM_BLOCK_BLC,              dcam_k_cfg_blc},
-[DCAM_BLOCK_RGBG - DCAM_BLOCK_BASE]    = {DCAM_BLOCK_RGBG,             dcam_k_cfg_rgb_gain},
-[DCAM_BLOCK_RGBG_DITHER - DCAM_BLOCK_BASE] = {DCAM_BLOCK_RGBG_DITHER,  dcam_k_cfg_rgb_dither},
-[DCAM_BLOCK_PDAF - DCAM_BLOCK_BASE]    = {DCAM_BLOCK_PDAF,             dcam_k_cfg_pdaf},
-[DCAM_BLOCK_LSC - DCAM_BLOCK_BASE]     = {DCAM_BLOCK_LSC,              dcam_k_cfg_lsc},
-[DCAM_BLOCK_BAYERHIST - DCAM_BLOCK_BASE] = {DCAM_BLOCK_BAYERHIST,      dcam_k_cfg_bayerhist},
 [DCAM_BLOCK_AEM - DCAM_BLOCK_BASE]     = {DCAM_BLOCK_AEM,              dcam_k_cfg_aem},
-[DCAM_BLOCK_AFL - DCAM_BLOCK_BASE]     = {DCAM_BLOCK_AFL,              dcam_k_cfg_afl},
 [DCAM_BLOCK_AWBC - DCAM_BLOCK_BASE]    = {DCAM_BLOCK_AWBC,             dcam_k_cfg_awbc},
-[DCAM_BLOCK_BPC - DCAM_BLOCK_BASE]     = {DCAM_BLOCK_BPC,              dcam_k_cfg_bpc},
-[DCAM_BLOCK_3DNR_ME - DCAM_BLOCK_BASE] = {DCAM_BLOCK_3DNR_ME,          dcam_k_cfg_3dnr_me},
 [DCAM_BLOCK_AFM - DCAM_BLOCK_BASE]     = {DCAM_BLOCK_AFM,              dcam_k_cfg_afm},
+[DCAM_BLOCK_AFL - DCAM_BLOCK_BASE]     = {DCAM_BLOCK_AFL,              dcam_k_cfg_afl},
+[DCAM_BLOCK_LSC - DCAM_BLOCK_BASE]     = {DCAM_BLOCK_LSC,              dcam_k_cfg_lsc},
+[DCAM_BLOCK_BPC - DCAM_BLOCK_BASE]     = {DCAM_BLOCK_BPC,              dcam_k_cfg_bpc},
+[DCAM_BLOCK_RGBG - DCAM_BLOCK_BASE]    = {DCAM_BLOCK_RGBG,             dcam_k_cfg_rgb_gain},
+[DCAM_BLOCK_PDAF - DCAM_BLOCK_BASE]    = {DCAM_BLOCK_PDAF,             dcam_k_cfg_pdaf},
 };
 
-struct cfg_entry *dcam_get_cfg_func(uint32_t index)
+struct dcam_cfg_entry *dcam_get_cfg_func(uint32_t index)
 {
 	if (index < DCAM_BLOCK_TOTAL)
-		return &cfg_func_tab[index];
+		return &dcam_cfg_func_tab[index];
 	else {
 		pr_err("fail to get right cfg index %d\n", index);
 		return NULL;
@@ -987,5 +996,62 @@ static struct dcam_if dcam_if_lite_r2p0[DCAM_ID_MAX] = {
 
 struct dcam_if *dcam_get_dcam_if(enum dcam_id idx) {
 	return &dcam_if_lite_r2p0[idx];
+}
+
+/* set line buffer share mode
+ * Attention: set before stream on
+ * Input: dcam idx, image width(max)
+ */
+int dcam_lbuf_share_mode(enum dcam_id idx, uint32_t width)
+{
+	int i = 0;
+	int ret = 0;
+	uint32_t tb_w[] = {
+	/*     dcam0, dcam1 */
+		5664, 3264,
+		5184, 4160,
+		4672, 4672,
+		4160, 5184,
+		3264, 5664,
+	};
+	if (atomic_read(&s_dcam_working) > 0) {
+		pr_warn("dcam 0/1 already in working\n");
+		return 0;
+	}
+
+	pr_debug("idx[%d] width[%d]\n", idx, width);
+
+	switch (idx) {
+	case 0:
+		if (width > tb_w[0]) {
+			DCAM_AXIM_MWR(DCAM_LBUF_SHARE_MODE, 0x7, 2);
+			break;
+		}
+		for (i = 4; i >= 0; i--) {
+			if (width <= tb_w[i * 2])
+				break;
+		}
+		DCAM_AXIM_MWR(DCAM_LBUF_SHARE_MODE, 0x7, i);
+		pr_info("alloc dcam linebuf %d %d\n", tb_w[i*2], tb_w[i*2 + 1]);
+		break;
+	case 1:
+		if (width > tb_w[9]) {
+			DCAM_AXIM_MWR(DCAM_LBUF_SHARE_MODE, 0x7, 2);
+			break;
+		}
+		for (i = 0; i <= 4; i++) {
+			if (width <= tb_w[i * 2 + 1])
+				break;
+		}
+		DCAM_AXIM_MWR(DCAM_LBUF_SHARE_MODE, 0x7, i);
+		pr_info("alloc dcam linebuf %d %d\n", tb_w[i*2], tb_w[i*2 + 1]);
+		break;
+	default:
+		pr_info("dcam %d no this setting\n", idx);
+		ret = 1;
+	}
+	DCAM_AXIM_MWR(DCAM_LBUF_SHARE_MODE, 0x3 << 8, 0 << 8);
+
+	return ret;
 }
 

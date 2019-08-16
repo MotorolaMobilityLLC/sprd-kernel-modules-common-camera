@@ -14,6 +14,8 @@
 #ifndef _SPRD_ISP_HW_H_
 #define _SPRD_ISP_HW_H_
 
-#include <sprd_isp_r9p0.h>
+#include "defines.h"
+#include "sprd_isp_2v6.h"
 
 #endif
+

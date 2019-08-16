@@ -949,6 +949,8 @@ struct sprd_img_path_rect {
 					   struct sprd_img_function_mode)
 #define SPRD_IMG_IO_SET_AUTO_3DNR_MODE       _IOW(SPRD_IMG_IO_MAGIC, 69, \
 					   struct sprd_img_function_mode)
+#define SPRD_IMG_IO_CAPABILITY       _IOW(SPRD_IMG_IO_MAGIC, 70, \
+						   struct sprd_img_size)
 /*
  * Dump dcam register.
  * buf:      input dump buffer addr

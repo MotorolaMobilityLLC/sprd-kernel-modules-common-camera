@@ -63,7 +63,6 @@ static int dcam_enable_clk(struct sprd_cam_hw_info *hw, void *arg)
 		clk_set_parent(hw->clk, hw->clk_default);
 		return ret;
 	}
-
 	if (hw->prj_id == SHARKL3) {
 		ret = clk_set_parent(hw->bpc_clk, hw->bpc_clk_parent);
 		if (ret) {
@@ -127,17 +126,15 @@ static int dcam_disable_clk(struct sprd_cam_hw_info *hw, void *arg)
 		pr_err("param erro\n");
 		return -EINVAL;
 	}
-	clk_set_parent(hw->clk, hw->clk_default);
-	if (hw->prj_id == SHARKL3)
+	if (hw->prj_id == SHARKL3) {
 		clk_set_parent(hw->bpc_clk, hw->bpc_clk_default);
-	if (hw->prj_id != SHARKL3)
-		clk_set_parent(hw->axi_clk, hw->clk_axi_default);
-
-	clk_disable_unprepare(hw->clk);
-	if (hw->prj_id == SHARKL3)
 		clk_disable_unprepare(hw->bpc_clk);
-	if (hw->prj_id != SHARKL3)
+	} else {
+		clk_set_parent(hw->axi_clk, hw->clk_axi_default);
 		clk_disable_unprepare(hw->axi_clk);
+	}
+	clk_set_parent(hw->clk, hw->clk_default);
+	clk_disable_unprepare(hw->clk);
 	clk_disable_unprepare(hw->axi_eb);
 	clk_disable_unprepare(hw->core_eb);
 #endif /* TEST_ON_HAPS */
@@ -435,7 +432,6 @@ int dcam_if_parse_dt(struct platform_device *pdev,
 			goto err_iounmap;
 		}
 		hw->clk_default = clk_get_parent(hw->clk);
-
 		if (hw->prj_id == SHARKL3) {
 			hw->bpc_clk = of_clk_get_by_name(dn, "dcam_bpc_clk");
 			if (IS_ERR_OR_NULL(hw->bpc_clk)) {

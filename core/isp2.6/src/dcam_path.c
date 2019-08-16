@@ -144,6 +144,7 @@ int dcam_cfg_path_base(void *dcam_handle,
 		path->frm_skip = ch_desc->frm_skip;
 
 		path->is_loose = ch_desc->is_loose;
+		path->is_cphy = ch_desc->is_cphy;
 		path->endian = ch_desc->endian;
 		/*
 		 * TODO:
@@ -500,6 +501,8 @@ int dcam_path_set_store_frm(void *dcam_handle,
 					    frame->buf.iova[0],
 					    &compressed_addr);
 		DCAM_REG_WR(idx, addr, compressed_addr.addr2);
+		//DCAM_REG_WR(idx, DCAM_FBC_PAYLOAD_WADDR,
+			    //compressed_addr.addr1);
 	} else {
 		DCAM_REG_WR(idx, addr, frame->buf.iova[0]);
 	}

@@ -34,25 +34,10 @@
 #define pr_fmt(fmt) "ISP_DRV: %d %d %s : "\
 	fmt, current->pid, __LINE__, __func__
 
-
-#define ISP_AXI_STOP_TIMEOUT			1000
-#define ISP_CLK_NUM                    5
-#define CLK_CPPLL                      468000000
-
-
-
-
 static uint32_t  s_isp_irq_no[ISP_LOGICAL_COUNT];
 unsigned long s_isp_regbase[ISP_MAX_COUNT];
 unsigned long isp_phys_base[ISP_MAX_COUNT];
 unsigned long s_isp_mmubase;
-
-static unsigned long irq_base[4] = {
-	ISP_P0_INT_BASE,
-	ISP_C0_INT_BASE,
-	ISP_P1_INT_BASE,
-	ISP_C1_INT_BASE
-};
 
 static int isp_reg_trace(struct sprd_cam_hw_info *hw, void *arg)
 {
@@ -99,69 +84,6 @@ static int isp_deinit(struct sprd_cam_hw_info *hw, void *arg)
 	ret = isp_irq_free(&hw->pdev->dev, arg);
 
 	return ret;
-}
-
-static int isp_irq_disable(struct sprd_cam_hw_info *hw, void *arg)
-{
-	uint32_t ctx_id;
-
-	if (!hw || !arg) {
-		pr_err("error: null input ptr.\n");
-		return -EFAULT;
-	}
-
-	ctx_id = *(uint32_t *)arg;
-	if (ctx_id >= 4) {
-		pr_err("error ctx id %d\n", ctx_id);
-		return -EFAULT;
-	}
-
-	ISP_HREG_WR(irq_base[ctx_id] + ISP_INT_EN0, 0);
-	ISP_HREG_WR(irq_base[ctx_id] + ISP_INT_EN1, 0);
-
-	return 0;
-}
-
-static int isp_irq_clear(struct sprd_cam_hw_info *hw, void *arg)
-{
-	uint32_t ctx_id;
-
-	if (!hw || !arg) {
-		pr_err("error: null input ptr.\n");
-		return -EFAULT;
-	}
-
-	ctx_id = *(uint32_t *)arg;
-	if (ctx_id >= 4) {
-		pr_err("error ctx id %d\n", ctx_id);
-		return -EFAULT;
-	}
-
-	ISP_HREG_WR(irq_base[ctx_id] + ISP_INT_CLR0, 0xFFFFFFFF);
-	ISP_HREG_WR(irq_base[ctx_id] + ISP_INT_CLR1, 0xFFFFFFFF);
-
-	return 0;
-}
-
-static int isp_irq_enable(struct sprd_cam_hw_info *hw, void *arg)
-{
-	uint32_t ctx_id;
-	uint32_t mask = ~0;
-
-	if (!hw || !arg) {
-		pr_err("error: null input ptr.\n");
-		return -EFAULT;
-	}
-
-	ctx_id = *(uint32_t *)arg;
-	if (ctx_id >= 4) {
-		pr_err("error ctx id %d\n", ctx_id);
-		return -EFAULT;
-	}
-
-	ISP_HREG_MWR(irq_base[ctx_id] + ISP_INT_EN0, mask, mask);
-
-	return 0;
 }
 
 struct isp_work_ctrl {
@@ -211,47 +133,6 @@ static int isp_quickstop(struct sprd_cam_hw_info *hw, void *arg)
 		isp_irq_clear(hw, &cid);
 
 	return 0;
-}
-
-static int isp_reset(struct sprd_cam_hw_info *hw, void *arg)
-{
-	int rtn = 0;
-	uint32_t cid;
-	uint32_t time_out = 0;
-
-	pr_info("ISP%d: reset\n", hw->idx);
-
-	/* firstly stop axim transfering */
-	ISP_HREG_MWR(ISP_AXI_ITI2AXIM_CTRL, BIT(26), BIT(26));
-
-	/* then wait for AHB busy cleared */
-	while (++time_out < ISP_AXI_STOP_TIMEOUT) {
-		/* bit3: 1 - axi idle;  0 - axi busy */
-		if  (ISP_HREG_RD(ISP_INT_STATUS) & BIT_3)
-			break;
-		udelay(1000);
-	}
-
-	if (time_out >= ISP_AXI_STOP_TIMEOUT) {
-		pr_info("ISP reset timeout %d\n", time_out);
-	} else {
-		regmap_update_bits(hw->cam_ahb_gpr, hw->syscon.rst,
-			hw->syscon.rst_mask, hw->syscon.rst_mask);
-		udelay(10);
-		regmap_update_bits(hw->cam_ahb_gpr, hw->syscon.rst,
-			hw->syscon.rst_mask, ~(hw->syscon.rst_mask));
-	}
-
-	/* enable axim transfering */
-	ISP_HREG_MWR(ISP_AXI_ITI2AXIM_CTRL, BIT_26, 0);
-
-	for (cid = 0; cid < 4; cid++) {
-		isp_irq_clear(hw, &cid);
-		isp_irq_disable(hw, &cid);
-	}
-
-	pr_info("ISP%d: reset end\n", hw->idx);
-	return rtn;
 }
 
 static int isp_enable_clk(struct sprd_cam_hw_info *hw, void *arg)

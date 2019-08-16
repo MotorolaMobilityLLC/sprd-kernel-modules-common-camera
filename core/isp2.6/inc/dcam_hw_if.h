@@ -28,7 +28,6 @@ int  dcam_cfg_path_full_source(void *dcam_handle,
 				struct dcam_path_desc *path,
 				void *param);
 int dcam_hwsim_extra(enum dcam_id idx);
-int dcam_cfg_fbc(struct dcam_pipe_dev *dev, int fbc_mode);
 int dcam_start_path(void *dcam_handle, struct dcam_path_desc *path);
 int dcam_stop_path(void *dcam_handle, struct dcam_path_desc *path);
 int dcam_set_fetch(void *dcam_handle, struct dcam_fetch_info *fetch);
@@ -41,5 +40,7 @@ struct dcam_cfg_entry *dcam_get_cfg_func(uint32_t index);
 uint32_t dcam_get_path_ctrl_id(uint32_t path_id);
 /* caller should guarantee idx is valid */
 struct dcam_if *dcam_get_dcam_if(uint32_t idx);
+/* set lbuf share mode for dcam0,dcam1, set before stream on */
+int dcam_lbuf_share_mode(enum dcam_id idx, uint32_t width);
 
 #endif

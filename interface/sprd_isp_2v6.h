@@ -31,6 +31,7 @@
 #define ISP_MAX_WIDTH  4672
 #define ISP_MAX_HEIGHT  3504
 
+
 /* AEM max windows: 128 x 128, 3*16Bytes for each window */
 #define STATIS_AEM_BUF_SIZE (128 * 128 * 16 * 3)
 #define STATIS_AEM_BUF_NUM 8

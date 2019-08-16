@@ -182,6 +182,7 @@ struct dcam_cap_cfg {
 	uint32_t x_factor;
 	uint32_t y_factor;
 	uint32_t is_4in1;
+	uint32_t is_bigsize;	
 	struct img_trim cap_size;
 };
 
@@ -191,6 +192,7 @@ struct dcam_path_cfg_param {
 	uint32_t enable_3dnr;
 	uint32_t is_raw;
 	uint32_t is_loose;
+	uint32_t is_cphy;	
 	uint32_t frm_deci;
 	uint32_t frm_skip;
 	uint32_t force_rds;
@@ -315,8 +317,6 @@ void *dcam_if_get_dev(uint32_t idx, struct sprd_cam_hw_info *hw);
  * Release a dcam_if device after capture finished.
  */
 int dcam_if_put_dev(void *dcam_handle);
-/* set lbuf share mode for dcam0,dcam1, set before stream on */
-int dcam_lbuf_share_mode(enum dcam_id idx, uint32_t width);
 
 int dcam_hwsim_extra(enum dcam_id idx);
 /*

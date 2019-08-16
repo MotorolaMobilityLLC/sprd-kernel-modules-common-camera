@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019 Unisoc Communications Inc.
+ * Copyright (C) 2017-2018 Spreadtrum Communications Inc.
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -16,6 +16,8 @@
 
 #include <linux/bitops.h>
 #include <linux/device.h>
+
+#include "cam_types.h"
 
 /* interrupt bits for DCAM0 or DCAM1 */
 enum {

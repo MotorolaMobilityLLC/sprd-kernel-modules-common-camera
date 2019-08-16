@@ -73,7 +73,7 @@ struct statis_path_buf_info s_statis_path_info_all[] = {
 	{DCAM_PATH_MAX,    STATIS_ISP_HIST2_BUF_SIZE,  STATIS_ISP_HIST2_BUF_NUM, STATIS_HIST2},
 };
 
-static atomic_t s_dcam_working;
+atomic_t s_dcam_working;
 static atomic_t s_dcam_axi_opened;
 
 /* dcam debugfs start */
@@ -1604,6 +1604,32 @@ void dcam_put_sync_helper(struct dcam_pipe_dev *dev,
 	spin_unlock_irqrestore(&dev->helper_lock, flags);
 }
 
+/* config fbc, see dcam_interface.h for @fbc_mode */
+static int dcam_cfg_fbc(struct dcam_pipe_dev *dev, int fbc_mode)
+{
+	struct dcam_path_desc *path = NULL;
+	struct camera_frame *frame = NULL;
+
+	DCAM_REG_MWR(dev->idx, DCAM_PATH_ENDIAN, 0x3, fbc_mode);
+	pr_info("fbc mode %d\n", fbc_mode);
+
+	/* update compressed flag for reserved buffer */
+	if (fbc_mode == DCAM_FBC_FULL)
+		path = &dev->path[DCAM_PATH_FULL];
+	else if (fbc_mode == DCAM_PATH_BIN)
+		path = &dev->path[DCAM_PATH_BIN];
+
+	if (!path)
+		return 0;
+
+	/* bad code, but don't have any other choice */
+	list_for_each_entry(frame, &path->reserved_buf_queue.head, list) {
+		frame->is_compressed = 1;
+	}
+
+	return 0;
+}
+
 static int sprd_dcam_get_path(
 	void *dcam_handle, int path_id)
 {
@@ -2511,53 +2537,6 @@ int dcam_if_put_dev(void *dcam_handle)
 	s_dcam_dev[idx] = NULL;
 
 	mutex_unlock(&s_dcam_dev_mutex);
-
-	return ret;
-}
-
-/* set line buffer share mode
- * Attention: set before stream on
- * Input: dcam idx, image width(max)
- */
-int dcam_lbuf_share_mode(enum dcam_id idx, uint32_t width)
-{
-	int i = 0;
-	int ret = 0;
-	uint32_t tb_w[] = {
-	/*     dcam0, dcam1 */
-		4672, 3648,
-		4224, 4224,
-		3648, 4672,
-		3648, 4672,
-	};
-	if (atomic_read(&s_dcam_working) > 0) {
-		pr_warn("dcam 0/1 already in working\n");
-		return 0;
-	}
-
-	pr_debug("idx[%d] width[%d]\n", idx, width);
-
-	switch (idx) {
-	case 0:
-		for (i = 3; i >= 0; i--) {
-			if (width <= tb_w[i * 2])
-				break;
-		}
-		DCAM_AXIM_WR(DCAM_LBUF_SHARE_MODE, i);
-		pr_info("alloc dcam linebuf %d %d\n", tb_w[i*2], tb_w[i*2 + 1]);
-		break;
-	case 1:
-		for (i = 0; i < 3; i++) {
-			if (width <= tb_w[i * 2 + 1])
-				break;
-		}
-		DCAM_AXIM_WR(DCAM_LBUF_SHARE_MODE, i);
-		pr_info("alloc dcam linebuf %d %d\n", tb_w[i*2], tb_w[i*2 + 1]);
-		break;
-	default:
-		pr_info("dcam %d no this setting\n", idx);
-		ret = 1;
-	}
 
 	return ret;
 }

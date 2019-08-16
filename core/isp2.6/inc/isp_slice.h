@@ -21,10 +21,7 @@
 #define SLICE_OVERLAP_W_MAX			64
 
 
-#define RAW_OVERLAP_UP				62
-#define RAW_OVERLAP_DOWN			82
-#define RAW_OVERLAP_LEFT			90
-#define RAW_OVERLAP_RIGHT			142
+
 #define YUV_OVERLAP_UP				46
 #define YUV_OVERLAP_DOWN			68
 #define YUV_OVERLAP_LEFT			74

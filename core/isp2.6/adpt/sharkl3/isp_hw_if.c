@@ -12,12 +12,24 @@
  */
 
 #include <sprd_mm.h>
+#include <linux/delay.h>
+#include <linux/regmap.h>
+
 #include "isp_hw_if.h"
 #include "isp_reg.h"
 #include "cam_trusty.h"
 
 #define ISP_AXI_ARBITER_WQOS_MASK       0x37FF
 #define ISP_AXI_ARBITER_RQOS_MASK       0x1FF
+#define ISP_AXI_STOP_TIMEOUT			1000
+#define ISP_CLK_NUM                    5
+#define CLK_CPPLL                      468000000
+static unsigned long irq_base[4] = {
+	ISP_P0_INT_BASE,
+	ISP_C0_INT_BASE,
+	ISP_P1_INT_BASE,
+	ISP_C1_INT_BASE
+};
 
 uint32_t isp_check_context(uint32_t ctx_id,
 	struct isp_init_param *init_param)
@@ -95,59 +107,59 @@ struct bypass_tag *isp_tb_bypass_get_data(uint32_t i)
 }
 
 static uint32_t ISP_CFG_MAP[] __aligned(8) = {
-		0x00080710, /*0x0710  - 0x0714 , 2   , common path sel*/
-		0x00041C10, /*0x1C10  - 0x1C10 , 1   , VST*/
-		0x01702010,/*0x2010  - 0x217C , 92  , NLM*/
-		0x00041E10, /*0x1E10  - 0x1E10 , 1   , IVST*/
-		0x00503010,/*0x3010  - 0x305C , 20  , CFA_NEW*/
-		0x00183110, /*0x3110  - 0x3124 , 6   , CMC10*/
-		0x00043210, /*0x3210  - 0x3210 , 1   , GAMC_NEW*/
-		0x00403310,/*0x3310  - 0x334C , 16  , HSV*/
-		0x00243410,/*0x3410  - 0x3430 , 9   , PSTRZ*/
-		0x001C3510,/*0x3510  - 0x3528 , 7   , CCE*/
-		0x001C3610,/*0x3610  - 0x3628 , 7   , UVD*/
-		0x004C5010,/*0x5010  - 0x5058 , 19  , PRECDN*/
-		0x00845110,/*0x5110  - 0x5190 , 33  , YNR*/
-		0x00045210,/*0x5210  - 0x5210 , 1   , BRTA*/
-		0x00045310,/*0x5310  - 0x5310 , 1   , CNTA*/
-		0x000C5410,/*0x5410  - 0x5418 , 3   , HISTS*/
-		0x00145510,/*0x5510  - 0x5520 , 5   , HISTS2*/
-		0x00485610,/*0x5610  - 0x5654 , 18  , CDN*/
-		0x00745710,/*0x5710  - 0x5780 , 29  , NEW_EE*/
-		0x00045810,/*0x5810  - 0x5810 , 1   , CSA*/
-		0x00045910,/*0x5910  - 0x5910 , 1   , HUA*/
-		0x00745A10,/*0x5A10  - 0x5A80 , 29  , POST_CDN*/
-		0x00045B10,/*0x5B10  - 0x5B10 , 1   , YGAMMA*/
-		0x00085C10,/*0x5C10  - 0x5C14 , 2   , YUVDELAY*/
-		0x00C85D10,/*0x5D10  - 0x5DD4 , 50  , IIRCNR*/
-		0x00185E10,/*0x5E10  - 0x5E24 , 6   , YRANDOM*/
-		0x00449010,/*0x9010  - 0x9050 , 17   , 3DNR mem ctrl*/
-		0x00649110,/*0x9110  - 0x9170 , 25   , 3DNR blend*/
-		0x00189210,/*0x9210  - 0x9224 , 6   , 3DNR store*/
-		0x00109310,/*0x9310  - 0x931C , 4   , 3DNR crop*/
-		0x0050D010,/*0xD010  - 0xD05C , 20  , SCL_VID*/
-		0x0034D110,/*0xD110  - 0xD140 , 13  , SCL_VID_store*/
-		0x0044C010,/*0xC010  - 0xC050 , 17  , SCL_CAP*/
-		0x0034C110,/*0xC110  - 0xC140 , 13  , SCL_CAP_store*/
-		0x0044C210,/*0xC210  - 0xC250 , 17  ,SCL_CAP_noisefilter*/
-		0x00300110, /*0x110   - 0x13C  , 12  , FETCH*/
-		0x00300210, /*0x210   - 0x23C  , 12  , STORE*/
-		0x001C0310, /*0x310   - 0x328  , 7   , DISPATCH*/
-		0x05A18000,/*0x18000 - 0x1859C, 360 , ISP_HSV_BUF0_CH0*/
-		0x10019000,/*0x19000 - 0x19FFC, 1024, ISP_VST_BUF0_CH0*/
-		0x1001A000,/*0x1A000 - 0x1AFFC, 1024, ISP_IVST_BUF0_CH0*/
-		0x0401B000,/*0x1B000 - 0x1B3FC, 256 , ISP_FGAMMA_R_BUF0_CH0*/
-		0x0401C000,/*0x1C000 - 0x1C3FC, 256 , ISP_FGAMMA_G_BUF0_CH0*/
-		0x0401D000,/*0x1D000 - 0x1D3FC, 256 , ISP_FGAMMA_B_BUF0_CH0*/
-		0x0205E000,/*0x1E000 - 0x1E200, 129 , ISP_YGAMMA_BUF0_CH0*/
-		0x00839100, /*0x39100 - 0x3917C, 32  , CAP_HOR_CORF_Y_BUF0_CH0*/
-		0x00439300, /*0x39300 - 0x3933C, 16  , CAP_HOR_CORF_UV_BUF0*/
-		0x021394F0, /*0x394F0 - 0x396FC, 132 , CAP_VER_CORF_Y_BUF0_CH0*/
-		0x02139AF0, /*0x39AF0 - 0x39CFC, 132 , CAP_VER_CORF_UV_BUF0*/
-		0x00838100, /*0x38100 - 0x3817C, 32  , VID_HOR_CORF_Y_BUF0_CH0*/
-		0x00438300, /*0x38300 - 0x3833C, 16  , VID_HOR_CORF_UV_BUF0*/
-		0x021384F0, /*0x384F0 - 0x386FC, 132 , VID_VER_CORF_Y_BUF0_CH0*/
-		0x02138AF0, /*0x38AF0 - 0x38CFC, 132 , VID_VER_CORF_UV_BUF0*/
+	0x00080710, /*0x0710  - 0x0714 , 2   , common path sel*/
+	0x00041C10, /*0x1C10  - 0x1C10 , 1   , VST*/
+	0x01702010,/*0x2010  - 0x217C , 92  , NLM*/
+	0x00041E10, /*0x1E10  - 0x1E10 , 1   , IVST*/
+	0x00503010,/*0x3010  - 0x305C , 20  , CFA_NEW*/
+	0x00183110, /*0x3110  - 0x3124 , 6   , CMC10*/
+	0x00043210, /*0x3210  - 0x3210 , 1   , GAMC_NEW*/
+	0x00403310,/*0x3310  - 0x334C , 16  , HSV*/
+	0x00243410,/*0x3410  - 0x3430 , 9   , PSTRZ*/
+	0x001C3510,/*0x3510  - 0x3528 , 7   , CCE*/
+	0x001C3610,/*0x3610  - 0x3628 , 7   , UVD*/
+	0x004C5010,/*0x5010  - 0x5058 , 19  , PRECDN*/
+	0x00845110,/*0x5110  - 0x5190 , 33  , YNR*/
+	0x00045210,/*0x5210  - 0x5210 , 1   , BRTA*/
+	0x00045310,/*0x5310  - 0x5310 , 1   , CNTA*/
+	0x000C5410,/*0x5410  - 0x5418 , 3   , HISTS*/
+	0x00145510,/*0x5510  - 0x5520 , 5   , HISTS2*/
+	0x00485610,/*0x5610  - 0x5654 , 18  , CDN*/
+	0x00745710,/*0x5710  - 0x5780 , 29  , NEW_EE*/
+	0x00045810,/*0x5810  - 0x5810 , 1   , CSA*/
+	0x00045910,/*0x5910  - 0x5910 , 1   , HUA*/
+	0x00745A10,/*0x5A10  - 0x5A80 , 29  , POST_CDN*/
+	0x00045B10,/*0x5B10  - 0x5B10 , 1   , YGAMMA*/
+	0x00085C10,/*0x5C10  - 0x5C14 , 2   , YUVDELAY*/
+	0x00C85D10,/*0x5D10  - 0x5DD4 , 50  , IIRCNR*/
+	0x00185E10,/*0x5E10  - 0x5E24 , 6   , YRANDOM*/
+	0x00449010,/*0x9010  - 0x9050 , 17   , 3DNR mem ctrl*/
+	0x00649110,/*0x9110  - 0x9170 , 25   , 3DNR blend*/
+	0x00189210,/*0x9210  - 0x9224 , 6   , 3DNR store*/
+	0x00109310,/*0x9310  - 0x931C , 4   , 3DNR crop*/
+	0x0050D010,/*0xD010  - 0xD05C , 20  , SCL_VID*/
+	0x0034D110,/*0xD110  - 0xD140 , 13  , SCL_VID_store*/
+	0x0044C010,/*0xC010  - 0xC050 , 17  , SCL_CAP*/
+	0x0034C110,/*0xC110  - 0xC140 , 13  , SCL_CAP_store*/
+	0x0044C210,/*0xC210  - 0xC250 , 17  ,SCL_CAP_noisefilter*/
+	0x00300110, /*0x110   - 0x13C  , 12  , FETCH*/
+	0x00300210, /*0x210   - 0x23C  , 12  , STORE*/
+	0x001C0310, /*0x310   - 0x328  , 7   , DISPATCH*/
+	0x05A18000,/*0x18000 - 0x1859C, 360 , ISP_HSV_BUF0_CH0*/
+	0x10019000,/*0x19000 - 0x19FFC, 1024, ISP_VST_BUF0_CH0*/
+	0x1001A000,/*0x1A000 - 0x1AFFC, 1024, ISP_IVST_BUF0_CH0*/
+	0x0401B000,/*0x1B000 - 0x1B3FC, 256 , ISP_FGAMMA_R_BUF0_CH0*/
+	0x0401C000,/*0x1C000 - 0x1C3FC, 256 , ISP_FGAMMA_G_BUF0_CH0*/
+	0x0401D000,/*0x1D000 - 0x1D3FC, 256 , ISP_FGAMMA_B_BUF0_CH0*/
+	0x0205E000,/*0x1E000 - 0x1E200, 129 , ISP_YGAMMA_BUF0_CH0*/
+	0x00839100, /*0x39100 - 0x3917C, 32  , CAP_HOR_CORF_Y_BUF0_CH0*/
+	0x00439300, /*0x39300 - 0x3933C, 16  , CAP_HOR_CORF_UV_BUF0*/
+	0x021394F0, /*0x394F0 - 0x396FC, 132 , CAP_VER_CORF_Y_BUF0_CH0*/
+	0x02139AF0, /*0x39AF0 - 0x39CFC, 132 , CAP_VER_CORF_UV_BUF0*/
+	0x00838100, /*0x38100 - 0x3817C, 32  , VID_HOR_CORF_Y_BUF0_CH0*/
+	0x00438300, /*0x38300 - 0x3833C, 16  , VID_HOR_CORF_UV_BUF0*/
+	0x021384F0, /*0x384F0 - 0x386FC, 132 , VID_VER_CORF_Y_BUF0_CH0*/
+	0x02138AF0, /*0x38AF0 - 0x38CFC, 132 , VID_VER_CORF_UV_BUF0*/
 };
 
 uint32_t isp_cfg_map_get_count()
@@ -460,3 +472,109 @@ struct isp_cfg_entry *isp_get_cfg_func(uint32_t index)
 		return NULL;
 	}
 }
+
+int isp_irq_disable(struct sprd_cam_hw_info *hw, void *arg)
+{
+	uint32_t ctx_id;
+
+	if (!hw || !arg) {
+		pr_err("error: null input ptr.\n");
+		return -EFAULT;
+	}
+
+	ctx_id = *(uint32_t *)arg;
+	if (ctx_id >= 4) {
+		pr_err("error ctx id %d\n", ctx_id);
+		return -EFAULT;
+	}
+
+	ISP_HREG_WR(irq_base[ctx_id] + ISP_INT_EN0, 0);
+	ISP_HREG_WR(irq_base[ctx_id] + ISP_INT_EN1, 0);
+
+	return 0;
+}
+
+int isp_irq_clear(struct sprd_cam_hw_info *hw, void *arg)
+{
+	uint32_t ctx_id;
+
+	if (!hw || !arg) {
+		pr_err("error: null input ptr.\n");
+		return -EFAULT;
+	}
+
+	ctx_id = *(uint32_t *)arg;
+	if (ctx_id >= 4) {
+		pr_err("error ctx id %d\n", ctx_id);
+		return -EFAULT;
+	}
+
+	ISP_HREG_WR(irq_base[ctx_id] + ISP_INT_CLR0, 0xFFFFFFFF);
+	ISP_HREG_WR(irq_base[ctx_id] + ISP_INT_CLR1, 0xFFFFFFFF);
+
+	return 0;
+}
+
+int isp_irq_enable(struct sprd_cam_hw_info *hw, void *arg)
+{
+	uint32_t ctx_id;
+	uint32_t mask = ~0;
+
+	if (!hw || !arg) {
+		pr_err("error: null input ptr.\n");
+		return -EFAULT;
+	}
+
+	ctx_id = *(uint32_t *)arg;
+	if (ctx_id >= 4) {
+		pr_err("error ctx id %d\n", ctx_id);
+		return -EFAULT;
+	}
+
+	ISP_HREG_MWR(irq_base[ctx_id] + ISP_INT_EN0, mask, mask);
+
+	return 0;
+}
+
+int isp_reset(struct sprd_cam_hw_info *hw, void *arg)
+{
+	int rtn = 0;
+	uint32_t cid;
+	uint32_t time_out = 0;
+
+	pr_info("ISP%d: reset\n", hw->idx);
+
+	/* firstly stop axim transfering */
+	ISP_HREG_MWR(ISP_AXI_ITI2AXIM_CTRL, BIT(26), BIT(26));
+
+	/* then wait for AHB busy cleared */
+	while (++time_out < ISP_AXI_STOP_TIMEOUT) {
+		/* bit3: 1 - axi idle;  0 - axi busy */
+		if  (ISP_HREG_RD(ISP_INT_STATUS) & BIT_3)
+			break;
+		udelay(1000);
+	}
+
+	if (time_out >= ISP_AXI_STOP_TIMEOUT) {
+		pr_info("ISP reset timeout %d\n", time_out);
+	} else {
+		regmap_update_bits(hw->cam_ahb_gpr,
+			hw->syscon.rst, hw->syscon.rst_mask, hw->syscon.rst_mask);
+		udelay(10);
+		regmap_update_bits(hw->cam_ahb_gpr,
+			hw->syscon.rst, hw->syscon.rst_mask, ~(hw->syscon.rst_mask));
+	}
+
+	/* enable axim transfering */
+	ISP_HREG_MWR(ISP_AXI_ITI2AXIM_CTRL, BIT_26, 0);
+
+	for (cid = 0; cid < 4; cid++) {
+		isp_irq_clear(hw, &cid);
+		isp_irq_disable(hw, &cid);
+	}
+
+	pr_info("ISP%d: reset end\n", hw->idx);
+	return rtn;
+}
+
+

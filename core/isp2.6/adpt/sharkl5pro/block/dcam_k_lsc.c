@@ -15,8 +15,8 @@
 #include <linux/uaccess.h>
 #include <linux/vmalloc.h>
 #include <sprd_mm.h>
-
 #include "sprd_isp_hw.h"
+
 #include "dcam_reg.h"
 #include "dcam_interface.h"
 #include "dcam_core.h"
@@ -51,8 +51,6 @@ int dcam_init_lsc(void *in, uint32_t online)
 	param = &dev->blk_dcam_pm->lsc;
 	spin_lock(&param->lock);
 	if (!param->update) {
-		/* need, because other block need coef */
-		dcam_force_copy(dev, DCAM_CTRL_COEF);
 		spin_unlock(&param->lock);
 		return 0;
 	}

@@ -11,8 +11,8 @@
  * GNU General Public License for more details.
  */
 
-#ifndef _SPRD_ISP_R8P1_H_
-#define _SPRD_ISP_R8P1_H_
+#ifndef _SPRD_ISP_R9P0_H_
+#define _SPRD_ISP_R9P0_H_
 
 #define BUF_ALIGN(w) ((((w) + 512 + 1024 - 1) >> 10) << 10)
 

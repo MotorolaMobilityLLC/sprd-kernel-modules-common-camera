@@ -14,6 +14,7 @@
 #include <linux/uaccess.h>
 #include <sprd_mm.h>
 #include "sprd_isp_hw.h"
+
 #include "dcam_reg.h"
 #include "dcam_interface.h"
 #include "dcam_core.h"
@@ -174,20 +175,6 @@ int dcam_k_aem_rgb_thr(struct dcam_dev_param *param)
 	val = ((p->aem_g_thr.low_thr & 0x3FF) << 16) |
 		(p->aem_g_thr.high_thr & 0x3FF);
 	DCAM_REG_WR(idx, DCAM_AEM_GREEN_THR, val);
-
-	if (p->aem_hdr_en) {
-		val = ((p->aem_short_r_thr.low_thr & 0x3FF) << 16) |
-			(p->aem_short_r_thr.high_thr & 0x3FF);
-		DCAM_REG_WR(idx, DCAM_AEM_SHORT_RED_THR, val);
-
-		val = ((p->aem_short_b_thr.low_thr & 0x3FF) << 16) |
-			(p->aem_short_b_thr.high_thr & 0x3FF);
-		DCAM_REG_WR(idx, DCAM_AEM_SHORT_BLUE_THR, val);
-
-		val = ((p->aem_short_g_thr.low_thr & 0x3FF) << 16) |
-			(p->aem_short_g_thr.high_thr & 0x3FF);
-		DCAM_REG_WR(idx, DCAM_AEM_SHORT_GREEN_THR, val);
-	}
 
 	return ret;
 }

@@ -24,6 +24,7 @@
 #define DCAM_AXI_STOP_TIMEOUT 2000
 #define DCAM_AXIM_AQOS_MASK (0x30FFFF)
 
+extern atomic_t s_dcam_working;
 static const struct bypass_tag dcam_tb_bypass[] = {
 	[_E_4IN1] = {"4in1", DCAM_MIPI_CAP_CFG, 12}, /* 0x100.b12 */
 	[_E_PDAF] = {"pdaf", DCAM_PPE_FRM_CTRL0, 1}, /* 0x120.b1 */
@@ -921,5 +922,52 @@ static struct dcam_if dcam_if_r5p0[DCAM_ID_MAX] = {
 
 struct dcam_if *dcam_get_dcam_if(enum dcam_id idx) {
 	return &dcam_if_r5p0[idx];
+}
+
+/* set line buffer share mode
+ * Attention: set before stream on
+ * Input: dcam idx, image width(max)
+ */
+int dcam_lbuf_share_mode(enum dcam_id idx, uint32_t width)
+{
+	int i = 0;
+	int ret = 0;
+	uint32_t tb_w[] = {
+	/*     dcam0, dcam1 */
+		4672, 3648,
+		4224, 4224,
+		3648, 4672,
+		3648, 4672,
+	};
+	if (atomic_read(&s_dcam_working) > 0) {
+		pr_warn("dcam 0/1 already in working\n");
+		return 0;
+	}
+
+	pr_debug("idx[%d] width[%d]\n", idx, width);
+
+	switch (idx) {
+	case 0:
+		for (i = 3; i >= 0; i--) {
+			if (width <= tb_w[i * 2])
+				break;
+		}
+		DCAM_AXIM_WR(DCAM_LBUF_SHARE_MODE, i);
+		pr_info("alloc dcam linebuf %d %d\n", tb_w[i*2], tb_w[i*2 + 1]);
+		break;
+	case 1:
+		for (i = 0; i < 3; i++) {
+			if (width <= tb_w[i * 2 + 1])
+				break;
+		}
+		DCAM_AXIM_WR(DCAM_LBUF_SHARE_MODE, i);
+		pr_info("alloc dcam linebuf %d %d\n", tb_w[i*2], tb_w[i*2 + 1]);
+		break;
+	default:
+		pr_info("dcam %d no this setting\n", idx);
+		ret = 1;
+	}
+
+	return ret;
 }
 

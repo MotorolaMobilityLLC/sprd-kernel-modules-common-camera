@@ -12,9 +12,23 @@
  */
 
 #include <sprd_mm.h>
+#include <linux/delay.h>
+#include <linux/regmap.h>
+
 #include "isp_hw_if.h"
 #include "isp_reg.h"
 #include "cam_trusty.h"
+
+#define ISP_AXI_STOP_TIMEOUT			1000
+#define ISP_CLK_NUM                    5
+#define CLK_CPPLL                      468000000
+static unsigned long irq_base[4] = {
+	ISP_P0_INT_BASE,
+	ISP_C0_INT_BASE,
+	ISP_P1_INT_BASE,
+	ISP_C1_INT_BASE
+};
+
 
 uint32_t isp_check_context(uint32_t ctx_id,
 	struct isp_init_param *init_param)
@@ -109,8 +123,8 @@ static uint32_t ISP_CFG_MAP[] __aligned(8) = {
 		0x00043410, /*0x3410  - 0x3410 , 1   , PSTRZ*/
 		0x001C3510, /*0x3510  - 0x3528 , 7   , CCE*/
 		0x001C3610, /*0x3610  - 0x3628 , 7   , UVD*/
-		0x00205510, /*0x5510  - 0x552C , 8   , LTM HISTS*/
-		0x00185F10, /*0x5F10  - 0x5F24 , 6   , LTM MAP*/
+		//0x00205510, /*0x5510  - 0x552C , 8   , LTM HISTS*/
+		//0x00185F10, /*0x5F10  - 0x5F24 , 6   , LTM MAP*/
 		0x004C5010, /*0x5010  - 0x5058 , 19  , PRECDN*/
 		0x008C5110, /*0x5110  - 0x5198 , 35  , YNR*/
 		0x00485610, /*0x5610  - 0x5654 , 18  , CDN*/
@@ -129,17 +143,17 @@ static uint32_t ISP_CFG_MAP[] __aligned(8) = {
 		/*0x003C9510, *0x9510  - 0x9548 , 15  , FBD 3DNR fetch*/
 		0x0050D010, /*0xD010  - 0xD05C , 20  , SCL_VID*/
 		0x0030D110, /*0xD110  - 0xD13C , 12  , SCL_VID_store*/
-		/*0x0030D310, *0xD310  - 0xD33C , 12  , SCL_VID_FBC_store*/
+		//0x0030D310, /*0xD310  - 0xD33C , 12  , SCL_VID_FBC_store*/
 		0x0044C010, /*0xC010  - 0xC050 , 17  , SCL_CAP*/
 		0x0030C110, /*0xC110  - 0xC13C , 12  , SCL_CAP_store*/
 		0x0044C210, /*0xC210  - 0xC250 , 17  , SCL_CAP_Noisefilter_add_rdm*/
-		/*0x0030C310, *0xC310  - 0xC33C , 12  , SCL_CAP_FBC_store*/
+		//0x0030C310, /*0xC310  - 0xC33C , 12  , SCL_CAP_FBC_store*/
 		0x0054E010, /*0xE010  - 0xE060 , 21  , SCL_THUMB*/
 		0x0030E110, /*0xE110  - 0xE13C , 12  , SCL_THUMB_store*/
 		0x00300110, /*0x110   - 0x13C  , 12  , FETCH*/
 		0x00300210, /*0x210   - 0x23C  , 12  , STORE*/
 		0x001C0310, /*0x310   - 0x328  , 7   , DISPATCH*/
-		0x00340C10, /*0x0C10  - 0x0C40 , 13  , Fetch_FBD*/
+		//0x00340C10, /*0x0C10  - 0x0C40 , 13  , Fetch_FBD*/
 		0x05A18000, /*0x18000 - 0x1859C, 360 , ISP_HSV_BUF0_CH0*/
 		0x10019000, /*0x19000 - 0x19FFC, 1024, ISP_VST_BUF0_CH0*/
 		0x1001A000, /*0x1A000 - 0x1AFFC, 1024, ISP_IVST_BUF0_CH0*/
@@ -420,25 +434,23 @@ void isp_set_ctx_default(struct isp_pipe_context *pctx)
 }
 
 static struct isp_cfg_entry isp_cfg_func_tab[ISP_BLOCK_TOTAL - ISP_BLOCK_BASE] = {
-[ISP_BLOCK_BCHS - ISP_BLOCK_BASE]	= {ISP_BLOCK_BCHS, isp_k_cfg_bchs},
-[ISP_BLOCK_CCE - ISP_BLOCK_BASE]	= {ISP_BLOCK_CCE, isp_k_cfg_cce},
-[ISP_BLOCK_CDN - ISP_BLOCK_BASE]	= {ISP_BLOCK_CDN, isp_k_cfg_cdn},
-[ISP_BLOCK_CFA - ISP_BLOCK_BASE]	= {ISP_BLOCK_CFA, isp_k_cfg_cfa},
-
-[ISP_BLOCK_CMC - ISP_BLOCK_BASE]	= {ISP_BLOCK_CMC, isp_k_cfg_cmc10},
-[ISP_BLOCK_EDGE - ISP_BLOCK_BASE]	= {ISP_BLOCK_EDGE, isp_k_cfg_edge},
+//[ISP_BLOCK_BCHS - ISP_BLOCK_BASE]	= {ISP_BLOCK_BCHS, isp_k_cfg_bchs},
+//[ISP_BLOCK_YGAMMA - ISP_BLOCK_BASE]	= {ISP_BLOCK_YGAMMA, isp_k_cfg_ygamma},
 [ISP_BLOCK_GAMMA - ISP_BLOCK_BASE]	= {ISP_BLOCK_GAMMA, isp_k_cfg_gamma},
-[ISP_BLOCK_GRGB - ISP_BLOCK_BASE]	= {ISP_BLOCK_GRGB, isp_k_cfg_grgb},
-[ISP_BLOCK_HIST2 - ISP_BLOCK_BASE]	= {ISP_BLOCK_HIST2, isp_k_cfg_hist2},
-[ISP_BLOCK_HSV - ISP_BLOCK_BASE]	= {ISP_BLOCK_HSV, isp_k_cfg_hsv},
-[ISP_BLOCK_IIRCNR - ISP_BLOCK_BASE]	= {ISP_BLOCK_IIRCNR, isp_k_cfg_iircnr},
-[ISP_BLOCK_LTM - ISP_BLOCK_BASE]	= {ISP_BLOCK_LTM, isp_k_cfg_ltm},
-[ISP_BLOCK_POST_CDN - ISP_BLOCK_BASE]	= {ISP_BLOCK_POST_CDN, isp_k_cfg_post_cdn},
-[ISP_BLOCK_PRE_CDN - ISP_BLOCK_BASE]	= {ISP_BLOCK_PRE_CDN, isp_k_cfg_pre_cdn},
-[ISP_BLOCK_PSTRZ - ISP_BLOCK_BASE]	= {ISP_BLOCK_PSTRZ, isp_k_cfg_pstrz},
+[ISP_BLOCK_CCE - ISP_BLOCK_BASE]	= {ISP_BLOCK_CCE, isp_k_cfg_cce},
 [ISP_BLOCK_UVD - ISP_BLOCK_BASE]	= {ISP_BLOCK_UVD, isp_k_cfg_uvd},
-[ISP_BLOCK_YGAMMA - ISP_BLOCK_BASE]	= {ISP_BLOCK_YGAMMA, isp_k_cfg_ygamma},
-[ISP_BLOCK_YRANDOM - ISP_BLOCK_BASE]	= {ISP_BLOCK_YRANDOM, isp_k_cfg_yrandom},
+[ISP_BLOCK_CFA - ISP_BLOCK_BASE]	= {ISP_BLOCK_CFA, isp_k_cfg_cfa},
+[ISP_BLOCK_CMC - ISP_BLOCK_BASE]	= {ISP_BLOCK_CMC, isp_k_cfg_cmc10},
+[ISP_BLOCK_CDN - ISP_BLOCK_BASE]	= {ISP_BLOCK_CDN, isp_k_cfg_cdn},
+//[ISP_BLOCK_HSV - ISP_BLOCK_BASE]	= {ISP_BLOCK_HSV, isp_k_cfg_hsv},
+//[ISP_BLOCK_GRGB - ISP_BLOCK_BASE]	= {ISP_BLOCK_GRGB, isp_k_cfg_grgb},
+//[ISP_BLOCK_EDGE - ISP_BLOCK_BASE]	= {ISP_BLOCK_EDGE, isp_k_cfg_edge},
+//[ISP_BLOCK_HIST2 - ISP_BLOCK_BASE]	= {ISP_BLOCK_HIST2, isp_k_cfg_hist2},
+//[ISP_BLOCK_IIRCNR - ISP_BLOCK_BASE]	= {ISP_BLOCK_IIRCNR, isp_k_cfg_iircnr},
+//[ISP_BLOCK_PRE_CDN - ISP_BLOCK_BASE]	= {ISP_BLOCK_PRE_CDN, isp_k_cfg_pre_cdn},
+//[ISP_BLOCK_POST_CDN - ISP_BLOCK_BASE]	= {ISP_BLOCK_POST_CDN, isp_k_cfg_post_cdn},
+//[ISP_BLOCK_PSTRZ - ISP_BLOCK_BASE]	= {ISP_BLOCK_PSTRZ, isp_k_cfg_pstrz},
+//[ISP_BLOCK_YRANDOM - ISP_BLOCK_BASE]	= {ISP_BLOCK_YRANDOM, isp_k_cfg_yrandom},
 };
 
 struct isp_cfg_entry *isp_get_cfg_func(uint32_t index)
@@ -449,4 +461,109 @@ struct isp_cfg_entry *isp_get_cfg_func(uint32_t index)
 		pr_err("fail to get right isp cfg func index %d\n", index);
 		return NULL;
 	}
+}
+
+int isp_irq_clear(struct sprd_cam_hw_info *hw, void *arg)
+{
+	uint32_t ctx_id;
+
+	if (!hw || !arg) {
+		pr_err("error: null input ptr.\n");
+		return -EFAULT;
+	}
+
+	ctx_id = *(uint32_t *)arg;
+	if (ctx_id >= 4) {
+		pr_err("error ctx id %d\n", ctx_id);
+		return -EFAULT;
+	}
+
+	ISP_HREG_WR(irq_base[ctx_id] + ISP_INT_CLR0, 0xFFFFFFFF);
+	ISP_HREG_WR(irq_base[ctx_id] + ISP_INT_CLR1, 0xFFFFFFFF);
+
+	return 0;
+}
+int isp_reset(struct sprd_cam_hw_info *hw, void *arg)
+{
+	int rtn = 0;
+	uint32_t cid;
+	uint32_t time_out = 0;
+	uint32_t flag = 0;
+
+	pr_info("ISP%d: reset\n", hw->idx);
+
+	/* firstly stop axim transfering */
+	ISP_HREG_MWR(ISP_AXI_ITI2AXIM_CTRL, BIT(26), BIT(26));
+
+	/* then wait for AHB busy cleared */
+	while (++time_out < ISP_AXI_STOP_TIMEOUT) {
+		/* bit3: 1 - axi idle;  0 - axi busy */
+		if  (ISP_HREG_RD(ISP_INT_STATUS) & BIT_3)
+			break;
+		udelay(1000);
+	}
+
+	if (time_out >= ISP_AXI_STOP_TIMEOUT) {
+		pr_info("ISP reset timeout %d\n", time_out);
+	} else {
+		flag = BIT(10) | BIT(12);
+		regmap_update_bits(hw->cam_ahb_gpr,
+			0x0004, flag, flag);
+		udelay(10);
+		regmap_update_bits(hw->cam_ahb_gpr,
+			0x0004, flag, ~flag);
+	}
+
+	/* enable axim transfering */
+	ISP_HREG_MWR(ISP_AXI_ITI2AXIM_CTRL, BIT_26, 0);
+
+	for (cid = 0; cid < 4; cid++) {
+		isp_irq_clear(hw, &cid);
+		isp_irq_disable(hw, &cid);
+	}
+
+	pr_info("ISP%d: reset end\n", hw->idx);
+	return rtn;
+}
+
+int isp_irq_disable(struct sprd_cam_hw_info *hw, void *arg)
+{
+	uint32_t ctx_id;
+
+	if (!hw || !arg) {
+		pr_err("error: null input ptr.\n");
+		return -EFAULT;
+	}
+
+	ctx_id = *(uint32_t *)arg;
+	if (ctx_id >= 4) {
+		pr_err("error ctx id %d\n", ctx_id);
+		return -EFAULT;
+	}
+
+	ISP_HREG_WR(irq_base[ctx_id] + ISP_INT_EN0, 0);
+	ISP_HREG_WR(irq_base[ctx_id] + ISP_INT_EN1, 0);
+
+	return 0;
+}
+
+int isp_irq_enable(struct sprd_cam_hw_info *hw, void *arg)
+{
+	uint32_t ctx_id;
+	uint32_t mask = ~0;
+
+	if (!hw || !arg) {
+		pr_err("error: null input ptr.\n");
+		return -EFAULT;
+	}
+
+	ctx_id = *(uint32_t *)arg;
+	if (ctx_id >= 4) {
+		pr_err("error ctx id %d\n", ctx_id);
+		return -EFAULT;
+	}
+
+	ISP_HREG_MWR(irq_base[ctx_id] + ISP_INT_EN0, mask, mask);
+
+	return 0;
 }

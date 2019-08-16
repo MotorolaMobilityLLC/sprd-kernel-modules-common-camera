@@ -47,6 +47,7 @@
 
 #include "sprd_sensor_drv.h"
 #include "dcam_reg.h"
+#include "dcam_hw_if.h"
 
 #ifdef CONFIG_COMPAT
 #include "compat_cam_drv.h"
@@ -168,6 +169,7 @@ struct camera_uinfo {
 	uint32_t is_3dnr;
 	uint32_t is_ltm;
 	uint32_t is_dual;
+	uint32_t is_bigsize;
 };
 
 struct channel_context {
@@ -829,6 +831,7 @@ static int set_cap_info(struct camera_module *module)
 	cap_info.mode = info->capture_mode;
 	cap_info.frm_skip = info->capture_skip;
 	cap_info.is_4in1 = info->is_4in1;
+	cap_info.is_bigsize = info->is_bigsize;
 	cap_info.sensor_if = sensor_if->if_type;
 	cap_info.format =  sensor_if->img_fmt;
 	cap_info.pattern = sensor_if->img_ptn;
@@ -2955,6 +2958,8 @@ static int init_cam_channel(
 		memset(&ch_desc, 0, sizeof(ch_desc));
 		ch_desc.is_loose =
 			module->cam_uinfo.sensor_if.if_spec.mipi.is_loose;
+		ch_desc.is_cphy =
+			module->cam_uinfo.sensor_if.if_spec.mipi.is_cphy == 1 ? 1 : 0;
 		/*
 		 * Configure slow motion for BIN path. HAL must set @is_high_fps
 		 * and @high_fps_skip_num for both preview channel and video
@@ -2968,6 +2973,8 @@ static int init_cam_channel(
 		if (channel->ch_id == CAM_CH_RAW)
 			ch_desc.is_raw = 1;
 		if ((channel->ch_id == CAM_CH_CAP) && module->cam_uinfo.is_4in1)
+			ch_desc.is_raw = 1;
+		if ((channel->ch_id == CAM_CH_CAP) && module->cam_uinfo.is_bigsize)
 			ch_desc.is_raw = 1;
 		ret = dcam_ops->cfg_path(module->dcam_dev_handle,
 				DCAM_PATH_CFG_BASE,
@@ -3730,6 +3737,7 @@ static int img_ioctl_set_sensor_size(
 				sizeof(struct sprd_img_size));
 
 	pr_info("sensor_size %d %d\n", dst->w, dst->h);
+	module->cam_uinfo.is_bigsize = dst->w > DCAM_24M_WIDTH ? 1 : 0;
 	if (unlikely(ret)) {
 		pr_err("fail to copy from user, ret %d\n", ret);
 		ret = -EFAULT;
@@ -4135,6 +4143,16 @@ static int img_ioctl_set_crop(
 		crop->x, crop->y, crop->w, crop->h);
 	/* 4in1 prev, enable 4in1 binning, size/2 */
 	if (module->cam_uinfo.is_4in1 &&
+		((channel_id == CAM_CH_PRE) || (channel_id == CAM_CH_VID))) {
+		crop->x >>= 1;
+		crop->y >>= 1;
+		crop->w >>= 1;
+		crop->h >>= 1;
+		max.w >>= 1;
+		max.h >>= 1;
+	}
+	/* > 24M, size/2 */
+	if (module->cam_uinfo.is_bigsize &&
 		((channel_id == CAM_CH_PRE) || (channel_id == CAM_CH_VID))) {
 		crop->x >>= 1;
 		crop->y >>= 1;
@@ -6107,6 +6125,32 @@ static int ioctl_set_auto_3dnr_mode(struct camera_module *module,
 	return ret;
 }
 
+static int ioctl_get_capability(struct camera_module *module,
+                        unsigned long arg)
+{
+	int ret = 0;
+	struct sprd_img_size size = {0};
+
+	if (!module) {
+		pr_err("module is NULL\n");
+		ret = -EINVAL;
+		goto exit;
+	}
+
+	size.w = ISP_WIDTH_MAX;
+	size.h = ISP_HEIGHT_MAX;
+	ret = copy_to_user((void __user *)arg, &size,
+				sizeof(struct sprd_img_size));
+	if (unlikely(ret)) {
+		pr_err("fail to get capability, ret %d\n", ret);
+		ret = -EFAULT;
+		goto exit;
+	}
+
+exit:
+	return ret;
+}
+
 /*--------------- Core controlling interface end --------------- */
 
 
@@ -6653,6 +6697,7 @@ static struct cam_ioctl_cmd ioctl_cmds_table[] = {
 	[_IOC_NR(SPRD_IMG_IO_GET_PATH_RECT)]             = {SPRD_IMG_IO_GET_PATH_RECT,   img_ioctl_get_path_rect},
 	[_IOC_NR(SPRD_IMG_IO_SET_3DNR_MODE)]    = {SPRD_IMG_IO_SET_3DNR_MODE,   ioctl_set_3dnr_mode},
 	[_IOC_NR(SPRD_IMG_IO_SET_AUTO_3DNR_MODE)] = {SPRD_IMG_IO_SET_AUTO_3DNR_MODE, ioctl_set_auto_3dnr_mode},
+	[_IOC_NR(SPRD_IMG_IO_CAPABILITY)] = {SPRD_IMG_IO_CAPABILITY, ioctl_get_capability},
 };
 
 
@@ -6868,21 +6913,21 @@ rewait:
 		cap->path_info[CAM_CH_RAW].support_scaling = 0;
 		cap->path_info[CAM_CH_RAW].support_trim = 1;
 		cap->path_info[CAM_CH_RAW].is_scaleing_path = 0;
-		cap->path_info[CAM_CH_PRE].line_buf = ISP_MAX_WIDTH;
+		cap->path_info[CAM_CH_PRE].line_buf = ISP_WIDTH_MAX;
 		cap->path_info[CAM_CH_PRE].support_yuv = 1;
 		cap->path_info[CAM_CH_PRE].support_raw = 0;
 		cap->path_info[CAM_CH_PRE].support_jpeg = 0;
 		cap->path_info[CAM_CH_PRE].support_scaling = 1;
 		cap->path_info[CAM_CH_PRE].support_trim = 1;
 		cap->path_info[CAM_CH_PRE].is_scaleing_path = 0;
-		cap->path_info[CAM_CH_CAP].line_buf = ISP_MAX_WIDTH;
+		cap->path_info[CAM_CH_CAP].line_buf = ISP_WIDTH_MAX;
 		cap->path_info[CAM_CH_CAP].support_yuv = 1;
 		cap->path_info[CAM_CH_CAP].support_raw = 0;
 		cap->path_info[CAM_CH_CAP].support_jpeg = 0;
 		cap->path_info[CAM_CH_CAP].support_scaling = 1;
 		cap->path_info[CAM_CH_CAP].support_trim = 1;
 		cap->path_info[CAM_CH_CAP].is_scaleing_path = 0;
-		cap->path_info[CAM_CH_VID].line_buf = ISP_MAX_WIDTH;
+		cap->path_info[CAM_CH_VID].line_buf = ISP_WIDTH_MAX;
 		cap->path_info[CAM_CH_VID].support_yuv = 1;
 		cap->path_info[CAM_CH_VID].support_raw = 0;
 		cap->path_info[CAM_CH_VID].support_jpeg = 0;

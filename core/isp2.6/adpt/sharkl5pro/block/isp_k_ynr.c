@@ -14,8 +14,8 @@
 
 #include <linux/uaccess.h>
 #include <sprd_mm.h>
-
 #include "sprd_isp_hw.h"
+
 #include "isp_reg.h"
 #include "cam_types.h"
 #include "cam_block.h"
@@ -291,7 +291,7 @@ int isp_k_update_ynr(uint32_t idx,
 	uint32_t max_radius, max_radius_limit;
 	struct isp_dev_ynr_info_v2 *ynr_info;
 
-	ynr_info = &isp_k_param->ynr_info;
+	ynr_info = &isp_k_param->ynr_param.ynr_info_v2;
 	if (ynr_info->bypass)
 		return 0;
 

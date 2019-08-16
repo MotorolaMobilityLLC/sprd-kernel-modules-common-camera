@@ -15,10 +15,10 @@
 #include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/interrupt.h>
-
 #include "sprd_isp_hw.h"
 #include "sprd_img.h"
 #include <sprd_mm.h>
+
 #include "cam_hw.h"
 #include "cam_types.h"
 #include "cam_queue.h"
@@ -586,11 +586,9 @@ static void dcam_bin_path_done(void *param)
 	struct camera_frame *frame = NULL;
 	int i = 0, cnt = 0;
 
-	if (unlikely(dev->idx == DCAM_ID_2))
-		return;
-
 	path = &dev->path[DCAM_PATH_BIN];
 	cnt = atomic_read(&path->set_frm_cnt);
+	pr_info("wuyi\n");
 	if (cnt <= dev->slowmotion_count) {
 		pr_warn("DCAM%u BIN cnt %d, deci %u, out %u, result %u\n",
 			dev->idx, cnt, path->frm_deci,
@@ -629,9 +627,6 @@ static void dcam_aem_done(void *param)
 	struct dcam_pipe_dev *dev = (struct dcam_pipe_dev *)param;
 	struct camera_frame *frame = NULL;
 
-	if (unlikely(dev->idx == DCAM_ID_2))
-		return;
-
 	if ((frame = dcam_prepare_frame(dev, DCAM_PATH_AEM))) {
 		dcam_dispatch_frame(dev, DCAM_PATH_AEM, frame,
 				    DCAM_CB_STATIS_DONE);
@@ -645,9 +640,6 @@ static void dcam_pdaf_path_done(void *param)
 {
 	struct dcam_pipe_dev *dev = (struct dcam_pipe_dev *)param;
 	struct camera_frame *frame = NULL;
-
-	if (unlikely(dev->idx == DCAM_ID_2))
-		return;
 
 	if ((frame = dcam_prepare_frame(dev, DCAM_PATH_PDAF))) {
 		dcam_dispatch_frame(dev, DCAM_PATH_PDAF, frame,
@@ -665,9 +657,6 @@ static void dcam_vch2_path_done(void *param)
 	struct camera_frame *frame = NULL;
 	enum dcam_cb_type type;
 
-	if (unlikely(dev->idx == DCAM_ID_2))
-		return;
-
 	type = path->src_sel ? DCAM_CB_DATA_DONE : DCAM_CB_STATIS_DONE;
 	if ((frame = dcam_prepare_frame(dev, DCAM_PATH_VCH2))) {
 		dcam_dispatch_frame(dev, DCAM_PATH_VCH2, frame, type);
@@ -681,9 +670,6 @@ static void dcam_vch3_path_done(void *param)
 {
 	struct dcam_pipe_dev *dev = (struct dcam_pipe_dev *)param;
 	struct camera_frame *frame = NULL;
-
-	if (unlikely(dev->idx == DCAM_ID_2))
-		return;
 
 	if ((frame = dcam_prepare_frame(dev, DCAM_PATH_VCH3))) {
 		dcam_dispatch_frame(dev, DCAM_PATH_AFM, frame,
@@ -699,9 +685,6 @@ static void dcam_afm_done(void *param)
 	struct dcam_pipe_dev *dev = (struct dcam_pipe_dev *)param;
 	struct camera_frame *frame = NULL;
 
-	if (unlikely(dev->idx == DCAM_ID_2))
-		return;
-
 	if ((frame = dcam_prepare_frame(dev, DCAM_PATH_AFM))) {
 		dcam_dispatch_frame(dev, DCAM_PATH_AFM, frame,
 				    DCAM_CB_STATIS_DONE);
@@ -712,9 +695,6 @@ static void dcam_afl_done(void *param)
 {
 	struct dcam_pipe_dev *dev = (struct dcam_pipe_dev *)param;
 	struct camera_frame *frame = NULL;
-
-	if (unlikely(dev->idx == DCAM_ID_2))
-		return;
 
 	dcam_path_set_store_frm(dev, &dev->path[DCAM_PATH_AFL], NULL);
 	if ((frame = dcam_prepare_frame(dev, DCAM_PATH_AFL))) {
@@ -730,9 +710,6 @@ static void dcam_hist_done(void *param)
 {
 	struct dcam_pipe_dev *dev = (struct dcam_pipe_dev *)param;
 	struct camera_frame *frame = NULL;
-
-	if (unlikely(dev->idx == DCAM_ID_2))
-		return;
 
 	if ((frame = dcam_prepare_frame(dev, DCAM_PATH_HIST))) {
 		dcam_dispatch_frame(dev, DCAM_PATH_HIST, frame,
@@ -903,8 +880,20 @@ static const int _DCAM1_SEQUENCE[] = {
  * interested interrupt bits in DCAM2
  */
 static const int _DCAM2_SEQUENCE[] = {
-	DCAM2_SENSOR_EOF,/* TODO: why for flash */
-	DCAM2_FULL_PATH_TX_DONE,/* for path data */
+	DCAM_CAP_SOF,/* must */
+	DCAM_PREVIEW_SOF,
+	DCAM_SENSOR_EOF,/* TODO: why for flash */
+	DCAM_NR3_TX_DONE,/* for 3dnr, before data path */
+	DCAM_PREV_PATH_TX_DONE,/* for bin path */
+	DCAM_FULL_PATH_TX_DONE,/* for full path */
+	DCAM_AEM_TX_DONE,/* for aem statis */
+	DCAM_HIST_TX_DONE,/* for hist statis */
+	/* for afm statis, not sure 0 or 1 */
+	DCAM_AFM_INTREQ1,/* TODO: which afm interrupt to use */
+	DCAM_AFL_TX_DONE,/* for afl statis */
+	DCAM_PDAF_PATH_TX_DONE,/* for pdaf data */
+	DCAM_VCH2_PATH_TX_DONE,/* for vch2 data */
+	DCAM_VCH3_PATH_TX_DONE,/* for vch3 data */
 };
 
 /*

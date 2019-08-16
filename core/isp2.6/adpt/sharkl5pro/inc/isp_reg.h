@@ -683,6 +683,16 @@ extern unsigned long s_isp_mmubase;
 #define ISP_FBC_STORE_TILE_NUM			(0x0038UL)
 #define ISP_FBC_STORE_NFULL_LEVEL		(0x003CUL)
 
+#define ISP_AFBC_STORE_PARAM                           (0x0010UL)
+#define ISP_AFBC_STORE_SLICE_SIZE                      (0x0014UL)
+#define ISP_AFBC_STORE_BORDER                          (0x0018UL)
+#define ISP_AFBC_STORE_SLICE_HEADER_OFFSET_ADDR        (0x001CUL)
+#define ISP_AFBC_STORE_SLICE_Y_ADDR                    (0x0020UL)
+#define ISP_AFBC_STORE_SLICE_Y_HEADER                  (0x0024UL)
+#define ISP_AFBC_STORE_TILE_PITCH                      (0x0028UL)
+#define ISP_AFBC_STORE_NFULL_LEVEL                     (0x002CUL)
+#define ISP_AFBC_STORE_P0                              (0x0030UL)
+
 #define ISP_YUV_NF_CTRL				(0xC210UL)
 #define ISP_YUV_NF_SEED0			(0xC214UL)
 #define ISP_YUV_NF_SEED1			(0xC218UL)

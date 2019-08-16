@@ -13,5 +13,9 @@ void set_common(struct sprd_cam_hw_info *hw);
 void isp_set_ctx_default(struct isp_pipe_context *pctx);
 struct isp_cfg_entry *isp_get_cfg_func(uint32_t index);
 uint32_t isp_hist_bypass_get(int ctx_id);
+int isp_irq_clear(struct sprd_cam_hw_info *hw, void *arg);
+int isp_reset(struct sprd_cam_hw_info *hw, void *arg);
+int isp_irq_enable(struct sprd_cam_hw_info *hw, void *arg);
+int isp_irq_disable(struct sprd_cam_hw_info *hw, void *arg);
 
 #endif

@@ -310,12 +310,12 @@ struct isp_fmcu_ops fmcu_ops = {
 
 static struct isp_fmcu_ctx_desc s_fmcu_desc[ISP_FMCU_NUM] = {
 	{
-		.fid = ISP_FMCU_0,
+		.fid = ISP_FMCU_1,
 		.ops = &fmcu_ops,
 		.cur_buf_id = PING,
 	},
 	{
-		.fid = ISP_FMCU_1,
+		.fid = ISP_FMCU_0,
 		.ops = &fmcu_ops,
 		.cur_buf_id = PING,
 	},

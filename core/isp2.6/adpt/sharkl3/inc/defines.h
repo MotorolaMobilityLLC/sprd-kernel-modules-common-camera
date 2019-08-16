@@ -17,6 +17,15 @@
 /* configure fmcu with isp register offset, range is 0x60b-0x60c */
 #define ISP_OFFSET_RANGE		0x60c060b
 
+#define ISP_WIDTH_MAX  4672
+#define ISP_HEIGHT_MAX  3504
+#define DCAM_24M_WIDTH  5664
+#define DCAM_PATH_WMAX			5000
+#define DCAM_PATH_HMAX			4000
+#define RAW_OVERLAP_UP				62
+#define RAW_OVERLAP_DOWN			82
+#define RAW_OVERLAP_LEFT			90
+#define RAW_OVERLAP_RIGHT			142
 /*
  *DCAM_CONTROL register bit map id
  * for force_cpy/auto_cpy control

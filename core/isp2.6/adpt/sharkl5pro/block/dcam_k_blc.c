@@ -13,8 +13,8 @@
 
 #include <linux/uaccess.h>
 #include <sprd_mm.h>
-
 #include "sprd_isp_hw.h"
+
 #include "dcam_reg.h"
 #include "dcam_interface.h"
 #include "cam_types.h"
@@ -49,10 +49,10 @@ int dcam_k_blc_block(struct dcam_dev_param *param)
 	if (p->bypass)
 		return 0;
 
-	val = ((p->b & 0x3FF) << 10) | (p->r & 0x3FF);
+	val = ((p->b & 0x3FFF) << 16) | (p->r & 0x3FFF);
 	DCAM_REG_WR(idx, DCAM_BLC_PARA_R_B, val);
 
-	val = ((p->gb & 0x3FF) << 10) | (p->gr & 0x3FF);
+	val = ((p->gb & 0x3FFF) << 16) | (p->gr & 0x3FFF);
 	DCAM_REG_WR(idx, DCAM_BLC_PARA_G, val);
 
 	return ret;
