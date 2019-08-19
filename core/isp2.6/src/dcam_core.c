@@ -46,7 +46,6 @@
 #include "dcam_core.h"
 #include "dcam_path.h"
 #include "dcam_hw_if.h"
-#include "mm_ahb_l3.h"
 
 #include <linux/sprd_iommu.h>
 #include <linux/sprd_ion.h>

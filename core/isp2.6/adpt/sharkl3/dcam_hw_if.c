@@ -19,7 +19,6 @@
 #include "dcam_path.h"
 #include "dcam_hw_if.h"
 #include <sprd_mm.h>
-#include "mm_ahb_l3.h"
 
 #define DCAMX_STOP_TIMEOUT 2000
 #define DCAM_AXI_STOP_TIMEOUT 2000
@@ -244,12 +243,7 @@ int dcam_reset(struct dcam_pipe_dev *dev)
 	int i = 0;
 	enum dcam_id idx = dev->idx;
 	struct sprd_cam_hw_info *hw = dev->hw;
-	uint32_t time_out = 0, flag = 0;
-	uint32_t reset_bit[DCAM_ID_MAX] = {
-		BIT_MM_AHB_DCAM0_SOFT_RST,
-		BIT_MM_AHB_DCAM1_SOFT_RST,
-		BIT_MM_AHB_DCAM2_SOFT_RST
-	};
+	uint32_t time_out = 0;
 
 	pr_info("DCAM%d: reset.\n", idx);
 	DCAM_AXIM_MWR(AXIM_CTRL, BIT_24 | BIT_23, (0x3 << 23));
@@ -264,12 +258,11 @@ int dcam_reset(struct dcam_pipe_dev *dev)
 		pr_info("DCAM%d: reset timeout, axim status 0x%x\n", idx,
 			DCAM_AXIM_RD(AXIM_DBG_STS));
 	} else {
-		flag = reset_bit[idx];
-		regmap_update_bits(hw->cam_ahb_gpr,
-			REG_MM_AHB_AHB_RST, flag, flag);
+		regmap_update_bits(hw->cam_ahb_gpr, hw->syscon.rst,
+			hw->syscon.rst_mask, hw->syscon.rst_mask);
 		udelay(1);
-		regmap_update_bits(hw->cam_ahb_gpr,
-			REG_MM_AHB_AHB_RST, flag, ~flag);
+		regmap_update_bits(hw->cam_ahb_gpr, hw->syscon.rst,
+			hw->syscon.rst_mask, ~(hw->syscon.rst_mask));
 	}
 	for (i = 0x200; i < 0x400; i += 4)
 		DCAM_REG_WR(idx, i, 0);
@@ -309,14 +302,11 @@ void dcam_init_axim(struct sprd_cam_hw_info *hw)
 			DCAM_AXIM_RD(AXIM_DBG_STS));
 	} else {
 		/* reset dcam all (0/1/2/bus) */
-		regmap_update_bits(hw->cam_ahb_gpr,
-			REG_MM_AHB_AHB_RST,
-			BIT_MM_AHB_DCAM_ALL_SOFT_RST,
-			BIT_MM_AHB_DCAM_ALL_SOFT_RST);
+		regmap_update_bits(hw->cam_ahb_gpr, hw->syscon.all_rst,
+			hw->syscon.all_rst_mask, hw->syscon.all_rst_mask);
 		udelay(10);
-		regmap_update_bits(hw->cam_ahb_gpr,
-			REG_MM_AHB_AHB_RST,
-			BIT_MM_AHB_DCAM_ALL_SOFT_RST, 0);
+		regmap_update_bits(hw->cam_ahb_gpr, hw->syscon.all_rst,
+			hw->syscon.all_rst_mask, ~(hw->syscon.all_rst_mask));
 	}
 
 	/* AXIM shared by all dcam, should be init once only...*/

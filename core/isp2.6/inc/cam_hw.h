@@ -22,9 +22,18 @@
 struct sprd_cam_hw_ops;
 
 enum sprd_cam_prj_id {
+	SHARKL3,
 	SHARKL5,
 	ROC1,
+	SHARKL5pro,
 	PROJECT_MAX
+};
+
+struct glb_syscon {
+	uint32_t rst;
+	uint32_t rst_mask;
+	uint32_t all_rst;
+	uint32_t all_rst_mask;
 };
 
 struct sprd_cam_hw_info {
@@ -46,6 +55,8 @@ struct sprd_cam_hw_info {
 	struct clk *axi_clk;
 	struct clk *clk_axi_parent;
 	struct clk *clk_axi_default;
+
+	struct glb_syscon syscon;
 
 	uint32_t arqos_high;
 	uint32_t arqos_low;

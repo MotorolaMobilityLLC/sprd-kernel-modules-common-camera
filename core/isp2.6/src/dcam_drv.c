@@ -64,32 +64,35 @@ static int dcam_enable_clk(struct sprd_cam_hw_info *hw, void *arg)
 		return ret;
 	}
 
-	ret = clk_set_parent(hw->bpc_clk, hw->bpc_clk_parent);
-	if (ret) {
-		pr_err("dcam%d, set bpc_clk parent fail\n", hw->idx);
-		clk_set_parent(hw->bpc_clk, hw->bpc_clk_parent);
-		return ret;
+	if (hw->prj_id == SHARKL3) {
+		ret = clk_set_parent(hw->bpc_clk, hw->bpc_clk_parent);
+		if (ret) {
+			pr_err("dcam%d, set bpc_clk parent fail\n", hw->idx);
+			clk_set_parent(hw->bpc_clk, hw->bpc_clk_parent);
+			return ret;
+		}
+		ret = clk_prepare_enable(hw->bpc_clk);
+		if (ret) {
+			pr_err("dcam%d, bpc_clk enable fail\n", hw->idx);
+			clk_set_parent(hw->bpc_clk, hw->bpc_clk_default);
+			return ret;
+		}
 	}
-	ret = clk_prepare_enable(hw->bpc_clk);
-	if (ret) {
-		pr_err("dcam%d, bpc_clk enable fail\n", hw->idx);
-		clk_set_parent(hw->bpc_clk, hw->bpc_clk_default);
-		return ret;
+
+	if (hw->prj_id != SHARKL3) {
+		ret = clk_set_parent(hw->axi_clk, hw->clk_axi_parent);
+		if (ret) {
+			pr_err("dcam%d, set axi clk parent fail\n", hw->idx);
+			clk_set_parent(hw->axi_clk, hw->clk_axi_default);
+			return ret;
+		}
+		ret = clk_prepare_enable(hw->axi_clk);
+		if (ret) {
+			pr_err("dcam%d, axi_clk enable fail\n", hw->idx);
+			clk_set_parent(hw->axi_clk, hw->clk_axi_default);
+			return ret;
+		}
 	}
-#if 0
-	ret = clk_set_parent(hw->axi_clk, hw->clk_axi_parent);
-	if (ret) {
-		pr_err("dcam%d, set axi clk parent fail\n", hw->idx);
-		clk_set_parent(hw->axi_clk, hw->clk_axi_default);
-		return ret;
-	}
-	ret = clk_prepare_enable(hw->axi_clk);
-	if (ret) {
-		pr_err("dcam%d, axi_clk enable fail\n", hw->idx);
-		clk_set_parent(hw->axi_clk, hw->clk_axi_default);
-		return ret;
-	}
-#endif
 
 	ret = clk_prepare_enable(hw->core_eb);
 	if (ret) {
@@ -125,13 +128,16 @@ static int dcam_disable_clk(struct sprd_cam_hw_info *hw, void *arg)
 		return -EINVAL;
 	}
 	clk_set_parent(hw->clk, hw->clk_default);
-	clk_set_parent(hw->bpc_clk, hw->bpc_clk_default);
-#if 0
-	clk_set_parent(hw->axi_clk, hw->clk_axi_default);
-#endif
+	if (hw->prj_id == SHARKL3)
+		clk_set_parent(hw->bpc_clk, hw->bpc_clk_default);
+	if (hw->prj_id != SHARKL3)
+		clk_set_parent(hw->axi_clk, hw->clk_axi_default);
+
 	clk_disable_unprepare(hw->clk);
-	clk_disable_unprepare(hw->bpc_clk);
-	//clk_disable_unprepare(hw->axi_clk);
+	if (hw->prj_id == SHARKL3)
+		clk_disable_unprepare(hw->bpc_clk);
+	if (hw->prj_id != SHARKL3)
+		clk_disable_unprepare(hw->axi_clk);
 	clk_disable_unprepare(hw->axi_eb);
 	clk_disable_unprepare(hw->core_eb);
 #endif /* TEST_ON_HAPS */
@@ -240,6 +246,9 @@ int dcam_if_parse_dt(struct platform_device *pdev,
 	uint32_t count = 0, prj_id = 0;
 	uint32_t dcam_max_w = 0, dcam_max_h = 0;
 	int i = 0, irq = 0;
+	int args_count = 0;
+	uint32_t args[2];
+	char dcam_name[20];
 
 	pr_info("start dcam dts parse\n");
 
@@ -302,6 +311,12 @@ int dcam_if_parse_dt(struct platform_device *pdev,
 	}
 	pr_info("DCAM IOMMU Base  0x%lx\n", g_dcam_mmubase);
 
+	args_count = syscon_get_args_by_name(dn, "dcam_all_reset", sizeof(args), args);
+	if (args_count != ARRAY_SIZE(args)) {
+		pr_err("fail to get dcam all reset syscon\n");
+		return -EINVAL;
+	}
+
 	for (i = 0; i < count; i++) {
 		hw = &s_dcam_hw[i];
 
@@ -349,6 +364,19 @@ int dcam_if_parse_dt(struct platform_device *pdev,
 		pr_info("DCAM%d reg: %s 0x%lx %lx, irq: %s %u\n", i,
 			reg_res.name, hw->phy_base, hw->reg_base,
 			irq_res.name, hw->irq_no);
+
+		hw->syscon.all_rst = args[0];
+		hw->syscon.all_rst_mask = args[1];
+		sprintf(dcam_name, "dcam%d_reset", i);
+		args_count = syscon_get_args_by_name(dn, dcam_name,
+			sizeof(args), args);
+		if (args_count == ARRAY_SIZE(args)) {
+			hw->syscon.rst = args[0];
+			hw->syscon.rst_mask = args[1];
+		} else {
+			pr_err("fail to get dcam%d reset syscon\n", i);
+			goto err_iounmap;
+		}
 
 		/* qos dt parse */
 		qos_node = of_parse_phandle(dn, "dcam_qos", 0);
@@ -408,32 +436,35 @@ int dcam_if_parse_dt(struct platform_device *pdev,
 		}
 		hw->clk_default = clk_get_parent(hw->clk);
 
-		hw->bpc_clk = of_clk_get_by_name(dn, "dcam_bpc_clk");
-		if (IS_ERR_OR_NULL(hw->bpc_clk)) {
-			pr_err("fail to get dcam_bpc_clk\n");
-			return PTR_ERR(hw->bpc_clk);
+		if (hw->prj_id == SHARKL3) {
+			hw->bpc_clk = of_clk_get_by_name(dn, "dcam_bpc_clk");
+			if (IS_ERR_OR_NULL(hw->bpc_clk)) {
+				pr_err("fail to get dcam_bpc_clk\n");
+				return PTR_ERR(hw->bpc_clk);
+			}
+			hw->bpc_clk_parent =
+				of_clk_get_by_name(dn, "dcam_bpc_clk_parent");
+			if (IS_ERR_OR_NULL(hw->bpc_clk_parent)) {
+				pr_err("fail to get dcam_bpc_clk_parent\n");
+				return PTR_ERR(hw->bpc_clk_parent);
+			}
+			hw->bpc_clk_default = clk_get_parent(hw->bpc_clk);
 		}
 
-		hw->bpc_clk_parent = of_clk_get_by_name(dn, "dcam_bpc_clk_parent");
-		if (IS_ERR_OR_NULL(hw->bpc_clk_parent)) {
-			pr_err("fail to get dcam_bpc_clk_parent\n");
-			return PTR_ERR(hw->bpc_clk_parent);
+		if (hw->prj_id != SHARKL3) {
+			hw->axi_clk = of_clk_get_by_name(dn, "dcam_axi_clk");
+			if (IS_ERR_OR_NULL(hw->clk)) {
+				pr_err("read clk fail, axi_clk\n");
+				goto err_iounmap;
+			}
+			hw->clk_axi_parent =
+				of_clk_get_by_name(dn, "dcam_axi_clk_parent");
+			if (IS_ERR_OR_NULL(hw->clk_parent)) {
+				pr_err("read clk fail, dcam_clk_parent\n");
+				goto err_iounmap;
+			}
+			hw->clk_axi_default = clk_get_parent(hw->axi_clk);
 		}
-		hw->bpc_clk_default = clk_get_parent(hw->bpc_clk);
-		
-#if 0
-		hw->axi_clk = of_clk_get_by_name(dn, "dcam_axi_clk");
-		if (IS_ERR_OR_NULL(hw->clk)) {
-			pr_err("read clk fail, axi_clk\n");
-			goto err_iounmap;
-		}
-		hw->clk_axi_parent = of_clk_get_by_name(dn, "dcam_axi_clk_parent");
-		if (IS_ERR_OR_NULL(hw->clk_parent)) {
-			pr_err("read clk fail, dcam_clk_parent\n");
-			goto err_iounmap;
-		}
-		hw->clk_axi_default = clk_get_parent(hw->axi_clk);
-#endif
 #endif /* TEST_ON_HAPS */
 
 		dcam_hw[i] = hw;

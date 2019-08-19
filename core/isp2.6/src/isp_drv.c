@@ -28,8 +28,6 @@
 #include "isp_interface.h"
 #include "isp_hw_if.h"
 
-#include "mm_ahb_l3.h"
-
 #ifdef pr_fmt
 #undef pr_fmt
 #endif
@@ -220,7 +218,6 @@ static int isp_reset(struct sprd_cam_hw_info *hw, void *arg)
 	int rtn = 0;
 	uint32_t cid;
 	uint32_t time_out = 0;
-	uint32_t flag = 0;
 
 	pr_info("ISP%d: reset\n", hw->idx);
 
@@ -238,12 +235,11 @@ static int isp_reset(struct sprd_cam_hw_info *hw, void *arg)
 	if (time_out >= ISP_AXI_STOP_TIMEOUT) {
 		pr_info("ISP reset timeout %d\n", time_out);
 	} else {
-		flag = BIT_MM_AHB_ISP_LOG_SOFT_RST;
-		regmap_update_bits(hw->cam_ahb_gpr,
-			REG_MM_AHB_AHB_RST, flag, flag);
+		regmap_update_bits(hw->cam_ahb_gpr, hw->syscon.rst,
+			hw->syscon.rst_mask, hw->syscon.rst_mask);
 		udelay(10);
-		regmap_update_bits(hw->cam_ahb_gpr,
-			REG_MM_AHB_AHB_RST, flag, ~flag);
+		regmap_update_bits(hw->cam_ahb_gpr, hw->syscon.rst,
+			hw->syscon.rst_mask, ~(hw->syscon.rst_mask));
 	}
 
 	/* enable axim transfering */
@@ -362,6 +358,8 @@ int sprd_isp_parse_dt(struct device_node *dn,
 	struct device_node *iommu_node = NULL;
 	struct resource res = {0};
 	struct sprd_cam_hw_info *isp_hw = &s_isp_hw_dev;
+	int args_count = 0;
+	uint32_t args[2];
 
 	/* todo: should update according to SharkL5/ROC1 dts
 	 * or set value for required variables with hard-code
@@ -473,6 +471,16 @@ int sprd_isp_parse_dt(struct device_node *dn,
 		if (IS_ERR_OR_NULL(isp_hw->cam_ahb_gpr)) {
 			pr_err("fail to get sprd,cam-ahb-syscon");
 			return PTR_ERR(isp_hw->cam_ahb_gpr);
+		}
+
+		args_count = syscon_get_args_by_name(isp_node, "reset",
+			sizeof(args), args);
+		if (args_count == ARRAY_SIZE(args)) {
+			isp_hw->syscon.rst = args[0];
+			isp_hw->syscon.rst_mask = args[1];
+		} else {
+			pr_err("fail to get isp reset syscon\n");
+			return -EINVAL;
 		}
 
 		if (of_address_to_resource(isp_node, i, &res))
