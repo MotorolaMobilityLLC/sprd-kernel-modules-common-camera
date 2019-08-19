@@ -22,8 +22,10 @@
 #define PDAF_PPI_GAIN_MAP_LEN 128
 #define ISP_HSV_TABLE_NUM 	360
 #define ISP_VST_IVST_NUM		1024
+#define ISP_VST_IVST_NUM2		1025
 #define ISP_FRGB_GAMMA_PT_NUM 257
-#define POSTERIZE_NUM			129
+#define POSTERIZE_NUM			8
+#define POSTERIZE_NUM2			129
 #define ISP_YUV_GAMMA_NUM	129
 
 #define ISP_MAX_WIDTH  4672
@@ -1015,6 +1017,66 @@ struct isp_dev_nlm_imblance {
 	uint32_t nlm_imblance_faceGmax;
 };
 
+struct isp_dev_nlm_imblance_v1 {
+	uint32_t nlm_imblance_bypass;
+	uint32_t imblance_radial_1D_en;
+	uint32_t nlm_imblance_hv_edge_thr[3];
+	uint32_t nlm_imblance_slash_edge_thr[3];
+	uint32_t nlm_imblance_hv_flat_thr[3];
+	uint32_t nlm_imblance_slash_flat_thr[3];
+	uint32_t nlm_imblance_flag3_grid;
+	uint32_t nlm_imblance_flag3_lum;
+	uint32_t nlm_imblance_flag3_frez;
+	uint32_t nlm_imblance_S_baohedu[3][2];
+	uint32_t imblance_sat_lumth;
+	uint32_t nlm_imblance_lumth1;
+	uint32_t nlm_imblance_lumth2;
+	uint32_t nlm_imblance_lum1_flag0_rs;
+	uint32_t nlm_imblance_lum1_flag0_r;
+	uint32_t nlm_imblance_lum1_flag1_r;
+	uint32_t nlm_imblance_lum1_flag2_r;
+	uint32_t nlm_imblance_lum1_flag3_r;
+	uint32_t nlm_imblance_lum1_flag4_r;
+	uint32_t nlm_imblance_lum2_flag0_rs;
+	uint32_t nlm_imblance_lum2_flag0_r;
+	uint32_t nlm_imblance_lum2_flag1_r;
+	uint32_t nlm_imblance_lum2_flag2_r;
+	uint32_t nlm_imblance_lum2_flag3_r;
+	uint32_t nlm_imblance_lum2_flag4_r;
+	uint32_t nlm_imblance_lum3_flag0_rs;
+	uint32_t nlm_imblance_lum3_flag0_r;
+	uint32_t nlm_imblance_lum3_flag1_r;
+	uint32_t nlm_imblance_lum3_flag2_r;
+	uint32_t nlm_imblance_lum3_flag3_r;
+	uint32_t nlm_imblance_lum3_flag4_r;
+	uint32_t nlm_imblance_flag12_frezthr;
+	uint32_t nlm_imblance_ff_wt0;
+	uint32_t nlm_imblance_ff_wt1;
+	uint32_t nlm_imblance_ff_wt2;
+	uint32_t nlm_imblance_ff_wt3;
+	uint32_t nlm_imblance_ff_wr0;
+	uint32_t nlm_imblance_ff_wr1;
+	uint32_t nlm_imblance_ff_wr2;
+	uint32_t nlm_imblance_ff_wr3;
+	uint32_t nlm_imblance_ff_wr4;
+	uint32_t nlm_imblance_diff[3];
+	uint32_t imblance_radial_1D_center_x;
+	uint32_t imblance_radial_1D_center_y;
+	uint32_t imblance_radial_1D_radius_thr;
+	uint32_t imblance_radial_1D_protect_ratio_max;
+	uint32_t imblance_radial_1D_coef_r0;
+	uint32_t imblance_radial_1D_coef_r1;
+	uint32_t imblance_radial_1D_coef_r2;
+	uint32_t imblance_radial_1D_coef_r3;
+	uint32_t imblance_radial_1D_coef_r4;
+	uint32_t nlm_imblance_faceRmin;
+	uint32_t nlm_imblance_faceRmax;
+	uint32_t nlm_imblance_faceBmin;
+	uint32_t nlm_imblance_faceBmax;
+	uint32_t nlm_imblance_faceGmin;
+	uint32_t nlm_imblance_faceGmax;
+};
+
 struct lum_flat_param {
 	uint16_t thresh;
 	uint16_t match_count;
@@ -1137,9 +1199,9 @@ struct isp_dev_posterize_info {
 struct isp_dev_posterize_info_v2 {
 	uint32_t  bypass;
 	uint32_t  sample_en;
-	uint8_t pstrz_r_data[POSTERIZE_NUM];
-	uint8_t pstrz_g_data[POSTERIZE_NUM];
-	uint8_t pstrz_b_data[POSTERIZE_NUM];
+	uint8_t pstrz_r_data[POSTERIZE_NUM2];
+	uint8_t pstrz_g_data[POSTERIZE_NUM2];
+	uint8_t pstrz_b_data[POSTERIZE_NUM2];
 };
 #pragma pack(pop)
 
