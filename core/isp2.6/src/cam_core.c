@@ -694,7 +694,6 @@ static void alloc_buffers(struct work_struct *work)
 				goto exit;
 			}
 
-			cambuf_kmap(&pframe->buf);
 			ret = camera_enqueue(&channel->share_buf_queue, pframe);
 			if (ret) {
 				pr_err("fail to enqueue shared buf: %d ch %d\n",
@@ -756,7 +755,6 @@ static void alloc_buffers(struct work_struct *work)
 				atomic_inc(&channel->err_status);
 				goto exit;
 			}
-			cambuf_kmap(&pframe->buf);
 			channel->nr3_bufs[i] = pframe;
 		}
 	}
@@ -794,7 +792,14 @@ static void alloc_buffers(struct work_struct *work)
 					atomic_inc(&channel->err_status);
 					goto exit;
 				}
-				cambuf_kmap(&pframe->buf);
+				ret = cambuf_kmap(&pframe->buf);
+				if (ret) {
+					pr_err("fail to kmap ltm buf \n");
+					cambuf_free(&pframe->buf);
+					put_empty_frame(pframe);
+					atomic_inc(&channel->err_status);
+					goto exit;
+				}
 				channel->ltm_bufs[i] = pframe;
 			} else { /* CAM_CH_CAP case */
 				/*
@@ -2535,7 +2540,12 @@ static int dump_one_frame(struct camera_module *module,
 	}
 	strcat(file_name, ".mipi_raw");
 
+	if (cambuf_kmap(&pframe->buf)) {
+		pr_err("fail to kmap dump buf\n");
+		return -EFAULT;
+	}
 	write_image_to_file((char *)pframe->buf.addr_k[0], size, file_name);
+	cambuf_kunmap(&pframe->buf);
 	pr_debug("dump for ch %d, size %d, kaddr %p, file %s\n", ch_id,
 		(int)size, (void *)pframe->buf.addr_k[0], file_name);
 
@@ -6206,7 +6216,13 @@ static int test_dcam(struct camera_module *module,
 			put_empty_frame(pframe);
 			goto nobuf;
 		}
-		cambuf_kmap(&pframe->buf);
+		ret = cambuf_kmap(&pframe->buf);
+		if (ret) {
+			pr_err("fail to kmap buffer.\n");
+			cambuf_free(&pframe->buf);
+			put_empty_frame(pframe);
+			goto nobuf;
+		}
 	} else {
 		pr_err("no empty frame.\n");
 		goto exit;

@@ -2692,7 +2692,15 @@ static int isp_cfg_statis_buffer(
 		}
 		*io_desc->buf = ion_buf_isp;
 
-		cambuf_kmap(ion_buf_isp);
+		ret = cambuf_kmap(ion_buf_isp);
+		if (ret) {
+			pr_err("fail to kmap dcam statis buffer\n");
+			cambuf_iommu_unmap(ion_buf_isp);
+			cambuf_put_ionbuf(ion_buf_isp);
+			kfree(ion_buf_isp);
+			ret = -EINVAL;
+			goto exit;
+		}
 
 		pr_debug("isp_ iova[%lx] uaddr[%lx] kaddr[%lx] mfd[%d] dmabuf[%p] ionbuf[%p]\n",
 				ion_buf_isp->iova[0],

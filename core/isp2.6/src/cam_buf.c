@@ -457,8 +457,8 @@ int cambuf_kmap(struct camera_buf *buf_info)
 		buf_info->addr_k[i] = (unsigned long)
 			sprd_ion_map_kernel(buf_info->dmabuf_p[i], 0);
 		if (IS_ERR_OR_NULL((void *)buf_info->addr_k[i])) {
-			pr_err("fail to map k_addr for dmabuf[%p]\n",
-				buf_info->dmabuf_p[i]);
+			pr_err("fail to map k_addr %p for dmabuf[%p]\n",
+				(void *)buf_info->addr_k[i], buf_info->dmabuf_p[i]);
 			buf_info->addr_k[i] = 0;
 			ret = -EINVAL;
 			goto map_fail;
