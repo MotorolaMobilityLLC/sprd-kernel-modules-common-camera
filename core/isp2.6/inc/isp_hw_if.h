@@ -5,6 +5,7 @@
 
 uint32_t isp_check_context(uint32_t ctx_id,
 	struct isp_init_param *init_param);
+uint32_t isp_support_fmcu_cfg_slm(void);
 void isp_set_ctx_common(struct isp_pipe_context *pctx);
 uint32_t isp_cfg_map_get_count(void);
 uint32_t *isp_cfg_map_get_data(void);

@@ -22,12 +22,6 @@
 uint32_t isp_check_context(uint32_t ctx_id,
 	struct isp_init_param *init_param)
 {
-	/*
-	 * FMCU cannot work in slow motion scene. Process ISP frames one by one
-	 * now.
-	 */
-	init_param->is_high_fps = 0;
-
 	if (!init_param || ctx_id < ISP_CONTEXT_P0
 		|| ctx_id > ISP_CONTEXT_C1) {
 		pr_err("fail to get valid input ptr\n");
@@ -40,6 +34,10 @@ uint32_t isp_check_context(uint32_t ctx_id,
 		else
 			return -1;
 	}
+	return 0;
+}
+
+uint32_t isp_support_fmcu_cfg_slm(void) {
 	return 0;
 }
 

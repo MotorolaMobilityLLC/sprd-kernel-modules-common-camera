@@ -2065,8 +2065,9 @@ new_ctx:
 		pr_info("ctx %d need_slice. w %d\n", pctx->ctx_id, max_size->w);
 	}
 
-	pctx->enable_slowmotion = init_param->is_high_fps;
-	if (init_param->is_high_fps || pctx->need_slice) {
+	pctx->enable_slowmotion = init_param->is_high_fps
+		&& isp_support_fmcu_cfg_slm();
+	if (pctx->enable_slowmotion || pctx->need_slice) {
 		fmcu = get_isp_fmcu_ctx_desc();
 		pr_info("ctx get fmcu %p\n", fmcu);
 		if (fmcu == NULL) {

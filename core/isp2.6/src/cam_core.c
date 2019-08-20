@@ -5459,12 +5459,12 @@ static int raw_proc_pre(
 	unsigned long flag = 0;
 	struct camera_group *grp = module->grp;
 	struct channel_context *ch;
-	struct img_size max_size;
 	struct img_trim path_trim;
 	struct dcam_path_cfg_param ch_desc;
 	struct isp_ctx_base_desc ctx_desc;
 	struct isp_ctx_size_desc ctx_size;
 	struct isp_path_base_desc isp_path_desc;
+	struct isp_init_param init_param;
 
 	pr_info("cam%d in. module:%p,  grp %p, %p\n",
 		module->idx, module, grp, &grp->rawproc_in);
@@ -5530,12 +5530,13 @@ static int raw_proc_pre(
 	dcam_lbuf_share_mode(module->idx, proc_info->src_size.width);
 
 	/* specify isp context & path */
-	max_size.w = proc_info->src_size.width;
-	max_size.h = proc_info->src_size.height;
-	ret = isp_ops->get_context(module->isp_dev_handle, &max_size);
+	init_param.max_size.w = proc_info->src_size.width;
+	init_param.max_size.h = proc_info->src_size.height;
+	init_param.is_high_fps = 0;/* raw capture + slow motion ?? */
+	ret = isp_ops->get_context(module->isp_dev_handle, &init_param);
 	if (ret < 0) {
 		pr_err("fail to get isp context for size %d %d.\n",
-				max_size.w, max_size.h);
+		       init_param.max_size.w, init_param.max_size.h);
 		goto fail_ispctx;
 	}
 	ctx_id = ret;
@@ -6278,13 +6279,13 @@ static int test_isp(struct camera_module *module,
 	int prop_0, prop_1;
 	int double_ch = 0;
 	size_t size = 0;
-	struct img_size max_size;
 	struct channel_context *channel = NULL;
 	struct channel_context *channel_1 = NULL;
 	struct camera_frame *pframe_in = NULL;
 	struct camera_frame *pframe_out = NULL;
 	struct camera_frame *pframe_out_1 = NULL;
 	void *isp = NULL;
+	struct isp_init_param init_param;
 
 	isp = module->isp_dev_handle;
 	if (isp == NULL) {
@@ -6319,15 +6320,15 @@ static int test_isp(struct camera_module *module,
 	}
 
 	if (test_info->input_size.width > test_info->output_size.width)
-		max_size.w = test_info->input_size.width;
+		init_param.max_size.w = test_info->input_size.width;
 	else
-		max_size.w = test_info->output_size.width;
-	max_size.h = test_info->input_size.height;
-
-	ret = isp_ops->get_context(module->isp_dev_handle, &max_size);
+		init_param.max_size.w = test_info->output_size.width;
+	init_param.max_size.h = test_info->input_size.height;
+	init_param.is_high_fps = 0;/* raw capture + slow motion ?? */
+	ret = isp_ops->get_context(module->isp_dev_handle, &init_param);
 	if (ret < 0) {
 		pr_err("fail to get isp context for size %d %d.\n",
-				max_size.w, max_size.h);
+		       init_param.max_size.w, init_param.max_size.h);
 	} else {
 		ctx_id = ret;
 		if (prop_0 <= PROP_CAP)
