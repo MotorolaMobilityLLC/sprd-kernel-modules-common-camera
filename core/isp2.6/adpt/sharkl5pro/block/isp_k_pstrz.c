@@ -50,21 +50,21 @@ static int isp_k_pstrz_block(struct isp_io_param *param, uint32_t idx)
 	/* only cfg mode supported and no need pingpong buffer. */
 
 	buf_addr = ISP_PSTRZ_R_BUF0;
-	for (i = 0; i < POSTERIZE_NUM - 1; i++) {
+	for (i = 0; i < POSTERIZE_NUM2 - 1; i++) {
 		val = ((pstrz_info.pstrz_r_data[i + 1] & 0xFF) |
 			(pstrz_info.pstrz_r_data[i] & 0xFF) << 8);
 		ISP_REG_WR(idx, buf_addr +  i * 4, val);
 	}
 
 	buf_addr = ISP_PSTRZ_G_BUF0;
-	for (i = 0; i < POSTERIZE_NUM - 1; i++) {
+	for (i = 0; i < POSTERIZE_NUM2 - 1; i++) {
 		val = ((pstrz_info.pstrz_g_data[i + 1] & 0xFF) |
 			(pstrz_info.pstrz_g_data[i] & 0xFF) << 8);
 		ISP_REG_WR(idx, buf_addr +  i * 4, val);
 	}
 
 	buf_addr = ISP_PSTRZ_B_BUF0;
-	for (i = 0; i < POSTERIZE_NUM - 1; i++) {
+	for (i = 0; i < POSTERIZE_NUM2 - 1; i++) {
 		val = ((pstrz_info.pstrz_b_data[i + 1] & 0xFF) |
 			(pstrz_info.pstrz_b_data[i] & 0xFF) << 8);
 		ISP_REG_WR(idx, buf_addr +  i * 4, val);

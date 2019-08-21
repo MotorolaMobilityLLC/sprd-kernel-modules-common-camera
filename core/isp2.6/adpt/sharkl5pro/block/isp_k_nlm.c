@@ -44,8 +44,8 @@ static int load_vst_ivst_buf(
 	ISP_REG_MWR(idx, ISP_IVST_PARA, BIT_1, buf_sel << 1);
 
 	if (nlm_info->vst_bypass == 0 && nlm_info->vst_table_addr) {
-		buf_len = ISP_VST_IVST_NUM * 4;
-		if (nlm_info->vst_len < (ISP_VST_IVST_NUM * 4))
+		buf_len = ISP_VST_IVST_NUM2 * 4;
+		if (nlm_info->vst_len < (ISP_VST_IVST_NUM2 * 4))
 			buf_len = nlm_info->vst_len;
 
 		utab_addr = (unsigned long)nlm_info->vst_table_addr;
@@ -57,8 +57,8 @@ static int load_vst_ivst_buf(
 	}
 
 	if (nlm_info->ivst_bypass == 0 && nlm_info->ivst_table_addr) {
-		buf_len = ISP_VST_IVST_NUM * 4;
-		if (nlm_info->ivst_len < (ISP_VST_IVST_NUM * 4))
+		buf_len = ISP_VST_IVST_NUM2 * 4;
+		if (nlm_info->ivst_len < (ISP_VST_IVST_NUM2 * 4))
 			buf_len = nlm_info->ivst_len;
 
 		utab_addr = (unsigned long)nlm_info->ivst_table_addr;

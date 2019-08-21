@@ -125,6 +125,7 @@ enum dcam_block {
 	DCAM_BLOCK_AFL,
 	DCAM_BLOCK_AWBC,
 	DCAM_BLOCK_BPC,
+	DCAM_BLOCK_GRGB,
 	DCAM_BLOCK_3DNR_ME,
 	DCAM_BLOCK_AFM,
 	DCAM_BLOCK_TOTAL,
@@ -138,6 +139,7 @@ enum dcam_block {
 	ISP_BLOCK_EDGE,
 	ISP_BLOCK_GAMMA,
 	ISP_BLOCK_GRGB,
+	ISP_BLOCK_HIST,
 	ISP_BLOCK_HIST2,
 	ISP_BLOCK_HSV,
 	ISP_BLOCK_IIRCNR,
@@ -149,6 +151,10 @@ enum dcam_block {
 	ISP_BLOCK_UVD,
 	ISP_BLOCK_YGAMMA,
 	ISP_BLOCK_YNR,
+	ISP_BLOCK_BRIGHTNESS,
+	ISP_BLOCK_CONTRAST,
+	ISP_BLOCK_CSA,
+	ISP_BLOCK_HUE,
 	ISP_BLOCK_YRANDOM,
 	ISP_BLOCK_NOISEFILTER,
 	ISP_BLOCK_3DNR,
@@ -534,6 +540,14 @@ struct dcam_bpc_rawhdr_info{
 
 struct dcam_bpc_ppi_info{
 	uint32_t ppi_bypass;
+	uint32_t ppi_upperbound_r;
+	uint32_t ppi_upperbound_b;
+	uint32_t ppi_upperbound_gr;
+	uint32_t ppi_upperbound_gb;
+	uint32_t ppi_blc_r;
+	uint32_t ppi_blc_b;
+	uint32_t ppi_blc_gr;
+	uint32_t ppi_blc_gb;
 	uint32_t ppi_phase_map_corr_en;
 	uint16_t ppi_l_gain_map[PDAF_PPI_GAIN_MAP_LEN];
 	uint16_t ppi_r_gain_map[PDAF_PPI_GAIN_MAP_LEN];
