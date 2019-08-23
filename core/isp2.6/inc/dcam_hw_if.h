@@ -44,4 +44,6 @@ struct dcam_if *dcam_get_dcam_if(uint32_t idx);
 int dcam_lbuf_share_mode(enum dcam_id idx, uint32_t width);
 int dcam_offline_slice_set_fetch_param(uint32_t idx,
 	struct dcam_fetch_info *fetch);
+int dcam_reg_trace(struct sprd_cam_hw_info *hw, void *arg);
+
 #endif

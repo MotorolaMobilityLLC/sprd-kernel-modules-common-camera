@@ -95,6 +95,11 @@ uint32_t dcam_trace_regs_get_data(uint32_t i)
 	return dcam_trace_regs[i];
 }
 
+int dcam_reg_trace(struct sprd_cam_hw_info *hw, void *arg)
+{
+	return 0;
+}
+
 static uint32_t path_ctrl_id[] = {
 	DCAM_CTRL_FULL,
 	DCAM_CTRL_BIN,

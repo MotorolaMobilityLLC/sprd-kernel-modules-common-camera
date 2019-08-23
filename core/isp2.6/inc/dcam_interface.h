@@ -334,5 +334,6 @@ uint32_t get_outbuf_queue_cnt(void *dev, int path_id);
 
 struct statis_path_buf_info *dcam_get_statis_distribution_array(void);
 int dcam_get_statis_distribution_size(void);
+uint32_t dcam_if_get_open_count(void);
 
 #endif /* _DCAM_INTERFACE_H_ */

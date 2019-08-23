@@ -26,6 +26,7 @@
 #include "dcam_path.h"
 #include "dcam_interface.h"
 #include "dcam_reg.h"
+#include "dcam_hw_if.h"
 
 
 #ifdef pr_fmt
@@ -210,6 +211,7 @@ static struct sprd_cam_hw_ops s_dcam_ops = {
 	.enable_clk = dcam_enable_clk,
 	.disable_clk = dcam_disable_clk,
 	.update_clk = dcam_update_clk,
+	.trace_reg = dcam_reg_trace,
 };
 
 /*

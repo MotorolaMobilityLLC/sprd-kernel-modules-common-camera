@@ -7118,7 +7118,17 @@ rewait:
 			read_op.parm.frame.kaddr[1] = (uint32_t)((uint64_t)pframe->buf.addr_k[0] >> 32);
 			read_op.parm.frame.kaddr[0] = (uint32_t)pframe->buf.addr_k[0];
 		} else {
+			struct sprd_cam_hw_info *dcam_hw = module->grp->dcam[module->dcam_idx];
+			struct sprd_cam_hw_info *isp_hw = module->grp->isp[0];
+
 			pr_err("error event %d\n", pframe->evt);
+			if (dcam_hw == NULL || dcam_hw->ops == NULL
+				|| isp_hw == NULL || isp_hw->ops == NULL) {
+				pr_err("error: no hw ops.\n");
+				return -EFAULT;
+			}
+			dcam_hw->ops->trace_reg(dcam_hw, NULL);
+			isp_hw->ops->trace_reg(isp_hw, NULL);
 			read_op.evt = pframe->evt;
 			read_op.parm.frame.irq_type = pframe->irq_type;
 			read_op.parm.frame.irq_property = pframe->irq_property;

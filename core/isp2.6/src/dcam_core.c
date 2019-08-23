@@ -2670,6 +2670,11 @@ struct dcam_pipe_ops *dcam_if_get_ops(void)
 	return &s_dcam_pipe_ops;
 }
 
+uint32_t dcam_if_get_open_count(void)
+{
+	return atomic_read(&s_dcam_axi_opened);
+}
+
 static DEFINE_MUTEX(s_dcam_dev_mutex);
 static struct dcam_pipe_dev *s_dcam_dev[DCAM_ID_MAX];
 

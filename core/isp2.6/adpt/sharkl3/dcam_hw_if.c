@@ -93,6 +93,34 @@ uint32_t dcam_trace_regs_get_data(uint32_t i)
 	return dcam_trace_regs[i];
 }
 
+int dcam_reg_trace(struct sprd_cam_hw_info *hw, void *arg)
+{
+	unsigned long addr = 0;
+	enum dcam_id idx = hw->idx;
+
+	pr_info("DCAM%d: Register list\n", idx);
+	for (addr = DCAM_IP_REVISION; addr <= ISP_AFL_SUM2;
+		addr += 16) {
+		pr_info("0x%03lx: 0x%x 0x%x 0x%x 0x%x\n",
+			addr,
+			DCAM_REG_RD(idx, addr),
+			DCAM_REG_RD(idx, addr + 4),
+			DCAM_REG_RD(idx, addr + 8),
+			DCAM_REG_RD(idx, addr + 12));
+	}
+	pr_info("AXIM: Register list\n");
+	for (addr = AXIM_CTRL; addr <= IMG_FETCH_RADDR;
+		addr += 16) {
+		pr_info("0x%03lx: 0x%x 0x%x 0x%x 0x%x\n",
+			addr,
+			DCAM_AXIM_RD(addr),
+			DCAM_AXIM_RD(addr + 4),
+			DCAM_AXIM_RD(addr + 8),
+			DCAM_AXIM_RD(addr + 12));
+	}
+	return 0;
+}
+
 static uint32_t path_ctrl_id[] = {
 	DCAM_CTRL_FULL,
 	DCAM_CTRL_BIN,
@@ -244,27 +272,14 @@ int dcam_reset(struct dcam_pipe_dev *dev)
 	int i = 0;
 	enum dcam_id idx = dev->idx;
 	struct sprd_cam_hw_info *hw = dev->hw;
-	uint32_t time_out = 0;
 
 	pr_info("DCAM%d: reset.\n", idx);
-	DCAM_AXIM_MWR(AXIM_CTRL, BIT_24 | BIT_23, (0x3 << 23));
+	regmap_update_bits(hw->cam_ahb_gpr, hw->syscon.rst,
+		hw->syscon.rst_mask, hw->syscon.rst_mask);
+	udelay(1);
+	regmap_update_bits(hw->cam_ahb_gpr, hw->syscon.rst,
+		hw->syscon.rst_mask, ~(hw->syscon.rst_mask));
 
-	/* then wait for AXIM cleared */
-	while (++time_out < DCAM_AXI_STOP_TIMEOUT) {
-		if (0 == (DCAM_AXIM_RD(AXIM_DBG_STS) & 0x0F))
-			break;
-	}
-
-	if (time_out >= DCAM_AXI_STOP_TIMEOUT) {
-		pr_info("DCAM%d: reset timeout, axim status 0x%x\n", idx,
-			DCAM_AXIM_RD(AXIM_DBG_STS));
-	} else {
-		regmap_update_bits(hw->cam_ahb_gpr, hw->syscon.rst,
-			hw->syscon.rst_mask, hw->syscon.rst_mask);
-		udelay(1);
-		regmap_update_bits(hw->cam_ahb_gpr, hw->syscon.rst,
-			hw->syscon.rst_mask, ~(hw->syscon.rst_mask));
-	}
 	for (i = 0x200; i < 0x400; i += 4)
 		DCAM_REG_WR(idx, i, 0);
 
@@ -275,7 +290,6 @@ int dcam_reset(struct dcam_pipe_dev *dev)
 
 	dcam_init_default(dev);
 	DCAM_REG_MWR(idx, DCAM_CFG, 0x3F, 0);
-	DCAM_AXIM_MWR(AXIM_CTRL, BIT_24 | BIT_23, (0 << 23));
 
 	pr_info("DCAM%d: reset end\n", idx);
 
