@@ -144,7 +144,6 @@ int dcam_cfg_path_base(void *dcam_handle,
 		path->frm_skip = ch_desc->frm_skip;
 
 		path->is_loose = ch_desc->is_loose;
-		path->is_cphy = ch_desc->is_cphy;
 		path->endian = ch_desc->endian;
 		/*
 		 * TODO:

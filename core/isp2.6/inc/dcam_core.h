@@ -70,6 +70,7 @@ struct dcam_mipi_info {
 	uint32_t y_factor;
 	uint32_t is_4in1;
 	uint32_t is_bigsize;
+	uint32_t is_cphy;
 	struct img_trim cap_size;
 };
 
@@ -97,7 +98,6 @@ struct dcam_path_desc {
 
 	uint32_t out_fmt;
 	uint32_t is_loose;
-	uint32_t is_cphy;
 
 	/* full path source sel */
 	uint32_t src_sel;

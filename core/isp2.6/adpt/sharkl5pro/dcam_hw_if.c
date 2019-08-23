@@ -138,7 +138,7 @@ void dcam_force_copy(struct dcam_pipe_dev *dev, uint32_t id)
 		return;
 	}
 
-	if (dev->idx < 2) {
+	if (dev->idx < DCAM_ID_MAX) {
 		for (j = 0; j < 8; j++) {
 			if (id & (1 << j))
 				mask |= bitmap[j];
@@ -168,7 +168,7 @@ void dcam_auto_copy(struct dcam_pipe_dev *dev, uint32_t id)
 		pr_warn("invalid param dev\n");
 		return;
 	}
-	if (dev->idx < 2) {
+	if (dev->idx < DCAM_ID_MAX) {
 		for (j = 0; j < 8; j++) {
 			if (id & (1 << j))
 				mask |= bitmap[j];
@@ -444,7 +444,7 @@ int dcam_set_mipi_cap(struct dcam_pipe_dev *dev,
 				cap_info->frm_skip << 8);
 
 	/* for C-phy */
-	if (dev->path[idx].is_cphy == 1)
+	if (cap_info->is_cphy == 1)
 		DCAM_REG_MWR(idx, DCAM_MIPI_CAP_CFG, BIT_31, BIT_31);
 
 	/* bypass 4in1 */

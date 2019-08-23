@@ -837,6 +837,7 @@ static int set_cap_info(struct camera_module *module)
 	cap_info.format =  sensor_if->img_fmt;
 	cap_info.pattern = sensor_if->img_ptn;
 	cap_info.frm_deci = sensor_if->frm_deci;
+	cap_info.is_cphy = sensor_if->if_spec.mipi.is_cphy;
 	if (cap_info.sensor_if == DCAM_CAP_IF_CSI2) {
 		cap_info.href = sensor_if->if_spec.mipi.use_href;
 		cap_info.data_bits = sensor_if->if_spec.mipi.bits_per_pxl;
@@ -3187,8 +3188,6 @@ static int init_cam_channel(
 		memset(&ch_desc, 0, sizeof(ch_desc));
 		ch_desc.is_loose =
 			module->cam_uinfo.sensor_if.if_spec.mipi.is_loose;
-		ch_desc.is_cphy =
-			module->cam_uinfo.sensor_if.if_spec.mipi.is_cphy == 1 ? 1 : 0;
 		/*
 		 * Configure slow motion for BIN path. HAL must set @is_high_fps
 		 * and @high_fps_skip_num for both preview channel and video
