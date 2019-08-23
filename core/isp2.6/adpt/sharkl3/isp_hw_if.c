@@ -53,6 +53,13 @@ uint32_t isp_support_fmcu_cfg_slm(void) {
 	return 0;
 }
 
+uint32_t isp_ctx_support_fmcu(uint32_t ctx_id) {
+	if(ctx_id == ISP_CONTEXT_C0 || ctx_id == ISP_CONTEXT_C1)
+		return 1;
+	else
+		return 0;
+}
+
 static const struct bypass_tag isp_tb_bypass[] = {
 [_EISP_GC] =       {"gc",        0x1B10, 0, 1}, /* GrGb correction */
 [_EISP_VST] =      {"vst",       ISP_VST_PARA, 0, 1},

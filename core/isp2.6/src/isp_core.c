@@ -1936,8 +1936,10 @@ static int sprd_isp_update_context(void *isp_handle, int ctx_id, void *param)
 	}
 
 	if (pctx->fmcu_handle == NULL && pctx->need_slice) {
-		fmcu = get_isp_fmcu_ctx_desc();
-		pr_info("ctx get fmcu %p\n", fmcu);
+		if (isp_ctx_support_fmcu(pctx->ctx_id)) {
+			fmcu = get_isp_fmcu_ctx_desc();
+			pr_info("ctx get fmcu %p\n", fmcu);
+		}
 		if (fmcu == NULL) {
 			pr_info("no fmcu for size %d, use ap\n", max_size->w);
 			goto exit;
@@ -2068,8 +2070,10 @@ new_ctx:
 	pctx->enable_slowmotion = init_param->is_high_fps
 		&& isp_support_fmcu_cfg_slm();
 	if (pctx->enable_slowmotion || pctx->need_slice) {
-		fmcu = get_isp_fmcu_ctx_desc();
-		pr_info("ctx get fmcu %p\n", fmcu);
+		if (isp_ctx_support_fmcu(pctx->ctx_id)) {
+			fmcu = get_isp_fmcu_ctx_desc();
+			pr_info("ctx get fmcu %p\n", fmcu);
+		}
 		if (fmcu == NULL) {
 			if (init_param->is_high_fps) {
 				pr_err("no fmcu high fps\n");
