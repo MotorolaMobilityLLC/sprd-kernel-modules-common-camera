@@ -22,11 +22,12 @@
 #include <linux/regmap.h>
 #include <linux/interrupt.h>
 #include <sprd_mm.h>
+#include <video/sprd_mmsys_pw_domain.h>
 
 #include "isp_reg.h"
 #include "isp_int.h"
 #include "isp_interface.h"
-#include "isp_hw_if.h"
+#include "isp_core.h"
 
 #ifdef pr_fmt
 #undef pr_fmt
@@ -39,49 +40,64 @@ unsigned long s_isp_regbase[ISP_MAX_COUNT];
 unsigned long isp_phys_base[ISP_MAX_COUNT];
 unsigned long s_isp_mmubase;
 
-static int isp_reg_trace(struct sprd_cam_hw_info *hw, void *arg)
+int isp_hw_init(void *arg)
 {
 	int ret = 0;
-#ifdef ISP_DRV_DEBUG
-	unsigned long addr = 0;
+	struct isp_pipe_dev *dev = NULL;
+	struct unisoc_cam_hw_info *hw = NULL;
 
-	pr_info("ISP%d: Register list:\n", hw->idx);
-	for (addr = ISP_INT_EN0; addr <= ISP_INT_ALL_DONE_SRC_CTRL; addr += 16) {
-		pr_info("0x%lx: 0x%x 0x%x 0x%x 0x%x\n",
-			addr,
-			ISP_HREG_RD(addr),
-			ISP_HREG_RD(addr + 4),
-			ISP_HREG_RD(addr + 8),
-			ISP_HREG_RD(addr + 12));
-	}
-#endif
-	return ret;
-}
-
-static int isp_init(struct sprd_cam_hw_info *hw, void *arg)
-{
-	int ret = 0;
-
-	if (!hw || !arg) {
-		pr_err("error: null input ptr\n");
+	if (!arg) {
+		pr_err("fail to get invalid arg\n");
 		return -EFAULT;
 	}
 
-	ret = isp_irq_request(
-			&hw->pdev->dev, s_isp_irq_no, arg);
+	dev = (struct isp_pipe_dev *)arg;
+	hw = dev->isp_hw;
+
+	ret = sprd_cam_pw_on();
+	ret = sprd_cam_domain_eb();
+
+	ret = hw->hw_ops.isp_soc_ops.clk_enable(hw->soc_isp);
+	if (ret)
+		goto clk_fail;
+
+	ret = hw->hw_ops.isp_soc_ops.reset(hw, NULL);
+	if (ret)
+		goto reset_fail;
+
+	ret = isp_irq_request(&hw->pdev->dev, s_isp_irq_no, arg);
+
+	return 0;
+
+reset_fail:
+	hw->hw_ops.isp_soc_ops.clk_disable(hw->soc_isp);
+clk_fail:
+	sprd_cam_domain_disable();
+	sprd_cam_pw_off();
+
 	return ret;
 }
 
-static int isp_deinit(struct sprd_cam_hw_info *hw, void *arg)
+int isp_hw_deinit(void *arg)
 {
 	int ret = 0;
+	struct isp_pipe_dev *dev = NULL;
+	struct unisoc_cam_hw_info *hw = NULL;
 
-	if (!hw || !arg) {
-		pr_err("error: null input ptr\n");
+	if (!arg) {
+		pr_err("fail to get invalid arg\n");
 		return -EFAULT;
 	}
 
+	dev = (struct isp_pipe_dev *)arg;
+	hw = dev->isp_hw;
+
+	ret = hw->hw_ops.isp_soc_ops.reset(hw, NULL);
 	ret = isp_irq_free(&hw->pdev->dev, arg);
+	ret = hw->hw_ops.isp_soc_ops.clk_disable(hw->soc_isp);
+
+	sprd_cam_domain_disable();
+	sprd_cam_pw_off();
 
 	return ret;
 }
@@ -92,7 +108,7 @@ struct isp_work_ctrl {
 	uint32_t work_mode;
 };
 
-static int isp_start(struct sprd_cam_hw_info *hw, void *arg)
+int isp_hw_start(struct unisoc_cam_hw_info *hw, void *arg)
 {
 	int ret = 0;
 	struct isp_work_ctrl work_ctrl;
@@ -108,16 +124,17 @@ static int isp_start(struct sprd_cam_hw_info *hw, void *arg)
 	ISP_HREG_MWR(ISP_WORK_CTRL, BIT_1, (work_ctrl.work_start << 1));
 	ISP_HREG_MWR(ISP_WORK_CTRL, BIT_2, (work_ctrl.work_en_sw << 2));
 #endif
-	set_common(hw);
+	hw->hw_ops.core_ops.default_para_set(hw, NULL, ISP_HW_PARA);
+
 	return ret;
 }
 
-static int isp_quickstop(struct sprd_cam_hw_info *hw, void *arg)
+int isp_hw_stop(struct unisoc_cam_hw_info *hw, void *arg)
 {
 	uint32_t id;
 	uint32_t cid;
 
-	id = hw->idx;
+	id = hw->ip_isp->idx;
 
 	ISP_HREG_MWR(ISP_AXI_ITI2AXIM_CTRL, BIT_26, 1 << 26);
 
@@ -130,115 +147,24 @@ static int isp_quickstop(struct sprd_cam_hw_info *hw, void *arg)
 	udelay(10);
 
 	for (cid = 0; cid < 4; cid++)
-		isp_irq_clear(hw, &cid);
+		hw->hw_ops.isp_irq_ops.irq_clear(hw->ip_isp, &cid);
 
 	return 0;
 }
 
-static int isp_enable_clk(struct sprd_cam_hw_info *hw, void *arg)
-{
-	int ret = 0;
-
-	pr_debug(",E\n");
-	if (!hw) {
-		pr_err("param erro\n");
-		return -EINVAL;
-	}
-#ifndef TEST_ON_HAPS
-	ret = clk_set_parent(hw->clk, hw->clk_parent);
-	if (ret) {
-		pr_err("set parent fail, ret = %d\n", ret);
-		clk_set_parent(hw->clk, hw->clk_default);
-		return ret;
-	}
-	ret = clk_prepare_enable(hw->clk);
-	if (ret) {
-		pr_err("enable isp clk fail, ret = %d\n", ret);
-		clk_set_parent(hw->clk, hw->clk_default);
-		return ret;
-	}
-	ret = clk_prepare_enable(hw->core_eb);
-	if (ret) {
-		pr_err("set isp eb fail, ret = %d\n", ret);
-		clk_disable_unprepare(hw->clk);
-		return ret;
-	}
-	ret = clk_prepare_enable(hw->axi_eb);
-	if (ret) {
-		pr_err("set isp axi eb fail, ret = %d\n", ret);
-		clk_disable_unprepare(hw->clk);
-		clk_disable_unprepare(hw->core_eb);
-		return ret;
-	}
-#endif
-
-	return ret;
-}
-
-static int isp_disable_clk(struct sprd_cam_hw_info *hw, void *arg)
-{
-	int ret = 0;
-	pr_debug(",E\n");
-	if (!hw) {
-		pr_err("param erro\n");
-		return -EINVAL;
-	}
-#ifndef TEST_ON_HAPS
-	clk_set_parent(hw->clk, hw->clk_default);
-	clk_disable_unprepare(hw->clk);
-	clk_disable_unprepare(hw->axi_eb);
-	clk_disable_unprepare(hw->core_eb);
-#endif
-
-	return ret;
-}
-
-static int isp_update_clk(struct sprd_cam_hw_info *hw, void *arg)
-{
-	int ret = 0;
-
-	pr_debug(",E\n");
-	if (!hw) {
-		pr_err("param erro\n");
-		return -EINVAL;
-	}
-#ifndef TEST_ON_HAPS
-	pr_warn("Not support and no use, now\n");
-#endif
-
-	return ret;
-}
-
-
-static struct sprd_cam_hw_ops isp_ops = {
-	.init = isp_init,
-	.deinit = isp_deinit,
-	.start = isp_start,
-	.stop = isp_quickstop,
-	.reset = isp_reset,
-	.enable_irq = isp_irq_enable,
-	.disable_irq = isp_irq_disable,
-	.irq_clear = isp_irq_clear,
-	.enable_clk = isp_enable_clk,
-	.disable_clk = isp_disable_clk,
-	.update_clk = isp_update_clk,
-	.trace_reg = isp_reg_trace,
-};
-static struct sprd_cam_hw_info s_isp_hw_dev;
-
-
 int sprd_isp_parse_dt(struct device_node *dn,
-		struct sprd_cam_hw_info **isp_hw_dev,
+		struct unisoc_cam_hw_info *hw_info,
 		uint32_t *isp_count)
 {
 	int i = 0;
 	uint32_t count = 0;
 	void __iomem *reg_base;
+	struct cam_hw_soc_info *soc_isp = NULL;
+	struct cam_hw_ip_info *ip_isp = NULL;
 	struct device_node *isp_node = NULL;
 	struct device_node *qos_node = NULL;
 	struct device_node *iommu_node = NULL;
 	struct resource res = {0};
-	struct sprd_cam_hw_info *isp_hw = &s_isp_hw_dev;
 	int args_count = 0;
 	uint32_t args[2];
 
@@ -246,6 +172,11 @@ int sprd_isp_parse_dt(struct device_node *dn,
 	 * or set value for required variables with hard-code
 	 * for quick bringup
 	 */
+
+	if (!dn || !hw_info) {
+		pr_err("fail to get dn %p hw info %p\n", dn, hw_info);
+		return -EINVAL;
+	}
 
 	pr_info("isp dev device node %s, full name %s\n",
 		dn->name, dn->full_name);
@@ -255,10 +186,12 @@ int sprd_isp_parse_dt(struct device_node *dn,
 		return -EFAULT;
 	}
 
+	soc_isp = hw_info->soc_isp;
+	ip_isp = hw_info->ip_isp;
 	pr_info("after isp dev device node %s, full name %s\n",
 		isp_node->name, isp_node->full_name);
-	isp_hw->pdev = of_find_device_by_node(isp_node);
-	pr_info("sprd s_isp_pdev name %s\n", isp_hw->pdev->name);
+	soc_isp->pdev = of_find_device_by_node(isp_node);
+	pr_info("sprd s_isp_pdev name %s\n", soc_isp->pdev->name);
 
 	if (of_device_is_compatible(isp_node, "sprd,isp")) {
 		if (of_property_read_u32_index(isp_node,
@@ -273,30 +206,28 @@ int sprd_isp_parse_dt(struct device_node *dn,
 		}
 		*isp_count = count;
 
-#ifndef TEST_ON_HAPS
 		/* read clk from dts */
-		isp_hw->core_eb = of_clk_get_by_name(isp_node, "isp_eb");
-		if (IS_ERR_OR_NULL(isp_hw->core_eb)) {
+		soc_isp->core_eb = of_clk_get_by_name(isp_node, "isp_eb");
+		if (IS_ERR_OR_NULL(soc_isp->core_eb)) {
 			pr_err("read dts isp eb fail\n");
 			return -EFAULT;
 		}
-		isp_hw->axi_eb = of_clk_get_by_name(isp_node, "isp_axi_eb");
-		if (IS_ERR_OR_NULL(isp_hw->core_eb)) {
+		soc_isp->axi_eb = of_clk_get_by_name(isp_node, "isp_axi_eb");
+		if (IS_ERR_OR_NULL(soc_isp->core_eb)) {
 			pr_err("read dts isp axi eb fail\n");
 			return -EFAULT;
 		}
-		isp_hw->clk = of_clk_get_by_name(isp_node, "isp_clk");
-		if (IS_ERR_OR_NULL(isp_hw->core_eb)) {
+		soc_isp->clk = of_clk_get_by_name(isp_node, "isp_clk");
+		if (IS_ERR_OR_NULL(soc_isp->core_eb)) {
 			pr_err("read dts isp clk fail\n");
 			return -EFAULT;
 		}
-		isp_hw->clk_parent = of_clk_get_by_name(isp_node, "isp_clk_parent");
-		if (IS_ERR_OR_NULL(isp_hw->core_eb)) {
+		soc_isp->clk_parent = of_clk_get_by_name(isp_node, "isp_clk_parent");
+		if (IS_ERR_OR_NULL(soc_isp->core_eb)) {
 			pr_err("read dts isp clk parent fail\n");
 			return -EFAULT;
 		}
-		isp_hw->clk_default = clk_get_parent(isp_hw->clk);
-#endif
+		soc_isp->clk_default = clk_get_parent(soc_isp->clk);
 
 		iommu_node = of_parse_phandle(isp_node, "iommus", 0);
 		if (iommu_node) {
@@ -321,44 +252,44 @@ int sprd_isp_parse_dt(struct device_node *dn,
 				pr_warn("isp awqos-high reading fail.\n");
 				val = 7;
 			}
-			isp_hw->awqos_high = (uint32_t)val;
+			soc_isp->awqos_high = (uint32_t)val;
 			if (of_property_read_u8(qos_node, "awqos-low", &val)) {
 				pr_warn("isp awqos-low reading fail.\n");
 				val = 6;
 			}
-			isp_hw->awqos_low = (uint32_t)val;
+			soc_isp->awqos_low = (uint32_t)val;
 			if (of_property_read_u8(qos_node, "arqos-high", &val)) {
 				pr_warn("isp arqos-high reading fail.\n");
 				val = 7;
 			}
-			isp_hw->arqos_high = (uint32_t)val;
+			soc_isp->arqos_high = (uint32_t)val;
 			if (of_property_read_u8(qos_node, "arqos-low", &val)) {
 				pr_warn("isp arqos-low reading fail.\n");
 				val = 6;
 			}
-			isp_hw->arqos_low = (uint32_t)val;
+			soc_isp->arqos_low = (uint32_t)val;
 			pr_info("get isp qos node. r: %d %d w: %d %d\n",
-				isp_hw->arqos_high, isp_hw->arqos_low,
-				isp_hw->awqos_high, isp_hw->awqos_low);
+				soc_isp->arqos_high, soc_isp->arqos_low,
+				soc_isp->awqos_high, soc_isp->awqos_low);
 		} else {
-			isp_hw->awqos_high = 7;
-			isp_hw->awqos_low = 6;
-			isp_hw->arqos_high = 7;
-			isp_hw->arqos_low = 6;
+			soc_isp->awqos_high = 7;
+			soc_isp->awqos_low = 6;
+			soc_isp->arqos_high = 7;
+			soc_isp->arqos_low = 6;
 		}
 
-		isp_hw->cam_ahb_gpr = syscon_regmap_lookup_by_phandle(isp_node,
+		soc_isp->cam_ahb_gpr = syscon_regmap_lookup_by_phandle(isp_node,
 			"sprd,cam-ahb-syscon");
-		if (IS_ERR_OR_NULL(isp_hw->cam_ahb_gpr)) {
+		if (IS_ERR_OR_NULL(soc_isp->cam_ahb_gpr)) {
 			pr_err("fail to get sprd,cam-ahb-syscon");
-			return PTR_ERR(isp_hw->cam_ahb_gpr);
+			return PTR_ERR(soc_isp->cam_ahb_gpr);
 		}
 
 		args_count = syscon_get_args_by_name(isp_node, "reset",
 			sizeof(args), args);
 		if (args_count == ARRAY_SIZE(args)) {
-			isp_hw->syscon.rst = args[0];
-			isp_hw->syscon.rst_mask = args[1];
+			ip_isp->syscon.rst = args[0];
+			ip_isp->syscon.rst_mask = args[1];
 		} else {
 			pr_err("fail to get isp reset syscon\n");
 			return -EINVAL;
@@ -367,18 +298,18 @@ int sprd_isp_parse_dt(struct device_node *dn,
 		args_count = syscon_get_args_by_name(isp_node, "isp_ahb_reset",
 			sizeof(args), args);
 		if (args_count == ARRAY_SIZE(args))
-			isp_hw->syscon.rst_ahb_mask = args[1];
+			ip_isp->syscon.rst_ahb_mask = args[1];
 
 		args_count = syscon_get_args_by_name(isp_node, "isp_vau_reset",
 			sizeof(args), args);
 		if (args_count == ARRAY_SIZE(args))
-			isp_hw->syscon.rst_vau_mask = args[1];
+			ip_isp->syscon.rst_vau_mask = args[1];
 
 		if (of_address_to_resource(isp_node, i, &res))
 			pr_err("fail to get isp phys addr\n");
 
-		isp_hw->phy_base = (unsigned long)res.start;
-		isp_phys_base[0] = isp_hw->phy_base;
+		ip_isp->phy_base = (unsigned long)res.start;
+		isp_phys_base[0] = ip_isp->phy_base;
 		pr_info("isp phys reg base is %lx\n", isp_phys_base[0]);
 		reg_base = of_iomap(isp_node, i);
 		if (!reg_base) {
@@ -386,8 +317,8 @@ int sprd_isp_parse_dt(struct device_node *dn,
 			return -ENXIO;
 		}
 
-		isp_hw->reg_base = (unsigned long)reg_base;
-		s_isp_regbase[0] = isp_hw->reg_base;
+		ip_isp->reg_base = (unsigned long)reg_base;
+		s_isp_regbase[0] = ip_isp->reg_base;
 
 		for (i = 0; i < ISP_LOGICAL_COUNT; i++) {
 			s_isp_irq_no[i] = irq_of_parse_and_map(isp_node, i);
@@ -403,9 +334,6 @@ int sprd_isp_parse_dt(struct device_node *dn,
 		pr_err("fail to match isp device node\n");
 		return -EINVAL;
 	}
-
-	isp_hw->ops = &isp_ops;
-	*isp_hw_dev = isp_hw;
 
 	return 0;
 }

@@ -21,7 +21,7 @@
 
 #include "isp_reg.h"
 #include "isp_fmcu.h"
-#include "isp_hw_if.h"
+#include "cam_hw.h"
 #include "defines.h"
 
 #ifdef pr_fmt
@@ -323,14 +323,21 @@ static struct isp_fmcu_ctx_desc s_fmcu_desc[ISP_FMCU_NUM] = {
 	},
 };
 
-struct isp_fmcu_ctx_desc *get_isp_fmcu_ctx_desc(void)
+struct isp_fmcu_ctx_desc *get_isp_fmcu_ctx_desc(void *arg)
 {
 	int i;
 	struct isp_fmcu_ctx_desc *fmcu = NULL;
+	struct unisoc_cam_hw_info *hw = NULL;
 
+	if (!arg) {
+		pr_err("fail to get valid arg\n");
+		return NULL;
+	}
+
+	hw = (struct unisoc_cam_hw_info *)arg;
 	for (i = 0; i < ISP_FMCU_NUM; i++) {
 		if (atomic_inc_return(&s_fmcu_desc[i].user_cnt) == 1) {
-			if (isp_fmcu_available(s_fmcu_desc[i].fid)) {
+			if (hw->hw_ops.core_ops.fmcu_valid_get(s_fmcu_desc[i].fid)) {
 				fmcu = &s_fmcu_desc[i];
 				pr_info("fmcu %d , %p\n", fmcu->fid, fmcu);
 				break;

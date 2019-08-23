@@ -47,8 +47,9 @@
 
 #include "sprd_sensor_drv.h"
 #include "dcam_reg.h"
-#include "dcam_hw_if.h"
 #include "csi_api.h"
+#include "dcam_core.h"
+
 
 #ifdef CONFIG_COMPAT
 #include "compat_cam_drv.h"
@@ -304,14 +305,13 @@ struct camera_group {
 
 	uint32_t dcam_count; /*dts cfg dcam count*/
 	uint32_t isp_count; /*dts cfg isp count*/
-	struct sprd_cam_hw_info *dcam[DCAM_ID_MAX]; /* dcam hw dev from dts */
-	struct sprd_cam_hw_info *isp[2]; /* isp hw dev from dts */
 
 	struct miscdevice *md;
 	struct platform_device *pdev;
 	struct camera_queue empty_frm_q;
-	struct  sprd_cam_sec_cfg   camsec_cfg;
+	struct  sprd_cam_sec_cfg camsec_cfg;
 	struct camera_debugger debugger;
+	struct unisoc_cam_hw_info *hw_info;
 };
 
 struct cam_ioctl_cmd {
@@ -403,7 +403,7 @@ static void cam_release_camera_frame(void *param)
 static void cal_compression(struct camera_module *module)
 {
 	struct channel_context *ch_pre, *ch_cap, *ch_vid;
-	struct sprd_cam_hw_info *dcam_hw;
+	struct unisoc_cam_hw_info *dcam_hw;
 	struct compression_override *override;
 
 	ch_pre = &module->channel[CAM_CH_PRE];
@@ -442,7 +442,7 @@ static void cal_compression(struct camera_module *module)
 		ch_vid->enable && ch_vid->ch_uinfo.is_compressed;
 
 	/* disable all compression on SharkL5 */
-	dcam_hw = module->grp->dcam[module->dcam_idx];
+	dcam_hw = module->grp->hw_info;
 	if (dcam_hw->prj_id == SHARKL5) {
 		ch_cap->compress_input = ch_cap->compress_output =
 			ch_cap->compress_3dnr = 0;
@@ -521,30 +521,31 @@ static void config_compression(struct camera_module *module)
 	struct channel_context *ch_pre, *ch_cap, *ch_vid;
 	struct isp_ctx_compression_desc ctx_compression_desc;
 	struct isp_path_compression_desc path_compression_desc;
-	int dcam_fbc_mode;
+	struct unisoc_cam_hw_info *hw = NULL;
+	int fbc_mode = DCAM_FBC_DISABLE;
 
 	ch_pre = &module->channel[CAM_CH_PRE];
 	ch_cap = &module->channel[CAM_CH_CAP];
 	ch_vid = &module->channel[CAM_CH_VID];
+	hw = module->grp->hw_info;
 
 	if (ch_cap->compress_input) {
-		dcam_fbc_mode = DCAM_FBC_FULL_14_BIT;
-		if (dcam_fbc_mode == DCAM_FBC_FULL_14_BIT)
+		fbc_mode = hw->ip_dcam[module->idx]->dcam_fbc_mode;
+		if (DCAM_FBC_FULL_14_BIT == fbc_mode)
 			ch_cap->compress_4bit_bypass = 0;
 	}
-	else if (ch_pre->compress_input) {
-		dcam_fbc_mode = DCAM_FBC_BIN_14_BIT;
-		if (dcam_fbc_mode == DCAM_FBC_BIN_14_BIT)
-			ch_pre->compress_4bit_bypass = 0;
+
+	if (ch_pre->compress_input) {
+		fbc_mode = hw->ip_dcam[module->idx]->dcam_fbc_mode;
+		if (DCAM_FBC_BIN_14_BIT == fbc_mode)
+			ch_cap->compress_4bit_bypass = 0;
 	}
-	else
-		dcam_fbc_mode = DCAM_FBC_DISABLE;
 
 	ch_vid->compress_input = ch_pre->compress_input;
 	ch_vid->compress_4bit_bypass = ch_pre->compress_4bit_bypass;
 
 	dcam_ops->ioctl(module->dcam_dev_handle,
-			DCAM_IOCTL_CFG_FBC, &dcam_fbc_mode);
+			DCAM_IOCTL_CFG_FBC, &fbc_mode);
 
 	/* capture context */
 	if (ch_cap->enable) {
@@ -2913,7 +2914,7 @@ static int init_bigsize_aux(struct camera_module *module,
 
 	dcam = module->aux_dcam_dev;
 	if (dcam == NULL) {
-		dcam = dcam_if_get_dev(dcam_idx, grp->dcam[dcam_idx]);
+		dcam = dcam_if_get_dev(dcam_idx, grp->hw_info);
 		if (IS_ERR_OR_NULL(dcam)) {
 			pr_err("fail to get dcam%d\n", dcam_idx);
 			return -EFAULT;
@@ -3004,7 +3005,7 @@ static int init_4in1_aux(struct camera_module *module,
 
 	dcam = module->aux_dcam_dev;
 	if (dcam == NULL) {
-		dcam = dcam_if_get_dev(dcam_idx, grp->dcam[dcam_idx]);
+		dcam = dcam_if_get_dev(dcam_idx, grp->hw_info);
 		if (IS_ERR_OR_NULL(dcam)) {
 			pr_err("fail to get dcam%d\n", dcam_idx);
 			return -EFAULT;
@@ -4984,7 +4985,7 @@ static int img_ioctl_get_cam_res(
 
 	dcam = module->dcam_dev_handle;
 	if (dcam == NULL) {
-		dcam = dcam_if_get_dev(dcam_idx, grp->dcam[dcam_idx]);
+		dcam = dcam_if_get_dev(dcam_idx, grp->hw_info);
 		if (IS_ERR_OR_NULL(dcam)) {
 			pr_err("fail to get dcam%d\n", dcam_idx);
 			ret = -EINVAL;
@@ -5041,7 +5042,7 @@ static int img_ioctl_get_cam_res(
 		goto wq_fail;
 	}
 
-	ret = isp_ops->open(isp, grp->isp[0]);
+	ret = isp_ops->open(isp, grp->hw_info);
 	if (ret) {
 		pr_err("faile to enable isp module.\n");
 		ret = -EINVAL;
@@ -5183,6 +5184,7 @@ static int img_ioctl_stream_on(
 	struct channel_context *ch = NULL;
 	struct channel_context *ch_pre = NULL, *ch_vid = NULL;
 	struct isp_statis_io_desc io_desc;
+	struct unisoc_cam_hw_info *hw = NULL;
 
 	if (atomic_read(&module->state) != CAM_CFG_CH) {
 		pr_info("cam%d error state: %d\n", module->idx,
@@ -5226,10 +5228,13 @@ static int img_ioctl_stream_on(
 	/* line buffer share mode setting
 	 * Precondition: dcam0, dcam1 size not conflict
 	 */
+	hw = module->grp->hw_info;
 	line_w = module->cam_uinfo.sn_rect.w;
 	if (module->cam_uinfo.is_4in1)
 		line_w /= 2;
-	dcam_lbuf_share_mode(module->dcam_idx, line_w);
+	if (hw->ip_dcam[module->dcam_idx]->lbuf_share_support
+		&& hw->hw_ops.core_ops.lbuf_share_set)
+		hw->hw_ops.core_ops.lbuf_share_set(module->dcam_idx, line_w);
 
 	camera_queue_init(&module->isp_hist2_outbuf_queue,
 		CAM_STATIS_Q_LEN, 0, cam_destroy_statis_buf);
@@ -5870,7 +5875,8 @@ static int raw_proc_pre(
 	uint32_t loop = 0;
 	unsigned long flag = 0;
 	struct camera_group *grp = module->grp;
-	struct channel_context *ch;
+	struct unisoc_cam_hw_info *hw = NULL;
+	struct channel_context *ch = NULL;
 	struct img_trim path_trim;
 	struct dcam_path_cfg_param ch_desc;
 	struct isp_ctx_base_desc ctx_desc;
@@ -5941,7 +5947,11 @@ static int raw_proc_pre(
 			DCAM_PATH_CFG_SIZE,
 			ch->dcam_path_id, &ch_desc);
 
-	dcam_lbuf_share_mode(module->idx, proc_info->src_size.width);
+	hw = grp->hw_info;
+	if (hw->ip_dcam[module->idx]->lbuf_share_support
+		&& hw->hw_ops.core_ops.lbuf_share_set)
+		hw->hw_ops.core_ops.lbuf_share_set(module->idx,
+			proc_info->src_size.width);
 
 	/* specify isp context & path */
 	init_param.is_high_fps = 0;/* raw capture + slow motion ?? */
@@ -6574,7 +6584,7 @@ int test_dcam(struct camera_module *module,
 	/* test dcam only */
 	dcam = module->dcam_dev_handle;
 	if (dcam == NULL) {
-		dcam = dcam_if_get_dev(dcam_idx, module->grp->dcam[dcam_idx]);
+		dcam = dcam_if_get_dev(dcam_idx, module->grp->hw_info);
 		if (IS_ERR_OR_NULL(dcam)) {
 			pr_err("fail to get dcam%d\n", dcam_idx);
 			ret = -EINVAL;
@@ -6753,7 +6763,7 @@ int test_isp(struct camera_module *module,
 			goto exit;
 		}
 
-		ret = isp_ops->open(isp, module->grp->isp[0]);
+		ret = isp_ops->open(isp, module->grp->hw_info);
 		if (ret) {
 			pr_err("faile to enable isp module.\n");
 			put_isp_pipe_dev(isp);
@@ -7281,18 +7291,16 @@ rewait:
 			read_op.parm.frame.kaddr[1] = (uint32_t)((uint64_t)pframe->buf.addr_k[0] >> 32);
 			read_op.parm.frame.kaddr[0] = (uint32_t)pframe->buf.addr_k[0];
 		} else {
-			struct sprd_cam_hw_info *dcam_hw = module->grp->dcam[module->dcam_idx];
-			struct sprd_cam_hw_info *isp_hw = module->grp->isp[0];
+			struct unisoc_cam_hw_info *hw = module->grp->hw_info;
 
 			pr_err("error event %d\n", pframe->evt);
-			if (dcam_hw == NULL || dcam_hw->ops == NULL
-				|| isp_hw == NULL || isp_hw->ops == NULL) {
+			if (hw == NULL) {
 				pr_err("error: no hw ops.\n");
 				return -EFAULT;
 			}
 			csi_api_reg_trace();
-			dcam_hw->ops->trace_reg(dcam_hw, NULL);
-			isp_hw->ops->trace_reg(isp_hw, NULL);
+			hw->hw_ops.core_ops.reg_trace(module->idx,
+				ABNORMAL_REG_TRACE);
 			read_op.evt = pframe->evt;
 			read_op.parm.frame.irq_type = pframe->irq_type;
 			read_op.parm.frame.irq_property = pframe->irq_property;
@@ -7501,14 +7509,14 @@ static int sprd_img_open(struct inode *node, struct file *file)
 		}
 		/* should check all needed interface here. */
 
-		if (grp->dcam[0] && grp->dcam[0]->pdev)
+		if (grp->hw_info && grp->hw_info->soc_dcam->pdev)
 			ret = cambuf_reg_iommudev(
-					&grp->dcam[0]->pdev->dev,
-					CAM_IOMMUDEV_DCAM);
-		if (grp->isp[0] && grp->isp[0]->pdev)
+				&grp->hw_info->soc_dcam->pdev->dev,
+				CAM_IOMMUDEV_DCAM);
+		if (grp->hw_info && grp->hw_info->soc_isp->pdev)
 			ret = cambuf_reg_iommudev(
-					&grp->isp[0]->pdev->dev,
-					CAM_IOMMUDEV_ISP);
+				&grp->hw_info->soc_isp->pdev->dev,
+				CAM_IOMMUDEV_ISP);
 
 		g_empty_frm_q = &grp->empty_frm_q;
 		camera_queue_init(g_empty_frm_q,
@@ -7673,7 +7681,7 @@ static struct miscdevice image_dev = {
 	.fops = &image_fops,
 };
 
-static int sprd_img_probe(struct platform_device *pdev)
+static int unisoc_cam_probe(struct platform_device *pdev)
 {
 	int ret = 0;
 	struct camera_group *group = NULL;
@@ -7701,22 +7709,27 @@ static int sprd_img_probe(struct platform_device *pdev)
 	image_dev.this_device->platform_data = (void *)group;
 	group->md = &image_dev;
 	group->pdev = pdev;
+	group->hw_info = (struct unisoc_cam_hw_info *)
+		of_device_get_match_data(&pdev->dev);
+	if (!group->hw_info) {
+		pr_err("fail to get hw_info\n");
+		goto probe_pw_fail;
+	}
 	atomic_set(&group->camera_opened, 0);
 	spin_lock_init(&group->module_lock);
 	spin_lock_init(&group->rawproc_lock);
 
 	pr_info("sprd img probe pdev name %s\n", pdev->name);
 	pr_info("sprd dcam dev name %s\n", pdev->dev.init_name);
-	ret = dcam_if_parse_dt(pdev, &group->dcam[0], &group->dcam_count);
+	ret = dcam_if_parse_dt(pdev, group->hw_info, &group->dcam_count);
 	if (ret) {
 		pr_err("fail to parse dcam dts\n");
 		goto probe_pw_fail;
 	}
 
 	pr_info("sprd isp dev name %s\n", pdev->dev.init_name);
-	ret = sprd_isp_parse_dt(pdev->dev.of_node,
-						&group->isp[0],
-						&group->isp_count);
+	ret = sprd_isp_parse_dt(pdev->dev.of_node, group->hw_info,
+		&group->isp_count);
 	if (ret) {
 		pr_err("fail to parse isp dts\n");
 		goto probe_pw_fail;
@@ -7728,13 +7741,10 @@ static int sprd_img_probe(struct platform_device *pdev)
 	if (group->ca_conn)
 		pr_info("cam ca-ta unconnect\n");
 
-	ret = sprd_dcam_debugfs_init(&group->debugger);
+	group->debugger.hw = group->hw_info;
+	ret = unisoc_cam_debugfs_init(&group->debugger);
 	if (ret)
-		pr_err("fail to init dcam debugfs\n");
-
-	ret = sprd_isp_debugfs_init(&group->debugger);
-	if (ret)
-		pr_err("fail to init isp debugfs\n");
+		pr_err("fail to init cam debugfs\n");
 
 	return 0;
 
@@ -7745,7 +7755,7 @@ probe_pw_fail:
 	return ret;
 }
 
-static int sprd_img_remove(struct platform_device *pdev)
+static int unisoc_cam_remove(struct platform_device *pdev)
 {
 	struct camera_group *group = NULL;
 
@@ -7766,24 +7776,26 @@ static int sprd_img_remove(struct platform_device *pdev)
 	return 0;
 }
 
-
-
-static const struct of_device_id sprd_dcam_of_match[] = {
-	{ .compatible = "sprd,dcam", },
-	{},
+static const struct of_device_id unisoc_cam_of_match[] = {
+	#if defined (PROJ_SHARKL3)
+	{ .compatible = "unisoc,sharkl3-cam", .data = &sharkl3_hw_info},
+	#elif defined (PROJ_SHARKL5PRO)
+	{ .compatible = "unisoc,sharkl5pro-cam", .data = &sharkl5pro_hw_info},
+	{ },
+	#endif
 };
 
-static struct platform_driver sprd_img_driver = {
-	.probe = sprd_img_probe,
-	.remove = sprd_img_remove,
+static struct platform_driver unisoc_img_driver = {
+	.probe = unisoc_cam_probe,
+	.remove = unisoc_cam_remove,
 	.driver = {
 		.name = IMG_DEVICE_NAME,
-		.of_match_table = of_match_ptr(sprd_dcam_of_match),
+		.of_match_table = of_match_ptr(unisoc_cam_of_match),
 	},
 };
 
-module_platform_driver(sprd_img_driver);
+module_platform_driver(unisoc_img_driver);
 
-MODULE_DESCRIPTION("Sprd CAM Driver");
-MODULE_AUTHOR("Multimedia_Camera@Spreadtrum");
+MODULE_DESCRIPTION("Unisoc CAM Driver");
+MODULE_AUTHOR("Multimedia_Camera@Unisoc");
 MODULE_LICENSE("GPL");

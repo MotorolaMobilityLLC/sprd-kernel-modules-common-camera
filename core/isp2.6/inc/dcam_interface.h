@@ -42,16 +42,6 @@
 #define DCAM_SCALE_DOWN_MAX 4
 
 /*
- * Supported dcam_if index. Number 0&1 for dcam_if and 2 for dcam_if_lite.
- */
-enum dcam_id {
-	DCAM_ID_0 = 0,
-	DCAM_ID_1,
-	DCAM_ID_2,
-	DCAM_ID_MAX,
-};
-
-/*
  * Quick function to check is @idx valid.
  */
 #define is_dcam_id(idx) ((idx) < DCAM_ID_MAX)
@@ -108,15 +98,6 @@ enum dcam_path_cfg_cmd {
 	DCAM_PATH_CFG_OUTPUT_RESERVED_BUF,
 	DCAM_PATH_CFG_SIZE,
 	DCAM_PATH_CFG_FULL_SOURCE, /* 4in1 select full path source */
-};
-
-/* fbc mode */
-enum {
-	DCAM_FBC_DISABLE = 0,
-	DCAM_FBC_FULL_10_BIT = 0x1,
-	DCAM_FBC_BIN_10_BIT = 0x3,
-	DCAM_FBC_FULL_14_BIT = 0x5,
-	DCAM_FBC_BIN_14_BIT = 0x7,
 };
 
 /*
@@ -334,24 +315,21 @@ struct dcam_pipe_ops *dcam_if_get_ops(void);
  * Retrieve a dcam_if device for the hardware. A dcam_if device is a wrapper
  * with supported operations defined in dcam_pipe_ops.
  */
-void *dcam_if_get_dev(uint32_t idx, struct sprd_cam_hw_info *hw);
+void *dcam_if_get_dev(uint32_t idx, struct unisoc_cam_hw_info *hw);
 /*
  * Release a dcam_if device after capture finished.
  */
 int dcam_if_put_dev(void *dcam_handle);
-/* set lbuf share mode for dcam0,dcam1, set before stream on */
-int dcam_lbuf_share_mode(enum dcam_id idx, uint32_t width);
 
 int dcam_hwsim_extra(enum dcam_id idx);
 /*
  * Retrieve hardware info from dt.
  */
+int dcam_hw_init(void *arg);
+int dcam_hw_deinit(void *arg);
 int dcam_if_parse_dt(struct platform_device *pdev,
-			struct sprd_cam_hw_info **dcam_hw,
+			struct unisoc_cam_hw_info *hw_info,
 			uint32_t *dcam_count);
-struct camera_debugger;
-int sprd_dcam_debugfs_init(struct camera_debugger *debugger);
-int sprd_dcam_debugfs_deinit(void);
 uint32_t get_outbuf_queue_cnt(void *dev, int path_id);
 
 uint32_t dcam_if_get_open_count(void);

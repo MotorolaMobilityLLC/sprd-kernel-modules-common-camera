@@ -235,12 +235,12 @@ struct isp_pipe_ops *get_isp_ops(void);
 void *get_isp_pipe_dev(void);
 int put_isp_pipe_dev(void *isp_handle);
 
-struct camera_debugger;
-int sprd_isp_debugfs_init(struct camera_debugger *debugger);
-int sprd_isp_debugfs_deinit(void);
-
+int isp_hw_init(void *arg);
+int isp_hw_deinit(void *arg);
+int isp_hw_start(struct unisoc_cam_hw_info *hw, void *arg);
+int isp_hw_stop(struct unisoc_cam_hw_info *hw, void *arg);
 int sprd_isp_parse_dt(struct device_node *dn,
-		struct sprd_cam_hw_info **isp_hw,
+		struct unisoc_cam_hw_info *hw_info,
 		uint32_t *isp_count);
 void isp_hwsim_extra(uint32_t idx);
 #endif

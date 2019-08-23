@@ -14,13 +14,10 @@
 #include <sprd_mm.h>
 
 #include "sprd_isp_hw.h"
-#include "isp_reg.h"
 #include "cam_types.h"
 #include "cam_block.h"
-
 #include "isp_core.h"
 #include "isp_3dnr.h"
-
 
 #ifdef pr_fmt
 #undef pr_fmt

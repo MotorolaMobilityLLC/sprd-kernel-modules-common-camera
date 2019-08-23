@@ -21,8 +21,6 @@
 #define SLICE_H_NUM_MAX				1
 #define SLICE_OVERLAP_W_MAX			64
 
-
-
 #define YUV_OVERLAP_UP				46
 #define YUV_OVERLAP_DOWN			68
 #define YUV_OVERLAP_LEFT			74
@@ -33,6 +31,8 @@
 #define YUVSCALER_OVERLAP_LEFT			16
 #define YUVSCALER_OVERLAP_RIGHT			68
 
+#define FMCU_PUSH(fmcu, addr, cmd) \
+		fmcu->ops->push_cmdq(fmcu, addr, cmd)
 
 struct slice_scaler_info {
 	uint32_t out_of_range;
@@ -327,7 +327,7 @@ int isp_set_slw_fmcu_cmds(
 		struct isp_pipe_context *pctx);
 
 int isp_update_slice(
-		void *slc_handle,
+		void *pctx_handle,
 		uint32_t ctx_idx,
 		uint32_t slice_id);
 #endif

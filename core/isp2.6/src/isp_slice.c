@@ -21,7 +21,6 @@
 #include "isp_slice.h"
 #include "isp_fmcu.h"
 #include "isp_ltm.h"
-#include "isp_hw_if.h"
 
 #ifdef pr_fmt
 #undef pr_fmt
@@ -2138,10 +2137,6 @@ int put_isp_slice_ctx(void **slc_ctx)
 
 
 /*  following section is fmcu cmds of register update for slice */
-
-#define FMCU_PUSH(fmcu, addr, cmd) \
-		fmcu->ops->push_cmdq(fmcu, addr, cmd)
-
 static unsigned long store_base[ISP_SPATH_NUM] = {
 	ISP_STORE_PRE_CAP_BASE,
 	ISP_STORE_VID_BASE,
@@ -2665,6 +2660,7 @@ int isp_set_slices_fmcu_cmds(void *fmcu_handle,  void *ctx)
 	struct isp_slice_context *slc_ctx;
 	struct isp_fmcu_ctx_desc *fmcu;
 	struct isp_pipe_context *pctx = NULL;
+	struct unisoc_cam_hw_info *hw = NULL;
 
 	uint32_t reg_off, addr = 0, cmd = 0, shape_mode = 0;
 	uint32_t shadow_done_cmd[ISP_CONTEXT_HW_NUM] = {
@@ -2682,6 +2678,7 @@ int isp_set_slices_fmcu_cmds(void *fmcu_handle,  void *ctx)
 	}
 
 	pctx = (struct isp_pipe_context *)ctx;
+	hw = pctx->hw;
 	sw_ctx_id = pctx->ctx_id;
 	hw_ctx_id = isp_get_hw_context_id(pctx);
 	pr_info("get hw context id=%d\n", hw_ctx_id);
@@ -2709,7 +2706,8 @@ int isp_set_slices_fmcu_cmds(void *fmcu_handle,  void *ctx)
 		set_slice_nr_info(fmcu, cur_slc);
 
 		if (!cur_slc->slice_fbd_raw.fetch_fbd_bypass)
-			set_slice_fbd_raw(fmcu, &cur_slc->slice_fbd_raw);
+			hw->hw_ops.core_ops.isp_fbd_slice_set(fmcu,
+					&cur_slc->slice_fbd_raw);
 		else
 			set_slice_fetch(fmcu, &cur_slc->slice_fetch);
 
@@ -2735,8 +2733,9 @@ int isp_set_slices_fmcu_cmds(void *fmcu_handle,  void *ctx)
 			if (j < AFBC_PATH_NUM) {
 				slc_afbc_store = &cur_slc->slice_afbc_store[j];
 				if(slc_afbc_store->slc_afbc_on)
-					set_slice_spath_afbc_store(fmcu,
-						cur_slc->path_en[j], sw_ctx_id, j, slc_afbc_store);
+					hw->hw_ops.core_ops.isp_afbc_path_slice_set(
+						fmcu, cur_slc->path_en[j],
+						sw_ctx_id, j, slc_afbc_store);
 			}
 		}
 
@@ -2951,7 +2950,7 @@ static int update_slice_spath_store(
 }
 
 int isp_update_slice(
-		void *slc_handle,
+		void *pctx_handle,
 		uint32_t ctx_id,
 		uint32_t slice_id)
 {
@@ -2961,13 +2960,17 @@ int isp_update_slice(
 	struct slice_afbc_store_info *slc_afbc_store;
 	struct slice_scaler_info *slc_scaler;
 	struct isp_slice_context *slc_ctx;
+	struct isp_pipe_context *pctx = NULL;
+	struct unisoc_cam_hw_info * hw = NULL;
 
-	if (!slc_handle) {
+	if (!pctx_handle) {
 		pr_err("error: null input ptr.\n");
 		return -EFAULT;
 	}
 
-	slc_ctx = (struct isp_slice_context *)slc_handle;
+	pctx = (struct isp_pipe_context *)pctx_handle;
+	hw = pctx->hw;
+	slc_ctx = (struct isp_slice_context *)pctx->slice_ctx;
 	if (slc_ctx->slice_num < 1) {
 		pr_err("warn: should not use slices.\n");
 		return -EINVAL;
@@ -2995,8 +2998,9 @@ int isp_update_slice(
 		if (j < AFBC_PATH_NUM) {
 			slc_afbc_store = &cur_slc->slice_afbc_store[j];
 			if(slc_afbc_store->slc_afbc_on)
-				set_slice_spath_afbc_store(NULL,
-					cur_slc->path_en[j], ctx_id, j, slc_afbc_store);
+				hw->hw_ops.core_ops.isp_afbc_path_slice_set(
+					NULL, cur_slc->path_en[j],
+					ctx_id, j, slc_afbc_store);
 		}
 	}
 	return 0;
@@ -3012,6 +3016,7 @@ int isp_set_slw_fmcu_cmds(void *fmcu_handle, struct isp_pipe_context *pctx)
 	struct isp_path_desc *path;
 	struct img_addr *fetch_addr, *store_addr;
 	struct isp_afbc_store_info *afbc_store_addr;
+	struct unisoc_cam_hw_info *hw = NULL;
 
 	uint32_t shadow_done_cmd[ISP_CONTEXT_HW_NUM] = {
 		PRE0_SHADOW_DONE, CAP0_SHADOW_DONE,
@@ -3022,7 +3027,7 @@ int isp_set_slw_fmcu_cmds(void *fmcu_handle, struct isp_pipe_context *pctx)
 		PRE1_ALL_DONE, CAP1_ALL_DONE,
 	};
 
-	if (!fmcu_handle) {
+	if (!fmcu_handle || !pctx) {
 		pr_err("error: null input ptr.\n");
 		return -EFAULT;
 	}
@@ -3031,6 +3036,7 @@ int isp_set_slw_fmcu_cmds(void *fmcu_handle, struct isp_pipe_context *pctx)
 	base = (fmcu->fid == 0) ? ISP_FMCU0_BASE : ISP_FMCU1_BASE;
 	fetch_addr = &pctx->fetch.addr;
 	ctx_idx = pctx->ctx_id;
+	hw = pctx->hw;
 
 	set_fmcu_cfg(fmcu, ctx_idx);
 
@@ -3072,9 +3078,9 @@ int isp_set_slw_fmcu_cmds(void *fmcu_handle, struct isp_pipe_context *pctx)
 		cmd = 1;
 		FMCU_PUSH(fmcu, addr, cmd);
 
-		if ((i < AFBC_PATH_NUM) && (path->afbc_store.bypass == 0)) {
-			isp_set_afbc_store_fmcu_addr(fmcu, afbc_store_addr, i);
-		}
+		if ((i < AFBC_PATH_NUM) && (path->afbc_store.bypass == 0))
+			hw->hw_ops.core_ops.isp_afbc_fmcu_addr_set(fmcu,
+					afbc_store_addr, i);
 	}
 
 	reg_off = ISP_CFG_CAP_FMCU_RDY;

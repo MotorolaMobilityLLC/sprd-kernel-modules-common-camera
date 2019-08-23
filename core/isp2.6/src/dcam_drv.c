@@ -26,8 +26,6 @@
 #include "dcam_path.h"
 #include "dcam_interface.h"
 #include "dcam_reg.h"
-#include "dcam_hw_if.h"
-
 
 #ifdef pr_fmt
 #undef pr_fmt
@@ -35,144 +33,30 @@
 #define pr_fmt(fmt) "DCAM_DRV: %d %d %s : "\
 	fmt, current->pid, __LINE__, __func__
 
-static atomic_t clk_users;
-
-static int dcam_enable_clk(struct sprd_cam_hw_info *hw, void *arg)
-{
-	int ret = 0;
-
-	pr_debug(", E\n");
-	if (atomic_inc_return(&clk_users) != 1) {
-		pr_info("clk has enabled, users: %d\n",
-			atomic_read(&clk_users));
-		return 0;
-	}
-#ifndef TEST_ON_HAPS
-	if (!hw) {
-		pr_err("param erro\n");
-		return -EINVAL;
-	}
-	ret = clk_set_parent(hw->clk, hw->clk_parent);
-	if (ret) {
-		pr_err("dcam%d, set clk parent fail\n", hw->idx);
-		clk_set_parent(hw->clk, hw->clk_default);
-		return ret;
-	}
-	ret = clk_prepare_enable(hw->clk);
-	if (ret) {
-		pr_err("dcam%d, clk enable fail\n", hw->idx);
-		clk_set_parent(hw->clk, hw->clk_default);
-		return ret;
-	}
-	if (hw->prj_id == SHARKL3) {
-		ret = clk_set_parent(hw->bpc_clk, hw->bpc_clk_parent);
-		if (ret) {
-			pr_err("dcam%d, set bpc_clk parent fail\n", hw->idx);
-			clk_set_parent(hw->bpc_clk, hw->bpc_clk_parent);
-			return ret;
-		}
-		ret = clk_prepare_enable(hw->bpc_clk);
-		if (ret) {
-			pr_err("dcam%d, bpc_clk enable fail\n", hw->idx);
-			clk_set_parent(hw->bpc_clk, hw->bpc_clk_default);
-			return ret;
-		}
-	}
-
-	if (hw->prj_id != SHARKL3) {
-		ret = clk_set_parent(hw->axi_clk, hw->clk_axi_parent);
-		if (ret) {
-			pr_err("dcam%d, set axi clk parent fail\n", hw->idx);
-			clk_set_parent(hw->axi_clk, hw->clk_axi_default);
-			return ret;
-		}
-		ret = clk_prepare_enable(hw->axi_clk);
-		if (ret) {
-			pr_err("dcam%d, axi_clk enable fail\n", hw->idx);
-			clk_set_parent(hw->axi_clk, hw->clk_axi_default);
-			return ret;
-		}
-	}
-
-	ret = clk_prepare_enable(hw->core_eb);
-	if (ret) {
-		pr_err("dcam%d, set eb fail\n", hw->idx);
-		clk_disable_unprepare(hw->clk);
-		return ret;
-	}
-	ret = clk_prepare_enable(hw->axi_eb);
-	if (ret) {
-		pr_err("dcam%d, set dcam axi clk fail\n", hw->idx);
-		clk_disable_unprepare(hw->clk);
-		clk_disable_unprepare(hw->core_eb);
-	}
-
-#endif /* TEST_ON_HAPS */
-
-	return ret;
-}
-
-static int dcam_disable_clk(struct sprd_cam_hw_info *hw, void *arg)
-{
-	int ret = 0;
-
-	pr_debug(", E\n");
-	if (atomic_dec_return(&clk_users) != 0) {
-		pr_info("Other using, users: %d\n",
-			atomic_read(&clk_users));
-		return 0;
-	}
-#ifndef TEST_ON_HAPS
-	if (!hw) {
-		pr_err("param erro\n");
-		return -EINVAL;
-	}
-	if (hw->prj_id == SHARKL3) {
-		clk_set_parent(hw->bpc_clk, hw->bpc_clk_default);
-		clk_disable_unprepare(hw->bpc_clk);
-	} else {
-		clk_set_parent(hw->axi_clk, hw->clk_axi_default);
-		clk_disable_unprepare(hw->axi_clk);
-	}
-	clk_set_parent(hw->clk, hw->clk_default);
-	clk_disable_unprepare(hw->clk);
-	clk_disable_unprepare(hw->axi_eb);
-	clk_disable_unprepare(hw->core_eb);
-#endif /* TEST_ON_HAPS */
-
-	return ret;
-}
-
-static int dcam_update_clk(struct sprd_cam_hw_info *hw, void *arg)
-{
-	int ret = 0;
-
-	pr_debug(", E\n");
-#ifndef TEST_ON_HAPS
-	pr_warn("Not support and no use, now\n");
-#endif /* TEST_ON_HAPS */
-
-	return ret;
-}
-
 /*
  * Initialize dcam_if hardware, power/clk/int should be prepared after this call
  * returns. It also brings the dcam_pipe_dev from INIT state to IDLE state.
  */
-static int dcam_hw_init(struct sprd_cam_hw_info *hw, void *arg)
+int dcam_hw_init(void *arg)
 {
 	int ret = 0;
+	struct dcam_pipe_dev *dev = NULL;
+	struct unisoc_cam_hw_info *hw = NULL;
 
-	if (unlikely(!hw)) {
-		pr_err("invalid param hw\n");
+	if (unlikely(!arg)) {
+		pr_err("fail to get invalid arg\n");
 		return -EINVAL;
 	}
+
+	dev = (struct dcam_pipe_dev *)arg;
+	hw = dev->hw;
 
 	ret = sprd_cam_pw_on();
 	ret = sprd_cam_domain_eb();
 	/* prepare clk */
-	dcam_enable_clk(hw, arg);
-	ret = dcam_irq_request(&hw->pdev->dev, hw->irq_no, arg);
+	hw->hw_ops.dcam_soc_ops.clk_enable(hw->soc_dcam);
+	ret = dcam_irq_request(&hw->pdev->dev,
+		hw->ip_dcam[dev->idx]->irq_no, arg);
 
 	return ret;
 }
@@ -182,60 +66,35 @@ static int dcam_hw_init(struct sprd_cam_hw_info *hw, void *arg)
  * Registers will be inaccessible and dcam_pipe_dev will enter INIT state from
  * IDLE state.
  */
-static int dcam_hw_deinit(struct sprd_cam_hw_info *hw, void *arg)
+int dcam_hw_deinit(void *arg)
 {
 	int ret = 0;
+	struct dcam_pipe_dev *dev = NULL;
+	struct unisoc_cam_hw_info *hw = NULL;
 
-	if (unlikely(!hw)) {
-		pr_err("invalid param hw\n");
+	if (unlikely(!arg)) {
+		pr_err("fail to get invalid arg\n");
 		return -EINVAL;
 	}
 
+	dev = (struct dcam_pipe_dev *)arg;
+	hw = dev->hw;
+
 	dcam_irq_free(&hw->pdev->dev, arg);
 	/* unprepare clk and other resource */
-	dcam_disable_clk(hw, arg);
+	hw->hw_ops.dcam_soc_ops.clk_disable(hw->soc_dcam);
 	ret = sprd_cam_domain_disable();
 	ret = sprd_cam_pw_off();
 
 	return ret;
 }
 
-/*
- * Interface to manipulate dcam_if hardware resource including power domain, clk
- * resource and interrupt status. Service related operation should be
- * implemented in a dcam_pipe_dev.
- */
-static struct sprd_cam_hw_ops s_dcam_ops = {
-	.init = dcam_hw_init,
-	.deinit = dcam_hw_deinit,
-	.enable_clk = dcam_enable_clk,
-	.disable_clk = dcam_disable_clk,
-	.update_clk = dcam_update_clk,
-	.trace_reg = dcam_reg_trace,
-};
-
-/*
- * This variable saves hardware resources for dcam_if. All <DCAM_ID_MAX> dcam_if
- * shares same clk and AXI resource on top level.
- *
- * Useful member for a dcam_if:
- * @idx:         index
- * @irq_no:      irq number for the dcam_if
- * @pdev:        related platform device object
- * @cam_ahb_gpr: register mapping of AHB bus
- * @phy_base:    physical base address for each dcam_if
- * @reg_base:    virtual register base address for each dcam_if
- */
-static struct sprd_cam_hw_info s_dcam_hw[DCAM_ID_MAX];
-
-/*
- * extract dcam hardware resource from dt
- */
 int dcam_if_parse_dt(struct platform_device *pdev,
-			struct sprd_cam_hw_info **dcam_hw,
+			struct unisoc_cam_hw_info *hw_info,
 			uint32_t *dcam_count)
 {
-	struct sprd_cam_hw_info *hw = NULL;
+	struct cam_hw_soc_info *soc_dcam = NULL;
+	struct cam_hw_ip_info *ip_dcam = NULL;
 	struct device_node *dn = NULL;
 	struct device_node *qos_node = NULL;
 	struct device_node *iommu_node = NULL;
@@ -251,8 +110,8 @@ int dcam_if_parse_dt(struct platform_device *pdev,
 
 	pr_info("start dcam dts parse\n");
 
-	if (unlikely(!pdev)) {
-		pr_err("invalid platform device\n");
+	if (!pdev || !hw_info) {
+		pr_err("fail to get pdev %p hw info %p\n", pdev, hw_info);
 		return -EINVAL;
 	}
 
@@ -276,6 +135,9 @@ int dcam_if_parse_dt(struct platform_device *pdev,
 	if (of_property_read_u32(dn, "sprd,project-id", &prj_id))
 		pr_info("fail to parse the property of sprd,projectj-id\n");
 
+	/* bounded kernel device node */
+	hw_info->pdev = pdev;
+	hw_info->prj_id = (enum unisoc_cam_prj_id) prj_id;
 
 	dcam_max_w = DCAM_PATH_WMAX;
 	dcam_max_h = DCAM_PATH_HMAX;
@@ -310,31 +172,109 @@ int dcam_if_parse_dt(struct platform_device *pdev,
 	}
 	pr_info("DCAM IOMMU Base  0x%lx\n", g_dcam_mmubase);
 
+	/* Start dcam soc related dt parse */
+	soc_dcam = hw_info->soc_dcam;
+	soc_dcam->pdev = pdev;
+	/* AHB bus register mapping */
+	soc_dcam->cam_ahb_gpr = ahb_map;
+	/* qos dt parse */
+	qos_node = of_parse_phandle(dn, "dcam_qos", 0);
+	if (qos_node) {
+		uint8_t val;
+
+		if (of_property_read_u8(qos_node, "awqos-high", &val)) {
+			pr_warn("isp awqos-high reading fail.\n");
+			val = 0xD;
+		}
+		soc_dcam->awqos_high = (uint32_t)val;
+
+		if (of_property_read_u8(qos_node, "awqos-low", &val)) {
+			pr_warn("isp awqos-low reading fail.\n");
+			val = 0xA;
+		}
+		soc_dcam->awqos_low = (uint32_t)val;
+
+		if (of_property_read_u8(qos_node, "arqos", &val)) {
+			pr_warn("isp arqos-high reading fail.\n");
+			val = 0xA;
+		}
+		soc_dcam->arqos_high = val;
+		soc_dcam->arqos_low = val;
+
+		pr_info("get dcam qos node. r: %d %d w: %d %d\n",
+			soc_dcam->arqos_high, soc_dcam->arqos_low,
+			soc_dcam->awqos_high, soc_dcam->awqos_low);
+	} else {
+		soc_dcam->awqos_high = 0xD;
+		soc_dcam->awqos_low = 0xA;
+		soc_dcam->arqos_high = 0xA;
+		soc_dcam->arqos_low = 0xA;
+	}
+
+	/* read dcam clk */
+	soc_dcam->core_eb = of_clk_get_by_name(dn, "dcam_eb");
+	if (IS_ERR_OR_NULL(soc_dcam->core_eb)) {
+		pr_err("read clk fail, dcam_eb\n");
+		goto err_iounmap;
+	}
+	soc_dcam->axi_eb = of_clk_get_by_name(dn, "dcam_axi_eb");
+	if (IS_ERR_OR_NULL(soc_dcam->axi_eb)) {
+		pr_err("read clk fail, dcam_axi_eb\n");
+		goto err_iounmap;
+	}
+	soc_dcam->clk = of_clk_get_by_name(dn, "dcam_clk");
+	if (IS_ERR_OR_NULL(soc_dcam->clk)) {
+		pr_err("read clk fail, dcam_clk\n");
+		goto err_iounmap;
+	}
+	soc_dcam->clk_parent = of_clk_get_by_name(dn, "dcam_clk_parent");
+	if (IS_ERR_OR_NULL(soc_dcam->clk_parent)) {
+		pr_err("read clk fail, dcam_clk_parent\n");
+		goto err_iounmap;
+	}
+	soc_dcam->clk_default = clk_get_parent(soc_dcam->clk);
+	if (hw_info->prj_id == SHARKL3) {
+		soc_dcam->bpc_clk = of_clk_get_by_name(dn, "dcam_bpc_clk");
+		if (IS_ERR_OR_NULL(soc_dcam->bpc_clk)) {
+			pr_err("fail to get dcam_bpc_clk\n");
+			goto err_iounmap;
+		}
+		soc_dcam->bpc_clk_parent =
+			of_clk_get_by_name(dn, "dcam_bpc_clk_parent");
+		if (IS_ERR_OR_NULL(soc_dcam->bpc_clk_parent)) {
+			pr_err("fail to get dcam_bpc_clk_parent\n");
+			goto err_iounmap;
+		}
+		soc_dcam->bpc_clk_default = clk_get_parent(soc_dcam->bpc_clk);
+	}
+
+	if (hw_info->prj_id != SHARKL3) {
+		soc_dcam->axi_clk = of_clk_get_by_name(dn, "dcam_axi_clk");
+		if (IS_ERR_OR_NULL(soc_dcam->clk)) {
+			pr_err("read clk fail, axi_clk\n");
+			goto err_iounmap;
+		}
+		soc_dcam->axi_clk_parent =
+			of_clk_get_by_name(dn, "dcam_axi_clk_parent");
+		if (IS_ERR_OR_NULL(soc_dcam->clk_parent)) {
+			pr_err("read clk fail, axi_clk_parent\n");
+			goto err_iounmap;
+		}
+		soc_dcam->axi_clk_default = clk_get_parent(soc_dcam->axi_clk);
+	}
+
 	args_count = syscon_get_args_by_name(dn, "dcam_all_reset", sizeof(args), args);
 	if (args_count != ARRAY_SIZE(args)) {
 		pr_err("fail to get dcam all reset syscon\n");
 		return -EINVAL;
 	}
-
 	for (i = 0; i < count; i++) {
-		hw = &s_dcam_hw[i];
-
+		ip_dcam = hw_info->ip_dcam[i];
 		/* DCAM index */
-		hw->idx = i;
-
+		ip_dcam->idx = i;
 		/* Assign project ID, DCAM Max Height & Width Info */
-		hw->prj_id = (enum sprd_cam_prj_id) prj_id;
-		hw->path_max_width = dcam_max_w;
-		hw->path_max_height = dcam_max_h;
-
-		/* bounded kernel device node */
-		hw->pdev = pdev;
-
-		/* AHB bus register mapping */
-		hw->cam_ahb_gpr = ahb_map;
-
-		/* resource related hw ops */
-		hw->ops = &s_dcam_ops;
+		ip_dcam->max_width = dcam_max_w;
+		ip_dcam->max_height = dcam_max_h;
 
 		/* irq */
 		irq = of_irq_to_resource(dn, i, &irq_res);
@@ -342,14 +282,14 @@ int dcam_if_parse_dt(struct platform_device *pdev,
 			pr_err("fail to get DCAM%d irq, error: %d\n", i, irq);
 			goto err_iounmap;
 		}
-		hw->irq_no = (uint32_t) irq;
+		ip_dcam->irq_no = (uint32_t) irq;
 
 		/* DCAM register mapping */
 		if (of_address_to_resource(dn, i, &reg_res)) {
 			pr_err("fail to get DCAM%d phy addr\n", i);
 			goto err_iounmap;
 		}
-		hw->phy_base = (unsigned long) reg_res.start;
+		ip_dcam->phy_base = (unsigned long) reg_res.start;
 
 		reg_base = ioremap(reg_res.start,
 					reg_res.end - reg_res.start + 1);
@@ -357,115 +297,25 @@ int dcam_if_parse_dt(struct platform_device *pdev,
 			pr_err("fail to map DCAM%d reg base\n", i);
 			goto err_iounmap;
 		}
-		hw->reg_base = (unsigned long) reg_base;
+		ip_dcam->reg_base = (unsigned long) reg_base;
 		g_dcam_regbase[i] = (unsigned long)reg_base; /* TODO */
 
 		pr_info("DCAM%d reg: %s 0x%lx %lx, irq: %s %u\n", i,
-			reg_res.name, hw->phy_base, hw->reg_base,
-			irq_res.name, hw->irq_no);
+			reg_res.name, ip_dcam->phy_base, ip_dcam->reg_base,
+			irq_res.name, ip_dcam->irq_no);
 
-		hw->syscon.all_rst = args[0];
-		hw->syscon.all_rst_mask = args[1];
+		ip_dcam->syscon.all_rst = args[0];
+		ip_dcam->syscon.all_rst_mask = args[1];
 		sprintf(dcam_name, "dcam%d_reset", i);
 		args_count = syscon_get_args_by_name(dn, dcam_name,
 			sizeof(args), args);
 		if (args_count == ARRAY_SIZE(args)) {
-			hw->syscon.rst = args[0];
-			hw->syscon.rst_mask = args[1];
+			ip_dcam->syscon.rst = args[0];
+			ip_dcam->syscon.rst_mask = args[1];
 		} else {
 			pr_err("fail to get dcam%d reset syscon\n", i);
 			goto err_iounmap;
 		}
-
-		/* qos dt parse */
-		qos_node = of_parse_phandle(dn, "dcam_qos", 0);
-		if (qos_node) {
-			uint8_t val;
-
-			if (of_property_read_u8(qos_node, "awqos-high", &val)) {
-				pr_warn("isp awqos-high reading fail.\n");
-				val = 0xD;
-			}
-			hw->awqos_high = (uint32_t)val;
-
-			if (of_property_read_u8(qos_node, "awqos-low", &val)) {
-				pr_warn("isp awqos-low reading fail.\n");
-				val = 0xA;
-			}
-			hw->awqos_low = (uint32_t)val;
-
-			if (of_property_read_u8(qos_node, "arqos", &val)) {
-				pr_warn("isp arqos-high reading fail.\n");
-				val = 0xA;
-			}
-			hw->arqos_high = val;
-			hw->arqos_low = val;
-
-			pr_info("get dcam qos node. r: %d %d w: %d %d\n",
-				hw->arqos_high, hw->arqos_low,
-				hw->awqos_high, hw->awqos_low);
-		} else {
-			hw->awqos_high = 0xD;
-			hw->awqos_low = 0xA;
-			hw->arqos_high = 0xA;
-			hw->arqos_low = 0xA;
-		}
-
-#ifndef TEST_ON_HAPS
-		/* read dcam clk */
-		hw->core_eb = of_clk_get_by_name(dn, "dcam_eb");
-		if (IS_ERR_OR_NULL(hw->core_eb)) {
-			pr_err("read clk fail, dcam_eb\n");
-			goto err_iounmap;
-		}
-		hw->axi_eb = of_clk_get_by_name(dn, "dcam_axi_eb");
-		if (IS_ERR_OR_NULL(hw->axi_eb)) {
-			pr_err("read clk fail, dcam_axi_eb\n");
-			goto err_iounmap;
-		}
-		hw->clk = of_clk_get_by_name(dn, "dcam_clk");
-		if (IS_ERR_OR_NULL(hw->clk)) {
-			pr_err("read clk fail, dcam_clk\n");
-			goto err_iounmap;
-		}
-		hw->clk_parent = of_clk_get_by_name(dn, "dcam_clk_parent");
-		if (IS_ERR_OR_NULL(hw->clk_parent)) {
-			pr_err("read clk fail, dcam_clk_parent\n");
-			goto err_iounmap;
-		}
-		hw->clk_default = clk_get_parent(hw->clk);
-		if (hw->prj_id == SHARKL3) {
-			hw->bpc_clk = of_clk_get_by_name(dn, "dcam_bpc_clk");
-			if (IS_ERR_OR_NULL(hw->bpc_clk)) {
-				pr_err("fail to get dcam_bpc_clk\n");
-				return PTR_ERR(hw->bpc_clk);
-			}
-			hw->bpc_clk_parent =
-				of_clk_get_by_name(dn, "dcam_bpc_clk_parent");
-			if (IS_ERR_OR_NULL(hw->bpc_clk_parent)) {
-				pr_err("fail to get dcam_bpc_clk_parent\n");
-				return PTR_ERR(hw->bpc_clk_parent);
-			}
-			hw->bpc_clk_default = clk_get_parent(hw->bpc_clk);
-		}
-
-		if (hw->prj_id != SHARKL3) {
-			hw->axi_clk = of_clk_get_by_name(dn, "dcam_axi_clk");
-			if (IS_ERR_OR_NULL(hw->clk)) {
-				pr_err("read clk fail, axi_clk\n");
-				goto err_iounmap;
-			}
-			hw->clk_axi_parent =
-				of_clk_get_by_name(dn, "dcam_axi_clk_parent");
-			if (IS_ERR_OR_NULL(hw->clk_parent)) {
-				pr_err("read clk fail, dcam_clk_parent\n");
-				goto err_iounmap;
-			}
-			hw->clk_axi_default = clk_get_parent(hw->axi_clk);
-		}
-#endif /* TEST_ON_HAPS */
-
-		dcam_hw[i] = hw;
 	}
 
 	if (of_address_to_resource(dn, i, &reg_res)) {
@@ -479,6 +329,7 @@ int dcam_if_parse_dt(struct platform_device *pdev,
 		goto err_iounmap;
 	}
 	g_dcam_aximbase = (unsigned long)reg_base; /* TODO */
+	soc_dcam->axi_reg_base = (unsigned long)reg_base;
 
 	pr_info("DCAM AXIM reg: %s %lx\n", reg_res.name, g_dcam_aximbase);
 
@@ -488,7 +339,7 @@ int dcam_if_parse_dt(struct platform_device *pdev,
 
 err_iounmap:
 	for (i = i - 1; i >= 0; i--)
-		iounmap((void __iomem *)(dcam_hw[0]->reg_base));
+		iounmap((void __iomem *)(hw_info->ip_dcam[0]->reg_base));
 	iounmap((void __iomem *)g_dcam_mmubase);
 	g_dcam_mmubase = 0;
 

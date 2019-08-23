@@ -19,7 +19,7 @@
 #include <linux/platform_device.h>
 
 #include "cam_buf.h"
-
+#include "isp_interface.h"
 
 enum cfg_buf_id {
 	CFG_BUF_SHADOW = 0,
@@ -78,6 +78,7 @@ struct isp_cfg_ctx_desc {
 	atomic_t  user_cnt;
 	atomic_t  map_cnt;
 	struct isp_cfg_ops *ops;
+	struct cam_hw_ops *hw_ops;
 };
 
 struct isp_cfg_ops {

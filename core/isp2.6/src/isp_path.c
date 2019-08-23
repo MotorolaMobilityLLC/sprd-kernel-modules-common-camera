@@ -28,7 +28,6 @@
 #include "isp_interface.h"
 #include "isp_core.h"
 #include "isp_path.h"
-#include "isp_hw_if.h"
 
 #ifdef pr_fmt
 #undef pr_fmt
@@ -1423,6 +1422,7 @@ int isp_set_path(struct isp_path_desc *path)
 {
 	int ret = 0;
 	enum isp_afbc_path afbc_path_id = 0;
+	struct unisoc_cam_hw_info *hw = NULL;
 
 	if (!path) {
 		pr_err("error input ptr: null\n");
@@ -1430,6 +1430,7 @@ int isp_set_path(struct isp_path_desc *path)
 	}
 
 	afbc_path_id = (enum isp_afbc_path)path->spath_id;
+	hw = path->hw;
 
 	pr_info("enter.\n");
 	if (path->spath_id == ISP_SPATH_FD) {
@@ -1439,8 +1440,9 @@ int isp_set_path(struct isp_path_desc *path)
 		set_path_scaler(path);
 	}
 	set_path_store(path);
-	if (afbc_path_id < AFBC_PATH_NUM)
-		set_path_afbc_store(path);
+	if (afbc_path_id < AFBC_PATH_NUM
+		&& hw->hw_ops.core_ops.isp_afbc_path_set)
+		hw->hw_ops.core_ops.isp_afbc_path_set(path);
 	pr_info("done.\n");
 	return ret;
 }
@@ -1526,12 +1528,14 @@ int isp_path_set_afbc_store_frm(
 	unsigned long yuv_addr[2] = {0};
 	struct isp_pipe_context *pctx = NULL;
 	struct isp_afbc_store_info *afbc_store = NULL;
+	struct unisoc_cam_hw_info *hw = NULL;
 
 	if (!path || !frame) {
 		pr_err("error input ptr: null\n");
 		return -EINVAL;
 	}
 	pr_debug("afbc enter.\n");
+	hw = path->hw;
 	pctx = path->attach_ctx;
 	afbc_store = &path->afbc_store;
 	idx = pctx->ctx_id;
@@ -1542,7 +1546,9 @@ int isp_path_set_afbc_store_frm(
 	if (yuv_addr[1] == 0)
 		yuv_addr[1] = yuv_addr[0] + afbc_store->header_offset;
 
-	isp_set_afbc_store_addr(idx, path->spath_id, yuv_addr);
+	if (hw->hw_ops.core_ops.isp_afbc_addr_set)
+		hw->hw_ops.core_ops.isp_afbc_addr_set(idx,
+			path->spath_id, yuv_addr);
 
 	path->afbc_store.yheader= yuv_addr[0];
 	path->afbc_store.yaddr = yuv_addr[1];
@@ -1561,6 +1567,7 @@ int isp_path_set_fetch_frm(struct isp_pipe_context *pctx,
 	int planes;
 	unsigned long offset_u, offset_v, yuv_addr[3] = {0};
 	struct isp_fetch_info *fetch = &pctx->fetch;
+	struct unisoc_cam_hw_info *hw = NULL;
 
 	if (!pctx || !frame) {
 		pr_err("error input ptr: null\n");
@@ -1569,28 +1576,31 @@ int isp_path_set_fetch_frm(struct isp_pipe_context *pctx,
 	pr_debug("enter.\n");
 
 	idx = pctx->ctx_id;
+	hw = pctx->hw;
 
 	if (pctx->fetch_path_sel) {
-		struct compressed_addr compressed_addr;
+		struct compressed_addr fbd_addr;
 		struct isp_fbd_raw_info *fbd_raw;
 
 		fbd_raw = &pctx->fbd_raw;
 		dcam_if_cal_compressed_addr(pctx->input_size.w,
 					    pctx->input_size.h,
 					    frame->buf.iova[0],
-					    &compressed_addr,
+					    &fbd_addr,
 					    frame->compress_4bit_bypass);
-		isp_set_fbd_fetch_addr(idx, compressed_addr, fbd_raw);
+		if (hw->hw_ops.core_ops.isp_fbd_addr_set)
+			hw->hw_ops.core_ops.isp_fbd_addr_set(idx,
+					&fbd_addr, fbd_raw);
 		/* store start address for slice use */
-		fbd_raw->header_addr_init = compressed_addr.addr1;
-		fbd_raw->tile_addr_init_x256 = compressed_addr.addr1;
-		fbd_raw->low_bit_addr_init = compressed_addr.addr2;
+		fbd_raw->header_addr_init = fbd_addr.addr1;
+		fbd_raw->tile_addr_init_x256 = fbd_addr.addr1;
+		fbd_raw->low_bit_addr_init = fbd_addr.addr2;
 		if (0 == fbd_raw->fetch_fbd_4bit_bypass)
-			fbd_raw->low_4bit_addr_init = compressed_addr.addr3;
+			fbd_raw->low_4bit_addr_init = fbd_addr.addr3;
 
 		pr_debug("fetch_fbd: %u 0x%lx 0x%lx, 0x%lx, size %u %u\n",
-			 frame->fid, compressed_addr.addr0,
-			 compressed_addr.addr1, compressed_addr.addr2,
+			 frame->fid, fbd_addr.addr0,
+			 fbd_addr.addr1, fbd_addr.addr2,
 			 pctx->input_size.w, pctx->input_size.h);
 
 		return 0;

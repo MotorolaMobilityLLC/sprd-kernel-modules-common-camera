@@ -218,7 +218,7 @@ struct dcam_pipe_dev {
 	struct dcam_sync_helper helpers[DCAM_SYNC_HELPER_COUNT];
 	struct dcam_image_replacer *replacer;
 
-	struct sprd_cam_hw_info *hw;
+	struct unisoc_cam_hw_info *hw;
 
 	spinlock_t glb_reg_lock;
 	bool  dcamsec_eb;
@@ -278,8 +278,4 @@ struct dcam_sync_helper *dcam_get_sync_helper(struct dcam_pipe_dev *dev);
  */
 void dcam_put_sync_helper(struct dcam_pipe_dev *dev,
 			  struct dcam_sync_helper *helper);
-
-void dcam_force_copy(struct dcam_pipe_dev *dev, uint32_t id);
-void dcam_auto_copy(struct dcam_pipe_dev *dev, uint32_t id);
-
 #endif

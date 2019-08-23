@@ -31,7 +31,6 @@
 #include "dcam_int.h"
 #include "dcam_core.h"
 #include "dcam_path.h"
-#include "dcam_hw_if.h"
 
 /* Macro Definitions */
 #ifdef pr_fmt
@@ -171,7 +170,7 @@ int dcam_cfg_path_size(void *dcam_handle,
 	struct img_size crop_size, dst_size;
 	struct dcam_pipe_dev *dev = NULL;
 	struct dcam_path_cfg_param *ch_desc;
-	struct sprd_cam_hw_info *hw = NULL;
+	struct unisoc_cam_hw_info *hw = NULL;
 	uint32_t dcam_max_w = 0, dcam_max_h = 0;
 
 	if (!dcam_handle || !path || !param) {
@@ -184,11 +183,11 @@ int dcam_cfg_path_size(void *dcam_handle,
 		pr_err("hw ptr is NULL.\n");
 		return -EFAULT;
 	}
-	dcam_max_w = hw->path_max_width;
-	dcam_max_h = hw->path_max_height;
 
 	ch_desc = (struct dcam_path_cfg_param *)param;
 	idx = dev->idx;
+	dcam_max_w = hw->ip_dcam[idx]->max_width;
+	dcam_max_h = hw->ip_dcam[idx]->max_height;
 
 	switch (path->path_id) {
 	case DCAM_PATH_FULL:
@@ -435,21 +434,22 @@ int dcam_path_set_store_frm(void *dcam_handle,
 			    struct dcam_sync_helper *helper)
 {
 	struct dcam_pipe_dev *dev = NULL;
+	struct unisoc_cam_hw_info *hw = NULL;
 	struct camera_frame *frame = NULL, *saved = NULL;
-	struct dcam_if *dcam = NULL;
 	uint32_t idx = 0, path_id = 0;
 	unsigned long flags = 0, addr = 0;
 	const int _bin = 0, _aem = 1, _hist = 2;
 	int i = 0, ret = 0;
-	unsigned long *addr2_store = NULL;
+	uint32_t slm_path = 0;
 
 	if (unlikely(!dcam_handle || !path))
 		return -EINVAL;
 
 	dev = (struct dcam_pipe_dev *)dcam_handle;
+	hw = dev->hw;
 	idx = dev->idx;
 	path_id = path->path_id;
-	dev->auto_cpy_id |= dcam_get_path_ctrl_id(path_id);
+	dev->auto_cpy_id |= *(hw->ip_dcam[idx]->path_ctrl_id_tab + path_id);
 
 	pr_debug("DCAM%u %s enter\n", idx, to_path_name(path_id));
 
@@ -462,8 +462,7 @@ int dcam_path_set_store_frm(void *dcam_handle,
 
 	if (idx == DCAM_ID_2) {
 		/* dcam2 path0 ~ full path */
-		addr2_store = dcam_get_dcam2_store_addr();
-		addr = addr2_store[path_id];
+		addr = *(hw->ip_dcam[idx]->store_addr_tab + path_id);
 	} else if (dev->slowmotion_count && path_id == DCAM_PATH_AEM) {
 		/* slow motion AEM */
 		addr = slowmotion_store_addr[_aem][i];
@@ -489,15 +488,16 @@ int dcam_path_set_store_frm(void *dcam_handle,
 	if (saved)
 		swap_frame_pointer(&frame, &saved);
 	if (frame->is_compressed) {
-		struct compressed_addr compressed_addr;
+		struct compressed_addr fbc_addr;
 		struct img_size *size = &path->out_size;
 
 		dcam_if_cal_compressed_addr(size->w, size->h,
 					    frame->buf.iova[0],
-					    &compressed_addr,
+					    &fbc_addr,
 					    frame->compress_4bit_bypass);
-
-		dcam_compressed_addr_set(idx, addr, compressed_addr);
+		if (hw->hw_ops.core_ops.dcam_fbc_addr_set)
+			hw->hw_ops.core_ops.dcam_fbc_addr_set(idx,
+				addr, &fbc_addr);
 	} else {
 		DCAM_REG_WR(idx, addr, frame->buf.iova[0]);
 	}
@@ -536,7 +536,7 @@ int dcam_path_set_store_frm(void *dcam_handle,
 		 */
 		if (spin_trylock_irqsave(&path->size_lock, flags)) {
 			if (path->size_update && !frame->is_reserved) {
-				dcam_update_path_size(dev, path);
+				hw->hw_ops.core_ops.path_size_update(dev, path);
 				frame->param_data = path->priv_size_data;
 				path->size_update = 0;
 				path->priv_size_data = NULL;
@@ -559,10 +559,10 @@ int dcam_path_set_store_frm(void *dcam_handle,
 		}
 	}
 
-	dcam = dcam_get_dcam_if(idx);
+	slm_path = hw->ip_dcam[idx]->slm_path;
 	if (dev->slowmotion_count && !dev->index_to_set &&
-	    (path_id == DCAM_PATH_AEM || path_id == DCAM_PATH_HIST) &&
-	    dcam && (dcam->slowmotion_path & BIT(path_id))) {
+	    (path_id == DCAM_PATH_AEM || path_id == DCAM_PATH_HIST)
+	    && (slm_path & BIT(path_id))) {
 		/* configure reserved buffer for AEM and hist */
 		frame = camera_dequeue(&path->reserved_buf_queue);
 		if (!frame) {

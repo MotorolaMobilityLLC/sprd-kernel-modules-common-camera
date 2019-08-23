@@ -49,14 +49,16 @@ int dcam_init_lsc(void *in, uint32_t online)
 	uint32_t val, lens_load_flag;
 	uint32_t buf_sel, offset, hw_addr;
 	uint16_t *w_buff = NULL, *gain_tab = NULL;
-	struct dcam_dev_lsc_info *info;
-	struct dcam_dev_lsc_param *param;
+	struct dcam_dev_lsc_info *info = NULL;
+	struct dcam_dev_lsc_param *param = NULL;
 	struct dcam_pipe_dev *dev = (struct dcam_pipe_dev *)in;
+	struct unisoc_cam_hw_info *hw = NULL;
 
+	hw = dev->hw;
 	param = &dev->blk_dcam_pm->lsc;
 	if (!param->update) {
 		/* need, because other block need coef */
-		dcam_force_copy(dev, DCAM_CTRL_BIN);
+		hw->hw_ops.core_ops.force_copy(DCAM_CTRL_BIN, dev);
 		return 0;
 	}
 
@@ -70,7 +72,7 @@ int dcam_init_lsc(void *in, uint32_t online)
 	if (info->bypass) {
 		pr_debug("bypass\n");
 		DCAM_REG_MWR(idx, DCAM_LENS_LOAD_ENABLE, BIT_0, 1);
-		dcam_force_copy(dev, DCAM_CTRL_BIN);
+		hw->hw_ops.core_ops.force_copy(DCAM_CTRL_BIN, dev);
 		return 0;
 	}
 
@@ -125,7 +127,7 @@ int dcam_init_lsc(void *in, uint32_t online)
 	DCAM_REG_MWR(idx, DCAM_LENS_LOAD_ENABLE, BIT_0, 0);
 
 	/* force copy for init */
-	dcam_force_copy(dev, DCAM_CTRL_BIN);
+	hw->hw_ops.core_ops.force_copy(DCAM_CTRL_BIN, dev);
 
 	/* step3: config grid x y */
 	val = ((info->grid_width & 0x1ff) << 16) |
@@ -153,7 +155,7 @@ int dcam_init_lsc(void *in, uint32_t online)
 	DCAM_REG_MWR(idx, DCAM_LENS_LOAD_ENABLE, BIT_1, buf_sel << 1);
 	pr_info("buf_sel %d\n", buf_sel);
 
-	dcam_force_copy(dev, DCAM_CTRL_BIN);
+	hw->hw_ops.core_ops.force_copy(DCAM_CTRL_BIN, dev);
 
 	pr_debug("w %d,  grid len %d grid %d  num_t %d (%d, %d)\n",
 		info->weight_num, info->gridtab_len, info->grid_width,
@@ -163,7 +165,7 @@ int dcam_init_lsc(void *in, uint32_t online)
 exit:
 	/* bypass lsc if there is exception */
 	DCAM_REG_MWR(idx, DCAM_LENS_LOAD_ENABLE, BIT_0, 1);
-	dcam_force_copy(dev, DCAM_CTRL_BIN);
+	hw->hw_ops.core_ops.force_copy(DCAM_CTRL_BIN, dev);
 	return ret;
 }
 
@@ -176,10 +178,12 @@ int dcam_update_lsc(void *in)
 	uint32_t val, lens_load_flag;
 	uint32_t buf_sel, offset, hw_addr;
 	uint16_t *w_buff = NULL, *gain_tab = NULL;
-	struct dcam_dev_lsc_info *info;
-	struct dcam_dev_lsc_param *param;
+	struct dcam_dev_lsc_info *info = NULL;
+	struct dcam_dev_lsc_param *param = NULL;
 	struct dcam_pipe_dev *dev = (struct dcam_pipe_dev *)in;
+	struct unisoc_cam_hw_info *hw = NULL;
 
+	hw = dev->hw;
 	param = &dev->blk_dcam_pm->lsc;
 	if (!param->update) {
 		return 0;
@@ -262,7 +266,7 @@ int dcam_update_lsc(void *in)
 		pr_debug("frame %d, buf_sel %d\n", dev->frame_index, buf_sel);
 
 		/*  auto cpy lens registers next sof */
-		dcam_auto_copy(dev, DCAM_CTRL_BIN);
+		hw->hw_ops.core_ops.auto_copy(DCAM_CTRL_BIN, dev);
 	}
 
 	DCAM_REG_MWR(idx, DCAM_LENS_LOAD_CLR, BIT_1, (1 << 1));

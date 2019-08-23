@@ -72,7 +72,12 @@ endif
 
 ifeq ($(BSP_BOARD_CAMERA_MODULE_ISP_VERSION),isp2.6)
 ccflags-y += -I$(LOCAL_PATH)/$(ISP_DIR)/adpt/$(ADAPT_DIR)/inc
+endif
+
+ifeq ($(BSP_BOARD_CAMERA_MODULE_ISP_ADAPT_VERSION), sharkl3)
 ccflags-y += -DPROJ_SHARKL3
+else ifeq ($(BSP_BOARD_CAMERA_MODULE_ISP_ADAPT_VERSION), sharkl5pro)
+ccflags-y += -DPROJ_SHARKL5PRO
 endif
 
 .PHONY:modules

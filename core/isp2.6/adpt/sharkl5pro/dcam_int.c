@@ -441,11 +441,13 @@ static enum dcam_fix_result dcam_fix_index_if_needed(struct dcam_pipe_dev *dev)
 static void dcam_cap_sof(void *param)
 {
 	struct dcam_pipe_dev *dev = (struct dcam_pipe_dev *)param;
-	struct dcam_path_desc *path;
+	struct unisoc_cam_hw_info *hw = NULL;
+	struct dcam_path_desc *path = NULL;
 	struct dcam_sync_helper *helper = NULL;
 	enum dcam_fix_result fix_result;
 	int i;
 
+	hw = dev->hw;
 	fix_result = dcam_fix_index_if_needed(dev);
 	if (fix_result == DEFER_TO_NEXT)
 		return;
@@ -497,7 +499,7 @@ static void dcam_cap_sof(void *param)
 	}
 
 dispatch_sof:
-	dcam_auto_copy(dev, dev->auto_cpy_id);
+	hw->hw_ops.core_ops.auto_copy(dev->auto_cpy_id, dev);
 	dev->auto_cpy_id = 0;
 
 	if (!dev->slowmotion_count

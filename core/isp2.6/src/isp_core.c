@@ -11,7 +11,6 @@
  * GNU General Public License for more details.
  */
 
-
 #include <linux/of.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
@@ -50,7 +49,6 @@
 
 #include "isp_cfg.h"
 #include "isp_fmcu.h"
-#include "isp_hw_if.h"
 
 #ifdef pr_fmt
 #undef pr_fmt
@@ -59,591 +57,15 @@
 	fmt, current->pid, __LINE__, __func__
 
 unsigned long *isp_cfg_poll_addr[ISP_CONTEXT_SW_NUM];
-
-
 static int sprd_isp_put_context(
 	void *isp_handle, int ctx_id);
-
 static int sprd_isp_put_path(
 	void *isp_handle, int ctx_id, int path_id);
-
 static int isp_slice_ctx_init(struct isp_pipe_context *pctx, uint32_t *multi_slice);
-
-
-/* isp debug fs starts */
-#define DBG_REGISTER
-#define WORK_MODE_SLEN  2
-#define LBUF_LEN_SLEN  8
-
-static struct dentry *debugfs_base;
-static uint32_t s_dbg_linebuf_len = ISP_LINE_BUFFER_W;
-static int s_dbg_work_mode = ISP_CFG_MODE;
-uint32_t g_isp_bypass[ISP_CONTEXT_SW_NUM] = { 0, 0, 0, 0, 0, 0 };
-static uint32_t debug_ctx_id[4] = {0, 1, 2, 3};
-int g_dbg_iommu_mode = IOMMU_AUTO;
-int g_dbg_set_iommu_mode = IOMMU_AUTO;
-
 static DEFINE_MUTEX(isp_pipe_dev_mutex);
-static struct isp_pipe_dev *s_isp_dev;
-
-
-#ifdef DBG_REGISTER
-static int reg_buf_show(struct seq_file *s, void *unused)
-{
-	debug_show_ctx_reg_buf((void *)s);
-	return 0;
-}
-
-static int reg_buf_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, reg_buf_show, inode->i_private);
-}
-
-static const struct file_operations reg_buf_ops = {
-	.owner =	THIS_MODULE,
-	.open = reg_buf_open,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = single_release,
-};
-#endif
-
-static int bypass_read(struct seq_file *s, void *unused)
-{
-
-	uint32_t addr, val;
-	uint32_t idx = *((uint32_t *)s->private);
-	struct bypass_tag dat;
-	int i;
-
-	if (!s_isp_dev) { /* isp not working */
-		seq_printf(s, "isp hardware not working, can't read\n");
-		return 0;
-	}
-	seq_printf(s, "===========isp context %d=============\n", idx);
-	for (i = 0; i < isp_tb_bypass_get_count(); i++) {
-		if (isp_tb_bypass_get_data(i) == NULL)
-			continue;
-		dat = *isp_tb_bypass_get_data(i);
-		if (dat.p == NULL)
-			continue;
-
-		addr = dat.addr;
-		val = ISP_REG_RD(idx, addr) & (1 << dat.bpos);
-		if (val)
-			seq_printf(s, "%s:%d  bypass\n", dat.p, val);
-		else
-			seq_printf(s, "%s:%d  work\n", dat.p, val);
-	}
-	seq_puts(s, "\nall:1 //bypass all except preview path\n");
-	seq_puts(s, "\nltm:1 //(ltm-hist,ltm-map)\n");
-	seq_puts(s, "\nr3:1 //or 3dnr:1(all of 3dnr block)\n");
-
-	return 0;
-}
-
-static ssize_t bypass_write(struct file *filp,
-		const char __user *buffer, size_t count, loff_t *ppos)
-{
-	struct seq_file *p = (struct seq_file *)filp->private_data;
-	uint32_t idx = *((uint32_t *)p->private);
-	char buf[256];
-	uint32_t val = 2;
-	struct bypass_tag dat;
-	int i;
-	char name[16 + 1];
-	uint32_t bypass_all = 0;
-
-	if (!s_isp_dev) { /* isp not working */
-		pr_warn("isp hardware not working, can't write\n");
-		return count;
-	}
-	memset(buf, 0x00, sizeof(buf));
-	i = count;
-	if (i >= sizeof(buf))
-		i = sizeof(buf) - 1; /* last one for \0 */
-	if (copy_from_user(buf, buffer, i)) {
-		pr_err("fail to get user info\n");
-		return -EFAULT;
-	}
-	buf[i] = '\0';
-	/* get name */
-	for (i = 0; i < sizeof(name) - 1; i++) {
-		if (' ' == buf[i] || ':' == buf[i] ||
-			',' == buf[i])
-			break;
-		/* to lowwer */
-		if (buf[i] >= 'A' && buf[i] <= 'Z')
-			buf[i] += ('a' - 'A');
-		name[i] = buf[i];
-	}
-	name[i] = '\0';
-	/* get val */
-	for (; i < sizeof(buf); i++) {
-		if (buf[i] >= '0' && buf[i] <= '9') {
-			val = buf[i] - '0';
-			break;
-		}
-	}
-	val = val != 0 ? 1 : 0;
-	/* find */
-	if (strcmp(name, "all") == 0) {
-		bypass_all = 1;
-	} else { /* check special: ltm, nr3 */
-		if (strcmp(name, "ltm") == 0) {
-			ISP_REG_MWR(idx, ISP_LTM_HIST_PARAM, BIT_0, val);
-			ISP_REG_MWR(idx, ISP_LTM_MAP_PARAM0, BIT_0, val);
-			g_isp_bypass[idx] &= (~(1 << _EISP_LTM));
-			if (val)
-				g_isp_bypass[idx] |= (1 << _EISP_LTM);
-			return count;
-		} else if (strcmp(name, "nr3") == 0 ||
-			strcmp(name, "3dnr") == 0) {
-			g_isp_bypass[idx] &= (~(1 << _EISP_NR3));
-			if (val)
-				g_isp_bypass[idx] |= (1 << _EISP_NR3);
-			ISP_REG_MWR(idx, ISP_3DNR_MEM_CTRL_PARAM0, BIT_0, val);
-			ISP_REG_MWR(idx, ISP_3DNR_BLEND_CONTROL0, BIT_0, val);
-			ISP_REG_MWR(idx, ISP_3DNR_STORE_PARAM, BIT_0, val);
-			ISP_REG_MWR(idx, ISP_3DNR_MEM_CTRL_PRE_PARAM0, BIT_0, val);
-			/* ISP_HREG_MWR(ISP_FBC_3DNR_STORE_PARAM, BIT_0, val); */
-			return count;
-		}
-	}
-	for (i = 0; i < isp_tb_bypass_get_count(); i++) {
-		if (isp_tb_bypass_get_data(i) == NULL)
-			continue;
-		if (isp_tb_bypass_get_data(i)->p == NULL)
-			continue;
-		if (strcmp(isp_tb_bypass_get_data(i)->p, name) == 0 || bypass_all) {
-			dat = *isp_tb_bypass_get_data(i);
-			pr_debug("set isp addr 0x%x, bit %d val %d\n",
-				dat.addr, dat.bpos, val);
-			if (i < _EISP_TOTAL) {
-				g_isp_bypass[idx] &= (~(1 << i));
-				g_isp_bypass[idx] |= (val << i);
-			}
-			if (bypass_all && (dat.all == 0))
-				continue;
-			ISP_REG_MWR(idx, dat.addr, 1 << dat.bpos,
-				val << dat.bpos);
-
-			if (!bypass_all)
-				break;
-		}
-	}
-
-	return count;
-}
-
-static int bypass_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, bypass_read, inode->i_private);
-}
-
-static const struct file_operations isp_bypass_ops = {
-	.owner = THIS_MODULE,
-	.open = bypass_open,
-	.read = seq_read,
-	.write = bypass_write,
-};
-
-
-static uint8_t work_mode_string[2][16] = {
-	"ISP_CFG_MODE", "ISP_AP_MODE"
-};
-
-static ssize_t work_mode_show(
-		struct file *filp, char __user *buffer,
-		size_t count, loff_t *ppos)
-{
-	char buf[16];
-
-	snprintf(buf, sizeof(buf), "%d(%s)\n", s_dbg_work_mode,
-		work_mode_string[s_dbg_work_mode&1]);
-
-	return simple_read_from_buffer(
-			buffer, count, ppos,
-			buf, strlen(buf));
-}
-
-static ssize_t work_mode_write(
-		struct file *filp, const char __user *buffer,
-		size_t count, loff_t *ppos)
-{
-	int ret = 0;
-	char msg[8];
-	char *last;
-	int val;
-
-	if (count > WORK_MODE_SLEN)
-		return -EINVAL;
-
-	ret = copy_from_user(msg, (void __user *)buffer, count);
-	if (ret) {
-		pr_err("fail to copy_from_user\n");
-		return -EFAULT;
-	}
-
-	msg[WORK_MODE_SLEN-1] = '\0';
-	val = simple_strtol(msg, &last, 0);
-	if (val == 0)
-		s_dbg_work_mode = ISP_CFG_MODE;
-	else if (val == 1)
-		s_dbg_work_mode = ISP_AP_MODE;
-	else
-		pr_err("error: invalid work mode: %d", val);
-
-	return count;
-}
-
-static const struct file_operations work_mode_ops = {
-	.owner =	THIS_MODULE,
-	.open = simple_open,
-	.read = work_mode_show,
-	.write = work_mode_write,
-};
-
-
-static uint8_t iommu_mode_string[4][32] = {
-	"IOMMU_AUTO",
-	"IOMMU_OFF",
-	"IOMMU_ON_RESERVED",
-	"IOMMU_ON"
-};
-static ssize_t iommu_mode_show(
-		struct file *filp, char __user *buffer,
-		size_t count, loff_t *ppos)
-{
-	char buf[64];
-
-	snprintf(buf, sizeof(buf), "cur: %d(%s), next: %d(%s)\n",
-		g_dbg_iommu_mode,
-		iommu_mode_string[g_dbg_iommu_mode&3],
-		g_dbg_set_iommu_mode,
-		iommu_mode_string[g_dbg_set_iommu_mode&3]);
-
-	return simple_read_from_buffer(
-			buffer, count, ppos,
-			buf, strlen(buf));
-}
-
-static ssize_t iommu_mode_write(
-		struct file *filp, const char __user *buffer,
-		size_t count, loff_t *ppos)
-{
-	int ret = 0;
-	char msg[8];
-	char *last;
-	int val;
-
-	if (count > WORK_MODE_SLEN)
-		return -EINVAL;
-
-	ret = copy_from_user(msg, (void __user *)buffer, count);
-	if (ret) {
-		pr_err("fail to copy_from_user\n");
-		return -EFAULT;
-	}
-
-	msg[WORK_MODE_SLEN-1] = '\0';
-	val = simple_strtol(msg, &last, 0);
-	if (val == 0)
-		g_dbg_set_iommu_mode = IOMMU_AUTO;
-	else if (val == 1)
-		g_dbg_set_iommu_mode = IOMMU_OFF;
-	else if (val == 2)
-		g_dbg_set_iommu_mode = IOMMU_ON_RESERVED;
-	else if (val == 3)
-		g_dbg_set_iommu_mode = IOMMU_ON;
-	else
-		pr_err("error: invalid work mode: %d", val);
-
-	pr_info("set_iommu_mode : %d(%s)\n",
-		g_dbg_set_iommu_mode,
-		iommu_mode_string[g_dbg_set_iommu_mode&3]);
-	return count;
-}
-
-static const struct file_operations iommu_mode_ops = {
-	.owner =	THIS_MODULE,
-	.open = simple_open,
-	.read = iommu_mode_show,
-	.write = iommu_mode_write,
-};
-
-static ssize_t lbuf_len_show(
-			struct file *filp, char __user *buffer,
-			size_t count, loff_t *ppos)
-{
-	char buf[16];
-
-	snprintf(buf, sizeof(buf), "%d\n", s_dbg_linebuf_len);
-
-	return simple_read_from_buffer(
-			buffer, count, ppos,
-			buf, strlen(buf));
-}
-
-static ssize_t lbuf_len_write(struct file *filp,
-			const char __user *buffer,
-			size_t count, loff_t *ppos)
-{
-	int ret = 0;
-	char msg[8];
-	int val;
-
-	if (count > LBUF_LEN_SLEN)
-		return -EINVAL;
-
-	ret = copy_from_user(msg, (void __user *)buffer, count);
-	if (ret) {
-		pr_err("fail to copy_from_user\n");
-		return -EFAULT;
-	}
-
-	msg[LBUF_LEN_SLEN - 1] = '\0';
-	val = simple_strtol(msg, NULL, 0);
-	s_dbg_linebuf_len = val;
-	pr_info("set line buf len %d.  %s\n", val, msg);
-
-	return count;
-}
-
-static const struct file_operations lbuf_len_ops = {
-	.owner =	THIS_MODULE,
-	.open = simple_open,
-	.read = lbuf_len_show,
-	.write = lbuf_len_write,
-};
-
-static int fbc_ctrl_read(struct seq_file *s, void *unused)
-{
-	struct compression_override *override;
-	int i;
-
-	override = (struct compression_override *)s->private;
-
-	for (i = 0; i < CAM_ID_MAX; i++, override++) {
-		seq_printf(s, "\n===== CAM%d override %u =====\n",
-			   i, override->enable);
-		seq_printf(s, "          dcam   3dnr   isp\n");
-		seq_printf(s, "preview      %u      %u     %u\n",
-			   override->override[CH_PRE][FBC_DCAM],
-			   override->override[CH_PRE][FBC_3DNR],
-			   override->override[CH_PRE][FBC_ISP]);
-		seq_printf(s, "capture      %u      %u     %u\n",
-			   override->override[CH_CAP][FBC_DCAM],
-			   override->override[CH_CAP][FBC_3DNR],
-			   override->override[CH_CAP][FBC_ISP]);
-		seq_printf(s, "video        %u      %u     %u\n",
-			   override->override[CH_VID][FBC_DCAM],
-			   override->override[CH_VID][FBC_3DNR],
-			   override->override[CH_VID][FBC_ISP]);
-	}
-
-	seq_printf(s, "\nUsage:\n");
-	seq_printf(s, "         echo ID override 1|0 > fbc_ctrl\n");
-	seq_printf(s, "         echo ID pre|cap|vid dcam|3dnr|isp 0|1 > fbc_ctrl\n");
-	seq_printf(s, "\nExample:\n");
-	seq_printf(s, "         echo 0 override 1 > fbc_ctrl   // enable fbc control override\n");
-	seq_printf(s, "         echo 1 cap dcam 1 > fbc_ctrl   // enable dcam fbc for cam1 capture channel\n");
-	seq_printf(s, "         echo 2 vid isp 0 > fbc_ctrl    // disable isp fbc for cam2 video channel\n");
-	seq_printf(s, "         echo 3 pre 3dnr 1 > fbc_ctrl   // enable 3dnr fbc for cam3 preview channel\n");
-
-	return 0;
-}
-
-static int fbc_ctrl_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, fbc_ctrl_read, inode->i_private);
-}
-
-static ssize_t fbc_ctrl_write(struct file *filp, const char __user *buffer,
-			      size_t count, loff_t *ppos)
-{
-	struct seq_file *p = (struct seq_file *)filp->private_data;
-	struct compression_override *override =
-		(struct compression_override *)p->private;
-	char buf[32] = { 0 }, *s, *c;
-	unsigned int id = 0, ch, type, en = 0;
-	int ret;
-
-	if (count > 32) {
-		pr_err("command too long\n");
-		return -EINVAL;
-	}
-
-	ret = copy_from_user(buf, (void __user *)buffer, count);
-	if (ret) {
-		pr_err("fail to copy_from_user\n");
-		return -EINVAL;
-	}
-	buf[count - 1] = '\0';
-
-	/* camera id */
-	s = buf;
-	c = strchr(s, ' ');
-	if (!c) {
-		pr_err("fail to get camera id\n");
-		return -EINVAL;
-	}
-	*c = '\0';
-
-	if (kstrtouint(s, 10, &id) < 0) {
-		pr_err("fail to parse camera id '%s'\n", s);
-		return -EINVAL;
-	}
-
-	if (id >= CAM_ID_MAX) {
-		pr_err("invalid camera id %u\n", id);
-		return -EINVAL;
-	}
-
-	/* commands or path */
-	s = c + 1;
-	c = strchr(s, ' ');
-	if (!c) {
-		pr_err("fail to get path or cmd\n");
-		return -EINVAL;
-	}
-	*c = '\0';
-
-	if (!strncmp(s, "override", 8)) {
-		ch = CH_MAX;
-	} else if (!strncmp(s, "pre", 3)) {
-		ch = CH_PRE;
-	} else if (!strncmp(s, "cap", 3)) {
-		ch = CH_CAP;
-	} else if (!strncmp(s, "vid", 3)) {
-		ch = CH_VID;
-	} else {
-		pr_err("fail to parse path or cmd '%s'\n", s);
-		return -EINVAL;
-	}
-
-	if (ch != CH_MAX) {
-		/* type if needed */
-		s = c + 1;
-		c = strchr(s, ' ');
-		if (!c) {
-			pr_err("fail to get fbc type\n");
-			return -EINVAL;
-		}
-		*c = '\0';
-
-		if (!strncmp(s, "dcam", 4)) {
-			type = FBC_DCAM;
-		} else if (!strncmp(s, "3dnr", 4)) {
-			type = FBC_3DNR;
-		} else if (!strncmp(s, "isp", 3)) {
-			type = FBC_ISP;
-		} else {
-			pr_err("fail to get fbc type '%s'\n", s);
-			return -EINVAL;
-		}
-	}
-
-	/* enable */
-	s = c + 1;
-	if (kstrtouint(s, 10, &en) < 0) {
-		pr_err("fail to parse enable '%s'\n", s);
-		return -EINVAL;
-	}
-
-	if (en > 1) {
-		pr_err("invalid enable %u\n", en);
-		return -EINVAL;
-	}
-
-	/* set */
-	if (ch == CH_MAX) {
-		pr_info("CAM%u override enable %u\n", id, en);
-		override[id].enable = en;
-	} else {
-		pr_info("CAM%u compression override %u %u %u\n",
-			id, ch, type, en);
-		override[id].override[ch][type] = en;
-	}
-
-	return count;
-}
-
-static const struct file_operations fbc_ctrl_ops = {
-	.owner = THIS_MODULE,
-	.open = fbc_ctrl_open,
-	.read = seq_read,
-	.write = fbc_ctrl_write,
-};
-
-int sprd_isp_debugfs_init(struct camera_debugger *debugger)
-{
-	struct dentry *entry = NULL;
-	char dirname[32] = {0};
-
-	snprintf(dirname, sizeof(dirname), "sprd_isp");
-	debugfs_base = debugfs_create_dir(dirname, NULL);
-	if (!debugfs_base) {
-		pr_err("fail to create debugfs dir\n");
-		return -ENOMEM;
-	}
-	memset(g_isp_bypass, 0x00, sizeof(g_isp_bypass));
-	if (!debugfs_create_file("work_mode", 0644,
-			debugfs_base, NULL, &work_mode_ops))
-		return -ENOMEM;
-
-	if (!debugfs_create_file("iommu_mode", 0644,
-			debugfs_base, NULL, &iommu_mode_ops))
-		return -ENOMEM;
-
-	if (!debugfs_create_file("line_buf_len", 0644,
-			debugfs_base, NULL, &lbuf_len_ops))
-		return -ENOMEM;
-
-#ifdef DBG_REGISTER
-	if (!debugfs_create_file("pre0_buf", 0444,
-			debugfs_base, &debug_ctx_id[0], &reg_buf_ops))
-		return -ENOMEM;
-	if (!debugfs_create_file("cap0_buf", 0444,
-			debugfs_base, &debug_ctx_id[1], &reg_buf_ops))
-		return -ENOMEM;
-	if (!debugfs_create_file("pre1_buf", 0444,
-			debugfs_base, &debug_ctx_id[2], &reg_buf_ops))
-		return -ENOMEM;
-	if (!debugfs_create_file("cap1_buf", 0444,
-			debugfs_base, &debug_ctx_id[3], &reg_buf_ops))
-		return -ENOMEM;
-#endif
-
-	if (!debugfs_create_file("pre0_bypass", 0660,
-			debugfs_base, &debug_ctx_id[0], &isp_bypass_ops))
-		return -ENOMEM;
-	if (!debugfs_create_file("cap0_bypass", 0660,
-			debugfs_base, &debug_ctx_id[1], &isp_bypass_ops))
-		return -ENOMEM;
-	if (!debugfs_create_file("pre1_bypass", 0660,
-			debugfs_base, &debug_ctx_id[2], &isp_bypass_ops))
-		return -ENOMEM;
-	if (!debugfs_create_file("cap1_bypass", 0660,
-			debugfs_base, &debug_ctx_id[3], &isp_bypass_ops))
-		return -ENOMEM;
-
-	entry = debugfs_create_file("fbc_ctrl", 0660, debugfs_base,
-				    &debugger->compression[0], &fbc_ctrl_ops);
-	if (IS_ERR_OR_NULL(entry))
-		return -ENOMEM;
-
-	return 0;
-}
-
-int sprd_isp_debugfs_deinit(void)
-{
-	if (debugfs_base)
-		debugfs_remove_recursive(debugfs_base);
-	debugfs_base = NULL;
-	return 0;
-}
-/* isp debug fs end */
+struct isp_pipe_dev *s_isp_dev;
+uint32_t s_dbg_linebuf_len = ISP_LINE_BUFFER_W;
+extern int s_dbg_work_mode;
 
 static void free_offline_pararm(void *param)
 {
@@ -1229,7 +651,7 @@ static int proc_slices(struct isp_pipe_context *pctx)
 		if (pctx->is_last_slice == 1)
 			break;
 
-		ret = isp_update_slice(pctx->slice_ctx, pctx->ctx_id, slice_id);
+		ret = isp_update_slice(pctx, pctx->ctx_id, slice_id);
 		if (ret < 0)
 			continue;
 
@@ -1490,12 +912,13 @@ static int isp_offline_start_frame(void *ctx)
 	struct isp_pipe_dev *dev = NULL;
 	struct camera_frame *pframe = NULL;
 	struct camera_frame *out_frame = NULL;
-	struct isp_pipe_context *pctx;
+	struct isp_pipe_context *pctx = NULL;
 	struct isp_pipe_hw_context *pctx_hw = NULL;
 	struct isp_path_desc *path, *slave_path;
-	struct isp_cfg_ctx_desc *cfg_desc;
-	struct isp_fmcu_ctx_desc *fmcu;
-	struct isp_offline_param *in_param;
+	struct isp_cfg_ctx_desc *cfg_desc = NULL;
+	struct isp_fmcu_ctx_desc *fmcu = NULL;
+	struct isp_offline_param *in_param = NULL;
+	struct unisoc_cam_hw_info *hw = NULL;
 
 	pctx = (struct isp_pipe_context *)ctx;
 	pr_debug("enter sw id %d, user_cnt=%d, ch_id=%d, cam_id=%d\n",
@@ -1508,6 +931,7 @@ static int isp_offline_start_frame(void *ctx)
 	}
 
 	dev = pctx->dev;
+	hw = dev->isp_hw;
 	cfg_desc = (struct isp_cfg_ctx_desc *)dev->cfg_handle;
 
 	if (pctx->multi_slice | isp_slice_needed(pctx))
@@ -1594,7 +1018,7 @@ static int isp_offline_start_frame(void *ctx)
 	/* the context/path maybe init/updated after dev start. */
 	if (pctx->updated) {
 		ret = isp_slice_ctx_init(pctx, &multi_slice);
-		isp_set_ctx_common(pctx);
+		hw->hw_ops.core_ops.isp_fetch_set(pctx);
 	}
 
 	/* config fetch address */
@@ -2002,7 +1426,7 @@ static int isp_context_init(struct isp_pipe_dev *dev)
 	struct isp_cfg_ctx_desc *cfg_desc = NULL;
 	struct isp_pipe_context *pctx;
 	struct isp_pipe_hw_context *pctx_hw;
-	struct sprd_cam_hw_info *hw;
+	struct unisoc_cam_hw_info *hw = NULL;
 	enum isp_context_id cid[ISP_CONTEXT_SW_NUM] = {
 		ISP_CONTEXT_P0,
 		ISP_CONTEXT_C0,
@@ -2014,11 +1438,13 @@ static int isp_context_init(struct isp_pipe_dev *dev)
 
 	pr_info("isp contexts init start!\n");
 	memset(&dev->ctx[0], 0, sizeof(dev->ctx));
+
 	for (i = 0; i < ISP_CONTEXT_SW_NUM; i++) {
-		pctx  = &dev->ctx[i];
+		pctx = &dev->ctx[i];
 		pctx->ctx_id = cid[i];
 		pctx->dev = dev;
 		pctx->attach_cam_id = CAM_ID_MAX;
+		pctx->hw = dev->isp_hw;
 		atomic_set(&pctx->user_cnt, 0);
 		pr_debug("isp context %d init done!\n", cid[i]);
 	}
@@ -2037,6 +1463,7 @@ static int isp_context_init(struct isp_pipe_dev *dev)
 			ret = -EINVAL;
 			goto cfg_null;
 		}
+		cfg_desc->hw_ops = &dev->isp_hw->hw_ops;
 		pr_info("cfg_init start.\n");
 
 		ret = cfg_desc->ops->ctx_init(cfg_desc);
@@ -2062,8 +1489,8 @@ static int isp_context_init(struct isp_pipe_dev *dev)
 		atomic_set(&pctx_hw->user_cnt, 0);
 
 		hw = dev->isp_hw;
-		hw->ops->enable_irq(hw, &i);
-		hw->ops->irq_clear(hw, &i);
+		hw->hw_ops.isp_irq_ops.irq_enable(hw->ip_isp, &i);
+		hw->hw_ops.isp_irq_ops.irq_clear(hw->ip_isp, &i);
 
 		bind_fmcu = 0;
 		if (unlikely(dev->wmode == ISP_AP_MODE)) {
@@ -2073,12 +1500,12 @@ static int isp_context_init(struct isp_pipe_dev *dev)
 				continue;
 			}
 			bind_fmcu = 1;
-		} else if (isp_ctx_support_fmcu(i)) {
+		} else if (*(hw->ip_isp->ctx_fmcu_support + i)) {
 			bind_fmcu = 1;
 		}
 
 		if (bind_fmcu) {
-			fmcu = get_isp_fmcu_ctx_desc();
+			fmcu = get_isp_fmcu_ctx_desc(hw);
 			pr_debug("get fmcu %p\n", fmcu);
 
 			if (fmcu && fmcu->ops) {
@@ -2301,7 +1728,6 @@ static int sprd_isp_proc_frame(void *isp_handle,
 	return ret;
 }
 
-
 /*
  * Get a free context and initialize it.
  * Input param is possible max_size of image.
@@ -2312,10 +1738,11 @@ static int sprd_isp_get_context(void *isp_handle, void *param)
 	int ret = 0;
 	int i;
 	int sel_ctx_id = -1;
-	enum  isp_context_id  ctx_id;
+	enum  isp_context_id ctx_id;
 	struct isp_pipe_context *pctx;
-	struct isp_pipe_dev *dev;
-	struct isp_path_desc *path;
+	struct isp_pipe_dev *dev = NULL;
+	struct isp_path_desc *path = NULL;
+	struct unisoc_cam_hw_info *hw = NULL;
 	struct isp_cfg_ctx_desc *cfg_desc;
 	struct isp_init_param *init_param;
 
@@ -2326,6 +1753,7 @@ static int sprd_isp_get_context(void *isp_handle, void *param)
 	pr_debug("start.\n");
 
 	dev = (struct isp_pipe_dev *)isp_handle;
+	hw = dev->isp_hw;
 	init_param = (struct isp_init_param *)param;
 
 	mutex_lock(&dev->path_mutex);
@@ -2353,6 +1781,7 @@ static int sprd_isp_get_context(void *isp_handle, void *param)
 		path->spath_id = i;
 		path->attach_ctx = pctx;
 		path->q_init = 0;
+		path->hw = hw;
 		atomic_set(&path->user_cnt, 0);
 	}
 
@@ -2373,7 +1802,7 @@ static int sprd_isp_get_context(void *isp_handle, void *param)
 
 	pctx->enable_slowmotion = 0;
 	if (init_param->is_high_fps)
-		pctx->enable_slowmotion = isp_support_fmcu_cfg_slm();
+		pctx->enable_slowmotion = hw->ip_isp->slm_cfg_support;;
 	pr_info("cam%d enable ISP slowmotion %d\n",
 		pctx->attach_cam_id, pctx->enable_slowmotion);
 
@@ -2407,7 +1836,7 @@ static int sprd_isp_get_context(void *isp_handle, void *param)
 	camera_queue_init(&pctx->hist2_result_queue, 16,
 						0, isp_destroy_statis_buf);
 
-	isp_set_ctx_default(pctx);
+	hw->hw_ops.core_ops.default_para_set(hw, &pctx->ctx_id, ISP_CFG_PARA);
 	reset_isp_irq_sw_cnt(pctx->ctx_id);
 
 	goto exit;
@@ -3061,7 +2490,8 @@ static int isp_cycle_hist2_frame(
 {
 	struct camera_frame *frame = NULL;
 	struct isp_pipe_dev *dev = NULL;
-	struct isp_pipe_context *pctx;
+	struct isp_pipe_context *pctx = NULL;
+	struct unisoc_cam_hw_info *hw = NULL;
 
 	if (!isp_handle) {
 		pr_err("fail to get valid input ptr\n");
@@ -3072,11 +2502,11 @@ static int isp_cycle_hist2_frame(
 		return -EFAULT;
 	}
 
-	if (isp_hist_bypass_get(ctx_id))
-		return 0;
-
 	dev = (struct isp_pipe_dev *)isp_handle;
 	pctx = &dev->ctx[ctx_id];
+	hw = dev->isp_hw;
+	if (hw->hw_ops.core_ops.hist_enable_get(ctx_id))
+		return 0;
 
 	frame = camera_dequeue(io_desc->q);
 
@@ -3160,6 +2590,7 @@ static int sprd_isp_cfg_blkparam(
 	struct isp_cfg_entry *cfg_entry = NULL;
 	struct isp_io_param *io_param = NULL;
 	func_isp_cfg_param cfg_fun_ptr = NULL;
+	struct cam_hw_core_ops *ops = NULL;
 
 	if (!isp_handle || !param) {
 		pr_err("fail to get valid input ptr\n");
@@ -3171,6 +2602,7 @@ static int sprd_isp_cfg_blkparam(
 	}
 
 	dev = (struct isp_pipe_dev *)isp_handle;
+	ops = &dev->isp_hw->hw_ops.core_ops;
 	pctx = &dev->ctx[ctx_id];
 	io_param = (struct isp_io_param *)param;
 	if (atomic_read(&pctx->user_cnt) < 1) {
@@ -3192,7 +2624,7 @@ static int sprd_isp_cfg_blkparam(
 		ret = isp_k_cfg_yuv_noisefilter(param, &pctx->isp_k_param, ctx_id);
 	} else {
 		i = io_param->sub_block - ISP_BLOCK_BASE;
-		cfg_entry = isp_get_cfg_func(i);
+		cfg_entry = ops->block_func_get(i, ISP_BLOCK_TYPE);
 		if (cfg_entry != NULL &&
 			cfg_entry->sub_block == io_param->sub_block)
 			cfg_fun_ptr = cfg_entry->cfg_func;
@@ -3246,7 +2678,7 @@ static int sprd_isp_dev_open(void *isp_handle, void *param)
 {
 	int ret = 0;
 	struct isp_pipe_dev *dev = NULL;
-	struct sprd_cam_hw_info *hw;
+	struct unisoc_cam_hw_info *hw = NULL;
 
 	pr_info("enter.\n");
 	if (!isp_handle || !param) {
@@ -3254,9 +2686,9 @@ static int sprd_isp_dev_open(void *isp_handle, void *param)
 		return -EFAULT;
 	}
 	dev = (struct isp_pipe_dev *)isp_handle;
-	hw = (struct sprd_cam_hw_info *)param;
-	if (hw->ops == NULL) {
-		pr_err("error: no hw ops.\n");
+	hw = (struct unisoc_cam_hw_info *)param;
+	if (hw == NULL) {
+		pr_err("fail to get valid hw\n");
 		return -EFAULT;
 	}
 
@@ -3284,23 +2716,8 @@ static int sprd_isp_dev_open(void *isp_handle, void *param)
 		mutex_init(&dev->path_mutex);
 		spin_lock_init(&dev->ctx_lock);
 
-		ret = sprd_cam_pw_on();
-		ret = sprd_cam_domain_eb();
-
-		ret = hw->ops->enable_clk(hw, NULL);
-		if (ret)
-			goto clk_fail;
-
-		ret = hw->ops->reset(hw, NULL);
-		if (ret)
-			goto reset_fail;
-
-		ret = hw->ops->init(hw, dev);
-		if (ret)
-			goto reset_fail;
-
-		ret = hw->ops->start(dev->isp_hw, dev);
-
+		ret = isp_hw_init(dev);
+		ret = isp_hw_start(hw, dev);
 		ret = isp_context_init(dev);
 		if (ret) {
 			pr_err("error: isp context init failed.\n");
@@ -3313,14 +2730,8 @@ static int sprd_isp_dev_open(void *isp_handle, void *param)
 	return 0;
 
 err_init:
-	hw->ops->stop(hw, dev);
-	hw->ops->deinit(hw, dev);
-reset_fail:
-	hw->ops->disable_clk(hw, NULL);
-clk_fail:
-	sprd_cam_domain_disable();
-	sprd_cam_pw_off();
-
+	isp_hw_stop(hw, dev);
+	isp_hw_deinit(dev);
 	atomic_dec(&dev->enable);
 	pr_err("fail to open isp dev!\n");
 	return ret;
@@ -3332,7 +2743,7 @@ int sprd_isp_dev_close(void *isp_handle)
 {
 	int ret = 0;
 	struct isp_pipe_dev *dev = NULL;
-	struct sprd_cam_hw_info *hw;
+	struct unisoc_cam_hw_info *hw;
 
 	if (!isp_handle) {
 		pr_err("fail to get valid input ptr\n");
@@ -3343,17 +2754,10 @@ int sprd_isp_dev_close(void *isp_handle)
 	hw = dev->isp_hw;
 	if (atomic_dec_return(&dev->enable) == 0) {
 
-		ret = hw->ops->stop(hw, dev);
-
+		ret = isp_hw_stop(hw, dev);
 		ret = isp_context_deinit(dev);
 		mutex_destroy(&dev->path_mutex);
-
-		ret = hw->ops->reset(hw, NULL);
-		ret = hw->ops->deinit(hw, dev);
-		ret = hw->ops->disable_clk(hw, NULL);
-
-		sprd_cam_domain_disable();
-		sprd_cam_pw_off();
+		ret = isp_hw_deinit(dev);
 	}
 
 	pr_info("isp dev disable done\n");

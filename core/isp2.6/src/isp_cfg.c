@@ -22,7 +22,6 @@
 #include "isp_interface.h"
 #include "isp_core.h"
 #include "isp_cfg.h"
-#include "isp_hw_if.h"
 
 #ifdef pr_fmt
 #undef pr_fmt
@@ -546,8 +545,9 @@ static int isp_cfg_ctx_init(struct isp_cfg_ctx_desc *cfg_ctx)
 	for (i = 0; i < ISP_CONTEXT_SW_NUM; i++)
 		isp_cfg_poll_addr[i] = &isp_cfg_ctx_addr[i];
 
-	s_cfg_settings.num_of_mod = isp_cfg_map_get_count();
-	s_cfg_settings.isp_cfg_map = isp_cfg_map_get_data();
+	s_cfg_settings.isp_cfg_map =
+		cfg_ctx->hw_ops->core_ops.cfg_map_info_get(
+		&s_cfg_settings.num_of_mod);
 
 exit:
 	pr_info("Done. ret %d\n", ret);

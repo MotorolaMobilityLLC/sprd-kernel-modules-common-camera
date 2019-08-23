@@ -47,10 +47,12 @@ int dcam_init_lsc_slice(void *in, uint32_t online)
 	uint32_t start_roi = 0;
 	uint32_t grid_x_num_slice = 0;
 	struct lsc_slice slice;
-	struct dcam_dev_lsc_info *info;
-	struct dcam_dev_lsc_param *param;
+	struct dcam_dev_lsc_info *info = NULL;
+	struct dcam_dev_lsc_param *param = NULL;
 	struct dcam_pipe_dev *dev = (struct dcam_pipe_dev *)in;
+	struct unisoc_cam_hw_info *hw = NULL;
 
+	hw = dev->hw;
 	param = &dev->blk_dcam_pm->lsc;
 	idx = dev->idx;
 	info = &param->lens_info;
@@ -72,7 +74,7 @@ int dcam_init_lsc_slice(void *in, uint32_t online)
 	DCAM_REG_MWR(idx, DCAM_LENS_SLICE_CTRL1, 0xff, grid_x_num_slice);
 
 	/* force copy must be after first load done and load clear */
-	dcam_force_copy(dev, DCAM_CTRL_COEF);
+	hw->hw_ops.core_ops.force_copy(DCAM_CTRL_COEF, dev);
 
 	pr_debug("w %d, grid len %d grid %d  num_t %d (%d, %d)\n",
 		info->weight_num, info->gridtab_len, info->grid_width,
@@ -94,7 +96,9 @@ int dcam_init_lsc(void *in, uint32_t online)
 	struct dcam_dev_lsc_info *info;
 	struct dcam_dev_lsc_param *param;
 	struct dcam_pipe_dev *dev = (struct dcam_pipe_dev *)in;
+	struct unisoc_cam_hw_info *hw = NULL;
 
+	hw = dev->hw;
 	param = &dev->blk_dcam_pm->lsc;
 	if (!param->update) {
 		return 0;
@@ -110,7 +114,7 @@ int dcam_init_lsc(void *in, uint32_t online)
 	if (info->bypass) {
 		pr_debug("bypass\n");
 		DCAM_REG_MWR(idx, DCAM_LENS_LOAD_ENABLE, BIT_0, 1);
-		dcam_force_copy(dev, DCAM_CTRL_COEF);
+		hw->hw_ops.core_ops.force_copy(DCAM_CTRL_COEF, dev);
 		return 0;
 	}
 
@@ -200,7 +204,7 @@ int dcam_init_lsc(void *in, uint32_t online)
 	}
 
 	/* force copy must be after first load done and load clear */
-	dcam_force_copy(dev, DCAM_CTRL_COEF);
+	hw->hw_ops.core_ops.force_copy(DCAM_CTRL_COEF, dev);
 
 	if (i >= LENS_LOAD_TIMEOUT) {
 		pr_err("lens grid table load timeout.\n");
@@ -229,7 +233,7 @@ int dcam_init_lsc(void *in, uint32_t online)
 exit:
 	/* bypass lsc if there is exception */
 	DCAM_REG_MWR(idx, DCAM_LENS_LOAD_ENABLE, BIT_0, 1);
-	dcam_force_copy(dev, DCAM_CTRL_COEF);
+	hw->hw_ops.core_ops.force_copy(DCAM_CTRL_COEF, dev);
 	return ret;
 }
 
@@ -243,15 +247,17 @@ int dcam_update_lsc(void *in)
 	uint32_t buf_sel, offset, hw_addr;
 	uint16_t *w_buff = NULL, *gain_tab = NULL;
 	uint32_t grid_x_num_slice = 0;
-	struct dcam_dev_lsc_info *info;
-	struct dcam_dev_lsc_param *param;
+	struct dcam_dev_lsc_info *info = NULL;
+	struct dcam_dev_lsc_param *param = NULL;
 	struct dcam_pipe_dev *dev = (struct dcam_pipe_dev *)in;
+	struct unisoc_cam_hw_info *hw = NULL;
 
 	if (dev->idx == 1 && dev->dcam_slice_mode == 1) {
 		pr_debug("no need to update when offline slice\n");
 		return 0;
 	}
 
+	hw = dev->hw;
 	param = &dev->blk_dcam_pm->lsc;
 	if (!param->update) {
 		return 0;
@@ -352,7 +358,7 @@ int dcam_update_lsc(void *in)
 	pr_debug("sof %d, buf_sel %d\n", dev->frame_index, buf_sel);
 
 	/* step 4: auto cpy lens registers next sof */
-	dcam_auto_copy(dev, DCAM_CTRL_COEF);
+	hw->hw_ops.core_ops.auto_copy(DCAM_CTRL_COEF, dev);
 
 	pr_debug("done\n");
 	return 0;
