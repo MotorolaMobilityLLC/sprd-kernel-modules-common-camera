@@ -971,3 +971,11 @@ int dcam_lbuf_share_mode(enum dcam_id idx, uint32_t width)
 	return ret;
 }
 
+int dcam_offline_slice_set_fetch_param(uint32_t idx, struct dcam_fetch_info *fetch)
+{
+	int ret = 0;
+	if (fetch == NULL)
+		pr_err("fail to check param");
+
+	return ret;
+}

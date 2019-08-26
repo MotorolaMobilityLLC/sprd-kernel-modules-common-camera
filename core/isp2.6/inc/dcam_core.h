@@ -230,7 +230,10 @@ struct dcam_pipe_dev {
 	uint32_t is_ebd;
 	uint32_t pdaf_type;
 	uint32_t offline; /* flag: set 1 for 4in1 go through dcam1 bin */
-	uint32_t rps; /* raw_proc_scene 0:normal 1:hwsim*/ 
+	uint32_t rps; /* raw_proc_scene 0:normal 1:hwsim*/
+	uint32_t is_bigsize;
+	uint32_t is_right;
+	struct completion offline_complete;
 
 	uint32_t iommu_enable;
 	struct dcam_mipi_info cap_info;
@@ -249,6 +252,7 @@ struct dcam_pipe_dev {
 	struct camera_queue in_queue;
 	struct camera_queue proc_queue;
 	struct cam_thread_info thread;
+	struct cam_thread_info thread_offline;
 };
 
 /*

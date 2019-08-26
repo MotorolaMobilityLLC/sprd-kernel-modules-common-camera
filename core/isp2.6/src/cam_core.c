@@ -170,6 +170,7 @@ struct camera_uinfo {
 	uint32_t is_ltm;
 	uint32_t is_dual;
 	uint32_t is_bigsize;
+	uint32_t is_afbc;
 };
 
 struct channel_context {
@@ -847,7 +848,10 @@ static int set_cap_info(struct camera_module *module)
 
 	ret = dcam_ops->ioctl(module->dcam_dev_handle,
 				DCAM_IOCTL_CFG_CAP, &cap_info);
-
+	/* for dcam1 mipicap */
+	if (info->is_bigsize == 1)
+		ret = dcam_ops->ioctl(module->aux_dcam_dev,
+				DCAM_IOCTL_CFG_CAP, &cap_info);
 	return ret;
 }
 
@@ -972,6 +976,58 @@ static struct camera_frame *deal_dual_frame(struct camera_module *module,
 	pr_warn("Sync fail, report current frame\n");
 
 	return pframe;
+}
+
+static struct camera_frame *deal_bigsize_frame(struct camera_module *module,
+		struct camera_frame *pframe,
+		struct channel_context *channel)
+{
+	int ret;
+
+	/* full path release sync */
+	if (pframe->sync_data)
+		dcam_if_release_sync(pframe->sync_data, pframe);
+	/* 1: aux dcam bin tx done, set frame to isp
+	 * 2: lowlux capture, dcam0 full path done, set frame to isp
+	 */
+	if (pframe->irq_type != CAMERA_IRQ_BIGSIZE_DONE) {
+		/* offline timestamp, check time
+		 * recove this time:190415
+		 *
+		 * if (pframe->sensor_time.tv_sec == 0 &&
+		 *	pframe->sensor_time.tv_usec == 0)
+		 */
+		{
+			struct timespec cur_ts;
+
+			pframe->boot_sensor_time = ktime_get_boottime();
+			ktime_get_ts(&cur_ts);
+			pframe->sensor_time.tv_sec = cur_ts.tv_sec;
+			pframe->sensor_time.tv_usec = cur_ts.tv_nsec / NSEC_PER_USEC;
+		}
+		pr_info("[(PROCESSED)] frame[%d] fd %d, size[%d %d], 0x%x, channel_id %d\n",
+			pframe->fid, pframe->buf.mfd[0], pframe->width,
+			pframe->height, (uint32_t)pframe->buf.addr_vir[0], pframe->channel_id);
+		return pframe;
+	}
+	/* dcam0 full tx done, frame send to dcam1 or drop */
+	pr_info("raw frame[%d] fd %d, size[%d %d], 0x%x, channel_id %d\n",
+			pframe->fid, pframe->buf.mfd[0], pframe->width,
+			pframe->height, (uint32_t)pframe->buf.addr_vir[0], pframe->channel_id);
+	if (pframe->fid > 0) {
+		ret = dcam_ops->proc_frame(module->aux_dcam_dev, pframe);
+		return NULL;
+	}
+	/* set buffer back to dcam0 full path, to out_buf_queue */
+	channel = &module->channel[pframe->channel_id];
+	ret = dcam_ops->cfg_path(
+		module->dcam_dev_handle,
+		DCAM_PATH_CFG_OUTPUT_BUF,
+		channel->dcam_path_id, pframe);
+	if (unlikely(ret))
+		pr_err("set buffer to out_buf_queue err, ret %d\n", ret);
+
+	return NULL;
 }
 
 static struct camera_frame *deal_4in1_frame(struct camera_module *module,
@@ -1123,7 +1179,7 @@ int isp_callback(enum isp_cb_type type, void *param, void *priv_data)
 				}
 			}
 
-			if (module->cam_uinfo.is_4in1 &&
+			if ((module->cam_uinfo.is_4in1 || module->cam_uinfo.is_bigsize) &&
 				channel->aux_dcam_path_id == DCAM_PATH_BIN) {
 				if (pframe->buf.type == CAM_BUF_USER) {
 					/* 4in1, lowlux capture, use dcam0
@@ -1406,6 +1462,15 @@ int dcam_callback(enum dcam_cb_type type, void *param, void *priv_data)
 				if (atomic_read(&module->capture_frames_dcam) > 0)
 					atomic_dec_return(&module->capture_frames_dcam);
 
+			} else if (module->cam_uinfo.is_bigsize) {
+				pframe = deal_bigsize_frame(module,
+						pframe, channel);
+				if (!pframe)
+					return 0;
+
+				if (atomic_read(&module->capture_frames_dcam) > 0)
+					atomic_dec_return(&module->capture_frames_dcam);
+
 			} else if (module->dcam_cap_status == DCAM_CAPTURE_START_FROM_NEXT_SOF) {
 
 				if (pframe->boot_sensor_time < module->capture_times) {
@@ -1534,6 +1599,13 @@ int dcam_callback(enum dcam_cb_type type, void *param, void *priv_data)
 			dcam_ops->cfg_path(module->dcam_dev_handle,
 				DCAM_PATH_CFG_OUTPUT_BUF,
 				channel->dcam_path_id, pframe);
+		} else if (module->cam_uinfo.is_bigsize) {
+			/* 4in1 capture case: dcam offline src buffer
+			 * should be re-used for dcam online output (raw)
+			 */
+			dcam_ops->cfg_path(module->dcam_dev_handle,
+				DCAM_PATH_CFG_OUTPUT_BUF,
+				channel->dcam_path_id, pframe);
 		} else {
 			pr_err("todo: unknown case to handle\n");
 			cambuf_put_ionbuf(&pframe->buf);
@@ -1628,7 +1700,7 @@ static int cal_channel_swapsize(struct camera_module *module)
 	if (!ch_prev->enable)
 		return 0;
 
-	if (module->cam_uinfo.is_4in1) {
+	if (module->cam_uinfo.is_4in1 || module->cam_uinfo.is_bigsize) {
 		ch_prev->ch_uinfo.src_size.w >>= 1;
 		ch_prev->ch_uinfo.src_size.h >>= 1;
 		ch_vid->ch_uinfo.src_size.w >>= 1;
@@ -2154,6 +2226,79 @@ static int cal_channel_size_rds(struct camera_module *module)
 	return 0;
 }
 
+static int config_channel_bigsize(
+	struct camera_module *module,
+	struct channel_context *channel)
+{
+	int ret = 0;
+	int i, total, iommu_enable;
+	uint32_t width, height, size;
+	struct camera_uchannel *ch_uinfo = NULL;
+	struct dcam_path_cfg_param ch_desc;
+	struct camera_frame *pframe;
+
+	ch_uinfo = &channel->ch_uinfo;
+	iommu_enable = module->iommu_enable;
+	width = channel->swap_size.w;
+	height = channel->swap_size.h;
+	if (channel->ch_uinfo.sn_fmt == IMG_PIX_FMT_GREY)
+		size = cal_sprd_raw_pitch(width) * height;
+	size = ALIGN(size, CAM_BUF_ALIGN_SIZE);
+
+	pr_info("ch%d alloc shared buffer size: %u (w %u h %u)\n",
+		channel->ch_id, size, width, height);
+
+	/* dcam1 alloc memory */
+	total = 5;
+	for (i = 0; i < total; i++) {
+		do {
+			pframe = get_empty_frame();
+			pframe->channel_id = channel->ch_id;
+			pframe->is_compressed = channel->compress_input;
+			pframe->width = width;
+			pframe->height = height;
+			pframe->buf.buf_sec = 0;
+			ret = cambuf_alloc(
+					&pframe->buf, size,
+					0, iommu_enable);
+			if (ret) {
+				pr_err("fail to alloc buf: %d ch %d\n",
+						i, channel->ch_id);
+				put_empty_frame(pframe);
+				atomic_inc(&channel->err_status);
+				break;
+			}
+			cambuf_kmap(&pframe->buf);
+			/* cfg aux_dcam out_buf */
+			ret = dcam_ops->cfg_path(
+				module->aux_dcam_dev,
+				DCAM_PATH_CFG_OUTPUT_BUF,
+				channel->aux_dcam_path_id,
+				pframe);
+		} while (0);
+	}
+
+	/* dcam1 cfg path size */
+	memset(&ch_desc, 0, sizeof(ch_desc));
+	ch_desc.input_size.w = ch_uinfo->src_size.w;
+	ch_desc.input_size.h = ch_uinfo->src_size.h;
+	ch_desc.output_size = ch_desc.input_size;
+	ch_desc.input_trim.start_x = 0;
+	ch_desc.input_trim.start_y = 0;
+	ch_desc.input_trim.size_x = ch_desc.input_size.w;
+	ch_desc.input_trim.size_y = ch_desc.input_size.h;
+
+	pr_info("update dcam path %d size for channel %d\n",
+		channel->dcam_path_id, channel->ch_id);
+
+	ret = dcam_ops->cfg_path(module->aux_dcam_dev,
+				DCAM_PATH_CFG_SIZE,
+				channel->aux_dcam_path_id, &ch_desc);
+
+	pr_info("update channel size done for CAP\n");
+	return ret;
+}
+
 static int config_channel_size(
 	struct camera_module *module,
 	struct channel_context *channel)
@@ -2633,6 +2778,90 @@ static int dumpraw_proc(void *param)
 	return 0;
 }
 
+static int init_bigsize_aux(struct camera_module *module,
+			struct channel_context *channel)
+{
+	int ret = 0;
+	uint32_t dcam_idx = 1;
+	uint32_t dcam_path_id;
+	void *dcam = NULL;
+	struct camera_group *grp = module->grp;
+	struct dcam_path_cfg_param ch_desc;
+
+	dcam = module->aux_dcam_dev;
+	if (dcam == NULL) {
+		dcam = dcam_if_get_dev(dcam_idx, grp->dcam[dcam_idx]);
+		if (IS_ERR_OR_NULL(dcam)) {
+			pr_err("fail to get dcam%d\n", dcam_idx);
+			return -EFAULT;
+		}
+		module->aux_dcam_dev = dcam;
+		module->aux_dcam_id = dcam_idx;
+	}
+
+	ret = dcam_ops->open(module->aux_dcam_dev);
+	if (ret < 0) {
+		pr_err("fail to open aux dcam dev\n");
+		ret = -EFAULT;
+		goto exit_dev;
+	}
+	ret = dcam_ops->set_callback(module->aux_dcam_dev,
+				dcam_callback, module);
+	if (ret) {
+		pr_err("fail to set aux dcam callback\n");
+		ret = -EFAULT;
+		goto exit_close;
+	}
+	/* todo: will update after dcam offline ctx done. */
+	dcam_path_id = DCAM_PATH_BIN;
+	ret = dcam_ops->get_path(module->aux_dcam_dev,
+				dcam_path_id);
+	if (ret < 0) {
+		pr_err("fail to get dcam path %d\n", dcam_path_id);
+		ret = -EFAULT;
+		goto exit_close;
+	} else {
+		channel->aux_dcam_path_id = dcam_path_id;
+		pr_info("get aux dcam path %d\n", dcam_path_id);
+	}
+
+	/* cfg dcam1 bin path */
+	memset(&ch_desc, 0, sizeof(ch_desc));
+	ch_desc.endian.y_endian = ENDIAN_LITTLE;
+
+	ret = dcam_ops->cfg_path(module->aux_dcam_dev,
+					DCAM_PATH_CFG_BASE,
+					channel->aux_dcam_path_id,
+					&ch_desc);
+
+	pr_info("done\n");
+	return ret;
+
+exit_close:
+	dcam_ops->close(module->aux_dcam_dev);
+exit_dev:
+	dcam_if_put_dev(module->aux_dcam_dev);
+	module->aux_dcam_dev = NULL;
+	return ret;
+}
+
+static int deinit_bigsize_aux(struct camera_module *module)
+{
+	int ret = 0;
+	void *dev;
+
+	pr_info("E\n");
+	dev = module->aux_dcam_dev;
+	ret = dcam_ops->ioctl(dev, DCAM_IOCTL_CFG_STOP, NULL);
+	ret = dcam_ops->put_path(dev, DCAM_PATH_BIN);
+	ret += dcam_ops->close(dev);
+	ret += dcam_if_put_dev(dev);
+	module->aux_dcam_dev = NULL;
+	pr_info("Done, ret = %d\n", ret);
+
+	return ret;
+}
+
 static int init_4in1_aux(struct camera_module *module,
 			struct channel_context *channel)
 {
@@ -3074,6 +3303,10 @@ static int init_cam_channel(
 		path_desc.output_size.w = ch_uinfo->dst_size.w;
 		path_desc.output_size.h = ch_uinfo->dst_size.h;
 		path_desc.regular_mode = ch_uinfo->regular_desc.regular_mode;
+
+		if (module->cam_uinfo.is_afbc && channel->ch_id == CAM_CH_VID)
+			path_desc.path_afbc = AFBC_PATH_VID;
+
 		ret = isp_ops->cfg_path(module->isp_dev_handle,
 					ISP_PATH_CFG_PATH_BASE,
 					isp_ctx_id, isp_path_id, &path_desc);
@@ -3116,6 +3349,14 @@ static int init_cam_channel(
 		ret = init_4in1_secondary_path(module, channel);
 		if (ret)
 			pr_err("4in1 raw capture init bin fail\n");
+	}
+	/* bigsize setting */
+	if (channel->ch_id == CAM_CH_CAP && module->cam_uinfo.is_bigsize) {
+		ret = init_bigsize_aux(module, channel);
+		if (ret < 0) {
+			pr_err("init dcam for 4in1 error, ret = %d\n", ret);
+			goto exit;
+		}
 	}
 
 exit:
@@ -3540,7 +3781,8 @@ static int img_ioctl_cfg_param(
 
 	if ((param.sub_block & DCAM_ISP_BLOCK_MASK) == DCAM_BLOCK_BASE) {
 		if (unlikely((param.scene_id == PM_SCENE_CAP) &&
-				module->cam_uinfo.is_4in1))
+				(module->cam_uinfo.is_4in1 ||
+				module->cam_uinfo.is_bigsize)))
 			/* 4in1 capture should cfg offline dcam */
 			ret = dcam_ops->cfg_blk_param(
 				module->aux_dcam_dev, &param);
@@ -3590,15 +3832,17 @@ static int img_ioctl_set_function_mode(
 	ret |= get_user(module->cam_uinfo.is_4in1, &uparam->need_4in1);
 	ret |= get_user(module->cam_uinfo.is_3dnr, &uparam->need_3dnr);
 	ret |= get_user(module->cam_uinfo.is_dual, &uparam->dual_cam);
+	ret |= get_user(module->cam_uinfo.is_afbc, &uparam->need_afbc);
 	module->cam_uinfo.is_ltm = 0;
 	/* no use */
 	module->cam_uinfo.is_3dnr = 0;
 
-	pr_info("4in1:[%d], 3dnr[%d], ltm[%d], daul[%d]\n",
+	pr_info("4in1:[%d], 3dnr[%d], ltm[%d], daul[%d]\n, afbc[%d]\n",
 		module->cam_uinfo.is_4in1,
 		module->cam_uinfo.is_3dnr,
 		module->cam_uinfo.is_ltm,
-		module->cam_uinfo.is_dual);
+		module->cam_uinfo.is_dual,
+		module->cam_uinfo.is_afbc);
 
 	if (unlikely(ret)) {
 		pr_err("fail to copy from user, ret %d\n", ret);
@@ -4841,8 +5085,12 @@ static int img_ioctl_stream_on(
 	if (ch->enable)
 		config_channel_size(module, ch);
 	ch = &module->channel[CAM_CH_CAP];
-	if (ch->enable)
+	if (ch->enable) {
 		config_channel_size(module, ch);
+		/* alloc dcam1 memory and cfg out buf */
+		if (module->cam_uinfo.is_bigsize == 1)
+			config_channel_bigsize(module, ch);
+	}
 
 	/* line buffer share mode setting
 	 * Precondition: dcam0, dcam1 size not conflict
@@ -5094,6 +5342,8 @@ static int img_ioctl_stream_off(
 	}
 	if (module->cam_uinfo.is_4in1 && module->aux_dcam_dev)
 		deinit_4in1_aux(module);
+	if (module->cam_uinfo.is_bigsize && module->aux_dcam_dev)
+		deinit_bigsize_aux(module);
 
 	ret = dcam_ops->ioctl(module->dcam_dev_handle,
 		DCAM_IOCTL_CFG_STOP, NULL);

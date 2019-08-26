@@ -73,6 +73,12 @@ enum isp_ltm_mode {
 	MODE_LTM_MAX
 };
 
+enum isp_afbc_path {
+	AFBC_PATH_PRE = 0,
+	AFBC_PATH_VID,
+	AFBC_PATH_NUM,
+};
+
 enum isp_path_binding_type {
 	ISP_PATH_ALONE = 0,
 	ISP_PATH_MASTER,
@@ -126,6 +132,7 @@ struct isp_path_base_desc {
 	uint32_t slave_type;
 	uint32_t slave_path_id;
 	uint32_t regular_mode;
+	uint32_t path_afbc;
 	struct img_endian endian;
 	struct img_size output_size;
 };

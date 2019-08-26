@@ -2371,18 +2371,18 @@ static int set_slice_3dnr_memctrl(
 	FMCU_PUSH(fmcu, addr, cmd);
 
 	addr = ISP_GET_REG(ISP_3DNR_MEM_CTRL_PARAM3);
-	cmd = ((mem_ctrl->src.h & 0xFFF) << 16) |
-		(mem_ctrl->src.w & 0xFFF);
+	cmd = ((mem_ctrl->src.h & 0x1FFF) << 16) |
+		(mem_ctrl->src.w & 0x1FFF);
 	FMCU_PUSH(fmcu, addr, cmd);
 
 	addr = ISP_GET_REG(ISP_3DNR_MEM_CTRL_PARAM4);
-	cmd = ((mem_ctrl->ft_y.h & 0xFFF) << 16) |
-		(mem_ctrl->ft_y.w & 0xFFF);
+	cmd = ((mem_ctrl->ft_y.h & 0x1FFF) << 16) |
+		(mem_ctrl->ft_y.w & 0x1FFF);
 	FMCU_PUSH(fmcu, addr, cmd);
 
 	addr = ISP_GET_REG(ISP_3DNR_MEM_CTRL_PARAM5);
-	cmd = ((mem_ctrl->ft_uv.h & 0xFFF) << 16) |
-		(mem_ctrl->ft_uv.w & 0xFFF);
+	cmd = ((mem_ctrl->ft_uv.h & 0x1FFF) << 16) |
+		(mem_ctrl->ft_uv.w & 0x1FFF);
 	FMCU_PUSH(fmcu, addr, cmd);
 
 	addr = ISP_GET_REG(ISP_3DNR_MEM_CTRL_FT_CUR_LUMA_ADDR);

@@ -102,16 +102,16 @@ static void isp_3dnr_config_mem_ctrl(uint32_t idx,
 	       (mem_ctrl->global_img_width & 0x1FFF);
 	ISP_REG_WR(idx, ISP_3DNR_MEM_CTRL_PARAM2, val);
 
-	val = ((mem_ctrl->img_height & 0xFFF) << 16)	|
-	       (mem_ctrl->img_width & 0xFFF);
+	val = ((mem_ctrl->img_height & 0x1FFF) << 16)	|
+	       (mem_ctrl->img_width & 0x1FFF);
 	ISP_REG_WR(idx, ISP_3DNR_MEM_CTRL_PARAM3, val);
 
-	val = ((mem_ctrl->ft_y_height & 0xFFF) << 16)	|
-	       (mem_ctrl->ft_y_width & 0xFFF);
+	val = ((mem_ctrl->ft_y_height & 0x1FFF) << 16)	|
+	       (mem_ctrl->ft_y_width & 0x1FFF);
 	ISP_REG_WR(idx, ISP_3DNR_MEM_CTRL_PARAM4, val);
 
-	val = (mem_ctrl->ft_uv_width & 0xFFF)
-		| ((mem_ctrl->ft_uv_height & 0xFFF) << 16);
+	val = (mem_ctrl->ft_uv_width & 0x1FFF)
+		| ((mem_ctrl->ft_uv_height & 0x1FFF) << 16);
 	ISP_REG_WR(idx, ISP_3DNR_MEM_CTRL_PARAM5, val);
 
 	val = ((mem_ctrl->mv_x & 0xFF) << 8) |
@@ -137,8 +137,8 @@ static void isp_3dnr_config_mem_ctrl(uint32_t idx,
 						val);
 	}
 
-	val = ((mem_ctrl->blend_y_en_start_col & 0xFFF) << 16)  |
-	       (mem_ctrl->blend_y_en_start_row & 0xFFF);
+	val = ((mem_ctrl->blend_y_en_start_col & 0x1FFF) << 16)  |
+	       (mem_ctrl->blend_y_en_start_row & 0x1FFF);
 	ISP_REG_WR(idx, ISP_3DNR_MEM_CTRL_PARAM8, val);
 
 	/*
@@ -147,12 +147,12 @@ static void isp_3dnr_config_mem_ctrl(uint32_t idx,
 	 * val = (((mem_ctrl->img_height - 1) & 0xFFF) << 16)    |
 	 *        ((mem_ctrl->img_width - 1) & 0xFFF);
 	 */
-	val = ((mem_ctrl->blend_y_en_end_col & 0xFFF) << 16)    |
-	       (mem_ctrl->blend_y_en_end_row & 0xFFF);
+	val = ((mem_ctrl->blend_y_en_end_col & 0x1FFF) << 16)    |
+	       (mem_ctrl->blend_y_en_end_row & 0x1FFF);
 	ISP_REG_WR(idx, ISP_3DNR_MEM_CTRL_PARAM9, val);
 
-	val = ((mem_ctrl->blend_uv_en_start_col & 0xFFF) << 16)	|
-	       (mem_ctrl->blend_uv_en_start_row & 0xFFF);
+	val = ((mem_ctrl->blend_uv_en_start_col & 0x1FFF) << 16)	|
+	       (mem_ctrl->blend_uv_en_start_row & 0x1FFF);
 	ISP_REG_WR(idx, ISP_3DNR_MEM_CTRL_PARAM10, val);
 
 	/*
@@ -161,8 +161,8 @@ static void isp_3dnr_config_mem_ctrl(uint32_t idx,
 	 * val = (((mem_ctrl->img_height/2 - 1) & 0xFFF) << 16)    |
 	 *        ((mem_ctrl->img_width - 1) & 0xFFF);
 	 */
-	val = ((mem_ctrl->blend_uv_en_end_col & 0xFFF) << 16)	|
-	       (mem_ctrl->blend_uv_en_end_row & 0xFFF);
+	val = ((mem_ctrl->blend_uv_en_end_col & 0x1FFF) << 16)	|
+	       (mem_ctrl->blend_uv_en_end_row & 0x1FFF);
 	ISP_REG_WR(idx, ISP_3DNR_MEM_CTRL_PARAM11, val);
 
 	val = ((mem_ctrl->ft_hblank_num & 0xFFFF) << 16)	|

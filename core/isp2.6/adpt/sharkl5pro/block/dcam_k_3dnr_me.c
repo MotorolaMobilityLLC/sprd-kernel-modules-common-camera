@@ -41,24 +41,11 @@ struct roi_size {
 	uint32_t roi_height;
 };
 
-/* [DCAM_ID] [project_Mode] [line_Buf_Share_Mode] */
-struct roi_size roi_max_size_info [2][2][4] = {
-	{
-		{{2336,1752},{2336,1752},{2112,1584},{2112,1584}},
-		{{4672,3504},{4672,3504},{4224,3168},{4224,3168}}
-	},
-	{
-		{{2112,1584},{2112,1584},{2336,1752},{2336,1752}},
-		{{4224,3168},{4224,3168},{4672,3504},{4672,3504}}
-	}
-};
-
 /* input: rect: bin path crop size, include start point(x,y), and size(w,h)
  */
 void dcam_k_3dnr_set_roi(struct isp_img_rect rect,
 			 uint32_t project_mode, uint32_t idx)
 {
-	uint32_t roi_w_max, roi_h_max;
 	uint32_t roi_w, roi_h, roi_x = 0, roi_y = 0;
 	uint32_t lbuf_share_mode = 0;
 
@@ -66,21 +53,28 @@ void dcam_k_3dnr_set_roi(struct isp_img_rect rect,
 	 * max roi size should be half of normal value if project_mode is off
 	 */
 	lbuf_share_mode = DCAM_AXIM_RD(DCAM_LBUF_SHARE_MODE);
-	roi_w_max = roi_max_size_info[idx][project_mode][lbuf_share_mode].roi_width;
-	roi_h_max = roi_max_size_info[idx][project_mode][lbuf_share_mode].roi_height;
+	if (project_mode == 0)
+		if (rect.w > 2012)
+			lbuf_share_mode = 1 << 28;
+		else
+			lbuf_share_mode = 0 << 28;
+	else
+		if (rect.w > 4024)
+			lbuf_share_mode = 1 << 28;
+		else
+			lbuf_share_mode = 0 << 28;
+
+	DCAM_AXIM_MWR(DCAM_LBUF_SHARE_MODE, BIT_28, lbuf_share_mode);
 
 	/* get roi and align to 16 pixels */
-	roi_w = ALIGN_DOWN(min(roi_w_max, rect.w), DCAM_3DNR_ROI_SIZE_ALIGN);
-	roi_h = ALIGN_DOWN(min(roi_h_max, rect.h), DCAM_3DNR_ROI_SIZE_ALIGN);
+	roi_w = ALIGN_DOWN(rect.w, DCAM_3DNR_ROI_SIZE_ALIGN);
+	roi_h = ALIGN_DOWN(rect.h, DCAM_3DNR_ROI_SIZE_ALIGN);
 
 	/* get offset */
 	roi_x = (rect.w - roi_w) >> 1;
 	roi_y = (rect.h - roi_h) >> 1;
 	roi_x = ALIGN_DOWN(roi_x + rect.x, 2);
 	roi_y = ALIGN_DOWN(roi_y + rect.y, 2);
-
-	/* leave 32 lines to make sure BIN DONE comes earlier than NR3 DONE */
-	roi_h = max(roi_h, DCAM_3DNR_ROI_LINE_CUT) - DCAM_3DNR_ROI_LINE_CUT;
 
 	/* almost done! */
 	DCAM_REG_WR(idx, NR3_FAST_ME_ROI_PARAM0, roi_x << 16 | roi_y);

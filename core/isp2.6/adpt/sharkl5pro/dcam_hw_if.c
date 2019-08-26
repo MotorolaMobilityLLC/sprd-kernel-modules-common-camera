@@ -1054,4 +1054,22 @@ int dcam_lbuf_share_mode(enum dcam_id idx, uint32_t width)
 
 	return ret;
 }
+int dcam_offline_slice_set_fetch_param(uint32_t idx, struct dcam_fetch_info *fetch)
+{
+	int ret = 0;
+	if (fetch == NULL)
+		pr_err("fail to check param");
+
+	DCAM_REG_MWR(idx, DCAM_BAYER_INFO_CFG,
+		BIT_5 | BIT_4, (fetch->pattern & 3) << 4);
+	DCAM_AXIM_MWR(IMG_FETCH_CTRL,
+		BIT_1 | BIT_0, fetch->is_loose);
+	DCAM_AXIM_MWR(IMG_FETCH_CTRL,
+		BIT_3 | BIT_2, fetch->endian << 2);
+	DCAM_AXIM_WR(IMG_FETCH_SIZE,
+		(fetch->trim.size_y << 16) | (fetch->trim.size_x/2 & 0xffff));
+	DCAM_AXIM_WR(IMG_FETCH_RADDR, fetch->addr.addr_ch0);
+
+	return ret;
+}
 

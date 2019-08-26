@@ -42,5 +42,6 @@ uint32_t dcam_get_path_ctrl_id(uint32_t path_id);
 struct dcam_if *dcam_get_dcam_if(uint32_t idx);
 /* set lbuf share mode for dcam0,dcam1, set before stream on */
 int dcam_lbuf_share_mode(enum dcam_id idx, uint32_t width);
-
+int dcam_offline_slice_set_fetch_param(uint32_t idx,
+	struct dcam_fetch_info *fetch);
 #endif

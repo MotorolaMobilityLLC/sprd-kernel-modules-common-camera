@@ -553,6 +553,9 @@ static void dcam_full_path_done(void *param)
 {
 	struct dcam_pipe_dev *dev = (struct dcam_pipe_dev *)param;
 	struct camera_frame *frame = NULL;
+	struct dcam_path_desc *path = NULL;
+
+	path = &dev->path[DCAM_PATH_FULL];
 
 	if ((frame = dcam_prepare_frame(dev, DCAM_PATH_FULL))) {
 		if (dev->is_4in1) {
@@ -571,6 +574,10 @@ static void dcam_full_path_done(void *param)
 			else /* low lux, to isp as normal */
 				frame->irq_type = CAMERA_IRQ_IMG;
 		}
+		if (dev->is_bigsize) {
+			frame->irq_type = CAMERA_IRQ_BIGSIZE_DONE;
+		}
+
 		dcam_dispatch_frame(dev, DCAM_PATH_FULL, frame,
 				    DCAM_CB_DATA_DONE);
 	}
@@ -588,13 +595,22 @@ static void dcam_bin_path_done(void *param)
 
 	path = &dev->path[DCAM_PATH_BIN];
 	cnt = atomic_read(&path->set_frm_cnt);
-	pr_info("wuyi\n");
 	if (cnt <= dev->slowmotion_count) {
 		pr_warn("DCAM%u BIN cnt %d, deci %u, out %u, result %u\n",
 			dev->idx, cnt, path->frm_deci,
 			camera_queue_cnt(&path->out_buf_queue),
 			camera_queue_cnt(&path->result_queue));
 		return;
+	}
+
+	if (dev->idx == 1 && dev->is_bigsize == 1) {
+		if (dev->is_right == 0) {
+			dev->is_right = 1;
+			complete(&dev->offline_complete);
+			return;
+		}
+		else
+			dev->is_right = 0;
 	}
 
 	if ((frame = dcam_prepare_frame(dev, DCAM_PATH_BIN))) {

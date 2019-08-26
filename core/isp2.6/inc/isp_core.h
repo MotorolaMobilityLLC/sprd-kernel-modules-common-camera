@@ -57,6 +57,10 @@
 #define ISP_PIXEL_ALIGN_WIDTH		4
 #define ISP_PIXEL_ALIGN_HEIGHT		2
 
+#define AFBC_PADDING_W_YUV420_scaler        32
+#define AFBC_PADDING_H_YUV420_scaler        8
+#define AFBC_HEADER_SIZE                    16
+#define AFBC_PAYLOAD_SIZE                   384
 
 enum isp_work_mode {
 	ISP_CFG_MODE,
@@ -248,6 +252,26 @@ struct isp_store_info {
 	struct img_pitch pitch;
 };
 
+struct store_border {
+	uint32_t up_border;
+	uint32_t down_border;
+	uint32_t left_border;
+	uint32_t right_border;
+};
+
+struct isp_afbc_store_info {
+	uint32_t bypass;
+	uint32_t endian;
+	uint32_t mirror_en;
+	uint32_t color_format;
+	uint32_t tile_number_pitch;
+	uint32_t yaddr;
+	uint32_t yheader;
+	uint32_t header_offset;
+	struct img_size size;
+	struct store_border border;
+};
+
 struct isp_fbc_store_info {
 	/* ISP_FBC_STORE_PARAM */
 	uint32_t endian:2;
@@ -290,6 +314,7 @@ struct slice_cfg_input {
 	struct isp_fetch_info *frame_fetch;
 	struct isp_fbd_raw_info *frame_fbd_raw;
 	struct isp_store_info *frame_store[ISP_SPATH_NUM];
+	struct isp_afbc_store_info *frame_afbc_store[AFBC_PATH_NUM];
 	struct isp_scaler_info *frame_scaler[ISP_SPATH_NUM];
 	struct img_deci_info *frame_deci[ISP_SPATH_NUM];
 	struct img_trim *frame_trim0[ISP_SPATH_NUM];
@@ -317,11 +342,13 @@ struct isp_path_desc {
 	uint32_t slave_path_id;
 	uint32_t store_fbc;/* 1 for fbc store; 0 for normal store */
 	uint32_t uframe_sync;
+	uint32_t path_afbc;
 	struct isp_pipe_context *attach_ctx;
 
 	struct isp_regular_info regular_info;
 	struct isp_store_info store;
 	struct isp_fbc_store_info fbc_store;
+	struct isp_afbc_store_info afbc_store;
 	union {
 		struct isp_scaler_info scaler;
 		struct isp_thumbscaler_info thumbscaler;
