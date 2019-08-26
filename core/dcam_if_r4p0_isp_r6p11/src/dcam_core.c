@@ -158,9 +158,8 @@ static int sprd_img_buf_queue_init(struct camera_img_buf_queue *queue)
 static int sprd_img_setflash(enum dcam_id idx,
 			     struct sprd_img_set_flash *set_flash)
 {
-#if 0
+
 	sprd_flash_ctrl(set_flash);
-#endif
 	DCAM_TRACE("%d set flash\n", idx);
 
 	return 0;
