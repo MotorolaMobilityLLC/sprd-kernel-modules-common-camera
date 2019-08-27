@@ -359,11 +359,6 @@ static void isp_3dnr_config_store(uint32_t idx,
 
 	val = nr3_store->st_pitch & 0xFFFF;
 	ISP_REG_WR(idx, ISP_3DNR_STORE_PITCH, val);
-
-	ISP_REG_MWR(idx,
-		    ISP_3DNR_STORE_SHADOW_CLR,
-		    BIT_0,
-		    nr3_store->shadow_clr);
 }
 
 static void isp_3dnr_config_crop(uint32_t idx,

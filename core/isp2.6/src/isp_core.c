@@ -1545,7 +1545,7 @@ static int isp_offline_start_frame(void *ctx)
 					pctx->slw_state = CAM_SLOWMOTION_ON;
 			}
 		} else {
-			pr_info("cfg start. fid %d\n", frame_id);
+			pr_debug("cfg start. fid %d\n", frame_id);
 			ret = cfg_desc->ops->hw_start(
 					cfg_desc, pctx->ctx_id);
 		}
@@ -1893,7 +1893,7 @@ static int sprd_isp_proc_frame(void *isp_handle,
 	pframe = (struct camera_frame *)param;
 	pframe->priv_data = pctx;
 
-	pr_info("frame %p, ctx %d  path %d, ch_id %d.  buf_fd %d\n", pframe,
+	pr_debug("frame %p, ctx %d  path %d, ch_id %d.  buf_fd %d\n", pframe,
 		ctx_id, ctx_id, pframe->channel_id, pframe->buf.mfd[0]);
 	ret = camera_enqueue(&pctx->in_queue, pframe);
 	if (ret == 0) {

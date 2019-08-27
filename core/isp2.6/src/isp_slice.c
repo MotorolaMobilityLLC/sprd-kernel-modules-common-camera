@@ -1552,6 +1552,7 @@ static int cfg_slice_3dnr_memctrl_info(
 		slc_3dnr_memctrl->addr.addr_ch1 = mem_ctrl->ft_chroma_addr +
 			ch1_offset;
 
+		slc_3dnr_memctrl->bypass = mem_ctrl->bypass;
 		slc_3dnr_memctrl->first_line_mode = 0;
 		slc_3dnr_memctrl->last_line_mode = 0;
 		slc_3dnr_memctrl->start_row    = start_row;
@@ -1563,9 +1564,10 @@ static int cfg_slice_3dnr_memctrl_info(
 		slc_3dnr_memctrl->ft_uv.h = (end_row - start_row + 1) >> 1;
 		slc_3dnr_memctrl->ft_uv.w = end_col - start_col + 1;
 
-		pr_debug("memctrl param w[%d], h[%d]\n",
+		pr_debug("memctrl param w[%d], h[%d] bypass %d\n",
 			slc_3dnr_memctrl->src.w,
-			slc_3dnr_memctrl->src.h);
+			slc_3dnr_memctrl->src.h,
+			slc_3dnr_memctrl->bypass);
 	}
 
 	return ret;
@@ -1609,7 +1611,6 @@ static int cfg_slice_3dnr_store_info(
 	pitch_u  = in_ptr->frame_in_size.w;
 
 	cur_slc = &slc_ctx->slices[0];
-
 	if (nr3_ctx->type == NR3_FUNC_OFF) {
 		for (idx = 0; idx < SLICE_NUM_MAX; idx++, cur_slc++) {
 			if (cur_slc->valid == 0)
@@ -1645,6 +1646,7 @@ static int cfg_slice_3dnr_store_info(
 		ch0_offset = orig_s_row * pitch_y + orig_s_col;
 		ch1_offset = ((orig_s_row * pitch_u + 1) >> 1) + orig_s_col;
 
+		slc_3dnr_store->bypass = nr3_store->st_bypass;
 		slc_3dnr_store->addr.addr_ch0 = nr3_store->st_luma_addr +
 			ch0_offset;
 		slc_3dnr_store->addr.addr_ch1 = nr3_store->st_chroma_addr +
@@ -1653,8 +1655,8 @@ static int cfg_slice_3dnr_store_info(
 		slc_3dnr_store->size.w = orig_e_col - orig_s_col + 1;
 		slc_3dnr_store->size.h = orig_e_row - orig_s_row + 1;
 
-		pr_debug("store w[%d], h[%d]\n", slc_3dnr_store->size.w,
-			slc_3dnr_store->size.h);
+		pr_debug("store w[%d], h[%d] bypass %d\n", slc_3dnr_store->size.w,
+			slc_3dnr_store->size.h, slc_3dnr_store->bypass);
 	}
 
 	return ret;
@@ -1719,8 +1721,9 @@ static int cfg_slice_3dnr_crop_info(
 		pr_debug("crop src.w[%d], src.h[%d], des.w[%d], des.h[%d]",
 			slc_3dnr_crop->src.w, slc_3dnr_crop->src.h,
 			slc_3dnr_crop->dst.w, slc_3dnr_crop->dst.h);
-		pr_debug("ovx[%d], ovx[%d]\n",
-			slc_3dnr_crop->start_x, slc_3dnr_crop->start_y);
+		pr_debug("ovx[%d], ovx[%d] bypass %d\n",
+			slc_3dnr_crop->start_x, slc_3dnr_crop->start_y,
+			slc_3dnr_crop->bypass);
 	}
 
 	return ret;
