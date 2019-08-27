@@ -20,7 +20,7 @@ extern unsigned long g_dcam_regbase[];
 extern unsigned long g_dcam_aximbase;
 extern unsigned long g_dcam_mmubase;
 
-#define DCAM_PATH_CROP_ALIGN 16
+#define DCAM_PATH_CROP_ALIGN 8
 
 /* DCAM0/DCAM1 module registers define */
 #define DCAM_CFG			(0x0008UL)
