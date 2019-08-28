@@ -340,43 +340,6 @@ void isp_set_ctx_common(struct isp_pipe_context *pctx)
 		fetch->in_trim.size_x | (fetch->in_trim.size_y << 16));
 	ISP_REG_WR(idx, ISP_DISPATCH_CH0_BAYER, pctx->dispatch_bayer_mode);
 
-	/*CFA*/
-	ISP_REG_MWR(idx, ISP_CFAE_NEW_CFG0, BIT_0, 0);
-	ISP_REG_WR(idx, ISP_CFAE_INTP_CFG0, 0x1F4 | 0x1F4 << 16);
-	ISP_REG_WR(idx, ISP_CFAE_INTP_CFG1,
-		(0x1 << 31) | (0x14 << 12) | (0x7F << 4) | 0x4);
-	ISP_REG_WR(idx, ISP_CFAE_INTP_CFG2, 0x8 | (0x0 << 8));
-	ISP_REG_WR(idx, ISP_CFAE_INTP_CFG3,
-		(0x8 << 20) | (0x8 << 12) | 0x118);
-	ISP_REG_WR(idx, ISP_CFAE_INTP_CFG4, 0x64 | (0x64 << 16));
-	ISP_REG_WR(idx, ISP_CFAE_INTP_CFG5, 0xC8 | (0xC8 << 16));
-
-	ISP_REG_WR(idx, ISP_CFAE_CSS_CFG0, 0x64 | (0x96 << 16));
-	ISP_REG_WR(idx, ISP_CFAE_CSS_CFG1, 0x14 | (0x5 << 16));
-	ISP_REG_WR(idx, ISP_CFAE_CSS_CFG2,
-		(0x28 << 20) | (0x1E << 10) | 0xF);
-	ISP_REG_WR(idx, ISP_CFAE_CSS_CFG3, 0xC8);
-	ISP_REG_WR(idx, ISP_CFAE_CSS_CFG4, (0x5 << 10));
-	ISP_REG_WR(idx, ISP_CFAE_CSS_CFG5, (0x50 << 9) | 0x78);
-	ISP_REG_WR(idx, ISP_CFAE_CSS_CFG6,
-		(0x32 << 18) | (0x32 << 9));
-	ISP_REG_WR(idx, ISP_CFAE_CSS_CFG7, (0x64 << 18));
-	ISP_REG_WR(idx, ISP_CFAE_CSS_CFG8, 0x3C | (0x8 << 17));
-	ISP_REG_WR(idx, ISP_CFAE_CSS_CFG9,
-		(0x1FC << 20) | (0x134 << 10) | 0x27C);
-	ISP_REG_WR(idx, ISP_CFAE_CSS_CFG10,
-		(0x214 << 20) | (0x1FF << 10) | 0x1CD);
-	ISP_REG_WR(idx, ISP_CFAE_CSS_CFG11, 0x22D << 10 | 0x205);
-
-	/*CCE*/
-	ISP_REG_MWR(idx, ISP_CCE_PARAM, BIT_0, 0);
-	ISP_REG_WR(idx, ISP_CCE_MATRIX0, (150 << 11) | 77);
-	ISP_REG_WR(idx, ISP_CCE_MATRIX1, ((-43) << 11) | 29);
-	ISP_REG_WR(idx, ISP_CCE_MATRIX2, 0x407AB);
-	ISP_REG_WR(idx, ISP_CCE_MATRIX3, ((-107) << 11) | 128);
-	ISP_REG_WR(idx, ISP_CCE_MATRIX4, (-21));
-	ISP_REG_WR(idx, ISP_CCE_SHIFT, 0);
-
 	ISP_REG_WR(idx, ISP_YDELAY_STEP, 0x144);
 	ISP_REG_WR(idx, ISP_SCALER_PRE_CAP_BASE
 		+ ISP_SCALER_HBLANK, 0x4040);
@@ -445,6 +408,44 @@ void isp_set_ctx_default(struct isp_pipe_context *pctx)
 	ISP_REG_MWR(idx, ISP_3DNR_BLEND_CONTROL0, BIT_0, 1);
 	ISP_REG_MWR(idx, ISP_3DNR_STORE_PARAM, BIT_0, 1);
 	ISP_REG_MWR(idx, ISP_3DNR_MEM_CTRL_PRE_PARAM0, BIT_0, 1);
+
+	/*CFA*/
+	ISP_REG_MWR(idx, ISP_CFAE_NEW_CFG0, BIT_0, 0);
+	ISP_REG_WR(idx, ISP_CFAE_INTP_CFG0, 0x1F4 | 0x1F4 << 16);
+	ISP_REG_WR(idx, ISP_CFAE_INTP_CFG1,
+		(0x1 << 31) | (0x14 << 12) | (0x7F << 4) | 0x4);
+	ISP_REG_WR(idx, ISP_CFAE_INTP_CFG2, 0x8 | (0x0 << 8));
+	ISP_REG_WR(idx, ISP_CFAE_INTP_CFG3,
+		(0x8 << 20) | (0x8 << 12) | 0x118);
+	ISP_REG_WR(idx, ISP_CFAE_INTP_CFG4, 0x64 | (0x64 << 16));
+	ISP_REG_WR(idx, ISP_CFAE_INTP_CFG5, 0xC8 | (0xC8 << 16));
+
+	ISP_REG_WR(idx, ISP_CFAE_CSS_CFG0, 0x64 | (0x96 << 16));
+	ISP_REG_WR(idx, ISP_CFAE_CSS_CFG1, 0x14 | (0x5 << 16));
+	ISP_REG_WR(idx, ISP_CFAE_CSS_CFG2,
+		(0x28 << 20) | (0x1E << 10) | 0xF);
+	ISP_REG_WR(idx, ISP_CFAE_CSS_CFG3, 0xC8);
+	ISP_REG_WR(idx, ISP_CFAE_CSS_CFG4, (0x5 << 10));
+	ISP_REG_WR(idx, ISP_CFAE_CSS_CFG5, (0x50 << 9) | 0x78);
+	ISP_REG_WR(idx, ISP_CFAE_CSS_CFG6,
+		(0x32 << 18) | (0x32 << 9));
+	ISP_REG_WR(idx, ISP_CFAE_CSS_CFG7, (0x64 << 18));
+	ISP_REG_WR(idx, ISP_CFAE_CSS_CFG8, 0x3C | (0x8 << 17));
+	ISP_REG_WR(idx, ISP_CFAE_CSS_CFG9,
+		(0x1FC << 20) | (0x134 << 10) | 0x27C);
+	ISP_REG_WR(idx, ISP_CFAE_CSS_CFG10,
+		(0x214 << 20) | (0x1FF << 10) | 0x1CD);
+	ISP_REG_WR(idx, ISP_CFAE_CSS_CFG11, 0x22D << 10 | 0x205);
+
+	/*CCE*/
+	ISP_REG_MWR(idx, ISP_CCE_PARAM, BIT_0, 0);
+	ISP_REG_WR(idx, ISP_CCE_MATRIX0, (150 << 11) | 77);
+	ISP_REG_WR(idx, ISP_CCE_MATRIX1, ((-43) << 11) | 29);
+	ISP_REG_WR(idx, ISP_CCE_MATRIX2, 0x407AB);
+	ISP_REG_WR(idx, ISP_CCE_MATRIX3, ((-107) << 11) | 128);
+	ISP_REG_WR(idx, ISP_CCE_MATRIX4, (-21));
+	ISP_REG_WR(idx, ISP_CCE_SHIFT, 0);
+
 	pr_info("end\n");
 }
 
