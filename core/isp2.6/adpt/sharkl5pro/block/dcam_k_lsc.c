@@ -118,6 +118,7 @@ int dcam_init_lsc(void *in, uint32_t online)
 			((info->grid_y_num & 0xff) << 8) |
 			(info->grid_x_num & 0xff);
 	DCAM_REG_WR(idx, DCAM_LENS_GRID_SIZE, val);
+	DCAM_REG_MWR(idx, DCAM_LENS_SLICE_CTRL1, 0xff, info->grid_x_num);
 
 	/* lens_load_buf_sel toggle */
 	val = DCAM_REG_RD(idx, DCAM_LENS_LOAD_ENABLE);
@@ -277,6 +278,7 @@ int dcam_update_lsc(void *in)
 				((info->grid_y_num & 0xff) << 8) |
 				(info->grid_x_num & 0xff);
 		DCAM_REG_WR(idx, DCAM_LENS_GRID_SIZE, val);
+		DCAM_REG_MWR(idx, DCAM_LENS_SLICE_CTRL1, 0xff, info->grid_x_num);
 		pr_info("update grid %d x %d y %d\n", info->grid_width,
 				info->grid_x_num, info->grid_y_num);
 	}
