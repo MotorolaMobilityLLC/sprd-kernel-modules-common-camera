@@ -2974,7 +2974,7 @@ static int sprd_isp_cfg_blkparam(
 	mutex_lock(&pctx->blkpm_lock);
 
 	if (io_param->sub_block == ISP_BLOCK_NLM) {
-		//ret = isp_k_cfg_nlm(param, &pctx->isp_k_param, ctx_id);
+		ret = isp_k_cfg_nlm(param, &pctx->isp_k_param, ctx_id);
 	} else if (io_param->sub_block == ISP_BLOCK_3DNR) {
 		if (pctx->mode_3dnr != MODE_3DNR_OFF)
 			ret = isp_k_cfg_3dnr(param, &pctx->isp_k_param, ctx_id);
