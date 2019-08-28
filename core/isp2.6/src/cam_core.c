@@ -345,7 +345,8 @@ static void put_k_frame(void *param)
 	if (frame->buf.type == CAM_BUF_USER)
 		cambuf_put_ionbuf(&frame->buf);
 	else {
-		cambuf_kunmap(&frame->buf);
+		if (frame->buf.mapping_state)
+			cambuf_kunmap(&frame->buf);
 		cambuf_free(&frame->buf);
 	}
 	ret = put_empty_frame(frame);
@@ -701,7 +702,6 @@ static void alloc_buffers(struct work_struct *work)
 			if (ret) {
 				pr_err("fail to enqueue shared buf: %d ch %d\n",
 						i, channel->ch_id);
-				cambuf_kunmap(&pframe->buf);
 				cambuf_free(&pframe->buf);
 				put_empty_frame(pframe);
 				/* no break here and will retry */
