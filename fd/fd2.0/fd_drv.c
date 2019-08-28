@@ -40,10 +40,16 @@
 
 #include "cam_types.h"
 #include "cam_buf.h"
-#include "mm_ahb.h"
+#include "mm_ahb_l5pro.h"
 #include "fd_core.h"
 #include "fd_drv.h"
 #include "fd_reg.h"
+
+#ifdef pr_fmt
+#undef pr_fmt
+#endif
+#define pr_fmt(fmt) "fd_drv: %d %d %s : "\
+	fmt, current->pid, __LINE__, __func__
 
 #define FD_IRQ_MASK ((FD_MASK_INT_ERR) | (FD_MASK_INT_RAW))
 #define FD_AXI_STOP_TIMEOUT			2000
@@ -306,7 +312,7 @@ static int fd_unmap_buf(struct fd_drv *hw_handle)
 	int ret = 0;
 
 	for (i = 0; i <  FD_BUF_INDEX_MAX; i++) {
-		if(hw_handle->fd_buf_info[i].mfd != 0) {
+		if(hw_handle->fd_buf_info[i].mfd != 0 && FD_BUF_CFG_INDEX != i) {
 			ret = cambuf_iommu_unmap(&hw_handle->fd_buf_info[i].buf_info);
 			if (ret)
 				pr_err("FD_DRV unmap err %d index\n", i);
@@ -333,6 +339,27 @@ static void sprd_fd_irq_disable(struct fd_drv *hw_handle)
 			0);
 }
 
+static void  fd_reg_dump(struct fd_drv *handle)
+{
+	int i = 0;
+
+
+	for (i = 0; i < FD_SPARE_GATE; i += 4)
+		pr_info("0x%x   0x%x\n", i, FD_REG_RD(handle->io_base, i));
+
+	for (i = FD_MODEL_CFG_EN; i < FD_MODEL67_FINE_NUM; i += 4)
+		pr_info("0x%x   0x%x\n", i, FD_REG_RD(handle->io_base, i));
+
+	for (i = FD_INT_EN; i < FD_MMU_READ_PAGE_CMD_CNT; i += 4)
+		pr_info("0x%x   0x%x\n", i, FD_REG_RD(handle->io_base, i));
+
+	for (i = FD_MMU_INT_EN; i < FD_MMU_INT_RAW; i += 4)
+		pr_info("0x%x   0x%x\n", i, FD_REG_RD(handle->io_base, i));
+
+	for (i = FD_MMU_VERSION; i <= FD_MMU_INT_RAW; i += 4)
+		pr_info("0x%x   0x%x\n", i, FD_REG_RD(handle->io_base, i));
+}
+
 static irqreturn_t fd_isr_root(int irq, void *priv)
 {
 	uint32_t status = 0;
@@ -349,6 +376,8 @@ static irqreturn_t fd_isr_root(int irq, void *priv)
 	if ((status & err_mask) != 0) {
 		pr_err("FD_ERR int error 0x%x\n", status);
 		hw_handle->state = SPRD_FD_STATE_ERROR;
+		fd_reg_dump(hw_handle);
+
 		/*print_reg_trace*/
 	}
 	if (hw_handle->state != SPRD_FD_STATE_ERROR &&
@@ -490,6 +519,11 @@ int sprd_fd_drv_close(void *drv_handle)
 
 	hw_handle  = (struct fd_drv *)drv_handle;
 
+	ret = cambuf_iommu_unmap(&hw_handle->fd_buf_info[FD_BUF_CFG_INDEX].buf_info);
+	if (ret)
+		pr_err("fail to unmap FD_BUF_CFG_INDEX\n");
+	cambuf_put_ionbuf(&hw_handle->fd_buf_info[FD_BUF_CFG_INDEX].buf_info);
+	hw_handle->fd_buf_info[FD_BUF_CFG_INDEX].mfd = 0;
 	devm_free_irq(&hw_handle->pdev->dev, hw_handle->irq_no,
 			(void *)hw_handle);
 	if (atomic_dec_return(&hw_handle->pw_users) == 0) {
@@ -570,17 +604,41 @@ static int fd_write_run(struct fd_drv *hw_handle,
 			unsigned int reg_addr,
 			unsigned int val)
 {
-
 	val &= FD_MASK_RUN;
+	/*fd_reg_dump(hw_handle);*/
+	FD_REG_WR(hw_handle->io_base, reg_addr, val);
+	/*fd_reg_dump(hw_handle);*/
+
+	if (hw_handle->state == SPRD_FD_STATE_IDLE)
+		hw_handle->state = SPRD_FD_STATE_RUNNING;
+	return 0;
+}
+
+static int fd_int_eb(struct fd_drv *hw_handle,
+			unsigned int reg_addr,
+			unsigned int val)
+{
+	val &= FD_MASK_EB;
 
 	FD_REG_WR(hw_handle->io_base, reg_addr, val);
 
 	if (hw_handle->state == SPRD_FD_STATE_IDLE)
 		hw_handle->state = SPRD_FD_STATE_RUNNING;
 	return 0;
-
 }
 
+static int fd_int_clr(struct fd_drv *hw_handle,
+			unsigned int reg_addr,
+			unsigned int val)
+{
+	val &= FD_MASK_CLR;
+
+	FD_REG_WR(hw_handle->io_base, reg_addr, val);
+
+	if (hw_handle->state == SPRD_FD_STATE_IDLE)
+		hw_handle->state = SPRD_FD_STATE_RUNNING;
+	return 0;
+}
 
 static int fd_get_buf(unsigned int val,
 		struct camera_buf *buf_info)
@@ -640,6 +698,7 @@ static int fd_write_baddr(struct fd_drv *hw_handle,
 		break;
 	case FD_MODEL_CFG_BADDR:
 		index = FD_BUF_CFG_INDEX;
+		break;
 	default:
 		pr_err("fd_drv write address error 0x%x\n", reg_addr);
 		return -1;
@@ -767,29 +826,11 @@ static struct fd_reg_info fd_reg_info_table[SPRD_FD_REG_PARAM_MAX] = {
 					fd_write_model_fine},
 	[SPRD_FD_REG_PARAM_MODEL_67_FINE] = {FD_MODEL67_FINE_NUM,
 					fd_write_model_fine},
-	[SPRD_FD_REG_PARAM_INT_EN] = {FD_INT_EN, NULL},
-	[SPRD_FD_REG_PARAM_INT_CLR] = {FD_INT_CLR, NULL},
+	[SPRD_FD_REG_PARAM_INT_EN] = {FD_INT_EN, fd_int_eb},
+	[SPRD_FD_REG_PARAM_INT_CLR] = {FD_INT_CLR, fd_int_clr},
 	[SPRD_FD_REG_PARAM_INT_RAW] = {FD_INT_RAW, NULL},
 	[SPRD_FD_REG_PARAM_INT_MASK] = {FD_INT_MASK, NULL},
 };
-
-static void  fd_reg_dump(struct fd_drv *handle)
-{
-	int i = 0;
-
-
-	for (i = 0; i < FD_SPARE_GATE; i += 4)
-		pr_debug("0x%x   0x%x\n", i, FD_REG_RD(handle->io_base, i));
-
-	for (i = FD_MODEL_CFG_EN; i < FD_MODEL67_FINE_NUM; i += 4)
-		pr_debug("0x%x   0x%x\n", i, FD_REG_RD(handle->io_base, i));
-
-	for (i = FD_INT_EN; i < FD_MMU_READ_PAGE_CMD_CNT; i += 4)
-		pr_debug("0x%x   0x%x\n", i, FD_REG_RD(handle->io_base, i));
-
-	for (i = FD_MMU_INT_EN; i < FD_MMU_INT_RAW; i += 4)
-		pr_debug("0x%x   0x%x\n", i, FD_REG_RD(handle->io_base, i));
-}
 
 static int fd_post_write_proc(struct fd_drv *hw_handle, unsigned int reg_param)
 {

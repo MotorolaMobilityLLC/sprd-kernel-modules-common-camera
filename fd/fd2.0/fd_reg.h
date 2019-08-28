@@ -97,6 +97,8 @@
 #define FD_MMU_INT_RAW			(0x1BC)
 
 #define FD_MASK_RUN			(0x1<<0)
+#define FD_MASK_EB			(0x3<<0)
+#define FD_MASK_CLR			(0x3<<0)
 
 #define FD_MASK_MODEL_CFG_EN	(0x1<<0)
 #define FD_MASK_MODEL_0_FINE	(0x3ff << 0)

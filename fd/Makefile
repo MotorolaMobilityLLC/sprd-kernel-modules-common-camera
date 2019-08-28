@@ -1,45 +1,31 @@
-ifeq ($(KDIR),)
-$(error No KDIR found for platform $(TARGET_PLATFORM))
-endif
+LOCAL_PATH := $(shell cd $(BSP_ROOT_DIR)/modules/camera/fd; pwd)
+FD_DIR := $(BSP_BOARD_CAMERA_MODULE_FD_VERSION)
 
 # target source files
-sprd_camera-objs :=
+sprd_fd-objs :=
 
-# target source files for fd1.0
-ifeq ($(FD_VER),fd1.0)
-SRC := $(shell find $(REL_PATH)/fd1.0 -name "*.c")
-LOCAL_SRC := $(SRC:$(REL_PATH)/%=%)
-
+SRC := $(shell find $(LOCAL_PATH)/$(FD_DIR) -name "*.c")
+LOCAL_SRC := $(SRC:$(LOCAL_PATH)/%=%)
 sprd_fd-objs += $(LOCAL_SRC:%.c=%.o)
-
-# target includes
-ccflags-y += -I$(REL_PATH)/../core/isp2.6/inc/
-
-else ifeq ($(FD_VER),fd2.0)
-SRC := $(shell find $(REL_PATH)/fd2.0 -name "*.c")
-LOCAL_SRC := $(SRC:$(REL_PATH)/%=%)
-
-sprd_fd-objs += $(LOCAL_SRC:%.c=%.o)
-
-# target includes
-#need to check when SharkL5Pro source code porting to vendor
-ccflags-y += -I$(REL_PATH)/../core/isp2.6/inc/
-endif
 
 # target
 obj-m += sprd_fd.o
 
 # target includes
-ccflags-y += -I$(REL_PATH)/../common
-ccflags-y += -I$(REL_PATH)/../interface
-ccflags-y += -I$(srctree)/drivers/staging/android/ion
+ccflags-y += -I$(LOCAL_PATH)/../core/isp2.6/adpt/sharkl5pro/inc
+ccflags-y += -I$(LOCAL_PATH)/../core/isp2.6/inc/
+ccflags-y += -I$(LOCAL_PATH)/../common
+ccflags-y += -I$(LOCAL_PATH)/../interface
+ccflags-y += -I$(BSP_KERNEL_PATH)/drivers/staging/android/ion
+
+.PHONY:modules
 
 modules:
-	$(MAKE) ARCH=$(ARCH) -C $(KDIR) M=$(CURDIR) $@
+	make $(BSP_MAKE_EXTRA_ARGS) ARCH=$(BSP_BOARD_ARCH) CROSS_COMPILE=$(BSP_KERNEL_CROSS_COMPILE) -C $(BSP_KERNEL_PATH) O=$(BSP_KERNEL_OUT) M=`pwd` $@
+
+modules_install:
+	make $(BSP_MAKE_EXTRA_ARGS) ARCH=$(BSP_BOARD_ARCH) CROSS_COMPILE=$(BSP_KERNEL_CROSS_COMPILE) -C $(BSP_KERNEL_PATH) O=$(BSP_KERNEL_OUT) M=`pwd` INSTALL_MOD_PATH=$(BSP_MODULES_OUT) $@
 
 clean:
-	$(MAKE) ARCH=$(ARCH) -C $(KDIR) M=$(CURDIR) $@
-
-kernelrelease:
-	$(MAKE) ARCH=$(ARCH) -C $(KDIR) $@
+	make -C $(BSP_KERNEL_PATH) O=$(BSP_KERNEL_OUT) M=`pwd` $@
 

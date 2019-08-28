@@ -38,7 +38,11 @@
 #include "fd_core.h"
 
 #define FD_DEVICE_NAME "sprd_fd"
-
+#ifdef pr_fmt
+#undef pr_fmt
+#endif
+#define pr_fmt(fmt) "fd_core: %d %d %s : "\
+	fmt, current->pid, __LINE__, __func__
 
 static int fd_ioctl_write(struct fd_module *module, unsigned long arg)
 {
