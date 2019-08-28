@@ -238,6 +238,9 @@ static void isp_fmcu_store_done(enum isp_context_id idx, void *isp_handle)
 	dev = (struct isp_pipe_dev *)isp_handle;
 	pctx = &dev->ctx[idx];
 
+	if (!pctx->fmcu_handle)
+		return;
+
 	isp_frame_done(idx, dev);
 
 	if (pctx->enable_slowmotion == 1) {
