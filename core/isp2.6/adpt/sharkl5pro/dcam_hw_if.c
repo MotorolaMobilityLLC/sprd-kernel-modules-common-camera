@@ -321,11 +321,13 @@ int dcam_reset(struct dcam_pipe_dev *dev)
 			DCAM_AXIM_RD(AXIM_DBG_STS));
 	} else {
 		flag = reset_bit[idx];
+		pr_debug("DCAM%d, rst=0x%x, rst_mask=0x%x flag=0x%x\n",
+			idx, hw->syscon.rst, hw->syscon.rst_mask, flag);
 		regmap_update_bits(hw->cam_ahb_gpr,
-			0x0004, flag, flag);
+			hw->syscon.rst, hw->syscon.rst_mask, hw->syscon.rst_mask);
 		udelay(10);
 		regmap_update_bits(hw->cam_ahb_gpr,
-			0x0004, flag, ~flag);
+			hw->syscon.rst, hw->syscon.rst_mask, ~(hw->syscon.rst_mask));
 	}
 
 	DCAM_REG_MWR(idx, DCAM_INT_CLR,
@@ -359,15 +361,17 @@ void dcam_init_axim(struct sprd_cam_hw_info *hw)
 		pr_info("dcam axim timeout status 0x%x\n",
 			DCAM_AXIM_RD(AXIM_DBG_STS));
 	} else {
+		pr_debug("axim all_rst=0x%x, all_rst_mask=0x%x\n",
+			hw->syscon.all_rst, hw->syscon.all_rst_mask);
 		/* reset dcam all (0/1/2/bus) */
 		regmap_update_bits(hw->cam_ahb_gpr,
-			0x0004,
-			BIT(23),
-			BIT(23));
+			hw->syscon.all_rst,
+			hw->syscon.all_rst_mask,
+			hw->syscon.all_rst_mask);
 		udelay(10);
 		regmap_update_bits(hw->cam_ahb_gpr,
-			0x0004,
-			BIT(23), 0);
+			hw->syscon.all_rst,
+			hw->syscon.all_rst_mask, ~(hw->syscon.all_rst_mask));
 	}
 
 	/* AXIM shared by all dcam, should be init once only...*/

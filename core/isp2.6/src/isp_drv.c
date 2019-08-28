@@ -364,6 +364,16 @@ int sprd_isp_parse_dt(struct device_node *dn,
 			return -EINVAL;
 		}
 
+		args_count = syscon_get_args_by_name(isp_node, "isp_ahb_reset",
+			sizeof(args), args);
+		if (args_count == ARRAY_SIZE(args))
+			isp_hw->syscon.rst_ahb_mask = args[1];
+
+		args_count = syscon_get_args_by_name(isp_node, "isp_vau_reset",
+			sizeof(args), args);
+		if (args_count == ARRAY_SIZE(args))
+			isp_hw->syscon.rst_vau_mask = args[1];
+
 		if (of_address_to_resource(isp_node, i, &res))
 			pr_err("fail to get isp phys addr\n");
 

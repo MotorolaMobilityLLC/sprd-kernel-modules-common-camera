@@ -32,6 +32,8 @@ enum sprd_cam_prj_id {
 struct glb_syscon {
 	uint32_t rst;
 	uint32_t rst_mask;
+	uint32_t rst_ahb_mask;
+	uint32_t rst_vau_mask;
 	uint32_t all_rst;
 	uint32_t all_rst_mask;
 };

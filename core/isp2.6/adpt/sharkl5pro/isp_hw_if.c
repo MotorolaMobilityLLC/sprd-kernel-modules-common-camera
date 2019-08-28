@@ -29,7 +29,6 @@ static unsigned long irq_base[4] = {
 	ISP_C1_INT_BASE
 };
 
-
 uint32_t isp_check_context(uint32_t ctx_id,
 	struct isp_init_param *init_param)
 {
@@ -512,12 +511,16 @@ int isp_reset(struct sprd_cam_hw_info *hw, void *arg)
 	if (time_out >= ISP_AXI_STOP_TIMEOUT) {
 		pr_info("ISP reset timeout %d\n", time_out);
 	} else {
-		flag = BIT(10) | BIT(12);
+		flag = hw->syscon.rst_mask
+			| hw->syscon.rst_ahb_mask
+			| hw->syscon.rst_vau_mask;
+		pr_debug("ISP reset rst_mask 0x%x, rst_ahb_mask 0x%x, rst_vau_mask 0x%x\n",
+			hw->syscon.rst_mask, hw->syscon.rst_ahb_mask,  hw->syscon.rst_vau_mask);
 		regmap_update_bits(hw->cam_ahb_gpr,
-			0x0004, flag, flag);
+			hw->syscon.rst, flag, flag);
 		udelay(10);
 		regmap_update_bits(hw->cam_ahb_gpr,
-			0x0004, flag, ~flag);
+			hw->syscon.rst, flag, ~flag);
 	}
 
 	/* enable axim transfering */
@@ -573,3 +576,4 @@ int isp_irq_enable(struct sprd_cam_hw_info *hw, void *arg)
 
 	return 0;
 }
+
