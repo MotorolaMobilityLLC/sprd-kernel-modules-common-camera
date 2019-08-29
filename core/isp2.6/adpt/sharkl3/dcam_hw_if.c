@@ -38,6 +38,7 @@ static const struct bypass_tag dcam_tb_bypass[] = {
 	[_E_RAND] = {"rand", ISP_RGBG_YRANDOM_PARAMETER0, 1}, /* 0x278.b1 */
 	[_E_AWBC] = {"awbc", ISP_AWBC_GAIN0, 31}, /* 0x380.b31 */
 	[_E_NR3]  = {"nr3",  NR3_FAST_ME_PARAM, 0}, /* 0x3F0.b0 */
+	[_E_GRGB] = {"grgb", DCAM_GRGB_CTRL, 0}, /* 0x120.b1 */
 };
 
 uint32_t dcam_tb_bypass_get_count()

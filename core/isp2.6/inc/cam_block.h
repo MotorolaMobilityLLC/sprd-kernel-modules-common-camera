@@ -150,6 +150,7 @@ enum isp_bypass {
 	_EISP_NLM,
 	_EISP_VST,
 	_EISP_IVST,
+	_EISP_CFA,
 	_EISP_CMC,
 	_EISP_GAMC, /* gamma correction */
 	_EISP_HSV,
@@ -164,11 +165,16 @@ enum isp_bypass {
 	_EISP_POSTCDN,
 	_EISP_UVD,
 	_EISP_IIRCNR,
-	_EISP_YRAND, /* 17 */
-	_EISP_BCHS, /* 18 */
+	_EISP_YRAND,
+	_EISP_BCHS,
+	_EISP_CONTRAST,
+	_EISP_BRIGHT,
+	_EISP_SATURATION,
+	_EISP_HUE,
 	_EISP_YUVNF,
 
 	_EISP_TOTAL, /* total before this */
+	_EISP_CCE = 29,
 	_EISP_LTM = 30,
 	_EISP_NR3 = 31,
 	/* Attention up to 31 */

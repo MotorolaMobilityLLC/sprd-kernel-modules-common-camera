@@ -39,6 +39,9 @@ static int isp_k_cfa_block(struct isp_io_param *param, uint32_t idx)
 		return ret;
 	}
 
+	if (g_isp_bypass[idx] & (1 << _EISP_CFA))
+		cfa_info.bypass = 1;
+
 	ISP_REG_MWR(idx, ISP_CFAE_NEW_CFG0, BIT_0, cfa_info.bypass);
 	if (cfa_info.bypass)
 		return 0;

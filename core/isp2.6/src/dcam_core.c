@@ -134,6 +134,10 @@ static ssize_t bypass_write(struct file *filp,
 		bypass_all = 1;
 
 	for (i = 0; i < dcam_tb_bypass_get_count(); i++) {
+		if (dcam_tb_bypass_get_data(i) == NULL)
+			continue;
+		if (dcam_tb_bypass_get_data(i)->p == NULL)
+			continue;
 		if (strcmp(dcam_tb_bypass_get_data(i)->p, name) == 0 || bypass_all) {
 			dat = *dcam_tb_bypass_get_data(i);
 			pr_debug("set dcam%d addr 0x%x, bit %d val %d\n",
@@ -174,7 +178,11 @@ static int bypass_read(struct seq_file *s, void *unused)
 			pr_warn("copy to user fail\n");
 	} else {
 		for (i = 0; i < dcam_tb_bypass_get_count(); i++) {
+			if (dcam_tb_bypass_get_data(i) == NULL)
+				continue;
 			dat = *dcam_tb_bypass_get_data(i);
+			if (dat.p == NULL)
+				continue;
 			addr = dat.addr;
 			val = DCAM_REG_RD(idx, addr) & (1 << dat.bpos);
 			if (val)

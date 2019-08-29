@@ -121,7 +121,12 @@ static int bypass_read(struct seq_file *s, void *unused)
 	}
 	seq_printf(s, "===========isp context %d=============\n", idx);
 	for (i = 0; i < isp_tb_bypass_get_count(); i++) {
+		if (isp_tb_bypass_get_data(i) == NULL)
+			continue;
 		dat = *isp_tb_bypass_get_data(i);
+		if (dat.p == NULL)
+			continue;
+
 		addr = dat.addr;
 		val = ISP_REG_RD(idx, addr) & (1 << dat.bpos);
 		if (val)
@@ -205,6 +210,10 @@ static ssize_t bypass_write(struct file *filp,
 		}
 	}
 	for (i = 0; i < isp_tb_bypass_get_count(); i++) {
+		if (isp_tb_bypass_get_data(i) == NULL)
+			continue;
+		if (isp_tb_bypass_get_data(i)->p == NULL)
+			continue;
 		if (strcmp(isp_tb_bypass_get_data(i)->p, name) == 0 || bypass_all) {
 			dat = *isp_tb_bypass_get_data(i);
 			pr_debug("set isp addr 0x%x, bit %d val %d\n",

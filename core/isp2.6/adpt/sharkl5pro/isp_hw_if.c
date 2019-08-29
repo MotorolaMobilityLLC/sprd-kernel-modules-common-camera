@@ -50,53 +50,49 @@ uint32_t isp_ctx_support_fmcu(uint32_t ctx_id) {
 }
 
 static const struct bypass_tag isp_tb_bypass[] = {
-[_EISP_GC] =       {"gc",        0x1B10, 0, 1}, /* GrGb correction */
-[_EISP_VST] =      {"vst",       ISP_VST_PARA, 0, 1},
+[_EISP_GC] =       {"grgb",        ISP_GRGB_CTRL, 0, 1}, /* GrGb correction */
 [_EISP_NLM] =      {"nlm",       ISP_NLM_PARA, 0, 1},
+[_EISP_VST] =      {"vst",       ISP_VST_PARA, 0, 1},
 [_EISP_IVST] =     {"ivst",      ISP_IVST_PARA, 0, 1},
-[_EISP_CMC] =      {"cmc",       0x3110, 0, 1},
-[_EISP_GAMC] =     {"gamma-c",   0x3210, 0, 1}, /* Gamma correction */
-[_EISP_HSV] =      {"hsv",       0x3310, 0, 1},
-[_EISP_HIST2] =    {"hist2",     0x3710, 0, 1},
-[_EISP_PSTRZ] =    {"pstrz",     0x3410, 0, 1},
-[_EISP_PRECDN] =   {"precdn",    0x5010, 0, 1},
-[_EISP_YNR] =      {"ynr",       0x5110, 0, 1},
-[_EISP_EE] =       {"ee",        0x5710, 0, 1},
-[_EISP_GAMY] =     {"ygamma",    0x5B10, 0, 1},
-[_EISP_CDN] =      {"cdn",       0x5610, 0, 1},
-[_EISP_POSTCDN] =  {"postcdn",   0x5A10, 0, 1},
-[_EISP_UVD] =      {"uvd",       0x3610, 0, 1},
-[_EISP_IIRCNR] =   {"iircnr",    0x5D10, 0, 1},
-[_EISP_YRAND] =    {"yrandom",   0x5E10, 0, 1},
-[_EISP_BCHS] =     {"bchs",      0x5910, 0, 1},
-[_EISP_YUVNF] =    {"yuvnf",     0xC210, 0, 1},
+[_EISP_CFA] =      {"cfa",       ISP_CFAE_NEW_CFG0, 0, 1},
+[_EISP_CMC] =      {"cmc",       ISP_CMC10_PARAM, 0, 1},
+[_EISP_GAMC] =     {"gamma-c",   ISP_GAMMA_PARAM, 0, 1}, /* Gamma correction */
+[_EISP_HSV] =      {"hsv",       ISP_HSV_PARAM, 0, 1},
+[_EISP_HIST] =    {"hist",     ISP_HIST_PARAM, 0, 1},
+[_EISP_HIST2] =    {"hist2",     ISP_HIST2_PARAM, 0, 1},
+[_EISP_PSTRZ] =    {"pstrz",     ISP_PSTRZ_PARAM, 0, 1},
+[_EISP_PRECDN] =   {"precdn",    ISP_PRECDN_PARAM, 0, 1},
+[_EISP_YNR] =      {"ynr",       ISP_YNR_CONTRL0, 0, 1},
+[_EISP_EE] =       {"ee",        ISP_EE_PARAM, 0, 1},
+[_EISP_GAMY] =     {"ygamma",    ISP_YGAMMA_PARAM, 0, 1},
+[_EISP_CDN] =      {"cdn",       ISP_CDN_PARAM, 0, 1},
+[_EISP_POSTCDN] =  {"postcdn",   ISP_POSTCDN_COMMON_CTRL, 0, 1},
+[_EISP_UVD] =      {"uvd",       ISP_UVD_PARAM, 0, 1},
+[_EISP_IIRCNR] =   {"iircnr",    ISP_IIRCNR_PARAM, 0, 1},
+[_EISP_YRAND] =    {"yrandom",   ISP_YRANDOM_PARAM1, 0, 1},
+[_EISP_BCHS] =     {"bchs",      ISP_BCHS_PARAM, 0, 1},
+[_EISP_YUVNF] =    {"yuvnf",     ISP_YUV_NF_CTRL, 0, 1},
 
-	{"ydelay",    0x5C10, 0, 1},
-	{"fetch-fbd", 0x0C10, 0, 1},
-	{"fbc-pre",   0xC310, 0, 1},
-	{"scale-vid", 0xD010, 9, 1},
-	{"store-vid", 0xD110, 0, 1},
-	{"fbc-vid",   0xD310, 0, 1},
-	{"scale-thb", 0xE010, 0, 1},
-	{"store-thb", 0xE110, 0, 1},
-	{"hist",      0x5410, 0, 1},
-	/* ltm */
-	{"ltm-map",   0x5F10, 0, 1},
-	{"ltm-hist",  0x5510, 0, 1},
-	/* 3dnr/nr3 */
-	{"nr3-fbc",   0x9410, 0, 1},
-	{"nr3-bld",   0x9110, 0, 1},
-	{"nr3-crop",  0x9310, 0, 1},
-	{"nr3-store", 0x9210, 0, 1},
-	{"nr3-mem",   0x9010, 0, 1},
+	{"ydelay",    ISP_YDELAY_PARAM, 0, 1},
+	{"cce",       ISP_CCE_PARAM, 0, 0},
+	{"fetch-fbd", ISP_FBD_RAW_SEL, 0, 1},
 	/* can't bypass when prev */
-	{"fetch",     0x0110, 0, 0},
-	{"cfa",       0x3010, 0, 0},
-	{"cce",       0x3510, 0, 0}, /* color conversion enhance */
-	{"cfg",       0x8110, 0, 0},
-	{"scale-pre", 0xC010, 9, 0},
-	{"store-pre", 0xC110, 0, 0},
+	{"scale-pre", ISP_SCALER_PRE_CAP_BASE + ISP_SCALER_CFG, 20, 0},
+	{"store-pre", ISP_STORE_PRE_CAP_BASE + ISP_STORE_PARAM, 0, 0},
+	{"scale-vid", ISP_SCALER_VID_BASE + ISP_SCALER_CFG, 20, 1},
+	{"store-vid", ISP_STORE_VID_BASE + ISP_STORE_PARAM, 0, 1},
+	{"scale-thb", ISP_SCALER_THUMB_BASE + ISP_SCALER_CFG, 20, 1},
+	{"store-thb", ISP_STORE_THUMB_BASE + ISP_STORE_PARAM, 0, 1},
+	/* ltm */
+	{"ltm-map",   ISP_LTM_MAP_PARAM0, 0, 1},
+	{"ltm-hist",  ISP_LTM_HIST_PARAM, 0, 1},
+	/* 3dnr/nr3 */
+	{"nr3-crop",  ISP_3DNR_MEM_CTRL_PRE_PARAM0, 0, 1},
+	{"nr3-store", ISP_3DNR_STORE_PARAM, 0, 1},
+	{"nr3-mem",   ISP_3DNR_MEM_CTRL_PARAM0, 0, 1},
 
+	{"fetch",     ISP_FETCH_PARAM, 0, 0},
+	{"cfg",       ISP_CFG_PAMATER, 0, 0},
 };
 
 uint32_t isp_tb_bypass_get_count()

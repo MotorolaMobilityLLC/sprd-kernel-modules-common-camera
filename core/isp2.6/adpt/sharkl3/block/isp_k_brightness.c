@@ -39,7 +39,8 @@ static int isp_k_brightness_block
 		pr_err("fail to copy from user, ret = %d\n", ret);
 		return -EPERM;
 	}
-
+	if (g_isp_bypass[idx] & (1 << _EISP_BRIGHT))
+		brightness_info.bypass = 1;
 	ISP_REG_MWR(idx, ISP_BRIGHT_PARAM, BIT_0, brightness_info.bypass);
 	if ((brightness_info.bypass))
 		return 0;
