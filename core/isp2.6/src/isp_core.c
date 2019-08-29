@@ -2702,6 +2702,7 @@ static int isp_cfg_statis_buffer(
 			cambuf_iommu_unmap(ion_buf_isp);
 			cambuf_put_ionbuf(ion_buf_isp);
 			kfree(ion_buf_isp);
+			*io_desc->buf = NULL;
 			ret = -EINVAL;
 			goto exit;
 		}
