@@ -486,6 +486,7 @@ int isp_cfg_ctx_base(struct isp_pipe_context *pctx, void *param)
 	pctx->mode_3dnr = cfg_in->mode_3dnr;
 	pctx->mode_ltm = cfg_in->mode_ltm;
 	pctx->in_fmt = cfg_in->in_fmt;
+	pctx->is_loose = cfg_in->is_loose;
 	pctx->dispatch_bayer_mode = cfg_in->bayer_pattern;
 	pctx->dev->ltm_handle->ops->set_status(1, pctx->ctx_id,
 					       pctx->mode_ltm);
@@ -495,10 +496,10 @@ int isp_cfg_ctx_base(struct isp_pipe_context *pctx, void *param)
 	else
 		pctx->dispatch_color = 2; /* yuv */
 
-	pr_info("ctx%d, in_fmt 0x%x, %d %d %d %d %d\n",
+	pr_info("ctx%d, in_fmt 0x%x, %d %d %d %d %d %d \n",
 		pctx->ctx_id, pctx->in_fmt, pctx->mode_3dnr,
 		pctx->mode_ltm, pctx->fetch_path_sel,
-		pctx->dispatch_bayer_mode, pctx->dispatch_color);
+		pctx->dispatch_bayer_mode, pctx->dispatch_color, pctx->is_loose);
 	return ret;
 }
 
@@ -538,10 +539,17 @@ int isp_cfg_ctx_size(struct isp_pipe_context *pctx, void *param)
 	fetch->src = pctx->input_size;
 	fetch->in_trim = pctx->input_trim;
 	fetch->fetch_fmt = get_fetch_format(pctx->in_fmt);
-	pr_info("ctx%d fetch fmt: %d  in %d %d, crop %d %d %d %d\n",
+	if(pctx->in_fmt == IMG_PIX_FMT_GREY){
+		if(pctx->is_loose == ISP_RAW_HALF14 || pctx->is_loose == ISP_RAW_HALF10)
+			fetch->fetch_fmt = ISP_FETCH_RAW10;
+		else
+			fetch->fetch_fmt = ISP_FETCH_CSI2_RAW10;
+	}
+
+	pr_info("ctx%d fetch fmt: %d  in %d %d, crop %d %d %d %d is_loose %d\n",
 		pctx->ctx_id, fetch->fetch_fmt, src->w, src->h,
 		intrim->start_x, intrim->start_y, intrim->size_x,
-			intrim->size_y);
+			intrim->size_y, pctx->is_loose);
 
 	if (pctx->fetch_path_sel) {
 		uint32_t sx, sy, ex, ey;
@@ -630,7 +638,7 @@ int isp_cfg_ctx_size(struct isp_pipe_context *pctx, void *param)
 			fetch->pitch.pitch_ch0 + intrim->start_x * 2;
 		break;
 	case ISP_FETCH_RAW10:
-		fetch->pitch.pitch_ch0 = cal_sprd_raw10_pitch(pctx->input_size.w);
+		fetch->pitch.pitch_ch0 = cal_sprd_raw_pitch(pctx->input_size.w, pctx->is_loose);
 		trim_offset[0] = intrim->start_y *
 			fetch->pitch.pitch_ch0 + intrim->start_x * 2;
 		break;
@@ -681,7 +689,7 @@ int isp_cfg_ctx_size(struct isp_pipe_context *pctx, void *param)
 			- mipi_word_num_start[(start_col + 1) & 0xF] + 1;
 		fetch->mipi_byte_rel_pos = mipi_byte_info;
 		fetch->mipi_word_num = mipi_word_info;
-		fetch->pitch.pitch_ch0 = cal_sprd_raw_pitch(pctx->input_size.w);
+		fetch->pitch.pitch_ch0 = cal_sprd_raw_pitch(pctx->input_size.w, 0);
 		/* same as slice starts */
 		trim_offset[0] = start_row * fetch->pitch.pitch_ch0
 					+ (start_col >> 2) * 5

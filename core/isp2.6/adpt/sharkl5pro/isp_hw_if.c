@@ -110,6 +110,7 @@ struct bypass_tag *isp_tb_bypass_get_data(uint32_t i)
 
 static uint32_t ISP_CFG_MAP[] __aligned(8) = {
 		0x00080710, /*0x0710  - 0x0714 , 2   , common path sel*/
+		0x00041A10, /*0x1A10  - 0x1A14 , 1   , BWU*/
 		0x00381B10, /*0x1B10  - 0x1B44 , 14  , GRGB*/
 		0x00041C10, /*0x1C10  - 0x1C10 , 1   , VST*/
 		0x01AC2010, /*0x2010  - 0x21B8 , 107 , NLM*/
@@ -237,7 +238,6 @@ void set_common(struct sprd_cam_hw_info *hw)
 
 	/* bypass config mode by default */
 	ISP_HREG_MWR(ISP_CFG_PAMATER, BIT_0, 1);
-
 	pr_debug("end\n");
 }
 
@@ -245,6 +245,7 @@ void isp_set_ctx_common(struct isp_pipe_context *pctx)
 {
 	uint32_t idx = pctx->ctx_id;
 	uint32_t bypass = 0;
+	uint32_t bwu_val = 0;
 	uint32_t en_3dnr;
 	struct isp_fetch_info *fetch = &pctx->fetch;
 	struct isp_fbd_raw_info *fbd_raw = &pctx->fbd_raw;
@@ -277,11 +278,18 @@ void isp_set_ctx_common(struct isp_pipe_context *pctx)
 	ISP_REG_WR(idx, ISP_FETCH_MEM_SLICE_SIZE,
 			fetch->in_trim.size_x | (fetch->in_trim.size_y << 16));
 
-	pr_info("camca, isp sec mode=%d ,pitch_ch0=0x%x, 0x%x, 0x%x\n",
+	pr_info("camca, isp sec mode=%d, is_loose=%d, pitch_ch0=0x%x, 0x%x, 0x%x\n",
 		pctx->dev->sec_mode,
+		pctx->is_loose,
 		fetch->pitch.pitch_ch0,
 		fetch->pitch.pitch_ch1,
 		fetch->pitch.pitch_ch2);
+
+	if(pctx->is_loose == ISP_RAW_HALF14 || pctx->is_loose == ISP_RAW_HALF10)
+		bwu_val = 0x40001;
+	else
+		bwu_val = 0x40000;
+	ISP_REG_WR(idx, ISP_BWU_PARAM, bwu_val);
 
 	if (pctx->dev->sec_mode == SEC_SPACE_PRIORITY) {
 		camca_isp_pitch_set(fetch->pitch.pitch_ch0,

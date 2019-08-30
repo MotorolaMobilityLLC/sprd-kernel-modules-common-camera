@@ -179,6 +179,7 @@ struct channel_context {
 	uint32_t enable;
 	uint32_t frm_base_id;
 	uint32_t frm_cnt;
+	uint32_t is_loose;
 	atomic_t err_status;
 
 	uint32_t compress_input;
@@ -550,7 +551,7 @@ static void config_compression(struct camera_module *module)
 
 static void prepare_frame_from_file(struct camera_queue *queue,
 				    char *filename,
-				    uint32_t width, uint32_t height)
+				    uint32_t width, uint32_t height, uint32_t is_loose)
 {
 	struct camera_frame *frame, *f;
 	struct file *raw;
@@ -572,7 +573,7 @@ static void prepare_frame_from_file(struct camera_queue *queue,
 	if (frame->is_compressed)
 		total = dcam_if_cal_compressed_size(width, height);
 	else
-		total = cal_sprd_raw_pitch(width) * height;
+		total = cal_sprd_raw_pitch(width, is_loose) * height;
 
 	strcpy(fullname, folder);
 	/* length of filename is less then DCAM_IMAGE_REPLACER_FILENAME_MAX */
@@ -616,7 +617,7 @@ static void alloc_buffers(struct work_struct *work)
 {
 	int ret = 0;
 	int i, count, total, iommu_enable;
-	uint32_t width, height, size;
+	uint32_t width, height, size, is_loose;
 	struct sprd_cam_work *alloc_work;
 	struct camera_module *module;
 	struct camera_frame *pframe;
@@ -636,13 +637,15 @@ static void alloc_buffers(struct work_struct *work)
 
 	width = channel->swap_size.w;
 	height = channel->swap_size.h;
+	is_loose = module->cam_uinfo.sensor_if.if_spec.mipi.is_loose;
+
 	if (channel->compress_input) {
 		width = ALIGN(width, DCAM_FBC_TILE_WIDTH);
 		height = ALIGN(height, DCAM_FBC_TILE_HEIGHT);
 		pr_info("ch %d, FBC size (%d %d)\n", channel->ch_id, width, height);
 		size = dcam_if_cal_compressed_size(width, height);
 	} else if (channel->ch_uinfo.sn_fmt == IMG_PIX_FMT_GREY) {
-		size = cal_sprd_raw_pitch(width) * height;
+		size = cal_sprd_raw_pitch(width, is_loose) * height;
 	} else {
 		size = width * height * 3;
 	}
@@ -727,7 +730,7 @@ static void alloc_buffers(struct work_struct *work)
 		if (replacer->enabled[path_id]) {
 			prepare_frame_from_file(&channel->share_buf_queue,
 						replacer->filename[path_id],
-						width, height);
+						width, height, is_loose);
 			dcam_ops->ioctl(module->dcam_dev_handle,
 					DCAM_IOCTL_CFG_REPLACER, replacer);
 		}
@@ -1009,6 +1012,7 @@ static struct camera_frame *deal_bigsize_frame(struct camera_module *module,
 	pr_info("raw frame[%d] fd %d, size[%d %d], 0x%x, channel_id %d, catpure_cnt = %d\n",
 			pframe->fid, pframe->buf.mfd[0], pframe->width,
 			pframe->height, (uint32_t)pframe->buf.addr_vir[0], pframe->channel_id,atomic_read(&module->capture_frames_dcam));
+
 	if (pframe->fid > 0) {
 		ret = dcam_ops->proc_frame(module->aux_dcam_dev, pframe);
 		if(ret == 0)
@@ -2239,7 +2243,7 @@ static int config_channel_bigsize(
 {
 	int ret = 0;
 	int i, total, iommu_enable;
-	uint32_t width, height, size = 0;
+	uint32_t width, height, is_loose, size = 0;
 	struct camera_uchannel *ch_uinfo = NULL;
 	struct dcam_path_cfg_param ch_desc;
 	struct camera_frame *pframe;
@@ -2248,8 +2252,10 @@ static int config_channel_bigsize(
 	iommu_enable = module->iommu_enable;
 	width = channel->swap_size.w;
 	height = channel->swap_size.h;
+	is_loose = module->cam_uinfo.sensor_if.if_spec.mipi.is_loose;
+
 	if (channel->ch_uinfo.sn_fmt == IMG_PIX_FMT_GREY)
-		size = cal_sprd_raw_pitch(width) * height;
+		size = cal_sprd_raw_pitch(width, is_loose) * height;
 	size = ALIGN(size, CAM_BUF_ALIGN_SIZE);
 
 	pr_info("ch%d alloc shared buffer size: %u (w %u h %u)\n",
@@ -2295,9 +2301,11 @@ static int config_channel_bigsize(
 	ch_desc.input_trim.start_y = 0;
 	ch_desc.input_trim.size_x = ch_desc.input_size.w;
 	ch_desc.input_trim.size_y = ch_desc.input_size.h;
+	ch_desc.is_loose = module->cam_uinfo.sensor_if.if_spec.mipi.is_loose;
+	ch_desc.is_4in1 = module->cam_uinfo.is_4in1;
 
-	pr_info("update dcam path %d size for channel %d\n",
-		channel->dcam_path_id, channel->ch_id);
+	pr_info("update dcam path %d size for channel %d is_loose %d 4in1 %d\n",
+		channel->dcam_path_id, channel->ch_id, ch_desc.is_loose, ch_desc.is_4in1);
 
 	ret = dcam_ops->cfg_path(module->aux_dcam_dev,
 				DCAM_PATH_CFG_SIZE,
@@ -2668,6 +2676,7 @@ static int dump_one_frame(struct camera_module *module,
 	enum cam_ch_id ch_id;
 	uint8_t file_name[256] = { '\0' };
 	uint8_t tmp_str[20] = { '\0' };
+	uint32_t is_loose = 0;
 
 	ch_id = pframe->channel_id;
 	channel = &module->channel[ch_id];
@@ -2691,6 +2700,7 @@ static int dump_one_frame(struct camera_module *module,
 	sprintf(tmp_str, "_No%d", pframe->fid);
 	strcat(file_name, tmp_str);
 
+	is_loose = module->cam_uinfo.sensor_if.if_spec.mipi.is_loose;
 	if (pframe->is_compressed) {
 		struct compressed_addr addr;
 
@@ -2705,9 +2715,12 @@ static int dump_one_frame(struct camera_module *module,
 		size = dcam_if_cal_compressed_size(pframe->width,
 						   pframe->height);
 	} else {
-		size = cal_sprd_raw_pitch(pframe->width) * pframe->height;
+		size = cal_sprd_raw_pitch(pframe->width, is_loose) * pframe->height;
 	}
-	strcat(file_name, ".mipi_raw");
+	if(is_loose == CAM_RAW_HALF14 || is_loose == CAM_RAW_HALF10)
+		strcat(file_name, ".raw");
+	else
+		strcat(file_name, ".mipi_raw");
 
 	if (cambuf_kmap(&pframe->buf)) {
 		pr_err("fail to kmap dump buf\n");
@@ -2853,6 +2866,8 @@ static int init_bigsize_aux(struct camera_module *module,
 	/* cfg dcam1 bin path */
 	memset(&ch_desc, 0, sizeof(ch_desc));
 	ch_desc.endian.y_endian = ENDIAN_LITTLE;
+	ch_desc.is_loose = module->cam_uinfo.sensor_if.if_spec.mipi.is_loose;
+	ch_desc.is_4in1 = module->cam_uinfo.is_4in1;
 
 	ret = dcam_ops->cfg_path(module->aux_dcam_dev,
 					DCAM_PATH_CFG_BASE,
@@ -2896,6 +2911,7 @@ static int init_4in1_aux(struct camera_module *module,
 	void *dcam = NULL;
 	struct camera_group *grp = module->grp;
 	struct dcam_path_cfg_param ch_desc;
+	struct dcam_pipe_dev *dev = NULL;
 
 	dcam = module->aux_dcam_dev;
 	if (dcam == NULL) {
@@ -2907,6 +2923,8 @@ static int init_4in1_aux(struct camera_module *module,
 		module->aux_dcam_dev = dcam;
 		module->aux_dcam_id = dcam_idx;
 	}
+	dev = (struct dcam_pipe_dev *)module->aux_dcam_dev;
+	dev->is_4in1 = module->cam_uinfo.is_4in1;
 
 	ret = dcam_ops->open(module->aux_dcam_dev);
 	if (ret < 0) {
@@ -2944,6 +2962,8 @@ static int init_4in1_aux(struct camera_module *module,
 	ch_desc.input_trim.size_y = channel->ch_uinfo.src_size.h;
 	ch_desc.output_size.w = ch_desc.input_trim.size_x;
 	ch_desc.output_size.h = ch_desc.input_trim.size_y;
+	ch_desc.is_loose = module->cam_uinfo.sensor_if.if_spec.mipi.is_loose;
+	ch_desc.is_4in1 = module->cam_uinfo.is_4in1;
 	ret = dcam_ops->cfg_path(module->aux_dcam_dev,
 					DCAM_PATH_CFG_BASE,
 					channel->aux_dcam_path_id,
@@ -3009,8 +3029,8 @@ static int init_4in1_secondary_path(struct camera_module *module,
 
 	/* todo: cfg param to user setting. */
 	memset(&ch_desc, 0, sizeof(ch_desc));
-	ch_desc.is_loose =
-		module->cam_uinfo.sensor_if.if_spec.mipi.is_loose;
+	ch_desc.is_loose = module->cam_uinfo.sensor_if.if_spec.mipi.is_loose;
+	ch_desc.is_4in1 = module->cam_uinfo.is_4in1;
 	/*
 	 * Configure slow motion for BIN path. HAL must set @is_high_fps
 	 * and @high_fps_skip_num for both preview channel and video
@@ -3184,8 +3204,11 @@ static int init_cam_channel(
 
 		/* todo: cfg param to user setting. */
 		memset(&ch_desc, 0, sizeof(ch_desc));
-		ch_desc.is_loose =
-			module->cam_uinfo.sensor_if.if_spec.mipi.is_loose;
+		if(dcam_path_id == 0 && module->cam_uinfo.is_4in1 == 1)
+			ch_desc.is_loose = 0;
+		else
+			ch_desc.is_loose = module->cam_uinfo.sensor_if.if_spec.mipi.is_loose;
+		ch_desc.is_4in1 = module->cam_uinfo.is_4in1;
 		/*
 		 * Configure slow motion for BIN path. HAL must set @is_high_fps
 		 * and @high_fps_skip_num for both preview channel and video
@@ -3224,6 +3247,7 @@ static int init_cam_channel(
 
 		/* todo: cfg param to user setting. */
 		ctx_desc.in_fmt = ch_uinfo->sn_fmt;
+		ctx_desc.is_loose = module->cam_uinfo.sensor_if.if_spec.mipi.is_loose;
 		ctx_desc.bayer_pattern = module->cam_uinfo.sensor_if.img_ptn;
 		ctx_desc.mode_ltm = MODE_LTM_OFF;
 		ctx_desc.mode_3dnr = MODE_3DNR_OFF;
@@ -4549,12 +4573,17 @@ static struct camera_frame *get_secondary_buf(struct sprd_img_parm *p,
 	struct camera_frame *pframe;
 	int ret;
 	uint32_t offset;
+	uint32_t is_loose;
 
 	pframe = get_empty_frame();
 	pframe->buf.type = CAM_BUF_USER;
 	pframe->buf.mfd[0] = p->fd_array[i];
 	/* raw capture: 4cell + bin-sum, cal offset */
-	offset = cal_sprd_raw_pitch(ch->ch_uinfo.src_size.w);
+	if(ch->dcam_path_id == 0)
+		is_loose = 0;
+	else
+		is_loose = ch->is_loose;
+	offset = cal_sprd_raw_pitch(ch->ch_uinfo.src_size.w, is_loose);
 	offset *= ch->ch_uinfo.src_size.h;
 	offset = ALIGN_UP(offset, 4096);
 	/* first buf offset: p->frame_addr_array[i].y */
@@ -4691,6 +4720,7 @@ static int img_ioctl_set_frame_addr(
 					cmd, ch->dcam_path_id, pframe);
 			/* 4in1_raw_capture, maybe need two image once */
 			if (ch->second_path_enable) {
+				ch->is_loose = module->cam_uinfo.sensor_if.if_spec.mipi.is_loose;
 				pframe = get_secondary_buf(&param, ch, i);
 				if (!pframe) {
 					ret = -EFAULT;
@@ -5771,9 +5801,6 @@ static int raw_proc_pre(
 		return -EFAULT;
 	}
 	/* not care 4in1 */
-	if (module->cam_uinfo.is_4in1) {
-		module->cam_uinfo.is_4in1 = 0;
-	}
 	ch = &module->channel[CAM_CH_CAP];
 	ch->dcam_path_id = -1;
 	ch->isp_path_id = -1;
@@ -5791,7 +5818,11 @@ static int raw_proc_pre(
 
 	/* config dcam path  */
 	memset(&ch_desc, 0, sizeof(ch_desc));
-	ch_desc.is_loose = module->cam_uinfo.sensor_if.if_spec.mipi.is_loose;
+	if(ch->dcam_path_id == 0 && module->cam_uinfo.is_4in1 == 1)
+		ch_desc.is_loose = 0;
+	else
+		ch_desc.is_loose = module->cam_uinfo.sensor_if.if_spec.mipi.is_loose;
+	ch_desc.is_4in1 = module->cam_uinfo.is_4in1;
 	ch_desc.raw_cap = 1;
 	ch_desc.endian.y_endian = ENDIAN_LITTLE;
 	ret = dcam_ops->cfg_path(module->dcam_dev_handle,
@@ -5826,6 +5857,7 @@ static int raw_proc_pre(
 
 	/* config isp context base */
 	memset(&ctx_desc, 0, sizeof(ctx_desc));
+	ctx_desc.is_loose = module->cam_uinfo.sensor_if.if_spec.mipi.is_loose;
 	ctx_desc.in_fmt = proc_info->src_format;
 	ctx_desc.bayer_pattern = proc_info->src_pattern;
 	ctx_desc.mode_ltm = MODE_LTM_OFF;
@@ -5898,6 +5930,7 @@ static int raw_proc_post(
 	int ret = 0;
 	uint32_t width;
 	uint32_t height;
+	uint32_t is_loose;
 	size_t size;
 	struct channel_context *ch;
 	struct camera_frame *src_frame;
@@ -5965,9 +5998,16 @@ static int raw_proc_post(
 	} else {
 		width = proc_info->src_size.width;
 		height = proc_info->src_size.height;
+		//if(ch->dcam_path_id == 0 && module->cam_uinfo.is_4in1 == 1)
+			//ch_desc.is_loose = 0;
+		if(ch->dcam_path_id == 0 && module->cam_uinfo.is_4in1 == 1)
+			is_loose = 0;
+		else
+			is_loose = module->cam_uinfo.sensor_if.if_spec.mipi.is_loose;
+		pr_info("day raw_proc_post is_loose %d", is_loose);
 		/* todo: accurate buffer size for formats other than mipi-raw*/
 		if (proc_info->src_format == IMG_PIX_FMT_GREY)
-			size = cal_sprd_raw_pitch(width) * height;
+			size = cal_sprd_raw_pitch(width, is_loose) * height;
 		else
 			size = width * height * 3;
 		size = ALIGN(size, CAM_BUF_ALIGN_SIZE);
@@ -6409,7 +6449,7 @@ exit:
 
 
 /* for user test isp/dcam/fd directly. */
-static int test_dcam(struct camera_module *module,
+int test_dcam(struct camera_module *module,
 			struct dev_test_info *test_info)
 {
 	int ret = 0;
@@ -6417,6 +6457,7 @@ static int test_dcam(struct camera_module *module,
 	int iommu_enable;
 	int path_id;
 	size_t size;
+	uint32_t is_loose = 0;
 	struct channel_context *channel;
 	struct camera_frame *pframe;
 	struct camera_frame *user_frame;
@@ -6503,7 +6544,8 @@ static int test_dcam(struct camera_module *module,
 		pframe->fid = 0;
 		pframe->width = ch_desc.input_size.w;
 		pframe->height = ch_desc.input_size.h;
-		size = cal_sprd_raw_pitch(ch_desc.input_size.w);
+		is_loose = module->cam_uinfo.sensor_if.if_spec.mipi.is_loose;
+		size = cal_sprd_raw_pitch(ch_desc.input_size.w, is_loose);
 		size *= ch_desc.input_size.h;
 		ret = cambuf_alloc(
 				&pframe->buf, size,
@@ -6582,7 +6624,7 @@ exit:
 	return ret;
 }
 
-static int test_isp(struct camera_module *module,
+int test_isp(struct camera_module *module,
 			struct dev_test_info *test_info)
 {
 	int ret = 0;
@@ -6592,6 +6634,7 @@ static int test_isp(struct camera_module *module,
 	int prop_0, prop_1;
 	int double_ch = 0;
 	size_t size = 0;
+	uint32_t is_loose = 0;
 	struct channel_context *channel = NULL;
 	struct channel_context *channel_1 = NULL;
 	struct camera_frame *pframe_in = NULL;
@@ -6791,7 +6834,8 @@ static int test_isp(struct camera_module *module,
 			pframe_out_1->channel_id = channel_1->ch_id;
 			pframe_out_1->is_reserved = 0;
 			pframe_out_1->fid = 0;
-			size = cal_sprd_raw_pitch(test_info->input_size.width);
+			is_loose = module->cam_uinfo.sensor_if.if_spec.mipi.is_loose;
+			size = cal_sprd_raw_pitch(test_info->input_size.width, is_loose);
 			size *= test_info->input_size.height;
 			ret = cambuf_alloc(
 					&pframe_out_1->buf, size,

@@ -68,6 +68,7 @@ extern unsigned long s_isp_mmubase;
 #define ISP_DISPATCH_PIPE_BUF_CTRL_CH0		(0x0324UL)
 #define ISP_DISPATCH_CHK_SUM			(0x0328UL)
 
+#define ISP_BWU_PARAM				(0x1A10UL)
 #define ISP_COMMON_VERSION			(0x0700UL)
 #define ISP_COMMON_SPACE_SEL			(0x0710UL)
 #define ISP_COMMON_SCL_PATH_SEL			(0x0714UL)

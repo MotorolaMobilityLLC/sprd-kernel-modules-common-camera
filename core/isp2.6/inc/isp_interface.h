@@ -120,6 +120,7 @@ struct isp_ctx_base_desc {
 	uint32_t mode_3dnr;
 	uint32_t mode_ltm;
 	uint32_t in_fmt;
+	uint32_t is_loose;
 	uint32_t bayer_pattern;
 	uint32_t enable_slowmotion;
 	uint32_t slowmotion_count;

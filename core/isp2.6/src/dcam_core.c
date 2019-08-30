@@ -1206,6 +1206,8 @@ static int dcam_offline_start_slices(void *param)
 	uint32_t force_ids = DCAM_CTRL_ALL;
 	uint32_t fetch_pitch;
 	uint32_t reg_val;
+	uint32_t loose_val;
+	uint32_t val_4in1;
 	struct dcam_pipe_dev *dev = NULL;
 	struct camera_frame *pframe = NULL;
 	struct dcam_path_desc *path;
@@ -1267,6 +1269,9 @@ static int dcam_offline_start_slices(void *param)
 		ret = dcam_path_set_store_frm(dev, path, NULL); /* TODO: */
 		if (ret == 0) {
 			/* interrupt need > 1 */
+			loose_val = ((dev->is_loose) | (path->is_loose));
+			val_4in1 = ((dev->is_4in1) | (path->is_4in1));
+			path->is_loose = loose_val;
 			atomic_set(&path->set_frm_cnt, 1);
 			atomic_inc(&path->set_frm_cnt);
 			dcam_start_path(dev, path);
@@ -1274,7 +1279,10 @@ static int dcam_offline_start_slices(void *param)
 	}
 
 	/* cfg fetch */
-	fetch->is_loose = 0;
+	if(val_4in1 == 1)
+		fetch->is_loose = 0;
+	else
+		fetch->is_loose = loose_val;
 	fetch->endian = pframe->endian;
 	fetch->pattern = pframe->pattern;
 	fetch->size.w = pframe->width;
@@ -1374,6 +1382,8 @@ static int dcam_offline_start_frame(void *param)
 	int ret = 0;
 	int i, loop;
 	uint32_t force_ids = DCAM_CTRL_ALL;
+	uint32_t loose_val = 0;
+	uint32_t val_4in1 = 0;
 	struct dcam_pipe_dev *dev = NULL;
 	struct camera_frame *pframe = NULL;
 	struct dcam_path_desc *path;
@@ -1457,6 +1467,9 @@ static int dcam_offline_start_frame(void *param)
 		ret = dcam_path_set_store_frm(dev, path, NULL); /* TODO: */
 		if (ret == 0) {
 			/* interrupt need > 1 */
+			loose_val = ((dev->is_loose) | (path->is_loose));
+			path->is_loose = loose_val;
+			val_4in1 = ((dev->is_4in1) | (path->is_4in1));
 			atomic_set(&path->set_frm_cnt, 1);
 			atomic_inc(&path->set_frm_cnt);
 			dcam_start_path(dev, path);
@@ -1464,7 +1477,10 @@ static int dcam_offline_start_frame(void *param)
 	}
 
 	/* todo - need to cfg fetch param from input or frame. */
-	fetch->is_loose = 0;
+	if(val_4in1 == 1)
+		fetch->is_loose = 0;
+	else
+		fetch->is_loose = loose_val;
 	fetch->endian = pframe->endian;
 	fetch->pattern = pframe->pattern;
 	fetch->size.w = pframe->width;
@@ -1895,12 +1911,13 @@ static inline void sprd_dcam_show_frame_info(struct dcam_pipe_dev *dev,
 					     struct dcam_path_desc *path,
 					     struct camera_frame *frame)
 {
-	uint32_t size = 0;
+	uint32_t size = 0, is_loose = 0;
 
+	is_loose = path->is_loose;
 	if (frame->is_compressed)
 		size = dcam_if_cal_compressed_size(frame->width, frame->height);
 	else
-		size = cal_sprd_raw_pitch(frame->width) * frame->height;
+		size = cal_sprd_raw_pitch(frame->width, is_loose) * frame->height;
 
 	pr_debug("DCAM%u %s frame %u %u size %u %u buf %08lx %08x\n",
 		dev->idx, to_path_name(path->path_id),

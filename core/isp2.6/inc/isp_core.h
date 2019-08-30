@@ -95,6 +95,12 @@ enum isp_store_format {
 	ISP_STORE_FORMAT_MAX
 };
 
+enum isp_raw_format{
+	ISP_RAW_PACK10 = 0x00,
+	ISP_RAW_HALF10 = 0x01,
+	ISP_RAW_HALF14 = 0x02,
+	ISP_RAW_FORMAT_MAX
+};
 
 enum isp_path_wk_status {
 	PATH_STATUS_IDLE,
@@ -373,11 +379,11 @@ struct isp_pipe_context {
 	uint32_t started;
 	uint32_t ctx_id;
 	uint32_t in_fmt; /* forcc */
+	uint32_t is_loose;
 	enum camera_id attach_cam_id;
 	enum cam_ch_id ch_id;
 	uint32_t in_irq_handler;
 	uint32_t iommu_status;
-
 	uint32_t updated;
 	uint32_t mode_3dnr;
 	uint32_t mode_ltm;

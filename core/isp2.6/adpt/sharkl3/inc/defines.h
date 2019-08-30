@@ -42,17 +42,22 @@ enum dcam_ctrl_id {
 };
 #define DCAM_CTRL_ALL  0xff
 
-static inline uint32_t cal_sprd_raw10_pitch(uint32_t w)
-{
-	w = w * 2;
-	return w;
-}
+enum raw_pitch_format{
+	RAW_PACK10 = 0x00,
+	RAW_HALF10 = 0x01,
+	RAW_HALF14 = 0x02,
+	RAW_FORMAT_MAX
+};
 
-static inline uint32_t cal_sprd_raw_pitch(uint32_t w)
+static inline uint32_t cal_sprd_raw_pitch(uint32_t w, uint32_t is_loose)
 {
 	uint32_t mod16_len[16] = {0, 8, 8, 8, 8, 12, 12, 12,
 				12, 16, 16, 16, 16, 20, 20, 20};
 
-	return ((w >> 4) * 20 + (mod16_len[w & 0xf]));
+	if (is_loose == RAW_PACK10) {
+		return ((w >> 4) * 20 + (mod16_len[w & 0xf]));
+	} else {
+		return w*2;
+	}
 }
 #endif

@@ -98,6 +98,7 @@ struct dcam_path_desc {
 
 	uint32_t out_fmt;
 	uint32_t is_loose;
+	uint32_t is_4in1;
 
 	/* full path source sel */
 	uint32_t src_sel;
@@ -222,6 +223,7 @@ struct dcam_pipe_dev {
 	uint32_t err_status;// TODO: change to use state
 	uint32_t err_count; /* iommu register dump count in dcam_err */
 
+	uint32_t is_loose;
 	uint32_t is_4in1;
 	uint32_t lowlux_4in1; /* 4in1 low lux mode capture */
 	uint32_t skip_4in1; /* need skip 1 frame then change full source */

@@ -145,6 +145,13 @@ enum cam_zoom_type {
 	ZOOM_TYPEMAX,
 };
 
+enum cam_raw_format{
+	CAM_RAW_PACK10 = 0x00,
+	CAM_RAW_HALF10 = 0x01,
+	CAM_RAW_HALF14 = 0x02,
+	CAN_RAW_FORMAT_MAX
+};
+
 struct camera_format {
 	char *name;
 	uint32_t fourcc;

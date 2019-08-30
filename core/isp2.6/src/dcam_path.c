@@ -129,6 +129,7 @@ int dcam_cfg_path_base(void *dcam_handle,
 		path->frm_skip = ch_desc->frm_skip;
 		path->is_loose = ch_desc->is_loose;
 		path->endian = ch_desc->endian;
+		path->is_4in1 = ch_desc->is_4in1;
 		break;
 	case DCAM_PATH_BIN:
 		path->frm_deci = ch_desc->frm_deci;
@@ -136,6 +137,7 @@ int dcam_cfg_path_base(void *dcam_handle,
 
 		path->is_loose = ch_desc->is_loose;
 		path->endian = ch_desc->endian;
+		path->is_4in1 = ch_desc->is_4in1;
 		/*
 		 * TODO:
 		 * Better not binding dcam_if feature to BIN path, which is a
