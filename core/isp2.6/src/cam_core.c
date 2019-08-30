@@ -1012,9 +1012,9 @@ static struct camera_frame *deal_bigsize_frame(struct camera_module *module,
 		return pframe;
 	}
 	/* dcam0 full tx done, frame send to dcam1 or drop */
-	pr_info("raw frame[%d] fd %d, size[%d %d], 0x%x, channel_id %d\n",
+	pr_info("raw frame[%d] fd %d, size[%d %d], 0x%x, channel_id %d, catpure_cnt = %d\n",
 			pframe->fid, pframe->buf.mfd[0], pframe->width,
-			pframe->height, (uint32_t)pframe->buf.addr_vir[0], pframe->channel_id);
+			pframe->height, (uint32_t)pframe->buf.addr_vir[0], pframe->channel_id,atomic_read(&module->capture_frames_dcam));
 	if (pframe->fid > 0) {
 		ret = dcam_ops->proc_frame(module->aux_dcam_dev, pframe);
 		return NULL;
@@ -1419,14 +1419,12 @@ int dcam_callback(enum dcam_cb_type type, void *param, void *priv_data)
 							     pframe);
 			}
 		} else if (channel->ch_id == CAM_CH_CAP) {
-
 			if ((module->cap_status != CAM_CAPTURE_START) &&
 				(module->cap_status != CAM_CAPTURE_RAWPROC)) {
 				/*
 				 * Release sync if we don't deliver this @pframe
 				 * to ISP.
 				 */
-
 				if (pframe->sync_data)
 					dcam_if_release_sync(pframe->sync_data,
 							     pframe);
@@ -1434,11 +1432,18 @@ int dcam_callback(enum dcam_cb_type type, void *param, void *priv_data)
 					pframe = dual_fifo_queue(module,
 						pframe, channel);
 
-				if (pframe)
-					ret = dcam_ops->cfg_path(
-						 module->dcam_dev_handle,
-						 DCAM_PATH_CFG_OUTPUT_BUF,
-						 channel->dcam_path_id, pframe);
+				if (pframe) {
+					if (pframe->dcam_idx == DCAM_ID_1)
+						ret = dcam_ops->cfg_path(
+							 module->aux_dcam_dev,
+							 DCAM_PATH_CFG_OUTPUT_BUF,
+							 channel->aux_dcam_path_id, pframe);
+					else
+						ret = dcam_ops->cfg_path(
+							 module->dcam_dev_handle,
+							 DCAM_PATH_CFG_OUTPUT_BUF,
+							 channel->dcam_path_id, pframe);
+					}
 				return ret;
 			}
 
@@ -2592,7 +2597,14 @@ static int capture_proc(void *param)
 
 	if (ret) {
 		pr_info("capture stop or isp queue overflow\n");
-		ret = dcam_ops->cfg_path(
+		if (module->cam_uinfo.is_bigsize && pframe->dcam_idx == DCAM_ID_1) {
+			ret = dcam_ops->cfg_path(
+				module->aux_dcam_dev,
+				DCAM_PATH_CFG_OUTPUT_BUF,
+				channel->aux_dcam_path_id, pframe);
+		}
+		else
+			ret = dcam_ops->cfg_path(
 				module->dcam_dev_handle,
 				DCAM_PATH_CFG_OUTPUT_BUF,
 				channel->dcam_path_id, pframe);

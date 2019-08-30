@@ -614,6 +614,8 @@ static void dcam_bin_path_done(void *param)
 	}
 
 	if ((frame = dcam_prepare_frame(dev, DCAM_PATH_BIN))) {
+		if (dev->idx == DCAM_ID_1 && dev->is_bigsize == 1)
+			frame->dcam_idx = DCAM_ID_1;
 		dcam_dispatch_frame(dev, DCAM_PATH_BIN, frame,
 				    DCAM_CB_DATA_DONE);
 	}

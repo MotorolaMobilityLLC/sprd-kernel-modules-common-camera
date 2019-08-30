@@ -41,6 +41,7 @@ struct camera_frame {
 	uint32_t is_reserved;
 	uint32_t is_compressed;
 	uint32_t user_fid;
+	uint32_t dcam_idx;
 	void *priv_data;
 	/* for more param extend especially in offline process */
 	void *param_data;
