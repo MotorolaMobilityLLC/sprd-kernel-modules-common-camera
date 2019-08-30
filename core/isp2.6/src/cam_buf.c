@@ -444,7 +444,7 @@ int cambuf_kmap(struct camera_buf *buf_info)
 	}
 
 	if ((buf_info->mapping_state & CAM_BUF_MAPPING_KERNEL)) {
-		pr_err("error buf type %d status: %x",
+		pr_warn("buf type %d status: %x",
 			buf_info->type, buf_info->mapping_state);
 		return -EFAULT;
 	}
@@ -499,7 +499,7 @@ int cambuf_kunmap(struct camera_buf *buf_info)
 	}
 
 	if (!(buf_info->mapping_state & CAM_BUF_MAPPING_KERNEL)) {
-		pr_err("error buf type %d status: %x",
+		pr_warn("buf type %d status: %x",
 			buf_info->type, buf_info->mapping_state);
 		return -EFAULT;
 	}

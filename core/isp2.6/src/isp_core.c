@@ -2673,10 +2673,9 @@ static int isp_cfg_statis_buffer(
 			goto exit;
 		}
 
-		ion_buf_isp->mfd[0] = io_desc->input->u.init_data.mfd;
-		ion_buf_isp->size[0] = io_desc->input->u.init_data.buf_size;
-		ion_buf_isp->addr_vir[0] = (unsigned long)io_desc->input->uaddr;
-		ion_buf_isp->addr_k[0] = (unsigned long)io_desc->input->kaddr;
+		ion_buf_isp->mfd[0] = io_desc->input->u.init_data.mfd_isp;
+		ion_buf_isp->size[0] = io_desc->input->u.init_data.isp_buf_size;
+		ion_buf_isp->addr_vir[0] = (unsigned long)io_desc->input->isp_uaddr;
 		ion_buf_isp->type = CAM_BUF_USER;
 
 		ret = cambuf_get_ionbuf(ion_buf_isp);
@@ -2707,14 +2706,14 @@ static int isp_cfg_statis_buffer(
 			goto exit;
 		}
 
-		pr_debug("isp_ iova[%lx] uaddr[%lx] kaddr[%lx] mfd[%d] dmabuf[%p] ionbuf[%p]\n",
-				ion_buf_isp->iova[0],
+		pr_info("isp_ iova[%08x] uaddr[%lx] kaddr[%lx] mfd[%d] size[%d] dmabuf[%p] ionbuf[%p]\n",
+				(uint32_t)ion_buf_isp->iova[0],
 				ion_buf_isp->addr_vir[0],
 				ion_buf_isp->addr_k[0],
 				ion_buf_isp->mfd[0],
+				ion_buf_isp->size[0],
 				ion_buf_isp->dmabuf_p[0],
-				ion_buf_isp->ionbuf[0]
-				);
+				ion_buf_isp->ionbuf[0]);
 	} else {
 
 		pframe = get_empty_frame();
@@ -2740,9 +2739,7 @@ static int isp_init_statis_bufferq(
 		struct isp_statis_io_desc *io_desc)
 {
 	int ret = 0;
-	int i;
 	int j;
-	int count = 0;
 	size_t used_size = 0, total_size;
 	size_t buf_size;
 	unsigned long kaddr;
@@ -2751,13 +2748,8 @@ static int isp_init_statis_bufferq(
 	enum isp_statis_buf_type stats_type;
 	struct camera_buf *ion_buf;
 	struct camera_frame *pframe;
-	struct statis_path_buf_info *array;
-	int array_size;
 
 	pr_debug("enter\n");
-
-	array = dcam_get_statis_distribution_array();
-	array_size = dcam_get_statis_distribution_size();
 
 	ion_buf = *io_desc->buf;
 	if (ion_buf == NULL) {
@@ -2770,52 +2762,41 @@ static int isp_init_statis_bufferq(
 	uaddr = ion_buf->addr_vir[0];
 	total_size = ion_buf->size[0];
 
-	pr_debug("size %d  addr %p %p,  %08x\n", (int)total_size,
-			(void *)kaddr, (void *)uaddr, (uint32_t)paddr);
+	pr_info("size %d  addr 0x%lx 0x%lx,  0x%08x\n", (int)total_size,
+			kaddr, uaddr, (uint32_t)paddr);
 
-	for (i = 0; i < array_size; i++) {
+	buf_size = STATIS_ISP_HIST2_BUF_SIZE;
+	stats_type = STATIS_HIST2;
+	for (j = 0; j < STATIS_ISP_HIST2_BUF_NUM; j++) {
 
-		buf_size = array[i].buf_size;
-		stats_type = array[i].buf_type;
+		used_size += buf_size;
+		if (used_size >= total_size)
+			break;
 
-		pr_debug("buf_stats_type[%d] i[%d]\n", array[i].buf_type, i);
+		pframe = get_empty_frame();
 
-		for (j = 0; j < array[i].buf_cnt; j++) {
-
-			used_size += buf_size;
-			if (used_size >= total_size)
-				break;
-
-			if (stats_type == STATIS_HIST2) {
-
-				pframe = get_empty_frame();
-
-				if (pframe) {
-					pframe->irq_property = stats_type;
-					pframe->buf.addr_vir[0] = uaddr;
-					pframe->buf.addr_k[0] = kaddr;
-					pframe->buf.iova[0] = paddr;
-					pframe->buf.size[0] = buf_size;
-					ret = camera_enqueue(io_desc->q, pframe);
-					pr_debug("outputq[%p] qcnt[%d] qmax[%d]\n",
-						io_desc->q, io_desc->q->cnt,
-						io_desc->q->max);
-					if (ret)
-						put_empty_frame(pframe);
-					else
-						pr_debug("kaddr %p, vaddr %p\n", (void *)kaddr, (void *)uaddr);
-				}
-			}
-
-			uaddr += buf_size;
-			kaddr += buf_size;
-			paddr += buf_size;
-
-			pr_debug("isp i[%d] j[%d] uaddr[%lx] kaddr[%lx] paddr[%lx] stats_type[%d]\n",
-				i, j, uaddr, kaddr, paddr, stats_type);
-
+		if (pframe) {
+			pframe->irq_property = stats_type;
+			pframe->buf.addr_vir[0] = uaddr;
+			pframe->buf.addr_k[0] = kaddr;
+			pframe->buf.iova[0] = paddr;
+			pframe->buf.size[0] = buf_size;
+			ret = camera_enqueue(io_desc->q, pframe);
+			pr_debug("outputq[%p] qcnt[%d] qmax[%d]\n",
+				io_desc->q, io_desc->q->cnt,
+				io_desc->q->max);
+			if (ret)
+				put_empty_frame(pframe);
+			else
+				pr_debug("kaddr %p, vaddr %p\n", (void *)kaddr, (void *)uaddr);
 		}
-		count++;
+
+		uaddr += buf_size;
+		kaddr += buf_size;
+		paddr += buf_size;
+
+		pr_debug("isp j[%d] uaddr[%lx] kaddr[%lx] paddr[%08x] stats_type[%d]\n",
+			j, uaddr, kaddr, (uint32_t)paddr, stats_type);
 	}
 
 	pr_info("done.\n");
@@ -2989,14 +2970,12 @@ static int sprd_isp_cfg_blkparam(
 		if (cfg_entry != NULL &&
 			cfg_entry->sub_block == io_param->sub_block)
 			cfg_fun_ptr = cfg_entry->cfg_func;
-		else
-			pr_err("sub_block %d error\n", io_param->sub_block);
 
 		if (cfg_fun_ptr == NULL) {
-			pr_info("isp block 0x%x is not supported.\n",
+			pr_debug("isp block 0x%x is not supported.\n",
 				io_param->sub_block);
 			mutex_unlock(&pctx->blkpm_lock);
-			return -EINVAL;
+			return 0;
 		}
 
 		ret = cfg_entry->cfg_func(io_param, ctx_id);

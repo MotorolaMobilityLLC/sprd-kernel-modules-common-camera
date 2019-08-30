@@ -44,14 +44,14 @@
 #define STATIS_AFL_GBUF_SIZE   (80 * 16 * 3 + 64)
 #define STATIS_AFL_RBUF_SIZE   (482 * 16 * 3 + 64)
 #define STATIS_AFL_BUF_SIZE   (STATIS_AFL_GBUF_SIZE + STATIS_AFL_RBUF_SIZE)
-#define STATIS_AFL_BUF_NUM 8
+#define STATIS_AFL_BUF_NUM 4
 
 /* hist: 154 x 16 bytes */
 #define STATIS_HIST_BUF_SIZE   (154 * 16)
 #define STATIS_HIST_BUF_NUM 8
 
 #define STATIS_PDAF_BUF_SIZE  ISP_PDAF_STATIS_BUF_SIZE
-#define STATIS_PDAF_BUF_NUM 8
+#define STATIS_PDAF_BUF_NUM 4
 
 #define STATIS_EBD_BUF_SIZE   0x8000
 #define STATIS_EBD_BUF_NUM 8
@@ -1593,7 +1593,9 @@ struct isp_statis_buf_input {
 	union {
 		struct init {
 			int32_t mfd;
-			uint32_t  buf_size;
+			uint32_t buf_size;
+			int32_t mfd_isp;
+			uint32_t isp_buf_size;
 		} init_data;
 		struct block {
 			uint32_t hw_addr;
@@ -1601,6 +1603,7 @@ struct isp_statis_buf_input {
 	} u;
 	uint64_t uaddr;
 	uint64_t kaddr;
+	uint64_t isp_uaddr;
 };
 
 enum raw_proc_cmd {

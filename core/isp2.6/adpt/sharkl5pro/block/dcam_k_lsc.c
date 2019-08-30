@@ -360,6 +360,7 @@ int dcam_k_cfg_lsc(struct isp_io_param *param, struct dcam_dev_param *p)
 {
 	int ret = 0;
 	uint32_t bit_update = _UPDATE_GAIN;
+	struct dcam_dev_lsc_info __user * p_ulsc;
 
 	switch (param->property) {
 	case DCAM_PRO_LSC_BLOCK:
@@ -385,6 +386,10 @@ int dcam_k_cfg_lsc(struct isp_io_param *param, struct dcam_dev_param *p)
 	p->lsc.update |= bit_update;
 	ret = dcam_k_lsc_block(p);
 	spin_unlock(&p->lsc.lock);
+
+	p->lsc.lens_info.update_all = 0;
+	p_ulsc = (struct dcam_dev_lsc_info __user *)param->property_param;
+	put_user(p->lsc.lens_info.update_all, &p_ulsc->update_all);
 
 	return ret;
 }
