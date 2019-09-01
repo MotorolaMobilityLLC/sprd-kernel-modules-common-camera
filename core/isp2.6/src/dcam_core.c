@@ -1311,6 +1311,7 @@ static int dcam_offline_start_frame_offline(void *param)
 	DCAM_AXIM_WR(IMG_FETCH_X,
 		(fetch_pitch << 16) | ((fetch->trim.start_x + fetch->trim.size_x/2) & 0x1fff));
 
+	dcam_init_lsc(dev, 0);
 	/* DCAM_CTRL_COEF will always set in dcam_init_lsc() */
 	//force_ids &= ~DCAM_CTRL_COEF;
 	dcam_force_copy(dev, force_ids);

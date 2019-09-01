@@ -3824,7 +3824,7 @@ static int img_ioctl_cfg_start(
 
 	ret = dcam_ops->ioctl(module->dcam_dev_handle,
 			DCAM_IOCTL_CFG_START, NULL);
-	if (module->cam_uinfo.is_4in1 && module->aux_dcam_dev)
+	if ((module->cam_uinfo.is_bigsize || module->cam_uinfo.is_4in1) && module->aux_dcam_dev)
 		ret = dcam_ops->ioctl(module->aux_dcam_dev,
 			DCAM_IOCTL_CFG_START, NULL);
 
