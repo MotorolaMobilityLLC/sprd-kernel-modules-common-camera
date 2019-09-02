@@ -1215,7 +1215,7 @@ static int dcam_offline_start_frame_offline(void *param)
 		return 0;
 	}
 
-	pr_err("frame %p, ctx %d  ch_id %d.  buf_fd %d\n", pframe,
+	pr_info("frame %p, ctx %d  ch_id %d.  buf_fd %d\n", pframe,
 		dev->idx, pframe->channel_id, pframe->buf.mfd[0]);
 
 	ret = cambuf_iommu_map(&pframe->buf, CAM_IOMMUDEV_DCAM);
@@ -1337,7 +1337,8 @@ static int dcam_offline_start_frame_offline(void *param)
 			udelay(500);
 			dev->iommu_status = (uint32_t)(-1);
 			atomic_set(&dev->state, STATE_RUNNING);
-			//
+			pr_info("slice1 fetch start\n");
+
 			DCAM_AXIM_WR(IMG_FETCH_START, 1);
 			break;
 		}

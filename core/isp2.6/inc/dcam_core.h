@@ -233,6 +233,7 @@ struct dcam_pipe_dev {
 	uint32_t rps; /* raw_proc_scene 0:normal 1:hwsim*/
 	uint32_t is_bigsize;
 	uint32_t is_right;
+	uint32_t raw_cap;
 	struct completion offline_complete;
 
 	uint32_t iommu_enable;

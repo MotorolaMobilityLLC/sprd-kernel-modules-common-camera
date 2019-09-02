@@ -603,14 +603,18 @@ static void dcam_bin_path_done(void *param)
 		return;
 	}
 
-	if (dev->idx == 1 && dev->is_bigsize == 1) {
+	if ((dev->idx == DCAM_ID_1 || (dev->idx == DCAM_ID_0 && dev->raw_cap))
+		&& dev->is_bigsize == 1) {
 		if (dev->is_right == 0) {
 			dev->is_right = 1;
+			pr_info("offline_slice0_done\n");
 			complete(&dev->offline_complete);
 			return;
 		}
-		else
+		else {
+			pr_info("offline_slice1_done\n");
 			dev->is_right = 0;
+		}
 	}
 
 	if ((frame = dcam_prepare_frame(dev, DCAM_PATH_BIN))) {

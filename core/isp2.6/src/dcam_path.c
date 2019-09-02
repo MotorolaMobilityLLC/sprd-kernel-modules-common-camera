@@ -152,6 +152,7 @@ int dcam_cfg_path_base(void *dcam_handle,
 		 */
 		dev->slowmotion_count = ch_desc->slowmotion_count;
 		dev->is_3dnr |= ch_desc->enable_3dnr;
+		dev->raw_cap = ch_desc->raw_cap;
 		break;
 
 	case DCAM_PATH_VCH2:

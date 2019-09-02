@@ -196,6 +196,7 @@ struct dcam_path_cfg_param {
 	uint32_t frm_deci;
 	uint32_t frm_skip;
 	uint32_t force_rds;
+	uint32_t raw_cap;
 	void *priv_size_data;
 	struct img_endian endian;
 	struct img_size input_size;

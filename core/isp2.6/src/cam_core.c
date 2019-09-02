@@ -5799,6 +5799,7 @@ static int raw_proc_pre(
 	/* config dcam path  */
 	memset(&ch_desc, 0, sizeof(ch_desc));
 	ch_desc.is_loose = module->cam_uinfo.sensor_if.if_spec.mipi.is_loose;
+	ch_desc.raw_cap = 1;
 	ch_desc.endian.y_endian = ENDIAN_LITTLE;
 	ret = dcam_ops->cfg_path(module->dcam_dev_handle,
 			DCAM_PATH_CFG_BASE,
