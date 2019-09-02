@@ -3910,6 +3910,8 @@ static int xrp_runtime_resume_secure(struct xvp *xvp)
 		ipidesc->ops->ctx_init(ipidesc);
 	}
 #endif
+	/*set qos*/
+	xvp_set_qos(xvp);
 	ret = xrp_boot_firmware(xvp);
 	if (ret < 0) {
 #ifdef USE_SPRD_MODE
@@ -4294,7 +4296,8 @@ static long xrp_init_common(struct platform_device *pdev,
 		dev_err(xvp->dev, "invalid firmware name (%ld)", ret);
 		goto err_free_map;
 	}
-
+	/*qos parse*/
+	xvp_parse_qos(xvp , pdev->dev.of_node);
 	pm_runtime_enable(xvp->dev);
 	if (!pm_runtime_enabled(xvp->dev)) {
 		ret = xrp_runtime_resume(xvp->dev);
@@ -4322,8 +4325,6 @@ static long xrp_init_common(struct platform_device *pdev,
 		}
 	}
 /*workaround end*/
-	/*qos parse*/
-	xvp_parse_qos(xvp , pdev->dev.of_node);
 
 	xvp->miscdev = (struct miscdevice){
 		.minor = MISC_DYNAMIC_MINOR,
