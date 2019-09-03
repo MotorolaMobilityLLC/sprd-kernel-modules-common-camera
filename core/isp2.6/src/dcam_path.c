@@ -80,20 +80,6 @@ static const unsigned long dcam_store_addr[DCAM_PATH_MAX] = {
 	ISP_NR3_WADDR,
 	ISP_BPC_OUT_ADDR,
 };
-static const unsigned long dcam2_store_addr[DCAM_PATH_MAX] = {
-	DCAM2_PATH0_BASE_WADDR,
-	DCAM2_PATH1_BASE_WADDR,
-	/* below:not cover usefull register */
-	DCAM_PDAF_BASE_WADDR,
-	DCAM_VCH2_BASE_WADDR,
-	DCAM_VCH3_BASE_WADDR,
-	DCAM_AEM_BASE_WADDR,
-	ISP_AFM_BASE_WADDR,
-	ISP_AFL_GLB_WADDR,
-	DCAM_HIST_BASE_WADDR,
-	ISP_NR3_WADDR,
-	ISP_BPC_OUT_ADDR,
-};
 
 /*
  * TODO slow motion
@@ -448,6 +434,7 @@ int dcam_path_set_store_frm(void *dcam_handle,
 	unsigned long flags = 0, addr = 0;
 	const int _bin = 0, _aem = 1, _hist = 2;
 	int i = 0, ret = 0;
+	unsigned long *addr2_store = NULL;
 
 	if (unlikely(!dcam_handle || !path))
 		return -EINVAL;
@@ -468,7 +455,8 @@ int dcam_path_set_store_frm(void *dcam_handle,
 
 	if (idx == DCAM_ID_2) {
 		/* dcam2 path0 ~ full path */
-		addr = dcam2_store_addr[path_id];
+		addr2_store = dcam_get_dcam2_store_addr();
+		addr = addr2_store[path_id];
 	} else if (dev->slowmotion_count && path_id == DCAM_PATH_AEM) {
 		/* slow motion AEM */
 		addr = slowmotion_store_addr[_aem][i];

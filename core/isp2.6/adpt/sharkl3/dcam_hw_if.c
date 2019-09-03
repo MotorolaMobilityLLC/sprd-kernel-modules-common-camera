@@ -81,6 +81,21 @@ static uint32_t dcam_trace_regs[] = {
 		ISP_NR3_WADDR,
 };
 
+unsigned long dcam2_store_addr[DCAM_PATH_MAX] = {
+	DCAM2_PATH0_BASE_WADDR,
+	DCAM2_PATH1_BASE_WADDR,
+	/* below:not cover usefull register */
+	DCAM_PDAF_BASE_WADDR,
+	DCAM_VCH2_BASE_WADDR,
+	DCAM_VCH3_BASE_WADDR,
+	DCAM_AEM_BASE_WADDR,
+	ISP_AFM_BASE_WADDR,
+	ISP_AFL_GLB_WADDR,
+	DCAM_HIST_BASE_WADDR,
+	ISP_NR3_WADDR,
+	ISP_BPC_OUT_ADDR,
+};
+
 uint32_t dcam_trace_regs_get_count()
 {
 	return sizeof(dcam_trace_regs) / sizeof(dcam_trace_regs[0]);
@@ -994,3 +1009,9 @@ int dcam_offline_slice_set_fetch_param(uint32_t idx, struct dcam_fetch_info *fet
 
 	return ret;
 }
+
+unsigned long *dcam_get_dcam2_store_addr(void)
+{
+	return dcam2_store_addr;
+}
+
