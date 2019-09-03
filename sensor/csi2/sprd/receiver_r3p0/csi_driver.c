@@ -1018,9 +1018,10 @@ void csi_phy_init(struct csi_dt_node_info *dt_info, int32_t idx)
 		phy_write(idx, 0x3d, BIT_7, BIT_7);
 		phy_write(idx, 0x4d, BIT_7, BIT_7);
 		phy_write(idx, 0x6d, BIT_7, BIT_7);
+		phy_write(idx, 0xf1, 0xe4, 0xff);
 
-		if(dt_info->lane_seq == 0xfffff){
-			pr_err("combo phy pn swap\n");
+            if(dt_info->lane_seq == 0xfffff){
+			pr_err("combo dphy pn swap\n");
 			phy_write(idx, 0x01, BIT_2 | BIT_4, BIT_2 | BIT_4);
 			phy_write(idx, 0x3d, 0, BIT_7);
 			phy_write(idx, 0x4d, 0, BIT_7);
@@ -1039,6 +1040,7 @@ void csi_phy_init(struct csi_dt_node_info *dt_info, int32_t idx)
 			phy_write(idx, 0x5d, 0xa8, 0xff);
 			phy_write(idx, 0x6d, 0xe8, 0xff);
 			phy_write(idx, 0x7d, 0x08, 0xff);
+			phy_write(idx, 0xf1, 0x87, 0xff);
 		}
 
 		break;
@@ -1048,10 +1050,13 @@ void csi_phy_init(struct csi_dt_node_info *dt_info, int32_t idx)
 		CSI_REG_MWR(idx, PHY_TEST_CRTL0, PHY_REG_SEL, 1 << 2);
 		cphy_cdr_init(dt_info, idx);
 		/****just for sprd ov32a1q swap****/
-		phy_write(idx, 0x8e, 0x26, 0xff);
-		phy_write(idx, 0xae, 0x49, 0xff);
-		phy_write(idx, 0xce, 0x24, 0xff);
-		phy_write(idx, 0x41, 0x06, 0xff);
+		if(dt_info->lane_seq == 0x210){
+			pr_err("combo cphy swap\n");
+			phy_write(idx, 0x8e, 0x26, 0xff);
+			phy_write(idx, 0xae, 0x49, 0xff);
+			phy_write(idx, 0xce, 0x24, 0xff);
+			phy_write(idx, 0x41, 0x06, 0xff);
+		}
 		break;
 	case PHY_2LANE:
 		/* phy: 2lane phy */
