@@ -1614,7 +1614,8 @@ static int dcam_err_pre_proc(enum dcam_id idx, unsigned int irq_status)
 	isp_dev = (struct isp_pipe_dev *)cam_dev->isp_dev_handle;
 
 	if (s_p_dcam_mod[idx]->state & DCAM_STATE_QUICKQUIT) {
-		pr_info("other DCAM%d state 0x%x\n",
+		if (s_p_dcam_mod[idx_other] != NULL)
+			pr_info("other DCAM%d state 0x%x\n",
 				idx_other, s_p_dcam_mod[idx_other]->state);
 		goto exit;
 	}
