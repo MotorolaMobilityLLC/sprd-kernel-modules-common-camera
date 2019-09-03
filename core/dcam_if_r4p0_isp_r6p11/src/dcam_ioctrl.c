@@ -578,7 +578,7 @@ static int dcamio_put_dcam_res(struct camera_file *camerafile,
 
 	ret = sprd_img_put_res(group, &res);
 	if (ret) {
-		pr_err("fail to put res failed!\n");
+		pr_err("fail to put res\n");
 		goto exit;
 	}
 	ret = copy_to_user((void __user *)arg, &res,

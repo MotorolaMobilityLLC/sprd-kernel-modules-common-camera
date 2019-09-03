@@ -212,7 +212,7 @@ static void isp_path_updated_notice(struct isp_module *module,
 	struct isp_pipe_dev *dev = NULL;
 
 	if (module == NULL) {
-		pr_err("zero pointer\n");
+		pr_err("fail to get module,it's NULL\n");
 		return;
 	}
 	dev = container_of(module, struct isp_pipe_dev, module_info);
@@ -225,7 +225,7 @@ static void isp_path_updated_notice(struct isp_module *module,
 			p_path->wait_for_sof = 0;
 		}
 	} else {
-		pr_err("ISP%d: wrong index 0x%x\n",
+		pr_err("ISP%d: fail to get path index 0x%x\n",
 		       ISP_GET_IID(dev->com_idx), path_index);
 		return;
 	}
@@ -258,7 +258,7 @@ static void isp_path_done_notice(struct isp_module *module,
 			p_path->wait_for_done = 0;
 		}
 	} else {
-		pr_err("fail to get wrong index ISP%d:0x%x\n",
+		pr_err("fail to get path index ISP%d:0x%x\n",
 		       ISP_GET_IID(dev->com_idx), path_index);
 		return;
 	}

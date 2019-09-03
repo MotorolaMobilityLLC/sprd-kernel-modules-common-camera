@@ -2695,7 +2695,7 @@ int sprd_isp_update_zoom_param(void *isp_handle,
 				&cap_coeff->path,
 				scl_off_desc);
 			if (rtn) {
-				pr_err("isp start pre proc failed\n");
+				pr_err("fail to start isp pre proc\n");
 				return -rtn;
 			}
 			isp_scl_size_print(iid, &pre_coeff->path,
@@ -2967,14 +2967,14 @@ static int sprd_isp_start_path(void *isp_handle,
 	spin_unlock_irqrestore(&isp_clk_pr, flag);
 	rtn = isp_start_pre_proc(pre, vid, cap, off_desc);
 	if (rtn) {
-		pr_err("isp start pre proc failed\n");
+		pr_err("fail to start isp pre proc\n");
 		return -rtn;
 	}
 
 	/*set statis buf before stream on*/
 	rtn = isp_set_statis_buf(dev);
 	if (rtn) {
-		pr_err("isp start set statis buf failed\n");
+		pr_err("fail to set isp statis buf\n");
 		return -rtn;
 	}
 
@@ -3305,7 +3305,7 @@ int set_isp_path_cfg(void *isp_handle, enum isp_path_index path_index,
 		if (DCAM_YUV_ADDR_INVALID(p_addr->yaddr, p_addr->uaddr,
 					  p_addr->vaddr) &&
 		    p_addr->mfd_y == 0) {
-			pr_err("FAILED: yuv output addr invalid\n");
+			pr_err("fail to get valid yuv output addr\n");
 			rtn = ISP_RTN_PATH_ADDR_ERR;
 		} else {
 			struct camera_frame frame;
@@ -3329,7 +3329,7 @@ int set_isp_path_cfg(void *isp_handle, enum isp_path_index path_index,
 			/*may need update iommu here*/
 			rtn = pfiommu_get_sg_table(&frame.pfinfo);
 			if (rtn) {
-				pr_err("cfg output addr failed!\n");
+				pr_err("fail to get iommu sg table\n");
 				rtn = DCAM_RTN_PATH_ADDR_ERR;
 				break;
 			}
@@ -3377,7 +3377,7 @@ int set_isp_path_cfg(void *isp_handle, enum isp_path_index path_index,
 			/*may need update iommu here*/
 			rtn = pfiommu_get_sg_table(&frame->pfinfo);
 			if (rtn) {
-				pr_err("cfg reserved output addr failed!\n");
+				pr_err("fail to get iommu sg table\n");
 				rtn = DCAM_RTN_PATH_ADDR_ERR;
 				break;
 			}

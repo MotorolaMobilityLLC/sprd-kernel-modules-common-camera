@@ -32,7 +32,7 @@ void InitDcamInfo(struct DCAMINFO *pDCAMInfo)
 	unsigned short i_w, o_w, i_h, o_h;
 
 	if (!pDCAMInfo) {
-		pr_err("%s, invalid para", __func__);
+		pr_err("%s, fail to get param", __func__);
 		return;
 	}
 

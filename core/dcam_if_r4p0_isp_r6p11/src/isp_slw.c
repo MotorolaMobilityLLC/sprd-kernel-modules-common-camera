@@ -460,7 +460,7 @@ int isp_fmcu_slw_int_init(void *isp_handle)
 	struct isp_fmcu_slw_info *slw_hanle = NULL;
 
 	if (!isp_handle) {
-		pr_err("Input param ptr is NULL\n");
+		pr_err("fail to get valid param, NULL\n");
 		return -ISP_RTN_PARA_ERR;
 	}
 
@@ -501,7 +501,7 @@ int isp_fmcu_slw_queue_init(void *isp_handle)
 	struct isp_slw_queue *p_empty_queue = NULL;
 
 	if (!isp_handle) {
-		pr_err("Input param ptr is NULL\n");
+		pr_err("fail to get valid param, NULL\n");
 		return -ISP_RTN_PARA_ERR;
 	}
 
@@ -554,7 +554,7 @@ int isp_slw_flags_init(void *isp_handle, struct isp_path_info *info)
 	struct isp_pipe_dev *dev = NULL;
 
 	if (!isp_handle || !info) {
-		pr_err("fail to get parm is null\n");
+		pr_err("fail to get valid param, NULL\n");
 		return -ISP_RTN_PARA_ERR;
 	}
 
@@ -579,7 +579,7 @@ int get_slw_status(void *isp_handle)
 	unsigned int slw_flags;
 
 	if (!isp_handle) {
-		pr_err("fail to get Input param ptr is NULL\n");
+		pr_err("fail to get valid param, NULL\n");
 		return -ISP_RTN_PARA_ERR;
 	}
 
@@ -599,7 +599,7 @@ int set_isp_fmcu_slw_cmd(void *isp_handle,
 	struct isp_buf_queue *p_buf_queue = NULL;
 
 	if (!isp_handle) {
-		pr_err("fail to get Input param ptr is NULL\n");
+		pr_err("fail to get valid param, NULL\n");
 		return -ISP_RTN_PARA_ERR;
 	}
 
@@ -630,7 +630,7 @@ int isp_fmcu_slw_start(enum isp_scl_id path_id, void *isp_handle)
 	struct isp_pipe_dev *dev = NULL;
 
 	if (!isp_handle) {
-		pr_err("Input param ptr is NULL\n");
+		pr_err("fail to get valid param, NULL\n");
 		return -ISP_RTN_PARA_ERR;
 	}
 

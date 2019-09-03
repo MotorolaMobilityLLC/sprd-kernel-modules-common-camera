@@ -83,14 +83,14 @@ int pfiommu_get_sg_table(struct pfiommu_info *pfinfo)
 						    &pfinfo->buf[i],
 						    &pfinfo->size[i]);
 			if (ret) {
-				pr_err("failed to get sg table %d mfd 0x%x\n",
+				pr_err("fail to get sg table %d mfd 0x%x\n",
 					i, pfinfo->mfd[i]);
 				return -EFAULT;
 			}
 
 			pfinfo->dmabuf_p[i] = dma_buf_get(pfinfo->mfd[i]);
 			if (IS_ERR_OR_NULL(pfinfo->dmabuf_p[i])) {
-				pr_err("failed to get dma buf %p\n",
+				pr_err("fail to get dma buf %p\n",
 				       pfinfo->dmabuf_p[i]);
 				return -EFAULT;
 			}
@@ -129,7 +129,7 @@ int pfiommu_get_addr(struct pfiommu_info *pfinfo)
 
 			ret = sprd_iommu_map(pfinfo->dev, &iommu_data);
 			if (ret) {
-				pr_err("failed to get iommu kaddr %d\n", i);
+				pr_err("fail to get iommu kaddr %d\n", i);
 				return -EFAULT;
 			}
 
@@ -165,7 +165,7 @@ int pfiommu_free_addr(struct pfiommu_info *pfinfo)
 
 			ret = sprd_iommu_unmap(pfinfo->dev, &iommu_data);
 			if (ret) {
-				pr_err("failed to free iommu %d\n", i);
+				pr_err("fail to free iommu %d\n", i);
 				return -EFAULT;
 			} else {
 				pfinfo->iova[i] = 0;
@@ -199,7 +199,7 @@ int pfiommu_free_addr_with_id(struct pfiommu_info *pfinfo,
 			ret = sprd_iommu_unmap(pfinfo->dev,
 					&iommu_data);
 			if (ret) {
-				pr_err("failed to free iommu %d\n", i);
+				pr_err("fail to free iommu %d\n", i);
 				return -EFAULT;
 			} else {
 				pfinfo->iova[i] = 0;

@@ -298,7 +298,7 @@ static int isp_cfg_map_init(struct isp_pipe_dev *dev)
 	uint32_t *cfg_map = NULL;
 
 	if (!dev) {
-		pr_err("isp dev invalid\n");
+		pr_err("fail to get isp dev\n");
 		return -EINVAL;
 	}
 
@@ -516,7 +516,7 @@ static int isp_cctx_init(struct isp_cctx_desc *cctx_desc, enum isp_id iid)
 	ion_pool_p->size = ISP_CCTX_ALL_CMD_BUF_ALIGN_SIZE;
 	ret = isp_gen_buf_alloc(ion_pool_p);
 	if (ret != 0) {
-		pr_err("iid%d can't alloc buf for cctx_buf, ret %d\n",
+		pr_err("iid%d fail to alloc buf for cctx_buf, ret %d\n",
 		       iid, ret);
 		return -ENOMEM;
 	}

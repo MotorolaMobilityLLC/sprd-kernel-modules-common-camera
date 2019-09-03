@@ -50,7 +50,7 @@ int isp_statis_queue_read(struct isp_statis_buf_queue *queue,
 	unsigned long flag;
 
 	if (queue == NULL || buf == NULL) {
-		pr_err("fail to get queue or buf,is NULL\n");
+		pr_err("fail to get valid param, NULL\n");
 		return -EINVAL;
 	}
 
@@ -75,7 +75,7 @@ int isp_statis_queue_write(struct isp_statis_buf_queue *queue,
 	unsigned long flag;
 
 	if (queue == NULL || buf == NULL) {
-		pr_err("fail to get queue or buf,is NULL\n");
+		pr_err("fail to get valid param, NULL\n");
 		return -EINVAL;
 	}
 

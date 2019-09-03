@@ -34,7 +34,7 @@ static int set_offline_scl_size(struct isp_path_desc *path,
 	struct isp_offline_desc *off_desc)
 {
 	if (!path || !off_desc) {
-		pr_err("Input ptr error!\n");
+		pr_err("fail to get valid param, NULL\n");
 		return -EFAULT;
 	}
 
@@ -70,7 +70,7 @@ static int isp_path_offline_cowork_cap(struct isp_path_desc *pre,
 	unsigned int tmph = 0;
 
 	if (!pre || !vid || !cap || !off_desc) {
-		pr_err("input ptr is NULL!\n");
+		pr_err("fail to get valid param, NULL\n");
 		return -EFAULT;
 	}
 
@@ -106,19 +106,19 @@ static int isp_path_offline_cowork_cap(struct isp_path_desc *pre,
 
 	rtn = set_offline_scl_size(pre, off_desc);
 	if (rtn) {
-		pr_err("Set pre_path scl size failed\n");
+		pr_err("fail to set pre_path scl size\n");
 		return rtn;
 	}
 
 	rtn = set_offline_scl_size(vid, off_desc);
 	if (rtn) {
-		pr_err("Set vid_path scl size failed\n");
+		pr_err("fail to set vid_path scl size\n");
 		return rtn;
 	}
 
 	rtn = set_offline_scl_size(cap, off_desc);
 	if (rtn) {
-		pr_err("Set cap_path scl size failed\n");
+		pr_err("fail to set cap_path scl size\n");
 		return rtn;
 	}
 
@@ -136,7 +136,7 @@ static int isp_path_offline_cowork(struct isp_path_desc *pre,
 	unsigned int tmph = 0;
 
 	if (!pre || !vid || !off_desc) {
-		pr_err("Input ptr is NULL\n");
+		pr_err("fail to get valid param, NULL\n");
 		return -EFAULT;
 	}
 
@@ -165,13 +165,13 @@ static int isp_path_offline_cowork(struct isp_path_desc *pre,
 
 	rtn = set_offline_scl_size(max_path, off_desc);
 	if (rtn) {
-		pr_err("Set max_path scl size failed\n");
+		pr_err("fail to set max_path scl size\n");
 		return rtn;
 	}
 
 	rtn = set_offline_scl_size(min_path, off_desc);
 	if (rtn) {
-		pr_err("Set min_path scl size failed\n");
+		pr_err("fail to set min_path scl size\n");
 		return rtn;
 	}
 
@@ -185,7 +185,7 @@ static int set_online_scl_size(struct isp_path_desc *path,
 	struct isp_path_desc *scl0)
 {
 	if (!path || !scl0) {
-		pr_err("Input ptr error!\n");
+		pr_err("fail to get valid param, NULL\n");
 		return -EFAULT;
 	}
 
@@ -236,7 +236,7 @@ static int isp_path_online_cowork(struct isp_path_desc *pre,
 	int scl0_max_width = ISP_SCL0_MAX_WIDTH;
 
 	if (!pre || !vid || !scl0) {
-		pr_err("Input ptr is NULL\n");
+		pr_err("fail to get valid param, NULL\n");
 		return -EFAULT;
 	}
 
@@ -314,13 +314,13 @@ static int isp_path_online_cowork(struct isp_path_desc *pre,
 
 	rtn = set_online_scl_size(max_path, scl0);
 	if (rtn) {
-		pr_err("Set max_path scl size failed\n");
+		pr_err("fail to set max_path scl size\n");
 		return rtn;
 	}
 
 	rtn = set_online_scl_size(min_path, scl0);
 	if (rtn) {
-		pr_err("Set min_path scl size failed\n");
+		pr_err("fail to set min_path scl size\n");
 		return rtn;
 	}
 
@@ -336,7 +336,7 @@ static int isp_path_offline(struct isp_path_desc *path,
 	int rtn = 0;
 
 	if (!path || !off_desc) {
-		pr_err("Input ptr is NULL\n");
+		pr_err("fail to get valid param, NULL\n");
 		return -EFAULT;
 	}
 
@@ -367,7 +367,7 @@ static int isp_path_offline(struct isp_path_desc *path,
 
 	if (path->trim0_info.size_x > path->src.w ||
 		path->trim0_info.size_y > path->src.h) {
-		pr_err("error: invalid size of trim0, %d %d src %d %d\n",
+		pr_err("fail to get valid size of trim0, %d %d src %d %d\n",
 			path->trim0_info.size_x, path->trim0_info.size_y,
 			path->src.w, path->src.h);
 		return -EINVAL;
@@ -396,7 +396,7 @@ static int isp_path_online(struct isp_path_desc *path,
 	int scl0_max_width = ISP_SCL0_MAX_WIDTH;
 
 	if (!path || !scl0) {
-		pr_err("Input ptr is NULL");
+		pr_err("fail to get valid param, NULL");
 		return -EFAULT;
 	}
 
@@ -547,7 +547,7 @@ static int isp_get_store_param(struct isp_path_desc *path)
 	struct isp_store_info *store_info = NULL;
 
 	if (!path) {
-		pr_err("input ptr is NULL!\n");
+		pr_err("fail to get valid param, NULL\n");
 		return -EFAULT;
 	}
 
@@ -585,14 +585,14 @@ static int isp_path_store_cfg(struct isp_path_desc *pre,
 	int rtn = 0;
 
 	if (!pre || !vid || !cap || !off_desc) {
-		pr_err("input ptr is NULL!\n");
+		pr_err("fail to get valid param, NULL\n");
 		return -EFAULT;
 	}
 
 	if (pre->valid) {
 		rtn = isp_get_store_param(pre);
 		if (rtn) {
-			pr_err("Get pre store param error\n");
+			pr_err("fail to get pre store param\n");
 			return rtn;
 		}
 	}
@@ -600,7 +600,7 @@ static int isp_path_store_cfg(struct isp_path_desc *pre,
 	if (vid->valid) {
 		rtn = isp_get_store_param(vid);
 		if (rtn) {
-			pr_err("Get vid store param error\n");
+			pr_err("fail to get vid store param\n");
 			return rtn;
 		}
 	}
@@ -616,14 +616,14 @@ static int isp_path_store_cfg(struct isp_path_desc *pre,
 		rtn = isp_get_store_param(cap);
 		cap->store_info.shadow_clr_sel = 1;
 		if (rtn) {
-			pr_err("Get cap store param error\n");
+			pr_err("fail to get cap store param\n");
 			return rtn;
 		}
 
 		if (dev->is_3dnr) {
 			rtn = isp_get_store_param(vid);
 			if (rtn) {
-				pr_err("Get 3dnr store param error\n");
+				pr_err("fail to get 3dnr store param\n");
 				return rtn;
 			}
 			vid->store_info.shadow_clr_sel = 1;
@@ -633,7 +633,7 @@ static int isp_path_store_cfg(struct isp_path_desc *pre,
 	if (off_desc->valid) {
 		rtn = isp_get_storecce_param(off_desc);
 		if (rtn) {
-			pr_err("Get store cce param error\n");
+			pr_err("fail to get store cce param\n");
 			return rtn;
 		}
 	}
@@ -649,7 +649,7 @@ int isp_start_pre_proc(struct isp_path_desc *pre,
 	int rtn = 0;
 
 	if (!pre || !vid || !cap || !off_desc) {
-		pr_err("input ptr is NULL!\n");
+		pr_err("fail to get valid param, NULL\n");
 		return -EFAULT;
 	}
 	if (pre->valid) {
@@ -698,7 +698,7 @@ int isp_start_pre_proc(struct isp_path_desc *pre,
 
 	rtn = isp_path_store_cfg(pre, vid, cap, off_desc);
 	if (rtn) {
-		pr_err("Get store param error\n");
+		pr_err("fail to get store param\n");
 		return rtn;
 	}
 
@@ -878,7 +878,7 @@ static void isp_set_shrink_info(void *input_info,
 	struct isp_regular_info *regular_info = NULL;
 
 	if (!input_info) {
-		pr_err("Input info ptr is NULL\n");
+		pr_err("fail to get valid param, NULL\n");
 		return;
 	}
 
@@ -1035,7 +1035,7 @@ void isp_path_set_scl(unsigned int idx, struct isp_path_desc *path,
 	unsigned int frm_deci;
 
 	if (!path) {
-		pr_err("Input path ptr is NULL\n");
+		pr_err("fail to get valid param, NULL\n");
 		return;
 	}
 
@@ -1146,7 +1146,7 @@ void isp_path_set(struct isp_module *module,
 	struct isp_pipe_dev *dev = NULL;
 
 	if (!module || !path) {
-		pr_err("Input module ptr is NULL\n");
+		pr_err("fail to get valid param, NULL\n");
 		return;
 	}
 
@@ -1167,7 +1167,7 @@ void isp_path_set(struct isp_module *module,
 		scl_addr = ISP_SCALER_PRE_CAP_BASE;
 		store_addr = ISP_STORE_PRE_CAP_BASE;
 	} else {
-		pr_err("Not valid path index\n");
+		pr_err("fail to get valid path index\n");
 		return;
 	}
 
@@ -1195,7 +1195,7 @@ int isp_get_scl_index(unsigned int channel_id)
 		break;
 	default:
 		path_index = ISP_SCL_MAX;
-		pr_info("failed to get path index, channel %d\n", channel_id);
+		pr_info("fail to get path index, channel %d\n", channel_id);
 	}
 	return path_index;
 }
@@ -1221,7 +1221,7 @@ int isp_path_set_next_frm(struct isp_module *module,
 	unsigned int frm_q_len;
 
 	if (module == NULL) {
-		pr_err("zero pointer\n");
+		pr_err("fail to get moudule, It's NULL\n");
 		return -EFAULT;
 	}
 
@@ -1286,7 +1286,7 @@ int isp_path_set_next_frm(struct isp_module *module,
 		if (reserved_frame->pfinfo.iova[0] == 0) {
 			rtn = pfiommu_get_addr(&reserved_frame->pfinfo);
 			if (rtn) {
-				pr_err("ISP%d: get reserved buffer addr failed!\n",
+				pr_err("ISP%d: fail to get reserved buffer addr\n",
 				       iid);
 				rtn = ISP_RTN_PATH_ADDR_ERR;
 				goto iommu_err;
@@ -1307,7 +1307,7 @@ int isp_path_set_next_frm(struct isp_module *module,
 			pr_info("ISP%d next dev NULL %p\n",
 				iid, frame.pfinfo.dev);
 		if (pfiommu_get_addr(&frame.pfinfo)) {
-			pr_err("ISP%d: failed to get frame iova!\n", iid);
+			pr_err("ISP%d: fail to get frame iova\n", iid);
 			rtn = ISP_RTN_PATH_ADDR_ERR;
 			goto iommu_err;
 		}

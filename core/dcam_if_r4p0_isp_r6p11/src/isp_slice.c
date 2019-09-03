@@ -290,7 +290,7 @@ static int get_slice_size_info(struct slice_param_in *in_ptr,
 	struct slice_img_size *output = NULL;
 
 	if (!in_ptr || !h || !w) {
-		pr_err("fail to get input ptr is NULL!\n");
+		pr_err("fail to get valid param, NULL\n");
 		rtn = -1;
 		goto exit;
 	}
@@ -326,7 +326,7 @@ static int get_slice_overlap_info(struct slice_param_in *in_ptr,
 	struct slice_base_info *base_info)
 {
 	if (!in_ptr || !base_info) {
-		pr_err("fail to input ptr is NULL");
+		pr_err("fail to get valid param, NULL");
 		return -EINVAL;
 	}
 
@@ -373,7 +373,7 @@ static int set_slice_base_info(struct slice_param_in *in_ptr,
 	unsigned int overlap_right = 0;
 
 	if (!in_ptr || !base_info) {
-		pr_err("fail to input ptr is NULL!\n");
+		pr_err("fail to get valid param, NULL\n");
 		rtn = -1;
 		goto exit;
 	}
@@ -687,7 +687,7 @@ static void free_lsc_2d_slice_grid_buf(struct slice_context_info *cxt)
 	uint32_t cur_slice_id, slice_num;
 
 	if (!cxt) {
-		pr_err("fail to get input cxt is NULL!\n");
+		pr_err("fail to get valid param, NULL\n");
 		return;
 	}
 
@@ -721,7 +721,7 @@ static int set_slice_lsc_2d_info(struct slice_param_in *in_ptr,
 	uint16_t tmp_grid_0, tmp_grid_1, tmp_grid_2, tmp_grid_3;
 
 	if (!in_ptr || !cxt) {
-		pr_err("fail to get input ptr is NULL!\n");
+		pr_err("fail to get valid param, NULL\n");
 		return -1;
 	}
 
@@ -1525,7 +1525,7 @@ static int set_path_info(struct slice_scaler_info *scaler_info,
 	struct isp_scaler_slice_tmp slice = {0};
 
 	if (!scaler_info || !scaler_frame || !base_info) {
-		pr_err("fail to input ptr is NULL!\n");
+		pr_err("fail to get valid param, NULL\n");
 		rtn = -1;
 		goto exit;
 	}
@@ -1595,7 +1595,7 @@ static int set_slice_scaler_info(struct slice_param_in *in_ptr,
 	unsigned int r = 0, c = 0;
 
 	if (!in_ptr || !cxt) {
-		pr_err("fail to input ptr is NULL!\n");
+		pr_err("fail to get valid param, NULL\n");
 		rtn = -1;
 		goto exit;
 	}
@@ -1698,7 +1698,7 @@ static int set_slice_noisefliter_info(struct slice_context_info *cxt)
 	struct slice_scaler_info *scaler_info = NULL;
 
 	if (!cxt) {
-		pr_err("fail to get handle is NULL!\n");
+		pr_err("fail to get valid param, NULL\n");
 		rtn = -1;
 		goto exit;
 	}
@@ -1836,7 +1836,7 @@ static int set_store_info(struct slice_store_info *store_info,
 	struct slice_pitch store_pitch = {0};
 
 	if (!store_info || !store_frame || !base_info || !scaler_info) {
-		pr_err("fail to get input ptr is NULL!\n");
+		pr_err("fail to get valid param, NULL\n");
 		rtn = -1;
 		goto exit;
 	}
@@ -1946,7 +1946,7 @@ static int set_slice_store_info(struct slice_param_in *in_ptr,
 	struct slice_scaler_info *scaler_info = NULL;
 
 	if (!in_ptr || !cxt) {
-		pr_err("fail to get input ptr is NULL!\n");
+		pr_err("fail to get valid param, NULL\n");
 		rtn = -1;
 		goto exit;
 	}
@@ -2006,7 +2006,7 @@ static int set_slice_cfa_info(struct slice_param_in *in_ptr,
 	unsigned int end_col = 0;
 
 	if (!cxt) {
-		pr_err("fail to get input handle is NULL!\n");
+		pr_err("fail to get valid param, NULL\n");
 		rtn = -1;
 		goto exit;
 	}
@@ -2423,7 +2423,7 @@ static int set_slice_fmcu_info(struct slice_param_in *in_ptr,
 	unsigned int scl_bypass;
 
 	if (!in_ptr || !cxt) {
-		pr_err("fail to input ptr is NULL!\n");
+		pr_err("fail to get valid param, NULL\n");
 		rtn = -1;
 		goto exit;
 	}

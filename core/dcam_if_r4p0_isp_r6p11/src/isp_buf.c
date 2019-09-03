@@ -553,7 +553,7 @@ int isp_offline_get_buf(struct isp_offline_desc *off_desc,
 		ion_buf->dmabuf_p = ion_new_alloc(buf_desc->buf_len,
 				heap_type, 0);
 		if (IS_ERR_OR_NULL(ion_buf->dmabuf_p)) {
-			pr_err("failed to alloc ion buf size = 0x%x %ld\n",
+			pr_err("fail to alloc ion buf size = 0x%x %ld\n",
 				(int)buf_desc->buf_len,
 				(unsigned long)ion_buf->dmabuf_p);
 			goto failed;
@@ -564,7 +564,7 @@ int isp_offline_get_buf(struct isp_offline_desc *off_desc,
 				&ion_buf->buf,
 				&ion_buf->buf_size);
 		if (ret) {
-			pr_err("failed to get ion buf for kernel buffer %p\n",
+			pr_err("fail to get ion buf for kernel buffer %p\n",
 				ion_buf->dmabuf_p);
 			goto failed;
 		}
@@ -921,7 +921,7 @@ int isp_gen_buf_alloc(struct isp_buf_info *buf_info)
 	buf_info->dmabuf_p = ion_new_alloc(buf_info->size,
 			heap_type, 0);
 	if (IS_ERR_OR_NULL(buf_info->dmabuf_p)) {
-		pr_err("failed to alloc ion buf size = 0x%x %ld\n",
+		pr_err("fail to alloc ion buf size = 0x%x %ld\n",
 			(int)buf_info->size,
 			(unsigned long)buf_info->dmabuf_p);
 		return -ENOMEM;
@@ -932,7 +932,7 @@ int isp_gen_buf_alloc(struct isp_buf_info *buf_info)
 			&buf_info->buf,
 			&buf_info->buf_size);
 	if (ret) {
-		pr_err("failed to get ion buf for kernel buffer %p\n",
+		pr_err("fail to get ion buf for kernel buffer %p\n",
 			buf_info->dmabuf_p);
 		ret = -EFAULT;
 		goto failed;

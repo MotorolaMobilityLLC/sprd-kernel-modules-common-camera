@@ -620,7 +620,7 @@ int sprd_cpp_core_free_addr(
 			ret = sprd_iommu_unmap(pfinfo->dev,
 				&iommu_data);
 			if (ret) {
-				pr_err("failed to free iommu %d\n", i);
+				pr_err("fail to unmap iommu %d\n", i);
 				return -EFAULT;
 			}
 		}
@@ -868,7 +868,7 @@ static long sprd_cppcore_ioctl(struct file *file,
 			sprd_dma_drv_stop(&dmaif->drv_priv);
 			sprd_cppcore_dma_reset(dev);
 			mutex_unlock(&dmaif->dma_mutex);
-			pr_err("failed to get dma done com\n");
+			pr_err("fail to get dma done com\n");
 			return -EBUSY;
 		}
 
