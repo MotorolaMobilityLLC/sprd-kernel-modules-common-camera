@@ -2045,7 +2045,7 @@ static int set_fmcu_clr_int(unsigned int *fmcu_buf,
 	num = fmcu_push_back(&fmcu_buf[num], addr, cmd, num);
 
 	addr = ISP_GET_REG(iid, int_base + ISP_INT_CLR2);
-	cmd = 0xFFFFFFFFUL & ~BIT(22);
+	cmd = 0xFFFFFFFFUL;
 	num = fmcu_push_back(&fmcu_buf[num], addr, cmd, num);
 
 	addr = ISP_GET_REG(iid, int_base + ISP_INT_CLR3);
@@ -2476,6 +2476,15 @@ static int set_slice_fmcu_info(struct slice_param_in *in_ptr,
 		num = set_fmcu_clr_int(fmcu_buf, num, sid, iid);
 		if (mid == ISP_CFG_MODE)
 			num = set_fmcu_cfg(fmcu_buf, num, sid, iid);
+
+		if (dev->is_3dnr_path_cfg) {
+			addr = ISP_GET_REG(iid, ISP_COMMON_SCL_PATH_SEL);
+			cmd = ISP_HREG_RD(iid, ISP_COMMON_SCL_PATH_SEL) &
+				~(BIT_3 | BIT_2);
+			num = fmcu_push_back(&fmcu_buf[num & (~0x1)], addr,
+					     cmd, num);
+		}
+
 		if (!isp_k_bp->lsc_bypass)
 			num = set_fmcu_lsc_2d(fmcu_buf, lsc_2d_info, num,
 					      mid, iid);
@@ -2571,6 +2580,14 @@ static int set_slice_fmcu_info(struct slice_param_in *in_ptr,
 		cmd = all_done_cmd[iid][sid];
 		num = fmcu_push_back(&fmcu_buf[num & (~0x1)], addr,
 			cmd, num);
+
+		if (dev->is_3dnr_path_cfg) {
+			addr = ISP_GET_REG(iid, ISP_COMMON_SCL_PATH_SEL);
+			cmd = (ISP_HREG_RD(iid, ISP_COMMON_SCL_PATH_SEL) &
+			       ~(BIT_3 | BIT_2)) | (3 << 2);
+			num = fmcu_push_back(&fmcu_buf[num & (~0x1)], addr,
+					     cmd, num);
+		}
 	}
 	*fmcu_num = num / 2;
 exit:

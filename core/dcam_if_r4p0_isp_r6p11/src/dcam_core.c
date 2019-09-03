@@ -2723,9 +2723,10 @@ static int sprd_isp_3dnr_path_cfg(struct isp_pipe_dev *isp_dev,
 	vid->trim1_info.start_y = 0;
 	vid->trim1_info.size_x = vid->out_size.w;
 	vid->trim1_info.size_y = vid->out_size.h;
-	isp_dev->is_3dnr = 1;
 
-	pr_info("isp 3dnr input_size w %d h %d, out_size w %d h %d\n",
+	isp_dev->is_3dnr_path_cfg = 1;
+
+	pr_info("isp 3dnr path configured, input_size w %d h %d, out_size w %d h %d\n",
 		vid->in_size.w, vid->in_size.h,
 		vid->out_size.w, vid->out_size.h);
 	return ret;

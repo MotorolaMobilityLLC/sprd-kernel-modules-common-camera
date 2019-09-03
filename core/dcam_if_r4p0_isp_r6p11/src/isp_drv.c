@@ -831,6 +831,7 @@ static int sprd_isp_stop_nolock(void *isp_handle, int is_post_stop)
 	if (dev->cap_on)
 		dev->cap_on = 0;
 
+	dev->is_3dnr_path_cfg = 0;
 	dev->isr_count = 0;
 	dev->isr_last_time = 0;
 	dev->delta_full = 0;
@@ -1047,7 +1048,7 @@ static int isp_update_offline_path_param(struct isp_pipe_dev *dev,
 		}
 		isp_path_set(module, cap, ISP_PATH_IDX_CAP);
 
-		if (dev->is_3dnr) {
+		if (dev->is_3dnr_path_cfg) {
 			/* use input data from cap path */
 			vid->src = cap->src;
 			vid->in_size = cap->in_size;
@@ -1183,7 +1184,7 @@ static int get_slice_init_param(struct slice_param_in *in_ptr,
 		ret = isp_path_set_next_frm(module, ISP_PATH_IDX_CAP,
 			&in_ptr->store_frame[SLICE_PATH_CAP].addr);
 
-		if (dev->is_3dnr) {
+		if (dev->is_3dnr_path_cfg) {
 			struct camera_size *out_size = &path_vid->out_size;
 
 			pr_info("init for 3dnr slice");
@@ -1577,10 +1578,12 @@ int sprd_isp_start_pipeline_full(void *handle, unsigned int cap_flag)
 		}
 
 		if (cap_flag == DCAM_CAPTURE_START_3DNR) {
-			if (dev->is_3dnr) {
+			if (dev->is_3dnr_path_cfg) {
+				dev->is_3dnr = 1;
 				dev->frm_cnt_3dnr = ISP_3DNR_NUM;
 			} else {
 				pr_err("fail to start 3dnr\n");
+				dev->is_3dnr = 0;
 				dev->frm_cnt_3dnr = 0;
 				ret = -EFAULT;
 				goto err_exit;
@@ -1740,7 +1743,7 @@ static void do_shadow_clr(struct isp_pipe_dev *dev,
 			(ISP_STORE_PRE_CAP_BASE + ISP_STORE_SHADOW_CLR),
 			0x1);
 
-		if (cap_path->valid && dev->is_3dnr) {
+		if (is_cap && cap_path->valid && dev->is_3dnr_path_cfg) {
 			ISP_REG_WR(idx, (ISP_STORE_VID_BASE +
 				ISP_STORE_SHADOW_CLR), 0x1);
 			pr_debug("shadow clear for 3dnr path\n");
@@ -1898,6 +1901,9 @@ static int sprd_isp_pipeline_proc_bin(void *handle)
 	ISP_REG_MWR(idx, ISP_HIST_CFG_READY, BIT_0, 1);
 	pr_debug("update hist bypass\n");
 
+	if (dev->is_3dnr_path_cfg)
+		disable_scl_vid_path(idx);
+
 	/*
 	 * In CFG mode, init_hw will init isp CFG module and
 	 * flush dcache for cfg cmd buf, if you config registers
@@ -2023,6 +2029,8 @@ static int sprd_isp_pipeline_proc_full(void *handle)
 	ISP_REG_MWR(idx, ISP_HIST_CFG_READY, BIT_0, 1);
 	pr_debug("update hist bypass\n");
 
+	if (dev->is_3dnr_path_cfg)
+		enable_scl_vid_path(idx);
 	/*
 	 * In CFG mode, init_hw will init isp CFG module and
 	 * flush dcache for cfg cmd buf, if you config registers
@@ -2047,9 +2055,9 @@ static int sprd_isp_pipeline_proc_full(void *handle)
 	 */
 	ISP_HREG_WR(idx, ISP_INT_ALL_DONE_CTRL + int_reg_base[iid][sid], 0xf8);
 
-	pr_debug("start isp%d using fmcu, com_idx 0x%x\n", iid, idx);
 	isp_clk_resume(iid, ISP_CLK_P_C);
 	ISP_HREG_WR(idx, ISP_FMCU_START, 1);
+	pr_info("start isp%d using fmcu, com_idx 0x%x\n", iid, idx);
 
 exit:
 	spin_unlock_irqrestore(&dev->cap_lock, flag);
@@ -2311,7 +2319,8 @@ int isp_path_scaler(struct isp_module *module,
 		sid = ISP_SCENE_PRE;
 		cfg_reg = ISP_SCALER_PRE_CAP_BASE + ISP_SCALER_CFG;
 	} else if (path_index == ISP_PATH_IDX_VID) {
-		if (module->isp_path[ISP_SCL_CAP].valid && dev->is_3dnr)
+		if (module->isp_path[ISP_SCL_CAP].valid &&
+		    dev->is_3dnr_path_cfg)
 			sid = ISP_SCENE_CAP;
 		else
 			sid = ISP_SCENE_PRE;
@@ -2821,7 +2830,7 @@ int sprd_isp_update_zoom_param(void *isp_handle,
 			return -(rtn);
 		}
 
-		if (vid->valid || dev->is_3dnr) {
+		if (vid->valid || dev->is_3dnr_path_cfg) {
 			pr_debug("ISP%d: to update path vid\n", iid);
 			rtn = isp_path_scaler(module, ISP_PATH_IDX_VID,
 					      &vid_coeff->path, vid_coeff);
@@ -3110,34 +3119,15 @@ static int sprd_isp_start_path(void *isp_handle,
 		module->isp_path[ISP_SCL_CAP].shadow_done_cnt = 0;
 	}
 
-	if (pre_to_run || cap_to_run) {
+	if (pre_to_run || cap_to_run)
 		/* yuv pipeline */
-		ISP_REG_MWR(idx, ISP_STORE_PRE_CAP_BASE + ISP_STORE_PARAM,
-			BIT_0, 0 << 0);
-		ISP_HREG_MWR(idx,
-			ISP_COMMON_SCL_PATH_SEL, (BIT_0 | BIT_1), 0);
-
-		if (cap_to_run && dev->is_3dnr) {
-			ISP_REG_MWR(idx, ISP_STORE_VID_BASE + ISP_STORE_PARAM,
-				BIT_0, 0 << 0);
-			ISP_HREG_MWR(idx,
-				ISP_COMMON_SCL_PATH_SEL,
-				(BIT_2 | BIT_3), 0 << 2);
-			pr_info("video path opened for 3dnr\n");
-		}
-	} else {
-		ISP_REG_MWR(idx, ISP_STORE_PRE_CAP_BASE + ISP_STORE_PARAM,
-			BIT_0, 1 << 0);
-		ISP_HREG_MWR(idx,
-			ISP_COMMON_SCL_PATH_SEL, (BIT_0 | BIT_1), 3 << 0);
-	}
+		on_scl_pre_cap_path_from_pipeline(idx);
+	else
+		off_scl_pre_cap_path(idx);
 
 	if (vid_to_run) {
 		 /* yuv pipeline */
-		ISP_REG_MWR(idx, ISP_STORE_VID_BASE + ISP_STORE_PARAM,
-			BIT_0, 0 << 0);
-		ISP_HREG_MWR(idx,
-			ISP_COMMON_SCL_PATH_SEL, (BIT_2 | BIT_3), 0 << 2);
+		on_scl_vid_path_from_pipeline(idx);
 
 		/*
 		 * TODO: need to check the proper place
@@ -3148,12 +3138,6 @@ static int sprd_isp_start_path(void *isp_handle,
 			ISP_SCALER_VID_BASE + ISP_SCALER_CFG,
 			ISP_SCALER_CFG_MASK, 0x0);
 #endif
-	} else if (!dev->is_3dnr) {
-		/* video closed */
-		ISP_REG_MWR(idx, ISP_STORE_VID_BASE + ISP_STORE_PARAM,
-			BIT_0, 1 << 0);
-		ISP_HREG_MWR(idx,
-			ISP_COMMON_SCL_PATH_SEL, (BIT_2 | BIT_3), 3 << 2);
 	}
 
 	if (path_index != ISP_PATH_IDX_ALL) {

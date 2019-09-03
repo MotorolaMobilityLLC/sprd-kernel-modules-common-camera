@@ -849,7 +849,8 @@ struct isp_pipe_dev {
 	unsigned int *fmcu_addr_vir;
 	unsigned long fmcu_addr_phy;
 	unsigned int is_wait_fmcu;
-	unsigned int is_3dnr;
+	unsigned int is_3dnr_path_cfg; /* check if 3dnr path been configed */
+	unsigned int is_3dnr; /* check if start capture of 3dnr coming */
 	unsigned int is_hdr;
 	/* set this flag when isp waiting for dcam full path tx done */
 	enum isp_wait_full_tx_done_state wait_full_tx_done;

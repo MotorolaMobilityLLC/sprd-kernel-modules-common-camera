@@ -1095,16 +1095,19 @@ do {								\
 #define ISP_REG_WR(idx, reg, val)					\
 do {									\
 	if (!IS_ERR_OR_NULL((void *)ISP_BASE_ADDR(idx)))		\
-		REG_WR(ISP_BASE_ADDR(idx) + reg, val);			\
+		REG_WR(ISP_BASE_ADDR(idx) + (reg), (val));		\
 	else								\
 		WARN_ON(1);						\
 } while (0)
 
-#define ISP_PAGE_REG_RD(idx, reg)  (REG_RD(ISP_BASE_ADDR(idx) + reg))
-#define ISP_REG_MWR(idx, reg, msk, val)  ISP_REG_WR(idx, reg, \
-		((val) & (msk)) | (ISP_PAGE_REG_RD(idx, reg) & (~(msk))))
+#define ISP_PAGE_REG_RD(idx, reg)  (REG_RD(ISP_BASE_ADDR((idx)) + (reg)))
+#define ISP_REG_MWR(idx, reg, msk, val)  \
+		ISP_REG_WR((idx), (reg), \
+			    (((val) & (msk)) | \
+			    (ISP_PAGE_REG_RD((idx), (reg)) & (~(msk)))))
 #define ISP_REG_OWR(idx, reg, val)  \
-		ISP_REG_WR(idx, reg, (ISP_PAGE_REG_RD(idx, reg) | val))
+		ISP_REG_WR((idx), (reg), \
+			    (ISP_PAGE_REG_RD((idx), (reg)) | (val)))
 
 /*
  * The isp modules below won't access CFG buffers,
@@ -1120,19 +1123,93 @@ do {									\
  *	isp int (0x60a0000, 0d00, 0e00, 0f00)
  */
 #define ISP_HREG_WR(idx, reg, val) \
-		(REG_WR(s_isp_regbase[ISP_GET_IID(idx)] + reg, val))
+		REG_WR(s_isp_regbase[ISP_GET_IID(idx)] + (reg), (val))
 
 #define ISP_HREG_RD(idx, reg) \
-		(REG_RD(s_isp_regbase[ISP_GET_IID(idx)] + reg))
+		REG_RD(s_isp_regbase[ISP_GET_IID(idx)] + (reg))
 
 #define ISP_HREG_MWR(idx, reg, msk, val) \
-		(REG_WR(s_isp_regbase[ISP_GET_IID(idx)] + reg, \
+		REG_WR(s_isp_regbase[ISP_GET_IID(idx)] + (reg), \
 			((val) & (msk)) | \
-			(REG_RD(s_isp_regbase[ISP_GET_IID(idx)] + reg) & \
-			 (~(msk)))))
+			(REG_RD(s_isp_regbase[ISP_GET_IID(idx)] + (reg)) & \
+			 (~(msk))))
 
 #define ISP_HREG_OWR(idx, reg, val) \
-		(REG_WR(s_isp_regbase[ISP_GET_IID(idx)] + reg, \
-			(REG_RD(s_isp_regbase[ISP_GET_IID(idx)] + reg) | val)))
+		REG_WR(s_isp_regbase[ISP_GET_IID(idx)] + (reg), \
+			(REG_RD(s_isp_regbase[ISP_GET_IID(idx)] + (reg)) | \
+			 (val)))
+
+
+/* enable path */
+#define enable_scl_pre_cap_path(idx) \
+	ISP_REG_MWR((idx), ISP_STORE_PRE_CAP_BASE + ISP_STORE_PARAM, BIT_0, 0)
+
+#define enable_scl_vid_path(idx) \
+	ISP_REG_MWR((idx), ISP_STORE_VID_BASE + ISP_STORE_PARAM, BIT_0, 0)
+
+/* disable path */
+#define disable_scl_pre_cap_path(idx) \
+	ISP_REG_MWR((idx), ISP_STORE_PRE_CAP_BASE + ISP_STORE_PARAM, BIT_0, 1)
+
+#define disable_scl_vid_path(idx) \
+	ISP_REG_MWR((idx), ISP_STORE_VID_BASE + ISP_STORE_PARAM, BIT_0, 1)
+
+/* open path */
+#define open_scl_pre_cap_path_from_pipeline(idx) \
+	ISP_HREG_MWR((idx), ISP_COMMON_SCL_PATH_SEL, (BIT_0 | BIT_1), 0 << 0)
+
+#define open_scl_pre_cap_path_from_dispatch(idx) \
+	ISP_HREG_MWR((idx), ISP_COMMON_SCL_PATH_SEL, (BIT_0 | BIT_1), 1 << 0)
+
+#define open_scl_vid_path_from_pipeline(idx) \
+	ISP_HREG_MWR((idx), ISP_COMMON_SCL_PATH_SEL, (BIT_2 | BIT_3), 0 << 2)
+
+#define open_scl_vid_path_from_dispatch(idx) \
+	ISP_HREG_MWR((idx), ISP_COMMON_SCL_PATH_SEL, (BIT_2 | BIT_3), 1 << 2)
+
+/* close path */
+#define close_scl_pre_cap_path(idx) \
+	ISP_HREG_MWR((idx), ISP_COMMON_SCL_PATH_SEL, (BIT_0 | BIT_1), 3 << 0)
+
+#define close_scl_vid_path(idx) \
+	ISP_HREG_MWR((idx), ISP_COMMON_SCL_PATH_SEL, (BIT_2 | BIT_3), 3 << 2)
+
+/* on: enable and open path */
+#define on_scl_pre_cap_path_from_pipeline(idx)		\
+do {							\
+	enable_scl_pre_cap_path(idx);			\
+	open_scl_pre_cap_path_from_pipeline(idx);	\
+} while (0)
+
+#define on_scl_pre_cap_path_from_dispatch(idx)		\
+do {							\
+	enable_scl_pre_cap_path(idx);			\
+	open_scl_pre_cap_path_from_dispatch(idx);	\
+} while (0)
+
+#define on_scl_vid_path_from_pipeline(idx)		\
+do {							\
+	enable_scl_vid_path(idx);			\
+	open_scl_vid_path_from_pipeline(idx);		\
+} while (0)
+
+#define on_scl_vid_path_from_dispatch(idx)		\
+do {							\
+	enable_scl_vid_path(idx);			\
+	open_scl_vid_path_from_dispatch(idx);		\
+} while (0)
+
+/* off: disable and close path */
+#define off_scl_pre_cap_path(idx)			\
+do {							\
+	disable_scl_pre_cap_path(idx);			\
+	close_scl_pre_cap_path(idx);			\
+} while (0)
+
+#define off_scl_vid_path(idx)				\
+do {							\
+	disable_scl_vid_path(idx);			\
+	close_scl_vid_path(idx);			\
+} while (0)
 
 #endif

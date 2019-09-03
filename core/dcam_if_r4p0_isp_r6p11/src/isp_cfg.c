@@ -142,7 +142,7 @@ struct isp_dev_cfg_info {
 	uint32_t cap1_th;
 } s_cfg_settings = {
 	/*cowork with dcam with sof_in*/
-	0, 1, 0, ARRAY_SIZE(ISP_CFG_MAP), ISP_CFG_MAP,
+	0, 1, 1, ARRAY_SIZE(ISP_CFG_MAP), ISP_CFG_MAP,
 	0, 1, 1, 1, 1,
 	0, 0, 0, 0, 0,
 };

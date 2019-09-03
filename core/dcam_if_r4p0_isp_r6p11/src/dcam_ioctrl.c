@@ -23,6 +23,10 @@ struct dcam_io_ctrl_fun {
 
 bool has_dual_cap_started;
 
+static int dcamio_stream_off(struct camera_file *camerafile,
+                             unsigned long arg,
+                             unsigned int cmd);
+
 static int dcamio_set_mode(struct camera_file *camerafile,
 		    unsigned long arg,
 		    unsigned int cmd)
@@ -554,6 +558,13 @@ static int dcamio_put_dcam_res(struct camera_file *camerafile,
 		pr_info("dcam%d has been already disabled!\n", idx);
 		goto exit;
 	}
+
+	/* Disable modules includes power down. Can't stream off after that.
+	*   * Sometimes there is no stream off ioctl coming. Do it here before
+	*       * disabling modules.
+	*           */
+	dcamio_stream_off(camerafile, arg, cmd);
+
 	ret = sprd_dcam_module_dis(idx);
 	if (unlikely(ret != 0)) {
 		pr_err("SPRD_IMG%d: fail to disable dcam module\n",
