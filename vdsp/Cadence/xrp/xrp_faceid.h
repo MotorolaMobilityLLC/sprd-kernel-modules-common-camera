@@ -29,13 +29,15 @@
 #ifndef XRP_FACEID_H
 #define XRP_FACEID_H
 
-#define FACEID_FD_MEM_SIZE (1024*1024*3)
-#define FACEID_FP_MEM_SIZE (1024*1024*2)
-#define FACEID_FLV_MEM_SIZE (1024*1024*2)
-#define FACEID_FV_MEM_SIZE (1024*1024*2)
+#define VDSP_FACEID_FIRMWIRE_SIZE    (1024*1024*10)
+
+#define FACEID_FD_MEM_SIZE (1024*1024*72)
+#define FACEID_RESULT_MEM_SIZE (1024*4)
+
 
 
 struct xvp;
+/*sync with vdsp side*/
 struct faceid_hw_sync_data
 {
 	__u32 fd_p_coffe_addr;
@@ -48,13 +50,26 @@ struct faceid_hw_sync_data
 	__u32 yuv_addr;
 	__u32  frame_height;
 	__u32  frame_width;
+	__u32  out_addr;
 };
+typedef struct
+{
+	int x, y;
+}FV_POINT;
+typedef struct
+{
+	FV_POINT landmarks[7];
+}FV_FAECINFO;
 
-int sprd_faceid_request_weights(struct xvp *xvp);
-void sprd_faceid_release_weights(struct xvp *xvp);
+int sprd_faceid_init(struct xvp *xvp);
+int sprd_faceid_deinit(struct xvp *xvp);
 
-int sprd_iommu_map_faceid_weights(struct xvp *xvp);
-int sprd_iommu_unmap_faceid_weights(struct xvp *xvp);
+
+int sprd_iommu_map_faceid_fwbuffer(struct xvp *xvp);
+int sprd_iommu_unmap_faceid_fwbuffer(struct xvp *xvp);
+
+int sprd_iommu_map_faceid_result(struct xvp *xvp,int fd);
+int sprd_iommu_ummap_faceid_result(struct xvp *xvp);
 
 
 #endif

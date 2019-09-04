@@ -74,6 +74,7 @@ static int sprd_free_faceid_weights_buffer(struct xvp *xvp,struct ion_buf *ion_b
 	}
 	return 0;
 }
+#if 0
 static int sprd_iommu_map_faceid_weights_buffer(struct xvp *xvp,struct ion_buf *ion_buf)
 {
 	int ret = -EFAULT;
@@ -112,7 +113,7 @@ static int sprd_iommu_unmap_faceid_weights_buffer(struct xvp *xvp,struct ion_buf
 	printk("yzl add %s :%lx\n" , __func__ ,ion_buf->addr_k[0]);
 	return 0;
 }
-
+#endif
 int sprd_faceid_request_algo_mem(struct xvp *xvp)
 {
 	int ret = sprd_alloc_faceid_weights_buffer(xvp,&xvp->faceid_pool.ion_fd_mem_pool,FACEID_FD_MEM_SIZE);
@@ -145,12 +146,50 @@ int sprd_faceid_request_algo_mem(struct xvp *xvp)
 */
 	return 0;
 }
+int sprd_faceid_request_result_mem(struct xvp *xvp)
+{
+	int ret;
+	struct ion_buf *ion_buf = &(xvp->faceid_pool.ion_face_info);
+	ret = xvp->vdsp_mem_desc->ops->mem_alloc(xvp->vdsp_mem_desc,
+						ion_buf,
+						ION_HEAP_ID_MASK_SYSTEM,/*Don't need sec*/
+						FACEID_RESULT_MEM_SIZE);
+	if(0 != ret) {
+		printk("yzl add %s failed\n" , __func__);
+		return -ENOMEM;
+	}
+	ret = xvp->vdsp_mem_desc->ops->mem_kmap(xvp->vdsp_mem_desc, ion_buf);
+	if(0 != ret) {
+		xvp->vdsp_mem_desc->ops->mem_free(xvp->vdsp_mem_desc, ion_buf);
+		return -EFAULT;
+	}
+	//xvp->faceid_fw_viraddr = (void*)xvp->ion_faceid_fw.addr_k[0];
+	ion_buf->dev = xvp->dev;
+	printk("faceid alloc result addr_p %lx  vaddr:%lx,size %ld\n" ,ion_buf->addr_p[0] , ion_buf->addr_k[0],ion_buf->size[0]);
+
+
+	return 0;
+}
+
 int sprd_faceid_release_algo_mem(struct xvp *xvp)
 {
 	sprd_free_faceid_weights_buffer(xvp,&xvp->faceid_pool.ion_fd_mem_pool);
 	//sprd_free_faceid_weights_buffer(xvp,&xvp->faceid_pool.ion_fp_mem_pool);
 	//sprd_free_faceid_weights_buffer(xvp,&xvp->faceid_pool.ion_flv_mem_pool);
 	//sprd_free_faceid_weights_buffer(xvp,&xvp->faceid_pool.ion_fv_mem_pool);
+	return 0;
+}
+int sprd_faceid_release_result_mem(struct xvp *xvp)
+{
+	
+	struct ion_buf *ion_buf = &(xvp->faceid_pool.ion_face_info);
+
+	unsigned long dst_viraddr = ion_buf->addr_k[0];
+	if(dst_viraddr) {
+                xvp->vdsp_mem_desc->ops->mem_kunmap(xvp->vdsp_mem_desc, ion_buf);
+                xvp->vdsp_mem_desc->ops->mem_free(xvp->vdsp_mem_desc, ion_buf);
+	}
+
 	return 0;
 }
 
@@ -295,6 +334,7 @@ int sprd_faceid_request_weights(struct xvp *xvp)
 	sprd_faceid_request_weights_flv(xvp);
 	sprd_faceid_request_weights_fv(xvp);
 	sprd_faceid_request_algo_mem(xvp);
+	//sprd_faceid_request_result_mem(xvp);
 	return 0;
 }
 void sprd_faceid_release_weights(struct xvp *xvp)
@@ -306,35 +346,139 @@ void sprd_faceid_release_weights(struct xvp *xvp)
 	sprd_free_faceid_weights_buffer(xvp,&xvp->faceid_pool.ion_flv_weights);
 	sprd_free_faceid_weights_buffer(xvp,&xvp->faceid_pool.ion_fv_weights);
 	sprd_faceid_release_algo_mem(xvp);
+	//sprd_faceid_release_result_mem(xvp);
 }
-int sprd_iommu_map_faceid_weights(struct xvp *xvp)
-{
-	sprd_iommu_map_faceid_weights_buffer(xvp,&xvp->faceid_pool.ion_fd_weights_p);
-	sprd_iommu_map_faceid_weights_buffer(xvp,&xvp->faceid_pool.ion_fd_weights_r);
-	sprd_iommu_map_faceid_weights_buffer(xvp,&xvp->faceid_pool.ion_fd_weights_o);
-	sprd_iommu_map_faceid_weights_buffer(xvp,&xvp->faceid_pool.ion_fp_weights);
-	sprd_iommu_map_faceid_weights_buffer(xvp,&xvp->faceid_pool.ion_flv_weights);
-	sprd_iommu_map_faceid_weights_buffer(xvp,&xvp->faceid_pool.ion_fv_weights);
 
-	//sprd_iommu_map_faceid_weights_buffer(xvp,&xvp->faceid_pool.ion_fd_mem_pool);
-	//sprd_iommu_map_faceid_weights_buffer(xvp,&xvp->faceid_pool.ion_fp_mem_pool);
-	//sprd_iommu_map_faceid_weights_buffer(xvp,&xvp->faceid_pool.ion_flv_mem_pool);
-	//sprd_iommu_map_faceid_weights_buffer(xvp,&xvp->faceid_pool.ion_fv_mem_pool);
+static int sprd_alloc_faceid_fwbuffer(struct xvp *xvp)
+{
+	int ret;
+	ret = xvp->vdsp_mem_desc->ops->mem_alloc(xvp->vdsp_mem_desc,
+						&xvp->ion_faceid_fw,
+						ION_HEAP_ID_MASK_VDSP,/*todo vdsp head id*/
+						VDSP_FACEID_FIRMWIRE_SIZE);
+	if(0 != ret) {
+		printk("yzl add %s  failed,ret %d\n" , __func__,ret);
+		return -ENOMEM;
+	}
+	ret = xvp->vdsp_mem_desc->ops->mem_kmap(xvp->vdsp_mem_desc, &xvp->ion_faceid_fw);
+	if(0 != ret) {
+		xvp->vdsp_mem_desc->ops->mem_free(xvp->vdsp_mem_desc, &xvp->ion_faceid_fw);
+		return -EFAULT;
+	}
+	xvp->faceid_fw_viraddr = (void*)xvp->ion_faceid_fw.addr_k[0];
+	xvp->ion_faceid_fw.dev = xvp->dev;
+	printk("yzl add %s vaddr:%p\n" , __func__ , xvp->faceid_fw_viraddr);
+	return 0;
+
+}
+
+static int sprd_free_faceid_fwbuffer(struct xvp *xvp)
+{
+	printk("yzl add %s xvp faceid fw:%p\n" , __func__ , xvp->faceid_fw_viraddr);
+	if(xvp->faceid_fw_viraddr) {
+                xvp->vdsp_mem_desc->ops->mem_kunmap(xvp->vdsp_mem_desc, &xvp->ion_faceid_fw);
+                xvp->vdsp_mem_desc->ops->mem_free(xvp->vdsp_mem_desc, &xvp->ion_faceid_fw);
+                xvp->faceid_fw_viraddr = NULL;
+	}
 	return 0;
 }
-int sprd_iommu_unmap_faceid_weights(struct xvp *xvp)
+int sprd_iommu_map_faceid_fwbuffer(struct xvp *xvp)
 {
-	sprd_iommu_unmap_faceid_weights_buffer(xvp,&xvp->faceid_pool.ion_fd_weights_p);
-	sprd_iommu_unmap_faceid_weights_buffer(xvp,&xvp->faceid_pool.ion_fd_weights_r);
-	sprd_iommu_unmap_faceid_weights_buffer(xvp,&xvp->faceid_pool.ion_fd_weights_o);
-	sprd_iommu_unmap_faceid_weights_buffer(xvp,&xvp->faceid_pool.ion_fp_weights);
-	sprd_iommu_unmap_faceid_weights_buffer(xvp,&xvp->faceid_pool.ion_flv_weights);
-	sprd_iommu_unmap_faceid_weights_buffer(xvp,&xvp->faceid_pool.ion_fv_weights);
+	int ret = -EFAULT;
+	if(xvp->faceid_fw_viraddr == NULL) {
+		printk("yzl add map faceid fw addr is NULL \n");
+		return ret;
+	}
+	{
+		ret = xvp->vdsp_mem_desc->ops->mem_iommu_map(xvp->vdsp_mem_desc, &xvp->ion_faceid_fw , IOMMU_ALL);
+		if(ret) {
+			printk("yzl add %s map faceid fialed\n" , __func__);
+			return ret;
+		}
+		xvp->dsp_firmware_addr = xvp->ion_faceid_fw.iova[0];
+	}
+	printk("yzl add %s:%p --> %lx\n" , __func__,xvp->faceid_fw_viraddr,(unsigned long)xvp->dsp_firmware_addr);
+	return ret;
+}
+int sprd_iommu_unmap_faceid_fwbuffer(struct xvp *xvp)
+{
+	int ret = -EFAULT;
+	int ret1 = 0;
 
-	//sprd_iommu_unmap_faceid_weights_buffer(xvp,&xvp->faceid_pool.ion_fd_mem_pool);
-	//sprd_iommu_unmap_faceid_weights_buffer(xvp,&xvp->faceid_pool.ion_fp_mem_pool);
-	//sprd_iommu_unmap_faceid_weights_buffer(xvp,&xvp->faceid_pool.ion_flv_mem_pool);
-	//sprd_iommu_unmap_faceid_weights_buffer(xvp,&xvp->faceid_pool.ion_fv_mem_pool);
+	if(xvp->faceid_fw_viraddr == NULL) {
+		printk("yzl add unmap faceid fw addr is NULL\n");
+		return ret;
+	}
+	{
+		ret = xvp->vdsp_mem_desc->ops->mem_iommu_unmap(xvp->vdsp_mem_desc, &xvp->ion_firmware , IOMMU_ALL);
+		if(ret) {
+			ret1 = -EFAULT;
+			printk("yzl add %s unmap faceid fw fialed\n" , __func__);
+		}
+	}
+
+	printk("yzl add %s unmap faceid fw :%p , ret:%d, ret1:%d\n" , __func__ ,
+	       xvp->faceid_fw_viraddr , ret , ret1);
+	return ((ret!=0)||(ret1!=0)) ? -EFAULT : 0;
+}
+int sprd_iommu_map_faceid_result(struct xvp *xvp,int fd)
+{
+	struct ion_buf *ion_buf = &(xvp->faceid_pool.ion_face_info);
+	int ret;
+	
+	ion_buf->mfd[0] = fd;
+	ion_buf->dev = xvp->dev;
+	printk("yzl addd %s before get_ionbuf fd:%d\n" , __func__ , (int)ion_buf->mfd[0]);
+	ret = xvp->vdsp_mem_desc->ops->mem_get_ionbuf(xvp->vdsp_mem_desc, ion_buf);
+	if (ret) {
+		pr_err("fail to get in_ion_buf\n");
+		return -EFAULT;
+	}
+	ret = xvp->vdsp_mem_desc->ops->mem_iommu_map(xvp->vdsp_mem_desc, ion_buf, /*IOMMU_MSTD*/IOMMU_ALL);
+	if (ret) {
+		pr_err("fail to get in_data addr!!!!\n");
+		return -EFAULT;
+	}
+
+	printk("Get faceid result iova %lX\n",(uint32_t)ion_buf->iova[0]);
+	return 0;
+}
+int sprd_iommu_ummap_faceid_result(struct xvp *xvp)
+{
+	struct ion_buf *ion_buf = &(xvp->faceid_pool.ion_face_info);
+	int ret = -EFAULT;
+
+	if(NULL == (void*)ion_buf->addr_k[0]) {
+		printk("yzl add unmap faceid weights addr is NULL\n");
+		return ret;
+	}
+	{
+		ret = xvp->vdsp_mem_desc->ops->mem_iommu_unmap(xvp->vdsp_mem_desc, ion_buf, IOMMU_ALL);
+		if(ret) {
+			printk("yzl add %s unmap faceid weights buffer failed\n" , __func__);
+			return ret;
+		}
+	}
+	printk("yzl add %s :%lx\n" , __func__ ,ion_buf->addr_k[0]);
+
+	return 0;
+}
+
+int sprd_faceid_init(struct xvp *xvp)
+{
+	int ret = 0;
+
+	ret = sprd_alloc_faceid_fwbuffer(xvp);
+	if(ret < 0)
+		return ret;
+
+	sprd_faceid_request_weights(xvp);
+    return 0;
+}
+int sprd_faceid_deinit(struct xvp *xvp)
+{
+	sprd_free_faceid_fwbuffer(xvp);
+	sprd_faceid_release_weights(xvp);
 	return 0;
 }
 

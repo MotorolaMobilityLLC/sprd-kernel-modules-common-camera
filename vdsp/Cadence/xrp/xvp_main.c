@@ -94,7 +94,7 @@
 #endif
 
 #define VDSP_FIRMWIRE_SIZE    (1024*1024*14)
-#define VDSP_FACEID_FIRMWIRE_SIZE    (1024*1024*16)
+
 #endif
 
 #define DRIVER_NAME "xrp"
@@ -472,11 +472,12 @@ static int xrp_sync_complete_v2(struct xvp *xvp, size_t sz)
 	}
 	return 0;
 }
-static int xrp_faceid_run(struct xvp *xvp,__u32 yuv_addr,__u32 in_height,__u32 in_width)
+static int xrp_faceid_run(struct xvp *xvp,struct xrp_faceid_ctrl *faceid)
 {
-	unsigned long deadline = jiffies + 100 * HZ;
+	unsigned long deadline = jiffies + 5 * HZ;
 	struct xrp_dsp_sync_v1 __iomem *shared_sync = xvp->comm;
 	u32 v;
+	__u32 ret = -1,ret2;
 
 	struct faceid_hw_sync_data faceid_data;
 	faceid_data.fd_p_coffe_addr = xvp->faceid_pool.ion_fd_weights_p.addr_p[0];
@@ -486,12 +487,22 @@ static int xrp_faceid_run(struct xvp *xvp,__u32 yuv_addr,__u32 in_height,__u32 i
 	faceid_data.flv_coffe_addr = xvp->faceid_pool.ion_flv_weights.addr_p[0];
 	faceid_data.fv_coffe_addr = xvp->faceid_pool.ion_fv_weights.addr_p[0];
 	faceid_data.mem_pool_addr = xvp->faceid_pool.ion_fd_mem_pool.addr_p[0];
-	faceid_data.yuv_addr = yuv_addr;
-	faceid_data.frame_height = in_height;
-	faceid_data.frame_width = in_width;
+	faceid_data.yuv_addr = faceid->in_data_addr;
+	faceid_data.frame_height = faceid->in_height;
+	faceid_data.frame_width = faceid->in_width;
+
+	ret2 = sprd_iommu_map_faceid_result(xvp,faceid->out_fd);
+	if(ret2 < 0)
+	{
+		printk("iommu map faceid result fail.\n");
+		goto err;
+	}
+	
+	faceid_data.out_addr = xvp->faceid_pool.ion_face_info.iova[0];
 	printk("fd_p %X,fd_r %X,fd_o %X,\n",faceid_data.fd_p_coffe_addr,faceid_data.fd_r_coffe_addr,faceid_data.fd_o_coffe_addr);
 	printk("fp %X,flv %X,fv %X\n",faceid_data.fp_coffe_addr,faceid_data.flv_coffe_addr,faceid_data.fv_coffe_addr);
 	printk("mem pool %X\n",faceid_data.mem_pool_addr);
+	printk("face info %X\n",faceid_data.out_addr);
 
 	mb();
 	xrp_comm_write32(&shared_sync->sync, XRP_DSP_SYNC_HOST_TO_DSP);
@@ -506,7 +517,8 @@ static int xrp_faceid_run(struct xvp *xvp,__u32 yuv_addr,__u32 in_height,__u32 i
 		v = xrp_comm_read32(&shared_sync->sync);
 		if (v == XRP_DSP_SYNC_DSP_TO_HOST)
 		{
-			__u32 ret = xrp_comm_read32(&shared_sync->hw_sync_data);
+			mb();
+			ret = xrp_comm_read32(&shared_sync->hw_sync_data);
 			printk("vdsp faceid ret %X\n",ret);
 			break;
 		}
@@ -517,6 +529,9 @@ static int xrp_faceid_run(struct xvp *xvp,__u32 yuv_addr,__u32 in_height,__u32 i
 
 err:
 	xrp_comm_write32(&shared_sync->sync, XRP_DSP_SYNC_IDLE);
+	sprd_iommu_ummap_faceid_result(xvp);
+	faceid->out_result = ret;
+	
 	return 0;
 }
 static int xrp_synchronize(struct xvp *xvp)
@@ -3269,9 +3284,12 @@ static long xrp_ioctl_faceid_cmd(struct file *filp, struct xrp_faceid_ctrl __use
 	if (copy_from_user(&faceid, arg, sizeof(struct xrp_faceid_ctrl)))
 		return -EFAULT;
 
-	printk("faceid input addr %x,height %d, width %d\n",faceid.in_data_addr,faceid.in_height,faceid.in_width);
+	printk("faceid input addr %x,height %d, width %d, out_fd %d\n",faceid.in_data_addr,faceid.in_height,faceid.in_width,faceid.out_fd);
 
-	xrp_faceid_run(xvp,faceid.in_data_addr,faceid.in_height,faceid.in_width);
+	xrp_faceid_run(xvp,&faceid);
+
+	if (copy_to_user(arg, &faceid, sizeof(struct xrp_faceid_ctrl)))
+		return -EFAULT;
 
 	return 0;
 }
@@ -3568,96 +3586,7 @@ static int sprd_iommu_unmap_extrabuffer(struct xvp *xvp)
 	       xvp->firmware_viraddr ,xvp->dram_viraddr, ret , ret1);
 	return ((ret!=0)||(ret1!=0)) ? -EFAULT : 0;
 }
-static int sprd_alloc_faceid_fwbuffer(struct xvp *xvp)
-{
-	int ret;
-	ret = xvp->vdsp_mem_desc->ops->mem_alloc(xvp->vdsp_mem_desc,
-						&xvp->ion_faceid_fw,
-						ION_HEAP_ID_MASK_VDSP,/*todo vdsp head id*/
-						VDSP_FACEID_FIRMWIRE_SIZE);
-	if(0 != ret) {
-		printk("yzl add %s  failed,ret %d\n" , __func__,ret);
-		return -ENOMEM;
-	}
-	ret = xvp->vdsp_mem_desc->ops->mem_kmap(xvp->vdsp_mem_desc, &xvp->ion_faceid_fw);
-	if(0 != ret) {
-		xvp->vdsp_mem_desc->ops->mem_free(xvp->vdsp_mem_desc, &xvp->ion_faceid_fw);
-		return -EFAULT;
-	}
-	xvp->faceid_fw_viraddr = (void*)xvp->ion_faceid_fw.addr_k[0];
-	xvp->ion_faceid_fw.dev = xvp->dev;
-	printk("yzl add %s vaddr:%p\n" , __func__ , xvp->faceid_fw_viraddr);
-	return 0;
 
-}
-
-static int sprd_free_faceid_fwbuffer(struct xvp *xvp)
-{
-	printk("yzl add %s xvp faceid fw:%p\n" , __func__ , xvp->faceid_fw_viraddr);
-	if(xvp->faceid_fw_viraddr) {
-                xvp->vdsp_mem_desc->ops->mem_kunmap(xvp->vdsp_mem_desc, &xvp->ion_faceid_fw);
-                xvp->vdsp_mem_desc->ops->mem_free(xvp->vdsp_mem_desc, &xvp->ion_faceid_fw);
-                xvp->faceid_fw_viraddr = NULL;
-	}
-	return 0;
-}
-static int sprd_iommu_map_faceid_fwbuffer(struct xvp *xvp)
-{
-	int ret = -EFAULT;
-	if(xvp->faceid_fw_viraddr == NULL) {
-		printk("yzl add map faceid fw addr is NULL \n");
-		return ret;
-	}
-	{
-		ret = xvp->vdsp_mem_desc->ops->mem_iommu_map(xvp->vdsp_mem_desc, &xvp->ion_faceid_fw , IOMMU_ALL);
-		if(ret) {
-			printk("yzl add %s map faceid fialed\n" , __func__);
-			return ret;
-		}
-		xvp->dsp_firmware_addr = xvp->ion_faceid_fw.iova[0];
-	}
-	printk("yzl add %s:%p --> %lx\n" , __func__,xvp->faceid_fw_viraddr,(unsigned long)xvp->dsp_firmware_addr);
-	return ret;
-}
-static int sprd_iommu_unmap_faceid_fwbuffer(struct xvp *xvp)
-{
-	int ret = -EFAULT;
-	int ret1 = 0;
-
-	if(xvp->faceid_fw_viraddr == NULL) {
-		printk("yzl add unmap faceid fw addr is NULL\n");
-		return ret;
-	}
-	{
-		ret = xvp->vdsp_mem_desc->ops->mem_iommu_unmap(xvp->vdsp_mem_desc, &xvp->ion_firmware , IOMMU_ALL);
-		if(ret) {
-			ret1 = -EFAULT;
-			printk("yzl add %s unmap faceid fw fialed\n" , __func__);
-		}
-	}
-
-	printk("yzl add %s unmap faceid fw :%p , ret:%d, ret1:%d\n" , __func__ ,
-	       xvp->faceid_fw_viraddr , ret , ret1);
-	return ((ret!=0)||(ret1!=0)) ? -EFAULT : 0;
-}
-
-int sprd_faceid_init(struct xvp *xvp)
-{
-	int ret = 0;
-
-	ret = sprd_alloc_faceid_fwbuffer(xvp);
-	if(ret < 0)
-		return ret;
-
-	sprd_faceid_request_weights(xvp);
-    return 0;
-}
-int sprd_faceid_deinit(struct xvp *xvp)
-{
-	sprd_free_faceid_fwbuffer(xvp);
-	sprd_faceid_release_weights(xvp);
-	return 0;
-}
 #endif
 static int xvp_open(struct inode *inode, struct file *filp)
 {
@@ -3667,7 +3596,7 @@ static int xvp_open(struct inode *inode, struct file *filp)
 	int rc;
 
 	printk("%s , xvp is:%p , flags:%x, fmode:%x\n", __func__ , xvp , filp->f_flags , filp->f_mode);
-		if(filp->f_flags & O_RDWR)
+	if(filp->f_flags & O_RDWR)
 	{
 		xvp->secmode = true;
 		xvp->tee_con = vdsp_ca_connect();
