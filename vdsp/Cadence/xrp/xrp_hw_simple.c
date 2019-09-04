@@ -43,6 +43,9 @@
 #include "vdsp_ipi_drv.h"
 #include <linux/clk.h>
 #include "xrp_internal.h"
+#include "sprd_dvfs_vdsp.h"
+#include "vdsp_dvfs_sharkl5pro.h"
+
 #define DRIVER_NAME "sharkl5pro-vdsp"
 
 #define XRP_REG_RESET		(0x04)
@@ -313,11 +316,38 @@ static void disable_dvfs(void *hw_arg)
 	struct xrp_hw_simple *hw = (struct xrp_hw_simple *)hw_arg;
 	reg_write32_clearbit(hw_arg , hw->dvfs +0x8 , ~(1<<2));
 }
+static uint32_t translate_dvfsindex_to_freq(uint32_t index)
+{
+	switch(index) {
+	case 0:
+		return SHARKL5PRO_VDSP_CLK256M;
+	case 1:
+		return SHARKL5PRO_VDSP_CLK384M;
+	case 2:
+		return SHARKL5PRO_VDSP_CLK512M;
+	case 3:
+		return SHARKL5PRO_VDSP_CLK614M4;
+	case 4:
+		return SHARKL5PRO_VDSP_CLK768M;
+	case 5:
+		return SHARKL5PRO_VDSP_CLK936M;
+	default:
+		return SHARKL5PRO_VDSP_CLK256M;
+	}
+}
 static void setdvfs(void *hw_arg , uint32_t index)
 {
+#if 0
 	struct xrp_hw_simple *hw = (struct xrp_hw_simple *)hw_arg;
 	printk("yzl add hw_simple %s arg:%p , value:0\n" , __func__ , hw->dvfs);
 	reg_write32(hw_arg , hw->dvfs + 0x114, index);
+#else
+	uint32_t freq;
+	freq = translate_dvfsindex_to_freq(index);
+	printk("yzl add %s before vdsp_dvfs_notifier_call_chain freq:%d , index:%d\n" , __func__ , freq ,index);
+	vdsp_dvfs_notifier_call_chain(&freq);
+	return;
+#endif
 }
 static void send_irq(void *hw_arg)
 {

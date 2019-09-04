@@ -31,6 +31,7 @@ ccflags-y += -DKERNEL_VERSION_414
 ccflags-y += -I$(LOCAL_PATH)/../interface
 ccflags-y += -I$(BSP_KERNEL_PATH)/drivers/staging/android/ion
 ccflags-y += -I$(BSP_KERNEL_PATH)/drivers/devfreq/apsys/
+ccflags-y += -I$(BSP_KERNEL_PATH)/drivers/devfreq/apsys/vdsp
 ccflags-y += -I$(LOCAL_PATH)/../common
 ccflags-y += -I$(LOCAL_PATH)/Cadence/xrp
 ccflags-y += -I$(BSP_ROOT_DIR)/modules/camera/vdsp/Cadence/uipc/sipc/inc
