@@ -1988,6 +1988,7 @@ static int sprd_dcam_cfg_path(
 		} else {
 			pframe->is_reserved = 0;
 			pframe->priv_data = dev;
+			pframe->irq_property = dev->cap_info.pattern;
 			ret = camera_enqueue(&path->out_buf_queue, pframe);
 			if (ret) {
 				pr_err("dcam path %d output buffer en queue failed\n",
