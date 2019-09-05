@@ -134,7 +134,6 @@ int dcam_k_3dnr_me(struct dcam_dev_param *param)
 int dcam_k_cfg_3dnr_me(struct isp_io_param *param, struct dcam_dev_param *p)
 {
 	int ret = 0;
-	return ret;
 
 	switch (param->property) {
 	case DCAM_PRO_3DNR_ME:
