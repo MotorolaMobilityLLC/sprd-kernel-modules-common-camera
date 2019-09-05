@@ -34,12 +34,14 @@ enum {
 int dcam_k_rgb_gain_block(struct dcam_dev_param *param)
 {
 	int ret = 0;
-	uint32_t idx = param->idx;
+	uint32_t idx = 0;
 	uint32_t val = 0;
-	struct dcam_dev_rgb_gain_info *p;
+	struct dcam_dev_rgb_gain_info *p = NULL;
 
 	if (param == NULL)
 		return -1;
+
+	idx = param->idx;
 	if (!(param->rgb.update & _UPDATE_GAIN))
 		return 0;
 	param->rgb.update &= (~(_UPDATE_GAIN));
@@ -63,12 +65,14 @@ int dcam_k_rgb_gain_block(struct dcam_dev_param *param)
 int dcam_k_rgb_dither_random_block(struct dcam_dev_param *param)
 {
 	int ret = 0;
-	uint32_t idx = param->idx;
+	uint32_t idx = 0;
 	uint32_t val = 0;
-	struct dcam_dev_rgb_dither_info *p;
+	struct dcam_dev_rgb_dither_info *p = NULL;
 
 	if (param == NULL)
 		return -1;
+
+	idx = param->idx;
 	if (!(param->rgb.update & _UPDATE_DITH))
 		return 0;
 	param->rgb.update &= (~(_UPDATE_DITH));

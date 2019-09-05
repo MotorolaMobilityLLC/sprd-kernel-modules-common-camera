@@ -33,12 +33,14 @@ enum {
 int dcam_k_blc_block(struct dcam_dev_param *param)
 {
 	int ret = 0;
-	uint32_t idx = param->idx;
+	uint32_t idx = 0;
 	unsigned int val = 0;
 	struct dcam_dev_blc_info *p;
 
 	if (param == NULL)
 		return -EPERM;
+
+	idx = param->idx;
 	/* update ? */
 	if (!(param->blc.update & _UPDATE_INFO))
 		return 0;
