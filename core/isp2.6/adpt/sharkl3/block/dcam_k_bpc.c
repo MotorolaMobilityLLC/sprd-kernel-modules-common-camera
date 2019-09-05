@@ -141,7 +141,7 @@ int dcam_k_cfg_bpc(struct isp_io_param *param, struct dcam_dev_param *p)
 	case DCAM_PRO_BPC_BLOCK:
 	{
 		dst_ptr = (void *)&p->bpc.bpc_param.bpc_info_l3;
-		dst_size = sizeof(struct dcam_dev_bpc_info);
+		dst_size = sizeof(struct dcam_dev_bpc_info_l3);
 		p->bpc.update |= _UPDATE_BLOCK;
 		sub_func = dcam_k_bpc_block;
 		break;
