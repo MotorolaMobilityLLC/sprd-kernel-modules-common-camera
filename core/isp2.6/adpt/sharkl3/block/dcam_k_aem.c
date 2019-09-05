@@ -39,10 +39,12 @@ enum {
 int dcam_k_aem_bypass(struct dcam_dev_param *param)
 {
 	int ret = 0;
-	uint32_t idx = param->idx;
+	uint32_t idx = 0;
 
 	if (param == NULL)
 		return -EPERM;
+
+	idx = param->idx;
 	/* update ? */
 	if (!(param->aem.update & _UPDATE_BYPASS))
 		return 0;
@@ -57,11 +59,13 @@ int dcam_k_aem_bypass(struct dcam_dev_param *param)
 int dcam_k_aem_mode(struct dcam_dev_param *param)
 {
 	int ret = 0;
-	uint32_t idx = param->idx;
+	uint32_t idx = 0;
 	uint32_t mode = 0;
 
 	if (param == NULL)
 		return -1;
+
+	idx = param->idx;
 	/* update ? */
 	if (!(param->aem.update & _UPDATE_MODE))
 		return 0;
@@ -85,12 +89,14 @@ int dcam_k_aem_mode(struct dcam_dev_param *param)
 int dcam_k_aem_win(struct dcam_dev_param *param)
 {
 	int ret = 0;
-	uint32_t idx = param->idx;
+	uint32_t idx = 0;
 	uint32_t val = 0;
-	struct dcam_dev_aem_win *p; /* win_info; */
+	struct dcam_dev_aem_win *p = NULL; /* win_info; */
 
 	if (param == NULL)
 		return -1;
+
+	idx = param->idx;
 	/* update ? */
 	if (!(param->aem.update & _UPDATE_WIN))
 		return 0;
@@ -115,11 +121,13 @@ int dcam_k_aem_win(struct dcam_dev_param *param)
 int dcam_k_aem_skip_num(struct dcam_dev_param *param)
 {
 	int ret = 0;
-	uint32_t idx = param->idx;
+	uint32_t idx = 0;
 	uint32_t val = 0;
 
 	if (param == NULL)
 		return -1;
+
+	idx = param->idx;
 	/* update ? */
 	if (!(param->aem.update & _UPDATE_SKIP))
 		return 0;
@@ -143,12 +151,14 @@ int dcam_k_aem_skip_num(struct dcam_dev_param *param)
 int dcam_k_aem_rgb_thr(struct dcam_dev_param *param)
 {
 	int ret = 0;
-	uint32_t idx = param->idx;
+	uint32_t idx = 0;
 	uint32_t val = 0;
-	struct dcam_dev_aem_thr *p; /* aem_info; */
+	struct dcam_dev_aem_thr *p = NULL; /* aem_info; */
 
 	if (param == NULL)
 		return -1;
+
+	idx = param->idx;
 	/* update ? */
 	if (!(param->aem.update & _UPDATE_INFO))
 		return 0;
