@@ -91,7 +91,7 @@ int dcam_k_3dnr_me(struct dcam_dev_param *param)
 {
 	int ret = 0;
 	uint32_t idx = param->idx;
-	struct dcam_pipe_dev *dev = param->dev;
+	struct dcam_pipe_dev *dev = NULL;
 	struct dcam_dev_3dnr_me *p = NULL; /* nr3_me; */
 	struct dcam_path_desc *path;
 	struct isp_img_rect rect;
@@ -99,6 +99,8 @@ int dcam_k_3dnr_me(struct dcam_dev_param *param)
 
 	if (param == NULL)
 		return -EPERM;
+
+	dev = param->dev;
 	/* update ? */
 	if (!(param->nr3.update & _UPDATE_NR3))
 		return 0;
