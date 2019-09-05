@@ -167,7 +167,7 @@ struct camera_uinfo {
 	uint32_t is_3dnr;
 	uint32_t is_ltm;
 	uint32_t is_dual;
-	uint32_t is_bigsize;
+	uint32_t dcam_slice_mode;
 };
 
 struct channel_context {
@@ -824,7 +824,7 @@ static int set_cap_info(struct camera_module *module)
 	cap_info.mode = info->capture_mode;
 	cap_info.frm_skip = info->capture_skip;
 	cap_info.is_4in1 = info->is_4in1;
-	cap_info.is_bigsize = info->is_bigsize;
+	cap_info.dcam_slice_mode = info->dcam_slice_mode;
 	cap_info.sensor_if = sensor_if->if_type;
 	cap_info.format =  sensor_if->img_fmt;
 	cap_info.pattern = sensor_if->img_ptn;
@@ -2962,7 +2962,7 @@ static int init_cam_channel(
 			ch_desc.is_raw = 1;
 		if ((channel->ch_id == CAM_CH_CAP) && module->cam_uinfo.is_4in1)
 			ch_desc.is_raw = 1;
-		if ((channel->ch_id == CAM_CH_CAP) && module->cam_uinfo.is_bigsize)
+		if ((channel->ch_id == CAM_CH_CAP) && module->cam_uinfo.dcam_slice_mode)
 			ch_desc.is_raw = 1;
 		ret = dcam_ops->cfg_path(module->dcam_dev_handle,
 				DCAM_PATH_CFG_BASE,
@@ -3725,7 +3725,7 @@ static int img_ioctl_set_sensor_size(
 				sizeof(struct sprd_img_size));
 
 	pr_info("sensor_size %d %d\n", dst->w, dst->h);
-	module->cam_uinfo.is_bigsize = dst->w > DCAM_24M_WIDTH ? 1 : 0;
+	module->cam_uinfo.dcam_slice_mode = dst->w > DCAM_24M_WIDTH ? 1 : 0;
 	if (unlikely(ret)) {
 		pr_err("fail to copy from user, ret %d\n", ret);
 		ret = -EFAULT;
@@ -4140,7 +4140,7 @@ static int img_ioctl_set_crop(
 		max.h >>= 1;
 	}
 	/* > 24M, size/2 */
-	if (module->cam_uinfo.is_bigsize &&
+	if (module->cam_uinfo.dcam_slice_mode &&
 		((channel_id == CAM_CH_PRE) || (channel_id == CAM_CH_VID))) {
 		crop->x >>= 1;
 		crop->y >>= 1;

@@ -574,7 +574,7 @@ static void dcam_full_path_done(void *param)
 			else /* low lux, to isp as normal */
 				frame->irq_type = CAMERA_IRQ_IMG;
 		}
-		if (dev->is_bigsize) {
+		if (dev->dcam_slice_mode) {
 			frame->irq_type = CAMERA_IRQ_BIGSIZE_DONE;
 		}
 
@@ -604,7 +604,7 @@ static void dcam_bin_path_done(void *param)
 	}
 
 	if ((dev->idx == DCAM_ID_1 || (dev->idx == DCAM_ID_0 && dev->raw_cap))
-		&& dev->is_bigsize == 1) {
+		&& dev->dcam_slice_mode == 1) {
 		if (dev->is_right == 0) {
 			dev->is_right = 1;
 			pr_info("offline_slice0_done\n");
@@ -618,7 +618,7 @@ static void dcam_bin_path_done(void *param)
 	}
 
 	if ((frame = dcam_prepare_frame(dev, DCAM_PATH_BIN))) {
-		if (dev->idx == DCAM_ID_1 && dev->is_bigsize == 1)
+		if (dev->idx == DCAM_ID_1 && dev->dcam_slice_mode == 1)
 			frame->dcam_idx = DCAM_ID_1;
 		dcam_dispatch_frame(dev, DCAM_PATH_BIN, frame,
 				    DCAM_CB_DATA_DONE);

@@ -69,7 +69,7 @@ struct dcam_mipi_info {
 	uint32_t x_factor;
 	uint32_t y_factor;
 	uint32_t is_4in1;
-	uint32_t is_bigsize;
+	uint32_t dcam_slice_mode;
 	uint32_t is_cphy;
 	struct img_trim cap_size;
 };
@@ -231,7 +231,7 @@ struct dcam_pipe_dev {
 	uint32_t pdaf_type;
 	uint32_t offline; /* flag: set 1 for 4in1 go through dcam1 bin */
 	uint32_t rps; /* raw_proc_scene 0:normal 1:hwsim*/
-	uint32_t is_bigsize;
+	uint32_t dcam_slice_mode;
 	uint32_t is_right;
 	uint32_t raw_cap;
 	struct completion offline_complete;

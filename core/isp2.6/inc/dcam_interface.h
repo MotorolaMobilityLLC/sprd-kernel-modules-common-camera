@@ -182,7 +182,7 @@ struct dcam_cap_cfg {
 	uint32_t x_factor;
 	uint32_t y_factor;
 	uint32_t is_4in1;
-	uint32_t is_bigsize;
+	uint32_t dcam_slice_mode;
 	uint32_t is_cphy;
 	struct img_trim cap_size;
 };

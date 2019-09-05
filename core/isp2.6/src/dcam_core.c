@@ -1578,20 +1578,23 @@ static int dcam_create_offline_thread(void *param)
 				dev->idx);
 		return -EFAULT;
 	}
-	/* for offline slice */
-	thrd = &dev->thread_offline;
-	thrd->ctx_handle = dev;
-	thrd->proc_func = dcam_offline_start_frame_offline;
-	atomic_set(&thrd->thread_stop, 0);
-	init_completion(&thrd->thread_com);
 
-	sprintf(thread_name, "dcam%d_offline", dev->idx);
-	thrd->thread_task = kthread_run(dcam_offline_thread_loop,
-					thrd, thread_name);
-	if (IS_ERR_OR_NULL(thrd->thread_task)) {
-		pr_err("fail to start offline thread for dcam%d\n",
-				dev->idx);
-		return -EFAULT;
+	/* for offline slice */
+	if (dev->idx == 1 && dev->dcam_slice_mode) {
+		thrd = &dev->thread_offline;
+		thrd->ctx_handle = dev;
+		thrd->proc_func = dcam_offline_start_frame_offline;
+		atomic_set(&thrd->thread_stop, 0);
+		init_completion(&thrd->thread_com);
+
+		sprintf(thread_name, "dcam%d_offline", dev->idx);
+		thrd->thread_task = kthread_run(dcam_offline_thread_loop,
+						thrd, thread_name);
+		if (IS_ERR_OR_NULL(thrd->thread_task)) {
+			pr_err("fail to start offline thread for dcam%d\n",
+					dev->idx);
+			return -EFAULT;
+		}
 	}
 
 	pr_info("dcam%d offline thread created.\n", dev->idx);
@@ -2112,7 +2115,7 @@ static int sprd_dcam_proc_frame(
 	pframe->priv_data = dev;
 	ret = camera_enqueue(&dev->in_queue, pframe);
 	if (ret == 0) {
-		if (dev->is_bigsize == 1)
+		if (dev->dcam_slice_mode == 1)
 			complete(&dev->thread_offline.thread_com);
 		else
 			complete(&dev->thread.thread_com);
@@ -2147,7 +2150,7 @@ static int sprd_dcam_ioctrl(void *dcam_handle,
 		cap = &dev->cap_info;
 		memcpy(cap, param, sizeof(struct dcam_mipi_info));
 		dev->is_4in1 = cap->is_4in1;
-		dev->is_bigsize = cap->is_bigsize;
+		dev->dcam_slice_mode = cap->dcam_slice_mode;
 		dev->is_right = 0;
 		break;
 	case DCAM_IOCTL_CFG_STATIS_BUF:
@@ -2585,6 +2588,12 @@ int sprd_dcam_dev_close(void *dcam_handle)
 	dcam_stop_offline_thread(&dev->thread);
 	camera_queue_clear(&dev->in_queue);
 	camera_queue_clear(&dev->proc_queue);
+
+	/* for offline slice */
+	if (dev->idx == 1 && dev->dcam_slice_mode) {
+		dev->dcam_slice_mode = 0;
+		dcam_stop_offline_thread(&dev->thread_offline);
+	}
 
 	if (dev->blk_dcam_pm) {
 		cambuf_kunmap(&dev->blk_dcam_pm->lsc.buf);

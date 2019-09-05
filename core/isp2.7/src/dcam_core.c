@@ -1261,7 +1261,7 @@ static int dcam_set_mipi_cap_l5pro(struct dcam_pipe_dev *dev,
 	DCAM_REG_MWR(idx, DCAM_BAYER_INFO_CFG, BIT_0, !cap_info->is_4in1);
 
 	/* > 24M */
-	if (cap_info->is_bigsize) {
+	if (cap_info->dcam_slice_mode) {
 		DCAM_REG_MWR(idx, DCAM_BAYER_INFO_CFG, BIT_2, 1 << 2);
 		DCAM_REG_MWR(idx, DCAM_BAYER_INFO_CFG, BIT_0, 0);
 	}

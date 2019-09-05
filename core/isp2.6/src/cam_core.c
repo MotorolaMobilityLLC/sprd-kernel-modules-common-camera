@@ -169,7 +169,7 @@ struct camera_uinfo {
 	uint32_t is_3dnr;
 	uint32_t is_ltm;
 	uint32_t is_dual;
-	uint32_t is_bigsize;
+	uint32_t dcam_slice_mode;
 	uint32_t is_afbc;
 };
 
@@ -832,7 +832,7 @@ static int set_cap_info(struct camera_module *module)
 	cap_info.mode = info->capture_mode;
 	cap_info.frm_skip = info->capture_skip;
 	cap_info.is_4in1 = info->is_4in1;
-	cap_info.is_bigsize = info->is_bigsize;
+	cap_info.dcam_slice_mode = info->dcam_slice_mode;
 	cap_info.sensor_if = sensor_if->if_type;
 	cap_info.format =  sensor_if->img_fmt;
 	cap_info.pattern = sensor_if->img_ptn;
@@ -850,7 +850,7 @@ static int set_cap_info(struct camera_module *module)
 	ret = dcam_ops->ioctl(module->dcam_dev_handle,
 				DCAM_IOCTL_CFG_CAP, &cap_info);
 	/* for dcam1 mipicap */
-	if (info->is_bigsize == 1)
+	if (info->dcam_slice_mode == 1)
 		ret = dcam_ops->ioctl(module->aux_dcam_dev,
 				DCAM_IOCTL_CFG_CAP, &cap_info);
 	return ret;
@@ -1180,7 +1180,7 @@ int isp_callback(enum isp_cb_type type, void *param, void *priv_data)
 				}
 			}
 
-			if ((module->cam_uinfo.is_4in1 || module->cam_uinfo.is_bigsize) &&
+			if ((module->cam_uinfo.is_4in1 || module->cam_uinfo.dcam_slice_mode) &&
 				channel->aux_dcam_path_id == DCAM_PATH_BIN) {
 				if (pframe->buf.type == CAM_BUF_USER) {
 					/* 4in1, lowlux capture, use dcam0
@@ -1468,7 +1468,7 @@ int dcam_callback(enum dcam_cb_type type, void *param, void *priv_data)
 				if (atomic_read(&module->capture_frames_dcam) > 0)
 					atomic_dec_return(&module->capture_frames_dcam);
 
-			} else if (module->cam_uinfo.is_bigsize) {
+			} else if (module->cam_uinfo.dcam_slice_mode) {
 				pframe = deal_bigsize_frame(module,
 						pframe, channel);
 				if (!pframe)
@@ -1605,7 +1605,7 @@ int dcam_callback(enum dcam_cb_type type, void *param, void *priv_data)
 			dcam_ops->cfg_path(module->dcam_dev_handle,
 				DCAM_PATH_CFG_OUTPUT_BUF,
 				channel->dcam_path_id, pframe);
-		} else if (module->cam_uinfo.is_bigsize) {
+		} else if (module->cam_uinfo.dcam_slice_mode) {
 			/* 4in1 capture case: dcam offline src buffer
 			 * should be re-used for dcam online output (raw)
 			 */
@@ -1706,7 +1706,7 @@ static int cal_channel_swapsize(struct camera_module *module)
 	if (!ch_prev->enable)
 		return 0;
 
-	if (module->cam_uinfo.is_4in1 || module->cam_uinfo.is_bigsize) {
+	if (module->cam_uinfo.is_4in1 || module->cam_uinfo.dcam_slice_mode) {
 		ch_prev->ch_uinfo.src_size.w >>= 1;
 		ch_prev->ch_uinfo.src_size.h >>= 1;
 		ch_vid->ch_uinfo.src_size.w >>= 1;
@@ -2597,7 +2597,7 @@ static int capture_proc(void *param)
 
 	if (ret) {
 		pr_info("capture stop or isp queue overflow\n");
-		if (module->cam_uinfo.is_bigsize && pframe->dcam_idx == DCAM_ID_1) {
+		if (module->cam_uinfo.dcam_slice_mode && pframe->dcam_idx == DCAM_ID_1) {
 			ret = dcam_ops->cfg_path(
 				module->aux_dcam_dev,
 				DCAM_PATH_CFG_OUTPUT_BUF,
@@ -2800,6 +2800,7 @@ static int init_bigsize_aux(struct camera_module *module,
 	void *dcam = NULL;
 	struct camera_group *grp = module->grp;
 	struct dcam_path_cfg_param ch_desc;
+	struct dcam_pipe_dev *dev = NULL;
 
 	dcam = module->aux_dcam_dev;
 	if (dcam == NULL) {
@@ -2811,6 +2812,9 @@ static int init_bigsize_aux(struct camera_module *module,
 		module->aux_dcam_dev = dcam;
 		module->aux_dcam_id = dcam_idx;
 	}
+
+	dev = (struct dcam_pipe_dev *)module->aux_dcam_dev;
+	dev->dcam_slice_mode = 1;
 
 	ret = dcam_ops->open(module->aux_dcam_dev);
 	if (ret < 0) {
@@ -3214,7 +3218,7 @@ static int init_cam_channel(
 			ch_desc.is_raw = 1;
 		if ((channel->ch_id == CAM_CH_CAP) && module->cam_uinfo.is_4in1)
 			ch_desc.is_raw = 1;
-		if ((channel->ch_id == CAM_CH_CAP) && module->cam_uinfo.is_bigsize)
+		if ((channel->ch_id == CAM_CH_CAP) && module->cam_uinfo.dcam_slice_mode)
 			ch_desc.is_raw = 1;
 		ret = dcam_ops->cfg_path(module->dcam_dev_handle,
 				DCAM_PATH_CFG_BASE,
@@ -3362,7 +3366,7 @@ static int init_cam_channel(
 			pr_err("4in1 raw capture init bin fail\n");
 	}
 	/* bigsize setting */
-	if (channel->ch_id == CAM_CH_CAP && module->cam_uinfo.is_bigsize) {
+	if (channel->ch_id == CAM_CH_CAP && module->cam_uinfo.dcam_slice_mode) {
 		ret = init_bigsize_aux(module, channel);
 		if (ret < 0) {
 			pr_err("init dcam for 4in1 error, ret = %d\n", ret);
@@ -3793,7 +3797,7 @@ static int img_ioctl_cfg_param(
 	if ((param.sub_block & DCAM_ISP_BLOCK_MASK) == DCAM_BLOCK_BASE) {
 		if (unlikely((param.scene_id == PM_SCENE_CAP) &&
 				(module->cam_uinfo.is_4in1 ||
-				module->cam_uinfo.is_bigsize)))
+				module->cam_uinfo.dcam_slice_mode)))
 			/* 4in1 capture should cfg offline dcam */
 			ret = dcam_ops->cfg_blk_param(
 				module->aux_dcam_dev, &param);
@@ -3824,7 +3828,7 @@ static int img_ioctl_cfg_start(
 
 	ret = dcam_ops->ioctl(module->dcam_dev_handle,
 			DCAM_IOCTL_CFG_START, NULL);
-	if ((module->cam_uinfo.is_bigsize || module->cam_uinfo.is_4in1) && module->aux_dcam_dev)
+	if ((module->cam_uinfo.dcam_slice_mode || module->cam_uinfo.is_4in1) && module->aux_dcam_dev)
 		ret = dcam_ops->ioctl(module->aux_dcam_dev,
 			DCAM_IOCTL_CFG_START, NULL);
 
@@ -3992,7 +3996,7 @@ static int img_ioctl_set_sensor_size(
 				sizeof(struct sprd_img_size));
 
 	pr_info("sensor_size %d %d\n", dst->w, dst->h);
-	module->cam_uinfo.is_bigsize = dst->w > DCAM_24M_WIDTH ? 1 : 0;
+	module->cam_uinfo.dcam_slice_mode = dst->w > DCAM_24M_WIDTH ? 1 : 0;
 	if (unlikely(ret)) {
 		pr_err("fail to copy from user, ret %d\n", ret);
 		ret = -EFAULT;
@@ -4407,7 +4411,7 @@ static int img_ioctl_set_crop(
 		max.h >>= 1;
 	}
 	/* > 24M, size/2 */
-	if (module->cam_uinfo.is_bigsize &&
+	if (module->cam_uinfo.dcam_slice_mode &&
 		((channel_id == CAM_CH_PRE) || (channel_id == CAM_CH_VID))) {
 		crop->x >>= 1;
 		crop->y >>= 1;
@@ -5098,7 +5102,7 @@ static int img_ioctl_stream_on(
 	if (ch->enable) {
 		config_channel_size(module, ch);
 		/* alloc dcam1 memory and cfg out buf */
-		if (module->cam_uinfo.is_bigsize == 1)
+		if (module->cam_uinfo.dcam_slice_mode == 1)
 			config_channel_bigsize(module, ch);
 	}
 
@@ -5352,7 +5356,7 @@ static int img_ioctl_stream_off(
 	}
 	if (module->cam_uinfo.is_4in1 && module->aux_dcam_dev)
 		deinit_4in1_aux(module);
-	if (module->cam_uinfo.is_bigsize && module->aux_dcam_dev)
+	if (module->cam_uinfo.dcam_slice_mode && module->aux_dcam_dev)
 		deinit_bigsize_aux(module);
 
 	ret = dcam_ops->ioctl(module->dcam_dev_handle,
