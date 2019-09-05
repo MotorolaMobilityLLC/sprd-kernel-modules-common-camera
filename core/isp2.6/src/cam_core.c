@@ -4883,7 +4883,6 @@ static int img_ioctl_get_cam_res(
 
 	ret = dcam_ops->open(dcam);
 	if (ret) {
-		dcam_if_put_dev(dcam);
 		ret = -EINVAL;
 		goto dcam_fail;
 	}
