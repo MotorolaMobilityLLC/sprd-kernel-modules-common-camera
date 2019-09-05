@@ -86,12 +86,14 @@ static int get_afl_region_data_num(uint32_t step_y_region,
 int dcam_k_afl_block(struct dcam_dev_param *param)
 {
 	int ret = 0;
-	uint32_t idx = param->idx;
+	uint32_t idx = 0;
 	uint32_t val = 0;
 	struct isp_dev_anti_flicker_new_info *p;
 
 	if (param == NULL)
 		return -1;
+
+	idx = param->idx;
 	if (!(param->afl.update & _UPDATE_INFO))
 		return 0;
 	param->afl.update &= (~(_UPDATE_INFO));
@@ -157,11 +159,13 @@ int dcam_k_afl_block(struct dcam_dev_param *param)
 int dcam_k_afl_bypass(struct dcam_dev_param *param)
 {
 	int ret = 0;
-	uint32_t idx = param->idx;
+	uint32_t idx = 0;
 	uint32_t mode;
 
 	if (param == NULL)
 		return -1;
+
+	idx = param->idx;
 	if (!(param->afl.update & _UPDATE_BYPASS))
 		return 0;
 	param->afl.update &= (~(_UPDATE_BYPASS));
