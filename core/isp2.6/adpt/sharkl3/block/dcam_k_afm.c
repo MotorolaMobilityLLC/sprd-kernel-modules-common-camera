@@ -42,13 +42,15 @@ enum {
 int dcam_k_afm_block(struct dcam_dev_param *param)
 {
 	int ret = 0;
-	uint32_t idx = param->idx;
+	uint32_t idx = 0;
 	int i = 0;
 	uint32_t val = 0;
-	struct dcam_dev_afm_info *p; /* af_param; */
+	struct dcam_dev_afm_info *p = NULL; /* af_param; */
 
 	if (param == NULL)
 		return -1;
+
+	idx = param->idx;
 	/* update ? */
 	if (!(param->afm.update & _UPDATE_INFO))
 		return 0;
@@ -134,10 +136,12 @@ int dcam_k_afm_block(struct dcam_dev_param *param)
 int dcam_k_afm_bypass(struct dcam_dev_param *param)
 {
 	int ret = 0;
-	uint32_t idx = param->idx;
+	uint32_t idx = 0;
 
 	if (param == NULL)
 		return -1;
+
+	idx = param->idx;
 	/* update ? */
 	if (!(param->afm.update & _UPDATE_BYPASS))
 		return 0;
@@ -150,11 +154,13 @@ int dcam_k_afm_bypass(struct dcam_dev_param *param)
 int dcam_k_afm_win(struct dcam_dev_param *param)
 {
 	int ret = 0;
-	uint32_t idx = param->idx;
+	uint32_t idx = 0;
 	struct isp_img_rect *p; /* win; */
 
 	if (param == NULL)
 		return -1;
+
+	idx = param->idx;
 	/* update ? */
 	if (!(param->afm.update & _UPDATE_WIN))
 		return 0;
@@ -173,11 +179,13 @@ int dcam_k_afm_win(struct dcam_dev_param *param)
 int dcam_k_afm_win_num(struct dcam_dev_param *param)
 {
 	int ret = 0;
-	uint32_t idx = param->idx;
+	uint32_t idx = 0;
 	struct isp_img_size *p; /* win_num; */
 
 	if (param == NULL)
 		return -1;
+
+	idx = param->idx;
 	/* update ? */
 	if (!(param->afm.update & _UPDATE_WIN_NUM))
 		return 0;
@@ -194,11 +202,13 @@ int dcam_k_afm_win_num(struct dcam_dev_param *param)
 int dcam_k_afm_mode(struct dcam_dev_param *param)
 {
 	int ret = 0;
-	uint32_t idx = param->idx;
+	uint32_t idx = 0;
 	uint32_t mode = 0;
 
 	if (param == NULL)
 		return -1;
+
+	idx = param->idx;
 	/* update ? */
 	if (!(param->afm.update & _UPDATE_MODE))
 		return 0;
@@ -222,11 +232,13 @@ int dcam_k_afm_mode(struct dcam_dev_param *param)
 int dcam_k_afm_skipnum(struct dcam_dev_param *param)
 {
 	int ret = 0;
-	uint32_t idx = param->idx;
+	uint32_t idx = 0;
 	uint32_t skip_num = 0;
 
 	if (param == NULL)
 		return -1;
+
+	idx = param->idx;
 	/* update ? */
 	if (!(param->afm.update & _UPDATE_SKIP))
 		return 0;
@@ -249,11 +261,13 @@ int dcam_k_afm_skipnum(struct dcam_dev_param *param)
 int dcam_k_afm_crop_eb(struct dcam_dev_param *param)
 {
 	int ret = 0;
-	uint32_t idx = param->idx;
+	uint32_t idx = 0;
 	uint32_t crop_eb = 0;
 
 	if (param == NULL)
 		return -1;
+
+	idx = param->idx;
 	/* update ? */
 	if (!(param->afm.update & _UPDATE_CROP_EB))
 		return 0;
@@ -269,11 +283,13 @@ int dcam_k_afm_crop_eb(struct dcam_dev_param *param)
 int dcam_k_afm_crop_size(struct dcam_dev_param *param)
 {
 	int ret = 0;
-	uint32_t idx = param->idx;
+	uint32_t idx = 0;
 	struct isp_img_rect crop_size;
 
 	if (param == NULL)
 		return -1;
+
+	idx = param->idx;
 	/* update ? */
 	if (!(param->afm.update & _UPDATE_CROP_SIZE))
 		return 0;
@@ -294,12 +310,14 @@ int dcam_k_afm_crop_size(struct dcam_dev_param *param)
 int dcam_k_afm_done_tilenum(struct dcam_dev_param *param)
 {
 	int ret = 0;
-	uint32_t idx = param->idx;
+	uint32_t idx = 0;
 	uint32_t val = 0;
 	struct isp_img_size done_tile_num;
 
 	if (param == NULL)
 		return -1;
+
+	idx = param->idx;
 	/* update ? */
 	if (!(param->afm.update & _UPDATE_TILE))
 		return 0;
