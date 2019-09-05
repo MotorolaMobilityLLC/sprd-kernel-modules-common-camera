@@ -36,12 +36,14 @@ enum {
 int dcam_k_awbc_block(struct dcam_dev_param *param)
 {
 	int ret = 0;
-	uint32_t idx = param->idx;
+	uint32_t idx = 0;
 	uint32_t val = 0;
-	struct dcam_dev_awbc_info *p; /* awbc_info; */
+	struct dcam_dev_awbc_info *p = NULL; /* awbc_info; */
 
 	if (param == NULL)
 		return -EPERM;
+
+	idx = param->idx;
 	/* update ? */
 	if (!(param->awbc.update & _UPDATE_INFO))
 		return 0;
@@ -80,12 +82,14 @@ int dcam_k_awbc_block(struct dcam_dev_param *param)
 int dcam_k_awbc_gain(struct dcam_dev_param *param)
 {
 	int ret = 0;
-	uint32_t idx = param->idx;
+	uint32_t idx = 0;
 	uint32_t val = 0;
-	struct img_rgb_info *p; /* awbc_gain; */
+	struct img_rgb_info *p = NULL; /* awbc_gain; */
 
 	if (param == NULL)
 		return -EPERM;
+
+	idx = param->idx;
 	/* update ? */
 	if (!(param->awbc.update & _UPDATE_GAIN))
 		return 0;
@@ -104,11 +108,13 @@ int dcam_k_awbc_gain(struct dcam_dev_param *param)
 int dcam_k_awbc_bypass(struct dcam_dev_param *param)
 {
 	int ret = 0;
-	uint32_t idx = param->idx;
+	uint32_t idx = 0;
 	uint32_t bypass = 0;
 
 	if (param == NULL)
 		return -EPERM;
+
+	idx = param->idx;
 	/* update ? */
 	if (!(param->awbc.update & _UPDATE_BYPASS))
 		return 0;
@@ -149,6 +155,7 @@ int dcam_k_cfg_awbc(struct isp_io_param *param, struct dcam_dev_param *p)
 		size = sizeof(p->awbc.bypass);
 		bit_update = _UPDATE_BYPASS;
 		sub_func = dcam_k_awbc_bypass;
+		break;
 	default:
 		pr_err("fail to support property %d\n",
 			param->property);
