@@ -1064,7 +1064,7 @@ static struct camera_frame *deal_4in1_frame(struct camera_module *module,
 	/* dcam0 full tx done, frame report to HAL or drop */
 	if (atomic_read(&module->capture_frames_dcam) > 0 && pframe->fid > 0) {
 		/* 4in1 send buf to hal for remosaic */
-		atomic_dec_return(&module->capture_frames_dcam);
+		atomic_dec(&module->capture_frames_dcam);
 		pframe->evt = IMG_TX_DONE;
 		pframe->channel_id = CAM_CH_RAW;
 		ret = camera_enqueue(&module->frm_queue, pframe);
@@ -1457,7 +1457,7 @@ int dcam_callback(enum dcam_cb_type type, void *param, void *priv_data)
 					return 0;
 
 				if (atomic_read(&module->capture_frames_dcam) > 0)
-					atomic_dec_return(&module->capture_frames_dcam);
+					atomic_dec(&module->capture_frames_dcam);
 
 			} else if (module->cam_uinfo.is_4in1) {
 				pframe = deal_4in1_frame(module,
@@ -1466,7 +1466,7 @@ int dcam_callback(enum dcam_cb_type type, void *param, void *priv_data)
 					return 0;
 
 				if (atomic_read(&module->capture_frames_dcam) > 0)
-					atomic_dec_return(&module->capture_frames_dcam);
+					atomic_dec(&module->capture_frames_dcam);
 
 			} else if (module->cam_uinfo.dcam_slice_mode) {
 				pframe = deal_bigsize_frame(module,
@@ -1475,7 +1475,7 @@ int dcam_callback(enum dcam_cb_type type, void *param, void *priv_data)
 					return 0;
 
 				if (atomic_read(&module->capture_frames_dcam) > 0)
-					atomic_dec_return(&module->capture_frames_dcam);
+					atomic_dec(&module->capture_frames_dcam);
 
 			} else if (module->dcam_cap_status == DCAM_CAPTURE_START_FROM_NEXT_SOF) {
 
@@ -1766,6 +1766,10 @@ static int cal_channel_swapsize(struct camera_module *module)
 	max_bin.h >>= shift;
 
 	/* go through rds path */
+	if ((dst_p.w == 0) || (dst_p.h == 0)) {
+		pr_err("fail to get valid w %d h %d\n", dst_p.w, dst_p.h);
+		return -EFAULT;
+	}
 	max = src_p;
 	ratio_p_w = (1 << RATIO_SHIFT) * max.w / dst_p.w;
 	ratio_p_h = (1 << RATIO_SHIFT) * max.h / dst_p.h;
@@ -2110,8 +2114,8 @@ static int cal_channel_size_rds(struct camera_module *module)
 		dcam_out.h = ALIGN(dcam_out.h, align_h);
 
 		/* keep same ratio between width and height */
-		ratio16_w = div_u64(trim_pv.size_x << RATIO_SHIFT, dcam_out.w);
-		ratio16_h = div_u64(trim_pv.size_y << RATIO_SHIFT, dcam_out.h);
+		ratio16_w = div_u64((uint64_t)trim_pv.size_x << RATIO_SHIFT, dcam_out.w);
+		ratio16_h = div_u64((uint64_t)trim_pv.size_y << RATIO_SHIFT, dcam_out.h);
 		ratio_min = min(ratio16_w, ratio16_h);
 
 		/* if sensor size is too small */
@@ -2162,8 +2166,8 @@ static int cal_channel_size_rds(struct camera_module *module)
 			dcam_out.h = ALIGN(dcam_out.h, align_h);
 
 			/* keep same ratio between width and height */
-			ratio16_w = div_u64(trim_pv.size_x << RATIO_SHIFT, dcam_out.w);
-			ratio16_h = div_u64(trim_pv.size_y << RATIO_SHIFT, dcam_out.h);
+			ratio16_w = div_u64((uint64_t)trim_pv.size_x << RATIO_SHIFT, dcam_out.w);
+			ratio16_h = div_u64((uint64_t)trim_pv.size_y << RATIO_SHIFT, dcam_out.h);
 			ratio_min = min(ratio16_w, ratio16_h);
 		}
 
@@ -2428,6 +2432,8 @@ cfg_isp:
 		ret = isp_ops->cfg_path(module->isp_dev_handle,
 				ISP_PATH_CFG_CTX_SIZE,
 				isp_ctx_id, 0, &ctx_size);
+		if (ret != 0)
+			goto exit;
 	}
 	path_trim = channel->trim_isp;
 
@@ -2436,6 +2442,8 @@ cfg_path:
 	ret = isp_ops->cfg_path(module->isp_dev_handle,
 				ISP_PATH_CFG_PATH_SIZE,
 				isp_ctx_id, isp_path_id,  &path_trim);
+	if (ret != 0)
+			goto exit;
 	if (channel->ch_id == CAM_CH_CAP && is_zoom) {
 		channel = &module->channel[CAM_CH_CAP_THM];
 		if (channel->enable) {
@@ -2444,6 +2452,8 @@ cfg_path:
 		}
 	}
 	pr_info("update channel size done for CAP\n");
+
+exit:
 	return ret;
 }
 
@@ -3169,7 +3179,7 @@ static int init_cam_channel(
 			return -EINVAL;
 		}
 		channel->dcam_path_id = channel_cap->dcam_path_id;
-		isp_ctx_id = (channel_prev->isp_path_id >> ISP_CTXID_OFFSET);
+		isp_ctx_id = (channel_cap->isp_path_id >> ISP_CTXID_OFFSET);
 		isp_path_id = ISP_SPATH_FD;
 		new_isp_path = 1;
 		break;
@@ -3745,6 +3755,9 @@ static int img_ioctl_set_statis_buf(
 					(unsigned long int)statis_buf.kaddr);
 				return 0;
 			}
+		} else {
+			ret = -EFAULT;
+			goto exit;
 		}
 
 		ret = isp_ops->ioctl(module->isp_dev_handle,
@@ -5236,7 +5249,7 @@ static int img_ioctl_stream_on(
 		pr_info("disable all uframe_sync feature\n");
 
 		uframe_sync = 0;
-		for (i = 0;  i < CAM_CH_MAX; i++) {
+		for (i = 0; i < CAM_CH_MAX; i++) {
 			ch = &module->channel[i];
 			if (!ch->enable)
 				continue;
@@ -5244,7 +5257,7 @@ static int img_ioctl_stream_on(
 			isp_ctx_id = ch->isp_path_id >> ISP_CTXID_OFFSET;
 			isp_path_id = ch->isp_path_id & ISP_PATHID_MASK;
 
-			ret = isp_ops->cfg_path(module->isp_dev_handle,
+			isp_ops->cfg_path(module->isp_dev_handle,
 						ISP_PATH_CFG_PATH_UFRAME_SYNC,
 						isp_ctx_id, isp_path_id,
 						&uframe_sync);
@@ -5352,6 +5365,8 @@ static int img_ioctl_stream_off(
 
 	if (running) {
 		ret = dcam_ops->stop(module->dcam_dev_handle);
+		if (ret != 0)
+			pr_err("dcam_ops error %d\n", ret);
 		sprd_stop_timer(&module->cam_timer);
 	}
 	if (module->cam_uinfo.is_4in1 && module->aux_dcam_dev)
@@ -5443,9 +5458,12 @@ static int img_ioctl_stream_off(
 		}
 	}
 
-	if (module->dcam_dev_handle)
+	if (module->dcam_dev_handle) {
 		ret = dcam_ops->ioctl(module->dcam_dev_handle,
 				DCAM_IOCTL_DEINIT_STATIS_Q, NULL);
+		if (ret != 0)
+			pr_err("dcam_ops error %d\n", ret);
+	}
 
 	if (module->isp_dev_handle) {
 		io_desc.q = &module->isp_hist2_outbuf_queue;
@@ -5454,6 +5472,8 @@ static int img_ioctl_stream_off(
 				0,
 				ISP_IOCTL_DEINIT_STATIS_BUF,
 				&io_desc);
+		if (ret != 0)
+			pr_err("isp_ops error %d\n", ret);
 	}
 
 	for (i = 0; i < CAM_CH_MAX; i++) {
@@ -6073,6 +6093,10 @@ static int img_ioctl_raw_proc(
 		pr_info("hwsim\n");
 		ret = dcam_ops->ioctl(module->dcam_dev_handle,
 				DCAM_IOCTL_CFG_RPS, &rps_info);
+		if (ret != 0) {
+			pr_err("ret for exception: %d\n", ret);
+			return -EFAULT;
+		}
 	}
 
 	if ((proc_info.cmd == RAW_PROC_PRE) && (proc_info.scene == RAW_PROC_SCENE_RAWCAP)) {
@@ -6784,6 +6808,10 @@ static int test_isp(struct camera_module *module,
 		pframe_out->buf.mfd[0] = test_info->outbuf_fd;
 		pframe_out->channel_id = channel->ch_id;
 		cambuf_get_ionbuf(&pframe_out->buf);
+	} else {
+		pr_err("pframe_out is null\n");
+		ret = -EINVAL;
+		goto nobuf;
 	}
 
 	ret = isp_ops->cfg_path(module->isp_dev_handle,
@@ -7258,18 +7286,15 @@ static ssize_t sprd_img_write(struct file *file, const char __user *u_data,
 
 	default:
 		pr_err("error: unsupported write cmd %d\n", write_op.cmd);
-		ret = -EINVAL;
 		break;
 	}
 
 	ret =  copy_to_user((void __user *)u_data, &write_op, cnt);
 	if (ret) {
 		pr_err("fail to get user info\n");
+		cnt = ret;
 		return -EFAULT;
 	}
-
-	if (ret)
-		cnt = ret;
 
 	return cnt;
 }

@@ -54,7 +54,7 @@ enum dcam_id {
 /*
  * Quick function to check is @idx valid.
  */
-#define is_dcam_id(idx) ((idx) >= DCAM_ID_0 && (idx) < DCAM_ID_MAX)
+#define is_dcam_id(idx) ((idx) < DCAM_ID_MAX)
 
 /*
  * Enumerating output paths in dcam_if device.
