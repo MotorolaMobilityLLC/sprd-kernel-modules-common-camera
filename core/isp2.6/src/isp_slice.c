@@ -188,9 +188,7 @@ static int get_slice_size_info(
 			max_w = output->w;
 	}
 	if (max_w > 0) {
-		if (max_w <= linebuf_len) {
-			slice_w_out = max_w;
-		} else {
+		if (max_w > linebuf_len) {
 			do {
 				slice_num++;
 				slice_w_out = (max_w + slice_num - 1) / slice_num;
@@ -2817,12 +2815,6 @@ static int update_slice_spath_store(
 
 	addr = ISP_STORE_SLICE_V_ADDR + base;
 	cmd = slc_store->addr.addr_ch2;
-	ISP_REG_WR(ctx_id, addr, cmd);
-
-	return 0;
-
-	addr = ISP_GET_REG(ISP_STORE_SHADOW_CLR) + base;
-	cmd = 1;
 	ISP_REG_WR(ctx_id, addr, cmd);
 
 	return 0;

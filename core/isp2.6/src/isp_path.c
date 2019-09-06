@@ -775,13 +775,15 @@ int isp_cfg_path_size(struct isp_path_desc *path, void *param)
 	int ret = 0;
 	struct img_size src;
 	struct img_trim *crop;
-	struct isp_pipe_context *pctx = path->attach_ctx;
-	struct isp_store_info *store = &path->store;
+	struct isp_pipe_context *pctx = NULL;
+	struct isp_store_info *store = NULL;
 
 	if (!path || !param) {
 		pr_err("error input ptr: null\n");
 		return -EFAULT;
 	}
+	pctx = path->attach_ctx;
+	store = &path->store;
 	crop = (struct img_trim *)param;
 	src.w = pctx->input_trim.size_x;
 	src.h = pctx->input_trim.size_y;
@@ -825,20 +827,19 @@ int isp_cfg_path_size(struct isp_path_desc *path, void *param)
 		store->pitch.pitch_ch0 = store->size.w;
 		store->pitch.pitch_ch1 = store->size.w;
 		store->total_size = store->size.w * store->size.h * 2;
-
+		break;
 	case ISP_STORE_YUV420_2FRAME:
 	case ISP_STORE_YVU420_2FRAME:
 		store->pitch.pitch_ch0 = store->size.w;
 		store->pitch.pitch_ch1 = store->size.w;
 		store->total_size = store->size.w * store->size.h * 3 / 2;
 		break;
-
 	case ISP_STORE_YUV422_3FRAME:
 		store->pitch.pitch_ch0 = store->size.w;
 		store->pitch.pitch_ch1 = store->size.w / 2;
 		store->pitch.pitch_ch2 = store->size.w / 2;
 		store->total_size = store->size.w * store->size.h * 2;
-
+		break;
 	case ISP_STORE_YUV420_3FRAME:
 		store->pitch.pitch_ch0 = store->size.w;
 		store->pitch.pitch_ch1 = store->size.w / 2;

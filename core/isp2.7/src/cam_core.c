@@ -2270,6 +2270,8 @@ cfg_isp:
 		ret = isp_ops->cfg_path(module->isp_dev_handle,
 				ISP_PATH_CFG_CTX_SIZE,
 				isp_ctx_id, 0, &ctx_size);
+		if (ret)
+			pr_info("fail to cfg isp\n");
 	}
 	path_trim = channel->trim_isp;
 

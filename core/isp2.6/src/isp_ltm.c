@@ -359,10 +359,10 @@ static int ltm_calc_binning_factor(ltm_param_t *histo)
 	 */
 	pr_debug("B binning_factor[%d], pow_factor[%d], frame_width[%d], frame_height[%d]\n",
 		binning_factor, pow_factor, histo->frame_width,	histo->frame_height);
-
-	histo->frame_width  = histo->frame_width  / (2 * pow_factor) * 2;
-	histo->frame_height = histo->frame_height / (2 * pow_factor) * 2;
-
+	if (pow_factor != 0) {
+		histo->frame_width = histo->frame_width  / (2 * pow_factor) * 2;
+		histo->frame_height = histo->frame_height / (2 * pow_factor) * 2;
+	}
 	histo->binning_en = binning_factor;
 	pr_debug("A binning_factor[%d], pow_factor[%d], frame_width[%d], frame_height[%d]\n",
 		binning_factor, pow_factor, histo->frame_width,	histo->frame_height);
@@ -693,7 +693,8 @@ static int isp_ltm_gen_map_config(struct isp_ltm_ctx_desc *ctx,
 	 * frame_width_map/frame_width_stat should be
 	 * equal to frame_height_map/frame_height_stat
 	 */
-	ratio = (frame_width_map << 7) / frame_width_stat;
+	if (frame_width_stat != 0)
+		ratio = (frame_width_map << 7) / frame_width_stat;
 
 	tm.tile_width  = (ratio * ts.tile_width  + 128) >> 8 << 1;
 	tm.tile_height = (ratio * ts.tile_height + 128) >> 8 << 1;
