@@ -2242,7 +2242,7 @@ static int config_channel_bigsize(
 {
 	int ret = 0;
 	int i, total, iommu_enable;
-	uint32_t width, height, size;
+	uint32_t width, height, size = 0;
 	struct camera_uchannel *ch_uinfo = NULL;
 	struct dcam_path_cfg_param ch_desc;
 	struct camera_frame *pframe;
