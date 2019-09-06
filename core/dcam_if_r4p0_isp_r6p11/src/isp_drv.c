@@ -128,7 +128,7 @@ void isp_dbg_bypass_sblk(struct isp_pipe_dev *dev, unsigned int idx)
 
 	pr_debug("enter, cb:%pS\n", __builtin_return_address(0));
 	if (!dev || !dev->cam_grp) {
-		pr_err("fail to exit1 exception\n");
+		pr_err("fail to exit exception\n");
 		return;
 	}
 
@@ -198,7 +198,7 @@ void isp_dbg_reg_trace(struct isp_pipe_dev *dev, unsigned int idx)
 
 	pr_debug("enter, cb:%pS\n", __builtin_return_address(0));
 	if (!dev || !dev->cam_grp) {
-		pr_err("fail to exit1 exception\n");
+		pr_err("fail to exit exception\n");
 		return;
 	}
 
@@ -291,7 +291,7 @@ void isp_dbg_dump_fmcu_cmd_q(struct isp_pipe_dev *dev)
 
 	pr_debug("enter, cb:%pS\n", __builtin_return_address(0));
 	if (!dev || !dev->fmcu_addr_vir || !dev->cam_grp) {
-		pr_err("fail to exception exit1\n");
+		pr_err("fail to exit exception\n");
 		return;
 	}
 
@@ -328,7 +328,7 @@ static int offline_bin_thread_loop(void *arg)
 	struct isp_pipe_dev *dev = (struct isp_pipe_dev *)arg;
 
 	if (dev == NULL) {
-		pr_err("fail to get ptr dev is NULL\n");
+		pr_err("fail to get ptr, dev is NULL\n");
 		return -1;
 	}
 	pr_debug("+\n");
@@ -348,7 +348,7 @@ static int offline_full_thread_loop(void *arg)
 	struct isp_pipe_dev *dev = (struct isp_pipe_dev *)arg;
 
 	if (dev == NULL) {
-		pr_err("fail to get ptr dev is NULL\n");
+		pr_err("fail to get ptr, dev is NULL\n");
 		return -1;
 	}
 	pr_debug("+\n");
@@ -386,7 +386,7 @@ static int isp_create_offline_thread(void *param)
 	enum isp_id iid = ISP_ID_0;
 
 	if (dev == NULL) {
-		pr_err("fail to get ptr dev is NULL\n");
+		pr_err("fail to get ptr, dev is NULL\n");
 		return -1;
 	}
 
@@ -415,7 +415,7 @@ static int isp_create_offline_thread(void *param)
 	dev->offline_full_thread = kthread_run(offline_full_thread_loop,
 					      param, thread_name);
 	if (IS_ERR(dev->offline_full_thread)) {
-		pr_err("fail to create full %ld\n",
+		pr_err("fail to create full thread%ld\n",
 				PTR_ERR(dev->offline_full_thread));
 		dev->offline_full_thread = NULL;
 		return -1;
@@ -430,7 +430,7 @@ static int isp_stop_offline_thread(void *param)
 	struct isp_pipe_dev *dev = (struct isp_pipe_dev *)param;
 
 	if (dev == NULL) {
-		pr_err("fail to get ptr dev is NULL\n");
+		pr_err("fail to get ptr, dev is NULL\n");
 		return -1;
 	}
 	if (dev->offline_bin_thread) {
@@ -496,7 +496,7 @@ void isp_wait_update_done(struct isp_module *module,
 						  ISP_PATH_TIMEOUT);
 		if (ret == 0) {
 			/* isp_reg_trace(); */
-			pr_err("fail to wait update path 0x%x done\n",
+			pr_err("fail to wait path update 0x%x done\n",
 			path_index);
 		}
 	} else {
@@ -733,7 +733,7 @@ static int wait_for_pipeline_proc_stop(void *handle)
 
 		if (loop++ > FMCU_STOP_WAIT_CNT) {
 			if (fmcu_slice_capture_state != ISP_ST_STOP)
-				pr_err("fail to stop fmcu timeout!\n");
+				pr_err("fail to stop fmcu, timeout!\n");
 			if (dev->wait_full_tx_done != WAIT_CLEAR)
 				pr_info("wait_full_tx_done was not cleared, %u\n",
 					dev->wait_full_tx_done);
@@ -799,7 +799,7 @@ static int sprd_isp_stop_nolock(void *isp_handle, int is_post_stop)
 	dev = (struct isp_pipe_dev *)isp_handle;
 	module = &dev->module_info;
 	if (module == NULL) {
-		pr_err("fail to get isp module is null\n");
+		pr_err("fail to get valid isp module\n");
 		return -EFAULT;
 	}
 	/* There are 2 phases of ISP stop involving spinlock */
@@ -1042,7 +1042,7 @@ static int isp_update_offline_path_param(struct isp_pipe_dev *dev,
 		rtn = isp_path_scaler(module, ISP_PATH_IDX_CAP, cap,
 			&scl_array->coeff[ISP_SCL_CAP]);
 		if (rtn) {
-			pr_err("fail to isp scaler path code%d", rtn);
+			pr_err("fail to get isp scaler path, return %d", rtn);
 			return rtn;
 		}
 		isp_path_set(module, cap, ISP_PATH_IDX_CAP);
@@ -1063,7 +1063,7 @@ static int isp_update_offline_path_param(struct isp_pipe_dev *dev,
 			rtn = isp_path_scaler(module, ISP_PATH_IDX_VID, vid,
 					&scl_array->coeff[ISP_SCL_VID]);
 			if (rtn) {
-				pr_err("fail to isp scaler path code %d", rtn);
+				pr_err("fail to get isp scaler path, return %d", rtn);
 				return rtn;
 			}
 
@@ -1230,7 +1230,7 @@ static void sprd_isp_cap_hblank_cfg(void *handle)
 	unsigned int height = 0;
 
 	if (!handle) {
-		pr_err("handle fail to get ptr\n");
+		pr_err("fail to get ptr\n");
 		return;
 	}
 
@@ -1239,7 +1239,7 @@ static void sprd_isp_cap_hblank_cfg(void *handle)
 	cap_path = &dev->module_info.isp_path[ISP_SCL_CAP];
 
 	if (!cap_path) {
-		pr_err("cap_path fail to get ptr\n");
+		pr_err("fail to get ptr\n");
 		return;
 	}
 
@@ -1328,7 +1328,7 @@ int sprd_isp_start_pipeline_bin(void *handle, unsigned int cap_flag)
 	}
 
 	if (isp_frame_dequeue(&buf_desc->zsl_queue, &frame)) {
-		pr_err("fail to deque offline_buf bin_path frame\n");
+		pr_err("fail to deque offline_buf bin_path to frame\n");
 		ret = -1;
 		goto exit;
 	}
@@ -1391,7 +1391,7 @@ static int sprd_isp_sel_cap_frm(struct isp_pipe_dev *dev)
 	struct camera_frame *p_offline_frame = NULL;
 
 	if (!dev) {
-		pr_err("FATAL: fail to get valid parameters\n");
+		pr_err("fail to get valid parameters\n");
 		return -EPERM;
 	}
 
@@ -1445,7 +1445,7 @@ static int sprd_isp_sel_cap_frm(struct isp_pipe_dev *dev)
 				&dev_other->offline_frame[ISP_OFF_BUF_FULL];
 			target = p_offline_frame->fid - dev->delta_full;
 		} else {
-			pr_err("FATAL: the other ISP is supposed to run.\n");
+			pr_err("fail to run the other ISP\n");
 			goto err_exit;
 		}
 		for (i = 0; i < c; i++) {
@@ -1466,7 +1466,7 @@ static int sprd_isp_sel_cap_frm(struct isp_pipe_dev *dev)
 				break;
 			if (isp_buf_queue_write(&buf_desc->tmp_buf_queue,
 				&frame)) {
-				pr_err("FATAL: fail to return off buf full\n");
+				pr_err("fail to write frame to buf_queue\n");
 				goto err_exit;
 			}
 		}
@@ -1480,13 +1480,13 @@ static int sprd_isp_sel_cap_frm(struct isp_pipe_dev *dev)
 				&buf_desc->zsl_queue,
 				buf_desc->zsl_queue.valid_cnt);
 			if (ret) {
-				pr_err("fail to dequeue offline\n");
+				pr_err("fail to recycle zsl queue\n");
 				goto err_exit;
 			}
 		}
 		/* put the matched frame into the queue */
 		if (isp_frame_enqueue(&buf_desc->zsl_queue, &frame)) {
-			pr_err("fail to enqueue offline\n");
+			pr_err("fail to enqueue zsl queue\n");
 			goto err_exit;
 		}
 	}
@@ -1777,7 +1777,7 @@ static int prepare_fmcu_for_slice_cap(struct isp_pipe_dev *dev,
 	fmcu_slice = &dev->fmcu_slice;
 	ret = isp_update_offline_path_param(dev, valid_frame, idx);
 	if (ret) {
-		pr_err("fail to update offline path param error!\n");
+		pr_err("fail to update offline path param!\n");
 		ret = -ISP_RTN_PARA_ERR;
 		goto exit;
 	}
@@ -1866,7 +1866,7 @@ static int sprd_isp_pipeline_proc_bin(void *handle)
 	iid = ISP_GET_IID(idx);
 	module_info = &dev->module_info;
 	if (unlikely(!module_info)) {
-		pr_err("fail to get module_info is NULL iid %d\n", iid);
+		pr_err("fail to get valid module_info iid %d\n", iid);
 		return -EFAULT;
 	}
 
@@ -1986,7 +1986,7 @@ static int sprd_isp_pipeline_proc_full(void *handle)
 
 	valid_frame = &dev->offline_frame[ISP_OFF_BUF_FULL];
 	if (dev->cap_on == 0) {
-		pr_err("capture stopped, skip this frame\n");
+		pr_err("fail to capture because of stoped, skip this frame\n");
 		spin_lock(&isp_mod_lock);
 		fmcu_slice_capture_state = ISP_ST_STOP;
 		fmcu_slice_capture_state_dual = ISP_ST_STOP;
@@ -1998,13 +1998,13 @@ static int sprd_isp_pipeline_proc_full(void *handle)
 			       ISP_OFF_BUF_FULL);
 		if (isp_buf_queue_write(&buf_desc->tmp_buf_queue,
 				valid_frame))
-			pr_err("fail to retrieve off buf full_path\n");
+			pr_err("fail to write tmp_buf_queue\n");
 		goto exit;
 	}
 
 	ret = prepare_fmcu_for_slice_cap(dev, valid_frame, idx);
 	if (unlikely(ret)) {
-		pr_err("fail to prepare_fmcu_for_slice_cap error, %d\n", ret);
+		pr_err("fail to prepare fmcu for slice_cap, %d\n", ret);
 		goto exit;
 	}
 	isp_cfg_subbock_reserved_buf(dev, idx);
@@ -2365,7 +2365,7 @@ static int isp_raw_cap_proc(struct isp_pipe_dev *dev,
 
 	if (!dev || !raw_cap) {
 		ret = -EFAULT;
-		pr_err("isp dev handle is NULL\n");
+		pr_err("fail to get valid isp dev handle\n");
 		goto exit;
 	}
 
@@ -2476,7 +2476,7 @@ int sprd_isp_k_ioctl(void *isp_pipe_dev_handle,
 
 	if (!isp_pipe_dev_handle) {
 		ret = -EFAULT;
-		pr_err("isp dev handle is NULL\n");
+		pr_err("fail to get valid handle\n");
 		goto exit;
 	}
 	dev = (struct isp_pipe_dev *)isp_pipe_dev_handle;
@@ -2496,7 +2496,7 @@ int sprd_isp_k_ioctl(void *isp_pipe_dev_handle,
 			ret = copy_to_user((void __user *)param,
 				(void *)&irq_param, sizeof(irq_param));
 			if (ret != 0)
-				pr_err("fail to copy_to_user, ret = %d\n",
+				pr_err("fail to copy to user, ret = %d\n",
 					(uint32_t)ret);
 			ret = -ERESTARTSYS;
 			return ret;
@@ -2521,7 +2521,7 @@ int sprd_isp_k_ioctl(void *isp_pipe_dev_handle,
 			(void *)&irq_param, sizeof(irq_param));
 		if (ret != 0) {
 			ret = -EFAULT;
-			pr_err("fail to copy_to_user, ret = 0x%x",
+			pr_err("fail to copy to user, ret = 0x%x",
 				(uint32_t)ret);
 		}
 		break;
@@ -2536,7 +2536,7 @@ int sprd_isp_k_ioctl(void *isp_pipe_dev_handle,
 				     (const void __user *)param,
 				     sizeof(struct isp_raw_proc_info));
 		if (ret != 0) {
-			pr_err("fail to copy_from_user\n");
+			pr_err("fail to copy from user\n");
 			mutex_unlock(&dev->isp_mutex);
 			goto exit;
 		}
@@ -2562,7 +2562,7 @@ int sprd_isp_k_ioctl(void *isp_pipe_dev_handle,
 				     (const void __user *)param,
 				     sizeof(struct isp_statis_buf_input));
 		if (ret != 0) {
-			pr_err("isp_ioctl: copy_from_user error\n");
+			pr_err("isp_ioctl: fail to copy_from_user\n");
 			mutex_unlock(&dev->isp_mutex);
 			goto exit;
 		}
@@ -2596,7 +2596,7 @@ static void isp_scl_size_print(enum isp_id iid, struct isp_path_desc *path,
 			       unsigned int addr)
 {
 	if (!path) {
-		pr_err("Input path ptr is NULL\n");
+		pr_err("fail to get valid path\n");
 		return;
 	}
 
@@ -2643,13 +2643,13 @@ int sprd_isp_update_zoom_param(void *isp_handle,
 	module = &dev->module_info;
 	iid = ISP_GET_IID(dev->com_idx);
 	if (unlikely(!module)) {
-		pr_err("error, iid %d module is NULL\n", iid);
+		pr_err("fail to get valid module, iid %d module is NULL\n", iid);
 		return -EFAULT;
 	}
 
 	scl_array = module->scl_array;
 	if (scl_array == NULL) {
-		pr_err("iid%d scl_array is NULL\n", iid);
+		pr_err("fail to get valid scl array, iid%d scl_array is NULL\n", iid);
 		return -EFAULT;
 	}
 	pr_debug("ISP%d: update path\n", iid);
@@ -2706,7 +2706,7 @@ int sprd_isp_update_zoom_param(void *isp_handle,
 					      &pre_coeff->path,
 					      pre_coeff);
 			if (rtn) {
-				pr_err("err, code %d\n", rtn);
+				pr_err("fail to isp path scaler, code %d\n", rtn);
 				return -(rtn);
 			}
 			rtn = isp_coeff_get_new_node(&scl_array->pre_queue,
@@ -2832,7 +2832,7 @@ int sprd_isp_update_zoom_param(void *isp_handle,
 			rtn = isp_coeff_get_new_node(&scl_array->vid_queue,
 						     &vid_coeff, 1);
 			if (rtn) {
-				pr_err("isp coeff get new node\n");
+				pr_err("fail to isp_coeff_get_new_node\n");
 				return -rtn;
 			}
 		}
@@ -2893,25 +2893,25 @@ static int isp_set_statis_buf(struct isp_pipe_dev *dev)
 	rtn = isp_set_next_statis_buf(dev->com_idx,
 				statis_module, ISP_AFL_BLOCK);
 	if (rtn) {
-		pr_err("err, code %d\n", rtn);
+		pr_err("fail to isp set next statis buf, code %d\n", rtn);
 		return -(rtn);
 	}
 	rtn = isp_set_next_statis_buf(dev->com_idx,
 				statis_module, ISP_AFM_BLOCK);
 	if (rtn) {
-		pr_err("err, code %d\n", rtn);
+		pr_err("fail to isp set next statis buf, code %d\n", rtn);
 		return -(rtn);
 	}
 	rtn = isp_set_next_statis_buf(dev->com_idx,
 				statis_module, ISP_BINNING_BLOCK);
 	if (rtn) {
-		pr_err("err, code %d\n", rtn);
+		pr_err("fail to isp set next statis buf, code %d\n", rtn);
 		return -(rtn);
 	}
 	rtn = isp_set_next_statis_buf(dev->com_idx,
 				statis_module, ISP_HIST_BLOCK);
 	if (rtn) {
-		pr_err("err, code %d\n", rtn);
+		pr_err("fail to isp set next statis buf, code %d\n", rtn);
 		return -(rtn);
 	}
 
@@ -2947,7 +2947,7 @@ static int sprd_isp_start_path(void *isp_handle,
 	iid = ISP_GET_IID(idx);
 	module = &dev->module_info;
 	if (unlikely(!module)) {
-		pr_err("error, iid %d module is NULL\n", iid);
+		pr_err("fail to get valid module, iid %d module is NULL\n", iid);
 		return -EFAULT;
 	}
 
@@ -2958,7 +2958,7 @@ static int sprd_isp_start_path(void *isp_handle,
 	scl_array = module->scl_array;
 
 	if (scl_array == NULL) {
-		pr_err("Null pointer of scl_array iid%d\n", iid);
+		pr_err("fail to get valid ptr of scl_array iid%d\n", iid);
 		return -EFAULT;
 	}
 	/* init for isp clk pause and resume */
@@ -3005,7 +3005,7 @@ static int sprd_isp_start_path(void *isp_handle,
 
 			rtn = isp_offline_set_next_frm(module, off_type, frame);
 			if (rtn) {
-				pr_err("code %d\n", rtn);
+				pr_err("fail to isp_offline set next frm, code %d\n", rtn);
 				return -(rtn);
 			}
 
@@ -3047,13 +3047,13 @@ static int sprd_isp_start_path(void *isp_handle,
 		rtn = isp_path_scaler(module, ISP_PATH_IDX_PRE, pre,
 			&scl_array->coeff[ISP_SCL_PRE]);
 		if (rtn) {
-			pr_err("err, code %d\n", rtn);
+			pr_err("fail to isp_path_scaler, code %d\n", rtn);
 			return -(rtn);
 		}
 		isp_path_set(module, pre, ISP_PATH_IDX_PRE);
 		rtn = isp_path_set_next_frm(module, ISP_PATH_IDX_PRE, NULL);
 		if (rtn) {
-			pr_err("err, code %d\n", rtn);
+			pr_err("fail to isp_path_set_next_frm, code %d\n", rtn);
 			return -(rtn);
 		}
 
@@ -3066,7 +3066,7 @@ static int sprd_isp_start_path(void *isp_handle,
 		rtn = isp_path_scaler(module, ISP_PATH_IDX_VID, vid,
 			&scl_array->coeff[ISP_SCL_VID]);
 		if (rtn) {
-			pr_err("err, code %d\n", rtn);
+			pr_err("fail to isp path scaler, code %d\n", rtn);
 			return -(rtn);
 		}
 		isp_path_set(module, vid, ISP_PATH_IDX_VID);
@@ -3074,19 +3074,19 @@ static int sprd_isp_start_path(void *isp_handle,
 		if (dev->fmcu_slw.slw_flags == ISP_SLW_VIDEO) {
 			rtn = set_fmcu_slw_cfg(isp_handle);
 			if (rtn) {
-				pr_err("err, code %d\n", rtn);
+				pr_err("fail to set fmcu slw cfg, code %d\n", rtn);
 				return -(rtn);
 			}
 			rtn = isp_fmcu_slw_start(ISP_SCL_VID, isp_handle);
 			if (rtn) {
-				pr_err("err, code %d\n", rtn);
+				pr_err("fail to set fmcu slw start, code %d\n", rtn);
 				return -(rtn);
 			}
 		} else {
 			rtn = isp_path_set_next_frm(module,
 						    ISP_PATH_IDX_VID, NULL);
 			if (rtn) {
-				pr_err("err, code %d\n", rtn);
+				pr_err("fail to set next frm, code %d\n", rtn);
 				return -(rtn);
 			}
 		}
@@ -3100,7 +3100,7 @@ static int sprd_isp_start_path(void *isp_handle,
 		rtn = isp_path_scaler(module, ISP_PATH_IDX_CAP, cap,
 			&scl_array->coeff[ISP_SCL_CAP]);
 		if (rtn) {
-			pr_err("err, code %d\n", rtn);
+			pr_err("fail to isp path scaler, code %d\n", rtn);
 			return -(rtn);
 		}
 		isp_path_set(module, cap, ISP_PATH_IDX_CAP);
@@ -3208,7 +3208,7 @@ int set_isp_path_cfg(void *isp_handle, enum isp_path_index path_index,
 	struct offline_buf_desc *buf_desc = NULL;
 
 	if (!isp_handle || !param) {
-		pr_err("parm is null\n");
+		pr_err("fail to get valid param\n");
 		return -ISP_RTN_PARA_ERR;
 	}
 
@@ -3221,13 +3221,13 @@ int set_isp_path_cfg(void *isp_handle, enum isp_path_index path_index,
 	} else if (ISP_PATH_IDX_CAP & path_index) {
 		path_id = ISP_SCL_CAP;
 	} else {
-		pr_err("error\n");
+		pr_err("fail to get valid idx\n");
 		return -ISP_RTN_PARA_ERR;
 	}
 
 	module = &dev->module_info;
 	if (unlikely(!module)) {
-		pr_err("error, iid %d module is NULL\n", iid);
+		pr_err("fail to get valid module, iid %d module is NULL\n", iid);
 		return -EFAULT;
 	}
 
@@ -3406,7 +3406,7 @@ int set_isp_path_cfg(void *isp_handle, enum isp_path_index path_index,
 		zoom_mode = *(unsigned int *)param;
 
 		if (module->scl_array == NULL) {
-			pr_err("Null pointer of scl_array\n");
+			pr_err("fail to get valid pointer of scl_array\n");
 			return -EFAULT;
 		}
 		module->scl_array->is_smooth_zoom = zoom_mode;
@@ -3508,7 +3508,7 @@ int sprd_isp_get_offline_buffer(void *isp_handle,
 	dev = (struct isp_pipe_dev *)isp_handle;
 	module = &dev->module_info;
 	if (unlikely(!module)) {
-		pr_err("fail to get module,is NULL\n");
+		pr_err("fail to get valid module,is NULL\n");
 		rtn = ISP_RTN_PARA_ERR;
 		goto _exit;
 	}
@@ -3578,7 +3578,7 @@ int sprd_isp_set_offline_buffer(void *isp_handle, uint8_t off_type)
 		 * precise that some frames can still slip into the queue
 		 */
 		if (isp_buf_queue_write(&buf_desc->tmp_buf_queue, &frame))
-			pr_err("FATAL: fail to return off buf full_path\n");
+			pr_err("fail to write frame to buf queue\n");
 		goto _exit;
 	} else if (isp_frame_enqueue(&buf_desc->zsl_queue, &frame)) {
 		pr_err("fail to enqueue offline consumer (%d)\n",
@@ -3778,13 +3778,13 @@ int sprd_isp_reg_isr(enum isp_id iid, enum isp_irq_id irq_id,
 
 	pr_debug("irq_id %d\n", irq_id);
 	if (irq_id >= ISP_IMG_MAX) {
-		pr_err("isp IRQ is error.\n");
+		pr_err("fail to get valid irq id\n");
 		ret = ISP_RTN_IRQ_NUM_ERR;
 	} else {
 		pr_debug("irq user_data %p\n", user_data);
 		ret = isp_irq_callback(iid, irq_id, user_func, user_data);
 		if (ret)
-			pr_err("Register isp callback error\n");
+			pr_err("fail to isp irq callback error\n");
 	}
 
 	return ret;
@@ -3803,7 +3803,7 @@ static int isp_module_init(struct isp_module *module_info, enum isp_id iid)
 
 	cctx_desc = isp_cctx_get_desc(iid);
 	if (cctx_desc == NULL) {
-		pr_err("CFG_MODE: cctx_desc %d is null!\n", iid);
+		pr_err("fail to get valid cctx_desc, CFG_MODE: cctx_desc %d is null!\n", iid);
 		return -EFAULT;
 	}
 
@@ -3856,7 +3856,7 @@ int sprd_isp_external_unmap(void *isp_handle)
 	struct isp_k_block *isp_k_param = NULL;
 
 	if (!isp_handle) {
-		pr_err("Incorrect parameter.\n");
+		pr_err("fail to get valid parameter.\n");
 		return -EPERM;
 	}
 
@@ -3885,7 +3885,7 @@ static int isp_block_buf_alloc(struct isp_pipe_dev *dev)
 	enum isp_id iid;
 
 	if (!dev) {
-		pr_err("fail to get ptr dev is NULL\n");
+		pr_err("fail to get valid ptr, dev is NULL\n");
 		return -EFAULT;
 	}
 
@@ -3935,12 +3935,12 @@ static int isp_block_buf_alloc(struct isp_pipe_dev *dev)
 		isp_k_param->lsc_buf_info.size = ISP_LSC_BUF_SIZE;
 		ret = isp_gen_buf_alloc(&isp_k_param->lsc_buf_info);
 		if (ret != 0) {
-			pr_err("can't alloc lsc buf, ret %d\n", ret);
+			pr_err("fail to alloc lsc buf, ret %d\n", ret);
 			return -EPERM;
 		}
 		isp_gen_buf_hw_map(&isp_k_param->lsc_buf_info);
 		if (ret) {
-			pr_err("iid%d can't map lsc buf, ret %d\n",
+			pr_err("fail to map lsc buf, iid%d ret %d\n",
 			       iid, ret);
 			return -EPERM;
 		}
@@ -3951,13 +3951,13 @@ static int isp_block_buf_alloc(struct isp_pipe_dev *dev)
 		fmcu_slice->cmdq_buf_info.size = ISP_FMCU_CMD_Q_SIZE;
 		ret = isp_gen_buf_alloc(&fmcu_slice->cmdq_buf_info);
 		if (ret != 0) {
-			pr_err("iid%d can't alloc buf for fmcu cmdq, ret %d\n",
+			pr_err("fail to alloc buf for fmcu cmdq, iid%d ret %d\n",
 			       iid, ret);
 			return -EPERM;
 		}
 		ret = isp_gen_buf_hw_map(&fmcu_slice->cmdq_buf_info);
 		if (ret) {
-			pr_err("iid%d can't map buf for fmcu cmdq, ret %d\n",
+			pr_err("fail to map buf for fmcu cmdq, iid%d ret %d\n",
 			       iid, ret);
 			return -EPERM;
 		}
@@ -3977,7 +3977,7 @@ static int isp_block_buf_free(struct isp_pipe_dev *dev)
 	enum isp_id iid;
 
 	if (!dev) {
-		pr_err("fail to get ptr dev is NULL\n");
+		pr_err("fail to get valid ptr, dev is NULL\n");
 		return -EFAULT;
 	}
 
@@ -4031,7 +4031,7 @@ int sprd_isp_module_en(void *isp_handle, enum isp_id iid)
 	struct isp_k_block *isp_k_param = NULL;
 
 	if (!isp_handle) {
-		pr_err("fail to get ptr dev is NULL\n");
+		pr_err("fail to get valid ptr, dev is NULL\n");
 		return -EFAULT;
 	}
 
@@ -4048,21 +4048,21 @@ int sprd_isp_module_en(void *isp_handle, enum isp_id iid)
 		/*sprd_isp_pw_on */
 		ret = sprd_cam_pw_on();
 		if (ret) {
-			pr_err("iid%d fail to power on cam sys %d\n",
+			pr_err("fail to power on cam sys %d, iid%d\n",
 			       iid, ret);
 			goto exit;
 		}
 
 		ret = sprd_cam_domain_eb();
 		if (ret) {
-			pr_err("fail to sprd camera enable domain iid%d %d\n",
+			pr_err("fail to sprd camera enable domain iid%d ret %d\n",
 			       iid, ret);
 			goto exit;
 		}
 
 		ret = isp_enable_clk();
 		if (ret) {
-			pr_err("fail to iid%d enable isp clk %d\n",
+			pr_err("fail to enable iid%d isp clk %d\n",
 			       iid, ret);
 			goto exit;
 		}
@@ -4285,7 +4285,7 @@ int sprd_isp_dev_deinit(void *isp_pipe_dev_handle, enum isp_id iid)
 	struct isp_pipe_dev *dev = NULL;
 
 	if (!isp_pipe_dev_handle) {
-		pr_err("fail to get input handle is NULL iid:%d\n", iid);
+		pr_err("fail to get valid input handle iid:%d\n", iid);
 		return -EINVAL;
 	}
 
