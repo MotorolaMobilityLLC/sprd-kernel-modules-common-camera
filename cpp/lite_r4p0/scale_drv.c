@@ -315,7 +315,7 @@ static int sprd_scaledrv_sc_size_calc(
 	p->sc_input_size.h = cfg_parm->input_rect.h >> deci_tmp_h;
 
 	if (pixel_aligned_num > 0 &&
-		(p->sc_input_size.w % pixel_aligned_num)) {
+		(p->sc_input_size.h % pixel_aligned_num)) {
 		p->sc_input_size.h =
 			p->sc_input_size.h / pixel_aligned_num
 			* pixel_aligned_num;
