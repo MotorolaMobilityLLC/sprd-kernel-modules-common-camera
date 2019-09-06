@@ -31,7 +31,7 @@ static unsigned long irq_base[4] = {
 	ISP_C1_INT_BASE
 };
 
-uint32_t isp_check_context(uint32_t ctx_id,
+int isp_check_context(int ctx_id,
 	struct isp_init_param *init_param)
 {
 	if (!init_param || ctx_id < ISP_CONTEXT_P0

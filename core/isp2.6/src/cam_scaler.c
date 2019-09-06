@@ -1083,7 +1083,7 @@ static int rds_sinc_weight_calc(
 		dst_size + n * phase * src_size) *
 		(int64_t)(ARC_32_COEF);
 
-		divisor = (int64_t)(n * phase * src_size);
+		divisor = (int64_t)(n * phase) * src_size;
 		angle1 = rds_div64(dividend, divisor);
 
 
@@ -1106,7 +1106,7 @@ static int rds_sinc_weight_calc(
 		dividend = (int64_t)(FILTER_WINDOW * fabs(index) *
 				dst_size) * (int64_t)ARC_32_COEF;
 
-		divisor = (int64_t)(phase * src_size);
+		divisor = (int64_t)(phase) * src_size;
 		angle4 = rds_div64(dividend, divisor);
 
 

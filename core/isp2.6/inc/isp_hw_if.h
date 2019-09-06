@@ -3,7 +3,7 @@
 
 #include "isp_core.h"
 
-uint32_t isp_check_context(uint32_t ctx_id,
+int isp_check_context(int ctx_id,
 	struct isp_init_param *init_param);
 uint32_t isp_support_fmcu_cfg_slm(void);
 uint32_t isp_ctx_support_fmcu(uint32_t ctx_id);

@@ -1624,7 +1624,7 @@ static inline int dcam_init_sync_helper(struct dcam_pipe_dev *dev)
 	INIT_LIST_HEAD(&dev->helper_list);
 
 	spin_lock_irqsave(&dev->helper_lock, flags);
-	list_empty(&dev->helper_list);
+
 	for (i = 0; i < DCAM_SYNC_HELPER_COUNT; i++) {
 		_init_sync_helper_locked(dev, &dev->helpers[i]);
 		list_add_tail(&dev->helpers[i].list, &dev->helper_list);
@@ -2177,6 +2177,7 @@ static int sprd_dcam_ioctrl(void *dcam_handle,
 		break;
 	case DCAM_IOCTL_CFG_EBD:
 		ret = dcam_cfg_ebd(dev, param);
+		break;
 	case DCAM_IOCTL_CFG_SEC:
 		ret = dcam_cfg_dcamsec(dev, param);
 		break;

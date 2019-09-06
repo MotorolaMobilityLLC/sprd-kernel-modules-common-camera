@@ -30,7 +30,7 @@
 
 static int isp_3dnr_update_memctrl_base_on_mv(struct isp_3dnr_ctx_desc *ctx)
 {
-	struct isp_3dnr_mem_ctrl *mem_ctrl = mem_ctrl = &ctx->mem_ctrl;
+	struct isp_3dnr_mem_ctrl *mem_ctrl  = &ctx->mem_ctrl;
 
 	if (ctx->mv.mv_x < 0) {
 		if (ctx->mv.mv_x & 0x1) {
@@ -38,15 +38,12 @@ static int isp_3dnr_update_memctrl_base_on_mv(struct isp_3dnr_ctx_desc *ctx)
 				ctx->width + ctx->mv.mv_x + 1;
 			mem_ctrl->ft_uv_width =
 				ctx->width + ctx->mv.mv_x - 1;
-			mem_ctrl->ft_luma_addr = mem_ctrl->ft_luma_addr;
 			mem_ctrl->ft_chroma_addr = mem_ctrl->ft_chroma_addr + 2;
 		} else {
 			mem_ctrl->ft_y_width =
 				ctx->width + ctx->mv.mv_x;
 			mem_ctrl->ft_uv_width =
 				ctx->width + ctx->mv.mv_x;
-			mem_ctrl->ft_luma_addr = mem_ctrl->ft_luma_addr;
-			mem_ctrl->ft_chroma_addr = mem_ctrl->ft_chroma_addr;
 		}
 	} else if (ctx->mv.mv_x > 0) {
 		if (ctx->mv.mv_x  & 0x1) {
@@ -367,12 +364,8 @@ int isp_3dnr_update_memctrl_slice_info(struct nr3_slice *in,
 		if (out->start_col == 0) {
 			if (mv_x < 0) {
 				if ((mv_x) & 0x1) {
-					out->src_lum_addr = out->src_lum_addr;
-					out->src_chr_addr = out->src_chr_addr +
-						2;
-				} else {
-					out->src_lum_addr = out->src_lum_addr;
-					out->src_chr_addr = out->src_chr_addr;
+					out->src_chr_addr =
+						out->src_chr_addr + 2;
 				}
 			} else if (mv_x > 0) {
 				if ((mv_x) & 0x1) {

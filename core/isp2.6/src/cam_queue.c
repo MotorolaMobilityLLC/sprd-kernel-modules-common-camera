@@ -256,11 +256,13 @@ int camera_queue_clear(struct camera_queue *q)
 						list_empty(&q->head), q->cnt);
 			break;
 		}
+
 		pframe = list_first_entry(&q->head, struct camera_frame, list);
-		list_del(&pframe->list);
-		q->cnt--;
 		if (pframe == NULL)
 			break;
+
+		list_del(&pframe->list);
+		q->cnt--;
 
 		if (q->destroy) {
 			spin_unlock_irqrestore(&q->lock, flags);

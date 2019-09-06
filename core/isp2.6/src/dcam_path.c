@@ -125,6 +125,11 @@ int dcam_cfg_path_base(void *dcam_handle,
 	switch (path->path_id) {
 	case DCAM_PATH_FULL:
 		path->src_sel = ch_desc->is_raw ? 0 : 1;
+		path->frm_deci = ch_desc->frm_deci;
+		path->frm_skip = ch_desc->frm_skip;
+		path->is_loose = ch_desc->is_loose;
+		path->endian = ch_desc->endian;
+		break;
 	case DCAM_PATH_BIN:
 		path->frm_deci = ch_desc->frm_deci;
 		path->frm_skip = ch_desc->frm_skip;
