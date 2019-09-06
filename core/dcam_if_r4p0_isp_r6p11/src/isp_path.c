@@ -655,7 +655,7 @@ int isp_start_pre_proc(struct isp_path_desc *pre,
 	if (pre->valid) {
 		rtn = isp_path_offline(pre, off_desc);
 		if (rtn) {
-			pr_err("Preview offline config error\n");
+			pr_err("fail to config Preview offline\n");
 			return rtn;
 		}
 	}
@@ -663,7 +663,7 @@ int isp_start_pre_proc(struct isp_path_desc *pre,
 	if (vid->valid) {
 		rtn = isp_path_offline(vid, off_desc);
 		if (rtn) {
-			pr_err("Video offline config error\n");
+			pr_err("fail to config Video offline\n");
 			return rtn;
 		}
 	}
@@ -671,7 +671,7 @@ int isp_start_pre_proc(struct isp_path_desc *pre,
 	if (cap->valid) {
 		rtn = isp_path_offline(cap, off_desc);
 		if (rtn) {
-			pr_err("Cap offline config error\n");
+			pr_err("fail to config Cap offline\n");
 			return rtn;
 		}
 
@@ -681,7 +681,7 @@ int isp_start_pre_proc(struct isp_path_desc *pre,
 			rtn = isp_path_offline_cowork_cap(pre, vid, cap,
 							  off_desc);
 			if (rtn) {
-				pr_err("Offline cowork config error\n");
+				pr_err("fail to config Offline cowork\n");
 				return rtn;
 			}
 		}
@@ -691,7 +691,7 @@ int isp_start_pre_proc(struct isp_path_desc *pre,
 		rtn = isp_path_offline_cowork(pre, vid, off_desc);
 
 		if (rtn) {
-			pr_err("Preview&Video offline cowork config error\n");
+			pr_err("fail to config Preview&Video offline cowork\n");
 			return rtn;
 		}
 	}
@@ -1268,7 +1268,7 @@ int isp_path_set_next_frm(struct isp_module *module,
 
 	if (p_heap->valid_cnt >= frm_q_len) {
 		rtn = ISP_RTN_PATH_ADDR_ERR;
-		pr_err("frame buf queue will overflow, idx:0x%x\n", idx);
+		pr_err("fail to write frame_queue, queue will overflow, idx:0x%x\n", idx);
 		goto overflow;
 	}
 #endif

@@ -1476,11 +1476,11 @@ static void isp_isr_dump_status_history(void)
 	char bin[32+1] = {0};
 
 	for (i = 0; i < ISP_INT_REG_SETS_NUM; i++) {
-		pr_err("debug sub-block: reg %d, pivot = %d\n",
+		pr_info("debug sub-block: reg %d, pivot = %d\n",
 			i, irq_sets[i].pivot);
 		for (j = 0; j < NUM_MOST_RECENT_STATUS; j++) {
 			printbinary(bin, irq_sets[i].recent[j], 32);
-			pr_err("debug sub-block: %s\n", bin);
+			pr_info("debug sub-block: %s\n", bin);
 			irq_sets[i].recent[j] = 0;
 		}
 
@@ -1512,7 +1512,7 @@ static void isp_isr_flooding_detector(struct isp_pipe_dev *dev)
 				struct camera_dev *cam_dev = NULL;
 				struct camera_group *cam_grp = NULL;
 
-				pr_err("FATAL: ISP ISR flooding, reset H/W \
+				pr_err("fail to get valid isr_count, ISP ISR flooding, reset H/W \
 					(%d / %lu)\n",
 					dev->isr_count,
 					now - dev->isr_last_time);
@@ -1527,7 +1527,7 @@ static void isp_isr_flooding_detector(struct isp_pipe_dev *dev)
 					cam_dev = cam_grp->dev[iid];
 					report_isp_err(cam_dev);
 				} else {
-					pr_err("FATAL: could not report isp err\n");
+					pr_err("fail to report isp err\n");
 				}
 
 				if (fmcu_slice_capture_state == ISP_ST_START) {

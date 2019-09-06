@@ -70,8 +70,8 @@ static int isp_k_hist2_bypass(struct isp_io_param *param, enum isp_id idx)
 	ret = copy_from_user((void *)&bypass, param->property_param,
 					sizeof(unsigned int));
 	if (ret != 0) {
-		pr_err("%s: error: in copy from user, ret=0x%x\n",
-				__func__, (unsigned int)ret);
+		pr_err("fail to copy from user, ret=0x%x\n",
+				 (unsigned int)ret);
 		return -EPERM;
 	}
 	pr_debug("%s: hist2 bypass %d\n", __func__, bypass);

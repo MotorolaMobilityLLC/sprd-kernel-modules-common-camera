@@ -132,8 +132,8 @@ static int isp_k_dispatch_block(struct isp_io_param *param, enum isp_id idx)
 		else
 			ISP_REG_MWR(idx, ISP_DISPATCH_DLY1, 0xFF, val);
 	} else {
-		pr_err("fail done_line_dly_num %d should be less then height_dly_num_ch0 %d\n",
-				val, dispatch_info_inner.height_dly_num_ch0);
+		pr_err("fail to get valid done_line_dly_num %d, too large\n",
+                        val);
 		return -1;
 	}
 #endif
