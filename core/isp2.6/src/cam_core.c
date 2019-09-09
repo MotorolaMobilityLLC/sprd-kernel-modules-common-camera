@@ -3808,9 +3808,9 @@ static int img_ioctl_cfg_param(
 	}
 
 	if ((param.sub_block & DCAM_ISP_BLOCK_MASK) == DCAM_BLOCK_BASE) {
-		if (unlikely((param.scene_id == PM_SCENE_CAP) &&
-				(module->cam_uinfo.is_4in1 ||
-				module->cam_uinfo.dcam_slice_mode)))
+		if ((param.scene_id == PM_SCENE_CAP) &&
+			(module->cam_uinfo.is_4in1 || module->cam_uinfo.dcam_slice_mode) &&
+			(atomic_read(&module->state) != CAM_STREAM_OFF))
 			/* 4in1 capture should cfg offline dcam */
 			ret = dcam_ops->cfg_blk_param(
 				module->aux_dcam_dev, &param);

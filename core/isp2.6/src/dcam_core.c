@@ -2221,6 +2221,10 @@ static int sprd_dcam_cfg_param(void *dcam_handle, void *param)
 
 	dev = (struct dcam_pipe_dev *)dcam_handle;
 	pm = dev->blk_dcam_pm;
+	if (!pm) {
+		pr_err("fail to check param\n");
+		return -EFAULT;
+	}
 	pm->idx = dev->idx;
 	pm->dev = dev;
 	io_param = (struct isp_io_param *)param;
