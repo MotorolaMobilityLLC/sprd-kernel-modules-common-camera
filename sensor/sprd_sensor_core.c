@@ -759,7 +759,7 @@ static int sprd_sensor_core_module_init(void)
 	sprd_sensor_register_driver();
 	pr_info("sensor register\n");
 	csi_api_mipi_phy_cfg();
-	misc_register(&sensor_dev);
+	ret = misc_register(&sensor_dev);
 	pr_info("create device node\n");
 	sensor_dev.this_device->platform_data = (void *)p_data;
 	ret = device_create_file(sensor_dev.this_device,
