@@ -1052,7 +1052,7 @@ static int sprd_img_check_scaling(struct sprd_img_format *f,
 
 		if (unlikely(f->width > line_buf_size)) {
 			/* out of scaling capbility. TBD */
-			pr_err("fail to scale out of capbility %u %u\n",
+			pr_info("scale out of capbility %u %u\n",
 				f->width, line_buf_size);
 			/*return -EINVAL;*/
 		}
@@ -2716,6 +2716,7 @@ static int sprd_isp_3dnr_path_cfg(struct isp_pipe_dev *isp_dev,
 	vid->trim0_info = cap->trim0_info;
 	vid->data_endian = cap->data_endian;
 	vid->output_format = cap->output_format;
+	vid->input_format = cap->input_format;
 	vid->in_size = cap->in_size;
 	vid->dst = vid->out_size;
 	vid->trim1_info.start_x = 0;
