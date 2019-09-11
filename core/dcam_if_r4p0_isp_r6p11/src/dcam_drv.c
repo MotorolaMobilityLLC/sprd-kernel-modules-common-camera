@@ -345,7 +345,7 @@ static inline void dcam_print_time(char *str, int type)
 		old_total = old_t.tv_sec * 1000000 + old_t.tv_usec;
 		if (total - old_total > 33000 + 1000 ||
 			total - old_total < 33000 - 1000)
-			pr_err("debug shaking: out of range\n");
+			pr_info("debug shaking: out of range\n");
 	}
 
 	time_to_tm(t.tv_sec, 0, &broken);

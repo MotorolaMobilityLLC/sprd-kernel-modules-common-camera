@@ -4270,8 +4270,9 @@ int sprd_isp_dev_init(void **isp_pipe_dev_handle, enum isp_id iid)
 queue_exit:
 	if (unlikely(ret)) {
 		vfree(dev);
+		dev = NULL;
 		g_isp_dev_parray[iid] = NULL;
-		pr_err("fait to init,dev[%d]\n", iid);
+		pr_err("fail to init,dev[%d]\n", iid);
 	} else {
 		*isp_pipe_dev_handle = (void *)dev;
 		g_isp_dev_parray[iid] = dev;
@@ -4426,7 +4427,7 @@ int sprd_isp_parse_dt(struct device_node *dn, unsigned int *isp_count)
 		 */
 		if (of_property_read_u32_index(np,
 			"sprd,isp-offbuf-count", 0, &offbuf_count)) {
-			pr_info("fail to parse. set offline buffer count to 5.\n");
+			pr_info("dts didn't cfg. set offline buffer count to 5.\n");
 		}
 
 		isp_frm_queue_len = offbuf_count;
