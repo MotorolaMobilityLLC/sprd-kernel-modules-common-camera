@@ -3755,9 +3755,6 @@ static int img_ioctl_set_statis_buf(
 					(unsigned long int)statis_buf.kaddr);
 				return 0;
 			}
-		} else {
-			ret = -EFAULT;
-			goto exit;
 		}
 
 		ret = isp_ops->ioctl(module->isp_dev_handle,
