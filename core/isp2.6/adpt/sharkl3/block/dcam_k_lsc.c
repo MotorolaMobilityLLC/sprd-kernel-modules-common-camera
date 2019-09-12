@@ -36,6 +36,11 @@ enum {
 	_UPDATE_GAIN = BIT(1),
 };
 
+int dcam_init_lsc_slice(void *in, uint32_t online)
+{
+	return 0;
+}
+
 int dcam_init_lsc(void *in, uint32_t online)
 {
 	int ret = 0;

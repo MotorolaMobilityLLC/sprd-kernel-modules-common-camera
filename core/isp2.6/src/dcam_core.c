@@ -1343,6 +1343,7 @@ static int dcam_offline_start_slices(void *param)
 			DCAM_REG_MWR(dev->idx,
 				DCAM_MIPI_CAP_CFG, BIT_30, 0x0 << 30);
 			//
+			dcam_init_lsc_slice(dev, 0);
 			dcam_force_copy(dev, force_ids);
 			udelay(500);
 			dev->iommu_status = (uint32_t)(-1);

@@ -27,6 +27,7 @@ struct isp_k_block {
 	uint32_t shape_mode;
 };
 
+int dcam_init_lsc_slice(void *param, uint32_t online);
 int dcam_init_lsc(void *param, uint32_t online);
 int dcam_update_lsc(void *param);
 int dcam_k_cfg_blc(struct isp_io_param *param,	struct dcam_dev_param *p);
