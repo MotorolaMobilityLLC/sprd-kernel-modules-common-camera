@@ -1199,7 +1199,7 @@ int dcam_offline_cfg_param(struct dcam_dev_param *pm)
 }
 #endif
 
-static int dcam_offline_start_frame_offline(void *param)
+static int dcam_offline_start_slices(void *param)
 {
 	int ret = 0;
 	int i, loop = 0;
@@ -1223,8 +1223,10 @@ static int dcam_offline_start_frame_offline(void *param)
 		return 0;
 	}
 
-	pr_info("frame %p, ctx %d  ch_id %d.  buf_fd %d\n", pframe,
+	pr_info("frame %p, dcam%d  ch_id %d.  buf_fd %d\n", pframe,
 		dev->idx, pframe->channel_id, pframe->buf.mfd[0]);
+	pr_info("size %d %d,  endian %d, pattern %d\n",
+		pframe->width, pframe->height, pframe->endian, pframe->pattern);
 
 	ret = cambuf_iommu_map(&pframe->buf, CAM_IOMMUDEV_DCAM);
 	if (ret) {
@@ -1273,8 +1275,8 @@ static int dcam_offline_start_frame_offline(void *param)
 
 	/* cfg fetch */
 	fetch->is_loose = 0;
-	fetch->endian = pframe->irq_type;
-	fetch->pattern = pframe->irq_property;
+	fetch->endian = pframe->endian;
+	fetch->pattern = pframe->pattern;
 	fetch->size.w = pframe->width;
 	fetch->size.h = pframe->height;
 	fetch->trim.start_x = 0;
@@ -1377,6 +1379,11 @@ static int dcam_offline_start_frame(void *param)
 	pr_debug("enter.\n");
 
 	dev = (struct dcam_pipe_dev *)param;
+	if (dev->dcam_slice_mode) {
+		ret = dcam_offline_start_slices(param);
+		return ret;
+	}
+
 	dev->offline = 1;
 	fetch = &dev->fetch;
 
@@ -1386,8 +1393,10 @@ static int dcam_offline_start_frame(void *param)
 		return 0;
 	}
 
-	pr_debug("frame %p, ctx %d  ch_id %d.  buf_fd %d\n", pframe,
+	pr_info("frame %p, dcam%d  ch_id %d.  buf_fd %d\n", pframe,
 		dev->idx, pframe->channel_id, pframe->buf.mfd[0]);
+	pr_info("size %d %d,  endian %d, pattern %d\n",
+		pframe->width, pframe->height, pframe->endian, pframe->pattern);
 
 	ret = cambuf_iommu_map(&pframe->buf, CAM_IOMMUDEV_DCAM);
 	if (ret) {
@@ -1453,8 +1462,8 @@ static int dcam_offline_start_frame(void *param)
 
 	/* todo - need to cfg fetch param from input or frame. */
 	fetch->is_loose = 0;
-	fetch->endian = pframe->irq_type;
-	fetch->pattern = pframe->irq_property;
+	fetch->endian = pframe->endian;
+	fetch->pattern = pframe->pattern;
 	fetch->size.w = pframe->width;
 	fetch->size.h = pframe->height;
 	fetch->trim.start_x = 0;
@@ -1577,24 +1586,6 @@ static int dcam_create_offline_thread(void *param)
 		pr_err("fail to start offline thread for dcam%d\n",
 				dev->idx);
 		return -EFAULT;
-	}
-
-	/* for offline slice */
-	if (dev->idx == 1 && dev->dcam_slice_mode) {
-		thrd = &dev->thread_offline;
-		thrd->ctx_handle = dev;
-		thrd->proc_func = dcam_offline_start_frame_offline;
-		atomic_set(&thrd->thread_stop, 0);
-		init_completion(&thrd->thread_com);
-
-		sprintf(thread_name, "dcam%d_offline", dev->idx);
-		thrd->thread_task = kthread_run(dcam_offline_thread_loop,
-						thrd, thread_name);
-		if (IS_ERR_OR_NULL(thrd->thread_task)) {
-			pr_err("fail to start offline thread for dcam%d\n",
-					dev->idx);
-			return -EFAULT;
-		}
 	}
 
 	pr_info("dcam%d offline thread created.\n", dev->idx);
@@ -1991,7 +1982,6 @@ static int sprd_dcam_cfg_path(
 		} else {
 			pframe->is_reserved = 0;
 			pframe->priv_data = dev;
-			pframe->irq_property = dev->cap_info.pattern;
 			ret = camera_enqueue(&path->out_buf_queue, pframe);
 			if (ret) {
 				pr_err("dcam path %d output buffer en queue failed\n",
@@ -2113,13 +2103,10 @@ static int sprd_dcam_proc_frame(
 	 */
 	pframe = (struct camera_frame *)param;
 	pframe->priv_data = dev;
+
 	ret = camera_enqueue(&dev->in_queue, pframe);
-	if (ret == 0) {
-		if (dev->dcam_slice_mode == 1)
-			complete(&dev->thread_offline.thread_com);
-		else
-			complete(&dev->thread.thread_com);
-	}
+	if (ret == 0)
+		complete(&dev->thread.thread_com);
 	else
 		pr_err("enqueue to dev->in_queue fail, ret = %d\n", ret);
 
@@ -2395,7 +2382,7 @@ static int sprd_dcam_dev_start(void *dcam_handle)
 
 static int sprd_dcam_dev_stop(void *dcam_handle)
 {
-	int ret = 0;
+	int ret = 0, state = 0;
 	struct dcam_pipe_dev *dev = NULL;
 
 	if (!dcam_handle) {
@@ -2404,8 +2391,8 @@ static int sprd_dcam_dev_stop(void *dcam_handle)
 	}
 	dev = (struct dcam_pipe_dev *)dcam_handle;
 
-	ret = atomic_read(&dev->state);
-	if (unlikely(ret == STATE_INIT) || unlikely(ret == STATE_IDLE)) {
+	state = atomic_read(&dev->state);
+	if (unlikely(state == STATE_INIT) || unlikely(state == STATE_IDLE)) {
 		pr_warn("DCAM%d not started yet\n", dev->idx);
 		return -EINVAL;
 	}
@@ -2593,12 +2580,6 @@ int sprd_dcam_dev_close(void *dcam_handle)
 	dcam_stop_offline_thread(&dev->thread);
 	camera_queue_clear(&dev->in_queue);
 	camera_queue_clear(&dev->proc_queue);
-
-	/* for offline slice */
-	if (dev->idx == 1 && dev->dcam_slice_mode) {
-		dev->dcam_slice_mode = 0;
-		dcam_stop_offline_thread(&dev->thread_offline);
-	}
 
 	if (dev->blk_dcam_pm) {
 		cambuf_kunmap(&dev->blk_dcam_pm->lsc.buf);

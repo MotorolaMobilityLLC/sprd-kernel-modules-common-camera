@@ -34,6 +34,8 @@ struct camera_frame {
 	uint32_t fid;
 	uint32_t width;
 	uint32_t height;
+	uint16_t pattern;
+	uint16_t endian;
 	uint32_t evt;
 	uint32_t channel_id;
 	uint32_t irq_type;

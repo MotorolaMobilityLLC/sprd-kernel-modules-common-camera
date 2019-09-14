@@ -675,7 +675,8 @@ static void alloc_buffers(struct work_struct *work)
 			pframe->is_compressed = channel->compress_input;
 			pframe->width = width;
 			pframe->height = height;
-
+			pframe->endian = ENDIAN_LITTLE;
+			pframe->pattern = module->cam_uinfo.sensor_if.img_ptn;
 			if (channel->ch_id == CAM_CH_PRE &&
 				module->grp->camsec_cfg.camsec_mode != SEC_UNABLE) {
 				pframe->buf.buf_sec = 1;
@@ -795,14 +796,6 @@ static void alloc_buffers(struct work_struct *work)
 					atomic_inc(&channel->err_status);
 					goto exit;
 				}
-				ret = cambuf_kmap(&pframe->buf);
-				if (ret) {
-					pr_err("fail to kmap ltm buf \n");
-					cambuf_free(&pframe->buf);
-					put_empty_frame(pframe);
-					atomic_inc(&channel->err_status);
-					goto exit;
-				}
 				channel->ltm_bufs[i] = pframe;
 			} else { /* CAM_CH_CAP case */
 				/*
@@ -850,7 +843,7 @@ static int set_cap_info(struct camera_module *module)
 	ret = dcam_ops->ioctl(module->dcam_dev_handle,
 				DCAM_IOCTL_CFG_CAP, &cap_info);
 	/* for dcam1 mipicap */
-	if (info->dcam_slice_mode == 1)
+	if (info->dcam_slice_mode == 1 && module->aux_dcam_dev)
 		ret = dcam_ops->ioctl(module->aux_dcam_dev,
 				DCAM_IOCTL_CFG_CAP, &cap_info);
 	return ret;
@@ -2267,6 +2260,8 @@ static int config_channel_bigsize(
 			pframe->is_compressed = channel->compress_input;
 			pframe->width = width;
 			pframe->height = height;
+			pframe->endian = ENDIAN_LITTLE;
+			pframe->pattern = module->cam_uinfo.sensor_if.img_ptn;
 			pframe->buf.buf_sec = 0;
 			ret = cambuf_alloc(
 					&pframe->buf, size,
@@ -2278,7 +2273,6 @@ static int config_channel_bigsize(
 				atomic_inc(&channel->err_status);
 				break;
 			}
-			cambuf_kmap(&pframe->buf);
 			/* cfg aux_dcam out_buf */
 			ret = dcam_ops->cfg_path(
 				module->aux_dcam_dev,
@@ -3794,21 +3788,25 @@ static int img_ioctl_cfg_param(
 	}
 
 	if (((param.scene_id == PM_SCENE_CAP) &&
-		(module->channel[CAM_CH_CAP].enable == 0))
-		) {
-		pr_warn("ch scene_id[%d] ch_cap en[%d] ch_pre en[%d]\n", 
-				param.scene_id, 
-				module->channel[CAM_CH_CAP].enable, 
+		(module->channel[CAM_CH_CAP].enable == 0))) {
+		pr_warn("ch scene_id[%d] ch_cap en[%d] ch_pre en[%d]\n",
+				param.scene_id,
+				module->channel[CAM_CH_CAP].enable,
 				module->channel[CAM_CH_PRE].enable);
 
 		return 0;
 	}
 
+	if (atomic_read(&module->state) == CAM_STREAM_OFF)
+		return 0;
+
 	if ((param.sub_block & DCAM_ISP_BLOCK_MASK) == DCAM_BLOCK_BASE) {
 		if ((param.scene_id == PM_SCENE_CAP) &&
-			(module->cam_uinfo.is_4in1 || module->cam_uinfo.dcam_slice_mode) &&
-			(atomic_read(&module->state) != CAM_STREAM_OFF))
-			/* 4in1 capture should cfg offline dcam */
+			(module->aux_dcam_dev == NULL)) {
+			pr_warn("Config DCAM param for capture. Maybe raw proc\n");
+		}
+		if ((param.scene_id == PM_SCENE_CAP) &&
+			(module->aux_dcam_dev != NULL))
 			ret = dcam_ops->cfg_blk_param(
 				module->aux_dcam_dev, &param);
 		else
@@ -5964,8 +5962,8 @@ static int raw_proc_post(
 	src_frame->channel_id = ch->ch_id;
 	src_frame->width = proc_info->src_size.width;
 	src_frame->height = proc_info->src_size.height;
-	src_frame->irq_type = proc_info->src_y_endian;
-	src_frame->irq_property = proc_info->src_pattern;
+	src_frame->endian = proc_info->src_y_endian;
+	src_frame->pattern = proc_info->src_pattern;
 	ret = cambuf_get_ionbuf(&src_frame->buf);
 	if (ret)
 		goto src_fail;
@@ -6036,7 +6034,6 @@ static int raw_proc_post(
 
 	ret = isp_ops->start_context(module->isp_dev_handle,
 			ch->isp_path_id >> ISP_CTXID_OFFSET);
-
 	ret |= dcam_ops->proc_frame(module->dcam_dev_handle, src_frame);
 
 	if (ret)
@@ -6274,8 +6271,8 @@ static int img_ioctl_4in1_post_proc(struct camera_module *module,
 			ktime_get_boottime(), ktime_get())));
 		pframe->fid = param.index;
 	}
-	pframe->irq_type = ENDIAN_LITTLE;
-	pframe->irq_property = module->cam_uinfo.sensor_if.img_ptn;
+	pframe->endian = ENDIAN_LITTLE;
+	pframe->pattern = module->cam_uinfo.sensor_if.img_ptn;
 	pframe->width = channel->ch_uinfo.src_size.w;
 	pframe->height = channel->ch_uinfo.src_size.h;
 	pframe->buf.type = CAM_BUF_USER;
