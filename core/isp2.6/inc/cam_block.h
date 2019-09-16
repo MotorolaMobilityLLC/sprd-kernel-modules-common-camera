@@ -43,6 +43,7 @@ int dcam_k_cfg_lsc(struct isp_io_param *param, struct dcam_dev_param *p);
 int dcam_k_cfg_bayerhist(struct isp_io_param *param,
 	struct dcam_dev_param *p);
 int dcam_k_cfg_aem(struct isp_io_param *param, struct dcam_dev_param *p);
+int dcam_k_cfg_lscm(struct isp_io_param *param, struct dcam_dev_param *p);
 int dcam_k_cfg_afl(struct isp_io_param *param, struct dcam_dev_param *p);
 int dcam_k_cfg_awbc(struct isp_io_param *param, struct dcam_dev_param *p);
 int dcam_k_cfg_bpc(struct isp_io_param *param, struct dcam_dev_param *p);

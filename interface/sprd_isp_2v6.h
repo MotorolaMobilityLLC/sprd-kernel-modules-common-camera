@@ -37,6 +37,10 @@
 #define STATIS_AEM_BUF_SIZE (128 * 128 * 16 * 3)
 #define STATIS_AEM_BUF_NUM 8
 
+/* LSCM max windows: 128 x 128, 16Bytes for each window */
+#define STATIS_LSCM_BUF_SIZE (128 * 128 * 16)
+#define STATIS_LSCM_BUF_NUM 8
+
 /* AFM max windows: 20 x 15, 16 Bytes for each window */
 #define STATIS_AFM_BUF_SIZE  (20 * 15 * 16)
 #define STATIS_AFM_BUF_NUM 8
@@ -79,6 +83,11 @@ enum aem_mode {
 	AEM_MODE_MULTI,
 };
 
+enum lscm_mode {
+	LSCM_MODE_SINGLE = 0,
+	LSCM_MODE_MULTI,
+};
+
 enum afm_mode {
 	AFL_MODE_SINGLE = 0,
 	AFL_MODE_MULTI,
@@ -101,6 +110,7 @@ enum isp_statis_buf_type {
 	STATIS_PDAF,
 	STATIS_EBD,
 	STATIS_3DNR,
+	STATIS_LSCM,
 	STATIS_HIST2,
 };
 
@@ -126,6 +136,7 @@ enum dcam_block {
 	DCAM_BLOCK_3DNR_ME,
 	DCAM_BLOCK_AFM,
 	DCAM_BLOCK_RAW_GTM,
+	DCAM_BLOCK_LSCM,
 	DCAM_BLOCK_TOTAL,
 
 	ISP_BLOCK_BASE = (1 << 8),
@@ -186,6 +197,11 @@ enum dcam_aem_property {
 	DCAM_PRO_AEM_WIN,
 	DCAM_PRO_AEM_SKIPNUM,
 	DCAM_PRO_AEM_RGB_THR,
+};
+
+enum dcam_lscm_property {
+	DCAM_PRO_LSCM_BYPASS,
+	DCAM_PRO_LSC_MONITOR,
 };
 
 enum dcam_afl_property {
@@ -518,6 +534,19 @@ struct dcam_dev_aem_thr {
 	struct thr_info  aem_short_r_thr;
 	struct thr_info  aem_short_g_thr;
 	struct thr_info  aem_short_b_thr;
+};
+
+struct dcam_dev_lscm_param {
+	uint32_t update;
+	uint32_t bypass;
+	uint32_t mode;
+	uint32_t offset_x;
+	uint32_t offset_y;
+	uint32_t blk_width;
+	uint32_t blk_height;
+	uint32_t blk_num_x;
+	uint32_t blk_num_y;
+	uint32_t skip_num;
 };
 
 struct dcam_dev_afl_info {

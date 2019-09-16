@@ -191,6 +191,7 @@ static uint32_t sharkl5pro_cam_reg_trace_tab[] = {
 		ISP_BPC_OUT_ADDR,
 		ISP_AFM_BASE_WADDR,
 		ISP_NR3_WADDR,
+		DCAM_LSCM_BASE_WADDR,
 };
 
 
@@ -1645,6 +1646,7 @@ static struct dcam_cfg_entry dcam_cfg_func_tab[DCAM_BLOCK_TOTAL] = {
 [DCAM_BLOCK_BAYERHIST - DCAM_BLOCK_BASE] = {DCAM_BLOCK_BAYERHIST,      dcam_k_cfg_bayerhist},
 [DCAM_BLOCK_3DNR_ME - DCAM_BLOCK_BASE] = {DCAM_BLOCK_3DNR_ME,          dcam_k_cfg_3dnr_me},
 [DCAM_BLOCK_RAW_GTM - DCAM_BLOCK_BASE] = {DCAM_BLOCK_RAW_GTM,          dcam_k_cfg_raw_gtm},
+[DCAM_BLOCK_LSCM - DCAM_BLOCK_BASE]     = {DCAM_BLOCK_LSCM,              dcam_k_cfg_lscm},
 };
 
 static struct isp_cfg_entry isp_cfg_func_tab[ISP_BLOCK_TOTAL - ISP_BLOCK_BASE] = {
@@ -2166,7 +2168,7 @@ static uint32_t sharkl5pro_path_ctrl_id[] = {
 	DCAM_CTRL_COEF,
 };
 
-static unsigned long sharkl5pro_dcam2_store_addr[DCAM_PATH_MAX] = {
+static unsigned long sharkl5pro_dcam_store_addr[DCAM_PATH_MAX] = {
 	DCAM_FULL_BASE_WADDR,
 	DCAM_BIN_BASE_WADDR0,
 	DCAM_PDAF_BASE_WADDR,
@@ -2178,6 +2180,7 @@ static unsigned long sharkl5pro_dcam2_store_addr[DCAM_PATH_MAX] = {
 	DCAM_HIST_BASE_WADDR,
 	ISP_NR3_WADDR,
 	ISP_BPC_OUT_ADDR,
+	DCAM_LSCM_BASE_WADDR,
 };
 
 static uint32_t sharkl5pro_isp_ctx_fmcu_support[ISP_CONTEXT_HW_NUM] = {
@@ -2196,6 +2199,7 @@ static struct cam_hw_ip_info sharkl5pro_dcam[DCAM_ID_MAX] = {
 		.lbuf_share_support = 1,
 		.offline_slice_support = 1,
 		.dcam_fbc_mode = DCAM_FBC_FULL_14_BIT,
+		.store_addr_tab = sharkl5pro_dcam_store_addr,
 		.path_ctrl_id_tab = sharkl5pro_path_ctrl_id,
 	},
 	[DCAM_ID_1] = {
@@ -2204,6 +2208,7 @@ static struct cam_hw_ip_info sharkl5pro_dcam[DCAM_ID_MAX] = {
 		.lbuf_share_support = 1,
 		.offline_slice_support = 1,
 		.dcam_fbc_mode = DCAM_FBC_FULL_14_BIT,
+		.store_addr_tab = sharkl5pro_dcam_store_addr,
 		.path_ctrl_id_tab = sharkl5pro_path_ctrl_id,
 	},
 	[DCAM_ID_2] = {
@@ -2212,7 +2217,7 @@ static struct cam_hw_ip_info sharkl5pro_dcam[DCAM_ID_MAX] = {
 		.lbuf_share_support = 0,
 		.offline_slice_support = 0,
 		.dcam_fbc_mode = DCAM_FBC_DISABLE,
-		.store_addr_tab = sharkl5pro_dcam2_store_addr,
+		.store_addr_tab = sharkl5pro_dcam_store_addr,
 		.path_ctrl_id_tab = sharkl5pro_path_ctrl_id,
 	},
 };

@@ -67,6 +67,7 @@ struct statis_path_buf_info s_statis_path_info_all[] = {
 	{DCAM_PATH_AFL,     STATIS_AFL_BUF_SIZE,   STATIS_AFL_BUF_NUM, STATIS_AFL},
 	{DCAM_PATH_HIST,    STATIS_HIST_BUF_SIZE,  STATIS_HIST_BUF_NUM, STATIS_HIST},
 	{DCAM_PATH_3DNR,    STATIS_3DNR_BUF_SIZE,  STATIS_3DNR_BUF_NUM, STATIS_3DNR},
+	{DCAM_PATH_LSCM,    STATIS_LSCM_BUF_SIZE,  STATIS_LSCM_BUF_NUM, STATIS_LSCM},
 };
 
 atomic_t s_dcam_working;
@@ -261,6 +262,8 @@ static int statis_type_to_path_id(enum isp_statis_buf_type type)
 		return DCAM_PATH_VCH2;
 	case STATIS_3DNR:
 		return DCAM_PATH_3DNR;
+	case STATIS_LSCM:
+		return DCAM_PATH_LSCM;
 	default:
 		return -1;
 	}
@@ -882,6 +885,7 @@ static int dcam_offline_start_frame(void *param)
 	atomic_set(&dev->path[DCAM_PATH_AFM].user_cnt, 0);
 	atomic_set(&dev->path[DCAM_PATH_AFL].user_cnt, 0);
 	atomic_set(&dev->path[DCAM_PATH_HIST].user_cnt, 0);
+	atomic_set(&dev->path[DCAM_PATH_LSCM].user_cnt, 0);
 
 	/* prepare frame info for tx done
 	 * ASSERT: this dev has no cap_sof
@@ -1827,6 +1831,8 @@ static int sprd_dcam_dev_start(void *dcam_handle, int online)
 	/* enable statistic paths  */
 	if (dev->blk_dcam_pm->aem.bypass == 0)
 		atomic_set(&dev->path[DCAM_PATH_AEM].user_cnt, 1);
+	if (dev->blk_dcam_pm->lscm.bypass == 0)
+		atomic_set(&dev->path[DCAM_PATH_LSCM].user_cnt, 1);
 	if (dev->blk_dcam_pm->afm.bypass == 0)
 		atomic_set(&dev->path[DCAM_PATH_AFM].user_cnt, 1);
 	if (dev->blk_dcam_pm->afl.bypass == 0)

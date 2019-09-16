@@ -65,21 +65,6 @@ const char *to_path_name(enum dcam_path_id path_id)
 	return is_path_id(path_id) ? _DCAM_PATH_NAMES[path_id] : "(null)";
 }
 
-
-static const unsigned long dcam_store_addr[DCAM_PATH_MAX] = {
-	DCAM_FULL_BASE_WADDR,
-	DCAM_BIN_BASE_WADDR0,
-	DCAM_PDAF_BASE_WADDR,
-	DCAM_VCH2_BASE_WADDR,
-	DCAM_VCH3_BASE_WADDR,
-	DCAM_AEM_BASE_WADDR,
-	ISP_AFM_BASE_WADDR,
-	ISP_AFL_GLB_WADDR,
-	DCAM_HIST_BASE_WADDR,
-	ISP_NR3_WADDR,
-	ISP_BPC_OUT_ADDR,
-};
-
 /*
  * TODO slow motion
  * remove unused address for AEM and HIST
@@ -462,10 +447,7 @@ int dcam_path_set_store_frm(void *dcam_handle,
 	/* assign last buffer for AEM and HIST in slow motion */
 	i = dev->slowmotion_count - 1;
 
-	if (idx == DCAM_ID_2) {
-		/* dcam2 path0 ~ full path */
-		addr = *(hw->ip_dcam[idx]->store_addr_tab + path_id);
-	} else if (dev->slowmotion_count && path_id == DCAM_PATH_AEM) {
+	if (dev->slowmotion_count && path_id == DCAM_PATH_AEM) {
 		/* slow motion AEM */
 		addr = slowmotion_store_addr[_aem][i];
 		frame->fid += i;
@@ -475,7 +457,7 @@ int dcam_path_set_store_frm(void *dcam_handle,
 		frame->fid += i;
 	} else {
 		/* normal scene */
-		addr = dcam_store_addr[path_id];
+		addr = *(hw->ip_dcam[idx]->store_addr_tab + path_id);
 	}
 
 	/* replace image data for debug */

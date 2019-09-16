@@ -124,6 +124,7 @@ struct dcam_dev_param {
 	struct dcam_dev_3dnr_param nr3;
 	struct dcam_dev_afm_param afm;
 	struct dcam_dev_gtm_param gtm;
+	struct dcam_dev_lscm_param lscm;
 };
 
 typedef int (*FUNC_DCAM_PARAM)(struct dcam_dev_param *param);

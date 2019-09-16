@@ -77,6 +77,7 @@ enum dcam_path_id {
 	DCAM_PATH_HIST,
 	DCAM_PATH_3DNR,
 	DCAM_PATH_BPC,
+	DCAM_PATH_LSCM,
 	DCAM_PATH_MAX,
 };
 

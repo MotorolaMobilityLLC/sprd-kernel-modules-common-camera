@@ -1658,6 +1658,20 @@ static uint32_t sharkl3_path_ctrl_id[] = {
 	DCAM_CTRL_BIN,
 };
 
+static unsigned long sharkl3_dcam_store_addr[DCAM_PATH_MAX] = {
+	DCAM_FULL_BASE_WADDR,
+	DCAM_BIN_BASE_WADDR0,
+	DCAM_PDAF_BASE_WADDR,
+	DCAM_VCH2_BASE_WADDR,
+	DCAM_VCH3_BASE_WADDR,
+	DCAM_AEM_BASE_WADDR,
+	ISP_AFM_BASE_WADDR,
+	ISP_AFL_GLB_WADDR,
+	DCAM_HIST_BASE_WADDR,
+	ISP_NR3_WADDR,
+	ISP_BPC_OUT_ADDR,
+};
+
 static unsigned long sharkl3_dcam2_store_addr[DCAM_PATH_MAX] = {
 	DCAM2_PATH0_BASE_WADDR,
 	DCAM2_PATH1_BASE_WADDR,
@@ -1678,6 +1692,7 @@ static struct cam_hw_ip_info sharkl3_dcam[DCAM_ID_MAX] = {
 		.lbuf_share_support = 0,
 		.offline_slice_support = 0,
 		.dcam_fbc_mode = DCAM_FBC_DISABLE,
+		.store_addr_tab = sharkl3_dcam_store_addr,
 		.path_ctrl_id_tab = sharkl3_path_ctrl_id,
 	},
 	[DCAM_ID_1] = {
@@ -1685,6 +1700,7 @@ static struct cam_hw_ip_info sharkl3_dcam[DCAM_ID_MAX] = {
 		.lbuf_share_support = 0,
 		.offline_slice_support = 0,
 		.dcam_fbc_mode = DCAM_FBC_DISABLE,
+		.store_addr_tab = sharkl3_dcam_store_addr,
 		.path_ctrl_id_tab = sharkl3_path_ctrl_id,
 	},
 	[DCAM_ID_2] = {

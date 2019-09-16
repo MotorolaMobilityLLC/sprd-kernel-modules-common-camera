@@ -647,6 +647,20 @@ static void dcam_bin_path_done(void *param)
 }
 
 /*
+ * cycling frames through LSCM path
+ */
+static void dcam_lscm_done(void *param)
+{
+	struct dcam_pipe_dev *dev = (struct dcam_pipe_dev *)param;
+	struct camera_frame *frame = NULL;
+
+	if ((frame = dcam_prepare_frame(dev, DCAM_PATH_LSCM))) {
+		dcam_dispatch_frame(dev, DCAM_PATH_LSCM, frame,
+				    DCAM_CB_STATIS_DONE);
+	}
+}
+
+/*
  * cycling frames through AEM path
  */
 static void dcam_aem_done(void *param)
@@ -823,7 +837,7 @@ void dcam_dump_int_tracker(uint32_t idx)
 		uint32_t cnt, j;
 		for (cnt = 0; cnt < (uint32_t)dcam_int_tracker[idx][DCAM_SENSOR_EOF]; cnt += 4) {
 			j = (cnt & (INT_RCD_SIZE - 1)); //rolling
-			pr_info("DCAM%u j=%d, %03d.%04d, %03d.%04d, %03d.%04d, %03d.%04d, %03d.%04d, %03d.%04d\n",
+			pr_info("DCAM%u j=%d, %03d.%04d, %03d.%04d, %03d.%04d, %03d.%04d, %03d.%04d, %03d.%04d, %03d.%04d\n",
 			idx, j, (uint32_t)dcam_int_recorder[idx][DCAM_SENSOR_EOF][j] >> 16,
 			 (uint32_t)dcam_int_recorder[idx][DCAM_SENSOR_EOF][j] & 0xffff,
 			 (uint32_t)dcam_int_recorder[idx][DCAM_CAP_SOF][j] >> 16,
@@ -836,6 +850,8 @@ void dcam_dump_int_tracker(uint32_t idx)
 			 (uint32_t)dcam_int_recorder[idx][DCAM_AEM_TX_DONE][j] & 0xffff,
 			 (uint32_t)dcam_int_recorder[idx][DCAM_AFM_INTREQ1][j] >> 16,
 			 (uint32_t)dcam_int_recorder[idx][DCAM_AFM_INTREQ1][j] & 0xffff);
+			 (uint32_t)dcam_int_recorder[idx][DCAM_LSCM_TX_DONE][j] >> 16,
+			 (uint32_t)dcam_int_recorder[idx][DCAM_LSCM_TX_DONE][j] & 0xffff,
 		}
 	}
 #endif
@@ -859,6 +875,7 @@ static const dcam_isr_type _DCAM_ISRS[] = {
 	[DCAM_AFL_TX_DONE] = dcam_afl_done,
 	[DCAM_AFM_INTREQ1] = dcam_afm_done,
 	[DCAM_NR3_TX_DONE] = dcam_nr3_done,
+	[DCAM_LSCM_TX_DONE] = dcam_lscm_done,
 };
 
 /*
@@ -879,6 +896,7 @@ static const int _DCAM0_SEQUENCE[] = {
 	DCAM_PDAF_PATH_TX_DONE,/* for pdaf data */
 	DCAM_VCH2_PATH_TX_DONE,/* for vch2 data */
 	DCAM_VCH3_PATH_TX_DONE,/* for vch3 data */
+	DCAM_LSCM_TX_DONE,/* for lscm statis */
 };
 
 /*
@@ -898,6 +916,7 @@ static const int _DCAM1_SEQUENCE[] = {
 	DCAM_PDAF_PATH_TX_DONE,/* for pdaf data */
 	DCAM_VCH2_PATH_TX_DONE,/* for vch2 data */
 	DCAM_VCH3_PATH_TX_DONE,/* for vch3 data */
+	DCAM_LSCM_TX_DONE,/* for lscm statis */
 };
 
 /*
@@ -918,6 +937,7 @@ static const int _DCAM2_SEQUENCE[] = {
 	DCAM_PDAF_PATH_TX_DONE,/* for pdaf data */
 	DCAM_VCH2_PATH_TX_DONE,/* for vch2 data */
 	DCAM_VCH3_PATH_TX_DONE,/* for vch3 data */
+	DCAM_LSCM_TX_DONE,/* for lscm statis */
 };
 
 /*
