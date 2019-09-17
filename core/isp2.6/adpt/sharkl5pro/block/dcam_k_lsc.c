@@ -50,6 +50,7 @@ int dcam_init_lsc_slice(void *in, uint32_t online)
 	uint32_t buf_sel, offset, hw_addr;
 	uint32_t start_roi = 0;
 	uint16_t *w_buff = NULL, *gain_tab = NULL;
+	uint32_t grid_x_num_slice = 0;
 	struct lsc_slice slice;
 	struct dcam_dev_lsc_info *info;
 	struct dcam_dev_lsc_param *param;
@@ -80,8 +81,9 @@ int dcam_init_lsc_slice(void *in, uint32_t online)
 	/* need update grid_x_num and more when offline slice*/
 	if (dev->idx == 1 && dev->dcam_slice_mode == 1) {
 		start_roi = dev->cap_info.cap_size.size_x / 2;
-		info->grid_x_num -= info->grid_x_num / 2;
-	}
+		grid_x_num_slice = info->grid_x_num - info->grid_x_num / 2;
+	} else
+		grid_x_num_slice = info->grid_x_num;
 
 	slice.current_x = (start_roi / 2) / info->grid_width;
 	slice.relative_x = (start_roi / 2) % info->grid_width;
@@ -138,7 +140,7 @@ int dcam_init_lsc_slice(void *in, uint32_t online)
 	val = ((slice.relative_x & 0xff) << 16) |
 			(slice.current_x & 0x1ff);
 	DCAM_REG_WR(idx, DCAM_LENS_SLICE_CTRL0, val);
-	DCAM_REG_MWR(idx, DCAM_LENS_SLICE_CTRL1, 0xff, info->grid_x_num);
+	DCAM_REG_MWR(idx, DCAM_LENS_SLICE_CTRL1, 0xff, grid_x_num_slice);
 
 	/* lens_load_buf_sel toggle */
 	val = DCAM_REG_RD(idx, DCAM_LENS_LOAD_ENABLE);
@@ -207,6 +209,7 @@ int dcam_init_lsc(void *in, uint32_t online)
 	uint32_t buf_sel, offset, hw_addr;
 	uint32_t start_roi = 0;
 	uint16_t *w_buff = NULL, *gain_tab = NULL;
+	uint32_t grid_x_num_slice = 0;
 	struct lsc_slice slice;
 	struct dcam_dev_lsc_info *info;
 	struct dcam_dev_lsc_param *param;
@@ -237,7 +240,9 @@ int dcam_init_lsc(void *in, uint32_t online)
 	/* need update grid_x_num and more when offline slice*/
 	if (dev->idx == 1 && dev->dcam_slice_mode == 1) {
 		start_roi = 0;
-		info->grid_x_num >>= 1;
+		grid_x_num_slice = info->grid_x_num / 2;
+	} else {
+		grid_x_num_slice = info->grid_x_num;
 	}
 
 	slice.current_x = (start_roi / 2) / info->grid_width;
@@ -295,7 +300,7 @@ int dcam_init_lsc(void *in, uint32_t online)
 	val = ((slice.relative_x & 0xff) << 16) |
 			(slice.current_x & 0x1ff);
 	DCAM_REG_WR(idx, DCAM_LENS_SLICE_CTRL0, val);
-	DCAM_REG_MWR(idx, DCAM_LENS_SLICE_CTRL1, 0xff, info->grid_x_num);
+	DCAM_REG_MWR(idx, DCAM_LENS_SLICE_CTRL1, 0xff, grid_x_num_slice);
 
 	/* lens_load_buf_sel toggle */
 	val = DCAM_REG_RD(idx, DCAM_LENS_LOAD_ENABLE);
@@ -363,6 +368,7 @@ int dcam_update_lsc(void *in)
 	uint32_t val, lens_load_flag;
 	uint32_t buf_sel, offset, hw_addr;
 	uint16_t *w_buff = NULL, *gain_tab = NULL;
+	uint32_t grid_x_num_slice = 0;
 	struct dcam_dev_lsc_info *info;
 	struct dcam_dev_lsc_param *param;
 	struct dcam_pipe_dev *dev = (struct dcam_pipe_dev *)in;
@@ -396,6 +402,11 @@ int dcam_update_lsc(void *in)
 		spin_unlock(&param->lock);
 		return 0;
 	}
+
+	if (dev->idx == 1 && dev->dcam_slice_mode == 1)
+		grid_x_num_slice = info->grid_x_num / 2;
+	else
+		grid_x_num_slice = info->grid_x_num;
 
 	w_buff = (uint16_t *)param->weight_tab;
 	gain_tab = (uint16_t *)param->buf.addr_k[0];
@@ -462,7 +473,7 @@ int dcam_update_lsc(void *in)
 		DCAM_REG_WR(idx, DCAM_LENS_GRID_SIZE, val);
 		/* only for slice mode */
 		DCAM_REG_WR(idx, DCAM_LENS_SLICE_CTRL0, 0x0);
-		DCAM_REG_MWR(idx, DCAM_LENS_SLICE_CTRL1, 0xff, info->grid_x_num);
+		DCAM_REG_MWR(idx, DCAM_LENS_SLICE_CTRL1, 0xff, grid_x_num_slice);
 		pr_info("update grid %d x %d y %d\n", info->grid_width,
 				info->grid_x_num, info->grid_y_num);
 	}
