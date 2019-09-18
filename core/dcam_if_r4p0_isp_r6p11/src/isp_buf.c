@@ -634,7 +634,7 @@ int isp_offline_put_buf(struct isp_offline_desc *off_desc,
 
 	for (num = 0; num < frm_q_len; num++) {
 		ion_buf = &buf_desc->ion_buf[num];
-		if (ion_buf->dmabuf_p == NULL)
+		if (IS_ERR_OR_NULL(ion_buf->dmabuf_p))
 			continue;
 
 		ion_free(ion_buf->dmabuf_p);
