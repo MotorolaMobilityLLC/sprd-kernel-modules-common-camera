@@ -1283,18 +1283,16 @@ int isp_path_set_next_frm(struct isp_module *module,
 	if ((use_reserve_frame == 0) &&
 	    (frame.pfinfo.mfd[0] == reserved_frame->pfinfo.mfd[0])) {
 		use_reserve_frame = 1;
-		if (reserved_frame->pfinfo.iova[0] == 0) {
-			rtn = pfiommu_get_addr(&reserved_frame->pfinfo);
-			if (rtn) {
-				pr_err("ISP%d: fail to get reserved buffer addr\n",
-				       iid);
-				rtn = ISP_RTN_PATH_ADDR_ERR;
-				goto iommu_err;
-			}
-		}
 	}
 
 	if (use_reserve_frame) {
+		rtn = pfiommu_get_addr(&reserved_frame->pfinfo);
+		if (rtn) {
+			pr_err("ISP%d: fail to get reserved buffer addr\n",
+			       iid);
+			rtn = ISP_RTN_PATH_ADDR_ERR;
+			goto iommu_err;
+		}
 		pr_debug("ISP%d: No freed frame id %d path_index %d\n",
 				iid, frame.fid, path_index);
 		if (reserved_frame->pfinfo.mfd[0] == 0) {
