@@ -1250,6 +1250,7 @@ static int dcamio_start_capture(struct camera_file *camerafile,
 {
 	int ret = 0;
 	unsigned int cap_flag = 0;
+	struct sprd_img_capture_param capture_param;
 	struct camera_dev *dev = NULL, *dev_other = NULL;
 	struct camera_info *info = NULL;
 	struct camera_file t_camerafile;
@@ -1269,13 +1270,14 @@ static int dcamio_start_capture(struct camera_file *camerafile,
 		goto exit_nolock;
 	}
 
-	ret = copy_from_user(&cap_flag, (void __user *) arg,
-			     sizeof(unsigned int));
+	ret = copy_from_user(&capture_param, (void __user *) arg,
+			     sizeof(capture_param));
 	if (ret) {
 		pr_err("fail to get user info\n");
 		ret = -EFAULT;
 		goto exit_nolock;
 	}
+	cap_flag = capture_param.type;
 
 	/* In practice, start captures may run parallelly, with no lock. */
 	if (is_dual_cam)
