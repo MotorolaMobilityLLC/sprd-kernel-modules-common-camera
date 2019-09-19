@@ -6805,6 +6805,12 @@ static int test_isp(struct camera_module *module,
 	} else {
 		pr_err("pframe_out is null\n");
 		ret = -EINVAL;
+		if (pframe_in->buf.type == CAM_BUF_USER)
+			cambuf_put_ionbuf(&pframe_in->buf);
+		else
+			cambuf_free(&pframe_in->buf);
+		put_empty_frame(pframe_in);
+		put_empty_frame(pframe_out);
 		goto nobuf;
 	}
 
@@ -6827,6 +6833,16 @@ static int test_isp(struct camera_module *module,
 					0, iommu_enable);
 			if (ret) {
 				pr_err("fail to alloc buffer.\n");
+				if (pframe_in->buf.type == CAM_BUF_USER)
+					cambuf_put_ionbuf(&pframe_in->buf);
+				else
+					cambuf_free(&pframe_in->buf);
+				put_empty_frame(pframe_in);
+				if (pframe_out->buf.type == CAM_BUF_USER)
+					cambuf_put_ionbuf(&pframe_out->buf);
+				else
+					cambuf_free(&pframe_out->buf);
+				put_empty_frame(pframe_out);
 				put_empty_frame(pframe_out_1);
 				goto nobuf;
 			}
