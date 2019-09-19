@@ -111,6 +111,30 @@ uint32_t dcam_trace_regs_get_data(uint32_t i)
 
 int dcam_reg_trace(struct sprd_cam_hw_info *hw, void *arg)
 {
+	unsigned long addr = 0;
+	enum dcam_id idx = hw->idx;
+
+	pr_info("DCAM%d: Register list\n", idx);
+	for (addr = DCAM_IP_REVISION; addr <= DCAM_GTM_GLB_CTRL;
+		addr += 16) {
+		pr_info("0x%03lx: 0x%x 0x%x 0x%x 0x%x\n",
+			addr,
+			DCAM_REG_RD(idx, addr),
+			DCAM_REG_RD(idx, addr + 4),
+			DCAM_REG_RD(idx, addr + 8),
+			DCAM_REG_RD(idx, addr + 12));
+	}
+	pr_info("AXIM: Register list\n");
+	for (addr = AXIM_CTRL; addr <= IMG_FETCH_RADDR;
+		addr += 16) {
+		pr_info("0x%03lx: 0x%x 0x%x 0x%x 0x%x\n",
+			addr,
+			DCAM_AXIM_RD(addr),
+			DCAM_AXIM_RD(addr + 4),
+			DCAM_AXIM_RD(addr + 8),
+			DCAM_AXIM_RD(addr + 12));
+	}
+
 	return 0;
 }
 
