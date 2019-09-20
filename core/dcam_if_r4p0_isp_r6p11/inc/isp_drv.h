@@ -779,6 +779,7 @@ struct isp_statis_module {
 	uint32_t statis_valid;
 	struct isp_statis_frm_queue afl_statis_frm_queue;
 	uint32_t afl_statis_cnt;
+	uint32_t afl_int_done;
 	struct isp_statis_frm_queue afm_statis_frm_queue;
 	uint32_t afm_statis_cnt;
 	struct isp_statis_frm_queue binning_statis_frm_queue;

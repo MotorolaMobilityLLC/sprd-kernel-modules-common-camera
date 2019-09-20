@@ -4224,6 +4224,8 @@ int sprd_isp_dev_init(void **isp_pipe_dev_handle, enum isp_id iid)
 	isp_statis_frm_queue_init(&statis_module->hist_statis_frm_queue);
 	isp_statis_frm_queue_init(&statis_module->hist2_statis_frm_queue);
 
+	statis_module->afl_int_done = 1;
+
 	ret = isp_module_init(&dev->module_info, iid);
 	if (unlikely(ret != 0)) {
 		pr_err("fail to init isp module info\n");

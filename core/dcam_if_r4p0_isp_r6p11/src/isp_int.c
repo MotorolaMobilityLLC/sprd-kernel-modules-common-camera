@@ -363,10 +363,15 @@ static void isp_afl_start(void *isp_handle)
 
 	dev = (struct isp_pipe_dev *)isp_handle;
 	module = &dev->statis_module_info;
+	if (module->afl_int_done != 1) {
+		pr_debug("double start\n");
+		return;
+	}
 
 	rtn = isp_set_next_statis_buf(dev->com_idx, module, ISP_AFL_BLOCK);
 	if (rtn)
 		pr_err("fail to set next afl statis buf,rtn %d\n", rtn);
+	module->afl_int_done = 0;
 }
 
 static void isp_afl_done(void *isp_handle)
@@ -383,6 +388,7 @@ static void isp_afl_done(void *isp_handle)
 	dev = (struct isp_pipe_dev *)isp_handle;
 	module = &dev->statis_module_info;
 	statis_heap = &module->afl_statis_frm_queue;
+	module->afl_int_done = 1;
 
 	/*dequeue the statis buf from a array*/
 	rtn = isp_statis_dequeue(statis_heap, &node);
