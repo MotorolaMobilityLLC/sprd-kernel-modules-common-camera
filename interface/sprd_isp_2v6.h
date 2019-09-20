@@ -943,6 +943,8 @@ struct isp_dev_hsv_info_v2 {
 	uint32_t size;
 	/* uint64_t for 32bits/64bits userspace/kernel compatable*/
 	uint64_t hsv_table_addr;
+	uint16_t  hue[360];
+	uint16_t  sat[360];
 };
 
 struct isp_dev_iircnr_info {

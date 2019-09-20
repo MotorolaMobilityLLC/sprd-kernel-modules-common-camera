@@ -34,8 +34,6 @@ static int isp_k_hsv_block(struct isp_io_param *param, uint32_t idx)
 	uint32_t val = 0;
 	uint32_t buf_sel = 0;
 	unsigned long reg_addr = 0;
-	unsigned long utab_addr;
-	void __user *hsv_table;
 	struct isp_dev_hsv_info_v2 hsv_info = {0};
 
 	ret = copy_from_user((void *)&hsv_info,
@@ -109,22 +107,12 @@ static int isp_k_hsv_block(struct isp_io_param *param, uint32_t idx)
 	buf_sel = 0;
 	ISP_REG_MWR(idx, ISP_HSV_PARAM, BIT_1, buf_sel << 1);
 
-	utab_addr = (unsigned long)hsv_info.hsv_table_addr;
-	pr_debug("hsv table addr 0x%lx\n", utab_addr);
-
-	hsv_table = (void __user *)utab_addr;
-	if ((hsv_info.size > (ISP_HSV_TABLE_NUM * 4)) ||
-		(hsv_table == NULL)) {
-		pr_err("error hsv param: %p, %d\n", hsv_table, hsv_info.size);
-		return -EFAULT;
+	reg_addr = ISP_HSV_BUF0_ADDR;
+	for(i = 0; i < 360; i++){
+		val = ((hsv_info.sat[i] & 0x7FF) << 9 |
+				(hsv_info.hue[i] & 0x1FF));
+		ISP_REG_WR(idx, reg_addr + i * 4, val);
 	}
-
-	reg_addr = ISP_BASE_ADDR(idx) + ISP_HSV_BUF0_ADDR;
-	ret = copy_from_user((void *)reg_addr,
-			hsv_table, hsv_info.size);
-	if (ret != 0)
-		pr_err("copy error %d\n", ret);
-
 	return ret;
 }
 
