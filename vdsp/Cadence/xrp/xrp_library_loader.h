@@ -59,28 +59,12 @@ struct xrp_load_lib_info
 struct xrp_request;
 struct xvp;
 struct xrp_comm;
-void *libinfo_alloc_element(void);
 
-/*initialise the list,the list shouldn't be null*/
-int32_t libinfo_list_init(struct libinfo_list *list);
- 
-/*get the size of a list of element*/
-int32_t libinfo_list_size(const struct libinfo_list *list);
- 
-/*add a element to list*/
-int32_t libinfo_list_add(struct libinfo_list *list,void *element,int pos);
- 
-/*get an element from a list*/
-void *libinfo_list_get(const struct libinfo_list *list,int pos);
-
-/*remove an element from a list*/
-int32_t libinfo_list_remove(struct libinfo_list *list,int32_t pos);
-#if 0
-int32_t xrp_library_load(struct xvp *xvp , struct xrp_request *rq , char *outlibname);
 enum load_unload_flag xrp_check_load_unload(struct xvp *xvp , struct xrp_request *rq);
-int32_t xrp_library_decrease(struct xvp *xvp , const char *libname);
-int32_t xrp_register_libs(struct xvp *xvp , struct xrp_comm *cmd);
+int32_t xrp_pre_process_request(struct xvp *xvp , struct xrp_request *rq , enum load_unload_flag loadflag, char *libname);
+int post_process_request(struct xvp *xvp , struct xrp_request *rq , const char* libname , enum load_unload_flag load_flag , int32_t resultflag);
 int32_t xrp_library_release_all(struct xvp *xvp);
-int32_t xrp_library_release(struct xvp *xvp , const char *libname);
-#endif
+int32_t xrp_library_decrelease(struct xvp *xvp , const char *libname);
+int32_t xrp_library_setall_missstate(struct xvp *xvp);
+
 #endif

@@ -34,15 +34,8 @@
 #include <linux/mutex.h>
 #include <linux/types.h>
 #include "xrp_address_map.h"
-#define USE_SPRD_MODE
-#define USE_LOAD_LIB
-#ifdef USE_SPRD_MODE
 #include "vdsp_smem.h"
-#ifdef USE_LOAD_LIB
-//#define USE_RE_REGISTER_LIB
 #include "xrp_library_loader.h"
-#endif
-#endif
 
 struct device;
 struct firmware;
@@ -116,10 +109,8 @@ struct xvp {
 	struct faceid_mem_addr faceid_pool;
 	const struct firmware *faceid_fw;
 	void *fd_weights_p_viraddr;
-#ifdef USE_LOAD_LIB
 	struct xrp_load_lib_info load_lib;
 	uint32_t open_count;
-#endif
 	struct vdsp_mem_desc *vdsp_mem_desc;
 };
 

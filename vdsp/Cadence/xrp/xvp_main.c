@@ -65,8 +65,7 @@
 #include "xrp_kernel_defs.h"
 #include "xrp_kernel_dsp_interface.h"
 #include "xrp_private_alloc.h"
-#ifdef USE_SPRD_MODE
-//#define USE_SPRD_MODE
+#include "xvp_main.h"
 #include <linux/sprd_iommu.h>
 #include <linux/sprd_ion.h>
 #include "ion.h"
@@ -77,25 +76,9 @@
 /*add temp for set 512M as default clock*/
 #include <linux/clk.h>
 
-#ifdef USE_LOAD_LIB
-#include "xrp_library_loader.h"
-#include "xt_library_loader.h"
-//#define LIBRARY_LOAD_UNLOAD_NSID        "lib_load"
-//#define LIBRARY_LOAD_LOAD_FLAG      0
-//#define LIBRARY_LOAD_UNLOAD_FLAG    1
-#define LIBRARY_CMD_PIL_INFO_OFFSET   40
-#define LIBRARY_CMD_LOAD_UNLOAD_INPUTSIZE 44
-
-#define XRP_EXAMPLE_V3_NSID_INITIALIZER \
-{0x73, 0x79, 0x73, 0x74, 0x65, 0x6d, 0x20, 0x63, \
-	0x6d, 0x64, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}
-#define LIBRARY_LOAD_UNLOAD_NSID (unsigned char [])XRP_EXAMPLE_V3_NSID_INITIALIZER
-
-#endif
 
 #define VDSP_FIRMWIRE_SIZE    (1024*1024*14)
 
-#endif
 
 #define DRIVER_NAME "xrp"
 #define XRP_DEFAULT_TIMEOUT 100
@@ -104,44 +87,6 @@
 #define __io_virt(a) ((void __force *)(a))
 #endif
 
-struct xrp_alien_mapping {
-	unsigned long vaddr;
-	unsigned long size;
-	phys_addr_t paddr;
-	void *allocation;
-	enum {
-		ALIEN_GUP,
-		ALIEN_PFN_MAP,
-		ALIEN_COPY,
-	} type;
-};
-
-struct xrp_mapping {
-	enum {
-		XRP_MAPPING_NONE,
-		XRP_MAPPING_NATIVE,
-		XRP_MAPPING_ALIEN,
-		XRP_MAPPING_KERNEL = 0x4,
-	} type;
-	union {
-		struct {
-			struct xrp_allocation *xrp_allocation;
-			unsigned long vaddr;
-		} native;
-		struct xrp_alien_mapping alien_mapping;
-	};
-};
-
-struct xvp_file {
-	struct xvp *xvp;
-	spinlock_t busy_list_lock;
-	struct xrp_allocation *busy_list;
-};
-
-struct xrp_known_file {
-	void *filp;
-	struct hlist_node node;
-};
 static struct mutex map_lock;
 static struct semaphore log_start;
 
@@ -206,72 +151,10 @@ static bool xrp_cacheable(struct xvp *xvp, unsigned long pfn,
 	}
 }
 
-#ifndef USE_SPRD_MODE
-static int xrp_dma_direction(unsigned flags)
-{
-	static const enum dma_data_direction xrp_dma_direction[] = {
-		[0] = DMA_NONE,
-		[XRP_FLAG_READ] = DMA_TO_DEVICE,
-		[XRP_FLAG_WRITE] = DMA_FROM_DEVICE,
-		[XRP_FLAG_READ_WRITE] = DMA_BIDIRECTIONAL,
-	};
-	return xrp_dma_direction[flags & XRP_FLAG_READ_WRITE];
-}
-#endif
 
-#ifndef USE_SPRD_MODE
-static void xrp_default_dma_sync_for_device(struct xvp *xvp,
-					    phys_addr_t phys,
-					    unsigned long size,
-					    unsigned long flags)
-{
-	dma_sync_single_for_device(xvp->dev, phys_to_dma(xvp->dev, phys), size,
-				   xrp_dma_direction(flags));
-}
-#endif
 
-#ifndef USE_SPRD_MODE
-static void xrp_dma_sync_for_device(struct xvp *xvp,
-				    unsigned long virt,
-				    phys_addr_t phys,
-				    unsigned long size,
-				    unsigned long flags)
-{
-	if (xvp->hw_ops->dma_sync_for_device)
-		xvp->hw_ops->dma_sync_for_device(xvp->hw_arg,
-						 (void *)virt, phys, size,
-						 flags);
-	else
-		xrp_default_dma_sync_for_device(xvp, phys, size, flags);
-}
-#endif
 
-#ifndef USE_SPRD_MODE
-static void xrp_default_dma_sync_for_cpu(struct xvp *xvp,
-					 phys_addr_t phys,
-					 unsigned long size,
-					 unsigned long flags)
-{
-	dma_sync_single_for_cpu(xvp->dev, phys_to_dma(xvp->dev, phys), size,
-				xrp_dma_direction(flags));
-}
-#endif
 
-#ifndef USE_SPRD_MODE
-static void xrp_dma_sync_for_cpu(struct xvp *xvp,
-				 unsigned long virt,
-				 phys_addr_t phys,
-				 unsigned long size,
-				 unsigned long flags)
-{
-	if (xvp->hw_ops->dma_sync_for_cpu)
-		xvp->hw_ops->dma_sync_for_cpu(xvp->hw_arg,
-					      (void *)virt, phys, size,
-					      flags);
-	else
-		xrp_default_dma_sync_for_cpu(xvp, phys, size, flags);
-}
-#endif
 
 static inline void xrp_comm_write32(volatile void __iomem *addr, u32 v)
 {
@@ -392,23 +275,6 @@ static void xrp_remove_known_file(struct file *filp)
 	if (pf)
 		kfree(pf);
 }
-#ifndef USE_SPRD_MODE
-static bool xrp_is_known_file(struct file *filp)
-{
-	bool ret = false;
-	struct xrp_known_file *p;
-
-	spin_lock(&xrp_known_files_lock);
-	hash_for_each_possible(xrp_known_files, p, node, (unsigned long)filp) {
-		if (p->filp == filp) {
-			ret = true;
-			break;
-		}
-	}
-	spin_unlock(&xrp_known_files_lock);
-	return ret;
-}
-#endif
 
 static void xrp_sync_v2(struct xvp *xvp,
 			void *hw_sync_data, size_t sz)
@@ -751,644 +617,13 @@ static long xrp_ioctl_alloc(struct file *filp,
 	}
 	return 0;
 }
-#ifndef USE_SPRD_MODE
-static void xrp_put_pages(phys_addr_t phys, unsigned long n_pages)
-{
-	struct page *page;
-	unsigned long i;
 
-	page = pfn_to_page(__phys_to_pfn(phys));
-	for (i = 0; i < n_pages; ++i)
-		put_page(page + i);
-}
-#endif
 
-#ifndef USE_SPRD_MODE
-static void xrp_alien_mapping_destroy(struct xrp_alien_mapping *alien_mapping)
-{
-	switch (alien_mapping->type) {
-	case ALIEN_GUP:
-		xrp_put_pages(alien_mapping->paddr,
-			      PFN_UP(alien_mapping->vaddr +
-				     alien_mapping->size) -
-			      PFN_DOWN(alien_mapping->vaddr));
-		break;
-	case ALIEN_COPY:
-		xrp_allocation_put(alien_mapping->allocation);
-		break;
-	default:
-		break;
-	}
-}
-#endif
 
-#ifndef USE_SPRD_MODE
-static long xvp_pfn_virt_to_phys(struct xvp_file *xvp_file,
-				 struct vm_area_struct *vma,
-				 unsigned long vaddr, unsigned long size,
-				 phys_addr_t *paddr,
-				 struct xrp_alien_mapping *mapping)
-{
-	int ret;
-	unsigned long i;
-	unsigned long nr_pages = PFN_UP(vaddr + size) - PFN_DOWN(vaddr);
-	unsigned long pfn;
-	const struct xrp_address_map_entry *address_map;
 
-	ret = follow_pfn(vma, vaddr, &pfn);
-	if (ret)
-		return ret;
 
-	*paddr = __pfn_to_phys(pfn) + (vaddr & ~PAGE_MASK);
-	address_map = xrp_get_address_mapping(&xvp_file->xvp->address_map,
-					      *paddr);
-	if (!address_map) {
-		printk("%s: untranslatable addr: %pap\n", __func__, paddr);
-		return -EINVAL;
-	}
 
-	for (i = 1; i < nr_pages; ++i) {
-		unsigned long next_pfn;
-		phys_addr_t next_phys;
 
-		ret = follow_pfn(vma, vaddr + (i << PAGE_SHIFT), &next_pfn);
-		if (ret)
-			return ret;
-		if (next_pfn != pfn + 1) {
-			printk("%s: non-contiguous physical memory\n",
-			       __func__);
-			return -EINVAL;
-		}
-		next_phys = __pfn_to_phys(next_pfn);
-		if (xrp_compare_address(next_phys, address_map)) {
-			printk("%s: untranslatable addr: %pap\n",
-			       __func__, &next_phys);
-			return -EINVAL;
-		}
-		pfn = next_pfn;
-	}
-	*mapping = (struct xrp_alien_mapping){
-		.vaddr = vaddr,
-		.size = size,
-		.paddr = *paddr,
-		.type = ALIEN_PFN_MAP,
-	};
-	printk("%s: success, paddr: %pap\n", __func__, paddr);
-	return 0;
-}
-#endif
-
-#ifndef USE_SPRD_MODE
-static long xvp_gup_virt_to_phys(struct xvp_file *xvp_file,
-				 unsigned long vaddr, unsigned long size,
-				 phys_addr_t *paddr,
-				 struct xrp_alien_mapping *mapping)
-{
-	int ret;
-	int i;
-	int nr_pages;
-	struct page **page;
-	const struct xrp_address_map_entry *address_map;
-
-	if (PFN_UP(vaddr + size) - PFN_DOWN(vaddr) > INT_MAX)
-		return -EINVAL;
-
-	nr_pages = PFN_UP(vaddr + size) - PFN_DOWN(vaddr);
-	page = kmalloc(nr_pages * sizeof(void *), GFP_KERNEL);
-	if (!page)
-		return -ENOMEM;
-
-	ret = get_user_pages_fast(vaddr, nr_pages, 1, page);
-	if (ret < 0)
-		goto out;
-
-	if (ret < nr_pages) {
-		printk("%s: asked for %d pages, but got only %d\n",
-		       __func__, nr_pages, ret);
-		nr_pages = ret;
-		ret = -EINVAL;
-		goto out_put;
-	}
-
-	address_map = xrp_get_address_mapping(&xvp_file->xvp->address_map,
-					      page_to_phys(page[0]));
-	if (!address_map) {
-		phys_addr_t addr = page_to_phys(page[0]);
-		printk("%s: untranslatable addr: %pap\n",
-		       __func__, &addr);
-		ret = -EINVAL;
-		goto out_put;
-	}
-
-	for (i = 1; i < nr_pages; ++i) {
-		phys_addr_t addr;
-
-		if (page[i] != page[i - 1] + 1) {
-			printk("%s: non-contiguous physical memory\n",
-			       __func__);
-			ret = -EINVAL;
-			goto out_put;
-		}
-		addr = page_to_phys(page[i]);
-		if (xrp_compare_address(addr, address_map)) {
-			printk("%s: untranslatable addr: %pap\n",
-			       __func__, &addr);
-			ret = -EINVAL;
-			goto out_put;
-		}
-	}
-
-	*paddr = __pfn_to_phys(page_to_pfn(page[0])) + (vaddr & ~PAGE_MASK);
-	*mapping = (struct xrp_alien_mapping){
-		.vaddr = vaddr,
-		.size = size,
-		.paddr = *paddr,
-		.type = ALIEN_GUP,
-	};
-	ret = 0;
-	printk("%s: success, paddr: %pap\n", __func__, paddr);
-
-out_put:
-	if (ret < 0)
-		for (i = 0; i < nr_pages; ++i)
-			put_page(page[i]);
-out:
-	kfree(page);
-	return ret;
-}
-#endif
-
-#ifndef USE_SPRD_MODE
-static long _xrp_copy_user_phys(struct xvp *xvp,
-				unsigned long vaddr, unsigned long size,
-				phys_addr_t paddr, unsigned long flags,
-				bool to_phys)
-{
-	if (pfn_valid(__phys_to_pfn(paddr))) {
-		struct page *page = pfn_to_page(__phys_to_pfn(paddr));
-		size_t page_offs = paddr & ~PAGE_MASK;
-		size_t offs;
-
-		if (!to_phys)
-			xrp_default_dma_sync_for_cpu(xvp, paddr, size, flags);
-		for (offs = 0; offs < size; ++page) {
-			void *p = kmap(page);
-			size_t sz = PAGE_SIZE - page_offs;
-			size_t copy_sz = sz;
-			unsigned long rc;
-
-			if (!p)
-				return -ENOMEM;
-
-			if (size - offs < copy_sz)
-				copy_sz = size - offs;
-
-			if (to_phys)
-				rc = copy_from_user(p + page_offs,
-						    (void __user *)(vaddr + offs),
-						    copy_sz);
-			else
-				rc = copy_to_user((void __user *)(vaddr + offs),
-						  p + page_offs, copy_sz);
-
-			page_offs = 0;
-			offs += copy_sz;
-
-			kunmap(page);
-			if (rc)
-				return -EFAULT;
-		}
-		if (to_phys)
-			xrp_default_dma_sync_for_device(xvp, paddr, size, flags);
-	} else {
-		void __iomem *p = ioremap(paddr, size);
-		unsigned long rc;
-
-		if (!p) {
-			dev_err(xvp->dev,
-				"couldn't ioremap %pap x 0x%08x\n",
-				&paddr, (u32)size);
-			return -EINVAL;
-		}
-		if (to_phys)
-			rc = copy_from_user(__io_virt(p),
-					    (void __user *)vaddr, size);
-		else
-			rc = copy_to_user((void __user *)vaddr,
-					  __io_virt(p), size);
-		iounmap(p);
-		if (rc)
-			return -EFAULT;
-	}
-	return 0;
-}
-#endif
-
-#ifndef USE_SPRD_MODE
-static long xrp_copy_user_to_phys(struct xvp *xvp,
-				  unsigned long vaddr, unsigned long size,
-				  phys_addr_t paddr, unsigned long flags)
-{
-	return _xrp_copy_user_phys(xvp, vaddr, size, paddr, flags, true);
-}
-#endif
-
-#ifndef USE_SPRD_MODE
-static long xrp_copy_user_from_phys(struct xvp *xvp,
-				    unsigned long vaddr, unsigned long size,
-				    phys_addr_t paddr, unsigned long flags)
-{
-	return _xrp_copy_user_phys(xvp, vaddr, size, paddr, flags, false);
-}
-#endif
-
-#ifndef USE_SPRD_MODE
-static long xvp_copy_virt_to_phys(struct xvp_file *xvp_file,
-				  unsigned long flags,
-				  unsigned long vaddr, unsigned long size,
-				  phys_addr_t *paddr,
-				  struct xrp_alien_mapping *mapping)
-{
-	phys_addr_t phys;
-	unsigned long align = clamp(vaddr & -vaddr, 16ul, PAGE_SIZE);
-	unsigned long offset = vaddr & (align - 1);
-	struct xrp_allocation *allocation;
-	long rc;
-
-	rc = xrp_allocate(xvp_file->xvp->pool,
-			  size + align, align, &allocation);
-	if (rc < 0)
-		return rc;
-
-	phys = (allocation->start & -align) | offset;
-	if (phys < allocation->start)
-		phys += align;
-
-	if (flags & XRP_FLAG_READ) {
-		if (xrp_copy_user_to_phys(xvp_file->xvp,
-					  vaddr, size, phys, flags)) {
-			xrp_allocation_put(allocation);
-			return -EFAULT;
-		}
-	}
-
-	*paddr = phys;
-	*mapping = (struct xrp_alien_mapping){
-		.vaddr = vaddr,
-		.size = size,
-		.paddr = *paddr,
-		.allocation = allocation,
-		.type = ALIEN_COPY,
-	};
-	printk("%s: copying to pa: %pap\n", __func__, paddr);
-
-	return 0;
-}
-#endif
-
-#ifndef USE_SPRD_MODE
-static unsigned xvp_get_region_vma_count(unsigned long virt,
-					 unsigned long size,
-					 struct vm_area_struct *vma)
-{
-	unsigned i;
-	struct mm_struct *mm = current->mm;
-
-	if (virt + size < virt)
-		return 0;
-	if (vma->vm_start > virt)
-		return 0;
-	if (vma->vm_start <= virt &&
-	    virt + size <= vma->vm_end)
-		return 1;
-	for (i = 2; ; ++i) {
-		struct vm_area_struct *next_vma = find_vma(mm, vma->vm_end);
-
-		if (!next_vma)
-			return 0;
-		if (next_vma->vm_start != vma->vm_end)
-			return 0;
-		vma = next_vma;
-		if (virt + size <= vma->vm_end)
-			return i;
-	}
-	return 0;
-}
-#endif
-
-#ifndef USE_SPRD_MODE
-static long xrp_share_kernel(struct file *filp,
-			     unsigned long virt, unsigned long size,
-			     unsigned long flags, phys_addr_t *paddr,
-			     struct xrp_mapping *mapping)
-{
-	struct xvp_file *xvp_file = filp->private_data;
-	struct xvp *xvp = xvp_file->xvp;
-	phys_addr_t phys = __pa(virt);
-	long err = 0;
-
-	printk("%s: sharing kernel-only buffer: %pap\n", __func__, &phys);
-	if (xrp_translate_to_dsp(&xvp->address_map, phys) ==
-	    XRP_NO_TRANSLATION) {
-		mm_segment_t oldfs = get_fs();
-
-		printk("%s: untranslatable addr, making shadow copy\n",
-		       __func__);
-		set_fs(KERNEL_DS);
-		err = xvp_copy_virt_to_phys(xvp_file, flags,
-					    virt, size, paddr,
-					    &mapping->alien_mapping);
-		set_fs(oldfs);
-		mapping->type = XRP_MAPPING_ALIEN | XRP_MAPPING_KERNEL;
-	} else {
-		mapping->type = XRP_MAPPING_KERNEL;
-		*paddr = phys;
-
-		xrp_default_dma_sync_for_device(xvp, phys, size, flags);
-	}
-	printk("%s: mapping = %p, mapping->type = %d\n",
-	       __func__, mapping, mapping->type);
-	return err;
-}
-#endif
-
-#ifndef USE_SPRD_MODE
-static bool vma_needs_cache_ops(struct vm_area_struct *vma)
-{
-	pgprot_t prot = vma->vm_page_prot;
-
-	return pgprot_val(prot) != pgprot_val(pgprot_noncached(prot)) &&
-		pgprot_val(prot) != pgprot_val(pgprot_writecombine(prot));
-}
-#endif
-
-/* Share blocks of memory, from host to IVP or back.
- *
- * When sharing to IVP return physical addresses in paddr.
- * Areas allocated from the driver can always be shared in both directions.
- * Contiguous 3rd party allocations need to be shared to IVP before they can
- * be shared back.
- */
-#ifndef USE_SPRD_MODE
-static long __xrp_share_block(struct file *filp,
-			      unsigned long virt, unsigned long size,
-			      unsigned long flags, phys_addr_t *paddr,
-			      struct xrp_mapping *mapping)
-{
-	phys_addr_t phys = ~0ul;
-	struct xvp_file *xvp_file = filp->private_data;
-	struct xvp *xvp = xvp_file->xvp;
-	struct mm_struct *mm = current->mm;
-	struct vm_area_struct *vma = find_vma(mm, virt);
-	bool do_cache = true;
-	long rc = -EINVAL;
-
-	if (!vma) {
-		printk("%s: no vma for vaddr/size = 0x%08lx/0x%08lx\n",
-		       __func__, virt, size);
-		return -EINVAL;
-	}
-	/*
-	 * Region requested for sharing should be within single VMA.
-	 * That's true for the majority of cases, but sometimes (e.g.
-	 * sharing buffer in the beginning of .bss which shares a
-	 * file-mapped page with .data, followed by anonymous page)
-	 * region will cross multiple VMAs. Support it in the simplest
-	 * way possible: start with get_user_pages and use shadow copy
-	 * if that fails.
-	 */
-	switch (xvp_get_region_vma_count(virt, size, vma)) {
-	case 0:
-		printk("%s: bad vma for vaddr/size = 0x%08lx/0x%08lx\n",
-		       __func__, virt, size);
-		printk("%s: vma->vm_start = 0x%08lx, vma->vm_end = 0x%08lx\n",
-		       __func__, vma->vm_start, vma->vm_end);
-		return -EINVAL;
-	case 1:
-		break;
-	default:
-		printk("%s: multiple vmas cover vaddr/size = 0x%08lx/0x%08lx\n",
-		       __func__, virt, size);
-		vma = NULL;
-		break;
-	}
-	/*
-	 * And it need to be allocated from the same file descriptor, or
-	 * at least from a file descriptor managed by the XRP.
-	 */
-	if (vma &&
-	    (vma->vm_file == filp || xrp_is_known_file(vma->vm_file))) {
-		struct xvp_file *vm_file = vma->vm_file->private_data;
-		struct xrp_allocation *xrp_allocation = vma->vm_private_data;
-
-		phys = vm_file->xvp->pmem + (vma->vm_pgoff << PAGE_SHIFT) +
-			virt - vma->vm_start;
-		printk("%s: XRP allocation at 0x%08lx, paddr: %pap\n",
-		       __func__, virt, &phys);
-		/*
-		 * If it was allocated from a different XRP file it may belong
-		 * to a different device and not be directly accessible.
-		 * Check if it is.
-		 */
-		if (vma->vm_file != filp) {
-			const struct xrp_address_map_entry *address_map =
-				xrp_get_address_mapping(&xvp->address_map,
-							phys);
-
-			if (!address_map ||
-			    xrp_compare_address(phys + size - 1, address_map))
-				printk("%s: untranslatable addr: %pap\n",
-				       __func__, &phys);
-			else
-				rc = 0;
-
-		} else {
-			rc = 0;
-		}
-
-		if (rc == 0) {
-			mapping->type = XRP_MAPPING_NATIVE;
-			mapping->native.xrp_allocation = xrp_allocation;
-			mapping->native.vaddr = virt;
-			xrp_allocation_get(xrp_allocation);
-			do_cache = vma_needs_cache_ops(vma);
-		}
-	}
-	if (rc < 0) {
-		struct xrp_alien_mapping *alien_mapping =
-			&mapping->alien_mapping;
-		unsigned long n_pages = PFN_UP(virt + size) - PFN_DOWN(virt);
-
-		/* Otherwise this is alien allocation. */
-		printk("%s: non-XVP allocation at 0x%08lx\n",
-		       __func__, virt);
-
-		/*
-		 * A range can only be mapped directly if it is either
-		 * uncached or HW-specific cache operations can handle it.
-		 */
-		if (vma && vma->vm_flags & (VM_IO | VM_PFNMAP)) {
-			rc = xvp_pfn_virt_to_phys(xvp_file, vma,
-						  virt, size,
-						  &phys,
-						  alien_mapping);
-			if (rc == 0 && vma_needs_cache_ops(vma) &&
-			    !xrp_cacheable(xvp, PFN_DOWN(phys), n_pages)) {
-				printk("%s: needs unsupported cache mgmt\n",
-				       __func__);
-				rc = -EINVAL;
-			}
-		} else {
-			up_read(&mm->mmap_sem);
-			rc = xvp_gup_virt_to_phys(xvp_file, virt,
-						  size, &phys,
-						  alien_mapping);
-			if (rc == 0 &&
-			    (!vma || vma_needs_cache_ops(vma)) &&
-			    !xrp_cacheable(xvp, PFN_DOWN(phys), n_pages)) {
-				printk("%s: needs unsupported cache mgmt\n",
-				       __func__);
-				xrp_put_pages(phys, n_pages);
-				rc = -EINVAL;
-			}
-			down_read(&mm->mmap_sem);
-		}
-		if (rc == 0 && vma && !vma_needs_cache_ops(vma))
-			do_cache = false;
-
-		/*
-		 * If we couldn't share try to make a shadow copy.
-		 */
-		if (rc < 0) {
-			rc = xvp_copy_virt_to_phys(xvp_file, flags,
-						   virt, size, &phys,
-						   alien_mapping);
-			do_cache = false;
-		}
-
-		/* We couldn't share it. Fail the request. */
-		if (rc < 0) {
-			printk("%s: couldn't map virt to phys\n",
-			       __func__);
-			return -EINVAL;
-		}
-
-		phys = alien_mapping->paddr +
-			virt - alien_mapping->vaddr;
-
-		mapping->type = XRP_MAPPING_ALIEN;
-	}
-
-	*paddr = phys;
-	printk("%s: mapping = %p, mapping->type = %d\n",
-	       __func__, mapping, mapping->type);
-
-	if (do_cache)
-		xrp_dma_sync_for_device(xvp,
-					virt, phys, size,
-					flags);
-	return 0;
-}
-#endif
-
-#ifndef USE_SPRD_MODE
-static long xrp_writeback_alien_mapping(struct xvp_file *xvp_file,
-					struct xrp_alien_mapping *alien_mapping,
-					unsigned long flags)
-{
-	struct page *page;
-	size_t nr_pages;
-	size_t i;
-	long ret = 0;
-
-	switch (alien_mapping->type) {
-	case ALIEN_GUP:
-		xrp_dma_sync_for_cpu(xvp_file->xvp,
-				     alien_mapping->vaddr,
-				     alien_mapping->paddr,
-				     alien_mapping->size,
-				     flags);
-		printk("%s: dirtying alien GUP @va = %p, pa = %pap\n",
-		       __func__, (void __user *)alien_mapping->vaddr,
-		       &alien_mapping->paddr);
-		page = pfn_to_page(__phys_to_pfn(alien_mapping->paddr));
-		nr_pages = PFN_UP(alien_mapping->vaddr + alien_mapping->size) -
-			PFN_DOWN(alien_mapping->vaddr);
-		for (i = 0; i < nr_pages; ++i)
-			SetPageDirty(page + i);
-		break;
-
-	case ALIEN_COPY:
-		printk("%s: synchronizing alien copy @pa = %pap back to %p\n",
-		       __func__, &alien_mapping->paddr,
-		       (void __user *)alien_mapping->vaddr);
-		if (xrp_copy_user_from_phys(xvp_file->xvp,
-					    alien_mapping->vaddr,
-					    alien_mapping->size,
-					    alien_mapping->paddr,
-					    flags))
-			ret = -EINVAL;
-		break;
-
-	default:
-		break;
-	}
-	return ret;
-}
-#endif
-
-/*
- *
- */
-#ifndef USE_SPRD_MODE
-static long __xrp_unshare_block(struct file *filp, struct xrp_mapping *mapping,
-				unsigned long flags)
-{
-	long ret = 0;
-	mm_segment_t oldfs = get_fs();
-
-	if (mapping->type & XRP_MAPPING_KERNEL)
-		set_fs(KERNEL_DS);
-
-	switch (mapping->type & ~XRP_MAPPING_KERNEL) {
-	case XRP_MAPPING_NATIVE:
-		if (flags & XRP_FLAG_WRITE) {
-			struct xvp_file *xvp_file = filp->private_data;
-
-			xrp_dma_sync_for_cpu(xvp_file->xvp,
-					     mapping->native.vaddr,
-					     mapping->native.xrp_allocation->start,
-					     mapping->native.xrp_allocation->size,
-					     flags);
-
-		}
-		xrp_allocation_put(mapping->native.xrp_allocation);
-		break;
-
-	case XRP_MAPPING_ALIEN:
-		if (flags & XRP_FLAG_WRITE)
-			ret = xrp_writeback_alien_mapping(filp->private_data,
-							  &mapping->alien_mapping,
-							  flags);
-
-		xrp_alien_mapping_destroy(&mapping->alien_mapping);
-		break;
-
-	case XRP_MAPPING_KERNEL:
-		break;
-
-	default:
-		break;
-	}
-
-	if (mapping->type & XRP_MAPPING_KERNEL)
-		set_fs(oldfs);
-
-	mapping->type = XRP_MAPPING_NONE;
-
-	return ret;
-}
-#endif
 
 static long xrp_ioctl_free(struct file *filp,
 			   struct xrp_ioctl_alloc __user *p)
@@ -1470,34 +705,6 @@ static long xvp_complete_cmd_poll(struct xvp *xvp, struct xrp_comm *comm,
 	return -EBUSY;
 }
 
-struct xrp_request {
-	struct xrp_ioctl_queue ioctl_queue;
-	size_t n_buffers;
-	struct xrp_mapping *buffer_mapping;
-	struct xrp_dsp_buffer *dsp_buffer;
-	phys_addr_t in_data_phys;
-	phys_addr_t out_data_phys;
-	phys_addr_t dsp_buffer_phys;
-	struct ion_buf ion_in_buf;
-	struct ion_buf ion_out_buf;
-	struct ion_buf *ion_dsp_pool;
-	struct ion_buf *dsp_buf;
-	union {
-		struct xrp_mapping in_data_mapping;
-		u8 in_data[XRP_DSP_CMD_INLINE_DATA_SIZE];
-	};
-	union {
-		struct xrp_mapping out_data_mapping;
-		u8 out_data[XRP_DSP_CMD_INLINE_DATA_SIZE];
-	};
-	union {
-		struct xrp_mapping dsp_buffer_mapping;
-		struct xrp_dsp_buffer buffer_data[XRP_DSP_CMD_INLINE_BUFFER_COUNT];
-	};
-	u8 nsid[XRP_DSP_CMD_NAMESPACE_ID_SIZE];
-};
-
-#ifdef USE_SPRD_MODE
 
 static int sprd_unmap_request(struct file *filp, struct xrp_request *rq)
 {
@@ -1819,1100 +1026,8 @@ static long sprd_complete_hw_request(struct xrp_dsp_cmd __iomem *cmd,
 
 	return (flags & XRP_DSP_CMD_FLAG_RESPONSE_DELIVERY_FAIL) ? -ENXIO : 0;
 }
-#else
-static void xrp_unmap_request_nowb(struct file *filp, struct xrp_request *rq)
-{
-	size_t n_buffers = rq->n_buffers;
-	size_t i;
 
-	if (rq->ioctl_queue.in_data_size > XRP_DSP_CMD_INLINE_DATA_SIZE)
-		__xrp_unshare_block(filp, &rq->in_data_mapping, 0);
-	if (rq->ioctl_queue.out_data_size > XRP_DSP_CMD_INLINE_DATA_SIZE)
-		__xrp_unshare_block(filp, &rq->out_data_mapping, 0);
-	for (i = 0; i < n_buffers; ++i)
-		__xrp_unshare_block(filp, rq->buffer_mapping + i, 0);
-	if (n_buffers > XRP_DSP_CMD_INLINE_BUFFER_COUNT)
-		__xrp_unshare_block(filp, &rq->dsp_buffer_mapping, 0);
 
-	if (n_buffers) {
-		kfree(rq->buffer_mapping);
-		if (n_buffers > XRP_DSP_CMD_INLINE_BUFFER_COUNT) {
-			kfree(rq->dsp_buffer);
-		}
-	}
-}
-
-static long xrp_unmap_request(struct file *filp, struct xrp_request *rq)
-{
-	size_t n_buffers = rq->n_buffers;
-	size_t i;
-	long ret = 0;
-	long rc;
-
-	if (rq->ioctl_queue.in_data_size > XRP_DSP_CMD_INLINE_DATA_SIZE)
-		__xrp_unshare_block(filp, &rq->in_data_mapping, XRP_FLAG_READ);
-	if (rq->ioctl_queue.out_data_size > XRP_DSP_CMD_INLINE_DATA_SIZE) {
-		rc = __xrp_unshare_block(filp, &rq->out_data_mapping,
-					 XRP_FLAG_WRITE);
-
-		if (rc < 0) {
-			printk("%s: out_data could not be unshared\n",
-			       __func__);
-			ret = rc;
-		}
-	} else {
-		if (copy_to_user((void __user *)(unsigned long)rq->ioctl_queue.out_data_addr,
-				 rq->out_data,
-				 rq->ioctl_queue.out_data_size)) {
-			printk("%s: out_data could not be copied\n",
-				 __func__);
-			ret = -EFAULT;
-		}
-	}
-
-	if (n_buffers > XRP_DSP_CMD_INLINE_BUFFER_COUNT)
-		__xrp_unshare_block(filp, &rq->dsp_buffer_mapping,
-				    XRP_FLAG_READ_WRITE);
-
-	for (i = 0; i < n_buffers; ++i) {
-		rc = __xrp_unshare_block(filp, rq->buffer_mapping + i,
-					 rq->dsp_buffer[i].flags);
-		if (rc < 0) {
-			printk("%s: buffer %zd could not be unshared\n",
-				 __func__, i);
-			ret = rc;
-		}
-	}
-
-	if (n_buffers) {
-		kfree(rq->buffer_mapping);
-		if (n_buffers > XRP_DSP_CMD_INLINE_BUFFER_COUNT) {
-			kfree(rq->dsp_buffer);
-		}
-		rq->n_buffers = 0;
-	}
-
-	return ret;
-}
-
-static long xrp_map_request(struct file *filp, struct xrp_request *rq,
-			    struct mm_struct *mm)
-{
-	struct xvp_file *xvp_file = filp->private_data;
-	struct xvp *xvp = xvp_file->xvp;
-	struct xrp_ioctl_buffer __user *buffer;
-	size_t n_buffers = rq->ioctl_queue.buffer_size /
-		sizeof(struct xrp_ioctl_buffer);
-
-	size_t i;
-	long ret = 0;
-
-	if ((rq->ioctl_queue.flags & XRP_QUEUE_FLAG_NSID) &&
-	    copy_from_user(rq->nsid,
-			   (void __user *)(unsigned long)rq->ioctl_queue.nsid_addr,
-			   sizeof(rq->nsid))) {
-		printk("%s: nsid could not be copied\n ", __func__);
-		return -EINVAL;
-	}
-	rq->n_buffers = n_buffers;
-	if (n_buffers) {
-		rq->buffer_mapping =
-			kzalloc(n_buffers * sizeof(*rq->buffer_mapping),
-				GFP_KERNEL);
-		if (n_buffers > XRP_DSP_CMD_INLINE_BUFFER_COUNT) {
-			rq->dsp_buffer =
-				kmalloc(n_buffers * sizeof(*rq->dsp_buffer),
-					GFP_KERNEL);
-			if (!rq->dsp_buffer) {
-				kfree(rq->buffer_mapping);
-				return -ENOMEM;
-			}
-		} else {
-			rq->dsp_buffer = rq->buffer_data;
-		}
-	}
-
-	down_read(&mm->mmap_sem);
-
-	if (rq->ioctl_queue.in_data_size > XRP_DSP_CMD_INLINE_DATA_SIZE) {
-		ret = __xrp_share_block(filp, rq->ioctl_queue.in_data_addr,
-					rq->ioctl_queue.in_data_size,
-					XRP_FLAG_READ, &rq->in_data_phys,
-					&rq->in_data_mapping);
-		if(ret < 0) {
-			printk("%s: in_data could not be shared\n",
-			       __func__);
-			goto share_err;
-		}
-	} else {
-		if (copy_from_user(rq->in_data,
-				   (void __user *)(unsigned long)rq->ioctl_queue.in_data_addr,
-				   rq->ioctl_queue.in_data_size)) {
-			printk("%s: in_data could not be copied\n",
-			       __func__);
-			ret = -EFAULT;
-			goto share_err;
-		}
-	}
-
-	if (rq->ioctl_queue.out_data_size > XRP_DSP_CMD_INLINE_DATA_SIZE) {
-		ret = __xrp_share_block(filp, rq->ioctl_queue.out_data_addr,
-					rq->ioctl_queue.out_data_size,
-					XRP_FLAG_WRITE, &rq->out_data_phys,
-					&rq->out_data_mapping);
-		if (ret < 0) {
-			printk("%s: out_data could not be shared\n",
-				 __func__);
-			goto share_err;
-		}
-	}
-
-	buffer = (void __user *)(unsigned long)rq->ioctl_queue.buffer_addr;
-
-	for (i = 0; i < n_buffers; ++i) {
-		struct xrp_ioctl_buffer ioctl_buffer;
-		phys_addr_t buffer_phys = ~0ul;
-
-		if (copy_from_user(&ioctl_buffer, buffer + i,
-				   sizeof(ioctl_buffer))) {
-			ret = -EFAULT;
-			goto share_err;
-		}
-		if (ioctl_buffer.flags & XRP_FLAG_READ_WRITE) {
-			ret = __xrp_share_block(filp, ioctl_buffer.addr,
-						ioctl_buffer.size,
-						ioctl_buffer.flags,
-						&buffer_phys,
-						rq->buffer_mapping + i);
-			if (ret < 0) {
-				printk("%s: buffer %zd could not be shared\n",
-				       __func__, i);
-				goto share_err;
-			}
-		}
-
-		rq->dsp_buffer[i] = (struct xrp_dsp_buffer){
-			.flags = ioctl_buffer.flags,
-			.size = ioctl_buffer.size,
-			.addr = xrp_translate_to_dsp(&xvp->address_map,
-						     buffer_phys),
-		};
-	}
-
-	if (n_buffers > XRP_DSP_CMD_INLINE_BUFFER_COUNT) {
-		ret = xrp_share_kernel(filp, (unsigned long)rq->dsp_buffer,
-				       n_buffers * sizeof(*rq->dsp_buffer),
-				       XRP_FLAG_READ_WRITE, &rq->dsp_buffer_phys,
-				       &rq->dsp_buffer_mapping);
-		if(ret < 0) {
-			printk("%s: buffer descriptors could not be shared\n",
-			       __func__);
-			goto share_err;
-		}
-	}
-share_err:
-	up_read(&mm->mmap_sem);
-	if (ret < 0)
-		xrp_unmap_request_nowb(filp, rq);
-	return ret;
-}
-
-static void xrp_fill_hw_request(struct xrp_dsp_cmd __iomem *cmd,
-				struct xrp_request *rq,
-				const struct xrp_address_map *map)
-{
-	xrp_comm_write32(&cmd->in_data_size, rq->ioctl_queue.in_data_size);
-	xrp_comm_write32(&cmd->out_data_size, rq->ioctl_queue.out_data_size);
-	xrp_comm_write32(&cmd->buffer_size,
-			 rq->n_buffers * sizeof(struct xrp_dsp_buffer));
-
-	if (rq->ioctl_queue.in_data_size > XRP_DSP_CMD_INLINE_DATA_SIZE)
-		xrp_comm_write32(&cmd->in_data_addr,
-				 xrp_translate_to_dsp(map, rq->in_data_phys));
-	else
-		xrp_comm_write(&cmd->in_data, rq->in_data,
-			       rq->ioctl_queue.in_data_size);
-
-	if (rq->ioctl_queue.out_data_size > XRP_DSP_CMD_INLINE_DATA_SIZE)
-		xrp_comm_write32(&cmd->out_data_addr,
-				 xrp_translate_to_dsp(map, rq->out_data_phys));
-
-	if (rq->n_buffers > XRP_DSP_CMD_INLINE_BUFFER_COUNT)
-		xrp_comm_write32(&cmd->buffer_addr,
-				 xrp_translate_to_dsp(map, rq->dsp_buffer_phys));
-	else
-		xrp_comm_write(&cmd->buffer_data, rq->dsp_buffer,
-			       rq->n_buffers * sizeof(struct xrp_dsp_buffer));
-
-	if (rq->ioctl_queue.flags & XRP_QUEUE_FLAG_NSID)
-		xrp_comm_write(&cmd->nsid, rq->nsid, sizeof(rq->nsid));
-
-#ifdef DEBUG
-	{
-		struct xrp_dsp_cmd dsp_cmd;
-		xrp_comm_read(cmd, &dsp_cmd, sizeof(dsp_cmd));
-		printk("%s: cmd for DSP: %p: %*ph\n",
-		       __func__, cmd,
-		       (int)sizeof(dsp_cmd), &dsp_cmd);
-	}
-#endif
-
-	wmb();
-	/* update flags */
-	xrp_comm_write32(&cmd->flags,
-			 (rq->ioctl_queue.flags & ~XRP_DSP_CMD_FLAG_RESPONSE_VALID) |
-			 XRP_DSP_CMD_FLAG_REQUEST_VALID);
-}
-
-static long xrp_complete_hw_request(struct xrp_dsp_cmd __iomem *cmd,
-				    struct xrp_request *rq)
-{
-	u32 flags = xrp_comm_read32(&cmd->flags);
-
-	if (rq->ioctl_queue.out_data_size <= XRP_DSP_CMD_INLINE_DATA_SIZE)
-		xrp_comm_read(&cmd->out_data, rq->out_data,
-			      rq->ioctl_queue.out_data_size);
-	if (rq->n_buffers <= XRP_DSP_CMD_INLINE_BUFFER_COUNT)
-		xrp_comm_read(&cmd->buffer_data, rq->dsp_buffer,
-			      rq->n_buffers * sizeof(struct xrp_dsp_buffer));
-	xrp_comm_write32(&cmd->flags, 0);
-
-	return (flags & XRP_DSP_CMD_FLAG_RESPONSE_DELIVERY_FAIL) ? -ENXIO : 0;
-}
-#endif
-
-#ifdef USE_LOAD_LIB
-xt_ptr xt_lib_memcpy(xt_ptr dest, const void * src, unsigned int n, void *user)
-{
-	memcpy(user , src , n);
-	return 0;
-}
-xt_ptr xt_lib_memset(xt_ptr s, int c, unsigned int n, void *user)
-{
-	memset(user , c , n);
-	return 0;
-}
-static int32_t xrp_library_checkprocessing(struct xvp *xvp , const char *libname)
-{
-	int i;
-	struct loadlib_info *libinfo = NULL;
-	for(i = 0; i < libinfo_list_size(&(xvp->load_lib.lib_list)) ; i++) {
-		libinfo = libinfo_list_get(&(xvp->load_lib.lib_list),i);
-		if(libinfo->lib_state == XRP_LIBRARY_PROCESSING_CMD) {
-			if(strcmp(libinfo->libname , libname) == 0) {
-				return 1;
-			}
-		}
-	}
-	return 0;
-}
-static struct loadlib_info *xrp_library_getlibinfo(struct xvp *xvp , const char *libname)
-{
-	int i;
-	struct loadlib_info *libinfo = NULL;
-	for(i = 0; i < libinfo_list_size(&(xvp->load_lib.lib_list)) ; i++) {
-		libinfo = libinfo_list_get(&(xvp->load_lib.lib_list),i);
-		if(0 == strcmp(libinfo->libname , libname)) {
-			break;
-		}
-	}
-	/*find , and decrease*/
-	if(i < libinfo_list_size(&(xvp->load_lib.lib_list))) {
-		return libinfo;
-	}
-	else
-		return NULL;
-}
-
-#if 0
-static int xrp_load_pi_to_buffer(const char *filename , void **out)
-{
-	loff_t pos = 0;
-	void *libstart = NULL;
-	struct kstat stat;
-	__u32 libsize;
-	mm_segment_t fs;
-	int err;
-	struct file *fp = NULL;
-	fs = get_fs();
-	set_fs(KERNEL_DS);
-	err = vfs_stat(filename , &stat);
-	if(err != 0) {
-		printk("yzl add %s vfs_stat failed:%d" , __func__ , err);
-		goto __load_error__;
-	}
-	libsize = stat.size;
-	fp = filp_open(filename ,O_RDONLY ,0);
-	if(IS_ERR(fp)) {
-		printk("yzl %s add open fp failed\n" , __func__);
-		goto __load_error__;
-	}
-	printk("yzl add %s , libsize:%d\n" , __func__  , libsize);
-	libstart = vmalloc(libsize);
-	if(NULL == libstart)
-	{
-		printk("yzl add %s malloc lib mem failed\n" , __func__);
-		filp_close(fp, NULL);
-		goto __load_error__;
-	}
-	vfs_read(fp , libstart , libsize , &pos);
-	filp_close(fp , NULL);
-	set_fs(fs);
-	/*yzl add load lib bin*/
-	printk("yzl add %s after load lib to libstart:%p\n" ,__func__ , libstart);
-	*out = libstart;
-	return 0;
-__load_error__:
-	set_fs(fs);
-	return -1;
-}
-#endif
-
-#if 0
-static long xrp_library_unload_internal(struct xvp *xvp , const char* libname)
-{
-
-}
-#endif
-static int32_t xrp_library_load_internal(struct xvp *xvp , const char* buffer , const char *libname)
-{
-	unsigned int size;
-	int32_t ret = 0;
-	struct loadlib_info *new_element;
-	unsigned int result;
-	struct ion_buf *lib_ion_mem = NULL;
-	struct ion_buf *libinfo_ion_mem = NULL;
-	void *libback_buffer = NULL;
-	void *kvaddr=NULL;
-	void *kvaddr_libinfo = NULL;
-	phys_addr_t kpaddr , kpaddr_libinfo;
-	//sprintf(totallibname , "/vendor/firmware/%s.bin" , libname);
-	/*load library to ddr*/
-	size = xtlib_pi_library_size((xtlib_packaged_library *)buffer);
-	/*alloc ion buffer later*/
-	lib_ion_mem = vmalloc(sizeof(struct ion_buf));
-	libinfo_ion_mem = vmalloc(sizeof(struct ion_buf));
-	if((NULL == lib_ion_mem) || (NULL == libinfo_ion_mem)) {
-		printk("yzl add %s vmalloc lib_ion_mem failed libionmem:%p , libinfoionmem:%p\n" , __func__ , lib_ion_mem , libinfo_ion_mem);
-		if(NULL != lib_ion_mem)
-			vfree(lib_ion_mem);
-		if(NULL != libinfo_ion_mem)
-			vfree(libinfo_ion_mem);
-		return -ENOMEM;
-	}
-	printk("yzl add %s library size:%d\n" , __func__ , size);
-	/*alloc lib ion buffer*/
-	ret = xvp->vdsp_mem_desc->ops->mem_alloc(xvp->vdsp_mem_desc,
-						lib_ion_mem,
-						ION_HEAP_ID_MASK_SYSTEM,
-						size);
-	if(ret != 0) {
-		printk("yzl add %s alloc lib_ion_mem failed\n" , __func__);
-		vfree(lib_ion_mem);
-		vfree(libinfo_ion_mem);
-		return -ENOMEM;
-	}
-	lib_ion_mem->dev = xvp->dev;
-	/*alloc libinfo ion buffer*/
-	ret = xvp->vdsp_mem_desc->ops->mem_alloc(xvp->vdsp_mem_desc,
-						libinfo_ion_mem,
-						ION_HEAP_ID_MASK_SYSTEM,
-						sizeof(xtlib_pil_info));
-	if(ret != 0) {
-		printk("yzl add %s alloc libinfo_ion_mem failed\n" , __func__);
-		xvp->vdsp_mem_desc->ops->mem_free(xvp->vdsp_mem_desc, lib_ion_mem);
-		vfree(lib_ion_mem);
-		vfree(libinfo_ion_mem);
-		xvp->vdsp_mem_desc->ops->mem_free(xvp->vdsp_mem_desc, lib_ion_mem);
-		return -ENOMEM;
-	}
-	libinfo_ion_mem->dev = xvp->dev;
-	xvp->vdsp_mem_desc->ops->mem_kmap(xvp->vdsp_mem_desc, lib_ion_mem);
-	kvaddr = (void*)lib_ion_mem->addr_k[0];
-	xvp->vdsp_mem_desc->ops->mem_iommu_map(xvp->vdsp_mem_desc, lib_ion_mem , IOMMU_ALL);
-	kpaddr = lib_ion_mem->iova[0];
-
-	xvp->vdsp_mem_desc->ops->mem_kmap(xvp->vdsp_mem_desc, libinfo_ion_mem);
-	kvaddr_libinfo = (void*)libinfo_ion_mem->addr_k[0];
-	xvp->vdsp_mem_desc->ops->mem_iommu_map(xvp->vdsp_mem_desc, libinfo_ion_mem , /*IOMMU_MSTD*/IOMMU_ALL);
-	kpaddr_libinfo = libinfo_ion_mem->iova[0];
-	printk("yzl add %s , load pi library buffer:%p , kpaddr:%lx, kvaddr:%p , kpaddr_libinfo:%lx , kvaddr_libinfo:%p\n",
-	       __func__ , buffer , (unsigned long) kpaddr , kvaddr , (unsigned long) kpaddr_libinfo , kvaddr_libinfo);
-	result = xtlib_host_load_pi_library((xtlib_packaged_library*)buffer , kpaddr , (xtlib_pil_info*)kvaddr_libinfo , xt_lib_memcpy , xt_lib_memset , kvaddr);
-	if(result == 0)
-	{
-		/*free ion buffer*/
-		xvp->vdsp_mem_desc->ops->mem_kunmap(xvp->vdsp_mem_desc, lib_ion_mem);
-		xvp->vdsp_mem_desc->ops->mem_iommu_unmap(xvp->vdsp_mem_desc, lib_ion_mem, IOMMU_ALL);
-		xvp->vdsp_mem_desc->ops->mem_kunmap(xvp->vdsp_mem_desc, libinfo_ion_mem);
-		xvp->vdsp_mem_desc->ops->mem_iommu_unmap(xvp->vdsp_mem_desc, libinfo_ion_mem,/*IOMMU_MSTD*/IOMMU_ALL);
-		xvp->vdsp_mem_desc->ops->mem_free(xvp->vdsp_mem_desc, lib_ion_mem);
-		xvp->vdsp_mem_desc->ops->mem_free(xvp->vdsp_mem_desc, libinfo_ion_mem);
-		vfree(lib_ion_mem);
-		vfree(libinfo_ion_mem);
-		/**/
-		printk("yzl add %s xtlib_host_load_pi_library failed %d\n" , __func__ , result);
-		return -1;
-	}
-	libback_buffer = vmalloc(size);
-	if(libback_buffer == NULL) {
-		xvp->vdsp_mem_desc->ops->mem_kunmap(xvp->vdsp_mem_desc, lib_ion_mem);
-		xvp->vdsp_mem_desc->ops->mem_iommu_unmap(xvp->vdsp_mem_desc, lib_ion_mem, IOMMU_ALL);
-		xvp->vdsp_mem_desc->ops->mem_kunmap(xvp->vdsp_mem_desc, libinfo_ion_mem);
-		xvp->vdsp_mem_desc->ops->mem_iommu_unmap(xvp->vdsp_mem_desc, libinfo_ion_mem,/*IOMMU_MSTD*/IOMMU_ALL);
-		xvp->vdsp_mem_desc->ops->mem_free(xvp->vdsp_mem_desc, lib_ion_mem);
-		xvp->vdsp_mem_desc->ops->mem_free(xvp->vdsp_mem_desc, libinfo_ion_mem);
-		vfree(lib_ion_mem);
-		vfree(libinfo_ion_mem);
-		printk("yzl add %s vmalloc back buffer is NULL\n" , __func__);
-		return -1;
-	}
-	/*back up the code for reboot*/
-	memcpy(libback_buffer , kvaddr , size);
-	new_element = (struct loadlib_info*)libinfo_alloc_element();
-	if(new_element == NULL) {
-		/*free ion buffer*/
-		printk("yzl add %s libinfo_alloc_element failed\n" , __func__);
-		xvp->vdsp_mem_desc->ops->mem_kunmap(xvp->vdsp_mem_desc, lib_ion_mem);
-		xvp->vdsp_mem_desc->ops->mem_iommu_unmap(xvp->vdsp_mem_desc, lib_ion_mem, IOMMU_ALL);
-		xvp->vdsp_mem_desc->ops->mem_kunmap(xvp->vdsp_mem_desc, libinfo_ion_mem);
-		xvp->vdsp_mem_desc->ops->mem_iommu_unmap(xvp->vdsp_mem_desc, libinfo_ion_mem,/*IOMMU_MSTD*/IOMMU_ALL);
-		xvp->vdsp_mem_desc->ops->mem_free(xvp->vdsp_mem_desc, lib_ion_mem);
-		xvp->vdsp_mem_desc->ops->mem_free(xvp->vdsp_mem_desc, libinfo_ion_mem);
-		vfree(lib_ion_mem);
-		vfree(libinfo_ion_mem);
-		vfree(libback_buffer);
-		return -1;
-	} else {
-		sprintf(new_element->libname , "%s" , libname);
-		/*may be change later*/
-		new_element->address_start = 0;
-		new_element->length = size;
-		new_element->load_count = 0;
-		new_element->ionhandle = lib_ion_mem;
-		new_element->ion_phy = (phys_addr_t)kpaddr;
-		new_element->ion_kaddr = kvaddr;
-		new_element->pil_ionhandle = libinfo_ion_mem;
-		new_element->pil_info = kpaddr_libinfo;
-		new_element->pil_info_kaddr = kvaddr_libinfo;
-		new_element->lib_state = XRP_LIBRARY_LOADING;
-		new_element->code_back_kaddr = libback_buffer;
-	}
-	libinfo_list_add(&xvp->load_lib.lib_list , new_element , libinfo_list_size(&xvp->load_lib.lib_list));
-	return 0;
-}
-static enum load_unload_flag xrp_check_load_unload(struct xvp *xvp , struct xrp_request *rq)
-{
-	__u32 indata_size;
-	enum load_unload_flag load_flag = 0;
-	__u8 *tempbuffer = NULL;
-	void *tempsrc = NULL;
-	indata_size = rq->ioctl_queue.in_data_size;
-	if(0 == strcmp(rq->nsid , LIBRARY_LOAD_UNLOAD_NSID)) {
-		if(indata_size > XRP_DSP_CMD_INLINE_DATA_SIZE) {
-			tempsrc = (void*)(rq->ioctl_queue.in_data_addr);
-		} else {
-			tempsrc = rq->in_data;
-		}
-		tempbuffer = vmalloc(indata_size);
-		printk("yzl add %s before copy_from_user src:%p , dst:%p\n" , __func__ , tempsrc , tempbuffer);
-		if(copy_from_user(tempbuffer , tempsrc , indata_size)) {
-			vfree(tempbuffer);
-			return -EFAULT;
-		}
-		load_flag = *tempbuffer;
-		vfree(tempbuffer);
-		printk("yzl add %s , load flag:%d\n" , __func__ , load_flag);
-		return load_flag;
-	} else
-		return XRP_NOT_LOAD_UNLOAD;
-}
-#ifndef USE_RE_REGISTER_LIB
-static int32_t xrp_library_setall_missstate(struct xvp *xvp)
-{
-	int i;
-	struct loadlib_info *libinfo = NULL;
-	for(i = 0; i < libinfo_list_size(&(xvp->load_lib.lib_list)) ; i++) {
-		libinfo = libinfo_list_get(&(xvp->load_lib.lib_list),i);
-		libinfo->lib_state = XRP_LIBRARY_MISSED_STATE;
-	}
-	return 0;
-}
-#endif
-static int32_t xrp_library_decrease(struct xvp *xvp , const char *libname)
-{
-	int i;
-	struct loadlib_info *libinfo = NULL;
-	for(i = 0; i < libinfo_list_size(&(xvp->load_lib.lib_list)) ; i++) {
-		libinfo = libinfo_list_get(&(xvp->load_lib.lib_list),i);
-		if(0 == strcmp(libinfo->libname , libname)) {
-			break;
-		}
-	}
-	/*find , and decrease*/
-	if(i < libinfo_list_size(&(xvp->load_lib.lib_list))) {
-		libinfo->load_count--;
-	} else
-		return -EINVAL;
-	return libinfo->load_count;
-
-}
-static int32_t xrp_library_increase(struct xvp *xvp , const char *libname)
-{
-	int i;
-        struct loadlib_info *libinfo = NULL;
-        for(i = 0; i < libinfo_list_size(&(xvp->load_lib.lib_list)) ; i++) {
-                libinfo = libinfo_list_get(&(xvp->load_lib.lib_list),i);
-                if(0 == strcmp(libinfo->libname , libname)) {
-                        break;
-                }
-        }
-        /*find , and decrease*/
-        if(i < libinfo_list_size(&(xvp->load_lib.lib_list))) {
-                libinfo->load_count++;
-        } else
-                return -EINVAL;
-        return libinfo->load_count;
-}
-#if 0
-static int xrp_check_library_loaded(struct xvp *xvp , const char *libname)
-{
-	int i;
-	int ret = 0;
-	struct loadlib_info *libinfo = NULL;
-	for(i = 0; i < libinfo_list_size(&(xvp->load_lib.lib_list)) ; i++) {
-		libinfo = libinfo_list_get(&(xvp->load_lib.lib_list),i);
-		if(0 == strcmp(libinfo->libname , libname))
-			break;
-	}
-	/**/
-	if(i < libinfo_list_size(&(xvp->load_lib.lib_list))) {
-		libinfo->load_count++;
-		ret = 0; /*loaded*/
-	}
-	else
-		ret = 1;
-	return ret;
-	
-}
-#endif
-static int32_t xrp_library_decrelease(struct xvp *xvp , const char *libname)
-{
-        int i;
-        int ret;
-        struct loadlib_info *libinfo = NULL;
-
-        /*decrease load_count*/
-        for(i = 0; i < libinfo_list_size(&(xvp->load_lib.lib_list)) ; i++) {
-                libinfo = libinfo_list_get(&(xvp->load_lib.lib_list),i);
-                if(0 == strcmp(libinfo->libname , libname))
-                        break;
-        }
-        /**/
-        if(i < libinfo_list_size(&(xvp->load_lib.lib_list))) {
-		if(libinfo->load_count != 0)
-                	libinfo->load_count--;
-                printk("yzl add %s load_count:%d\n" , __func__ , libinfo->load_count);
-#if 0
-		/*unmap iommu*/
-		/*free ion buffer later*/
-		dma_free_attrs(xvp->dev , libinfo->length , libinfo->ionhandle , phys_to_dma(xvp->dev, libinfo->ion_phy),DMA_ATTR_NO_KERNEL_MAPPING);
-		dma_free_attrs(xvp->dev ,sizeof(xtlib_pil_info) , libinfo->pil_ionhandle , phys_to_dma(xvp->dev , libinfo->pil_info) , DMA_ATTR_NO_KERNEL_MAPPING);
-		/*remove this lib element*/
-                libinfo_list_remove(&(xvp->load_lib.lib_list) , i);
-#else
-		if(libinfo->load_count == 0) {
-		xvp->vdsp_mem_desc->ops->mem_kunmap(xvp->vdsp_mem_desc, libinfo->ionhandle);
-		xvp->vdsp_mem_desc->ops->mem_iommu_unmap(xvp->vdsp_mem_desc, libinfo->ionhandle , IOMMU_ALL);
-		xvp->vdsp_mem_desc->ops->mem_free(xvp->vdsp_mem_desc, libinfo->ionhandle);
-		vfree(libinfo->ionhandle);
-
-		xvp->vdsp_mem_desc->ops->mem_kunmap(xvp->vdsp_mem_desc, libinfo->pil_ionhandle);
-        xvp->vdsp_mem_desc->ops->mem_iommu_unmap(xvp->vdsp_mem_desc, libinfo->pil_ionhandle, /*IOMMU_MSTD*/IOMMU_ALL);
-        xvp->vdsp_mem_desc->ops->mem_free(xvp->vdsp_mem_desc, libinfo->pil_ionhandle);
-        vfree(libinfo->pil_ionhandle);
-		if(libinfo->code_back_kaddr != NULL)
-			vfree(libinfo->code_back_kaddr);
-		/*remove this lib element*/
-                libinfo_list_remove(&(xvp->load_lib.lib_list) , i);
-		} else {
-			printk("yzl add %s release failed loadcount:%d , libname:%s\n" , __func__ , libinfo->load_count , libname);
-		}
-#endif
-                ret = 0; /*loaded*/
-        } else {
-                printk("yzl add %s not find lib:%s , may be some error\n" , __func__ , libname);
-                ret = 1;
-        }
-        return ret;
-}
-static int32_t xrp_library_getloadunload_libname(struct xvp *xvp , struct xrp_request *rq , char *outlibname)
-{
-	__u32 indata_size;
-	int32_t ret = 0;
-	void *tempsrc = NULL;
-	__u8 *tempbuffer = NULL;
-	indata_size = rq->ioctl_queue.in_data_size;
-
-	if(0 == strcmp(rq->nsid , LIBRARY_LOAD_UNLOAD_NSID)) {
-		/*check libname*/
-		if(indata_size > XRP_DSP_CMD_INLINE_DATA_SIZE) {
-			tempsrc = (void*)(rq->ioctl_queue.in_data_addr);
-		} else {
-			tempsrc = (void*)(rq->in_data);
-		}
-		tempbuffer = vmalloc(indata_size);
-		printk("yzl add %s before copy_from_user src:%p , dst:%p\n" , __func__ , tempsrc , tempbuffer);
-		if(copy_from_user(tempbuffer , tempsrc , indata_size)) {
-			printk("yzl add %s , copy from user failed\n" , __func__);
-			ret = -EINVAL;
-		}
-		/*input_vir first byte is load or unload*/
-		sprintf(outlibname , "%s" , tempbuffer+1);
-		vfree(tempbuffer);
-	} else {
-		ret = -EINVAL;
-	}
-	return ret;
-}
-static int32_t xrp_library_kmap_ionbuf(struct ion_buf *ionbuf , __u8 **buffer , struct dma_buf **dmabuf)
-{
-	struct dma_buf *dma_buf;
-	int32_t mapcount = 0;
-	*buffer = NULL;
-	if((ionbuf == NULL) || (ionbuf->mfd[0] < 0)) {
-		printk("yzl add %s , ion dsp pool is NULL return error\n" , __func__);
-		return -EINVAL;
-	}
-	dma_buf = dma_buf_get(ionbuf->mfd[0]);
-	if(IS_ERR_OR_NULL(dma_buf)) {
-		printk("yzl add %s , dma_buf_get fd:%d\n" , __func__ , ionbuf->mfd[0]);
-		return -EINVAL;
-	}
-	/*workaround need to process later*/
-	while((*buffer == NULL) && (mapcount < 5)) {
-		*buffer =sprd_ion_map_kernel(dma_buf, 0);
-		mapcount++;
-	}
-	*dmabuf = dma_buf;
-	/*buffer index 0 is input lib buffer*/
-	printk("yzl add %s , mfd:%d , dev:%p , map kernel vaddr is:%p , mapcount:%d\n" , __func__ , ionbuf->mfd[0] , ionbuf->dev , *buffer  , mapcount);
-	if(NULL == *buffer)
-		return -EFAULT;
-	return 0;
-}
-static int32_t xrp_library_kunmap_ionbuf(struct dma_buf *dmabuf)
-{
-	sprd_ion_unmap_kernel(dmabuf , 0);
-	dma_buf_put(dmabuf);
-	return 0;
-}
-static int32_t xrp_library_unload(struct xvp *xvp , struct xrp_request *rq , char *libname)
-{
-	int ret = 0;
-	__u32 indata_size;
-	__u8 *inputbuffer = NULL;
-	struct dma_buf* dmabuf = NULL;
-	struct loadlib_info *libinfo = NULL;
-	indata_size = rq->ioctl_queue.in_data_size;
-	if(0 == strcmp(rq->nsid , LIBRARY_LOAD_UNLOAD_NSID) && (indata_size >= LIBRARY_CMD_LOAD_UNLOAD_INPUTSIZE)) {
-		libinfo = xrp_library_getlibinfo(xvp , libname);
-		if(libinfo != NULL) {
-			ret = xrp_library_kmap_ionbuf(&rq->ion_in_buf,&inputbuffer ,&dmabuf);
-			if(ret != 0) {
-				printk("yzl add %s xrp_library_kmap_ionbuf failed ret:%d\n" , __func__, ret);
-				return -EFAULT;
-			}
-			*((unsigned int*)((__u8 *)inputbuffer + 40)) = libinfo->pil_info;
-			printk("yzl add %s  p:%p , p+40 value:%x , pil_info:%x\n" , __func__ , inputbuffer , *((unsigned int*)((__u8 *)inputbuffer + 40)) ,libinfo->pil_info);
-			xrp_library_kunmap_ionbuf(dmabuf);
-			wmb();
-		} else {
-			printk("yzl add %s , xrp_library_getlibinfo failed\n" , __func__);
-			ret = -EINVAL;
-		}
-	} else {
-		printk("yzl add %s nisid is not unload\n" , __func__);
-		ret = -EINVAL;
-	}
-	return ret;
-}
-/* return value 0 is need load, 1 is loaded already*/
-static int32_t xrp_library_load(struct xvp *xvp , struct xrp_request *rq , char *outlibname)
-{
-	__u32 indata_size;
-	__u8 load_flag = 0;
-	int32_t ret = 0;
-	int i;
-	void *tempsrc = NULL;
-	__u8 *tempbuffer = NULL;
-	struct loadlib_info *libinfo = NULL;
-	__u8 *input_ptr = NULL;
-	__u8 *libbuffer = NULL;
-	__u8 *inputbuffer = NULL;
-	char libname[64];
-	struct dma_buf* dmabuf = NULL;
-	indata_size = rq->ioctl_queue.in_data_size;
-	/*check whether loaded*/
-
-	/*check whether load cmd*/
-	if(0 == strcmp(rq->nsid , LIBRARY_LOAD_UNLOAD_NSID)) {
-		/*check libname*/
-		if(indata_size > XRP_DSP_CMD_INLINE_DATA_SIZE) {
-			tempsrc = (void*)(rq->ioctl_queue.in_data_addr);
-		} else {
-			tempsrc = (void*)(rq->in_data);
-		}
-		tempbuffer = vmalloc(indata_size);
-		printk("yzl add %s before copy_from_user src:%p , dst:%p\n" , __func__ , tempsrc , tempbuffer);
-		if(copy_from_user(tempbuffer , tempsrc , indata_size)) {
-			printk("yzl add %s , copy from user failed\n" , __func__);
-			vfree(tempbuffer);
-			return -EFAULT;
-		}
-		input_ptr = tempbuffer;
-		/*input_vir first byte is load or unload*/
-		load_flag = *input_ptr;
-		printk("yzl add %s , load_flag:%d\n" , __func__ , load_flag);
-		if(XRP_LOAD_LIB_FLAG == load_flag) {
-			/*load*/
-			sprintf(libname , "%s" , input_ptr+1);
-			/*check whether loaded*/
-			for(i = 0; i < libinfo_list_size(&(xvp->load_lib.lib_list)) ; i++) {
-				libinfo = libinfo_list_get(&(xvp->load_lib.lib_list),i);
-				if(0 == strcmp(libinfo->libname , libname))
-					break;
-			}
-			/**/
-			if(i < libinfo_list_size(&(xvp->load_lib.lib_list))) {
-				libinfo->load_count++;
-				printk("yzl add %s , lib:%s loaded not need reload\n" , __func__ , libname);
-				ret = 1; /*loaded*/
-			} else {
-				/*not loaded alloc libinfo node ,load internal*/
-				ret = xrp_library_kmap_ionbuf(rq->ion_dsp_pool , &libbuffer , &dmabuf);
-				if(ret != 0) {
-					printk("yzl add %s xrp_library_parase_libbuffer failed\n" , __func__);
-					vfree(tempbuffer);
-					return -EINVAL;
-				}
-				ret = xrp_library_load_internal(xvp , libbuffer , libname);
-				if(ret != 0) {
-					printk("yzl add %s xrp_library_load_internal ret:%d\n" , __func__ ,ret);
-					xrp_library_kunmap_ionbuf(dmabuf);
-					vfree(tempbuffer);
-					ret = -ENOMEM;
-					return ret;
-				}
-				xrp_library_kunmap_ionbuf(dmabuf);
-				/*re edit rq for register libname , input data: input[0] load unload flag
-				  input[1] ~input[32] --- libname , input[LIBRARY_CMD_PIL_INFO_OFFSET]~input[43] ---- libinfo addr*/
-				libinfo = xrp_library_getlibinfo(xvp , libname);
-				if(NULL == libinfo) {
-					printk("yzl add %s xrp_library_getlibinfo NULL\n" , __func__);
-					xrp_library_decrelease(xvp , libname);
-					vfree(tempbuffer);
-					ret = -ENOMEM;
-					return ret;
-				} else {
-					*((uint32_t*)(input_ptr+LIBRARY_CMD_PIL_INFO_OFFSET)) = libinfo->pil_info;
-					printk("yzl add %s load input param nsid:%s , loadflag:%d , libname:%s , pil_info:%x , indata_size:%d\n" , __func__ ,rq->nsid , 
-					       load_flag , libname , libinfo->pil_info , indata_size);
-					sprintf(outlibname , "%s" , libname);
-				}
-				ret = xrp_library_kmap_ionbuf(&rq->ion_in_buf,&inputbuffer ,&dmabuf);
-				if(ret != 0) {
-					printk("yzl add %s xrp_library_kmap_ionbuf input buffer failed\n" , __func__);
-					vfree(tempbuffer);
-					xrp_library_decrelease(xvp , libname);
-					return -EFAULT;
-				}
-				memcpy(inputbuffer , tempbuffer , indata_size);
-				xrp_library_kunmap_ionbuf(dmabuf);
-				wmb();
-			}
-		} else {
-			printk("yzl add %s not load flag\n" , __func__);
-			ret = -EINVAL;
-		}
-#if 0
-		if (pfn_valid(__phys_to_pfn(rq->in_data_phys))) {
-			struct page *page = pfn_to_page(__phys_to_pfn(rq->in_data_phys));
-			void *p = kmap(page);
-			if(p){
-				memcpy(p , tempbuffer , indata_size);
-				printk("yzl add %s after memcpy p:%p\n" , __func__ , p);
-				kunmap(page);
-			}
-		}
-		dma_sync_single_for_device(xvp->dev, rq->in_data_phys , indata_size , DMA_TO_DEVICE);
-
-#endif
-		vfree(tempbuffer);
-		return ret;
-	} else
-		return 0;
-}
-#if 1
-static int32_t xrp_library_release_all(struct xvp *xvp)
-{
-	int i;
-	int ret = 0;
-	struct loadlib_info *libinfo = NULL;
-	mutex_lock(&xvp->load_lib.libload_mutex);
-	for(i = 0; i < libinfo_list_size(&(xvp->load_lib.lib_list)) ; i++) {
-		libinfo = libinfo_list_get(&(xvp->load_lib.lib_list),i);
-		/*unmap iommu and release ion buffer*/
-#if 0
-		dma_free_attrs(xvp->dev, PAGE_SIZE, libinfo->ionhandle,
-			       phys_to_dma(xvp->dev, libinfo->ion_phy), 0);
-		dma_free_attrs(xvp->dev, PAGE_SIZE, libinfo->pil_ionhandle , 
-			       phys_to_dma(xvp->dev, libinfo->pil_info) , 0);
-
-#else
-		if((libinfo != NULL) /*&& (libinfo->load_count <=0)*/) {
-			xvp->vdsp_mem_desc->ops->mem_kunmap(xvp->vdsp_mem_desc, libinfo->ionhandle);
-			xvp->vdsp_mem_desc->ops->mem_iommu_unmap(xvp->vdsp_mem_desc, libinfo->ionhandle , IOMMU_ALL);
-			xvp->vdsp_mem_desc->ops->mem_free(xvp->vdsp_mem_desc, libinfo->ionhandle);
-			vfree(libinfo->ionhandle);
-
-			xvp->vdsp_mem_desc->ops->mem_kunmap(xvp->vdsp_mem_desc, libinfo->pil_ionhandle);
-			xvp->vdsp_mem_desc->ops->mem_iommu_unmap(xvp->vdsp_mem_desc, libinfo->pil_ionhandle , /*IOMMU_MSTD*/IOMMU_ALL);
-			xvp->vdsp_mem_desc->ops->mem_free(xvp->vdsp_mem_desc, libinfo->pil_ionhandle);
-			vfree(libinfo->pil_ionhandle);
-			if(libinfo->code_back_kaddr != NULL)
-				vfree(libinfo->code_back_kaddr);
-			libinfo_list_remove(&(xvp->load_lib.lib_list) , i);
-			printk("yzl add %s , release ion handle, pil handle current:%p\n" , __func__ , get_current());
-		}
-
-#endif
-	}
-	mutex_unlock(&xvp->load_lib.libload_mutex);
-#if 0
-	if(xvp->load_lib.lib_list.number != 0) {
-		ret = -EINVAL;
-	}
-#endif
-	return ret;
-}
-#endif
-#ifdef USE_RE_REGISTER_LIB
-static int32_t xrp_register_libs(struct xvp *xvp , struct xrp_comm *comm)
-{
-	int i;
-	int ret =0;
-	int realret = 0;
-	__u8 *input_ptr = NULL;
-	struct loadlib_info *libinfo = NULL;
-	struct ion_buf input_ion_buf;
-	phys_addr_t vdsp_addr;
-	struct xrp_request rq;
-	rq.ioctl_queue.flags = XRP_QUEUE_FLAG_NSID;
-	rq.ioctl_queue.in_data_size = LIBRARY_CMD_LOAD_UNLOAD_INPUTSIZE;
-	rq.ioctl_queue.out_data_size = 0;
-	rq.ioctl_queue.buffer_size = 0;
-	rq.ioctl_queue.in_data_addr = 0;
-	rq.ioctl_queue.out_data_addr = 0;
-	rq.ioctl_queue.buffer_addr = 0;
-	rq.ioctl_queue.nsid_addr = 0;
-	rq.n_buffers = 0;
-	rq.buffer_mapping = NULL;
-	rq.dsp_buffer = NULL;
-	/*may change later*/
-	rq.in_data_phys = 0;
-	/*alloc input cmd ion buffer*/
-	ret = sprd_vdsp_ion_alloc(&input_ion_buf , ION_HEAP_ID_MASK_SYSTEM , rq.ioctl_queue.in_data_size);
-        if(ret != 0) {
-                printk("yzl add %s alloc input_ion_buf failed\n" , __func__);
-                return -ENOMEM;
-        }
-        input_ion_buf.dev = xvp->dev;
-	sprd_vdsp_kmap(&input_ion_buf);
-        input_ptr = (void*)input_ion_buf.addr_k[0];
-        sprd_vdsp_iommu_map(&input_ion_buf , IOMMU_ALL);
-        vdsp_addr = input_ion_buf.iova[0];
-	rq.in_data_phys = vdsp_addr;
-	memset(rq.nsid , 0 , sizeof(rq.nsid));
-	sprintf(rq.nsid , "%s" , LIBRARY_LOAD_UNLOAD_NSID);
-	for(i = 0; i < libinfo_list_size(&(xvp->load_lib.lib_list)) ; i++) {
-		libinfo = libinfo_list_get(&(xvp->load_lib.lib_list),i);
-		if(libinfo->load_count > 0) {
-			/*re send register cmd*/
-			if(libinfo->code_back_kaddr == NULL) {
-				realret = -1;
-				break;
-			}
-			memcpy(libinfo->code_back_kaddr , libinfo->ion_kaddr , libinfo->length);
-			input_ptr[0] = XRP_LOAD_LIB_FLAG;
-			sprintf(input_ptr+1 , "%s" , libinfo->libname);
-			*((unsigned int*)(input_ptr + LIBRARY_CMD_PIL_INFO_OFFSET)) = libinfo->pil_info;
-			sprd_fill_hw_request(comm->comm , &rq);
-			xrp_send_device_irq(xvp);
-			if(xvp->host_irq_mode) {
-				ret = xvp_complete_cmd_irq(xvp , comm , xrp_cmd_complete);
-			} else {
-				ret = xvp_complete_cmd_poll(xvp, comm ,
-					xrp_cmd_complete);
-			}
-			xrp_panic_check(xvp);
-			if(0 == ret) {
-				ret = sprd_complete_hw_request(comm->comm , &rq);
-			}
-			if(ret != 0) {
-				/*set invalid*/
-				printk("yzl add %s re load lib:%s failed\n" , __func__ , libinfo->libname);
-				libinfo->lib_state = XRP_LIBRARY_IDLE;
-				realret = -1;
-			}
-			else {
-				libinfo->lib_state = XRP_LIBRARY_LOADED;
-				printk("yzl add %s re load lib:%s ok\n" , __func__ ,libinfo->libname);
-			}
-		}
-        }
-	sprd_vdsp_iommu_unmap(&input_ion_buf , IOMMU_ALL);
-	sprd_vdsp_kunmap(&input_ion_buf);
-	sprd_vdsp_ion_free(&input_ion_buf);
-	return realret;
-}
-#endif
-#endif
-
-#ifdef USE_LOAD_LIB
-/*return value 0 is ok, other value is fail or no need process continue*/
-static int32_t xrp_pre_process_request(struct xvp *xvp , struct xrp_request *rq , enum load_unload_flag loadflag, char *libname)
-{
-	int32_t lib_result , load_count;
-	//char libname[32];
-	struct loadlib_info *libinfo = NULL;
-	if(loadflag == XRP_LOAD_LIB_FLAG) {
-		lib_result = xrp_library_load(xvp , rq , libname);
-		if(0 != lib_result) {
-			/*has loaded needn't reload*/
-			if(lib_result != 1) {
-				printk("yzl add %s , result:%d, current:%p\n" , __func__ , lib_result , get_current());
-				return -EFAULT;
-			} else {
-				printk("yzl add %s , already loaded needn't reload current:%p\n" , __func__ , get_current());
-				return -ENXIO;
-			}
-		} else {
-			/*re-edit the rq for register*/
-			printk("yzl add %s , loadflag:%d current:%p\n" , __func__ , loadflag , get_current());
-			return 0;
-		}
-	} else if(loadflag == XRP_UNLOAD_LIB_FLAG) {
-		lib_result = xrp_library_getloadunload_libname(xvp , rq , libname);
-		if(lib_result == 0) {
-			if(0 != xrp_library_checkprocessing(xvp , libname)) {
-				printk("yzl add %s xrp_library_checkprocessing the same lib is processing invalid operation\n" , __func__);
-				return -EINVAL;
-			}
-			load_count = xrp_library_decrease(xvp  , libname);
-			libinfo = xrp_library_getlibinfo(xvp , libname);
-			/*if not need unload , maybe count is not zero , return after unmap*/
-			if(load_count > 0) {
-				printk("yzl add %s , needn't unload because load count is not zero\n" , __func__);
-				return -ENXIO;
-			} else if(0 == load_count){
-#ifndef USE_RE_REGISTER_LIB
-				if(libinfo != NULL) {
-					if(libinfo->lib_state == XRP_LIBRARY_MISSED_STATE) {
-						printk("yzl add %s xrp_library_unload libname:%s is missed state, release here\n" , __func__ , libname);
-						xrp_library_decrelease(xvp , libname);
-						return -ENXIO;
-					}
-				}
-#endif
-				/*if need unload may be modify libinfo addr, only follow the default send cmd*/
-				lib_result = xrp_library_unload(xvp , rq , libname);
-				if(lib_result != 0) {
-					printk("yzl add %s xrp_library_unload failed:%d\n" , __func__ , lib_result);
-					return -EINVAL;
-				}
-			} else {
-				printk("yzl add %s error decrease count error:%d , libname:%s\n" , __func__ , load_count , libname);
-				return -ENXIO;
-			}
-			if(libinfo != NULL)
-				libinfo->lib_state = XRP_LIBRARY_UNLOADING;
-			printk("yzl add %s loadflag:%d , libname:%s , current:%p\n" , __func__ , loadflag , libname , get_current());
-			return 0;
-		} else {
-			printk("yzl add %s , XRP_UNLOAD_LIB_FLAG , get libname error , libname:%s , loadflag:%d ,current:%p\n" , __func__ ,
-				libname , loadflag , get_current());
-			return -EINVAL;
-		}
-	}
-	else {
-		/*check whether libname unloading state, if unloading return*/
-		libinfo = xrp_library_getlibinfo(xvp , rq->nsid);
-		printk("yzl add %s xrp_library_getlibinfo libinfo:%p\n" , __func__ , libinfo);
-		if(libinfo != NULL) {
-			if(libinfo->lib_state != XRP_LIBRARY_LOADED) {
-				printk("yzl add %s lib:%s , libstate is:%d not XRP_LIBRARY_LOADED , so return inval\n" , __func__,rq->nsid , libinfo->lib_state);
-				return -EINVAL;
-			}
-			/*set processing libname*/
-			libinfo->lib_state = XRP_LIBRARY_PROCESSING_CMD;
-		} else {
-			printk("yzl add %s not loaded libinfo\n" , __func__);
-		}
-		printk("yzl add %s not loaded libinfo , libname:%s , current:%p\n" , __func__ , rq->nsid , get_current());
-		return 0;
-	}
-}
-static int post_process_request(struct xvp *xvp , struct xrp_request *rq , const char* libname , enum load_unload_flag load_flag , int32_t resultflag)
-{
-	struct loadlib_info *libinfo = NULL;
-	int32_t ret = 0;
-	if(load_flag == XRP_LOAD_LIB_FLAG) {
-		if(0 == resultflag){
-			xrp_library_increase(xvp , libname);
-			libinfo = xrp_library_getlibinfo(xvp , libname);
-			if(NULL != libinfo) {
-				libinfo->lib_state = XRP_LIBRARY_LOADED;
-				printk("yzl add %s , set lib:%s , libstate XRP_LIBRARY_LOADED\n" , __func__ , libname);
-			}
-		} else {
-			/*load failedd release here*/
-			xrp_library_decrelease(xvp , libname);
-			printk("yzl add %s , set lib:%s , load failed xrp_library_decrelease\n" , __func__ , libname);
-			ret = -EFAULT;
-		}
-	} else if(load_flag == XRP_UNLOAD_LIB_FLAG) {
-		if(0 == resultflag) {
-			libinfo = xrp_library_getlibinfo(xvp , libname);
-			if(NULL != libinfo) {
-				libinfo->lib_state = XRP_LIBRARY_IDLE;
-			}
-			printk("yzl add %s , set lib:%s , libstate XRP_LIBRARY_IDLE libinfo:%p\n" , __func__ , libname , libinfo);
-		} else {
-			printk("yzl add %s , set lib:%s , unload failed\n" , __func__ , libname);
-			ret = -EFAULT;
-		}
-	} else {
-		/*remove processing lib*/
-		libinfo = xrp_library_getlibinfo(xvp , rq->nsid);
-		printk("yzl add %s xrp_library_getlibinfo libinfo:%p\n" , __func__ , libinfo);
-		if(libinfo != NULL) {
-			if(libinfo->lib_state != XRP_LIBRARY_PROCESSING_CMD) {
-				printk("yzl add %s lib:%s processing cmd , but not XRP_LIBRARY_PROCESSING_CMD state\n",
-					__func__ , rq->nsid);
-				ret = -EINVAL;
-			}
-			/*set processing libname*/
-			libinfo->lib_state = XRP_LIBRARY_LOADED;
-		} else {
-			;
-		}
-		/*set processing lib state*/
-		printk("yzl add %s lib:%s , process cmd over\n" , __func__ , rq->nsid);
-	}
-	return ret;
-}
-#endif
 
 static long xrp_ioctl_submit_sync(struct file *filp,
 				  struct xrp_ioctl_queue __user *p)
@@ -2923,14 +1038,12 @@ static long xrp_ioctl_submit_sync(struct file *filp,
 	struct xrp_request xrp_rq, *rq = &xrp_rq;
 	long ret = 0;
 	bool went_off = false;
-#ifdef USE_LOAD_LIB
 	enum load_unload_flag load_flag;
 	char libname[32];
 	bool rebootflag = 0;
 	/*int32_t load_count;*/
 	//struct loadlib_info *libinfo = NULL;
 	int32_t lib_result = 0;
-#endif
 	if (copy_from_user(&rq->ioctl_queue, p, sizeof(*p)))
 		return -EFAULT;
 
@@ -2939,7 +1052,7 @@ static long xrp_ioctl_submit_sync(struct file *filp,
 			__func__, rq->ioctl_queue.flags);
 		return -EINVAL;
 	}
-	
+
 	if (xvp->n_queues > 1) {
 		unsigned n = (rq->ioctl_queue.flags & XRP_QUEUE_FLAG_PRIO) >>
 			XRP_QUEUE_FLAG_PRIO_SHIFT;
@@ -2952,11 +1065,7 @@ static long xrp_ioctl_submit_sync(struct file *filp,
 		printk("yzl add %s , queue index:%d\n" , __func__ , n);
 	}
 
-#ifdef USE_SPRD_MODE
- ret = sprd_map_request(filp, rq);
-#else
-	ret = xrp_map_request(filp, rq, current->mm);
-#endif
+	ret = sprd_map_request(filp, rq);
 	if (ret < 0)
 		return ret;
 
@@ -2974,93 +1083,8 @@ retry:
 			ret = -ENODEV;
 		} else {
 			printk("yzl add %s , queue_comm:%p , current:%p\n" , __func__ , queue->comm , get_current());
-#ifdef USE_SPRD_MODE
-#ifdef USE_LOAD_LIB
 			/*check whether libload command and if it is, do load*/
 			load_flag = xrp_check_load_unload(xvp , rq);
-#if 0
-			if(load_flag == XRP_LOAD_LIB_FLAG) {
-				mutex_lock(&(xvp->load_lib.libload_mutex));
-				lib_result = xrp_library_load(xvp , rq , libname);
-				if(0 != lib_result) {
-					/*has loaded needn't reload*/
-					mutex_unlock(&queue->lock);
-					mutex_unlock(&(xvp->load_lib.libload_mutex));
-					ret = sprd_unmap_request(filp, rq);
-					if(lib_result != 1) {
-						printk("yzl add %s , xrp_library_load result:%d\n" , __func__ , lib_result);
-						return lib_result;
-					} else {
-						printk("yzl add %s , xrp_library_load already loaded needn't reload\n" , __func__);
-						return ret;
-					}
-				} else {
-					/*re-edit the rq for register*/
-				}
-			} else if(load_flag == XRP_UNLOAD_LIB_FLAG) {
-				mutex_lock(&(xvp->load_lib.libload_mutex));
-				/*check whether processing libname is the same with this unload one, if same
-                                        return*/
-				lib_result = xrp_library_getloadunload_libname(xvp , rq , libname);
-				if(lib_result == 0) {
-					if(0 != xrp_library_checkprocessing(xvp , libname)) {
-						mutex_unlock(&queue->lock);
-						mutex_unlock(&(xvp->load_lib.libload_mutex));
-						ret = sprd_unmap_request(filp, rq);
-						printk("yzl add %s xrp_library_checkprocessing the same lib is processing invalid operation\n" , __func__);
-						return -EINVAL;
-					}
-				
-					load_count = xrp_library_decrease(xvp  , libname);
-					/*if not need unload , maybe count is not zero , return after unmap*/
-					if(load_count > 0) {
-						mutex_unlock(&queue->lock);
-						mutex_unlock(&(xvp->load_lib.libload_mutex));
-                				ret = sprd_unmap_request(filp, rq);
-						printk("yzl add %s , needn't unload because load count is not zero\n" , __func__);
-						return -EINVAL;
-					} else if(0 == load_count){
-						/*if need unload may be modify libinfo addr, only follow the default send cmd*/
-						lib_result = xrp_library_unload(xvp , rq , libname);
-						if(lib_result != 0) {
-							mutex_unlock(&queue->lock);
-							mutex_unlock(&(xvp->load_lib.libload_mutex));
-							ret = sprd_unmap_request(filp, rq);
-							printk("yzl add %s xrp_library_unload failed:%d\n" , __func__ , lib_result);
-							return -EINVAL;
-						}
-					} else
-						printk("yzl add %s error decrease count error:%d , libname:%s" , __func__ , load_count , libname);
-					libinfo = xrp_library_getlibinfo(xvp , libname);
-					libinfo->lib_state = XRP_LIBRARY_UNLOADING;
-				} else {
-					mutex_unlock(&queue->lock);
-					mutex_unlock(&(xvp->load_lib.libload_mutex));
-					ret = sprd_unmap_request(filp, rq);
-					printk("yzl add %s , XRP_UNLOAD_LIB_FLAG , get libname error\n" , __func__);
-				}
-			} else {
-				mutex_lock(&(xvp->load_lib.libload_mutex));
-				/*check whether libname unloading state, if unloading return*/
-				libinfo = xrp_library_getlibinfo(xvp , rq->nsid);
-				printk("yzl add %s xrp_library_getlibinfo libinfo:%p\n" , __func__ , libinfo);
-				if(libinfo != NULL) {
-					if(libinfo->lib_state != XRP_LIBRARY_LOADED) {
-						mutex_unlock(&queue->lock);
-						mutex_unlock(&(xvp->load_lib.libload_mutex));
-						ret = sprd_unmap_request(filp , rq);
-						printk("yzl add %s lib:%s , libstate is:%d not XRP_LIBRARY_LOADED , so return inval\n" , __func__,
-							rq->nsid , libinfo->lib_state);
-						return -EINVAL;
-					}
-					/*set processing libname*/
-					libinfo->lib_state = XRP_LIBRARY_PROCESSING_CMD;
-				} else {
-					;
-				}
-				mutex_unlock(&(xvp->load_lib.libload_mutex));
-			}
-#else
 			mutex_lock(&(xvp->load_lib.libload_mutex));
 			lib_result = xrp_pre_process_request(xvp , rq , load_flag , libname);
 			if(lib_result != 0) {
@@ -3075,13 +1099,8 @@ retry:
 			}else if((load_flag != XRP_UNLOAD_LIB_FLAG)&&(load_flag != XRP_LOAD_LIB_FLAG)) {
 				mutex_unlock(&(xvp->load_lib.libload_mutex));
 			}
-				
-#endif
-#endif
+
 			sprd_fill_hw_request(queue->comm, rq);
-#else
-			xrp_fill_hw_request(queue->comm, rq, &xvp->address_map);
-#endif
 			xrp_send_device_irq(xvp);
 
 			if (xvp->host_irq_mode) {
@@ -3093,32 +1112,15 @@ retry:
 			}
 
 			xrp_panic_check(xvp);
-#if 0
-			/*only for test need removed later*/
-			if((load_flag != XRP_LOAD_LIB_FLAG) && (load_flag != XRP_UNLOAD_LIB_FLAG))
-			{
-				static int index = 0;
-				index ++;
-				if(index % 4 == 0)
-					ret = -EBUSY;
-				
-			}
-#endif
 			/* copy back inline data */
 			if (ret == 0) {
-#ifdef USE_SPRD_MODE
 				ret = sprd_complete_hw_request(queue->comm, rq);
-#else
-				ret = xrp_complete_hw_request(queue->comm, rq);
-#endif
-#ifdef USE_LOAD_LIB
 				if(load_flag == XRP_LOAD_LIB_FLAG) {
 					/*check wheter ok flag if not ok , release ion mem allocated for lib code
 						release lib info struce*/
 					if(ret < 0) {
 						printk("yzl add %s xrp_complete_hw_request vdsp side failed load lib\n" , __func__);
 						lib_result = xrp_library_decrelease(xvp , libname);
-						
 					}
 				} else if(load_flag == XRP_UNLOAD_LIB_FLAG) {
 					if(ret < 0) {
@@ -3128,7 +1130,6 @@ retry:
 						lib_result = xrp_library_decrelease(xvp , libname);
 					}
                         	}
-#endif
 			} else if (ret == -EBUSY && firmware_reboot &&
 				   atomic_inc_return(&xvp->reboot_cycle) ==
 				   reboot_cycle + 1) {
@@ -3142,7 +1143,6 @@ retry:
 					if (xvp->queue + i != queue)
 						mutex_lock(&xvp->queue[i].lock);
 				rc = xrp_boot_firmware(xvp);
-#ifdef USE_LOAD_LIB
 #ifdef USE_RE_REGISTER_LIB
 				if(rc == 0) {
 					if((load_flag != XRP_LOAD_LIB_FLAG) && (load_flag != XRP_UNLOAD_LIB_FLAG)) {
@@ -3165,7 +1165,6 @@ retry:
 					mutex_unlock(&(xvp->load_lib.libload_mutex));
 				}
 #endif
-#endif
 
 				atomic_set(&xvp->reboot_cycle_complete,
 					   atomic_read(&xvp->reboot_cycle));
@@ -3178,54 +1177,6 @@ retry:
 				}
 				rebootflag = 1;
 			}
-#ifdef USE_LOAD_LIB
-#if 0
-			if((load_flag == XRP_LOAD_LIB_FLAG)) {
-				if(0 == ret){
-					xrp_library_increase(xvp , libname);
-					libinfo = xrp_library_getlibinfo(xvp , libname);
-					if(NULL != libinfo) {
-						libinfo->lib_state = XRP_LIBRARY_LOADED;
-						printk("yzl add %s , set lib:%s , libstate XRP_LIBRARY_LOADED\n" , __func__ , libname);
-					}
-				} else {
-					/*load failedd release here*/
-					xrp_library_decrelease(xvp , libname);
-				}
-				mutex_unlock(&(xvp->load_lib.libload_mutex));
-			} else if(load_flag == XRP_UNLOAD_LIB_FLAG) {
-				if(0 == ret) {
-					libinfo = xrp_library_getlibinfo(xvp , libname);
-					if(NULL != libinfo) {
-						libinfo->lib_state = XRP_LIBRARY_IDLE;
-					}
-					printk("yzl add %s , set lib:%s , libstate XRP_LIBRARY_IDLE libinfo:%p\n" , __func__ , libname , libinfo);
-				}
-				mutex_unlock(&(xvp->load_lib.libload_mutex));
-			} else {
-				mutex_lock(&(xvp->load_lib.libload_mutex));
-				/*remove processing lib*/
-				libinfo = xrp_library_getlibinfo(xvp , rq->nsid);
-				printk("yzl add %s xrp_library_getlibinfo libinfo:%p\n" , __func__ , libinfo);
-				if(libinfo != NULL) {
-					if(libinfo->lib_state != XRP_LIBRARY_PROCESSING_CMD) {
-						mutex_unlock(&queue->lock);
-						mutex_unlock(&(xvp->load_lib.libload_mutex));
-						ret = sprd_unmap_request(filp , rq);
-						printk("yzl add %s lib:%s processing cmd , but not XRP_LIBRARY_PROCESSING_CMD state\n",
-						       __func__ , rq->nsid);
-						return -EINVAL;
-					}
-					/*set processing libname*/
-					libinfo->lib_state = XRP_LIBRARY_LOADED;
-				} else {
-					;	
-				}
-				/*set processing lib state*/
-				printk("yzl add %s lib:%s , process cmd over\n" , __func__ , rq->nsid);
-				mutex_unlock(&(xvp->load_lib.libload_mutex));
-			}
-#else
 			if(0 == rebootflag) {
 				if((load_flag != XRP_LOAD_LIB_FLAG) && (load_flag != XRP_UNLOAD_LIB_FLAG)) {
 					mutex_lock(&(xvp->load_lib.libload_mutex));
@@ -3246,25 +1197,14 @@ retry:
 					}
 				}
 			}
-#endif
-
-#endif
 		}
 		mutex_unlock(&queue->lock);
 	}
 
 	if (ret == 0)
-#ifdef USE_SPRD_MODE
 		ret = sprd_unmap_request(filp, rq);
-#else
-		ret = xrp_unmap_request(filp, rq);
-#endif
 	else if (!went_off)
-#ifdef USE_SPRD_MODE
 		sprd_unmap_request(filp, rq);
-#else
-		xrp_unmap_request_nowb(filp, rq);
-#endif
 	/*
 	 * Otherwise (if the DSP went off) all mapped buffers are leaked here.
 	 * There seems to be no way to recover them as we don't know what's
@@ -3395,7 +1335,6 @@ static int xvp_mmap(struct file *filp, struct vm_area_struct *vma)
 
 	return err;
 }
-#ifdef USE_SPRD_MODE
 static int32_t sprd_alloc_commbuffer(struct xvp *xvp)
 {
 	int ret;
@@ -3587,7 +1526,6 @@ static int sprd_iommu_unmap_extrabuffer(struct xvp *xvp)
 	return ((ret!=0)||(ret1!=0)) ? -EFAULT : 0;
 }
 
-#endif
 static int xvp_open(struct inode *inode, struct file *filp)
 {
 	struct xvp *xvp = container_of(filp->private_data,
@@ -3617,9 +1555,7 @@ static int xvp_open(struct inode *inode, struct file *filp)
 	spin_lock_init(&xvp_file->busy_list_lock);
 	filp->private_data = xvp_file;
 	xrp_add_known_file(filp);
-#ifdef USE_LOAD_LIB
 	xvp->open_count ++;
-#endif
 
 	return 0;
 }
@@ -3644,14 +1580,12 @@ static int xvp_close(struct inode *inode, struct file *filp)
 
 	xrp_remove_known_file(filp);
 	pm_runtime_put_sync(xvp_file->xvp->dev);
-#ifdef USE_LOAD_LIB
 	xvp_file->xvp->open_count--;
 	printk("yzl add %s , open_count is:%d\n" , __func__ , xvp_file->xvp->open_count);
 	if(0 == xvp_file->xvp->open_count) {
 		/*release xvp load_lib info*/
 		ret = xrp_library_release_all(xvp_file->xvp);
 	}
-#endif
 	devm_kfree(xvp_file->xvp->dev, xvp_file);
 	printk("yzl add %s , ret:%d\n" , __func__ , ret);
 	return ret;
@@ -3727,11 +1661,9 @@ static int xrp_runtime_resume_normal(struct xvp *xvp)
 {
 	unsigned i;
 	int ret = 0;
-#ifdef USE_SPRD_MODE
 	int ret1 = 0;
 	struct vdsp_ipi_ctx_desc *ipidesc = NULL;
 	printk("yzl add %s enter\n" , __func__);
-#endif
 	for (i = 0; i < xvp->n_queues; ++i)
 		mutex_lock(&xvp->queue[i].lock);
 
@@ -3742,7 +1674,6 @@ static int xrp_runtime_resume_normal(struct xvp *xvp)
 		dev_err(xvp->dev, "couldn't enable DSP\n");
 		goto out;
 	}
-#ifdef USE_SPRD_MODE
 	ret = sprd_alloc_extrabuffer(xvp);
 	if(ret != 0) {
 		printk("yzl add %s sprd_alloc_extrabuffer failed\n" , __func__);
@@ -3766,13 +1697,11 @@ static int xrp_runtime_resume_normal(struct xvp *xvp)
 		printk("yzl add %s ipi init called\n" , __func__);
 		ipidesc->ops->ctx_init(ipidesc);
 	}
-#endif
 	/*set qos*/
 	xvp_set_qos(xvp);
 
 	ret = xrp_boot_firmware(xvp);
 	if (ret < 0) {
-#ifdef USE_SPRD_MODE
 		ret1 = sprd_iommu_unmap_extrabuffer(xvp);
 		if(ret1 != 0) {
 			printk("yzl add %s sprd_iommu_unmap_extrabuffer failed\n" , __func__);
@@ -3785,7 +1714,6 @@ static int xrp_runtime_resume_normal(struct xvp *xvp)
 		if(ret1 != 0) {
 			printk("yzl add %s sprd_iommu_unmap_commbuffer failed boot firmware failed\n" , __func__);
 		}
-#endif
 		xvp_disable_dsp(xvp);
 	}
 
@@ -3813,7 +1741,6 @@ static int xrp_runtime_resume_secure(struct xvp *xvp)
 		dev_err(xvp->dev, "couldn't enable DSP\n");
 		goto out;
 	}
-#ifdef USE_SPRD_MODE
 	ret = sprd_iommu_map_faceid_fwbuffer(xvp);
 	if(ret != 0) {
 		printk("yzl add %s map faceid fw failed\n" , __func__);
@@ -3825,25 +1752,15 @@ static int xrp_runtime_resume_secure(struct xvp *xvp)
 		printk("yzl add %s map comm buffer failed\n" , __func__);
 		goto out;
 	}
-	/*
-	ret = sprd_iommu_map_faceid_weights(xvp);
-	if(ret != 0) {
-		sprd_iommu_unmap_faceid_fwbuffer(xvp);
-		sprd_iommu_unmap_commbuffer(xvp);
-		printk("yzl add %s map weights failed\n" , __func__);
-		goto out;
-	}*/
 	ipidesc = get_vdsp_ipi_ctx_desc();
 	if(ipidesc) {
 		printk("yzl add %s ipi init called\n" , __func__);
 		ipidesc->ops->ctx_init(ipidesc);
 	}
-#endif
 	/*set qos*/
 	xvp_set_qos(xvp);
 	ret = xrp_boot_firmware(xvp);
 	if (ret < 0) {
-#ifdef USE_SPRD_MODE
 		ret1 = sprd_iommu_unmap_faceid_fwbuffer(xvp);
 		if(ret1 != 0) {
 			printk("yzl add %s unmap faceid fw failed\n" , __func__);
@@ -3852,12 +1769,6 @@ static int xrp_runtime_resume_secure(struct xvp *xvp)
 		if(ret1 != 0) {
 			printk("yzl add %s unmap comm buffer failed\n" , __func__);
 		}
-		/*
-		ret1 = sprd_iommu_unmap_faceid_weights(xvp);
-		if(ret1 != 0) {
-			printk("yzl add %s unmap weights failed\n" , __func__);
-		}*/
-#endif
 		xvp_disable_dsp(xvp);
 	}
 
@@ -3962,25 +1873,17 @@ static const struct file_operations xvp_fops = {
 
 int xrp_runtime_suspend(struct device *dev)
 {
-#ifdef USE_SPRD_MODE
 	int ret;
 	struct vdsp_ipi_ctx_desc *ipidesc = NULL;
-#endif
 	struct xvp *xvp = dev_get_drvdata(dev);
 
 	xrp_halt_dsp(xvp);
-#ifdef USE_SPRD_MODE
 	if(xvp->secmode)
 	{
 		ret = sprd_iommu_unmap_faceid_fwbuffer(xvp);
 		if(ret != 0) {
 			printk("yzl add %s unmap faceid fw failed\n" , __func__);
 		}
-		/*
-		ret = sprd_iommu_unmap_faceid_weights(xvp);
-		if(ret != 0) {
-			printk("yzl add %s unmap faceid weights failed\n" , __func__);
-		}*/
 	}
 	else
 	{
@@ -3997,15 +1900,12 @@ int xrp_runtime_suspend(struct device *dev)
 	if(ret != 0) {
 		printk("yzl add %s sprd_iommu_unmap_commbuffer failed\n" , __func__);
 	}
-#endif
 	xvp_disable_dsp(xvp);
-#ifdef USE_SPRD_MODE
 	ipidesc = get_vdsp_ipi_ctx_desc();
 	if(ipidesc) {
                 printk("yzl add %s ipi deinit called\n" , __func__);
                 ipidesc->ops->ctx_deinit(ipidesc);
         }
-#endif
 	return 0;
 }
 EXPORT_SYMBOL(xrp_runtime_suspend);
@@ -4130,11 +2030,9 @@ static long xrp_init_common(struct platform_device *pdev,
 		goto err;
 	}
 	sprd_log_sem_init();
-#ifdef USE_LOAD_LIB
 	mutex_init(&(xvp->load_lib.libload_mutex));
 	mutex_init(&map_lock);
 	xvp->open_count = 0;
-#endif
 	xvp->dev = &pdev->dev;
 	xvp->hw_ops = hw_ops;
 	xvp->hw_arg = hw_arg;
@@ -4273,10 +2171,8 @@ err_pm_disable:
 err_free_map:
 	xrp_free_address_map(&xvp->address_map);
 err_free_pool:
-#ifdef USE_SPRD_MODE
 	if(xvp->pool != NULL)
-#endif
-	xrp_free_pool(xvp->pool);
+		xrp_free_pool(xvp->pool);
 	if (xvp->comm_phys && !xvp->pmem) {
 		dma_free_attrs(xvp->dev, PAGE_SIZE, xvp->comm,
 			       phys_to_dma(xvp->dev, xvp->comm_phys), 0);
@@ -4314,7 +2210,6 @@ long xrp_init_cma(struct platform_device *pdev, enum xrp_init_flags flags,
 }
 EXPORT_SYMBOL(xrp_init_cma);
 
-#ifdef USE_SPRD_MODE
 xrp_init_function xrp_init_sprd;
 long xrp_init_sprd(struct platform_device *pdev, enum xrp_init_flags flags,
                   const struct xrp_hw_ops *hw_ops, void *hw_arg)
@@ -4322,11 +2217,9 @@ long xrp_init_sprd(struct platform_device *pdev, enum xrp_init_flags flags,
         return xrp_init_common(pdev, flags, hw_ops, hw_arg, xrp_init_regs_sprd);
 }
 EXPORT_SYMBOL(xrp_init_sprd);
-#endif
 
 int xrp_deinit(struct platform_device *pdev)
 {
-#ifdef USE_SPRD_MODE
 	struct xvp *xvp = platform_get_drvdata(pdev);
 
 	pm_runtime_disable(xvp->dev);
@@ -4340,27 +2233,6 @@ int xrp_deinit(struct platform_device *pdev)
 	xrp_free_address_map(&xvp->address_map);
 	ida_simple_remove(&xvp_nodeid, xvp->nodeid);
 	return 0;
-#else
-	struct xvp *xvp = platform_get_drvdata(pdev);
-
-	pm_runtime_disable(xvp->dev);
-	if (!pm_runtime_status_suspended(xvp->dev))
-		xrp_runtime_suspend(xvp->dev);
-
-	misc_deregister(&xvp->miscdev);
-	release_firmware(xvp->firmware);
-#ifdef USE_SPRD_MODE
-	if(xvp->pool != NULL)
-#endif
-	xrp_free_pool(xvp->pool);
-	if (xvp->comm_phys && !xvp->pmem) {
-		dma_free_attrs(xvp->dev, PAGE_SIZE, xvp->comm,
-			       phys_to_dma(xvp->dev, xvp->comm_phys), 0);
-	}
-	xrp_free_address_map(&xvp->address_map);
-	ida_simple_remove(&xvp_nodeid, xvp->nodeid);
-	return 0;
-#endif
 }
 EXPORT_SYMBOL(xrp_deinit);
 
@@ -4373,113 +2245,8 @@ int xrp_deinit_hw(struct platform_device *pdev, void **hw_arg)
 	return xrp_deinit(pdev);
 }
 EXPORT_SYMBOL(xrp_deinit_hw);
-#if 0
-static void *get_hw_sync_data(void *hw_arg, size_t *sz)
-{
-	void *p = kzalloc(64, GFP_KERNEL);
 
-	*sz = 64;
-	return p;
-}
 
-static const struct xrp_hw_ops hw_ops = {
-	.get_hw_sync_data = get_hw_sync_data,
-};
-#ifdef CONFIG_OF
-static const struct of_device_id xrp_of_match[] = {
-	{
-		.compatible = "cdns,xrp",
-		.data = xrp_init,
-	}, {
-		.compatible = "cdns,xrp,v1",
-		.data = xrp_init_v1,
-	}, {
-		.compatible = "cdns,xrp,cma",
-		.data = xrp_init_cma,
-	},
-#ifdef USE_SPRD_MODE 
-	{
-		.compatible = "cdns,xrp,sprd",
-		.data = xrp_init_sprd,
-	},
-#endif
-	{},
-};
-MODULE_DEVICE_TABLE(of, xrp_of_match);
-#endif
-#ifdef CONFIG_ACPI
-static const struct acpi_device_id xrp_acpi_match[] = {
-	{ "CXRP0001", 0 },
-	{ },
-};
-MODULE_DEVICE_TABLE(acpi, xrp_acpi_match);
-#endif
-static int xrp_probe(struct platform_device *pdev)
-{
-	long ret = -EINVAL;
-
-#ifdef CONFIG_OF
-	{
-		const struct of_device_id *match;
-		xrp_init_function *init;
-
-	        match = of_match_device(xrp_of_match, &pdev->dev);
-		init = match->data;
-		ret = init(pdev, 0, &hw_ops, NULL);
-		return IS_ERR_VALUE(ret) ? ret : 0;
-	}
-#endif
-#ifdef CONFIG_ACPI
-	ret = xrp_init_v1(pdev, 0, &hw_ops, NULL);
-	if (!IS_ERR_VALUE(ret)) {
-		struct xrp_address_map_entry *entry;
-		struct xvp *xvp = ERR_PTR(ret);
-
-		ret = 0;
-		/*
-		 * On ACPI system DSP can currently only access
-		 * its own shared memory.
-		 */
-		entry = xrp_get_address_mapping(&xvp->address_map,
-						xvp->comm_phys);
-		if (entry) {
-			entry->src_addr = xvp->comm_phys;
-			entry->dst_addr = (u32)xvp->comm_phys;
-			entry->size = (u32)xvp->shared_size + PAGE_SIZE;
-		} else {
-			dev_err(xvp->dev,
-				"%s: couldn't find mapping for shared memory\n",
-				__func__);
-			ret = -EINVAL;
-		}
-	}
-#endif
-	return ret;
-}
-
-static int xrp_remove(struct platform_device *pdev)
-{
-	return xrp_deinit(pdev);
-}
-
-static const struct dev_pm_ops xrp_pm_ops = {
-	SET_RUNTIME_PM_OPS(xrp_runtime_suspend,
-			   xrp_runtime_resume, NULL)
-};
-
-static struct platform_driver xrp_driver = {
-	.probe   = xrp_probe,
-	.remove  = xrp_remove,
-	.driver  = {
-		.name = DRIVER_NAME,
-		.of_match_table = of_match_ptr(xrp_of_match),
-		.acpi_match_table = ACPI_PTR(xrp_acpi_match),
-		.pm = &xrp_pm_ops,
-	},
-};
-
-module_platform_driver(xrp_driver);
-#endif
 MODULE_AUTHOR("Takayuki Sugawara");
 MODULE_AUTHOR("Max Filippov");
 MODULE_DESCRIPTION("XRP: Linux device driver for Xtensa Remote Processing");

@@ -41,43 +41,6 @@
 
 #define DOWNLOAD_FIRMWARE
 
-#ifndef USE_SPRD_MODE
-static phys_addr_t xrp_translate_to_cpu(struct xvp *xvp, Elf32_Phdr *phdr)
-{
-	phys_addr_t res;
-#if 0
-	__be32 addr = cpu_to_be32((u32)phdr->p_paddr);
-	struct device_node *node =
-		of_get_next_child(xvp->dev->of_node, NULL);
-
-	if (!node)
-		node = xvp->dev->of_node;
-
-	res = of_translate_address(node, &addr);
-
-	if (node != xvp->dev->of_node)
-		of_node_put(node);
-#else
-	u64 paddr = (u64)phdr->p_paddr;
-//	__be32 addr = cpu_to_be32((u32)phdr->p_paddr);
-	__be64 addr = cpu_to_be64(paddr);
-	//__be32 addr = (__be32)addr64;
-
-	struct device_node *node =
-		of_get_next_child(xvp->dev->of_node, NULL);
-
-	if (!node)
-		node = xvp->dev->of_node;
-
-	res = of_translate_address(node, (__be32*)(&addr));
-	printk("yzl add %s , of_translate_address inaddr:%lx , res:%lx\n" , __func__ , (unsigned long) addr , (unsigned long)res);
-	if (node != xvp->dev->of_node)
-		of_node_put(node);
-#endif
-	return res;
-}
-#endif
-#ifdef USE_SPRD_MODE
 static int xrp_load_segment_to_sysmem_ion(struct xvp *xvp , Elf32_Phdr *phdr)
 {
 #ifdef DOWNLOAD_FIRMWARE
@@ -105,101 +68,9 @@ static int xrp_load_segment_to_sysmem_ion(struct xvp *xvp , Elf32_Phdr *phdr)
 #endif
 	return 0;
 }
-#if 0
-static int xrp_load_segment_to_sprdiomem(struct xvp *xvp, Elf32_Phdr *phdr)
-{
-#if 0
-        phys_addr_t pa = xrp_translate_to_cpu(xvp, phdr);
-        void __iomem *p = ioremap(pa, phdr->p_memsz);
-#else
-	void __iomem *p = ioremap(phdr->p_paddr, phdr->p_memsz);
-	printk("yzl add %s ioremap p:%p, p_paddr:%lx\n" , __func__ , p , (unsigned long)phdr->p_paddr);
-#endif
-        if (!p) {
-                dev_err(xvp->dev,
-                        "couldn't ioremap %pap x 0x%08x\n",
-                        &phdr->p_paddr, (u32)phdr->p_memsz);
-                return -EINVAL;
-        }
-#if 0
-        if (xvp->hw_ops->memcpy_tohw)
-                xvp->hw_ops->memcpy_tohw(p, (void *)xvp->firmware->data +
-                                         phdr->p_offset, phdr->p_filesz);
-        else
-                memcpy_toio(p, (void *)xvp->firmware->data + phdr->p_offset,
-                            ALIGN(phdr->p_filesz, 4));
-
-        if (xvp->hw_ops->memset_hw)
-                xvp->hw_ops->memset_hw(p + phdr->p_filesz, 0,
-                                       phdr->p_memsz - phdr->p_filesz);
-        else
-                memset_io(p + ALIGN(phdr->p_filesz, 4), 0,
-                          ALIGN(phdr->p_memsz - ALIGN(phdr->p_filesz, 4), 4));
-
-#else
-	memcpy(p , (void *)xvp->firmware->data + phdr->p_offset, phdr->p_filesz);
-	memset(p+phdr->p_filesz , 0 , phdr->p_memsz - phdr->p_filesz);
-#endif
-        iounmap(p);
-        return 0;
-}
-#endif
-#else
-static int xrp_load_segment_to_sysmem(struct xvp *xvp, Elf32_Phdr *phdr)
-{
-	phys_addr_t pa = xrp_translate_to_cpu(xvp, phdr);
-	struct page *page = pfn_to_page(__phys_to_pfn(pa));
-	size_t page_offs = pa & ~PAGE_MASK;
-	size_t offs;
-
-	for (offs = 0; offs < phdr->p_memsz; ++page) {
-		void *p = kmap(page);
-		size_t sz;
-
-		if (!p)
-			return -ENOMEM;
-
-		page_offs &= ~PAGE_MASK;
-		sz = PAGE_SIZE - page_offs;
-
-		if (offs < phdr->p_filesz) {
-			size_t copy_sz = sz;
-
-			if (phdr->p_filesz - offs < copy_sz)
-				copy_sz = phdr->p_filesz - offs;
-
-			copy_sz = ALIGN(copy_sz, 4);
-			memcpy(p + page_offs,
-			       (void *)xvp->firmware->data +
-			       phdr->p_offset + offs,
-			       copy_sz);
-			page_offs += copy_sz;
-			offs += copy_sz;
-			sz -= copy_sz;
-		}
-
-		if (offs < phdr->p_memsz && sz) {
-			if (phdr->p_memsz - offs < sz)
-				sz = phdr->p_memsz - offs;
-
-			sz = ALIGN(sz, 4);
-			memset(p + page_offs, 0, sz);
-			page_offs += sz;
-			offs += sz;
-		}
-		kunmap(page);
-	}
-	dma_sync_single_for_device(xvp->dev, pa, phdr->p_memsz, DMA_TO_DEVICE);
-	return 0;
-}
-#endif
 static int xrp_load_segment_to_iomem(struct xvp *xvp, Elf32_Phdr *phdr)
 {
-#ifdef USE_SPRD_MODE
 	phys_addr_t pa = phdr->p_paddr;
-#else
-	phys_addr_t pa = xrp_translate_to_cpu(xvp, phdr);
-#endif
 	void __iomem *p = ioremap(pa, phdr->p_memsz);
 
 	if (!p) {
@@ -409,20 +280,10 @@ static int xrp_load_firmware(struct xvp *xvp)
 		dev_err(xvp->dev, "bad firmware ELF PHDR information\n");
 		return -EINVAL;
 	}
-#ifdef USE_SPRD_MODE
 	xrp_firmware_fixup_symbol(xvp , "xrp_dsp_comm_base" , xvp->dsp_comm_addr);
-#else
-	xrp_firmware_fixup_symbol(xvp, "xrp_dsp_comm_base",
-				  xrp_translate_to_dsp(&xvp->address_map,
-						       xvp->comm_phys));
-
-#endif
 	for (i = 0; i < ehdr->e_phnum; ++i) {
 		Elf32_Phdr *phdr = (void *)xvp->firmware->data +
 			ehdr->e_phoff + i * ehdr->e_phentsize;
-#ifndef USE_SPRD_MODE
-		phys_addr_t pa;
-#endif
 		int rc;
 
 		/* Only load non-empty loadable segments, R/W/X */
@@ -438,29 +299,12 @@ static int xrp_load_firmware(struct xvp *xvp)
 				i);
 			return -EINVAL;
 		}
-#ifdef USE_SPRD_MODE
 		if(phdr->p_paddr >= xvp->dsp_firmware_addr) {
 			rc = xrp_load_segment_to_sysmem_ion(xvp , phdr);
 		} else {
 			rc = xrp_load_segment_to_iomem(xvp , phdr);
 		}
-		
-#else
-		pa = xrp_translate_to_cpu(xvp, phdr);
-		if (pa == (phys_addr_t)OF_BAD_ADDR) {
-			dev_err(xvp->dev,
-				"device address 0x%08x could not be mapped to host physical address",
-				(u32)phdr->p_paddr);
-			return -EINVAL;
-		}
-		dev_dbg(xvp->dev, "loading segment %d (device 0x%08x) to physical %pap\n",
-			i, (u32)phdr->p_paddr, &pa);
 
-		if (pfn_valid(__phys_to_pfn(pa)))
-			rc = xrp_load_segment_to_sysmem(xvp, phdr);
-		else
-			rc = xrp_load_segment_to_iomem(xvp, phdr);
-#endif
 		if (rc < 0)
 			return rc;
 	}
