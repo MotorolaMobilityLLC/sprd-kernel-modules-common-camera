@@ -48,6 +48,7 @@
 #include "sprd_sensor_drv.h"
 #include "dcam_reg.h"
 #include "dcam_hw_if.h"
+#include "csi_api.h"
 
 #ifdef CONFIG_COMPAT
 #include "compat_cam_drv.h"
@@ -7181,6 +7182,7 @@ rewait:
 				pr_err("error: no hw ops.\n");
 				return -EFAULT;
 			}
+			csi_api_reg_trace();
 			dcam_hw->ops->trace_reg(dcam_hw, NULL);
 			isp_hw->ops->trace_reg(isp_hw, NULL);
 			read_op.evt = pframe->evt;
