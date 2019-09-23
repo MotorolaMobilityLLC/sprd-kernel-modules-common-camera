@@ -1384,12 +1384,14 @@ int dcam_callback(enum dcam_cb_type type, void *param, void *priv_data)
 				pr_info("cur %p\n", pframe->param_data);
 			}
 
-			io_desc.q = &module->isp_hist2_outbuf_queue;
-			io_desc.fid = pframe->fid;
-			ret = isp_ops->ioctl(module->isp_dev_handle,
-						channel->isp_path_id >> ISP_CTXID_OFFSET,
-						ISP_IOCTL_CYCLE_HIST2_FRAME,
-						&io_desc);
+			if (camera_queue_cnt(&module->isp_hist2_outbuf_queue) > 0) {
+				io_desc.q = &module->isp_hist2_outbuf_queue;
+				io_desc.fid = pframe->fid;
+				ret = isp_ops->ioctl(module->isp_dev_handle,
+							channel->isp_path_id >> ISP_CTXID_OFFSET,
+							ISP_IOCTL_CYCLE_HIST2_FRAME,
+							&io_desc);
+			}
 			ret = isp_ops->proc_frame(module->isp_dev_handle, pframe,
 					channel->isp_path_id >> ISP_CTXID_OFFSET);
 			if (ret) {

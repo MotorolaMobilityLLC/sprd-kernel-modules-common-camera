@@ -1288,7 +1288,7 @@ static int isp_offline_start_frame(void *ctx)
 		return 0;
 	}
 
-	if ((pframe->fid & 0xf) == 0)
+	if ((pframe->fid & 0x1f) == 0)
 		pr_info("frame %d, ctx %d  ch_id %d.  buf_fd %d\n",
 			pframe->fid, pctx->ctx_id,
 			pframe->channel_id, pframe->buf.mfd[0]);

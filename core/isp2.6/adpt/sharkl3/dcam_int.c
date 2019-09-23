@@ -102,7 +102,7 @@ static struct camera_frame *dcam_prepare_frame(struct dcam_pipe_dev *dev,
 
 	path = &dev->path[path_id];
 	if (atomic_read(&path->set_frm_cnt) <= 1) {
-		pr_warn("DCAM%u %s cnt %d, deci %u, out %u, result %u\n",
+		pr_warn_ratelimited("DCAM%u %s cnt %d, deci %u, out %u, result %u\n",
 			dev->idx, to_path_name(path_id),
 			atomic_read(&path->set_frm_cnt), path->frm_deci,
 			camera_queue_cnt(&path->out_buf_queue),
