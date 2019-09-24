@@ -2096,6 +2096,7 @@ int sprd_isp_force_stop_pipeline(void *handle)
 		pr_debug("disabling 3dnr\n");
 		dev->is_3dnr = 0;
 		dev->frm_cnt_3dnr = 0;
+		dev->module_info.isp_path[ISP_SCL_VID].valid = 0;
 	}
 
 	return ret;
@@ -2830,7 +2831,7 @@ int sprd_isp_update_zoom_param(void *isp_handle,
 			return -(rtn);
 		}
 
-		if (vid->valid || dev->is_3dnr_path_cfg) {
+		if (vid->valid || dev->is_3dnr) {
 			pr_debug("ISP%d: to update path vid\n", iid);
 			rtn = isp_path_scaler(module, ISP_PATH_IDX_VID,
 					      &vid_coeff->path, vid_coeff);
