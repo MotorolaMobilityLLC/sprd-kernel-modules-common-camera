@@ -31,8 +31,8 @@
 
 #define VDSP_FACEID_FIRMWIRE_SIZE    (1024*1024*10)
 
-#define FACEID_FD_MEM_SIZE (1024*1024*72)
-#define FACEID_RESULT_MEM_SIZE (1024*4)
+#define FACEID_FD_MEM_SIZE (1024*1024*16)
+#define FACEID_FIRMWARE "faceid_fw.bin"
 
 
 
@@ -51,6 +51,8 @@ struct faceid_hw_sync_data
 	__u32  frame_height;
 	__u32  frame_width;
 	__u32  out_addr;
+	__u32  liveness;
+	__u32  transfer_addr;/*face landmark point*/
 };
 typedef struct
 {

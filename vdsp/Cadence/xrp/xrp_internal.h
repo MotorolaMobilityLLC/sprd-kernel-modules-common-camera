@@ -57,15 +57,14 @@ struct faceid_mem_addr {
 	struct ion_buf ion_fv_weights;
 
 	struct ion_buf ion_fd_mem_pool;
-	struct ion_buf ion_fp_mem_pool;
-	struct ion_buf ion_flv_mem_pool;
-	struct ion_buf ion_fv_mem_pool;
+	struct ion_buf ion_face_transfer;
 	struct ion_buf ion_face_info;
 };
 struct xvp {
 	struct device *dev;
 	const char *firmware_name;
 	const struct firmware *firmware;
+	const struct firmware *firmware2;/*faceid fw*/
 	struct miscdevice miscdev;
 	const struct xrp_hw_ops *hw_ops;
 	void *hw_arg;
@@ -84,6 +83,7 @@ struct xvp {
 	struct ion_buf ion_dram_back;
 	/*firmware addr infos*/
 	void *firmware_viraddr;
+	void *firmware2_viraddr;
 	phys_addr_t firmware_phys;
 	phys_addr_t dsp_firmware_addr;
 	/*dram backup memory info*/
@@ -105,7 +105,6 @@ struct xvp {
 	bool secmode;/*used for faceID*/
 	bool tee_con;/*the status of connect TEE*/
 	struct ion_buf ion_faceid_fw;/*faceid fw*/
-	void *faceid_fw_viraddr;
 	struct faceid_mem_addr faceid_pool;
 	const struct firmware *faceid_fw;
 	void *fd_weights_p_viraddr;

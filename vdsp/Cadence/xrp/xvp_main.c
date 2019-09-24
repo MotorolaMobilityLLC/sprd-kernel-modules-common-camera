@@ -60,6 +60,7 @@
 #include <asm/uaccess.h>
 #include "xrp_cma_alloc.h"
 #include "xrp_firmware.h"
+#include "xrp_faceid_firmware.h"
 #include "xrp_hw.h"
 #include "xrp_internal.h"
 #include "xrp_kernel_defs.h"
@@ -356,6 +357,8 @@ static int xrp_faceid_run(struct xvp *xvp,struct xrp_faceid_ctrl *faceid)
 	faceid_data.yuv_addr = faceid->in_data_addr;
 	faceid_data.frame_height = faceid->in_height;
 	faceid_data.frame_width = faceid->in_width;
+	faceid_data.liveness = faceid->in_liveness;
+	faceid_data.transfer_addr = xvp->faceid_pool.ion_face_transfer.addr_p[0];
 
 	ret2 = sprd_iommu_map_faceid_result(xvp,faceid->out_fd);
 	if(ret2 < 0)
@@ -363,12 +366,12 @@ static int xrp_faceid_run(struct xvp *xvp,struct xrp_faceid_ctrl *faceid)
 		printk("iommu map faceid result fail.\n");
 		goto err;
 	}
-	
+
 	faceid_data.out_addr = xvp->faceid_pool.ion_face_info.iova[0];
-	printk("fd_p %X,fd_r %X,fd_o %X,\n",faceid_data.fd_p_coffe_addr,faceid_data.fd_r_coffe_addr,faceid_data.fd_o_coffe_addr);
-	printk("fp %X,flv %X,fv %X\n",faceid_data.fp_coffe_addr,faceid_data.flv_coffe_addr,faceid_data.fv_coffe_addr);
-	printk("mem pool %X\n",faceid_data.mem_pool_addr);
-	printk("face info %X\n",faceid_data.out_addr);
+	pr_info("fd_p %X,fd_r %X,fd_o %X,\n",faceid_data.fd_p_coffe_addr,faceid_data.fd_r_coffe_addr,faceid_data.fd_o_coffe_addr);
+	pr_info("fp %X,flv %X,fv %X\n",faceid_data.fp_coffe_addr,faceid_data.flv_coffe_addr,faceid_data.fv_coffe_addr);
+	pr_info("mem pool %X, face info %X, transfer %x, liveness %d\n",faceid_data.mem_pool_addr,faceid_data.out_addr,faceid_data.transfer_addr,faceid_data.liveness);
+
 
 	mb();
 	xrp_comm_write32(&shared_sync->sync, XRP_DSP_SYNC_HOST_TO_DSP);
@@ -431,7 +434,7 @@ static int xrp_synchronize(struct xvp *xvp)
 	mb();
 	do {
 		v = xrp_comm_read32(&shared_sync->sync);
-		printk("yzl add %s v:%d\n" , __func__ , v);
+		//printk("yzl add %s v:%d\n" , __func__ , v);
 		if (v != XRP_DSP_SYNC_START)
 			break;
 		if (xrp_panic_check(xvp))
@@ -1224,8 +1227,8 @@ static long xrp_ioctl_faceid_cmd(struct file *filp, struct xrp_faceid_ctrl __use
 	if (copy_from_user(&faceid, arg, sizeof(struct xrp_faceid_ctrl)))
 		return -EFAULT;
 
-	printk("faceid input addr %x,height %d, width %d, out_fd %d\n",faceid.in_data_addr,faceid.in_height,faceid.in_width,faceid.out_fd);
-
+	pr_info("faceid input addr %x,height %d, width %d, liveness %d, out_fd %d\n",faceid.in_data_addr,
+								faceid.in_height,faceid.in_width,faceid.in_liveness, faceid.out_fd);
 	xrp_faceid_run(xvp,&faceid);
 
 	if (copy_to_user(arg, &faceid, sizeof(struct xrp_faceid_ctrl)))
@@ -1566,18 +1569,6 @@ static int xvp_close(struct inode *inode, struct file *filp)
 	int ret = 0;
 	printk("%s\n", __func__);
 
-	if(xvp_file->xvp->secmode && xvp_file->xvp->tee_con)
-	{
-		struct vdsp_msg msg;
-		msg.vdsp_type = TA_CADENCE_VQ6;
-		msg.msg_cmd = TA_FACEID_EXIT_SEC_MODE;
-		vdsp_set_sec_mode(&msg);
-
-		vdsp_ca_disconnect();
-		xvp_file->xvp->secmode = false;
-		xvp_file->xvp->tee_con = false;
-	}
-
 	xrp_remove_known_file(filp);
 	pm_runtime_put_sync(xvp_file->xvp->dev);
 	xvp_file->xvp->open_count--;
@@ -1657,6 +1648,67 @@ static inline void xvp_set_qos(struct xvp *xvp)
 		xvp->hw_ops->parse_qos)
 		xvp->hw_ops->set_qos(xvp->hw_arg);
 }
+static int xrp_boot_faceid_firmware(struct xvp *xvp)
+{
+	int ret;
+	struct xrp_dsp_sync_v1 __iomem *shared_sync = xvp->comm;
+
+	if(xvp->tee_con)
+	{
+		struct vdsp_msg msg;
+		msg.vdsp_type = TA_CADENCE_VQ6;
+		msg.msg_cmd = TA_FACEID_EXIT_SEC_MODE;
+		//vdsp_set_sec_mode(&msg);
+	}
+	else
+	{
+		pr_err("Exit secure mode fail\n");
+	}
+	xrp_halt_dsp(xvp);
+	xrp_reset_dsp(xvp);
+
+	pr_info("%s, faceid_fw_viraddr %p , loopback:%d\n" , __func__ , xvp->firmware2_viraddr,loopback);
+	if (xvp->firmware2_viraddr) {
+		if (loopback < LOOPBACK_NOFIRMWARE) {
+			ret = sprd_load_faceid_firmware(xvp);
+			if (ret < 0)
+				return ret;
+		}
+
+		if (loopback < LOOPBACK_NOIO) {
+			xrp_comm_write32(&shared_sync->sync, XRP_DSP_SYNC_IDLE);
+			mb();
+		}
+	}
+
+	if(xvp->tee_con)
+	{
+		struct vdsp_msg msg;
+		msg.vdsp_type = TA_CADENCE_VQ6;
+		msg.msg_cmd = TA_FACEID_ENTER_SEC_MODE;
+		//vdsp_set_sec_mode(&msg);
+	}
+	else
+	{
+		pr_err("Enter secure mode fail\n");
+	}
+	xrp_release_dsp(xvp);
+
+	if (loopback < LOOPBACK_NOIO) {
+		ret = xrp_synchronize(xvp);
+		if (ret < 0) {
+			xrp_halt_dsp(xvp);
+			dev_err(xvp->dev,
+				"%s: couldn't synchronize with the DSP core\n",
+				__func__);
+			dev_err(xvp->dev,
+				"XRP device will not use the DSP until the driver is rebound to this device\n");
+			xvp->off = true;
+			return ret;
+		}
+	}
+	return 0;
+}
 static int xrp_runtime_resume_normal(struct xvp *xvp)
 {
 	unsigned i;
@@ -1729,7 +1781,7 @@ static int xrp_runtime_resume_secure(struct xvp *xvp)
 	int ret = 0;
 	int ret1 = 0;
 	struct vdsp_ipi_ctx_desc *ipidesc = NULL;
-	printk("yzl add %s enter\n" , __func__);
+	pr_info("%s enter\n" , __func__);
 
 	for (i = 0; i < xvp->n_queues; ++i)
 		mutex_lock(&xvp->queue[i].lock);
@@ -1743,23 +1795,23 @@ static int xrp_runtime_resume_secure(struct xvp *xvp)
 	}
 	ret = sprd_iommu_map_faceid_fwbuffer(xvp);
 	if(ret != 0) {
-		printk("yzl add %s map faceid fw failed\n" , __func__);
+		pr_err("%s map faceid fw failed\n" , __func__);
 		goto out;
 	}
 	ret = sprd_iommu_map_commbuffer(xvp);
 	if(ret != 0) {
 		sprd_iommu_unmap_faceid_fwbuffer(xvp);
-		printk("yzl add %s map comm buffer failed\n" , __func__);
+		pr_err("%s map comm buffer failed\n" , __func__);
 		goto out;
 	}
 	ipidesc = get_vdsp_ipi_ctx_desc();
 	if(ipidesc) {
-		printk("yzl add %s ipi init called\n" , __func__);
+		pr_info("%s ipi init called\n" , __func__);
 		ipidesc->ops->ctx_init(ipidesc);
 	}
 	/*set qos*/
 	xvp_set_qos(xvp);
-	ret = xrp_boot_firmware(xvp);
+	ret = xrp_boot_faceid_firmware(xvp);
 	if (ret < 0) {
 		ret1 = sprd_iommu_unmap_faceid_fwbuffer(xvp);
 		if(ret1 != 0) {
@@ -1782,65 +1834,24 @@ static int xrp_boot_firmware(struct xvp *xvp)
 {
 	int ret;
 	struct xrp_dsp_sync_v1 __iomem *shared_sync = xvp->comm;
-	static char faceid_fw[16] = "faceid_fw.bin";
 
-	if(xvp->secmode && xvp->tee_con)
-	{
-		struct vdsp_msg msg;
-		msg.vdsp_type = TA_CADENCE_VQ6;
-		msg.msg_cmd = TA_FACEID_EXIT_SEC_MODE;
-		vdsp_set_sec_mode(&msg);
-	}
-	else
-	{
-		printk("Exit secure mode fail\n");
-	}
 	xrp_halt_dsp(xvp);
 	xrp_reset_dsp(xvp);
-	if(xvp->secmode)
-	{
-		printk("yzl add %s, faceid_fw_viraddr %p , loopback:%d\n" , __func__ , xvp->faceid_fw_viraddr,loopback);
-		if (xvp->faceid_fw_viraddr) {
-			if (loopback < LOOPBACK_NOFIRMWARE) {
-				ret = xrp_faceid_request_firmware(xvp,faceid_fw);
-				if (ret < 0)
-					return ret;
-			}
 
-			if (loopback < LOOPBACK_NOIO) {
-				xrp_comm_write32(&shared_sync->sync, XRP_DSP_SYNC_IDLE);
-				mb();
-			}
+	printk("yzl add %s firmware name:%s , loopback:%d\n" , __func__ , xvp->firmware_name , loopback);
+	if (xvp->firmware_name) {
+		if (loopback < LOOPBACK_NOFIRMWARE) {
+			ret = xrp_request_firmware(xvp);
+			if (ret < 0)
+				return ret;
 		}
 
-	}
-	else
-	{
-		printk("yzl add %s firmware name:%s , loopback:%d\n" , __func__ , xvp->firmware_name , loopback);
-		if (xvp->firmware_name) {
-			if (loopback < LOOPBACK_NOFIRMWARE) {
-				ret = xrp_request_firmware(xvp);
-				if (ret < 0)
-					return ret;
-			}
-
-			if (loopback < LOOPBACK_NOIO) {
-				xrp_comm_write32(&shared_sync->sync, XRP_DSP_SYNC_IDLE);
-				mb();
-			}
+		if (loopback < LOOPBACK_NOIO) {
+			xrp_comm_write32(&shared_sync->sync, XRP_DSP_SYNC_IDLE);
+			mb();
 		}
 	}
-	if(xvp->secmode && xvp->tee_con)
-	{
-		struct vdsp_msg msg;
-		msg.vdsp_type = TA_CADENCE_VQ6;
-		msg.msg_cmd = TA_FACEID_ENTER_SEC_MODE;
-		vdsp_set_sec_mode(&msg);
-	}
-	else
-	{
-		printk("Enter secure mode fail\n");
-	}
+
 	xrp_release_dsp(xvp);
 
 	if (loopback < LOOPBACK_NOIO) {
@@ -1882,30 +1893,43 @@ int xrp_runtime_suspend(struct device *dev)
 	{
 		ret = sprd_iommu_unmap_faceid_fwbuffer(xvp);
 		if(ret != 0) {
-			printk("yzl add %s unmap faceid fw failed\n" , __func__);
+			pr_err("yzl add %s unmap faceid fw failed\n" , __func__);
 		}
 	}
 	else
 	{
 		ret = sprd_iommu_unmap_extrabuffer(xvp);
 		if(ret != 0) {
-			printk("yzl add %s sprd_iommu_unmap_extrabuffer failed\n" , __func__);
+			pr_err("yzl add %s sprd_iommu_unmap_extrabuffer failed\n" , __func__);
 		}
 		ret = sprd_free_extrabuffer(xvp);
 		if(ret != 0) {
-			printk("yzl add %s sprd_free_extrabuffer failed\n" , __func__);
+			pr_err("yzl add %s sprd_free_extrabuffer failed\n" , __func__);
 		}
 	}
 	ret = sprd_iommu_unmap_commbuffer(xvp);
 	if(ret != 0) {
-		printk("yzl add %s sprd_iommu_unmap_commbuffer failed\n" , __func__);
+		pr_err("yzl add %s sprd_iommu_unmap_commbuffer failed\n" , __func__);
 	}
 	xvp_disable_dsp(xvp);
 	ipidesc = get_vdsp_ipi_ctx_desc();
 	if(ipidesc) {
                 printk("yzl add %s ipi deinit called\n" , __func__);
                 ipidesc->ops->ctx_deinit(ipidesc);
-        }
+	}
+	if(xvp->secmode)
+	{
+		xvp->secmode = false;
+		if(xvp->tee_con)
+		{
+			struct vdsp_msg msg;
+			msg.vdsp_type = TA_CADENCE_VQ6;
+			msg.msg_cmd = TA_FACEID_EXIT_SEC_MODE;
+			vdsp_set_sec_mode(&msg);
+			vdsp_ca_disconnect();
+			xvp->tee_con = false;
+		}
+	}
 	return 0;
 }
 EXPORT_SYMBOL(xrp_runtime_suspend);

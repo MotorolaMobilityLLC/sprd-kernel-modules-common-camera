@@ -26,19 +26,16 @@
  * the GNU General Public License version 2 or later.
  */
 
-#ifndef XRP_FIRMWARE_H
-#define XRP_FIRMWARE_H
+#ifndef XRP_FACEID_FIRMWARE_H
+#define XRP_FACEID_FIRMWARE_H
 
 struct xvp;
 
 #if IS_ENABLED(CONFIG_OF)
-int xrp_request_firmware(struct xvp *xvp);
+
+int sprd_load_faceid_firmware(struct xvp *xvp);
 #else
-int xrp_request_firmware(struct xvp *xvp)
-{
-	(void)xvp;
-	return -EINVAL;
-}
+
 #endif
 
 #endif
