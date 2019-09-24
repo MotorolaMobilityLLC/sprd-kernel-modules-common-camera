@@ -57,9 +57,7 @@ int dcam_init_lsc_slice(void *in, uint32_t online)
 	struct dcam_pipe_dev *dev = (struct dcam_pipe_dev *)in;
 
 	param = &dev->blk_dcam_pm->lsc;
-	spin_lock(&param->lock);
 	if (!param->update) {
-		spin_unlock(&param->lock);
 		return 0;
 	}
 
@@ -74,7 +72,6 @@ int dcam_init_lsc_slice(void *in, uint32_t online)
 		pr_debug("bypass\n");
 		DCAM_REG_MWR(idx, DCAM_LENS_LOAD_ENABLE, BIT_0, 1);
 		dcam_force_copy(dev, DCAM_CTRL_COEF);
-		spin_unlock(&param->lock);
 		return 0;
 	}
 
@@ -184,8 +181,6 @@ int dcam_init_lsc_slice(void *in, uint32_t online)
 		param->load_trigger = 1;
 	}
 
-	spin_unlock(&param->lock);
-
 	pr_debug("w %d,  grid len %d grid %d  num_t %d (%d, %d)\n",
 		info->weight_num, info->gridtab_len, info->grid_width,
 		info->grid_num_t, info->grid_x_num, info->grid_y_num);
@@ -195,7 +190,6 @@ exit:
 	/* bypass lsc if there is exception */
 	DCAM_REG_MWR(idx, DCAM_LENS_LOAD_ENABLE, BIT_0, 1);
 	dcam_force_copy(dev, DCAM_CTRL_COEF);
-	spin_unlock(&param->lock);
 	return ret;
 }
 
@@ -216,9 +210,7 @@ int dcam_init_lsc(void *in, uint32_t online)
 	struct dcam_pipe_dev *dev = (struct dcam_pipe_dev *)in;
 
 	param = &dev->blk_dcam_pm->lsc;
-	spin_lock(&param->lock);
 	if (!param->update) {
-		spin_unlock(&param->lock);
 		return 0;
 	}
 
@@ -233,7 +225,6 @@ int dcam_init_lsc(void *in, uint32_t online)
 		pr_debug("bypass\n");
 		DCAM_REG_MWR(idx, DCAM_LENS_LOAD_ENABLE, BIT_0, 1);
 		dcam_force_copy(dev, DCAM_CTRL_COEF);
-		spin_unlock(&param->lock);
 		return 0;
 	}
 
@@ -344,8 +335,6 @@ int dcam_init_lsc(void *in, uint32_t online)
 		param->load_trigger = 1;
 	}
 
-	spin_unlock(&param->lock);
-
 	pr_debug("w %d,  grid len %d grid %d  num_t %d (%d, %d)\n",
 		info->weight_num, info->gridtab_len, info->grid_width,
 		info->grid_num_t, info->grid_x_num, info->grid_y_num);
@@ -355,7 +344,6 @@ exit:
 	/* bypass lsc if there is exception */
 	DCAM_REG_MWR(idx, DCAM_LENS_LOAD_ENABLE, BIT_0, 1);
 	dcam_force_copy(dev, DCAM_CTRL_COEF);
-	spin_unlock(&param->lock);
 	return ret;
 }
 
@@ -379,12 +367,7 @@ int dcam_update_lsc(void *in)
 	}
 
 	param = &dev->blk_dcam_pm->lsc;
-	/* this function called from cap_sof handler, just trylock */
-	if (!spin_trylock(&param->lock))
-		return 0;
-
 	if (!param->update) {
-		spin_unlock(&param->lock);
 		return 0;
 	}
 
@@ -393,13 +376,11 @@ int dcam_update_lsc(void *in)
 	update = param->update;
 	param->update = 0;
 	if (g_dcam_bypass[idx] & (1 << _E_LSC)) {
-		spin_unlock(&param->lock);
 		return 0;
 	}
 	if (info->bypass) {
 		pr_debug("bypass\n");
 		DCAM_REG_MWR(idx, DCAM_LENS_LOAD_ENABLE, BIT_0, 1);
-		spin_unlock(&param->lock);
 		return 0;
 	}
 
@@ -428,7 +409,6 @@ int dcam_update_lsc(void *in)
 
 		lens_load_flag = (val & BIT_2);
 		if (lens_load_flag == 0) {
-			spin_unlock(&param->lock);
 			pr_info("last lens load is not done. skip\n");
 			return 0;
 		}
@@ -488,14 +468,12 @@ int dcam_update_lsc(void *in)
 	/* step 4: auto cpy lens registers next sof */
 	dcam_auto_copy(dev, DCAM_CTRL_COEF);
 
-	spin_unlock(&param->lock);
 	pr_debug("done\n");
 	return 0;
 
 exit:
 	/* bypass lsc if there is exception */
 	DCAM_REG_MWR(idx, DCAM_LENS_LOAD_ENABLE, BIT_0, 1);
-	spin_unlock(&param->lock);
 	return ret;
 }
 
@@ -567,11 +545,9 @@ int dcam_k_cfg_lsc(struct isp_io_param *param, struct dcam_dev_param *p)
 		return -EINVAL;
 	}
 
-	spin_lock(&p->lsc.lock);
 	ret = copy_from_user(&p->lsc.lens_info,
 			param->property_param, sizeof(p->lsc.lens_info));
 	if (ret) {
-		spin_unlock(&p->lsc.lock);
 		pr_err("fail to copy from user. ret %d\n", ret);
 		return ret;
 	}
@@ -581,7 +557,6 @@ int dcam_k_cfg_lsc(struct isp_io_param *param, struct dcam_dev_param *p)
 		bit_update |= _UPDATE_INFO;
 	p->lsc.update |= bit_update;
 	ret = dcam_k_lsc_block(p);
-	spin_unlock(&p->lsc.lock);
 
 	p->lsc.lens_info.update_all = 0;
 	p_ulsc = (struct dcam_dev_lsc_info __user *)param->property_param;

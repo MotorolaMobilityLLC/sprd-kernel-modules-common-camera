@@ -2495,7 +2495,6 @@ static int sprd_dcam_dev_open(void *dcam_handle)
 	dev->blk_dcam_pm->afm.bypass = 1;
 	dev->blk_dcam_pm->afl.bypass = 1;
 	dev->blk_dcam_pm->hist.bayerHist_info.hist_bypass = 1;
-	spin_lock_init(&dev->blk_dcam_pm->lsc.lock);
 
 	if (get_iommu_status(CAM_IOMMUDEV_DCAM) == 0)
 		iommu_enable = 1;
