@@ -625,8 +625,12 @@ int isp_cfg_ctx_size(struct isp_pipe_context *pctx, void *param)
 	case ISP_FETCH_UYVY:
 	case ISP_FETCH_YVYU:
 	case ISP_FETCH_VYUY:
-	case ISP_FETCH_RAW10:
 		fetch->pitch.pitch_ch0 = pctx->input_size.w * 2;
+		trim_offset[0] = intrim->start_y *
+			fetch->pitch.pitch_ch0 + intrim->start_x * 2;
+		break;
+	case ISP_FETCH_RAW10:
+		fetch->pitch.pitch_ch0 = cal_sprd_raw10_pitch(pctx->input_size.w);
 		trim_offset[0] = intrim->start_y *
 			fetch->pitch.pitch_ch0 + intrim->start_x * 2;
 		break;

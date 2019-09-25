@@ -42,6 +42,12 @@ enum dcam_ctrl_id {
 };
 #define DCAM_CTRL_ALL  0xff
 
+static inline uint32_t cal_sprd_raw10_pitch(uint32_t w)
+{
+	w = w * 2;
+	return w;
+}
+
 static inline uint32_t cal_sprd_raw_pitch(uint32_t w)
 {
 	uint32_t mod16_len[16] = {0, 8, 8, 8, 8, 12, 12, 12,
