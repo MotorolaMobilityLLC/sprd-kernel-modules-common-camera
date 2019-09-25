@@ -3877,9 +3877,9 @@ static ssize_t sprd_img_read(struct file *file, char __user *u_data,
 		pr_err("fail to get dcam idx=%d\n", idx);
 		return -EFAULT;
 	}
-	if (cnt < sizeof(struct sprd_img_read_op)) {
-		pr_err("fail to read, cnt %zd read_op %d\n", cnt,
-		       (int32_t)sizeof(struct sprd_img_read_op));
+	if (cnt != sizeof(struct sprd_img_read_op)) {
+		pr_err("fail to read, cnt %zd read_op %zd\n", cnt,
+		       sizeof(struct sprd_img_read_op));
 		return -EIO;
 	}
 
@@ -4050,9 +4050,9 @@ static ssize_t sprd_img_write(struct file *file, const char __user *u_data,
 		pr_err("fail to get dcam idx=%d\n", idx);
 		return -EFAULT;
 	}
-	if (cnt < sizeof(struct sprd_img_write_op)) {
-		pr_err("fail to write, cnt %zd write_op %d\n", cnt,
-		       (int32_t)sizeof(struct sprd_img_write_op));
+	if (cnt != sizeof(struct sprd_img_write_op)) {
+		pr_err("fail to write, cnt %zd write_op %zd\n", cnt,
+		       sizeof(struct sprd_img_write_op));
 		return -EIO;
 	}
 
