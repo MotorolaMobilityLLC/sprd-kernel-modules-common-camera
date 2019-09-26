@@ -444,8 +444,8 @@ static int isp_stop_offline_thread(void *param)
 		dev->is_offline_full_thread_stop = 1;
 		if (dev->is_wait_fmcu)
 			complete(&dev->fmcu_com);
-		else
-			complete(&dev->offline_full_thread_com);
+
+		complete(&dev->offline_full_thread_com);
 		wait_for_completion(&dev->full_stop);
 		dev->offline_full_thread = NULL;
 	}
