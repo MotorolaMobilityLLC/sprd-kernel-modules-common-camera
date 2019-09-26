@@ -2105,6 +2105,9 @@ static int sprd_dcam_proc_frame(
 	pframe = (struct camera_frame *)param;
 	pframe->priv_data = dev;
 
+	if(dev->is_right == 1)
+		return -EFAULT;
+
 	ret = camera_enqueue(&dev->in_queue, pframe);
 	if (ret == 0)
 		complete(&dev->thread.thread_com);

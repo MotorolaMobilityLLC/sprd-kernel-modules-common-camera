@@ -252,7 +252,7 @@ void dcam_init_default(struct dcam_pipe_dev *dev)
 	/* disable internal logic access sram */
 	DCAM_REG_MWR(idx, DCAM_APB_SRAM_CTRL, BIT_0, 0);
 
-	DCAM_REG_WR(idx, DCAM_CFG, 0); /* disable all path */
+	DCAM_REG_WR(idx, DCAM_MIPI_CAP_CFG, 0); /* disable all path */
 	DCAM_REG_WR(idx, DCAM_IMAGE_CONTROL, 0x2b << 8 | 0x01);
 
 	eb = 0;
@@ -866,7 +866,7 @@ int dcam_stop(struct dcam_pipe_dev *dev)
 	uint32_t idx = dev->idx;
 
 	/* reset  cap_en*/
-	DCAM_REG_MWR(idx, DCAM_CFG, BIT_0, 0);
+	DCAM_REG_MWR(idx, DCAM_MIPI_CAP_CFG, BIT_0, 0);
 	DCAM_REG_WR(idx, DCAM_PATH_STOP, 0x2DFF);
 
 	DCAM_REG_WR(idx, DCAM_INT_EN, 0);

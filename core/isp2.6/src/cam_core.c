@@ -1011,7 +1011,8 @@ static struct camera_frame *deal_bigsize_frame(struct camera_module *module,
 			pframe->height, (uint32_t)pframe->buf.addr_vir[0], pframe->channel_id,atomic_read(&module->capture_frames_dcam));
 	if (pframe->fid > 0) {
 		ret = dcam_ops->proc_frame(module->aux_dcam_dev, pframe);
-		return NULL;
+		if(ret == 0)
+			return NULL;
 	}
 	/* set buffer back to dcam0 full path, to out_buf_queue */
 	channel = &module->channel[pframe->channel_id];
