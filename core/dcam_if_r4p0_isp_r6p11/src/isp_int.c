@@ -543,10 +543,15 @@ static void isp_binning_start(void *isp_handle)
 
 	dev = (struct isp_pipe_dev *)isp_handle;
 	module = &dev->statis_module_info;
+	if (module->binning_int_done != 1) {
+		pr_debug("double start\n");
+		return;
+	}
 
 	rtn = isp_set_next_statis_buf(dev->com_idx, module, ISP_BINNING_BLOCK);
 	if (rtn)
 		pr_err("fail to set next binning statis buf rtn %d\n", rtn);
+	module->binning_int_done = 0;
 }
 
 static void isp_binning_done(void *isp_handle)
@@ -563,6 +568,7 @@ static void isp_binning_done(void *isp_handle)
 	dev = (struct isp_pipe_dev *)isp_handle;
 	module = &dev->statis_module_info;
 	statis_heap = &module->binning_statis_frm_queue;
+	module->binning_int_done = 1;
 
 	/*dequeue the statis buf from a array*/
 	rtn = isp_statis_dequeue(statis_heap, &node);
