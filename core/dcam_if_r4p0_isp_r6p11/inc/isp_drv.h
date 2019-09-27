@@ -912,6 +912,7 @@ int sprd_isp_k_ioctl(void *isp_dev_handle, unsigned int cmd,
 int sprd_isp_reg_isr(enum isp_id iid,  enum isp_irq_id irq_id,
 	isp_isr_func user_func, void *user_data);
 int sprd_isp_slw_flags_init(void *isp_handle, struct isp_path_info *info);
+void sprd_isp_drv_init_isp_cnt(void);
 void isp_irq_ctrl(struct isp_pipe_dev *dev, bool enable);
 int isp_cfg_param(void *param,
 	struct isp_k_block *isp_k_param, struct isp_pipe_dev *dev);

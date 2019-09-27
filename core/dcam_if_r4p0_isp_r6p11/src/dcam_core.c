@@ -532,6 +532,7 @@ static int sprd_img_local_deinit(struct camera_dev *dev)
 	ret = dcam_core_stats_init(dev);
 	if (unlikely(ret != 0))
 		pr_err("fail to init stats\n");
+	pfiommu_free_addr(&dev->statis_module_info.img_statis_buf.pfinfo);
 
 	DCAM_TRACE("local_deinit, frm_cnt_act %d\n",
 		   path->frm_cnt_act);
@@ -2240,6 +2241,8 @@ static int sprd_img_k_open(struct inode *node, struct file *file)
 		goto OPEN_EXIT2;
 	}
 
+	atomic_set(&camerafile->grp->dcam_run_count, 0);
+	sprd_isp_drv_init_isp_cnt();
 	mutex_init(&camerafile->grp->camera_dualcam_mutex);
 	init_completion(&camerafile->grp->dualcam_recovery_com);
 	is_dual_cam_dore = 0;
@@ -3015,6 +3018,7 @@ static int sprd_camera_stream_on(struct camera_file *camerafile)
 		sprd_start_timer(&dev->dcam_timer, DCAM_TIMEOUT);
 	}
 	atomic_set(&dev->stream_on, 1);
+	atomic_inc(&group->dcam_run_count);
 	sprd_dcam_enable_int(idx);
 	dev->is_simulation_mode = 0;
 	mutex_unlock(&dev->dcam_mutex);
@@ -3170,6 +3174,9 @@ static int sprd_camera_stream_off(struct camera_group *group,
 			pr_err("fail to local deinit\n");
 			break;
 		}
+
+		if (atomic_dec_return(&group->dcam_run_count) == 0)
+			sprd_iommu_restore(&s_dcam_pdev->dev);
 	} while (0);
 
 simul_exit:

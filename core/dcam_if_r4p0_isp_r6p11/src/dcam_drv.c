@@ -1845,8 +1845,6 @@ static int sprd_dcam_reset(enum dcam_id idx,
 	sprd_dcam_glb_reg_awr(idx, DCAM_AXIM_CTRL, ~BIT_19,
 		DCAM_AXI_STS_REG);
 
-	sprd_iommu_restore(&s_dcam_pdev->dev);
-
 	pr_info("DCAM%d: reset end\n", idx);
 
 	return -rtn;

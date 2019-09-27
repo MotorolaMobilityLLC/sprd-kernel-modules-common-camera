@@ -230,6 +230,8 @@ int sprd_isp_cfg_statis_buf(struct isp_pipe_dev *dev,
 
 	memset((void *)&isp_module->img_statis_buf, 0,
 		sizeof(isp_module->img_statis_buf));
+	memset((void *)&dcam_module->img_statis_buf, 0,
+		sizeof(dcam_module->img_statis_buf));
 
 	frm_statis_isp.phy_addr = frm_statis_dcam.phy_addr
 		= parm->phy_addr;
@@ -283,6 +285,8 @@ int sprd_isp_cfg_statis_buf(struct isp_pipe_dev *dev,
 		pr_err("fail to get statis buf addr\n");
 		return ret;
 	}
+	memcpy(&dcam_module->img_statis_buf, &frm_statis_dcam,
+	       sizeof(struct isp_statis_buf));
 
 	isp_module->statis_valid = parm->statis_valid;
 

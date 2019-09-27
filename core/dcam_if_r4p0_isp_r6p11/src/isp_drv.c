@@ -71,6 +71,7 @@ enum {
 struct platform_device *s_isp_pdev;
 struct isp_pipe_dev *g_isp_dev_parray[ISP_MAX_COUNT];
 static atomic_t s_isp_users[ISP_MAX_COUNT];
+static atomic_t s_isp_run_count;
 static unsigned int s_isp_count;
 unsigned long s_isp_regbase[ISP_MAX_COUNT];
 unsigned long isp_phys_base[ISP_MAX_COUNT];
@@ -620,7 +621,6 @@ static void do_reset_isp_hw(struct isp_pipe_dev *dev)
 	 * cfg map will be re-inited after isp_reset.
 	 */
 	atomic_set(&dev->cfg_map_lock, 0);
-	sprd_iommu_restore(&s_isp_pdev->dev);
 
 	/*
 	 * reset isp cfg page buf to default value after isp
@@ -629,6 +629,11 @@ static void do_reset_isp_hw(struct isp_pipe_dev *dev)
 	if (cctx_desc)
 		cctx_desc->intf->rst_page_buf(cctx_desc,
 			ISP_GET_IID(idx));
+}
+
+void sprd_isp_drv_init_isp_cnt(void)
+{
+	atomic_set(&s_isp_run_count, 0);
 }
 
 void isp_irq_ctrl(struct isp_pipe_dev *dev, bool enable)
@@ -869,6 +874,7 @@ static int sprd_isp_stop_nolock(void *isp_handle, int is_post_stop)
 
 	isp_coeff_queue_init(module->scl_array);
 
+	pfiommu_free_addr(&statis_module->img_statis_buf.pfinfo);
 	pfiommu_free_addr(&isp_k_param->fetch_pfinfo);
 	memset(&isp_k_param->fetch_pfinfo, 0, sizeof(struct pfiommu_info));
 
@@ -4092,6 +4098,7 @@ int sprd_isp_module_en(void *isp_handle, enum isp_id iid)
 			goto exit;
 		}
 
+		atomic_inc(&s_isp_run_count);
 		if (cctx_desc) {
 			ret = cctx_desc->intf->init_cctx(cctx_desc, iid);
 			if (ret) {
@@ -4179,6 +4186,9 @@ int sprd_isp_module_dis(void *isp_handle, enum isp_id iid)
 		} else {
 			pr_err("fail to get cctx_desc,idx%d\n", dev->com_idx);
 		}
+
+		if (atomic_dec_return(&s_isp_run_count) == 0)
+			sprd_iommu_restore(&s_isp_pdev->dev);
 
 		rtn = isp_disable_clk();
 		if (rtn) {

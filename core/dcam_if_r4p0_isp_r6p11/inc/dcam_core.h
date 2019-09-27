@@ -264,6 +264,7 @@ struct camera_group {
 	unsigned int dcam_count;
 	unsigned int isp_count;
 	atomic_t camera_opened;
+	atomic_t dcam_run_count;
 	struct camera_dev *dev[DCAM_ID_MAX];
 	//struct ion_client *cam_ion_client[DCAM_ID_MAX];
 	struct platform_device *pdev;

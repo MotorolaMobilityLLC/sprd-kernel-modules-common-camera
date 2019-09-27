@@ -34,6 +34,7 @@ struct dcam_statis_module {
 	uint32_t ebd_statis_cnt;
 	struct isp_statis_buf ebd_buf_reserved;
 	struct isp_statis_buf_queue ebd_statis_queue; /*for irq read*/
+	struct isp_statis_buf img_statis_buf;
 };
 
 int dcam_statis_queue_init(struct isp_statis_buf_queue *queue);
