@@ -20,6 +20,12 @@
 #include "dcam_hw_if.h"
 #include <sprd_mm.h>
 
+#ifdef pr_fmt
+#undef pr_fmt
+#endif
+#define pr_fmt(fmt) "dcam_hw_if: %d %d %s : "\
+	fmt, current->pid, __LINE__, __func__
+
 #define DCAMX_STOP_TIMEOUT 2000
 #define DCAM_AXI_STOP_TIMEOUT 2000
 #define DCAM_AXIM_AQOS_MASK (0x30FFFF)

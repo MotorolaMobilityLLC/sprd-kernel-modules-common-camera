@@ -263,6 +263,71 @@ int dcam_k_afm_crop_eb(struct dcam_dev_param *param)
 	return ret;
 }
 
+static int dcam_afm_lbuf_share_mode(enum dcam_id idx, uint32_t width)
+{
+	int i = 0;
+	int ret = 0;
+	uint32_t line_buf = 0;
+	uint32_t tb_w[] = {
+	/*     dcam0, dcam1 dcam2*/
+		6080, 3264, 0,
+		4672, 4672, 0,
+		3264, 6080, 0,
+		3080, 3040, 3264,
+	};
+
+	line_buf = (DCAM_AXIM_RD(DCAM_LBUF_SHARE_MODE) >> 4) & 0x3;
+
+	switch (idx) {
+	case DCAM_ID_0:
+		if (width > tb_w[0])
+			pr_err("fail to check param, unsupprot roi size\n");
+		else if (width <= tb_w[line_buf * 3])
+			pr_debug("no need to update afm line buf\n");
+		else {
+			for (i = 3; i >= 0; i--) {
+				if (width <= tb_w[i * 3])
+					break;
+			}
+
+			pr_info("idx[%d] width[%d], line_buf = %d i = %d\n", idx, width, line_buf, i);
+			DCAM_AXIM_MWR(DCAM_LBUF_SHARE_MODE, 0x3 << 4, i << 4);
+		}
+		break;
+	case DCAM_ID_1:
+		if (width > tb_w[7])
+			pr_err("fail to check param, unsupprot roi size\n");
+		else if(width <= tb_w[line_buf * 3 + 1])
+			pr_debug("no need to update afm line buf\n");
+		else {
+			{for (i = 0; i <= 3; i++)
+				if (width <= tb_w[i * 3 + 1])
+					break;
+			}
+			pr_info("idx[%d] width[%d], line_buf = %d i = %d\n", idx, width, line_buf, i);
+			DCAM_AXIM_MWR(DCAM_LBUF_SHARE_MODE, 0x3 << 4, i << 4);
+		}
+		break;
+	case DCAM_ID_2:
+		if (width > tb_w[11])
+			pr_err("fail to check param, unsupprot roi size\n");
+		else if(width <= tb_w[line_buf * 3 + 2])
+			pr_debug("no need to update afm line buf\n");
+		else {
+			pr_info("idx[%d] width[%d], line_buf = %d\n", idx, width, line_buf);
+			DCAM_AXIM_MWR(DCAM_LBUF_SHARE_MODE, 0x3 << 4, 3 << 4);
+		}
+		break;
+	default:
+		pr_info("dcam %d no this setting\n", idx);
+		ret = 1;
+		break;
+	}
+
+	pr_debug("afm_line_buf_share = 0x%x\n", DCAM_AXIM_RD(DCAM_LBUF_SHARE_MODE));
+	return ret;
+}
+
 int dcam_k_afm_crop_size(struct dcam_dev_param *param)
 {
 	int ret = 0;
@@ -284,6 +349,10 @@ int dcam_k_afm_crop_size(struct dcam_dev_param *param)
 	DCAM_REG_WR(idx, ISP_AFM_CROP_SIZE,
 		(crop_size.h & 0x1FFF) << 16 |
 		(crop_size.w & 0X1FFF));
+
+	ret = dcam_afm_lbuf_share_mode(idx, crop_size.w);
+	if (ret)
+		pr_err("fail to set afm line buf share mode\n");
 
 	return ret;
 }
