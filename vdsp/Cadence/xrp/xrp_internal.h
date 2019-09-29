@@ -58,7 +58,8 @@ struct faceid_mem_addr {
 
 	struct ion_buf ion_fd_mem_pool;
 	struct ion_buf ion_face_transfer;
-	struct ion_buf ion_face_info;
+	struct ion_buf ion_face_in;
+	struct ion_buf ion_face_out;
 };
 struct xvp {
 	struct device *dev;

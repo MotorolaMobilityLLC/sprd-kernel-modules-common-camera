@@ -47,13 +47,21 @@ struct faceid_hw_sync_data
 	__u32 flv_coffe_addr;
 	__u32 fv_coffe_addr;
 	__u32 mem_pool_addr;
-	__u32 yuv_addr;
-	__u32  frame_height;
-	__u32  frame_width;
-	__u32  out_addr;
-	__u32  liveness;
-	__u32  transfer_addr;/*face landmark point*/
+	__u32 in_addr;
+	__u32 out_addr;
+	__u32 transfer_addr;/*face landmark point*/
 };
+typedef struct
+{
+	uint32_t width, height;
+	uint32_t phyaddr;		/*image phyaddr*/
+	uint32_t liveness;		/*0:off 1:faceid_single 2:faceid_3D 3:pay_3D*/
+	uint32_t l_ir_phyaddr;	/*Left IR phyaddr*/
+	uint32_t r_ir_phyaddr;	/*Right IR phyaddr*/
+	uint32_t bgr_phyaddr;	/*bgr phyaddr*/
+	uint32_t otp_phyaddr;	/*otp phyaddr*/
+}FACEID_IN;
+
 typedef struct
 {
 	int x, y;
@@ -70,8 +78,12 @@ int sprd_faceid_deinit(struct xvp *xvp);
 int sprd_iommu_map_faceid_fwbuffer(struct xvp *xvp);
 int sprd_iommu_unmap_faceid_fwbuffer(struct xvp *xvp);
 
-int sprd_iommu_map_faceid_result(struct xvp *xvp,int fd);
-int sprd_iommu_ummap_faceid_result(struct xvp *xvp);
+int sprd_iommu_map_faceid_ion(struct xvp *xvp,struct ion_buf *ion_buf,int fd);
+int sprd_iommu_ummap_faceid_ion(struct xvp *xvp,struct ion_buf *ion_buf);
+
+int sprd_kernel_map_faceid_ion(struct xvp *xvp,struct ion_buf *ion_buf,int fd);
+int sprd_kernel_unmap_faceid_ion(struct xvp *xvp,struct ion_buf *ion_buf);
+
 
 
 #endif

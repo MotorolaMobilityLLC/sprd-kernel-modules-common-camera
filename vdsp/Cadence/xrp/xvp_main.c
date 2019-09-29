@@ -354,23 +354,29 @@ static int xrp_faceid_run(struct xvp *xvp,struct xrp_faceid_ctrl *faceid)
 	faceid_data.flv_coffe_addr = xvp->faceid_pool.ion_flv_weights.addr_p[0];
 	faceid_data.fv_coffe_addr = xvp->faceid_pool.ion_fv_weights.addr_p[0];
 	faceid_data.mem_pool_addr = xvp->faceid_pool.ion_fd_mem_pool.addr_p[0];
-	faceid_data.yuv_addr = faceid->in_data_addr;
-	faceid_data.frame_height = faceid->in_height;
-	faceid_data.frame_width = faceid->in_width;
-	faceid_data.liveness = faceid->in_liveness;
 	faceid_data.transfer_addr = xvp->faceid_pool.ion_face_transfer.addr_p[0];
 
-	ret2 = sprd_iommu_map_faceid_result(xvp,faceid->out_fd);
+	/*iommmu map ion*/
+	ret2 = sprd_iommu_map_faceid_ion(xvp,&(xvp->faceid_pool.ion_face_in),faceid->in_fd);
 	if(ret2 < 0)
 	{
-		printk("iommu map faceid result fail.\n");
+		pr_err("iommu map faceid in fail.\n");
 		goto err;
 	}
 
-	faceid_data.out_addr = xvp->faceid_pool.ion_face_info.iova[0];
+	ret2 = sprd_iommu_map_faceid_ion(xvp,&(xvp->faceid_pool.ion_face_out),faceid->out_fd);
+	if(ret2 < 0)
+	{
+		pr_err("iommu map faceid out fail.\n");
+		goto err;
+	}
+	
+	faceid_data.in_addr = xvp->faceid_pool.ion_face_in.iova[0];
+	faceid_data.out_addr = xvp->faceid_pool.ion_face_out.iova[0];
 	pr_info("fd_p %X,fd_r %X,fd_o %X,\n",faceid_data.fd_p_coffe_addr,faceid_data.fd_r_coffe_addr,faceid_data.fd_o_coffe_addr);
 	pr_info("fp %X,flv %X,fv %X\n",faceid_data.fp_coffe_addr,faceid_data.flv_coffe_addr,faceid_data.fv_coffe_addr);
-	pr_info("mem pool %X, face info %X, transfer %x, liveness %d\n",faceid_data.mem_pool_addr,faceid_data.out_addr,faceid_data.transfer_addr,faceid_data.liveness);
+	pr_info("mem pool %X, transfer %x\n",faceid_data.mem_pool_addr,faceid_data.transfer_addr);
+	pr_info("in %X, out %x\n",faceid_data.in_addr,faceid_data.out_addr);
 
 
 	mb();
@@ -388,7 +394,7 @@ static int xrp_faceid_run(struct xvp *xvp,struct xrp_faceid_ctrl *faceid)
 		{
 			mb();
 			ret = xrp_comm_read32(&shared_sync->hw_sync_data);
-			printk("vdsp faceid ret %X\n",ret);
+			pr_info("vdsp faceid ret %X\n",ret);
 			break;
 		}
 		if (xrp_panic_check(xvp))
@@ -398,8 +404,8 @@ static int xrp_faceid_run(struct xvp *xvp,struct xrp_faceid_ctrl *faceid)
 
 err:
 	xrp_comm_write32(&shared_sync->sync, XRP_DSP_SYNC_IDLE);
-	sprd_iommu_ummap_faceid_result(xvp);
-	faceid->out_result = ret;
+	sprd_iommu_ummap_faceid_ion(xvp,&(xvp->faceid_pool.ion_face_in));
+	sprd_iommu_ummap_faceid_ion(xvp,&(xvp->faceid_pool.ion_face_out));
 	
 	return 0;
 }
@@ -1227,12 +1233,9 @@ static long xrp_ioctl_faceid_cmd(struct file *filp, struct xrp_faceid_ctrl __use
 	if (copy_from_user(&faceid, arg, sizeof(struct xrp_faceid_ctrl)))
 		return -EFAULT;
 
-	pr_info("faceid input addr %x,height %d, width %d, liveness %d, out_fd %d\n",faceid.in_data_addr,
-								faceid.in_height,faceid.in_width,faceid.in_liveness, faceid.out_fd);
+	pr_info("faceid in_fd %d, out_fd %d\n",faceid.in_fd ,faceid.out_fd);
 	xrp_faceid_run(xvp,&faceid);
 
-	if (copy_to_user(arg, &faceid, sizeof(struct xrp_faceid_ctrl)))
-		return -EFAULT;
 
 	return 0;
 }
@@ -1540,7 +1543,7 @@ static int xvp_open(struct inode *inode, struct file *filp)
 	if(filp->f_flags & O_RDWR)
 	{
 		xvp->secmode = true;
-		xvp->tee_con = vdsp_ca_connect();
+		//xvp->tee_con = vdsp_ca_connect();
 		//if(!xvp->tee_con)
 			//return -EACCES;
 	}

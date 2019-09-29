@@ -398,9 +398,8 @@ int sprd_iommu_unmap_faceid_fwbuffer(struct xvp *xvp)
 	       xvp->firmware2_viraddr , ret , ret1);
 	return ((ret!=0)||(ret1!=0)) ? -EFAULT : 0;
 }
-int sprd_iommu_map_faceid_result(struct xvp *xvp,int fd)
+int sprd_iommu_map_faceid_ion(struct xvp *xvp,struct ion_buf *ion_buf,int fd)
 {
-	struct ion_buf *ion_buf = &(xvp->faceid_pool.ion_face_info);
 	int ret;
 
 	ion_buf->mfd[0] = fd;
@@ -408,36 +407,65 @@ int sprd_iommu_map_faceid_result(struct xvp *xvp,int fd)
 
 	ret = xvp->vdsp_mem_desc->ops->mem_get_ionbuf(xvp->vdsp_mem_desc, ion_buf);
 	if (ret) {
-		pr_err("fail to get in_ion_buf\n");
+		pr_err("fail to get ion_buf\n");
 		return -EFAULT;
 	}
-	ret = xvp->vdsp_mem_desc->ops->mem_iommu_map(xvp->vdsp_mem_desc, ion_buf, /*IOMMU_MSTD*/IOMMU_ALL);
+	ret = xvp->vdsp_mem_desc->ops->mem_iommu_map(xvp->vdsp_mem_desc, ion_buf, IOMMU_ALL);
 	if (ret) {
-		pr_err("fail to get in_data addr!!!!\n");
+		pr_err("fail to iommu map ion\n");
 		return -EFAULT;
 	}
 
-	printk("Get faceid result iova %lX\n",(uint32_t)ion_buf->iova[0]);
+	pr_info("Get faceid ion iova %lX\n",(uint32_t)ion_buf->iova[0]);
 	return 0;
 }
-int sprd_iommu_ummap_faceid_result(struct xvp *xvp)
+int sprd_iommu_ummap_faceid_ion(struct xvp *xvp,struct ion_buf *ion_buf)
 {
-	struct ion_buf *ion_buf = &(xvp->faceid_pool.ion_face_info);
 	int ret = -EFAULT;
 
 	if(NULL == (void*)ion_buf->iova[0]) {
-		pr_err("unmap faceid result addr is NULL\n");
+		pr_err("unmap faceid ion addr is NULL\n");
 		return ret;
 	}
 	{
 		ret = xvp->vdsp_mem_desc->ops->mem_iommu_unmap(xvp->vdsp_mem_desc, ion_buf, IOMMU_ALL);
 		if(ret) {
-			pr_err("%s unmap faceid result buffer failed\n" , __func__);
+			pr_err("%s unmap faceid ion buffer failed\n" , __func__);
 			return ret;
 		}
 	}
-	printk("yzl add %s :%lx\n" , __func__ ,ion_buf->addr_k[0]);
+	pr_info("%s :%lx\n" , __func__ ,ion_buf->addr_k[0]);
 
+	return 0;
+}
+int sprd_kernel_map_faceid_ion(struct xvp *xvp,struct ion_buf *ion_buf,int fd)
+{
+	int ret;
+
+	ion_buf->mfd[0] = fd;
+	ion_buf->dev = xvp->dev;
+
+	ret = xvp->vdsp_mem_desc->ops->mem_get_ionbuf(xvp->vdsp_mem_desc, ion_buf);
+	if (ret) {
+		pr_err("fail to get ion_buf\n");
+		return -EFAULT;
+	}
+
+	ret = xvp->vdsp_mem_desc->ops->mem_kmap(xvp->vdsp_mem_desc, ion_buf);
+	if(0 != ret) {
+		pr_err("fail to kmap ion_buf\n");
+		return -EFAULT;
+	}
+
+	pr_info("faceid kmap addr_p %lx  vaddr:%lx,size %ld\n" ,ion_buf->addr_p[0] , ion_buf->addr_k[0],ion_buf->size[0]);
+	return 0;
+}
+int sprd_kernel_unmap_faceid_ion(struct xvp *xvp,struct ion_buf *ion_buf)
+{
+	unsigned long dst_viraddr = ion_buf->addr_k[0];
+	if(dst_viraddr) {
+                xvp->vdsp_mem_desc->ops->mem_kunmap(xvp->vdsp_mem_desc, ion_buf);
+	}
 	return 0;
 }
 
