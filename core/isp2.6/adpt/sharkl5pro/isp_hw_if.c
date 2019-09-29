@@ -143,17 +143,17 @@ static uint32_t ISP_CFG_MAP[] __aligned(8) = {
 		/*0x003C9510, *0x9510  - 0x9548 , 15  , FBD 3DNR fetch*/
 		0x0050D010, /*0xD010  - 0xD05C , 20  , SCL_VID*/
 		0x0030D110, /*0xD110  - 0xD13C , 12  , SCL_VID_store*/
-		//0x0030D310, /*0xD310  - 0xD33C , 12  , SCL_VID_FBC_store*/
+		0x0030D310, /*0xD310  - 0xD33C , 12  , SCL_VID_FBC_store*/
 		0x0044C010, /*0xC010  - 0xC050 , 17  , SCL_CAP*/
 		0x0030C110, /*0xC110  - 0xC13C , 12  , SCL_CAP_store*/
 		0x0044C210, /*0xC210  - 0xC250 , 17  , SCL_CAP_Noisefilter_add_rdm*/
-		//0x0030C310, /*0xC310  - 0xC33C , 12  , SCL_CAP_FBC_store*/
+		0x0030C310, /*0xC310  - 0xC33C , 12  , SCL_CAP_FBC_store*/
 		0x0054E010, /*0xE010  - 0xE060 , 21  , SCL_THUMB*/
 		0x0030E110, /*0xE110  - 0xE13C , 12  , SCL_THUMB_store*/
 		0x00300110, /*0x110   - 0x13C  , 12  , FETCH*/
 		0x00300210, /*0x210   - 0x23C  , 12  , STORE*/
 		0x001C0310, /*0x310   - 0x328  , 7   , DISPATCH*/
-		//0x00340C10, /*0x0C10  - 0x0C40 , 13  , Fetch_FBD*/
+		0x003C0C10, /*0x0C10  - 0x0C48 , 15  , Fetch_FBD*/
 		0x05A18000, /*0x18000 - 0x1859C, 360 , ISP_HSV_BUF0_CH0*/
 		0x20019000, /*0x19000 - 0x19FFC, 1024, ISP_VST_BUF0_CH0*/
 		0x20029000, /*0x1A000 - 0x1AFFC, 1024, ISP_IVST_BUF0_CH0*/
@@ -249,6 +249,7 @@ void isp_set_ctx_common(struct isp_pipe_context *pctx)
 	uint32_t en_3dnr;
 	struct isp_fetch_info *fetch = &pctx->fetch;
 	struct isp_fbd_raw_info *fbd_raw = &pctx->fbd_raw;
+	fbd_raw->fetch_fbd_4bit_bypass = pctx->fetch_fbd_4bit_bypass;
 
 	pr_info("enter: fmt:%d, w:%d, h:%d\n", fetch->fetch_fmt,
 			fetch->in_trim.size_x, fetch->in_trim.size_y);
@@ -271,6 +272,9 @@ void isp_set_ctx_common(struct isp_pipe_context *pctx)
 			BIT_3 | BIT_2, 3 << 2); /* vid path off */
 	ISP_REG_MWR(idx, ISP_COMMON_SCL_PATH_SEL,
 			BIT_1 | BIT_0, 3 << 0);  /* pre/cap path off */
+
+	ISP_REG_WR(idx, ISP_BWU_PARAM, 0x40000);  /* bwu on */
+	ISP_REG_MWR(idx, ISP_FBD_RAW_SEL, BIT(0), 0x1);/* fbd off */
 
 	ISP_REG_MWR(idx, ISP_FETCH_PARAM, BIT_0, bypass);
 	ISP_REG_MWR(idx, ISP_FETCH_PARAM,
@@ -309,20 +313,29 @@ void isp_set_ctx_common(struct isp_pipe_context *pctx)
 	if (pctx->fetch_path_sel) {
 		ISP_REG_MWR(idx, ISP_FBD_RAW_SEL,
 			    BIT(0), fbd_raw->fetch_fbd_bypass);
+		ISP_REG_MWR(idx, ISP_FBD_RAW_SEL, BIT_16,
+			fbd_raw->fetch_fbd_4bit_bypass << 16);
 		ISP_REG_MWR(idx, ISP_FBD_RAW_SEL,
-			    0x00003f00, fbd_raw->pixel_start_in_hor);
+			    0x00003f00, fbd_raw->pixel_start_in_hor << 8);
 		ISP_REG_MWR(idx, ISP_FBD_RAW_SEL,
-			    0x00000030, fbd_raw->pixel_start_in_ver);
+			    0x00000030, fbd_raw->pixel_start_in_ver << 4);
 		ISP_REG_WR(idx, ISP_FBD_RAW_SLICE_SIZE,
 			   fbd_raw->width | (fbd_raw->height << 16));
 		ISP_REG_WR(idx, ISP_FBD_RAW_PARAM0,
 			   fbd_raw->tiles_num_in_hor
 			   | (fbd_raw->tiles_num_in_ver << 16));
 		ISP_REG_WR(idx, ISP_FBD_RAW_PARAM1,
-			   0x2 << 16
+			   0xff << 16
 			   | (fbd_raw->tiles_start_odd & 0x1) << 8
 			   | ((fbd_raw->tiles_num_pitch) & 0xff));
 		ISP_REG_WR(idx, ISP_FBD_RAW_LOW_PARAM1, fbd_raw->low_bit_pitch);
+		if (0 == fbd_raw->fetch_fbd_4bit_bypass) {
+			ISP_REG_WR(idx, ISP_FBD_RAW_LOW_4BIT_PARAM1,
+				fbd_raw->low_4bit_pitch);
+			ISP_REG_MWR(idx, ISP_BWU_PARAM, BIT_0, 0x1);  /* bwu off */
+		}
+		ISP_REG_MWR(idx, ISP_FETCH_PARAM, BIT_0, 0x1);
+
 		pr_info("enable fbd: %d\n", !fbd_raw->fetch_fbd_bypass);
 	}
 
@@ -577,6 +590,251 @@ int isp_irq_enable(struct sprd_cam_hw_info *hw, void *arg)
 	}
 
 	ISP_HREG_MWR(irq_base[ctx_id] + ISP_INT_EN0, mask, mask);
+
+	return 0;
+}
+
+static unsigned long fbc_store_base[AFBC_PATH_NUM] = {
+	ISP_FBC_STORE1_BASE,
+	ISP_FBC_STORE2_BASE,
+};
+
+static unsigned long store_base[ISP_SPATH_NUM] = {
+	ISP_STORE_PRE_CAP_BASE,
+	ISP_STORE_VID_BASE,
+	ISP_STORE_THUMB_BASE,
+};
+
+#define FMCU_PUSH(fmcu, addr, cmd) \
+		fmcu->ops->push_cmdq(fmcu, addr, cmd)
+
+void isp_set_afbc_store_addr(uint32_t idx,
+	enum isp_sub_path_id spath_id, unsigned long *yuv_addr)
+{
+
+	unsigned long afbc_addr = fbc_store_base[spath_id];
+
+	ISP_REG_WR(idx, afbc_addr +
+		ISP_AFBC_STORE_SLICE_Y_HEADER, yuv_addr[0]);
+	ISP_REG_WR(idx, afbc_addr +
+		ISP_AFBC_STORE_SLICE_Y_ADDR, yuv_addr[1]);
+}
+
+void isp_set_afbc_store_fmcu_addr(struct isp_fmcu_ctx_desc *fmcu,
+	struct isp_afbc_store_info *afbc_addr, int i)
+{
+
+	uint32_t addr = 0, cmd = 0;
+	unsigned long afbc_base = fbc_store_base[i];
+
+	addr = ISP_GET_REG(ISP_AFBC_STORE_SLICE_Y_HEADER) + afbc_base;
+	cmd = afbc_addr->yheader;
+	FMCU_PUSH(fmcu, addr, cmd);
+
+	addr = ISP_GET_REG(ISP_AFBC_STORE_SLICE_Y_ADDR) + afbc_base;
+	cmd = afbc_addr->yaddr;
+	FMCU_PUSH(fmcu, addr, cmd);
+}
+
+int set_path_afbc_store(struct isp_path_desc *path)
+{
+	int ret = 0;
+	uint32_t val = 0;
+	uint32_t idx = path->attach_ctx->ctx_id;
+	struct isp_afbc_store_info *afbc_store_info = &path->afbc_store;
+	unsigned long addr = fbc_store_base[path->spath_id];
+
+	pr_info("isp set afbc store in. bypass %d, path_id:%d, w:%d,h:%d\n",
+			afbc_store_info->bypass, path->spath_id,
+			afbc_store_info->size.w, afbc_store_info->size.h);
+
+	ISP_REG_MWR(idx, addr + ISP_AFBC_STORE_PARAM,
+		BIT_0, afbc_store_info->bypass);
+	if (afbc_store_info->bypass)
+		return 0;
+
+	ISP_REG_MWR(idx, addr+ISP_AFBC_STORE_PARAM,
+		BIT_3, (afbc_store_info->mirror_en << 3));
+	ISP_REG_MWR(idx, addr+ISP_AFBC_STORE_PARAM,
+		0xF0, (afbc_store_info->color_format << 4));
+	ISP_REG_MWR(idx, addr+ISP_AFBC_STORE_PARAM,
+		0x300, (afbc_store_info->endian << 8));
+	ISP_REG_WR(idx, addr+ISP_AFBC_STORE_TILE_PITCH,
+		(afbc_store_info->tile_number_pitch & 0x1FFF));
+	ISP_REG_WR(idx, addr+ISP_AFBC_STORE_NFULL_LEVEL, 0x20002);
+	ISP_REG_WR(idx, addr+ISP_AFBC_STORE_P0, 0xF);
+
+	val = ((afbc_store_info->size.h & 0x1FFF) << 16) |
+		(afbc_store_info->size.w & 0x1FFF);
+	ISP_REG_WR(idx, addr+ISP_AFBC_STORE_SLICE_SIZE, val);
+
+	val = (afbc_store_info->border.up_border & 0xFF) |
+		((afbc_store_info->border.down_border & 0xFF) << 8) |
+		((afbc_store_info->border.left_border & 0xFF) << 16) |
+		((afbc_store_info->border.right_border & 0xFF) << 24);
+	ISP_REG_WR(idx, addr+ISP_AFBC_STORE_BORDER, val);
+
+	val = afbc_store_info->header_offset;
+	ISP_REG_WR(idx, addr+ISP_AFBC_STORE_SLICE_HEADER_OFFSET_ADDR, val);
+
+	return ret;
+}
+
+int set_slice_spath_afbc_store(
+		struct isp_fmcu_ctx_desc *fmcu,
+		uint32_t path_en,
+		uint32_t ctx_idx,
+		enum isp_sub_path_id spath_id,
+		struct slice_afbc_store_info *slc_afbc_store)
+{
+	uint32_t addr = 0, cmd = 0;
+	unsigned long afbc_base = fbc_store_base[spath_id];
+	unsigned long base = store_base[spath_id];
+
+	if (!path_en) {
+		/* bit0 bypass store */
+		addr = ap_fmcu_reg_get(fmcu, ISP_AFBC_STORE_PARAM) + afbc_base;
+		cmd = 1;
+		ap_fmcu_reg_write(fmcu, ctx_idx, addr, cmd);
+		return 0;
+	}
+
+	addr = ap_fmcu_reg_get(fmcu, ISP_AFBC_STORE_PARAM) + afbc_base;
+	cmd = ISP_REG_RD(ctx_idx, afbc_base + ISP_AFBC_STORE_PARAM) & ~1;
+	ap_fmcu_reg_write(fmcu, ctx_idx, addr, cmd);
+
+	addr = ap_fmcu_reg_get(fmcu, ISP_AFBC_STORE_SLICE_SIZE) + afbc_base;
+	cmd = ((slc_afbc_store->size.h & 0xFFFF) << 16) |
+			(slc_afbc_store->size.w & 0xFFFF);
+	ap_fmcu_reg_write(fmcu, ctx_idx, addr, cmd);
+
+	addr = ap_fmcu_reg_get(fmcu, ISP_AFBC_STORE_BORDER) + afbc_base;
+	cmd = (slc_afbc_store->border.up_border& 0xFF) |
+			((slc_afbc_store->border.down_border& 0xFF) << 8) |
+			((slc_afbc_store->border.left_border& 0xFF) << 16) |
+			((slc_afbc_store->border.right_border & 0xFF) << 24);
+	ap_fmcu_reg_write(fmcu, ctx_idx, addr, cmd);
+
+	addr = ap_fmcu_reg_get(fmcu,
+		ISP_AFBC_STORE_SLICE_HEADER_OFFSET_ADDR) + afbc_base;
+	cmd = slc_afbc_store->slice_offset;
+	ap_fmcu_reg_write(fmcu, ctx_idx, addr, cmd);
+
+	addr = ap_fmcu_reg_get(fmcu,
+		ISP_AFBC_STORE_SLICE_Y_HEADER) + afbc_base;
+	cmd = slc_afbc_store->yheader_addr;
+	ap_fmcu_reg_write(fmcu, ctx_idx, addr, cmd);
+
+	addr = ap_fmcu_reg_get(fmcu,
+		ISP_AFBC_STORE_SLICE_Y_ADDR) + afbc_base;
+	cmd = slc_afbc_store->yaddr;
+	ap_fmcu_reg_write(fmcu, ctx_idx, addr, cmd);
+
+	addr = ap_fmcu_reg_get(fmcu, ISP_STORE_PARAM) + base;
+	cmd = 1;
+	ap_fmcu_reg_write(fmcu, ctx_idx, addr, cmd);
+
+	return 0;
+}
+
+void isp_set_fbd_fetch_addr(int idx,
+	struct compressed_addr compressed_addr,
+	struct isp_fbd_raw_info *fbd_raw)
+{
+	uint32_t addr = 0;
+
+	addr = compressed_addr.addr1 - fbd_raw->header_addr_offset;
+	ISP_REG_WR(idx, ISP_FBD_RAW_PARAM2, addr);
+	addr = compressed_addr.addr1 + fbd_raw->tile_addr_offset_x256;
+	ISP_REG_WR(idx, ISP_FBD_RAW_PARAM3, addr);
+	addr = compressed_addr.addr2 + fbd_raw->low_bit_addr_offset;
+	ISP_REG_WR(idx, ISP_FBD_RAW_LOW_PARAM0, addr);
+
+	if (0 == fbd_raw->fetch_fbd_4bit_bypass) {
+		addr = compressed_addr.addr3 + fbd_raw->low_4bit_addr_offset;
+		ISP_REG_WR(idx, ISP_FBD_RAW_LOW_4BIT_PARAM0, addr);
+	}
+}
+
+int set_slice_fbd_raw(struct isp_fmcu_ctx_desc *fmcu,
+		struct slice_fbd_raw_info *fbd_raw_info)
+{
+	uint32_t addr = 0, cmd = 0;
+
+	addr = ISP_GET_REG(ISP_FBD_RAW_SEL);
+	cmd = (fbd_raw_info->fetch_fbd_4bit_bypass << 16)
+		| (fbd_raw_info->pixel_start_in_hor << 8)
+		| (fbd_raw_info->pixel_start_in_ver << 4)
+		| fbd_raw_info->fetch_fbd_bypass;
+	FMCU_PUSH(fmcu, addr, cmd);
+
+	addr = ISP_GET_REG(ISP_FBD_RAW_SLICE_SIZE);
+	cmd = (fbd_raw_info->height << 16) | fbd_raw_info->width;
+	FMCU_PUSH(fmcu, addr, cmd);
+
+	addr = ISP_GET_REG(ISP_FBD_RAW_PARAM0);
+	cmd = (fbd_raw_info->tiles_num_in_ver << 16)
+		| fbd_raw_info->tiles_num_in_hor;
+	FMCU_PUSH(fmcu, addr, cmd);
+
+	addr = ISP_GET_REG(ISP_FBD_RAW_PARAM1);
+	cmd = 0xFF << 16/* time_out_th default value */
+		| (fbd_raw_info->tiles_start_odd << 8)
+		| fbd_raw_info->tiles_num_pitch;
+	FMCU_PUSH(fmcu, addr, cmd);
+
+	addr = ISP_GET_REG(ISP_FBD_RAW_PARAM2);
+	cmd = fbd_raw_info->header_addr_init;
+	FMCU_PUSH(fmcu, addr, cmd);
+
+	addr = ISP_GET_REG(ISP_FBD_RAW_PARAM3);
+	cmd = fbd_raw_info->tile_addr_init_x256;
+	FMCU_PUSH(fmcu, addr, cmd);
+
+	addr = ISP_GET_REG(ISP_FBD_RAW_LOW_PARAM0);
+	cmd = fbd_raw_info->low_bit_addr_init;
+	FMCU_PUSH(fmcu, addr, cmd);
+
+	addr = ISP_GET_REG(ISP_FBD_RAW_LOW_PARAM1);
+	cmd = fbd_raw_info->low_bit_pitch;
+	FMCU_PUSH(fmcu, addr, cmd);
+
+	if (0 == fbd_raw_info->fetch_fbd_4bit_bypass)
+	{
+		addr = ISP_GET_REG(ISP_FBD_RAW_LOW_4BIT_PARAM0);
+		cmd = fbd_raw_info->low_4bit_addr_init;
+		FMCU_PUSH(fmcu, addr, cmd);
+
+		addr = ISP_GET_REG(ISP_FBD_RAW_LOW_4BIT_PARAM1);
+		cmd = fbd_raw_info->low_4bit_pitch;
+		FMCU_PUSH(fmcu, addr, cmd);
+	}
+
+	/* fetch normal path bypass */
+	addr =  ISP_GET_REG(ISP_FETCH_PARAM);
+	cmd = 0x00000071;
+	FMCU_PUSH(fmcu, addr, cmd);
+
+	/* dispatch size same as fetch size */
+	addr = ISP_GET_REG(ISP_DISPATCH_CH0_SIZE);
+	cmd = (fbd_raw_info->height << 16) | fbd_raw_info->width;
+	FMCU_PUSH(fmcu, addr, cmd);
+
+	pr_debug("pixel start: %u %u, size: %u %u, tile num: %u %u\n",
+		 fbd_raw_info->pixel_start_in_hor,
+		 fbd_raw_info->pixel_start_in_ver,
+		 fbd_raw_info->width, fbd_raw_info->height,
+		 fbd_raw_info->tiles_num_in_ver,
+		 fbd_raw_info->tiles_num_in_hor);
+	pr_debug("odd: %u, pitch: %u %u %u, head: %x, tile: %x, low2: %x, low4: %x\n",
+		 fbd_raw_info->tiles_start_odd,
+		 fbd_raw_info->tiles_num_pitch,
+		 fbd_raw_info->low_bit_pitch,
+		 fbd_raw_info->low_4bit_pitch,
+		 fbd_raw_info->header_addr_init,
+		 fbd_raw_info->tile_addr_init_x256,
+		 fbd_raw_info->low_bit_addr_init,
+		 fbd_raw_info->low_4bit_addr_init);
 
 	return 0;
 }

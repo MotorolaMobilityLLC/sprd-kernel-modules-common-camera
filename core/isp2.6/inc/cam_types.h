@@ -236,6 +236,8 @@ enum dcam_cb_type {
 
 };
 
+#define FBC_TILE_WIDTH 64
+#define FBC_TILE_HEIGHT 4
 #define FBC_TILE_ADDR_ALIGN 256
 #define FBC_HEADER_REDUNDANT 64
 
@@ -251,6 +253,7 @@ struct compressed_addr {
 	addr_t addr0;
 	addr_t addr1;
 	addr_t addr2;
+	addr_t addr3;
 };
 
 extern struct camera_queue *g_empty_frm_q;

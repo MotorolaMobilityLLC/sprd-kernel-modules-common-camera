@@ -135,6 +135,7 @@ struct isp_ctx_size_desc {
 
 struct isp_ctx_compression_desc {
 	uint32_t fetch_fbd;
+	uint32_t fetch_fbd_4bit_bypass;
 	uint32_t nr3_fbc_fbd;
 };
 
@@ -143,7 +144,6 @@ struct isp_path_base_desc {
 	uint32_t slave_type;
 	uint32_t slave_path_id;
 	uint32_t regular_mode;
-	uint32_t path_afbc;
 	struct img_endian endian;
 	struct img_size output_size;
 };

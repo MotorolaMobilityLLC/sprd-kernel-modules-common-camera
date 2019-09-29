@@ -1027,6 +1027,54 @@ static int isp_ltm_process_frame(struct isp_pipe_context *pctx,
 	return ret;
 }
 
+static int isp_afbc_store(struct isp_path_desc *path)
+{
+	uint32_t w_tile_num = 0, h_tile_num = 0;
+	uint32_t pad_width = 0, pad_height = 0;
+	uint32_t header_size = 0, tile_data_size = 0;
+	uint32_t header_addr = 0;
+	struct isp_afbc_store_info *afbc_store_info = NULL;
+
+	if (!path) {
+		pr_err("fail to get valid input ptr\n");
+		return -EFAULT;
+	}
+
+	afbc_store_info = &path->afbc_store;
+	afbc_store_info->size.w = path->dst.w;
+	afbc_store_info->size.h = path->dst.h;
+
+	pad_width = (afbc_store_info->size.w + AFBC_PADDING_W_YUV420 - 1)
+		/ AFBC_PADDING_W_YUV420 * AFBC_PADDING_W_YUV420;
+	pad_height = (afbc_store_info->size.h + AFBC_PADDING_H_YUV420 - 1)
+		/ AFBC_PADDING_H_YUV420 * AFBC_PADDING_H_YUV420;
+
+	w_tile_num = pad_width / AFBC_PADDING_W_YUV420;
+	h_tile_num = pad_height / AFBC_PADDING_H_YUV420;
+
+	header_size = w_tile_num * h_tile_num * AFBC_HEADER_SIZE;
+	tile_data_size = w_tile_num * h_tile_num * AFBC_PAYLOAD_SIZE;
+	header_addr = afbc_store_info->yheader;
+
+	afbc_store_info->header_offset = (header_size + 1024 - 1) / 1024 * 1024;
+
+	afbc_store_info->yheader = header_addr;
+
+	afbc_store_info->yaddr = afbc_store_info->yheader +
+		afbc_store_info->header_offset;
+
+	afbc_store_info->tile_number_pitch = w_tile_num;
+
+	pr_debug("afbc w_tile_num = %d, h_tile_num = %d\n",
+		w_tile_num,h_tile_num);
+	pr_debug("afbc header_offset = %x, yheader = %x, yaddr = %x\n",
+		afbc_store_info->header_offset,
+		afbc_store_info->yheader,
+		afbc_store_info->yaddr);
+
+	return 0;
+}
+
 static int isp_update_offline_param(
 	struct isp_pipe_context *pctx,
 	struct isp_offline_param *in_param)
@@ -1136,6 +1184,9 @@ static int set_fmcu_slw_queue(
 				(uint32_t)out_frame->buf.iova[0],
 				(uint32_t)out_frame->buf.addr_k[0]);
 		isp_path_set_store_frm(path, out_frame);
+		if ((i < AFBC_PATH_NUM) && (path->afbc_store.bypass == 0)) {
+			isp_path_set_afbc_store_frm(path, out_frame);
+		}
 		ret = camera_enqueue(&path->result_queue, out_frame);
 		if (ret) {
 			if (out_frame->is_reserved)
@@ -1561,6 +1612,9 @@ static int isp_offline_start_frame(void *ctx)
 		if (atomic_read(&path->user_cnt) < 1)
 			continue;
 
+		if ((i < AFBC_PATH_NUM) && (path->afbc_store.bypass == 0))
+			ret = isp_afbc_store(path);
+
 		if (pctx->updated)
 			ret = isp_set_path(path);
 
@@ -1616,6 +1670,8 @@ static int isp_offline_start_frame(void *ctx)
 			ret = -EINVAL;
 			goto unlock;
 		}
+		if ((i < AFBC_PATH_NUM) && (path->afbc_store.bypass == 0))
+			isp_path_set_afbc_store_frm(path, out_frame);
 
 		if (path->bind_type == ISP_PATH_MASTER) {
 			struct camera_frame temp;
@@ -1686,11 +1742,15 @@ static int isp_offline_start_frame(void *ctx)
 			if (atomic_read(&path->user_cnt) < 1)
 				continue;
 			slc_cfg.frame_store[i] = &path->store;
+			if ((i < AFBC_PATH_NUM) && (path->afbc_store.bypass == 0))
+				slc_cfg.frame_afbc_store[i] = &path->afbc_store;
 		}
 		slc_cfg.frame_fetch = &pctx->fetch;
 		slc_cfg.frame_fbd_raw = &pctx->fbd_raw;
 		isp_cfg_slice_fetch_info(&slc_cfg, pctx->slice_ctx);
 		isp_cfg_slice_store_info(&slc_cfg, pctx->slice_ctx);
+		if (path->afbc_store.bypass == 0)
+			isp_cfg_slice_afbc_store_info(&slc_cfg, pctx->slice_ctx);
 
 		/* 3DNR Capture case: Using CP Config */
 		slc_cfg.frame_in_size.w = pctx->input_trim.size_x;
@@ -2177,6 +2237,8 @@ static int isp_slice_ctx_init(struct isp_pipe_context *pctx, uint32_t * multi_sl
 		slc_cfg_in.frame_deci[j] = &path->deci;
 		slc_cfg_in.frame_trim0[j] = &path->in_trim;
 		slc_cfg_in.frame_trim1[j] = &path->out_trim;
+		if ((j < AFBC_PATH_NUM) && (path->afbc_store.bypass == 0))
+			slc_cfg_in.frame_afbc_store[j] = &path->afbc_store;
 	}
 
 	val = ISP_REG_RD(pctx->ctx_id, ISP_NLM_RADIAL_1D_DIST);

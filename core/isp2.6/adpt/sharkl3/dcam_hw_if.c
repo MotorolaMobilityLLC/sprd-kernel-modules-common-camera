@@ -520,26 +520,6 @@ int dcam_hwsim_extra(enum dcam_id idx)
 /* config fbc, see dcam_interface.h for @fbc_mode */
  int dcam_cfg_fbc(struct dcam_pipe_dev *dev, int fbc_mode)
 {
-	struct dcam_path_desc *path = NULL;
-	struct camera_frame *frame = NULL;
-
-	DCAM_REG_MWR(dev->idx, DCAM_PATH_ENDIAN, 0x3, fbc_mode);
-	pr_info("fbc mode %d\n", fbc_mode);
-
-	/* update compressed flag for reserved buffer */
-	if (fbc_mode == DCAM_FBC_FULL)
-		path = &dev->path[DCAM_PATH_FULL];
-	else if (fbc_mode == DCAM_PATH_BIN)
-		path = &dev->path[DCAM_PATH_BIN];
-
-	if (!path)
-		return 0;
-
-	/* bad code, but don't have any other choice */
-	list_for_each_entry(frame, &path->reserved_buf_queue.head, list) {
-		frame->is_compressed = 1;
-	}
-
 	return 0;
 }
 
@@ -1025,5 +1005,11 @@ int dcam_offline_slice_set_fetch_param(uint32_t idx, struct dcam_fetch_info *fet
 unsigned long *dcam_get_dcam2_store_addr(void)
 {
 	return dcam2_store_addr;
+}
+
+int dcam_compressed_addr_set(uint32_t idx, unsigned long addr,
+	struct compressed_addr compressed_addr)
+{
+	return 0;
 }
 

@@ -274,7 +274,8 @@ static int dcam_check_frame(struct dcam_pipe_dev *dev,
 
 		dcam_if_cal_compressed_addr(size->w, size->h,
 					    frame->buf.iova[0],
-					    &compressed_addr);
+					    &compressed_addr,
+					    frame->compress_4bit_bypass);
 		frame_addr = compressed_addr.addr2;
 	} else {
 		frame_addr = frame->buf.iova[0];

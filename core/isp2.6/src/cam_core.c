@@ -184,6 +184,7 @@ struct channel_context {
 	atomic_t err_status;
 
 	uint32_t compress_input;
+	uint32_t compress_4bit_bypass;
 	uint32_t compress_3dnr;
 	uint32_t compress_output;
 
@@ -399,14 +400,11 @@ static void cam_release_camera_frame(void *param)
 }
 
 /* compression policy */
-static void config_compression(struct camera_module *module)
+static void cal_compression(struct camera_module *module)
 {
 	struct channel_context *ch_pre, *ch_cap, *ch_vid;
 	struct sprd_cam_hw_info *dcam_hw;
 	struct compression_override *override;
-	struct isp_ctx_compression_desc ctx_compression_desc;
-	struct isp_path_compression_desc path_compression_desc;
-	int dcam_fbc_mode;
 
 	ch_pre = &module->channel[CAM_CH_PRE];
 	ch_cap = &module->channel[CAM_CH_CAP];
@@ -487,13 +485,63 @@ static void config_compression(struct camera_module *module)
 		ch_vid->compress_input, ch_vid->compress_3dnr,
 		ch_vid->compress_output);
 
-	/* dcam */
-	if (ch_cap->compress_input)
-		dcam_fbc_mode = DCAM_FBC_FULL;
-	else if (ch_pre->compress_input)
-		dcam_fbc_mode = DCAM_FBC_BIN;
+	/* Bypass compression low_4bit by default */
+	ch_cap->compress_4bit_bypass = 1;
+	ch_pre->compress_4bit_bypass = 1;
+	ch_vid->compress_4bit_bypass = 1;
+
+	/* open compression on SharkL5 pro */
+	if (dcam_hw->prj_id == SHARKL5pro) {
+		/* dcam */
+		ch_cap->compress_input = 0;
+		ch_pre->compress_input = 0;
+		ch_vid->compress_input = 0;
+		/* isp */
+		ch_vid->compress_output = module->cam_uinfo.is_afbc;
+	}
+
+	/* dcam2 not surpport fbc */
+	if (module->idx > 1) {
+		ch_cap->compress_input = 0;
+		ch_pre->compress_input = 0;
+	}
+
+	/* dcam not surpport fbc when dcam need fetch */
+	if (module->cam_uinfo.dcam_slice_mode ||
+		module->cam_uinfo.is_4in1)
+		ch_cap->compress_input = 0;
+
+	/* dcam not surpport fbc when open slowmotion */
+	if (ch_pre->ch_uinfo.is_high_fps)
+		ch_pre->compress_input = 0;
+}
+
+static void config_compression(struct camera_module *module)
+{
+	struct channel_context *ch_pre, *ch_cap, *ch_vid;
+	struct isp_ctx_compression_desc ctx_compression_desc;
+	struct isp_path_compression_desc path_compression_desc;
+	int dcam_fbc_mode;
+
+	ch_pre = &module->channel[CAM_CH_PRE];
+	ch_cap = &module->channel[CAM_CH_CAP];
+	ch_vid = &module->channel[CAM_CH_VID];
+
+	if (ch_cap->compress_input) {
+		dcam_fbc_mode = DCAM_FBC_FULL_14_BIT;
+		if (dcam_fbc_mode == DCAM_FBC_FULL_14_BIT)
+			ch_cap->compress_4bit_bypass = 0;
+	}
+	else if (ch_pre->compress_input) {
+		dcam_fbc_mode = DCAM_FBC_BIN_14_BIT;
+		if (dcam_fbc_mode == DCAM_FBC_BIN_14_BIT)
+			ch_pre->compress_4bit_bypass = 0;
+	}
 	else
 		dcam_fbc_mode = DCAM_FBC_DISABLE;
+
+	ch_vid->compress_input = ch_pre->compress_input;
+	ch_vid->compress_4bit_bypass = ch_pre->compress_4bit_bypass;
 
 	dcam_ops->ioctl(module->dcam_dev_handle,
 			DCAM_IOCTL_CFG_FBC, &dcam_fbc_mode);
@@ -501,6 +549,7 @@ static void config_compression(struct camera_module *module)
 	/* capture context */
 	if (ch_cap->enable) {
 		ctx_compression_desc.fetch_fbd = ch_cap->compress_input;
+		ctx_compression_desc.fetch_fbd_4bit_bypass = ch_cap->compress_4bit_bypass;
 		ctx_compression_desc.nr3_fbc_fbd = ch_cap->compress_3dnr;
 		isp_ops->cfg_path(module->isp_dev_handle,
 				  ISP_PATH_CFG_CTX_COMPRESSION,
@@ -518,6 +567,7 @@ static void config_compression(struct camera_module *module)
 	/* preview context */
 	if (ch_pre->enable) {
 		ctx_compression_desc.fetch_fbd = ch_pre->compress_input;
+		ctx_compression_desc.fetch_fbd_4bit_bypass = ch_pre->compress_4bit_bypass;
 		ctx_compression_desc.nr3_fbc_fbd = ch_pre->compress_3dnr;
 		isp_ops->cfg_path(module->isp_dev_handle,
 				  ISP_PATH_CFG_CTX_COMPRESSION,
@@ -535,6 +585,7 @@ static void config_compression(struct camera_module *module)
 	/* video context */
 	if (ch_vid->enable) {
 		ctx_compression_desc.fetch_fbd = ch_vid->compress_input;
+		ctx_compression_desc.fetch_fbd_4bit_bypass = ch_vid->compress_4bit_bypass;
 		ctx_compression_desc.nr3_fbc_fbd = ch_vid->compress_3dnr;
 		isp_ops->cfg_path(module->isp_dev_handle,
 				  ISP_PATH_CFG_CTX_COMPRESSION,
@@ -572,7 +623,8 @@ static void prepare_frame_from_file(struct camera_queue *queue,
 		return;
 
 	if (frame->is_compressed)
-		total = dcam_if_cal_compressed_size(width, height);
+		total = dcam_if_cal_compressed_size(width, height,
+			frame->compress_4bit_bypass);
 	else
 		total = cal_sprd_raw_pitch(width, is_loose) * height;
 
@@ -644,7 +696,8 @@ static void alloc_buffers(struct work_struct *work)
 		width = ALIGN(width, DCAM_FBC_TILE_WIDTH);
 		height = ALIGN(height, DCAM_FBC_TILE_HEIGHT);
 		pr_info("ch %d, FBC size (%d %d)\n", channel->ch_id, width, height);
-		size = dcam_if_cal_compressed_size(width, height);
+		size = dcam_if_cal_compressed_size(width, height,
+				channel->compress_4bit_bypass);
 	} else if (channel->ch_uinfo.sn_fmt == IMG_PIX_FMT_GREY) {
 		size = cal_sprd_raw_pitch(width, is_loose) * height;
 	} else {
@@ -678,6 +731,8 @@ static void alloc_buffers(struct work_struct *work)
 			pframe = get_empty_frame();
 			pframe->channel_id = channel->ch_id;
 			pframe->is_compressed = channel->compress_input;
+			pframe->compress_4bit_bypass =
+				channel->compress_4bit_bypass;
 			pframe->width = width;
 			pframe->height = height;
 			pframe->endian = ENDIAN_LITTLE;
@@ -1959,6 +2014,11 @@ static int cal_channel_size_bininig(
 
 		dcam_out.w = (trim_pv.size_x >> shift);
 		dcam_out.h = (trim_pv.size_y >> shift);
+
+		/* avoid isp fetch fbd timeout when isp src width > 1856 */
+		if (dcam_out.w > 1856)
+			ch_prev->compress_input = 0;
+
 		if (ch_prev->compress_input) {
 			dcam_out.h = ALIGN_DOWN(dcam_out.h, DCAM_FBC_TILE_HEIGHT);
 			trim_pv.size_y = (dcam_out.h << shift);
@@ -2124,11 +2184,17 @@ static int cal_channel_size_rds(struct camera_module *module)
 
 		/* align bin path output size */
 		align_w = align_h = DCAM_RDS_OUT_ALIGN;
-		if (ch_prev->compress_input)
-			align_h = MAX(align_h, DCAM_FBC_TILE_HEIGHT);
 		align_w = MAX(align_w, DCAM_OUTPUT_DEBUG_ALIGN);
 		dcam_out.w = divide_ratio16(trim_pv.size_x, ratio_min);
 		dcam_out.h = divide_ratio16(trim_pv.size_y, ratio_min);
+
+		/* avoid isp fetch fbd timeout when isp src width > 1856 */
+		if (dcam_out.w > 1856)
+			ch_prev->compress_input = 0;
+
+		if (ch_prev->compress_input)
+			align_h = MAX(align_h, DCAM_FBC_TILE_HEIGHT);
+
 		dcam_out.w = ALIGN(dcam_out.w, align_w);
 		dcam_out.h = ALIGN(dcam_out.h, align_h);
 
@@ -2286,6 +2352,8 @@ static int config_channel_bigsize(
 			pframe = get_empty_frame();
 			pframe->channel_id = channel->ch_id;
 			pframe->is_compressed = channel->compress_input;
+			pframe->compress_4bit_bypass =
+					channel->compress_4bit_bypass;
 			pframe->width = width;
 			pframe->height = height;
 			pframe->endian = ENDIAN_LITTLE;
@@ -2724,7 +2792,8 @@ static int dump_one_frame(struct camera_module *module,
 		struct compressed_addr addr;
 
 		dcam_if_cal_compressed_addr(pframe->width, pframe->height,
-					    pframe->buf.iova[0], &addr);
+					    pframe->buf.iova[0], &addr,
+					    pframe->compress_4bit_bypass);
 		sprintf(tmp_str, "_tile%08lx",
 			addr.addr1 - pframe->buf.iova[0]);
 		strcat(file_name, tmp_str);
@@ -2732,7 +2801,7 @@ static int dump_one_frame(struct camera_module *module,
 			addr.addr2 - addr.addr1);
 		strcat(file_name, tmp_str);
 		size = dcam_if_cal_compressed_size(pframe->width,
-						   pframe->height);
+					pframe->height, pframe->compress_4bit_bypass);
 	} else {
 		size = cal_sprd_raw_pitch(pframe->width, is_loose) * pframe->height;
 	}
@@ -3348,9 +3417,6 @@ static int init_cam_channel(
 		path_desc.output_size.w = ch_uinfo->dst_size.w;
 		path_desc.output_size.h = ch_uinfo->dst_size.h;
 		path_desc.regular_mode = ch_uinfo->regular_desc.regular_mode;
-
-		if (module->cam_uinfo.is_afbc && channel->ch_id == CAM_CH_VID)
-			path_desc.path_afbc = AFBC_PATH_VID;
 
 		ret = isp_ops->cfg_path(module->isp_dev_handle,
 					ISP_PATH_CFG_PATH_BASE,
@@ -5128,7 +5194,7 @@ static int img_ioctl_stream_on(
 	pr_info("cam%d stream on starts\n", module->idx);
 
 	/* settle down compression policy here */
-	config_compression(module);
+	cal_compression(module);
 
 	ret = init_channels_size(module);
 	if (module->zoom_solution == ZOOM_DEFAULT)
@@ -5138,6 +5204,8 @@ static int img_ioctl_stream_on(
 		cal_channel_size_bininig(module, 0);
 	else
 		cal_channel_size_rds(module);
+
+	config_compression(module);
 
 	ch_pre = &module->channel[CAM_CH_PRE];
 	if (ch_pre->enable)

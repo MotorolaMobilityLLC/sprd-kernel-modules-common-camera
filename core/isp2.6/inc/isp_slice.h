@@ -10,6 +10,7 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  */
+#include "isp_fmcu.h"
 
 #ifndef _ISP_SLICE_H_
 #define _ISP_SLICE_H_
@@ -139,6 +140,15 @@ struct slice_store_info {
 	struct slice_border_info border;
 };
 
+struct slice_afbc_store_info {
+	uint32_t slc_afbc_on;
+	uint32_t yheader_addr;
+	uint32_t yaddr;
+	struct img_size size;
+	struct slice_border_info border;
+	uint32_t slice_offset;
+};
+
 struct slice_fetch_info {
 	struct img_size size;
 	struct img_addr addr;
@@ -151,6 +161,7 @@ struct slice_fbd_raw_info {
 	uint32_t pixel_start_in_hor:6;
 	uint32_t pixel_start_in_ver:2;
 	uint32_t fetch_fbd_bypass:1;
+	uint32_t fetch_fbd_4bit_bypass:1;
 	/* ISP_FBD_RAW_SLICE_SIZE */
 	uint32_t height;
 	uint32_t width;
@@ -177,6 +188,10 @@ struct slice_fbd_raw_info {
 	uint32_t low_bit_addr_init;
 	/* ISP_FBD_RAW_LOW_PARAM1 */
 	uint32_t low_bit_pitch:16;
+	/* ISP_FBD_RAW_LOW_4BIT_PARAM0 */
+	uint32_t low_4bit_addr_init;
+	/* ISP_FBD_RAW_LOW_4BIT_PARAM1 */
+	uint32_t low_4bit_pitch:16;
 };
 
 struct slice_3dnr_memctrl_info {
@@ -248,6 +263,7 @@ struct isp_slice_desc {
 	struct slice_fetch_info slice_fetch;
 	struct slice_fbd_raw_info slice_fbd_raw;
 	struct slice_store_info slice_store[ISP_SPATH_NUM];
+	struct slice_afbc_store_info slice_afbc_store[AFBC_PATH_NUM];
 	struct slice_scaler_info slice_scaler[ISP_SPATH_NUM];
 	struct slice_thumbscaler_info slice_thumbscaler;
 	struct slice_nlm_info slice_nlm;
@@ -276,10 +292,19 @@ struct isp_slice_context {
 	uint32_t overlap_right;
 };
 
+uint32_t ap_fmcu_reg_get(struct isp_fmcu_ctx_desc *fmcu,
+	uint32_t reg);
+
+void ap_fmcu_reg_write(struct isp_fmcu_ctx_desc *fmcu,
+	uint32_t ctx_id, uint32_t addr, uint32_t cmd);
+
 int isp_cfg_slice_fetch_info(
 			void *cfg_in, struct isp_slice_context *slc_ctx);
 
 int isp_cfg_slice_store_info(
+		void *cfg_in, struct isp_slice_context *slc_ctx);
+
+int isp_cfg_slice_afbc_store_info(
 		void *cfg_in, struct isp_slice_context *slc_ctx);
 
 int isp_cfg_slice_3dnr_info(

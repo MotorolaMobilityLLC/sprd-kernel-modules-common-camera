@@ -667,21 +667,6 @@ extern unsigned long s_isp_mmubase;
 #define ISP_THMB_SCL_DEBUG			(0xE05CUL)
 #define ISP_THMB_FRM_CNT_CLR			(0xE060UL)
 
-/* Need to Delate */
-#define ISP_FBD_RAW_SEL				(0x0C10UL)
-#define ISP_FBD_RAW_SLICE_SIZE			(0x0C14UL)
-#define ISP_FBD_RAW_PARAM0			(0x0C18UL)
-#define ISP_FBD_RAW_PARAM1			(0x0C1CUL)
-#define ISP_FBD_RAW_PARAM2			(0x0C20UL)
-#define ISP_FBD_RAW_PARAM3			(0x0C24UL)
-#define ISP_FBD_RAW_PARAM4			(0x0C28UL)
-#define ISP_FBD_RAW_PARAM5			(0x0C2CUL)
-#define ISP_FBD_RAW_PARAM6			(0x0C30UL)
-#define ISP_FBD_RAW_LOW_PARAM0			(0x0C34UL)
-#define ISP_FBD_RAW_LOW_PARAM1			(0x0C38UL)
-#define ISP_FBD_RAW_START			(0x0C3CUL)
-#define ISP_FBD_RAW_HBLANK			(0x0C40UL)
-
 /******************************************************************************/
 
 

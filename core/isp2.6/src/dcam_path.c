@@ -494,10 +494,10 @@ int dcam_path_set_store_frm(void *dcam_handle,
 
 		dcam_if_cal_compressed_addr(size->w, size->h,
 					    frame->buf.iova[0],
-					    &compressed_addr);
-		DCAM_REG_WR(idx, addr, compressed_addr.addr2);
-		//DCAM_REG_WR(idx, DCAM_FBC_PAYLOAD_WADDR,
-			    //compressed_addr.addr1);
+					    &compressed_addr,
+					    frame->compress_4bit_bypass);
+
+		dcam_compressed_addr_set(idx, addr, compressed_addr);
 	} else {
 		DCAM_REG_WR(idx, addr, frame->buf.iova[0]);
 	}

@@ -113,8 +113,10 @@ enum dcam_path_cfg_cmd {
 /* fbc mode */
 enum {
 	DCAM_FBC_DISABLE = 0,
-	DCAM_FBC_FULL = 0x2,
-	DCAM_FBC_BIN = 0x3,
+	DCAM_FBC_FULL_10_BIT = 0x1,
+	DCAM_FBC_BIN_10_BIT = 0x3,
+	DCAM_FBC_FULL_14_BIT = 0x5,
+	DCAM_FBC_BIN_14_BIT = 0x7,
 };
 
 /*
@@ -124,34 +126,52 @@ enum {
  * low2_bytes = w * h * 2 / 8;
  */
 static inline void
-dcam_if_cal_compressed_addr(uint32_t width, uint32_t height, addr_t in,
-			    struct compressed_addr *out)
+dcam_if_cal_compressed_addr(uint32_t width,
+			uint32_t height, addr_t in,
+			struct compressed_addr *out,
+			uint32_t compress_4bit_bypass)
 {
-	uint32_t pixel_count, header_bytes;
+	uint32_t pixel_count = 0, low2 = 0, header_bytes = 0;
+	int32_t tile_col = 0, tile_row = 0, header_size = 0;
 
 	if (unlikely(!out))
 		return;
 
-	pixel_count = roundup(width, DCAM_FBC_TILE_WIDTH) * height;
-	header_bytes = pixel_count >> 9;
-	header_bytes += FBC_HEADER_REDUNDANT;
+	tile_col = (width + FBC_TILE_WIDTH - 1) / FBC_TILE_WIDTH;
+	tile_col = (tile_col + 2 -1) / 2 * 2;
+	tile_row =(height + FBC_TILE_HEIGHT - 1) / FBC_TILE_HEIGHT;
+	header_size = (tile_col * tile_row + 1) / 2;
+	header_bytes = header_size + FBC_HEADER_REDUNDANT;
+	pixel_count = tile_col * tile_row * FBC_TILE_ADDR_ALIGN;
+	low2 = pixel_count >> 2;
 
 	out->addr0 = in;
-	out->addr1 = ALIGN(out->addr0 + header_bytes, FBC_TILE_ADDR_ALIGN);
-	out->addr2 = out->addr1 + pixel_count;
+	out->addr1 = ALIGN(out->addr0 + header_bytes, FBC_TILE_ADDR_ALIGN);//payload addr
+	out->addr2 = ALIGN(out->addr1 + pixel_count, FBC_TILE_ADDR_ALIGN);//mid 2 bit_addr
+	if (!compress_4bit_bypass)
+		out->addr3 = ALIGN(out->addr2 + low2, FBC_TILE_ADDR_ALIGN);//low 4_bit addr
 }
 
 /* see @dcam_if_cal_compressed_addr */
 static inline uint32_t
-dcam_if_cal_compressed_size(uint32_t width, uint32_t height)
+dcam_if_cal_compressed_size(uint32_t width,
+	uint32_t height, uint32_t compress_4bit_bypass)
 {
-	uint32_t pixel_count, header, low2;
+	uint32_t pixel_count = 0, header = 0, low2 = 0, low4 = 0;
+	int32_t tile_col = 0, tile_row = 0, header_size = 0;
 
-	pixel_count = roundup(width, DCAM_FBC_TILE_WIDTH) * height;
-	header = pixel_count >> 9;
-	header += FBC_HEADER_REDUNDANT + FBC_TILE_ADDR_ALIGN;
-	low2 = pixel_count >> 2;
-	return pixel_count + header + low2;
+	tile_col = (width + FBC_TILE_WIDTH - 1) / FBC_TILE_WIDTH;
+	tile_col = (tile_col + 2 -1) / 2 * 2;
+	tile_row =(height + FBC_TILE_HEIGHT - 1) / FBC_TILE_HEIGHT;
+	header_size = (tile_col * tile_row + 1) / 2;
+	pixel_count = tile_col * tile_row * FBC_TILE_ADDR_ALIGN;
+	header = header_size + FBC_HEADER_REDUNDANT
+		+ FBC_TILE_ADDR_ALIGN;
+	low2 = (pixel_count >> 2) + FBC_TILE_ADDR_ALIGN;
+	low4 = 0;
+	if (!compress_4bit_bypass)
+		low4 = (pixel_count >> 1) + FBC_TILE_ADDR_ALIGN;
+	return pixel_count + header + low2 + low4;
 }
 
 enum dcam_ioctrl_cmd {

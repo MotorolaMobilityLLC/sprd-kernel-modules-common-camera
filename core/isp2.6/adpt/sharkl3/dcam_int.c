@@ -268,17 +268,7 @@ static int dcam_check_frame(struct dcam_pipe_dev *dev,
 	if (unlikely(!frame))
 		return 0;
 
-	if (frame->is_compressed) {
-		struct compressed_addr compressed_addr;
-		struct img_size *size = &path->out_size;
-
-		dcam_if_cal_compressed_addr(size->w, size->h,
-					    frame->buf.iova[0],
-					    &compressed_addr);
-		frame_addr = compressed_addr.addr2;
-	} else {
-		frame_addr = frame->buf.iova[0];
-	}
+	frame_addr = frame->buf.iova[0];
 
 	reg_addr = path->path_id == DCAM_PATH_BIN ?
 		DCAM_BIN_BASE_WADDR0 : DCAM_FULL_BASE_WADDR;

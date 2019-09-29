@@ -57,10 +57,14 @@
 #define ISP_PIXEL_ALIGN_WIDTH		4
 #define ISP_PIXEL_ALIGN_HEIGHT		2
 
-#define AFBC_PADDING_W_YUV420_scaler        32
-#define AFBC_PADDING_H_YUV420_scaler        8
-#define AFBC_HEADER_SIZE                    16
-#define AFBC_PAYLOAD_SIZE                   384
+#define AFBC_PADDING_W_YUV420			32
+#define AFBC_PADDING_H_YUV420			8
+#define AFBC_HEADER_SIZE			16
+#define AFBC_PAYLOAD_SIZE			384
+
+#define ISP_FBD_TILE_WIDTH        64
+#define ISP_FBD_TILE_HEIGHT       4
+#define ISP_FBD_BASE_ALIGN        256
 
 enum isp_work_mode {
 	ISP_CFG_MODE,
@@ -136,6 +140,7 @@ struct isp_fbd_raw_info {
 	uint32_t pixel_start_in_ver:2;
 	uint32_t chk_sum_auto_clr:1;
 	uint32_t fetch_fbd_bypass:1;
+	uint32_t fetch_fbd_4bit_bypass:1;
 	/* ISP_FBD_RAW_SLICE_SIZE */
 	uint32_t height;
 	uint32_t width;
@@ -166,7 +171,10 @@ struct isp_fbd_raw_info {
 	/* ISP_FBD_RAW_HBLANK */
 	uint32_t hblank_en:1;
 	uint32_t hblank_num:16;
-
+	/* ISP_FBD_RAW_LOW_4BIT_PARAM0 */
+	uint32_t low_4bit_addr_init;
+	/* ISP_FBD_RAW_LOW_4BIT_PARAM1 */
+	uint32_t low_4bit_pitch:16;
 	/*
 	 * For ISP trim feature. In capture channel, DCAM FULL crop is not used
 	 * in zoom. ISP fetch trim is used instead.
@@ -177,6 +185,7 @@ struct isp_fbd_raw_info {
 	uint32_t header_addr_offset;
 	uint32_t tile_addr_offset_x256;
 	uint32_t low_bit_addr_offset;
+	uint32_t low_4bit_addr_offset;
 };
 
 struct isp_regular_info {
@@ -348,7 +357,6 @@ struct isp_path_desc {
 	uint32_t slave_path_id;
 	uint32_t store_fbc;/* 1 for fbc store; 0 for normal store */
 	uint32_t uframe_sync;
-	uint32_t path_afbc;
 	struct isp_pipe_context *attach_ctx;
 
 	struct isp_regular_info regular_info;
@@ -394,6 +402,7 @@ struct isp_pipe_context {
 	uint32_t dispatch_color;
 	uint32_t dispatch_bayer_mode; /* RAWRGB_GR, RAWRGB_Gb, RAWRGB_R... */
 	uint32_t fetch_path_sel;/* 1: fetch_fbd; 0: fetch */
+	uint32_t fetch_fbd_4bit_bypass;/* 0: 14bit; 1: 10bit */
 	uint32_t nr3_fbc_fbd;/* 1: 3dnr compressed; 0: 3dnr plain data */
 	/* lock ctx/path param(size) updated from zoom */
 	struct mutex param_mutex;

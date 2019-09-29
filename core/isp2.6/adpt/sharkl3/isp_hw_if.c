@@ -586,4 +586,42 @@ int isp_reset(struct sprd_cam_hw_info *hw, void *arg)
 	return rtn;
 }
 
+int set_path_afbc_store(struct isp_path_desc *path)
+{
+	return 0;
+}
 
+void isp_set_afbc_store_addr(uint32_t idx,
+	enum isp_sub_path_id spath_id, unsigned long *yuv_addr)
+{
+	return;
+}
+
+void isp_set_afbc_store_fmcu_addr(struct isp_fmcu_ctx_desc *fmcu,
+	struct isp_afbc_store_info *afbc_addr, int i)
+{
+	return;
+}
+
+int set_slice_spath_afbc_store(
+		struct isp_fmcu_ctx_desc *fmcu,
+		uint32_t path_en,
+		uint32_t ctx_idx,
+		enum isp_sub_path_id spath_id,
+		struct slice_afbc_store_info *slc_afbc_store)
+{
+	return 0;
+}
+
+void isp_set_fbd_fetch_addr(int idx,
+	struct compressed_addr compressed_addr,
+	struct isp_fbd_raw_info *fbd_raw)
+{
+	return;
+}
+
+int set_slice_fbd_raw(struct isp_fmcu_ctx_desc *fmcu,
+		struct slice_fbd_raw_info *fbd_raw_info)
+{
+	return 0;
+}

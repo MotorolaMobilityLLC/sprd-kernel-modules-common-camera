@@ -622,13 +622,13 @@ int dcam_hwsim_extra(enum dcam_id idx)
 	struct dcam_path_desc *path = NULL;
 	struct camera_frame *frame = NULL;
 
-	DCAM_REG_MWR(dev->idx, DCAM_PATH_ENDIAN, 0x3, fbc_mode);
+	DCAM_REG_MWR(dev->idx, DCAM_FBC_CTRL, 0x7, fbc_mode);
 	pr_info("fbc mode %d\n", fbc_mode);
 
 	/* update compressed flag for reserved buffer */
-	if (fbc_mode == DCAM_FBC_FULL)
+	if (fbc_mode == DCAM_FBC_FULL_14_BIT)
 		path = &dev->path[DCAM_PATH_FULL];
-	else if (fbc_mode == DCAM_PATH_BIN)
+	else if (fbc_mode == DCAM_FBC_BIN_14_BIT)
 		path = &dev->path[DCAM_PATH_BIN];
 
 	if (!path)
@@ -1135,5 +1135,19 @@ int dcam_offline_slice_set_fetch_param(uint32_t idx, struct dcam_fetch_info *fet
 unsigned long *dcam_get_dcam2_store_addr(void)
 {
 	return dcam2_store_addr;
+}
+
+int dcam_compressed_addr_set(uint32_t idx, unsigned long addr,
+	struct compressed_addr compressed_addr)
+{
+	int ret = 0;
+
+	DCAM_REG_WR(idx, DCAM_FBC_PAYLOAD_WADDR,
+		compressed_addr.addr1);//head & 8 bit
+	DCAM_REG_WR(idx, DCAM_FBC_MID_WADDR,
+		compressed_addr.addr2);//mid 2 bit
+	DCAM_REG_WR(idx, addr, compressed_addr.addr3);//low 4 bit
+
+	return ret;
 }
 

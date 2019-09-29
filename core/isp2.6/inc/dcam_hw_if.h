@@ -23,6 +23,7 @@ int dcam_reset(struct dcam_pipe_dev *dev);
 void dcam_init_axim(struct sprd_cam_hw_info *hw);
 int dcam_set_mipi_cap(struct dcam_pipe_dev *dev,
 				struct dcam_mipi_info *cap_info);
+int dcam_cfg_fbc(struct dcam_pipe_dev *dev, int fbc_mode);
 int dcam_cfg_ebd(struct dcam_pipe_dev *dev, void *param);
 int  dcam_cfg_path_full_source(void *dcam_handle,
 				struct dcam_path_desc *path,
@@ -46,4 +47,6 @@ int dcam_offline_slice_set_fetch_param(uint32_t idx,
 	struct dcam_fetch_info *fetch);
 int dcam_reg_trace(struct sprd_cam_hw_info *hw, void *arg);
 unsigned long *dcam_get_dcam2_store_addr(void);
+int dcam_compressed_addr_set(uint32_t idx, unsigned long addr,
+	struct compressed_addr compressed_addr);
 #endif

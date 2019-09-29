@@ -123,6 +123,7 @@ extern unsigned long s_isp_mmubase;
 #define ISP_FMCU_STOP				(0x0034UL)
 #define ISP_FMCU_SW_TRIGGER			(0x003CUL)
 
+#define ISP_BWU_PARAM				(0x1A10UL)
 
 #define ISP_GRGB_STATUS				(0x1B00UL)
 #define ISP_GRGB_CTRL				(0x1B10UL)
@@ -762,6 +763,8 @@ extern unsigned long s_isp_mmubase;
 #define ISP_FBD_RAW_LOW_PARAM1			(0x0C38UL)
 #define ISP_FBD_RAW_START			(0x0C3CUL)
 #define ISP_FBD_RAW_HBLANK			(0x0C40UL)
+#define ISP_FBD_RAW_LOW_4BIT_PARAM0		(0x0C44UL)
+#define ISP_FBD_RAW_LOW_4BIT_PARAM1		(0x0C48UL)
 
 #define ISP_ARBITER_WR_STATUS			(0x0400UL)
 #define ISP_ARBITER_RD_STATUS			(0x0404UL)
