@@ -368,6 +368,8 @@ static enum dcam_fix_result dcam_fix_index_if_needed(struct dcam_pipe_dev *dev)
 				vote |= dcam_check_frame(dev, path);
 
 			frame = camera_dequeue_tail(&path->result_queue);
+			if (frame == NULL)
+				continue;
 			frame->fid = dev->frame_index;
 			camera_enqueue(&path->result_queue, frame);
 		}
