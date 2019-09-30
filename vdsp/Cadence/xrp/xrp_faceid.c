@@ -39,6 +39,7 @@
 #include "xrp_internal.h"
 #include "xrp_kernel_dsp_interface.h"
 #include "xrp_faceid.h"
+#include "vdsp_trusty.h"
 
 
 
@@ -329,8 +330,9 @@ static int sprd_alloc_faceid_fwbuffer(struct xvp *xvp)
 		return -EFAULT;
 	}
 	xvp->firmware2_viraddr = (void*)xvp->ion_faceid_fw.addr_k[0];
+	xvp->firmware2_phys = xvp->ion_faceid_fw.addr_p[0];
 	xvp->ion_faceid_fw.dev = xvp->dev;
-	pr_info("%s vaddr:%p\n" , __func__ , xvp->firmware2_viraddr);
+	pr_info("%s vaddr:%p phyaddr %X\n" , __func__ , xvp->firmware2_viraddr,xvp->firmware2_phys);
 	return 0;
 }
 
@@ -464,7 +466,122 @@ int sprd_kernel_unmap_faceid_ion(struct xvp *xvp,struct ion_buf *ion_buf)
 {
 	unsigned long dst_viraddr = ion_buf->addr_k[0];
 	if(dst_viraddr) {
-                xvp->vdsp_mem_desc->ops->mem_kunmap(xvp->vdsp_mem_desc, ion_buf);
+		xvp->vdsp_mem_desc->ops->mem_kunmap(xvp->vdsp_mem_desc, ion_buf);
+	}
+	return 0;
+}
+int sprd_faceid_sec_sign(struct xvp *xvp)
+{
+	bool ret;
+	KBC_LOAD_TABLE_V  table;
+	
+	ret = trusty_kernelbootcp_connect();
+	if(!ret)
+	{
+		pr_err("bootcp connect fail\n");
+		return -EACCES;
+	}
+
+	memset(&table, 0, sizeof(KBC_LOAD_TABLE_V));
+	table.faceid_fw.img_addr = xvp->firmware2_phys;
+	table.faceid_fw.img_len = xvp->firmware2->size;
+
+	pr_info("faceid fw sign paddr %X size %d\n",xvp->firmware2_phys,xvp->firmware2->size);
+/*
+	ret = kernel_bootcp_verify_vdsp(&table);
+	if(!ret)
+	{
+		pr_err("bootcp verify fail\n");
+		return -EACCES;
+	}
+
+	ret = kernel_bootcp_unlock_ddr(&table);
+	if(!ret)
+	{
+		pr_err("bootcp unlock ddr fail\n");
+		return -EACCES;
+	}
+*/
+	trusty_kernelbootcp_disconnect();
+	return 0;
+}
+
+int sprd_faceid_secboot_entry(struct xvp *xvp)
+{
+	bool ret;
+
+	if(xvp->tee_con)
+	{
+		struct vdsp_msg msg;
+		msg.vdsp_type = TA_CADENCE_VQ6;
+		msg.msg_cmd = TA_FACEID_ENTER_SEC_MODE;
+		ret = vdsp_set_sec_mode(&msg);
+		if(!ret)
+		{
+			pr_err("Entry secure mode fail\n");
+			return -EACCES;
+		}
+	}
+	else
+	{
+		pr_err("vdsp tee connect fail\n");
+		return -EACCES;
+	}
+	return 0;
+}
+int sprd_faceid_secboot_exit(struct xvp *xvp)
+{
+	bool ret;
+
+	if(xvp->tee_con)
+	{
+		struct vdsp_msg msg;
+		msg.vdsp_type = TA_CADENCE_VQ6;
+		msg.msg_cmd = TA_FACEID_EXIT_SEC_MODE;
+		ret = vdsp_set_sec_mode(&msg);
+		if(!ret)
+		{
+			pr_err("Exit secure mode fail\n");
+			return -EACCES;
+		}
+	}
+	else
+	{
+		pr_err("vdsp tee connect fail\n");
+		return -EACCES;
+	}
+	return 0;
+}
+int sprd_faceid_secboot_init(struct xvp *xvp)
+{
+	xvp->secmode = true;
+	xvp->tee_con = vdsp_ca_connect();
+	if(!xvp->tee_con)
+	{
+		pr_err("vdsp_ca_connect fail\n");
+		//return -EACCES;
+	}
+	return 0;
+}
+int sprd_faceid_secboot_deinit(struct xvp *xvp)
+{
+	bool ret;
+	
+	if(xvp->secmode)
+	{
+		xvp->secmode = false;
+		if(xvp->tee_con)
+		{
+			struct vdsp_msg msg;
+			msg.vdsp_type = TA_CADENCE_VQ6;
+			msg.msg_cmd = TA_FACEID_EXIT_SEC_MODE;
+			ret = vdsp_set_sec_mode(&msg);
+			if(!ret)
+				pr_err("sprd_faceid_sec_exit fail\n");
+			
+			vdsp_ca_disconnect();
+			xvp->tee_con = false;
+		}
 	}
 	return 0;
 }

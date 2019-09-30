@@ -72,11 +72,70 @@ struct vdsp_ca_ctrl {
 	wait_queue_head_t readq;
 	struct list_head rx_msg_queue;
 };
-
+/*firewall*/
 bool vdsp_ca_connect(void);
 void vdsp_ca_disconnect(void);
-
 bool vdsp_set_sec_mode(struct vdsp_msg *vdsp_msg);
+
+/*sign data*/
+#define KERNELBOOTCP_PORT "com.android.trusty.kernelbootcp"
+#define KERNELBOOTCP_MAX_BUFFER_LENGTH 4096
+
+/* Size of the footer.                 */
+/* original definition in avb_footer.h */
+#define AVB_FOOTER_SIZE    64
+
+/* Size of  partition name .          */
+#define PART_NAME_SIZE     32
+
+typedef struct {
+    uint64_t img_addr;  // the base address of image to verify
+    uint32_t img_len;   // length of image
+    uint32_t map_len;   // mapping length
+#ifdef CONFIG_VBOOT_V2
+    uint8_t  footer[AVB_FOOTER_SIZE];
+    uint8_t  partition[PART_NAME_SIZE];
+#endif
+} KBC_IMAGE_S;
+
+typedef struct {
+  KBC_IMAGE_S faceid_fw;
+  uint16_t    flag;      // not use
+  uint16_t    is_packed; // is packed image
+#ifdef CONFIG_VBOOT_V2
+  uint32_t    packed_offset; // packed offset(for avb2.0 cp verify)
+#endif
+} KBC_LOAD_TABLE_V;
+
+enum secureboot_command {
+    KERNELBOOTCP_BIT                = 1,
+    KERNELBOOTCP_REQ_SHIFT          = 1,
+
+    KERNEL_BOOTCP_VERIFY_ALL        = (0 << KERNELBOOTCP_REQ_SHIFT),
+    KERNEL_BOOTCP_UNLOCK_DDR        = (1 << KERNELBOOTCP_REQ_SHIFT),
+    KERNEL_BOOTCP_VERIFY_VDSP       = (2 << KERNELBOOTCP_REQ_SHIFT),
+    KERNEL_BOOTCP_UNLOCK_DDR_VDSP   = (3 << KERNELBOOTCP_REQ_SHIFT),
+};
+
+struct kernelbootcp_message {
+    uint32_t cmd;
+    uint8_t  payload[0];
+};
+struct bootcp_ca_ctrl {
+	int   chanel_state;
+	bool con_init;
+	struct mutex wlock;
+	struct mutex rlock;
+	struct tipc_chan *chan;
+	wait_queue_head_t readq;
+	struct list_head rx_msg_queue;
+};
+
+bool trusty_kernelbootcp_connect(void);
+void trusty_kernelbootcp_disconnect(void);
+bool kernel_bootcp_unlock_ddr(KBC_LOAD_TABLE_V  *table);
+bool kernel_bootcp_verify_vdsp(KBC_LOAD_TABLE_V  *table);
+
 
 
 #endif

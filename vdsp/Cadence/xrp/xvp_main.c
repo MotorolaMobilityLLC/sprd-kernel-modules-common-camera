@@ -72,7 +72,6 @@
 #include "ion.h"
 #include "vdsp_smem.h"
 #include "vdsp_ipi_drv.h"
-#include "vdsp_trusty.h"
 #include "xrp_faceid.h"
 /*add temp for set 512M as default clock*/
 #include <linux/clk.h>
@@ -1539,13 +1538,16 @@ static int xvp_open(struct inode *inode, struct file *filp)
 	struct xvp_file *xvp_file;
 	int rc;
 
-	printk("%s , xvp is:%p , flags:%x, fmode:%x\n", __func__ , xvp , filp->f_flags , filp->f_mode);
+	pr_info("%s , xvp is:%p , flags:%x, fmode:%x\n", __func__ , xvp , filp->f_flags , filp->f_mode);
 	if(filp->f_flags & O_RDWR)
 	{
-		xvp->secmode = true;
-		//xvp->tee_con = vdsp_ca_connect();
-		//if(!xvp->tee_con)
-			//return -EACCES;
+		rc = sprd_faceid_sec_sign(xvp);
+		if (rc < 0)
+			return rc;
+
+		rc = sprd_faceid_secboot_init(xvp);
+		if (rc < 0)
+			return rc;
 	}
 	rc = pm_runtime_get_sync(xvp->dev);
 	if (rc < 0)
@@ -1656,17 +1658,10 @@ static int xrp_boot_faceid_firmware(struct xvp *xvp)
 	int ret;
 	struct xrp_dsp_sync_v1 __iomem *shared_sync = xvp->comm;
 
-	if(xvp->tee_con)
-	{
-		struct vdsp_msg msg;
-		msg.vdsp_type = TA_CADENCE_VQ6;
-		msg.msg_cmd = TA_FACEID_EXIT_SEC_MODE;
-		//vdsp_set_sec_mode(&msg);
-	}
-	else
-	{
-		pr_err("Exit secure mode fail\n");
-	}
+	//ret = sprd_faceid_secboot_exit(xvp);
+	//(ret < 0)
+	//	return ret;
+
 	xrp_halt_dsp(xvp);
 	xrp_reset_dsp(xvp);
 
@@ -1683,18 +1678,11 @@ static int xrp_boot_faceid_firmware(struct xvp *xvp)
 			mb();
 		}
 	}
+	
+	//ret = sprd_faceid_secboot_entry(xvp);
+	//(ret < 0)
+	//	return ret;
 
-	if(xvp->tee_con)
-	{
-		struct vdsp_msg msg;
-		msg.vdsp_type = TA_CADENCE_VQ6;
-		msg.msg_cmd = TA_FACEID_ENTER_SEC_MODE;
-		//vdsp_set_sec_mode(&msg);
-	}
-	else
-	{
-		pr_err("Enter secure mode fail\n");
-	}
 	xrp_release_dsp(xvp);
 
 	if (loopback < LOOPBACK_NOIO) {
@@ -1920,19 +1908,7 @@ int xrp_runtime_suspend(struct device *dev)
                 printk("yzl add %s ipi deinit called\n" , __func__);
                 ipidesc->ops->ctx_deinit(ipidesc);
 	}
-	if(xvp->secmode)
-	{
-		xvp->secmode = false;
-		if(xvp->tee_con)
-		{
-			struct vdsp_msg msg;
-			msg.vdsp_type = TA_CADENCE_VQ6;
-			msg.msg_cmd = TA_FACEID_EXIT_SEC_MODE;
-			vdsp_set_sec_mode(&msg);
-			vdsp_ca_disconnect();
-			xvp->tee_con = false;
-		}
-	}
+	sprd_faceid_secboot_deinit(xvp);
 	return 0;
 }
 EXPORT_SYMBOL(xrp_runtime_suspend);

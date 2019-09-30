@@ -74,6 +74,13 @@ typedef struct
 int sprd_faceid_init(struct xvp *xvp);
 int sprd_faceid_deinit(struct xvp *xvp);
 
+int sprd_faceid_secboot_init(struct xvp *xvp);
+int sprd_faceid_secboot_deinit(struct xvp *xvp);
+int sprd_faceid_secboot_entry(struct xvp *xvp);
+int sprd_faceid_secboot_exit(struct xvp *xvp);
+
+int sprd_faceid_sec_sign(struct xvp *xvp);
+
 
 int sprd_iommu_map_faceid_fwbuffer(struct xvp *xvp);
 int sprd_iommu_unmap_faceid_fwbuffer(struct xvp *xvp);

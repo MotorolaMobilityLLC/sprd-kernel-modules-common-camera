@@ -86,6 +86,7 @@ struct xvp {
 	void *firmware_viraddr;
 	void *firmware2_viraddr;
 	phys_addr_t firmware_phys;
+	phys_addr_t firmware2_phys;
 	phys_addr_t dsp_firmware_addr;
 	/*dram backup memory info*/
 	void *dram_viraddr;

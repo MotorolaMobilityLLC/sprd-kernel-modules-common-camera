@@ -25,6 +25,8 @@
 #define VDSP_TA_PORT_NAME        "com.android.trusty.vdsp"
 
 static struct vdsp_ca_ctrl vdsp_ca ={TIPC_CHANNEL_DISCONNECTED, 0, };
+static struct bootcp_ca_ctrl bootcp_ca ={TIPC_CHANNEL_DISCONNECTED, 0, };
+
 
 struct tipc_msg_buf *vdsp_ca_handle_msg(void *data, struct tipc_msg_buf *rxbuf,u16 flags)
 {
@@ -61,22 +63,22 @@ static void vdsp_ca_handle_event(void *data, int event)
 
 	switch (event) {
 	case TIPC_CHANNEL_SHUTDOWN:
-		pr_info(" channel shutdown\n");
+		pr_info("vdsp channel shutdown\n");
 		break;
 
 	case TIPC_CHANNEL_DISCONNECTED:
-		pr_info(" channel disconnected\n");
+		pr_info("vdsp channel disconnected\n");
 		ca->chanel_state = TIPC_CHANNEL_DISCONNECTED;
 		break;
 
 	case TIPC_CHANNEL_CONNECTED:
-		pr_info(" channel connected\n");
+		pr_info("vdsp channel connected\n");
 		ca->chanel_state = TIPC_CHANNEL_CONNECTED;
 		wake_up_interruptible(&ca->readq);
 		break;
 
 	default:
-		pr_err(" unknown event type %d\n", event);
+		pr_err("vdsp unknown event type %d\n", event);
 		break;
 	}
 }
@@ -86,7 +88,7 @@ static struct tipc_chan_ops vdsp_ca_ops = {
 	.handle_event = vdsp_ca_handle_event,
 };
 
-static void vdsp_ca_free_msg_buf_list(struct list_head *list)
+static void ca_free_msg_buf_list(struct list_head *list)
 {
 	struct tipc_msg_buf *mb = NULL;
 
@@ -106,10 +108,10 @@ bool vdsp_ca_connect(void)
 	int chan_conn_ret =0;
 	bool ret = false;
 
-	pr_info("chanel_state =%d\n", ca->chanel_state);
+	pr_info("vdsp chanel_state =%d\n", ca->chanel_state);
 
 	if (ca->chanel_state == TIPC_CHANNEL_CONNECTED) {
-		pr_info(" cam has already been connected\n");
+		pr_info("vdsp has already been connected\n");
 		return true;
 	}
 
@@ -118,7 +120,7 @@ bool vdsp_ca_connect(void)
 
 		chan = tipc_create_channel(NULL, &vdsp_ca_ops, ca);
 		if (IS_ERR(chan)) {
-			pr_err("cam tipc create channel failed\n");
+			pr_err("vdsp tipc create channel failed\n");
 			return PTR_ERR(chan);
 		}
 		ca->chan = chan;
@@ -132,21 +134,21 @@ bool vdsp_ca_connect(void)
 	chan_conn_ret = tipc_chan_connect(ca->chan, VDSP_TA_PORT_NAME);
 	if (chan_conn_ret) {
 		ret = false;
-		pr_err(" cam connect channel failed\n");
+		pr_err("vdsp connect channel failed\n");
 		return ret;
 	} else {
 		ret = true;
-		pr_info("cam connect channel done\n");
+		pr_info("vdsp connect channel done\n");
 	}
 
 	if (!wait_event_interruptible_timeout(ca->readq,
 			(ca->chanel_state == TIPC_CHANNEL_CONNECTED),
 			msecs_to_jiffies(CA_CONN_TIMEOUT))) {
-		pr_err(" wait read response time out!\n");
+		pr_err("vdsp wait read response time out!\n");
 		ret = false;
 	}
 
-	pr_info("ret =%d\n", ret);
+	//pr_info("ret =%d\n", ret);
 
 	return ret;
 }
@@ -156,7 +158,7 @@ void vdsp_ca_disconnect(void)
 
 	wake_up_interruptible_all(&ca->readq);
 
-	vdsp_ca_free_msg_buf_list(&ca->rx_msg_queue);
+	ca_free_msg_buf_list(&ca->rx_msg_queue);
 	ca->con_init = false;
 
 	 /*todo for Stability test */
@@ -323,11 +325,308 @@ bool vdsp_set_sec_mode(struct vdsp_msg *vdsp_msg)
 
 	mutex_unlock(&ca->wlock);
 
-	pr_info(" ret =%d\n",   ret);
+	pr_info("vdsp tee ret =%d\n",   ret);
 
 	return ret;
 
 }
 
+/*============================================================================*/
+struct tipc_msg_buf *bootcp_ca_handle_msg(void *data, struct tipc_msg_buf *rxbuf,u16 flags)
+{
+	struct bootcp_ca_ctrl *ca = data;
+	struct tipc_msg_buf *newbuf = rxbuf;
+
+	mutex_lock(&ca->rlock);
+	if (ca->chanel_state == TIPC_CHANNEL_CONNECTED) {
+		/* get new buffer */
+		newbuf = tipc_chan_get_rxbuf(ca->chan);
+		if (newbuf) {
+			pr_info("bootcp received new data, rxbuf %p, newbuf %p\n",
+						  rxbuf, newbuf);
+			/* queue an old buffer and return a new one */
+			list_add_tail(&rxbuf->node, &ca->rx_msg_queue);
+			wake_up_interruptible(&ca->readq);
+		} else {
+			/*
+			 * return an old buffer effectively discarding
+			 * incoming message
+			 */
+			pr_info("bootcp discard incoming message\n");
+
+			newbuf = rxbuf;
+		}
+	}
+	mutex_unlock(&ca->rlock);
+
+	return newbuf;
+}
+static void bootcp_ca_handle_event(void *data, int event)
+{
+	struct bootcp_ca_ctrl *ca = data;
+
+	switch (event) {
+	case TIPC_CHANNEL_SHUTDOWN:
+		pr_info("bootcp channel shutdown\n");
+		break;
+
+	case TIPC_CHANNEL_DISCONNECTED:
+		pr_info("bootcp channel disconnected\n");
+		ca->chanel_state = TIPC_CHANNEL_DISCONNECTED;
+		break;
+
+	case TIPC_CHANNEL_CONNECTED:
+		pr_info("bootcp channel connected\n");
+		ca->chanel_state = TIPC_CHANNEL_CONNECTED;
+		wake_up_interruptible(&ca->readq);
+		break;
+
+	default:
+		pr_err("bootcp unknown event type %d\n", event);
+		break;
+	}
+}
+static struct tipc_chan_ops bootcp_ca_ops = {
+	.handle_msg = bootcp_ca_handle_msg,
+	.handle_event = bootcp_ca_handle_event,
+};
+
+bool trusty_kernelbootcp_connect(void)
+{
+	struct bootcp_ca_ctrl *ca = &bootcp_ca;
+	int chan_conn_ret =0;
+	bool ret = false;
+
+	//pr_info("bootcp chanel_state =%d\n", ca->chanel_state);
+
+	if (ca->chanel_state == TIPC_CHANNEL_CONNECTED) {
+		pr_info("bootcp has already been connected\n");
+		return true;
+	}
+
+	if (!ca->con_init) {
+		struct tipc_chan *chan;
+
+		chan = tipc_create_channel(NULL, &bootcp_ca_ops, ca);
+		if (IS_ERR(chan)) {
+			pr_err("bootcp tipc create channel failed\n");
+			return PTR_ERR(chan);
+		}
+		ca->chan = chan;
+		mutex_init(&ca->rlock);
+		mutex_init(&ca->wlock);
+		init_waitqueue_head(&ca->readq);
+		INIT_LIST_HEAD(&ca->rx_msg_queue);
+		ca->con_init = true;
+	}
+
+	chan_conn_ret = tipc_chan_connect(ca->chan, KERNELBOOTCP_PORT);
+	if (chan_conn_ret) {
+		ret = false;
+		pr_err("bootcp connect channel failed\n");
+		return ret;
+	} else {
+		ret = true;
+		pr_info("bootcp connect channel done\n");
+	}
+
+	if (!wait_event_interruptible_timeout(ca->readq,
+			(ca->chanel_state == TIPC_CHANNEL_CONNECTED),
+			msecs_to_jiffies(CA_CONN_TIMEOUT))) {
+		pr_err("bootcp wait read response time out!\n");
+		ret = false;
+	}
+
+	//pr_info("bootcp ret = %d\n", ret);
+
+	return ret;
+
+}
+void trusty_kernelbootcp_disconnect(void)
+{
+	struct bootcp_ca_ctrl *ca = &bootcp_ca;
+
+	wake_up_interruptible_all(&ca->readq);
+
+	ca_free_msg_buf_list(&ca->rx_msg_queue);
+	ca->con_init = false;
+
+	 /*todo for Stability test */
+	// tipc_chan_shutdown(ca->chan);
+
+	ca->chanel_state = TIPC_CHANNEL_DISCONNECTED;
+
+	 /*todo for Stability test */
+	 //tipc_chan_destroy(ca->chan);
+
+	pr_info("bootcp disconnect\n");
+
+}
+
+bool bootcp_ca_write(void *buf, size_t len)
+{
+	bool ret = true;
+	int avail;
+	struct tipc_msg_buf *txbuf = NULL;
+	struct bootcp_ca_ctrl *ca = &bootcp_ca;
+	int  msg_ret =0;
+
+	pr_info("bootcp ca write enter");
+
+	if (ca->chanel_state != TIPC_CHANNEL_CONNECTED)
+		return false;
+
+	txbuf = tipc_chan_get_txbuf_timeout(ca->chan, GET_TXBUF_TIMEOUT);
+	if (IS_ERR(txbuf))
+		return PTR_ERR(txbuf);
+
+	avail = mb_avail_space(txbuf);
+	if (len > avail) {
+		pr_err("bootcp no buffer space, len = %d, avail = %d\n",
+			(int)len, (int)avail);
+		ret = -EMSGSIZE;
+		goto err;
+	}
+
+	memcpy(mb_put_data(txbuf, len), buf, len);
+
+	msg_ret = tipc_chan_queue_msg(ca->chan, txbuf);
+	if (msg_ret)
+		goto err;
+
+	return ret;
+err:
+	tipc_chan_put_txbuf(ca->chan, txbuf);
+	return ret;
+}
+
+ssize_t bootcp_ca_read(void *buf, size_t max_len)
+{
+	struct tipc_msg_buf *mb;
+	ssize_t	len;
+	struct bootcp_ca_ctrl *ca = &bootcp_ca;
+
+	pr_info("bootcp ca read enter");
+
+	if (!wait_event_interruptible_timeout(ca->readq,
+					      !list_empty(&ca->rx_msg_queue),
+					      msecs_to_jiffies(CA_READ_TIMEOUT))) {
+		pr_err("bootcp wait read response time out!\n");
+		return -ETIMEDOUT;
+	}
+
+	mb = list_first_entry(&ca->rx_msg_queue, struct tipc_msg_buf, node);
+
+	len = mb_avail_data(mb);
+	if (len > max_len)
+		len = max_len;
+
+	memcpy(buf, mb_get_data(mb, len), len);
+
+	list_del(&mb->node);
+	tipc_chan_put_rxbuf(ca->chan, mb);
+
+	return len;
+}
+
+bool bootcp_ca_wait_ack(uint32_t cmd)
+{
+	ssize_t size;
+	bool ret = true;
+	struct kernelbootcp_message ack_msg;
+
+	pr_info("bootcp wait ack enter\n");
+
+	size = bootcp_ca_read(&ack_msg, sizeof(struct kernelbootcp_message));
+
+	if (size !=sizeof(struct kernelbootcp_message )) {
+		pr_err("bootcp  remote response size failed, size= %zd\n", size);
+		return false;
+	}
+
+	if (ack_msg.cmd != (cmd | KERNELBOOTCP_BIT) ) {
+		pr_err("bootcp remote ack_msg.cmd failed, ack_msg.cmd=0x%x, cmd=0x%x\n", ack_msg.cmd, cmd);
+		return false;
+	}
+
+	return ret;
+}
+
+
+bool kernel_bootcp_unlock_ddr(KBC_LOAD_TABLE_V  *table)
+{
+	bool ret = true;
+	size_t msg_size = 0;
+	struct kernelbootcp_message *msg = NULL;
+	struct bootcp_ca_ctrl *ca = &bootcp_ca;
+
+	if (ca->chanel_state != TIPC_CHANNEL_CONNECTED) {
+		pr_err("bootcp enter ta mode fail, con err\n");
+		return false;
+	}
+
+	mutex_lock(&ca->wlock);
+
+	msg_size = sizeof(KBC_LOAD_TABLE_V) + sizeof(struct kernelbootcp_message);
+	msg = kmalloc(msg_size,GFP_KERNEL);
+	msg->cmd = KERNEL_BOOTCP_UNLOCK_DDR_VDSP;
+
+	memcpy(msg->payload, table, sizeof(KBC_LOAD_TABLE_V));
+	pr_info("bootcp unlock ddr msg_size = %d \n", msg_size);
+
+	ret = bootcp_ca_write(msg, msg_size);
+	if ( !ret ) {
+		pr_err("bootcp_ca_write fail ret =%d\n", ret);
+		mutex_unlock(&ca->wlock);
+		kfree(msg);
+		return ret;
+	}
+
+	ret = bootcp_ca_wait_ack(msg->cmd);
+
+	mutex_unlock(&ca->wlock);
+
+	pr_info("bootcp ret =%d\n", ret);
+	kfree(msg);
+	return ret;
+}
+bool kernel_bootcp_verify_vdsp(KBC_LOAD_TABLE_V  *table)
+{
+	bool ret = true;
+	size_t msg_size = 0;
+	struct kernelbootcp_message *msg = NULL;
+	struct bootcp_ca_ctrl *ca = &bootcp_ca;
+
+	if (ca->chanel_state != TIPC_CHANNEL_CONNECTED) {
+		pr_err("bootcp enter ta mode fail, con err\n");
+		return false;
+	}
+
+	mutex_lock(&ca->wlock);
+
+	msg_size = sizeof(KBC_LOAD_TABLE_V) + sizeof(struct kernelbootcp_message);
+	msg = kmalloc(msg_size,GFP_KERNEL);
+	msg->cmd = KERNEL_BOOTCP_VERIFY_VDSP;
+
+	memcpy(msg->payload, table, sizeof(KBC_LOAD_TABLE_V));
+	pr_info("bootcp verify msg_size = %d \n", msg_size);
+
+	ret = bootcp_ca_write(msg, msg_size);
+	if ( !ret ) {
+		pr_err("bootcp_ca_write fail ret =%d\n", ret);
+		mutex_unlock(&ca->wlock);
+		kfree(msg);
+		return ret;
+	}
+
+	ret = bootcp_ca_wait_ack(msg->cmd);
+
+	mutex_unlock(&ca->wlock);
+
+	pr_info("bootcp ret =%d\n", ret);
+	kfree(msg);
+	return ret;
+
+}
 
 
