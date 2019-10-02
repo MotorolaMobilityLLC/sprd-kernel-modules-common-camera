@@ -1315,6 +1315,7 @@ static int dcam_offline_start_slices(void *param)
 	DCAM_AXIM_WR(IMG_FETCH_X,
 		(fetch_pitch << 16) | (fetch->trim.start_x & 0xffff));
 
+	dev->slice_no = 1;
 	/* cfg slice right */
 	reg_val = DCAM_REG_RD(dev->idx, DCAM_BIN_BASE_WADDR0);
 	DCAM_REG_WR(dev->idx, DCAM_BIN_BASE_WADDR0, reg_val + fetch_pitch*128/8/2);
@@ -1328,6 +1329,7 @@ static int dcam_offline_start_slices(void *param)
 	udelay(500);
 	dev->iommu_status = (uint32_t)(-1);
 	atomic_set(&dev->state, STATE_RUNNING);
+	pr_info("slice0 fetch start\n");
 
 	/* start fetch */
 	DCAM_AXIM_WR(IMG_FETCH_START, 1);
@@ -2105,7 +2107,7 @@ static int sprd_dcam_proc_frame(
 	pframe = (struct camera_frame *)param;
 	pframe->priv_data = dev;
 
-	if(dev->is_right == 1)
+	if(dev->slice_no != 0)
 		return -EFAULT;
 
 	ret = camera_enqueue(&dev->in_queue, pframe);
@@ -2142,7 +2144,7 @@ static int sprd_dcam_ioctrl(void *dcam_handle,
 		memcpy(cap, param, sizeof(struct dcam_mipi_info));
 		dev->is_4in1 = cap->is_4in1;
 		dev->dcam_slice_mode = cap->dcam_slice_mode;
-		dev->is_right = 0;
+		dev->slice_no = 0;
 		break;
 	case DCAM_IOCTL_CFG_STATIS_BUF:
 		ret = dcam_cfg_statis_buffer(dev, param);
@@ -2232,6 +2234,9 @@ static int sprd_dcam_cfg_param(void *dcam_handle, void *param)
 		pr_debug("block %d not supported.\n", io_param->sub_block);
 		goto exit;
 	}
+
+	if (dev->dcam_slice_mode && dev->slice_no)
+		return 0;
 
 	ret = cfg_fun_ptr(io_param, pm);
 
