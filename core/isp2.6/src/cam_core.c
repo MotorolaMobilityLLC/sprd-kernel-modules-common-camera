@@ -148,6 +148,7 @@ struct camera_uchannel {
 	struct sprd_img_size src_size;
 	struct sprd_img_rect src_crop;
 	struct sprd_img_size dst_size;
+	uint32_t scene;
 
 	/* for binding small picture */
 	uint32_t slave_img_en;
@@ -1335,7 +1336,8 @@ int dcam_callback(enum dcam_cb_type type, void *param, void *priv_data)
 					module->capture_times, pframe->boot_sensor_time);
 				if (pframe->sync_data)
 					dcam_if_release_sync(pframe->sync_data, pframe);
-				if (capture == 0) {
+				if (channel->ch_uinfo.scene == DCAM_SCENE_MODE_CAPTURE
+					&& capture == 0) {
 					ret = dcam_ops->cfg_path(module->dcam_dev_handle,
 							DCAM_PATH_CFG_OUTPUT_BUF,
 							channel->dcam_path_id, pframe);
@@ -4179,6 +4181,7 @@ static int img_ioctl_set_output_size(
 
 	// TODO get this from HAL
 	dst->is_compressed = 0;
+	dst->scene = scene_mode;
 
 	pr_info("high fps %u %u. crop %d %d %d %d. dst size %d %d. aux %d %d %d %d\n",
 		dst->is_high_fps, dst->high_fps_skip_num,
