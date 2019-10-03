@@ -33,7 +33,7 @@ enum cfg_buf_id {
 
 #define ISP_REG_SIZE			0x40000UL
 #define ISP_CFG_BUF_SIZE		(ISP_REG_SIZE * CFG_BUF_NUM)
-#define ISP_CFG_BUF_SIZE_ALL		(ISP_CFG_BUF_SIZE * ISP_CONTEXT_NUM)
+#define ISP_CFG_BUF_SIZE_ALL		(ISP_CFG_BUF_SIZE * ISP_CONTEXT_SW_NUM)
 #define ALIGN_PADDING_SIZE		(ISP_REG_SIZE)
 #define ISP_CFG_BUF_SIZE_ALL_PADDING	\
 	(ISP_CFG_BUF_SIZE_ALL + ALIGN_PADDING_SIZE)
@@ -72,7 +72,7 @@ struct isp_cfg_buf {
 struct isp_cfg_ops;
 
 struct isp_cfg_ctx_desc {
-	struct isp_cfg_buf cfg_buf[ISP_CONTEXT_NUM];
+	struct isp_cfg_buf cfg_buf[ISP_CONTEXT_SW_NUM];
 	struct camera_buf ion_pool;
 	spinlock_t lock;
 	atomic_t  user_cnt;
@@ -87,9 +87,11 @@ struct isp_cfg_ops {
 			enum isp_context_id ctx_id);
 	int (*hw_init)(struct isp_cfg_ctx_desc *cfg_ctx);
 	int (*hw_cfg)(struct isp_cfg_ctx_desc *cfg_ctx,
-			enum isp_context_id ctx_id, uint32_t  fmcu_enable);
+			enum isp_context_id sw_ctx_id,
+			enum isp_context_hw_id hw_ctx_id,
+			uint32_t  fmcu_enable);
 	int (*hw_start)(struct isp_cfg_ctx_desc *cfg_ctx,
-				enum isp_context_id ctx_id);
+			enum isp_context_hw_id ctx_id);
 };
 
 
@@ -97,6 +99,5 @@ struct isp_cfg_ctx_desc *get_isp_cfg_ctx_desc(void);
 int put_isp_cfg_ctx_desc(struct isp_cfg_ctx_desc *param);
 
 int debug_show_ctx_reg_buf(void *param);
-
 
 #endif /* _ISP_CFG_H_ */

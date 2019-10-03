@@ -29,7 +29,7 @@
 #define ISP_LINE_BUFFER_W		ISP_MAX_LINE_WIDTH
 
 
-#define ISP_IN_Q_LEN			1
+#define ISP_IN_Q_LEN			4
 #define ISP_PROC_Q_LEN			2
 #define ISP_RESULT_Q_LEN		2
 #define ISP_SLW_IN_Q_LEN			12
@@ -406,7 +406,6 @@ struct isp_pipe_context {
 	struct isp_k_block isp_k_param;
 	struct mutex blkpm_lock; /* lock block param to avoid acrossing frame */
 	void *slice_ctx;
-	void *fmcu_handle;
 	struct camera_queue in_queue;
 	struct camera_queue proc_queue;
 
@@ -420,7 +419,7 @@ struct isp_pipe_context {
 	struct cam_thread_info thread;
 	struct completion frm_done;
 	struct completion slice_done;
-	uint32_t need_slice;
+	uint32_t multi_slice;
 	uint32_t is_last_slice;
 	uint32_t valid_slc_num;
 
@@ -431,16 +430,26 @@ struct isp_pipe_context {
 	void *cb_priv_data;
 };
 
+struct isp_pipe_hw_context {
+	atomic_t user_cnt;
+	uint32_t sw_ctx_id;
+	uint32_t hw_ctx_id;
+	uint32_t fmcu_used;
+	void *fmcu_handle;
+	struct isp_pipe_context *pctx;
+};
 
 struct isp_pipe_dev {
 	uint32_t irq_no[2];
 	atomic_t user_cnt;
 	atomic_t enable;
 	struct mutex path_mutex; /* lock ctx/path resource management */
+	spinlock_t ctx_lock;
 	enum isp_work_mode wmode;
 	void *cfg_handle;
 	struct isp_ltm_share_ctx_desc *ltm_handle;
-	struct isp_pipe_context ctx[ISP_CONTEXT_NUM];
+	struct isp_pipe_context ctx[ISP_CONTEXT_SW_NUM];
+	struct isp_pipe_hw_context hw_ctx[ISP_CONTEXT_HW_NUM];
 	struct sprd_cam_hw_info *isp_hw;
 	enum sprd_cam_sec_mode sec_mode;
 };
@@ -450,5 +459,10 @@ struct isp_statis_buf_size_info {
 	size_t buf_size;
 	size_t buf_cnt;
 };
+
+int isp_get_hw_context_id(struct isp_pipe_context *pctx);
+int isp_get_sw_context_id(enum isp_context_hw_id hw_ctx_id, struct isp_pipe_dev *dev);
+int isp_context_bind(struct isp_pipe_context *pctx,  int fmcu_need);
+int isp_context_unbind(struct isp_pipe_context *pctx);
 
 #endif

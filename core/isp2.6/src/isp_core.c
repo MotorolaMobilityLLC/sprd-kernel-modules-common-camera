@@ -58,10 +58,8 @@
 #define pr_fmt(fmt) "ISP_CORE: %d %d %s : "\
 	fmt, current->pid, __LINE__, __func__
 
-unsigned long *isp_cfg_poll_addr[ISP_CONTEXT_MAX];
+unsigned long *isp_cfg_poll_addr[ISP_CONTEXT_SW_NUM];
 
-static DEFINE_MUTEX(isp_pipe_dev_mutex);
-static struct isp_pipe_dev *s_isp_dev;
 
 static int sprd_isp_put_context(
 	void *isp_handle, int ctx_id);
@@ -69,7 +67,7 @@ static int sprd_isp_put_context(
 static int sprd_isp_put_path(
 	void *isp_handle, int ctx_id, int path_id);
 
-static int isp_slice_ctx_init(struct isp_pipe_context *pctx);
+static int isp_slice_ctx_init(struct isp_pipe_context *pctx, uint32_t *multi_slice);
 
 
 /* isp debug fs starts */
@@ -80,10 +78,13 @@ static int isp_slice_ctx_init(struct isp_pipe_context *pctx);
 static struct dentry *debugfs_base;
 static uint32_t s_dbg_linebuf_len = ISP_LINE_BUFFER_W;
 static int s_dbg_work_mode = ISP_CFG_MODE;
-uint32_t g_isp_bypass[ISP_CONTEXT_NUM] = { 0, 0, 0, 0 };
+uint32_t g_isp_bypass[ISP_CONTEXT_SW_NUM] = { 0, 0, 0, 0, 0, 0 };
 static uint32_t debug_ctx_id[4] = {0, 1, 2, 3};
 int g_dbg_iommu_mode = IOMMU_AUTO;
-int g_dbg_set_iommu_mode = IOMMU_AUTO;;
+int g_dbg_set_iommu_mode = IOMMU_AUTO;
+
+static DEFINE_MUTEX(isp_pipe_dev_mutex);
+static struct isp_pipe_dev *s_isp_dev;
 
 
 #ifdef DBG_REGISTER
@@ -1077,19 +1078,18 @@ static int isp_update_offline_param(
 	return ret;
 }
 
-static int set_fmcu_slw_queue(struct isp_pipe_context *pctx)
+static int set_fmcu_slw_queue(
+	struct isp_fmcu_ctx_desc *fmcu,
+	struct isp_pipe_context *pctx)
 {
 	int ret = 0, i;
 	uint32_t frame_id;
 	struct isp_path_desc *path;
 	struct camera_frame *pframe = NULL;
 	struct camera_frame *out_frame = NULL;
-	struct isp_fmcu_ctx_desc *fmcu;
 
-	if (!(pctx->enable_slowmotion))
-		return ret;
-
-	fmcu = (struct isp_fmcu_ctx_desc *)pctx->fmcu_handle;
+	if (!fmcu)
+		return -EINVAL;
 
 	pframe = camera_dequeue(&pctx->in_queue);
 	if (pframe == NULL) {
@@ -1159,11 +1159,17 @@ static int set_fmcu_slw_queue(struct isp_pipe_context *pctx)
 static int proc_slices(struct isp_pipe_context *pctx)
 {
 	int ret = 0;
+	int hw_ctx_id = -1;
 	uint32_t slice_id, cnt = 0;
 	struct isp_pipe_dev *dev = NULL;
 	struct isp_cfg_ctx_desc *cfg_desc;
 
-	pr_debug("enter. need_slice %d\n", pctx->need_slice);
+	pr_debug("enter. need_slice %d\n", pctx->multi_slice);
+	hw_ctx_id = isp_get_hw_context_id(pctx);
+	if (hw_ctx_id < 0) {
+		pr_err("fail to get valid hw for ctx %d\n", pctx->ctx_id);
+		return -EINVAL;
+	}
 
 	dev = pctx->dev;
 	cfg_desc = (struct isp_cfg_ctx_desc *)dev->cfg_handle;
@@ -1184,9 +1190,9 @@ static int proc_slices(struct isp_pipe_context *pctx)
 
 		pctx->started = 1;
 		ret = cfg_desc->ops->hw_cfg(
-				cfg_desc, pctx->ctx_id, 0);
+				cfg_desc, pctx->ctx_id, hw_ctx_id, 0);
 		ret = cfg_desc->ops->hw_start(
-					cfg_desc, pctx->ctx_id);
+					cfg_desc, hw_ctx_id);
 		ret = wait_for_completion_interruptible_timeout(
 					&pctx->slice_done,
 					ISP_CONTEXT_TIMEOUT);
@@ -1217,7 +1223,7 @@ static uint32_t isp_get_fid_across_context(struct isp_pipe_dev *dev)
 		return CAMERA_RESERVE_FRAME_NUM;
 
 	target_fid = CAMERA_RESERVE_FRAME_NUM;
-	for (ctx_id = 0; ctx_id < ISP_CONTEXT_NUM; ctx_id++) {
+	for (ctx_id = 0; ctx_id < ISP_CONTEXT_SW_NUM; ctx_id++) {
 		ctx = &dev->ctx[ctx_id];
 		if (!ctx || atomic_read(&ctx->user_cnt) < 1)
 			continue;
@@ -1256,23 +1262,194 @@ static bool isp_check_fid(struct camera_frame *frame, void *data)
 		|| frame->user_fid == target_fid;
 }
 
+int isp_get_hw_context_id(struct isp_pipe_context *pctx)
+{
+	int i;
+	int hw_ctx_id = -1;
+	struct isp_pipe_dev *dev = NULL;
+	struct isp_pipe_hw_context *pctx_hw;
+
+	dev = pctx->dev;
+
+	for (i = 0; i < ISP_CONTEXT_HW_NUM; i++) {
+		pctx_hw = &dev->hw_ctx[i];
+		pr_debug("i %d, target sw %d,  hw: %d %d,  0x%lx  0x%lx\n",
+			i, pctx->ctx_id,
+			pctx_hw->sw_ctx_id, pctx_hw->hw_ctx_id,
+			pctx,  pctx_hw->pctx);
+		if ((pctx->ctx_id == pctx_hw->sw_ctx_id)
+			&& (pctx == pctx_hw->pctx)) {
+			hw_ctx_id = pctx_hw->hw_ctx_id;
+			pr_debug("get hw %d\n", hw_ctx_id);
+			break;
+		}
+	}
+
+	return hw_ctx_id;
+}
+
+int isp_get_sw_context_id(enum isp_context_hw_id hw_ctx_id, struct isp_pipe_dev *dev)
+{
+	int sw_id = -1;
+	struct isp_pipe_hw_context *pctx_hw;
+
+	if (hw_ctx_id < ISP_CONTEXT_HW_NUM) {
+		pctx_hw = &dev->hw_ctx[hw_ctx_id];
+		sw_id = pctx_hw->sw_ctx_id;
+		if (sw_id >= ISP_CONTEXT_P0 &&
+			sw_id < ISP_CONTEXT_SW_NUM &&
+			pctx_hw->pctx == &dev->ctx[sw_id])
+			return sw_id;
+	}
+
+	return -1;
+}
+
+int isp_context_bind(struct isp_pipe_context *pctx, int fmcu_need)
+{
+	int i = 0,  m = 0, loop;
+	int hw_ctx_id = -1;
+	unsigned long flag = 0;
+	struct isp_pipe_dev *dev = NULL;
+	struct isp_pipe_hw_context *pctx_hw;
+
+	dev = pctx->dev;
+	spin_lock_irqsave(&dev->ctx_lock, flag);
+
+	for (i = 0; i < ISP_CONTEXT_HW_NUM; i++) {
+		pctx_hw = &dev->hw_ctx[i];
+		if (pctx->ctx_id == pctx_hw->sw_ctx_id
+			&& pctx_hw->pctx == pctx) {
+			atomic_inc(&pctx_hw->user_cnt);
+			pr_debug("sw %d & hw %d already binding, cnt=%d\n",
+				pctx->ctx_id, i, atomic_read(&pctx_hw->user_cnt));
+			spin_unlock_irqrestore(&dev->ctx_lock, flag);
+			return 0;
+		}
+	}
+
+	loop = (fmcu_need & FMCU_IS_MUST) ? 1 : 2;
+	for (m = 0; m < loop; m++) {
+		for (i = 0; i < ISP_CONTEXT_HW_NUM; i++) {
+			pctx_hw = &dev->hw_ctx[i];
+			if (m == 0) {
+				/* first pass we just select fmcu/no-fmcu context */
+				if ((!fmcu_need && pctx_hw->fmcu_handle) ||
+					(fmcu_need && !pctx_hw->fmcu_handle))
+					continue;
+			}
+
+			if (atomic_inc_return(&pctx_hw->user_cnt) == 1) {
+				hw_ctx_id = pctx_hw->hw_ctx_id;
+				goto exit;
+			}
+			atomic_dec(&pctx_hw->user_cnt);
+		}
+	}
+
+	/* force fmcu used, we will retry */
+	if (fmcu_need & FMCU_IS_MUST)
+		goto exit;
+
+exit:
+	spin_unlock_irqrestore(&dev->ctx_lock, flag);
+
+	if (hw_ctx_id == -1) {
+		return -1;
+	}
+
+	pctx_hw->pctx = pctx;
+	pctx_hw->sw_ctx_id = pctx->ctx_id;
+	pr_debug("sw_ctx_id=%d, hw_ctx_id=%d %d,  fmcu_need %d ptr %p\n",
+		pctx->ctx_id, hw_ctx_id, pctx_hw->hw_ctx_id,
+		fmcu_need, (unsigned long)pctx_hw->fmcu_handle);
+
+	return 0;
+}
+
+int isp_context_unbind(struct isp_pipe_context *pctx)
+{
+	int i, cnt;
+	struct isp_pipe_dev *dev = NULL;
+	struct isp_pipe_hw_context *pctx_hw;
+
+	if (isp_get_hw_context_id(pctx) < 0) {
+		pr_err("sw ctx % is not binding to any hw ctx\n", pctx->ctx_id);
+		return -EINVAL;
+	}
+
+	dev = pctx->dev;
+	spin_lock(&dev->ctx_lock);
+
+	for (i = 0; i < ISP_CONTEXT_HW_NUM; i++) {
+		pctx_hw = &dev->hw_ctx[i];
+		if ((pctx->ctx_id != pctx_hw->sw_ctx_id) ||
+			(pctx != pctx_hw->pctx))
+			continue;
+
+		if (atomic_dec_return(&pctx_hw->user_cnt) == 0) {
+			pr_debug("sw_id=%d, hw_id=%d unbind success\n",
+				pctx->ctx_id, pctx_hw->hw_ctx_id);
+			pctx_hw->pctx = NULL;
+			pctx_hw->sw_ctx_id = -1;
+			goto exit;
+		}
+
+		cnt = atomic_read(&pctx_hw->user_cnt);
+		if (cnt >= 1) {
+			pr_debug("sw id=%d, hw_id=%d, cnt=%d\n",
+				pctx->ctx_id, pctx_hw->hw_ctx_id, cnt);
+		} else {
+			pr_debug("should not be here: sw id=%d, hw id=%d, cnt=%d\n",
+				pctx->ctx_id, pctx_hw->hw_ctx_id, cnt);
+			spin_unlock(&dev->ctx_lock);
+			return -EINVAL;
+		}
+	}
+
+exit:
+	spin_unlock(&dev->ctx_lock);
+	return 0;
+}
+
+static int isp_slice_needed(struct isp_pipe_context *pctx)
+{
+	int i;
+	struct isp_path_desc *path;
+
+	if (pctx->input_trim.size_x > g_camctrl.isp_linebuf_len)
+		return 1;
+	for (i = 0; i < ISP_SPATH_NUM; i++) {
+		path = &pctx->isp_path[i];
+		if (atomic_read(&path->user_cnt) < 1)
+			continue;
+		if (path->dst.w > g_camctrl.isp_linebuf_len)
+			return 1;
+	}
+	return 0;
+}
+
 static int isp_offline_start_frame(void *ctx)
 {
 	int ret = 0;
-	int i, loop, kick_fmcu = 0, slc_by_ap = 0;
+	int i = 0, loop = 0, kick_fmcu = 0, slc_by_ap = 0;
+	int hw_ctx_id = -1;
+	uint32_t use_fmcu = 0, multi_slice = 0;
 	uint32_t frame_id, target_fid = CAMERA_RESERVE_FRAME_NUM;
 	struct isp_pipe_dev *dev = NULL;
 	struct camera_frame *pframe = NULL;
 	struct camera_frame *out_frame = NULL;
 	struct isp_pipe_context *pctx;
+	struct isp_pipe_hw_context *pctx_hw = NULL;
 	struct isp_path_desc *path, *slave_path;
 	struct isp_cfg_ctx_desc *cfg_desc;
 	struct isp_fmcu_ctx_desc *fmcu;
 	struct isp_offline_param *in_param;
 
-	pr_debug("enter.\n");
-
 	pctx = (struct isp_pipe_context *)ctx;
+	pr_debug("enter sw ctx id=%d, user_cnt=%d, ch_id=%d, cam_id=%d\n",
+		pctx->ctx_id, pctx->user_cnt, pctx->ch_id, pctx->attach_cam_id);
+
 	if (atomic_read(&pctx->user_cnt) < 1) {
 		pr_err("isp cxt %d is not inited.\n", pctx->ctx_id);
 		return -EINVAL;
@@ -1280,18 +1457,42 @@ static int isp_offline_start_frame(void *ctx)
 
 	dev = pctx->dev;
 	cfg_desc = (struct isp_cfg_ctx_desc *)dev->cfg_handle;
-	fmcu = (struct isp_fmcu_ctx_desc *)pctx->fmcu_handle;
+
+	if (pctx->multi_slice | isp_slice_needed(pctx))
+		use_fmcu = FMCU_IS_NEED;
+	if (use_fmcu && (pctx->mode_3dnr != MODE_3DNR_OFF))
+		use_fmcu |= FMCU_IS_MUST; // force fmcu used
+	if (pctx->enable_slowmotion)
+		use_fmcu |= FMCU_IS_MUST; // force fmcu used
+
+	loop = 0;
+	do {
+		ret = isp_context_bind(pctx, use_fmcu);
+		if (!ret) {
+			hw_ctx_id = isp_get_hw_context_id(pctx);
+			if (hw_ctx_id >= 0 && hw_ctx_id < ISP_CONTEXT_HW_NUM)
+				pctx_hw = &dev->hw_ctx[hw_ctx_id];
+			else
+				pr_err("should not be here\n");
+			break;
+		}
+		pr_info_ratelimited("ctx %d wait for hw. loop %d\n", pctx->ctx_id, loop);
+		usleep_range(600, 2000);
+	} while (loop++ < 5000);
 
 	pframe = camera_dequeue(&pctx->in_queue);
-	if (pframe == NULL) {
-		pr_info("no frame from input queue. cxt:%d\n", pctx->ctx_id);
-		return 0;
+
+	if (!pctx_hw || pframe == NULL) {
+		pr_err("fail to get hw(%p) or input frame (%p) for ctx %d\n",
+			pctx_hw, pframe, pctx->ctx_id);
+		ret = 0;
+		goto input_err;
 	}
 
 	if ((pframe->fid & 0x1f) == 0)
-		pr_info("frame %d, ctx %d  ch_id %d.  buf_fd %d\n",
-			pframe->fid, pctx->ctx_id,
-			pframe->channel_id, pframe->buf.mfd[0]);
+		pr_info("cam%d  ctx %d, fid %d, ch_id %d, buf_fd %d\n",
+			pctx->attach_cam_id,  pctx->ctx_id,
+			pframe->fid, pframe->channel_id, pframe->buf.mfd[0]);
 
 	ret = cambuf_iommu_map(&pframe->buf, CAM_IOMMUDEV_ISP);
 	if (ret) {
@@ -1308,7 +1509,7 @@ static int isp_offline_start_frame(void *ctx)
 			break;
 		pr_info_ratelimited("wait for proc queue. loop %d\n", loop);
 		/* wait for previous frame proccessed done.*/
-		mdelay(1);
+		usleep_range(600, 2000);
 	} while (loop++ < 500);
 
 	if (ret) {
@@ -1337,9 +1538,10 @@ static int isp_offline_start_frame(void *ctx)
 	/*update NR param for crop/scaling image */
 	isp_adapt_blkparam(pctx);
 
+	multi_slice = pctx->multi_slice;
 	/* the context/path maybe init/updated after dev start. */
 	if (pctx->updated) {
-		ret = isp_slice_ctx_init(pctx);
+		ret = isp_slice_ctx_init(pctx, &multi_slice);
 		isp_set_ctx_common(pctx);
 	}
 
@@ -1436,9 +1638,9 @@ static int isp_offline_start_frame(void *ctx)
 		} while (loop++ < 500);
 
 		if (ret) {
-			trace_isp_irq_cnt(pctx->ctx_id);
-			pr_err("fatal: should not be here. path %d, store %d\n",
-					path->spath_id,
+			trace_isp_irq_cnt(hw_ctx_id);
+			pr_err("fatal: should not be here. hw %d, path %d, store %d\n",
+					hw_ctx_id, path->spath_id,
 					atomic_read(&path->store_cnt));
 			/* ret frame to original queue */
 			if (out_frame->is_reserved)
@@ -1457,10 +1659,15 @@ static int isp_offline_start_frame(void *ctx)
 	isp_3dnr_process_frame(pctx, pframe);
 	isp_ltm_process_frame(pctx, pframe);
 
-	if (fmcu)
-		fmcu->ops->ctx_reset(fmcu);
+	use_fmcu = 0;
+	fmcu = (struct isp_fmcu_ctx_desc *)pctx_hw->fmcu_handle;
+	if (fmcu) {
+		use_fmcu = (multi_slice | pctx->enable_slowmotion);
+		if (use_fmcu)
+			fmcu->ops->ctx_reset(fmcu);
+	}
 
-	if (pctx->slice_ctx) {
+	if (multi_slice) {
 		struct slice_cfg_input slc_cfg;
 
 		memset(&slc_cfg, 0, sizeof(slc_cfg));
@@ -1487,14 +1694,14 @@ static int isp_offline_start_frame(void *ctx)
 		slc_cfg.nofilter_ctx = &pctx->isp_k_param;
 		isp_cfg_slice_noisefilter_info(&slc_cfg, pctx->slice_ctx);
 
-		if (!fmcu) {
-			pr_debug("use ap support slices\n");
+		if (!use_fmcu) {
+			pr_debug("use ap support slices for ctx %d hw %d\n",
+				pctx->ctx_id, hw_ctx_id);
 			slc_by_ap = 1;
 		} else {
-			ret = isp_set_slices_fmcu_cmds((void *)fmcu,
-				pctx->slice_ctx,
-				pctx->ctx_id,
-				(uint32_t)pctx->dev->wmode);
+			pr_debug("use fmcu support slices for ctx %d hw %d\n",
+				pctx->ctx_id, hw_ctx_id);
+			ret = isp_set_slices_fmcu_cmds((void *)fmcu, pctx);
 			if (ret == 0)
 				kick_fmcu = 1;
 		}
@@ -1505,7 +1712,7 @@ static int isp_offline_start_frame(void *ctx)
 
 	if (pctx->enable_slowmotion) {
 		for (i = 0; i < pctx->slowmotion_count - 1; i++) {
-			ret = set_fmcu_slw_queue(pctx);
+			ret = set_fmcu_slw_queue(fmcu, pctx);
 			if (ret)
 				pr_err("unable to set fmcu slw queue\n");
 		}
@@ -1526,6 +1733,8 @@ static int isp_offline_start_frame(void *ctx)
 
 	pctx->iommu_status = (uint32_t)(-1);
 	pctx->started = 1;
+	pctx->multi_slice = multi_slice;
+	pctx_hw->fmcu_used = use_fmcu;
 
 	if (slc_by_ap) {
 		ret = proc_slices(pctx);
@@ -1539,8 +1748,8 @@ static int isp_offline_start_frame(void *ctx)
 		/* blkpm_lock to avoid user config block param across frame */
 		mutex_lock(&pctx->blkpm_lock);
 
-		ret = cfg_desc->ops->hw_cfg(
-				cfg_desc, pctx->ctx_id, kick_fmcu);
+		ret = cfg_desc->ops->hw_cfg(cfg_desc,
+					pctx->ctx_id, hw_ctx_id, kick_fmcu);
 
 		mutex_unlock(&pctx->blkpm_lock);
 
@@ -1556,7 +1765,7 @@ static int isp_offline_start_frame(void *ctx)
 		} else {
 			pr_debug("cfg start. fid %d\n", frame_id);
 			ret = cfg_desc->ops->hw_start(
-					cfg_desc, pctx->ctx_id);
+					cfg_desc, hw_ctx_id);
 		}
 	} else {
 		if (kick_fmcu) {
@@ -1594,10 +1803,15 @@ dequeue:
 inq_overflow:
 	cambuf_iommu_unmap(&pframe->buf);
 map_err:
-	free_offline_pararm(pframe->param_data);
-	pframe->param_data = NULL;
-	/* return buffer to cam channel shared buffer queue. */
-	pctx->isp_cb_func(ISP_CB_RET_SRC_BUF, pframe, pctx->cb_priv_data);
+input_err:
+	if (pframe) {
+		free_offline_pararm(pframe->param_data);
+		pframe->param_data = NULL;
+		/* return buffer to cam channel shared buffer queue. */
+		pctx->isp_cb_func(ISP_CB_RET_SRC_BUF, pframe, pctx->cb_priv_data);
+	}
+	if (pctx_hw)
+		isp_context_unbind(pctx);
 	return ret;
 }
 
@@ -1713,19 +1927,24 @@ static int isp_create_offline_thread(void *param)
 static int isp_context_init(struct isp_pipe_dev *dev)
 {
 	int ret = 0;
-	int i;
+	int i, bind_fmcu;
+	struct isp_fmcu_ctx_desc *fmcu = NULL;
 	struct isp_cfg_ctx_desc *cfg_desc = NULL;
 	struct isp_pipe_context *pctx;
-	enum isp_context_id cid[4] = {
+	struct isp_pipe_hw_context *pctx_hw;
+	struct sprd_cam_hw_info *hw;
+	enum isp_context_id cid[ISP_CONTEXT_SW_NUM] = {
 		ISP_CONTEXT_P0,
 		ISP_CONTEXT_C0,
 		ISP_CONTEXT_P1,
-		ISP_CONTEXT_C1
+		ISP_CONTEXT_C1,
+		ISP_CONTEXT_P2,
+		ISP_CONTEXT_C2
 	};
 
 	pr_info("isp contexts init start!\n");
 	memset(&dev->ctx[0], 0, sizeof(dev->ctx));
-	for (i = 0; i < ISP_CONTEXT_NUM; i++) {
+	for (i = 0; i < ISP_CONTEXT_SW_NUM; i++) {
 		pctx  = &dev->ctx[i];
 		pctx->ctx_id = cid[i];
 		pctx->dev = dev;
@@ -1738,7 +1957,7 @@ static int isp_context_init(struct isp_pipe_dev *dev)
 	if (dev->wmode == ISP_AP_MODE) {
 
 		pr_info("isp ap mode.\n");
-		for (i = 0; i < ISP_CONTEXT_NUM; i++)
+		for (i = 0; i < ISP_CONTEXT_SW_NUM; i++)
 			isp_cfg_poll_addr[i] = &s_isp_regbase[0];
 
 	} else {
@@ -1765,6 +1984,80 @@ static int isp_context_init(struct isp_pipe_dev *dev)
 
 	dev->ltm_handle = isp_get_ltm_share_ctx_desc();
 
+	pr_info("isp hw contexts init start!\n");
+	for (i = 0; i < ISP_CONTEXT_HW_NUM; i++) {
+		pctx_hw  = &dev->hw_ctx[i];
+		pctx_hw->hw_ctx_id = i;
+		pctx_hw->sw_ctx_id = 0xffff;
+		atomic_set(&pctx_hw->user_cnt, 0);
+
+		hw = dev->isp_hw;
+		hw->ops->enable_irq(hw, &i);
+		hw->ops->irq_clear(hw, &i);
+
+		bind_fmcu = 0;
+		if (unlikely(dev->wmode == ISP_AP_MODE)) {
+			/* for AP mode, multi-context is not supported */
+			if (i == ISP_CONTEXT_HW_P0)
+				bind_fmcu = 1;
+			else
+				atomic_set(&pctx_hw->user_cnt, 1);
+		} else if ((i == ISP_CONTEXT_HW_C0) ||
+				(i == ISP_CONTEXT_HW_C1)) {
+			bind_fmcu = 1;
+		}
+
+		if (bind_fmcu) {
+			fmcu = get_isp_fmcu_ctx_desc();
+			pr_debug("get fmcu %p\n", fmcu);
+
+			if (fmcu && fmcu->ops) {
+				ret = fmcu->ops->ctx_init(fmcu);
+				if (ret) {
+					pr_err("failed to init fmcu ctx\n");
+					put_isp_fmcu_ctx_desc(fmcu);
+				} else {
+					pctx_hw->fmcu_handle = fmcu;
+				}
+			} else {
+				pr_info("no more fmcu or ops\n");
+			}
+		}
+		pr_debug("isp hw context %d init done. fmcu %p\n",
+				i, pctx_hw->fmcu_handle);
+
+		fmcu = (struct isp_fmcu_ctx_desc *)pctx_hw->fmcu_handle;
+		if (fmcu) {
+			uint32_t val[2];
+			unsigned long reg_offset = 0;
+			uint32_t reg_bits[4] = { 0x00, 0x02, 0x01, 0x03};
+
+			reg_offset = (fmcu->fid == 0) ?
+						ISP_COMMON_FMCU0_PATH_SEL :
+						ISP_COMMON_FMCU1_PATH_SEL;
+			if (reg_offset == 0) {
+				pr_info("no fmcu sel register\n");
+				continue;
+			}
+
+			ISP_HREG_MWR(reg_offset, BIT_1 | BIT_0, reg_bits[i]);
+			pr_info("FMCU%d reg_bits %d for hw_ctx %d\n", fmcu->fid, reg_bits[i], i);
+
+			val[0] = ISP_HREG_RD(ISP_COMMON_FMCU0_PATH_SEL);
+			val[1] = ISP_HREG_RD(ISP_COMMON_FMCU1_PATH_SEL);
+
+			if ((val[0] & 3) == (val[1] & 3)) {
+				pr_warn("isp fmcus select same context %d\n", val[0] & 3);
+				if (fmcu->fid == 0) {
+					/* force to set different value */
+					reg_offset = ISP_COMMON_FMCU1_PATH_SEL;
+					ISP_HREG_MWR(reg_offset, BIT_1 | BIT_0, reg_bits[(i + 1) & 3]);
+					pr_info("force FMCU1 regbits %d\n", reg_bits[(i + 1) & 3]);
+				}
+			}
+		}
+	}
+
 	pr_info("done!\n");
 	return 0;
 
@@ -1782,13 +2075,15 @@ static int isp_context_deinit(struct isp_pipe_dev *dev)
 	int ret = 0;
 	int i, j;
 	uint32_t path_id;
+	struct isp_fmcu_ctx_desc *fmcu = NULL;
 	struct isp_cfg_ctx_desc *cfg_desc = NULL;
 	struct isp_pipe_context *pctx;
+	struct isp_pipe_hw_context *pctx_hw;
 	struct isp_path_desc *path;
 
 	pr_info("enter.\n");
 
-	for (i = 0; i < ISP_CONTEXT_NUM; i++) {
+	for (i = 0; i < ISP_CONTEXT_SW_NUM; i++) {
 		pctx  = &dev->ctx[i];
 
 		/* free all used path here if user did not call put_path  */
@@ -1803,6 +2098,19 @@ static int isp_context_deinit(struct isp_pipe_dev *dev)
 		atomic_set(&pctx->user_cnt, 0);
 		mutex_destroy(&pctx->param_mutex);
 		mutex_destroy(&pctx->blkpm_lock);
+	}
+
+	for (i = 0; i < ISP_CONTEXT_HW_NUM; i++) {
+		pctx_hw  = &dev->hw_ctx[i];
+		fmcu = (struct isp_fmcu_ctx_desc *)pctx_hw->fmcu_handle;
+		if (fmcu) {
+			fmcu->ops->ctx_deinit(fmcu);
+			put_isp_fmcu_ctx_desc(fmcu);
+		}
+		pctx_hw->fmcu_handle = NULL;
+		pctx_hw->fmcu_used = 0;
+		atomic_set(&pctx_hw->user_cnt, 0);
+		trace_isp_irq_cnt(i);
 	}
 	pr_info("isp contexts deinit done!\n");
 
@@ -1820,7 +2128,8 @@ static int isp_context_deinit(struct isp_pipe_dev *dev)
 	return ret;
 }
 
-static int isp_slice_ctx_init(struct isp_pipe_context *pctx)
+
+static int isp_slice_ctx_init(struct isp_pipe_context *pctx, uint32_t * multi_slice)
 {
 	int ret = 0;
 	int j;
@@ -1828,11 +2137,9 @@ static int isp_slice_ctx_init(struct isp_pipe_context *pctx)
 	struct isp_path_desc *path;
 	struct slice_cfg_input slc_cfg_in;
 
-	if (pctx->need_slice == 0 && pctx->fmcu_handle == NULL) {
-		pr_info("no need slices %d, or fmcu %p\n",
-			pctx->need_slice, pctx->fmcu_handle);
-		return ret;
-	}
+	*multi_slice = 0;
+	if  (isp_slice_needed(pctx) == 0)
+		return 0;
 
 	if (pctx->slice_ctx == NULL) {
 		pctx->slice_ctx = get_isp_slice_ctx();
@@ -1860,6 +2167,7 @@ static int isp_slice_ctx_init(struct isp_pipe_context *pctx)
 		slc_cfg_in.frame_trim0[j] = &path->in_trim;
 		slc_cfg_in.frame_trim1[j] = &path->out_trim;
 	}
+
 	val = ISP_REG_RD(pctx->ctx_id, ISP_NLM_RADIAL_1D_DIST);
 	slc_cfg_in.nlm_center_x = val & 0x3FFF;
 	slc_cfg_in.nlm_center_y = (val >> 16) & 0x3FFF;
@@ -1872,8 +2180,10 @@ static int isp_slice_ctx_init(struct isp_pipe_context *pctx)
 		slc_cfg_in.ynr_center_x, slc_cfg_in.ynr_center_y);
 
 	isp_cfg_slices(&slc_cfg_in, pctx->slice_ctx, &pctx->valid_slc_num);
-	pr_info("valid_slc_num  %d\n", pctx->valid_slc_num);
 
+	pr_debug("valid_slc_num  %d\n", pctx->valid_slc_num);
+	if (pctx->valid_slc_num > 1)
+		*multi_slice = 1;
 exit:
 	return ret;
 }
@@ -1892,7 +2202,7 @@ static int sprd_isp_proc_frame(void *isp_handle,
 		pr_err("fail to get valid input ptr\n");
 		return -EFAULT;
 	}
-	if (ctx_id < 0 || ctx_id >= ISP_CONTEXT_NUM) {
+	if (ctx_id < 0 || ctx_id >= ISP_CONTEXT_SW_NUM) {
 		pr_err("Illegal. ctx_id %d\n", ctx_id);
 		return -EFAULT;
 	}
@@ -1902,8 +2212,10 @@ static int sprd_isp_proc_frame(void *isp_handle,
 	pframe = (struct camera_frame *)param;
 	pframe->priv_data = pctx;
 
-	pr_debug("frame %p, ctx %d  path %d, ch_id %d.  buf_fd %d\n", pframe,
-		ctx_id, ctx_id, pframe->channel_id, pframe->buf.mfd[0]);
+	pr_debug("cam%d  ctx %d, fid %d, ch_id %d, buf  %d, 3dnr %d\n",
+		pctx->attach_cam_id, ctx_id, pframe->fid,
+		pframe->channel_id, pframe->buf.mfd[0], pctx->mode_3dnr);
+
 	ret = camera_enqueue(&pctx->in_queue, pframe);
 	if (ret == 0) {
 		if (pctx->enable_slowmotion && ++slw_frm_cnt < pctx->slowmotion_count)
@@ -1915,65 +2227,6 @@ static int sprd_isp_proc_frame(void *isp_handle,
 	return ret;
 }
 
-static int sprd_isp_update_context(void *isp_handle, int ctx_id, void *param)
-{
-	int ret = 0;
-	struct isp_pipe_context *pctx;
-	struct isp_pipe_dev *dev;
-	struct isp_fmcu_ctx_desc *fmcu = NULL;
-	struct isp_init_param *init_param;
-	struct img_size *max_size;
-
-	if (!isp_handle || !param) {
-		pr_err("fail to get valid input ptr\n");
-		return -EFAULT;
-	}
-	if (ctx_id < 0 || ctx_id >= ISP_CONTEXT_NUM) {
-		pr_err("Illegal. ctx_id %d\n", ctx_id);
-		return -EFAULT;
-	}
-
-	dev = (struct isp_pipe_dev *)isp_handle;
-	init_param = (struct isp_init_param *)param;
-	max_size = &init_param->max_size;
-
-	mutex_lock(&dev->path_mutex);
-	pctx = &dev->ctx[ctx_id];
-	if (max_size->w > g_camctrl.isp_linebuf_len) {
-		pctx->need_slice = 1;
-		pr_info("ctx %d need_slice. w %d\n", pctx->ctx_id, max_size->w);
-	}
-
-	if (pctx->fmcu_handle == NULL && pctx->need_slice) {
-		if (isp_ctx_support_fmcu(pctx->ctx_id)) {
-			fmcu = get_isp_fmcu_ctx_desc();
-			pr_info("ctx get fmcu %p\n", fmcu);
-		}
-		if (fmcu == NULL) {
-			pr_info("no fmcu for size %d, use ap\n", max_size->w);
-			goto exit;
-		} else if (fmcu->ops) {
-			ret = fmcu->ops->ctx_init(fmcu);
-			if (ret) {
-				pr_err("error: fmcu ctx init failed.\n");
-				goto fmcu_error;
-			}
-		} else {
-			pr_err("error: no fmcu ops.\n");
-			goto fmcu_error;
-		}
-		pctx->fmcu_handle = fmcu;
-	}
-
-	goto exit;
-
-fmcu_error:
-	if (fmcu)
-		put_isp_fmcu_ctx_desc(fmcu);
-exit:
-	mutex_unlock(&dev->path_mutex);
-	return ret;
-}
 
 /*
  * Get a free context and initialize it.
@@ -1990,9 +2243,7 @@ static int sprd_isp_get_context(void *isp_handle, void *param)
 	struct isp_pipe_dev *dev;
 	struct isp_path_desc *path;
 	struct isp_cfg_ctx_desc *cfg_desc;
-	struct isp_fmcu_ctx_desc *fmcu = NULL;
 	struct isp_init_param *init_param;
-	struct img_size *max_size;
 
 	if (!isp_handle || !param) {
 		pr_err("fail to get valid input ptr\n");
@@ -2002,33 +2253,14 @@ static int sprd_isp_get_context(void *isp_handle, void *param)
 
 	dev = (struct isp_pipe_dev *)isp_handle;
 	init_param = (struct isp_init_param *)param;
-	max_size = &init_param->max_size;
 
 	mutex_lock(&dev->path_mutex);
 
-	if (unlikely(dev->wmode == ISP_AP_MODE)) {
-		ctx_id = ISP_CONTEXT_P0;
-		pctx = &dev->ctx[ctx_id];
-		if (atomic_inc_return(&pctx->user_cnt) == 1) {
-			sel_ctx_id = ctx_id;
-			pr_info("AP mode. get new ctx: %d\n", ctx_id);
-			goto new_ctx;
-		} else {
-			atomic_dec(&pctx->user_cnt);
-			pr_err("AP mode only context0 can be used. Already in use.\n");
-			goto exit;
-		}
-	}
-
 	/* ISP cfg mode, get free context */
-	for (i = 0; i < ISP_CONTEXT_NUM; i++) {
+	for (i = 0; i < ISP_CONTEXT_SW_NUM; i++) {
 		ctx_id = i;
 		pctx = &dev->ctx[ctx_id];
 		if (atomic_inc_return(&pctx->user_cnt) == 1) {
-			if (isp_check_context(i, init_param)) {
-				atomic_dec(&pctx->user_cnt);
-				continue;
-			}
 			sel_ctx_id = ctx_id;
 			break;
 		}
@@ -2037,7 +2269,6 @@ static int sprd_isp_get_context(void *isp_handle, void *param)
 	if (sel_ctx_id == -1)
 		goto exit;
 
-new_ctx:
 	if (dev->wmode == ISP_CFG_MODE) {
 		cfg_desc = (struct isp_cfg_ctx_desc *)dev->cfg_handle;
 		cfg_desc->ops->ctx_reset(cfg_desc, ctx_id);
@@ -2061,9 +2292,18 @@ new_ctx:
 	pctx->isp_k_param.ynr_param.ynr_info.bypass = 1;
 	/* bypass fbd_raw by default */
 	pctx->fbd_raw.fetch_fbd_bypass = 1;
-	pctx->need_slice = 0;
+	pctx->multi_slice = 0;
 	pctx->started = 0;
 	pctx->uframe_sync = 0;
+	pctx->attach_cam_id = init_param->cam_id;
+
+	/* TODO - enable fmcu for slow_motion later...*/
+	pctx->enable_slowmotion = 0;
+#if 0
+	if (init_param->is_high_fps)
+		pctx->enable_slowmotion = isp_support_fmcu_cfg_slm();
+	pr_info("slw %d\n", pctx->enable_slowmotion);
+#endif
 
 	ret = isp_create_offline_thread(pctx);
 	if (unlikely(ret != 0)) {
@@ -2071,39 +2311,7 @@ new_ctx:
 				pctx->ctx_id);
 		goto thrd_err;
 	}
-	if (max_size->w > g_camctrl.isp_linebuf_len) {
-		pctx->need_slice = 1;
-		pr_info("ctx %d need_slice. w %d\n", pctx->ctx_id, max_size->w);
-	}
 
-	pctx->enable_slowmotion = init_param->is_high_fps
-		&& isp_support_fmcu_cfg_slm();
-	if (pctx->enable_slowmotion || pctx->need_slice) {
-		if (isp_ctx_support_fmcu(pctx->ctx_id)) {
-			fmcu = get_isp_fmcu_ctx_desc();
-			pr_info("ctx get fmcu %p\n", fmcu);
-		}
-		if (fmcu == NULL) {
-			if (init_param->is_high_fps) {
-				pr_err("no fmcu high fps\n");
-				goto no_fmcu;
-			}
-			pr_info("no fmcu for ctx %d, use ap\n", pctx->ctx_id);
-			goto init_q;
-		} else if (fmcu->ops) {
-			ret = fmcu->ops->ctx_init(fmcu);
-			if (ret) {
-				pr_err("error: fmcu ctx init failed.\n");
-				goto fmcu_err;
-			}
-		} else {
-			pr_err("error: no fmcu ops.\n");
-			goto fmcu_err;
-		}
-		pctx->fmcu_handle = fmcu;
-	}
-
-init_q:
 	if (init_param->is_high_fps == 0) {
 		camera_queue_init(&pctx->in_queue,
 			ISP_IN_Q_LEN, 0, isp_ret_src_frame);
@@ -2127,11 +2335,6 @@ init_q:
 
 	goto exit;
 
-fmcu_err:
-	if (fmcu)
-		put_isp_fmcu_ctx_desc(fmcu);
-
-no_fmcu:
 thrd_err:
 	atomic_dec(&pctx->user_cnt); /* free context */
 	sel_ctx_id = -1;
@@ -2139,63 +2342,6 @@ exit:
 	mutex_unlock(&dev->path_mutex);
 	pr_info("done, ret context: %d\n", sel_ctx_id);
 	return sel_ctx_id;
-}
-
-static int sprd_isp_start_context(void *isp_handle, int ctx_id)
-{
-	int ret = 0;
-	unsigned long reg_offset = 0;
-	uint32_t val;
-	uint32_t reg_bits[ISP_CONTEXT_NUM] = { 0x00, 0x02, 0x01, 0x03};
-	struct isp_pipe_context *pctx = NULL;
-	struct isp_pipe_dev *dev = NULL;
-	struct sprd_cam_hw_info *hw = NULL;
-	struct isp_fmcu_ctx_desc *fmcu = NULL;
-
-	if (!isp_handle) {
-		pr_err("fail to get valid input ptr\n");
-		return -EFAULT;
-	}
-	if (ctx_id < 0 || ctx_id >= ISP_CONTEXT_NUM) {
-		pr_err("Illegal. ctx_id %d\n", ctx_id);
-		return -EFAULT;
-	}
-
-	dev = (struct isp_pipe_dev *)isp_handle;
-	pctx = &dev->ctx[ctx_id];
-	if (atomic_read(&pctx->user_cnt) == 0){
-		pr_err("ctx_id %d not enable\n", ctx_id);
-		return -EFAULT;
-	}
-
-	fmcu = (struct isp_fmcu_ctx_desc *)pctx->fmcu_handle;
-	if (fmcu) {
-		reg_offset = (fmcu->fid == 0) ?
-					ISP_COMMON_FMCU0_PATH_SEL :
-					ISP_COMMON_FMCU1_PATH_SEL;
-		ISP_HREG_MWR(reg_offset, BIT_1 | BIT_0, reg_bits[pctx->ctx_id]);
-		pr_info("ctx %d, fmcu %d\n", pctx->ctx_id, fmcu->fid);
-
-		/* make sure another FMCU set to different context
-		 * only in case of another FMCU is not used */
-		reg_offset = (fmcu->fid == 0) ?
-					ISP_COMMON_FMCU1_PATH_SEL :
-					ISP_COMMON_FMCU0_PATH_SEL;
-		val = ISP_HREG_RD(reg_offset);
-		val &= (BIT_1 | BIT_0);
-		if (val == reg_bits[pctx->ctx_id]) {
-			pr_info("fmcu %d set to same val %d\n", fmcu->fid, val);
-			val++;
-			ISP_HREG_MWR(reg_offset, BIT_1 | BIT_0, val);
-		}
-	}
-
-	hw = dev->isp_hw;
-	ret = hw->ops->enable_irq(hw, &pctx->ctx_id);
-	ret = hw->ops->irq_clear(hw, &pctx->ctx_id);
-
-	pr_info("%d done\n", pctx->ctx_id);
-	return 0;
 }
 
 /*
@@ -2218,14 +2364,12 @@ static int sprd_isp_put_context(void *isp_handle, int ctx_id)
 	struct isp_pipe_dev *dev;
 	struct isp_pipe_context *pctx;
 	struct isp_path_desc *path;
-	struct isp_fmcu_ctx_desc *fmcu;
-	struct sprd_cam_hw_info *hw;
 
 	if (!isp_handle) {
 		pr_err("fail to get valid input ptr\n");
 		return -EFAULT;
 	}
-	if (ctx_id < 0 || ctx_id >= ISP_CONTEXT_NUM) {
+	if (ctx_id < 0 || ctx_id >= ISP_CONTEXT_SW_NUM) {
 		pr_err("Illegal. ctx_id %d\n", ctx_id);
 		return -EFAULT;
 	}
@@ -2240,9 +2384,6 @@ static int sprd_isp_put_context(void *isp_handle, int ctx_id)
 
 	if (atomic_dec_return(&pctx->user_cnt) == 0) {
 		pctx->started = 0;
-		hw = dev->isp_hw;
-		ret = hw->ops->disable_irq(hw, &pctx->ctx_id);
-		ret = hw->ops->irq_clear(hw, &pctx->ctx_id);
 		pr_info("free context %d without users.\n", pctx->ctx_id);
 
 		/* make sure irq handler exit to avoid crash */
@@ -2252,12 +2393,6 @@ static int sprd_isp_put_context(void *isp_handle, int ctx_id)
 			udelay(500);
 		};
 
-		fmcu = (struct isp_fmcu_ctx_desc *)pctx->fmcu_handle;
-		if (fmcu) {
-			fmcu->ops->ctx_deinit(fmcu);
-			put_isp_fmcu_ctx_desc(fmcu);
-			pctx->fmcu_handle = NULL;
-		}
 		if (pctx->slice_ctx)
 			put_isp_slice_ctx(&pctx->slice_ctx);
 
@@ -2308,7 +2443,6 @@ static int sprd_isp_put_context(void *isp_handle, int ctx_id)
 
 		pctx->isp_cb_func = NULL;
 		pctx->cb_priv_data = NULL;
-		trace_isp_irq_cnt(pctx->ctx_id);
 	} else {
 		pr_err("ctx %d is already release.\n", ctx_id);
 		atomic_set(&pctx->user_cnt, 0);
@@ -2339,7 +2473,7 @@ static int sprd_isp_get_path(void *isp_handle, int ctx_id, int path_id)
 	}
 
 	pr_debug("start.\n");
-	if (ctx_id < 0 || ctx_id >= ISP_CONTEXT_NUM ||
+	if (ctx_id < 0 || ctx_id >= ISP_CONTEXT_SW_NUM ||
 		path_id < 0 || path_id >= ISP_SPATH_NUM) {
 		pr_err("Illegal. ctx_id %d, path_id %d\n", ctx_id, path_id);
 		return -EFAULT;
@@ -2405,7 +2539,7 @@ static int sprd_isp_put_path(void *isp_handle, int ctx_id, int path_id)
 	}
 
 	pr_debug("start.\n");
-	if (ctx_id < 0 || ctx_id >= ISP_CONTEXT_NUM ||
+	if (ctx_id < 0 || ctx_id >= ISP_CONTEXT_SW_NUM ||
 		path_id < 0 || path_id >= ISP_SPATH_NUM) {
 		pr_err("Illegal. ctx_id %d, path_id %d\n", ctx_id, path_id);
 		return -EFAULT;
@@ -2460,7 +2594,7 @@ static int sprd_isp_cfg_path(void *isp_handle,
 		return -EFAULT;
 	}
 
-	if (ctx_id >= ISP_CONTEXT_NUM  || ctx_id < ISP_CONTEXT_P0) {
+	if (ctx_id >= ISP_CONTEXT_SW_NUM  || ctx_id < ISP_CONTEXT_P0) {
 		pr_err("error id. ctx %d\n", ctx_id);
 		return -EFAULT;
 	}
@@ -2850,7 +2984,7 @@ static int isp_cycle_hist2_frame(
 		pr_err("fail to get valid input ptr\n");
 		return -EFAULT;
 	}
-	if (ctx_id < 0 || ctx_id >= ISP_CONTEXT_NUM) {
+	if (ctx_id < 0 || ctx_id >= ISP_CONTEXT_SW_NUM) {
 		pr_err("Illegal. ctx_id %d\n", ctx_id);
 		return -EFAULT;
 	}
@@ -2948,7 +3082,7 @@ static int sprd_isp_cfg_blkparam(
 		pr_err("fail to get valid input ptr\n");
 		return -EFAULT;
 	}
-	if (ctx_id < 0 || ctx_id >= ISP_CONTEXT_NUM) {
+	if (ctx_id < 0 || ctx_id >= ISP_CONTEXT_SW_NUM) {
 		pr_err("Illegal. ctx_id %d\n", ctx_id);
 		return -EINVAL;
 	}
@@ -3007,7 +3141,7 @@ static int sprd_isp_set_sb(void *isp_handle, int ctx_id,
 		pr_err("fail to get valid input ptr\n");
 		return -EFAULT;
 	}
-	if (ctx_id < 0 || ctx_id >= ISP_CONTEXT_NUM) {
+	if (ctx_id < 0 || ctx_id >= ISP_CONTEXT_SW_NUM) {
 		pr_err("Illegal. ctx_id %d\n", ctx_id);
 		return -EFAULT;
 	}
@@ -3065,6 +3199,7 @@ static int sprd_isp_dev_open(void *isp_handle, void *param)
 
 		dev->isp_hw = param;
 		mutex_init(&dev->path_mutex);
+		spin_lock_init(&dev->ctx_lock);
 
 		ret = sprd_cam_pw_on();
 		ret = sprd_cam_domain_eb();
@@ -3159,9 +3294,7 @@ static struct isp_pipe_ops isp_ops = {
 	.open = sprd_isp_dev_open,
 	.close = sprd_isp_dev_close,
 	.reset = sprd_isp_dev_reset,
-	.update_context = sprd_isp_update_context,
 	.get_context = sprd_isp_get_context,
-	.start_context = sprd_isp_start_context,
 	.put_context = sprd_isp_put_context,
 	.get_path = sprd_isp_get_path,
 	.put_path = sprd_isp_put_path,
@@ -3186,6 +3319,8 @@ void *get_isp_pipe_dev(void)
 	if (s_isp_dev) {
 		atomic_inc(&s_isp_dev->user_cnt);
 		dev = s_isp_dev;
+		pr_info("s_isp_dev is already exist=%p, user_cnt=%d",
+			s_isp_dev, atomic_read(&s_isp_dev->user_cnt));
 		goto exit;
 	}
 
@@ -3196,15 +3331,10 @@ void *get_isp_pipe_dev(void)
 	atomic_set(&dev->user_cnt, 1);
 	atomic_set(&dev->enable, 0);
 	s_isp_dev = dev;
-
+	if (dev)
+		pr_info("get isp pipe dev: %p\n", dev);
 exit:
 	mutex_unlock(&isp_pipe_dev_mutex);
-
-	if (dev)
-		pr_info("get isp pipe dev: %p, users %d\n",
-			dev, atomic_read(&dev->user_cnt));
-	else
-		pr_err("error: no memory for isp pipe dev.\n");
 
 	return dev;
 }
@@ -3222,8 +3352,7 @@ int put_isp_pipe_dev(void *isp_handle)
 	}
 
 	dev = (struct isp_pipe_dev *)isp_handle;
-
-	pr_info("put isp pipe dev: %p, %p, users: %d\n",
+	pr_info("put isp pipe dev:%p, s_isp_dev:%p,  users: %d\n",
 		dev, s_isp_dev, atomic_read(&dev->user_cnt));
 
 	mutex_lock(&isp_pipe_dev_mutex);

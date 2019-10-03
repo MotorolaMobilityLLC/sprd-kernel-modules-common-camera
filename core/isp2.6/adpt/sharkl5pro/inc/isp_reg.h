@@ -17,10 +17,11 @@
 #define ISP_MAX_COUNT				1
 #define ISP_LOGICAL_COUNT			2
 #define ISP_CONTEXT_MAX				4
+#define  ISP_CONTEXT_SW_MAX			6
 
 extern unsigned long s_isp_regbase[ISP_MAX_COUNT];
 extern unsigned long isp_phys_base[ISP_MAX_COUNT];
-extern unsigned long *isp_cfg_poll_addr[ISP_CONTEXT_MAX];
+extern unsigned long *isp_cfg_poll_addr[ISP_CONTEXT_SW_MAX];
 extern unsigned long s_isp_mmubase;
 
 

@@ -93,6 +93,15 @@ enum isp_mmu_irq {
 	(1 << ISP_INT_FMCU_STORE_DONE) | \
 	(1 << ISP_INT_HIST_CAL_DONE))
 
+#define ISP_INT_LINE_FMCU_MASK \
+	((1 << ISP_INT_FMCU_LOAD_DONE) | \
+	(1 << ISP_INT_FMCU_CONFIG_DONE) | \
+	(1 << ISP_INT_FMCU_SHADOW_DONE) | \
+	(1 << ISP_INT_FMCU_CMD_X) | \
+	(1 << ISP_INT_FMCU_TIMEOUT) | \
+	(1 << ISP_INT_FMCU_CMD_ERROR) | \
+	(1 << ISP_INT_FMCU_STOP_DONE))
+
 int reset_isp_irq_cnt(int ctx_id);
 int trace_isp_irq_cnt(int ctx_id);
 

@@ -17,7 +17,14 @@
 
 #include "isp_hw_if.h"
 #include "isp_reg.h"
+#include "isp_int.h"
 #include "cam_trusty.h"
+
+#ifdef pr_fmt
+#undef pr_fmt
+#endif
+#define pr_fmt(fmt) "ISP_HW_IF: %d %d %s : "\
+	fmt, current->pid, __LINE__, __func__
 
 #define ISP_AXI_ARBITER_WQOS_MASK       0x37FF
 #define ISP_AXI_ARBITER_RQOS_MASK       0x1FF
@@ -31,24 +38,6 @@ static unsigned long irq_base[4] = {
 	ISP_C1_INT_BASE
 };
 
-int isp_check_context(int ctx_id,
-	struct isp_init_param *init_param)
-{
-	if (!init_param || ctx_id < ISP_CONTEXT_P0
-		|| ctx_id > ISP_CONTEXT_C1) {
-		pr_err("fail to get valid input ptr\n");
-		return -1;
-	}
-
-	if (init_param->max_size.w >  g_camctrl.isp_linebuf_len) {
-		if(ctx_id == ISP_CONTEXT_C0 || ctx_id == ISP_CONTEXT_C1)
-			return 0;
-		else
-			return -1;
-	}
-	return 0;
-}
-
 uint32_t isp_support_fmcu_cfg_slm(void) {
 	return 0;
 }
@@ -58,6 +47,11 @@ uint32_t isp_ctx_support_fmcu(uint32_t ctx_id) {
 		return 1;
 	else
 		return 0;
+}
+
+int isp_fmcu_available(uint32_t fmcu_id)
+{
+	return (fmcu_id > 0) ? 0 : 1;
 }
 
 static const struct bypass_tag isp_tb_bypass[] = {
@@ -543,6 +537,8 @@ int isp_irq_enable(struct sprd_cam_hw_info *hw, void *arg)
 		pr_err("error ctx id %d\n", ctx_id);
 		return -EFAULT;
 	}
+	if (ctx_id != ISP_CONTEXT_HW_C0)
+		mask &= ~ISP_INT_LINE_FMCU_MASK;
 
 	ISP_HREG_MWR(irq_base[ctx_id] + ISP_INT_EN0, mask, mask);
 

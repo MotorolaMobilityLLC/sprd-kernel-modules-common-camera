@@ -36,11 +36,11 @@
 
 
 
-typedef void(*isp_isr)(enum isp_context_id idx, void *param);
+typedef void(*isp_isr)(enum isp_context_hw_id idx, void *param);
 
 
-static const uint32_t isp_irq_process[] = {
-	ISP_INT_ISP_ALL_DONE,
+/* FMCU can only be used by C0 only */
+static const uint32_t isp_irq_process_c0[] = {
 	ISP_INT_SHADOW_DONE,
 	ISP_INT_DISPATCH_DONE,
 	ISP_INT_STORE_DONE_PRE,
@@ -49,8 +49,20 @@ static const uint32_t isp_irq_process[] = {
 	ISP_INT_NR3_SHADOW_DONE,
 	ISP_INT_FMCU_LOAD_DONE,
 	ISP_INT_FMCU_SHADOW_DONE,
-	ISP_INT_FMCU_STORE_DONE,
 	ISP_INT_HIST_CAL_DONE,
+	ISP_INT_ISP_ALL_DONE,
+	ISP_INT_FMCU_STORE_DONE,
+};
+
+static const uint32_t isp_irq_process[] = {
+	ISP_INT_SHADOW_DONE,
+	ISP_INT_DISPATCH_DONE,
+	ISP_INT_STORE_DONE_PRE,
+	ISP_INT_STORE_DONE_VID,
+	ISP_INT_NR3_ALL_DONE,
+	ISP_INT_NR3_SHADOW_DONE,
+	ISP_INT_HIST_CAL_DONE,
+	ISP_INT_ISP_ALL_DONE,
 };
 
 //#define ISP_INT_RECORD 1
@@ -60,12 +72,12 @@ static uint32_t isp_int_recorder[ISP_CONTEXT_NUM][32][INT_RCD_SIZE];
 static uint32_t int_index[ISP_CONTEXT_NUM][32];
 #endif
 
-static uint32_t irq_done[ISP_CONTEXT_NUM][32];
+static uint32_t irq_done[ISP_CONTEXT_HW_NUM][32];
 static char *isp_dev_name[] = {"isp0",
 				"isp1"
 				};
 
-static inline void record_isp_int(enum isp_context_id c_id, uint32_t irq_line)
+static inline void record_isp_int(enum isp_context_hw_id c_id, uint32_t irq_line)
 {
 	uint32_t k;
 
@@ -107,8 +119,10 @@ static void isp_frame_done(enum isp_context_id idx, struct isp_pipe_dev *dev)
 
 	pctx = &dev->ctx[idx];
 
-	if (pctx->enable_slowmotion == 0)
+	if (pctx->enable_slowmotion == 0) {
+		isp_context_unbind(pctx);
 		complete(&pctx->frm_done);
+	}
 
 	boot_time = ktime_get_boottime();
 	ktime_get_ts(&cur_ts);
@@ -117,13 +131,14 @@ static void isp_frame_done(enum isp_context_id idx, struct isp_pipe_dev *dev)
 	pframe = camera_dequeue(&pctx->proc_queue);
 	if (pframe) {
 		cambuf_iommu_unmap(&pframe->buf);
-		pr_debug("ctx %d, ret src buf: %p,  priv %p\n",
-				pctx->ctx_id, pframe,  pctx->cb_priv_data);
+		pr_debug("ctx_id %d, ch_id %d, fid:%d, queue.cnt:%d\n",
+			pctx->ctx_id, pframe->channel_id,  pframe->fid, pctx->proc_queue.cnt);
 		pctx->isp_cb_func(ISP_CB_RET_SRC_BUF, pframe,
 			pctx->cb_priv_data);
 	} else {
 		/* should not be here */
-		pr_err("fail to get src frame.\n");
+		pr_err("no src frame  sw_idx=%d  proc_queue.cnt:%d\n",
+			pctx->ctx_id, pctx->proc_queue.cnt);
 	}
 
 	/* get output buffers for all path */
@@ -149,9 +164,9 @@ static void isp_frame_done(enum isp_context_id idx, struct isp_pipe_dev *dev)
 		pframe->time.tv_sec = cur_ts.tv_sec;
 		pframe->time.tv_usec = cur_ts.tv_nsec / NSEC_PER_USEC;
 
-		pr_debug("ctx %d path %d, fid %d, storen %d\n",
-			pctx->ctx_id, path->spath_id, pframe->fid,
-			atomic_read(&path->store_cnt));
+		pr_debug("ctx %d path %d, ch_id, fid %d, storen %d, queue cnt:%d\n",
+			pctx->ctx_id, path->spath_id, pframe->channel_id, pframe->fid,
+			atomic_read(&path->store_cnt), path->result_queue.cnt);
 		pr_debug("time_sensor %03d.%6d, time_isp %03d.%06d\n",
 			(uint32_t)pframe->sensor_time.tv_sec,
 			(uint32_t)pframe->sensor_time.tv_usec,
@@ -171,33 +186,48 @@ static void isp_frame_done(enum isp_context_id idx, struct isp_pipe_dev *dev)
 }
 
 
-static int isp_err_pre_proc(enum isp_context_id idx, void *isp_handle)
+static int isp_err_pre_proc(enum isp_context_hw_id hw_idx, void *isp_handle)
 {
 	struct isp_pipe_dev *dev = NULL;
 	struct isp_pipe_context *pctx;
+	int idx = -1;
 
 	//pr_err("isp cxt_id:%d error happened\n", idx);
 	dev = (struct isp_pipe_dev *)isp_handle;
+	idx = isp_get_sw_context_id(hw_idx, dev);
+	if (idx < 0) {
+		pr_err("fail to get sw_id for hw_idx=%d\n", hw_idx);
+		return 0;
+	}
 	pctx = &dev->ctx[idx];
 	/* todo: isp error handling */
 	/*pctx->isp_cb_func(ISP_CB_DEV_ERR, dev, pctx->cb_priv_data);*/
 	return 0;
 }
 
-static void isp_all_done(enum isp_context_id idx, void *isp_handle)
+static void isp_all_done(enum isp_context_hw_id hw_idx, void *isp_handle)
 {
 	struct isp_pipe_dev *dev = NULL;
 	struct isp_pipe_context *pctx;
+	struct isp_pipe_hw_context *pctx_hw;
+	int idx = -1;
 
 	dev = (struct isp_pipe_dev *)isp_handle;
+	idx = isp_get_sw_context_id(hw_idx, dev);
+	if (idx < 0) {
+		pr_err("fail to get sw_id for hw_idx=%d\n", hw_idx);
+		return;
+	}
+
 	pctx = &dev->ctx[idx];
-	if (pctx->fmcu_handle) {
+	pctx_hw = &dev->hw_ctx[hw_idx];
+	if (pctx_hw->fmcu_used) {
 		pr_debug("fmcu started. skip all done.\n ");
 		return;
 	}
 
-	pr_debug("cxt_id:%d done.\n", idx);
-	if (pctx->slice_ctx && !pctx->fmcu_handle) {
+	pr_debug("cxt_id:%d all done.\n", idx);
+	if (pctx->multi_slice) {
 		pr_debug("slice done. last %d\n", pctx->is_last_slice);
 		if (!pctx->is_last_slice) {
 			complete(&pctx->slice_done);
@@ -209,82 +239,118 @@ static void isp_all_done(enum isp_context_id idx, void *isp_handle)
 	isp_frame_done(idx, dev);
 }
 
-static void isp_shadow_done(enum isp_context_id idx, void *isp_handle)
+static void isp_shadow_done(enum isp_context_hw_id idx, void *isp_handle)
 {
 	pr_debug("cxt_id:%d shadow done.\n", idx);
 }
 
-static void isp_dispatch_done(enum isp_context_id idx, void *isp_handle)
+static void isp_dispatch_done(enum isp_context_hw_id idx, void *isp_handle)
 {
 	pr_debug("cxt_id:%d done.\n", idx);
 }
 
-static void isp_pre_store_done(enum isp_context_id idx, void *isp_handle)
+static void isp_pre_store_done(enum isp_context_hw_id idx, void *isp_handle)
 {
 	pr_debug("cxt_id:%d done.\n", idx);
 }
 
-static void isp_vid_store_done(enum isp_context_id idx, void *isp_handle)
+static void isp_vid_store_done(enum isp_context_hw_id idx, void *isp_handle)
 {
 	pr_debug("cxt_id:%d done.\n", idx);
 }
 
-static void isp_fmcu_store_done(enum isp_context_id idx, void *isp_handle)
+static void isp_fmcu_store_done(enum isp_context_hw_id hw_idx, void *isp_handle)
 {
 	struct isp_pipe_dev *dev = NULL;
 	struct isp_pipe_context *pctx;
+	struct isp_pipe_hw_context *pctx_hw;
 	int i;
+	int idx = -1;
 
 	dev = (struct isp_pipe_dev *)isp_handle;
+	pctx_hw = &dev->hw_ctx[hw_idx];
+	if (pctx_hw->fmcu_handle == NULL) {
+		pr_warn("warn: no fmcu for hw %d\n", hw_idx);
+		return;
+	}
+
+	idx = isp_get_sw_context_id(hw_idx, dev);
+	if (idx < 0) {
+		pr_err("fail to get sw_id for hw_idx=%d\n", hw_idx);
+		return;
+	}
+
 	pctx = &dev->ctx[idx];
 
-	if (!pctx->fmcu_handle)
-		return;
-
+	pr_debug("fmcu done cxt_id:%d ch_id[%d]\n", idx, pctx->ch_id);
 	isp_frame_done(idx, dev);
 
 	if (pctx->enable_slowmotion == 1) {
-		if (pctx->enable_slowmotion == 1)
-			complete(&pctx->frm_done);
+		isp_context_unbind(pctx);
+		complete(&pctx->frm_done);
 		for (i = 0; i < pctx->slowmotion_count - 1; i++)
 			isp_frame_done(idx, dev);
 	}
 }
 
-static void isp_fmcu_shadow_done(enum isp_context_id idx, void *isp_handle)
+static void isp_fmcu_shadow_done(enum isp_context_hw_id hw_idx, void *isp_handle)
 {
+	int idx = -1;
 	struct isp_pipe_dev *dev = NULL;
-	struct isp_pipe_context *pctx;
+	struct isp_pipe_hw_context *pctx_hw;
 
 	dev = (struct isp_pipe_dev *)isp_handle;
-	pctx = &dev->ctx[idx];
+	pctx_hw = &dev->hw_ctx[hw_idx];
+	if (pctx_hw->fmcu_handle == NULL) {
+		pr_warn("warn: no fmcu for hw %d\n", hw_idx);
+		return;
+	}
 
+	idx = isp_get_sw_context_id(hw_idx, dev);
+	if (idx < 0) {
+		pr_err("fail to get sw_id for hw_idx=%d\n", hw_idx);
+		return;
+	}
 	pr_debug("cxt_id:%d done.\n", idx);
 }
 
-static void isp_fmcu_load_done(enum isp_context_id idx, void *isp_handle)
+static void isp_fmcu_load_done(enum isp_context_hw_id idx, void *isp_handle)
 {
 	pr_debug("cxt_id:%d done.\n", idx);
 }
 
-static void isp_3dnr_all_done(enum isp_context_id idx, void *isp_handle)
+static void isp_3dnr_all_done(enum isp_context_hw_id hw_idx, void *isp_handle)
 {
 	struct isp_pipe_context *pctx;
 	struct isp_pipe_dev *dev;
+	int idx = -1;
 
 	dev = (struct isp_pipe_dev *)isp_handle;
+	idx = isp_get_sw_context_id(hw_idx, dev);
+	if (idx < 0) {
+		pr_err("fail to get sw_id for hw_idx=%d\n", hw_idx);
+		return;
+	}
+
 	pctx = &dev->ctx[idx];
 
 	pr_debug("3dnr all done. cxt_id:%d\n", idx);
 
 }
 
-static void isp_3dnr_shadow_done(enum isp_context_id idx, void *isp_handle)
+static void isp_3dnr_shadow_done(enum isp_context_hw_id hw_idx, void *isp_handle)
 {
 	struct isp_pipe_context *pctx;
 	struct isp_pipe_dev *dev;
+	int idx = -1;
 
 	dev = (struct isp_pipe_dev *)isp_handle;
+	idx = isp_get_sw_context_id(hw_idx, dev);
+	if (idx < 0) {
+		pr_err("fail to get sw_id for hw_idx=%d\n", hw_idx);
+		return;
+	}
+
 	pctx = &dev->ctx[idx];
 
 	pr_debug("3dnr shadow done. cxt_id:%d\n", idx);
@@ -356,13 +422,20 @@ static void isp_dispatch_frame(enum isp_context_id idx,
 	pctx->isp_cb_func(type, frame, pctx->cb_priv_data);
 }
 
-static void isp_hist_cal_done(enum isp_context_id idx, void *isp_handle)
+static void isp_hist_cal_done(enum isp_context_hw_id hw_idx, void *isp_handle)
 {
 	struct camera_frame *frame = NULL;
 	struct isp_pipe_dev *dev = NULL;
 	struct isp_pipe_context *pctx;
+	int idx = -1;
 
 	dev = (struct isp_pipe_dev *)isp_handle;
+	idx = isp_get_sw_context_id(hw_idx, dev);
+	if (idx < 0) {
+		pr_err("fail to get sw_id for hw_idx=%d\n", hw_idx);
+		return;
+	}
+
 	pctx = &dev->ctx[idx];
 
 	/* only use isp hist in preview channel */
@@ -402,8 +475,8 @@ struct isp_int_ctx {
 		{ /* C0 */
 			ISP_C0_INT_BASE,
 			ISP_INT_LINE_MASK_ERR,
-			(uint32_t)ARRAY_SIZE(isp_irq_process),
-			isp_irq_process,
+			(uint32_t)ARRAY_SIZE(isp_irq_process_c0),
+			isp_irq_process_c0,
 		},
 		{ /* P1 */
 			ISP_P1_INT_BASE,
@@ -453,7 +526,7 @@ static irqreturn_t isp_isr_root(int irq, void *priv)
 {
 	unsigned long irq_offset;
 	uint32_t iid;
-	enum isp_context_id c_id;
+	enum isp_context_hw_id c_id;
 	uint32_t sid, k;
 	uint32_t err_mask;
 	uint32_t irq_line = 0;
@@ -478,23 +551,35 @@ static irqreturn_t isp_isr_root(int irq, void *priv)
 		pr_err("error irq %d mismatched\n", irq);
 		return IRQ_NONE;
 	}
+	pr_debug("isp irq %d, priv %p, iid %d\n", irq, priv, iid);
 
 	for (sid = 0; sid < 2; sid++) {
+		int sw_ctx_id = -1;
+
 		c_id = (iid << 1) | sid;
-		isp_handle->ctx[c_id].in_irq_handler = 1;
+
 		irq_offset = isp_int_ctxs[c_id].reg_offset;
 		err_mask = isp_int_ctxs[c_id].err_mask;
 		irq_numbers = isp_int_ctxs[c_id].irq_numbers;
 		irq_vect = isp_int_ctxs[c_id].irq_vect;
 
-		pr_debug("offset %lx,  num %d, vect: %p\n",
-				irq_offset, irq_numbers,  irq_vect);
 		irq_line = ISP_HREG_RD(irq_offset + ISP_INT_INT0);
-		pr_debug("cid: %d,  irq_line: %08x\n", c_id,  irq_line);
 		if (unlikely(irq_line == 0)) {
-			isp_handle->ctx[c_id].in_irq_handler = 0;
 			continue;
 		}
+
+		sw_ctx_id = isp_get_sw_context_id(c_id, isp_handle);
+		pr_debug("hw_cid: %d,  sw_ctx_id =%d, irq_line: %08x\n",
+			c_id, sw_ctx_id,  irq_line);
+
+		if (sw_ctx_id < 0) {
+			ISP_HREG_WR(irq_offset + ISP_INT_CLR0, irq_line);
+			if (irq_line & ISP_INT_LINE_MASK)
+				pr_err("c_id: %d has no sw_ctx_id, irq_line: %08x\n", c_id, irq_line);
+			continue;
+		}
+
+		isp_handle->ctx[sw_ctx_id].in_irq_handler = 1;
 
 		record_isp_int(c_id, irq_line);
 
@@ -504,23 +589,23 @@ static irqreturn_t isp_isr_root(int irq, void *priv)
 		pr_debug("isp ctx %d irqno %d, INT: 0x%x\n",
 						c_id, irq, irq_line);
 
-		if (atomic_read(&isp_handle->ctx[c_id].user_cnt) < 1) {
-			pr_info("contex %d is stopped\n", c_id);
-			isp_handle->ctx[c_id].in_irq_handler = 0;
+		if (atomic_read(&isp_handle->ctx[sw_ctx_id].user_cnt) < 1) {
+			pr_info("contex %d is stopped\n", sw_ctx_id);
+			isp_handle->ctx[sw_ctx_id].in_irq_handler = 0;
 			return IRQ_HANDLED;
 		}
 
-		if (unlikely(isp_handle->ctx[c_id].started == 0)) {
-			pr_info("ctx %d not started. irq 0x%x\n", c_id, irq_line);
-			isp_handle->ctx[c_id].in_irq_handler = 0;
+		if (unlikely(isp_handle->ctx[sw_ctx_id].started == 0)) {
+			pr_info("ctx %d not started. irq 0x%x\n", sw_ctx_id, irq_line);
+			isp_handle->ctx[sw_ctx_id].in_irq_handler = 0;
 			return IRQ_HANDLED;
 		}
 
 		if (unlikely(err_mask & irq_line)) {
-			pr_err("ISP ctx%d status 0x%x\n", c_id, irq_line);
+			pr_err("ISP ctx%d status 0x%x\n", sw_ctx_id, irq_line);
 			/*handle the error here*/
 			if (isp_err_pre_proc(c_id, isp_handle)) {
-				isp_handle->ctx[c_id].in_irq_handler = 0;
+				isp_handle->ctx[sw_ctx_id].in_irq_handler = 0;
 				return IRQ_HANDLED;
 			}
 		}
@@ -528,8 +613,8 @@ static irqreturn_t isp_isr_root(int irq, void *priv)
 		mmu_irq_line = ISP_HREG_RD(ISP_MMU_INT_BASE +
 				ISP_MMU_INT_MASKED_STS);
 		if (unlikely(ISP_INT_LINE_MASK_MMU & mmu_irq_line)) {
-			pr_err("ISP ctx%d status 0x%x\n", c_id, irq_line);
-			ctx = &isp_handle->ctx[c_id];
+			pr_err("ISP ctx%d status 0x%x\n", sw_ctx_id, irq_line);
+			ctx = &isp_handle->ctx[sw_ctx_id];
 			val = ISP_MMU_RD(MMU_STS);
 
 			if (val != ctx->iommu_status) {
@@ -553,7 +638,7 @@ static irqreturn_t isp_isr_root(int irq, void *priv)
 			if (!irq_line)
 				break;
 		}
-		isp_handle->ctx[c_id].in_irq_handler = 0;
+		isp_handle->ctx[sw_ctx_id].in_irq_handler = 0;
 	}
 
 	return IRQ_HANDLED;
@@ -595,13 +680,13 @@ int isp_irq_request(struct device *p_dev,
 
 int reset_isp_irq_cnt(int ctx_id)
 {
-	if (ctx_id < ISP_CONTEXT_NUM)
+	if (ctx_id < ISP_CONTEXT_HW_NUM)
 		memset(irq_done[ctx_id], 0, sizeof(irq_done[ctx_id]));
 
 #ifdef ISP_INT_RECORD
-	if (ctx_id < ISP_CONTEXT_NUM) {
-		memset(isp_int_recorder[ctx_id][0], 0, sizeof(isp_int_recorder) / ISP_CONTEXT_NUM);
-		memset(int_index[ctx_id], 0, sizeof(int_index) / ISP_CONTEXT_NUM);
+	if (ctx_id < ISP_CONTEXT_HW_NUM) {
+		memset(isp_int_recorder[ctx_id][0], 0, sizeof(isp_int_recorder) / ISP_CONTEXT_HW_NUM);
+		memset(int_index[ctx_id], 0, sizeof(int_index) / ISP_CONTEXT_HW_NUM);
 	}
 #endif
 	return 0;

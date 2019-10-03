@@ -33,7 +33,17 @@ enum isp_context_id {
 	ISP_CONTEXT_C0,
 	ISP_CONTEXT_P1,
 	ISP_CONTEXT_C1,
-	ISP_CONTEXT_NUM
+	ISP_CONTEXT_P2,
+	ISP_CONTEXT_C2,
+	ISP_CONTEXT_SW_NUM
+};
+
+enum isp_context_hw_id {
+	ISP_CONTEXT_HW_P0,
+	ISP_CONTEXT_HW_C0,
+	ISP_CONTEXT_HW_P1,
+	ISP_CONTEXT_HW_C1,
+	ISP_CONTEXT_HW_NUM
 };
 
 enum isp_sub_path_id {
@@ -102,8 +112,8 @@ enum isp_ioctrl_cmd {
 
 
 struct isp_init_param {
-	struct img_size max_size;
 	uint32_t is_high_fps;
+	uint32_t cam_id;
 };
 
 struct isp_ctx_base_desc {
@@ -204,8 +214,6 @@ struct isp_pipe_ops {
 	int (*reset)(void *isp_handle, void *arg);
 
 	int (*get_context)(void *isp_handle, void *param);
-	int (*update_context)(void *isp_handle, int ctx_id, void *param);
-	int (*start_context)(void *isp_handle, int ctx_id);
 	int (*put_context)(void *isp_handle, int ctx_id);
 
 	int (*get_path)(void *isp_handle, int ctx_id, int path_id);

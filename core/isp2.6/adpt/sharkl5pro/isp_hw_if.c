@@ -19,6 +19,12 @@
 #include "isp_reg.h"
 #include "cam_trusty.h"
 
+#ifdef pr_fmt
+#undef pr_fmt
+#endif
+#define pr_fmt(fmt) "ISP_HW_IF: %d %d %s : "\
+	fmt, current->pid, __LINE__, __func__
+
 #define ISP_AXI_STOP_TIMEOUT			1000
 #define ISP_CLK_NUM                    5
 #define CLK_CPPLL                      468000000
@@ -29,24 +35,18 @@ static unsigned long irq_base[4] = {
 	ISP_C1_INT_BASE
 };
 
-int isp_check_context(int ctx_id,
-	struct isp_init_param *init_param)
-{
-	if (!init_param || ctx_id < ISP_CONTEXT_P0
-		|| ctx_id > ISP_CONTEXT_C1) {
-		pr_err("fail to get valid input ptr\n");
-		return -1;
-	}
-
-	return 0;
-}
-
 uint32_t isp_support_fmcu_cfg_slm(void) {
 	return 1;
 }
 
 uint32_t isp_ctx_support_fmcu(uint32_t ctx_id) {
 	return 1;
+}
+
+/* workaround: temp disable FMCU 1 for not working */
+int isp_fmcu_available(uint32_t fmcu_id)
+{
+	return (fmcu_id > 0) ? 0 : 1;
 }
 
 static const struct bypass_tag isp_tb_bypass[] = {

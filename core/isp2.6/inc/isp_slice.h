@@ -295,11 +295,7 @@ int isp_cfg_slices(void *cfg_in, struct isp_slice_context *slc_ctx,
 void *get_isp_slice_ctx(void);
 int put_isp_slice_ctx(void **slc_ctx);
 
-int isp_set_slices_fmcu_cmds(
-		void *fmcu_handle,
-		void *slc_handle,
-		uint32_t ctx_idx,
-		uint32_t wmode);
+int isp_set_slices_fmcu_cmds(void *fmcu_handle,  void *ctx);
 
 int isp_set_slw_fmcu_cmds(
 		void *fmcu_handle,

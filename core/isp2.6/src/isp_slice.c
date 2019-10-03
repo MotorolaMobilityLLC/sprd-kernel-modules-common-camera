@@ -1997,11 +1997,11 @@ static unsigned long scaler_base[ISP_SPATH_NUM] = {
 };
 
 static int set_fmcu_cfg(struct isp_fmcu_ctx_desc *fmcu,
-	enum isp_context_id ctx_id)
+	enum isp_context_hw_id ctx_id)
 {
 	uint32_t addr = 0, cmd = 0;
 	unsigned long base;
-	unsigned long reg_addr[ISP_CONTEXT_NUM] = {
+	unsigned long reg_addr[ISP_CONTEXT_HW_NUM] = {
 		ISP_CFG_PRE0_START,
 		ISP_CFG_CAP0_START,
 		ISP_CFG_PRE1_START,
@@ -2536,33 +2536,41 @@ static int set_slice_nofilter(
 }
 
 
-int isp_set_slices_fmcu_cmds(
-		void *fmcu_handle, void *slc_handle,
-		uint32_t ctx_idx, uint32_t wmode)
+int isp_set_slices_fmcu_cmds(void *fmcu_handle,  void *ctx)
 {
 	int i, j;
+	int sw_ctx_id = 0;
+	int hw_ctx_id = 0;
+	enum isp_work_mode wmode;
 	unsigned long base;
 	struct isp_slice_desc *cur_slc;
 	struct slice_store_info *slc_store;
 	struct slice_scaler_info *slc_scaler;
 	struct isp_slice_context *slc_ctx;
 	struct isp_fmcu_ctx_desc *fmcu;
+	struct isp_pipe_context *pctx = NULL;
+
 	uint32_t reg_off, addr = 0, cmd = 0, shape_mode = 0;
-	uint32_t shadow_done_cmd[ISP_CONTEXT_NUM] = {
+	uint32_t shadow_done_cmd[ISP_CONTEXT_HW_NUM] = {
 		PRE0_SHADOW_DONE, CAP0_SHADOW_DONE,
 		PRE1_SHADOW_DONE, CAP1_SHADOW_DONE,
 	};
-	uint32_t all_done_cmd[ISP_CONTEXT_NUM] = {
+	uint32_t all_done_cmd[ISP_CONTEXT_HW_NUM] = {
 		PRE0_ALL_DONE, CAP0_ALL_DONE,
 		PRE1_ALL_DONE, CAP1_ALL_DONE,
 	};
 
-	if (!fmcu_handle || !slc_handle) {
+	if (!fmcu_handle || !ctx) {
 		pr_err("error: null input ptr.\n");
 		return -EFAULT;
 	}
 
-	slc_ctx = (struct isp_slice_context *)slc_handle;
+	pctx = (struct isp_pipe_context *)ctx;
+	sw_ctx_id = pctx->ctx_id;
+	hw_ctx_id = isp_get_hw_context_id(pctx);
+	pr_info("get hw context id=%d\n", hw_ctx_id);
+	wmode = pctx->dev->wmode;
+	slc_ctx = (struct isp_slice_context *)pctx->slice_ctx;
 	if (slc_ctx->slice_num < 1) {
 		pr_err("warn: should not use slices.\n");
 		return -EINVAL;
@@ -2580,7 +2588,7 @@ int isp_set_slices_fmcu_cmds(
 		if (cur_slc->valid == 0)
 			continue;
 		if (wmode == ISP_CFG_MODE)
-			set_fmcu_cfg(fmcu, ctx_idx);
+			set_fmcu_cfg(fmcu, hw_ctx_id);
 
 		set_slice_nr_info(fmcu, cur_slc);
 
@@ -2598,16 +2606,16 @@ int isp_set_slices_fmcu_cmds(
 			slc_store = &cur_slc->slice_store[j];
 			if (j == ISP_SPATH_FD) {
 				set_slice_spath_thumbscaler(fmcu,
-					cur_slc->path_en[j], ctx_idx,
+					cur_slc->path_en[j], sw_ctx_id,
 					&cur_slc->slice_thumbscaler);
 			} else {
 				slc_scaler = &cur_slc->slice_scaler[j];
 				set_slice_spath_scaler(fmcu,
-					cur_slc->path_en[j], ctx_idx, j,
+					cur_slc->path_en[j], sw_ctx_id, j,
 					slc_scaler);
 			}
 			set_slice_spath_store(fmcu,
-				cur_slc->path_en[j], ctx_idx, j, slc_store);
+				cur_slc->path_en[j], sw_ctx_id, j, slc_store);
 		}
 
 		if (wmode == ISP_CFG_MODE) {
@@ -2619,11 +2627,11 @@ int isp_set_slices_fmcu_cmds(
 		FMCU_PUSH(fmcu, addr, cmd);
 
 		addr = ISP_GET_REG(base + ISP_FMCU_CMD);
-		cmd = shadow_done_cmd[ctx_idx];
+		cmd = shadow_done_cmd[hw_ctx_id];
 		FMCU_PUSH(fmcu, addr, cmd);
 
 		addr = ISP_GET_REG(base + ISP_FMCU_CMD);
-		cmd = all_done_cmd[ctx_idx];
+		cmd = all_done_cmd[hw_ctx_id];
 		FMCU_PUSH(fmcu, addr, cmd);
 	}
 
@@ -2875,11 +2883,11 @@ int isp_set_slw_fmcu_cmds(void *fmcu_handle, struct isp_pipe_context *pctx)
 	struct isp_path_desc *path;
 	struct img_addr *fetch_addr, *store_addr;
 
-	uint32_t shadow_done_cmd[ISP_CONTEXT_NUM] = {
+	uint32_t shadow_done_cmd[ISP_CONTEXT_HW_NUM] = {
 		PRE0_SHADOW_DONE, CAP0_SHADOW_DONE,
 		PRE1_SHADOW_DONE, CAP1_SHADOW_DONE,
 	};
-	uint32_t all_done_cmd[ISP_CONTEXT_NUM] = {
+	uint32_t all_done_cmd[ISP_CONTEXT_HW_NUM] = {
 		PRE0_ALL_DONE, CAP0_ALL_DONE,
 		PRE1_ALL_DONE, CAP1_ALL_DONE,
 	};

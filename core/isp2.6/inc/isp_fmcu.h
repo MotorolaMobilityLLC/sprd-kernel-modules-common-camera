@@ -35,6 +35,11 @@ enum fmcu_buf_id {
 	MAX_BUF
 };
 
+enum {
+	FMCU_IS_NEED = (1 << 0),
+	FMCU_IS_MUST = (1 << 1),
+};
+
 enum isp_fmcu_cmd {
 	PRE0_SHADOW_DONE = 0x10,
 	PRE0_ALL_DONE,

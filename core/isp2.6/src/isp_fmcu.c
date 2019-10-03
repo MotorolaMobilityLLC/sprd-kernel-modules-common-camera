@@ -21,6 +21,7 @@
 
 #include "isp_reg.h"
 #include "isp_fmcu.h"
+#include "isp_hw_if.h"
 #include "defines.h"
 
 #ifdef pr_fmt
@@ -327,12 +328,13 @@ struct isp_fmcu_ctx_desc *get_isp_fmcu_ctx_desc(void)
 	int i;
 	struct isp_fmcu_ctx_desc *fmcu = NULL;
 
-	/* workaround: temp disable FMCU 1 for not working */
-	for (i = 0; i < ISP_FMCU_1; i++) {
+	for (i = 0; i < ISP_FMCU_NUM; i++) {
 		if (atomic_inc_return(&s_fmcu_desc[i].user_cnt) == 1) {
-			fmcu = &s_fmcu_desc[i];
-			pr_info("fmcu %d , %p\n", fmcu->fid, fmcu);
-			break;
+			if (isp_fmcu_available(s_fmcu_desc[i].fid)) {
+				fmcu = &s_fmcu_desc[i];
+				pr_info("fmcu %d , %p\n", fmcu->fid, fmcu);
+				break;
+			}
 		}
 		atomic_dec(&s_fmcu_desc[i].user_cnt);
 	}

@@ -30,14 +30,14 @@
 #define pr_fmt(fmt) "ISP_CFG: %d: %d %s:" \
 	fmt, current->pid, __LINE__, __func__
 
-unsigned long cfg_cmd_addr_reg[ISP_CONTEXT_NUM] = {
+unsigned long cfg_cmd_addr_reg[ISP_CONTEXT_HW_NUM] = {
 	ISP_CFG_PRE0_CMD_ADDR,
 	ISP_CFG_CAP0_CMD_ADDR,
 	ISP_CFG_PRE1_CMD_ADDR,
 	ISP_CFG_CAP1_CMD_ADDR
 };
 
-unsigned long isp_cfg_ctx_addr[ISP_CONTEXT_NUM] = { 0 };
+unsigned long isp_cfg_ctx_addr[ISP_CONTEXT_SW_NUM] = { 0 };
 
 static DEFINE_MUTEX(buf_mutex);
 
@@ -131,7 +131,7 @@ static void cctx_init_page_buf_addr(
 	struct isp_cfg_buf *cfg_buf;
 	int  c_id, bid;
 
-	for (c_id = 0; c_id < ISP_CONTEXT_NUM; c_id++) {
+	for (c_id = 0; c_id < ISP_CONTEXT_SW_NUM; c_id++) {
 		ctx_offset = c_id * ISP_CFG_BUF_SIZE;
 		cfg_buf = &cfg_ctx->cfg_buf[c_id];
 		for (bid = 0; bid < CFG_BUF_NUM; bid++) {
@@ -151,7 +151,7 @@ static void cctx_deinit_page_buf_addr(struct isp_cfg_ctx_desc *cfg_ctx)
 	struct isp_cfg_buf *cfg_buf;
 	int c_id, bid;
 
-	for (c_id = 0; c_id < ISP_CONTEXT_NUM; c_id++) {
+	for (c_id = 0; c_id < ISP_CONTEXT_SW_NUM; c_id++) {
 		cfg_buf = &cfg_ctx->cfg_buf[c_id];
 		for (bid = 0; bid < CFG_BUF_NUM; bid++) {
 			cfg_buf->reg_buf[bid].sw_addr = NULL;
@@ -173,7 +173,7 @@ static void cctx_init_regbuf_addr(struct isp_cfg_ctx_desc *cfg_ctx)
 	 * Using shadow buf as initial buf.
 	 * @isp_cfg_ctx_addr will be used when using ISP_BASE_ADDR.
 	 */
-	for (c_id = 0; c_id < ISP_CONTEXT_NUM; c_id++) {
+	for (c_id = 0; c_id < ISP_CONTEXT_SW_NUM; c_id++) {
 		cfg_buf = &cfg_ctx->cfg_buf[c_id];
 		cfg_buf->cur_buf_id = cur_regbuf_id = CFG_BUF_SHADOW;
 		cur_regbuf_p = &cfg_buf->reg_buf[cur_regbuf_id];
@@ -191,7 +191,7 @@ static void cctx_deinit_regbuf_addr(struct isp_cfg_ctx_desc *cfg_ctx)
 	int c_id;
 
 	mutex_lock(&buf_mutex);
-	for (c_id = 0; c_id < ISP_CONTEXT_NUM; c_id++)
+	for (c_id = 0; c_id < ISP_CONTEXT_SW_NUM; c_id++)
 		isp_cfg_ctx_addr[c_id] = 0UL;
 	mutex_unlock(&buf_mutex);
 }
@@ -410,9 +410,9 @@ setting:
 
 static int isp_cfg_start_isp(
 			struct isp_cfg_ctx_desc *cfg_ctx,
-			enum isp_context_id ctx_id)
+			enum isp_context_hw_id ctx_id)
 {
-	unsigned long reg_addr[ISP_CONTEXT_NUM] = {
+	unsigned long reg_addr[] = {
 		ISP_CFG_PRE0_START,
 		ISP_CFG_CAP0_START,
 		ISP_CFG_PRE1_START,
@@ -429,7 +429,8 @@ static int isp_cfg_start_isp(
 
 static int isp_cfg_config_block(
 			struct isp_cfg_ctx_desc *cfg_ctx,
-			enum isp_context_id ctx_id,
+			enum isp_context_id sw_ctx_id,
+			enum isp_context_hw_id hw_ctx_id,
 			uint32_t  fmcu_enable)
 {
 	int ret = 0;
@@ -440,7 +441,7 @@ static int isp_cfg_config_block(
 	unsigned long hw_addr = 0;
 	enum cfg_buf_id buf_id;
 	struct isp_cfg_buf *cfg_buf_p;
-	uint32_t ready_mode[ISP_CONTEXT_NUM] = {
+	uint32_t ready_mode[ISP_CONTEXT_HW_NUM] = {
 		BIT_26, /* pre0_cmd_ready_mode */
 		BIT_24, /* cap0_cmd_ready_mode */
 		BIT_27, /* pre1_cmd_ready_mode */
@@ -451,19 +452,18 @@ static int isp_cfg_config_block(
 		pr_err("null cfg_ctx pointer\n");
 		return -EFAULT;
 	}
+	pr_debug("cfg isp sw ctx %d hw ctx %d\n", sw_ctx_id, hw_ctx_id);
 
-	pr_debug("cfg isp ctx %d\n", ctx_id);
+	shadow_buf_vaddr = (void *)isp_cfg_ctx_addr[sw_ctx_id];
 
-	shadow_buf_vaddr = (void *)isp_cfg_ctx_addr[ctx_id];
-
-	if (ctx_id < ISP_CONTEXT_NUM) {
-		cfg_buf_p = &cfg_ctx->cfg_buf[ctx_id];
+	if (hw_ctx_id < ISP_CONTEXT_HW_NUM) {
+		cfg_buf_p = &cfg_ctx->cfg_buf[hw_ctx_id];
 		buf_id = CFG_BUF_WORK;
 		hw_addr = (unsigned long)cfg_buf_p->reg_buf[buf_id].hw_addr;
 		work_buf_vaddr = cfg_buf_p->reg_buf[buf_id].sw_addr;
 
 		pr_debug("ctx %d cmd buf %p, %p\n",
-				ctx_id, work_buf_vaddr, shadow_buf_vaddr);
+				hw_ctx_id, work_buf_vaddr, shadow_buf_vaddr);
 
 		if (s_map_sec_cnt > 0)
 			goto copy_sec;
@@ -471,7 +471,7 @@ static int isp_cfg_config_block(
 		pr_debug("copy whole cfg buffer\n");
 		memcpy(work_buf_vaddr, shadow_buf_vaddr, ISP_REG_SIZE);
 	} else {
-		pr_err("error: invalid isp ctx_id %d\n", ctx_id);
+		pr_err("error: invalid isp hw ctx_id %d\n", hw_ctx_id);
 		return -EINVAL;
 	}
 
@@ -496,22 +496,22 @@ copy_sec:
 			shadow_buf_vaddr, work_buf_vaddr, hw_addr);
 
 	if (fmcu_enable)
-		val = ready_mode[ctx_id];
+		val = ready_mode[hw_ctx_id];
 	else
 		val = 0;
 
 	spin_lock_irqsave(&cfg_ctx->lock, flag);
-	ISP_HREG_MWR(ISP_CFG_PAMATER, ready_mode[ctx_id], val);
+	ISP_HREG_MWR(ISP_CFG_PAMATER, ready_mode[hw_ctx_id], val);
 	spin_unlock_irqrestore(&cfg_ctx->lock, flag);
 
-	ISP_HREG_WR(cfg_cmd_addr_reg[ctx_id], hw_addr);
+	ISP_HREG_WR(cfg_cmd_addr_reg[hw_ctx_id], hw_addr);
 
 	pr_debug("ctx %d,  reg %08x  %08x, hw_addr %lx, val %08x\n",
-		ctx_id,
-		(uint32_t)cfg_cmd_addr_reg[ctx_id],
-		(uint32_t)ISP_GET_REG(cfg_cmd_addr_reg[ctx_id]),
+		hw_ctx_id,
+		(uint32_t)cfg_cmd_addr_reg[hw_ctx_id],
+		(uint32_t)ISP_GET_REG(cfg_cmd_addr_reg[hw_ctx_id]),
 		hw_addr,
-		ISP_HREG_RD(cfg_cmd_addr_reg[ctx_id]));
+		ISP_HREG_RD(cfg_cmd_addr_reg[hw_ctx_id]));
 
 	pr_debug("Done\n");
 	return ret;
@@ -543,7 +543,7 @@ static int isp_cfg_ctx_init(struct isp_cfg_ctx_desc *cfg_ctx)
 		return -EFAULT;
 	}
 
-	for (i = 0; i < ISP_CONTEXT_NUM; i++)
+	for (i = 0; i < ISP_CONTEXT_SW_NUM; i++)
 		isp_cfg_poll_addr[i] = &isp_cfg_ctx_addr[i];
 
 	s_cfg_settings.num_of_mod = isp_cfg_map_get_count();

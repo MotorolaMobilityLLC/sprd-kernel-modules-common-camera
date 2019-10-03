@@ -17,10 +17,11 @@
 #define ISP_MAX_COUNT				1
 #define ISP_LOGICAL_COUNT			2
 #define ISP_CONTEXT_MAX				4
+#define  ISP_CONTEXT_SW_MAX			6
 
 extern unsigned long s_isp_regbase[ISP_MAX_COUNT];
 extern unsigned long isp_phys_base[ISP_MAX_COUNT];
-extern unsigned long *isp_cfg_poll_addr[ISP_CONTEXT_MAX];
+extern unsigned long *isp_cfg_poll_addr[ISP_CONTEXT_SW_MAX];
 extern unsigned long s_isp_mmubase;
 
 
@@ -70,16 +71,17 @@ extern unsigned long s_isp_mmubase;
 #define ISP_COMMON_VERSION			(0x0700UL)
 #define ISP_COMMON_SPACE_SEL			(0x0710UL)
 #define ISP_COMMON_SCL_PATH_SEL			(0x0714UL)
-#define ISP_COMMON_FMCU0_PATH_SEL		(0x0718UL)
 #define ISP_COMMON_GCLK_CTRL_0			(0x071CUL)
 #define ISP_COMMON_GCLK_CTRL_1			(0x0720UL)
 #define ISP_COMMON_GCLK_CTRL_2			(0x0724UL)
 #define ISP_COMMON_GCLK_CTRL_3			(0x0728UL)
-#define ISP_COMMON_FMCU1_PATH_SEL		(0x072CUL)
 #define ISP_COMMON_SHADOW_CTRL_CH0		(0x0730UL)
 #define ISP_COMMON_PMU_RAM_MASK			(0x0734UL)
 #define ISP_WORK_CTRL				(0x0738UL)
 #define ISP_BLOCK_MODE				(0x073CUL)
+
+#define ISP_COMMON_FMCU0_PATH_SEL		(0UL)
+#define ISP_COMMON_FMCU1_PATH_SEL		(0UL)
 
 #define ISP_CORE_STATUS				(0x8000UL)
 #define ISP_CORE_PMU_EN				(0x8010UL)

@@ -3060,12 +3060,6 @@ static void deinit_4in1_secondary_path(struct camera_module *module,
 
 static int init_channels_size(struct camera_module *module)
 {
-	struct img_size max;
-	struct isp_init_param init_param;
-	struct channel_context *ch_prev, *ch_vid, *ch_cap;
-
-	max.w = max.h = 0;
-
 	/* bypass RDS if sensor output binning size for image quality */
 	module->zoom_solution = g_camctrl.dcam_zoom_mode;
 	module->rds_limit = g_camctrl.dcam_rds_limit;
@@ -3079,26 +3073,6 @@ static int init_channels_size(struct camera_module *module)
 	pr_info("zoom_solution %d, limit %d %d\n",
 		module->zoom_solution,
 		module->rds_limit, module->binning_limit);
-
-	ch_prev = &module->channel[CAM_CH_PRE];
-	ch_vid = &module->channel[CAM_CH_VID];
-	ch_cap = &module->channel[CAM_CH_CAP];
-
-	if (ch_prev->enable) {
-		max.w = MAX(ch_prev->ch_uinfo.dst_size.w, ch_prev->swap_size.w);
-		if (ch_vid->enable)
-			max.w = MAX(ch_vid->ch_uinfo.dst_size.w, max.w);
-		init_param.max_size = max;
-		isp_ops->update_context(module->isp_dev_handle,
-			ch_prev->isp_path_id >> ISP_CTXID_OFFSET, &init_param);
-	}
-
-	if (ch_cap->enable) {
-		max.w = MAX(ch_cap->ch_uinfo.dst_size.w, ch_cap->swap_size.w);
-		init_param.max_size = max;
-		isp_ops->update_context(module->isp_dev_handle,
-			ch_cap->isp_path_id >> ISP_CTXID_OFFSET, &init_param);
-	}
 
 	return 0;
 }
@@ -3237,10 +3211,11 @@ static int init_cam_channel(
 		struct isp_ctx_base_desc ctx_desc;
 
 		init_param.is_high_fps = ch_uinfo->is_high_fps;
+		init_param.cam_id = module->idx;
 		ret = isp_ops->get_context(module->isp_dev_handle, &init_param);
 		if (ret < 0) {
-			pr_err("fail to get isp context for size %d %d.\n",
-					init_param.max_size.w, init_param.max_size.h);
+			pr_err("fail to get isp context for cam%d ch %d\n",
+					module->idx, channel->ch_id);
 			goto exit;
 		}
 		isp_ctx_id = ret;
@@ -5162,10 +5137,6 @@ static int img_ioctl_stream_on(
 			(module->is_smooth_zoom ? CAM_ZOOM_COEFF_Q_LEN : 1),
 			0, camera_put_empty_frame);
 
-		if (ch->ch_id == CAM_CH_PRE || ch->ch_id == CAM_CH_CAP)
-			isp_ops->start_context(module->isp_dev_handle,
-					ch->isp_path_id >> ISP_CTXID_OFFSET);
-
 		if (ch->alloc_start) {
 			ret = wait_for_completion_interruptible(&ch->alloc_com);
 			if (ret != 0) {
@@ -5842,13 +5813,11 @@ static int raw_proc_pre(
 	dcam_lbuf_share_mode(module->idx, proc_info->src_size.width);
 
 	/* specify isp context & path */
-	init_param.max_size.w = proc_info->src_size.width;
-	init_param.max_size.h = proc_info->src_size.height;
 	init_param.is_high_fps = 0;/* raw capture + slow motion ?? */
+	init_param.cam_id = module->idx;
 	ret = isp_ops->get_context(module->isp_dev_handle, &init_param);
 	if (ret < 0) {
-		pr_err("fail to get isp context for size %d %d.\n",
-		       init_param.max_size.w, init_param.max_size.h);
+		pr_err("fail to get isp context\n");
 		goto fail_ispctx;
 	}
 	ctx_id = ret;
@@ -6036,10 +6005,7 @@ static int raw_proc_post(
 	dcam_hwsim_extra(module->idx);
 	isp_hwsim_extra(ch->isp_path_id >> ISP_CTXID_OFFSET);
 
-	ret = isp_ops->start_context(module->isp_dev_handle,
-			ch->isp_path_id >> ISP_CTXID_OFFSET);
-	ret |= dcam_ops->proc_frame(module->dcam_dev_handle, src_frame);
-
+	ret = dcam_ops->proc_frame(module->dcam_dev_handle, src_frame);
 	if (ret)
 		pr_err("fail to start dcam/isp for raw proc\n");
 
@@ -6666,16 +6632,11 @@ static int test_isp(struct camera_module *module,
 			double_ch = 0;
 	}
 
-	if (test_info->input_size.width > test_info->output_size.width)
-		init_param.max_size.w = test_info->input_size.width;
-	else
-		init_param.max_size.w = test_info->output_size.width;
-	init_param.max_size.h = test_info->input_size.height;
 	init_param.is_high_fps = 0;/* raw capture + slow motion ?? */
+	init_param.cam_id = module->idx;
 	ret = isp_ops->get_context(module->isp_dev_handle, &init_param);
 	if (ret < 0) {
-		pr_err("fail to get isp context for size %d %d.\n",
-		       init_param.max_size.w, init_param.max_size.h);
+		pr_err("fail to get isp context\n");
 	} else {
 		ctx_id = ret;
 		if (prop_0 <= PROP_CAP)
