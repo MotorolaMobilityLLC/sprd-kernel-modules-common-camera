@@ -1668,7 +1668,7 @@ static int isp_offline_start_frame(void *ctx)
 			fmcu->ops->ctx_reset(fmcu);
 	}
 
-	if (multi_slice) {
+	if (multi_slice || pctx->enable_slowmotion) {
 		struct slice_cfg_input slc_cfg;
 
 		memset(&slc_cfg, 0, sizeof(slc_cfg));
@@ -1999,12 +1999,12 @@ static int isp_context_init(struct isp_pipe_dev *dev)
 		bind_fmcu = 0;
 		if (unlikely(dev->wmode == ISP_AP_MODE)) {
 			/* for AP mode, multi-context is not supported */
-			if (i == ISP_CONTEXT_HW_P0)
-				bind_fmcu = 1;
-			else
+			if (i != ISP_CONTEXT_HW_P0) {
 				atomic_set(&pctx_hw->user_cnt, 1);
-		} else if ((i == ISP_CONTEXT_HW_C0) ||
-				(i == ISP_CONTEXT_HW_C1)) {
+				continue;
+			}
+			bind_fmcu = 1;
+		} else if (isp_ctx_support_fmcu(i)) {
 			bind_fmcu = 1;
 		}
 
@@ -2024,7 +2024,7 @@ static int isp_context_init(struct isp_pipe_dev *dev)
 				pr_info("no more fmcu or ops\n");
 			}
 		}
-		pr_debug("isp hw context %d init done. fmcu %p\n",
+		pr_info("isp hw context %d init done. fmcu %p\n",
 				i, pctx_hw->fmcu_handle);
 
 		fmcu = (struct isp_fmcu_ctx_desc *)pctx_hw->fmcu_handle;
@@ -2139,7 +2139,8 @@ static int isp_slice_ctx_init(struct isp_pipe_context *pctx, uint32_t * multi_sl
 	struct slice_cfg_input slc_cfg_in;
 
 	*multi_slice = 0;
-	if  (isp_slice_needed(pctx) == 0)
+	if  ((isp_slice_needed(pctx) == 0) &&
+		(pctx->enable_slowmotion == 0))
 		return 0;
 
 	if (pctx->slice_ctx == NULL) {
@@ -2182,7 +2183,7 @@ static int isp_slice_ctx_init(struct isp_pipe_context *pctx, uint32_t * multi_sl
 
 	isp_cfg_slices(&slc_cfg_in, pctx->slice_ctx, &pctx->valid_slc_num);
 
-	pr_debug("valid_slc_num  %d\n", pctx->valid_slc_num);
+	pr_debug("ctx %d valid_slc_num %d\n", pctx->ctx_id, pctx->valid_slc_num);
 	if (pctx->valid_slc_num > 1)
 		*multi_slice = 1;
 exit:
@@ -2298,13 +2299,11 @@ static int sprd_isp_get_context(void *isp_handle, void *param)
 	pctx->uframe_sync = 0;
 	pctx->attach_cam_id = init_param->cam_id;
 
-	/* TODO - enable fmcu for slow_motion later...*/
 	pctx->enable_slowmotion = 0;
-#if 0
 	if (init_param->is_high_fps)
 		pctx->enable_slowmotion = isp_support_fmcu_cfg_slm();
-	pr_info("slw %d\n", pctx->enable_slowmotion);
-#endif
+	pr_info("cam%d enable ISP slowmotion %d\n",
+		pctx->attach_cam_id, pctx->enable_slowmotion);
 
 	ret = isp_create_offline_thread(pctx);
 	if (unlikely(ret != 0)) {
@@ -2332,7 +2331,7 @@ static int sprd_isp_get_context(void *isp_handle, void *param)
 						0, isp_destroy_statis_buf);
 
 	isp_set_ctx_default(pctx);
-	reset_isp_irq_cnt(pctx->ctx_id);
+	reset_isp_irq_sw_cnt(pctx->ctx_id);
 
 	goto exit;
 
@@ -2444,6 +2443,7 @@ static int sprd_isp_put_context(void *isp_handle, int ctx_id)
 
 		pctx->isp_cb_func = NULL;
 		pctx->cb_priv_data = NULL;
+		trace_isp_irq_sw_cnt(pctx->ctx_id);
 	} else {
 		pr_err("ctx %d is already release.\n", ctx_id);
 		atomic_set(&pctx->user_cnt, 0);

@@ -103,6 +103,9 @@ enum isp_irq_id {
 int reset_isp_irq_cnt(int ctx_id);
 int trace_isp_irq_cnt(int ctx_id);
 
+int reset_isp_irq_sw_cnt(int ctx_id);
+int trace_isp_irq_sw_cnt(int ctx_id);
+
 int isp_irq_request(struct device *p_dev,
 	uint32_t *irq_no, void *isp_handle);
 int isp_irq_free(struct device *p_dev, void *isp_handle);

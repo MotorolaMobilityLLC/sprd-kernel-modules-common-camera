@@ -68,22 +68,31 @@ static const uint32_t isp_irq_process[] = {
 //#define ISP_INT_RECORD 1
 #ifdef ISP_INT_RECORD
 #define INT_RCD_SIZE 0x10000
-static uint32_t isp_int_recorder[ISP_CONTEXT_NUM][32][INT_RCD_SIZE];
-static uint32_t int_index[ISP_CONTEXT_NUM][32];
+static uint32_t isp_int_recorder[ISP_CONTEXT_HW_NUM][32][INT_RCD_SIZE];
+static uint32_t int_index[ISP_CONTEXT_HW_NUM][32];
 #endif
 
 static uint32_t irq_done[ISP_CONTEXT_HW_NUM][32];
+static uint32_t irq_done_sw[ISP_CONTEXT_SW_NUM][32];
+
 static char *isp_dev_name[] = {"isp0",
 				"isp1"
 				};
 
-static inline void record_isp_int(enum isp_context_hw_id c_id, uint32_t irq_line)
+static inline void record_isp_int(
+	enum isp_context_id sw_cid,
+	enum isp_context_hw_id c_id, uint32_t irq_line)
 {
 	uint32_t k;
 
 	for (k = 0; k < 32; k++) {
 		if (irq_line & (1 << k))
 			irq_done[c_id][k]++;
+	}
+
+	for (k = 0; k < 32; k++) {
+		if (irq_line & (1 << k))
+			irq_done_sw[sw_cid][k]++;
 	}
 
 #ifdef ISP_INT_RECORD
@@ -581,7 +590,7 @@ static irqreturn_t isp_isr_root(int irq, void *priv)
 
 		isp_handle->ctx[sw_ctx_id].in_irq_handler = 1;
 
-		record_isp_int(c_id, irq_line);
+		record_isp_int(sw_ctx_id, c_id, irq_line);
 
 		/*clear the interrupt*/
 		ISP_HREG_WR(irq_offset + ISP_INT_CLR0, irq_line);
@@ -674,6 +683,7 @@ int isp_irq_request(struct device *p_dev,
 	}
 
 	memset(irq_done, 0, sizeof(irq_done));
+	memset(irq_done_sw, 0, sizeof(irq_done_sw));
 
 	return ret;
 }
@@ -695,6 +705,9 @@ int reset_isp_irq_cnt(int ctx_id)
 int trace_isp_irq_cnt(int ctx_id)
 {
 	int i;
+
+	if (ctx_id >= ISP_CONTEXT_HW_NUM)
+		return 0;
 
 	for (i = 0; i < 32; i++)
 		if(irq_done[ctx_id][i])
@@ -722,6 +735,26 @@ int trace_isp_irq_cnt(int ctx_id)
 		}
 	}
 #endif
+	return 0;
+}
+
+int reset_isp_irq_sw_cnt(int ctx_id)
+{
+	if (ctx_id < ISP_CONTEXT_SW_NUM)
+		memset(irq_done_sw[ctx_id], 0, sizeof(irq_done_sw[ctx_id]));
+
+	return 0;
+}
+int trace_isp_irq_sw_cnt(int ctx_id)
+{
+	int i;
+
+	if (ctx_id >= ISP_CONTEXT_SW_NUM)
+		return 0;
+
+	for (i = 0; i < 32; i++)
+		if(irq_done_sw[ctx_id][i])
+			pr_info("done %d %d :   %d\n", ctx_id, i, irq_done_sw[ctx_id][i]);
 	return 0;
 }
 
