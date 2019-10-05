@@ -154,7 +154,7 @@ static void isp_frame_done(enum isp_context_id idx, struct isp_pipe_dev *dev)
 		pframe->time.tv_sec = cur_ts.tv_sec;
 		pframe->time.tv_usec = cur_ts.tv_nsec / NSEC_PER_USEC;
 
-		pr_debug("ctx %d path %d, ch_id, fid %d, storen %d, queue cnt:%d\n",
+		pr_debug("ctx %d path %d, ch_id %d, fid %d, storen %d, queue cnt:%d\n",
 			pctx->ctx_id, path->spath_id, pframe->channel_id, pframe->fid,
 			atomic_read(&path->store_cnt), path->result_queue.cnt);
 		pr_debug("time_sensor %03d.%6d, time_isp %03d.%06d\n",
