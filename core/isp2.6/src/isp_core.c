@@ -1276,7 +1276,7 @@ int isp_get_hw_context_id(struct isp_pipe_context *pctx)
 		pr_debug("i %d, target sw %d,  hw: %d %d,  0x%lx  0x%lx\n",
 			i, pctx->ctx_id,
 			pctx_hw->sw_ctx_id, pctx_hw->hw_ctx_id,
-			pctx,  pctx_hw->pctx);
+			(unsigned long)pctx, (unsigned long)pctx_hw->pctx);
 		if ((pctx->ctx_id == pctx_hw->sw_ctx_id)
 			&& (pctx == pctx_hw->pctx)) {
 			hw_ctx_id = pctx_hw->hw_ctx_id;
@@ -1360,7 +1360,7 @@ exit:
 
 	pctx_hw->pctx = pctx;
 	pctx_hw->sw_ctx_id = pctx->ctx_id;
-	pr_debug("sw_ctx_id=%d, hw_ctx_id=%d %d,  fmcu_need %d ptr %p\n",
+	pr_debug("sw_ctx_id=%d, hw_ctx_id=%d %d, fmcu_need %d ptr 0x%lx\n",
 		pctx->ctx_id, hw_ctx_id, pctx_hw->hw_ctx_id,
 		fmcu_need, (unsigned long)pctx_hw->fmcu_handle);
 
@@ -1448,7 +1448,8 @@ static int isp_offline_start_frame(void *ctx)
 
 	pctx = (struct isp_pipe_context *)ctx;
 	pr_debug("enter sw ctx id=%d, user_cnt=%d, ch_id=%d, cam_id=%d\n",
-		pctx->ctx_id, pctx->user_cnt, pctx->ch_id, pctx->attach_cam_id);
+		pctx->ctx_id, atomic_read(&pctx->user_cnt),
+		pctx->ch_id, pctx->attach_cam_id);
 
 	if (atomic_read(&pctx->user_cnt) < 1) {
 		pr_err("isp cxt %d is not inited.\n", pctx->ctx_id);
