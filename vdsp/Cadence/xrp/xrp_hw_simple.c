@@ -66,6 +66,12 @@
 #define APAHB_HREG_OWR(reg, val) \
 		(REG_WR((reg), \
 		(REG_RD(reg) | (val))))
+#ifdef pr_fmt
+#undef pr_fmt
+#endif
+#define pr_fmt(fmt) "xrp_hw_simple: %d %d %s : "\
+        fmt, current->pid, __LINE__, __func__
+
 
 struct xrp_qos_info {
         uint8_t ar_qos_vdsp_msti;
@@ -185,11 +191,11 @@ static inline void reg_write32_setbit(struct xrp_hw_simple *hw, void *addr, u32 
         if (hw->ahb)
 	{
 		volatile u32 value;
-		//printk("yzl add reg_write32_setbit , reg:%lx\n" , (unsigned long)(hw->ahb + addr));
+		//pr_info("yzl add reg_write32_setbit , reg:%lx\n" , (unsigned long)(hw->ahb + addr));
 		value = __raw_readl(addr);
 		value = v | value;
                 __raw_writel(value, addr);
-		//printk("yzl add %s read reg:%lx , value:%x\n" , __func__ , (unsigned long)(hw->ahb + addr) , *((unsigned int*)(hw->ahb + addr)));
+		//pr_info("yzl add %s read reg:%lx , value:%x\n" , __func__ , (unsigned long)(hw->ahb + addr) , *((unsigned int*)(hw->ahb + addr)));
 	}
 }
 static inline void reg_write32_clearbit(struct xrp_hw_simple *hw, void *addr, u32 v)
@@ -197,11 +203,11 @@ static inline void reg_write32_clearbit(struct xrp_hw_simple *hw, void *addr, u3
         if (hw->ahb)
         {
                 volatile u32 value;
-		//printk("yzl add reg_write32_clearbit\n");
+		//pr_info("yzl add reg_write32_clearbit\n");
                 value = __raw_readl(addr);
                 value = v & value;
                 __raw_writel(value, addr);
-		//printk("yzl add %s read reg:%lx , value:%x\n" , __func__ , (unsigned long)(hw->ahb + addr) , *((unsigned int*)(hw->ahb + addr)));
+		//pr_info("yzl add %s read reg:%lx , value:%x\n" , __func__ , (unsigned long)(hw->ahb + addr) , *((unsigned int*)(hw->ahb + addr)));
         }
 }
 
@@ -229,7 +235,7 @@ static void *get_hw_sync_data(void *hw_arg, size_t *sz)
 
 	if (!hw_sync_data)
 		return NULL;
-	printk("yzl add get_hw_sync_data ahb_phys:%x , host_irq_mode:%d,host_irqoffset:%d , host_irq_bit:%d , hw->device_irq_mode:%d , device_irq_mode:%d,device_irq_offset:%d , device_irq_bit:%d , device_irq:%d, smsg addr:0x%lx\n",
+	pr_info("yzl add get_hw_sync_data ahb_phys:%x , host_irq_mode:%d,host_irqoffset:%d , host_irq_bit:%d , hw->device_irq_mode:%d , device_irq_mode:%d,device_irq_offset:%d , device_irq_bit:%d , device_irq:%d, smsg addr:0x%lx\n",
 	       (unsigned int)hw->ahb_phys , hw->host_irq_mode , hw->host_irq[0] , hw->host_irq[1],hw->device_irq_mode,
 	       irq_mode[hw->device_irq_mode] , hw->device_irq[0] ,  hw->device_irq[1],
 	       hw->device_irq[2], (unsigned long)*sz);
@@ -244,7 +250,7 @@ static void *get_hw_sync_data(void *hw_arg, size_t *sz)
 			.device_irq = hw->device_irq[2],
 			.vdsp_smsg_addr = (unsigned int)*sz,
 	};
-	printk("vdsp_smsg_addr 0x%x \n", hw_sync_data->vdsp_smsg_addr);
+	pr_info("vdsp_smsg_addr 0x%x \n", hw_sync_data->vdsp_smsg_addr);
 	*sz = sizeof(*hw_sync_data);
 	return hw_sync_data;
 }
@@ -252,7 +258,7 @@ static void *get_hw_sync_data(void *hw_arg, size_t *sz)
 static void reset(void *hw_arg)
 {
 	struct xrp_hw_simple *hw = (struct xrp_hw_simple *)hw_arg;
-	printk("yzl add hw_simple %s arg:%p ,offset:%x , value:0\n" , __func__ , hw->ahb , XRP_REG_RESET);
+	pr_info("yzl add hw_simple %s arg:%p ,offset:%x , value:0\n" , __func__ , hw->ahb , XRP_REG_RESET);
 	reg_write32_setbit(hw_arg, hw->ahb+XRP_REG_RESET, (0x3<<9));
 	reg_write32_clearbit(hw_arg,hw->ahb+XRP_REG_RESET , ~(0x3<<9));
 }
@@ -260,21 +266,21 @@ static void reset(void *hw_arg)
 static void halt(void *hw_arg)
 {
 	struct xrp_hw_simple *hw = (struct xrp_hw_simple *)hw_arg;
-        printk("yzl add hw_simple %s arg:%p ,offset:%x , value:1\n" , __func__ , hw->ahb , XRP_REG_RUNSTALL);
+        pr_info("yzl add hw_simple %s arg:%p ,offset:%x , value:1\n" , __func__ , hw->ahb , XRP_REG_RUNSTALL);
 	reg_write32_setbit(hw_arg, hw->ahb+XRP_REG_RUNSTALL, 1<<2);
 }
 
 static void release(void *hw_arg)
 {
 	struct xrp_hw_simple *hw = (struct xrp_hw_simple *)hw_arg;
-	printk("yzl add hw_simple %s arg:%p ,offset:%x , value:0\n" , __func__ , hw->ahb , XRP_REG_RUNSTALL);
+	pr_info("yzl add hw_simple %s arg:%p ,offset:%x , value:0\n" , __func__ , hw->ahb , XRP_REG_RUNSTALL);
 	reg_write32_clearbit(hw_arg, hw->ahb+XRP_REG_RUNSTALL, ~(1<<2));
 }
 static int enable(void *hw_arg)
 {
 	struct xrp_hw_simple *hw = (struct xrp_hw_simple *)hw_arg;
 	unsigned int rdata;
-	printk("yzl add hw_simple %s arg:%p ,offset:0x7e4 , value:0x204004 , offsett:0xb0, value:0\n" , __func__ , hw->pmu);
+	pr_info("yzl add hw_simple %s arg:%p ,offset:0x7e4 , value:0x204004 , offsett:0xb0, value:0\n" , __func__ , hw->pmu);
 	/*pd_ap_vdsp_force_shutdown bit */
 	reg_write32(hw_arg, hw->pmu+0x07e4, 0x204004);
 	/*vdsp_stop_en*/
@@ -300,7 +306,7 @@ static int enable(void *hw_arg)
 static void disable(void *hw_arg)
 {
 	struct xrp_hw_simple *hw = (struct xrp_hw_simple *)hw_arg;
-	printk("yzl add hw_simple %s arg:%p ,offset:%x , value:0\n" , __func__ , hw->ahb , XRP_REG_LP_CTL);
+	pr_info("yzl add hw_simple %s arg:%p ,offset:%x , value:0\n" , __func__ , hw->ahb , XRP_REG_LP_CTL);
 	reg_write32_setbit(hw_arg, hw->ahb+XRP_REG_LP_CTL , 1<<2);
 	reg_write32_setbit(hw_arg, hw->ahb+XRP_REG_RESET , 0x3<<9);
 	
@@ -308,7 +314,7 @@ static void disable(void *hw_arg)
 static void enable_dvfs(void *hw_arg)
 {
 	struct xrp_hw_simple *hw = (struct xrp_hw_simple *)hw_arg;
-	printk("yzl add hw_simple %s arg:%p ,offset:%x , value:0\n" , __func__ , hw->dvfs , 0x8);
+	pr_info("yzl add hw_simple %s arg:%p ,offset:%x , value:0\n" , __func__ , hw->dvfs , 0x8);
 	reg_write32_setbit(hw_arg , hw->dvfs + 0x8 , 1<<2);
 }
 static void disable_dvfs(void *hw_arg)
@@ -339,12 +345,12 @@ static void setdvfs(void *hw_arg , uint32_t index)
 {
 #if 0
 	struct xrp_hw_simple *hw = (struct xrp_hw_simple *)hw_arg;
-	printk("yzl add hw_simple %s arg:%p , value:0\n" , __func__ , hw->dvfs);
+	pr_info("yzl add hw_simple %s arg:%p , value:0\n" , __func__ , hw->dvfs);
 	reg_write32(hw_arg , hw->dvfs + 0x114, index);
 #else
 	uint32_t freq;
 	freq = translate_dvfsindex_to_freq(index);
-	printk("yzl add %s before vdsp_dvfs_notifier_call_chain freq:%d , index:%d\n" , __func__ , freq ,index);
+	pr_info("yzl add %s before vdsp_dvfs_notifier_call_chain freq:%d , index:%d\n" , __func__ , freq ,index);
 	vdsp_dvfs_notifier_call_chain(&freq);
 	return;
 #endif
@@ -385,7 +391,7 @@ static void send_irq(void *hw_arg)
 static void ack_irq(void *hw_arg)
 {
 	struct xrp_hw_simple *hw = hw_arg;
-	//printk("yzl add %s host_irq_mode:%d,hw->host_irq0:%x\n" , __func__ , hw->host_irq_mode , hw->host_irq[0]);
+	//pr_info("yzl add %s host_irq_mode:%d,hw->host_irq0:%x\n" , __func__ , hw->host_irq_mode , hw->host_irq[0]);
 	if (hw->host_irq_mode == XRP_IRQ_LEVEL) {
 	//	reg_write32_setbit(hw, hw->host_irq[0] + hw->ipi, hw->client_irq & 0xF);
 
@@ -532,46 +538,46 @@ static long init_hw(struct platform_device *pdev, struct xrp_hw_simple *hw,
 
 	/*ahb */
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, mem_idx);
-	printk("yzl add init_hw  ahb memstart:%lx , mem:%p , mem_idx:%d\n" , (unsigned long)mem->start , mem , mem_idx);
+	pr_info("yzl add init_hw  ahb memstart:%lx , mem:%p , mem_idx:%d\n" , (unsigned long)mem->start , mem , mem_idx);
 	if (!mem) {
 		ret = -ENODEV;
 		goto err;
 	}
 	hw->ahb_phys = mem->start;
 	hw->ahb = devm_ioremap_resource(&pdev->dev, mem);
-	printk("yzl %s: ahb = %pap/%p\n",
+	pr_info("yzl %s: ahb = %pap/%p\n",
 		 __func__, &mem->start, hw->ahb);
 	/*ipi */
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, mem_idx+1);
-	printk("yzl add init_hw ipi memstart:%lx , mem:%p , mem_idx:%d\n" , (unsigned long)mem->start , mem , mem_idx+1);
+	pr_info("yzl add init_hw ipi memstart:%lx , mem:%p , mem_idx:%d\n" , (unsigned long)mem->start , mem , mem_idx+1);
 	if (!mem) {
 		ret = -ENODEV;
 		goto err;
 	}
 	hw->ipi_phys = mem->start;
 	hw->ipi = devm_ioremap_resource(&pdev->dev, mem);
-	printk("yzl %s: ipi = %pap/%p\n",
+	pr_info("yzl %s: ipi = %pap/%p\n",
 		 __func__, &mem->start, hw->ipi);
 	/*pmu 0x327e0000*/
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, mem_idx+2);
-	printk("yzl add init_hw pmu memstart:%lx, mem:%p , mem_idx:%d\n" ,(unsigned long)mem->start , mem , mem_idx+2);
+	pr_info("yzl add init_hw pmu memstart:%lx, mem:%p , mem_idx:%d\n" ,(unsigned long)mem->start , mem , mem_idx+2);
         if (!mem) {
                 ret = -ENODEV;
                 goto err;
         }
 	hw->pmu = devm_ioremap_resource(&pdev->dev, mem);
-	printk("yzl %s: pmu = %pap/%p\n",
+	pr_info("yzl %s: pmu = %pap/%p\n",
                  __func__, &mem->start, hw->pmu);
 	/*dvfs */
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, mem_idx+3);
-	printk("yzl add init_hw dvfs memstart:%lx , mem:%p , mem_idx:%d\n" , (unsigned long)mem->start , mem , mem_idx+4);
+	pr_info("yzl add init_hw dvfs memstart:%lx , mem:%p , mem_idx:%d\n" , (unsigned long)mem->start , mem , mem_idx+4);
 	if (!mem) {
 		ret = -ENODEV;
 		goto err;
 	}
 	hw->dvfs_phys = mem->start;
 	hw->dvfs = devm_ioremap_resource(&pdev->dev, mem);
-	printk("yzl %s: dvfs = %pap/%p\n",
+	pr_info("yzl %s: dvfs = %pap/%p\n",
 		 __func__, &mem->start, hw->dvfs);
 
 	ret = of_property_read_u32_array(pdev->dev.of_node,
@@ -633,11 +639,11 @@ static long init_hw(struct platform_device *pdev, struct xrp_hw_simple *hw,
 	else
 		irq = -1;
 
-	printk("yzl add %s , irq is:%d , ret:%ld , host_irq_mode:%d\n" , __func__ , irq , ret , hw->host_irq_mode);
+	pr_info("yzl add %s , irq is:%d , ret:%ld , host_irq_mode:%d\n" , __func__ , irq , ret , hw->host_irq_mode);
 	if (irq >= 0) {
 		dev_dbg(&pdev->dev, "%s: host IRQ = %d, ",
 			__func__, irq);
-		printk("yzl add %s: host IRQ = %d, \n",
+		pr_info("yzl add %s: host IRQ = %d, \n",
                         __func__, irq);
 
 		hw->vdsp_ipi_desc = get_vdsp_ipi_ctx_desc();

@@ -33,6 +33,11 @@
 #ifdef __XTENSA__
 #include <xtensa/hal.h>  /* xthal_memcpy */
 #endif
+#ifdef pr_fmt
+#undef pr_fmt
+#endif
+#define pr_fmt(fmt) "pi_library_load: %d %d %s : "\
+        fmt, current->pid, __LINE__, __func__
 
 //#include <string.h>
 
@@ -194,12 +199,12 @@ static int
 validate_dynamic (Elf32_Ehdr * header)
 {
   if (xtlib_verify_magic (header) != 0) {
-    printk("yzl add %s xtlib_verify_magic failed\n" , __func__);
+    pr_info("yzl add %s xtlib_verify_magic failed\n" , __func__);
     return XTLIB_NOT_ELF;
   }
 
   if (xtlib_host_half (header->e_type) != ET_DYN) {
-    printk("yzl add %s xtlib_host_half failed\n" , __func__);
+    pr_info("yzl add %s xtlib_host_half failed\n" , __func__);
     return XTLIB_NOT_DYNAMIC;
   }
 
@@ -260,7 +265,7 @@ xtlib_pi_library_size(xtlib_packaged_library * library)
 
   int err = validate_dynamic (header);
   if (err != XTLIB_NO_ERR) {
-    printk("yzl add %s return -1\n" , __func__);
+    pr_info("yzl add %s return -1\n" , __func__);
     xtlib_globals.err = err;
     return -1;
   }

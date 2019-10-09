@@ -41,13 +41,19 @@
 
 #define DOWNLOAD_FIRMWARE
 
+#ifdef pr_fmt
+#undef pr_fmt
+#endif
+#define pr_fmt(fmt) "xrp_firmware: %d %d %s : "\
+        fmt, current->pid, __LINE__, __func__
+
 static int xrp_load_segment_to_sysmem_ion(struct xvp *xvp , Elf32_Phdr *phdr)
 {
 #ifdef DOWNLOAD_FIRMWARE
 	int32_t offset;
 	uint8_t *virstart = NULL;
 #endif
-	printk("yzl add %s phdr->p_paddr:%lx , firmware viraddr:%lx\n" , __func__ , (unsigned long)phdr->p_paddr , (unsigned long)xvp->dsp_firmware_addr);
+	pr_info("yzl add %s phdr->p_paddr:%lx , firmware viraddr:%lx\n" , __func__ , (unsigned long)phdr->p_paddr , (unsigned long)xvp->dsp_firmware_addr);
 #ifdef DOWNLOAD_FIRMWARE
 	if(phdr->p_paddr < xvp->dsp_firmware_addr)
 		return -EFAULT;
@@ -55,11 +61,11 @@ static int xrp_load_segment_to_sysmem_ion(struct xvp *xvp , Elf32_Phdr *phdr)
 
 	virstart = (uint8_t*)xvp->firmware_viraddr;
 
-	printk("yzl add %s virstart:%p , offset:%x , poffset:%x ,pmemsz:%x , pfilesz:%x\n" , __func__ , virstart , offset , phdr->p_offset , phdr->p_memsz , phdr->p_filesz);
+	pr_info("yzl add %s virstart:%p , offset:%x , poffset:%x ,pmemsz:%x , pfilesz:%x\n" , __func__ , virstart , offset , phdr->p_offset , phdr->p_memsz , phdr->p_filesz);
 	memcpy((void*)(virstart + offset) , xvp->firmware->data + phdr->p_offset , phdr->p_filesz);
 	if(phdr->p_memsz > phdr->p_filesz)
 	{
-		printk("yzl add %s memset vir:%p , size:%x\n" , __func__ , (void*)(virstart+ offset + phdr->p_filesz) , (phdr->p_memsz - phdr->p_filesz));
+		pr_info("yzl add %s memset vir:%p , size:%x\n" , __func__ , (void*)(virstart+ offset + phdr->p_filesz) , (phdr->p_memsz - phdr->p_filesz));
 		memset((void*)(virstart + offset + phdr->p_filesz) , 0 , (phdr->p_memsz - phdr->p_filesz));
 	}
 	wmb();
@@ -77,7 +83,7 @@ static int xrp_load_segment_to_iomem(struct xvp *xvp, Elf32_Phdr *phdr)
 			&pa, (u32)phdr->p_memsz);
 		return -EINVAL;
 	}
-	printk("yzl add %s ioremap p:%p, p_paddr:%lx , memcpyhw:%p , memsethw:%p\n" , __func__ , p , (unsigned long)pa , xvp->hw_ops->memcpy_tohw , xvp->hw_ops->memset_hw);
+	pr_info("yzl add %s ioremap p:%p, p_paddr:%lx , memcpyhw:%p , memsethw:%p\n" , __func__ , p , (unsigned long)pa , xvp->hw_ops->memcpy_tohw , xvp->hw_ops->memset_hw);
 	if (xvp->hw_ops->memcpy_tohw)
 		xvp->hw_ops->memcpy_tohw(p, (void *)xvp->firmware->data +
 					 phdr->p_offset, phdr->p_filesz);
@@ -319,7 +325,7 @@ int xrp_request_firmware(struct xvp *xvp)
 		return ret;
 
 	ret = xrp_load_firmware(xvp);
-	printk("yzl add %s ret:%d\n" , __func__ ,ret);
+	pr_info("yzl add %s ret:%d\n" , __func__ ,ret);
 	if (ret < 0) {
 		release_firmware(xvp->firmware);
 	}

@@ -41,6 +41,11 @@
 #include "xrp_faceid.h"
 #include "vdsp_trusty.h"
 
+#ifdef pr_fmt
+#undef pr_fmt
+#endif
+#define pr_fmt(fmt) "xrp_faceid: %d %d %s : "\
+        fmt, current->pid, __LINE__, __func__
 
 
 static int sprd_alloc_faceid_weights_buffer(struct xvp *xvp,struct ion_buf *ion_buf,size_t size)
@@ -51,7 +56,7 @@ static int sprd_alloc_faceid_weights_buffer(struct xvp *xvp,struct ion_buf *ion_
 						ION_HEAP_ID_MASK_VDSP,/*todo vdsp head id*/
 						size);
 	if(0 != ret) {
-		printk("yzl add %s failed\n" , __func__);
+		pr_info("yzl add %s failed\n" , __func__);
 		return -ENOMEM;
 	}
 	ret = xvp->vdsp_mem_desc->ops->mem_kmap(xvp->vdsp_mem_desc, ion_buf);
@@ -61,7 +66,7 @@ static int sprd_alloc_faceid_weights_buffer(struct xvp *xvp,struct ion_buf *ion_
 	}
 	//xvp->faceid_fw_viraddr = (void*)xvp->ion_faceid_fw.addr_k[0];
 	ion_buf->dev = xvp->dev;
-	printk("faceid alloc addr_p %lx  vaddr:%lx,size %ld\n" ,ion_buf->addr_p[0] , ion_buf->addr_k[0],ion_buf->size[0]);
+	pr_info("faceid alloc addr_p %lx  vaddr:%lx,size %ld\n" ,ion_buf->addr_p[0] , ion_buf->addr_k[0],ion_buf->size[0]);
 	return 0;
 
 }
@@ -79,14 +84,14 @@ static int sprd_iommu_map_faceid_weights_buffer(struct xvp *xvp,struct ion_buf *
 {
 	int ret = -EFAULT;
 	if(NULL == (void*)ion_buf->addr_k[0]) {
-		printk("map faceid weights addr is NULL \n");
+		pr_info("map faceid weights addr is NULL \n");
 		return ret;
 	}
 	pr_info("ion_buf->addr_k[0] %lx\n",ion_buf->addr_k[0]);
 	{
 		ret = xvp->vdsp_mem_desc->ops->mem_iommu_map(xvp->vdsp_mem_desc, ion_buf , IOMMU_ALL);
 		if(ret) {
-			printk("yzl add %s map faceid fialed\n" , __func__);
+			pr_info("yzl add %s map faceid fialed\n" , __func__);
 			return ret;
 		}
 		//xvp->dsp_firmware_addr = xvp->ion_faceid_fw.iova[0];
@@ -118,7 +123,7 @@ int sprd_faceid_request_algo_mem(struct xvp *xvp)
 {
 	int ret = sprd_alloc_faceid_weights_buffer(xvp,&xvp->faceid_pool.ion_fd_mem_pool,FACEID_FD_MEM_SIZE);
 	if (ret < 0){
-		printk("yzl request fd mem fail\n");
+		pr_info("yzl request fd mem fail\n");
 		return ret;
 	}
 
@@ -133,7 +138,7 @@ int sprd_faceid_request_algo_mem(struct xvp *xvp)
 	if (ret < 0){
 		sprd_free_faceid_weights_buffer(xvp,&xvp->faceid_pool.ion_fd_mem_pool);
 		sprd_free_faceid_weights_buffer(xvp,&xvp->faceid_pool.ion_fp_mem_pool);
-		printk("yzl request flv mem fail\n");
+		pr_info("yzl request flv mem fail\n");
 		return ret;
 	}
 	ret = sprd_alloc_faceid_weights_buffer(xvp,&xvp->faceid_pool.ion_fv_mem_pool,FACEID_FV_MEM_SIZE);
@@ -141,7 +146,7 @@ int sprd_faceid_request_algo_mem(struct xvp *xvp)
 		sprd_free_faceid_weights_buffer(xvp,&xvp->faceid_pool.ion_fd_mem_pool);
 		sprd_free_faceid_weights_buffer(xvp,&xvp->faceid_pool.ion_fp_mem_pool);
 		sprd_free_faceid_weights_buffer(xvp,&xvp->faceid_pool.ion_flv_mem_pool);
-		printk("yzl request fv mem fail\n");
+		pr_info("yzl request fv mem fail\n");
 		return ret;
 	}
 */
@@ -163,7 +168,7 @@ int sprd_faceid_request_weights_fd_p(struct xvp *xvp)
 	int ret = request_firmware(&xvp->faceid_fw, "network_coeff_fd_p.bin", xvp->dev);
 
 	if (ret < 0){
-		printk("yzl request fd p weights fail\n");
+		pr_info("yzl request fd p weights fail\n");
 		return ret;
 	}
 
@@ -175,7 +180,7 @@ int sprd_faceid_request_weights_fd_p(struct xvp *xvp)
 	memcpy((void*)dst , xvp->faceid_fw->data, xvp->faceid_fw->size);
 
 	release_firmware(xvp->faceid_fw);
-	printk("yzl request fd p weights done\n");
+	pr_info("yzl request fd p weights done\n");
 	return ret;
 }
 int sprd_faceid_request_weights_fd_r(struct xvp *xvp)
@@ -184,7 +189,7 @@ int sprd_faceid_request_weights_fd_r(struct xvp *xvp)
 	int ret = request_firmware(&xvp->faceid_fw, "network_coeff_fd_r.bin", xvp->dev);
 
 	if (ret < 0){
-		printk("yzl request fd r weights fail\n");
+		pr_info("yzl request fd r weights fail\n");
 		return ret;
 	}
 
@@ -196,7 +201,7 @@ int sprd_faceid_request_weights_fd_r(struct xvp *xvp)
 	memcpy((void*)dst, xvp->faceid_fw->data, xvp->faceid_fw->size);
 
 	release_firmware(xvp->faceid_fw);
-	printk("yzl request fd r weights done\n");
+	pr_info("yzl request fd r weights done\n");
 
 	return ret;
 }
@@ -206,7 +211,7 @@ int sprd_faceid_request_weights_fd_o(struct xvp *xvp)
 	int ret = request_firmware(&xvp->faceid_fw, "network_coeff_fd_o.bin", xvp->dev);
 
 	if (ret < 0){
-		printk("yzl request fd o weights fail\n");
+		pr_info("yzl request fd o weights fail\n");
 		return ret;
 	}
 
@@ -218,7 +223,7 @@ int sprd_faceid_request_weights_fd_o(struct xvp *xvp)
 	memcpy((void*)dst, xvp->faceid_fw->data, xvp->faceid_fw->size);
 
 	release_firmware(xvp->faceid_fw);
-	printk("yzl request fd o weights done\n");
+	pr_info("yzl request fd o weights done\n");
 
 	return ret;
 }
@@ -229,7 +234,7 @@ int sprd_faceid_request_weights_fp(struct xvp *xvp)
 	int ret = request_firmware(&xvp->faceid_fw, "network_coeff_fp.bin", xvp->dev);
 
 	if (ret < 0){
-		printk("yzl request fp weights fail\n");
+		pr_info("yzl request fp weights fail\n");
 		return ret;
 	}
 
@@ -241,7 +246,7 @@ int sprd_faceid_request_weights_fp(struct xvp *xvp)
 	memcpy((void*)dst, xvp->faceid_fw->data, xvp->faceid_fw->size);
 
 	release_firmware(xvp->faceid_fw);
-	printk("yzl request fp weights done\n");
+	pr_info("yzl request fp weights done\n");
 
 	return ret;
 }
@@ -251,7 +256,7 @@ int sprd_faceid_request_weights_flv(struct xvp *xvp)
 	int ret = request_firmware(&xvp->faceid_fw, "network_coeff_flv.bin", xvp->dev);
 
 	if (ret < 0){
-		printk("yzl request flv weights fail\n");
+		pr_info("yzl request flv weights fail\n");
 		return ret;
 	}
 
@@ -263,7 +268,7 @@ int sprd_faceid_request_weights_flv(struct xvp *xvp)
 	memcpy((void*)dst, xvp->faceid_fw->data, xvp->faceid_fw->size);
 
 	release_firmware(xvp->faceid_fw);
-	printk("yzl request flv weights done\n");
+	pr_info("yzl request flv weights done\n");
 
 	return ret;
 }
@@ -273,7 +278,7 @@ int sprd_faceid_request_weights_fv(struct xvp *xvp)
 	int ret = request_firmware(&xvp->faceid_fw, "network_coeff_fv.bin", xvp->dev);
 
 	if (ret < 0){
-		printk("yzl request fv weights fail\n");
+		pr_info("yzl request fv weights fail\n");
 		return ret;
 	}
 
@@ -285,7 +290,7 @@ int sprd_faceid_request_weights_fv(struct xvp *xvp)
 	memcpy((void*)dst, xvp->faceid_fw->data, xvp->faceid_fw->size);
 	
 	release_firmware(xvp->faceid_fw);
-	printk("yzl request fv weights done\n");
+	pr_info("yzl request fv weights done\n");
 
 	return ret;
 }
