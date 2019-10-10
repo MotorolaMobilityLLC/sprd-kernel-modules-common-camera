@@ -349,17 +349,6 @@ static int dcamio_set_output_size(struct camera_file *camerafile,
 	 */
 	ISP_SET_MID((((struct isp_pipe_dev *)
 		     (group->dev[idx]->isp_dev_handle))->com_idx), mid);
-
-
-	/*
-	 * Get isp hdr cap mode from the reserved[3] item of
-	 * struct sprd_img_param,
-	 */
-	if (parm.reserved[3] & 0x01)
-		info->is_hdr = 1;
-	else
-		info->is_hdr = 0;
-
 exit:
 	return ret;
 }

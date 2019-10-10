@@ -1552,8 +1552,10 @@ int sprd_isp_start_pipeline_full(void *handle, unsigned int cap_flag)
 				goto err_exit;
 		}
 
-		if (cap_flag == DCAM_CAPTURE_START_HDR && dev->is_hdr) {
-			dev->cap_flag = DCAM_CAPTURE_START_HDR;
+		if (cap_flag == DCAM_CAPTURE_START_FROM_NEXT_SOF) {
+			dev->is_hdr = 1;
+			dev->frm_cnt_hdr = ISP_HDR_FRM_NUM;
+			pr_debug("hdr capture\n");
 
 			/*
 			 * start_capture may come during sof and tx_done,
@@ -1602,7 +1604,7 @@ int sprd_isp_start_pipeline_full(void *handle, unsigned int cap_flag)
 	 * 2, 3dnr no need to set max_zsl_num to 5, if not necessary
 	 *    to be continuous frames.
 	 */
-	if (dev->cap_flag == DCAM_CAPTURE_START_HDR)
+	if (dev->is_hdr)
 		max_zsl_num = ISP_HDR_FRM_NUM;
 	else
 		max_zsl_num = consumer_q_size;
@@ -1676,6 +1678,16 @@ int sprd_isp_start_pipeline_full(void *handle, unsigned int cap_flag)
 		} else {
 			pr_debug("dev->frm_cnt_3dnr%d\n", dev->frm_cnt_3dnr);
 			dev->frm_cnt_3dnr--;
+		}
+	}
+
+	if (dev->is_hdr) {
+		if (dev->frm_cnt_hdr == 0) {
+			pr_debug("frm_cnt_hdr is zero, no need of capture\n");
+			goto normal_exit;
+		} else {
+			pr_debug("dev->frm_cnt_hdr %d\n", dev->frm_cnt_hdr);
+			dev->frm_cnt_hdr--;
 		}
 	}
 
@@ -2097,6 +2109,12 @@ int sprd_isp_force_stop_pipeline(void *handle)
 		dev->is_3dnr = 0;
 		dev->frm_cnt_3dnr = 0;
 		dev->module_info.isp_path[ISP_SCL_VID].valid = 0;
+	}
+
+	if (dev->is_hdr) {
+		pr_debug("disabling hdr\n");
+		dev->is_hdr = 0;
+		dev->frm_cnt_hdr = 0;
 	}
 
 	return ret;

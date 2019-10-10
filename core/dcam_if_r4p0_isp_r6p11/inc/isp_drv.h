@@ -857,6 +857,7 @@ struct isp_pipe_dev {
 	/* set this flag when isp waiting for dcam full path tx done */
 	enum isp_wait_full_tx_done_state wait_full_tx_done;
 	unsigned int frm_cnt_3dnr;
+	unsigned int frm_cnt_hdr;
 	struct camera_group *cam_grp;
 	spinlock_t pre_lock;
 	spinlock_t cap_lock;

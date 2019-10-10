@@ -1104,7 +1104,10 @@ int isp_buf_recycle(struct offline_buf_desc *buf_desc,
 			ret = -EPERM;
 			break;
 		}
+
 		buf_desc->output_frame_count++;
+		pr_debug("recyled frame id %d, buf frm cnt:%d\n",
+                 frame.fid, buf_desc->output_frame_count);
 	}
 
 	return ret;
