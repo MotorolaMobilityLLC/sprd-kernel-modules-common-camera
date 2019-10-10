@@ -234,6 +234,7 @@ int dcam_k_afm_skipnum(struct dcam_dev_param *param)
 	int ret = 0;
 	uint32_t idx = 0;
 	uint32_t skip_num = 0;
+	uint32_t last_skip_num = 0;
 
 	if (param == NULL)
 		return -1;
@@ -245,6 +246,11 @@ int dcam_k_afm_skipnum(struct dcam_dev_param *param)
 	param->afm.update &= (~(_UPDATE_SKIP));
 
 	skip_num = param->afm.skip_num;
+	last_skip_num = DCAM_REG_RD(idx, ISP_AFM_FRM_CTRL);
+	last_skip_num = (last_skip_num >> 4) & 0xF;
+	pr_debug("set_skip_num=%d,last=%d",skip_num,last_skip_num);
+	if (last_skip_num == skip_num)
+		return 0;
 
 	pr_info("DCAM%u AFM set skip_num %u\n", idx, skip_num);
 
