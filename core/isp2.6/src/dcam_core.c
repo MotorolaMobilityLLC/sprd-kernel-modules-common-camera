@@ -1324,11 +1324,6 @@ static int dcam_offline_start_slices(void *param)
 		(fetch_pitch << 16) | (fetch->trim.start_x & 0xffff));
 
 	dev->slice_no = 1;
-	/* cfg slice right */
-	reg_val = DCAM_REG_RD(dev->idx, DCAM_BIN_BASE_WADDR0);
-	DCAM_REG_WR(dev->idx, DCAM_BIN_BASE_WADDR0, reg_val + fetch_pitch*128/8/2);
-	DCAM_AXIM_WR(IMG_FETCH_X,
-		(fetch_pitch << 16) | ((fetch->trim.start_x + fetch->trim.size_x/2) & 0x1fff));
 
 	dcam_init_lsc(dev, 0);
 	/* DCAM_CTRL_COEF will always set in dcam_init_lsc() */
@@ -1347,9 +1342,9 @@ static int dcam_offline_start_slices(void *param)
 			&dev->offline_complete) == 0) {
 			dev->offline = 1;
 			reg_val = DCAM_REG_RD(dev->idx, DCAM_BIN_BASE_WADDR0);
-			DCAM_REG_WR(dev->idx, DCAM_BIN_BASE_WADDR0, reg_val - fetch_pitch*128/8/2);
+			DCAM_REG_WR(dev->idx, DCAM_BIN_BASE_WADDR0, reg_val + fetch_pitch*128/8/2);
 			DCAM_AXIM_WR(IMG_FETCH_X,
-				(fetch_pitch << 16) | ((fetch->trim.start_x) & 0x1fff));
+				(fetch_pitch << 16) | ((fetch->trim.start_x + fetch->trim.size_x/2) & 0x1fff));
 			DCAM_REG_MWR(dev->idx,
 				DCAM_MIPI_CAP_CFG, BIT_30, 0x0 << 30);
 			//
@@ -2252,7 +2247,7 @@ static int sprd_dcam_cfg_param(void *dcam_handle, void *param)
 		goto exit;
 	}
 
-	if (dev->dcam_slice_mode && dev->slice_no)
+	if (dev->dcam_slice_mode && dev->slice_no && (io_param->sub_block != DCAM_BLOCK_LSC))
 		return 0;
 
 	ret = cfg_fun_ptr(io_param, pm);
