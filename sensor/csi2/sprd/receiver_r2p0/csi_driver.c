@@ -791,9 +791,7 @@ void csi_controller_enable(struct csi_dt_node_info *dt_info, int32_t idx)
 			cphy_sel_val = 2;
 			if ((dt_info->controller_id == CSI_RX1) &&
 				((val & 0x7) == 2))
-				regmap_write(phy->cam_ahb_syscon,
-					REG_MM_AHB_MIPI_CSI2_CTRL,
-					(val & (~(0x7))) | 0x7);
+				val = (val & (~(0x7))) | 0x7;
 			break;
 		}
 		case PHY_2LANE: {
@@ -823,18 +821,14 @@ void csi_controller_enable(struct csi_dt_node_info *dt_info, int32_t idx)
 		}
 		case PHY_2P2_S: {
 			cphy_sel_val = 1;
-			if ((val & 0x70) >> 4 == 3)
-				regmap_write(phy->cam_ahb_syscon,
-					REG_MM_AHB_MIPI_CSI2_CTRL,
-					(val & (~(0x7<<4))) | (0x1<<4));
+			if (((val & 0x70) >> 4) == 3)
+				val = (val & (~(0x7<<4))) | (0x1<<4);
 			break;
 		}
 		case PHY_2P2_M: {
 			cphy_sel_val = 2;
-			if ((val & 0x70) >> 4 == 3)
-				regmap_write(phy->cam_ahb_syscon,
-					REG_MM_AHB_MIPI_CSI2_CTRL,
-					(val & (~(0x7<<4))) | (0x0<<4));
+			if (((val & 0x70) >> 4) == 3)
+				val = (val & (~(0x7<<4))) | (0x0<<4);
 			break;
 		}
 		default:
