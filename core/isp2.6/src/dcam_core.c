@@ -1323,7 +1323,7 @@ static int dcam_offline_start_slices(void *param)
 	DCAM_AXIM_WR(IMG_FETCH_X,
 		(fetch_pitch << 16) | (fetch->trim.start_x & 0xffff));
 
-	dev->slice_no = 1;
+	atomic_set(&dev->slice_no, 1);
 
 	dcam_init_lsc(dev, 0);
 	/* DCAM_CTRL_COEF will always set in dcam_init_lsc() */
@@ -2119,7 +2119,7 @@ static int sprd_dcam_proc_frame(
 	pframe = (struct camera_frame *)param;
 	pframe->priv_data = dev;
 
-	if(dev->slice_no != 0)
+	if(atomic_read(&dev->slice_no) != 0)
 		return -EFAULT;
 
 	ret = camera_enqueue(&dev->in_queue, pframe);
@@ -2156,7 +2156,7 @@ static int sprd_dcam_ioctrl(void *dcam_handle,
 		memcpy(cap, param, sizeof(struct dcam_mipi_info));
 		dev->is_4in1 = cap->is_4in1;
 		dev->dcam_slice_mode = cap->dcam_slice_mode;
-		dev->slice_no = 0;
+		atomic_set(&dev->slice_no, 0);
 		break;
 	case DCAM_IOCTL_CFG_STATIS_BUF:
 		ret = dcam_cfg_statis_buffer(dev, param);
@@ -2247,7 +2247,7 @@ static int sprd_dcam_cfg_param(void *dcam_handle, void *param)
 		goto exit;
 	}
 
-	if (dev->dcam_slice_mode && dev->slice_no && (io_param->sub_block != DCAM_BLOCK_LSC))
+	if (dev->dcam_slice_mode && atomic_read(&dev->slice_no) && (io_param->sub_block != DCAM_BLOCK_LSC))
 		return 0;
 
 	ret = cfg_fun_ptr(io_param, pm);

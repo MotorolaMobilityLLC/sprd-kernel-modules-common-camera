@@ -607,15 +607,15 @@ static void dcam_bin_path_done(void *param)
 
 	if ((dev->idx == DCAM_ID_1 || (dev->idx == DCAM_ID_0 && dev->raw_cap))
 		&& dev->dcam_slice_mode == 1) {
-		if (dev->slice_no == 1) {
-			dev->slice_no = 2;
+		if (atomic_read(&dev->slice_no) == 1) {
+			atomic_set(&dev->slice_no, 2);
 			pr_info("offline_slice0_done\n");
 			complete(&dev->offline_complete);
 			return;
 		}
 		else {
 			pr_info("offline_slice1_done\n");
-			dev->slice_no = 0;
+			atomic_set(&dev->slice_no, 0);
 		}
 	}
 

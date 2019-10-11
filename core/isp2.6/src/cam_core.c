@@ -1010,16 +1010,26 @@ static struct camera_frame *deal_bigsize_frame(struct camera_module *module,
 		return pframe;
 	}
 	/* dcam0 full tx done, frame send to dcam1 or drop */
-	pr_info("raw frame[%d] fd %d, size[%d %d], 0x%x, channel_id %d, catpure_cnt = %d\n",
+	pr_info("raw frame[%d] fd %d, size[%d %d], 0x%x, channel_id %d, catpure_cnt = %d, time %lld\n",
 			pframe->fid, pframe->buf.mfd[0], pframe->width,
-			pframe->height, (uint32_t)pframe->buf.addr_vir[0], pframe->channel_id,atomic_read(&module->capture_frames_dcam));
+			pframe->height, (uint32_t)pframe->buf.addr_vir[0], pframe->channel_id,
+			atomic_read(&module->capture_frames_dcam), pframe->boot_sensor_time);
 
 	if (pframe->fid > 0) {
-		ret = dcam_ops->proc_frame(module->aux_dcam_dev, pframe);
-		if(ret == 0)
-			return NULL;
+		if (module->dcam_cap_status == DCAM_CAPTURE_START_FROM_NEXT_SOF
+			&& (module->capture_times < pframe->boot_sensor_time)
+			&& atomic_read(&module->capture_frames_dcam) > 0) {
+			ret = dcam_ops->proc_frame(module->aux_dcam_dev, pframe);
+			if(ret == 0)
+				return NULL;
+		} else if (module->dcam_cap_status != DCAM_CAPTURE_START_FROM_NEXT_SOF){
+			ret = dcam_ops->proc_frame(module->aux_dcam_dev, pframe);
+			if(ret == 0)
+				return NULL;
+		}
 	}
 	/* set buffer back to dcam0 full path, to out_buf_queue */
+	pr_debug("drop frame[%d]\n", pframe->fid);
 	channel = &module->channel[pframe->channel_id];
 	ret = dcam_ops->cfg_path(
 		module->dcam_dev_handle,
