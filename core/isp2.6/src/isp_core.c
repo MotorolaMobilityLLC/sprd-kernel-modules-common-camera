@@ -1284,6 +1284,7 @@ int isp_get_hw_context_id(struct isp_pipe_context *pctx)
 			break;
 		}
 	}
+	pr_info("get hw %d\n", hw_ctx_id);
 
 	return hw_ctx_id;
 }
@@ -1298,10 +1299,12 @@ int isp_get_sw_context_id(enum isp_context_hw_id hw_ctx_id, struct isp_pipe_dev 
 		sw_id = pctx_hw->sw_ctx_id;
 		if (sw_id >= ISP_CONTEXT_P0 &&
 			sw_id < ISP_CONTEXT_SW_NUM &&
-			pctx_hw->pctx == &dev->ctx[sw_id])
-			return sw_id;
+			pctx_hw->pctx == &dev->ctx[sw_id]) {
+				pr_debug("get sw %d\n", sw_id);
+				return sw_id;
+			}
 	}
-
+	pr_err("get sw fail\n");
 	return -1;
 }
 
@@ -1360,7 +1363,7 @@ exit:
 
 	pctx_hw->pctx = pctx;
 	pctx_hw->sw_ctx_id = pctx->ctx_id;
-	pr_debug("sw_ctx_id=%d, hw_ctx_id=%d %d, fmcu_need %d ptr 0x%lx\n",
+	pr_debug("sw %d, hw %d %d, fmcu_need %d ptr 0x%lx\n",
 		pctx->ctx_id, hw_ctx_id, pctx_hw->hw_ctx_id,
 		fmcu_need, (unsigned long)pctx_hw->fmcu_handle);
 
@@ -1432,6 +1435,7 @@ static int isp_slice_needed(struct isp_pipe_context *pctx)
 static int isp_offline_start_frame(void *ctx)
 {
 	int ret = 0;
+	int valid_out_frame = -1;
 	int i = 0, loop = 0, kick_fmcu = 0, slc_by_ap = 0;
 	int hw_ctx_id = -1;
 	uint32_t use_fmcu = 0, multi_slice = 0;
@@ -1447,7 +1451,7 @@ static int isp_offline_start_frame(void *ctx)
 	struct isp_offline_param *in_param;
 
 	pctx = (struct isp_pipe_context *)ctx;
-	pr_debug("enter sw ctx id=%d, user_cnt=%d, ch_id=%d, cam_id=%d\n",
+	pr_debug("enter sw id %d, user_cnt=%d, ch_id=%d, cam_id=%d\n",
 		pctx->ctx_id, atomic_read(&pctx->user_cnt),
 		pctx->ch_id, pctx->attach_cam_id);
 
@@ -1570,6 +1574,7 @@ static int isp_offline_start_frame(void *ctx)
 
 		if ((pctx->mode_3dnr == MODE_3DNR_CAP) &&
 		    (pctx->nr3_ctx.blending_cnt % 5 != 4)) {
+			valid_out_frame = 1;
 			out_frame = camera_dequeue(&path->reserved_buf_queue);
 			pr_debug("3dnr frame [0 ~ 3], discard cnt[%d][%d]\n",
 				 pctx->nr3_ctx.blending_cnt,
@@ -1585,9 +1590,11 @@ static int isp_offline_start_frame(void *ctx)
 				out_frame =
 					camera_dequeue(&path->out_buf_queue);
 
-			if (out_frame == NULL)
+			if (out_frame)
+				valid_out_frame = 1;
+			else
 				out_frame =
-				camera_dequeue(&path->reserved_buf_queue);
+					camera_dequeue(&path->reserved_buf_queue);
 		}
 
 		if (out_frame == NULL) {
@@ -1654,6 +1661,12 @@ static int isp_offline_start_frame(void *ctx)
 			goto unlock;
 		}
 		atomic_inc(&path->store_cnt);
+	}
+
+	if (valid_out_frame == -1) {
+		pr_info(" No available output buffer sw %d, hw %d,discard\n",
+			pctx_hw->sw_ctx_id, pctx_hw->hw_ctx_id);
+		goto unlock;
 	}
 
 	isp_ltm_process_frame_previous(pctx, pframe);
@@ -2214,9 +2227,10 @@ static int sprd_isp_proc_frame(void *isp_handle,
 	pframe = (struct camera_frame *)param;
 	pframe->priv_data = pctx;
 
-	pr_debug("cam%d  ctx %d, fid %d, ch_id %d, buf  %d, 3dnr %d\n",
+	pr_debug("cam%d  ctx %d, fid %d, ch_id %d, buf  %d, 3dnr %d , w %d, h %d\n",
 		pctx->attach_cam_id, ctx_id, pframe->fid,
-		pframe->channel_id, pframe->buf.mfd[0], pctx->mode_3dnr);
+		pframe->channel_id, pframe->buf.mfd[0], pctx->mode_3dnr,
+		pframe->width, pframe->height);
 
 	ret = camera_enqueue(&pctx->in_queue, pframe);
 	if (ret == 0) {

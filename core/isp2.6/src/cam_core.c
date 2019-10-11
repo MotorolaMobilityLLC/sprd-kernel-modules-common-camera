@@ -2618,7 +2618,8 @@ static int capture_proc(void *param)
 
 	ret = -1;
 	if (module->cap_status != CAM_CAPTURE_STOP) {
-		pr_info("capture frame fid[%d]\n", pframe->fid);
+		pr_info("capture frame fid[%d],  frame w %d, h %d\n",
+			pframe->fid, pframe->width, pframe->height);
 		ret = isp_ops->proc_frame(module->isp_dev_handle, pframe,
 			channel->isp_path_id >> ISP_CTXID_OFFSET);
 	}

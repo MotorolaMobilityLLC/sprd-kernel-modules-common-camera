@@ -287,7 +287,7 @@ static void isp_fmcu_store_done(enum isp_context_hw_id hw_idx, void *isp_handle)
 
 	pctx = &dev->ctx[idx];
 
-	pr_debug("fmcu done cxt_id:%d ch_id[%d]\n", idx, pctx->ch_id);
+	pr_debug("fmcu done sw:%d , ch_id[%d]\n", idx, pctx->ch_id);
 	isp_frame_done(idx, dev);
 
 	if (pctx->enable_slowmotion == 1) {
@@ -315,12 +315,12 @@ static void isp_fmcu_shadow_done(enum isp_context_hw_id hw_idx, void *isp_handle
 		return;
 	}
 
-	pr_debug("cxt_id:%d done.\n", idx);
+	pr_debug("sw:%d done.\n", idx);
 }
 
 static void isp_fmcu_load_done(enum isp_context_hw_id idx, void *isp_handle)
 {
-	pr_debug("cxt_id:%d done.\n", idx);
+	pr_debug("sw:%d done.\n", idx);
 }
 
 static void isp_3dnr_all_done(enum isp_context_hw_id hw_idx, void *isp_handle)
@@ -338,7 +338,7 @@ static void isp_3dnr_all_done(enum isp_context_hw_id hw_idx, void *isp_handle)
 
 	pctx = &dev->ctx[idx];
 
-	pr_debug("3dnr all done. cxt_id:%d\n", idx);
+	pr_debug("3dnr all done. sw:%d\n", idx);
 }
 
 static void isp_3dnr_shadow_done(enum isp_context_hw_id hw_idx, void *isp_handle)
@@ -356,7 +356,7 @@ static void isp_3dnr_shadow_done(enum isp_context_hw_id hw_idx, void *isp_handle
 
 	pctx = &dev->ctx[idx];
 
-	pr_debug("3dnr shadow done. cxt_id:%d\n", idx);
+	pr_debug("3dnr shadow done. sw:%d\n", idx);
 
 }
 
@@ -615,8 +615,8 @@ static irqreturn_t isp_isr_root(int irq, void *priv)
 		}
 
 		sw_ctx_id = isp_get_sw_context_id(c_id, isp_handle);
-		pr_debug("hw_cid: %d,  sw_ctx_id =%d, irq_line: %08x\n",
-			c_id, sw_ctx_id,  irq_line);
+		pr_debug("sw %d, hw %d, irq_line: %08x\n",
+			sw_ctx_id, c_id, irq_line);
 
 		if (sw_ctx_id < 0) {
 			ISP_HREG_WR(irq_offset + ISP_INT_CLR0, irq_line);
