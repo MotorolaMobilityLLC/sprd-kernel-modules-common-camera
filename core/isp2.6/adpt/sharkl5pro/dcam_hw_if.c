@@ -178,7 +178,6 @@ void dcam_force_copy(struct dcam_pipe_dev *dev, uint32_t id)
 	const uint32_t bitmap[] = {
 		BIT_0, BIT_4, BIT_6, BIT_8, BIT_10, BIT_12, BIT_14, BIT_16
 	};
-	const uint32_t bitmap2 = BIT_4;
 	uint32_t mask = 0, j;
 	unsigned long flags = 0;
 
@@ -192,9 +191,12 @@ void dcam_force_copy(struct dcam_pipe_dev *dev, uint32_t id)
 			if (id & (1 << j))
 				mask |= bitmap[j];
 		}
-	} else if (id && DCAM_CTRL_CAP) {
-		mask = bitmap2;
+	} else {
+		mask = 0;
+		pr_err("DCAM%u: fail to get dev idx 0x%x exceed DCAM_ID_MAX\n",
+			dev->idx);
 	}
+
 	pr_debug("DCAM%u: force copy 0x%0x, id 0x%x\n", dev->idx, mask, id);
 	if (mask == 0)
 		return;
