@@ -1066,9 +1066,7 @@ int sprd_scale_drv_capability_get(struct sprd_cpp_scale_capability *scale_param)
 		scale_param->src_size.w < SCALE_FRAME_WIDTH_MIN ||
 		scale_param->src_size.h < SCALE_FRAME_HEIGHT_MIN ||
 		scale_param->dst_size.w < SCALE_FRAME_WIDTH_MIN ||
-		scale_param->dst_size.h < SCALE_FRAME_HEIGHT_MIN ||
-		scale_param->dst_bp_size.w < BP_TRIM_SIZE_MIN ||
-		scale_param->dst_bp_size.h < BP_TRIM_SIZE_MIN) {
+		scale_param->dst_size.h < SCALE_FRAME_HEIGHT_MIN) {
 		return -1;
 	}
 
@@ -1086,16 +1084,7 @@ int sprd_scale_drv_capability_get(struct sprd_cpp_scale_capability *scale_param)
 		&& (MOD(scale_param->dst_size.h, 2) != 0))
 		return -1;
 
-	if (MOD2(scale_param->dst_bp_size.w) != 0)
-		return -1;
-
-	if ((scale_param->dst_format == SCALE_YUV420)
-		&& (MOD(scale_param->dst_bp_size.h, 4) != 0))
-		return -1;
-
-	if ((scale_param->dst_format == SCALE_YUV422)
-		&& (MOD(scale_param->dst_bp_size.h, 2) != 0))
-		return -1;
+	scale_param->is_supported = 1;
 
 	return 0;
 }
