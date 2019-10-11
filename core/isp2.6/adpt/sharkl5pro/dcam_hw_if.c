@@ -209,7 +209,6 @@ void dcam_auto_copy(struct dcam_pipe_dev *dev, uint32_t id)
 	const uint32_t bitmap[] = {
 		BIT_1, BIT_5, BIT_7, BIT_9, BIT_11, BIT_13, BIT_15, BIT_17
 	};
-	const uint32_t bitmap2 = BIT_5;
 	uint32_t mask = 0, j;
 	unsigned long flags = 0;
 
@@ -222,8 +221,10 @@ void dcam_auto_copy(struct dcam_pipe_dev *dev, uint32_t id)
 			if (id & (1 << j))
 				mask |= bitmap[j];
 		}
-	} else if (id && DCAM_CTRL_CAP) {
-		mask = bitmap2;
+	} else {
+		mask = 0;
+		pr_err("DCAM%u: fail to get dev idx 0x%x exceed DCAM_ID_MAX\n",
+			dev->idx);
 	}
 
 	pr_debug("DCAM%u: auto copy 0x%0x, id 0x%x\n", dev->idx, mask, id);
