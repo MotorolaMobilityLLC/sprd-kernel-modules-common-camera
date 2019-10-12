@@ -26,15 +26,18 @@
 #endif
 #define pr_fmt(fmt) "NLM: %d %d %s : "\
 	fmt, current->pid, __LINE__, __func__
+#define ISP_VST_IVST_BUF_ADDR_IDX		1024
 
 
 static int load_vst_ivst_buf(
-	struct isp_dev_nlm_info_v2 *nlm_info, uint32_t idx)
+	struct isp_dev_nlm_info_v2 *nlm_info, uint32_t idx, uint32_t *vst_ivst_buf)
 {
 	int ret = 0;
 	uint32_t buf_len;
 	uint32_t buf_sel;
-	unsigned long reg_addr;
+	uint32_t val;
+	unsigned int i = 0;
+	unsigned int j = 0;
 	unsigned long utab_addr;
 	void __user *vst_table;
 	void __user *ivst_table;
@@ -50,12 +53,29 @@ static int load_vst_ivst_buf(
 
 		utab_addr = (unsigned long)nlm_info->vst_table_addr;
 		pr_debug("vst table addr 0x%lx\n", utab_addr);
-
 		vst_table = (void __user *)utab_addr;
-		reg_addr = ISP_BASE_ADDR(idx) + ISP_VST_BUF0_ADDR;
-		ret = copy_from_user((void *)reg_addr, vst_table, buf_len);
-	}
+		ret = copy_from_user((void *)vst_ivst_buf, vst_table, buf_len);
 
+		/*recombine the vst/ivst table as requires of l5pro's vst/ivst module*/
+		for(i = 0; i < ISP_VST_IVST_BUF_ADDR_IDX - 2; i++){
+			for(j = 0; j < 2; j++){
+				val = ((vst_ivst_buf[i + 2 * j] & 0x3fff) << 16) | (vst_ivst_buf[i + 2 * j + 1] & 0x3fff);
+				ISP_REG_WR(idx, ISP_VST_BUF0_ADDR + (2 * i + j) * 4, val);
+			}
+		}
+
+		val = ((vst_ivst_buf[1022] & 0x3fff) << 16) | (vst_ivst_buf[1023] & 0x3fff);
+		ISP_REG_WR(idx, ISP_VST_BUF0_ADDR + 2 * 1022 * 4, val);
+
+		val = ((vst_ivst_buf[1024] & 0x3fff) << 16) | (vst_ivst_buf[1024] & 0x3fff);
+		ISP_REG_WR(idx, ISP_VST_BUF0_ADDR + ( 2 * 1022 + 1) * 4, val);
+
+		val = ((vst_ivst_buf[1023] & 0x3fff) << 16) | (vst_ivst_buf[1024] & 0x3fff);
+		ISP_REG_WR(idx, ISP_VST_BUF0_ADDR + 2 * 1023 * 4, val);
+
+		val = ((vst_ivst_buf[1024] & 0x3fff) << 16) | (vst_ivst_buf[1024] & 0x3fff);
+		ISP_REG_WR(idx, ISP_VST_BUF0_ADDR + (2 * 1023 + 1) * 4, val);
+	}
 	if (nlm_info->ivst_bypass == 0 && nlm_info->ivst_table_addr) {
 		buf_len = ISP_VST_IVST_NUM2 * 4;
 		if (nlm_info->ivst_len < (ISP_VST_IVST_NUM2 * 4))
@@ -63,12 +83,29 @@ static int load_vst_ivst_buf(
 
 		utab_addr = (unsigned long)nlm_info->ivst_table_addr;
 		pr_debug("ivst table addr 0x%lx\n", utab_addr);
-
 		ivst_table = (void __user *)utab_addr;
-		reg_addr = ISP_BASE_ADDR(idx) + ISP_IVST_BUF0_ADDR;
-		ret = copy_from_user((void *)reg_addr, ivst_table, buf_len);
-	}
+		ret = copy_from_user((void *)vst_ivst_buf, ivst_table, buf_len);
 
+		/*recombine the vst/ivst table as requires of l5pro's vst/ivst module*/
+		for(i = 0; i < ISP_VST_IVST_BUF_ADDR_IDX - 2; i++){
+			for(j = 0; j < 2; j++){
+				val = ((vst_ivst_buf[i + 2 * j] & 0x3fff) << 16) | (vst_ivst_buf[i + 2 * j + 1] & 0x3fff);
+				ISP_REG_WR(idx, ISP_IVST_BUF0_ADDR + (2 * i + j) * 4, val);
+			}
+		}
+
+		val = ((vst_ivst_buf[1022] & 0x3fff) << 16) | (vst_ivst_buf[1023] & 0x3fff);
+		ISP_REG_WR(idx, ISP_IVST_BUF0_ADDR + 2 * 1022 * 4, val);
+
+		val = ((vst_ivst_buf[1024] & 0x3fff) << 16) | (vst_ivst_buf[1024] & 0x3fff);
+		ISP_REG_WR(idx, ISP_IVST_BUF0_ADDR + (2 * 1022 + 1) * 4, val);
+
+		val = ((vst_ivst_buf[1023] & 0x3fff) << 16) | (vst_ivst_buf[1024] & 0x3fff);
+		ISP_REG_WR(idx, ISP_IVST_BUF0_ADDR + 2 * 1023 * 4, val);
+
+		val = ((vst_ivst_buf[1024] & 0x3fff) << 16) | (vst_ivst_buf[1024] & 0x3fff);
+		ISP_REG_WR(idx, ISP_IVST_BUF0_ADDR + ( 2 * 1023 + 1) * 4, val);
+	}
 	return ret;
 }
 
@@ -77,6 +114,7 @@ static int isp_k_nlm_block(struct isp_io_param *param,
 {
 	int ret = 0;
 	uint32_t i, j, val = 0;
+	uint32_t *vst_ivst_buf;
 	struct isp_dev_nlm_info_v2 *p;
 
 	p = &isp_k_param->nlm_info;
@@ -207,7 +245,8 @@ static int isp_k_nlm_block(struct isp_io_param *param,
 		}
 	}
 
-	ret = load_vst_ivst_buf(p, idx);
+	vst_ivst_buf = isp_k_param->nlm_buf;
+	ret = load_vst_ivst_buf(p, idx, vst_ivst_buf);
 	return ret;
 }
 

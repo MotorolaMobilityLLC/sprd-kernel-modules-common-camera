@@ -2305,6 +2305,11 @@ static int sprd_isp_get_context(void *isp_handle, void *param)
 	pr_info("cam%d enable ISP slowmotion %d\n",
 		pctx->attach_cam_id, pctx->enable_slowmotion);
 
+	pctx->isp_k_param.nlm_buf =
+		kzalloc(sizeof(uint32_t) * ISP_VST_IVST_NUM2, GFP_ATOMIC);
+	if (pctx->isp_k_param.nlm_buf == NULL){
+		return -ENOMEM;
+	}
 	ret = isp_create_offline_thread(pctx);
 	if (unlikely(ret != 0)) {
 		pr_err("fail to create offline thread for isp cxt:%d\n",
@@ -2376,6 +2381,11 @@ static int sprd_isp_put_context(void *isp_handle, int ctx_id)
 
 	dev = (struct isp_pipe_dev *)isp_handle;
 	pctx = &dev->ctx[ctx_id];
+
+	if (pctx->isp_k_param.nlm_buf) {
+		kfree(pctx->isp_k_param.nlm_buf);
+		pctx->isp_k_param.nlm_buf = NULL;
+	}
 
 	mutex_lock(&dev->path_mutex);
 

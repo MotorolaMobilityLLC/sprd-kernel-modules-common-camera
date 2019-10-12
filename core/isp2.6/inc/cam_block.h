@@ -25,6 +25,7 @@ struct isp_k_block {
 	struct isp_dev_3dnr_info nr3_info;
 	uint32_t seed0_for_mode1;
 	uint32_t shape_mode;
+	uint32_t *nlm_buf;
 };
 
 int dcam_init_lsc_slice(void *param, uint32_t online);
