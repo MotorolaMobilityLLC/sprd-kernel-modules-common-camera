@@ -480,11 +480,32 @@ exit:
 	return ret;
 }
 
+void sprd_isp_buffer_deinit(void *isp_handle)
+{
+	struct isp_pipe_dev *dev = NULL;
+	struct isp_module *module = NULL;
+	struct isp_path_desc *path = NULL;
+	unsigned int i = 0;
+
+	if (!isp_handle)
+		return;
+
+	dev = (struct isp_pipe_dev *)isp_handle;
+	module = &dev->module_info;
+
+	for (i = ISP_SCL_PRE; i <= ISP_SCL_CAP; i++){
+		path = &module->isp_path[i];
+		isp_buf_queue_init(&path->buf_queue);
+	}
+}
+
 static int sprd_img_local_deinit(struct camera_dev *dev)
 {
 	int ret = 0;
 	int i;
 	struct camera_path_spec *path;
+
+	sprd_isp_buffer_deinit(dev->isp_dev_handle);
 
 	for (i = 0; i < CAMERA_MAX_PATH; i++) {
 		path = &dev->dcam_cxt.dcam_path[i];
