@@ -755,9 +755,6 @@ static void dcam_nr3_done(void *param)
 	struct dcam_frame_synchronizer *sync = NULL;
 	uint32_t p = 0, out0 = 0, out1 = 0;
 
-	if (unlikely(dev->idx == DCAM_ID_2))
-		return;
-
 	p = DCAM_REG_RD(dev->idx, NR3_FAST_ME_PARAM);
 	out0 = DCAM_REG_RD(dev->idx, NR3_FAST_ME_OUT0);
 	out1 = DCAM_REG_RD(dev->idx, NR3_FAST_ME_OUT1);
@@ -765,7 +762,7 @@ static void dcam_nr3_done(void *param)
 	if ((frame = dcam_prepare_frame(dev, DCAM_PATH_3DNR))) {
 		sync = (struct dcam_frame_synchronizer *)frame->sync_data;
 		if (unlikely(!sync)) {
-			pr_warn("sync not found\n");
+			pr_warn("DCAM%u 3DNR sync not found\n", dev->idx);
 		} else {
 			sync->nr3_me.sub_me_bypass = (p >> 8) & 0x1;
 			sync->nr3_me.project_mode = (p >> 4) & 0x1;

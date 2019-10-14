@@ -59,6 +59,8 @@ struct compat_sensor_muti_aec_i2c_tag {
 	uint16_t msize;
 	compat_caddr_t slave_i2c_tab;
 	uint16_t ssize;
+	compat_caddr_t slave_i2c_tab_2;
+	uint16_t ssize_2;
 };
 
 #define COMPAT_SENSOR_IO_I2C_WRITE_REGS \
@@ -145,6 +147,10 @@ static long compat_get_muti_aec_i2c_tag(
 	err |= put_user(compat_ptr(c), &data->slave_i2c_tab);
 	err |= get_user(i, &data32->ssize);
 	err |= put_user(i, &data->ssize);
+	err |= get_user(c, &data32->slave_i2c_tab_2);
+	err |= put_user(compat_ptr(c), &data->slave_i2c_tab_2);
+	err |= get_user(i, &data32->ssize_2);
+	err |= put_user(i, &data->ssize_2);
 
 	return err;
 }

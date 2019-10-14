@@ -1284,6 +1284,7 @@ int sprd_sensor_write_muti_i2c(struct sensor_muti_aec_i2c_tag *muti_aec_i2c)
 	uint16_t data_bits_type[AEC_I2C_SENSOR_MAX];
 	struct sensor_reg_tag msettings[AEC_I2C_SETTINGS_MAX];
 	struct sensor_reg_tag ssettings[AEC_I2C_SETTINGS_MAX];
+	struct sensor_reg_tag ssettings_2[AEC_I2C_SETTINGS_MAX];
 	struct sensor_reg_bits_tag reg_bit;
 	uint32_t i;
 
@@ -1329,6 +1330,14 @@ int sprd_sensor_write_muti_i2c(struct sensor_muti_aec_i2c_tag *muti_aec_i2c)
 		pr_err("fail to read ssetting\n");
 		goto exit;
 	}
+	// TODO may cause kernel crash
+	ret = copy_from_user(ssettings_2,
+			muti_aec_i2c->slave_i2c_tab_2,
+			muti_aec_i2c->ssize_2 * sizeof(struct sensor_reg_tag));
+	if (ret) {
+		pr_err("fail to read ssetting\n");
+		goto exit;
+	}
 
 #if 0
 	for (i = 0; i < muti_aec_i2c->msize; i++) {
@@ -1357,6 +1366,17 @@ int sprd_sensor_write_muti_i2c(struct sensor_muti_aec_i2c_tag *muti_aec_i2c)
 		reg_bit.reg_value = ssettings[i].reg_value;
 		reg_bit.reg_bits = addr_bits_type[1] | data_bits_type[1];
 		ret = sprd_sensor_write_reg(sensor_id[1], &reg_bit);
+		if (ret) {
+			pr_err("fail to write s reg\n");
+			goto exit;
+		}
+	}
+	/* slave_2 aec info set to i2c */
+	for (i = 0; i < muti_aec_i2c->ssize_2; i++) {
+		reg_bit.reg_addr = ssettings_2[i].reg_addr;
+		reg_bit.reg_value = ssettings_2[i].reg_value;
+		reg_bit.reg_bits = addr_bits_type[2] | data_bits_type[2];
+		ret = sprd_sensor_write_reg(sensor_id[2], &reg_bit);
 		if (ret) {
 			pr_err("fail to write s reg\n");
 			goto exit;

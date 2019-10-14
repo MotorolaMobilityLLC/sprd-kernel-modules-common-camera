@@ -1598,6 +1598,9 @@ int dcam_callback(enum dcam_cb_type type, void *param, void *priv_data)
 				ret = camera_enqueue(&channel->share_buf_queue, pframe);
 			if (ret) {
 				pr_debug("capture queue overflow\n");
+				if (pframe->sync_data)
+					dcam_if_release_sync(pframe->sync_data,
+							     pframe);
 				ret = dcam_ops->cfg_path(
 						module->dcam_dev_handle,
 						DCAM_PATH_CFG_OUTPUT_BUF,

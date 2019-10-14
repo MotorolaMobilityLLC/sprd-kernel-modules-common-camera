@@ -1301,6 +1301,9 @@ input_err:
 	if (pframe) {
 		free_offline_pararm(pframe->param_data);
 		pframe->param_data = NULL;
+		/* release sync data as if ISP has consumed */
+		if (pframe->sync_data)
+			dcam_if_release_sync(pframe->sync_data, pframe);
 		/* return buffer to cam channel shared buffer queue. */
 		pctx->isp_cb_func(ISP_CB_RET_SRC_BUF, pframe, pctx->cb_priv_data);
 	}
