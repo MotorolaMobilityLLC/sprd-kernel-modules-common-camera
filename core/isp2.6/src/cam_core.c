@@ -1600,18 +1600,7 @@ int dcam_callback(enum dcam_cb_type type, void *param, void *priv_data)
 
 	case DCAM_CB_RET_SRC_BUF:
 		pr_info("dcam ret src frame %p. module %p, %d\n", pframe, module, module->idx);
-		if ((module->cap_status == CAM_CAPTURE_RAWPROC) ||
-			(atomic_read(&module->state) != CAM_RUNNING)) {
-			/* for case raw capture post-proccessing
-			 * and case 4in1 after stream off
-			 * just release it, no need to return
-			 */
-			cambuf_put_ionbuf(&pframe->buf);
-			put_empty_frame(pframe);
-			pr_info("cap status %d, state %d\n",
-				module->cap_status,
-					atomic_read(&module->state));
-		} else if (module->cam_uinfo.is_4in1) {
+		if (module->cam_uinfo.is_4in1) {
 			/* 4in1 capture case: dcam offline src buffer
 			 * should be re-used for dcam online output (raw)
 			 */
@@ -1625,6 +1614,17 @@ int dcam_callback(enum dcam_cb_type type, void *param, void *priv_data)
 			dcam_ops->cfg_path(module->dcam_dev_handle,
 				DCAM_PATH_CFG_OUTPUT_BUF,
 				channel->dcam_path_id, pframe);
+		} else if ((module->cap_status == CAM_CAPTURE_RAWPROC) ||
+			(atomic_read(&module->state) != CAM_RUNNING)) {
+			/* for case raw capture post-proccessing
+			 * and case 4in1 after stream off
+			 * just release it, no need to return
+			 */
+			cambuf_put_ionbuf(&pframe->buf);
+			put_empty_frame(pframe);
+			pr_info("cap status %d, state %d\n",
+				module->cap_status,
+					atomic_read(&module->state));
 		} else {
 			pr_err("todo: unknown case to handle\n");
 			cambuf_put_ionbuf(&pframe->buf);
@@ -2905,6 +2905,7 @@ static int deinit_bigsize_aux(struct camera_module *module)
 	pr_info("E\n");
 	dev = module->aux_dcam_dev;
 	ret = dcam_ops->ioctl(dev, DCAM_IOCTL_CFG_STOP, NULL);
+	ret = dcam_ops->stop(dev);
 	ret = dcam_ops->put_path(dev, DCAM_PATH_BIN);
 	ret += dcam_ops->close(dev);
 	ret += dcam_if_put_dev(dev);

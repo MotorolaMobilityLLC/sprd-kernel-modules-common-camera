@@ -601,6 +601,16 @@ static void dcam_bin_path_done(void *param)
 		return;
 	}
 
+	if (dev->offline) {
+		if (!dev->is_last_slice) {
+			pr_info("dcam%d offline slice done.\n", dev->idx);
+			complete(&dev->slice_done);
+			return;
+		}
+		pr_info("dcam%d offline frame done.\n", dev->idx);
+		complete(&dev->slice_done);
+	}
+
 	if ((frame = dcam_prepare_frame(dev, DCAM_PATH_BIN))) {
 		dcam_dispatch_frame(dev, DCAM_PATH_BIN, frame,
 				    DCAM_CB_DATA_DONE);
@@ -620,6 +630,7 @@ static void dcam_bin_path_done(void *param)
 			dev->dcam_cb_func(DCAM_CB_RET_SRC_BUF, frame,
 					  dev->cb_priv_data);
 		}
+		complete(&dev->frm_done);
 	}
 }
 

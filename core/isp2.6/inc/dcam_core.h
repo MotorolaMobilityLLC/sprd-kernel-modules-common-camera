@@ -22,7 +22,7 @@
 #include "dcam_interface.h"
 #include "cam_block.h"
 
-#define DCAM_IN_Q_LEN  1
+#define DCAM_IN_Q_LEN  2
 #define DCAM_PROC_Q_LEN  12
 
 /* TODO: extend these for slow motion dev */
@@ -32,6 +32,8 @@
 
 #define DCAM_INTERNAL_RES_BUF_SIZE  0x40000
 #define DCAM_LSC_BUF_SIZE 0x3000
+
+#define DCAM_OFFLINE_TIMEOUT		msecs_to_jiffies(2000)
 
 
 // TODO: how many helpers there should be?
@@ -235,8 +237,10 @@ struct dcam_pipe_dev {
 	uint32_t rps; /* raw_proc_scene 0:normal 1:hwsim*/
 	uint32_t dcam_slice_mode;
 	atomic_t slice_no; /* 0: none , 1: left , 2: right */
+	uint32_t is_last_slice;
 	uint32_t raw_cap;
-	struct completion offline_complete;
+	struct completion slice_done;
+	struct completion frm_done;
 
 	uint32_t iommu_enable;
 	struct dcam_mipi_info cap_info;

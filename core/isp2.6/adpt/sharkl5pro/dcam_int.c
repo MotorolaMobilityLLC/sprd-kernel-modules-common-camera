@@ -605,18 +605,16 @@ static void dcam_bin_path_done(void *param)
 		return;
 	}
 
-	if ((dev->idx == DCAM_ID_1 || (dev->idx == DCAM_ID_0 && dev->raw_cap))
-		&& dev->dcam_slice_mode == 1) {
-		if (atomic_read(&dev->slice_no) == 1) {
+	if (dev->offline) {
+		if (!dev->is_last_slice) {
 			atomic_set(&dev->slice_no, 2);
-			pr_info("offline_slice0_done\n");
-			complete(&dev->offline_complete);
+			pr_info("dcam%d offline slice0 done.\n", dev->idx);
+			complete(&dev->slice_done);
 			return;
 		}
-		else {
-			pr_info("offline_slice1_done\n");
-			atomic_set(&dev->slice_no, 0);
-		}
+		atomic_set(&dev->slice_no, 0);
+		pr_info("dcam%d slice1 done.\n", dev->idx);
+		complete(&dev->slice_done);
 	}
 
 	if ((frame = dcam_prepare_frame(dev, DCAM_PATH_BIN))) {
@@ -640,6 +638,8 @@ static void dcam_bin_path_done(void *param)
 			dev->dcam_cb_func(DCAM_CB_RET_SRC_BUF, frame,
 					  dev->cb_priv_data);
 		}
+		pr_info("dcam%d frame done.\n", dev->idx);
+		complete(&dev->frm_done);
 	}
 }
 

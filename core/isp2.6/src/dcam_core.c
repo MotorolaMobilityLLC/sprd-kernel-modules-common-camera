@@ -1214,10 +1214,7 @@ static int dcam_offline_start_slices(void *param)
 	struct dcam_fetch_info *fetch;
 
 	dev = (struct dcam_pipe_dev *)param;
-	dev->offline = 0;
 	fetch = &dev->fetch;
-
-	init_completion(&dev->offline_complete);
 
 	pframe = camera_dequeue(&dev->in_queue);
 	if (pframe == NULL) {
@@ -1236,6 +1233,20 @@ static int dcam_offline_start_slices(void *param)
 		goto map_err;
 	}
 
+	ret = wait_for_completion_interruptible_timeout(
+					&dev->slice_done,
+					DCAM_OFFLINE_TIMEOUT);
+	if (ret == ERESTARTSYS) {
+		pr_err("interrupt when dcam wait\n");
+		ret = -EFAULT;
+		goto wait_err;
+	} else if (ret == 0) {
+		pr_err("error: dcam%d offline timeout.\n", dev->idx);
+		ret = -EFAULT;
+		goto wait_err;
+	}
+	ret = 0;
+
 	do {
 		ret = camera_enqueue(&dev->proc_queue, pframe);
 		if (ret == 0)
@@ -1245,7 +1256,7 @@ static int dcam_offline_start_slices(void *param)
 	} while (loop++ < 500);
 	if (ret) {
 		pr_err("error: input frame queue tmeout.\n");
-		ret = -EINVAL;
+		ret = 0;
 		goto inq_overflow;
 	}
 
@@ -1275,6 +1286,11 @@ static int dcam_offline_start_slices(void *param)
 			atomic_set(&path->set_frm_cnt, 1);
 			atomic_inc(&path->set_frm_cnt);
 			dcam_start_path(dev, path);
+		} else {
+			pr_err("fail to set dcam%d path%d store frm\n",
+				dev->idx, path->path_id);
+			ret = 0;
+			goto dequeue;
 		}
 	}
 
@@ -1298,6 +1314,7 @@ static int dcam_offline_start_slices(void *param)
 		fetch_pitch = (fetch->size.w * 10 + 127) / 128;
 	}
 
+	dev->is_last_slice = 0;
 	dcam_offline_slice_set_fetch_param(dev->idx, fetch);
 
 	/* cfg mipicap */
@@ -1338,34 +1355,50 @@ static int dcam_offline_start_slices(void *param)
 	DCAM_AXIM_WR(IMG_FETCH_START, 1);
 
 	while(1) {
-		if (wait_for_completion_interruptible(
-			&dev->offline_complete) == 0) {
-			dev->offline = 1;
-			reg_val = DCAM_REG_RD(dev->idx, DCAM_BIN_BASE_WADDR0);
-			DCAM_REG_WR(dev->idx, DCAM_BIN_BASE_WADDR0, reg_val + fetch_pitch*128/8/2);
-			DCAM_AXIM_WR(IMG_FETCH_X,
-				(fetch_pitch << 16) | ((fetch->trim.start_x + fetch->trim.size_x/2) & 0x1fff));
-			DCAM_REG_MWR(dev->idx,
-				DCAM_MIPI_CAP_CFG, BIT_30, 0x0 << 30);
-			//
-			dcam_init_lsc_slice(dev, 0);
-			dcam_force_copy(dev, force_ids);
-			udelay(500);
-			dev->iommu_status = (uint32_t)(-1);
-			atomic_set(&dev->state, STATE_RUNNING);
-			pr_info("slice1 fetch start\n");
-
-			DCAM_AXIM_WR(IMG_FETCH_START, 1);
-			break;
+		ret = wait_for_completion_interruptible_timeout(
+						&dev->slice_done,
+						DCAM_OFFLINE_TIMEOUT);
+		if (ret == ERESTARTSYS) {
+			pr_err("interrupt when dcam wait\n");
+			ret = -EFAULT;
+			goto dequeue;
+		} else if (ret == 0) {
+			pr_err("error: dcam%d offline timeout.\n", dev->idx);
+			ret = -EFAULT;
+			goto dequeue;
 		}
+		ret = 0;
+
+		reg_val = DCAM_REG_RD(dev->idx, DCAM_BIN_BASE_WADDR0);
+		DCAM_REG_WR(dev->idx, DCAM_BIN_BASE_WADDR0, reg_val + fetch_pitch*128/8/2);
+		DCAM_AXIM_WR(IMG_FETCH_X,
+			(fetch_pitch << 16) | ((fetch->trim.start_x + fetch->trim.size_x/2) & 0x1fff));
+		DCAM_REG_MWR(dev->idx,
+			DCAM_MIPI_CAP_CFG, BIT_30, 0x0 << 30);
+
+		dcam_init_lsc_slice(dev, 0);
+		dcam_force_copy(dev, force_ids);
+		udelay(500);
+		dev->iommu_status = (uint32_t)(-1);
+		atomic_set(&dev->state, STATE_RUNNING);
+		pr_info("slice1 fetch start\n");
+		dev->is_last_slice = 1;
+
+		DCAM_AXIM_WR(IMG_FETCH_START, 1);
+		break;
 	}
 
-	return ret;
+	return 0;
 
+dequeue:
+	pframe = camera_dequeue_tail(&dev->proc_queue);
 inq_overflow:
+wait_err:
 	cambuf_iommu_unmap(&pframe->buf);
 map_err:
 	/* return buffer to cam channel shared buffer queue. */
+	complete(&dev->slice_done);
+	complete(&dev->frm_done);
 	dev->dcam_cb_func(DCAM_CB_RET_SRC_BUF, pframe, dev->cb_priv_data);
 	return ret;
 }
@@ -1387,12 +1420,26 @@ static int dcam_offline_start_frame(void *param)
 	pr_debug("enter.\n");
 
 	dev = (struct dcam_pipe_dev *)param;
+	dev->offline = 1;
+
+	ret = wait_for_completion_interruptible_timeout(
+					&dev->frm_done,
+					DCAM_OFFLINE_TIMEOUT);
+	if (ret == ERESTARTSYS) {
+		pr_err("interrupt when dcam wait\n");
+		ret = -EFAULT;
+		goto wait_err;
+	} else if (ret == 0) {
+		pr_err("error: dcam%d offline timeout.\n", dev->idx);
+		ret = -EFAULT;
+		goto wait_err;
+	}
+
 	if (dev->dcam_slice_mode) {
 		ret = dcam_offline_start_slices(param);
 		return ret;
 	}
 
-	dev->offline = 1;
 	fetch = &dev->fetch;
 
 	pframe = camera_dequeue(&dev->in_queue);
@@ -1425,7 +1472,7 @@ static int dcam_offline_start_frame(void *param)
 
 	if (ret) {
 		pr_err("error: input frame queue tmeout.\n");
-		ret = -EINVAL;
+		ret = 0;
 		goto inq_overflow;
 	}
 
@@ -1468,6 +1515,11 @@ static int dcam_offline_start_frame(void *param)
 			atomic_set(&path->set_frm_cnt, 1);
 			atomic_inc(&path->set_frm_cnt);
 			dcam_start_path(dev, path);
+		} else {
+			pr_err("fail to set dcam%d path%d store frm\n",
+				dev->idx, path->path_id);
+			ret = 0;
+			goto dequeue;
 		}
 	}
 
@@ -1500,17 +1552,22 @@ static int dcam_offline_start_frame(void *param)
 	dev->err_count = 1;
 	dcam_debug_trace(dev);
 
+	dev->is_last_slice = 1;
 	if (dev->dcamsec_eb)
 		pr_warn("camca : dcamsec_eb= %d, fetch disable\n", dev->dcamsec_eb);
 	else
 		dcam_start_fetch();
 
-	return ret;
+	return 0;
 
+dequeue:
+	pframe = camera_dequeue_tail(&dev->proc_queue);
 inq_overflow:
+wait_err:
 	cambuf_iommu_unmap(&pframe->buf);
 map_err:
 	/* return buffer to cam channel shared buffer queue. */
+	complete(&dev->frm_done);
 	dev->dcam_cb_func(DCAM_CB_RET_SRC_BUF, pframe, dev->cb_priv_data);
 	return ret;
 }
@@ -1530,6 +1587,10 @@ static int dcam_offline_thread_loop(void *arg)
 	dev = (struct dcam_pipe_dev *)thrd->ctx_handle;
 	idx = dev->idx;
 
+	init_completion(&dev->frm_done);
+	complete(&dev->frm_done);
+	init_completion(&dev->slice_done);
+	complete(&dev->slice_done);
 	while (1) {
 		if (wait_for_completion_interruptible(
 			&thrd->thread_com) == 0) {
@@ -2119,9 +2180,6 @@ static int sprd_dcam_proc_frame(
 	pframe = (struct camera_frame *)param;
 	pframe->priv_data = dev;
 
-	if(atomic_read(&dev->slice_no) != 0)
-		return -EFAULT;
-
 	ret = camera_enqueue(&dev->in_queue, pframe);
 	if (ret == 0)
 		complete(&dev->thread.thread_com);
@@ -2419,7 +2477,22 @@ static int sprd_dcam_dev_stop(void *dcam_handle)
 	}
 
 	pr_info("stop dcam %d.\n", dev->idx);
-
+	/* wait for last frame done */
+	pr_debug("dev->offline = %d,dev->raw_cap = %d\n",
+		dev->offline, dev->raw_cap);
+	if (dev->offline == 1 && !dev->raw_cap) {
+		ret = wait_for_completion_interruptible_timeout(
+						&dev->frm_done,
+						DCAM_OFFLINE_TIMEOUT);
+		if (ret == -ERESTARTSYS)
+			pr_err("interrupt when isp wait\n");
+		else if (ret == 0)
+			pr_err("dcam%d timeout.\n", dev->idx);
+		else
+			pr_info("wait time %d\n", ret);
+		dev->offline = 0;
+		ret = 0;
+	}
 	dcam_stop(dev);
 	dcam_reset(dev);
 
