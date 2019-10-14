@@ -442,6 +442,7 @@ static int xrp_synchronize(struct xvp *xvp)
 		goto err;
 	}
 	ret = -ENODEV;
+	pr_info("%s XRP_DSP_SYNC_START\n" , __func__ );
 	xrp_comm_write32(&shared_sync->sync, XRP_DSP_SYNC_START);
 	mb();
 	do {
@@ -453,7 +454,7 @@ static int xrp_synchronize(struct xvp *xvp)
 			goto err;
 		schedule();
 	} while (time_before(jiffies, deadline));
-
+	pr_info("%s READ FLAG V:%d\n" , __func__, v);
 	switch (v) {
 	case XRP_DSP_SYNC_DSP_READY_V1:
 		if (xvp->n_queues > 1) {
@@ -464,6 +465,7 @@ static int xrp_synchronize(struct xvp *xvp)
 		xrp_comm_write(&shared_sync->hw_sync_data, hw_sync_data, sz);
 		break;
 	case XRP_DSP_SYNC_DSP_READY_V2:
+		pr_info("%s XRP_DSP_SYNC_DSP_READY_V2\n" , __func__);
 		xrp_sync_v2(xvp, hw_sync_data, sz);
 		break;
 	case XRP_DSP_SYNC_START:
@@ -477,6 +479,7 @@ static int xrp_synchronize(struct xvp *xvp)
 	}
 
 	mb();
+	pr_info("%s write XRP_DSP_SYNC_HOST_TO_DSP\n" , __func__);
 	xrp_comm_write32(&shared_sync->sync, XRP_DSP_SYNC_HOST_TO_DSP);
 
 	do {
@@ -488,7 +491,7 @@ static int xrp_synchronize(struct xvp *xvp)
 			goto err;
 		schedule();
 	} while (time_before(jiffies, deadline));
-
+	pr_info("%s read XRP_DSP_SYNC_DSP_TO_HOST success %d\n" , __func__, v1);
 	if (v1 != XRP_DSP_SYNC_DSP_TO_HOST) {
 		dev_err(xvp->dev,
 			"DSP haven't confirmed initialization data reception\n");
@@ -500,13 +503,16 @@ static int xrp_synchronize(struct xvp *xvp)
 		if (ret < 0)
 			goto err;
 	}
-
+	pr_info("%s completev2 end call send devie irq\n" , __func__);
 	xrp_send_device_irq(xvp);
 
 	if (xvp->host_irq_mode) {
 		int res = wait_for_completion_timeout(&xvp->queue[0].completion,
 						      firmware_command_timeout * HZ);
-
+		if (res)
+			pr_info("%s received host irq lefttime%d\n" , __func__, res);
+		else
+			pr_info("%s wait dsp send irq to host timeout\n" , __func__);
 		ret = -ENODEV;
 		if (xrp_panic_check(xvp))
 			goto err;
@@ -520,6 +526,7 @@ static int xrp_synchronize(struct xvp *xvp)
 err:
 	kfree(hw_sync_data);
 	xrp_comm_write32(&shared_sync->sync, XRP_DSP_SYNC_IDLE);
+	pr_info("%s end %d\n" , __func__, ret);
 	return ret;
 }
 
@@ -1920,6 +1927,7 @@ int xrp_runtime_suspend(struct device *dev)
 }
 EXPORT_SYMBOL(xrp_runtime_suspend);
 
+static int log_counter = 0;
 int xrp_runtime_resume(struct device *dev)
 {
 	int ret = 0;
@@ -1930,9 +1938,10 @@ int xrp_runtime_resume(struct device *dev)
 	else
 		ret = xrp_runtime_resume_normal(xvp);
 
-	if(!ret)
+	if(!ret && (log_counter == 0)) {
+		log_counter++;
 		sprd_log_sem_up();
-
+	}
 	return ret;
 }
 EXPORT_SYMBOL(xrp_runtime_resume);

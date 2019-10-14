@@ -16,6 +16,7 @@
 
 #include <linux/poll.h>
 #include "vdsp_smem.h"
+#include <linux/interrupt.h>
 
 /* ****************************************************************** */
 /* SMSG interfaces */
@@ -91,6 +92,7 @@ enum {
 #define	VDSP_SMSG_OPEN_MAGIC		0xBEEE
 #define	VDSP_SMSG_CLOSE_MAGIC	0xEDDD
 
+irqreturn_t vdsp_smsg_irq_handler(int irq, void *private);
 /**
 * vdsp_sipc_get_wakeup_flag
 * after the wakeup flag be set, the fist smsg will be print

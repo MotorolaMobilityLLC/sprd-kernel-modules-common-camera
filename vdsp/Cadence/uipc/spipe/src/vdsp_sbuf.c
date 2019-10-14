@@ -30,9 +30,8 @@
 #include <linux/sprd_iommu.h>
 #include <linux/sprd_ion.h>
 #include "ion.h"
-
+#include <linux/string.h>
 #include "vdsp_sipc.h"
-
 #include "vdsp_sipc_priv.h"
 #include "vdsp_sbuf.h"
 
@@ -46,7 +45,7 @@
 
 #define VOLA_SBUF_SMEM volatile struct sbuf_smem_header
 #define VOLA_SBUF_RING volatile struct sbuf_ring_header
-
+#define VDSP_MAX_DATA_LEN 0x1000
 struct name_node {
 	struct	list_head list;
 	char	comm[TASK_COMM_LEN];
@@ -66,8 +65,82 @@ enum task_type {
 };
 
 static struct sbuf_mgr *sbufs[VDSP_SIPC_ID_NR][SMSG_VALID_CH_NR];
-
+static char *___strtok = NULL;
 extern void sprd_log_sem_down(void);
+
+char *strtok(char *s, char const *ct)
+{
+	char *sbegin, *send;
+
+	sbegin  = s ? s : ___strtok;
+	if (!sbegin) {
+		return NULL;
+	}
+	sbegin += strspn(sbegin,ct);
+	if (*sbegin == '\0') {
+		___strtok = NULL;
+		return( NULL );
+	}
+	send = strpbrk( sbegin, ct);
+	if (send && *send != '\0')
+		*send++ = '\0';
+	___strtok = send;
+	return (sbegin);
+}
+
+static void vdsp_notifier_handler (int event, void *data)
+{
+	struct sbuf_mgr *sbuf = data;
+	int cnt = 0;
+	char *buf;
+	char *delim = "\n";
+	char *p;
+
+	buf = kzalloc(VDSP_MAX_DATA_LEN, GFP_KERNEL);
+	if (!buf) {
+		kfree(buf);
+		return;
+	}
+
+	pr_info("sbuf notifier handler event=%d\n", event);
+
+	switch (event) {
+	case SBUF_NOTIFY_WRITE:
+		break;
+	case SBUF_NOTIFY_READ:
+		do {
+			memset(buf, 0, VDSP_MAX_DATA_LEN);
+			cnt = vdsp_sbuf_read(sbuf->dst,
+				sbuf->channel,
+				0,
+				(void *)buf,
+				VDSP_MAX_DATA_LEN,
+				-1);
+			pr_info("%s read data len =%d\n",__func__, cnt);
+
+			p = strtok(buf, delim);
+			if (p){
+				printk("[VDSP LOG]%s ", p);
+				printk("\n");
+			}
+			while((p = strtok(NULL, delim))) {
+				printk("[VDSP LOG]%s ", p);
+				printk("\n");
+			}
+
+			if (cnt < 0) {
+				pr_info("sbuf read cnt[%d] invalid\n", cnt);
+				kfree(buf);
+				return;
+			}
+		} while(cnt == VDSP_MAX_DATA_LEN);
+		break;
+	default:
+		pr_info("Received event is invalid(event=%d)\n", event);
+	}
+
+	kfree(buf);
+}
 
 static struct task_struct *vdsp_sbuf_wait_get_task(wait_queue_entry_t *pos,
 					      u32 *b_select)
@@ -265,7 +338,7 @@ static int vdsp_sbuf_host_init(struct smsg_ipc *sipc, struct sbuf_mgr *sbuf,
 		hd_op->tx_rd_p = &ringhd->txbuf_rdptr;
 		hd_op->tx_wt_p = &ringhd->txbuf_wrptr;
 		hd_op->tx_size = ringhd->txbuf_size;
-		pr_info("channel %d-%d [%d], txbuf_addr=0x%x, txbuf_virt=0x%p, rxbuf_addr=0x%x, rxbuf_virt=0x%p\n",
+		pr_info("channel %d-%d [%d], ring txbuf_addr=0x%x, txbuf_virt=0x%p, rxbuf_addr=0x%x, rxbuf_virt=0x%p\n",
 			sbuf->dst,
 			sbuf->channel,
 			i,
@@ -381,6 +454,9 @@ static int vdsp_sbuf_client_init(struct smsg_ipc *sipc, struct sbuf_mgr *sbuf)
 	return 0;
 }
 
+#ifdef PR_READ
+	unsigned char vdsplogbuff[4096];
+#endif
 static int vdsp_sbuf_thread(void *data)
 {
 	struct sbuf_mgr *sbuf = data;
@@ -388,9 +464,8 @@ static int vdsp_sbuf_thread(void *data)
 	struct smsg mcmd, mrecv;
 	int rval, bufid;
 	struct smsg_ipc *sipc;
-#ifdef PR_READ
-	unsigned char readbuff[512];
-#endif
+
+	sipc = vdsp_smsg_ipcs[sbuf->dst];
 
 	sprd_log_sem_down();
 	pr_info("1");
@@ -404,7 +479,6 @@ static int vdsp_sbuf_thread(void *data)
 	}
 
 	/* if client, send SMSG_CMD_SBUF_INIT, wait sbuf SMSG_DONE_SBUF_INIT */
-	sipc = vdsp_smsg_ipcs[sbuf->dst];
 	if (sipc->client) {
 		pr_info("12");
 		vdsp_smsg_set(&mcmd, sbuf->channel, VDSP_SMSG_TYPE_CMD,
@@ -536,14 +610,13 @@ static int vdsp_sbuf_thread(void *data)
 					ring->handler(SBUF_NOTIFY_READ,
 						      ring->data);
 #ifdef PR_READ
-				vdsp_sbuf_read(9, 1, 0, readbuff, 512, -1);
+				vdsp_sbuf_read(1, 3, 0, vdsplogbuff, 4096, -1);
 #endif
 				__pm_wakeup_event(&ring->rx_wake_lock,
 					jiffies_to_msecs(HZ / 2));
 				ring->rx_wakelock_state = 1;
 #ifdef PR_READ
-				pr_info("sbuf %s: wake_lock hz/2!",
-					  readbuff);
+				printk("[GGG VDSP]: %s", vdsplogbuff);
 #endif
 				break;
 			default:
@@ -633,6 +706,12 @@ int vdsp_sbuf_create(u8 dst, u8 channel, u32 bufnum, u32 txbufsize, u32 rxbufsiz
 	}
 
 	sbufs[dst][ch_index] = sbuf;
+
+	vdsp_sbuf_register_notifier(sbuf->dst,
+		sbuf->channel,
+		0,
+		vdsp_notifier_handler,
+		sbuf);
 
 	/*set the thread as a real time thread, and its priority is 10*/
 	sched_setscheduler(sbuf->thread, SCHED_FIFO, &param);
@@ -751,7 +830,7 @@ int vdsp_sbuf_write(u8 dst, u8 channel, u32 bufid,
 		 bufid,
 		 len,
 		 timeout);
-	pr_info("channel=%d, wrptr=%d, rdptr=%d\n",
+	pr_info("sbuf channel=%d, wrptr=%d, rdptr=%d\n",
 		 channel,
 		 *(hd_op->tx_wt_p),
 		 *(hd_op->tx_rd_p));
@@ -860,7 +939,7 @@ int vdsp_sbuf_write(u8 dst, u8 channel, u32 bufid,
 			}
 		}
 
-		pr_info("channel=%d, txpos=%p, txsize=%d\n",
+		pr_info("sbuf channel=%d, txpos=%p, txsize=%d\n",
 			 channel, txpos, txsize);
 
 		/* update tx wrptr */
@@ -941,7 +1020,7 @@ int vdsp_sbuf_read(u8 dst, u8 channel, u32 bufid,
 
 	pr_info("%s:dst=%d, channel=%d, bufid=%d, len=%d, timeout=%d\n",
 		 __func__, dst, channel, bufid, len, timeout);
-	pr_info("%s: channel=%d, wrptr=%d, rdptr=%d\n",
+	pr_info("%s: channel=%d, rx_wt_p=%d, rx_rd_p=%d\n",
 		 __func__,
 		 channel,
 		 *(hd_op->rx_wt_p),
@@ -1008,7 +1087,7 @@ int vdsp_sbuf_read(u8 dst, u8 channel, u32 bufid,
 		rxsize = (int)(*(hd_op->rx_wt_p) - *(hd_op->rx_rd_p));
 		/* check overrun */
 		if (rxsize > hd_op->rx_size)
-			pr_err("%s: bufid = %d, channel= %d rxsize=0x%x, rdptr=%d, wrptr=%d",
+			pr_err("%s: overrun bufid = %d, channel= %d rxsize=0x%x, sbuf rdptr=%d, wrptr=%d",
 			       __func__,
 			       bufid,
 			       channel,
@@ -1018,13 +1097,14 @@ int vdsp_sbuf_read(u8 dst, u8 channel, u32 bufid,
 
 		rxsize = min(rxsize, left);
 
-		pr_info("%s: channel=%d, buf=%p, rxpos=%p, rxsize=%d\n",
-			 __func__, channel, u_buf.buf, rxpos, rxsize);
+		pr_info("%s: sbuf channel=%d, buf=%p, rxpos=0x%x, rxsize=%d left%d\n",
+			 __func__, channel, u_buf.buf, rxpos, rxsize, left);
 
 		tail = rxpos + rxsize - (ring->rxbuf_virt + hd_op->rx_size);
 
 		if (tail > 0) {
 			/* ring buffer is rounded */
+			pr_info("ring buffer is rounded\n");
 			if ((uintptr_t)u_buf.buf > TASK_SIZE) {
 				unalign_memcpy(u_buf.buf, rxpos, rxsize - tail);
 				unalign_memcpy(u_buf.buf + rxsize - tail,
@@ -1049,6 +1129,7 @@ int vdsp_sbuf_read(u8 dst, u8 channel, u32 bufid,
 				unalign_memcpy(u_buf.buf, rxpos, rxsize);
 			} else {
 				/* handle the user space address */
+				pr_info("handle the user space address\n");
 				if (unalign_copy_to_user(u_buf.ubuf,
 							 rxpos, rxsize)) {
 					pr_err("%s: failed to copy to user!\n",
@@ -1061,15 +1142,15 @@ int vdsp_sbuf_read(u8 dst, u8 channel, u32 bufid,
 
 		/* update rx rdptr */
 		*(hd_op->rx_rd_p) = *(hd_op->rx_rd_p) + rxsize;
-		pr_info("rx_wt_p[%d], rx_rd_p[%d], rx_size[%d], rxsize[%d], [%d]\n",
+		pr_info("update rx rdptr sbuf rx_wt_p[%d], rx_rd_p[%d], rx_size[%d], rxsize[%d], [%d]\n",
 			*(hd_op->rx_wt_p),
 			*(hd_op->rx_rd_p),
 			hd_op->rx_size,
 			rxsize,
 			hd_op->rx_size - rxsize);
 		/* rx ringbuf is full ,so need to notify peer side */
-		if (*(hd_op->rx_wt_p) - *(hd_op->rx_rd_p) ==
-		    hd_op->rx_size - rxsize) {
+		if ((*(hd_op->rx_wt_p) - *(hd_op->rx_rd_p)) ==
+		    (hd_op->rx_size - rxsize)) {
 			vdsp_smsg_set(&mevt, channel,
 				 VDSP_SMSG_TYPE_EVENT,
 				 SMSG_EVENT_SBUF_RDPTR,
@@ -1107,7 +1188,7 @@ int vdsp_sbuf_read(u8 dst, u8 channel, u32 bufid,
 
 	mutex_unlock(&ring->rxlock);
 
-	pr_debug("%s: done, channel=%d, len=%d", __func__, channel, len - left);
+	pr_info("%s: done, channel=%d, len=%d", __func__, channel, len - left);
 
 	if (len == left)
 		return rval;

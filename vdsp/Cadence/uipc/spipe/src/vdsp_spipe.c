@@ -89,7 +89,7 @@ static ssize_t spipe_read(struct file *filp,
 	if (filp->f_flags & O_NONBLOCK)
 		timeout = 0;
 
-	pr_info("spipe_read 1\n");
+	pr_info("spipe_read count %d\n", count);
 	return vdsp_sbuf_read(sbuf->dst, sbuf->channel, sbuf->bufid,
 			(void *)buf, count, timeout);
 }
@@ -225,7 +225,8 @@ static int spipe_probe(struct platform_device *pdev)
 				init->ringnr,
 				init->rxbuf_size,
 				init->txbuf_size);
-
+			init->rxbuf_size = 0x2000;
+			init->txbuf_size = 0x2000;
 			rval = vdsp_sbuf_create(init->dst,
 					       init->channel,
 					       init->ringnr,

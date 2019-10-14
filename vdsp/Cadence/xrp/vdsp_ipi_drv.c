@@ -128,7 +128,7 @@ static irqreturn_t irq_handler(int irq, void *arg)
 	irq_val = IPI_HREG_RD(s_ipi_desc.ipi_addr) & 0xF;
 //	hw->client_irq = irq_val;
 	irq_mask = irq_val;
-	pr_info("Changdou reg val = 0x%x\n", irq_mask);
+	pr_info("irq_handler reg val = 0x%x\n", irq_mask);
 
 	/* clear the interrupt */
 	IPI_HREG_OWR((s_ipi_desc.ipi_addr + 8), irq_val & 0xF);
@@ -155,7 +155,7 @@ static int vdsp_ipi_ctx_init(struct vdsp_ipi_ctx_desc * ctx)
 {
 	IPI_HREG_OWR(ctx->vir_addr, 0x1 << 6);
 	udelay(1);
-	IPI_HREG_WR((ctx->vir_addr + 0x3094), 0xfffff8df);
+	IPI_HREG_WR((ctx->vir_addr + 0x3094), 0xd85f);
 	IPI_HREG_OWR((ctx->ipi_addr +8), 0xFF);
 
 	return 0;
@@ -166,7 +166,7 @@ static int vdsp_ipi_ctx_deinit(struct vdsp_ipi_ctx_desc * ctx)
 {
 	IPI_HREG_OWR((ctx->ipi_addr +8), 0xFF);
 	IPI_HREG_WR(ctx->vir_addr , (IPI_HREG_RD(ctx->vir_addr) & (~(0x1<<6))));
-	IPI_HREG_OWR((ctx->vir_addr + 0x3094), ~(0xfffff8df));
+	IPI_HREG_WR((ctx->vir_addr + 0x3094), 0x1ffff);
 	return 0;
 }
 

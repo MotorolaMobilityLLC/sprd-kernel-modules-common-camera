@@ -92,7 +92,7 @@ static void sipc_txirq_trigger(u8 dst, u64 msg)
 	ipc = vdsp_smsg_ipcs[dst];
 
 	if (ipc) {
-		pr_info("sipc_txirq_trigger 77777\n");
+		pr_info("sipc_txirq_trigger send irq 77777\n");
 		ipc->vdsp_ipi_desc->ops->irq_send(7);
 	}
 }

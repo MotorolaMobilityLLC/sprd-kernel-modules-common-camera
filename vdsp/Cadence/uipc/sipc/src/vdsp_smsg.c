@@ -166,7 +166,7 @@ static void vdsp_smsg_msg_process(struct smsg_ipc *ipc, struct smsg *msg)
 	ch_index = channel2index[msg->channel];
 	atomic_inc(&ipc->busy[ch_index]);
 
-	pr_debug("smsg:get dst=%d msg channel=%d, type=%d, flag=0x%04x, value=0x%08x\n",
+	pr_info("smsg:get IPC dst=%d msg channel=%d, type=%d, flag=0x%04x, value=0x%08x\n",
 		 ipc->dst, msg->channel,
 		 msg->type, msg->flag,
 		 msg->value);
@@ -227,7 +227,7 @@ exit_msg_proc:
 }
 
 
-static irqreturn_t vdsp_smsg_irq_handler(int irq, void *private)
+irqreturn_t vdsp_smsg_irq_handler(int irq, void *private)
 {
 	struct smsg_ipc *ipc = (struct smsg_ipc *)private;
 	struct smsg *msg;
@@ -243,16 +243,18 @@ static irqreturn_t vdsp_smsg_irq_handler(int irq, void *private)
 			__func__, ipc->name);
 		return IRQ_HANDLED;
 	}
-
-	pr_debug("rxbuf_size[%d], rxbuf_rdptr[0x%lx], rxbuf_wrptr[0x%lx], txbuf_size[%d], txbuf_rdptr[0x%lx], txbuf_wrptr[0x%lx]\n",
-		ipc->rxbuf_size, ipc->rxbuf_rdptr, ipc->rxbuf_wrptr,
-		ipc->txbuf_size, ipc->txbuf_rdptr, ipc->txbuf_wrptr);
-
+	pr_info("*****************************************************\n");
+	pr_info("IPC rxbuf_size[%d], rxbuf_rdptr[0x%lx][%d], rxbuf_wrptr[0x%lx][%d], txbuf_size[%d], txbuf_rdptr[0x%lx][%d], txbuf_wrptr[0x%lx][%d]\n",
+		ipc->rxbuf_size, ipc->rxbuf_rdptr, SIPC_READL(ipc->rxbuf_rdptr),
+		ipc->rxbuf_wrptr, SIPC_READL(ipc->rxbuf_wrptr),
+		ipc->txbuf_size, ipc->txbuf_rdptr, SIPC_READL(ipc->txbuf_rdptr),
+		ipc->txbuf_wrptr,  SIPC_READL(ipc->txbuf_wrptr));
+	pr_info("*****************************************************\n");
 	while (SIPC_READL(ipc->rxbuf_wrptr) != SIPC_READL(ipc->rxbuf_rdptr)) {
 		rxpos = (SIPC_READL(ipc->rxbuf_rdptr) & (ipc->rxbuf_size - 1)) *
 			sizeof(struct smsg) + ipc->rxbuf_addr;
 		msg = (struct smsg *)rxpos;
-		pr_debug("irq get smsg: wrptr=%u, rdptr=%u, rxpos=0x%lx\n",
+		pr_info("irq get smsg: IPC wrptr=%u, rdptr=%u, rxpos=0x%lx\n",
 			 SIPC_READL(ipc->rxbuf_wrptr),
 			 SIPC_READL(ipc->rxbuf_rdptr),
 			 rxpos);
@@ -264,7 +266,7 @@ static irqreturn_t vdsp_smsg_irq_handler(int irq, void *private)
 
 	return IRQ_HANDLED;
 }
-
+EXPORT_SYMBOL_GPL(vdsp_smsg_irq_handler);
 
 static phys_addr_t vdsp_smsg_send_smem_addr(void *args)
 {
@@ -337,7 +339,7 @@ static int vdsp_smsg_ipc_smem_init(struct smsg_ipc *ipc)
 						     SZ_4K);
 
 		if (ipc->ring_base) {
-			pr_err("ring_base = 0x%x, ring_size = 0x%x\n",
+			pr_err("IPC ring_base = 0x%x, ring_size = 0x%x\n",
 				ipc->ring_base,
 				ipc->ring_size);
 			return -ENOMEM;
@@ -410,7 +412,7 @@ static int vdsp_smsg_ipc_smem_init(struct smsg_ipc *ipc)
 		}
 	}
 
-	pr_info("rxbuf_size[%d], rxbuf_rdptr[0x%lx], rxbuf_wrptr[0x%lx], txbuf_size[%d], txbuf_rdptr[0x%lx], txbuf_wrptr[0x%lx]\n",
+	pr_info("IPC rxbuf_size[%d], rxbuf_rdptr[0x%lx], rxbuf_wrptr[0x%lx], txbuf_size[%d], txbuf_rdptr[0x%lx], txbuf_wrptr[0x%lx]\n",
 		ipc->rxbuf_size, ipc->rxbuf_rdptr, ipc->rxbuf_wrptr,
 		ipc->txbuf_size, ipc->txbuf_rdptr, ipc->txbuf_wrptr);
 
@@ -705,7 +707,7 @@ int vdsp_smsg_send(u8 dst, struct smsg *msg, int timeout)
 	u8 ch_index;
 
 	ch_index = channel2index[msg->channel];
-	pr_debug("channel[%d], ch_index[%d]\n", msg->channel, ch_index);
+	pr_info("channel[%d], ch_index[%d]\n", msg->channel, ch_index);
 
 	if (ch_index == INVALID_CHANEL_INDEX) {
 		pr_err("%s:channel %d invalid!\n", __func__, msg->channel);
@@ -727,7 +729,7 @@ int vdsp_smsg_send(u8 dst, struct smsg *msg, int timeout)
 		return -EINVAL;
 	}
 
-	pr_debug("%s: dst=%d, channel=%d, timeout=%d, suspend=%d\n",
+	pr_info("%s: dst=%d, channel=%d, timeout=%d, suspend=%d\n",
 		 __func__, dst, msg->channel, timeout, ipc->suspend);
 
 	if (ipc->suspend) {
@@ -739,14 +741,16 @@ int vdsp_smsg_send(u8 dst, struct smsg *msg, int timeout)
 			return -EINVAL;
 		}
 	}
-	pr_debug("send smsg: channel=%d, type=%d, flag=0x%04x, value=0x%08x\n",
+	pr_info("send smsg: channel=%d, type=%d, flag=0x%04x, value=0x%08x\n",
 		 msg->channel, msg->type, msg->flag, msg->value);
 
 	spin_lock_irqsave(&ipc->txpinlock, flags);
 
-	pr_debug("rxbuf_size[%d], rxbuf_rdptr[0x%lx], rxbuf_wrptr[0x%lx], txbuf_size[%d], txbuf_rdptr[0x%lx], txbuf_wrptr[0x%lx]\n",
-		ipc->rxbuf_size, ipc->rxbuf_rdptr, ipc->rxbuf_wrptr,
-		ipc->txbuf_size, ipc->txbuf_rdptr, ipc->txbuf_wrptr);
+	pr_info("IPC rxbuf_size[%d], rxbuf_rdptr[0x%lx][%d], rxbuf_wrptr[0x%lx][%d], txbuf_size[%d], txbuf_rdptr[0x%lx][%d], txbuf_wrptr[0x%lx][%d]\n",
+		ipc->rxbuf_size, ipc->rxbuf_rdptr, SIPC_READL(ipc->rxbuf_rdptr),
+		ipc->rxbuf_wrptr,SIPC_READL(ipc->rxbuf_wrptr),
+		ipc->txbuf_size, ipc->txbuf_rdptr, SIPC_READL(ipc->txbuf_rdptr),
+		ipc->txbuf_wrptr, SIPC_READL(ipc->txbuf_wrptr));
 	if (!ipc->ring_base) {
 		if (((int)(SIPC_READL(ipc->txbuf_wrptr) -
 				SIPC_READL(ipc->txbuf_rdptr)) >=
@@ -761,17 +765,17 @@ int vdsp_smsg_send(u8 dst, struct smsg *msg, int timeout)
 			sizeof(struct smsg) + ipc->txbuf_addr;
 		memcpy((void *)txpos, msg, sizeof(struct smsg));
 
-		pr_debug("write smsg: wrptr=0x%x, rdptr=0x%x, txpos=0x%lx\n",
+		pr_info("write smsg: ipc tx wrptr=%d, tx rdptr=%d, txpos=0x%lx\n",
 			 SIPC_READL(ipc->txbuf_wrptr),
 			 SIPC_READL(ipc->txbuf_rdptr),
 			 txpos);
 
-		pr_debug("set smsg: tx wrptr=%u, tx rdptr=%u, rxpos=0x%lx\n",
+		/* update wrptr */
+		SIPC_WRITEL(SIPC_READL(ipc->txbuf_wrptr) + 1, ipc->txbuf_wrptr);
+		pr_info("update : ipc tx wrptr=%d, tx rdptr=%d\n",
 			 SIPC_READL(ipc->txbuf_wrptr),
 			 SIPC_READL(ipc->txbuf_rdptr),
 			 txpos);
-		/* update wrptr */
-		SIPC_WRITEL(SIPC_READL(ipc->txbuf_wrptr) + 1, ipc->txbuf_wrptr);
 	}
 
 	pr_info("Changdou 77777 txirq_trigger\n");
@@ -811,8 +815,9 @@ int vdsp_smsg_recv(u8 dst, struct smsg *msg, int timeout)
 		return -ENODEV;
 	}
 
-	pr_debug("%s: dst=%d, channel=%d, timeout=%d, ch_index = %d\n",
-		 __func__, dst, msg->channel, timeout, ch_index);
+	pr_info("%s: dst=%d, channel=%d, timeout=%d, ch_index = %d CH wrptr%d, rdptr%d\n",
+		 __func__, dst, msg->channel, timeout, ch_index,
+		 SIPC_READL(ch->wrptr), SIPC_READL(ch->rdptr));
 
 	if (timeout == 0) {
 		if (!mutex_trylock(&ch->rxlock)) {
@@ -835,13 +840,17 @@ int vdsp_smsg_recv(u8 dst, struct smsg *msg, int timeout)
 	} else if (timeout < 0) {
 		mutex_lock(&ch->rxlock);
 		/* wait forever */
+		pr_info("wait event forever in smsg recv~\n");
 		rval = wait_event_interruptible(
 				ch->rxwait,
 				(SIPC_READL(ch->wrptr) !=
 				 SIPC_READL(ch->rdptr)) ||
 				(ipc->states[ch_index] == CH_STAT_CLOSED));
+		pr_info("out wait event in smsg recv rval %d ch wrptr%d, rdptr%d\n", rval,
+			SIPC_READL(ch->wrptr),
+			SIPC_READL(ch->rdptr));
 		if (rval < 0) {
-			pr_debug("%s: dst=%d, channel=%d wait interrupted!\n",
+			pr_info("%s: dst=%d, channel=%d wait interrupted!\n",
 				 __func__, dst, msg->channel);
 
 			goto recv_failed;
@@ -864,12 +873,12 @@ int vdsp_smsg_recv(u8 dst, struct smsg *msg, int timeout)
 			(ipc->states[ch_index] == CH_STAT_CLOSED),
 			timeout);
 		if (rval < 0) {
-			pr_debug("%s: dst=%d, channel=%d wait interrupted!\n",
+			pr_info("%s: dst=%d, channel=%d wait interrupted!\n",
 				 __func__, dst, msg->channel);
 
 			goto recv_failed;
 		} else if (rval == 0) {
-			pr_debug("%s: dst=%d, channel=%d wait timeout!\n",
+			pr_info("%s: dst=%d, channel=%d wait timeout!\n",
 				 __func__, dst, msg->channel);
 
 			rval = -ETIME;
@@ -887,23 +896,25 @@ int vdsp_smsg_recv(u8 dst, struct smsg *msg, int timeout)
 		}
 	}
 
-	pr_info("rxbuf_size[%d], rxbuf_rdptr[0x%lx], rxbuf_wrptr[0x%lx], txbuf_size[%d], txbuf_rdptr[0x%lx], txbuf_wrptr[0x%lx]\n",
-		ipc->rxbuf_size, ipc->rxbuf_rdptr, ipc->rxbuf_wrptr,
-		ipc->txbuf_size, ipc->txbuf_rdptr, ipc->txbuf_wrptr);
+	pr_info("IPC rxbuf_size[%d], rxbuf_rdptr[0x%lx][%d], rxbuf_wrptr[0x%lx][%d], txbuf_size[%d], txbuf_rdptr[0x%lx][%d], txbuf_wrptr[0x%lx][%d]\n",
+		ipc->rxbuf_size, ipc->rxbuf_rdptr, SIPC_READL(ipc->rxbuf_rdptr),
+		ipc->rxbuf_wrptr,SIPC_READL(ipc->rxbuf_wrptr),
+		ipc->txbuf_size, ipc->txbuf_rdptr, SIPC_READL(ipc->txbuf_rdptr),
+		ipc->txbuf_wrptr, SIPC_READL(ipc->txbuf_wrptr));
 	/* read smsg from cache */
 	rd = SIPC_READL(ch->rdptr) & (SMSG_CACHE_NR - 1);
 	memcpy(msg, &ch->caches[rd], sizeof(struct smsg));
 	SIPC_WRITEL(SIPC_READL(ch->rdptr) + 1, ch->rdptr);
 
 	if (ipc->ring_base)
-		pr_debug("read smsg: dst=%d, channel=%d, wrptr=%d, rdptr=%d, rd=%d\n",
+		pr_info("read smsg: dst=%d, channel=%d, CH wrptr=%d, ch rdptr=%d, rd=%d\n",
 			 dst,
 			 msg->channel,
 			 SIPC_READL(ch->wrptr),
 			 SIPC_READL(ch->rdptr),
 			 rd);
 
-	pr_debug("recv smsg: dst=%d, channel=%d, type=%d, flag=0x%04x, value=0x%08x, rval = %d\n",
+	pr_info("recv smsg: dst=%d, channel=%d, type=%d, flag=0x%04x, value=0x%08x, rval = %d\n",
 		 dst, msg->channel, msg->type, msg->flag, msg->value, rval);
 
 recv_failed:
