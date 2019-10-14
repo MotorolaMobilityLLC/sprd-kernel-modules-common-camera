@@ -412,12 +412,11 @@ err:
 	xrp_comm_write32(&shared_sync->sync, XRP_DSP_SYNC_IDLE);
 	sprd_iommu_ummap_faceid_ion(xvp,&(xvp->faceid_pool.ion_face_in));
 	sprd_iommu_ummap_faceid_ion(xvp,&(xvp->faceid_pool.ion_face_out));
-	
 	return 0;
 }
 static int xrp_synchronize(struct xvp *xvp)
 {
-	size_t sz;
+	size_t sz = 0;
 	void *hw_sync_data;
 	unsigned long deadline = jiffies + firmware_command_timeout * HZ;
 	struct xrp_dsp_sync_v1 __iomem *shared_sync = xvp->comm;
@@ -524,7 +523,8 @@ static int xrp_synchronize(struct xvp *xvp)
 	}
 	ret = 0;
 err:
-	kfree(hw_sync_data);
+	if (hw_sync_data)
+		kfree(hw_sync_data);
 	xrp_comm_write32(&shared_sync->sync, XRP_DSP_SYNC_IDLE);
 	pr_info("%s end %d\n" , __func__, ret);
 	return ret;
