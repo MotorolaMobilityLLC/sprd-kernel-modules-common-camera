@@ -1028,6 +1028,56 @@ static int isp_set_fetch(unsigned int idx, struct isp_path_desc *path)
 	return 0;
 }
 
+static bool check_ufid(struct camera_frame *frame, void *data)
+{
+	uint32_t target_fid;
+
+	if (!frame || !data)
+		return false;
+
+	target_fid = *(uint32_t *)data;
+
+	return (frame->user_fid == CAMERA_RESERVE_FRAME_NUM ||
+		frame->user_fid == target_fid);
+}
+
+static int get_ufid_across_all_path(struct isp_pipe_dev *dev)
+{
+	int ret = 0;
+	struct isp_path_desc *path = NULL;
+	struct camera_frame *frame = NULL;
+	unsigned int target_fid = CAMERA_RESERVE_FRAME_NUM;
+	unsigned int path_id = 0;
+	struct isp_module *module = NULL;
+
+	if (!dev) {
+		pr_err("fail to check isp dev ptr\n");
+		return -EINVAL;
+	}
+
+	module = &dev->module_info;
+	frame = kmalloc(sizeof(struct camera_frame), GFP_KERNEL);
+	if (!frame)
+		return -ENOMEM;
+
+	for (path_id = ISP_SCL_PRE; path_id < ISP_SCL_MAX; path_id++) {
+		path = &module->isp_path[path_id];
+		if (!path->uframe_sync ||
+		    isp_buf_queue_peek(&path->buf_queue, frame))
+			continue;
+		else {
+			target_fid = min(target_fid, frame->user_fid);
+			pr_info("path%d user_fid %u\n",
+				path_id, frame->user_fid);
+			ret = target_fid;
+		}
+	}
+
+	kfree(frame);
+	pr_info("target_fid %u\n", target_fid);
+	return ret;
+}
+
 void isp_path_set_scl(unsigned int idx, struct isp_path_desc *path,
 	unsigned int addr)
 {
@@ -1204,7 +1254,7 @@ int isp_path_set_next_frm(struct isp_module *module,
 			  enum isp_path_index path_index,
 			  struct slice_addr *addr)
 {
-	enum isp_drv_rtn rtn = ISP_RTN_SUCCESS;
+	enum isp_drv_rtn rtn = ISP_RTN_PATH_ADDR_ERR;
 	struct camera_frame *reserved_frame = NULL;
 	struct camera_frame frame;
 	struct isp_path_desc *path = NULL;
@@ -1219,6 +1269,7 @@ int isp_path_set_next_frm(struct isp_module *module,
 	struct isp_pipe_dev *dev = NULL;
 	unsigned int iova0, iova2;
 	unsigned int frm_q_len;
+	unsigned int target_fid = 0;
 
 	if (module == NULL) {
 		pr_err("fail to get moudule, It's NULL\n");
@@ -1268,22 +1319,38 @@ int isp_path_set_next_frm(struct isp_module *module,
 
 	if (p_heap->valid_cnt >= frm_q_len) {
 		rtn = ISP_RTN_PATH_ADDR_ERR;
-		pr_err("fail to write frame_queue, queue will overflow, idx:0x%x\n", idx);
+		pr_err("fail to write frame_queue, queue will overflow, idx:0x%x\n",
+		       idx);
 		goto overflow;
 	}
 #endif
 
-	if (isp_buf_queue_read(p_buf_queue, &frame) == 0 &&
-	    (frame.pfinfo.mfd[0] != 0)) {
-		path->output_frame_count--;
+	memset(&frame, 0, sizeof(frame));
+
+	if (path->uframe_sync) {
+		target_fid = get_ufid_across_all_path(dev);
+		pr_info("target frame id %u\n", target_fid);
+		if (target_fid != CAMERA_RESERVE_FRAME_NUM) {
+			rtn = isp_buf_queue_read_if(&path->buf_queue,
+						    check_ufid,
+						    (void *)&target_fid,
+						    &frame);
+			pr_info("get target frame id %d\n", frame.user_fid);
+		}
 	} else {
-		use_reserve_frame = 1;
+		if (isp_buf_queue_read(p_buf_queue, &frame) == 0 &&
+		    frame.pfinfo.mfd[0] != 0)
+			path->output_frame_count--;
+		else
+			use_reserve_frame = 1;
 	}
 
-	if ((use_reserve_frame == 0) &&
-	    (frame.pfinfo.mfd[0] == reserved_frame->pfinfo.mfd[0])) {
+
+	if ((path->uframe_sync && (target_fid == CAMERA_RESERVE_FRAME_NUM ||
+				   rtn != ISP_RTN_SUCCESS)) ||
+	    (use_reserve_frame == 0 &&
+	     frame.pfinfo.mfd[0] == reserved_frame->pfinfo.mfd[0]))
 		use_reserve_frame = 1;
-	}
 
 	if (use_reserve_frame) {
 		rtn = pfiommu_get_addr(&reserved_frame->pfinfo);

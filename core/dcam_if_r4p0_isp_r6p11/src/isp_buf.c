@@ -147,10 +147,86 @@ void isp_buf_queue_init(struct isp_buf_queue *queue)
 	spin_lock_init(&queue->lock);
 }
 
+int isp_buf_queue_peek(struct isp_buf_queue *queue,
+		       struct camera_frame *frame)
+{
+	int ret = ISP_RTN_SUCCESS;
+	unsigned long flags;
+
+	if (ISP_ADDR_INVALID(queue) || ISP_ADDR_INVALID(frame)) {
+		pr_err("fail to get valid parm %p,%p\n", queue, frame);
+		return -EINVAL;
+	}
+
+	spin_lock_irqsave(&queue->lock, flags);
+
+	if (queue->valid_cnt == 0) {
+		pr_debug("warning, read wait new node write cb %pS\n",
+				__builtin_return_address(0));
+		spin_unlock_irqrestore(&queue->lock, flags);
+		return -EAGAIN;
+	}
+
+	memcpy(frame, &queue->frame[queue->r_index], sizeof(*frame));
+
+	pr_debug("valid_cnt:%d read frame buf ufid %u\n",
+		 queue->valid_cnt, frame->user_fid);
+	spin_unlock_irqrestore(&queue->lock, flags);
+
+	return ret;
+}
+
+int isp_buf_queue_read_if(struct isp_buf_queue *queue,
+			  bool (*filter)(struct camera_frame *, void *),
+			  void *data,
+			  struct camera_frame *frame)
+{
+	int ret = ISP_RTN_SUCCESS;
+	unsigned long flags;
+
+	if (ISP_ADDR_INVALID(queue) || ISP_ADDR_INVALID(frame)) {
+		pr_err("fail to get valid parm %p,%p\n", queue, frame);
+		return -EINVAL;
+	}
+
+	spin_lock_irqsave(&queue->lock, flags);
+	pr_debug("queue->valid_cnt %d, r_index %d, w_index %d, cb:%pS\n",
+		queue->valid_cnt, queue->r_index, queue->w_index,
+		__builtin_return_address(0));
+
+	if (queue->valid_cnt == 0) {
+		pr_debug("warning, read wait new node write cb %pS\n",
+				__builtin_return_address(0));
+		spin_unlock_irqrestore(&queue->lock, flags);
+		return -EAGAIN;
+	}
+
+	memcpy(frame, &queue->frame[queue->r_index], sizeof(*frame));
+
+	if (!filter(frame, data)) {
+		ret = -EINVAL;
+		goto unlock;
+	}
+
+	queue->valid_cnt--;
+	queue->r_index++;
+
+	if (queue->r_index == DCAM_FRM_CNT_MAX)
+		queue->r_index = 0;
+
+	pr_debug("read buf queue type %x fid %d valid_cnt %d\n",
+			frame->type, frame->fid, queue->valid_cnt);
+
+unlock:
+	spin_unlock_irqrestore(&queue->lock, flags);
+
+	return ret;
+}
+
 int isp_buf_queue_read(struct isp_buf_queue *queue,
 	struct camera_frame *frame)
 {
-	int ret = 0;
+	int ret = ISP_RTN_SUCCESS;
 	unsigned long flags;
 
 	if (ISP_ADDR_INVALID(queue) || ISP_ADDR_INVALID(frame)) {
@@ -1107,7 +1183,7 @@ int isp_buf_recycle(struct offline_buf_desc *buf_desc,
 
 		buf_desc->output_frame_count++;
 		pr_debug("recyled frame id %d, buf frm cnt:%d\n",
-                 frame.fid, buf_desc->output_frame_count);
+			 frame.fid, buf_desc->output_frame_count);
 	}
 
 	return ret;

@@ -329,6 +329,7 @@ struct camera_addr {
 	unsigned int mfd_y;
 	unsigned int mfd_u;
 	unsigned int mfd_v;
+	unsigned int user_fid;
 };
 
 struct camera_sc_tap {
@@ -364,6 +365,7 @@ struct camera_frame {
 	unsigned int irq_type;
 	unsigned int irq_property;
 	unsigned int frame_id;
+	unsigned int user_fid;
 	int frame_invalid;
 	struct pfiommu_info pfinfo;
 	struct timeval t;

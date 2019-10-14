@@ -226,6 +226,7 @@ struct camera_info {
 	unsigned int is_3dnr;
 	unsigned int is_hdr;
 	struct sprd_flash_capacity capacity;
+	unsigned int uframe_sync;/* frame sync for video and callback channel */
 };
 
 struct camera_dev {

@@ -845,6 +845,7 @@ static int set_isp_path_buf_cfg(void *handle, enum isp_cfg_id cfg_id,
 		frm_addr.mfd_y = cur_node->frm_addr.mfd_y;
 		frm_addr.mfd_u = cur_node->frm_addr.mfd_u;
 		frm_addr.mfd_v = cur_node->frm_addr.mfd_v;
+		frm_addr.user_fid = cur_node->frm_addr.user_fid;
 		ret = set_isp_path_cfg(handle, path_index, cfg_id, &frm_addr);
 	}
 
@@ -3579,12 +3580,14 @@ static int sprd_img_set_frame_addr(struct camera_file *camerafile,
 				frame_addr.mfd_y = p->fd_array[i];
 				frame_addr.mfd_u = p->fd_array[i];
 				frame_addr.mfd_v = p->fd_array[i];
-				pr_debug("phy:0x%08x, 0x%08x, 0x%08x\n",
+				frame_addr.user_fid = p->user_fid;
+				pr_debug("after stream_on phy:0x%08x, 0x%08x, 0x%08x\n",
 						frame_addr.yaddr,
 						frame_addr.uaddr,
 						frame_addr.vaddr);
-				pr_debug("id %d,vir:0x%08x, 0x%08x, 0x%08x\n",
+				pr_debug("a chn_id %d, user_fid %d, vir:0x%08x, 0x%08x, 0x%08x\n",
 						p->channel_id,
+						p->user_fid,
 						frame_addr.yaddr_vir,
 						frame_addr.uaddr_vir,
 						frame_addr.vaddr_vir);
@@ -3636,12 +3639,13 @@ static int sprd_img_set_frame_addr(struct camera_file *camerafile,
 				buf_addr.frm_addr.mfd_u = p->fd_array[i];
 				buf_addr.frm_addr.mfd_v = p->fd_array[i];
 
-				pr_debug("phy:0x%08x, 0x%08x, 0x%08x\n",
+				pr_debug("before stream_on, phy:0x%08x, 0x%08x, 0x%08x\n",
 						buf_addr.frm_addr.yaddr,
 						buf_addr.frm_addr.uaddr,
 						buf_addr.frm_addr.vaddr);
-				pr_debug("id %d,vir:0x%08x, 0x%08x, 0x%08x\n",
+				pr_debug("b chn_id %d, user_fid %d, vir:0x%08x, 0x%08x, 0x%08x\n",
 						p->channel_id,
+						p->user_fid,
 						buf_addr.frm_addr_vir.yaddr,
 						buf_addr.frm_addr_vir.uaddr,
 						buf_addr.frm_addr_vir.vaddr);

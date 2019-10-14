@@ -30,6 +30,12 @@ int isp_frame_dequeue(struct isp_frm_queue *queue,
 int isp_queue_init(struct isp_queue *queue);
 int32_t isp_queue_read(struct isp_queue *queue, struct isp_node *node);
 void isp_buf_queue_init(struct isp_buf_queue *queue);
+int isp_buf_queue_peek(struct isp_buf_queue *queue,
+                       struct camera_frame *frame);
+int isp_buf_queue_read_if(struct isp_buf_queue *queue,
+                          bool (*filter)(struct camera_frame *, void *),
+                          void *data,
+                          struct camera_frame *frame);
 int isp_buf_queue_read(struct isp_buf_queue *queue,
 	struct camera_frame *frame);
 int isp_buf_queue_write(struct isp_buf_queue *queue,

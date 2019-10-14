@@ -669,6 +669,7 @@ struct isp_path_desc {
 	unsigned int frame_base_id;
 	unsigned int output_frame_count;
 	unsigned int path_sel;
+	unsigned int uframe_sync;
 
 	struct isp_buf_queue buf_queue;
 	struct isp_frm_queue frame_queue;

@@ -3235,6 +3235,8 @@ int set_isp_path_cfg(void *isp_handle, enum isp_path_index path_index,
 	}
 
 	path = &module->isp_path[path_id];
+	path->uframe_sync = path_id != ISP_SCL_CAP;
+
 	off_desc = &module->off_desc;
 
 	switch (id) {
@@ -3324,6 +3326,7 @@ int set_isp_path_cfg(void *isp_handle, enum isp_path_index path_index,
 
 			frame.type = path_id;
 			frame.fid = path->frame_base_id;
+			frame.user_fid = p_addr->user_fid;
 
 			frame.pfinfo.dev = &s_isp_pdev->dev;
 			frame.pfinfo.mfd[0] = p_addr->mfd_y;
@@ -3345,7 +3348,8 @@ int set_isp_path_cfg(void *isp_handle, enum isp_path_index path_index,
 						 &frame))
 				path->output_frame_count++;
 
-			pr_debug("y=0x%x u=0x%x v=0x%x mfd=0x%x 0x%x",
+			pr_debug("frame user_fid:%u y=0x%x u=0x%x v=0x%x mfd=0x%x 0x%x",
+				 p_addr->user_fid,
 				 p_addr->yaddr, p_addr->uaddr, p_addr->vaddr,
 				 frame.pfinfo.mfd[0], frame.pfinfo.mfd[1]);
 			pr_debug("iova0=%lx, iova1=%lx\n",
@@ -3372,6 +3376,8 @@ int set_isp_path_cfg(void *isp_handle, enum isp_path_index path_index,
 			frame->yaddr_vir = p_addr->yaddr_vir;
 			frame->uaddr_vir = p_addr->uaddr_vir;
 			frame->vaddr_vir = p_addr->vaddr_vir;
+
+			frame->user_fid = p_addr->user_fid;
 
 			frame->pfinfo.dev = &s_isp_pdev->dev;
 			frame->pfinfo.mfd[0] = p_addr->mfd_y;

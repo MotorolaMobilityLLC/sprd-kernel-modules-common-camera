@@ -19,6 +19,8 @@
 #include "isp_reg.h"
 #include "isp_slice.h"
 
+#define CAMERA_RESERVE_FRAME_NUM	0xffffffff
+
 int isp_start_pre_proc(struct isp_path_desc *pre,
 			struct isp_path_desc *vid,
 			struct isp_path_desc *cap,

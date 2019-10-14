@@ -333,6 +333,13 @@ static int dcamio_set_output_size(struct camera_file *camerafile,
 	info->is_slow_motion = parm.slowmotion;
 	pr_debug("SPRD_IMG_IO_SET_OUTPUT_SIZE, scene_mode %d\n",
 		 parm.scene_mode);
+
+	if (info->scene_mode == DCAM_SCENE_MODE_PREVIEW ||
+	    info->scene_mode == DCAM_SCENE_MODE_RECORDING ||
+	    info->scene_mode == DCAM_SCENE_MODE_CAPTURE_CALLBACK) {
+		info->uframe_sync = 1;
+		pr_info("uframe_sync: %d\n", info->uframe_sync);
+	}
 	/*
 	 * TODO:  Need to switch slow motion mid back to AP mode till
 	 * the preview screen split issue resolved.
