@@ -1280,11 +1280,10 @@ int isp_get_hw_context_id(struct isp_pipe_context *pctx)
 		if ((pctx->ctx_id == pctx_hw->sw_ctx_id)
 			&& (pctx == pctx_hw->pctx)) {
 			hw_ctx_id = pctx_hw->hw_ctx_id;
-			pr_debug("get hw %d\n", hw_ctx_id);
 			break;
 		}
 	}
-	pr_info("get hw %d\n", hw_ctx_id);
+	pr_debug("get hw %d\n", hw_ctx_id);
 
 	return hw_ctx_id;
 }
@@ -1664,7 +1663,7 @@ static int isp_offline_start_frame(void *ctx)
 	}
 
 	if (valid_out_frame == -1) {
-		pr_info(" No available output buffer sw %d, hw %d,discard\n",
+		pr_debug(" No available output buffer sw %d, hw %d,discard\n",
 			pctx_hw->sw_ctx_id, pctx_hw->hw_ctx_id);
 		goto unlock;
 	}
