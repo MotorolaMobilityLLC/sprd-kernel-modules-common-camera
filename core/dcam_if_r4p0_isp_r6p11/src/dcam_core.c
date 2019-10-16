@@ -2819,6 +2819,8 @@ static int sprd_isp_path_cfg(struct camera_dev *dev)
 					       ISP_PATH_IDX_PRE,
 					       ISP_PATH_SN_MAX_SIZE,
 						&path_pre->out_size);
+			set_isp_path_cfg(dev->isp_dev_handle, ISP_PATH_IDX_PRE,
+				ISP_PATH_UFRAME_SYNC, &info->scene_mode);
 
 			path_pre->status = PATH_RUN;
 		} else {
@@ -2846,7 +2848,8 @@ static int sprd_isp_path_cfg(struct camera_dev *dev)
 					       ISP_PATH_IDX_VID,
 					       ISP_PATH_SN_MAX_SIZE,
 						&path_vid->out_size);
-
+			set_isp_path_cfg(dev->isp_dev_handle, ISP_PATH_IDX_VID,
+                                ISP_PATH_UFRAME_SYNC, &info->scene_mode);
 			ret = sprd_isp_slw_flags_init(dev->isp_dev_handle,
 						&path_info);
 			if (unlikely(ret)) {
@@ -2879,6 +2882,9 @@ static int sprd_isp_path_cfg(struct camera_dev *dev)
 					       ISP_PATH_IDX_CAP,
 					       ISP_PATH_SN_MAX_SIZE,
 						&path_cap->out_size);
+
+			set_isp_path_cfg(dev->isp_dev_handle, ISP_PATH_IDX_CAP,
+                                ISP_PATH_UFRAME_SYNC, &info->scene_mode);
 
 			path_cap->status = PATH_RUN;
 			if (info->is_3dnr) {

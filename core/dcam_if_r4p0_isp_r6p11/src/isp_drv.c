@@ -3209,6 +3209,7 @@ int set_isp_path_cfg(void *isp_handle, enum isp_path_index path_index,
 	enum isp_id iid  = 0;
 	uint8_t off_type;
 	struct offline_buf_desc *buf_desc = NULL;
+	unsigned int *scene_mode = NULL;
 
 	if (!isp_handle || !param) {
 		pr_err("fail to get valid param\n");
@@ -3235,7 +3236,6 @@ int set_isp_path_cfg(void *isp_handle, enum isp_path_index path_index,
 	}
 
 	path = &module->isp_path[path_id];
-	path->uframe_sync = path_id != ISP_SCL_CAP;
 
 	off_desc = &module->off_desc;
 
@@ -3348,8 +3348,8 @@ int set_isp_path_cfg(void *isp_handle, enum isp_path_index path_index,
 						 &frame))
 				path->output_frame_count++;
 
-			pr_debug("frame user_fid:%u y=0x%x u=0x%x v=0x%x mfd=0x%x 0x%x",
-				 p_addr->user_fid,
+			pr_debug("path %d, frame user_fid:%u y=0x%x u=0x%x v=0x%x mfd=0x%x 0x%x",
+				 path_id, p_addr->user_fid,
 				 p_addr->yaddr, p_addr->uaddr, p_addr->vaddr,
 				 frame.pfinfo.mfd[0], frame.pfinfo.mfd[1]);
 			pr_debug("iova0=%lx, iova1=%lx\n",
@@ -3390,7 +3390,6 @@ int set_isp_path_cfg(void *isp_handle, enum isp_path_index path_index,
 				rtn = DCAM_RTN_PATH_ADDR_ERR;
 				break;
 			}
-
 			frame->pfinfo.offset[0] = 0;
 			frame->pfinfo.offset[1] = 0;
 			frame->pfinfo.offset[2] = 0;
@@ -3468,6 +3467,16 @@ int set_isp_path_cfg(void *isp_handle, enum isp_path_index path_index,
 					path->data_endian.uv_endian);
 			}
 		}
+		break;
+	case ISP_PATH_UFRAME_SYNC:
+		scene_mode = (unsigned int *)param;
+		if (path_id != ISP_SCL_CAP)
+			path->uframe_sync = 1;
+		else if (*scene_mode == DCAM_SCENE_MODE_CAPTURE_CALLBACK)
+			path->uframe_sync = 1;
+		else
+			path->uframe_sync = 0;
+
 		break;
 
 	default:

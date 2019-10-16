@@ -1067,14 +1067,14 @@ static int get_ufid_across_all_path(struct isp_pipe_dev *dev)
 			continue;
 		else {
 			target_fid = min(target_fid, frame->user_fid);
-			pr_info("path%d user_fid %u\n",
+			pr_debug("path%d user_fid %u\n",
 				path_id, frame->user_fid);
 			ret = target_fid;
 		}
 	}
 
 	kfree(frame);
-	pr_info("target_fid %u\n", target_fid);
+	pr_debug("target_fid %u\n", target_fid);
 	return ret;
 }
 
@@ -1311,7 +1311,7 @@ int isp_path_set_next_frm(struct isp_module *module,
 	idx = dev->com_idx;
 	ISP_SET_SID(idx, sid);
 	iid = ISP_GET_IID(idx);
-	pr_debug("iid%d path index %d, idx 0x%x\n", iid, path_index, idx);
+	pr_debug("iid%d path index %d, idx 0x%x, uframe_sync %d\n", iid, path_index, idx, path->uframe_sync);
 
 #if 1 /* TODO: this is incorrect, need to change it */
 	if (get_off_frm_q_len(&module->off_desc, &frm_q_len))
@@ -1329,13 +1329,13 @@ int isp_path_set_next_frm(struct isp_module *module,
 
 	if (path->uframe_sync) {
 		target_fid = get_ufid_across_all_path(dev);
-		pr_info("target frame id %u\n", target_fid);
+		pr_debug("path 0x%x, target frame id %u\n", path_index, target_fid);
 		if (target_fid != CAMERA_RESERVE_FRAME_NUM) {
 			rtn = isp_buf_queue_read_if(&path->buf_queue,
 						    check_ufid,
 						    (void *)&target_fid,
 						    &frame);
-			pr_info("get target frame id %d\n", frame.user_fid);
+			pr_debug("path 0x%x, get target frame id %u\n", path_index, frame.user_fid);
 		}
 	} else {
 		if (isp_buf_queue_read(p_buf_queue, &frame) == 0 &&
