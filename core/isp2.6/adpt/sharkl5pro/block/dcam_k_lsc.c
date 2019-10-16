@@ -52,15 +52,11 @@ int dcam_init_lsc_slice(void *in, uint32_t online)
 	struct dcam_pipe_dev *dev = (struct dcam_pipe_dev *)in;
 
 	param = &dev->blk_dcam_pm->lsc;
-	if (!param->update) {
-		return 0;
-	}
-
 	idx = dev->idx;
 	info = &param->lens_info;
 
 	/* need update grid_x_num and more when offline slice*/
-	if (dev->idx == 1 && dev->dcam_slice_mode == 1) {
+	if (online == 0 && dev->dcam_slice_mode == 1) {
 		start_roi = dev->cap_info.cap_size.size_x / 2;
 		grid_x_num_slice = info->grid_x_num - info->grid_x_num / 2;
 	} else
@@ -119,7 +115,7 @@ int dcam_init_lsc(void *in, uint32_t online)
 	}
 
 	/* need update grid_x_num and more when offline slice*/
-	if (dev->idx == 1 && dev->dcam_slice_mode == 1) {
+	if (online == 0 && dev->dcam_slice_mode == 1) {
 		start_roi = 0;
 		grid_x_num_slice = info->grid_x_num / 2;
 	} else {
@@ -187,7 +183,7 @@ int dcam_init_lsc(void *in, uint32_t online)
 	val = DCAM_REG_RD(idx, DCAM_LENS_LOAD_ENABLE);
 	buf_sel = !((val & BIT_1) >> 1);
 	DCAM_REG_MWR(idx, DCAM_LENS_LOAD_ENABLE, BIT_1, buf_sel << 1);
-	pr_info("buf_sel %d\n", buf_sel);
+	pr_debug("buf_sel %d\n", buf_sel);
 
 	/* step 4: if initialized config, polling lens_load_flag done. */
 	i = 0;
