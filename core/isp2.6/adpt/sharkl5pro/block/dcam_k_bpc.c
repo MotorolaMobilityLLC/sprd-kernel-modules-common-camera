@@ -35,11 +35,16 @@ enum {
 int dcam_k_bpc_block(struct dcam_dev_param *param)
 {
 	int ret = 0;
-	uint32_t idx = param->idx;
+	uint32_t idx;
 	int i = 0;
 	uint32_t val = 0;
 	struct dcam_dev_bpc_info *p; /* bpc_info; */
+	if (param == NULL) {
+		pr_err("fail to check param\n");
+		return -1;
+	}
 
+	idx = param->idx;
 	if (!(param->bpc.update & _UPDATE_BLOCK))
 		return 0;
 	param->bpc.update &= (~(_UPDATE_BLOCK));
