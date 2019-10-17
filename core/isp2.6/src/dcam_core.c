@@ -518,6 +518,23 @@ exit:
 	return ret;
 }
 
+static int dcam_cfg_statis_buffer_skip(struct dcam_pipe_dev *dev, struct camera_frame *pframe)
+{
+	int ret = 0;
+	int path_id;
+
+	path_id = statis_type_to_path_id(pframe->irq_property);
+	if (path_id < 0) {
+		pr_err("invalid statis type: %d\n", pframe->irq_property);
+		ret = -EINVAL;
+		goto exit;
+	}
+
+	ret = camera_enqueue(&dev->path[path_id].out_buf_queue, pframe);
+exit:
+	return ret;
+}
+
 #if 0
 /* dcam_offline_cfg_param
  * after param prepare
@@ -1888,6 +1905,9 @@ static int sprd_dcam_ioctrl(void *dcam_handle,
 		break;
 	case DCAM_IOCTL_GET_PATH_RECT:
 		ret = dcam_get_path_rect(dev, param);
+		break;
+	case DCAM_IOCTL_CFG_STATIS_BUF_SKIP:
+		ret = dcam_cfg_statis_buffer_skip(dev, param);
 		break;
 	default:
 		pr_err("fail to get a known cmd: %d\n", cmd);

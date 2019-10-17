@@ -97,16 +97,6 @@ static int sprd_cam_flash_set(void *flash_handle, void *arg)
 	led0_status = flash_ctx->set_flash.led0_status;
 	led1_status = flash_ctx->set_flash.led1_status;
 
-	if ((led0_ctrl &&
-		(led0_status == FLASH_CLOSE_AFTER_OPEN ||
-		led0_status == FLASH_CLOSE ||
-		led0_status == FLASH_CLOSE_AFTER_AUTOFOCUS)) ||
-		(led1_ctrl &&
-		(led1_status == FLASH_CLOSE_AFTER_OPEN ||
-		led1_status == FLASH_CLOSE ||
-		led1_status == FLASH_CLOSE_AFTER_AUTOFOCUS))) {
-		complete(&flash_ctx->flash_thread_com);
-	}
 exit:
 	return ret;
 }
@@ -147,8 +137,7 @@ static int sprd_cam_flash_start(void *flash_handle)
 
 	if ((led0_ctrl && led0_status < FLASH_STATUS_MAX) ||
 		(led1_ctrl && led1_status < FLASH_STATUS_MAX)) {
-		if ((led0_ctrl && FLASH_HIGH_LIGHT == led0_status) ||
-			(led1_ctrl && FLASH_HIGH_LIGHT == led1_status)) {
+
 			flash_ctx->frame_skipped++;
 			if (flash_ctx->frame_skipped >=
 				flash_ctx->skip_number) {
@@ -162,10 +151,12 @@ static int sprd_cam_flash_start(void *flash_handle)
 					flash_ctx->frame_skipped,
 					flash_ctx->skip_number);
 			}
+
+			if (need_light) {
+				complete(&flash_ctx->flash_thread_com);
+			}
 		}
-		if (need_light)
-			complete(&flash_ctx->flash_thread_com);
-	}
+
 	return ret;
 }
 

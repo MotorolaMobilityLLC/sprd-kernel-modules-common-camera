@@ -240,8 +240,10 @@ struct dcam_pipe_dev {
 	uint32_t slice_count;
 	struct img_trim slice_trim;
 	uint32_t raw_cap;
+	uint32_t flash_skip_fid; /*for flash skip */
 	struct completion slice_done;
 	struct completion frm_done;
+	struct completion offline_complete;
 
 	uint32_t iommu_enable;
 	struct dcam_mipi_info cap_info;

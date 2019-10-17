@@ -171,6 +171,15 @@ struct camera_uinfo {
 	uint32_t is_afbc;
 };
 
+struct sprd_img_flash_info {
+	uint32_t led0_ctrl;
+	uint32_t led1_ctrl;
+	uint32_t led0_status;
+	uint32_t led1_status;
+	uint32_t flash_last_status;
+};
+
+
 struct channel_context {
 	enum cam_ch_id ch_id;
 	uint32_t enable;
@@ -287,6 +296,8 @@ struct camera_module {
 	uint32_t lowlux_4in1; /* flag */
 	struct camera_queue remosaic_queue; /* 4in1: save camera_frame when remosaic */
 	uint32_t auto_3dnr; /* 1: enable hw,and alloc buffer before stream on */
+	struct sprd_img_flash_info flash_info;
+	uint32_t flash_skip_fid;
 };
 
 struct camera_group {
@@ -1514,6 +1525,14 @@ int dcam_callback(enum dcam_cb_type type, void *param, void *priv_data)
 				channel->isp_updata = NULL;
 				pr_info("cur %p\n", pframe->param_data);
 			}
+			if((module->flash_skip_fid == pframe->fid)&&(module->flash_skip_fid != 0)){
+				pr_debug("flash_skip_frame fd = %d\n",pframe->fid);
+				ret = dcam_ops->cfg_path(module->dcam_dev_handle,
+						DCAM_PATH_CFG_OUTPUT_BUF,
+						channel->dcam_path_id, pframe);
+
+				return ret;
+			}
 
 			if (camera_queue_cnt(&module->isp_hist2_outbuf_queue) > 0) {
 				io_desc.q = &module->isp_hist2_outbuf_queue;
@@ -1680,6 +1699,14 @@ int dcam_callback(enum dcam_cb_type type, void *param, void *priv_data)
 		pframe->irq_type = CAMERA_IRQ_STATIS;
 		/* temp: statis/irq share same queue with frame data. */
 		/* todo: separate statis/irq and frame queue. */
+
+		if((module->flash_skip_fid == pframe->fid)&&(module->flash_skip_fid != 0)){
+			ret = dcam_ops->ioctl(module->dcam_dev_handle,
+						DCAM_IOCTL_CFG_STATIS_BUF_SKIP,
+						pframe);
+
+			return ret;
+		}
 		if (atomic_read(&module->state) == CAM_RUNNING) {
 			ret = camera_enqueue(&module->frm_queue, pframe);
 			if (ret) {
@@ -1696,9 +1723,25 @@ int dcam_callback(enum dcam_cb_type type, void *param, void *priv_data)
 
 	case DCAM_CB_IRQ_EVENT:
 		if (pframe->irq_property == IRQ_DCAM_SN_EOF) {
-			flash_ops->start_flash(module->flash_core_handle);
 			put_empty_frame(pframe);
 			break;
+		}
+		if (pframe->irq_property == IRQ_DCAM_SOF) {
+			 if((module->flash_info.led0_ctrl && module->flash_info.led0_status < FLASH_STATUS_MAX) ||
+				(module->flash_info.led1_ctrl && module->flash_info.led1_status < FLASH_STATUS_MAX)) {
+				flash_ops->start_flash(module->flash_core_handle);
+				if(module->flash_info.flash_last_status != module->flash_info.led0_status)
+					module->flash_skip_fid = pframe->fid;
+				else
+					pr_info("do not need skip");
+				pr_info("skip_fram=%d\n", pframe->fid);
+				module->flash_info.flash_last_status = module->flash_info.led0_status;
+				module->flash_info.led0_ctrl = 0;
+				module->flash_info.led1_ctrl = 0;
+				module->flash_info.led0_status = 0;
+				module->flash_info.led1_status = 0;
+			}
+
 		}
 		/* temp: statis/irq share same queue with frame data. */
 		/* todo: separate statis/irq and frame queue. */
@@ -3860,6 +3903,12 @@ static int img_ioctl_set_flash(
 		goto exit;
 	}
 
+	module->flash_info.led0_ctrl = set_param.led0_ctrl;
+	module->flash_info.led1_ctrl = set_param.led1_ctrl;
+	module->flash_info.led0_status = set_param.led0_status;
+	module->flash_info.led1_status = set_param.led1_status;
+	pr_info("led0_ctrl=%d,led1_ctrl=%d\n",set_param.led0_ctrl,set_param.led1_ctrl);
+
 	ret = flash_ops->set_flash(module->flash_core_handle,
 		(void *)&set_param);
 exit:
@@ -5342,6 +5391,7 @@ static int img_ioctl_stream_on(
 		return -EFAULT;
 	}
 
+	module->flash_skip_fid = 0;
 	atomic_set(&module->state, CAM_STREAM_ON);
 	pr_info("cam%d stream on starts\n", module->idx);
 
