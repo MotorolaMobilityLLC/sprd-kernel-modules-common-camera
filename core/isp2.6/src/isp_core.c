@@ -1303,7 +1303,7 @@ int isp_get_sw_context_id(enum isp_context_hw_id hw_ctx_id, struct isp_pipe_dev 
 				return sw_id;
 			}
 	}
-	pr_err("get sw fail\n");
+	pr_debug("get sw fail\n");
 	return -1;
 }
 

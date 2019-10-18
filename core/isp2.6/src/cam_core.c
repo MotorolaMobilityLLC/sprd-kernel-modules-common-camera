@@ -1377,7 +1377,8 @@ int dcam_callback(enum dcam_cb_type type, void *param, void *priv_data)
 			pr_info("get out raw frame: fd:%d [%d %d]\n",
 				pframe->buf.mfd[0], pframe->width, pframe->height);
 
-		} else if (channel->ch_id == CAM_CH_PRE) {
+		} else if (channel->ch_id == CAM_CH_PRE
+			|| channel->ch_id == CAM_CH_VID) {
 
 			pr_debug("proc isp path %d\n", channel->isp_path_id);
 			/* ISP in_queue maybe overflow.
@@ -1699,9 +1700,9 @@ static int cal_channel_swapsize(struct camera_module *module)
 	uint32_t ratio_p_w1, ratio_p_h1;
 	uint32_t ratio_v_w1, ratio_v_h1;
 	uint32_t isp_linebuf_len = g_camctrl.isp_linebuf_len;
-	struct channel_context *ch_prev;
-	struct channel_context *ch_vid;
-	struct channel_context *ch_cap;
+	struct channel_context *ch_prev = NULL;
+	struct channel_context *ch_vid = NULL;
+	struct channel_context *ch_cap = NULL;
 	struct img_size max_bypass, max_bin, max_rds, temp;
 	struct img_size src_p, dst_p, dst_v, max;
 
@@ -1716,7 +1717,11 @@ static int cal_channel_swapsize(struct camera_module *module)
 		pr_info("cap swap size %d %d\n", max.w, max.h);
 	}
 
-	if (!ch_prev->enable)
+	if (ch_prev->enable)
+		ch_prev = &module->channel[CAM_CH_PRE];
+	else if (!ch_prev->enable && ch_vid->enable)
+		ch_prev = &module->channel[CAM_CH_VID];
+	else
 		return 0;
 
 	if (module->cam_uinfo.is_4in1 || module->cam_uinfo.dcam_slice_mode) {
@@ -1862,11 +1867,10 @@ static int cal_channel_size_bininig(
 		return 0;
 
 	dcam_out.w = dcam_out.h = 0;
-
 	dst_p.w = dst_p.h = 1;
 	dst_v.w = dst_v.h = 1;
 	crop_p = crop_v = crop_c = NULL;
-	if (ch_prev->enable) {
+	if (ch_prev->enable || (!ch_prev->enable && ch_vid->enable)) {
 		src_p.w = ch_prev->ch_uinfo.src_size.w;
 		src_p.h = ch_prev->ch_uinfo.src_size.h;
 		crop_p = &ch_prev->ch_uinfo.src_crop;
@@ -1884,7 +1888,7 @@ static int cal_channel_size_bininig(
 		pr_info("src crop vid %u %u %u %u\n",
 			crop_v->x, crop_v->y, crop_v->w, crop_v->h);
 	}
-	if (ch_prev->enable) {
+	if (ch_prev->enable || (!ch_prev->enable && ch_vid->enable)) {
 		crop_dst = *crop_p;
 		get_largest_crop(&crop_dst, crop_v);
 		trim_pv.start_x = crop_dst.x;
@@ -1904,7 +1908,7 @@ static int cal_channel_size_bininig(
 	pr_info("trim_c: %u %u %u %u\n", trim_c.start_x,
 		trim_c.start_y, trim_c.size_x, trim_c.size_y);
 
-	if (ch_prev->enable) {
+	if (ch_prev->enable || (!ch_prev->enable && ch_vid->enable)) {
 		shift = 0;
 		if (bypass_always == 0) {
 			factor = (src_binning ? 10 : 9);
@@ -1982,6 +1986,8 @@ static int cal_channel_size_bininig(
 	}
 
 	if (ch_vid->enable) {
+		ch_vid->dst_dcam = dcam_out;
+		ch_vid->trim_dcam = trim_pv;
 		isp_trim = &ch_vid->trim_isp;
 		isp_trim->size_x = ((ch_vid->ch_uinfo.src_crop.w >> shift) + 1) & ~1;
 		isp_trim->size_y = ((ch_vid->ch_uinfo.src_crop.h >> shift) + 1) & ~1;
@@ -2390,7 +2396,7 @@ static int config_channel_size(
 	pr_info("update dcam path %d size for channel %d\n",
 		channel->dcam_path_id, channel->ch_id);
 
-	if (channel->ch_id == CAM_CH_PRE) {
+	if (channel->ch_id == CAM_CH_PRE || channel->ch_id == CAM_CH_VID) {
 		isp_param = kzalloc(sizeof(struct isp_offline_param), GFP_KERNEL);
 		if (isp_param == NULL) {
 			pr_err("fail to alloc memory.\n");
@@ -3147,13 +3153,16 @@ static int init_cam_channel(
 		 * dcam path and isp ctx now.
 		 */
 		channel_prev = &module->channel[CAM_CH_PRE];
-		if (channel_prev->enable == 0) {
-			/* todo: video only support ?? */
-			pr_err("vid channel is not independent from preview\n");
+		if (channel_prev->enable) {
+			channel->dcam_path_id = channel_prev->dcam_path_id;
+			isp_ctx_id = (channel_prev->isp_path_id
+				>> ISP_CTXID_OFFSET);
+		} else {
+			dcam_path_id = DCAM_PATH_BIN;
+			new_dcam_path = 1;
+			new_isp_ctx = 1;
+			pr_info("vid channel enable without preview\n");
 		}
-
-		channel->dcam_path_id = channel_prev->dcam_path_id;
-		isp_ctx_id = (channel_prev->isp_path_id >> ISP_CTXID_OFFSET);
 		isp_path_id = ISP_SPATH_VID;
 		new_isp_path = 1;
 		break;
@@ -4696,7 +4705,9 @@ static int img_ioctl_set_frame_addr(
 			struct camera_frame *pframe1;
 
 			if (param.is_reserved_buf &&
-				((ch->ch_id == CAM_CH_CAP) || (ch->ch_id == CAM_CH_PRE))) {
+				((ch->ch_id == CAM_CH_CAP)
+				|| (ch->ch_id == CAM_CH_PRE)
+				|| (ch->ch_id == CAM_CH_VID))) {
 				cmd = DCAM_PATH_CFG_OUTPUT_RESERVED_BUF;
 				pframe1 = get_empty_frame();
 				pframe1->is_reserved = 1;
@@ -5103,7 +5114,8 @@ static int img_ioctl_stream_on(
 	int ret = 0;
 	uint32_t i, j, line_w, isp_ctx_id, isp_path_id;
 	uint32_t uframe_sync, live_ch_count = 0;
-	struct channel_context *ch;
+	struct channel_context *ch = NULL;
+	struct channel_context *ch_pre = NULL, *ch_vid = NULL;
 	struct isp_statis_io_desc io_desc;
 
 	if (atomic_read(&module->state) != CAM_CFG_CH) {
@@ -5127,9 +5139,14 @@ static int img_ioctl_stream_on(
 	else
 		cal_channel_size_rds(module);
 
-	ch = &module->channel[CAM_CH_PRE];
-	if (ch->enable)
-		config_channel_size(module, ch);
+	ch_pre = &module->channel[CAM_CH_PRE];
+	if (ch_pre->enable)
+		config_channel_size(module, ch_pre);
+
+	ch_vid = &module->channel[CAM_CH_VID];
+	if (ch_vid->enable && !ch_pre->enable)
+		config_channel_size(module, ch_vid);
+
 	ch = &module->channel[CAM_CH_CAP];
 	if (ch->enable) {
 		config_channel_size(module, ch);
