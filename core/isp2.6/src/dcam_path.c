@@ -550,8 +550,13 @@ int dcam_path_set_store_frm(void *dcam_handle,
 		 * PDAF type3, when need write addr to DCAM_PPE_RIGHT_WADDR
 		 * PDAF type3, half buffer for right PD, TBD
 		 */
-		DCAM_REG_WR(idx, DCAM_PPE_RIGHT_WADDR,
-			    frame->buf.iova[0] + STATIS_PDAF_BUF_SIZE / 2);
+		if (dev->hw->prj_id == SHARKL3) {
+			DCAM_REG_WR(idx, DCAM_VCH2_BASE_WADDR,
+				frame->buf.iova[0] + STATIS_PDAF_BUF_SIZE / 2);
+		} else {
+			DCAM_REG_WR(idx, DCAM_PPE_RIGHT_WADDR,
+				frame->buf.iova[0] + STATIS_PDAF_BUF_SIZE / 2);
+		}
 	}
 
 	dcam = dcam_get_dcam_if(idx);
