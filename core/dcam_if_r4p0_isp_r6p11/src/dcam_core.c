@@ -1449,8 +1449,10 @@ static int sprd_img_tx_done(struct camera_frame *frame, void *param)
 			dev->idx, node.time.tv_sec, node.time.tv_usec);
 	}
 
-	DCAM_TRACE_INT("flag 0x%x type 0x%x, ret=%d\n",
-				node.irq_flag, node.irq_type, ret);
+	DCAM_TRACE_INT("flag 0x%x type 0x%x, property %u, frm_id %u, mfd 0x%x %x %x, ret=%d\n",
+		       node.irq_flag, node.irq_type,
+		       node.irq_property, node.frame_id,
+		       node.mfd[0], node.mfd[1], node.mfd[2], ret);
 	if (ret)
 		return ret;
 	DCAM_TRACE_INT("sprd_img %d %d %p\n", dev->idx,

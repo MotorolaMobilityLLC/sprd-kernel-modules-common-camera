@@ -31,7 +31,7 @@
 #ifdef DCAM_DEBUG_INT
 #define DCAM_TRACE_INT(a, b...)			pr_info(a, ##b)
 #else
-#define DCAM_TRACE_INT(a, b...)
+#define DCAM_TRACE_INT(a, b...)			pr_debug(a, ##b)
 #endif
 
 #define BIT_CAM_AHB_AXIM_SOFT_RST			(BIT(1))
