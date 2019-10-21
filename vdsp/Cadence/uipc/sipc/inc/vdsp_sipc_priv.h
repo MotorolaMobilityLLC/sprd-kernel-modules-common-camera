@@ -86,7 +86,7 @@ struct smsg_ipc {
 	void	(*rxirq_clear)(u8 id);
 	void	(*txirq_trigger)(u8 id, u64 msg);
 
-	u32	ring_base;
+	void __iomem *ring_base;
 	u32	ring_size;
 	struct ion_buf ring_ion;
 	void	*smem_vbase;

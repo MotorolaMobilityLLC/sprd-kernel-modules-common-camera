@@ -323,7 +323,8 @@ static void vdsp_smsg_ipc_init_irq_callback(struct smsg_ipc *ipc)
 
 static int vdsp_smsg_ipc_smem_init(struct smsg_ipc *ipc)
 {
-	void __iomem *base, *p;
+	void __iomem *p;
+	int ret;
 
 	if (ipc->smem_inited)
 		return 0;
@@ -332,28 +333,28 @@ static int vdsp_smsg_ipc_smem_init(struct smsg_ipc *ipc)
 	pr_debug("%s: %s!\n", __func__, ipc->name);
 #ifdef USING_SHARE_MEM
 	if (ipc->type == SIPC_BASE_IPI) {
+		ipc->ring_base = NULL;
 		ipc->ring_size = SZ_4K;
-		ipc->ring_base = vdsp_share_mem_alloc(ipc->vdsp_mem_desc,
+		ret = vdsp_share_mem_alloc(ipc->vdsp_mem_desc,
 						     &ipc->ring_ion,
 						     ION_HEAP_ID_MASK_SYSTEM,
 						     SZ_4K);
 
-		if (ipc->ring_base) {
-			pr_err("IPC ring_base = 0x%x, ring_size = 0x%x\n",
-				ipc->ring_base,
+		if (ret) {
+			pr_err("IPC ipc->ring_base = NULL, ring_size = 0x%x\n",
 				ipc->ring_size);
 			return -ENOMEM;
 		}
 	}
 #endif /* USING_SHARE_MEM */
 
-	if (!ipc->ring_base) {
+	if (!ret) {
 #ifdef USING_SHARE_MEM
 		vdsp_share_mem_kmap(ipc->vdsp_mem_desc, &ipc->ring_ion);
-		base = (void __iomem *)ipc->ring_ion.addr_k[0];
+		ipc->ring_base = (void __iomem *)ipc->ring_ion.addr_k[0];
 #endif /* USING_SHARE_MEM */
 
-		if (!base) {
+		if (!ipc->ring_base) {
 			vdsp_share_mem_free(ipc->vdsp_mem_desc, &ipc->ring_ion);
 			pr_err("ioremap failed!\n");
 			return -ENOMEM;
@@ -361,7 +362,7 @@ static int vdsp_smsg_ipc_smem_init(struct smsg_ipc *ipc)
 
 		/* assume client is boot later than host */
 		if (!ipc->client) {
-			for (p = base; p < base + ipc->ring_size;) {
+			for (p = ipc->ring_base; p < ipc->ring_base + ipc->ring_size;) {
 #ifdef CONFIG_64BIT
 				*(uint64_t *)p = 0x0;
 				p += sizeof(uint64_t);
@@ -374,40 +375,40 @@ static int vdsp_smsg_ipc_smem_init(struct smsg_ipc *ipc)
 
 		if (ipc->client) {
 			/* clent mode, tx is host rx , rx is host tx*/
-			ipc->smem_vbase = (void *)base;
+			ipc->smem_vbase = (void *)ipc->ring_base;
 			ipc->txbuf_size = SMSG_RXBUF_SIZE /
 				sizeof(struct smsg);
-			ipc->txbuf_addr = (uintptr_t)base +
+			ipc->txbuf_addr = (uintptr_t)ipc->ring_base +
 				SMSG_RXBUF_ADDR;
-			ipc->txbuf_rdptr = (uintptr_t)base +
+			ipc->txbuf_rdptr = (uintptr_t)ipc->ring_base +
 				SMSG_RXBUF_RDPTR;
-			ipc->txbuf_wrptr = (uintptr_t)base +
+			ipc->txbuf_wrptr = (uintptr_t)ipc->ring_base +
 				SMSG_RXBUF_WRPTR;
 			ipc->rxbuf_size = SMSG_TXBUF_SIZE /
 				sizeof(struct smsg);
-			ipc->rxbuf_addr = (uintptr_t)base +
+			ipc->rxbuf_addr = (uintptr_t)ipc->ring_base +
 				SMSG_TXBUF_ADDR;
-			ipc->rxbuf_rdptr = (uintptr_t)base +
+			ipc->rxbuf_rdptr = (uintptr_t)ipc->ring_base +
 				SMSG_TXBUF_RDPTR;
-			ipc->rxbuf_wrptr = (uintptr_t)base +
+			ipc->rxbuf_wrptr = (uintptr_t)ipc->ring_base +
 				SMSG_TXBUF_WRPTR;
 		} else {
-			ipc->smem_vbase = (void *)base;
+			ipc->smem_vbase = (void *)ipc->ring_base;
 			ipc->txbuf_size = SMSG_TXBUF_SIZE /
 				sizeof(struct smsg);
-			ipc->txbuf_addr = (uintptr_t)base +
+			ipc->txbuf_addr = (uintptr_t)ipc->ring_base +
 				SMSG_TXBUF_ADDR;
-			ipc->txbuf_rdptr = (uintptr_t)base +
+			ipc->txbuf_rdptr = (uintptr_t)ipc->ring_base +
 				SMSG_TXBUF_RDPTR;
-			ipc->txbuf_wrptr = (uintptr_t)base +
+			ipc->txbuf_wrptr = (uintptr_t)ipc->ring_base +
 				SMSG_TXBUF_WRPTR;
 			ipc->rxbuf_size = SMSG_RXBUF_SIZE /
 				sizeof(struct smsg);
-			ipc->rxbuf_addr = (uintptr_t)base +
+			ipc->rxbuf_addr = (uintptr_t)ipc->ring_base +
 				SMSG_RXBUF_ADDR;
-			ipc->rxbuf_rdptr = (uintptr_t)base +
+			ipc->rxbuf_rdptr = (uintptr_t)ipc->ring_base +
 				SMSG_RXBUF_RDPTR;
-			ipc->rxbuf_wrptr = (uintptr_t)base +
+			ipc->rxbuf_wrptr = (uintptr_t)ipc->ring_base +
 				SMSG_RXBUF_WRPTR;
 		}
 	}
@@ -669,7 +670,7 @@ int vdsp_smsg_senddie(u8 dst)
 	msg.flag = 0;
 	msg.value = 0;
 
-	if (ipc->ring_base) {
+	if (!ipc->ring_base) {
 		if ((int)(SIPC_READL(ipc->txbuf_wrptr) -
 			SIPC_READL(ipc->txbuf_rdptr)) >= ipc->txbuf_size) {
 			pr_info("smsg_send: smsg txbuf is full!\n");
@@ -751,7 +752,7 @@ int vdsp_smsg_send(u8 dst, struct smsg *msg, int timeout)
 		ipc->rxbuf_wrptr,SIPC_READL(ipc->rxbuf_wrptr),
 		ipc->txbuf_size, ipc->txbuf_rdptr, SIPC_READL(ipc->txbuf_rdptr),
 		ipc->txbuf_wrptr, SIPC_READL(ipc->txbuf_wrptr));
-	if (!ipc->ring_base) {
+	if (ipc->ring_base) {
 		if (((int)(SIPC_READL(ipc->txbuf_wrptr) -
 				SIPC_READL(ipc->txbuf_rdptr)) >=
 				ipc->txbuf_size)) {
@@ -906,7 +907,7 @@ int vdsp_smsg_recv(u8 dst, struct smsg *msg, int timeout)
 	memcpy(msg, &ch->caches[rd], sizeof(struct smsg));
 	SIPC_WRITEL(SIPC_READL(ch->rdptr) + 1, ch->rdptr);
 
-	if (ipc->ring_base)
+	if (!ipc->ring_base)
 		pr_info("read smsg: dst=%d, channel=%d, CH wrptr=%d, ch rdptr=%d, rd=%d\n",
 			 dst,
 			 msg->channel,
