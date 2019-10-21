@@ -571,8 +571,6 @@ int sprd_isp_unmap_buf(void *isp_pipe_dev_handle)
 					SPRD_IOMMU_EX_CH_WRITE, STORE_WR_CH_ID);
 	memset(&isp_k_param->store_pfinfo, 0, sizeof(struct pfiommu_info));
 
-	pfiommu_put_sg_table();
-
 	return 0;
 }
 

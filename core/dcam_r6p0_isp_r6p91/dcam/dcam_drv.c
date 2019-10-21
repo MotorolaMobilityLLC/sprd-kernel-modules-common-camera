@@ -4507,7 +4507,6 @@ int32_t dcam_stop(unsigned char is_isr)
 	isp_axi_waiting();
 	if (s_p_dcam_mod->isp_dev_handle)
 		sprd_isp_unmap_buf(s_p_dcam_mod->isp_dev_handle);
-	pfiommu_put_sg_table();
 	dcam_reset(DCAM_RST_ALL);
 	s_p_dcam_mod->state &= ~DCAM_STATE_QUICKQUIT;
 	if (is_isr == 0)

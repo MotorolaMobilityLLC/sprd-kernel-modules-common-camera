@@ -2788,6 +2788,11 @@ static int sprd_img_stream_off(struct file *file)
 		path_0->is_work, path_1->is_work,
 		path_2->is_work, atomic_read(&dev->stream_on));
 
+	/*wait for scale done*/
+	if (!path_2->is_work) {
+		dcam_get_resizer();
+		dev->got_resizer = 1;
+	}
 	do {
 		ret = sprd_stop_timer(&dev->dcam_timer);
 		ret = dcam_stop(0);
@@ -2829,8 +2834,6 @@ static int sprd_img_stream_off(struct file *file)
 					       ret);
 					break;
 				}
-				dcam_rel_resizer();
-				dev->got_resizer = 0;
 			}
 
 			path_2->is_work = 0;
@@ -2852,6 +2855,9 @@ static int sprd_img_stream_off(struct file *file)
 		}
 		dev->dcam_cxt.interp_mode = 0;
 	} while (0);
+	pfiommu_put_sg_table();
+	dcam_rel_resizer();
+	dev->got_resizer = 0;
 
 	mutex_unlock(&dev->dcam_mutex);
 	pr_info("%s end, ret: %d\n", __func__, ret);
