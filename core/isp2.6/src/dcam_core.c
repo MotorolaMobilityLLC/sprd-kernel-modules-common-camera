@@ -1204,14 +1204,14 @@ static int dcam_offline_start_slices(void *param)
 	int ret = 0;
 	int i, loop = 0;
 	uint32_t force_ids = DCAM_CTRL_ALL;
-	uint32_t fetch_pitch;
-	uint32_t reg_val;
-	uint32_t loose_val;
-	uint32_t val_4in1;
+	uint32_t fetch_pitch = 0;
+	uint32_t reg_val = 0;
+	uint32_t loose_val = 0;
+	uint32_t val_4in1 = 0;
 	struct dcam_pipe_dev *dev = NULL;
 	struct camera_frame *pframe = NULL;
-	struct dcam_path_desc *path;
-	struct dcam_fetch_info *fetch;
+	struct dcam_path_desc *path = NULL;
+	struct dcam_fetch_info *fetch = NULL;
 
 	dev = (struct dcam_pipe_dev *)param;
 	fetch = &dev->fetch;
