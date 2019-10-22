@@ -1273,10 +1273,7 @@ int isp_get_hw_context_id(struct isp_pipe_context *pctx)
 
 	for (i = 0; i < ISP_CONTEXT_HW_NUM; i++) {
 		pctx_hw = &dev->hw_ctx[i];
-		pr_debug("i %d, target sw %d,  hw: %d %d,  0x%lx  0x%lx\n",
-			i, pctx->ctx_id,
-			pctx_hw->sw_ctx_id, pctx_hw->hw_ctx_id,
-			(unsigned long)pctx, (unsigned long)pctx_hw->pctx);
+
 		if ((pctx->ctx_id == pctx_hw->sw_ctx_id)
 			&& (pctx == pctx_hw->pctx)) {
 			hw_ctx_id = pctx_hw->hw_ctx_id;
@@ -1303,7 +1300,7 @@ int isp_get_sw_context_id(enum isp_context_hw_id hw_ctx_id, struct isp_pipe_dev 
 				return sw_id;
 			}
 	}
-	pr_debug("get sw fail\n");
+
 	return -1;
 }
 
