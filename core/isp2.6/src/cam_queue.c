@@ -79,7 +79,7 @@ struct camera_frame *camera_dequeue(struct camera_queue *q)
 			list_empty(&q->head), q->cnt);
 		fatal_err = (list_empty(&q->head) ^ (q->cnt == 0));
 		if (fatal_err)
-			pr_err("error:  empty %d, cnt %d\n",
+			pr_err("empty %d, cnt %d\n",
 					list_empty(&q->head), q->cnt);
 		goto unlock;
 	}

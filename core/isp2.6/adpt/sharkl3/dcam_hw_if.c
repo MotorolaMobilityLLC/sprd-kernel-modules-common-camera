@@ -911,6 +911,11 @@ int dcam_update_path_size(struct dcam_pipe_dev *dev,
 	return ret;
 }
 
+static int dcam_k_cfg_null(struct isp_io_param *param, struct dcam_dev_param *p)
+{
+	return 0;
+}
+
 /* todo: enable block config one by one */
 /* because parameters from user may be illegal when bringup*/
 static struct dcam_cfg_entry dcam_cfg_func_tab[DCAM_BLOCK_TOTAL] = {
@@ -926,6 +931,7 @@ static struct dcam_cfg_entry dcam_cfg_func_tab[DCAM_BLOCK_TOTAL] = {
 [DCAM_BLOCK_GRGB - DCAM_BLOCK_BASE]     = {DCAM_BLOCK_GRGB,              dcam_k_cfg_grgb},
 [DCAM_BLOCK_3DNR_ME - DCAM_BLOCK_BASE] = {DCAM_BLOCK_3DNR_ME,          dcam_k_cfg_3dnr_me},
 [DCAM_BLOCK_AFM - DCAM_BLOCK_BASE]     = {DCAM_BLOCK_AFM,              dcam_k_cfg_afm},
+[DCAM_BLOCK_BAYERHIST - DCAM_BLOCK_BASE] = {DCAM_BLOCK_BAYERHIST,      dcam_k_cfg_null},
 };
 
 struct dcam_cfg_entry *dcam_get_cfg_func(uint32_t index)
