@@ -64,50 +64,6 @@ struct isp_scaler_slice_tmp {
 	uint32_t scaler_out_width_temp;
 };
 
-static uint32_t sprd_ispslice_noisefilter_24b_shift8(uint32_t seed,
-	uint32_t *data_out)
-{
-	uint32_t bit_0 = 0, bit_1 = 0;
-	uint32_t bit_2 = 0, bit_3 = 0;
-	uint32_t bit_in[8] = {0}, bit_in8b = 0;
-	uint32_t out = 0;
-	uint32_t i = 0;
-
-	for (i = 0; i < 8; i++) {
-		bit_0 = (seed >> (0 + i)) & 0x1;
-		bit_1 = (seed >> (1 + i)) & 0x1;
-		bit_2 = (seed >> (2 + i)) & 0x1;
-		bit_3 = (seed >> (7 + i)) & 0x1;
-		bit_in[i] = bit_0 ^ bit_1 ^ bit_2 ^ bit_3;
-	}
-	bit_in8b = (bit_in[7] << 7) | (bit_in[6] << 6) | (bit_in[5] << 5) |
-		(bit_in[4] << 4) | (bit_in[3] << 3) | (bit_in[2] << 2) |
-		(bit_in[1] << 1) | bit_in[0];
-
-	out = seed & 0xffffff;
-	out = out | (bit_in8b << 24);
-	if (data_out)
-		*data_out = out;
-
-	out = out >> 8;
-
-	return out;
-}
-
-static void sprd_ispslice_noisefilter_seeds(uint32_t image_width,
-	uint32_t seed0, uint32_t *seed1, uint32_t *seed2, uint32_t *seed3)
-{
-	uint32_t i = 0;
-
-	*seed1 = sprd_ispslice_noisefilter_24b_shift8(seed0, NULL);
-	*seed2 = seed0;
-
-	for (i = 0; i < image_width; i++)
-		*seed2 = sprd_ispslice_noisefilter_24b_shift8(*seed2, NULL);
-
-	*seed3 = sprd_ispslice_noisefilter_24b_shift8(*seed2, NULL);
-}
-
 static int sprd_ispslice_noisefliter_info_set(struct isp_slice_desc *slc_ctx,
 	struct isp_slice_context *ctx)
 {
@@ -135,7 +91,7 @@ static int sprd_ispslice_noisefliter_info_set(struct isp_slice_desc *slc_ctx,
 			noisefilter_info = &cur_slc->noisefilter_info;
 			noisefilter_info->seed0 = seed0;
 			slice_width = scaler_info->trim1_size_x;
-			sprd_ispslice_noisefilter_seeds(slice_width,
+			sprd_noisefilter_seeds(slice_width,
 				noisefilter_info->seed0,&noisefilter_info->seed1,
 					&noisefilter_info->seed2, &noisefilter_info->seed3);
 			pr_debug("seed0=%d,seed1=%d,seed2=%d,seed3=%d,slice_width=%d\n",
