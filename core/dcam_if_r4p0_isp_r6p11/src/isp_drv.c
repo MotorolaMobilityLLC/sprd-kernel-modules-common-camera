@@ -41,6 +41,8 @@
 #define ISP_OFF_PRODUCER_Q_SIZE_MIN             1
 #define ISP_OFF_CONSUMER_Q_SIZE                 2
 #define ISP_OFF_CONSUMER_Q_SIZE_MULTI           4
+
+#define ISP_FLASH_FRM_NUM			1
 #define ISP_HDR_FRM_NUM                         3
 #define ISP_3DNR_NUM                            5
 #define ISP_AXI_STOP_TIMEOUT                    1000
@@ -1559,9 +1561,17 @@ int sprd_isp_start_pipeline_full(void *handle, unsigned int cap_flag)
 		}
 
 		if (cap_flag == DCAM_CAPTURE_START_FROM_NEXT_SOF) {
-			dev->is_hdr = 1;
-			dev->frm_cnt_hdr = ISP_HDR_FRM_NUM;
-			pr_debug("hdr capture\n");
+			if (dev->frm_cnt_cap == ISP_HDR_FRM_NUM) {
+				dev->is_hdr = 1;
+				pr_info("hdr capture\n");
+			} else if (dev->frm_cnt_cap == ISP_FLASH_FRM_NUM) {
+				dev->is_flash = 1;
+				pr_info("flash capture\n");
+			} else {
+				pr_err("fail to get valid frm_cnt_cap %d\n",
+				       dev->frm_cnt_cap);
+				goto err_exit;
+			}
 
 			/*
 			 * start_capture may come during sof and tx_done,
@@ -1635,28 +1645,6 @@ int sprd_isp_start_pipeline_full(void *handle, unsigned int cap_flag)
 		}
 	}
 
-	if (cap_flag == DCAM_CAPTURE_START_WITH_FLASH) {
-		dev->cap_flag = DCAM_CAPTURE_START_WITH_FLASH;
-		/*
-		 * start_capture may come during sof and tx_done,
-		 * here make sure flash process hold until tx_done
-		 */
-		if (wait_for_full_tx_done(dev))
-			goto err_exit;
-		pr_debug("flash frm_cnt %d, valid_cnt:%d\n",
-			 dev->frm_cnt, buf_desc->zsl_queue.valid_cnt);
-
-		ret = isp_buf_recycle(buf_desc, &buf_desc->tmp_buf_queue,
-				      &buf_desc->zsl_queue,
-				      buf_desc->zsl_queue.valid_cnt);
-		if (ret)
-			goto err_exit;
-	}
-
-	if (dev->cap_flag == DCAM_CAPTURE_START_WITH_FLASH &&
-	    dev->wait_full_tx_done == WAIT_BEGIN)
-		goto normal_exit;
-
 	if (buf_desc->zsl_queue.valid_cnt == 0) {
 		pr_debug("wait new zsl frame\n");
 		goto normal_exit;
@@ -1685,15 +1673,21 @@ int sprd_isp_start_pipeline_full(void *handle, unsigned int cap_flag)
 			pr_debug("dev->frm_cnt_3dnr%d\n", dev->frm_cnt_3dnr);
 			dev->frm_cnt_3dnr--;
 		}
-	}
-
-	if (dev->is_hdr) {
-		if (dev->frm_cnt_hdr == 0) {
-			pr_debug("frm_cnt_hdr is zero, no need of capture\n");
+	} else if (dev->is_hdr) {
+		if (dev->frm_cnt_cap == 0) {
+			pr_debug("frm_cnt_cap of hdr is zero, no need of capture\n");
 			goto normal_exit;
 		} else {
-			pr_debug("dev->frm_cnt_hdr %d\n", dev->frm_cnt_hdr);
-			dev->frm_cnt_hdr--;
+			pr_debug("dev->frm_cnt_cap %d\n", dev->frm_cnt_cap);
+			dev->frm_cnt_cap--;
+		}
+	} else if (dev->is_flash) {
+		if (dev->frm_cnt_cap == 0) {
+			pr_debug("frm_cnt_cap of flash is zero, no need of capture\n");
+			goto normal_exit;
+		} else {
+			pr_debug("dev->frm_cnt_cap %d\n", dev->frm_cnt_cap);
+			dev->frm_cnt_cap--;
 		}
 	}
 
@@ -1725,7 +1719,7 @@ normal_exit_raw:
 	dev->wait_full_tx_done = WAIT_CLEAR;
 
 normal_exit:
-	pr_debug("normal exit, ret = %d\n", ret);
+	pr_info("normal exit, ret = %d\n", ret);
 	return ISP_RTN_SUCCESS;
 
 err_exit:
@@ -2111,17 +2105,19 @@ int sprd_isp_force_stop_pipeline(void *handle)
 	spin_unlock_irqrestore(&isp_mod_lock, flag);
 
 	if (dev->is_3dnr) {
-		pr_debug("disabling 3dnr\n");
+		pr_info("disabling 3dnr\n");
 		dev->is_3dnr = 0;
 		dev->frm_cnt_3dnr = 0;
 		dev->module_info.isp_path[ISP_SCL_VID].valid = 0;
+	} else if (dev->is_hdr) {
+		pr_info("disabling hdr\n");
+		dev->is_hdr = 0;
+	} else if (dev->is_flash) {
+		pr_info("disabling flash capture\n");
+		dev->is_flash = 0;
 	}
 
-	if (dev->is_hdr) {
-		pr_debug("disabling hdr\n");
-		dev->is_hdr = 0;
-		dev->frm_cnt_hdr = 0;
-	}
+	dev->frm_cnt_cap = 0;
 
 	return ret;
 }

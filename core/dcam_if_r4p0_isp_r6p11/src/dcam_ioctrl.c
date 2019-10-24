@@ -1284,7 +1284,10 @@ static int dcamio_start_capture(struct camera_file *camerafile,
 		ret = -EFAULT;
 		goto exit_nolock;
 	}
+
 	cap_flag = capture_param.type;
+	isp_dev = dev->isp_dev_handle;
+	isp_dev->frm_cnt_cap = capture_param.cap_cnt;
 
 	/* In practice, start captures may run parallelly, with no lock. */
 	if (is_dual_cam)
@@ -1322,7 +1325,6 @@ static int dcamio_start_capture(struct camera_file *camerafile,
 			goto exit;
 		}
 	} else {
-		isp_dev = dev->isp_dev_handle;
 		if (g_isp_dev_parray[0] == isp_dev) {
 			isp_dev_other = g_isp_dev_parray[1];
 			idx = 0;

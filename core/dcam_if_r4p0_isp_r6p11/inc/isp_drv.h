@@ -856,10 +856,11 @@ struct isp_pipe_dev {
 	unsigned int is_3dnr_path_cfg; /* check if 3dnr path been configed */
 	unsigned int is_3dnr; /* check if start capture of 3dnr coming */
 	unsigned int is_hdr;
+	unsigned int is_flash;
 	/* set this flag when isp waiting for dcam full path tx done */
 	enum isp_wait_full_tx_done_state wait_full_tx_done;
 	unsigned int frm_cnt_3dnr;
-	unsigned int frm_cnt_hdr;
+	unsigned int frm_cnt_cap; // flash, hdr frame cap count
 	struct camera_group *cam_grp;
 	spinlock_t pre_lock;
 	spinlock_t cap_lock;
