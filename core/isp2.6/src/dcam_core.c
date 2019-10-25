@@ -777,12 +777,12 @@ dequeue:
 inq_overflow:
 wait_err:
 	cambuf_iommu_unmap(&pframe->buf);
-map_err:
-	/* return buffer to cam channel shared buffer queue. */
 	complete(&dev->slice_done);
 	complete(&dev->frm_done);
+map_err:
+	/* return buffer to cam channel shared buffer queue. */
 	dev->dcam_cb_func(DCAM_CB_RET_SRC_BUF, pframe, dev->cb_priv_data);
-	return ret;
+	return 0;
 }
 
 
@@ -800,12 +800,12 @@ static int dcam_offline_start_frame(void *param)
 	struct dcam_fetch_info *fetch = NULL;
 	struct cam_hw_info *hw = NULL;
 
-	pr_debug("enter.\n");
 
 	dev = (struct dcam_pipe_dev *)param;
 
 	hw = dev->hw;
 	dev->offline = 1;
+	pr_debug("enter.dev->idx = %d\n", dev->idx);
 
 	ret = wait_for_completion_interruptible_timeout(
 					&dev->frm_done,
@@ -813,10 +813,20 @@ static int dcam_offline_start_frame(void *param)
 	if (ret == ERESTARTSYS) {
 		pr_err("interrupt when dcam wait\n");
 		ret = -EFAULT;
+		pframe = camera_dequeue(&dev->in_queue);
+		if (pframe == NULL) {
+			pr_warn("no frame from in_q. dcam%d\n", dev->idx);
+			return 0;
+		}
 		goto wait_err;
 	} else if (ret == 0) {
 		pr_err("error: dcam%d offline timeout.\n", dev->idx);
 		ret = -EFAULT;
+		pframe = camera_dequeue(&dev->in_queue);
+		if (pframe == NULL) {
+			pr_warn("no frame from in_q. dcam%d\n", dev->idx);
+			return 0;
+		}
 		goto wait_err;
 	}
 
@@ -950,13 +960,13 @@ static int dcam_offline_start_frame(void *param)
 dequeue:
 	pframe = camera_dequeue_tail(&dev->proc_queue);
 inq_overflow:
-wait_err:
 	cambuf_iommu_unmap(&pframe->buf);
 map_err:
-	/* return buffer to cam channel shared buffer queue. */
 	complete(&dev->frm_done);
+wait_err:
+	/* return buffer to cam channel shared buffer queue. */
 	dev->dcam_cb_func(DCAM_CB_RET_SRC_BUF, pframe, dev->cb_priv_data);
-	return ret;
+	return 0;
 }
 
 static int dcam_offline_thread_loop(void *arg)
@@ -976,6 +986,7 @@ static int dcam_offline_thread_loop(void *arg)
 
 	init_completion(&dev->frm_done);
 	complete(&dev->frm_done);
+	pr_info("dcam%d\n", dev->idx);
 	init_completion(&dev->slice_done);
 	complete(&dev->slice_done);
 	while (1) {
@@ -1751,7 +1762,7 @@ static int sprd_dcam_set_cb(void *dcam_handle,
 	return ret;
 }
 
-static int sprd_dcam_dev_start(void *dcam_handle)
+static int sprd_dcam_dev_start(void *dcam_handle, int online)
 {
 	int ret = 0;
 	int i;
@@ -1770,13 +1781,23 @@ static int sprd_dcam_dev_start(void *dcam_handle)
 	hw = dev->hw;
 	dev->offline = 0;
 
+	ret = dcam_create_offline_thread(dev);
+	if (ret) {
+		pr_err("fail to creat offline thread\n");
+		return ret;
+	}
+	if (!online) {
+		atomic_set(&dev->state, STATE_RUNNING);
+		return ret;
+	}
 	ret = atomic_read(&dev->state);
 	if (unlikely(ret != STATE_IDLE)) {
 		pr_err("starting DCAM%u in state %d\n", dev->idx, ret);
 		return -EINVAL;
 	}
 
-	pr_info("DCAM%u start: %p\n", dev->idx, dev);
+	pr_info("DCAM%u start: %p, state = %d\n", dev->idx, dev, atomic_read(&dev->state));
+
 
 	ret = dcam_init_sync_helper(dev);
 	if (ret < 0) {
@@ -1869,7 +1890,7 @@ static int sprd_dcam_dev_start(void *dcam_handle)
 	hw->hw_ops.core_ops.reg_trace(dev->idx, NORMAL_REG_TRACE);
 	dev->auto_cpy_id = 0;
 	dev->err_count = 1;
-	pr_info("dcam%d done\n", dev->idx);
+	pr_info("dcam%d done state = %d\n", dev->idx, atomic_read(&dev->state));
 	return ret;
 }
 
@@ -1884,18 +1905,20 @@ static int sprd_dcam_dev_stop(void *dcam_handle)
 	}
 	dev = (struct dcam_pipe_dev *)dcam_handle;
 
+	ret = dcam_stop_offline_thread(&dev->thread);
+	if (ret) {
+		pr_err("fail to stop offline thread\n");
+		return ret;
+	}
+
 	state = atomic_read(&dev->state);
 	if (unlikely(state == STATE_INIT) || unlikely(state == STATE_IDLE)) {
 		pr_warn("DCAM%d not started yet\n", dev->idx);
 		return -EINVAL;
 	}
 
-	pr_info("stop dcam %d.\n", dev->idx);
-
 	/* wait for last frame done */
-	pr_debug("dev->offline = %d,dev->raw_cap = %d\n",
-		dev->offline, dev->raw_cap);
-	if (dev->offline == 1 && !dev->raw_cap) {
+	if ((dev->offline == 1 || dev->is_4in1 == 1) && !dev->raw_cap) {
 		ret = wait_for_completion_interruptible_timeout(
 						&dev->frm_done,
 						DCAM_OFFLINE_TIMEOUT);
@@ -1933,7 +1956,7 @@ static int sprd_dcam_dev_stop(void *dcam_handle)
 	dev->is_pdaf = dev->is_3dnr = dev->is_4in1 = 0;
 	dev->err_count = 0;
 
-	pr_info("stop dcam pipe dev[%d]!\n", dev->idx);
+	pr_info("stop dcam pipe dev[%d] state = %d!\n", dev->idx, atomic_read(&dev->state));
 	return ret;
 }
 
@@ -2020,11 +2043,6 @@ static int sprd_dcam_dev_open(void *dcam_handle)
 	if (ret)
 		goto reset_fail;
 
-
-	ret = dcam_create_offline_thread(dev);
-	if (ret)
-		goto reset_fail;
-
 	camera_queue_init(&dev->in_queue, DCAM_IN_Q_LEN,
 				0, dcam_ret_src_frame);
 	camera_queue_init(&dev->proc_queue, DCAM_PROC_Q_LEN,
@@ -2081,7 +2099,6 @@ int sprd_dcam_dev_close(void *dcam_handle)
 		return -EINVAL;
 	}
 
-	dcam_stop_offline_thread(&dev->thread);
 	camera_queue_clear(&dev->in_queue);
 	camera_queue_clear(&dev->proc_queue);
 

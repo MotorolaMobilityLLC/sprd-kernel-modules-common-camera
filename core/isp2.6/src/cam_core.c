@@ -3088,6 +3088,7 @@ static int deinit_4in1_aux(struct camera_module *module)
 	pr_info("E\n");
 	dev = module->aux_dcam_dev;
 	ret = dcam_ops->ioctl(dev, DCAM_IOCTL_CFG_STOP, NULL);
+	ret = dcam_ops->stop(dev);
 	ret = dcam_ops->put_path(dev, DCAM_PATH_BIN);
 	ret += dcam_ops->close(dev);
 	ret += dcam_if_put_dev(dev);
@@ -3466,7 +3467,7 @@ static int init_cam_channel(
 			pr_err("4in1 raw capture init bin fail\n");
 	}
 	/* bigsize setting */
-	if (channel->ch_id == CAM_CH_CAP && module->cam_uinfo.dcam_slice_mode) {
+ 	if (channel->ch_id == CAM_CH_CAP && module->cam_uinfo.dcam_slice_mode) {
 		ret = init_bigsize_aux(module, channel);
 		if (ret < 0) {
 			pr_err("init dcam for 4in1 error, ret = %d\n", ret);
@@ -5390,12 +5391,18 @@ static int img_ioctl_stream_on(
 	set_cap_info(module);
 
 	module->dual_frame = NULL;
-	ret = dcam_ops->start(module->dcam_dev_handle);
+	ret = dcam_ops->start(module->dcam_dev_handle, 1);
 	if (ret < 0) {
 		pr_err("fail to start dcam dev, ret %d\n", ret);
 		goto exit;
 	}
-
+ 	if ((module->cam_uinfo.is_4in1 || module->cam_uinfo.dcam_slice_mode) && module->aux_dcam_dev) {
+		ret = dcam_ops->start(module->aux_dcam_dev, 0);
+		if (ret < 0) {
+			pr_err("fail to start aux_dcam dev, ret %d\n", ret);
+			goto exit;
+		}
+	}
 	atomic_set(&module->state, CAM_RUNNING);
 	atomic_set(&module->timeout_flag, 1);
 	ret = sprd_start_timer(&module->cam_timer, CAMERA_TIMEOUT);
@@ -5915,6 +5922,11 @@ static int raw_proc_pre(
 	ch->isp_path_id = -1;
 	ch->aux_dcam_path_id = -1;
 
+	ret = dcam_ops->start(module->dcam_dev_handle, 0);
+	if (ret < 0) {
+		pr_err("fail to start dcam dev, ret %d\n", ret);
+		return -EFAULT;
+	}
 	/* specify dcam path */
 	dcam_path_id = DCAM_PATH_BIN;
 	ret = dcam_ops->get_path(
@@ -6204,7 +6216,6 @@ static int img_ioctl_raw_proc(
 		pr_err("error: not init hw resource.\n");
 		return -EFAULT;
 	}
-
 	if (proc_info.scene == RAW_PROC_SCENE_HWSIM) {
 		rps_info = 1;
 		pr_info("hwsim\n");

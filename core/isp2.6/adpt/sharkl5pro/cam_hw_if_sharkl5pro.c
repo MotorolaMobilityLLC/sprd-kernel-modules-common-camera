@@ -762,7 +762,10 @@ static int sharkl5pro_dcam_mipi_cap_set(void *arg)
 	/* for C-phy */
 	if (cap_info->is_cphy == 1)
 		DCAM_REG_MWR(idx, DCAM_MIPI_CAP_CFG, BIT_31, BIT_31);
-
+	DCAM_REG_MWR(dev->idx,
+		DCAM_MIPI_CAP_CFG, BIT_12, 0x0 << 12);
+	DCAM_REG_MWR(dev->idx,
+		DCAM_MIPI_CAP_CFG, BIT_28, 0x0 << 28);
 	/* bypass 4in1 */
 	if (cap_info->is_4in1) { /* 4in1 use sum, not avrg */
 		DCAM_REG_MWR(idx, DCAM_BAYER_INFO_CFG, BIT_1,

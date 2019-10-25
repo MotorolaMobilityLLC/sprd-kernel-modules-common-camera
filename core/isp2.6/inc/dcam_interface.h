@@ -227,7 +227,7 @@ struct dcam_pipe_ops {
 	int (*open)(void *handle);
 	int (*close)(void *handle);
 	int (*reset)(void *handle);
-	int (*start)(void *handle);
+	int (*start)(void *handle, int online);
 	int (*stop)(void *handle);
 	int (*get_path)(void *handle, int path_id);
 	int (*put_path)(void *handle, int path_id);
