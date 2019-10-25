@@ -1056,7 +1056,8 @@ static int get_ufid_across_all_path(struct isp_pipe_dev *dev)
 	}
 
 	module = &dev->module_info;
-	frame = kmalloc(sizeof(struct camera_frame), GFP_KERNEL);
+	frame = kzalloc(sizeof(struct camera_frame), GFP_KERNEL);
+
 	if (!frame)
 		return -ENOMEM;
 
@@ -1311,7 +1312,8 @@ int isp_path_set_next_frm(struct isp_module *module,
 	idx = dev->com_idx;
 	ISP_SET_SID(idx, sid);
 	iid = ISP_GET_IID(idx);
-	pr_debug("iid%d path index %d, idx 0x%x, uframe_sync %d\n", iid, path_index, idx, path->uframe_sync);
+	pr_debug("iid%d path index %d, idx 0x%x, uframe_sync %d\n",
+		iid, path_index, idx, path->uframe_sync);
 
 #if 1 /* TODO: this is incorrect, need to change it */
 	if (get_off_frm_q_len(&module->off_desc, &frm_q_len))
@@ -1330,13 +1332,14 @@ int isp_path_set_next_frm(struct isp_module *module,
 	if (path->uframe_sync) {
 		target_fid = get_ufid_across_all_path(dev);
 		pr_debug("path 0x%x, target frame id %u\n", path_index, target_fid);
-		if (target_fid != CAMERA_RESERVE_FRAME_NUM) {
-			rtn = isp_buf_queue_read_if(&path->buf_queue,
-						    check_ufid,
-						    (void *)&target_fid,
-						    &frame);
-			pr_debug("path 0x%x, get target frame id %u\n", path_index, frame.user_fid);
-		}
+		rtn = isp_buf_queue_read_if(&path->buf_queue,
+						check_ufid,
+						(void *)&target_fid,
+						&frame);
+		if(!rtn)
+			path->output_frame_count--;
+		pr_debug("path 0x%x, get target frame id %u, rtn %d\n",
+			path_index, frame.user_fid, rtn);
 	} else {
 		if (isp_buf_queue_read(p_buf_queue, &frame) == 0 &&
 		    frame.pfinfo.mfd[0] != 0)
@@ -1353,6 +1356,8 @@ int isp_path_set_next_frm(struct isp_module *module,
 		use_reserve_frame = 1;
 
 	if (use_reserve_frame) {
+		pr_debug("buf queue have %d, mfd %u\n",
+			p_buf_queue->valid_cnt, frame.pfinfo.mfd[0]);
 		rtn = pfiommu_get_addr(&reserved_frame->pfinfo);
 		if (rtn) {
 			pr_err("ISP%d: fail to get reserved buffer addr\n",

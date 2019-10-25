@@ -584,6 +584,7 @@ static int dcam_raw_path_set_next_frm(enum dcam_id idx)
 	unsigned int output_frame_count = 0;
 	int use_reserve_frame = 0;
 	struct dcam_module *module;
+	struct camera_dev *dev = NULL;
 
 	if (DCAM_ADDR_INVALID(s_p_dcam_mod[idx])) {
 		pr_err("fail to get ptr\n");
@@ -591,8 +592,13 @@ static int dcam_raw_path_set_next_frm(enum dcam_id idx)
 	}
 
 	module = s_p_dcam_mod[idx];
+	if (!module->dev_handle){
+		pr_err("fail to get camera_dev\n");
+		return -EFAULT;
+	}
 	reserved_frame = &module->raw_reserved_frame;
 	raw_path = &module->dcam_raw_path;
+	dev = (struct camera_dev *)module->dev_handle;
 	pr_debug("raw capture mode:%d\n", raw_path->valid);
 
 	if (raw_path->valid == FULL_RAW_CAPTURE)
@@ -607,9 +613,11 @@ static int dcam_raw_path_set_next_frm(enum dcam_id idx)
 	p_buf_queue = &raw_path->buf_queue;
 	output_frame_count = raw_path->output_frame_count;
 
-	if (dcam_buf_queue_read(p_buf_queue, &frame) == 0 &&
+	if ((dev->cap_flag != DCAM_CAPTURE_STOP) && /* keep buffer untill start capture*/
+		dcam_buf_queue_read(p_buf_queue, &frame) == 0 &&
 	    (frame.pfinfo.mfd[0] != 0)) {
 		raw_path->output_frame_count--;
+		pr_debug("raw path set next frm\n");
 	} else {
 		pr_info("DCAM%d: No freed frame id %d raw path\n",
 			idx, frame.fid);
@@ -1017,6 +1025,20 @@ static void dcam_full_path_sof(enum dcam_id idx)
 	}
 }
 
+static void dcam_full_raw_path_sof(enum dcam_id idx)
+{
+	struct camera_dev *cam_dev = NULL;
+	enum dcam_drv_rtn rtn = DCAM_RTN_SUCCESS;
+
+	if (s_p_dcam_mod[idx]->dcam_raw_path.valid) {
+		cam_dev = (struct camera_dev *)s_p_dcam_mod[idx]->dev_handle;
+
+		rtn = dcam_raw_path_set_next_frm(idx);
+		if (rtn)
+			pr_err("fail to set raw path next frm %d\n", rtn);
+	}
+}
+
 static void dcam_cap_sof_handle(enum dcam_id idx)
 {
 	struct camera_frame frame = {0};
@@ -1040,6 +1062,7 @@ static void dcam_cap_sof(enum dcam_id idx)
 	dcam_cap_sof_handle(idx);
 	dcam_bin_path_sof(idx);
 	dcam_full_path_sof(idx);
+	dcam_full_raw_path_sof(idx);
 
 	dcam_auto_copy(idx);
 	dcam_print_time("debug shaking: auto_copy", DCAM_TIME_SOF);
@@ -1333,17 +1356,19 @@ static void dcam_raw_path_done(enum dcam_id idx)
 	void *data;
 	struct dcam_path_desc *path;
 	struct dcam_module *module;
+	struct camera_dev *dev = NULL;
 
 	if (DCAM_ADDR_INVALID(s_p_dcam_mod[idx]))
 		return;
 
 	module = s_p_dcam_mod[idx];
+	dev = module->dev_handle;
 	path = &module->dcam_raw_path;
 	if (path->valid == 0) {
 		pr_info("DCAM%d: raw path not valid\n", idx);
 		return;
 	}
-
+	pr_debug("raw path, frame_deci %d, done_cnt %d\n", path->frame_deci, path->done_cnt);
 	if (path->frame_deci > 1) {
 		if (path->done_cnt == 0) {
 			path->done_cnt = 1;
@@ -1360,8 +1385,6 @@ static void dcam_raw_path_done(enum dcam_id idx)
 	user_func = s_user_func[idx][DCAM_FULL_PATH_TX_DONE];
 	data = s_user_data[idx][DCAM_FULL_PATH_TX_DONE];
 	DCAM_TRACE("dcam%d %p\n", idx, data);
-	sprd_dcam_glb_reg_awr(idx, DCAM0_CFG, ~(1 << 0),
-				DCAM_CFG_REG);
 #if 0
 	if (path->need_stop) {
 		sprd_dcam_glb_reg_awr(idx, DCAM_CFG, ~(1 << 0),
@@ -1384,13 +1407,15 @@ static void dcam_raw_path_done(enum dcam_id idx)
 		pfiommu_free_addr(&frame.pfinfo);
 		if (frame.pfinfo.mfd[0] !=
 		    module->raw_reserved_frame.pfinfo.mfd[0]) {
+
+			sprd_dcam_glb_reg_awr(idx, DCAM0_CFG, ~(1 << 0), DCAM_CFG_REG);
 			frame.width = path->output_size.w;
 			frame.height = path->output_size.h;
 			frame.irq_type = CAMERA_IRQ_IMG;
 
 			DCAM_TRACE("DCAM%d: raw path frame %p\n",
 				   idx, &frame);
-			DCAM_TRACE("y uv, 0x%x 0x%x, mfd = 0x%x,0x%x\n",
+			DCAM_TRACE("raw cap: full path tx done y uv, 0x%x 0x%x, mfd = 0x%x,0x%x\n",
 				   frame.yaddr, frame.uaddr,
 				   frame.pfinfo.mfd[0], frame.pfinfo.mfd[1]);
 
@@ -1416,6 +1441,7 @@ static void dcam_full_path_tx_done(enum dcam_id idx)
 	data = s_user_data[idx][DCAM_FULL_PATH_TX_DONE];
 
 	if (s_p_dcam_mod[idx]->dcam_raw_path.valid == FULL_RAW_CAPTURE) {
+		pr_debug("raw cap: dcam full path tx done\n");
 		dcam_raw_path_done(idx);
 		/*
 		 * rtn = dcam_raw_path_set_next_frm(idx);

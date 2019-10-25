@@ -1305,7 +1305,7 @@ int sprd_isp_start_pipeline_bin(void *handle, unsigned int cap_flag)
 		if (ret)
 			goto exit;
 	}
-
+	pr_debug("is raw capture %d\n", dev->is_raw_capture);
 	if (dev->is_raw_capture) {
 		if (cap_flag != DCAM_CAPTURE_NONE) {
 			complete(&dev->offline_bin_thread_com);

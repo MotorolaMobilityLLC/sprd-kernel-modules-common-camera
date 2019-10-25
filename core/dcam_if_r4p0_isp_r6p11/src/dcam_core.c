@@ -1413,6 +1413,7 @@ static int sprd_img_tx_done(struct camera_frame *frame, void *param)
 		node.vaddr_vir = frame->vaddr_vir;
 		node.frame_id = frame->frame_id;
 		memcpy(node.mfd, frame->pfinfo.mfd, sizeof(unsigned int) * 3);
+		pr_debug("send to user: mfd 0x%x,0x%x\n", node.mfd[0], node.mfd[1]);
 	} else if (frame->irq_type == CAMERA_IRQ_STATIS) {
 		node.irq_flag = IMG_TX_DONE;
 		node.irq_type = frame->irq_type;
@@ -1613,6 +1614,7 @@ static int sprd_img_full_tx_done(struct camera_frame *frame, void *param)
 	struct camera_dev *dev = (struct camera_dev *)param;
 
 	if (dev->dcam_cxt.need_isp_tool) {
+		pr_debug("raw cap: dcam full path tx done\n");
 		sprd_img_tx_done(frame, param);
 		return 0;
 	}
@@ -3545,8 +3547,8 @@ static int sprd_img_set_frame_addr(struct camera_file *camerafile,
 	}
 
 	pr_debug("set path%d frame addr,status %d cnt %d reserved_buf %d\n",
-		   p->channel_id, path->status, path->frm_cnt_act,
-		   p->is_reserved_buf);
+		p->channel_id, path->status, path->frm_cnt_act,
+		p->is_reserved_buf);
 
 	if (unlikely(p->fd_array[0] == 0)) {
 		pr_err("fail to get fd 0\n");
