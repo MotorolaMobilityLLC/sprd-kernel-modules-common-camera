@@ -34,7 +34,7 @@
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include "xrp_address_map.h"
-#include "xrp_hw.h"
+#include "vdsp_hw.h"
 #include "xrp_internal.h"
 #include "xrp_faceid_firmware.h"
 #include "xrp_kernel_dsp_interface.h"
@@ -48,7 +48,9 @@ static int xrp_load_segment_to_sysmem_ion(struct xvp *xvp , Elf32_Phdr *phdr)
 	int32_t offset;
 	uint8_t *virstart = NULL;
 #endif
-	printk("yzl add %s phdr->p_paddr:%lx , firmware viraddr:%lx\n" , __func__ , (unsigned long)phdr->p_paddr , (unsigned long)xvp->dsp_firmware_addr);
+	printk("%s phdr->p_paddr:%lx , firmware viraddr:%lx\n" ,
+			__func__ , (unsigned long)phdr->p_paddr,
+			(unsigned long)xvp->dsp_firmware_addr);
 #ifdef DOWNLOAD_FIRMWARE
 	if(phdr->p_paddr < xvp->dsp_firmware_addr)
 		return -EFAULT;
@@ -56,12 +58,19 @@ static int xrp_load_segment_to_sysmem_ion(struct xvp *xvp , Elf32_Phdr *phdr)
 
 	virstart = (uint8_t*)xvp->firmware2_viraddr;
 
-	pr_info("%s virstart:%p , offset:%x , poffset:%x ,pmemsz:%x , pfilesz:%x\n" , __func__ , virstart , offset , phdr->p_offset , phdr->p_memsz , phdr->p_filesz);
-	memcpy((void*)(virstart + offset) , xvp->firmware2->data + phdr->p_offset , phdr->p_filesz);
+	pr_info("%s virstart:%p, offset:%x"
+			"poffset:%x,pmemsz:%x, pfilesz:%x\n",
+			__func__, virstart, offset,
+			phdr->p_offset, phdr->p_memsz, phdr->p_filesz);
+	memcpy((void*)(virstart + offset) ,
+			xvp->firmware2->data + phdr->p_offset , phdr->p_filesz);
 	if(phdr->p_memsz > phdr->p_filesz)
 	{
-		pr_info("%s memset vir:%p , size:%x\n" , __func__ , (void*)(virstart+ offset + phdr->p_filesz) , (phdr->p_memsz - phdr->p_filesz));
-		memset((void*)(virstart + offset + phdr->p_filesz) , 0 , (phdr->p_memsz - phdr->p_filesz));
+		pr_info("%s memset vir:%p , size:%x\n" ,
+				__func__ , (void*)(virstart+ offset + phdr->p_filesz) ,
+				(phdr->p_memsz - phdr->p_filesz));
+		memset((void*)(virstart + offset + phdr->p_filesz) , 0 ,
+				(phdr->p_memsz - phdr->p_filesz));
 	}
 	wmb();
 #endif
@@ -80,7 +89,9 @@ static int xrp_load_segment_to_iomem(struct xvp *xvp, Elf32_Phdr *phdr)
 			&pa, (u32)phdr->p_memsz);
 		return -EINVAL;
 	}
-	pr_info("yzl add %s ioremap p:%p, p_paddr:%lx , memcpyhw:%p , memsethw:%p\n" , __func__ , p , (unsigned long)pa , xvp->hw_ops->memcpy_tohw , xvp->hw_ops->memset_hw);
+	pr_info("%s ioremap p:%p, p_paddr:%lx , memcpyhw:%p , memsethw:%p\n" ,
+			__func__ , p , (unsigned long)pa ,
+			xvp->hw_ops->memcpy_tohw , xvp->hw_ops->memset_hw);
 	if (xvp->hw_ops->memcpy_tohw)
 		xvp->hw_ops->memcpy_tohw(p, (void *)xvp->firmware2->data +
 					 phdr->p_offset, phdr->p_filesz);
@@ -123,7 +134,8 @@ static int xrp_firmware_find_symbol(struct xvp *xvp, const char *name,
 		return -ENOENT;
 	}
 	if (ehdr->e_shoff > xvp->firmware2->size ||
-	    ehdr->e_shnum * ehdr->e_shentsize > xvp->firmware2->size - ehdr->e_shoff) {
+	    ehdr->e_shnum * ehdr->e_shentsize >
+		xvp->firmware2->size - ehdr->e_shoff) {
 		dev_err(xvp->dev, "%s: bad firmware SHDR information",
 			__func__);
 		return -EINVAL;

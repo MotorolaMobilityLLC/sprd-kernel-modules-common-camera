@@ -58,9 +58,10 @@ static void *ipi_isr_param[IPI_IDX_MAX] = {
 	[IPI_IDX_3] = NULL,
 };
 
-static int vdsp_ipi_reg_irq_handle(int idx, irq_handler_t handler, void *param)
+static int vdsp_ipi_reg_irq_handle(int idx,
+		irq_handler_t handler, void *param)
 {
-	pr_info("vdsp_ipi_reg_irq_handle handler[%d] = 0x%p, param = 0x%p\n",
+	pr_info("vdsp register handler[%d] = 0x%p, param = 0x%p\n",
 		idx, handler, param);
 	ipi_isr_handler[idx] = handler;
 	ipi_isr_param[idx] = param;
@@ -126,7 +127,6 @@ static irqreturn_t irq_handler(int irq, void *arg)
 	int i = 0;
 
 	irq_val = IPI_HREG_RD(s_ipi_desc.ipi_addr) & 0xF;
-//	hw->client_irq = irq_val;
 	irq_mask = irq_val;
 	pr_info("irq_handler reg val = 0x%x\n", irq_mask);
 

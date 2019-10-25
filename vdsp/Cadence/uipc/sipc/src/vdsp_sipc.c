@@ -66,7 +66,7 @@ void vdsp_sipc_register_trigger(u8 dst, vdsp_sipc_handle cb)
 
 	ipc = vdsp_smsg_ipcs[dst];
 
-	pr_info("vdsp_sipc_register_trigger ............................................ 000000\n");
+	pr_info("%s\n", __func__);
 	ipc->txirq_trigger = cb;
 #ifdef TEST_OPENSELT
 	complete(&ipc->thread_com);

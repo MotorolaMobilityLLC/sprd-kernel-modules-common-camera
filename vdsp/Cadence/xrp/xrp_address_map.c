@@ -63,14 +63,16 @@ int xrp_init_address_map(struct device *dev,
 	int i;
 
 	if (!ranges) {
-		dev_dbg(dev, "%s: no 'ranges' property in the device tree, no translation at that level\n",
+		dev_dbg(dev, "%s: no 'ranges' property in the device tree"
+				"no translation at that level\n",
 			__func__);
 		goto empty;
 	}
 
 	node = of_get_next_child(pnode, NULL);
 	if (!node) {
-		dev_warn(dev, "%s: no child node found in the device tree, no translation at that level\n",
+		dev_warn(dev, "%s: no child node found in the device tree"
+				"no translation at that level\n",
 			 __func__);
 		goto empty;
 	}
@@ -97,7 +99,7 @@ int xrp_init_address_map(struct device *dev,
 		map->entry[i].size = of_read_number(ranges + off + na + pna,
 						    ns);
 		dev_dbg(dev,
-			"  src_addr = 0x%llx, dst_addr = 0x%lx, size = 0x%lx\n",
+			"src_addr = 0x%llx, dst_addr = 0x%lx, size = 0x%lx\n",
 			(unsigned long long)map->entry[i].src_addr,
 			(unsigned long)map->entry[i].dst_addr,
 			(unsigned long)map->entry[i].size);

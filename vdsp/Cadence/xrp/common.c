@@ -51,31 +51,31 @@ xtlib_verify_magic( Elf32_Ehdr *header )
 
   magic_no =  header->e_ident[EI_MAG0];
   if (magic_no != 0x7f) {
-    pr_info("yzl add %s , error 0" , __func__);
+    pr_info("%s , error 0" , __func__);
     return -1;
   }
 
   magic_no = header->e_ident[EI_MAG1];
   if ( magic_no != 'E' ) {
-    pr_info("yzl add %s , error 1" , __func__);
+    pr_info("%s , error 1" , __func__);
     return -1;
   }
 
   magic_no = header->e_ident[EI_MAG2];
   if ( magic_no != 'L' ) {
-    pr_info("yzl add %s , error 2" , __func__);
+    pr_info("%s , error 2" , __func__);
     return -1;
   }
 
   magic_no = header->e_ident[EI_MAG3];
   if ( magic_no != 'F' ) {
-    pr_info("yzl add %s , error 3" , __func__);
+    pr_info("%s , error 3" , __func__);
     return -1;
   }
 
   if (header->e_ident[EI_CLASS] != ELFCLASS32)
   {
-    pr_info("yzl add %s , error 4" , __func__);
+    pr_info("%s , error 4" , __func__);
     return -1;
   }
   {
@@ -93,7 +93,7 @@ xtlib_verify_magic( Elf32_Ehdr *header )
       xtlib_globals.byteswap = u.c[0] == 1;
     else
     {
-      pr_info("yzl add %s , error 5" , __func__);
+      pr_info("%s , error 5" , __func__);
       return -1;
     }
   }
@@ -103,16 +103,18 @@ xtlib_verify_magic( Elf32_Ehdr *header )
 
 
 void
-xtlib_load_seg(Elf32_Phdr * pheader, void * src_addr, xt_ptr dst_addr, 
-	       memcpy_func_ex mcpy, memset_func_ex mset, void *user)
+xtlib_load_seg(Elf32_Phdr * pheader, void * src_addr, xt_ptr dst_addr,
+		memcpy_func_ex mcpy, memset_func_ex mset, void *user)
 {
   Elf32_Word bytes_to_copy = xtlib_host_word (pheader->p_filesz);
-  Elf32_Word bytes_to_zero = xtlib_host_word (pheader->p_memsz) 
-    - bytes_to_copy;
+  Elf32_Word bytes_to_zero =
+		xtlib_host_word (pheader->p_memsz) - bytes_to_copy;
   char *pindex = (char*)user;
   xt_ptr zero_addr = 0;//(xt_ptr)pindex + bytes_to_copy;//dst_addr + bytes_to_copy;
   void* zero_addr_ap = pindex + bytes_to_copy;
-  pr_info("yzl add %s dst addr:%x , user:%p, bytes to copy:%d\n" , __func__ , dst_addr , user , bytes_to_copy); 
+  pr_info("%s dst addr:%x , user:%p"
+		  "bytes to copy:%d\n",
+		  __func__ , dst_addr , user , bytes_to_copy);
   if (bytes_to_copy > 0) {
     mcpy(dst_addr, src_addr, bytes_to_copy, user);
 
@@ -171,7 +173,8 @@ xtlib_sync ()
 }
 
 xt_ptr
-xtlib_user_memcpy (xt_ptr dest, const void * src, unsigned int n, void *user)
+xtlib_user_memcpy (xt_ptr dest, const void * src,
+		unsigned int n, void *user)
 {
   return ((user_funcs *)user)->mcpy (dest, src, n);
 }

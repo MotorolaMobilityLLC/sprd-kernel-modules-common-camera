@@ -81,17 +81,12 @@ struct xvp {
 	/*ion buff for firmware, comm, dram backup memory*/
 	struct ion_buf ion_firmware;
 	struct ion_buf ion_comm;
-	struct ion_buf ion_dram_back;
 	/*firmware addr infos*/
 	void *firmware_viraddr;
 	void *firmware2_viraddr;
 	phys_addr_t firmware_phys;
 	phys_addr_t firmware2_phys;
 	phys_addr_t dsp_firmware_addr;
-	/*dram backup memory info*/
-	void *dram_viraddr;
-	phys_addr_t dram_phys;
-	phys_addr_t dsp_dram_addr;
 
 	phys_addr_t shared_size;
 	atomic_t reboot_cycle;

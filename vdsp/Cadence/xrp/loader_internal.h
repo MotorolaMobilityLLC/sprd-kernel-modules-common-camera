@@ -37,8 +37,9 @@ int
 xtlib_verify_magic (Elf32_Ehdr *header);
 
 void
-xtlib_load_seg (Elf32_Phdr * pheader, void * src_addr, xt_ptr dst_addr, 
-		memcpy_func_ex mcpy, memset_func_ex mset, void * user);
+xtlib_load_seg (Elf32_Phdr * pheader, void * src_addr,
+		xt_ptr dst_addr, memcpy_func_ex mcpy,
+		memset_func_ex mset, void * user);
 
 Elf32_Half
 xtlib_host_half (Elf32_Half v);
@@ -61,7 +62,8 @@ xtlib_sync ();
  */
 
 xt_ptr
-xtlib_user_memcpy (xt_ptr dest, const void * src, unsigned int n, void *user);
+xtlib_user_memcpy (xt_ptr dest, const void * src,
+		unsigned int n, void *user);
 
 xt_ptr
 xtlib_user_memset (xt_ptr s, int c, unsigned int n, void *user);

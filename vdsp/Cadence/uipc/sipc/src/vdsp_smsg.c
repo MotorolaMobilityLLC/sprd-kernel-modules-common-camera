@@ -213,10 +213,12 @@ static void vdsp_smsg_msg_process(struct smsg_ipc *ipc, struct smsg *msg)
 			msg->channel, msg->type, msg->flag, msg->value);
 	} else {
 		/* write smsg to cache */
-		pr_info("write smsg to cache\n");
 		wr = SIPC_READL(ch->wrptr) & (SMSG_CACHE_NR - 1);
 		memcpy(&ch->caches[wr], msg, sizeof(struct smsg));
 		SIPC_WRITEL(SIPC_READL(ch->wrptr) + 1, ch->wrptr);
+		pr_info("write smsg to cache ch wrptr:%d, rdptr:%d\n",
+			SIPC_READL(ch->wrptr),
+			SIPC_READL(ch->rdptr));
 	}
 
 	wake_up_interruptible_all(&ch->rxwait);
@@ -747,7 +749,9 @@ int vdsp_smsg_send(u8 dst, struct smsg *msg, int timeout)
 
 	spin_lock_irqsave(&ipc->txpinlock, flags);
 
-	pr_info("IPC rxbuf_size[%d], rxbuf_rdptr[0x%lx][%d], rxbuf_wrptr[0x%lx][%d], txbuf_size[%d], txbuf_rdptr[0x%lx][%d], txbuf_wrptr[0x%lx][%d]\n",
+	pr_info("IPC rxbuf_size[%d], rxbuf_rdptr[0x%lx][%d]"
+			"rxbuf_wrptr[0x%lx][%d], txbuf_size[%d]"
+			"txbuf_rdptr[0x%lx][%d], txbuf_wrptr[0x%lx][%d]\n",
 		ipc->rxbuf_size, ipc->rxbuf_rdptr, SIPC_READL(ipc->rxbuf_rdptr),
 		ipc->rxbuf_wrptr,SIPC_READL(ipc->rxbuf_wrptr),
 		ipc->txbuf_size, ipc->txbuf_rdptr, SIPC_READL(ipc->txbuf_rdptr),
@@ -816,7 +820,8 @@ int vdsp_smsg_recv(u8 dst, struct smsg *msg, int timeout)
 		return -ENODEV;
 	}
 
-	pr_info("%s: dst=%d, channel=%d, timeout=%d, ch_index = %d CH wrptr%d, rdptr%d\n",
+	pr_info("%s: dst=%d, channel=%d, timeout=%d"
+			"ch_index = %d CH wrptr%d, rdptr%d\n",
 		 __func__, dst, msg->channel, timeout, ch_index,
 		 SIPC_READL(ch->wrptr), SIPC_READL(ch->rdptr));
 
@@ -847,7 +852,8 @@ int vdsp_smsg_recv(u8 dst, struct smsg *msg, int timeout)
 				(SIPC_READL(ch->wrptr) !=
 				 SIPC_READL(ch->rdptr)) ||
 				(ipc->states[ch_index] == CH_STAT_CLOSED));
-		pr_info("out wait event in smsg recv rval %d ch wrptr%d, rdptr%d\n", rval,
+		pr_info("out wait event in smsg recv "
+				"rval %d ch wrptr%d, rdptr%d\n", rval,
 			SIPC_READL(ch->wrptr),
 			SIPC_READL(ch->rdptr));
 		if (rval < 0) {
@@ -897,7 +903,9 @@ int vdsp_smsg_recv(u8 dst, struct smsg *msg, int timeout)
 		}
 	}
 
-	pr_info("IPC rxbuf_size[%d], rxbuf_rdptr[0x%lx][%d], rxbuf_wrptr[0x%lx][%d], txbuf_size[%d], txbuf_rdptr[0x%lx][%d], txbuf_wrptr[0x%lx][%d]\n",
+	pr_info("IPC rxbuf_size[%d], rxbuf_rdptr[0x%lx][%d]"
+			"rxbuf_wrptr[0x%lx][%d], txbuf_size[%d]"
+			"txbuf_rdptr[0x%lx][%d], txbuf_wrptr[0x%lx][%d]\n",
 		ipc->rxbuf_size, ipc->rxbuf_rdptr, SIPC_READL(ipc->rxbuf_rdptr),
 		ipc->rxbuf_wrptr,SIPC_READL(ipc->rxbuf_wrptr),
 		ipc->txbuf_size, ipc->txbuf_rdptr, SIPC_READL(ipc->txbuf_rdptr),
@@ -908,14 +916,16 @@ int vdsp_smsg_recv(u8 dst, struct smsg *msg, int timeout)
 	SIPC_WRITEL(SIPC_READL(ch->rdptr) + 1, ch->rdptr);
 
 	if (!ipc->ring_base)
-		pr_info("read smsg: dst=%d, channel=%d, CH wrptr=%d, ch rdptr=%d, rd=%d\n",
+		pr_info("read smsg: dst=%d, channel=%d"
+				"CH wrptr=%d, ch rdptr=%d, rd=%d\n",
 			 dst,
 			 msg->channel,
 			 SIPC_READL(ch->wrptr),
 			 SIPC_READL(ch->rdptr),
 			 rd);
 
-	pr_info("recv smsg: dst=%d, channel=%d, type=%d, flag=0x%04x, value=0x%08x, rval = %d\n",
+	pr_info("recv smsg: dst=%d, channel=%d"
+			"type=%d, flag=0x%04x, value=0x%08x, rval = %d\n",
 		 dst, msg->channel, msg->type, msg->flag, msg->value, rval);
 
 recv_failed:

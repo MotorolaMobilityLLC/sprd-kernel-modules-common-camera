@@ -115,7 +115,7 @@ static void vdsp_notifier_handler (int event, void *data)
 				0,
 				(void *)buf,
 				VDSP_MAX_DATA_LEN,
-				-1);
+				0);
 			pr_info("%s read data len =%d\n",__func__, cnt);
 
 			p = strtok(buf, delim);

@@ -195,24 +195,22 @@ get_dyn_info (Elf32_Ehdr * eheader, xt_ptr dst_addr, xt_uint src_offs,
 }
 
 
-static int 
-validate_dynamic (Elf32_Ehdr * header)
+static int validate_dynamic (Elf32_Ehdr * header)
 {
   if (xtlib_verify_magic (header) != 0) {
-    pr_info("yzl add %s xtlib_verify_magic failed\n" , __func__);
+    pr_info("%s xtlib_verify_magic failed\n" , __func__);
     return XTLIB_NOT_ELF;
   }
 
   if (xtlib_host_half (header->e_type) != ET_DYN) {
-    pr_info("yzl add %s xtlib_host_half failed\n" , __func__);
+    pr_info("%s xtlib_host_half failed\n" , __func__);
     return XTLIB_NOT_DYNAMIC;
   }
 
   return XTLIB_NO_ERR;
 }
 
-static int 
-validate_dynamic_splitload (Elf32_Ehdr * header)
+static int validate_dynamic_splitload (Elf32_Ehdr * header)
 {
   Elf32_Phdr * pheader;
 
@@ -255,8 +253,7 @@ validate_dynamic_splitload (Elf32_Ehdr * header)
   return XTLIB_NO_ERR;
 }
 
-unsigned int 
-xtlib_pi_library_size(xtlib_packaged_library * library)
+unsigned int xtlib_pi_library_size(xtlib_packaged_library * library)
 {
   Elf32_Phdr * pheader;
   int seg, num;
@@ -265,7 +262,7 @@ xtlib_pi_library_size(xtlib_packaged_library * library)
 
   int err = validate_dynamic (header);
   if (err != XTLIB_NO_ERR) {
-    pr_info("yzl add %s return -1\n" , __func__);
+    pr_info("%s return -1\n" , __func__);
     xtlib_globals.err = err;
     return -1;
   }
@@ -285,11 +282,11 @@ xtlib_pi_library_size(xtlib_packaged_library * library)
 
   bytes += find_align(header);
 
-  return bytes;  
+  return bytes;
 }
 
-unsigned int 
-xtlib_split_pi_library_size (xtlib_packaged_library * library, 
+unsigned int
+xtlib_split_pi_library_size (xtlib_packaged_library * library,
 			    unsigned int *code_size,
 			    unsigned int *data_size)
 {
@@ -326,9 +323,9 @@ xtlib_split_pi_library_size (xtlib_packaged_library * library,
 }
 
 
-static xt_ptr 
-xtlib_load_split_pi_library_common (xtlib_packaged_library * library, 
-				    xt_ptr destination_code_address, 
+static xt_ptr
+xtlib_load_split_pi_library_common (xtlib_packaged_library * library,
+				    xt_ptr destination_code_address,
 				    xt_ptr destination_data_address,
 				    xtlib_pil_info * lib_info,
 				    memcpy_func_ex mcpy_fn,
@@ -344,7 +341,7 @@ xtlib_load_split_pi_library_common (xtlib_packaged_library * library,
     xtlib_globals.err = err;
     return 0;
   }
-  
+
   align = find_align(header);
 
   destination_code_address = align_ptr (destination_code_address, align);
@@ -387,9 +384,9 @@ xtlib_load_split_pi_library_common (xtlib_packaged_library * library,
   return (xt_ptr) xtlib_host_word ((Elf32_Word) lib_info->start_sym);
 }
 
-static xt_ptr 
-xtlib_load_pi_library_common (xtlib_packaged_library * library, 
-			      xt_ptr destination_address, 
+static xt_ptr
+xtlib_load_pi_library_common (xtlib_packaged_library * library,
+			      xt_ptr destination_address,
 			      xtlib_pil_info * lib_info,
 			      memcpy_func_ex mcpy,
 			      memset_func_ex mset,
@@ -413,7 +410,7 @@ xtlib_load_pi_library_common (xtlib_packaged_library * library,
     xtlib_globals.err = err;
     return 0;
   }
-    
+
   err = load_pi_lib(lib_info, header, library, mcpy, mset, user);
   if (err != XTLIB_NO_ERR) {
     xtlib_globals.err = err;
@@ -425,21 +422,21 @@ xtlib_load_pi_library_common (xtlib_packaged_library * library,
 
 #ifdef __XTENSA__
 
-void * 
-xtlib_load_pi_library(xtlib_packaged_library * library, 
-		      void * destination_address, 
+void *
+xtlib_load_pi_library(xtlib_packaged_library * library,
+		      void * destination_address,
 		      xtlib_pil_info * lib_info)
 {
-  return xtlib_load_pi_library_custom_fn (library, 
-					  destination_address, 
+  return xtlib_load_pi_library_custom_fn (library,
+					  destination_address,
 					  lib_info,
-					  xthal_memcpy, 
+					  xthal_memcpy,
 					  memset);
 }
 
-void * 
-xtlib_load_pi_library_custom_fn(xtlib_packaged_library * library, 
-				void * destination_address, 
+void *
+xtlib_load_pi_library_custom_fn(xtlib_packaged_library * library,
+				void * destination_address,
 				xtlib_pil_info * lib_info,
 				memcpy_func mcpy,
 				memset_func mset)
@@ -453,22 +450,22 @@ xtlib_load_pi_library_custom_fn(xtlib_packaged_library * library,
     return 0;
 }
 
-void * 
-xtlib_load_split_pi_library (xtlib_packaged_library * library, 
-			     void * destination_code_address, 
-			     void * destination_data_address, 
+void *
+xtlib_load_split_pi_library (xtlib_packaged_library * library,
+			     void * destination_code_address,
+			     void * destination_data_address,
 			     xtlib_pil_info * lib_info)
 {
-  return xtlib_load_split_pi_library_custom_fn (library, 
+  return xtlib_load_split_pi_library_custom_fn (library,
 						destination_code_address,
-						destination_data_address, 
+						destination_data_address,
 						lib_info,
-						xthal_memcpy, 
+						xthal_memcpy,
 						memset);
 }
 
-void * 
-xtlib_load_split_pi_library_custom_fn (xtlib_packaged_library * library, 
+void *
+xtlib_load_split_pi_library_custom_fn (xtlib_packaged_library * library,
 				       void * destination_code_address,
 				       void * destination_data_address,
 				       xtlib_pil_info * lib_info,
@@ -500,7 +497,7 @@ xtlib_target_init_pi_library (xtlib_pil_info * lib_info)
   xtlib_sync ();
 
   ((void (*)(void))(lib_info->init))();
-  
+
   return lib_info->start_sym;
 }
 
@@ -519,9 +516,9 @@ xtlib_pi_library_debug_addr(xtlib_pil_info * lib_info)
 
 #endif /* end of __XTENSA__  */
 
-xt_ptr 
-xtlib_host_load_pi_library (xtlib_packaged_library * library, 
-			    xt_ptr destination_address, 
+xt_ptr
+xtlib_host_load_pi_library (xtlib_packaged_library * library,
+			    xt_ptr destination_address,
 			    xtlib_pil_info * lib_info,
 			    memcpy_func_ex mcpy_fn,
 			    memset_func_ex mset_fn,

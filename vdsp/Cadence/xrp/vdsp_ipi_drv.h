@@ -10,6 +10,8 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  */
+#ifndef _VDSP_IPI_DRV_H
+#define _VDSP_IPI_DRV_H
 
 #include <linux/interrupt.h>
 #include <sprd_mm.h>
@@ -74,3 +76,5 @@ struct vdsp_ipi_ctx_desc *get_vdsp_ipi_ctx_desc(void);
 #define IPI_HREG_OWR(reg, val) \
 		(REG_WR((reg), \
 		(REG_RD(reg) | (val))))
+#endif
+
