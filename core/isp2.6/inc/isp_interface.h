@@ -237,10 +237,10 @@ int put_isp_pipe_dev(void *isp_handle);
 
 int isp_hw_init(void *arg);
 int isp_hw_deinit(void *arg);
-int isp_hw_start(struct unisoc_cam_hw_info *hw, void *arg);
-int isp_hw_stop(struct unisoc_cam_hw_info *hw, void *arg);
+int isp_hw_start(struct cam_hw_info *hw, void *arg);
+int isp_hw_stop(struct cam_hw_info *hw, void *arg);
 int sprd_isp_parse_dt(struct device_node *dn,
-		struct unisoc_cam_hw_info *hw_info,
+		struct cam_hw_info *hw_info,
 		uint32_t *isp_count);
 void isp_hwsim_extra(uint32_t idx);
 #endif

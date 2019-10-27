@@ -358,7 +358,7 @@ struct isp_path_desc {
 	uint32_t store_fbc;/* 1 for fbc store; 0 for normal store */
 	uint32_t uframe_sync;
 	struct isp_pipe_context *attach_ctx;
-	struct unisoc_cam_hw_info *hw;
+	struct cam_hw_info *hw;
 
 	struct isp_regular_info regular_info;
 	struct isp_store_info store;
@@ -444,7 +444,7 @@ struct isp_pipe_context {
 
 	isp_dev_callback isp_cb_func;
 	void *cb_priv_data;
-	struct unisoc_cam_hw_info *hw;
+	struct cam_hw_info *hw;
 };
 
 struct isp_pipe_hw_context {
@@ -467,7 +467,7 @@ struct isp_pipe_dev {
 	struct isp_ltm_share_ctx_desc *ltm_handle;
 	struct isp_pipe_context ctx[ISP_CONTEXT_SW_NUM];
 	struct isp_pipe_hw_context hw_ctx[ISP_CONTEXT_HW_NUM];
-	struct unisoc_cam_hw_info *isp_hw;
+	struct cam_hw_info *isp_hw;
 	enum sprd_cam_sec_mode sec_mode;
 };
 

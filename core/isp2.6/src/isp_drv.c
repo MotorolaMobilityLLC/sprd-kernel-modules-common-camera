@@ -44,7 +44,7 @@ int isp_hw_init(void *arg)
 {
 	int ret = 0;
 	struct isp_pipe_dev *dev = NULL;
-	struct unisoc_cam_hw_info *hw = NULL;
+	struct cam_hw_info *hw = NULL;
 
 	if (!arg) {
 		pr_err("fail to get invalid arg\n");
@@ -82,7 +82,7 @@ int isp_hw_deinit(void *arg)
 {
 	int ret = 0;
 	struct isp_pipe_dev *dev = NULL;
-	struct unisoc_cam_hw_info *hw = NULL;
+	struct cam_hw_info *hw = NULL;
 
 	if (!arg) {
 		pr_err("fail to get invalid arg\n");
@@ -108,7 +108,7 @@ struct isp_work_ctrl {
 	uint32_t work_mode;
 };
 
-int isp_hw_start(struct unisoc_cam_hw_info *hw, void *arg)
+int isp_hw_start(struct cam_hw_info *hw, void *arg)
 {
 	int ret = 0;
 	struct isp_work_ctrl work_ctrl;
@@ -129,7 +129,7 @@ int isp_hw_start(struct unisoc_cam_hw_info *hw, void *arg)
 	return ret;
 }
 
-int isp_hw_stop(struct unisoc_cam_hw_info *hw, void *arg)
+int isp_hw_stop(struct cam_hw_info *hw, void *arg)
 {
 	uint32_t id;
 	uint32_t cid;
@@ -153,7 +153,7 @@ int isp_hw_stop(struct unisoc_cam_hw_info *hw, void *arg)
 }
 
 int sprd_isp_parse_dt(struct device_node *dn,
-		struct unisoc_cam_hw_info *hw_info,
+		struct cam_hw_info *hw_info,
 		uint32_t *isp_count)
 {
 	int i = 0;

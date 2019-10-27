@@ -315,7 +315,7 @@ struct dcam_pipe_ops *dcam_if_get_ops(void);
  * Retrieve a dcam_if device for the hardware. A dcam_if device is a wrapper
  * with supported operations defined in dcam_pipe_ops.
  */
-void *dcam_if_get_dev(uint32_t idx, struct unisoc_cam_hw_info *hw);
+void *dcam_if_get_dev(uint32_t idx, struct cam_hw_info *hw);
 /*
  * Release a dcam_if device after capture finished.
  */
@@ -328,7 +328,7 @@ int dcam_hwsim_extra(enum dcam_id idx);
 int dcam_hw_init(void *arg);
 int dcam_hw_deinit(void *arg);
 int dcam_if_parse_dt(struct platform_device *pdev,
-			struct unisoc_cam_hw_info *hw_info,
+			struct cam_hw_info *hw_info,
 			uint32_t *dcam_count);
 uint32_t get_outbuf_queue_cnt(void *dev, int path_id);
 

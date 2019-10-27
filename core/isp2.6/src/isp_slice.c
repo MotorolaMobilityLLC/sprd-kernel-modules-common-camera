@@ -2660,7 +2660,7 @@ int isp_set_slices_fmcu_cmds(void *fmcu_handle,  void *ctx)
 	struct isp_slice_context *slc_ctx;
 	struct isp_fmcu_ctx_desc *fmcu;
 	struct isp_pipe_context *pctx = NULL;
-	struct unisoc_cam_hw_info *hw = NULL;
+	struct cam_hw_info *hw = NULL;
 
 	uint32_t reg_off, addr = 0, cmd = 0, shape_mode = 0;
 	uint32_t shadow_done_cmd[ISP_CONTEXT_HW_NUM] = {
@@ -2961,7 +2961,7 @@ int isp_update_slice(
 	struct slice_scaler_info *slc_scaler;
 	struct isp_slice_context *slc_ctx;
 	struct isp_pipe_context *pctx = NULL;
-	struct unisoc_cam_hw_info * hw = NULL;
+	struct cam_hw_info * hw = NULL;
 
 	if (!pctx_handle) {
 		pr_err("error: null input ptr.\n");
@@ -3016,7 +3016,7 @@ int isp_set_slw_fmcu_cmds(void *fmcu_handle, struct isp_pipe_context *pctx)
 	struct isp_path_desc *path;
 	struct img_addr *fetch_addr, *store_addr;
 	struct isp_afbc_store_info *afbc_store_addr;
-	struct unisoc_cam_hw_info *hw = NULL;
+	struct cam_hw_info *hw = NULL;
 
 	uint32_t shadow_done_cmd[ISP_CONTEXT_HW_NUM] = {
 		PRE0_SHADOW_DONE, CAP0_SHADOW_DONE,

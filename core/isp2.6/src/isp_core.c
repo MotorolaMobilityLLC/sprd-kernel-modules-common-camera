@@ -918,7 +918,7 @@ static int isp_offline_start_frame(void *ctx)
 	struct isp_cfg_ctx_desc *cfg_desc = NULL;
 	struct isp_fmcu_ctx_desc *fmcu = NULL;
 	struct isp_offline_param *in_param = NULL;
-	struct unisoc_cam_hw_info *hw = NULL;
+	struct cam_hw_info *hw = NULL;
 
 	pctx = (struct isp_pipe_context *)ctx;
 	pr_debug("enter sw id %d, user_cnt=%d, ch_id=%d, cam_id=%d\n",
@@ -1426,7 +1426,7 @@ static int isp_context_init(struct isp_pipe_dev *dev)
 	struct isp_cfg_ctx_desc *cfg_desc = NULL;
 	struct isp_pipe_context *pctx;
 	struct isp_pipe_hw_context *pctx_hw;
-	struct unisoc_cam_hw_info *hw = NULL;
+	struct cam_hw_info *hw = NULL;
 	enum isp_context_id cid[ISP_CONTEXT_SW_NUM] = {
 		ISP_CONTEXT_P0,
 		ISP_CONTEXT_C0,
@@ -1742,7 +1742,7 @@ static int sprd_isp_get_context(void *isp_handle, void *param)
 	struct isp_pipe_context *pctx;
 	struct isp_pipe_dev *dev = NULL;
 	struct isp_path_desc *path = NULL;
-	struct unisoc_cam_hw_info *hw = NULL;
+	struct cam_hw_info *hw = NULL;
 	struct isp_cfg_ctx_desc *cfg_desc;
 	struct isp_init_param *init_param;
 
@@ -2491,7 +2491,7 @@ static int isp_cycle_hist2_frame(
 	struct camera_frame *frame = NULL;
 	struct isp_pipe_dev *dev = NULL;
 	struct isp_pipe_context *pctx = NULL;
-	struct unisoc_cam_hw_info *hw = NULL;
+	struct cam_hw_info *hw = NULL;
 
 	if (!isp_handle) {
 		pr_err("fail to get valid input ptr\n");
@@ -2678,7 +2678,7 @@ static int sprd_isp_dev_open(void *isp_handle, void *param)
 {
 	int ret = 0;
 	struct isp_pipe_dev *dev = NULL;
-	struct unisoc_cam_hw_info *hw = NULL;
+	struct cam_hw_info *hw = NULL;
 
 	pr_info("enter.\n");
 	if (!isp_handle || !param) {
@@ -2686,7 +2686,7 @@ static int sprd_isp_dev_open(void *isp_handle, void *param)
 		return -EFAULT;
 	}
 	dev = (struct isp_pipe_dev *)isp_handle;
-	hw = (struct unisoc_cam_hw_info *)param;
+	hw = (struct cam_hw_info *)param;
 	if (hw == NULL) {
 		pr_err("fail to get valid hw\n");
 		return -EFAULT;
@@ -2743,7 +2743,7 @@ int sprd_isp_dev_close(void *isp_handle)
 {
 	int ret = 0;
 	struct isp_pipe_dev *dev = NULL;
-	struct unisoc_cam_hw_info *hw;
+	struct cam_hw_info *hw;
 
 	if (!isp_handle) {
 		pr_err("fail to get valid input ptr\n");

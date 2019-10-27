@@ -18,8 +18,8 @@
 #include <linux/of.h>
 #include <linux/platform_device.h>
 
-extern struct unisoc_cam_hw_info sharkl3_hw_info;
-extern struct unisoc_cam_hw_info sharkl5pro_hw_info;
+extern struct cam_hw_info sharkl3_hw_info;
+extern struct cam_hw_info sharkl5pro_hw_info;
 
 /*
  * Supported dcam_if index. Number 0&1 for dcam_if and 2 for dcam_if_lite.
@@ -139,7 +139,7 @@ struct cam_hw_soc_ops {
 	int (*clk_update)(struct cam_hw_soc_info *hw, void *arg);
 	void (*axi_init)(void *arg);
 	void (*qos_set)(struct cam_hw_soc_info *hw);
-	int (*reset)(struct unisoc_cam_hw_info *hw, void *arg);
+	int (*reset)(struct cam_hw_info *hw, void *arg);
 };
 
 struct cam_hw_irq_ops {
@@ -154,7 +154,7 @@ struct cam_hw_irq_ops {
 struct cam_hw_core_ops {
 	int (*start)(void *arg);
 	int (*stop)(void *arg);
-	void (*fetch_start)(struct unisoc_cam_hw_info *hw);
+	void (*fetch_start)(struct cam_hw_info *hw);
 	void (*auto_copy)(uint32_t id, void *arg);
 	void (*force_copy)(uint32_t id, void *arg);
 	int (*path_start)(void *handle, uint32_t path_id);
@@ -176,7 +176,7 @@ struct cam_hw_core_ops {
 		uint32_t ctx_idx, uint32_t spath_id, void *arg);
 	int (* lbuf_share_set)(enum dcam_id idx, uint32_t width);
 	int (* ebd_set)(uint32_t idx, void *arg);
-	void (*default_para_set)(struct unisoc_cam_hw_info *hw,
+	void (*default_para_set)(struct cam_hw_info *hw,
 		void *arg, enum isp_default_type type);
 	int (*path_src_sel)(void *handle, enum dcam_full_src_sel_type src_sel);
 	int (*path_size_update)(void *handle, void *arg);
@@ -197,7 +197,7 @@ struct cam_hw_ops {
 	struct cam_hw_core_ops core_ops;
 };
 
-struct unisoc_cam_hw_info {
+struct cam_hw_info {
 	enum unisoc_cam_prj_id prj_id;
 	struct platform_device *pdev;
 	struct cam_hw_soc_info *soc_dcam;

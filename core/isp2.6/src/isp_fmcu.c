@@ -327,14 +327,14 @@ struct isp_fmcu_ctx_desc *get_isp_fmcu_ctx_desc(void *arg)
 {
 	int i;
 	struct isp_fmcu_ctx_desc *fmcu = NULL;
-	struct unisoc_cam_hw_info *hw = NULL;
+	struct cam_hw_info *hw = NULL;
 
 	if (!arg) {
 		pr_err("fail to get valid arg\n");
 		return NULL;
 	}
 
-	hw = (struct unisoc_cam_hw_info *)arg;
+	hw = (struct cam_hw_info *)arg;
 	for (i = 0; i < ISP_FMCU_NUM; i++) {
 		if (atomic_inc_return(&s_fmcu_desc[i].user_cnt) == 1) {
 			if (hw->hw_ops.core_ops.fmcu_valid_get(s_fmcu_desc[i].fid)) {

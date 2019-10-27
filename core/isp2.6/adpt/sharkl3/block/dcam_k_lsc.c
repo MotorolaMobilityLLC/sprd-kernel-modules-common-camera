@@ -52,7 +52,7 @@ int dcam_init_lsc(void *in, uint32_t online)
 	struct dcam_dev_lsc_info *info = NULL;
 	struct dcam_dev_lsc_param *param = NULL;
 	struct dcam_pipe_dev *dev = (struct dcam_pipe_dev *)in;
-	struct unisoc_cam_hw_info *hw = NULL;
+	struct cam_hw_info *hw = NULL;
 
 	hw = dev->hw;
 	param = &dev->blk_dcam_pm->lsc;
@@ -181,7 +181,7 @@ int dcam_update_lsc(void *in)
 	struct dcam_dev_lsc_info *info = NULL;
 	struct dcam_dev_lsc_param *param = NULL;
 	struct dcam_pipe_dev *dev = (struct dcam_pipe_dev *)in;
-	struct unisoc_cam_hw_info *hw = NULL;
+	struct cam_hw_info *hw = NULL;
 
 	hw = dev->hw;
 	param = &dev->blk_dcam_pm->lsc;

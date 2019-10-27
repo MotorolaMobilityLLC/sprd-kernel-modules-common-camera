@@ -311,7 +311,7 @@ struct camera_group {
 	struct camera_queue empty_frm_q;
 	struct  sprd_cam_sec_cfg camsec_cfg;
 	struct camera_debugger debugger;
-	struct unisoc_cam_hw_info *hw_info;
+	struct cam_hw_info *hw_info;
 };
 
 struct cam_ioctl_cmd {
@@ -403,7 +403,7 @@ static void cam_release_camera_frame(void *param)
 static void cal_compression(struct camera_module *module)
 {
 	struct channel_context *ch_pre, *ch_cap, *ch_vid;
-	struct unisoc_cam_hw_info *dcam_hw;
+	struct cam_hw_info *dcam_hw;
 	struct compression_override *override;
 
 	ch_pre = &module->channel[CAM_CH_PRE];
@@ -521,7 +521,7 @@ static void config_compression(struct camera_module *module)
 	struct channel_context *ch_pre, *ch_cap, *ch_vid;
 	struct isp_ctx_compression_desc ctx_compression_desc;
 	struct isp_path_compression_desc path_compression_desc;
-	struct unisoc_cam_hw_info *hw = NULL;
+	struct cam_hw_info *hw = NULL;
 	int fbc_mode = DCAM_FBC_DISABLE;
 
 	ch_pre = &module->channel[CAM_CH_PRE];
@@ -5184,7 +5184,7 @@ static int img_ioctl_stream_on(
 	struct channel_context *ch = NULL;
 	struct channel_context *ch_pre = NULL, *ch_vid = NULL;
 	struct isp_statis_io_desc io_desc;
-	struct unisoc_cam_hw_info *hw = NULL;
+	struct cam_hw_info *hw = NULL;
 
 	if (atomic_read(&module->state) != CAM_CFG_CH) {
 		pr_info("cam%d error state: %d\n", module->idx,
@@ -5875,7 +5875,7 @@ static int raw_proc_pre(
 	uint32_t loop = 0;
 	unsigned long flag = 0;
 	struct camera_group *grp = module->grp;
-	struct unisoc_cam_hw_info *hw = NULL;
+	struct cam_hw_info *hw = NULL;
 	struct channel_context *ch = NULL;
 	struct img_trim path_trim;
 	struct dcam_path_cfg_param ch_desc;
@@ -7291,7 +7291,7 @@ rewait:
 			read_op.parm.frame.kaddr[1] = (uint32_t)((uint64_t)pframe->buf.addr_k[0] >> 32);
 			read_op.parm.frame.kaddr[0] = (uint32_t)pframe->buf.addr_k[0];
 		} else {
-			struct unisoc_cam_hw_info *hw = module->grp->hw_info;
+			struct cam_hw_info *hw = module->grp->hw_info;
 
 			pr_err("error event %d\n", pframe->evt);
 			if (hw == NULL) {
@@ -7681,7 +7681,7 @@ static struct miscdevice image_dev = {
 	.fops = &image_fops,
 };
 
-static int unisoc_cam_probe(struct platform_device *pdev)
+static int sprd_cam_probe(struct platform_device *pdev)
 {
 	int ret = 0;
 	struct camera_group *group = NULL;
@@ -7709,7 +7709,7 @@ static int unisoc_cam_probe(struct platform_device *pdev)
 	image_dev.this_device->platform_data = (void *)group;
 	group->md = &image_dev;
 	group->pdev = pdev;
-	group->hw_info = (struct unisoc_cam_hw_info *)
+	group->hw_info = (struct cam_hw_info *)
 		of_device_get_match_data(&pdev->dev);
 	if (!group->hw_info) {
 		pr_err("fail to get hw_info\n");
@@ -7755,7 +7755,7 @@ probe_pw_fail:
 	return ret;
 }
 
-static int unisoc_cam_remove(struct platform_device *pdev)
+static int sprd_cam_remove(struct platform_device *pdev)
 {
 	struct camera_group *group = NULL;
 
@@ -7776,26 +7776,26 @@ static int unisoc_cam_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static const struct of_device_id unisoc_cam_of_match[] = {
+static const struct of_device_id sprd_cam_of_match[] = {
 	#if defined (PROJ_SHARKL3)
-	{ .compatible = "unisoc,sharkl3-cam", .data = &sharkl3_hw_info},
+	{ .compatible = "sprd,sharkl3-cam", .data = &sharkl3_hw_info},
 	#elif defined (PROJ_SHARKL5PRO)
-	{ .compatible = "unisoc,sharkl5pro-cam", .data = &sharkl5pro_hw_info},
+	{ .compatible = "sprd,sharkl5pro-cam", .data = &sharkl5pro_hw_info},
 	{ },
 	#endif
 };
 
-static struct platform_driver unisoc_img_driver = {
-	.probe = unisoc_cam_probe,
-	.remove = unisoc_cam_remove,
+static struct platform_driver sprd_img_driver = {
+	.probe = sprd_cam_probe,
+	.remove = sprd_cam_remove,
 	.driver = {
 		.name = IMG_DEVICE_NAME,
-		.of_match_table = of_match_ptr(unisoc_cam_of_match),
+		.of_match_table = of_match_ptr(sprd_cam_of_match),
 	},
 };
 
-module_platform_driver(unisoc_img_driver);
+module_platform_driver(sprd_img_driver);
 
-MODULE_DESCRIPTION("Unisoc CAM Driver");
-MODULE_AUTHOR("Multimedia_Camera@Unisoc");
+MODULE_DESCRIPTION("SPRD CAM Driver");
+MODULE_AUTHOR("Multimedia_Camera@SPRD");
 MODULE_LICENSE("GPL");

@@ -543,7 +543,7 @@ static void sharkl5pro_dcam_force_copy(uint32_t id, void *arg)
 }
 
 
-static int sharkl5pro_dcam_reset(struct unisoc_cam_hw_info *hw, void *arg)
+static int sharkl5pro_dcam_reset(struct cam_hw_info *hw, void *arg)
 {
 	int ret = 0;
 	enum dcam_id idx = 0;
@@ -940,7 +940,7 @@ static int sharkl5pro_dcam_path_stop(void *handle, uint32_t path_id)
 	return ret;
 }
 
-static void sharkl5pro_dcam_fetch_start(struct unisoc_cam_hw_info *hw)
+static void sharkl5pro_dcam_fetch_start(struct cam_hw_info *hw)
 {
 	if (!hw) {
 		pr_err("fail to get invalid hw\n");
@@ -1272,7 +1272,7 @@ static int sharkl5pro_isp_clk_update(struct cam_hw_soc_info *hw, void *arg)
 	return ret;
 }
 
-int sharkl5pro_isp_reset(struct unisoc_cam_hw_info *hw, void *arg)
+int sharkl5pro_isp_reset(struct cam_hw_info *hw, void *arg)
 {
 	int rtn = 0;
 	uint32_t cid;
@@ -1467,7 +1467,7 @@ uint32_t *sharkl5pro_isp_cfg_map_info_get(void *arg)
 	return ISP_CFG_MAP;
 }
 
-void sharkl5pro_isp_default_param_set(struct unisoc_cam_hw_info *hw,
+void sharkl5pro_isp_default_param_set(struct cam_hw_info *hw,
 	void *arg, enum isp_default_type type)
 {
 	uint32_t idx = 0;
@@ -2159,7 +2159,7 @@ static struct cam_hw_ip_info sharkl5pro_isp = {
 	.ctx_fmcu_support = sharkl5pro_isp_ctx_fmcu_support,
 };
 
-struct unisoc_cam_hw_info sharkl5pro_hw_info = {
+struct cam_hw_info sharkl5pro_hw_info = {
 	.prj_id = SHARKL5pro,
 	.pdev = NULL,
 	.soc_dcam = &sharkl5pro_dcam_soc_info,

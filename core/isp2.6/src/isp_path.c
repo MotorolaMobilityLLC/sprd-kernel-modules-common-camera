@@ -1422,7 +1422,7 @@ int isp_set_path(struct isp_path_desc *path)
 {
 	int ret = 0;
 	enum isp_afbc_path afbc_path_id = 0;
-	struct unisoc_cam_hw_info *hw = NULL;
+	struct cam_hw_info *hw = NULL;
 
 	if (!path) {
 		pr_err("error input ptr: null\n");
@@ -1528,7 +1528,7 @@ int isp_path_set_afbc_store_frm(
 	unsigned long yuv_addr[2] = {0};
 	struct isp_pipe_context *pctx = NULL;
 	struct isp_afbc_store_info *afbc_store = NULL;
-	struct unisoc_cam_hw_info *hw = NULL;
+	struct cam_hw_info *hw = NULL;
 
 	if (!path || !frame) {
 		pr_err("error input ptr: null\n");
@@ -1567,7 +1567,7 @@ int isp_path_set_fetch_frm(struct isp_pipe_context *pctx,
 	int planes;
 	unsigned long offset_u, offset_v, yuv_addr[3] = {0};
 	struct isp_fetch_info *fetch = &pctx->fetch;
-	struct unisoc_cam_hw_info *hw = NULL;
+	struct cam_hw_info *hw = NULL;
 
 	if (!pctx || !frame) {
 		pr_err("error input ptr: null\n");

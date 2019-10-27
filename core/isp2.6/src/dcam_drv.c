@@ -41,7 +41,7 @@ int dcam_hw_init(void *arg)
 {
 	int ret = 0;
 	struct dcam_pipe_dev *dev = NULL;
-	struct unisoc_cam_hw_info *hw = NULL;
+	struct cam_hw_info *hw = NULL;
 
 	if (unlikely(!arg)) {
 		pr_err("fail to get invalid arg\n");
@@ -70,7 +70,7 @@ int dcam_hw_deinit(void *arg)
 {
 	int ret = 0;
 	struct dcam_pipe_dev *dev = NULL;
-	struct unisoc_cam_hw_info *hw = NULL;
+	struct cam_hw_info *hw = NULL;
 
 	if (unlikely(!arg)) {
 		pr_err("fail to get invalid arg\n");
@@ -90,7 +90,7 @@ int dcam_hw_deinit(void *arg)
 }
 
 int dcam_if_parse_dt(struct platform_device *pdev,
-			struct unisoc_cam_hw_info *hw_info,
+			struct cam_hw_info *hw_info,
 			uint32_t *dcam_count)
 {
 	struct cam_hw_soc_info *soc_dcam = NULL;

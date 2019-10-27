@@ -36,13 +36,13 @@ struct dcam_image_replacer {
 
 struct cam_debug_bypass {
 	uint32_t idx;
-	struct unisoc_cam_hw_info *hw;
+	struct cam_hw_info *hw;
 };
 
 struct camera_debugger {
 	struct compression_override compression[CAM_ID_MAX];
 	struct dcam_image_replacer replacer[DCAM_ID_MAX];
-	struct unisoc_cam_hw_info *hw;
+	struct cam_hw_info *hw;
 };
 
 int unisoc_cam_debugfs_init(struct camera_debugger *debugger);

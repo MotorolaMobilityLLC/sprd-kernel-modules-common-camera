@@ -587,7 +587,7 @@ static int dcam_offline_start_slices(void *param)
 	struct camera_frame *pframe = NULL;
 	struct dcam_path_desc *path = NULL;
 	struct dcam_fetch_info *fetch = NULL;
-	struct unisoc_cam_hw_info *hw = NULL;
+	struct cam_hw_info *hw = NULL;
 
 	dev = (struct dcam_pipe_dev *)param;
 	fetch = &dev->fetch;
@@ -795,7 +795,7 @@ static int dcam_offline_start_frame(void *param)
 	struct camera_frame *pframe = NULL;
 	struct dcam_path_desc *path = NULL;
 	struct dcam_fetch_info *fetch = NULL;
-	struct unisoc_cam_hw_info *hw = NULL;
+	struct cam_hw_info *hw = NULL;
 
 	pr_debug("enter.\n");
 
@@ -1347,7 +1347,7 @@ static int sprd_dcam_cfg_path(
 	int ret = 0;
 	struct dcam_pipe_dev *dev = NULL;
 	struct dcam_path_desc *path = NULL;
-	struct unisoc_cam_hw_info *hw = NULL;
+	struct cam_hw_info *hw = NULL;
 	struct camera_frame *pframe = NULL;
 	uint32_t lowlux_4in1 = 0;
 	static const char *tb_src[] = {"(4c)raw", "bin-sum"}; /* for log */
@@ -1738,7 +1738,7 @@ static int sprd_dcam_dev_start(void *dcam_handle)
 	struct dcam_pipe_dev *dev = NULL;
 	struct dcam_sync_helper *helper = NULL;
 	struct dcam_path_desc *path = NULL;
-	struct unisoc_cam_hw_info *hw = NULL;
+	struct cam_hw_info *hw = NULL;
 
 	if (!dcam_handle) {
 		pr_err("invalid dcam_pipe_dev\n");
@@ -1925,7 +1925,7 @@ static int sprd_dcam_dev_open(void *dcam_handle)
 	int i, iommu_enable = 0;
 	struct dcam_pipe_dev *dev = NULL;
 	struct dcam_path_desc *path = NULL;
-	struct unisoc_cam_hw_info *hw = NULL;
+	struct cam_hw_info *hw = NULL;
 
 	if (!dcam_handle) {
 		pr_err("fail to get valid input ptr\n");
@@ -2124,9 +2124,9 @@ static DEFINE_MUTEX(s_dcam_dev_mutex);
 static struct dcam_pipe_dev *s_dcam_dev[DCAM_ID_MAX];
 
 /*
- * Create a dcam_pipe_dev for designated unisoc_cam_hw_info.
+ * Create a dcam_pipe_dev for designated cam_hw_info.
  */
-void *dcam_if_get_dev(uint32_t idx, struct unisoc_cam_hw_info *hw)
+void *dcam_if_get_dev(uint32_t idx, struct cam_hw_info *hw)
 {
 	struct dcam_pipe_dev *dev = NULL;
 
