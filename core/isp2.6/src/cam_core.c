@@ -7176,7 +7176,7 @@ static long sprd_img_ioctl(struct file *file, unsigned int cmd,
 exit:
 	if (locked)
 		mutex_unlock(&module->lock);
-	return 0;
+	return ret;
 }
 
 static ssize_t sprd_img_read(struct file *file, char __user *u_data,
