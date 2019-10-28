@@ -1623,9 +1623,11 @@ static int sprd_dcam_ioctrl(void *dcam_handle,
 	case DCAM_IOCTL_CFG_FBC:
 		fbc_mode = (int *)param;
 		/* update compressed flag for reserved buffer */
-		if (*fbc_mode == DCAM_FBC_FULL_14_BIT)
+		if (*fbc_mode == DCAM_FBC_FULL_14_BIT ||
+			*fbc_mode == DCAM_FBC_FULL_10_BIT)
 			path = &dev->path[DCAM_PATH_FULL];
-		else if (*fbc_mode == DCAM_FBC_BIN_14_BIT)
+		else if (*fbc_mode == DCAM_FBC_BIN_14_BIT ||
+			*fbc_mode == DCAM_FBC_BIN_10_BIT)
 			path = &dev->path[DCAM_PATH_BIN];
 		if (!path) {
 			pr_info("Unsupport fbc mode %d\n", *fbc_mode);
@@ -1634,8 +1636,16 @@ static int sprd_dcam_ioctrl(void *dcam_handle,
 		if (dev->hw->hw_ops.core_ops.dcam_fbc_ctrl)
 			dev->hw->hw_ops.core_ops.dcam_fbc_ctrl(
 				dev->idx, *fbc_mode);
+
 		list_for_each_entry(frame, &path->reserved_buf_queue.head, list) {
-			frame->is_compressed = 1;
+			if (!frame)
+				break;
+			else {
+				frame->is_compressed = 1;
+				if (*fbc_mode == DCAM_FBC_FULL_14_BIT ||
+					*fbc_mode == DCAM_FBC_BIN_14_BIT)
+						frame->compress_4bit_bypass = 0;
+			}
 		}
 		break;
 	case DCAM_IOCTL_CFG_RPS:

@@ -1966,6 +1966,7 @@ static int sprd_isp_put_context(void *isp_handle, int ctx_id)
 	pctx->ctx_id = ctx_id;
 	pctx->dev = dev;
 	pctx->attach_cam_id = CAM_ID_MAX;
+	pctx->hw = dev->isp_hw;
 
 	mutex_unlock(&dev->path_mutex);
 	pr_info("done, put ctx_id: %d\n", ctx_id);

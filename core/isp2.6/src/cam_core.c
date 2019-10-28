@@ -538,7 +538,7 @@ static void config_compression(struct camera_module *module)
 	if (ch_pre->compress_input) {
 		fbc_mode = hw->ip_dcam[module->idx]->dcam_fbc_mode;
 		if (DCAM_FBC_BIN_14_BIT == fbc_mode)
-			ch_cap->compress_4bit_bypass = 0;
+			ch_pre->compress_4bit_bypass = 0;
 	}
 
 	ch_vid->compress_input = ch_pre->compress_input;
