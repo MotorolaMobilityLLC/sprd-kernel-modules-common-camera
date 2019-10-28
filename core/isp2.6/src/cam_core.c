@@ -81,6 +81,10 @@
 /* TODO: need to pass the num to driver by hal */
 #define CAP_NUM_COMMON 1
 
+/* TODO: set superzoom coeff default val */
+#define SUPERZOOM_DEFAULT_COEFF	4
+#define SUPERZOOM_COEFF_UP_MAX	4
+
 enum camera_module_state {
 	CAM_INIT = 0,
 	CAM_IDLE,
@@ -125,8 +129,8 @@ static struct camera_format output_img_fmt[] = {
 	},
 };
 
-
 struct camera_group;
+int s_dbg_superzoom_coeff = -1;
 
 /* user set information for camera module */
 struct camera_uchannel {
@@ -205,6 +209,7 @@ struct channel_context {
 	int32_t isp_path_id;
 	int32_t slave_isp_path_id;
 	int32_t reserved_buf_fd;
+	enum isp_superzoom_status cap_status;
 
 	struct camera_uchannel ch_uinfo;
 	struct img_size swap_size;
@@ -218,6 +223,7 @@ struct channel_context {
 
 	uint32_t alloc_start;
 	struct completion alloc_com;
+	struct completion superzoom_frm;
 	struct sprd_cam_work alloc_buf_work;
 
 	uint32_t uinfo_3dnr;	/* set by hal, 1:hw 3dnr; */
@@ -225,6 +231,7 @@ struct channel_context {
 	uint32_t mode_ltm;
 	uint32_t ltm_rgb;
 	uint32_t ltm_yuv;
+	struct camera_frame *superzoom_buf;
 	struct camera_frame *nr3_bufs[ISP_NR3_BUF_NUM];
 	struct camera_frame *ltm_bufs[LTM_MAX][ISP_LTM_BUF_NUM];
 
@@ -685,6 +692,7 @@ static void alloc_buffers(struct work_struct *work)
 	struct camera_frame *pframe;
 	struct channel_context *channel;
 	struct camera_debugger *debugger;
+	struct cam_hw_info *hw = NULL;
 	int path_id;
 
 	pr_info("enter.\n");
@@ -695,6 +703,7 @@ static void alloc_buffers(struct work_struct *work)
 	atomic_set(&alloc_work->status, CAM_WORK_RUNNING);
 
 	module = (struct camera_module *)alloc_work->priv_data;
+	hw = module->grp->hw_info;
 	iommu_enable = module->iommu_enable;
 
 	width = channel->swap_size.w;
@@ -808,6 +817,43 @@ static void alloc_buffers(struct work_struct *work)
 	} else {
 		dcam_ops->ioctl(module->dcam_dev_handle,
 				DCAM_IOCTL_CFG_REPLACER, NULL);
+	}
+
+	if (hw->ip_dcam[module->idx]->superzoom_support
+		&& channel->ch_id == CAM_CH_CAP) {
+		/*more than 8x zoom capture alloc buf*/
+
+		uint32_t w = module->cam_uinfo.sn_max_size.w;
+		uint32_t h = module->cam_uinfo.sn_max_size.h;
+
+		size = ((w + 1) & (~1)) * h * 3 / 2;
+		size = ALIGN(size, CAM_BUF_ALIGN_SIZE);
+		pframe = get_empty_frame();
+		if (!pframe) {
+			pr_err("fail to superzoom no empty frame.\n");
+			ret = -EINVAL;
+			goto exit;
+		}
+
+		pframe->channel_id = channel->ch_id;
+		if (module->grp->camsec_cfg.camsec_mode != SEC_UNABLE) {
+			pframe->buf.buf_sec = 1;
+			pr_debug("superzoom camca: ch_id =%d, buf_sec=%d\n",
+					channel->ch_id,
+					pframe->buf.buf_sec);
+		}
+
+		ret = cambuf_alloc(&pframe->buf, size, 0, 1);
+		if (ret) {
+			pr_err("fail to alloc superzoom buf\n");
+			put_empty_frame(pframe);
+			atomic_inc(&channel->err_status);
+			goto exit;
+		}
+
+		channel->superzoom_buf = pframe;
+		pr_info("idx %d, superzoom w %d, h %d, buf %p \n",
+			module->idx, w, h, pframe);
 	}
 
 	if (channel->type_3dnr == CAM_3DNR_HW) {
@@ -1240,6 +1286,85 @@ struct camera_frame *deal_4in1_raw_capture(struct camera_module *module,
 
 	return NULL;
 }
+
+static int set_superzoom_complete(void *priv_data)
+{
+	int ret = 0;
+	struct camera_module *module;
+	struct channel_context *channel;
+
+	if (!priv_data) {
+		pr_err("fail to set superzoom complete\n");
+		ret = -1;
+		goto exit;
+	}
+
+	module = (struct camera_module *)priv_data;
+	channel = &module->channel[CAM_CH_CAP];
+	complete(&channel->superzoom_frm);
+	pr_info("done superzoom complete, module idx %d\n", module->idx);
+exit:
+	return ret;
+
+}
+
+static int get_superzoom_dst(void *param, void *priv_data)
+{
+	int ret = 0;
+	struct camera_module *module;
+	struct channel_context *channel;
+	struct img_size *size;
+
+	if (!param || !priv_data) {
+		pr_err("fail to get superzoom dst\n");
+		ret = -1;
+		goto exit;
+	}
+
+	module = (struct camera_module *)priv_data;
+	channel = &module->channel[CAM_CH_CAP];
+	size = (struct img_size *)param;
+	size->w = channel->ch_uinfo.dst_size.w;
+	size->h = channel->ch_uinfo.dst_size.h;
+	pr_info("superzoom dst size w %d, h %d\n", size->w, size->h);
+exit:
+	return ret;
+}
+
+static int is_deal_superzoom(enum isp_cb_type type)
+{
+	int ret = 0;
+
+	if (type == ISP_CB_SET_SUPERZOOM_COMPLETE
+		|| type == ISP_CB_GET_SUPERZOOM_DST) {
+		pr_info(" is superzoom type %d\n", type);
+		ret = 1;
+	}
+
+	return ret;
+}
+
+static int deal_with_superzoom(enum isp_cb_type type,
+	void *param, void *priv_data)
+{
+	int ret = 0;
+	pr_info(" enter\n");
+
+	switch (type) {
+		case ISP_CB_SET_SUPERZOOM_COMPLETE:
+			ret = set_superzoom_complete(priv_data);
+		break;
+		case ISP_CB_GET_SUPERZOOM_DST:
+			ret = get_superzoom_dst(param, priv_data);
+		break;
+		default:
+			pr_err("should not go to here  type%d\n", type);
+		break;
+	}
+
+	return ret;
+}
+
 int isp_callback(enum isp_cb_type type, void *param, void *priv_data)
 {
 	int ret = 0;
@@ -1247,6 +1372,11 @@ int isp_callback(enum isp_cb_type type, void *param, void *priv_data)
 	struct camera_frame *pframe;
 	struct camera_module *module;
 	struct channel_context *channel;
+
+	if (is_deal_superzoom(type)) {
+		pr_info("do superzoom type %d\n", type);
+		return deal_with_superzoom(type, param, priv_data);
+	}
 
 	if (!param || !priv_data) {
 		pr_err("fail to get valid param %p %p\n", param, priv_data);
@@ -1400,7 +1530,6 @@ int isp_callback(enum isp_cb_type type, void *param, void *priv_data)
 			put_empty_frame(pframe);
 		}
 		break;
-
 	default:
 		pr_err("fail to get cb cmd: %d\n", type);
 		break;
@@ -1408,7 +1537,6 @@ int isp_callback(enum isp_cb_type type, void *param, void *priv_data)
 
 	return ret;
 }
-
 
 int dcam_callback(enum dcam_cb_type type, void *param, void *priv_data)
 {
@@ -1893,7 +2021,7 @@ static int cal_channel_swapsize(struct camera_module *module)
 		max.w = ch_cap->ch_uinfo.src_size.w;
 		max.h = ch_cap->ch_uinfo.src_size.h;
 		ch_cap->swap_size = max;
-		pr_info("cap swap size %d %d\n", max.w, max.h);
+		pr_info("idx %d , cap swap size %d %d\n", module->idx, max.w, max.h);
 	}
 
 	if (ch_prev->enable)
@@ -2532,12 +2660,34 @@ static int config_channel_bigsize(
 	return ret;
 }
 
+static int capture_is_superzoom(struct camera_uchannel *ch_uinfo,
+	struct channel_context *channel, int coeff)
+{
+	int ret = 0;
+
+	if (!ch_uinfo || !channel) {
+		pr_err("fail to input ptr ctx_size or channel is NULL\n");
+		return ret;
+	}
+
+	pr_debug("superzoom trim_isp: %d, %d, dst size: %d, %d\n",
+		channel->trim_isp.size_x, channel->trim_isp.size_y,
+		ch_uinfo->dst_size.w, ch_uinfo->dst_size.h);
+
+	if (ch_uinfo->dst_size.w > coeff * channel->trim_isp.size_x
+		|| ch_uinfo->dst_size.h > coeff * channel->trim_isp.size_y)
+		ret = 1;
+
+	return ret;
+}
+
 static int config_channel_size(
 	struct camera_module *module,
 	struct channel_context *channel)
 {
 	int ret = 0;
 	int is_zoom, loop_count;
+	int superzoom_coeff = SUPERZOOM_DEFAULT_COEFF;
 	uint32_t isp_ctx_id, isp_path_id;
 	struct isp_offline_param *isp_param;
 	struct channel_context *vid;
@@ -2648,20 +2798,66 @@ cfg_isp:
 	isp_path_id = (channel->isp_path_id & ISP_PATHID_MASK);
 
 	if (channel->ch_id == CAM_CH_CAP) {
-		pr_info("cfg isp ctx %d size\n", isp_ctx_id);
+		struct img_size size = {0};
+		int superzoom_flag = 0;
+
 		ctx_size.src.w = ch_uinfo->src_size.w;
 		ctx_size.src.h = ch_uinfo->src_size.h;
 		ctx_size.crop = channel->trim_dcam;
+		pr_debug("cfg isp sw %d size src w %d, h %d, crop %d %d %d %d\n",
+			isp_ctx_id, ctx_size.src.w, ctx_size.src.h,
+			ctx_size.crop.start_x, ctx_size.crop.start_y, ctx_size.crop.size_x, ctx_size.crop.size_y);
 		ret = isp_ops->cfg_path(module->isp_dev_handle,
 				ISP_PATH_CFG_CTX_SIZE,
 				isp_ctx_id, 0, &ctx_size);
+		if (ret != 0)
+			goto exit;
+
+		if (s_dbg_superzoom_coeff > 0 &&
+			s_dbg_superzoom_coeff < SUPERZOOM_COEFF_UP_MAX) {
+			superzoom_coeff = s_dbg_superzoom_coeff;
+			pr_debug("sw %d, user proc sfs val , superzoom coeff %d, \n",
+				isp_ctx_id, superzoom_coeff);
+		}
+
+		if (capture_is_superzoom(ch_uinfo, channel, superzoom_coeff)) {
+			size.w = superzoom_coeff * channel->trim_isp.size_x;
+			size.h = superzoom_coeff * channel->trim_isp.size_y;
+			if (size.w > ch_uinfo->dst_size.w)
+				size.w = ch_uinfo->dst_size.w;
+			if (size.h > ch_uinfo->dst_size.h)
+				size.h = ch_uinfo->dst_size.h;
+			channel->cap_status = TO_DO_CAP_SUPERZOOM;
+			superzoom_flag = 1;
+			pr_debug("dcam id %d, sw %d, superzoom path dst w %d, h %d, channel: trim w %d, h %d, ch_uinfo dst %d, %d\n",
+				module->idx, isp_ctx_id, size.w, size.h, channel->trim_isp.size_x,
+				channel->trim_isp.size_y, ch_uinfo->dst_size.w, ch_uinfo->dst_size.h);
+		} else {
+			size.w = ch_uinfo->dst_size.w;
+			size.h = ch_uinfo->dst_size.h;
+			channel->cap_status = NONE_CAP_SUPERZOOM;
+			superzoom_flag = 0;
+			pr_debug("dcam id %d, sw %d, no superzoom path dst w %d, h %d, ch_uinfo src w %d, h %d , dst_size %d, %d\n",
+				module->idx, isp_ctx_id, size.w, size.h, ch_uinfo->dst_size.w, ch_uinfo->dst_size.h,
+				ch_uinfo->dst_size.w, ch_uinfo->dst_size.h);
+		}
+		ret = isp_ops->cfg_path(module->isp_dev_handle,
+				ISP_PATH_CFG_PATH_DST,
+				isp_ctx_id, isp_path_id, &size);
+		if (ret != 0)
+			goto exit;
+
+		ret = isp_ops->cfg_path(module->isp_dev_handle,
+				ISP_PATH_CFG_CTX_SUPERZOOM,
+				isp_ctx_id, isp_path_id, &superzoom_flag);
 		if (ret != 0)
 			goto exit;
 	}
 	path_trim = channel->trim_isp;
 
 cfg_path:
-	pr_info("cfg isp ctx %d path %d size\n", isp_ctx_id, isp_path_id);
+	pr_info("cfg isp ctx sw %d path %d size, path trim %d %d %d %d\n",
+		isp_ctx_id, isp_path_id, path_trim.start_x, path_trim.start_y, path_trim.size_x, path_trim.size_y);
 	ret = isp_ops->cfg_path(module->isp_dev_handle,
 				ISP_PATH_CFG_PATH_SIZE,
 				isp_ctx_id, isp_path_id,  &path_trim);
@@ -2862,6 +3058,7 @@ next:
 static int capture_proc(void *param)
 {
 	int ret = 0;
+	uint32_t cnt_3dnr= 0;
 	struct camera_module *module;
 	struct camera_frame *pframe;
 	struct channel_context *channel;
@@ -2874,12 +3071,55 @@ static int capture_proc(void *param)
 
 	ret = -1;
 	if (module->cap_status != CAM_CAPTURE_STOP) {
-		pr_info("capture frame fid[%d],  frame w %d, h %d\n",
-			pframe->fid, pframe->width, pframe->height);
-		ret = isp_ops->proc_frame(module->isp_dev_handle, pframe,
-			channel->isp_path_id >> ISP_CTXID_OFFSET);
-	}
+		pr_info("enter\n");
+		if (channel->cap_status == NONE_CAP_SUPERZOOM) {
+			/*Not to do superzoom capture*/
+			pr_info("capture frame cam id %d, fid[%d],  frame w %d, h %d\n",
+				module->idx, pframe->fid,
+				pframe->width, pframe->height);
+			ret = isp_ops->proc_frame(module->isp_dev_handle, pframe,
+						channel->isp_path_id >> ISP_CTXID_OFFSET);
+		} else {
+			/*superzoom capture*/
+			if (channel->uinfo_3dnr) {
+				/*3DNR capture*/
+				ret = isp_ops->get_3dnr_cnt(module->isp_dev_handle,
+						channel->isp_path_id >> ISP_CTXID_OFFSET, &cnt_3dnr);
+				if (ret) {
+					pr_err("fail to superzoom get 3dnr cnt\n");
+					goto exit;
+				}
 
+				if (cnt_3dnr % 5 != 4) {
+					/*3dnr 0~3 frame*/
+					pr_info("superzoom 3DNR capture frame fid[%d],  frame w %d, h %d, 3dr cnt %d\n",
+						pframe->fid, pframe->width, pframe->height, cnt_3dnr);
+					ret = isp_ops->proc_frame(module->isp_dev_handle, pframe,
+								channel->isp_path_id >> ISP_CTXID_OFFSET);
+					goto exit;
+				}
+			}
+
+			/*NONE 3DNR or 3DNR 4frame capture , need to wait*/
+			ret = wait_for_completion_interruptible_timeout(
+					&channel->superzoom_frm, msecs_to_jiffies(2000));
+			if (ret == ERESTARTSYS) {
+				pr_err("fail to wait as interrupted\n");
+				ret = -EFAULT;
+				goto exit;
+			} else if (ret == 0) {
+				pr_err("fail to wait timeout.\n");
+				ret = -EFAULT;
+				goto exit;
+			}
+
+			pr_info("superzoom capture frame fid[%d],  frame w %d, h %d, 3dnr %d, cnt %d\n",
+				pframe->fid, pframe->width, pframe->height, channel->uinfo_3dnr, cnt_3dnr);
+			ret = isp_ops->proc_frame(module->isp_dev_handle, pframe,
+				channel->isp_path_id >> ISP_CTXID_OFFSET);
+		}
+	}
+exit:
 	if (ret) {
 		pr_info("capture stop or isp queue overflow\n");
 		if (module->cam_uinfo.dcam_slice_mode && pframe->dcam_idx == DCAM_ID_1) {
@@ -2904,7 +3144,6 @@ static int capture_proc(void *param)
 	}
 	return 0;
 }
-
 
 #define CAMERA_DUMP_PATH "/data/ylog/"
 /* will create thread in user to read raw buffer*/
@@ -3355,7 +3594,9 @@ static int init_cam_channel(
 	struct camera_uchannel *ch_uinfo;
 	struct isp_path_base_desc path_desc;
 	struct isp_init_param init_param;
+	struct cam_hw_info *hw = NULL;
 
+	hw = module->grp->hw_info;
 	ch_uinfo = &channel->ch_uinfo;
 	ch_uinfo->src_size.w = module->cam_uinfo.sn_rect.w;
 	ch_uinfo->src_size.h = module->cam_uinfo.sn_rect.h;
@@ -3569,6 +3810,23 @@ static int init_cam_channel(
 
 		ret = isp_ops->cfg_path(module->isp_dev_handle,
 				ISP_PATH_CFG_CTX_BASE, isp_ctx_id, 0, &ctx_desc);
+
+		if (hw->ip_dcam[module->idx]->superzoom_support
+			&& channel->ch_id == CAM_CH_CAP) {
+			init_param.cam_id = module->idx;
+			init_param.is_superzoom = 1;
+			ret = isp_ops->get_context(module->isp_dev_handle, &init_param);
+			if (ret != ISP_CONTEXT_SUPERZOOM) {
+				pr_err("fail to get isp superzoom context cam%d ch %d\n",
+					module->idx, channel->ch_id);
+				goto exit;
+			}
+
+			isp_ops->set_callback(module->isp_dev_handle,
+					ISP_CONTEXT_SUPERZOOM, isp_callback, module);
+			ret = isp_ops->cfg_path(module->isp_dev_handle,
+					ISP_PATH_CFG_CTX_BASE, ISP_CONTEXT_SUPERZOOM, 0, &ctx_desc);
+		}
 	}
 
 	if (new_isp_path) {
@@ -3601,6 +3859,23 @@ static int init_cam_channel(
 		ret = isp_ops->cfg_path(module->isp_dev_handle,
 					ISP_PATH_CFG_PATH_BASE,
 					isp_ctx_id, isp_path_id, &path_desc);
+
+		if (hw->ip_dcam[module->idx]->superzoom_support
+			&& channel->ch_id == CAM_CH_CAP) {
+			ret = isp_ops->get_path(
+					module->isp_dev_handle, ISP_CONTEXT_SUPERZOOM, isp_path_id);
+			if (ret < 0) {
+				pr_err("fail to get isp path %d from superzoom\n", isp_path_id);
+				if (new_isp_ctx)
+					isp_ops->put_context(module->isp_dev_handle,
+							ISP_CONTEXT_SUPERZOOM);
+				goto exit;
+			}
+
+			ret = isp_ops->cfg_path(module->isp_dev_handle,
+					ISP_PATH_CFG_PATH_BASE,
+					ISP_CONTEXT_SUPERZOOM, isp_path_id, &path_desc);
+		}
 	}
 
 	if (new_isp_path && channel->ch_uinfo.slave_img_en) {
@@ -3796,6 +4071,7 @@ static int camera_module_init(struct camera_module *module)
 	mutex_init(&module->lock);
 	init_completion(&module->frm_com);
 	init_completion(&module->streamoff_com);
+
 	module->cap_status = CAM_CAPTURE_STOP;
 	module->dcam_cap_status = DCAM_CAPTURE_STOP;
 
@@ -5563,6 +5839,21 @@ static int img_ioctl_stream_on(
 					}
 				}
 			}
+
+			if (hw->ip_dcam[module->idx]->superzoom_support
+				&& ch->ch_id == CAM_CH_CAP) {
+				if (ch->superzoom_buf== NULL)
+					continue;
+				ret = isp_ops->cfg_path(module->isp_dev_handle,
+						ISP_PATH_CFG_SUPERZOOM_BUF,
+						isp_ctx_id, isp_path_id,
+						ch->superzoom_buf);
+				if (ret) {
+					pr_err("fail to config isp superzoom buffer sw %d,  path id %d\n",
+						isp_ctx_id, isp_path_id);
+					goto exit;
+				}
+			}
 		}
 	}
 
@@ -5626,6 +5917,12 @@ static int img_ioctl_stream_on(
 	atomic_set(&module->timeout_flag, 1);
 	ret = sprd_start_timer(&module->cam_timer, CAMERA_TIMEOUT);
 
+	if (hw->ip_dcam[module->idx]->superzoom_support) {
+		init_completion(&module->channel[CAM_CH_CAP].superzoom_frm);
+		complete(&module->channel[CAM_CH_CAP].superzoom_frm);
+		pr_info("superzoom stream on do complete.\n");
+	}
+
 	if (module->dump_thrd.thread_task) {
 		camera_queue_init(&module->dump_queue, 10, 0, put_k_frame);
 		init_completion(&module->dump_com);
@@ -5664,6 +5961,7 @@ static int img_ioctl_stream_off(
 	struct channel_context *ch_prv = NULL;
 	int isp_ctx_id[CAM_CH_MAX] = { -1 };
 	struct isp_statis_io_desc io_desc;
+	struct cam_hw_info *hw = NULL;
 
 	if ((atomic_read(&module->state) != CAM_RUNNING) &&
 		(atomic_read(&module->state) != CAM_CFG_CH)) {
@@ -5681,6 +5979,11 @@ static int img_ioctl_stream_off(
 	module->cap_status = CAM_CAPTURE_STOP;
 	module->dcam_cap_status = DCAM_CAPTURE_STOP;
 
+	hw = module->grp->hw_info;
+	if (hw->ip_dcam[module->idx]->superzoom_support) {
+		init_completion(&module->channel[CAM_CH_CAP].superzoom_frm);
+		pr_info("superzoom stream off init complete.\n");
+	}
 	/* stop raw dump */
 	if (module->dump_thrd.thread_task) {
 		if (module->in_dump)
@@ -5742,6 +6045,13 @@ static int img_ioctl_stream_off(
 			isp_ops->put_path(module->isp_dev_handle,
 					isp_ctx_id[i],
 					ch->isp_path_id & ISP_PATHID_MASK);
+			if (hw->ip_dcam[module->idx]->superzoom_support
+				&& ch->ch_id == CAM_CH_CAP) {
+				pr_info("put path superzoom\n");
+				isp_ops->put_path(module->isp_dev_handle,
+					ISP_CONTEXT_SUPERZOOM,
+					ch->isp_path_id & ISP_PATHID_MASK);
+			}
 		}
 		if (ch->slave_isp_path_id >= 0) {
 			isp_ops->put_path(module->isp_dev_handle,
@@ -5760,6 +6070,13 @@ static int img_ioctl_stream_off(
 			if (isp_ctx_id[i] != -1)
 				isp_ops->put_context(module->isp_dev_handle,
 					isp_ctx_id[i]);
+
+			if (hw->ip_dcam[module->idx]->superzoom_support
+				&& ch->ch_id == CAM_CH_CAP) {
+				pr_info("put context superzoom\n");
+				isp_ops->put_context(module->isp_dev_handle,
+					ISP_CONTEXT_SUPERZOOM);
+			}
 
 			if (ch->alloc_start) {
 				ret = wait_for_completion_interruptible(
@@ -5808,6 +6125,15 @@ static int img_ioctl_stream_off(
 							put_k_frame(ch->ltm_bufs[LTM_YUV][j]);
 						ch->ltm_bufs[LTM_YUV][j] = NULL;
 					}
+				}
+			}
+
+			if (hw->ip_dcam[module->idx]->superzoom_support
+				&& ch->ch_id == CAM_CH_CAP) {
+				if (ch->superzoom_buf) {
+					put_k_frame(ch->superzoom_buf);
+					ch->superzoom_buf = NULL;
+					pr_info("superzoom put frame\n");
 				}
 			}
 		}
@@ -7488,11 +7814,14 @@ static ssize_t sprd_img_read(struct file *file, char __user *u_data,
 				size_t cnt, loff_t *cnt_ret)
 {
 	int ret = 0;
+	int i = 0;
+	int superzoom_val = 0;
 	struct sprd_img_read_op read_op;
 	struct camera_module *module = NULL;
 	struct camera_frame *pframe;
 	struct channel_context *pchannel;
 	struct sprd_img_path_capability *cap;
+	struct cam_hw_info *hw = NULL;
 
 	module = (struct camera_module *)file->private_data;
 	if (!module) {
@@ -7515,8 +7844,20 @@ static ssize_t sprd_img_read(struct file *file, char __user *u_data,
 
 	switch (read_op.cmd) {
 	case SPRD_IMG_GET_SCALE_CAP:
+		hw = module->grp->hw_info;
+		for (i = 0; i < DCAM_ID_MAX; i++) {
+			if (hw->ip_dcam[i]->superzoom_support) {
+				superzoom_val = 1;
+				break;
+			}
+		}
+
+		if (superzoom_val)
+			read_op.parm.reserved[1] = 10;
+		else
+			read_op.parm.reserved[1] = 4;
+
 		read_op.parm.reserved[0] = 4672;
-		read_op.parm.reserved[1] = 4;
 		read_op.parm.reserved[2] = 4672;
 		pr_debug("line threshold %d, sc factor %d, scaling %d.\n",
 				read_op.parm.reserved[0],

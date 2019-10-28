@@ -100,6 +100,7 @@ int dcam_if_parse_dt(struct platform_device *pdev,
 	void __iomem *reg_base = NULL;
 	struct resource reg_res = {0}, irq_res = {0};
 	uint32_t count = 0, prj_id = 0;
+	int super_index = -1;
 	uint32_t dcam_max_w = 0, dcam_max_h = 0;
 	int i = 0, irq = 0;
 	int args_count = 0;
@@ -125,6 +126,9 @@ int dcam_if_parse_dt(struct platform_device *pdev,
 		return PTR_ERR(ahb_map);
 	}
 
+	if (of_property_read_u32(dn, "sprd,dcam-superzoom", &super_index))
+		pr_info("None support super-zoom\n");
+
 	if (of_property_read_u32(dn, "sprd,dcam-count", &count)) {
 		pr_err("fail to parse the property of sprd,dcam-count\n");
 		return -EINVAL;
@@ -136,6 +140,13 @@ int dcam_if_parse_dt(struct platform_device *pdev,
 	/* bounded kernel device node */
 	hw_info->pdev = pdev;
 	hw_info->prj_id = (enum cam_prj_id) prj_id;
+
+	pr_info("superzoom :super_index id %d\n", super_index);
+
+	if (super_index >= 0 && super_index < DCAM_ID_MAX) {
+		pr_info("superzoom ->dcam id%d\n", super_index);
+		hw_info->ip_dcam[super_index]->superzoom_support = 1;
+	}
 
 	dcam_max_w = DCAM_PATH_WMAX;
 	dcam_max_h = DCAM_PATH_HMAX;

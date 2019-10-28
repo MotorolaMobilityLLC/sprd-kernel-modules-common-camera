@@ -17,7 +17,7 @@
 #define ISP_MAX_COUNT				1
 #define ISP_LOGICAL_COUNT			2
 #define ISP_CONTEXT_MAX				4
-#define  ISP_CONTEXT_SW_MAX			6
+#define  ISP_CONTEXT_SW_MAX			7
 
 extern unsigned long s_isp_regbase[ISP_MAX_COUNT];
 extern unsigned long isp_phys_base[ISP_MAX_COUNT];
@@ -82,6 +82,8 @@ extern unsigned long s_isp_mmubase;
 #define ISP_COMMON_PMU_RAM_MASK			(0x0734UL)
 #define ISP_WORK_CTRL				(0x0738UL)
 #define ISP_BLOCK_MODE				(0x073CUL)
+
+#define ISP_YUV_MULT                   (0x0740UL)
 
 #define ISP_CORE_STATUS				(0x8000UL)
 #define ISP_CORE_PMU_EN				(0x8010UL)

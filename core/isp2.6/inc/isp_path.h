@@ -21,6 +21,7 @@ int isp_cfg_ctx_uframe_sync(struct isp_pipe_context *pctx, void *param);
 
 int isp_cfg_path_base(struct isp_path_desc *path, void *param);
 int isp_cfg_path_size(struct isp_path_desc *path, void *param);
+int isp_cfg_path_dst_size(struct isp_path_desc *path, void *param);
 int isp_cfg_path_compression(struct isp_path_desc *path, void *param);
 int isp_cfg_path_uframe_sync(struct isp_path_desc *path, void *param);
 

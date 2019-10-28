@@ -38,7 +38,7 @@
 uint32_t g_dcam_bypass[DCAM_ID_MAX] = { 0, 0, 0 };
 struct cam_dbg_dump g_dbg_dump;
 int s_dbg_work_mode = ISP_CFG_MODE;
-uint32_t g_isp_bypass[ISP_CONTEXT_SW_NUM] = { 0, 0, 0, 0, 0, 0 };
+uint32_t g_isp_bypass[ISP_CONTEXT_SW_NUM] = { 0, 0, 0, 0, 0, 0, 0};
 int g_dbg_iommu_mode = IOMMU_AUTO;
 int g_dbg_set_iommu_mode = IOMMU_AUTO;;
 
@@ -47,6 +47,7 @@ extern atomic_t s_dcam_axi_opened;
 extern atomic_t s_dcam_opened[DCAM_ID_MAX];
 extern struct isp_pipe_dev *s_isp_dev;
 extern uint32_t s_dbg_linebuf_len;
+extern int s_dbg_superzoom_coeff;
 
 static struct dentry *debugfs_base;
 static uint32_t debug_ctx_id[4] = {0, 1, 2, 3};
@@ -1188,6 +1189,54 @@ static const struct file_operations fbc_ctrl_ops = {
 	.write = fbc_ctrl_write,
 };
 
+static ssize_t superzoom_coeff_show(
+			struct file *filp, char __user *buffer,
+			size_t count, loff_t *ppos)
+{
+	char buf[8];
+
+	snprintf(buf, sizeof(buf), "%d\n", s_dbg_superzoom_coeff);
+
+	return simple_read_from_buffer(
+			buffer, count, ppos,
+			buf, strlen(buf));
+}
+
+static ssize_t superzoom_coeff_write(struct file *filp,
+			const char __user *buffer,
+			size_t count, loff_t *ppos)
+{
+	int ret = 0;
+	char msg[8];
+	int val;
+
+	if (count > 2)
+		return -EINVAL;
+
+	ret = copy_from_user(msg, (void __user *)buffer, count);
+	if (ret) {
+		pr_err("fail to superzoom copy_from_user\n");
+		return -EFAULT;
+	}
+
+	msg[7] = '\0';
+	val = simple_strtol(msg, NULL, 0);
+	if (val >= 4 || val < 0) {
+		pr_err("superzoom write coeff err %d, %s\n", val, msg);
+		return -EFAULT;
+	}
+
+	s_dbg_superzoom_coeff = val;
+	return count;
+}
+
+static const struct file_operations superzoom_coeff_ops = {
+	.owner =	THIS_MODULE,
+	.open = simple_open,
+	.read = superzoom_coeff_show,
+	.write = superzoom_coeff_write,
+};
+
 static int isp_debugfs_init(struct camera_debugger *debugger)
 {
 	struct dentry *entry = NULL;
@@ -1249,6 +1298,10 @@ static int isp_debugfs_init(struct camera_debugger *debugger)
 		return -ENOMEM;
 	if (!debugfs_create_file("cap1_bypass", 0660,
 			debugfs_base, &isp_debug_bypass[3], &isp_bypass_ops))
+		return -ENOMEM;
+
+	if (!debugfs_create_file("superzoom_coeff", 0660,
+			debugfs_base, NULL, &superzoom_coeff_ops))
 		return -ENOMEM;
 
 	entry = debugfs_create_file("fbc_ctrl", 0660, debugfs_base,

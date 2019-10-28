@@ -225,6 +225,8 @@ enum isp_cb_type {
 	ISP_CB_DEV_ERR,
 	ISP_CB_MMU_ERR,
 	ISP_CB_STATIS_DONE,
+	ISP_CB_SET_SUPERZOOM_COMPLETE,
+	ISP_CB_GET_SUPERZOOM_DST,
 };
 
 enum dcam_cb_type {

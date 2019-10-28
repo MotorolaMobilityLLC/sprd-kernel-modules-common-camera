@@ -35,6 +35,7 @@ enum isp_context_id {
 	ISP_CONTEXT_C1,
 	ISP_CONTEXT_P2,
 	ISP_CONTEXT_C2,
+	ISP_CONTEXT_SUPERZOOM,
 	ISP_CONTEXT_SW_NUM
 };
 
@@ -60,6 +61,8 @@ enum isp_path_cfg_cmd {
 	ISP_PATH_CFG_CTX_UFRAME_SYNC,
 	ISP_PATH_CFG_PATH_BASE,
 	ISP_PATH_CFG_PATH_SIZE,
+	ISP_PATH_CFG_PATH_DST,
+	ISP_PATH_CFG_CTX_SUPERZOOM,
 	ISP_PATH_CFG_PATH_COMPRESSION,
 	ISP_PATH_CFG_PATH_UFRAME_SYNC,
 	ISP_PATH_CFG_OUTPUT_BUF,
@@ -67,7 +70,14 @@ enum isp_path_cfg_cmd {
 	ISP_PATH_CFG_3DNR_BUF,
 	ISP_PATH_CFG_RGB_LTM_BUF,
 	ISP_PATH_CFG_YUV_LTM_BUF,
+	ISP_PATH_CFG_SUPERZOOM_BUF,
 	ISP_PATH_CFG_3DNR_MODE,
+};
+
+enum isp_superzoom_status {
+	NONE_CAP_SUPERZOOM = 0x1,
+	TO_DO_CAP_SUPERZOOM,
+	DOING_CAP_SUPERZOOM,
 };
 
 enum isp_3dnr_mode {
@@ -121,6 +131,7 @@ enum isp_ioctrl_cmd {
 struct isp_init_param {
 	uint32_t is_high_fps;
 	uint32_t cam_id;
+	uint32_t is_superzoom;
 };
 
 struct isp_ctx_base_desc {
@@ -237,6 +248,7 @@ struct isp_pipe_ops {
 	int (*set_callback)(void *isp_handle, int ctx_id,
 			isp_dev_callback cb, void *priv_data);
 	int (*update_clk)(void *isp_handle, void *arg);
+	int (*get_3dnr_cnt)(void *isp_handle, int ctx_id, void *param);
 };
 
 struct isp_pipe_ops *get_isp_ops(void);

@@ -243,6 +243,8 @@ static int calc_scaler_param(struct img_trim *in_trim,
 			deci->deci_y = 1;
 			deci->deci_y_eb = 0;
 		}
+		pr_debug("end out_size  w %d, h %d\n",
+				out_size->w, out_size->h);
 
 		scaler->scaler_factor_out = out_size->w;
 		scaler->scaler_ver_factor_out = out_size->h;
@@ -317,6 +319,7 @@ int isp_cfg_path_scaler(struct isp_path_desc *path)
 		scale2yuv420 = is_yuv422 ? 0 : 1;
 		ret = calc_scaler_coeff(scaler, scale2yuv420);
 	}
+
 	scaler->odata_mode = is_yuv422 ? 0x00 : 0x01;
 
 	return ret;
@@ -678,7 +681,7 @@ int isp_cfg_ctx_size(struct isp_pipe_context *pctx, void *param)
 	fetch->src = pctx->input_size;
 	fetch->in_trim = pctx->input_trim;
 	fetch->fetch_fmt = get_fetch_format(pctx->in_fmt);
-	if(pctx->in_fmt == IMG_PIX_FMT_GREY){
+	if(pctx->in_fmt == IMG_PIX_FMT_GREY) {
 		if(pctx->is_loose == ISP_RAW_HALF14 || pctx->is_loose == ISP_RAW_HALF10)
 			fetch->fetch_fmt = ISP_FETCH_RAW10;
 		else
@@ -686,9 +689,9 @@ int isp_cfg_ctx_size(struct isp_pipe_context *pctx, void *param)
 	}
 
 	pr_info("ctx%d fetch fmt: %d  in %d %d, crop %d %d %d %d is_loose %d\n",
-		pctx->ctx_id, fetch->fetch_fmt, src->w, src->h,
-		intrim->start_x, intrim->start_y, intrim->size_x,
-			intrim->size_y, pctx->is_loose);
+			pctx->ctx_id, fetch->fetch_fmt, src->w, src->h,
+				intrim->start_x, intrim->start_y, intrim->size_x,
+					intrim->size_y, pctx->is_loose);
 
 	if (pctx->fetch_path_sel) {
 		cfg_fbd_raw(pctx, cfg_in);
@@ -885,8 +888,8 @@ int isp_cfg_path_size(struct isp_path_desc *path, void *param)
 	src.h = pctx->input_trim.size_y;
 	if (((crop->start_x + crop->size_x) > src.w) ||
 		((crop->start_y + crop->size_y) > src.h)) {
-		pr_err("fail to get path trim(%d %d %d %d) outside of src (%d %d)\n",
-			crop->start_x, crop->start_y,
+		pr_err("fail to sw %d get path trim(%d %d %d %d) outside of src (%d %d)\n",
+			pctx->ctx_id, crop->start_x, crop->start_y,
 			crop->size_x, crop->size_y, src.w, src.h);
 		return -EINVAL;
 	}
@@ -908,11 +911,13 @@ int isp_cfg_path_size(struct isp_path_desc *path, void *param)
 	path->out_trim.start_y = 0;
 	path->out_trim.size_x = path->dst.w;
 	path->out_trim.size_y = path->dst.h;
-
-	pr_info("path %d. src %d %d, trim %d %d %d %d. dst %d %d\n",
+	pr_info("sw %d, path %d. src %d %d ; in_trim %d %d %d %d ; out_trim %d %d %d %d ; dst %d %d\n",
+		pctx->ctx_id,
 		path->spath_id, path->src.w, path->src.h,
 		path->in_trim.start_x, path->in_trim.start_y,
 		path->in_trim.size_x, path->in_trim.size_y,
+		path->out_trim.start_x, path->out_trim.start_y ,
+		path->out_trim.size_x, path->out_trim.size_y,
 		path->dst.w, path->dst.h);
 
 	if (path->store_fbc) {
@@ -943,6 +948,7 @@ int isp_cfg_path_size(struct isp_path_desc *path, void *param)
 
 	store->size.w = path->dst.w;
 	store->size.h = path->dst.h;
+
 	switch (store->color_fmt) {
 	case ISP_STORE_UYVY:
 		store->pitch.pitch_ch0 = store->size.w * 2;
@@ -980,6 +986,28 @@ int isp_cfg_path_size(struct isp_path_desc *path, void *param)
 		store->pitch.pitch_ch2 = 0;
 		break;
 	}
+	return ret;
+}
+
+int isp_cfg_path_dst_size(struct isp_path_desc *path, void *param)
+{
+	int ret = 0;
+	struct img_size *size;
+	struct isp_pipe_context *pctx = NULL;
+
+	if (!path || !param) {
+		pr_err("fail to get valid input ptr, path %p, param %p\n",
+			path, param);
+		return -EFAULT;
+	}
+
+	pctx = path->attach_ctx;
+
+	size = (struct img_size *)param;
+	path->dst.w = size->w;
+	path->dst.h = size->h;
+	pr_info("sw %d, path dst w %d, h %d\n",
+		pctx->ctx_id, path->dst.w, path->dst.h);
 	return ret;
 }
 
@@ -1076,6 +1104,11 @@ static int set_path_common(struct isp_path_desc *path)
 	ISP_REG_WR(idx, addr + ISP_SCALER_DES_SIZE,
 				((path->dst.h & 0x3FFF) << 16) |
 					(path->dst.w & 0x3FFF));
+	pr_debug("sw %d, path src: %d %d; in_trim:%d %d %d %d, out_trim: %d %d %d %d, dst: %d %d \n",
+		idx, path->src.w, path->src.h, path->in_trim.start_x,
+		path->in_trim.start_y, path->in_trim.size_x, path->in_trim.size_y,
+		path->out_trim.start_x, path->out_trim.start_y, path->out_trim.size_x, path->out_trim.size_y,
+		path->dst.w, path->dst.h);
 
 	return 0;
 }
@@ -1488,8 +1521,9 @@ int isp_path_set_store_frm(
 	yuv_addr[1] = frame->buf.iova[1];
 	yuv_addr[2] = frame->buf.iova[2];
 
-	pr_debug("planes %d addr %lx %lx %lx\n", planes,
-			yuv_addr[0], yuv_addr[1], yuv_addr[2]);
+	pr_debug("sw %d , fmt %d, planes %d addr %lx %lx %lx\n",
+		pctx->ctx_id, store->color_fmt, planes,
+		yuv_addr[0], yuv_addr[1], yuv_addr[2]);
 
 	if ((planes > 1) && yuv_addr[1] == 0) {
 		if (!pctx->sw_slice_num) {
@@ -1523,7 +1557,8 @@ int isp_path_set_store_frm(
 	path->store.addr.addr_ch0 = yuv_addr[0];
 	path->store.addr.addr_ch1 = yuv_addr[1];
 	path->store.addr.addr_ch2 = yuv_addr[2];
-	pr_debug("done %x %x %x\n", path->store.addr.addr_ch0,
+	pr_debug("sw %d , done %x %x %x\n",
+		pctx->ctx_id, path->store.addr.addr_ch0,
 		path->store.addr.addr_ch1,
 		path->store.addr.addr_ch2);
 

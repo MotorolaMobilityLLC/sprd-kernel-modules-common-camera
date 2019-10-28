@@ -388,6 +388,8 @@ struct isp_pipe_context {
 	atomic_t user_cnt;
 	uint32_t started;
 	uint32_t ctx_id;
+	uint32_t major_ctx_id;
+	uint32_t sub_ctx_id;
 	uint32_t in_fmt; /* forcc */
 	uint32_t is_loose;
 	enum camera_id attach_cam_id;
@@ -408,6 +410,7 @@ struct isp_pipe_context {
 	uint32_t fetch_path_sel;/* 1: fetch_fbd; 0: fetch */
 	uint32_t fetch_fbd_4bit_bypass;/* 0: 14bit; 1: 10bit */
 	uint32_t nr3_fbc_fbd;/* 1: 3dnr compressed; 0: 3dnr plain data */
+	int superzoom_flag;
 	/* lock ctx/path param(size) updated from zoom */
 	struct mutex param_mutex;
 
@@ -428,6 +431,7 @@ struct isp_pipe_context {
 	struct camera_queue in_queue;
 	struct camera_queue proc_queue;
 
+	struct camera_frame *superzoom_buf;
 	struct camera_frame *nr3_buf[ISP_NR3_BUF_NUM];
 	struct camera_frame *ltm_buf[LTM_MAX][ISP_LTM_BUF_NUM];
 	struct camera_queue ltm_avail_queue[LTM_MAX];

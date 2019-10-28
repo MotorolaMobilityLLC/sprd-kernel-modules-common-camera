@@ -52,6 +52,8 @@ static int sprd_isp_put_path(
 	void *isp_handle, int ctx_id, int path_id);
 static int isp_slice_ctx_init(struct isp_pipe_context *pctx, uint32_t *multi_slice);
 static DEFINE_MUTEX(isp_pipe_dev_mutex);
+static int isp_do_superzoom_frame(void *ctx);
+
 struct isp_pipe_dev *s_isp_dev;
 uint32_t s_dbg_linebuf_len = ISP_LINE_BUFFER_W;
 extern int s_dbg_work_mode;
@@ -221,7 +223,8 @@ static int isp_update_hist_roi(struct isp_pipe_context *pctx)
 	struct isp_dev_hist2_info hist2_info;
 	struct isp_fetch_info *fetch = &pctx->fetch;
 
-	pr_debug("hist_roi w[%d] h[%d]\n", fetch->in_trim.size_x, fetch->in_trim.size_y);
+	pr_debug("sw %d, hist_roi w[%d] h[%d]\n",
+		pctx->ctx_id, fetch->in_trim.size_x, fetch->in_trim.size_y);
 
 	hist2_info.hist_roi.start_x = 0;
 	hist2_info.hist_roi.start_y = 0;
@@ -501,6 +504,59 @@ static int isp_afbc_store(struct isp_path_desc *path)
 	return 0;
 }
 
+int isp_set_superzoom_param(struct isp_pipe_context *pctx)
+{
+	int ret = 0;
+	struct isp_pipe_dev *dev;
+	struct isp_path_desc *path;
+	struct isp_path_desc *path_major;
+	struct isp_pipe_context *pctx_major;
+	struct isp_ctx_size_desc param;
+	struct img_size size;
+
+	dev = pctx->dev;
+	pctx_major = &dev->ctx[pctx->major_ctx_id];
+	path_major = &pctx_major->isp_path[0];
+
+	size.w = path_major->dst.w;
+	size.h = path_major->dst.h;
+	param.src.w = size.w;
+	param.src.h = size.h;
+	param.crop.start_x = 0;
+	param.crop.start_y = 0;
+	param.crop.size_x = size.w;
+	param.crop.size_y = size.h;
+	pctx->input_size.w = size.w;
+	pctx->input_size.h = size.h;
+	pctx->input_trim.start_x = 0;
+	pctx->input_trim.start_y = 0;
+	pctx->input_trim.size_x = size.w;
+	pctx->input_trim.size_y= size.h;
+	pctx->in_fmt = IMG_PIX_FMT_NV21;
+	pr_info("isp sw %d superzoom size: %d %d\n",
+				pctx->ctx_id, size.w, size.h);
+
+	ret = isp_cfg_ctx_size(pctx, &param);
+	if (ret) {
+		pr_err("fail to set superzoom cfg ctx size\n");
+		goto exit;
+	}
+
+	path = &pctx->isp_path[0];
+	pctx->isp_cb_func(ISP_CB_GET_SUPERZOOM_DST,
+			&path->dst, pctx_major->cb_priv_data);
+	pr_info("isp sw %d superzoom path in_trim %d, %d ; dst: %d %d, in_fmt %d\n",
+				pctx->ctx_id, param.crop.size_x, param.crop.size_y,
+				path->dst.w, path->dst.h, pctx->in_fmt);
+	ret = isp_cfg_path_size(path, &param.crop);
+	if (ret) {
+		pr_err("fail to set superzoom cfg path size\n");
+		goto exit;
+	}
+exit:
+	return ret;
+}
+
 static int isp_update_offline_param(
 	struct isp_pipe_context *pctx,
 	struct isp_offline_param *in_param)
@@ -514,7 +570,7 @@ static int isp_update_offline_param(
 	uint32_t update[ISP_SPATH_NUM] = {
 			ISP_PATH0_TRIM,	ISP_PATH1_TRIM, ISP_PATH2_TRIM};
 
-	if (in_param->valid & ISP_SRC_SIZE) {
+	if(in_param->valid & ISP_SRC_SIZE) {
 		memcpy(&pctx->original, &in_param->src_info,
 			sizeof(pctx->original));
 		cfg.src = in_param->src_info.dst_size;
@@ -523,7 +579,7 @@ static int isp_update_offline_param(
 		cfg.crop.size_x = cfg.src.w;
 		cfg.crop.size_y = cfg.src.h;
 		ret = isp_cfg_ctx_size(pctx, &cfg);
-		pr_debug("isp ctx %d update size: %d %d\n",
+		pr_debug("isp sw %d update size: %d %d\n",
 			pctx->ctx_id, cfg.src.w, cfg.src.h);
 		src_new = &cfg.src;
 	}
@@ -543,6 +599,7 @@ static int isp_update_offline_param(
 		} else {
 			continue;
 		}
+
 		ret = isp_cfg_path_size(path, &path_trim);
 		pr_debug("update isp path%d trim %d %d %d %d\n",
 			i, path_trim.start_x, path_trim.start_y,
@@ -631,7 +688,6 @@ static int set_fmcu_slw_queue(
 	pr_debug("fmcu slw queue done!");
 	return ret;
 }
-
 
 static int proc_slices(struct isp_pipe_context *pctx)
 {
@@ -896,6 +952,7 @@ static int isp_slice_needed(struct isp_pipe_context *pctx)
 
 	if (pctx->input_trim.size_x > g_camctrl.isp_linebuf_len)
 		return 1;
+
 	for (i = 0; i < ISP_SPATH_NUM; i++) {
 		path = &pctx->isp_path[i];
 		if (atomic_read(&path->user_cnt) < 1)
@@ -1001,6 +1058,7 @@ static int isp_offline_start_frame(void *ctx)
 	struct camera_frame *pframe = NULL;
 	struct camera_frame *out_frame = NULL;
 	struct isp_pipe_context *pctx = NULL;
+	struct isp_pipe_context *superzoom_ctx = NULL;
 	struct isp_pipe_hw_context *pctx_hw = NULL;
 	struct isp_path_desc *path, *slave_path;
 	struct isp_cfg_ctx_desc *cfg_desc = NULL;
@@ -1025,7 +1083,7 @@ static int isp_offline_start_frame(void *ctx)
 	if (pctx->multi_slice | isp_slice_needed(pctx))
 		use_fmcu = FMCU_IS_NEED;
 	if (use_fmcu && (pctx->mode_3dnr != MODE_3DNR_OFF))
-		use_fmcu |= FMCU_IS_MUST; // force fmcu used
+		use_fmcu |= FMCU_IS_MUST; /* force fmcu used*/
 	if (pctx->enable_slowmotion)
 		use_fmcu |= FMCU_IS_MUST; // force fmcu used
 	if (pctx->sw_slice_num)
@@ -1056,8 +1114,8 @@ static int isp_offline_start_frame(void *ctx)
 	}
 
 	if ((pframe->fid & 0x1f) == 0)
-		pr_info("cam%d  ctx %d, fid %d, ch_id %d, buf_fd %d\n",
-			pctx->attach_cam_id,  pctx->ctx_id,
+		pr_info(" sw %d, cam%d , fid %d, ch_id %d, buf_fd %d\n",
+			pctx->ctx_id, pctx->attach_cam_id,
 			pframe->fid, pframe->channel_id, pframe->buf.mfd[0]);
 
 	if (pframe->sw_slice_num) {
@@ -1066,7 +1124,8 @@ static int isp_offline_start_frame(void *ctx)
 
 	ret = cambuf_iommu_map(&pframe->buf, CAM_IOMMUDEV_ISP);
 	if (ret) {
-		pr_err("fail to map buf to ISP iommu. cxt %d\n", pctx->ctx_id);
+		pr_err("fail to map buf to ISP iommu. cxt %d\n",
+			pctx->ctx_id);
 		ret = -EINVAL;
 		goto map_err;
 	}
@@ -1095,10 +1154,23 @@ static int isp_offline_start_frame(void *ctx)
 
 	in_param = (struct isp_offline_param *)pframe->param_data;
 	if (in_param) {
+		/*preview*/
 		isp_update_offline_param(pctx, in_param);
 		free_offline_pararm(in_param);
 		pframe->param_data = NULL;
 	}
+
+	if (pctx->superzoom_flag) {
+		/*more than 8x zoom capture*/
+		if (pctx->mode_3dnr != MODE_3DNR_CAP
+			|| ((pctx->mode_3dnr == MODE_3DNR_CAP)
+				&& (pctx->nr3_ctx.blending_cnt % 5 == 4))) {
+			superzoom_ctx = &dev->ctx[ISP_CONTEXT_SUPERZOOM];
+			superzoom_ctx->major_ctx_id = pctx->ctx_id;
+			superzoom_ctx->mode_3dnr = pctx->mode_3dnr;
+		}
+	}
+
 	pframe->width = pctx->input_size.w;
 	pframe->height = pctx->input_size.h;
 
@@ -1139,8 +1211,8 @@ static int isp_offline_start_frame(void *ctx)
 		if (path->bind_type == ISP_PATH_SLAVE)
 			continue;
 
-		if ((pctx->mode_3dnr == MODE_3DNR_CAP) &&
-		    (pctx->nr3_ctx.blending_cnt % 5 != 4)) {
+		if ((pctx->mode_3dnr == MODE_3DNR_CAP)
+			&& (pctx->nr3_ctx.blending_cnt % 5 != 4)) {
 			valid_out_frame = 1;
 			out_frame = camera_dequeue(&path->reserved_buf_queue);
 			pr_debug("3dnr frame [0 ~ 3], discard cnt[%d][%d]\n",
@@ -1149,22 +1221,38 @@ static int isp_offline_start_frame(void *ctx)
 		} else if (pctx->sw_slice_num && pctx->sw_slice_no != 0) {
 				out_frame = camera_dequeue(&path->result_queue);
 				valid_out_frame = 1;
+		} else if (pctx->superzoom_flag) {
+			if (pctx->mode_3dnr != MODE_3DNR_CAP
+				|| ((pctx->mode_3dnr == MODE_3DNR_CAP)
+					&& (pctx->nr3_ctx.blending_cnt % 5 == 4))) {
+				if (camera_queue_cnt(&path->out_buf_queue) > 0) {
+					valid_out_frame = 1;
+					out_frame = pctx->superzoom_buf;
+					pr_info("sw %d , this out frame use for superzoom %p\n",
+							pctx->ctx_id, out_frame);
+				} else {
+					pctx->isp_cb_func(ISP_CB_SET_SUPERZOOM_COMPLETE,
+						NULL, pctx->cb_priv_data);
+					pr_info("sw %d , superzoom can't get out buffer,  discard it!\n",
+							pctx->ctx_id);
+				}
+			} else {
+				pr_err("fail to sw %d should not go to here\n",
+									pctx->ctx_id);
+				goto unlock;
+			}
 		} else {
 			if (path->uframe_sync
-			    && target_fid != CAMERA_RESERVE_FRAME_NUM)
-				out_frame =
-					camera_dequeue_if(&path->out_buf_queue,
-							  isp_check_fid,
-							  (void *)&target_fid);
+					&& target_fid != CAMERA_RESERVE_FRAME_NUM)
+				out_frame = camera_dequeue_if(&path->out_buf_queue,
+							isp_check_fid, (void *)&target_fid);
 			else
-				out_frame =
-					camera_dequeue(&path->out_buf_queue);
+				out_frame = camera_dequeue(&path->out_buf_queue);
 
 			if (out_frame)
 				valid_out_frame = 1;
 			else
-				out_frame =
-					camera_dequeue(&path->reserved_buf_queue);
+				out_frame = camera_dequeue(&path->reserved_buf_queue);
 		}
 
 		if (out_frame == NULL) {
@@ -1494,7 +1582,6 @@ static int isp_stop_offline_thread(void *param)
 	return 0;
 }
 
-
 static int isp_create_offline_thread(void *param)
 {
 	struct isp_pipe_context *pctx;
@@ -1504,24 +1591,33 @@ static int isp_create_offline_thread(void *param)
 	pctx = (struct isp_pipe_context *)param;
 	thrd = &pctx->thread;
 	thrd->ctx_handle = pctx;
-	thrd->proc_func = isp_offline_start_frame;
+
+	if (thrd->thread_task) {
+		pr_info("isp ctx sw %d offline thread created is exist.\n",
+			pctx->ctx_id);
+		return 0;
+	}
+
+	if (pctx->ctx_id == ISP_CONTEXT_SUPERZOOM) {
+		thrd->proc_func = isp_do_superzoom_frame;
+	} else {
+		thrd->proc_func = isp_offline_start_frame;
+	}
+	sprintf(thread_name, "isp_ctx%d_offline", pctx->ctx_id);
 	atomic_set(&thrd->thread_stop, 0);
 	init_completion(&thrd->thread_com);
-
-	sprintf(thread_name, "isp_ctx%d_offline", pctx->ctx_id);
 	thrd->thread_task = kthread_run(
 						isp_offline_thread_loop,
 					      thrd, "%s", thread_name);
 	if (IS_ERR_OR_NULL(thrd->thread_task)) {
-		pr_err("fail to start offline thread for isp ctx%d err %ld\n",
+		pr_err("fail to start offline thread for isp sw %d err %ld\n",
 				pctx->ctx_id, PTR_ERR(thrd->thread_task));
 		return -EFAULT;
 	}
 
-	pr_info("isp ctx %d offline thread created.\n", pctx->ctx_id);
+	pr_info("isp ctx sw %d offline thread created.\n", pctx->ctx_id);
 	return 0;
 }
-
 
 static int isp_context_init(struct isp_pipe_dev *dev)
 {
@@ -1538,7 +1634,8 @@ static int isp_context_init(struct isp_pipe_dev *dev)
 		ISP_CONTEXT_P1,
 		ISP_CONTEXT_C1,
 		ISP_CONTEXT_P2,
-		ISP_CONTEXT_C2
+		ISP_CONTEXT_C2,
+		ISP_CONTEXT_SUPERZOOM
 	};
 
 	pr_info("isp contexts init start!\n");
@@ -1739,9 +1836,12 @@ static int isp_slice_ctx_init(struct isp_pipe_context *pctx, uint32_t * multi_sl
 	struct slice_cfg_input slc_cfg_in;
 
 	*multi_slice = 0;
-	if  ((isp_slice_needed(pctx) == 0) &&
-		(pctx->enable_slowmotion == 0))
+
+	if  ((isp_slice_needed(pctx) == 0) && (pctx->enable_slowmotion == 0)) {
+		pr_info("sw %d don't need to slice sub id %d, slowmotion %d\n",
+			pctx->ctx_id, pctx->superzoom_flag, pctx->enable_slowmotion);
 		return 0;
+	}
 
 	if (pctx->slice_ctx == NULL) {
 		pctx->slice_ctx = get_isp_slice_ctx();
@@ -1785,7 +1885,7 @@ static int isp_slice_ctx_init(struct isp_pipe_context *pctx, uint32_t * multi_sl
 
 	isp_cfg_slices(&slc_cfg_in, pctx->slice_ctx, &pctx->valid_slc_num);
 
-	pr_debug("ctx %d valid_slc_num %d\n", pctx->ctx_id, pctx->valid_slc_num);
+	pr_debug("sw %d valid_slc_num %d\n", pctx->ctx_id, pctx->valid_slc_num);
 	if (pctx->valid_slc_num > 1)
 		*multi_slice = 1;
 exit:
@@ -1865,15 +1965,24 @@ static int sprd_isp_get_context(void *isp_handle, void *param)
 	mutex_lock(&dev->path_mutex);
 
 	/* ISP cfg mode, get free context */
-	for (i = 0; i < ISP_CONTEXT_SW_NUM; i++) {
-		ctx_id = i;
-		pctx = &dev->ctx[ctx_id];
-		if (atomic_inc_return(&pctx->user_cnt) == 1) {
-			sel_ctx_id = ctx_id;
-			break;
+	if (init_param->is_superzoom) {
+		sel_ctx_id = ISP_CONTEXT_SUPERZOOM;
+		pctx = &dev->ctx[sel_ctx_id];
+		atomic_set(&pctx->user_cnt, 1);
+		pr_info("sw %d, get superzoom context\n", pctx->ctx_id);
+	} else {
+		for (i = 0; i < ISP_CONTEXT_SW_NUM; i++) {
+			ctx_id = i;
+			pctx = &dev->ctx[ctx_id];
+			if (atomic_inc_return(&pctx->user_cnt) == 1) {
+				sel_ctx_id = ctx_id;
+				pr_info("sw %d, get context\n", pctx->ctx_id);
+				break;
+			}
+			atomic_dec(&pctx->user_cnt);
 		}
-		atomic_dec(&pctx->user_cnt);
 	}
+
 	if (sel_ctx_id == -1)
 		goto exit;
 
@@ -2096,6 +2205,12 @@ static int sprd_isp_put_context(void *isp_handle, int ctx_id)
 			camera_queue_clear(&path->result_queue);
 			camera_queue_clear(&path->out_buf_queue);
 			camera_queue_clear(&path->reserved_buf_queue);
+		}
+
+		if (pctx->superzoom_buf) {
+			isp_unmap_frame(pctx->superzoom_buf);
+			pctx->superzoom_buf = NULL;
+			pr_info("sw %d, superzoom out buffer unmap\n", pctx->ctx_id);
 		}
 
 		pctx->isp_cb_func = NULL;
@@ -2432,7 +2547,18 @@ static int sprd_isp_cfg_path(void *isp_handle,
 		}
 #endif /* USING_LTM_Q */
 		break;
-
+	case ISP_PATH_CFG_SUPERZOOM_BUF:
+		pframe = (struct camera_frame *)param;
+		ret = cambuf_iommu_map(
+				&pframe->buf, CAM_IOMMUDEV_ISP);
+		if (ret) {
+			pr_err("fail to superzoom map isp iommu buf.\n");
+			ret = -EINVAL;
+			goto exit;
+		}
+		pctx->superzoom_buf = pframe;
+		pr_info("superzoom is buf map success ctx sw %d.\n", pctx->ctx_id);
+		break;
 	case ISP_PATH_CFG_CTX_BASE:
 		ret = isp_cfg_ctx_base(pctx, param);
 		pctx->updated = 1;
@@ -2444,7 +2570,6 @@ static int sprd_isp_cfg_path(void *isp_handle,
 		pctx->updated = 1;
 		mutex_unlock(&pctx->param_mutex);
 		break;
-
 	case ISP_PATH_CFG_CTX_COMPRESSION:
 		ret = isp_cfg_ctx_compression(pctx, param);
 		break;
@@ -2468,7 +2593,18 @@ static int sprd_isp_cfg_path(void *isp_handle,
 		pctx->updated = 1;
 		mutex_unlock(&pctx->param_mutex);
 		break;
-
+	case ISP_PATH_CFG_PATH_DST:
+		mutex_lock(&pctx->param_mutex);
+		ret = isp_cfg_path_dst_size(path, param);
+		pctx->updated = 1;
+		mutex_unlock(&pctx->param_mutex);
+		break;
+	case ISP_PATH_CFG_CTX_SUPERZOOM:
+		mutex_lock(&pctx->param_mutex);
+		pctx->superzoom_flag = *(int *)param;
+		pr_info("superzoom flag: %d\n", pctx->superzoom_flag);
+		mutex_unlock(&pctx->param_mutex);
+		break;
 	case ISP_PATH_CFG_PATH_COMPRESSION:
 		ret = isp_cfg_path_compression(path, param);
 		break;
@@ -2952,7 +3088,6 @@ int sprd_isp_dev_close(void *isp_handle)
 
 }
 
-
 static int sprd_isp_dev_reset(void *isp_handle, void *param)
 {
 	int ret = 0;
@@ -2962,6 +3097,218 @@ static int sprd_isp_dev_reset(void *isp_handle, void *param)
 			isp_handle, param);
 		return -EFAULT;
 	}
+	return ret;
+}
+
+static int isp_do_superzoom_frame(void *ctx)
+{
+	int ret = 0;
+	int hw_ctx_id = -1;
+	int loop = 0, kick_fmcu = 0;
+	uint32_t use_fmcu = 0, multi_slice = 0;
+	uint32_t frame_id;
+	struct isp_pipe_context *pctx;
+	struct camera_frame *pframe = NULL;
+	struct isp_pipe_dev *dev = NULL;
+	struct isp_pipe_hw_context *pctx_hw = NULL;
+	struct isp_cfg_ctx_desc *cfg_desc;
+	struct camera_frame *out_frame = NULL;
+	struct isp_pipe_context *pctx_major;
+	struct isp_path_desc *path, *slave_path;
+	struct isp_fmcu_ctx_desc *fmcu;
+	struct cam_hw_info *hw = NULL;
+
+	pr_info("Enter\n");
+
+	pctx = (struct isp_pipe_context *)ctx;
+	dev = pctx->dev;
+	hw = dev->isp_hw;
+	cfg_desc = (struct isp_cfg_ctx_desc *)dev->cfg_handle;
+
+	isp_set_superzoom_param(pctx);
+
+	if (isp_slice_needed(pctx))
+		use_fmcu = FMCU_IS_NEED;
+	if (use_fmcu && (pctx->mode_3dnr == MODE_3DNR_CAP)) {
+		/* force fmcu used, bacause AP mode don't not support 3dnr*/
+		use_fmcu |= FMCU_IS_MUST;
+	}
+
+	loop = 0;
+	do {
+		ret = isp_context_bind(pctx, use_fmcu);
+		if (!ret) {
+			hw_ctx_id = isp_get_hw_context_id(pctx);
+			if (hw_ctx_id >= 0 && hw_ctx_id < ISP_CONTEXT_HW_NUM)
+				pctx_hw = &dev->hw_ctx[hw_ctx_id];
+			else
+				pr_err("fail to superzoom get hw_ctx_id\n");
+			break;
+		}
+		pr_info_ratelimited("ctx %d wait for hw. loop %d\n", pctx->ctx_id, loop);
+		usleep_range(600, 2000);
+	} while (loop++ < 5000);
+
+	pframe = camera_dequeue(&pctx->in_queue);
+
+	if (!pctx_hw || !pframe) {
+		pr_err("fail to get hw(%p) or input frame (%p) for ctx sw %d\n",
+			pctx_hw, pframe, pctx->ctx_id);
+		ret = 0;
+		goto exit;
+	}
+
+	frame_id = pframe->fid;
+	pr_info("sw %d, hw %d, superzoom pframe %p, fid %d.\n",
+		pctx->ctx_id, hw_ctx_id, pframe, frame_id);
+	loop = 0;
+	do {
+		ret = camera_enqueue(&pctx->proc_queue, pframe);
+		if (ret == 0)
+			break;
+		pr_info_ratelimited("wait for proc queue. loop %d\n", loop);
+		usleep_range(600, 2000);
+	} while (loop++ < 500);
+
+	if (ret) {
+		pr_err("error: proc frame queue tmeout.\n");
+		ret = -EINVAL;
+		goto inq_overflow;
+	}
+
+	mutex_lock(&pctx->param_mutex);
+	pctx_major = &dev->ctx[pctx->major_ctx_id];
+
+	isp_update_hist_roi(pctx);
+	multi_slice = pctx->multi_slice;
+	isp_slice_ctx_init(pctx, &multi_slice);
+
+	isp_path_set_fetch_frm(pctx, pframe);
+
+	path = &pctx->isp_path[0];
+	isp_set_path(path);
+
+	hw->hw_ops.core_ops.isp_superzoom_do_ispblock(pctx);
+
+	slave_path = &pctx_major->isp_path[0];
+	out_frame = camera_dequeue(&slave_path->out_buf_queue);
+	if (out_frame == NULL) {
+		pr_err("fail to superzoom get available output buffer.\n");
+		ret = 0;
+		goto exit;
+	}
+
+	out_frame->fid = frame_id;
+	out_frame->sensor_time = pframe->sensor_time;
+	out_frame->boot_sensor_time = pframe->boot_sensor_time;
+
+	ret = isp_path_set_store_frm(path, out_frame);
+	if (ret) {
+		cambuf_iommu_unmap(&out_frame->buf);
+		cambuf_put_ionbuf(&out_frame->buf);
+		put_empty_frame(out_frame);
+		ret = -EINVAL;
+		goto exit;
+	}
+
+	loop = 0;
+	do {
+		ret = camera_enqueue(&path->result_queue, out_frame);
+		if (ret == 0)
+			break;
+		printk_ratelimited(KERN_INFO "wait for output queue. loop %d\n", loop);
+		usleep_range(600, 2000);
+	} while (loop++ < 500);
+
+	atomic_inc(&path->store_cnt);
+
+	fmcu = (struct isp_fmcu_ctx_desc *)pctx_hw->fmcu_handle;
+	if (fmcu) {
+		use_fmcu = multi_slice;
+		if (use_fmcu)
+			fmcu->ops->ctx_reset(fmcu);
+	}
+
+	if (multi_slice) {
+		struct slice_cfg_input slc_cfg;
+
+		memset(&slc_cfg, 0, sizeof(slc_cfg));
+		path = &pctx->isp_path[0];
+		if (atomic_read(&path->user_cnt) < 1)
+			goto exit;
+		slc_cfg.frame_store[0] = &path->store;
+		slc_cfg.frame_fetch = &pctx->fetch;
+		slc_cfg.frame_fbd_raw = &pctx->fbd_raw;
+
+		isp_cfg_slice_fetch_info(&slc_cfg, pctx->slice_ctx);
+		isp_cfg_slice_store_info(&slc_cfg, pctx->slice_ctx);
+		ret = isp_set_slices_fmcu_cmds((void *)fmcu, pctx);
+		if (ret == 0)
+			kick_fmcu = 1;
+	}
+
+	mutex_unlock(&pctx->param_mutex);
+
+	pctx->iommu_status = (uint32_t)(-1);
+	pctx->started = 1;
+	pctx->multi_slice = multi_slice;
+	pctx_hw->fmcu_used = use_fmcu;
+
+	if (likely(dev->wmode == ISP_CFG_MODE)) {
+		pr_debug("cfg enter.");
+		mutex_lock(&pctx->blkpm_lock);
+		ret = cfg_desc->ops->hw_cfg(cfg_desc,
+					pctx->ctx_id, hw_ctx_id, kick_fmcu);
+		mutex_unlock(&pctx->blkpm_lock);
+
+		if (kick_fmcu) {
+			pr_info("fmcu start.");
+			ret = fmcu->ops->hw_start(fmcu);
+		} else {
+			pr_info("cfg start. fid %d\n", frame_id);
+			ret = cfg_desc->ops->hw_start(
+					cfg_desc, hw_ctx_id);
+		}
+	} else {
+		if (kick_fmcu) {
+			pr_info("fmcu start.");
+			ret = fmcu->ops->hw_start(fmcu);
+		} else {
+			pr_info("fetch start.");
+			ISP_HREG_WR(ISP_FETCH_START, 1);
+		}
+	}
+
+	pr_info("done.\n");
+	return 0;
+inq_overflow:
+exit:
+	return 0;
+}
+
+static int sprd_isp_get_3dnr_cnt(void *isp_handle, int ctx_id, void *param)
+{
+	int ret = 0;
+	struct isp_pipe_dev *dev;
+	struct isp_pipe_context *pctx;
+
+	if (!isp_handle || !param) {
+		pr_err("fail to input ptr NULL");
+		ret = -EFAULT;
+		goto exit;
+	}
+
+	if (ctx_id < 0 || ctx_id >= ISP_CONTEXT_SW_NUM) {
+		pr_err("fail to ctx_id is err  %d", ctx_id);
+		ret = -EFAULT;
+		goto exit;
+	}
+
+	dev = (struct isp_pipe_dev *)isp_handle;
+	pctx = &dev->ctx[ctx_id];
+	*(uint32_t *)param = pctx->nr3_ctx.blending_cnt;
+	pr_info("superzoom get 3dnr cnt %d", pctx->nr3_ctx.blending_cnt);
+exit:
 	return ret;
 }
 
@@ -2978,6 +3325,7 @@ static struct isp_pipe_ops isp_ops = {
 	.cfg_blk_param = sprd_isp_cfg_blkparam,
 	.proc_frame = sprd_isp_proc_frame,
 	.set_callback = sprd_isp_set_sb,
+	.get_3dnr_cnt = sprd_isp_get_3dnr_cnt,
 };
 
 struct isp_pipe_ops *get_isp_ops(void)

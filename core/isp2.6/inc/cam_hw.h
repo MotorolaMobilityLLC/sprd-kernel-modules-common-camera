@@ -99,6 +99,7 @@ struct cam_hw_ip_info {
 	uint32_t slm_path;
 	uint32_t lbuf_share_support;
 	uint32_t offline_slice_support;
+	uint32_t superzoom_support;
 	uint32_t dcam_fbc_mode;
 	unsigned long *store_addr_tab;
 	uint32_t *path_ctrl_id_tab;
@@ -193,6 +194,7 @@ struct cam_hw_core_ops {
 	uint32_t (*bypass_count_get)(enum cam_bypass_type type);
 	void* (*block_func_get)(uint32_t index, enum cam_block_type type);
 	void (*reg_trace)(uint32_t idx, enum cam_reg_trace_type type);
+	void (*isp_superzoom_do_ispblock)(void *ctx);
 };
 
 struct cam_hw_ops {
