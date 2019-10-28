@@ -157,7 +157,7 @@ int dcam_init_lsc(void *in, uint32_t online)
 
 	hw->hw_ops.core_ops.force_copy(DCAM_CTRL_BIN, dev);
 
-	pr_debug("w %d,  grid len %d grid %d  num_t %d (%d, %d)\n",
+	pr_info("w %d,  grid len %d grid %d  num_t %d (%d, %d)\n",
 		info->weight_num, info->gridtab_len, info->grid_width,
 		info->grid_num_t, info->grid_x_num, info->grid_y_num);
 	return 0;

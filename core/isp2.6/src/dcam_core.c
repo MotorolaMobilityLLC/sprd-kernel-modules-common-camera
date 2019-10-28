@@ -721,7 +721,10 @@ static int dcam_offline_start_slices(void *param)
 
 	atomic_set(&dev->slice_no, 1);
 
+	mutex_lock(&dev->blk_dcam_pm->lsc.lsc_lock);
 	dcam_init_lsc(dev, 0);
+	mutex_unlock(&dev->blk_dcam_pm->lsc.lsc_lock);
+
 	/* DCAM_CTRL_COEF will always set in dcam_init_lsc() */
 	//force_ids &= ~DCAM_CTRL_COEF;
 	hw->hw_ops.core_ops.force_copy(force_ids, dev);
@@ -922,7 +925,9 @@ static int dcam_offline_start_frame(void *param)
 
 	ret = hw->hw_ops.core_ops.dcam_fetch_set(dev);
 
+	mutex_lock(&dev->blk_dcam_pm->lsc.lsc_lock);
 	dcam_init_lsc(dev, 0);
+	mutex_unlock(&dev->blk_dcam_pm->lsc.lsc_lock);
 
 	/* DCAM_CTRL_COEF will always set in dcam_init_lsc() */
 	//force_ids &= ~DCAM_CTRL_COEF;
@@ -1709,7 +1714,13 @@ static int sprd_dcam_cfg_param(void *dcam_handle, void *param)
 	if (dev->dcam_slice_mode && atomic_read(&dev->slice_no) && (io_param->sub_block != DCAM_BLOCK_LSC))
 		return 0;
 
+	if(io_param->sub_block == DCAM_BLOCK_LSC)
+		mutex_lock(&dev->blk_dcam_pm->lsc.lsc_lock);
+
 	ret = cfg_fun_ptr(io_param, pm);
+
+	if(io_param->sub_block == DCAM_BLOCK_LSC)
+		mutex_unlock(&dev->blk_dcam_pm->lsc.lsc_lock);
 
 	if ((io_param->sub_block == DCAM_BLOCK_LSC) &&
 		(dev->offline == 0) &&
@@ -1984,6 +1995,7 @@ static int sprd_dcam_dev_open(void *dcam_handle)
 	dev->blk_dcam_pm->afm.bypass = 1;
 	dev->blk_dcam_pm->afl.bypass = 1;
 	dev->blk_dcam_pm->hist.bayerHist_info.hist_bypass = 1;
+	mutex_init(&dev->blk_dcam_pm->lsc.lsc_lock);
 
 	if (get_iommu_status(CAM_IOMMUDEV_DCAM) == 0)
 		iommu_enable = 1;
@@ -2033,6 +2045,7 @@ reset_fail:
 	ret = dcam_hw_deinit(dev);
 exit:
 	if (dev->blk_dcam_pm) {
+		mutex_destroy(&dev->blk_dcam_pm->lsc.lsc_lock);
 		cambuf_kunmap(&dev->blk_dcam_pm->lsc.buf);
 		cambuf_free(&dev->blk_dcam_pm->lsc.buf);
 		kfree(dev->blk_dcam_pm);
@@ -2073,6 +2086,7 @@ int sprd_dcam_dev_close(void *dcam_handle)
 	camera_queue_clear(&dev->proc_queue);
 
 	if (dev->blk_dcam_pm) {
+		mutex_destroy(&dev->blk_dcam_pm->lsc.lsc_lock);
 		cambuf_kunmap(&dev->blk_dcam_pm->lsc.buf);
 		cambuf_free(&dev->blk_dcam_pm->lsc.buf);
 		if(dev->blk_dcam_pm->lsc.weight_tab){
