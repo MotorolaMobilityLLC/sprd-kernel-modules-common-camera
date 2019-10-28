@@ -1338,11 +1338,19 @@ int sprd_isp_start_pipeline_bin(void *handle, unsigned int cap_flag)
 		goto exit;
 	}
 
+	pr_debug("ts: pre dq the offline_frame: %llu\n",
+		 ktime_to_ns(ktime_get_boottime()));
+
 	if (isp_frame_dequeue(&buf_desc->zsl_queue, &frame)) {
 		pr_err("fail to deque offline_buf bin_path to frame\n");
 		ret = -1;
 		goto exit;
 	}
+
+	pr_debug("[%d] pre frm cnt = %d, ts of the frame: %llu, %lu.%06lu\n",
+		iid, frame.fid,
+		ktime_to_ns(frame.sof_ts.boot_time),
+		frame.sof_ts.time.tv_sec, frame.sof_ts.time.tv_usec);
 
 	p_offline_frame = &dev->offline_frame[ISP_OFF_BUF_BIN];
 	memcpy(p_offline_frame, &frame, sizeof(struct camera_frame));
@@ -1693,14 +1701,19 @@ int sprd_isp_start_pipeline_full(void *handle, unsigned int cap_flag)
 		}
 	}
 
+	pr_debug("ts: cap dq the offline_frame: %llu\n",
+		 ktime_to_ns(ktime_get_boottime()));
+
 	if (isp_frame_dequeue(&buf_desc->zsl_queue, &frame)) {
 		pr_err("fail to get offline_buf full_path frame\n");
 		ret = -ENOMEM;
 		goto err_exit;
 	}
 
-	pr_debug("[%d] cap frm cnt = %d, time = %ld.%06ld\n",
-		iid, frame.fid, frame.t.tv_sec, frame.t.tv_usec);
+	pr_debug("[%d] cap frm cnt = %d, ts of the frame: %llu, %lu.%06lu\n",
+		iid, frame.fid,
+		ktime_to_ns(frame.sof_ts.boot_time),
+		frame.sof_ts.time.tv_sec, frame.sof_ts.time.tv_usec);
 
 	p_offline_frame = &dev->offline_frame[ISP_OFF_BUF_FULL];
 	memcpy(p_offline_frame, &frame, sizeof(struct camera_frame));

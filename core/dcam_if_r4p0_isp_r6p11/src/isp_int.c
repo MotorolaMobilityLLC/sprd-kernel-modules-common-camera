@@ -734,7 +734,7 @@ static void isp_path_done(enum isp_scl_id path_id,
 	struct offline_buf_desc *buf_desc = NULL;
 	enum isp_id iid;
 	enum isp_scene_id sid;
-	struct timeval t;
+	struct frm_timestamp sof_ts;
 
 	if (!isp_handle) {
 		pr_err("fail to get isp handle it's NULL.\n");
@@ -789,7 +789,7 @@ static void isp_path_done(enum isp_scl_id path_id,
 	isp_path_done_notice(module, path_idx);
 
 	if (dev->fmcu_slw.status == ISP_ST_START &&
-		path_id == ISP_SCL_VID) {
+	    path_id == ISP_SCL_VID) {
 		pr_info("fmcu_slw ISP_ST_START.\n");
 		return;
 	}
@@ -810,8 +810,7 @@ static void isp_path_done(enum isp_scl_id path_id,
 		/* release offline buffer */
 		tmp_frame = &dev->offline_frame[ISP_OFF_BUF_BIN];
 
-		t.tv_sec = tmp_frame->t.tv_sec;
-		t.tv_usec = tmp_frame->t.tv_usec;
+		sof_ts = tmp_frame->sof_ts;
 
 		if (tmp_frame->yaddr_vir) {
 			ret = isp_buf_queue_write(&buf_desc->tmp_buf_queue,
@@ -829,6 +828,8 @@ static void isp_path_done(enum isp_scl_id path_id,
 			pr_err("fail to dequeue frame path id %d\n", path_id);
 			return;
 		}
+
+		gen_frm_timestamp(&frame.btu_ts);
 
 		if (frame.pfinfo.dev == NULL)
 			pr_info("ISP done dev NULL\n");
@@ -851,15 +852,15 @@ static void isp_path_done(enum isp_scl_id path_id,
 		    module->path_reserved_frame[path_id].pfinfo.mfd[0]) {
 			frame.width = path->dst.w;
 			frame.height = path->dst.h;
-			frame.t.tv_sec = t.tv_sec;
-			frame.t.tv_usec = t.tv_usec;
+			frame.sof_ts = sof_ts;
 			frame.irq_type = CAMERA_IRQ_IMG;
 			pr_debug("ISP%d path%d done, frame %p, mfd[0] 0x%x\n",
 				iid, path_id, &frame, frame.pfinfo.mfd[0]);
 			if (user_func)
 				(*user_func)(&frame, data);
 		} else {
-			pr_info("isp%d: use reserved [%d]\n", iid, path_id);
+			pr_info_ratelimited("isp%d: use reserved [%d]\n",
+					    iid, path_id);
 			module->path_reserved_frame[path_id].pfinfo.iova[0] = 0;
 			module->path_reserved_frame[path_id].pfinfo.iova[1] = 0;
 		}
@@ -898,7 +899,7 @@ static void isp_path_shadow_done(enum isp_scl_id path_id,
 	}
 
 	if (dev->fmcu_slw.status == ISP_ST_START &&
-		path_id == ISP_SCL_VID)
+	    path_id == ISP_SCL_VID)
 		return;
 
 	if (path_id == ISP_SCL_PRE)
@@ -1073,7 +1074,7 @@ static void isp_fmcu_config_done(void *isp_handle)
 	enum isp_scl_id path_id = ISP_SCL_CAP;
 	enum isp_id iid;
 	enum isp_scene_id sid;
-	struct timeval t;
+	struct frm_timestamp sof_ts;
 	int fid;
 
 	if (!isp_handle) {
@@ -1091,7 +1092,7 @@ static void isp_fmcu_config_done(void *isp_handle)
 	buf_desc = isp_offline_sel_buf(&module->off_desc,
 				       ISP_OFF_BUF_FULL);
 	tmp_frame = &dev->offline_frame[ISP_OFF_BUF_FULL];
-	t = tmp_frame->t;
+	sof_ts = tmp_frame->sof_ts;
 	fid = tmp_frame->fid;
 
 	pr_debug("isp start fmcu config done, idx:0x%x\n", dev->com_idx);
@@ -1121,6 +1122,8 @@ static void isp_fmcu_config_done(void *isp_handle)
 			return;
 		}
 
+		gen_frm_timestamp(&frame.btu_ts);
+
 		/* return offline buffer */
 		ret = isp_buf_queue_write(&buf_desc->tmp_buf_queue, tmp_frame);
 		if (ret) {
@@ -1135,11 +1138,11 @@ static void isp_fmcu_config_done(void *isp_handle)
 			pr_err("fail to free frame\n");
 
 		if (frame.pfinfo.mfd[0] !=
-			module->path_reserved_frame[path_id].pfinfo.mfd[0]) {
+		    module->path_reserved_frame[path_id].pfinfo.mfd[0]) {
 			frame.width = path->dst.w;
 			frame.height = path->dst.h;
 			frame.irq_type = CAMERA_IRQ_IMG;
-			frame.t = t;
+			frame.sof_ts = sof_ts;
 			frame.fid = fid;
 
 			if (dev->is_raw_capture == 1) {
@@ -1150,10 +1153,11 @@ static void isp_fmcu_config_done(void *isp_handle)
 			pr_debug("mfd 0x%x\n", frame.pfinfo.mfd[0]);
 
 			if (is_dual_cam) {
-				pr_info("[%d] sent frm cnt = %d\n",
+				pr_debug("[%d] sent frm cnt = %d\n",
 					iid, frame.fid);
-				pr_info("time = %ld.%06ld\n",
-					frame.t.tv_sec, frame.t.tv_usec);
+				pr_debug("time = %lu.%06lu\n",
+					frame.sof_ts.time.tv_sec,
+					frame.sof_ts.time.tv_usec);
 			}
 
 			if (dev->is_3dnr)
@@ -1162,7 +1166,8 @@ static void isp_fmcu_config_done(void *isp_handle)
 			if (user_func)
 				(*user_func)(&frame, data);
 		} else {
-			pr_info("iid%d isp: use reserved cap\n", iid);
+			pr_info_ratelimited("iid%d isp: use reserved cap\n",
+					    iid);
 			module->path_reserved_frame[path_id].pfinfo.iova[0] = 0;
 			module->path_reserved_frame[path_id].pfinfo.iova[1] = 0;
 		}

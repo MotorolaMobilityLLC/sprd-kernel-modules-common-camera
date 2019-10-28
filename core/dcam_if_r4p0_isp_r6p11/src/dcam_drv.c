@@ -197,7 +197,7 @@ struct dcam_path_desc {
 	unsigned int need_wait;
 	int sof_cnt;
 	int done_cnt;
-	struct timeval t;
+	struct frm_timestamp ts;
 	int bin_ratio; /* (w,h) >> this),0: no binning 1: 1/2 binning */
 };
 
@@ -448,7 +448,7 @@ static void dcam_time_queue_init(struct dcam_path_time_queue *queue)
 }
 
 static int dcam_time_queue_read(struct dcam_path_time_queue *queue,
-					struct timeval *t)
+					struct frm_timestamp *t)
 {
 	int ret = DCAM_RTN_SUCCESS;
 	unsigned long flags;
@@ -476,10 +476,10 @@ static int dcam_time_queue_read(struct dcam_path_time_queue *queue,
 }
 
 static int dcam_time_queue_write(struct dcam_path_time_queue *queue,
-					struct timeval *t)
+					struct frm_timestamp *t)
 {
 	int ret = DCAM_RTN_SUCCESS;
-	struct timeval *ori_t;
+	struct frm_timestamp *ori_t;
 	unsigned long flags;
 	int old_index;
 
@@ -537,7 +537,7 @@ static int dcam_frame_enqueue(struct dcam_frm_queue *queue,
 	       sizeof(struct camera_frame));
 	queue->valid_cnt++;
 	DCAM_TRACE("en queue, %d, %d, 0x%x, 0x%x\n",
-		   (0xF & frame->fid),
+		   frame->fid,
 		   queue->valid_cnt, frame->yaddr, frame->uaddr);
 
 	return 0;
@@ -564,8 +564,10 @@ static int dcam_frame_dequeue(struct dcam_frm_queue *queue,
 		memcpy(&queue->frm_array[i], &queue->frm_array[i + 1],
 		       sizeof(struct camera_frame));
 	}
-	DCAM_TRACE("de queue, %d, %d\n",
-		   (0xF & (frame)->fid), queue->valid_cnt);
+
+	DCAM_TRACE("de queue, %d, %d, 0x%x, 0x%x\n",
+		   frame->fid,
+		   queue->valid_cnt, frame->yaddr, frame->uaddr);
 
 	return 0;
 }
@@ -605,17 +607,23 @@ static int dcam_raw_path_set_next_frm(enum dcam_id idx)
 		reg = DCAM0_FULL_BASE_WADDR;
 	else if (raw_path->valid == BIN_RAW_CAPTURE)
 		reg = DCAM0_BIN_BASE_WADDR0;
-	else
+	else {
 		pr_err("fail to get valid raw capture mode\n");
+		return -EINVAL;
+	}
 
 	path_max_frm_cnt = DCAM_PATH_0_FRM_CNT_MAX;
 	p_heap = &raw_path->frame_queue;
 	p_buf_queue = &raw_path->buf_queue;
 	output_frame_count = raw_path->output_frame_count;
 
-	if ((dev->cap_flag != DCAM_CAPTURE_STOP) && /* keep buffer untill start capture*/
-		dcam_buf_queue_read(p_buf_queue, &frame) == 0 &&
-	    (frame.pfinfo.mfd[0] != 0)) {
+	pr_debug("dev->cap_flag:%d\n", dev->cap_flag);
+
+	/* keep buffer until start_capture cmd */
+	if (dev->cap_flag != DCAM_CAPTURE_STOP &&
+	    dcam_buf_queue_read(p_buf_queue, &frame) == 0 &&
+	    frame.pfinfo.mfd[0] != 0) {
+		gen_frm_timestamp(&frame.sof_ts);
 		raw_path->output_frame_count--;
 		pr_debug("raw path set next frm\n");
 	} else {
@@ -912,17 +920,15 @@ static void dcam_bin_path_sof(enum dcam_id idx)
 	dcam_isr_func user_func = s_user_func[idx][DCAM_CAP_SOF];
 	void *data = s_user_data[idx][DCAM_CAP_SOF];
 
-	dcam_time_queue_read(&dcam_t_sof.tq[idx].bin_t, &frame.t);
-
 	/* TODO: doesn't consider skip frame */
 	if (s_p_dcam_mod[idx]->dcam_binning_path.valid) {
+		gen_frm_timestamp(&frame.sof_ts);
 		frame.irq_type = CAMERA_IRQ_DONE;
 		frame.irq_property = IRQ_DCAM_SOF;
 		frame.flags = ISP_OFF_BUF_BIN;
 		frame.fid = s_p_dcam_mod[idx]->dcam_binning_path.sof_cnt++;
 
-		pr_debug("DCAM%d : dcam_bin_path_sof\n",
-			idx);
+		pr_debug("DCAM%d : dcam_bin_path_sof\n", idx);
 
 		if (user_func)
 			(*user_func) (&frame, data);
@@ -966,14 +972,14 @@ static inline void find_delta_helper(enum dcam_id idx, int *delta)
 		if (path_other->sof_cnt >= 1) {
 			/* the fisrt frame of other frame has come already */
 			pr_info("ts%d %ld.%06ld\n", idx,
-				path->t.tv_sec, path->t.tv_usec);
+				path->ts.time.tv_sec, path->ts.time.tv_usec);
 			pr_info("ts%d %ld.%06ld (sof_cnt=%d)\n", idx^0x1,
-				path_other->t.tv_sec, path_other->t.tv_usec,
+				path_other->ts.time.tv_sec, path_other->ts.time.tv_usec,
 				path_other->sof_cnt);
-			temp_t = path_other->t;
+			temp_t = path_other->ts.time;
 			timeval_advance(temp_t,
 				DCAM_TIME_NON_NEGLIGIBLE);
-			if (timeval_after(path->t, temp_t))
+			if (timeval_after(path->ts.time, temp_t))
 				/* right before the other dcam */
 				*delta = path_other->sof_cnt;
 			else
@@ -993,24 +999,26 @@ static void dcam_full_path_sof(enum dcam_id idx)
 	struct camera_dev *cam_dev = NULL;
 	struct isp_pipe_dev *isp_dev = NULL;
 
-	dcam_time_queue_read(&dcam_t_sof.tq[idx].full_t, &frame.t);
-
 	/* TODO: doesn't consider skip frame */
 	if (s_p_dcam_mod[idx]->dcam_full_path.valid) {
+		gen_frm_timestamp(&frame.sof_ts);
+
 		cam_dev = (struct camera_dev *)s_p_dcam_mod[idx]->dev_handle;
 		isp_dev = (struct isp_pipe_dev *)cam_dev->isp_dev_handle;
 
 		frame.irq_type = CAMERA_IRQ_DONE;
 		frame.irq_property = IRQ_DCAM_SOF;
 		frame.flags = ISP_OFF_BUF_FULL;
-		s_p_dcam_mod[idx]->dcam_full_path.t = frame.t;
+		s_p_dcam_mod[idx]->dcam_full_path.ts = frame.sof_ts;
 		frame.fid = s_p_dcam_mod[idx]->dcam_full_path.sof_cnt++;
 
 		if (is_dual_cam)
 			find_delta_helper(idx, &isp_dev->delta_full);
 
-		pr_debug("[%d] SoF frm cnt = %d, time = %ld.%06ld\n",
-			idx, frame.fid, frame.t.tv_sec, frame.t.tv_usec);
+		pr_debug("[%d] SoF frm cnt = %d, time, boot_time = %ld.%06ld, %lld\n",
+				 idx, frame.fid,
+				 frame.sof_ts.time.tv_sec, frame.sof_ts.time.tv_usec,
+				 frame.sof_ts.boot_time);
 
 		if (user_func)
 			(*user_func) (&frame, data);
@@ -1027,12 +1035,9 @@ static void dcam_full_path_sof(enum dcam_id idx)
 
 static void dcam_full_raw_path_sof(enum dcam_id idx)
 {
-	struct camera_dev *cam_dev = NULL;
 	enum dcam_drv_rtn rtn = DCAM_RTN_SUCCESS;
 
-	if (s_p_dcam_mod[idx]->dcam_raw_path.valid) {
-		cam_dev = (struct camera_dev *)s_p_dcam_mod[idx]->dev_handle;
-
+	if (s_p_dcam_mod[idx]->dcam_raw_path.valid == FULL_RAW_CAPTURE) {
 		rtn = dcam_raw_path_set_next_frm(idx);
 		if (rtn)
 			pr_err("fail to set raw path next frm %d\n", rtn);
@@ -1050,6 +1055,7 @@ static void dcam_cap_sof_handle(enum dcam_id idx)
 		return;
 	}
 
+	dcam_time_queue_read(&dcam_t_sof.tq[idx].sof_t, &frame.sof_ts);
 	frame.irq_type = CAMERA_IRQ_DONE;
 	frame.irq_property = IRQ_DCAM_SOF;
 	frame.flags = ISP_OFF_BUF_NONE;
@@ -1410,15 +1416,18 @@ static void dcam_raw_path_done(enum dcam_id idx)
 
 		if (frame.pfinfo.mfd[0] !=
 		    module->raw_reserved_frame.pfinfo.mfd[0]) {
-
-			sprd_dcam_glb_reg_awr(idx, DCAM0_CFG, ~(1 << 0), DCAM_CFG_REG);
+			s_p_dcam_mod[idx]->dcam_raw_path.valid = NO_RAW_CAPTURE;
+			sprd_dcam_glb_reg_awr(idx, DCAM0_CFG, ~(1 << 0),
+					      DCAM_CFG_REG);
 			frame.width = path->output_size.w;
 			frame.height = path->output_size.h;
 			frame.irq_type = CAMERA_IRQ_IMG;
 
 			DCAM_TRACE("DCAM%d: raw path frame %p\n",
 				   idx, &frame);
-			DCAM_TRACE("raw cap: full path tx done y uv, 0x%x 0x%x, mfd = 0x%x,0x%x\n",
+			DCAM_TRACE("raw cap: tm:%lu.%06lu, full path tx done y uv, 0x%x 0x%x, mfd = 0x%x,0x%x\n",
+				   frame.sof_ts.time.tv_sec,
+				   frame.sof_ts.time.tv_usec,
 				   frame.yaddr, frame.uaddr,
 				   frame.pfinfo.mfd[0], frame.pfinfo.mfd[1]);
 
@@ -1691,7 +1700,7 @@ static irqreturn_t dcam_isr_root(int irq, void *priv)
 	enum dcam_id idx = DCAM_ID_0;
 	int irq_numbers = ARRAY_SIZE(s_irq_vect);
 	unsigned int vect = 0;
-	struct timeval t;
+	struct frm_timestamp sof_ts;
 
 	if (s_dcam_irq[DCAM_ID_0] == irq)
 		idx = DCAM_ID_0;
@@ -1712,9 +1721,8 @@ static irqreturn_t dcam_isr_root(int irq, void *priv)
 	spin_lock_irqsave(&dcam_lock[idx], flag);
 
 	if (unlikely(irq_line & (1 << (DCAM_CAP_SOF)))) {
-		img_get_timestamp(&t);
-		dcam_time_queue_write(&dcam_t_sof.tq[idx].bin_t, &t);
-		dcam_time_queue_write(&dcam_t_sof.tq[idx].full_t, &t);
+		gen_frm_timestamp(&sof_ts);
+		dcam_time_queue_write(&dcam_t_sof.tq[idx].sof_t, &sof_ts);
 	}
 
 	for (i = 0; i < irq_numbers; i++) {
@@ -1750,8 +1758,7 @@ static int dcam_internal_init(enum dcam_id idx, void *dev_handle)
 	init_completion(&s_p_dcam_mod[idx]->dcam_raw_path.tx_done_com);
 	init_completion(&s_p_dcam_mod[idx]->dcam_raw_path.sof_com);
 	dcam_buf_queue_init(&s_p_dcam_mod[idx]->dcam_raw_path.buf_queue);
-	dcam_time_queue_init(&dcam_t_sof.tq[idx].bin_t);
-	dcam_time_queue_init(&dcam_t_sof.tq[idx].full_t);
+	dcam_time_queue_init(&dcam_t_sof.tq[idx].sof_t);
 
 	s_p_dcam_mod[idx]->dcam_full_path.id = 0;
 	init_completion(&s_p_dcam_mod[idx]->dcam_full_path.tx_done_com);
@@ -1898,8 +1905,7 @@ static void dcam_frm_clear(enum dcam_id idx)
 
 	dcam_frm_queue_clear(&raw_path->frame_queue);
 	dcam_buf_queue_init(&raw_path->buf_queue);
-	dcam_time_queue_init(&dcam_t_sof.tq[idx].bin_t);
-	dcam_time_queue_init(&dcam_t_sof.tq[idx].full_t);
+	dcam_time_queue_init(&dcam_t_sof.tq[idx].sof_t);
 
 	res_frame = &s_p_dcam_mod[idx]->raw_reserved_frame;
 

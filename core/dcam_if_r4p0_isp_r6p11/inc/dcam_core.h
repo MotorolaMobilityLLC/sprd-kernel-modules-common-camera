@@ -280,6 +280,7 @@ struct camera_file {
 };
 
 int img_get_timestamp(struct timeval *tv);
+void gen_frm_timestamp(struct frm_timestamp *pts);
 
 #endif /* _DCAM_CORE_H_ */
 

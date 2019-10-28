@@ -143,6 +143,18 @@ int img_get_timestamp(struct timeval *tv)
 	return 0;
 }
 
+/* Internal Function Implementation */
+void gen_frm_timestamp(struct frm_timestamp *pts)
+{
+	struct timespec ts;
+
+	ktime_get_ts(&ts);
+//	pts->boot_time = timespec_to_ktime(ts);
+	pts->boot_time = ktime_get_boottime();
+	pts->time.tv_sec = ts.tv_sec;
+	pts->time.tv_usec = ts.tv_nsec / NSEC_PER_USEC;
+}
+
 static int sprd_img_buf_queue_init(struct camera_img_buf_queue *queue)
 {
 	if (queue == NULL)
@@ -1390,6 +1402,8 @@ static int sprd_img_tx_done(struct camera_frame *frame, void *param)
 	struct camera_path_spec *path;
 	struct camera_node node;
 
+	pr_debug("enter from %pS\n", __builtin_return_address(0));
+
 	if (NULL == frame || NULL == param || 0 == atomic_read(&dev->stream_on))
 		return -EINVAL;
 
@@ -1416,7 +1430,8 @@ static int sprd_img_tx_done(struct camera_frame *frame, void *param)
 		node.vaddr_vir = frame->vaddr_vir;
 		node.frame_id = frame->frame_id;
 		memcpy(node.mfd, frame->pfinfo.mfd, sizeof(unsigned int) * 3);
-		pr_debug("send to user: mfd 0x%x,0x%x\n", node.mfd[0], node.mfd[1]);
+		pr_debug("send to user: frm_num %d mfd 0x%x,0x%x\n",
+			 node.frame_id, node.mfd[0], node.mfd[1]);
 	} else if (frame->irq_type == CAMERA_IRQ_STATIS) {
 		node.irq_flag = IMG_TX_DONE;
 		node.irq_type = frame->irq_type;
@@ -1438,34 +1453,39 @@ static int sprd_img_tx_done(struct camera_frame *frame, void *param)
 		pr_err("fail to support, irq_type %d\n", frame->irq_type);
 		return -EINVAL;
 	}
-	node.boot_time = ktime_get_boottime();
-	img_get_timestamp(&node.time);
-	ret = sprd_img_queue_write(&dev->queue, &node);
 
-	if (frame->type == 1) {
-		pr_debug("PRE_DCAM%d: sprd_img_tx_done : SOF.time : %ld.%06ld\n",
-			dev->idx, frame->t.tv_sec, frame->t.tv_usec);
-		pr_debug("PRE_DCAM%d: sprd_img_tx_done : node.time : %ld.%06ld\n",
-			dev->idx, node.time.tv_sec, node.time.tv_usec);
-	} else if (frame->type == 3) {
-		pr_debug("CAP_DCAM%d: sprd_img_tx_done : SOF.time : %ld.%06ld\n",
-			dev->idx, frame->t.tv_sec, frame->t.tv_usec);
-		pr_debug("CAP_DCAM%d: sprd_img_tx_done : node.time : %ld.%06ld\n",
-			dev->idx, node.time.tv_sec, node.time.tv_usec);
+	if (frame->sof_ts.boot_time != 0) {
+		node.boot_time = frame->sof_ts.boot_time;
+		node.time = frame->sof_ts.time;
+	} else {
+		if (frame->btu_ts.boot_time == 0)
+			gen_frm_timestamp(&frame->btu_ts);
+		node.boot_time = frame->btu_ts.boot_time;
+		node.time = frame->btu_ts.time;
 	}
 
-	DCAM_TRACE_INT("flag 0x%x type 0x%x, property %u, frm_id %u, mfd 0x%x %x %x, ret=%d\n",
-		       node.irq_flag, node.irq_type,
-		       node.irq_property, node.frame_id,
-		       node.mfd[0], node.mfd[1], node.mfd[2], ret);
-	if (ret)
+	ret = sprd_img_queue_write(&dev->queue, &node);
+	if (ret) {
+		pr_err("fail to write dev->queue\n");
 		return ret;
-	DCAM_TRACE_INT("sprd_img %d %d %p\n", dev->idx,
-				frame->type, dev);
+	}
+
+	pr_debug("tm: %lu.%06lu %llu, irq f 0x%x t 0x%x p %u, fn %u ft %d mfd 0x%x %x %x\n",
+		 node.time.tv_sec, node.time.tv_usec, node.boot_time,
+		 node.irq_flag, node.irq_type, node.irq_property,
+		 node.frame_id, node.f_type,
+		 node.mfd[0], node.mfd[1], node.mfd[2]);
+
 	if (node.irq_property == IRQ_RAW_CAP_DONE)
-		DCAM_TRACE_INT("RAW CAP tx done flag %d type %d\n",
+		pr_debug("RAW CAP tx done flag %d type %d\n",
 			node.irq_flag, node.irq_type);
+
 	complete(&dev->irq_com);
+
+	pr_debug("dev%d [%d] send info to userspace\n",
+		 frame->type, dev->idx);
+
+	pr_debug("exit to %pS\n", __builtin_return_address(0));
 
 	return ret;
 }
@@ -3991,9 +4011,6 @@ static ssize_t sprd_img_read(struct file *file, char __user *u_data,
 			path =
 				&dev->dcam_cxt.dcam_path[read_op.parm.frame.
 				channel_id];
-			DCAM_TRACE_INT("node, %p %d 0x%x\n",
-				   (void *)&node, (node.index),
-				   path->frm_id_base);
 			read_op.parm.frame.index = path->frm_id_base;
 			read_op.parm.frame.height = node.height;
 			read_op.parm.frame.length = node.reserved[0];
@@ -4019,7 +4036,7 @@ static ssize_t sprd_img_read(struct file *file, char __user *u_data,
 			read_op.parm.frame.frame_id = node.frame_id;
 			read_op.parm.frame.mfd = node.mfd[0];
 			read_op.parm.frame.dac_info = node.dac_info;
-			DCAM_TRACE_INT("index%d real_index %d frm_id_base %d\n",
+			DCAM_TRACE("index%d real_index %d frm_id_base 0x%x\n",
 				   read_op.parm.frame.index,
 				   read_op.parm.frame.real_index,
 				   read_op.parm.frame.frm_base_id);
@@ -4037,7 +4054,7 @@ static ssize_t sprd_img_read(struct file *file, char __user *u_data,
 
 			}
 		}
-		DCAM_TRACE_INT("read frame,evt 0x%x channel 0x%x index 0x%x\n",
+		DCAM_TRACE("read frame,evt 0x%x channel 0x%x index 0x%x\n",
 			   read_op.evt, read_op.parm.frame.channel_id,
 			   read_op.parm.frame.index);
 

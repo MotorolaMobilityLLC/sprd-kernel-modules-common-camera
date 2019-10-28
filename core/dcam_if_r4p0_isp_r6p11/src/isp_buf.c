@@ -957,7 +957,7 @@ int isp_offline_set_next_frm(struct isp_module *module,
 	if (isp_buf_queue_read(p_buf_queue, &frame) == 0 &&
 			(frame.yaddr_vir != 0)) {
 		buf_desc->output_frame_count--;
-		frame.t = out_frame->t;
+		frame.sof_ts = out_frame->sof_ts;
 		frame.fid = out_frame->fid;
 		*out_frame = frame;
 		frame.width = module->isp_path[path_id].in_size.w;

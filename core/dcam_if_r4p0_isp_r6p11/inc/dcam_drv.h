@@ -344,6 +344,11 @@ struct camera_deci {
 	unsigned int deci_y;
 };
 
+struct frm_timestamp {
+	struct timeval time; /* time without suspend */
+	ktime_t boot_time; /* time from boot, including suspend */
+};
+
 struct camera_frame {
 	unsigned int type;
 	unsigned int lock;
@@ -368,7 +373,8 @@ struct camera_frame {
 	unsigned int user_fid;
 	int frame_invalid;
 	struct pfiommu_info pfinfo;
-	struct timeval t;
+	struct frm_timestamp sof_ts; /* ts without/with suspend @SOF DONE */
+	struct frm_timestamp btu_ts; /* ts without/with suspend @BACKtoUser */
 };
 
 struct camera_get_path_id {
@@ -409,17 +415,16 @@ struct log_frame_cnt {
 };
 
 struct dcam_path_time_queue {
-	struct timeval t[DCAM_SOF_TIME_QUEUE_LENGTH+1];
-	struct timeval *write;
-	struct timeval *read;
+	struct frm_timestamp t[DCAM_SOF_TIME_QUEUE_LENGTH+1];
+	struct frm_timestamp *write;
+	struct frm_timestamp *read;
 	int w_index;
 	int r_index;
 	spinlock_t lock;
 };
 
 struct dcam_time_queue {
-	struct dcam_path_time_queue bin_t;
-	struct dcam_path_time_queue full_t;
+	struct dcam_path_time_queue sof_t;
 };
 
 struct dcam_sof_time_queue {
