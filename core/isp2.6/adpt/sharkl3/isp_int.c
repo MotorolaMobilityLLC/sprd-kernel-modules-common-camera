@@ -146,7 +146,7 @@ static void isp_frame_done(enum isp_context_id idx, struct isp_pipe_dev *dev)
 			pctx->cb_priv_data);
 	} else {
 		/* should not be here */
-		pr_err("no src frame  sw_idx=%d  proc_queue.cnt:%d\n",
+		pr_err("fail to get frame,no src frame  sw_idx=%d  proc_queue.cnt:%d\n",
 			pctx->ctx_id, pctx->proc_queue.cnt);
 	}
 
@@ -164,7 +164,7 @@ static void isp_frame_done(enum isp_context_id idx, struct isp_pipe_dev *dev)
 
 		pframe = camera_dequeue(&path->result_queue);
 		if (!pframe) {
-			pr_err("error: no frame from queue. cxt:%d, path:%d\n",
+			pr_err("fail to get frame,no frame from queue. cxt:%d, path:%d\n",
 						pctx->ctx_id, path->spath_id);
 			continue;
 		}
@@ -390,9 +390,9 @@ static struct camera_frame *isp_hist2_frame_prepare(enum isp_context_id idx,
 	buf = (uint32_t *)frame->buf.addr_k[0];
 
 	if (!frame->buf.addr_k[0]) {
-		pr_err("err: null ptr\n");
+		pr_err("fail to get addr,err: null ptr\n");
 		if (camera_enqueue(&pctx->hist2_result_queue, frame) < 0)
-			pr_err("fatal err\n");
+			pr_err("fail to enqueue,fatal err\n");
 		return NULL;
 	}
 	for (i = 0; i < max_item; i++)
@@ -511,21 +511,21 @@ static void  isp_dump_iommu_regs(void)
 		val[1] = ISP_MMU_RD(reg + 4);
 		val[2] = ISP_MMU_RD(reg + 8);
 		val[3] = ISP_MMU_RD(reg + 12);
-		pr_err("offset=0x%04x: %08x %08x %08x %08x\n",
+		pr_err("fail to handle,offset=0x%04x: %08x %08x %08x %08x\n",
 			reg, val[0], val[1], val[2], val[3]);
 	}
 
-	pr_err("fetch y %08x u %08x v %08x \n",
+	pr_err("fail to handle,fetch y %08x u %08x v %08x \n",
 		ISP_HREG_RD(ISP_FETCH_SLICE_Y_ADDR),
 		ISP_HREG_RD(ISP_FETCH_SLICE_U_ADDR),
 		ISP_HREG_RD(ISP_FETCH_SLICE_V_ADDR));
 
-	pr_err("store pre cap y %08x u %08x v %08x \n",
+	pr_err("fail to handle,store pre cap y %08x u %08x v %08x \n",
 		ISP_HREG_RD(ISP_STORE_PRE_CAP_BASE + ISP_STORE_SLICE_Y_ADDR),
 		ISP_HREG_RD(ISP_STORE_PRE_CAP_BASE + ISP_STORE_SLICE_U_ADDR),
 		ISP_HREG_RD(ISP_STORE_PRE_CAP_BASE + ISP_STORE_SLICE_V_ADDR));
 
-	pr_err("store vid y %08x u %08x v %08x \n",
+	pr_err("fail to handle,store vid y %08x u %08x v %08x \n",
 		ISP_HREG_RD(ISP_STORE_VID_BASE + ISP_STORE_SLICE_Y_ADDR),
 		ISP_HREG_RD(ISP_STORE_VID_BASE + ISP_STORE_SLICE_U_ADDR),
 		ISP_HREG_RD(ISP_STORE_VID_BASE + ISP_STORE_SLICE_V_ADDR));
@@ -547,7 +547,7 @@ static irqreturn_t isp_isr_root(int irq, void *priv)
 	uint32_t val;
 
 	if (!isp_handle) {
-		pr_err("error: null dev\n");
+		pr_err("fail to get isp_handle: null dev\n");
 		return IRQ_HANDLED;
 	}
 	pr_debug("isp irq %d, %p\n", irq, priv);
@@ -557,7 +557,7 @@ static irqreturn_t isp_isr_root(int irq, void *priv)
 	} else if (irq == isp_handle->irq_no[1]) {
 		iid = 1;
 	} else {
-		pr_err("error irq %d mismatched\n", irq);
+		pr_err("fail to get irq %d mismatched\n", irq);
 		return IRQ_NONE;
 	}
 	pr_debug("isp irq %d, priv %p, iid %d\n", irq, priv, iid);
@@ -584,7 +584,8 @@ static irqreturn_t isp_isr_root(int irq, void *priv)
 		if (sw_ctx_id < 0) {
 			ISP_HREG_WR(irq_offset + ISP_INT_CLR0, irq_line);
 			if (irq_line & ISP_INT_LINE_MASK)
-				pr_err("c_id: %d has no sw_ctx_id, irq_line: %08x\n", c_id, irq_line);
+				pr_err("fail to get c_id, c_id: %d has no sw_ctx_id, irq_line: %08x\n",
+				c_id, irq_line);
 			continue;
 		}
 
@@ -611,7 +612,7 @@ static irqreturn_t isp_isr_root(int irq, void *priv)
 		}
 
 		if (unlikely(err_mask & irq_line)) {
-			pr_err("ISP ctx%d status 0x%x\n", sw_ctx_id, irq_line);
+			pr_err("fail to handle,ISP ctx%d status 0x%x\n", sw_ctx_id, irq_line);
 			/*handle the error here*/
 			if (isp_err_pre_proc(c_id, isp_handle)) {
 				isp_handle->ctx[sw_ctx_id].in_irq_handler = 0;
@@ -622,7 +623,7 @@ static irqreturn_t isp_isr_root(int irq, void *priv)
 		mmu_irq_line = ISP_HREG_RD(ISP_MMU_INT_BASE +
 				ISP_MMU_INT_MASKED_STS);
 		if (unlikely(ISP_INT_LINE_MASK_MMU & mmu_irq_line)) {
-			pr_err("ISP ctx%d status 0x%x\n", sw_ctx_id, irq_line);
+			pr_info("ISP ctx%d status 0x%x\n", sw_ctx_id, irq_line);
 			ctx = &isp_handle->ctx[sw_ctx_id];
 			val = ISP_MMU_RD(MMU_STS);
 
@@ -662,7 +663,8 @@ int isp_irq_request(struct device *p_dev,
 	struct isp_pipe_dev *ispdev;
 
 	if (!p_dev || !isp_handle || !irq_no) {
-		pr_err("Input ptr is NULL\n");
+		pr_err("fail to get Input ptr: p_dev,isp_handle,irq_no  %p, %p,%p;\n",
+			p_dev, isp_handle, irq_no);
 		return -EFAULT;
 	}
 	ispdev = (struct isp_pipe_dev *)isp_handle;
@@ -764,7 +766,7 @@ int isp_irq_free(struct device *p_dev, void *isp_handle)
 
 	ispdev = (struct isp_pipe_dev *)isp_handle;
 	if (!ispdev) {
-		pr_err("fail to get valid input ptr\n");
+		pr_err("fail to get valid input ptr: ispdev = %p \n", ispdev);
 		return -EFAULT;
 	}
 

@@ -80,7 +80,8 @@ int dcam_init_lsc(void *in, uint32_t online)
 	gain_tab = (uint16_t *)param->buf.addr_k[0];
 	hw_addr = (uint32_t)param->buf.iova[0];
 	if (!w_buff || !gain_tab || !hw_addr) {
-		pr_err("null buf %p %p %x\n", w_buff, gain_tab, hw_addr);
+		pr_err("fail to get buf, null buf %p %p %x\n",
+			w_buff, gain_tab, hw_addr);
 		ret = -EPERM;
 		goto exit;
 	}
@@ -144,7 +145,7 @@ int dcam_init_lsc(void *in, uint32_t online)
 			break;
 	}
 	if (i >= LENS_LOAD_TIMEOUT) {
-		pr_err("lens grid table load timeout.\n");
+		pr_err("fail to load, lens grid table load timeout.\n");
 		ret = -EPERM;
 		goto exit;
 	}
@@ -206,7 +207,8 @@ int dcam_update_lsc(void *in)
 	gain_tab = (uint16_t *)param->buf.addr_k[0];
 	hw_addr = (uint32_t)param->buf.iova[0];
 	if (!w_buff || !gain_tab || !hw_addr) {
-		pr_err("null buf %p %p %x\n", w_buff, gain_tab, hw_addr);
+		pr_err("fail to get buf, w/gain/hw buf %p %p %x\n",
+			w_buff, gain_tab, hw_addr);
 		ret = -EPERM;
 		goto exit;
 	}
@@ -256,7 +258,7 @@ int dcam_update_lsc(void *in)
 			break;
 	}
 	if (i >= LENS_LOAD_TIMEOUT) {
-		pr_err("lens grid table load timeout.\n");
+		pr_err("fail to load, lens grid table load timeout.\n");
 		ret = -EPERM;
 	} else {
 		/* lens_load_buf_sel toggle */
@@ -318,7 +320,7 @@ int dcam_k_lsc_block(struct dcam_dev_param *p)
 
 	gain_tab = (uint16_t *)param->buf.addr_k[0];
 	if (IS_ERR_OR_NULL(gain_tab)) {
-		pr_err("no buffer for gain tab\n");
+		pr_err("fail to get buf,no buffer for gain tab\n");
 		ret = -EPERM;
 		goto exit;
 	}

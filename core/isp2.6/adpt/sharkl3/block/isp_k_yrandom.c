@@ -78,7 +78,8 @@ int isp_k_cfg_yrandom(struct isp_io_param *param, uint32_t idx)
 		ret = isp_k_yrandom_block(param, idx);
 		break;
 	default:
-		pr_err("fail cmd id:%d\n", param->property);
+		pr_err("fail to get valid cmd. cmd id:%d\n",
+			param->property);
 		break;
 	}
 

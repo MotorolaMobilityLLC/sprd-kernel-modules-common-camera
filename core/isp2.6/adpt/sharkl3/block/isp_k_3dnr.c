@@ -568,7 +568,7 @@ int isp_k_cfg_3dnr(struct isp_io_param *param,
 	int ret = 0;
 
 	if (!param || !param->property_param) {
-		pr_err("fail, param error\n");
+		pr_err("fail to get param %p.\n", param);
 		return -1;
 	}
 

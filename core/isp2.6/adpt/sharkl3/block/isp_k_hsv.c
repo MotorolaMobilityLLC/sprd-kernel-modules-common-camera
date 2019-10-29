@@ -80,7 +80,7 @@ static int isp_k_hsv_block(struct isp_io_param *param, uint32_t idx)
 	hsv_table = (void __user *)utab_addr;
 	if ((hsv_info.size > (ISP_HSV_TABLE_NUM * 4)) ||
 		(hsv_table == NULL)) {
-		pr_err("error hsv param: %p, %d\n", hsv_table, hsv_info.size);
+		pr_err("fail to get hsv param: %p, %d\n", hsv_table, hsv_info.size);
 		return -EFAULT;
 	}
 
@@ -88,7 +88,7 @@ static int isp_k_hsv_block(struct isp_io_param *param, uint32_t idx)
 	ret = copy_from_user((void *)reg_addr,
 			hsv_table, hsv_info.size);
 	if (ret != 0)
-		pr_err("copy error %d\n", ret);
+		pr_err("fail to copy: ret = %d\n", ret);
 
 	return ret;
 }

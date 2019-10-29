@@ -112,7 +112,7 @@ static struct camera_frame *dcam_prepare_frame(struct dcam_pipe_dev *dev,
 
 	frame = camera_dequeue(&path->result_queue);
 	if (!frame) {
-		pr_err("DCAM%u %s output buffer unavailable\n",
+		pr_err("fail to get buf,DCAM%u %s output buffer unavailable\n",
 			dev->idx, to_path_name(path_id));
 		return NULL;
 	}
@@ -928,23 +928,23 @@ static void dcam_dump_iommu_regs(struct dcam_pipe_dev *dev)
 			val[1] = DCAM_MMU_RD(reg + 4);
 			val[2] = DCAM_MMU_RD(reg + 8);
 			val[3] = DCAM_MMU_RD(reg + 12);
-			pr_err("offset=0x%04x: %08x %08x %08x %08x\n",
+			pr_err("fail to handle,offset=0x%04x: %08x %08x %08x %08x\n",
 					reg, val[0], val[1], val[2], val[3]);
 		}
 
-		pr_err("full %08x bin0 %08x bin1 %08x bin2 %08x "
+		pr_err("fail to handle,full %08x bin0 %08x bin1 %08x bin2 %08x "
 		"bin3 %08x\n",	DCAM_REG_RD(dev->idx, DCAM_FULL_BASE_WADDR),
 				DCAM_REG_RD(dev->idx, DCAM_BIN_BASE_WADDR0),
 				DCAM_REG_RD(dev->idx, DCAM_BIN_BASE_WADDR1),
 				DCAM_REG_RD(dev->idx, DCAM_BIN_BASE_WADDR2),
 				DCAM_REG_RD(dev->idx, DCAM_BIN_BASE_WADDR3));
-		pr_err("pdaf %08x vch2 %08x vch3 %08x lsc %08x aem %08x\n",
+		pr_err("fail to handle,pdaf %08x vch2 %08x vch3 %08x lsc %08x aem %08x\n",
 				DCAM_REG_RD(dev->idx, DCAM_PDAF_BASE_WADDR),
 				DCAM_REG_RD(dev->idx, DCAM_VCH2_BASE_WADDR),
 				DCAM_REG_RD(dev->idx, DCAM_VCH3_BASE_WADDR),
 				DCAM_REG_RD(dev->idx, DCAM_LENS_BASE_RADDR),
 				DCAM_REG_RD(dev->idx, DCAM_AEM_BASE_WADDR));
-		pr_err("afl %08x %08x bpc %08x %08x afm %08x "
+		pr_err("fail to handle,afl %08x %08x bpc %08x %08x afm %08x "
 		"nr3 %08x\n",	DCAM_REG_RD(dev->idx, ISP_AFL_GLB_WADDR),
 				DCAM_REG_RD(dev->idx, ISP_AFL_REGION_WADDR),
 				DCAM_REG_RD(dev->idx, ISP_BPC_MAP_ADDR),
@@ -961,10 +961,11 @@ static irqreturn_t dcam_error_handler(struct dcam_pipe_dev *dev,
 	const char *tb_ovr[2] = {"", ", overflow"};
 	const char *tb_lne[2] = {"", ", line error"};
 	const char *tb_frm[2] = {"", ", frame error"};
-	pr_err("DCAM%u error 0x%x\n", dev->idx, status);
+	pr_err("fail to handle,DCAM%u error 0x%x\n", dev->idx, status);
 
 	if (!(status & DCAM_MMU_INT))
-		pr_err("DCAM%u status 0x%x%s%s%s\n", dev->idx, status,
+		pr_err("fail to handle,DCAM%u status 0x%x%s%s%s\n",
+			dev->idx, status,
 		       tb_ovr[!!(status & BIT(DCAM_DCAM_OVF))],
 		       tb_lne[!!(status & BIT(DCAM_CAP_LINE_ERR))],
 		       tb_frm[!!(status & BIT(DCAM_CAP_FRM_ERR))]);
@@ -997,7 +998,8 @@ static irqreturn_t dcam_isr_root(int irq, void *priv)
 	int i = 0;
 
 	if (unlikely(irq != dev->irq)) {
-		pr_err("DCAM%u irq %d mismatch %d\n", dev->idx, irq, dev->irq);
+		pr_err("fail to get irq,DCAM%u irq %d mismatch %d\n",
+			dev->idx, irq, dev->irq);
 		return IRQ_NONE;
 	}
 
@@ -1062,7 +1064,8 @@ int dcam_irq_request(struct device *pdev, int irq, void *param)
 	int ret = 0;
 
 	if (unlikely(!pdev || !param || irq < 0)) {
-		pr_err("invalid param\n");
+		pr_err("fail to get valid param pdev %p, param %p, irq %d\n",
+			pdev, param, irq);
 		return -EINVAL;
 	}
 
@@ -1072,7 +1075,8 @@ int dcam_irq_request(struct device *pdev, int irq, void *param)
 	ret = devm_request_irq(pdev, dev->irq, dcam_isr_root,
 			       IRQF_SHARED, dcam_dev_name[dev->idx], dev);
 	if (ret < 0) {
-		pr_err("DCAM%u fail to install irq %d\n", dev->idx, dev->irq);
+		pr_err("fail to get irq,DCAM%u fail to install irq %d\n",
+			dev->idx, dev->irq);
 		return -EFAULT;
 	}
 
@@ -1089,7 +1093,8 @@ void dcam_irq_free(struct device *pdev, void *param)
 	struct dcam_pipe_dev *dev = NULL;
 
 	if (unlikely(!pdev || !param)) {
-		pr_err("invalid param\n");
+		pr_err("fail to get valid param. pdev = %p, param =%p\n",
+			pdev, param);
 		return;
 	}
 

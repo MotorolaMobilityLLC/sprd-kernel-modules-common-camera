@@ -288,7 +288,7 @@ static int sharkl3_dcam_clk_eb(struct cam_hw_soc_info *hw)
 	}
 	ret = clk_prepare_enable(hw->bpc_clk);
 	if (ret) {
-		pr_err(" fail to enable bpc_clk\n");
+		pr_err("fail to enable bpc_clk\n");
 		clk_set_parent(hw->bpc_clk, hw->bpc_clk_default);
 		return ret;
 	}
@@ -460,7 +460,7 @@ static int sharkl3_dcam_stop(void *arg)
 	}
 
 	if (time_out == 0)
-		pr_err("DCAM%d: stop timeout for 2s\n", idx);
+		pr_err("fail to stop:DCAM%d: stop timeout for 2s\n", idx);
 
 	pr_info("dcam%d stop\n", idx);
 	return ret;
@@ -674,7 +674,7 @@ static int sharkl3_dcam_mipi_cap_set(void *arg)
 
 	/* set mipi interface  */
 	if (cap_info->sensor_if != DCAM_CAP_IF_CSI2) {
-		pr_err("error: unsupported sensor if : %d\n",
+		pr_err("fail to supported sensor if : %d\n",
 			cap_info->sensor_if);
 		return -EINVAL;
 	}
@@ -686,7 +686,7 @@ static int sharkl3_dcam_mipi_cap_set(void *arg)
 				cap_info->pattern << 16);
 	} else if (cap_info->format == DCAM_CAP_MODE_YUV) {
 		if (unlikely(cap_info->data_bits != DCAM_CAP_8_BITS)) {
-			pr_err("error: invalid %d bits for yuv format\n",
+			pr_err("fail to get valid %d bits for yuv format\n",
 				cap_info->data_bits);
 			return -EINVAL;
 		}
@@ -701,7 +701,7 @@ static int sharkl3_dcam_mipi_cap_set(void *arg)
 				(cap_info->y_factor << 8)
 				| (cap_info->x_factor << 4));
 	} else {
-		pr_err("error: unsupported capture format: %d\n",
+		pr_err("fail to supported capture format: %d\n",
 			cap_info->format);
 		return -EINVAL;
 	}
@@ -720,7 +720,7 @@ static int sharkl3_dcam_mipi_cap_set(void *arg)
 	} else if (cap_info->data_bits == DCAM_CAP_8_BITS) {
 		reg_val = 0;
 	} else {
-		pr_err("error: unsupported data bits: %d\n",
+		pr_err("fail to supported data bits: %d\n",
 			cap_info->data_bits);
 		return -EINVAL;
 	}
@@ -785,7 +785,7 @@ static int sharkl3_dcam_path_start(void *handle, uint32_t path_id)
 	pr_debug("enter.");
 
 	if (!handle) {
-		pr_err("error input ptr.\n");
+		pr_err("fail to get input ptr.\n");
 		return -EFAULT;
 	}
 
@@ -861,7 +861,7 @@ static int sharkl3_dcam_path_start(void *handle, uint32_t path_id)
 		rect.h = path->in_trim.size_y;
 		if (dev->cap_info.cap_size.size_x < (rect.x + rect.w) ||
 			dev->cap_info.cap_size.size_y < (rect.y + rect.h)) {
-			pr_err("dcam 3dnr input rect error[%d %d %d %d]\n",
+			pr_err("fail to get dcam 3dnr input rect [%d %d %d %d]\n",
 				rect.x, rect.y, rect.w, rect.h);
 			break;
 		}
@@ -1031,7 +1031,7 @@ static int sharkl3_dcam_path_size_update(void *handle, void *arg)
 		rect.h = path->in_trim.size_y;
 		if (dev->cap_info.cap_size.size_x < (rect.x + rect.w) ||
 			dev->cap_info.cap_size.size_y < (rect.y + rect.h)) {
-			pr_err("dcam 3dnr input rect error[%d %d %d %d]\n",
+			pr_err("fail to get dcam 3dnr input rect[%d %d %d %d]\n",
 				rect.x, rect.y, rect.w, rect.h);
 			break;
 		}
@@ -1107,25 +1107,25 @@ static int sharkl3_isp_clk_eb(struct cam_hw_soc_info *hw)
 
 	ret = clk_set_parent(hw->clk, hw->clk_parent);
 	if (ret) {
-		pr_err("set parent fail, ret = %d\n", ret);
+		pr_err("fail to set parent, ret = %d\n", ret);
 		clk_set_parent(hw->clk, hw->clk_default);
 		return ret;
 	}
 	ret = clk_prepare_enable(hw->clk);
 	if (ret) {
-		pr_err("enable isp clk fail, ret = %d\n", ret);
+		pr_err("fail to enable isp clk, ret = %d\n", ret);
 		clk_set_parent(hw->clk, hw->clk_default);
 		return ret;
 	}
 	ret = clk_prepare_enable(hw->core_eb);
 	if (ret) {
-		pr_err("set isp eb fail, ret = %d\n", ret);
+		pr_err("fail to set isp eb, ret = %d\n", ret);
 		clk_disable_unprepare(hw->clk);
 		return ret;
 	}
 	ret = clk_prepare_enable(hw->axi_eb);
 	if (ret) {
-		pr_err("set isp axi eb fail, ret = %d\n", ret);
+		pr_err("fail to set isp axi eb, ret = %d\n", ret);
 		clk_disable_unprepare(hw->clk);
 		clk_disable_unprepare(hw->core_eb);
 		return ret;
@@ -1250,7 +1250,7 @@ int sharkl3_isp_irq_disable(struct cam_hw_ip_info *hw, void *arg)
 
 	ctx_id = *(uint32_t *)arg;
 	if (ctx_id >= 4) {
-		pr_err("error ctx id %d\n", ctx_id);
+		pr_err("fail to get ctx id %d\n", ctx_id);
 		return -EFAULT;
 	}
 
@@ -1271,7 +1271,7 @@ int sharkl3_isp_irq_clear(struct cam_hw_ip_info *hw, void *arg)
 
 	ctx_id = *(uint32_t *)arg;
 	if (ctx_id >= 4) {
-		pr_err("error ctx id %d\n", ctx_id);
+		pr_err("fail to get ctx id %d\n", ctx_id);
 		return -EFAULT;
 	}
 

@@ -90,7 +90,7 @@ void dcam_k_3dnr_set_roi(struct isp_img_rect rect,
 int dcam_k_3dnr_me(struct dcam_dev_param *param)
 {
 	int ret = 0;
-	uint32_t idx = param->idx;
+	uint32_t idx = 0;
 	struct dcam_pipe_dev *dev = NULL;
 	struct dcam_dev_3dnr_me *p = NULL; /* nr3_me; */
 	struct dcam_path_desc *path;
@@ -100,6 +100,7 @@ int dcam_k_3dnr_me(struct dcam_dev_param *param)
 	if (param == NULL)
 		return -EPERM;
 
+	idx = param->idx;
 	dev = param->dev;
 	/* update ? */
 	if (!(param->nr3.update & _UPDATE_NR3))
@@ -144,7 +145,7 @@ int dcam_k_cfg_3dnr_me(struct isp_io_param *param, struct dcam_dev_param *p)
 					param->property_param,
 					sizeof(p->nr3.nr3_me));
 			if (ret) {
-				pr_err("blc_block: copy error, ret=0x%x\n",
+				pr_err("fail to copy, blc_block: ret=0x%x\n",
 					(unsigned int)ret);
 				return -EPERM;
 			}
@@ -157,7 +158,7 @@ int dcam_k_cfg_3dnr_me(struct isp_io_param *param, struct dcam_dev_param *p)
 					sizeof(p->nr3.nr3_me));
 			if (ret) {
 				mutex_unlock(&p->param_lock);
-				pr_err("blc_block: copy error, ret=0x%x\n",
+				pr_err("fail to copy, blc_block: ret=0x%x\n",
 					(unsigned int)ret);
 				return -EPERM;
 			}
