@@ -31,7 +31,7 @@ enum dcam_id {
 	DCAM_ID_MAX,
 };
 
-enum unisoc_cam_prj_id {
+enum cam_prj_id {
 	SHARKL3,
 	SHARKL5,
 	ROC1,
@@ -160,11 +160,15 @@ struct cam_hw_core_ops {
 	int (*path_start)(void *handle, uint32_t path_id);
 	int (*path_stop)(void *handle, uint32_t path_id);
 	int (*path_resume)(struct cam_hw_ip_info *hw, void *arg);
+	int (*path_src_sel)(void *handle, enum dcam_full_src_sel_type src_sel);
+	int (*path_size_update)(void *handle, void *arg);
 	int (*mipi_cap_set)(void *arg);
 	int (*dcam_fetch_set)(void *arg);
 	void (*dcam_fbc_ctrl)(uint32_t idx, int fbc_mode);
 	int (*dcam_fbc_addr_set)(uint32_t idx, unsigned long addr, void *arg);
 	int (*dcam_slice_fetch_set)(uint32_t idx, void *arg);
+	int (* lbuf_share_set)(enum dcam_id idx, uint32_t width);
+	int (* ebd_set)(uint32_t idx, void *arg);
 	void (*isp_fetch_set)(void *arg);
 	void (*isp_afbc_addr_set)(uint32_t idx, uint32_t spath_id,
 		unsigned long *yuv_addr);
@@ -174,18 +178,14 @@ struct cam_hw_core_ops {
 	void (*isp_afbc_fmcu_addr_set)(void *fmcu_handle, void *arg, int index);
 	int (*isp_afbc_path_slice_set)(void *fmcu_handle, uint32_t path_en,
 		uint32_t ctx_idx, uint32_t spath_id, void *arg);
-	int (* lbuf_share_set)(enum dcam_id idx, uint32_t width);
-	int (* ebd_set)(uint32_t idx, void *arg);
 	void (*default_para_set)(struct cam_hw_info *hw,
 		void *arg, enum isp_default_type type);
-	int (*path_src_sel)(void *handle, enum dcam_full_src_sel_type src_sel);
-	int (*path_size_update)(void *handle, void *arg);
-	struct bypass_tag * (*bypass_data_get)(uint32_t idx, enum cam_bypass_type);
-	uint32_t (*bypass_count_get)(enum cam_bypass_type type);
-	void* (*block_func_get)(uint32_t index, enum cam_block_type type);
 	uint32_t (*hist_enable_get)(int ctx_id);
 	uint32_t* (*cfg_map_info_get)(void *arg);
 	int (*fmcu_valid_get)(uint32_t fmcu_id);
+	struct bypass_tag * (*bypass_data_get)(uint32_t idx, enum cam_bypass_type);
+	uint32_t (*bypass_count_get)(enum cam_bypass_type type);
+	void* (*block_func_get)(uint32_t index, enum cam_block_type type);
 	void (*reg_trace)(uint32_t idx, enum cam_reg_trace_type type);
 };
 
@@ -198,7 +198,7 @@ struct cam_hw_ops {
 };
 
 struct cam_hw_info {
-	enum unisoc_cam_prj_id prj_id;
+	enum cam_prj_id prj_id;
 	struct platform_device *pdev;
 	struct cam_hw_soc_info *soc_dcam;
 	struct cam_hw_soc_info *soc_isp;

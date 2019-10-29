@@ -222,10 +222,6 @@ extern unsigned long g_dcam_mmubase;
 #define DCAM_HIST_BASE_WADDR2       (0x0000UL)
 #define DCAM_HIST_BASE_WADDR3       (0x0000UL)
 
-#define DCAM_HIST_FRM_CTRL0         (0x0000UL)
-#define ISP_PPI_PARAM               (0x0000UL)
-#define DCAM_PPE_FRM_CTRL0          (0x0000UL)
-
 struct dcam_control_field {
 	uint32_t cap_frc_copy: 1;
 	uint32_t cap_auto_copy: 1;

@@ -31,12 +31,21 @@
 #define pr_fmt(fmt) "CAM_HW_IF_L3: %d %d %s : "\
 	fmt, current->pid, __LINE__, __func__
 
-#define DCAMX_STOP_TIMEOUT 2000
-#define DCAM_AXI_STOP_TIMEOUT 2000
-#define DCAM_AXIM_AQOS_MASK (0x30FFFF)
-#define ISP_AXI_STOP_TIMEOUT			1000
+#define DCAMX_STOP_TIMEOUT              2000
+#define DCAM_AXI_STOP_TIMEOUT           2000
+#define DCAM_AXIM_AQOS_MASK             0x30FFFF
+#define ISP_AXI_STOP_TIMEOUT            1000
 #define ISP_AXI_ARBITER_WQOS_MASK       0x37FF
 #define ISP_AXI_ARBITER_RQOS_MASK       0x1FF
+
+/*
+.* pdaf bypass is bit3 of DCAM_CFG
+.* 4in1 bypass is bit12 of DCAM_MIPI_CAP_CFG
+.* blc bypass is bit18 of DCAM_MIPI_CAP_CFG
+.*/
+#define DCAM_PDAF_BYPASS_CTRL          DCAM_CFG
+#define DCAM_4IN1_BYPASS_CTRL          DCAM_MIPI_CAP_CFG
+#define DCAM_BLC_BYPASS_CTRL           DCAM_MIPI_CAP_CFG
 
 static atomic_t clk_users;
 static unsigned long irq_base[4] = {
@@ -47,16 +56,16 @@ static unsigned long irq_base[4] = {
 };
 
 static const struct bypass_tag sharkl3_dcam_bypass_tab[] = {
-	[_E_4IN1] = {"4in1", DCAM_MIPI_CAP_CFG, 12}, /* 0x100.b12 */
-	[_E_PDAF] = {"pdaf", DCAM_PPE_FRM_CTRL0, 1}, /* 0x120.b1 */
+	[_E_4IN1] = {"4in1", DCAM_4IN1_BYPASS_CTRL, 12}, /* 0x100.b12 */
+	[_E_PDAF] = {"pdaf", DCAM_PDAF_BYPASS_CTRL, 3}, /* 0x008.b3 */
 	[_E_LSC]  = {"lsc", DCAM_LENS_LOAD_ENABLE, 0}, /* 0x138.b0 */
 	[_E_AEM]  = {"aem",  DCAM_AEM_FRM_CTRL0, 0}, /* 0x150.b0 */
 	[_E_AFL]  = {"afl",  ISP_AFL_FRM_CTRL, 0}, /* 0x170.b0 */
 	[_E_AFM]  = {"afm",  ISP_AFM_FRM_CTRL, 0}, /* 0x1A0.b0 */
 	[_E_BPC]  = {"bpc",  ISP_BPC_PARAM, 0}, /* 0x200.b0 */
-	[_E_BLC]  = {"blc",  DCAM_BLC_PARA_R_B, 31}, /* 0x268.b31 */
-	[_E_RGB]  = {"rgb",  ISP_RGBG_YRANDOM_PARAMETER0, 0}, /* 0x278.b0 rgb gain */
-	[_E_RAND] = {"rand", ISP_RGBG_YRANDOM_PARAMETER0, 1}, /* 0x278.b1 */
+	[_E_BLC]  = {"blc",  DCAM_BLC_BYPASS_CTRL, 18}, /* 0x100.b18 */
+	[_E_RGB]  = {"rgb",  ISP_RGBG_PARAM, 0}, /* 0x22c.b0 rgb gain */
+	[_E_RAND] = {"rand", ISP_RGBG_YRANDOM_PARAMETER0, 0}, /* 0x238.b0 */
 	[_E_AWBC] = {"awbc", ISP_AWBC_GAIN0, 31}, /* 0x380.b31 */
 	[_E_NR3]  = {"nr3",  NR3_FAST_ME_PARAM, 0}, /* 0x3F0.b0 */
 	[_E_GRGB] = {"grgb", DCAM_GRGB_CTRL, 0}, /* 0x120.b1 */
@@ -163,7 +172,6 @@ static uint32_t sharkl3_cam_reg_trace_tab[] = {
 		DCAM_AEM_FRM_CTRL0,
 		ISP_AFM_FRM_CTRL,
 		ISP_AFL_FRM_CTRL,
-		DCAM_HIST_FRM_CTRL0,
 		NR3_FAST_ME_PARAM,
 		DCAM_FULL_BASE_WADDR,
 		DCAM_BIN_BASE_WADDR0,
@@ -1653,16 +1661,6 @@ static uint32_t sharkl3_path_ctrl_id[] = {
 static unsigned long sharkl3_dcam2_store_addr[DCAM_PATH_MAX] = {
 	DCAM2_PATH0_BASE_WADDR,
 	DCAM2_PATH1_BASE_WADDR,
-	/* below:not cover usefull register */
-	DCAM_PDAF_BASE_WADDR,
-	DCAM_VCH2_BASE_WADDR,
-	DCAM_VCH3_BASE_WADDR,
-	DCAM_AEM_BASE_WADDR,
-	ISP_AFM_BASE_WADDR,
-	ISP_AFL_GLB_WADDR,
-	DCAM_HIST_BASE_WADDR,
-	ISP_NR3_WADDR,
-	ISP_BPC_OUT_ADDR,
 };
 
 static uint32_t sharkl3_isp_ctx_fmcu_support[ISP_CONTEXT_HW_NUM] = {
@@ -1753,30 +1751,30 @@ struct cam_hw_info sharkl3_hw_info = {
 			.force_copy = sharkl3_dcam_force_copy,
 			.path_start = sharkl3_dcam_path_start,
 			.path_stop = sharkl3_dcam_path_stop,
-			.path_resume = NULL,
+			.path_src_sel = sharkl3_dcam_full_path_src_sel,
+			.path_size_update = sharkl3_dcam_path_size_update,
 			.mipi_cap_set = sharkl3_dcam_mipi_cap_set,
-			.default_para_set = sharkl3_isp_default_param_set,
 			.dcam_fetch_set = sharkl3_dcam_fetch_set,
+			.ebd_set = sharkl3_dcam_ebd_set,
+			.path_resume = NULL,
+			.lbuf_share_set = NULL,
+			.dcam_slice_fetch_set = NULL,
 			.dcam_fbc_ctrl = NULL,
 			.dcam_fbc_addr_set = NULL,
+			.isp_fetch_set = sharkl3_isp_fetch_set,
+			.default_para_set = sharkl3_isp_default_param_set,
+			.block_func_get = sharkl3_block_func_get,
+			.hist_enable_get = sharkl3_isp_hist_enable_get,
+			.cfg_map_info_get = sharkl3_isp_cfg_map_info_get,
+			.fmcu_valid_get = sharkl3_isp_fmcu_available,
 			.isp_afbc_addr_set = NULL,
 			.isp_afbc_path_set = NULL,
 			.isp_fbd_slice_set = NULL,
 			.isp_fbd_addr_set = NULL,
 			.isp_afbc_fmcu_addr_set = NULL,
 			.isp_afbc_path_slice_set = NULL,
-			.isp_fetch_set = sharkl3_isp_fetch_set,
-			.ebd_set = sharkl3_dcam_ebd_set,
-			.lbuf_share_set = NULL,
-			.dcam_slice_fetch_set = NULL,
-			.path_src_sel = sharkl3_dcam_full_path_src_sel,
 			.bypass_data_get = sharkl3_cam_bypass_data_get,
 			.bypass_count_get = sharkl3_cam_bypass_count_get,
-			.block_func_get = sharkl3_block_func_get,
-			.hist_enable_get = sharkl3_isp_hist_enable_get,
-			.cfg_map_info_get = sharkl3_isp_cfg_map_info_get,
-			.path_size_update = sharkl3_dcam_path_size_update,
-			.fmcu_valid_get = sharkl3_isp_fmcu_available,
 			.reg_trace = sharkl3_cam_reg_trace,
 		},
 	},

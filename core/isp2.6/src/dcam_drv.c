@@ -137,7 +137,7 @@ int dcam_if_parse_dt(struct platform_device *pdev,
 
 	/* bounded kernel device node */
 	hw_info->pdev = pdev;
-	hw_info->prj_id = (enum unisoc_cam_prj_id) prj_id;
+	hw_info->prj_id = (enum cam_prj_id) prj_id;
 
 	dcam_max_w = DCAM_PATH_WMAX;
 	dcam_max_h = DCAM_PATH_HMAX;
