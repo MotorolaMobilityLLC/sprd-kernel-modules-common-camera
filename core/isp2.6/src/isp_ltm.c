@@ -169,7 +169,7 @@ static int isp_ltm_share_ctx_get_fid(void)
 static int isp_ltm_share_ctx_set_config(struct isp_ltm_ctx_desc *ctx)
 {
 	if (ctx->type != MODE_LTM_PRE) {
-		pr_err("Only PRE ctx can setting share ctx, except ctx[%d]\n",
+		pr_err("fail to set share ctx, only pre support, except ctx[%d]\n",
 			ctx->type);
 		return 0;
 	}
@@ -192,7 +192,7 @@ static int isp_ltm_share_ctx_set_config(struct isp_ltm_ctx_desc *ctx)
 static int isp_ltm_share_ctx_get_config(struct isp_ltm_ctx_desc *ctx)
 {
 	if (ctx->type != MODE_LTM_CAP) {
-		pr_err("Only CAP ctx can setting share ctx, except ctx[%d]\n",
+		pr_err("fail to set share ctx, only cap support, except ctx[%d]\n",
 			ctx->type);
 		return 0;
 	}
@@ -301,7 +301,7 @@ int isp_put_ltm_share_ctx_desc(struct isp_ltm_share_ctx_desc *param)
 		return 0;
 	}
 
-	pr_err("error: mismatched param %p, %p\n",
+	pr_err("fail to match param %p, %p\n",
 			param, &s_share_ctx_desc);
 	return -EINVAL;
 }
@@ -677,7 +677,8 @@ static int isp_ltm_gen_map_config(struct isp_ltm_ctx_desc *ctx,
 	frame_height_map   = ctx->frame_height;
 
 	if ((frame_width_stat == 0) || (frame_height_stat == 0))
-		pr_err("input param err\n");
+		pr_err("fail to get input param, width stat %d, height stat %d\n",
+			frame_width_stat, frame_height_stat);
 
 	if (ctx->type == MODE_LTM_CAP) {
 		pr_debug("tile_num_x[%d], tile_num_y[%d], tile_width[%d], tile_height[%d],\
@@ -899,7 +900,7 @@ int isp_ltm_gen_frame_config(struct isp_ltm_ctx_desc *ctx)
 				ctx->fid, pre_fid);
 
 			if (isp_ltm_share_ctx_get_status(MODE_LTM_PRE) == 0) {
-				pr_err("pre context has been release\n");
+				pr_err("fail to use free pre context\n");
 				ctx->type = MODE_LTM_OFF;
 				ctx->bypass = 1;
 				ret = -1;
@@ -911,7 +912,7 @@ int isp_ltm_gen_frame_config(struct isp_ltm_ctx_desc *ctx)
 			ret = wait_for_completion_interruptible_timeout(
 				&s_share_ctx_param.share_comp, ISP_LTM_TIMEOUT);
 			if (ret <= 0) {
-				pr_err("Wait completion error [%d]\n", ret);
+				pr_err("fail to wait completion [%d]\n", ret);
 				ctx->type = MODE_LTM_OFF;
 				ctx->bypass = 1;
 				ret = -1;
@@ -925,7 +926,7 @@ int isp_ltm_gen_frame_config(struct isp_ltm_ctx_desc *ctx)
 				 * Means context of pre has release
 				 * this complete from isp_core before release
 				 */
-				pr_err("pre context has been release\n");
+				pr_err("fail to use free pre context\n");
 				ctx->type = MODE_LTM_OFF;
 				ctx->bypass = 1;
 				ret = -1;

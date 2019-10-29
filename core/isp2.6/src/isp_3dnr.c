@@ -128,7 +128,7 @@ static int isp_3dnr_gen_memctrl_config(struct isp_3dnr_ctx_desc *ctx)
 	struct isp_3dnr_mem_ctrl *mem_ctrl = NULL;
 
 	if (!ctx) {
-		pr_err("invalid parameter, mem ctrl\n");
+		pr_err("fail to get valid 3dnr mem ctrl parameter\n");
 		return -EINVAL;
 	}
 
@@ -223,7 +223,7 @@ static int isp_3dnr_gen_store_config(struct isp_3dnr_ctx_desc *ctx)
 	struct isp_3dnr_store *store = NULL;
 
 	if (!ctx) {
-		pr_err("invalid parameter, store\n");
+		pr_err("fail to get valid 3dnr store parameter\n");
 		return -EINVAL;
 	}
 
@@ -265,7 +265,7 @@ static int isp_3dnr_gen_crop_config(struct isp_3dnr_ctx_desc *ctx)
 	int ret = 0;
 
 	if (!ctx) {
-		pr_err("invalid parameter, crop\n");
+		pr_err("fail to get valid 3dnr crop parameter\n");
 		return -EINVAL;
 	}
 
@@ -286,7 +286,7 @@ int isp_3dnr_gen_config(struct isp_3dnr_ctx_desc *ctx)
 	int ret = 0;
 
 	if (!ctx) {
-		pr_err("invalid parameter, fail to 3ndr context\n");
+		pr_err("fail to get valid 3ndr context\n");
 		return -EINVAL;
 	}
 
@@ -321,7 +321,7 @@ int isp_3dnr_update_memctrl_slice_info(struct nr3_slice *in,
 	uint32_t global_img_width = 0, global_img_height = 0;
 
 	if (!in || !out) {
-		pr_err("fail to get valid input ptr\n");
+		pr_err("fail to get valid input ptr in %p, out %p\n", in, out);
 		return -EFAULT;
 	}
 
@@ -616,7 +616,7 @@ int isp_3dnr_conversion_mv(struct isp_3dnr_ctx_desc *nr3_ctx)
 	int output_height = 0;
 
 	if (!nr3_ctx) {
-		pr_err("invalid parameter\n");
+		pr_err("fail to get valid nr3_ctx\n");
 		return -EINVAL;
 	}
 

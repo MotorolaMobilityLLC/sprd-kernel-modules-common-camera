@@ -307,7 +307,7 @@ static int isp_cfg_reset_ctxbuf(
 	void *work_buf_vaddr = NULL;
 
 	if (!cfg_ctx) {
-		pr_err("null cfg_ctx pointer\n");
+		pr_err("fail to get cfg_ctx pointer\n");
 		return -EFAULT;
 	}
 	pr_debug("Enter\n");
@@ -364,7 +364,7 @@ static int isp_cfg_map_init(struct isp_cfg_ctx_desc *cfg_ctx)
 			goto setting;
 		}
 
-		pr_info("map sections %d\n", count);
+		pr_debug("map sections %d\n", count);
 		s_map_sec_cnt = count;
 		for (i = 0; i < s_map_sec_cnt; i++) {
 			item = cfg_map[i];
@@ -448,7 +448,7 @@ static int isp_cfg_config_block(
 	};
 
 	if (!cfg_ctx) {
-		pr_err("null cfg_ctx pointer\n");
+		pr_err("fail to get cfg_ctx pointer\n");
 		return -EFAULT;
 	}
 	pr_debug("cfg isp sw ctx %d hw ctx %d\n", sw_ctx_id, hw_ctx_id);
@@ -470,7 +470,7 @@ static int isp_cfg_config_block(
 		pr_debug("copy whole cfg buffer\n");
 		memcpy(work_buf_vaddr, shadow_buf_vaddr, ISP_REG_SIZE);
 	} else {
-		pr_err("error: invalid isp hw ctx_id %d\n", hw_ctx_id);
+		pr_err("fail to get valid isp hw ctx_id %d\n", hw_ctx_id);
 		return -EINVAL;
 	}
 
@@ -523,7 +523,7 @@ static int isp_cfg_ctx_init(struct isp_cfg_ctx_desc *cfg_ctx)
 	int i;
 
 	if (!cfg_ctx) {
-		pr_err("null cfg_ctx pointer\n");
+		pr_err("fail to get cfg_ctx pointer\n");
 		return -EFAULT;
 	}
 	pr_debug("Enter\n");
@@ -560,11 +560,11 @@ static int isp_cfg_ctx_deinit(struct isp_cfg_ctx_desc *cfg_ctx)
 	int ret = 0;
 
 	if (!cfg_ctx) {
-		pr_err("null cfg_ctx pointer\n");
+		pr_err("fail to get cfg_ctx pointer\n");
 		return -EFAULT;
 	}
 
-	pr_info("Enter\n");
+	pr_debug("Enter\n");
 	if (atomic_dec_return(&cfg_ctx->user_cnt) > 0) {
 		pr_info("isp cfg still have user.\n");
 		goto exit;
@@ -603,7 +603,7 @@ int put_isp_cfg_ctx_desc(struct isp_cfg_ctx_desc *param)
 {
 	if (&s_ctx_desc == param)
 		return 0;
-	pr_err("error: mismatched param %p, %p\n",
+	pr_err("fail to match param %p, %p\n",
 			param, &s_ctx_desc);
 	return -EINVAL;
 }

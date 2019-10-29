@@ -132,7 +132,7 @@ static enum isp_store_format get_store_format(uint32_t forcc)
 		break;
 	default:
 		format = ISP_STORE_FORMAT_MAX;
-		pr_err("error, format 0x%x not support\n", forcc);
+		pr_err("fail to get support format 0x%x\n", forcc);
 		break;
 	}
 	return format;
@@ -152,7 +152,7 @@ static enum isp_store_format
 		break;
 	default:
 		format = ISP_STORE_FORMAT_MAX;
-		pr_err("error, afbc format 0x%x not support\n", forcc);
+		pr_err("fail to get support afbc format 0x%x\n", forcc);
 		break;
 	}
 	return format;
@@ -180,7 +180,7 @@ static enum isp_fetch_format get_fetch_format(uint32_t forcc)
 		break;
 	default:
 		format = ISP_FETCH_FORMAT_MAX;
-		pr_err("error, format 0x%x not support\n", forcc);
+		pr_err("fail to get support format 0x%x\n", forcc);
 		break;
 	}
 	return format;
@@ -205,7 +205,7 @@ static int calc_scaler_param(struct img_trim *in_trim,
 		in_trim->size_y > (out_size->h * d_max * (1 << f_max)) ||
 		in_trim->size_x < ISP_DIV_ALIGN(out_size->w, u_max) ||
 		in_trim->size_y < ISP_DIV_ALIGN(out_size->h, u_max)) {
-		pr_err("in_trim %d %d. out _size %d %d, fmax %d, u_max %d\n",
+		pr_err("fail to get in_trim %d %d. out _size %d %d, fmax %d, u_max %d\n",
 				in_trim->size_x, in_trim->size_y,
 				out_size->w, out_size->h, f_max, d_max);
 		ret = -EINVAL;
@@ -306,7 +306,7 @@ int cfg_path_scaler(struct isp_path_desc *path)
 	ret = calc_scaler_param(&path->in_trim, &path->dst,
 						&path->scaler, &path->deci);
 	if (ret) {
-		pr_err("error to set scaler.");
+		pr_err("fail to set scaler.\n");
 		return ret;
 	}
 
@@ -460,24 +460,24 @@ int cfg_path_thumbscaler(struct isp_path_desc *path)
 
 	scalerInfo->odata_mode = is_yuv422 ? 0x00 : 0x01;
 
-	pr_info("deciY %d %d, Yfactor (%d %d) => (%d %d) ytrim (%d %d %d %d)\n",
+	pr_debug("deciY %d %d, Yfactor (%d %d) => (%d %d) ytrim (%d %d %d %d)\n",
 		scalerInfo->y_deci.deci_x, scalerInfo->y_deci.deci_y,
 		scalerInfo->y_factor_in.w, scalerInfo->y_factor_in.h,
 		scalerInfo->y_factor_out.w, scalerInfo->y_factor_out.h,
 		scalerInfo->y_trim.start_x, scalerInfo->y_trim.start_y,
 		scalerInfo->y_trim.size_x, scalerInfo->y_trim.size_y);
-	pr_info("deciU %d %d, Ufactor (%d %d) => (%d %d), Utrim (%d %d %d %d)\n",
+	pr_debug("deciU %d %d, Ufactor (%d %d) => (%d %d), Utrim (%d %d %d %d)\n",
 		scalerInfo->uv_deci.deci_x, scalerInfo->uv_deci.deci_y,
 		scalerInfo->uv_factor_in.w, scalerInfo->uv_factor_in.h,
 		scalerInfo->uv_factor_out.w, scalerInfo->uv_factor_out.h,
 		scalerInfo->uv_trim.start_x, scalerInfo->uv_trim.start_y,
 		scalerInfo->uv_trim.size_x, scalerInfo->uv_trim.size_y);
 
-	pr_info("my frameY: %d %d %d %d\n",
+	pr_debug("my frameY: %d %d %d %d\n",
 		scalerInfo->y_src_after_deci.w, scalerInfo->y_src_after_deci.h,
 		scalerInfo->y_dst_after_scaler.w,
 			scalerInfo->y_dst_after_scaler.h);
-	pr_info("my frameU: %d %d %d %d\n",
+	pr_debug("my frameU: %d %d %d %d\n",
 		scalerInfo->uv_src_after_deci.w,
 		scalerInfo->uv_src_after_deci.h,
 		scalerInfo->uv_dst_after_scaler.w,
@@ -605,7 +605,8 @@ int isp_cfg_ctx_base(struct isp_pipe_context *pctx, void *param)
 	struct isp_ctx_base_desc *cfg_in;
 
 	if (!pctx || !param) {
-		pr_err("error input ptr: null\n");
+		pr_err("fail to get valid input ptr, pctx %p, param %p\n",
+			pctx, param);
 		return -EFAULT;
 	}
 
@@ -646,7 +647,8 @@ int isp_cfg_ctx_size(struct isp_pipe_context *pctx, void *param)
 	struct isp_fetch_info *fetch = &pctx->fetch;
 
 	if (!pctx || !param) {
-		pr_err("error input ptr: null\n");
+		pr_err("fail to get valid input ptr, pctx %p, param %p\n",
+			pctx, param);
 		return -EFAULT;
 	}
 
@@ -658,7 +660,7 @@ int isp_cfg_ctx_size(struct isp_pipe_context *pctx, void *param)
 		invalid |= 1;
 	invalid |= ((intrim->start_x & 1) | (intrim->start_y & 1));
 	if (invalid) {
-		pr_err("invalid ctx size. src %d %d, crop %d %d %d %d\n",
+		pr_err("fail to get valid ctx size. src %d %d, crop %d %d %d %d\n",
 			src->w, src->h, intrim->start_x, intrim->size_y,
 			intrim->size_x, intrim->size_y);
 		return -EINVAL;
@@ -781,7 +783,7 @@ int isp_cfg_ctx_size(struct isp_pipe_context *pctx, void *param)
 		break;
 	}
 	default:
-		pr_err("error fetch format: %d\n", fetch->fetch_fmt);
+		pr_err("fail to get fetch format: %d\n", fetch->fetch_fmt);
 		break;
 	}
 
@@ -800,7 +802,7 @@ int isp_cfg_ctx_compression(struct isp_pipe_context *pctx, void *param)
 	pctx->fetch_fbd_4bit_bypass = compression->fetch_fbd_4bit_bypass;
 	pctx->nr3_fbc_fbd = compression->nr3_fbc_fbd;
 
-	pr_info("ctx %u, fetch_fbd %d, compress_3dnr %d\n",
+	pr_debug("ctx %u, fetch_fbd %d, compress_3dnr %d\n",
 		pctx->ctx_id, pctx->fetch_path_sel, pctx->nr3_fbc_fbd);
 
 	return 0;
@@ -810,7 +812,7 @@ int isp_cfg_ctx_uframe_sync(struct isp_pipe_context *pctx, void *param)
 {
 	pctx->uframe_sync |= *(uint32_t *)param;
 
-	pr_info("ctx %u, uframe_sync %u\n", pctx->ctx_id, pctx->uframe_sync);
+	pr_debug("ctx %u, uframe_sync %u\n", pctx->ctx_id, pctx->uframe_sync);
 
 	return 0;
 }
@@ -822,7 +824,8 @@ int isp_cfg_path_base(struct isp_path_desc *path, void *param)
 	struct isp_store_info *store = &path->store;
 
 	if (!path || !param) {
-		pr_err("error input ptr: null\n");
+		pr_err("fail to get valid input ptr, path %p, param %p\n",
+			path, param);
 		return -EFAULT;
 	}
 	cfg_in = (struct isp_path_base_desc *)param;
@@ -858,7 +861,7 @@ int isp_cfg_path_base(struct isp_path_desc *path, void *param)
 	store->shadow_clr = 1;
 	store->store_res = 1;
 	store->rd_ctrl = 0;
-	pr_info("path %d, fmt 0x%x, store %d, dst_size %d %d\n",
+	pr_debug("path %d, fmt 0x%x, store %d, dst_size %d %d\n",
 		path->spath_id, path->out_fmt,
 		store->color_fmt, path->dst.w, path->dst.h);
 
@@ -875,7 +878,8 @@ int isp_cfg_path_size(struct isp_path_desc *path, void *param)
 	struct isp_afbc_store_info *afbc_store = &path->afbc_store;
 
 	if (!path || !param) {
-		pr_err("error input ptr: null\n");
+		pr_err("fail to get valid input ptr, path %p, param %p\n",
+			path, param);
 		return -EFAULT;
 	}
 	pctx = path->attach_ctx;
@@ -885,7 +889,7 @@ int isp_cfg_path_size(struct isp_path_desc *path, void *param)
 	src.h = pctx->input_trim.size_y;
 	if (((crop->start_x + crop->size_x) > src.w) ||
 		((crop->start_y + crop->size_y) > src.h)) {
-		pr_err("error: path trim(%d %d %d %d) outside of src (%d %d)\n",
+		pr_err("fail to get path trim(%d %d %d %d) outside of src (%d %d)\n",
 			crop->start_x, crop->start_y,
 			crop->size_x, crop->size_y, src.w, src.h);
 		return -EINVAL;
@@ -974,7 +978,7 @@ int isp_cfg_path_size(struct isp_path_desc *path, void *param)
 		store->total_size = store->size.w * store->size.h * 3 / 2;
 		break;
 	default:
-		pr_err("unsupported store fmt: %d\n", store->color_fmt);
+		pr_err("fail to get support store fmt: %d\n", store->color_fmt);
 		store->pitch.pitch_ch0 = 0;
 		store->pitch.pitch_ch1 = 0;
 		store->pitch.pitch_ch2 = 0;
@@ -989,7 +993,7 @@ int isp_cfg_path_compression(struct isp_path_desc *path, void *param)
 
 	path->store_fbc = compression->store_fbc;
 
-	pr_info("path %d, store_fbc %u\n", path->spath_id, path->store_fbc);
+	pr_debug("path %d, store_fbc %u\n", path->spath_id, path->store_fbc);
 
 	return 0;
 }
@@ -998,7 +1002,7 @@ int isp_cfg_path_uframe_sync(struct isp_path_desc *path, void *param)
 {
 	path->uframe_sync = *(uint32_t *)param;
 
-	pr_info("path %d, uframe_sync %u\n", path->spath_id, path->uframe_sync);
+	pr_debug("path %d, uframe_sync %u\n", path->spath_id, path->uframe_sync);
 
 	return 0;
 }
@@ -1088,7 +1092,7 @@ static void set_path_shrink_info(
 	unsigned long addr = 0;
 	uint32_t reg_val = 0;
 
-	pr_info("regular_mode %d\n", regular_info->regular_mode);
+	pr_debug("regular_mode %d\n", regular_info->regular_mode);
 	addr = ISP_SCALER_CFG + scaler_base;
 	ISP_REG_MWR(idx, addr, (BIT_25 | BIT_26),
 		regular_info->regular_mode << 25);
@@ -1368,7 +1372,7 @@ static int set_path_store(struct isp_path_desc *path)
 	struct isp_store_info *store_info = &path->store;
 	unsigned long addr = store_base[path->spath_id];
 
-	pr_info("isp set store in.  bypass %d, path_id:%d, w:%d,h:%d\n",
+	pr_debug("isp set store in.  bypass %d, path_id:%d, w:%d,h:%d\n",
 			store_info->bypass, path->spath_id,
 			store_info->size.w, store_info->size.h);
 
@@ -1425,14 +1429,14 @@ int isp_set_path(struct isp_path_desc *path)
 	struct cam_hw_info *hw = NULL;
 
 	if (!path) {
-		pr_err("error input ptr: null\n");
+		pr_err("fail to get input ptr: null\n");
 		return -EINVAL;
 	}
 
 	afbc_path_id = (enum isp_afbc_path)path->spath_id;
 	hw = path->hw;
 
-	pr_info("enter.\n");
+	pr_debug("enter.\n");
 	if (path->spath_id == ISP_SPATH_FD) {
 		set_path_thumbscaler(path);
 	} else {
@@ -1443,7 +1447,7 @@ int isp_set_path(struct isp_path_desc *path)
 	if (afbc_path_id < AFBC_PATH_NUM
 		&& hw->hw_ops.core_ops.isp_afbc_path_set)
 		hw->hw_ops.core_ops.isp_afbc_path_set(path);
-	pr_info("done.\n");
+	pr_debug("done.\n");
 	return ret;
 }
 
@@ -1460,7 +1464,8 @@ int isp_path_set_store_frm(
 	unsigned long addr;
 
 	if (!path || !frame) {
-		pr_err("error input ptr: null\n");
+		pr_err("fail to get valid input ptr, path %p, frame %p\n",
+			path, frame);
 		return -EINVAL;
 	}
 	pr_debug("enter.\n");
@@ -1478,7 +1483,8 @@ int isp_path_set_store_frm(
 		planes = 2;
 
 	if (0 == frame->buf.iova[0]) {
-		pr_err("serious error : iova address is 0, fd = 0x%x \n",frame->buf.mfd[0]);
+		pr_err("fail to get valid iova address, fd = 0x%x \n",
+			frame->buf.mfd[0]);
 		return -EINVAL;
 	}
 
@@ -1531,7 +1537,8 @@ int isp_path_set_afbc_store_frm(
 	struct cam_hw_info *hw = NULL;
 
 	if (!path || !frame) {
-		pr_err("error input ptr: null\n");
+		pr_err("fail to get valid input ptr, path %p, frame %p\n",
+			path, frame);
 		return -EINVAL;
 	}
 	pr_debug("afbc enter.\n");
@@ -1570,7 +1577,8 @@ int isp_path_set_fetch_frm(struct isp_pipe_context *pctx,
 	struct cam_hw_info *hw = NULL;
 
 	if (!pctx || !frame) {
-		pr_err("error input ptr: null\n");
+		pr_err("fail to get valid input ptr, pctx %p, frame %p\n",
+			pctx, frame);
 		return -EINVAL;
 	}
 	pr_debug("enter.\n");

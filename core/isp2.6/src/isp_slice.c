@@ -154,7 +154,7 @@ static int get_slice_size_info(
 		slice_w_out = (input->w + slice_num - 1) / slice_num;
 	} else
 		slice_w_out = slice_w;
-	pr_info("max output w %d, slice_num %d, out limited slice_w %d\n",
+	pr_debug("max output w %d, slice_num %d, out limited slice_w %d\n",
 		max_w, slice_num, slice_w_out);
 
 	*w = (slice_w < slice_w_out) ?  slice_w : slice_w_out;
@@ -238,11 +238,11 @@ static int cfg_slice_base_info(
 		img_width, img_height,
 		slice_width, slice_height, slice_num);
 	if (!frame_fbd_raw->fetch_fbd_bypass)
-		pr_info("src %d %d, fbd_raw crop %d %d %d %d\n",
+		pr_debug("src %d %d, fbd_raw crop %d %d %d %d\n",
 			frame_fetch->src.w, frame_fetch->src.h,
 			fetch_start_x, fetch_start_y, fetch_end_x, fetch_end_y);
 	else
-		pr_info("src %d %d, fetch crop %d %d %d %d\n",
+		pr_debug("src %d %d, fetch crop %d %d %d %d\n",
 			frame_fbd_raw->width, frame_fbd_raw->height,
 			fetch_start_x, fetch_start_y, fetch_end_x, fetch_end_y);
 
@@ -472,7 +472,7 @@ static void cfg_spath_trim0_info(
 		slc_scaler->trim0_start_y = frm_trim0->start_y;
 		slc_scaler->trim0_size_y = frm_trim0->size_y;
 	} else {
-		pr_err("error: not support vertical slices.\n");
+		pr_err("fail to get support vertical slices.\n");
 	}
 }
 
@@ -768,7 +768,7 @@ static void cfg_spath_scaler_info(
 			out->scaler_cip_int -= 4 * n;
 		}
 		if (out->scaler_ip_int >= 16)
-			pr_err("Horizontal slice initial phase overflowed!\n");
+			pr_err("fail to get horizontal slice initial phase, overflow!\n");
 		if (out->scaler_ip_int_ver >= 16) {
 			tmp = out->scaler_ip_int_ver;
 			n = (tmp >> 3) - 1;
@@ -778,7 +778,7 @@ static void cfg_spath_scaler_info(
 			out->scaler_cip_int_ver -= 8 * n;
 		}
 		if (out->scaler_ip_int_ver >= 16)
-			pr_err("Vertical slice initial phase overflowed!\n");
+			pr_err("fail to get vertical slice initial phase, overflow!\n");
 	} else {
 		out->scaler_out_width = out->scaler_in_width;
 		out->scaler_out_height = out->scaler_in_height;
@@ -957,17 +957,17 @@ static int cfg_slice_thumbscaler(
 	scalerSlice->uv_src_after_deci = scalerSlice->uv_factor_in;
 	scalerSlice->uv_dst_after_scaler = scalerSlice->uv_factor_out;
 
-	pr_info("-------------slice (%d %d),  src (%d %d)-------------\n",
+	pr_debug("-------------slice (%d %d),  src (%d %d)-------------\n",
 		cur_slc->x, cur_slc->y,
 		scalerSlice->src0.w, scalerSlice->src0.h);
 
-	pr_info("Y: (%d %d), (%d %d), (%d %d %d %d), (%d %d)\n",
+	pr_debug("Y: (%d %d), (%d %d), (%d %d %d %d), (%d %d)\n",
 		scalerSlice->y_factor_in.w, scalerSlice->y_factor_in.h,
 		scalerSlice->y_factor_out.w, scalerSlice->y_factor_out.h,
 		scalerSlice->y_trim.start_x, scalerSlice->y_trim.start_y,
 		scalerSlice->y_trim.size_x, scalerSlice->y_trim.size_y,
 		scalerSlice->y_init_phase.w, scalerSlice->y_init_phase.h);
-	pr_info("U: (%d %d), (%d %d), (%d %d %d %d), (%d %d)\n",
+	pr_debug("U: (%d %d), (%d %d), (%d %d %d %d), (%d %d)\n",
 		scalerSlice->uv_factor_in.w, scalerSlice->uv_factor_in.h,
 		scalerSlice->uv_factor_out.w, scalerSlice->uv_factor_out.h,
 		scalerSlice->uv_trim.start_x, scalerSlice->uv_trim.start_y,
@@ -2035,7 +2035,7 @@ int isp_cfg_slice_noisefilter_info(void *cfg_in, struct isp_slice_context *slc_c
 	struct isp_k_block  *isp_k_param = in_ptr->nofilter_ctx;
 
 	if (!slc_ctx){
-		pr_err("error: null input ptr.\n");
+		pr_err("fail to get input ptr, null.\n");
 		return -EFAULT;
 	}
 
@@ -2057,7 +2057,7 @@ int isp_cfg_slices(void *cfg_in,
 	struct slice_cfg_input *in_ptr = (struct slice_cfg_input *)cfg_in;
 
 	if (!in_ptr || !slc_ctx) {
-		pr_err("error: null input ptr.\n");
+		pr_err("fail to get input ptr, null.\n");
 		return -EFAULT;
 	}
 	memset(slc_ctx, 0, sizeof(struct isp_slice_context));
@@ -2629,7 +2629,8 @@ int isp_set_slices_fmcu_cmds(void *fmcu_handle,  void *ctx)
 	};
 
 	if (!fmcu_handle || !ctx) {
-		pr_err("error: null input ptr.\n");
+		pr_err("fail to get valid input ptr, fmcu_handle %p, ctx %p\n",
+			fmcu_handle, ctx);
 		return -EFAULT;
 	}
 
@@ -2641,7 +2642,7 @@ int isp_set_slices_fmcu_cmds(void *fmcu_handle,  void *ctx)
 	wmode = pctx->dev->wmode;
 	slc_ctx = (struct isp_slice_context *)pctx->slice_ctx;
 	if (slc_ctx->slice_num < 1) {
-		pr_err("warn: should not use slices.\n");
+		pr_err("fail to use slices, not support here.\n");
 		return -EINVAL;
 	}
 
@@ -2920,7 +2921,7 @@ int isp_update_slice(
 	struct cam_hw_info * hw = NULL;
 
 	if (!pctx_handle) {
-		pr_err("error: null input ptr.\n");
+		pr_err("fail to get input ptr, null.\n");
 		return -EFAULT;
 	}
 
@@ -2928,13 +2929,13 @@ int isp_update_slice(
 	hw = pctx->hw;
 	slc_ctx = (struct isp_slice_context *)pctx->slice_ctx;
 	if (slc_ctx->slice_num < 1) {
-		pr_err("warn: should not use slices.\n");
+		pr_err("fail to use slices, not support here.\n");
 		return -EINVAL;
 	}
 
 	if ((slice_id >= SLICE_NUM_MAX) ||
 		(slc_ctx->slices[slice_id].valid == 0)) {
-		pr_err("not valid slice id %d\n", slice_id);
+		pr_err("fail to get valid slice id %d\n", slice_id);
 		return -EINVAL;
 	}
 
@@ -2984,7 +2985,8 @@ int isp_set_slw_fmcu_cmds(void *fmcu_handle, struct isp_pipe_context *pctx)
 	};
 
 	if (!fmcu_handle || !pctx) {
-		pr_err("error: null input ptr.\n");
+		pr_err("fail to get valid input ptr, fmcu_handle %p, pctx %p\n",
+			fmcu_handle, pctx);
 		return -EFAULT;
 	}
 

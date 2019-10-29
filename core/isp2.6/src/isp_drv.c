@@ -47,7 +47,7 @@ int isp_hw_init(void *arg)
 	struct cam_hw_info *hw = NULL;
 
 	if (!arg) {
-		pr_err("fail to get invalid arg\n");
+		pr_err("fail to get valid arg\n");
 		return -EFAULT;
 	}
 
@@ -85,7 +85,7 @@ int isp_hw_deinit(void *arg)
 	struct cam_hw_info *hw = NULL;
 
 	if (!arg) {
-		pr_err("fail to get invalid arg\n");
+		pr_err("fail to get valid arg\n");
 		return -EFAULT;
 	}
 
@@ -201,7 +201,7 @@ int sprd_isp_parse_dt(struct device_node *dn,
 		}
 
 		if (count > 1) {
-			pr_err("error isp count: %d", count);
+			pr_err("fail to count isp number: %d", count);
 			return -EINVAL;
 		}
 		*isp_count = count;
@@ -209,22 +209,22 @@ int sprd_isp_parse_dt(struct device_node *dn,
 		/* read clk from dts */
 		soc_isp->core_eb = of_clk_get_by_name(isp_node, "isp_eb");
 		if (IS_ERR_OR_NULL(soc_isp->core_eb)) {
-			pr_err("read dts isp eb fail\n");
+			pr_err("fail to read dts isp eb\n");
 			return -EFAULT;
 		}
 		soc_isp->axi_eb = of_clk_get_by_name(isp_node, "isp_axi_eb");
 		if (IS_ERR_OR_NULL(soc_isp->core_eb)) {
-			pr_err("read dts isp axi eb fail\n");
+			pr_err("fail to read dts isp axi eb\n");
 			return -EFAULT;
 		}
 		soc_isp->clk = of_clk_get_by_name(isp_node, "isp_clk");
 		if (IS_ERR_OR_NULL(soc_isp->core_eb)) {
-			pr_err("read dts isp clk fail\n");
+			pr_err("fail to read dts isp clk\n");
 			return -EFAULT;
 		}
 		soc_isp->clk_parent = of_clk_get_by_name(isp_node, "isp_clk_parent");
 		if (IS_ERR_OR_NULL(soc_isp->core_eb)) {
-			pr_err("read dts isp clk parent fail\n");
+			pr_err("fail to read dts isp clk parent\n");
 			return -EFAULT;
 		}
 		soc_isp->clk_default = clk_get_parent(soc_isp->clk);
@@ -232,7 +232,7 @@ int sprd_isp_parse_dt(struct device_node *dn,
 		iommu_node = of_parse_phandle(isp_node, "iommus", 0);
 		if (iommu_node) {
 			if (of_address_to_resource(iommu_node, 1, &res))
-				pr_err("fail to get ISP IOMMU  addr\n");
+				pr_err("fail to get ISP IOMMU addr\n");
 			else {
 				reg_base = ioremap(res.start, res.end - res.start + 1);
 				if (!reg_base)

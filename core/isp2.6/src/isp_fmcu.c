@@ -38,12 +38,12 @@ static int isp_fmcu_push_cmd(struct isp_fmcu_ctx_desc *fmcu_ctx,
 	uint32_t *ptr;
 
 	if (!fmcu_ctx) {
-		pr_err("null fmcu_ctx pointer\n");
+		pr_err("fail to get fmcu_ctx pointer\n");
 		return -EFAULT;
 	}
 	if (fmcu_ctx->cmdq_pos[fmcu_ctx->cur_buf_id]
-	> (fmcu_ctx->cmdq_size / sizeof(uint32_t))) {
-		pr_err("error: fmcu%d cmdq overflow.\n", fmcu_ctx->fid);
+		> (fmcu_ctx->cmdq_size / sizeof(uint32_t))) {
+		pr_err("fail to get fmcu%d cmdq, overflow.\n", fmcu_ctx->fid);
 		return -EFAULT;
 	}
 
@@ -63,7 +63,7 @@ static int isp_fmcu_cmd_ready(struct isp_fmcu_ctx_desc *fmcu_ctx)
 	unsigned long base;
 
 	if (!fmcu_ctx) {
-		pr_err("null fmcu_ctx pointer\n");
+		pr_err("fail to get fmcu_ctx pointer\n");
 		return -EFAULT;
 	}
 	pr_debug("set fmcu cmd ready%d\n", fmcu_ctx->fid);
@@ -75,7 +75,7 @@ static int isp_fmcu_cmd_ready(struct isp_fmcu_ctx_desc *fmcu_ctx)
 
 	if (fmcu_ctx->cmdq_pos[fmcu_ctx->cur_buf_id]
 	> (fmcu_ctx->cmdq_size / sizeof(uint32_t))) {
-		pr_err("error: fmcu%d cmdq overflow.\n", fmcu_ctx->fid);
+		pr_err("fail to get fmcu%d cmdq, overflow.\n", fmcu_ctx->fid);
 		return -EFAULT;
 	}
 	cmd_num = (int) fmcu_ctx->cmdq_pos[fmcu_ctx->cur_buf_id] / 2;
@@ -118,7 +118,7 @@ static int isp_fmcu_start(struct isp_fmcu_ctx_desc *fmcu_ctx)
 	unsigned long base;
 
 	if (!fmcu_ctx) {
-		pr_err("null fmcu_ctx pointer\n");
+		pr_err("fail to get fmcu_ctx pointer\n");
 		return -EFAULT;
 	}
 	pr_debug("start fmcu%d\n", fmcu_ctx->fid);
@@ -130,7 +130,7 @@ static int isp_fmcu_start(struct isp_fmcu_ctx_desc *fmcu_ctx)
 
 	if (fmcu_ctx->cmdq_pos[fmcu_ctx->cur_buf_id]
 	> (fmcu_ctx->cmdq_size / sizeof(uint32_t))) {
-		pr_err("error: fmcu%d cmdq overflow.\n", fmcu_ctx->fid);
+		pr_err("fail to get fmcu%d cmdq, overflow.\n", fmcu_ctx->fid);
 		return -EFAULT;
 	}
 	cmd_num = (int) fmcu_ctx->cmdq_pos[fmcu_ctx->cur_buf_id] / 2;
@@ -181,7 +181,7 @@ static int isp_fmcu_ctx_reset(struct isp_fmcu_ctx_desc *fmcu_ctx)
 	int ret = 0;
 
 	if (!fmcu_ctx) {
-		pr_err("null fmcu_ctx pointer\n");
+		pr_err("fail to get fmcu_ctx pointer\n");
 		return -EFAULT;
 	}
 
@@ -202,7 +202,7 @@ static int isp_fmcu_ctx_init(struct isp_fmcu_ctx_desc *fmcu_ctx)
 	struct camera_buf *ion_buf = NULL;
 
 	if (!fmcu_ctx) {
-		pr_err("null fmcu_ctx pointer\n");
+		pr_err("fail to get fmcu_ctx pointer\n");
 		return -EFAULT;
 	}
 	pr_debug("Enter\n");
@@ -273,7 +273,7 @@ err_alloc_fmcu:
 		if (ion_buf)
 			cambuf_free(ion_buf);
 	}
-	pr_err("fmcu%d init failed.\n", fmcu_ctx->fid);
+	pr_err("fail to init fmcu%d.\n", fmcu_ctx->fid);
 	return ret;
 }
 
@@ -284,7 +284,7 @@ static int isp_fmcu_ctx_deinit(struct isp_fmcu_ctx_desc *fmcu_ctx)
 	struct camera_buf *ion_buf = NULL;
 
 	if (!fmcu_ctx) {
-		pr_err("null fmcu_ctx pointer\n");
+		pr_err("fail to get fmcu_ctx pointer\n");
 		return -EFAULT;
 	}
 
@@ -363,7 +363,7 @@ int put_isp_fmcu_ctx_desc(struct isp_fmcu_ctx_desc *fmcu)
 	}
 
 	if (fmcu != NULL)
-		pr_err("error: ptr %p not matched original.\n", fmcu);
+		pr_err("fail to match original ptr %p\n", fmcu);
 
 	return 0;
 }

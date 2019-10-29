@@ -85,7 +85,7 @@ void isp_unmap_frame(void *param)
 	struct camera_frame *frame;
 
 	if (!param) {
-		pr_err("error: null input ptr.\n");
+		pr_err("fail to get input ptr.\n");
 		return;
 	}
 	frame = (struct camera_frame *)param;
@@ -99,7 +99,7 @@ void isp_ret_out_frame(void *param)
 	struct isp_path_desc *path;
 
 	if (!param) {
-		pr_err("error: null input ptr.\n");
+		pr_err("fail to get input ptr.\n");
 		return;
 	}
 
@@ -127,7 +127,7 @@ void isp_ret_src_frame(void *param)
 	struct isp_pipe_context *pctx;
 
 	if (!param) {
-		pr_err("error: null input ptr.\n");
+		pr_err("fail to get input ptr.\n");
 		return;
 	}
 
@@ -148,13 +148,13 @@ void isp_destroy_reserved_buf(void *param)
 	struct camera_frame *frame;
 
 	if (!param) {
-		pr_err("error: null input ptr.\n");
+		pr_err("fail to get input ptr.\n");
 		return;
 	}
 
 	frame = (struct camera_frame *)param;
 	if (unlikely(frame->is_reserved == 0)) {
-		pr_err("error: frame has no reserved buffer.");
+		pr_err("fail to get frame reserved buffer.\n");
 		return;
 	}
 	/* is_reserved:
@@ -173,7 +173,7 @@ void isp_destroy_statis_buf(void *param)
 	struct camera_frame *frame;
 
 	if (!param) {
-		pr_err("error: null input ptr.\n");
+		pr_err("fail to get input ptr.\n");
 		return;
 	}
 
@@ -252,7 +252,8 @@ static int isp_3dnr_process_frame_previous(struct isp_pipe_context *pctx,
 					   struct camera_frame *pframe)
 {
 	if (!pctx || !pframe) {
-		pr_err("invalid parameter\n");
+		pr_err("fail to get valid parameter pctx %p pframe %p\n",
+			pctx, pframe);
 		return -EINVAL;
 	}
 
@@ -262,7 +263,7 @@ static int isp_3dnr_process_frame_previous(struct isp_pipe_context *pctx,
 	/*  Check Zoom or not */
 	if ((pctx->input_trim.size_x != pctx->nr3_ctx.width) ||
 	    (pctx->input_trim.size_y != pctx->nr3_ctx.height)) {
-		pr_info("frame size changed, reset 3dnr blending\n");
+		pr_debug("frame size changed, reset 3dnr blending\n");
 
 		/*
 		 * 1. reset blending count, so
@@ -312,7 +313,7 @@ static int isp_3dnr_process_frame(struct isp_pipe_context *pctx,
 
 			isp_3dnr_conversion_mv(nr3_ctx);
 		} else {
-			pr_err("binning path mv not ready, set default 0\n");
+			pr_err("fail to get binning path mv, set default 0\n");
 			nr3_ctx->mv.mv_x = 0;
 			nr3_ctx->mv.mv_y = 0;
 			nr3_ctx->mvinfo = NULL;
@@ -342,7 +343,7 @@ static int isp_3dnr_process_frame(struct isp_pipe_context *pctx,
 				isp_3dnr_conversion_mv(nr3_ctx);
 			}
 		} else {
-			pr_err("full path mv not ready, set default 0\n");
+			pr_err("fail to get full path mv, set default 0\n");
 			nr3_ctx->mv.mv_x = 0;
 			nr3_ctx->mv.mv_y = 0;
 		}
@@ -383,7 +384,8 @@ static int isp_ltm_process_frame_previous(struct isp_pipe_context *pctx,
 					  struct camera_frame *pframe)
 {
 	if (!pctx || !pframe) {
-		pr_err("invalid parameter\n");
+		pr_err("fail to get valid parameter pctx %p pframe %p\n",
+			pctx, pframe);
 		return -EINVAL;
 	}
 
@@ -397,7 +399,7 @@ static int isp_ltm_process_frame_previous(struct isp_pipe_context *pctx,
 	/*  Check Zoom or not */
 	if ((pctx->input_trim.size_x != pctx->ltm_ctx.frame_width) ||
 	    (pctx->input_trim.size_y != pctx->ltm_ctx.frame_height)) {
-		pr_info("frame size changed, bypass ltm map\n");
+		pr_debug("frame size changed, bypass ltm map\n");
 
 		/* 1. hists from preview path always on
 		 * 2. map will be off one time in preview case
@@ -426,17 +428,17 @@ static int isp_ltm_process_frame(struct isp_pipe_context *pctx,
 	ret = isp_ltm_gen_frame_config(&pctx->ltm_ctx);
 	if (ret == -1) {
 		pctx->mode_ltm = MODE_LTM_OFF;
-		pr_err("LTM cfg frame err, DISABLE\n");
+		pr_err("fail to cfg LTM frame, DISABLE\n");
 	}
-#if 0
-	pr_info("type[%d], fid[%d], frame_width[%d], frame_height[%d], isp_pipe_ctx_id[%d]\n",
+
+	pr_debug("type[%d], fid[%d], frame_width[%d], frame_height[%d], isp_pipe_ctx_id[%d]\n",
 		pctx->ltm_ctx.type,
 		pctx->ltm_ctx.fid,
 		pctx->ltm_ctx.frame_width,
 		pctx->ltm_ctx.frame_height,
 		pctx->ltm_ctx.isp_pipe_ctx_id);
 
-	pr_info("frame_height_stat[%d], frame_width_stat[%d],\
+	pr_debug("frame_height_stat[%d], frame_width_stat[%d],\
 		tile_num_x_minus[%d], tile_num_y_minus[%d],\
 		tile_width[%d], tile_height[%d]\n",
 		pctx->ltm_ctx.frame_height_stat,
@@ -445,7 +447,7 @@ static int isp_ltm_process_frame(struct isp_pipe_context *pctx,
 		pctx->ltm_ctx.hists.tile_num_y_minus,
 		pctx->ltm_ctx.hists.tile_width,
 		pctx->ltm_ctx.hists.tile_height);
-#endif
+
 	return ret;
 }
 
@@ -519,7 +521,7 @@ static int isp_update_offline_param(
 		cfg.crop.size_x = cfg.src.w;
 		cfg.crop.size_y = cfg.src.h;
 		ret = isp_cfg_ctx_size(pctx, &cfg);
-		pr_info("isp ctx %d update size: %d %d\n",
+		pr_debug("isp ctx %d update size: %d %d\n",
 			pctx->ctx_id, cfg.src.w, cfg.src.h);
 		src_new = &cfg.src;
 	}
@@ -540,7 +542,7 @@ static int isp_update_offline_param(
 			continue;
 		}
 		ret = isp_cfg_path_size(path, &path_trim);
-		pr_info("update isp path%d trim %d %d %d %d\n",
+		pr_debug("update isp path%d trim %d %d %d %d\n",
 			i, path_trim.start_x, path_trim.start_y,
 			path_trim.size_x, path_trim.size_y);
 	}
@@ -563,7 +565,7 @@ static int set_fmcu_slw_queue(
 
 	pframe = camera_dequeue(&pctx->in_queue);
 	if (pframe == NULL) {
-		pr_err("no frame from input queue. cxt:%d\n", pctx->ctx_id);
+		pr_err("fail to get frame from input queue. cxt:%d\n", pctx->ctx_id);
 		return -EINVAL;
 	}
 
@@ -575,7 +577,7 @@ static int set_fmcu_slw_queue(
 
 	ret = camera_enqueue(&pctx->proc_queue, pframe);
 	if (ret) {
-		pr_err("error: input frame queue tmeout.\n");
+		pr_err("fail to input frame queue, timeout.\n");
 		ret = -EINVAL;
 	}
 
@@ -670,11 +672,11 @@ static int proc_slices(struct isp_pipe_context *pctx)
 					&pctx->slice_done,
 					ISP_CONTEXT_TIMEOUT);
 		if (ret == ERESTARTSYS) {
-			pr_err("interrupt when isp wait\n");
+			pr_err("fail to interrupt, when isp wait\n");
 			ret = -EFAULT;
 			goto exit;
 		} else if (ret == 0) {
-			pr_err("error: isp context %d timeout.\n", pctx->ctx_id);
+			pr_err("fail to wait isp context %d, timeout.\n", pctx->ctx_id);
 			ret = -EFAULT;
 			goto exit;
 		}
@@ -846,7 +848,7 @@ int isp_context_unbind(struct isp_pipe_context *pctx)
 	struct isp_pipe_hw_context *pctx_hw;
 
 	if (isp_get_hw_context_id(pctx) < 0) {
-		pr_err("sw ctx % is not binding to any hw ctx\n", pctx->ctx_id);
+		pr_err("fail to binding sw ctx %d to any hw ctx\n", pctx->ctx_id);
 		return -EINVAL;
 	}
 
@@ -926,7 +928,7 @@ static int isp_offline_start_frame(void *ctx)
 		pctx->ch_id, pctx->attach_cam_id);
 
 	if (atomic_read(&pctx->user_cnt) < 1) {
-		pr_err("isp cxt %d is not inited.\n", pctx->ctx_id);
+		pr_err("fail to init isp cxt %d.\n", pctx->ctx_id);
 		return -EINVAL;
 	}
 
@@ -949,7 +951,7 @@ static int isp_offline_start_frame(void *ctx)
 			if (hw_ctx_id >= 0 && hw_ctx_id < ISP_CONTEXT_HW_NUM)
 				pctx_hw = &dev->hw_ctx[hw_ctx_id];
 			else
-				pr_err("should not be here\n");
+				pr_err("fail to get hw_ctx_id\n");
 			break;
 		}
 		pr_info_ratelimited("ctx %d wait for hw. loop %d\n", pctx->ctx_id, loop);
@@ -989,7 +991,7 @@ static int isp_offline_start_frame(void *ctx)
 	} while (loop++ < 500);
 
 	if (ret) {
-		pr_err("error: input frame queue tmeout.\n");
+		pr_err("fail to input frame queue, timeout.\n");
 		ret = -EINVAL;
 		goto inq_overflow;
 	}
@@ -1123,7 +1125,7 @@ static int isp_offline_start_frame(void *ctx)
 
 		if (ret) {
 			trace_isp_irq_cnt(hw_ctx_id);
-			pr_err("fatal: should not be here. hw %d, path %d, store %d\n",
+			pr_err("fail to enqueue, hw %d, path %d, store %d\n",
 					hw_ctx_id, path->spath_id,
 					atomic_read(&path->store_cnt));
 			/* ret frame to original queue */
@@ -1208,7 +1210,7 @@ static int isp_offline_start_frame(void *ctx)
 		for (i = 0; i < pctx->slowmotion_count - 1; i++) {
 			ret = set_fmcu_slw_queue(fmcu, pctx);
 			if (ret)
-				pr_err("unable to set fmcu slw queue\n");
+				pr_err("fail to set fmcu slw queue\n");
 		}
 	}
 
@@ -1216,11 +1218,11 @@ static int isp_offline_start_frame(void *ctx)
 					&pctx->frm_done,
 					ISP_CONTEXT_TIMEOUT);
 	if (ret == ERESTARTSYS) {
-		pr_err("interrupt when isp wait\n");
+		pr_err("fail to interrupt, when isp wait\n");
 		ret = -EFAULT;
 		goto dequeue;
 	} else if (ret == 0) {
-		pr_err("error: isp context %d timeout.\n", pctx->ctx_id);
+		pr_err("fail to wait isp context %d, timeout.\n", pctx->ctx_id);
 		ret = -EFAULT;
 		goto dequeue;
 	}
@@ -1384,9 +1386,9 @@ static int isp_stop_offline_thread(void *param)
 					&pctx->frm_done,
 					ISP_CONTEXT_TIMEOUT);
 	if (ret == -ERESTARTSYS)
-		pr_err("interrupt when isp wait\n");
+		pr_err("fail to interrupt, when isp wait\n");
 	else if (ret == 0)
-		pr_err("error: ctx %d timeout.\n", pctx->ctx_id);
+		pr_err("fail to wait ctx %d, timeout.\n", pctx->ctx_id);
 	else
 		pr_info("wait time %d\n", ret);
 	return 0;
@@ -1462,19 +1464,19 @@ static int isp_context_init(struct isp_pipe_dev *dev)
 	} else {
 		cfg_desc = get_isp_cfg_ctx_desc();
 		if (!cfg_desc || !cfg_desc->ops) {
-			pr_err("error: get isp cfg ctx failed.\n");
+			pr_err("fail to get isp cfg ctx %p.\n", cfg_desc);
 			ret = -EINVAL;
 			goto cfg_null;
 		}
 		cfg_desc->hw_ops = &dev->isp_hw->hw_ops;
-		pr_info("cfg_init start.\n");
+		pr_debug("cfg_init start.\n");
 
 		ret = cfg_desc->ops->ctx_init(cfg_desc);
 		if (ret) {
-			pr_err("error: cfg ctx init failed.\n");
+			pr_err("fail to cfg ctx init.\n");
 			goto ctx_fail;
 		}
-		pr_info("cfg_init done.\n");
+		pr_debug("cfg_init done.\n");
 
 		ret = cfg_desc->ops->hw_init(cfg_desc);
 		if (ret)
@@ -1514,7 +1516,7 @@ static int isp_context_init(struct isp_pipe_dev *dev)
 			if (fmcu && fmcu->ops) {
 				ret = fmcu->ops->ctx_init(fmcu);
 				if (ret) {
-					pr_err("failed to init fmcu ctx\n");
+					pr_err("fail to init fmcu ctx\n");
 					put_isp_fmcu_ctx_desc(fmcu);
 				} else {
 					pctx_hw->fmcu_handle = fmcu;
@@ -1541,7 +1543,7 @@ static int isp_context_init(struct isp_pipe_dev *dev)
 			}
 
 			ISP_HREG_MWR(reg_offset, BIT_1 | BIT_0, reg_bits[i]);
-			pr_info("FMCU%d reg_bits %d for hw_ctx %d\n", fmcu->fid, reg_bits[i], i);
+			pr_debug("FMCU%d reg_bits %d for hw_ctx %d\n", fmcu->fid, reg_bits[i], i);
 
 			val[0] = ISP_HREG_RD(ISP_COMMON_FMCU0_PATH_SEL);
 			val[1] = ISP_HREG_RD(ISP_COMMON_FMCU1_PATH_SEL);
@@ -1552,13 +1554,13 @@ static int isp_context_init(struct isp_pipe_dev *dev)
 					/* force to set different value */
 					reg_offset = ISP_COMMON_FMCU1_PATH_SEL;
 					ISP_HREG_MWR(reg_offset, BIT_1 | BIT_0, reg_bits[(i + 1) & 3]);
-					pr_info("force FMCU1 regbits %d\n", reg_bits[(i + 1) & 3]);
+					pr_debug("force FMCU1 regbits %d\n", reg_bits[(i + 1) & 3]);
 				}
 			}
 		}
 	}
 
-	pr_info("done!\n");
+	pr_debug("done!\n");
 	return 0;
 
 hw_fail:
@@ -1566,7 +1568,6 @@ hw_fail:
 ctx_fail:
 	put_isp_cfg_ctx_desc(cfg_desc);
 cfg_null:
-	pr_err("failed!\n");
 	return ret;
 }
 
@@ -1581,7 +1582,7 @@ static int isp_context_deinit(struct isp_pipe_dev *dev)
 	struct isp_pipe_hw_context *pctx_hw;
 	struct isp_path_desc *path;
 
-	pr_info("enter.\n");
+	pr_debug("enter.\n");
 
 	for (i = 0; i < ISP_CONTEXT_SW_NUM; i++) {
 		pctx  = &dev->ctx[i];
@@ -1624,7 +1625,7 @@ static int isp_context_deinit(struct isp_pipe_dev *dev)
 	isp_put_ltm_share_ctx_desc(dev->ltm_handle);
 	dev->ltm_handle = NULL;
 
-	pr_info("done.\n");
+	pr_debug("done.\n");
 	return ret;
 }
 
@@ -1702,11 +1703,12 @@ static int sprd_isp_proc_frame(void *isp_handle,
 	struct isp_pipe_dev *dev;
 
 	if (!isp_handle || !param) {
-		pr_err("fail to get valid input ptr\n");
+		pr_err("fail to get valid input ptr, isp_handle %p, param %p\n",
+			isp_handle, param);
 		return -EFAULT;
 	}
 	if (ctx_id < 0 || ctx_id >= ISP_CONTEXT_SW_NUM) {
-		pr_err("Illegal. ctx_id %d\n", ctx_id);
+		pr_err("fail to get legal ctx_id %d\n", ctx_id);
 		return -EFAULT;
 	}
 
@@ -1750,7 +1752,8 @@ static int sprd_isp_get_context(void *isp_handle, void *param)
 	struct isp_init_param *init_param;
 
 	if (!isp_handle || !param) {
-		pr_err("fail to get valid input ptr\n");
+		pr_err("fail to get valid input ptr, isp_handle %p, param %p\n",
+			isp_handle, param);
 		return -EFAULT;
 	}
 	pr_debug("start.\n");
@@ -1879,7 +1882,7 @@ static int sprd_isp_put_context(void *isp_handle, int ctx_id)
 		return -EFAULT;
 	}
 	if (ctx_id < 0 || ctx_id >= ISP_CONTEXT_SW_NUM) {
-		pr_err("Illegal. ctx_id %d\n", ctx_id);
+		pr_err("fail to get legal ctx_id %d\n", ctx_id);
 		return -EFAULT;
 	}
 
@@ -1959,7 +1962,7 @@ static int sprd_isp_put_context(void *isp_handle, int ctx_id)
 		pctx->cb_priv_data = NULL;
 		trace_isp_irq_sw_cnt(pctx->ctx_id);
 	} else {
-		pr_err("ctx %d is already release.\n", ctx_id);
+		pr_err("fail to use free ctx %d.\n", ctx_id);
 		atomic_set(&pctx->user_cnt, 0);
 	}
 	memset(pctx, 0, sizeof(struct isp_pipe_context));
@@ -1991,7 +1994,7 @@ static int sprd_isp_get_path(void *isp_handle, int ctx_id, int path_id)
 	pr_debug("start.\n");
 	if (ctx_id < 0 || ctx_id >= ISP_CONTEXT_SW_NUM ||
 		path_id < 0 || path_id >= ISP_SPATH_NUM) {
-		pr_err("Illegal. ctx_id %d, path_id %d\n", ctx_id, path_id);
+		pr_err("fail to get legal ctx_id %d, path_id %d\n", ctx_id, path_id);
 		return -EFAULT;
 	}
 
@@ -2010,7 +2013,7 @@ static int sprd_isp_get_path(void *isp_handle, int ctx_id, int path_id)
 	if (atomic_inc_return(&path->user_cnt) > 1) {
 		mutex_unlock(&dev->path_mutex);
 		atomic_dec(&path->user_cnt);
-		pr_err("path %d of cxt %d is already in use.\n",
+		pr_err("fail to get used path %d of cxt %d.\n",
 			path_id, ctx_id);
 		return -EFAULT;
 	}
@@ -2057,7 +2060,8 @@ static int sprd_isp_put_path(void *isp_handle, int ctx_id, int path_id)
 	pr_debug("start.\n");
 	if (ctx_id < 0 || ctx_id >= ISP_CONTEXT_SW_NUM ||
 		path_id < 0 || path_id >= ISP_SPATH_NUM) {
-		pr_err("Illegal. ctx_id %d, path_id %d\n", ctx_id, path_id);
+		pr_err("fail to get legal ctx_id %d, path_id %d\n",
+			ctx_id, path_id);
 		return -EFAULT;
 	}
 
@@ -2076,7 +2080,7 @@ static int sprd_isp_put_path(void *isp_handle, int ctx_id, int path_id)
 
 	if (atomic_read(&path->user_cnt) == 0) {
 		mutex_unlock(&dev->path_mutex);
-		pr_err("isp cxt %d, path %d is not in use.\n",
+		pr_err("fail to use free isp cxt %d, path %d.\n",
 					ctx_id, path_id);
 		return -EFAULT;
 	}
@@ -2106,16 +2110,17 @@ static int sprd_isp_cfg_path(void *isp_handle,
 	struct camera_frame *pframe = NULL;
 
 	if (!isp_handle || !param) {
-		pr_err("fail to get valid input ptr\n");
+		pr_err("fail to get valid input ptr, isp_handle %p, param %p\n",
+			isp_handle, param);
 		return -EFAULT;
 	}
 
 	if (ctx_id >= ISP_CONTEXT_SW_NUM  || ctx_id < ISP_CONTEXT_P0) {
-		pr_err("error id. ctx %d\n", ctx_id);
+		pr_err("fail to get legal id ctx %d\n", ctx_id);
 		return -EFAULT;
 	}
 	if (path_id >= ISP_SPATH_NUM) {
-			pr_err("error id. path %d\n", path_id);
+			pr_err("fail to use legal id path %d\n", path_id);
 			return -EFAULT;
 	}
 	dev = (struct isp_pipe_dev *)isp_handle;
@@ -2126,7 +2131,7 @@ static int sprd_isp_cfg_path(void *isp_handle,
 		(cfg_cmd != ISP_PATH_CFG_CTX_SIZE) &&
 		(cfg_cmd != ISP_PATH_CFG_CTX_COMPRESSION)) {
 		if (atomic_read(&path->user_cnt) == 0) {
-			pr_err("isp cxt %d, path %d is not in use.\n",
+			pr_err("fail to use free isp cxt %d, path %d.\n",
 					ctx_id, path_id);
 			return -EFAULT;
 		}
@@ -2139,7 +2144,7 @@ static int sprd_isp_cfg_path(void *isp_handle,
 		ret = cambuf_iommu_map(
 				&pframe->buf, CAM_IOMMUDEV_ISP);
 		if (ret) {
-			pr_err("isp buf iommu map failed.\n");
+			pr_err("fail to map isp iommu buf.\n");
 			ret = -EINVAL;
 			goto exit;
 		}
@@ -2181,7 +2186,7 @@ static int sprd_isp_cfg_path(void *isp_handle,
 			ret = camera_enqueue(
 					&path->out_buf_queue, pframe);
 			if (ret) {
-				pr_err("isp path %d output buffer en queue failed.\n",
+				pr_err("fail to enqueue output buffer, path %d.\n",
 						path_id);
 				cambuf_iommu_unmap(&pframe->buf);
 				goto exit;
@@ -2194,7 +2199,7 @@ static int sprd_isp_cfg_path(void *isp_handle,
 		ret = cambuf_iommu_map(
 				&pframe->buf, CAM_IOMMUDEV_ISP);
 		if (ret) {
-			pr_err("isp buf iommu map failed.\n");
+			pr_err("fail to map isp iommu buf.\n");
 			ret = -EINVAL;
 			goto exit;
 		}
@@ -2214,7 +2219,7 @@ static int sprd_isp_cfg_path(void *isp_handle,
 			}
 		}
 		if (i == 2) {
-			pr_err("isp ctx %d nr3 buffers already set.\n", ctx_id);
+			pr_err("fail to set isp ctx %d nr3 buffers.\n", ctx_id);
 			cambuf_iommu_unmap(&pframe->buf);
 			goto exit;
 		}
@@ -2226,7 +2231,7 @@ static int sprd_isp_cfg_path(void *isp_handle,
 			ret = cambuf_iommu_map(
 				 &pframe->buf, CAM_IOMMUDEV_ISP);
 			if (ret) {
-				pr_err("isp buf iommu map failed.\n");
+				pr_err("fail to isp map iommu buf.\n");
 				ret = -EINVAL;
 				goto exit;
 			}
@@ -2248,7 +2253,7 @@ static int sprd_isp_cfg_path(void *isp_handle,
 		ret = camera_enqueue(&pctx->ltm_avail_queue, pframe);
 		if (ret) {
 			cambuf_iommu_unmap(&pframe->buf);
-			pr_err("isp ctx %d ltm mode %d cfg buf failed.\n",
+			pr_err("fail to cfg buf, isp ctx %d ltm mode %d.\n",
 					pctx->ctx_id, pctx->mode_ltm);
 		}
 #endif /* USING_LTM_Q */
@@ -2365,7 +2370,7 @@ static int isp_cfg_statis_buffer(
 			goto exit;
 		}
 
-		pr_info("isp_ iova[%08x] uaddr[%lx] kaddr[%lx] mfd[%d] size[%d] dmabuf[%p] ionbuf[%p]\n",
+		pr_debug("isp_ iova[%08x] uaddr[%lx] kaddr[%lx] mfd[%d] size[%d] dmabuf[%p] ionbuf[%p]\n",
 				(uint32_t)ion_buf_isp->iova[0],
 				ion_buf_isp->addr_vir[0],
 				ion_buf_isp->addr_k[0],
@@ -2421,7 +2426,7 @@ static int isp_init_statis_bufferq(
 	uaddr = ion_buf->addr_vir[0];
 	total_size = ion_buf->size[0];
 
-	pr_info("size %d  addr 0x%lx 0x%lx,  0x%08x\n", (int)total_size,
+	pr_debug("size %d  addr 0x%lx 0x%lx,  0x%08x\n", (int)total_size,
 			kaddr, uaddr, (uint32_t)paddr);
 
 	buf_size = STATIS_ISP_HIST2_BUF_SIZE;
@@ -2458,7 +2463,7 @@ static int isp_init_statis_bufferq(
 			j, uaddr, kaddr, (uint32_t)paddr, stats_type);
 	}
 
-	pr_info("done.\n");
+	pr_debug("done.\n");
 	return ret;
 }
 
@@ -2502,7 +2507,7 @@ static int isp_cycle_hist2_frame(
 		return -EFAULT;
 	}
 	if (ctx_id < 0 || ctx_id >= ISP_CONTEXT_SW_NUM) {
-		pr_err("Illegal. ctx_id %d\n", ctx_id);
+		pr_err("fail to get legal ctx_id %d\n", ctx_id);
 		return -EFAULT;
 	}
 
@@ -2515,7 +2520,7 @@ static int isp_cycle_hist2_frame(
 	frame = camera_dequeue(io_desc->q);
 
 	if (frame == NULL) {
-		pr_err("outputq[%p] q_cnt[%d] q_max[%d]\n",
+		pr_err("fail to deq, outputq[%p] q_cnt[%d] q_max[%d]\n",
 			(void*)io_desc->q,
 			io_desc->q->cnt,
 			io_desc->q->max);
@@ -2525,9 +2530,9 @@ static int isp_cycle_hist2_frame(
 	/* give hist statis frame_id */
 	frame->fid = io_desc->fid;
 	if (camera_enqueue(&pctx->hist2_result_queue, frame) < 0) {
-		pr_err("ctx_id[%d] overflow \n",ctx_id);
+		pr_err("fail to enq, ctx_id[%d] overflow \n",ctx_id);
 		if (camera_enqueue(io_desc->q, frame) < 0)
-			pr_err("ctx_id[%d] fatal\n",ctx_id);
+			pr_err("fail to enq, ctx_id[%d] fatal\n",ctx_id);
 		return -EPERM;
 	}
 
@@ -2541,7 +2546,7 @@ static int sprd_isp_cfg_sec(struct isp_pipe_dev *dev, void *param)
 
 	dev->sec_mode =  *sec_mode;
 
-	pr_info("camca: isp sec_mode=%d\n", dev->sec_mode);
+	pr_debug("camca: isp sec_mode=%d\n", dev->sec_mode);
 
 	return 0;
 }
@@ -2576,7 +2581,7 @@ static int sprd_isp_ioctl(void *isp_handle, int ctx_id,
 	    ret = sprd_isp_cfg_sec(dev, param);
 		break;
 	default:
-		pr_err("error: unknown cmd: %d\n", cmd);
+		pr_err("fail to get known cmd: %d\n", cmd);
 		ret = -EFAULT;
 		break;
 	}
@@ -2597,11 +2602,12 @@ static int sprd_isp_cfg_blkparam(
 	struct cam_hw_core_ops *ops = NULL;
 
 	if (!isp_handle || !param) {
-		pr_err("fail to get valid input ptr\n");
+		pr_err("fail to get valid input ptr, isp_handle %p, param %p\n",
+			isp_handle, param);
 		return -EFAULT;
 	}
 	if (ctx_id < 0 || ctx_id >= ISP_CONTEXT_SW_NUM) {
-		pr_err("Illegal. ctx_id %d\n", ctx_id);
+		pr_err("fail to get legal ctx_id %d\n", ctx_id);
 		return -EINVAL;
 	}
 
@@ -2610,7 +2616,7 @@ static int sprd_isp_cfg_blkparam(
 	pctx = &dev->ctx[ctx_id];
 	io_param = (struct isp_io_param *)param;
 	if (atomic_read(&pctx->user_cnt) < 1) {
-		pr_err("isp ctx %d not enable.\n", ctx_id);
+		pr_err("fail to use unable isp ctx %d.\n", ctx_id);
 		return -EINVAL;
 	}
 
@@ -2657,11 +2663,12 @@ static int sprd_isp_set_sb(void *isp_handle, int ctx_id,
 	struct isp_pipe_context *pctx;
 
 	if (!isp_handle || !cb || !priv_data) {
-		pr_err("fail to get valid input ptr\n");
+		pr_err("fail to get valid input ptr, isp_handle %p, callback %p, priv_data %p\n",
+			isp_handle, cb, priv_data);
 		return -EFAULT;
 	}
 	if (ctx_id < 0 || ctx_id >= ISP_CONTEXT_SW_NUM) {
-		pr_err("Illegal. ctx_id %d\n", ctx_id);
+		pr_err("fail to get legal ctx_id %d\n", ctx_id);
 		return -EFAULT;
 	}
 
@@ -2686,7 +2693,8 @@ static int sprd_isp_dev_open(void *isp_handle, void *param)
 
 	pr_info("enter.\n");
 	if (!isp_handle || !param) {
-		pr_err("fail to get valid input ptr\n");
+		pr_err("fail to get valid input ptr, isp_handle %p, param %p\n",
+			isp_handle, param);
 		return -EFAULT;
 	}
 	dev = (struct isp_pipe_dev *)isp_handle;
@@ -2724,7 +2732,7 @@ static int sprd_isp_dev_open(void *isp_handle, void *param)
 		ret = isp_hw_start(hw, dev);
 		ret = isp_context_init(dev);
 		if (ret) {
-			pr_err("error: isp context init failed.\n");
+			pr_err("fail to init isp context.\n");
 			ret = -EFAULT;
 			goto err_init;
 		}
@@ -2775,7 +2783,8 @@ static int sprd_isp_dev_reset(void *isp_handle, void *param)
 	int ret = 0;
 
 	if (!isp_handle || !param) {
-		pr_err("fail to get valid input ptr\n");
+		pr_err("fail to get valid input ptr, isp_handle %p, param %p\n",
+			isp_handle, param);
 		return -EFAULT;
 	}
 	return ret;
@@ -2850,7 +2859,7 @@ int put_isp_pipe_dev(void *isp_handle)
 
 	if (dev != s_isp_dev) {
 		mutex_unlock(&isp_pipe_dev_mutex);
-		pr_err("error: mismatched dev: %p, %p\n",
+		pr_err("fail to match dev: %p, %p\n",
 					dev, s_isp_dev);
 		return -EINVAL;
 	}
@@ -2858,7 +2867,7 @@ int put_isp_pipe_dev(void *isp_handle)
 	user_cnt = atomic_read(&dev->user_cnt);
 	en_cnt = atomic_read(&dev->enable);
 	if (user_cnt != (en_cnt + 1))
-		pr_err("error: mismatched %d %d\n",
+		pr_err("fail to match %d %d\n",
 				user_cnt, en_cnt);
 
 	if (atomic_dec_return(&dev->user_cnt) == 0) {
