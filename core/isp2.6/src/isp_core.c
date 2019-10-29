@@ -846,6 +846,7 @@ int isp_context_unbind(struct isp_pipe_context *pctx)
 	int i, cnt;
 	struct isp_pipe_dev *dev = NULL;
 	struct isp_pipe_hw_context *pctx_hw;
+	unsigned long flag = 0;
 
 	if (isp_get_hw_context_id(pctx) < 0) {
 		pr_err("fail to binding sw ctx %d to any hw ctx\n", pctx->ctx_id);
@@ -853,7 +854,7 @@ int isp_context_unbind(struct isp_pipe_context *pctx)
 	}
 
 	dev = pctx->dev;
-	spin_lock(&dev->ctx_lock);
+	spin_lock_irqsave(&dev->ctx_lock, flag);
 
 	for (i = 0; i < ISP_CONTEXT_HW_NUM; i++) {
 		pctx_hw = &dev->hw_ctx[i];
@@ -876,13 +877,13 @@ int isp_context_unbind(struct isp_pipe_context *pctx)
 		} else {
 			pr_debug("should not be here: sw id=%d, hw id=%d, cnt=%d\n",
 				pctx->ctx_id, pctx_hw->hw_ctx_id, cnt);
-			spin_unlock(&dev->ctx_lock);
+			spin_unlock_irqrestore(&dev->ctx_lock, flag);
 			return -EINVAL;
 		}
 	}
 
 exit:
-	spin_unlock(&dev->ctx_lock);
+	spin_unlock_irqrestore(&dev->ctx_lock, flag);
 	return 0;
 }
 
