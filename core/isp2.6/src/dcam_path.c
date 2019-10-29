@@ -114,7 +114,8 @@ int dcam_cfg_path_base(void *dcam_handle,
 	struct dcam_path_cfg_param *ch_desc;
 
 	if (!dcam_handle || !path || !param) {
-		pr_err("error input ptr.\n");
+		pr_err("fail to get valid param, dcam_handle=%p, path=%p, param=%p.\n",
+			dcam_handle, path, param);
 		return -EFAULT;
 	}
 	dev = (struct dcam_pipe_dev *)dcam_handle;
@@ -153,7 +154,7 @@ int dcam_cfg_path_base(void *dcam_handle,
 		break;
 
 	default:
-		pr_err("unknown path %d\n", path->path_id);
+		pr_err("fail to get known path %d\n", path->path_id);
 		ret = -EFAULT;
 		break;
 	}
@@ -174,13 +175,14 @@ int dcam_cfg_path_size(void *dcam_handle,
 	uint32_t dcam_max_w = 0, dcam_max_h = 0;
 
 	if (!dcam_handle || !path || !param) {
-		pr_err("error input ptr.\n");
+		pr_err("fail to get valid param, dcam_handle=%p, path=%p, param=%p.\n",
+			dcam_handle, path, param);
 		return -EFAULT;
 	}
 	dev = (struct dcam_pipe_dev *)dcam_handle;
 	hw = dev->hw;
 	if (!hw) {
-		pr_err("hw ptr is NULL.\n");
+		pr_err("fail to get a valid hw, hw ptr is NULL.\n");
 		return -EFAULT;
 	}
 
@@ -209,7 +211,7 @@ int dcam_cfg_path_size(void *dcam_handle,
 				path->in_trim.size_y) > path->in_size.h);
 		if (invalid) {
 			spin_unlock(&path->size_lock);
-			pr_err("error size:%d %d, trim %d %d %d %d\n",
+			pr_err("fail to get valid size, size:%d %d, trim %d %d %d %d\n",
 				path->in_size.w, path->in_size.h,
 				path->in_trim.start_x, path->in_trim.start_y,
 				path->in_trim.size_x,
@@ -286,7 +288,7 @@ int dcam_cfg_path_size(void *dcam_handle,
 
 		if (invalid) {
 			spin_unlock(&path->size_lock);
-			pr_err("error size:%d %d, trim %d %d %d %d, dst %d %d\n",
+			pr_err("fail to get valid size, size:%d %d, trim %d %d %d %d, dst %d %d\n",
 				path->in_size.w, path->in_size.h,
 				path->in_trim.start_x, path->in_trim.start_y,
 				path->in_trim.size_x, path->in_trim.size_y,
@@ -346,7 +348,7 @@ int dcam_cfg_path_size(void *dcam_handle,
 		break;
 
 	default:
-		pr_err("unknown path %d\n", path->path_id);
+		pr_err("fail to get known path %d\n", path->path_id);
 		ret = -EFAULT;
 		break;
 	}
@@ -408,7 +410,7 @@ dcam_path_cycle_frame(struct dcam_pipe_dev *dev, struct dcam_path_desc *path)
 		else
 			camera_enqueue(&path->out_buf_queue, frame);
 
-		pr_err("DCAM%u %s output queue overflow\n",
+		pr_err("fail to enqueue frame to result_queue, DCAM%u %s output queue overflow\n",
 		       dev->idx, to_path_name(path->path_id));
 		return ERR_PTR(-EPERM);
 	}

@@ -117,7 +117,7 @@ int dcam_if_parse_dt(struct platform_device *pdev,
 
 	dn = pdev->dev.of_node;
 	if (unlikely(!dn)) {
-		pr_err("invalid device node\n");
+		pr_err("fail to get a valid device node\n");
 		return -EINVAL;
 	}
 
@@ -148,7 +148,7 @@ int dcam_if_parse_dt(struct platform_device *pdev,
 	}
 
 	if (count > DCAM_ID_MAX) {
-		pr_err("unsupported dcam count: %u\n", count);
+		pr_err("fail to get a valid dcam count, count: %u\n", count);
 		return -EINVAL;
 	}
 
@@ -214,22 +214,22 @@ int dcam_if_parse_dt(struct platform_device *pdev,
 	/* read dcam clk */
 	soc_dcam->core_eb = of_clk_get_by_name(dn, "dcam_eb");
 	if (IS_ERR_OR_NULL(soc_dcam->core_eb)) {
-		pr_err("read clk fail, dcam_eb\n");
+		pr_err("fail to read clk, dcam_eb\n");
 		goto err_iounmap;
 	}
 	soc_dcam->axi_eb = of_clk_get_by_name(dn, "dcam_axi_eb");
 	if (IS_ERR_OR_NULL(soc_dcam->axi_eb)) {
-		pr_err("read clk fail, dcam_axi_eb\n");
+		pr_err("fail to read clk, dcam_axi_eb\n");
 		goto err_iounmap;
 	}
 	soc_dcam->clk = of_clk_get_by_name(dn, "dcam_clk");
 	if (IS_ERR_OR_NULL(soc_dcam->clk)) {
-		pr_err("read clk fail, dcam_clk\n");
+		pr_err("fail to read clk, dcam_clk\n");
 		goto err_iounmap;
 	}
 	soc_dcam->clk_parent = of_clk_get_by_name(dn, "dcam_clk_parent");
 	if (IS_ERR_OR_NULL(soc_dcam->clk_parent)) {
-		pr_err("read clk fail, dcam_clk_parent\n");
+		pr_err("fail to read clk, dcam_clk_parent\n");
 		goto err_iounmap;
 	}
 	soc_dcam->clk_default = clk_get_parent(soc_dcam->clk);
@@ -251,13 +251,13 @@ int dcam_if_parse_dt(struct platform_device *pdev,
 	if (hw_info->prj_id != SHARKL3) {
 		soc_dcam->axi_clk = of_clk_get_by_name(dn, "dcam_axi_clk");
 		if (IS_ERR_OR_NULL(soc_dcam->clk)) {
-			pr_err("read clk fail, axi_clk\n");
+			pr_err("fail to read clk, axi_clk\n");
 			goto err_iounmap;
 		}
 		soc_dcam->axi_clk_parent =
 			of_clk_get_by_name(dn, "dcam_axi_clk_parent");
 		if (IS_ERR_OR_NULL(soc_dcam->clk_parent)) {
-			pr_err("read clk fail, axi_clk_parent\n");
+			pr_err("fail to read clk, axi_clk_parent\n");
 			goto err_iounmap;
 		}
 		soc_dcam->axi_clk_default = clk_get_parent(soc_dcam->axi_clk);

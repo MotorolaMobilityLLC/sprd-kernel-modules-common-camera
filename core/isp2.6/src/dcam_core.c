@@ -107,7 +107,7 @@ void dcam_ret_src_frame(void *param)
 	struct dcam_pipe_dev *dev;
 
 	if (!param) {
-		pr_err("error: null input ptr.\n");
+		pr_err("fail to get valid param.\n");
 		return;
 	}
 
@@ -129,7 +129,7 @@ void dcam_ret_out_frame(void *param)
 	struct dcam_path_desc *path;
 
 	if (!param) {
-		pr_err("error: null input ptr.\n");
+		pr_err("fail to get valid param.\n");
 		return;
 	}
 
@@ -151,14 +151,14 @@ void dcam_destroy_reserved_buf(void *param)
 	struct camera_frame *frame;
 
 	if (!param) {
-		pr_err("error: null input ptr.\n");
+		pr_err("fail to get valid param.\n");
 		return;
 	}
 
 	frame = (struct camera_frame *)param;
 
 	if (unlikely(frame->is_reserved == 0)) {
-		pr_err("error: frame has no reserved buffer.");
+		pr_err("fail to check frame type if reserved.\n");
 		return;
 	}
 	/* is_reserved:
@@ -177,7 +177,7 @@ void dcam_destroy_statis_buf(void *param)
 	struct camera_frame *frame;
 
 	if (!param) {
-		pr_err("error: null input ptr.\n");
+		pr_err("fail to get valid param.\n");
 		return;
 	}
 
@@ -510,7 +510,7 @@ static int dcam_cfg_statis_buffer(
 	} else if (atomic_read(&dev->state) == STATE_RUNNING) {
 		path_id = statis_type_to_path_id(input->type);
 		if (path_id < 0) {
-			pr_err("invalid statis type: %d\n", input->type);
+			pr_err("fail to get a valid statis type: %d\n", input->type);
 			ret = -EINVAL;
 			goto exit;
 		}
@@ -614,11 +614,11 @@ static int dcam_offline_start_slices(void *param)
 					&dev->slice_done,
 					DCAM_OFFLINE_TIMEOUT);
 	if (ret == ERESTARTSYS) {
-		pr_err("interrupt when dcam wait\n");
+		pr_err("fail to wait as interrupted.\n");
 		ret = -EFAULT;
 		goto wait_err;
 	} else if (ret == 0) {
-		pr_err("error: dcam%d offline timeout.\n", dev->idx);
+		pr_err("fail to wait as dcam%d offline timeout.\n", dev->idx);
 		ret = -EFAULT;
 		goto wait_err;
 	}
@@ -632,7 +632,7 @@ static int dcam_offline_start_slices(void *param)
 		mdelay(1);
 	} while (loop++ < 500);
 	if (ret) {
-		pr_err("error: input frame queue tmeout.\n");
+		pr_err("fail to enqueue frame as timeout.\n");
 		ret = 0;
 		goto inq_overflow;
 	}
@@ -741,11 +741,11 @@ static int dcam_offline_start_slices(void *param)
 						&dev->slice_done,
 						DCAM_OFFLINE_TIMEOUT);
 		if (ret == ERESTARTSYS) {
-			pr_err("interrupt when dcam wait\n");
+			pr_err("fail to wait as interrupted\n");
 			ret = -EFAULT;
 			goto dequeue;
 		} else if (ret == 0) {
-			pr_err("error: dcam%d offline timeout.\n", dev->idx);
+			pr_err("fail to wait as dcam%d offline timeout.\n", dev->idx);
 			ret = -EFAULT;
 			goto dequeue;
 		}
@@ -810,7 +810,7 @@ static int dcam_offline_start_frame(void *param)
 					&dev->frm_done,
 					DCAM_OFFLINE_TIMEOUT);
 	if (ret == ERESTARTSYS) {
-		pr_err("interrupt when dcam wait\n");
+		pr_err("fail to wait as interrupted.\n");
 		ret = -EFAULT;
 		pframe = camera_dequeue(&dev->in_queue);
 		if (pframe == NULL) {
@@ -819,7 +819,7 @@ static int dcam_offline_start_frame(void *param)
 		}
 		goto wait_err;
 	} else if (ret == 0) {
-		pr_err("error: dcam%d offline timeout.\n", dev->idx);
+		pr_err("fail to wait as dcam%d offline timeout.\n", dev->idx);
 		ret = -EFAULT;
 		pframe = camera_dequeue(&dev->in_queue);
 		if (pframe == NULL) {
@@ -865,7 +865,7 @@ static int dcam_offline_start_frame(void *param)
 	} while (loop++ < 500);
 
 	if (ret) {
-		pr_err("error: input frame queue tmeout.\n");
+		pr_err("fail to enqueue frame as timeout.\n");
 		ret = 0;
 		goto inq_overflow;
 	}
@@ -999,8 +999,7 @@ static int dcam_offline_thread_loop(void *arg)
 			pr_debug("thread com done.\n");
 
 			if (thrd->proc_func(dev)) {
-				pr_err(
-					"fail to start dcam pipe to proc. exit thread\n");
+				pr_err("fail to start dcam pipe to proc. exit thread\n");
 				dev->dcam_cb_func(
 					DCAM_CB_DEV_ERR, dev,
 					dev->cb_priv_data);
@@ -1123,19 +1122,19 @@ int dcam_if_set_sync_enable(void *handle, int path_id, int enable)
 	int ret = 0;
 
 	if (unlikely(!handle)) {
-		pr_err("invalid param handle\n");
+		pr_err("fail to get valid param.\n");
 		return -EINVAL;
 	}
 	dev = (struct dcam_pipe_dev *)handle;
 
 	if (unlikely(!is_path_id(path_id))) {
-		pr_err("invalid param path_id: %d\n", path_id);
+		pr_err("fail to get valid param path_id: %d\n", path_id);
 		return -EINVAL;
 	}
 
 	ret = atomic_read(&dev->state);
 	if (unlikely(ret != STATE_INIT && ret != STATE_IDLE)) {
-		pr_err("cannot enable DCAM%u frame sync in %d state\n",
+		pr_err("fail to get a valid ret, DCAM%u frame sync in %d state\n",
 			dev->idx, ret);
 		return -EINVAL;
 	}
@@ -1176,7 +1175,7 @@ int dcam_if_release_sync(struct dcam_frame_synchronizer *sync,
 	bool ignore = false;
 
 	if (unlikely(!sync || !frame)) {
-		pr_err("invalid param\n");
+		pr_err("fail to get valid param. sync=%p, frame=%p\n", sync, frame);
 		return -EINVAL;
 	}
 
@@ -1189,7 +1188,7 @@ int dcam_if_release_sync(struct dcam_frame_synchronizer *sync,
 	}
 
 	if (unlikely(!is_path_id(path_id))) {
-		pr_err("DCAM%u can't find path id, fid %u, sync %u\n",
+		pr_err("fail to get a valid path_id, DCAM%u can't find path id, fid %u, sync %u\n",
 		       dev->idx, frame->fid, sync->index);
 		return -EINVAL;
 	}
@@ -1229,7 +1228,7 @@ struct dcam_sync_helper *dcam_get_sync_helper(struct dcam_pipe_dev *dev)
 	bool running_low = false;
 
 	if (unlikely(!dev)) {
-		pr_err("invalid param dev\n");
+		pr_err("fail to get valid param.\n");
 		return NULL;
 	}
 
@@ -1268,7 +1267,7 @@ void dcam_put_sync_helper(struct dcam_pipe_dev *dev,
 	unsigned long flags = 0;
 
 	if (unlikely(!dev)) {
-		pr_err("invalid param dev\n");
+		pr_err("fail to get valid param.\n");
 		return;
 	}
 
@@ -1284,12 +1283,11 @@ static int sprd_dcam_get_path(
 	struct dcam_path_desc *path = NULL;
 
 	if (!dcam_handle) {
-		pr_err("error input param: %p\n",
-				dcam_handle);
+		pr_err("fail to get valid param, dcam_handle=%p\n", dcam_handle);
 		return -EFAULT;
 	}
 	if (path_id < DCAM_PATH_FULL || path_id >= DCAM_PATH_MAX) {
-		pr_err("error dcam path id %d\n", path_id);
+		pr_err("fail to get a valid path_id, path id %d\n", path_id);
 		return -EFAULT;
 	}
 
@@ -1297,7 +1295,7 @@ static int sprd_dcam_get_path(
 	path = &dev->path[path_id];
 	if (atomic_inc_return(&path->user_cnt) > 1) {
 		atomic_dec(&path->user_cnt);
-		pr_err("error: dcam%d path %d in use.\n", dev->idx, path_id);
+		pr_err("fail to get a valid param, dcam%d path %d in use.\n", dev->idx, path_id);
 		return -EFAULT;
 	}
 
@@ -1319,12 +1317,12 @@ static int sprd_dcam_put_path(
 	struct dcam_path_desc *path = NULL;
 
 	if (!dcam_handle) {
-		pr_err("error input param: %p\n",
+		pr_err("fail to get a valid param,  dcam_handle=%p\n",
 				dcam_handle);
 		return -EFAULT;
 	}
 	if (path_id < DCAM_PATH_FULL || path_id >= DCAM_PATH_MAX) {
-		pr_err("error dcam path id %d\n", path_id);
+		pr_err("fail to get a valid param, path id %d\n", path_id);
 		return -EFAULT;
 	}
 
@@ -1332,7 +1330,7 @@ static int sprd_dcam_put_path(
 	path = &dev->path[path_id];
 
 	if (atomic_read(&path->user_cnt) == 0) {
-		pr_err("dcam%d path %d is not in use.\n",
+		pr_err("fail to get a valid user_cnt, dcam%d path %d is not in use.\n",
 					dev->idx, path_id);
 		return -EFAULT;
 	}
@@ -1385,12 +1383,12 @@ static int sprd_dcam_cfg_path(
 	static const char *tb_src[] = {"(4c)raw", "bin-sum"}; /* for log */
 
 	if (!dcam_handle || !param) {
-		pr_err("error input param: %p, %p\n",
+		pr_err("fail to get a valid param, input param: %p, %p\n",
 				dcam_handle, param);
 		return -EFAULT;
 	}
 	if (path_id < DCAM_PATH_FULL || path_id >= DCAM_PATH_MAX) {
-		pr_err("error dcam path id %d\n", path_id);
+		pr_err("fail to get a valid param, dcam path id %d\n", path_id);
 		return -EFAULT;
 	}
 
@@ -1399,7 +1397,7 @@ static int sprd_dcam_cfg_path(
 	path = &dev->path[path_id];
 
 	if (atomic_read(&path->user_cnt) == 0) {
-		pr_err("dcam%d, path %d is not in use.\n",
+		pr_err("fail to get a valid user_cnt, dcam%d, path %d is not in use.\n",
 			dev->idx, path_id);
 		return -EFAULT;
 	}
@@ -1427,7 +1425,7 @@ static int sprd_dcam_cfg_path(
 			pframe->priv_data = path;
 			ret = camera_enqueue(&path->reserved_buf_queue, pframe);
 			if (ret) {
-				pr_err("dcam path %d reserve buffer en queue failed\n",
+				pr_err("fail to enqueue frame of dcam path %d reserve buffer.\n",
 					path_id);
 				cambuf_iommu_unmap(&pframe->buf);
 				goto exit;
@@ -1453,7 +1451,7 @@ static int sprd_dcam_cfg_path(
 			pframe->priv_data = dev;
 			ret = camera_enqueue(&path->out_buf_queue, pframe);
 			if (ret) {
-				pr_err("dcam path %d output buffer en queue failed\n",
+				pr_err("fail to enqueue frame of dcam path %d\n",
 					path_id);
 				cambuf_iommu_unmap(&pframe->buf);
 				goto exit;
@@ -1503,7 +1501,7 @@ static int dcam_get_path_rect(struct dcam_pipe_dev *dev, void *param)
 
 
 	if ((!dev) || (!param)) {
-		pr_err("input param error\n");
+		pr_err("fail to get valid param, dev=%p, param=%p\n", dev, param);
 		return -EINVAL;
 	}
 	path = &dev->path[DCAM_PATH_BIN];
@@ -1512,7 +1510,7 @@ static int dcam_get_path_rect(struct dcam_pipe_dev *dev, void *param)
 	p->trim_valid_rect.w = path->in_trim.size_x;
 	p->trim_valid_rect.h = path->in_trim.size_y;
 	if (!dev->blk_dcam_pm) {
-		pr_err("pm struct error\n");
+		pr_err("fail to get a valid param\n");
 		return -EINVAL;
 	}
 	aem_win = &(dev->blk_dcam_pm->aem.win_info);
@@ -1570,7 +1568,7 @@ static int sprd_dcam_proc_frame(
 	struct camera_frame *pframe;
 
 	if (!dcam_handle || !param) {
-		pr_err("fail to get valid input ptr\n");
+		pr_err("fail to get a valid param, dcam_handle=%p, param=%p\n", dcam_handle, param);
 		return -EFAULT;
 	}
 	dev = (struct dcam_pipe_dev *)dcam_handle;
@@ -1589,7 +1587,7 @@ static int sprd_dcam_proc_frame(
 	if (ret == 0)
 		complete(&dev->thread.thread_com);
 	else
-		pr_err("enqueue to dev->in_queue fail, ret = %d\n", ret);
+		pr_err("fail to enqueue frame to dev->in_queue, ret = %d\n", ret);
 
 	return ret;
 }
@@ -1611,7 +1609,7 @@ static int sprd_dcam_ioctrl(void *dcam_handle,
 	dev = (struct dcam_pipe_dev *)dcam_handle;
 
 	if (unlikely(atomic_read(&dev->state) == STATE_INIT)) {
-		pr_err("DCAM%d is not initialized\n", dev->idx);
+		pr_err("fail to get valid dev state of DCAM%d\n", dev->idx);
 		return -EINVAL;
 	}
 
@@ -1690,7 +1688,7 @@ static int sprd_dcam_ioctrl(void *dcam_handle,
 		ret = dcam_get_path_rect(dev, param);
 		break;
 	default:
-		pr_err("error: unknown cmd: %d\n", cmd);
+		pr_err("fail to get a known cmd: %d\n", cmd);
 		ret = -EFAULT;
 		break;
 	}
@@ -1710,7 +1708,7 @@ static int sprd_dcam_cfg_param(void *dcam_handle, void *param)
 	struct cam_hw_core_ops *ops = NULL;
 
 	if (!dcam_handle || !param) {
-		pr_err("fail to get valid input ptr\n");
+		pr_err("fail to get valid param, dcam_handle=%p, param=%p\n", dcam_handle, param);
 		return -EFAULT;
 	}
 
@@ -1731,7 +1729,7 @@ static int sprd_dcam_cfg_param(void *dcam_handle, void *param)
 		cfg_entry->sub_block == io_param->sub_block) {
 		cfg_fun_ptr = cfg_entry->cfg_func;
 	} else { /* if not, some error */
-		pr_err("sub_block = %d, error\n", io_param->sub_block);
+		pr_err("fail to check param, sub_block = %d, error\n", io_param->sub_block);
 	}
 	if (cfg_fun_ptr == NULL) {
 		pr_debug("block %d not supported.\n", io_param->sub_block);
@@ -1767,7 +1765,8 @@ static int sprd_dcam_set_cb(void *dcam_handle,
 	struct dcam_pipe_dev *dev = NULL;
 
 	if (!dcam_handle || !cb || !priv_data) {
-		pr_err("fail to get valid input ptr\n");
+		pr_err("fail to get valid param, dcam_handle=%p, cb=%p, priv_data=%p\n",
+			dcam_handle, cb, priv_data);
 		return -EFAULT;
 	}
 
@@ -1789,7 +1788,7 @@ static int sprd_dcam_dev_start(void *dcam_handle, int online)
 	struct cam_hw_info *hw = NULL;
 
 	if (!dcam_handle) {
-		pr_err("invalid dcam_pipe_dev\n");
+		pr_err("fail to get valid dcam_pipe_dev\n");
 		return -EFAULT;
 	}
 
@@ -1811,7 +1810,7 @@ static int sprd_dcam_dev_start(void *dcam_handle, int online)
 
 	ret = atomic_read(&dev->state);
 	if (unlikely(ret != STATE_IDLE)) {
-		pr_err("starting DCAM%u in state %d\n", dev->idx, ret);
+		pr_err("fail to get a valid state, starting DCAM%u in state %d\n", dev->idx, ret);
 		return -EINVAL;
 	}
 
@@ -1820,7 +1819,7 @@ static int sprd_dcam_dev_start(void *dcam_handle, int online)
 
 	ret = dcam_init_sync_helper(dev);
 	if (ret < 0) {
-		pr_err("DCAM%u fail to init sync helper, ret: %d\n",
+		pr_err("fail to init DCAM%u sync helper, ret: %d\n",
 			dev->idx, ret);
 		return ret;
 	}
@@ -1863,7 +1862,7 @@ static int sprd_dcam_dev_start(void *dcam_handle, int online)
 
 	ret = hw->hw_ops.core_ops.mipi_cap_set(dev);
 	if (ret < 0) {
-		pr_err("DCAM%u fail to set mipi cap\n", dev->idx);
+		pr_err("fail to set DCAM%u mipi cap\n", dev->idx);
 		return ret;
 	}
 
@@ -1876,7 +1875,7 @@ static int sprd_dcam_dev_start(void *dcam_handle, int online)
 
 		ret = dcam_path_set_store_frm(dev, path, helper);
 		if (ret < 0) {
-			pr_err("DCAM%u %s fail to set frame, ret %d\n",
+			pr_err("fail to set frame for DCAM%u %s , ret %d\n",
 			       dev->idx, to_path_name(path->path_id), ret);
 			return ret;
 		}
@@ -1986,7 +1985,7 @@ static int sprd_dcam_dev_open(void *dcam_handle)
 
 	ret = atomic_read(&dev->state);
 	if (unlikely(ret != STATE_INIT)) {
-		pr_err("DCAM%u already initialized, state=%d\n",
+		pr_err("fail to get a valid dev state, DCAM%u, state=%d\n",
 			dev->idx, ret);
 		return -EINVAL;
 	}
@@ -2005,7 +2004,7 @@ static int sprd_dcam_dev_open(void *dcam_handle)
 			path->rds_coeff_buf = kzalloc(path->rds_coeff_size, GFP_KERNEL);
 			if (path->rds_coeff_buf == NULL) {
 				path->rds_coeff_size = 0;
-				pr_err("alloc rds coeff buffer failed.\n");
+				pr_err("fail to alloc rds coeff buffer.\n");
 				ret = -ENOMEM;
 				goto exit;
 			}
@@ -2015,7 +2014,7 @@ static int sprd_dcam_dev_open(void *dcam_handle)
 	dev->blk_dcam_pm =
 		kzalloc(sizeof(struct dcam_dev_param), GFP_KERNEL);
 	if (dev->blk_dcam_pm == NULL) {
-		pr_err("alloc dcam blk param failed.\n");
+		pr_err("fail to alloc dcam blk param.\n");
 		ret = -ENOMEM;
 		goto exit;
 	}
@@ -2102,7 +2101,7 @@ int sprd_dcam_dev_close(void *dcam_handle)
 	dev = (struct dcam_pipe_dev *)dcam_handle;
 
 	if (unlikely(atomic_read(&dev->state) == STATE_INIT)) {
-		pr_err("DCAM%u already closed\n", dev->idx);
+		pr_err("fail to get dev state, DCAM%u already closed\n", dev->idx);
 		return -EINVAL;
 	}
 
@@ -2179,25 +2178,25 @@ void *dcam_if_get_dev(uint32_t idx, struct cam_hw_info *hw)
 	struct dcam_pipe_dev *dev = NULL;
 
 	if (idx >= DCAM_ID_MAX) {
-		pr_err("invalid DCAM index: %u\n", idx);
+		pr_err("fail to get valid DCAM index: %u\n", idx);
 		return NULL;
 	}
 
 	if (unlikely(!hw)) {
-		pr_err("invalid param hw\n");
+		pr_err("fail to get valid param hw\n");
 		return NULL;
 	}
 
 	mutex_lock(&s_dcam_dev_mutex);
 	if (s_dcam_dev[idx]) {
-		pr_err("dcam %d already in use. pipe dev: %p\n",
+		pr_err("fail to get valid dcam dev, dcam %d already in use. pipe dev: %p\n",
 			idx, s_dcam_dev[idx]);
 		goto exit;
 	}
 
 	dev = vzalloc(sizeof(struct dcam_pipe_dev));
 	if (!dev) {
-		pr_err("no memory for DCAM%u\n", idx);
+		pr_err("fail to alloc memory for DCAM%u\n", idx);
 		goto exit;
 	}
 
@@ -2240,13 +2239,13 @@ int dcam_if_put_dev(void *dcam_handle)
 	dev = (struct dcam_pipe_dev *)dcam_handle;
 	idx = dev->idx;
 	if (idx >= DCAM_ID_MAX) {
-		pr_err("error dcam index: %u\n", idx);
+		pr_err("fail to get valid dcam idx, index: %u\n", idx);
 		return -EINVAL;
 	}
 
 	mutex_lock(&s_dcam_dev_mutex);
 	if (dev != s_dcam_dev[idx]) {
-		pr_err("error: mismatched dev: %p, %p\n",
+		pr_err("fail to get matched dev: %p, %p\n",
 			dev, s_dcam_dev[idx]);
 		mutex_unlock(&s_dcam_dev_mutex);
 		return -EFAULT;
