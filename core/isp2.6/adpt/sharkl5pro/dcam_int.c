@@ -112,7 +112,7 @@ static struct camera_frame *dcam_prepare_frame(struct dcam_pipe_dev *dev,
 
 	frame = camera_dequeue(&path->result_queue);
 	if (!frame) {
-		pr_err("DCAM%u %s output buffer unavailable\n",
+		pr_err("fail to available output buffer DCAM%u %s\n",
 			dev->idx, to_path_name(path_id));
 		return NULL;
 	}
@@ -998,7 +998,7 @@ static irqreturn_t dcam_error_handler(struct dcam_pipe_dev *dev,
 	 */
 
 	if (!(status & DCAM_MMU_INT))
-		pr_err("DCAM%u status 0x%x%s%s%s\n", dev->idx, status,
+		pr_err("fail to get normal status DCAM%u 0x%x%s%s%s\n", dev->idx, status,
 		       tb_ovr[!!(status & BIT(DCAM_DCAM_OVF))],
 		       tb_lne[!!(status & BIT(DCAM_CAP_LINE_ERR))],
 		       tb_frm[!!(status & BIT(DCAM_CAP_FRM_ERR))]);
@@ -1031,7 +1031,7 @@ static irqreturn_t dcam_isr_root(int irq, void *priv)
 	int i = 0;
 
 	if (unlikely(irq != dev->irq)) {
-		pr_err("DCAM%u irq %d mismatch %d\n", dev->idx, irq, dev->irq);
+		pr_err("fail to match DCAM%u irq %d %d\n", dev->idx, irq, dev->irq);
 		return IRQ_NONE;
 	}
 
@@ -1096,7 +1096,7 @@ int dcam_irq_request(struct device *pdev, int irq, void *param)
 	int ret = 0;
 
 	if (unlikely(!pdev || !param || irq < 0)) {
-		pr_err("invalid param\n");
+		pr_err("fail to get valid param %p %p %d\n", pdev, param, irq);
 		return -EINVAL;
 	}
 
@@ -1123,7 +1123,7 @@ void dcam_irq_free(struct device *pdev, void *param)
 	struct dcam_pipe_dev *dev = NULL;
 
 	if (unlikely(!pdev || !param)) {
-		pr_err("invalid param\n");
+		pr_err("fail to get valid param %p %p\n", pdev, param);
 		return;
 	}
 

@@ -86,7 +86,7 @@ int isp_k_cfg_pstrz(struct isp_io_param *param, uint32_t idx)
 		ret = isp_k_pstrz_block(param, idx);
 		break;
 	default:
-		pr_err("fail cmd id:%d, not supported.\n", param->property);
+		pr_err("fail to support cmd id:%d.\n", param->property);
 		break;
 	}
 

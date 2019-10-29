@@ -45,7 +45,7 @@ static void write_pd_table(struct pdaf_ppi_info *pdaf_info, enum dcam_id idx)
 		col = pdaf_info->pattern_pixel_col[i];
 		row = pdaf_info->pattern_pixel_row[i];
 		is_right = pdaf_info->pattern_pixel_is_right[i] & 0x01;
-		pr_info("col %d, row %d, right %d\n", col, row, is_right);
+		pr_debug("col %d, row %d, right %d\n", col, row, is_right);
 		if (i%2 == 0) {
 			pdafinfo[reg_pos] = col | (row << 6) | (is_right << 12);
 		} else if (i % 2 == 1) {
@@ -118,7 +118,7 @@ static int isp_k_pdaf_type3_block(struct isp_io_param *param, void *in)
 		pr_err("fail to copy from user, ret = %d\n", ret);
 		return -1;
 	}
-	pr_info("pdaf_info.vch2_mode = %d\n", vch2_info.vch2_mode);
+	pr_debug("pdaf_info.vch2_mode = %d\n", vch2_info.vch2_mode);
 	DCAM_REG_WR(idx, DCAM_PDAF_CONTROL,
 		(vch2_info.vch2_vc & 0x03) << 16
 		|(vch2_info.vch2_data_type & 0x3f) << 8
@@ -209,7 +209,7 @@ static int isp_k_pdaf_set_ppi_info(struct isp_io_param *param, enum dcam_id idx)
 	write_pd_table(&pdaf_info, idx);
 
 
-	pr_info("block area: (%d, %d) (%d, %d), block.w/h: %d, %d\n",
+	pr_debug("block area: (%d, %d) (%d, %d), block.w/h: %d, %d\n",
 		pdaf_info.block.start_x,
 		pdaf_info.block.start_y,
 		pdaf_info.block.end_x,
@@ -251,7 +251,7 @@ static int isp_k_pdaf_set_roi(struct isp_io_param *param, void *in)
 		pr_err("fail to copy from user, ret = %d\n", ret);
 		return -1;
 	}
-	pr_info("win start:(%d, %d) end:(%d, %d)\n", roi_info.win.start_x,
+	pr_debug("win start:(%d, %d) end:(%d, %d)\n", roi_info.win.start_x,
 		roi_info.win.start_y, roi_info.win.end_x, roi_info.win.end_y);
 	val = ((roi_info.win.start_y & 0xFFFF) << 16) |
 		(roi_info.win.start_x & 0xFFFF);
@@ -358,7 +358,7 @@ int dcam_k_cfg_pdaf(struct isp_io_param *param, struct dcam_dev_param *p)
 			param->property);
 		break;
 	}
-	pr_info("idx %d, Sub %d, ret %d\n", idx, param->property, ret);
+	pr_debug("idx %d, Sub %d, ret %d\n", idx, param->property, ret);
 
 	return ret;
 }

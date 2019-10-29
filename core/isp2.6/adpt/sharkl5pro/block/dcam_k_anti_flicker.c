@@ -217,7 +217,7 @@ int dcam_k_cfg_afl(struct isp_io_param *param, struct dcam_dev_param *p)
 	if (DCAM_ONLINE_MODE) {
 		ret = copy_from_user(pcpy, param->property_param, size);
 		if (ret) {
-			pr_err("blc_block: copy error, ret=0x%x\n",
+			pr_err("fail to copy from user, ret=0x%x\n",
 				(unsigned int)ret);
 			return -EPERM;
 		}
@@ -228,7 +228,7 @@ int dcam_k_cfg_afl(struct isp_io_param *param, struct dcam_dev_param *p)
 		ret = copy_from_user(pcpy, param->property_param, size);
 		if (ret) {
 			mutex_unlock(&p->param_lock);
-			pr_err("blc_block: copy error, ret=0x%x\n",
+			pr_err("fail to copy from user, ret=0x%x\n",
 				(unsigned int)ret);
 			return -EPERM;
 		}

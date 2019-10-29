@@ -57,7 +57,7 @@ int dcam_k_bayerhist_block(struct dcam_dev_param *param)
 	 */
 	dev = param->dev;
 	if (p->hist_skip_num > 0 && dev->slowmotion_count) {
-		pr_info("DCAM%u HIST ignore skip_num %u, slowmotion_count %u\n",
+		pr_debug("DCAM%u HIST ignore skip_num %u, slowmotion_count %u\n",
 			dev->idx, p->hist_skip_num, dev->slowmotion_count);
 		p->hist_skip_num = 0;
 	}
@@ -94,7 +94,7 @@ int dcam_k_cfg_bayerhist(struct isp_io_param *param,
 				param->property_param,
 				sizeof(p->hist.bayerHist_info));
 			if (ret) {
-				pr_err("blc_block: copy error, ret=0x%x\n",
+				pr_err("fail to copy from user, ret=0x%x\n",
 					(unsigned int)ret);
 				return -EPERM;
 			}
@@ -107,7 +107,7 @@ int dcam_k_cfg_bayerhist(struct isp_io_param *param,
 				sizeof(p->hist.bayerHist_info));
 			if (ret) {
 				mutex_unlock(&p->param_lock);
-				pr_err("blc_block: copy error, ret=0x%x\n",
+				pr_err("fail to copy from user, ret=0x%x\n",
 					(unsigned int)ret);
 				return -EPERM;
 			}

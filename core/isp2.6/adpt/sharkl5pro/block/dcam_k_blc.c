@@ -63,7 +63,8 @@ int dcam_k_cfg_blc(struct isp_io_param *param, struct dcam_dev_param *p)
 	int ret = 0;
 
 	if (NULL == param->property_param || NULL == p) {
-		pr_err("property_param is null error.\n");
+		pr_err("fail to get valid param %p %p\n",
+			param->property_param, p);
 		return -1;
 	}
 	/* debugfs bypass blc */
@@ -80,7 +81,7 @@ int dcam_k_cfg_blc(struct isp_io_param *param, struct dcam_dev_param *p)
 				param->property_param,
 				sizeof(p->blc.blc_info));
 			if (ret) {
-				pr_err("blc_block: copy error, ret=0x%x\n",
+				pr_err("fail to copy from user ret=0x%x\n",
 					(unsigned int)ret);
 				return -EPERM;
 			}
@@ -93,7 +94,7 @@ int dcam_k_cfg_blc(struct isp_io_param *param, struct dcam_dev_param *p)
 				sizeof(p->blc.blc_info));
 			if (ret) {
 				mutex_unlock(&p->param_lock);
-				pr_err("blc_block: copy error, ret=0x%x\n",
+				pr_err("fail to copy from user ret=0x%x\n",
 					(unsigned int)ret);
 				return -EPERM;
 			}
@@ -102,7 +103,7 @@ int dcam_k_cfg_blc(struct isp_io_param *param, struct dcam_dev_param *p)
 		}
 		break;
 	default:
-		pr_err("fail cmd id:%d, not supported.\n",
+		pr_err("fail to support cmd id:%d\n",
 			param->property);
 		break;
 	}

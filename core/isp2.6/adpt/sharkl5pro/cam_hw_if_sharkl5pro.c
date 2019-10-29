@@ -466,7 +466,7 @@ static int sharkl5pro_dcam_stop(void *arg)
 	}
 
 	if (time_out == 0)
-		pr_err("DCAM%d: stop timeout for 2s\n", idx);
+		pr_err("fail to normal stop, DCAM%d timeout for 2s\n", idx);
 
 	pr_info("dcam%d stop\n", idx);
 	return ret;
@@ -704,7 +704,7 @@ static int sharkl5pro_dcam_mipi_cap_set(void *arg)
 
 	/* set mipi interface  */
 	if (cap_info->sensor_if != DCAM_CAP_IF_CSI2) {
-		pr_err("error: unsupported sensor if : %d\n",
+		pr_err("fail to support sensor if : %d\n",
 			cap_info->sensor_if);
 		return -EINVAL;
 	}
@@ -716,7 +716,7 @@ static int sharkl5pro_dcam_mipi_cap_set(void *arg)
 			BIT_4 | BIT_5, cap_info->pattern << 4);
 	} else if (cap_info->format == DCAM_CAP_MODE_YUV) {
 		if (unlikely(cap_info->data_bits != DCAM_CAP_8_BITS)) {
-			pr_err("error: invalid %d bits for yuv format\n",
+			pr_err("fail to get valid data bits for yuv format %d\n",
 				cap_info->data_bits);
 			return -EINVAL;
 		}
@@ -730,7 +730,7 @@ static int sharkl5pro_dcam_mipi_cap_set(void *arg)
 				(cap_info->y_factor << 8)
 				| (cap_info->x_factor << 4));
 	} else {
-		pr_err("error: unsupported capture format: %d\n",
+		pr_err("fail to support capture format: %d\n",
 			cap_info->format);
 		return -EINVAL;
 	}
@@ -780,13 +780,13 @@ static int sharkl5pro_dcam_mipi_cap_set(void *arg)
 		DCAM_REG_MWR(idx, DCAM_BAYER_INFO_CFG, BIT_0, 0);
 	}
 
-	pr_info("cap size : %d %d %d %d\n",
+	pr_debug("cap size : %d %d %d %d\n",
 		cap_info->cap_size.start_x, cap_info->cap_size.start_y,
 		cap_info->cap_size.size_x, cap_info->cap_size.size_y);
-	pr_info("cap: frm %d, mode %d, bits %d, pattern %d, href %d\n",
+	pr_debug("cap: frm %d, mode %d, bits %d, pattern %d, href %d\n",
 		cap_info->format, cap_info->mode, cap_info->data_bits,
 		cap_info->pattern, cap_info->href);
-	pr_info("cap: deci %d, skip %d, x %d, y %d, 4in1 %d\n",
+	pr_debug("cap: deci %d, skip %d, x %d, y %d, 4in1 %d\n",
 		cap_info->frm_deci, cap_info->frm_skip, cap_info->x_factor,
 		cap_info->y_factor, cap_info->is_4in1);
 
@@ -804,7 +804,7 @@ static int sharkl5pro_dcam_path_start(void *handle, uint32_t path_id)
 	pr_debug("enter.");
 
 	if (!handle) {
-		pr_err("error input ptr.\n");
+		pr_err("fail to get valid handle\n");
 		return -EFAULT;
 	}
 
@@ -878,7 +878,7 @@ static int sharkl5pro_dcam_path_start(void *handle, uint32_t path_id)
 		rect.h = path->in_trim.size_y;
 		if (dev->cap_info.cap_size.size_x < (rect.x + rect.w) ||
 			dev->cap_info.cap_size.size_y < (rect.y + rect.h)) {
-			pr_err("dcam 3dnr input rect error[%d %d %d %d]\n",
+			pr_err("fail to get valid dcam 3dnr input rect [%d %d %d %d]\n",
 				rect.x, rect.y, rect.w, rect.h);
 			break;
 		}
@@ -905,7 +905,7 @@ static int sharkl5pro_dcam_path_stop(void *handle, uint32_t path_id)
 	pr_debug("enter.");
 
 	if (!handle) {
-		pr_err("error input ptr.\n");
+		pr_err("fail to get valid handle\n");
 		return -EFAULT;
 	}
 
@@ -1043,7 +1043,7 @@ static int sharkl5pro_dcam_path_size_update(void *handle, void *arg)
 		rect.h = path->in_trim.size_y;
 		if (dev->cap_info.cap_size.size_x < (rect.x + rect.w) ||
 			dev->cap_info.cap_size.size_y < (rect.y + rect.h)) {
-			pr_err("dcam 3dnr input rect error[%d %d %d %d]\n",
+			pr_err("fail to get valid dcam 3dnr input rect[%d %d %d %d]\n",
 				rect.x, rect.y, rect.w, rect.h);
 			break;
 		}
@@ -1132,7 +1132,7 @@ static int sharkl5pro_dcam_lbuf_share_set(enum dcam_id idx, uint32_t width)
 		pr_info("alloc dcam linebuf %d %d\n", tb_w[i*2], tb_w[i*2 + 1]);
 		break;
 	default:
-		pr_info("dcam %d no this setting\n", idx);
+		pr_err("fail to get valid dcam id %d\n", idx);
 		ret = 1;
 	}
 	DCAM_AXIM_MWR(DCAM_LBUF_SHARE_MODE, 0x3 << 8, 0 << 8);
@@ -1216,25 +1216,25 @@ static int sharkl5pro_isp_clk_eb(struct cam_hw_soc_info *hw)
 
 	ret = clk_set_parent(hw->clk, hw->clk_parent);
 	if (ret) {
-		pr_err("set parent fail, ret = %d\n", ret);
+		pr_err("fail to set parent, ret = %d\n", ret);
 		clk_set_parent(hw->clk, hw->clk_default);
 		return ret;
 	}
 	ret = clk_prepare_enable(hw->clk);
 	if (ret) {
-		pr_err("enable isp clk fail, ret = %d\n", ret);
+		pr_err("fail to enable isp clk, ret = %d\n", ret);
 		clk_set_parent(hw->clk, hw->clk_default);
 		return ret;
 	}
 	ret = clk_prepare_enable(hw->core_eb);
 	if (ret) {
-		pr_err("set isp eb fail, ret = %d\n", ret);
+		pr_err("fail to set isp eb, ret = %d\n", ret);
 		clk_disable_unprepare(hw->clk);
 		return ret;
 	}
 	ret = clk_prepare_enable(hw->axi_eb);
 	if (ret) {
-		pr_err("set isp axi eb fail, ret = %d\n", ret);
+		pr_err("fail to set isp axi eb, ret = %d\n", ret);
 		clk_disable_unprepare(hw->clk);
 		clk_disable_unprepare(hw->core_eb);
 		return ret;
@@ -1341,7 +1341,7 @@ int sharkl5pro_isp_irq_enable(struct cam_hw_ip_info *hw, void *arg)
 
 	ctx_id = *(uint32_t *)arg;
 	if (ctx_id >= 4) {
-		pr_err("error ctx id %d\n", ctx_id);
+		pr_err("fail to get valid ctx id %d\n", ctx_id);
 		return -EFAULT;
 	}
 
@@ -1361,7 +1361,7 @@ int sharkl5pro_isp_irq_disable(struct cam_hw_ip_info *hw, void *arg)
 
 	ctx_id = *(uint32_t *)arg;
 	if (ctx_id >= 4) {
-		pr_err("error ctx id %d\n", ctx_id);
+		pr_err("fail to get valid  ctx id %d\n", ctx_id);
 		return -EFAULT;
 	}
 
@@ -1382,7 +1382,7 @@ int sharkl5pro_isp_irq_clear(struct cam_hw_ip_info *hw, void *arg)
 
 	ctx_id = *(uint32_t *)arg;
 	if (ctx_id >= 4) {
-		pr_err("error ctx id %d\n", ctx_id);
+		pr_err("fail to get valid ctx id %d\n", ctx_id);
 		return -EFAULT;
 	}
 

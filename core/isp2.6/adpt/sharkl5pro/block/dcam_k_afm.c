@@ -296,7 +296,7 @@ static int dcam_afm_lbuf_share_mode(enum dcam_id idx, uint32_t width)
 					break;
 			}
 
-			pr_info("idx[%d] width[%d], line_buf = %d i = %d\n", idx, width, line_buf, i);
+			pr_debug("idx[%d] width[%d], line_buf = %d i = %d\n", idx, width, line_buf, i);
 			DCAM_AXIM_MWR(DCAM_LBUF_SHARE_MODE, 0x3 << 4, i << 4);
 		}
 		break;
@@ -310,7 +310,7 @@ static int dcam_afm_lbuf_share_mode(enum dcam_id idx, uint32_t width)
 				if (width <= tb_w[i * 3 + 1])
 					break;
 			}
-			pr_info("idx[%d] width[%d], line_buf = %d i = %d\n", idx, width, line_buf, i);
+			pr_debug("idx[%d] width[%d], line_buf = %d i = %d\n", idx, width, line_buf, i);
 			DCAM_AXIM_MWR(DCAM_LBUF_SHARE_MODE, 0x3 << 4, i << 4);
 		}
 		break;
@@ -320,12 +320,12 @@ static int dcam_afm_lbuf_share_mode(enum dcam_id idx, uint32_t width)
 		else if(width <= tb_w[line_buf * 3 + 2])
 			pr_debug("no need to update afm line buf\n");
 		else {
-			pr_info("idx[%d] width[%d], line_buf = %d\n", idx, width, line_buf);
+			pr_debug("idx[%d] width[%d], line_buf = %d\n", idx, width, line_buf);
 			DCAM_AXIM_MWR(DCAM_LBUF_SHARE_MODE, 0x3 << 4, 3 << 4);
 		}
 		break;
 	default:
-		pr_info("dcam %d no this setting\n", idx);
+		pr_err("fail to get valid dcam id %d\n", idx);
 		ret = 1;
 		break;
 	}
@@ -457,7 +457,7 @@ int dcam_k_cfg_afm(struct isp_io_param *param, struct dcam_dev_param *p)
 	if (DCAM_ONLINE_MODE) {
 		ret = copy_from_user(pcpy, param->property_param, size);
 		if (ret) {
-			pr_err("blc_block: copy error, ret=0x%x\n",
+			pr_err("fail to copy from user ret=0x%x\n",
 				(unsigned int)ret);
 			return -EPERM;
 		}
@@ -468,7 +468,7 @@ int dcam_k_cfg_afm(struct isp_io_param *param, struct dcam_dev_param *p)
 		ret = copy_from_user(pcpy, param->property_param, size);
 		if (ret) {
 			mutex_unlock(&p->param_lock);
-			pr_err("blc_block: copy error, ret=0x%x\n",
+			pr_err("fail to copy from user ret=0x%x\n",
 				(unsigned int)ret);
 			return -EPERM;
 		}

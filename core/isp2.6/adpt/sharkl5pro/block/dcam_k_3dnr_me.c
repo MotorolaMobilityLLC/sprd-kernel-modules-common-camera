@@ -80,7 +80,7 @@ void dcam_k_3dnr_set_roi(struct isp_img_rect rect,
 	DCAM_REG_WR(idx, NR3_FAST_ME_ROI_PARAM0, roi_x << 16 | roi_y);
 	DCAM_REG_WR(idx, NR3_FAST_ME_ROI_PARAM1, roi_w << 16 | roi_h);
 
-	pr_info("DCAM%u 3DNR ROI %u %u %u %u\n",
+	pr_debug("DCAM%u 3DNR ROI %u %u %u %u\n",
 		idx, roi_x, roi_y, roi_w, roi_h);
 }
 
@@ -148,7 +148,7 @@ int dcam_k_cfg_3dnr_me(struct isp_io_param *param, struct dcam_dev_param *p)
 					param->property_param,
 					sizeof(p->nr3.nr3_me));
 			if (ret) {
-				pr_err("blc_block: copy error, ret=0x%x\n",
+				pr_err("fail to copy from user, ret=0x%x\n",
 					(unsigned int)ret);
 				return -EPERM;
 			}
@@ -161,7 +161,7 @@ int dcam_k_cfg_3dnr_me(struct isp_io_param *param, struct dcam_dev_param *p)
 					sizeof(p->nr3.nr3_me));
 			if (ret) {
 				mutex_unlock(&p->param_lock);
-				pr_err("blc_block: copy error, ret=0x%x\n",
+				pr_err("fail to copy from user, ret=0x%x\n",
 					(unsigned int)ret);
 				return -EPERM;
 			}

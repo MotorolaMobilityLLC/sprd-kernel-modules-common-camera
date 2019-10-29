@@ -485,9 +485,9 @@ void isp_3dnr_config_param(struct isp_3dnr_ctx_desc *ctx,
 		uint32_t val = 0;
 
 		val = ISP_HREG_RD(ISP_P0_INT_BASE + ISP_INT_STATUS);
-		pr_info("vall 0x%x\n", val);
+		pr_debug("vall 0x%x\n", val);
 		val |= (BIT_1);
-		pr_info("val after 0x%x\n", val);
+		pr_debug("val after 0x%x\n", val);
 		ISP_HREG_MWR(irq_base[idx] + ISP_INT_ALL_DONE_CTRL, 0x1F, val);
 
 		ISP_REG_MWR(idx, ISP_STORE_PRE_CAP_BASE + ISP_STORE_PARAM,
@@ -500,9 +500,9 @@ void isp_3dnr_config_param(struct isp_3dnr_ctx_desc *ctx,
 		uint32_t val = 0;
 
 		val = ISP_HREG_RD(ISP_P0_INT_BASE+ISP_INT_STATUS);
-		pr_info("val 0x%x\n", val);
+		pr_debug("val 0x%x\n", val);
 		val &= (~BIT_1);
-		pr_info("val after 0x%x\n", val);
+		pr_debug("val after 0x%x\n", val);
 		ISP_HREG_MWR(irq_base[idx] + ISP_INT_ALL_DONE_CTRL, 0x1F, val);
 
 		ISP_REG_MWR(idx, ISP_STORE_PRE_CAP_BASE + ISP_STORE_PARAM,
@@ -573,7 +573,7 @@ int isp_k_cfg_3dnr(struct isp_io_param *param,
 	int ret = 0;
 
 	if (!param || !param->property_param) {
-		pr_err("fail, param error\n");
+		pr_err("fail to get valid param error %p\n", param);
 		return -1;
 	}
 

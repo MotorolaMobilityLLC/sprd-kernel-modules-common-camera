@@ -133,7 +133,7 @@ int dcam_init_lsc(void *in, uint32_t online)
 	gain_tab = (uint16_t *)param->buf.addr_k[0];
 	hw_addr = (uint32_t)param->buf.iova[0];
 	if (!w_buff || !gain_tab || !hw_addr) {
-		pr_err("null buf %p %p %x\n", w_buff, gain_tab, hw_addr);
+		pr_err("fail to get buf %p %p %x\n", w_buff, gain_tab, hw_addr);
 		ret = -EPERM;
 		goto exit;
 	}
@@ -207,7 +207,7 @@ int dcam_init_lsc(void *in, uint32_t online)
 	hw->hw_ops.core_ops.force_copy(DCAM_CTRL_COEF, dev);
 
 	if (i >= LENS_LOAD_TIMEOUT) {
-		pr_err("lens grid table load timeout.\n");
+		pr_err("fail to load lens grid table.\n");
 		ret = -EPERM;
 		goto exit;
 	}
@@ -285,7 +285,7 @@ int dcam_update_lsc(void *in)
 	gain_tab = (uint16_t *)param->buf.addr_k[0];
 	hw_addr = (uint32_t)param->buf.iova[0];
 	if (!w_buff || !gain_tab || !hw_addr) {
-		pr_err("null buf %p %p %x\n", w_buff, gain_tab, hw_addr);
+		pr_err("fail to get buf %p %p %x\n", w_buff, gain_tab, hw_addr);
 		ret = -EPERM;
 		goto exit;
 	}
@@ -322,7 +322,7 @@ int dcam_update_lsc(void *in)
 			DCAM_REG_WR(idx, offset, val);
 			offset += 4;
 		}
-		pr_info("update weight tab done\n");
+		pr_debug("update weight tab done\n");
 	}
 
 	/* step2: load grid table */
@@ -346,7 +346,7 @@ int dcam_update_lsc(void *in)
 		/* only for slice mode */
 		DCAM_REG_WR(idx, DCAM_LENS_SLICE_CTRL0, 0x0);
 		DCAM_REG_MWR(idx, DCAM_LENS_SLICE_CTRL1, 0xff, grid_x_num_slice);
-		pr_info("update grid %d x %d y %d\n", info->grid_width,
+		pr_debug("update grid %d x %d y %d\n", info->grid_width,
 				info->grid_x_num, info->grid_y_num);
 	}
 
@@ -406,7 +406,7 @@ int dcam_k_lsc_block(struct dcam_dev_param *p)
 
 	gain_tab = (uint16_t *)param->buf.addr_k[0];
 	if (IS_ERR_OR_NULL(gain_tab)) {
-		pr_err("no buffer for gain tab\n");
+		pr_err("fail to get gain tab\n");
 		ret = -EPERM;
 		goto exit;
 	}
