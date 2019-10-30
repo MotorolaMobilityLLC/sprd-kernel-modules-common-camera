@@ -5922,11 +5922,6 @@ static int raw_proc_pre(
 	ch->isp_path_id = -1;
 	ch->aux_dcam_path_id = -1;
 
-	ret = dcam_ops->start(module->dcam_dev_handle, 0);
-	if (ret < 0) {
-		pr_err("fail to start dcam dev, ret %d\n", ret);
-		return -EFAULT;
-	}
 	/* specify dcam path */
 	dcam_path_id = DCAM_PATH_BIN;
 	ret = dcam_ops->get_path(
@@ -6071,6 +6066,12 @@ static int raw_proc_post(
 		return -EFAULT;
 	}
 
+	ret = dcam_ops->start(module->dcam_dev_handle, 0);
+	if (ret < 0) {
+		pr_err("fail to start dcam dev, ret %d\n", ret);
+		return -EFAULT;
+	}
+
 	ret = dcam_ops->ioctl(module->dcam_dev_handle,
 				DCAM_IOCTL_INIT_STATIS_Q, NULL);
 	camera_queue_init(&module->isp_hist2_outbuf_queue,
@@ -6192,6 +6193,7 @@ dst_fail:
 	cambuf_put_ionbuf(&src_frame->buf);
 src_fail:
 	put_empty_frame(src_frame);
+	ret = dcam_ops->stop(module->dcam_dev_handle);
 	pr_err("failed\n");
 	return ret;
 }

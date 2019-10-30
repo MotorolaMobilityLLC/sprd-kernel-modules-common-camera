@@ -800,7 +800,6 @@ static int dcam_offline_start_frame(void *param)
 	struct dcam_fetch_info *fetch = NULL;
 	struct cam_hw_info *hw = NULL;
 
-
 	dev = (struct dcam_pipe_dev *)param;
 
 	hw = dev->hw;
@@ -1018,10 +1017,13 @@ static int dcam_offline_thread_loop(void *arg)
 
 static int dcam_stop_offline_thread(void *param)
 {
+	int ret = 0;
 	int cnt = 0;
 	struct cam_thread_info *thrd;
+	struct dcam_pipe_dev *dev;
 
 	thrd = (struct cam_thread_info *)param;
+	dev = (struct dcam_pipe_dev *)thrd->ctx_handle;
 
 	if (thrd->thread_task) {
 		atomic_set(&thrd->thread_stop, 1);
@@ -1034,7 +1036,21 @@ static int dcam_stop_offline_thread(void *param)
 		}
 		thrd->thread_task = NULL;
 		pr_info("offline thread stopped. wait %d ms\n", cnt);
+	} else {
+		pr_info("dcam%d no offline thread\n", dev->idx);
+		return 0;
 	}
+
+	/* wait for last frame done */
+	ret = wait_for_completion_interruptible_timeout(
+					&dev->frm_done,
+					DCAM_OFFLINE_TIMEOUT);
+	if (ret == -ERESTARTSYS)
+		pr_err("interrupt when isp wait\n");
+	else if (ret == 0)
+		pr_err("dcam%d timeout.\n", dev->idx);
+	else
+		pr_info("wait time %d\n", ret);
 
 	return 0;
 }
@@ -1779,17 +1795,20 @@ static int sprd_dcam_dev_start(void *dcam_handle, int online)
 
 	dev = (struct dcam_pipe_dev *)dcam_handle;
 	hw = dev->hw;
-	dev->offline = 0;
+	dev->offline = !online;
 
-	ret = dcam_create_offline_thread(dev);
-	if (ret) {
-		pr_err("fail to creat offline thread\n");
-		return ret;
-	}
 	if (!online) {
+		ret = dcam_create_offline_thread(dev);
+		if (ret) {
+			pr_err("fail to creat offline thread\n");
+			return ret;
+		}
+		if (dev->idx < DCAM_ID_2)
+			atomic_dec(&s_dcam_working);
 		atomic_set(&dev->state, STATE_RUNNING);
 		return ret;
 	}
+
 	ret = atomic_read(&dev->state);
 	if (unlikely(ret != STATE_IDLE)) {
 		pr_err("starting DCAM%u in state %d\n", dev->idx, ret);
@@ -1905,10 +1924,11 @@ static int sprd_dcam_dev_stop(void *dcam_handle)
 	}
 	dev = (struct dcam_pipe_dev *)dcam_handle;
 
-	ret = dcam_stop_offline_thread(&dev->thread);
-	if (ret) {
-		pr_err("fail to stop offline thread\n");
-		return ret;
+	if (dev->offline) {
+		ret = dcam_stop_offline_thread(&dev->thread);
+		if (ret) {
+			pr_err("fail to stop offline thread\n");
+		}
 	}
 
 	state = atomic_read(&dev->state);
@@ -1917,20 +1937,6 @@ static int sprd_dcam_dev_stop(void *dcam_handle)
 		return -EINVAL;
 	}
 
-	/* wait for last frame done */
-	if ((dev->offline == 1 || dev->is_4in1 == 1) && !dev->raw_cap) {
-		ret = wait_for_completion_interruptible_timeout(
-						&dev->frm_done,
-						DCAM_OFFLINE_TIMEOUT);
-		if (ret == -ERESTARTSYS)
-			pr_err("interrupt when isp wait\n");
-		else if (ret == 0)
-			pr_err("dcam%d timeout.\n", dev->idx);
-		else
-			pr_info("wait time %d\n", ret);
-		dev->offline = 0;
-		ret = 0;
-	}
 	dev->hw->hw_ops.core_ops.stop(dev);
 	dev->hw->hw_ops.dcam_soc_ops.reset(dev->hw, &dev->idx);
 
@@ -1955,6 +1961,7 @@ static int sprd_dcam_dev_stop(void *dcam_handle)
 	dev->blk_dcam_pm->hist.bayerHist_info.hist_bypass = 1;
 	dev->is_pdaf = dev->is_3dnr = dev->is_4in1 = 0;
 	dev->err_count = 0;
+	dev->offline = 0;
 
 	pr_info("stop dcam pipe dev[%d] state = %d!\n", dev->idx, atomic_read(&dev->state));
 	return ret;
