@@ -1816,6 +1816,7 @@ static int sprd_isp_get_context(void *isp_handle, void *param)
 	pctx->isp_k_param.nlm_buf = vzalloc(sizeof(uint32_t) * ISP_VST_IVST_NUM2);
 	if (pctx->isp_k_param.nlm_buf == NULL) {
 		pr_err("fail to alloc nlm buf\n");
+		mutex_unlock(&dev->path_mutex);
 		return -ENOMEM;
 	}
 	ret = isp_create_offline_thread(pctx);
