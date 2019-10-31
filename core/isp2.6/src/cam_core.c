@@ -170,7 +170,8 @@ struct camera_uinfo {
 
 	uint32_t is_4in1;
 	uint32_t is_3dnr;
-	uint32_t is_ltm;
+	uint32_t is_rgb_ltm;
+	uint32_t is_yuv_ltm;
 	uint32_t is_dual;
 	uint32_t dcam_slice_mode;
 	uint32_t is_afbc;
@@ -219,8 +220,10 @@ struct channel_context {
 	uint32_t uinfo_3dnr;	/* set by hal, 1:hw 3dnr; */
 	uint32_t type_3dnr;	/* CAM_3DNR_HW:enable hw,and alloc buffer */
 	uint32_t mode_ltm;
+	uint32_t ltm_rgb;
+	uint32_t ltm_yuv;
 	struct camera_frame *nr3_bufs[ISP_NR3_BUF_NUM];
-	struct camera_frame *ltm_bufs[ISP_LTM_BUF_NUM];
+	struct camera_frame *ltm_bufs[LTM_MAX][ISP_LTM_BUF_NUM];
 
 	/* dcam/isp shared frame buffer for full path */
 	struct camera_queue share_buf_queue;
@@ -836,35 +839,71 @@ static void alloc_buffers(struct work_struct *work)
 		size = ALIGN(size, CAM_BUF_ALIGN_SIZE);
 
 		pr_info("ch %d ltm buffer size: %u.\n", channel->ch_id, size);
-		for (i = 0; i < ISP_LTM_BUF_NUM; i++) {
-			if (channel->ch_id == CAM_CH_PRE) {
-				pframe = get_empty_frame();
+		if (channel->ltm_rgb) {
+			for (i = 0; i < ISP_LTM_BUF_NUM; i++) {
+				if (channel->ch_id == CAM_CH_PRE) {
+					pframe = get_empty_frame();
 
-				if (channel->ch_id == CAM_CH_PRE
-					&& module->grp->camsec_cfg.camsec_mode == SEC_TIME_PRIORITY) {
-					pframe->buf.buf_sec = 1;
-					pr_info("camca: ch_id =%d, buf_sec=%d\n",
-						channel->ch_id,
-						pframe->buf.buf_sec);
+					if (channel->ch_id == CAM_CH_PRE
+						&& module->grp->camsec_cfg.camsec_mode == SEC_TIME_PRIORITY) {
+						pframe->buf.buf_sec = 1;
+						pr_info("camca: ch_id =%d, buf_sec=%d\n",
+							channel->ch_id,
+							pframe->buf.buf_sec);
+					}
+					ret = cambuf_alloc(&pframe->buf, size, 0,
+							   iommu_enable);
+					if (ret) {
+						pr_err("fail to alloc ltm buf: %d ch %d\n",
+						       i, channel->ch_id);
+						put_empty_frame(pframe);
+						atomic_inc(&channel->err_status);
+						goto exit;
+					}
+					cambuf_kmap(&pframe->buf);
+					channel->ltm_bufs[LTM_RGB][i] = pframe;
+				} else { /* CAM_CH_CAP case */
+					/*
+					 * LTM capture, USING preview path histo,
+					 * So, setting preview buf to capture path
+					 * */
+					channel->ltm_bufs[LTM_RGB][i] =
+						module->channel[CAM_CH_PRE].ltm_bufs[LTM_RGB][i];
 				}
+			}
+		}
 
-				ret = cambuf_alloc(&pframe->buf, size, 0,
-						   iommu_enable);
-				if (ret) {
-					pr_err("fail to alloc ltm buf: %d ch %d\n",
-					       i, channel->ch_id);
-					put_empty_frame(pframe);
-					atomic_inc(&channel->err_status);
-					goto exit;
+		if (channel->ltm_yuv) {
+			for (i = 0; i < ISP_LTM_BUF_NUM; i++) {
+				if (channel->ch_id == CAM_CH_PRE) {
+					pframe = get_empty_frame();
+
+					if (channel->ch_id == CAM_CH_PRE
+						&& module->grp->camsec_cfg.camsec_mode == SEC_TIME_PRIORITY) {
+						pframe->buf.buf_sec = 1;
+						pr_info("camca: ch_id =%d, buf_sec=%d\n",
+							channel->ch_id,
+							pframe->buf.buf_sec);
+					}
+					ret = cambuf_alloc(&pframe->buf, size, 0,
+							   iommu_enable);
+					if (ret) {
+						pr_err("fail to alloc ltm buf: %d ch %d\n",
+						       i, channel->ch_id);
+						put_empty_frame(pframe);
+						atomic_inc(&channel->err_status);
+						goto exit;
+					}
+					cambuf_kmap(&pframe->buf);
+					channel->ltm_bufs[LTM_YUV][i] = pframe;
+				} else { /* CAM_CH_CAP case */
+					/*
+					 * LTM capture, USING preview path histo,
+					 * So, setting preview buf to capture path
+					 * */
+					channel->ltm_bufs[LTM_YUV][i] =
+						module->channel[CAM_CH_PRE].ltm_bufs[LTM_YUV][i];
 				}
-				channel->ltm_bufs[i] = pframe;
-			} else { /* CAM_CH_CAP case */
-				/*
-				 * LTM capture, USING preview path histo,
-				 * So, setting preview buf to capture path
-				 * */
-				channel->ltm_bufs[i] =
-					module->channel[CAM_CH_PRE].ltm_bufs[i];
 			}
 		}
 	}
@@ -3383,7 +3422,10 @@ static int init_cam_channel(
 					ctx_desc.mode_3dnr = MODE_3DNR_PRE;
 			}
 		}
-		if (module->cam_uinfo.is_ltm) {
+
+		if (module->cam_uinfo.is_rgb_ltm) {
+			channel->ltm_rgb = 1;
+			ctx_desc.ltm_rgb = 1;
 			if (channel->ch_id == CAM_CH_CAP) {
 				channel->mode_ltm = MODE_LTM_CAP;
 				ctx_desc.mode_ltm = MODE_LTM_CAP;
@@ -3392,6 +3434,19 @@ static int init_cam_channel(
 				ctx_desc.mode_ltm = MODE_LTM_PRE;
 			}
 		}
+
+		if (module->cam_uinfo.is_yuv_ltm) {
+			channel->ltm_yuv = 1;
+			ctx_desc.ltm_yuv = 1;
+			if (channel->ch_id == CAM_CH_CAP) {
+				channel->mode_ltm = MODE_LTM_CAP;
+				ctx_desc.mode_ltm = MODE_LTM_CAP;
+			} else if (channel->ch_id == CAM_CH_PRE) {
+				channel->mode_ltm = MODE_LTM_PRE;
+				ctx_desc.mode_ltm = MODE_LTM_PRE;
+			}
+		}
+
 		ret = isp_ops->cfg_path(module->isp_dev_handle,
 				ISP_PATH_CFG_CTX_BASE, isp_ctx_id, 0, &ctx_desc);
 	}
@@ -3953,14 +4008,16 @@ static int img_ioctl_set_function_mode(
 	ret |= get_user(module->cam_uinfo.is_3dnr, &uparam->need_3dnr);
 	ret |= get_user(module->cam_uinfo.is_dual, &uparam->dual_cam);
 	ret |= get_user(module->cam_uinfo.is_afbc, &uparam->need_afbc);
-	module->cam_uinfo.is_ltm = 0;
+	module->cam_uinfo.is_rgb_ltm = 0;
+	module->cam_uinfo.is_yuv_ltm = 0;
 	/* no use */
 	module->cam_uinfo.is_3dnr = 0;
 
-	pr_info("4in1:[%d], 3dnr[%d], ltm[%d], daul[%d]\n, afbc[%d]\n",
+	pr_info("4in1:[%d], 3dnr[%d], rgb_ltm[%d], yuv_ltm[%d], daul[%d]\n, afbc[%d]\n",
 		module->cam_uinfo.is_4in1,
 		module->cam_uinfo.is_3dnr,
-		module->cam_uinfo.is_ltm,
+		module->cam_uinfo.is_rgb_ltm,
+		module->cam_uinfo.is_yuv_ltm,
 		module->cam_uinfo.is_dual,
 		module->cam_uinfo.is_afbc);
 
@@ -5336,18 +5393,39 @@ static int img_ioctl_stream_on(
 				}
 			}
 
-			for (j = 0; j < ISP_LTM_BUF_NUM; j++) {
-				if (ch->ltm_bufs[j] == NULL) {
-					pr_debug("ch->ltm_bufs[%d] NULL\n", j);
-					continue;
+			if (module->cam_uinfo.is_rgb_ltm) {
+				for (j = 0; j < ISP_LTM_BUF_NUM; j++) {
+					if (ch->ltm_bufs[LTM_RGB][j] == NULL) {
+						pr_debug("ch->ltm_bufs[%d][%d] NULL\n",
+							LTM_RGB, j);
+						continue;
+					}
+					ret = isp_ops->cfg_path(module->isp_dev_handle,
+							ISP_PATH_CFG_RGB_LTM_BUF,
+							isp_ctx_id, isp_path_id,
+							ch->ltm_bufs[LTM_RGB][j]);
+					if (ret) {
+						pr_err("fail to config isp rgb LTM buffer\n");
+						goto exit;
+					}
 				}
-				ret = isp_ops->cfg_path(module->isp_dev_handle,
-						ISP_PATH_CFG_LTM_BUF,
-						isp_ctx_id, isp_path_id,
-						ch->ltm_bufs[j]);
-				if (ret) {
-					pr_err("fail to config isp LTM buffer\n");
-					goto exit;
+			}
+
+			if (module->cam_uinfo.is_yuv_ltm) {
+				for (j = 0; j < ISP_LTM_BUF_NUM; j++) {
+					if (ch->ltm_bufs[LTM_YUV][j] == NULL) {
+						pr_debug("ch->ltm_bufs[%d][%d] NULL\n",
+							LTM_YUV, j);
+						continue;
+					}
+					ret = isp_ops->cfg_path(module->isp_dev_handle,
+							ISP_PATH_CFG_YUV_LTM_BUF,
+							isp_ctx_id, isp_path_id,
+							ch->ltm_bufs[LTM_YUV][j]);
+					if (ret) {
+						pr_err("fail to config isp yuv LTM buffer\n");
+						goto exit;
+					}
 				}
 			}
 		}
@@ -5563,11 +5641,24 @@ static int img_ioctl_stream_off(
 					ch->nr3_bufs[j] = NULL;
 				}
 			}
-			for (j = 0; j < ISP_LTM_BUF_NUM; j++) {
-				if (ch->ltm_bufs[j]) {
-					if (ch->ch_id == CAM_CH_PRE)
-						put_k_frame(ch->ltm_bufs[j]);
-					ch->ltm_bufs[j] = NULL;
+
+			if (module->cam_uinfo.is_rgb_ltm) {
+				for (j = 0; j < ISP_LTM_BUF_NUM; j++) {
+					if (ch->ltm_bufs[LTM_RGB][j]) {
+						if (ch->ch_id == CAM_CH_PRE)
+							put_k_frame(ch->ltm_bufs[LTM_RGB][j]);
+						ch->ltm_bufs[LTM_RGB][j] = NULL;
+					}
+				}
+			}
+
+			if (module->cam_uinfo.is_yuv_ltm) {
+				for (j = 0; j < ISP_LTM_BUF_NUM; j++) {
+					if (ch->ltm_bufs[LTM_YUV][j]) {
+						if (ch->ch_id == CAM_CH_PRE)
+							put_k_frame(ch->ltm_bufs[LTM_YUV][j]);
+						ch->ltm_bufs[LTM_YUV][j] = NULL;
+					}
 				}
 			}
 		}

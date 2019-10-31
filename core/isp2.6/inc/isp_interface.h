@@ -65,7 +65,8 @@ enum isp_path_cfg_cmd {
 	ISP_PATH_CFG_OUTPUT_BUF,
 	ISP_PATH_CFG_OUTPUT_RESERVED_BUF,
 	ISP_PATH_CFG_3DNR_BUF,
-	ISP_PATH_CFG_LTM_BUF,
+	ISP_PATH_CFG_RGB_LTM_BUF,
+	ISP_PATH_CFG_YUV_LTM_BUF,
 	ISP_PATH_CFG_3DNR_MODE,
 };
 
@@ -81,6 +82,12 @@ enum isp_ltm_mode {
 	MODE_LTM_PRE,
 	MODE_LTM_CAP,
 	MODE_LTM_MAX
+};
+
+enum isp_ltm_region {
+	LTM_RGB,
+	LTM_YUV,
+	LTM_MAX
 };
 
 enum isp_afbc_path {
@@ -119,6 +126,8 @@ struct isp_init_param {
 struct isp_ctx_base_desc {
 	uint32_t mode_3dnr;
 	uint32_t mode_ltm;
+	uint32_t ltm_rgb;
+	uint32_t ltm_yuv;
 	uint32_t in_fmt;
 	uint32_t is_loose;
 	uint32_t bayer_pattern;

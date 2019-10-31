@@ -272,7 +272,7 @@ struct isp_slice_desc {
 	struct slice_3dnr_memctrl_info slice_3dnr_memctrl;
 	struct slice_3dnr_store_info   slice_3dnr_store;
 	struct slice_3dnr_crop_info    slice_3dnr_crop;
-	struct slice_ltm_map_info      slice_ltm_map;
+	struct slice_ltm_map_info      slice_ltm_map[LTM_MAX];
 	struct slice_noisefilter_info  noisefilter_info;
 	struct slice_noisefilter_mode_info slice_noisefilter_mode;
 };
@@ -312,8 +312,8 @@ int isp_cfg_slice_3dnr_info(
 int isp_cfg_slice_noisefilter_info(void *cfg_in, struct isp_slice_context *slc_ctx);
 
 
-int isp_cfg_slice_ltm_info(
-	       void *cfg_in, struct isp_slice_context *slc_ctx);
+int isp_cfg_slice_ltm_info(void *cfg_in,
+	struct isp_slice_context *slc_ctx, enum isp_ltm_region ltm_id);
 int isp_cfg_slices(void *cfg_in, struct isp_slice_context *slc_ctx,
 		uint32_t *valid_slc_num);
 

@@ -32,7 +32,7 @@ enum isp_irq_id {
 
 	ISP_INT_NR3_SHADOW_DONE,
 	ISP_INT_STORE_DONE_THUMBNAIL,
-	ISP_INT_LTMHISTS_DONE,
+	ISP_INT_YUV_LTMHISTS_DONE,
 	ISP_INT_FMCU_LOAD_DONE,
 
 	ISP_INT_FMCU_CONFIG_DONE,
@@ -47,7 +47,7 @@ enum isp_irq_id {
 
 	ISP_INT_NR3_FBD_ERR,
 	ISP_INT_NR3_FBC_ERR,
-	ISP_INT_VID_FBC_ERR,
+	ISP_INT_RGB_LTMHISTS_DONE,
 	ISP_INT_CAP_FBC_ERR,
 
 	ISP_INT_MMU_VAOR_RD,
@@ -67,10 +67,7 @@ enum isp_irq_id {
 	(1 << ISP_INT_FMCU_CMD_ERROR) | \
 	(1 << ISP_INT_FBD_FETCH_ERR) | \
 	(1 << ISP_INT_NR3_FBD_ERR) | \
-	(1 << ISP_INT_NR3_FBC_ERR) | \
-	(1 << ISP_INT_VID_FBC_ERR) | \
-	(1 << ISP_INT_CAP_FBC_ERR))
-
+	(1 << ISP_INT_NR3_FBC_ERR))
 
 #define ISP_INT_LINE_MASK_MMU \
 	((1 << ISP_INT_MMU_VAOR_RD) | \
@@ -93,12 +90,13 @@ enum isp_irq_id {
 	(1 << ISP_INT_NR3_ALL_DONE) | \
 	(1 << ISP_INT_NR3_SHADOW_DONE) | \
 	(1 << ISP_INT_STORE_DONE_THUMBNAIL) | \
-	(1 << ISP_INT_LTMHISTS_DONE) | \
+	(1 << ISP_INT_YUV_LTMHISTS_DONE) | \
 	(1 << ISP_INT_FMCU_LOAD_DONE) | \
 	(1 << ISP_INT_FMCU_CMD_X) | \
 	(1 << ISP_INT_FMCU_SHADOW_DONE) | \
 	(1 << ISP_INT_FMCU_STORE_DONE) | \
-	(1 << ISP_INT_HIST_CAL_DONE))
+	(1 << ISP_INT_HIST_CAL_DONE) | \
+	(1 << ISP_INT_RGB_LTMHISTS_DONE))
 
 int reset_isp_irq_cnt(int ctx_id);
 int trace_isp_irq_cnt(int ctx_id);

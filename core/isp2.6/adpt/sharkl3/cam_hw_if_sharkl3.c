@@ -1773,6 +1773,7 @@ struct cam_hw_info sharkl3_hw_info = {
 			.isp_fbd_addr_set = NULL,
 			.isp_afbc_fmcu_addr_set = NULL,
 			.isp_afbc_path_slice_set = NULL,
+			.isp_ltm_slice_set = NULL,
 			.bypass_data_get = sharkl3_cam_bypass_data_get,
 			.bypass_count_get = sharkl3_cam_bypass_count_get,
 			.reg_trace = sharkl3_cam_reg_trace,

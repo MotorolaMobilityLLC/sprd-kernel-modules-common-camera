@@ -632,13 +632,7 @@ extern unsigned long s_isp_mmubase;
 
 /* Need to Delate */
 #define ISP_LTM_HIST_PARAM			(0x5510UL)
-#define ISP_LTM_MAP				(0x5F00UL)
 #define ISP_LTM_MAP_PARAM0			(0x5F10UL)
-#define ISP_LTM_MAP_PARAM1			(0x5F14UL)
-#define ISP_LTM_MAP_PARAM2			(0x5F18UL)
-#define ISP_LTM_MAP_PARAM3			(0x5F1cUL)
-#define ISP_LTM_MAP_PARAM4			(0x5F20UL)
-#define ISP_LTM_MAP_PARAM5			(0x5F24UL)
 
 /* Need to delete */
 #define ISP_YNR_CFG31				(0x5190UL)

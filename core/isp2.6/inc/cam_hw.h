@@ -178,6 +178,7 @@ struct cam_hw_core_ops {
 	void (*isp_afbc_fmcu_addr_set)(void *fmcu_handle, void *arg, int index);
 	int (*isp_afbc_path_slice_set)(void *fmcu_handle, uint32_t path_en,
 		uint32_t ctx_idx, uint32_t spath_id, void *arg);
+	int (*isp_ltm_slice_set)(void *fmcu_handle, void *arg, uint32_t ltm_id);
 	void (*default_para_set)(struct cam_hw_info *hw,
 		void *arg, enum isp_default_type type);
 	uint32_t (*hist_enable_get)(int ctx_id);

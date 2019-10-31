@@ -1965,44 +1965,49 @@ exit:
 	return ret;
 }
 
-int isp_cfg_slice_ltm_info(
-	       void *cfg_in, struct isp_slice_context *slc_ctx)
+int isp_cfg_slice_ltm_info(void *cfg_in,
+	struct isp_slice_context *slc_ctx,
+	enum isp_ltm_region ltm_id)
 {
 	int ret = 0, idx = 0;
 	struct slice_cfg_input *in_ptr = (struct slice_cfg_input *)cfg_in;
 	struct isp_ltm_ctx_desc *ltm_ctx  = in_ptr->ltm_ctx;
-	struct isp_ltm_map   *map   = &ltm_ctx->map;
 	struct isp_ltm_rtl_param  rtl_param;
 	struct isp_ltm_rtl_param  *prtl = &rtl_param;
 
-	struct isp_slice_desc *cur_slc;
+	struct isp_slice_desc *cur_slc = NULL;
 	struct slice_ltm_map_info *slc_ltm_map;
 	uint32_t slice_info[4];
 
-	cur_slc = &slc_ctx->slices[0];
+	struct isp_ltm_map   *map   = &ltm_ctx->map[ltm_id];
+
+	if (map->bypass)
+		return 0;
 
 	if (ltm_ctx->type == MODE_LTM_OFF) {
-		for (idx = 0; idx < SLICE_NUM_MAX; idx++, cur_slc++) {
+		for (idx = 0; idx < SLICE_NUM_MAX; idx++) {
+			cur_slc = &slc_ctx->slices[idx];
 			if (cur_slc->valid == 0)
 				continue;
-			slc_ltm_map = &cur_slc->slice_ltm_map;
+			slc_ltm_map = &cur_slc->slice_ltm_map[ltm_id];
 			slc_ltm_map->bypass = 1;
 		}
 
 		return 0;
 	}
 
-	for (idx = 0; idx < SLICE_NUM_MAX; idx++, cur_slc++) {
+	for (idx = 0; idx < SLICE_NUM_MAX; idx++) {
+		cur_slc = &slc_ctx->slices[idx];
 		if (cur_slc->valid == 0)
 			continue;
-		slc_ltm_map = &cur_slc->slice_ltm_map;
+		slc_ltm_map = &cur_slc->slice_ltm_map[ltm_id];
 
 		slice_info[0] = cur_slc->slice_pos.start_col;
 		slice_info[1] = cur_slc->slice_pos.start_row;
 		slice_info[2] = cur_slc->slice_pos.end_col;
 		slice_info[3] = cur_slc->slice_pos.end_row;
 
-		isp_ltm_gen_map_slice_config(ltm_ctx, prtl, slice_info);
+		isp_ltm_gen_map_slice_config(ltm_ctx, ltm_id, prtl, slice_info);
 
 		slc_ltm_map->tile_width = map->tile_width;
 		slc_ltm_map->tile_height = map->tile_height;
@@ -2014,8 +2019,7 @@ int isp_cfg_slice_ltm_info(
 		slc_ltm_map->tile_start_x = prtl->tile_start_x_rtl;
 		slc_ltm_map->tile_start_y = prtl->tile_start_y_rtl;
 		slc_ltm_map->mem_addr = map->mem_init_addr +
-					prtl->tile_index_xs * 128 * 2;
-
+				prtl->tile_index_xs * 128 * 2;
 		pr_debug("ltm slice info: tile_num_x[%d], tile_num_y[%d], tile_right_flag[%d]\
 			tile_left_flag[%d], tile_start_x[%d], tile_start_y[%d], mem_addr[0x%x]\n",
 			slc_ltm_map->tile_num_x, slc_ltm_map->tile_num_y,
@@ -2540,39 +2544,6 @@ static int set_slice_3dnr(
 	return 0;
 }
 
-static int set_slice_ltm(
-		struct isp_fmcu_ctx_desc *fmcu,
-		struct isp_slice_desc *cur_slc)
-{
-	uint32_t addr = 0, cmd = 0;
-	struct slice_ltm_map_info *map = &cur_slc->slice_ltm_map;
-
-	if (map->bypass) {
-		return 0;
-	}
-
-	addr = ISP_GET_REG(ISP_LTM_MAP_PARAM1);
-	cmd = ((map->tile_num_y  & 0x7)   << 28) |
-	      ((map->tile_num_x  & 0x7)   << 24) |
-	      ((map->tile_height & 0x3FF) << 12) |
-	       (map->tile_width  & 0x3FF);
-	FMCU_PUSH(fmcu, addr, cmd);
-
-	addr = ISP_GET_REG(ISP_LTM_MAP_PARAM3);
-	cmd = ((map->tile_right_flag & 0x1)   << 23) |
-	      ((map->tile_start_y    & 0x7FF) << 12) |
-	      ((map->tile_left_flag  & 0x1)   << 11) |
-	       (map->tile_start_x    & 0x7FF);
-	FMCU_PUSH(fmcu, addr, cmd);
-
-	addr = ISP_GET_REG(ISP_LTM_MAP_PARAM4);
-	cmd = map->mem_addr;
-	FMCU_PUSH(fmcu, addr, cmd);
-
-	return 0;
-}
-
-
 static int set_slice_nofilter(
 		struct isp_fmcu_ctx_desc *fmcu,
 		struct isp_slice_desc *cur_slc)
@@ -2669,7 +2640,10 @@ int isp_set_slices_fmcu_cmds(void *fmcu_handle,  void *ctx)
 			set_slice_fetch(fmcu, &cur_slc->slice_fetch);
 
 		set_slice_3dnr(fmcu, cur_slc);
-		set_slice_ltm(fmcu, cur_slc);
+		if (pctx->ltm_rgb)
+			hw->hw_ops.core_ops.isp_ltm_slice_set(fmcu, cur_slc, LTM_RGB);
+		if (pctx->ltm_yuv)
+			hw->hw_ops.core_ops.isp_ltm_slice_set(fmcu, cur_slc, LTM_YUV);
 		if(shape_mode == 1)
 			set_slice_nofilter(fmcu, cur_slc);
 

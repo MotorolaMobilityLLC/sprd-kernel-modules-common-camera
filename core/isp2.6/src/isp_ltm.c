@@ -120,31 +120,32 @@ static int isp_ltm_share_ctx_get_update(int type)
 	return update;
 }
 
-static int isp_ltm_share_ctx_set_completion(int frame_idx)
+static int isp_ltm_share_ctx_set_completion(int frame_idx,
+	enum isp_ltm_region ltm_id)
 {
-	atomic_set(&s_share_ctx_param.wait_completion, frame_idx);
+	atomic_set(&s_share_ctx_param.wait_completion[ltm_id], frame_idx);
 
 	return 0;
 }
 
-static int isp_ltm_share_ctx_get_completion(void)
+static int isp_ltm_share_ctx_get_completion(enum isp_ltm_region ltm_id)
 {
 	int idx = 0;
 
-	idx = atomic_read(&s_share_ctx_param.wait_completion);
+	idx = atomic_read(&s_share_ctx_param.wait_completion[ltm_id]);
 
 	return idx;
 }
 
-static int isp_ltm_share_ctx_complete_completion(void)
+static int isp_ltm_share_ctx_complete_completion(enum isp_ltm_region ltm_id)
 {
 	int idx = 0;
 
-	idx = atomic_read(&s_share_ctx_param.wait_completion);
+	idx = atomic_read(&s_share_ctx_param.wait_completion[ltm_id]);
 
 	if (idx) {
-		atomic_set(&s_share_ctx_param.wait_completion, 0);
-		complete(&s_share_ctx_param.share_comp);
+		atomic_set(&s_share_ctx_param.wait_completion[ltm_id], 0);
+		complete(&s_share_ctx_param.share_comp[ltm_id]);
 	}
 
 	return idx;
@@ -166,7 +167,8 @@ static int isp_ltm_share_ctx_get_fid(void)
 	return fid;
 }
 
-static int isp_ltm_share_ctx_set_config(struct isp_ltm_ctx_desc *ctx)
+static int isp_ltm_share_ctx_set_config(struct isp_ltm_ctx_desc *ctx,
+	struct isp_ltm_hists *hists)
 {
 	if (ctx->type != MODE_LTM_PRE) {
 		pr_err("fail to set share ctx, only pre support, except ctx[%d]\n",
@@ -179,17 +181,18 @@ static int isp_ltm_share_ctx_set_config(struct isp_ltm_ctx_desc *ctx)
 	s_share_ctx_param.pre_frame_h = ctx->frame_height_stat;
 	s_share_ctx_param.pre_frame_w = ctx->frame_width_stat;
 
-	s_share_ctx_param.tile_num_x_minus = ctx->hists.tile_num_x_minus;
-	s_share_ctx_param.tile_num_y_minus = ctx->hists.tile_num_y_minus;
-	s_share_ctx_param.tile_width = ctx->hists.tile_width;
-	s_share_ctx_param.tile_height = ctx->hists.tile_height;
+	s_share_ctx_param.tile_num_x_minus = hists->tile_num_x_minus;
+	s_share_ctx_param.tile_num_y_minus = hists->tile_num_y_minus;
+	s_share_ctx_param.tile_width = hists->tile_width;
+	s_share_ctx_param.tile_height = hists->tile_height;
 
 	mutex_unlock(&s_share_ctx_param.share_mutex);
 
 	return 0;
 }
 
-static int isp_ltm_share_ctx_get_config(struct isp_ltm_ctx_desc *ctx)
+static int isp_ltm_share_ctx_get_config(struct isp_ltm_ctx_desc *ctx,
+	struct isp_ltm_hists *hists)
 {
 	if (ctx->type != MODE_LTM_CAP) {
 		pr_err("fail to set share ctx, only cap support, except ctx[%d]\n",
@@ -202,10 +205,10 @@ static int isp_ltm_share_ctx_get_config(struct isp_ltm_ctx_desc *ctx)
 	ctx->frame_height_stat = s_share_ctx_param.pre_frame_h;
 	ctx->frame_width_stat = s_share_ctx_param.pre_frame_w;
 
-	ctx->hists.tile_num_x_minus = s_share_ctx_param.tile_num_x_minus;
-	ctx->hists.tile_num_y_minus = s_share_ctx_param.tile_num_y_minus;
-	ctx->hists.tile_width = s_share_ctx_param.tile_width;
-	ctx->hists.tile_height = s_share_ctx_param.tile_height;
+	hists->tile_num_x_minus = s_share_ctx_param.tile_num_x_minus;
+	hists->tile_num_y_minus = s_share_ctx_param.tile_num_y_minus;
+	hists->tile_width = s_share_ctx_param.tile_width;
+	hists->tile_height = s_share_ctx_param.tile_height;
 
 	mutex_unlock(&s_share_ctx_param.share_mutex);
 
@@ -214,6 +217,7 @@ static int isp_ltm_share_ctx_get_config(struct isp_ltm_ctx_desc *ctx)
 
 static int isp_ltm_share_ctx_init(void)
 {
+	enum isp_ltm_region ltm_id = 0;
 	s_share_ctx_param.pre_ctx_status = 0;
 	s_share_ctx_param.cap_ctx_status = 0;
 
@@ -234,8 +238,10 @@ static int isp_ltm_share_ctx_init(void)
 	s_share_ctx_param.tile_height = 0;
 
 	/* s_share_ctx_param.wait_completion = 0; */
-	atomic_set(&s_share_ctx_param.wait_completion, 0);
-	init_completion(&s_share_ctx_param.share_comp);
+	for (ltm_id = 0; ltm_id < LTM_MAX; ltm_id++) {
+		atomic_set(&s_share_ctx_param.wait_completion[ltm_id], 0);
+		init_completion(&s_share_ctx_param.share_comp[ltm_id]);
+	}
 
 	mutex_init(&s_share_ctx_param.share_mutex);
 
@@ -561,16 +567,17 @@ static void ltm_rgb_map_dump_data_rtl(ltm_param_t *param_map,
 
 
 static int isp_ltm_gen_histo_config(struct isp_ltm_ctx_desc *ctx,
+			enum isp_ltm_region ltm_id,
 			struct isp_dev_ltm_stat_info *tuning)
 {
 	int ret = 0;
 	int idx = 0;
 	struct isp_ltm_hist_param hist_param;
 	struct isp_ltm_hist_param *param = &hist_param;
-	struct isp_ltm_hists *hists = &ctx->hists;
+	struct isp_ltm_hists *hists = &ctx->hists[ltm_id];
 
 	/* Check bypass condition */
-	param->bypass           = tuning->bypass | hists->bypass;
+	param->bypass = tuning->bypass;
 
 	if (param->bypass) {
 		hists->bypass = 1;
@@ -584,6 +591,7 @@ static int isp_ltm_gen_histo_config(struct isp_ltm_ctx_desc *ctx,
 		return 0;
 	}
 
+	param->channel_sel = tuning->channel_sel;
 	param->strength         = tuning->strength;
 	param->region_est_en    = tuning->region_est_en;
 	param->text_point_thres = tuning->text_point_thres;
@@ -596,10 +604,11 @@ static int isp_ltm_gen_histo_config(struct isp_ltm_ctx_desc *ctx,
 
 	ltm_calc_histo_param(param);
 
-	idx = ctx->fid % ISP_LTM_BUF_NUM;
 	hists->bypass		= param->bypass;
+	hists->channel_sel = param->channel_sel;
 	hists->binning_en	= param->binning_en;
 	hists->region_est_en	= param->region_est_en;
+	hists->buf_sel = 0;
 	hists->buf_full_mode	= 0;
 	hists->roi_start_x	= param->cropLeft;
 	hists->roi_start_y	= param->cropUp;
@@ -607,13 +616,29 @@ static int isp_ltm_gen_histo_config(struct isp_ltm_ctx_desc *ctx,
 	hists->tile_num_x_minus = param->tile_num_x - 1;
 	hists->tile_height	= param->tile_height;
 	hists->tile_num_y_minus = param->tile_num_y - 1;
+
+	if ((hists->tile_width * hists->tile_height >
+		LTM_MAX_TILE_RANGE) ||
+		hists->tile_width < LTM_MIN_TILE_WIDTH ||
+		hists->tile_height < LTM_MIN_TILE_HEIGHT ||
+		hists->roi_start_x > LTM_MAX_ROI_X ||
+		hists->roi_start_y > LTM_MAX_ROI_Y)
+		hists->bypass = 1;
+
+	if (hists->bypass)
+		return 0;
+
+	idx = ctx->fid % ISP_LTM_BUF_NUM;
 	hists->clip_limit	= param->clipLimit;
 	hists->clip_limit_min	= param->clipLimit_min;
 	hists->texture_proportion = param->text_proportion;
 	hists->text_point_thres = param->text_point_thres;
-	hists->addr		= ctx->pbuf[idx]->iova[0];
+	hists->addr		= ctx->pbuf[ltm_id][idx]->iova[0];
 	hists->pitch		= param->tile_num_x - 1;
 	hists->wr_num		= param->tile_num_x * 32;
+
+	memcpy(hists->ltm_hist_table, tuning->ltm_hist_table,
+		sizeof(tuning->ltm_hist_table));
 
 	ctx->frame_width_stat	= param->frame_width;
 	ctx->frame_height_stat	= param->frame_height;
@@ -628,16 +653,15 @@ static int isp_ltm_gen_histo_config(struct isp_ltm_ctx_desc *ctx,
 	pr_debug("idx[%d], roi_start_x[%d], roi_start_y[%d], addr[0x%lx]\n",
 		ctx->fid, hists->roi_start_x,
 		hists->roi_start_y, hists->addr);
-	pr_debug("region_est_en[%d], text_point_thres[%d], texture_proportion[%d]\n",
-			hists->region_est_en, hists->text_point_thres,
-			hists->texture_proportion);
+	pr_debug("region_est_en[%d], texture_proportion[%d]\n",
+			hists->region_est_en, hists->texture_proportion);
 
 	return ret;
 }
 
 
 static int isp_ltm_gen_map_config(struct isp_ltm_ctx_desc *ctx,
-			struct isp_dev_ltm_map_info *tuning)
+			enum isp_ltm_region ltm_id, struct isp_dev_ltm_map_info *tuning)
 {
 	int idx = 0;
 
@@ -646,8 +670,8 @@ static int isp_ltm_gen_map_config(struct isp_ltm_ctx_desc *ctx,
 	struct isp_ltm_rtl_param  rtl_param;
 	struct isp_ltm_rtl_param  *prtl = &rtl_param;
 
-	struct isp_ltm_hists *hists = &ctx->hists;
-	struct isp_ltm_map   *map   = &ctx->map;
+	struct isp_ltm_hists *hists = &ctx->hists[ltm_id];
+	struct isp_ltm_map   *map   = &ctx->map[ltm_id];
 
 	struct isp_ltm_tile_num_minus1 mnum;
 	struct isp_ltm_tile_size ts;
@@ -664,6 +688,9 @@ static int isp_ltm_gen_map_config(struct isp_ltm_ctx_desc *ctx,
 	uint32_t slice_info[4];
 
 	map->bypass = map->bypass || tuning->bypass;
+	if (hists->bypass)
+		map->bypass = 1;
+
 	if (map->bypass)
 		return 0;
 
@@ -762,9 +789,9 @@ static int isp_ltm_gen_map_config(struct isp_ltm_ctx_desc *ctx,
 	if (tuning->ltm_map_video_mode) {
 		if (idx == 0)
 			idx = ISP_LTM_BUF_NUM;
-		map->mem_init_addr = ctx->pbuf[idx - 1]->iova[0];
+		map->mem_init_addr = ctx->pbuf[ltm_id][idx - 1]->iova[0];
 	} else {
-		map->mem_init_addr = ctx->pbuf[idx]->iova[0];
+		map->mem_init_addr = ctx->pbuf[ltm_id][idx]->iova[0];
 	}
 
 	pr_debug("tile_width[%d], tile_height[%d], tile_x_num[%d], tile_y_num[%d]\n",
@@ -787,6 +814,7 @@ static int isp_ltm_gen_map_config(struct isp_ltm_ctx_desc *ctx,
  */
 
 int isp_ltm_gen_map_slice_config(struct isp_ltm_ctx_desc *ctx,
+				enum isp_ltm_region ltm_id,
 				struct isp_ltm_rtl_param  *prtl,
 				uint32_t *slice_info)
 {
@@ -796,7 +824,7 @@ int isp_ltm_gen_map_slice_config(struct isp_ltm_ctx_desc *ctx,
 	 * struct isp_ltm_rtl_param  rtl_param;
 	 * struct isp_ltm_rtl_param  *prtl = &rtl_param;
 	 */
-	struct isp_ltm_hists *hists = &ctx->hists;
+	struct isp_ltm_hists *hists = &ctx->hists[ltm_id];
 
 	struct isp_ltm_tile_num_minus1 mnum;
 	struct isp_ltm_tile_size ts;
@@ -866,8 +894,8 @@ int isp_ltm_gen_map_slice_config(struct isp_ltm_ctx_desc *ctx,
 	return 0;
 }
 
-
-int isp_ltm_gen_frame_config(struct isp_ltm_ctx_desc *ctx)
+int isp_ltm_gen_frame_config(struct isp_ltm_ctx_desc *ctx,
+		enum isp_ltm_region ltm_id)
 {
 	int ret = 0;
 	int pre_fid = 0;
@@ -878,21 +906,21 @@ int isp_ltm_gen_frame_config(struct isp_ltm_ctx_desc *ctx)
 		ctx->type, ctx->fid, ctx->frame_width, ctx->frame_height);
 
 	for (i = 0; i < ISP_LTM_BUF_NUM; i++) {
-		if (ctx->pbuf[i])
-		pr_debug("ctx->pbuf[%d] =  0x%p, 0x%lx\n",
-			i, ctx->pbuf[i], ctx->pbuf[i]->iova[0]);
+		if (ctx->pbuf[ltm_id][i])
+		pr_debug("ctx->pbuf[%d][%d] =  0x%p, 0x%lx\n",
+			ltm_id, i, ctx->pbuf[ltm_id][i], ctx->pbuf[ltm_id][i]->iova[0]);
 	}
 
 	switch (ctx->type) {
 	case MODE_LTM_PRE:
-		ltm_info = isp_ltm_get_tuning_config(ISP_PRO_LTM_PRE_PARAM);
-		isp_ltm_gen_histo_config(ctx, &ltm_info->ltm_stat);
-		isp_ltm_gen_map_config(ctx, &ltm_info->ltm_map);
-		isp_ltm_config_param(ctx);
-		isp_ltm_share_ctx_set_config(ctx);
+		ltm_info = isp_ltm_get_tuning_config(ISP_PRO_LTM_PRE_PARAM, ltm_id);
+		isp_ltm_gen_histo_config(ctx, ltm_id, &ltm_info->ltm_stat);
+		isp_ltm_gen_map_config(ctx, ltm_id, &ltm_info->ltm_map);
+		isp_ltm_config_param(ctx, ltm_id);
+		isp_ltm_share_ctx_set_config(ctx, &ctx->hists[ltm_id]);
 		break;
 	case MODE_LTM_CAP:
-		isp_ltm_share_ctx_get_config(ctx);
+		isp_ltm_share_ctx_get_config(ctx, &ctx->hists[ltm_id]);
 		pre_fid = atomic_read(&s_share_ctx_param.pre_fid);
 
 		while (ctx->fid > pre_fid) {
@@ -907,10 +935,10 @@ int isp_ltm_gen_frame_config(struct isp_ltm_ctx_desc *ctx)
 				break;
 			}
 
-			isp_ltm_share_ctx_set_completion(ctx->fid);
+			isp_ltm_share_ctx_set_completion(ctx->fid, ltm_id);
 
 			ret = wait_for_completion_interruptible_timeout(
-				&s_share_ctx_param.share_comp, ISP_LTM_TIMEOUT);
+				&s_share_ctx_param.share_comp[ltm_id], ISP_LTM_TIMEOUT);
 			if (ret <= 0) {
 				pr_err("fail to wait completion [%d]\n", ret);
 				ctx->type = MODE_LTM_OFF;
@@ -934,18 +962,18 @@ int isp_ltm_gen_frame_config(struct isp_ltm_ctx_desc *ctx)
 			}
 		}
 
-		ltm_info = isp_ltm_get_tuning_config(ISP_PRO_LTM_CAP_PARAM);
-		isp_ltm_gen_histo_config(ctx, &ltm_info->ltm_stat);
-		isp_ltm_gen_map_config(ctx, &ltm_info->ltm_map);
-		isp_ltm_config_param(ctx);
+		ltm_info = isp_ltm_get_tuning_config(ISP_PRO_LTM_CAP_PARAM, ltm_id);
+		isp_ltm_gen_histo_config(ctx, ltm_id, &ltm_info->ltm_stat);
+		isp_ltm_gen_map_config(ctx, ltm_id, &ltm_info->ltm_map);
+		isp_ltm_config_param(ctx, ltm_id);
 		break;
 	case MODE_LTM_OFF:
 		ctx->bypass = 1;
-		isp_ltm_config_param(ctx);
+		isp_ltm_config_param(ctx, ltm_id);
 		break;
 	default:
 		ctx->bypass = 1;
-		isp_ltm_config_param(ctx);
+		isp_ltm_config_param(ctx, ltm_id);
 		break;
 	}
 

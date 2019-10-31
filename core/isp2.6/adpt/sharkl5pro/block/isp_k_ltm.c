@@ -12,13 +12,13 @@
  */
 #include <linux/uaccess.h>
 #include <sprd_mm.h>
-#include "sprd_isp_hw.h"
 
 #include "isp_reg.h"
 #include "cam_types.h"
 #include "cam_block.h"
 
 #include "isp_ltm.h"
+#include "sprd_isp_2v6.h"
 
 #ifdef pr_fmt
 #undef pr_fmt
@@ -26,7 +26,42 @@
 #define pr_fmt(fmt) "LTM MAP: %d %d %s : "\
 	fmt, current->pid, __LINE__, __func__
 
-static struct isp_dev_ltm_info g_ltm_info_pre = {
+#define	ISP_LTM_HIST_BUF0		0
+#define	ISP_LTM_HIST_BUF1		1
+
+static uint32_t table[2][128] =
+{
+	{
+		4,5,5,5,6,6,6,6,6,6,7,7,7,7,7,7,7,7,7,7,8,8,8,8,8,8,8,8,8,8,8,8,9,9,9,9,9,9,9,9,9,9,9,9,
+		9,9,9,9,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,11,11,11,11,11,
+		11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,12,12,12,12,12,12,12,12,12,12,12,12,
+		12,12,12,12,12,12,12,12,12,12,12,12,12,13,13,13,13,13,13,13,13,13,13,13,13,13,13,13
+	},
+
+	{
+		7,8,8,8,9,9,9,9,9,9,10,10,10,10,10,10,10,10,10,10,11,11,11,11,11,11,11,11,11,11,11,11,
+		12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,13,13,13,13,13,13,13,13,13,13,13,13,
+		13,13,13,13,13,13,13,13,14,14,14,14,14,14,14,14,14,14,14,14,14,14,14,14,14,14,14,14,
+		15,15,15,15,15,15,15,15,15,15,15,15,15,15,15,15,15,15,15,15,15,15,15,15,15,16,16,16,
+		16,16,16,16,16,16,16,16,16,16,16,16
+	},
+};
+
+static struct isp_dev_ltm_info g_ltm_rgb_info_pre = {
+	.ltm_stat.bypass  = 0,
+	.ltm_stat.tile_num.tile_num_x = 8,
+	.ltm_stat.tile_num.tile_num_y = 8,
+	.ltm_stat.strength = 4,
+	.ltm_stat.region_est_en = 1,
+	.ltm_stat.text_point_thres = 4,
+	.ltm_stat.text_proportion  = 19,
+	.ltm_stat.tile_num_auto    = 0,
+
+	.ltm_map.bypass = 0,
+	.ltm_map.ltm_map_video_mode = 1,
+};
+
+static struct isp_dev_ltm_info g_ltm_yuv_info_pre = {
 	.ltm_stat.bypass  = 0,
 	.ltm_stat.tile_num.tile_num_x = 8,
 	.ltm_stat.tile_num.tile_num_y = 8,
@@ -40,7 +75,21 @@ static struct isp_dev_ltm_info g_ltm_info_pre = {
 	.ltm_map.ltm_map_video_mode = 1,
 };
 
-static struct isp_dev_ltm_info g_ltm_info_cap = {
+static struct isp_dev_ltm_info g_ltm_rgb_info_cap = {
+	.ltm_stat.bypass  = 1,
+	.ltm_stat.tile_num.tile_num_x = 8,
+	.ltm_stat.tile_num.tile_num_y = 8,
+	.ltm_stat.strength = 4,
+	.ltm_stat.region_est_en = 1,
+	.ltm_stat.text_point_thres = 4,
+	.ltm_stat.text_proportion  = 19,
+	.ltm_stat.tile_num_auto    = 0,
+
+	.ltm_map.bypass = 0,
+	.ltm_map.ltm_map_video_mode = 0,
+};
+
+static struct isp_dev_ltm_info g_ltm_yuv_info_cap = {
 	.ltm_stat.bypass  = 1,
 	.ltm_stat.tile_num.tile_num_x = 8,
 	.ltm_stat.tile_num.tile_num_y = 8,
@@ -54,59 +103,99 @@ static struct isp_dev_ltm_info g_ltm_info_cap = {
 	.ltm_map.ltm_map_video_mode = 0,
 };
 
-
-static void isp_ltm_config_hists(uint32_t idx, struct isp_ltm_hists *hists)
+static void isp_ltm_config_hists(uint32_t idx,
+	enum isp_ltm_region ltm_id, struct isp_ltm_hists *hists)
 {
-	unsigned int val;
+	unsigned int val, i;
+	unsigned int base = 0;
+	unsigned int buf_addr = 0;
+	unsigned int buf_addr_0 = 0;
+	unsigned int buf_addr_1 = 0;
+
+	switch (ltm_id) {
+	case LTM_RGB:
+		base = ISP_LTM_HIST_RGB_BASE;
+		buf_addr_0 = ISP_LTM_RGB_HIST_BUF0_ADDR;
+		buf_addr_1 = ISP_LTM_RGB_HIST_BUF1_ADDR;
+		break;
+	case LTM_YUV:
+		base = ISP_LTM_HIST_YUV_BASE;
+		buf_addr_0 = ISP_LTM_YUV_HIST_BUF0_ADDR;
+		buf_addr_1 = ISP_LTM_YUV_HIST_BUF1_ADDR;
+		break;
+	default:
+		pr_err("fail to get cmd id:%d, not supported.\n", ltm_id);
+		return;
+	}
 
 	if (g_isp_bypass[idx] & (1 << _EISP_LTM))
 		hists->bypass = 1;
-	ISP_REG_MWR(idx, ISP_LTM_HIST_PARAM, BIT_0, hists->bypass);
-
+	ISP_REG_MWR(idx, base + ISP_LTM_HIST_PARAM, BIT_0, hists->bypass);
 	if (hists->bypass)
 		return;
 
-	val = ((hists->buf_full_mode & 0x1) << 3) |
+	val = ((hists->buf_sel & 0x1) << 5) |
+		((hists->channel_sel & 0x1) << 4) |
+		((hists->buf_full_mode & 0x1) << 3) |
 		((hists->region_est_en & 0x1) << 2) |
 		((hists->binning_en    & 0x1) << 1) |
 		(hists->bypass        & 0x1);
-	ISP_REG_WR(idx, ISP_LTM_HIST_PARAM, val);
+	ISP_REG_WR(idx, base + ISP_LTM_HIST_PARAM, val);
 
 	val = ((hists->roi_start_y & 0x1FFF) << 16) |
 		(hists->roi_start_x & 0x1FFF);
-	ISP_REG_WR(idx, ISP_LTM_ROI_START, val); /* slice */
+	ISP_REG_WR(idx, base + ISP_LTM_ROI_START, val); /* slice */
 
 	/* tile_num_y tile_num_x HOW TODO */
 	val = ((hists->tile_num_y_minus & 0x7)   << 28) |
 		((hists->tile_height      & 0x1FF) << 16) |
 		((hists->tile_num_x_minus & 0x7)   << 12) |
 		(hists->tile_width       & 0x1FF);
-	ISP_REG_WR(idx, ISP_LTM_TILE_RANGE, val); /* slice */
+	ISP_REG_WR(idx, base + ISP_LTM_TILE_RANGE, val); /* slice */
 
 	val = ((hists->clip_limit_min & 0xFFFF) << 16) |
 		(hists->clip_limit     & 0xFFFF);
-	ISP_REG_WR(idx, ISP_LTM_CLIP_LIMIT, val);
+	ISP_REG_WR(idx, base + ISP_LTM_CLIP_LIMIT, val);
 
-	val = ((hists->text_point_thres   & 0x3F) << 16) |
-		(hists->texture_proportion & 0x1F);
-	ISP_REG_WR(idx, ISP_LTM_THRES, val);
+	val = hists->texture_proportion & 0x1F;
+	ISP_REG_WR(idx, base + ISP_LTM_THRES, val);
 
 	val = hists->addr;
-	ISP_REG_WR(idx, ISP_LTM_ADDR, val); /* slice */
+	ISP_REG_WR(idx, base + ISP_LTM_ADDR, val); /* slice */
 
 	val = ((hists->wr_num & 0x1FF) << 16) |
 		(hists->pitch & 0xFFFF);
-	ISP_REG_WR(idx, ISP_LTM_PITCH, val); /* slice */
+	ISP_REG_WR(idx, base + ISP_LTM_PITCH, val); /* slice */
+
+	if (ISP_LTM_HIST_BUF0 == hists->buf_sel)
+		buf_addr = buf_addr_0;
+	else
+		buf_addr = buf_addr_1;
+	for (i = 0; i < LTM_HIST_TABLE_NUM; i++)
+		ISP_REG_WR(idx, buf_addr + i * 4, table[ltm_id][i]);
 }
 
-
-static void isp_ltm_config_map(uint32_t idx, struct isp_ltm_map *map)
+static void isp_ltm_config_map(uint32_t idx,
+	enum isp_ltm_region ltm_id, struct isp_ltm_map *map)
 {
 	unsigned int val;
+	unsigned int base = 0;
+
+	switch (ltm_id) {
+	case LTM_RGB:
+		base = ISP_LTM_MAP_RGB_BASE;
+		break;
+	case LTM_YUV:
+		base = ISP_LTM_MAP_YUV_BASE;
+		break;
+	default:
+		pr_err("fail to get cmd id:%d, not supported.\n", ltm_id);
+		return;
+	}
 
 	if (g_isp_bypass[idx] & (1 << _EISP_LTM))
 		map->bypass = 1;
-	ISP_REG_MWR(idx, ISP_LTM_MAP_PARAM0, BIT_0, map->bypass);
+	ISP_REG_MWR(idx, base + ISP_LTM_MAP_PARAM0, BIT_0, map->bypass);
 	if (map->bypass)
 		return;
 
@@ -115,65 +204,74 @@ static void isp_ltm_config_map(uint32_t idx, struct isp_ltm_map *map)
 		((map->hist_error_en   & 0x1) << 2) |
 		((map->burst8_en       & 0x1) << 1) |
 		(map->bypass          & 0x1);
-	ISP_REG_WR(idx, ISP_LTM_MAP_PARAM0, val);
+	ISP_REG_WR(idx, base + ISP_LTM_MAP_PARAM0, val);
 
 	val = ((map->tile_y_num  & 0x7)   << 28) |
 		((map->tile_x_num  & 0x7)   << 24) |
 		((map->tile_height & 0x3FF) << 12) |
 		(map->tile_width  & 0x3FF);
-	ISP_REG_WR(idx, ISP_LTM_MAP_PARAM1, val); /* slice */
+	ISP_REG_WR(idx, base + ISP_LTM_MAP_PARAM1, val); /* slice */
 
-	val = map->tile_size_pro & 0x3FFFF;
-	ISP_REG_WR(idx, ISP_LTM_MAP_PARAM2, val);
+	val = map->tile_size_pro & 0xFFFFF;
+	ISP_REG_WR(idx, base + ISP_LTM_MAP_PARAM2, val);
 
 	val = ((map->tile_right_flag & 0x1)   << 23) |
 		((map->tile_start_y    & 0x7FF) << 12) |
 		((map->tile_left_flag  & 0x1)   << 11) |
 		(map->tile_start_x    & 0x7FF);
-	ISP_REG_WR(idx, ISP_LTM_MAP_PARAM3, val); /* slice */
+	ISP_REG_WR(idx, base + ISP_LTM_MAP_PARAM3, val); /* slice */
 
 	val = map->mem_init_addr;
-	ISP_REG_WR(idx, ISP_LTM_MAP_PARAM4, val); /* slice */
+	ISP_REG_WR(idx, base + ISP_LTM_MAP_PARAM4, val); /* slice */
 
 	val = (map->hist_pitch & 0x7) << 24;
-	ISP_REG_WR(idx, ISP_LTM_MAP_PARAM5, val);
+	ISP_REG_WR(idx, base + ISP_LTM_MAP_PARAM5, val);
 }
 
 
-int isp_ltm_config_param(struct isp_ltm_ctx_desc *ctx)
+int isp_ltm_config_param(struct isp_ltm_ctx_desc *ctx,
+		enum isp_ltm_region ltm_id)
 {
 	uint32_t idx = ctx->isp_pipe_ctx_id;
-	struct isp_ltm_hists *hists = &ctx->hists;
-	struct isp_ltm_map *map     = &ctx->map;
+	struct isp_ltm_hists *hists = &ctx->hists[ltm_id];
+	struct isp_ltm_map   *map   = &ctx->map[ltm_id];
 
 	if (ctx->bypass) {
 		hists->bypass = 1;
-		map->bypass   = 1;
+		map->bypass  = 1;
 	}
 
-	isp_ltm_config_hists(idx, hists);
-	isp_ltm_config_map(idx, map);
+	isp_ltm_config_hists(idx,ltm_id, hists);
+	isp_ltm_config_map(idx, ltm_id, map);
 
 	return 0;
 }
 
-struct isp_dev_ltm_info *isp_ltm_get_tuning_config(int type)
+struct isp_dev_ltm_info *isp_ltm_get_tuning_config(int type,
+		enum isp_ltm_region ltm_id)
 {
-	struct isp_dev_ltm_info *info;
+	struct isp_dev_ltm_info *ltm_info;
 
-	if (type == ISP_PRO_LTM_PRE_PARAM)
-		info = &g_ltm_info_pre;
-	else
-		info = &g_ltm_info_cap;
+	if (ltm_id == LTM_RGB) {
+		if (type == ISP_PRO_LTM_PRE_PARAM)
+			ltm_info = &g_ltm_rgb_info_pre;
+		else
+			ltm_info = &g_ltm_rgb_info_cap;
+	} else {
+		if (type == ISP_PRO_LTM_PRE_PARAM)
+			ltm_info = &g_ltm_yuv_info_pre;
+		else
+			ltm_info = &g_ltm_yuv_info_cap;
+	}
 
-	return info;
+	return ltm_info;
 }
 
 int isp_k_ltm_block(struct isp_io_param *param, uint32_t idx)
 {
 	int ret = 0;
 	struct isp_dev_ltm_info ltm_info;
-	struct isp_dev_ltm_info *info;
+	//struct isp_dev_ltm_info *info;
 
 	ret = copy_from_user((void *)&ltm_info,
 			     param->property_param,
@@ -183,10 +281,10 @@ int isp_k_ltm_block(struct isp_io_param *param, uint32_t idx)
 		return -EPERM;
 	}
 
-	if (param->property == ISP_PRO_LTM_PRE_PARAM)
+	/*if (param->property == ISP_PRO_LTM_PRE_PARAM)
 		info = &g_ltm_info_pre;
 	else
-		info = &g_ltm_info_cap;
+		info = &g_ltm_info_cap;*/
 
 //	isp_ltm_config_hists(idx, &hists);
 	return ret;

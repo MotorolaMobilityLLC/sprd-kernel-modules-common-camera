@@ -1407,8 +1407,10 @@ static uint32_t ISP_CFG_MAP[] __aligned(8) = {
 		0x00043410, /*0x3410  - 0x3410 , 1   , PSTRZ*/
 		0x001C3510, /*0x3510  - 0x3528 , 7   , CCE*/
 		0x001C3610, /*0x3610  - 0x3628 , 7   , UVD*/
-		//0x00205510, /*0x5510  - 0x552C , 8   , LTM HISTS*/
-		//0x00185F10, /*0x5F10  - 0x5F24 , 6   , LTM MAP*/
+		0x00203810, /*0x3810  - 0x382C , 8   , LTM RGB HISTS*/
+		0x00183910, /*0x3910  - 0x3924 , 6   , LTM RGB MAP*/
+		0x00205510, /*0x5510  - 0x552C , 8   , LTM YUV HISTS*/
+		0x00185F10, /*0x5F10  - 0x5F24 , 6   , LTM YUV MAP*/
 		0x004C5010, /*0x5010  - 0x5058 , 19  , PRECDN*/
 		0x008C5110, /*0x5110  - 0x5198 , 35  , YNR*/
 		0x00485610, /*0x5610  - 0x5654 , 18  , CDN*/
@@ -1438,6 +1440,8 @@ static uint32_t ISP_CFG_MAP[] __aligned(8) = {
 		0x00300210, /*0x210   - 0x23C  , 12  , STORE*/
 		0x001C0310, /*0x310   - 0x328  , 7   , DISPATCH*/
 		0x003C0C10, /*0x0C10  - 0x0C48 , 15  , Fetch_FBD*/
+		0x0201F000, //0x1F000 - 0x1F1FC, 128 , ISP_RGB_LTM_BUF0_CH0
+		0x0201F400, //0x1F400 - 0x1F5FC, 128 , ISP_YUV_LTM_BUF0_CH0
 		0x05A18000, /*0x18000 - 0x1859C, 360 , ISP_HSV_BUF0_CH0*/
 		0x20019000, /*0x19000 - 0x19FFC, 1024, ISP_VST_BUF0_CH0*/
 		0x20029000, /*0x1A000 - 0x1AFFC, 1024, ISP_IVST_BUF0_CH0*/
@@ -1565,9 +1569,14 @@ isp_cfg_para:
 	ISP_REG_MWR(idx, ISP_EE_PARAM, BIT_0, 1);
 	ISP_REG_MWR(idx, ISP_GRGB_CTRL, BIT_0, 1);
 	ISP_REG_MWR(idx, ISP_YUV_NF_CTRL, BIT_0, 1);
-
-	ISP_REG_MWR(idx, ISP_LTM_HIST_PARAM, BIT_0, 1);
-	ISP_REG_MWR(idx, ISP_LTM_MAP_PARAM0, BIT_0, 1);
+	ISP_REG_MWR(idx, ISP_LTM_HIST_RGB_BASE +
+		ISP_LTM_HIST_PARAM, BIT_0, 1);
+	ISP_REG_MWR(idx, ISP_LTM_HIST_YUV_BASE +
+		ISP_LTM_HIST_PARAM, BIT_0, 1);
+	ISP_REG_MWR(idx, ISP_LTM_MAP_RGB_BASE +
+		ISP_LTM_MAP_PARAM0, BIT_0, 1);
+	ISP_REG_MWR(idx, ISP_LTM_MAP_YUV_BASE +
+		ISP_LTM_MAP_PARAM0, BIT_0, 1);
 	ISP_REG_MWR(idx, ISP_CDN_PARAM, BIT_0, 1);
 	ISP_REG_MWR(idx, ISP_EE_PARAM, BIT_0, 1);
 	ISP_REG_MWR(idx, ISP_BCHS_PARAM, BIT_0, 1);
@@ -2093,6 +2102,55 @@ static int sharkl5pro_isp_afbc_path_slice_set(void *fmcu_handle,
 	return 0;
 }
 
+static int sharkl5pro_isp_ltm_slice_set(
+		void *fmcu_handle,
+		void *arg, uint32_t ltm_id)
+{
+	uint32_t addr = 0, cmd = 0, base = 0;
+	struct isp_fmcu_ctx_desc *fmcu = NULL;
+	struct isp_slice_desc *cur_slc = NULL;
+	struct slice_ltm_map_info *map = NULL;
+
+	fmcu = (struct isp_fmcu_ctx_desc *)fmcu_handle;
+	cur_slc = (struct isp_slice_desc *)arg;
+	map = &cur_slc->slice_ltm_map[ltm_id];
+
+	if (map->bypass) {
+		return 0;
+	}
+
+	switch (ltm_id) {
+	case LTM_RGB:
+		base = ISP_LTM_MAP_RGB_BASE;
+		break;
+	case LTM_YUV:
+		base = ISP_LTM_MAP_YUV_BASE;
+		break;
+	default:
+		pr_err("fail to get cmd id:%d, not supported.\n", ltm_id);
+		return -1;
+	}
+
+	addr = ISP_GET_REG(base + ISP_LTM_MAP_PARAM1);
+	cmd = ((map->tile_num_y  & 0x7)   << 28) |
+	      ((map->tile_num_x  & 0x7)   << 24) |
+	      ((map->tile_height & 0x3FF) << 12) |
+	       (map->tile_width  & 0x3FF);
+	FMCU_PUSH(fmcu, addr, cmd);
+
+	addr = ISP_GET_REG(base + ISP_LTM_MAP_PARAM3);
+	cmd = ((map->tile_right_flag & 0x1)   << 23) |
+	      ((map->tile_start_y    & 0x7FF) << 12) |
+	      ((map->tile_left_flag  & 0x1)   << 11) |
+	       (map->tile_start_x    & 0x7FF);
+	FMCU_PUSH(fmcu, addr, cmd);
+
+	addr = ISP_GET_REG(base + ISP_LTM_MAP_PARAM4);
+	cmd = map->mem_addr;
+	FMCU_PUSH(fmcu, addr, cmd);
+
+	return 0;
+}
 
 static uint32_t sharkl5pro_path_ctrl_id[] = {
 	DCAM_CTRL_FULL,
@@ -2231,6 +2289,7 @@ struct cam_hw_info sharkl5pro_hw_info = {
 			.isp_afbc_path_set = sharkl5pro_isp_afbc_path_set,
 			.isp_afbc_fmcu_addr_set = sharkl5pro_isp_afbc_fmcu_addr_set,
 			.isp_afbc_path_slice_set = sharkl5pro_isp_afbc_path_slice_set,
+			.isp_ltm_slice_set = sharkl5pro_isp_ltm_slice_set,
 			.hist_enable_get = sharkl5pro_isp_hist_enable_get,
 			.block_func_get = sharkl5pro_block_func_get,
 			.cfg_map_info_get = sharkl5pro_isp_cfg_map_info_get,

@@ -618,6 +618,8 @@ int isp_cfg_ctx_base(struct isp_pipe_context *pctx, void *param)
 	pctx->slw_state = cfg_in->slw_state;
 	pctx->mode_3dnr = cfg_in->mode_3dnr;
 	pctx->mode_ltm = cfg_in->mode_ltm;
+	pctx->ltm_rgb = cfg_in->ltm_rgb;
+	pctx->ltm_yuv = cfg_in->ltm_yuv;
 	pctx->in_fmt = cfg_in->in_fmt;
 	pctx->is_loose = cfg_in->is_loose;
 	pctx->dispatch_bayer_mode = cfg_in->bayer_pattern;

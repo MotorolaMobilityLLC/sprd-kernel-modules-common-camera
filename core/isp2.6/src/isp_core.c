@@ -398,15 +398,22 @@ static int isp_ltm_process_frame_previous(struct isp_pipe_context *pctx,
 
 	/*  Check Zoom or not */
 	if ((pctx->input_trim.size_x != pctx->ltm_ctx.frame_width) ||
-	    (pctx->input_trim.size_y != pctx->ltm_ctx.frame_height)) {
-		pr_debug("frame size changed, bypass ltm map\n");
+		(pctx->input_trim.size_y != pctx->ltm_ctx.frame_height) ||
+		((pframe->fid - pctx->ltm_ctx.fid) != 1)) {
+		pr_debug("frame size changed or frame id not series , bypass ltm map\n");
 
 		/* 1. hists from preview path always on
 		 * 2. map will be off one time in preview case
 		 */
-		pctx->ltm_ctx.map.bypass = 1;
+		if (pctx->ltm_rgb)
+			pctx->ltm_ctx.map[LTM_RGB].bypass = 1;
+		if (pctx->ltm_yuv)
+			pctx->ltm_ctx.map[LTM_YUV].bypass = 1;
 	} else {
-		pctx->ltm_ctx.map.bypass = 0;
+		if (pctx->ltm_rgb)
+			pctx->ltm_ctx.map[LTM_RGB].bypass = 0;
+		if (pctx->ltm_yuv)
+			pctx->ltm_ctx.map[LTM_YUV].bypass = 0;
 	}
 
 	return 0;
@@ -425,10 +432,18 @@ static int isp_ltm_process_frame(struct isp_pipe_context *pctx,
 	pctx->ltm_ctx.isp_pipe_ctx_id = pctx->ctx_id;
 
 	/* pre & cap */
-	ret = isp_ltm_gen_frame_config(&pctx->ltm_ctx);
+	if (pctx->ltm_rgb)
+		ret = isp_ltm_gen_frame_config(&pctx->ltm_ctx, LTM_RGB);
 	if (ret == -1) {
 		pctx->mode_ltm = MODE_LTM_OFF;
-		pr_err("fail to cfg LTM frame, DISABLE\n");
+		pr_err("fail to rgb LTM cfg frame, DISABLE\n");
+	}
+
+	if (pctx->ltm_yuv)
+		ret = isp_ltm_gen_frame_config(&pctx->ltm_ctx, LTM_YUV);
+	if (ret == -1) {
+		pctx->mode_ltm = MODE_LTM_OFF;
+		pr_err("fail to yuv LTM cfg frame, DISABLE\n");
 	}
 
 	pr_debug("type[%d], fid[%d], frame_width[%d], frame_height[%d], isp_pipe_ctx_id[%d]\n",
@@ -438,15 +453,9 @@ static int isp_ltm_process_frame(struct isp_pipe_context *pctx,
 		pctx->ltm_ctx.frame_height,
 		pctx->ltm_ctx.isp_pipe_ctx_id);
 
-	pr_debug("frame_height_stat[%d], frame_width_stat[%d],\
-		tile_num_x_minus[%d], tile_num_y_minus[%d],\
-		tile_width[%d], tile_height[%d]\n",
+	pr_debug("frame_height_stat[%d], frame_width_stat[%d]",
 		pctx->ltm_ctx.frame_height_stat,
-		pctx->ltm_ctx.frame_width_stat,
-		pctx->ltm_ctx.hists.tile_num_x_minus,
-		pctx->ltm_ctx.hists.tile_num_y_minus,
-		pctx->ltm_ctx.hists.tile_width,
-		pctx->ltm_ctx.hists.tile_height);
+		pctx->ltm_ctx.frame_width_stat);
 
 	return ret;
 }
@@ -996,7 +1005,6 @@ static int isp_offline_start_frame(void *ctx)
 		ret = -EINVAL;
 		goto inq_overflow;
 	}
-
 	/*
 	 * param_mutex to avoid ctx/all paths param
 	 * updated when set to register.
@@ -1186,7 +1194,10 @@ static int isp_offline_start_frame(void *ctx)
 		isp_cfg_slice_3dnr_info(&slc_cfg, pctx->slice_ctx);
 
 		slc_cfg.ltm_ctx = &pctx->ltm_ctx;
-		isp_cfg_slice_ltm_info(&slc_cfg, pctx->slice_ctx);
+		if (pctx->ltm_rgb)
+			isp_cfg_slice_ltm_info(&slc_cfg, pctx->slice_ctx, LTM_RGB);
+		if (pctx->ltm_yuv)
+			isp_cfg_slice_ltm_info(&slc_cfg, pctx->slice_ctx, LTM_YUV);
 
 		slc_cfg.nofilter_ctx = &pctx->isp_k_param;
 		isp_cfg_slice_noisefilter_info(&slc_cfg, pctx->slice_ctx);
@@ -1837,10 +1848,21 @@ static int sprd_isp_get_context(void *isp_handle, void *param)
 		camera_queue_init(&pctx->proc_queue,
 			ISP_SLW_PROC_Q_LEN, 0, isp_ret_src_frame);
 	}
-	camera_queue_init(&pctx->ltm_avail_queue, ISP_LTM_BUF_NUM,
-						0, isp_unmap_frame);
-	camera_queue_init(&pctx->ltm_wr_queue, ISP_LTM_BUF_NUM,
-						0, isp_unmap_frame);
+
+	if (pctx->ltm_rgb) {
+		camera_queue_init(&pctx->ltm_avail_queue[LTM_RGB],
+		ISP_LTM_BUF_NUM, 0, isp_unmap_frame);
+		camera_queue_init(&pctx->ltm_wr_queue[LTM_RGB],
+		ISP_LTM_BUF_NUM, 0, isp_unmap_frame);
+	}
+
+	if (pctx->ltm_yuv) {
+		camera_queue_init(&pctx->ltm_avail_queue[LTM_YUV],
+			ISP_LTM_BUF_NUM, 0, isp_unmap_frame);
+		camera_queue_init(&pctx->ltm_wr_queue[LTM_YUV],
+			ISP_LTM_BUF_NUM, 0, isp_unmap_frame);
+	}
+
 	camera_queue_init(&pctx->hist2_result_queue, 16,
 						0, isp_destroy_statis_buf);
 
@@ -1920,23 +1942,52 @@ static int sprd_isp_put_context(void *isp_handle, int ctx_id)
 		camera_queue_clear(&pctx->hist2_result_queue);
 
 #ifdef USING_LTM_Q
-		camera_queue_clear(&pctx->ltm_avail_queue);
-		camera_queue_clear(&pctx->ltm_wr_queue);
+		if (pctx->ltm_rgb) {
+			camera_queue_clear(&pctx->ltm_avail_queue[LTM_RGB]);
+			camera_queue_clear(&pctx->ltm_wr_queue[LTM_RGB]);
+		}
+
+		if (pctx->ltm_yuv) {
+			camera_queue_clear(&pctx->ltm_avail_queue[LTM_YUV]);
+			camera_queue_clear(&pctx->ltm_wr_queue[LTM_YUV]);
+		}
 #else
 		dev->ltm_handle->ops->set_status(0, ctx_id, pctx->mode_ltm);
 		if (pctx->mode_ltm == MODE_LTM_PRE) {
-			dev->ltm_handle->ops->complete_completion();
-			for (i = 0; i < ISP_LTM_BUF_NUM; i++) {
-				if (pctx->ltm_buf[i]) {
-					isp_unmap_frame(pctx->ltm_buf[i]);
-					pctx->ltm_buf[i] = NULL;
+			if (pctx->ltm_rgb) {
+				dev->ltm_handle->ops->complete_completion(LTM_RGB);
+				for (i = 0; i < ISP_LTM_BUF_NUM; i++) {
+					if (pctx->ltm_buf[LTM_RGB][i]) {
+						isp_unmap_frame(pctx->ltm_buf[LTM_RGB][i]);
+						pctx->ltm_buf[LTM_RGB][i] = NULL;
+					}
+				}
+			}
+
+			if (pctx->ltm_yuv) {
+				dev->ltm_handle->ops->complete_completion(LTM_YUV);
+				for (i = 0; i < ISP_LTM_BUF_NUM; i++) {
+					if (pctx->ltm_buf[LTM_YUV][i]) {
+						isp_unmap_frame(pctx->ltm_buf[LTM_YUV][i]);
+						pctx->ltm_buf[LTM_YUV][i] = NULL;
+					}
 				}
 			}
 		}
+
 		if (pctx->mode_ltm == MODE_LTM_CAP) {
-			for (i = 0; i < ISP_LTM_BUF_NUM; i++) {
-				if (pctx->ltm_buf[i])
-					pctx->ltm_buf[i] = NULL;
+			if (pctx->ltm_rgb) {
+				for (i = 0; i < ISP_LTM_BUF_NUM; i++) {
+					if (pctx->ltm_buf[LTM_RGB][i])
+						pctx->ltm_buf[LTM_RGB][i] = NULL;
+				}
+			}
+
+			if (pctx->ltm_yuv) {
+				for (i = 0; i < ISP_LTM_BUF_NUM; i++) {
+					if (pctx->ltm_buf[LTM_YUV][i])
+						pctx->ltm_buf[LTM_YUV][i] = NULL;
+				}
 			}
 		}
 #endif /* USING_LTM_Q */
@@ -2227,7 +2278,7 @@ static int sprd_isp_cfg_path(void *isp_handle,
 		}
 		break;
 
-	case ISP_PATH_CFG_LTM_BUF:
+	case ISP_PATH_CFG_RGB_LTM_BUF:
 		pframe = (struct camera_frame *)param;
 		if (pctx->mode_ltm == MODE_LTM_PRE) {
 			ret = cambuf_iommu_map(
@@ -2239,20 +2290,54 @@ static int sprd_isp_cfg_path(void *isp_handle,
 			}
 		}
 		for (i = 0; i < ISP_LTM_BUF_NUM; i++) {
-			if (pctx->ltm_buf[i] == NULL) {
-				pctx->ltm_buf[i] = pframe;
-				pctx->ltm_ctx.pbuf[i] = &pframe->buf;
+			if (pctx->ltm_buf[LTM_RGB][i] == NULL) {
+				pctx->ltm_buf[LTM_RGB][i] = pframe;
+				pctx->ltm_ctx.pbuf[LTM_RGB][i] = &pframe->buf;
 				pr_debug("LTM CFGB[%d][0x%p][0x%p] = 0x%lx, 0x%lx\n",
-					 i, pframe, pctx->ltm_buf[i],
-					 pctx->ltm_ctx.pbuf[i]->iova[0],
-					 pctx->ltm_buf[i]->buf.iova[0]);
+					 i, pframe, pctx->ltm_buf[LTM_RGB][i],
+					 pctx->ltm_ctx.pbuf[LTM_RGB][i]->iova[0],
+					 pctx->ltm_buf[LTM_RGB][i]->buf.iova[0]);
 				break;
 			}
 		}
 		pr_debug("isp ctx [%d], ltm buf idx [%d], buf addr [0x%p]\n",
 			pctx->ctx_id, i, pframe);
 #ifdef USING_LTM_Q
-		ret = camera_enqueue(&pctx->ltm_avail_queue, pframe);
+		ret = camera_enqueue(&pctx->ltm_avail_queue[LTM_RGB], pframe);
+		if (ret) {
+			cambuf_iommu_unmap(&pframe->buf);
+			pr_err("fail to cfg buf, isp ctx %d ltm mode %d.\n",
+					pctx->ctx_id, pctx->mode_ltm);
+		}
+#endif /* USING_LTM_Q */
+		break;
+
+	case ISP_PATH_CFG_YUV_LTM_BUF:
+		pframe = (struct camera_frame *)param;
+		if (pctx->mode_ltm == MODE_LTM_PRE) {
+			ret = cambuf_iommu_map(
+				 &pframe->buf, CAM_IOMMUDEV_ISP);
+			if (ret) {
+				pr_err("fail to isp map iommu buf.\n");
+				ret = -EINVAL;
+				goto exit;
+			}
+		}
+		for (i = 0; i < ISP_LTM_BUF_NUM; i++) {
+			if (pctx->ltm_buf[LTM_YUV][i] == NULL) {
+				pctx->ltm_buf[LTM_YUV][i] = pframe;
+				pctx->ltm_ctx.pbuf[LTM_YUV][i] = &pframe->buf;
+				pr_debug("LTM CFGB[%d][0x%p][0x%p] = 0x%lx, 0x%lx\n",
+					 i, pframe, pctx->ltm_buf[LTM_YUV][i],
+					 pctx->ltm_ctx.pbuf[LTM_YUV][i]->iova[0],
+					 pctx->ltm_buf[LTM_YUV][i]->buf.iova[0]);
+				break;
+			}
+		}
+		pr_debug("isp ctx [%d], ltm buf idx [%d], buf addr [0x%p]\n",
+			pctx->ctx_id, i, pframe);
+#ifdef USING_LTM_Q
+		ret = camera_enqueue(&pctx->ltm_avail_queue[LTM_YUV], pframe);
 		if (ret) {
 			cambuf_iommu_unmap(&pframe->buf);
 			pr_err("fail to cfg buf, isp ctx %d ltm mode %d.\n",

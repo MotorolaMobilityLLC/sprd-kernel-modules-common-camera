@@ -396,6 +396,8 @@ struct isp_pipe_context {
 	uint32_t updated;
 	uint32_t mode_3dnr;
 	uint32_t mode_ltm;
+	uint32_t ltm_rgb;
+	uint32_t ltm_yuv;
 	uint32_t slw_state;
 	uint32_t enable_slowmotion;
 	uint32_t slowmotion_count;
@@ -426,9 +428,9 @@ struct isp_pipe_context {
 	struct camera_queue proc_queue;
 
 	struct camera_frame *nr3_buf[ISP_NR3_BUF_NUM];
-	struct camera_frame *ltm_buf[ISP_LTM_BUF_NUM];
-	struct camera_queue ltm_avail_queue;
-	struct camera_queue ltm_wr_queue;
+	struct camera_frame *ltm_buf[LTM_MAX][ISP_LTM_BUF_NUM];
+	struct camera_queue ltm_avail_queue[LTM_MAX];
+	struct camera_queue ltm_wr_queue[LTM_MAX];
 
 	struct camera_queue hist2_result_queue;
 

@@ -1560,8 +1560,11 @@ struct isp_dev_ltm_stat_info {
 
 	uint32_t text_point_thres; /* text_point_thres */
 	uint32_t text_proportion; /* texture_proportion */
+	float text_point_alpha; /* text_point_alpha */
 	uint32_t region_est_en; /* region_est_en */
 	uint32_t binning_en;
+	uint32_t channel_sel;
+	uint32_t ltm_hist_table[128];
 };
 
 struct isp_dev_ltm_map_info {

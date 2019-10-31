@@ -47,12 +47,13 @@ static const uint32_t isp_irq_process[] = {
 	ISP_INT_NR3_ALL_DONE,
 	ISP_INT_NR3_SHADOW_DONE,
 	ISP_INT_STORE_DONE_THUMBNAIL,
-	ISP_INT_LTMHISTS_DONE,
+	ISP_INT_YUV_LTMHISTS_DONE,
 	ISP_INT_FMCU_LOAD_DONE,
 	ISP_INT_FMCU_SHADOW_DONE,
 	ISP_INT_HIST_CAL_DONE,
 	ISP_INT_ISP_ALL_DONE,
 	ISP_INT_FMCU_STORE_DONE,
+	ISP_INT_RGB_LTMHISTS_DONE,
 };
 
 //#define ISP_INT_RECORD 1
@@ -360,7 +361,7 @@ static void isp_3dnr_shadow_done(enum isp_context_hw_id hw_idx, void *isp_handle
 
 }
 
-static void isp_ltm_hists_done(enum isp_context_hw_id hw_idx, void *isp_handle)
+static void isp_rgb_ltm_hists_done(enum isp_context_hw_id hw_idx, void *isp_handle)
 {
 	struct isp_pipe_context *pctx;
 	struct isp_pipe_dev *dev;
@@ -377,13 +378,42 @@ static void isp_ltm_hists_done(enum isp_context_hw_id hw_idx, void *isp_handle)
 	pctx = &dev->ctx[idx];
 
 	dev->ltm_handle->ops->set_frmidx(pctx->ltm_ctx.fid);
-	completion = dev->ltm_handle->ops->get_completion();
-	pr_debug("ltm hists done. cxt_id:%d, %d, fid:[%d], completion[%d]\n",
+	completion = dev->ltm_handle->ops->get_completion(LTM_RGB);
+	pr_debug("ltm rgb hists done. cxt_id:%d, %d, fid:[%d], completion[%d]\n",
 		idx, pctx->ltm_ctx.isp_pipe_ctx_id,
 		pctx->ltm_ctx.fid, completion);
 
 	if (completion && (pctx->ltm_ctx.fid >= completion)) {
-		completion = dev->ltm_handle->ops->complete_completion();
+		completion = dev->ltm_handle->ops->complete_completion(LTM_RGB);
+		pr_info("complete completion fid [%d], completion[%d]\n",
+			pctx->ltm_ctx.fid, completion);
+	}
+}
+
+static void isp_yuv_ltm_hists_done(enum isp_context_hw_id hw_idx, void *isp_handle)
+{
+	struct isp_pipe_context *pctx;
+	struct isp_pipe_dev *dev;
+	int completion = 0;
+	int idx = -1;
+
+	dev = (struct isp_pipe_dev *)isp_handle;
+	idx = isp_get_sw_context_id(hw_idx, dev);
+	if (idx < 0) {
+		pr_err("fail to get sw_id for hw_idx=%d\n", hw_idx);
+		return;
+	}
+
+	pctx = &dev->ctx[idx];
+
+	dev->ltm_handle->ops->set_frmidx(pctx->ltm_ctx.fid);
+	completion = dev->ltm_handle->ops->get_completion(LTM_YUV);
+	pr_debug("ltm yuv hists done. cxt_id:%d, %d, fid:[%d], completion[%d]\n",
+		idx, pctx->ltm_ctx.isp_pipe_ctx_id,
+		pctx->ltm_ctx.fid, completion);
+
+	if (completion && (pctx->ltm_ctx.fid >= completion)) {
+		completion = dev->ltm_handle->ops->complete_completion(LTM_YUV);
 		pr_info("complete completion fid [%d], completion[%d]\n",
 			pctx->ltm_ctx.fid, completion);
 	}
@@ -489,11 +519,12 @@ static isp_isr isp_isr_handler[32] = {
 	[ISP_INT_NR3_ALL_DONE]	 = isp_3dnr_all_done,
 	[ISP_INT_NR3_SHADOW_DONE] = isp_3dnr_shadow_done,
 	[ISP_INT_STORE_DONE_THUMBNAIL] = isp_thumb_store_done,
-	[ISP_INT_LTMHISTS_DONE]  = isp_ltm_hists_done,
+	[ISP_INT_YUV_LTMHISTS_DONE]  = isp_yuv_ltm_hists_done,
 	[ISP_INT_FMCU_LOAD_DONE] = isp_fmcu_load_done,
 	[ISP_INT_FMCU_SHADOW_DONE] = isp_fmcu_shadow_done,
 	[ISP_INT_FMCU_STORE_DONE] = isp_fmcu_store_done,
 	[ISP_INT_HIST_CAL_DONE] = isp_hist_cal_done,
+	[ISP_INT_RGB_LTMHISTS_DONE]  = isp_rgb_ltm_hists_done,
 };
 
 struct isp_int_ctx {
