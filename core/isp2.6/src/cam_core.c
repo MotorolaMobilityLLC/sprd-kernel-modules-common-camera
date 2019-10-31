@@ -341,7 +341,7 @@ static void put_k_frame(void *param)
 	struct camera_frame *frame;
 
 	if (!param) {
-		pr_err("error: null input ptr.\n");
+		pr_err("fail to get valid param\n");
 		return;
 	}
 
@@ -362,7 +362,7 @@ static void camera_put_empty_frame(void *param)
 	struct camera_frame *frame;
 
 	if (!param) {
-		pr_err("error: null input ptr.\n");
+		pr_err("fail to get valid param\n");
 		return;
 	}
 
@@ -378,7 +378,7 @@ void cam_destroy_statis_buf(void *param)
 	struct camera_frame *frame;
 
 	if (!param) {
-		pr_err("error: null input ptr.\n");
+		pr_err("fail to get valid param\n");
 		return;
 	}
 	frame = (struct camera_frame *)param;
@@ -958,7 +958,7 @@ static int dual_get_same_frame(struct camera_module *module)
 			j++;
 	}
 	if (j != 2) {
-		pr_err("dual camera, but have %d module\n", j);
+		pr_err("fail to get module, dual camera, but have %d module\n", j);
 		return -EFAULT;
 	}
 	q[0] = &(pmd[0]->zsl_fifo_queue);
@@ -966,7 +966,7 @@ static int dual_get_same_frame(struct camera_module *module)
 	t = pmd[0]->capture_times;
 	ret = camera_queue_same_frame(q[0], q[1], &pframe[0], &pframe[1], t);
 	if (ret) {
-		pr_err("get same frame fail\n");
+		pr_err("fail to get same frame\n");
 		return ret;
 	}
 	pmd[0]->dual_frame = pframe[0];
@@ -997,7 +997,7 @@ static struct camera_frame *deal_dual_frame(struct camera_module *module,
 				DCAM_PATH_CFG_OUTPUT_BUF,
 				channel->dcam_path_id, pframe);
 			if (ret)
-				pr_err("To out_buf_queue fail\n");
+				pr_err("fail to set output buffer\n");
 		}
 		return NULL;
 	}
@@ -1092,7 +1092,7 @@ static struct camera_frame *deal_bigsize_frame(struct camera_module *module,
 		DCAM_PATH_CFG_OUTPUT_BUF,
 		channel->dcam_path_id, pframe);
 	if (unlikely(ret))
-		pr_err("set buffer to out_buf_queue err, ret %d\n", ret);
+		pr_err("fail to set output buffer, ret %d\n", ret);
 
 	return NULL;
 }
@@ -1148,7 +1148,7 @@ static struct camera_frame *deal_4in1_frame(struct camera_module *module,
 		DCAM_PATH_CFG_OUTPUT_BUF,
 		channel->dcam_path_id, pframe);
 	if (unlikely(ret))
-		pr_err("set buffer to out_buf_queue err, ret %d\n", ret);
+		pr_err("fail to set output buffer, ret %d\n", ret);
 
 	return NULL;
 }
@@ -1190,14 +1190,14 @@ int isp_callback(enum isp_cb_type type, void *param, void *priv_data)
 	struct channel_context *channel;
 
 	if (!param || !priv_data) {
-		pr_err("Input ptr is NULL\n");
+		pr_err("fail to get valid param %p %p\n", param, priv_data);
 		return -EFAULT;
 	}
 
 	module = (struct camera_module *)priv_data;
 
 	if (type == ISP_CB_DEV_ERR) {
-		pr_err("ISP error happens. camera %d\n", module->idx);
+		pr_err("fail to get isp state, camera %d\n", module->idx);
 		pframe = get_empty_frame();
 		if (pframe) {
 			pframe->evt = IMG_TX_ERR;
@@ -1322,7 +1322,7 @@ int isp_callback(enum isp_cb_type type, void *param, void *priv_data)
 		break;
 
 	default:
-		pr_err("unsupported cb cmd: %d\n", type);
+		pr_err("fail to get cb cmd: %d\n", type);
 		break;
 	}
 
@@ -1340,13 +1340,13 @@ int dcam_callback(enum dcam_cb_type type, void *param, void *priv_data)
 	struct isp_statis_io_desc io_desc;
 
 	if (!param || !priv_data) {
-		pr_err("Input ptr is NULL\n");
+		pr_err("fail to get valid param %p %p\n", param, priv_data);
 		return -EFAULT;
 	}
 
 	module = (struct camera_module *)priv_data;
 	if (type == DCAM_CB_DEV_ERR) {
-		pr_err("DCAM error happens. camera %d\n", module->idx);
+		pr_err("fail to get dcam state, camera %d\n", module->idx);
 		dcam_ops->stop(module->dcam_dev_handle);
 
 		pframe = get_empty_frame();
@@ -1686,7 +1686,7 @@ int dcam_callback(enum dcam_cb_type type, void *param, void *priv_data)
 				module->cap_status,
 					atomic_read(&module->state));
 		} else {
-			pr_err("todo: unknown case to handle\n");
+			pr_err("fail to get cap status\n");
 			cambuf_put_ionbuf(&pframe->buf);
 			put_empty_frame(pframe);
 		}
@@ -3252,7 +3252,7 @@ static int init_cam_channel(
 	case CAM_CH_PRE_THM:
 		channel_prev = &module->channel[CAM_CH_PRE];
 		if (channel_prev->enable == 0) {
-			pr_err("error: preview channel is not enable.\n");
+			pr_err("fail to get preview channel enable status\n");
 			return -EINVAL;
 		}
 		channel->dcam_path_id = channel_prev->dcam_path_id;
@@ -3264,7 +3264,7 @@ static int init_cam_channel(
 	case CAM_CH_CAP_THM:
 		channel_cap = &module->channel[CAM_CH_CAP];
 		if (channel_cap->enable == 0) {
-			pr_err("error: capture channel is not enable.\n");
+			pr_err("fail to get capture channel enable status\n");
 			return -EINVAL;
 		}
 		channel->dcam_path_id = channel_cap->dcam_path_id;
@@ -3279,7 +3279,7 @@ static int init_cam_channel(
 		break;
 
 	default:
-		pr_err("unknown channel id %d\n", channel->ch_id);
+		pr_err("fail to get channel id %d\n", channel->ch_id);
 		return -EINVAL;
 	}
 
@@ -3457,20 +3457,20 @@ static int init_cam_channel(
 	if (channel->ch_id == CAM_CH_CAP && module->cam_uinfo.is_4in1) {
 		ret = init_4in1_aux(module, channel);
 		if (ret < 0) {
-			pr_err("init dcam for 4in1 error, ret = %d\n", ret);
+			pr_err("fail to init dcam for 4in1, ret = %d\n", ret);
 			goto exit;
 		}
 	}
 	if (channel->ch_id == CAM_CH_RAW && module->cam_uinfo.is_4in1) {
 		ret = init_4in1_secondary_path(module, channel);
 		if (ret)
-			pr_err("4in1 raw capture init bin fail\n");
+			pr_err("fail to init 4in1 raw capture for bin sum\n");
 	}
 	/* bigsize setting */
  	if (channel->ch_id == CAM_CH_CAP && module->cam_uinfo.dcam_slice_mode) {
 		ret = init_bigsize_aux(module, channel);
 		if (ret < 0) {
-			pr_err("init dcam for 4in1 error, ret = %d\n", ret);
+			pr_err("fail to init dcam for 4in1, ret = %d\n", ret);
 			goto exit;
 		}
 	}
@@ -3490,12 +3490,12 @@ static void cam_timer_callback(unsigned long data)
 	int ret = 0;
 
 	if (!module || atomic_read(&module->state) != CAM_RUNNING) {
-		pr_err("fail to get valid input ptr or error state.\n");
+		pr_err("fail to get valid module %p or error state\n", module);
 		return;
 	}
 
 	if (atomic_read(&module->timeout_flag) == 1) {
-		pr_err("CAM%d timeout.\n", module->idx);
+		pr_err("fail to get frame data, CAM%d timeout.\n", module->idx);
 		frame = get_empty_frame();
 		if (module->cap_status == CAM_CAPTURE_RAWPROC) {
 			module->cap_status = CAM_CAPTURE_RAWPROC_DONE;
@@ -3603,7 +3603,7 @@ static void camera_stop_thread(struct cam_thread_info *thrd)
 		timeleft = wait_for_completion_timeout(&thrd->thread_stop_com,
 				msecs_to_jiffies(THREAD_STOP_TIMEOUT));
 		if (timeleft == 0)
-			pr_err("%s thread stop timeout\n", thrd->thread_name);
+			pr_err("fail to stop %s thread, timeout\n", thrd->thread_name);
 		thrd->thread_task = NULL;
 	}
 }
@@ -3813,7 +3813,7 @@ static int img_ioctl_set_statis_buf(
 	if ((statis_buf.type == STATIS_INIT) &&
 		(atomic_read(&module->state) != CAM_IDLE) &&
 		(atomic_read(&module->state) != CAM_CFG_CH)) {
-		pr_err("error state to init statis buf: %d\n",
+		pr_err("fail to get init statis buf state: %d\n",
 			atomic_read(&module->state));
 		ret = -EFAULT;
 		goto exit;
@@ -3842,7 +3842,7 @@ static int img_ioctl_set_statis_buf(
 		if (module->isp_hist2_buf) {
 			if (((unsigned long int)statis_buf.kaddr < module->isp_hist2_buf->addr_k[0]) ||
 				((unsigned long int)statis_buf.kaddr > (module->isp_hist2_buf->addr_k[0] + module->isp_hist2_buf->size[0]))) {
-				pr_err("Wrong buffer from user, skip in kernel to avoid PANIC. statis_buf.kaddr = 0x%lx\n",
+				pr_err("fail to get buffer from user, skip in kernel to avoid PANIC. statis_buf.kaddr = 0x%lx\n",
 					(unsigned long int)statis_buf.kaddr);
 				return 0;
 			}
@@ -4058,7 +4058,7 @@ static int img_ioctl_set_cam_security(
 			module->grp->ca_conn = cam_ca_connect();
 
 		if (!module->grp->ca_conn) {
-			pr_err("camca : fail to init cam_ca_connect\n");
+			pr_err("fail to init cam_ca_connect\n");
 			ret = -EFAULT;
 			goto exit;
 		}
@@ -4067,7 +4067,7 @@ static int img_ioctl_set_cam_security(
 
 		if (!sec_ret) {
 			ret = -EFAULT;
-			pr_err("camca : fail to init cam security set\n");
+			pr_err("fail to init cam security set\n");
 			goto exit;
 		}
 
@@ -4259,7 +4259,7 @@ static int img_ioctl_set_output_size(
 	ret |= get_user(dst->is_high_fps, &uparam->is_high_fps);
 	ret |= get_user(dst->high_fps_skip_num, &uparam->high_fps_skip_num);
 	if (dst->high_fps_skip_num == 1) {
-		pr_err("invalid high fps %u\n", dst->high_fps_skip_num);
+		pr_err("fail to get valid high fps %u\n", dst->high_fps_skip_num);
 		ret = -EINVAL;
 	}
 	ret |= copy_from_user(&dst->src_crop,
@@ -4295,7 +4295,7 @@ static int img_ioctl_get_ch_id(
 
 	if ((atomic_read(&module->state) != CAM_IDLE) &&
 		(atomic_read(&module->state) != CAM_CFG_CH)) {
-		pr_err("error: only for state IDLE or CFG_CH, state %d\n",
+		pr_err("fail to get correct state, state %d\n",
 			atomic_read(&module->state));
 		return -EFAULT;
 	}
@@ -4464,7 +4464,7 @@ static int img_ioctl_set_crop(
 	ch = &module->channel[channel_id];
 	ch_vid = &module->channel[CAM_CH_VID];
 	if (ret || (channel_id >= CAM_CH_MAX) || !ch->enable) {
-		pr_err("error set crop, ret %d, ch %d\n", ret, channel_id);
+		pr_err("fail to set crop, ret %d, ch %d\n", ret, channel_id);
 		ret = -EINVAL;
 		goto exit;
 	}
@@ -4477,7 +4477,7 @@ static int img_ioctl_set_crop(
 		if ((module->cap_status == CAM_CAPTURE_START) &&
 			module->channel[CAM_CH_CAP].enable &&
 			(module->channel[CAM_CH_CAP].type_3dnr != CAM_3DNR_OFF)) {
-			pr_err("zoom is not allowed during 3DNR capture\n");
+			pr_err("fail to zoom during 3DNR capture\n");
 			goto exit;
 		}
 		crop = kzalloc(sizeof(struct sprd_img_rect), GFP_KERNEL);
@@ -4626,7 +4626,7 @@ static int img_ioctl_check_fmt(
 
 	if ((atomic_read(&module->state) != CAM_CFG_CH) &&
 		(atomic_read(&module->state) != CAM_RUNNING)) {
-		pr_err("error module state: %d\n", atomic_read(&module->state));
+		pr_err("fail to get module state: %d\n", atomic_read(&module->state));
 		return -EFAULT;
 	}
 
@@ -4693,7 +4693,7 @@ static struct camera_frame *get_secondary_buf(struct sprd_img_parm *p,
 	ret = cambuf_get_ionbuf(&pframe->buf);
 	if (ret) {
 		put_empty_frame(pframe);
-		pr_err("Get second buffer fail, ret %d\n", ret);
+		pr_err("fail to get second buffer fail, ret %d\n", ret);
 		return NULL;
 	}
 
@@ -4726,7 +4726,7 @@ static int img_ioctl_set_frame_addr(
 	if ((param.channel_id >= CAM_CH_MAX) ||
 		(param.buffer_count == 0) ||
 		(module->channel[param.channel_id].enable == 0)) {
-		pr_err("error: invalid channel id %d. buf cnt %d\n",
+		pr_err("fail to get valid channel id %d. buf cnt %d\n",
 			param.channel_id,  param.buffer_count);
 		return -EFAULT;
 	}
@@ -4895,7 +4895,7 @@ static int img_ioctl_set_frm_deci(struct camera_module *module,
 
 	if ((channel_id >= CAM_CH_MAX) ||
 	    (module->channel[channel_id].enable == 0)) {
-		pr_err("error: invalid channel id %d\n", channel_id);
+		pr_err("fail to get valid channel id %d\n", channel_id);
 		return -EPERM;
 	}
 
@@ -4929,7 +4929,7 @@ static int img_ioctl_set_frame_id_base(
 	}
 	if ((channel_id >= CAM_CH_MAX) ||
 		(module->channel[channel_id].enable == 0)) {
-		pr_err("error: invalid channel id %d\n", channel_id);
+		pr_err("fail to get valid channel id %d\n", channel_id);
 		return -EFAULT;
 	}
 
@@ -4964,7 +4964,7 @@ static int img_ioctl_get_cam_res(
 	}
 
 	if (atomic_read(&module->state) != CAM_INIT) {
-		pr_err("error cam%d state: %d\n",
+		pr_err("fail to get cam%d state: %d\n",
 			module->idx, atomic_read(&module->state));
 		return -EFAULT;
 	}
@@ -5016,7 +5016,7 @@ static int img_ioctl_get_cam_res(
 	}
 
 	if (ret) {
-		pr_err("camca: fail to set cam sec %d.\n", module->grp->camsec_cfg.camsec_mode);
+		pr_err("fail to set cam sec %d.\n", module->grp->camsec_cfg.camsec_mode);
 		goto dcam_cb_fail;
 	}
 
@@ -5042,13 +5042,13 @@ static int img_ioctl_get_cam_res(
 		ISP_IOCTL_CFG_SEC, &module->grp->camsec_cfg.camsec_mode);
 
 	if (ret) {
-		pr_err("camca: fail to set isp sec %d.\n", module->grp->camsec_cfg.camsec_mode);
+		pr_err("fail to set isp sec %d.\n", module->grp->camsec_cfg.camsec_mode);
 		goto wq_fail;
 	}
 
 	ret = isp_ops->open(isp, grp->hw_info);
 	if (ret) {
-		pr_err("faile to enable isp module.\n");
+		pr_err("fail to enable isp module.\n");
 		ret = -EINVAL;
 		goto isp_fail;
 	}
@@ -5279,7 +5279,7 @@ static int img_ioctl_stream_on(
 		if (ch->alloc_start) {
 			ret = wait_for_completion_interruptible(&ch->alloc_com);
 			if (ret != 0) {
-				pr_err("config channel/path param work %d\n",
+				pr_err("fail to config channel/path param work %d\n",
 					ret);
 				flush_workqueue(module->workqueue);
 				goto exit;
@@ -5287,7 +5287,7 @@ static int img_ioctl_stream_on(
 			ch->alloc_start = 0;
 
 			if (atomic_read(&ch->err_status) != 0) {
-				pr_err("ch %d error happens.", ch->ch_id);
+				pr_err("fail to get ch %d correct status\n", ch->ch_id);
 				ret = -EFAULT;
 				goto exit;
 			}
@@ -5313,7 +5313,7 @@ static int img_ioctl_stream_on(
 						ch->dcam_path_id,
 						pframe);
 				if (ret) {
-					pr_err("fail config dcam output buffer\n");
+					pr_err("fail to config dcam output buffer\n");
 					camera_enqueue(&ch->share_buf_queue,
 						pframe);
 					ret = -EINVAL;
@@ -5331,7 +5331,7 @@ static int img_ioctl_stream_on(
 						isp_ctx_id, isp_path_id,
 						ch->nr3_bufs[j]);
 				if (ret) {
-					pr_err("fail config isp 3DNR buffer\n");
+					pr_err("fail to config isp 3DNR buffer\n");
 					goto exit;
 				}
 			}
@@ -5346,7 +5346,7 @@ static int img_ioctl_stream_on(
 						isp_ctx_id, isp_path_id,
 						ch->ltm_bufs[j]);
 				if (ret) {
-					pr_err("fail config isp LTM buffer\n");
+					pr_err("fail to config isp LTM buffer\n");
 					goto exit;
 				}
 			}
@@ -5481,7 +5481,7 @@ static int img_ioctl_stream_off(
 	if (running) {
 		ret = dcam_ops->stop(module->dcam_dev_handle);
 		if (ret != 0)
-			pr_err("dcam_ops error %d\n", ret);
+			pr_err("fail to stop dcam %d\n", ret);
 		sprd_stop_timer(&module->cam_timer);
 	}
 	if (module->cam_uinfo.is_4in1 && module->aux_dcam_dev)
@@ -5538,7 +5538,7 @@ static int img_ioctl_stream_off(
 				ret = wait_for_completion_interruptible(
 					&ch->alloc_com);
 				if (ret != 0)
-					pr_err("error: config channel/path param work %d\n",
+					pr_err("fail to config channel/path param work %d\n",
 						ret);
 				pr_info("alloc buffer done.\n");
 				ch->alloc_start = 0;
@@ -5577,7 +5577,7 @@ static int img_ioctl_stream_off(
 		ret = dcam_ops->ioctl(module->dcam_dev_handle,
 				DCAM_IOCTL_DEINIT_STATIS_Q, NULL);
 		if (ret != 0)
-			pr_err("dcam_ops error %d\n", ret);
+			pr_err("fail to deinit statis q %d\n", ret);
 	}
 
 	if (module->isp_dev_handle) {
@@ -5588,7 +5588,7 @@ static int img_ioctl_stream_off(
 				ISP_IOCTL_DEINIT_STATIS_BUF,
 				&io_desc);
 		if (ret != 0)
-			pr_err("isp_ops error %d\n", ret);
+			pr_err("fail to deinit statis buffer %d\n", ret);
 	}
 
 	for (i = 0; i < CAM_CH_MAX; i++) {
@@ -5807,7 +5807,7 @@ static int raw_proc_done(struct camera_module *module)
 	atomic_set(&module->state, CAM_STREAM_OFF);
 
 	if (atomic_read(&module->timeout_flag) == 1)
-		pr_err("raw proc timeout.\n");
+		pr_err("fail to raw proc, timeout\n");
 
 	ret = dcam_ops->stop(module->dcam_dev_handle);
 	sprd_stop_timer(&module->cam_timer);
@@ -5868,7 +5868,7 @@ static int raw_proc_done(struct camera_module *module)
 
 	spin_lock_irqsave(&grp->rawproc_lock, flag);
 	if (grp->rawproc_in == 0)
-		pr_err("cam%d rawproc_in should be 1 here.\n", module->idx);
+		pr_err("fail to raw proc, cam%d rawproc_in should be 1 here.\n", module->idx);
 	grp->rawproc_in = 0;
 	spin_unlock_irqrestore(&grp->rawproc_lock, flag);
 
@@ -5913,7 +5913,7 @@ static int raw_proc_pre(
 	} while (loop < 2000);
 
 	if (loop >= 1000) {
-		pr_err("wait another camera raw proc time out");
+		pr_err("fail to raw proc, wait another camera raw proc\n");
 		return -EFAULT;
 	}
 	/* not care 4in1 */
@@ -6039,7 +6039,7 @@ fail_ispctx:
 	ch->isp_path_id = -1;
 	ch->aux_dcam_path_id = -1;
 
-	pr_err("failed\n");
+	pr_err("fail to call pre raw proc\n");
 	return ret;
 }
 
@@ -6062,7 +6062,7 @@ static int raw_proc_post(
 
 	ch = &module->channel[CAM_CH_CAP];
 	if (ch->enable == 0) {
-		pr_err("error: pre proc is not done.\n");
+		pr_err("fail to get channel enable state\n");
 		return -EFAULT;
 	}
 
@@ -6194,7 +6194,7 @@ dst_fail:
 src_fail:
 	put_empty_frame(src_frame);
 	ret = dcam_ops->stop(module->dcam_dev_handle);
-	pr_err("failed\n");
+	pr_err("fail to call post raw proc\n");
 	return ret;
 }
 
@@ -6215,7 +6215,7 @@ static int img_ioctl_raw_proc(
 	}
 
 	if (!module->dcam_dev_handle || !module->isp_dev_handle) {
-		pr_err("error: not init hw resource.\n");
+		pr_err("fail to init hw resource.\n");
 		return -EFAULT;
 	}
 	if (proc_info.scene == RAW_PROC_SCENE_HWSIM) {
@@ -6224,7 +6224,7 @@ static int img_ioctl_raw_proc(
 		ret = dcam_ops->ioctl(module->dcam_dev_handle,
 				DCAM_IOCTL_CFG_RPS, &rps_info);
 		if (ret != 0) {
-			pr_err("ret for exception: %d\n", ret);
+			pr_err("fail to config rps %d\n", ret);
 			return -EFAULT;
 		}
 	}
@@ -6236,7 +6236,7 @@ static int img_ioctl_raw_proc(
 				&module->streamoff_com);
 		mutex_lock(&module->lock);
 		if (ret != 0) {
-			pr_err("wait ret for exception: %d\n", ret);
+			pr_err("fail to wait streamoff com %d\n", ret);
 			return -EFAULT;
 		}
 	}
@@ -6264,7 +6264,7 @@ static int img_ioctl_raw_proc(
 	} else if (proc_info.cmd == RAW_PROC_DONE) {
 		ret = raw_proc_done(module);
 	} else {
-		pr_err("error: unknown cmd %d\n", proc_info.cmd);
+		pr_err("fail to get correct cmd %d\n", proc_info.cmd);
 		ret = -EINVAL;
 	}
 	return ret;
@@ -6296,7 +6296,7 @@ static int img_ioctl_4in1_set_raw_addr(struct camera_module *module,
 	if ((param.channel_id >= CAM_CH_MAX) ||
 		(param.buffer_count == 0) ||
 		(module->channel[param.channel_id].enable == 0)) {
-		pr_err("error: invalid channel id %d. buf cnt %d\n",
+		pr_err("fail to get valid channel id %d. buf cnt %d\n",
 				param.channel_id,  param.buffer_count);
 		return -EFAULT;
 	}
@@ -6318,7 +6318,7 @@ static int img_ioctl_4in1_set_raw_addr(struct camera_module *module,
 			param.is_reserved_buf);
 		ret = cambuf_get_ionbuf(&pframe->buf);
 		if (ret) {
-			pr_err("fail cambuf_get_ionbuf\n");
+			pr_err("fail to get ion buffer\n");
 			put_empty_frame(pframe);
 			ret = -EFAULT;
 			break;
@@ -6436,7 +6436,7 @@ static int img_ioctl_get_path_rect(struct camera_module *module,
 	struct sprd_img_path_rect parm;
 
 	if (!module) {
-		pr_err("module is NULL\n");
+		pr_err("fail to get valid param\n");
 		return -EINVAL;
 	}
 
@@ -6483,7 +6483,7 @@ static int ioctl_set_3dnr_mode(struct camera_module *module,
 	uint32_t ch_id;
 
 	if (!module) {
-		pr_err("module is NULL\n");
+		pr_err("fail to get valid param\n");
 		return -EINVAL;
 	}
 
@@ -6496,7 +6496,7 @@ static int ioctl_set_3dnr_mode(struct camera_module *module,
 	}
 	ch_id = parm.channel_id;
 	if (ch_id >= CAM_CH_MAX) {
-		pr_err("channel id %d error\n", ch_id);
+		pr_err("fail to get channel id %d\n", ch_id);
 		return -EFAULT;
 	}
 	ch = &module->channel[ch_id];
@@ -6527,7 +6527,7 @@ static int ioctl_set_auto_3dnr_mode(struct camera_module *module,
 	struct sprd_img_auto_3dnr_mode parm;
 
 	if (!module) {
-		pr_err("module is NULL\n");
+		pr_err("fail to get valid param\n");
 		return -EINVAL;
 	}
 
@@ -6551,7 +6551,7 @@ static int ioctl_get_capability(struct camera_module *module,
 	struct sprd_img_size size = {0};
 
 	if (!module) {
-		pr_err("module is NULL\n");
+		pr_err("fail to get valid param\n");
 		ret = -EINVAL;
 		goto exit;
 	}
@@ -6689,7 +6689,7 @@ int test_dcam(struct camera_module *module,
 			goto nobuf;
 		}
 	} else {
-		pr_err("no empty frame.\n");
+		pr_err("fail to get empty frame.\n");
 		goto exit;
 	}
 
@@ -6702,7 +6702,7 @@ int test_dcam(struct camera_module *module,
 		pr_info("src buf kaddr %p.\n",
 				(void *)user_frame->buf.addr_k[0]);
 	} else {
-		pr_err("no empty frame.\n");
+		pr_err("fail to get empty frame.\n");
 		goto exit;
 	}
 
@@ -6937,7 +6937,7 @@ int test_isp(struct camera_module *module,
 		pframe_out->channel_id = channel->ch_id;
 		cambuf_get_ionbuf(&pframe_out->buf);
 	} else {
-		pr_err("pframe_out is null\n");
+		pr_err("fail to get empty frame\n");
 		ret = -EINVAL;
 		if (pframe_in->buf.type == CAM_BUF_USER)
 			cambuf_put_ionbuf(&pframe_in->buf);
@@ -7255,7 +7255,7 @@ rewait:
 
 		if (!pframe) {
 			/* any exception happens or user trigger exit. */
-			pr_err("read null frame buffer. tx stop.\n");
+			pr_err("fail to read frame buffer. tx stop.\n");
 			read_op.evt = IMG_TX_STOP;
 		} else if (pframe->evt == IMG_TX_DONE) {
 			atomic_set(&module->timeout_flag, 0);
@@ -7309,9 +7309,9 @@ rewait:
 		} else {
 			struct cam_hw_info *hw = module->grp->hw_info;
 
-			pr_err("error event %d\n", pframe->evt);
+			pr_err("fail to get correct event %d\n", pframe->evt);
 			if (hw == NULL) {
-				pr_err("error: no hw ops.\n");
+				pr_err("fail to get hw ops.\n");
 				return -EFAULT;
 			}
 			csi_api_reg_trace();
@@ -7429,7 +7429,7 @@ static ssize_t sprd_img_write(struct file *file, const char __user *u_data,
 		break;
 
 	default:
-		pr_err("error: unsupported write cmd %d\n", write_op.cmd);
+		pr_err("fail to get write cmd %d\n", write_op.cmd);
 		break;
 	}
 
@@ -7457,12 +7457,12 @@ static int sprd_img_open(struct inode *node, struct file *file)
 	count = grp->dcam_count;
 
 	if (count == 0 || count > CAM_COUNT) {
-		pr_err("error: invalid dts configured dcam count\n");
+		pr_err("fail to get valid dts configured dcam count\n");
 		return -ENODEV;
 	}
 
 	if (atomic_inc_return(&grp->camera_opened) > count) {
-		pr_err("sprd_img: all %d cameras opened already.", count);
+		pr_err("fail to open camera, all %d cameras opened already.", count);
 		atomic_dec(&grp->camera_opened);
 		return -EMFILE;
 	}
@@ -7476,7 +7476,7 @@ static int sprd_img_open(struct inode *node, struct file *file)
 	for (i = 0, idx = count; i < count; i++) {
 		if ((grp->module_used & (1 << i)) == 0) {
 			if (grp->module[i] != NULL) {
-				pr_err("fatal: un-release camera module:  %p, idx %d\n",
+				pr_err("fail to get null module, un-release camera module:  %p, idx %d\n",
 						grp->module[i], i);
 				spin_unlock_irqrestore(&grp->module_lock, flag);
 				ret = -EMFILE;
@@ -7490,7 +7490,7 @@ static int sprd_img_open(struct inode *node, struct file *file)
 	spin_unlock_irqrestore(&grp->module_lock, flag);
 
 	if (idx == count) {
-		pr_err("error: no available camera module.\n");
+		pr_err("fail to get available camera module.\n");
 		ret = -EMFILE;
 		goto exit;
 	}
@@ -7519,7 +7519,7 @@ static int sprd_img_open(struct inode *node, struct file *file)
 		dcam_ops = dcam_if_get_ops();
 		flash_ops = get_flash_ops();
 		if (isp_ops == NULL || dcam_ops == NULL) {
-			pr_err("error:  isp ops %p, dcam ops %p\n",
+			pr_err("fail to get isp ops %p, dcam ops %p\n",
 					isp_ops, dcam_ops);
 			goto init_fail;
 		}
@@ -7564,7 +7564,7 @@ alloc_fail:
 exit:
 	atomic_dec(&grp->camera_opened);
 
-	pr_err("open camera failed: %d\n", ret);
+	pr_err("fail to open camera %d\n", ret);
 	return ret;
 }
 
@@ -7612,7 +7612,7 @@ static int sprd_img_release(struct inode *node, struct file *file)
 	spin_lock_irqsave(&group->module_lock, flag);
 	if (((group->module_used & (1 << idx)) == 0) ||
 		(group->module[idx] != module)) {
-		pr_err("fatal error to release camera %d. used:%x, module:%p\n",
+		pr_err("fail to release camera %d. used:%x, module:%p\n",
 					idx, group->module_used, module);
 		spin_unlock_irqrestore(&group->module_lock, flag);
 		return -EFAULT;
@@ -7710,7 +7710,7 @@ static int sprd_cam_probe(struct platform_device *pdev)
 	pr_info("Start camera img probe\n");
 	group = kzalloc(sizeof(struct camera_group), GFP_KERNEL);
 	if (group == NULL) {
-		pr_err("alloc memory fail.");
+		pr_err("fail to alloc memory\n");
 		return -ENOMEM;
 	}
 

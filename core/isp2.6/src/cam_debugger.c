@@ -158,7 +158,7 @@ static int dcam_bypass_read(struct seq_file *s, void *unused)
 	int i;
 
 	if (!s) {
-		pr_err("fail to get valid input para\n");
+		pr_err("fail to get valid param\n");
 		return -EFAULT;;
 	}
 
@@ -304,7 +304,7 @@ static ssize_t zoom_mode_write(
 	else if (val == 4)
 		g_camctrl.dcam_zoom_mode = ZOOM_ADAPTIVE;
 	else
-		pr_err("error: invalid zoom mode: %d", val);
+		pr_err("fail to get valid zoom mode: %d\n", val);
 
 	pr_info("set zoom mode %d(%s)\n", g_camctrl.dcam_zoom_mode,
 		zoom_mode_strings[g_camctrl.dcam_zoom_mode]);
@@ -354,7 +354,7 @@ static ssize_t rds_limit_write(
 	if (val >= 10 && val <= 40)
 		g_camctrl.dcam_rds_limit = val;
 	else
-		pr_err("error: invalid rds limit: %d", val);
+		pr_err("fail to get valid rds limit: %d\n", val);
 
 	pr_info("set rds limit %d\n", g_camctrl.dcam_rds_limit);
 	return count;
@@ -448,7 +448,7 @@ static ssize_t dump_count_write(
 	mutex_lock(&dbg->dump_lock);
 	dbg->dump_count = 0;
 	if (val >= 200 || val == 0) {
-		pr_err("unsupported dump_raw_count %d\n", val);
+		pr_err("fail to get dump_raw_count %d\n", val);
 	} else if (dbg->dump_ongoing == 0) {
 		dbg->dump_count = val;
 		if (dbg->dump_start[0])
@@ -514,7 +514,7 @@ static ssize_t replace_image_write(struct file *filp, const char __user *buffer,
 
 	/* filename is less than this value, which is intentional */
 	if (count > DCAM_IMAGE_REPLACER_FILENAME_MAX) {
-		pr_err("command too long\n");
+		pr_err("fail to get filename size\n");
 		return -EINVAL;
 	}
 
@@ -540,7 +540,7 @@ static ssize_t replace_image_write(struct file *filp, const char __user *buffer,
 	}
 
 	if (dcam >= DCAM_ID_MAX) {
-		pr_err("invalid DCAM id %u\n", dcam);
+		pr_err("fail to get valid DCAM id %u\n", dcam);
 		return -EINVAL;
 	}
 
@@ -561,7 +561,7 @@ static ssize_t replace_image_write(struct file *filp, const char __user *buffer,
 	/* filename */
 	s = c + 1;
 	if (path >= DCAM_IMAGE_REPLACER_PATH_MAX) {
-		pr_err("unsupported DCAM path %u\n", path);
+		pr_err("fail to get DCAM path %u\n", path);
 		return -EINVAL;
 	}
 
@@ -909,7 +909,7 @@ static ssize_t work_mode_write(
 	else if (val == 1)
 		s_dbg_work_mode = ISP_AP_MODE;
 	else
-		pr_err("error: invalid work mode: %d", val);
+		pr_err("fail to get valid work mode: %d\n", val);
 
 	return count;
 }
@@ -974,7 +974,7 @@ static ssize_t iommu_mode_write(
 	else if (val == 3)
 		g_dbg_set_iommu_mode = IOMMU_ON;
 	else
-		pr_err("error: invalid work mode: %d", val);
+		pr_err("fail to get valid work mode: %d\n", val);
 
 	pr_info("set_iommu_mode : %d(%s)\n",
 		g_dbg_set_iommu_mode,
@@ -1087,7 +1087,7 @@ static ssize_t fbc_ctrl_write(struct file *filp, const char __user *buffer,
 	int ret;
 
 	if (count > 32) {
-		pr_err("command too long\n");
+		pr_err("fail to get command count\n");
 		return -EINVAL;
 	}
 
@@ -1113,7 +1113,7 @@ static ssize_t fbc_ctrl_write(struct file *filp, const char __user *buffer,
 	}
 
 	if (id >= CAM_ID_MAX) {
-		pr_err("invalid camera id %u\n", id);
+		pr_err("fail to get valid camera id %u\n", id);
 		return -EINVAL;
 	}
 
@@ -1169,7 +1169,7 @@ static ssize_t fbc_ctrl_write(struct file *filp, const char __user *buffer,
 	}
 
 	if (en > 1) {
-		pr_err("invalid enable %u\n", en);
+		pr_err("fail to get valid enable %u\n", en);
 		return -EINVAL;
 	}
 

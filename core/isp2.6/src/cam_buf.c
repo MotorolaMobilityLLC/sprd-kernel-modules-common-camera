@@ -182,11 +182,11 @@ int cambuf_get_ionbuf(struct camera_buf *buf_info)
 	void *ionbuf[3];
 
 	if (!buf_info) {
-		pr_err("error: input ptr is NULL\n");
+		pr_err("fail to get buffer info ptr\n");
 		return -EFAULT;
 	}
 	if (buf_info->type != CAM_BUF_USER) {
-		pr_err("error buffer type: %d\n", buf_info->type);
+		pr_err("fail to get correct buffer type: %d\n", buf_info->type);
 		return -EFAULT;
 	}
 
@@ -201,7 +201,7 @@ int cambuf_get_ionbuf(struct camera_buf *buf_info)
 				&ionbuf[i],
 				&buf_info->size[i]);
 		if (ret) {
-			pr_err("failed to get ionbuf for user buffer %d\n",
+			pr_err("fail to get ionbuf for user buffer %d\n",
 					buf_info->mfd[i]);
 			goto failed;
 		}
@@ -225,7 +225,7 @@ int cambuf_get_ionbuf(struct camera_buf *buf_info)
 			buf_info->dmabuf_p[i] =
 					dma_buf_get(buf_info->mfd[i]);
 			if (IS_ERR_OR_NULL(buf_info->dmabuf_p[i])) {
-				pr_err("failed to get dma buf %p\n",
+				pr_err("fail to get dma buf %p\n",
 						buf_info->dmabuf_p[i]);
 				goto failed;
 			}
@@ -259,7 +259,7 @@ int cambuf_put_ionbuf(struct camera_buf *buf_info)
 	int ret = 0;
 
 	if (!buf_info) {
-		pr_err("error: input ptr is NULL\n");
+		pr_err("fail to get buffer info ptr\n");
 		return -EFAULT;
 	}
 	if (buf_info->type != CAM_BUF_USER) {
@@ -295,7 +295,7 @@ int cambuf_iommu_map(
 
 	dev_info = get_iommu_dev(type, NULL);
 	if (!buf_info || !dev_info) {
-		pr_err("error: input ptr is NULL\n");
+		pr_err("fail to get valid param %p %p\n", buf_info, dev_info);
 		return -EFAULT;
 	}
 
@@ -316,7 +316,7 @@ int cambuf_iommu_map(
 					ionbuf[i], (int)iommu_data.iova_size);
 			ret = sprd_iommu_map(dev_info->dev, &iommu_data);
 			if (ret) {
-				pr_err("failed to get iommu kaddr %d\n", i);
+				pr_err("fail to get iommu kaddr %d\n", i);
 				ret = -EFAULT;
 				goto failed;
 			}
@@ -337,7 +337,7 @@ int cambuf_iommu_map(
 					&buf_info->iova[i],
 					&buf_info->size[i]);
 			if (ret) {
-				pr_err("failed to get iommu kaddr %d\n", i);
+				pr_err("fail to get iommu kaddr %d\n", i);
 				ret = -EFAULT;
 				goto failed;
 			}
@@ -369,7 +369,7 @@ failed:
 			unmap_data.buf = NULL;
 			ret = sprd_iommu_unmap(dev_info->dev, &unmap_data);
 			if (ret)
-				pr_err("failed to free iommu %d\n", i);
+				pr_err("fail to free iommu %d\n", i);
 			if (g_mem_dbg)
 				atomic_dec(&g_mem_dbg->iommu_map_cnt[type]);
 		}
@@ -389,7 +389,7 @@ int cambuf_iommu_unmap(
 	struct sprd_iommu_unmap_data unmap_data;
 
 	if (!buf_info) {
-		pr_err("error: input ptr is NULL\n");
+		pr_err("fail to get buffer info ptr\n");
 		return -EFAULT;
 	}
 
@@ -402,7 +402,7 @@ int cambuf_iommu_unmap(
 
 	dev_info = get_iommu_dev(CAM_IOMMUDEV_MAX, buf_info->dev);
 	if (!dev_info) {
-		pr_err("error: no matched iommu dev.\n");
+		pr_err("fail to get matched iommu dev.\n");
 		return -EFAULT;
 	}
 
@@ -419,7 +419,7 @@ int cambuf_iommu_unmap(
 			pr_debug("upmap buf addr: %lx\n", unmap_data.iova_addr);
 			ret = sprd_iommu_unmap(buf_info->dev, &unmap_data);
 			if (ret)
-				pr_err("failed to free iommu %d\n", i);
+				pr_err("fail to free iommu %d\n", i);
 			if (g_mem_dbg)
 				atomic_dec(&g_mem_dbg->iommu_map_cnt[dev_info->type]);
 		}
@@ -439,7 +439,7 @@ int cambuf_kmap(struct camera_buf *buf_info)
 	int ret = 0;
 
 	if (!buf_info) {
-		pr_err("error: input ptr is NULL\n");
+		pr_err("fail to get buffer info ptr\n");
 		return -EFAULT;
 	}
 
@@ -494,7 +494,7 @@ int cambuf_kunmap(struct camera_buf *buf_info)
 	int ret = 0;
 
 	if (!buf_info) {
-		pr_err("error: input ptr is NULL\n");
+		pr_err("fail to get buffer info ptr\n");
 		return -EFAULT;
 	}
 
@@ -532,7 +532,7 @@ int  cambuf_alloc(struct camera_buf *buf_info,
 	char name[64];
 
 	if (!buf_info) {
-		pr_err("error: input ptr is NULL\n");
+		pr_err("fail to get buffer info ptr\n");
 		return -EFAULT;
 	}
 
@@ -553,7 +553,7 @@ int  cambuf_alloc(struct camera_buf *buf_info,
 
 	buf_info->dmabuf_p[0] = ion_new_alloc(size, heap_type, 0);
 	if (IS_ERR_OR_NULL(buf_info->dmabuf_p[0])) {
-		pr_err("failed to alloc ion buf size = 0x%x\n", (int)size);
+		pr_err("fail to alloc ion buf size = 0x%x\n", (int)size);
 		ret = -ENOMEM;
 		return ret;
 	}
@@ -562,7 +562,7 @@ int  cambuf_alloc(struct camera_buf *buf_info,
 			&buf_info->ionbuf[0],
 			&buf_info->size[0]);
 	if (ret) {
-		pr_err("failed to get ionbuf for kernel buffer %p\n",
+		pr_err("fail to get ionbuf for kernel buffer %p\n",
 				buf_info->dmabuf_p[0]);
 		ret = -EFAULT;
 		goto failed;
@@ -593,17 +593,17 @@ int cambuf_free(struct camera_buf *buf_info)
 	struct dma_buf *dmabuf = NULL;
 
 	if (!buf_info) {
-		pr_err("error: input ptr is NULL\n");
+		pr_err("fail to get buffer info ptr\n");
 		return -EFAULT;
 	}
 
 	if (buf_info->type != CAM_BUF_KERNEL) {
-		pr_err("error buffer type: %d\n", buf_info->type);
+		pr_err("fail to get correct buffer type: %d\n", buf_info->type);
 		return -EPERM;
 	}
 
 	if (buf_info->mapping_state != CAM_BUF_MAPPING_NULL) {
-		pr_err("error: unmapping %x. maybe addr leak.\n",
+		pr_err("fail to get correct mapping state %x. maybe addr leak.\n",
 				buf_info->mapping_state);
 	}
 

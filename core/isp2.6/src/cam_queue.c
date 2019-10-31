@@ -32,7 +32,7 @@ int camera_enqueue(struct camera_queue *q, struct camera_frame *pframe)
 	unsigned long flags;
 
 	if (q == NULL || pframe == NULL) {
-		pr_err("error: input ptr is NULL\n");
+		pr_err("fail to get valid param %p %p\n", q, pframe);
 		return -EINVAL;
 	}
 
@@ -64,7 +64,7 @@ struct camera_frame *camera_dequeue(struct camera_queue *q)
 	struct camera_frame *pframe = NULL;
 
 	if (q == NULL) {
-		pr_err("error: input ptr is NULL\n");
+		pr_err("fail to get valid param\n");
 		return NULL;
 	}
 
@@ -79,7 +79,7 @@ struct camera_frame *camera_dequeue(struct camera_queue *q)
 			list_empty(&q->head), q->cnt);
 		fatal_err = (list_empty(&q->head) ^ (q->cnt == 0));
 		if (fatal_err)
-			pr_err("empty %d, cnt %d\n",
+			pr_err("fail to get list node, empty %d, cnt %d\n",
 					list_empty(&q->head), q->cnt);
 		goto unlock;
 	}
@@ -101,7 +101,7 @@ struct camera_frame *camera_dequeue_tail(struct camera_queue *q)
 	struct camera_frame *pframe = NULL;
 
 	if (q == NULL) {
-		pr_err("error: input ptr is NULL\n");
+		pr_err("fail to get valid param\n");
 		return NULL;
 	}
 
@@ -140,7 +140,7 @@ camera_dequeue_if(struct camera_queue *q,
 	struct camera_frame *pframe = NULL;
 
 	if (q == NULL || !filter) {
-		pr_err("error: input ptr is NULL\n");
+		pr_err("fail to get valid param %p %p\n", q, filter);
 		return NULL;
 	}
 
@@ -155,7 +155,7 @@ camera_dequeue_if(struct camera_queue *q,
 				list_empty(&q->head), q->cnt);
 		fatal_err = (list_empty(&q->head) ^ (q->cnt == 0));
 		if (fatal_err)
-			pr_err("error:  empty %d, cnt %d\n",
+			pr_err("fail to get list node, empty %d, cnt %d\n",
 					list_empty(&q->head), q->cnt);
 		goto unlock;
 	}
@@ -183,7 +183,7 @@ struct camera_frame *camera_dequeue_peek(struct camera_queue *q)
 	struct camera_frame *pframe = NULL;
 
 	if (q == NULL) {
-		pr_err("error: input ptr is NULL\n");
+		pr_err("fail to get valid param\n");
 		return NULL;
 	}
 
@@ -198,7 +198,7 @@ struct camera_frame *camera_dequeue_peek(struct camera_queue *q)
 				list_empty(&q->head), q->cnt);
 		fatal_err = (list_empty(&q->head) ^ (q->cnt == 0));
 		if (fatal_err)
-			pr_err("error:  empty %d, cnt %d\n",
+			pr_err("fail to get list node, empty %d, cnt %d\n",
 					list_empty(&q->head), q->cnt);
 		goto unlock;
 	}
@@ -218,7 +218,7 @@ int camera_queue_init(struct camera_queue *q,
 	int ret = 0;
 
 	if (q == NULL) {
-		pr_err("error: input ptr is NULL\n");
+		pr_err("fail to get valid param\n");
 		return -EINVAL;
 	}
 	q->cnt = 0;
@@ -241,7 +241,7 @@ int camera_queue_clear(struct camera_queue *q)
 	struct camera_frame *pframe = NULL;
 
 	if (q == NULL) {
-		pr_err("error: input ptr is NULL\n");
+		pr_err("fail to get valid param\n");
 		return -EINVAL;
 	}
 	spin_lock_irqsave(&q->lock, flags);
@@ -313,7 +313,7 @@ int camera_queue_same_frame(struct camera_queue *q0, struct camera_queue *q1,
 	spin_lock_irqsave(&q0->lock, flags0);
 	spin_lock_irqsave(&q1->lock, flags1);
 	if (list_empty(&q0->head) || list_empty(&q1->head)) {
-		pr_err("some buffer is empty\n");
+		pr_err("fail to get list node\n");
 		ret = -EFAULT;
 		goto _EXT;
 	}
@@ -377,14 +377,14 @@ struct camera_frame *get_empty_frame(void)
 				if (pframe)
 					atomic_inc(&g_mem_dbg->empty_frm_cnt);
 				else
-					pr_err("error: no memory.\n");
+					pr_err("fail to alloc memory\n");
 				return pframe;
 			}
 
 			for (i = 0; i < CAM_EMP_Q_LEN_INC; i++) {
 				pframe = kzalloc(sizeof(*pframe), GFP_KERNEL);
 				if (pframe == NULL) {
-					pr_err("error: no memory. retry\n");
+					pr_err("fail to alloc memory, retry\n");
 					continue;
 				}
 				atomic_inc(&g_mem_dbg->empty_frm_cnt);
@@ -411,7 +411,7 @@ int put_empty_frame(struct camera_frame *pframe)
 	int ret = 0;
 
 	if (pframe == NULL) {
-		pr_err("error: null input.\n");
+		pr_err("fail to get valid param\n");
 		return -EINVAL;
 	}
 	pr_debug("put frame %p\n", pframe);

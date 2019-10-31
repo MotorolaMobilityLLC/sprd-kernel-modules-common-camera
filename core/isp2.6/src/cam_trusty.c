@@ -87,7 +87,7 @@ static void cam_ca_handle_event(void *data, int event)
 		break;
 
 	default:
-		pr_err("unknown event type %d\n", event);
+		pr_err("fail to handle unknown event type %d\n", event);
 		break;
 	}
 }
@@ -130,7 +130,7 @@ bool cam_ca_connect(void)
 
 		chan = tipc_create_channel(NULL, &cam_ca_ops, ca);
 		if (IS_ERR(chan)) {
-			pr_err("cam tipc create channel failed\n");
+			pr_err("fail to create channel\n");
 			return PTR_ERR(chan);
 		}
 		ca->chan = chan;
@@ -144,7 +144,7 @@ bool cam_ca_connect(void)
 	chan_conn_ret = tipc_chan_connect(ca->chan, CAM_TA_PORT_NAME);
 	if (chan_conn_ret) {
 		ret = false;
-		pr_err("cam connect channel failed\n");
+		pr_err("fail to connect channel\n");
 		return ret;
 	} else {
 		ret = true;
@@ -154,7 +154,7 @@ bool cam_ca_connect(void)
 	if (!wait_event_interruptible_timeout(ca->readq,
 			(ca->chanel_state == TIPC_CHANNEL_CONNECTED),
 			msecs_to_jiffies(CA_CONN_TIMEOUT))) {
-		pr_err("wait read response time out!\n");
+		pr_err("fail to wait read response, time out!\n");
 		ret = false;
 	}
 
@@ -204,7 +204,7 @@ bool cam_ca_write(void *buf, size_t len)
 
 	avail = mb_avail_space(txbuf);
 	if (len > avail) {
-		pr_err("no buffer space, len = %d, avail = %d\n",
+		pr_err("fail to get buffer space, len = %d, avail = %d\n",
 			(int)len, (int)avail);
 		ret = -EMSGSIZE;
 		goto err;
@@ -234,7 +234,7 @@ ssize_t cam_ca_read(void *buf, size_t max_len)
 	if (!wait_event_interruptible_timeout(ca->readq,
 		!list_empty(&ca->rx_msg_queue),
 		msecs_to_jiffies(CA_READ_TIMEOUT))) {
-		pr_err("wait read response time out!\n");
+		pr_err("fail to wait read response, time out!\n");
 		return -ETIMEDOUT;
 	}
 
@@ -263,17 +263,17 @@ bool cam_ca_wait_response(uint32_t cmd)
 
 	size = cam_ca_read(&status_msg, sizeof(struct status_message));
 	if (size != sizeof(struct status_message)) {
-		pr_err("remote response size failed\n");
+		pr_err("fail to get remote response size\n");
 		return false;
 	}
 
 	if (status_msg.cmd == (cmd | TA_RESP_BIT)) {
-		pr_err("remote ack_msg.cmd failed\n");
+		pr_err("fail to get remote ack_msg.cmd\n");
 		return false;
 	}
 
 	if (status_msg.status ==  CAM_SECURITY) {
-		pr_err("remote ack_msg.ack failed\n");
+		pr_err("fail to get remote ack_msg.ack\n");
 		return false;
 	}
 
@@ -293,18 +293,18 @@ bool cam_ca_wait_ack(uint32_t cmd)
 	size = cam_ca_read(&ack_msg, sizeof(struct ack_message));
 
 	if (size != sizeof(struct ack_message)) {
-		pr_err("remote response size failed, size= %zd\n", size);
+		pr_err("fail to get remote response size, size= %zd\n", size);
 		return false;
 	}
 
 	if (ack_msg.cmd != (cmd | TA_RESP_BIT)) {
-		pr_err("remote ack_msg.cmd failed, ack_msg.cmd=0x%x, cmd=0x%x\n",
+		pr_err("fail to get remote ack_msg.cmd, ack_msg.cmd=0x%x, cmd=0x%x\n",
 			ack_msg.cmd, cmd);
 		return false;
 	}
 
 	if (ack_msg.ack ==  TA_CMD_ERR) {
-		pr_err("remote ack_msg.ack failed, ack=0x%x\n", ack_msg.ack);
+		pr_err("fail to get remote ack_msg.ack, ack=0x%x\n", ack_msg.ack);
 		return false;
 	}
 
@@ -325,14 +325,14 @@ bool camca_get_status(void)
 	cam_trusty_status.msg_cmd = TA_GET_CAM_STATUS;
 	ret = cam_ca_write(&cam_trusty_status, sizeof(struct faceid_info_msg));
 	if (!ret) {
-		pr_err("cam_ca_write fail ret =%d\n", ret);
+		pr_err("fail to write cam_ca ret =%d\n", ret);
 		mutex_unlock(&ca->wlock);
 		return ret;
 	}
 
 	ret =  cam_ca_wait_response(cam_trusty_status.msg_cmd);
 	if (!ret) {
-		pr_err("cam_ca_write fail ret =%d\n", ret);
+		pr_err("fail to wait cam_ca response ret =%d\n", ret);
 		mutex_unlock(&ca->wlock);
 		return ret;
 	}
@@ -365,7 +365,7 @@ bool camca_isp_fetch_addr_set(unsigned long y_addr, unsigned long u_addr,
 
 	ret = cam_ca_write(&yuv_addr_set, sizeof(struct img_yuv_reg_msg));
 	if (!ret) {
-		pr_err("cam_ca_write fail, ret =%d\n", ret);
+		pr_err("fail to write cam_ca, ret =%d\n", ret);
 		mutex_unlock(&ca->wlock);
 		return ret;
 	}
@@ -396,7 +396,7 @@ bool camca_isp_pitch_set(uint32_t y_pitch, uint32_t u_pitch, uint32_t v_pitch)
 
 	ret = cam_ca_write(&pitch_set, sizeof(struct img_pitch_reg_msg));
 	if (!ret) {
-		pr_err("cam_ca_write isp_pitch fail, ret = %d\n", ret);
+		pr_err("fail to write cam_ca, ret = %d\n", ret);
 		mutex_unlock(&ca->wlock);
 		return ret;
 	}
@@ -428,7 +428,7 @@ bool camca_isp_3dnr_fetch_set(uint32_t chroma, uint32_t luma,
 	ret = cam_ca_write(&isp_3dnr_pitch_set, sizeof(struct
 		isp_3dnr_reg_msg));
 	if (!ret) {
-		pr_err("isp_3dnr_fetch_set, cam_ca_write fail, ret =%d\n", ret);
+		pr_err("fail to write cam_ca, ret =%d\n", ret);
 		mutex_unlock(&ca->wlock);
 		return ret;
 	}
@@ -456,7 +456,7 @@ bool camca_csi_switch_ctrl_set(uint32_t csi_sel_ctrl)
 
 	ret = cam_ca_write(&switch_ctrl, sizeof(struct csi_switch_ctrl_msg));
 	if (!ret) {
-		pr_err("cam_ca_write fail ret =%d\n", ret);
+		pr_err("fail to write cam_ca ret =%d\n", ret);
 		mutex_unlock(&ca->wlock);
 		return ret;
 	}
@@ -481,7 +481,7 @@ bool camca_enter_tamode(struct sprd_cam_sec_cfg *camsec_cfg)
 		camsec_cfg->work_mode);
 
 	if (ca->chanel_state != TIPC_CHANNEL_CONNECTED) {
-		pr_err("enter ta mode fail, con err\n");
+		pr_err("fail to enter ta mode, con err\n");
 		return false;
 	}
 
@@ -493,7 +493,7 @@ bool camca_enter_tamode(struct sprd_cam_sec_cfg *camsec_cfg)
 
 	ret = cam_ca_write(&faceid_msg, sizeof(struct faceid_cfg_msg));
 	if (!ret) {
-		pr_err("cam_ca_write fail ret =%d\n", ret);
+		pr_err("fail to write cam_ca ret =%d\n", ret);
 		mutex_unlock(&ca->wlock);
 		return ret;
 	}
@@ -525,7 +525,7 @@ bool camca_exit_tamode(struct sprd_cam_sec_cfg *camsec_cfg)
 
 	ret = cam_ca_write(&faceid_msg, sizeof(struct faceid_cfg_msg));
 	if (!ret) {
-		pr_err("cam_ca_write fail ret =%d\n", ret);
+		pr_err("fail to write cam_ca ret =%d\n", ret);
 		mutex_unlock(&ca->wlock);
 		return ret;
 	}
