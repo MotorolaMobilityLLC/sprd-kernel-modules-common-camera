@@ -961,14 +961,13 @@ static irqreturn_t dcam_error_handler(struct dcam_pipe_dev *dev,
 	const char *tb_ovr[2] = {"", ", overflow"};
 	const char *tb_lne[2] = {"", ", line error"};
 	const char *tb_frm[2] = {"", ", frame error"};
-	pr_err("fail to handle,DCAM%u error 0x%x\n", dev->idx, status);
+	const char *tb_mmu[2] = {"", ", mmu"};
 
-	if (!(status & DCAM_MMU_INT))
-		pr_err("fail to handle,DCAM%u status 0x%x%s%s%s\n",
-			dev->idx, status,
-		       tb_ovr[!!(status & BIT(DCAM_DCAM_OVF))],
-		       tb_lne[!!(status & BIT(DCAM_CAP_LINE_ERR))],
-		       tb_frm[!!(status & BIT(DCAM_CAP_FRM_ERR))]);
+	pr_err("fail to get normal status DCAM%u 0x%x%s%s%s%s\n", dev->idx, status,
+	       tb_ovr[!!(status & BIT(DCAM_DCAM_OVF))],
+	       tb_lne[!!(status & BIT(DCAM_CAP_LINE_ERR))],
+	       tb_frm[!!(status & BIT(DCAM_CAP_FRM_ERR))],
+	       tb_mmu[!!(status & BIT(DCAM_MMU_INT))]);
 
 	if (status & BIT(DCAM_MMU_INT)) {
 		uint32_t val = DCAM_MMU_RD(MMU_STS);

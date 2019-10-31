@@ -1377,6 +1377,7 @@ int dcam_callback(enum dcam_cb_type type, void *param, void *priv_data)
 	struct channel_context *channel;
 	struct isp_offline_param *cur;
 	struct isp_statis_io_desc io_desc;
+	struct cam_hw_info *hw = NULL;
 
 	if (!param || !priv_data) {
 		pr_err("fail to get valid param %p %p\n", param, priv_data);
@@ -1384,8 +1385,14 @@ int dcam_callback(enum dcam_cb_type type, void *param, void *priv_data)
 	}
 
 	module = (struct camera_module *)priv_data;
+	hw = module->grp->hw_info;
+
 	if (type == DCAM_CB_DEV_ERR) {
-		pr_err("fail to get dcam state, camera %d\n", module->idx);
+		pr_err("fail to check cb type. camera %d\n", module->idx);
+		csi_api_reg_trace();
+		hw->hw_ops.core_ops.reg_trace(module->idx,
+			ABNORMAL_REG_TRACE);
+
 		dcam_ops->stop(module->dcam_dev_handle);
 
 		pframe = get_empty_frame();
@@ -3955,7 +3962,7 @@ static int img_ioctl_cfg_param(
 	if ((param.sub_block & DCAM_ISP_BLOCK_MASK) == DCAM_BLOCK_BASE) {
 		if ((param.scene_id == PM_SCENE_CAP) &&
 			(module->aux_dcam_dev == NULL)) {
-			pr_warn("Config DCAM param for capture. Maybe raw proc\n");
+			pr_debug("Config DCAM param for capture. Maybe raw proc\n");
 		}
 		if ((param.scene_id == PM_SCENE_CAP) &&
 			(module->aux_dcam_dev != NULL))
