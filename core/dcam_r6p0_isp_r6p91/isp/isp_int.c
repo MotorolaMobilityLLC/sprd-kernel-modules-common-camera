@@ -519,10 +519,6 @@ static void isp_afl_done(void *isp_handle)
 	struct camera_frame frame_info;
 	struct isp_statis_module *module = NULL;
 
-	/*pike2 afl not support hw bypass, workaround*/
-	ISP_REG_MWR(ISP_ANTI_FLICKER_NEW_PARAM0, BIT_0, 1);
-	memset(&frame_info, 0x00, sizeof(frame_info));
-
 	dev = (struct isp_pipe_dev *)isp_handle;
 	module = &dev->statis_module_info;
 	statis_heap = &module->afl_statis_frm_queue;
@@ -535,6 +531,10 @@ static void isp_afl_done(void *isp_handle)
 	}
 
 	if (node.phy_addr != module->afl_buf_reserved.phy_addr) {
+		/*pike2 afl not support hw bypass, workaround*/
+		ISP_REG_MWR(ISP_ANTI_FLICKER_NEW_PARAM0, BIT_0, 1);
+		memset(&frame_info, 0x00, sizeof(frame_info));
+
 		frame_info.buf_size = node.buf_size;
 		memcpy(frame_info.pfinfo.mfd, node.pfinfo.mfd,
 		       sizeof(unsigned int) * 3);

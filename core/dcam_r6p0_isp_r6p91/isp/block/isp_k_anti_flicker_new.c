@@ -28,10 +28,9 @@ static int isp_k_afl_new_bypass(struct isp_io_param *param)
 		return -EPERM;
 	}
 
-	pr_debug("%s: afl bypass %d\n", __func__, bypass);
-	if (bypass)
-		ISP_REG_MWR(ISP_ANTI_FLICKER_NEW_PARAM0, BIT_0, 1);
-	else
+	pr_debug("%s: afl bypass %d, cur_status: 0x%x\n", __func__, bypass,
+		 ISP_REG_RD(ISP_ANTI_FLICKER_NEW_PARAM0));
+	if (bypass == 0)
 		ISP_REG_MWR(ISP_ANTI_FLICKER_NEW_PARAM0, BIT_0, 0);
 
 	return ret;

@@ -205,6 +205,8 @@ int isp_reset(void)
 	isp_int_init();
 	/*bypass binning4awb after isp reset*/
 	ISP_REG_MWR(ISP_BINNING_PARAM, BIT_0, 1);
+	/*bypass antiflicker after isp reset*/
+	ISP_REG_MWR(ISP_ANTI_FLICKER_PARAM0, BIT_0, 1);
 
 	sprd_iommu_restore(&s_isp_pdev->dev);
 
