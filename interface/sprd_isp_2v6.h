@@ -45,11 +45,17 @@
 #define STATIS_AFM_BUF_SIZE  (20 * 15 * 16)
 #define STATIS_AFM_BUF_NUM 8
 
+/* SharkL5/ROC1/SharkL5Pro */
 /* AFL: global 80 x 16 bytes for one frame, region 482 x 16 bytes one frame */
 #define STATIS_AFL_GBUF_SIZE   (80 * 16 * 3 + 64)
 #define STATIS_AFL_RBUF_SIZE   (482 * 16 * 3 + 64)
-#define STATIS_AFL_BUF_SIZE   (STATIS_AFL_GBUF_SIZE + STATIS_AFL_RBUF_SIZE)
-#define STATIS_AFL_BUF_NUM 4
+
+/* SharkL3 */
+/* AFL: global 240 * 8 bytes for one frame, region 964 x 8 bytes one frame */
+#define STATIS_AFL_GBUF_SIZE3   (240 * 8 * 3 + 64)
+
+#define STATIS_AFL_BUF_SIZE (STATIS_AFL_GBUF_SIZE3 + STATIS_AFL_RBUF_SIZE)
+#define STATIS_AFL_BUF_NUM 3
 
 /* hist: 154 x 16 bytes */
 #define STATIS_HIST_BUF_SIZE   (154 * 16)

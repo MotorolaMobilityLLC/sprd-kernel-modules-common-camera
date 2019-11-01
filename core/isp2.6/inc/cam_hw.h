@@ -102,6 +102,7 @@ struct cam_hw_ip_info {
 	uint32_t dcam_fbc_mode;
 	unsigned long *store_addr_tab;
 	uint32_t *path_ctrl_id_tab;
+	uint32_t afl_gbuf_size;
 
 	/* For isp support info */
 	uint32_t slm_cfg_support;
