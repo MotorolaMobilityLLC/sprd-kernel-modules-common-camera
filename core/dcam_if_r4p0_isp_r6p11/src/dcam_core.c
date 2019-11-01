@@ -532,7 +532,10 @@ static int sprd_img_local_deinit(struct camera_dev *dev)
 	ret = dcam_core_stats_init(dev);
 	if (unlikely(ret != 0))
 		pr_err("fail to init stats\n");
-	pfiommu_free_addr(&dev->statis_module_info.img_statis_buf.pfinfo);
+
+	ret = pfiommu_free_addr(&dev->statis_module_info.img_statis_buf.pfinfo);
+	if (ret != 0)
+		pr_err("fail to free img statis buf\n");
 
 	DCAM_TRACE("local_deinit, frm_cnt_act %d\n",
 		   path->frm_cnt_act);

@@ -1271,6 +1271,7 @@ int isp_path_set_next_frm(struct isp_module *module,
 	unsigned int iova0, iova2;
 	unsigned int frm_q_len;
 	unsigned int target_fid = 0;
+	unsigned int ret;
 
 	if (module == NULL) {
 		pr_err("fail to get moudule, It's NULL\n");
@@ -1443,17 +1444,18 @@ int isp_path_set_next_frm(struct isp_module *module,
 queue_err:
 	if (use_reserve_frame)
 		return -rtn;
-
 	if (path_index == ISP_PATH_IDX_PRE) {
-		pfiommu_free_addr_with_id(&frame.pfinfo, ISP_IOMMU_CH_AW,
+		ret = pfiommu_free_addr_with_id(&frame.pfinfo, ISP_IOMMU_CH_AW,
 					  AW_ID_STORE_PRE_CAP_YUV);
 	} else if (path_index == ISP_PATH_IDX_VID) {
-		pfiommu_free_addr_with_id(&frame.pfinfo, ISP_IOMMU_CH_AW,
+		ret = pfiommu_free_addr_with_id(&frame.pfinfo, ISP_IOMMU_CH_AW,
 					  AW_ID_STORE_VID_YUV);
 	} else if (path_index == ISP_PATH_IDX_CAP) {
-		pfiommu_free_addr_with_id(&frame.pfinfo, ISP_IOMMU_CH_AW,
+		ret = pfiommu_free_addr_with_id(&frame.pfinfo, ISP_IOMMU_CH_AW,
 					  AW_ID_STORE_PRE_CAP_YUV);
 	}
+	if (ret)
+		pr_err("fail to free frame, isp path 0x%x\n", path_index);
 
 	memset(frame.pfinfo.iova, 0, sizeof(frame.pfinfo.iova));
 

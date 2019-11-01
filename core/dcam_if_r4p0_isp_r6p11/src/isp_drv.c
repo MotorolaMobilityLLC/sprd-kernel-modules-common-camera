@@ -876,8 +876,10 @@ static int sprd_isp_stop_nolock(void *isp_handle, int is_post_stop)
 
 	isp_coeff_queue_init(module->scl_array);
 
-	pfiommu_free_addr(&statis_module->img_statis_buf.pfinfo);
-	pfiommu_free_addr(&isp_k_param->fetch_pfinfo);
+	if (pfiommu_free_addr(&statis_module->img_statis_buf.pfinfo))
+		pr_err("fail to free img statis buf\n");
+	if (pfiommu_free_addr(&isp_k_param->fetch_pfinfo))
+		pr_err("fail to free isp_k_param->fetch_pfinfo\n");
 	memset(&isp_k_param->fetch_pfinfo, 0, sizeof(struct pfiommu_info));
 
 	isp_offline_buf_iommu_unmap(&module->off_desc, ISP_OFF_BUF_BIN);
@@ -2004,7 +2006,7 @@ static int sprd_isp_pipeline_proc_full(void *handle)
 
 	valid_frame = &dev->offline_frame[ISP_OFF_BUF_FULL];
 	if (dev->cap_on == 0) {
-		pr_err("fail to capture because of stoped, skip this frame\n");
+		pr_info("capture has been stoped, skip this frame\n");
 		spin_lock(&isp_mod_lock);
 		fmcu_slice_capture_state = ISP_ST_STOP;
 		fmcu_slice_capture_state_dual = ISP_ST_STOP;
@@ -3884,8 +3886,8 @@ int sprd_isp_external_unmap(void *isp_handle)
 	module = &dev->module_info;
 	statis_module = &dev->statis_module_info;
 	isp_k_param = &dev->isp_k_param;
-
-	pfiommu_free_addr(&isp_k_param->lsc_pfinfo);
+	if (pfiommu_free_addr(&isp_k_param->lsc_pfinfo))
+		pr_err("fail to free isp_k_param->lsc_pfinfo\n");
 	memset(&isp_k_param->lsc_pfinfo, 0, sizeof(struct pfiommu_info));
 
 	isp_offline_buf_iommu_unmap_external(

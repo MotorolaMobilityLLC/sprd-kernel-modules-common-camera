@@ -1271,7 +1271,7 @@ static int dcamio_start_capture(struct camera_file *camerafile,
 	}
 
 	if (unlikely(atomic_read(&dev->stream_on) == 0)) {
-		pr_warn("fail to idx:%d stream not on, skip captrue req.\n",
+		pr_info("idx:%d stream not on, skip captrue req.\n",
 				dev->idx);
 		ret = -EAGAIN;
 		goto exit_nolock;

@@ -834,15 +834,18 @@ static void isp_path_done(enum isp_scl_id path_id,
 			pr_info("ISP done dev NULL\n");
 
 		if (path_id == ISP_SCL_PRE || path_id == ISP_SCL_CAP)
-			pfiommu_free_addr_with_id(&frame.pfinfo,
+			ret = pfiommu_free_addr_with_id(&frame.pfinfo,
 						  ISP_IOMMU_CH_AW,
 						  AW_ID_STORE_PRE_CAP_YUV);
 		else if (path_id == ISP_SCL_VID)
-			pfiommu_free_addr_with_id(&frame.pfinfo,
+			ret = pfiommu_free_addr_with_id(&frame.pfinfo,
 						  ISP_IOMMU_CH_AW,
 						  AW_ID_STORE_VID_YUV);
 		else
 			pr_err("fail to get unexpected path id %d\n", path_id);
+
+		if (ret && (path_id > ISP_SCL_0) && (path_id < ISP_SCL_MAX))
+			pr_err("fail to free frame, path id %d\n", path_id);
 
 		if (frame.pfinfo.mfd[0] !=
 		    module->path_reserved_frame[path_id].pfinfo.mfd[0]) {
@@ -1126,9 +1129,10 @@ static void isp_fmcu_config_done(void *isp_handle)
 		}
 
 		buf_desc->output_frame_count++;
-
-		pfiommu_free_addr_with_id(&frame.pfinfo, ISP_IOMMU_CH_AW,
+		ret = pfiommu_free_addr_with_id(&frame.pfinfo, ISP_IOMMU_CH_AW,
 					  AW_ID_STORE_PRE_CAP_YUV);
+		if (ret)
+			pr_err("fail to free frame\n");
 
 		if (frame.pfinfo.mfd[0] !=
 			module->path_reserved_frame[path_id].pfinfo.mfd[0]) {

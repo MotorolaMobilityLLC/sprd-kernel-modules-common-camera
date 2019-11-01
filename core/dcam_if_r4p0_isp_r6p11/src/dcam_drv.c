@@ -1404,7 +1404,10 @@ static void dcam_raw_path_done(enum dcam_id idx)
 		if (frame.pfinfo.dev == NULL)
 			pr_info("DCAM%d done dev NULL %p\n",
 				idx, frame.pfinfo.dev);
-		pfiommu_free_addr(&frame.pfinfo);
+		rtn = pfiommu_free_addr(&frame.pfinfo);
+		if (rtn)
+			pr_err("fail to free raw path output buf\n");
+
 		if (frame.pfinfo.mfd[0] !=
 		    module->raw_reserved_frame.pfinfo.mfd[0]) {
 
@@ -1887,8 +1890,11 @@ static void dcam_frm_clear(enum dcam_id idx)
 	}
 
 	raw_path = &s_p_dcam_mod[idx]->dcam_raw_path;
-	while (!dcam_frame_dequeue(&raw_path->frame_queue, &frame))
-		pfiommu_free_addr(&frame.pfinfo);
+
+	while (!dcam_frame_dequeue(&raw_path->frame_queue, &frame)){
+		if (pfiommu_free_addr(&frame.pfinfo))
+			pr_err("fail to free raw path frame queue buf\n");
+	}
 
 	dcam_frm_queue_clear(&raw_path->frame_queue);
 	dcam_buf_queue_init(&raw_path->buf_queue);
@@ -1896,7 +1902,9 @@ static void dcam_frm_clear(enum dcam_id idx)
 	dcam_time_queue_init(&dcam_t_sof.tq[idx].full_t);
 
 	res_frame = &s_p_dcam_mod[idx]->raw_reserved_frame;
-	pfiommu_free_addr(&res_frame->pfinfo);
+
+	if (pfiommu_free_addr(&res_frame->pfinfo))
+		pr_err("dcam stopping: fail to free raw path reserved buf\n");
 	memset((void *)res_frame, 0, sizeof(struct camera_frame));
 }
 
