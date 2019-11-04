@@ -41,6 +41,9 @@
 #include "xrp_faceid.h"
 #include "vdsp_trusty.h"
 
+#define SIGN_HEAD_SIZE (512)
+#define SIGN_TAIL_SIZE (512)
+
 #ifdef pr_fmt
 #undef pr_fmt
 #endif
@@ -391,12 +394,17 @@ static int sprd_free_faceid_fwbuffer(struct xvp *xvp)
 }
 void sprd_release_faceid_firmware(struct xvp *xvp)
 {
-	release_firmware(xvp->firmware2);
+	release_firmware(xvp->firmware2_sign);
 }
 int sprd_request_faceid_firmware(struct xvp *xvp)
 {
+#if 0
 	int ret = request_firmware(&xvp->firmware2, FACEID_FIRMWARE, xvp->dev);
-
+#else
+	int ret = request_firmware(&xvp->firmware2_sign, FACEID_FIRMWARE, xvp->dev);
+	xvp->firmware2.data = (void*)xvp->firmware2_sign->data + SIGN_HEAD_SIZE;
+	xvp->firmware2.size = xvp->firmware2_sign->size - SIGN_HEAD_SIZE - SIGN_TAIL_SIZE;
+#endif
 	if (ret < 0)
 	{
 		pr_err("%s ret:%d\n" , __func__ ,ret);
@@ -527,6 +535,7 @@ int sprd_faceid_sec_sign(struct xvp *xvp)
 {
 	bool ret;
 	KBC_LOAD_TABLE_V  table;
+	unsigned long mem_addr_v,mem_addr_p;
 	
 	ret = trusty_kernelbootcp_connect();
 	if(!ret)
@@ -534,14 +543,21 @@ int sprd_faceid_sec_sign(struct xvp *xvp)
 		pr_err("bootcp connect fail\n");
 		return -EACCES;
 	}
-
+	
 	memset(&table, 0, sizeof(KBC_LOAD_TABLE_V));
-	table.faceid_fw.img_addr = xvp->firmware2_phys;
-	table.faceid_fw.img_len = xvp->firmware2->size;
+	
+	mem_addr_v = xvp->faceid_pool.ion_fd_mem_pool.addr_k[0];
+	mem_addr_p = xvp->faceid_pool.ion_fd_mem_pool.addr_p[0];
+	
+	/*copy fw to continuous physical address*/
+	memcpy((void*)mem_addr_v,xvp->firmware2_sign->data,xvp->firmware2_sign->size);
+
+	table.faceid_fw.img_addr = mem_addr_p;
+	table.faceid_fw.img_len = xvp->firmware2_sign->size;
 
 	pr_info("faceid fw sign paddr %X size %d\n",
-			xvp->firmware2_phys,xvp->firmware2->size);
-/*
+			mem_addr_p,xvp->firmware2_sign->size);
+#if 0
 	ret = kernel_bootcp_verify_vdsp(&table);
 	if(!ret)
 	{
@@ -555,7 +571,7 @@ int sprd_faceid_sec_sign(struct xvp *xvp)
 		pr_err("bootcp unlock ddr fail\n");
 		return -EACCES;
 	}
-*/
+#endif
 	trusty_kernelbootcp_disconnect();
 	return 0;
 }

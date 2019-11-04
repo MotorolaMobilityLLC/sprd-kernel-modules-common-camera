@@ -42,6 +42,11 @@ struct firmware;
 struct xrp_hw_ops;
 struct xrp_allocation_pool;
 
+struct firmware_origin {
+ size_t size;
+ u8 *data;
+};
+
 struct xrp_comm {
 	struct mutex lock;
 	void __iomem *comm;
@@ -65,7 +70,8 @@ struct xvp {
 	struct device *dev;
 	const char *firmware_name;
 	const struct firmware *firmware;
-	const struct firmware *firmware2;/*faceid fw*/
+	struct firmware_origin firmware2;/*faceid fw*/
+	const struct firmware *firmware2_sign;/*faceid sign fw*/
 	struct miscdevice miscdev;
 	const struct xrp_hw_ops *hw_ops;
 	void *hw_arg;
