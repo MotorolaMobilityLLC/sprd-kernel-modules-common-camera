@@ -326,7 +326,7 @@ static void vdsp_smsg_ipc_init_irq_callback(struct smsg_ipc *ipc)
 static int vdsp_smsg_ipc_smem_init(struct smsg_ipc *ipc)
 {
 	void __iomem *p;
-	int ret;
+	int ret = 1;
 
 	if (ipc->smem_inited)
 		return 0;
