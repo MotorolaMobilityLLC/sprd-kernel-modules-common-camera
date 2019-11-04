@@ -155,7 +155,7 @@ static int dcam_bypass_read(struct seq_file *s, void *unused)
 	uint32_t idx = 0;
 	uint32_t bypass_cnt = 0;
 	struct bypass_tag dat;
-	int i;
+	int i = 0;
 
 	if (!s) {
 		pr_err("fail to get valid param\n");
@@ -169,8 +169,6 @@ static int dcam_bypass_read(struct seq_file *s, void *unused)
 	seq_printf(s, "-----dcam%d-----\n", idx);
 	if (atomic_read(&s_dcam_opened[idx]) <= 0) {
 		seq_puts(s, "Hardware not enable\n");
-		if (unlikely(i))
-			pr_warn("copy to user fail\n");
 	} else {
 		for (i = 0; i < bypass_cnt; i++) {
 			if (ops->bypass_data_get(i, DCAM_BYPASS_TYPE) == NULL)
@@ -470,9 +468,9 @@ static const struct file_operations dump_count_ops = {
 
 static int replace_image_read(struct seq_file *s, void *unused)
 {
-	struct dcam_image_replacer *replacer;
+	struct dcam_image_replacer *replacer = NULL;
 	char *str;
-	int i, j;
+	int i = 0, j = 0;
 
 	replacer = (struct dcam_image_replacer *)s->private;
 	seq_printf(s, "\n");
@@ -715,7 +713,7 @@ static int isp_bypass_read(struct seq_file *s, void *unused)
 	uint32_t idx = 0;
 	uint32_t bypass_cnt = 0;
 	struct bypass_tag dat;
-	int i;
+	int i = 0;
 
 	if (!s) {
 		pr_err("fail to get valid input para\n");
@@ -1036,8 +1034,8 @@ static const struct file_operations lbuf_len_ops = {
 
 static int fbc_ctrl_read(struct seq_file *s, void *unused)
 {
-	struct compression_override *override;
-	int i;
+	struct compression_override *override = NULL;
+	int i = 0;
 
 	override = (struct compression_override *)s->private;
 
