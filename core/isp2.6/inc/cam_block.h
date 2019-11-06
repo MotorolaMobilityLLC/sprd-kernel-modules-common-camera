@@ -32,6 +32,9 @@ int dcam_init_lsc_slice(void *param, uint32_t online);
 int dcam_init_lsc(void *param, uint32_t online);
 int dcam_update_lsc(void *param);
 int dcam_k_cfg_blc(struct isp_io_param *param,	struct dcam_dev_param *p);
+int dcam_k_cfg_raw_gtm(struct isp_io_param *param, struct dcam_dev_param *p);
+int dcam_k_raw_gtm_block(struct dcam_dev_param *param);
+int dcam_k_raw_gtm_slice(uint32_t idx, struct dcam_dev_gtm_slice_info *gtm_slice);
 int dcam_k_cfg_rgb_gain(struct isp_io_param *param, struct dcam_dev_param *p);
 int dcam_k_cfg_rgb_dither(struct isp_io_param *param,
 	struct dcam_dev_param *p);
@@ -147,6 +150,7 @@ enum block_bypass {
 	_E_PPI,
 	_E_AWBC,
 	_E_NR3,
+	_E_GTM,
 };
 extern uint32_t g_dcam_bypass[];
 enum isp_bypass {

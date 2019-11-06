@@ -101,6 +101,11 @@ struct dcam_dev_afm_param {
 	struct isp_img_size done_tile_num;
 };
 
+struct dcam_dev_gtm_param {
+	uint32_t update;
+	struct dcam_dev_raw_gtm_block_info gtm_info;
+};
+
 struct dcam_dev_param {
 	struct mutex param_lock;
 	uint32_t idx; /* dcam dev idx */
@@ -118,6 +123,7 @@ struct dcam_dev_param {
 	struct dcam_dev_grgb_param grgb;
 	struct dcam_dev_3dnr_param nr3;
 	struct dcam_dev_afm_param afm;
+	struct dcam_dev_gtm_param gtm;
 };
 
 typedef int (*FUNC_DCAM_PARAM)(struct dcam_dev_param *param);

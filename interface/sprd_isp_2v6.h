@@ -27,6 +27,7 @@
 #define POSTERIZE_NUM			8
 #define POSTERIZE_NUM2			129
 #define ISP_YUV_GAMMA_NUM	129
+#define GTM_HIST_BIN_NUM       128
 
 #define ISP_MAX_WIDTH  4672
 #define ISP_MAX_HEIGHT  3504
@@ -124,6 +125,7 @@ enum dcam_block {
 	DCAM_BLOCK_GRGB,
 	DCAM_BLOCK_3DNR_ME,
 	DCAM_BLOCK_AFM,
+	DCAM_BLOCK_RAW_GTM,
 	DCAM_BLOCK_TOTAL,
 
 	ISP_BLOCK_BASE = (1 << 8),
@@ -157,6 +159,9 @@ enum dcam_block {
 	ISP_BLOCK_TOTAL,
 };
 
+enum dcam_gtm_property {
+	DCAM_PRO_RAW_GTM_BLOCK,
+};
 
 enum dcam_blc_property {
 	DCAM_PRO_BLC_BLOCK,
@@ -396,6 +401,52 @@ struct dcam_dev_blc_info {
 	uint32_t b;
 	uint32_t gr;
 	uint32_t gb;
+};
+
+struct dcam_dev_gtm_slice_info {
+	uint32_t gtm_slice_main;
+	uint32_t gtm_slice_line_startpos;
+	uint32_t gtm_slice_line_endpos;
+	uint32_t slice_width;
+	uint32_t slice_height;
+};
+
+struct dcam_dev_raw_gtm_block_info {
+	uint32_t gtm_tm_out_bit_depth;
+	uint32_t gtm_tm_in_bit_depth;
+	uint32_t gtm_tm_luma_est_mode;
+	uint32_t gtm_cur_is_first_frame;
+	uint32_t gtm_tm_param_calc_by_hw;
+	uint32_t gtm_hist_stat_bypass;
+	uint32_t gtm_map_bypass;
+	uint32_t gtm_mod_en;
+	uint32_t gtm_imgkey_setting_value;
+	uint32_t gtm_imgkey_setting_mode;
+	uint32_t gtm_target_norm_coeff;
+	uint32_t gtm_target_norm;
+	uint32_t gtm_target_norm_setting_mode;
+	uint32_t gtm_ymin;
+	uint32_t gtm_yavg;
+	uint32_t gtm_ymax;
+	uint32_t gtm_log_min_int;
+	uint32_t gtm_lr_int;
+	uint32_t gtm_log_diff_int;
+	uint32_t gtm_log_max_int;
+	uint32_t gtm_hist_total;
+	uint32_t gtm_min_per;
+	uint32_t gtm_max_per;
+	uint32_t gtm_log_diff;
+	uint32_t gtm_pre_ymin_weight;
+	uint32_t gtm_cur_ymin_weight;
+	uint32_t gtm_ymax_diff_thr;
+	uint32_t gtm_yavg_diff_thr;
+	uint32_t tm_lumafilter_c[3][3];
+	uint32_t tm_lumafilter_shift;
+	uint32_t tm_rgb2y_g_coeff;
+	uint32_t tm_rgb2y_r_coeff;
+	uint32_t tm_rgb2y_b_coeff;
+	uint16_t tm_hist_xpts[GTM_HIST_BIN_NUM];
+	struct dcam_dev_gtm_slice_info slice;
 };
 
 struct dcam_dev_rgb_gain_info {
