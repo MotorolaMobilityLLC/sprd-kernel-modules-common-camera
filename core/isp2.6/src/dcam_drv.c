@@ -168,7 +168,7 @@ int dcam_if_parse_dt(struct platform_device *pdev,
 
 	iommu_node = of_parse_phandle(dn, "iommus", 0);
 	if (iommu_node) {
-		if (of_address_to_resource(iommu_node, 1, &reg_res))
+		if (of_address_to_resource(iommu_node, 0, &reg_res))
 			pr_err("fail to get DCAM IOMMU  addr\n");
 		else {
 			reg_base = ioremap(reg_res.start,

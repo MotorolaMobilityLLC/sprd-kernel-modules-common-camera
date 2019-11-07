@@ -230,7 +230,7 @@ int sprd_isp_parse_dt(struct device_node *dn,
 
 		iommu_node = of_parse_phandle(isp_node, "iommus", 0);
 		if (iommu_node) {
-			if (of_address_to_resource(iommu_node, 1, &res))
+			if (of_address_to_resource(iommu_node, 0, &res))
 				pr_err("fail to get ISP IOMMU addr\n");
 			else {
 				reg_base = ioremap(res.start, res.end - res.start + 1);
