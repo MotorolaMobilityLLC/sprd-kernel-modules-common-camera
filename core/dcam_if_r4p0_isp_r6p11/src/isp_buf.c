@@ -428,6 +428,7 @@ void isp_frm_clear(struct isp_pipe_dev *dev, enum isp_path_index path_index)
 	struct isp_path_desc *path;
 	struct isp_module *module = NULL;
 	struct isp_statis_module *statis_module = NULL;
+	unsigned int res_free = 0;
 	unsigned int rtn;
 
 	if (!dev)
@@ -437,7 +438,10 @@ void isp_frm_clear(struct isp_pipe_dev *dev, enum isp_path_index path_index)
 	statis_module = &dev->statis_module_info;
 	if (ISP_PATH_IDX_PRE & path_index) {
 		path = &module->isp_path[ISP_SCL_PRE];
+		res_frame = &module->path_reserved_frame[ISP_SCL_PRE];
 		while (!isp_frame_dequeue(&path->frame_queue, &frame)) {
+			if (frame.phy_addr == res_frame->phy_addr)
+				res_free = 1;
 			if (pfiommu_free_addr(&frame.pfinfo))
 				pr_err("fail to free pre path frame queue buf\n");
 			memset(&frame, 0, sizeof(struct camera_frame));
@@ -445,19 +449,22 @@ void isp_frm_clear(struct isp_pipe_dev *dev, enum isp_path_index path_index)
 
 		isp_frm_queue_clear(&path->frame_queue);
 		isp_buf_queue_init(&path->buf_queue);
-		res_frame = &module->path_reserved_frame[ISP_SCL_PRE];
-		if (res_frame->pfinfo.mfd[0] != 0){
+
+		if ((res_frame->pfinfo.mfd[0] != 0) && !res_free){
 			rtn = pfiommu_free_addr(&res_frame->pfinfo);
 			if (rtn)
 				pr_err("fail to free pre path reserved buf\n");
 		}
 		memset((void *)res_frame, 0, sizeof(struct camera_frame));
-
 	}
 
 	if (ISP_PATH_IDX_VID & path_index) {
 		path = &module->isp_path[ISP_SCL_VID];
+		res_frame = &module->path_reserved_frame[ISP_SCL_VID];
+		res_free = 0;
 		while (!isp_frame_dequeue(&path->frame_queue, &frame)) {
+			if (frame.phy_addr == res_frame->phy_addr)
+				res_free = 1;
 			if (pfiommu_free_addr(&frame.pfinfo))
 				pr_err("fail to free vid path frame queue buf\n");
 			memset(&frame, 0, sizeof(struct camera_frame));
@@ -465,16 +472,22 @@ void isp_frm_clear(struct isp_pipe_dev *dev, enum isp_path_index path_index)
 
 		isp_frm_queue_clear(&path->frame_queue);
 		isp_buf_queue_init(&path->buf_queue);
-		res_frame = &module->path_reserved_frame[ISP_SCL_VID];
-		rtn = pfiommu_free_addr(&res_frame->pfinfo);
-		if (rtn)
-			pr_err("fail to free vid path reserved buf\n");
+
+		if ((res_frame->pfinfo.mfd[0] != 0) && !res_free){
+			rtn = pfiommu_free_addr(&res_frame->pfinfo);
+			if (rtn)
+				pr_err("fail to free vid path reserved buf\n");
+		}
 		memset((void *)res_frame, 0, sizeof(struct camera_frame));
 	}
 
 	if (ISP_PATH_IDX_CAP & path_index) {
 		path = &module->isp_path[ISP_SCL_CAP];
+		res_frame = &module->path_reserved_frame[ISP_SCL_CAP];
+		res_free = 0;
 		while (!isp_frame_dequeue(&path->frame_queue, &frame)) {
+			if (frame.phy_addr == res_frame->phy_addr)
+				res_free = 1;
 			if (pfiommu_free_addr(&frame.pfinfo))
 				pr_err("fail to free cap path frame queue buf\n");;
 			memset(&frame, 0, sizeof(struct camera_frame));
@@ -482,10 +495,11 @@ void isp_frm_clear(struct isp_pipe_dev *dev, enum isp_path_index path_index)
 
 		isp_frm_queue_clear(&path->frame_queue);
 		isp_buf_queue_init(&path->buf_queue);
-		res_frame = &module->path_reserved_frame[ISP_SCL_CAP];
-		rtn = pfiommu_free_addr(&res_frame->pfinfo);
-		if (rtn)
-			pr_err("fail to free cap path reserved buf\n");
+		if ((res_frame->pfinfo.mfd[0] != 0) && !res_free){
+			rtn = pfiommu_free_addr(&res_frame->pfinfo);
+			if (rtn)
+				pr_err("fail to free cap path reserved buf\n");
+		}
 		memset((void *)res_frame, 0, sizeof(struct camera_frame));
 	}
 }
