@@ -2457,7 +2457,7 @@ static int isp_cfg_statis_buffer(
 			goto exit;
 		}
 
-		pr_debug("isp_ iova[%08x] uaddr[%lx] kaddr[%lx] mfd[%d] size[%d] dmabuf[%p] ionbuf[%p]\n",
+		pr_debug("isp_ iova[%08x] uaddr[%lx] kaddr[%lx] mfd[%d] size[%zd] dmabuf[%p] ionbuf[%p]\n",
 				(uint32_t)ion_buf_isp->iova[0],
 				ion_buf_isp->addr_vir[0],
 				ion_buf_isp->addr_k[0],
@@ -2513,7 +2513,7 @@ static int isp_init_statis_bufferq(
 	uaddr = ion_buf->addr_vir[0];
 	total_size = ion_buf->size[0];
 
-	pr_debug("size %d  addr 0x%lx 0x%lx,  0x%08x\n", (int)total_size,
+	pr_debug("size %zd  addr 0x%lx 0x%lx,  0x%08x\n", total_size,
 			kaddr, uaddr, (uint32_t)paddr);
 
 	buf_size = STATIS_ISP_HIST2_BUF_SIZE;
