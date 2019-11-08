@@ -403,7 +403,7 @@ static int isp_create_offline_thread(void *param)
 	init_completion(&dev->offline_bin_thread_com);
 	sprintf(thread_name, "isp%d_bin", iid);
 	dev->offline_bin_thread = kthread_run(offline_bin_thread_loop,
-					      param, thread_name);
+					      param, "%s", thread_name);
 	if (IS_ERR(dev->offline_bin_thread)) {
 		pr_err("fail to create bin thread %ld\n",
 				PTR_ERR(dev->offline_bin_thread));
@@ -416,7 +416,7 @@ static int isp_create_offline_thread(void *param)
 	init_completion(&dev->offline_full_thread_com);
 	sprintf(thread_name, "isp%d_full", iid);
 	dev->offline_full_thread = kthread_run(offline_full_thread_loop,
-					      param, thread_name);
+					      param, "%s", thread_name);
 	if (IS_ERR(dev->offline_full_thread)) {
 		pr_err("fail to create full thread%ld\n",
 				PTR_ERR(dev->offline_full_thread));

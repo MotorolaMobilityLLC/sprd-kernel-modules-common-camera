@@ -3646,7 +3646,7 @@ static int camera_create_thread(struct camera_module *module,
 	init_completion(&thrd->thread_com);
 	init_completion(&thrd->thread_stop_com);
 	thrd->thread_task = kthread_run(camera_thread_loop,
-				thrd, thrd->thread_name);
+				thrd, "%s", thrd->thread_name);
 	if (IS_ERR_OR_NULL(thrd->thread_task)) {
 		pr_err("fail to start thread %s\n", thrd->thread_name);
 		thrd->thread_task = NULL;

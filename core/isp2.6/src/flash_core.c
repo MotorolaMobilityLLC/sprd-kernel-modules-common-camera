@@ -299,7 +299,7 @@ void *get_cam_flash_handle(uint32_t cam_idx)
 	init_completion(&flash_ctx->flash_thread_com);
 	sprintf(thread_name, "cam%d_flash_thread", flash_ctx->cam_idx);
 	flash_ctx->flash_thread = kthread_run(flash_thread_loop,
-		flash_ctx, thread_name);
+		flash_ctx, "%s", thread_name);
 	if (IS_ERR_OR_NULL(flash_ctx->flash_thread)) {
 		pr_err("fail to create flash thread\n");
 		kfree(flash_ctx);

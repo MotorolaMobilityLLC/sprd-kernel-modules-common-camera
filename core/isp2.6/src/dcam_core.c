@@ -1073,7 +1073,7 @@ static int dcam_create_offline_thread(void *param)
 
 	sprintf(thread_name, "dcam%d_offline", dev->idx);
 	thrd->thread_task = kthread_run(dcam_offline_thread_loop,
-					thrd, thread_name);
+					thrd, "%s", thread_name);
 	if (IS_ERR_OR_NULL(thrd->thread_task)) {
 		pr_err("fail to start offline thread for dcam%d\n",
 				dev->idx);

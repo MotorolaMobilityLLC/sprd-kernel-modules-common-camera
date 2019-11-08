@@ -311,7 +311,7 @@ static int dcam_create_flash_thread(void *param)
 	dev->is_flash_thread_stop = 0;
 	init_completion(&dev->flash_thread_com);
 	sprintf(thread_name, "dcam%d_flash_thread", dev->idx);
-	dev->flash_thread = kthread_run(flash_thread_loop, param, thread_name);
+	dev->flash_thread = kthread_run(flash_thread_loop, param, "%s", thread_name);
 	if (IS_ERR(dev->flash_thread)) {
 		pr_err("fail to create flash thread\n");
 		return -1;
