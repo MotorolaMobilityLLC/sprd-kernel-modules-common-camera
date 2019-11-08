@@ -7,6 +7,7 @@
 
 struct fd_module {
 	atomic_t pw_users;
+	atomic_t fd_open;
 	struct miscdevice *md;
 	struct platform_device *pdev;
 	void *drv_handle;
