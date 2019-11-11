@@ -212,6 +212,7 @@ struct camera_info {
 	unsigned int need_isp_tool;
 	unsigned int need_isp;
 	unsigned int rt_refocus;
+	unsigned int is_raw_rt;
 	struct camera_rect path_input_rect;
 	struct camera_path_spec dcam_path[CAMERA_MAX_PATH];
 	unsigned int capture_mode;

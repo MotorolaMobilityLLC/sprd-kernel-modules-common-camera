@@ -794,6 +794,34 @@ int dcam_ebd_set_next_frm(void *statis_module,
 	return ret;
 }
 
+int dcam_raw_rt_set_next_frm(void *statis_module,
+	enum dcam_id idx, enum isp_3a_block_id block_index)
+{
+	enum dcam_drv_rtn ret = DCAM_RTN_SUCCESS;
+	unsigned int statis_addr = 0;
+	unsigned int tmp = 0u;
+
+	ret = dcam_set_next_statis_buf(statis_module,
+		block_index, &statis_addr);
+
+	pr_debug("phy_addr=%x, index=%d\n", statis_addr, block_index);
+	if (ret) {
+		pr_err("fail to set stats buff\n");
+		return ret;
+	}
+
+	DCAM_REG_WR(idx, DCAM0_FULL_BASE_WADDR, statis_addr);
+
+	tmp |= BIT(9); /* enable full path auto copy */
+	tmp |= BIT(1); /* enable mipi cap auto copy */
+
+	sprd_dcam_glb_reg_mwr(idx, DCAM0_CONTROL,
+				BIT(1) | BIT(9),
+				tmp, DCAM_CONTROL_REG);
+
+	return ret;
+}
+
 static void dcam_force_copy(enum dcam_id idx)
 {
 	unsigned int tmp = 0u;
@@ -1065,10 +1093,15 @@ static void dcam_cap_sof_handle(enum dcam_id idx)
 
 static void dcam_cap_sof(enum dcam_id idx)
 {
+	struct camera_dev *dev = NULL;
+
+	dev = (struct camera_dev *)s_p_dcam_mod[idx]->dev_handle;
 	dcam_cap_sof_handle(idx);
 	dcam_bin_path_sof(idx);
-	dcam_full_path_sof(idx);
-	dcam_full_raw_path_sof(idx);
+	if (!dev->dcam_cxt.is_raw_rt) {
+		dcam_full_path_sof(idx);
+		dcam_full_raw_path_sof(idx);
+	}
 
 	dcam_auto_copy(idx);
 	dcam_print_time("debug shaking: auto_copy", DCAM_TIME_SOF);
@@ -3508,6 +3541,36 @@ static int dcam_full_path_start(enum dcam_id idx,
 	return -rtn;
 }
 
+static int dcam_raw_rt_path_start(enum dcam_id idx,
+				void *statis_module)
+{
+	enum dcam_drv_rtn rtn = DCAM_RTN_SUCCESS;
+	unsigned int reg_val = 0;
+	unsigned long addr = 0;
+	unsigned long image_vc = 0;
+	unsigned long image_data_type = 0x2b;
+	unsigned long image_mode = 1;
+
+	pr_info("full raw realtime for dump");
+	/* setup data type */
+	reg_val = ((image_vc & 0x3) << 16)  |
+		((image_data_type & 0x3F) << 8) | (image_mode & 0x3);
+
+	if (idx == DCAM_ID_0)
+		addr = DCAM0_IMAGE_DT_VC_CONTROL;
+	else if (idx == DCAM_ID_1)
+		addr = DCAM1_IMAGE_DT_VC_CONTROL;
+	DCAM_REG_WR(idx, addr, reg_val);
+
+	rtn = dcam_raw_rt_set_next_frm(statis_module, idx, DCAM_RAW_BLOCK);
+	if (rtn) {
+		pr_err("fail to set next frm rtn %d\n", rtn);
+		return -(rtn);
+	}
+	sprd_dcam_glb_reg_owr(idx, DCAM0_CFG, BIT_0, DCAM_CFG_REG);
+
+	return -rtn;
+}
 static int dcam_bin_path_start(enum dcam_id idx,
 				struct dcam_path_desc *path,
 				struct camera_frame *frame)
@@ -3878,6 +3941,8 @@ int sprd_dcam_start(enum dcam_id idx, struct camera_frame *frame,
 			void *statis_module)
 {
 	enum dcam_drv_rtn rtn = DCAM_RTN_SUCCESS;
+	struct camera_dev *dev = container_of(statis_module, struct camera_dev,
+		statis_module_info);
 	struct dcam_path_desc *raw_path = NULL;
 	struct dcam_path_desc *full_path = NULL;
 	struct dcam_path_desc *binning_path = NULL;
@@ -3906,10 +3971,18 @@ int sprd_dcam_start(enum dcam_id idx, struct camera_frame *frame,
 	DCAM_REG_MWR(idx, DCAM0_CAM_BIN_CFG, BIT(1), 0);
 	DCAM_REG_MWR(idx, DCAM0_FULL_CFG, BIT(1), 0);
 	if (full_path->valid) {
-		rtn = dcam_full_path_start(idx, full_path, frame);
-		if (rtn) {
-			pr_err("fail to start full path %d\n", rtn);
-			return -(rtn);
+		if (dev->dcam_cxt.is_raw_rt) {
+			rtn = dcam_raw_rt_path_start(idx, statis_module);
+			if (rtn) {
+				pr_err("fail to start full path %d\n", rtn);
+				return -(rtn);
+			}
+		} else{
+			rtn = dcam_full_path_start(idx, full_path, frame);
+			if (rtn) {
+				pr_err("fail to start full path %d\n", rtn);
+				return -(rtn);
+			}
 		}
 	}
 	if (binning_path->valid) {

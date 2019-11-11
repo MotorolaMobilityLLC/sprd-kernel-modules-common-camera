@@ -54,6 +54,10 @@ int dcam_set_next_statis_buf(struct dcam_statis_module *module,
 		p_buf_queue = &module->ebd_statis_queue;
 		statis_heap = &module->ebd_statis_frm_queue;
 		reserved_buf = &module->ebd_buf_reserved;
+	} else if (block_index == DCAM_RAW_BLOCK) {
+		p_buf_queue = &module->raw_statis_queue;
+		statis_heap = &module->raw_statis_frm_queue;
+		reserved_buf = &module->raw_buf_reserved;
 	} else {
 		return -EFAULT;
 	}

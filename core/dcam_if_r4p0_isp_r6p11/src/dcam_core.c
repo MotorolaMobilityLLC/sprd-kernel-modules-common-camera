@@ -480,6 +480,13 @@ static int dcam_core_stats_init(struct camera_dev *dev)
 		ret = -EINVAL;
 		goto exit;
 	}
+	ret = dcam_statis_queue_init(
+			&dev->statis_module_info.raw_statis_queue);
+	if (unlikely(ret != 0)) {
+		pr_err("fail to init raw dump queue\n");
+		ret = -EINVAL;
+		goto exit;
+	}
 
 	dcam_statis_frm_queue_init(
 		&dev->statis_module_info.aem_statis_frm_queue);
@@ -487,6 +494,8 @@ static int dcam_core_stats_init(struct camera_dev *dev)
 		&dev->statis_module_info.pdaf_statis_frm_queue);
 	dcam_statis_frm_queue_init(
 		&dev->statis_module_info.ebd_statis_frm_queue);
+	dcam_statis_frm_queue_init(
+		&dev->statis_module_info.raw_statis_frm_queue);
 
 exit:
 	return ret;
@@ -1507,6 +1516,52 @@ static int dcam_stats_set_next_frm(struct camera_dev *dev)
 		if (unlikely(ret))
 			pr_err("fail to set ebd next frm %d", ret);
 	}
+
+	return ret;
+}
+
+static int sprd_img_raw_rt_tx_done(struct camera_frame *frame,
+				void *param)
+{
+	int ret = DCAM_RTN_SUCCESS;
+	struct camera_dev *dev = (struct camera_dev *)param;
+	struct isp_statis_buf node;
+	struct dcam_statis_module *module = NULL;
+	struct camera_frame frame_info;
+	struct isp_statis_frm_queue *statis_heap = NULL;
+
+	memset(&frame_info, 0x00, sizeof(frame_info));
+	module = &dev->statis_module_info;
+	statis_heap = &module->raw_statis_frm_queue;
+
+	/*dequeue the statis buf from a array*/
+	ret = isp_statis_dequeue(statis_heap, &node);
+	if (unlikely(ret)) {
+		pr_err("fail to dequeue RAW statis buf\n");
+		return -1;
+	}
+
+	if (node.phy_addr != module->raw_buf_reserved.phy_addr) {
+		frame_info.buf_size = node.buf_size;
+		memcpy(frame_info.pfinfo.mfd, node.pfinfo.mfd,
+			sizeof(unsigned int) * 3);
+		frame_info.phy_addr = node.phy_addr;
+		frame_info.vir_addr = node.vir_addr;
+		frame_info.irq_type = CAMERA_IRQ_STATIS;
+		frame_info.irq_property = IRQ_RAW_STATIS;
+		frame_info.frame_id = module->raw_statis_cnt;
+
+		sprd_img_tx_done(&frame_info, param);
+	} else{
+		pr_err("fail to upload raw realtime frame");
+	}
+	module->raw_statis_cnt++;
+
+	ret = dcam_raw_rt_set_next_frm(module, dev->idx, DCAM_RAW_BLOCK);
+	if (unlikely(ret))
+		pr_err("fail to set raw realtime next frm %d", ret);
+	DCAM_TRACE_INT("raw realtime tx done\n");
+
 	return ret;
 }
 
@@ -1641,7 +1696,10 @@ static int sprd_img_full_tx_done(struct camera_frame *frame, void *param)
 		sprd_img_tx_done(frame, param);
 		return 0;
 	}
-
+	if (dev->dcam_cxt.is_raw_rt) {
+		sprd_img_raw_rt_tx_done(frame, param);
+		return 0;
+	}
 	if (dev->dcam_cxt.sn_mode == DCAM_CAP_MODE_YUV)
 		ret = sprd_isp_set_offline_buffer(dev->isp_dev_handle,
 						  ISP_OFF_BUF_BOTH);

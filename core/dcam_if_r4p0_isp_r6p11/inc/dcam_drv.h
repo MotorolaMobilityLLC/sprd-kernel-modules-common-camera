@@ -475,7 +475,9 @@ void sprd_dcam_enable_int(enum dcam_id idx);
 int dcam_pdaf_set_next_frm(void *statis_module,
 			enum dcam_id idx, enum isp_3a_block_id block_index);
 int dcam_ebd_set_next_frm(void *statis_module,
-			  enum dcam_id idx, enum isp_3a_block_id block_index);
+			enum dcam_id idx, enum isp_3a_block_id block_index);
+int dcam_raw_rt_set_next_frm(void *statis_module,
+			enum dcam_id idx, enum isp_3a_block_id block_index);
 
 void dcam_path_pause(int id);
 void dcam_path_resume(int id);

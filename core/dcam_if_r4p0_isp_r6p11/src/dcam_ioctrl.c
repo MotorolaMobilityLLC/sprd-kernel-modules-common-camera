@@ -1195,6 +1195,10 @@ static int dcamio_set_statis_buf(struct camera_file *camerafile,
 		ret = sprd_isp_cfg_statis_buf(dev->isp_dev_handle,
 				&dev->statis_module_info, &parm_inptr);
 		dev->init_inptr = parm_inptr;
+		if (parm_inptr.statis_valid & ISP_STATIS_VALID_RAW)
+			info->is_raw_rt = 1;
+		else
+			info->is_raw_rt = 0;
 	} else
 		ret = sprd_isp_set_statis_addr(dev->isp_dev_handle,
 				&dev->statis_module_info, &parm_inptr);

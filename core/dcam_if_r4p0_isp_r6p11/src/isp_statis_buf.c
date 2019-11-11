@@ -406,6 +406,19 @@ int sprd_isp_cfg_statis_buf(struct isp_pipe_dev *dev,
 						ISP_HIST2_STATIS_BUF_NUM);
 	}
 
+	/* RAW buffer config */
+	if (isp_module->statis_valid & ISP_STATIS_VALID_RAW) {
+		t_frm_statis_dcam.buf_size = ISP_RAW_STATIS_BUF_SIZE(parm->width,
+			parm->height);
+		t_frm_statis_dcam.buf_property = DCAM_RAW_BLOCK;
+
+		queue_prm.frm_statis = &t_frm_statis_dcam;
+		queue_prm.statis_queue = &dcam_module->raw_statis_queue;
+		queue_prm.buf_reserved = &dcam_module->raw_buf_reserved;
+		set_buffer_queue(&queue_prm, &addr_offset,
+						ISP_RAW_STATIS_BUF_NUM);
+	}
+
 	return ret;
 }
 
@@ -448,6 +461,10 @@ int sprd_isp_set_statis_addr(struct isp_pipe_dev *dev,
 		break;
 	case ISP_HIST2_BLOCK:
 		statis_queue = &module->hist2_statis_queue;
+		break;
+	case DCAM_RAW_BLOCK:
+		statis_queue = &dcam_module->raw_statis_queue;
+		select_device = 1;
 		break;
 	}
 
