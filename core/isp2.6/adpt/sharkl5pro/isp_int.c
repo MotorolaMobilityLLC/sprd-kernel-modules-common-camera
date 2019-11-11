@@ -564,7 +564,7 @@ static void  isp_dump_iommu_regs(void)
 	uint32_t reg = 0;
 	uint32_t val[4];
 
-	for (reg = 0; reg <= MMU_STS; reg += 16) {
+	for (reg = ISP_MMU_VERSION; reg <= ISP_MMU_INT_RAW; reg += 16) {
 		val[0] = ISP_MMU_RD(reg);
 		val[1] = ISP_MMU_RD(reg + 4);
 		val[2] = ISP_MMU_RD(reg + 8);
@@ -685,7 +685,7 @@ static irqreturn_t isp_isr_root(int irq, void *priv)
 				uint32_t val;
 
 				ctx = &isp_handle->ctx[sw_ctx_id];
-				val = ISP_MMU_RD(MMU_STS);
+				val = ISP_MMU_RD(ISP_MMU_INT_STS);
 
 				if (val != ctx->iommu_status) {
 					ctx->iommu_status = val;

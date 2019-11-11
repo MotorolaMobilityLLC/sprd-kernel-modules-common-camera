@@ -809,6 +809,13 @@ extern unsigned long s_isp_mmubase;
 #define ISP_AXI_CHK_SUM_CTRL			(0x052CUL)
 #define ISP_AXI_TIMEOUT_PARAM			(0x0558UL)
 
+#define ISP_MMU_VERSION                 (0x0000UL)
+#define ISP_MMU_EN                      (0x0004UL)
+#define ISP_MMU_INT_EN                  (0x00A0UL)
+#define ISP_MMU_INT_CLR                 (0x00A4UL)
+#define ISP_MMU_INT_STS                 (0x00A8UL)
+#define ISP_MMU_INT_RAW                 (0x00ACUL)
+
 /******************************************************************************/
 
 
