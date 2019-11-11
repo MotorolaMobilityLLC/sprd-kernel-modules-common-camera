@@ -5707,8 +5707,12 @@ static int img_ioctl_stream_on(
 		line_w /= 2;
 	if (hw->ip_dcam[module->dcam_idx]->lbuf_share_support
 		&& hw->hw_ops.core_ops.lbuf_share_set)
-		hw->hw_ops.core_ops.lbuf_share_set(module->dcam_idx, line_w);
-
+		ret = hw->hw_ops.core_ops.lbuf_share_set(module->dcam_idx, line_w);
+	if (ret) {
+		pr_err("fail to set line buf share\n");
+		ret = -EFAULT;
+		goto exit;
+	}
 	camera_queue_init(&module->isp_hist2_outbuf_queue,
 		CAM_STATIS_Q_LEN, 0, cam_destroy_statis_buf);
 

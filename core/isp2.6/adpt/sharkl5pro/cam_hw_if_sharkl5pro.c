@@ -36,6 +36,8 @@
 #define DCAM_AXIM_AQOS_MASK (0x30FFFF)
 #define ISP_AXI_STOP_TIMEOUT			1000
 extern atomic_t s_dcam_working;
+static uint32_t dcam_linebuf_len[2] = {0, 0};
+extern void sprd_kproperty_get(const char *key, char *value, const char *default_value);
 
 static unsigned long irq_base[4] = {
 	ISP_P0_INT_BASE,
@@ -648,6 +650,7 @@ static int sharkl5pro_dcam_reset(struct cam_hw_info *hw, void *arg)
 	DCAM_REG_WR(idx, NR3_FAST_ME_PARAM, 0x109);
 	DCAM_REG_MWR(idx, DCAM_GTM_GLB_CTRL, BIT_0, 0);
 	DCAM_REG_MWR(idx, DCAM_FBC_CTRL, BIT_0, 0);
+	dcam_linebuf_len[idx] = 0;
 	pr_info("DCAM%d: reset end\n", idx);
 
 	return ret;
@@ -1175,12 +1178,38 @@ static int sharkl5pro_dcam_lbuf_share_set(enum dcam_id idx, uint32_t width)
 		4160, 5184,
 		3264, 5664,
 	};
+	char chip_type[64]= { 0 };
+
+	sprd_kproperty_get("lwfq/type", chip_type, "-1");
+	/*0: T618 1:T610*/
+	dcam_linebuf_len[idx]= width;
+	pr_debug("dcam_linebuf_len[0] = %d, [1] = %d %s\n",
+		dcam_linebuf_len[0], dcam_linebuf_len[1], chip_type);
+	if (!strncmp(chip_type, "1", strlen("1"))) {
+		if (dcam_linebuf_len[0] > DCAM_16M_WIDTH && dcam_linebuf_len[1] > 0) {
+				pr_err("fail to check param,unsupprot img width\n");
+				return -EINVAL;
+		}else if (dcam_linebuf_len[0] <= DCAM_16M_WIDTH && dcam_linebuf_len[0] > DCAM_13M_WIDTH) {
+			if (dcam_linebuf_len[1] > DCAM_8M_WIDTH) {
+				pr_err("fail to check param,unsupprot img width\n");
+				return -EINVAL;
+			}
+		} else if (dcam_linebuf_len[0] <= DCAM_13M_WIDTH && dcam_linebuf_len[0] > DCAM_8M_WIDTH) {
+			if (dcam_linebuf_len[1] > DCAM_13M_WIDTH) {
+				pr_err("fail to check param,unsupprot img width\n");
+				return -EINVAL;
+			}
+		} else if (0 < dcam_linebuf_len[0] && dcam_linebuf_len[0] <= DCAM_8M_WIDTH){
+			if (dcam_linebuf_len[1] > DCAM_16M_WIDTH) {
+				pr_err("fail to check param,unsupprot img width\n");
+				return -EINVAL;
+			}
+		}
+	}
 	if (atomic_read(&s_dcam_working) > 0) {
 		pr_warn("dcam 0/1 already in working\n");
 		return 0;
 	}
-
-	pr_debug("idx[%d] width[%d]\n", idx, width);
 
 	switch (idx) {
 	case 0:
@@ -1204,6 +1233,7 @@ static int sharkl5pro_dcam_lbuf_share_set(enum dcam_id idx, uint32_t width)
 			if (width <= tb_w[i * 2 + 1])
 				break;
 		}
+
 		DCAM_AXIM_MWR(DCAM_LBUF_SHARE_MODE, 0x7, i);
 		pr_info("alloc dcam linebuf %d %d\n", tb_w[i*2], tb_w[i*2 + 1]);
 		break;
