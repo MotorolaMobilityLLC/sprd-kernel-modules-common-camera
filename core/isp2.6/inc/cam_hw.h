@@ -100,7 +100,8 @@ struct cam_hw_ip_info {
 	uint32_t lbuf_share_support;
 	uint32_t offline_slice_support;
 	uint32_t superzoom_support;
-	uint32_t dcam_fbc_mode;
+	uint32_t dcam_full_fbc_mode;
+	uint32_t dcam_bin_fbc_mode;
 	unsigned long *store_addr_tab;
 	uint32_t *path_ctrl_id_tab;
 	uint32_t afl_gbuf_size;

@@ -475,6 +475,21 @@ static void cal_compression(struct camera_module *module)
 	ch_vid->compress_input = ch_vid->compress_3dnr
 		= ch_vid->compress_output = 0;
 
+	/* Bypass compression low_4bit by default */
+	ch_cap->compress_4bit_bypass = 1;
+	ch_pre->compress_4bit_bypass = 1;
+	ch_vid->compress_4bit_bypass = 1;
+
+	/* open compression on SharkL5 pro */
+	if (dcam_hw->prj_id == SHARKL5pro) {
+		/* dcam support full path or bin path */
+		ch_cap->compress_input = 0;
+		ch_pre->compress_input = 0;
+		ch_vid->compress_input = 0;
+		/* isp support preview path and video path*/
+		ch_vid->compress_output = module->cam_uinfo.is_afbc;
+	}
+
 	/* manually control compression policy here */
 	override = &module->grp->debugger.compression[module->idx];
 	if (override->enable) {
@@ -491,6 +506,21 @@ static void cal_compression(struct camera_module *module)
 		ch_vid->compress_output = override->override[CH_VID][FBC_ISP];
 	}
 
+	/* dcam2 not support fbc */
+	if (module->idx > 1) {
+		ch_cap->compress_input = 0;
+		ch_pre->compress_input = 0;
+	}
+
+	/* dcam not support fbc when dcam need fetch */
+	if (module->cam_uinfo.dcam_slice_mode ||
+		module->cam_uinfo.is_4in1)
+		ch_cap->compress_input = 0;
+
+	/* dcam not support fbc when open slowmotion */
+	if (ch_pre->ch_uinfo.is_high_fps)
+		ch_pre->compress_input = 0;
+
 	pr_info("cam%d: cap %u %u %u, pre %u %u %u, vid %u %u %u\n",
 		module->idx,
 		ch_cap->compress_input, ch_cap->compress_3dnr,
@@ -499,36 +529,6 @@ static void cal_compression(struct camera_module *module)
 		ch_pre->compress_output,
 		ch_vid->compress_input, ch_vid->compress_3dnr,
 		ch_vid->compress_output);
-
-	/* Bypass compression low_4bit by default */
-	ch_cap->compress_4bit_bypass = 1;
-	ch_pre->compress_4bit_bypass = 1;
-	ch_vid->compress_4bit_bypass = 1;
-
-	/* open compression on SharkL5 pro */
-	if (dcam_hw->prj_id == SHARKL5pro) {
-		/* dcam */
-		ch_cap->compress_input = 0;
-		ch_pre->compress_input = 0;
-		ch_vid->compress_input = 0;
-		/* isp */
-		ch_vid->compress_output = module->cam_uinfo.is_afbc;
-	}
-
-	/* dcam2 not surpport fbc */
-	if (module->idx > 1) {
-		ch_cap->compress_input = 0;
-		ch_pre->compress_input = 0;
-	}
-
-	/* dcam not surpport fbc when dcam need fetch */
-	if (module->cam_uinfo.dcam_slice_mode ||
-		module->cam_uinfo.is_4in1)
-		ch_cap->compress_input = 0;
-
-	/* dcam not surpport fbc when open slowmotion */
-	if (ch_pre->ch_uinfo.is_high_fps)
-		ch_pre->compress_input = 0;
 }
 
 static void config_compression(struct camera_module *module)
@@ -545,13 +545,13 @@ static void config_compression(struct camera_module *module)
 	hw = module->grp->hw_info;
 
 	if (ch_cap->compress_input) {
-		fbc_mode = hw->ip_dcam[module->idx]->dcam_fbc_mode;
+		fbc_mode = hw->ip_dcam[module->idx]->dcam_full_fbc_mode;
 		if (DCAM_FBC_FULL_14_BIT == fbc_mode)
 			ch_cap->compress_4bit_bypass = 0;
 	}
 
 	if (ch_pre->compress_input) {
-		fbc_mode = hw->ip_dcam[module->idx]->dcam_fbc_mode;
+		fbc_mode = hw->ip_dcam[module->idx]->dcam_bin_fbc_mode;
 		if (DCAM_FBC_BIN_14_BIT == fbc_mode)
 			ch_pre->compress_4bit_bypass = 0;
 	}

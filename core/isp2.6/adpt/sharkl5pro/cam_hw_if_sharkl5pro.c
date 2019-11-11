@@ -1862,7 +1862,6 @@ static void sharkl5pro_isp_fetch_set(void *arg)
 			BIT_3 | BIT_2, 3 << 2); /* vid path off */
 	ISP_REG_MWR(idx, ISP_COMMON_SCL_PATH_SEL,
 			BIT_1 | BIT_0, 3 << 0);  /* pre/cap path off */
-	ISP_REG_WR(idx, ISP_BWU_PARAM, 0x40000);  /* bwu on */
 	ISP_REG_MWR(idx, ISP_FBD_RAW_SEL, BIT(0), 0x1);/* fbd off */
 
 	ISP_REG_MWR(idx, ISP_FETCH_PARAM, BIT_0, bypass);
@@ -1921,7 +1920,6 @@ static void sharkl5pro_isp_fetch_set(void *arg)
 		if (0 == fbd_raw->fetch_fbd_4bit_bypass) {
 			ISP_REG_WR(idx, ISP_FBD_RAW_LOW_4BIT_PARAM1,
 				fbd_raw->low_4bit_pitch);
-			ISP_REG_MWR(idx, ISP_BWU_PARAM, BIT_0, 0x1);  /* bwu off */
 		}
 		ISP_REG_MWR(idx, ISP_FETCH_PARAM, BIT_0, 0x1);
 		pr_info("enable fbd: %d\n", !fbd_raw->fetch_fbd_bypass);
@@ -2386,7 +2384,8 @@ static struct cam_hw_ip_info sharkl5pro_dcam[DCAM_ID_MAX] = {
 		.offline_slice_support = 1,
 		.afl_gbuf_size = STATIS_AFL_GBUF_SIZE,
 		.superzoom_support = 0,
-		.dcam_fbc_mode = DCAM_FBC_FULL_14_BIT,
+		.dcam_full_fbc_mode = DCAM_FBC_FULL_14_BIT,
+		.dcam_bin_fbc_mode = DCAM_FBC_BIN_14_BIT,
 		.store_addr_tab = sharkl5pro_dcam_store_addr,
 		.path_ctrl_id_tab = sharkl5pro_path_ctrl_id,
 		.pdaf_type3_reg_addr = DCAM_PPE_RIGHT_WADDR,
@@ -2398,7 +2397,8 @@ static struct cam_hw_ip_info sharkl5pro_dcam[DCAM_ID_MAX] = {
 		.offline_slice_support = 1,
 		.afl_gbuf_size = STATIS_AFL_GBUF_SIZE,
 		.superzoom_support = 0,
-		.dcam_fbc_mode = DCAM_FBC_FULL_14_BIT,
+		.dcam_full_fbc_mode = DCAM_FBC_FULL_14_BIT,
+		.dcam_bin_fbc_mode = DCAM_FBC_BIN_14_BIT,
 		.store_addr_tab = sharkl5pro_dcam_store_addr,
 		.path_ctrl_id_tab = sharkl5pro_path_ctrl_id,
 		.pdaf_type3_reg_addr = DCAM_PPE_RIGHT_WADDR,
@@ -2410,7 +2410,8 @@ static struct cam_hw_ip_info sharkl5pro_dcam[DCAM_ID_MAX] = {
 		.offline_slice_support = 0,
 		.afl_gbuf_size = STATIS_AFL_GBUF_SIZE,
 		.superzoom_support = 0,
-		.dcam_fbc_mode = DCAM_FBC_DISABLE,
+		.dcam_full_fbc_mode = DCAM_FBC_DISABLE,
+		.dcam_bin_fbc_mode = DCAM_FBC_DISABLE,
 		.store_addr_tab = sharkl5pro_dcam_store_addr,
 		.path_ctrl_id_tab = sharkl5pro_path_ctrl_id,
 		.pdaf_type3_reg_addr = DCAM_PPE_RIGHT_WADDR,
