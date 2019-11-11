@@ -4244,6 +4244,10 @@ int sprd_isp_dev_init(void **isp_pipe_dev_handle, enum isp_id iid)
 	}
 
 	dev = vzalloc(sizeof(*dev));
+	if (NULL == dev) {
+ 		pr_err("fail to alloc dev!\n");
+		return -EPERM;
+  	}
 
 	dev->is_raw_capture = 0;
 	ISP_SET_IID(dev->com_idx, iid);
