@@ -664,7 +664,6 @@ static int sprd_cppcore_open(struct inode *node, struct file *file)
 		pr_err("fail to vzalloc rotif\n");
 		goto vzalloc_fail;
 	}
-	memset(rotif, 0, sizeof(*rotif));
 	rotif->drv_priv.io_base = dev->io_base;
 	rotif->drv_priv.priv = (void *)rotif;
 	dev->rotif = rotif;
@@ -680,7 +679,6 @@ static int sprd_cppcore_open(struct inode *node, struct file *file)
 		pr_err("fail to vzalloc scif\n");
 		goto vzalloc_fail;
 	}
-	memset(scif, 0, sizeof(*scif));
 	scif->drv_priv.io_base = dev->io_base;
 	scif->drv_priv.pdev = dev->pdev;
 	scif->drv_priv.hw_lock = &dev->hw_lock;
@@ -697,7 +695,6 @@ static int sprd_cppcore_open(struct inode *node, struct file *file)
 		pr_err("fail to vzalloc dmaif\n");
 		goto vzalloc_fail;
 	}
-	memset(dmaif, 0, sizeof(*dmaif));
 	dmaif->drv_priv.io_base = dev->io_base;
 	dmaif->drv_priv.pdev = dev->pdev;
 	dmaif->drv_priv.hw_lock = &dev->hw_lock;
