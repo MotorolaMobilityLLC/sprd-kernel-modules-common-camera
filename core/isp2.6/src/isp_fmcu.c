@@ -218,10 +218,10 @@ static int isp_fmcu_ctx_init(struct isp_fmcu_ctx_desc *fmcu_ctx)
 		sprintf(ion_buf->name, "isp_fmcu_ctx%d", i);
 
 		if (get_iommu_status(CAM_IOMMUDEV_ISP) == 0) {
-			pr_info("isp iommu enable\n");
+			pr_debug("isp iommu enable\n");
 			iommu_enable = 1;
 		} else {
-			pr_info("isp iommu disable\n");
+			pr_debug("isp iommu disable\n");
 			iommu_enable = 0;
 		}
 		ret = cambuf_alloc(ion_buf,
@@ -247,10 +247,9 @@ static int isp_fmcu_ctx_init(struct isp_fmcu_ctx_desc *fmcu_ctx)
 		fmcu_ctx->cmd_buf[i] = (uint32_t *)ion_buf->addr_k[0];
 		fmcu_ctx->hw_addr[i] = ion_buf->iova[0];
 		fmcu_ctx->cmdq_pos[i] = 0;
-		pr_info("fmcu cmd buf hw_addr:0x%lx, sw_addr:%p, size:0x%x\n",
-			fmcu_ctx->hw_addr[i],
-			fmcu_ctx->cmd_buf[i],
-			(int)ion_buf->size[0]);
+		pr_info("fmcu%d cmd buf hw_addr:0x%lx, sw_addr:%p, size:%zd\n",
+			i, fmcu_ctx->hw_addr[i], fmcu_ctx->cmd_buf[i],
+			ion_buf->size[0]);
 	}
 
 	return 0;

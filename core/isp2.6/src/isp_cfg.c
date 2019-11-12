@@ -342,7 +342,7 @@ static int isp_cfg_map_init(struct isp_cfg_ctx_desc *cfg_ctx)
 	cfg_map_size = s_cfg_settings.num_of_mod;
 	cfg_map = s_cfg_settings.isp_cfg_map;
 	if (atomic_inc_return(&cfg_ctx->map_cnt) == 1) {
-		pr_info("isp cfg map init\n");
+		pr_info("cfg map init start\n");
 		for (i = 0; i < cfg_map_size; i++) {
 			ISP_HREG_WR(ISP_CFG0_BUF + i * 4,
 				cfg_map[i]);
@@ -550,7 +550,7 @@ static int isp_cfg_ctx_init(struct isp_cfg_ctx_desc *cfg_ctx)
 		&s_cfg_settings.num_of_mod);
 
 exit:
-	pr_info("Done. ret %d\n", ret);
+	pr_info("cfg ctx init done\n");
 
 	return ret;
 }

@@ -45,7 +45,7 @@ struct camera_debugger {
 	struct cam_hw_info *hw;
 };
 
-int unisoc_cam_debugfs_init(struct camera_debugger *debugger);
-int unisoc_cam_debugfs_deinit(void);
+int cam_debugfs_init(struct camera_debugger *debugger);
+int cam_debugfs_deinit(void);
 
 #endif

@@ -3343,7 +3343,7 @@ static int init_cam_channel(
 			return -EFAULT;
 		}
 		channel->dcam_path_id = dcam_path_id;
-		pr_info("get dcam path : %d\n", channel->dcam_path_id);
+		pr_debug("get dcam path : %d\n", channel->dcam_path_id);
 
 		/* todo: cfg param to user setting. */
 		memset(&ch_desc, 0, sizeof(ch_desc));
@@ -3470,7 +3470,7 @@ static int init_cam_channel(
 		}
 		channel->isp_path_id =
 			(int32_t)((isp_ctx_id << ISP_CTXID_OFFSET) | isp_path_id);
-		pr_info("get isp path : 0x%x\n", channel->isp_path_id);
+		pr_debug("get isp path : 0x%x\n", channel->isp_path_id);
 
 		memset(&path_desc, 0, sizeof(path_desc));
 		if (channel->ch_uinfo.slave_img_en) {
@@ -3538,10 +3538,10 @@ static int init_cam_channel(
 	}
 
 exit:
-	pr_info("path id:dcam = %d, aux dcam = %d, isp = %d\n",
+	pr_info("path_id:dcam = %d, aux dcam = %d, isp = 0x%x\n",
 		channel->dcam_path_id, channel->aux_dcam_path_id,
 		channel->isp_path_id);
-	pr_info("ch %d done. ret = %d\n", channel->ch_id, ret);
+	pr_debug("ch %d done. ret = %d\n", channel->ch_id, ret);
 	return ret;
 }
 
@@ -4020,7 +4020,7 @@ static int img_ioctl_set_function_mode(
 	/* no use */
 	module->cam_uinfo.is_3dnr = 0;
 
-	pr_info("4in1:[%d], 3dnr[%d], rgb_ltm[%d], yuv_ltm[%d], daul[%d]\n, afbc[%d]\n",
+	pr_info("4in1:[%d], 3dnr[%d], rgb_ltm[%d], yuv_ltm[%d], dual[%d]\n, afbc[%d]\n",
 		module->cam_uinfo.is_4in1,
 		module->cam_uinfo.is_3dnr,
 		module->cam_uinfo.is_rgb_ltm,
@@ -4310,8 +4310,6 @@ static int img_ioctl_set_output_size(
 		goto exit;
 	}
 
-	pr_info("get ch %d\n", channel->ch_id);
-
 	module->last_channel_id = channel->ch_id;
 	channel->dcam_path_id = -1;
 	channel->isp_path_id = -1;
@@ -4339,13 +4337,14 @@ static int img_ioctl_set_output_size(
 	dst->is_compressed = 0;
 	dst->scene = scene_mode;
 
-	pr_info("high fps %u %u. crop %d %d %d %d. dst size %d %d. aux %d %d %d %d\n",
-		dst->is_high_fps, dst->high_fps_skip_num,
-		dst->src_crop.x, dst->src_crop.y,
-		dst->src_crop.w, dst->src_crop.h,
-		dst->dst_size.w, dst->dst_size.h,
+	pr_info("cam_channel: ch_id %d high fps %u %u. aux %d %d %d %d\n",
+		channel->ch_id, dst->is_high_fps, dst->high_fps_skip_num,
 		dst->slave_img_en, dst->slave_img_fmt,
 		dst->slave_img_size.w, dst->slave_img_size.h);
+	pr_info("cam_channel: crop %d %d %d %d dst %d %d\n",
+		dst->src_crop.x, dst->src_crop.y,
+		dst->src_crop.w, dst->src_crop.h,
+		dst->dst_size.w, dst->dst_size.h);
 
 exit:
 	return ret;
@@ -4368,7 +4367,7 @@ static int img_ioctl_get_ch_id(
 		ret = -EINVAL;
 		goto exit;
 	}
-	pr_info("get ch id: %d\n", module->last_channel_id);
+	pr_info("cam_channel: get ch id: %d\n", module->last_channel_id);
 
 	ret = copy_to_user((void __user *)arg, &module->last_channel_id,
 				sizeof(uint32_t));
@@ -7353,7 +7352,7 @@ rewait:
 
 		if (!pframe) {
 			/* any exception happens or user trigger exit. */
-			pr_err("fail to read frame buffer. tx stop.\n");
+			pr_info("No valid frame buffer. tx stop.\n");
 			read_op.evt = IMG_TX_STOP;
 		} else if (pframe->evt == IMG_TX_DONE) {
 			atomic_set(&module->timeout_flag, 0);
@@ -7856,7 +7855,7 @@ static int sprd_cam_probe(struct platform_device *pdev)
 		pr_info("cam ca-ta unconnect\n");
 
 	group->debugger.hw = group->hw_info;
-	ret = unisoc_cam_debugfs_init(&group->debugger);
+	ret = cam_debugfs_init(&group->debugger);
 	if (ret)
 		pr_err("fail to init cam debugfs\n");
 

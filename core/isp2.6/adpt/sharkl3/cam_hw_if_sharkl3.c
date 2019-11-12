@@ -180,7 +180,6 @@ static uint32_t sharkl3_cam_reg_trace_tab[] = {
 		DCAM_VCH3_BASE_WADDR,
 		DCAM_AEM_BASE_WADDR,
 		DCAM_HIST_BASE_WADDR,
-		DCAM_PPE_RIGHT_WADDR,
 		ISP_AFL_GLB_WADDR,
 		ISP_AFL_REGION_WADDR,
 		ISP_BPC_OUT_ADDR,
@@ -370,7 +369,7 @@ static void sharkl3_dcam_axi_init(void *arg)
 	}
 
 	if (time_out >= DCAM_AXI_STOP_TIMEOUT) {
-		pr_info("dcam axim timeout status 0x%x\n",
+		pr_warn("fail to dcam axim timeout status 0x%x\n",
 			DCAM_AXIM_RD(AXIM_DBG_STS));
 	} else {
 		/* reset dcam all (0/1/2/bus) */
@@ -462,7 +461,7 @@ static int sharkl3_dcam_stop(void *arg)
 	if (time_out == 0)
 		pr_err("fail to stop:DCAM%d: stop timeout for 2s\n", idx);
 
-	pr_info("dcam%d stop\n", idx);
+	pr_info("dcam%d stop end\n", idx);
 	return ret;
 }
 
@@ -551,7 +550,7 @@ static int sharkl3_dcam_reset(struct cam_hw_info *hw, void *arg)
 	idx = *(uint32_t *)arg;
 	soc = hw->soc_dcam;
 	ip = hw->ip_dcam[idx];
-	pr_info("DCAM%d: reset.\n", idx);
+
 	regmap_update_bits(soc->cam_ahb_gpr, ip->syscon.rst,
 		ip->syscon.rst_mask, ip->syscon.rst_mask);
 	udelay(1);
@@ -649,8 +648,6 @@ static int sharkl3_dcam_fetch_set(void *arg)
 	DCAM_REG_WR(dev->idx, DCAM_MIPI_CAP_END,
 		((fetch->trim.size_y - 1) << 16) | (fetch->trim.size_x - 1));
 	DCAM_AXIM_WR(IMG_FETCH_RADDR, fetch->addr.addr_ch0);
-
-	pr_info("done.\n");
 
 	return ret;
 }
@@ -760,13 +757,13 @@ static int sharkl3_dcam_mipi_cap_set(void *arg)
 	DCAM_REG_MWR(idx, DCAM_MIPI_CAP_CFG, BIT_12,
 			(!cap_info->is_4in1) << 12);
 
-	pr_info("cap size : %d %d %d %d\n",
+	pr_info("mipi_cap: size %d, %d, %d, %d\n",
 		cap_info->cap_size.start_x, cap_info->cap_size.start_y,
 		cap_info->cap_size.size_x, cap_info->cap_size.size_y);
-	pr_info("cap: frm %d, mode %d, bits %d, pattern %d, href %d\n",
+	pr_info("mipi_cap: frm %d, mode %d, bits %d, pattern %d, href %d\n",
 		cap_info->format, cap_info->mode, cap_info->data_bits,
 		cap_info->pattern, cap_info->href);
-	pr_info("cap: deci %d, skip %d, x %d, y %d, 4in1 %d\n",
+	pr_info("mipi_cap: deci %d, skip %d, x %d, y %d, 4in1 %d\n",
 		cap_info->frm_deci, cap_info->frm_skip, cap_info->x_factor,
 		cap_info->y_factor, cap_info->is_4in1);
 
@@ -1085,8 +1082,6 @@ static int sharkl3_dcam_ebd_set(uint32_t idx, void *arg)
 	}
 
 	p = (struct sprd_ebd_control *)arg;
-	pr_info("mode:0x%x, vc:0x%x, dt:0x%x\n", p->mode,
-			p->image_vc, p->image_dt);
 	DCAM_REG_WR(idx, DCAM_VC2_CONTROL,
 		((p->image_vc & 0x3) << 16) |
 		((p->image_dt & 0x3F) << 8) |
@@ -1181,7 +1176,6 @@ static int sharkl3_isp_reset(struct cam_hw_info *hw, void *arg)
 
 	soc = hw->soc_isp;
 	ip = hw->ip_isp;
-	pr_info("ISP%d: reset\n", ip->idx);
 
 	/* firstly stop axim transfering */
 	ISP_HREG_MWR(ISP_AXI_ITI2AXIM_CTRL, BIT(26), BIT(26));
@@ -1195,7 +1189,7 @@ static int sharkl3_isp_reset(struct cam_hw_info *hw, void *arg)
 	}
 
 	if (time_out >= ISP_AXI_STOP_TIMEOUT) {
-		pr_info("ISP reset timeout %d\n", time_out);
+		pr_warn("fail to isp reset timeout %d\n", time_out);
 	} else {
 		regmap_update_bits(soc->cam_ahb_gpr,
 			ip->syscon.rst, ip->syscon.rst_mask, ip->syscon.rst_mask);
@@ -1508,8 +1502,6 @@ isp_cfg_para:
 	ISP_REG_WR(idx, ISP_CCE_MATRIX3, ((-107) << 11) | 128);
 	ISP_REG_WR(idx, ISP_CCE_MATRIX4, (-21));
 	ISP_REG_WR(idx, ISP_CCE_SHIFT, 0);
-
-	pr_info("end\n");
 }
 
 static int dcam_k_cfg_null(struct isp_io_param *param, struct dcam_dev_param *p)
@@ -1602,8 +1594,9 @@ static void sharkl3_isp_fetch_set(void *arg)
 	pctx = (struct isp_pipe_context *)arg;
 	fetch = &pctx->fetch;
 	idx = pctx->ctx_id;
-	pr_info("enter: fmt:%d, w:%d, h:%d\n", fetch->fetch_fmt,
-			fetch->in_trim.size_x, fetch->in_trim.size_y);
+	pr_info("isp_fetch: fmt:%d,dispatch_color %d w:%d, h:%d\n",
+		fetch->fetch_fmt, pctx->dispatch_color,
+		fetch->in_trim.size_x, fetch->in_trim.size_y);
 
 	ISP_REG_MWR(idx, ISP_COMMON_SPACE_SEL,
 			BIT_1 | BIT_0, pctx->dispatch_color);
@@ -1613,7 +1606,7 @@ static void sharkl3_isp_fetch_set(void *arg)
 	ISP_REG_WR(idx, ISP_FETCH_MEM_SLICE_SIZE,
 			fetch->in_trim.size_x | (fetch->in_trim.size_y << 16));
 
-	pr_info("camca, isp sec mode=%d ,pitch_ch0=0x%x, 0x%x, 0x%x\n",
+	pr_info("isp_fetch: isp sec mode=%d ,pitch_ch0=0x%x, 0x%x, 0x%x\n",
 		pctx->dev->sec_mode,
 		fetch->pitch.pitch_ch0,
 		fetch->pitch.pitch_ch1,
@@ -1629,13 +1622,14 @@ static void sharkl3_isp_fetch_set(void *arg)
 		ISP_REG_WR(idx, ISP_FETCH_SLICE_V_PITCH, fetch->pitch.pitch_ch2);
 	}
 
+	pr_info("isp_fetch: bayer mode=%d ,mipi_word_num %d, mipi_pos %d\n",
+		pctx->dispatch_bayer_mode,
+		fetch->mipi_word_num, fetch->mipi_byte_rel_pos);
 	ISP_REG_WR(idx, ISP_FETCH_MIPI_INFO,
 		fetch->mipi_word_num | (fetch->mipi_byte_rel_pos << 16));
 	ISP_REG_WR(idx, ISP_DISPATCH_CH0_SIZE,
 		fetch->in_trim.size_x | (fetch->in_trim.size_y << 16));
 	ISP_REG_WR(idx, ISP_DISPATCH_CH0_BAYER, pctx->dispatch_bayer_mode);
-
-	pr_info("end\n");
 }
 
 /* workaround: temp disable FMCU 1 for not working */

@@ -212,13 +212,11 @@ int dcam_reg_set_default_value(int idx)
 	if (idx == DCAM_ID_0) {
 		/* dcam0 */
 		j = sizeof(dcam0_reg_val) / sizeof(struct reg_add_val_tag);
-		pr_info("Dcam0 set default reg=%d\n", j);
 		for (i = 0; i < j; i++)
 			reg_set_dcam_value(0, &dcam0_reg_val[i]);
 	} else if (idx == DCAM_ID_1) {
 		/* dcam1 */
 		j = sizeof(dcam1_reg_val) / sizeof(struct reg_add_val_tag);
-		pr_info("Dcam1 set default reg=%d\n", j);
 		for (i = 0; i < j; i++)
 			reg_set_dcam_value(1, &dcam1_reg_val[i]);
 	}

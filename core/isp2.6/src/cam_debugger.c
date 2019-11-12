@@ -1271,7 +1271,7 @@ static int isp_debugfs_deinit(void)
 }
 /* isp debug fs end */
 
-int unisoc_cam_debugfs_init(struct camera_debugger *debugger)
+int cam_debugfs_init(struct camera_debugger *debugger)
 {
 	int ret = 0;
 
@@ -1285,7 +1285,7 @@ int unisoc_cam_debugfs_init(struct camera_debugger *debugger)
 	return ret;
 }
 
-int unisoc_cam_debugfs_deinit(void)
+int cam_debugfs_deinit(void)
 {
 	dcam_debugfs_deinit();
 	isp_debugfs_deinit();

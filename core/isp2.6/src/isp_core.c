@@ -1500,7 +1500,7 @@ static int isp_context_init(struct isp_pipe_dev *dev)
 
 	pr_info("isp hw contexts init start!\n");
 	for (i = 0; i < ISP_CONTEXT_HW_NUM; i++) {
-		pctx_hw  = &dev->hw_ctx[i];
+		pctx_hw = &dev->hw_ctx[i];
 		pctx_hw->hw_ctx_id = i;
 		pctx_hw->sw_ctx_id = 0xffff;
 		atomic_set(&pctx_hw->user_cnt, 0);
@@ -1821,7 +1821,7 @@ static int sprd_isp_get_context(void *isp_handle, void *param)
 	pctx->enable_slowmotion = 0;
 	if (init_param->is_high_fps)
 		pctx->enable_slowmotion = hw->ip_isp->slm_cfg_support;;
-	pr_info("cam%d enable ISP slowmotion %d\n",
+	pr_info("cam%d isp slowmotion eb %d\n",
 		pctx->attach_cam_id, pctx->enable_slowmotion);
 
 	pctx->isp_k_param.nlm_buf = vzalloc(sizeof(uint32_t) * ISP_VST_IVST_NUM2);
@@ -1876,7 +1876,7 @@ thrd_err:
 	sel_ctx_id = -1;
 exit:
 	mutex_unlock(&dev->path_mutex);
-	pr_info("done, ret context: %d\n", sel_ctx_id);
+	pr_info("success to get context id %d\n", sel_ctx_id);
 	return sel_ctx_id;
 }
 
@@ -2015,7 +2015,7 @@ static int sprd_isp_put_context(void *isp_handle, int ctx_id)
 		pctx->cb_priv_data = NULL;
 		trace_isp_irq_sw_cnt(pctx->ctx_id);
 	} else {
-		pr_err("fail to use free ctx %d.\n", ctx_id);
+		pr_debug("ctx%d.already release. \n", ctx_id);
 		atomic_set(&pctx->user_cnt, 0);
 	}
 	memset(pctx, 0, sizeof(struct isp_pipe_context));
@@ -2764,8 +2764,7 @@ static int sprd_isp_set_sb(void *isp_handle, int ctx_id,
 	if (pctx->isp_cb_func == NULL) {
 		pctx->isp_cb_func = cb;
 		pctx->cb_priv_data = priv_data;
-		pr_info("ctx: %d, cb %p, %p\n",
-			ctx_id, cb, priv_data);
+		pr_info("ctx: %d, cb %p, %p\n", ctx_id, cb, priv_data);
 	}
 
 	return ret;
@@ -2778,7 +2777,7 @@ static int sprd_isp_dev_open(void *isp_handle, void *param)
 	struct isp_pipe_dev *dev = NULL;
 	struct cam_hw_info *hw = NULL;
 
-	pr_info("enter.\n");
+	pr_debug("enter.\n");
 	if (!isp_handle || !param) {
 		pr_err("fail to get valid input ptr, isp_handle %p, param %p\n",
 			isp_handle, param);
@@ -2792,8 +2791,8 @@ static int sprd_isp_dev_open(void *isp_handle, void *param)
 	}
 
 	if (atomic_inc_return(&dev->enable) == 1) {
-
-		pr_info("isp dev init start.\n");
+		pr_info("open_start: sec_mode: %d, work mode: %d,  line_buf_len: %d\n",
+			dev->sec_mode, dev->wmode, g_camctrl.isp_linebuf_len);
 
 		/* line_buffer_len for debug */
 		if (s_dbg_linebuf_len > 0 &&
@@ -2807,9 +2806,6 @@ static int sprd_isp_dev_open(void *isp_handle, void *param)
 		else
 			dev->wmode = s_dbg_work_mode;
 		g_camctrl.isp_wmode = dev->wmode;
-
-		pr_info("camca isp sec_mode=%d, work mode: %d,  line_buf_len: %d\n",
-			dev->sec_mode, dev->wmode, g_camctrl.isp_linebuf_len);
 
 		dev->isp_hw = param;
 		mutex_init(&dev->path_mutex);
