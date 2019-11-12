@@ -495,7 +495,7 @@ static void sharkl5pro_dcam_auto_copy(uint32_t id, void *arg)
 		}
 	} else {
 		mask = 0;
-		pr_err("DCAM%u: fail to get dev idx 0x%x exceed DCAM_ID_MAX\n",
+		pr_err("fail to get dev idx 0x%x exceed DCAM_ID_MAX\n",
 			dev->idx);
 	}
 
@@ -530,7 +530,7 @@ static void sharkl5pro_dcam_force_copy(uint32_t id, void *arg)
 		}
 	} else {
 		mask = 0;
-		pr_err("DCAM%u: fail to get dev idx 0x%x exceed DCAM_ID_MAX\n",
+		pr_err("fail to get dev idx 0x%x exceed DCAM_ID_MAX\n",
 			dev->idx);
 	}
 

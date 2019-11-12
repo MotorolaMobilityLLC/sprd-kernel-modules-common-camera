@@ -777,7 +777,7 @@ int vdsp_smsg_send(u8 dst, struct smsg *msg, int timeout)
 
 		/* update wrptr */
 		SIPC_WRITEL(SIPC_READL(ipc->txbuf_wrptr) + 1, ipc->txbuf_wrptr);
-		pr_info("update : ipc tx wrptr=%d, tx rdptr=%d\n",
+		pr_info("update : ipc tx wrptr=%d, tx rdptr=%d, txpos=0x%lx\n",
 			 SIPC_READL(ipc->txbuf_wrptr),
 			 SIPC_READL(ipc->txbuf_rdptr),
 			 txpos);
