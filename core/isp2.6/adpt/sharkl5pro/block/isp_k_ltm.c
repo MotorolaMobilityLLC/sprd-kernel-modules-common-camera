@@ -14,9 +14,7 @@
 #include <sprd_mm.h>
 
 #include "isp_reg.h"
-#include "cam_types.h"
 #include "cam_block.h"
-
 #include "isp_ltm.h"
 #include "sprd_isp_2v6.h"
 

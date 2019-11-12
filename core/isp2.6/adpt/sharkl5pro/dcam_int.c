@@ -11,7 +11,6 @@
  * GNU General Public License for more details.
  */
 
-
 #include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/interrupt.h>
@@ -19,18 +18,9 @@
 #include "sprd_img.h"
 #include <sprd_mm.h>
 
-#include "cam_hw.h"
-#include "cam_types.h"
-#include "cam_queue.h"
-#include "cam_buf.h"
-#include "cam_block.h"
-
-#include "dcam_interface.h"
 #include "dcam_reg.h"
 #include "dcam_int.h"
-#include "dcam_core.h"
 #include "dcam_path.h"
-
 
 /* Macro Definitions */
 #ifdef pr_fmt

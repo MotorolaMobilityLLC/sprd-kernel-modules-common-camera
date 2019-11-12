@@ -16,10 +16,7 @@
 
 #include "sprd_isp_hw.h"
 #include "dcam_reg.h"
-#include "dcam_interface.h"
 #include "dcam_path.h"
-#include "cam_types.h"
-#include "cam_block.h"
 
 #ifdef pr_fmt
 #undef pr_fmt

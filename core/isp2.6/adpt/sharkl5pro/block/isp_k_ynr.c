@@ -11,7 +11,6 @@
  * GNU General Public License for more details.
  */
 
-
 #include <linux/uaccess.h>
 #include <sprd_mm.h>
 #include "sprd_isp_hw.h"

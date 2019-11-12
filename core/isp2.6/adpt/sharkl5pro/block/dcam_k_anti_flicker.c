@@ -17,7 +17,6 @@
 
 #include "dcam_reg.h"
 #include "dcam_interface.h"
-#include "cam_types.h"
 #include "cam_block.h"
 
 #ifdef pr_fmt

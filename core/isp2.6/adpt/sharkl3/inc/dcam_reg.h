@@ -216,8 +216,6 @@ extern unsigned long g_dcam_mmubase;
 
 /* To Do */
 #define DCAM_HIST_BASE_WADDR        (0x0000UL)
-#define DCAM_PPE_RIGHT_WADDR        (0x0000UL)
-
 #define DCAM_HIST_BASE_WADDR1       (0x0000UL)
 #define DCAM_HIST_BASE_WADDR2       (0x0000UL)
 #define DCAM_HIST_BASE_WADDR3       (0x0000UL)

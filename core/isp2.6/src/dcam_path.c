@@ -11,25 +11,14 @@
  * GNU General Public License for more details.
  */
 
-
-#include <linux/delay.h>
 #include <linux/err.h>
-#include <linux/interrupt.h>
-
 #include <sprd_mm.h>
 
 #include "cam_scaler.h"
-#include "cam_hw.h"
-#include "cam_types.h"
 #include "cam_queue.h"
-#include "cam_buf.h"
-#include "cam_block.h"
 #include "cam_debugger.h"
-
-#include "dcam_interface.h"
 #include "dcam_reg.h"
 #include "dcam_int.h"
-#include "dcam_core.h"
 #include "dcam_path.h"
 
 /* Macro Definitions */
@@ -530,17 +519,10 @@ int dcam_path_set_store_frm(void *dcam_handle,
 	}
 
 	if (dev->is_pdaf && dev->pdaf_type == 3 && path_id == DCAM_PATH_PDAF) {
-		/*
-		 * PDAF type3, when need write addr to DCAM_PPE_RIGHT_WADDR
-		 * PDAF type3, half buffer for right PD, TBD
-		 */
-		if (dev->hw->prj_id == SHARKL3) {
-			DCAM_REG_WR(idx, DCAM_VCH2_BASE_WADDR,
-				frame->buf.iova[0] + STATIS_PDAF_BUF_SIZE / 2);
-		} else {
-			DCAM_REG_WR(idx, DCAM_PPE_RIGHT_WADDR,
-				frame->buf.iova[0] + STATIS_PDAF_BUF_SIZE / 2);
-		}
+		/* PDAF type3, half buffer for right PD, TBD */
+		addr = hw->ip_dcam[idx]->pdaf_type3_reg_addr;
+		DCAM_REG_WR(idx, addr,
+			frame->buf.iova[0] + STATIS_PDAF_BUF_SIZE / 2);
 	}
 
 	slm_path = hw->ip_dcam[idx]->slm_path;

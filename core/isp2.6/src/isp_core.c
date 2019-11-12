@@ -21,34 +21,23 @@
 #include <linux/delay.h>
 #include <linux/mutex.h>
 #include <linux/spinlock.h>
+#include <linux/sprd_ion.h>
 #include <linux/kthread.h>
 
 #include "sprd_isp_hw.h"
 #include "sprd_img.h"
 #include <video/sprd_mmsys_pw_domain.h>
 #include <sprd_mm.h>
-#include <linux/sprd_ion.h>
-#include  "cam_trusty.h"
 
-#include "cam_hw.h"
-#include "cam_types.h"
+#include "cam_trusty.h"
 #include "cam_queue.h"
-#include "cam_buf.h"
-#include "cam_block.h"
 #include "cam_debugger.h"
-
-#include "dcam_interface.h"
-
 #include "isp_int.h"
 #include "isp_reg.h"
-
-#include "isp_interface.h"
 #include "isp_core.h"
 #include "isp_path.h"
 #include "isp_slice.h"
-
 #include "isp_cfg.h"
-#include "isp_fmcu.h"
 
 #ifdef pr_fmt
 #undef pr_fmt

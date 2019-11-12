@@ -14,17 +14,15 @@
 #include <linux/clk.h>
 #include <linux/err.h>
 #include <linux/mfd/syscon.h>
-#include <linux/mutex.h>
 #include <linux/platform_device.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
 #include <linux/regmap.h>
 #include <video/sprd_mmsys_pw_domain.h>
-#include "cam_hw.h"
+
 #include "dcam_int.h"
 #include "dcam_path.h"
-#include "dcam_interface.h"
 #include "dcam_reg.h"
 
 #ifdef pr_fmt

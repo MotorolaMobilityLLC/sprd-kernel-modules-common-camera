@@ -11,7 +11,6 @@
  * GNU General Public License for more details.
  */
 
-
 #include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/interrupt.h>
@@ -19,18 +18,10 @@
 #include "sprd_isp_hw.h"
 #include "sprd_img.h"
 #include <sprd_mm.h>
-#include "cam_hw.h"
-#include "cam_types.h"
-#include "cam_queue.h"
-#include "cam_buf.h"
-#include "cam_block.h"
 
-#include "dcam_interface.h"
 #include "dcam_reg.h"
 #include "dcam_int.h"
-#include "dcam_core.h"
 #include "dcam_path.h"
-
 
 /* Macro Definitions */
 #ifdef pr_fmt
@@ -244,7 +235,7 @@ static void dcam_fix_index(struct dcam_pipe_dev *dev,
 			frame->fid = begin - 1;
 			if (i == DCAM_PATH_BIN) {
 				frame->fid += j;
-			} else if (i == DCAM_PATH_AEM || i == DCAM_PATH_HIST) {
+			} else if (i == DCAM_PATH_AEM) {
 				frame->fid += j * dev->slowmotion_count;
 			} else {
 				frame->fid += (j - 1) * dev->slowmotion_count;

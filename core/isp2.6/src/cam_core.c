@@ -21,8 +21,6 @@
 #include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
-#include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/uaccess.h>
 #include <linux/slab.h>
@@ -32,17 +30,10 @@
 #include <sprd_mm.h>
 #include <sprd_isp_hw.h>
 #include "sprd_img.h"
-#include  "cam_trusty.h"
+#include "cam_trusty.h"
 
-#include "cam_types.h"
-#include "cam_buf.h"
-#include "cam_queue.h"
-#include "cam_hw.h"
-#include "cam_block.h"
 #include "cam_debugger.h"
-
 #include "isp_interface.h"
-#include "dcam_interface.h"
 #include "flash_interface.h"
 
 #include "sprd_sensor_drv.h"

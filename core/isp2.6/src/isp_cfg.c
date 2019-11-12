@@ -12,14 +12,11 @@
  */
 
 #include <linux/types.h>
-#include <linux/debugfs.h>
 #include <sprd_mm.h>
 #include <linux/sprd_iommu.h>
 #include <linux/sprd_ion.h>
 
 #include "isp_reg.h"
-
-#include "isp_interface.h"
 #include "isp_core.h"
 #include "isp_cfg.h"
 

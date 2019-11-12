@@ -103,6 +103,7 @@ struct cam_hw_ip_info {
 	unsigned long *store_addr_tab;
 	uint32_t *path_ctrl_id_tab;
 	uint32_t afl_gbuf_size;
+	unsigned long pdaf_type3_reg_addr;
 
 	/* For isp support info */
 	uint32_t slm_cfg_support;

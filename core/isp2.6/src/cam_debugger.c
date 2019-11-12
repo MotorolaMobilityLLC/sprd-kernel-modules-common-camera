@@ -18,10 +18,7 @@
 #include <linux/delay.h>
 #include <sprd_mm.h>
 
-#include "cam_hw.h"
-#include "cam_types.h"
 #include "cam_debugger.h"
-#include "cam_block.h"
 #include "dcam_reg.h"
 #include "dcam_path.h"
 #include "isp_core.h"

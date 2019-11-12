@@ -11,14 +11,9 @@
  * GNU General Public License for more details.
  */
 
-#include <linux/fs.h>
-#include <linux/of.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
-#include <linux/platform_device.h>
-#include <linux/proc_fs.h>
 #include <linux/uaccess.h>
-#include <linux/debugfs.h>
 #include <linux/delay.h>
 #include <linux/mutex.h>
 #include <linux/regmap.h>
@@ -31,19 +26,9 @@
 #include <video/sprd_mmsys_pw_domain.h>
 #include <sprd_mm.h>
 
-
-#include "cam_hw.h"
-#include "cam_types.h"
-#include "cam_queue.h"
-#include "cam_buf.h"
-#include "cam_block.h"
 #include "cam_debugger.h"
-
 #include "dcam_reg.h"
 #include "dcam_int.h"
-
-#include "dcam_interface.h"
-#include "dcam_core.h"
 #include "dcam_path.h"
 
 #include <linux/sprd_iommu.h>

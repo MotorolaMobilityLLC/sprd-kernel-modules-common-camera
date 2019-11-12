@@ -2202,6 +2202,7 @@ static struct cam_hw_ip_info sharkl5pro_dcam[DCAM_ID_MAX] = {
 		.dcam_fbc_mode = DCAM_FBC_FULL_14_BIT,
 		.store_addr_tab = sharkl5pro_dcam_store_addr,
 		.path_ctrl_id_tab = sharkl5pro_path_ctrl_id,
+		.pdaf_type3_reg_addr = DCAM_PPE_RIGHT_WADDR,
 	},
 	[DCAM_ID_1] = {
 		.slm_path = BIT(DCAM_PATH_BIN) | BIT(DCAM_PATH_AEM)
@@ -2212,6 +2213,7 @@ static struct cam_hw_ip_info sharkl5pro_dcam[DCAM_ID_MAX] = {
 		.dcam_fbc_mode = DCAM_FBC_FULL_14_BIT,
 		.store_addr_tab = sharkl5pro_dcam_store_addr,
 		.path_ctrl_id_tab = sharkl5pro_path_ctrl_id,
+		.pdaf_type3_reg_addr = DCAM_PPE_RIGHT_WADDR,
 	},
 	[DCAM_ID_2] = {
 		.slm_path = BIT(DCAM_PATH_BIN) | BIT(DCAM_PATH_AEM)
@@ -2222,6 +2224,7 @@ static struct cam_hw_ip_info sharkl5pro_dcam[DCAM_ID_MAX] = {
 		.dcam_fbc_mode = DCAM_FBC_DISABLE,
 		.store_addr_tab = sharkl5pro_dcam_store_addr,
 		.path_ctrl_id_tab = sharkl5pro_path_ctrl_id,
+		.pdaf_type3_reg_addr = DCAM_PPE_RIGHT_WADDR,
 	},
 };
 static struct cam_hw_ip_info sharkl5pro_isp = {

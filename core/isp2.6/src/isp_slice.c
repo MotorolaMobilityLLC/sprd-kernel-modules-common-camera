@@ -15,12 +15,9 @@
 #include <linux/vmalloc.h>
 #include <sprd_mm.h>
 
-#include "isp_interface.h"
 #include "isp_reg.h"
 #include "isp_core.h"
 #include "isp_slice.h"
-#include "isp_fmcu.h"
-#include "isp_ltm.h"
 
 #ifdef pr_fmt
 #undef pr_fmt

@@ -16,11 +16,8 @@
 #include <linux/mutex.h>
 
 #include "isp_reg.h"
-#include "cam_types.h"
 #include "cam_block.h"
-
 #include "isp_ltm.h"
-
 
 #ifdef pr_fmt
 #undef pr_fmt

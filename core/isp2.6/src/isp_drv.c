@@ -26,7 +26,6 @@
 
 #include "isp_reg.h"
 #include "isp_int.h"
-#include "isp_interface.h"
 #include "isp_core.h"
 
 #ifdef pr_fmt

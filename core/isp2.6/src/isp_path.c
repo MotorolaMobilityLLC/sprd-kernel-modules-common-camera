@@ -11,21 +11,15 @@
  * GNU General Public License for more details.
  */
 
-
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <sprd_mm.h>
 #include "sprd_isp_hw.h"
 #include "sprd_img.h"
-#include  "cam_trusty.h"
 
-#include "cam_types.h"
-#include "cam_queue.h"
+#include "cam_trusty.h"
 #include "cam_scaler.h"
-
 #include "isp_reg.h"
-
-#include "isp_interface.h"
 #include "isp_core.h"
 #include "isp_path.h"
 

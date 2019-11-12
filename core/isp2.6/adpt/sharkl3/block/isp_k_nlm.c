@@ -20,7 +20,6 @@
 #include "cam_types.h"
 #include "cam_block.h"
 
-
 #ifdef pr_fmt
 #undef pr_fmt
 #endif
