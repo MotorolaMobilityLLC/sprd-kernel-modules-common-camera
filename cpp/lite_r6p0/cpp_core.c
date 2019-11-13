@@ -766,8 +766,6 @@ static int sprd_cppcore_release(struct inode *node,
 	}
 
 	if (atomic_dec_return(&dev->users) != 0) {
-		pr_err("fail to release cpp module.\n");
-		pr_err("others is using cpp device\n");
 		return ret;
 	}
 	if (dev->rotif) {
