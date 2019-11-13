@@ -1573,8 +1573,8 @@ static uint32_t ISP_CFG_MAP[] __aligned(8) = {
 		0x00649110, /*0x9110  - 0x9170 , 25  , 3DNR blend*/
 		0x00189210, /*0x9210  - 0x9224 , 6   , 3DNR store*/
 		0x00109310, /*0x9310  - 0x931C , 4   , 3DNR crop*/
-		/*0x002C9410, *0x9410  - 0x9438 , 11  , FBC 3DNR store*/
-		/*0x003C9510, *0x9510  - 0x9548 , 15  , FBD 3DNR fetch*/
+		0x002C9410, /*0x9410  - 0x9438 , 11  , FBC 3DNR store*/
+		0x003C9510, /*0x9510  - 0x9548 , 15  , FBD 3DNR fetch*/
 		0x0050D010, /*0xD010  - 0xD05C , 20  , SCL_VID*/
 		0x0030D110, /*0xD110  - 0xD13C , 12  , SCL_VID_store*/
 		0x0030D310, /*0xD310  - 0xD33C , 12  , SCL_VID_FBC_store*/
@@ -1738,6 +1738,7 @@ isp_cfg_para:
 	ISP_REG_MWR(idx, ISP_3DNR_BLEND_CONTROL0, BIT_0, 1);
 	ISP_REG_MWR(idx, ISP_3DNR_STORE_PARAM, BIT_0, 1);
 	ISP_REG_MWR(idx, ISP_3DNR_MEM_CTRL_PRE_PARAM0, BIT_0, 1);
+	ISP_REG_MWR(idx, ISP_FBC_3DNR_STORE_PARAM, BIT_0, 1);
 
 	/*CFA*/
 	ISP_REG_MWR(idx, ISP_CFAE_NEW_CFG0, BIT_0, 0);
@@ -2301,6 +2302,120 @@ static int sharkl5pro_isp_ltm_slice_set(
 	return 0;
 }
 
+static int set_slice_3dnr_fbc_store(
+		void *fmcu_handle, void *arg)
+{
+	uint32_t addr = 0, cmd = 0;
+	struct isp_fmcu_ctx_desc *fmcu = NULL;
+	struct slice_3dnr_fbc_store_info *fbc_store = NULL;
+
+	fmcu = (struct isp_fmcu_ctx_desc *)fmcu_handle;
+	fbc_store = (struct slice_3dnr_fbc_store_info *)arg;
+
+	if (fbc_store->bypass)
+		return 0;
+
+	addr = ISP_GET_REG(ISP_FBC_3DNR_STORE_PARAM);
+	cmd = (fbc_store->bypass & 0x1) |
+		((fbc_store->slice_mode_en & 0x1) << 1);
+	FMCU_PUSH(fmcu, addr, cmd);
+
+	addr = ISP_GET_REG(ISP_FBC_3DNR_STORE_SLICE_SIZE);
+	cmd = (fbc_store->fbc_size_in_hor & 0x1FFF) |
+		((fbc_store->fbc_size_in_ver & 0x1FFF) << 16);
+	FMCU_PUSH(fmcu, addr, cmd);
+
+	addr = ISP_GET_REG(ISP_FBC_3DNR_STORE_SLICE_YADDR);
+	cmd = fbc_store->fbc_y_tile_addr_init_x256;
+	FMCU_PUSH(fmcu, addr, cmd);
+
+	addr = ISP_GET_REG(ISP_FBC_3DNR_STORE_SLICE_CADDR);
+	cmd = fbc_store->fbc_c_tile_addr_init_x256;
+	FMCU_PUSH(fmcu, addr, cmd);
+
+	addr = ISP_GET_REG(ISP_FBC_3DNR_STORE_SLICE_YHEADER);
+	cmd = fbc_store->fbc_y_header_addr_init;
+	FMCU_PUSH(fmcu, addr, cmd);
+
+	addr = ISP_GET_REG(ISP_FBC_3DNR_STORE_SLICE_CHEADER);
+	cmd = fbc_store->fbc_c_header_addr_init;
+	FMCU_PUSH(fmcu, addr, cmd);
+
+	addr = ISP_GET_REG(ISP_FBC_3DNR_STORE_TILE_NUM);
+	cmd = fbc_store->fbc_tile_number;
+	FMCU_PUSH(fmcu, addr, cmd);
+
+	return 0;
+}
+
+static int set_slice_3dnr_fbd_fetch(
+		void *fmcu_handle, void *arg)
+{
+	uint32_t addr = 0, cmd = 0;
+	struct isp_fmcu_ctx_desc *fmcu = NULL;
+	struct slice_3dnr_fbd_fetch_info *fbd_fetch = NULL;
+
+	fmcu = (struct isp_fmcu_ctx_desc *)fmcu_handle;
+	fbd_fetch = (struct slice_3dnr_fbd_fetch_info *)arg;
+
+	addr = ISP_GET_REG(ISP_FBD_NR3_T_ADDR_Y);
+	cmd = (fbd_fetch->fbd_y_tiles_num_pitch & 0xFF) |
+		((fbd_fetch->fbd_y_tile_addr_init_x256 & 0xFFFFFF) << 8);
+	FMCU_PUSH(fmcu, addr, cmd);
+
+	addr = ISP_GET_REG(ISP_FBD_NR3_H_ADDR_Y);
+	cmd = fbd_fetch->fbd_y_header_addr_init;
+	FMCU_PUSH(fmcu, addr, cmd);
+
+	addr = ISP_GET_REG(ISP_FBD_NR3_T_ADDR_C);
+	cmd = (fbd_fetch->fbd_y_tiles_num_pitch & 0xFF) |
+		((fbd_fetch->fbd_c_tile_addr_init_x256 & 0xFFFFFF) << 8);
+	FMCU_PUSH(fmcu, addr, cmd);
+
+	addr = ISP_GET_REG(ISP_FBD_NR3_H_ADDR_C);
+	cmd = fbd_fetch->fbd_c_header_addr_init;
+	FMCU_PUSH(fmcu, addr, cmd);
+
+	addr = ISP_GET_REG(ISP_FBD_NR3_SIZE_Y);
+	cmd = (fbd_fetch->fbd_y_pixel_size_in_ver & 0x1FFF) |
+		((fbd_fetch->fbd_y_pixel_size_in_hor & 0x1FFF) << 16);
+	FMCU_PUSH(fmcu, addr, cmd);
+
+	addr = ISP_GET_REG(ISP_FBD_NR3_SIZE_C);
+	cmd = (fbd_fetch->fbd_c_pixel_size_in_ver & 0x1FFF) |
+		((fbd_fetch->fbd_c_pixel_size_in_hor & 0x1FFF) << 16);
+	FMCU_PUSH(fmcu, addr, cmd);
+
+	addr = ISP_GET_REG(ISP_FBD_NR3_START_Y);
+	cmd = (fbd_fetch->fbd_y_pixel_start_in_ver & 1) |
+		((fbd_fetch->fbd_y_pixel_start_in_hor & 0x7F) << 16);
+	FMCU_PUSH(fmcu, addr, cmd);
+
+	addr = ISP_GET_REG(ISP_FBD_NR3_START_C);
+	cmd = (fbd_fetch->fbd_c_pixel_start_in_ver & 1) |
+		((fbd_fetch->fbd_c_pixel_start_in_hor & 0x7F) << 16);
+	FMCU_PUSH(fmcu, addr, cmd);
+
+	addr = ISP_GET_REG(ISP_FBD_NR3_TILE_SIZE_Y);
+	cmd = (fbd_fetch->fbd_y_tiles_num_in_ver & 0x1FFF) |
+		((fbd_fetch->fbd_y_tiles_num_in_hor & 0x1F) << 16);
+	FMCU_PUSH(fmcu, addr, cmd);
+
+	addr = ISP_GET_REG(ISP_FBD_NR3_TILE_SIZE_C);
+	cmd = (fbd_fetch->fbd_c_tiles_num_in_ver & 0x1FFF) |
+		((fbd_fetch->fbd_c_tiles_num_in_hor & 0x1F) << 16);
+	FMCU_PUSH(fmcu, addr, cmd);
+
+	addr = ISP_GET_REG(ISP_FBD_NR3_SLICE_TILE_PARAM);
+	cmd = (fbd_fetch->fbd_y_tiles_start_odd & 0x1) |
+		((fbd_fetch->fbd_c_tiles_start_odd & 0x1) << 16);
+	FMCU_PUSH(fmcu, addr, cmd);
+
+	return 0;
+}
+
+
+
 void sharkl5pro_isp_superzoom_do_ispblock(void *ctx)
 {
 	uint32_t idx = 0;
@@ -2525,6 +2640,8 @@ struct cam_hw_info sharkl5pro_hw_info = {
 			.isp_afbc_fmcu_addr_set = sharkl5pro_isp_afbc_fmcu_addr_set,
 			.isp_afbc_path_slice_set = sharkl5pro_isp_afbc_path_slice_set,
 			.isp_ltm_slice_set = sharkl5pro_isp_ltm_slice_set,
+			.isp_nr3_fbc_slice_set = set_slice_3dnr_fbc_store,
+			.isp_nr3_fbd_slice_set = set_slice_3dnr_fbd_fetch,
 			.hist_enable_get = sharkl5pro_isp_hist_enable_get,
 			.block_func_get = sharkl5pro_block_func_get,
 			.cfg_map_info_get = sharkl5pro_isp_cfg_map_info_get,

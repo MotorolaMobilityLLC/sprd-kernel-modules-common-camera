@@ -287,6 +287,16 @@ static int isp_3dnr_process_frame(struct isp_pipe_context *pctx,
 
 	nr3_ctx = &pctx->nr3_ctx;
 
+	if (pctx->nr3_fbc_fbd) {
+		nr3_ctx->nr3_store.st_bypass = 1;
+		nr3_ctx->nr3_fbc_store.bypass = 0;
+		nr3_ctx->mem_ctrl.nr3_ft_path_sel = 1;
+	} else {
+		nr3_ctx->nr3_store.st_bypass = 0;
+		nr3_ctx->nr3_fbc_store.bypass = 1;
+		nr3_ctx->mem_ctrl.nr3_ft_path_sel = 0;
+	}
+
 	nr3_ctx->width  = pctx->input_trim.size_x;
 	nr3_ctx->height = pctx->input_trim.size_y;
 

@@ -1681,6 +1681,204 @@ static int cfg_slice_3dnr_memctrl_info(
 	return ret;
 }
 
+static int cfg_slice_3dnr_fbd_fetch_info(
+		void *cfg_in, struct isp_slice_context *slc_ctx)
+{
+	int ret = 0, idx = 0;
+	uint32_t start_col, end_col, start_row, end_row;
+	uint32_t overlap_up, overlap_down, overlap_left, overlap_right;
+
+	uint32_t fetch_start_x, fetch_start_y, uv_fetch_start_y;
+	uint32_t left_tiles_num, right_tiles_num, middle_tiles_num;
+	uint32_t left_size, right_size, up_size, down_size;
+	uint32_t up_tiles_num, down_tiles_num, vertical_middle_tiles_num;
+	uint32_t left_offset_tiles_num, up_offset_tiles_num;
+
+	int Y_start_x, Y_end_x, Y_start_y, Y_end_y;
+	int UV_start_x, UV_end_x, UV_start_y, UV_end_y;
+	int mv_x, mv_y;
+
+	uint32_t slice_width, slice_height;
+	uint32_t pad_slice_width, pad_slice_height;
+	uint32_t tile_col, tile_row;
+	uint32_t img_width, fbd_y_tiles_num_pitch;
+
+	struct slice_cfg_input *in_ptr = (struct slice_cfg_input *)cfg_in;
+	struct isp_3dnr_ctx_desc *nr3_ctx = in_ptr->nr3_ctx;
+	struct isp_3dnr_fbd_fetch *nr3_fbd_fetch = &nr3_ctx->nr3_fbd_fetch;
+	struct isp_slice_desc *cur_slc;
+	struct slice_3dnr_fbd_fetch_info *slc_3dnr_fbd_fetch;
+
+	img_width = nr3_ctx->mem_ctrl.img_width;
+	fbd_y_tiles_num_pitch = (img_width + FBD_NR3_Y_WIDTH - 1) / FBD_NR3_Y_WIDTH;
+
+	mv_x = nr3_ctx->mem_ctrl.mv_x;
+	mv_y = nr3_ctx->mem_ctrl.mv_y;
+
+	cur_slc = &slc_ctx->slices[0];
+	for (idx = 0; idx < SLICE_NUM_MAX; idx++, cur_slc++) {
+		if (cur_slc->valid == 0)
+			continue;
+		slc_3dnr_fbd_fetch = &cur_slc->slice_3dnr_fbd_fetch;
+
+		start_col = cur_slc->slice_pos.start_col;
+		end_col = cur_slc->slice_pos.end_col;
+		start_row = cur_slc->slice_pos.start_row;
+		end_row = cur_slc->slice_pos.end_row;
+		overlap_up = cur_slc->slice_overlap.overlap_up;
+		overlap_down = cur_slc->slice_overlap.overlap_down;
+		overlap_left = cur_slc->slice_overlap.overlap_left;
+		overlap_right = cur_slc->slice_overlap.overlap_right;
+
+		slice_width = end_col - start_col + 1;
+		slice_height = end_row - start_row + 1;
+		pad_slice_width = (slice_width + FBD_NR3_Y_WIDTH - 1) /
+			FBD_NR3_Y_WIDTH * FBD_NR3_Y_WIDTH;
+		pad_slice_height = (slice_height + FBD_NR3_Y_PAD_HEIGHT - 1) /
+			FBD_NR3_Y_PAD_HEIGHT * FBD_NR3_Y_PAD_HEIGHT;
+		tile_col = pad_slice_width / FBD_NR3_Y_WIDTH;
+		tile_row = pad_slice_height / FBD_NR3_Y_HEIGHT;
+
+		left_offset_tiles_num = start_col / FBD_NR3_Y_WIDTH;
+
+		slc_3dnr_fbd_fetch->fbd_y_pixel_size_in_hor = slice_width;
+		slc_3dnr_fbd_fetch->fbd_y_pixel_size_in_ver = slice_height;
+		slc_3dnr_fbd_fetch->fbd_c_pixel_size_in_hor = slice_width;
+		slc_3dnr_fbd_fetch->fbd_c_pixel_size_in_ver = slice_height / 2;
+		slc_3dnr_fbd_fetch->fbd_y_pixel_start_in_ver = mv_y & 0x1;
+		slc_3dnr_fbd_fetch->fbd_c_pixel_start_in_ver = (mv_y / 2) & 0x1;
+
+		fetch_start_x = (mv_x < 0) ? start_col : (start_col + mv_x);
+		fetch_start_y = (mv_y < 0) ? start_row : (start_row + mv_y);
+		uv_fetch_start_y = (mv_y < 0) ? start_row : (start_row + mv_y / 2);
+
+		Y_start_x = fetch_start_x;
+		UV_start_x = fetch_start_x;
+		Y_start_y = fetch_start_y;
+		UV_start_y = uv_fetch_start_y;
+		if (mv_x < 0) {
+			if ((0 == start_col) && (mv_x & 1)) {
+				Y_start_x = fetch_start_x;
+				UV_start_x = fetch_start_x + 2;
+			} else if ((0 != start_col) && (mv_x & 1)) {
+				Y_start_x = fetch_start_x + mv_x;
+				UV_start_x = fetch_start_x + mv_x + 1;
+			} else if (0 != start_col) {
+				Y_start_x = fetch_start_x + mv_x;
+				UV_start_x = fetch_start_x + mv_x;
+			} else {
+				Y_start_x = fetch_start_x;
+				UV_start_x = fetch_start_x;
+			}
+		}else if (mv_x > 0) {
+			if ((0 == start_col) && (mv_x & 1)) {
+				Y_start_x = fetch_start_x;
+				UV_start_x = fetch_start_x - 1;
+			} else if ((0 != start_col) && (mv_x & 1)) {
+				Y_start_x = fetch_start_x;
+				UV_start_x = fetch_start_x - 1;
+			} else {
+				Y_start_x = fetch_start_x;
+				UV_start_x = fetch_start_x;
+			}
+		}
+		Y_end_x = slice_width + Y_start_x - 1;
+		UV_end_x = slice_width + UV_start_x - 1;
+		left_offset_tiles_num = Y_start_x / FBD_NR3_Y_WIDTH;
+		if (Y_start_x % FBD_NR3_Y_WIDTH == 0) {
+			left_tiles_num = 0;
+			left_size = 0;
+		} else {
+			left_tiles_num = 1;
+			left_size = FBD_NR3_Y_WIDTH - Y_start_x % FBD_NR3_Y_WIDTH;
+		}
+		if (((Y_end_x + 1) % FBD_NR3_Y_WIDTH == 0)
+			|| (((Y_end_x + 1) > img_width)
+			&& ((Y_end_x + 1) % FBD_NR3_Y_WIDTH == 1)))
+			right_tiles_num = 0;
+		else
+			right_tiles_num = 1;
+		right_size = (Y_end_x + 1) % FBD_NR3_Y_WIDTH;
+
+		middle_tiles_num = (slice_width - left_size - right_size) / FBD_NR3_Y_WIDTH;
+		slc_3dnr_fbd_fetch->fbd_y_pixel_start_in_hor = Y_start_x % FBD_NR3_Y_WIDTH;
+		slc_3dnr_fbd_fetch->fbd_y_tiles_num_in_hor = left_tiles_num + right_tiles_num + middle_tiles_num;
+		slc_3dnr_fbd_fetch->fbd_y_tiles_start_odd = left_offset_tiles_num % 2;
+		left_offset_tiles_num = UV_start_x / FBD_NR3_Y_WIDTH;
+		if (UV_start_x % FBD_NR3_Y_WIDTH == 0) {
+			left_tiles_num = 0;
+			left_size = 0;
+		} else {
+			left_tiles_num = 1;
+			left_size = FBD_NR3_Y_WIDTH - UV_start_x %  FBD_NR3_Y_WIDTH;
+		}
+		if ((UV_end_x + 1) % FBD_NR3_Y_WIDTH == 0)
+			right_tiles_num = 0;
+		else
+			right_tiles_num = 1;
+		right_size = (UV_end_x + 1) % FBD_NR3_Y_WIDTH;
+		middle_tiles_num= (slice_width - left_size - right_size) / FBD_NR3_Y_WIDTH;
+		slc_3dnr_fbd_fetch->fbd_c_pixel_start_in_hor= UV_start_x % FBD_NR3_Y_WIDTH;
+		slc_3dnr_fbd_fetch->fbd_c_tiles_num_in_hor= left_tiles_num + right_tiles_num + middle_tiles_num;
+		slc_3dnr_fbd_fetch->fbd_c_tiles_start_odd= left_offset_tiles_num % 2;
+		if (mv_y < 0) {
+			Y_start_y = fetch_start_y;
+			UV_start_y = fetch_start_y;
+		} else if (mv_y > 0) {
+			Y_start_y = fetch_start_y;
+			UV_start_y = uv_fetch_start_y;
+		}
+		Y_end_y = slice_height + Y_start_y - 1;
+		UV_end_y = slice_height + UV_start_y - 1;
+		up_offset_tiles_num = Y_start_y / FBD_NR3_Y_HEIGHT;
+		if (Y_start_y % FBD_NR3_Y_HEIGHT == 0) {
+			up_tiles_num = 0;
+			up_size = 0;
+		} else {
+			up_tiles_num = 1;
+			up_size = FBD_NR3_Y_HEIGHT - Y_start_y % FBD_NR3_Y_HEIGHT;
+		}
+		if ((Y_end_y + 1) % FBD_NR3_Y_HEIGHT == 0)
+			down_tiles_num = 0;
+		else
+			down_tiles_num = 1;
+		down_size = (Y_end_y + 1) % FBD_NR3_Y_HEIGHT;
+		vertical_middle_tiles_num= (slice_height - up_size - down_size) / FBD_NR3_Y_HEIGHT;
+		slc_3dnr_fbd_fetch->fbd_y_pixel_start_in_ver = Y_start_y % FBD_NR3_Y_HEIGHT;
+		slc_3dnr_fbd_fetch->fbd_y_tiles_num_in_ver= up_tiles_num + down_tiles_num + vertical_middle_tiles_num;
+		slc_3dnr_fbd_fetch->fbd_y_header_addr_init = nr3_fbd_fetch->y_header_addr_init
+			- (left_offset_tiles_num + up_offset_tiles_num* fbd_y_tiles_num_pitch) / 2;
+		slc_3dnr_fbd_fetch->fbd_y_tile_addr_init_x256 = nr3_fbd_fetch->y_tile_addr_init_x256
+			+ (left_offset_tiles_num + up_offset_tiles_num * fbd_y_tiles_num_pitch)* FBC_NR3_BASE_ALIGN;
+		up_offset_tiles_num = UV_start_y / FBD_NR3_Y_HEIGHT;
+		if (UV_start_y %  FBD_BAYER_HEIGHT == 0) {
+			up_tiles_num = 0;
+			up_size = 0;
+		} else {
+			up_tiles_num = 1;
+			up_size = FBD_NR3_Y_HEIGHT - UV_start_y %  FBD_NR3_Y_HEIGHT;
+		}
+		if ((UV_end_y + 1) % FBD_NR3_Y_HEIGHT == 0)
+			down_tiles_num = 0;
+		else
+			down_tiles_num = 1;
+		down_size = (UV_end_y + 1) % FBD_NR3_Y_HEIGHT;
+		vertical_middle_tiles_num = (slice_height / 2 - up_size- down_size)/FBD_NR3_Y_HEIGHT;
+		slc_3dnr_fbd_fetch->fbd_c_pixel_start_in_ver = UV_start_y % FBD_NR3_Y_WIDTH;
+		slc_3dnr_fbd_fetch->fbd_c_tiles_num_in_ver = up_tiles_num + down_tiles_num
+			+ vertical_middle_tiles_num;
+		slc_3dnr_fbd_fetch->fbd_c_header_addr_init = nr3_fbd_fetch->c_header_addr_init
+			- (left_offset_tiles_num + up_offset_tiles_num* fbd_y_tiles_num_pitch) / 2;
+		slc_3dnr_fbd_fetch->fbd_c_tile_addr_init_x256 = nr3_fbd_fetch->c_tile_addr_init_x256
+			+ (left_offset_tiles_num + up_offset_tiles_num* fbd_y_tiles_num_pitch) * FBC_NR3_BASE_ALIGN;
+
+		slc_3dnr_fbd_fetch->fbd_y_tiles_num_pitch = nr3_fbd_fetch->y_tiles_num_pitch;
+
+	}
+
+	return ret;
+}
+
 static int cfg_slice_3dnr_store_info(
 		void *cfg_in, struct isp_slice_context *slc_ctx)
 {
@@ -1765,6 +1963,85 @@ static int cfg_slice_3dnr_store_info(
 
 		pr_debug("store w[%d], h[%d] bypass %d\n", slc_3dnr_store->size.w,
 			slc_3dnr_store->size.h, slc_3dnr_store->bypass);
+	}
+
+	return ret;
+}
+
+static int cfg_slice_3dnr_fbc_store_info(
+		void *cfg_in, struct isp_slice_context *slc_ctx)
+{
+	int ret = 0, idx = 0;
+
+	uint32_t slice_width ,slice_height ;
+	uint32_t store_slice_width,store_slice_height;
+	uint32_t uv_tile_w_num,uv_tile_h_num;
+	uint32_t y_tile_w_num,y_tile_h_num;
+	uint32_t store_left_offset_tiles_num;
+	uint32_t start_col,end_col,start_row, end_row;
+	uint32_t overlap_up,overlap_down,overlap_left, overlap_right;
+	struct slice_cfg_input *in_ptr = (struct slice_cfg_input *)cfg_in;
+	struct isp_3dnr_ctx_desc *nr3_ctx = in_ptr->nr3_ctx;
+	struct isp_3dnr_fbc_store *nr3_fbc_store = &nr3_ctx->nr3_fbc_store;
+	struct isp_slice_desc *cur_slc;
+	struct slice_3dnr_fbc_store_info *slc_3dnr_fbc_store;
+
+	cur_slc = &slc_ctx->slices[0];
+
+	if (nr3_ctx->type == NR3_FUNC_OFF) {
+		for (idx = 0; idx < SLICE_NUM_MAX; idx++, cur_slc++) {
+			if (cur_slc->valid == 0)
+				continue;
+			slc_3dnr_fbc_store = &cur_slc->slice_3dnr_fbc_store;
+			slc_3dnr_fbc_store->bypass = 1;
+		}
+
+		return 0;
+	}
+
+	for (idx = 0; idx < SLICE_NUM_MAX; idx++, cur_slc++) {
+		if (cur_slc->valid == 0)
+			continue;
+		slc_3dnr_fbc_store = &cur_slc->slice_3dnr_fbc_store;
+
+		start_col = cur_slc->slice_pos.start_col;
+		end_col = cur_slc->slice_pos.end_col;
+		start_row = cur_slc->slice_pos.start_row;
+		end_row = cur_slc->slice_pos.end_row;
+		overlap_up = cur_slc->slice_overlap.overlap_up;
+		overlap_down = cur_slc->slice_overlap.overlap_down;
+		overlap_left = cur_slc->slice_overlap.overlap_left;
+		overlap_right = cur_slc->slice_overlap.overlap_right;
+
+		slice_width = end_col - start_col + 1;
+		slice_height = end_row - start_row + 1;
+		store_slice_width = slice_width - overlap_left - overlap_right;
+		store_slice_height = slice_height - overlap_up - overlap_down;
+
+		store_left_offset_tiles_num = (start_col + overlap_left) / FBC_NR3_Y_WIDTH;
+
+		uv_tile_w_num= (store_slice_width + FBC_NR3_Y_WIDTH - 1) / FBC_NR3_Y_WIDTH;
+		uv_tile_w_num = (uv_tile_w_num + 2 - 1) / 2 * 2;
+		uv_tile_h_num= (store_slice_height / 2 + FBC_NR3_Y_HEIGHT - 1) / FBC_NR3_Y_HEIGHT;
+		y_tile_w_num = uv_tile_w_num;
+		y_tile_h_num = 2 * uv_tile_h_num;
+
+		slc_3dnr_fbc_store->fbc_tile_number = uv_tile_w_num * uv_tile_h_num +
+			y_tile_w_num * y_tile_h_num;
+		slc_3dnr_fbc_store->fbc_size_in_ver = store_slice_height;
+		slc_3dnr_fbc_store->fbc_size_in_hor = store_slice_width;
+		slc_3dnr_fbc_store->fbc_y_tile_addr_init_x256 = nr3_fbc_store->y_tile_addr_init_x256
+			+ store_left_offset_tiles_num * FBC_NR3_BASE_ALIGN;
+		slc_3dnr_fbc_store->fbc_c_tile_addr_init_x256 = nr3_fbc_store->c_tile_addr_init_x256
+			+ store_left_offset_tiles_num * FBC_NR3_BASE_ALIGN;
+		slc_3dnr_fbc_store->fbc_y_header_addr_init = nr3_fbc_store->y_header_addr_init
+			- store_left_offset_tiles_num / 2;
+		slc_3dnr_fbc_store->fbc_c_header_addr_init = nr3_fbc_store->c_header_addr_init
+			- store_left_offset_tiles_num / 2;
+		slc_3dnr_fbc_store->slice_mode_en = 1;
+		slc_3dnr_fbc_store->bypass = nr3_fbc_store->bypass;
+		pr_debug("[%s] [slice id %d] tile_number %d\n", __func__,
+			idx, slc_3dnr_fbc_store->fbc_tile_number);
 	}
 
 	return ret;
@@ -1933,6 +2210,7 @@ int isp_cfg_slice_3dnr_info(
 		void *cfg_in, struct isp_slice_context *slc_ctx)
 {
 	int ret = 0;
+	struct slice_cfg_input *in_ptr = (struct slice_cfg_input *)cfg_in;
 
 	ret = cfg_slice_3dnr_memctrl_info(cfg_in, slc_ctx);
 	if (ret) {
@@ -1950,6 +2228,22 @@ int isp_cfg_slice_3dnr_info(
 	if (ret) {
 		pr_err("fail to set slice 3dnr store info!\n");
 		goto exit;
+	}
+
+	if (!in_ptr->nr3_ctx->nr3_fbc_store.bypass) {
+		ret = cfg_slice_3dnr_fbc_store_info(cfg_in, slc_ctx);
+		if (ret) {
+			pr_err("fail to set slice 3dnr fbc store info!\n");
+			goto exit;
+		}
+	}
+
+	if (in_ptr->nr3_ctx->mem_ctrl.nr3_ft_path_sel) {
+		ret = cfg_slice_3dnr_fbd_fetch_info(cfg_in, slc_ctx);
+		if (ret) {
+			pr_err("fail to set slice 3dnr fbd fetch ctrl!\n");
+			goto exit;
+		}
 	}
 
 	ret = cfg_slice_3dnr_crop_info(cfg_in, slc_ctx);
@@ -2527,7 +2821,9 @@ static int set_slice_3dnr_crop(
 
 static int set_slice_3dnr(
 		struct isp_fmcu_ctx_desc *fmcu,
-		struct isp_slice_desc *cur_slc)
+		struct isp_slice_desc *cur_slc,
+		struct cam_hw_info *hw,
+		struct isp_pipe_context *pctx)
 {
 /*
  * struct slice_3dnr_memctrl_info slice_3dnr_memctrl;
@@ -2536,6 +2832,10 @@ static int set_slice_3dnr(
  */
 	set_slice_3dnr_memctrl(fmcu, &cur_slc->slice_3dnr_memctrl);
 	set_slice_3dnr_store(fmcu, &cur_slc->slice_3dnr_store);
+	if (pctx->nr3_fbc_fbd) {
+		hw->hw_ops.core_ops.isp_nr3_fbc_slice_set(fmcu, &cur_slc->slice_3dnr_fbc_store);
+		hw->hw_ops.core_ops.isp_nr3_fbd_slice_set(fmcu, &cur_slc->slice_3dnr_fbd_fetch);
+	}
 	set_slice_3dnr_crop(fmcu, &cur_slc->slice_3dnr_crop);
 
 	return 0;
@@ -2636,7 +2936,7 @@ int isp_set_slices_fmcu_cmds(void *fmcu_handle,  void *ctx)
 		else
 			set_slice_fetch(fmcu, &cur_slc->slice_fetch);
 
-		set_slice_3dnr(fmcu, cur_slc);
+		set_slice_3dnr(fmcu, cur_slc, hw, pctx);
 		if (pctx->ltm_rgb)
 			hw->hw_ops.core_ops.isp_ltm_slice_set(fmcu, cur_slc, LTM_RGB);
 		if (pctx->ltm_yuv)

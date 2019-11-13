@@ -187,6 +187,8 @@ struct cam_hw_core_ops {
 	int (*isp_afbc_path_slice_set)(void *fmcu_handle, uint32_t path_en,
 		uint32_t ctx_idx, uint32_t spath_id, void *arg);
 	int (*isp_ltm_slice_set)(void *fmcu_handle, void *arg, uint32_t ltm_id);
+	int (*isp_nr3_fbc_slice_set)(void *fmcu_handle, void *arg);
+	int (*isp_nr3_fbd_slice_set)(void *fmcu_handle, void *arg);
 	void (*default_para_set)(struct cam_hw_info *hw,
 		void *arg, enum isp_default_type type);
 	uint32_t (*hist_enable_get)(int ctx_id);

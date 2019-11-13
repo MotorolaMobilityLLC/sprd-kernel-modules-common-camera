@@ -212,6 +212,40 @@ struct slice_3dnr_store_info {
 	struct img_addr addr;
 };
 
+struct slice_3dnr_fbc_store_info {
+	uint32_t bypass;
+	uint32_t slice_mode_en;
+	uint32_t fbc_tile_number;
+	uint32_t fbc_size_in_ver;
+	uint32_t fbc_size_in_hor;
+	uint32_t fbc_y_tile_addr_init_x256;
+	uint32_t fbc_c_tile_addr_init_x256;
+	uint32_t fbc_y_header_addr_init;
+	uint32_t fbc_c_header_addr_init;
+};
+
+struct slice_3dnr_fbd_fetch_info {
+	uint32_t fbd_y_tiles_num_pitch;
+	uint32_t fbd_y_pixel_size_in_hor;
+	uint32_t fbd_y_pixel_size_in_ver;
+	uint32_t fbd_c_pixel_size_in_hor;
+	uint32_t fbd_c_pixel_size_in_ver;
+	uint32_t fbd_y_pixel_start_in_ver;
+	uint32_t fbd_c_pixel_start_in_ver;
+	uint32_t fbd_y_pixel_start_in_hor;
+	uint32_t fbd_c_pixel_start_in_hor;
+	uint32_t fbd_y_tiles_num_in_hor;
+	uint32_t fbd_y_tiles_start_odd;
+	uint32_t fbd_c_tiles_num_in_hor;
+	uint32_t fbd_c_tiles_start_odd;
+	uint32_t fbd_y_tiles_num_in_ver;
+	uint32_t fbd_y_header_addr_init;
+	uint32_t fbd_y_tile_addr_init_x256;
+	uint32_t fbd_c_tiles_num_in_ver;
+	uint32_t fbd_c_header_addr_init;
+	uint32_t fbd_c_tile_addr_init_x256;
+};
+
 struct slice_3dnr_crop_info {
 	uint32_t bypass;
 	uint32_t start_x;
@@ -271,6 +305,8 @@ struct isp_slice_desc {
 	struct slice_ynr_info slice_ynr;
 	struct slice_3dnr_memctrl_info slice_3dnr_memctrl;
 	struct slice_3dnr_store_info   slice_3dnr_store;
+	struct slice_3dnr_fbd_fetch_info   slice_3dnr_fbd_fetch;
+	struct slice_3dnr_fbc_store_info   slice_3dnr_fbc_store;
 	struct slice_3dnr_crop_info    slice_3dnr_crop;
 	struct slice_ltm_map_info      slice_ltm_map[LTM_MAX];
 	struct slice_noisefilter_info  noisefilter_info;

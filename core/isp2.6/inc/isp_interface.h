@@ -172,8 +172,8 @@ struct isp_path_compression_desc {
 	uint32_t store_fbc;
 };
 
-#define ISP_FBC_3DNR_TILE_WIDTH 128
-#define ISP_FBC_3DNR_TILE_HEIGHT 2
+#define ISP_FBC_3DNR_PAD_WIDTH 256
+#define ISP_FBC_3DNR_PAD_HEIGHT 4
 #define ISP_FBC_STORE_TILE_WIDTH 32
 #define ISP_FBC_STORE_TILE_HEIGHT 8
 
@@ -186,7 +186,8 @@ isp_3dnr_cal_compressed_addr(uint32_t width, uint32_t height, addr_t in,
 	if (unlikely(!out))
 		return;
 
-	pixel_count = roundup(width, ISP_FBC_3DNR_TILE_WIDTH) * height;
+	pixel_count = roundup(width, ISP_FBC_3DNR_PAD_WIDTH) *
+		roundup(height, ISP_FBC_3DNR_PAD_HEIGHT);
 	/* add some redundant space for fbc output */
 	header_bytes_y = pixel_count >> 9;
 	header_bytes_y += FBC_HEADER_REDUNDANT;
@@ -204,7 +205,8 @@ isp_3dnr_cal_compressed_size(uint32_t width, uint32_t height)
 {
 	uint32_t pixel_count, header_y, tile_y, header_c, tile_c;
 
-	pixel_count = roundup(width, ISP_FBC_3DNR_TILE_WIDTH) * height;
+	pixel_count = roundup(width, ISP_FBC_3DNR_PAD_WIDTH) *
+		roundup(height, ISP_FBC_3DNR_PAD_HEIGHT);
 	header_y = pixel_count >> 9;
 	header_y += FBC_HEADER_REDUNDANT + FBC_TILE_ADDR_ALIGN;
 	tile_y = pixel_count;

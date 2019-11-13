@@ -364,6 +364,115 @@ static void isp_3dnr_config_store(uint32_t idx,
 		    nr3_store->shadow_clr);
 }
 
+static void isp_3dnr_config_fbd_fetch(uint32_t idx,
+				  struct isp_3dnr_fbd_fetch *nr3_fbd_fetch)
+{
+	unsigned int val;
+
+	val = nr3_fbd_fetch->fbdc_cr_ch0123_val0;
+	ISP_REG_WR(idx, ISP_FBD_NR3_PARAM0, val);
+
+	val = nr3_fbd_fetch->fbdc_cr_ch0123_val1;
+	ISP_REG_WR(idx, ISP_FBD_NR3_PARAM1, val);
+
+	val = (nr3_fbd_fetch->fbdc_cr_uv_val1 & 0xFF) |
+		((nr3_fbd_fetch->fbdc_cr_uv_val0 & 0xFF)<<8)|
+		((nr3_fbd_fetch->fbdc_cr_y_val1 & 0xFF)<<16) |
+		((nr3_fbd_fetch->fbdc_cr_y_val0 & 0xFF)<<24);
+	ISP_REG_WR(idx, ISP_FBD_NR3_PARAM2, val);
+
+	val = (nr3_fbd_fetch->y_tiles_num_pitch & 0xFF) |
+		(nr3_fbd_fetch->y_tile_addr_init_x256 & 0xFFFFFF00);
+	ISP_REG_WR(idx, ISP_FBD_NR3_T_ADDR_Y, val);
+
+	val = nr3_fbd_fetch->y_header_addr_init;
+	ISP_REG_WR(idx, ISP_FBD_NR3_H_ADDR_Y, val);
+
+	val = (nr3_fbd_fetch->c_tiles_num_pitch & 0xFF) |
+		(nr3_fbd_fetch->c_tile_addr_init_x256 & 0xFFFFFF00);
+	ISP_REG_WR(idx, ISP_FBD_NR3_T_ADDR_C, val);
+
+	val = nr3_fbd_fetch->c_header_addr_init;
+	ISP_REG_WR(idx, ISP_FBD_NR3_H_ADDR_C, val);
+
+	val = (nr3_fbd_fetch->y_pixel_size_in_ver & 0x1FFF) |
+		((nr3_fbd_fetch->y_pixel_size_in_hor & 0x1FFF) << 16);
+	ISP_REG_WR(idx, ISP_FBD_NR3_SIZE_Y, val);
+
+	val = (nr3_fbd_fetch->c_pixel_size_in_ver & 0x1FFF) |
+		((nr3_fbd_fetch->c_pixel_size_in_hor & 0x1FFF) << 16);
+	ISP_REG_MWR(idx, ISP_FBD_NR3_SIZE_C, 0x1FFF1FFF, val);
+
+	val = (nr3_fbd_fetch->y_pixel_start_in_ver & 1) |
+		((nr3_fbd_fetch->y_pixel_start_in_hor & 0xFF) << 16);
+	ISP_REG_MWR(idx, ISP_FBD_NR3_START_Y, 0xFF0001, val);
+
+	val = (nr3_fbd_fetch->c_pixel_start_in_ver & 1) |
+		((nr3_fbd_fetch->c_pixel_start_in_hor & 0xFF) << 16);
+	ISP_REG_MWR(idx, ISP_FBD_NR3_START_C, 0xFF0001, val);
+
+	val = (nr3_fbd_fetch->y_tiles_num_in_ver & 0x1FFF) |
+		((nr3_fbd_fetch->y_tiles_num_in_hor & 0x1F) << 16);
+	ISP_REG_MWR(idx, ISP_FBD_NR3_TILE_SIZE_Y, 0x1F1FFF, val);
+
+	val = (nr3_fbd_fetch->c_tiles_num_in_ver & 0x1FFF) |
+		((nr3_fbd_fetch->c_tiles_num_in_hor & 0x1F) << 16);
+	ISP_REG_MWR(idx, ISP_FBD_NR3_TILE_SIZE_C, 0x1F1FFF, val);
+
+	val = 0;
+	ISP_REG_MWR(idx, ISP_FBD_NR3_SLICE_TILE_PARAM, 0x10001, val);
+
+	val = 0xFF << 16;
+	ISP_REG_MWR(idx, ISP_FBD_NR3_READ_SPECIAL, 0xFF0000, val);
+}
+
+static void isp_3dnr_config_fbc_store(uint32_t idx,
+				  struct isp_3dnr_fbc_store *nr3_fbc_store)
+{
+	unsigned int val;
+
+	if (g_isp_bypass[idx] & (1 << _EISP_NR3))
+		nr3_fbc_store->bypass = 1;
+
+	val = (nr3_fbc_store->bypass & 0x1) |
+		((nr3_fbc_store->slice_mode_en & 0x1) << 1);
+	ISP_REG_WR(idx, ISP_FBC_3DNR_STORE_PARAM, val);
+
+	if (nr3_fbc_store->bypass)
+		return;
+
+	val = (nr3_fbc_store->size_in_hor & 0x1FFF) |
+		((nr3_fbc_store->size_in_ver & 0x1FFF) << 16) ;
+	ISP_REG_WR(idx, ISP_FBC_3DNR_STORE_SLICE_SIZE, val);
+
+	val = nr3_fbc_store->y_tile_addr_init_x256;
+	ISP_REG_WR(idx, ISP_FBC_3DNR_STORE_SLICE_YADDR, val);
+
+	val = nr3_fbc_store->c_tile_addr_init_x256;
+	ISP_REG_WR(idx, ISP_FBC_3DNR_STORE_SLICE_CADDR, val);
+
+	val = nr3_fbc_store->tile_number_pitch & 0xFFFF;
+	ISP_REG_MWR(idx, ISP_FBC_3DNR_STORE_TILE_PITCH, 0xFFFF, val);
+
+	val = nr3_fbc_store->y_header_addr_init;
+	ISP_REG_WR(idx, ISP_FBC_3DNR_STORE_SLICE_YHEADER, val);
+
+	val = nr3_fbc_store->c_header_addr_init;
+	ISP_REG_WR(idx, ISP_FBC_3DNR_STORE_SLICE_CHEADER, val);
+
+	val = nr3_fbc_store->fbc_constant_yuv;
+	ISP_REG_WR(idx, ISP_FBC_3DNR_STORE_CONSTANT, val);
+
+	val = nr3_fbc_store->later_bits & 0xFFFF;
+	ISP_REG_MWR(idx, ISP_FBC_3DNR_STORE_BITS, 0xFFFF, val);
+
+	val = nr3_fbc_store->tile_number & 0xFFFFF;
+	ISP_REG_MWR(idx, ISP_FBC_3DNR_STORE_TILE_NUM, 0xFFFFF, val);
+
+	val = 0x20002 & 0xFF00FF;
+	ISP_REG_MWR(idx, ISP_FBC_3DNR_STORE_NFULL_LEVEL, 0xFF00FF, val);
+}
+
 static void isp_3dnr_config_crop(uint32_t idx,
 				 struct isp_3dnr_crop *crop)
 {
@@ -418,6 +527,7 @@ void isp_3dnr_bypass_config(uint32_t idx)
 	ISP_REG_MWR(idx, ISP_3DNR_MEM_CTRL_PARAM0, BIT_0, 1);
 	ISP_REG_MWR(idx, ISP_3DNR_BLEND_CONTROL0, BIT_0, 1);
 	ISP_REG_MWR(idx, ISP_3DNR_STORE_PARAM, BIT_0, 1);
+	ISP_REG_MWR(idx, ISP_FBC_3DNR_STORE_PARAM, BIT_0, 1);
 	ISP_REG_MWR(idx, ISP_3DNR_MEM_CTRL_PRE_PARAM0, BIT_0, 1);
 	ISP_REG_MWR(idx, ISP_COMMON_SCL_PATH_SEL, BIT_8, 0 << 8);
 }
@@ -438,6 +548,8 @@ void isp_3dnr_config_param(struct isp_3dnr_ctx_desc *ctx,
 {
 	struct isp_3dnr_mem_ctrl *mem_ctrl = NULL;
 	struct isp_3dnr_store *nr3_store = NULL;
+	struct isp_3dnr_fbd_fetch *nr3_fbd_fetch = NULL;
+	struct isp_3dnr_fbc_store *nr3_fbc_store = NULL;
 	struct isp_3dnr_crop *crop = NULL;
 	uint32_t blend_cnt = 0;
 	unsigned int val;
@@ -456,6 +568,14 @@ void isp_3dnr_config_param(struct isp_3dnr_ctx_desc *ctx,
 	/*config store*/
 	nr3_store = &ctx->nr3_store;
 	isp_3dnr_config_store(idx, nr3_store);
+
+	/*config fbc store*/
+	nr3_fbc_store = &ctx->nr3_fbc_store;
+	isp_3dnr_config_fbc_store(idx, nr3_fbc_store);
+
+	/*config fbd fetch*/
+	nr3_fbd_fetch = &ctx->nr3_fbd_fetch;
+	isp_3dnr_config_fbd_fetch(idx, nr3_fbd_fetch);
 
 	/*config crop*/
 	crop = &ctx->crop;

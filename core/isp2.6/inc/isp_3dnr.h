@@ -22,6 +22,18 @@ extern "C" {
 #include "dcam_interface.h"
 #include "isp_interface.h"
 
+#define FBC_NR3_Y_PAD_WIDTH 256
+#define FBC_NR3_Y_PAD_HEIGHT 4
+#define FBC_NR3_Y_WIDTH 128
+#define FBC_NR3_Y_HEIGHT 2
+#define FBC_NR3_BASE_ALIGN 256
+#define FBD_NR3_Y_PAD_WIDTH 256
+#define FBD_NR3_Y_PAD_HEIGHT 4
+#define FBD_NR3_Y_WIDTH 128
+#define FBD_NR3_Y_HEIGHT 2
+#define FBD_NR3_BASE_ALIGN 256
+#define FBD_BAYER_HEIGHT 4
+
 enum nr3_func_type {
 	NR3_FUNC_OFF,
 	NR3_FUNC_PRE,
@@ -95,6 +107,53 @@ struct isp_3dnr_store {
 	unsigned long st_chroma_addr;
 	uint32_t st_pitch;
 	uint32_t shadow_clr;
+};
+
+struct isp_3dnr_fbd_fetch {
+	uint32_t bypass;
+	uint32_t fbdc_cr_ch0123_val0;
+	uint32_t fbdc_cr_ch0123_val1;
+	uint32_t fbdc_cr_y_val0;
+	uint32_t fbdc_cr_y_val1;
+	uint32_t fbdc_cr_uv_val0;
+	uint32_t fbdc_cr_uv_val1;
+	uint32_t y_tile_addr_init_x256;
+	uint32_t y_tiles_num_pitch;
+	uint32_t y_header_addr_init;
+	uint32_t c_tile_addr_init_x256;
+	uint32_t c_tiles_num_pitch;
+	uint32_t c_header_addr_init;
+	uint32_t y_pixel_size_in_hor;
+	uint32_t y_pixel_size_in_ver;
+	uint32_t c_pixel_size_in_hor;
+	uint32_t c_pixel_size_in_ver;
+	uint32_t y_pixel_start_in_hor;
+	uint32_t y_pixel_start_in_ver;
+	uint32_t c_pixel_start_in_hor;
+	uint32_t c_pixel_start_in_ver;
+	uint32_t y_tiles_num_in_hor;
+	uint32_t y_tiles_num_in_ver;
+	uint32_t c_tiles_num_in_hor;
+	uint32_t c_tiles_num_in_ver;
+	uint32_t c_tiles_start_odd;
+	uint32_t y_tiles_start_odd;
+	uint32_t y_rd_one_more_en;
+	uint32_t rd_time_out_th;
+};
+
+struct isp_3dnr_fbc_store {
+	uint32_t bypass;
+	uint32_t slice_mode_en;
+	uint32_t size_in_ver;
+	uint32_t size_in_hor;
+	unsigned long y_tile_addr_init_x256;
+	unsigned long c_tile_addr_init_x256;
+	uint32_t tile_number_pitch;
+	unsigned long y_header_addr_init;
+	unsigned long c_header_addr_init;
+	uint32_t fbc_constant_yuv;
+	uint32_t later_bits;
+	uint32_t tile_number;
 };
 
 struct isp_3dnr_crop {
@@ -199,6 +258,8 @@ struct isp_3dnr_ctx_desc {
 
 	struct isp_3dnr_mem_ctrl mem_ctrl;
 	struct isp_3dnr_store nr3_store;
+	struct isp_3dnr_fbd_fetch nr3_fbd_fetch;
+	struct isp_3dnr_fbc_store nr3_fbc_store;
 	struct isp_3dnr_crop crop;
 
 	struct camera_buf *buf_info[ISP_NR3_BUF_NUM];

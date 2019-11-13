@@ -229,7 +229,6 @@ static int isp_3dnr_gen_store_config(struct isp_3dnr_ctx_desc *ctx)
 
 	store = &ctx->nr3_store;
 
-	store->st_bypass  = 0;
 	store->img_width  = ctx->width;
 	store->img_height = ctx->height;
 	store->st_pitch   = ctx->width;
@@ -256,6 +255,219 @@ static int isp_3dnr_gen_store_config(struct isp_3dnr_ctx_desc *ctx)
 		store->img_height,
 		ctx->width,
 		ctx->height);
+
+	return ret;
+}
+
+static int isp_3dnr_gen_fbd_fetch_config(struct isp_3dnr_ctx_desc *ctx)
+{
+	int ret = 0;
+	uint32_t pad_width=0,pad_height=0;
+	uint32_t cur_width = 0, cur_height = 0;
+	int mv_x = 0, mv_y = 0;
+
+	struct isp_3dnr_fbd_fetch *fbd_fetch = NULL;
+	struct compressed_addr out_addr;
+
+	if (!ctx) {
+		pr_err("invalid parameter, fbd fetch\n");
+		return -EINVAL;
+	}
+
+	fbd_fetch = &ctx->nr3_fbd_fetch;
+
+	cur_width = ctx->mem_ctrl.img_width;
+	cur_height = ctx->mem_ctrl.img_height;
+
+	if(cur_width % FBD_NR3_Y_PAD_WIDTH != 0 ||
+		cur_height % FBD_NR3_Y_PAD_HEIGHT != 0){
+		pad_width = (cur_width + FBD_NR3_Y_PAD_WIDTH - 1) /
+			FBD_NR3_Y_PAD_WIDTH * FBD_NR3_Y_PAD_WIDTH;
+		pad_height = (cur_height + FBD_NR3_Y_PAD_HEIGHT - 1) /
+			FBD_NR3_Y_PAD_HEIGHT * FBD_NR3_Y_PAD_HEIGHT;
+	}
+
+	fbd_fetch->y_tiles_num_in_hor = pad_width / FBD_NR3_Y_WIDTH;
+	fbd_fetch->y_tiles_num_in_ver = pad_height / FBD_NR3_Y_HEIGHT;
+	fbd_fetch->c_tiles_num_in_hor = fbd_fetch->y_tiles_num_in_hor;
+	fbd_fetch->c_tiles_num_in_ver = fbd_fetch->y_tiles_num_in_ver / 2;
+
+	if (ctx->blending_cnt % 2 == 1) {
+		isp_3dnr_cal_compressed_addr(cur_width, cur_height,
+			ctx->buf_info[0]->iova[0], &out_addr);
+		fbd_fetch->y_header_addr_init = out_addr.addr1;
+		fbd_fetch->y_tile_addr_init_x256 = out_addr.addr1;
+		fbd_fetch->c_header_addr_init = out_addr.addr2;
+		fbd_fetch->c_tile_addr_init_x256 = out_addr.addr2;
+	} else {
+		isp_3dnr_cal_compressed_addr(cur_width, cur_height,
+			ctx->buf_info[1]->iova[0], &out_addr);
+		fbd_fetch->y_header_addr_init   = out_addr.addr1;
+		fbd_fetch->y_tile_addr_init_x256 = out_addr.addr1;
+		fbd_fetch->c_header_addr_init = out_addr.addr2;
+		fbd_fetch->c_tile_addr_init_x256 = out_addr.addr2;
+	}
+
+	fbd_fetch->y_tiles_num_pitch = pad_width / FBD_NR3_Y_WIDTH;
+	fbd_fetch->c_tiles_num_pitch = fbd_fetch->y_tiles_num_pitch;
+
+	fbd_fetch->y_pixel_size_in_hor = cur_width ;
+	fbd_fetch->y_pixel_size_in_ver = cur_height ;
+	fbd_fetch->c_pixel_size_in_hor = cur_width;
+	fbd_fetch->c_pixel_size_in_ver = cur_height / 2;
+	fbd_fetch->y_pixel_start_in_hor = 0;
+	fbd_fetch->y_pixel_start_in_ver = 0;
+	fbd_fetch->c_pixel_start_in_hor = 0;
+	fbd_fetch->c_pixel_start_in_ver = 0;
+
+	fbd_fetch->fbdc_cr_ch0123_val0 = 0;
+	fbd_fetch->fbdc_cr_ch0123_val1 = 0x1000000;
+	fbd_fetch->fbdc_cr_y_val0 = 0;
+	fbd_fetch->fbdc_cr_y_val1 = 0xff;
+	fbd_fetch->fbdc_cr_uv_val0 = 0;
+	fbd_fetch->fbdc_cr_uv_val1 = 0;
+
+	mv_x = ctx->mem_ctrl.mv_x;
+	mv_y = ctx->mem_ctrl.mv_y;
+
+	fbd_fetch->y_tiles_num_in_hor =
+		(ctx->mem_ctrl.ft_y_width + FBD_NR3_Y_WIDTH - 1) / FBD_NR3_Y_WIDTH;
+	fbd_fetch->y_tiles_num_in_ver =
+		(ctx->mem_ctrl.ft_y_height + FBD_NR3_Y_HEIGHT - 1) / FBD_NR3_Y_HEIGHT;
+	fbd_fetch->c_tiles_num_in_hor =
+		(ctx->mem_ctrl.ft_uv_width + FBD_NR3_Y_WIDTH - 1) / FBD_NR3_Y_WIDTH;
+	fbd_fetch->c_tiles_num_in_ver =
+		(ctx->mem_ctrl.ft_uv_height + FBD_NR3_Y_HEIGHT - 1) / FBD_NR3_Y_HEIGHT;
+	fbd_fetch->y_pixel_size_in_hor = ctx->mem_ctrl.ft_y_width;
+	fbd_fetch->c_pixel_size_in_hor = ctx->mem_ctrl.ft_uv_width;
+	fbd_fetch->y_pixel_size_in_ver = ctx->mem_ctrl.ft_y_height;
+	fbd_fetch->c_pixel_size_in_ver = ctx->mem_ctrl.ft_uv_height;
+
+	if (mv_x < 0) {
+		if ((mv_x)  & 0x1) {
+			fbd_fetch->y_pixel_start_in_hor = 0;
+			fbd_fetch->c_pixel_start_in_hor = 2;
+		} else {
+			fbd_fetch->y_pixel_start_in_hor = 0;
+			fbd_fetch->c_pixel_start_in_hor = 0;
+		}
+	} else if (mv_x > 0) {
+		if ((mv_x) & 0x1) {
+			fbd_fetch->y_tile_addr_init_x256 =
+				fbd_fetch->y_tile_addr_init_x256 + mv_x / FBD_NR3_Y_WIDTH;
+			fbd_fetch->c_tile_addr_init_x256 =
+				fbd_fetch->c_tile_addr_init_x256 + (mv_x - 1) / FBD_NR3_Y_WIDTH;
+			fbd_fetch->y_pixel_start_in_hor = mv_x;
+			fbd_fetch->c_pixel_start_in_hor = mv_x - 1;
+		} else {
+			fbd_fetch->y_tile_addr_init_x256
+				= fbd_fetch->y_tile_addr_init_x256 + mv_x / FBD_NR3_Y_WIDTH;
+			fbd_fetch->c_tile_addr_init_x256
+				= fbd_fetch->c_tile_addr_init_x256 + mv_x / FBD_NR3_Y_WIDTH;
+			fbd_fetch->y_pixel_start_in_hor = mv_x;
+			fbd_fetch->c_pixel_start_in_hor = mv_x;
+		}
+	}
+
+	if (mv_y < 0) {
+		fbd_fetch->y_pixel_start_in_ver = 0;
+		fbd_fetch->c_pixel_start_in_ver = 0;
+	} else if (mv_y > 0) {
+		fbd_fetch->y_pixel_start_in_ver = (mv_y) & 0x1;
+		fbd_fetch->c_pixel_start_in_ver = (mv_y / 2) & 0x1;
+		fbd_fetch->y_tile_addr_init_x256 =
+			( (fbd_fetch->y_tile_addr_init_x256 >> 8) +
+			fbd_fetch->y_tiles_num_pitch * (mv_y / 2)) << 8;
+		fbd_fetch->c_tile_addr_init_x256 =
+			( (fbd_fetch->c_tile_addr_init_x256 >> 8) +
+			fbd_fetch->y_tiles_num_pitch * (mv_y / 4)) << 8;
+		fbd_fetch->y_header_addr_init =
+			fbd_fetch->y_header_addr_init -
+			(fbd_fetch->y_tiles_num_pitch * (mv_y / 2)) / 2;
+		fbd_fetch->c_header_addr_init =
+			fbd_fetch->c_header_addr_init -
+			(fbd_fetch->y_tiles_num_pitch * (mv_y / 4)) / 2;
+	}
+
+	pr_debug("3dnr mv_x 0x%x, mv_y 0x%x\n", mv_x, mv_y);
+
+	pr_debug("3dnr fbd y_header_addr_init 0x%x, c_header_addr_init 0x%x\n",
+		fbd_fetch->y_header_addr_init, fbd_fetch->c_header_addr_init);
+
+	pr_debug("3dnr fbd y_tile_addr_init_x256 0x%x, c_tile_addr_init_x256 0x%x\n",
+		fbd_fetch->y_tile_addr_init_x256, fbd_fetch->c_tile_addr_init_x256);
+
+	pr_debug("3dnr fbd y_pixel_start_in_hor 0x%x, y_pixel_start_in_ver 0x%x\n",
+		fbd_fetch->y_pixel_start_in_hor, fbd_fetch->y_pixel_start_in_ver);
+
+	pr_debug("3dnr fbd c_pixel_start_in_hor 0x%x, c_pixel_start_in_ver 0x%x\n",
+		fbd_fetch->c_pixel_start_in_hor, fbd_fetch->c_pixel_start_in_ver);
+
+	return ret;
+}
+
+static int isp_3dnr_gen_fbc_store_config(struct isp_3dnr_ctx_desc *ctx)
+{
+	int ret = 0;
+	uint32_t pad_width = 0, pad_height = 0;
+	uint32_t cur_width = 0, cur_height = 0;
+	uint32_t tile_hor = 0, tile_ver = 0;
+
+	struct isp_3dnr_fbc_store *fbc_store = NULL;
+	struct compressed_addr out_addr;
+
+	if (!ctx) {
+		pr_err("invalid parameter, fbc store\n");
+		return -EINVAL;
+	}
+
+	fbc_store = &ctx->nr3_fbc_store;
+
+	cur_width = ctx->mem_ctrl.img_width;
+	cur_height = ctx->mem_ctrl.img_height;
+
+	fbc_store->size_in_hor = cur_width;
+	fbc_store->size_in_ver = cur_height;
+
+	pad_width = cur_width;
+	pad_height = cur_height;
+
+	if((cur_width % FBC_NR3_Y_PAD_WIDTH) !=0 ||
+		(cur_height % FBC_NR3_Y_PAD_HEIGHT) !=0){
+		pad_width = (cur_width + FBC_NR3_Y_PAD_WIDTH - 1) /
+			FBC_NR3_Y_PAD_WIDTH * FBC_NR3_Y_PAD_WIDTH;
+		pad_height = (cur_height + FBC_NR3_Y_PAD_HEIGHT - 1) /
+			FBC_NR3_Y_PAD_HEIGHT * FBC_NR3_Y_PAD_HEIGHT;
+	}
+
+	tile_hor = pad_width / FBC_NR3_Y_WIDTH;
+	tile_ver = pad_height / FBC_NR3_Y_HEIGHT;
+
+	fbc_store->tile_number = tile_hor * tile_ver + tile_hor * tile_ver / 2;
+	fbc_store->tile_number_pitch = pad_width / FBD_NR3_Y_WIDTH;
+	fbc_store->fbc_constant_yuv = 0xff0000ff;
+	fbc_store->later_bits = 15;
+	fbc_store->slice_mode_en = 0;
+	fbc_store->bypass = 0;
+
+	if (ctx->blending_cnt % 2 != 1) {
+		isp_3dnr_cal_compressed_addr(cur_width, cur_height,
+			ctx->buf_info[0]->iova[0], &out_addr);
+		fbc_store->y_header_addr_init = out_addr.addr1;
+		fbc_store->y_tile_addr_init_x256 = out_addr.addr1;
+		fbc_store->c_header_addr_init = out_addr.addr2;
+		fbc_store->c_tile_addr_init_x256 = out_addr.addr2;
+	} else {
+		isp_3dnr_cal_compressed_addr(cur_width, cur_height,
+			ctx->buf_info[1]->iova[0], &out_addr);
+		fbc_store->y_header_addr_init = out_addr.addr1;
+		fbc_store->y_tile_addr_init_x256 = out_addr.addr1;
+		fbc_store->c_header_addr_init = out_addr.addr2;
+		fbc_store->c_tile_addr_init_x256 = out_addr.addr2;
+	}
+
+	pr_debug("3dnr fbc tile_number %d tile number_pitch %d\n",
+		fbc_store->tile_number, fbc_store->tile_number_pitch);
 
 	return ret;
 }
@@ -296,10 +508,28 @@ int isp_3dnr_gen_config(struct isp_3dnr_ctx_desc *ctx)
 		return ret;
 	}
 
-	ret = isp_3dnr_gen_store_config(ctx);
-	if (ret) {
-		pr_err("fail to generate store configuration\n");
-		return ret;
+	if (!ctx->nr3_store.st_bypass) {
+		ret = isp_3dnr_gen_store_config(ctx);
+		if (ret) {
+			pr_err("fail to generate store configuration\n");
+			return ret;
+		}
+	}
+
+	if (!ctx->nr3_fbc_store.bypass) {
+		ret = isp_3dnr_gen_fbc_store_config(ctx);
+		if (ret) {
+			pr_err("fail to generate fbc store configuration\n");
+			return ret;
+		}
+	}
+
+	if (ctx->mem_ctrl.nr3_ft_path_sel) {
+		ret = isp_3dnr_gen_fbd_fetch_config(ctx);
+		if (ret) {
+			pr_err("fail to generate fbd fetch configuration\n");
+			return ret;
+		}
 	}
 
 	ret = isp_3dnr_gen_crop_config(ctx);

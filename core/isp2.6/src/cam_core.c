@@ -41,7 +41,6 @@
 #include "csi_api.h"
 #include "dcam_core.h"
 
-
 #ifdef CONFIG_COMPAT
 #include "compat_cam_drv.h"
 #endif
@@ -440,9 +439,9 @@ static void cal_compression(struct camera_module *module)
 		&& !module->cam_uinfo.is_4in1;
 	ch_vid->compress_input = ch_pre->compress_input;
 
-	/* Enable compression for 3DNR by default */
-	ch_cap->compress_3dnr = 1;
-	ch_pre->compress_3dnr = 1;
+	/* Disable compression for 3DNR by default */
+	ch_cap->compress_3dnr = 0;
+	ch_pre->compress_3dnr = 0;
 	ch_vid->compress_3dnr = ch_pre->compress_3dnr;
 
 	/*
@@ -488,6 +487,10 @@ static void cal_compression(struct camera_module *module)
 		ch_vid->compress_input = 0;
 		/* isp support preview path and video path*/
 		ch_vid->compress_output = module->cam_uinfo.is_afbc;
+		/* 3dnr support preview&capture&video path*/
+		ch_cap->compress_3dnr = 0;
+		ch_pre->compress_3dnr = 0;
+		ch_vid->compress_3dnr = ch_pre->compress_3dnr;
 	}
 
 	/* manually control compression policy here */
@@ -506,7 +509,6 @@ static void cal_compression(struct camera_module *module)
 		ch_vid->compress_output = override->override[CH_VID][FBC_ISP];
 	}
 
-	/* dcam2 not support fbc */
 	if (module->idx > 1) {
 		ch_cap->compress_input = 0;
 		ch_pre->compress_input = 0;
@@ -858,8 +860,13 @@ static void alloc_buffers(struct work_struct *work)
 
 	if (channel->type_3dnr == CAM_3DNR_HW) {
 		/* YUV420 for 3DNR ref*/
-		size = ((width + 1) & (~1)) * height * 3 / 2;
-		size = ALIGN(size, CAM_BUF_ALIGN_SIZE);
+		if (channel->compress_3dnr)
+			size = isp_3dnr_cal_compressed_size(width, height);
+		else {
+			size = ((width + 1) & (~1)) * height * 3 / 2;
+			size = ALIGN(size, CAM_BUF_ALIGN_SIZE);
+		}
+
 		pr_info("ch %d 3dnr buffer size: %u.\n", channel->ch_id, size);
 		for (i = 0; i < ISP_NR3_BUF_NUM; i++) {
 			pframe = get_empty_frame();
