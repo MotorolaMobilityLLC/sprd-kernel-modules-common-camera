@@ -1734,7 +1734,7 @@ normal_exit_raw:
 	dev->wait_full_tx_done = WAIT_CLEAR;
 
 normal_exit:
-	pr_info("normal exit, ret = %d\n", ret);
+	pr_debug("normal exit, ret = %d\n", ret);
 	return ISP_RTN_SUCCESS;
 
 err_exit:
