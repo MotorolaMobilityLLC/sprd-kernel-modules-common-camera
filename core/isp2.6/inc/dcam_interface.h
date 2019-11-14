@@ -99,6 +99,7 @@ enum dcam_path_cfg_cmd {
 	DCAM_PATH_CFG_OUTPUT_RESERVED_BUF,
 	DCAM_PATH_CFG_SIZE,
 	DCAM_PATH_CFG_FULL_SOURCE, /* 4in1 select full path source */
+	DCAM_PATH_CFG_SHUTOFF,
 };
 
 /*

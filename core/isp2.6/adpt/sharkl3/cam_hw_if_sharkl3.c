@@ -418,8 +418,6 @@ static int sharkl3_dcam_start(void *arg)
 	DCAM_REG_WR(idx, DCAM_INT_CLR, 0xFFFFFFFF);
 	/* see DCAM_PREVIEW_SOF in dcam_int.h for details */
 	DCAM_REG_WR(idx, DCAM_INT_EN, DCAMINT_IRQ_LINE_EN_NORMAL);
-	/* enable internal logic access sram */
-	DCAM_REG_MWR(idx, DCAM_APB_SRAM_CTRL, BIT_0, 1);
 	/* trigger cap_en*/
 	DCAM_REG_MWR(idx, DCAM_CFG, BIT_0, 1);
 
@@ -461,6 +459,25 @@ static int sharkl3_dcam_stop(void *arg)
 		pr_err("fail to stop:DCAM%d: stop timeout for 2s\n", idx);
 
 	pr_info("dcam%d stop end\n", idx);
+	return ret;
+}
+
+static int sharkl3_dcam_cap_disable(void *arg)
+{
+	int ret = 0;
+	struct dcam_pipe_dev *dev = NULL;
+	uint32_t idx = 0;
+
+	if (!arg) {
+		pr_err("fail to get valid arg\n");
+		return -EFAULT;
+	}
+
+	dev = (struct dcam_pipe_dev *)arg;
+	idx = dev->idx;
+
+	/* stop  cap_en*/
+	DCAM_REG_MWR(idx, DCAM_MIPI_CAP_CFG, BIT_0, 0);
 	return ret;
 }
 
@@ -633,6 +650,13 @@ static int sharkl3_dcam_fetch_set(void *arg)
 		fetch->trim.size_x, fetch->trim.size_y,
 		fetch->trim.start_x, fetch_pitch, fetch->addr.addr_ch0);
 	/* (bitfile)unit 32b,(spec)64b */
+
+	DCAM_REG_MWR(dev->idx, DCAM_INT_CLR,
+		DCAMINT_IRQ_LINE_MASK, DCAMINT_IRQ_LINE_MASK);
+	DCAM_REG_MWR(dev->idx, DCAM_INT_EN,
+		DCAMINT_IRQ_LINE_MASK, DCAMINT_IRQ_LINE_MASK);
+	DCAM_AXIM_MWR(IMG_FETCH_CTRL, 0x0F << 12, 0x0F << 12);
+	DCAM_AXIM_MWR(IMG_FETCH_CTRL, 0xFF << 4, 0xFF << 4);
 	fetch_pitch /= 4;
 	DCAM_REG_MWR(dev->idx, DCAM_MIPI_CAP_CFG, 0x7, 0x3);
 	DCAM_REG_MWR(dev->idx, DCAM_MIPI_CAP_CFG,
@@ -1147,6 +1171,44 @@ static int sharkl3_dcam_ebd_set(uint32_t idx, void *arg)
 		((p->image_vc & 0x3) << 16) |
 		((p->image_dt & 0x3F) << 8) |
 		(p->mode & 0x3));
+
+	return 0;
+}
+
+static int sharkl3_dcam_binning_4in1_set(void *arg, int binning_4in1_en)
+{
+	struct dcam_pipe_dev *dev = NULL;
+
+	if (!arg) {
+		pr_err("fail to get valid arg\n");
+		return -EFAULT;
+	}
+
+	dev = (struct dcam_pipe_dev *)arg;
+	if (binning_4in1_en) {
+		DCAM_REG_MWR(dev->idx, DCAM_MIPI_CAP_CFG, BIT_13, BIT_13);
+		DCAM_REG_MWR(dev->idx, DCAM_MIPI_CAP_CFG, BIT_12, 0 << 12);
+	} else {
+		DCAM_REG_MWR(dev->idx, DCAM_MIPI_CAP_CFG, BIT_13, BIT_13);
+		DCAM_REG_MWR(dev->idx, DCAM_MIPI_CAP_CFG, BIT_12, BIT_12);
+	}
+	return 0;
+}
+
+static int sharkl3_dcam_sram_ctrl_set(void *arg, int sram_ctrl_en)
+{
+	struct dcam_pipe_dev *dev = NULL;
+
+	if (!arg) {
+		pr_err("fail to get valid arg\n");
+		return -EFAULT;
+	}
+
+	dev = (struct dcam_pipe_dev *)arg;
+	if (sram_ctrl_en)
+		DCAM_REG_MWR(dev->idx, DCAM_APB_SRAM_CTRL, BIT_0, 1);
+	else
+		DCAM_REG_MWR(dev->idx, DCAM_APB_SRAM_CTRL, BIT_0, 0);
 
 	return 0;
 }
@@ -1821,6 +1883,7 @@ struct cam_hw_info sharkl3_hw_info = {
 		.core_ops = {
 			.start = sharkl3_dcam_start,
 			.stop = sharkl3_dcam_stop,
+			.stop_cap_eb = sharkl3_dcam_cap_disable,
 			.fetch_start = sharkl3_dcam_fetch_start,
 			.auto_copy = sharkl3_dcam_auto_copy,
 			.force_copy = sharkl3_dcam_force_copy,
@@ -1831,6 +1894,8 @@ struct cam_hw_info sharkl3_hw_info = {
 			.mipi_cap_set = sharkl3_dcam_mipi_cap_set,
 			.dcam_fetch_set = sharkl3_dcam_fetch_set,
 			.ebd_set = sharkl3_dcam_ebd_set,
+			.binning_4in1_set = sharkl3_dcam_binning_4in1_set,
+			.sram_ctrl_set = sharkl3_dcam_sram_ctrl_set,
 			.path_resume = NULL,
 			.lbuf_share_set = NULL,
 			.dcam_slice_fetch_set = sharkl3_dcam_slice_fetch_set,

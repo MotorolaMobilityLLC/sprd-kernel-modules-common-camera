@@ -156,6 +156,7 @@ struct cam_hw_irq_ops {
 struct cam_hw_core_ops {
 	int (*start)(void *arg);
 	int (*stop)(void *arg);
+	int (*stop_cap_eb)(void *arg);
 	void (*fetch_start)(struct cam_hw_info *hw);
 	void (*auto_copy)(uint32_t id, void *arg);
 	void (*force_copy)(uint32_t id, void *arg);
@@ -171,6 +172,8 @@ struct cam_hw_core_ops {
 	int (*dcam_slice_fetch_set)(void *arg);
 	int (* lbuf_share_set)(enum dcam_id idx, uint32_t width);
 	int (* ebd_set)(uint32_t idx, void *arg);
+	int (*binning_4in1_set)(void *arg, int binning_4in1_en);
+	int (*sram_ctrl_set)(void *arg, int sram_ctrl_en);
 	void (*isp_fetch_set)(void *arg);
 	void (*isp_afbc_addr_set)(uint32_t idx, uint32_t spath_id,
 		unsigned long *yuv_addr);

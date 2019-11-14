@@ -657,7 +657,7 @@ static int dcam_offline_start_slices_hw(void *param)
 	/* cfg path output and path */
 	for (i  = 0; i < DCAM_PATH_MAX; i++) {
 		path = &dev->path[i];
-		if (atomic_read(&path->user_cnt) < 1)
+		if (atomic_read(&path->user_cnt) < 1 || atomic_read(&path->is_shutoff) > 0)
 			continue;
 		ret = dcam_path_set_store_frm(dev, path, NULL); /* TODO: */
 		if (ret == 0) {
@@ -929,7 +929,7 @@ static int dcam_offline_start_slices_sw(void *param)
 	/* cfg path output and path */
 	for (i  = 0; i < DCAM_PATH_MAX; i++) {
 		path = &dev->path[i];
-		if (atomic_read(&path->user_cnt) < 1)
+		if (atomic_read(&path->user_cnt) < 1 || atomic_read(&path->is_shutoff) > 0)
 			continue;
 		ret = dcam_path_set_store_frm(dev, path, NULL); /* TODO: */
 		if (ret == 0) {
@@ -1102,7 +1102,7 @@ static int dcam_offline_start_frame(void *param)
 
 	for (i = 0; i < DCAM_PATH_MAX; i++) {
 		path = &dev->path[i];
-		if (atomic_read(&path->user_cnt) < 1)
+		if (atomic_read(&path->user_cnt) < 1 || atomic_read(&path->is_shutoff) > 0)
 			continue;
 		ret = dcam_path_set_store_frm(dev, path, NULL); /* TODO: */
 		if (ret == 0) {
@@ -1590,6 +1590,8 @@ static int sprd_dcam_cfg_path(
 	struct cam_hw_info *hw = NULL;
 	struct camera_frame *pframe = NULL;
 	uint32_t lowlux_4in1 = 0;
+	uint32_t shutoff = 0;
+
 	static const char *tb_src[] = {"(4c)raw", "bin-sum"}; /* for log */
 
 	if (!dcam_handle || !param) {
@@ -1691,6 +1693,11 @@ static int sprd_dcam_cfg_path(
 		}
 		pr_info("dev%d lowlux %d, skip_4in1 %d, full src: %s\n", dev->idx,
 			dev->lowlux_4in1, dev->skip_4in1, tb_src[lowlux_4in1]);
+		break;
+	case DCAM_PATH_CFG_SHUTOFF:
+		shutoff = *(uint32_t *)param;
+		atomic_set(&path->is_shutoff, shutoff);
+		pr_debug("set path %d shutoff %d\n", path_id, shutoff);
 		break;
 	default:
 		pr_warn("unsupported command: %d\n", cfg_cmd);
@@ -2095,7 +2102,7 @@ static int sprd_dcam_dev_start(void *dcam_handle, int online)
 		path = &dev->path[i];
 		atomic_set(&path->set_frm_cnt, 0);
 
-		if (atomic_read(&path->user_cnt) < 1)
+		if (atomic_read(&path->user_cnt) < 1 || atomic_read(&path->is_shutoff) > 0)
 			continue;
 
 		ret = dcam_path_set_store_frm(dev, path, helper);
@@ -2109,7 +2116,8 @@ static int sprd_dcam_dev_start(void *dcam_handle, int online)
 			hw->hw_ops.core_ops.path_start(dev, i);
 	}
 
-	dcam_init_lsc(dev, 1);
+	if (dev->is_4in1 == 0)
+		dcam_init_lsc(dev, 1);
 	/* DCAM_CTRL_COEF will always set in dcam_init_lsc() */
 	//force_ids &= ~DCAM_CTRL_COEF;
 	hw->hw_ops.core_ops.force_copy(force_ids, dev);
@@ -2127,6 +2135,9 @@ static int sprd_dcam_dev_start(void *dcam_handle, int online)
 	dcam_reset_int_tracker(dev->idx);
 	hw->hw_ops.core_ops.start(dev);
 
+	if (dev->is_4in1 == 0)
+		hw->hw_ops.core_ops.sram_ctrl_set(dev, 1);
+
 	if (dev->idx < DCAM_ID_2)
 		atomic_inc(&s_dcam_working);
 	atomic_set(&dev->state, STATE_RUNNING);
@@ -2140,7 +2151,9 @@ static int sprd_dcam_dev_start(void *dcam_handle, int online)
 static int sprd_dcam_dev_stop(void *dcam_handle)
 {
 	int ret = 0, state = 0;
+	int i = 0;
 	struct dcam_pipe_dev *dev = NULL;
+	struct dcam_path_desc *path = NULL;
 
 	if (!dcam_handle) {
 		pr_err("fail to get valid input ptr\n");
@@ -2188,6 +2201,10 @@ static int sprd_dcam_dev_stop(void *dcam_handle)
 	dev->err_count = 0;
 	dev->offline = 0;
 
+	for (i  = 0; i < DCAM_PATH_MAX; i++) {
+		path = &dev->path[i];
+		atomic_set(&path->is_shutoff, 0);
+	}
 	pr_info("stop dcam pipe dev[%d] state = %d!\n", dev->idx, atomic_read(&dev->state));
 	return ret;
 }
@@ -2223,6 +2240,7 @@ static int sprd_dcam_dev_open(void *dcam_handle)
 		path->path_id = i;
 		atomic_set(&path->user_cnt, 0);
 		atomic_set(&path->set_frm_cnt, 0);
+		atomic_set(&path->is_shutoff, 0);
 		spin_lock_init(&path->size_lock);
 
 		if (path->path_id == DCAM_PATH_BIN) {
