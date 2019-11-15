@@ -44,6 +44,7 @@ static const char *_DCAM_PATH_NAMES[DCAM_PATH_MAX] = {
 	[DCAM_PATH_HIST] = "HIST",
 	[DCAM_PATH_3DNR] = "3DNR",
 	[DCAM_PATH_BPC] = "BPC",
+	[DCAM_PATH_LSCM] = "LSCM",
 };
 
 /*
@@ -429,10 +430,6 @@ int dcam_path_set_store_frm(void *dcam_handle,
 
 	pr_debug("DCAM%u %s enter\n", idx, to_path_name(path_id));
 
-	frame = dcam_path_cycle_frame(dev, path);
-	if (IS_ERR(frame))
-		return PTR_ERR(frame);
-
 	/* assign last buffer for AEM and HIST in slow motion */
 	i = dev->slowmotion_count - 1;
 
@@ -448,6 +445,16 @@ int dcam_path_set_store_frm(void *dcam_handle,
 		/* normal scene */
 		addr = *(hw->ip_dcam[idx]->store_addr_tab + path_id);
 	}
+
+	if (addr == 0L) {
+		pr_info("DCAM%d invalid path id %d, path name %s\n",
+				idx, path_id, to_path_name(path_id));
+		return 0;
+	}
+
+	frame = dcam_path_cycle_frame(dev, path);
+	if (IS_ERR(frame))
+		return PTR_ERR(frame);
 
 	/* replace image data for debug */
 	if (dev->replacer) {

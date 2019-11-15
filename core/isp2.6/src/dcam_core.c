@@ -1949,6 +1949,7 @@ static int sprd_dcam_dev_stop(void *dcam_handle)
 	dev->blk_dcam_pm->afm.bypass = 1;
 	dev->blk_dcam_pm->afl.bypass = 1;
 	dev->blk_dcam_pm->hist.bayerHist_info.hist_bypass = 1;
+	dev->blk_dcam_pm->lscm.bypass = 1;
 	dev->is_pdaf = dev->is_3dnr = dev->is_4in1 = 0;
 	dev->err_count = 0;
 	dev->offline = 0;
@@ -2014,6 +2015,7 @@ static int sprd_dcam_dev_open(void *dcam_handle)
 	dev->blk_dcam_pm->aem.bypass = 1;
 	dev->blk_dcam_pm->afm.bypass = 1;
 	dev->blk_dcam_pm->afl.bypass = 1;
+	dev->blk_dcam_pm->lscm.bypass = 1;
 	dev->blk_dcam_pm->hist.bayerHist_info.hist_bypass = 1;
 	mutex_init(&dev->blk_dcam_pm->lsc.lsc_lock);
 

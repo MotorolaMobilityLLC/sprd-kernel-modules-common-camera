@@ -22,7 +22,7 @@
 #ifdef pr_fmt
 #undef pr_fmt
 #endif
-#define pr_fmt(fmt) "BPC: %d %d %s : "\
+#define pr_fmt(fmt) "3DNR: %d %d %s : "\
 	fmt, current->pid, __LINE__, __func__
 
 #define DCAM_3DNR_ROI_SIZE_ALIGN 16u
