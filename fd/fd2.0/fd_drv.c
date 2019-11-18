@@ -843,9 +843,9 @@ static int fd_post_write_proc(struct fd_drv *hw_handle, unsigned int reg_param)
 				&hw_handle->fd_wait_com, msecs_to_jiffies(FD_INT_TIMEOUT));
 		if(left_time == 0){
 			ret = -EBUSY;
+			fd_reg_dump(hw_handle);
 			pr_err("FD INT timeout reached\n");
 		}
-		fd_reg_dump(hw_handle);
 		break;
 	default:
 		break;
