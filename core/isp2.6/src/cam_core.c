@@ -704,6 +704,9 @@ static void alloc_buffers(struct work_struct *work)
 		channel->ch_id, size, width, height);
 
 	total = 5;
+	if (channel->ch_id == CAM_CH_CAP && module->cam_uinfo.is_dual)
+		total = 4;
+
 	if (module->dump_thrd.thread_task)
 		total += 3;
 
