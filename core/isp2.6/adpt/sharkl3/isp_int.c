@@ -150,6 +150,17 @@ static void isp_frame_done(enum isp_context_id idx, struct isp_pipe_dev *dev)
 			pctx->ctx_id, pctx->proc_queue.cnt);
 	}
 
+	if (pctx->sw_slice_num) {
+		if (pctx->sw_slice_no != (pctx->sw_slice_num - 1)) {
+			pr_debug("done cxt_id:%d ch_id[%d] slice %d\n", idx, pctx->ch_id, pctx->sw_slice_no);
+			return;
+		} else {
+			pr_debug("done cxt_id:%d ch_id[%d] lastslice %d\n", idx, pctx->ch_id, pctx->sw_slice_no);
+			pctx->sw_slice_no = 0;
+			pctx->sw_slice_num = 0;
+		}
+	}
+
 	/* get output buffers for all path */
 	for (i = 0; i < ISP_SPATH_NUM; i++) {
 		path = &pctx->isp_path[i];

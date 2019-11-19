@@ -291,7 +291,7 @@ static int calc_scaler_coeff(
 	return 0;
 }
 
-int cfg_path_scaler(struct isp_path_desc *path)
+int isp_cfg_path_scaler(struct isp_path_desc *path)
 {
 	int ret = 0;
 	uint32_t is_yuv422, scale2yuv420 = 0;
@@ -939,7 +939,7 @@ int isp_cfg_path_size(struct isp_path_desc *path, void *param)
 	if (path->spath_id == ISP_SPATH_FD)
 		ret = cfg_path_thumbscaler(path);
 	else
-		ret = cfg_path_scaler(path);
+		ret = isp_cfg_path_scaler(path);
 
 	store->size.w = path->dst.w;
 	store->size.h = path->dst.h;
@@ -1492,8 +1492,12 @@ int isp_path_set_store_frm(
 			yuv_addr[0], yuv_addr[1], yuv_addr[2]);
 
 	if ((planes > 1) && yuv_addr[1] == 0) {
-		offset_u = store->pitch.pitch_ch0 * store->size.h;
-		yuv_addr[1] = yuv_addr[0] + offset_u;
+		if (!pctx->sw_slice_num) {
+			offset_u = store->pitch.pitch_ch0 * store->size.h;
+			yuv_addr[1] = yuv_addr[0] + offset_u;
+		} else {
+			yuv_addr[1] = frame->buf.iova[0] + store->total_size * 2 / 3;;
+		}
 	}
 
 	if ((planes > 2) && yuv_addr[2] == 0) {
@@ -1503,6 +1507,11 @@ int isp_path_set_store_frm(
 		yuv_addr[2] = yuv_addr[1] + offset_v;
 	}
 
+	if (pctx->sw_slice_num) {
+		yuv_addr[0] += store->slice_offset.addr_ch0;
+		yuv_addr[1] += store->slice_offset.addr_ch1;
+		yuv_addr[2] += store->slice_offset.addr_ch2;
+	}
 	pr_debug("path %d planes %d addr %lx %lx %lx\n",
 		path->spath_id, planes,
 		yuv_addr[0], yuv_addr[1], yuv_addr[2]);

@@ -236,8 +236,9 @@ struct dcam_pipe_dev {
 	uint32_t offline; /* flag: set 1 for 4in1 go through dcam1 bin */
 	uint32_t rps; /* raw_proc_scene 0:normal 1:hwsim*/
 	uint32_t dcam_slice_mode;
-	atomic_t slice_no; /* 0: none , 1: left , 2: right */
-	uint32_t is_last_slice;
+	uint32_t slice_num;
+	uint32_t slice_count;
+	struct img_trim slice_trim;
 	uint32_t raw_cap;
 	struct completion slice_done;
 	struct completion frm_done;

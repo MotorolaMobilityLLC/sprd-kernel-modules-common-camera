@@ -902,6 +902,89 @@ static int isp_slice_needed(struct isp_pipe_context *pctx)
 	return 0;
 }
 
+static void isp_sw_slice_prepare(struct isp_pipe_context *pctx,
+					   struct camera_frame *pframe)
+{
+	struct isp_fetch_info *fetch = &pctx->fetch;
+	struct isp_store_info *store = NULL;
+	uint32_t mipi_byte_info = 0;
+	uint32_t mipi_word_info = 0;
+	uint32_t start_col = 0;
+	uint32_t end_col = pframe->slice_trim.size_x - 1;
+	uint32_t mipi_word_num_start[16] = {
+		0, 1, 1, 1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 4, 5, 5};
+	uint32_t mipi_word_num_end[16] = {
+		0, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5};
+	struct img_size src;
+	uint32_t slice_num = 0;
+	uint32_t slice_no = 0;
+	uint32_t first_slice = 0;
+	struct isp_path_desc *path;
+
+	pctx->sw_slice_num = pframe->sw_slice_num;
+	pctx->sw_slice_no = pframe->sw_slice_no;
+	slice_num = pctx->sw_slice_num;
+	slice_no = pctx->sw_slice_no;
+	first_slice = (slice_no != 0) ? 0 : 1;
+
+	mipi_byte_info = start_col & 0xF;
+	mipi_word_info =
+		((end_col + 1) >> 4) * 5
+		+ mipi_word_num_end[(end_col + 1) & 0xF]
+		- ((start_col + 1) >> 4) * 5
+		- mipi_word_num_start[(start_col + 1) & 0xF] + 1;
+
+	fetch->mipi_byte_rel_pos = 0;
+	fetch->mipi_word_num = mipi_word_info;
+	fetch->pitch.pitch_ch0 = cal_sprd_raw_pitch(pframe->slice_trim.size_x, 0);
+	fetch->pitch.pitch_ch1 = 0;
+	fetch->pitch.pitch_ch2 = 0;
+
+	path = &pctx->isp_path[ISP_SPATH_CP];
+	store = &path->store;
+
+	if (first_slice) {
+		fetch->in_trim.size_x = fetch->src.w = pframe->slice_trim.size_x;
+		fetch->in_trim.size_y = fetch->src.h = pframe->slice_trim.size_y;
+
+		pctx->input_trim.start_x = 0;
+		pctx->input_trim.start_y = 0;
+		src.w = pctx->input_trim.size_x = fetch->in_trim.size_x;
+		src.h = pctx->input_trim.size_y = fetch->in_trim.size_y;
+		pctx->input_size = src;
+		path->in_trim = pctx->input_trim;
+		path->src = src;
+
+		store->pitch.pitch_ch0 = store->size.w;
+		store->pitch.pitch_ch1 = store->size.w;
+		if (slice_num > SLICE_NUM_MAX) {
+			store->size.w = ALIGN(store->size.w / (slice_num / 2), 2);
+			store->size.h = ALIGN(store->size.h / 2, 2);
+		} else
+			store->size.w = ALIGN(store->size.w/ slice_num, 2);
+		path->out_trim.start_x = 0;
+		path->out_trim.start_y = 0;
+		path->out_trim.size_x = path->dst.w = store->size.w;
+		path->out_trim.size_y = path->dst.h = store->size.h;
+		isp_cfg_path_scaler(path);
+	}
+
+	if (slice_num > SLICE_NUM_MAX) {
+		fetch->trim_off.addr_ch0 =
+			(slice_no / (slice_num / 2)) * fetch->pitch.pitch_ch0 * fetch->src.h;
+		store->slice_offset.addr_ch0 = path->dst.w * (slice_no % (slice_num / 2))
+			+ (slice_no / (slice_num / 2)) * store->pitch.pitch_ch0 * store->size.h;
+		store->slice_offset.addr_ch1 = path->dst.w * (slice_no % (slice_num / 2))
+			+ (slice_no / (slice_num / 2)) * store->pitch.pitch_ch1 * store->size.h / 2;
+		store->slice_offset.addr_ch2 = 0;
+	} else {
+		fetch->trim_off.addr_ch0 = 0;
+		store->slice_offset.addr_ch0 = path->dst.w * slice_no;
+		store->slice_offset.addr_ch1 = path->dst.w * slice_no;
+		store->slice_offset.addr_ch2 = 0;
+	}
+}
+
 static int isp_offline_start_frame(void *ctx)
 {
 	int ret = 0;
@@ -941,6 +1024,8 @@ static int isp_offline_start_frame(void *ctx)
 		use_fmcu |= FMCU_IS_MUST; // force fmcu used
 	if (pctx->enable_slowmotion)
 		use_fmcu |= FMCU_IS_MUST; // force fmcu used
+	if (pctx->sw_slice_num)
+		use_fmcu = FMCU_IS_NEED;
 
 	loop = 0;
 	do {
@@ -970,6 +1055,10 @@ static int isp_offline_start_frame(void *ctx)
 		pr_info("cam%d  ctx %d, fid %d, ch_id %d, buf_fd %d\n",
 			pctx->attach_cam_id,  pctx->ctx_id,
 			pframe->fid, pframe->channel_id, pframe->buf.mfd[0]);
+
+	if (pframe->sw_slice_num) {
+		isp_sw_slice_prepare(pctx, pframe);
+	}
 
 	ret = cambuf_iommu_map(&pframe->buf, CAM_IOMMUDEV_ISP);
 	if (ret) {
@@ -1016,7 +1105,7 @@ static int isp_offline_start_frame(void *ctx)
 
 	multi_slice = pctx->multi_slice;
 	/* the context/path maybe init/updated after dev start. */
-	if (pctx->updated) {
+	if (pctx->updated || pctx->sw_slice_num) {
 		ret = isp_slice_ctx_init(pctx, &multi_slice);
 		hw->hw_ops.core_ops.isp_fetch_set(pctx);
 	}
@@ -1039,7 +1128,7 @@ static int isp_offline_start_frame(void *ctx)
 		if ((i < AFBC_PATH_NUM) && (path->afbc_store.bypass == 0))
 			ret = isp_afbc_store(path);
 
-		if (pctx->updated)
+		if (pctx->updated || pctx->sw_slice_num)
 			ret = isp_set_path(path);
 
 		/* slave path output buffer binding to master buffer*/
@@ -1053,6 +1142,9 @@ static int isp_offline_start_frame(void *ctx)
 			pr_debug("3dnr frame [0 ~ 3], discard cnt[%d][%d]\n",
 				 pctx->nr3_ctx.blending_cnt,
 				 pctx->nr3_ctx.blending_cnt % 5);
+		} else if (pctx->sw_slice_num && pctx->sw_slice_no != 0) {
+				out_frame = camera_dequeue(&path->result_queue);
+				valid_out_frame = 1;
 		} else {
 			if (path->uframe_sync
 			    && target_fid != CAMERA_RESERVE_FRAME_NUM)
@@ -1076,6 +1168,9 @@ static int isp_offline_start_frame(void *ctx)
 			ret = 0;
 			goto unlock;
 		}
+
+		if (pctx->sw_slice_num)
+			pr_debug("start pctx %d slice 0x%x, frame %p\n", pctx->ctx_id, pctx->sw_slice_no, out_frame);
 
 		out_frame->fid = frame_id;
 		out_frame->sensor_time = pframe->sensor_time;

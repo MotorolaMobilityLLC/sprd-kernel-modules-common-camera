@@ -585,16 +585,26 @@ static void dcam_bin_path_done(void *param)
 	}
 
 	if (dev->offline) {
-		if (!dev->is_last_slice) {
-			pr_info("dcam%d offline slice done.\n", dev->idx);
+		if(dev->dcam_slice_mode)
 			complete(&dev->slice_done);
-			return;
-		}
-		pr_info("dcam%d offline frame done.\n", dev->idx);
-		complete(&dev->slice_done);
 	}
 
 	if ((frame = dcam_prepare_frame(dev, DCAM_PATH_BIN))) {
+		if (dev->dcam_slice_mode) {
+			frame->dcam_idx = dev->idx;
+			frame->sw_slice_num = dev->slice_num;
+			frame->sw_slice_no = dev->slice_num - dev->slice_count;
+			frame->slice_trim = dev->slice_trim;
+
+			if (dev->slice_count > 0)
+				dev->slice_count--;
+			if (dev->slice_count > 0)
+				pr_debug("offline_slice%d_done\n", dev->slice_num - (dev->slice_count + 1));
+			else {
+				pr_debug("offline_lastslice_done\n");
+				dev->slice_num = 0;
+			}
+		}
 		dcam_dispatch_frame(dev, DCAM_PATH_BIN, frame,
 				    DCAM_CB_DATA_DONE);
 	}
@@ -606,12 +616,15 @@ static void dcam_bin_path_done(void *param)
 				    DCAM_CB_DATA_DONE);
 
 	if (dev->offline) {
-		/* there is source buffer for offline process */
-		frame = camera_dequeue(&dev->proc_queue);
-		if (frame) {
-			cambuf_iommu_unmap(&frame->buf);
-			dev->dcam_cb_func(DCAM_CB_RET_SRC_BUF, frame,
-					  dev->cb_priv_data);
+		if ((dev->dcam_slice_mode == CAM_OFFLINE_SLICE_SW && dev->slice_count == 0)
+			|| dev->dcam_slice_mode != CAM_OFFLINE_SLICE_SW) {
+			/* there is source buffer for offline process */
+			frame = camera_dequeue(&dev->proc_queue);
+			if (frame) {
+				cambuf_iommu_unmap(&frame->buf);
+				dev->dcam_cb_func(DCAM_CB_RET_SRC_BUF, frame,
+						  dev->cb_priv_data);
+			}
 		}
 		complete(&dev->frm_done);
 	}

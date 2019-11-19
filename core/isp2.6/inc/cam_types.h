@@ -84,7 +84,11 @@ extern struct cam_dbg_dump g_dbg_dump;
 
 /*************** for global debug ends ********************/
 
-
+enum camera_slice_mode {
+	CAM_SLICE_NONE = 0,
+	CAM_OFFLINE_SLICE_HW,
+	CAM_OFFLINE_SLICE_SW
+};
 
 enum camera_cap_type {
 	CAM_CAP_NORMAL = 0,

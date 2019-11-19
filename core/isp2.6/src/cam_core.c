@@ -74,6 +74,7 @@
 #define ISP_PATHID_BITS 8
 #define ISP_PATHID_MASK 0x3
 #define ISP_CTXID_OFFSET ISP_PATHID_BITS
+#define ISP_SLICE_OVERLAP_W_MAX 64
 #define DCAM_4IN1_FRAMES 16
 #define ALIGN_UP(a, x)	(((a) + (x) - 1) & (~((x) - 1)))
 
@@ -164,7 +165,9 @@ struct camera_uinfo {
 	uint32_t is_rgb_ltm;
 	uint32_t is_yuv_ltm;
 	uint32_t is_dual;
-	uint32_t dcam_slice_mode;
+	uint32_t dcam_slice_mode;   /*1: hw,  2:sw*/
+	uint32_t slice_num;
+	uint32_t slice_count;
 	uint32_t is_afbc;
 };
 
@@ -937,7 +940,7 @@ static int set_cap_info(struct camera_module *module)
 	ret = dcam_ops->ioctl(module->dcam_dev_handle,
 				DCAM_IOCTL_CFG_CAP, &cap_info);
 	/* for dcam1 mipicap */
-	if (info->dcam_slice_mode == 1 && module->aux_dcam_dev)
+	if (info->dcam_slice_mode && module->aux_dcam_dev)
 		ret = dcam_ops->ioctl(module->aux_dcam_dev,
 				DCAM_IOCTL_CFG_CAP, &cap_info);
 	return ret;
@@ -1257,6 +1260,21 @@ int isp_callback(enum isp_cb_type type, void *param, void *priv_data)
 			pr_info("isp ret src frame %p\n", pframe);
 			camera_enqueue(&channel->share_buf_queue, pframe);
 		} else if (module->cap_status == CAM_CAPTURE_RAWPROC) {
+			if (module->cam_uinfo.dcam_slice_mode == CAM_OFFLINE_SLICE_SW) {
+				struct channel_context *ch = NULL;
+
+				pr_debug("slice %d %p\n", module->cam_uinfo.slice_count, pframe);
+				module->cam_uinfo.slice_count++;
+				ch = &module->channel[CAM_CH_CAP];
+				ret = dcam_ops->cfg_path(module->dcam_dev_handle,
+						DCAM_PATH_CFG_OUTPUT_BUF,
+						ch->dcam_path_id, pframe);
+				if (module->cam_uinfo.slice_count >= module->cam_uinfo.slice_num)
+					module->cam_uinfo.slice_count = 0;
+				else
+					ret = dcam_ops->proc_frame(module->dcam_dev_handle, pframe);
+				return ret;
+			}
 			/* for case raw capture post-proccessing
 			 * just release it, no need to return
 			 */
@@ -2651,6 +2669,57 @@ static int config_4in1_channel_size(struct camera_module *module,
 	return 0;
 }
 
+static int get_slice_num_info(struct sprd_img_size *src,
+				struct sprd_img_size *dst)
+{
+	uint32_t slice_num, slice_w, slice_w_out;
+	uint32_t slice_max_w, max_w;
+	uint32_t linebuf_len;
+	uint32_t input_w = src->w;
+	uint32_t output_w = dst->w;
+
+	/* based input */
+	linebuf_len = g_camctrl.isp_linebuf_len;
+	max_w = input_w;
+	slice_num = 1;
+	slice_max_w = linebuf_len - ISP_SLICE_OVERLAP_W_MAX;
+	if (max_w <= linebuf_len) {
+		slice_w = max_w;
+	} else {
+		do {
+			slice_num++;
+			slice_w = (max_w + slice_num - 1) / slice_num;
+		} while (slice_w >= slice_max_w);
+	}
+	pr_debug("input_w %d, slice_num %d, slice_w %d\n",
+		max_w, slice_num, slice_w);
+
+	/* based output */
+	max_w = output_w;
+	slice_num = 1;
+	slice_max_w = linebuf_len;
+	if (max_w > 0) {
+		if (max_w > linebuf_len) {
+			do {
+				slice_num++;
+				slice_w_out = (max_w + slice_num - 1) / slice_num;
+			} while (slice_w_out >= slice_max_w);
+		}
+		/* set to equivalent input size, because slice size based on input. */
+		slice_w_out = (input_w + slice_num - 1) / slice_num;
+	} else
+		slice_w_out = slice_w;
+	pr_debug("max output w %d, slice_num %d, out limited slice_w %d\n",
+		max_w, slice_num, slice_w_out);
+
+	slice_w = MIN(slice_w, slice_w_out);
+	slice_w = ALIGN(slice_w, 2);
+	slice_num = (input_w + slice_w - 1) / slice_w;
+	if (dst->h > ISP_SLCIE_HEIGHT_MAX)
+		slice_num *= 2;
+	return slice_num;
+}
+
 static int zoom_proc(void *param)
 {
 	int update_pv = 0, update_c = 0;
@@ -2808,6 +2877,7 @@ static int dump_one_frame(struct camera_module *module,
 	uint8_t file_name[256] = { '\0' };
 	uint8_t tmp_str[20] = { '\0' };
 	uint32_t is_loose = 0;
+	uint32_t width = 0;
 
 	ch_id = pframe->channel_id;
 	channel = &module->channel[ch_id];
@@ -2823,10 +2893,21 @@ static int dump_one_frame(struct camera_module *module,
 	sprintf(tmp_str, "%06d", (uint32_t)(module->cur_dump_ts.tv_nsec / NSEC_PER_USEC));
 	strcat(file_name, tmp_str);
 
-	sprintf(tmp_str, "_w%d", pframe->width);
-	strcat(file_name, tmp_str);
-	sprintf(tmp_str, "_h%d", pframe->height);
-	strcat(file_name, tmp_str);
+	if (!pframe->sw_slice_num) {
+		sprintf(tmp_str, "_w%d", pframe->width);
+		strcat(file_name, tmp_str);
+		sprintf(tmp_str, "_h%d", pframe->height);
+		strcat(file_name, tmp_str);
+		width = pframe->width;
+	} else {
+		sprintf(tmp_str, "_no%d", pframe->sw_slice_no);
+		strcat(file_name, tmp_str);
+		sprintf(tmp_str, "_w%d", pframe->slice_trim.size_x);
+		strcat(file_name, tmp_str);
+		sprintf(tmp_str, "_h%d", pframe->slice_trim.size_y);
+		strcat(file_name, tmp_str);
+		width = pframe->slice_trim.size_x;
+	}
 
 	sprintf(tmp_str, "_No%d", pframe->fid);
 	strcat(file_name, tmp_str);
@@ -2847,7 +2928,7 @@ static int dump_one_frame(struct camera_module *module,
 		size = dcam_if_cal_compressed_size(pframe->width,
 					pframe->height, pframe->compress_4bit_bypass);
 	} else {
-		size = cal_sprd_raw_pitch(pframe->width, is_loose) * pframe->height;
+		size = cal_sprd_raw_pitch(width, is_loose) * pframe->height;
 	}
 	if(is_loose == CAM_RAW_HALF14 || is_loose == CAM_RAW_HALF10)
 		strcat(file_name, ".raw");
@@ -2948,7 +3029,7 @@ static int init_bigsize_aux(struct camera_module *module,
 			struct channel_context *channel)
 {
 	int ret = 0;
-	uint32_t dcam_idx = 1;
+	uint32_t dcam_idx = DCAM_ID_1;
 	uint32_t dcam_path_id;
 	void *dcam = NULL;
 	struct camera_group *grp = module->grp;
@@ -2967,7 +3048,9 @@ static int init_bigsize_aux(struct camera_module *module,
 	}
 
 	dev = (struct dcam_pipe_dev *)module->aux_dcam_dev;
-	dev->dcam_slice_mode = 1;
+	dev->dcam_slice_mode = module->cam_uinfo.dcam_slice_mode;
+	dev->slice_num = module->cam_uinfo.slice_num;
+	dev->slice_count = 0;
 
 	ret = dcam_ops->open(module->aux_dcam_dev);
 	if (ret < 0) {
@@ -4159,7 +4242,7 @@ static int img_ioctl_set_sensor_size(
 				sizeof(struct sprd_img_size));
 
 	pr_info("sensor_size %d %d\n", dst->w, dst->h);
-	module->cam_uinfo.dcam_slice_mode = dst->w > DCAM_24M_WIDTH ? 1 : 0;
+	module->cam_uinfo.dcam_slice_mode = dst->w > DCAM_24M_WIDTH ? CAM_OFFLINE_SLICE_HW : 0;
 	if (unlikely(ret)) {
 		pr_err("fail to copy from user, ret %d\n", ret);
 		ret = -EFAULT;
@@ -5282,7 +5365,7 @@ static int img_ioctl_stream_on(
 	if (ch->enable) {
 		config_channel_size(module, ch);
 		/* alloc dcam1 memory and cfg out buf */
-		if (module->cam_uinfo.dcam_slice_mode == 1)
+		if (module->cam_uinfo.dcam_slice_mode)
 			config_channel_bigsize(module, ch);
 	}
 
@@ -5954,6 +6037,8 @@ static int raw_proc_done(struct camera_module *module)
 	camera_queue_clear(&module->isp_hist2_outbuf_queue);
 	camera_queue_clear(&module->frm_queue);
 	camera_queue_clear(&ch->share_buf_queue);
+	module->cam_uinfo.dcam_slice_mode = CAM_SLICE_NONE;
+	module->cam_uinfo.slice_num = 0;
 	atomic_set(&module->state, CAM_IDLE);
 	pr_info("camera%d rawproc done.\n", module->idx);
 
@@ -6012,6 +6097,28 @@ static int raw_proc_pre(
 	ch->dcam_path_id = -1;
 	ch->isp_path_id = -1;
 	ch->aux_dcam_path_id = -1;
+
+	if ((module->grp->hw_info->prj_id == SHARKL3)
+		&& proc_info->src_size.width > ISP_WIDTH_MAX
+		&& proc_info->dst_size.width > ISP_WIDTH_MAX) {
+		struct dcam_pipe_dev *dev = NULL;
+
+		ch->ch_uinfo.src_size.w = proc_info->src_size.width;
+		ch->ch_uinfo.src_size.h = proc_info->src_size.height;
+		ch->ch_uinfo.dst_size.w = proc_info->dst_size.width;
+		ch->ch_uinfo.dst_size.h = proc_info->dst_size.height;
+		module->cam_uinfo.dcam_slice_mode = CAM_OFFLINE_SLICE_SW;
+		module->cam_uinfo.slice_num = get_slice_num_info(&ch->ch_uinfo.src_size,
+			&ch->ch_uinfo.dst_size);
+		module->cam_uinfo.slice_count = 0;
+		module->auto_3dnr = 0;
+
+		dev = (struct dcam_pipe_dev *)module->dcam_dev_handle;
+		dev->dcam_slice_mode = module->cam_uinfo.dcam_slice_mode;
+		dev->slice_num = module->cam_uinfo.slice_num;
+		dev->slice_count = 0;
+		pr_debug("slice_num %d\n", module->cam_uinfo.slice_num);
+	}
 
 	/* specify dcam path */
 	dcam_path_id = DCAM_PATH_BIN;
@@ -6215,6 +6322,14 @@ static int raw_proc_post(
 	} else {
 		width = proc_info->src_size.width;
 		height = proc_info->src_size.height;
+		if (module->cam_uinfo.dcam_slice_mode == CAM_OFFLINE_SLICE_SW) {
+			width = width / module->cam_uinfo.slice_num;
+			if (proc_info->dst_size.height > ISP_SLCIE_HEIGHT_MAX) {
+				width *= 2;
+			}
+			width = ALIGN(width, 4);
+		}
+
 		//if(ch->dcam_path_id == 0 && module->cam_uinfo.is_4in1 == 1)
 			//ch_desc.is_loose = 0;
 		if(ch->dcam_path_id == 0 && module->cam_uinfo.is_4in1 == 1)

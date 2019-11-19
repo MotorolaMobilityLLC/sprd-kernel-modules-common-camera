@@ -110,6 +110,7 @@ struct dcam_dev_param {
 	struct mutex param_lock;
 	uint32_t idx; /* dcam dev idx */
 	void *dev;/* dcam_pipe_dev */
+	uint32_t dcam_slice_mode;
 
 	struct dcam_dev_lsc_param lsc;
 	struct dcam_dev_blc_param blc;

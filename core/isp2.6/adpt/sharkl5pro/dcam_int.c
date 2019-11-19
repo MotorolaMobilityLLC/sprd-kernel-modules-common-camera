@@ -599,13 +599,14 @@ static void dcam_bin_path_done(void *param)
 	}
 
 	if (dev->offline) {
-		if (!dev->is_last_slice) {
-			atomic_set(&dev->slice_no, 2);
+		if (dev->slice_count > 0)
+			dev->slice_count--;
+
+		if (dev->slice_count > 0) {
 			pr_info("dcam%d offline slice0 done.\n", dev->idx);
 			complete(&dev->slice_done);
 			return;
 		}
-		atomic_set(&dev->slice_no, 0);
 		pr_info("dcam%d slice1 done.\n", dev->idx);
 		complete(&dev->slice_done);
 	}

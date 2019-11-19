@@ -168,7 +168,7 @@ struct cam_hw_core_ops {
 	int (*dcam_fetch_set)(void *arg);
 	void (*dcam_fbc_ctrl)(uint32_t idx, int fbc_mode);
 	int (*dcam_fbc_addr_set)(uint32_t idx, unsigned long addr, void *arg);
-	int (*dcam_slice_fetch_set)(uint32_t idx, void *arg);
+	int (*dcam_slice_fetch_set)(void *arg);
 	int (* lbuf_share_set)(enum dcam_id idx, uint32_t width);
 	int (* ebd_set)(uint32_t idx, void *arg);
 	void (*isp_fetch_set)(void *arg);

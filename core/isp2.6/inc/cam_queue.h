@@ -17,6 +17,7 @@
 #include <linux/types.h>
 #include <linux/spinlock.h>
 
+#include "cam_types.h"
 #include "cam_buf.h"
 
 #define CAM_EMP_Q_LEN_INC		16
@@ -45,6 +46,10 @@ struct camera_frame {
 	uint32_t compress_4bit_bypass;
 	uint32_t user_fid;
 	uint32_t dcam_idx;
+	uint32_t sw_slice_num;
+	uint32_t sw_slice_no;
+	struct img_trim slice_trim;
+
 	void *priv_data;
 	/* for more param extend especially in offline process */
 	void *param_data;

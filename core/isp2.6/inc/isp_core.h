@@ -264,6 +264,7 @@ struct isp_store_info {
 	enum isp_store_format color_fmt; /* output color format */
 	struct img_size size;
 	struct img_addr addr;
+	struct img_addr slice_offset;
 	struct img_pitch pitch;
 };
 
@@ -440,6 +441,8 @@ struct isp_pipe_context {
 	uint32_t multi_slice;
 	uint32_t is_last_slice;
 	uint32_t valid_slc_num;
+	uint32_t sw_slice_num;
+	uint32_t sw_slice_no;
 
 	struct isp_3dnr_ctx_desc nr3_ctx;
 	struct isp_ltm_ctx_desc ltm_ctx;

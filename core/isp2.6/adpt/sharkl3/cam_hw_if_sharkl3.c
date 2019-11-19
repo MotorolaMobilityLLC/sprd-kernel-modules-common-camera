@@ -651,6 +651,68 @@ static int sharkl3_dcam_fetch_set(void *arg)
 	return ret;
 }
 
+int sharkl3_dcam_slice_fetch_set(void *arg)
+{
+	int ret = 0;
+	uint32_t fetch_pitch;
+	struct dcam_pipe_dev *dev = NULL;
+	struct dcam_fetch_info *fetch = NULL;
+	uint32_t reg_val;
+
+	if (!arg)
+		pr_err("fail to check param");
+
+	dev = (struct dcam_pipe_dev *)arg;
+	fetch = &dev->fetch;
+	/* !0 is loose */
+	if (fetch->is_loose != 0) {
+		fetch_pitch = fetch->size.w * 2;
+	} else {
+		/* to bytes */
+		fetch_pitch = (fetch->size.w + 3) / 4 * 5;
+		/* bytes align 32b */
+		fetch_pitch = (fetch_pitch + 3) & (~0x3);
+	}
+	pr_debug("size [%d %d], start [%d %d], pitch %d, 0x%x\n",
+		fetch->trim.size_x, fetch->trim.size_y,
+		fetch->trim.start_x, fetch->trim.start_y,
+		fetch_pitch, fetch->addr.addr_ch0);
+	fetch_pitch /= 4;
+	DCAM_AXIM_MWR(IMG_FETCH_CTRL, BIT_16, BIT_16);
+	DCAM_REG_MWR(dev->idx, DCAM_MIPI_CAP_CFG, 0x7, 0x3);
+	DCAM_REG_MWR(dev->idx, DCAM_MIPI_CAP_CFG,
+		BIT_17 | BIT_16, (fetch->pattern & 3) << 16);
+
+	DCAM_AXIM_MWR(IMG_FETCH_CTRL,
+		BIT_1, fetch->is_loose << 1);
+	DCAM_AXIM_MWR(IMG_FETCH_CTRL,
+		BIT_3 | BIT_2, fetch->endian << 2);
+	DCAM_AXIM_MWR(IMG_FETCH_CTRL,
+		0xFF << 8, 0x01 << 8);
+	DCAM_AXIM_MWR(IMG_FETCH_CTRL,
+		0x0F << 12, 0x01 << 12);
+
+	DCAM_AXIM_WR(IMG_FETCH_SIZE,
+		(fetch->trim.size_y << 16) | (fetch->trim.size_x & 0x3fff));
+	DCAM_AXIM_WR(IMG_FETCH_X,
+		(fetch_pitch << 16) | (fetch->trim.start_x & 0x3fff));
+
+	DCAM_REG_WR(dev->idx, DCAM_MIPI_CAP_START, 0);
+	DCAM_REG_WR(dev->idx, DCAM_MIPI_CAP_END,
+		((fetch->trim.size_y - 1) << 16) | (fetch->trim.size_x - 1));
+
+	DCAM_AXIM_WR(IMG_FETCH_RADDR, fetch->addr.addr_ch0);
+
+	DCAM_REG_WR(dev->idx, DCAM_CAM_BIN_CFG, BIT_5 | BIT_4);
+
+	reg_val = (0 << 16) | dev->slice_trim.start_x;
+	DCAM_REG_WR(dev->idx, DCAM_CROP0_START, reg_val);
+	reg_val = (dev->slice_trim.size_y << 17) | dev->slice_trim.size_x;
+	DCAM_REG_WR(dev->idx, DCAM_CROP0_X, reg_val);
+
+	return ret;
+}
+
 static int sharkl3_dcam_mipi_cap_set(void *arg)
 {
 	int ret = 0;
@@ -1771,7 +1833,7 @@ struct cam_hw_info sharkl3_hw_info = {
 			.ebd_set = sharkl3_dcam_ebd_set,
 			.path_resume = NULL,
 			.lbuf_share_set = NULL,
-			.dcam_slice_fetch_set = NULL,
+			.dcam_slice_fetch_set = sharkl3_dcam_slice_fetch_set,
 			.dcam_fbc_ctrl = NULL,
 			.dcam_fbc_addr_set = NULL,
 			.isp_fetch_set = sharkl3_isp_fetch_set,

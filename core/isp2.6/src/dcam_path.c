@@ -242,9 +242,10 @@ int dcam_cfg_path_size(void *dcam_handle,
 
 		invalid = 0;
 		invalid |= ((path->in_size.w == 0) || (path->in_size.h == 0));
-		invalid |= (path->in_size.w > dcam_max_w);
-		invalid |= (path->in_size.h > dcam_max_h);
-
+		if (dev->dcam_slice_mode != CAM_OFFLINE_SLICE_SW) {
+			invalid |= (path->in_size.w > dcam_max_w);
+			invalid |= (path->in_size.h > dcam_max_h);
+		}
 		/* trim should not be out range of source */
 		invalid |= ((path->in_trim.start_x +
 				path->in_trim.size_x) > path->in_size.w);

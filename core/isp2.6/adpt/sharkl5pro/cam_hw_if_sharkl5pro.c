@@ -1141,16 +1141,18 @@ static int sharkl5pro_dcam_lbuf_share_set(enum dcam_id idx, uint32_t width)
 	return ret;
 }
 
-static int sharkl5pro_dcam_slice_fetch_set(uint32_t idx, void *arg)
+static int sharkl5pro_dcam_slice_fetch_set(void *arg)
 {
 	int ret = 0;
 	struct dcam_fetch_info *fetch = NULL;
+	struct dcam_pipe_dev *dev = NULL;
 
 	if (!arg)
 		pr_err("fail to check param");
 
-	fetch = (struct dcam_fetch_info *)arg;
-	DCAM_REG_MWR(idx, DCAM_BAYER_INFO_CFG,
+	dev = (struct dcam_pipe_dev *)arg;
+	fetch = &dev->fetch;
+	DCAM_REG_MWR(dev->idx, DCAM_BAYER_INFO_CFG,
 		BIT_5 | BIT_4, (fetch->pattern & 3) << 4);
 	DCAM_AXIM_MWR(IMG_FETCH_CTRL, BIT_1 | BIT_0, fetch->is_loose);
 	DCAM_AXIM_MWR(IMG_FETCH_CTRL, BIT_3 | BIT_2, fetch->endian << 2);

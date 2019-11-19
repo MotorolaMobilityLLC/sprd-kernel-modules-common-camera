@@ -37,4 +37,6 @@ int isp_path_set_afbc_store_frm(
 		struct isp_path_desc *path,
 		struct camera_frame *frame);
 
+int isp_cfg_path_scaler(struct isp_path_desc *path);
+
 #endif
