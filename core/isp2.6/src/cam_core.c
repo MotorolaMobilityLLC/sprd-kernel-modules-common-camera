@@ -4094,6 +4094,12 @@ static int img_ioctl_set_function_mode(
 	ret |= get_user(module->cam_uinfo.is_afbc, &uparam->need_afbc);
 	module->cam_uinfo.is_rgb_ltm = 0;
 	module->cam_uinfo.is_yuv_ltm = 0;
+
+	if (module->grp->hw_info->prj_id == SHARKL5pro) {
+		module->cam_uinfo.is_rgb_ltm = 0;
+		module->cam_uinfo.is_yuv_ltm = 0;
+	}
+
 	/* no use */
 	module->cam_uinfo.is_3dnr = 0;
 

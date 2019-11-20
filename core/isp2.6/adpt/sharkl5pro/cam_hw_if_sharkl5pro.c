@@ -1074,7 +1074,7 @@ static int sharkl5pro_dcam_full_path_src_sel(void *handle,
 
 	switch (src_sel) {
 	case ORI_RAW_SRC_SEL:
-		DCAM_REG_MWR(dev->idx, DCAM_FULL_CFG, BIT(2), 0);
+		DCAM_REG_MWR(dev->idx, DCAM_FULL_CFG, BIT(4), 0);
 		break;
 	case PROCESS_RAW_SRC_SEL:
 		DCAM_REG_MWR(dev->idx, DCAM_FULL_CFG, BIT(2), BIT(2));
@@ -1669,6 +1669,8 @@ static struct isp_cfg_entry isp_cfg_func_tab[ISP_BLOCK_TOTAL - ISP_BLOCK_BASE] =
 [ISP_BLOCK_POST_CDN - ISP_BLOCK_BASE]	= {ISP_BLOCK_POST_CDN, isp_k_cfg_post_cdn},
 [ISP_BLOCK_PSTRZ - ISP_BLOCK_BASE]	= {ISP_BLOCK_PSTRZ, isp_k_cfg_pstrz},
 [ISP_BLOCK_YRANDOM - ISP_BLOCK_BASE]	= {ISP_BLOCK_YRANDOM, isp_k_cfg_yrandom},
+[ISP_BLOCK_RGB_LTM- ISP_BLOCK_BASE]	= {ISP_BLOCK_RGB_LTM, isp_k_cfg_rgb_ltm},
+[ISP_BLOCK_YUV_LTM - ISP_BLOCK_BASE]	= {ISP_BLOCK_YUV_LTM, isp_k_cfg_yuv_ltm},
 };
 
 static void *sharkl5pro_block_func_get(uint32_t index, enum cam_block_type type)

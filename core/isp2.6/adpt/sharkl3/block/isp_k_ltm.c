@@ -29,7 +29,7 @@ int isp_ltm_config_param(struct isp_ltm_ctx_desc *ctx,
 	return 0;
 }
 
-struct isp_dev_ltm_info *isp_ltm_get_tuning_config(int type,
+struct isp_ltm_info *isp_ltm_get_tuning_config(int type,
 		enum isp_ltm_region ltm_id){
 	return 0;
 }

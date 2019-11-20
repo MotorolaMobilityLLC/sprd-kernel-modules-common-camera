@@ -239,6 +239,39 @@ struct isp_ltm_share_ctx_ops {
 	int (*get_config)(struct isp_ltm_ctx_desc *ctx, struct isp_ltm_hists *hists);
 };
 
+struct isp_ltm_tilenum_minus1 {
+	uint32_t tile_num_x;
+	uint32_t tile_num_y;
+};
+
+struct isp_ltm_text{
+	uint32_t text_point_alpha;
+	uint32_t text_point_thres;
+	uint32_t textture_proporion;
+};
+
+struct isp_ltm_stat_info {
+	uint32_t bypass; /* bypass */
+	struct isp_ltm_tilenum_minus1 tile_num;
+	struct isp_ltm_text ltm_text;
+	uint32_t strength;
+	uint32_t tile_num_auto;
+	uint32_t text_point_thres; /* text_point_thres */
+	uint32_t region_est_en; /* region_est_en */
+	uint32_t channel_sel;
+	uint32_t ltm_hist_table[LTM_HIST_TABLE_NUM];
+};
+
+struct isp_ltm_map_info {
+	uint32_t bypass; /* ltm map bypass */
+	uint32_t ltm_map_video_mode;
+};
+
+struct isp_ltm_info {
+	struct isp_ltm_stat_info ltm_stat;
+	struct isp_ltm_map_info ltm_map;
+};
+
 /*
  * EXPORT function interface
  */
@@ -252,8 +285,8 @@ int isp_ltm_gen_map_slice_config(struct isp_ltm_ctx_desc *ctx,
 			struct isp_ltm_rtl_param  *prtl,
 			uint32_t *slice_info);
 
-struct isp_dev_ltm_info *isp_ltm_get_tuning_config(int type,
-	enum isp_ltm_region ltm_id);
+struct isp_ltm_info *isp_ltm_get_tuning_config(int type,
+		enum isp_ltm_region ltm_id);
 int isp_ltm_config_param(struct isp_ltm_ctx_desc *ctx,
 		enum isp_ltm_region ltm_id);
 

@@ -361,14 +361,14 @@ static int ltm_calc_binning_factor(ltm_param_t *histo)
 	 * frame_height = frame_height/(2*(uint16)pow(2.0, binning_factor)) *2;
 	 */
 	pr_debug("B binning_factor[%d], pow_factor[%d], frame_width[%d], frame_height[%d]\n",
-		binning_factor, pow_factor, histo->frame_width,	histo->frame_height);
+		binning_factor, pow_factor, histo->frame_width, histo->frame_height);
 	if (pow_factor != 0) {
-		histo->frame_width = histo->frame_width  / (2 * pow_factor) * 2;
+		histo->frame_width = histo->frame_width / (2 * pow_factor) * 2;
 		histo->frame_height = histo->frame_height / (2 * pow_factor) * 2;
 	}
 	histo->binning_en = binning_factor;
 	pr_debug("A binning_factor[%d], pow_factor[%d], frame_width[%d], frame_height[%d]\n",
-		binning_factor, pow_factor, histo->frame_width,	histo->frame_height);
+		binning_factor, pow_factor, histo->frame_width, histo->frame_height);
 
 	return ret;
 }
@@ -393,7 +393,7 @@ static int ltm_calc_histo_param(ltm_param_t *param_histo)
 #endif
 	ltm_calc_binning_factor(param_histo);
 
-	frame_width  = param_histo->frame_width;
+	frame_width = param_histo->frame_width;
 	frame_height = param_histo->frame_height;
 
 	if (param_histo->tile_num_auto) {
@@ -402,7 +402,7 @@ static int ltm_calc_histo_param(ltm_param_t *param_histo)
 
 		max_tile_col = MAX(MIN(frame_width / (TILE_WIDTH_MIN * 2) * 2,
 				TILE_NUM_MAX), TILE_NUM_MIN);
-		min_tile_width = frame_width / (max_tile_col*2) * 2;
+		min_tile_width = frame_width / (max_tile_col * 2) * 2;
 		max_tile_height = TILE_MAX_SIZE / (min_tile_width * 2) * 2;
 		/*
 		 * min_tile_row = (uint8)MAX(MIN(ceil((float)frame_height /
@@ -415,15 +415,15 @@ static int ltm_calc_histo_param(ltm_param_t *param_histo)
 		tile_num_x = MIN(MAX(((tile_num_y * frame_width / frame_height) / 2) * 2,
 				TILE_NUM_MIN), max_tile_col);
 
-		tile_width  = frame_width  / (2 * tile_num_x) * 2;
+		tile_width = frame_width / (2 * tile_num_x) * 2;
 		tile_height = frame_height / (2 * tile_num_y) * 2;
 
-		while (tile_width*tile_height >= TILE_MAX_SIZE) {
+		while (tile_width * tile_height >= TILE_MAX_SIZE) {
 			tile_num_y = MIN(MAX(tile_num_y + 2, TILE_NUM_MIN), TILE_NUM_MAX);
 			tmp = ((tile_num_y * frame_width / frame_height) / 2) * 2;
 			tile_num_x = MIN(MAX(tmp, TILE_NUM_MIN), max_tile_col);
 
-			tile_width  = frame_width  / (2 * tile_num_x) * 2;
+			tile_width = frame_width / (2 * tile_num_x) * 2;
 			tile_height = frame_height / (2 * tile_num_y) * 2;
 		}
 	} else {
@@ -441,25 +441,25 @@ static int ltm_calc_histo_param(ltm_param_t *param_histo)
 	cropRight = cropCols >> 1;
 
 	clipLimit_min = tile_width * tile_height >> BIN_NUM_BIT;
-	clipLimit = clipLimit_min * strength >> 2;
+	clipLimit = clipLimit_min + ((clipLimit_min * strength)>>3);
 
 	/* update patameters */
-	param_histo->cropUp   = cropUp;
+	param_histo->cropUp = cropUp;
 	param_histo->cropDown = cropDown;
 	param_histo->cropLeft = cropLeft;
 	param_histo->cropRight = cropRight;
-	param_histo->cropRows  = cropRows;
-	param_histo->cropCols  = cropCols;
-	param_histo->tile_width   = tile_width;
-	param_histo->tile_height  = tile_height;
-	param_histo->frame_width  = frame_width;
+	param_histo->cropRows = cropRows;
+	param_histo->cropCols = cropCols;
+	param_histo->tile_width = tile_width;
+	param_histo->tile_height = tile_height;
+	param_histo->frame_width = frame_width;
 	param_histo->frame_height = frame_height;
-	param_histo->clipLimit     = clipLimit;
+	param_histo->clipLimit = clipLimit;
 	param_histo->clipLimit_min = clipLimit_min;
 	/* param_histo->binning_en = binning_factor; */
 	param_histo->tile_num_x = tile_num_x;
 	param_histo->tile_num_y = tile_num_y;
-	param_histo->tile_size  = tile_width * tile_height;
+	param_histo->tile_size = tile_width * tile_height;
 
 	return 0;
 }
@@ -481,17 +481,17 @@ static void ltm_rgb_map_dump_data_rtl(ltm_param_t *param_map,
 	/* slice infomation */
 	int img_start_x = img_info[0];
 	int img_start_y = img_info[1];
-	int img_end_x	= img_info[2];
-	int img_end_y	= img_info[3];
+	int img_end_x = img_info[2];
+	int img_end_y = img_info[3];
 
 	/* frame infomation */
-	uint8_t cropUp    = param_map->cropUp;
-	/* uint8_t cropDown  = param_map->cropDown; */
-	uint8_t cropLeft  = param_map->cropLeft;
+	uint8_t cropUp = param_map->cropUp;
+	/* uint8_t cropDown = param_map->cropDown; */
+	uint8_t cropLeft = param_map->cropLeft;
 	/* uint8_t cropRight = param_map->cropRight; */
 	uint8_t tile_num_x = param_map->tile_num_x;
 	uint8_t tile_num_y = param_map->tile_num_y;
-	uint16_t tile_width  = param_map->tile_width;
+	uint16_t tile_width = param_map->tile_width;
 	uint16_t tile_height = param_map->tile_height;
 
 	tile_index_xs = (img_start_x + tile_width / 2 - cropLeft) / tile_width - 1;
@@ -538,7 +538,7 @@ static void ltm_rgb_map_dump_data_rtl(ltm_param_t *param_map,
 
 	tileX_start_x = tile_index_xe * tile_width + cropLeft;
 	temp = img_start_x - (int)tile0_start_x;
-	if ((temp >= tile_width) && (temp < tile_width*3 / 2))
+	if ((temp >= tile_width) && (temp < tile_width * 3 / 2))
 		tile_left_flag = 1;
 	temp = (int)tileX_start_x - img_end_x;
 	if ((temp > 0) && (temp <= tile_width / 2))
@@ -554,9 +554,9 @@ static void ltm_rgb_map_dump_data_rtl(ltm_param_t *param_map,
 	param_map_rtl->tile_width_rtl = tile_width;
 	param_map_rtl->tile_height_rtl = tile_height;
 	param_map_rtl->tile_size_pro_rtl = tile_width * tile_height;
-	param_map_rtl->tile_start_x_rtl  = img_tile1_xs_offset;
-	param_map_rtl->tile_start_y_rtl  = img_tile1_ys_offset;
-	param_map_rtl->tile_left_flag_rtl  = tile_left_flag;
+	param_map_rtl->tile_start_x_rtl = img_tile1_xs_offset;
+	param_map_rtl->tile_start_y_rtl = img_tile1_ys_offset;
+	param_map_rtl->tile_left_flag_rtl = tile_left_flag;
 	param_map_rtl->tile_right_flag_rtl = tile_right_flag;
 
 	return;
@@ -565,7 +565,7 @@ static void ltm_rgb_map_dump_data_rtl(ltm_param_t *param_map,
 
 static int isp_ltm_gen_histo_config(struct isp_ltm_ctx_desc *ctx,
 			enum isp_ltm_region ltm_id,
-			struct isp_dev_ltm_stat_info *tuning)
+			struct isp_ltm_stat_info *tuning)
 {
 	int ret = 0;
 	int idx = 0;
@@ -588,30 +588,30 @@ static int isp_ltm_gen_histo_config(struct isp_ltm_ctx_desc *ctx,
 		return 0;
 	}
 
+	param->strength = tuning->strength;
 	param->channel_sel = tuning->channel_sel;
-	param->strength         = tuning->strength;
-	param->region_est_en    = tuning->region_est_en;
+	param->region_est_en = tuning->region_est_en;
 	param->text_point_thres = tuning->text_point_thres;
-	param->text_proportion  = tuning->text_proportion;
-	param->tile_num_auto    = tuning->tile_num_auto;
-	param->tile_num_x       = tuning->tile_num.tile_num_x;
-	param->tile_num_y       = tuning->tile_num.tile_num_y;
-	param->frame_height	= ctx->frame_height;
-	param->frame_width	= ctx->frame_width;
+	param->text_proportion = tuning->ltm_text.textture_proporion;
+	param->tile_num_auto = tuning->tile_num_auto;
+	param->tile_num_x = tuning->tile_num.tile_num_x;
+	param->tile_num_y = tuning->tile_num.tile_num_y;
+	param->frame_height = ctx->frame_height;
+	param->frame_width = ctx->frame_width;
 
 	ltm_calc_histo_param(param);
 
-	hists->bypass		= param->bypass;
+	hists->bypass = param->bypass;
 	hists->channel_sel = param->channel_sel;
-	hists->binning_en	= param->binning_en;
-	hists->region_est_en	= param->region_est_en;
+	hists->binning_en = param->binning_en;
+	hists->region_est_en = param->region_est_en;
 	hists->buf_sel = 0;
-	hists->buf_full_mode	= 0;
-	hists->roi_start_x	= param->cropLeft;
-	hists->roi_start_y	= param->cropUp;
-	hists->tile_width	= param->tile_width;
+	hists->buf_full_mode = 0;
+	hists->roi_start_x = param->cropLeft;
+	hists->roi_start_y = param->cropUp;
+	hists->tile_width = param->tile_width;
 	hists->tile_num_x_minus = param->tile_num_x - 1;
-	hists->tile_height	= param->tile_height;
+	hists->tile_height = param->tile_height;
 	hists->tile_num_y_minus = param->tile_num_y - 1;
 
 	if ((hists->tile_width * hists->tile_height >
@@ -626,19 +626,19 @@ static int isp_ltm_gen_histo_config(struct isp_ltm_ctx_desc *ctx,
 		return 0;
 
 	idx = ctx->fid % ISP_LTM_BUF_NUM;
-	hists->clip_limit	= param->clipLimit;
-	hists->clip_limit_min	= param->clipLimit_min;
+	hists->clip_limit = param->clipLimit;
+	hists->clip_limit_min = param->clipLimit_min;
 	hists->texture_proportion = param->text_proportion;
 	hists->text_point_thres = param->text_point_thres;
-	hists->addr		= ctx->pbuf[ltm_id][idx]->iova[0];
-	hists->pitch		= param->tile_num_x - 1;
-	hists->wr_num		= param->tile_num_x * 32;
+	hists->addr = ctx->pbuf[ltm_id][idx]->iova[0];
+	hists->pitch = param->tile_num_x - 1;
+	hists->wr_num = param->tile_num_x * 32;
 
 	memcpy(hists->ltm_hist_table, tuning->ltm_hist_table,
 		sizeof(tuning->ltm_hist_table));
 
-	ctx->frame_width_stat	= param->frame_width;
-	ctx->frame_height_stat	= param->frame_height;
+	ctx->frame_width_stat = param->frame_width;
+	ctx->frame_height_stat = param->frame_height;
 
 	pr_debug("binning_en[%d], tile_num_x_minus[%d], tile_num_y_minus[%d]\n",
 		hists->binning_en,
@@ -658,7 +658,7 @@ static int isp_ltm_gen_histo_config(struct isp_ltm_ctx_desc *ctx,
 
 
 static int isp_ltm_gen_map_config(struct isp_ltm_ctx_desc *ctx,
-			enum isp_ltm_region ltm_id, struct isp_dev_ltm_map_info *tuning)
+			enum isp_ltm_region ltm_id, struct isp_ltm_map_info *tuning)
 {
 	int idx = 0;
 
@@ -668,7 +668,7 @@ static int isp_ltm_gen_map_config(struct isp_ltm_ctx_desc *ctx,
 	struct isp_ltm_rtl_param  *prtl = &rtl_param;
 
 	struct isp_ltm_hists *hists = &ctx->hists[ltm_id];
-	struct isp_ltm_map   *map   = &ctx->map[ltm_id];
+	struct isp_ltm_map *map = &ctx->map[ltm_id];
 
 	struct isp_ltm_tile_num_minus1 mnum;
 	struct isp_ltm_tile_size ts;
@@ -693,12 +693,12 @@ static int isp_ltm_gen_map_config(struct isp_ltm_ctx_desc *ctx,
 
 	mnum.tile_num_x = hists->tile_num_x_minus + 1;
 	mnum.tile_num_y = hists->tile_num_y_minus + 1;
-	ts.tile_width	   = hists->tile_width;
-	ts.tile_height     = hists->tile_height;
-	frame_width_stat   = ctx->frame_width_stat;
-	frame_height_stat  = ctx->frame_height_stat;
-	frame_width_map    = ctx->frame_width;
-	frame_height_map   = ctx->frame_height;
+	ts.tile_width = hists->tile_width;
+	ts.tile_height = hists->tile_height;
+	frame_width_stat = ctx->frame_width_stat;
+	frame_height_stat = ctx->frame_height_stat;
+	frame_width_map = ctx->frame_width;
+	frame_height_map = ctx->frame_height;
 
 	if ((frame_width_stat == 0) || (frame_height_stat == 0))
 		pr_err("fail to get input param, width stat %d, height stat %d\n",
@@ -721,31 +721,31 @@ static int isp_ltm_gen_map_config(struct isp_ltm_ctx_desc *ctx,
 	if (frame_width_stat != 0)
 		ratio = (frame_width_map << 7) / frame_width_stat;
 
-	tm.tile_width  = (ratio * ts.tile_width  + 128) >> 8 << 1;
+	tm.tile_width = (ratio * ts.tile_width  + 128) >> 8 << 1;
 	tm.tile_height = (ratio * ts.tile_height + 128) >> 8 << 1;
 
 	crop_cols_curr = frame_width_map  - tm.tile_width  * mnum.tile_num_x;
 	crop_rows_curr = frame_height_map - tm.tile_height * mnum.tile_num_y;
-	crop_up_curr   = crop_rows_curr >> 1;
+	crop_up_curr = crop_rows_curr >> 1;
 	crop_down_curr = crop_rows_curr >> 1;
 	crop_left_curr = crop_cols_curr >> 1;
 	crop_right_curr = crop_cols_curr >> 1;
 
 	/* update parameters */
-	param->cropUp	 = crop_up_curr;
-	param->cropDown  = crop_down_curr;
-	param->cropLeft  = crop_left_curr;
+	param->cropUp = crop_up_curr;
+	param->cropDown = crop_down_curr;
+	param->cropLeft = crop_left_curr;
 	param->cropRight = crop_right_curr;
-	param->cropCols  = crop_cols_curr;
-	param->cropRows  = crop_rows_curr;
+	param->cropCols = crop_cols_curr;
+	param->cropRows = crop_rows_curr;
 
-	param->tile_num_x   = mnum.tile_num_x;
-	param->tile_num_y   = mnum.tile_num_y;
-	param->tile_width   = tm.tile_width;
-	param->tile_height  = tm.tile_height;
-	param->frame_width  = frame_width_map;
+	param->tile_num_x = mnum.tile_num_x;
+	param->tile_num_y = mnum.tile_num_y;
+	param->tile_width = tm.tile_width;
+	param->tile_height = tm.tile_height;
+	param->frame_width = frame_width_map;
 	param->frame_height = frame_height_map;
-	param->tile_size    = tm.tile_width * tm.tile_height;
+	param->tile_size = tm.tile_width * tm.tile_height;
 
 	slice_info[0] = 0;
 	slice_info[1] = 0;
@@ -767,19 +767,19 @@ static int isp_ltm_gen_map_config(struct isp_ltm_ctx_desc *ctx,
 	 * fetch data raw, rgb: set 0
 	 * fetch data yuv     : set 1
 	 */
-	map->fetch_wait_en   = 0;
+	map->fetch_wait_en = 0;
 	map->fetch_wait_line = 0;
 
-	map->tile_width	     = tm.tile_width;
-	map->tile_height     = tm.tile_height;
-	map->tile_x_num	     = prtl->tile_x_num_rtl;
-	map->tile_y_num      = prtl->tile_y_num_rtl;
-	map->tile_size_pro   = tm.tile_width * tm.tile_height;
-	map->tile_start_x    = prtl->tile_start_x_rtl;
-	map->tile_left_flag  = prtl->tile_left_flag_rtl;
-	map->tile_start_y    = prtl->tile_start_y_rtl;
+	map->tile_width = tm.tile_width;
+	map->tile_height = tm.tile_height;
+	map->tile_x_num = prtl->tile_x_num_rtl;
+	map->tile_y_num = prtl->tile_y_num_rtl;
+	map->tile_size_pro = tm.tile_width * tm.tile_height;
+	map->tile_start_x = prtl->tile_start_x_rtl;
+	map->tile_left_flag = prtl->tile_left_flag_rtl;
+	map->tile_start_y = prtl->tile_start_y_rtl;
 	map->tile_right_flag = prtl->tile_right_flag_rtl;
-	map->hist_pitch      = mnum.tile_num_x - 1;
+	map->hist_pitch = mnum.tile_num_x - 1;
 
 	idx = ctx->fid % ISP_LTM_BUF_NUM;
 
@@ -819,7 +819,7 @@ int isp_ltm_gen_map_slice_config(struct isp_ltm_ctx_desc *ctx,
 	struct isp_ltm_hist_param *param = &map_param;
 	/*
 	 * struct isp_ltm_rtl_param  rtl_param;
-	 * struct isp_ltm_rtl_param  *prtl = &rtl_param;
+	 * struct isp_ltm_rtl_param *prtl = &rtl_param;
 	 */
 	struct isp_ltm_hists *hists = &ctx->hists[ltm_id];
 
@@ -837,12 +837,12 @@ int isp_ltm_gen_map_slice_config(struct isp_ltm_ctx_desc *ctx,
 
 	mnum.tile_num_x = hists->tile_num_x_minus + 1;
 	mnum.tile_num_y = hists->tile_num_y_minus + 1;
-	ts.tile_width	   = hists->tile_width;
-	ts.tile_height     = hists->tile_height;
-	frame_width_stat   = ctx->frame_width_stat;
-	frame_height_stat  = ctx->frame_height_stat;
-	frame_width_map    = ctx->frame_width;
-	frame_height_map   = ctx->frame_height;
+	ts.tile_width = hists->tile_width;
+	ts.tile_height = hists->tile_height;
+	frame_width_stat = ctx->frame_width_stat;
+	frame_height_stat = ctx->frame_height_stat;
+	frame_width_map = ctx->frame_width;
+	frame_height_map = ctx->frame_height;
 
 	if (ctx->type == MODE_LTM_CAP) {
 		pr_debug("tile_num_x[%d], tile_num_y[%d], tile_width[%d], tile_height[%d],\
@@ -860,31 +860,31 @@ int isp_ltm_gen_map_slice_config(struct isp_ltm_ctx_desc *ctx,
 	 */
 	ratio = (frame_width_map << 7) / frame_width_stat;
 
-	tm.tile_width  = (ratio * ts.tile_width  + 128) >> 8 << 1;
+	tm.tile_width = (ratio * ts.tile_width  + 128) >> 8 << 1;
 	tm.tile_height = (ratio * ts.tile_height + 128) >> 8 << 1;
 
 	crop_cols_curr = frame_width_map  - tm.tile_width  * mnum.tile_num_x;
 	crop_rows_curr = frame_height_map - tm.tile_height * mnum.tile_num_y;
-	crop_up_curr   = crop_rows_curr >> 1;
+	crop_up_curr = crop_rows_curr >> 1;
 	crop_down_curr = crop_rows_curr >> 1;
 	crop_left_curr = crop_cols_curr >> 1;
 	crop_right_curr = crop_cols_curr >> 1;
 
 	/* update parameters */
-	param->cropUp	 = crop_up_curr;
-	param->cropDown  = crop_down_curr;
-	param->cropLeft  = crop_left_curr;
+	param->cropUp = crop_up_curr;
+	param->cropDown = crop_down_curr;
+	param->cropLeft = crop_left_curr;
 	param->cropRight = crop_right_curr;
-	param->cropCols  = crop_cols_curr;
-	param->cropRows  = crop_rows_curr;
+	param->cropCols = crop_cols_curr;
+	param->cropRows = crop_rows_curr;
 
-	param->tile_num_x   = mnum.tile_num_x;
-	param->tile_num_y   = mnum.tile_num_y;
-	param->tile_width   = tm.tile_width;
-	param->tile_height  = tm.tile_height;
-	param->frame_width  = frame_width_map;
+	param->tile_num_x = mnum.tile_num_x;
+	param->tile_num_y = mnum.tile_num_y;
+	param->tile_width = tm.tile_width;
+	param->tile_height = tm.tile_height;
+	param->frame_width = frame_width_map;
 	param->frame_height = frame_height_map;
-	param->tile_size    = tm.tile_width * tm.tile_height;
+	param->tile_size = tm.tile_width * tm.tile_height;
 
 	ltm_rgb_map_dump_data_rtl(param, slice_info, prtl);
 
@@ -897,7 +897,7 @@ int isp_ltm_gen_frame_config(struct isp_ltm_ctx_desc *ctx,
 	int ret = 0;
 	int pre_fid = 0;
 	int i = 0;
-	struct isp_dev_ltm_info *ltm_info = NULL;
+	struct isp_ltm_info *ltm_info = NULL;
 
 	pr_debug("type[%d], fid[%d], frame_width[%d], frame_height[%d]\n",
 		ctx->type, ctx->fid, ctx->frame_width, ctx->frame_height);
