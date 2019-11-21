@@ -1621,8 +1621,6 @@ int sprd_isp_start_pipeline_full(void *handle, unsigned int cap_flag)
                 if (cap_flag == DCAM_CAPTURE_START_WITH_TIMESTAMP) {
 			dev->cap_flag = cap_flag;
 		}
-
-		dev->cap_on = 1;
 	}
 
 	/*
@@ -1669,11 +1667,13 @@ int sprd_isp_start_pipeline_full(void *handle, unsigned int cap_flag)
 	 * if capture_state ISP_ST_START or not. capture_state will
 	 * be ISP_ST_START until fmcu_config_done.
 	 */
-	if (dev->cap_on == 0 ||
+	if (((cap_flag == DCAM_CAPTURE_NONE) && (dev->cap_on == 0)) ||
 		fmcu_slice_capture_state == ISP_ST_START) {
 		pr_debug("not ready for cap yet, cap_on:%d\n", dev->cap_on);
 		goto normal_exit;
 	}
+
+	dev->cap_on = 1;
 
 	if (dev->is_3dnr) {
 		if (dev->frm_cnt_3dnr == 0) {
@@ -1734,6 +1734,8 @@ normal_exit_raw:
 	dev->wait_full_tx_done = WAIT_CLEAR;
 
 normal_exit:
+	if ((cap_flag != DCAM_CAPTURE_NONE) && (dev->cap_on == 0))
+		dev->cap_on = 1;
 	pr_debug("normal exit, ret = %d\n", ret);
 	return ISP_RTN_SUCCESS;
 
