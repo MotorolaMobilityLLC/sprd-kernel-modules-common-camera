@@ -173,11 +173,9 @@ enum dcam_block {
 	ISP_BLOCK_YRANDOM,
 	ISP_BLOCK_NOISEFILTER,
 	ISP_BLOCK_3DNR,
+	ISP_BLOCK_RGB_LTM,
+	ISP_BLOCK_YUV_LTM,
 	ISP_BLOCK_TOTAL,
-};
-
-enum dcam_gtm_property {
-	DCAM_PRO_RAW_GTM_BLOCK,
 };
 
 enum dcam_blc_property {
@@ -372,6 +370,25 @@ enum isp_ltm_property {
 	ISP_PRO_LTM_CAP_PARAM,
 };
 
+enum isp_rgb_ltm_property {
+	ISP_PRO_RGB_LTM_BLOCK,
+	ISP_PRO_RGB_LTM_PRE_PARAM,
+	ISP_PRO_RGB_LTM_CAP_PARAM,
+};
+
+enum isp_yuv_ltm_property {
+	ISP_PRO_YUV_LTM_BLOCK,
+	ISP_PRO_YUV_LTM_PRE_PARAM,
+	ISP_PRO_YUV_LTM_CAP_PARAM,
+};
+
+enum dcam_gtm_property {
+	DCAM_PRO_RAW_GTM_BLOCK,
+	DCAM_PRO_RAW_GTM_SLICE,
+	DCAM_PRO_RAW_GTM_PRE_PARAM,
+	DCAM_PRO_RAW_GTM_CAP_PARAM,
+};
+
 enum cam_pm_scene {
 	PM_SCENE_PRE,
 	PM_SCENE_CAP,
@@ -469,6 +486,7 @@ struct dcam_dev_raw_gtm_block_info {
 	uint32_t tm_rgb2y_b_coeff;
 	uint16_t tm_hist_xpts[GTM_HIST_BIN_NUM];
 	struct dcam_dev_gtm_slice_info slice;
+	uint32_t gtm_map_video_mode;
 };
 
 struct dcam_dev_rgb_gain_info {
@@ -1612,6 +1630,71 @@ struct isp_dev_ltm_info {
 	struct isp_dev_ltm_map_info ltm_map;
 };
 
+struct isp_rgb_ltm_tile_num_minus1 {
+	uint32_t tile_num_x;
+	uint32_t tile_num_y;
+};
+
+struct isp_rgb_ltm_text{
+	uint32_t text_point_alpha;
+	uint32_t text_point_thres;
+	uint32_t textture_proporion;
+};
+
+struct isp_dev_rgb_ltm_stat_info {
+	uint32_t bypass; /* bypass */
+	struct isp_rgb_ltm_tile_num_minus1 tile_num;
+	struct isp_rgb_ltm_text ltm_text;
+	uint32_t strength;
+	uint32_t tile_num_auto;
+	uint32_t text_point_thres; /* text_point_thres */
+	uint32_t region_est_en; /* region_est_en */
+	uint32_t channel_sel;
+	uint32_t ltm_hist_table[128];
+};
+
+struct isp_dev_rgb_ltm_map_info {
+	uint32_t bypass; /* ltm map bypass */
+	uint32_t ltm_map_video_mode;
+};
+
+struct isp_dev_rgb_ltm_info {
+	struct isp_dev_rgb_ltm_stat_info ltm_stat;
+	struct isp_dev_rgb_ltm_map_info ltm_map;
+};
+
+struct isp_yuv_ltm_tile_num_minus1 {
+	uint32_t tile_num_x;
+	uint32_t tile_num_y;
+};
+
+struct isp_yuv_ltm_text{
+	uint32_t text_point_alpha;
+	uint32_t text_point_thres;
+	uint32_t textture_proporion;
+};
+
+struct isp_dev_yuv_ltm_stat_info {
+	uint32_t bypass; /* bypass */
+	struct isp_yuv_ltm_tile_num_minus1 tile_num;
+	struct isp_yuv_ltm_text ltm_text;
+	uint32_t strength;
+	uint32_t tile_num_auto;
+	uint32_t text_point_thres; /* text_point_thres */
+	uint32_t region_est_en; /* region_est_en */
+	uint32_t channel_sel;
+	uint32_t ltm_hist_table[128];
+};
+
+struct isp_dev_yuv_ltm_map_info {
+	uint32_t bypass; /* ltm map bypass */
+	uint32_t ltm_map_video_mode;
+};
+
+struct isp_dev_yuv_ltm_info {
+	struct isp_dev_yuv_ltm_stat_info ltm_stat;
+	struct isp_dev_yuv_ltm_map_info ltm_map;
+};
 
 /*********************************************/
 struct isp_rrgb {
