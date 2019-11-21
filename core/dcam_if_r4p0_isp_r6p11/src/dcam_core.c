@@ -4755,6 +4755,7 @@ group_exit:
 	return 0;
 
 err_exit:
+	wakeup_source_trash(&group->ws);
 	misc_deregister(&image_dev);
 	vfree(group);
 
