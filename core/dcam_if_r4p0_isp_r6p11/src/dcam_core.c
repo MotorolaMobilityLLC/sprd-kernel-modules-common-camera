@@ -4711,22 +4711,21 @@ static int sprd_img_probe(struct platform_device *pdev)
 
 	if (sprd_dcam_drv_init(pdev)) {
 		pr_err("fail to call sprd_dcam_drv_init\n");
-		ret = -EINVAL;
-		goto err_exit;
+		ret = -EFAULT;
+		goto err_dcam_init_exit;
 	}
 
 	if (sprd_isp_drv_init(pdev)) {
 		pr_err("fail to call sprd_isp_drv_init\n");
-		sprd_dcam_drv_deinit();
-		goto err_exit;
+		ret = -EFAULT;
+		goto err_isp_init_exit;
 	}
 
-	/* sysfs dir create, will not influence the normal process */
 	ret = sysfs_create_group(&image_dev.this_device->kobj,
 				 &img_attrs_group);
 	if (ret) {
 		pr_err("fail to enable to export sprd_image sysfs\n");
-		goto normal_exit;
+		goto err_dev_grp_exit;
 	}
 
 	/* convenient to access sysfs node */
@@ -4734,7 +4733,7 @@ static int sprd_img_probe(struct platform_device *pdev)
 				IMG_DEVICE_NAME);
 	if (ret) {
 		pr_err("fail to create link!\n");
-		goto group_exit;
+		goto err_dev_link_exit;
 	}
 
 	isp_sblk_dev_attrs_init();
@@ -4742,18 +4741,20 @@ static int sprd_img_probe(struct platform_device *pdev)
 				 &isp_sblk_attrs_group);
 	if (ret) {
 		pr_err("fail to enable to export isp_sblk sysfs\n");
-		goto sblk_exit;
+		goto err_sblk_grp_exit;
 	}
 
-normal_exit:
 	return 0;
 
-sblk_exit:
+err_sblk_grp_exit:
 	sysfs_remove_link(NULL, IMG_DEVICE_NAME);
-group_exit:
+err_dev_link_exit:
 	sysfs_remove_group(&image_dev.this_device->kobj, &img_attrs_group);
-	return 0;
-
+err_dev_grp_exit:
+	sprd_isp_drv_deinit();
+err_isp_init_exit:
+	sprd_dcam_drv_deinit();
+err_dcam_init_exit:
 err_exit:
 	wakeup_source_trash(&group->ws);
 	misc_deregister(&image_dev);
