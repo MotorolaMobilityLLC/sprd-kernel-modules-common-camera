@@ -1077,7 +1077,7 @@ static int sharkl5pro_dcam_full_path_src_sel(void *handle,
 		DCAM_REG_MWR(dev->idx, DCAM_FULL_CFG, BIT(4), 0);
 		break;
 	case PROCESS_RAW_SRC_SEL:
-		DCAM_REG_MWR(dev->idx, DCAM_FULL_CFG, BIT(2), BIT(2));
+		DCAM_REG_MWR(dev->idx, DCAM_FULL_CFG, BIT(4), BIT(4));
 		break;
 	default:
 		pr_err("fail to support src_sel %d\n", src_sel);
