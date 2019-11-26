@@ -971,7 +971,7 @@ static int vdsp_probe(struct platform_device *pdev)
 	if (ret) {
 		VDSP_ERROR("cannot register miscdev on minor=%d (%d)\n",
 		       VDSP_MINOR, ret);
-		goto errout;
+		return ret;
 	}
 
 	vdsp_device_register(&vdsp_hw_dev, &pdev->dev);
