@@ -215,11 +215,13 @@ static int sprd_fd_open(struct inode *node, struct file *file)
 		pr_err("FD_CORE err fd open\n");
 		return -EINVAL;
 	}
-	if (atomic_read(&module->fd_open) == 1) {
-		pr_info("FD Already Opened, Expected behaviour in case of dual-camera \n");
+
+	if (atomic_inc_return(&module->fd_open) != 1) {
+		pr_info("hw fd device node has been opened %d\n",
+			atomic_read(&module->fd_open));
 		return 0;
 	}
-	atomic_set(&module->fd_open, 1);
+
 	mutex_lock(&module->mod_lock);
 	ret = sprd_fd_drv_open(module->drv_handle);
 	mutex_unlock(&module->mod_lock);
@@ -236,11 +238,11 @@ static int sprd_fd_release(struct inode *node, struct file *file)
 
 	pr_info("%s start\n", __func__);
 	module  = md->this_device->platform_data;
-	if (atomic_read(&module->fd_open) == 0) {
-		pr_info("fd already released, Expected behaviour in case of dual-camera \n");
+
+	if (atomic_dec_return(&module->fd_open) != 0) {
+		pr_info("fd is used\n");
 		return ret;
 	}
-	atomic_set(&module->fd_open, 0);
 	mutex_lock(&module->mod_lock);
 	ret = sprd_fd_drv_close(module->drv_handle);
 	mutex_unlock(&module->mod_lock);
@@ -274,8 +276,7 @@ static long sprd_fd_ioctl(struct file *file, unsigned int cmd,
 	module  = md->this_device->platform_data;
 
 	/* If fd already released then don't handle ioctl for another camera */
-	if (atomic_read(&module->fd_open) == 0)
-		return ret;
+
 	p_ioctl = &fd_ioctl_cmds_table[ioctl_nr];
 	if (!p_ioctl->cmd_proc) {
 		pr_err("SPRD_FD cmd function not defined %d", ioctl_nr);
