@@ -1997,12 +1997,11 @@ static int sprd_isp_put_context(void *isp_handle, int ctx_id)
 	dev = (struct isp_pipe_dev *)isp_handle;
 	pctx = &dev->ctx[ctx_id];
 
+	mutex_lock(&dev->path_mutex);
 	if (pctx->isp_k_param.nlm_buf) {
 		vfree(pctx->isp_k_param.nlm_buf);
 		pctx->isp_k_param.nlm_buf = NULL;
 	}
-
-	mutex_lock(&dev->path_mutex);
 
 	if (atomic_read(&pctx->user_cnt) == 1)
 		isp_stop_offline_thread(&pctx->thread);
@@ -2786,8 +2785,11 @@ static int sprd_isp_cfg_blkparam(
 	ops = &dev->isp_hw->hw_ops.core_ops;
 	pctx = &dev->ctx[ctx_id];
 	io_param = (struct isp_io_param *)param;
+	mutex_lock(&dev->path_mutex);
+
 	if (atomic_read(&pctx->user_cnt) < 1) {
 		pr_err("fail to use unable isp ctx %d.\n", ctx_id);
+		mutex_unlock(&dev->path_mutex);
 		return -EINVAL;
 	}
 
@@ -2814,6 +2816,7 @@ static int sprd_isp_cfg_blkparam(
 			pr_debug("isp block 0x%x is not supported.\n",
 				io_param->sub_block);
 			mutex_unlock(&pctx->blkpm_lock);
+			mutex_unlock(&dev->path_mutex);
 			return 0;
 		}
 
@@ -2821,6 +2824,7 @@ static int sprd_isp_cfg_blkparam(
 	}
 
 	mutex_unlock(&pctx->blkpm_lock);
+	mutex_unlock(&dev->path_mutex);
 
 	return ret;
 }
