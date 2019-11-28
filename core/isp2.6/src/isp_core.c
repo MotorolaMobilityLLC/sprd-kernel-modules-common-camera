@@ -388,7 +388,8 @@ static int isp_ltm_process_frame_previous(struct isp_pipe_context *pctx,
 	/*  Check Zoom or not */
 	if ((pctx->input_trim.size_x != pctx->ltm_ctx.frame_width) ||
 		(pctx->input_trim.size_y != pctx->ltm_ctx.frame_height) ||
-		((pframe->fid - pctx->ltm_ctx.fid) != 1)) {
+		((pframe->fid - pctx->ltm_ctx.fid) != 1)||
+		(pframe->fid == 0)){
 		pr_debug("frame size changed or frame id not series , bypass ltm map\n");
 
 		/* 1. hists from preview path always on
@@ -419,6 +420,9 @@ static int isp_ltm_process_frame(struct isp_pipe_context *pctx,
 	pctx->ltm_ctx.frame_width  = pctx->input_trim.size_x;
 	pctx->ltm_ctx.frame_height = pctx->input_trim.size_y;
 	pctx->ltm_ctx.isp_pipe_ctx_id = pctx->ctx_id;
+
+	pr_debug("LTM: type %d rgb %d yuv %d ctx id%d\n",
+		pctx->ltm_ctx.type, pctx->ltm_rgb, pctx->ltm_yuv, pctx->ctx_id);
 
 	/* pre & cap */
 	if (pctx->ltm_rgb)

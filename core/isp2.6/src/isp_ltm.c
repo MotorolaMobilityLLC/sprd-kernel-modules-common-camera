@@ -175,6 +175,8 @@ static int isp_ltm_share_ctx_set_config(struct isp_ltm_ctx_desc *ctx,
 
 	mutex_lock(&s_share_ctx_param.share_mutex);
 
+	s_share_ctx_param.pre_hist_bypass = hists->bypass;
+
 	s_share_ctx_param.pre_frame_h = ctx->frame_height_stat;
 	s_share_ctx_param.pre_frame_w = ctx->frame_width_stat;
 
@@ -223,6 +225,8 @@ static int isp_ltm_share_ctx_init(void)
 
 	s_share_ctx_param.pre_update = 0;
 	s_share_ctx_param.cap_update = 0;
+
+	s_share_ctx_param.pre_hist_bypass = 0;
 
 	s_share_ctx_param.pre_frame_h = 0;
 	s_share_ctx_param.pre_frame_w = 0;
@@ -600,7 +604,6 @@ static int isp_ltm_gen_histo_config(struct isp_ltm_ctx_desc *ctx,
 	param->frame_width = ctx->frame_width;
 
 	ltm_calc_histo_param(param);
-
 	hists->bypass = param->bypass;
 	hists->channel_sel = param->channel_sel;
 	hists->binning_en = param->binning_en;
@@ -640,6 +643,9 @@ static int isp_ltm_gen_histo_config(struct isp_ltm_ctx_desc *ctx,
 	ctx->frame_width_stat = param->frame_width;
 	ctx->frame_height_stat = param->frame_height;
 
+	pr_debug("ltm hist idx[%d], hist addr[0x%lx]\n",
+		ctx->fid, hists->addr);
+
 	pr_debug("binning_en[%d], tile_num_x_minus[%d], tile_num_y_minus[%d]\n",
 		hists->binning_en,
 		hists->tile_num_x_minus,
@@ -658,7 +664,8 @@ static int isp_ltm_gen_histo_config(struct isp_ltm_ctx_desc *ctx,
 
 
 static int isp_ltm_gen_map_config(struct isp_ltm_ctx_desc *ctx,
-			enum isp_ltm_region ltm_id, struct isp_ltm_map_info *tuning)
+			enum isp_ltm_region ltm_id, struct isp_ltm_map_info *tuning,
+			int type)
 {
 	int idx = 0;
 
@@ -685,11 +692,15 @@ static int isp_ltm_gen_map_config(struct isp_ltm_ctx_desc *ctx,
 	uint32_t slice_info[4];
 
 	map->bypass = map->bypass || tuning->bypass;
-	if (hists->bypass)
+
+	if (type == ISP_PRO_LTM_PRE_PARAM)
 		map->bypass = 1;
 
 	if (map->bypass)
 		return 0;
+
+	pr_debug("ltm type %d, hists->bypass %d, map->bypass %d\n",
+		type, hists->bypass, map->bypass);
 
 	mnum.tile_num_x = hists->tile_num_x_minus + 1;
 	mnum.tile_num_y = hists->tile_num_y_minus + 1;
@@ -798,7 +809,7 @@ static int isp_ltm_gen_map_config(struct isp_ltm_ctx_desc *ctx,
 		map->tile_size_pro, map->tile_start_x, map->tile_left_flag);
 	pr_debug("tile_start_y[%d], tile_right_flag[%d], hist_pitch[%d]\n",
 		map->tile_start_y, map->tile_right_flag, map->hist_pitch);
-	pr_debug("idx[%d], addr[0x%lx]\n",
+	pr_debug("ltm map idx[%d], map addr[0x%lx]\n",
 		ctx->fid, map->mem_init_addr);
 
 	return 0;
@@ -899,7 +910,7 @@ int isp_ltm_gen_frame_config(struct isp_ltm_ctx_desc *ctx,
 	int i = 0;
 	struct isp_ltm_info *ltm_info = NULL;
 
-	pr_debug("type[%d], fid[%d], frame_width[%d], frame_height[%d]\n",
+	pr_info("type[%d], fid[%d], frame_width[%d], frame_height[%d]\n",
 		ctx->type, ctx->fid, ctx->frame_width, ctx->frame_height);
 
 	for (i = 0; i < ISP_LTM_BUF_NUM; i++) {
@@ -912,7 +923,8 @@ int isp_ltm_gen_frame_config(struct isp_ltm_ctx_desc *ctx,
 	case MODE_LTM_PRE:
 		ltm_info = isp_ltm_get_tuning_config(ISP_PRO_LTM_PRE_PARAM, ltm_id);
 		isp_ltm_gen_histo_config(ctx, ltm_id, &ltm_info->ltm_stat);
-		isp_ltm_gen_map_config(ctx, ltm_id, &ltm_info->ltm_map);
+		isp_ltm_gen_map_config(ctx, ltm_id, &ltm_info->ltm_map,
+			ISP_PRO_LTM_PRE_PARAM);
 		isp_ltm_config_param(ctx, ltm_id);
 		isp_ltm_share_ctx_set_config(ctx, &ctx->hists[ltm_id]);
 		break;
@@ -920,48 +932,55 @@ int isp_ltm_gen_frame_config(struct isp_ltm_ctx_desc *ctx,
 		isp_ltm_share_ctx_get_config(ctx, &ctx->hists[ltm_id]);
 		pre_fid = atomic_read(&s_share_ctx_param.pre_fid);
 
-		while (ctx->fid > pre_fid) {
-			pr_info("LTM capture fid [%d] > previre fid [%d]\n",
-				ctx->fid, pre_fid);
+		pr_debug("LTM capture fid [%d], previre fid [%d]\n",
+						ctx->fid, pre_fid);
 
-			if (isp_ltm_share_ctx_get_status(MODE_LTM_PRE) == 0) {
-				pr_err("fail to use free pre context\n");
-				ctx->type = MODE_LTM_OFF;
-				ctx->bypass = 1;
-				ret = -1;
-				break;
-			}
+		ctx->map[ltm_id].bypass = s_share_ctx_param.pre_hist_bypass;
 
-			isp_ltm_share_ctx_set_completion(ctx->fid, ltm_id);
+		if (!ctx->map[ltm_id].bypass){
+			while (ctx->fid > pre_fid) {
+				pr_info("LTM capture fid [%d] > previre fid [%d]\n",
+					ctx->fid, pre_fid);
 
-			ret = wait_for_completion_interruptible_timeout(
-				&s_share_ctx_param.share_comp[ltm_id], ISP_LTM_TIMEOUT);
-			if (ret <= 0) {
-				pr_err("fail to wait completion [%d]\n", ret);
-				ctx->type = MODE_LTM_OFF;
-				ctx->bypass = 1;
-				ret = -1;
-				break;
-			}
+				if (isp_ltm_share_ctx_get_status(MODE_LTM_PRE) == 0) {
+					pr_err("fail to use free pre context\n");
+					ctx->type = MODE_LTM_OFF;
+					ctx->bypass = 1;
+					ret = -1;
+					break;
+				}
 
-			pre_fid = atomic_read(&s_share_ctx_param.pre_fid);
-			if (ctx->fid > pre_fid) {
-				/*
-				 * Still cap fid > pre fid
-				 * Means context of pre has release
-				 * this complete from isp_core before release
-				 */
-				pr_err("fail to use free pre context\n");
-				ctx->type = MODE_LTM_OFF;
-				ctx->bypass = 1;
-				ret = -1;
-				break;
+				isp_ltm_share_ctx_set_completion(ctx->fid, ltm_id);
+
+				ret = wait_for_completion_interruptible_timeout(
+					&s_share_ctx_param.share_comp[ltm_id], ISP_LTM_TIMEOUT);
+				if (ret <= 0) {
+					pr_err("fail to wait completion [%d]\n", ret);
+					ctx->type = MODE_LTM_OFF;
+					ctx->bypass = 1;
+					ret = -1;
+					break;
+				}
+
+				pre_fid = atomic_read(&s_share_ctx_param.pre_fid);
+				if (ctx->fid > pre_fid) {
+					/*
+					 * Still cap fid > pre fid
+					 * Means context of pre has release
+					 * this complete from isp_core before release
+					 */
+					pr_err("fail to use free pre context\n");
+					ctx->type = MODE_LTM_OFF;
+					ctx->bypass = 1;
+					ret = -1;
+					break;
+				}
 			}
 		}
-
 		ltm_info = isp_ltm_get_tuning_config(ISP_PRO_LTM_CAP_PARAM, ltm_id);
 		isp_ltm_gen_histo_config(ctx, ltm_id, &ltm_info->ltm_stat);
-		isp_ltm_gen_map_config(ctx, ltm_id, &ltm_info->ltm_map);
+		isp_ltm_gen_map_config(ctx, ltm_id, &ltm_info->ltm_map,
+			ISP_PRO_LTM_CAP_PARAM);
 		isp_ltm_config_param(ctx, ltm_id);
 		break;
 	case MODE_LTM_OFF:

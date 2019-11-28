@@ -3536,6 +3536,9 @@ static int init_cam_channel(
 				channel->mode_ltm = MODE_LTM_PRE;
 				ctx_desc.mode_ltm = MODE_LTM_PRE;
 			}
+		} else {
+			channel->ltm_rgb = 0;
+			ctx_desc.ltm_rgb = 0;
 		}
 
 		if (module->cam_uinfo.is_yuv_ltm) {
@@ -3548,6 +3551,9 @@ static int init_cam_channel(
 				channel->mode_ltm = MODE_LTM_PRE;
 				ctx_desc.mode_ltm = MODE_LTM_PRE;
 			}
+		} else {
+			channel->ltm_yuv = 0;
+			ctx_desc.ltm_yuv = 0;
 		}
 
 		ret = isp_ops->cfg_path(module->isp_dev_handle,
@@ -4121,7 +4127,7 @@ static int img_ioctl_set_function_mode(
 	module->cam_uinfo.is_yuv_ltm = 0;
 
 	if (module->grp->hw_info->prj_id == SHARKL5pro) {
-		module->cam_uinfo.is_rgb_ltm = 0;
+		module->cam_uinfo.is_rgb_ltm = 1;
 		module->cam_uinfo.is_yuv_ltm = 0;
 	}
 

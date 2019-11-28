@@ -201,6 +201,8 @@ struct isp_ltm_share_ctx_param {
 	uint32_t pre_update;
 	uint32_t cap_update;
 
+	uint32_t pre_hist_bypass;
+
 	uint32_t pre_frame_h;
 	uint32_t pre_frame_w;
 	uint32_t cap_frame_h;

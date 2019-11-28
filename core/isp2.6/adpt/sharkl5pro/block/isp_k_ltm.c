@@ -27,8 +27,15 @@
 #define	ISP_LTM_HIST_BUF0		0
 #define	ISP_LTM_HIST_BUF1		1
 
-static struct isp_dev_rgb_ltm_info g_ltm_rgb_info;
-static struct isp_dev_yuv_ltm_info g_ltm_yuv_info;
+static struct isp_dev_rgb_ltm_info g_ltm_rgb_info = {
+	.ltm_stat.bypass = 1,
+	.ltm_map.bypass = 1,
+};
+
+static struct isp_dev_yuv_ltm_info g_ltm_yuv_info = {
+	.ltm_stat.bypass = 1,
+	.ltm_map.bypass = 1,
+};
 
 static void isp_ltm_config_hists(uint32_t idx,
 	enum isp_ltm_region ltm_id, struct isp_ltm_hists *hists)
@@ -194,10 +201,27 @@ struct isp_ltm_info *isp_ltm_get_tuning_config(int type,
 		pr_err("fail to get ltm id:%d, not supported.\n", ltm_id);
 	}
 
+	pr_debug("tuning hist %d %d %d %d %d %d %d %d %d.\n",
+		ltm_id,
+		ltm_info->ltm_stat.bypass,
+		ltm_info->ltm_stat.tile_num.tile_num_x,
+		ltm_info->ltm_stat.tile_num.tile_num_y,
+		ltm_info->ltm_stat.strength,
+		ltm_info->ltm_stat.tile_num_auto,
+		ltm_info->ltm_stat.channel_sel,
+		ltm_info->ltm_stat.text_point_thres,
+		ltm_info->ltm_stat.ltm_text.textture_proporion);
+
+	pr_debug("ltm tuning map %d %d %d.\n", ltm_id,
+		ltm_info->ltm_map.bypass,
+		ltm_info->ltm_map.ltm_map_video_mode);
+
 	if (type == ISP_PRO_LTM_PRE_PARAM)
 		ltm_info->ltm_map.ltm_map_video_mode = 1;
-	else
+	if (type == ISP_PRO_LTM_CAP_PARAM){
+		ltm_info->ltm_stat.bypass = 1;
 		ltm_info->ltm_map.ltm_map_video_mode = 0;
+	}
 
 	return ltm_info;
 }
