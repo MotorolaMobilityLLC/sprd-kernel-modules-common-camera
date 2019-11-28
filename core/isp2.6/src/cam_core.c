@@ -6318,6 +6318,11 @@ static int raw_proc_post(
 	/* if user set this buffer, we use it for dcam output
 	 * or else we will allocate one for it.
 	 */
+	if(ch->dcam_path_id == 0 && module->cam_uinfo.is_4in1 == 1)
+		is_loose = 0;
+	else
+		is_loose = module->cam_uinfo.sensor_if.if_spec.mipi.is_loose;
+	pr_info("day raw_proc_post is_loose %d", is_loose);
 	if (proc_info->fd_dst0 > 0) {
 		mid_frame->buf.type = CAM_BUF_USER;
 		mid_frame->buf.mfd[0] = proc_info->fd_dst0;
@@ -6338,11 +6343,6 @@ static int raw_proc_post(
 
 		//if(ch->dcam_path_id == 0 && module->cam_uinfo.is_4in1 == 1)
 			//ch_desc.is_loose = 0;
-		if(ch->dcam_path_id == 0 && module->cam_uinfo.is_4in1 == 1)
-			is_loose = 0;
-		else
-			is_loose = module->cam_uinfo.sensor_if.if_spec.mipi.is_loose;
-		pr_info("day raw_proc_post is_loose %d", is_loose);
 		/* todo: accurate buffer size for formats other than mipi-raw*/
 		if (proc_info->src_format == IMG_PIX_FMT_GREY)
 			size = cal_sprd_raw_pitch(width, is_loose) * height;

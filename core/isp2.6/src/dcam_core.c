@@ -1090,7 +1090,10 @@ static int dcam_offline_start_frame(void *param)
 		ret = dcam_path_set_store_frm(dev, path, NULL); /* TODO: */
 		if (ret == 0) {
 			/* interrupt need > 1 */
-			loose_val = ((dev->is_loose) | (path->is_loose));
+		        if(dev->rps == 1)
+		            loose_val = (loose_val | (dev->is_loose) | (path->is_loose));
+		        else
+                            loose_val = ((dev->is_loose) | (path->is_loose));
 			path->is_loose = loose_val;
 			val_4in1 = ((dev->is_4in1) | (path->is_4in1));
 			atomic_set(&path->set_frm_cnt, 1);
@@ -1105,10 +1108,14 @@ static int dcam_offline_start_frame(void *param)
 	}
 
 	/* todo - need to cfg fetch param from input or frame. */
-	if(val_4in1 == 1)
-		fetch->is_loose = 0;
-	else
-		fetch->is_loose = loose_val;
+	if(val_4in1 == 1) {
+	    if(dev->rps == 1)
+	      fetch->is_loose = loose_val;
+	  else
+	      fetch->is_loose = 0;
+	} else
+              fetch->is_loose = loose_val;
+	pr_info("is_loose =%d",fetch->is_loose);
 	fetch->endian = pframe->endian;
 	fetch->pattern = pframe->pattern;
 	fetch->size.w = pframe->width;
