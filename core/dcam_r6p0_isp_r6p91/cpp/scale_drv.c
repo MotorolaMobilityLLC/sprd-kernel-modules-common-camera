@@ -405,7 +405,7 @@ int scale_k_frame_cfg(struct scale_frame_param_t *cfg_ptr,
 		cfg_ptr->input_rect.w, cfg_ptr->input_rect.h);
 	/*set input rect*/
 	if (cfg_ptr->input_rect.x > SCALE_FRAME_WIDTH_MAX
-		|| cfg_ptr->input_rect.x > SCALE_FRAME_HEIGHT_MAX
+		|| cfg_ptr->input_rect.y > SCALE_FRAME_HEIGHT_MAX
 		|| cfg_ptr->input_rect.w > SCALE_FRAME_WIDTH_MAX
 		|| cfg_ptr->input_rect.h > SCALE_FRAME_HEIGHT_MAX) {
 		pr_err("scale_k_io_cfg error: input_rect {%d %d %d %d}\n",
