@@ -218,6 +218,9 @@ struct camera_info {
 	unsigned int capture_mode;
 	unsigned int skip_number;
 	struct sprd_img_set_flash set_flash;
+	unsigned int flash_last_status;
+	unsigned int flash_skip_fid;
+	unsigned int frame_index;
 	unsigned int after_af;
 	unsigned int is_smooth_zoom;
 	struct timeval timestamp;
@@ -282,6 +285,7 @@ struct camera_file {
 
 int img_get_timestamp(struct timeval *tv);
 void gen_frm_timestamp(struct frm_timestamp *pts);
+int sprd_img_start_flash(struct camera_frame *frame, void *param);
 
 #endif /* _DCAM_CORE_H_ */
 

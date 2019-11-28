@@ -947,16 +947,7 @@ static void dcam_sensor_sof(enum dcam_id idx)
 
 static void dcam_sensor_eof(enum dcam_id idx)
 {
-	dcam_isr_func user_func = s_user_func[idx][DCAM_SN_EOF];
-	void *data = s_user_data[idx][DCAM_SN_EOF];
-
-	if (DCAM_ADDR_INVALID(s_p_dcam_mod[idx])) {
-		pr_err("fail to get ptr\n");
-		return;
-	}
-
-	if (user_func)
-		(*user_func) (NULL, data);
+	pr_debug("sensor eof\n");
 }
 
 static void dcam_bin_path_sof(enum dcam_id idx)
@@ -1098,6 +1089,8 @@ static void dcam_cap_sof_handle(enum dcam_id idx, struct camera_dev *cam_drv)
 	struct isp_offline_desc *off_desc = NULL;
 	struct isp_pipe_dev *dev = NULL;
 	struct dcam_path_desc *raw_path = NULL;
+	struct camera_info *dcam_info = NULL;
+	struct sprd_img_set_flash *set_flash = NULL;
 
 	if (DCAM_ADDR_INVALID(s_p_dcam_mod[idx])) {
 		pr_err("fail to get ptr\n");
@@ -1108,6 +1101,8 @@ static void dcam_cap_sof_handle(enum dcam_id idx, struct camera_dev *cam_drv)
 	off_desc = &dev->module_info.off_desc;
 	raw_path = &s_p_dcam_mod[idx]->dcam_raw_path;
 
+	dcam_info = &cam_drv->dcam_cxt;
+	dcam_info->frame_index++;
 	dcam_time_queue_read(&dcam_t_sof.tq[idx].sof_t, &sof_ts);
 
 	if (s_p_dcam_mod[idx]->dcam_binning_path.valid){
@@ -1125,6 +1120,18 @@ static void dcam_cap_sof_handle(enum dcam_id idx, struct camera_dev *cam_drv)
 	if (raw_path->valid &&
 		!dcam_frame_queue_peek(&raw_path->frame_queue, &p_work_frame))
 		p_work_frame->sof_ts = sof_ts;
+
+	set_flash = &cam_drv->dcam_cxt.set_flash;
+	if ((set_flash->led0_ctrl && set_flash->led0_status < FLASH_STATUS_MAX)||
+		(set_flash->led1_ctrl && set_flash->led1_status < FLASH_STATUS_MAX)){
+		sprd_img_start_flash(NULL, cam_drv);
+		if (dcam_info->flash_last_status != set_flash->led0_status)
+			dcam_info->flash_skip_fid= dcam_info->frame_index;
+		else
+			pr_debug("no need to skip\n");
+		pr_info("skip_fram=%d\n", dcam_info->flash_skip_fid);
+		dcam_info->flash_last_status = set_flash->led0_status;
+	}
 
 	frame.irq_type = CAMERA_IRQ_DONE;
 	frame.irq_property = IRQ_DCAM_SOF;

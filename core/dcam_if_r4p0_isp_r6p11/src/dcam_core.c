@@ -219,7 +219,7 @@ static int sprd_img_opt_flash(struct camera_frame *frame, void *param)
 	return 0;
 }
 
-static int sprd_img_start_flash(struct camera_frame *frame, void *param)
+int sprd_img_start_flash(struct camera_frame *frame, void *param)
 {
 	struct camera_dev *dev = (struct camera_dev *)param;
 	struct camera_info *info = NULL;
@@ -1624,6 +1624,14 @@ static int sprd_img_pdaf_tx_done(struct camera_frame *frame, void *param)
 		return -1;
 	}
 
+	module->pdaf_statis_cnt++;
+	if (dev->dcam_cxt.flash_skip_fid == module->pdaf_statis_cnt){
+		ret = isp_statis_queue_write(&module->pdaf_statis_queue, &node);
+		if (ret)
+			pr_err("fail to write pdaf buf queue\n");
+		goto next_pdaf_frm;
+	}
+
 	if (node.phy_addr != module->pdaf_buf_reserved.phy_addr) {
 		frame_info.buf_size = node.buf_size;
 		memcpy(frame_info.pfinfo.mfd, node.pfinfo.mfd,
@@ -1636,8 +1644,8 @@ static int sprd_img_pdaf_tx_done(struct camera_frame *frame, void *param)
 
 		sprd_img_tx_done(&frame_info, param);
 	}
-	module->pdaf_statis_cnt++;
 
+next_pdaf_frm:
 	ret = dcam_pdaf_set_next_frm(module, dev->idx, DCAM_PDAF_BLOCK);
 	if (unlikely(ret))
 		pr_err("fail to set padf next frm %d", ret);
@@ -1781,15 +1789,40 @@ static int sprd_img_binning_tx_done(struct camera_frame *frame, void *param)
 {
 	int ret = DCAM_RTN_SUCCESS;
 	struct camera_dev *dev = (struct camera_dev *)param;
+	struct isp_pipe_dev *isp_dev = NULL;
+	struct isp_module *module = NULL;
+	struct offline_buf_desc *buf_desc = NULL;
+	struct camera_frame out_frame;
 
-	ret = sprd_img_handle_afm_stats(dev);
-	if (unlikely(ret))
-		pr_err("fail to halde afm stats\n");
-
-	if (dev->dcam_cxt.sn_mode != DCAM_CAP_MODE_YUV)
-		ret = sprd_isp_set_offline_buffer(dev->isp_dev_handle,
-						  ISP_OFF_BUF_BIN);
 	dev->bin_frame_id++;
+
+	if (dev->bin_frame_id == dev->dcam_cxt.flash_skip_fid){
+		isp_dev = (struct isp_pipe_dev *)dev->isp_dev_handle;
+		module = &isp_dev->module_info;
+		buf_desc = isp_offline_sel_buf(&module->off_desc,
+				ISP_OFF_BUF_BIN);
+		if (module->off_desc.read_buf_err == 1) {
+			module->off_desc.read_buf_err = 0;
+			pr_info("bin buf didn't set, no need to skip\n");
+			return 0;
+		}
+		if (isp_frame_dequeue(&buf_desc->frame_queue, &out_frame)) {
+			pr_err("fail to dequeue dcam frm queue : bin path\n");
+			return 0;
+		}
+		if(isp_buf_queue_write(&buf_desc->tmp_buf_queue, &out_frame))
+			pr_err("fail to write dcam buf queue : bin path\n");
+
+	} else {
+		ret = sprd_img_handle_afm_stats(dev);
+		if (unlikely(ret))
+			pr_err("fail to halde afm stats\n");
+
+		if (dev->dcam_cxt.sn_mode != DCAM_CAP_MODE_YUV)
+			ret = sprd_isp_set_offline_buffer(dev->isp_dev_handle,
+							  ISP_OFF_BUF_BIN);
+	}
+
 	pr_debug("binning path tx done dcam%d\n", dev->idx);
 
 	return ret;
@@ -1815,6 +1848,14 @@ static int sprd_img_aem_tx_done(struct camera_frame *frame, void *param)
 		return -1;
 	}
 
+	module->aem_statis_cnt++;
+	if (dev->dcam_cxt.flash_skip_fid == module->aem_statis_cnt){
+		ret = isp_statis_queue_write(&module->aem_statis_queue, &node);
+		if (ret)
+			pr_err("fail to write aem buf queue\n");
+		goto next_aem_frm;
+	}
+
 	if (node.phy_addr != module->aem_buf_reserved.phy_addr) {
 		frame_info.buf_size = node.buf_size;
 		memcpy(frame_info.pfinfo.mfd, node.pfinfo.mfd,
@@ -1827,8 +1868,8 @@ static int sprd_img_aem_tx_done(struct camera_frame *frame, void *param)
 
 		sprd_img_tx_done(&frame_info, param);
 	}
-	module->aem_statis_cnt++;
 
+next_aem_frm:
 	ret = dcam_aem_set_next_frm(module, dev->idx, DCAM_AEM_BLOCK);
 	if (unlikely(ret))
 		pr_err("fail to set aem next frm %d", ret);
@@ -2000,12 +2041,15 @@ static int sprd_init_handle(struct camera_dev *dev)
 		return -EINVAL;
 	}
 
+	info->flash_skip_fid = -1;
 	info->set_flash.led0_ctrl = 0;
 	info->set_flash.led1_ctrl = 0;
 	info->set_flash.led0_status = FLASH_STATUS_MAX;
 	info->set_flash.led1_status = FLASH_STATUS_MAX;
 	info->set_flash.flash_index = 0;
 	info->after_af = 0;
+	info->flash_last_status = FLASH_STATUS_MAX;
+	info->frame_index = 0;
 
 	for (i = 0; i < CAMERA_MAX_PATH; i++) {
 		path = &info->dcam_path[i];
@@ -2515,8 +2559,6 @@ static int sprd_dcam_block_reg_isr(struct camera_dev *param)
 			sprd_img_tx_error, param);
 	sprd_dcam_reg_isr(param->idx, DCAM_CAP_FRM_ERR,
 			sprd_img_tx_error, param);
-	sprd_dcam_reg_isr(param->idx, DCAM_SN_EOF,
-		sprd_img_start_flash, param);
 	sprd_dcam_reg_isr(param->idx, DCAM_FULL_PATH_TX_DONE,
 		sprd_img_full_tx_done, param);
 	sprd_dcam_reg_isr(param->idx, DCAM_BIN_PATH_TX_DONE,
@@ -2543,7 +2585,6 @@ static int sprd_dcam_block_unreg_isr(struct camera_dev *param)
 	sprd_dcam_reg_isr(param->idx, DCAM_AEM_HOLD_OVF, NULL, param);
 	sprd_dcam_reg_isr(param->idx, DCAM_CAP_LINE_ERR, NULL, param);
 	sprd_dcam_reg_isr(param->idx, DCAM_CAP_FRM_ERR, NULL, param);
-	sprd_dcam_reg_isr(param->idx, DCAM_SN_EOF, NULL, param);
 	sprd_dcam_reg_isr(param->idx, DCAM_FULL_PATH_TX_DONE, NULL, param);
 	sprd_dcam_reg_isr(param->idx, DCAM_BIN_PATH_TX_DONE, NULL, param);
 	sprd_dcam_reg_isr(param->idx, DCAM_PDAF_PATH_TX_DONE, NULL, param);
