@@ -27,6 +27,9 @@ int isp_frame_enqueue(struct isp_frm_queue *queue,
 	struct camera_frame *frame);
 int isp_frame_dequeue(struct isp_frm_queue *queue,
 	struct camera_frame *frame);
+int isp_pframe_peekqueue(struct isp_frm_queue *queue,
+	struct camera_frame **pframe);
+
 int isp_queue_init(struct isp_queue *queue);
 int32_t isp_queue_read(struct isp_queue *queue, struct isp_node *node);
 void isp_buf_queue_init(struct isp_buf_queue *queue);

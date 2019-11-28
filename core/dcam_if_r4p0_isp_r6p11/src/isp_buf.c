@@ -96,6 +96,37 @@ int isp_frame_dequeue(struct isp_frm_queue *queue,
 	return 0;
 }
 
+int isp_pframe_peekqueue(struct isp_frm_queue *queue,
+	struct camera_frame **pframe)
+{
+	unsigned long flags;
+
+	if (ISP_ADDR_INVALID(queue) || ISP_ADDR_INVALID(pframe)) {
+		pr_err("fail to get valid parm %p,%p\n", queue, pframe);
+		return -1;
+	}
+
+	spin_lock_irqsave(&queue->lock, flags);
+	pr_debug("queue->valid_cnt %d, r_index %d, w_index %d\n",
+		queue->valid_cnt, queue->r_index, queue->w_index);
+
+	if (queue->valid_cnt == 0) {
+		pr_debug("fail to dequeue %s, cb %pS\n",
+		       queue->owner, __builtin_return_address(0));
+		spin_unlock_irqrestore(&queue->lock, flags);
+		return -1;
+	}
+
+	*pframe = &queue->frame[queue->r_index];
+
+	pr_debug("peek queue element, %d, %d, %d, %p\n",
+		   (0xF & (*pframe)->fid), (*pframe)->type, queue->valid_cnt,
+		   *pframe);
+	spin_unlock_irqrestore(&queue->lock, flags);
+
+	return 0;
+}
+
 void isp_frm_queue_clear(struct isp_frm_queue *queue)
 {
 	if (ISP_ADDR_INVALID(queue)) {

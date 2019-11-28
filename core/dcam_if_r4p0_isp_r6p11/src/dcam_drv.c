@@ -510,6 +510,24 @@ static int dcam_time_queue_write(struct dcam_path_time_queue *queue,
 	return ret;
 }
 
+static int dcam_frame_queue_peek(struct dcam_frm_queue *queue,
+								struct camera_frame **out_frame)
+{
+	if (DCAM_ADDR_INVALID(queue) || DCAM_ADDR_INVALID(out_frame)) {
+		pr_err("fail to get queue frm %p, %p\n", queue, out_frame);
+		return -EINVAL;
+	}
+	pr_debug("frm queue valid_cnt %d\n", queue->valid_cnt);
+	if (queue->valid_cnt == 0){
+		pr_debug("frame queue under flow");
+		return -1;
+	}
+	*out_frame = &queue->frm_array[0];
+	pr_debug("peek frame, fid %d,vali cnt %d\n",
+			(*out_frame)->fid, queue->valid_cnt);
+	return 0;
+}
+
 static void dcam_frm_queue_clear(struct dcam_frm_queue *queue)
 {
 	if (DCAM_ADDR_INVALID(queue)) {
@@ -623,7 +641,6 @@ static int dcam_raw_path_set_next_frm(enum dcam_id idx)
 	if (dev->cap_flag != DCAM_CAPTURE_STOP &&
 	    dcam_buf_queue_read(p_buf_queue, &frame) == 0 &&
 	    frame.pfinfo.mfd[0] != 0) {
-		gen_frm_timestamp(&frame.sof_ts);
 		raw_path->output_frame_count--;
 		pr_debug("raw path set next frm\n");
 	} else {
@@ -950,7 +967,6 @@ static void dcam_bin_path_sof(enum dcam_id idx)
 
 	/* TODO: doesn't consider skip frame */
 	if (s_p_dcam_mod[idx]->dcam_binning_path.valid) {
-		gen_frm_timestamp(&frame.sof_ts);
 		frame.irq_type = CAMERA_IRQ_DONE;
 		frame.irq_property = IRQ_DCAM_SOF;
 		frame.flags = ISP_OFF_BUF_BIN;
@@ -1029,7 +1045,6 @@ static void dcam_full_path_sof(enum dcam_id idx)
 
 	/* TODO: doesn't consider skip frame */
 	if (s_p_dcam_mod[idx]->dcam_full_path.valid) {
-		gen_frm_timestamp(&frame.sof_ts);
 
 		cam_dev = (struct camera_dev *)s_p_dcam_mod[idx]->dev_handle;
 		isp_dev = (struct isp_pipe_dev *)cam_dev->isp_dev_handle;
@@ -1072,21 +1087,49 @@ static void dcam_full_raw_path_sof(enum dcam_id idx)
 	}
 }
 
-static void dcam_cap_sof_handle(enum dcam_id idx)
+static void dcam_cap_sof_handle(enum dcam_id idx, struct camera_dev *cam_drv)
 {
 	struct camera_frame frame = {0};
+	struct camera_frame *p_work_frame = NULL;
 	dcam_isr_func user_func = s_user_func[idx][DCAM_CAP_SOF];
 	void *data = s_user_data[idx][DCAM_CAP_SOF];
+	struct offline_buf_desc *buf_desc = NULL;
+	struct frm_timestamp sof_ts;
+	struct isp_offline_desc *off_desc = NULL;
+	struct isp_pipe_dev *dev = NULL;
+	struct dcam_path_desc *raw_path = NULL;
 
 	if (DCAM_ADDR_INVALID(s_p_dcam_mod[idx])) {
 		pr_err("fail to get ptr\n");
 		return;
 	}
+	memset(&sof_ts, 0, sizeof(struct frm_timestamp));
+	dev = (struct isp_pipe_dev *)cam_drv->isp_dev_handle;
+	off_desc = &dev->module_info.off_desc;
+	raw_path = &s_p_dcam_mod[idx]->dcam_raw_path;
 
-	dcam_time_queue_read(&dcam_t_sof.tq[idx].sof_t, &frame.sof_ts);
+	dcam_time_queue_read(&dcam_t_sof.tq[idx].sof_t, &sof_ts);
+
+	if (s_p_dcam_mod[idx]->dcam_binning_path.valid){
+		buf_desc = isp_offline_sel_buf(off_desc, ISP_OFF_BUF_BIN);
+		if (buf_desc && !isp_pframe_peekqueue(&buf_desc->frame_queue, &p_work_frame))
+			p_work_frame->sof_ts = sof_ts;
+	}
+
+	if (s_p_dcam_mod[idx]->dcam_full_path.valid){
+		buf_desc = isp_offline_sel_buf(off_desc, ISP_OFF_BUF_BIN);
+		if (buf_desc && !isp_pframe_peekqueue(&buf_desc->frame_queue, &p_work_frame))
+			p_work_frame->sof_ts = sof_ts;
+	}
+
+	if (raw_path->valid &&
+		!dcam_frame_queue_peek(&raw_path->frame_queue, &p_work_frame))
+		p_work_frame->sof_ts = sof_ts;
+
 	frame.irq_type = CAMERA_IRQ_DONE;
 	frame.irq_property = IRQ_DCAM_SOF;
 	frame.flags = ISP_OFF_BUF_NONE;
+	frame.sof_ts = sof_ts;
 	if (user_func)
 		(*user_func) (&frame, data);
 }
@@ -1096,7 +1139,7 @@ static void dcam_cap_sof(enum dcam_id idx)
 	struct camera_dev *dev = NULL;
 
 	dev = (struct camera_dev *)s_p_dcam_mod[idx]->dev_handle;
-	dcam_cap_sof_handle(idx);
+	dcam_cap_sof_handle(idx, dev);
 	dcam_bin_path_sof(idx);
 	if (!dev->dcam_cxt.is_raw_rt) {
 		dcam_full_path_sof(idx);
@@ -3977,7 +4020,7 @@ int sprd_dcam_start(enum dcam_id idx, struct camera_frame *frame,
 				pr_err("fail to start full path %d\n", rtn);
 				return -(rtn);
 			}
-		} else{
+		} else {
 			rtn = dcam_full_path_start(idx, full_path, frame);
 			if (rtn) {
 				pr_err("fail to start full path %d\n", rtn);
