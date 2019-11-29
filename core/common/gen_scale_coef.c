@@ -119,11 +119,13 @@ static void normalize_inter(int64_t *data, short *int_data, unsigned char ilen)
 		tmp_sum_val += tmp_data[it];
 
 	if (tmp_sum_val == 0) {
-		unsigned char value = 256 / ilen;
+		if (ilen) {
+			unsigned char value = 256 / ilen;
 
-		for (it = 0; it < ilen; it++) {
-			tmp_d = value;
-			int_data[it] = (short)tmp_d;
+			for (it = 0; it < ilen; it++) {
+				tmp_d = value;
+				int_data[it] = (short)tmp_d;
+			}
 		}
 	} else {
 		for (it = 0; it < ilen; it++) {
