@@ -291,6 +291,9 @@ int isp_set_next_statis_buf(unsigned int com_idx,
 		p_buf_queue = &module->hist_statis_queue;
 		statis_heap = &module->hist_statis_frm_queue;
 		reserved_buf = &module->hist_buf_reserved;
+	} else {
+		pr_err("fail to get valid statis block index %d\n", block_index);
+		return -1;
 	}
 
 	/*read buf addr from in_buf_queue*/
