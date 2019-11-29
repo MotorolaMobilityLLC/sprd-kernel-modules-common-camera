@@ -1418,7 +1418,7 @@ static int sprd_isp_sel_cap_frm(struct isp_pipe_dev *dev)
 	module = &dev->module_info;
 	off_desc = &module->off_desc;
 	buf_desc = &off_desc->buf_desc_full;
-
+	memset(&frame, 0, sizeof(struct camera_frame));
 	if (dev->delta_full == 0) {
 		/* the dev streaming first, get its frame first (for the ID) */
 #define ISP_MULTICAM_START_FROM_OLDEST
@@ -1490,8 +1490,8 @@ static int sprd_isp_sel_cap_frm(struct isp_pipe_dev *dev)
 			}
 		}
 		if (!match)
-			pr_warn("fail to find match %d, use last frame %d\n",
-				target, frame.fid);
+			pr_warn("fail to find match %d, use last frame %d, c %d\n",
+				target, frame.fid, c);
 		else {
 			/* clean the queue */
 			ret = isp_buf_recycle(buf_desc,
