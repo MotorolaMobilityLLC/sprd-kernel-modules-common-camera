@@ -1308,6 +1308,9 @@ int isp_path_set_next_frm(struct isp_module *module,
 		_ISP_SET_STORE_ADDR_REG(ISP_STORE_PRE_CAP_BASE, yuv_reg);
 		p_heap = &path->frame_queue;
 		p_buf_queue = &path->buf_queue;
+	} else {
+		pr_err("fail to get valid path index 0x%x\n", path_index);
+		return -EFAULT;
 	}
 
 	idx = dev->com_idx;
