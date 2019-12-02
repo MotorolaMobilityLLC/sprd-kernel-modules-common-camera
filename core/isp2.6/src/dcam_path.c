@@ -105,6 +105,7 @@ int dcam_cfg_path_base(void *dcam_handle,
 		path->is_loose = ch_desc->is_loose;
 		path->endian = ch_desc->endian;
 		path->is_4in1 = ch_desc->is_4in1;
+		path->bayer_pattern = ch_desc->bayer_pattern;
 		break;
 	case DCAM_PATH_BIN:
 		path->frm_deci = ch_desc->frm_deci;
@@ -113,6 +114,7 @@ int dcam_cfg_path_base(void *dcam_handle,
 		path->is_loose = ch_desc->is_loose;
 		path->endian = ch_desc->endian;
 		path->is_4in1 = ch_desc->is_4in1;
+		path->bayer_pattern = ch_desc->bayer_pattern;
 		/*
 		 * TODO:
 		 * Better not binding dcam_if feature to BIN path, which is a
@@ -122,12 +124,10 @@ int dcam_cfg_path_base(void *dcam_handle,
 		dev->is_3dnr |= ch_desc->enable_3dnr;
 		dev->raw_cap = ch_desc->raw_cap;
 		break;
-
 	case DCAM_PATH_VCH2:
 		path->endian = ch_desc->endian;
 		path->src_sel = ch_desc->is_raw ? 1 : 0;
 		break;
-
 	default:
 		pr_err("fail to get known path %d\n", path->path_id);
 		ret = -EFAULT;

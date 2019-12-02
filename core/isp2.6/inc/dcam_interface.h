@@ -196,6 +196,7 @@ struct dcam_path_cfg_param {
 	uint32_t enable_3dnr;
 	uint32_t is_raw;
 	uint32_t is_loose;
+	uint32_t bayer_pattern;
 	uint32_t is_4in1;
 	uint32_t frm_deci;
 	uint32_t frm_skip;

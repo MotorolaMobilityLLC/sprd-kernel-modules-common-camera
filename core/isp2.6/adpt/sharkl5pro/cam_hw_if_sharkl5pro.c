@@ -824,6 +824,8 @@ static int sharkl5pro_dcam_path_start(void *handle, uint32_t path_id)
 
 		/* full_path_en */
 		DCAM_REG_MWR(idx, DCAM_FULL_CFG, BIT_0, (0x1));
+		DCAM_REG_MWR(idx, NR3_FAST_ME_PARAM, BIT_7 | BIT_6,
+			(path->bayer_pattern & 0x3) << 6);
 		break;
 
 	case  DCAM_PATH_BIN:
@@ -837,6 +839,8 @@ static int sharkl5pro_dcam_path_start(void *handle, uint32_t path_id)
 				BIT_19 | BIT_18 | BIT_17,
 				(dev->slowmotion_count & 7) << 17);
 		DCAM_REG_MWR(idx, DCAM_CAM_BIN_CFG, BIT_0, 0x1);
+		DCAM_REG_MWR(idx, NR3_FAST_ME_PARAM, BIT_7 | BIT_6,
+			(path->bayer_pattern & 0x3) << 6);
 		break;
 	case DCAM_PATH_PDAF:
 		/* pdaf path en */
@@ -883,7 +887,10 @@ static int sharkl5pro_dcam_path_start(void *handle, uint32_t path_id)
 				rect.x, rect.y, rect.w, rect.h);
 			break;
 		}
-		DCAM_REG_WR(idx, NR3_FAST_ME_PARAM, 0x8);
+		DCAM_REG_MWR(idx, NR3_FAST_ME_PARAM, BIT_0, 0 );
+		DCAM_REG_MWR(idx, NR3_FAST_ME_PARAM, BIT_3, 1 << 3);
+		DCAM_REG_MWR(idx, NR3_FAST_ME_PARAM, BIT_5 | BIT_4, 1 << 4);
+		DCAM_REG_MWR(idx, NR3_FAST_ME_PARAM, BIT_8, 0 << 8);
 		dcam_k_3dnr_set_roi(rect,
 				0/* project_mode=0 */, idx);
 		break;

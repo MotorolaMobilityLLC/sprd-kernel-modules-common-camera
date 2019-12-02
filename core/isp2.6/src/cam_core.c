@@ -3480,6 +3480,7 @@ static int init_cam_channel(
 		ch_desc.slowmotion_count = ch_uinfo->high_fps_skip_num;
 
 		ch_desc.endian.y_endian = ENDIAN_LITTLE;
+		ch_desc.bayer_pattern = module->cam_uinfo.sensor_if.img_ptn;
 		/* auto_3dnr:hw enable, channel->uinfo_3dnr == 1: hw enable */
 		ch_desc.enable_3dnr = (module->auto_3dnr | channel->uinfo_3dnr);
 		if (channel->ch_id == CAM_CH_RAW)
@@ -5954,6 +5955,10 @@ static int img_ioctl_start_capture(
 	} else if (param.type == DCAM_CAPTURE_START) {
 		module->dcam_cap_status = DCAM_CAPTURE_START;
 		atomic_set(&module->capture_frames_dcam, CAP_NUM_COMMON);
+	} else if (param.type == DCAM_CAPTURE_START_3DNR) {
+		module->dcam_cap_status = DCAM_CAPTURE_START_FROM_NEXT_SOF;
+		atomic_set(&module->capture_frames_dcam, 5);
+		module->capture_times = start_time;
 	} else {
 		atomic_set(&module->capture_frames_dcam, -1);
 	}

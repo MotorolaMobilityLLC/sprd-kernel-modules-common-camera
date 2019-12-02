@@ -98,6 +98,7 @@ struct dcam_path_desc {
 	struct img_trim in_trim;
 	struct img_size out_size;
 
+	uint32_t bayer_pattern;
 	uint32_t out_fmt;
 	uint32_t is_loose;
 	uint32_t is_4in1;
