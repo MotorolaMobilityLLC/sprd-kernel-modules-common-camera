@@ -73,6 +73,9 @@ void dcam_k_3dnr_set_roi(struct isp_img_rect rect,
 	roi_x = ALIGN_DOWN(roi_x + rect.x, 2);
 	roi_y = ALIGN_DOWN(roi_y + rect.y, 2);
 
+	/* leave 32 lines to make sure BIN DONE comes earlier than NR3 DONE */
+	roi_h = max(roi_h, DCAM_3DNR_ROI_LINE_CUT) - DCAM_3DNR_ROI_LINE_CUT;
+
 	/* almost done! */
 	DCAM_REG_WR(idx, NR3_FAST_ME_ROI_PARAM0, roi_x << 16 | roi_y);
 	DCAM_REG_WR(idx, NR3_FAST_ME_ROI_PARAM1, roi_w << 16 | roi_h);
