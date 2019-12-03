@@ -345,6 +345,7 @@ int rot_k_probe(struct platform_device *pdev)
 	pr_alert(" rot_k_probe Success\n");
 	goto exit;
 probe_out:
+	misc_deregister(&rotation_dev);
 	devm_kfree(&pdev->dev, rot_private);
 	platform_set_drvdata(pdev, NULL);
 exit:

@@ -360,6 +360,7 @@ int scale_k_probe(struct platform_device *pdev)
 	goto exit;
 
 probe_out:
+	misc_deregister(&scale_dev);
 	vfree(scale_private->coeff_addr);
 	devm_kfree(&pdev->dev, scale_private);
 	platform_set_drvdata(pdev, NULL);
