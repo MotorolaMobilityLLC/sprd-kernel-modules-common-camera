@@ -4041,14 +4041,16 @@ static int sprd_img_probe(struct platform_device *pdev)
 	ret = sprd_isp_parse_dt(pdev->dev.of_node);
 	if (ret) {
 		pr_err("fail to parse isp dts\n");
-		goto exit;
+		goto parse_exit;
 	}
 	sprd_isp_drv_init();
 	scale_k_init();
 	rot_k_init();
 	pr_info("sprd_img_probe Success.\n");
 	goto exit;
-
+parse_exit:
+	sprd_dcam_drv_deinit();
+	misc_deregister(&image_dev);
 exit:
 	return ret;
 }
