@@ -1540,7 +1540,7 @@ static int sprd_dcam_put_path(
 	path = &dev->path[path_id];
 
 	if (atomic_read(&path->user_cnt) == 0) {
-		pr_err("fail to get a valid user_cnt, dcam%d path %d is not in use.\n",
+		pr_debug("fail to get a valid user_cnt, dcam%d path %d is not in use.\n",
 					dev->idx, path_id);
 		return -EFAULT;
 	}

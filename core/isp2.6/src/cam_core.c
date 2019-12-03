@@ -4878,8 +4878,9 @@ static int img_ioctl_set_frame_addr(
 	int ret = 0;
 	uint32_t i, cmd;
 	struct sprd_img_parm param;
-	struct channel_context *ch;
-	struct camera_frame *pframe;
+	struct channel_context *ch = NULL;
+	struct channel_context *ch_prv = NULL;
+	struct camera_frame *pframe = NULL;
 
 	if ((atomic_read(&module->state) != CAM_CFG_CH) &&
 		(atomic_read(&module->state) != CAM_RUNNING)) {
@@ -4910,6 +4911,7 @@ static int img_ioctl_set_frame_addr(
 				param.buffer_count);
 	}
 
+	ch_prv = &module->channel[CAM_CH_PRE];
 	ch = &module->channel[param.channel_id];
 	for (i = 0; i < param.buffer_count; i++) {
 		pframe = get_empty_frame();
@@ -4949,7 +4951,7 @@ static int img_ioctl_set_frame_addr(
 			if (param.is_reserved_buf &&
 				((ch->ch_id == CAM_CH_CAP)
 				|| (ch->ch_id == CAM_CH_PRE)
-				|| (ch->ch_id == CAM_CH_VID))) {
+				|| (ch->ch_id == CAM_CH_VID && !ch_prv->enable))) {
 				cmd = DCAM_PATH_CFG_OUTPUT_RESERVED_BUF;
 				pframe1 = get_empty_frame();
 				pframe1->is_reserved = 1;
@@ -5640,7 +5642,9 @@ static int img_ioctl_stream_off(
 	int ret = 0;
 	uint32_t i, j;
 	uint32_t raw_cap = 0, running = 0;
-	struct channel_context *ch;
+	int32_t dcam_path_id;
+	struct channel_context *ch = NULL;
+	struct channel_context *ch_prv = NULL;
 	int isp_ctx_id[CAM_CH_MAX] = { -1 };
 	struct isp_statis_io_desc io_desc;
 
@@ -5692,7 +5696,8 @@ static int img_ioctl_stream_off(
 	ret = dcam_ops->ioctl(module->dcam_dev_handle,
 		DCAM_IOCTL_CFG_STOP, NULL);
 
-	for (i = 0;  i < CAM_CH_MAX; i++) {
+	ch_prv = &module->channel[CAM_CH_PRE];
+	for (i = 0; i < CAM_CH_MAX; i++) {
 		ch = &module->channel[i];
 		isp_ctx_id[i] = -1;
 		if (!ch->enable)
@@ -5706,7 +5711,12 @@ static int img_ioctl_stream_off(
 				ch->ch_id,
 				ch->dcam_path_id,
 				ch->isp_path_id);
-		if (ch->dcam_path_id >= 0) {
+		/* prv & vid use same dcam bin path, no need to put it twice */
+		if (ch->ch_id == CAM_CH_VID && ch_prv->enable)
+			dcam_path_id = -1;
+		else
+			dcam_path_id = ch->dcam_path_id;
+		if (dcam_path_id >= 0) {
 			dcam_ops->put_path(module->dcam_dev_handle,
 					ch->dcam_path_id);
 		}

@@ -254,7 +254,7 @@ int dcam_update_lsc(void *in)
 			break;
 	}
 	if (i >= LENS_LOAD_TIMEOUT) {
-		pr_err("fail to load, lens grid table load timeout.\n");
+		pr_debug("fail to load, lens grid table load timeout.\n");
 		ret = -EPERM;
 	} else {
 		/* lens_load_buf_sel toggle */
