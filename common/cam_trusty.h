@@ -23,7 +23,7 @@
 #define FACEID_VERSION 			1
 #define GET_TXBUF_TIMEOUT	10
 #define CA_READ_TIMEOUT		1000
-#define CA_CONN_TIMEOUT 		1000
+#define CA_CONN_TIMEOUT 		10
 
 enum cam_command {
 	TA_FACEID_ENTER_TEMODE = 1,
