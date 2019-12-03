@@ -1,26 +1,28 @@
-#ifneq ($(strip $(TARGET_BOARD_CAMERA_SENSOR_MODULE)),)
+#
+# flash_ic_wd3610da.ko
+#
+# Makefile: for external make invocation
+#
+# Note:
+# - Please refer to modules/sample/Makefile to find out what should be
+#   done in this Makefile
+#
 
-LOCAL_PATH := $(PWD)
+KO_MODULE_NAME := flash_ic_wd3610da
+KO_MODULE_OUT := $(BSP_MODULES_OUT)/$(KO_MODULE_NAME)
+KO_MODULE_KBUILD := $(CURDIR)/Kbuild
 
-# target source files
-flash_ic_wd3610da-objs := flash_ic_wd3610da_drv.o
-
-# target
-obj-m += flash_ic_wd3610da.o
-
-# target includes
-ccflags-y += -I$(LOCAL_PATH)/../flash_drv
-ccflags-y += -I$(LOCAL_PATH)/../../interface
-
-.PHONY:modules
+.PHONY: modules modules_install clean
 
 modules:
-	$(MAKE) $(BSP_MAKE_EXTRA_ARGS) ARCH=$(BSP_BOARD_ARCH) CROSS_COMPILE=$(BSP_KERNEL_CROSS_COMPILE) $(BSP_MAKE_EXTRA_ARGS) -C $(BSP_KERNEL_PATH) O=$(BSP_KERNEL_OUT) M=`pwd` $@
+	@mkdir -p $(KO_MODULE_OUT) && ln -snf $(KO_MODULE_KBUILD) $(KO_MODULE_OUT)/Kbuild
+	@ln -snf $(CURDIR) $(KO_MODULE_OUT)/source
+	$(MAKE) -C $(BSP_KERNEL_PATH) M=$(KO_MODULE_OUT) src=$(CURDIR) $@
 
 modules_install:
-	$(MAKE) $(BSP_MAKE_EXTRA_ARGS) ARCH=$(BSP_BOARD_ARCH) CROSS_COMPILE=$(BSP_KERNEL_CROSS_COMPILE) $(BSP_MAKE_EXTRA_ARGS) -C $(BSP_KERNEL_PATH) O=$(BSP_KERNEL_OUT) M=`pwd` INSTALL_MOD_PATH=$(BSP_MODULES_OUT) $@
+	$(MAKE) -C $(BSP_KERNEL_PATH) M=$(KO_MODULE_OUT) $@
 
+# Remove the out directory wholly
 clean:
-	$(MAKE) -C $(BSP_KERNEL_PATH) O=$(BSP_KERNEL_OUT) M=`pwd` $@
-
-#endif
+	@#$(MAKE) -C $(BSP_KERNEL_PATH) M=$(KO_MODULE_OUT) src=$(CURDIR) $@
+	rm -rf $(KO_MODULE_OUT)

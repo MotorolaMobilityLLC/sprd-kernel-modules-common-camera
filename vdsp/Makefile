@@ -1,36 +1,33 @@
-LOCAL_PATH := $(shell cd $(BSP_ROOT_DIR)/modules/camera/vdsp; pwd)
-VDSP_DIR := $(BSP_BOARD_CAMERA_MODULE_VDSP_DEVICE)
+#
+# sprd_vdsp.ko
+#
+# Makefile: for external make invocation
+#
+# Note:
+# - Please refer to modules/sample/Makefile to find out what should be
+#   done in this Makefile
+#
 
-ifeq ($(BSP_BOARD_CAMERA_MODULE_VDSP_DEVICE),Ceva)
-sprd_vdsp-objs :=
+KO_MODULE_NAME := sprd_vdsp
+KO_MODULE_OUT := $(BSP_MODULES_OUT)/$(KO_MODULE_NAME)
+KO_MODULE_KBUILD := $(CURDIR)/Kbuild
 
-# target source files
-CEVA_SRC := $(shell find $(LOCAL_PATH)/$(VDSP_DIR)/ceva1.0/src -name "*.c")
-CEVA_DIR :=  $(CEVA_SRC:$(LOCAL_PATH)/$(VDSP_DIR)/ceva1.0/src/%=%)
-sprd_vdsp-objs += $(CEVA_DIR:%.c=$(VDSP_DIR)/ceva1.0/src/%.o)
+.PHONY: modules modules_install clean
 
-#target
-obj-m += sprd_vdsp.o
-
-# target includes
-ccflags-y += -I$(LOCAL_PATH)/$(VDSP_DIR)/ceva1.0/inc/
-ccflags-y += -I$(LOCAL_PATH)/../sensor/
-ccflags-y += -I$(LOCAL_PATH)/../common
-ccflags-y += -I$(LOCAL_PATH)/../interface
-ccflags-y += -I$(BSP_KERNEL_PATH)/drivers/staging/android/ion
-ccflags-y += -I$(BSP_KERNEL_PATH)/drivers/devfreq/apsys/
+ifneq ($(BSP_BOARD_CAMERA_MODULE_VDSP_DEVICE),Ceva)
+modules modules_install clean:
+	@echo "Skipped, Kbuild only for Ceva vdsp!"
 else
-$(warning "unknown vdsp device!!!!!!!!!!!!!!!!!!!!!!!!!!")
-endif
-
-.PHONY:modules
-
 modules:
-	$(MAKE) $(BSP_MAKE_EXTRA_ARGS) ARCH=$(BSP_BOARD_ARCH) CROSS_COMPILE=$(BSP_KERNEL_CROSS_COMPILE) -C $(BSP_KERNEL_PATH) O=$(BSP_KERNEL_OUT) M=`pwd` $@
+	@mkdir -p $(KO_MODULE_OUT) && rsync -az $(KO_MODULE_KBUILD) $(KO_MODULE_OUT)/Kbuild
+	@#ln -snf $(CURDIR) $(KO_MODULE_OUT)/source
+	$(MAKE) -C $(BSP_KERNEL_PATH) M=$(KO_MODULE_OUT) src=$(CURDIR) $@
 
 modules_install:
-	$(MAKE) $(BSP_MAKE_EXTRA_ARGS) ARCH=$(BSP_BOARD_ARCH) CROSS_COMPILE=$(BSP_KERNEL_CROSS_COMPILE) -C $(BSP_KERNEL_PATH) O=$(BSP_KERNEL_OUT) M=`pwd` INSTALL_MOD_PATH=$(BSP_MODULES_OUT) $@
+	$(MAKE) -C $(BSP_KERNEL_PATH) M=$(KO_MODULE_OUT) $@
 
+# Remove the out directory wholly
 clean:
-	$(MAKE) -C $(BSP_KERNEL_PATH) O=$(BSP_KERNEL_OUT) M=`pwd` $@
-
+	@#$(MAKE) -C $(BSP_KERNEL_PATH) M=$(KO_MODULE_OUT) src=$(CURDIR) $@
+	rm -rf $(KO_MODULE_OUT)
+endif
