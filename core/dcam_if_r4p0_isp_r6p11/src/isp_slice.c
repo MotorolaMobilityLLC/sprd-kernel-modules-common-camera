@@ -33,19 +33,29 @@
 #define SLICE_WIDTH_MAX			2112	/* 1408 */
 #define SLICE_WIDTH_DEF			2112
 #define SLICE_SCL_WIDTH_MAX			2304
+
 #define YUV_OVERLAP_UP				46
 #define YUV_OVERLAP_DOWN			66
-#define YUV_OVERLAP_LEFT			74
+#define YUV_OVERLAP_LEFT			90
 #define YUV_OVERLAP_RIGHT			126
 
+/*
+ * Change YUVSCALER_OVERLAP_LEFT from 16 to 32 to support
+ * (3264,2488) -> (352, 288) scaler.
+ * And the YUV_OVERLAP_LEFT and RAW_OVERLAP_LEFT also needs
+ * to be added 16 as the YUVSCALER_OVERLAP_LEFT changes.
+ *
+ * Note: The sum of RAW_OVERLAP_LEFT and RAW_OVERLAP_RIGHT should
+ * be less than 256, due to the 8-bit limit in overlap.
+ */
 #define YUVSCALER_OVERLAP_UP			32
 #define YUVSCALER_OVERLAP_DOWN			52
-#define YUVSCALER_OVERLAP_LEFT			16
+#define YUVSCALER_OVERLAP_LEFT			32
 #define YUVSCALER_OVERLAP_RIGHT		68
 
 #define RAW_OVERLAP_UP				58
 #define RAW_OVERLAP_DOWN			78
-#define RAW_OVERLAP_LEFT			86
+#define RAW_OVERLAP_LEFT			102
 #define RAW_OVERLAP_RIGHT			138
 
 #define SCL_HOR_MAX_TAP			8
