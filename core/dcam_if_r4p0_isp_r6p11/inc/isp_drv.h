@@ -25,7 +25,7 @@
 #include "isp_reg.h"
 #include "dcam_drv.h"
 #include "cam_iommu.h"
-
+#include "cam_dbg.h"
 
 #define ISP_PATH_FRAME_WIDTH_MAX                        4224
 #define ISP_PATH_FRAME_HEIGHT_MAX                       3168
@@ -125,153 +125,6 @@
 #define AW_ID_STORE_PRE_CAP_V                   (BIT_13)
 #define AW_ID_STORE_PRE_CAP_YUV \
 	(AW_ID_STORE_PRE_CAP_Y | AW_ID_STORE_PRE_CAP_U | AW_ID_STORE_PRE_CAP_V)
-
-#define ISP_SBLK_MAP_CNT                        3
-#define ISP_SBLK_MAP_SIZE       (sizeof(int) * BITS_PER_BYTE) /* unit: bit */
-
-/* get map id by number of sub-blk */
-#define isp_dbg_g_sblk_map(nr)                  ((nr) / ISP_SBLK_MAP_SIZE)
-/* get bit site in a word */
-#define isp_dbg_g_sblk_site(nr)                 ((nr) % ISP_SBLK_MAP_SIZE)
-/* update map using byp_flag on bit_site */
-#define isp_dbg_u_sblk_map(map, bit_site, byp_flag) \
-	(((map) & ~(1 << (bit_site))) | ((byp_flag) << (bit_site)))
-
-/**
- * for debug purpose,
- * get bypass_flag, setting from sysfs, in bitmap for one sub-block.
- * @nr:		the number of bit in bitmap of isp sblk, from 0 to ISP_SBLK_CNT,
- * @byp_flag:	save the bypass flag achieved from bitmap.
- */
-#define isp_dbg_g_sblk_byp_flag(nr, byp_flag)	\
-do {						\
-	unsigned int map, map_id, site;		\
-						\
-	if (byp_flag < SBLK_BYP_FLAG_CNT && nr < ISP_SBLK_CNT) {\
-		map_id = isp_dbg_g_sblk_map((nr));		\
-		site = isp_dbg_g_sblk_site((nr));		\
-		map = isp_dbg->sblk_maps[map_id];	\
-		byp_flag = (map & (1 << site)) >> site;	\
-	}						\
-} while (0)
-
-/**
- * for debug purpose,
- * set bypass flag in bitmap for one sub-block, via sysfs dynamic control.
- * @nr:		the number of bit in bitmap of isp sblk, from 0 to ISP_SBLK_CNT,
- * @byp_flag:	the bypass flag seting value: 0/1, from sysfs.
- */
-#define isp_dbg_s_sblk_byp_flag(nr, byp_flag)			\
-do {								\
-	unsigned int map_id, site, old_map, new_map;		\
-								\
-	if (byp_flag < SBLK_BYP_FLAG_CNT && nr < ISP_SBLK_CNT) {	\
-		map_id = isp_dbg_g_sblk_map((nr));			\
-		site = isp_dbg_g_sblk_site((nr));			\
-		old_map = isp_dbg->sblk_maps[(map_id)];		\
-		new_map = isp_dbg_u_sblk_map(old_map, site, byp_flag);\
-		isp_dbg->sblk_maps[map_id] = new_map;		\
-	}							\
-} while (0)
-
-/**
- * for debug purpose,
- * set bypass flag from sysfs, for all sub-blocks,
- * @byp_flag: the bypass flag seting value: 0/1, from sysfs.
- */
-#define isp_dbg_s_all_sblk_byp_flag(byp_flag)			\
-do {								\
-	unsigned int new_map, map_id;				\
-	unsigned int map_cnt = DIV_ROUND_UP(ISP_SBLK_CNT, ISP_SBLK_MAP_SIZE);\
-								\
-	if (byp_flag < SBLK_BYP_FLAG_CNT) {				\
-		if ((byp_flag) == SBLK_BYPASS)			\
-			new_map = 0xffffffff;			\
-		else						\
-			new_map = 0x0;				\
-								\
-		for (map_id = 0; map_id < map_cnt; map_id++)	\
-			isp_dbg->sblk_maps[map_id] = new_map;	\
-	}							\
-} while (0)
-
-/**
- * for debug purpose,
- * set the original bypass state of each isp sub-blocks.
- * @bid: the index of isp sub-block
- * @iid: the index of isp_dev
- */
-#define isp_dbg_s_ori_byp(byp_flag, bid, iid)			\
-do {								\
-	unsigned int map_id, site, old_map, new_map;		\
-	struct isp_pipe_dev *isp_dev = NULL;			\
-								\
-	if (CHECK_ID_VALID(iid) && bid < ISP_SBLK_CNT &&	\
-	    byp_flag < SBLK_BYP_FLAG_CNT) {			\
-		isp_dev = g_isp_dev_parray[(iid)];		\
-		if (!IS_ERR_OR_NULL(isp_dev)) {			\
-			map_id = isp_dbg_g_sblk_map((bid));	\
-			site = isp_dbg_g_sblk_site((bid));	\
-			old_map = isp_dev->sblk_ori_byp_map[map_id];\
-			new_map = isp_dbg_u_sblk_map(old_map, site, byp_flag);\
-			isp_dev->sblk_ori_byp_map[map_id] = new_map;\
-		}						\
-	}							\
-} while (0)
-
-enum isp_sblk_byp_flag {
-	SBLK_WORK,
-	SBLK_BYPASS,
-	SBLK_BYP_FLAG_CNT,
-};
-
-enum isp_sblk {
-	/* RAW RGB */
-	raw_pgg,
-	raw_blc,
-	raw_rgbg,
-	raw_rgbd,
-	raw_postblc,
-	raw_nlc,
-	raw_2dlsc,
-	raw_bin,
-	raw_awb,
-	raw_aem,
-	raw_bpc,
-	raw_grgbc,
-	raw_vst,
-	raw_nlm,
-	raw_ivst,
-	raw_rlsc,
-	raw_afm,
-
-	/* FULL RGB */
-	full_cmc,
-	full_gama,
-	full_hsv,
-	full_pstrz,
-	full_uvd,
-
-	/* YUV */
-	yuv_afl,
-	yuv_precdn,
-	yuv_ynr,
-	yuv_brta,
-	yuv_cnta,
-	yuv_hist,
-	yuv_hist2,
-	yuv_cdn,
-	yuv_edge,
-	yuv_csa,
-	yuv_hua,
-	yuv_postcdn,
-	yuv_gama,
-	yuv_iircnr,
-	yuv_random,
-	yuv_nf,
-
-	ISP_SBLK_CNT,
-};
 
 enum isp_wait_full_tx_done_state {
 	WAIT_CLEAR,
@@ -447,10 +300,10 @@ enum isp_fmcu_cmd {
 };
 
 struct isp_clk_gate {
-	unsigned int g0;
-	unsigned int g1;
-	unsigned int g2;
-	unsigned int g3;
+	uint32_t g0;
+	uint32_t g1;
+	uint32_t g2;
+	uint32_t g3;
 };
 
 struct isp_ch_irq {
@@ -459,15 +312,15 @@ struct isp_ch_irq {
 };
 
 struct isp_raw_afm_statistic {
-	unsigned int val[ISP_RAW_AFM_ITEM];
+	uint32_t val[ISP_RAW_AFM_ITEM];
 };
 
 struct isp_node {
-	unsigned int irq_val0;
-	unsigned int irq_val1;
-	unsigned int irq_val2;
-	unsigned int irq_val3;
-	unsigned int reserved;
+	uint32_t irq_val0;
+	uint32_t irq_val1;
+	uint32_t irq_val2;
+	uint32_t irq_val3;
+	uint32_t reserved;
 	struct isp_k_time time;
 };
 
@@ -478,17 +331,17 @@ struct isp_queue {
 };
 
 struct isp_deci_info {
-	unsigned int deci_y_eb;
-	unsigned int deci_y;
-	unsigned int deci_x_eb;
-	unsigned int deci_x;
+	uint32_t deci_y_eb;
+	uint32_t deci_y;
+	uint32_t deci_x_eb;
+	uint32_t deci_x;
 };
 
 struct isp_trim_info {
-	unsigned int start_x;
-	unsigned int start_y;
-	unsigned int size_x;
-	unsigned int size_y;
+	uint32_t start_x;
+	uint32_t start_y;
+	uint32_t size_x;
+	uint32_t size_y;
 };
 
 struct isp_endian_sel {
@@ -497,46 +350,46 @@ struct isp_endian_sel {
 };
 
 struct isp_sc_tap {
-	unsigned int y_tap;
-	unsigned int uv_tap;
+	uint32_t y_tap;
+	uint32_t uv_tap;
 };
 
 struct isp_regular_info {
-	unsigned int regular_mode;
-	unsigned int shrink_uv_dn_th;
-	unsigned int shrink_uv_up_th;
-	unsigned int shrink_y_dn_th;
-	unsigned int shrink_y_up_th;
-	unsigned int effect_v_th;
-	unsigned int effect_u_th;
-	unsigned int effect_y_th;
-	unsigned int shrink_c_range;
-	unsigned int shrink_c_offset;
-	unsigned int shrink_y_range;
-	unsigned int shrink_y_offset;
+	uint32_t regular_mode;
+	uint32_t shrink_uv_dn_th;
+	uint32_t shrink_uv_up_th;
+	uint32_t shrink_y_dn_th;
+	uint32_t shrink_y_up_th;
+	uint32_t effect_v_th;
+	uint32_t effect_u_th;
+	uint32_t effect_y_th;
+	uint32_t shrink_c_range;
+	uint32_t shrink_c_offset;
+	uint32_t shrink_y_range;
+	uint32_t shrink_y_offset;
 };
 
 struct isp_scaler_info {
-	unsigned int scaler_bypass;
-	unsigned int scaler_y_ver_tap;
-	unsigned int scaler_uv_ver_tap;
-	unsigned int scaler_ip_int;
-	unsigned int scaler_ip_rmd;
-	unsigned int scaler_cip_int;
-	unsigned int scaler_cip_rmd;
-	unsigned int scaler_factor_in;
-	unsigned int scaler_factor_out;
-	unsigned int scaler_ver_ip_int;
-	unsigned int scaler_ver_ip_rmd;
-	unsigned int scaler_ver_cip_int;
-	unsigned int scaler_ver_cip_rmd;
-	unsigned int scaler_ver_factor_in;
-	unsigned int scaler_ver_factor_out;
-	unsigned int scaler_in_width;
-	unsigned int scaler_in_height;
-	unsigned int scaler_out_width;
-	unsigned int scaler_out_height;
-	unsigned int *coeff_buf;
+	uint32_t scaler_bypass;
+	uint32_t scaler_y_ver_tap;
+	uint32_t scaler_uv_ver_tap;
+	uint32_t scaler_ip_int;
+	uint32_t scaler_ip_rmd;
+	uint32_t scaler_cip_int;
+	uint32_t scaler_cip_rmd;
+	uint32_t scaler_factor_in;
+	uint32_t scaler_factor_out;
+	uint32_t scaler_ver_ip_int;
+	uint32_t scaler_ver_ip_rmd;
+	uint32_t scaler_ver_cip_int;
+	uint32_t scaler_ver_cip_rmd;
+	uint32_t scaler_ver_factor_in;
+	uint32_t scaler_ver_factor_out;
+	uint32_t scaler_in_width;
+	uint32_t scaler_in_height;
+	uint32_t scaler_out_width;
+	uint32_t scaler_out_height;
+	uint32_t *coeff_buf;
 };
 
 struct isp_b4awb_buf {
@@ -547,9 +400,9 @@ struct isp_b4awb_buf {
 
 struct isp_statis_buf_node {
 	unsigned long buf_size;
-	unsigned int  k_addr;
-	unsigned int  u_addr;
-	unsigned int  mfd;
+	uint32_t  k_addr;
+	uint32_t  u_addr;
+	uint32_t  mfd;
 };
 
 #define ISP_BUF_SHORT_NAME_LEN	16
@@ -565,22 +418,22 @@ struct isp_buf_info {
 };
 
 struct isp_k_block {
-	unsigned int lsc_bypass;
-	unsigned int lsc_cap_grid_width;
-	unsigned int lsc_cap_grid_pitch;
-	unsigned int lsc_load_buf_id;
-	unsigned int lsc_update_buf_id;
-	unsigned int full_gamma_buf_id;
-	unsigned int yuv_ygamma_buf_id;
-	unsigned int lsc_buf_phys_addr;
-	unsigned int anti_flicker_buf_phys_addr;
-	unsigned int raw_nlm_buf_id;
+	uint32_t lsc_bypass;
+	uint32_t lsc_cap_grid_width;
+	uint32_t lsc_cap_grid_pitch;
+	uint32_t lsc_load_buf_id;
+	uint32_t lsc_update_buf_id;
+	uint32_t full_gamma_buf_id;
+	uint32_t yuv_ygamma_buf_id;
+	uint32_t lsc_buf_phys_addr;
+	uint32_t anti_flicker_buf_phys_addr;
+	uint32_t raw_nlm_buf_id;
 /*  TODO: lsc_1_buf_id replaced with rlsc */
-	unsigned int lsc_1d_buf_id;
-	unsigned int rlsc_buf_id;
-	unsigned int hsv_buf_id;
-	unsigned int lsc_2d_weight_en;
-	unsigned int fetch_raw_phys_addr;
+	uint32_t lsc_1d_buf_id;
+	uint32_t rlsc_buf_id;
+	uint32_t hsv_buf_id;
+	uint32_t lsc_2d_weight_en;
+	uint32_t fetch_raw_phys_addr;
 	unsigned long full_gamma_buf_addr;
 	void *nlm_vst_addr;
 	void *nlm_ivst_addr;
@@ -595,7 +448,7 @@ struct isp_k_block {
 };
 
 struct isp_statis_buf {
-	unsigned int buf_size;
+	uint32_t buf_size;
 	int buf_property;
 	unsigned long phy_addr;
 	unsigned long vir_addr;
@@ -629,7 +482,7 @@ struct isp_frm_queue {
 	struct camera_frame frame[ISP_FRM_QUEUE_LENGTH + 1];
 	int w_index;
 	int r_index;
-	unsigned int valid_cnt;
+	uint32_t valid_cnt;
 	spinlock_t lock;
 };
 
@@ -637,40 +490,40 @@ struct isp_buf_queue {
 	struct camera_frame frame[DCAM_FRM_CNT_MAX + 1];
 	int w_index;
 	int r_index;
-	unsigned int valid_cnt;
+	uint32_t valid_cnt;
 	spinlock_t lock;
 };
 
 struct isp_store_info {
-	unsigned int bypass;
-	unsigned int endian;
-	unsigned int speed_2x;
-	unsigned int mirror_en;
-	unsigned int color_format;
-	unsigned int max_len_sel;
-	unsigned int shadow_clr;
-	unsigned int store_res;
-	unsigned int rd_ctrl;
-	unsigned int shadow_clr_sel;
+	uint32_t bypass;
+	uint32_t endian;
+	uint32_t speed_2x;
+	uint32_t mirror_en;
+	uint32_t color_format;
+	uint32_t max_len_sel;
+	uint32_t shadow_clr;
+	uint32_t store_res;
+	uint32_t rd_ctrl;
+	uint32_t shadow_clr_sel;
 	struct camera_size size;
 	struct store_border border;
 	struct isp_pitch_fs pitch;
 };
 
 struct isp_path_desc {
-	unsigned int valid;
-	unsigned int uv_sync_v;
-	unsigned int scaler_bypass;
-	unsigned int status;
-	unsigned int path_mode;
-	unsigned int frm_deci;
-	unsigned int input_format;
-	unsigned int output_format;
-	unsigned int odata_mode;
-	unsigned int frame_base_id;
-	unsigned int output_frame_count;
-	unsigned int path_sel;
-	unsigned int uframe_sync;
+	uint32_t valid;
+	uint32_t uv_sync_v;
+	uint32_t scaler_bypass;
+	uint32_t status;
+	uint32_t path_mode;
+	uint32_t frm_deci;
+	uint32_t input_format;
+	uint32_t output_format;
+	uint32_t odata_mode;
+	uint32_t frame_base_id;
+	uint32_t output_frame_count;
+	uint32_t path_sel;
+	uint32_t uframe_sync;
 
 	struct isp_buf_queue buf_queue;
 	struct isp_frm_queue frame_queue;
@@ -691,12 +544,12 @@ struct isp_path_desc {
 	struct completion sof_com;
 	struct completion tx_done_com;
 
-	unsigned int wait_for_done;
-	unsigned int is_update;
-	unsigned int wait_for_sof;
-	unsigned int need_stop;
-	unsigned int need_wait;
-	unsigned int shadow_done_cnt;
+	uint32_t wait_for_done;
+	uint32_t is_update;
+	uint32_t wait_for_sof;
+	uint32_t need_stop;
+	uint32_t need_wait;
+	uint32_t shadow_done_cnt;
 };
 
 struct offline_ion_buf {
@@ -704,6 +557,7 @@ struct offline_ion_buf {
 	void *buf;
 	size_t buf_size;
 	struct camera_addr addr;
+	void *kva; /* kernel virtual address */
 };
 
 struct offline_buf_desc {
@@ -712,13 +566,13 @@ struct offline_buf_desc {
 	struct isp_buf_queue tmp_buf_queue;
 	struct isp_frm_queue frame_queue;
 	struct isp_frm_queue zsl_queue;
-	unsigned int output_format;
-	unsigned int output_frame_count;
+	uint32_t output_format;
+	uint32_t output_frame_count;
 };
 
 struct isp_offline_desc {
-	unsigned int valid;
-	unsigned int status;
+	uint32_t valid;
+	uint32_t status;
 	struct offline_buf_desc buf_desc_bin;
 	struct offline_buf_desc buf_desc_full;
 	struct isp_endian_sel data_endian;
@@ -726,28 +580,28 @@ struct isp_offline_desc {
 	struct camera_size dst;
 	struct store_border border;
 	struct isp_store_info store_info;
-	unsigned int is_update;
-	unsigned int shadow_done_cnt;
-	unsigned int read_buf_err;
+	uint32_t is_update;
+	uint32_t shadow_done_cnt;
+	uint32_t read_buf_err;
 };
 
 struct isp_fmcu_slice_desc {
 	void *slice_handle;
-	unsigned int fmcu_num;
+	uint32_t fmcu_num;
 	struct isp_buf_info cmdq_buf_info;
 };
 
 struct isp_fmcu_slw_desc {
 	void *slw_handle;
-	unsigned int *fmcu_addr_vir;
-	unsigned int slw_flags;
-	unsigned int status;
-	unsigned int vid_num;
+	uint32_t *fmcu_addr_vir;
+	uint32_t slw_flags;
+	uint32_t status;
+	uint32_t vid_num;
 };
 
 struct isp_sc_coeff {
-	unsigned int buf[ISP_SC_COEFF_BUF_SIZE];
-	unsigned int flag;
+	uint32_t buf[ISP_SC_COEFF_BUF_SIZE];
+	uint32_t flag;
 	struct isp_path_desc path;
 };
 
@@ -765,7 +619,7 @@ struct isp_sc_array {
 	struct isp_sc_coeff_queue vid_queue;
 	struct isp_sc_coeff_queue cap_queue;
 	struct isp_sc_coeff coeff[ISP_SCL_MAX];
-	unsigned int is_smooth_zoom;
+	uint32_t is_smooth_zoom;
 	struct isp_offline_desc scl_off_desc;
 };
 
@@ -822,14 +676,14 @@ struct isp_pipe_dev {
 	 *
 	 * i.e. idx = isp_id | work_mode << 4 | scene_id << 8
 	 */
-	unsigned int com_idx;
-	unsigned int fmcu_owner; /* record the owner of fmcu */
-	unsigned int cap_on;
-	unsigned int cap_flag;
-	unsigned int frm_cnt;
-	unsigned int pre_state;
-	unsigned int bin_path_miss_cnt; /* record the miss cnt of bin_tx done */
-	unsigned int is_raw_capture;
+	uint32_t com_idx;
+	uint32_t fmcu_owner; /* record the owner of fmcu */
+	uint32_t cap_on;
+	uint32_t cap_flag;
+	uint32_t frm_cnt;
+	uint32_t pre_state;
+	uint32_t bin_path_miss_cnt; /* record the miss cnt of bin_tx done */
+	uint32_t is_raw_capture;
 	atomic_t cfg_map_lock;
 	struct mutex isp_mutex;
 	struct completion fmcu_com;
@@ -848,19 +702,19 @@ struct isp_pipe_dev {
 	struct completion offline_full_thread_com;
 	struct task_struct *offline_bin_thread;
 	struct task_struct *offline_full_thread;
-	unsigned int is_offline_bin_thread_stop;
-	unsigned int is_offline_full_thread_stop;
-	unsigned int *fmcu_addr_vir;
+	uint32_t is_offline_bin_thread_stop;
+	uint32_t is_offline_full_thread_stop;
+	uint32_t *fmcu_addr_vir;
 	unsigned long fmcu_addr_phy;
-	unsigned int is_wait_fmcu;
-	unsigned int is_3dnr_path_cfg; /* check if 3dnr path been configed */
-	unsigned int is_3dnr; /* check if start capture of 3dnr coming */
-	unsigned int is_hdr;
-	unsigned int is_flash;
+	uint32_t is_wait_fmcu;
+	uint32_t is_3dnr_path_cfg; /* check if 3dnr path been configed */
+	uint32_t is_3dnr; /* check if start capture of 3dnr coming */
+	uint32_t is_hdr;
+	uint32_t is_flash;
 	/* set this flag when isp waiting for dcam full path tx done */
 	enum isp_wait_full_tx_done_state wait_full_tx_done;
-	unsigned int frm_cnt_3dnr;
-	unsigned int frm_cnt_cap; // flash, hdr frame cap count
+	uint32_t frm_cnt_3dnr;
+	uint32_t frm_cnt_cap; // flash, hdr frame cap count
 	struct camera_group *cam_grp;
 	spinlock_t pre_lock;
 	spinlock_t cap_lock;
@@ -869,7 +723,7 @@ struct isp_pipe_dev {
 	 * each bit for one sub-block.
 	 * 1, bypass; 0, work
 	 */
-	unsigned int sblk_ori_byp_map[ISP_SBLK_MAP_CNT];
+	uint32_t sblk_ori_byp_map[ISP_SBLK_MAP_CNT];
 
 	/* ISP flooding */
 	int isr_count;
@@ -883,8 +737,8 @@ typedef void(*isp_isr)(void *param);
 typedef int(*isp_isr_func)(struct camera_frame *frame, void *param);
 
 int sprd_isp_stop(void *isp_handle, int is_irq);
-int sprd_isp_start_pipeline_bin(void *handle, unsigned int cap_flag);
-int sprd_isp_start_pipeline_full(void *handle, unsigned int cap_flag);
+int sprd_isp_start_pipeline_bin(void *handle, uint32_t cap_flag);
+int sprd_isp_start_pipeline_full(void *handle, uint32_t cap_flag);
 int sprd_isp_stop_pipeline(void *handle);
 int sprd_isp_force_stop_pipeline(void *handle);
 int sprd_isp_start(void *isp_handle, struct camera_frame *frame);
@@ -907,35 +761,35 @@ int sprd_isp_dev_init(void **isp_pipe_dev_handle, enum isp_id iid);
 int sprd_isp_dev_deinit(void *isp_dev_handle, enum isp_id iid);
 int sprd_isp_drv_init(struct platform_device *pdev);
 void sprd_isp_drv_deinit(void);
-int sprd_isp_parse_dt(struct device_node *dn, unsigned int *isp_count);
-int sprd_isp_k_ioctl(void *isp_dev_handle, unsigned int cmd,
+int sprd_isp_parse_dt(struct device_node *dn, uint32_t *isp_count);
+int sprd_isp_k_ioctl(void *isp_dev_handle, uint32_t cmd,
 	unsigned long param);
 int sprd_isp_reg_isr(enum isp_id iid,  enum isp_irq_id irq_id,
 	isp_isr_func user_func, void *user_data);
 int sprd_isp_slw_flags_init(void *isp_handle, struct isp_path_info *info);
 void sprd_isp_drv_init_isp_cnt(void);
-void isp_irq_ctrl(struct isp_pipe_dev *dev, bool enable);
 int isp_cfg_param(void *param,
-	struct isp_k_block *isp_k_param, struct isp_pipe_dev *dev);
-void isp_dbg_reg_trace(struct isp_pipe_dev *dev, unsigned int idx);
-void isp_dbg_bypass_sblk(struct isp_pipe_dev *dev, unsigned int idx);
-void isp_dbg_dump_fmcu_cmd_q(struct isp_pipe_dev *dev);
+                  struct isp_k_block *isp_k_param, struct isp_pipe_dev *dev);
 int32_t isp_k_capability(void __user *param);
 int isp_path_scaler(struct isp_module *module,
 		    enum isp_path_index path_index,
 		    struct isp_path_desc *path,
 		    struct isp_sc_coeff *coeff);
 void isp_wait_update_done(struct isp_module *module,
-			  enum isp_path_index path_index, unsigned int *p_flag);
-unsigned int isp_k_fetch_get_raw_phys_addr(void);
+			  enum isp_path_index path_index, uint32_t *p_flag);
+uint32_t isp_k_fetch_get_raw_phys_addr(void);
 extern uint32_t int_reg_base[][ISP_SCENE_NUM];
-unsigned int isp_k_fetch_get_raw_info(unsigned int *width,
-	unsigned int *height);
+uint32_t isp_k_fetch_get_raw_info(uint32_t *width,
+	uint32_t *height);
 
 int sprd_isp_external_unmap(void *isp_handle);
 int isp_path_cap_with_vid_set_next_frm(struct isp_pipe_dev *dev);
+void sprd_isp_glb_reg_awr(uint32_t idx, unsigned long addr,
+                          uint32_t val, uint32_t reg_id);
+void sprd_isp_glb_reg_owr(uint32_t idx, unsigned long addr,
+                          uint32_t val, uint32_t reg_id);
 
-extern unsigned int is_dual_cam;
+extern uint32_t is_dual_cam;
 /**is_dual_cam_dore :
  *BIT(0)  : if 1, it is under dual camera recovery processing.
  *BIT(5)  : if 1, it already set DCAM0 stream on under recovery.
@@ -949,12 +803,12 @@ extern unsigned int is_dual_cam;
  *BIT(15) : if 1, an ioctl command is waiting for
 			the finish of dual camera recovery.
 */
-extern unsigned int is_dual_cam_dore;
-extern unsigned int dual_cam_cap_sta;
+extern uint32_t is_dual_cam_dore;
+extern uint32_t dual_cam_cap_sta;
 extern bool has_dual_cap_started;
-extern unsigned int fmcu_slice_capture_state;
-extern unsigned int fmcu_slice_capture_state_dual;
-extern unsigned int isp_frm_queue_len;
+extern uint32_t fmcu_slice_capture_state;
+extern uint32_t fmcu_slice_capture_state_dual;
+extern uint32_t isp_frm_queue_len;
 extern struct isp_pipe_dev *g_isp_dev_parray[ISP_MAX_COUNT];
 extern struct isp_clk_gate isp_clk_gt;
 void isp_clk_pause(enum isp_id iid, int i);

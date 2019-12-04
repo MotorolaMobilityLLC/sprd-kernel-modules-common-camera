@@ -27,7 +27,7 @@
 #define pr_fmt(fmt) "ISP_SLW: %d " fmt, __LINE__
 
 int slowmotion_frame_enqueue(struct isp_slw_queue *queue,
-			      struct isp_slw_info *slw)
+			     struct isp_slw_info *slw)
 {
 	if (DCAM_ADDR_INVALID(queue) || DCAM_ADDR_INVALID(slw)) {
 		pr_err("fail to get valid parm %p, %p\n", queue, slw);
@@ -48,9 +48,9 @@ int slowmotion_frame_enqueue(struct isp_slw_queue *queue,
 }
 
 int slowmotion_frame_dequeue(struct isp_slw_queue *queue,
-			      struct isp_slw_info *slw)
+			     struct isp_slw_info *slw)
 {
-	unsigned int i = 0;
+	uint32_t i = 0;
 
 	if (DCAM_ADDR_INVALID(queue) || DCAM_ADDR_INVALID(slw)) {
 		pr_err("fail to get valid parm %p, %p\n", queue, slw);
@@ -84,7 +84,7 @@ void slowmotion_frame_queue_clear(struct isp_slw_queue *queue)
 }
 
 void isp_slw_queue_clear(struct isp_slw_queue *p_queue,
-				struct camera_frame *res_frame)
+			 struct camera_frame *res_frame)
 {
 	/*
 	 * Remove it because slow motion using CFG mode now. Notice
@@ -150,14 +150,13 @@ void isp_slw_clear(void *handle)
 
 }
 
-int set_pingpang_reg(unsigned int idx,
-					struct isp_slw_info *p_from_embed)
+int set_pingpang_reg(uint32_t idx, struct isp_slw_info *p_from_embed)
 {
 	enum isp_slw_rtn rtn = ISP_RTN_SLW_SUCCESS;
-	unsigned int addr = 0;
+	uint32_t addr = 0;
 
 	if ((!p_from_embed) || (!p_from_embed->fmcu_addr_vir))
-		return -ISP_RTN_PARA_ERR;
+		return -EINVAL;
 
 	/* add set fmcu addr&num here*/
 #ifdef CONFIG_64BIT
@@ -176,9 +175,9 @@ int set_pingpang_reg(unsigned int idx,
 
 int set_isp_fmcu_int_reg(void *isp_handle)
 {
-	unsigned int idx;
+	uint32_t idx;
 	enum isp_slw_rtn rtn = ISP_RTN_SLW_SUCCESS;
-	unsigned int reg = 0;
+	uint32_t reg = 0;
 	struct isp_pipe_dev *dev = NULL;
 	struct isp_fmcu_slw_desc *fmcu_slw = NULL;
 	struct isp_fmcu_slw_info *slw_handle = NULL;
@@ -186,7 +185,7 @@ int set_isp_fmcu_int_reg(void *isp_handle)
 
 	if (!isp_handle) {
 		pr_err("fail to get Input param ptr is NULL\n");
-		return -ISP_RTN_PARA_ERR;
+		return -ENODEV;
 	}
 
 	dev = (struct isp_pipe_dev *)isp_handle;
@@ -197,28 +196,28 @@ int set_isp_fmcu_int_reg(void *isp_handle)
 
 	reg = ISP_INT_SKIP_CTRL;
 	ISP_REG_MWR(idx, reg, BIT_17,
-			sdw_done_info->sdw_done_skip_cnt_clr << 17);
+		    sdw_done_info->sdw_done_skip_cnt_clr << 17);
 	ISP_REG_MWR(idx, reg, 0XF000000,
-			sdw_done_info->sdw_done_int_cnt_num << 24);
+		    sdw_done_info->sdw_done_int_cnt_num << 24);
 	ISP_REG_MWR(idx, reg, 0xF00000,
-			sdw_done_info->sdw_done_skip_cnt_num << 20);
+		    sdw_done_info->sdw_done_skip_cnt_num << 20);
 	ISP_REG_MWR(idx, reg, BIT_16,
-			sdw_done_info->sdw_done_skip_en << 16);
+		    sdw_done_info->sdw_done_skip_en << 16);
 
 	reg = ISP_INT_SKIP_CTRL1;
 	ISP_REG_MWR(idx, reg, BIT_1,
-			sdw_done_info->vid_done_skip_cnt_clr << 1);
+		    sdw_done_info->vid_done_skip_cnt_clr << 1);
 	ISP_REG_MWR(idx, reg, 0XF00,
-			sdw_done_info->vid_done_int_cnt_num << 8);
+		    sdw_done_info->vid_done_int_cnt_num << 8);
 	ISP_REG_MWR(idx, reg, 0xF0,
-			sdw_done_info->vid_done_skip_cnt_num << 4);
+		    sdw_done_info->vid_done_skip_cnt_num << 4);
 	ISP_REG_MWR(idx, reg, BIT_0,
-			sdw_done_info->vid_done_skip_en);
+		    sdw_done_info->vid_done_skip_en);
 
 	return rtn;
 }
 
-void set_isp_fmcu_start_reg(unsigned int idx)
+void set_isp_fmcu_start_reg(uint32_t idx)
 {
 	ISP_REG_MWR(idx, ISP_FMCU_START, BIT_0, 1);
 }
@@ -232,7 +231,7 @@ int set_isp_fmcu_cmd_reg(enum isp_scl_id path_id, void *isp_handle)
 	 */
 #if 0
 	enum isp_slw_rtn rtn = ISP_RTN_SLW_SUCCESS;
-	unsigned int idx;
+	uint32_t idx;
 	struct isp_slw_info p_from_embed;
 	struct isp_pipe_dev *dev = NULL;
 	struct isp_slw_queue *p_insert_queue = NULL;
@@ -242,7 +241,7 @@ int set_isp_fmcu_cmd_reg(enum isp_scl_id path_id, void *isp_handle)
 
 	if (!isp_handle) {
 		pr_err("fail to get Input param ptr is NULL\n");
-		return -ISP_RTN_PARA_ERR;
+		return -ENODEV;
 	}
 
 	dev = (struct isp_pipe_dev *)isp_handle;
@@ -252,7 +251,7 @@ int set_isp_fmcu_cmd_reg(enum isp_scl_id path_id, void *isp_handle)
 
 	if (path_id != ISP_SCL_VID) {
 		pr_err("fail to get valid pathid %s rnt %d\n", __func__, rtn);
-		return -ISP_RTN_PARA_ERR;
+		return -EFAULT;
 	}
 
 	p_embed_queue = &slw_handle->embed_queue;
@@ -284,7 +283,8 @@ int set_isp_fmcu_cmd_reg(enum isp_scl_id path_id, void *isp_handle)
 }
 
 int isp_slw_buf_error(struct isp_slw_queue *p_empty_queue,
-	struct isp_slw_info *p_from_empty, struct isp_buf_queue *p_buf_queue)
+		      struct isp_slw_info *p_from_empty,
+		      struct isp_buf_queue *p_buf_queue)
 {
 	enum isp_slw_rtn rtn = ISP_RTN_SLW_SUCCESS;
 	struct camera_frame frame;
@@ -292,7 +292,7 @@ int isp_slw_buf_error(struct isp_slw_queue *p_empty_queue,
 
 	if (!p_empty_queue || !p_from_empty || !p_buf_queue) {
 		pr_err("fail to get Input param ptr is NULL\n");
-		return -ISP_RTN_PARA_ERR;
+		return -EINVAL;
 	}
 
 	p_frm_queue = &p_from_empty->slw_queue;
@@ -304,13 +304,12 @@ int isp_slw_buf_error(struct isp_slw_queue *p_empty_queue,
 	return rtn;
 }
 
-void set_fmcu_cmd(enum isp_id iid, unsigned int index,
-	struct camera_frame *frame, unsigned int u_offset,
-	struct isp_slw_info *p_from_empty)
+void set_fmcu_cmd(enum isp_id iid, uint32_t index, struct camera_frame *frame,
+		  uint32_t u_offset, struct isp_slw_info *p_from_empty)
 {
 	struct isp_slw_cmd *slw_cmd = NULL;
-	unsigned int num = 0, addr = 0, cmd = 0;
-	unsigned int shadow_done_cmd[] = {0x10, 0x13};
+	uint32_t num = 0, addr = 0, cmd = 0;
+	uint32_t shadow_done_cmd[] = {0x10, 0x13};
 
 	if (!p_from_empty) {
 		pr_err("fail to get Input param ptr is NULL\n");
@@ -348,7 +347,7 @@ void set_fmcu_cmd(enum isp_id iid, unsigned int index,
 }
 
 int fmcu_slw_cmd(void *isp_handle,
-	enum isp_scl_id path_id, unsigned int buf_reserved)
+	enum isp_scl_id path_id, uint32_t buf_reserved)
 {
 	/*
 	 * Remove it because slow motion using CFG mode now. Notice
@@ -358,7 +357,7 @@ int fmcu_slw_cmd(void *isp_handle,
 #if 0
 	enum isp_slw_rtn rtn = ISP_RTN_SLW_SUCCESS;
 	enum isp_id iid;
-	unsigned int i = 0, u_offset = 0;
+	uint32_t i = 0, u_offset = 0;
 	struct isp_slw_info p_from_empty;
 	struct camera_frame frame;
 	struct isp_pipe_dev *dev = NULL;
@@ -373,7 +372,7 @@ int fmcu_slw_cmd(void *isp_handle,
 
 	if (!isp_handle) {
 		pr_err("fail to get Input param ptr is NULL\n");
-		return -ISP_RTN_PARA_ERR;
+		return -ENODEV;
 	}
 
 	dev = (struct isp_pipe_dev *)isp_handle;
@@ -461,7 +460,7 @@ int isp_fmcu_slw_int_init(void *isp_handle)
 
 	if (!isp_handle) {
 		pr_err("fail to get valid param, NULL\n");
-		return -ISP_RTN_PARA_ERR;
+		return -ENODEV;
 	}
 
 	dev = (struct isp_pipe_dev *)isp_handle;
@@ -491,7 +490,7 @@ int isp_fmcu_slw_queue_init(void *isp_handle)
 	 */
 #if 0
 	enum isp_slw_rtn rtn = ISP_RTN_SLW_SUCCESS;
-	unsigned int i;
+	uint32_t i;
 	struct isp_slw_info p_from_empty;
 	struct isp_pipe_dev *dev = NULL;
 	struct isp_slw_cmd *fmcu_addr = NULL;
@@ -502,7 +501,7 @@ int isp_fmcu_slw_queue_init(void *isp_handle)
 
 	if (!isp_handle) {
 		pr_err("fail to get valid param, NULL\n");
-		return -ISP_RTN_PARA_ERR;
+		return -ENODEV;
 	}
 
 	dev = (struct isp_pipe_dev *)isp_handle;
@@ -512,7 +511,7 @@ int isp_fmcu_slw_queue_init(void *isp_handle)
 	p_reserved = &slw_hanle->slw_reserved;
 	if (!fmcu_slw->fmcu_addr_vir) {
 		pr_err("fail to get fmcu_addr_vir\n");
-		return -ISP_RTN_PARA_ERR;
+		return -EFAULT;
 	}
 	fmcu_addr = (struct isp_slw_cmd *)fmcu_slw->fmcu_addr_vir;
 	fmcu_addr = (struct isp_slw_cmd *)((~(FMCU_ALIGN - 1))
@@ -555,7 +554,7 @@ int isp_slw_flags_init(void *isp_handle, struct isp_path_info *info)
 
 	if (!isp_handle || !info) {
 		pr_err("fail to get valid param, NULL\n");
-		return -ISP_RTN_PARA_ERR;
+		return -ENODEV;
 	}
 
 	dev = (struct isp_pipe_dev *)isp_handle;
@@ -566,7 +565,7 @@ int isp_slw_flags_init(void *isp_handle, struct isp_path_info *info)
 		dev->fmcu_slw.slw_flags = ISP_SLW_VIDEO;
 	if (!info->fmcu_addr_vir) {
 		pr_err("fail to get fmcu_addr_vir\n");
-		return -ISP_RTN_PARA_ERR;
+		return -EFAULT;
 	}
 	dev->fmcu_slw.fmcu_addr_vir = info->fmcu_addr_vir;
 
@@ -576,11 +575,11 @@ int isp_slw_flags_init(void *isp_handle, struct isp_path_info *info)
 int get_slw_status(void *isp_handle)
 {
 	struct isp_pipe_dev *dev = NULL;
-	unsigned int slw_flags;
+	uint32_t slw_flags;
 
 	if (!isp_handle) {
 		pr_err("fail to get valid param, NULL\n");
-		return -ISP_RTN_PARA_ERR;
+		return -ENODEV;
 	}
 
 	dev = (struct isp_pipe_dev *)isp_handle;
@@ -589,8 +588,8 @@ int get_slw_status(void *isp_handle)
 	return slw_flags;
 }
 
-int set_isp_fmcu_slw_cmd(void *isp_handle,
-		enum isp_scl_id path_id, unsigned int buf_reserved)
+int set_isp_fmcu_slw_cmd(void *isp_handle, enum isp_scl_id path_id,
+			 uint32_t buf_reserved)
 {
 	enum isp_slw_rtn rtn = ISP_RTN_SLW_SUCCESS;
 	struct isp_pipe_dev *dev = NULL;
@@ -600,7 +599,7 @@ int set_isp_fmcu_slw_cmd(void *isp_handle,
 
 	if (!isp_handle) {
 		pr_err("fail to get valid param, NULL\n");
-		return -ISP_RTN_PARA_ERR;
+		return -ENODEV;
 	}
 
 	dev = (struct isp_pipe_dev *)isp_handle;
@@ -613,7 +612,7 @@ int set_isp_fmcu_slw_cmd(void *isp_handle,
 	} else {
 		while (p_buf_queue->valid_cnt > 0) {
 			if (fmcu_slw_cmd(isp_handle, path_id,
-					buf_reserved) != 0) {
+					 buf_reserved) != 0) {
 				pr_info("no enough queue or buffer\n ");
 				break;
 			}
@@ -625,13 +624,13 @@ int set_isp_fmcu_slw_cmd(void *isp_handle,
 
 int isp_fmcu_slw_start(enum isp_scl_id path_id, void *isp_handle)
 {
-	unsigned int idx;
+	uint32_t idx;
 	enum isp_slw_rtn rtn = ISP_RTN_SLW_SUCCESS;
 	struct isp_pipe_dev *dev = NULL;
 
 	if (!isp_handle) {
 		pr_err("fail to get valid param, NULL\n");
-		return -ISP_RTN_PARA_ERR;
+		return -ENODEV;
 	}
 
 	dev = (struct  isp_pipe_dev *)isp_handle;
@@ -657,12 +656,12 @@ int isp_fmcu_slw_start(enum isp_scl_id path_id, void *isp_handle)
 int set_fmcu_slw_cfg(void *handle)
 {
 	enum isp_slw_rtn rtn = ISP_RTN_SLW_SUCCESS;
-	unsigned int buf_reserved;
+	uint32_t buf_reserved;
 	struct isp_pipe_dev *dev = NULL;
 
 	if (!handle) {
 		pr_err("fail to get Input param ptr is NULL\n");
-		return -ISP_RTN_PARA_ERR;
+		return -ENODEV;
 	}
 
 	dev = (struct isp_pipe_dev *)handle;

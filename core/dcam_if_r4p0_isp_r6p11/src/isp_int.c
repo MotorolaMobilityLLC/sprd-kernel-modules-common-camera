@@ -14,6 +14,7 @@
 #include <linux/interrupt.h>
 #include <linux/uaccess.h>
 
+#include "cam_dbg.h"
 #include "isp_int.h"
 #include "isp_buf.h"
 #include "isp_path.h"
@@ -33,6 +34,8 @@
 #endif
 #define pr_fmt(fmt) "ISP_INT: %d %s: "\
 		fmt, __LINE__, __func__
+
+static int s_int_cnt[ISP_ID_MAX][ISP_SCENE_NUM][INT_REG_SETS][INT_NUM_PER_SET];
 
 static isp_isr_func p_user_func[ISP_ID_MAX][ISP_IMG_MAX];
 static void *p_user_data[ISP_ID_MAX][ISP_IMG_MAX];
@@ -173,29 +176,29 @@ static int isp_irq3_id_order[] = {
 	ISP_INT_NUMBER3,
 };
 
-struct irq_reg irq_sets[ISP_INT_REG_SETS_NUM] = {
-	[0] = {
+struct irq_reg irq_sets[INT_REG_SETS] = {
+	[INT_REG_SET_0] = {
 		.irq_status = 0,
 		.offset  = {ISP_INT_EN0, ISP_INT_CLR0, ISP_INT_INT0},
 		.msk_bmap = {ISP_MOD_PRE_EN0_MASK, ISP_MOD_CAP_EN0_MASK},
 		.order = isp_irq0_id_order,
 		.bits_idx_max = ARRAY_SIZE(isp_irq0_id_order),
 	},
-	[1] = {
+	[INT_REG_SET_1] = {
 		.irq_status = 0,
 		.offset  = {ISP_INT_EN1, ISP_INT_CLR1, ISP_INT_INT1},
 		.msk_bmap = {ISP_MOD_PRE_EN1_MASK, ISP_MOD_CAP_EN1_MASK},
 		.order = isp_irq1_id_order,
 		.bits_idx_max = ARRAY_SIZE(isp_irq1_id_order),
 	},
-	[2] = {
+	[INT_REG_SET_2] = {
 		.irq_status = 0,
 		.offset  = {ISP_INT_EN2, ISP_INT_CLR2, ISP_INT_INT2},
 		.msk_bmap = {ISP_MOD_PRE_EN2_MASK, ISP_MOD_CAP_EN2_MASK},
 		.order = isp_irq2_id_order,
 		.bits_idx_max = ARRAY_SIZE(isp_irq2_id_order),
 	},
-	[3] = {
+	[INT_REG_SET_3] = {
 		.irq_status = 0,
 		.offset  = {ISP_INT_EN3, ISP_INT_CLR3, ISP_INT_INT3},
 		.msk_bmap = {ISP_MOD_PRE_EN3_MASK, ISP_MOD_CAP_EN3_MASK},
@@ -205,7 +208,7 @@ struct irq_reg irq_sets[ISP_INT_REG_SETS_NUM] = {
 };
 
 static void isp_path_updated_notice(struct isp_module *module,
-	enum isp_path_index path_index)
+				    enum isp_path_index path_index)
 {
 	struct isp_path_desc *p_path = NULL;
 	enum isp_scl_id scl_path_id;
@@ -232,7 +235,7 @@ static void isp_path_updated_notice(struct isp_module *module,
 }
 
 static void isp_path_done_notice(struct isp_module *module,
-	enum isp_path_index path_index)
+				 enum isp_path_index path_index)
 {
 	struct isp_path_desc *p_path = NULL;
 	enum isp_scl_id scl_path_id;
@@ -264,7 +267,7 @@ static void isp_path_done_notice(struct isp_module *module,
 	}
 }
 
-int isp_set_next_statis_buf(unsigned int com_idx,
+int isp_set_next_statis_buf(uint32_t com_idx,
 			    struct isp_statis_module *module,
 			    enum isp_3a_block_id block_index)
 {
@@ -360,7 +363,7 @@ static void isp_irq_reg(enum isp_id iid, enum isp_irq_id irq_id, void *param)
 
 static void isp_afl_start(void *isp_handle)
 {
-	enum isp_drv_rtn rtn = ISP_RTN_SUCCESS;
+	enum isp_drv_rtn rtn = 0;
 	struct isp_pipe_dev *dev = NULL;
 	struct isp_statis_module *module = NULL;
 
@@ -379,7 +382,7 @@ static void isp_afl_start(void *isp_handle)
 
 static void isp_afl_done(void *isp_handle)
 {
-	enum isp_drv_rtn rtn = ISP_RTN_SUCCESS;
+	enum isp_drv_rtn rtn = 0;
 	struct isp_pipe_dev *dev = NULL;
 	struct isp_statis_frm_queue *statis_heap = NULL;
 	struct isp_statis_buf node;
@@ -403,7 +406,7 @@ static void isp_afl_done(void *isp_handle)
 	if (node.phy_addr != module->afl_buf_reserved.phy_addr) {
 		frame_info.buf_size = node.buf_size;
 		memcpy(frame_info.pfinfo.mfd, node.pfinfo.mfd,
-		       sizeof(unsigned int) * 3);
+		       sizeof(uint32_t) * 3);
 		frame_info.phy_addr = node.phy_addr;
 		frame_info.vir_addr = node.vir_addr;
 		frame_info.addr_offset = node.addr_offset;
@@ -425,7 +428,7 @@ static void isp_afl_error(void *isp_handle)
 
 static void isp_afm_rgb_start(void *isp_handle)
 {
-	enum isp_drv_rtn rtn = ISP_RTN_SUCCESS;
+	enum isp_drv_rtn rtn = 0;
 	struct isp_pipe_dev *dev = NULL;
 	struct isp_statis_module *module = NULL;
 
@@ -437,22 +440,21 @@ static void isp_afm_rgb_start(void *isp_handle)
 		pr_err("fail to set next afm buf rtn %d\n", rtn);
 }
 
-static int isp_get_afm_statistic(unsigned int com_idx,
-				struct isp_statis_buf *node)
+static int isp_get_afm_statistic(uint32_t com_idx, struct isp_statis_buf *node)
 {
 	int ret = 0;
 	int i = 0;
 	int max_item = ISP_AFM_WIN_NUM * 3;
 	unsigned long FV0_LOW = ISP_RGB_AFM_ENHANCE_FV0_0_BUF0_LOW;
-	unsigned int *afm_statis = NULL;
+	uint32_t *afm_statis = NULL;
 	enum isp_id iid = ISP_ID_0;
 
 #ifdef CONFIG_64BIT
 	afm_statis =
-		(unsigned int *)(((unsigned long)node->kaddr[0]) |
+		(uint32_t *)(((unsigned long)node->kaddr[0]) |
 		((unsigned long)(node->kaddr[1] << 32)));
 #else
-	afm_statis = (unsigned int *)(node->kaddr[0]);
+	afm_statis = (uint32_t *)(node->kaddr[0]);
 #endif
 
 	if (!afm_statis) {
@@ -494,7 +496,7 @@ static void isp_afm_get_timestamp(void *isp_handle, struct camera_frame *frame)
 
 static void isp_afm_rgb_done(void *isp_handle)
 {
-	enum isp_drv_rtn rtn = ISP_RTN_SUCCESS;
+	enum isp_drv_rtn rtn = 0;
 	struct isp_pipe_dev *dev = NULL;
 	struct isp_statis_frm_queue *statis_heap = NULL;
 	struct isp_statis_buf node;
@@ -519,7 +521,7 @@ static void isp_afm_rgb_done(void *isp_handle)
 
 		frame_info.buf_size = node.buf_size;
 		memcpy(frame_info.pfinfo.mfd, node.pfinfo.mfd,
-		       sizeof(unsigned int) * 3);
+		       sizeof(uint32_t) * 3);
 		frame_info.phy_addr = node.phy_addr;
 		frame_info.vir_addr = node.vir_addr;
 		frame_info.addr_offset = node.addr_offset;
@@ -540,7 +542,7 @@ static void isp_afm_rgb_done(void *isp_handle)
 
 static void isp_binning_start(void *isp_handle)
 {
-	enum isp_drv_rtn rtn = ISP_RTN_SUCCESS;
+	enum isp_drv_rtn rtn = 0;
 	struct isp_pipe_dev *dev = NULL;
 	struct isp_statis_module *module = NULL;
 
@@ -559,7 +561,7 @@ static void isp_binning_start(void *isp_handle)
 
 static void isp_binning_done(void *isp_handle)
 {
-	enum isp_drv_rtn rtn = ISP_RTN_SUCCESS;
+	enum isp_drv_rtn rtn = 0;
 	struct isp_pipe_dev *dev = NULL;
 	struct isp_statis_frm_queue *statis_heap = NULL;
 	struct isp_statis_buf node;
@@ -584,7 +586,7 @@ static void isp_binning_done(void *isp_handle)
 	if (node.phy_addr != module->binning_buf_reserved.phy_addr) {
 		frame_info.buf_size = node.buf_size;
 		memcpy(frame_info.pfinfo.mfd, node.pfinfo.mfd,
-			sizeof(unsigned int) * 3);
+			sizeof(uint32_t) * 3);
 		frame_info.phy_addr = node.phy_addr;
 		frame_info.vir_addr = node.vir_addr;
 		frame_info.addr_offset = node.addr_offset;
@@ -606,8 +608,8 @@ static void isp_binning_error(void *isp_handle)
 
 void isp_fmcu_slw_shadow(enum isp_scl_id path_id, void *isp_handle)
 {
-	unsigned int idx;
-	enum isp_slw_rtn rtn = ISP_RTN_SLW_SUCCESS;
+	uint32_t idx;
+	enum isp_slw_rtn rtn = 0;
 	struct isp_pipe_dev *dev = NULL;
 
 	if (!isp_handle) {
@@ -648,8 +650,8 @@ void isp_fmcu_slw_config(enum isp_scl_id path_id, void *isp_handle)
 	 * default limit since isp_slw_info contains large frame queue.
 	 */
 #if 0
-	unsigned int i = 0;
-	enum isp_slw_rtn rtn = ISP_RTN_SLW_SUCCESS;
+	uint32_t i = 0;
+	enum isp_slw_rtn rtn = 0;
 	void *data;
 	isp_isr_func user_func;
 	enum isp_irq_id img_id;
@@ -719,8 +721,7 @@ void isp_fmcu_slw_config(enum isp_scl_id path_id, void *isp_handle)
 #endif
 }
 
-static void isp_path_done(enum isp_scl_id path_id,
-	void *isp_handle)
+static void isp_path_done(enum isp_scl_id path_id, void *isp_handle)
 {
 	int  ret = 0;
 	enum isp_irq_id img_id;
@@ -756,8 +757,7 @@ static void isp_path_done(enum isp_scl_id path_id,
 	path = &module->isp_path[path_id];
 	fmcu_slw = &dev->fmcu_slw;
 	fmcu_slice = &dev->fmcu_slice;
-	buf_desc = isp_offline_sel_buf(&module->off_desc,
-				ISP_OFF_BUF_BIN);
+	buf_desc = isp_offline_sel_buf(&module->off_desc, ISP_OFF_BUF_BIN);
 
 	if (sid == ISP_SCENE_CAP) {
 		pr_debug("just return for cap\n");
@@ -817,7 +817,7 @@ static void isp_path_done(enum isp_scl_id path_id,
 
 		if (tmp_frame->yaddr_vir) {
 			ret = isp_buf_queue_write(&buf_desc->tmp_buf_queue,
-				tmp_frame);
+						  tmp_frame);
 			if (ret) {
 				pr_err("fail to retrieve off buf bin_path\n");
 				return;
@@ -858,7 +858,7 @@ static void isp_path_done(enum isp_scl_id path_id,
 			frame.sof_ts = sof_ts;
 			frame.irq_type = CAMERA_IRQ_IMG;
 			pr_debug("ISP%d path%d done, frame %p, mfd[0] 0x%x\n",
-				iid, path_id, &frame, frame.pfinfo.mfd[0]);
+				 iid, path_id, &frame, frame.pfinfo.mfd[0]);
 			if (user_func)
 				(*user_func)(&frame, data);
 		} else {
@@ -874,10 +874,9 @@ static void isp_path_done(enum isp_scl_id path_id,
 	pr_debug("sprd_isp path done.\n");
 }
 
-static void isp_path_shadow_done(enum isp_scl_id path_id,
-	void *isp_handle)
+static void isp_path_shadow_done(enum isp_scl_id path_id, void *isp_handle)
 {
-	enum isp_drv_rtn rtn = ISP_RTN_SUCCESS;
+	enum isp_drv_rtn rtn = 0;
 	struct isp_path_desc *path = NULL;
 	enum isp_path_index path_index;
 	struct isp_pipe_dev *dev = NULL;
@@ -1011,17 +1010,9 @@ static void isp_shadow_cap_pre_done(void *isp_handle)
 			isp_path_shadow_done(path_id, isp_handle);
 		}
 		fmcu_slw->vid_num++;
-#if 0
-		ISP_REG_MWR(ISP_ID_0,
-			ISP_STORE_PRE_CAP_BASE+ISP_STORE_SHADOW_CLR, BIT_0, 1);
-#endif
-	} else {
+	} else
 		isp_path_shadow_done(path_id, isp_handle);
-#if 0
-		ISP_REG_MWR(ISP_ID_0,
-			ISP_STORE_PRE_CAP_BASE+ISP_STORE_SHADOW_CLR, BIT_0, 1);
-#endif
-	}
+
 	isp_dbg_reg_trace(isp_dev, isp_dev->com_idx);
 
 	pr_debug(" -\n");
@@ -1033,7 +1024,7 @@ static void isp_all_done(void *isp_handle)
 
 	dev = (struct isp_pipe_dev *)isp_handle;
 
-	if (dev) {
+	if (dev && dev->pre_state == ISP_ST_START) {
 		dev->pre_state = ISP_ST_STOP;
 		isp_clk_pause(ISP_GET_IID(dev->com_idx), ISP_CLK_P_P);
 		pr_debug("isp%d all done, pre_state start\n",
@@ -1261,7 +1252,7 @@ static void isp_bpc_store_not_empty_error(void *isp_handle)
 
 static void isp_hist_start(void *isp_handle)
 {
-	enum isp_drv_rtn rtn = ISP_RTN_SUCCESS;
+	enum isp_drv_rtn rtn = 0;
 	struct isp_pipe_dev *dev = NULL;
 	struct isp_statis_module *module = NULL;
 
@@ -1273,7 +1264,7 @@ static void isp_hist_start(void *isp_handle)
 		pr_err("fail to set next HIST statis buf,rtn %d\n", rtn);
 }
 
-static int isp_get_hist_statistic(unsigned int com_idx,
+static int isp_get_hist_statistic(uint32_t com_idx,
 	struct isp_statis_buf *node, struct ion_buffer *ionbuffer)
 {
 	int ret = 0;
@@ -1324,7 +1315,7 @@ static int isp_get_hist_statistic(unsigned int com_idx,
 
 static void isp_hist_done(void *isp_handle)
 {
-	enum isp_drv_rtn rtn = ISP_RTN_SUCCESS;
+	enum isp_drv_rtn rtn = 0;
 	struct isp_pipe_dev *dev = NULL;
 	struct isp_statis_frm_queue *statis_heap = NULL;
 	struct isp_statis_buf node;
@@ -1350,7 +1341,7 @@ static void isp_hist_done(void *isp_handle)
 
 		frame_info.buf_size = node.buf_size;
 		memcpy(frame_info.pfinfo.mfd, node.pfinfo.mfd,
-		       sizeof(unsigned int) * 3);
+		       sizeof(uint32_t) * 3);
 		frame_info.phy_addr = node.phy_addr;
 		frame_info.vir_addr = node.vir_addr;
 		frame_info.addr_offset = node.addr_offset;
@@ -1373,7 +1364,7 @@ static void isp_cfg_error(void *isp_handle)
 	pr_err("fail to cfg INT\n");
 }
 
-static isp_isr s_isp_int_isr_list[4][32] = {
+static isp_isr s_isp_int_isr_list[INT_REG_SETS][INT_NUM_PER_SET] = {
 	[0][ISP_INT_ISP_ALL_DONE] = isp_all_done,
 	[0][ISP_INT_AFL_START] = isp_afl_start,
 	[0][ISP_INT_AFL_DONE] = isp_afl_done,
@@ -1421,7 +1412,7 @@ static void __isp_isr_locked(uint32_t base_addr, struct isp_pipe_dev *dev)
 	int ordering;
 	int pivot;
 
-	for (set_idx = 0; set_idx < ISP_INT_REG_SETS_NUM; set_idx++) {
+	for (set_idx = 0; set_idx < INT_REG_SETS; set_idx++) {
 		reg_val = ISP_HREG_RD(idx,
 			base_addr+irq_sets[set_idx].offset[INT_REG_OFF_INT]);
 
@@ -1469,7 +1460,48 @@ static int printbinary(char *buf, unsigned long x, int nbits)
 	return nbits;
 }
 
-static void isp_isr_dump_reg(void)
+static void record_int_cnts(struct isp_pipe_dev *dev)
+{
+	int reg_val = 0;
+	int iid, sid, set, i = 0;
+
+	if (!isp_dbg_check_switch_on((void *)dev, ISP_INT_DBG_SW))
+		return;
+
+	for (iid = 0; iid < ISP_ID_MAX; iid++) { /*isp 01*/
+		for (sid = 0; sid < ISP_SCENE_NUM; sid++) { /* scene 01*/
+			for (set = 0; set < INT_REG_SETS; set++) {
+				reg_val = ISP_HREG_RD(iid,
+				int_reg_base[iid][sid] +
+				irq_sets[set].offset[INT_REG_OFF_INT]);
+				for (i = 0; i < INT_NUM_PER_SET; i++)
+					if (reg_val & (1 << i))
+						s_int_cnt[iid][sid][set][i]++;
+			}
+		}
+	}
+}
+
+static void print_int_cnts(struct isp_pipe_dev *dev)
+{
+	int iid, sid, set, i = 0;
+
+	if (!isp_dbg_check_switch_on((void *)dev, ISP_INT_DBG_SW))
+		return;
+
+	for (iid = 0; iid < ISP_ID_MAX; iid++) { /*isp 01*/
+		for (sid = 0; sid < ISP_SCENE_NUM; sid++) { /* scene 01*/
+			for (set = 0; set < INT_REG_SETS; set++) {
+				for (i = 0; i < INT_NUM_PER_SET; i++)
+					pr_info("int[%d][%d][%d][%d]: %d\n",
+						iid, sid, set, i,
+						s_int_cnt[iid][sid][set][i]);
+			}
+		}
+	}
+}
+
+static void isp_isr_dump_reg(struct isp_pipe_dev *dev)
 {
 	int i, j;
 	uint32_t addr, base;
@@ -1494,16 +1526,17 @@ static void isp_isr_dump_reg(void)
 	}
 }
 
-static void isp_isr_dump_status_history(void)
+static void isp_isr_dump_status_history(struct isp_pipe_dev *dev)
 {
 	int i, j;
 	char bin[32+1] = {0};
 
-	for (i = 0; i < ISP_INT_REG_SETS_NUM; i++) {
+	for (i = 0; i < INT_REG_SETS; i++) {
 		pr_info("debug sub-block: reg %d, pivot = %d\n",
 			i, irq_sets[i].pivot);
 		for (j = 0; j < NUM_MOST_RECENT_STATUS; j++) {
-			printbinary(bin, irq_sets[i].recent[j], 32);
+			printbinary(bin, irq_sets[i].recent[j],
+				    INT_NUM_PER_SET);
 			pr_info("debug sub-block: %s\n", bin);
 			irq_sets[i].recent[j] = 0;
 		}
@@ -1540,9 +1573,10 @@ static void isp_isr_flooding_detector(struct isp_pipe_dev *dev)
 					(%d / %lu)\n",
 					dev->isr_count,
 					now - dev->isr_last_time);
-				isp_isr_dump_reg();
+				isp_isr_dump_reg(dev);
 				isp_irq_ctrl(dev, false);
-				isp_isr_dump_status_history();
+				isp_isr_dump_status_history(dev);
+				print_int_cnts(dev);
 
 				cam_grp =  dev->cam_grp;
 				if (cam_grp != NULL) {
@@ -1570,26 +1604,29 @@ static irqreturn_t isp_isr_root(int irq, void *priv)
 	uint32_t isp_int_pre_reg_base;
 	uint32_t isp_int_cap_reg_base;
 	struct isp_pipe_dev *dev = (struct isp_pipe_dev *)priv;
-	unsigned int sid_flag;
+	uint32_t sid_flag;
+	enum isp_id iid = ISP_ID_0;
 
 	if (!dev) {
 		pr_err("fail to get invalid dev\n");
 		return IRQ_NONE;
 	}
 
-	if (irq == s_isp_irq[ISP_ID_0].ch0) {
-		isp_int_pre_reg_base = int_reg_base[ISP_ID_0][ISP_SCENE_PRE];
-		isp_int_cap_reg_base = int_reg_base[ISP_ID_0][ISP_SCENE_CAP];
-	} else if (irq == s_isp_irq[ISP_ID_1].ch0) {
-		isp_int_pre_reg_base = int_reg_base[ISP_ID_1][ISP_SCENE_PRE];
-		isp_int_cap_reg_base = int_reg_base[ISP_ID_1][ISP_SCENE_CAP];
-	} else {
+	if (irq == s_isp_irq[ISP_ID_0].ch0)
+		iid = ISP_ID_0;
+	else if (irq == s_isp_irq[ISP_ID_1].ch0)
+		iid = ISP_ID_1;
+	else {
 		pr_err("fail to get irq\n");
 		return IRQ_HANDLED;
 	}
 
+	isp_int_pre_reg_base = int_reg_base[iid][ISP_SCENE_PRE];
+	isp_int_cap_reg_base = int_reg_base[iid][ISP_SCENE_CAP];
+
 	ISP_SAVE_SID(dev->com_idx, sid_flag);
 
+	record_int_cnts(dev);
 	isp_isr_flooding_detector(dev);
 
 	/*
@@ -1615,26 +1652,28 @@ static irqreturn_t isp_isr_root(int irq, void *priv)
 }
 
 int isp_irq_request(struct device *p_dev, struct isp_ch_irq *irq,
-	struct isp_pipe_dev *ispdev)
+                    struct isp_pipe_dev *dev)
 {
 	int ret = 0;
 	enum isp_id iid;
 
-	if (!p_dev || !irq || !ispdev) {
+	if (!p_dev || !irq || !dev) {
 		pr_err("fail to get Input ptr is NULL\n");
 		return -EFAULT;
 	}
 
-	iid = ISP_GET_IID(ispdev->com_idx);
+	iid = ISP_GET_IID(dev->com_idx);
 
 	switch (iid) {
 	case ISP_ID_0:
+        memset(&s_int_cnt[ISP_ID_0], 0x00, sizeof(s_int_cnt)/2);
 		ret = devm_request_irq(p_dev, irq->ch0, isp_isr_root,
-				       IRQF_SHARED, "ISP0", (void *)ispdev);
+				       IRQF_SHARED, "ISP0", (void *)dev);
 		break;
 	case ISP_ID_1:
+        memset(&s_int_cnt[ISP_ID_1], 0x00, sizeof(s_int_cnt)/2);
 		ret = devm_request_irq(p_dev, irq->ch0, isp_isr_root,
-				       IRQF_SHARED, "ISP1", (void *)ispdev);
+				       IRQF_SHARED, "ISP1", (void *)dev);
 		break;
 	default:
 		pr_err("fail to isp context %d\n", iid);
@@ -1645,23 +1684,23 @@ int isp_irq_request(struct device *p_dev, struct isp_ch_irq *irq,
 	return ret;
 }
 
-int isp_irq_free(struct isp_ch_irq *irq, struct isp_pipe_dev *ispdev)
+int isp_irq_free(struct isp_ch_irq *irq, struct isp_pipe_dev *dev)
 {
 	int ret = 0;
 
-	if (!irq || !ispdev) {
+	if (!irq || !dev) {
 		pr_err("fail to Input ptr is NULL\n");
 		return -EFAULT;
 	}
 
-	pr_debug("isp%d\n", ISP_GET_IID(ispdev->com_idx));
-	free_irq(irq->ch0, (void *)ispdev);
+	pr_debug("isp%d\n", ISP_GET_IID(dev->com_idx));
+	free_irq(irq->ch0, (void *)dev);
 
 	return ret;
 }
 
 int isp_irq_callback(enum isp_id iid, enum isp_irq_id irq_id,
-	isp_isr_func user_func, void *user_data)
+		     isp_isr_func user_func, void *user_data)
 {
 	unsigned long flag;
 
@@ -1677,3 +1716,50 @@ int isp_irq_callback(enum isp_id iid, enum isp_irq_id irq_id,
 
 	return 0;
 }
+
+void isp_irq_ctrl(struct isp_pipe_dev *dev, bool enable)
+{
+	uint32_t idx = dev->com_idx;
+	enum isp_id iid = ISP_ID_0;
+	enum isp_scene_id sid = ISP_SCENE_PRE;
+	uint32_t base_addr = 0;
+	uint32_t set_idx = 0;
+	uint32_t clr_reg = 0;
+	uint32_t en_reg = 0;
+	uint32_t en_mask = 0;
+
+	if (!dev)
+		return;
+
+	iid = ISP_GET_IID(dev->com_idx);
+
+	for (sid = ISP_SCENE_PRE; sid < ISP_SCENE_NUM; sid++) {
+		base_addr = int_reg_base[iid][sid];
+		for (set_idx = 0; set_idx < INT_REG_SETS; set_idx++) {
+			clr_reg = irq_sets[set_idx].offset[INT_REG_OFF_CLR];
+			en_reg = irq_sets[set_idx].offset[INT_REG_OFF_EN];
+			en_mask = irq_sets[set_idx].msk_bmap[sid];
+
+			if (enable) {
+				sprd_isp_glb_reg_owr(idx,
+						     base_addr + clr_reg,
+						     0xFFFFFFFF,
+						     ISP_INIT_CLR_REG);
+				sprd_isp_glb_reg_owr(idx,
+						     base_addr + en_reg,
+						     en_mask,
+						     ISP_INIT_MASK_REG);
+			} else {
+				sprd_isp_glb_reg_awr(idx,
+						     base_addr + en_reg,
+						     0,
+						     ISP_INIT_MASK_REG);
+				sprd_isp_glb_reg_owr(idx,
+						     base_addr + clr_reg,
+						     0xFFFFFFFF,
+						     ISP_INIT_CLR_REG);
+			}
+		}
+	}
+}
+

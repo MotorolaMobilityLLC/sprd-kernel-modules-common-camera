@@ -19,8 +19,8 @@
 #include "isp_drv.h"
 #include "isp_cfg.h"
 
-#define ISP_INT_REG_SETS_NUM	4
 #define NUM_MOST_RECENT_STATUS	100
+#define INT_NUM_PER_SET 32 /* 32bit per int reg set */
 
 extern int report_isp_err(void *param);
 
@@ -38,6 +38,14 @@ enum _INT_REG_OFF_NUM {
 	INT_REG_OFF_EN = 0,
 	INT_REG_OFF_CLR,
 	INT_REG_OFF_INT,
+};
+
+enum isp_int_set {
+	INT_REG_SET_0,
+	INT_REG_SET_1,
+	INT_REG_SET_2,
+	INT_REG_SET_3,
+	INT_REG_SETS
 };
 
 /* preview & capture int */
@@ -280,7 +288,7 @@ enum isp_irq3_id {
 	(1 << ISP_INT_AFM_RGB_SHADOW_DONE) | \
 	0)
 
-extern struct irq_reg irq_sets[ISP_INT_REG_SETS_NUM];
+extern struct irq_reg irq_sets[INT_REG_SETS];
 extern struct isp_ch_irq s_isp_irq[ISP_MAX_COUNT];
 
 int isp_irq_callback(enum isp_id iid, enum isp_irq_id irq_id,
@@ -288,7 +296,8 @@ int isp_irq_callback(enum isp_id iid, enum isp_irq_id irq_id,
 int isp_irq_request(struct device *p_dev, struct isp_ch_irq *irq,
 	struct isp_pipe_dev *ispdev);
 int isp_irq_free(struct isp_ch_irq *irq, struct isp_pipe_dev *ispdev);
-int isp_set_next_statis_buf(unsigned int com_idx,
+int isp_set_next_statis_buf(uint32_t com_idx,
 				struct isp_statis_module *module,
 			    enum isp_3a_block_id block_index);
+void isp_irq_ctrl(struct isp_pipe_dev *dev, bool enable);
 #endif

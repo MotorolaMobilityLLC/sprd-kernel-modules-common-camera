@@ -45,7 +45,7 @@ int isp_statis_queue_init(struct isp_statis_buf_queue *queue)
 }
 
 int isp_statis_queue_read(struct isp_statis_buf_queue *queue,
-	struct isp_statis_buf *buf)
+			  struct isp_statis_buf *buf)
 {
 	unsigned long flag;
 
@@ -69,7 +69,7 @@ int isp_statis_queue_read(struct isp_statis_buf_queue *queue,
 }
 
 int isp_statis_queue_write(struct isp_statis_buf_queue *queue,
-				struct isp_statis_buf *buf)
+			   struct isp_statis_buf *buf)
 {
 	struct isp_statis_buf *ori_buf = NULL;
 	unsigned long flag;
@@ -120,7 +120,7 @@ void isp_statis_frm_queue_init(struct isp_statis_frm_queue *queue)
 }
 
 int isp_statis_enqueue(struct isp_statis_frm_queue *queue,
-	struct isp_statis_buf *frame)
+		       struct isp_statis_buf *frame)
 {
 	size_t size;
 
@@ -149,7 +149,7 @@ int isp_statis_enqueue(struct isp_statis_frm_queue *queue,
 }
 
 int isp_statis_dequeue(struct isp_statis_frm_queue *queue,
-	struct isp_statis_buf *frame)
+		       struct isp_statis_buf *frame)
 {
 	if (ISP_ADDR_INVALID(queue) || ISP_ADDR_INVALID(frame)) {
 		pr_err("fail to get valid parm %p, %p\n", queue, frame);
@@ -169,7 +169,7 @@ int isp_statis_dequeue(struct isp_statis_frm_queue *queue,
 }
 
 static void set_buffer_queue(struct isp_queue_param *queue_prm,
-			uint32_t *offset, uint32_t buf_num)
+			     uint32_t *offset, uint32_t buf_num)
 {
 	uint32_t cnt;
 	unsigned long kaddr;
@@ -206,15 +206,15 @@ static void set_buffer_queue(struct isp_queue_param *queue_prm,
 		frm_statis.addr_offset += buf_size;
 	}
 	memcpy(queue_prm->buf_reserved, &frm_statis,
-				sizeof(struct isp_statis_buf));
+	       sizeof(struct isp_statis_buf));
 	*offset = frm_statis.addr_offset + buf_size;
 }
 
 int sprd_isp_cfg_statis_buf(struct isp_pipe_dev *dev,
-	struct dcam_statis_module *dcam_module,
-	struct isp_statis_buf_input *parm)
+			    struct dcam_statis_module *dcam_module,
+			    struct isp_statis_buf_input *parm)
 {
-	int ret = ISP_RTN_SUCCESS;
+	int ret = 0;
 	uint32_t addr_offset = 0;
 	struct isp_statis_buf frm_statis_isp = {0};
 	struct isp_statis_buf frm_statis_dcam = {0};
@@ -246,10 +246,10 @@ int sprd_isp_cfg_statis_buf(struct isp_pipe_dev *dev,
 	pr_info("kaddr = 0x%lx\n", kaddr1);
 
 #ifdef CONFIG_64BIT
-	parm->kaddr[0] = (unsigned int)(kaddr1 && 0xffffffff);
-	parm->kaddr[1] = (unsigned int)((kaddr1 >> 32) && 0xffffffff);
+	parm->kaddr[0] = (uint32_t)(kaddr1 && 0xffffffff);
+	parm->kaddr[1] = (uint32_t)((kaddr1 >> 32) && 0xffffffff);
 #else
-	parm->kaddr[0] = (unsigned int)kaddr1;
+	parm->kaddr[0] = (uint32_t)kaddr1;
 	parm->kaddr[1] = 0;
 #endif
 
@@ -334,8 +334,7 @@ int sprd_isp_cfg_statis_buf(struct isp_pipe_dev *dev,
 	queue_prm.frm_statis = &t_frm_statis_isp;
 	queue_prm.statis_queue = &isp_module->afl_statis_queue;
 	queue_prm.buf_reserved = &isp_module->afl_buf_reserved;
-	set_buffer_queue(&queue_prm, &addr_offset,
-					ISP_AFL_STATIS_BUF_NUM);
+	set_buffer_queue(&queue_prm, &addr_offset, ISP_AFL_STATIS_BUF_NUM);
 
 	/* AFM buffer config */
 	t_frm_statis_isp.buf_size = ISP_AFM_STATIS_BUF_SIZE;
@@ -344,8 +343,7 @@ int sprd_isp_cfg_statis_buf(struct isp_pipe_dev *dev,
 	queue_prm.frm_statis = &t_frm_statis_isp;
 	queue_prm.statis_queue = &isp_module->afm_statis_queue;
 	queue_prm.buf_reserved = &isp_module->afm_buf_reserved;
-	set_buffer_queue(&queue_prm, &addr_offset,
-					ISP_AFM_STATIS_BUF_NUM);
+	set_buffer_queue(&queue_prm, &addr_offset, ISP_AFM_STATIS_BUF_NUM);
 
 	/* PDAF buffer config */
 	if (isp_module->statis_valid & ISP_STATIS_VALID_PDAF) {
@@ -356,7 +354,7 @@ int sprd_isp_cfg_statis_buf(struct isp_pipe_dev *dev,
 		queue_prm.statis_queue = &dcam_module->pdaf_statis_queue;
 		queue_prm.buf_reserved = &dcam_module->pdaf_buf_reserved;
 		set_buffer_queue(&queue_prm, &addr_offset,
-					ISP_PDAF_STATIS_BUF_NUM);
+				 ISP_PDAF_STATIS_BUF_NUM);
 	}
 
 	/* EMBED LINE buffer config */
@@ -368,7 +366,7 @@ int sprd_isp_cfg_statis_buf(struct isp_pipe_dev *dev,
 		queue_prm.statis_queue = &dcam_module->ebd_statis_queue;
 		queue_prm.buf_reserved = &dcam_module->ebd_buf_reserved;
 		set_buffer_queue(&queue_prm, &addr_offset,
-					ISP_EBD_STATIS_BUF_NUM);
+				 ISP_EBD_STATIS_BUF_NUM);
 	}
 
 	/* BINNING buffer config */
@@ -379,7 +377,7 @@ int sprd_isp_cfg_statis_buf(struct isp_pipe_dev *dev,
 		queue_prm.statis_queue = &isp_module->binning_statis_queue;
 		queue_prm.buf_reserved = &isp_module->binning_buf_reserved;
 		set_buffer_queue(&queue_prm, &addr_offset,
-						ISP_BINNING_STATIS_BUF_NUM);
+				 ISP_BINNING_STATIS_BUF_NUM);
 	}
 
 	/* HIST buffer config */
@@ -391,7 +389,7 @@ int sprd_isp_cfg_statis_buf(struct isp_pipe_dev *dev,
 		queue_prm.statis_queue = &isp_module->hist_statis_queue;
 		queue_prm.buf_reserved = &isp_module->hist_buf_reserved;
 		set_buffer_queue(&queue_prm, &addr_offset,
-						ISP_HIST_STATIS_BUF_NUM);
+				 ISP_HIST_STATIS_BUF_NUM);
 	}
 
 	/* HIST2 buffer config */
@@ -403,28 +401,28 @@ int sprd_isp_cfg_statis_buf(struct isp_pipe_dev *dev,
 		queue_prm.statis_queue = &isp_module->hist2_statis_queue;
 		queue_prm.buf_reserved = &isp_module->hist2_buf_reserved;
 		set_buffer_queue(&queue_prm, &addr_offset,
-						ISP_HIST2_STATIS_BUF_NUM);
+				 ISP_HIST2_STATIS_BUF_NUM);
 	}
 
 	/* RAW buffer config */
 	if (isp_module->statis_valid & ISP_STATIS_VALID_RAW) {
-		t_frm_statis_dcam.buf_size = ISP_RAW_STATIS_BUF_SIZE(parm->width,
-			parm->height);
+		t_frm_statis_dcam.buf_size =
+			ISP_RAW_STATIS_BUF_SIZE(parm->width, parm->height);
 		t_frm_statis_dcam.buf_property = DCAM_RAW_BLOCK;
 
 		queue_prm.frm_statis = &t_frm_statis_dcam;
 		queue_prm.statis_queue = &dcam_module->raw_statis_queue;
 		queue_prm.buf_reserved = &dcam_module->raw_buf_reserved;
 		set_buffer_queue(&queue_prm, &addr_offset,
-						ISP_RAW_STATIS_BUF_NUM);
+				 ISP_RAW_STATIS_BUF_NUM);
 	}
 
 	return ret;
 }
 
 int sprd_isp_set_statis_addr(struct isp_pipe_dev *dev,
-	struct dcam_statis_module *dcam_module,
-	struct isp_statis_buf_input *parm)
+			     struct dcam_statis_module *dcam_module,
+			     struct isp_statis_buf_input *parm)
 {
 	int ret = 0;
 	struct isp_statis_buf frm_statis;

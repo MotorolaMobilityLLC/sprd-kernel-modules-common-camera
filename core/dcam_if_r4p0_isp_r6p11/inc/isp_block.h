@@ -105,10 +105,10 @@ int isp_k_cfg_noise_filter(struct isp_io_param *param,
 int isp_k_cfg_fetch(struct isp_io_param *param,
 		struct isp_k_block *isp_k_param, enum isp_id idx);
 int isp_k_cfg_common(struct isp_io_param *param,
-			enum isp_id idx, unsigned int is_raw_cap);
+			enum isp_id idx, uint32_t is_raw_cap);
 int isp_k_cfg_dispatch(struct isp_io_param *param,
 		struct isp_k_block *isp_k_param, enum isp_id idx);
 int isp_k_cfg_arbiter(struct isp_io_param *param,
 		struct isp_k_block *isp_k_param, enum isp_id idx);
 int isp_k_cfg_store(struct isp_io_param *param,
-			enum isp_id idx, unsigned int is_raw_cap);
+			enum isp_id idx, uint32_t is_raw_cap);

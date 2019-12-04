@@ -31,7 +31,7 @@
 #define ISP_ALIGN_4BYTE(x)      ISP_ALIGN(x, 4)
 
 static int set_offline_scl_size(struct isp_path_desc *path,
-	struct isp_offline_desc *off_desc)
+				struct isp_offline_desc *off_desc)
 {
 	if (!path || !off_desc) {
 		pr_err("fail to get valid param, NULL\n");
@@ -66,8 +66,8 @@ static int isp_path_offline_cowork_cap(struct isp_path_desc *pre,
 {
 	int rtn = 0;
 	struct isp_path_desc *max_path = NULL;
-	unsigned int min_recty = 0;
-	unsigned int tmph = 0;
+	uint32_t min_recty = 0;
+	uint32_t tmph = 0;
 
 	if (!pre || !vid || !cap || !off_desc) {
 		pr_err("fail to get valid param, NULL\n");
@@ -128,12 +128,13 @@ static int isp_path_offline_cowork_cap(struct isp_path_desc *pre,
 }
 
 static int isp_path_offline_cowork(struct isp_path_desc *pre,
-	struct isp_path_desc *vid, struct isp_offline_desc *off_desc)
+				   struct isp_path_desc *vid,
+				   struct isp_offline_desc *off_desc)
 {
 	int rtn = 0;
 	struct isp_path_desc *max_path = NULL;
 	struct isp_path_desc *min_path = NULL;
-	unsigned int tmph = 0;
+	uint32_t tmph = 0;
 
 	if (!pre || !vid || !off_desc) {
 		pr_err("fail to get valid param, NULL\n");
@@ -151,8 +152,8 @@ static int isp_path_offline_cowork(struct isp_path_desc *pre,
 	off_desc->src.w = max_path->in_size.w;
 	off_desc->src.h = max_path->in_size.h;
 	off_desc->border.left_border = max_path->in_rect.x;
-	off_desc->border.up_border = max_path->in_rect.y > min_path->in_rect.y
-		? min_path->in_rect.y : max_path->in_rect.y;
+	off_desc->border.up_border = max_path->in_rect.y > min_path->in_rect.y ?
+		min_path->in_rect.y : max_path->in_rect.y;
 	off_desc->border.right_border = off_desc->src.w -
 		max_path->in_rect.w - off_desc->border.left_border;
 	tmph = max_path->in_rect.w * max_path->in_size.h /
@@ -511,7 +512,7 @@ static enum isp_store_format isp_store_format(enum dcam_fmt in_format)
 }
 
 static void get_store_pitch(struct slice_pitch *pitch_ptr,
-	enum isp_store_format format, unsigned int width)
+			    enum isp_store_format format, uint32_t width)
 {
 	switch (format) {
 	case ISP_STORE_YUV422_3FRAME:
@@ -539,7 +540,6 @@ static void get_store_pitch(struct slice_pitch *pitch_ptr,
 	default:
 		break;
 	}
-
 }
 
 static int isp_get_store_param(struct isp_path_desc *path)
@@ -578,9 +578,9 @@ static int isp_get_store_param(struct isp_path_desc *path)
 }
 
 static int isp_path_store_cfg(struct isp_path_desc *pre,
-				struct isp_path_desc *vid,
-				struct isp_path_desc *cap,
-				struct isp_offline_desc *off_desc)
+			      struct isp_path_desc *vid,
+			      struct isp_path_desc *cap,
+			      struct isp_offline_desc *off_desc)
 {
 	int rtn = 0;
 
@@ -642,8 +642,8 @@ static int isp_path_store_cfg(struct isp_path_desc *pre,
 }
 
 int isp_start_pre_proc(struct isp_path_desc *pre,
-			struct isp_path_desc *vid,
-			struct isp_path_desc *cap,
+		       struct isp_path_desc *vid,
+		       struct isp_path_desc *cap,
 		       struct isp_offline_desc *off_desc)
 {
 	int rtn = 0;
@@ -676,8 +676,8 @@ int isp_start_pre_proc(struct isp_path_desc *pre,
 		}
 
 		if (pre->valid && vid->valid &&
-			pre->path_mode == ISP_PRE_OFFLINE &&
-			vid->path_mode == ISP_VID_OFFLINE) {
+		    pre->path_mode == ISP_PRE_OFFLINE &&
+		    vid->path_mode == ISP_VID_OFFLINE) {
 			rtn = isp_path_offline_cowork_cap(pre, vid, cap,
 							  off_desc);
 			if (rtn) {
@@ -686,8 +686,8 @@ int isp_start_pre_proc(struct isp_path_desc *pre,
 			}
 		}
 	} else if (pre->valid && vid->valid &&
-			pre->path_mode == ISP_PRE_OFFLINE &&
-			vid->path_mode == ISP_VID_OFFLINE) {
+		   pre->path_mode == ISP_PRE_OFFLINE &&
+		   vid->path_mode == ISP_VID_OFFLINE) {
 		rtn = isp_path_offline_cowork(pre, vid, off_desc);
 
 		if (rtn) {
@@ -705,9 +705,9 @@ int isp_start_pre_proc(struct isp_path_desc *pre,
 	return rtn;
 }
 
-static int isp_set_store(unsigned int idx, void *input_info, unsigned int addr)
+static int isp_set_store(uint32_t idx, void *input_info, uint32_t addr)
 {
-	unsigned int val = 0;
+	uint32_t val = 0;
 	struct isp_store_info *store_info = (struct isp_store_info *)input_info;
 
 	ISP_REG_MWR(idx, addr + ISP_STORE_PARAM,
@@ -735,9 +735,9 @@ static int isp_set_store(unsigned int idx, void *input_info, unsigned int addr)
 	ISP_REG_WR(idx, addr + ISP_STORE_SLICE_SIZE, val);
 
 	val = ((store_info->border.right_border & 0xFF) << 24) |
-		  ((store_info->border.left_border & 0xFF) << 16) |
-		  ((store_info->border.down_border & 0xFF) << 8) |
-		   (store_info->border.up_border & 0xFF);
+		((store_info->border.left_border & 0xFF) << 16) |
+		((store_info->border.down_border & 0xFF) << 8) |
+		(store_info->border.up_border & 0xFF);
 	ISP_REG_WR(idx, addr+ISP_STORE_BORDER, val);
 	ISP_REG_MWR(idx, addr+ISP_STORE_Y_PITCH,
 				0xFFFF, store_info->pitch.chn0);
@@ -768,10 +768,10 @@ static int isp_set_store(unsigned int idx, void *input_info, unsigned int addr)
 	return 0;
 }
 
-static void isp_sc_print_coeff(unsigned int idx,
-			    unsigned long h_coeff_addr,
-			    unsigned long v_chroma_coeff_addr,
-			    unsigned long v_coeff_addr)
+static void isp_sc_print_coeff(uint32_t idx,
+			       unsigned long h_coeff_addr,
+			       unsigned long v_chroma_coeff_addr,
+			       unsigned long v_coeff_addr)
 {
 #ifdef SCALE_DRV_DEBUG
 	int i = 0;
@@ -809,18 +809,17 @@ static void isp_sc_print_coeff(unsigned int idx,
 #endif
 }
 
-int isp_set_sc_coeff_info(unsigned int idx, unsigned int addr,
-	unsigned int *coeff_buf)
+int isp_set_sc_coeff_info(uint32_t idx, uint32_t addr, uint32_t *coeff_buf)
 {
 	int i = 0;
 	int rtn = 0;
-	unsigned int h_coeff_addr = 0;
-	unsigned int v_coeff_addr = 0;
-	unsigned int v_chroma_coeff_addr = 0;
-	unsigned int *h_coeff = NULL;
-	unsigned int *v_coeff = NULL;
-	unsigned int *v_chroma_coeff = NULL;
-	unsigned int reg_val = 0;
+	uint32_t h_coeff_addr = 0;
+	uint32_t v_coeff_addr = 0;
+	uint32_t v_chroma_coeff_addr = 0;
+	uint32_t *h_coeff = NULL;
+	uint32_t *v_coeff = NULL;
+	uint32_t *v_chroma_coeff = NULL;
+	uint32_t reg_val = 0;
 
 	if (coeff_buf == NULL) {
 		pr_info("zero pointer!");
@@ -870,11 +869,11 @@ int isp_set_sc_coeff_info(unsigned int idx, unsigned int addr,
 }
 
 
-static void isp_set_shrink_info(void *input_info,
-		      unsigned int idx, unsigned int addr_base)
+static void isp_set_shrink_info(void *input_info, uint32_t idx,
+				uint32_t addr_base)
 {
 	unsigned long addr = 0;
-	unsigned int reg_val = 0;
+	uint32_t reg_val = 0;
 	struct isp_regular_info *regular_info = NULL;
 
 	if (!input_info) {
@@ -896,7 +895,7 @@ static void isp_set_shrink_info(void *input_info,
 
 	addr = ISP_SCALER_EFFECT_CFG + addr_base;
 	reg_val = ((regular_info->effect_v_th & 0xFF) << 16) |
-			((regular_info->effect_u_th & 0xFF) << 8);
+		((regular_info->effect_u_th & 0xFF) << 8);
 	reg_val |= (regular_info->effect_y_th & 0xFF);
 	ISP_REG_WR(idx, addr, reg_val);
 
@@ -908,10 +907,10 @@ static void isp_set_shrink_info(void *input_info,
 	ISP_REG_WR(idx, addr, reg_val);
 }
 
-static void isp_set_scaler_info(void *input_info,
-	unsigned int idx, unsigned int addr_base)
+static void isp_set_scaler_info(void *input_info, uint32_t idx,
+				uint32_t addr_base)
 {
-	unsigned int reg_val;
+	uint32_t reg_val;
 
 	struct isp_scaler_info *scalerInfo =
 		 (struct isp_scaler_info *)input_info;
@@ -953,8 +952,7 @@ static void isp_set_scaler_info(void *input_info,
 
 }
 
-static void isp_set_deci_info(void *input_info, unsigned int idx,
-			   unsigned int addr_base)
+static void isp_set_deci_info(void *input_info, uint32_t idx, uint32_t addr_base)
 {
 	struct isp_deci_info *deciInfo = (struct isp_deci_info *)input_info;
 
@@ -968,26 +966,26 @@ static void isp_set_deci_info(void *input_info, unsigned int idx,
 		deciInfo->deci_y << 3);
 }
 
-static int isp_set_fetch(unsigned int idx, struct isp_path_desc *path)
+static int isp_set_fetch(uint32_t idx, struct isp_path_desc *path)
 {
-	unsigned int start_col	 = 0;
-	unsigned int end_col = 0;
-	unsigned int mipi_byte_rel_pos = 0;
-	unsigned int mipi_word_num = 0;
-	unsigned int mipi_word_num_start[16] = {0, 1, 1, 1, 1, 2, 2, 2, 3, 3, 3,
+	uint32_t start_col	 = 0;
+	uint32_t end_col = 0;
+	uint32_t mipi_byte_rel_pos = 0;
+	uint32_t mipi_word_num = 0;
+	uint32_t mipi_word_num_start[16] = {0, 1, 1, 1, 1, 2, 2, 2, 3, 3, 3,
 						4, 4, 4, 5, 5};
-	unsigned int mipi_word_num_end[16] = {0, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4,
+	uint32_t mipi_word_num_end[16] = {0, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4,
 						4, 4, 5, 5, 5};
-	unsigned int val = 0;
-	unsigned int width = path->in_size.w;
-	unsigned int height = path->in_size.h;
-	unsigned int pitch = 0;
+	uint32_t val = 0;
+	uint32_t width = path->in_size.w;
+	uint32_t height = path->in_size.h;
+	uint32_t pitch = 0;
 	enum isp_fetch_format clr_fmt = path->input_format;
 
 	switch (clr_fmt) {
 	case ISP_FETCH_CSI2_RAW_10:
 		pitch = ISP_ALIGN_4BYTE(((width * 5) >> 2));
-		end_col	  = start_col + width - 1;
+		end_col	= start_col + width - 1;
 		mipi_byte_rel_pos = start_col & 0x0f;
 		mipi_word_num = ((((end_col + 1) >> 4) * 5 +
 				mipi_word_num_end[(end_col + 1) & 0x0f]) -
@@ -1046,8 +1044,8 @@ static int get_ufid_across_all_path(struct isp_pipe_dev *dev)
 	int ret = 0;
 	struct isp_path_desc *path = NULL;
 	struct camera_frame *frame = NULL;
-	unsigned int target_fid = CAMERA_RESERVE_FRAME_NUM;
-	unsigned int path_id = 0;
+	uint32_t target_fid = CAMERA_RESERVE_FRAME_NUM;
+	uint32_t path_id = 0;
 	struct isp_module *module = NULL;
 
 	if (!dev) {
@@ -1057,7 +1055,6 @@ static int get_ufid_across_all_path(struct isp_pipe_dev *dev)
 
 	module = &dev->module_info;
 	frame = kzalloc(sizeof(struct camera_frame), GFP_KERNEL);
-
 	if (!frame)
 		return -ENOMEM;
 
@@ -1079,11 +1076,10 @@ static int get_ufid_across_all_path(struct isp_pipe_dev *dev)
 	return ret;
 }
 
-void isp_path_set_scl(unsigned int idx, struct isp_path_desc *path,
-	unsigned int addr)
+void isp_path_set_scl(uint32_t idx, struct isp_path_desc *path, uint32_t addr)
 {
-	unsigned int reg_val = 0;
-	unsigned int frm_deci;
+	uint32_t reg_val = 0;
+	uint32_t frm_deci;
 
 	if (!path) {
 		pr_err("fail to get valid param, NULL\n");
@@ -1146,7 +1142,7 @@ void isp_path_set_scl(unsigned int idx, struct isp_path_desc *path,
 	ISP_REG_WR(idx, addr+ISP_SCALER_TRIM0_START, reg_val);
 	/* trim0 size must <= src_size */
 	if (path->trim0_info.size_x > path->src.w ||
-		path->trim0_info.size_y > path->src.h) {
+	    path->trim0_info.size_y > path->src.h) {
 		pr_warn("trim0 size > src size, used src size\n");
 		path->trim0_info.size_x = path->src.w;
 		path->trim0_info.size_y = path->src.h;
@@ -1191,8 +1187,8 @@ void isp_path_set(struct isp_module *module,
 		  struct isp_path_desc *path,
 		  enum isp_path_index path_index)
 {
-	unsigned int scl_addr = 0, store_addr = 0;
-	unsigned int idx = 0;
+	uint32_t scl_addr = 0, store_addr = 0;
+	uint32_t idx = 0;
 	enum isp_scene_id sid = ISP_SCENE_PRE;
 	struct isp_pipe_dev *dev = NULL;
 
@@ -1230,7 +1226,7 @@ void isp_path_set(struct isp_module *module,
 	isp_set_store(idx, (void *)&path->store_info, store_addr);
 }
 
-int isp_get_scl_index(unsigned int channel_id)
+int isp_get_scl_index(uint32_t channel_id)
 {
 	enum isp_scl_id  path_index;
 
@@ -1262,16 +1258,16 @@ int isp_path_set_next_frm(struct isp_module *module,
 	struct isp_frm_queue *p_heap = NULL;
 	struct isp_buf_queue *p_buf_queue = NULL;
 	unsigned long yuv_reg[3] = {0};
-	unsigned int yuv_addr[3] = {0};
+	uint32_t yuv_addr[3] = {0};
 	int use_reserve_frame = 0;
 	enum isp_id iid = ISP_ID_0;
 	enum isp_scene_id sid = ISP_SCENE_PRE;
-	unsigned int idx = 0;
+	uint32_t idx = 0;
 	struct isp_pipe_dev *dev = NULL;
-	unsigned int iova0, iova2;
-	unsigned int frm_q_len;
-	unsigned int target_fid = 0;
-	unsigned int ret;
+	uint32_t iova0, iova2;
+	uint32_t frm_q_len;
+	uint32_t target_fid = 0;
+	uint32_t ret;
 
 	if (module == NULL) {
 		pr_err("fail to get moudule, It's NULL\n");
@@ -1335,11 +1331,10 @@ int isp_path_set_next_frm(struct isp_module *module,
 
 	if (path->uframe_sync) {
 		target_fid = get_ufid_across_all_path(dev);
-		pr_debug("path 0x%x, target frame id %u\n", path_index, target_fid);
-		rtn = isp_buf_queue_read_if(&path->buf_queue,
-						check_ufid,
-						(void *)&target_fid,
-						&frame);
+		pr_debug("path 0x%x, target frame id %u\n", path_index,
+			 target_fid);
+		rtn = isp_buf_queue_read_if(&path->buf_queue, check_ufid,
+					    (void *)&target_fid, &frame);
 		if(!rtn)
 			path->output_frame_count--;
 		pr_debug("path 0x%x, get target frame id %u, rtn %d\n",
@@ -1353,15 +1348,15 @@ int isp_path_set_next_frm(struct isp_module *module,
 	}
 
 
-	if ((path->uframe_sync && (target_fid == CAMERA_RESERVE_FRAME_NUM ||
-				   rtn != ISP_RTN_SUCCESS)) ||
+	if ((path->uframe_sync &&
+	     (target_fid == CAMERA_RESERVE_FRAME_NUM || rtn != 0)) ||
 	    (use_reserve_frame == 0 &&
 	     frame.pfinfo.mfd[0] == reserved_frame->pfinfo.mfd[0]))
 		use_reserve_frame = 1;
 
 	if (use_reserve_frame) {
 		pr_debug("buf queue have %d, mfd %u\n",
-			p_buf_queue->valid_cnt, frame.pfinfo.mfd[0]);
+			 p_buf_queue->valid_cnt, frame.pfinfo.mfd[0]);
 		rtn = pfiommu_get_addr(&reserved_frame->pfinfo);
 		if (rtn) {
 			pr_err("ISP%d: fail to get reserved buffer addr\n",
@@ -1370,16 +1365,16 @@ int isp_path_set_next_frm(struct isp_module *module,
 			goto iommu_err;
 		}
 		pr_debug("ISP%d: No freed frame id %d path_index %d\n",
-				iid, frame.fid, path_index);
+			 iid, frame.fid, path_index);
 		if (reserved_frame->pfinfo.mfd[0] == 0) {
-			pr_info("ISP%d: No need to cfg frame buffer", iid);
-			return -1;
+			pr_err("fail to cfg reserve buf, ISP%d\n", iid);
+			return -EFAULT;
 		}
 		memcpy(&frame, reserved_frame, sizeof(struct camera_frame));
 	} else {
 		if (frame.pfinfo.dev == NULL)
-			pr_info("ISP%d next dev NULL %p\n",
-				iid, frame.pfinfo.dev);
+			pr_info("ISP%d next dev NULL %p\n", iid,
+				frame.pfinfo.dev);
 		if (pfiommu_get_addr(&frame.pfinfo)) {
 			pr_err("ISP%d: fail to get frame iova\n", iid);
 			rtn = ISP_RTN_PATH_ADDR_ERR;

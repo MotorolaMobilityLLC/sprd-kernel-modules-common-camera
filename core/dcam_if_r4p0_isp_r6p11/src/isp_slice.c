@@ -205,35 +205,35 @@ static struct lnc_bicubic_weight_t_64_tag lnc_bicubic_weight_t_128_simple[] = {
 };
 
 struct isp_scaler_slice_tmp {
-	unsigned int cur_slice_id;
-	unsigned int slice_row_num;
-	unsigned int slice_col_num;
-	unsigned int start_col;
-	unsigned int start_row;
-	unsigned int end_col;
-	unsigned int end_row;
-	unsigned int cur_row;
-	unsigned int cur_col;
-	unsigned int overlap_bad_up;
-	unsigned int overlap_bad_down;
-	unsigned int overlap_bad_left;
-	unsigned int overlap_bad_right;
-	unsigned int trim0_end_x;
-	unsigned int trim0_end_y;
-	unsigned int trim0_start_adjust_x;
-	unsigned int trim0_start_adjust_y;
-	unsigned int deci_x;
-	unsigned int deci_y;
-	unsigned int deci_x_align;
-	unsigned int deci_y_align;
-	unsigned int scaler_out_height_temp;
-	unsigned int scaler_out_width_temp;
-	unsigned int *scaler_slice;
-	unsigned int *scaler_yuv;
+	uint32_t cur_slice_id;
+	uint32_t slice_row_num;
+	uint32_t slice_col_num;
+	uint32_t start_col;
+	uint32_t start_row;
+	uint32_t end_col;
+	uint32_t end_row;
+	uint32_t cur_row;
+	uint32_t cur_col;
+	uint32_t overlap_bad_up;
+	uint32_t overlap_bad_down;
+	uint32_t overlap_bad_left;
+	uint32_t overlap_bad_right;
+	uint32_t trim0_end_x;
+	uint32_t trim0_end_y;
+	uint32_t trim0_start_adjust_x;
+	uint32_t trim0_start_adjust_y;
+	uint32_t deci_x;
+	uint32_t deci_y;
+	uint32_t deci_x_align;
+	uint32_t deci_y_align;
+	uint32_t scaler_out_height_temp;
+	uint32_t scaler_out_width_temp;
+	uint32_t *scaler_slice;
+	uint32_t *scaler_yuv;
 };
 
-static int fmcu_push_back(unsigned int *p, unsigned int addr,
-	unsigned int cmd, unsigned int num)
+static int fmcu_push_back(uint32_t *p, uint32_t addr,
+	uint32_t cmd, uint32_t num)
 {
 	p[0] = cmd;
 	p[1] = addr;
@@ -242,13 +242,12 @@ static int fmcu_push_back(unsigned int *p, unsigned int addr,
 	return num;
 }
 
-static unsigned int noisefilter_24b_shift8(
-	unsigned int seed, unsigned int *data_out)
+static uint32_t noisefilter_24b_shift8(uint32_t seed, uint32_t *data_out)
 {
-	unsigned int bit_0, bit_1, bit_2, bit_3;
-	unsigned int bit_in[8], bit_in8b;
-	unsigned int out;
-	unsigned int i = 0;
+	uint32_t bit_0, bit_1, bit_2, bit_3;
+	uint32_t bit_in[8], bit_in8b;
+	uint32_t out;
+	uint32_t i = 0;
 
 	for (i = 0; i < 8; i++) {
 		bit_0 = (seed>>(0+i)) & 0x1;
@@ -270,11 +269,11 @@ static unsigned int noisefilter_24b_shift8(
 
 	return out;
 }
-static void slice_noisefilter_seeds(unsigned int image_width,
-	unsigned int seed0, unsigned int *seed1,
-	unsigned int *seed2, unsigned int *seed3)
+static void slice_noisefilter_seeds(uint32_t image_width,
+				    uint32_t seed0, uint32_t *seed1,
+				    uint32_t *seed2, uint32_t *seed3)
 {
-	unsigned int i = 0;
+	uint32_t i = 0;
 
 	*seed1 = noisefilter_24b_shift8(seed0, 0);
 	*seed2 = seed0;
@@ -285,15 +284,15 @@ static void slice_noisefilter_seeds(unsigned int image_width,
 	*seed3 = noisefilter_24b_shift8(*seed2, 0);
 }
 
-static void calc_scaler_phase(unsigned int phase, unsigned int factor,
-	unsigned int *phase_int, unsigned int *phase_rmd)
+static void calc_scaler_phase(uint32_t phase, uint32_t factor,
+			      uint32_t *phase_int, uint32_t *phase_rmd)
 {
-	phase_int[0] = (unsigned int)(phase/factor);
-	phase_rmd[0] = (unsigned int)(phase-factor*phase_int[0]);
+	phase_int[0] = (uint32_t)(phase/factor);
+	phase_rmd[0] = (uint32_t)(phase-factor*phase_int[0]);
 }
 
 static int get_slice_size_info(struct slice_param_in *in_ptr,
-	unsigned int *h, unsigned int *w)
+			       uint32_t *h, uint32_t *w)
 {
 	int rtn = 0;
 	struct slice_img_size *input = NULL;
@@ -333,7 +332,7 @@ exit:
 }
 
 static int get_slice_overlap_info(struct slice_param_in *in_ptr,
-	struct slice_base_info *base_info)
+				  struct slice_base_info *base_info)
 {
 	if (!in_ptr || !base_info) {
 		pr_err("fail to get valid param, NULL");
@@ -366,21 +365,21 @@ static int get_slice_overlap_info(struct slice_param_in *in_ptr,
 		break;
 	}
 
-	return ISP_RTN_SUCCESS;
+	return 0;
 }
 
 static int set_slice_base_info(struct slice_param_in *in_ptr,
-	struct slice_base_info *base_info)
+			       struct slice_base_info *base_info)
 {
 	int rtn = 0;
-	unsigned int i = 0, j = 0;
-	unsigned int img_height, img_width;
-	unsigned int slice_height = 0, slice_width = 0;
-	unsigned int slice_total_row, slice_total_col, slice_num;
-	unsigned int overlap_up = 0;
-	unsigned int overlap_down = 0;
-	unsigned int overlap_left = 0;
-	unsigned int overlap_right = 0;
+	uint32_t i = 0, j = 0;
+	uint32_t img_height, img_width;
+	uint32_t slice_height = 0, slice_width = 0;
+	uint32_t slice_total_row, slice_total_col, slice_num;
+	uint32_t overlap_up = 0;
+	uint32_t overlap_down = 0;
+	uint32_t overlap_left = 0;
+	uint32_t overlap_right = 0;
 
 	if (!in_ptr || !base_info) {
 		pr_err("fail to get valid param, NULL\n");
@@ -714,7 +713,7 @@ static void free_lsc_2d_slice_grid_buf(struct slice_context_info *cxt)
 }
 
 static int set_slice_lsc_2d_info(struct slice_param_in *in_ptr,
-	struct slice_context_info *cxt)
+				 struct slice_context_info *cxt)
 {
 	int rtn = 0;
 	struct isp_pipe_dev *dev = NULL;
@@ -846,7 +845,7 @@ static int set_slice_lsc_2d_info(struct slice_param_in *in_ptr,
 }
 
 static void get_slice_fetch_pitch(struct slice_pitch *pitch_ptr,
-	enum isp_fetch_format format, unsigned int width)
+				  enum isp_fetch_format format, uint32_t width)
 {
 	switch (format) {
 	case ISP_FETCH_YUV422_3FRAME:
@@ -878,21 +877,21 @@ static void get_slice_fetch_pitch(struct slice_pitch *pitch_ptr,
 }
 
 static int set_slice_fetch_info(struct slice_param_in *in_ptr,
-	struct slice_context_info *cxt)
+				struct slice_context_info *cxt)
 {
 	int rtn = 0;
 	struct slice_base_info *base_info = NULL;
 	struct slice_fetch_info *fetch_info = NULL;
 	struct slice_addr *address = NULL;
-	unsigned int cur_slice_id, slice_num;
+	uint32_t cur_slice_id, slice_num;
 	struct slice_pitch fetch_pitch = {0};
-	unsigned int start_col, end_col, start_row, end_row;
-	unsigned int ch0_offset = 0;
-	unsigned int ch1_offset = 0;
-	unsigned int ch2_offset = 0;
-	unsigned int mipi_word_num_start[16] = {
+	uint32_t start_col, end_col, start_row, end_row;
+	uint32_t ch0_offset = 0;
+	uint32_t ch1_offset = 0;
+	uint32_t ch2_offset = 0;
+	uint32_t mipi_word_num_start[16] = {
 		0, 1, 1, 1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 4, 5, 5};
-	unsigned int mipi_word_num_end[16] = {
+	uint32_t mipi_word_num_end[16] = {
 		0, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5};
 
 	if (!in_ptr || !cxt) {
@@ -980,11 +979,11 @@ static int set_slice_dispatch_info(struct slice_param_in *in_ptr,
 				   struct slice_context_info *cxt)
 {
 	int rtn = 0;
-	unsigned int cur_slice_id, slice_num;
-	unsigned int start_col, end_col, start_row, end_row;
+	uint32_t cur_slice_id, slice_num;
+	uint32_t start_col, end_col, start_row, end_row;
 	struct slice_base_info *base_info = NULL;
 	struct slice_dispatch_info *dispath_info = NULL;
-	unsigned int bayer_mode = 0;
+	uint32_t bayer_mode = 0;
 
 	if (!in_ptr || !cxt) {
 		pr_err("fail to get input handle is NULL!\n");
@@ -1020,7 +1019,7 @@ exit:
 static int set_slice_postcnr_info(struct slice_context_info *cxt)
 {
 	int rtn = 0;
-	unsigned int cur_slice_id, slice_num;
+	uint32_t cur_slice_id, slice_num;
 	struct slice_base_info *base_info = NULL;
 	struct slice_postcnr_info *postcnr_info = NULL;
 
@@ -1047,7 +1046,7 @@ exit:
 static int set_slice_ynr_info(struct slice_context_info *cxt)
 {
 	int rtn = 0;
-	unsigned int cur_slice_id, slice_num;
+	uint32_t cur_slice_id, slice_num;
 	struct slice_base_info *base_info = NULL;
 	struct slice_ynr_info *ynr_info = NULL;
 
@@ -1074,7 +1073,7 @@ exit:
 
 static void set_path_trim0_info(struct isp_scaler_slice_tmp *slice)
 {
-	unsigned int start, end;
+	uint32_t start, end;
 	struct slice_scaler_info *out =
 		(struct slice_scaler_info *)slice->scaler_slice;
 	struct slice_scaler_path *in =
@@ -1168,7 +1167,7 @@ static void set_path_trim0_info(struct isp_scaler_slice_tmp *slice)
 
 static void set_path_deci_info(struct isp_scaler_slice_tmp *slice)
 {
-	unsigned int start;
+	uint32_t start;
 	struct slice_scaler_info *out =
 		(struct slice_scaler_info *)slice->scaler_slice;
 	struct slice_scaler_path *in =
@@ -1221,12 +1220,12 @@ static void set_path_scaler_info(struct isp_scaler_slice_tmp *slice)
 		(struct slice_scaler_info *)slice->scaler_slice;
 	struct slice_scaler_path *in =
 		(struct slice_scaler_path *)slice->scaler_yuv;
-	unsigned int scl_factor_in, scl_factor_out;
-	unsigned int  initial_phase, last_phase, phase_in;
-	unsigned int phase_tmp, scl_temp, out_tmp;
-	unsigned int start, end;
-	unsigned int tap_hor, tap_ver, tap_hor_uv, tap_ver_uv;
-	unsigned int tmp, n;
+	uint32_t scl_factor_in, scl_factor_out;
+	uint32_t  initial_phase, last_phase, phase_in;
+	uint32_t phase_tmp, scl_temp, out_tmp;
+	uint32_t start, end;
+	uint32_t tap_hor, tap_ver, tap_hor_uv, tap_ver_uv;
+	uint32_t tmp, n;
 
 	if (in->scaler_bypass == 0) {
 		scl_factor_in = in->scaler_factor_in/2;
@@ -1443,7 +1442,7 @@ static void set_path_scaler_info(struct isp_scaler_slice_tmp *slice)
 }
 
 static void set_path_trim1_info(struct isp_scaler_slice_tmp *slice,
-	struct slice_scaler_info *scaler_info)
+				struct slice_scaler_info *scaler_info)
 {
 	struct slice_scaler_info *out =
 		(struct slice_scaler_info *)slice->scaler_slice;
@@ -1526,12 +1525,12 @@ static void set_path_trim1_info(struct isp_scaler_slice_tmp *slice,
 }
 
 static int set_path_info(struct slice_scaler_info *scaler_info,
-	struct slice_scaler_path *scaler_frame,
-	struct slice_base_info *base_info,
-	unsigned int row, unsigned int col)
+			 struct slice_scaler_path *scaler_frame,
+			 struct slice_base_info *base_info,
+			 uint32_t row, uint32_t col)
 {
 	int rtn = 0;
-	unsigned int cur_slice_id;
+	uint32_t cur_slice_id;
 	struct isp_scaler_slice_tmp slice = {0};
 
 	if (!scaler_info || !scaler_frame || !base_info) {
@@ -1562,8 +1561,8 @@ static int set_path_info(struct slice_scaler_info *scaler_info,
 		YUVSCALER_OVERLAP_LEFT;
 	slice.overlap_bad_right = base_info->overlap_right -
 		YUVSCALER_OVERLAP_RIGHT;
-	slice.scaler_slice = (unsigned int *)&scaler_info[cur_slice_id];
-	slice.scaler_yuv = (unsigned int *)scaler_frame;
+	slice.scaler_slice = (uint32_t *)&scaler_info[cur_slice_id];
+	slice.scaler_yuv = (uint32_t *)scaler_frame;
 
 	set_path_trim0_info(&slice);
 	set_path_deci_info(&slice);
@@ -1593,16 +1592,16 @@ exit:
 }
 
 static int set_slice_scaler_info(struct slice_param_in *in_ptr,
-	struct slice_context_info *cxt)
+				 struct slice_context_info *cxt)
 {
 	int rtn = 0;
 	struct slice_base_info *base_info = NULL;
 	struct slice_scaler_info *scaler_info = NULL;
 	struct slice_scaler_path *scaler_frame = NULL;
-	unsigned int cur_slice_id;
-	unsigned int start_col, end_col, start_row, end_row;
-	unsigned int slice_col_num, slice_row_num;
-	unsigned int r = 0, c = 0;
+	uint32_t cur_slice_id;
+	uint32_t start_col, end_col, start_row, end_row;
+	uint32_t slice_col_num, slice_row_num;
+	uint32_t r = 0, c = 0;
 
 	if (!in_ptr || !cxt) {
 		pr_err("fail to get valid param, NULL\n");
@@ -1701,8 +1700,8 @@ exit:
 static int set_slice_noisefliter_info(struct slice_context_info *cxt)
 {
 	int rtn = 0;
-	unsigned int cur_slice_id, slice_num;
-	unsigned int slice_width;
+	uint32_t cur_slice_id, slice_num;
+	uint32_t slice_width;
 	struct slice_base_info *base_info = NULL;
 	struct slice_noisefilter_info *noisefilter_info = NULL;
 	struct slice_scaler_info *scaler_info = NULL;
@@ -1738,7 +1737,7 @@ exit:
 }
 
 static int get_slice_store_pitch(struct slice_pitch *pitch_ptr,
-	enum isp_store_format format, unsigned int width)
+				 enum isp_store_format format, uint32_t width)
 {
 	int rtn = 0;
 
@@ -1769,15 +1768,15 @@ static int get_slice_store_pitch(struct slice_pitch *pitch_ptr,
 }
 
 void isp_slice_store_addr_init(struct slice_pitch *sf_pitch,
-	struct slice_store_info *store_info,
-	struct slice_store_path *store_frame,
-	unsigned int start_row_out,
-	unsigned int start_col_out,
-	unsigned int cs_id)
+			       struct slice_store_info *store_info,
+			       struct slice_store_path *store_frame,
+			       uint32_t start_row_out,
+			       uint32_t start_col_out,
+			       uint32_t cs_id)
 {
-	unsigned int ch0_offset = 0;
-	unsigned int ch1_offset = 0;
-	unsigned int ch2_offset = 0;
+	uint32_t ch0_offset = 0;
+	uint32_t ch1_offset = 0;
+	uint32_t ch2_offset = 0;
 	struct slice_addr *address = &store_frame->addr;
 
 	store_info[cs_id].addr.chn0 = address->chn0;
@@ -1830,18 +1829,19 @@ void isp_slice_store_addr_init(struct slice_pitch *sf_pitch,
 }
 
 static int set_store_info(struct slice_store_info *store_info,
-	struct slice_store_path *store_frame,
-	struct slice_base_info *base_info,
-	struct slice_scaler_info *scaler_info, unsigned int scl_bypass)
+			  struct slice_store_path *store_frame,
+			  struct slice_base_info *base_info,
+			  struct slice_scaler_info *scaler_info,
+			  uint32_t scl_bypass)
 {
 	int rtn = 0;
-	unsigned int cur_slice_id, cur_slice_row;
-	unsigned int scl_out_width, scl_out_height;
-	unsigned int overlap_left, overlap_up,
+	uint32_t cur_slice_id, cur_slice_row;
+	uint32_t scl_out_width, scl_out_height;
+	uint32_t overlap_left, overlap_up,
 		overlap_right, overlap_down;
-	unsigned int start_col, end_col, start_row, end_row;
-	unsigned int start_row_out, start_col_out;
-	unsigned int tmp_slice_id;
+	uint32_t start_col, end_col, start_row, end_row;
+	uint32_t start_row_out, start_col_out;
+	uint32_t tmp_slice_id;
 
 	struct slice_pitch store_pitch = {0};
 
@@ -1893,11 +1893,9 @@ static int set_store_info(struct slice_store_info *store_info,
 			store_info[cur_slice_id].border.up_border = 0;
 			store_info[cur_slice_id].border.down_border = 0;
 
-			isp_slice_store_addr_init(&store_pitch,
-				store_info, store_frame,
-				start_row_out,
-				start_col_out,
-				cur_slice_id);
+			isp_slice_store_addr_init(&store_pitch, store_info,
+						  store_frame, start_row_out,
+						  start_col_out, cur_slice_id);
 
 		}
 	} else {
@@ -1946,10 +1944,10 @@ exit:
 }
 
 static int set_slice_store_info(struct slice_param_in *in_ptr,
-	struct slice_context_info *cxt)
+				struct slice_context_info *cxt)
 {
 	int rtn = 0;
-	unsigned int scl_bypass;
+	uint32_t scl_bypass;
 	struct slice_base_info *base_info = NULL;
 	struct slice_store_info *store_info = NULL;
 	struct slice_store_path *store_frame = NULL;
@@ -1967,8 +1965,8 @@ static int set_slice_store_info(struct slice_param_in *in_ptr,
 		scaler_info = cxt->scaler_info[SLICE_PATH_PRE];
 		store_frame = &in_ptr->store_frame[SLICE_PATH_PRE];
 		scl_bypass = in_ptr->scaler_frame[SLICE_PATH_PRE].scaler_bypass;
-		set_store_info(store_info, store_frame, base_info,
-			scaler_info, scl_bypass);
+		set_store_info(store_info, store_frame, base_info, scaler_info,
+			       scl_bypass);
 		/* rtn init to 0, and not changed
 		 * if (rtn)
 		 *	goto exit;
@@ -1980,8 +1978,8 @@ static int set_slice_store_info(struct slice_param_in *in_ptr,
 		scaler_info = cxt->scaler_info[SLICE_PATH_VID];
 		store_frame = &in_ptr->store_frame[SLICE_PATH_VID];
 		scl_bypass = in_ptr->scaler_frame[SLICE_PATH_VID].scaler_bypass;
-		set_store_info(store_info, store_frame, base_info,
-			scaler_info, scl_bypass);
+		set_store_info(store_info, store_frame, base_info, scaler_info,
+			       scl_bypass);
 		/* rtn init to 0, and not changed
 		 * if (rtn)
 		 *	goto exit;
@@ -1993,8 +1991,8 @@ static int set_slice_store_info(struct slice_param_in *in_ptr,
 		scaler_info = cxt->scaler_info[SLICE_PATH_CAP];
 		store_frame = &in_ptr->store_frame[SLICE_PATH_CAP];
 		scl_bypass = in_ptr->scaler_frame[SLICE_PATH_CAP].scaler_bypass;
-		set_store_info(store_info, store_frame, base_info,
-			scaler_info, scl_bypass);
+		set_store_info(store_info, store_frame, base_info, scaler_info,
+			       scl_bypass);
 		/* rtn init to 0, and not changed
 		 * if (rtn)
 		 *	goto exit;
@@ -2006,14 +2004,14 @@ exit:
 }
 
 static int set_slice_cfa_info(struct slice_param_in *in_ptr,
-	struct slice_context_info *cxt)
+			      struct slice_context_info *cxt)
 {
 	int rtn = 0;
-	unsigned int cur_slice_id, slice_num;
+	uint32_t cur_slice_id, slice_num;
 	struct slice_base_info *base_info = NULL;
 	struct slice_cfa_info *cfa_info = NULL;
-	unsigned int start_col = 0;
-	unsigned int end_col = 0;
+	uint32_t start_col = 0;
+	uint32_t end_col = 0;
 
 	if (!cxt) {
 		pr_err("fail to get valid param, NULL\n");
@@ -2037,13 +2035,11 @@ exit:
 	return rtn;
 }
 
-static int set_fmcu_clr_int(unsigned int *fmcu_buf,
-			    unsigned int num,
-			    enum isp_scene_id sid,
-			    enum isp_id iid)
+static int set_fmcu_clr_int(uint32_t *fmcu_buf, uint32_t num,
+			    enum isp_scene_id sid, enum isp_id iid)
 {
-	unsigned int addr = 0, cmd = 0;
-	unsigned int int_base = int_reg_base[iid][sid];
+	uint32_t addr = 0, cmd = 0;
+	uint32_t int_base = int_reg_base[iid][sid];
 
 	/* clear interrupt */
 	addr = ISP_GET_REG(iid, int_base + ISP_INT_CLR0);
@@ -2065,13 +2061,13 @@ static int set_fmcu_clr_int(unsigned int *fmcu_buf,
 	return num;
 }
 
-static int set_fmcu_cfg(unsigned int *fmcu_buf,
-			unsigned int num,
+static int set_fmcu_cfg(uint32_t *fmcu_buf,
+			uint32_t num,
 			enum isp_scene_id sid,
 			enum isp_id iid)
 {
-	unsigned int addr = 0, cmd = 0;
-	unsigned int cfg_start_addr[ISP_ID_MAX][ISP_SCENE_NUM] = {
+	uint32_t addr = 0, cmd = 0;
+	uint32_t cfg_start_addr[ISP_ID_MAX][ISP_SCENE_NUM] = {
 		{
 			ISP_CFG_PRE0_START,
 			ISP_CFG_CAP0_START
@@ -2097,13 +2093,13 @@ static int set_fmcu_cfg(unsigned int *fmcu_buf,
 	return num;
 }
 
-static int set_fmcu_lsc_2d(unsigned int *fmcu_buf,
-	struct slice_lsc_2d_info *lsc_2d_info,
-	unsigned int num, enum isp_work_mode mid,
-	enum isp_id iid)
+static int set_fmcu_lsc_2d(uint32_t *fmcu_buf,
+			   struct slice_lsc_2d_info *lsc_2d_info,
+			   uint32_t num, enum isp_work_mode mid,
+			   enum isp_id iid)
 {
-	unsigned int addr = 0, cmd = 0;
-	unsigned int i = 0;
+	uint32_t addr = 0, cmd = 0;
+	uint32_t i = 0;
 
 	addr = ISP_GET_REG(iid, ISP_LENS_SLICE_POS);
 	cmd = ((lsc_2d_info->start_row & 0xFFFF) << 16) |
@@ -2150,11 +2146,11 @@ static int set_fmcu_lsc_2d(unsigned int *fmcu_buf,
 	return num;
 }
 
-static int set_fmcu_fetch(unsigned int *fmcu_buf,
-	struct slice_fetch_info *fetch_info,
-	unsigned int num, enum isp_id iid)
+static int set_fmcu_fetch(uint32_t *fmcu_buf,
+			  struct slice_fetch_info *fetch_info,
+			  uint32_t num, enum isp_id iid)
 {
-	unsigned int addr = 0, cmd = 0;
+	uint32_t addr = 0, cmd = 0;
 
 	addr = ISP_GET_REG(iid, ISP_FETCH_MEM_SLICE_SIZE);
 	cmd = ((fetch_info->size.height & 0xFFFF) << 16) |
@@ -2181,11 +2177,11 @@ static int set_fmcu_fetch(unsigned int *fmcu_buf,
 	return num;
 }
 
-static int set_fmcu_dispatch(unsigned int *fmcu_buf,
-	struct slice_dispatch_info *dispatch_info,
-	unsigned int num, enum isp_id iid)
+static int set_fmcu_dispatch(uint32_t *fmcu_buf,
+			     struct slice_dispatch_info *dispatch_info,
+			     uint32_t num, enum isp_id iid)
 {
-	unsigned int addr = 0, cmd = 0;
+	uint32_t addr = 0, cmd = 0;
 
 	/*
 	 * Once the slice width/height 2-align be ensured,
@@ -2207,11 +2203,11 @@ static int set_fmcu_dispatch(unsigned int *fmcu_buf,
 	return num;
 }
 
-static int set_fmcu_postcnr(unsigned int *fmcu_buf,
-	struct slice_postcnr_info *postcnr_info,
-	unsigned int num, enum isp_id iid)
+static int set_fmcu_postcnr(uint32_t *fmcu_buf,
+			    struct slice_postcnr_info *postcnr_info,
+			    uint32_t num, enum isp_id iid)
 {
-	unsigned int addr = 0, cmd = 0;
+	uint32_t addr = 0, cmd = 0;
 
 	addr = ISP_GET_REG(iid, ISP_POSTCDN_START_ROW_MOD4);
 	cmd = postcnr_info->start_row_mod4 & 0x3;
@@ -2220,10 +2216,10 @@ static int set_fmcu_postcnr(unsigned int *fmcu_buf,
 	return num;
 }
 
-static int set_fmcu_ynr(unsigned int *fmcu_buf,
-	struct slice_ynr_info *ynr_info, unsigned int num, enum isp_id iid)
+static int set_fmcu_ynr(uint32_t *fmcu_buf, struct slice_ynr_info *ynr_info,
+			uint32_t num, enum isp_id iid)
 {
-	unsigned int addr = 0, cmd = 0;
+	uint32_t addr = 0, cmd = 0;
 
 	addr = ISP_GET_REG(iid, ISP_YNR_CFG11);
 	cmd = ((ynr_info->start_col & 0xFFFF) << 16) |
@@ -2233,11 +2229,11 @@ static int set_fmcu_ynr(unsigned int *fmcu_buf,
 	return num;
 }
 
-static int set_fmcu_noisefilter(unsigned int *fmcu_buf,
-	struct slice_noisefilter_info *noisefilter_info,
-	unsigned int num, enum isp_id iid)
+static int set_fmcu_noisefilter(uint32_t *fmcu_buf,
+				struct slice_noisefilter_info *noisefilter_info,
+				uint32_t num, enum isp_id iid)
 {
-	unsigned int addr = 0, cmd = 0;
+	uint32_t addr = 0, cmd = 0;
 
 	addr = ISP_GET_REG(iid, ISP_YUV_NF_SEED0);
 	cmd = noisefilter_info->seed0 & 0xFFFFFF;
@@ -2262,12 +2258,12 @@ static int set_fmcu_noisefilter(unsigned int *fmcu_buf,
 	return num;
 }
 
-static int set_fmcu_scaler(unsigned int *fmcu_buf,
-	struct slice_scaler_info *scaler_info,
-	unsigned int num, enum isp_id iid,
-	unsigned int base, unsigned int scl_bypass)
+static int set_fmcu_scaler(uint32_t *fmcu_buf,
+			   struct slice_scaler_info *scaler_info,
+			   uint32_t num, enum isp_id iid,
+			   uint32_t base, uint32_t scl_bypass)
 {
-	unsigned int addr = 0, cmd = 0;
+	uint32_t addr = 0, cmd = 0;
 
 	if (!scl_bypass) {
 		addr = ISP_GET_REG(iid, ISP_SCALER_SRC_SIZE) + base;
@@ -2347,11 +2343,11 @@ static int set_fmcu_scaler(unsigned int *fmcu_buf,
 	return num;
 }
 
-static int set_fmcu_store(unsigned int *fmcu_buf,
-	struct slice_store_info *store_info,
-	unsigned int num, enum isp_id iid, unsigned int base)
+static int set_fmcu_store(uint32_t *fmcu_buf,
+			  struct slice_store_info *store_info,
+			  uint32_t num, enum isp_id iid, uint32_t base)
 {
-	unsigned int addr = 0, cmd = 0;
+	uint32_t addr = 0, cmd = 0;
 
 	addr = ISP_GET_REG(iid, ISP_STORE_SLICE_SIZE) + base;
 	cmd = ((store_info->size.height & 0xFFFF) << 16) |
@@ -2384,11 +2380,11 @@ static int set_fmcu_store(unsigned int *fmcu_buf,
 	return num;
 }
 
-static int set_fmcu_cfa(unsigned int *fmcu_buf,
-	struct slice_cfa_info *cfa_info,
-	unsigned int num, enum isp_id iid)
+static int set_fmcu_cfa(uint32_t *fmcu_buf,
+			struct slice_cfa_info *cfa_info,
+			uint32_t num, enum isp_id iid)
 {
-	unsigned int addr = 0, cmd = 0;
+	uint32_t addr = 0, cmd = 0;
 
 	addr = ISP_GET_REG(iid, ISP_CFAE_GBUF_CFG);
 	cmd = cfa_info->gbuf_addr_max & 0xfff;
@@ -2398,7 +2394,8 @@ static int set_fmcu_cfa(unsigned int *fmcu_buf,
 }
 
 static int set_slice_fmcu_info(struct slice_param_in *in_ptr,
-	struct slice_context_info *cxt, unsigned int *fmcu_num)
+			       struct slice_context_info *cxt,
+			       uint32_t *fmcu_num)
 {
 	int rtn = 0;
 	struct isp_pipe_dev *dev = NULL;
@@ -2413,24 +2410,24 @@ static int set_slice_fmcu_info(struct slice_param_in *in_ptr,
 	struct slice_base_info *base_info = NULL;
 	struct slice_scaler_info *scaler_info = NULL;
 	struct slice_store_info *store_info = NULL;
-	unsigned int shadow_done_cmd[ISP_ID_MAX][ISP_SCENE_NUM] = {
+	uint32_t shadow_done_cmd[ISP_ID_MAX][ISP_SCENE_NUM] = {
 		{P0_SDW_DONE, C0_SDW_DONE},
 		{P1_SDW_DONE, C1_SDW_DONE}
 	};
 
-	unsigned int all_done_cmd[ISP_ID_MAX][ISP_SCENE_NUM] = {
+	uint32_t all_done_cmd[ISP_ID_MAX][ISP_SCENE_NUM] = {
 		{P0_ALL_DONE, C0_ALL_DONE},
 		{P1_ALL_DONE, C1_ALL_DONE}
 	};
 
-	unsigned int num = 0, addr = 0, cmd = 0;
-	unsigned int slice_id = 0;
-	unsigned int *fmcu_buf;
+	uint32_t num = 0, addr = 0, cmd = 0;
+	uint32_t slice_id = 0;
+	uint32_t *fmcu_buf;
 	enum isp_id iid = 0;
 	enum isp_scene_id sid = 0;
 	enum isp_work_mode mid = 0;
-	unsigned int scl_base, store_base;
-	unsigned int scl_bypass;
+	uint32_t scl_base, store_base;
+	uint32_t scl_bypass;
 
 	if (!in_ptr || !cxt) {
 		pr_err("fail to get valid param, NULL\n");
@@ -2604,8 +2601,8 @@ exit:
 	return rtn;
 }
 
-int isp_fmcu_slice_cfg(void *fmcu_handler,
-	struct slice_param_in *in_ptr, unsigned int *fmcu_num)
+int isp_fmcu_slice_cfg(void *fmcu_handler, struct slice_param_in *in_ptr,
+		       uint32_t *fmcu_num)
 {
 	int rtn = 0;
 	struct slice_context_info *cxt = NULL;

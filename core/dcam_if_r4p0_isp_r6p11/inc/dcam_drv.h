@@ -253,22 +253,22 @@ enum e_pdaf_mode {
 	E_PDAF_TYPE3 = 3,
 };
 struct pdaf_extr_ctrl {
-	unsigned int size_x : 2;
-	unsigned int size_y : 2;
+	uint32_t size_x : 2;
+	uint32_t size_y : 2;
 };
 struct pdaf_skip_frm {
-	unsigned int frm_mode : 1;
-	unsigned int sgl_start : 1;
-	unsigned int mul_en : 1;
-	unsigned int skip_num : 4;
+	uint32_t frm_mode : 1;
+	uint32_t sgl_start : 1;
+	uint32_t mul_en : 1;
+	uint32_t skip_num : 4;
 };
 struct pdaf_extr_roi_start {
-	unsigned int x : 13;
-	unsigned int y : 13;
+	uint32_t x : 13;
+	uint32_t y : 13;
 };
 struct pdaf_extr_roi_size {
-	unsigned int w : 13;
-	unsigned int h : 13;
+	uint32_t w : 13;
+	uint32_t h : 13;
 };
 /* pdaf --end */
 
@@ -302,15 +302,15 @@ struct camera_path_dec {
 };
 
 struct camera_size {
-	unsigned int w;
-	unsigned int h;
+	uint32_t w;
+	uint32_t h;
 };
 
 struct camera_rect {
-	unsigned int x;
-	unsigned int y;
-	unsigned int w;
-	unsigned int h;
+	uint32_t x;
+	uint32_t y;
+	uint32_t w;
+	uint32_t h;
 };
 
 struct size_transfer {
@@ -320,28 +320,28 @@ struct size_transfer {
 };
 
 struct camera_addr {
-	unsigned int yaddr;
-	unsigned int uaddr;
-	unsigned int vaddr;
-	unsigned int yaddr_vir;
-	unsigned int uaddr_vir;
-	unsigned int vaddr_vir;
-	unsigned int mfd_y;
-	unsigned int mfd_u;
-	unsigned int mfd_v;
-	unsigned int user_fid;
+	uint32_t yaddr;
+	uint32_t uaddr;
+	uint32_t vaddr;
+	uint32_t yaddr_vir;
+	uint32_t uaddr_vir;
+	uint32_t vaddr_vir;
+	uint32_t mfd_y;
+	uint32_t mfd_u;
+	uint32_t mfd_v;
+	uint32_t user_fid;
 };
 
 struct camera_sc_tap {
-	unsigned int y_tap;
-	unsigned int uv_tap;
+	uint32_t y_tap;
+	uint32_t uv_tap;
 };
 
 struct camera_deci {
-	unsigned int deci_x_en;
-	unsigned int deci_x;
-	unsigned int deci_y_en;
-	unsigned int deci_y;
+	uint32_t deci_x_en;
+	uint32_t deci_x;
+	uint32_t deci_y_en;
+	uint32_t deci_y;
 };
 
 struct frm_timestamp {
@@ -350,61 +350,63 @@ struct frm_timestamp {
 };
 
 struct camera_frame {
-	unsigned int type;
-	unsigned int lock;
-	unsigned int flags;
-	unsigned int fid;
-	unsigned int width;
-	unsigned int height;
-	unsigned int yaddr;
-	unsigned int uaddr;
-	unsigned int vaddr;
-	unsigned int yaddr_vir;
-	unsigned int uaddr_vir;
-	unsigned int vaddr_vir;
-	unsigned int phy_addr;
-	unsigned int vir_addr;
-	unsigned int kaddr[2];
-	unsigned int addr_offset;
-	unsigned int buf_size;
-	unsigned int irq_type;
-	unsigned int irq_property;
-	unsigned int frame_id;
-	unsigned int user_fid;
+	uint32_t type;
+	uint32_t lock;
+	uint32_t flags;
+	uint32_t fid;
+	uint32_t width;
+	uint32_t height;
+	uint32_t yaddr;
+	uint32_t uaddr;
+	uint32_t vaddr;
+	uint32_t yaddr_vir;
+	uint32_t uaddr_vir;
+	uint32_t vaddr_vir;
+	uint32_t phy_addr;
+	uint32_t vir_addr;
+	uint32_t kaddr[2];
+	uint32_t addr_offset;
+	uint32_t buf_size;
+	uint32_t irq_type;
+	uint32_t irq_property;
+	uint32_t frame_id;
+	uint32_t user_fid;
 	int frame_invalid;
 	struct pfiommu_info pfinfo;
 	struct frm_timestamp sof_ts; /* ts without/with suspend @SOF DONE */
 	struct frm_timestamp btu_ts; /* ts without/with suspend @BACKtoUser */
+	void *kva; /* kernel virtual address */
+	uint32_t cam_id; /* from which cam, which scene */
 };
 
 struct camera_get_path_id {
-	unsigned int fourcc;
-	unsigned int is_path_work[CAMERA_MAX_PATH];
-	unsigned int need_isp_tool;
-	unsigned int need_isp;
-	unsigned int rt_refocus;
+	uint32_t fourcc;
+	uint32_t is_path_work[CAMERA_MAX_PATH];
+	uint32_t need_isp_tool;
+	uint32_t need_isp;
+	uint32_t rt_refocus;
 	struct camera_size input_size;
 	struct camera_rect input_trim;
 	struct camera_size output_size;
 };
 
 struct dcam_path_info {
-	unsigned int line_buf;
-	unsigned int support_yuv;
-	unsigned int support_raw;
-	unsigned int support_jpeg;
-	unsigned int support_scaling;
-	unsigned int support_trim;
-	unsigned int is_scaleing_path;
+	uint32_t line_buf;
+	uint32_t support_yuv;
+	uint32_t support_raw;
+	uint32_t support_jpeg;
+	uint32_t support_scaling;
+	uint32_t support_trim;
+	uint32_t is_scaleing_path;
 };
 
 struct isp_path_info {
 	void *fmcu_addr_vir;
-	unsigned int is_slow_motion;
+	uint32_t is_slow_motion;
 };
 
 struct dcam_path_capability {
-	unsigned int count;
+	uint32_t count;
 	uint32_t support_3dnr_mode;
 	struct dcam_path_info path_info[CAMERA_MAX_PATH];
 };
@@ -445,21 +447,21 @@ int sprd_dcam_reg_isr(enum dcam_id idx, enum dcam_irq_id id,
 		      dcam_isr_func user_func, void *u_data);
 int set_dcam_cap_cfg(enum dcam_id idx, enum dcam_cfg_id id, void *param);
 int sprd_dcam_cap_get_info(enum dcam_id idx, enum dcam_cfg_id id, void *param);
-int sprd_dcam_read_registers(enum dcam_id idx, unsigned int *reg_buf,
-			     unsigned int *buf_len);
+int sprd_dcam_read_registers(enum dcam_id idx, uint32_t *reg_buf,
+			     uint32_t *buf_len);
 void sprd_dcam_glb_reg_awr(enum dcam_id idx, unsigned long addr,
-			   unsigned int val, unsigned int reg_id);
+			   uint32_t val, uint32_t reg_id);
 void sprd_dcam_glb_reg_owr(enum dcam_id idx, unsigned long addr,
-			   unsigned int val, unsigned int reg_id);
+			   uint32_t val, uint32_t reg_id);
 void sprd_dcam_glb_reg_mwr(enum dcam_id idx, unsigned long addr,
-			   unsigned int mask, unsigned int val,
-			   unsigned int reg_id);
+			   uint32_t mask, uint32_t val,
+			   uint32_t reg_id);
 int sprd_dcam_drv_init(struct platform_device *pdev);
 void sprd_dcam_drv_deinit(void);
 int sprd_camera_get_path_id(struct camera_get_path_id *path_id,
-	unsigned int *channel_id, unsigned int scene_mode);
+	uint32_t *channel_id, uint32_t scene_mode);
 int sprd_dcam_get_path_capability(struct dcam_path_capability *capacity);
-int sprd_dcam_parse_dt(struct device_node *dn, unsigned int *dcam_count);
+int sprd_dcam_parse_dt(struct device_node *dn, uint32_t *dcam_count);
 int set_dcam_raw_path_cfg(enum dcam_id idx, enum dcam_cfg_id id, void *param);
 int set_dcam_full_path_cfg(enum dcam_id idx, enum dcam_cfg_id id, void *param);
 int set_dcam_bin_path_cfg(enum dcam_id idx, enum dcam_cfg_id id, void *param);
@@ -484,12 +486,12 @@ void dcam_path_resume(int id);
 /* log for debug */
 void dcam_reg_trace(enum dcam_id idx, unsigned long reg_start,
 			unsigned long reg_end);
-void align_for_bin(struct camera_size *p, unsigned int r);
-unsigned int cal_bin_ratio(struct camera_size src,
+void align_for_bin(struct camera_size *p, uint32_t r);
+uint32_t cal_bin_ratio(struct camera_size src,
 			struct camera_size dst);
-void refresh_bin_trim_size(struct camera_rect *p, unsigned int ratio);
+void refresh_bin_trim_size(struct camera_rect *p, uint32_t ratio);
 void update_trim_size(enum dcam_id idx, struct camera_rect *p,
-	unsigned int channel_id);
+	uint32_t channel_id);
 void log_frame_init(void);
 
 

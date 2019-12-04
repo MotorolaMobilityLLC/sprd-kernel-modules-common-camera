@@ -61,7 +61,7 @@ struct compat_isp_statis_buf_input { /* TODO */
 struct compat_isp_dev_block_addr { /* TODO */
 	struct compat_isp_addr img_vir;
 	struct compat_isp_addr img_offset;
-	unsigned int img_fd;
+	uint32_t img_fd;
 };
 
 struct compat_isp_raw_proc_info {  /* TODO */
@@ -69,15 +69,15 @@ struct compat_isp_raw_proc_info {  /* TODO */
 	struct isp_img_size out_size;
 	struct compat_isp_addr img_vir;
 	struct compat_isp_addr img_offset;
-	unsigned int img_fd;
-	unsigned int sensor_id;
+	uint32_t img_fd;
+	uint32_t sensor_id;
 };
 
 struct compat_isp_io_param {  /* TODO */
-	unsigned int isp_id;
-	unsigned int scene_id;
-	unsigned int sub_block;
-	unsigned int property;
+	uint32_t isp_id;
+	uint32_t scene_id;
+	uint32_t sub_block;
+	uint32_t property;
 	compat_caddr_t property_param;
 };
 
@@ -88,23 +88,23 @@ struct compat_sprd_isp_capability {
 };
 
 struct compat_isp_dev_fetch_info_v1 {
-	unsigned int bypass;
-	unsigned int subtract;
-	unsigned int color_format;
-	unsigned int start_isp;
+	uint32_t bypass;
+	uint32_t subtract;
+	uint32_t color_format;
+	uint32_t start_isp;
 	struct isp_img_size size;
 	struct isp_addr_fs addr;
 	struct isp_pitch_fs pitch;
-	unsigned int mipi_word_num;
-	unsigned int mipi_byte_rel_pos;
-	unsigned int no_line_dly_ctrl;
-	unsigned int req_cnt_num;
-	unsigned int line_dly_num;
+	uint32_t mipi_word_num;
+	uint32_t mipi_byte_rel_pos;
+	uint32_t no_line_dly_ctrl;
+	uint32_t req_cnt_num;
+	uint32_t line_dly_num;
 	struct compat_isp_dev_block_addr fetch_addr;
 };
 
 extern long compat_sprd_img_k_ioctl(
 		struct file *file,
-		unsigned int cmd,
+		uint32_t cmd,
 		unsigned long param);
 #endif /* ISP_COMPAT_SUPPORT */

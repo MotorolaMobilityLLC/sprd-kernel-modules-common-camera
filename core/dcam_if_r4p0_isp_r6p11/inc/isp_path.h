@@ -25,13 +25,13 @@ int isp_start_pre_proc(struct isp_path_desc *pre,
 			struct isp_path_desc *vid,
 			struct isp_path_desc *cap,
 		       struct isp_offline_desc *off_desc);
-int isp_set_sc_coeff_info(unsigned int idx, unsigned int addr,
-	unsigned int *coeff_buf);
+int isp_set_sc_coeff_info(uint32_t idx, uint32_t addr,
+	uint32_t *coeff_buf);
 void isp_path_set(struct isp_module *module,
 		  struct isp_path_desc *path, enum isp_path_index path_index);
-void isp_path_set_scl(unsigned int idx, struct isp_path_desc *path,
-	unsigned int addr);
-int isp_get_scl_index(unsigned int channel_id);
+void isp_path_set_scl(uint32_t idx, struct isp_path_desc *path,
+	uint32_t addr);
+int isp_get_scl_index(uint32_t channel_id);
 int isp_path_set_next_frm(struct isp_module *module,
 	enum isp_path_index path_index, struct slice_addr *addr);
 #endif

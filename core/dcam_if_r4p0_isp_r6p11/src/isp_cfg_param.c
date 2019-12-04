@@ -23,10 +23,11 @@
 	fmt, current->pid, __LINE__, __func__
 
 typedef int (*isp_cfg_fun_ptr)(struct isp_io_param *isp_param,
-		struct isp_k_block *isp_k_param, enum isp_id idx);
+			       struct isp_k_block *isp_k_param,
+			       enum isp_id idx);
 
 struct isp_cfg_fun {
-	unsigned int sub_block;
+	uint32_t sub_block;
 	isp_cfg_fun_ptr cfg_fun;
 };
 
@@ -86,14 +87,13 @@ static struct isp_cfg_fun isp_cfg_fun_tab[] = {
 	 {ISP_BLOCK_NOISE_FILTER,	isp_k_cfg_noise_filter},
 };
 
-int isp_cfg_param(void *param,
-		  struct isp_k_block *isp_k_param,
+int isp_cfg_param(void *param, struct isp_k_block *isp_k_param,
 		  struct isp_pipe_dev *dev)
 {
 	int ret = 0;
-	unsigned int i = 0, cnt = 0;
+	uint32_t i = 0, cnt = 0;
+	uint32_t idx = 0;
 	isp_cfg_fun_ptr cfg_fun_ptr = NULL;
-	unsigned int idx = 0;
 
 	struct isp_io_param isp_param = {0, 0, 0, 0, NULL};
 
@@ -120,9 +120,8 @@ int isp_cfg_param(void *param,
 		ISP_SET_SID(idx, isp_param.scene_id);
 	else if (isp_param.scene_id != BLOCK_SCENE_DEF) {
 		pr_err("fail to invalid scene id:%x, sub block:%u, property:%u\n",
-				isp_param.scene_id,
-				isp_param.sub_block,
-				isp_param.property);
+		       isp_param.scene_id, isp_param.sub_block,
+		       isp_param.property);
 		return -EPERM;
 	}
 
@@ -130,11 +129,8 @@ int isp_cfg_param(void *param,
 		ISP_SET_SID(idx, ISP_SCENE_CAP);
 
 	pr_debug("block%u, property %u, com_idx 0x%x, reg_base[%d]=0x%lx\n",
-			isp_param.sub_block,
-			isp_param.property,
-			idx,
-			ISP_GET_IID(idx),
-			ISP_BASE_ADDR(idx));
+		 isp_param.sub_block, isp_param.property, idx,
+		 ISP_GET_IID(idx), ISP_BASE_ADDR(idx));
 
 	switch (isp_param.sub_block) {
 	case ISP_BLOCK_COMMON:
@@ -147,7 +143,7 @@ int isp_cfg_param(void *param,
 		cnt = ARRAY_SIZE(isp_cfg_fun_tab);
 		for (i = 0; i < cnt; i++) {
 			if (isp_param.sub_block ==
-				isp_cfg_fun_tab[i].sub_block) {
+			    isp_cfg_fun_tab[i].sub_block) {
 				cfg_fun_ptr = isp_cfg_fun_tab[i].cfg_fun;
 				break;
 			}

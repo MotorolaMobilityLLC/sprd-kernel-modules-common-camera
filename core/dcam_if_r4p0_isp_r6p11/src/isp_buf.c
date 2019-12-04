@@ -29,8 +29,7 @@
 #define STATIS_QUEUE_LENGTH		8
 #define ISP_IMG_QUEUE_LEN		8
 
-int isp_frame_enqueue(struct isp_frm_queue *queue,
-	struct camera_frame *frame)
+int isp_frame_enqueue(struct isp_frm_queue *queue, struct camera_frame *frame)
 {
 	unsigned long flags;
 
@@ -41,7 +40,7 @@ int isp_frame_enqueue(struct isp_frm_queue *queue,
 
 	spin_lock_irqsave(&queue->lock, flags);
 	pr_debug("queue->valid_cnt %d, r_index %d, w_index %d\n",
-		queue->valid_cnt, queue->r_index, queue->w_index);
+		 queue->valid_cnt, queue->r_index, queue->w_index);
 	if (queue->valid_cnt >= isp_frm_queue_len) {
 		pr_err("fail to enqueue %s, frm_type:%d\n",
 		       queue->owner, frame->type);
@@ -62,8 +61,7 @@ int isp_frame_enqueue(struct isp_frm_queue *queue,
 	return 0;
 }
 
-int isp_frame_dequeue(struct isp_frm_queue *queue,
-	struct camera_frame *frame)
+int isp_frame_dequeue(struct isp_frm_queue *queue, struct camera_frame *frame)
 {
 	unsigned long flags;
 
@@ -97,7 +95,7 @@ int isp_frame_dequeue(struct isp_frm_queue *queue,
 }
 
 int isp_pframe_peekqueue(struct isp_frm_queue *queue,
-	struct camera_frame **pframe)
+			 struct camera_frame **pframe)
 {
 	unsigned long flags;
 
@@ -120,8 +118,8 @@ int isp_pframe_peekqueue(struct isp_frm_queue *queue,
 	*pframe = &queue->frame[queue->r_index];
 
 	pr_debug("peek queue element, %d, %d, %d, %p\n",
-		   (0xF & (*pframe)->fid), (*pframe)->type, queue->valid_cnt,
-		   *pframe);
+		 (0xF & (*pframe)->fid), (*pframe)->type, queue->valid_cnt,
+		 *pframe);
 	spin_unlock_irqrestore(&queue->lock, flags);
 
 	return 0;
@@ -178,10 +176,9 @@ void isp_buf_queue_init(struct isp_buf_queue *queue)
 	spin_lock_init(&queue->lock);
 }
 
-int isp_buf_queue_peek(struct isp_buf_queue *queue,
-		       struct camera_frame *frame)
+int isp_buf_queue_peek(struct isp_buf_queue *queue, struct camera_frame *frame)
 {
-	int ret = ISP_RTN_SUCCESS;
+	int ret = 0;
 	unsigned long flags;
 
 	if (ISP_ADDR_INVALID(queue) || ISP_ADDR_INVALID(frame)) {
@@ -209,10 +206,9 @@ int isp_buf_queue_peek(struct isp_buf_queue *queue,
 
 int isp_buf_queue_read_if(struct isp_buf_queue *queue,
 			  bool (*filter)(struct camera_frame *, void *),
-			  void *data,
-			  struct camera_frame *frame)
+			  void *data, struct camera_frame *frame)
 {
-	int ret = ISP_RTN_SUCCESS;
+	int ret = 0;
 	unsigned long flags;
 
 	if (ISP_ADDR_INVALID(queue) || ISP_ADDR_INVALID(frame)) {
@@ -254,10 +250,9 @@ unlock:
 	return ret;
 }
 
-int isp_buf_queue_read(struct isp_buf_queue *queue,
-	struct camera_frame *frame)
+int isp_buf_queue_read(struct isp_buf_queue *queue, struct camera_frame *frame)
 {
-	int ret = ISP_RTN_SUCCESS;
+	int ret = 0;
 	unsigned long flags;
 
 	if (ISP_ADDR_INVALID(queue) || ISP_ADDR_INVALID(frame)) {
@@ -291,8 +286,7 @@ int isp_buf_queue_read(struct isp_buf_queue *queue,
 	return ret;
 }
 
-int isp_buf_queue_write(struct isp_buf_queue *queue,
-	struct camera_frame *frame)
+int isp_buf_queue_write(struct isp_buf_queue *queue, struct camera_frame *frame)
 {
 	int ret = 0;
 	unsigned long flags;
@@ -307,7 +301,7 @@ int isp_buf_queue_write(struct isp_buf_queue *queue,
 		queue->valid_cnt, queue->r_index, queue->w_index,
 		 __builtin_return_address(0));
 	if (queue->valid_cnt >= DCAM_FRM_CNT_MAX) {
-		pr_warn("warning, queue is full, type %d, y_addr 0x%x, cb %pS\n",
+		pr_warn("queue is full, type %d, y_addr 0x%x, cb %pS\n",
 			frame->type, frame->yaddr,
 			 __builtin_return_address(0));
 		spin_unlock_irqrestore(&queue->lock, flags);
@@ -329,10 +323,10 @@ int isp_buf_queue_write(struct isp_buf_queue *queue,
 
 static int __isp_coeff_queue_init(struct isp_sc_coeff_queue *queue)
 {
-	unsigned int i = 0;
+	uint32_t i = 0;
 	int ret = 0;
-	struct isp_sc_coeff *t_sc_coeff;
-	size_t t_sc_coeff_split_size;
+	struct isp_sc_coeff *t_sc_coeff = NULL;
+	size_t t_sc_coeff_split_size = 0;
 
 	if (ISP_ADDR_INVALID(queue)) {
 		pr_err("fail to get valid que %p\n", queue);
@@ -347,7 +341,7 @@ static int __isp_coeff_queue_init(struct isp_sc_coeff_queue *queue)
 		 */
 		memset((void *)t_sc_coeff, 0, t_sc_coeff_split_size);
 		memset((void *)((char *)t_sc_coeff + t_sc_coeff_split_size), 0,
-			t_sc_coeff_split_size);
+		       t_sc_coeff_split_size);
 	}
 	queue->write = &queue->coeff[0];
 	queue->read = &queue->coeff[0];
@@ -386,8 +380,8 @@ int isp_coeff_get_new_node(struct isp_sc_coeff_queue *queue,
 			   struct isp_sc_coeff **coeff, int type)
 {
 	int ret = 0;
-	unsigned long flags;
-	struct isp_sc_coeff *ori;
+	unsigned long flags = 0;
+	struct isp_sc_coeff *ori = NULL;
 
 	if (ISP_ADDR_INVALID(queue) || ISP_ADDR_INVALID(coeff)) {
 		pr_err("fail to get valid parm %p %p\n", queue, coeff);
@@ -422,7 +416,7 @@ int isp_coeff_get_valid_node(struct isp_sc_coeff_queue *queue,
 			     struct isp_sc_coeff **coeff, int type)
 {
 	int ret = 0;
-	unsigned long flags;
+	unsigned long flags = 0;
 
 	if (ISP_ADDR_INVALID(queue) || ISP_ADDR_INVALID(coeff)) {
 		pr_err("fail to valid parm %p %p\n", queue, coeff);
@@ -438,8 +432,8 @@ int isp_coeff_get_valid_node(struct isp_sc_coeff_queue *queue,
 		if (type) {
 			queue->read++;
 			queue->r_index++;
-			if (queue->read
-			    > &queue->coeff[ISP_SC_COEFF_BUF_COUNT - 1]) {
+			if (queue->read >
+			    &queue->coeff[ISP_SC_COEFF_BUF_COUNT - 1]) {
 				queue->read = &queue->coeff[0];
 				queue->r_index = 0;
 			}
@@ -455,12 +449,13 @@ int isp_coeff_get_valid_node(struct isp_sc_coeff_queue *queue,
 
 void isp_frm_clear(struct isp_pipe_dev *dev, enum isp_path_index path_index)
 {
-	struct camera_frame frame, *res_frame;
-	struct isp_path_desc *path;
+	struct camera_frame frame = {0};
+	struct camera_frame *res_frame = NULL;
+	struct isp_path_desc *path = NULL;
 	struct isp_module *module = NULL;
 	struct isp_statis_module *statis_module = NULL;
-	unsigned int res_free = 0;
-	unsigned int rtn;
+	uint32_t res_free = 0;
+	uint32_t ret;
 
 	if (!dev)
 		return;
@@ -474,7 +469,7 @@ void isp_frm_clear(struct isp_pipe_dev *dev, enum isp_path_index path_index)
 			if (frame.phy_addr == res_frame->phy_addr)
 				res_free = 1;
 			if (pfiommu_free_addr(&frame.pfinfo))
-				pr_err("fail to free pre path frame queue buf\n");
+				pr_err("fail to free pre path queue buf\n");
 			memset(&frame, 0, sizeof(struct camera_frame));
 		}
 
@@ -482,8 +477,8 @@ void isp_frm_clear(struct isp_pipe_dev *dev, enum isp_path_index path_index)
 		isp_buf_queue_init(&path->buf_queue);
 
 		if ((res_frame->pfinfo.mfd[0] != 0) && !res_free){
-			rtn = pfiommu_free_addr(&res_frame->pfinfo);
-			if (rtn)
+			ret = pfiommu_free_addr(&res_frame->pfinfo);
+			if (ret)
 				pr_err("fail to free pre path reserved buf\n");
 		}
 		memset((void *)res_frame, 0, sizeof(struct camera_frame));
@@ -497,7 +492,7 @@ void isp_frm_clear(struct isp_pipe_dev *dev, enum isp_path_index path_index)
 			if (frame.phy_addr == res_frame->phy_addr)
 				res_free = 1;
 			if (pfiommu_free_addr(&frame.pfinfo))
-				pr_err("fail to free vid path frame queue buf\n");
+				pr_err("fail to free vid path queue buf\n");
 			memset(&frame, 0, sizeof(struct camera_frame));
 		}
 
@@ -505,8 +500,8 @@ void isp_frm_clear(struct isp_pipe_dev *dev, enum isp_path_index path_index)
 		isp_buf_queue_init(&path->buf_queue);
 
 		if ((res_frame->pfinfo.mfd[0] != 0) && !res_free){
-			rtn = pfiommu_free_addr(&res_frame->pfinfo);
-			if (rtn)
+			ret = pfiommu_free_addr(&res_frame->pfinfo);
+			if (ret)
 				pr_err("fail to free vid path reserved buf\n");
 		}
 		memset((void *)res_frame, 0, sizeof(struct camera_frame));
@@ -520,15 +515,15 @@ void isp_frm_clear(struct isp_pipe_dev *dev, enum isp_path_index path_index)
 			if (frame.phy_addr == res_frame->phy_addr)
 				res_free = 1;
 			if (pfiommu_free_addr(&frame.pfinfo))
-				pr_err("fail to free cap path frame queue buf\n");;
+				pr_err("fail to free cap path queue buf\n");;
 			memset(&frame, 0, sizeof(struct camera_frame));
 		}
 
 		isp_frm_queue_clear(&path->frame_queue);
 		isp_buf_queue_init(&path->buf_queue);
 		if ((res_frame->pfinfo.mfd[0] != 0) && !res_free){
-			rtn = pfiommu_free_addr(&res_frame->pfinfo);
-			if (rtn)
+			ret = pfiommu_free_addr(&res_frame->pfinfo);
+			if (ret)
 				pr_err("fail to free cap path reserved buf\n");
 		}
 		memset((void *)res_frame, 0, sizeof(struct camera_frame));
@@ -538,8 +533,8 @@ void isp_frm_clear(struct isp_pipe_dev *dev, enum isp_path_index path_index)
 /*
  * buffer handling for offline transfer
  */
-struct offline_buf_desc *isp_offline_sel_buf(
-	struct isp_offline_desc *off_desc, uint8_t off_type)
+struct offline_buf_desc *isp_offline_sel_buf(struct isp_offline_desc *off_desc,
+					     uint8_t off_type)
 {
 	if (off_type == ISP_OFF_BUF_BIN)
 		return &off_desc->buf_desc_bin;
@@ -551,12 +546,11 @@ struct offline_buf_desc *isp_offline_sel_buf(
 	return NULL;
 }
 
-int get_off_frm_q_len(struct isp_offline_desc *off_desc,
-		     unsigned int *len)
+int get_off_frm_q_len(struct isp_offline_desc *off_desc, uint32_t *len)
 {
 	struct isp_pipe_dev *dev = NULL;
 	struct isp_module *module = NULL;
-	unsigned int tmp_len;
+	uint32_t tmp_len;
 
 	module = container_of(off_desc, struct isp_module, off_desc);
 	if (IS_ERR_OR_NULL(module))
@@ -567,7 +561,7 @@ int get_off_frm_q_len(struct isp_offline_desc *off_desc,
 
 	if (is_dual_cam)
 		tmp_len = isp_frm_queue_len;
-	else if (dev->is_hdr)
+	else if (dev->is_hdr) /* used when non-zsl hdr */
 		tmp_len = isp_frm_queue_len - 1;
 	else
 		tmp_len = isp_frm_queue_len - 2;
@@ -583,25 +577,22 @@ exit:
 }
 
 int isp_offline_init_buf(struct isp_offline_desc *off_desc,
-	uint8_t off_type, bool queue_only)
+			 uint8_t off_type, bool queue_only)
 {
 	int ret = 0;
-	unsigned int num = 0;
+	uint32_t num = 0;
 	struct offline_buf_desc *buf_desc = NULL;
 	struct offline_ion_buf *ion_buf = NULL;
-	unsigned int frm_q_len;
+	uint32_t frm_q_len;
 
-	if (!off_desc) {
+	if (!off_desc || get_off_frm_q_len(off_desc, &frm_q_len)) {
 		pr_err("fail to get Input ptr is NULL\n");
-		return -EFAULT;
+		return -EINVAL;
 	}
-
-	if (get_off_frm_q_len(off_desc, &frm_q_len))
-		return -EFAULT;
 
 	buf_desc = isp_offline_sel_buf(off_desc, off_type);
 	if (!buf_desc)
-		return -EFAULT;
+		return -EPERM;
 
 	isp_buf_queue_init(&buf_desc->tmp_buf_queue);
 	isp_frm_queue_clear(&buf_desc->frame_queue);
@@ -622,37 +613,30 @@ int isp_offline_init_buf(struct isp_offline_desc *off_desc,
 	return ret;
 }
 
-int isp_offline_get_buf(struct isp_offline_desc *off_desc,
-	uint8_t off_type)
+int isp_offline_get_buf(struct isp_offline_desc *off_desc, uint8_t off_type)
 {
 	int ret = 0;
 	unsigned long phys_addr = 0;
-	unsigned int num = 0;
+	uint32_t num, i = 0;
 	char name[32];
 	size_t buf_len;
 	struct offline_buf_desc *buf_desc = NULL;
 	struct offline_ion_buf *ion_buf = NULL;
 	struct camera_frame frame = {0};
-	unsigned int frm_q_len;
-	int heap_type;
+	uint32_t frm_q_len;
+	int heap_t;
 
-	if (!off_desc) {
+	if (!off_desc || get_off_frm_q_len(off_desc, &frm_q_len)) {
 		pr_err("fail to get offline buf is NULL\n");
-		return -EFAULT;
+		return -EINVAL;
 	}
-
-	if (get_off_frm_q_len(off_desc, &frm_q_len))
-		return -EFAULT;
 
 	pr_debug("+\n");
 
 	/* TODO: consider to handle both kinds of buffer */
 	buf_desc = isp_offline_sel_buf(off_desc, off_type);
-	if (!buf_desc)
-		return -EFAULT;
-
-	if (!buf_desc->buf_len) {
-		pr_err("fail to get buf size error\n");
+	if (!buf_desc || !buf_desc->buf_len) {
+		pr_err("fail to get buf size\n");
 		return -EFAULT;
 	}
 
@@ -664,13 +648,10 @@ int isp_offline_get_buf(struct isp_offline_desc *off_desc,
 				((off_type == ISP_OFF_BUF_BIN) ? "bin_path" :
 				"full_path"));
 			if (sprd_iommu_attach_device(&s_isp_pdev->dev) != 0) {
-			#if 0
-				frame.yaddr = ion_buf->addr.yaddr;
-			#endif
+				frame.kva = ion_buf->kva;
 				frame.yaddr_vir = ion_buf->addr.yaddr_vir;
-				isp_buf_queue_write(
-					&buf_desc->tmp_buf_queue,
-					&frame);
+				isp_buf_queue_write(&buf_desc->tmp_buf_queue,
+						    &frame);
 			}
 			continue;
 		}
@@ -678,41 +659,40 @@ int isp_offline_get_buf(struct isp_offline_desc *off_desc,
 		sprintf(name, "sprd-cam-off-%c-%d",
 			off_type == ISP_OFF_BUF_BIN ? 'p' : 'c', num);
 
-		heap_type = sprd_iommu_attach_device(&s_isp_pdev->dev) ?
+		heap_t = sprd_iommu_attach_device(&s_isp_pdev->dev) ?
 			ION_HEAP_ID_MASK_MM :
 			ION_HEAP_ID_MASK_SYSTEM;
 
-		ion_buf->dmabuf_p = ion_new_alloc(buf_desc->buf_len,
-				heap_type, 0);
+		ion_buf->dmabuf_p = ion_new_alloc(buf_desc->buf_len, heap_t, 0);
 		if (IS_ERR_OR_NULL(ion_buf->dmabuf_p)) {
 			pr_err("fail to alloc ion buf size = 0x%x %ld\n",
 				(int)buf_desc->buf_len,
 				(unsigned long)ion_buf->dmabuf_p);
-			goto failed;
+			goto err_alloc;
 		}
 
-		ret = sprd_ion_get_buffer(-1,
-				ion_buf->dmabuf_p,
-				&ion_buf->buf,
-				&ion_buf->buf_size);
+		ret = sprd_ion_get_buffer(-1, ion_buf->dmabuf_p, &ion_buf->buf,
+					  &ion_buf->buf_size);
 		if (ret) {
 			pr_err("fail to get ion buf for kernel buffer %p\n",
 				ion_buf->dmabuf_p);
-			goto failed;
+			goto err_get_buf;
 		}
 
 		pr_debug("dmabuf_p[%p], size 0x%x, heap %d\n",
-			ion_buf->dmabuf_p,
-			(int)buf_desc->buf_len,
-			heap_type);
+			ion_buf->dmabuf_p, (int)buf_desc->buf_len, heap_t);
+
+		ion_buf->kva = sprd_ion_map_kernel(ion_buf->dmabuf_p, 0);
+		if (!ion_buf->kva)
+			goto err_map_kernel;
 
 		if (sprd_iommu_attach_device(&s_isp_pdev->dev)) {
 			ret = sprd_ion_get_phys_addr_by_db(ion_buf->dmabuf_p,
-					&phys_addr,
-					&buf_len);
+							   &phys_addr,
+							   &buf_len);
 			if (ret) {
 				pr_err("fail to get phys addr\n");
-				goto failed;
+				goto err_get_phyaddr;
 			}
 
 			pr_info("off_b rvd: 0x%lx 0x%x type: %x\n",
@@ -727,7 +707,7 @@ int isp_offline_get_buf(struct isp_offline_desc *off_desc,
 			ret = isp_buf_queue_write(&buf_desc->tmp_buf_queue,
 						  &frame);
 			if (ret)
-				goto failed;
+				goto err_q_w;
 
 			buf_desc->output_frame_count++;
 		}
@@ -736,39 +716,54 @@ int isp_offline_get_buf(struct isp_offline_desc *off_desc,
 	pr_debug("-\n");
 	return 0;
 
-failed:
-	/* release all allocated buffers immediately */
-	ret = isp_offline_put_buf(off_desc, off_type);
+err_q_w:
+err_get_phyaddr:
+	ion_buf = &buf_desc->ion_buf[num];
+	sprd_ion_unmap_kernel(ion_buf->dmabuf_p, 0);
+err_map_kernel:
+err_get_buf:
+	ion_buf = &buf_desc->ion_buf[num];
+	ion_free(ion_buf->dmabuf_p);
+	ion_buf->dmabuf_p = NULL;
+	ion_buf->buf = NULL;
+	ion_buf->buf_size = 0;
+
+err_alloc:
+	for (i = 0; i < num; i++) {
+		ion_buf = &buf_desc->ion_buf[i];
+		sprd_ion_unmap_kernel(ion_buf->dmabuf_p, 0);
+		ion_free(ion_buf->dmabuf_p);
+		ion_buf->dmabuf_p = NULL;
+		ion_buf->buf = NULL;
+		ion_buf->buf_size = 0;
+	}
 
 	pr_err("fail to get offline buffer\n");
 	return -EFAULT;
 }
 
 int isp_offline_put_buf(struct isp_offline_desc *off_desc,
-	uint8_t off_type)
+			uint8_t off_type)
 {
-	unsigned int num = 0;
+	uint32_t num = 0;
 	struct offline_buf_desc *buf_desc = NULL;
 	struct offline_ion_buf *ion_buf = NULL;
-	unsigned int frm_q_len;
+	uint32_t frm_q_len;
 
-	if (!off_desc) {
+	if (!off_desc || get_off_frm_q_len(off_desc, &frm_q_len)) {
 		pr_err("fail to get offline buf is NULL\n");
-		return -EFAULT;
+		return -EINVAL;
 	}
-
-	if (get_off_frm_q_len(off_desc, &frm_q_len))
-		return -EFAULT;
 
 	buf_desc = isp_offline_sel_buf(off_desc, off_type);
 	if (!buf_desc)
-		return -EFAULT;
+		return -EPERM;
 
 	for (num = 0; num < frm_q_len; num++) {
 		ion_buf = &buf_desc->ion_buf[num];
 		if (IS_ERR_OR_NULL(ion_buf->dmabuf_p))
 			continue;
-
+		sprd_ion_unmap_kernel(ion_buf->dmabuf_p, 0);
 		ion_free(ion_buf->dmabuf_p);
 		ion_buf->dmabuf_p = NULL;
 		ion_buf->buf = NULL;
@@ -779,27 +774,24 @@ int isp_offline_put_buf(struct isp_offline_desc *off_desc,
 }
 
 int isp_offline_buf_iommu_map(struct isp_offline_desc *off_desc,
-	uint8_t off_type)
+			      uint8_t off_type)
 {
 	int ret = 0;
-	unsigned int num = 0;
+	uint32_t num = 0;
 	struct camera_frame frame = {0};
 	struct offline_buf_desc *buf_desc = NULL;
 	struct offline_ion_buf *ion_buf = NULL;
 	struct sprd_iommu_map_data iommu_data;
-	unsigned int frm_q_len;
+	uint32_t frm_q_len;
 
-	if (!off_desc) {
+	if (!off_desc || get_off_frm_q_len(off_desc, &frm_q_len)) {
 		pr_err("fail to get offline buf is NULL\n");
 		return -EFAULT;
 	}
 
-	if (get_off_frm_q_len(off_desc, &frm_q_len))
-		return -EFAULT;
-
 	buf_desc = isp_offline_sel_buf(off_desc, off_type);
 	if (!buf_desc)
-		return -EFAULT;
+		return -EPERM;
 
 	if (sprd_iommu_attach_device(&s_isp_pdev->dev) != 0)
 		return 0;
@@ -822,6 +814,7 @@ int isp_offline_buf_iommu_map(struct isp_offline_desc *off_desc,
 			return -EFAULT;
 		}
 
+		frame.kva = ion_buf->kva;
 		frame.yaddr_vir = iommu_data.iova_addr;
 		ion_buf->addr.yaddr_vir = frame.yaddr_vir;
 
@@ -863,26 +856,23 @@ int isp_offline_buf_iommu_unmap(struct isp_offline_desc *off_desc,
 	uint8_t off_type)
 {
 	int ret = 0;
-	unsigned int num = 0;
+	uint32_t num = 0;
 	struct offline_buf_desc *buf_desc = NULL;
 	struct offline_ion_buf *ion_buf = NULL;
 	struct sprd_iommu_unmap_data iommu_data = {0};
-	unsigned int frm_q_len;
+	uint32_t frm_q_len;
 
 	if (sprd_iommu_attach_device(&s_isp_pdev->dev) != 0)
 		return ret;
 
-	if (!off_desc) {
+	if (!off_desc || get_off_frm_q_len(off_desc, &frm_q_len)) {
 		pr_err("fail to get offline buf is NULL\n");
-		return -EFAULT;
+		return -EINVAL;
 	}
-
-	if (get_off_frm_q_len(off_desc, &frm_q_len))
-		return -EFAULT;
 
 	buf_desc = isp_offline_sel_buf(off_desc, off_type);
 	if (!buf_desc)
-		return -EFAULT;
+		return -EPERM;
 
 	memset(&iommu_data, 0, sizeof(struct sprd_iommu_unmap_data));
 	for (num = 0; num < frm_q_len; num++) {
@@ -915,26 +905,23 @@ int isp_offline_buf_iommu_unmap_external(struct isp_offline_desc *off_desc,
 	uint8_t off_type)
 {
 	int ret = 0;
-	unsigned int num = 0;
+	uint32_t num = 0;
 	struct offline_buf_desc *buf_desc = NULL;
 	struct offline_ion_buf *ion_buf = NULL;
 	struct sprd_iommu_unmap_data iommu_data = {0};
-	unsigned int frm_q_len;
+	uint32_t frm_q_len;
 
 	if (sprd_iommu_attach_device(&s_dcam_pdev->dev) != 0)
 		return ret;
 
-	if (!off_desc) {
+	if (!off_desc || get_off_frm_q_len(off_desc, &frm_q_len)) {
 		pr_err("fail to get offline buff is NULL\n");
-		return -EFAULT;
+		return -EINVAL;
 	}
-
-	if (get_off_frm_q_len(off_desc, &frm_q_len))
-		return -EFAULT;
 
 	buf_desc = isp_offline_sel_buf(off_desc, off_type);
 	if (!buf_desc)
-		return -EFAULT;
+		return -EPERM;
 
 	memset(&iommu_data, 0, sizeof(struct sprd_iommu_unmap_data));
 	for (num = 0; num < frm_q_len; num++) {
@@ -963,8 +950,8 @@ int isp_offline_buf_iommu_unmap_external(struct isp_offline_desc *off_desc,
 	return ret;
 }
 
-int isp_offline_set_next_frm(struct isp_module *module,
-	uint8_t off_type, struct camera_frame *out_frame)
+int isp_offline_set_next_frm(struct isp_module *module, uint8_t off_type,
+			     struct camera_frame *out_frame)
 {
 	int ret = 0;
 	struct isp_offline_desc *off_desc = NULL;
@@ -972,14 +959,14 @@ int isp_offline_set_next_frm(struct isp_module *module,
 	struct isp_frm_queue *p_heap = NULL;
 	struct isp_buf_queue *p_buf_queue = NULL;
 	struct camera_frame frame;
-	unsigned int output_frame_count = 0;
+	uint32_t output_frame_count = 0;
 	enum isp_id iid = ISP_ID_0;
 	enum isp_scl_id path_id;
 	struct isp_pipe_dev *dev = NULL;
 
 	if (!module) {
 		pr_err("fail to get module ptr is NULL\n");
-		return -EFAULT;
+		return -EINVAL;
 	}
 
 	dev = container_of(module, struct isp_pipe_dev, module_info);
@@ -993,14 +980,14 @@ int isp_offline_set_next_frm(struct isp_module *module,
 	off_desc = &module->off_desc;
 	buf_desc = isp_offline_sel_buf(off_desc, off_type);
 	if (!buf_desc)
-		return -EFAULT;
+		return -EINVAL;
 
 	p_heap = &buf_desc->frame_queue;
 	p_buf_queue = &buf_desc->tmp_buf_queue;
 	output_frame_count = buf_desc->output_frame_count;
 
 	if (isp_buf_queue_read(p_buf_queue, &frame) == 0 &&
-			(frame.yaddr_vir != 0)) {
+	    (frame.yaddr_vir != 0)) {
 		buf_desc->output_frame_count--;
 		frame.sof_ts = out_frame->sof_ts;
 		frame.fid = out_frame->fid;
@@ -1020,9 +1007,9 @@ int isp_offline_set_next_frm(struct isp_module *module,
 	if (isp_frame_enqueue(p_heap, &frame) == 0)
 		pr_debug("success to enq frame off_type %d\n", off_type);
 	else
-		ret = ISP_RTN_PATH_FRAME_LOCKED;
+		ret = -EFAULT;
 
-	return -ret;
+	return ret;
 }
 
 /*
@@ -1037,7 +1024,7 @@ int isp_gen_buf_alloc(struct isp_buf_info *buf_info)
 
 	if (!buf_info) {
 		pr_err("fail to get valid buffer info\n");
-		return -EPERM;
+		return -EINVAL;
 	}
 
 	iommu_enabled = !sprd_iommu_attach_device(&s_isp_pdev->dev);
@@ -1050,8 +1037,7 @@ int isp_gen_buf_alloc(struct isp_buf_info *buf_info)
 			ION_HEAP_ID_MASK_MM :
 			ION_HEAP_ID_MASK_SYSTEM;
 
-	buf_info->dmabuf_p = ion_new_alloc(buf_info->size,
-			heap_type, 0);
+	buf_info->dmabuf_p = ion_new_alloc(buf_info->size, heap_type, 0);
 	if (IS_ERR_OR_NULL(buf_info->dmabuf_p)) {
 		pr_err("fail to alloc ion buf size = 0x%x %ld\n",
 			(int)buf_info->size,
@@ -1070,10 +1056,8 @@ int isp_gen_buf_alloc(struct isp_buf_info *buf_info)
 		goto failed;
 	}
 
-	pr_debug("dmabuf_p[%p], size 0x%x, heap %d\n",
-		buf_info->dmabuf_p,
-		(int)buf_info->size,
-		heap_type);
+	pr_debug("dmabuf_p[%p], size 0x%x, heap %d\n", buf_info->dmabuf_p,
+		(int)buf_info->size, heap_type);
 
 	if (sprd_iommu_attach_device(&s_isp_pdev->dev)== 0) {
 		buf_info->sw_addr = sprd_ion_map_kernel(buf_info->dmabuf_p, 0);
@@ -1178,7 +1162,7 @@ int isp_gen_buf_hw_unmap(struct isp_buf_info *buf_info)
 
 	if (!buf_info) {
 		pr_err("fail to get buffer info\n");
-		return -EFAULT;
+		return -EINVAL;
 	}
 
 	if (buf_info->hw_addr) {
@@ -1211,14 +1195,14 @@ int isp_gen_buf_hw_unmap(struct isp_buf_info *buf_info)
 int isp_buf_recycle(struct offline_buf_desc *buf_desc,
 		    struct isp_buf_queue *dst_q,
 		    struct isp_frm_queue *src_q,
-		    unsigned int recycle_buf_cnt)
+		    uint32_t recycle_buf_cnt)
 {
 	int ret = 0;
 	struct camera_frame frame;
 	int i;
 
 	if (unlikely(IS_ERR_OR_NULL(dst_q) || IS_ERR_OR_NULL(src_q))) {
-		ret = -EFAULT;
+		ret = -EINVAL;
 		goto failed;
 	}
 	if (unlikely(recycle_buf_cnt > src_q->valid_cnt))
@@ -1227,13 +1211,13 @@ int isp_buf_recycle(struct offline_buf_desc *buf_desc,
 	for (i = 0; i < recycle_buf_cnt; i++) {
 		if (isp_frame_dequeue(src_q, &frame)) {
 			pr_err("fail to deque frame\n");
-			ret = -EPERM;
+			ret = -EFAULT;
 			break;
 		}
 
 		if (isp_buf_queue_write(dst_q, &frame)) {
 			pr_err("fail to write buffer\n");
-			ret = -EPERM;
+			ret = -EFAULT;
 			break;
 		}
 
@@ -1260,7 +1244,7 @@ void *isp_buf_get_kaddr(int fd)
 	dmabuf_p = dma_buf_get(fd);
 	if (IS_ERR_OR_NULL(dmabuf_p)) {
 		pr_err("fail to get dma buf %p\n", dmabuf_p);
-		return 0;
+		return NULL;
 	}
 
 	kaddr = sprd_ion_map_kernel(dmabuf_p, 0);
@@ -1272,3 +1256,162 @@ void *isp_buf_get_kaddr(int fd)
 
 	return kaddr;
 }
+
+int isp_block_buf_alloc(struct isp_pipe_dev *dev)
+{
+	int32_t ret = 0;
+	uint32_t buf_len = 0;
+	struct isp_k_block *isp_k_param = NULL;
+	struct isp_fmcu_slice_desc *fmcu_slice = NULL;
+	enum isp_id iid;
+	void *tmp_ptr = NULL;
+
+	if (!dev) {
+		pr_err("fail to get valid ptr, dev is NULL\n");
+		return -EFAULT;
+	}
+
+	isp_k_param = &dev->isp_k_param;
+	fmcu_slice = &dev->fmcu_slice;
+	iid = ISP_GET_IID(dev->com_idx);
+
+	buf_len = ISP_FRGB_GAMMA_BUF_SIZE;
+	tmp_ptr = vzalloc(buf_len);
+	if (IS_ERR_OR_NULL(tmp_ptr)) {
+		pr_err("fail to alloc full gamma buf!, err:%ld\n",
+		       PTR_ERR(tmp_ptr));
+		return -ENOMEM;
+	}
+	isp_k_param->full_gamma_buf_addr = (unsigned long)tmp_ptr;
+
+	buf_len = ISP_NLM_BUF_SIZE;
+	tmp_ptr = vzalloc(buf_len);
+	if (IS_ERR_OR_NULL(tmp_ptr)) {
+		pr_err("fail to alloc full gamma buf!, err:%ld\n",
+		       PTR_ERR(tmp_ptr));
+		return -ENOMEM;
+	}
+	isp_k_param->nlm_vst_addr = tmp_ptr;
+
+	tmp_ptr = vzalloc(buf_len);
+	if (IS_ERR_OR_NULL(tmp_ptr)) {
+		pr_err("fail to alloc full gamma buf!, err:%ld\n",
+		       PTR_ERR(tmp_ptr));
+		return -ENOMEM;
+	}
+	isp_k_param->nlm_ivst_addr = tmp_ptr;
+
+	buf_len = LENS_W_BUF_SIZE;
+	tmp_ptr = vzalloc(buf_len);
+	if (IS_ERR_OR_NULL(tmp_ptr)) {
+		pr_err("fail to alloc full gamma buf!, err:%ld\n",
+		       PTR_ERR(tmp_ptr));
+		return -ENOMEM;
+	}
+	isp_k_param->isp_lens_w_addr = tmp_ptr;
+
+	tmp_ptr = vzalloc(buf_len);
+	if (IS_ERR_OR_NULL(tmp_ptr)) {
+		pr_err("fail to alloc full gamma buf!, err:%ld\n",
+		       PTR_ERR(tmp_ptr));
+		return -ENOMEM;
+	}
+	isp_k_param->dcam_lens_w_addr = tmp_ptr;
+
+	if (!isp_k_param->lsc_buf_info.sw_addr) {
+		memset(isp_k_param->lsc_buf_info.name, '\0',
+			(ISP_BUF_SHORT_NAME_LEN+1));
+		strncpy(isp_k_param->lsc_buf_info.name, LSC_BUF_NAME,
+			strlen(LSC_BUF_NAME)+1);
+		isp_k_param->lsc_buf_info.size = ISP_LSC_BUF_SIZE;
+		ret = isp_gen_buf_alloc(&isp_k_param->lsc_buf_info);
+		if (ret != 0) {
+			pr_err("fail to alloc lsc buf, ret %d\n", ret);
+			return -EPERM;
+		}
+		isp_gen_buf_hw_map(&isp_k_param->lsc_buf_info);
+		if (ret) {
+			pr_err("fail to map lsc buf, iid%d ret %d\n",
+			       iid, ret);
+			return -EPERM;
+		}
+	}
+
+	if (!fmcu_slice->cmdq_buf_info.sw_addr) {
+		sprintf(fmcu_slice->cmdq_buf_info.name, "iid%d_fmcu", iid);
+		fmcu_slice->cmdq_buf_info.size = ISP_FMCU_CMD_Q_SIZE;
+		ret = isp_gen_buf_alloc(&fmcu_slice->cmdq_buf_info);
+		if (ret != 0) {
+			pr_err("fail to alloc buf for fmcu cmdq, iid%d ret %d\n",
+			       iid, ret);
+			return -EPERM;
+		}
+		ret = isp_gen_buf_hw_map(&fmcu_slice->cmdq_buf_info);
+		if (ret) {
+			pr_err("fail to map buf for fmcu cmdq, iid%d ret %d\n",
+			       iid, ret);
+			return -EPERM;
+		}
+
+		dev->fmcu_addr_phy =
+			(unsigned long)fmcu_slice->cmdq_buf_info.hw_addr;
+		dev->fmcu_addr_vir = fmcu_slice->cmdq_buf_info.sw_addr;
+	}
+
+	return ret;
+}
+
+int isp_block_buf_free(struct isp_pipe_dev *dev)
+{
+	struct isp_k_block *isp_k_param = NULL;
+	struct isp_fmcu_slice_desc *fmcu_slice = NULL;
+	enum isp_id iid;
+
+	if (!dev) {
+		pr_err("fail to get valid ptr, dev is NULL\n");
+		return -EFAULT;
+	}
+
+	isp_k_param = &dev->isp_k_param;
+	fmcu_slice = &dev->fmcu_slice;
+	iid = ISP_GET_IID(dev->com_idx);
+
+	if (isp_k_param->full_gamma_buf_addr != 0x00) {
+		vfree((void *)isp_k_param->full_gamma_buf_addr);
+		isp_k_param->full_gamma_buf_addr = 0x00;
+	}
+
+	if (isp_k_param->nlm_vst_addr) {
+		vfree(isp_k_param->nlm_vst_addr);
+		isp_k_param->nlm_vst_addr = NULL;
+	}
+
+	if (isp_k_param->nlm_ivst_addr) {
+		vfree(isp_k_param->nlm_ivst_addr);
+		isp_k_param->nlm_ivst_addr = NULL;
+	}
+
+	if (isp_k_param->isp_lens_w_addr) {
+		vfree((void *)isp_k_param->isp_lens_w_addr);
+		isp_k_param->isp_lens_w_addr = NULL;
+	}
+
+	if (isp_k_param->dcam_lens_w_addr) {
+		vfree((void *)isp_k_param->dcam_lens_w_addr);
+		isp_k_param->dcam_lens_w_addr = NULL;
+	}
+
+	if (isp_k_param->lsc_buf_info.sw_addr) {
+		isp_gen_buf_hw_unmap(&isp_k_param->lsc_buf_info);
+		isp_gen_buf_free(&isp_k_param->lsc_buf_info);
+	}
+
+	if (fmcu_slice->cmdq_buf_info.sw_addr) {
+		isp_gen_buf_hw_unmap(&fmcu_slice->cmdq_buf_info);
+		isp_gen_buf_free(&fmcu_slice->cmdq_buf_info);
+	}
+
+	return 0;
+}
+
+

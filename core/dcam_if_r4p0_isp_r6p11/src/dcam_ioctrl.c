@@ -13,8 +13,7 @@
 
 #ifdef FEATRUE_DCAM_IOCTRL
 typedef int(*dcam_io_fun) (struct camera_file *camerafile,
-			   unsigned long arg,
-			   unsigned int cmd);
+			   unsigned long arg, uint32_t cmd);
 
 struct dcam_io_ctrl_fun {
 	uint32_t cmd;
@@ -24,16 +23,14 @@ struct dcam_io_ctrl_fun {
 bool has_dual_cap_started;
 
 static int dcamio_stream_off(struct camera_file *camerafile,
-                             unsigned long arg,
-                             unsigned int cmd);
+                             unsigned long arg, uint32_t cmd);
 
-static int dcamio_set_mode(struct camera_file *camerafile,
-		    unsigned long arg,
-		    unsigned int cmd)
+static int dcamio_set_mode(struct camera_file *camerafile, unsigned long arg,
+			   uint32_t cmd)
 
 {
 	int ret = 0;
-	unsigned int mode;
+	uint32_t mode;
 	struct camera_dev *dev = NULL;
 	struct camera_info *info = NULL;
 	enum dcam_id idx = camerafile->idx;
@@ -44,7 +41,7 @@ static int dcamio_set_mode(struct camera_file *camerafile,
 		goto exit;
 	}
 	ret = copy_from_user(&mode, (void __user *) arg,
-			     sizeof(unsigned int));
+			     sizeof(uint32_t));
 	if (ret) {
 		pr_err("fail to get user info, SET_MODE\n");
 		ret = -EFAULT;
@@ -59,11 +56,10 @@ exit:
 }
 
 static int dcamio_set_cap_skip_num(struct camera_file *camerafile,
-			    unsigned long arg,
-			    unsigned int cmd)
+				   unsigned long arg, uint32_t cmd)
 {
 	int ret = 0;
-	unsigned int skip_num;
+	uint32_t skip_num;
 	struct camera_dev *dev = NULL;
 	struct camera_info *info = NULL;
 	enum dcam_id idx = camerafile->idx;
@@ -74,7 +70,7 @@ static int dcamio_set_cap_skip_num(struct camera_file *camerafile,
 		goto exit;
 	}
 	ret = copy_from_user(&skip_num, (void __user *) arg,
-			     sizeof(unsigned int));
+			     sizeof(uint32_t));
 	if (ret) {
 		pr_err("fail to get user info\n");
 		ret = -EFAULT;
@@ -89,8 +85,7 @@ exit:
 }
 
 static int dcamio_set_sensor_size(struct camera_file *camerafile,
-			   unsigned long arg,
-			   unsigned int cmd)
+				  unsigned long arg, uint32_t cmd)
 {
 	int ret = 0;
 	struct sprd_img_size size;
@@ -120,8 +115,7 @@ exit:
 }
 
 static int dcamio_set_sensor_trim(struct camera_file *camerafile,
-			   unsigned long arg,
-			   unsigned int cmd)
+				  unsigned long arg, uint32_t cmd)
 {
 	int ret = 0;
 	struct sprd_img_rect rect;
@@ -159,8 +153,7 @@ exit:
 }
 
 static int dcamio_set_frame_id_base(struct camera_file *camerafile,
-			     unsigned long arg,
-			     unsigned int cmd)
+				    unsigned long arg, uint32_t cmd)
 {
 	int ret = 0;
 	struct sprd_img_parm parm;
@@ -207,8 +200,7 @@ exit:
 }
 
 static int dcamio_set_crop(struct camera_file *camerafile,
-		    unsigned long arg,
-		    unsigned int cmd)
+			   unsigned long arg, uint32_t cmd)
 {
 	int ret = 0;
 	struct sprd_img_parm parm;
@@ -235,14 +227,13 @@ exit:
 }
 
 static int dcamio_set_flash(struct camera_file *camerafile,
-		     unsigned long arg,
-		     unsigned int cmd)
+			    unsigned long arg, uint32_t cmd)
 {
 	int ret = 0;
-	unsigned int led0_ctrl;
-	unsigned int led1_ctrl;
-	unsigned int led0_status;
-	unsigned int led1_status;
+	uint32_t led0_ctrl;
+	uint32_t led1_ctrl;
+	uint32_t led0_status;
+	uint32_t led1_status;
 	struct camera_dev *dev = NULL;
 	struct camera_info *info = NULL;
 
@@ -290,8 +281,7 @@ exit:
 }
 
 static int dcamio_set_output_size(struct camera_file *camerafile,
-			   unsigned long arg,
-			   unsigned int cmd)
+				  unsigned long arg, uint32_t cmd)
 {
 	int ret = 0;
 	struct sprd_img_parm parm;
@@ -361,8 +351,7 @@ exit:
 }
 
 static int dcamio_statis_cfg_param(struct camera_file *camerafile,
-			    unsigned long arg,
-			    unsigned int cmd)
+				   unsigned long arg, uint32_t cmd)
 {
 	int ret = 0;
 	struct camera_dev *dev = NULL;
@@ -383,8 +372,7 @@ exit:
 }
 
 static int dcamio_isp_k_ioctl_raw(struct camera_file *camerafile,
-		       unsigned long arg,
-		       unsigned int cmd)
+				  unsigned long arg, uint32_t cmd)
 {
 	int ret = 0;
 	struct camera_dev *dev = NULL;
@@ -433,8 +421,7 @@ exit:
 }
 
 static int dcamio_get_dcam_res(struct camera_file *camerafile,
-			unsigned long arg,
-			unsigned int cmd)
+			       unsigned long arg, uint32_t cmd)
 {
 	int ret = 0;
 	int idx = DCAM_ID_0;
@@ -514,8 +501,7 @@ exit:
 }
 
 static int dcamio_put_dcam_res(struct camera_file *camerafile,
-			unsigned long arg,
-			unsigned int cmd)
+			       unsigned long arg, uint32_t cmd)
 {
 	int ret = 0;
 	int idx = DCAM_ID_0;
@@ -555,10 +541,11 @@ static int dcamio_put_dcam_res(struct camera_file *camerafile,
 		goto exit;
 	}
 
-	/* Disable modules includes power down. Can't stream off after that.
-	*   * Sometimes there is no stream off ioctl coming. Do it here before
-	*       * disabling modules.
-	*           */
+	/*
+	 * Disable modules includes power down. Can't stream off after that.
+	 * Sometimes there is no stream off ioctl coming. Do it here before
+	 * disabling modules.
+	 */
 	dcamio_stream_off(camerafile, arg, cmd);
 
 	ret = sprd_dcam_module_dis(idx);
@@ -604,8 +591,7 @@ exit:
 }
 
 static int dcamio_set_pulse_line(struct camera_file *camerafile,
-			  unsigned long arg,
-			  unsigned int cmd)
+				 unsigned long arg, uint32_t cmd)
 {
 	int ret = 0;
 	struct camera_dev *dev = NULL;
@@ -638,8 +624,7 @@ exit:
 }
 
 static int dcamio_set_next_vcm_pos(struct camera_file *camerafile,
-			    unsigned long arg,
-			    unsigned int cmd)
+				   unsigned long arg, uint32_t cmd)
 {
 	int ret = 0;
 	struct camera_dev *dev = NULL;
@@ -668,9 +653,8 @@ exit:
 	return ret;
 }
 
-static int dcamio_set_vcm_log(struct camera_file *camerafile,
-		       unsigned long arg,
-		       unsigned int cmd)
+static int dcamio_set_vcm_log(struct camera_file *camerafile, unsigned long arg,
+			      uint32_t cmd)
 {
 	int ret = 0;
 	struct camera_dev *dev = NULL;
@@ -695,7 +679,7 @@ exit:
 
 static int dcamio_set_3dnr(struct camera_file *camerafile,
 			   unsigned long arg,
-			   unsigned int cmd)
+			   uint32_t cmd)
 {
 	int ret = 0;
 	struct camera_dev *dev = NULL;
@@ -727,11 +711,10 @@ exit:
 }
 
 static int dcamio_set_zoom_mode(struct camera_file *camerafile,
-			 unsigned long arg,
-			 unsigned int cmd)
+				unsigned long arg, uint32_t cmd)
 {
 	int ret = 0;
-	unsigned int zoom;
+	uint32_t zoom;
 	struct camera_dev *dev = NULL;
 	struct camera_info *info = NULL;
 
@@ -741,7 +724,7 @@ static int dcamio_set_zoom_mode(struct camera_file *camerafile,
 		goto exit;
 	}
 	ret = copy_from_user(&zoom, (void __user *) arg,
-			     sizeof(unsigned int));
+			     sizeof(uint32_t));
 	if (ret) {
 		pr_err("fail to get user info\n");
 		ret = -EFAULT;
@@ -757,8 +740,7 @@ exit:
 }
 
 static int dcamio_set_sensor_if(struct camera_file *camerafile,
-			 unsigned long arg,
-			 unsigned int cmd)
+				unsigned long arg, uint32_t cmd)
 {
 	int ret = 0;
 	struct sprd_img_sensor_if sensor;
@@ -791,8 +773,7 @@ exit:
 }
 
 static int dcamio_set_frame_addr(struct camera_file *camerafile,
-			  unsigned long arg,
-			  unsigned int cmd)
+				 unsigned long arg, uint32_t cmd)
 {
 	int ret = 0;
 	struct sprd_img_parm parm;
@@ -818,8 +799,7 @@ exit:
 }
 
 static int dcamio_set_path_frame_deci(struct camera_file *camerafile,
-			       unsigned long arg,
-			       unsigned int cmd)
+				      unsigned long arg, uint32_t cmd)
 {
 	int ret = 0;
 	struct sprd_img_parm parm;
@@ -848,9 +828,8 @@ exit:
 	return ret;
 }
 
-static int dcamio_stream_on(struct camera_file *camerafile,
-		     unsigned long arg,
-		     unsigned int cmd)
+static int dcamio_stream_on(struct camera_file *camerafile, unsigned long arg,
+			    uint32_t cmd)
 {
 	int ret = 0;
 	struct camera_dev *dev = NULL;
@@ -896,9 +875,8 @@ static int dcamio_stream_on(struct camera_file *camerafile,
 	return ret;
 }
 
-static int dcamio_stream_off(struct camera_file *camerafile,
-		      unsigned long arg,
-		      unsigned int cmd)
+static int dcamio_stream_off(struct camera_file *camerafile, unsigned long arg,
+			     uint32_t cmd)
 {
 	int ret = 0;
 	struct camera_dev *dev = NULL;
@@ -914,6 +892,11 @@ static int dcamio_stream_off(struct camera_file *camerafile,
 
 	group = camerafile->grp;
 	idx = camerafile->idx;
+
+	if (unlikely(atomic_read(&dev->stream_on) == 0)) {
+		pr_info("camdev%d already stream off\n", idx);
+		goto exit;
+	}
 
 	ret = sprd_camera_stream_off(group, idx);
 	if (ret) {
@@ -932,9 +915,8 @@ exit:
 	return ret;
 }
 
-static int dcamio_get_fmt(struct camera_file *camerafile,
-		   unsigned long arg,
-		   unsigned int cmd)
+static int dcamio_get_fmt(struct camera_file *camerafile, unsigned long arg,
+			  uint32_t cmd)
 {
 	int ret = 0;
 	struct sprd_img_get_fmt fmt_desc;
@@ -958,8 +940,7 @@ static int dcamio_get_fmt(struct camera_file *camerafile,
 	fmt = &dcam_img_fmt[fmt_desc.index];
 	fmt_desc.fmt = fmt->fourcc;
 
-	ret = copy_to_user((void __user *)arg,
-			   &fmt_desc,
+	ret = copy_to_user((void __user *)arg, &fmt_desc,
 			   sizeof(struct sprd_img_get_fmt));
 	if (unlikely(ret)) {
 		pr_err("fail to put user info, GET_FMT, ret %d\n", ret);
@@ -970,12 +951,11 @@ exit:
 	return ret;
 }
 
-static int dcamio_get_ch_id(struct camera_file *camerafile,
-		     unsigned long arg,
-		     unsigned int cmd)
+static int dcamio_get_ch_id(struct camera_file *camerafile, unsigned long arg,
+                            uint32_t cmd)
 {
 	int ret = 0;
-	unsigned int channel_id;
+	uint32_t channel_id;
 	struct camera_dev *dev = NULL;
 	struct camera_info *info = NULL;
 
@@ -987,8 +967,7 @@ static int dcamio_get_ch_id(struct camera_file *camerafile,
 	sprd_img_get_free_channel(camerafile, &channel_id, info->scene_mode);
 	DCAM_TRACE("free channel%u,scene%u\n",
 		channel_id, info->scene_mode);
-	ret = copy_to_user((void __user *) arg, &channel_id,
-			   sizeof(unsigned int));
+	ret = copy_to_user((void __user *) arg, &channel_id, sizeof(uint32_t));
 	if (unlikely(ret)) {
 		pr_err("fail to put user info, ret %d\n", ret);
 		ret = -EFAULT;
@@ -1011,9 +990,8 @@ exit:
 	return ret;
 }
 
-static int dcamio_get_time(struct camera_file *camerafile,
-		    unsigned long arg,
-		    unsigned int cmd)
+static int dcamio_get_time(struct camera_file *camerafile, unsigned long arg,
+                           uint32_t cmd)
 {
 	int ret = 0;
 	struct timeval time;
@@ -1033,9 +1011,8 @@ static int dcamio_get_time(struct camera_file *camerafile,
 	return ret;
 }
 
-static int dcamio_check_fmt(struct camera_file *camerafile,
-		     unsigned long arg,
-		     unsigned int cmd)
+static int dcamio_check_fmt(struct camera_file *camerafile, unsigned long arg,
+			    uint32_t cmd)
 {
 	int ret = 0;
 	struct sprd_img_format img_format;
@@ -1067,9 +1044,8 @@ exit:
 	return ret;
 }
 
-static int dcamio_set_shrink(struct camera_file *camerafile,
-		      unsigned long arg,
-		      unsigned int cmd)
+static int dcamio_set_shrink(struct camera_file *camerafile, unsigned long arg,
+			     uint32_t cmd)
 {
 	int ret = 0;
 	struct sprd_img_parm parm;
@@ -1098,9 +1074,8 @@ exit:
 	return ret;
 }
 
-static int dcamio_cfg_flash(struct camera_file *camerafile,
-		     unsigned long arg,
-		     unsigned int cmd)
+static int dcamio_cfg_flash(struct camera_file *camerafile, unsigned long arg,
+			    uint32_t cmd)
 {
 	int ret = 0;
 	struct sprd_flash_cfg_param cfg_parm;
@@ -1133,9 +1108,8 @@ exit:
 	return ret;
 }
 
-static int dcamio_pdaf_ctrl(struct camera_file *camerafile,
-		     unsigned long arg,
-		     unsigned int cmd)
+static int dcamio_pdaf_ctrl(struct camera_file *camerafile, unsigned long arg,
+			    uint32_t cmd)
 {
 	int ret = 0;
 	struct sprd_img_parm parm;
@@ -1168,8 +1142,7 @@ exit:
 }
 
 static int dcamio_set_statis_buf(struct camera_file *camerafile,
-			  unsigned long arg,
-			  unsigned int cmd)
+				 unsigned long arg, uint32_t cmd)
 {
 	int ret = 0;
 	struct isp_statis_buf_input parm_inptr;
@@ -1193,7 +1166,8 @@ static int dcamio_set_statis_buf(struct camera_file *camerafile,
 	}
 	if (parm_inptr.buf_flag == STATIS_BUF_FLAG_INIT) {
 		ret = sprd_isp_cfg_statis_buf(dev->isp_dev_handle,
-				&dev->statis_module_info, &parm_inptr);
+					      &dev->statis_module_info,
+					      &parm_inptr);
 		dev->init_inptr = parm_inptr;
 		if (parm_inptr.statis_valid & ISP_STATIS_VALID_RAW)
 			info->is_raw_rt = 1;
@@ -1201,7 +1175,8 @@ static int dcamio_set_statis_buf(struct camera_file *camerafile,
 			info->is_raw_rt = 0;
 	} else
 		ret = sprd_isp_set_statis_addr(dev->isp_dev_handle,
-				&dev->statis_module_info, &parm_inptr);
+					       &dev->statis_module_info,
+					       &parm_inptr);
 	if (ret)
 		pr_err("fail to set buffer\n");
 
@@ -1211,11 +1186,10 @@ exit:
 }
 
 static int dcamio_get_iommu_status(struct camera_file *camerafile,
-			    unsigned long arg,
-			    unsigned int cmd)
+				   unsigned long arg, uint32_t cmd)
 {
 	int ret = 0;
-	unsigned int iommu_enable;
+	uint32_t iommu_enable;
 	struct camera_group *group = NULL;
 
 	if (!camerafile) {
@@ -1256,11 +1230,10 @@ exit:
 }
 
 static int dcamio_start_capture(struct camera_file *camerafile,
-			 unsigned long arg,
-			 unsigned int cmd)
+				unsigned long arg, uint32_t cmd)
 {
 	int ret = 0;
-	unsigned int cap_flag = 0;
+	uint32_t cap_flag = 0;
 	struct sprd_img_capture_param capture_param;
 	struct camera_dev *dev = NULL, *dev_other = NULL;
 	struct camera_info *info = NULL;
@@ -1398,7 +1371,6 @@ static int dcamio_start_capture(struct camera_file *camerafile,
 				if (is_dual_cam_dore & BIT(15))
 					complete(
 					&camerafile->grp->dualcam_recovery_com);
-
 			} else {
 				/* disable dcam path to reduce bandwidth */
 				dcam_path_pause(idx_first);
@@ -1433,8 +1405,7 @@ exit_nolock:
 }
 
 static int dcamio_stop_capture(struct camera_file *camerafile,
-			unsigned long arg,
-			unsigned int cmd)
+			       unsigned long arg, uint32_t cmd)
 {
 	int ret = 0;
 	int idx_other = 0;
@@ -1539,8 +1510,7 @@ exit:
 }
 
 static int dcamio_set_path_skip_num(struct camera_file *camerafile,
-			     unsigned long arg,
-			     unsigned int cmd)
+				    unsigned long arg, uint32_t cmd)
 {
 	int ret = 0;
 	struct sprd_img_parm parm;
@@ -1569,10 +1539,9 @@ exit:
 }
 
 static int dcamio_out_path_size(struct camera_file *camerafile,
-				unsigned long arg,
-				unsigned int cmd)
+				unsigned long arg, uint32_t cmd)
 {
-	unsigned int ratio = 0;
+	uint32_t ratio = 0;
 	int ret = 0;
 	struct camera_size size;
 	struct camera_size tmp;
@@ -1634,8 +1603,7 @@ static int dcamio_out_path_size(struct camera_file *camerafile,
 }
 
 static int dcamio_set_sensor_max_size(struct camera_file *camerafile,
-			       unsigned long arg,
-			       unsigned int cmd)
+				      unsigned long arg, uint32_t cmd)
 {
 	int ret = 0;
 	struct sprd_img_size size;
@@ -1665,9 +1633,8 @@ exit:
 	return ret;
 }
 
-static int dcamio_isp_k_ioctl(struct camera_file *camerafile,
-		       unsigned long arg,
-		       unsigned int cmd)
+static int dcamio_isp_k_ioctl(struct camera_file *camerafile, unsigned long arg,
+			      uint32_t cmd)
 {
 	int ret = 0;
 	struct camera_dev *dev = NULL;
@@ -1689,8 +1656,7 @@ exit:
 }
 
 static int dcamio_core_ebd_ctrl(struct camera_file *camerafile,
-		     unsigned long arg,
-		     unsigned int cmd)
+				unsigned long arg, uint32_t cmd)
 {
 	int ret = 0;
 	struct sprd_img_parm parm;

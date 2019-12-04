@@ -452,7 +452,7 @@ static int compat_put_isp_dev_fetch_info_v1(
 	return err;
 }
 
-long compat_sprd_img_k_ioctl(struct file *file, unsigned int cmd,
+long compat_sprd_img_k_ioctl(struct file *file, uint32_t cmd,
 		unsigned long param)
 {
 	long ret = 0;

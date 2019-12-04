@@ -18,10 +18,11 @@
 #include "isp_cfg.h"
 
 #define MM_ION_OFFSET 0x80000000
+#define LSC_BUF_NAME                            "2D_LSC"
 
 extern struct platform_device *s_isp_pdev;
 extern spinlock_t isp_mod_lock;
-extern unsigned int is_dual_cam;
+extern uint32_t is_dual_cam;
 
 int isp_frame_enqueue(struct isp_frm_queue *queue,
 	struct camera_frame *frame);
@@ -47,11 +48,11 @@ void isp_frm_clear(struct isp_pipe_dev *dev, enum isp_path_index path_index);
 int isp_buf_recycle(struct offline_buf_desc *buf_desc,
 		    struct isp_buf_queue *dst_q,
 		    struct isp_frm_queue *src_q,
-		    unsigned int recycle_buf_cnt);
+		    uint32_t recycle_buf_cnt);
 struct offline_buf_desc *isp_offline_sel_buf(
 	struct isp_offline_desc *off_desc, uint8_t off_type);
 int get_off_frm_q_len(
-	struct isp_offline_desc *off_desc, unsigned int *len);
+	struct isp_offline_desc *off_desc, uint32_t *len);
 int isp_offline_init_buf(
 	struct isp_offline_desc *off_desc, uint8_t off_type, bool queue_only);
 int isp_offline_get_buf(
@@ -77,5 +78,7 @@ int isp_gen_buf_free(struct isp_buf_info *buf_info);
 int isp_gen_buf_hw_map(struct isp_buf_info *buf_info);
 int isp_gen_buf_hw_unmap(struct isp_buf_info *buf_info);
 void *isp_buf_get_kaddr(int fd);
+int isp_block_buf_alloc(struct isp_pipe_dev *dev);
+int isp_block_buf_free(struct isp_pipe_dev *dev);
 #endif
 

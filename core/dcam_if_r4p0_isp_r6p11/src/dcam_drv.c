@@ -40,6 +40,7 @@
 #include "isp_drv.h"
 #include "dcam_buf.h"
 #include "dcam_core.h"
+#include "cam_dbg.h"
 
 /* Macro Definitions */
 #ifdef pr_fmt
@@ -147,18 +148,18 @@ struct dcam_cap_desc {
 };
 
 struct dcam_path_valid {
-	unsigned int input_rect:1;
-	unsigned int output_format:1;
-	unsigned int src_sel:1;
-	unsigned int data_endian:1;
-	unsigned int frame_deci:1;
-	unsigned int v_deci:1;
-	unsigned int pdaf_ctrl:1;
+	uint32_t input_rect:1;
+	uint32_t output_format:1;
+	uint32_t src_sel:1;
+	uint32_t data_endian:1;
+	uint32_t frame_deci:1;
+	uint32_t v_deci:1;
+	uint32_t pdaf_ctrl:1;
 };
 
 struct dcam_frm_queue {
 	struct camera_frame frm_array[DCAM_FRM_QUEUE_LENGTH];
-	unsigned int valid_cnt;
+	uint32_t valid_cnt;
 };
 
 struct dcam_buf_queue {
@@ -181,20 +182,20 @@ struct dcam_path_desc {
 	struct camera_endian_sel data_endian;
 	struct camera_deci deci_val;
 	struct dcam_path_valid valid_param;
-	unsigned int frame_base_id;
-	unsigned int output_frame_count;
-	unsigned int output_format;
+	uint32_t frame_base_id;
+	uint32_t output_frame_count;
+	uint32_t output_format;
 	enum dcam_path_src_sel src_sel;
-	unsigned int frame_deci;
-	unsigned int valid;
-	unsigned int status;
+	uint32_t frame_deci;
+	uint32_t valid;
+	uint32_t status;
 	struct completion tx_done_com;
 	struct completion sof_com;
-	unsigned int wait_for_done;
-	unsigned int is_update;
-	unsigned int wait_for_sof;
-	unsigned int need_stop;
-	unsigned int need_wait;
+	uint32_t wait_for_done;
+	uint32_t is_update;
+	uint32_t wait_for_sof;
+	uint32_t need_stop;
+	uint32_t need_wait;
 	int sof_cnt;
 	int done_cnt;
 	struct frm_timestamp ts;
@@ -205,19 +206,19 @@ struct dcam_path_pdaf {
 	struct sprd_pdaf_control pdaf_ctrl;
 	struct dcam_buf_queue buf_queue;
 	struct dcam_frm_queue frame_queue;
-	unsigned int valid;
-	unsigned int output_frame_count;
-	unsigned int frame_base_id;
-	unsigned int status;
+	uint32_t valid;
+	uint32_t output_frame_count;
+	uint32_t frame_base_id;
+	uint32_t status;
 };
 
 struct dcam_path_aem {
-	unsigned int valid;
+	uint32_t valid;
 };
 
 struct dcam_path_ebd {
 	struct sprd_ebd_control ebd_ctrl;
-	unsigned int valid;
+	uint32_t valid;
 };
 
 struct dcam_module {
@@ -234,17 +235,17 @@ struct dcam_module {
 	struct camera_frame pdaf_reserved_frame;
 	struct camera_frame raw_frame;
 	struct camera_frame pdaf_frame;
-	unsigned int raw_framecnt;
-	unsigned int pdaf_framecnt;
+	uint32_t raw_framecnt;
+	uint32_t pdaf_framecnt;
 
-	unsigned int wait_resize_done;
-	unsigned int err_happened;
-	unsigned int state;
+	uint32_t wait_resize_done;
+	uint32_t err_happened;
+	uint32_t state;
 	void *dev_handle;
 };
 
 /* Static Variables Declaration */
-static unsigned int s_dcam_count;
+static uint32_t s_dcam_count;
 static atomic_t s_dcam_users[DCAM_MAX_COUNT];
 static struct dcam_module *s_p_dcam_mod[DCAM_MAX_COUNT];
 static int s_dcam_irq[DCAM_MAX_COUNT];
@@ -288,7 +289,7 @@ unsigned long s_dcam_regbase[DCAM_MAX_COUNT];
 #define _LOG_FRAME_TIMES 0
 static struct log_frame_cnt log_frame;
 
-const unsigned int s_irq_err_vect[] = {
+const uint32_t s_irq_err_vect[] = {
 	DCAM_OVF,
 	DCAM_AEM_HOLD_OVF,
 	DCAM_CAP_LINE_ERR,
@@ -296,7 +297,7 @@ const unsigned int s_irq_err_vect[] = {
 	DCAM_MMU_INT,
 };
 
-const unsigned int s_irq_vect[] = {
+const uint32_t s_irq_vect[] = {
 	DCAM_BIN_PATH_TX_DONE,
 	DCAM_FULL_PATH_TX_DONE,
 	DCAM_SN_SOF,
@@ -372,7 +373,7 @@ static void dcam_buf_queue_init(struct dcam_buf_queue *queue)
 static int dcam_buf_queue_read(struct dcam_buf_queue *queue,
 			       struct camera_frame *frame)
 {
-	int ret = DCAM_RTN_SUCCESS;
+	int ret = 0;
 	unsigned long flags;
 
 	if (DCAM_ADDR_INVALID(queue) || DCAM_ADDR_INVALID(frame)) {
@@ -405,7 +406,7 @@ static int dcam_buf_queue_read(struct dcam_buf_queue *queue,
 static int dcam_buf_queue_write(struct dcam_buf_queue *queue,
 				struct camera_frame *frame)
 {
-	int ret = DCAM_RTN_SUCCESS;
+	int ret = 0;
 	struct camera_frame *ori_frame;
 	unsigned long flags;
 
@@ -448,9 +449,9 @@ static void dcam_time_queue_init(struct dcam_path_time_queue *queue)
 }
 
 static int dcam_time_queue_read(struct dcam_path_time_queue *queue,
-					struct frm_timestamp *t)
+				struct frm_timestamp *t)
 {
-	int ret = DCAM_RTN_SUCCESS;
+	int ret = 0;
 	unsigned long flags;
 
 	DCAM_TRACE("read time queue\n");
@@ -476,9 +477,9 @@ static int dcam_time_queue_read(struct dcam_path_time_queue *queue,
 }
 
 static int dcam_time_queue_write(struct dcam_path_time_queue *queue,
-					struct frm_timestamp *t)
+				 struct frm_timestamp *t)
 {
-	int ret = DCAM_RTN_SUCCESS;
+	int ret = 0;
 	struct frm_timestamp *ori_t;
 	unsigned long flags;
 	int old_index;
@@ -511,7 +512,7 @@ static int dcam_time_queue_write(struct dcam_path_time_queue *queue,
 }
 
 static int dcam_frame_queue_peek(struct dcam_frm_queue *queue,
-								struct camera_frame **out_frame)
+				 struct camera_frame **out_frame)
 {
 	if (DCAM_ADDR_INVALID(queue) || DCAM_ADDR_INVALID(out_frame)) {
 		pr_err("fail to get queue frm %p, %p\n", queue, out_frame);
@@ -564,7 +565,7 @@ static int dcam_frame_enqueue(struct dcam_frm_queue *queue,
 static int dcam_frame_dequeue(struct dcam_frm_queue *queue,
 			      struct camera_frame *frame)
 {
-	unsigned int i = 0;
+	uint32_t i = 0;
 
 	if (DCAM_ADDR_INVALID(queue) || DCAM_ADDR_INVALID(frame)) {
 		pr_err("fail to get queue frm %p, %p\n", queue, frame);
@@ -592,16 +593,16 @@ static int dcam_frame_dequeue(struct dcam_frm_queue *queue,
 
 static int dcam_raw_path_set_next_frm(enum dcam_id idx)
 {
-	enum dcam_drv_rtn rtn = DCAM_RTN_SUCCESS;
+	enum dcam_drv_rtn rtn = 0;
 	struct camera_frame frame = {0};
 	struct camera_frame *reserved_frame = NULL;
 	struct dcam_path_desc *raw_path = NULL;
 	unsigned long reg = 0;
-	unsigned int addr = 0;
-	unsigned int path_max_frm_cnt;
+	uint32_t addr = 0;
+	uint32_t path_max_frm_cnt;
 	struct dcam_frm_queue *p_heap = NULL;
 	struct dcam_buf_queue *p_buf_queue = NULL;
-	unsigned int output_frame_count = 0;
+	uint32_t output_frame_count = 0;
 	int use_reserve_frame = 0;
 	struct dcam_module *module;
 	struct camera_dev *dev = NULL;
@@ -680,7 +681,7 @@ static int dcam_raw_path_set_next_frm(enum dcam_id idx)
 	return -rtn;
 }
 
-static inline unsigned int dcam_get_frm_addr(struct camera_frame *frame)
+static inline uint32_t dcam_get_frm_addr(struct camera_frame *frame)
 {
 	pr_debug("iova %x , called from %pS",
 		frame->uaddr_vir, __builtin_return_address(0));
@@ -691,8 +692,8 @@ static inline unsigned int dcam_get_frm_addr(struct camera_frame *frame)
 static int dcam_full_path_set_next_frm(enum dcam_id idx,
 	struct camera_frame *frame)
 {
-	enum dcam_drv_rtn rtn = DCAM_RTN_SUCCESS;
-	unsigned int addr = 0;
+	enum dcam_drv_rtn rtn = 0;
+	uint32_t addr = 0;
 
 	/* processed by ISP */
 	if (DCAM_PHYADDR_INVALID(frame->yaddr_vir)) {
@@ -719,10 +720,10 @@ exit:
 }
 
 static int dcam_bin_path_set_next_frm(enum dcam_id idx,
-			struct camera_frame *frame)
+				      struct camera_frame *frame)
 {
-	enum dcam_drv_rtn rtn = DCAM_RTN_SUCCESS;
-	unsigned int addr = 0;
+	enum dcam_drv_rtn rtn = 0;
+	uint32_t addr = 0;
 
 	/* processed by ISP */
 	if (DCAM_PHYADDR_INVALID(frame->yaddr_vir)) {
@@ -747,11 +748,11 @@ exit:
 	return -rtn;
 }
 
-int dcam_pdaf_set_next_frm(void *statis_module,
-	enum dcam_id idx, enum isp_3a_block_id block_index)
+int dcam_pdaf_set_next_frm(void *statis_module, enum dcam_id idx,
+			   enum isp_3a_block_id block_index)
 {
-	enum dcam_drv_rtn ret = DCAM_RTN_SUCCESS;
-	unsigned int statis_addr = 0;
+	enum dcam_drv_rtn ret = 0;
+	uint32_t statis_addr = 0;
 	struct dcam_path_pdaf *pdaf = NULL;
 	struct dcam_module *module;
 
@@ -763,8 +764,8 @@ int dcam_pdaf_set_next_frm(void *statis_module,
 	pdaf = &module->dcam_pdaf;
 	if (unlikely(block_index != DCAM_PDAF_BLOCK))
 		return -1;
-	ret = dcam_set_next_statis_buf(statis_module,
-				block_index, &statis_addr);
+	ret = dcam_set_next_statis_buf(statis_module, block_index,
+				       &statis_addr);
 	if (unlikely(ret))
 		return -ret;
 
@@ -790,14 +791,14 @@ int dcam_pdaf_set_next_frm(void *statis_module,
 	return -ret;
 }
 
-int dcam_ebd_set_next_frm(void *statis_module,
-	enum dcam_id idx, enum isp_3a_block_id block_index)
+int dcam_ebd_set_next_frm(void *statis_module, enum dcam_id idx,
+			  enum isp_3a_block_id block_index)
 {
-	enum dcam_drv_rtn ret = DCAM_RTN_SUCCESS;
-	unsigned int statis_addr = 0;
+	enum dcam_drv_rtn ret = 0;
+	uint32_t statis_addr = 0;
 
-	ret = dcam_set_next_statis_buf(statis_module,
-		block_index, &statis_addr);
+	ret = dcam_set_next_statis_buf(statis_module, block_index,
+				       &statis_addr);
 
 	pr_debug("phy_addr=%x, index=%d\n", statis_addr, block_index);
 	if (ret) {
@@ -811,12 +812,12 @@ int dcam_ebd_set_next_frm(void *statis_module,
 	return ret;
 }
 
-int dcam_raw_rt_set_next_frm(void *statis_module,
-	enum dcam_id idx, enum isp_3a_block_id block_index)
+int dcam_raw_rt_set_next_frm(void *statis_module, enum dcam_id idx,
+			     enum isp_3a_block_id block_index)
 {
-	enum dcam_drv_rtn ret = DCAM_RTN_SUCCESS;
-	unsigned int statis_addr = 0;
-	unsigned int tmp = 0u;
+	enum dcam_drv_rtn ret = 0;
+	uint32_t statis_addr = 0;
+	uint32_t tmp = 0u;
 
 	ret = dcam_set_next_statis_buf(statis_module,
 		block_index, &statis_addr);
@@ -841,7 +842,7 @@ int dcam_raw_rt_set_next_frm(void *statis_module,
 
 static void dcam_force_copy(enum dcam_id idx)
 {
-	unsigned int tmp = 0u;
+	uint32_t tmp = 0u;
 
 	if (s_p_dcam_mod[idx]->dcam_full_path.valid)
 		tmp |= BIT(8); /* enable full path force copy */
@@ -865,7 +866,7 @@ static void dcam_force_copy(enum dcam_id idx)
 
 static void dcam_auto_copy(enum dcam_id idx)
 {
-	unsigned int tmp = 0u;
+	uint32_t tmp = 0u;
 
 	if (s_p_dcam_mod[idx]->dcam_full_path.valid)
 		tmp |= BIT(9); /* enable full path auto copy */
@@ -886,27 +887,7 @@ static void dcam_auto_copy(enum dcam_id idx)
 				tmp, DCAM_CONTROL_REG);
 }
 
-void dcam_reg_trace(enum dcam_id idx, unsigned long reg_start,
-				unsigned long reg_end)
-{
-#ifdef DCAM_DRV_DEBUG
-#define DCAM0_BASE 0x60800000
-	unsigned long addr = 0;
-	unsigned int p;
 
-	pr_info("DCAM%d: Register list", idx);
-	p = DCAM0_BASE + 0x1000 * idx;
-	for (addr = reg_start; addr <= reg_end; addr += 16) {
-		pr_info("0x%x: 0x%x 0x%x 0x%x 0x%x\n",
-			p,
-			DCAM_REG_RD(idx, addr),
-			DCAM_REG_RD(idx, addr + 4),
-			DCAM_REG_RD(idx, addr + 8),
-			DCAM_REG_RD(idx, addr + 12));
-		p += 16;
-	}
-#endif
-}
 
 #if 0
 static void dcam_raw_path_done_notice(enum dcam_id idx)
@@ -1009,7 +990,8 @@ static inline void find_delta_helper(enum dcam_id idx, int *delta)
 			pr_info("ts%d %ld.%06ld\n", idx,
 				path->ts.time.tv_sec, path->ts.time.tv_usec);
 			pr_info("ts%d %ld.%06ld (sof_cnt=%d)\n", idx^0x1,
-				path_other->ts.time.tv_sec, path_other->ts.time.tv_usec,
+				path_other->ts.time.tv_sec,
+				path_other->ts.time.tv_usec,
 				path_other->sof_cnt);
 			temp_t = path_other->ts.time;
 			timeval_advance(temp_t,
@@ -1050,9 +1032,8 @@ static void dcam_full_path_sof(enum dcam_id idx)
 			find_delta_helper(idx, &isp_dev->delta_full);
 
 		pr_debug("[%d] SoF frm cnt = %d, time, boot_time = %ld.%06ld, %lld\n",
-				 idx, frame.fid,
-				 frame.sof_ts.time.tv_sec, frame.sof_ts.time.tv_usec,
-				 frame.sof_ts.boot_time);
+			 idx, frame.fid, frame.sof_ts.time.tv_sec,
+			 frame.sof_ts.time.tv_usec, frame.sof_ts.boot_time);
 
 		if (user_func)
 			(*user_func) (&frame, data);
@@ -1069,7 +1050,7 @@ static void dcam_full_path_sof(enum dcam_id idx)
 
 static void dcam_full_raw_path_sof(enum dcam_id idx)
 {
-	enum dcam_drv_rtn rtn = DCAM_RTN_SUCCESS;
+	enum dcam_drv_rtn rtn = 0;
 
 	if (s_p_dcam_mod[idx]->dcam_raw_path.valid == FULL_RAW_CAPTURE) {
 		rtn = dcam_raw_path_set_next_frm(idx);
@@ -1107,13 +1088,15 @@ static void dcam_cap_sof_handle(enum dcam_id idx, struct camera_dev *cam_drv)
 
 	if (s_p_dcam_mod[idx]->dcam_binning_path.valid){
 		buf_desc = isp_offline_sel_buf(off_desc, ISP_OFF_BUF_BIN);
-		if (buf_desc && !isp_pframe_peekqueue(&buf_desc->frame_queue, &p_work_frame))
+		if (buf_desc && !isp_pframe_peekqueue(&buf_desc->frame_queue,
+						      &p_work_frame))
 			p_work_frame->sof_ts = sof_ts;
 	}
 
 	if (s_p_dcam_mod[idx]->dcam_full_path.valid){
 		buf_desc = isp_offline_sel_buf(off_desc, ISP_OFF_BUF_BIN);
-		if (buf_desc && !isp_pframe_peekqueue(&buf_desc->frame_queue, &p_work_frame))
+		if (buf_desc && !isp_pframe_peekqueue(&buf_desc->frame_queue,
+						      &p_work_frame))
 			p_work_frame->sof_ts = sof_ts;
 	}
 
@@ -1122,8 +1105,9 @@ static void dcam_cap_sof_handle(enum dcam_id idx, struct camera_dev *cam_drv)
 		p_work_frame->sof_ts = sof_ts;
 
 	set_flash = &cam_drv->dcam_cxt.set_flash;
-	if ((set_flash->led0_ctrl && set_flash->led0_status < FLASH_STATUS_MAX)||
-		(set_flash->led1_ctrl && set_flash->led1_status < FLASH_STATUS_MAX)){
+	if ((set_flash->led0_ctrl &&
+	     set_flash->led0_status < FLASH_STATUS_MAX)||
+	    (set_flash->led1_ctrl && set_flash->led1_status < FLASH_STATUS_MAX)){
 		sprd_img_start_flash(NULL, cam_drv);
 		if (dcam_info->flash_last_status != set_flash->led0_status){
 			dcam_info->flash_skip_fid= dcam_info->frame_index;
@@ -1443,7 +1427,7 @@ static void dcam_mmu_int(enum dcam_id idx)
 
 static void dcam_raw_path_done(enum dcam_id idx)
 {
-	enum dcam_drv_rtn rtn = DCAM_RTN_SUCCESS;
+	enum dcam_drv_rtn rtn = 0;
 	dcam_isr_func user_func;
 	void *data;
 	struct dcam_path_desc *path;
@@ -1527,7 +1511,7 @@ static void dcam_raw_path_done(enum dcam_id idx)
 
 static void dcam_full_path_tx_done(enum dcam_id idx)
 {
-	enum dcam_drv_rtn rtn = DCAM_RTN_SUCCESS;
+	enum dcam_drv_rtn rtn = 0;
 	struct camera_frame frame;
 	dcam_isr_func user_func;
 	void *data;
@@ -1562,7 +1546,7 @@ static void dcam_full_path_tx_done(enum dcam_id idx)
 
 static void dcam_binning_path_tx_done(enum dcam_id idx)
 {
-	enum dcam_drv_rtn rtn = DCAM_RTN_SUCCESS;
+	enum dcam_drv_rtn rtn = 0;
 	dcam_isr_func user_func;
 	void *data;
 
@@ -1712,14 +1696,14 @@ static dcam_isr isr_list[DCAM_MAX_COUNT][DCAM_IRQ_NUMBER] = {
 	[1][DCAM_MMU_INT] = dcam_mmu_int,
 };
 
-static int dcam_err_pre_proc(enum dcam_id idx, unsigned int irq_status)
+static int dcam_err_pre_proc(enum dcam_id idx, uint32_t irq_status)
 {
 	unsigned long flag;
 	void *data = s_user_data[idx][DCAM_OVF];
-	unsigned int i;
-	unsigned int vect = 0;
-	unsigned int irq_line = irq_status;
-	unsigned int ret = 0;
+	uint32_t i;
+	uint32_t vect = 0;
+	uint32_t irq_line = irq_status;
+	uint32_t ret = 0;
 	struct camera_dev *cam_dev = NULL;
 	struct isp_pipe_dev *isp_dev = NULL;
 	enum dcam_id idx_other = DCAM_OTHER_ID(idx);
@@ -1737,6 +1721,7 @@ static int dcam_err_pre_proc(enum dcam_id idx, unsigned int irq_status)
 	cam_dev = (struct camera_dev *)s_p_dcam_mod[idx]->dev_handle;
 	isp_dev = (struct isp_pipe_dev *)cam_dev->isp_dev_handle;
 
+	dcam_dbg_reg_trace(cam_dev, CAM_DBG_SWCTRL_DUMP_REGS);
 	if (s_p_dcam_mod[idx]->state & DCAM_STATE_QUICKQUIT) {
 		if (s_p_dcam_mod[idx_other] != NULL)
 			pr_info("other DCAM%d state 0x%x\n",
@@ -1758,7 +1743,7 @@ static int dcam_err_pre_proc(enum dcam_id idx, unsigned int irq_status)
 	spin_lock_irqsave(&dcam_mod_lock[idx], flag);
 	for (i = 0; i < ARRAY_SIZE(s_irq_err_vect); i++) {
 		vect = s_irq_err_vect[i];
-		if (irq_line & (1 << (unsigned int)vect)) {
+		if (irq_line & (1 << (uint32_t)vect)) {
 			if (isr_list[idx][vect]) {
 				DCAM_TRACE_INT("idx 0x%x %pF\n",
 					idx, isr_list[idx][vect]);
@@ -1766,7 +1751,7 @@ static int dcam_err_pre_proc(enum dcam_id idx, unsigned int irq_status)
 				goto exit;
 			}
 		}
-		irq_line &= ~(unsigned int)(1 << (unsigned int)vect);
+		irq_line &= ~(uint32_t)(1 << (uint32_t)vect);
 		if (!irq_line)
 			break;
 	}
@@ -1780,12 +1765,12 @@ exit:
 
 static irqreturn_t dcam_isr_root(int irq, void *priv)
 {
-	unsigned int irq_line, status;
+	uint32_t irq_line, status;
 	unsigned long flag;
 	int i;
 	enum dcam_id idx = DCAM_ID_0;
 	int irq_numbers = ARRAY_SIZE(s_irq_vect);
-	unsigned int vect = 0;
+	uint32_t vect = 0;
 	struct frm_timestamp sof_ts;
 
 	if (s_dcam_irq[DCAM_ID_0] == irq)
@@ -1813,14 +1798,14 @@ static irqreturn_t dcam_isr_root(int irq, void *priv)
 
 	for (i = 0; i < irq_numbers; i++) {
 		vect = s_irq_vect[i];
-		if (irq_line & (1 << (unsigned int)vect)) {
+		if (irq_line & (1 << (uint32_t)vect)) {
 			if (isr_list[idx][vect]) {
 				DCAM_TRACE_INT("idx 0x%x %pF\n",
 					idx, isr_list[idx][vect]);
 				isr_list[idx][vect](idx);
 			}
 		}
-		irq_line &= ~(unsigned int)(1 << (unsigned int)vect);
+		irq_line &= ~(uint32_t)(1 << (uint32_t)vect);
 		if (!irq_line)
 			break;
 	}
@@ -1859,7 +1844,7 @@ static int dcam_internal_init(enum dcam_id idx, void *dev_handle)
 int sprd_dcam_reg_isr(enum dcam_id idx, enum dcam_irq_id id,
 		      dcam_isr_func user_func, void *user_data)
 {
-	enum dcam_drv_rtn rtn = DCAM_RTN_SUCCESS;
+	enum dcam_drv_rtn rtn = 0;
 	unsigned long flag;
 
 	if (id >= DCAM_IRQ_NUMBER) {
@@ -1878,7 +1863,7 @@ void sprd_dcam_enable_int(enum dcam_id idx)
 {
 	DCAM_TRACE("Dcam%d,INT 0x%x\n", idx, DCAM_IRQ_LINE_MASK);
 	sprd_dcam_glb_reg_owr(idx, DCAM0_INT_EN,
-			DCAM_IRQ_LINE_MASK, DCAM_INIT_MASK_REG);
+			      DCAM_IRQ_LINE_MASK, DCAM_INIT_MASK_REG);
 }
 
 void sprd_dcam_disable_int(enum dcam_id idx)
@@ -1886,17 +1871,15 @@ void sprd_dcam_disable_int(enum dcam_id idx)
 	DCAM_TRACE("Dcam%d,INT 0x%x\n", idx, DCAM_IRQ_LINE_MASK);
 	sprd_dcam_glb_reg_mwr(idx, DCAM0_CONTROL, BIT_2, 0, DCAM_CONTROL_REG);
 	sprd_dcam_glb_reg_owr(idx, DCAM0_INT_CLR,
-		DCAM_IRQ_LINE_MASK, DCAM_INIT_CLR_REG);
-	sprd_dcam_glb_reg_awr(idx, DCAM0_INT_EN,
-		0, DCAM_INIT_MASK_REG);
+			      DCAM_IRQ_LINE_MASK, DCAM_INIT_CLR_REG);
+	sprd_dcam_glb_reg_awr(idx, DCAM0_INT_EN, 0, DCAM_INIT_MASK_REG);
 }
 
-static int sprd_dcam_reset(enum dcam_id idx,
-	void *unmap_func, void *param)
+static int sprd_dcam_reset(enum dcam_id idx, void *unmap_func, void *param)
 {
-	enum dcam_drv_rtn rtn = DCAM_RTN_SUCCESS;
-	unsigned int time_out = 0;
-	unsigned int flag = 0;
+	enum dcam_drv_rtn rtn = 0;
+	uint32_t time_out = 0;
+	uint32_t flag = 0;
 	enum dcam_id idx_other = DCAM_OTHER_ID(idx);
 
 	pr_info("DCAM%d: reset:\n", idx);
@@ -1948,7 +1931,7 @@ static int sprd_dcam_reset(enum dcam_id idx,
 
 	/* single dcam || the later stopped one of dual-cam */
 	if (DCAM_ADDR_INVALID(s_p_dcam_mod[idx_other]) ||
-		(s_p_dcam_mod[idx_other]->state & DCAM_STATE_FIRSTQUIT)) {
+	    (s_p_dcam_mod[idx_other]->state & DCAM_STATE_FIRSTQUIT)) {
 		flag |= BIT_CAM_AHB_AXIM_SOFT_RST;
 	}
 
@@ -1959,13 +1942,13 @@ static int sprd_dcam_reset(enum dcam_id idx,
 		REG_MM_AHB_AHB_RST, flag, ~flag);
 
 	sprd_dcam_glb_reg_owr(idx, DCAM0_INT_CLR,
-		DCAM_IRQ_LINE_MASK, DCAM_INIT_CLR_REG);
+			      DCAM_IRQ_LINE_MASK, DCAM_INIT_CLR_REG);
 	sprd_dcam_glb_reg_awr(idx, DCAM0_INT_EN,
-		0, DCAM_INIT_MASK_REG);
+			      0, DCAM_INIT_MASK_REG);
 
 	/* the end, enable AXI writing */
 	sprd_dcam_glb_reg_awr(idx, DCAM_AXIM_CTRL, ~BIT_19,
-		DCAM_AXI_STS_REG);
+			      DCAM_AXI_STS_REG);
 
 	pr_info("DCAM%d: reset end\n", idx);
 
@@ -2003,7 +1986,7 @@ static void dcam_frm_clear(enum dcam_id idx)
 #if 0 /* no need as I think */
 static void dcam_quickstop_raw(enum dcam_id idx)
 {
-	unsigned int ret = 0;
+	uint32_t ret = 0;
 	int time_out = 5000;
 	struct dcam_path_desc *raw_path = NULL;
 
@@ -2030,7 +2013,7 @@ static void dcam_quickstop_raw(enum dcam_id idx)
 
 static void dcam_quickstop_pdaf(enum dcam_id idx)
 {
-	unsigned int ret = 0;
+	uint32_t ret = 0;
 	int time_out = 5000;
 	struct dcam_path_pdaf *pdaf = NULL;
 
@@ -2055,11 +2038,10 @@ static void dcam_quickstop_pdaf(enum dcam_id idx)
 }
 #endif
 
-static inline unsigned int dcam_convert_path_id_2_path_bit(
-	enum dcam_id idx,
-	enum dcam_cfg_path paths)
+static inline uint32_t dcam_convert_path_id_2_path_bit(enum dcam_id idx,
+						       enum dcam_cfg_path paths)
 {
-	unsigned int val = 0;
+	uint32_t val = 0;
 
 	if (idx == DCAM_ID_0) {
 		if (paths & DCAM_PATH_FULL)
@@ -2090,7 +2072,7 @@ static inline unsigned int dcam_convert_path_id_2_path_bit(
 
 static void dcam_path_stop(enum dcam_id idx, enum dcam_cfg_path path)
 {
-	unsigned int val, temp;
+	uint32_t val, temp;
 	int time_out = 5000;
 
 	if (DCAM_ADDR_INVALID(s_p_dcam_mod[idx])) {
@@ -2160,7 +2142,7 @@ static void sprd_dcam_stop_locked(enum dcam_id idx)
 
 int sprd_dcam_stop(enum dcam_id idx, int is_irq, void *func, void *param)
 {
-	enum dcam_drv_rtn rtn = DCAM_RTN_SUCCESS;
+	enum dcam_drv_rtn rtn = 0;
 	unsigned long flag;
 	enum dcam_id idx_other = DCAM_OTHER_ID(idx);
 
@@ -2222,7 +2204,7 @@ static void dcam_internal_deinit(enum dcam_id idx)
 }
 
 void sprd_dcam_glb_reg_awr(enum dcam_id idx, unsigned long addr,
-			   unsigned int val, unsigned int reg_id)
+			   uint32_t val, uint32_t reg_id)
 {
 	unsigned long flag;
 
@@ -2269,7 +2251,7 @@ void sprd_dcam_glb_reg_awr(enum dcam_id idx, unsigned long addr,
 }
 
 void sprd_dcam_glb_reg_owr(enum dcam_id idx, unsigned long addr,
-			   unsigned int val, unsigned int reg_id)
+			   uint32_t val, uint32_t reg_id)
 {
 	unsigned long flag;
 
@@ -2321,11 +2303,11 @@ void sprd_dcam_glb_reg_owr(enum dcam_id idx, unsigned long addr,
 }
 
 void sprd_dcam_glb_reg_mwr(enum dcam_id idx, unsigned long addr,
-			   unsigned int mask, unsigned int val,
-			   unsigned int reg_id)
+			   uint32_t mask, uint32_t val,
+			   uint32_t reg_id)
 {
 	unsigned long flag;
-	unsigned int tmp = 0;
+	uint32_t tmp = 0;
 
 	switch (reg_id) {
 	case DCAM_CFG_REG:
@@ -2386,9 +2368,9 @@ void sprd_dcam_glb_reg_mwr(enum dcam_id idx, unsigned long addr,
 }
 
 int sprd_camera_get_path_id(struct camera_get_path_id *path_id,
-	unsigned int *channel_id, unsigned int scene_mode)
+			    uint32_t *channel_id, uint32_t scene_mode)
 {
-	int ret = DCAM_RTN_SUCCESS;
+	int ret = 0;
 
 	if (NULL == path_id || NULL == channel_id)
 		return -1;
@@ -2510,10 +2492,10 @@ static int dcam_disable_clk(enum dcam_id idx)
 
 int set_dcam_cap_cfg(enum dcam_id idx, enum dcam_cfg_id id, void *param)
 {
-	enum dcam_drv_rtn rtn = DCAM_RTN_SUCCESS;
+	enum dcam_drv_rtn rtn = 0;
 	struct dcam_cap_desc *cap_desc = NULL;
 	struct camera_rect *rect;
-	unsigned int tmp = 0;
+	uint32_t tmp = 0;
 
 
 	if (DCAM_ADDR_INVALID(s_p_dcam_mod[idx])) {
@@ -2526,7 +2508,7 @@ int set_dcam_cap_cfg(enum dcam_id idx, enum dcam_cfg_id id, void *param)
 	case DCAM_CAP_INTERFACE:
 		{
 			enum dcam_cap_if_mode cap_if_mode =
-				*(unsigned int *)param;
+				*(uint32_t *)param;
 
 			if (cap_if_mode == DCAM_CAP_IF_CSI2)
 				cap_desc->cam_if = cap_if_mode;
@@ -2538,7 +2520,7 @@ int set_dcam_cap_cfg(enum dcam_id idx, enum dcam_cfg_id id, void *param)
 	case DCAM_CAP_SENSOR_MODE:
 		{
 			enum dcam_cap_sensor_mode cap_sensor_mode =
-				*(unsigned int *)param;
+				*(uint32_t *)param;
 
 			if (cap_sensor_mode >= DCAM_CAP_MODE_MAX) {
 				rtn = DCAM_RTN_CAP_SENSOR_MODE_ERR;
@@ -2582,7 +2564,7 @@ int set_dcam_cap_cfg(enum dcam_id idx, enum dcam_cfg_id id, void *param)
 
 	case DCAM_CAP_DATA_BITS:
 		{
-			enum dcam_cap_data_bits bits = *(unsigned int *)param;
+			enum dcam_cap_data_bits bits = *(uint32_t *)param;
 
 			if (bits == DCAM_CAP_12_BITS)
 				DCAM_REG_MWR(idx, DCAM0_MIPI_CAP_CFG,
@@ -2600,7 +2582,7 @@ int set_dcam_cap_cfg(enum dcam_id idx, enum dcam_cfg_id id, void *param)
 
 	case DCAM_CAP_PRE_SKIP_CNT:
 		{
-			unsigned int skip_num = *(unsigned int *)param;
+			uint32_t skip_num = *(uint32_t *)param;
 
 			if (skip_num > DCAM_CAP_SKIP_FRM_MAX)
 				rtn = DCAM_RTN_CAP_SKIP_FRAME_ERR;
@@ -2613,7 +2595,7 @@ int set_dcam_cap_cfg(enum dcam_id idx, enum dcam_cfg_id id, void *param)
 
 	case DCAM_CAP_FRM_DECI:
 		{
-			unsigned int deci_factor = *(unsigned int *)param;
+			uint32_t deci_factor = *(uint32_t *)param;
 
 			if (deci_factor < DCAM_FRM_DECI_FAC_MAX)
 				DCAM_REG_MWR(idx, DCAM0_MIPI_CAP_FRM_CTRL,
@@ -2686,9 +2668,9 @@ int set_dcam_cap_cfg(enum dcam_id idx, enum dcam_cfg_id id, void *param)
 				if (cap_desc->input_format !=
 					DCAM_CAP_MODE_YUV) {
 					pr_warn("Only yuv can x,y-deci\n");
-					rtn = DCAM_RTN_SUCCESS;
+					rtn = 0;
 				} else { /* only for yuv */
-					unsigned int tmp = 0;
+					uint32_t tmp = 0;
 
 					tmp = cap_dec->x_factor << 16;
 					tmp |= (cap_dec->y_factor << 18);
@@ -2701,7 +2683,7 @@ int set_dcam_cap_cfg(enum dcam_id idx, enum dcam_cfg_id id, void *param)
 
 	case DCAM_CAP_DATA_PACKET:
 		{
-			unsigned int is_loose = *(unsigned int *)param;
+			uint32_t is_loose = *(uint32_t *)param;
 
 			if (cap_desc->cam_if == DCAM_CAP_IF_CSI2 &&
 			    cap_desc->input_format == DCAM_CAP_MODE_RAWRGB) {
@@ -2744,11 +2726,11 @@ int set_dcam_cap_cfg(enum dcam_id idx, enum dcam_cfg_id id, void *param)
 
 int set_dcam_raw_path_cfg(enum dcam_id idx, enum dcam_cfg_id id, void *param)
 {
-	enum dcam_drv_rtn rtn = DCAM_RTN_SUCCESS;
+	enum dcam_drv_rtn rtn = 0;
 	struct dcam_path_desc *raw_path = NULL;
 	struct camera_addr *p_addr;
 	struct dcam_module *module;
-	unsigned int base_id;
+	uint32_t base_id;
 	struct camera_endian_sel *endian;
 	struct size_transfer *tmp;
 	struct camera_size size;
@@ -2826,7 +2808,7 @@ int set_dcam_raw_path_cfg(enum dcam_id idx, enum dcam_cfg_id id, void *param)
 
 			rtn = DCAM_RTN_PATH_ADDR_ERR;
 		} else {
-			unsigned int output_frame_count = 0;
+			uint32_t output_frame_count = 0;
 			struct camera_frame *frame = NULL;
 			/* struct xx_spec. --> struct xx_desc. */
 			frame = &module->raw_reserved_frame;
@@ -2857,7 +2839,7 @@ int set_dcam_raw_path_cfg(enum dcam_id idx, enum dcam_cfg_id id, void *param)
 		break;
 
 	case DCAM_PATH_FRAME_BASE_ID:
-		base_id = *(unsigned int *)param;
+		base_id = *(uint32_t *)param;
 
 		DCAM_TRACE("DCAM%d: set frame base id 0x%x\n",
 			   idx, base_id);
@@ -2875,7 +2857,7 @@ int set_dcam_raw_path_cfg(enum dcam_id idx, enum dcam_cfg_id id, void *param)
 		}
 		break;
 	case DCAM_PATH_BIN_RATIO:
-		raw_path->bin_ratio = *(unsigned int *)param;
+		raw_path->bin_ratio = *(uint32_t *)param;
 		if (raw_path->bin_ratio > 2) {
 			pr_warn("raw bin ratio erro, use 0\n");
 			raw_path->bin_ratio = 0;
@@ -2982,7 +2964,7 @@ int set_dcam_raw_path_cfg(enum dcam_id idx, enum dcam_cfg_id id, void *param)
 		break;
 	case DCAM_PATH_FRM_DECI:
 		{
-			unsigned int deci_factor = *(unsigned int *) param;
+			uint32_t deci_factor = *(uint32_t *) param;
 
 			if (deci_factor >= DCAM_FRM_DECI_FAC_MAX) {
 				rtn = DCAM_RTN_PATH_FRM_DECI_ERR;
@@ -2994,7 +2976,7 @@ int set_dcam_raw_path_cfg(enum dcam_id idx, enum dcam_cfg_id id, void *param)
 		}
 
 	case DCAM_PATH_ENABLE:
-		raw_path->valid = *(unsigned int *)param;
+		raw_path->valid = *(uint32_t *)param;
 		break;
 
 	default:
@@ -3007,10 +2989,10 @@ exit:
 
 int set_dcam_full_path_cfg(enum dcam_id idx, enum dcam_cfg_id id, void *param)
 {
-	enum dcam_drv_rtn rtn = DCAM_RTN_SUCCESS;
+	enum dcam_drv_rtn rtn = 0;
 	struct dcam_path_desc *path = NULL;
 	struct dcam_module *module;
-	unsigned int base_id;
+	uint32_t base_id;
 	struct camera_endian_sel *endian;
 	struct size_transfer *tmp;
 
@@ -3030,7 +3012,7 @@ int set_dcam_full_path_cfg(enum dcam_id idx, enum dcam_cfg_id id, void *param)
 
 	switch (id) {
 	case DCAM_PATH_FRAME_BASE_ID:
-		base_id = *(unsigned int *)param;
+		base_id = *(uint32_t *)param;
 
 		DCAM_TRACE("DCAM%d: set frame base id 0x%x\n",
 			   idx, base_id);
@@ -3048,7 +3030,7 @@ int set_dcam_full_path_cfg(enum dcam_id idx, enum dcam_cfg_id id, void *param)
 		}
 		break;
 	case DCAM_PATH_BIN_RATIO:
-		path->bin_ratio = *(unsigned int *)param;
+		path->bin_ratio = *(uint32_t *)param;
 		/* full path not support binning */
 		path->bin_ratio = 0;
 		break;
@@ -3071,7 +3053,7 @@ int set_dcam_full_path_cfg(enum dcam_id idx, enum dcam_cfg_id id, void *param)
 		break;
 	case DCAM_PATH_FRM_DECI:
 		{
-			unsigned int deci_factor = *(unsigned int *) param;
+			uint32_t deci_factor = *(uint32_t *) param;
 
 			if (deci_factor >= DCAM_FRM_DECI_FAC_MAX) {
 				rtn = DCAM_RTN_PATH_FRM_DECI_ERR;
@@ -3083,7 +3065,7 @@ int set_dcam_full_path_cfg(enum dcam_id idx, enum dcam_cfg_id id, void *param)
 		}
 
 	case DCAM_PATH_ENABLE:
-		path->valid = *(unsigned int *)param;
+		path->valid = *(uint32_t *)param;
 		break;
 	case DCAM_PATH_OUTPUT_ADDR: /* offline, no need */
 	case DCAM_PATH_OUTPUT_RESERVED_ADDR:
@@ -3098,10 +3080,10 @@ int set_dcam_full_path_cfg(enum dcam_id idx, enum dcam_cfg_id id, void *param)
 
 int set_dcam_bin_path_cfg(enum dcam_id idx, enum dcam_cfg_id id, void *param)
 {
-	enum dcam_drv_rtn rtn = DCAM_RTN_SUCCESS;
+	enum dcam_drv_rtn rtn = 0;
 	struct dcam_path_desc *path = NULL;
 	struct dcam_module *module;
-	unsigned int base_id;
+	uint32_t base_id;
 	struct camera_endian_sel *endian;
 	struct size_transfer *tmp;
 	struct camera_size size;
@@ -3121,7 +3103,7 @@ int set_dcam_bin_path_cfg(enum dcam_id idx, enum dcam_cfg_id id, void *param)
 
 	switch (id) {
 	case DCAM_PATH_FRAME_BASE_ID:
-		base_id = *(unsigned int *)param;
+		base_id = *(uint32_t *)param;
 
 		DCAM_TRACE("DCAM%d: set frame base id 0x%x\n",
 			   idx, base_id);
@@ -3139,7 +3121,7 @@ int set_dcam_bin_path_cfg(enum dcam_id idx, enum dcam_cfg_id id, void *param)
 		}
 		break;
 	case DCAM_PATH_BIN_RATIO:
-		path->bin_ratio = *(unsigned int *)param;
+		path->bin_ratio = *(uint32_t *)param;
 		if (path->bin_ratio > 2) {
 			pr_warn("bin path bin ratio erro, use 0\n");
 			path->bin_ratio = 0;
@@ -3219,7 +3201,7 @@ int set_dcam_bin_path_cfg(enum dcam_id idx, enum dcam_cfg_id id, void *param)
 
 	case DCAM_PATH_FRM_DECI:
 		{
-			unsigned int deci_factor = *(unsigned int *) param;
+			uint32_t deci_factor = *(uint32_t *) param;
 
 			if (deci_factor >= DCAM_FRM_DECI_FAC_MAX) {
 				rtn = DCAM_RTN_PATH_FRM_DECI_ERR;
@@ -3231,7 +3213,7 @@ int set_dcam_bin_path_cfg(enum dcam_id idx, enum dcam_cfg_id id, void *param)
 		}
 
 	case DCAM_PATH_ENABLE:
-		path->valid = *(unsigned int *)param;
+		path->valid = *(uint32_t *)param;
 		break;
 	case DCAM_PATH_OUTPUT_ADDR: /* offline, no need */
 	case DCAM_PATH_OUTPUT_RESERVED_ADDR:
@@ -3246,11 +3228,11 @@ exit:
 
 int set_dcam_pdaf_path_cfg(enum dcam_id idx, enum dcam_cfg_id id, void *param)
 {
-	enum dcam_drv_rtn rtn = DCAM_RTN_SUCCESS;
+	enum dcam_drv_rtn rtn = 0;
 	struct dcam_path_pdaf *path_pdaf = NULL;
 	struct camera_addr *p_addr;
 	struct dcam_module *module;
-	unsigned int base_id;
+	uint32_t base_id;
 
 	if (DCAM_ADDR_INVALID(s_p_dcam_mod[idx])) {
 		pr_err("fail to get ptr\n");
@@ -3326,7 +3308,7 @@ int set_dcam_pdaf_path_cfg(enum dcam_id idx, enum dcam_cfg_id id, void *param)
 		    p_addr->mfd_y == 0) {
 			rtn = DCAM_RTN_PATH_ADDR_ERR;
 		} else {
-			unsigned int output_frame_count = 0;
+			uint32_t output_frame_count = 0;
 			struct camera_frame *frame = NULL;
 
 			frame = &module->pdaf_reserved_frame;
@@ -3359,7 +3341,7 @@ int set_dcam_pdaf_path_cfg(enum dcam_id idx, enum dcam_cfg_id id, void *param)
 		break;
 
 	case DCAM_PATH_FRAME_BASE_ID:
-		base_id = *(unsigned int *)param;
+		base_id = *(uint32_t *)param;
 
 		DCAM_TRACE("DCAM%d: set frame base id 0x%x\n",
 			   idx, base_id);
@@ -3372,7 +3354,7 @@ int set_dcam_pdaf_path_cfg(enum dcam_id idx, enum dcam_cfg_id id, void *param)
 		break;
 
 	case DCAM_PATH_ENABLE:
-		path_pdaf->valid = *(unsigned int *)param;
+		path_pdaf->valid = *(uint32_t *)param;
 		break;
 	case DCAM_PDAF_EXTR:
 		{ /* now set pdaf extr reg as constant */
@@ -3413,10 +3395,10 @@ int set_dcam_pdaf_path_cfg(enum dcam_id idx, enum dcam_cfg_id id, void *param)
 
 int set_dcam_aem_path_cfg(enum dcam_id idx, enum dcam_cfg_id id, void *param)
 {
-	enum dcam_drv_rtn rtn = DCAM_RTN_SUCCESS;
+	enum dcam_drv_rtn rtn = 0;
 	struct dcam_path_aem *aem_path = NULL;
 	struct dcam_module *module;
-	unsigned int endian = 0;
+	uint32_t endian = 0;
 
 	if (DCAM_ADDR_INVALID(s_p_dcam_mod[idx])) {
 		pr_err("fail to get ptr\n");
@@ -3433,10 +3415,10 @@ int set_dcam_aem_path_cfg(enum dcam_id idx, enum dcam_cfg_id id, void *param)
 
 	switch (id) {
 	case DCAM_PATH_ENABLE:
-		aem_path->valid = *(unsigned int *)param;
+		aem_path->valid = *(uint32_t *)param;
 		break;
 	case DCAM_PATH_DATA_ENDIAN:
-		endian = *(unsigned int *)param;
+		endian = *(uint32_t *)param;
 		if (idx == 0) {
 			sprd_dcam_glb_reg_mwr(idx, DCAM0_PATH_ENDIAN,
 					      BIT_13 | BIT_12,
@@ -3462,7 +3444,7 @@ int set_dcam_aem_path_cfg(enum dcam_id idx, enum dcam_cfg_id id, void *param)
 
 int set_dcam_ebd_path_cfg(enum dcam_id idx, enum dcam_cfg_id id, void *param)
 {
-	enum dcam_drv_rtn rtn = DCAM_RTN_SUCCESS;
+	enum dcam_drv_rtn rtn = 0;
 	struct dcam_path_ebd *path = NULL;
 	struct dcam_module *module;
 
@@ -3481,7 +3463,7 @@ int set_dcam_ebd_path_cfg(enum dcam_id idx, enum dcam_cfg_id id, void *param)
 
 	switch (id) {
 	case DCAM_PATH_ENABLE:
-		path->valid = *(unsigned int *)param;
+		path->valid = *(uint32_t *)param;
 		break;
 	case DCAM_EBD_CONTROL:
 		memcpy(&path->ebd_ctrl, param,
@@ -3496,11 +3478,11 @@ int set_dcam_ebd_path_cfg(enum dcam_id idx, enum dcam_cfg_id id, void *param)
 	return -rtn;
 }
 
-int dcam_aem_set_next_frm(void *statis_module,
-	enum dcam_id idx, enum isp_3a_block_id block_index)
+int dcam_aem_set_next_frm(void *statis_module, enum dcam_id idx,
+			  enum isp_3a_block_id block_index)
 {
-	enum dcam_drv_rtn ret = DCAM_RTN_SUCCESS;
-	unsigned int statis_addr = 0;
+	enum dcam_drv_rtn ret = 0;
+	uint32_t statis_addr = 0;
 
 	ret = dcam_set_next_statis_buf(statis_module,
 		block_index, &statis_addr);
@@ -3520,9 +3502,9 @@ static int dcam_full_path_start(enum dcam_id idx,
 				struct dcam_path_desc *path,
 				struct camera_frame *frame)
 {
-	enum dcam_drv_rtn rtn = DCAM_RTN_SUCCESS;
+	enum dcam_drv_rtn rtn = 0;
 	struct camera_rect *rect = NULL;
-	unsigned int reg_val = 0;
+	uint32_t reg_val = 0;
 	unsigned long addr = 0;
 	unsigned long image_vc = 0;
 	unsigned long image_data_type = 0x2b;
@@ -3595,10 +3577,10 @@ static int dcam_full_path_start(enum dcam_id idx,
 }
 
 static int dcam_raw_rt_path_start(enum dcam_id idx,
-				void *statis_module)
+				  void *statis_module)
 {
-	enum dcam_drv_rtn rtn = DCAM_RTN_SUCCESS;
-	unsigned int reg_val = 0;
+	enum dcam_drv_rtn rtn = 0;
+	uint32_t reg_val = 0;
 	unsigned long addr = 0;
 	unsigned long image_vc = 0;
 	unsigned long image_data_type = 0x2b;
@@ -3624,13 +3606,14 @@ static int dcam_raw_rt_path_start(enum dcam_id idx,
 
 	return -rtn;
 }
+
 static int dcam_bin_path_start(enum dcam_id idx,
-				struct dcam_path_desc *path,
-				struct camera_frame *frame)
+			       struct dcam_path_desc *path,
+			       struct camera_frame *frame)
 {
-	enum dcam_drv_rtn rtn = DCAM_RTN_SUCCESS;
+	enum dcam_drv_rtn rtn = 0;
 	struct camera_rect *rect = NULL;
-	unsigned int reg_val = 0;
+	uint32_t reg_val = 0;
 	unsigned long addr = 0;
 	unsigned long image_vc = 0;
 	unsigned long image_data_type = 0x2b;
@@ -3688,11 +3671,10 @@ static int dcam_bin_path_start(enum dcam_id idx,
 			rect->x, rect->y, rect->w, rect->h);
 	}
 
-	if (s_p_dcam_mod[idx]->dcam_cap.input_format ==
-		DCAM_CAP_MODE_YUV)
+	if (s_p_dcam_mod[idx]->dcam_cap.input_format == DCAM_CAP_MODE_YUV)
 		image_data_type = 0x1e;
 	/* setup data type */
-	reg_val = ((image_vc & 0x3) << 16)  |
+	reg_val = ((image_vc & 0x3) << 16) |
 		((image_data_type & 0x3F) << 8) | (image_mode & 0x3);
 
 	if (idx == DCAM_ID_0)
@@ -3716,34 +3698,31 @@ static int dcam_bin_path_start(enum dcam_id idx,
 }
 
 static int dcam_full_raw_path_start(enum dcam_id idx,
-				struct dcam_path_desc *path)
+				    struct dcam_path_desc *path)
 {
-	enum dcam_drv_rtn rtn = DCAM_RTN_SUCCESS;
+	enum dcam_drv_rtn rtn = 0;
 	struct camera_rect *rect = NULL;
-	unsigned int reg_val = 0;
+	uint32_t reg_val = 0;
 	unsigned long addr = 0;
 	unsigned long image_vc = 0;
 	unsigned long image_data_type = 0x2b;
 	unsigned long image_mode = 1;
 
-	if (path->valid_param.frame_deci) {
+	if (path->valid_param.frame_deci)
 		sprd_dcam_glb_reg_mwr(idx, DCAM0_MIPI_CAP_FRM_CTRL,
-			BIT_5 | BIT_4,
-			path->frame_deci << 4,
-			DCAM_REG_MAX);
-	}
+				      BIT_5 | BIT_4, path->frame_deci << 4,
+				      DCAM_REG_MAX);
 
 	if (path->valid_param.data_endian) {
-		sprd_dcam_glb_reg_mwr(idx, DCAM0_PATH_ENDIAN,
-			BIT_3 | BIT_2,
-			path->data_endian.y_endian << 2,
-			DCAM_ENDIAN_REG);
-		sprd_dcam_glb_reg_mwr(idx, DCAM_AXIM_WORD_ENDIAN,
-			BIT_0, 0,
-			DCAM_AXI_ENDIAN_REG);
+		sprd_dcam_glb_reg_mwr(idx, DCAM0_PATH_ENDIAN, BIT_3 | BIT_2,
+				      path->data_endian.y_endian << 2,
+				      DCAM_ENDIAN_REG);
+		sprd_dcam_glb_reg_mwr(idx, DCAM_AXIM_WORD_ENDIAN, BIT_0, 0,
+				      DCAM_AXI_ENDIAN_REG);
 		DCAM_TRACE("raw_path: data_endian y=0x%x\n",
 			path->data_endian.y_endian);
 	}
+
 	/* raw path crop */
 	if (path->valid_param.input_rect) {
 		DCAM_REG_MWR(idx, DCAM0_FULL_CFG, BIT(1), BIT(1));
@@ -3751,13 +3730,11 @@ static int dcam_full_raw_path_start(enum dcam_id idx,
 
 		addr = DCAM0_FULL_CROP_START;
 		rect = &path->input_rect;
-		reg_val = (rect->x & 0xFFFF) |
-			((rect->y & 0xFFFF) << 16);
+		reg_val = (rect->x & 0xFFFF) | ((rect->y & 0xFFFF) << 16);
 		DCAM_REG_WR(idx, addr, reg_val);
 
 		addr = DCAM0_FULL_CROP_SIZE;
-		reg_val = (rect->w & 0xFFFF) |
-			((rect->h & 0xFFFF) << 16);
+		reg_val = (rect->w & 0xFFFF) |((rect->h & 0xFFFF) << 16);
 		DCAM_REG_WR(idx, addr, reg_val);
 		DCAM_TRACE("full path crop: x %d, y %d, w %d h %d\n",
 			rect->x, rect->y, rect->w, rect->h);
@@ -3765,7 +3742,7 @@ static int dcam_full_raw_path_start(enum dcam_id idx,
 
 
 	/* setup data type raw10 */
-	reg_val = ((image_vc & 0x3) << 16)  |
+	reg_val = ((image_vc & 0x3) << 16) |
 		((image_data_type & 0x3F) << 8) | (image_mode & 0x3);
 	if (idx == DCAM_ID_0)
 		addr = DCAM0_IMAGE_DT_VC_CONTROL;
@@ -3801,11 +3778,11 @@ static int dcam_full_raw_path_start(enum dcam_id idx,
 }
 
 static int dcam_bin_raw_path_start(enum dcam_id idx,
-				struct dcam_path_desc *path)
+				   struct dcam_path_desc *path)
 {
-	enum dcam_drv_rtn rtn = DCAM_RTN_SUCCESS;
+	enum dcam_drv_rtn rtn = 0;
 	struct camera_rect *rect = NULL;
-	unsigned int reg_val = 0;
+	uint32_t reg_val = 0;
 	unsigned long addr = 0;
 	unsigned long image_vc = 0;
 	unsigned long image_data_type = 0x2b;
@@ -3813,19 +3790,17 @@ static int dcam_bin_raw_path_start(enum dcam_id idx,
 
 	if (path->valid_param.frame_deci) {
 		sprd_dcam_glb_reg_mwr(idx, DCAM0_MIPI_CAP_FRM_CTRL,
-			BIT_5 | BIT_4,
-			path->frame_deci << 4,
-			DCAM_REG_MAX);
+				      BIT_5 | BIT_4,
+				      path->frame_deci << 4,
+				      DCAM_REG_MAX);
 	}
 
 	if (path->valid_param.data_endian) {
-		sprd_dcam_glb_reg_mwr(idx, DCAM0_PATH_ENDIAN,
-			BIT_3 | BIT_2,
-			path->data_endian.y_endian << 2,
-			DCAM_ENDIAN_REG);
-		sprd_dcam_glb_reg_mwr(idx, DCAM_AXIM_WORD_ENDIAN,
-			BIT_0, 0,
-			DCAM_AXI_ENDIAN_REG);
+		sprd_dcam_glb_reg_mwr(idx, DCAM0_PATH_ENDIAN, BIT_3 | BIT_2,
+				      path->data_endian.y_endian << 2,
+				      DCAM_ENDIAN_REG);
+		sprd_dcam_glb_reg_mwr(idx, DCAM_AXIM_WORD_ENDIAN, BIT_0, 0,
+				      DCAM_AXI_ENDIAN_REG);
 		DCAM_TRACE("raw_path: data_endian y=0x%x\n",
 			path->data_endian.y_endian);
 	}
@@ -3852,15 +3827,14 @@ static int dcam_bin_raw_path_start(enum dcam_id idx,
 		DCAM_REG_WR(idx, addr, reg_val);
 
 		addr = DCAM0_BIN_CROP_SIZE;
-		reg_val = (rect->w & 0xFFFF) |
-		((rect->h & 0xFFFF) << 16);
+		reg_val = (rect->w & 0xFFFF) | ((rect->h & 0xFFFF) << 16);
 		DCAM_REG_WR(idx, addr, reg_val);
 		DCAM_TRACE("raw bin path crop: x %d, y %d, w %d h %d\n",
 			rect->x, rect->y, rect->w, rect->h);
 	}
 
 	/* setup data type raw10 */
-	reg_val = ((image_vc & 0x3) << 16)  |
+	reg_val = ((image_vc & 0x3) << 16) |
 		((image_data_type & 0x3F) << 8) | (image_mode & 0x3);
 	if (idx == DCAM_ID_0)
 		addr = DCAM0_IMAGE_DT_VC_CONTROL;
@@ -3893,7 +3867,7 @@ static int dcam_pdaf_path_start(enum dcam_id idx,
 				struct dcam_path_pdaf *path,
 				void *statis_module)
 {
-	enum dcam_drv_rtn rtn = DCAM_RTN_SUCCESS;
+	enum dcam_drv_rtn rtn = 0;
 
 	sprd_dcam_glb_reg_mwr(idx, DCAM0_PDAF_CONTROL,
 			      BIT_1 | BIT_0,
@@ -3929,7 +3903,7 @@ static int dcam_pdaf_path_start(enum dcam_id idx,
 
 static int dcam_vch2_path_stop(enum dcam_id idx)
 {
-	enum dcam_drv_rtn rtn = DCAM_RTN_SUCCESS;
+	enum dcam_drv_rtn rtn = 0;
 
 	sprd_dcam_glb_reg_mwr(idx, DCAM0_VC2_CONTROL,
 			      BIT_1 | BIT_0,
@@ -3958,7 +3932,7 @@ static int dcam_vch2_path_stop(enum dcam_id idx)
 static int dcam_vch3_path_start(enum dcam_id idx,
 				void *statis_module)
 {
-	enum dcam_drv_rtn rtn = DCAM_RTN_SUCCESS;
+	enum dcam_drv_rtn rtn = 0;
 
 
 	rtn = dcam_ebd_set_next_frm(statis_module,
@@ -3978,7 +3952,7 @@ static int dcam_vch3_path_start(enum dcam_id idx,
 
 static int dcam_aem_path_start(enum dcam_id idx, void *statis_module)
 {
-	enum dcam_drv_rtn rtn = DCAM_RTN_SUCCESS;
+	enum dcam_drv_rtn rtn = 0;
 
 	rtn = dcam_aem_set_next_frm(statis_module, idx, DCAM_AEM_BLOCK);
 	if (unlikely(rtn)) {
@@ -3991,19 +3965,19 @@ static int dcam_aem_path_start(enum dcam_id idx, void *statis_module)
 }
 
 int sprd_dcam_start(enum dcam_id idx, struct camera_frame *frame,
-			void *statis_module)
+		    void *statis_module)
 {
-	enum dcam_drv_rtn rtn = DCAM_RTN_SUCCESS;
+	enum dcam_drv_rtn rtn = 0;
 	struct camera_dev *dev = container_of(statis_module, struct camera_dev,
-		statis_module_info);
+					      statis_module_info);
 	struct dcam_path_desc *raw_path = NULL;
 	struct dcam_path_desc *full_path = NULL;
 	struct dcam_path_desc *binning_path = NULL;
 	struct dcam_path_pdaf *pdaf_path = NULL;
 	struct dcam_path_aem *aem_path = NULL;
 	struct dcam_path_ebd *ebd_path = NULL;
-	unsigned int cap_en = 0;
-	unsigned int reg_val = 0;
+	uint32_t cap_en = 0;
+	uint32_t reg_val = 0;
 
 	if (DCAM_ADDR_INVALID(s_p_dcam_mod[idx])) {
 		pr_err("fail to get ptr\n");
@@ -4040,28 +4014,28 @@ int sprd_dcam_start(enum dcam_id idx, struct camera_frame *frame,
 	}
 	if (binning_path->valid) {
 		rtn = dcam_bin_path_start(idx, binning_path, frame);
-		if (rtn) {
+		if (unlikely(rtn)) {
 			pr_err("fail to start bin path %d\n", rtn);
 			return -(rtn);
 		}
 	}
 	if (raw_path->valid == FULL_RAW_CAPTURE) {
 		rtn = dcam_full_raw_path_start(idx, raw_path);
-		if (rtn) {
+		if (unlikely(rtn)) {
 			pr_err("fail to start full raw path %d\n", rtn);
 			return -(rtn);
 		}
 	}
 	if (raw_path->valid == BIN_RAW_CAPTURE) {
 		rtn = dcam_bin_raw_path_start(idx, raw_path);
-		if (rtn) {
+		if (unlikely(rtn)) {
 			pr_err("fail to start bin raw path %d\n", rtn);
 			return -(rtn);
 		}
 	}
 	if (pdaf_path->valid) {
 		rtn = dcam_pdaf_path_start(idx, pdaf_path, statis_module);
-		if (rtn) {
+		if (unlikely(rtn)) {
 			pr_err("fail to start pdaf path %d\n", rtn);
 			return -(rtn);
 		}
@@ -4070,14 +4044,14 @@ int sprd_dcam_start(enum dcam_id idx, struct camera_frame *frame,
 		if (pdaf_path->valid &&
 		    pdaf_path->pdaf_ctrl.mode == E_PDAF_TYPE3) {
 			rtn = dcam_vch3_path_start(idx, statis_module);
-			if (rtn) {
+			if (unlikely(rtn)) {
 				pr_err("fail to start vch3 path %d\n", rtn);
 				return -(rtn);
 			}
 		} else {
 			dcam_vch2_path_stop(idx);
 			rtn = dcam_vch3_path_start(idx, statis_module);
-			if (rtn) {
+			if (unlikely(rtn)) {
 				pr_err("fail to start vch3 path %d\n", rtn);
 				return -(rtn);
 			}
@@ -4085,7 +4059,7 @@ int sprd_dcam_start(enum dcam_id idx, struct camera_frame *frame,
 	}
 	if (aem_path->valid) {
 		rtn = dcam_aem_path_start(idx, statis_module);
-		if (rtn) {
+		if (unlikely(rtn)) {
 			pr_err("fail to start ebd path %d\n", rtn);
 			return -(rtn);
 		}
@@ -4115,6 +4089,7 @@ int sprd_dcam_start(enum dcam_id idx, struct camera_frame *frame,
 			      reg_val,
 			      DCAM_AXI_STS_REG);
 
+	dcam_dbg_reg_trace(dev, CAM_DBG_SWCTRL_DUMP_REGS);
 	return -rtn;
 }
 
@@ -4167,7 +4142,7 @@ int sprd_dcam_module_init(enum dcam_id idx, void *dev_handle)
 
 	if (atomic_read(&s_dcam_users[idx]) < 1) {
 		pr_info("s_dcam_users[%d] equal to %d", idx,
-		       atomic_read(&s_dcam_users[idx]));
+			atomic_read(&s_dcam_users[idx]));
 		return -EIO;
 	}
 	ret = dcam_internal_init(idx, dev_handle);
@@ -4180,13 +4155,13 @@ int sprd_dcam_module_deinit(enum dcam_id idx)
 	dcam_internal_deinit(idx);
 
 	/* release all dmabufs only after all bufs are h/w unmapped */
-	if (s_p_dcam_mod[DCAM_ID_0] == NULL
-		&& s_p_dcam_mod[DCAM_ID_1] == NULL) {
+	if (s_p_dcam_mod[DCAM_ID_0] == NULL &&
+	    s_p_dcam_mod[DCAM_ID_1] == NULL) {
 		pr_info("Now put all dmabufs at dcam %d\n", idx);
 		pfiommu_put_sg_table();
 	}
 
-	return -DCAM_RTN_SUCCESS;
+	return -0;
 }
 
 int sprd_dcam_drv_init(struct platform_device *pdev)
@@ -4256,7 +4231,7 @@ void sprd_dcam_drv_deinit(void)
 
 int sprd_dcam_module_dis(enum dcam_id idx)
 {
-	enum dcam_drv_rtn rtn = DCAM_RTN_SUCCESS;
+	enum dcam_drv_rtn rtn = 0;
 
 	pr_info("DCAM%d: disable dcam module, in %d\n", idx,
 		   atomic_read(&s_dcam_users[idx]));
@@ -4324,10 +4299,10 @@ int sprd_dcam_get_path_capability(struct dcam_path_capability *capacity)
 	return 0;
 }
 
-int sprd_dcam_parse_dt(struct device_node *dn, unsigned int *dcam_count)
+int sprd_dcam_parse_dt(struct device_node *dn, uint32_t *dcam_count)
 {
 	int i = 0;
-	unsigned int count = 0;
+	uint32_t count = 0;
 	void __iomem *reg_base;
 	int j = 0;
 
@@ -4442,14 +4417,13 @@ int sprd_dcam_parse_dt(struct device_node *dn, unsigned int *dcam_count)
 	return 0;
 }
 
-unsigned int cal_bin_ratio(struct camera_size src,
-			struct camera_size dst)
+uint32_t cal_bin_ratio(struct camera_size src, struct camera_size dst)
 {
 /* less than this width(<2592), bypass binning */
 #define	_WIDTH_NO_BINNING	1600
 #define _MAX_SCALER_DOWN	16
 #define _WIDTH_NO_1_4_BINNING	176
-	unsigned int tmp_ratio = 0;
+	uint32_t tmp_ratio = 0;
 	struct camera_size size;
 
 	/* as normal, binning ratio: 0,1,2,3*/
@@ -4514,7 +4488,7 @@ unsigned int cal_bin_ratio(struct camera_size src,
 /* aligned bin path input size with bin ratio
  * r: bin_ration
  */
-void align_for_bin(struct camera_size *p, unsigned int r)
+void align_for_bin(struct camera_size *p, uint32_t r)
 {
 	if ((!p) || (!r))
 		return;
@@ -4533,7 +4507,7 @@ void align_for_bin(struct camera_size *p, unsigned int r)
  * Only binning path has this. Other path return 0
  */
 static struct dcam_path_desc *get_bin_ratio(enum dcam_id idx,
-				unsigned int channel_id)
+					    uint32_t channel_id)
 {
 	if (DCAM_ADDR_INVALID(s_p_dcam_mod[idx])) {
 		pr_err("fail to get ptr\n");
@@ -4543,7 +4517,7 @@ static struct dcam_path_desc *get_bin_ratio(enum dcam_id idx,
 	 * preview, video use bin path
 	 */
 	if (channel_id == CAMERA_PRE_PATH ||
-		channel_id == CAMERA_VID_PATH)
+	    channel_id == CAMERA_VID_PATH)
 		return &s_p_dcam_mod[idx]->dcam_binning_path;
 
 	return NULL;
@@ -4553,7 +4527,7 @@ static struct dcam_path_desc *get_bin_ratio(enum dcam_id idx,
  * 1: trim size different with different bin ratio
  * 2: isp trim0 need align[x,y,w,h~2:1:2:1]
  */
-void refresh_bin_trim_size(struct camera_rect *p, unsigned int ratio)
+void refresh_bin_trim_size(struct camera_rect *p, uint32_t ratio)
 {
 	if (1 == ratio || 2 == ratio) {
 		p->x >>= ratio;
@@ -4570,9 +4544,9 @@ void refresh_bin_trim_size(struct camera_rect *p, unsigned int ratio)
 }
 
 void update_trim_size(enum dcam_id idx, struct camera_rect *p,
-	unsigned int channel_id)
+		      uint32_t channel_id)
 {
-	unsigned int ratio;
+	uint32_t ratio;
 	struct dcam_path_desc *bin_path;
 
 	bin_path = get_bin_ratio(idx, channel_id);

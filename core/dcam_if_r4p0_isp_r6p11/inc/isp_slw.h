@@ -28,25 +28,25 @@ enum isp_slw_rtn {
 };
 
 struct isp_int_info {
-	unsigned int sdw_done_skip_en;
-	unsigned int sdw_done_int_cnt_num;
-	unsigned int sdw_done_skip_cnt_num;
-	unsigned int sdw_done_skip_cnt_clr;
-	unsigned int vid_done_skip_en;
-	unsigned int vid_done_int_cnt_num;
-	unsigned int vid_done_skip_cnt_num;
-	unsigned int vid_done_skip_cnt_clr;
+	uint32_t sdw_done_skip_en;
+	uint32_t sdw_done_int_cnt_num;
+	uint32_t sdw_done_skip_cnt_num;
+	uint32_t sdw_done_skip_cnt_clr;
+	uint32_t vid_done_skip_en;
+	uint32_t vid_done_int_cnt_num;
+	uint32_t vid_done_skip_cnt_num;
+	uint32_t vid_done_skip_cnt_clr;
 };
 
 struct isp_fmcu_cmd_frm {
-	unsigned int yaddr_frm;
-	unsigned int yaddr_reg;
-	unsigned int uaddr_frm;
-	unsigned int uaddr_reg;
-	unsigned int vaddr_frm;
-	unsigned int vaddr_reg;
-	unsigned int shadow_frm;
-	unsigned int shadow_reg;
+	uint32_t yaddr_frm;
+	uint32_t yaddr_reg;
+	uint32_t uaddr_frm;
+	uint32_t uaddr_reg;
+	uint32_t vaddr_frm;
+	uint32_t vaddr_reg;
+	uint32_t shadow_frm;
+	uint32_t shadow_reg;
 };
 
 struct isp_slw_cmd {
@@ -56,14 +56,14 @@ struct isp_slw_cmd {
 struct isp_slw_info {
 	unsigned long *fmcu_addr_vir;
 	phys_addr_t fmcu_addr_phy;
-	unsigned int fmcu_num;
-	unsigned int is_reserved;
+	uint32_t fmcu_num;
+	uint32_t is_reserved;
 	struct isp_frm_queue slw_queue;
 };
 
 struct isp_slw_queue {
 	struct isp_slw_info slw_array[ISP_SLW_BUF_NUM];
-	unsigned int valid_cnt;
+	uint32_t valid_cnt;
 };
 
 struct isp_fmcu_slw_info {
@@ -80,7 +80,7 @@ int slowmotion_frame_dequeue(struct isp_slw_queue *queue,
 			      struct isp_slw_info *slw);
 int set_isp_fmcu_cmd_reg(enum isp_scl_id path_id, void *isp_handle);
 int set_isp_fmcu_slw_cmd(void *isp_handle,
-		enum isp_scl_id path_id, unsigned int buf_reserved);
+		enum isp_scl_id path_id, uint32_t buf_reserved);
 int set_fmcu_slw_cfg(void *handle);
 int get_slw_status(void *isp_handle);
 void isp_slw_clear(void *handle);

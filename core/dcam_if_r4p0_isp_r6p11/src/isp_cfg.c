@@ -270,7 +270,7 @@ static void cctx_buf_align_256kb(struct isp_cctx_desc *cctx_desc,
 
 	struct isp_buf_info *ion_pool_p = &cctx_desc->ion_pool;
 
-	if (!IS_ERR_OR_NULL(ion_pool_p->sw_addr) && ion_pool_p->hw_addr) {
+	if (ion_pool_p->sw_addr && ion_pool_p->hw_addr) {
 		if (IS_ALIGNED((unsigned long)ion_pool_p->hw_addr,
 			       ISP_REG_SIZE)) {
 			*hw_addr = ion_pool_p->hw_addr;
@@ -364,7 +364,7 @@ static int isp_cctx_init_hw(struct isp_cctx_desc *cctx_desc,
 			    enum isp_id iid,
 			    enum isp_scene_id sid)
 {
-	int ret = ISP_RTN_SUCCESS;
+	int ret = 0;
 	uint32_t val = 0;
 	void *work_buf_va = NULL;
 	void *shadow_buf_va = NULL;
@@ -481,7 +481,7 @@ static void isp_cctx_reset_page_buf(struct isp_cctx_desc *cctx_desc,
 		bid = ion_buf_p->cur_buf_id;
 		cmdbuf_p = &ion_buf_p->cmd_buf[bid];
 		sw_addr = cmdbuf_p->sw_addr;
-		if (!IS_ERR_OR_NULL(sw_addr)) {
+		if (sw_addr) {
 			memcpy(sw_addr, ISP_REG_DEFAULT,
 					sizeof(ISP_REG_DEFAULT));
 			memset(sw_addr + sizeof(ISP_REG_DEFAULT),
@@ -495,7 +495,7 @@ static void isp_cctx_reset_page_buf(struct isp_cctx_desc *cctx_desc,
 
 static int isp_cctx_init(struct isp_cctx_desc *cctx_desc, enum isp_id iid)
 {
-	int ret = ISP_RTN_SUCCESS;
+	int ret = 0;
 	struct isp_buf_info *ion_pool_p = NULL;
 	void *sw_addr = NULL;
 	void *hw_addr = NULL;
@@ -548,7 +548,7 @@ _err_free:
 
 static int isp_cctx_deinit(struct isp_cctx_desc *cctx_desc, enum isp_id iid)
 {
-	int ret = ISP_RTN_SUCCESS;
+	int ret = 0;
 	struct isp_buf_info *ion_pool_p = NULL;
 
 	pr_info("+\n");

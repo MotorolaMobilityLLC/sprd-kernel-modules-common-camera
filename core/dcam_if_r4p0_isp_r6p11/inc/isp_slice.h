@@ -27,61 +27,61 @@ enum slice_path_index {
 };
 
 struct slice_img_size {
-	unsigned int width;
-	unsigned int height;
+	uint32_t width;
+	uint32_t height;
 };
 
 struct slice_addr {
-	unsigned int chn0;
-	unsigned int chn1;
-	unsigned int chn2;
+	uint32_t chn0;
+	uint32_t chn1;
+	uint32_t chn2;
 };
 
 struct slice_pitch {
-	unsigned int chn0;
-	unsigned int chn1;
-	unsigned int chn2;
+	uint32_t chn0;
+	uint32_t chn1;
+	uint32_t chn2;
 };
 
 struct slice_border {
-	unsigned int up_border;
-	unsigned int down_border;
-	unsigned int left_border;
-	unsigned int right_border;
+	uint32_t up_border;
+	uint32_t down_border;
+	uint32_t left_border;
+	uint32_t right_border;
 };
 
 struct slice_pos_info {
-	unsigned int start_col;
-	unsigned int start_row;
-	unsigned int end_col;
-	unsigned int end_row;
+	uint32_t start_col;
+	uint32_t start_row;
+	uint32_t end_col;
+	uint32_t end_row;
 };
 
 struct slice_overlap_info {
-	unsigned int overlap_up;
-	unsigned int overlap_down;
-	unsigned int overlap_left;
-	unsigned int overlap_right;
+	uint32_t overlap_up;
+	uint32_t overlap_down;
+	uint32_t overlap_left;
+	uint32_t overlap_right;
 };
 
 struct slice_base_info {
 	struct slice_pos_info slice_pos_array[SLICE_NUM_MAX];
 	struct slice_overlap_info slice_overlap_array[SLICE_NUM_MAX];
-	unsigned int cur_slice_id;
-	unsigned int slice_row_num;
-	unsigned int slice_col_num;
-	unsigned int slice_num;
-	unsigned int slice_height;
-	unsigned int slice_width;
-	unsigned int img_width;
-	unsigned int img_height;
-	unsigned int store_width;
-	unsigned int store_height;
-	unsigned int overlap_up;
-	unsigned int overlap_down;
-	unsigned int overlap_left;
-	unsigned int overlap_right;
-	unsigned int isp_jpg_cowork;
+	uint32_t cur_slice_id;
+	uint32_t slice_row_num;
+	uint32_t slice_col_num;
+	uint32_t slice_num;
+	uint32_t slice_height;
+	uint32_t slice_width;
+	uint32_t img_width;
+	uint32_t img_height;
+	uint32_t store_width;
+	uint32_t store_height;
+	uint32_t overlap_up;
+	uint32_t overlap_down;
+	uint32_t overlap_left;
+	uint32_t overlap_right;
+	uint32_t isp_jpg_cowork;
 };
 
 struct slice_lsc_2d_info {
@@ -117,70 +117,70 @@ struct slice_dispatch_info {
 };
 
 struct slice_scaler_info {
-	unsigned int trim0_size_x;
-	unsigned int trim0_size_y;
-	unsigned int trim0_start_x;
-	unsigned int trim0_start_y;
-	unsigned int trim1_size_x;
-	unsigned int trim1_size_y;
-	unsigned int trim1_start_x;
-	unsigned int trim1_start_y;
-	unsigned int scaler_ip_int;
-	unsigned int scaler_ip_rmd;
-	unsigned int scaler_cip_int;
-	unsigned int scaler_cip_rmd;
-	unsigned int scaler_factor_in;
-	unsigned int scaler_factor_out;
-	unsigned int scaler_ip_int_ver;
-	unsigned int scaler_ip_rmd_ver;
-	unsigned int scaler_cip_int_ver;
-	unsigned int scaler_cip_rmd_ver;
-	unsigned int scaler_factor_in_ver;
-	unsigned int scaler_factor_out_ver;
-	unsigned int src_size_x;
-	unsigned int src_size_y;
-	unsigned int dst_size_x;
-	unsigned int dst_size_y;
-	unsigned int scaler_in_width;
-	unsigned int scaler_in_height;
-	unsigned int scaler_out_width;
-	unsigned int scaler_out_height;
-	unsigned int chk_sum_clr;
+	uint32_t trim0_size_x;
+	uint32_t trim0_size_y;
+	uint32_t trim0_start_x;
+	uint32_t trim0_start_y;
+	uint32_t trim1_size_x;
+	uint32_t trim1_size_y;
+	uint32_t trim1_start_x;
+	uint32_t trim1_start_y;
+	uint32_t scaler_ip_int;
+	uint32_t scaler_ip_rmd;
+	uint32_t scaler_cip_int;
+	uint32_t scaler_cip_rmd;
+	uint32_t scaler_factor_in;
+	uint32_t scaler_factor_out;
+	uint32_t scaler_ip_int_ver;
+	uint32_t scaler_ip_rmd_ver;
+	uint32_t scaler_cip_int_ver;
+	uint32_t scaler_cip_rmd_ver;
+	uint32_t scaler_factor_in_ver;
+	uint32_t scaler_factor_out_ver;
+	uint32_t src_size_x;
+	uint32_t src_size_y;
+	uint32_t dst_size_x;
+	uint32_t dst_size_y;
+	uint32_t scaler_in_width;
+	uint32_t scaler_in_height;
+	uint32_t scaler_out_width;
+	uint32_t scaler_out_height;
+	uint32_t chk_sum_clr;
 };
 
 struct slice_yuv_param {
-	unsigned int id;
-	unsigned int width;
-	unsigned int height;
-	unsigned int start_col;
-	unsigned int start_row;
-	unsigned int end_col;
-	unsigned int end_row;
-	unsigned int overlap_hor_left;
-	unsigned int overlap_hor_right;
-	unsigned int overlap_ver_up;
-	unsigned int overlap_ver_down;
+	uint32_t id;
+	uint32_t width;
+	uint32_t height;
+	uint32_t start_col;
+	uint32_t start_row;
+	uint32_t end_col;
+	uint32_t end_row;
+	uint32_t overlap_hor_left;
+	uint32_t overlap_hor_right;
+	uint32_t overlap_ver_up;
+	uint32_t overlap_ver_down;
 };
 
 struct slice_postcnr_info {
-	unsigned int start_row_mod4;
+	uint32_t start_row_mod4;
 };
 
 struct slice_ynr_info {
-	unsigned int start_row;
-	unsigned int start_col;
+	uint32_t start_row;
+	uint32_t start_col;
 };
 
 struct slice_noisefilter_info {
-	unsigned int seed0;
-	unsigned int seed1;
-	unsigned int seed2;
-	unsigned int seed3;
-	unsigned int seed_int;
+	uint32_t seed0;
+	uint32_t seed1;
+	uint32_t seed2;
+	uint32_t seed3;
+	uint32_t seed_int;
 };
 
 struct slice_cfa_info {
-	unsigned int gbuf_addr_max;
+	uint32_t gbuf_addr_max;
 };
 
 struct slice_context_info {
@@ -197,41 +197,41 @@ struct slice_context_info {
 };
 
 struct slice_store_path {
-	unsigned int format;
+	uint32_t format;
 	struct slice_addr addr;
 	struct slice_img_size size;
 };
 
 struct slice_scaler_path {
-	unsigned int trim0_size_x;
-	unsigned int trim0_size_y;
-	unsigned int trim0_start_x;
-	unsigned int trim0_start_y;
-	unsigned int deci_x;
-	unsigned int deci_y;
-	unsigned int odata_mode;
-	unsigned int scaler_bypass;
-	unsigned int scaler_factor_in;
-	unsigned int scaler_factor_out;
-	unsigned int scaler_out_width;
-	unsigned int scaler_out_height;
-	unsigned int scaler_ver_factor_in;
-	unsigned int scaler_ver_factor_out;
-	unsigned int scaler_y_ver_tap;
-	unsigned int scaler_uv_ver_tap;
+	uint32_t trim0_size_x;
+	uint32_t trim0_size_y;
+	uint32_t trim0_start_x;
+	uint32_t trim0_start_y;
+	uint32_t deci_x;
+	uint32_t deci_y;
+	uint32_t odata_mode;
+	uint32_t scaler_bypass;
+	uint32_t scaler_factor_in;
+	uint32_t scaler_factor_out;
+	uint32_t scaler_out_width;
+	uint32_t scaler_out_height;
+	uint32_t scaler_ver_factor_in;
+	uint32_t scaler_ver_factor_out;
+	uint32_t scaler_y_ver_tap;
+	uint32_t scaler_uv_ver_tap;
 };
 
 struct slice_param_in {
 	enum isp_id iid;
 	enum isp_scene_id sid;
 	enum isp_work_mode mid;
-	unsigned int is_raw_capture;
-	unsigned int fetch_format;
-	unsigned int bayer_mode;
-	unsigned int pre_slice_need;
-	unsigned int vid_slice_need;
-	unsigned int cap_slice_need;
-	unsigned int *fmcu_addr_vir;
+	uint32_t is_raw_capture;
+	uint32_t fetch_format;
+	uint32_t bayer_mode;
+	uint32_t pre_slice_need;
+	uint32_t vid_slice_need;
+	uint32_t cap_slice_need;
+	uint32_t *fmcu_addr_vir;
 	struct isp_pipe_dev *isp_dev;
 	struct slice_addr fetch_addr;
 	struct slice_img_size img_size;
@@ -240,7 +240,7 @@ struct slice_param_in {
 };
 
 int isp_fmcu_slice_cfg(void *fmcu_handler,
-		       struct slice_param_in *in_ptr, unsigned int *fmcu_num);
+		       struct slice_param_in *in_ptr, uint32_t *fmcu_num);
 int isp_fmcu_slice_init(void **fmcu_handler);
 int isp_fmcu_slice_deinit(void *fmcu_handler);
 

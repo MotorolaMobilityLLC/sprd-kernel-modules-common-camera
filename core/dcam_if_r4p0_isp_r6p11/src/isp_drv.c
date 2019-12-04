@@ -36,6 +36,7 @@
 #include "isp_block.h"
 #include "dcam_core.h"
 #include "ion.h"
+#include "cam_dbg.h"
 
 #define ISP_OFF_PRODUCER_Q_SIZE_MAX             2
 #define ISP_OFF_PRODUCER_Q_SIZE_MIN             1
@@ -47,7 +48,6 @@
 #define ISP_3DNR_NUM                            5
 #define ISP_AXI_STOP_TIMEOUT                    1000
 #define ISP_SCALER_CFG_MASK                     0x21800000
-#define LSC_BUF_NAME                            "2D_LSC"
 #define WAIT_CNT_MS                             50
 #define FMCU_STOP_WAIT_CNT                      (WAIT_CNT_MS * 2)
 
@@ -74,7 +74,7 @@ struct platform_device *s_isp_pdev;
 struct isp_pipe_dev *g_isp_dev_parray[ISP_MAX_COUNT];
 static atomic_t s_isp_users[ISP_MAX_COUNT];
 static atomic_t s_isp_run_count;
-static unsigned int s_isp_count;
+static uint32_t s_isp_count;
 unsigned long s_isp_regbase[ISP_MAX_COUNT];
 unsigned long isp_phys_base[ISP_MAX_COUNT];
 static struct clk *isp0_clk;
@@ -101,229 +101,26 @@ static const char * const syscon_name[] = {
 static struct register_gpr syscon_regs[ARRAY_SIZE(syscon_name)];
 
 struct isp_clk_gate isp_clk_gt;
-unsigned int is_dual_cam;
-unsigned int is_dual_cam_dore;
-unsigned int dual_cam_cap_sta;
-unsigned int fmcu_slice_capture_state;
-unsigned int fmcu_slice_capture_state_dual;
-unsigned int isp_frm_queue_len;
+uint32_t is_dual_cam;
+uint32_t is_dual_cam_dore;
+uint32_t dual_cam_cap_sta;
+uint32_t fmcu_slice_capture_state;
+uint32_t fmcu_slice_capture_state_dual;
+uint32_t isp_frm_queue_len;
 static int sprd_isp_pipeline_proc_bin(void *handle);
 static int sprd_isp_pipeline_proc_full(void *handle);
-
-/*======================ISP debug control=====================*/
-/*
- * This function will actually do the bypass or work on
- * isp sub block with the help of
- * sys/sprd_image/isp_sblk/<sblk_file>.
- *
- * TODO: maybe need to mask this dbg function for user version,
- * using macro like: CONFIG_CAM_DEBUG.
- */
-void isp_dbg_bypass_sblk(struct isp_pipe_dev *dev, unsigned int idx)
-{
-	struct isp_dbg_info *dbg = NULL;
-	unsigned int i = 0;
-	unsigned int cur_map, ori_map = 0;
-	unsigned int map_id, sblk_id = 0;
-	unsigned int sblk_cnt, addr = 0;
-	struct isp_sub_blk_base *sblk_base = NULL;
-	unsigned int bypass;
-
-	pr_debug("enter, cb:%pS\n", __builtin_return_address(0));
-	if (!dev || !dev->cam_grp) {
-		pr_err("fail to exit exception\n");
-		return;
-	}
-
-	dbg = &dev->cam_grp->dbg_info.isp_dbg;
-	if (!dbg || !dbg->dbg_on) {
-		pr_debug("exit2\n");
-		return;
-	}
-
-	sblk_cnt = dbg->sblk_cnt;
-	sblk_base = dbg->sblk_base;
-
-	for (map_id = 0; map_id < ISP_SBLK_MAP_CNT; map_id++) {
-		cur_map = dbg->sblk_maps[map_id];
-		ori_map = dev->sblk_ori_byp_map[map_id];
-
-		pr_debug("map %d: cur_map: 0x%x, ori_map: 0x%x\n",
-			 map_id, cur_map, ori_map);
-		for (i = 0; i < ISP_SBLK_MAP_SIZE; i++) {
-			sblk_id = map_id * ISP_SBLK_MAP_SIZE + i;
-
-			/* to the end of sblk_base table, return */
-			if (unlikely(sblk_id == sblk_cnt)) {
-				pr_debug("through all the %d sub-blocks, return\n",
-					 sblk_cnt);
-				return;
-			}
-
-			addr = sblk_base[sblk_id].base_addr;
-
-			/*
-			 * Get the original bypass flag, if user has already
-			 * set the bypass flag 1 from sysfs, updating hardware
-			 * bypass regs using 1, or else using the original
-			 * bypass flag.
-			 */
-			bypass = (ori_map & (1 << i)) >> i;
-			if (cur_map & 1) {
-				bypass = SBLK_BYPASS;
-				pr_debug("isp: bypass %s, com_idx:0x%x\n",
-					 sblk_base[sblk_id].name, idx);
-			}
-
-			ISP_REG_MWR(idx, addr, BIT_0, bypass);
-
-			cur_map >>= 1;
-		}
-	}
-	pr_debug("exit\n");
-}
-EXPORT_SYMBOL(isp_dbg_bypass_sblk);
-
-/*
- * sys/sprd_image/isp_dbg can control This
- * function's process, reg_start, reg_end...
- * This function can be called anywhere, according
- * to user's request.
- */
-void isp_dbg_reg_trace(struct isp_pipe_dev *dev, unsigned int idx)
-{
-	unsigned int i = 0;
-	unsigned long reg_start, reg_end, addr = 0;
-	unsigned int limit_size = 0;
-	unsigned int to_log_word_size = 0;
-	unsigned int remain_word_size = 0;
-	struct isp_dbg_info *dbg = NULL;
-
-	pr_debug("enter, cb:%pS\n", __builtin_return_address(0));
-	if (!dev || !dev->cam_grp) {
-		pr_err("fail to exit exception\n");
-		return;
-	}
-
-	dbg = &dev->cam_grp->dbg_info.isp_dbg;
-	if (!dbg || !dbg->dbg_on) {
-		pr_debug("exit2\n");
-		return;
-	}
-
-	limit_size = dbg->dump2log_max_word_size;
-
-	for (i = 0; i < ARRAY_SIZE(dbg->dump_range); i += 2) {
-		/*
-		 * TODO: maybe necessary using a thread to process
-		 * the remain_word_size and save the dump data into
-		 * a specified file.
-		 * Now I just ignore the remain and output warning.
-		 */
-		reg_start = dbg->dump_range[i];
-		reg_end = dbg->dump_range[i+1];
-		to_log_word_size = reg_end - reg_start + 1;
-		if (reg_end == 0 || to_log_word_size == 0)
-			return;
-
-		if (to_log_word_size > limit_size) {
-			remain_word_size = to_log_word_size - limit_size;
-			reg_end = reg_start +  limit_size;
-			pr_warn("larger than %d words, ignore the remainings\n",
-				limit_size);
-		}
-
-		pr_info("====Dump ISP REG Section-%d, com_idx 0x%x, cb:%pS\n",
-			i/2, idx, __builtin_return_address(0));
-
-		pr_info("--HW REGS--\n");
-		for (addr = reg_start; addr <= reg_end; addr += 16) {
-			pr_info("0x%5lx:	0x%8x  %8x  %8x  %8x\n",
-				addr,
-				ISP_HREG_RD(idx, addr),
-				ISP_HREG_RD(idx, addr + 4),
-				ISP_HREG_RD(idx, addr + 8),
-				ISP_HREG_RD(idx, addr + 12));
-		}
-
-		if (ISP_GET_MID(idx) == ISP_CFG_MODE) {
-			pr_info("--CFG PAGE REGS--\n");
-			for (addr = reg_start; addr <= reg_end; addr += 16) {
-				pr_info("0x%5lx:	0x%8x  %8x  %8x  %8x\n",
-					addr,
-					ISP_PAGE_REG_RD(idx, addr),
-					ISP_PAGE_REG_RD(idx, addr + 4),
-					ISP_PAGE_REG_RD(idx, addr + 8),
-					ISP_PAGE_REG_RD(idx, addr + 12));
-			}
-		}
-	}
-	pr_debug("exit\n");
-}
-EXPORT_SYMBOL(isp_dbg_reg_trace);
-
-static void isp_dbg_print_q(int num, unsigned int *in_addr)
-{
-	int i;
-	unsigned long addr = (unsigned long)in_addr;
-
-	pr_info("====Dump ISP FMCU cmd queue here====\n"
-		"fmcu slice cmd num total:%d, cb:%pS\n",
-		num, __builtin_return_address(0));
-
-	for (i = 0; i <= num; i += 2) {
-		pr_info("0x%5lx: 0x%08x 0x%08x 0x%08x 0x%08x\n",
-			addr,
-			REG_RD(addr),
-			REG_RD(addr + 4),
-			REG_RD(addr + 8),
-			REG_RD(addr + 12));
-		addr += 16;
-	}
-}
-
-/*
- * /sys/sprd_image/fmcu_dbg can control This
- * function's process.
- * This function can be called anywhere, according
- * to user's request.
- */
-void isp_dbg_dump_fmcu_cmd_q(struct isp_pipe_dev *dev)
-{
-	struct isp_dbg_info *dbg = NULL;
-
-	pr_debug("enter, cb:%pS\n", __builtin_return_address(0));
-	if (!dev || !dev->fmcu_addr_vir || !dev->cam_grp) {
-		pr_err("fail to exit exception\n");
-		return;
-	}
-
-	dbg = &dev->cam_grp->dbg_info.isp_dbg;
-	if (!dbg || !dbg->dbg_on || !dbg->fmcu_dbg_on) {
-		pr_debug("exit2\n");
-		return;
-	}
-
-	isp_dbg_print_q(dev->fmcu_slice.fmcu_num,
-		dev->fmcu_addr_vir);
-
-	pr_debug("exit\n");
-}
-EXPORT_SYMBOL(isp_dbg_dump_fmcu_cmd_q);
-
-/*================end of ISP debug control=====================*/
 
 static void sprd_isp_reset_fmcu(void)
 {
 	regmap_update_bits(syscon_regs[ISP_FMCU_RESET].gpr,
-		syscon_regs[ISP_FMCU_RESET].reg,
-		syscon_regs[ISP_FMCU_RESET].mask,
-		syscon_regs[ISP_FMCU_RESET].mask);
+			   syscon_regs[ISP_FMCU_RESET].reg,
+			   syscon_regs[ISP_FMCU_RESET].mask,
+			   syscon_regs[ISP_FMCU_RESET].mask);
 	udelay(1);
 	regmap_update_bits(syscon_regs[ISP_FMCU_RESET].gpr,
-		syscon_regs[ISP_FMCU_RESET].reg,
-		syscon_regs[ISP_FMCU_RESET].mask,
-		~syscon_regs[ISP_FMCU_RESET].mask);
+			   syscon_regs[ISP_FMCU_RESET].reg,
+			   syscon_regs[ISP_FMCU_RESET].mask,
+			   ~syscon_regs[ISP_FMCU_RESET].mask);
 }
 
 static int offline_bin_thread_loop(void *arg)
@@ -368,9 +165,7 @@ static int offline_full_thread_loop(void *arg)
 					fmcu_slice_capture_state_dual =
 						ISP_ST_STOP;
 					spin_unlock(&isp_mod_lock);
-					isp_dbg_print_q(
-						dev->fmcu_slice.fmcu_num,
-						dev->fmcu_addr_vir);
+					isp_dbg_dump_fmcu_cmd_q(dev);
 					sprd_isp_reset_fmcu();
 				}
 			}
@@ -406,7 +201,7 @@ static int isp_create_offline_thread(void *param)
 					      param, "%s", thread_name);
 	if (IS_ERR(dev->offline_bin_thread)) {
 		pr_err("fail to create bin thread %ld\n",
-				PTR_ERR(dev->offline_bin_thread));
+		       PTR_ERR(dev->offline_bin_thread));
 		dev->offline_bin_thread = NULL;
 		return -1;
 	}
@@ -416,10 +211,10 @@ static int isp_create_offline_thread(void *param)
 	init_completion(&dev->offline_full_thread_com);
 	sprintf(thread_name, "isp%d_full", iid);
 	dev->offline_full_thread = kthread_run(offline_full_thread_loop,
-					      param, "%s", thread_name);
+					       param, "%s", thread_name);
 	if (IS_ERR(dev->offline_full_thread)) {
 		pr_err("fail to create full thread%ld\n",
-				PTR_ERR(dev->offline_full_thread));
+		       PTR_ERR(dev->offline_full_thread));
 		dev->offline_full_thread = NULL;
 		return -1;
 	}
@@ -458,7 +253,7 @@ static int isp_stop_offline_thread(void *param)
 
 
 void isp_wait_update_done(struct isp_module *module,
-			  enum isp_path_index path_index, unsigned int *p_flag)
+			  enum isp_path_index path_index, uint32_t *p_flag)
 {
 	int ret = 0;
 	struct isp_path_desc *p_path = NULL;
@@ -479,7 +274,7 @@ void isp_wait_update_done(struct isp_module *module,
 		scl_path_id = isp_get_scl_index(path_index);
 		p_path = &module->isp_path[scl_path_id];
 		pr_debug("update done wait %d, %d\n",
-			   p_path->wait_for_sof, p_path->sof_com.done);
+			 p_path->wait_for_sof, p_path->sof_com.done);
 
 		spin_lock_irqsave(&isp_mod_lock, flag);
 		if (p_flag) {
@@ -508,7 +303,7 @@ void isp_wait_update_done(struct isp_module *module,
 }
 
 static void isp_wait_path_done(struct isp_module *module,
-	enum isp_path_index path_index, unsigned int *p_flag)
+			       enum isp_path_index path_index, uint32_t *p_flag)
 {
 	int ret = 0;
 	struct isp_path_desc *p_path = NULL;
@@ -523,7 +318,7 @@ static void isp_wait_path_done(struct isp_module *module,
 		p_path = &module->isp_path[scl_path_id];
 
 		pr_debug("path done wait %d, %d\n",
-			   p_path->wait_for_done, p_path->tx_done_com.done);
+			 p_path->wait_for_done, p_path->tx_done_com.done);
 
 		spin_lock_irqsave(&isp_mod_lock, flag);
 		if (p_flag)
@@ -547,8 +342,8 @@ static void isp_wait_path_done(struct isp_module *module,
 	}
 }
 
-static void sprd_isp_glb_reg_awr(unsigned int idx, unsigned long addr,
-			   unsigned int val, unsigned int reg_id)
+void sprd_isp_glb_reg_awr(uint32_t idx, unsigned long addr,
+			  uint32_t val, uint32_t reg_id)
 {
 	unsigned long flag;
 	enum isp_id iid = ISP_GET_IID(idx);
@@ -570,8 +365,8 @@ static void sprd_isp_glb_reg_awr(unsigned int idx, unsigned long addr,
 	}
 }
 
-static void sprd_isp_glb_reg_owr(unsigned int idx, unsigned long addr,
-			   unsigned int val, unsigned int reg_id)
+void sprd_isp_glb_reg_owr(uint32_t idx, unsigned long addr,
+			  uint32_t val, uint32_t reg_id)
 {
 	unsigned long flag;
 	enum isp_id iid = ISP_GET_IID(idx);
@@ -598,22 +393,22 @@ static void sprd_isp_glb_reg_owr(unsigned int idx, unsigned long addr,
 	}
 }
 
-static void do_reset_isp_hw(struct isp_pipe_dev *dev)
+void do_reset_isp_hw(struct isp_pipe_dev *dev)
 {
-	unsigned int idx = dev->com_idx;
+	uint32_t idx = dev->com_idx;
 	struct isp_cctx_desc *cctx_desc = NULL;
 
 	cctx_desc = dev->module_info.cctx_desc;
 
 	regmap_update_bits(syscon_regs[ISP_HW_RESET].gpr,
-		syscon_regs[ISP_HW_RESET].reg,
-		syscon_regs[ISP_HW_RESET].mask,
-		syscon_regs[ISP_HW_RESET].mask);
+			   syscon_regs[ISP_HW_RESET].reg,
+			   syscon_regs[ISP_HW_RESET].mask,
+			   syscon_regs[ISP_HW_RESET].mask);
 	udelay(1);
 	regmap_update_bits(syscon_regs[ISP_HW_RESET].gpr,
-		syscon_regs[ISP_HW_RESET].reg,
-		syscon_regs[ISP_HW_RESET].mask,
-		~syscon_regs[ISP_HW_RESET].mask);
+			   syscon_regs[ISP_HW_RESET].reg,
+			   syscon_regs[ISP_HW_RESET].mask,
+			   ~syscon_regs[ISP_HW_RESET].mask);
 
 	sprd_isp_glb_reg_awr(idx, ISP_AXI_ITI2AXIM_CTRL, ~BIT_26, ISP_AXI_REG);
 	/*
@@ -629,8 +424,7 @@ static void do_reset_isp_hw(struct isp_pipe_dev *dev)
 	 * reset, like actual operation in H/W.
 	 */
 	if (cctx_desc)
-		cctx_desc->intf->rst_page_buf(cctx_desc,
-			ISP_GET_IID(idx));
+		cctx_desc->intf->rst_page_buf(cctx_desc, ISP_GET_IID(idx));
 }
 
 void sprd_isp_drv_init_isp_cnt(void)
@@ -638,57 +432,14 @@ void sprd_isp_drv_init_isp_cnt(void)
 	atomic_set(&s_isp_run_count, 0);
 }
 
-void isp_irq_ctrl(struct isp_pipe_dev *dev, bool enable)
-{
-	unsigned int idx = dev->com_idx;
-	enum isp_id iid = ISP_GET_IID(dev->com_idx);
-	enum isp_scene_id sid = ISP_SCENE_PRE;
-	unsigned int base_addr = 0;
-	unsigned int set_idx = 0;
-	unsigned int clr_reg = 0;
-	unsigned int en_reg = 0;
-	unsigned int en_mask = 0;
-
-	for (sid = ISP_SCENE_PRE; sid < ISP_SCENE_NUM; sid++) {
-		base_addr = int_reg_base[iid][sid];
-		for (set_idx = 0;
-		     set_idx < ISP_INT_REG_SETS_NUM;
-		     set_idx++) {
-			clr_reg = irq_sets[set_idx].offset[INT_REG_OFF_CLR];
-			en_reg = irq_sets[set_idx].offset[INT_REG_OFF_EN];
-			en_mask = irq_sets[set_idx].msk_bmap[sid];
-
-			if (enable) {
-				sprd_isp_glb_reg_owr(idx,
-						     base_addr + clr_reg,
-						     0xFFFFFFFF,
-						     ISP_INIT_CLR_REG);
-				sprd_isp_glb_reg_owr(idx,
-						     base_addr + en_reg,
-						     en_mask,
-						     ISP_INIT_MASK_REG);
-			} else {
-				sprd_isp_glb_reg_awr(idx,
-						     base_addr + en_reg,
-						     0,
-						     ISP_INIT_MASK_REG);
-				sprd_isp_glb_reg_owr(idx,
-						     base_addr + clr_reg,
-						     0xFFFFFFFF,
-						     ISP_INIT_CLR_REG);
-			}
-		}
-	}
-}
-
 /*
  * TODO: should be compatible with dual-cam
  */
 static int sprd_isp_reset(struct isp_pipe_dev *dev)
 {
-	enum dcam_drv_rtn rtn = ISP_RTN_SUCCESS;
+	enum dcam_drv_rtn rtn = 0;
 	enum isp_id iid = ISP_ID_0;
-	unsigned int idx = 0;
+	uint32_t idx = 0;
 	struct isp_cctx_desc *cctx_desc = NULL;
 
 	if (!dev) {
@@ -739,8 +490,10 @@ static int wait_for_pipeline_proc_stop(void *handle)
 		usleep_range(1000, 1100);
 
 		if (loop++ > FMCU_STOP_WAIT_CNT) {
-			if (fmcu_slice_capture_state != ISP_ST_STOP)
+			if (fmcu_slice_capture_state != ISP_ST_STOP) {
 				pr_err("fail to stop fmcu, timeout!\n");
+				isp_dbg_dump_fmcu_cmd_q(dev);
+			}
 			if (dev->wait_full_tx_done != WAIT_CLEAR)
 				pr_info("wait_full_tx_done was not cleared, %u\n",
 					dev->wait_full_tx_done);
@@ -756,9 +509,9 @@ static int wait_for_pipeline_proc_stop(void *handle)
 
 static void isp_quickstop(struct isp_module *module)
 {
-	unsigned int idx = 0;
+	uint32_t idx = 0;
 	struct isp_pipe_dev *dev = NULL;
-	unsigned int time_out = 0;
+	uint32_t time_out = 0;
 	enum isp_id iid;
 
 	if (module == NULL) {
@@ -791,8 +544,8 @@ static void isp_quickstop(struct isp_module *module)
 
 static int sprd_isp_stop_nolock(void *isp_handle, int is_post_stop)
 {
-	enum isp_drv_rtn rtn = ISP_RTN_SUCCESS;
-	unsigned int i = 0;
+	enum isp_drv_rtn rtn = 0;
+	uint32_t i = 0;
 	struct isp_pipe_dev *dev = NULL;
 	struct isp_module *module = NULL;
 	struct isp_statis_module *statis_module = NULL;
@@ -908,7 +661,7 @@ static int sprd_isp_stop_nolock(void *isp_handle, int is_post_stop)
 
 static int sprd_isp_stop_lock(void *isp_handle, int is_post_stop)
 {
-	enum isp_drv_rtn rtn = ISP_RTN_SUCCESS;
+	enum isp_drv_rtn rtn = 0;
 	unsigned long flags;
 	unsigned long flags_p;
 	unsigned long flags_c;
@@ -932,7 +685,7 @@ static int sprd_isp_stop_lock(void *isp_handle, int is_post_stop)
 
 int sprd_isp_stop(void *isp_handle, int is_irq)
 {
-	enum isp_drv_rtn rtn = ISP_RTN_SUCCESS;
+	enum isp_drv_rtn rtn = 0;
 	struct isp_pipe_dev *dev;
 	enum isp_id iid = ISP_ID_0, iid_other = ISP_ID_1;
 
@@ -965,7 +718,7 @@ int sprd_isp_stop(void *isp_handle, int is_irq)
 }
 
 static int get_slice_init_scaler(struct slice_scaler_path *scaler,
-	struct isp_path_desc *path)
+				 struct isp_path_desc *path)
 {
 	if (!scaler || !path) {
 		pr_err("fail to get ptr\n");
@@ -1003,9 +756,9 @@ static int get_slice_init_scaler(struct slice_scaler_path *scaler,
 
 static int isp_update_offline_path_param(struct isp_pipe_dev *dev,
 					 struct camera_frame *frame,
-					 unsigned int idx)
+					 uint32_t idx)
 {
-	enum isp_drv_rtn rtn = ISP_RTN_SUCCESS;
+	enum isp_drv_rtn rtn = 0;
 	struct isp_path_desc *pre = NULL;
 	struct isp_path_desc *vid = NULL;
 	struct isp_path_desc *cap = NULL;
@@ -1034,7 +787,7 @@ static int isp_update_offline_path_param(struct isp_pipe_dev *dev,
 			cap->src.w =  cap->in_size.w;
 			cap->src.h = cap->in_size.h;
 			pr_debug("RAW:set cap src w*h:%d,%d\n", cap->src.w,
-					cap->src.h);
+				 cap->src.h);
 		}
 		cap->trim0_info.start_x = cap->in_rect.x;
 		cap->trim0_info.start_y = cap->in_rect.y;
@@ -1072,9 +825,10 @@ static int isp_update_offline_path_param(struct isp_pipe_dev *dev,
 			vid->trim1_info.size_y = vid->dst.h;
 			vid->valid = 1;
 			rtn = isp_path_scaler(module, ISP_PATH_IDX_VID, vid,
-					&scl_array->coeff[ISP_SCL_VID]);
+					      &scl_array->coeff[ISP_SCL_VID]);
 			if (rtn) {
-				pr_err("fail to get isp scaler path, return %d", rtn);
+				pr_err("fail to get isp scaler path, return %d",
+				       rtn);
 				return rtn;
 			}
 
@@ -1088,9 +842,9 @@ static int isp_update_offline_path_param(struct isp_pipe_dev *dev,
 static int get_slice_init_param(struct slice_param_in *in_ptr,
 				struct isp_pipe_dev *dev,
 				struct camera_frame *frame,
-				unsigned int idx)
+				uint32_t idx)
 {
-	enum isp_drv_rtn ret = ISP_RTN_SUCCESS;
+	enum isp_drv_rtn ret = 0;
 	struct isp_path_desc *path_pre = NULL;
 	struct isp_path_desc *path_vid = NULL;
 	struct isp_path_desc *path_cap = NULL;
@@ -1233,12 +987,12 @@ static void sprd_isp_cap_hblank_cfg(void *handle)
 {
 	struct isp_pipe_dev *dev = NULL;
 	struct isp_path_desc *cap_path = NULL;
-	unsigned int zoom = 1;
-	unsigned int hblank0 = 2500;
-	unsigned int hblank1 = 2500;
-	unsigned int factor = 200;
-	unsigned int width = 0;
-	unsigned int height = 0;
+	uint32_t zoom = 1;
+	uint32_t hblank0 = 2500;
+	uint32_t hblank1 = 2500;
+	uint32_t factor = 200;
+	uint32_t width = 0;
+	uint32_t height = 0;
 
 	if (!handle) {
 		pr_err("fail to get ptr\n");
@@ -1275,14 +1029,14 @@ static void sprd_isp_cap_hblank_cfg(void *handle)
 }
 #endif
 
-int sprd_isp_start_pipeline_bin(void *handle, unsigned int cap_flag)
+int sprd_isp_start_pipeline_bin(void *handle, uint32_t cap_flag)
 {
-	enum isp_drv_rtn ret = ISP_RTN_SUCCESS;
+	enum isp_drv_rtn ret = 0;
 	struct isp_pipe_dev *dev = NULL;
 	enum isp_id iid = ISP_ID_0;
 	struct isp_offline_desc *off_desc = NULL;
 	struct offline_buf_desc *buf_desc = NULL;
-	struct camera_frame frame;
+	struct camera_frame frame = {0};
 	struct isp_module *module = NULL;
 	struct camera_frame *p_offline_frame = NULL;
 	int consumer_q_size = is_dual_cam ? ISP_OFF_CONSUMER_Q_SIZE_MULTI :
@@ -1318,7 +1072,7 @@ int sprd_isp_start_pipeline_bin(void *handle, unsigned int cap_flag)
 	}
 
 	if (buf_desc->zsl_queue.valid_cnt == 0) {
-		ret = ISP_RTN_SUCCESS;
+		ret = 0;
 		pr_info("wait new zsl frame\n");
 		goto exit;
 	}
@@ -1367,7 +1121,7 @@ exit:
 static int wait_for_full_tx_done(struct isp_pipe_dev *dev)
 {
 	int ret = 0;
-	unsigned int flag;
+	uint32_t flag;
 	int loop = 0;
 
 	dev->wait_full_tx_done = WAIT_BEGIN;
@@ -1400,7 +1154,7 @@ static int wait_for_full_tx_done(struct isp_pipe_dev *dev)
 
 static int sprd_isp_sel_cap_frm(struct isp_pipe_dev *dev)
 {
-	enum isp_drv_rtn ret = ISP_RTN_SUCCESS;
+	enum isp_drv_rtn ret = 0;
 	struct isp_pipe_dev *dev_other = NULL;
 	enum isp_id iid = ISP_ID_0, iid_other = ISP_ID_1;
 	struct isp_module *module = NULL;
@@ -1429,9 +1183,9 @@ static int sprd_isp_sel_cap_frm(struct isp_pipe_dev *dev)
 			goto err_exit;
 		}
 		ret = isp_buf_recycle(buf_desc,
-			&buf_desc->tmp_buf_queue,
-			&buf_desc->zsl_queue,
-			buf_desc->zsl_queue.valid_cnt - 1);
+				      &buf_desc->tmp_buf_queue,
+				      &buf_desc->zsl_queue,
+				      buf_desc->zsl_queue.valid_cnt - 1);
 		if (ret) {
 			pr_err("fail to dequeue offline\n");
 			goto err_exit;
@@ -1443,9 +1197,9 @@ static int sprd_isp_sel_cap_frm(struct isp_pipe_dev *dev)
 		}
 #else /* get the latest frame */
 		ret = isp_buf_recycle(buf_desc,
-			&buf_desc->tmp_buf_queue,
-			&buf_desc->zsl_queue,
-			buf_desc->zsl_queue.valid_cnt - 1);
+				      &buf_desc->tmp_buf_queue,
+				      &buf_desc->zsl_queue,
+				      buf_desc->zsl_queue.valid_cnt - 1);
 		if (ret) {
 			pr_err("fail to dequeue offline\n");
 			goto err_exit;
@@ -1468,8 +1222,7 @@ static int sprd_isp_sel_cap_frm(struct isp_pipe_dev *dev)
 			goto err_exit;
 		}
 		for (i = 0; i < c; i++) {
-			ret = isp_frame_dequeue(&buf_desc->zsl_queue,
-				&frame);
+			ret = isp_frame_dequeue(&buf_desc->zsl_queue, &frame);
 			if (ret) {
 				pr_err("fail to dequeue offline\n");
 				goto err_exit;
@@ -1484,7 +1237,7 @@ static int sprd_isp_sel_cap_frm(struct isp_pipe_dev *dev)
 				/* no match, don't return the frame */
 				break;
 			if (isp_buf_queue_write(&buf_desc->tmp_buf_queue,
-				&frame)) {
+						&frame)) {
 				pr_err("fail to write frame to buf_queue\n");
 				goto err_exit;
 			}
@@ -1495,9 +1248,9 @@ static int sprd_isp_sel_cap_frm(struct isp_pipe_dev *dev)
 		else {
 			/* clean the queue */
 			ret = isp_buf_recycle(buf_desc,
-				&buf_desc->tmp_buf_queue,
-				&buf_desc->zsl_queue,
-				buf_desc->zsl_queue.valid_cnt);
+					      &buf_desc->tmp_buf_queue,
+					      &buf_desc->zsl_queue,
+					      buf_desc->zsl_queue.valid_cnt);
 			if (ret) {
 				pr_err("fail to recycle zsl queue\n");
 				goto err_exit;
@@ -1517,17 +1270,17 @@ err_exit:
 	return ret;
 }
 
-int sprd_isp_start_pipeline_full(void *handle, unsigned int cap_flag)
+int sprd_isp_start_pipeline_full(void *handle, uint32_t cap_flag)
 {
-	enum isp_drv_rtn ret = ISP_RTN_SUCCESS;
+	enum isp_drv_rtn ret = 0;
 	struct isp_pipe_dev *dev = NULL;
 	enum isp_id iid = ISP_ID_0;
 	struct isp_offline_desc *off_desc = NULL;
 	struct offline_buf_desc *buf_desc = NULL;
-	struct camera_frame frame;
+	struct camera_frame frame = {0};
 	struct isp_module *module = NULL;
 	struct camera_frame *p_offline_frame = NULL;
-	unsigned int max_zsl_num;
+	uint32_t max_zsl_num;
 	int consumer_q_size = is_dual_cam ? ISP_OFF_CONSUMER_Q_SIZE_MULTI :
 		ISP_OFF_CONSUMER_Q_SIZE;
 
@@ -1710,10 +1463,11 @@ int sprd_isp_start_pipeline_full(void *handle, unsigned int cap_flag)
 		goto err_exit;
 	}
 
-	pr_debug("[%d] cap frm cnt = %d, ts of the frame: %llu, %lu.%06lu\n",
-		iid, frame.fid,
-		ktime_to_ns(frame.sof_ts.boot_time),
-		frame.sof_ts.time.tv_sec, frame.sof_ts.time.tv_usec);
+	pr_debug("[%d] cap frm cnt = %d, ts of the frame: %llu, %lu.%06lu\n"
+		 "dcam out addr: %lx, iova: %x\n", iid, frame.fid,
+		 ktime_to_ns(frame.sof_ts.boot_time),
+		 frame.sof_ts.time.tv_sec, frame.sof_ts.time.tv_usec,
+		 (unsigned long)frame.kva, frame.yaddr_vir);
 
 	p_offline_frame = &dev->offline_frame[ISP_OFF_BUF_FULL];
 	memcpy(p_offline_frame, &frame, sizeof(struct camera_frame));
@@ -1737,7 +1491,7 @@ normal_exit:
 	if ((cap_flag != DCAM_CAPTURE_NONE) && (dev->cap_on == 0))
 		dev->cap_on = 1;
 	pr_debug("normal exit, ret = %d\n", ret);
-	return ISP_RTN_SUCCESS;
+	return 0;
 
 err_exit:
 	dev->cap_on = 0;
@@ -1746,8 +1500,7 @@ err_exit:
 }
 
 
-static void do_shadow_clr(struct isp_pipe_dev *dev,
-			unsigned int idx, int is_cap)
+static void do_shadow_clr(struct isp_pipe_dev *dev, uint32_t idx, int is_cap)
 {
 	struct isp_module *module = &dev->module_info;
 	struct isp_path_desc *pre_path = &module->isp_path[ISP_SCL_PRE];
@@ -1764,34 +1517,32 @@ static void do_shadow_clr(struct isp_pipe_dev *dev,
 	 * should do shadow clr before starting this path.
 	 */
 	pr_debug("idx 0x%x, pre_path%d, cap_path%d, vid_path%d, is_cap%d\n",
-			dev->com_idx, pre_path->valid,
-			cap_path->valid, vid_path->valid, is_cap);
+		 dev->com_idx, pre_path->valid,
+		 cap_path->valid, vid_path->valid, is_cap);
 
 	if (pre_path->valid || cap_path->valid) {
-		ISP_REG_WR(idx,
-			(ISP_STORE_PRE_CAP_BASE + ISP_STORE_SHADOW_CLR),
-			0x1);
+		ISP_REG_WR(idx, (ISP_STORE_PRE_CAP_BASE + ISP_STORE_SHADOW_CLR),
+			   0x1);
 
 		if (is_cap && cap_path->valid && dev->is_3dnr_path_cfg) {
 			ISP_REG_WR(idx, (ISP_STORE_VID_BASE +
-				ISP_STORE_SHADOW_CLR), 0x1);
+					 ISP_STORE_SHADOW_CLR), 0x1);
 			pr_debug("shadow clear for 3dnr path\n");
 		}
 	}
 
 	if (vid_path->valid && !is_cap) {
-		ISP_REG_WR(idx,
-			(ISP_STORE_VID_BASE + ISP_STORE_SHADOW_CLR),
-			0x1);
+		ISP_REG_WR(idx, (ISP_STORE_VID_BASE + ISP_STORE_SHADOW_CLR),
+			   0x1);
 	}
 }
 
 
 static int prepare_fmcu_for_slice_cap(struct isp_pipe_dev *dev,
 				      struct camera_frame *valid_frame,
-				      unsigned int idx)
+				      uint32_t idx)
 {
-	enum isp_drv_rtn ret = ISP_RTN_SUCCESS;
+	enum isp_drv_rtn ret = 0;
 	struct isp_fmcu_slice_desc *fmcu_slice = NULL;
 	struct slice_param_in slice_in = {0};
 
@@ -1810,26 +1561,26 @@ static int prepare_fmcu_for_slice_cap(struct isp_pipe_dev *dev,
 	ret = isp_update_offline_path_param(dev, valid_frame, idx);
 	if (ret) {
 		pr_err("fail to update offline path param!\n");
-		ret = -ISP_RTN_PARA_ERR;
+		ret = -EFAULT;
 		goto exit;
 	}
 
 	if (!IS_ALIGNED(dev->fmcu_addr_phy, 8)) {
 		pr_err("fail to aliged fmcu_addr_phy with 8!\n");
-		ret = -ISP_RTN_PARA_ERR;
+		ret = -EFAULT;
 		goto exit;
 	}
 	ISP_HREG_WR(idx, ISP_FMCU_DDR_ADR, dev->fmcu_addr_phy);
 
 	ret = get_slice_init_param(&slice_in, dev, valid_frame, idx);
 	if (ret) {
-		ret = ISP_RTN_SUCCESS;
+		ret = 0;
 		pr_err("fail to get slice init param need new frame\n");
 		goto exit;
 	}
 
-	ret = isp_fmcu_slice_cfg(fmcu_slice->slice_handle,
-		&slice_in, &fmcu_slice->fmcu_num);
+	ret = isp_fmcu_slice_cfg(fmcu_slice->slice_handle, &slice_in,
+				 &fmcu_slice->fmcu_num);
 	if (ret) {
 		pr_err("fail to get fmcu slice cfg\n");
 		goto exit;
@@ -1851,7 +1602,7 @@ exit:
 	return ret;
 }
 
-static void isp_cfg_subbock_reserved_buf(void *handle, unsigned int idx)
+static void isp_cfg_subbock_reserved_buf(void *handle, uint32_t idx)
 {
 	struct isp_statis_buf *reserved_buf = NULL;
 	struct isp_pipe_dev *dev = NULL;
@@ -1876,14 +1627,14 @@ static void isp_cfg_subbock_reserved_buf(void *handle, unsigned int idx)
 
 static int sprd_isp_pipeline_proc_bin(void *handle)
 {
-	enum isp_drv_rtn ret = ISP_RTN_SUCCESS;
+	enum isp_drv_rtn ret = 0;
 	struct isp_pipe_dev *dev = NULL;
 	struct isp_module *module_info = NULL;
 	struct isp_cctx_desc *cctx_desc = NULL;
 	struct camera_frame *valid_frame = NULL;
 	enum isp_id iid = ISP_ID_0;
 	enum isp_scene_id sid = ISP_SCENE_PRE;
-	unsigned int idx = 0;
+	uint32_t idx = 0;
 	unsigned long flag;
 
 	if (unlikely(!handle)) {
@@ -1916,8 +1667,8 @@ static int sprd_isp_pipeline_proc_bin(void *handle)
 		goto exit;
 	}
 	valid_frame = &dev->offline_frame[ISP_OFF_BUF_BIN];
-	ISP_REG_WR(idx, ISP_FETCH_SLICE_Y_ADDR,
-		   valid_frame->yaddr_vir);
+	valid_frame->cam_id = idx;
+	ISP_REG_WR(idx, ISP_FETCH_SLICE_Y_ADDR, valid_frame->yaddr_vir);
 	pr_debug("valid bin path frame, fetch_addr:0x%08x\n",
 		 valid_frame->yaddr_vir);
 
@@ -1957,18 +1708,17 @@ static int sprd_isp_pipeline_proc_bin(void *handle)
 	ISP_HREG_WR(idx, ISP_INT_ALL_DONE_CTRL + int_reg_base[iid][sid], 0xf8);
 
 	if (likely(ISP_GET_MID(idx) == ISP_CFG_MODE)) {
-		pr_debug("start isp%d in CFG mode, com_idx 0x%x\n",
-			 iid, idx);
+		pr_debug("start isp%d in CFG mode, com_idx 0x%x\n", iid, idx);
 		isp_clk_resume(iid, ISP_CLK_P_P);
 		cctx_desc->intf->buf_ready(cctx_desc, iid, sid);
 		isp_dbg_reg_trace(dev, dev->com_idx);
 	} else {
-		pr_debug("start isp%d in AP mode, com_idx 0x%x\n",
-			 iid, idx);
+		pr_debug("start isp%d in AP mode, com_idx 0x%x\n", iid, idx);
 		isp_clk_resume(iid, ISP_CLK_P_S);
 		ISP_REG_WR(idx, ISP_FETCH_START, 1);
 	}
 
+	isp_dbg_trigger_dump_input((void *)dev, (void *)valid_frame, idx);
 exit:
 	spin_unlock_irqrestore(&dev->pre_lock, flag);
 	pr_debug("exit\n");
@@ -1977,14 +1727,14 @@ exit:
 
 static int sprd_isp_pipeline_proc_full(void *handle)
 {
-	enum isp_drv_rtn ret = ISP_RTN_SUCCESS;
+	enum isp_drv_rtn ret = 0;
 	struct isp_pipe_dev *dev = NULL;
 	struct isp_module *module_info = NULL;
 	struct isp_cctx_desc *cctx_desc = NULL;
 	struct camera_frame *valid_frame = NULL;
 	enum isp_id iid = ISP_ID_0;
 	enum isp_scene_id sid = ISP_SCENE_CAP;
-	unsigned int idx = 0;
+	uint32_t idx = 0;
 	unsigned long flag;
 	struct offline_buf_desc *buf_desc = NULL;
 
@@ -2020,6 +1770,7 @@ static int sprd_isp_pipeline_proc_full(void *handle)
 	}
 
 	valid_frame = &dev->offline_frame[ISP_OFF_BUF_FULL];
+	valid_frame->cam_id = idx;
 	if (dev->cap_on == 0) {
 		pr_info("capture has been stoped, skip this frame\n");
 		spin_lock(&isp_mod_lock);
@@ -2043,9 +1794,6 @@ static int sprd_isp_pipeline_proc_full(void *handle)
 		goto exit;
 	}
 	isp_cfg_subbock_reserved_buf(dev, idx);
-#if 0 /* TODO: capture fetch delay control */
-	sprd_isp_cap_hblank_cfg(handle);
-#endif
 
 	/* set h_blank value:0x800 */
 	ISP_REG_MWR(idx, ISP_FETCH_LINE_DLY_CTRL, 0xffff,
@@ -2088,6 +1836,7 @@ static int sprd_isp_pipeline_proc_full(void *handle)
 	ISP_HREG_WR(idx, ISP_FMCU_START, 1);
 	pr_info("start isp%d using fmcu, com_idx 0x%x\n", iid, idx);
 
+	isp_dbg_trigger_dump_input((void *)dev, (void *)valid_frame, idx);
 exit:
 	spin_unlock_irqrestore(&dev->cap_lock, flag);
 	pr_debug("exit\n");
@@ -2097,7 +1846,7 @@ exit:
 
 int sprd_isp_force_stop_pipeline(void *handle)
 {
-	enum isp_drv_rtn ret = ISP_RTN_SUCCESS;
+	enum isp_drv_rtn ret = 0;
 	struct isp_pipe_dev *dev = NULL;
 	unsigned long flag;
 
@@ -2146,7 +1895,7 @@ int sprd_isp_force_stop_pipeline(void *handle)
  */
 int sprd_isp_stop_pipeline(void *handle)
 {
-	enum isp_drv_rtn ret = ISP_RTN_SUCCESS;
+	enum isp_drv_rtn ret = 0;
 	struct isp_pipe_dev *dev = NULL;
 
 	if (!handle) {
@@ -2167,17 +1916,16 @@ int sprd_isp_stop_pipeline(void *handle)
 	return ret;
 }
 
-static unsigned int isp_get_path_deci_factor(unsigned int src_size,
-					      unsigned int dst_size)
+static uint32_t isp_get_path_deci_factor(uint32_t src_size, uint32_t dst_size)
 {
-	unsigned int factor = 0;
+	uint32_t factor = 0;
 
 	if (0 == src_size || 0 == dst_size)
 		return factor;
 
 	/* factor: 0 - 1/2, 1 - 1/4, 2 - 1/8, 3 - 1/16 */
 	for (factor = 0; factor < CAMERA_PATH_DECI_FAC_MAX; factor++) {
-		if (src_size < (unsigned int) (dst_size * (1 << (factor + 1))))
+		if (src_size < (uint32_t) (dst_size * (1 << (factor + 1))))
 			break;
 	}
 
@@ -2186,15 +1934,15 @@ static unsigned int isp_get_path_deci_factor(unsigned int src_size,
 
 static int isp_calc_sc_size(struct isp_path_desc *path)
 {
-	enum isp_drv_rtn rtn = ISP_RTN_SUCCESS;
-	unsigned int tmp_dstsize = 0;
-	unsigned int align_size = 0;
+	enum isp_drv_rtn rtn = 0;
+	uint32_t tmp_dstsize = 0;
+	uint32_t align_size = 0;
 	struct isp_trim_info *in_trim;
 	struct camera_size *in_size;
 	struct camera_size *out_size;
-	unsigned int d_max = CAMERA_SC_COEFF_DOWN_MAX;
-	unsigned int u_max = CAMERA_SC_COEFF_UP_MAX;
-	unsigned int f_max = CAMERA_PATH_DECI_FAC_MAX;
+	uint32_t d_max = CAMERA_SC_COEFF_DOWN_MAX;
+	uint32_t u_max = CAMERA_SC_COEFF_UP_MAX;
+	uint32_t f_max = CAMERA_PATH_DECI_FAC_MAX;
 
 	if (path == NULL) {
 		pr_err("fail to get ptr\n");
@@ -2211,17 +1959,16 @@ static int isp_calc_sc_size(struct isp_path_desc *path)
 	if (in_trim->size_x > (out_size->w * d_max * (1 << f_max)) ||
 	    in_trim->size_y > (out_size->h * d_max * (1 << f_max)) ||
 	    in_trim->size_x * u_max < out_size->w ||
-	    in_trim->size_y * u_max < out_size->h) {
+	    in_trim->size_y * u_max < out_size->h)
 		rtn = ISP_RTN_PATH_SC_ERR;
-	} else {
+	else {
 		path->scaler_info.scaler_factor_in = in_trim->size_x;
 		path->scaler_info.scaler_ver_factor_in = in_trim->size_y;
 		if (in_trim->size_x > out_size->w * d_max) {
-			tmp_dstsize =
-				out_size->w * d_max;
+			tmp_dstsize = out_size->w * d_max;
 			path->deci_info.deci_x =
 				isp_get_path_deci_factor(in_trim->size_x,
-							  tmp_dstsize);
+							 tmp_dstsize);
 			path->deci_info.deci_x_eb = 1;
 			align_size = (1 << (path->deci_info.deci_x + 1)) *
 				ISP_PIXEL_ALIGN_WIDTH;
@@ -2240,7 +1987,7 @@ static int isp_calc_sc_size(struct isp_path_desc *path)
 			tmp_dstsize = out_size->h * d_max;
 			path->deci_info.deci_y =
 				isp_get_path_deci_factor(in_trim->size_y,
-							  tmp_dstsize);
+							 tmp_dstsize);
 			path->deci_info.deci_y_eb = 1;
 			align_size = (1 << (path->deci_info.deci_y + 1)) *
 				ISP_PIXEL_ALIGN_HEIGHT;
@@ -2267,11 +2014,11 @@ static int isp_set_sc_coeff(struct isp_module *module,
 			    struct isp_path_desc *path,
 			    struct isp_sc_coeff *coeff)
 {
-	unsigned int scale2yuv420 = 0;
-	unsigned int *tmp_buf = NULL;
-	unsigned int *h_coeff = NULL;
-	unsigned int *v_coeff = NULL;
-	unsigned int *v_chroma_coeff = NULL;
+	uint32_t scale2yuv420 = 0;
+	uint32_t *tmp_buf = NULL;
+	uint32_t *h_coeff = NULL;
+	uint32_t *v_coeff = NULL;
+	uint32_t *v_chroma_coeff = NULL;
 	unsigned char y_tap = 0;
 	unsigned char uv_tap = 0;
 	enum isp_id iid = 0;
@@ -2326,7 +2073,7 @@ static int isp_set_sc_coeff(struct isp_module *module,
 
 	pr_debug("Scaler y_tap %d, uv_tap %d\n", y_tap, uv_tap);
 
-	return ISP_RTN_SUCCESS;
+	return 0;
 }
 
 int isp_path_scaler(struct isp_module *module,
@@ -2334,11 +2081,11 @@ int isp_path_scaler(struct isp_module *module,
 		    struct isp_path_desc *path,
 		    struct isp_sc_coeff *coeff)
 {
-	enum isp_drv_rtn rtn = ISP_RTN_SUCCESS;
+	enum isp_drv_rtn rtn = 0;
 	unsigned long cfg_reg = 0;
 	struct isp_pipe_dev *dev = NULL;
 	enum isp_scene_id sid = ISP_SCENE_PRE;
-	unsigned int idx = 0;
+	uint32_t idx = 0;
 
 	if (!module || !path || !coeff) {
 		pr_err("fail to get ptr\n");
@@ -2375,7 +2122,7 @@ int isp_path_scaler(struct isp_module *module,
 	    path->output_format == DCAM_JPEG) {
 		pr_debug("out format is %d, no need scaler\n",
 			   path->output_format);
-		return ISP_RTN_SUCCESS;
+		return 0;
 	}
 
 	rtn = isp_calc_sc_size(path);
@@ -2399,15 +2146,15 @@ int isp_path_scaler(struct isp_module *module,
 }
 
 static int isp_raw_cap_proc(struct isp_pipe_dev *dev,
-	struct isp_raw_proc_info *raw_cap)
+			    struct isp_raw_proc_info *raw_cap)
 {
-	enum isp_drv_rtn ret = ISP_RTN_SUCCESS;
+	enum isp_drv_rtn ret = 0;
 	struct isp_module *module = NULL;
 	struct isp_path_desc *cap = NULL;
 	struct isp_offline_desc *off_desc = NULL;
 	struct camera_addr frm_addr = {0};
 	struct camera_frame *frame = NULL;
-	unsigned int cap_flag;
+	uint32_t cap_flag;
 	int isp_fetch_fmt = ISP_FETCH_CSI2_RAW_10;
 
 	if (!dev || !raw_cap) {
@@ -2417,7 +2164,8 @@ static int isp_raw_cap_proc(struct isp_pipe_dev *dev,
 	}
 
 	frame = vzalloc(sizeof(struct camera_frame) * 2);
-	if (frame == NULL) {
+	if (IS_ERR_OR_NULL(frame)) {
+		pr_err("fail to alloc mem, err:%ld\n", PTR_ERR(frame));
 		ret = -ENOMEM;
 		goto exit;
 	}
@@ -2450,12 +2198,12 @@ static int isp_raw_cap_proc(struct isp_pipe_dev *dev,
 	frm_addr.mfd_y = raw_cap->img_fd;
 	pr_info("start raw path config\n");
 	ret = set_isp_path_cfg((void *)dev, ISP_PATH_IDX_CAP,
-		ISP_PATH_OUTPUT_ADDR, &frm_addr);
+			       ISP_PATH_OUTPUT_ADDR, &frm_addr);
 	if (ret)
 		return ret;
 
 	ret = set_isp_path_cfg((void *)dev, ISP_PATH_IDX_CAP,
-		ISP_PATH_INPUT_FORMAT, &isp_fetch_fmt);
+			       ISP_PATH_INPUT_FORMAT, &isp_fetch_fmt);
 	if (ret)
 		return ret;
 
@@ -2506,8 +2254,8 @@ static int ispdrv_mask_3a_req(uint32_t idx)
 	return 0;
 }
 
-int sprd_isp_k_ioctl(void *isp_pipe_dev_handle,
-	unsigned int cmd, unsigned long param)
+int sprd_isp_k_ioctl(void *isp_pipe_dev_handle, uint32_t cmd,
+		     unsigned long param)
 {
 	int ret = 0;
 	struct isp_pipe_dev *dev = NULL;
@@ -2519,7 +2267,7 @@ int sprd_isp_k_ioctl(void *isp_pipe_dev_handle,
 	struct isp_k_block *isp_k_param = NULL;
 	struct isp_raw_proc_info raw_cap;
 	enum isp_id iid = ISP_ID_0;
-	unsigned int idx = 0;
+	uint32_t idx = 0;
 
 	if (!isp_pipe_dev_handle) {
 		ret = -EFAULT;
@@ -2541,10 +2289,11 @@ int sprd_isp_k_ioctl(void *isp_pipe_dev_handle,
 			memset(&irq_param, 0, sizeof(irq_param));
 			irq_param.ret_val = ret;
 			ret = copy_to_user((void __user *)param,
-				(void *)&irq_param, sizeof(irq_param));
+					   (void *)&irq_param,
+					   sizeof(irq_param));
 			if (ret != 0)
 				pr_err("fail to copy to user, ret = %d\n",
-					(uint32_t)ret);
+				       (uint32_t)ret);
 			ret = -ERESTARTSYS;
 			return ret;
 		}
@@ -2564,12 +2313,12 @@ int sprd_isp_k_ioctl(void *isp_pipe_dev_handle,
 		irq_param.irq_val3 = node.irq_val3;
 		irq_param.reserved = node.reserved;
 		irq_param.time = node.time;
-		ret = copy_to_user((void __user *)param,
-			(void *)&irq_param, sizeof(irq_param));
+		ret = copy_to_user((void __user *)param, (void *)&irq_param,
+				   sizeof(irq_param));
 		if (ret != 0) {
 			ret = -EFAULT;
 			pr_err("fail to copy to user, ret = 0x%x",
-				(uint32_t)ret);
+			       (uint32_t)ret);
 		}
 		break;
 	}
@@ -2640,7 +2389,7 @@ exit:
 }
 
 static void isp_scl_size_print(enum isp_id iid, struct isp_path_desc *path,
-			       unsigned int addr)
+			       uint32_t addr)
 {
 	if (!path) {
 		pr_err("fail to get valid path\n");
@@ -2667,7 +2416,7 @@ int sprd_isp_update_zoom_param(void *isp_handle,
 			       struct camera_rect *in_rect,
 			       struct camera_size *out_size)
 {
-	enum isp_drv_rtn rtn = ISP_RTN_SUCCESS;
+	enum isp_drv_rtn rtn = 0;
 	struct isp_pipe_dev *dev = NULL;
 	struct isp_module *module = NULL;
 	struct isp_path_desc *pre = NULL;
@@ -2690,13 +2439,15 @@ int sprd_isp_update_zoom_param(void *isp_handle,
 	module = &dev->module_info;
 	iid = ISP_GET_IID(dev->com_idx);
 	if (unlikely(!module)) {
-		pr_err("fail to get valid module, iid %d module is NULL\n", iid);
+		pr_err("fail to get valid module, iid %d module is NULL\n",
+		       iid);
 		return -EFAULT;
 	}
 
 	scl_array = module->scl_array;
 	if (scl_array == NULL) {
-		pr_err("fail to get valid scl array, iid%d scl_array is NULL\n", iid);
+		pr_err("fail to get valid scl array, iid%d scl_array is NULL\n",
+		       iid);
 		return -EFAULT;
 	}
 	pr_debug("ISP%d: update path\n", iid);
@@ -2725,8 +2476,7 @@ int sprd_isp_update_zoom_param(void *isp_handle,
 	scl_off_desc = &scl_array->scl_off_desc;
 
 	if (ISP_PATH_IDX_PRE & path_index && pre->valid) {
-		memcpy(&pre_coeff->path, pre,
-		       sizeof(struct isp_path_desc));
+		memcpy(&pre_coeff->path, pre, sizeof(struct isp_path_desc));
 		pre_coeff->path.in_size.w = in_size->w;
 		pre_coeff->path.in_size.h = in_size->h;
 		pre_coeff->path.in_rect.x = in_rect->x;
@@ -2738,9 +2488,9 @@ int sprd_isp_update_zoom_param(void *isp_handle,
 
 		if (!vid->valid && !cap->valid) {
 			rtn = isp_start_pre_proc(&pre_coeff->path,
-				&vid_coeff->path,
-				&cap_coeff->path,
-				scl_off_desc);
+						 &vid_coeff->path,
+						 &cap_coeff->path,
+						 scl_off_desc);
 			if (rtn) {
 				pr_err("fail to start isp pre proc\n");
 				return -rtn;
@@ -2753,7 +2503,8 @@ int sprd_isp_update_zoom_param(void *isp_handle,
 					      &pre_coeff->path,
 					      pre_coeff);
 			if (rtn) {
-				pr_err("fail to isp path scaler, code %d\n", rtn);
+				pr_err("fail to isp path scaler, code %d\n",
+				       rtn);
 				return -(rtn);
 			}
 			rtn = isp_coeff_get_new_node(&scl_array->pre_queue,
@@ -2766,8 +2517,7 @@ int sprd_isp_update_zoom_param(void *isp_handle,
 	}
 
 	if (ISP_PATH_IDX_VID & path_index && vid->valid) {
-		memcpy(&vid_coeff->path, vid,
-		       sizeof(struct isp_path_desc));
+		memcpy(&vid_coeff->path, vid, sizeof(struct isp_path_desc));
 		vid_coeff->path.in_size.w = in_size->w;
 		vid_coeff->path.in_size.h = in_size->h;
 		vid_coeff->path.in_rect.x = in_rect->x;
@@ -2779,9 +2529,9 @@ int sprd_isp_update_zoom_param(void *isp_handle,
 
 		if (!cap->valid) {
 			rtn = isp_start_pre_proc(&pre_coeff->path,
-				&vid_coeff->path,
-				&cap_coeff->path,
-				scl_off_desc);
+						 &vid_coeff->path,
+						 &cap_coeff->path,
+						 scl_off_desc);
 			if (rtn) {
 				pr_err("fail to start isp pre proc\n");
 				return -rtn;
@@ -2846,10 +2596,8 @@ int sprd_isp_update_zoom_param(void *isp_handle,
 			return -rtn;
 		}
 
-		memcpy(&cap_coeff->path, cap,
-		       sizeof(struct isp_path_desc));
-		memcpy(scl_off_desc, off_desc,
-		       sizeof(struct isp_offline_desc));
+		memcpy(&cap_coeff->path, cap, sizeof(struct isp_path_desc));
+		memcpy(scl_off_desc, off_desc, sizeof(struct isp_offline_desc));
 		pr_debug("cap in %d %d rect %d %d %d %d out %d %d\n",
 			 cap_coeff->path.in_size.w,
 			 cap_coeff->path.in_size.h,
@@ -2899,10 +2647,9 @@ int sprd_isp_update_zoom_param(void *isp_handle,
 				return -rtn;
 			}
 		}
-		if (pre->valid) {
+		if (pre->valid)
 			isp_scl_size_print(iid, &pre_coeff->path,
 					   ISP_SCALER_PRE_CAP_BASE);
-		}
 		if (vid->valid)
 			isp_scl_size_print(iid, &vid_coeff->path,
 					   ISP_SCALER_VID_BASE);
@@ -2917,46 +2664,44 @@ int sprd_isp_update_zoom_param(void *isp_handle,
 }
 
 
-static void isp_common_cfg(unsigned int idx)
+static void isp_common_cfg(uint32_t idx)
 {
 	/* isp outstanding setting value:4 */
-	ISP_HREG_MWR(idx, ISP_AXI_ITI2AXIM_CTRL,
-			ISP_AXI_ITI2AXIM_ROSTD_MASK,
-			0x4 << 8);
+	ISP_HREG_MWR(idx, ISP_AXI_ITI2AXIM_CTRL, ISP_AXI_ITI2AXIM_ROSTD_MASK,
+		     0x4 << 8);
 	ISP_HREG_WR(idx, ISP_AXI_ARBITER_WQOS, 0x04a8);
 	ISP_HREG_WR(idx, ISP_AXI_ARBITER_RQOS, 0x00a8);
 	/* out closed */
-	ISP_HREG_MWR(idx,
-		ISP_COMMON_SCL_PATH_SEL, (BIT_6 | BIT_7), 3 << 6);
+	ISP_HREG_MWR(idx, ISP_COMMON_SCL_PATH_SEL, (BIT_6 | BIT_7), 3 << 6);
 }
 
 static int isp_set_statis_buf(struct isp_pipe_dev *dev)
 {
-	enum isp_drv_rtn rtn = ISP_RTN_SUCCESS;
+	enum isp_drv_rtn rtn = 0;
 	struct isp_statis_module *statis_module = NULL;
 
 	statis_module = &dev->statis_module_info;
 
-	rtn = isp_set_next_statis_buf(dev->com_idx,
-				statis_module, ISP_AFL_BLOCK);
+	rtn = isp_set_next_statis_buf(dev->com_idx, statis_module,
+				      ISP_AFL_BLOCK);
 	if (rtn) {
 		pr_err("fail to isp set next statis buf, code %d\n", rtn);
 		return -(rtn);
 	}
-	rtn = isp_set_next_statis_buf(dev->com_idx,
-				statis_module, ISP_AFM_BLOCK);
+	rtn = isp_set_next_statis_buf(dev->com_idx, statis_module,
+				      ISP_AFM_BLOCK);
 	if (rtn) {
 		pr_err("fail to isp set next statis buf, code %d\n", rtn);
 		return -(rtn);
 	}
-	rtn = isp_set_next_statis_buf(dev->com_idx,
-				statis_module, ISP_BINNING_BLOCK);
+	rtn = isp_set_next_statis_buf(dev->com_idx, statis_module,
+				      ISP_BINNING_BLOCK);
 	if (rtn) {
 		pr_err("fail to isp set next statis buf, code %d\n", rtn);
 		return -(rtn);
 	}
-	rtn = isp_set_next_statis_buf(dev->com_idx,
-				statis_module, ISP_HIST_BLOCK);
+	rtn = isp_set_next_statis_buf(dev->com_idx, statis_module,
+				      ISP_HIST_BLOCK);
 	if (rtn) {
 		pr_err("fail to isp set next statis buf, code %d\n", rtn);
 		return -(rtn);
@@ -2965,11 +2710,10 @@ static int isp_set_statis_buf(struct isp_pipe_dev *dev)
 	return rtn;
 }
 
-static int sprd_isp_start_path(void *isp_handle,
-	enum isp_path_index path_index,
-	struct camera_frame *frame)
+static int sprd_isp_start_path(void *isp_handle, enum isp_path_index path_index,
+			       struct camera_frame *frame)
 {
-	enum isp_drv_rtn rtn = ISP_RTN_SUCCESS;
+	enum isp_drv_rtn rtn = 0;
 	struct isp_pipe_dev *dev = NULL;
 	struct isp_module *module = NULL;
 	struct isp_path_desc *pre = NULL;
@@ -2980,12 +2724,12 @@ static int sprd_isp_start_path(void *isp_handle,
 	enum isp_id iid = 0;
 	bool pre_to_run = false, cap_to_run = false, vid_to_run = false;
 	uint8_t off_type = ISP_OFF_BUF_BIN;
-	unsigned int idx = 0;
+	uint32_t idx = 0;
 	unsigned long flag;
 
 	if (!isp_handle) {
 		pr_err("fail to get ptr\n");
-		return -ISP_RTN_PARA_ERR;
+		return -ENODEV;
 	}
 
 	dev = (struct isp_pipe_dev *)isp_handle;
@@ -2994,7 +2738,8 @@ static int sprd_isp_start_path(void *isp_handle,
 	iid = ISP_GET_IID(idx);
 	module = &dev->module_info;
 	if (unlikely(!module)) {
-		pr_err("fail to get valid module, iid %d module is NULL\n", iid);
+		pr_err("fail to get valid module, iid %d module is NULL\n",
+		       iid);
 		return -EFAULT;
 	}
 
@@ -3061,6 +2806,7 @@ static int sprd_isp_start_path(void *isp_handle,
 
 			pr_debug("offline_buf for bin_path is ready\n");
 		}
+
 		if (cap_to_run && !dev->is_raw_capture) {
 			off_type = ISP_OFF_BUF_FULL;
 			rtn = isp_offline_get_buf(&module->off_desc, off_type);
@@ -3077,7 +2823,7 @@ static int sprd_isp_start_path(void *isp_handle,
 			}
 
 			rtn = isp_offline_set_next_frm(module, off_type,
-				frame+1);
+						       frame+1);
 			if (rtn) {
 				pr_err("fail to set next frm rtn %d\n", rtn);
 				return -(rtn);
@@ -3092,7 +2838,7 @@ static int sprd_isp_start_path(void *isp_handle,
 
 	if (pre_to_run) {
 		rtn = isp_path_scaler(module, ISP_PATH_IDX_PRE, pre,
-			&scl_array->coeff[ISP_SCL_PRE]);
+				      &scl_array->coeff[ISP_SCL_PRE]);
 		if (rtn) {
 			pr_err("fail to isp_path_scaler, code %d\n", rtn);
 			return -(rtn);
@@ -3111,7 +2857,7 @@ static int sprd_isp_start_path(void *isp_handle,
 
 	if (vid_to_run) {
 		rtn = isp_path_scaler(module, ISP_PATH_IDX_VID, vid,
-			&scl_array->coeff[ISP_SCL_VID]);
+				      &scl_array->coeff[ISP_SCL_VID]);
 		if (rtn) {
 			pr_err("fail to isp path scaler, code %d\n", rtn);
 			return -(rtn);
@@ -3121,17 +2867,19 @@ static int sprd_isp_start_path(void *isp_handle,
 		if (dev->fmcu_slw.slw_flags == ISP_SLW_VIDEO) {
 			rtn = set_fmcu_slw_cfg(isp_handle);
 			if (rtn) {
-				pr_err("fail to set fmcu slw cfg, code %d\n", rtn);
+				pr_err("fail to set fmcu slw cfg, code %d\n",
+				       rtn);
 				return -(rtn);
 			}
 			rtn = isp_fmcu_slw_start(ISP_SCL_VID, isp_handle);
 			if (rtn) {
-				pr_err("fail to set fmcu slw start, code %d\n", rtn);
+				pr_err("fail to set fmcu slw start, code %d\n",
+				       rtn);
 				return -(rtn);
 			}
 		} else {
-			rtn = isp_path_set_next_frm(module,
-						    ISP_PATH_IDX_VID, NULL);
+			rtn = isp_path_set_next_frm(module, ISP_PATH_IDX_VID,
+						    NULL);
 			if (rtn) {
 				pr_err("fail to set next frm, code %d\n", rtn);
 				return -(rtn);
@@ -3145,7 +2893,7 @@ static int sprd_isp_start_path(void *isp_handle,
 
 	if (cap_to_run && fmcu_slice_capture_state == ISP_ST_START) {
 		rtn = isp_path_scaler(module, ISP_PATH_IDX_CAP, cap,
-			&scl_array->coeff[ISP_SCL_CAP]);
+				      &scl_array->coeff[ISP_SCL_CAP]);
 		if (rtn) {
 			pr_err("fail to isp path scaler, code %d\n", rtn);
 			return -(rtn);
@@ -3178,7 +2926,7 @@ static int sprd_isp_start_path(void *isp_handle,
 #endif
 	}
 
-	if (path_index != ISP_PATH_IDX_ALL) {
+	if (unlikely(path_index != ISP_PATH_IDX_ALL)) {
 		if (ISP_PATH_IDX_PRE & path_index)
 			isp_wait_path_done(module, ISP_SCL_PRE, NULL);
 		else if (ISP_PATH_IDX_VID & path_index)
@@ -3195,11 +2943,11 @@ static int sprd_isp_start_path(void *isp_handle,
 
 int sprd_isp_start(void *isp_handle, struct camera_frame *frame)
 {
-	enum isp_drv_rtn rtn = ISP_RTN_SUCCESS;
+	enum isp_drv_rtn rtn = 0;
 
 	if (!isp_handle) {
 		pr_err("fail to get ptr\n");
-		return -ISP_RTN_PARA_ERR;
+		return -ENODEV;
 	}
 
 	rtn = sprd_isp_start_path(isp_handle, ISP_PATH_IDX_ALL, frame);
@@ -3208,9 +2956,9 @@ int sprd_isp_start(void *isp_handle, struct camera_frame *frame)
 }
 
 int set_isp_path_cfg(void *isp_handle, enum isp_path_index path_index,
-	enum isp_cfg_id id, void *param)
+		     enum isp_cfg_id id, void *param)
 {
-	enum isp_drv_rtn rtn = ISP_RTN_SUCCESS;
+	enum isp_drv_rtn rtn = 0;
 	struct isp_path_desc *path = NULL;
 	struct isp_offline_desc *off_desc = NULL;
 	struct isp_regular_info *regular_info = NULL;
@@ -3221,36 +2969,36 @@ int set_isp_path_cfg(void *isp_handle, enum isp_path_index path_index,
 	struct camera_rect *rect = NULL;
 	struct camera_addr *p_addr;
 	struct isp_pipe_dev *dev = NULL;
-	unsigned int frm_deci = 0;
-	unsigned int format = 0;
-	unsigned int path_mode = 0;
-	unsigned int zoom_mode = 0;
+	uint32_t frm_deci = 0;
+	uint32_t format = 0;
+	uint32_t path_mode = 0;
+	uint32_t zoom_mode = 0;
 	enum isp_id iid  = 0;
 	uint8_t off_type;
 	struct offline_buf_desc *buf_desc = NULL;
-	unsigned int *scene_mode = NULL;
+	uint32_t *scene_mode = NULL;
 
 	if (!isp_handle || !param) {
 		pr_err("fail to get valid param\n");
-		return -ISP_RTN_PARA_ERR;
+		return -ENODEV;
 	}
 
 	dev = (struct isp_pipe_dev *)isp_handle;
 	iid = ISP_GET_IID(dev->com_idx);
-	if (ISP_PATH_IDX_PRE & path_index) {
+	if (ISP_PATH_IDX_PRE & path_index)
 		path_id = ISP_SCL_PRE;
-	} else if (ISP_PATH_IDX_VID & path_index) {
+	else if (ISP_PATH_IDX_VID & path_index)
 		path_id = ISP_SCL_VID;
-	} else if (ISP_PATH_IDX_CAP & path_index) {
+	else if (ISP_PATH_IDX_CAP & path_index)
 		path_id = ISP_SCL_CAP;
-	} else {
+	else {
 		pr_err("fail to get valid idx\n");
-		return -ISP_RTN_PARA_ERR;
+		return -EFAULT;
 	}
 
 	module = &dev->module_info;
 	if (unlikely(!module)) {
-		pr_err("fail to get valid module, iid %d module is NULL\n", iid);
+		pr_err("fail to get valid module, iid%d NULL module\n",  iid);
 		return -EFAULT;
 	}
 
@@ -3265,9 +3013,9 @@ int set_isp_path_cfg(void *isp_handle, enum isp_path_index path_index,
 		pr_info("ISP path%d input size:{%d %d}\n", path_id,
 			size->w, size->h);
 		if (size->w > ISP_PATH_FRAME_WIDTH_MAX ||
-		    size->h > ISP_PATH_FRAME_HEIGHT_MAX) {
+		    size->h > ISP_PATH_FRAME_HEIGHT_MAX)
 			rtn = ISP_RTN_PATH_IN_SIZE_ERR;
-		} else {
+		else {
 			path->in_size.w = size->w;
 			path->in_size.h = size->h;
 		}
@@ -3281,9 +3029,9 @@ int set_isp_path_cfg(void *isp_handle, enum isp_path_index path_index,
 		if (rect->x > ISP_PATH_FRAME_WIDTH_MAX ||
 		    rect->y > ISP_PATH_FRAME_HEIGHT_MAX ||
 		    rect->w > ISP_PATH_FRAME_WIDTH_MAX ||
-		    rect->h > ISP_PATH_FRAME_HEIGHT_MAX) {
+		    rect->h > ISP_PATH_FRAME_HEIGHT_MAX)
 			rtn = ISP_RTN_PATH_TRIM_SIZE_ERR;
-		} else {
+		else {
 			path->in_rect.x = rect->x;
 			path->in_rect.y = rect->y;
 			path->in_rect.w = rect->w;
@@ -3292,7 +3040,7 @@ int set_isp_path_cfg(void *isp_handle, enum isp_path_index path_index,
 		break;
 
 	case ISP_PATH_INPUT_FORMAT:
-		format = *(unsigned int *)param;
+		format = *(uint32_t *)param;
 		path->input_format = format;
 		pr_info("ISP path%d input format:%d\n", path_id, format);
 		break;
@@ -3302,22 +3050,22 @@ int set_isp_path_cfg(void *isp_handle, enum isp_path_index path_index,
 		pr_info("ISP path%d output size:{%d %d}\n", path_id,
 			size->w, size->h);
 		if (size->w > ISP_PATH_FRAME_WIDTH_MAX ||
-		    size->h > ISP_PATH_FRAME_HEIGHT_MAX) {
+		    size->h > ISP_PATH_FRAME_HEIGHT_MAX)
 			rtn = ISP_RTN_PATH_OUT_SIZE_ERR;
-		} else {
+		else {
 			path->out_size.w = size->w;
 			path->out_size.h = size->h;
 		}
 		break;
 
 	case ISP_PATH_OUTPUT_FORMAT:
-		format = *(unsigned int *)param;
+		format = *(uint32_t *)param;
 
 		pr_info("ISP path%d isp out format %d\n", path_id, format);
 		if ((format == DCAM_YUV422) || (format == DCAM_YUV420) ||
-		    (format == DCAM_YVU420) || (format == DCAM_YUV420_3FRAME)) {
+		    (format == DCAM_YVU420) || (format == DCAM_YUV420_3FRAME))
 			path->output_format = format;
-		} else {
+		else {
 			rtn = ISP_RTN_OUT_FMT_ERR;
 			path->output_format = DCAM_FTM_MAX;
 		}
@@ -3329,13 +3077,12 @@ int set_isp_path_cfg(void *isp_handle, enum isp_path_index path_index,
 		if (DCAM_YUV_ADDR_INVALID(p_addr->yaddr, p_addr->uaddr,
 					  p_addr->vaddr) &&
 		    p_addr->mfd_y == 0) {
-			pr_err("fail to get valid yuv output addr\n");
+			pr_err("fail to check valid yuv output addr\n");
 			rtn = ISP_RTN_PATH_ADDR_ERR;
 		} else {
 			struct camera_frame frame;
 
-			memset((void *)&frame, 0,
-			       sizeof(struct camera_frame));
+			memset((void *)&frame, 0, sizeof(struct camera_frame));
 			frame.yaddr = p_addr->yaddr;
 			frame.uaddr = p_addr->uaddr;
 			frame.vaddr = p_addr->vaddr;
@@ -3371,20 +3118,17 @@ int set_isp_path_cfg(void *isp_handle, enum isp_path_index path_index,
 				 path_id, p_addr->user_fid,
 				 p_addr->yaddr, p_addr->uaddr, p_addr->vaddr,
 				 frame.pfinfo.mfd[0], frame.pfinfo.mfd[1]);
-			pr_debug("iova0=%lx, iova1=%lx\n",
-				frame.pfinfo.iova[0], frame.pfinfo.iova[1]);
 		}
 		break;
 	case ISP_PATH_OUTPUT_RESERVED_ADDR:
 		p_addr = (struct camera_addr *)param;
 
-		if (DCAM_YUV_ADDR_INVALID(p_addr->yaddr,
-					  p_addr->uaddr,
-					  p_addr->vaddr) &&
-		    p_addr->mfd_y == 0) {
+		if (DCAM_YUV_ADDR_INVALID(p_addr->yaddr, p_addr->uaddr,
+					  p_addr->vaddr) && p_addr->mfd_y == 0) {
 			rtn = ISP_RTN_PATH_ADDR_ERR;
+			pr_err("fail to check valid reserved_buf\n");
 		} else {
-			unsigned int output_frame_count = 0;
+			uint32_t output_frame_count = 0;
 			struct camera_frame *frame = NULL;
 
 			frame = &module->path_reserved_frame[path_id];
@@ -3416,7 +3160,7 @@ int set_isp_path_cfg(void *isp_handle, enum isp_path_index path_index,
 		break;
 
 	case ISP_PATH_FRM_DECI:
-		frm_deci = *(unsigned int *)param;
+		frm_deci = *(uint32_t *)param;
 		if (frm_deci >= DCAM_FRM_DECI_FAC_MAX)
 			rtn = ISP_RTN_FRM_DECI_ERR;
 		else
@@ -3424,13 +3168,13 @@ int set_isp_path_cfg(void *isp_handle, enum isp_path_index path_index,
 		break;
 
 	case ISP_PATH_MODE:
-		path_mode = *(unsigned int *)param;
+		path_mode = *(uint32_t *)param;
 		path->path_mode = path_mode;
 		pr_info("ISP path%d isp path mode %d\n", path_id, path_mode);
 		break;
 
 	case ISP_PATH_ZOOM_MODE:
-		zoom_mode = *(unsigned int *)param;
+		zoom_mode = *(uint32_t *)param;
 
 		if (module->scl_array == NULL) {
 			pr_err("fail to get valid pointer of scl_array\n");
@@ -3458,7 +3202,7 @@ int set_isp_path_cfg(void *isp_handle, enum isp_path_index path_index,
 		break;
 
 	case ISP_PATH_ENABLE:
-		path->valid = *(unsigned int *)param;
+		path->valid = *(uint32_t *)param;
 		pr_info("ISP path%d isp path enable %d\n",
 			path_id, path->valid);
 		break;
@@ -3471,9 +3215,9 @@ int set_isp_path_cfg(void *isp_handle, enum isp_path_index path_index,
 	case ISP_PATH_DATA_ENDIAN:
 		endian = (struct isp_endian_sel *)param;
 		if (endian->y_endian >= DCAM_ENDIAN_MAX ||
-		    endian->uv_endian >= DCAM_ENDIAN_MAX) {
+		    endian->uv_endian >= DCAM_ENDIAN_MAX)
 			rtn = ISP_RTN_PATH_ENDIAN_ERR;
-		} else {
+		else {
 			path->data_endian.y_endian = endian->y_endian;
 			off_desc->data_endian.y_endian = endian->y_endian;
 			if ((ISP_PATH_IDX_PRE |
@@ -3488,7 +3232,7 @@ int set_isp_path_cfg(void *isp_handle, enum isp_path_index path_index,
 		}
 		break;
 	case ISP_PATH_UFRAME_SYNC:
-		scene_mode = (unsigned int *)param;
+		scene_mode = (uint32_t *)param;
 		if (path_id != ISP_SCL_CAP)
 			path->uframe_sync = 1;
 		else if (*scene_mode == DCAM_SCENE_MODE_CAPTURE_CALLBACK)
@@ -3509,12 +3253,12 @@ int set_isp_path_cfg(void *isp_handle, enum isp_path_index path_index,
 int sprd_isp_get_afm_frame_info(void *isp_handle,
 				struct camera_frame **out_frame)
 {
-	int rtn = ISP_RTN_SUCCESS;
+	int rtn = 0;
 	struct isp_pipe_dev *dev = NULL;
 	struct isp_statis_module *module = NULL;
 
 	if (!isp_handle) {
-		rtn = -ISP_RTN_PARA_ERR;
+		rtn = -ENODEV;
 		goto exit;
 	}
 
@@ -3527,10 +3271,10 @@ exit:
 	return rtn;
 }
 
-int sprd_isp_get_offline_buffer(void *isp_handle,
-	uint8_t off_type, struct camera_frame *out_frame)
+int sprd_isp_get_offline_buffer(void *isp_handle, uint8_t off_type,
+				struct camera_frame *out_frame)
 {
-	int rtn = ISP_RTN_SUCCESS;
+	int rtn = 0;
 	struct isp_pipe_dev *dev = NULL;
 	struct isp_module *module = NULL;
 	struct isp_offline_desc *off_desc = NULL;
@@ -3538,7 +3282,7 @@ int sprd_isp_get_offline_buffer(void *isp_handle,
 
 	if (!isp_handle) {
 		pr_err("fail to get ptr\n");
-		rtn = ISP_RTN_PARA_ERR;
+		rtn = -ENODEV;
 		goto _exit;
 	}
 
@@ -3546,7 +3290,7 @@ int sprd_isp_get_offline_buffer(void *isp_handle,
 	module = &dev->module_info;
 	if (unlikely(!module)) {
 		pr_err("fail to get valid module,is NULL\n");
-		rtn = ISP_RTN_PARA_ERR;
+		rtn = -EINVAL;
 		goto _exit;
 	}
 	off_desc = &dev->module_info.off_desc;
@@ -3555,7 +3299,7 @@ int sprd_isp_get_offline_buffer(void *isp_handle,
 	if (buf_desc->frame_queue.valid_cnt < ISP_OFF_PRODUCER_Q_SIZE_MAX) {
 		if (isp_offline_set_next_frm(module, off_type, out_frame)) {
 			pr_err("fail to get new frame off_type %d\n", off_type);
-			rtn = ISP_RTN_PATH_ADDR_ERR;
+			rtn = -EFAULT;
 			goto _exit;
 		}
 	} else {
@@ -3570,7 +3314,7 @@ _exit:
 
 int sprd_isp_set_offline_buffer(void *isp_handle, uint8_t off_type)
 {
-	int rtn = ISP_RTN_SUCCESS;
+	int rtn = 0;
 	struct camera_frame frame;
 	struct isp_pipe_dev *dev = NULL;
 	struct isp_module *module = NULL;
@@ -3578,7 +3322,7 @@ int sprd_isp_set_offline_buffer(void *isp_handle, uint8_t off_type)
 	struct offline_buf_desc *buf_desc = NULL;
 
 	if (!isp_handle) {
-		rtn = ISP_RTN_PARA_ERR;
+		rtn = -ENODEV;
 		goto _exit;
 	}
 
@@ -3594,8 +3338,7 @@ int sprd_isp_set_offline_buffer(void *isp_handle, uint8_t off_type)
 
 	off_desc->shadow_done_cnt = 0;
 
-	if (buf_desc->frame_queue.valid_cnt <=
-			ISP_OFF_PRODUCER_Q_SIZE_MIN) {
+	if (buf_desc->frame_queue.valid_cnt <= ISP_OFF_PRODUCER_Q_SIZE_MIN) {
 		pr_warn_ratelimited("type %d need > 1 frames, %d\n",
 			off_type, buf_desc->frame_queue.valid_cnt);
 		goto _exit;
@@ -3610,7 +3353,7 @@ int sprd_isp_set_offline_buffer(void *isp_handle, uint8_t off_type)
 
 	pr_debug("enqueued into zsl q, frame_id: %d\n", frame.fid);
 	if (unlikely(is_dual_cam && has_dual_cap_started &&
-		off_type == ISP_OFF_BUF_FULL)) {
+		     off_type == ISP_OFF_BUF_FULL)) {
 		/* do not update ZSL queue, please note this is not 100%
 		 * precise that some frames can still slip into the queue
 		 */
@@ -3633,7 +3376,7 @@ int sprd_isp_set_offline_buffer(void *isp_handle, uint8_t off_type)
 						  DCAM_CAPTURE_NONE);
 		if (rtn) {
 			pr_err("fail to start isp pipeline bin path\n");
-			rtn = ISP_RTN_PATH_ADDR_ERR;
+			rtn = -EFAULT;
 			goto _exit;
 		}
 	} else if (off_type == ISP_OFF_BUF_FULL) {
@@ -3641,7 +3384,7 @@ int sprd_isp_set_offline_buffer(void *isp_handle, uint8_t off_type)
 						   DCAM_CAPTURE_NONE);
 		if (rtn) {
 			pr_err("fail to start isp pipeline full path\n");
-			rtn = ISP_RTN_PATH_ADDR_ERR;
+			rtn = -EFAULT;
 			goto _exit;
 		}
 	} else {
@@ -3830,7 +3573,7 @@ int sprd_isp_reg_isr(enum isp_id iid, enum isp_irq_id irq_id,
 static int isp_module_init(struct isp_module *module_info, enum isp_id iid)
 {
 	int ret = 0;
-	unsigned int i = 0;
+	uint32_t i = 0;
 	struct isp_cctx_desc *cctx_desc = NULL;
 
 	if (!module_info) {
@@ -3855,8 +3598,11 @@ static int isp_module_init(struct isp_module *module_info, enum isp_id iid)
 	isp_offline_init_buf(&module_info->off_desc, ISP_OFF_BUF_FULL, true);
 
 	module_info->scl_array = vzalloc(sizeof(struct isp_sc_array));
-	if (module_info->scl_array == NULL)
+	if (IS_ERR_OR_NULL(module_info->scl_array)) {
+		pr_err("fail to alloc mem, err:%ld\n",
+		       PTR_ERR(module_info->scl_array));
 		return -ENOMEM;
+	}
 
 	ret = isp_coeff_queue_init(module_info->scl_array);
 
@@ -3911,153 +3657,6 @@ int sprd_isp_external_unmap(void *isp_handle)
 		&module->off_desc, ISP_OFF_BUF_FULL);
 
 	return ret;
-}
-
-static int isp_block_buf_alloc(struct isp_pipe_dev *dev)
-{
-	int32_t ret = 0;
-	uint32_t buf_len = 0;
-	struct isp_k_block *isp_k_param = NULL;
-	struct isp_fmcu_slice_desc *fmcu_slice = NULL;
-	enum isp_id iid;
-
-	if (!dev) {
-		pr_err("fail to get valid ptr, dev is NULL\n");
-		return -EFAULT;
-	}
-
-	isp_k_param = &dev->isp_k_param;
-	fmcu_slice = &dev->fmcu_slice;
-	iid = ISP_GET_IID(dev->com_idx);
-
-	buf_len = ISP_FRGB_GAMMA_BUF_SIZE;
-
-	isp_k_param->full_gamma_buf_addr = (unsigned long)vzalloc(buf_len);
-	if (isp_k_param->full_gamma_buf_addr == 0) {
-		pr_err("fail to alloc full gamma buf!\n");
-		return -EPERM;
-	}
-
-	buf_len = ISP_NLM_BUF_SIZE;
-	isp_k_param->nlm_vst_addr = vzalloc(buf_len);
-	if (!isp_k_param->nlm_vst_addr) {
-		pr_err("fail to alloc nlm vst buf!\n");
-		return -EPERM;
-	}
-
-	isp_k_param->nlm_ivst_addr = vzalloc(buf_len);
-	if (!isp_k_param->nlm_ivst_addr) {
-		pr_err("fail to alloc nlm ivst buf!\n");
-		return -EPERM;
-	}
-
-	buf_len = LENS_W_BUF_SIZE;
-	isp_k_param->isp_lens_w_addr = vzalloc(buf_len);
-	if (!isp_k_param->isp_lens_w_addr) {
-		pr_err("fail to alloc isp lens weight buf!");
-		return -EPERM;
-	}
-
-	isp_k_param->dcam_lens_w_addr = vzalloc(buf_len);
-	if (!isp_k_param->dcam_lens_w_addr) {
-		pr_err("fail to alloc dcam lens weight buf!");
-		return -EPERM;
-	}
-
-	if (!isp_k_param->lsc_buf_info.sw_addr) {
-		memset(isp_k_param->lsc_buf_info.name, '\0',
-			(ISP_BUF_SHORT_NAME_LEN+1));
-		strncpy(isp_k_param->lsc_buf_info.name, LSC_BUF_NAME,
-			strlen(LSC_BUF_NAME)+1);
-		isp_k_param->lsc_buf_info.size = ISP_LSC_BUF_SIZE;
-		ret = isp_gen_buf_alloc(&isp_k_param->lsc_buf_info);
-		if (ret != 0) {
-			pr_err("fail to alloc lsc buf, ret %d\n", ret);
-			return -EPERM;
-		}
-		isp_gen_buf_hw_map(&isp_k_param->lsc_buf_info);
-		if (ret) {
-			pr_err("fail to map lsc buf, iid%d ret %d\n",
-			       iid, ret);
-			return -EPERM;
-		}
-	}
-
-	if (!fmcu_slice->cmdq_buf_info.sw_addr) {
-		sprintf(fmcu_slice->cmdq_buf_info.name, "iid%d_fmcu", iid);
-		fmcu_slice->cmdq_buf_info.size = ISP_FMCU_CMD_Q_SIZE;
-		ret = isp_gen_buf_alloc(&fmcu_slice->cmdq_buf_info);
-		if (ret != 0) {
-			pr_err("fail to alloc buf for fmcu cmdq, iid%d ret %d\n",
-			       iid, ret);
-			return -EPERM;
-		}
-		ret = isp_gen_buf_hw_map(&fmcu_slice->cmdq_buf_info);
-		if (ret) {
-			pr_err("fail to map buf for fmcu cmdq, iid%d ret %d\n",
-			       iid, ret);
-			return -EPERM;
-		}
-
-		dev->fmcu_addr_phy =
-			(unsigned long)fmcu_slice->cmdq_buf_info.hw_addr;
-		dev->fmcu_addr_vir = fmcu_slice->cmdq_buf_info.sw_addr;
-	}
-
-	return ret;
-}
-
-static int isp_block_buf_free(struct isp_pipe_dev *dev)
-{
-	struct isp_k_block *isp_k_param = NULL;
-	struct isp_fmcu_slice_desc *fmcu_slice = NULL;
-	enum isp_id iid;
-
-	if (!dev) {
-		pr_err("fail to get valid ptr, dev is NULL\n");
-		return -EFAULT;
-	}
-
-	isp_k_param = &dev->isp_k_param;
-	fmcu_slice = &dev->fmcu_slice;
-	iid = ISP_GET_IID(dev->com_idx);
-
-	if (isp_k_param->full_gamma_buf_addr != 0x00) {
-		vfree((void *)isp_k_param->full_gamma_buf_addr);
-		isp_k_param->full_gamma_buf_addr = 0x00;
-	}
-
-	if (isp_k_param->nlm_vst_addr) {
-		vfree(isp_k_param->nlm_vst_addr);
-		isp_k_param->nlm_vst_addr = NULL;
-	}
-
-	if (isp_k_param->nlm_ivst_addr) {
-		vfree(isp_k_param->nlm_ivst_addr);
-		isp_k_param->nlm_ivst_addr = NULL;
-	}
-
-	if (isp_k_param->isp_lens_w_addr) {
-		vfree((void *)isp_k_param->isp_lens_w_addr);
-		isp_k_param->isp_lens_w_addr = NULL;
-	}
-
-	if (isp_k_param->dcam_lens_w_addr) {
-		vfree((void *)isp_k_param->dcam_lens_w_addr);
-		isp_k_param->dcam_lens_w_addr = NULL;
-	}
-
-	if (isp_k_param->lsc_buf_info.sw_addr) {
-		isp_gen_buf_hw_unmap(&isp_k_param->lsc_buf_info);
-		isp_gen_buf_free(&isp_k_param->lsc_buf_info);
-	}
-
-	if (fmcu_slice->cmdq_buf_info.sw_addr) {
-		isp_gen_buf_hw_unmap(&fmcu_slice->cmdq_buf_info);
-		isp_gen_buf_free(&fmcu_slice->cmdq_buf_info);
-	}
-
-	return 0;
 }
 
 int sprd_isp_module_en(void *isp_handle, enum isp_id iid)
@@ -4145,7 +3744,7 @@ exit:
 
 int sprd_isp_module_dis(void *isp_handle, enum isp_id iid)
 {
-	enum isp_drv_rtn rtn = ISP_RTN_SUCCESS;
+	enum isp_drv_rtn rtn = 0;
 	struct isp_pipe_dev *dev = NULL;
 	struct isp_module *module = NULL;
 	struct isp_cctx_desc *cctx_desc = NULL;
@@ -4158,12 +3757,11 @@ int sprd_isp_module_dis(void *isp_handle, enum isp_id iid)
 
 	dev = (struct isp_pipe_dev *)isp_handle;
 	module = &dev->module_info;
-	if (module) {
+	if (module)
 		cctx_desc = module->cctx_desc;
-	} else {
+	else
 		pr_err("fail to get module,idx %d\n", dev->com_idx);
 		/* Do not return here, cleanup other things */
-	}
 
 	isp_k_param = &dev->isp_k_param;
 
@@ -4247,9 +3845,9 @@ int sprd_isp_dev_init(void **isp_pipe_dev_handle, enum isp_id iid)
 
 	dev = vzalloc(sizeof(*dev));
 	if (NULL == dev) {
- 		pr_err("fail to alloc dev!\n");
+		pr_err("fail to alloc dev!\n");
 		return -EPERM;
-  	}
+	}
 
 	dev->is_raw_capture = 0;
 	ISP_SET_IID(dev->com_idx, iid);
@@ -4437,18 +4035,18 @@ void sprd_isp_drv_deinit(void)
 	}
 }
 
-int sprd_isp_parse_dt(struct device_node *dn, unsigned int *isp_count)
+int sprd_isp_parse_dt(struct device_node *dn, uint32_t *isp_count)
 {
 	int ret = 0;
 	int i = 0;
-	unsigned int count = 0;
-	unsigned int offbuf_count = ISP_FRM_QUEUE_LENGTH;
+	uint32_t count = 0;
+	uint32_t offbuf_count = ISP_FRM_QUEUE_LENGTH;
 	void __iomem *reg_base;
 	struct device_node *np = NULL;
 	struct resource res = {0};
 	const char *pname;
 	struct regmap *tregmap;
-	unsigned int args[2];
+	uint32_t args[2];
 
 	pr_info("isp dev device node %s, full name %s\n",
 		dn->name, dn->full_name);
@@ -4475,7 +4073,8 @@ int sprd_isp_parse_dt(struct device_node *dn, unsigned int *isp_count)
 		 */
 		if (of_property_read_u32_index(np,
 			"sprd,isp-offbuf-count", 0, &offbuf_count)) {
-			pr_info("dts didn't cfg. set offline buffer count to 5.\n");
+			pr_info("dts didn't cfg. set offline buffer count to %d.\n",
+				ISP_FRM_QUEUE_LENGTH);
 		}
 
 		isp_frm_queue_len = offbuf_count;
@@ -4586,7 +4185,7 @@ int sprd_isp_parse_dt(struct device_node *dn, unsigned int *isp_count)
 
 int isp_path_cap_with_vid_set_next_frm(struct isp_pipe_dev *dev)
 {
-	enum isp_drv_rtn rtn = ISP_RTN_SUCCESS;
+	enum isp_drv_rtn rtn = 0;
 	struct isp_module *module = NULL;
 	struct isp_path_desc *path = NULL;
 	struct isp_frm_queue *p_heap = NULL;
@@ -4607,8 +4206,9 @@ int isp_path_cap_with_vid_set_next_frm(struct isp_pipe_dev *dev)
 	if (frame.pfinfo.buf[0] != NULL) {
 		kaddr = sprd_ion_map_kernel(frame.pfinfo.dmabuf_p[0], 0);
 		size = ((struct ion_buffer *)(frame.pfinfo.buf[0]))->size;
-		if (IS_ERR(kaddr))
-			pr_err("fail to map kernel memory");
+		if (IS_ERR_OR_NULL(kaddr))
+			pr_err("fail to map kernel memory, err:%ld",
+			       PTR_ERR(kaddr));
 		else {
 			memset(kaddr, 0, size);
 			vunmap((const void *)kaddr);
@@ -4617,7 +4217,7 @@ int isp_path_cap_with_vid_set_next_frm(struct isp_pipe_dev *dev)
 	if (isp_frame_enqueue(p_heap, &frame) == 0)
 		pr_debug("success to enq frame buf\n");
 	else {
-		rtn = ISP_RTN_PATH_FRAME_LOCKED;
+		rtn = -EFAULT;
 		pr_err("fail to enq frame buf\n");
 	}
 	return rtn;

@@ -46,5 +46,5 @@ int dcam_statis_queue_init(struct isp_statis_buf_queue *queue);
 void dcam_statis_frm_queue_init(struct isp_statis_frm_queue *queue);
 int dcam_set_next_statis_buf(struct dcam_statis_module *module,
 			     enum isp_3a_block_id block_index,
-			     unsigned int *addr);
+			     uint32_t *addr);
 #endif
