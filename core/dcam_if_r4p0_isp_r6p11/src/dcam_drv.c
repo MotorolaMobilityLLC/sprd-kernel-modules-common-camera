@@ -1125,11 +1125,14 @@ static void dcam_cap_sof_handle(enum dcam_id idx, struct camera_dev *cam_drv)
 	if ((set_flash->led0_ctrl && set_flash->led0_status < FLASH_STATUS_MAX)||
 		(set_flash->led1_ctrl && set_flash->led1_status < FLASH_STATUS_MAX)){
 		sprd_img_start_flash(NULL, cam_drv);
-		if (dcam_info->flash_last_status != set_flash->led0_status)
+		if (dcam_info->flash_last_status != set_flash->led0_status){
 			dcam_info->flash_skip_fid= dcam_info->frame_index;
-		else
+
+			pr_debug("flash operate, skip_frame=%d, timestamp = %lu.%06lu, %llu\n",
+				dcam_info->flash_skip_fid, sof_ts.time.tv_sec,
+				sof_ts.time.tv_usec, sof_ts.boot_time);
+		} else
 			pr_debug("no need to skip\n");
-		pr_info("skip_fram=%d\n", dcam_info->flash_skip_fid);
 		dcam_info->flash_last_status = set_flash->led0_status;
 	}
 

@@ -1626,6 +1626,7 @@ static int sprd_img_pdaf_tx_done(struct camera_frame *frame, void *param)
 
 	module->pdaf_statis_cnt++;
 	if (dev->dcam_cxt.flash_skip_fid == module->pdaf_statis_cnt){
+		pr_debug("flash: skip this frm, pdaf statis cnt %d\n", module->pdaf_statis_cnt);
 		ret = isp_statis_queue_write(&module->pdaf_statis_queue, &node);
 		if (ret)
 			pr_err("fail to write pdaf buf queue\n");
@@ -1812,6 +1813,7 @@ static int sprd_img_binning_tx_done(struct camera_frame *frame, void *param)
 		}
 		if(isp_buf_queue_write(&buf_desc->tmp_buf_queue, &out_frame))
 			pr_err("fail to write dcam buf queue : bin path\n");
+		pr_debug("flash: skip this frame, bin frame id = %d\n", dev->bin_frame_id);
 
 	} else {
 		ret = sprd_img_handle_afm_stats(dev);
@@ -1850,6 +1852,7 @@ static int sprd_img_aem_tx_done(struct camera_frame *frame, void *param)
 
 	module->aem_statis_cnt++;
 	if (dev->dcam_cxt.flash_skip_fid == module->aem_statis_cnt){
+		pr_debug("flash: skip this frame, aem statis cnt %d\n", module->aem_statis_cnt);
 		ret = isp_statis_queue_write(&module->aem_statis_queue, &node);
 		if (ret)
 			pr_err("fail to write aem buf queue\n");
@@ -2041,7 +2044,7 @@ static int sprd_init_handle(struct camera_dev *dev)
 		return -EINVAL;
 	}
 
-	info->flash_skip_fid = -1;
+	info->flash_skip_fid = 0xffffffff;
 	info->set_flash.led0_ctrl = 0;
 	info->set_flash.led1_ctrl = 0;
 	info->set_flash.led0_status = FLASH_STATUS_MAX;
