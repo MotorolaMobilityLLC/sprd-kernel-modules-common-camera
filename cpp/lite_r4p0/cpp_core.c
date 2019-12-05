@@ -1096,8 +1096,10 @@ static int sprd_cppcore_probe(struct platform_device *pdev)
 	}
 
 	dev = devm_kzalloc(&pdev->dev, sizeof(*dev), GFP_KERNEL);
-	if (!dev)
+	if (!dev) {
+		ret = -ENOMEM;
 		goto fail;
+	}
 
 	dev->md.minor = MISC_DYNAMIC_MINOR;
 	dev->md.name = CPP_DEVICE_NAME;
