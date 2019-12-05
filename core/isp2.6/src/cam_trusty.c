@@ -539,21 +539,28 @@ bool camca_exit_tamode(struct sprd_cam_sec_cfg *camsec_cfg)
 
 }
 
-bool camca_security_set(struct sprd_cam_sec_cfg *camsec_cfg)
+bool camca_security_set(struct sprd_cam_sec_cfg *camsec_cfg,
+	enum cam_trusty_mode mode)
 {
 	bool ret = true;
 
 	pr_info("camca security set enter");
 
-	if (camsec_cfg->camsec_mode != SEC_UNABLE)
+	switch (mode) {
+	case CAM_TRUSTY_ENTER:
 		ret = camca_enter_tamode(camsec_cfg);
-	else
+		break;
+	case CAM_TRUSTY_EXIT:
 		ret = camca_exit_tamode(camsec_cfg);
+		break;
+	default:
+		pr_err("fail to get valid mode %d\n", mode);
+		break;
+	}
 
 	pr_info("camca security set, ret=%d",  ret);
 	return ret;
 }
-
 #else
 
 /* add dummy fun for un trusty version */

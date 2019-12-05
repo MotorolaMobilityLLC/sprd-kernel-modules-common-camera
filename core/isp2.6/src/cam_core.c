@@ -2107,6 +2107,8 @@ static int cal_channel_swapsize(struct camera_module *module)
 		pr_info("shift %d for full, p=%d v=%d  src=%d, %d\n",
 			shift, dst_p.w, dst_v.w, max_bin.w, isp_linebuf_len);
 	}
+	if (SEC_UNABLE != module->grp->camsec_cfg.camsec_mode)
+		shift = 1;
 	max_bin.w >>= shift;
 	max_bin.h >>= shift;
 
@@ -4566,7 +4568,7 @@ static int img_ioctl_set_cam_security(
 			goto exit;
 		}
 
-		sec_ret = camca_security_set(&uparam);
+		sec_ret = camca_security_set(&uparam, CAM_TRUSTY_ENTER);
 
 		if (!sec_ret) {
 			ret = -EFAULT;
@@ -8339,7 +8341,7 @@ static int sprd_img_release(struct inode *node, struct file *file)
 		bool ret = 0;
 
 		module->grp->camsec_cfg.camsec_mode = SEC_UNABLE;
-		ret = camca_security_set(&module->grp->camsec_cfg);
+		ret = camca_security_set(&module->grp->camsec_cfg, CAM_TRUSTY_EXIT);
 
 		pr_info("camca :camsec_mode%d, ret %d\n",
 				module->grp->camsec_cfg.camsec_mode, ret);
