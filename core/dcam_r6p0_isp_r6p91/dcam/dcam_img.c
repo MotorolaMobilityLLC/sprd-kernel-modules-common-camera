@@ -4080,6 +4080,7 @@ static void sprd_img_shutdown(struct platform_device *pdev)
 
 static const struct of_device_id  of_match_table_dcam[] = {
 	{ .compatible = "sprd,dcam"},
+	{ },
 };
 
 static struct platform_driver sprd_img_driver = {
