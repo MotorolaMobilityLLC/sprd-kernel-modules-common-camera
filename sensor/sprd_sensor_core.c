@@ -302,6 +302,8 @@ static int sprd_sensor_io_set_i2c_addr(struct sprd_sensor_file_tag *p_file,
 
 	ret = copy_from_user(&i2c_addr, (unsigned short *)arg,
 			     sizeof(unsigned short));
+	if (ret != 0)
+		return ret;
 	/* this addr means using csi pattern */
 	if (i2c_addr == 0xff) {
 		pr_info("enable csi testpattern mode!\n");
