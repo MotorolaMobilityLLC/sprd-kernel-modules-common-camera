@@ -210,7 +210,7 @@ static void dcam_fix_index(struct dcam_pipe_dev *dev,
 		if (i == DCAM_PATH_BIN)
 			count *= dev->slowmotion_count;
 
-		if (atomic_read(&path->user_cnt) < 1)
+		if (atomic_read(&path->user_cnt) < 1 || atomic_read(&path->is_shutoff) > 0)
 			continue;
 
 		if (camera_queue_cnt(&path->result_queue) < count)
@@ -457,7 +457,7 @@ static void dcam_cap_sof(void *param)
 
 	for (i  = 0; i < DCAM_PATH_MAX; i++) {
 		path = &dev->path[i];
-		if (atomic_read(&path->user_cnt) < 1)
+		if (atomic_read(&path->user_cnt) < 1 || atomic_read(&path->is_shutoff) > 0)
 			continue;
 
 		/* TODO: frm_deci and frm_skip in slow motion */
@@ -519,7 +519,7 @@ static void dcam_preview_sof(void *param)
 
 	for (i = 0; i < DCAM_PATH_MAX; i++) {
 		path = &dev->path[i];
-		if (atomic_read(&path->user_cnt) < 1)
+		if (atomic_read(&path->user_cnt) < 1 || atomic_read(&path->is_shutoff) > 0)
 			continue;
 
 		/* frame deci is deprecated in slow motion */
