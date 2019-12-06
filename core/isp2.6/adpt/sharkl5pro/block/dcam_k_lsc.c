@@ -56,7 +56,7 @@ int dcam_init_lsc_slice(void *in, uint32_t online)
 	/* need update grid_x_num and more when offline slice*/
 	if (online == 0 && dev->dcam_slice_mode == 1) {
 		start_roi = dev->cap_info.cap_size.size_x / 2;
-		grid_x_num_slice = info->grid_x_num - info->grid_x_num / 2;
+		grid_x_num_slice = (dev->cap_info.cap_size.size_x / 2 / 2 + info->grid_width - 1) / info->grid_width + 3;
 	} else
 		grid_x_num_slice = info->grid_x_num;
 
@@ -117,7 +117,7 @@ int dcam_init_lsc(void *in, uint32_t online)
 	/* need update grid_x_num and more when offline slice*/
 	if (online == 0 && dev->dcam_slice_mode == 1) {
 		start_roi = 0;
-		grid_x_num_slice = info->grid_x_num / 2;
+		grid_x_num_slice = (dev->cap_info.cap_size.size_x / 2 / 2 + info->grid_width - 1) / info->grid_width + 3;
 	} else {
 		grid_x_num_slice = info->grid_x_num;
 	}
