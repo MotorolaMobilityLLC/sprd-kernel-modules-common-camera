@@ -714,12 +714,16 @@ static void alloc_buffers(struct work_struct *work)
 	}
 	size = ALIGN(size, CAM_BUF_ALIGN_SIZE);
 
-	pr_info("ch%d alloc shared buffer size: %u (w %u h %u)\n",
-		channel->ch_id, size, width, height);
-
 	total = 5;
 	if (channel->ch_id == CAM_CH_CAP && module->cam_uinfo.is_dual)
 		total = 4;
+
+	/* 4in1 non-zsl capture for single frame */
+	if ((module->cam_uinfo.is_4in1 || module->cam_uinfo.dcam_slice_mode)
+		&& channel->ch_id == CAM_CH_CAP &&
+		module->channel[CAM_CH_PRE].enable == 0 &&
+		module->channel[CAM_CH_VID].enable == 0)
+		total = 1;
 
 	if (module->dump_thrd.thread_task)
 		total += 3;
@@ -733,10 +737,9 @@ static void alloc_buffers(struct work_struct *work)
 		total = 4;
 	}
 
-	pr_info("camca: ch_id =%d, camsec_mode=%d , total = %d\n",
-					channel->ch_id,
-					module->grp->camsec_cfg.camsec_mode,
-					total);
+	pr_info("ch_id %d, camsec=%d, buffer size: %u (%u x %u), num %d\n",
+		channel->ch_id, module->grp->camsec_cfg.camsec_mode,
+		size, width, height,	total);
 
 	for (i = 0, count = 0; i < total; i++) {
 		do {
@@ -1118,7 +1121,7 @@ static struct camera_frame *deal_bigsize_frame(struct camera_module *module,
 			pframe->height, (uint32_t)pframe->buf.addr_vir[0], pframe->channel_id,
 			atomic_read(&module->capture_frames_dcam), pframe->boot_sensor_time);
 
-	if (pframe->fid > 0) {
+	if (pframe->fid >= 0) {
 		if (module->dcam_cap_status == DCAM_CAPTURE_START_FROM_NEXT_SOF
 			&& (module->capture_times < pframe->boot_sensor_time)
 			&& atomic_read(&module->capture_frames_dcam) > 0) {
@@ -1177,7 +1180,7 @@ static struct camera_frame *deal_4in1_frame(struct camera_module *module,
 		return pframe;
 	}
 	/* dcam0 full tx done, frame report to HAL or drop */
-	if (atomic_read(&module->capture_frames_dcam) > 0 && pframe->fid > 0) {
+	if (atomic_read(&module->capture_frames_dcam) > 0) {
 		/* 4in1 send buf to hal for remosaic */
 		atomic_dec(&module->capture_frames_dcam);
 		pframe->evt = IMG_TX_DONE;
@@ -1684,7 +1687,8 @@ int dcam_callback(enum dcam_cb_type type, void *param, void *priv_data)
 
 			/* to isp */
 			/* skip first frame for online capture (in case of non-zsl) because lsc abnormal */
-			if ((module->cap_status != CAM_CAPTURE_RAWPROC) && (pframe->fid < 1))
+			if (!module->cam_uinfo.is_4in1 && !module->cam_uinfo.dcam_slice_mode
+				&& (module->cap_status != CAM_CAPTURE_RAWPROC) && (pframe->fid < 1))
 				ret = 1;
 			else
 				ret = camera_enqueue(&channel->share_buf_queue, pframe);
@@ -2462,11 +2466,18 @@ static int config_channel_bigsize(
 		size = cal_sprd_raw_pitch(width, is_loose) * height;
 	size = ALIGN(size, CAM_BUF_ALIGN_SIZE);
 
-	pr_info("ch%d alloc shared buffer size: %u (w %u h %u)\n",
-		channel->ch_id, size, width, height);
-
 	/* dcam1 alloc memory */
 	total = 5;
+
+	/* non-zsl capture for single frame */
+	if (channel->ch_id == CAM_CH_CAP &&
+		module->channel[CAM_CH_PRE].enable == 0 &&
+		module->channel[CAM_CH_VID].enable == 0)
+		total = 1;
+
+	pr_info("ch %d alloc shared buffer size: %u (w %u h %u), num %d\n",
+		channel->ch_id, size, width, height, total);
+
 	for (i = 0; i < total; i++) {
 		do {
 			pframe = get_empty_frame();
