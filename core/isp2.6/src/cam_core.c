@@ -1225,7 +1225,7 @@ struct camera_frame *deal_4in1_raw_capture(struct camera_module *module,
 		flag_path |= BIT(0);
 	}
 	/* check bin, full both tx done */
-	if ((flag_path & 0x3) == 0x3) {
+	if ((flag_path & 0x2) == 0x2) {
 		pframe->evt = IMG_TX_DONE;
 		pframe->irq_type = CAMERA_IRQ_4IN1_DONE;
 		flag_path = 0;
