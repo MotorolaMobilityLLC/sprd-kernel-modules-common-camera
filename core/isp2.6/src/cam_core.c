@@ -5953,10 +5953,6 @@ static int img_ioctl_start_capture(
 	} else if (param.type == DCAM_CAPTURE_START) {
 		module->dcam_cap_status = DCAM_CAPTURE_START;
 		atomic_set(&module->capture_frames_dcam, CAP_NUM_COMMON);
-	} else if (param.type == DCAM_CAPTURE_START_3DNR) {
-		module->dcam_cap_status = DCAM_CAPTURE_START_FROM_NEXT_SOF;
-		atomic_set(&module->capture_frames_dcam, 5);
-		module->capture_times = start_time;
 	} else {
 		atomic_set(&module->capture_frames_dcam, -1);
 	}
