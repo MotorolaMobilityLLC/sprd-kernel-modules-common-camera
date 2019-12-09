@@ -910,7 +910,7 @@ int isp_ltm_gen_frame_config(struct isp_ltm_ctx_desc *ctx,
 	int i = 0;
 	struct isp_ltm_info *ltm_info = NULL;
 
-	pr_info("type[%d], fid[%d], frame_width[%d], frame_height[%d]\n",
+	pr_debug("type[%d], fid[%d], frame_width[%d], frame_height[%d]\n",
 		ctx->type, ctx->fid, ctx->frame_width, ctx->frame_height);
 
 	for (i = 0; i < ISP_LTM_BUF_NUM; i++) {
