@@ -162,8 +162,7 @@ int dcam_k_cfg_awbc(struct isp_io_param *param, struct dcam_dev_param *p)
 	if (DCAM_ONLINE_MODE) {
 		ret = copy_from_user(pcpy, param->property_param, size);
 		if (ret) {
-			pr_err("fail to copy, blc_block: ret=0x%x\n",
-				(unsigned int)ret);
+			pr_err("fail to copy, ret=0x%x\n", (unsigned int)ret);
 			return -EPERM;
 		}
 		p->awbc.update |= bit_update;
@@ -173,8 +172,7 @@ int dcam_k_cfg_awbc(struct isp_io_param *param, struct dcam_dev_param *p)
 		ret = copy_from_user(pcpy, param->property_param, size);
 		if (ret) {
 			mutex_unlock(&p->param_lock);
-			pr_err("fail to copy, blc_block: ret=0x%x\n",
-				(unsigned int)ret);
+			pr_err("fail to copy,ret=0x%x\n", (unsigned int)ret);
 			return -EPERM;
 		}
 		p->awbc.update |= bit_update;

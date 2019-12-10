@@ -81,8 +81,7 @@ int dcam_k_cfg_blc(struct isp_io_param *param, struct dcam_dev_param *p)
 				param->property_param,
 				sizeof(p->blc.blc_info));
 			if (ret) {
-				pr_err("fail to copy, blc_block: ret=0x%x\n",
-					(unsigned int)ret);
+				pr_err("fail to copy, ret=0x%x\n", (unsigned int)ret);
 				return -EPERM;
 			}
 			p->blc.update |= _UPDATE_INFO;
@@ -94,8 +93,7 @@ int dcam_k_cfg_blc(struct isp_io_param *param, struct dcam_dev_param *p)
 				sizeof(p->blc.blc_info));
 			if (ret) {
 				mutex_unlock(&p->param_lock);
-				pr_err("fail to copy, blc_block: ret=0x%x\n",
-					(unsigned int)ret);
+				pr_err("fail to copy, ret=0x%x\n", (unsigned int)ret);
 				return -EPERM;
 			}
 			p->blc.update |= _UPDATE_INFO;
