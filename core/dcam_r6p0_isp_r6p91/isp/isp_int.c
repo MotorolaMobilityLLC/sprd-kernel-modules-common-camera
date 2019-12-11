@@ -15,6 +15,7 @@
 #include "isp_block.h"
 #include "isp_int.h"
 #include "isp_buf.h"
+#include "ion.h"
 
 #ifdef pr_fmt
 #undef pr_fmt
@@ -335,10 +336,12 @@ static void isp_afm_rgb_done(void *isp_handle)
 	struct isp_statis_buf node;
 	struct camera_frame frame_info;
 	struct isp_statis_module *module = NULL;
+	struct ion_buffer *ion_buf = NULL;
 
 	dev = (struct isp_pipe_dev *)isp_handle;
 	module = &dev->statis_module_info;
 	statis_heap = &module->afm_statis_frm_queue;
+	ion_buf = (struct ion_buffer *)module->img_statis_buf.pfinfo.buf[0];
 
 	memset(&node, 0x00, sizeof(node));
 	memset(&frame_info, 0x00, sizeof(frame_info));
@@ -351,22 +354,25 @@ static void isp_afm_rgb_done(void *isp_handle)
 
 	if (node.kaddr[0] &&
 		node.phy_addr != module->afm_buf_reserved.phy_addr) {
-		rtn = isp_get_afm_statistic(&node);
+		/*add some protect for afm buffer*/
+		if (ion_buf && ion_buf->kmap_cnt > 0) {
+			rtn = isp_get_afm_statistic(&node);
 
-		frame_info.buf_size = node.buf_size;
-		memcpy(frame_info.pfinfo.mfd, node.pfinfo.mfd,
-		       sizeof(unsigned int) * 3);
-		frame_info.phy_addr = node.phy_addr;
-		frame_info.vir_addr = node.vir_addr;
-		frame_info.kaddr[0] = node.kaddr[0];
-		frame_info.kaddr[1] = node.kaddr[1];
-		frame_info.addr_offset = node.addr_offset;
-		frame_info.irq_type = CAMERA_IRQ_STATIS;
-		frame_info.irq_property = IRQ_AFM_STATIS;
-		frame_info.frame_id = module->afm_statis_cnt;
+			frame_info.buf_size = node.buf_size;
+			memcpy(frame_info.pfinfo.mfd, node.pfinfo.mfd,
+			       sizeof(unsigned int) * 3);
+			frame_info.phy_addr = node.phy_addr;
+			frame_info.vir_addr = node.vir_addr;
+			frame_info.kaddr[0] = node.kaddr[0];
+			frame_info.kaddr[1] = node.kaddr[1];
+			frame_info.addr_offset = node.addr_offset;
+			frame_info.irq_type = CAMERA_IRQ_STATIS;
+			frame_info.irq_property = IRQ_AFM_STATIS;
+			frame_info.frame_id = module->afm_statis_cnt;
 
-		/*call_back func to write the buf addr to usr_buf_queue*/
-		isp_irq_reg(ISP_AFM_DONE, &frame_info);
+			/*call_back func to write the buf addr to usr_buf_queue*/
+			isp_irq_reg(ISP_AFM_DONE, &frame_info);
+		}
 	}
 	module->afm_statis_cnt++;
 }
@@ -459,10 +465,12 @@ static void isp_hist_done(void *isp_handle)
 	struct isp_statis_buf node;
 	struct camera_frame frame_info;
 	struct isp_statis_module *module = NULL;
+	struct ion_buffer *ion_buf = NULL;
 
 	dev = (struct isp_pipe_dev *)isp_handle;
 	module = &dev->statis_module_info;
 	statis_heap = &module->hist_statis_frm_queue;
+	ion_buf = (struct ion_buffer *)module->img_statis_buf.pfinfo.buf[0];
 
 	memset(&node, 0x00, sizeof(node));
 	memset(&frame_info, 0x00, sizeof(frame_info));
@@ -475,23 +483,27 @@ static void isp_hist_done(void *isp_handle)
 
 	if (node.kaddr[0] &&
 	    node.phy_addr != module->hist_buf_reserved.phy_addr) {
-		rtn = isp_get_hist_statistic(&node);
+		/*add some protect for hist buffer*/
+		if (ion_buf && ion_buf->kmap_cnt > 0) {
+			rtn = isp_get_hist_statistic(&node);
 
-		frame_info.buf_size = node.buf_size;
-		memcpy(frame_info.pfinfo.mfd, node.pfinfo.mfd,
-		       sizeof(unsigned int) * 3);
-		frame_info.phy_addr = node.phy_addr;
-		frame_info.vir_addr = node.vir_addr;
-		frame_info.kaddr[0] = node.kaddr[0];
-		frame_info.kaddr[1] = node.kaddr[1];
-		frame_info.addr_offset = node.addr_offset;
-		frame_info.irq_type = CAMERA_IRQ_STATIS;
-		frame_info.irq_property = IRQ_HIST_STATIS;
-		frame_info.frame_id = module->hist_statis_cnt;
+			frame_info.buf_size = node.buf_size;
+			memcpy(frame_info.pfinfo.mfd, node.pfinfo.mfd,
+			       sizeof(unsigned int) * 3);
+			frame_info.phy_addr = node.phy_addr;
+			frame_info.vir_addr = node.vir_addr;
+			frame_info.kaddr[0] = node.kaddr[0];
+			frame_info.kaddr[1] = node.kaddr[1];
+			frame_info.addr_offset = node.addr_offset;
+			frame_info.irq_type = CAMERA_IRQ_STATIS;
+			frame_info.irq_property = IRQ_HIST_STATIS;
+			frame_info.frame_id = module->hist_statis_cnt;
 
-		/*call_back func to write the buf addr to usr_buf_queue*/
-		isp_irq_reg(ISP_HIST_DONE, &frame_info);
+			/*call_back func to write the buf addr to usr_buf_queue*/
+			isp_irq_reg(ISP_HIST_DONE, &frame_info);
+		}
 	}
+
 	module->hist_statis_cnt++;
 }
 
