@@ -163,7 +163,8 @@ struct cam_hw_core_ops {
 	void (*force_copy)(uint32_t id, void *arg);
 	int (*path_start)(void *handle, uint32_t path_id);
 	int (*path_stop)(void *handle, uint32_t path_id);
-	int (*path_resume)(struct cam_hw_ip_info *hw, void *arg);
+	int (*path_pause)(uint32_t idx, uint32_t path_id);
+	int (*path_resume)(uint32_t idx, uint32_t path_id);
 	int (*path_src_sel)(void *handle, enum dcam_full_src_sel_type src_sel);
 	int (*path_size_update)(void *handle, void *arg);
 	int (*mipi_cap_set)(void *arg);

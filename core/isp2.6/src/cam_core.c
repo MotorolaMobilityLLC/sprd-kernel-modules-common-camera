@@ -7656,9 +7656,7 @@ exit:
 	return ret;
 }
 
-static int ioctl_test_dev(
-			struct camera_module *module,
-			unsigned long arg)
+int ioctl_test_dev(struct camera_module *module, unsigned long arg)
 {
 	int ret = 0;
 	struct sprd_img_parm param;
@@ -7685,6 +7683,47 @@ exit:
 	return ret;
 }
 
+static int img_ioctl_path_pause(struct camera_module *module, unsigned long arg)
+{
+	int ret = 0;
+	uint32_t dcam_path_state = DCAM_PATH_PAUSE;
+	struct dcam_pipe_dev *dev = NULL;
+
+	dev = (struct dcam_pipe_dev *)module->dcam_dev_handle;
+	if (atomic_read(&module->state) == CAM_RUNNING) {
+		mutex_lock(&module->lock);
+		dcam_ops->cfg_path(dev, DCAM_PATH_CFG_STATE,
+			DCAM_PATH_FULL, &dcam_path_state);
+		mutex_unlock(&module->lock);
+	} else {
+		pr_warn("camera %d with dcam %d not running\n",
+			module->idx, module->dcam_idx);
+		ret = -EFAULT;
+	}
+
+	return ret;
+}
+
+static int img_ioctl_path_resume(struct camera_module *module, unsigned long arg)
+{
+	int ret = 0;
+	uint32_t dcam_path_state = DCAM_PATH_RESUME;
+	struct dcam_pipe_dev *dev = NULL;
+
+	dev = (struct dcam_pipe_dev *)module->dcam_dev_handle;
+	if (atomic_read(&module->state) == CAM_RUNNING) {
+		mutex_lock(&module->lock);
+		dcam_ops->cfg_path(dev, DCAM_PATH_CFG_STATE,
+			DCAM_PATH_FULL, &dcam_path_state);
+		mutex_unlock(&module->lock);
+	} else {
+		pr_warn("camera %d with dcam %d not running\n",
+			module->idx, module->dcam_idx);
+		ret = -EFAULT;
+	}
+
+	return ret;
+}
 
 static struct cam_ioctl_cmd ioctl_cmds_table[] = {
 	[_IOC_NR(SPRD_IMG_IO_SET_MODE)]		= {SPRD_IMG_IO_SET_MODE,	img_ioctl_set_mode},
@@ -7699,8 +7738,8 @@ static struct cam_ioctl_cmd ioctl_cmds_table[] = {
 	[_IOC_NR(SPRD_IMG_IO_SET_SENSOR_IF)]	= {SPRD_IMG_IO_SET_SENSOR_IF,	img_ioctl_set_sensor_if},
 	[_IOC_NR(SPRD_IMG_IO_SET_FRAME_ADDR)]	= {SPRD_IMG_IO_SET_FRAME_ADDR,	img_ioctl_set_frame_addr},
 	[_IOC_NR(SPRD_IMG_IO_PATH_FRM_DECI)]	= {SPRD_IMG_IO_PATH_FRM_DECI,	img_ioctl_set_frm_deci},
-/*	[_IOC_NR(SPRD_IMG_IO_PATH_PAUSE)]	= {SPRD_IMG_IO_PATH_PAUSE,	NULL},*/
-	[_IOC_NR(SPRD_IMG_IO_PATH_RESUME)]	= {SPRD_IMG_IO_PATH_RESUME,	NULL},
+	[_IOC_NR(SPRD_IMG_IO_PATH_PAUSE)]	= {SPRD_IMG_IO_PATH_PAUSE,	img_ioctl_path_pause},
+	[_IOC_NR(SPRD_IMG_IO_PATH_RESUME)]	= {SPRD_IMG_IO_PATH_RESUME,	img_ioctl_path_resume},
 	[_IOC_NR(SPRD_IMG_IO_STREAM_ON)]	= {SPRD_IMG_IO_STREAM_ON,	img_ioctl_stream_on},
 	[_IOC_NR(SPRD_IMG_IO_STREAM_OFF)]	= {SPRD_IMG_IO_STREAM_OFF,	img_ioctl_stream_off},
 	[_IOC_NR(SPRD_IMG_IO_GET_FMT)]		= {SPRD_IMG_IO_GET_FMT,		img_ioctl_get_fmt},
@@ -7748,7 +7787,7 @@ static struct cam_ioctl_cmd ioctl_cmds_table[] = {
 	[_IOC_NR(SPRD_IMG_IO_EBD_CONTROL)]		= {SPRD_IMG_IO_EBD_CONTROL,	img_ioctl_ebd_control},
 	[_IOC_NR(SPRD_IMG_IO_SET_4IN1_ADDR)]	= {SPRD_IMG_IO_SET_4IN1_ADDR,	img_ioctl_4in1_set_raw_addr},
 	[_IOC_NR(SPRD_IMG_IO_4IN1_POST_PROC)]	= {SPRD_IMG_IO_4IN1_POST_PROC,	img_ioctl_4in1_post_proc},
-	[_IOC_NR(SPRD_IMG_IO_PATH_PAUSE)]	= {SPRD_IMG_IO_PATH_PAUSE,	ioctl_test_dev},
+	//[_IOC_NR(SPRD_IMG_IO_PATH_PAUSE)]	= {SPRD_IMG_IO_PATH_PAUSE,	ioctl_test_dev},
 	[_IOC_NR(SPRD_IMG_IO_SET_CAM_SECURITY)]   = {SPRD_IMG_IO_SET_CAM_SECURITY,  img_ioctl_set_cam_security},
 	[_IOC_NR(SPRD_IMG_IO_GET_PATH_RECT)]             = {SPRD_IMG_IO_GET_PATH_RECT,   img_ioctl_get_path_rect},
 	[_IOC_NR(SPRD_IMG_IO_SET_3DNR_MODE)]    = {SPRD_IMG_IO_SET_3DNR_MODE,   ioctl_set_3dnr_mode},

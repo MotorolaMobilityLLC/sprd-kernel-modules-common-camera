@@ -1009,6 +1009,56 @@ static int sharkl3_dcam_path_stop(void *handle, uint32_t path_id)
 	return ret;
 }
 
+static int sharkl3_dcam_path_pause(uint32_t idx, uint32_t path_id)
+{
+	switch (path_id) {
+	case DCAM_PATH_FULL:
+		DCAM_REG_MWR(idx, DCAM_CFG, BIT_1, (0 << 1));
+		break;
+	case DCAM_PATH_BIN:
+		DCAM_REG_MWR(idx, DCAM_CFG, BIT_2, (0 << 2));
+		break;
+	case DCAM_PATH_PDAF:
+		DCAM_REG_MWR(idx, DCAM_CFG, BIT_3, (0 << 3));
+		break;
+	case DCAM_PATH_VCH2:
+		DCAM_REG_MWR(idx, DCAM_CFG, BIT_4, (0 << 4));
+		break;
+	case DCAM_PATH_VCH3:
+		DCAM_REG_MWR(idx, DCAM_CFG, BIT_5, (0 << 5));
+		break;
+	default:
+		break;
+	}
+
+	return 0;
+}
+
+static int sharkl3_dcam_path_resume(uint32_t idx, uint32_t path_id)
+{
+	switch (path_id) {
+	case DCAM_PATH_FULL:
+		DCAM_REG_MWR(idx, DCAM_CFG, BIT_1, (1 << 1));
+		break;
+	case DCAM_PATH_BIN:
+		DCAM_REG_MWR(idx, DCAM_CFG, BIT_2, (1 << 2));
+		break;
+	case DCAM_PATH_PDAF:
+		DCAM_REG_MWR(idx, DCAM_CFG, BIT_3, (1 << 3));
+		break;
+	case DCAM_PATH_VCH2:
+		DCAM_REG_MWR(idx, DCAM_CFG, BIT_4, (1 << 4));
+		break;
+	case DCAM_PATH_VCH3:
+		DCAM_REG_MWR(idx, DCAM_CFG, BIT_5, (1 << 5));
+		break;
+	default:
+		break;
+	}
+
+	return 0;
+}
+
 static void sharkl3_dcam_fetch_start(struct cam_hw_info *hw)
 {
 	if (!hw) {
@@ -1889,6 +1939,8 @@ struct cam_hw_info sharkl3_hw_info = {
 			.force_copy = sharkl3_dcam_force_copy,
 			.path_start = sharkl3_dcam_path_start,
 			.path_stop = sharkl3_dcam_path_stop,
+			.path_pause = sharkl3_dcam_path_pause,
+			.path_resume = sharkl3_dcam_path_resume,
 			.path_src_sel = sharkl3_dcam_full_path_src_sel,
 			.path_size_update = sharkl3_dcam_path_size_update,
 			.mipi_cap_set = sharkl3_dcam_mipi_cap_set,

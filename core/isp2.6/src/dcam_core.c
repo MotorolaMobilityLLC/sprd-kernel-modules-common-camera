@@ -1591,6 +1591,8 @@ static int sprd_dcam_cfg_path(
 	struct camera_frame *pframe = NULL;
 	uint32_t lowlux_4in1 = 0;
 	uint32_t shutoff = 0;
+	unsigned long flag = 0;
+	enum dcam_path_state state = DCAM_PATH_IDLE;
 
 	static const char *tb_src[] = {"(4c)raw", "bin-sum"}; /* for log */
 
@@ -1698,6 +1700,12 @@ static int sprd_dcam_cfg_path(
 		shutoff = *(uint32_t *)param;
 		atomic_set(&path->is_shutoff, shutoff);
 		pr_debug("set path %d shutoff %d\n", path_id, shutoff);
+		break;
+	case DCAM_PATH_CFG_STATE:
+		state = *(uint32_t *)param;
+		spin_lock_irqsave(&path->state_lock, flag);
+		path->state = state;
+		spin_unlock_irqrestore(&path->state_lock, flag);
 		break;
 	default:
 		pr_warn("unsupported command: %d\n", cfg_cmd);
@@ -2242,6 +2250,7 @@ static int sprd_dcam_dev_open(void *dcam_handle)
 		atomic_set(&path->set_frm_cnt, 0);
 		atomic_set(&path->is_shutoff, 0);
 		spin_lock_init(&path->size_lock);
+		spin_lock_init(&path->state_lock);
 
 		if (path->path_id == DCAM_PATH_BIN) {
 			path->rds_coeff_size = RDS_COEF_TABLE_SIZE;

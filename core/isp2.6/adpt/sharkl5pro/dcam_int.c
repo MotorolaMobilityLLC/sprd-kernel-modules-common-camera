@@ -436,6 +436,7 @@ static void dcam_cap_sof(void *param)
 	struct dcam_sync_helper *helper = NULL;
 	struct camera_frame *pframe;
 	enum dcam_fix_result fix_result;
+	unsigned long flag;
 	int i;
 
 	hw = dev->hw;
@@ -464,7 +465,7 @@ static void dcam_cap_sof(void *param)
 	if (!dev->slowmotion_count)
 		helper = dcam_get_sync_helper(dev);
 
-	for (i  = 0; i < DCAM_PATH_MAX; i++) {
+	for (i = 0; i < DCAM_PATH_MAX; i++) {
 		path = &dev->path[i];
 		if (atomic_read(&path->user_cnt) < 1 || atomic_read(&path->is_shutoff) > 0)
 			continue;
@@ -478,6 +479,19 @@ static void dcam_cap_sof(void *param)
 		if ((path->frm_deci_cnt++ >= path->frm_deci)
 		    || dev->slowmotion_count) {
 			path->frm_deci_cnt = 0;
+			if (path->path_id == DCAM_PATH_FULL) {
+				spin_lock_irqsave(&path->state_lock, flag);
+				if (path->state == DCAM_PATH_PAUSE) {
+					hw->hw_ops.core_ops.path_pause(dev->idx,
+						path->path_id);
+					spin_unlock_irqrestore(&path->state_lock, flag);
+					continue;
+				} else if (path->state == DCAM_PATH_RESUME) {
+					hw->hw_ops.core_ops.path_resume(dev->idx,
+						path->path_id);
+				}
+				spin_unlock_irqrestore(&path->state_lock, flag);
+			}
 			dcam_path_set_store_frm(dev, path, helper);
 		}
 	}

@@ -59,6 +59,12 @@ enum dcam_scaler_type {
 	DCAM_SCALER_MAX,
 };
 
+enum dcam_path_state {
+	DCAM_PATH_IDLE,
+	DCAM_PATH_PAUSE,
+	DCAM_PATH_RESUME,
+};
+
 struct dcam_mipi_info {
 	uint32_t sensor_if;  /* MIPI CSI-2 */
 	uint32_t format;  /* input color format */
@@ -92,6 +98,9 @@ struct dcam_path_desc {
 	spinlock_t size_lock;
 	uint32_t size_update;
 	void *priv_size_data;
+
+	spinlock_t state_lock;
+	enum dcam_path_state state;
 
 	struct img_endian endian;
 	struct img_size in_size;
