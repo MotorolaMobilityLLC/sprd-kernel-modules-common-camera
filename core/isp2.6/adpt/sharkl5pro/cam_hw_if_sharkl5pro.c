@@ -908,10 +908,7 @@ static int sharkl5pro_dcam_path_start(void *handle, uint32_t path_id)
 				rect.x, rect.y, rect.w, rect.h);
 			break;
 		}
-		DCAM_REG_MWR(idx, NR3_FAST_ME_PARAM, BIT_0, 0 );
-		DCAM_REG_MWR(idx, NR3_FAST_ME_PARAM, BIT_3, 1 << 3);
-		DCAM_REG_MWR(idx, NR3_FAST_ME_PARAM, BIT_5 | BIT_4, 1 << 4);
-		DCAM_REG_MWR(idx, NR3_FAST_ME_PARAM, BIT_8, 0 << 8);
+		DCAM_REG_WR(idx, NR3_FAST_ME_PARAM, 0x8);
 		dcam_k_3dnr_set_roi(rect,
 				0/* project_mode=0 */, idx);
 		break;

@@ -56,10 +56,15 @@ void dcam_k_3dnr_set_roi(struct isp_img_rect rect,
 {
 	uint32_t roi_w_max, roi_h_max;
 	uint32_t roi_w, roi_h, roi_x = 0, roi_y = 0;
+	uint32_t pmode = 0;
 
 	/* get max roi size
 	 * max roi size should be half of normal value if project_mode is off
 	 */
+	pmode = DCAM_REG_RD(idx, NR3_FAST_ME_PARAM0) & 0x3;
+	if (pmode == 1)
+		project_mode = 1;
+
 	roi_w_max = roi_max_size_info[idx][project_mode].roi_width;
 	roi_h_max = roi_max_size_info[idx][project_mode].roi_height;
 
