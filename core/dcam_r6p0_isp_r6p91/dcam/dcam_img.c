@@ -959,10 +959,16 @@ static int sprd_img_check_path0_cap(uint32_t fourcc,
 		break;
 
 	case IMG_PIX_FMT_NV21:
+		path->out_fmt = DCAM_YUV420;
+		path->end_sel.y_endian = DCAM_ENDIAN_LITTLE;
+		path->end_sel.uv_endian = DCAM_ENDIAN_HALFBIG;
+		pr_info("path0 uv_endian=%d.\n", path->end_sel.uv_endian);
+		break;
+
 	case IMG_PIX_FMT_NV12:
 		path->out_fmt = DCAM_YUV420;
 		path->end_sel.y_endian = DCAM_ENDIAN_LITTLE;
-		path->end_sel.uv_endian = DCAM_ENDIAN_BIG;
+		path->end_sel.uv_endian = DCAM_ENDIAN_LITTLE;
 		pr_info("path0 uv_endian=%d.\n", path->end_sel.uv_endian);
 		break;
 
