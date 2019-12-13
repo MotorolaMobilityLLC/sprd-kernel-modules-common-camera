@@ -1331,10 +1331,6 @@ int sprd_isp_start_pipeline_full(void *handle, uint32_t cap_flag)
 			} else if (dev->frm_cnt_cap == ISP_FLASH_FRM_NUM) {
 				dev->is_flash = 1;
 				pr_info("flash capture\n");
-			} else {
-				pr_err("fail to get valid frm_cnt_cap %d\n",
-				       dev->frm_cnt_cap);
-				goto err_exit;
 			}
 
 			/*
