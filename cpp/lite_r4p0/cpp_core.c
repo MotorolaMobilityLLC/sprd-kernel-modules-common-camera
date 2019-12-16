@@ -1097,6 +1097,7 @@ static int sprd_cppcore_probe(struct platform_device *pdev)
 
 	dev = devm_kzalloc(&pdev->dev, sizeof(*dev), GFP_KERNEL);
 	if (!dev) {
+		pr_err("fail to alloc cpp ddev memory\n");
 		ret = -ENOMEM;
 		goto fail;
 	}
@@ -1172,7 +1173,7 @@ static int sprd_cppcore_probe(struct platform_device *pdev)
 
 	reg_base = of_iomap(np, 0);
 	if (IS_ERR_OR_NULL(reg_base)) {
-		pr_err("fail to get dcam axim_base\n");
+		pr_err("fail to get cpp base\n");
 		ret = PTR_ERR(reg_base);
 		goto misc_fail;
 	}
@@ -1180,7 +1181,8 @@ static int sprd_cppcore_probe(struct platform_device *pdev)
 
 	irq = irq_of_parse_and_map(np, 0);
 	if (irq <= 0) {
-		pr_err("fail to get dcam irq %d\n", irq);
+		pr_err("fail to get cpp irq %d\n", irq);
+		ret = -EINVAL;
 		goto misc_fail;
 	}
 	dev->irq = irq;

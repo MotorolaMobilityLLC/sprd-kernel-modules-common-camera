@@ -818,6 +818,7 @@ static int sprd_cppcore_probe(struct platform_device *pdev)
 
 	dev = devm_kzalloc(&pdev->dev, sizeof(*dev), GFP_KERNEL);
 	if (!dev) {
+		pr_err("fail to alloc cpp dev memory\n");
 		ret = -ENOMEM;
 		goto fail;
 	}
@@ -887,6 +888,7 @@ static int sprd_cppcore_probe(struct platform_device *pdev)
 	irq = irq_of_parse_and_map(pdev->dev.of_node, 0);
 	if (irq <= 0) {
 		pr_err("fail to get cpp irq %d\n", irq);
+		ret = -EINVAL;
 		goto misc_fail;
 	}
 	dev->irq = irq;
