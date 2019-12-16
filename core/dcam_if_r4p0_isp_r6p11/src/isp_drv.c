@@ -591,7 +591,9 @@ static int sprd_isp_stop_nolock(void *isp_handle, int is_post_stop)
 	if (dev->cap_on)
 		dev->cap_on = 0;
 
-	dev->is_3dnr_path_cfg = 0;
+	if (dev->is_3dnr_path_cfg)
+		dev->is_3dnr_path_cfg = 0;
+
 	dev->isr_count = 0;
 	dev->isr_last_time = 0;
 	dev->delta_full = 0;
@@ -609,7 +611,6 @@ static int sprd_isp_stop_nolock(void *isp_handle, int is_post_stop)
 		module->isp_path[i].shadow_done_cnt = 0;
 		isp_frm_clear(dev, 1 << i);
 	}
-
 
 	isp_offline_init_buf(&module->off_desc, ISP_OFF_BUF_BIN, true);
 	isp_offline_init_buf(&module->off_desc, ISP_OFF_BUF_FULL, true);
@@ -811,7 +812,7 @@ static int isp_update_offline_path_param(struct isp_pipe_dev *dev,
 		}
 		isp_path_set(module, cap, ISP_PATH_IDX_CAP);
 
-		if (dev->is_3dnr_path_cfg) {
+		if (dev->is_3dnr) {
 			/* use input data from cap path */
 			vid->src = cap->src;
 			vid->in_size = cap->in_size;
@@ -894,7 +895,7 @@ static int get_slice_init_param(struct slice_param_in *in_ptr,
 	in_ptr->isp_dev = dev;
 
 	if (path_pre->valid && path_pre->path_mode == ISP_PRE_OFFLINE) {
-		pr_info("init for pre slice");
+		pr_debug("init for pre slice");
 		in_ptr->fetch_format = path_pre->input_format;
 		in_ptr->pre_slice_need = 1;
 		in_ptr->store_frame[SLICE_PATH_PRE].format =
@@ -914,7 +915,7 @@ static int get_slice_init_param(struct slice_param_in *in_ptr,
 	}
 
 	if (path_vid->valid && path_vid->path_mode == ISP_VID_OFFLINE) {
-		pr_info("init for vid slice");
+		pr_debug("init for vid slice");
 		in_ptr->vid_slice_need = 1;
 		in_ptr->fetch_format = path_vid->input_format;
 		in_ptr->store_frame[SLICE_PATH_VID].format =
@@ -932,7 +933,7 @@ static int get_slice_init_param(struct slice_param_in *in_ptr,
 	}
 
 	if (path_cap->valid) {
-		pr_info("init for cap slice");
+		pr_debug("init for cap slice");
 		in_ptr->cap_slice_need = 1;
 		in_ptr->fetch_format = path_cap->input_format;
 		in_ptr->store_frame[SLICE_PATH_CAP].format =
@@ -948,10 +949,10 @@ static int get_slice_init_param(struct slice_param_in *in_ptr,
 		ret = isp_path_set_next_frm(module, ISP_PATH_IDX_CAP,
 			&in_ptr->store_frame[SLICE_PATH_CAP].addr);
 
-		if (dev->is_3dnr_path_cfg) {
+		if (dev->is_3dnr) {
 			struct camera_size *out_size = &path_vid->out_size;
 
-			pr_info("init for 3dnr slice");
+			pr_debug("init for 3dnr slice");
 			in_ptr->vid_slice_need = 1;
 			in_ptr->store_frame[SLICE_PATH_VID].format =
 				path_cap->store_info.color_format;
@@ -1362,6 +1363,7 @@ int sprd_isp_start_pipeline_full(void *handle, uint32_t cap_flag)
 			if (dev->is_3dnr_path_cfg) {
 				dev->is_3dnr = 1;
 				dev->frm_cnt_3dnr = ISP_3DNR_NUM;
+				pr_info("start 3dnr capture\n");
 			} else {
 				pr_err("fail to start 3dnr\n");
 				dev->is_3dnr = 0;
@@ -1521,19 +1523,25 @@ static void do_shadow_clr(struct isp_pipe_dev *dev, uint32_t idx, int is_cap)
 		 cap_path->valid, vid_path->valid, is_cap);
 
 	if (pre_path->valid || cap_path->valid) {
-		ISP_REG_WR(idx, (ISP_STORE_PRE_CAP_BASE + ISP_STORE_SHADOW_CLR),
-			   0x1);
-
-		if (is_cap && cap_path->valid && dev->is_3dnr_path_cfg) {
+		ISP_REG_WR(idx,
+			(ISP_STORE_PRE_CAP_BASE + ISP_STORE_SHADOW_CLR),
+			0x1);
+		pr_debug("set shadow clear for pre/cap path\n");
+		if (is_cap && vid_path->valid && dev->is_3dnr) {
 			ISP_REG_WR(idx, (ISP_STORE_VID_BASE +
-					 ISP_STORE_SHADOW_CLR), 0x1);
-			pr_debug("shadow clear for 3dnr path\n");
+				ISP_STORE_SHADOW_CLR), 0x1);
+			pr_debug("set shadow clear for 3dnr vid path\n");
+		} else if (dev->is_3dnr_path_cfg) {
+			ISP_REG_WR(idx, (ISP_STORE_VID_BASE +
+				ISP_STORE_SHADOW_CLR), 0);
+			pr_debug("clr shadow clear for 3dnr vid path\n");
 		}
 	}
 
-	if (vid_path->valid && !is_cap) {
+	if (vid_path->valid && !is_cap && !dev->is_3dnr) {
 		ISP_REG_WR(idx, (ISP_STORE_VID_BASE + ISP_STORE_SHADOW_CLR),
 			   0x1);
+		pr_debug("set shadow clear for vid path\n");
 	}
 }
 
@@ -1808,6 +1816,8 @@ static int sprd_isp_pipeline_proc_full(void *handle)
 
 	if (dev->is_3dnr_path_cfg)
 		enable_scl_vid_path(idx);
+	else
+		disable_scl_vid_path(idx);
 	/*
 	 * In CFG mode, init_hw will init isp CFG module and
 	 * flush dcache for cfg cmd buf, if you config registers
@@ -1871,7 +1881,7 @@ int sprd_isp_force_stop_pipeline(void *handle)
 	spin_unlock_irqrestore(&isp_mod_lock, flag);
 
 	if (dev->is_3dnr) {
-		pr_info("disabling 3dnr\n");
+		pr_info("stop 3dnr capture\n");
 		dev->is_3dnr = 0;
 		dev->frm_cnt_3dnr = 0;
 		dev->module_info.isp_path[ISP_SCL_VID].valid = 0;
@@ -2105,7 +2115,7 @@ int isp_path_scaler(struct isp_module *module,
 		cfg_reg = ISP_SCALER_PRE_CAP_BASE + ISP_SCALER_CFG;
 	} else if (path_index == ISP_PATH_IDX_VID) {
 		if (module->isp_path[ISP_SCL_CAP].valid &&
-		    dev->is_3dnr_path_cfg)
+		    dev->is_3dnr)
 			sid = ISP_SCENE_CAP;
 		else
 			sid = ISP_SCENE_PRE;

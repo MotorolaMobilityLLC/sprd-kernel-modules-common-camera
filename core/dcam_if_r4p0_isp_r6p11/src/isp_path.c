@@ -1203,7 +1203,7 @@ void isp_path_set(struct isp_module *module,
 		scl_addr = ISP_SCALER_PRE_CAP_BASE;
 		store_addr = ISP_STORE_PRE_CAP_BASE;
 	} else if (ISP_PATH_IDX_VID & path_index) {
-		if (dev->is_3dnr_path_cfg)
+		if (dev->is_3dnr)
 			sid = ISP_SCENE_CAP;
 		else
 			sid = ISP_SCENE_PRE;
@@ -1409,10 +1409,10 @@ int isp_path_set_next_frm(struct isp_module *module,
 		addr->chn2 = yuv_addr[2];
 	}
 
-	if ((path_index == ISP_PATH_IDX_CAP) && dev->is_3dnr_path_cfg) {
+	if ((path_index == ISP_PATH_IDX_CAP) && dev->is_3dnr) {
 		struct isp_path_desc *path_vid = &module->isp_path[ISP_SCL_VID];
 
-		pr_info("cap out w %d h %d, 3dnr out w %d h %d\n",
+		pr_debug("cap out w %d h %d, 3dnr out w %d h %d\n",
 			path->out_size.w, path->out_size.h,
 			path_vid->out_size.w, path_vid->out_size.h);
 

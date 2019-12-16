@@ -2484,7 +2484,9 @@ static int set_slice_fmcu_info(struct slice_param_in *in_ptr,
 		if (mid == ISP_CFG_MODE)
 			num = set_fmcu_cfg(fmcu_buf, num, sid, iid);
 
-		if (dev->is_3dnr_path_cfg) {
+		if (dev->is_3dnr) {
+			pr_debug("3dnr set fmcu cmd: open vid path\n");
+			/* open vid path */
 			addr = ISP_GET_REG(iid, ISP_COMMON_SCL_PATH_SEL);
 			cmd = ISP_HREG_RD(iid, ISP_COMMON_SCL_PATH_SEL) &
 				~(BIT_3 | BIT_2);
@@ -2588,10 +2590,12 @@ static int set_slice_fmcu_info(struct slice_param_in *in_ptr,
 		num = fmcu_push_back(&fmcu_buf[num & (~0x1)], addr,
 			cmd, num);
 
-		if (dev->is_3dnr_path_cfg) {
+		if (dev->is_3dnr) {
+			pr_debug("3dnr set fmcu cmd: close vid path\n");
+			/* close vid path */
 			addr = ISP_GET_REG(iid, ISP_COMMON_SCL_PATH_SEL);
 			cmd = (ISP_HREG_RD(iid, ISP_COMMON_SCL_PATH_SEL) &
-			       ~(BIT_3 | BIT_2)) | (3 << 2);
+			       ~(BIT_3 | BIT_2)) | (BIT_3 | BIT_2);
 			num = fmcu_push_back(&fmcu_buf[num & (~0x1)], addr,
 					     cmd, num);
 		}
