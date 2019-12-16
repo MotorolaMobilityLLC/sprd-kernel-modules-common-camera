@@ -1102,6 +1102,7 @@ struct isp_dev_nlm_imblance_v1 {
 	uint32_t nlm_imblance_flag3_frez;
 	uint32_t nlm_imblance_S_baohedu[3][2];
 	uint32_t imblance_sat_lumth;
+	uint32_t radius_base;
 	uint32_t nlm_imblance_lumth1;
 	uint32_t nlm_imblance_lumth2;
 	uint32_t nlm_imblance_lum1_flag0_rs;
@@ -1136,6 +1137,7 @@ struct isp_dev_nlm_imblance_v1 {
 	uint32_t imblance_radial_1D_center_x;
 	uint32_t imblance_radial_1D_center_y;
 	uint32_t imblance_radial_1D_radius_thr;
+	uint32_t imblance_radial_1D_radius_thr_factor;
 	uint32_t imblance_radial_1D_protect_ratio_max;
 	uint32_t imblance_radial_1D_coef_r0;
 	uint32_t imblance_radial_1D_coef_r1;

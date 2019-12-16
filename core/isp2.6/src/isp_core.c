@@ -213,6 +213,8 @@ int isp_adapt_blkparam(struct isp_pipe_context *pctx)
 		new_width, old_width, new_height, old_height);
 	isp_k_update_ynr(pctx->ctx_id, &pctx->isp_k_param,
 		new_width, old_width, new_height, old_height);
+	isp_k_update_imbalance(pctx->ctx_id, &pctx->isp_k_param,
+		new_width, old_width, new_height, old_height);
 
 	if (pctx->mode_3dnr != MODE_3DNR_OFF)
 		isp_k_update_3dnr(pctx->ctx_id, &pctx->isp_k_param,

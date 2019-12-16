@@ -23,6 +23,7 @@ struct isp_k_block {
 		struct isp_dev_ynr_info ynr_info;
 	} ynr_param;
 	struct isp_dev_3dnr_info nr3_info;
+	struct isp_dev_nlm_imblance_v1 imbalance_info;
 	uint32_t seed0_for_mode1;
 	uint32_t shape_mode;
 	uint32_t *nlm_buf;
@@ -132,6 +133,10 @@ int isp_k_update_ynr(uint32_t idx,
 	uint32_t new_width, uint32_t old_width,
 	uint32_t new_height, uint32_t old_height);
 int isp_k_update_3dnr(uint32_t idx,
+	struct isp_k_block *isp_k_param,
+	uint32_t new_width, uint32_t old_width,
+	uint32_t new_height, uint32_t old_height);
+int isp_k_update_imbalance(uint32_t idx,
 	struct isp_k_block *isp_k_param,
 	uint32_t new_width, uint32_t old_width,
 	uint32_t new_height, uint32_t old_height);

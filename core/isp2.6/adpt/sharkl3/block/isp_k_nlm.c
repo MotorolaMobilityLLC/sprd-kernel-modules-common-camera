@@ -313,3 +313,13 @@ int isp_k_update_nlm(uint32_t idx,
 
 	return ret;
 }
+
+int isp_k_update_imbalance(uint32_t idx,
+	struct isp_k_block *isp_k_param,
+	uint32_t new_width, uint32_t old_width,
+	uint32_t new_height, uint32_t old_height)
+{
+	int ret = 0;
+
+	return ret;
+}
