@@ -177,6 +177,9 @@ struct cam_hw_core_ops {
 	int (* ebd_set)(uint32_t idx, void *arg);
 	int (*binning_4in1_set)(void *arg, int binning_4in1_en);
 	int (*sram_ctrl_set)(void *arg, int sram_ctrl_en);
+	int (*dcam_gtm_status_get)(uint32_t idx);
+	void (*cam_gtm_ltm_eb)(uint32_t dcam_idx, uint32_t isp_idx);
+	void (*cam_gtm_ltm_dis)(uint32_t dcam_idx, uint32_t isp_idx);
 	void (*isp_fetch_set)(void *arg);
 	void (*isp_afbc_addr_set)(uint32_t idx, uint32_t spath_id,
 		unsigned long *yuv_addr);

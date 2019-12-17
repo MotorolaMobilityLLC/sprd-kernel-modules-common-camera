@@ -1886,6 +1886,7 @@ static struct cam_hw_ip_info sharkl3_dcam[DCAM_ID_MAX] = {
 		.pdaf_type3_reg_addr = DCAM_VCH2_BASE_WADDR,
 	},
 };
+
 static struct cam_hw_ip_info sharkl3_isp = {
 	.slm_cfg_support = 0,
 	.ctx_fmcu_support = sharkl3_isp_ctx_fmcu_support,
@@ -1951,11 +1952,13 @@ struct cam_hw_info sharkl3_hw_info = {
 			.ebd_set = sharkl3_dcam_ebd_set,
 			.binning_4in1_set = sharkl3_dcam_binning_4in1_set,
 			.sram_ctrl_set = sharkl3_dcam_sram_ctrl_set,
-			.path_resume = NULL,
 			.lbuf_share_set = NULL,
 			.dcam_slice_fetch_set = sharkl3_dcam_slice_fetch_set,
 			.dcam_fbc_ctrl = NULL,
 			.dcam_fbc_addr_set = NULL,
+			.dcam_gtm_status_get = NULL,
+			.cam_gtm_ltm_eb = NULL,
+			.cam_gtm_ltm_dis = NULL,
 			.isp_fetch_set = sharkl3_isp_fetch_set,
 			.default_para_set = sharkl3_isp_default_param_set,
 			.block_func_get = sharkl3_block_func_get,

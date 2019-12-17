@@ -225,6 +225,15 @@ enum dcam_capture_status {
 	DCAM_CAPTURE_MAX
 };
 
+
+enum capture_scene {
+	CAPTURE_COMMON = 0,
+	CAPTURE_HDR,
+	CAPTURE_SW3DNR,
+	CAPTURE_HW3DNR,
+	CAPTURE_FLASH,
+};
+
 enum {
 	ISP_VIDEO_CLOSE = 0,
 	ISP_NORMAL_VIDEO,
@@ -797,6 +806,7 @@ struct sprd_img_capture_param {
 	uint32_t type;
 	uint32_t cap_cnt;/* frame num for DCAM_CAPTURE_START_FROM_NEXT_SOF */
 	int64_t  timestamp;
+	enum capture_scene cap_scene;
 };
 #pragma pack(pop)
 

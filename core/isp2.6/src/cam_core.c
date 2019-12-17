@@ -298,7 +298,9 @@ struct camera_module {
 	struct camera_queue zsl_fifo_queue; /* for cmp timestamp */
 	struct camera_frame *dual_frame; /* 0: no, to find, -1: no need find */
 	atomic_t capture_frames_dcam; /* how many frames to report, -1:always */
+	atomic_t cap_skip_frames;
 	int64_t capture_times; /* *ns, timestamp get from start_capture */
+	uint32_t capture_scene;
 	uint32_t lowlux_4in1; /* flag */
 	struct camera_queue remosaic_queue; /* 4in1: save camera_frame when remosaic */
 	uint32_t auto_3dnr; /* 1: enable hw,and alloc buffer before stream on */
@@ -1554,6 +1556,7 @@ int dcam_callback(enum dcam_cb_type type, void *param, void *priv_data)
 	struct isp_offline_param *cur;
 	struct isp_statis_io_desc io_desc;
 	struct cam_hw_info *hw = NULL;
+	int cap_frame = 0, skip_frame = 0;
 
 	if (!param || !priv_data) {
 		pr_err("fail to get valid param %p %p\n", param, priv_data);
@@ -1795,18 +1798,18 @@ int dcam_callback(enum dcam_cb_type type, void *param, void *priv_data)
 						channel->dcam_path_id, pframe);
 
 					return ret;
-
 				} else {
-					if (atomic_read(&module->capture_frames_dcam) > 0) {
+					cap_frame = atomic_read(&module->capture_frames_dcam);
+					skip_frame = atomic_read(&module->cap_skip_frames);
+					if (cap_frame > 0 && skip_frame == 0) {
 						pr_info("cam%d cap type[%d] num[%d]\n", module->idx,
 							module->dcam_cap_status,
-							atomic_read(&module->capture_frames_dcam));
+							cap_frame);
 						atomic_dec(&module->capture_frames_dcam);
 					} else {
-
 						pr_info("cam%d cap type[%d] num[%d]\n", module->idx,
-							module->dcam_cap_status,
-							atomic_read(&module->capture_frames_dcam));
+							module->dcam_cap_status, cap_frame);
+						atomic_dec(&module->cap_skip_frames);
 						if (pframe->sync_data)
 							dcam_if_release_sync(pframe->sync_data, pframe);
 						ret = dcam_ops->cfg_path(
@@ -1815,7 +1818,6 @@ int dcam_callback(enum dcam_cb_type type, void *param, void *priv_data)
 							channel->dcam_path_id, pframe);
 
 						return ret;
-
 					}
 				}
 			}
@@ -6251,7 +6253,10 @@ static int img_ioctl_start_capture(
 {
 	int ret = 0;
 	struct sprd_img_capture_param param;
+	struct cam_hw_info *hw = NULL;
 	ktime_t start_time = 0;
+	uint32_t isp_idx = 0;
+	uint32_t cap_skip_num = 0;
 
 	ret = copy_from_user(&param, (void __user *)arg,
 			sizeof(struct sprd_img_capture_param));
@@ -6265,14 +6270,29 @@ static int img_ioctl_start_capture(
 				atomic_read(&module->state));
 		return ret;
 	}
+	hw = module->grp->hw_info;
 	start_time = ktime_get_boottime();
+
+	module->capture_scene = param.cap_scene;
+	isp_idx = module->channel[CAM_CH_CAP].isp_path_id >> ISP_CTXID_OFFSET;
+	if (module->capture_scene == CAPTURE_HDR
+		|| module->capture_scene == CAPTURE_SW3DNR
+		|| module->capture_scene == CAPTURE_HW3DNR) {
+		if (hw->hw_ops.core_ops.cam_gtm_ltm_dis)
+			hw->hw_ops.core_ops.cam_gtm_ltm_dis(
+				module->dcam_idx, isp_idx);
+	}
+	atomic_set(&module->cap_skip_frames, -1);
 
 	/* recognize the capture scene */
 	if (param.type == DCAM_CAPTURE_START_FROM_NEXT_SOF) {
 		module->dcam_cap_status = DCAM_CAPTURE_START_FROM_NEXT_SOF;
+		if (hw->hw_ops.core_ops.dcam_gtm_status_get)
+			cap_skip_num = hw->hw_ops.core_ops.dcam_gtm_status_get(
+				module->dcam_idx);
+		atomic_set(&module->cap_skip_frames, cap_skip_num);
 		atomic_set(&module->capture_frames_dcam, param.cap_cnt);
 		module->capture_times = start_time;
-
 	} else if (param.type == DCAM_CAPTURE_START_WITH_TIMESTAMP) {
 		module->dcam_cap_status = DCAM_CAPTURE_START_WITH_TIMESTAMP;
 		/* dual camera need 1 frame */
@@ -6340,9 +6360,23 @@ static int img_ioctl_stop_capture(
 			unsigned long arg)
 {
 	struct channel_context *channel = NULL;
+	struct cam_hw_info *hw = NULL;
+	uint32_t isp_idx = 0;
+
 	module->cap_status = CAM_CAPTURE_STOP;
 	module->dcam_cap_status = DCAM_CAPTURE_STOP;
+
 	pr_info("cam %d stop capture.\n", module->idx);
+	hw = module->grp->hw_info;
+	isp_idx = module->channel[CAM_CH_CAP].isp_path_id >> ISP_CTXID_OFFSET;
+	if (module->capture_scene == CAPTURE_HDR
+		|| module->capture_scene == CAPTURE_SW3DNR
+		|| module->capture_scene == CAPTURE_HW3DNR) {
+		if (hw->hw_ops.core_ops.cam_gtm_ltm_eb)
+			hw->hw_ops.core_ops.cam_gtm_ltm_eb(
+				module->dcam_idx, isp_idx);
+	}
+
 	/* Handling special case in which stop_capture comes before start_capture.
 	 * In this case before assigning NULL to  module->dual_frame, we should check if it points
 	 * to some valid frame, if yes then add that frame to dcam path queue to avoid Memroy leak.

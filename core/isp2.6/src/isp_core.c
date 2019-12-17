@@ -2386,8 +2386,8 @@ static int sprd_isp_cfg_path(void *isp_handle,
 		return -EFAULT;
 	}
 	if (path_id >= ISP_SPATH_NUM) {
-			pr_err("fail to use legal id path %d\n", path_id);
-			return -EFAULT;
+		pr_err("fail to use legal id path %d\n", path_id);
+		return -EFAULT;
 	}
 	dev = (struct isp_pipe_dev *)isp_handle;
 	pctx = &dev->ctx[ctx_id];

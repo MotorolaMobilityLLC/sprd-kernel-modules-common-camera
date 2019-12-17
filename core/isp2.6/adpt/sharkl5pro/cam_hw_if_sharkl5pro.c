@@ -38,6 +38,8 @@
 extern atomic_t s_dcam_working;
 static uint32_t dcam_linebuf_len[3] = {0, 0, 0};
 extern void sprd_kproperty_get(const char *key, char *value, const char *default_value);
+static uint32_t g_gtm_en = 0;
+static uint32_t g_ltm_bypass = 1;
 
 static unsigned long irq_base[4] = {
 	ISP_P0_INT_BASE,
@@ -1352,6 +1354,54 @@ static int sharkl5pro_dcam_fbc_addr_set(uint32_t idx,
 	return 0;
 }
 
+static int sharkl5pro_dcam_gtm_status_get(uint32_t idx)
+{
+	int val = 0;
+
+	if (idx >= DCAM_ID_MAX) {
+		pr_err("fail to get dcam_idx %d\n", idx);
+		return -EFAULT;
+	}
+
+	val = DCAM_REG_RD(idx, DCAM_GTM_GLB_CTRL) & BIT_0;
+	return val;
+}
+
+static void sharkl5pro_cam_gtm_ltm_eb(uint32_t dcam_idx, uint32_t isp_idx)
+{
+	if (dcam_idx >= DCAM_ID_MAX || isp_idx >= ISP_CONTEXT_SW_NUM) {
+		pr_err("fail to get dcam_idx %d isp_idx %d\n", dcam_idx, isp_idx);
+		return;
+	}
+
+	g_dcam_bypass[dcam_idx] &= (~(1 << _E_GTM));
+	DCAM_REG_MWR(dcam_idx, DCAM_GTM_GLB_CTRL, BIT_0, g_gtm_en);
+
+	g_isp_bypass[isp_idx] &= (~(1 << _EISP_LTM));
+	ISP_REG_MWR(isp_idx, ISP_LTM_MAP_RGB_BASE
+		+ ISP_LTM_MAP_PARAM0, BIT_0, g_ltm_bypass);
+	pr_debug("gtm %d ltm eb %d\n", g_gtm_en, g_ltm_bypass);
+}
+
+static void sharkl5pro_cam_gtm_ltm_dis(uint32_t dcam_idx, uint32_t isp_idx)
+{
+	if (dcam_idx >= DCAM_ID_MAX || isp_idx >= ISP_CONTEXT_SW_NUM) {
+		pr_err("fail to get dcam_idx %d isp_idx %d\n", dcam_idx, isp_idx);
+		return;
+	}
+
+	g_dcam_bypass[dcam_idx] |= (1 << _E_GTM);
+	g_gtm_en = DCAM_REG_RD(dcam_idx, DCAM_GTM_GLB_CTRL) & BIT_0;
+	DCAM_REG_MWR(dcam_idx, DCAM_GTM_GLB_CTRL, BIT_0, 1);
+
+	g_isp_bypass[isp_idx] |= (1 << _EISP_LTM);
+	g_ltm_bypass = ISP_REG_RD(isp_idx,
+		ISP_LTM_MAP_RGB_BASE + ISP_LTM_MAP_PARAM0) & BIT_0;
+	ISP_REG_MWR(isp_idx,
+		ISP_LTM_MAP_RGB_BASE + ISP_LTM_MAP_PARAM0, BIT_0, 1);
+	pr_debug("gtm %d ltm dis %d\n", g_gtm_en, g_ltm_bypass);
+}
+
 static int sharkl5pro_isp_clk_eb(struct cam_hw_soc_info *hw)
 {
 	int ret = 0;
@@ -2632,6 +2682,9 @@ struct cam_hw_info sharkl5pro_hw_info = {
 			.dcam_fetch_set = sharkl5pro_dcam_fetch_set,
 			.dcam_fbc_ctrl = sharkl5pro_dcam_fbc_ctrl,
 			.dcam_fbc_addr_set = sharkl5pro_dcam_fbc_addr_set,
+			.dcam_gtm_status_get = sharkl5pro_dcam_gtm_status_get,
+			.cam_gtm_ltm_eb = sharkl5pro_cam_gtm_ltm_eb,
+			.cam_gtm_ltm_dis = sharkl5pro_cam_gtm_ltm_dis,
 			.isp_fetch_set = sharkl5pro_isp_fetch_set,
 			.isp_fbd_slice_set = sharkl5pro_isp_fbd_slice_set,
 			.isp_fbd_addr_set = sharkl5pro_isp_fbd_addr_set,

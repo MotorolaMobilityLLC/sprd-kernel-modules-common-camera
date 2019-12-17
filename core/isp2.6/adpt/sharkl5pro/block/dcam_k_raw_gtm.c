@@ -99,10 +99,12 @@ int dcam_k_raw_gtm_block(struct dcam_dev_param *param)
 	p = &(param->gtm.gtm_info);
 	dcam_k_raw_gtm_set_default(p);
 
+	if (g_dcam_bypass[param->idx] & (1 << _E_GTM))
+		p->gtm_mod_en = 0;
 	gtm_slice = &(p->slice);
 	DCAM_REG_MWR(idx, DCAM_GTM_GLB_CTRL, BIT_0, (p->gtm_mod_en & 0x1));
-		if (!p->gtm_mod_en)
-			return 0;
+	if (!p->gtm_mod_en)
+		return 0;
 
 	val =((p->gtm_map_bypass & 0x1) <<1) |
 		((p->gtm_hist_stat_bypass & 0x1) <<2) |
@@ -190,9 +192,6 @@ int dcam_k_cfg_raw_gtm(struct isp_io_param *param, struct dcam_dev_param *p)
 		pr_err("property_param is null error.\n");
 		return -1;
 	}
-	/* debugfs bypass blc */
-	if (g_dcam_bypass[p->idx] & (1 << _E_GTM))
-		return 0;
 
 	switch (param->property) {
 	case DCAM_PRO_RAW_GTM_BLOCK:
