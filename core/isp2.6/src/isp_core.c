@@ -1943,7 +1943,7 @@ static int sprd_isp_get_context(void *isp_handle, void *param)
 	int ret = 0;
 	int i;
 	int sel_ctx_id = -1;
-	enum  isp_context_id ctx_id = 0xff;
+	enum  isp_context_id ctx_id = 0;
 	struct isp_pipe_context *pctx;
 	struct isp_pipe_dev *dev = NULL;
 	struct isp_path_desc *path = NULL;
