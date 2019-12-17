@@ -1943,7 +1943,7 @@ static int sprd_isp_get_context(void *isp_handle, void *param)
 	int ret = 0;
 	int i;
 	int sel_ctx_id = -1;
-	enum  isp_context_id ctx_id = 0;
+	enum  isp_context_id ctx_id = 0xff;
 	struct isp_pipe_context *pctx;
 	struct isp_pipe_dev *dev = NULL;
 	struct isp_path_desc *path = NULL;
@@ -1965,8 +1965,9 @@ static int sprd_isp_get_context(void *isp_handle, void *param)
 	mutex_lock(&dev->path_mutex);
 
 	/* ISP cfg mode, get free context */
-	if (init_param->is_superzoom) {
-		sel_ctx_id = ISP_CONTEXT_SUPERZOOM;
+	if (init_param->is_superzoom == 1) {
+		ctx_id = ISP_CONTEXT_SUPERZOOM;
+		sel_ctx_id = ctx_id;
 		pctx = &dev->ctx[sel_ctx_id];
 		atomic_set(&pctx->user_cnt, 1);
 		pr_info("sw %d, get superzoom context\n", pctx->ctx_id);

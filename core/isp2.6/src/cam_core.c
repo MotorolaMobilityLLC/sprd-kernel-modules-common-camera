@@ -3072,7 +3072,8 @@ static int capture_proc(void *param)
 	ret = -1;
 	if (module->cap_status != CAM_CAPTURE_STOP) {
 		pr_info("enter\n");
-		if (channel->cap_status == NONE_CAP_SUPERZOOM) {
+		if (channel->cap_status == NONE_CAP_SUPERZOOM
+			|| module->cap_status == CAM_CAPTURE_RAWPROC) {
 			/*Not to do superzoom capture*/
 			pr_info("capture frame cam id %d, fid[%d],  frame w %d, h %d\n",
 				module->idx, pframe->fid,
