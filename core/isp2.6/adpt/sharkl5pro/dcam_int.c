@@ -484,6 +484,7 @@ static void dcam_cap_sof(void *param)
 				if (path->state == DCAM_PATH_PAUSE) {
 					hw->hw_ops.core_ops.path_pause(dev->idx,
 						path->path_id);
+					dev->auto_cpy_id |= DCAM_CTRL_FULL;
 					spin_unlock_irqrestore(&path->state_lock, flag);
 					continue;
 				} else if (path->state == DCAM_PATH_RESUME) {
