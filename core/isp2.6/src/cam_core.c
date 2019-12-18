@@ -304,6 +304,7 @@ struct camera_module {
 	uint32_t auto_3dnr; /* 1: enable hw,and alloc buffer before stream on */
 	struct sprd_img_flash_info flash_info;
 	uint32_t flash_skip_fid;
+	uint32_t path_state;
 };
 
 struct camera_group {
@@ -5907,12 +5908,14 @@ static int img_ioctl_stream_on(
 	set_cap_info(module);
 
 	module->dual_frame = NULL;
-
+	dev = (struct dcam_pipe_dev *)module->dcam_dev_handle;
 	if (module->cam_uinfo.is_4in1) {
 		shutoff = 1;
-		dev = (struct dcam_pipe_dev *)module->dcam_dev_handle;
 		dcam_ops->cfg_path(dev, DCAM_PATH_CFG_SHUTOFF, DCAM_PATH_BIN, &shutoff);
 	}
+	if (module->channel[CAM_CH_CAP].enable)
+		dcam_ops->cfg_path(dev, DCAM_PATH_CFG_STATE,
+			DCAM_PATH_FULL, &module->path_state);
 	ret = dcam_ops->start(module->dcam_dev_handle, 1);
 	if (ret < 0) {
 		pr_err("fail to start dcam dev, ret %d\n", ret);
@@ -7701,16 +7704,16 @@ static int img_ioctl_path_pause(struct camera_module *module, unsigned long arg)
 	uint32_t dcam_path_state = DCAM_PATH_PAUSE;
 	struct dcam_pipe_dev *dev = NULL;
 
+	pr_debug("pause %d with dcam %d not running\n",
+			module->idx, module->dcam_idx);
 	dev = (struct dcam_pipe_dev *)module->dcam_dev_handle;
+	module->path_state = dcam_path_state;
 	if (atomic_read(&module->state) == CAM_RUNNING) {
 		mutex_lock(&module->lock);
-		dcam_ops->cfg_path(dev, DCAM_PATH_CFG_STATE,
-			DCAM_PATH_FULL, &dcam_path_state);
+		if (module->channel[CAM_CH_CAP].enable)
+			dcam_ops->cfg_path(dev, DCAM_PATH_CFG_STATE,
+				DCAM_PATH_FULL, &dcam_path_state);
 		mutex_unlock(&module->lock);
-	} else {
-		pr_warn("camera %d with dcam %d not running\n",
-			module->idx, module->dcam_idx);
-		ret = -EFAULT;
 	}
 
 	return ret;
@@ -7722,16 +7725,16 @@ static int img_ioctl_path_resume(struct camera_module *module, unsigned long arg
 	uint32_t dcam_path_state = DCAM_PATH_RESUME;
 	struct dcam_pipe_dev *dev = NULL;
 
+	pr_debug("resume %d with dcam %d not running\n",
+			module->idx, module->dcam_idx);
 	dev = (struct dcam_pipe_dev *)module->dcam_dev_handle;
+	module->path_state = dcam_path_state;
 	if (atomic_read(&module->state) == CAM_RUNNING) {
 		mutex_lock(&module->lock);
-		dcam_ops->cfg_path(dev, DCAM_PATH_CFG_STATE,
-			DCAM_PATH_FULL, &dcam_path_state);
+		if (module->channel[CAM_CH_CAP].enable)
+			dcam_ops->cfg_path(dev, DCAM_PATH_CFG_STATE,
+				DCAM_PATH_FULL, &dcam_path_state);
 		mutex_unlock(&module->lock);
-	} else {
-		pr_warn("camera %d with dcam %d not running\n",
-			module->idx, module->dcam_idx);
-		ret = -EFAULT;
 	}
 
 	return ret;

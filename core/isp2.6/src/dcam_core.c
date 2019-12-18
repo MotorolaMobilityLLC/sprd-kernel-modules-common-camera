@@ -2024,6 +2024,7 @@ static int sprd_dcam_dev_start(void *dcam_handle, int online)
 	struct dcam_sync_helper *helper = NULL;
 	struct dcam_path_desc *path = NULL;
 	struct cam_hw_info *hw = NULL;
+	unsigned long flag;
 
 	if (!dcam_handle) {
 		pr_err("fail to get valid dcam_pipe_dev\n");
@@ -2112,6 +2113,18 @@ static int sprd_dcam_dev_start(void *dcam_handle, int online)
 
 		if (atomic_read(&path->user_cnt) < 1 || atomic_read(&path->is_shutoff) > 0)
 			continue;
+
+		if (path->path_id == DCAM_PATH_FULL) {
+			spin_lock_irqsave(&path->state_lock, flag);
+			if (path->state == DCAM_PATH_PAUSE) {
+				hw->hw_ops.core_ops.path_start(dev, i);
+				hw->hw_ops.core_ops.path_pause(dev->idx,
+					path->path_id);
+				spin_unlock_irqrestore(&path->state_lock, flag);
+				continue;
+			}
+			spin_unlock_irqrestore(&path->state_lock, flag);
+		}
 
 		ret = dcam_path_set_store_frm(dev, path, helper);
 		if (ret < 0) {
