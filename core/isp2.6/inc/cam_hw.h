@@ -169,6 +169,7 @@ struct cam_hw_core_ops {
 	int (*path_src_sel)(void *handle, enum dcam_full_src_sel_type src_sel);
 	int (*path_size_update)(void *handle, void *arg);
 	int (*mipi_cap_set)(void *arg);
+	int (*dcam_fetch_block_set)(void *arg);
 	int (*dcam_fetch_set)(void *arg);
 	void (*dcam_fbc_ctrl)(uint32_t idx, int fbc_mode);
 	int (*dcam_fbc_addr_set)(uint32_t idx, unsigned long addr, void *arg);

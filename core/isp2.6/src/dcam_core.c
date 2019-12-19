@@ -1045,6 +1045,24 @@ static int dcam_offline_start_frame(void *param)
 		return 0;
 	}
 
+	if (DCAM_FETCH_TWICE(dev)) {
+		dev->raw_fetch_count++;
+		ret = hw->hw_ops.core_ops.dcam_fetch_block_set(dev);
+		if (!DCAM_FIRST_FETCH(dev)) {
+			struct camera_frame *frame = NULL;
+
+			frame = camera_dequeue(&dev->proc_queue);
+			if (frame) {
+				path = &dev->path[DCAM_PATH_BIN];
+				ret = camera_enqueue(&path->out_buf_queue, frame);
+			}
+			pframe->endian = frame->endian;
+			pframe->pattern = frame->pattern;
+			pframe->width = frame->width;
+			pframe->height = frame->height;
+		}
+	}
+
 	pr_info("frame %p, dcam%d  ch_id %d.  buf_fd %d\n", pframe,
 		dev->idx, pframe->channel_id, pframe->buf.mfd[0]);
 	pr_info("size %d %d,  endian %d, pattern %d\n",

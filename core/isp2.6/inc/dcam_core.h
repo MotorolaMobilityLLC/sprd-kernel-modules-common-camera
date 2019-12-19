@@ -42,6 +42,9 @@
 #define DCAM_FRAME_TIMESTAMP_COUNT 0x40
 /* get index of timestamp from frame index */
 #define tsid(x) ((x) & (DCAM_FRAME_TIMESTAMP_COUNT - 1))
+#define DCAM_FETCH_TWICE(dev)  (dev->raw_fetch_num > 1)
+#define DCAM_FIRST_FETCH(dev)  (dev->raw_fetch_count == 1)
+#define DCAM_LAST_FETCH(dev)   (dev->raw_fetch_count == 2)
 
 struct dcam_pipe_dev;
 
@@ -251,6 +254,8 @@ struct dcam_pipe_dev {
 	uint32_t slice_count;
 	struct img_trim slice_trim;
 	uint32_t raw_cap;
+	uint32_t raw_fetch_num;
+	uint32_t raw_fetch_count;
 	uint32_t flash_skip_fid; /*for flash skip */
 	struct completion slice_done;
 	struct completion frm_done;

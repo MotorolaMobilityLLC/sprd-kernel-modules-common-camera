@@ -4338,6 +4338,7 @@ static int img_ioctl_cfg_param(
 	int ret = 0;
 	struct channel_context *channel;
 	struct isp_io_param param;
+	struct dcam_pipe_dev *dev = NULL;
 
 	ret = copy_from_user((void *)&param,
 			(void *)arg, sizeof(struct isp_io_param));
@@ -4350,6 +4351,12 @@ static int img_ioctl_cfg_param(
 		pr_err("fail to get user param ptr.\n");
 		ret = -EFAULT;
 		goto exit;
+	}
+
+	dev = (struct dcam_pipe_dev *)module->dcam_dev_handle;
+	if (dev && dev->raw_fetch_count > 0) {
+		pr_warn("raw fetch in progress!\n");
+		return 0;
 	}
 
 	if (((param.scene_id == PM_SCENE_CAP) &&
@@ -6415,6 +6422,7 @@ static int raw_proc_done(struct camera_module *module)
 	struct channel_context *ch;
 	struct channel_context *ch_raw;
 	struct isp_statis_io_desc io_desc;
+	struct dcam_pipe_dev *dev = NULL;
 
 	pr_info("cam%d start\n", module->idx);
 
@@ -6481,6 +6489,10 @@ static int raw_proc_done(struct camera_module *module)
 	camera_queue_clear(&ch->share_buf_queue);
 	module->cam_uinfo.dcam_slice_mode = CAM_SLICE_NONE;
 	module->cam_uinfo.slice_num = 0;
+
+	dev = (struct dcam_pipe_dev *)module->dcam_dev_handle;
+	dev->raw_fetch_num = 0;
+	dev->raw_fetch_count = 0;
 	atomic_set(&module->state, CAM_IDLE);
 	pr_info("camera%d rawproc done.\n", module->idx);
 
@@ -6697,6 +6709,7 @@ static int raw_proc_post(
 	struct camera_frame *mid_frame;
 	struct camera_frame *dst_frame;
 	struct isp_statis_io_desc io_desc;
+	struct dcam_pipe_dev *dev = NULL;
 
 	pr_info("start\n");
 
@@ -6748,6 +6761,14 @@ static int raw_proc_post(
 	ret = cambuf_get_ionbuf(&dst_frame->buf);
 	if (ret)
 		goto dst_fail;
+
+	dev = (struct dcam_pipe_dev *)module->dcam_dev_handle;
+	if (module->grp->hw_info->prj_id == SHARKL3
+		&& module->dcam_idx == DCAM_ID_1)
+		dev->raw_fetch_num = 2;
+	else
+		dev->raw_fetch_num = 1;
+	dev->raw_fetch_count = 0;
 
 	mid_frame = get_empty_frame();
 	mid_frame->channel_id = ch->ch_id;
