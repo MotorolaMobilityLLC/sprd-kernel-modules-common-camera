@@ -822,7 +822,7 @@ static void alloc_buffers(struct work_struct *work)
 				DCAM_IOCTL_CFG_REPLACER, NULL);
 	}
 
-	if (hw->ip_dcam[module->idx]->superzoom_support
+	if (hw->ip_dcam[module->dcam_idx]->superzoom_support
 		&& channel->ch_id == CAM_CH_CAP) {
 		/*more than 8x zoom capture alloc buf*/
 
@@ -856,7 +856,7 @@ static void alloc_buffers(struct work_struct *work)
 
 		channel->superzoom_buf = pframe;
 		pr_info("idx %d, superzoom w %d, h %d, buf %p \n",
-			module->idx, w, h, pframe);
+			module->dcam_idx, w, h, pframe);
 	}
 
 	if (channel->type_3dnr == CAM_3DNR_HW) {
@@ -3820,7 +3820,7 @@ static int init_cam_channel(
 		ret = isp_ops->cfg_path(module->isp_dev_handle,
 				ISP_PATH_CFG_CTX_BASE, isp_ctx_id, 0, &ctx_desc);
 
-		if (hw->ip_dcam[module->idx]->superzoom_support
+		if (hw->ip_dcam[module->dcam_idx]->superzoom_support
 			&& channel->ch_id == CAM_CH_CAP) {
 			init_param.cam_id = module->idx;
 			init_param.is_superzoom = 1;
@@ -3869,7 +3869,7 @@ static int init_cam_channel(
 					ISP_PATH_CFG_PATH_BASE,
 					isp_ctx_id, isp_path_id, &path_desc);
 
-		if (hw->ip_dcam[module->idx]->superzoom_support
+		if (hw->ip_dcam[module->dcam_idx]->superzoom_support
 			&& channel->ch_id == CAM_CH_CAP) {
 			ret = isp_ops->get_path(
 					module->isp_dev_handle, ISP_CONTEXT_SUPERZOOM, isp_path_id);
@@ -5547,8 +5547,8 @@ static int img_ioctl_get_cam_res(
 		res.flag = DCAM_RES_DCAM2_CAP | DCAM_RES_DCAM2_PATH;
 
 
-	pr_debug("sensor %d w %u h %u, cam [%d]\n",
-		res.sensor_id, res.width, res.height, module->idx);
+	pr_debug("sensor %d w %u h %u, cam [%d], dcam %d\n",
+		res.sensor_id, res.width, res.height, module->idx, module->dcam_idx);
 
 	pr_info("get camera res for sensor %d res %x done.\n",
 					res.sensor_id, res.flag);
@@ -5853,7 +5853,7 @@ static int img_ioctl_stream_on(
 				}
 			}
 
-			if (hw->ip_dcam[module->idx]->superzoom_support
+			if (hw->ip_dcam[module->dcam_idx]->superzoom_support
 				&& ch->ch_id == CAM_CH_CAP) {
 				if (ch->superzoom_buf== NULL)
 					continue;
@@ -5932,10 +5932,11 @@ static int img_ioctl_stream_on(
 	atomic_set(&module->timeout_flag, 1);
 	ret = sprd_start_timer(&module->cam_timer, CAMERA_TIMEOUT);
 
-	if (hw->ip_dcam[module->idx]->superzoom_support) {
+	if (hw->ip_dcam[module->dcam_idx]->superzoom_support) {
 		init_completion(&module->channel[CAM_CH_CAP].superzoom_frm);
 		complete(&module->channel[CAM_CH_CAP].superzoom_frm);
-		pr_info("superzoom stream on do complete.\n");
+		pr_info("superzoom stream on do complete, dcam %d\n",
+			module->dcam_idx);
 	}
 
 	if (module->dump_thrd.thread_task) {
@@ -5995,7 +5996,7 @@ static int img_ioctl_stream_off(
 	module->dcam_cap_status = DCAM_CAPTURE_STOP;
 
 	hw = module->grp->hw_info;
-	if (hw->ip_dcam[module->idx]->superzoom_support) {
+	if (hw->ip_dcam[module->dcam_idx]->superzoom_support) {
 		init_completion(&module->channel[CAM_CH_CAP].superzoom_frm);
 		pr_info("superzoom stream off init complete.\n");
 	}
@@ -6060,7 +6061,7 @@ static int img_ioctl_stream_off(
 			isp_ops->put_path(module->isp_dev_handle,
 					isp_ctx_id[i],
 					ch->isp_path_id & ISP_PATHID_MASK);
-			if (hw->ip_dcam[module->idx]->superzoom_support
+			if (hw->ip_dcam[module->dcam_idx]->superzoom_support
 				&& ch->ch_id == CAM_CH_CAP) {
 				pr_info("put path superzoom\n");
 				isp_ops->put_path(module->isp_dev_handle,
@@ -6086,7 +6087,7 @@ static int img_ioctl_stream_off(
 				isp_ops->put_context(module->isp_dev_handle,
 					isp_ctx_id[i]);
 
-			if (hw->ip_dcam[module->idx]->superzoom_support
+			if (hw->ip_dcam[module->dcam_idx]->superzoom_support
 				&& ch->ch_id == CAM_CH_CAP) {
 				pr_info("put context superzoom\n");
 				isp_ops->put_context(module->isp_dev_handle,
@@ -6143,7 +6144,7 @@ static int img_ioctl_stream_off(
 				}
 			}
 
-			if (hw->ip_dcam[module->idx]->superzoom_support
+			if (hw->ip_dcam[module->dcam_idx]->superzoom_support
 				&& ch->ch_id == CAM_CH_CAP) {
 				if (ch->superzoom_buf) {
 					put_k_frame(ch->superzoom_buf);
