@@ -632,6 +632,16 @@ static void dcam_bin_path_done(void *param)
 				dev->slice_num = 0;
 			}
 		}
+		if (DCAM_FETCH_TWICE(dev) && DCAM_FIRST_FETCH(dev)) {
+			struct dcam_pipe_ops * dcam_ops = dcam_if_get_ops();
+
+			complete(&dev->frm_done);
+			pr_debug("raw fetch done\n");
+			cambuf_iommu_unmap(&frame->buf);
+			if (dcam_ops->proc_frame(param, frame))
+				pr_err("fail to start dcam/isp for raw proc\n");
+			return;
+		}
 		dcam_dispatch_frame(dev, DCAM_PATH_BIN, frame,
 				    DCAM_CB_DATA_DONE);
 	}

@@ -737,6 +737,54 @@ int sharkl3_dcam_slice_fetch_set(void *arg)
 	return ret;
 }
 
+static int sharkl3_dcam_fetch_block_set(void *arg)
+{
+	int ret = 0;
+	struct dcam_pipe_dev *dev = NULL;
+
+	pr_debug("enter.\n");
+
+	if (!arg) {
+		pr_err("fail to get valid arg\n");
+		return -EFAULT;
+	}
+
+	dev = (struct dcam_pipe_dev *)arg;
+	if (DCAM_FIRST_FETCH(dev)) {
+		pr_debug("fetch: 1st  only open BLC & Rgb_gain & yrandom\n");
+
+		DCAM_REG_MWR(dev->idx,
+			DCAM_MIPI_CAP_CFG, BIT_18, ~BIT_18);
+		DCAM_REG_MWR(dev->idx,
+			ISP_RGBG_PARAM, BIT_0, ~BIT_0);
+		DCAM_REG_MWR(dev->idx,
+			ISP_RGBG_YRANDOM_PARAMETER0, BIT_0, ~BIT_0);
+
+		DCAM_REG_MWR(dev->idx, DCAM_LENS_LOAD_ENABLE, BIT_0, BIT_0);
+		DCAM_REG_MWR(dev->idx, ISP_AWBC_PARAM, BIT_0, BIT_0);
+		DCAM_REG_MWR(dev->idx, ISP_BPC_PARAM, 0x0F, 0x0F);
+		DCAM_REG_MWR(dev->idx, DCAM_GRGB_CTRL, BIT_0, BIT_0);
+	} else {
+		pr_debug("fetch: 2nd  close BLC & Rgb_gain & yrandom, open other sublock\n");
+		DCAM_REG_MWR(dev->idx,
+			DCAM_MIPI_CAP_CFG, BIT_18, BIT_18);
+		DCAM_REG_MWR(dev->idx,
+			ISP_RGBG_PARAM, BIT_0, BIT_0);
+		DCAM_REG_MWR(dev->idx,
+			ISP_RGBG_PARAM, 0xFFFF << 16, 0xFFFF << 16);
+		DCAM_REG_MWR(dev->idx,
+			ISP_RGBG_YRANDOM_PARAMETER0, BIT_0, BIT_0);
+
+		DCAM_REG_MWR(dev->idx,
+			DCAM_LENS_LOAD_ENABLE, BIT_0, ~BIT_0);
+		DCAM_REG_MWR(dev->idx, ISP_AWBC_PARAM, BIT_0, ~BIT_0);
+		DCAM_REG_MWR(dev->idx, ISP_BPC_PARAM, 0x0F, 0x0);
+		DCAM_REG_MWR(dev->idx, DCAM_GRGB_CTRL, BIT_0, ~BIT_0);
+	}
+
+	return ret;
+}
+
 static int sharkl3_dcam_mipi_cap_set(void *arg)
 {
 	int ret = 0;
@@ -1949,6 +1997,7 @@ struct cam_hw_info sharkl3_hw_info = {
 			.path_size_update = sharkl3_dcam_path_size_update,
 			.mipi_cap_set = sharkl3_dcam_mipi_cap_set,
 			.dcam_fetch_set = sharkl3_dcam_fetch_set,
+			.dcam_fetch_block_set = sharkl3_dcam_fetch_block_set,
 			.ebd_set = sharkl3_dcam_ebd_set,
 			.binning_4in1_set = sharkl3_dcam_binning_4in1_set,
 			.sram_ctrl_set = sharkl3_dcam_sram_ctrl_set,
