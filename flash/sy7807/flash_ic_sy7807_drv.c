@@ -96,15 +96,16 @@ static int sprd_flash_ic_open_torch(void *drvd, uint8_t idx)
 	if (IS_ERR(drv_data))
 		return -EFAULT;
 
-	if (IS_ERR(drv_data->pwm_chip1))
+	if (IS_ERR(drv_data->pwm_chip0))
 		return -EFAULT;
 
-	pwm = drv_data->pwm_chip1;
-		if (IS_ERR(pwm)) {
-	return -EFAULT;
+	pwm = drv_data->pwm_chip0;
+	if (IS_ERR(pwm)) {
+		return -EFAULT;
 	}
+	idx |= 1;
 	if (SPRD_FLASH_LED0 & idx){
-		pr_info("open  torch :pwm , torch_led_index:%d",drv_data->torch_led_index); 
+		pr_info("open  torch :pwm , torch_led_index:%d",drv_data->torch_led_index);
 		pwm_set_config( pwm, 40);
 	}
 	return 0;
@@ -119,16 +120,15 @@ static int sprd_flash_ic_close_torch(void *drvd, uint8_t idx)
 		return -EFAULT;
 
 
-	if (IS_ERR(drv_data->pwm_chip1))
+	if (IS_ERR(drv_data->pwm_chip0))
 		return -EFAULT;
 
 
-	pwm = drv_data->pwm_chip1;
-        if (IS_ERR(pwm)) {
-	
-		
-	return -EFAULT;
+	pwm = drv_data->pwm_chip0;
+	if (IS_ERR(pwm)) {
+		return -EFAULT;
 	}
+	idx |= 1;
 	if (SPRD_FLASH_LED0 & idx){
 		pr_info("close torch :pwm");
 		pwm_set_config(pwm, 0);
@@ -149,7 +149,7 @@ static int sprd_flash_ic_open_preflash(void *drvd, uint8_t idx)
 		return -EFAULT;
 
 	pwm = drv_data->pwm_chip0;
-		if (IS_ERR(pwm)) {
+	if (IS_ERR(pwm)) {
 	
 	return -EFAULT;
 	}	
@@ -173,11 +173,11 @@ static int sprd_flash_ic_close_preflash(void *drvd, uint8_t idx)
 
 	pwm = drv_data->pwm_chip0;
         if (IS_ERR(pwm)) {
-	
+
 	return -EFAULT;
 	}
 	if (SPRD_FLASH_LED0 & idx){
-		pr_info("close preflash :pwm");	
+		pr_info("close preflash :pwm");
 		pwm_set_config(pwm, 0);
 	}
 
@@ -197,10 +197,8 @@ static int sprd_flash_ic_open_highlight(void *drvd, uint8_t idx)
 
 
 	pwm = drv_data->pwm_chip0;
-        if (IS_ERR(pwm)) {
-	
-		
-	return -EFAULT;
+	if (IS_ERR(pwm)) {
+		return -EFAULT;
 	}
 	if (SPRD_FLASH_LED0 & idx){
 		pwm_set_config(pwm, drv_data->torch_led_index);
