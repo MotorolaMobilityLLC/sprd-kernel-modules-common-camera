@@ -1567,7 +1567,7 @@ int dcam_callback(enum dcam_cb_type type, void *param, void *priv_data)
 	if (type == DCAM_CB_DEV_ERR) {
 		pr_err("fail to check cb type. camera %d\n", module->idx);
 		csi_api_reg_trace();
-		hw->hw_ops.core_ops.reg_trace(module->idx,
+		hw->hw_ops.core_ops.reg_trace(module->dcam_idx,
 			ABNORMAL_REG_TRACE);
 
 		dcam_ops->stop(module->dcam_dev_handle);
@@ -2274,6 +2274,7 @@ static int cal_channel_size_bininig(
 
 		dcam_out.w = (trim_pv.size_x >> shift);
 		dcam_out.h = (trim_pv.size_y >> shift);
+		dcam_out.h = ALIGN_DOWN(dcam_out.h, 2);
 
 		/* avoid isp fetch fbd timeout when isp src width > 1856 */
 		if (dcam_out.w > 1856)
@@ -8003,7 +8004,7 @@ rewait:
 				return -EFAULT;
 			}
 			csi_api_reg_trace();
-			hw->hw_ops.core_ops.reg_trace(module->idx,
+			hw->hw_ops.core_ops.reg_trace(module->dcam_idx,
 				ABNORMAL_REG_TRACE);
 			read_op.evt = pframe->evt;
 			read_op.parm.frame.irq_type = pframe->irq_type;
