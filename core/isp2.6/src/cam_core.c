@@ -805,8 +805,7 @@ static void alloc_buffers(struct work_struct *work)
 
 	debugger = &module->grp->debugger;
 	path_id = channel->dcam_path_id;
-	if (is_dcam_id(module->dcam_idx) && path_id >= 0
-		&& path_id < DCAM_IMAGE_REPLACER_PATH_MAX) {
+	if (path_id >= 0 && path_id < DCAM_IMAGE_REPLACER_PATH_MAX) {
 		struct dcam_image_replacer *replacer;
 
 		replacer = &debugger->replacer[module->dcam_idx];
@@ -5458,7 +5457,7 @@ static int img_ioctl_get_cam_res(
 		dcam_idx = sprd_sensor_find_dcam_id(res.sensor_id);
 	}
 #endif
-	if (dcam_idx == -1) {
+	if (!is_dcam_id(module->dcam_idx) || (dcam_idx < 0)) {
 		pr_err("fail to get dcam id for sensor: %d\n", res.sensor_id);
 		return -EFAULT;
 	}
