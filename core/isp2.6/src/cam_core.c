@@ -548,13 +548,13 @@ static void config_compression(struct camera_module *module)
 	hw = module->grp->hw_info;
 
 	if (ch_cap->compress_input) {
-		fbc_mode = hw->ip_dcam[module->idx]->dcam_full_fbc_mode;
+		fbc_mode = hw->ip_dcam[module->dcam_idx]->dcam_full_fbc_mode;
 		if (DCAM_FBC_FULL_14_BIT == fbc_mode)
 			ch_cap->compress_4bit_bypass = 0;
 	}
 
 	if (ch_pre->compress_input) {
-		fbc_mode = hw->ip_dcam[module->idx]->dcam_bin_fbc_mode;
+		fbc_mode = hw->ip_dcam[module->dcam_idx]->dcam_bin_fbc_mode;
 		if (DCAM_FBC_BIN_14_BIT == fbc_mode)
 			ch_pre->compress_4bit_bypass = 0;
 	}
@@ -6564,9 +6564,9 @@ static int raw_proc_pre(
 			ch->dcam_path_id, &ch_desc);
 
 	hw = grp->hw_info;
-	if (hw->ip_dcam[module->idx]->lbuf_share_support
+	if (hw->ip_dcam[module->dcam_idx]->lbuf_share_support
 		&& hw->hw_ops.core_ops.lbuf_share_set)
-		hw->hw_ops.core_ops.lbuf_share_set(module->idx,
+		hw->hw_ops.core_ops.lbuf_share_set(module->dcam_idx,
 			proc_info->src_size.width);
 
 	/* specify isp context & path */
@@ -6782,7 +6782,7 @@ static int raw_proc_post(
 	module->dcam_cap_status = DCAM_CAPTURE_START;
 	atomic_set(&module->state, CAM_RUNNING);
 
-	dcam_hwsim_extra(module->idx);
+	dcam_hwsim_extra(module->dcam_idx);
 	isp_hwsim_extra(ch->isp_path_id >> ISP_CTXID_OFFSET);
 
 	ret = dcam_ops->proc_frame(module->dcam_dev_handle, src_frame);
@@ -7053,9 +7053,9 @@ static int img_ioctl_4in1_post_proc(struct camera_module *module,
 		pr_err("fail to start dcam dev, ret %d\n", ret);
 		goto exit;
 	}
-	if (dev->hw->ip_dcam[module->idx]->lbuf_share_support
+	if (dev->hw->ip_dcam[module->dcam_idx]->lbuf_share_support
 		&& dev->hw->hw_ops.core_ops.lbuf_share_set)
-		dev->hw->hw_ops.core_ops.lbuf_share_set(module->idx,
+		dev->hw->hw_ops.core_ops.lbuf_share_set(module->dcam_idx,
 			pframe->width);
 	ret = dcam_ops->proc_frame(dev, pframe);
 
