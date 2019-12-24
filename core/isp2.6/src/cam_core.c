@@ -8017,6 +8017,10 @@ rewait:
 			read_op.parm.frame.uaddr_vir = (uint32_t)pframe->buf.addr_vir[1];
 			read_op.parm.frame.vaddr_vir = (uint32_t)pframe->buf.addr_vir[2];
 			read_op.parm.frame.mfd = pframe->buf.mfd[0];
+			read_op.parm.frame.yaddr = pframe->buf.offset[0];
+			read_op.parm.frame.uaddr = pframe->buf.offset[1];
+			read_op.parm.frame.vaddr = pframe->buf.offset[2];
+
 			/* for statis buffer address below. */
 			read_op.parm.frame.phy_addr = (uint32_t)pframe->buf.iova[0];
 			read_op.parm.frame.addr_offset = (uint32_t)pframe->buf.addr_vir[0];
