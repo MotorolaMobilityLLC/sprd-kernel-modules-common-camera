@@ -36,7 +36,7 @@
 #define DCAM_AXIM_AQOS_MASK (0x30FFFF)
 #define ISP_AXI_STOP_TIMEOUT			1000
 extern atomic_t s_dcam_working;
-static uint32_t dcam_linebuf_len[2] = {0, 0};
+static uint32_t dcam_linebuf_len[3] = {0, 0, 0};
 extern void sprd_kproperty_get(const char *key, char *value, const char *default_value);
 
 static unsigned long irq_base[4] = {
