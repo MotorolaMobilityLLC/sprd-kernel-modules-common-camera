@@ -1143,6 +1143,7 @@ static void isp_fmcu_config_done(void *isp_handle)
 				frame.irq_type = CAMERA_IRQ_DONE;
 				frame.irq_property = IRQ_RAW_CAP_DONE;
 				frame.flags = ISP_OFF_BUF_NONE;
+				dev->cap_on = 0;
 			}
 			pr_debug("mfd 0x%x\n", frame.pfinfo.mfd[0]);
 
