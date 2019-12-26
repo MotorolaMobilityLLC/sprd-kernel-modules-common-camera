@@ -1433,6 +1433,8 @@ static int sprd_img_tx_done(struct camera_frame *frame, void *param)
 		node.irq_flag = IMG_TX_DONE;
 		node.irq_type = frame->irq_type;
 		node.irq_property = IRQ_MAX_DONE;
+		if (frame->type == CAMERA_RAW_PATH)
+			node.irq_property = IRQ_RAW_CAP_DONE;
 		node.f_type = frame->type;
 		node.index = frame->fid;
 		node.height = frame->height;

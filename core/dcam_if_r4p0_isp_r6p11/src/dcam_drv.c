@@ -1966,8 +1966,11 @@ static void dcam_frm_clear(enum dcam_id idx)
 	}
 
 	raw_path = &s_p_dcam_mod[idx]->dcam_raw_path;
+	res_frame = &s_p_dcam_mod[idx]->raw_reserved_frame;
 
 	while (!dcam_frame_dequeue(&raw_path->frame_queue, &frame)){
+		if (frame.phy_addr == res_frame->phy_addr)
+			continue;
 		if (pfiommu_free_addr(&frame.pfinfo))
 			pr_err("fail to free raw path frame queue buf\n");
 	}
@@ -1975,8 +1978,6 @@ static void dcam_frm_clear(enum dcam_id idx)
 	dcam_frm_queue_clear(&raw_path->frame_queue);
 	dcam_buf_queue_init(&raw_path->buf_queue);
 	dcam_time_queue_init(&dcam_t_sof.tq[idx].sof_t);
-
-	res_frame = &s_p_dcam_mod[idx]->raw_reserved_frame;
 
 	if (pfiommu_free_addr(&res_frame->pfinfo))
 		pr_err("dcam stopping: fail to free raw path reserved buf\n");

@@ -1063,14 +1063,6 @@ int sprd_isp_start_pipeline_bin(void *handle, uint32_t cap_flag)
 			goto exit;
 	}
 	pr_debug("is raw capture %d\n", dev->is_raw_capture);
-	if (dev->is_raw_capture) {
-		if (cap_flag != DCAM_CAPTURE_NONE) {
-			complete(&dev->offline_bin_thread_com);
-			pr_info("bin path raw cap\n");
-		} else
-			pr_info("bin raw cap:skip this cap request");
-		goto exit;
-	}
 
 	if (buf_desc->zsl_queue.valid_cnt == 0) {
 		ret = 0;
@@ -1397,6 +1389,7 @@ int sprd_isp_start_pipeline_full(void *handle, uint32_t cap_flag)
 	if (unlikely(dev->is_raw_capture)) {
 		if (cap_flag != DCAM_CAPTURE_NONE) {
 			pr_info("full path raw cap\n");
+			dev->cap_on = 1;
 			goto normal_exit_raw;
 		} else {
 			pr_info("full raw cap:skip this cap request");
