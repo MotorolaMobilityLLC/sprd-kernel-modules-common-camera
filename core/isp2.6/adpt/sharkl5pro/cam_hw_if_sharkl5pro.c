@@ -2540,7 +2540,7 @@ static int set_slice_3dnr_fbd_fetch(
 
 
 
-void sharkl5pro_isp_superzoom_do_ispblock(void *ctx)
+void sharkl5pro_isp_cfg_subblock(void *ctx)
 {
 	uint32_t idx = 0;
 	uint32_t bypass = 1;
@@ -2550,8 +2550,9 @@ void sharkl5pro_isp_superzoom_do_ispblock(void *ctx)
 	pctx = (struct isp_pipe_context *)ctx;
 	fetch = &pctx->fetch;
 	idx = pctx->ctx_id;
-	pr_info("enter: fmt:%d, w:%d, h:%d\n", fetch->fetch_fmt,
-			fetch->in_trim.size_x, fetch->in_trim.size_y);
+	pr_debug("superzoom enter: fmt:%d, in_trim %d %d, src %d %d\n",
+		fetch->fetch_fmt, fetch->in_trim.size_x, fetch->in_trim.size_y,
+		fetch->src.w, fetch->src.h);
 
 	ISP_REG_MWR(idx, ISP_COMMON_SPACE_SEL, BIT_1 | BIT_0, 2);
 
@@ -2576,10 +2577,9 @@ void sharkl5pro_isp_superzoom_do_ispblock(void *ctx)
 	ISP_REG_WR(idx, ISP_DISPATCH_CH0_SIZE,
 				fetch->in_trim.size_x | (fetch->in_trim.size_y << 16));
 	ISP_REG_WR(idx, ISP_DISPATCH_CH0_BAYER, pctx->dispatch_bayer_mode);
-	pr_info("pitch ch0 %d, ch1 %d, ch2 %d, addr_ch0 %p, ch1 %p, ch2 %p, fetch w %d, h %d, in_trim %d, %d\n",
+	pr_debug("pitch ch0 %d, ch1 %d, ch2 %d, addr_ch0 %p, ch1 %p, ch2 %p\n",
 		fetch->pitch.pitch_ch0, fetch->pitch.pitch_ch1, fetch->pitch.pitch_ch2,
-		fetch->addr.addr_ch0, fetch->addr.addr_ch1, fetch->addr.addr_ch2,
-		fetch->src.w, fetch->src.h, fetch->in_trim.size_x, fetch->in_trim.size_y);
+		fetch->addr.addr_ch0, fetch->addr.addr_ch1, fetch->addr.addr_ch2);
 
 	ISP_REG_MWR(idx, ISP_VST_PARA, BIT_0, bypass);
 	ISP_REG_MWR(idx, ISP_NLM_PARA, BIT_0, bypass);
@@ -2777,7 +2777,7 @@ struct cam_hw_info sharkl5pro_hw_info = {
 			.bypass_data_get = sharkl5pro_cam_bypass_data_get,
 			.bypass_count_get = sharkl5pro_cam_bypass_count_get,
 			.reg_trace = sharkl5pro_cam_reg_trace,
-			.isp_superzoom_do_ispblock = sharkl5pro_isp_superzoom_do_ispblock,
+			.isp_cfg_subblock = sharkl5pro_isp_cfg_subblock,
 		},
 	},
 };

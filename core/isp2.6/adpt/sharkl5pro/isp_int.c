@@ -132,14 +132,15 @@ static void isp_frame_done(enum isp_context_id idx, struct isp_pipe_dev *dev)
 
 	if (pframe) {
 		if (pctx->ctx_id == ISP_CONTEXT_SUPERZOOM) {
-			pr_info("sw %d, superzoom context do not return buffer\n",
+			pr_debug("sw %d, superzoom context do not return buffer\n",
 					pctx->ctx_id);
 		} else {
 			/* return buffer to cam channel shared buffer queue. */
 			cambuf_iommu_unmap(&pframe->buf);
 			pctx->isp_cb_func(ISP_CB_RET_SRC_BUF, pframe, pctx->cb_priv_data);
-			pr_debug("sw %d, return to shard buffer ch_id %d, fid:%d, queue.cnt:%d, pframe %p\n",
-				pctx->ctx_id, pframe->channel_id, pframe->fid, pctx->proc_queue.cnt, pframe);
+			pr_debug("sw %d, ch_id %d, fid:%d, return shard buffer cnt:%d, pframe %p\n",
+				pctx->ctx_id, pframe->channel_id, pframe->fid,
+				pctx->proc_queue.cnt, pframe);
 		}
 	} else {
 		/* should not be here */
@@ -184,7 +185,7 @@ static void isp_frame_done(enum isp_context_id idx, struct isp_pipe_dev *dev)
 			if (pctx->superzoom_flag) {
 				superzoom_ctx = &dev->ctx[ISP_CONTEXT_SUPERZOOM];
 				ret = camera_enqueue(&superzoom_ctx->in_queue, pframe);
-				pr_info("sw %d, superzoom en(in_queue), q_cnt %d, pframe %p\n",
+				pr_debug("sw %d, superzoom (in_queue), q_cnt %d, pframe %p\n",
 					pctx->ctx_id, camera_queue_cnt(&superzoom_ctx->in_queue), pframe);
 				if (ret == 0) {
 					complete(&superzoom_ctx->thread.thread_com);
@@ -193,7 +194,7 @@ static void isp_frame_done(enum isp_context_id idx, struct isp_pipe_dev *dev)
 				}
 			} else {
 				if (pctx->ctx_id == ISP_CONTEXT_SUPERZOOM) {
-					pr_info("sw %d, superzoom done complete\n",
+					pr_debug("sw %d, superzoom done complete\n",
 						pctx->ctx_id);
 					pctx->isp_cb_func(ISP_CB_SET_SUPERZOOM_COMPLETE,
 						NULL, pctx->cb_priv_data);

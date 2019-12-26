@@ -1859,6 +1859,73 @@ static int sharkl3_isp_fmcu_available(uint32_t fmcu_id)
 	return (fmcu_id > 0) ? 0 : 1;
 }
 
+void sharkl3_isp_cfg_subblock(void *ctx)
+{
+	uint32_t idx = 0;
+	uint32_t bypass = 1;
+	struct isp_pipe_context *pctx = NULL;
+	struct isp_fetch_info *fetch = NULL;
+
+	pctx = (struct isp_pipe_context *)ctx;
+	fetch = &pctx->fetch;
+	idx = pctx->ctx_id;
+	pr_debug("superzoom enter: fmt:%d, in_trim %d %d, src %d %d\n",
+		fetch->fetch_fmt, fetch->in_trim.size_x, fetch->in_trim.size_y,
+		fetch->src.w, fetch->src.h);
+
+	ISP_REG_MWR(idx, ISP_COMMON_SPACE_SEL, 0x0F, 0x0A);
+	ISP_REG_MWR(idx, ISP_FETCH_PARAM, (0xF << 4),
+		fetch->fetch_fmt << 4);
+	ISP_REG_WR(idx, ISP_FETCH_SLICE_Y_PITCH,fetch->pitch.pitch_ch0);
+	ISP_REG_WR(idx, ISP_FETCH_SLICE_U_PITCH, fetch->pitch.pitch_ch1);
+	ISP_REG_WR(idx, ISP_FETCH_SLICE_V_PITCH, fetch->pitch.pitch_ch2);
+	ISP_REG_WR(idx, ISP_FETCH_SLICE_Y_ADDR, fetch->addr.addr_ch0);
+	ISP_REG_WR(idx, ISP_FETCH_SLICE_U_ADDR, fetch->addr.addr_ch1);
+	ISP_REG_WR(idx, ISP_FETCH_SLICE_V_ADDR, fetch->addr.addr_ch2);
+	ISP_REG_WR(idx, ISP_FETCH_LINE_DLY_CTRL, 0x8);
+	ISP_REG_WR(idx, ISP_FETCH_MEM_SLICE_SIZE,
+		fetch->src.w | (fetch->src.h << 16));
+	ISP_REG_WR(idx, ISP_DISPATCH_DLY,  0x253C);
+	ISP_REG_WR(idx, ISP_DISPATCH_LINE_DLY1,  0x280001C);
+	ISP_REG_WR(idx, ISP_DISPATCH_PIPE_BUF_CTRL_CH0,  0x64043C);
+	ISP_REG_WR(idx, ISP_DISPATCH_CH0_SIZE,
+		fetch->in_trim.size_x | (fetch->in_trim.size_y << 16));
+	ISP_REG_WR(idx, ISP_DISPATCH_CH0_BAYER, pctx->dispatch_bayer_mode);
+
+	pr_debug("pitch ch0 %d, ch1 %d, ch2 %d, addr_ch0 %p, ch1 %p, ch2 %p\n",
+		fetch->pitch.pitch_ch0, fetch->pitch.pitch_ch1, fetch->pitch.pitch_ch2,
+		fetch->addr.addr_ch0, fetch->addr.addr_ch1, fetch->addr.addr_ch2);
+
+	/*superzoom need to bypass below sublock*/
+	ISP_REG_MWR(idx, ISP_VST_PARA, BIT_0, bypass);
+	ISP_REG_MWR(idx, ISP_NLM_PARA, BIT_0, bypass);
+	ISP_REG_MWR(idx, ISP_IVST_PARA, BIT_0, bypass);
+	ISP_REG_MWR(idx, ISP_CFAE_NEW_CFG0, BIT_0, bypass);
+	ISP_REG_MWR(idx, ISP_CMC10_PARAM, BIT_0, bypass);
+	ISP_REG_MWR(idx, ISP_GAMMA_PARAM, BIT_0, bypass);
+	ISP_REG_MWR(idx, ISP_HSV_PARAM, BIT_0, bypass);
+	ISP_REG_MWR(idx, ISP_PSTRZ_PARAM, BIT_0, bypass);
+	ISP_REG_MWR(idx, ISP_CCE_PARAM, BIT_0, bypass);
+	ISP_REG_MWR(idx, ISP_UVD_PARAM, BIT_0, bypass);
+	ISP_REG_MWR(idx, ISP_3DNR_MEM_CTRL_PARAM0, BIT_0, bypass);
+	ISP_REG_MWR(idx, ISP_3DNR_MEM_CTRL_LINE_MODE, BIT_0, bypass);
+	ISP_REG_MWR(idx, ISP_PRECDN_PARAM, BIT_0, bypass);
+	ISP_REG_MWR(idx, ISP_YNR_CONTRL0, BIT_0, bypass);
+	ISP_REG_MWR(idx, ISP_BRIGHT_PARAM, BIT_0, bypass);
+	ISP_REG_MWR(idx, ISP_CONTRAST_PARAM, BIT_0, bypass);
+	ISP_REG_MWR(idx, ISP_HIST_PARAM, BIT_0, bypass);
+	ISP_REG_MWR(idx, ISP_HIST2_PARAM, BIT_0, bypass);
+	ISP_REG_MWR(idx, ISP_CDN_PARAM, BIT_0, bypass);
+	ISP_REG_MWR(idx, ISP_POSTCDN_COMMON_CTRL, BIT_0, bypass);
+	ISP_REG_MWR(idx, ISP_EE_PARAM, BIT_0, bypass);
+	ISP_REG_MWR(idx, ISP_YGAMMA_PARAM, BIT_0, bypass);
+	ISP_REG_MWR(idx, ISP_CSA_PARAM, BIT_0, bypass);
+	ISP_REG_MWR(idx, ISP_HUA_PARAM, BIT_0, bypass);
+	ISP_REG_MWR(idx, ISP_IIRCNR_PARAM, BIT_0, bypass);
+	ISP_REG_MWR(idx, ISP_YRANDOM_PARAM1, BIT_0, bypass);
+	ISP_HREG_MWR(ISP_YUV_MULT, BIT_31, 0);
+}
+
 static uint32_t sharkl3_path_ctrl_id[DCAM_PATH_MAX] = {
 	[DCAM_PATH_FULL] = DCAM_CTRL_FULL,
 	[DCAM_PATH_BIN] = DCAM_CTRL_BIN,
@@ -1905,6 +1972,7 @@ static struct cam_hw_ip_info sharkl3_dcam[DCAM_ID_MAX] = {
 		.lbuf_share_support = 0,
 		.offline_slice_support = 0,
 		.afl_gbuf_size = STATIS_AFL_GBUF_SIZE3,
+		.superzoom_support = 0,
 		.dcam_full_fbc_mode = DCAM_FBC_DISABLE,
 		.dcam_bin_fbc_mode = DCAM_FBC_DISABLE,
 		.store_addr_tab = sharkl3_dcam_store_addr,
@@ -1916,6 +1984,7 @@ static struct cam_hw_ip_info sharkl3_dcam[DCAM_ID_MAX] = {
 		.lbuf_share_support = 0,
 		.offline_slice_support = 0,
 		.afl_gbuf_size = STATIS_AFL_GBUF_SIZE3,
+		.superzoom_support = 0,
 		.dcam_full_fbc_mode = DCAM_FBC_DISABLE,
 		.dcam_bin_fbc_mode = DCAM_FBC_DISABLE,
 		.store_addr_tab = sharkl3_dcam_store_addr,
@@ -1927,6 +1996,7 @@ static struct cam_hw_ip_info sharkl3_dcam[DCAM_ID_MAX] = {
 		.lbuf_share_support = 0,
 		.offline_slice_support = 0,
 		.afl_gbuf_size = STATIS_AFL_GBUF_SIZE3,
+		.superzoom_support = 0,
 		.dcam_full_fbc_mode = DCAM_FBC_DISABLE,
 		.dcam_bin_fbc_mode = DCAM_FBC_DISABLE,
 		.store_addr_tab = sharkl3_dcam2_store_addr,
@@ -2027,6 +2097,7 @@ struct cam_hw_info sharkl3_hw_info = {
 			.bypass_data_get = sharkl3_cam_bypass_data_get,
 			.bypass_count_get = sharkl3_cam_bypass_count_get,
 			.reg_trace = sharkl3_cam_reg_trace,
+			.isp_cfg_subblock = sharkl3_isp_cfg_subblock,
 		},
 	},
 };
