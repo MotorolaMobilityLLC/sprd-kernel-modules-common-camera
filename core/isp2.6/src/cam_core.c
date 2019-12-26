@@ -67,7 +67,6 @@
 /* TODO: tuning ratio limit for power/image quality */
 #define ZOOM_RATIO_DEFAULT     1000
 #define MAX_RDS_RATIO 3
-#define DCAM_RDS_OUT_LIMIT 2048
 #define RATIO_SHIFT 16
 
 #define ISP_PATHID_BITS 8

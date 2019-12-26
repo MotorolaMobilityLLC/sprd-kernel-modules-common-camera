@@ -297,6 +297,15 @@ int dcam_cfg_path_size(void *dcam_handle,
 				crop_size.w, crop_size.h, dst_size.w,
 				dst_size.h);
 			path->scaler_sel = DCAM_SCALER_RAW_DOWNSISER;
+			path->gphase.rds_input_h_global = path->in_trim.size_y;
+			path->gphase.rds_input_w_global = path->in_trim.size_x;
+			path->gphase.rds_output_w_global = path->out_size.w;
+			path->gphase.rds_output_h_global = path->out_size.h;
+			if (hw->hw_ops.core_ops.dcam_calc_rds_phase_info) {
+				ret = hw->hw_ops.core_ops.dcam_calc_rds_phase_info(&path->gphase, 0, 0, 0);
+				if (ret)
+					pr_err("fail to calc rds phase info\n");
+			}
 			dcam_gen_rds_coeff((uint16_t)crop_size.w,
 				(uint16_t)crop_size.h,
 				(uint16_t)dst_size.w,

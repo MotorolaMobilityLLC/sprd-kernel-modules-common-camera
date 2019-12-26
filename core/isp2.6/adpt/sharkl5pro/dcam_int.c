@@ -505,6 +505,7 @@ static void dcam_cap_sof(void *param)
 	}
 
 dispatch_sof:
+	dev->auto_cpy_id = DCAM_CTRL_ALL;
 	hw->hw_ops.core_ops.auto_copy(dev->auto_cpy_id, dev);
 	dev->auto_cpy_id = 0;
 

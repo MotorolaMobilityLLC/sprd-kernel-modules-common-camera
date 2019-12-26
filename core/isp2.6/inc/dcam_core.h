@@ -85,6 +85,17 @@ struct dcam_mipi_info {
 	struct img_trim cap_size;
 };
 
+struct dcam_rds_slice_ctrl {
+	uint32_t rds_input_h_global;
+	uint32_t rds_input_w_global;
+	uint32_t rds_output_h_global;
+	uint32_t rds_output_w_global;
+	uint32_t rds_init_phase_int1;
+	uint32_t rds_init_phase_int0;
+	uint32_t rds_init_phase_rdm1;
+	uint32_t rds_init_phase_rdm0;
+};
+
 struct dcam_fetch_info {
 	uint32_t is_loose;
 	uint32_t endian;
@@ -137,6 +148,7 @@ struct dcam_path_desc {
 	struct camera_queue reserved_buf_queue;
 	struct camera_queue out_buf_queue;
 	struct camera_queue result_queue;
+	struct dcam_rds_slice_ctrl gphase;
 };
 
 /*

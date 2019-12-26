@@ -1034,6 +1034,65 @@ static void sharkl5pro_dcam_fetch_start(struct cam_hw_info *hw)
 	DCAM_AXIM_WR(IMG_FETCH_START, 1);
 }
 
+static int sharkl5pro_dcam_calc_rds_phase_info(void *arg,
+	uint16_t slice_id, uint16_t slice_end0, uint16_t slice_end1)
+{
+	int32_t rtn = 0;
+	uint16_t adj_hor = 1, adj_ver = 1;
+	uint16_t raw_input_hor = 0;
+	uint16_t raw_output_hor = 0;
+	uint16_t raw_input_ver = 0;
+	uint16_t raw_output_ver = 0;
+	int32_t glb_phase_w = 0, glb_phase_h = 0;
+	int sphase_w = 0, spixel_w = 0, sphase_h, spixel_h = 0;
+	uint8_t raw_tap_hor = 8;
+	uint8_t raw_tap_ver = 4;
+	int raw_tap = raw_tap_hor * 2;
+	int col_tap = raw_tap_ver * 2;
+	uint16_t output_slice_start_x = 0, output_slice_start_y = 0;
+	struct dcam_rds_slice_ctrl *gphase = NULL;
+
+	if (!arg) {
+		pr_err("fail to get valid handle\n");
+		return -EFAULT;
+	}
+
+	gphase = (struct dcam_rds_slice_ctrl *)arg;
+
+	raw_input_hor = (uint16_t)(gphase->rds_input_w_global * adj_hor);
+	raw_output_hor = (uint16_t)(gphase->rds_output_w_global * adj_hor);
+	raw_input_ver = (uint16_t)(gphase->rds_input_h_global * adj_ver);
+	raw_output_ver = (uint16_t)(gphase->rds_output_h_global * adj_ver);
+
+	glb_phase_w = (raw_input_hor - raw_output_hor) >> 1;
+	glb_phase_h = (raw_input_ver - raw_output_ver) >> 1;
+
+	if (slice_id)
+	{
+		output_slice_start_x = (slice_end1 * raw_output_hor -1 - glb_phase_w) / raw_input_hor + 1;
+	}
+
+	sphase_w = glb_phase_w + output_slice_start_x * gphase->rds_input_w_global;
+
+	spixel_w = sphase_w / gphase->rds_output_w_global - raw_tap  + 1;
+
+	spixel_w = spixel_w < 0 ? 0 : spixel_w;
+
+	sphase_w -= spixel_w * gphase->rds_output_w_global;
+
+	gphase->rds_init_phase_int0 = (int16_t)(sphase_w / gphase->rds_output_w_global);
+	gphase->rds_init_phase_rdm0 = (uint16_t)(sphase_w - gphase->rds_output_w_global * gphase->rds_init_phase_int0);
+
+	sphase_h = glb_phase_h + output_slice_start_y * gphase->rds_input_h_global;
+	spixel_h = sphase_h / gphase->rds_output_h_global - col_tap  + 1;
+	spixel_h = spixel_h < 0 ? 0 : spixel_h;
+	sphase_h -= spixel_h * gphase->rds_output_h_global;
+	gphase->rds_init_phase_int1 = (int16_t)(sphase_h / gphase->rds_output_h_global);
+	gphase->rds_init_phase_rdm1 = (uint16_t)(sphase_h - gphase->rds_output_h_global * gphase->rds_init_phase_int1);
+
+	return rtn;
+}
+
 static int sharkl5pro_dcam_path_size_update(void *handle, void *arg)
 {
 	int ret = 0;
@@ -1110,9 +1169,24 @@ static int sharkl5pro_dcam_path_size_update(void *handle, void *arg)
 				cnt += 4, addr += 4)
 				DCAM_REG_WR(idx, addr, *ptr++);
 
-			reg_val = ((path->out_size.h & 0xfff) << 16) |
+			reg_val = ((path->out_size.h & 0x1fff) << 16) |
 						(path->out_size.w & 0x1fff);
+			pr_debug("output = 0x%x\n", reg_val);
 			DCAM_REG_WR(idx, DCAM_RDS_DES_SIZE, reg_val);
+			DCAM_REG_WR(idx, DCAM_RDS_SLICE_CTRL1, reg_val);
+
+			reg_val = ((path->in_trim.size_y & 0x1fff) << 16) |
+						(path->in_trim.size_x & 0x1fff);
+			pr_debug("input = 0x%x\n", reg_val);
+			DCAM_REG_WR(idx, DCAM_RDS_SLICE_CTRL0, reg_val);
+
+			reg_val = (path->gphase.rds_init_phase_int1 << 16) | path->gphase.rds_init_phase_int0;
+			pr_debug("phase_init = 0x%x\n", reg_val);
+			DCAM_REG_WR(idx, DCAM_RDS_SLICE_CTRL2, reg_val);
+			reg_val = (path->gphase.rds_init_phase_rdm1 << 16) | path->gphase.rds_init_phase_rdm0;
+			pr_debug("rdm0_init = 0x%x\n", reg_val);
+			DCAM_REG_WR(idx, DCAM_RDS_SLICE_CTRL3, reg_val);
+
 			dev->auto_cpy_id |= DCAM_CTRL_RDS;
 		}
 		break;
@@ -2672,6 +2746,7 @@ struct cam_hw_info sharkl5pro_hw_info = {
 			.mipi_cap_set = sharkl5pro_dcam_mipi_cap_set,
 			.fetch_start = sharkl5pro_dcam_fetch_start,
 			.path_size_update = sharkl5pro_dcam_path_size_update,
+			.dcam_calc_rds_phase_info = sharkl5pro_dcam_calc_rds_phase_info,
 			.path_src_sel = sharkl5pro_dcam_full_path_src_sel,
 			.default_para_set = sharkl5pro_isp_default_param_set,
 			.lbuf_share_set = sharkl5pro_dcam_lbuf_share_set,
