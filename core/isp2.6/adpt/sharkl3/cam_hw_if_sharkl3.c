@@ -1995,6 +1995,7 @@ struct cam_hw_info sharkl3_hw_info = {
 			.path_resume = sharkl3_dcam_path_resume,
 			.path_src_sel = sharkl3_dcam_full_path_src_sel,
 			.path_size_update = sharkl3_dcam_path_size_update,
+			.dcam_calc_rds_phase_info = NULL,
 			.mipi_cap_set = sharkl3_dcam_mipi_cap_set,
 			.dcam_fetch_set = sharkl3_dcam_fetch_set,
 			.dcam_fetch_block_set = sharkl3_dcam_fetch_block_set,

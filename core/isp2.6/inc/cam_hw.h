@@ -168,6 +168,8 @@ struct cam_hw_core_ops {
 	int (*path_resume)(uint32_t idx, uint32_t path_id);
 	int (*path_src_sel)(void *handle, enum dcam_full_src_sel_type src_sel);
 	int (*path_size_update)(void *handle, void *arg);
+	int (*dcam_calc_rds_phase_info)(void *arg,
+		uint16_t slice_id, uint16_t slice_end0, uint16_t slice_end1);
 	int (*mipi_cap_set)(void *arg);
 	int (*dcam_fetch_block_set)(void *arg);
 	int (*dcam_fetch_set)(void *arg);
