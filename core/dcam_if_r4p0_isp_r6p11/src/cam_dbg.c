@@ -271,7 +271,7 @@ static void dump_into_file(enum isp_scene_id scene,
 	mutex_lock(lock);
 	fp = _open_file_frame_dump(path, frame, idx, scene);
 	if (!fp)
-		return;
+		goto exit;
 
 	_write_file_frame_dump(fp, buf, size);
 	_close_file_frame_dump(fp);
@@ -282,7 +282,10 @@ static void dump_into_file(enum isp_scene_id scene,
 		dump_info->full_frame = NULL;
 
 	pr_debug("idx%x dump %d frame done\n", frame->cam_id, *cnt++);
+
+exit:
 	mutex_unlock(lock);
+	return;
 }
 
 static void dump_isp_input_bin(struct work_struct *work)
@@ -414,7 +417,6 @@ void isp_dbg_trigger_dump_input(void *isp_dev, void *frame, uint32_t com_idx)
 			   &dump_info->dump_full_work);
 	} else {
 		pr_err("fail to check scene %d \n", scene);
-		return;
 	}
 
 	mutex_unlock(lock);
