@@ -488,6 +488,8 @@ int dcam_path_set_store_frm(void *dcam_handle,
 		if (hw->hw_ops.core_ops.dcam_fbc_addr_set)
 			hw->hw_ops.core_ops.dcam_fbc_addr_set(idx,
 				addr, &fbc_addr);
+	} else if (path_id == DCAM_PATH_AEM) {
+		DCAM_REG_WR(idx, addr, frame->buf.iova[0] + STATIS_AEM_HEADER_SIZE);
 	} else {
 		DCAM_REG_WR(idx, addr, frame->buf.iova[0]);
 	}
@@ -498,6 +500,15 @@ int dcam_path_set_store_frm(void *dcam_handle,
 	if (path_id == DCAM_PATH_AFL)
 		DCAM_REG_WR(idx, ISP_AFL_REGION_WADDR,
 			frame->buf.iova[0] + hw->ip_dcam[idx]->afl_gbuf_size);
+
+	if (dev->is_pdaf && dev->pdaf_type == 3 && path_id == DCAM_PATH_PDAF) {
+		/* PDAF type3, half buffer for right PD, TBD */
+		addr = hw->ip_dcam[idx]->pdaf_type3_reg_addr;
+		DCAM_REG_WR(idx, addr,
+			frame->buf.iova[0] + frame->buf.size[0] / 2);
+		pr_debug("PDAF iova %08x,  offset %x\n", (uint32_t)frame->buf.iova[0],
+			(uint32_t)frame->buf.size[0] / 2);
+	}
 
 	pr_debug("DCAM%u %s set frame: fid %u, count %d\n",
 		 idx, to_path_name(path_id), frame->fid,
@@ -530,16 +541,40 @@ int dcam_path_set_store_frm(void *dcam_handle,
 				frame->param_data = path->priv_size_data;
 				path->size_update = 0;
 				path->priv_size_data = NULL;
+
+				if (path_id == DCAM_PATH_BIN) {
+					dev->next_roi = path->in_trim;
+					dev->zoom_ratio = ZOOM_RATIO_DEFAULT *
+						path->in_size.w / path->in_trim.size_x;
+				}
 			}
 			spin_unlock_irqrestore(&path->size_lock, flags);
 		}
 	}
+	frame->zoom_ratio = dev->zoom_ratio;
 
-	if (dev->is_pdaf && dev->pdaf_type == 3 && path_id == DCAM_PATH_PDAF) {
-		/* PDAF type3, half buffer for right PD, TBD */
-		addr = hw->ip_dcam[idx]->pdaf_type3_reg_addr;
-		DCAM_REG_WR(idx, addr,
-			frame->buf.iova[0] + STATIS_PDAF_BUF_SIZE / 2);
+	/* Re-config aem win if it is updated */
+	if (path_id == DCAM_PATH_AEM) {
+		struct dcam_dev_aem_win *win;
+		struct sprd_img_rect *zoom_rect;
+
+		spin_lock_irqsave(&path->size_lock, flags);
+		dcam_k_aem_win(dev->blk_dcam_pm);
+		spin_unlock_irqrestore(&path->size_lock, flags);
+
+		if (frame->buf.addr_k[0]) {
+			win = (struct dcam_dev_aem_win *)(frame->buf.addr_k[0]);
+			pr_debug("kaddr %lx\n", frame->buf.addr_k[0]);
+			memcpy(win,
+				&dev->blk_dcam_pm->aem.win_info,
+				sizeof(struct dcam_dev_aem_win));
+			win++;
+			zoom_rect = (struct sprd_img_rect *)win;
+			zoom_rect->x = dev->next_roi.start_x;
+			zoom_rect->y = dev->next_roi.start_y;
+			zoom_rect->w = dev->next_roi.size_x;
+			zoom_rect->h = dev->next_roi.size_y;
+		}
 	}
 
 	slm_path = hw->ip_dcam[idx]->slm_path;

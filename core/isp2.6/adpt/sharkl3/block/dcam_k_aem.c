@@ -18,6 +18,7 @@
 #include "dcam_reg.h"
 #include "dcam_path.h"
 #include "cam_types.h"
+#include "dcam_core.h"
 
 #ifdef pr_fmt
 #undef pr_fmt
@@ -185,6 +186,7 @@ int dcam_k_cfg_aem(struct isp_io_param *param, struct dcam_dev_param *p)
 	void *pcpy;
 	int size;
 	int32_t bit_update;
+	struct dcam_pipe_dev *dev;
 	FUNC_DCAM_PARAM sub_func = NULL;
 
 	switch (param->property) {
@@ -222,6 +224,33 @@ int dcam_k_cfg_aem(struct isp_io_param *param, struct dcam_dev_param *p)
 		pr_err("fail to support property %d\n",
 			param->property);
 		return -EINVAL;
+	}
+
+	dev = (struct dcam_pipe_dev *)p->dev;
+	if (!dev->offline &&
+		(atomic_read(&dev->state) == STATE_RUNNING) &&
+		(param->property == DCAM_PRO_AEM_WIN)) {
+		unsigned long flags = 0;
+		struct dcam_dev_aem_win cur;
+		struct dcam_path_desc *path = &dev->path[DCAM_PATH_AEM];
+
+		ret = copy_from_user(&cur, param->property_param, size);
+		if (ret) {
+			pr_err("fail to copy from user ret=0x%x\n", (unsigned int)ret);
+			return -EPERM;
+		}
+
+		pr_info("re-config aem win (%d %d %d %d %d %d)\n",
+			cur.offset_x, cur.offset_y,
+			cur.blk_num_x, cur.blk_num_y,
+			cur.blk_width, cur.blk_height);
+
+		spin_lock_irqsave(&path->size_lock, flags);
+		p->aem.win_info = cur;
+		p->aem.update |= bit_update;
+		spin_unlock_irqrestore(&path->size_lock, flags);
+
+		return ret;
 	}
 
 	if (DCAM_ONLINE_MODE) {

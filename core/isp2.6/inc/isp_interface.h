@@ -121,9 +121,6 @@ enum isp_offline_param_valid {
 
 enum isp_ioctrl_cmd {
 	ISP_IOCTL_CFG_STATIS_BUF,
-	ISP_IOCTL_INIT_STATIS_Q,
-	ISP_IOCTL_DEINIT_STATIS_BUF,
-	ISP_IOCTL_CYCLE_HIST2_FRAME,
 	ISP_IOCTL_CFG_SEC,
 };
 
@@ -216,13 +213,6 @@ isp_3dnr_cal_compressed_size(uint32_t width, uint32_t height)
 
 	return header_y + tile_y + header_c + tile_c;
 }
-
-struct isp_statis_io_desc {
-	struct camera_queue *q;
-	struct camera_buf **buf;
-	struct isp_statis_buf_input *input;
-	uint32_t fid;
-};
 
 struct isp_offline_param {
 	uint32_t valid;

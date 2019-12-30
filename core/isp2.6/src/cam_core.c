@@ -65,7 +65,6 @@
 #define  CAM_ZOOM_COEFF_Q_LEN   10
 
 /* TODO: tuning ratio limit for power/image quality */
-#define ZOOM_RATIO_DEFAULT     1000
 #define MAX_RDS_RATIO 3
 #define RATIO_SHIFT 16
 
@@ -273,8 +272,6 @@ struct camera_module {
 	struct camera_queue irq_queue; /* IRQ message queue for user*/
 	struct camera_queue statis_queue; /* statis data queue or user*/
 
-	struct camera_buf *isp_hist2_buf;
-	struct camera_queue isp_hist2_outbuf_queue;
 
 	struct cam_thread_info cap_thrd;
 	struct cam_thread_info zoom_thrd;
@@ -1553,7 +1550,6 @@ int dcam_callback(enum dcam_cb_type type, void *param, void *priv_data)
 	struct camera_module *module;
 	struct channel_context *channel;
 	struct isp_offline_param *cur;
-	struct isp_statis_io_desc io_desc;
 	struct cam_hw_info *hw = NULL;
 	int cap_frame = 0, skip_frame = 0;
 
@@ -1689,14 +1685,6 @@ int dcam_callback(enum dcam_cb_type type, void *param, void *priv_data)
 				return ret;
 			}
 
-			if (camera_queue_cnt(&module->isp_hist2_outbuf_queue) > 0) {
-				io_desc.q = &module->isp_hist2_outbuf_queue;
-				io_desc.fid = pframe->fid;
-				ret = isp_ops->ioctl(module->isp_dev_handle,
-							channel->isp_path_id >> ISP_CTXID_OFFSET,
-							ISP_IOCTL_CYCLE_HIST2_FRAME,
-							&io_desc);
-			}
 			ret = isp_ops->proc_frame(module->isp_dev_handle, pframe,
 					channel->isp_path_id >> ISP_CTXID_OFFSET);
 			if (ret) {
@@ -4266,8 +4254,8 @@ static int img_ioctl_set_statis_buf(
 			unsigned long arg)
 {
 	int ret = 0;
+	struct channel_context *ch = NULL;
 	struct isp_statis_buf_input statis_buf;
-	struct isp_statis_io_desc io_desc;
 
 	ret = copy_from_user((void *)&statis_buf,
 			(void *)arg, sizeof(struct isp_statis_buf_input));
@@ -4301,30 +4289,13 @@ static int img_ioctl_set_statis_buf(
 
 	if ((statis_buf.type == STATIS_INIT) ||
 		(statis_buf.type >= STATIS_HIST2)) {
-
-		io_desc.q = &module->isp_hist2_outbuf_queue;
-		io_desc.buf = &module->isp_hist2_buf;
-		io_desc.input = &statis_buf;
-
-		if (module->isp_hist2_buf) {
-			if (((unsigned long int)statis_buf.kaddr < module->isp_hist2_buf->addr_k[0]) ||
-				((unsigned long int)statis_buf.kaddr > (module->isp_hist2_buf->addr_k[0] + module->isp_hist2_buf->size[0]))) {
-				pr_err("fail to get buffer from user, skip in kernel to avoid PANIC. statis_buf.kaddr = 0x%lx\n",
-					(unsigned long int)statis_buf.kaddr);
-				return 0;
-			}
-		}
-
-		ret = isp_ops->ioctl(module->isp_dev_handle,
-					0,
+		ch = &module->channel[CAM_CH_PRE];
+		if (ch->enable) {
+			ret = isp_ops->ioctl(module->isp_dev_handle,
+					ch->isp_path_id >> ISP_CTXID_OFFSET,
 					ISP_IOCTL_CFG_STATIS_BUF,
-					&io_desc);
-
-		if (!ret &&  statis_buf.type == STATIS_INIT)
-			pr_info("module->isp_hist2_buf.addr_k[0] = 0x%lx size = 0x%zx\n",
-				module->isp_hist2_buf->addr_k[0],
-				module->isp_hist2_buf->size[0]);
-
+					&statis_buf);
+		}
 	}
 exit:
 	return ret;
@@ -5242,17 +5213,26 @@ static int img_ioctl_set_frame_addr(
 			pframe->buf.offset[2], param.is_reserved_buf,
 			pframe->user_fid);
 
-		if (param.channel_id == CAM_CH_CAP) {
-			pr_info("ch %d, mfd %d, off 0x%x 0x%x 0x%x, reserved %d\n",
-				pframe->channel_id, pframe->buf.mfd[0],
-				pframe->buf.offset[0], pframe->buf.offset[1],
-				pframe->buf.offset[2], param.is_reserved_buf);
+		if (param.is_reserved_buf) {
+			int32_t mfd = param.fd_array[i];
+			dcam_ops->ioctl(module->dcam_dev_handle,
+				DCAM_IOCTL_CFG_RESERV_STATSBUF,
+				&mfd);
 		}
+
 		ret = cambuf_get_ionbuf(&pframe->buf);
 		if (ret) {
 			put_empty_frame(pframe);
 			ret = -EFAULT;
 			break;
+		}
+
+		if (param.channel_id == CAM_CH_CAP || param.is_reserved_buf) {
+			pr_info("ch %d, mfd %d, off 0x%x 0x%x 0x%x, size 0x%x, reserved %d\n",
+				pframe->channel_id, pframe->buf.mfd[0],
+				pframe->buf.offset[0], pframe->buf.offset[1],
+				pframe->buf.offset[2], (uint32_t)pframe->buf.size[0],
+				param.is_reserved_buf);
 		}
 
 		if (ch->isp_path_id >= 0) {
@@ -5670,7 +5650,6 @@ static int img_ioctl_stream_on(
 	uint32_t uframe_sync, live_ch_count = 0, shutoff = 0;
 	struct channel_context *ch = NULL;
 	struct channel_context *ch_pre = NULL, *ch_vid = NULL;
-	struct isp_statis_io_desc io_desc;
 	struct cam_hw_info *hw = NULL;
 	struct dcam_pipe_dev *dev = NULL;
 
@@ -5729,22 +5708,13 @@ static int img_ioctl_stream_on(
 		ret = -EFAULT;
 		goto exit;
 	}
-	camera_queue_init(&module->isp_hist2_outbuf_queue,
-		CAM_STATIS_Q_LEN, 0, cam_destroy_statis_buf);
 
 	ret = dcam_ops->ioctl(module->dcam_dev_handle,
 				DCAM_IOCTL_INIT_STATIS_Q, NULL);
 
-	io_desc.q = &module->isp_hist2_outbuf_queue;
-	io_desc.buf = &module->isp_hist2_buf;
-	ret = isp_ops->ioctl(module->isp_dev_handle,
-				0,
-				ISP_IOCTL_INIT_STATIS_Q,
-				&io_desc);
-
 	for (i = 0;  i < CAM_CH_MAX; i++) {
 		ch = &module->channel[i];
-		if (!ch->enable)
+		if (!ch->enable || (ch->ch_id == CAM_CH_RAW))
 			continue;
 
 		live_ch_count++;
@@ -5984,7 +5954,6 @@ static int img_ioctl_stream_off(
 	struct channel_context *ch = NULL;
 	struct channel_context *ch_prv = NULL;
 	int isp_ctx_id[CAM_CH_MAX] = { -1 };
-	struct isp_statis_io_desc io_desc;
 	struct cam_hw_info *hw = NULL;
 
 	if ((atomic_read(&module->state) != CAM_RUNNING) &&
@@ -6086,7 +6055,7 @@ static int img_ioctl_stream_off(
 
 	for (i = 0;  i < CAM_CH_MAX; i++) {
 		ch = &module->channel[i];
-		if (!ch->enable)
+		if (!ch->enable || (ch->ch_id == CAM_CH_RAW))
 			continue;
 		camera_queue_clear(&ch->zoom_coeff_queue);
 
@@ -6170,17 +6139,6 @@ static int img_ioctl_stream_off(
 			pr_err("fail to deinit statis q %d\n", ret);
 	}
 
-	if (module->isp_dev_handle) {
-		io_desc.q = &module->isp_hist2_outbuf_queue;
-		io_desc.buf = &module->isp_hist2_buf;
-		ret = isp_ops->ioctl(module->isp_dev_handle,
-				0,
-				ISP_IOCTL_DEINIT_STATIS_BUF,
-				&io_desc);
-		if (ret != 0)
-			pr_err("fail to deinit statis buffer %d\n", ret);
-	}
-
 	for (i = 0; i < CAM_CH_MAX; i++) {
 		ch = &module->channel[i];
 		memset(ch, 0, sizeof(struct channel_context));
@@ -6214,7 +6172,6 @@ static int img_ioctl_stream_off(
 			module->dual_frame = NULL;
 		}
 		camera_queue_clear(&module->zsl_fifo_queue);
-		camera_queue_clear(&module->isp_hist2_outbuf_queue);
 		camera_queue_clear(&module->remosaic_queue);
 		if (module->dump_thrd.thread_task)
 			camera_queue_clear(&module->dump_queue);
@@ -6420,7 +6377,6 @@ static int raw_proc_done(struct camera_module *module)
 	struct camera_group *grp = module->grp;
 	struct channel_context *ch;
 	struct channel_context *ch_raw;
-	struct isp_statis_io_desc io_desc;
 	struct dcam_pipe_dev *dev = NULL;
 
 	pr_info("cam%d start\n", module->idx);
@@ -6470,20 +6426,10 @@ static int raw_proc_done(struct camera_module *module)
 					isp_ctx_id, isp_path_id);
 	isp_ops->put_context(module->isp_dev_handle, isp_ctx_id);
 
-	if (module->isp_dev_handle) {
-		io_desc.q = &module->isp_hist2_outbuf_queue;
-		io_desc.buf = &module->isp_hist2_buf;
-		ret = isp_ops->ioctl(module->isp_dev_handle,
-				0,
-				ISP_IOCTL_DEINIT_STATIS_BUF,
-				&io_desc);
-	}
-
 	ch->enable = 0;
 	ch->dcam_path_id = -1;
 	ch->isp_path_id = -1;
 	ch->aux_dcam_path_id = -1;
-	camera_queue_clear(&module->isp_hist2_outbuf_queue);
 	camera_queue_clear(&module->frm_queue);
 	camera_queue_clear(&ch->share_buf_queue);
 	module->cam_uinfo.dcam_slice_mode = CAM_SLICE_NONE;
@@ -6707,7 +6653,6 @@ static int raw_proc_post(
 	struct camera_frame *src_frame;
 	struct camera_frame *mid_frame;
 	struct camera_frame *dst_frame;
-	struct isp_statis_io_desc io_desc;
 	struct dcam_pipe_dev *dev = NULL;
 
 	pr_info("start\n");
@@ -6726,14 +6671,6 @@ static int raw_proc_post(
 
 	ret = dcam_ops->ioctl(module->dcam_dev_handle,
 				DCAM_IOCTL_INIT_STATIS_Q, NULL);
-	camera_queue_init(&module->isp_hist2_outbuf_queue,
-		CAM_STATIS_Q_LEN, 0, cam_destroy_statis_buf);
-	io_desc.q = &module->isp_hist2_outbuf_queue;
-	io_desc.buf = &module->isp_hist2_buf;
-	ret = isp_ops->ioctl(module->isp_dev_handle,
-				0,
-				ISP_IOCTL_INIT_STATIS_Q,
-				&io_desc);
 
 	pr_info("src %d 0x%x, mid %d, 0x%x, dst %d, 0x%x\n",
 		proc_info->fd_src, proc_info->src_offset,
@@ -8042,16 +7979,11 @@ rewait:
 			read_op.parm.frame.vaddr = pframe->buf.offset[2];
 
 			/* for statis buffer address below. */
-			read_op.parm.frame.phy_addr = (uint32_t)pframe->buf.iova[0];
-			read_op.parm.frame.addr_offset = (uint32_t)pframe->buf.addr_vir[0];
-			read_op.parm.frame.vir_addr =
-				(uint32_t)((uint64_t)pframe->buf.addr_vir[0] >> 32);
-			if (module->zoom_ratio)
-				read_op.parm.frame.zoom_ratio = module->zoom_ratio;
+			read_op.parm.frame.addr_offset = pframe->buf.offset[0];
+			if (pframe->irq_type == CAMERA_IRQ_STATIS)
+				read_op.parm.frame.zoom_ratio = pframe->zoom_ratio;
 			else
-				read_op.parm.frame.zoom_ratio = ZOOM_RATIO_DEFAULT;
-			read_op.parm.frame.kaddr[1] = (uint32_t)((uint64_t)pframe->buf.addr_k[0] >> 32);
-			read_op.parm.frame.kaddr[0] = (uint32_t)pframe->buf.addr_k[0];
+				read_op.parm.frame.zoom_ratio = module->zoom_ratio;
 		} else {
 			struct cam_hw_info *hw = module->grp->hw_info;
 

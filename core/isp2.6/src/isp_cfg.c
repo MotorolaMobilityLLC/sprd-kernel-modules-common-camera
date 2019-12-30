@@ -122,23 +122,39 @@ static void cctx_init_page_buf_addr(
 				void *sw_addr,
 				unsigned long hw_addr)
 {
-	unsigned long ctx_offset, shadow_offset;
+	unsigned long offset;
+	struct isp_cfg_buf *cfg_buf;
+	int  c_id, bid;
+
+	for (c_id = 0; c_id < ISP_CONTEXT_HW_NUM; c_id++) {
+		offset = c_id * ISP_CFG_BUF_SIZE;
+		cfg_buf = &cfg_ctx->cfg_buf[c_id];
+		bid = CFG_BUF_HW;
+		cfg_buf->reg_buf[bid].sw_addr = sw_addr + offset;
+		cfg_buf->reg_buf[bid].hw_addr = hw_addr + offset;
+		pr_debug("isp ctx %d  buf %d: sw=%p, hw:0x%lx\n",
+			c_id, bid, cfg_buf->reg_buf[bid].sw_addr,
+			cfg_buf->reg_buf[bid].hw_addr);
+	}
+}
+
+static void cctx_init_sw_page_buf_addr(
+				struct isp_cfg_ctx_desc *cfg_ctx,
+				void *sw_addr)
+{
 	unsigned long offset;
 	struct isp_cfg_buf *cfg_buf;
 	int  c_id, bid;
 
 	for (c_id = 0; c_id < ISP_CONTEXT_SW_NUM; c_id++) {
-		ctx_offset = c_id * ISP_CFG_BUF_SIZE;
+		offset = c_id * ISP_CFG_BUF_SIZE;
 		cfg_buf = &cfg_ctx->cfg_buf[c_id];
-		for (bid = 0; bid < CFG_BUF_NUM; bid++) {
-			shadow_offset = bid * ISP_REG_SIZE;
-			offset = ctx_offset + shadow_offset;
-			cfg_buf->reg_buf[bid].sw_addr = sw_addr + offset;
-			cfg_buf->reg_buf[bid].hw_addr = hw_addr + offset;
-			pr_debug("isp ctx %d  buf %d: sw=%p, hw:0x%lx\n",
-				c_id, bid, cfg_buf->reg_buf[bid].sw_addr,
-				cfg_buf->reg_buf[bid].hw_addr);
-		}
+		bid = CFG_BUF_SW;
+		cfg_buf->reg_buf[bid].sw_addr = sw_addr + offset;
+		cfg_buf->reg_buf[bid].hw_addr = 0UL;
+		pr_debug("isp ctx %d  buf %d: sw=%p, hw:0x%lx\n",
+			c_id, bid, cfg_buf->reg_buf[bid].sw_addr,
+			cfg_buf->reg_buf[bid].hw_addr);
 	}
 }
 
@@ -171,7 +187,7 @@ static void cctx_init_regbuf_addr(struct isp_cfg_ctx_desc *cfg_ctx)
 	 */
 	for (c_id = 0; c_id < ISP_CONTEXT_SW_NUM; c_id++) {
 		cfg_buf = &cfg_ctx->cfg_buf[c_id];
-		cfg_buf->cur_buf_id = cur_regbuf_id = CFG_BUF_SHADOW;
+		cfg_buf->cur_buf_id = cur_regbuf_id = CFG_BUF_SW;
 		cur_regbuf_p = &cfg_buf->reg_buf[cur_regbuf_id];
 		isp_cfg_ctx_addr[c_id] =
 				(unsigned long)cur_regbuf_p->sw_addr;
@@ -227,6 +243,7 @@ static int cctx_buf_init(struct isp_cfg_ctx_desc *cfg_ctx)
 	void *sw_addr = NULL;
 	unsigned long hw_addr = 0;
 	struct camera_buf *ion_buf = NULL;
+	struct camera_buf *ion_buf_cached = NULL;
 
 	/*alloc cfg context buffer*/
 	ion_buf = &cfg_ctx->ion_pool;
@@ -240,7 +257,7 @@ static int cctx_buf_init(struct isp_cfg_ctx_desc *cfg_ctx)
 		pr_debug("isp iommu disable\n");
 		iommu_enable = 0;
 	}
-	size = ISP_CFG_BUF_SIZE_ALL_PADDING;
+	size = ISP_CFG_BUF_SIZE_HW_PADDING;
 	ret = cambuf_alloc(ion_buf, size, 0, iommu_enable);
 	if (ret) {
 		pr_err("fail to get cfg buffer\n");
@@ -262,15 +279,43 @@ static int cctx_buf_init(struct isp_cfg_ctx_desc *cfg_ctx)
 		goto err_hwmap_cfg;
 	}
 
+	/*alloc cfg sw context buffer*/
+	ion_buf_cached = &cfg_ctx->ion_pool_cached;
+	memset(ion_buf_cached, 0, sizeof(cfg_ctx->ion_pool_cached));
+	sprintf(ion_buf_cached->name, "isp_cfg_swctx");
+
+	size = ISP_CFG_BUF_SIZE_SW_ALL;
+	ret = cambuf_alloc(ion_buf_cached, size, 0, iommu_enable | CAM_BUF_CAHCED);
+	if (ret) {
+		pr_err("fail to get cfg buffer\n");
+		ret = -EFAULT;
+		goto err_alloc_cfg1;
+	}
+
+	ret = cambuf_kmap(ion_buf_cached);
+	if (ret) {
+		pr_err("fail to kmap cfg buffer\n");
+		ret = -EFAULT;
+		goto err_kmap_cfg1;
+	}
+
+
 	cctx_page_buf_aligned(cfg_ctx, &sw_addr, &hw_addr);
 	cctx_init_page_buf_addr(cfg_ctx, sw_addr, hw_addr);
+	cctx_init_sw_page_buf_addr(cfg_ctx, (void *)ion_buf_cached->addr_k[0]);
 	cctx_init_regbuf_addr(cfg_ctx);
 
 	pr_debug("cmd sw: %p, hw: 0x%lx, size:0x%x\n",
 			sw_addr, hw_addr, (int)ion_buf->size[0]);
+	pr_debug("cmd1 sw: 0x%lx, size:0x%x\n",
+			ion_buf_cached->addr_k[0], (int)ion_buf_cached->size[0]);
 
 	return 0;
 
+err_kmap_cfg1:
+	cambuf_free(ion_buf_cached);
+err_alloc_cfg1:
+	cambuf_iommu_unmap(ion_buf);
 err_hwmap_cfg:
 	cambuf_kunmap(ion_buf);
 err_kmap_cfg:
@@ -293,6 +338,10 @@ static int cctx_buf_deinit(struct isp_cfg_ctx_desc *cfg_ctx)
 	cambuf_kunmap(ion_buf);
 	cambuf_free(ion_buf);
 
+	ion_buf = &cfg_ctx->ion_pool_cached;
+	cambuf_kunmap(ion_buf);
+	cambuf_free(ion_buf);
+
 	return 0;
 }
 
@@ -301,7 +350,6 @@ static int isp_cfg_reset_ctxbuf(
 		enum isp_context_id ctx_id)
 {
 	void *shadow_buf_vaddr = NULL;
-	void *work_buf_vaddr = NULL;
 
 	if (!cfg_ctx) {
 		pr_err("fail to get cfg_ctx pointer\n");
@@ -313,12 +361,6 @@ static int isp_cfg_reset_ctxbuf(
 	if (!IS_ERR_OR_NULL(shadow_buf_vaddr)) {
 		memset(shadow_buf_vaddr, 0x0, ISP_REG_SIZE);
 		pr_debug("ctx %d reset shadow page buf\n", ctx_id);
-	}
-
-	work_buf_vaddr = cfg_ctx->cfg_buf[ctx_id].reg_buf[CFG_BUF_WORK].sw_addr;
-	if (!IS_ERR_OR_NULL(work_buf_vaddr)) {
-		memset(work_buf_vaddr, 0x0, ISP_REG_SIZE);
-		pr_debug("ctx %d reset work page buf\n", ctx_id);
 	}
 
 	pr_debug("Done\n");
@@ -454,7 +496,7 @@ static int isp_cfg_config_block(
 
 	if (hw_ctx_id < ISP_CONTEXT_HW_NUM) {
 		cfg_buf_p = &cfg_ctx->cfg_buf[hw_ctx_id];
-		buf_id = CFG_BUF_WORK;
+		buf_id = CFG_BUF_HW;
 		hw_addr = (unsigned long)cfg_buf_p->reg_buf[buf_id].hw_addr;
 		work_buf_vaddr = cfg_buf_p->reg_buf[buf_id].sw_addr;
 

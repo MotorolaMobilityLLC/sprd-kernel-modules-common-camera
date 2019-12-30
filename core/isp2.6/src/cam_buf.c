@@ -463,6 +463,7 @@ int cambuf_kmap(struct camera_buf *buf_info)
 			ret = -EINVAL;
 			goto map_fail;
 		}
+		buf_info->addr_k[i] += buf_info->offset[i];
 
 		pr_debug("buf%d, addr_k %p, dmabuf[%p]\n", i,
 			(void *)buf_info->addr_k[i], buf_info->dmabuf_p[i]);
@@ -529,6 +530,7 @@ int  cambuf_alloc(struct camera_buf *buf_info,
 {
 	int ret = 0;
 	int heap_type;
+	unsigned int flag = 0;
 	char name[64];
 
 	if (!buf_info) {
@@ -538,6 +540,11 @@ int  cambuf_alloc(struct camera_buf *buf_info,
 
 	snprintf(name, 16+CAM_BUF_NAME_LEN,
 			"camera-buf-%s", buf_info->name);
+
+	if (iommu_enable & CAM_BUF_CAHCED)
+		flag = ION_FLAG_CACHED;
+	iommu_enable &= ~CAM_BUF_CAHCED;
+
 #ifdef TEST_ON_HAPS
 	/* force reserved memory during bringup. */
 	iommu_enable = 0;
@@ -551,7 +558,7 @@ int  cambuf_alloc(struct camera_buf *buf_info,
 				ION_HEAP_ID_MASK_MM;
 	}
 
-	buf_info->dmabuf_p[0] = ion_new_alloc(size, heap_type, 0);
+	buf_info->dmabuf_p[0] = ion_new_alloc(size, heap_type, flag);
 	if (IS_ERR_OR_NULL(buf_info->dmabuf_p[0])) {
 		pr_err("fail to alloc ion buf size = 0x%x\n", (int)size);
 		ret = -ENOMEM;

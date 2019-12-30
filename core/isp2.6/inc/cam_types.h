@@ -24,6 +24,7 @@
 #define MIN(a, b) ((a < b) ? a : b)
 #endif
 
+#define ZOOM_RATIO_DEFAULT     1000
 #define CAM_BUF_ALIGN_SIZE		4
 #define	ALIGN_OFFSET			16
 

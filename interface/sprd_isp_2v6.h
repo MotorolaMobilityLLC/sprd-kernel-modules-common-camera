@@ -14,9 +14,6 @@
 #ifndef _SPRD_ISP_2V6_H_
 #define _SPRD_ISP_2V6_H_
 
-#define BUF_ALIGN(w) ((((w) + 512 + 1024 - 1) >> 10) << 10)
-
-#define ISP_PDAF_STATIS_BUF_SIZE                BUF_ALIGN(0x3A23D0)
 
 #define PDAF_PPI_NUM			64
 #define PDAF_PPI_GAIN_MAP_LEN 128
@@ -29,53 +26,19 @@
 #define ISP_YUV_GAMMA_NUM	129
 #define GTM_HIST_BIN_NUM       128
 
-#define ISP_MAX_WIDTH  4672
-#define ISP_MAX_HEIGHT  3504
 
+#define STATIS_BUF_NUM_MAX 8
 
-/* AEM max windows: 128 x 128, 3*16Bytes for each window */
-#define STATIS_AEM_BUF_SIZE (128 * 128 * 16 * 3)
-#define STATIS_AEM_BUF_NUM 8
-
-/* LSCM max windows: 128 x 128, 16Bytes for each window */
-#define STATIS_LSCM_BUF_SIZE (128 * 128 * 16)
-#define STATIS_LSCM_BUF_NUM 8
-
-/* AFM max windows: 20 x 15, 16 Bytes for each window */
-#define STATIS_AFM_BUF_SIZE  (20 * 15 * 16)
-#define STATIS_AFM_BUF_NUM 8
+#define STATIS_AEM_HEADER_SIZE 128
 
 /* SharkL5/ROC1/SharkL5Pro */
 /* AFL: global 80 x 16 bytes for one frame, region 482 x 16 bytes one frame */
 #define STATIS_AFL_GBUF_SIZE   (80 * 16 * 3 + 64)
-#define STATIS_AFL_RBUF_SIZE   (482 * 16 * 3 + 64)
 
 /* SharkL3 */
 /* AFL: global 240 * 8 bytes for one frame, region 964 x 8 bytes one frame */
 #define STATIS_AFL_GBUF_SIZE3   (240 * 8 * 3 + 64)
 
-#define STATIS_AFL_BUF_SIZE (STATIS_AFL_GBUF_SIZE3 + STATIS_AFL_RBUF_SIZE)
-#define STATIS_AFL_BUF_NUM 3
-
-/* hist: 154 x 16 bytes */
-#define STATIS_HIST_BUF_SIZE   (154 * 16)
-#define STATIS_HIST_BUF_NUM 8
-
-#define STATIS_PDAF_BUF_SIZE  ISP_PDAF_STATIS_BUF_SIZE
-#define STATIS_PDAF_BUF_NUM 4
-
-#define STATIS_EBD_BUF_SIZE   0x8000
-#define STATIS_EBD_BUF_NUM 8
-
-/*
- * 3dnr: max size is (4672+3504)*2 bytes
- * should save at least 5 mv buffer for capture
- */
-#define STATIS_3DNR_BUF_SIZE (2 * (4672 + 3504))
-#define STATIS_3DNR_BUF_NUM 8
-
-#define STATIS_ISP_HIST2_BUF_SIZE   (256 * 4)
-#define STATIS_ISP_HIST2_BUF_NUM 8
 
 enum SCINFO_COLOR_ORDER {
 	COLOR_ORDER_RG = 0,
@@ -118,6 +81,7 @@ enum isp_statis_buf_type {
 	STATIS_3DNR,
 	STATIS_LSCM,
 	STATIS_HIST2,
+	STATIS_TYPE_MAX,
 };
 
 enum isp_dev_capability {
@@ -192,6 +156,7 @@ enum dcam_lsc_property {
 };
 
 enum dcam_bayerhist_property {
+	DCAM_PRO_BAYERHIST_BYPASS,
 	DCAM_PRO_BAYERHIST_BLOCK,
 };
 
@@ -1764,20 +1729,14 @@ struct dev_dcam_vc2_control {
 
 struct isp_statis_buf_input {
 	enum isp_statis_buf_type type;
-	union {
-		struct init {
-			int32_t mfd;
-			uint32_t buf_size;
-			int32_t mfd_isp;
-			uint32_t isp_buf_size;
-		} init_data;
-		struct block {
-			uint32_t hw_addr;
-		} block_data;
-	} u;
-	uint64_t uaddr;
-	uint64_t kaddr;
-	uint64_t isp_uaddr;
+
+	/* for init all */
+	int32_t mfd_array[STATIS_TYPE_MAX][STATIS_BUF_NUM_MAX];
+	int32_t offset_array[STATIS_TYPE_MAX][STATIS_BUF_NUM_MAX];
+
+	/* for single buffer set */
+	int32_t mfd;
+	uint32_t offset;
 };
 
 enum raw_proc_cmd {

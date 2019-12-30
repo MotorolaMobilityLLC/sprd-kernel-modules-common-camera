@@ -22,6 +22,7 @@
 /* #include "ion_priv.h" */
 
 #define CAM_BUF_NAME_LEN		32
+#define CAM_BUF_CAHCED		(1 << 31)
 
 enum cam_buf_type {
 	CAM_BUF_NONE,
