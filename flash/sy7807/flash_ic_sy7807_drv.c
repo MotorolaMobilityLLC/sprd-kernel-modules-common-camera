@@ -96,10 +96,10 @@ static int sprd_flash_ic_open_torch(void *drvd, uint8_t idx)
 	if (IS_ERR(drv_data))
 		return -EFAULT;
 
-	if (IS_ERR(drv_data->pwm_chip0))
+	if (IS_ERR(drv_data->pwm_chip1))
 		return -EFAULT;
 
-	pwm = drv_data->pwm_chip0;
+	pwm = drv_data->pwm_chip1;
 	if (IS_ERR(pwm)) {
 		return -EFAULT;
 	}
@@ -120,11 +120,11 @@ static int sprd_flash_ic_close_torch(void *drvd, uint8_t idx)
 		return -EFAULT;
 
 
-	if (IS_ERR(drv_data->pwm_chip0))
+	if (IS_ERR(drv_data->pwm_chip1))
 		return -EFAULT;
 
 
-	pwm = drv_data->pwm_chip0;
+	pwm = drv_data->pwm_chip1;
 	if (IS_ERR(pwm)) {
 		return -EFAULT;
 	}
