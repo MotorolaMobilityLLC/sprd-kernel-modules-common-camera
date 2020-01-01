@@ -489,7 +489,11 @@ int dcam_path_set_store_frm(void *dcam_handle,
 			hw->hw_ops.core_ops.dcam_fbc_addr_set(idx,
 				addr, &fbc_addr);
 	} else if (path_id == DCAM_PATH_AEM) {
-		DCAM_REG_WR(idx, addr, frame->buf.iova[0] + STATIS_AEM_HEADER_SIZE);
+		DCAM_REG_WR(idx, addr,
+			    frame->buf.iova[0] + STATIS_AEM_HEADER_SIZE);
+	} else if (path_id == DCAM_PATH_HIST) {
+		DCAM_REG_WR(idx, addr,
+			    frame->buf.iova[0] + STATIS_HIST_HEADER_SIZE);
 	} else {
 		DCAM_REG_WR(idx, addr, frame->buf.iova[0]);
 	}
@@ -560,7 +564,6 @@ int dcam_path_set_store_frm(void *dcam_handle,
 
 		spin_lock_irqsave(&path->size_lock, flags);
 		dcam_k_aem_win(dev->blk_dcam_pm);
-		spin_unlock_irqrestore(&path->size_lock, flags);
 
 		if (frame->buf.addr_k[0]) {
 			win = (struct dcam_dev_aem_win *)(frame->buf.addr_k[0]);
@@ -575,6 +578,30 @@ int dcam_path_set_store_frm(void *dcam_handle,
 			zoom_rect->w = dev->next_roi.size_x;
 			zoom_rect->h = dev->next_roi.size_y;
 		}
+		spin_unlock_irqrestore(&path->size_lock, flags);
+	}
+
+	/* Re-config hist win if it is updated */
+	if (path_id == DCAM_PATH_HIST) {
+#if defined (PROJ_SHARKL5PRO)
+		/*
+		 * TODO: WORKAROUND
+		 * Update parameters which may be dynamically changed. Currently
+		 * bayerhist block is only in SharkL5Pro.
+		 */
+		spin_lock_irqsave(&path->size_lock, flags);
+		dcam_k_bayerhist_block(dev->blk_dcam_pm);
+
+		if (frame->buf.addr_k[0]) {
+			struct dcam_dev_hist_info *info = NULL;
+
+			info = (struct dcam_dev_hist_info *)frame->buf.addr_k[0];
+			memcpy(info, &dev->blk_dcam_pm->hist.bayerHist_info,
+			       sizeof(struct dcam_dev_hist_info));
+		}
+		spin_unlock_irqrestore(&path->size_lock, flags);
+#endif
+
 	}
 
 	slm_path = hw->ip_dcam[idx]->slm_path;

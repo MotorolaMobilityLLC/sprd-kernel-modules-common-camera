@@ -30,6 +30,7 @@
 #define STATIS_BUF_NUM_MAX 8
 
 #define STATIS_AEM_HEADER_SIZE 128
+#define STATIS_HIST_HEADER_SIZE 128
 
 /* SharkL5/ROC1/SharkL5Pro */
 /* AFL: global 80 x 16 bytes for one frame, region 482 x 16 bytes one frame */

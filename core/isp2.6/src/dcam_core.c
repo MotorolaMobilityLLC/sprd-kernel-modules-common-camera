@@ -474,7 +474,7 @@ static int dcam_cfg_statis_buffer(
 					continue;
 				}
 
-				if (stats_type == STATIS_AEM) {
+				if (stats_type != STATIS_PDAF) {
 					ret = cambuf_kmap(ion_buf);
 					if (ret) {
 						pr_err("fail to kmap statis buf %d\n", mfd);
