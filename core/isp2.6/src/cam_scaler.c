@@ -1060,16 +1060,15 @@ static int rds_sinc_weight_calc(
 		int index, int phase, uint16_t src_size, uint16_t dst_size)
 {
 	int weight;
-	int n = 2;
+	int n = 4;
 	/* c = c * 2^24 */
-	int64_t c1 = (int64_t)5968797;
-	int64_t c2 = (int64_t)8177148;
-	int64_t c3 = (int64_t)2419811;
-	int64_t c4 = (int64_t)211460;
+	int64_t c0 = (int64_t)9059697;
+	int64_t c1 = (int64_t)7717519;
+
 
 	int64_t dividend, divisor;
-	int64_t angle1, angle2, angle3, angle4;
-	int64_t value1, value2, value3, value4;
+	int64_t angle1, angle2;
+	int64_t value1, value2;
 	int64_t tmp;
 
 	if (FILTER_WINDOW * fabs(index) * dst_size == 0)
@@ -1086,41 +1085,17 @@ static int rds_sinc_weight_calc(
 		divisor = (int64_t)(n * phase) * src_size;
 		angle1 = rds_div64(dividend, divisor);
 
-
-		dividend = (int64_t)(FILTER_WINDOW * fabs(index) *
-		dst_size + n * phase * src_size) *
-		(int64_t)2 * (int64_t)ARC_32_COEF;
-
-		divisor = (int64_t)(n * phase * src_size);
-		angle2 = rds_div64(dividend, divisor);
-
-
-		dividend = (int64_t)(FILTER_WINDOW * fabs(index) *
-				dst_size + n * phase * src_size) *
-				(int64_t)3 * (int64_t)ARC_32_COEF;
-
-		divisor = (int64_t)(n * phase * src_size);
-		angle3 = rds_div64(dividend, divisor);
-
-
 		dividend = (int64_t)(FILTER_WINDOW * fabs(index) *
 				dst_size) * (int64_t)ARC_32_COEF;
 
 		divisor = (int64_t)(phase) * src_size;
-		angle4 = rds_div64(dividend, divisor);
-
+		angle2 = rds_div64(dividend, divisor);
 
 		value1 = cam_cos_32((int)angle1);
-		value2 = cam_cos_32((int)angle2);
-		value3 = cam_cos_32((int)angle3);
-		value4 = cam_sin_32((int)angle4);
+		value2 = cam_sin_32((int)angle2);
 
-		tmp = c1 -
-			((c2 * value1) >> 30) +
-			((c3 * value2) >> 30) -
-			((c4 * value3) >> 30);
-
-		tmp = (tmp * value4) >> 30;
+		tmp = c0 - ((c1 * value1) >> 30);
+		tmp = (tmp * value2) >> 30;
 
 		dividend = tmp * (int64_t)phase;
 		divisor = (int64_t)PI_32 * (int64_t)FILTER_WINDOW *
@@ -1213,7 +1188,7 @@ static void rds_weight_calc(
 
 		for (i = 0; i < tap; i++) {
 			index = N * (i + offset) - phase;
-			CLIP(index, idx_ub, idx_lb);
+			//CLIP(index, idx_ub, idx_lb);
 			weight_phase[i] =
 				weight_func(index, N, src_size, dst_size);
 		}

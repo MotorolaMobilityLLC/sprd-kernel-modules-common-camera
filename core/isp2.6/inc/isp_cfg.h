@@ -22,8 +22,8 @@
 #include "isp_interface.h"
 
 enum cfg_buf_id {
-	CFG_BUF_SHADOW = 0,
-	CFG_BUF_WORK,
+	CFG_BUF_SW = 0,
+	CFG_BUF_HW,
 	CFG_BUF_NUM
 };
 
@@ -32,11 +32,12 @@ enum cfg_buf_id {
  */
 
 #define ISP_REG_SIZE			0x40000UL
-#define ISP_CFG_BUF_SIZE		(ISP_REG_SIZE * CFG_BUF_NUM)
-#define ISP_CFG_BUF_SIZE_ALL		(ISP_CFG_BUF_SIZE * ISP_CONTEXT_SW_NUM)
+#define ISP_CFG_BUF_SIZE		(ISP_REG_SIZE * 1)
+#define ISP_CFG_BUF_SIZE_SW_ALL		(ISP_CFG_BUF_SIZE * ISP_CONTEXT_SW_NUM)
 #define ALIGN_PADDING_SIZE		(ISP_REG_SIZE)
-#define ISP_CFG_BUF_SIZE_ALL_PADDING	\
-	(ISP_CFG_BUF_SIZE_ALL + ALIGN_PADDING_SIZE)
+#define ISP_CFG_BUF_SIZE_HW_PADDING	\
+	(ISP_REG_SIZE * ISP_CONTEXT_HW_NUM + ALIGN_PADDING_SIZE)
+
 #define ISP_CFG_MAP_MAX  100
 
 #define ISP_CONTEXT_TIMEOUT		msecs_to_jiffies(2000)
@@ -74,6 +75,7 @@ struct isp_cfg_ops;
 struct isp_cfg_ctx_desc {
 	struct isp_cfg_buf cfg_buf[ISP_CONTEXT_SW_NUM];
 	struct camera_buf ion_pool;
+	struct camera_buf ion_pool_cached;
 	spinlock_t lock;
 	atomic_t  user_cnt;
 	atomic_t  map_cnt;

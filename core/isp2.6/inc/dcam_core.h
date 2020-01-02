@@ -273,11 +273,15 @@ struct dcam_pipe_dev {
 	struct completion frm_done;
 	struct completion offline_complete;
 
+	uint32_t zoom_ratio;
+	struct img_trim next_roi;
+
 	uint32_t iommu_enable;
 	struct dcam_mipi_info cap_info;
 
-	struct camera_buf *statis_buf;
 	void *internal_reserved_buf; /* for statis path output */
+
+	struct camera_buf statis_buf_array[STATIS_TYPE_MAX][STATIS_BUF_NUM_MAX];
 
 	dcam_dev_callback dcam_cb_func;
 	void *cb_priv_data;

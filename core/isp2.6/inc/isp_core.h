@@ -437,6 +437,7 @@ struct isp_pipe_context {
 	struct camera_queue ltm_avail_queue[LTM_MAX];
 	struct camera_queue ltm_wr_queue[LTM_MAX];
 
+	struct camera_buf statis_buf_array[STATIS_BUF_NUM_MAX];
 	struct camera_queue hist2_result_queue;
 
 	struct cam_thread_info thread;
