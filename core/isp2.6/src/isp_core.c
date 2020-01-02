@@ -2892,7 +2892,8 @@ static int sprd_isp_cfg_blkparam(
 			ret = isp_k_cfg_3dnr(param, &pctx->isp_k_param, ctx_id);
 	} else if (io_param->sub_block == ISP_BLOCK_YNR) {
 		ret = isp_k_cfg_ynr(param, &pctx->isp_k_param, ctx_id);
-	} else if (io_param->sub_block == ISP_BLOCK_NOISEFILTER) {
+	} else if (io_param->sub_block == ISP_BLOCK_NOISEFILTER
+			&& io_param->scene_id == PM_SCENE_CAP) {
 		ret = isp_k_cfg_yuv_noisefilter(param, &pctx->isp_k_param, ctx_id);
 	} else {
 		i = io_param->sub_block - ISP_BLOCK_BASE;
