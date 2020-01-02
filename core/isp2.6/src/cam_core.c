@@ -2261,6 +2261,7 @@ static int cal_channel_size_bininig(
 		}
 
 		dcam_out.w = (trim_pv.size_x >> shift);
+		dcam_out.w = ALIGN_DOWN(dcam_out.w, 2);
 		dcam_out.h = (trim_pv.size_y >> shift);
 		dcam_out.h = ALIGN_DOWN(dcam_out.h, 2);
 
