@@ -436,7 +436,7 @@ static int dcam_cfg_statis_buffer(
 	uint32_t offset;
 	enum dcam_path_id path_id;
 	enum isp_statis_buf_type stats_type;
-	struct camera_buf *ion_buf;
+	struct camera_buf *ion_buf = NULL;
 	struct camera_frame *pframe = NULL;
 	struct dcam_path_desc *path = NULL;
 
