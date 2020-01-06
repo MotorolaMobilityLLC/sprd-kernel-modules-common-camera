@@ -82,6 +82,8 @@
 #define SUPERZOOM_DEFAULT_COEFF	4
 #define SUPERZOOM_COEFF_UP_MAX	4
 
+#define PRE_RDS_OUT 3264
+
 enum camera_module_state {
 	CAM_INIT = 0,
 	CAM_IDLE,
@@ -2012,6 +2014,13 @@ static int cal_channel_swapsize(struct camera_module *module)
 	ch_prev = &module->channel[CAM_CH_PRE];
 	ch_cap = &module->channel[CAM_CH_CAP];
 	ch_vid = &module->channel[CAM_CH_VID];
+
+	if (module->grp->hw_info->prj_id == SHARKL5pro) {
+		if (ch_prev->ch_uinfo.src_size.w <= PRE_RDS_OUT) {
+			module->zoom_solution = ZOOM_RDS;
+			module->rds_limit= 10;
+		}
+	}
 
 	if (ch_cap->enable) {
 		max.w = ch_cap->ch_uinfo.src_size.w;
