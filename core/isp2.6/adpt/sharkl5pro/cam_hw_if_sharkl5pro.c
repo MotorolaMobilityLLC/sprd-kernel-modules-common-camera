@@ -1466,7 +1466,7 @@ static void sharkl5pro_cam_gtm_ltm_dis(uint32_t dcam_idx, uint32_t isp_idx)
 
 	g_dcam_bypass[dcam_idx] |= (1 << _E_GTM);
 	g_gtm_en = DCAM_REG_RD(dcam_idx, DCAM_GTM_GLB_CTRL) & BIT_0;
-	DCAM_REG_MWR(dcam_idx, DCAM_GTM_GLB_CTRL, BIT_0, 1);
+	DCAM_REG_MWR(dcam_idx, DCAM_GTM_GLB_CTRL, BIT_0, 0);
 
 	g_isp_bypass[isp_idx] |= (1 << _EISP_LTM);
 	g_ltm_bypass = ISP_REG_RD(isp_idx,
