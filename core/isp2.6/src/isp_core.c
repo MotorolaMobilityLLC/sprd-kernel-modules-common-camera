@@ -2651,7 +2651,7 @@ static int isp_cfg_statis_buffer(
 	int j;
 	int32_t mfd;
 	uint32_t offset;
-	enum isp_statis_buf_type stats_type = 0;
+	enum isp_statis_buf_type stats_type = STATIS_HIST2;
 	struct isp_pipe_dev *dev = NULL;
 	struct isp_pipe_context *pctx;
 	struct camera_buf *ion_buf = NULL;
