@@ -2795,7 +2795,7 @@ static int sprd_img_stream_off(struct file *file)
 		path_2->is_work, atomic_read(&dev->stream_on));
 
 	/*wait for scale done*/
-	if (!path_2->is_work) {
+	if (!path_2->is_work || path_2->status == PATH_IDLE) {
 		dcam_get_resizer();
 		dev->got_resizer = 1;
 	}
