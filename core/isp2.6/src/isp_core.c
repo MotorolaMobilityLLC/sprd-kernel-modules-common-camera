@@ -3138,7 +3138,7 @@ static int isp_do_superzoom_frame(void *ctx)
 	path = &pctx->isp_path[0];
 	isp_set_path(path);
 
-	hw->hw_ops.core_ops.isp_superzoom_do_ispblock(pctx);
+	hw->hw_ops.core_ops.isp_cfg_subblock(pctx);
 
 	slave_path = &pctx_major->isp_path[0];
 	out_frame = camera_dequeue(&slave_path->out_buf_queue);

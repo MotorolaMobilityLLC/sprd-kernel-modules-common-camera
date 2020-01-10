@@ -204,7 +204,7 @@ struct cam_hw_core_ops {
 	uint32_t (*bypass_count_get)(enum cam_bypass_type type);
 	void* (*block_func_get)(uint32_t index, enum cam_block_type type);
 	void (*reg_trace)(uint32_t idx, enum cam_reg_trace_type type);
-	void (*isp_superzoom_do_ispblock)(void *ctx);
+	void (*isp_cfg_subblock)(void *ctx);
 };
 
 struct cam_hw_ops {
