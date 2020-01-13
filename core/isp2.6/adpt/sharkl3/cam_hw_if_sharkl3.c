@@ -1892,9 +1892,8 @@ void sharkl3_isp_cfg_subblock(void *ctx)
 		fetch->in_trim.size_x | (fetch->in_trim.size_y << 16));
 	ISP_REG_WR(idx, ISP_DISPATCH_CH0_BAYER, pctx->dispatch_bayer_mode);
 
-	pr_debug("pitch ch0 %d, ch1 %d, ch2 %d, addr_ch0 %p, ch1 %p, ch2 %p\n",
-		fetch->pitch.pitch_ch0, fetch->pitch.pitch_ch1, fetch->pitch.pitch_ch2,
-		fetch->addr.addr_ch0, fetch->addr.addr_ch1, fetch->addr.addr_ch2);
+	pr_debug("pitch ch0 %d, ch1 %d, ch2 %d\n",
+		fetch->pitch.pitch_ch0, fetch->pitch.pitch_ch1, fetch->pitch.pitch_ch2);
 
 	/*superzoom need to bypass below sublock*/
 	ISP_REG_MWR(idx, ISP_VST_PARA, BIT_0, bypass);
