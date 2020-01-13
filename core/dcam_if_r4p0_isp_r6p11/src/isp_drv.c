@@ -2927,11 +2927,11 @@ static int sprd_isp_start_path(void *isp_handle, enum isp_path_index path_index,
 
 	if (unlikely(path_index != ISP_PATH_IDX_ALL)) {
 		if (ISP_PATH_IDX_PRE & path_index)
-			isp_wait_path_done(module, ISP_SCL_PRE, NULL);
+			isp_wait_path_done(module, ISP_PATH_IDX_PRE, NULL);
 		else if (ISP_PATH_IDX_VID & path_index)
-			isp_wait_path_done(module, ISP_SCL_VID, NULL);
+			isp_wait_path_done(module, ISP_PATH_IDX_VID, NULL);
 		else if (ISP_PATH_IDX_CAP & path_index)
-			isp_wait_path_done(module, ISP_SCL_CAP, NULL);
+			isp_wait_path_done(module, ISP_PATH_IDX_CAP, NULL);
 	}
 
 	isp_common_cfg(idx);
@@ -3101,7 +3101,7 @@ int set_isp_path_cfg(void *isp_handle, enum isp_path_index path_index,
 			rtn = pfiommu_get_sg_table(&frame.pfinfo);
 			if (rtn) {
 				pr_err("fail to get iommu sg table\n");
-				rtn = DCAM_RTN_PATH_ADDR_ERR;
+				rtn = ISP_RTN_PATH_ADDR_ERR;
 				break;
 			}
 
@@ -3149,7 +3149,7 @@ int set_isp_path_cfg(void *isp_handle, enum isp_path_index path_index,
 			rtn = pfiommu_get_sg_table(&frame->pfinfo);
 			if (rtn) {
 				pr_err("fail to get iommu sg table\n");
-				rtn = DCAM_RTN_PATH_ADDR_ERR;
+				rtn = ISP_RTN_PATH_ADDR_ERR;
 				break;
 			}
 			frame->pfinfo.offset[0] = 0;

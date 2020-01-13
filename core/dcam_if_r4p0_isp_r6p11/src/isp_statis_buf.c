@@ -246,8 +246,8 @@ int sprd_isp_cfg_statis_buf(struct isp_pipe_dev *dev,
 	pr_info("kaddr = 0x%lx\n", kaddr1);
 
 #ifdef CONFIG_64BIT
-	parm->kaddr[0] = (uint32_t)(kaddr1 && 0xffffffff);
-	parm->kaddr[1] = (uint32_t)((kaddr1 >> 32) && 0xffffffff);
+	parm->kaddr[0] = (uint32_t)(kaddr1 & 0xffffffff);
+	parm->kaddr[1] = (uint32_t)((kaddr1 >> 32) & 0xffffffff);
 #else
 	parm->kaddr[0] = (uint32_t)kaddr1;
 	parm->kaddr[1] = 0;

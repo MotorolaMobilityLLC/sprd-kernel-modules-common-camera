@@ -680,14 +680,14 @@ int set_fmcu_slw_cfg(void *handle)
 	}
 
 	buf_reserved = 1;
-	rtn = set_isp_fmcu_slw_cmd(handle, ISP_PATH_IDX_VID, buf_reserved);
+	rtn = set_isp_fmcu_slw_cmd(handle, ISP_SCL_VID, buf_reserved);
 	if (rtn) {
 		pr_err("fail to set fmcu cmd %s rtn %d", __func__, rtn);
 		return rtn;
 	}
 
 	buf_reserved = 0;
-	rtn = set_isp_fmcu_slw_cmd(handle, ISP_PATH_IDX_VID, buf_reserved);
+	rtn = set_isp_fmcu_slw_cmd(handle, ISP_SCL_VID, buf_reserved);
 	if (rtn) {
 		pr_err("fail to set %s rtn %d", __func__, rtn);
 		return rtn;
