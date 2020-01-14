@@ -23,7 +23,7 @@
 
 #define YUV_OVERLAP_UP				46
 #define YUV_OVERLAP_DOWN			68
-#define YUV_OVERLAP_LEFT			74
+#define YUV_OVERLAP_LEFT			106
 #define YUV_OVERLAP_RIGHT			126
 
 #define YUVSCALER_OVERLAP_UP			32
