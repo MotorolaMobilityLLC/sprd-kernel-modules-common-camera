@@ -87,11 +87,6 @@ static int isp_k_ygamma_block(struct isp_io_param *param,
 		return 0;
 	}
 
-	if (!ygamma_info.nodes) {
-		pr_err("fail to get coordinates.\n");
-		return -EPERM;
-	}
-
 	return isp_k_pingpang_yuv_ygamma(ygamma_info.nodes, isp_k_param, idx);
 }
 
