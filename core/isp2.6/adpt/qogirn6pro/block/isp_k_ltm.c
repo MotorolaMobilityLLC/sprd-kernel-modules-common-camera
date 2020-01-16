@@ -27,78 +27,14 @@
 #define	ISP_LTM_HIST_BUF0		0
 #define	ISP_LTM_HIST_BUF1		1
 
-static uint32_t table[2][128] =
-{
-	{
-		4,5,5,5,6,6,6,6,6,6,7,7,7,7,7,7,7,7,7,7,8,8,8,8,8,8,8,8,8,8,8,8,9,9,9,9,9,9,9,9,9,9,9,9,
-		9,9,9,9,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,11,11,11,11,11,
-		11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,12,12,12,12,12,12,12,12,12,12,12,12,
-		12,12,12,12,12,12,12,12,12,12,12,12,12,13,13,13,13,13,13,13,13,13,13,13,13,13,13,13
-	},
-
-	{
-		7,8,8,8,9,9,9,9,9,9,10,10,10,10,10,10,10,10,10,10,11,11,11,11,11,11,11,11,11,11,11,11,
-		12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,13,13,13,13,13,13,13,13,13,13,13,13,
-		13,13,13,13,13,13,13,13,14,14,14,14,14,14,14,14,14,14,14,14,14,14,14,14,14,14,14,14,
-		15,15,15,15,15,15,15,15,15,15,15,15,15,15,15,15,15,15,15,15,15,15,15,15,15,16,16,16,
-		16,16,16,16,16,16,16,16,16,16,16,16
-	},
+static struct isp_dev_rgb_ltm_info g_ltm_rgb_info = {
+	.ltm_stat.bypass = 1,
+	.ltm_map.bypass = 1,
 };
 
-static struct isp_dev_ltm_info g_ltm_rgb_info_pre = {
-	.ltm_stat.bypass  = 0,
-	.ltm_stat.tile_num.tile_num_x = 8,
-	.ltm_stat.tile_num.tile_num_y = 8,
-	.ltm_stat.strength = 4,
-	.ltm_stat.region_est_en = 1,
-	.ltm_stat.text_point_thres = 4,
-	.ltm_stat.text_proportion  = 19,
-	.ltm_stat.tile_num_auto    = 0,
-
-	.ltm_map.bypass = 0,
-	.ltm_map.ltm_map_video_mode = 1,
-};
-
-static struct isp_dev_ltm_info g_ltm_yuv_info_pre = {
-	.ltm_stat.bypass  = 0,
-	.ltm_stat.tile_num.tile_num_x = 8,
-	.ltm_stat.tile_num.tile_num_y = 8,
-	.ltm_stat.strength = 4,
-	.ltm_stat.region_est_en = 1,
-	.ltm_stat.text_point_thres = 7,
-	.ltm_stat.text_proportion  = 19,
-	.ltm_stat.tile_num_auto    = 0,
-
-	.ltm_map.bypass = 0,
-	.ltm_map.ltm_map_video_mode = 1,
-};
-
-static struct isp_dev_ltm_info g_ltm_rgb_info_cap = {
-	.ltm_stat.bypass  = 1,
-	.ltm_stat.tile_num.tile_num_x = 8,
-	.ltm_stat.tile_num.tile_num_y = 8,
-	.ltm_stat.strength = 4,
-	.ltm_stat.region_est_en = 1,
-	.ltm_stat.text_point_thres = 4,
-	.ltm_stat.text_proportion  = 19,
-	.ltm_stat.tile_num_auto    = 0,
-
-	.ltm_map.bypass = 0,
-	.ltm_map.ltm_map_video_mode = 0,
-};
-
-static struct isp_dev_ltm_info g_ltm_yuv_info_cap = {
-	.ltm_stat.bypass  = 1,
-	.ltm_stat.tile_num.tile_num_x = 8,
-	.ltm_stat.tile_num.tile_num_y = 8,
-	.ltm_stat.strength = 4,
-	.ltm_stat.region_est_en = 1,
-	.ltm_stat.text_point_thres = 7,
-	.ltm_stat.text_proportion  = 19,
-	.ltm_stat.tile_num_auto    = 0,
-
-	.ltm_map.bypass = 0,
-	.ltm_map.ltm_map_video_mode = 0,
+static struct isp_dev_yuv_ltm_info g_ltm_yuv_info = {
+	.ltm_stat.bypass = 1,
+	.ltm_map.bypass = 1,
 };
 
 static void isp_ltm_config_hists(uint32_t idx,
@@ -170,7 +106,7 @@ static void isp_ltm_config_hists(uint32_t idx,
 	else
 		buf_addr = buf_addr_1;
 	for (i = 0; i < LTM_HIST_TABLE_NUM; i++)
-		ISP_REG_WR(idx, buf_addr + i * 4, table[ltm_id][i]);
+		ISP_REG_WR(idx, buf_addr + i * 4, hists->ltm_hist_table[i]);
 }
 
 static void isp_ltm_config_map(uint32_t idx,
@@ -245,56 +181,90 @@ int isp_ltm_config_param(struct isp_ltm_ctx_desc *ctx,
 	return 0;
 }
 
-struct isp_dev_ltm_info *isp_ltm_get_tuning_config(int type,
+struct isp_ltm_info *isp_ltm_get_tuning_config(int type,
 		enum isp_ltm_region ltm_id)
 {
-	struct isp_dev_ltm_info *ltm_info;
+	struct isp_dev_rgb_ltm_info *rgb_ltm_info = NULL;
+	struct isp_dev_yuv_ltm_info *yuv_ltm_info = NULL;
+	struct isp_ltm_info *ltm_info = NULL;
 
-	if (ltm_id == LTM_RGB) {
-		if (type == ISP_PRO_LTM_PRE_PARAM)
-			ltm_info = &g_ltm_rgb_info_pre;
-		else
-			ltm_info = &g_ltm_rgb_info_cap;
-	} else {
-		if (type == ISP_PRO_LTM_PRE_PARAM)
-			ltm_info = &g_ltm_yuv_info_pre;
-		else
-			ltm_info = &g_ltm_yuv_info_cap;
+	switch (ltm_id) {
+	case LTM_RGB:
+		rgb_ltm_info = &g_ltm_rgb_info;
+		ltm_info = (struct isp_ltm_info *)rgb_ltm_info;
+		break;
+	case LTM_YUV:
+		yuv_ltm_info = &g_ltm_yuv_info;
+		ltm_info = (struct isp_ltm_info *)yuv_ltm_info;
+		break;
+	default:
+		pr_err("fail to get ltm id:%d, not supported.\n", ltm_id);
+	}
+
+	pr_debug("tuning hist %d %d %d %d %d %d %d %d %d.\n",
+		ltm_id,
+		ltm_info->ltm_stat.bypass,
+		ltm_info->ltm_stat.tile_num.tile_num_x,
+		ltm_info->ltm_stat.tile_num.tile_num_y,
+		ltm_info->ltm_stat.strength,
+		ltm_info->ltm_stat.tile_num_auto,
+		ltm_info->ltm_stat.channel_sel,
+		ltm_info->ltm_stat.text_point_thres,
+		ltm_info->ltm_stat.ltm_text.textture_proporion);
+
+	pr_debug("ltm tuning map %d %d %d.\n", ltm_id,
+		ltm_info->ltm_map.bypass,
+		ltm_info->ltm_map.ltm_map_video_mode);
+
+	if (type == ISP_PRO_LTM_PRE_PARAM)
+		ltm_info->ltm_map.ltm_map_video_mode = 1;
+	if (type == ISP_PRO_LTM_CAP_PARAM){
+		ltm_info->ltm_stat.bypass = 1;
+		ltm_info->ltm_map.ltm_map_video_mode = 0;
 	}
 
 	return ltm_info;
 }
 
-int isp_k_ltm_block(struct isp_io_param *param, uint32_t idx)
+int isp_k_ltm_rgb_block(struct isp_io_param *param, uint32_t idx)
 {
 	int ret = 0;
-	struct isp_dev_ltm_info ltm_info;
-	//struct isp_dev_ltm_info *info;
+	struct isp_dev_rgb_ltm_info *ltm_info = &g_ltm_rgb_info;
 
-	ret = copy_from_user((void *)&ltm_info,
+	ret = copy_from_user((void *)ltm_info,
 			     param->property_param,
-			     sizeof(struct isp_dev_ltm_info));
+			     sizeof(struct isp_dev_rgb_ltm_info));
 	if (ret != 0) {
 		pr_err("fail to get ltm from user, ret = %d\n", ret);
 		return -EPERM;
 	}
 
-	/*if (param->property == ISP_PRO_LTM_PRE_PARAM)
-		info = &g_ltm_info_pre;
-	else
-		info = &g_ltm_info_cap;*/
-
-//	isp_ltm_config_hists(idx, &hists);
 	return ret;
 }
 
-int isp_k_cfg_ltm(struct isp_io_param *param, uint32_t idx)
+int isp_k_ltm_yuv_block(struct isp_io_param *param, uint32_t idx)
+{
+	int ret = 0;
+	struct isp_dev_yuv_ltm_info *ltm_info = &g_ltm_yuv_info;
+
+	ret = copy_from_user((void *)ltm_info,
+			     param->property_param,
+			     sizeof(struct isp_dev_yuv_ltm_info));
+	if (ret != 0) {
+		pr_err("fail to get ltm from user, ret = %d\n", ret);
+		return -EPERM;
+	}
+
+	return ret;
+}
+
+int isp_k_cfg_rgb_ltm(struct isp_io_param *param, uint32_t idx)
 {
 	int ret = 0;
 
 	switch (param->property) {
-	case ISP_PRO_IIRCNR_BLOCK:
-		ret = isp_k_ltm_block(param, idx);
+	case ISP_PRO_RGB_LTM_BLOCK:
+		ret = isp_k_ltm_rgb_block(param, idx);
 		break;
 	default:
 		pr_err("fail to support cmd id = %d\n",
@@ -304,3 +274,21 @@ int isp_k_cfg_ltm(struct isp_io_param *param, uint32_t idx)
 
 	return ret;
 }
+
+int isp_k_cfg_yuv_ltm(struct isp_io_param *param, uint32_t idx)
+{
+	int ret = 0;
+
+	switch (param->property) {
+	case ISP_PRO_YUV_LTM_BLOCK:
+		ret = isp_k_ltm_yuv_block(param, idx);
+		break;
+	default:
+		pr_err("fail to support cmd id = %d\n",
+			param->property);
+		break;
+	}
+
+	return ret;
+}
+

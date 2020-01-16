@@ -554,7 +554,7 @@ struct endian_field {
 #define LSC_GRID_BUF_SIZE2                                  (0x3000UL)
 
 /*
- * DCAM register map range of sharkl5pro
+ * DCAM register map range of qogirn6pro
  *
  * 0x0000 ~ 0x0fff(1K):                DCAM0
  *        |-------- 0x0000 ~ 0x05ff:   common config

@@ -244,6 +244,11 @@ static int isp_k_nlm_block(struct isp_io_param *param,
 		}
 	}
 
+	if (isp_k_param->nlm_buf == NULL) {
+		pr_err("fail to get nlm_buf, buf null\n");
+		return  0;
+	}
+
 	vst_ivst_buf = isp_k_param->nlm_buf;
 	ret = load_vst_ivst_buf(p, idx, vst_ivst_buf);
 	return ret;

@@ -209,7 +209,7 @@ static void dcam_fix_index(struct dcam_pipe_dev *dev,
 		if (i == DCAM_PATH_BIN)
 			count *= dev->slowmotion_count;
 
-		if (atomic_read(&path->user_cnt) < 1)
+		if (atomic_read(&path->user_cnt) < 1 || atomic_read(&path->is_shutoff) > 0)
 			continue;
 
 		if (camera_queue_cnt(&path->result_queue) < count)
@@ -434,7 +434,9 @@ static void dcam_cap_sof(void *param)
 	struct cam_hw_info *hw = NULL;
 	struct dcam_path_desc *path = NULL;
 	struct dcam_sync_helper *helper = NULL;
+	struct camera_frame *pframe;
 	enum dcam_fix_result fix_result;
+	unsigned long flag;
 	int i;
 
 	hw = dev->hw;
@@ -463,9 +465,9 @@ static void dcam_cap_sof(void *param)
 	if (!dev->slowmotion_count)
 		helper = dcam_get_sync_helper(dev);
 
-	for (i  = 0; i < DCAM_PATH_MAX; i++) {
+	for (i = 0; i < DCAM_PATH_MAX; i++) {
 		path = &dev->path[i];
-		if (atomic_read(&path->user_cnt) < 1)
+		if (atomic_read(&path->user_cnt) < 1 || atomic_read(&path->is_shutoff) > 0)
 			continue;
 
 		/* TODO: frm_deci and frm_skip in slow motion */
@@ -477,6 +479,20 @@ static void dcam_cap_sof(void *param)
 		if ((path->frm_deci_cnt++ >= path->frm_deci)
 		    || dev->slowmotion_count) {
 			path->frm_deci_cnt = 0;
+			if (path->path_id == DCAM_PATH_FULL) {
+				spin_lock_irqsave(&path->state_lock, flag);
+				if (path->state == DCAM_PATH_PAUSE) {
+					hw->hw_ops.core_ops.path_pause(dev->idx,
+						path->path_id);
+					dev->auto_cpy_id |= DCAM_CTRL_FULL;
+					spin_unlock_irqrestore(&path->state_lock, flag);
+					continue;
+				} else if (path->state == DCAM_PATH_RESUME) {
+					hw->hw_ops.core_ops.path_resume(dev->idx,
+						path->path_id);
+				}
+				spin_unlock_irqrestore(&path->state_lock, flag);
+			}
 			dcam_path_set_store_frm(dev, path, helper);
 		}
 	}
@@ -489,6 +505,7 @@ static void dcam_cap_sof(void *param)
 	}
 
 dispatch_sof:
+	dev->auto_cpy_id = DCAM_CTRL_ALL;
 	hw->hw_ops.core_ops.auto_copy(dev->auto_cpy_id, dev);
 	dev->auto_cpy_id = 0;
 
@@ -497,6 +514,18 @@ dispatch_sof:
 		dcam_dispatch_sof_event(dev);
 	}
 	dev->iommu_status = (uint32_t)(-1);
+	if (dev->flash_skip_fid == 0)
+		dev->flash_skip_fid = dev->frame_index;
+	pframe = get_empty_frame();
+	if (pframe) {
+		pframe->evt = IMG_TX_DONE;
+		pframe->irq_type = CAMERA_IRQ_DONE;
+		pframe->irq_property = IRQ_DCAM_SOF;
+		pframe->fid = dev->flash_skip_fid;
+		dev->dcam_cb_func(DCAM_CB_IRQ_EVENT, pframe, dev->cb_priv_data);
+		dev->flash_skip_fid = 0;
+	}
+
 	dev->frame_index++;
 }
 
@@ -514,7 +543,7 @@ static void dcam_preview_sof(void *param)
 
 	for (i = 0; i < DCAM_PATH_MAX; i++) {
 		path = &dev->path[i];
-		if (atomic_read(&path->user_cnt) < 1)
+		if (atomic_read(&path->user_cnt) < 1 || atomic_read(&path->is_shutoff) > 0)
 			continue;
 
 		/* frame deci is deprecated in slow motion */
@@ -599,13 +628,14 @@ static void dcam_bin_path_done(void *param)
 	}
 
 	if (dev->offline) {
-		if (!dev->is_last_slice) {
-			atomic_set(&dev->slice_no, 2);
+		if (dev->slice_count > 0)
+			dev->slice_count--;
+
+		if (dev->slice_count > 0) {
 			pr_info("dcam%d offline slice0 done.\n", dev->idx);
 			complete(&dev->slice_done);
 			return;
 		}
-		atomic_set(&dev->slice_no, 0);
 		pr_info("dcam%d slice1 done.\n", dev->idx);
 		complete(&dev->slice_done);
 	}

@@ -35,6 +35,7 @@ enum cam_prj_id {
 	SHARKL3,
 	SHARKL5,
 	ROC1,
+	QOGIRN6pro,
 	SHARKL5pro,
 	PROJECT_MAX
 };

@@ -78,12 +78,35 @@ int dcam_k_bayerhist_block(struct dcam_dev_param *param)
 	return ret;
 }
 
+int dcam_k_bayerhist_bypass(struct dcam_dev_param *p)
+{
+	int ret = 0;
+	uint32_t idx = p->idx;
+	uint32_t bypass = 0;
+
+	bypass = p->hist.bayerHist_info.hist_bypass;
+	DCAM_REG_MWR(idx, DCAM_HIST_FRM_CTRL0, BIT_0, bypass);
+
+	return ret;
+}
+
 int dcam_k_cfg_bayerhist(struct isp_io_param *param,
 			struct dcam_dev_param *p)
 {
 	int ret = 0;
 
 	switch (param->property) {
+	case DCAM_PRO_BAYERHIST_BYPASS:
+		ret = copy_from_user((void *)&(p->hist.bayerHist_info.hist_bypass),
+				param->property_param,
+				sizeof(p->hist.bayerHist_info.hist_bypass));
+		if (ret) {
+			pr_err("fail to copy from user, ret=0x%x\n",
+				(unsigned int)ret);
+			return -EPERM;
+		}
+		dcam_k_bayerhist_bypass(p);
+		break;
 	case DCAM_PRO_BAYERHIST_BLOCK:
 		if (DCAM_ONLINE_MODE) {
 			ret = copy_from_user((void *)&(p->hist.bayerHist_info),

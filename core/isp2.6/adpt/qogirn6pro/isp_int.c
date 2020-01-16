@@ -47,13 +47,13 @@ static const uint32_t isp_irq_process[] = {
 	ISP_INT_NR3_ALL_DONE,
 	ISP_INT_NR3_SHADOW_DONE,
 	ISP_INT_STORE_DONE_THUMBNAIL,
+	ISP_INT_RGB_LTMHISTS_DONE,
 	ISP_INT_YUV_LTMHISTS_DONE,
 	ISP_INT_FMCU_LOAD_DONE,
 	ISP_INT_FMCU_SHADOW_DONE,
 	ISP_INT_HIST_CAL_DONE,
 	ISP_INT_ISP_ALL_DONE,
 	ISP_INT_FMCU_STORE_DONE,
-	ISP_INT_RGB_LTMHISTS_DONE,
 };
 
 //#define ISP_INT_RECORD 1
@@ -107,11 +107,12 @@ static inline void record_isp_int(
 #endif
 }
 
-
 static void isp_frame_done(enum isp_context_id idx, struct isp_pipe_dev *dev)
 {
 	int i;
+	int ret;
 	struct isp_pipe_context *pctx;
+	struct isp_pipe_context *superzoom_ctx;
 	struct camera_frame *pframe;
 	struct isp_path_desc *path;
 	struct timespec cur_ts;
@@ -127,14 +128,20 @@ static void isp_frame_done(enum isp_context_id idx, struct isp_pipe_dev *dev)
 	boot_time = ktime_get_boottime();
 	ktime_get_ts(&cur_ts);
 
-	/* return buffer to cam channel shared buffer queue. */
 	pframe = camera_dequeue(&pctx->proc_queue);
+
 	if (pframe) {
-		cambuf_iommu_unmap(&pframe->buf);
-		pr_debug("ctx_id %d, ch_id %d, fid:%d, queue.cnt:%d\n",
-			pctx->ctx_id, pframe->channel_id,  pframe->fid, pctx->proc_queue.cnt);
-		pctx->isp_cb_func(ISP_CB_RET_SRC_BUF, pframe,
-			pctx->cb_priv_data);
+		if (pctx->ctx_id == ISP_CONTEXT_SUPERZOOM) {
+			pr_debug("sw %d, superzoom context do not return buffer\n",
+					pctx->ctx_id);
+		} else {
+			/* return buffer to cam channel shared buffer queue. */
+			cambuf_iommu_unmap(&pframe->buf);
+			pctx->isp_cb_func(ISP_CB_RET_SRC_BUF, pframe, pctx->cb_priv_data);
+			pr_debug("sw %d, ch_id %d, fid:%d, return shard buffer cnt:%d, pframe %p\n",
+				pctx->ctx_id, pframe->channel_id, pframe->fid,
+				pctx->proc_queue.cnt, pframe);
+		}
 	} else {
 		/* should not be here */
 		pr_err("fail to get src frame  sw_idx=%d  proc_queue.cnt:%d\n",
@@ -152,7 +159,6 @@ static void isp_frame_done(enum isp_context_id idx, struct isp_pipe_dev *dev)
 			pr_debug("slave path %d\n", path->spath_id);
 			continue;
 		}
-
 		pframe = camera_dequeue(&path->result_queue);
 		if (!pframe) {
 			pr_err("fail to get frame from queue. cxt:%d, path:%d\n",
@@ -176,16 +182,36 @@ static void isp_frame_done(enum isp_context_id idx, struct isp_pipe_dev *dev)
 		if (unlikely(pframe->is_reserved)) {
 			camera_enqueue(&path->reserved_buf_queue, pframe);
 		} else {
-			cambuf_iommu_unmap(&pframe->buf);
-			pctx->isp_cb_func(ISP_CB_RET_DST_BUF,
-						pframe, pctx->cb_priv_data);
+			if (pctx->superzoom_flag) {
+				superzoom_ctx = &dev->ctx[ISP_CONTEXT_SUPERZOOM];
+				ret = camera_enqueue(&superzoom_ctx->in_queue, pframe);
+				pr_debug("sw %d, superzoom (in_queue), q_cnt %d, pframe %p\n",
+					pctx->ctx_id, camera_queue_cnt(&superzoom_ctx->in_queue), pframe);
+				if (ret == 0) {
+					complete(&superzoom_ctx->thread.thread_com);
+				} else {
+					pr_err("fail to: superzoom enqueue err \n");
+				}
+			} else {
+				if (pctx->ctx_id == ISP_CONTEXT_SUPERZOOM) {
+					pr_debug("sw %d, superzoom done complete\n",
+						pctx->ctx_id);
+					pctx->isp_cb_func(ISP_CB_SET_SUPERZOOM_COMPLETE,
+						NULL, pctx->cb_priv_data);
+				}
+
+				cambuf_iommu_unmap(&pframe->buf);
+				pctx->isp_cb_func(ISP_CB_RET_DST_BUF,
+					pframe, pctx->cb_priv_data);
+			}
 		}
-		path->frm_cnt++;
+
+		if (!pctx->superzoom_flag)
+			path->frm_cnt++;
 	}
 
 	pr_debug("cxt_id:%d done.\n", idx);
 }
-
 
 static int isp_err_pre_proc(enum isp_context_hw_id hw_idx, void *isp_handle)
 {
@@ -652,7 +678,7 @@ static irqreturn_t isp_isr_root(int irq, void *priv)
 		if (sw_ctx_id < 0) {
 			ISP_HREG_WR(irq_offset + ISP_INT_CLR0, irq_line);
 			if (irq_line & ISP_INT_LINE_MASK)
-				pr_err("fail to get valid sw_ctx_id, c_id: %d irq_line: %08x\n", c_id, irq_line);
+				pr_debug("get valid sw_ctx_id, hw: %d irq_line: %08x\n", c_id, irq_line);
 			continue;
 		}
 

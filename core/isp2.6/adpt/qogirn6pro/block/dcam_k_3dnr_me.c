@@ -22,12 +22,17 @@
 #ifdef pr_fmt
 #undef pr_fmt
 #endif
-#define pr_fmt(fmt) "BPC: %d %d %s : "\
+#define pr_fmt(fmt) "3DNR: %d %d %s : "\
 	fmt, current->pid, __LINE__, __func__
 
 #define DCAM_3DNR_ROI_SIZE_ALIGN 16u
 #define DCAM_3DNR_ROI_LINE_CUT 32u
-
+#define DCAM0_3DNR_ME_WIDTH_MAX        (5664 >> 1)
+#define DCAM0_3DNR_ME_HEIGHT_MAX       (4248 >> 1)
+#define DCAM1_3DNR_ME_WIDTH_MAX        (8048 >> 1)
+#define DCAM1_3DNR_ME_HEIGHT_MAX       (6036 >> 1)
+#define DCAM2_3DNR_ME_WIDTH_MAX        (3264 >> 1)
+#define DCAM2_3DNR_ME_HEIGHT_MAX       (2448 >> 1)
 
 enum {
 	_UPDATE_NR3 = BIT(0),
@@ -38,40 +43,93 @@ struct roi_size {
 	uint32_t roi_height;
 };
 
+int dcam_k_3dnr_convert_roi(struct isp_img_rect src, struct isp_img_size *dst,
+			 uint32_t project_mode, uint32_t idx)
+{
+	int roi_width_max = 0, roi_height_max = 0;
+	uint32_t lbuf = 0;
+
+	switch (idx) {
+	case DCAM_ID_0:
+		if (project_mode == 0) {
+			roi_width_max = MIN(src.w ,DCAM0_3DNR_ME_WIDTH_MAX);
+			roi_height_max = MIN(src.h ,DCAM0_3DNR_ME_HEIGHT_MAX);
+		} else {
+			roi_width_max = src.w;
+			roi_height_max = src.h;
+		}
+		break;
+	case DCAM_ID_1:
+		if (project_mode == 0) {
+			roi_width_max = MIN(src.w ,DCAM1_3DNR_ME_WIDTH_MAX / 2);
+			roi_height_max = MIN(src.h ,DCAM1_3DNR_ME_HEIGHT_MAX);
+		} else {
+			if (src.w > DCAM1_3DNR_ME_WIDTH_MAX) {
+				lbuf = 1;
+				DCAM_REG_MWR(idx, NR3_FAST_ME_PARAM, BIT_0, BIT_0);
+			} else if (src.w > DCAM1_3DNR_ME_WIDTH_MAX / 2) {
+				lbuf = 0;
+			}
+			DCAM_AXIM_MWR(DCAM_LBUF_SHARE_MODE, BIT_28, lbuf << 28);
+			roi_width_max = src.w;
+			roi_height_max = src.h;
+		}
+		break;
+	case DCAM_ID_2:
+		if (project_mode == 0) {
+			roi_width_max = MIN(src.w ,DCAM2_3DNR_ME_WIDTH_MAX);
+			roi_height_max = MIN(src.h ,DCAM2_3DNR_ME_HEIGHT_MAX);
+		} else {
+			lbuf = DCAM_AXIM_RD(DCAM_LBUF_SHARE_MODE);
+			if (lbuf == 1) {
+				DCAM_REG_MWR(idx, NR3_FAST_ME_PARAM, BIT_0, BIT_0);
+				return 0;
+			} else {
+				roi_width_max = src.w;
+				roi_height_max = src.h;
+			}
+		}
+		break;
+	}
+
+	DCAM_REG_MWR(idx, NR3_FAST_ME_PARAM, 0x30, (project_mode & 0x3) << 4);
+
+	dst->width = roi_width_max;
+	dst->height = roi_height_max;
+
+	return 0;
+}
+
 /* input: rect: bin path crop size, include start point(x,y), and size(w,h)
  */
 void dcam_k_3dnr_set_roi(struct isp_img_rect rect,
 			 uint32_t project_mode, uint32_t idx)
 {
 	uint32_t roi_w, roi_h, roi_x = 0, roi_y = 0;
-	uint32_t lbuf_share_mode = 0;
+	struct isp_img_size smax = {0, 0};
+	uint32_t pmode = 0;
 
 	/* get max roi size
 	 * max roi size should be half of normal value if project_mode is off
 	 */
-	lbuf_share_mode = DCAM_AXIM_RD(DCAM_LBUF_SHARE_MODE);
-	if (project_mode == 0)
-		if (rect.w > 2012)
-			lbuf_share_mode = 1 << 28;
-		else
-			lbuf_share_mode = 0 << 28;
-	else
-		if (rect.w > 4024)
-			lbuf_share_mode = 1 << 28;
-		else
-			lbuf_share_mode = 0 << 28;
+	pmode = (DCAM_REG_RD(idx, NR3_FAST_ME_PARAM) >> 4) & 0x3;
+	if (pmode == 1)
+		project_mode = 1;
 
-	DCAM_AXIM_MWR(DCAM_LBUF_SHARE_MODE, BIT_28, lbuf_share_mode);
+	dcam_k_3dnr_convert_roi(rect, &smax, project_mode, idx);
 
 	/* get roi and align to 16 pixels */
-	roi_w = ALIGN_DOWN(rect.w, DCAM_3DNR_ROI_SIZE_ALIGN);
-	roi_h = ALIGN_DOWN(rect.h, DCAM_3DNR_ROI_SIZE_ALIGN);
+	roi_w = ALIGN_DOWN(smax.width, DCAM_3DNR_ROI_SIZE_ALIGN);
+	roi_h = ALIGN_DOWN(smax.height, DCAM_3DNR_ROI_SIZE_ALIGN);
 
 	/* get offset */
 	roi_x = (rect.w - roi_w) >> 1;
 	roi_y = (rect.h - roi_h) >> 1;
 	roi_x = ALIGN_DOWN(roi_x + rect.x, 2);
 	roi_y = ALIGN_DOWN(roi_y + rect.y, 2);
+
+	/* leave 32 lines to make sure BIN DONE comes earlier than NR3 DONE */
+	roi_h = max(roi_h, DCAM_3DNR_ROI_LINE_CUT) - DCAM_3DNR_ROI_LINE_CUT;
 
 	/* almost done! */
 	DCAM_REG_WR(idx, NR3_FAST_ME_ROI_PARAM0, roi_x << 16 | roi_y);

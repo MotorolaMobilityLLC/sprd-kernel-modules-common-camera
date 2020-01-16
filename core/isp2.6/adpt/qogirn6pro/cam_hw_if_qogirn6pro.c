@@ -36,6 +36,10 @@
 #define DCAM_AXIM_AQOS_MASK (0x30FFFF)
 #define ISP_AXI_STOP_TIMEOUT			1000
 extern atomic_t s_dcam_working;
+static uint32_t dcam_linebuf_len[3] = {0, 0, 0};
+extern void sprd_kproperty_get(const char *key, char *value, const char *default_value);
+static uint32_t g_gtm_en = 0;
+static uint32_t g_ltm_bypass = 1;
 
 static unsigned long irq_base[4] = {
 	ISP_P0_INT_BASE,
@@ -56,7 +60,7 @@ static unsigned long store_base[ISP_SPATH_NUM] = {
 	ISP_STORE_THUMB_BASE,
 };
 
-static const struct bypass_tag sharkl5pro_dcam_bypass_tab[] = {
+static const struct bypass_tag qogirn6pro_dcam_bypass_tab[] = {
 	[_E_4IN1] = {"4in1", DCAM_MIPI_CAP_CFG, 12}, /* 0x100.b12 */
 	[_E_PDAF] = {"pdaf", DCAM_PPE_FRM_CTRL0, 1}, /* 0x120.b1 */
 	[_E_LSC]  = {"lsc", DCAM_LENS_LOAD_ENABLE, 0}, /* 0x138.b0 */
@@ -73,7 +77,7 @@ static const struct bypass_tag sharkl5pro_dcam_bypass_tab[] = {
 	[_E_NR3]  = {"nr3",  NR3_FAST_ME_PARAM, 0}, /* 0x3F0.b0 */
 };
 
-static const struct bypass_tag sharkl5pro_isp_bypass_tab[] = {
+static const struct bypass_tag qogirn6pro_isp_bypass_tab[] = {
 [_EISP_GC] =       {"grgb",        ISP_GRGB_CTRL, 0, 1}, /* GrGb correction */
 [_EISP_NLM] =      {"nlm",       ISP_NLM_PARA, 0, 1},
 [_EISP_VST] =      {"vst",       ISP_VST_PARA, 0, 1},
@@ -119,18 +123,18 @@ static const struct bypass_tag sharkl5pro_isp_bypass_tab[] = {
 	{"cfg",       ISP_CFG_PAMATER, 0, 0},
 };
 
-static uint32_t sharkl5pro_cam_bypass_count_get(enum cam_bypass_type type)
+static uint32_t qogirn6pro_cam_bypass_count_get(enum cam_bypass_type type)
 {
 	uint32_t cnt = 0;
 
 	switch (type) {
 	case DCAM_BYPASS_TYPE:
-		cnt = sizeof(sharkl5pro_dcam_bypass_tab) /
-			sizeof(sharkl5pro_dcam_bypass_tab[0]);
+		cnt = sizeof(qogirn6pro_dcam_bypass_tab) /
+			sizeof(qogirn6pro_dcam_bypass_tab[0]);
 		break;
 	case ISP_BYPASS_TYPE:
-		cnt = sizeof(sharkl5pro_isp_bypass_tab) /
-			sizeof(sharkl5pro_isp_bypass_tab[0]);
+		cnt = sizeof(qogirn6pro_isp_bypass_tab) /
+			sizeof(qogirn6pro_isp_bypass_tab[0]);
 		break;
 	default:
 		pr_err("fail to support bypass type %d\n", type);
@@ -143,17 +147,17 @@ static uint32_t sharkl5pro_cam_bypass_count_get(enum cam_bypass_type type)
 	return cnt;
 }
 
-static struct bypass_tag *sharkl5pro_cam_bypass_data_get(uint32_t i,
+static struct bypass_tag *qogirn6pro_cam_bypass_data_get(uint32_t i,
 	enum cam_bypass_type type)
 {
 	struct bypass_tag *bypass = NULL;
 
 	switch (type) {
 	case DCAM_BYPASS_TYPE:
-		bypass = (struct bypass_tag *)&sharkl5pro_dcam_bypass_tab[i];
+		bypass = (struct bypass_tag *)&qogirn6pro_dcam_bypass_tab[i];
 		break;
 	case ISP_BYPASS_TYPE:
-		bypass = (struct bypass_tag *)&sharkl5pro_isp_bypass_tab[i];
+		bypass = (struct bypass_tag *)&qogirn6pro_isp_bypass_tab[i];
 		break;
 	default:
 		pr_err("fail to support bypass type %d\n", type);
@@ -166,7 +170,7 @@ static struct bypass_tag *sharkl5pro_cam_bypass_data_get(uint32_t i,
 	return bypass;
 }
 
-static uint32_t sharkl5pro_cam_reg_trace_tab[] = {
+static uint32_t qogirn6pro_cam_reg_trace_tab[] = {
 		DCAM_CFG,
 		DCAM_APB_SRAM_CTRL,
 		DCAM_IMAGE_CONTROL,
@@ -195,7 +199,7 @@ static uint32_t sharkl5pro_cam_reg_trace_tab[] = {
 };
 
 
-static void sharkl5pro_cam_reg_trace(uint32_t idx,
+static void qogirn6pro_cam_reg_trace(uint32_t idx,
 	enum cam_reg_trace_type type)
 {
 	unsigned long addr = 0;
@@ -243,15 +247,15 @@ abnormal_reg_trace:
 
 normal_reg_trace:
 	val_mmu = DCAM_MMU_RD(MMU_EN);
-	cnt = sizeof(sharkl5pro_cam_reg_trace_tab) /
-		sizeof(sharkl5pro_cam_reg_trace_tab[0]);
+	cnt = sizeof(qogirn6pro_cam_reg_trace_tab) /
+		sizeof(qogirn6pro_cam_reg_trace_tab[0]);
 	pr_info("dcam%d: 0x%08x, cnt %d\n", idx, val_mmu, cnt);
 
 	for (i = 0; i < cnt; i += 8) {
 		memset(val, 0, sizeof(val));
 		n = ((cnt - i) < 8) ? (cnt - i) : 8;
 		for (j = 0; j < n; j++) {
-			addr = sharkl5pro_cam_reg_trace_tab[i + j];
+			addr = qogirn6pro_cam_reg_trace_tab[i + j];
 			val[j] = DCAM_REG_RD(idx, addr);
 		}
 		pr_info("n=%d, %08x %08x %08x %08x %08x %08x %08x %08x\n", n,
@@ -259,7 +263,7 @@ normal_reg_trace:
 	}
 }
 
-static int sharkl5pro_dcam_clk_eb(struct cam_hw_soc_info *hw)
+static int qogirn6pro_dcam_clk_eb(struct cam_hw_soc_info *hw)
 {
 	int ret = 0;
 
@@ -316,7 +320,7 @@ static int sharkl5pro_dcam_clk_eb(struct cam_hw_soc_info *hw)
 	return ret;
 }
 
-static int sharkl5pro_dcam_clk_dis(struct cam_hw_soc_info *hw)
+static int qogirn6pro_dcam_clk_dis(struct cam_hw_soc_info *hw)
 {
 	int ret = 0;
 
@@ -341,7 +345,7 @@ static int sharkl5pro_dcam_clk_dis(struct cam_hw_soc_info *hw)
 	return ret;
 }
 
-static int sharkl5pro_dcam_clk_update(struct cam_hw_soc_info *hw, void *arg)
+static int qogirn6pro_dcam_clk_update(struct cam_hw_soc_info *hw, void *arg)
 {
 	int ret = 0;
 
@@ -351,7 +355,7 @@ static int sharkl5pro_dcam_clk_update(struct cam_hw_soc_info *hw, void *arg)
 	return ret;
 }
 
-static void sharkl5pro_dcam_axi_init(void *arg)
+static void qogirn6pro_dcam_axi_init(void *arg)
 {
 	uint32_t time_out = 0;
 	struct dcam_pipe_dev *dev = NULL;
@@ -396,7 +400,7 @@ static void sharkl5pro_dcam_axi_init(void *arg)
 	DCAM_AXIM_MWR(AXIM_CTRL, BIT_24 | BIT_23, (0x0 << 23));
 }
 
-static void sharkl5pro_dcam_qos_set(struct cam_hw_soc_info *hw)
+static void qogirn6pro_dcam_qos_set(struct cam_hw_soc_info *hw)
 {
 	uint32_t reg_val = 0;
 
@@ -410,7 +414,7 @@ static void sharkl5pro_dcam_qos_set(struct cam_hw_soc_info *hw)
 	REG_MWR(hw->axi_reg_base + AXIM_CTRL, DCAM_AXIM_AQOS_MASK, reg_val);
 }
 
-static int sharkl5pro_dcam_start(void *arg)
+static int qogirn6pro_dcam_start(void *arg)
 {
 	int ret = 0;
 	struct dcam_pipe_dev *dev = NULL;
@@ -427,15 +431,13 @@ static int sharkl5pro_dcam_start(void *arg)
 	DCAM_REG_WR(idx, DCAM_INT_CLR, 0xFFFFFFFF);
 	/* see DCAM_PREVIEW_SOF in dcam_int.h for details */
 	DCAM_REG_WR(idx, DCAM_INT_EN, DCAMINT_IRQ_LINE_EN_NORMAL);
-	/* enable internal logic access sram */
-	DCAM_REG_MWR(idx, DCAM_APB_SRAM_CTRL, BIT_0, 1);
 	/* trigger cap_en*/
 	DCAM_REG_MWR(idx, DCAM_MIPI_CAP_CFG, BIT_0, 1);
 
 	return ret;
 }
 
-static int sharkl5pro_dcam_stop(void *arg)
+static int qogirn6pro_dcam_stop(void *arg)
 {
 	int ret = 0;
 	int time_out = DCAMX_STOP_TIMEOUT;
@@ -473,7 +475,26 @@ static int sharkl5pro_dcam_stop(void *arg)
 	return ret;
 }
 
-static void sharkl5pro_dcam_auto_copy(uint32_t id, void *arg)
+static int qogirn6pro_dcam_cap_disable(void *arg)
+{
+	int ret = 0;
+	struct dcam_pipe_dev *dev = NULL;
+	uint32_t idx = 0;
+
+	if (!arg) {
+		pr_err("fail to get valid arg\n");
+		return -EFAULT;
+	}
+
+	dev = (struct dcam_pipe_dev *)arg;
+	idx = dev->idx;
+
+	/* stop  cap_en*/
+	DCAM_REG_MWR(idx, DCAM_MIPI_CAP_CFG, BIT_0, 0);
+	return ret;
+}
+
+static void qogirn6pro_dcam_auto_copy(uint32_t id, void *arg)
 {
 	struct dcam_pipe_dev *dev = NULL;
 	const uint32_t bitmap[] = {
@@ -508,7 +529,7 @@ static void sharkl5pro_dcam_auto_copy(uint32_t id, void *arg)
 	spin_unlock_irqrestore(&dev->glb_reg_lock, flags);
 }
 
-static void sharkl5pro_dcam_force_copy(uint32_t id, void *arg)
+static void qogirn6pro_dcam_force_copy(uint32_t id, void *arg)
 {
 	struct dcam_pipe_dev *dev = NULL;
 	const uint32_t bitmap[] = {
@@ -544,7 +565,7 @@ static void sharkl5pro_dcam_force_copy(uint32_t id, void *arg)
 }
 
 
-static int sharkl5pro_dcam_reset(struct cam_hw_info *hw, void *arg)
+static int qogirn6pro_dcam_reset(struct cam_hw_info *hw, void *arg)
 {
 	int ret = 0;
 	enum dcam_id idx = 0;
@@ -631,12 +652,13 @@ static int sharkl5pro_dcam_reset(struct cam_hw_info *hw, void *arg)
 	DCAM_REG_WR(idx, NR3_FAST_ME_PARAM, 0x109);
 	DCAM_REG_MWR(idx, DCAM_GTM_GLB_CTRL, BIT_0, 0);
 	DCAM_REG_MWR(idx, DCAM_FBC_CTRL, BIT_0, 0);
+	dcam_linebuf_len[idx] = 0;
 	pr_info("DCAM%d: reset end\n", idx);
 
 	return ret;
 }
 
-static int sharkl5pro_dcam_fetch_set(void *arg)
+static int qogirn6pro_dcam_fetch_set(void *arg)
 {
 	int ret = 0;
 	uint32_t fetch_pitch;
@@ -663,6 +685,10 @@ static int sharkl5pro_dcam_fetch_set(void *arg)
 		fetch->trim.start_x, fetch_pitch, fetch->addr.addr_ch0);
 	/* (bitfile)unit 32b,(spec)64b */
 
+	DCAM_REG_MWR(dev->idx, DCAM_INT_CLR,
+		DCAMINT_IRQ_LINE_MASK, DCAMINT_IRQ_LINE_MASK);
+	DCAM_REG_MWR(dev->idx, DCAM_INT_EN,
+		DCAMINT_IRQ_LINE_MASK, DCAMINT_IRQ_LINE_MASK);
 	DCAM_REG_MWR(dev->idx,
 		DCAM_MIPI_CAP_CFG, BIT_12, 0x1 << 12);
 	DCAM_REG_MWR(dev->idx,
@@ -686,7 +712,7 @@ static int sharkl5pro_dcam_fetch_set(void *arg)
 	return ret;
 }
 
-static int sharkl5pro_dcam_mipi_cap_set(void *arg)
+static int qogirn6pro_dcam_mipi_cap_set(void *arg)
 {
 	int ret = 0;
 	uint32_t idx = 0;
@@ -794,7 +820,7 @@ static int sharkl5pro_dcam_mipi_cap_set(void *arg)
 	return ret;
 }
 
-static int sharkl5pro_dcam_path_start(void *handle, uint32_t path_id)
+static int qogirn6pro_dcam_path_start(void *handle, uint32_t path_id)
 {
 	int ret = 0;
 	uint32_t idx;
@@ -824,6 +850,8 @@ static int sharkl5pro_dcam_path_start(void *handle, uint32_t path_id)
 
 		/* full_path_en */
 		DCAM_REG_MWR(idx, DCAM_FULL_CFG, BIT_0, (0x1));
+		DCAM_REG_MWR(idx, NR3_FAST_ME_PARAM, BIT_7 | BIT_6,
+			(path->bayer_pattern & 0x3) << 6);
 		break;
 
 	case  DCAM_PATH_BIN:
@@ -837,6 +865,8 @@ static int sharkl5pro_dcam_path_start(void *handle, uint32_t path_id)
 				BIT_19 | BIT_18 | BIT_17,
 				(dev->slowmotion_count & 7) << 17);
 		DCAM_REG_MWR(idx, DCAM_CAM_BIN_CFG, BIT_0, 0x1);
+		DCAM_REG_MWR(idx, NR3_FAST_ME_PARAM, BIT_7 | BIT_6,
+			(path->bayer_pattern & 0x3) << 6);
 		break;
 	case DCAM_PATH_PDAF:
 		/* pdaf path en */
@@ -895,7 +925,7 @@ static int sharkl5pro_dcam_path_start(void *handle, uint32_t path_id)
 	return ret;
 }
 
-static int sharkl5pro_dcam_path_stop(void *handle, uint32_t path_id)
+static int qogirn6pro_dcam_path_stop(void *handle, uint32_t path_id)
 {
 	int ret = 0;
 	uint32_t idx;
@@ -944,7 +974,57 @@ static int sharkl5pro_dcam_path_stop(void *handle, uint32_t path_id)
 	return ret;
 }
 
-static void sharkl5pro_dcam_fetch_start(struct cam_hw_info *hw)
+static int qogirn6pro_dcam_path_pause(uint32_t idx, uint32_t path_id)
+{
+	switch (path_id) {
+	case DCAM_PATH_FULL:
+		DCAM_REG_MWR(idx, DCAM_FULL_CFG, BIT_0, 0);
+		break;
+	case DCAM_PATH_BIN:
+		DCAM_REG_MWR(idx, DCAM_CAM_BIN_CFG, BIT_0, 0);
+		break;
+	case DCAM_PATH_PDAF:
+		DCAM_REG_MWR(idx, DCAM_PPE_FRM_CTRL0, BIT_0, 0);
+		break;
+	case DCAM_PATH_VCH2:
+		DCAM_REG_MWR(idx, DCAM_VC2_CONTROL, BIT_0, 0);
+		break;
+	case DCAM_PATH_VCH3:
+		DCAM_REG_MWR(idx, DCAM_VC3_CONTROL, BIT_0, 0);
+		break;
+	default:
+		break;
+	}
+
+	return 0;
+}
+
+static int qogirn6pross_dcam_path_resume(uint32_t idx, uint32_t path_id)
+{
+	switch (path_id) {
+	case DCAM_PATH_FULL:
+		DCAM_REG_MWR(idx, DCAM_FULL_CFG, BIT_0, 1);
+		break;
+	case DCAM_PATH_BIN:
+		DCAM_REG_MWR(idx, DCAM_CAM_BIN_CFG, BIT_0, 1);
+		break;
+	case DCAM_PATH_PDAF:
+		DCAM_REG_MWR(idx, DCAM_PPE_FRM_CTRL0, BIT_0, 1);
+		break;
+	case DCAM_PATH_VCH2:
+		DCAM_REG_MWR(idx, DCAM_VC2_CONTROL, BIT_0, 1);
+		break;
+	case DCAM_PATH_VCH3:
+		DCAM_REG_MWR(idx, DCAM_VC3_CONTROL, BIT_0, 1);
+		break;
+	default:
+		break;
+	}
+
+	return 0;
+}
+
+static void qogirn6pro_dcam_fetch_start(struct cam_hw_info *hw)
 {
 	if (!hw) {
 		pr_err("fail to get invalid hw\n");
@@ -954,7 +1034,66 @@ static void sharkl5pro_dcam_fetch_start(struct cam_hw_info *hw)
 	DCAM_AXIM_WR(IMG_FETCH_START, 1);
 }
 
-static int sharkl5pro_dcam_path_size_update(void *handle, void *arg)
+static int qogirn6pro_dcam_calc_rds_phase_info(void *arg,
+	uint16_t slice_id, uint16_t slice_end0, uint16_t slice_end1)
+{
+	int32_t rtn = 0;
+	uint16_t adj_hor = 1, adj_ver = 1;
+	uint16_t raw_input_hor = 0;
+	uint16_t raw_output_hor = 0;
+	uint16_t raw_input_ver = 0;
+	uint16_t raw_output_ver = 0;
+	int32_t glb_phase_w = 0, glb_phase_h = 0;
+	int sphase_w = 0, spixel_w = 0, sphase_h, spixel_h = 0;
+	uint8_t raw_tap_hor = 8;
+	uint8_t raw_tap_ver = 4;
+	int raw_tap = raw_tap_hor * 2;
+	int col_tap = raw_tap_ver * 2;
+	uint16_t output_slice_start_x = 0, output_slice_start_y = 0;
+	struct dcam_rds_slice_ctrl *gphase = NULL;
+
+	if (!arg) {
+		pr_err("fail to get valid handle\n");
+		return -EFAULT;
+	}
+
+	gphase = (struct dcam_rds_slice_ctrl *)arg;
+
+	raw_input_hor = (uint16_t)(gphase->rds_input_w_global * adj_hor);
+	raw_output_hor = (uint16_t)(gphase->rds_output_w_global * adj_hor);
+	raw_input_ver = (uint16_t)(gphase->rds_input_h_global * adj_ver);
+	raw_output_ver = (uint16_t)(gphase->rds_output_h_global * adj_ver);
+
+	glb_phase_w = (raw_input_hor - raw_output_hor) >> 1;
+	glb_phase_h = (raw_input_ver - raw_output_ver) >> 1;
+
+	if (slice_id)
+	{
+		output_slice_start_x = (slice_end1 * raw_output_hor -1 - glb_phase_w) / raw_input_hor + 1;
+	}
+
+	sphase_w = glb_phase_w + output_slice_start_x * gphase->rds_input_w_global;
+
+	spixel_w = sphase_w / gphase->rds_output_w_global - raw_tap  + 1;
+
+	spixel_w = spixel_w < 0 ? 0 : spixel_w;
+
+	sphase_w -= spixel_w * gphase->rds_output_w_global;
+
+	gphase->rds_init_phase_int0 = (int16_t)(sphase_w / gphase->rds_output_w_global);
+	gphase->rds_init_phase_rdm0 = (uint16_t)(sphase_w - gphase->rds_output_w_global * gphase->rds_init_phase_int0);
+
+	sphase_h = glb_phase_h + output_slice_start_y * gphase->rds_input_h_global;
+	spixel_h = sphase_h / gphase->rds_output_h_global - col_tap  + 1;
+	spixel_h = spixel_h < 0 ? 0 : spixel_h;
+	sphase_h -= spixel_h * gphase->rds_output_h_global;
+	gphase->rds_init_phase_int1 = (int16_t)(sphase_h / gphase->rds_output_h_global);
+	gphase->rds_init_phase_rdm1 = (uint16_t)(sphase_h - gphase->rds_output_h_global * gphase->rds_init_phase_int1);
+
+	return rtn;
+}
+
+static int qogirn6pro_dcam_path_size_update(void *handle, void *arg)
 {
 	int ret = 0;
 	uint32_t idx;
@@ -1030,9 +1169,24 @@ static int sharkl5pro_dcam_path_size_update(void *handle, void *arg)
 				cnt += 4, addr += 4)
 				DCAM_REG_WR(idx, addr, *ptr++);
 
-			reg_val = ((path->out_size.h & 0xfff) << 16) |
+			reg_val = ((path->out_size.h & 0x1fff) << 16) |
 						(path->out_size.w & 0x1fff);
+			pr_debug("output = 0x%x\n", reg_val);
 			DCAM_REG_WR(idx, DCAM_RDS_DES_SIZE, reg_val);
+			DCAM_REG_WR(idx, DCAM_RDS_SLICE_CTRL1, reg_val);
+
+			reg_val = ((path->in_trim.size_y & 0x1fff) << 16) |
+						(path->in_trim.size_x & 0x1fff);
+			pr_debug("input = 0x%x\n", reg_val);
+			DCAM_REG_WR(idx, DCAM_RDS_SLICE_CTRL0, reg_val);
+
+			reg_val = (path->gphase.rds_init_phase_int1 << 16) | path->gphase.rds_init_phase_int0;
+			pr_debug("phase_init = 0x%x\n", reg_val);
+			DCAM_REG_WR(idx, DCAM_RDS_SLICE_CTRL2, reg_val);
+			reg_val = (path->gphase.rds_init_phase_rdm1 << 16) | path->gphase.rds_init_phase_rdm0;
+			pr_debug("rdm0_init = 0x%x\n", reg_val);
+			DCAM_REG_WR(idx, DCAM_RDS_SLICE_CTRL3, reg_val);
+
 			dev->auto_cpy_id |= DCAM_CTRL_RDS;
 		}
 		break;
@@ -1059,7 +1213,7 @@ static int sharkl5pro_dcam_path_size_update(void *handle, void *arg)
 	return ret;
 }
 
-static int sharkl5pro_dcam_full_path_src_sel(void *handle,
+static int qogirn6pro_dcam_full_path_src_sel(void *handle,
 	enum dcam_full_src_sel_type src_sel)
 {
 	int ret = 0;
@@ -1074,10 +1228,10 @@ static int sharkl5pro_dcam_full_path_src_sel(void *handle,
 
 	switch (src_sel) {
 	case ORI_RAW_SRC_SEL:
-		DCAM_REG_MWR(dev->idx, DCAM_FULL_CFG, BIT(2), 0);
+		DCAM_REG_MWR(dev->idx, DCAM_FULL_CFG, BIT(4), 0);
 		break;
 	case PROCESS_RAW_SRC_SEL:
-		DCAM_REG_MWR(dev->idx, DCAM_FULL_CFG, BIT(2), BIT(2));
+		DCAM_REG_MWR(dev->idx, DCAM_FULL_CFG, BIT(4), BIT(4));
 		break;
 	default:
 		pr_err("fail to support src_sel %d\n", src_sel);
@@ -1088,7 +1242,7 @@ static int sharkl5pro_dcam_full_path_src_sel(void *handle,
 	return ret;
 }
 
-static int sharkl5pro_dcam_lbuf_share_set(enum dcam_id idx, uint32_t width)
+static int qogirn6pro_dcam_lbuf_share_set(enum dcam_id idx, uint32_t width)
 {
 	int i = 0;
 	int ret = 0;
@@ -1100,12 +1254,38 @@ static int sharkl5pro_dcam_lbuf_share_set(enum dcam_id idx, uint32_t width)
 		4160, 5184,
 		3264, 5664,
 	};
+	char chip_type[64]= { 0 };
+
+	sprd_kproperty_get("lwfq/type", chip_type, "-1");
+	/*0: T618 1:T610*/
+	dcam_linebuf_len[idx]= width;
+	pr_debug("dcam_linebuf_len[0] = %d, [1] = %d %s\n",
+		dcam_linebuf_len[0], dcam_linebuf_len[1], chip_type);
+	if (!strncmp(chip_type, "1", strlen("1"))) {
+		if (dcam_linebuf_len[0] > DCAM_16M_WIDTH && dcam_linebuf_len[1] > 0) {
+				pr_err("fail to check param,unsupprot img width\n");
+				return -EINVAL;
+		}else if (dcam_linebuf_len[0] <= DCAM_16M_WIDTH && dcam_linebuf_len[0] > DCAM_13M_WIDTH) {
+			if (dcam_linebuf_len[1] > DCAM_8M_WIDTH) {
+				pr_err("fail to check param,unsupprot img width\n");
+				return -EINVAL;
+			}
+		} else if (dcam_linebuf_len[0] <= DCAM_13M_WIDTH && dcam_linebuf_len[0] > DCAM_8M_WIDTH) {
+			if (dcam_linebuf_len[1] > DCAM_13M_WIDTH) {
+				pr_err("fail to check param,unsupprot img width\n");
+				return -EINVAL;
+			}
+		} else if (0 < dcam_linebuf_len[0] && dcam_linebuf_len[0] <= DCAM_8M_WIDTH){
+			if (dcam_linebuf_len[1] > DCAM_16M_WIDTH) {
+				pr_err("fail to check param,unsupprot img width\n");
+				return -EINVAL;
+			}
+		}
+	}
 	if (atomic_read(&s_dcam_working) > 0) {
 		pr_warn("dcam 0/1 already in working\n");
 		return 0;
 	}
-
-	pr_debug("idx[%d] width[%d]\n", idx, width);
 
 	switch (idx) {
 	case 0:
@@ -1129,6 +1309,7 @@ static int sharkl5pro_dcam_lbuf_share_set(enum dcam_id idx, uint32_t width)
 			if (width <= tb_w[i * 2 + 1])
 				break;
 		}
+
 		DCAM_AXIM_MWR(DCAM_LBUF_SHARE_MODE, 0x7, i);
 		pr_info("alloc dcam linebuf %d %d\n", tb_w[i*2], tb_w[i*2 + 1]);
 		break;
@@ -1141,16 +1322,18 @@ static int sharkl5pro_dcam_lbuf_share_set(enum dcam_id idx, uint32_t width)
 	return ret;
 }
 
-static int sharkl5pro_dcam_slice_fetch_set(uint32_t idx, void *arg)
+static int qogirn6pro_dcam_slice_fetch_set(void *arg)
 {
 	int ret = 0;
 	struct dcam_fetch_info *fetch = NULL;
+	struct dcam_pipe_dev *dev = NULL;
 
 	if (!arg)
 		pr_err("fail to check param");
 
-	fetch = (struct dcam_fetch_info *)arg;
-	DCAM_REG_MWR(idx, DCAM_BAYER_INFO_CFG,
+	dev = (struct dcam_pipe_dev *)arg;
+	fetch = &dev->fetch;
+	DCAM_REG_MWR(dev->idx, DCAM_BAYER_INFO_CFG,
 		BIT_5 | BIT_4, (fetch->pattern & 3) << 4);
 	DCAM_AXIM_MWR(IMG_FETCH_CTRL, BIT_1 | BIT_0, fetch->is_loose);
 	DCAM_AXIM_MWR(IMG_FETCH_CTRL, BIT_3 | BIT_2, fetch->endian << 2);
@@ -1161,7 +1344,7 @@ static int sharkl5pro_dcam_slice_fetch_set(uint32_t idx, void *arg)
 	return ret;
 }
 
-static int sharkl5pro_dcam_ebd_set(uint32_t idx, void *arg)
+static int qogirn6pro_dcam_ebd_set(uint32_t idx, void *arg)
 {
 	struct sprd_ebd_control *p = NULL;
 
@@ -1181,12 +1364,52 @@ static int sharkl5pro_dcam_ebd_set(uint32_t idx, void *arg)
 	return 0;
 }
 
-static void sharkl5pro_dcam_fbc_ctrl(uint32_t idx, int fbc_mode)
+static int qogirn6pro_dcam_binning_4in1_set(void *arg, int binning_4in1_en)
+{
+	struct dcam_pipe_dev *dev = NULL;
+
+	if (!arg) {
+		pr_err("fail to get valid arg\n");
+		return -EFAULT;
+	}
+
+	dev = (struct dcam_pipe_dev *)arg;
+	if (binning_4in1_en) {
+		DCAM_REG_MWR(dev->idx, DCAM_BAYER_INFO_CFG, BIT_0, 0);
+		DCAM_REG_MWR(dev->idx, DCAM_BAYER_INFO_CFG, BIT_1, 1 << 1);
+		DCAM_REG_MWR(dev->idx, DCAM_BAYER_INFO_CFG, BIT_2, 0 << 2);
+	} else {
+		DCAM_REG_MWR(dev->idx, DCAM_BAYER_INFO_CFG, BIT_0, 1);
+		DCAM_REG_MWR(dev->idx, DCAM_BAYER_INFO_CFG, BIT_1, 1 << 1);
+		DCAM_REG_MWR(dev->idx, DCAM_BAYER_INFO_CFG, BIT_2, 0 << 2);
+	}
+	return 0;
+}
+
+static int qogirn6pro_dcam_sram_ctrl_set(void *arg, int sram_ctrl_en)
+{
+	struct dcam_pipe_dev *dev = NULL;
+
+	if (!arg) {
+		pr_err("fail to get valid arg\n");
+		return -EFAULT;
+	}
+
+	dev = (struct dcam_pipe_dev *)arg;
+	if (sram_ctrl_en)
+		DCAM_REG_MWR(dev->idx, DCAM_APB_SRAM_CTRL, BIT_0, 1);
+	else
+		DCAM_REG_MWR(dev->idx, DCAM_APB_SRAM_CTRL, BIT_0, 0);
+
+	return 0;
+}
+
+static void qogirn6pro_dcam_fbc_ctrl(uint32_t idx, int fbc_mode)
 {
 	DCAM_REG_MWR(idx, DCAM_FBC_CTRL, 0x7, fbc_mode);
 }
 
-static int sharkl5pro_dcam_fbc_addr_set(uint32_t idx,
+static int qogirn6pro_dcam_fbc_addr_set(uint32_t idx,
 	unsigned long addr, void *arg)
 {
 	struct compressed_addr *fbc_addr = NULL;
@@ -1205,7 +1428,55 @@ static int sharkl5pro_dcam_fbc_addr_set(uint32_t idx,
 	return 0;
 }
 
-static int sharkl5pro_isp_clk_eb(struct cam_hw_soc_info *hw)
+static int qogirn6pro_dcam_gtm_status_get(uint32_t idx)
+{
+	int val = 0;
+
+	if (idx >= DCAM_ID_MAX) {
+		pr_err("fail to get dcam_idx %d\n", idx);
+		return -EFAULT;
+	}
+
+	val = DCAM_REG_RD(idx, DCAM_GTM_GLB_CTRL) & BIT_0;
+	return val;
+}
+
+static void qogirn6pro_cam_gtm_ltm_eb(uint32_t dcam_idx, uint32_t isp_idx)
+{
+	if (dcam_idx >= DCAM_ID_MAX || isp_idx >= ISP_CONTEXT_SW_NUM) {
+		pr_err("fail to get dcam_idx %d isp_idx %d\n", dcam_idx, isp_idx);
+		return;
+	}
+
+	g_dcam_bypass[dcam_idx] &= (~(1 << _E_GTM));
+	DCAM_REG_MWR(dcam_idx, DCAM_GTM_GLB_CTRL, BIT_0, g_gtm_en);
+
+	g_isp_bypass[isp_idx] &= (~(1 << _EISP_LTM));
+	ISP_REG_MWR(isp_idx, ISP_LTM_MAP_RGB_BASE
+		+ ISP_LTM_MAP_PARAM0, BIT_0, g_ltm_bypass);
+	pr_debug("gtm %d ltm eb %d\n", g_gtm_en, g_ltm_bypass);
+}
+
+static void qogirn6pro_cam_gtm_ltm_dis(uint32_t dcam_idx, uint32_t isp_idx)
+{
+	if (dcam_idx >= DCAM_ID_MAX || isp_idx >= ISP_CONTEXT_SW_NUM) {
+		pr_err("fail to get dcam_idx %d isp_idx %d\n", dcam_idx, isp_idx);
+		return;
+	}
+
+	g_dcam_bypass[dcam_idx] |= (1 << _E_GTM);
+	g_gtm_en = DCAM_REG_RD(dcam_idx, DCAM_GTM_GLB_CTRL) & BIT_0;
+	DCAM_REG_MWR(dcam_idx, DCAM_GTM_GLB_CTRL, BIT_0, 0);
+
+	g_isp_bypass[isp_idx] |= (1 << _EISP_LTM);
+	g_ltm_bypass = ISP_REG_RD(isp_idx,
+		ISP_LTM_MAP_RGB_BASE + ISP_LTM_MAP_PARAM0) & BIT_0;
+	ISP_REG_MWR(isp_idx,
+		ISP_LTM_MAP_RGB_BASE + ISP_LTM_MAP_PARAM0, BIT_0, 1);
+	pr_debug("gtm %d ltm dis %d\n", g_gtm_en, g_ltm_bypass);
+}
+
+static int qogirn6pro_isp_clk_eb(struct cam_hw_soc_info *hw)
 {
 	int ret = 0;
 
@@ -1244,7 +1515,7 @@ static int sharkl5pro_isp_clk_eb(struct cam_hw_soc_info *hw)
 	return ret;
 }
 
-static int sharkl5pro_isp_clk_dis(struct cam_hw_soc_info *hw)
+static int qogirn6pro_isp_clk_dis(struct cam_hw_soc_info *hw)
 {
 	int ret = 0;
 	pr_debug(",E\n");
@@ -1261,7 +1532,7 @@ static int sharkl5pro_isp_clk_dis(struct cam_hw_soc_info *hw)
 	return ret;
 }
 
-static int sharkl5pro_isp_clk_update(struct cam_hw_soc_info *hw, void *arg)
+static int qogirn6pro_isp_clk_update(struct cam_hw_soc_info *hw, void *arg)
 {
 	int ret = 0;
 
@@ -1276,7 +1547,7 @@ static int sharkl5pro_isp_clk_update(struct cam_hw_soc_info *hw, void *arg)
 	return ret;
 }
 
-int sharkl5pro_isp_reset(struct cam_hw_info *hw, void *arg)
+int qogirn6pro_isp_reset(struct cam_hw_info *hw, void *arg)
 {
 	int rtn = 0;
 	uint32_t cid;
@@ -1330,7 +1601,7 @@ int sharkl5pro_isp_reset(struct cam_hw_info *hw, void *arg)
 	return rtn;
 }
 
-int sharkl5pro_isp_irq_enable(struct cam_hw_ip_info *hw, void *arg)
+int qogirn6pro_isp_irq_enable(struct cam_hw_ip_info *hw, void *arg)
 {
 	uint32_t ctx_id;
 	uint32_t mask = ~0;
@@ -1351,7 +1622,7 @@ int sharkl5pro_isp_irq_enable(struct cam_hw_ip_info *hw, void *arg)
 	return 0;
 }
 
-int sharkl5pro_isp_irq_disable(struct cam_hw_ip_info *hw, void *arg)
+int qogirn6pro_isp_irq_disable(struct cam_hw_ip_info *hw, void *arg)
 {
 	uint32_t ctx_id;
 
@@ -1372,7 +1643,7 @@ int sharkl5pro_isp_irq_disable(struct cam_hw_ip_info *hw, void *arg)
 	return 0;
 }
 
-int sharkl5pro_isp_irq_clear(struct cam_hw_ip_info *hw, void *arg)
+int qogirn6pro_isp_irq_clear(struct cam_hw_ip_info *hw, void *arg)
 {
 	uint32_t ctx_id;
 
@@ -1426,8 +1697,8 @@ static uint32_t ISP_CFG_MAP[] __aligned(8) = {
 		0x00649110, /*0x9110  - 0x9170 , 25  , 3DNR blend*/
 		0x00189210, /*0x9210  - 0x9224 , 6   , 3DNR store*/
 		0x00109310, /*0x9310  - 0x931C , 4   , 3DNR crop*/
-		/*0x002C9410, *0x9410  - 0x9438 , 11  , FBC 3DNR store*/
-		/*0x003C9510, *0x9510  - 0x9548 , 15  , FBD 3DNR fetch*/
+		0x002C9410, /*0x9410  - 0x9438 , 11  , FBC 3DNR store*/
+		0x003C9510, /*0x9510  - 0x9548 , 15  , FBD 3DNR fetch*/
 		0x0050D010, /*0xD010  - 0xD05C , 20  , SCL_VID*/
 		0x0030D110, /*0xD110  - 0xD13C , 12  , SCL_VID_store*/
 		0x0030D310, /*0xD310  - 0xD33C , 12  , SCL_VID_FBC_store*/
@@ -1463,7 +1734,7 @@ static uint32_t ISP_CFG_MAP[] __aligned(8) = {
 		0x02138AF0, /*0x38AF0 - 0x38CFC, 132 , VID_VER_CORF_UV_BUF0*/
 };
 
-uint32_t *sharkl5pro_isp_cfg_map_info_get(void *arg)
+uint32_t *qogirn6pro_isp_cfg_map_info_get(void *arg)
 {
 	if (!arg) {
 		pr_err("fail to get valid arg\n");
@@ -1475,7 +1746,7 @@ uint32_t *sharkl5pro_isp_cfg_map_info_get(void *arg)
 	return ISP_CFG_MAP;
 }
 
-void sharkl5pro_isp_default_param_set(struct cam_hw_info *hw,
+void qogirn6pro_isp_default_param_set(struct cam_hw_info *hw,
 	void *arg, enum isp_default_type type)
 {
 	uint32_t idx = 0;
@@ -1591,6 +1862,7 @@ isp_cfg_para:
 	ISP_REG_MWR(idx, ISP_3DNR_BLEND_CONTROL0, BIT_0, 1);
 	ISP_REG_MWR(idx, ISP_3DNR_STORE_PARAM, BIT_0, 1);
 	ISP_REG_MWR(idx, ISP_3DNR_MEM_CTRL_PRE_PARAM0, BIT_0, 1);
+	ISP_REG_MWR(idx, ISP_FBC_3DNR_STORE_PARAM, BIT_0, 1);
 
 	/*CFA*/
 	ISP_REG_MWR(idx, ISP_CFAE_NEW_CFG0, BIT_0, 0);
@@ -1667,9 +1939,11 @@ static struct isp_cfg_entry isp_cfg_func_tab[ISP_BLOCK_TOTAL - ISP_BLOCK_BASE] =
 [ISP_BLOCK_POST_CDN - ISP_BLOCK_BASE]	= {ISP_BLOCK_POST_CDN, isp_k_cfg_post_cdn},
 [ISP_BLOCK_PSTRZ - ISP_BLOCK_BASE]	= {ISP_BLOCK_PSTRZ, isp_k_cfg_pstrz},
 [ISP_BLOCK_YRANDOM - ISP_BLOCK_BASE]	= {ISP_BLOCK_YRANDOM, isp_k_cfg_yrandom},
+[ISP_BLOCK_RGB_LTM- ISP_BLOCK_BASE]	= {ISP_BLOCK_RGB_LTM, isp_k_cfg_rgb_ltm},
+[ISP_BLOCK_YUV_LTM - ISP_BLOCK_BASE]	= {ISP_BLOCK_YUV_LTM, isp_k_cfg_yuv_ltm},
 };
 
-static void *sharkl5pro_block_func_get(uint32_t index, enum cam_block_type type)
+static void *qogirn6pro_block_func_get(uint32_t index, enum cam_block_type type)
 {
 	void *block_func = NULL;
 
@@ -1693,7 +1967,7 @@ static void *sharkl5pro_block_func_get(uint32_t index, enum cam_block_type type)
 	return block_func;
 }
 
-static uint32_t sharkl5pro_isp_hist_enable_get(int ctx_id)
+static uint32_t qogirn6pro_isp_hist_enable_get(int ctx_id)
 {
 	uint32_t bypass = 0;
 	bypass = ISP_REG_RD(ctx_id, ISP_HIST2_PARAM) & BIT_0;
@@ -1701,7 +1975,7 @@ static uint32_t sharkl5pro_isp_hist_enable_get(int ctx_id)
 	return bypass;
 }
 
-static void sharkl5pro_isp_fetch_set(void *arg)
+static void qogirn6pro_isp_fetch_set(void *arg)
 {
 	uint32_t en_3dnr;
 	uint32_t bwu_val = 0;
@@ -1743,7 +2017,6 @@ static void sharkl5pro_isp_fetch_set(void *arg)
 			BIT_3 | BIT_2, 3 << 2); /* vid path off */
 	ISP_REG_MWR(idx, ISP_COMMON_SCL_PATH_SEL,
 			BIT_1 | BIT_0, 3 << 0);  /* pre/cap path off */
-	ISP_REG_WR(idx, ISP_BWU_PARAM, 0x40000);  /* bwu on */
 	ISP_REG_MWR(idx, ISP_FBD_RAW_SEL, BIT(0), 0x1);/* fbd off */
 
 	ISP_REG_MWR(idx, ISP_FETCH_PARAM, BIT_0, bypass);
@@ -1802,7 +2075,6 @@ static void sharkl5pro_isp_fetch_set(void *arg)
 		if (0 == fbd_raw->fetch_fbd_4bit_bypass) {
 			ISP_REG_WR(idx, ISP_FBD_RAW_LOW_4BIT_PARAM1,
 				fbd_raw->low_4bit_pitch);
-			ISP_REG_MWR(idx, ISP_BWU_PARAM, BIT_0, 0x1);  /* bwu off */
 		}
 		ISP_REG_MWR(idx, ISP_FETCH_PARAM, BIT_0, 0x1);
 		pr_info("enable fbd: %d\n", !fbd_raw->fetch_fbd_bypass);
@@ -1826,12 +2098,12 @@ static void sharkl5pro_isp_fetch_set(void *arg)
 }
 
 /* workaround: temp disable FMCU 1 for not working */
-static int sharkl5pro_isp_fmcu_available(uint32_t fmcu_id)
+static int qogirn6pro_isp_fmcu_available(uint32_t fmcu_id)
 {
 	return (fmcu_id > 0) ? 0 : 1;
 }
 
-static void sharkl5pro_isp_afbc_addr_set(uint32_t idx,
+static void qogirn6pro_isp_afbc_addr_set(uint32_t idx,
 	uint32_t spath_id, unsigned long *yuv_addr)
 {
 	unsigned long afbc_addr = fbc_store_base[spath_id];
@@ -1842,7 +2114,7 @@ static void sharkl5pro_isp_afbc_addr_set(uint32_t idx,
 		ISP_AFBC_STORE_SLICE_Y_ADDR, yuv_addr[1]);
 }
 
-static int sharkl5pro_isp_afbc_path_set(void *arg)
+static int qogirn6pro_isp_afbc_path_set(void *arg)
 {
 	int ret = 0;
 	uint32_t val = 0;
@@ -1897,7 +2169,7 @@ static int sharkl5pro_isp_afbc_path_set(void *arg)
 	return ret;
 }
 
-static int sharkl5pro_isp_fbd_slice_set(void *fmcu_handle, void *arg)
+static int qogirn6pro_isp_fbd_slice_set(void *fmcu_handle, void *arg)
 {
 	uint32_t addr = 0, cmd = 0;
 	struct isp_fmcu_ctx_desc *fmcu = NULL;
@@ -1989,7 +2261,7 @@ static int sharkl5pro_isp_fbd_slice_set(void *fmcu_handle, void *arg)
 	return 0;
 }
 
-static void sharkl5pro_isp_fbd_addr_set(int idx, void *arg1, void *arg2)
+static void qogirn6pro_isp_fbd_addr_set(int idx, void *arg1, void *arg2)
 {
 	uint32_t addr = 0;
 	struct compressed_addr *fbd_addr = NULL;
@@ -2016,7 +2288,7 @@ static void sharkl5pro_isp_fbd_addr_set(int idx, void *arg1, void *arg2)
 	}
 }
 
-static void sharkl5pro_isp_afbc_fmcu_addr_set(void *fmcu_handle,
+static void qogirn6pro_isp_afbc_fmcu_addr_set(void *fmcu_handle,
 	void *arg, int index)
 {
 	struct isp_fmcu_ctx_desc *fmcu = NULL;
@@ -2041,7 +2313,7 @@ static void sharkl5pro_isp_afbc_fmcu_addr_set(void *fmcu_handle,
 	FMCU_PUSH(fmcu, addr, cmd);
 }
 
-static int sharkl5pro_isp_afbc_path_slice_set(void *fmcu_handle,
+static int qogirn6pro_isp_afbc_path_slice_set(void *fmcu_handle,
 	uint32_t path_en, uint32_t ctx_idx, uint32_t spath_id, void *arg)
 {
 	uint32_t addr = 0, cmd = 0;
@@ -2104,7 +2376,7 @@ static int sharkl5pro_isp_afbc_path_slice_set(void *fmcu_handle,
 	return 0;
 }
 
-static int sharkl5pro_isp_ltm_slice_set(
+static int qogirn6pro_isp_ltm_slice_set(
 		void *fmcu_handle,
 		void *arg, uint32_t ltm_id)
 {
@@ -2154,54 +2426,237 @@ static int sharkl5pro_isp_ltm_slice_set(
 	return 0;
 }
 
-static uint32_t sharkl5pro_path_ctrl_id[] = {
-	DCAM_CTRL_FULL,
-	DCAM_CTRL_BIN,
-	DCAM_CTRL_PDAF,
-	DCAM_CTRL_VCH2,
-	DCAM_CTRL_VCH3,
-	DCAM_CTRL_COEF,
-	DCAM_CTRL_COEF,
-	DCAM_CTRL_COEF,
-	DCAM_CTRL_COEF,
-	DCAM_CTRL_COEF,
-	DCAM_CTRL_COEF,
+static int set_slice_3dnr_fbc_store(
+		void *fmcu_handle, void *arg)
+{
+	uint32_t addr = 0, cmd = 0;
+	struct isp_fmcu_ctx_desc *fmcu = NULL;
+	struct slice_3dnr_fbc_store_info *fbc_store = NULL;
+
+	fmcu = (struct isp_fmcu_ctx_desc *)fmcu_handle;
+	fbc_store = (struct slice_3dnr_fbc_store_info *)arg;
+
+	if (fbc_store->bypass)
+		return 0;
+
+	addr = ISP_GET_REG(ISP_FBC_3DNR_STORE_PARAM);
+	cmd = (fbc_store->bypass & 0x1) |
+		((fbc_store->slice_mode_en & 0x1) << 1);
+	FMCU_PUSH(fmcu, addr, cmd);
+
+	addr = ISP_GET_REG(ISP_FBC_3DNR_STORE_SLICE_SIZE);
+	cmd = (fbc_store->fbc_size_in_hor & 0x1FFF) |
+		((fbc_store->fbc_size_in_ver & 0x1FFF) << 16);
+	FMCU_PUSH(fmcu, addr, cmd);
+
+	addr = ISP_GET_REG(ISP_FBC_3DNR_STORE_SLICE_YADDR);
+	cmd = fbc_store->fbc_y_tile_addr_init_x256;
+	FMCU_PUSH(fmcu, addr, cmd);
+
+	addr = ISP_GET_REG(ISP_FBC_3DNR_STORE_SLICE_CADDR);
+	cmd = fbc_store->fbc_c_tile_addr_init_x256;
+	FMCU_PUSH(fmcu, addr, cmd);
+
+	addr = ISP_GET_REG(ISP_FBC_3DNR_STORE_SLICE_YHEADER);
+	cmd = fbc_store->fbc_y_header_addr_init;
+	FMCU_PUSH(fmcu, addr, cmd);
+
+	addr = ISP_GET_REG(ISP_FBC_3DNR_STORE_SLICE_CHEADER);
+	cmd = fbc_store->fbc_c_header_addr_init;
+	FMCU_PUSH(fmcu, addr, cmd);
+
+	addr = ISP_GET_REG(ISP_FBC_3DNR_STORE_TILE_NUM);
+	cmd = fbc_store->fbc_tile_number;
+	FMCU_PUSH(fmcu, addr, cmd);
+
+	return 0;
+}
+
+static int set_slice_3dnr_fbd_fetch(
+		void *fmcu_handle, void *arg)
+{
+	uint32_t addr = 0, cmd = 0;
+	struct isp_fmcu_ctx_desc *fmcu = NULL;
+	struct slice_3dnr_fbd_fetch_info *fbd_fetch = NULL;
+
+	fmcu = (struct isp_fmcu_ctx_desc *)fmcu_handle;
+	fbd_fetch = (struct slice_3dnr_fbd_fetch_info *)arg;
+
+	addr = ISP_GET_REG(ISP_FBD_NR3_T_ADDR_Y);
+	cmd = (fbd_fetch->fbd_y_tiles_num_pitch & 0xFF) |
+		((fbd_fetch->fbd_y_tile_addr_init_x256 & 0xFFFFFF) << 8);
+	FMCU_PUSH(fmcu, addr, cmd);
+
+	addr = ISP_GET_REG(ISP_FBD_NR3_H_ADDR_Y);
+	cmd = fbd_fetch->fbd_y_header_addr_init;
+	FMCU_PUSH(fmcu, addr, cmd);
+
+	addr = ISP_GET_REG(ISP_FBD_NR3_T_ADDR_C);
+	cmd = (fbd_fetch->fbd_y_tiles_num_pitch & 0xFF) |
+		((fbd_fetch->fbd_c_tile_addr_init_x256 & 0xFFFFFF) << 8);
+	FMCU_PUSH(fmcu, addr, cmd);
+
+	addr = ISP_GET_REG(ISP_FBD_NR3_H_ADDR_C);
+	cmd = fbd_fetch->fbd_c_header_addr_init;
+	FMCU_PUSH(fmcu, addr, cmd);
+
+	addr = ISP_GET_REG(ISP_FBD_NR3_SIZE_Y);
+	cmd = (fbd_fetch->fbd_y_pixel_size_in_ver & 0x1FFF) |
+		((fbd_fetch->fbd_y_pixel_size_in_hor & 0x1FFF) << 16);
+	FMCU_PUSH(fmcu, addr, cmd);
+
+	addr = ISP_GET_REG(ISP_FBD_NR3_SIZE_C);
+	cmd = (fbd_fetch->fbd_c_pixel_size_in_ver & 0x1FFF) |
+		((fbd_fetch->fbd_c_pixel_size_in_hor & 0x1FFF) << 16);
+	FMCU_PUSH(fmcu, addr, cmd);
+
+	addr = ISP_GET_REG(ISP_FBD_NR3_START_Y);
+	cmd = (fbd_fetch->fbd_y_pixel_start_in_ver & 1) |
+		((fbd_fetch->fbd_y_pixel_start_in_hor & 0x7F) << 16);
+	FMCU_PUSH(fmcu, addr, cmd);
+
+	addr = ISP_GET_REG(ISP_FBD_NR3_START_C);
+	cmd = (fbd_fetch->fbd_c_pixel_start_in_ver & 1) |
+		((fbd_fetch->fbd_c_pixel_start_in_hor & 0x7F) << 16);
+	FMCU_PUSH(fmcu, addr, cmd);
+
+	addr = ISP_GET_REG(ISP_FBD_NR3_TILE_SIZE_Y);
+	cmd = (fbd_fetch->fbd_y_tiles_num_in_ver & 0x1FFF) |
+		((fbd_fetch->fbd_y_tiles_num_in_hor & 0x1F) << 16);
+	FMCU_PUSH(fmcu, addr, cmd);
+
+	addr = ISP_GET_REG(ISP_FBD_NR3_TILE_SIZE_C);
+	cmd = (fbd_fetch->fbd_c_tiles_num_in_ver & 0x1FFF) |
+		((fbd_fetch->fbd_c_tiles_num_in_hor & 0x1F) << 16);
+	FMCU_PUSH(fmcu, addr, cmd);
+
+	addr = ISP_GET_REG(ISP_FBD_NR3_SLICE_TILE_PARAM);
+	cmd = (fbd_fetch->fbd_y_tiles_start_odd & 0x1) |
+		((fbd_fetch->fbd_c_tiles_start_odd & 0x1) << 16);
+	FMCU_PUSH(fmcu, addr, cmd);
+
+	return 0;
+}
+
+
+
+void qogirn6pro_isp_cfg_subblock(void *ctx)
+{
+	uint32_t idx = 0;
+	uint32_t bypass = 1;
+	struct isp_pipe_context *pctx = NULL;
+	struct isp_fetch_info *fetch = NULL;
+
+	pctx = (struct isp_pipe_context *)ctx;
+	fetch = &pctx->fetch;
+	idx = pctx->ctx_id;
+	pr_debug("superzoom enter: fmt:%d, in_trim %d %d, src %d %d\n",
+		fetch->fetch_fmt, fetch->in_trim.size_x, fetch->in_trim.size_y,
+		fetch->src.w, fetch->src.h);
+
+	ISP_REG_MWR(idx, ISP_COMMON_SPACE_SEL, BIT_1 | BIT_0, 2);
+
+	ISP_REG_MWR(idx, ISP_COMMON_SPACE_SEL, 0x0F, 0x0A);
+
+	ISP_REG_MWR(idx, ISP_FETCH_PARAM,
+			(0xF << 4), fetch->fetch_fmt << 4);
+	ISP_REG_WR(idx, ISP_FETCH_SLICE_Y_PITCH,fetch->pitch.pitch_ch0);
+	ISP_REG_WR(idx, ISP_FETCH_SLICE_U_PITCH, fetch->pitch.pitch_ch1);
+	ISP_REG_WR(idx, ISP_FETCH_SLICE_V_PITCH, fetch->pitch.pitch_ch2);
+	ISP_REG_WR(idx, ISP_FETCH_SLICE_Y_ADDR, fetch->addr.addr_ch0);
+	ISP_REG_WR(idx, ISP_FETCH_SLICE_U_ADDR, fetch->addr.addr_ch1);
+	ISP_REG_WR(idx, ISP_FETCH_SLICE_V_ADDR, fetch->addr.addr_ch2);
+
+	ISP_REG_WR(idx, ISP_FETCH_MEM_SLICE_SIZE,
+				fetch->src.w | (fetch->src.h << 16));
+	ISP_REG_WR(idx, ISP_FETCH_LINE_DLY_CTRL, 0x8);
+
+	ISP_REG_WR(idx, ISP_DISPATCH_DLY,  0x253C);
+	ISP_REG_WR(idx, ISP_DISPATCH_LINE_DLY1,  0x280001C);
+	ISP_REG_WR(idx, ISP_DISPATCH_PIPE_BUF_CTRL_CH0,  0x64043C);
+	ISP_REG_WR(idx, ISP_DISPATCH_CH0_SIZE,
+				fetch->in_trim.size_x | (fetch->in_trim.size_y << 16));
+	ISP_REG_WR(idx, ISP_DISPATCH_CH0_BAYER, pctx->dispatch_bayer_mode);
+	pr_debug("pitch ch0 %d, ch1 %d, ch2 %d, addr_ch0 %p, ch1 %p, ch2 %p\n",
+		fetch->pitch.pitch_ch0, fetch->pitch.pitch_ch1, fetch->pitch.pitch_ch2,
+		fetch->addr.addr_ch0, fetch->addr.addr_ch1, fetch->addr.addr_ch2);
+
+	ISP_REG_MWR(idx, ISP_VST_PARA, BIT_0, bypass);
+	ISP_REG_MWR(idx, ISP_NLM_PARA, BIT_0, bypass);
+	ISP_REG_MWR(idx, ISP_IVST_PARA, BIT_0, bypass);
+	ISP_REG_MWR(idx, ISP_CFAE_NEW_CFG0, BIT_0, bypass);
+	ISP_REG_MWR(idx, ISP_CMC10_PARAM, BIT_0, bypass);
+	ISP_REG_MWR(idx, ISP_GAMMA_PARAM, BIT_0, bypass);
+	ISP_REG_MWR(idx, ISP_HSV_PARAM, BIT_0, bypass);
+	ISP_REG_MWR(idx, ISP_PSTRZ_PARAM, BIT_0, bypass);
+	ISP_REG_MWR(idx, ISP_CCE_PARAM, BIT_0, bypass);
+	ISP_REG_MWR(idx, ISP_UVD_PARAM, BIT_0, bypass);
+	ISP_REG_MWR(idx, ISP_3DNR_MEM_CTRL_PARAM0, BIT_0, bypass);
+	ISP_REG_MWR(idx, ISP_3DNR_MEM_CTRL_LINE_MODE, BIT_0, bypass);
+	ISP_REG_MWR(idx, ISP_PRECDN_PARAM, BIT_0, bypass);
+	ISP_REG_MWR(idx, ISP_YNR_CONTRL0, BIT_0, bypass);
+	ISP_REG_MWR(idx, ISP_HIST_PARAM, BIT_0, bypass);
+	ISP_REG_MWR(idx, ISP_HIST2_PARAM, BIT_0, bypass);
+	ISP_REG_MWR(idx, ISP_CDN_PARAM, BIT_0, bypass);
+	ISP_REG_MWR(idx, ISP_POSTCDN_COMMON_CTRL, BIT_0, bypass);
+	ISP_REG_MWR(idx, ISP_EE_PARAM, BIT_0, bypass);
+	ISP_REG_MWR(idx, ISP_YGAMMA_PARAM, BIT_0, bypass);
+	ISP_REG_MWR(idx, ISP_IIRCNR_PARAM, BIT_0, bypass);
+	ISP_REG_MWR(idx, ISP_YRANDOM_PARAM1, BIT_0, bypass);
+	ISP_REG_MWR(idx, ISP_YUV_MULT, BIT_31, 0);
+}
+
+static uint32_t qogirn6pro_path_ctrl_id[DCAM_PATH_MAX] = {
+	[DCAM_PATH_FULL] = DCAM_CTRL_FULL,
+	[DCAM_PATH_BIN] = DCAM_CTRL_BIN,
+	[DCAM_PATH_PDAF] = DCAM_CTRL_PDAF,
+	[DCAM_PATH_VCH2] = DCAM_CTRL_VCH2,
+	[DCAM_PATH_VCH3] = DCAM_CTRL_VCH3,
+	[DCAM_PATH_AEM] = DCAM_CTRL_COEF,
+	[DCAM_PATH_AFM] = DCAM_CTRL_COEF,
+	[DCAM_PATH_AFL] = DCAM_CTRL_COEF,
+	[DCAM_PATH_HIST] = DCAM_CTRL_COEF,
+	[DCAM_PATH_3DNR] = DCAM_CTRL_COEF,
+	[DCAM_PATH_BPC] = DCAM_CTRL_COEF,
+	[DCAM_PATH_LSCM] = DCAM_CTRL_COEF,
 };
 
-static unsigned long sharkl5pro_dcam_store_addr[DCAM_PATH_MAX] = {
-	DCAM_FULL_BASE_WADDR,
-	DCAM_BIN_BASE_WADDR0,
-	DCAM_PDAF_BASE_WADDR,
-	DCAM_VCH2_BASE_WADDR,
-	DCAM_VCH3_BASE_WADDR,
-	DCAM_AEM_BASE_WADDR,
-	ISP_AFM_BASE_WADDR,
-	ISP_AFL_GLB_WADDR,
-	DCAM_HIST_BASE_WADDR,
-	ISP_NR3_WADDR,
-	ISP_BPC_OUT_ADDR,
-	DCAM_LSCM_BASE_WADDR,
+static unsigned long qogirn6pro_dcam_store_addr[DCAM_PATH_MAX] = {
+	[DCAM_PATH_FULL] = DCAM_FULL_BASE_WADDR,
+	[DCAM_PATH_BIN] = DCAM_BIN_BASE_WADDR0,
+	[DCAM_PATH_PDAF] = DCAM_PDAF_BASE_WADDR,
+	[DCAM_PATH_VCH2] = DCAM_VCH2_BASE_WADDR,
+	[DCAM_PATH_VCH3] = DCAM_VCH3_BASE_WADDR,
+	[DCAM_PATH_AEM] = DCAM_AEM_BASE_WADDR,
+	[DCAM_PATH_AFM] = ISP_AFM_BASE_WADDR,
+	[DCAM_PATH_AFL] = ISP_AFL_GLB_WADDR,
+	[DCAM_PATH_HIST] = DCAM_HIST_BASE_WADDR,
+	[DCAM_PATH_3DNR] = ISP_NR3_WADDR,
+	[DCAM_PATH_BPC] = ISP_BPC_OUT_ADDR,
+	[DCAM_PATH_LSCM] = DCAM_LSCM_BASE_WADDR,
 };
 
-static uint32_t sharkl5pro_isp_ctx_fmcu_support[ISP_CONTEXT_HW_NUM] = {
+static uint32_t qogirn6pro_isp_ctx_fmcu_support[ISP_CONTEXT_HW_NUM] = {
 	[ISP_CONTEXT_HW_P0] = 1,
 	[ISP_CONTEXT_HW_C0] = 1,
 	[ISP_CONTEXT_HW_P1] = 1,
 	[ISP_CONTEXT_HW_C1] = 1,
 };
 
-static struct cam_hw_soc_info sharkl5pro_dcam_soc_info;
-static struct cam_hw_soc_info sharkl5pro_isp_soc_info;
-static struct cam_hw_ip_info sharkl5pro_dcam[DCAM_ID_MAX] = {
+static struct cam_hw_soc_info qogirn6pro_dcam_soc_info;
+static struct cam_hw_soc_info qogirn6pro_isp_soc_info;
+static struct cam_hw_ip_info qogirn6pro_dcam[DCAM_ID_MAX] = {
 	[DCAM_ID_0] = {
 		.slm_path = BIT(DCAM_PATH_BIN) | BIT(DCAM_PATH_AEM)
 			| BIT(DCAM_PATH_HIST),
 		.lbuf_share_support = 1,
 		.offline_slice_support = 1,
 		.afl_gbuf_size = STATIS_AFL_GBUF_SIZE,
-		.dcam_fbc_mode = DCAM_FBC_FULL_14_BIT,
-		.store_addr_tab = sharkl5pro_dcam_store_addr,
-		.path_ctrl_id_tab = sharkl5pro_path_ctrl_id,
+		.superzoom_support = 0,
+		.dcam_full_fbc_mode = DCAM_FBC_FULL_14_BIT,
+		.dcam_bin_fbc_mode = DCAM_FBC_BIN_14_BIT,
+		.store_addr_tab = qogirn6pro_dcam_store_addr,
+		.path_ctrl_id_tab = qogirn6pro_path_ctrl_id,
 		.pdaf_type3_reg_addr = DCAM_PPE_RIGHT_WADDR,
 	},
 	[DCAM_ID_1] = {
@@ -2210,9 +2665,11 @@ static struct cam_hw_ip_info sharkl5pro_dcam[DCAM_ID_MAX] = {
 		.lbuf_share_support = 1,
 		.offline_slice_support = 1,
 		.afl_gbuf_size = STATIS_AFL_GBUF_SIZE,
-		.dcam_fbc_mode = DCAM_FBC_FULL_14_BIT,
-		.store_addr_tab = sharkl5pro_dcam_store_addr,
-		.path_ctrl_id_tab = sharkl5pro_path_ctrl_id,
+		.superzoom_support = 0,
+		.dcam_full_fbc_mode = DCAM_FBC_FULL_14_BIT,
+		.dcam_bin_fbc_mode = DCAM_FBC_BIN_14_BIT,
+		.store_addr_tab = qogirn6pro_dcam_store_addr,
+		.path_ctrl_id_tab = qogirn6pro_path_ctrl_id,
 		.pdaf_type3_reg_addr = DCAM_PPE_RIGHT_WADDR,
 	},
 	[DCAM_ID_2] = {
@@ -2221,42 +2678,44 @@ static struct cam_hw_ip_info sharkl5pro_dcam[DCAM_ID_MAX] = {
 		.lbuf_share_support = 0,
 		.offline_slice_support = 0,
 		.afl_gbuf_size = STATIS_AFL_GBUF_SIZE,
-		.dcam_fbc_mode = DCAM_FBC_DISABLE,
-		.store_addr_tab = sharkl5pro_dcam_store_addr,
-		.path_ctrl_id_tab = sharkl5pro_path_ctrl_id,
+		.superzoom_support = 0,
+		.dcam_full_fbc_mode = DCAM_FBC_DISABLE,
+		.dcam_bin_fbc_mode = DCAM_FBC_DISABLE,
+		.store_addr_tab = qogirn6pro_dcam_store_addr,
+		.path_ctrl_id_tab = qogirn6pro_path_ctrl_id,
 		.pdaf_type3_reg_addr = DCAM_PPE_RIGHT_WADDR,
 	},
 };
-static struct cam_hw_ip_info sharkl5pro_isp = {
+static struct cam_hw_ip_info qogirn6pro_isp = {
 	.slm_cfg_support = 1,
-	.ctx_fmcu_support = sharkl5pro_isp_ctx_fmcu_support,
+	.ctx_fmcu_support = qogirn6pro_isp_ctx_fmcu_support,
 };
 
-struct cam_hw_info sharkl5pro_hw_info = {
-	.prj_id = SHARKL5pro,
+struct cam_hw_info qogirn6pro_hw_info = {
+	.prj_id = QOGIRN6pro,
 	.pdev = NULL,
-	.soc_dcam = &sharkl5pro_dcam_soc_info,
-	.soc_isp = &sharkl5pro_isp_soc_info,
-	.ip_dcam[DCAM_ID_0] = &sharkl5pro_dcam[DCAM_ID_0],
-	.ip_dcam[DCAM_ID_1] = &sharkl5pro_dcam[DCAM_ID_1],
-	.ip_dcam[DCAM_ID_2] = &sharkl5pro_dcam[DCAM_ID_2],
-	.ip_isp = &sharkl5pro_isp,
+	.soc_dcam = &qogirn6pro_dcam_soc_info,
+	.soc_isp = &qogirn6pro_isp_soc_info,
+	.ip_dcam[DCAM_ID_0] = &qogirn6pro_dcam[DCAM_ID_0],
+	.ip_dcam[DCAM_ID_1] = &qogirn6pro_dcam[DCAM_ID_1],
+	.ip_dcam[DCAM_ID_2] = &qogirn6pro_dcam[DCAM_ID_2],
+	.ip_isp = &qogirn6pro_isp,
 	.hw_ops = {
 		.dcam_soc_ops = {
-			.clk_enable = sharkl5pro_dcam_clk_eb,
-			.clk_disable = sharkl5pro_dcam_clk_dis,
-			.clk_update = sharkl5pro_dcam_clk_update,
-			.axi_init = sharkl5pro_dcam_axi_init,
-			.qos_set = sharkl5pro_dcam_qos_set,
-			.reset = sharkl5pro_dcam_reset,
+			.clk_enable = qogirn6pro_dcam_clk_eb,
+			.clk_disable = qogirn6pro_dcam_clk_dis,
+			.clk_update = qogirn6pro_dcam_clk_update,
+			.axi_init = qogirn6pro_dcam_axi_init,
+			.qos_set = qogirn6pro_dcam_qos_set,
+			.reset = qogirn6pro_dcam_reset,
 		},
 		.isp_soc_ops = {
-			.clk_enable = sharkl5pro_isp_clk_eb,
-			.clk_disable = sharkl5pro_isp_clk_dis,
-			.clk_update = sharkl5pro_isp_clk_update,
+			.clk_enable = qogirn6pro_isp_clk_eb,
+			.clk_disable = qogirn6pro_isp_clk_dis,
+			.clk_update = qogirn6pro_isp_clk_update,
 			.axi_init = NULL,
 			.qos_set = NULL,
-			.reset = sharkl5pro_isp_reset,
+			.reset = qogirn6pro_isp_reset,
 		},
 		.dcam_irq_ops = {
 			.irq_request = NULL,
@@ -2269,45 +2728,56 @@ struct cam_hw_info sharkl5pro_hw_info = {
 		.isp_irq_ops = {
 			.irq_request = NULL,
 			.irq_free = NULL,
-			.irq_enable = sharkl5pro_isp_irq_enable,
-			.irq_disable = sharkl5pro_isp_irq_disable,
-			.irq_clear = sharkl5pro_isp_irq_clear,
+			.irq_enable = qogirn6pro_isp_irq_enable,
+			.irq_disable = qogirn6pro_isp_irq_disable,
+			.irq_clear = qogirn6pro_isp_irq_clear,
 			.irq_proc = NULL,
 		},
 		.core_ops = {
-			.start = sharkl5pro_dcam_start,
-			.stop = sharkl5pro_dcam_stop,
-			.auto_copy = sharkl5pro_dcam_auto_copy,
-			.force_copy = sharkl5pro_dcam_force_copy,
-			.path_start = sharkl5pro_dcam_path_start,
-			.path_stop = sharkl5pro_dcam_path_stop,
-			.path_resume = NULL,
-			.mipi_cap_set = sharkl5pro_dcam_mipi_cap_set,
-			.fetch_start = sharkl5pro_dcam_fetch_start,
-			.path_size_update = sharkl5pro_dcam_path_size_update,
-			.path_src_sel = sharkl5pro_dcam_full_path_src_sel,
-			.default_para_set = sharkl5pro_isp_default_param_set,
-			.lbuf_share_set = sharkl5pro_dcam_lbuf_share_set,
-			.dcam_slice_fetch_set = sharkl5pro_dcam_slice_fetch_set,
-			.ebd_set = sharkl5pro_dcam_ebd_set,
-			.dcam_fetch_set = sharkl5pro_dcam_fetch_set,
-			.dcam_fbc_ctrl = sharkl5pro_dcam_fbc_ctrl,
-			.dcam_fbc_addr_set = sharkl5pro_dcam_fbc_addr_set,
-			.isp_fetch_set = sharkl5pro_isp_fetch_set,
-			.isp_fbd_slice_set = sharkl5pro_isp_fbd_slice_set,
-			.isp_fbd_addr_set = sharkl5pro_isp_fbd_addr_set,
-			.isp_afbc_addr_set = sharkl5pro_isp_afbc_addr_set,
-			.isp_afbc_path_set = sharkl5pro_isp_afbc_path_set,
-			.isp_afbc_fmcu_addr_set = sharkl5pro_isp_afbc_fmcu_addr_set,
-			.isp_afbc_path_slice_set = sharkl5pro_isp_afbc_path_slice_set,
-			.isp_ltm_slice_set = sharkl5pro_isp_ltm_slice_set,
-			.hist_enable_get = sharkl5pro_isp_hist_enable_get,
-			.block_func_get = sharkl5pro_block_func_get,
-			.cfg_map_info_get = sharkl5pro_isp_cfg_map_info_get,
-			.fmcu_valid_get = sharkl5pro_isp_fmcu_available,
-			.bypass_data_get = sharkl5pro_cam_bypass_data_get,
-			.bypass_count_get = sharkl5pro_cam_bypass_count_get,
-			.reg_trace = sharkl5pro_cam_reg_trace,
+			.start = qogirn6pro_dcam_start,
+			.stop = qogirn6pro_dcam_stop,
+			.stop_cap_eb = qogirn6pro_dcam_cap_disable,
+			.auto_copy = qogirn6pro_dcam_auto_copy,
+			.force_copy = qogirn6pro_dcam_force_copy,
+			.path_start = qogirn6pro_dcam_path_start,
+			.path_stop = qogirn6pro_dcam_path_stop,
+			.path_pause = qogirn6pro_dcam_path_pause,
+			.path_resume = qogirn6pross_dcam_path_resume,
+			.mipi_cap_set = qogirn6pro_dcam_mipi_cap_set,
+			.fetch_start = qogirn6pro_dcam_fetch_start,
+			.path_size_update = qogirn6pro_dcam_path_size_update,
+			.dcam_calc_rds_phase_info = qogirn6pro_dcam_calc_rds_phase_info,
+			.path_src_sel = qogirn6pro_dcam_full_path_src_sel,
+			.default_para_set = qogirn6pro_isp_default_param_set,
+			.lbuf_share_set = qogirn6pro_dcam_lbuf_share_set,
+			.dcam_slice_fetch_set = qogirn6pro_dcam_slice_fetch_set,
+			.ebd_set = qogirn6pro_dcam_ebd_set,
+			.binning_4in1_set = qogirn6pro_dcam_binning_4in1_set,
+			.sram_ctrl_set = qogirn6pro_dcam_sram_ctrl_set,
+			.dcam_fetch_set = qogirn6pro_dcam_fetch_set,
+			.dcam_fbc_ctrl = qogirn6pro_dcam_fbc_ctrl,
+			.dcam_fbc_addr_set = qogirn6pro_dcam_fbc_addr_set,
+			.dcam_gtm_status_get = qogirn6pro_dcam_gtm_status_get,
+			.cam_gtm_ltm_eb = qogirn6pro_cam_gtm_ltm_eb,
+			.cam_gtm_ltm_dis = qogirn6pro_cam_gtm_ltm_dis,
+			.isp_fetch_set = qogirn6pro_isp_fetch_set,
+			.isp_fbd_slice_set = qogirn6pro_isp_fbd_slice_set,
+			.isp_fbd_addr_set = qogirn6pro_isp_fbd_addr_set,
+			.isp_afbc_addr_set = qogirn6pro_isp_afbc_addr_set,
+			.isp_afbc_path_set = qogirn6pro_isp_afbc_path_set,
+			.isp_afbc_fmcu_addr_set = qogirn6pro_isp_afbc_fmcu_addr_set,
+			.isp_afbc_path_slice_set = qogirn6pro_isp_afbc_path_slice_set,
+			.isp_ltm_slice_set = qogirn6pro_isp_ltm_slice_set,
+			.isp_nr3_fbc_slice_set = set_slice_3dnr_fbc_store,
+			.isp_nr3_fbd_slice_set = set_slice_3dnr_fbd_fetch,
+			.hist_enable_get = qogirn6pro_isp_hist_enable_get,
+			.block_func_get = qogirn6pro_block_func_get,
+			.cfg_map_info_get = qogirn6pro_isp_cfg_map_info_get,
+			.fmcu_valid_get = qogirn6pro_isp_fmcu_available,
+			.bypass_data_get = qogirn6pro_cam_bypass_data_get,
+			.bypass_count_get = qogirn6pro_cam_bypass_count_get,
+			.reg_trace = qogirn6pro_cam_reg_trace,
+			.isp_cfg_subblock = qogirn6pro_isp_cfg_subblock,
 		},
 	},
 };

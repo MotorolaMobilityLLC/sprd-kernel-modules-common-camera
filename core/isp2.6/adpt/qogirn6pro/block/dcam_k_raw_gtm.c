@@ -31,6 +31,34 @@ enum {
 	_UPDATE_INFO = BIT(0),
 };
 
+void dcam_k_raw_gtm_set_default(struct dcam_dev_raw_gtm_block_info *p)
+{
+	p->gtm_tm_out_bit_depth = 0xE;
+	p->gtm_tm_in_bit_depth = 0xE;
+	p->gtm_cur_is_first_frame = 0x0;
+	p->gtm_log_diff = 0x0;
+	p->gtm_log_diff_int = 0x25C9;
+	p->gtm_log_max_int = 0x0;
+	p->gtm_log_min_int = 0x496B;
+	p->gtm_lr_int = 0x23F;
+	p->gtm_tm_param_calc_by_hw = 0x1;
+	p->gtm_yavg = 0x0;
+	p->gtm_ymax = 0x0;
+	p->gtm_ymin = 0x4;
+	p->tm_lumafilter_c[0][0] = 0x4;
+	p->tm_lumafilter_c[0][1] = 0x2;
+	p->tm_lumafilter_c[0][2] = 0x4;
+	p->tm_lumafilter_c[1][0] = 0x2;
+	p->tm_lumafilter_c[1][1] = 0x28;
+	p->tm_lumafilter_c[1][2] = 0x2;
+	p->tm_lumafilter_c[2][0] = 0x4;
+	p->tm_lumafilter_c[2][1] = 0x2;
+	p->tm_lumafilter_c[2][2] = 0x4;
+	p->tm_lumafilter_shift = 0x6;
+	p->slice.gtm_slice_line_startpos = 0x0;
+	p->slice.gtm_slice_line_endpos = 0x0;
+	p->slice.gtm_slice_main = 0x0;
+}
 
 int dcam_k_raw_gtm_slice(uint32_t idx, struct dcam_dev_gtm_slice_info *gtm_slice)
 {
@@ -41,10 +69,10 @@ int dcam_k_raw_gtm_slice(uint32_t idx, struct dcam_dev_gtm_slice_info *gtm_slice
 	val =((gtm_slice->gtm_slice_main & 0x1) <<7);
 	DCAM_REG_MWR(idx, DCAM_GTM_GLB_CTRL, 0x80, val);
 
-	val = (gtm_slice->gtm_slice_line_startpos);
+	val = (gtm_slice->gtm_slice_line_startpos & 0x1FFF);
 	DCAM_REG_WR(idx, GTM_SLICE_LINE_STARTPOS, val);
 
-	val = (gtm_slice->gtm_slice_line_endpos);
+	val = (gtm_slice->gtm_slice_line_endpos & 0x1FFF);
 	DCAM_REG_WR(idx, GTM_SLICE_LINE_ENDPOS, val);
 
 	return ret;
@@ -69,11 +97,14 @@ int dcam_k_raw_gtm_block(struct dcam_dev_param *param)
 	param->gtm.update &= (~(_UPDATE_INFO));
 
 	p = &(param->gtm.gtm_info);
-	gtm_slice = &(p->slice);
+	dcam_k_raw_gtm_set_default(p);
 
+	if (g_dcam_bypass[param->idx] & (1 << _E_GTM))
+		p->gtm_mod_en = 0;
+	gtm_slice = &(p->slice);
 	DCAM_REG_MWR(idx, DCAM_GTM_GLB_CTRL, BIT_0, (p->gtm_mod_en & 0x1));
-		if (!p->gtm_mod_en)
-			return 0;
+	if (!p->gtm_mod_en)
+		return 0;
 
 	val =((p->gtm_map_bypass & 0x1) <<1) |
 		((p->gtm_hist_stat_bypass & 0x1) <<2) |
@@ -95,25 +126,25 @@ int dcam_k_raw_gtm_block(struct dcam_dev_param *param)
 	val = p->gtm_ymin & 0xFF;
 	DCAM_REG_MWR(idx, GTM_HIST_YMIN, 0xFF, val);
 
-	val = p->gtm_yavg_diff_thr;
+	val = p->gtm_yavg_diff_thr & 0x3FFF;
 	DCAM_REG_WR(idx, GTM_HIST_CTRL2, val);
 
 	val = (p->gtm_lr_int & 0xFFFF) | ((p->gtm_log_min_int & 0xFFFF) << 16);
 	DCAM_REG_MWR(idx, GTM_HIST_CTRL3, 0xFFFFFFFF, val);
 
-	val = (p->gtm_log_max_int & 0xFFFF) | ((p->gtm_log_diff_int & 0xFFFF) << 16);
+	val = ((p->gtm_log_diff_int & 0xFFFF) << 16);
 	DCAM_REG_MWR(idx, GTM_HIST_CTRL4, 0xFFFFFFFF, val);
 
-	val = p->gtm_hist_total;
+	val = p->gtm_hist_total & 0x3FFFFFF;
 	DCAM_REG_WR(idx, GTM_HIST_CTRL5, val);
 
-	val = p->gtm_min_per;
+	val = p->gtm_min_per & 0xFFFFF;
 	DCAM_REG_WR(idx, GTM_HIST_CTRL6, val);
 
-	val = p->gtm_max_per;
+	val = p->gtm_max_per & 0xFFFFF;
 	DCAM_REG_WR(idx, GTM_HIST_CTRL7, val);
 
-	val = p->gtm_log_diff;
+	val = p->gtm_log_diff & 0x1FFFFFFF;
 	DCAM_REG_WR(idx, GTM_LOG_DIFF, val);
 
 	val = (p->gtm_ymax_diff_thr & 0x3FFF)
@@ -161,9 +192,6 @@ int dcam_k_cfg_raw_gtm(struct isp_io_param *param, struct dcam_dev_param *p)
 		pr_err("property_param is null error.\n");
 		return -1;
 	}
-	/* debugfs bypass blc */
-	if (g_dcam_bypass[p->idx] & (1 << _E_GTM))
-		return 0;
 
 	switch (param->property) {
 	case DCAM_PRO_RAW_GTM_BLOCK:
@@ -175,8 +203,7 @@ int dcam_k_cfg_raw_gtm(struct isp_io_param *param, struct dcam_dev_param *p)
 				param->property_param,
 				sizeof(p->gtm.gtm_info));
 			if (ret) {
-				pr_err("blc_block: copy error, ret=0x%x\n",
-					(unsigned int)ret);
+				pr_err("fail to copy, ret=0x%x\n", (unsigned int)ret);
 				return -EPERM;
 			}
 			p->gtm.update |= _UPDATE_INFO;
@@ -188,8 +215,7 @@ int dcam_k_cfg_raw_gtm(struct isp_io_param *param, struct dcam_dev_param *p)
 				sizeof(p->gtm.gtm_info));
 			if (ret) {
 				mutex_unlock(&p->param_lock);
-				pr_err("blc_block: copy error, ret=0x%x\n",
-					(unsigned int)ret);
+				pr_err("fail to copy, ret=0x%x\n", (unsigned int)ret);
 				return -EPERM;
 			}
 			p->gtm.update |= _UPDATE_INFO;

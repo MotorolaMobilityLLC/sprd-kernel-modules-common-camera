@@ -20,12 +20,19 @@
 #define ISP_WIDTH_MAX   8048
 #define ISP_HEIGHT_MAX  6036
 #define DCAM_24M_WIDTH  5664
+#define DCAM_16M_WIDTH  4672
+#define DCAM_13M_WIDTH  4160
+#define DCAM_8M_WIDTH  3264
+#define DCAM_RDS_OUT_LIMIT 2160
+
 #define DCAM_PATH_WMAX			8048
 #define DCAM_PATH_HMAX			6036
 #define RAW_OVERLAP_UP				58
 #define RAW_OVERLAP_DOWN			78
-#define RAW_OVERLAP_LEFT			86
+#define RAW_OVERLAP_LEFT			118
 #define RAW_OVERLAP_RIGHT			138
+#define ISP_SLCIE_HEIGHT_MAX			8192
+
 /*
  *DCAM_CONTROL register bit map id
  * for force_cpy/auto_cpy control
