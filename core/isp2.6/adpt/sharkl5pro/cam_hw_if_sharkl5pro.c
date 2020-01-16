@@ -2577,9 +2577,8 @@ void sharkl5pro_isp_cfg_subblock(void *ctx)
 	ISP_REG_WR(idx, ISP_DISPATCH_CH0_SIZE,
 				fetch->in_trim.size_x | (fetch->in_trim.size_y << 16));
 	ISP_REG_WR(idx, ISP_DISPATCH_CH0_BAYER, pctx->dispatch_bayer_mode);
-	pr_debug("pitch ch0 %d, ch1 %d, ch2 %d, addr_ch0 %p, ch1 %p, ch2 %p\n",
-		fetch->pitch.pitch_ch0, fetch->pitch.pitch_ch1, fetch->pitch.pitch_ch2,
-		fetch->addr.addr_ch0, fetch->addr.addr_ch1, fetch->addr.addr_ch2);
+	pr_debug("pitch ch0 %d, ch1 %d, ch2 %d\n",
+		fetch->pitch.pitch_ch0, fetch->pitch.pitch_ch1, fetch->pitch.pitch_ch2);
 
 	ISP_REG_MWR(idx, ISP_VST_PARA, BIT_0, bypass);
 	ISP_REG_MWR(idx, ISP_NLM_PARA, BIT_0, bypass);
