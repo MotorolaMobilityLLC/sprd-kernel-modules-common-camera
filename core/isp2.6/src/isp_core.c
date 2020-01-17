@@ -109,7 +109,8 @@ void isp_ret_out_frame(void *param)
 			&path->reserved_buf_queue, frame);
 	else {
 		pctx = path->attach_ctx;
-		cambuf_iommu_unmap(&frame->buf);
+		if (frame->buf.mapping_state & CAM_BUF_MAPPING_DEV)
+			cambuf_iommu_unmap(&frame->buf);
 		pctx->isp_cb_func(
 			ISP_CB_RET_DST_BUF,
 			frame, pctx->cb_priv_data);
@@ -673,6 +674,19 @@ static int set_fmcu_slw_queue(
 			pr_debug("fail to get available output buffer.\n");
 			return -EINVAL;
 		}
+
+		if (out_frame->is_reserved == 0) {
+			ret = cambuf_iommu_map(
+					&out_frame->buf, CAM_IOMMUDEV_ISP);
+			pr_debug("map output buffer %08x\n", (uint32_t)out_frame->buf.iova[0]);
+			if (ret) {
+				camera_enqueue(&path->out_buf_queue, out_frame);
+				out_frame = NULL;
+				pr_err("fail to map isp iommu buf.\n");
+				return -EINVAL;
+			}
+		}
+
 		out_frame->fid = frame_id;
 		out_frame->sensor_time = pframe->sensor_time;
 		out_frame->boot_sensor_time = pframe->boot_sensor_time;
@@ -689,9 +703,11 @@ static int set_fmcu_slw_queue(
 			if (out_frame->is_reserved)
 				camera_enqueue(&path->reserved_buf_queue,
 						out_frame);
-			else
+			else {
+				cambuf_iommu_unmap(&out_frame->buf);
 				camera_enqueue(&path->out_buf_queue,
 						out_frame);
+			}
 			return -EINVAL;
 		}
 		atomic_inc(&path->store_cnt);
@@ -1267,6 +1283,22 @@ static int isp_offline_start_frame(void *ctx)
 				valid_out_frame = 1;
 			else
 				out_frame = camera_dequeue(&path->reserved_buf_queue);
+
+			if (out_frame != NULL) {
+				if (out_frame->is_reserved == 0 &&
+					(out_frame->buf.mapping_state & CAM_BUF_MAPPING_DEV) == 0) {
+					ret = cambuf_iommu_map(
+							&out_frame->buf, CAM_IOMMUDEV_ISP);
+					pr_debug("map output buffer %08x\n", (uint32_t)out_frame->buf.iova[0]);
+					if (ret) {
+						camera_enqueue(&path->out_buf_queue, out_frame);
+						out_frame = NULL;
+						pr_err("fail to map isp iommu buf.\n");
+						ret = 0;
+						goto unlock;
+					}
+				}
+			}
 		}
 
 		if (out_frame == NULL) {
@@ -1331,9 +1363,11 @@ static int isp_offline_start_frame(void *ctx)
 			if (out_frame->is_reserved)
 				camera_enqueue(
 					&path->reserved_buf_queue, out_frame);
-			else
+			else {
+				cambuf_iommu_unmap(&out_frame->buf);
 				camera_enqueue(
 					&path->out_buf_queue, out_frame);
+			}
 			ret = -EINVAL;
 			goto unlock;
 		}
@@ -2410,7 +2444,6 @@ static int sprd_isp_cfg_path(void *isp_handle,
 
 	switch (cfg_cmd) {
 	case ISP_PATH_CFG_OUTPUT_RESERVED_BUF:
-	case ISP_PATH_CFG_OUTPUT_BUF:
 		pframe = (struct camera_frame *)param;
 		ret = cambuf_iommu_map(
 				&pframe->buf, CAM_IOMMUDEV_ISP);
@@ -2450,18 +2483,20 @@ static int sprd_isp_cfg_path(void *isp_handle,
 					i++;
 				}
 			}
-		} else {
-			pr_debug("output buf\n");
-			pframe->is_reserved = 0;
-			pframe->priv_data = path;
-			ret = camera_enqueue(
-					&path->out_buf_queue, pframe);
-			if (ret) {
-				pr_err("fail to enqueue output buffer, path %d.\n",
-						path_id);
-				cambuf_iommu_unmap(&pframe->buf);
-				goto exit;
-			}
+		}
+		break;
+
+	case ISP_PATH_CFG_OUTPUT_BUF:
+		pframe = (struct camera_frame *)param;
+		pr_debug("output buf\n");
+		pframe->is_reserved = 0;
+		pframe->priv_data = path;
+		ret = camera_enqueue(
+				&path->out_buf_queue, pframe);
+		if (ret) {
+			pr_err("fail to enqueue output buffer, path %d.\n",
+					path_id);
+			goto exit;
 		}
 		break;
 
@@ -3146,6 +3181,20 @@ static int isp_do_superzoom_frame(void *ctx)
 		pr_err("fail to superzoom get available output buffer.\n");
 		ret = 0;
 		goto exit;
+	}
+
+	if (out_frame->is_reserved == 0 &&
+		(out_frame->buf.mapping_state & CAM_BUF_MAPPING_DEV) == 0) {
+		ret = cambuf_iommu_map(
+				&out_frame->buf, CAM_IOMMUDEV_ISP);
+		pr_debug("map superzoom output buffer %08x\n", (uint32_t)out_frame->buf.iova[0]);
+		if (ret) {
+			camera_enqueue(&slave_path->out_buf_queue, out_frame);
+			out_frame = NULL;
+			pr_err("fail to map isp iommu buf.\n");
+			ret = 0;
+			goto exit;
+		}
 	}
 
 	out_frame->fid = frame_id;
