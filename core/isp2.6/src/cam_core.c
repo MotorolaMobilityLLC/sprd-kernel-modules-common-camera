@@ -4739,6 +4739,8 @@ static int img_ioctl_set_output_size(
 	// TODO get this from HAL
 	dst->is_compressed = 0;
 	dst->scene = scene_mode;
+	if (cap_type == CAM_CAP_RAW_FULL && dst->is_high_fps)
+		dst->is_high_fps = 0;
 
 	pr_info("cam_channel: ch_id %d high fps %u %u. aux %d %d %d %d\n",
 		channel->ch_id, dst->is_high_fps, dst->high_fps_skip_num,
