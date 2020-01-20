@@ -96,6 +96,7 @@ int dcam_cfg_path_base(void *dcam_handle,
 	dev = (struct dcam_pipe_dev *)dcam_handle;
 	ch_desc = (struct dcam_path_cfg_param *)param;
 	idx = dev->idx;
+	dev->cap_info.cap_size = ch_desc->input_trim;
 
 	switch (path->path_id) {
 	case DCAM_PATH_FULL:

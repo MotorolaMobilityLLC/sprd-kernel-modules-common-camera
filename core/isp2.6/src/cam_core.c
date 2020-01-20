@@ -3719,6 +3719,10 @@ static int init_cam_channel(
 
 		ch_desc.endian.y_endian = ENDIAN_LITTLE;
 		ch_desc.bayer_pattern = module->cam_uinfo.sensor_if.img_ptn;
+		ch_desc.input_trim.start_x = module->cam_uinfo.sn_rect.x;
+		ch_desc.input_trim.start_y = module->cam_uinfo.sn_rect.y;
+		ch_desc.input_trim.size_x = module->cam_uinfo.sn_rect.w;
+		ch_desc.input_trim.size_y = module->cam_uinfo.sn_rect.h;
 		/* auto_3dnr:hw enable, channel->uinfo_3dnr == 1: hw enable */
 		ch_desc.enable_3dnr = (module->auto_3dnr | channel->uinfo_3dnr);
 		if (channel->ch_id == CAM_CH_RAW)
