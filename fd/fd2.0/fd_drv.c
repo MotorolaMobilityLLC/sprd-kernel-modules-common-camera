@@ -478,6 +478,7 @@ int sprd_fd_drv_open(void *drv_handle)
 								ret);
 			return ret;
 		}
+		sprd_iommu_restore(&hw_handle->pdev->dev);
 		FD_REG_MWR(hw_handle->io_base, FD_INT_CLR, FD_IRQ_MASK,
 				FD_IRQ_MASK);
 		fd_dvfs_map_cfg(hw_handle);
@@ -516,14 +517,20 @@ int sprd_fd_drv_close(void *drv_handle)
 {
 	struct fd_drv *hw_handle = NULL;
 	int ret = 0;
+	int i = 0;
 
 	hw_handle  = (struct fd_drv *)drv_handle;
 
-	ret = cambuf_iommu_unmap(&hw_handle->fd_buf_info[FD_BUF_CFG_INDEX].buf_info);
-	if (ret)
-		pr_err("fail to unmap FD_BUF_CFG_INDEX\n");
-	cambuf_put_ionbuf(&hw_handle->fd_buf_info[FD_BUF_CFG_INDEX].buf_info);
-	hw_handle->fd_buf_info[FD_BUF_CFG_INDEX].mfd = 0;
+	for (i = 0; i <  FD_BUF_INDEX_MAX; i++) {
+		if(hw_handle->fd_buf_info[i].mfd != 0 && (hw_handle->fd_buf_info[i].buf_info.mapping_state & CAM_BUF_MAPPING_DEV)) {
+			ret = cambuf_iommu_unmap(&hw_handle->fd_buf_info[i].buf_info);
+			if (ret)
+				pr_err("fail to unmap FD_BUF_CFG_INDEX\n", i);
+                  	cambuf_put_ionbuf(&hw_handle->fd_buf_info[i].buf_info);
+			hw_handle->fd_buf_info[i].mfd = 0;
+		}
+	}
+
 	devm_free_irq(&hw_handle->pdev->dev, hw_handle->irq_no,
 			(void *)hw_handle);
 	if (atomic_dec_return(&hw_handle->pw_users) == 0) {
@@ -533,7 +540,6 @@ int sprd_fd_drv_close(void *drv_handle)
 		ret = sprd_fd_drv_reset(hw_handle);
 		if (ret)
 			pr_err("FD_ERR: close reset failed\n");
-
 
 		/*TODO sync with dvfs implementation*/
 #if FD_DVFS_ENABLED

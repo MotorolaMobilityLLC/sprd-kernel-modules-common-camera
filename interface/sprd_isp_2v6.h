@@ -30,6 +30,7 @@
 #define STATIS_BUF_NUM_MAX 8
 
 #define STATIS_AEM_HEADER_SIZE 128
+#define STATIS_HIST_HEADER_SIZE 128
 
 /* SharkL5/ROC1/SharkL5Pro */
 /* AFL: global 80 x 16 bytes for one frame, region 482 x 16 bytes one frame */
@@ -1101,6 +1102,7 @@ struct isp_dev_nlm_imblance_v1 {
 	uint32_t nlm_imblance_flag3_frez;
 	uint32_t nlm_imblance_S_baohedu[3][2];
 	uint32_t imblance_sat_lumth;
+	uint32_t radius_base;
 	uint32_t nlm_imblance_lumth1;
 	uint32_t nlm_imblance_lumth2;
 	uint32_t nlm_imblance_lum1_flag0_rs;
@@ -1135,6 +1137,7 @@ struct isp_dev_nlm_imblance_v1 {
 	uint32_t imblance_radial_1D_center_x;
 	uint32_t imblance_radial_1D_center_y;
 	uint32_t imblance_radial_1D_radius_thr;
+	uint32_t imblance_radial_1D_radius_thr_factor;
 	uint32_t imblance_radial_1D_protect_ratio_max;
 	uint32_t imblance_radial_1D_coef_r0;
 	uint32_t imblance_radial_1D_coef_r1;

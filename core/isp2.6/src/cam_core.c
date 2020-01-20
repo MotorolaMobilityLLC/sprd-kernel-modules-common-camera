@@ -2123,6 +2123,10 @@ static int cal_channel_swapsize(struct camera_module *module)
 	ratio_min = MAX(ratio_min, (1 << RATIO_SHIFT));
 	max.w = fix_scale(max.w, ratio_min);
 	max.h = fix_scale(max.h, ratio_min);
+	if (max.w > DCAM_RDS_OUT_LIMIT) {
+		max.w = DCAM_RDS_OUT_LIMIT;
+		max.h= src_p.h * max.w / src_p.w;
+	}
 	max.w = ALIGN(max.w + ALIGN_OFFSET, ALIGN_OFFSET);
 	max.h = ALIGN(max.h + ALIGN_OFFSET, ALIGN_OFFSET);
 	max_rds = max;

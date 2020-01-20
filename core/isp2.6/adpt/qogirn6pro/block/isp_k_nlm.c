@@ -14,8 +14,8 @@
 #include <linux/uaccess.h>
 #include <linux/vmalloc.h>
 #include <sprd_mm.h>
-
 #include "sprd_isp_hw.h"
+
 #include "isp_reg.h"
 #include "cam_types.h"
 #include "cam_block.h"
@@ -25,15 +25,18 @@
 #endif
 #define pr_fmt(fmt) "NLM: %d %d %s : "\
 	fmt, current->pid, __LINE__, __func__
+#define ISP_VST_IVST_BUF_ADDR_IDX		1024
 
 
 static int load_vst_ivst_buf(
-	struct isp_dev_nlm_info_v2 *nlm_info, uint32_t idx)
+	struct isp_dev_nlm_info_v2 *nlm_info, uint32_t idx, uint32_t *vst_ivst_buf)
 {
 	int ret = 0;
 	uint32_t buf_len;
 	uint32_t buf_sel;
-	unsigned long reg_addr;
+	uint32_t val;
+	unsigned int i = 0;
+	unsigned int j = 0;
 	unsigned long utab_addr;
 	void __user *vst_table;
 	void __user *ivst_table;
@@ -43,31 +46,65 @@ static int load_vst_ivst_buf(
 	ISP_REG_MWR(idx, ISP_IVST_PARA, BIT_1, buf_sel << 1);
 
 	if (nlm_info->vst_bypass == 0 && nlm_info->vst_table_addr) {
-		buf_len = ISP_VST_IVST_NUM * 4;
-		if (nlm_info->vst_len < (ISP_VST_IVST_NUM * 4))
+		buf_len = ISP_VST_IVST_NUM2 * 4;
+		if (nlm_info->vst_len < (ISP_VST_IVST_NUM2 * 4))
 			buf_len = nlm_info->vst_len;
 
 		utab_addr = (unsigned long)nlm_info->vst_table_addr;
 		pr_debug("vst table addr 0x%lx\n", utab_addr);
-
 		vst_table = (void __user *)utab_addr;
-		reg_addr = ISP_BASE_ADDR(idx) + ISP_VST_BUF0_ADDR;
-		ret = copy_from_user((void *)reg_addr, vst_table, buf_len);
-	}
+		ret = copy_from_user((void *)vst_ivst_buf, vst_table, buf_len);
 
+		/*recombine the vst/ivst table as requires of l5pro's vst/ivst module*/
+		for(i = 0; i < ISP_VST_IVST_BUF_ADDR_IDX - 2; i++){
+			for(j = 0; j < 2; j++){
+				val = ((vst_ivst_buf[i + 2 * j] & 0x3fff) << 16) | (vst_ivst_buf[i + 2 * j + 1] & 0x3fff);
+				ISP_REG_WR(idx, ISP_VST_BUF0_ADDR + (2 * i + j) * 4, val);
+			}
+		}
+
+		val = ((vst_ivst_buf[1022] & 0x3fff) << 16) | (vst_ivst_buf[1023] & 0x3fff);
+		ISP_REG_WR(idx, ISP_VST_BUF0_ADDR + 2 * 1022 * 4, val);
+
+		val = ((vst_ivst_buf[1024] & 0x3fff) << 16) | (vst_ivst_buf[1024] & 0x3fff);
+		ISP_REG_WR(idx, ISP_VST_BUF0_ADDR + ( 2 * 1022 + 1) * 4, val);
+
+		val = ((vst_ivst_buf[1023] & 0x3fff) << 16) | (vst_ivst_buf[1024] & 0x3fff);
+		ISP_REG_WR(idx, ISP_VST_BUF0_ADDR + 2 * 1023 * 4, val);
+
+		val = ((vst_ivst_buf[1024] & 0x3fff) << 16) | (vst_ivst_buf[1024] & 0x3fff);
+		ISP_REG_WR(idx, ISP_VST_BUF0_ADDR + (2 * 1023 + 1) * 4, val);
+	}
 	if (nlm_info->ivst_bypass == 0 && nlm_info->ivst_table_addr) {
-		buf_len = ISP_VST_IVST_NUM * 4;
-		if (nlm_info->ivst_len < (ISP_VST_IVST_NUM * 4))
+		buf_len = ISP_VST_IVST_NUM2 * 4;
+		if (nlm_info->ivst_len < (ISP_VST_IVST_NUM2 * 4))
 			buf_len = nlm_info->ivst_len;
 
 		utab_addr = (unsigned long)nlm_info->ivst_table_addr;
 		pr_debug("ivst table addr 0x%lx\n", utab_addr);
-
 		ivst_table = (void __user *)utab_addr;
-		reg_addr = ISP_BASE_ADDR(idx) + ISP_IVST_BUF0_ADDR;
-		ret = copy_from_user((void *)reg_addr, ivst_table, buf_len);
-	}
+		ret = copy_from_user((void *)vst_ivst_buf, ivst_table, buf_len);
 
+		/*recombine the vst/ivst table as requires of l5pro's vst/ivst module*/
+		for(i = 0; i < ISP_VST_IVST_BUF_ADDR_IDX - 2; i++){
+			for(j = 0; j < 2; j++){
+				val = ((vst_ivst_buf[i + 2 * j] & 0x3fff) << 16) | (vst_ivst_buf[i + 2 * j + 1] & 0x3fff);
+				ISP_REG_WR(idx, ISP_IVST_BUF0_ADDR + (2 * i + j) * 4, val);
+			}
+		}
+
+		val = ((vst_ivst_buf[1022] & 0x3fff) << 16) | (vst_ivst_buf[1023] & 0x3fff);
+		ISP_REG_WR(idx, ISP_IVST_BUF0_ADDR + 2 * 1022 * 4, val);
+
+		val = ((vst_ivst_buf[1024] & 0x3fff) << 16) | (vst_ivst_buf[1024] & 0x3fff);
+		ISP_REG_WR(idx, ISP_IVST_BUF0_ADDR + (2 * 1022 + 1) * 4, val);
+
+		val = ((vst_ivst_buf[1023] & 0x3fff) << 16) | (vst_ivst_buf[1024] & 0x3fff);
+		ISP_REG_WR(idx, ISP_IVST_BUF0_ADDR + 2 * 1023 * 4, val);
+
+		val = ((vst_ivst_buf[1024] & 0x3fff) << 16) | (vst_ivst_buf[1024] & 0x3fff);
+		ISP_REG_WR(idx, ISP_IVST_BUF0_ADDR + ( 2 * 1023 + 1) * 4, val);
+	}
 	return ret;
 }
 
@@ -76,6 +113,7 @@ static int isp_k_nlm_block(struct isp_io_param *param,
 {
 	int ret = 0;
 	uint32_t i, j, val = 0;
+	uint32_t *vst_ivst_buf;
 	struct isp_dev_nlm_info_v2 *p;
 
 	p = &isp_k_param->nlm_info;
@@ -161,11 +199,6 @@ static int isp_k_nlm_block(struct isp_io_param *param,
 		ISP_REG_WR(idx, ISP_NLM_LUM0_FLAT3_PARAM + i * 32, val);
 	}
 
-	val = ((p->lum_flat_addback1[2][3] & 0x7F) << 14) |
-		((p->lum_flat_addback1[1][3] & 0x7F) << 7) |
-		(p->lum_flat_addback1[0][3] & 0x7F);
-	ISP_REG_WR(idx, ISP_NLM_ADDBACK3, val);
-
 	val = (p->radius_bypass & 0x1) |
 		((p->nlm_radial_1D_bypass & 0x1) << 1) |
 		((p->nlm_direction_addback_mode_bypass & 0x1) << 2) |
@@ -211,7 +244,138 @@ static int isp_k_nlm_block(struct isp_io_param *param,
 		}
 	}
 
-	ret = load_vst_ivst_buf(p, idx);
+	if (isp_k_param->nlm_buf == NULL) {
+		pr_err("fail to get nlm_buf, buf null\n");
+		return  0;
+	}
+
+	vst_ivst_buf = isp_k_param->nlm_buf;
+	ret = load_vst_ivst_buf(p, idx, vst_ivst_buf);
+	return ret;
+}
+
+static int isp_k_nlm_imblance(
+		struct isp_io_param *param, uint32_t idx)
+{
+	int ret = 0;
+	struct isp_dev_nlm_imblance_v1 imblance_info;
+
+	ret = copy_from_user((void *)&imblance_info,
+			(void __user *)param->property_param,
+			sizeof(struct isp_dev_nlm_imblance_v1));
+	if (ret != 0) {
+		pr_err("fail to copy from user, ret = %d\n", ret);
+		return  ret;
+	}
+
+	/* new added below */
+	ISP_REG_MWR(idx, ISP_NLM_IMBLANCE_CTRL, BIT_0,
+			imblance_info.nlm_imblance_bypass);
+	if (imblance_info.nlm_imblance_bypass == 1)
+		return 0;
+
+	ISP_REG_MWR(idx, ISP_NLM_IMBLANCE_CTRL, BIT_1,
+			imblance_info.imblance_radial_1D_en);
+	ISP_REG_WR(idx, ISP_NLM_IMBLANCE_PARA1,
+		(imblance_info.nlm_imblance_slash_edge_thr[0] & 0xff) |
+		((imblance_info.nlm_imblance_hv_edge_thr[0] & 0xff) << 8) |
+		((imblance_info.nlm_imblance_S_baohedu[0][0] & 0xff) << 16) |
+		((imblance_info.nlm_imblance_S_baohedu[0][1] & 0xff) << 24));
+	ISP_REG_WR(idx, ISP_NLM_IMBLANCE_PARA2,
+		(imblance_info.nlm_imblance_slash_flat_thr[0] & 0x3ff) |
+		((imblance_info.nlm_imblance_hv_flat_thr[0] & 0x3ff) << 10));
+	ISP_REG_WR(idx, ISP_NLM_IMBLANCE_PARA3,
+		(imblance_info.nlm_imblance_flag3_frez & 0x3ff) |
+		((imblance_info.nlm_imblance_flag3_lum & 0x3ff) << 10) |
+		((imblance_info.nlm_imblance_flag3_grid & 0x3ff) << 20));
+	ISP_REG_WR(idx, ISP_NLM_IMBLANCE_PARA4,
+		(imblance_info.nlm_imblance_lumth2 & 0xffff) |
+		((imblance_info.nlm_imblance_lumth1 & 0xffff) << 16));
+	ISP_REG_WR(idx, ISP_NLM_IMBLANCE_PARA5,
+		(imblance_info.nlm_imblance_lum1_flag4_r & 0x7ff) |
+		((imblance_info.nlm_imblance_lum1_flag2_r & 0x7ff) << 11) |
+		((imblance_info.nlm_imblance_flag12_frezthr & 0x3ff) << 22));
+	ISP_REG_WR(idx, ISP_NLM_IMBLANCE_PARA6,
+		(imblance_info.nlm_imblance_lum1_flag0_r & 0x7ff) |
+		((imblance_info.nlm_imblance_lum1_flag0_rs & 0x7ff) << 11));
+	ISP_REG_WR(idx, ISP_NLM_IMBLANCE_PARA7,
+		(imblance_info.nlm_imblance_lum2_flag2_r & 0x7ff) |
+		((imblance_info.nlm_imblance_lum1_flag1_r & 0x7ff) << 11));
+	ISP_REG_WR(idx, ISP_NLM_IMBLANCE_PARA8,
+		(imblance_info.nlm_imblance_lum2_flag0_rs & 0x7ff) |
+		((imblance_info.nlm_imblance_lum2_flag4_r & 0x7ff) << 11));
+	ISP_REG_WR(idx, ISP_NLM_IMBLANCE_PARA9,
+		(imblance_info.nlm_imblance_lum2_flag1_r & 0x7ff) |
+		((imblance_info.nlm_imblance_lum2_flag0_r & 0x7ff) << 11));
+	ISP_REG_WR(idx, ISP_NLM_IMBLANCE_PARA10,
+		(imblance_info.nlm_imblance_lum3_flag4_r & 0x7ff) |
+		((imblance_info.nlm_imblance_lum3_flag2_r & 0x7ff) << 11));
+	ISP_REG_WR(idx, ISP_NLM_IMBLANCE_PARA11,
+		(imblance_info.nlm_imblance_lum3_flag0_r & 0x7ff) |
+		((imblance_info.nlm_imblance_lum3_flag0_rs & 0x7ff) << 11));
+	ISP_REG_WR(idx, ISP_NLM_IMBLANCE_PARA12,
+		(imblance_info.nlm_imblance_diff[0] & 0x3ff) |
+		((imblance_info.nlm_imblance_lum3_flag1_r & 0x7ff) << 10));
+	ISP_REG_WR(idx, ISP_NLM_IMBLANCE_PARA13,
+		(imblance_info.nlm_imblance_faceRmax & 0xffff) |
+		((imblance_info.nlm_imblance_faceRmin & 0xffff) << 16));
+	ISP_REG_WR(idx, ISP_NLM_IMBLANCE_PARA14,
+		(imblance_info.nlm_imblance_faceBmax & 0xffff) |
+		((imblance_info.nlm_imblance_faceBmin & 0xffff) << 16));
+	ISP_REG_WR(idx, ISP_NLM_IMBLANCE_PARA15,
+		(imblance_info.nlm_imblance_faceGmax & 0xffff) |
+		((imblance_info.nlm_imblance_faceGmin & 0xffff) << 16));
+	ISP_REG_WR(idx, ISP_NLM_IMBLANCE_PARA16,
+		(imblance_info.nlm_imblance_hv_edge_thr[1] & 0xff) |
+		((imblance_info.nlm_imblance_hv_edge_thr[2] & 0xff) << 8) |
+		((imblance_info.nlm_imblance_slash_edge_thr[2] & 0xff) << 16) |
+		((imblance_info.nlm_imblance_slash_edge_thr[1] & 0xff) << 24));
+	ISP_REG_WR(idx, ISP_NLM_IMBLANCE_PARA17,
+		(imblance_info.nlm_imblance_hv_flat_thr[2] & 0x3ff << 16) |
+		(imblance_info.nlm_imblance_hv_flat_thr[1] & 0x3ff));
+	ISP_REG_WR(idx, ISP_NLM_IMBLANCE_PARA18,
+		(imblance_info.nlm_imblance_slash_flat_thr[2] & 0x3ff << 16) |
+		(imblance_info.nlm_imblance_slash_flat_thr[1] & 0x3ff));
+	ISP_REG_WR(idx, ISP_NLM_IMBLANCE_PARA19,
+		(imblance_info.nlm_imblance_S_baohedu[1][0] & 0xff) |
+		((imblance_info.nlm_imblance_S_baohedu[2][0] & 0xff) << 8) |
+		((imblance_info.nlm_imblance_S_baohedu[1][1] & 0xff) << 16) |
+		((imblance_info.nlm_imblance_S_baohedu[2][1] & 0xff) << 24));
+	ISP_REG_WR(idx, ISP_NLM_IMBLANCE_PARA20,
+		(imblance_info.nlm_imblance_lum2_flag3_r & 0x7ff << 16) |
+		(imblance_info.nlm_imblance_lum1_flag3_r & 0x7ff));
+	ISP_REG_WR(idx, ISP_NLM_IMBLANCE_PARA21,
+		(imblance_info.imblance_sat_lumth & 0x3ff << 16) |
+		(imblance_info.nlm_imblance_lum3_flag3_r & 0x7ff ));
+	ISP_REG_WR(idx, ISP_NLM_IMBLANCE_PARA22,
+		(imblance_info.nlm_imblance_diff[2] & 0x3ff << 16) |
+		(imblance_info.nlm_imblance_diff[1] & 0x3ff ));
+	ISP_REG_WR(idx, ISP_NLM_IMBLANCE_PARA23,
+		(imblance_info.nlm_imblance_ff_wt1 & 0x3ff << 16) |
+		(imblance_info.nlm_imblance_ff_wt0 & 0x3ff ));
+	ISP_REG_WR(idx, ISP_NLM_IMBLANCE_PARA24,
+		(imblance_info.nlm_imblance_ff_wt3 & 0x3ff << 16) |
+		(imblance_info.nlm_imblance_ff_wt2 & 0x3ff ));
+	ISP_REG_WR(idx, ISP_NLM_IMBLANCE_PARA25,
+		(imblance_info.nlm_imblance_ff_wr0 & 0xff) |
+		((imblance_info.nlm_imblance_ff_wr1 & 0xff) << 8) |
+		((imblance_info.nlm_imblance_ff_wr2 & 0xff) << 16) |
+		((imblance_info.nlm_imblance_ff_wr3 & 0xff) << 24));
+	ISP_REG_WR(idx, ISP_NLM_IMBLANCE_PARA26,
+		(imblance_info.nlm_imblance_ff_wr4 & 0xff) |
+		((imblance_info.imblance_radial_1D_coef_r0 & 0xff) << 8) |
+		((imblance_info.imblance_radial_1D_coef_r1 & 0xff) << 16) |
+		((imblance_info.imblance_radial_1D_coef_r2 & 0xff) << 24));
+	ISP_REG_WR(idx, ISP_NLM_IMBLANCE_PARA27,
+		(imblance_info.imblance_radial_1D_coef_r3 & 0xff) |
+		((imblance_info.imblance_radial_1D_coef_r4 & 0xff) << 8) |
+		((imblance_info.imblance_radial_1D_protect_ratio_max & 0x7ff) << 16));
+	ISP_REG_WR(idx, ISP_NLM_IMBLANCE_PARA28,
+		(imblance_info.imblance_radial_1D_center_x & 0xffff << 16) |
+		(imblance_info.imblance_radial_1D_center_y & 0xffff ));
+	ISP_REG_WR(idx, ISP_NLM_IMBLANCE_PARA29,
+		(imblance_info.imblance_radial_1D_radius_thr & 0xffff ));
+
 	return ret;
 }
 
@@ -223,6 +387,9 @@ int isp_k_cfg_nlm(struct isp_io_param *param,
 	switch (param->property) {
 	case ISP_PRO_NLM_BLOCK:
 		ret = isp_k_nlm_block(param, isp_k_param, idx);
+		break;
+	case ISP_PRO_NLM_IMBLANCE:
+		ret = isp_k_nlm_imblance(param, idx);
 		break;
 	default:
 		pr_err("fail to support cmd id = %d\n",
@@ -310,16 +477,6 @@ int isp_k_update_nlm(uint32_t idx,
 			p->nlm_first_lum_flat_thresh_coef[i][j],
 			filter_ratio, coef2, flat_thresh_coef);
 	}
-
-	return ret;
-}
-
-int isp_k_update_imbalance(uint32_t idx,
-	struct isp_k_block *isp_k_param,
-	uint32_t new_width, uint32_t old_width,
-	uint32_t new_height, uint32_t old_height)
-{
-	int ret = 0;
 
 	return ret;
 }

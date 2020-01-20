@@ -480,3 +480,36 @@ int isp_k_update_nlm(uint32_t idx,
 
 	return ret;
 }
+
+int isp_k_update_imbalance(uint32_t idx,
+	struct isp_k_block *isp_k_param,
+	uint32_t new_width, uint32_t old_width,
+	uint32_t new_height, uint32_t old_height)
+{
+	int ret = 0;
+	uint32_t val, center_x, center_y;
+	uint32_t radius, radius_limit;
+	struct isp_dev_nlm_imblance_v1 *imbalance_info;
+
+	imbalance_info = &isp_k_param->imbalance_info;
+	if (imbalance_info->nlm_imblance_bypass)
+		return 0;
+
+	center_x = new_width >> 1;
+	center_y = new_height >> 1;
+	val = (center_x << 16) | center_y;
+	ISP_REG_WR(idx, ISP_NLM_IMBLANCE_PARA28, val);
+
+	radius = (imbalance_info->imblance_radial_1D_radius_thr * new_width + (old_width / 2)) / old_width;
+	radius_limit = (new_height + new_width) * imbalance_info->imblance_radial_1D_radius_thr_factor / imbalance_info->radius_base;
+	radius = (radius < radius_limit) ? radius : radius_limit;
+
+	val = radius;
+	ISP_REG_WR(idx, ISP_NLM_IMBLANCE_PARA29, val);
+
+	pr_info("center %d %d,  orig radius %d %d, base %d, new %d %d\n",
+		center_x, center_y, imbalance_info->imblance_radial_1D_radius_thr,imbalance_info->imblance_radial_1D_radius_thr_factor,imbalance_info->radius_base,radius_limit,radius);
+
+	return ret;
+}
+
