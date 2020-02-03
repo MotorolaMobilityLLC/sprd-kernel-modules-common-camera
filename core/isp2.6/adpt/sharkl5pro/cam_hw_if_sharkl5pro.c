@@ -35,6 +35,10 @@
 #define DCAM_AXI_STOP_TIMEOUT 2000
 #define DCAM_AXIM_AQOS_MASK (0x30FFFF)
 #define ISP_AXI_STOP_TIMEOUT			1000
+
+#define IMG_TYPE_RAW                   0x2B
+#define IMG_TYPE_YUV                   0x1E
+
 extern atomic_t s_dcam_working;
 static uint32_t dcam_linebuf_len[3] = {0, 0, 0};
 extern void sprd_kproperty_get(const char *key, char *value, const char *default_value);
@@ -419,6 +423,10 @@ static int sharkl5pro_dcam_start(void *arg)
 	int ret = 0;
 	struct dcam_pipe_dev *dev = NULL;
 	uint32_t idx = 0;
+	uint32_t reg_val = 0;
+	uint32_t image_vc = 0;
+	uint32_t image_data_type = IMG_TYPE_RAW;
+	uint32_t image_mode = 1;
 
 	if (!arg) {
 		pr_err("fail to get valid arg\n");
@@ -431,6 +439,14 @@ static int sharkl5pro_dcam_start(void *arg)
 	DCAM_REG_WR(idx, DCAM_INT_CLR, 0xFFFFFFFF);
 	/* see DCAM_PREVIEW_SOF in dcam_int.h for details */
 	DCAM_REG_WR(idx, DCAM_INT_EN, DCAMINT_IRQ_LINE_EN_NORMAL);
+
+	if (dev->cap_info.format == DCAM_CAP_MODE_YUV)
+		image_data_type = IMG_TYPE_YUV;
+
+	reg_val = ((image_vc & 0x3) << 16) |
+		((image_data_type & 0x3F) << 8) | (image_mode & 0x3);
+	DCAM_REG_WR(dev->idx, DCAM_IMAGE_CONTROL, reg_val);
+
 	/* trigger cap_en*/
 	DCAM_REG_MWR(idx, DCAM_MIPI_CAP_CFG, BIT_0, 1);
 
@@ -749,8 +765,9 @@ static int sharkl5pro_dcam_mipi_cap_set(void *arg)
 		}
 
 		DCAM_REG_MWR(idx, DCAM_MIPI_CAP_CFG, BIT_1,  0 << 1);
-		DCAM_REG_MWR(idx, DCAM_MIPI_CAP_FRM_CTRL,
-				BIT_1 | BIT_0, cap_info->pattern);
+		DCAM_REG_MWR(idx, DCAM_MIPI_CAP_CFG,
+			BIT_14 | BIT_15, cap_info->pattern << 14);
+
 		/* x & y deci */
 		DCAM_REG_MWR(idx, DCAM_MIPI_CAP_FRM_CTRL,
 				BIT_9 | BIT_8 | BIT_5 | BIT_4,
@@ -852,6 +869,10 @@ static int sharkl5pro_dcam_path_start(void *handle, uint32_t path_id)
 		DCAM_REG_MWR(idx, DCAM_FULL_CFG, BIT_0, (0x1));
 		DCAM_REG_MWR(idx, NR3_FAST_ME_PARAM, BIT_7 | BIT_6,
 			(path->bayer_pattern & 0x3) << 6);
+
+		if (dev->cap_info.format == DCAM_CAP_MODE_YUV)
+			DCAM_REG_MWR(idx, DCAM_CAM_BIN_CFG, BIT_0, 0x1);
+
 		break;
 
 	case  DCAM_PATH_BIN:
@@ -2002,6 +2023,10 @@ static void sharkl5pro_isp_fetch_set(void *arg)
 	en_3dnr = 0;/* (pctx->mode_3dnr == MODE_3DNR_OFF) ? 0 : 1; */
 	ISP_REG_MWR(idx, ISP_COMMON_SPACE_SEL,
 			BIT_1 | BIT_0, pctx->dispatch_color);
+
+	if (pctx->in_fmt != IMG_PIX_FMT_GREY)
+		ISP_REG_MWR(idx, ISP_YUV_MULT, BIT_31, 0 << 31);
+
 	/* 11b: close store_dbg module */
 	ISP_REG_MWR(idx, ISP_COMMON_SPACE_SEL,
 			BIT_3 | BIT_2, 3 << 2);
