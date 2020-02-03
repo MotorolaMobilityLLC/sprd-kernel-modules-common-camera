@@ -3576,6 +3576,7 @@ static void deinit_4in1_secondary_path(struct camera_module *module,
 
 static int init_channels_size(struct camera_module *module)
 {
+	uint32_t format = module->cam_uinfo.sensor_if.img_fmt;
 	/* bypass RDS if sensor output binning size for image quality */
 	module->zoom_solution = g_camctrl.dcam_zoom_mode;
 	module->rds_limit = g_camctrl.dcam_rds_limit;
@@ -3583,6 +3584,9 @@ static int init_channels_size(struct camera_module *module)
 	/* force binning as smaller as possible for security */
 	if (module->grp->camsec_cfg.camsec_mode != SEC_UNABLE)
 		module->zoom_solution = ZOOM_BINNING4;
+
+	if (format == DCAM_CAP_MODE_YUV)
+		module->zoom_solution = ZOOM_DEFAULT;
 
 	cal_channel_swapsize(module);
 
@@ -3607,6 +3611,7 @@ static int init_cam_channel(
 	struct isp_path_base_desc path_desc;
 	struct isp_init_param init_param;
 	struct cam_hw_info *hw = NULL;
+	uint32_t format = 0;
 
 	hw = module->grp->hw_info;
 	ch_uinfo = &channel->ch_uinfo;
@@ -3616,10 +3621,15 @@ static int init_cam_channel(
 	new_isp_path = 0;
 	new_dcam_path = 0;
 	memset(&init_param, 0, sizeof(struct isp_init_param));
+	format = module->cam_uinfo.sensor_if.img_fmt;
+
 
 	switch (channel->ch_id) {
 	case CAM_CH_PRE:
-		dcam_path_id = DCAM_PATH_BIN;
+		if (format == DCAM_CAP_MODE_YUV)
+			dcam_path_id = DCAM_PATH_FULL;
+		else
+			dcam_path_id = DCAM_PATH_BIN;
 		isp_path_id = ISP_SPATH_CP;
 		new_isp_ctx = 1;
 		new_isp_path = 1;
@@ -3738,6 +3748,7 @@ static int init_cam_channel(
 
 	if (new_isp_ctx) {
 		struct isp_ctx_base_desc ctx_desc;
+		uint32_t format = module->cam_uinfo.sensor_if.img_fmt;
 
 		memset(&ctx_desc, 0, sizeof(struct isp_ctx_base_desc));
 		init_param.is_high_fps = ch_uinfo->is_high_fps;
@@ -3753,7 +3764,10 @@ static int init_cam_channel(
 				isp_ctx_id, isp_callback, module);
 
 		/* todo: cfg param to user setting. */
-		ctx_desc.in_fmt = ch_uinfo->sn_fmt;
+		if (format == DCAM_CAP_MODE_YUV)
+			ctx_desc.in_fmt = ch_uinfo->dst_fmt;
+		else
+			ctx_desc.in_fmt = ch_uinfo->sn_fmt;
 		ctx_desc.is_loose = module->cam_uinfo.sensor_if.if_spec.mipi.is_loose;
 		ctx_desc.bayer_pattern = module->cam_uinfo.sensor_if.img_ptn;
 		ctx_desc.mode_ltm = MODE_LTM_OFF;

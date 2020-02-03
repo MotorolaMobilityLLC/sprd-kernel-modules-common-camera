@@ -426,6 +426,7 @@ int dcam_path_set_store_frm(void *dcam_handle,
 	struct camera_frame *frame = NULL, *saved = NULL;
 	uint32_t idx = 0, path_id = 0;
 	unsigned long flags = 0, addr = 0;
+	unsigned long u_addr = 0;
 	const int _bin = 0, _aem = 1, _hist = 2;
 	int i = 0, ret = 0;
 	uint32_t slm_path = 0;
@@ -438,6 +439,9 @@ int dcam_path_set_store_frm(void *dcam_handle,
 	idx = dev->idx;
 	path_id = path->path_id;
 	dev->auto_cpy_id |= *(hw->ip_dcam[idx]->path_ctrl_id_tab + path_id);
+
+	if (dev->cap_info.format == DCAM_CAP_MODE_YUV)
+		dev->auto_cpy_id |= *(hw->ip_dcam[idx]->path_ctrl_id_tab + DCAM_PATH_BIN);
 
 	pr_debug("DCAM%u %s enter\n", idx, to_path_name(path_id));
 
@@ -497,6 +501,13 @@ int dcam_path_set_store_frm(void *dcam_handle,
 			    frame->buf.iova[0] + STATIS_HIST_HEADER_SIZE);
 	} else {
 		DCAM_REG_WR(idx, addr, frame->buf.iova[0]);
+		if (dev->cap_info.format == DCAM_CAP_MODE_YUV) {
+			if (path_id == DCAM_PATH_FULL) {
+				u_addr = *(hw->ip_dcam[idx]->store_addr_tab + DCAM_PATH_BIN);
+				DCAM_REG_WR(idx, u_addr, frame->buf.iova[0]+frame->width * frame->height);
+				pr_debug("w %d,  h %d\n",frame->width,frame->height);
+			}
+		}
 	}
 	if (saved)
 		swap_frame_pointer(&frame, &saved);
@@ -520,7 +531,7 @@ int dcam_path_set_store_frm(void *dcam_handle,
 		 atomic_read(&path->set_frm_cnt));
 
 	pr_debug("DCAM%u %s reg %08x, addr %08x\n", idx, to_path_name(path_id),
-		 (uint32_t)addr, (uint32_t)frame->buf.iova[0]);
+		(uint32_t)addr, (uint32_t)frame->buf.iova[0]);
 
 	/* bind frame sync data if it is not reserved buffer */
 	if (helper && !frame->is_reserved && is_sync_enabled(dev, path_id)) {
