@@ -621,7 +621,7 @@ int isp_cfg_ctx_base(struct isp_pipe_context *pctx, void *param)
 	pctx->is_loose = cfg_in->is_loose;
 	pctx->dispatch_bayer_mode = cfg_in->bayer_pattern;
 	pctx->dev->ltm_handle->ops->set_status(1, pctx->ctx_id,
-					       pctx->mode_ltm);
+		pctx->mode_ltm, pctx->attach_cam_id);
 	pctx->ch_id = cfg_in->ch_id;
 	if (pctx->in_fmt == IMG_PIX_FMT_GREY)
 		pctx->dispatch_color = 0; /* raw rgb */

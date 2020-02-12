@@ -1790,6 +1790,7 @@ static int sprd_dcam_cfg_path(
 		state = *(uint32_t *)param;
 		spin_lock_irqsave(&path->state_lock, flag);
 		path->state = state;
+		path->state_update = 1;
 		spin_unlock_irqrestore(&path->state_lock, flag);
 		break;
 	default:
@@ -1920,6 +1921,7 @@ static int sprd_dcam_ioctrl(void *dcam_handle,
 	struct dcam_path_desc *path = NULL;
 	struct camera_frame *frame = NULL;
 	int *fbc_mode = NULL;
+	uint32_t gtm_param_idx = 0;
 
 	if (!dcam_handle) {
 		pr_err("fail to get valid input ptr\n");
@@ -2011,6 +2013,16 @@ static int sprd_dcam_ioctrl(void *dcam_handle,
 		break;
 	case DCAM_IOCTL_CFG_STATIS_BUF_SKIP:
 		ret = dcam_cfg_statis_buffer_skip(dev, param);
+		break;
+	case DCAM_IOCTL_CFG_GTM_UPDATE:
+		gtm_param_idx = *(uint32_t *)param;
+		if (gtm_param_idx == DCAM_GTM_PARAM_CAP)
+			dev->blk_dcam_pm->gtm[DCAM_GTM_PARAM_PRE].update_en = 0;
+		else
+			dev->blk_dcam_pm->gtm[DCAM_GTM_PARAM_PRE].update_en = 1;
+		dev->blk_dcam_pm->gtm[DCAM_GTM_PARAM_PRE].update |= BIT(0);
+		if (dev->hw->hw_ops.core_ops.cam_gtm_update)
+			dev->hw->hw_ops.core_ops.cam_gtm_update(gtm_param_idx, dev);
 		break;
 	default:
 		pr_err("fail to get a known cmd: %d\n", cmd);
@@ -2306,6 +2318,8 @@ static int sprd_dcam_dev_stop(void *dcam_handle)
 	dev->blk_dcam_pm->afl.bypass = 1;
 	dev->blk_dcam_pm->hist.bayerHist_info.hist_bypass = 1;
 	dev->blk_dcam_pm->lscm.bypass = 1;
+	dev->blk_dcam_pm->gtm[DCAM_GTM_PARAM_PRE].update_en = 1;
+	dev->blk_dcam_pm->gtm[DCAM_GTM_PARAM_CAP].update_en = 1;
 	dev->is_pdaf = dev->is_3dnr = dev->is_4in1 = 0;
 	dev->err_count = 0;
 	dev->offline = 0;
@@ -2379,6 +2393,8 @@ static int sprd_dcam_dev_open(void *dcam_handle)
 	dev->blk_dcam_pm->afl.bypass = 1;
 	dev->blk_dcam_pm->lscm.bypass = 1;
 	dev->blk_dcam_pm->hist.bayerHist_info.hist_bypass = 1;
+	dev->blk_dcam_pm->gtm[DCAM_GTM_PARAM_PRE].update_en = 1;
+	dev->blk_dcam_pm->gtm[DCAM_GTM_PARAM_CAP].update_en = 1;
 	mutex_init(&dev->blk_dcam_pm->lsc.lsc_lock);
 
 	if (get_iommu_status(CAM_IOMMUDEV_DCAM) == 0)

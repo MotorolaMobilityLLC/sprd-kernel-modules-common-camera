@@ -115,6 +115,7 @@ struct dcam_path_desc {
 
 	spinlock_t state_lock;
 	enum dcam_path_state state;
+	uint32_t state_update;
 
 	struct img_endian endian;
 	struct img_size in_size;

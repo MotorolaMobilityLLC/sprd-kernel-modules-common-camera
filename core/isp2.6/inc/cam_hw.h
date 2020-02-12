@@ -31,12 +31,15 @@ enum dcam_id {
 	DCAM_ID_MAX,
 };
 
+/* The project id must keep same with the DT cfg
+ * new added project should always added in the end */
 enum cam_prj_id {
 	SHARKL3,
 	SHARKL5,
 	ROC1,
-	QOGIRN6pro,
 	SHARKL5pro,
+	QOGIRN6pro,
+	QOGIRL6,
 	PROJECT_MAX
 };
 
@@ -107,6 +110,7 @@ struct cam_hw_ip_info {
 	uint32_t *path_ctrl_id_tab;
 	uint32_t afl_gbuf_size;
 	unsigned long pdaf_type3_reg_addr;
+	uint32_t rds_en;
 
 	/* For isp support info */
 	uint32_t slm_cfg_support;
@@ -184,6 +188,7 @@ struct cam_hw_core_ops {
 	int (*dcam_gtm_status_get)(uint32_t idx);
 	void (*cam_gtm_ltm_eb)(uint32_t dcam_idx, uint32_t isp_idx);
 	void (*cam_gtm_ltm_dis)(uint32_t dcam_idx, uint32_t isp_idx);
+	int (*cam_gtm_update)(uint32_t gtm_idx, void *arg);
 	void (*isp_fetch_set)(void *arg);
 	void (*isp_afbc_addr_set)(uint32_t idx, uint32_t spath_id,
 		unsigned long *yuv_addr);
