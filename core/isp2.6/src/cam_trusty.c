@@ -26,7 +26,7 @@
 	fmt, current->pid, __LINE__, __func__
 
 
-#ifdef CAM_FACEID_SEC
+#if 0//def CAM_FACEID_SEC
 
 #include <linux/device.h>
 #include <linux/trusty/trusty_ipc.h>
