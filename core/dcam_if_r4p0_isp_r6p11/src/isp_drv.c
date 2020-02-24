@@ -48,7 +48,7 @@
 #define ISP_3DNR_NUM                            5
 #define ISP_AXI_STOP_TIMEOUT                    1000
 #define ISP_SCALER_CFG_MASK                     0x21800000
-#define WAIT_CNT_MS                             50
+#define WAIT_CNT_MS                             210
 #define FMCU_STOP_WAIT_CNT                      (WAIT_CNT_MS * 2)
 
 #ifdef pr_fmt
