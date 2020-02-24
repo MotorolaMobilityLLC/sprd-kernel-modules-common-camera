@@ -62,6 +62,7 @@ int dcam_k_rgb_gain_block(struct dcam_dev_param *param);
 int dcam_k_rgb_dither_random_block(struct dcam_dev_param *param);
 int dcam_k_lsc_block(struct dcam_dev_param *param);
 int dcam_k_bayerhist_block(struct dcam_dev_param *param);
+int dcam_k_bayerhist_roi(struct dcam_dev_param *param);
 
 int dcam_k_aem_bypass(struct dcam_dev_param *param);
 int dcam_k_aem_mode(struct dcam_dev_param *param);
