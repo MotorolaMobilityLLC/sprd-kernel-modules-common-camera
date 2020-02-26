@@ -31,7 +31,6 @@
 #define pr_fmt(fmt) "DCAM_DEBUG: %d %d %s : "\
 	fmt, current->pid, __LINE__, __func__
 
-#define DCAM_DEBUG
 #define WORK_MODE_SLEN  2
 #define LBUF_LEN_SLEN  8
 
@@ -54,7 +53,7 @@ static uint32_t debug_ctx_id[4] = {0, 1, 2, 3};
 static struct dentry *s_p_dentry;
 
 /* dcam debugfs start */
-#ifdef DCAM_DEBUG
+#ifdef CONFIG_DEBUG_FS
 
 /*
  * dcam sub block bypass
@@ -667,7 +666,6 @@ static int dcam_debugfs_deinit(void)
 #else
 static int dcam_debugfs_init(struct camera_debugger *debugger)
 {
-	memset(g_dcam_bypass, 0x00, sizeof(g_dcam_bypass));
 	return 0;
 }
 
@@ -1237,6 +1235,8 @@ static const struct file_operations superzoom_coeff_ops = {
 	.write = superzoom_coeff_write,
 };
 
+/* isp debugfs start */
+#ifdef CONFIG_DEBUG_FS
 static int isp_debugfs_init(struct camera_debugger *debugger)
 {
 	struct dentry *entry = NULL;
@@ -1319,6 +1319,17 @@ static int isp_debugfs_deinit(void)
 	debugfs_base = NULL;
 	return 0;
 }
+#else
+static int isp_debugfs_init(struct camera_debugger *debugger)
+{
+	return 0;
+}
+
+static int isp_debugfs_deinit(void)
+{
+	return 0;
+}
+#endif
 /* isp debug fs end */
 
 int cam_debugfs_init(struct camera_debugger *debugger)
