@@ -112,6 +112,7 @@ static int sprd_isp_pipeline_proc_full(void *handle);
 
 static void sprd_isp_reset_fmcu(void)
 {
+	return;
 	regmap_update_bits(syscon_regs[ISP_FMCU_RESET].gpr,
 			   syscon_regs[ISP_FMCU_RESET].reg,
 			   syscon_regs[ISP_FMCU_RESET].mask,
@@ -146,6 +147,7 @@ static int offline_bin_thread_loop(void *arg)
 static int offline_full_thread_loop(void *arg)
 {
 	struct isp_pipe_dev *dev = (struct isp_pipe_dev *)arg;
+	unsigned long flag;
 
 	if (dev == NULL) {
 		pr_err("fail to get ptr, dev is NULL\n");
@@ -160,11 +162,11 @@ static int offline_full_thread_loop(void *arg)
 			if (!dev->is_offline_full_thread_stop) {
 				if (sprd_isp_pipeline_proc_full(arg)) {
 					pr_err("fail to start capture!\n");
-					spin_lock(&isp_mod_lock);
+					spin_lock_irqsave(&isp_mod_lock, flag);
 					fmcu_slice_capture_state = ISP_ST_STOP;
 					fmcu_slice_capture_state_dual =
 						ISP_ST_STOP;
-					spin_unlock(&isp_mod_lock);
+					spin_unlock_irqrestore(&isp_mod_lock, flag);
 					isp_dbg_dump_fmcu_cmd_q(dev);
 					sprd_isp_reset_fmcu();
 				}
@@ -435,7 +437,7 @@ void sprd_isp_drv_init_isp_cnt(void)
 /*
  * TODO: should be compatible with dual-cam
  */
-static int sprd_isp_reset(struct isp_pipe_dev *dev)
+int sprd_isp_reset(struct isp_pipe_dev *dev)
 {
 	enum dcam_drv_rtn rtn = 0;
 	enum isp_id iid = ISP_ID_0;
@@ -1274,6 +1276,7 @@ int sprd_isp_start_pipeline_full(void *handle, uint32_t cap_flag)
 	struct isp_module *module = NULL;
 	struct camera_frame *p_offline_frame = NULL;
 	uint32_t max_zsl_num;
+	unsigned long flag;
 	int consumer_q_size = is_dual_cam ? ISP_OFF_CONSUMER_Q_SIZE_MULTI :
 		ISP_OFF_CONSUMER_Q_SIZE;
 
@@ -1390,11 +1393,13 @@ int sprd_isp_start_pipeline_full(void *handle, uint32_t cap_flag)
 		if (cap_flag != DCAM_CAPTURE_NONE) {
 			pr_info("full path raw cap\n");
 			dev->cap_on = 1;
-			goto normal_exit_raw;
-		} else {
+			fmcu_slice_capture_state = ISP_ST_START;
+			fmcu_slice_capture_state_dual = ISP_ST_START;
+			complete(&dev->offline_full_thread_com);
+			dev->wait_full_tx_done = WAIT_CLEAR;
+		} else
 			pr_info("full raw cap:skip this cap request");
-			goto normal_exit;
-		}
+		goto normal_exit;
 	}
 
 	if (buf_desc->zsl_queue.valid_cnt == 0) {
@@ -1411,9 +1416,11 @@ int sprd_isp_start_pipeline_full(void *handle, uint32_t cap_flag)
 	 * if capture_state ISP_ST_START or not. capture_state will
 	 * be ISP_ST_START until fmcu_config_done.
 	 */
+	spin_lock_irqsave(&isp_mod_lock, flag);
 	if (((cap_flag == DCAM_CAPTURE_NONE) && (dev->cap_on == 0)) ||
 		fmcu_slice_capture_state == ISP_ST_START) {
 		pr_debug("not ready for cap yet, cap_on:%d\n", dev->cap_on);
+		spin_unlock_irqrestore(&isp_mod_lock, flag);
 		goto normal_exit;
 	}
 
@@ -1422,6 +1429,7 @@ int sprd_isp_start_pipeline_full(void *handle, uint32_t cap_flag)
 	if (dev->is_3dnr) {
 		if (dev->frm_cnt_3dnr == 0) {
 			pr_debug("frm_cnt_3dnr is zero, no need of capture\n");
+			spin_unlock_irqrestore(&isp_mod_lock, flag);
 			goto normal_exit;
 		} else {
 			pr_debug("dev->frm_cnt_3dnr%d\n", dev->frm_cnt_3dnr);
@@ -1430,6 +1438,7 @@ int sprd_isp_start_pipeline_full(void *handle, uint32_t cap_flag)
 	} else if (dev->is_hdr) {
 		if (dev->frm_cnt_cap == 0) {
 			pr_debug("frm_cnt_cap of hdr is zero, no need of capture\n");
+			spin_unlock_irqrestore(&isp_mod_lock, flag);
 			goto normal_exit;
 		} else {
 			pr_debug("dev->frm_cnt_cap %d\n", dev->frm_cnt_cap);
@@ -1438,6 +1447,7 @@ int sprd_isp_start_pipeline_full(void *handle, uint32_t cap_flag)
 	} else if (dev->is_flash) {
 		if (dev->frm_cnt_cap == 0) {
 			pr_debug("frm_cnt_cap of flash is zero, no need of capture\n");
+			spin_unlock_irqrestore(&isp_mod_lock, flag);
 			goto normal_exit;
 		} else {
 			pr_debug("dev->frm_cnt_cap %d\n", dev->frm_cnt_cap);
@@ -1464,17 +1474,15 @@ int sprd_isp_start_pipeline_full(void *handle, uint32_t cap_flag)
 	memcpy(p_offline_frame, &frame, sizeof(struct camera_frame));
 	pr_debug("to be processed frame_id:%d\n", p_offline_frame->fid);
 
-normal_exit_raw:
-	spin_lock(&isp_mod_lock);
 	if (fmcu_slice_capture_state == ISP_ST_START) {
 		pr_info("capture already started cap_flag %d, skip this req\n",
 			cap_flag);
-		spin_unlock(&isp_mod_lock);
+		spin_unlock_irqrestore(&isp_mod_lock, flag);
 		goto normal_exit;
 	}
 	fmcu_slice_capture_state = ISP_ST_START;
 	fmcu_slice_capture_state_dual = ISP_ST_START;
-	spin_unlock(&isp_mod_lock);
+	spin_unlock_irqrestore(&isp_mod_lock, flag);
 	complete(&dev->offline_full_thread_com);
 	dev->wait_full_tx_done = WAIT_CLEAR;
 
@@ -1489,7 +1497,6 @@ err_exit:
 	pr_err("fail to exit, ret = %d\n", ret);
 	return ret;
 }
-
 
 static void do_shadow_clr(struct isp_pipe_dev *dev, uint32_t idx, int is_cap)
 {
@@ -1733,6 +1740,7 @@ static int sprd_isp_pipeline_proc_full(void *handle)
 	enum isp_scene_id sid = ISP_SCENE_CAP;
 	uint32_t idx = 0;
 	unsigned long flag;
+	unsigned long flag1;
 	struct offline_buf_desc *buf_desc = NULL;
 
 	if (unlikely(!handle)) {
@@ -1770,10 +1778,10 @@ static int sprd_isp_pipeline_proc_full(void *handle)
 	valid_frame->cam_id = idx;
 	if (dev->cap_on == 0) {
 		pr_info("capture has been stoped, skip this frame\n");
-		spin_lock(&isp_mod_lock);
+		spin_lock_irqsave(&isp_mod_lock, flag1);
 		fmcu_slice_capture_state = ISP_ST_STOP;
 		fmcu_slice_capture_state_dual = ISP_ST_STOP;
-		spin_unlock(&isp_mod_lock);
+		spin_unlock_irqrestore(&isp_mod_lock, flag1);
 		dev->is_wait_fmcu = 0;
 		complete(&dev->fmcu_com);
 		/* release offline buffer */
@@ -1860,11 +1868,11 @@ int sprd_isp_force_stop_pipeline(void *handle)
 	dev->cap_on = 0;
 	dev->wait_full_tx_done = WAIT_CLEAR;
 
-	spin_lock_irqsave(&isp_mod_lock, flag);
 	if (dev->is_wait_fmcu == 1) {
 		complete(&dev->fmcu_com);
 		dev->is_wait_fmcu = 0;
 	}
+	spin_lock_irqsave(&isp_mod_lock, flag);
 	fmcu_slice_capture_state = ISP_ST_STOP;
 	fmcu_slice_capture_state_dual = ISP_ST_STOP;
 	spin_unlock_irqrestore(&isp_mod_lock, flag);
