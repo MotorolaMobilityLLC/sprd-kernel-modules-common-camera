@@ -1683,7 +1683,13 @@ int dcam_callback(enum dcam_cb_type type, void *param, void *priv_data)
 				ret = dcam_ops->cfg_path(module->dcam_dev_handle,
 						DCAM_PATH_CFG_OUTPUT_BUF,
 						channel->dcam_path_id, pframe);
-
+				if (pframe->param_data) {
+					cur = (struct isp_offline_param *)pframe->param_data;
+					cur->prev = channel->isp_updata;
+					channel->isp_updata = (void *)cur;
+					pframe->param_data = NULL;
+					pr_debug("store:  cur %p   prev %p\n", cur, cur->prev);
+				}
 				return ret;
 			}
 
