@@ -778,7 +778,7 @@ exit:
 	return ret;
 }
 
-static uint32_t isp_get_fid_across_context(struct isp_pipe_dev *dev)
+static uint32_t isp_get_fid_across_context(struct isp_pipe_dev *dev, enum camera_id cam_id)
 {
 	struct isp_pipe_context *ctx;
 	struct isp_path_desc *path;
@@ -792,7 +792,7 @@ static uint32_t isp_get_fid_across_context(struct isp_pipe_dev *dev)
 	target_fid = CAMERA_RESERVE_FRAME_NUM;
 	for (ctx_id = 0; ctx_id < ISP_CONTEXT_SW_NUM; ctx_id++) {
 		ctx = &dev->ctx[ctx_id];
-		if (!ctx || atomic_read(&ctx->user_cnt) < 1)
+		if (!ctx || atomic_read(&ctx->user_cnt) < 1 || (ctx->attach_cam_id != cam_id))
 			continue;
 
 		for (path_id = 0; path_id < ISP_SPATH_NUM; path_id++) {
@@ -811,7 +811,7 @@ static uint32_t isp_get_fid_across_context(struct isp_pipe_dev *dev)
 		}
 	}
 
-	pr_debug("target_fid %u\n", target_fid);
+	pr_debug("target_fid %u, cam_id = %d\n", target_fid, cam_id);
 
 	return target_fid;
 }
@@ -825,6 +825,7 @@ static bool isp_check_fid(struct camera_frame *frame, void *data)
 
 	target_fid = *(uint32_t *)data;
 
+	pr_debug("target_fid = %d frame->user_fid = %d\n", target_fid, frame->user_fid);
 	return frame->user_fid == CAMERA_RESERVE_FRAME_NUM
 		|| frame->user_fid == target_fid;
 }
@@ -1227,7 +1228,7 @@ static int isp_offline_start_frame(void *ctx)
 	isp_3dnr_process_frame_previous(pctx, pframe);
 
 	if (pctx->uframe_sync)
-		target_fid = isp_get_fid_across_context(dev);
+		target_fid = isp_get_fid_across_context(dev, pctx->attach_cam_id);
 
 	/* config all paths output */
 	for (i = 0; i < ISP_SPATH_NUM; i++) {
@@ -1380,7 +1381,7 @@ static int isp_offline_start_frame(void *ctx)
 	}
 
 	if (valid_out_frame == -1) {
-		pr_debug(" No available output buffer sw %d, hw %d,discard\n",
+		pr_info(" No available output buffer sw %d, hw %d,discard\n",
 			pctx_hw->sw_ctx_id, pctx_hw->hw_ctx_id);
 		dev->ltm_handle->ops->clear_status(pctx->ltm_ctx.ltm_index);
 		goto unlock;
