@@ -241,6 +241,7 @@ struct isp_pipe_ops {
 			isp_dev_callback cb, void *priv_data);
 	int (*update_clk)(void *isp_handle, void *arg);
 	int (*get_3dnr_cnt)(void *isp_handle, int ctx_id, void *param);
+	int (*clear_3dnr_cnt)(void *isp_handle, int ctx_id);
 };
 
 struct isp_pipe_ops *get_isp_ops(void);

@@ -1381,7 +1381,7 @@ static int isp_offline_start_frame(void *ctx)
 	}
 
 	if (valid_out_frame == -1) {
-		pr_info(" No available output buffer sw %d, hw %d,discard\n",
+		pr_debug(" No available output buffer sw %d, hw %d,discard\n",
 			pctx_hw->sw_ctx_id, pctx_hw->hw_ctx_id);
 		dev->ltm_handle->ops->clear_status(pctx->ltm_ctx.ltm_index);
 		goto unlock;
@@ -3353,6 +3353,35 @@ exit:
 	return ret;
 }
 
+static int sprd_isp_clear_3dnr_cnt(void *isp_handle, int ctx_id)
+{
+	int ret = 0;
+	struct isp_pipe_dev *dev;
+	struct isp_pipe_context *pctx;
+
+	if (!isp_handle) {
+		pr_err("fail to input ptr NULL");
+		ret = -EFAULT;
+		goto exit;
+	}
+
+	if (ctx_id < 0 || ctx_id >= ISP_CONTEXT_SW_NUM) {
+		pr_err("fail to ctx_id is err  %d", ctx_id);
+		ret = -EFAULT;
+		goto exit;
+	}
+
+	dev = (struct isp_pipe_dev *)isp_handle;
+	pctx = &dev->ctx[ctx_id];
+	if (pctx->mode_3dnr == MODE_3DNR_CAP)
+		pctx->nr3_ctx.blending_cnt = 0;
+	pr_debug("3dnr type %d cnt %d\n", pctx->mode_3dnr,
+		pctx->nr3_ctx.blending_cnt);
+exit:
+	return ret;
+}
+
+
 static struct isp_pipe_ops isp_ops = {
 	.open = sprd_isp_dev_open,
 	.close = sprd_isp_dev_close,
@@ -3367,6 +3396,7 @@ static struct isp_pipe_ops isp_ops = {
 	.proc_frame = sprd_isp_proc_frame,
 	.set_callback = sprd_isp_set_sb,
 	.get_3dnr_cnt = sprd_isp_get_3dnr_cnt,
+	.clear_3dnr_cnt = sprd_isp_clear_3dnr_cnt,
 };
 
 struct isp_pipe_ops *get_isp_ops(void)
