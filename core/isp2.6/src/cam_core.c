@@ -709,8 +709,14 @@ static void alloc_buffers(struct work_struct *work)
 	hw = module->grp->hw_info;
 	iommu_enable = module->iommu_enable;
 
-	width = channel->swap_size.w;
-	height = channel->swap_size.h;
+	if (channel->ch_id != CAM_CH_CAP &&
+		hw->ip_dcam[module->dcam_idx]->rds_en) {
+		width = channel->dst_dcam.w;
+		height = channel->dst_dcam.h;
+	} else {
+		width = channel->swap_size.w;
+		height = channel->swap_size.h;
+	}
 	is_loose = module->cam_uinfo.sensor_if.if_spec.mipi.is_loose;
 
 	if (channel->compress_input) {
@@ -1554,6 +1560,7 @@ int dcam_callback(enum dcam_cb_type type, void *param, void *priv_data)
 	struct isp_offline_param *cur;
 	struct cam_hw_info *hw = NULL;
 	int cap_frame = 0, skip_frame = 0;
+	uint32_t gtm_param_idx = DCAM_GTM_PARAM_PRE;
 
 	if (!param || !priv_data) {
 		pr_err("fail to get valid param %p %p\n", param, priv_data);
@@ -1683,7 +1690,13 @@ int dcam_callback(enum dcam_cb_type type, void *param, void *priv_data)
 				ret = dcam_ops->cfg_path(module->dcam_dev_handle,
 						DCAM_PATH_CFG_OUTPUT_BUF,
 						channel->dcam_path_id, pframe);
-
+				if (pframe->param_data) {
+					cur = (struct isp_offline_param *)pframe->param_data;
+					cur->prev = channel->isp_updata;
+					channel->isp_updata = (void *)cur;
+					pframe->param_data = NULL;
+					pr_debug("store:  cur %p   prev %p\n", cur, cur->prev);
+				}
 				return ret;
 			}
 
@@ -1791,6 +1804,8 @@ int dcam_callback(enum dcam_cb_type type, void *param, void *priv_data)
 					cap_frame = atomic_read(&module->capture_frames_dcam);
 					skip_frame = atomic_read(&module->cap_skip_frames);
 					if (cap_frame > 0 && skip_frame == 0) {
+						dcam_ops->ioctl(module->dcam_dev_handle,
+							DCAM_IOCTL_CFG_GTM_UPDATE, &gtm_param_idx);
 						pr_info("cam%d cap type[%d] num[%d]\n", module->idx,
 							module->dcam_cap_status,
 							cap_frame);
@@ -2015,7 +2030,7 @@ static int cal_channel_swapsize(struct camera_module *module)
 	ch_cap = &module->channel[CAM_CH_CAP];
 	ch_vid = &module->channel[CAM_CH_VID];
 
-	if (module->grp->hw_info->prj_id == SHARKL5pro) {
+	if (module->grp->hw_info->ip_dcam[module->dcam_idx]->rds_en) {
 		if (ch_prev->ch_uinfo.src_size.w <= PRE_RDS_OUT) {
 			module->zoom_solution = ZOOM_RDS;
 			module->rds_limit= 10;
@@ -2703,6 +2718,7 @@ static int config_channel_size(
 	struct isp_offline_param *isp_param;
 	struct channel_context *vid;
 	struct camera_uchannel *ch_uinfo = NULL;
+	struct cam_hw_info *hw = NULL;
 	struct dcam_path_cfg_param ch_desc;
 	struct isp_ctx_size_desc ctx_size;
 	struct img_trim path_trim;
@@ -2715,6 +2731,7 @@ static int config_channel_size(
 		loop_count = 1;
 	}
 
+	hw = module->grp->hw_info;
 	ch_uinfo = &channel->ch_uinfo;
 	/* DCAM full path not updating for zoom. */
 	if (is_zoom && channel->ch_id == CAM_CH_CAP)
@@ -2831,7 +2848,8 @@ cfg_isp:
 				isp_ctx_id, superzoom_coeff);
 		}
 
-		if (capture_is_superzoom(ch_uinfo, channel, superzoom_coeff)) {
+		if (hw->ip_dcam[module->dcam_idx]->superzoom_support
+			&& capture_is_superzoom(ch_uinfo, channel, superzoom_coeff)) {
 			size.w = superzoom_coeff * channel->trim_isp.size_x;
 			size.h = superzoom_coeff * channel->trim_isp.size_y;
 			if (size.w > ch_uinfo->dst_size.w)
@@ -2840,16 +2858,16 @@ cfg_isp:
 				size.h = ch_uinfo->dst_size.h;
 			channel->cap_status = TO_DO_CAP_SUPERZOOM;
 			superzoom_flag = 1;
-			pr_debug("dcam id %d, sw %d, superzoom path dst w %d, h %d, channel: trim w %d, h %d, ch_uinfo dst %d, %d\n",
-				module->idx, isp_ctx_id, size.w, size.h, channel->trim_isp.size_x,
+			pr_debug("dcam id %d sw %d superzoom dst %d %d ch: trim %d %d ch_uinfo dst %d %d\n",
+				module->dcam_idx, isp_ctx_id, size.w, size.h, channel->trim_isp.size_x,
 				channel->trim_isp.size_y, ch_uinfo->dst_size.w, ch_uinfo->dst_size.h);
 		} else {
 			size.w = ch_uinfo->dst_size.w;
 			size.h = ch_uinfo->dst_size.h;
 			channel->cap_status = NONE_CAP_SUPERZOOM;
 			superzoom_flag = 0;
-			pr_debug("dcam id %d, sw %d, no superzoom path dst w %d, h %d, ch_uinfo src w %d, h %d , dst_size %d, %d\n",
-				module->idx, isp_ctx_id, size.w, size.h, ch_uinfo->dst_size.w, ch_uinfo->dst_size.h,
+			pr_debug("dcam id %d sw %d no superzoom dst %d %d ch_uinfo src %d %d dst %d %d\n",
+				module->dcam_idx, isp_ctx_id, size.w, size.h, ch_uinfo->dst_size.w, ch_uinfo->dst_size.h,
 				ch_uinfo->dst_size.w, ch_uinfo->dst_size.h);
 		}
 		ret = isp_ops->cfg_path(module->isp_dev_handle,
@@ -3729,6 +3747,10 @@ static int init_cam_channel(
 
 		ch_desc.endian.y_endian = ENDIAN_LITTLE;
 		ch_desc.bayer_pattern = module->cam_uinfo.sensor_if.img_ptn;
+		ch_desc.input_trim.start_x = module->cam_uinfo.sn_rect.x;
+		ch_desc.input_trim.start_y = module->cam_uinfo.sn_rect.y;
+		ch_desc.input_trim.size_x = module->cam_uinfo.sn_rect.w;
+		ch_desc.input_trim.size_y = module->cam_uinfo.sn_rect.h;
 		/* auto_3dnr:hw enable, channel->uinfo_3dnr == 1: hw enable */
 		ch_desc.enable_3dnr = (module->auto_3dnr | channel->uinfo_3dnr);
 		if (channel->ch_id == CAM_CH_RAW)
@@ -5827,6 +5849,8 @@ static int img_ioctl_stream_on(
 
 			if (module->cam_uinfo.is_rgb_ltm) {
 				for (j = 0; j < ISP_LTM_BUF_NUM; j++) {
+					ch->ltm_bufs[LTM_RGB][j] =
+						ch_pre->ltm_bufs[LTM_RGB][j];
 					if (ch->ltm_bufs[LTM_RGB][j] == NULL) {
 						pr_debug("ch->ltm_bufs[%d][%d] NULL\n",
 							LTM_RGB, j);
@@ -5845,6 +5869,8 @@ static int img_ioctl_stream_on(
 
 			if (module->cam_uinfo.is_yuv_ltm) {
 				for (j = 0; j < ISP_LTM_BUF_NUM; j++) {
+					ch->ltm_bufs[LTM_YUV][j] =
+						ch_pre->ltm_bufs[LTM_YUV][j];
 					if (ch->ltm_bufs[LTM_YUV][j] == NULL) {
 						pr_debug("ch->ltm_bufs[%d][%d] NULL\n",
 							LTM_YUV, j);
@@ -6250,6 +6276,7 @@ static int img_ioctl_start_capture(
 	ktime_t start_time = 0;
 	uint32_t isp_idx = 0;
 	uint32_t cap_skip_num = 0;
+	uint32_t gtm_param_idx = DCAM_GTM_PARAM_CAP;
 
 	ret = copy_from_user(&param, (void __user *)arg,
 			sizeof(struct sprd_img_capture_param));
@@ -6270,10 +6297,14 @@ static int img_ioctl_start_capture(
 	isp_idx = module->channel[CAM_CH_CAP].isp_path_id >> ISP_CTXID_OFFSET;
 	if (module->capture_scene == CAPTURE_HDR
 		|| module->capture_scene == CAPTURE_SW3DNR
-		|| module->capture_scene == CAPTURE_HW3DNR) {
+		|| module->capture_scene == CAPTURE_HW3DNR
+		|| module->capture_scene == CAPTURE_FLASH) {
 		if (hw->hw_ops.core_ops.cam_gtm_ltm_dis)
 			hw->hw_ops.core_ops.cam_gtm_ltm_dis(
 				module->dcam_idx, isp_idx);
+	} else if (param.type == DCAM_CAPTURE_START_FROM_NEXT_SOF) {
+		dcam_ops->ioctl(module->dcam_dev_handle,
+			DCAM_IOCTL_CFG_GTM_UPDATE, &gtm_param_idx);
 	}
 	atomic_set(&module->cap_skip_frames, -1);
 
@@ -6364,7 +6395,8 @@ static int img_ioctl_stop_capture(
 	isp_idx = module->channel[CAM_CH_CAP].isp_path_id >> ISP_CTXID_OFFSET;
 	if (module->capture_scene == CAPTURE_HDR
 		|| module->capture_scene == CAPTURE_SW3DNR
-		|| module->capture_scene == CAPTURE_HW3DNR) {
+		|| module->capture_scene == CAPTURE_HW3DNR
+		|| module->capture_scene == CAPTURE_FLASH) {
 		if (hw->hw_ops.core_ops.cam_gtm_ltm_eb)
 			hw->hw_ops.core_ops.cam_gtm_ltm_eb(
 				module->dcam_idx, isp_idx);

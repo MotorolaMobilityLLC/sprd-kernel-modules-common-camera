@@ -24,6 +24,8 @@ struct isp_k_block {
 	} ynr_param;
 	struct isp_dev_3dnr_info nr3_info;
 	struct isp_dev_nlm_imblance_v1 imbalance_info;
+	struct isp_dev_rgb_ltm_info rgb_ltm;
+	struct isp_dev_yuv_ltm_info yuv_ltm;
 	uint32_t seed0_for_mode1;
 	uint32_t shape_mode;
 	uint32_t *nlm_buf;
@@ -34,7 +36,7 @@ int dcam_init_lsc(void *param, uint32_t online);
 int dcam_update_lsc(void *param);
 int dcam_k_cfg_blc(struct isp_io_param *param,	struct dcam_dev_param *p);
 int dcam_k_cfg_raw_gtm(struct isp_io_param *param, struct dcam_dev_param *p);
-int dcam_k_raw_gtm_block(struct dcam_dev_param *param);
+int dcam_k_raw_gtm_block(uint32_t gtm_param_idx, struct dcam_dev_param *p);
 int dcam_k_raw_gtm_slice(uint32_t idx, struct dcam_dev_gtm_slice_info *gtm_slice);
 int dcam_k_cfg_rgb_gain(struct isp_io_param *param, struct dcam_dev_param *p);
 int dcam_k_cfg_rgb_dither(struct isp_io_param *param,
@@ -95,6 +97,10 @@ int isp_k_cfg_ynr(struct isp_io_param *param,
 	struct isp_k_block *isp_k_param, uint32_t idx);
 int isp_k_cfg_3dnr(struct isp_io_param *param,
 	struct isp_k_block *isp_k_param, uint32_t idx);
+int isp_k_cfg_rgb_ltm(struct isp_io_param *param,
+	struct isp_k_block *isp_k_param, uint32_t idx);
+int isp_k_cfg_yuv_ltm(struct isp_io_param *param,
+	struct isp_k_block *isp_k_param, uint32_t idx);
 
 int isp_k_cfg_bchs(struct isp_io_param *param, uint32_t idx);
 int isp_k_cfg_cce(struct isp_io_param *param, uint32_t idx);
@@ -112,8 +118,6 @@ int isp_k_cfg_hist(struct isp_io_param *param, uint32_t idx);
 int isp_k_cfg_hist2(struct isp_io_param *param, uint32_t idx);
 int isp_k_cfg_hsv(struct isp_io_param *param, uint32_t idx);
 int isp_k_cfg_iircnr(struct isp_io_param *param, uint32_t idx);
-int isp_k_cfg_rgb_ltm(struct isp_io_param *param, uint32_t idx);
-int isp_k_cfg_yuv_ltm(struct isp_io_param *param, uint32_t idx);
 int isp_k_cfg_post_cdn(struct isp_io_param *param, uint32_t idx);
 int isp_k_cfg_pre_cdn(struct isp_io_param *param, uint32_t idx);
 int isp_k_cfg_pstrz(struct isp_io_param *param, uint32_t idx);

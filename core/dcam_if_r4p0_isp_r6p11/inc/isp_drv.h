@@ -814,4 +814,6 @@ extern struct isp_clk_gate isp_clk_gt;
 void isp_clk_pause(enum isp_id iid, int i);
 void isp_clk_resume(enum isp_id iid, int i);
 void isp_handle_dcam_err(void *data);
+int sprd_isp_reset(struct isp_pipe_dev *dev);
+
 #endif

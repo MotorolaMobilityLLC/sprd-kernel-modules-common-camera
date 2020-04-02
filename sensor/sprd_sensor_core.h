@@ -17,7 +17,11 @@
 #include <linux/of_device.h>
 #include <video/sprd_sensor_k.h>
 
+#ifdef CONFIG_REGULATOR_SC2721
+#define SPRD_SENSOR_VDD_1000MV_VAL	1006250
+#else
 #define SPRD_SENSOR_VDD_1000MV_VAL	1000000
+#endif
 #define SPRD_SENSOR_VDD_1200MV_VAL	1200000
 #define SPRD_SENSOR_VDD_1300MV_VAL	1300000
 #define SPRD_SENSOR_VDD_1500MV_VAL	1500000

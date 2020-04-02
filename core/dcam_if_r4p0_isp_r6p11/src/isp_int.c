@@ -1553,6 +1553,10 @@ static void isp_isr_dump_status_history(struct isp_pipe_dev *dev)
 #define ISP_DETECT_BOUND_PER_SEC \
 	((ISP_DETECT_NORMAL) * (ISP_DETECT_PERIOD) * (ISP_DETECT_MULTI))
 
+static unsigned long s_last_jiffies;
+static unsigned long s_last_jiffies_cnt;
+static int s_jif_cnt = 0;
+
 static void isp_isr_flooding_detector(struct isp_pipe_dev *dev)
 {
 	if ((++dev->isr_count % ISP_DETECT_COUNT) == 0) {
@@ -1561,11 +1565,21 @@ static void isp_isr_flooding_detector(struct isp_pipe_dev *dev)
 			msecs_to_jiffies(ISP_DETECT_PERIOD * 1000);
 			/* pr_debug("debug detector: after %d ISR\n",
 				ISP_DETECT_COUNT); */
-		if (time_after(now, checkpoint)) {
+
+		/* when isp isr flooding, cpu time tick may not be increased
+		 * no longer. So we use the isp isr counter instead.
+		 */
+		if (s_last_jiffies == now)
+			s_jif_cnt++;
+		else
+			s_jif_cnt = 0;
+
+		if (time_after(now, checkpoint) || (s_jif_cnt == 50)) {
 			/* start to detect */
 			/* pr_debug("debug detector: after %d s\n",
 				ISP_DETECT_PERIOD); */
 			/*if (dev->isr_count % 3 == 0) {*/
+			s_jif_cnt = 0;
 			if (dev->isr_count > ISP_DETECT_BOUND_PER_SEC) {
 				struct camera_dev *cam_dev = NULL;
 				struct camera_group *cam_grp = NULL;
@@ -1578,13 +1592,14 @@ static void isp_isr_flooding_detector(struct isp_pipe_dev *dev)
 				isp_irq_ctrl(dev, false);
 				isp_isr_dump_status_history(dev);
 				print_int_cnts(dev);
+				sprd_isp_reset(dev);
 
 				cam_grp =  dev->cam_grp;
 				if (cam_grp != NULL) {
 					int iid = ISP_GET_IID(dev->com_idx);
 
 					cam_dev = cam_grp->dev[iid];
-					report_isp_err(cam_dev);
+					/*report_isp_err(cam_dev);*/
 				} else {
 					pr_err("fail to report isp err\n");
 				}
@@ -1593,9 +1608,15 @@ static void isp_isr_flooding_detector(struct isp_pipe_dev *dev)
 					pr_info("force stop pipeline\n");
 					sprd_isp_force_stop_pipeline(dev);
 				}
+				dev->isr_count = 0;
 			}
 			dev->isr_last_time = now;
 			dev->isr_count = 0;
+		}
+	} else {
+		if ((++s_last_jiffies_cnt % 10000) == 0) {
+			s_last_jiffies = jiffies;
+			s_last_jiffies_cnt = 0;
 		}
 	}
 }

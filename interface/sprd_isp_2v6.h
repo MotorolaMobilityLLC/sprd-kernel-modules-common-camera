@@ -16,8 +16,6 @@
 
 #define BUF_ALIGN(w) ((((w) + 512 + 1024 - 1) >> 10) << 10)
 
-#define ISP_PDAF_STATIS_BUF_SIZE                BUF_ALIGN(0x3A23D0)
-
 #define PDAF_PPI_NUM			64
 #define PDAF_PPI_GAIN_MAP_LEN 128
 #define ISP_HSV_TABLE_NUM 	360
