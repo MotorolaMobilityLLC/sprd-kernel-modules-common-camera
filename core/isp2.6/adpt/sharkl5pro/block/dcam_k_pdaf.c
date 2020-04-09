@@ -216,11 +216,11 @@ static int isp_k_pdaf_set_ppi_info(struct isp_io_param *param, enum dcam_id idx)
 	/* ppi block col&row start,end */
 	val = pdaf_info.block.start_x
 		| pdaf_info.block.end_x << 16;
-	DCAM_REG_MWR(idx, ISP_PPI_BLOCK_ROW, 0xffffffff, val);
+	DCAM_REG_MWR(idx, ISP_PPI_BLOCK_COL, 0xffffffff, val);
 	val = 0;
 	val = pdaf_info.block.start_y
 		| pdaf_info.block.end_y << 16;
-	DCAM_REG_MWR(idx, ISP_PPI_BLOCK_COL, 0xffffffff, val);
+	DCAM_REG_MWR(idx, ISP_PPI_BLOCK_ROW, 0xffffffff, val);
 
 	/* ppi block w*h */
 	val = 0;

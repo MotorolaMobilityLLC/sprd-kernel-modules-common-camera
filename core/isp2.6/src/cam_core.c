@@ -4159,12 +4159,6 @@ static int camera_module_init(struct camera_module *module)
 	sprd_init_timer(&module->cam_timer, (unsigned long)module);
 	module->attach_sensor_id = SPRD_SENSOR_ID_MAX + 1;
 	module->is_smooth_zoom = 1; /* temp for smooth zoom */
-	camera_queue_init(&module->frm_queue,
-		CAM_FRAME_Q_LEN, 0, camera_put_empty_frame);
-	camera_queue_init(&module->irq_queue,
-		CAM_IRQ_Q_LEN, 0, camera_put_empty_frame);
-	camera_queue_init(&module->statis_queue,
-		CAM_STATIS_Q_LEN, 0, camera_put_empty_frame);
 
 	pr_info("module[%d] init OK %p!\n", module->idx, module);
 	return 0;
@@ -4178,9 +4172,6 @@ exit:
 static int camera_module_deinit(struct camera_module *module)
 {
 	put_cam_flash_handle(module->flash_core_handle);
-	camera_queue_clear(&module->frm_queue);
-	camera_queue_clear(&module->irq_queue);
-	camera_queue_clear(&module->statis_queue);
 	camera_stop_thread(&module->cap_thrd);
 	camera_stop_thread(&module->zoom_thrd);
 	camera_stop_thread(&module->dump_thrd);
@@ -5935,7 +5926,12 @@ static int img_ioctl_stream_on(
 
 	pr_info("wait for wq done.\n");
 	flush_workqueue(module->workqueue);
-
+	camera_queue_init(&module->frm_queue,
+		CAM_FRAME_Q_LEN, 0, camera_put_empty_frame);
+	camera_queue_init(&module->irq_queue,
+		CAM_IRQ_Q_LEN, 0, camera_put_empty_frame);
+	camera_queue_init(&module->statis_queue,
+		CAM_STATIS_Q_LEN, 0, camera_put_empty_frame);
 	camera_queue_init(&module->zsl_fifo_queue,
 			CAM_SHARED_BUF_NUM, 0, put_k_frame);
 	/* no need release buffer, only release camera_frame */
@@ -6222,7 +6218,9 @@ static int img_ioctl_stream_off(
 			pr_info("camera%d wait for read %d %d\n", module->idx, i, j);
 			msleep(20);
 		}
-
+		camera_queue_clear(&module->frm_queue);
+		camera_queue_clear(&module->irq_queue);
+		camera_queue_clear(&module->statis_queue);
 		if (module->dual_frame) {
 			camera_enqueue(&module->zsl_fifo_queue, module->dual_frame);
 			module->dual_frame = NULL;
