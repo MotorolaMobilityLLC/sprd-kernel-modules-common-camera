@@ -8537,6 +8537,8 @@ static const struct of_device_id sprd_cam_of_match[] = {
 	{ .compatible = "sprd,sharkl3-cam", .data = &sharkl3_hw_info},
 	#elif defined (PROJ_SHARKL5PRO)
 	{ .compatible = "sprd,sharkl5pro-cam", .data = &sharkl5pro_hw_info},
+	#elif defined (PROJ_SHARKL5)
+	{ .compatible = "sprd,sharkl5-cam", .data = &sharkl5_hw_info},
 	#endif
 	{ },
 };

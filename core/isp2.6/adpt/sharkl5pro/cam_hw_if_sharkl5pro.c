@@ -2750,6 +2750,7 @@ struct cam_hw_info sharkl5pro_hw_info = {
 			.axi_init = sharkl5pro_dcam_axi_init,
 			.qos_set = sharkl5pro_dcam_qos_set,
 			.reset = sharkl5pro_dcam_reset,
+			.sram_reset = NULL,
 		},
 		.isp_soc_ops = {
 			.clk_enable = sharkl5pro_isp_clk_eb,

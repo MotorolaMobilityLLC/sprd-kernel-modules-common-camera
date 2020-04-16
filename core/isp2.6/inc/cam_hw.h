@@ -20,6 +20,7 @@
 
 extern struct cam_hw_info sharkl3_hw_info;
 extern struct cam_hw_info sharkl5pro_hw_info;
+extern struct cam_hw_info sharkl5_hw_info;
 
 /*
  * Supported dcam_if index. Number 0&1 for dcam_if and 2 for dcam_if_lite.
@@ -149,6 +150,7 @@ struct cam_hw_soc_ops {
 	void (*axi_init)(void *arg);
 	void (*qos_set)(struct cam_hw_soc_info *hw);
 	int (*reset)(struct cam_hw_info *hw, void *arg);
+	int (*sram_reset)(struct cam_hw_info *hw, void *arg);
 };
 
 struct cam_hw_irq_ops {
