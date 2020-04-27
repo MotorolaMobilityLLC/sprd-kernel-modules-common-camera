@@ -75,7 +75,7 @@ enum isp_path_cfg_cmd {
 };
 
 enum isp_superzoom_status {
-	NONE_CAP_SUPERZOOM = 0x1,
+	NONE_CAP_SUPERZOOM,
 	TO_DO_CAP_SUPERZOOM,
 	DOING_CAP_SUPERZOOM,
 };

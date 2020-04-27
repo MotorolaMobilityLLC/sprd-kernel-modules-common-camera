@@ -6203,6 +6203,7 @@ static int img_ioctl_stream_off(
 		ch->dcam_path_id = -1;
 		ch->isp_path_id = -1;
 		init_completion(&ch->alloc_com);
+		init_completion(&ch->superzoom_frm);
 	}
 
 	if (running) {
