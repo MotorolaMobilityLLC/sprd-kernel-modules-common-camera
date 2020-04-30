@@ -96,7 +96,7 @@ int dcam_k_bayerhist_roi(struct dcam_dev_param *param)
 	if (p->hist_bypass)
 		return 0;
 
-	pr_info("dcam%d, roi (%d %d %d %d)\n", idx,
+	pr_debug("dcam%d, roi (%d %d %d %d)\n", idx,
 		p->bayer_hist_stx, p->bayer_hist_sty,
 		p->bayer_hist_endx, p->bayer_hist_endy);
 
@@ -169,7 +169,7 @@ int dcam_k_cfg_bayerhist(struct isp_io_param *param,
 				cur.hist_bypass, cur.bayer_hist_stx, cur.bayer_hist_sty,
 				cur.bayer_hist_endx, cur.bayer_hist_endy);
 		} else {
-			pr_info("dcam%d re-config hist %d, win (%d %d %d %d)\n", dev->idx,
+			pr_debug("dcam%d re-config hist %d, win (%d %d %d %d)\n", dev->idx,
 				cur.hist_bypass, cur.bayer_hist_stx, cur.bayer_hist_sty,
 				cur.bayer_hist_endx, cur.bayer_hist_endy);
 		}
