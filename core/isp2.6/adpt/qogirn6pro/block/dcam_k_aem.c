@@ -36,10 +36,12 @@ enum {
 int dcam_k_aem_bypass(struct dcam_dev_param *param)
 {
 	int ret = 0;
-	uint32_t idx = param->idx;
+	uint32_t idx = 0;
 
 	if (param == NULL)
 		return -EPERM;
+
+	idx = param->idx;
 	/* update ? */
 	if (!(param->aem.update & _UPDATE_BYPASS))
 		return 0;
@@ -53,11 +55,13 @@ int dcam_k_aem_bypass(struct dcam_dev_param *param)
 int dcam_k_aem_mode(struct dcam_dev_param *param)
 {
 	int ret = 0;
-	uint32_t idx = param->idx;
+	uint32_t idx = 0;
 	uint32_t mode = 0;
 
 	if (param == NULL)
 		return -1;
+
+	idx = param->idx;
 	/* update ? */
 	if (!(param->aem.update & _UPDATE_MODE))
 		return 0;
@@ -81,12 +85,14 @@ int dcam_k_aem_mode(struct dcam_dev_param *param)
 int dcam_k_aem_win(struct dcam_dev_param *param)
 {
 	int ret = 0;
-	uint32_t idx = param->idx;
+	uint32_t idx = 0;
 	uint32_t val = 0;
-	struct dcam_dev_aem_win *p; /* win_info; */
+	struct dcam_dev_aem_win *p = NULL; /* win_info; */
 
 	if (param == NULL)
 		return -1;
+
+	idx = param->idx;
 	/* update ? */
 	if (!(param->aem.update & _UPDATE_WIN))
 		return 0;
@@ -112,11 +118,13 @@ int dcam_k_aem_skip_num(struct dcam_dev_param *param)
 {
 	struct dcam_pipe_dev *dev;
 	int ret = 0;
-	uint32_t idx = param->idx;
+	uint32_t idx = 0;
 	uint32_t val = 0;
 
 	if (param == NULL)
 		return -1;
+
+	idx = param->idx;
 	/* update ? */
 	if (!(param->aem.update & _UPDATE_SKIP))
 		return 0;
@@ -149,12 +157,14 @@ int dcam_k_aem_skip_num(struct dcam_dev_param *param)
 int dcam_k_aem_rgb_thr(struct dcam_dev_param *param)
 {
 	int ret = 0;
-	uint32_t idx = param->idx;
+	uint32_t idx = 0;
 	uint32_t val = 0;
-	struct dcam_dev_aem_thr *p; /* aem_info; */
+	struct dcam_dev_aem_thr *p = NULL; /* aem_info; */
 
 	if (param == NULL)
 		return -1;
+
+	idx = param->idx;
 	/* update ? */
 	if (!(param->aem.update & _UPDATE_INFO))
 		return 0;
@@ -238,7 +248,7 @@ int dcam_k_cfg_aem(struct isp_io_param *param, struct dcam_dev_param *p)
 			return -EPERM;
 		}
 
-		pr_info("re-config aem win (%d %d %d %d %d %d)\n",
+		pr_debug("dcam%d, re-config aem win (%d %d %d %d %d %d)\n", dev->idx,
 			cur.offset_x, cur.offset_y,
 			cur.blk_num_x, cur.blk_num_y,
 			cur.blk_width, cur.blk_height);

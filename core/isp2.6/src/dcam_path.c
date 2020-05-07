@@ -602,7 +602,7 @@ int dcam_path_set_store_frm(void *dcam_handle,
 		 * bayerhist block is only in SharkL5Pro.
 		 */
 		spin_lock_irqsave(&path->size_lock, flags);
-		dcam_k_bayerhist_block(dev->blk_dcam_pm);
+		dcam_k_bayerhist_roi(dev->blk_dcam_pm);
 
 		if (frame->buf.addr_k[0]) {
 			struct dcam_dev_hist_info *info = NULL;
