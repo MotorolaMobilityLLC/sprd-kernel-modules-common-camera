@@ -879,19 +879,36 @@ void dcam_dump_int_tracker(uint32_t idx)
  * registered sub interrupt service routine
  */
 typedef void (*dcam_isr_type)(void *param);
-static const dcam_isr_type _DCAM_ISRS[] = {
-	[DCAM_SENSOR_EOF] = dcam_sensor_eof,
-	[DCAM_CAP_SOF] = dcam_cap_sof,
-	[DCAM_PREVIEW_SOF] = dcam_preview_sof,
-	[DCAM_FULL_PATH_TX_DONE] = dcam_full_path_done,
-	[DCAM_PREV_PATH_TX_DONE] = dcam_bin_path_done,
-	[DCAM_PDAF_PATH_TX_DONE] = dcam_pdaf_path_done,
-	[DCAM_VCH2_PATH_TX_DONE] = dcam_vch2_path_done,
-	[DCAM_VCH3_PATH_TX_DONE] = dcam_vch3_path_done,
-	[DCAM_AEM_TX_DONE] = dcam_aem_done,
-	[DCAM_AFL_TX_DONE] = dcam_afl_done,
-	[DCAM_AFM_INTREQ1] = dcam_afm_done,
-	[DCAM_NR3_TX_DONE] = dcam_nr3_done,
+static const dcam_isr_type _DCAM_ISRS[DCAM_ID_MAX][32] = {
+	[0][DCAM_SENSOR_EOF] = dcam_sensor_eof,
+	[0][DCAM_CAP_SOF] = dcam_cap_sof,
+	[0][DCAM_PREVIEW_SOF] = dcam_preview_sof,
+	[0][DCAM_FULL_PATH_TX_DONE] = dcam_full_path_done,
+	[0][DCAM_PREV_PATH_TX_DONE] = dcam_bin_path_done,
+	[0][DCAM_PDAF_PATH_TX_DONE] = dcam_pdaf_path_done,
+	[0][DCAM_VCH2_PATH_TX_DONE] = dcam_vch2_path_done,
+	[0][DCAM_VCH3_PATH_TX_DONE] = dcam_vch3_path_done,
+	[0][DCAM_AEM_TX_DONE] = dcam_aem_done,
+	[0][DCAM_AFL_TX_DONE] = dcam_afl_done,
+	[0][DCAM_AFM_INTREQ1] = dcam_afm_done,
+	[0][DCAM_NR3_TX_DONE] = dcam_nr3_done,
+
+	[1][DCAM_SENSOR_EOF] = dcam_sensor_eof,
+	[1][DCAM_CAP_SOF] = dcam_cap_sof,
+	[1][DCAM_PREVIEW_SOF] = dcam_preview_sof,
+	[1][DCAM_FULL_PATH_TX_DONE] = dcam_full_path_done,
+	[1][DCAM_PREV_PATH_TX_DONE] = dcam_bin_path_done,
+	[1][DCAM_PDAF_PATH_TX_DONE] = dcam_pdaf_path_done,
+	[1][DCAM_VCH2_PATH_TX_DONE] = dcam_vch2_path_done,
+	[1][DCAM_VCH3_PATH_TX_DONE] = dcam_vch3_path_done,
+	[1][DCAM_AEM_TX_DONE] = dcam_aem_done,
+	[1][DCAM_AFL_TX_DONE] = dcam_afl_done,
+	[1][DCAM_AFM_INTREQ1] = dcam_afm_done,
+	[1][DCAM_NR3_TX_DONE] = dcam_nr3_done,
+
+	[2][DCAM2_SENSOR_SOF] = dcam_cap_sof,   /*only for dcam2*/
+	[2][DCAM2_SENSOR_EOF] = dcam_sensor_eof,
+	[2][DCAM2_FULL_PATH_TX_DONE] = dcam_full_path_done,
 };
 
 /*
@@ -935,6 +952,7 @@ static const int _DCAM1_SEQUENCE[] = {
  * interested interrupt bits in DCAM2
  */
 static const int _DCAM2_SEQUENCE[] = {
+	DCAM2_SENSOR_SOF,/* must */
 	DCAM2_SENSOR_EOF,/* TODO: why for flash */
 	DCAM2_FULL_PATH_TX_DONE,/* for path data */
 };
@@ -1041,6 +1059,7 @@ static irqreturn_t dcam_isr_root(int irq, void *priv)
 {
 	struct dcam_pipe_dev *dev = (struct dcam_pipe_dev *)priv;
 	uint32_t status = 0;
+	uint32_t line_mask;
 	int i = 0;
 
 	if (unlikely(irq != dev->irq)) {
@@ -1057,8 +1076,13 @@ static irqreturn_t dcam_isr_root(int irq, void *priv)
 		return IRQ_NONE;
 	}
 
+	if (dev->idx != DCAM_ID_2)
+		line_mask = DCAMINT_IRQ_LINE_MASK;
+	else
+		line_mask = DCAM2INT_IRQ_LINE_MASK;
+
 	status = DCAM_REG_RD(dev->idx, DCAM_INT_MASK);
-	status &= DCAMINT_IRQ_LINE_MASK;
+	status &= line_mask;
 
 	if (unlikely(!status))
 		return IRQ_NONE;
@@ -1078,8 +1102,8 @@ static irqreturn_t dcam_isr_root(int irq, void *priv)
 		int cur_int = DCAM_SEQUENCES[dev->idx].bits[i];
 
 		if (status & BIT(cur_int)) {
-			if (_DCAM_ISRS[cur_int]) {
-				_DCAM_ISRS[cur_int](dev);
+			if (_DCAM_ISRS[dev->idx][cur_int]) {
+				_DCAM_ISRS[dev->idx][cur_int](dev);
 				status &= ~dev->handled_bits;
 				dev->handled_bits = 0;
 			} else {

@@ -75,7 +75,7 @@ enum isp_path_cfg_cmd {
 };
 
 enum isp_superzoom_status {
-	NONE_CAP_SUPERZOOM = 0x1,
+	NONE_CAP_SUPERZOOM,
 	TO_DO_CAP_SUPERZOOM,
 	DOING_CAP_SUPERZOOM,
 };
@@ -241,6 +241,7 @@ struct isp_pipe_ops {
 			isp_dev_callback cb, void *priv_data);
 	int (*update_clk)(void *isp_handle, void *arg);
 	int (*get_3dnr_cnt)(void *isp_handle, int ctx_id, void *param);
+	int (*clear_3dnr_cnt)(void *isp_handle, int ctx_id);
 };
 
 struct isp_pipe_ops *get_isp_ops(void);

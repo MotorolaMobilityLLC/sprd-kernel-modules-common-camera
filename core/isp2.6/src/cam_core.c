@@ -2107,6 +2107,8 @@ static int cal_channel_swapsize(struct camera_module *module)
 		pr_info("shift %d for full, p=%d v=%d  src=%d, %d\n",
 			shift, dst_p.w, dst_v.w, max_bin.w, isp_linebuf_len);
 	}
+	if (SEC_UNABLE != module->grp->camsec_cfg.camsec_mode)
+		shift = 1;
 	max_bin.w >>= shift;
 	max_bin.h >>= shift;
 
@@ -4566,7 +4568,7 @@ static int img_ioctl_set_cam_security(
 			goto exit;
 		}
 
-		sec_ret = camca_security_set(&uparam);
+		sec_ret = camca_security_set(&uparam, CAM_TRUSTY_ENTER);
 
 		if (!sec_ret) {
 			ret = -EFAULT;
@@ -5926,7 +5928,6 @@ static int img_ioctl_stream_on(
 
 	pr_info("wait for wq done.\n");
 	flush_workqueue(module->workqueue);
-
 	camera_queue_init(&module->frm_queue,
 		CAM_FRAME_Q_LEN, 0, camera_put_empty_frame);
 	camera_queue_init(&module->irq_queue,
@@ -6202,6 +6203,7 @@ static int img_ioctl_stream_off(
 		ch->dcam_path_id = -1;
 		ch->isp_path_id = -1;
 		init_completion(&ch->alloc_com);
+		init_completion(&ch->superzoom_frm);
 	}
 
 	if (running) {
@@ -6219,7 +6221,6 @@ static int img_ioctl_stream_off(
 			pr_info("camera%d wait for read %d %d\n", module->idx, i, j);
 			msleep(20);
 		}
-
 		camera_queue_clear(&module->frm_queue);
 		camera_queue_clear(&module->irq_queue);
 		camera_queue_clear(&module->statis_queue);
@@ -6307,6 +6308,9 @@ static int img_ioctl_start_capture(
 			DCAM_IOCTL_CFG_GTM_UPDATE, &gtm_param_idx);
 	}
 	atomic_set(&module->cap_skip_frames, -1);
+
+	if (param.type == DCAM_CAPTURE_START_3DNR)
+		isp_ops->clear_3dnr_cnt(module->isp_dev_handle, isp_idx);
 
 	/* recognize the capture scene */
 	if (param.type == DCAM_CAPTURE_START_FROM_NEXT_SOF) {
@@ -8338,7 +8342,7 @@ static int sprd_img_release(struct inode *node, struct file *file)
 		bool ret = 0;
 
 		module->grp->camsec_cfg.camsec_mode = SEC_UNABLE;
-		ret = camca_security_set(&module->grp->camsec_cfg);
+		ret = camca_security_set(&module->grp->camsec_cfg, CAM_TRUSTY_EXIT);
 
 		pr_info("camca :camsec_mode%d, ret %d\n",
 				module->grp->camsec_cfg.camsec_mode, ret);

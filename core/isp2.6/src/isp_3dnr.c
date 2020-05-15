@@ -191,6 +191,9 @@ static int isp_3dnr_gen_memctrl_config(struct isp_3dnr_ctx_desc *ctx)
 	mem_ctrl->first_line_mode = 0;
 	mem_ctrl->last_line_mode = 0;
 
+	if (ctx->type == NR3_FUNC_PRE || ctx->type == NR3_FUNC_CAP)
+		isp_3dnr_update_memctrl_base_on_mv(ctx);
+
 	/*configuration param 8~11*/
 	mem_ctrl->blend_y_en_start_row = 0;
 	mem_ctrl->blend_y_en_start_col = 0;
@@ -209,10 +212,6 @@ static int isp_3dnr_gen_memctrl_config(struct isp_3dnr_ctx_desc *ctx)
 	/*configuration param 13*/
 	mem_ctrl->pipe_nfull_num = 100;
 	mem_ctrl->ft_fifo_nfull_num = 2648;
-
-	if (ctx->type == NR3_FUNC_PRE || ctx->type == NR3_FUNC_CAP)
-		isp_3dnr_update_memctrl_base_on_mv(ctx);
-
 
 	return ret;
 }
