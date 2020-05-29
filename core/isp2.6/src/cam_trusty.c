@@ -26,7 +26,7 @@
 	fmt, current->pid, __LINE__, __func__
 
 
-#ifdef CAM_FACEID_SEC
+#if 0//def CAM_FACEID_SEC
 
 #include <linux/device.h>
 #include <linux/trusty/trusty_ipc.h>
@@ -601,7 +601,7 @@ bool camca_csi_switch_ctrl_set(uint32_t csi_sel_ctrl)
 	return 1;
 }
 
-bool camca_security_set(struct sprd_cam_sec_cfg *camsec_cfg)
+bool camca_security_set(struct sprd_cam_sec_cfg *camsec_cfg, enum cam_trusty_mode mode)
 {
 	pr_info("no trusty version\n");
 	return 1;
