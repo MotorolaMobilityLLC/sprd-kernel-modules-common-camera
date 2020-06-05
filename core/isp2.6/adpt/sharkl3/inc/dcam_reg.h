@@ -15,10 +15,12 @@
 #define _DCAM_REG_H_
 
 #include <linux/bitops.h>
+#include "dcam_interface.h"
 
 extern unsigned long g_dcam_regbase[];
 extern unsigned long g_dcam_aximbase;
 extern unsigned long g_dcam_mmubase;
+
 
 /* DCAM0/DCAM1 module registers define */
 #define DCAM_IP_REVISION            (0x0000UL)
@@ -213,13 +215,6 @@ extern unsigned long g_dcam_mmubase;
 #define ISP_AFL_SUM1                (0x0338UL)
 #define ISP_AFL_SUM2                (0x033CUL)
 
-
-/* To Do */
-#define DCAM_HIST_BASE_WADDR        (0x0000UL)
-#define DCAM_HIST_BASE_WADDR1       (0x0000UL)
-#define DCAM_HIST_BASE_WADDR2       (0x0000UL)
-#define DCAM_HIST_BASE_WADDR3       (0x0000UL)
-
 struct dcam_control_field {
 	uint32_t cap_frc_copy: 1;
 	uint32_t cap_auto_copy: 1;
@@ -286,6 +281,8 @@ struct endian_field {
 	uint32_t vch2_endian: 2;
 	uint32_t vch3_endian: 2;
 };
+
+extern const unsigned long slowmotion_store_addr[3][4];
 
 /* DCAM2 registers define, the other same as DCAM0 */
 #define DCAM2_PATH1_BASE_WADDR		(0x0010UL)

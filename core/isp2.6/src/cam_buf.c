@@ -53,9 +53,10 @@ int mdbg_check(void)
 	val[4] = atomic_read(&g_mem_dbg->iommu_map_cnt[0]);
 	val[5] = atomic_read(&g_mem_dbg->iommu_map_cnt[1]);
 	val[6] = atomic_read(&g_mem_dbg->iommu_map_cnt[2]);
+	val[7] = atomic_read(&g_mem_dbg->empty_state_cnt);
 
-	pr_info("mdbg info: %d, %d, %d, %d, %d, %d, %d\n",
-			val[0], val[1], val[2], val[3], val[4], val[5], val[6]);
+	pr_info("mdbg info: %d, %d, %d, %d, %d, %d, %d, %d\n",
+			val[0], val[1], val[2], val[3], val[4], val[5], val[6], val[7]);
 	return 0;
 }
 EXPORT_SYMBOL(mdbg_check);

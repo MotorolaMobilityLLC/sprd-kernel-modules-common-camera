@@ -31,6 +31,7 @@
 #define pr_fmt(fmt) "DCAM_DEBUG: %d %d %s : "\
 	fmt, current->pid, __LINE__, __func__
 
+#define DCAM_DEBUG
 #define WORK_MODE_SLEN  2
 #define LBUF_LEN_SLEN  8
 
@@ -53,7 +54,7 @@ static uint32_t debug_ctx_id[4] = {0, 1, 2, 3};
 static struct dentry *s_p_dentry;
 
 /* dcam debugfs start */
-#ifdef CONFIG_DEBUG_FS
+#ifdef DCAM_DEBUG
 
 /*
  * dcam sub block bypass
@@ -64,19 +65,20 @@ static ssize_t dcam_bypass_write(struct file *filp,
 {
 	struct seq_file *p = (struct seq_file *)filp->private_data;
 	struct cam_debug_bypass *debug_bypass = NULL;
-	struct cam_hw_core_ops *ops = NULL;
+	struct cam_hw_info *ops = NULL;
+	struct cam_hw_bypass_data data;
+	uint32_t type;
 	uint32_t idx = 0;
 	uint32_t bypass_cnt = 0;
 	char buf[256];
 	uint32_t val = 1; /* default bypass */
-	struct bypass_tag dat;
 	int i;
 	char name[16];
 	int bypass_all = 0;
 
 	debug_bypass = (struct cam_debug_bypass *)p->private;
 	idx = debug_bypass->idx;
-	ops = &debug_bypass->hw->hw_ops.core_ops;
+	ops = debug_bypass->hw;
 	if (atomic_read(&s_dcam_opened[idx]) <= 0) {
 		pr_info("dcam%d Hardware not enable\n", idx);
 		return count;
@@ -112,22 +114,26 @@ static ssize_t dcam_bypass_write(struct file *filp,
 	if (strcmp(name, "all") == 0)
 		bypass_all = 1;
 
-	bypass_cnt = ops->bypass_count_get(DCAM_BYPASS_TYPE);
+	type = DCAM_BYPASS_TYPE;
+	bypass_cnt = ops->isp_ioctl(ops, ISP_HW_CFG_BYPASS_COUNT_GET, &type);
+	data.type = DCAM_BYPASS_TYPE;
+
 	for (i = 0; i < bypass_cnt; i++) {
-		if (ops->bypass_data_get(i, DCAM_BYPASS_TYPE) == NULL)
+		data.i = i;
+		ops->isp_ioctl(ops, ISP_HW_CFG_BYPASS_DATA_GET, &data);
+		if (data.tag == NULL){
 			continue;
-		if (ops->bypass_data_get(i, DCAM_BYPASS_TYPE)->p == NULL)
+		}
+		if (data.tag->p == NULL)
 			continue;
-		if (strcmp(ops->bypass_data_get(i, DCAM_BYPASS_TYPE)->p,
-			name) == 0 || bypass_all) {
-			dat = *ops->bypass_data_get(i, DCAM_BYPASS_TYPE);
-			pr_debug("set dcam%d addr 0x%x, bit %d val %d\n",
-				idx, dat.addr, dat.bpos, val);
+		if (strcmp(data.tag->p,name) == 0 || bypass_all){
+			printk("set dcam%d addr 0x%x, bit %d val %d\n",
+				idx, data.tag->addr, data.tag->bpos, val);
 			g_dcam_bypass[idx] &= (~(1 << i));
 			g_dcam_bypass[idx] |= (val << i);
 			msleep(20); /* If PM writing,wait little time */
-			DCAM_REG_MWR(idx, dat.addr, 1 << dat.bpos,
-				val << dat.bpos);
+			DCAM_REG_MWR(idx, data.tag->addr, 1 << data.tag->bpos,
+				val << data.tag->bpos);
 			/* afl need rgb2y work */
 			if (strcmp(name, "afl") == 0)
 				DCAM_REG_MWR(idx, ISP_AFL_PARAM0,
@@ -148,10 +154,11 @@ static int dcam_bypass_read(struct seq_file *s, void *unused)
 {
 	uint32_t addr, val;
 	struct cam_debug_bypass *debug_bypass = NULL;
-	struct cam_hw_core_ops *ops = NULL;
+	struct cam_hw_info *ops = NULL;
+	struct cam_hw_bypass_data data;
+	uint32_t type;
 	uint32_t idx = 0;
 	uint32_t bypass_cnt = 0;
-	struct bypass_tag dat;
 	int i = 0;
 
 	if (!s) {
@@ -161,26 +168,30 @@ static int dcam_bypass_read(struct seq_file *s, void *unused)
 
 	debug_bypass = (struct cam_debug_bypass *)s->private;
 	idx = debug_bypass->idx;
-	ops = &debug_bypass->hw->hw_ops.core_ops;
-	bypass_cnt = ops->bypass_count_get(DCAM_BYPASS_TYPE);
+	ops = debug_bypass->hw;
+	data.type = DCAM_BYPASS_TYPE;
+	type = DCAM_BYPASS_TYPE;
+	bypass_cnt = ops->isp_ioctl(ops, ISP_HW_CFG_BYPASS_COUNT_GET, &type);
 	seq_printf(s, "-----dcam%d-----\n", idx);
 	if (atomic_read(&s_dcam_opened[idx]) <= 0) {
 		seq_puts(s, "Hardware not enable\n");
 	} else {
 		for (i = 0; i < bypass_cnt; i++) {
-			if (ops->bypass_data_get(i, DCAM_BYPASS_TYPE) == NULL)
+			data.i = i;
+			ops->isp_ioctl(ops, ISP_HW_CFG_BYPASS_DATA_GET, &data);
+			if (data.tag == NULL){
+			continue;
+			}
+			if (data.tag->p == NULL)
 				continue;
-			dat = *ops->bypass_data_get(i, DCAM_BYPASS_TYPE);
-			if (dat.p == NULL)
-				continue;
-			addr = dat.addr;
-			val = DCAM_REG_RD(idx, addr) & (1 << dat.bpos);
+			addr = data.tag->addr;
+			val = DCAM_REG_RD(idx, addr) & (1 << data.tag->bpos);
 			if (val)
 				seq_printf(s, "%s:bit%d=1 bypass\n",
-					dat.p, dat.bpos);
+					data.tag->p, data.tag->bpos);
 			else
 				seq_printf(s, "%s:bit%d=0  work\n",
-					dat.p, dat.bpos);
+					data.tag->p, data.tag->bpos);
 		}
 		seq_puts(s, "\nall:1 #to bypass all\n");
 	}
@@ -191,6 +202,7 @@ static int dcam_bypass_open(struct inode *inode, struct file *file)
 {
 	return single_open(file, dcam_bypass_read, inode->i_private);
 }
+
 static const struct file_operations bypass_ops = {
 	.owner = THIS_MODULE,
 	.open = dcam_bypass_open,
@@ -666,6 +678,7 @@ static int dcam_debugfs_deinit(void)
 #else
 static int dcam_debugfs_init(struct camera_debugger *debugger)
 {
+	memset(g_dcam_bypass, 0x00, sizeof(g_dcam_bypass));
 	return 0;
 }
 
@@ -675,8 +688,6 @@ static int dcam_debugfs_deinit(void)
 }
 #endif
 /* dcam debugfs end */
-
-
 
 /* isp debug fs starts */
 #define DBG_REGISTER
@@ -705,10 +716,11 @@ static int isp_bypass_read(struct seq_file *s, void *unused)
 {
 	uint32_t addr, val;
 	struct cam_debug_bypass *debug_bypass = NULL;
-	struct cam_hw_core_ops *ops = NULL;
+	struct cam_hw_info *ops = NULL;
+	struct cam_hw_bypass_data data;
+	uint32_t type;
 	uint32_t idx = 0;
 	uint32_t bypass_cnt = 0;
-	struct bypass_tag dat;
 	int i = 0;
 
 	if (!s) {
@@ -718,26 +730,30 @@ static int isp_bypass_read(struct seq_file *s, void *unused)
 
 	debug_bypass = (struct cam_debug_bypass *)s->private;
 	idx = debug_bypass->idx;
-	ops = &debug_bypass->hw->hw_ops.core_ops;
+	ops = debug_bypass->hw;
 	if (!s_isp_dev) { /* isp not working */
 		seq_printf(s, "isp hardware not working, can't read\n");
 		return 0;
 	}
 	seq_printf(s, "===========isp context %d=============\n", idx);
-	bypass_cnt = ops->bypass_count_get(ISP_BYPASS_TYPE);
+	type = ISP_BYPASS_TYPE;
+	bypass_cnt = ops->isp_ioctl(ops, ISP_HW_CFG_BYPASS_COUNT_GET, &type);
+	data.type = ISP_BYPASS_TYPE;
 	for (i = 0; i < bypass_cnt; i++) {
-		if (ops->bypass_data_get(i, ISP_BYPASS_TYPE) == NULL)
+		data.i = i;
+		ops->isp_ioctl(ops, ISP_HW_CFG_BYPASS_DATA_GET, &data);
+		if (data.tag == NULL){
 			continue;
-		dat = *ops->bypass_data_get(i, ISP_BYPASS_TYPE);
-		if (dat.p == NULL)
+		}
+		if (data.tag->p == NULL)
 			continue;
 
-		addr = dat.addr;
-		val = ISP_REG_RD(idx, addr) & (1 << dat.bpos);
+		addr = data.tag->addr;
+		val = ISP_REG_RD(idx, addr) & (1 << data.tag->bpos);
 		if (val)
-			seq_printf(s, "%s:%d  bypass\n", dat.p, val);
+			seq_printf(s, "%s:%d  bypass\n", data.tag->p, val);
 		else
-			seq_printf(s, "%s:%d  work\n", dat.p, val);
+			seq_printf(s, "%s:%d  work\n", data.tag->p, val);
 	}
 	seq_puts(s, "\nall:1 //bypass all except preview path\n");
 	seq_puts(s, "\nltm:1 //(ltm-hist,ltm-map)\n");
@@ -751,19 +767,21 @@ static ssize_t isp_bypass_write(struct file *filp,
 {
 	struct seq_file *p = (struct seq_file *)filp->private_data;
 	struct cam_debug_bypass *debug_bypass = NULL;
-	struct cam_hw_core_ops *ops = NULL;
+	struct cam_hw_info *hw = NULL;
+	struct cam_hw_bypass_data data;
+	struct isp_hw_ltm_3dnr_param parm;
+	uint32_t type;
 	uint32_t idx = 0;
 	uint32_t bypass_cnt = 0;
 	char buf[256];
 	uint32_t val = 2;
-	struct bypass_tag dat;
 	int i;
 	char name[16 + 1];
 	uint32_t bypass_all = 0;
 
 	debug_bypass = (struct cam_debug_bypass *)p->private;
 	idx = debug_bypass->idx;
-	ops = &debug_bypass->hw->hw_ops.core_ops;
+	hw = debug_bypass->hw;
 	if (!s_isp_dev) { /* isp not working */
 		pr_warn("isp hardware not working, can't write\n");
 		return count;
@@ -801,8 +819,9 @@ static ssize_t isp_bypass_write(struct file *filp,
 		bypass_all = 1;
 	} else { /* check special: ltm, nr3 */
 		if (strcmp(name, "ltm") == 0) {
-			ISP_REG_MWR(idx, ISP_LTM_HIST_PARAM, BIT_0, val);
-			ISP_REG_MWR(idx, ISP_LTM_MAP_PARAM0, BIT_0, val);
+			parm.idx = idx;
+			parm.val = val;
+			hw->isp_ioctl(hw, ISP_HW_CFG_LTM_PARAM, &parm);
 			g_isp_bypass[idx] &= (~(1 << _EISP_LTM));
 			if (val)
 				g_isp_bypass[idx] |= (1 << _EISP_LTM);
@@ -812,33 +831,35 @@ static ssize_t isp_bypass_write(struct file *filp,
 			g_isp_bypass[idx] &= (~(1 << _EISP_NR3));
 			if (val)
 				g_isp_bypass[idx] |= (1 << _EISP_NR3);
-			ISP_REG_MWR(idx, ISP_3DNR_MEM_CTRL_PARAM0, BIT_0, val);
-			ISP_REG_MWR(idx, ISP_3DNR_BLEND_CONTROL0, BIT_0, val);
-			ISP_REG_MWR(idx, ISP_3DNR_STORE_PARAM, BIT_0, val);
-			ISP_REG_MWR(idx, ISP_3DNR_MEM_CTRL_PRE_PARAM0, BIT_0, val);
+			parm.idx = idx;
+			parm.val = val;
+			hw->isp_ioctl(hw, ISP_HW_CFG_3DNR_PARAM, &parm);
 			/* ISP_HREG_MWR(ISP_FBC_3DNR_STORE_PARAM, BIT_0, val); */
 			return count;
 		}
 	}
-	bypass_cnt = ops->bypass_count_get(ISP_BYPASS_TYPE);
+	type = ISP_BYPASS_TYPE;
+	bypass_cnt = hw->isp_ioctl(hw, ISP_HW_CFG_BYPASS_COUNT_GET, &type);
+	data.type = ISP_BYPASS_TYPE;
 	for (i = 0; i < bypass_cnt; i++) {
-		if (ops->bypass_data_get(i, ISP_BYPASS_TYPE) == NULL)
+		data.i = i;
+		hw->isp_ioctl(hw, ISP_HW_CFG_BYPASS_DATA_GET, &data);
+		if (data.tag == NULL) {
 			continue;
-		if (ops->bypass_data_get(i, ISP_BYPASS_TYPE)->p == NULL)
+		}
+		if (data.tag->p == NULL)
 			continue;
-		if (strcmp(ops->bypass_data_get(i, ISP_BYPASS_TYPE)->p,
-			name) == 0 || bypass_all) {
-			dat = *ops->bypass_data_get(i, ISP_BYPASS_TYPE);
+		if (strcmp(data.tag->p, name) == 0 || bypass_all) {
 			pr_debug("set isp addr 0x%x, bit %d val %d\n",
-				dat.addr, dat.bpos, val);
+				data.tag->addr, data.tag->bpos, val);
 			if (i < _EISP_TOTAL) {
 				g_isp_bypass[idx] &= (~(1 << i));
 				g_isp_bypass[idx] |= (val << i);
 			}
-			if (bypass_all && (dat.all == 0))
+			if (bypass_all && (data.tag->all == 0))
 				continue;
-			ISP_REG_MWR(idx, dat.addr, 1 << dat.bpos,
-				val << dat.bpos);
+			ISP_REG_MWR(idx, data.tag->addr, 1 << data.tag->bpos,
+				val << data.tag->bpos);
 
 			if (!bypass_all)
 				break;
@@ -915,13 +936,13 @@ static const struct file_operations work_mode_ops = {
 	.write = work_mode_write,
 };
 
-
 static uint8_t iommu_mode_string[4][32] = {
 	"IOMMU_AUTO",
 	"IOMMU_OFF",
 	"IOMMU_ON_RESERVED",
 	"IOMMU_ON"
 };
+
 static ssize_t iommu_mode_show(
 		struct file *filp, char __user *buffer,
 		size_t count, loff_t *ppos)
@@ -1235,8 +1256,6 @@ static const struct file_operations superzoom_coeff_ops = {
 	.write = superzoom_coeff_write,
 };
 
-/* isp debugfs start */
-#ifdef CONFIG_DEBUG_FS
 static int isp_debugfs_init(struct camera_debugger *debugger)
 {
 	struct dentry *entry = NULL;
@@ -1274,16 +1293,16 @@ static int isp_debugfs_init(struct camera_debugger *debugger)
 
 #ifdef DBG_REGISTER
 	if (!debugfs_create_file("pre0_buf", 0444,
-			debugfs_base, &debug_ctx_id[0], &reg_buf_ops))
+			debugfs_base, &isp_debug_bypass[0], &reg_buf_ops))
 		return -ENOMEM;
 	if (!debugfs_create_file("cap0_buf", 0444,
-			debugfs_base, &debug_ctx_id[1], &reg_buf_ops))
+			debugfs_base, &isp_debug_bypass[1], &reg_buf_ops))
 		return -ENOMEM;
 	if (!debugfs_create_file("pre1_buf", 0444,
-			debugfs_base, &debug_ctx_id[2], &reg_buf_ops))
+			debugfs_base, &isp_debug_bypass[2], &reg_buf_ops))
 		return -ENOMEM;
 	if (!debugfs_create_file("cap1_buf", 0444,
-			debugfs_base, &debug_ctx_id[3], &reg_buf_ops))
+			debugfs_base, &isp_debug_bypass[3], &reg_buf_ops))
 		return -ENOMEM;
 #endif
 
@@ -1319,17 +1338,6 @@ static int isp_debugfs_deinit(void)
 	debugfs_base = NULL;
 	return 0;
 }
-#else
-static int isp_debugfs_init(struct camera_debugger *debugger)
-{
-	return 0;
-}
-
-static int isp_debugfs_deinit(void)
-{
-	return 0;
-}
-#endif
 /* isp debug fs end */
 
 int cam_debugfs_init(struct camera_debugger *debugger)

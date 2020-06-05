@@ -31,6 +31,10 @@
 #define pr_fmt(fmt) "DCAM_DRV: %d %d %s : "\
 	fmt, current->pid, __LINE__, __func__
 
+unsigned long g_dcam_regbase[DCAM_ID_MAX];
+unsigned long g_dcam_aximbase;
+unsigned long g_dcam_mmubase;
+
 /*
  * Initialize dcam_if hardware, power/clk/int should be prepared after this call
  * returns. It also brings the dcam_pipe_dev from INIT state to IDLE state.
@@ -52,7 +56,7 @@ int dcam_hw_init(void *arg)
 	ret = sprd_cam_pw_on();
 	ret = sprd_cam_domain_eb();
 	/* prepare clk */
-	hw->hw_ops.dcam_soc_ops.clk_enable(hw->soc_dcam);
+	hw->dcam_ioctl(hw, DCAM_HW_CFG_ENABLE_CLK, NULL);
 	ret = dcam_irq_request(&hw->pdev->dev,
 		hw->ip_dcam[dev->idx]->irq_no, arg);
 
@@ -80,7 +84,7 @@ int dcam_hw_deinit(void *arg)
 
 	dcam_irq_free(&hw->pdev->dev, arg);
 	/* unprepare clk and other resource */
-	hw->hw_ops.dcam_soc_ops.clk_disable(hw->soc_dcam);
+	hw->dcam_ioctl(hw, DCAM_HW_CFG_DISABLE_CLK, NULL);
 	ret = sprd_cam_domain_disable();
 	ret = sprd_cam_pw_off();
 
@@ -126,9 +130,6 @@ int dcam_if_parse_dt(struct platform_device *pdev,
 		return PTR_ERR(ahb_map);
 	}
 
-	if (of_property_read_u32(dn, "sprd,dcam-superzoom", &super_index))
-		pr_info("None support super-zoom\n");
-
 	if (of_property_read_u32(dn, "sprd,dcam-count", &count)) {
 		pr_err("fail to parse the property of sprd,dcam-count\n");
 		return -EINVAL;
@@ -142,11 +143,6 @@ int dcam_if_parse_dt(struct platform_device *pdev,
 	hw_info->prj_id = (enum cam_prj_id) prj_id;
 
 	pr_info("superzoom :super_index id %d\n", super_index);
-
-	if (super_index >= 0 && super_index < DCAM_ID_MAX) {
-		pr_info("superzoom ->dcam id%d\n", super_index);
-		hw_info->ip_dcam[super_index]->superzoom_support = 1;
-	}
 
 	dcam_max_w = DCAM_PATH_WMAX;
 	dcam_max_h = DCAM_PATH_HMAX;

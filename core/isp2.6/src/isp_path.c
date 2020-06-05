@@ -29,20 +29,15 @@
 #define pr_fmt(fmt) "ISP_PATH: %d %d %s : "\
 	fmt, current->pid, __LINE__, __func__
 
-
-#define SHRINK_Y_UP_TH 235
-#define SHRINK_Y_DN_TH 16
-#define SHRINK_UV_UP_TH 240
-#define SHRINK_UV_DN_TH 16
-#define SHRINK_Y_OFFSET 16
-#define SHRINK_Y_RANGE 3
-#define SHRINK_C_OFFSET 16
-#define SHRINK_C_RANGE 6
-
 #define ISP_PATH_DECI_FAC_MAX       4
 #define ISP_SC_COEFF_UP_MAX         4
 #define ISP_SC_COEFF_DOWN_MAX       4
-#define ISP_DIV_ALIGN(a, b)	((a / b) & ~(ISP_PIXEL_ALIGN_WIDTH - 1))
+
+static unsigned long store_base[ISP_SPATH_NUM] = {
+	ISP_STORE_PRE_CAP_BASE,
+	ISP_STORE_VID_BASE,
+	ISP_STORE_THUMB_BASE,
+};
 
 unsigned long coff_buf_addr[2][3][4] = {
 	{
@@ -75,17 +70,21 @@ unsigned long coff_buf_addr[2][3][4] = {
 	},
 };
 
-static unsigned long store_base[ISP_SPATH_NUM] = {
-	ISP_STORE_PRE_CAP_BASE,
-	ISP_STORE_VID_BASE,
-	ISP_STORE_THUMB_BASE,
-};
+int isp_path_set_scaler_coeff(struct coeff_arg *arg,
+		uint32_t buf_sel,
+		struct isp_path_desc *path,
+		uint32_t *coeff_buf)
+{
+	arg->h_coeff = coeff_buf;
+	arg->v_coeff = coeff_buf + (ISP_SC_COEFF_COEF_SIZE / 4);
+	arg->v_chroma_coeff = arg->v_coeff + (ISP_SC_COEFF_COEF_SIZE / 4);
+	arg->h_coeff_addr = coff_buf_addr[buf_sel][path->spath_id][0];
+	arg->h_chroma_coeff_addr = coff_buf_addr[buf_sel][path->spath_id][1];
+	arg->v_coeff_addr = coff_buf_addr[buf_sel][path->spath_id][2];
+	arg->v_chroma_coeff_addr = coff_buf_addr[buf_sel][path->spath_id][3];
 
-static unsigned long scaler_base[ISP_SPATH_NUM] = {
-	ISP_SCALER_PRE_CAP_BASE,
-	ISP_SCALER_VID_BASE,
-	ISP_SCALER_THUMB_BASE,
-};
+	return 0;
+}
 
 static uint32_t get_path_deci_factor(
 				uint32_t src_size, uint32_t dst_size)
@@ -132,8 +131,7 @@ static enum isp_store_format get_store_format(uint32_t forcc)
 	return format;
 }
 
-static enum isp_store_format
-	get_afbc_store_format(uint32_t forcc)
+static enum isp_store_format get_afbc_store_format(uint32_t forcc)
 {
 	enum isp_store_format format = ISP_STORE_FORMAT_MAX;
 
@@ -181,9 +179,8 @@ static enum isp_fetch_format get_fetch_format(uint32_t forcc)
 }
 
 static int calc_scaler_param(struct img_trim *in_trim,
-					struct img_size *out_size,
-					struct isp_scaler_info *scaler,
-					struct img_deci_info *deci)
+	struct img_size *out_size, struct isp_scaler_info *scaler,
+	struct img_deci_info *deci)
 {
 	int ret = 0;
 	unsigned int tmp_dstsize = 0;
@@ -197,9 +194,9 @@ static int calc_scaler_param(struct img_trim *in_trim,
 	/* check input crop limit with max scale up output size(2 bit aligned) */
 	if (in_trim->size_x > (out_size->w * d_max * (1 << f_max)) ||
 		in_trim->size_y > (out_size->h * d_max * (1 << f_max)) ||
-		in_trim->size_x < ISP_DIV_ALIGN(out_size->w, u_max) ||
-		in_trim->size_y < ISP_DIV_ALIGN(out_size->h, u_max)) {
-		pr_err("fail to get in_trim %d %d. out _size %d %d, fmax %d, u_max %d\n",
+		in_trim->size_x < ISP_DIV_ALIGN_W(out_size->w, u_max) ||
+		in_trim->size_y < ISP_DIV_ALIGN_H(out_size->h, u_max)) {
+		pr_debug("fail to get in_trim %d %d. out _size %d %d, fmax %d, u_max %d\n",
 				in_trim->size_x, in_trim->size_y,
 				out_size->w, out_size->h, f_max, d_max);
 		ret = -EINVAL;
@@ -255,9 +252,8 @@ static int calc_scaler_param(struct img_trim *in_trim,
 	return ret;
 }
 
-static int calc_scaler_coeff(
-					struct isp_scaler_info *scaler,
-					uint32_t scale2yuv420)
+static int calc_scaler_coeff(struct isp_scaler_info *scaler,
+	uint32_t scale2yuv420)
 {
 	uint32_t *tmp_buf = NULL;
 	uint32_t *h_coeff = NULL;
@@ -618,6 +614,7 @@ int isp_cfg_ctx_base(struct isp_pipe_context *pctx, void *param)
 	pctx->ltm_rgb = cfg_in->ltm_rgb;
 	pctx->ltm_yuv = cfg_in->ltm_yuv;
 	pctx->in_fmt = cfg_in->in_fmt;
+	pctx->src_info.src_fmt = cfg_in->in_fmt;
 	pctx->is_loose = cfg_in->is_loose;
 	pctx->dispatch_bayer_mode = cfg_in->bayer_pattern;
 	pctx->dev->ltm_handle->ops->set_status(1, pctx->ctx_id,
@@ -688,7 +685,7 @@ int isp_cfg_ctx_size(struct isp_pipe_context *pctx, void *param)
 			fetch->fetch_fmt = ISP_FETCH_CSI2_RAW10;
 	}
 
-	pr_info("ctx%d fetch fmt: %d  in %d %d, crop %d %d %d %d is_loose %d\n",
+	pr_debug("ctx%d fetch fmt: %d  in %d %d, crop %d %d %d %d is_loose %d\n",
 			pctx->ctx_id, fetch->fetch_fmt, src->w, src->h,
 				intrim->start_x, intrim->start_y, intrim->size_x,
 					intrim->size_y, pctx->is_loose);
@@ -843,6 +840,7 @@ int isp_cfg_path_base(struct isp_path_desc *path, void *param)
 	 * So, cfg it as base.
 	 */
 	path->dst = cfg_in->output_size;
+	path->stream_dst = path->dst;
 
 	/* CFG output format */
 	store->color_fmt = get_store_format(path->out_fmt);
@@ -911,7 +909,7 @@ int isp_cfg_path_size(struct isp_path_desc *path, void *param)
 	path->out_trim.start_y = 0;
 	path->out_trim.size_x = path->dst.w;
 	path->out_trim.size_y = path->dst.h;
-	pr_info("sw %d, path %d. src %d %d ; in_trim %d %d %d %d ; out_trim %d %d %d %d ; dst %d %d\n",
+	pr_debug("sw %d, path %d. src %d %d ; in_trim %d %d %d %d ; out_trim %d %d %d %d ; dst %d %d\n",
 		pctx->ctx_id,
 		path->spath_id, path->src.w, path->src.h,
 		path->in_trim.start_x, path->in_trim.start_y,
@@ -989,28 +987,6 @@ int isp_cfg_path_size(struct isp_path_desc *path, void *param)
 	return ret;
 }
 
-int isp_cfg_path_dst_size(struct isp_path_desc *path, void *param)
-{
-	int ret = 0;
-	struct img_size *size;
-	struct isp_pipe_context *pctx = NULL;
-
-	if (!path || !param) {
-		pr_err("fail to get valid input ptr, path %p, param %p\n",
-			path, param);
-		return -EFAULT;
-	}
-
-	pctx = path->attach_ctx;
-
-	size = (struct img_size *)param;
-	path->dst.w = size->w;
-	path->dst.h = size->h;
-	pr_info("sw %d, path dst w %d, h %d\n",
-		pctx->ctx_id, path->dst.w, path->dst.h);
-	return ret;
-}
-
 int isp_cfg_path_compression(struct isp_path_desc *path, void *param)
 {
 	struct isp_path_compression_desc *compression = param;
@@ -1031,258 +1007,6 @@ int isp_cfg_path_uframe_sync(struct isp_path_desc *path, void *param)
 	return 0;
 }
 
-static int set_path_common(struct isp_path_desc *path)
-{
-	uint32_t idx = path->attach_ctx->ctx_id;
-	struct img_deci_info *deciInfo = &path->deci;
-	unsigned long addr;
-	uint32_t path_mask[ISP_SPATH_NUM] = {
-		BIT_1 | BIT_0,
-		BIT_3 | BIT_2,
-		BIT_5 | BIT_4
-	};
-	uint32_t path_off[ISP_SPATH_NUM] = {0, 2, 4};
-
-	addr = scaler_base[path->spath_id];
-
-	ISP_REG_MWR(idx, ISP_COMMON_SCL_PATH_SEL,
-		path_mask[path->spath_id],
-		(path->skip_pipeline << path_off[path->spath_id]));
-
-	/* set path_eb*/
-	ISP_REG_MWR(idx, addr + ISP_SCALER_CFG,
-		BIT_31, 1 << 31); /* path enable */
-	ISP_REG_MWR(idx, addr + ISP_SCALER_CFG,
-		BIT_30, 0 << 30); /* CLK_SWITCH*/
-	ISP_REG_MWR(idx, addr + ISP_SCALER_CFG,
-		BIT_29, 0 << 29); /* sw_switch_en*/
-	ISP_REG_MWR(idx, addr + ISP_SCALER_CFG,
-		BIT_9, 0 << 9); /* bypass all scaler */
-	ISP_REG_MWR(idx, addr + ISP_SCALER_CFG,
-		BIT_8, 0 << 8); /* scaler path stop */
-	ISP_REG_MWR(idx, addr + ISP_SCALER_CFG,
-		BIT_10, path->uv_sync_v << 10);
-
-	ISP_REG_MWR(idx, addr + ISP_SCALER_CFG, (BIT_23 | BIT_24),
-			(path->frm_deci & 3) << 23);
-
-	ISP_REG_MWR(idx, addr + ISP_SCALER_CFG, BIT_6 | BIT_7,
-			path->scaler.odata_mode << 6);
-
-	/*set X/Y deci */
-	ISP_REG_MWR(idx, addr + ISP_SCALER_CFG, BIT_2,
-		deciInfo->deci_x_eb << 2);
-	ISP_REG_MWR(idx, addr + ISP_SCALER_CFG, (BIT_0 | BIT_1),
-		deciInfo->deci_x);
-	ISP_REG_MWR(idx, addr + ISP_SCALER_CFG, BIT_5,
-		deciInfo->deci_y_eb << 5);
-	ISP_REG_MWR(idx, addr + ISP_SCALER_CFG, (BIT_3 | BIT_4),
-		deciInfo->deci_y << 3);
-
-	/*src size*/
-	ISP_REG_WR(idx, addr + ISP_SCALER_SRC_SIZE,
-				((path->src.h & 0x3FFF) << 16) |
-					(path->src.w & 0x3FFF));
-
-	/* trim0 */
-	ISP_REG_WR(idx, addr + ISP_SCALER_TRIM0_START,
-				((path->in_trim.start_y & 0x3FFF) << 16) |
-					(path->in_trim.start_x & 0x3FFF));
-	ISP_REG_WR(idx, addr + ISP_SCALER_TRIM0_SIZE,
-				((path->in_trim.size_y & 0x3FFF) << 16) |
-					(path->in_trim.size_x & 0x3FFF));
-
-	/* trim1 */
-	ISP_REG_WR(idx, addr + ISP_SCALER_TRIM1_START,
-				((path->out_trim.start_y & 0x3FFF) << 16) |
-					(path->out_trim.start_x & 0x3FFF));
-	ISP_REG_WR(idx, addr + ISP_SCALER_TRIM1_SIZE,
-				((path->out_trim.size_y & 0x3FFF) << 16) |
-					(path->out_trim.size_x & 0x3FFF));
-
-	/* des size */
-	ISP_REG_WR(idx, addr + ISP_SCALER_DES_SIZE,
-				((path->dst.h & 0x3FFF) << 16) |
-					(path->dst.w & 0x3FFF));
-	pr_debug("sw %d, path src: %d %d; in_trim:%d %d %d %d, out_trim: %d %d %d %d, dst: %d %d \n",
-		idx, path->src.w, path->src.h, path->in_trim.start_x,
-		path->in_trim.start_y, path->in_trim.size_x, path->in_trim.size_y,
-		path->out_trim.start_x, path->out_trim.start_y, path->out_trim.size_x, path->out_trim.size_y,
-		path->dst.w, path->dst.h);
-
-	return 0;
-}
-
-
-static void set_path_shrink_info(
-			uint32_t idx, unsigned long  scaler_base,
-			struct isp_regular_info *regular_info)
-{
-	unsigned long addr = 0;
-	uint32_t reg_val = 0;
-
-	pr_debug("regular_mode %d\n", regular_info->regular_mode);
-	addr = ISP_SCALER_CFG + scaler_base;
-	ISP_REG_MWR(idx, addr, (BIT_25 | BIT_26),
-		regular_info->regular_mode << 25);
-
-	/*TBD
-	 * the value need to update.
-	 */
-	if (regular_info->regular_mode == DCAM_REGULAR_SHRINK) {
-		regular_info->shrink_y_up_th = SHRINK_Y_UP_TH;
-		regular_info->shrink_y_dn_th = SHRINK_Y_DN_TH;
-		regular_info->shrink_uv_up_th = SHRINK_UV_UP_TH;
-		regular_info->shrink_uv_dn_th = SHRINK_UV_DN_TH;
-		addr = ISP_SCALER_SHRINK_CFG + scaler_base;
-		reg_val = ((regular_info->shrink_uv_dn_th & 0xFF) << 24) |
-			((regular_info->shrink_uv_up_th & 0xFF) << 16);
-		reg_val |= ((regular_info->shrink_y_dn_th  & 0xFF) << 8) |
-			((regular_info->shrink_y_up_th & 0xFF));
-		ISP_REG_WR(idx, addr, reg_val);
-
-		regular_info->shrink_y_offset = SHRINK_Y_OFFSET;
-		regular_info->shrink_y_range = SHRINK_Y_RANGE;
-		regular_info->shrink_c_offset = SHRINK_C_OFFSET;
-		regular_info->shrink_c_range = SHRINK_C_RANGE;
-		addr = ISP_SCALER_REGULAR_CFG + scaler_base;
-		reg_val = ((regular_info->shrink_c_range & 0xF) << 24) |
-			((regular_info->shrink_c_offset & 0x1F) << 16);
-		reg_val |= ((regular_info->shrink_y_range & 0xF) << 8) |
-			(regular_info->shrink_y_offset & 0x1F);
-		ISP_REG_WR(idx, addr, reg_val);
-	} else if (regular_info->regular_mode == DCAM_REGULAR_CUT) {
-		addr = ISP_SCALER_SHRINK_CFG + scaler_base;
-		reg_val = ((regular_info->shrink_uv_dn_th & 0xFF) << 24) |
-			((regular_info->shrink_uv_up_th & 0xFF) << 16);
-		reg_val |= ((regular_info->shrink_y_dn_th  & 0xFF) << 8) |
-			((regular_info->shrink_y_up_th & 0xFF));
-		ISP_REG_WR(idx, addr, reg_val);
-	} else if (regular_info->regular_mode == DCAM_REGULAR_EFFECT) {
-		addr = ISP_SCALER_EFFECT_CFG + scaler_base;
-		reg_val = ((regular_info->effect_v_th & 0xFF) << 16) |
-				((regular_info->effect_u_th & 0xFF) << 8);
-		reg_val |= (regular_info->effect_y_th & 0xFF);
-		ISP_REG_WR(idx, addr, reg_val);
-	} else
-		pr_debug("regular_mode %d\n", regular_info->regular_mode);
-}
-
-static int set_path_scaler_coeff(
-			uint32_t idx, unsigned long  scaler_base,
-			uint32_t *coeff_buf,
-			struct isp_path_desc *path)
-{
-	int i = 0, rtn = 0;
-	uint32_t h_coeff_addr = 0;
-	uint32_t v_coeff_addr = 0;
-	uint32_t h_chroma_coeff_addr = 0;
-	uint32_t v_chroma_coeff_addr = 0;
-	uint32_t *h_coeff = NULL;
-	uint32_t *v_coeff = NULL;
-	uint32_t *v_chroma_coeff = NULL;
-	uint32_t buf_sel;
-
-	h_coeff = coeff_buf;
-	v_coeff = coeff_buf + (ISP_SC_COEFF_COEF_SIZE / 4);
-	v_chroma_coeff = v_coeff + (ISP_SC_COEFF_COEF_SIZE / 4);
-
-	/* ping pong buffer. */
-	buf_sel = ISP_REG_RD(idx, scaler_base + ISP_SCALER_CFG);
-	buf_sel = (~((buf_sel & BIT_30) >> 30)) & 1;
-
-	/* temp set: config mode always select buf 0 */
-	buf_sel = 0;
-
-	h_coeff_addr = coff_buf_addr[buf_sel][path->spath_id][0];
-	h_chroma_coeff_addr = coff_buf_addr[buf_sel][path->spath_id][1];
-	v_coeff_addr = coff_buf_addr[buf_sel][path->spath_id][2];
-	v_chroma_coeff_addr = coff_buf_addr[buf_sel][path->spath_id][3];
-
-	for (i = 0; i < ISP_SC_COEFF_H_NUM; i++) {
-		ISP_REG_WR(idx, h_coeff_addr, *h_coeff);
-		h_coeff_addr += 4;
-		h_coeff++;
-	}
-
-	for (i = 0; i < ISP_SC_COEFF_H_CHROMA_NUM; i++) {
-		ISP_REG_WR(idx, h_chroma_coeff_addr, *h_coeff);
-		h_chroma_coeff_addr += 4;
-		h_coeff++;
-	}
-
-	for (i = 0; i < ISP_SC_COEFF_V_NUM; i++) {
-		ISP_REG_WR(idx, v_coeff_addr, *v_coeff);
-		v_coeff_addr += 4;
-		v_coeff++;
-	}
-
-	for (i = 0; i < ISP_SC_COEFF_V_CHROMA_NUM; i++) {
-		ISP_REG_WR(idx, v_chroma_coeff_addr, *v_chroma_coeff);
-		v_chroma_coeff_addr += 4;
-		v_chroma_coeff++;
-	}
-
-	ISP_REG_MWR(idx, scaler_base + ISP_SCALER_CFG,
-			BIT_30, buf_sel << 30);
-
-	pr_debug("end. buf_sel %d\n", buf_sel);
-	return rtn;
-}
-
-static int set_path_scaler(struct isp_path_desc *path)
-{
-	uint32_t reg_val, idx;
-	struct isp_scaler_info *scalerInfo = NULL;
-	unsigned long addr_base;
-
-	scalerInfo = &path->scaler;
-	addr_base = scaler_base[path->spath_id];
-	idx = path->attach_ctx->ctx_id;
-
-	ISP_REG_MWR(idx, addr_base + ISP_SCALER_CFG, BIT_20,
-			scalerInfo->scaler_bypass << 20);
-	ISP_REG_MWR(idx, addr_base + ISP_SCALER_CFG, 0xF0000,
-			scalerInfo->scaler_y_ver_tap << 16);
-	ISP_REG_MWR(idx, addr_base + ISP_SCALER_CFG, 0xF800,
-			scalerInfo->scaler_uv_ver_tap << 11);
-
-	reg_val = ((scalerInfo->scaler_ip_int & 0xF) << 16) |
-			(scalerInfo->scaler_ip_rmd & 0x3FFF);
-	ISP_REG_WR(idx, addr_base + ISP_SCALER_IP, reg_val);
-	reg_val = ((scalerInfo->scaler_cip_int & 0xF) << 16) |
-			(scalerInfo->scaler_cip_rmd & 0x3FFF);
-	ISP_REG_WR(idx, addr_base + ISP_SCALER_CIP, reg_val);
-	reg_val = ((scalerInfo->scaler_factor_in & 0x3FFF) << 16) |
-			(scalerInfo->scaler_factor_out & 0x3FFF);
-	ISP_REG_WR(idx, addr_base + ISP_SCALER_FACTOR, reg_val);
-
-	reg_val = ((scalerInfo->scaler_ver_ip_int & 0xF) << 16) |
-				(scalerInfo->scaler_ver_ip_rmd & 0x3FFF);
-	ISP_REG_WR(idx, addr_base + ISP_SCALER_VER_IP, reg_val);
-	reg_val = ((scalerInfo->scaler_ver_cip_int & 0xF) << 16) |
-				(scalerInfo->scaler_ver_cip_rmd & 0x3FFF);
-	ISP_REG_WR(idx, addr_base + ISP_SCALER_VER_CIP, reg_val);
-	reg_val = ((scalerInfo->scaler_ver_factor_in & 0x3FFF) << 16) |
-				(scalerInfo->scaler_ver_factor_out & 0x3FFF);
-	ISP_REG_WR(idx, addr_base + ISP_SCALER_VER_FACTOR, reg_val);
-
-	pr_debug("set_scale_info in %d %d out %d %d\n",
-		scalerInfo->scaler_factor_in,
-		scalerInfo->scaler_ver_factor_in,
-		scalerInfo->scaler_factor_out,
-		scalerInfo->scaler_ver_factor_out);
-
-	if (!scalerInfo->scaler_bypass)
-		set_path_scaler_coeff(idx,
-			addr_base, scalerInfo->coeff_buf, path);
-
-	if (path->spath_id == ISP_SPATH_VID)
-		set_path_shrink_info(idx, addr_base, &path->regular_info);
-
-	return 0;
-}
-
 static uint32_t cal_deci_par(uint32_t deci)
 {
 	/* 0: 1/2, 1: 1/4, 2: 1/8, 3: 1/16*/
@@ -1296,20 +1020,11 @@ static uint32_t cal_deci_par(uint32_t deci)
 		return 0;
 }
 
-static int set_path_thumbscaler(struct isp_path_desc *path)
+uint32_t get_path_val(struct isp_thumbscaler_info *scalerInfo, struct isp_path_desc *path)
 {
-	uint32_t val, idx;
+	uint32_t val;
 	uint32_t y_deci_w_par, y_deci_h_par;
 	uint32_t uv_deci_w_par, uv_deci_h_par;
-	struct isp_thumbscaler_info *scalerInfo = NULL;
-
-	scalerInfo = &path->thumbscaler;
-	idx = path->attach_ctx->ctx_id;
-
-	ISP_REG_MWR(idx, ISP_COMMON_SCL_PATH_SEL,
-		BIT_5 | BIT_4, (path->skip_pipeline << 4));
-
-	ISP_REG_MWR(idx, ISP_THMB_CFG, BIT_0, scalerInfo->scaler_bypass & 0x1);
 
 	y_deci_w_par = cal_deci_par(scalerInfo->y_deci.deci_x);
 	y_deci_h_par = cal_deci_par(scalerInfo->y_deci.deci_y);
@@ -1325,129 +1040,8 @@ static int set_path_thumbscaler(struct isp_path_desc *path)
 		((scalerInfo->uv_deci.deci_x_eb & 0x1) << 27) |
 		((uv_deci_h_par & 0x3) << 28) |
 		((scalerInfo->uv_deci.deci_y_eb & 0x1) << 31);
-	ISP_REG_MWR(idx, ISP_THMB_CFG, 0xBBBB003C, val);
 
-	val = ((scalerInfo->y_factor_in.w & 0x1FFF) << 16) |
-		(scalerInfo->y_factor_out.w & 0x3FF);
-	ISP_REG_WR(idx, ISP_THMB_Y_FACTOR_HOR, val);
-
-	val = ((scalerInfo->y_factor_in.h & 0x1FFF) << 16) |
-		(scalerInfo->y_factor_out.h & 0x3FF);
-	ISP_REG_WR(idx, ISP_THMB_Y_FACTOR_VER, val);
-
-	val = ((scalerInfo->uv_factor_in.w & 0x1FFF) << 16) |
-		(scalerInfo->uv_factor_out.w & 0x3FF);
-	ISP_REG_WR(idx, ISP_THMB_UV_FACTOR_HOR, val);
-
-	val = ((scalerInfo->uv_factor_in.h & 0x1FFF) << 16) |
-		(scalerInfo->uv_factor_out.h & 0x3FF);
-	ISP_REG_WR(idx, ISP_THMB_UV_FACTOR_VER, val);
-
-	val = ((scalerInfo->src0.h & 0x1FFF) << 16) |
-		(scalerInfo->src0.w & 0x1FFF);
-	ISP_REG_WR(idx, ISP_THMB_BEFORE_TRIM_SIZE, val);
-
-	val = ((scalerInfo->y_src_after_deci.h & 0x1FFF) << 16) |
-		(scalerInfo->y_src_after_deci.w & 0x1FFF);
-	ISP_REG_WR(idx, ISP_THMB_Y_SLICE_SRC_SIZE, val);
-
-	val = ((scalerInfo->y_dst_after_scaler.h & 0x3FF) << 16) |
-		(scalerInfo->y_dst_after_scaler.w & 0x3FF);
-	ISP_REG_WR(idx, ISP_THMB_Y_DES_SIZE, val);
-
-	val = ((scalerInfo->y_trim.start_y & 0x1FFF) << 16) |
-		(scalerInfo->y_trim.start_x & 0x1FFF);
-	ISP_REG_WR(idx, ISP_THMB_Y_TRIM0_START, val);
-
-	val = ((scalerInfo->y_trim.size_y & 0x1FFF) << 16) |
-		(scalerInfo->y_trim.size_x & 0x1FFF);
-	ISP_REG_WR(idx, ISP_THMB_Y_TRIM0_SIZE, val);
-
-	val = ((scalerInfo->y_init_phase.h & 0x3FF) << 16) |
-		(scalerInfo->y_init_phase.w & 0x3FF);
-	ISP_REG_WR(idx, ISP_THMB_Y_INIT_PHASE, val);
-
-	val = ((scalerInfo->uv_src_after_deci.h & 0x1FFF) << 16) |
-		(scalerInfo->uv_src_after_deci.w & 0x1FFF);
-	ISP_REG_WR(idx, ISP_THMB_UV_SLICE_SRC_SIZE, val);
-
-	val = ((scalerInfo->uv_dst_after_scaler.h & 0x3FF) << 16) |
-		(scalerInfo->uv_dst_after_scaler.w & 0x3FF);
-	ISP_REG_WR(idx, ISP_THMB_UV_DES_SIZE, val);
-
-	val = ((scalerInfo->uv_trim.start_y & 0x1FFF) << 16) |
-		(scalerInfo->uv_trim.start_x & 0x1FFF);
-	ISP_REG_WR(idx, ISP_THMB_UV_TRIM0_START, val);
-
-	val = ((scalerInfo->uv_trim.size_y & 0x1FFF) << 16) |
-		(scalerInfo->uv_trim.size_x & 0x1FFF);
-	ISP_REG_WR(idx, ISP_THMB_UV_TRIM0_SIZE, val);
-
-	val = ((scalerInfo->uv_init_phase.h & 0x3FF) << 16) |
-		(scalerInfo->uv_init_phase.w & 0x3FF);
-	ISP_REG_WR(idx, ISP_THMB_UV_INIT_PHASE, val);
-
-	/* bypass regular. */
-	ISP_REG_WR(idx, ISP_THMB_EFFECT_CFG, 0);
-
-	return 0;
-}
-
-static int set_path_store(struct isp_path_desc *path)
-{
-	int ret = 0;
-	uint32_t val = 0;
-	uint32_t idx = path->attach_ctx->ctx_id;
-	struct isp_store_info *store_info = &path->store;
-	unsigned long addr = store_base[path->spath_id];
-
-	pr_debug("isp set store in.  bypass %d, path_id:%d, w:%d,h:%d\n",
-			store_info->bypass, path->spath_id,
-			store_info->size.w, store_info->size.h);
-
-	ISP_REG_MWR(idx, addr + ISP_STORE_PARAM,
-		BIT_0, store_info->bypass);
-	if (store_info->bypass)
-		return 0;
-
-	ISP_REG_MWR(idx, addr + ISP_STORE_PARAM,
-		BIT_1, (store_info->max_len_sel << 1));
-
-	ISP_REG_MWR(idx, addr + ISP_STORE_PARAM,
-		BIT_2, (store_info->speed_2x << 2));
-
-	ISP_REG_MWR(idx, addr + ISP_STORE_PARAM,
-		BIT_3, (store_info->mirror_en << 3));
-
-	ISP_REG_MWR(idx, addr + ISP_STORE_PARAM,
-		0xF0, (store_info->color_fmt << 4));
-
-	ISP_REG_MWR(idx, addr + ISP_STORE_PARAM,
-		0x300, (store_info->endian << 8));
-
-	val = ((store_info->size.h & 0xFFFF) << 16) |
-		(store_info->size.w & 0xFFFF);
-	ISP_REG_WR(idx, addr + ISP_STORE_SLICE_SIZE, val);
-
-	ISP_REG_WR(idx, addr + ISP_STORE_BORDER, 0);
-	ISP_REG_WR(idx, addr + ISP_STORE_Y_PITCH, store_info->pitch.pitch_ch0);
-	ISP_REG_WR(idx, addr + ISP_STORE_U_PITCH, store_info->pitch.pitch_ch1);
-	ISP_REG_WR(idx, addr + ISP_STORE_V_PITCH, store_info->pitch.pitch_ch2);
-
-	pr_debug("set_store size %d %d\n",
-		store_info->size.w, store_info->size.h);
-
-	ISP_REG_MWR(idx, addr + ISP_STORE_READ_CTRL,
-		0x3, store_info->rd_ctrl);
-	ISP_REG_MWR(idx, addr + ISP_STORE_READ_CTRL,
-		0xFFFFFFFC, store_info->store_res << 2);
-
-	ISP_REG_MWR(idx, addr + ISP_STORE_SHADOW_CLR_SEL,
-		BIT_1, store_info->shadow_clr_sel << 1);
-	ISP_REG_MWR(idx, addr + ISP_STORE_SHADOW_CLR,
-		BIT_0, store_info->shadow_clr);
-
-	return ret;
+	return val;
 }
 
 /* config path common register */
@@ -1456,6 +1050,7 @@ int isp_set_path(struct isp_path_desc *path)
 	int ret = 0;
 	enum isp_afbc_path afbc_path_id = 0;
 	struct cam_hw_info *hw = NULL;
+	struct isp_hw_path_thumbscaler thumbscaler;
 
 	if (!path) {
 		pr_err("fail to get input ptr: null\n");
@@ -1467,15 +1062,16 @@ int isp_set_path(struct isp_path_desc *path)
 
 	pr_debug("enter.\n");
 	if (path->spath_id == ISP_SPATH_FD) {
-		set_path_thumbscaler(path);
+		thumbscaler.val = get_path_val(&path->thumbscaler, path);
+		thumbscaler.path = path;
+		hw->isp_ioctl(hw, ISP_HW_CFG_SET_PATH_THUMBSCALER, &thumbscaler);
 	} else {
-		set_path_common(path);
-		set_path_scaler(path);
+		hw->isp_ioctl(hw, ISP_HW_CFG_SET_PATH_COMMON, path);
+		hw->isp_ioctl(hw, ISP_HW_CFG_SET_PATH_SCALER, path);
 	}
-	set_path_store(path);
-	if (afbc_path_id < AFBC_PATH_NUM
-		&& hw->hw_ops.core_ops.isp_afbc_path_set)
-		hw->hw_ops.core_ops.isp_afbc_path_set(path);
+	hw->isp_ioctl(hw, ISP_HW_CFG_SET_PATH_STORE, path);
+	if (afbc_path_id < AFBC_PATH_NUM)
+		hw->isp_ioctl(hw, ISP_HW_CFG_AFBC_PATH_SET, path);
 	pr_debug("done.\n");
 	return ret;
 }
@@ -1491,6 +1087,7 @@ int isp_path_set_store_frm(
 	struct isp_pipe_context *pctx;
 	struct isp_store_info *store;
 	unsigned long addr;
+	struct isp_hw_store_slice_addr store_slice;
 
 	if (!path || !frame) {
 		pr_err("fail to get valid input ptr, path %p, frame %p\n",
@@ -1550,9 +1147,10 @@ int isp_path_set_store_frm(
 		path->spath_id, planes,
 		yuv_addr[0], yuv_addr[1], yuv_addr[2]);
 
-	ISP_REG_WR(idx, addr + ISP_STORE_SLICE_Y_ADDR, yuv_addr[0]);
-	ISP_REG_WR(idx, addr + ISP_STORE_SLICE_U_ADDR, yuv_addr[1]);
-	ISP_REG_WR(idx, addr + ISP_STORE_SLICE_V_ADDR, yuv_addr[2]);
+	store_slice.addr = addr;
+	store_slice.idx = idx;
+	store_slice.yuv_addr = yuv_addr;
+	pctx->hw->isp_ioctl(pctx->hw, ISP_HW_CFG_STORE_SLICE_ADDR, &store_slice);
 
 	path->store.addr.addr_ch0 = yuv_addr[0];
 	path->store.addr.addr_ch1 = yuv_addr[1];
@@ -1575,6 +1173,7 @@ int isp_path_set_afbc_store_frm(
 	struct isp_pipe_context *pctx = NULL;
 	struct isp_afbc_store_info *afbc_store = NULL;
 	struct cam_hw_info *hw = NULL;
+	struct isp_hw_afbc_addr afbc_addr;
 
 	if (!path || !frame) {
 		pr_err("fail to get valid input ptr, path %p, frame %p\n",
@@ -1593,9 +1192,10 @@ int isp_path_set_afbc_store_frm(
 	if (yuv_addr[1] == 0)
 		yuv_addr[1] = yuv_addr[0] + afbc_store->header_offset;
 
-	if (hw->hw_ops.core_ops.isp_afbc_addr_set)
-		hw->hw_ops.core_ops.isp_afbc_addr_set(idx,
-			path->spath_id, yuv_addr);
+	afbc_addr.idx = idx;
+	afbc_addr.spath_id = path->spath_id;
+	afbc_addr.yuv_addr = yuv_addr;
+	hw->isp_ioctl(hw, ISP_HW_CFG_AFBC_ADDR_SET, &afbc_addr);
 
 	path->afbc_store.yheader= yuv_addr[0];
 	path->afbc_store.yaddr = yuv_addr[1];
@@ -1615,6 +1215,8 @@ int isp_path_set_fetch_frm(struct isp_pipe_context *pctx,
 	unsigned long offset_u, offset_v, yuv_addr[3] = {0};
 	struct isp_fetch_info *fetch = &pctx->fetch;
 	struct cam_hw_info *hw = NULL;
+	struct isp_hw_fbd_addr fbd;
+	struct isp_hw_fetch_slice_addr fetch_slice;
 
 	if (!pctx || !frame) {
 		pr_err("fail to get valid input ptr, pctx %p, frame %p\n",
@@ -1636,9 +1238,10 @@ int isp_path_set_fetch_frm(struct isp_pipe_context *pctx,
 					    frame->buf.iova[0],
 					    &fbd_addr,
 					    frame->compress_4bit_bypass);
-		if (hw->hw_ops.core_ops.isp_fbd_addr_set)
-			hw->hw_ops.core_ops.isp_fbd_addr_set(idx,
-					&fbd_addr, fbd_raw);
+		fbd.fbd_addr = &fbd_addr;
+		fbd.fbd_raw = fbd_raw;
+		fbd.idx = idx;
+		hw->isp_ioctl(hw, ISP_HW_CFG_FBD_ADDR_SET, &fbd);
 		/* store start address for slice use */
 		fbd_raw->header_addr_init = fbd_addr.addr1;
 		fbd_raw->tile_addr_init_x256 = fbd_addr.addr1;
@@ -1691,9 +1294,9 @@ int isp_path_set_fetch_frm(struct isp_pipe_context *pctx,
 	if (pctx->dev->sec_mode == SEC_SPACE_PRIORITY) {
 		camca_isp_fetch_addr_set(yuv_addr[0], yuv_addr[1], yuv_addr[2]);
 	} else {
-		ISP_REG_WR(idx, ISP_FETCH_SLICE_Y_ADDR, yuv_addr[0]);
-		ISP_REG_WR(idx, ISP_FETCH_SLICE_U_ADDR, yuv_addr[1]);
-		ISP_REG_WR(idx, ISP_FETCH_SLICE_V_ADDR, yuv_addr[2]);
+		fetch_slice.idx = idx;
+		fetch_slice.yuv_addr = yuv_addr;
+		hw->isp_ioctl(hw, ISP_HW_CFG_FETCH_SLICE_ADDR, &fetch_slice);
 	}
 
 	pr_debug("camca  isp sec_mode=%d,  %lx %lx %lx\n", pctx->dev->sec_mode,

@@ -49,12 +49,17 @@ int dcam_init_lsc(void *in, uint32_t online)
 	struct dcam_dev_lsc_param *param = NULL;
 	struct dcam_pipe_dev *dev = (struct dcam_pipe_dev *)in;
 	struct cam_hw_info *hw = NULL;
+	struct dcam_hw_force_copy copyarg;
 
 	hw = dev->hw;
 	param = &dev->blk_dcam_pm->lsc;
+
+	copyarg.id = DCAM_CTRL_BIN;
+	copyarg.idx = dev->idx;
+	copyarg.glb_reg_lock = dev->glb_reg_lock;
 	if (!param->update) {
 		/* need, because other block need coef */
-		hw->hw_ops.core_ops.force_copy(DCAM_CTRL_BIN, dev);
+		hw->dcam_ioctl(hw, DCAM_HW_CFG_FORCE_COPY, &copyarg);
 		return 0;
 	}
 
@@ -68,7 +73,7 @@ int dcam_init_lsc(void *in, uint32_t online)
 	if (info->bypass) {
 		pr_debug("bypass\n");
 		DCAM_REG_MWR(idx, DCAM_LENS_LOAD_ENABLE, BIT_0, 1);
-		hw->hw_ops.core_ops.force_copy(DCAM_CTRL_BIN, dev);
+		hw->dcam_ioctl(hw, DCAM_HW_CFG_FORCE_COPY, &copyarg);
 		return 0;
 	}
 
@@ -124,7 +129,7 @@ int dcam_init_lsc(void *in, uint32_t online)
 	DCAM_REG_MWR(idx, DCAM_LENS_LOAD_ENABLE, BIT_0, 0);
 
 	/* force copy for init */
-	hw->hw_ops.core_ops.force_copy(DCAM_CTRL_BIN, dev);
+	hw->dcam_ioctl(hw, DCAM_HW_CFG_FORCE_COPY, &copyarg);
 
 	/* step3: config grid x y */
 	val = ((info->grid_width & 0x1ff) << 16) |
@@ -152,8 +157,7 @@ int dcam_init_lsc(void *in, uint32_t online)
 	DCAM_REG_MWR(idx, DCAM_LENS_LOAD_ENABLE, BIT_1, buf_sel << 1);
 	pr_info("buf_sel %d\n", buf_sel);
 
-	hw->hw_ops.core_ops.force_copy(DCAM_CTRL_BIN, dev);
-
+	hw->dcam_ioctl(hw, DCAM_HW_CFG_FORCE_COPY, &copyarg);
 	pr_info("w %d,  grid len %d grid %d  num_t %d (%d, %d)\n",
 		info->weight_num, info->gridtab_len, info->grid_width,
 		info->grid_num_t, info->grid_x_num, info->grid_y_num);
@@ -162,7 +166,8 @@ int dcam_init_lsc(void *in, uint32_t online)
 exit:
 	/* bypass lsc if there is exception */
 	DCAM_REG_MWR(idx, DCAM_LENS_LOAD_ENABLE, BIT_0, 1);
-	hw->hw_ops.core_ops.force_copy(DCAM_CTRL_BIN, dev);
+	hw->dcam_ioctl(hw, DCAM_HW_CFG_FORCE_COPY, &copyarg);
+
 	return ret;
 }
 
@@ -179,6 +184,7 @@ int dcam_update_lsc(void *in)
 	struct dcam_dev_lsc_param *param = NULL;
 	struct dcam_pipe_dev *dev = (struct dcam_pipe_dev *)in;
 	struct cam_hw_info *hw = NULL;
+	struct dcam_hw_auto_copy copyarg;
 
 	hw = dev->hw;
 	param = &dev->blk_dcam_pm->lsc;
@@ -264,7 +270,10 @@ int dcam_update_lsc(void *in)
 		pr_debug("frame %d, buf_sel %d\n", dev->frame_index, buf_sel);
 
 		/*  auto cpy lens registers next sof */
-		hw->hw_ops.core_ops.auto_copy(DCAM_CTRL_BIN, dev);
+		copyarg.id = DCAM_CTRL_BIN;
+		copyarg.idx = dev->idx;
+		copyarg.glb_reg_lock = dev->glb_reg_lock;
+		hw->dcam_ioctl(hw, DCAM_HW_CFG_AUTO_COPY, &copyarg);
 	}
 
 	DCAM_REG_MWR(idx, DCAM_LENS_LOAD_CLR, BIT_1, (1 << 1));

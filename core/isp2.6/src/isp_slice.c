@@ -25,10 +25,8 @@
 #define pr_fmt(fmt) "ISP_SLICE: %d %d %s : "\
 	fmt, current->pid, __LINE__, __func__
 
-
 #define ISP_SLICE_ALIGN_SIZE           2
 #define ISP_ALIGNED(size)              ((size) & ~(ISP_SLICE_ALIGN_SIZE - 1))
-
 
 struct isp_scaler_slice_tmp {
 	uint32_t slice_row_num;
@@ -101,7 +99,6 @@ static int sprd_ispslice_noisefliter_info_set(struct isp_slice_desc *slc_ctx,
 exit:
 	return rtn;
 }
-
 
 static int get_slice_size_info(
 			struct slice_cfg_input *in_ptr,
@@ -473,7 +470,6 @@ static void cfg_spath_trim0_info(
 	}
 }
 
-
 static void cfg_spath_deci_info(
 		struct isp_scaler_slice_tmp *sinfo,
 		struct img_deci_info *frm_deci,
@@ -535,7 +531,6 @@ static void cfg_spath_deci_info(
 		slc_scaler->trim0_size_y / sinfo->deci_y;
 
 }
-
 
 static void calc_scaler_phase(uint32_t phase, uint32_t factor,
 	uint32_t *phase_int, uint32_t *phase_rmd)
@@ -973,7 +968,6 @@ static int cfg_slice_thumbscaler(
 
 	return ret;
 }
-
 
 static int cfg_slice_scaler_info(
 		struct slice_cfg_input *in_ptr,
@@ -2385,440 +2379,6 @@ int put_isp_slice_ctx(void **slc_ctx)
 	return 0;
 }
 
-
-
-/*  following section is fmcu cmds of register update for slice */
-static unsigned long store_base[ISP_SPATH_NUM] = {
-	ISP_STORE_PRE_CAP_BASE,
-	ISP_STORE_VID_BASE,
-	ISP_STORE_THUMB_BASE,
-};
-
-static unsigned long scaler_base[ISP_SPATH_NUM] = {
-	ISP_SCALER_PRE_CAP_BASE,
-	ISP_SCALER_VID_BASE,
-	ISP_SCALER_THUMB_BASE,
-};
-
-uint32_t ap_fmcu_reg_get(struct isp_fmcu_ctx_desc *fmcu,
-	uint32_t reg)
-{
-	uint32_t addr = 0;
-	if (fmcu)
-		addr = ISP_GET_REG(reg);
-	else
-		addr = reg;
-
-	return addr;
-}
-
-void ap_fmcu_reg_write(struct isp_fmcu_ctx_desc *fmcu,
-	uint32_t ctx_id, uint32_t addr, uint32_t cmd)
-{
-	if (fmcu)
-		FMCU_PUSH(fmcu, addr, cmd);
-	else
-		ISP_REG_WR(ctx_id, addr, cmd);
-}
-
-static int set_fmcu_cfg(struct isp_fmcu_ctx_desc *fmcu,
-	enum isp_context_hw_id ctx_id)
-{
-	uint32_t addr = 0, cmd = 0;
-	unsigned long base;
-	unsigned long reg_addr[ISP_CONTEXT_HW_NUM] = {
-		ISP_CFG_PRE0_START,
-		ISP_CFG_CAP0_START,
-		ISP_CFG_PRE1_START,
-		ISP_CFG_CAP1_START,
-	};
-
-	addr = ISP_GET_REG(reg_addr[ctx_id]);
-	cmd = 1;
-	FMCU_PUSH(fmcu, addr, cmd);
-
-	/*
-	 * When setting CFG_TRIGGER_PULSE cmd, fmcu will wait
-	 * until CFG module configs isp registers done.
-	 */
-	if (fmcu->fid == 0)
-		base =  ISP_FMCU0_BASE;
-	else
-		base =  ISP_FMCU1_BASE;
-	addr = ISP_GET_REG(base + ISP_FMCU_CMD);
-	cmd = CFG_TRIGGER_PULSE;
-	FMCU_PUSH(fmcu, addr, cmd);
-
-	return 0;
-}
-
-static int set_slice_nr_info(
-	struct isp_fmcu_ctx_desc *fmcu,
-	struct isp_slice_desc *cur_slc)
-{
-	uint32_t addr = 0, cmd = 0;
-
-	/* NLM */
-	addr = ISP_GET_REG(ISP_NLM_RADIAL_1D_DIST);
-	cmd = ((cur_slc->slice_nlm.center_y_relative & 0x3FFF) << 16) |
-		(cur_slc->slice_nlm.center_x_relative & 0x3FFF);
-	FMCU_PUSH(fmcu, addr, cmd);
-
-	/* Post CDN */
-	addr = ISP_GET_REG(ISP_POSTCDN_SLICE_CTRL);
-	cmd = cur_slc->slice_postcdn.start_row_mod4;
-	FMCU_PUSH(fmcu, addr, cmd);
-
-	/* YNR */
-	addr = ISP_GET_REG(ISP_YNR_CFG31);
-	cmd = ((cur_slc->slice_ynr.center_offset_y & 0xFFFF) << 16) |
-		(cur_slc->slice_ynr.center_offset_x & 0xFFFF);
-	FMCU_PUSH(fmcu, addr, cmd);
-
-	addr = ISP_GET_REG(ISP_YNR_CFG33);
-	cmd = ((cur_slc->slice_ynr.slice_height & 0xFFFF) << 16) |
-		(cur_slc->slice_ynr.slice_width & 0xFFFF);
-	FMCU_PUSH(fmcu, addr, cmd);
-
-	return 0;
-}
-
-static int set_slice_fetch(struct isp_fmcu_ctx_desc *fmcu,
-		struct slice_fetch_info *fetch_info)
-{
-	uint32_t addr = 0, cmd = 0;
-
-	addr = ISP_GET_REG(ISP_FETCH_MEM_SLICE_SIZE);
-	cmd = ((fetch_info->size.h & 0xFFFF) << 16) |
-			(fetch_info->size.w & 0xFFFF);
-	FMCU_PUSH(fmcu, addr, cmd);
-
-	addr = ISP_GET_REG(ISP_FETCH_SLICE_Y_ADDR);
-	cmd = fetch_info->addr.addr_ch0;
-	FMCU_PUSH(fmcu, addr, cmd);
-
-	addr = ISP_GET_REG(ISP_FETCH_SLICE_U_ADDR);
-	cmd = fetch_info->addr.addr_ch1;
-	FMCU_PUSH(fmcu, addr, cmd);
-
-	addr = ISP_GET_REG(ISP_FETCH_SLICE_V_ADDR);
-	cmd = fetch_info->addr.addr_ch2;
-	FMCU_PUSH(fmcu, addr, cmd);
-
-	addr = ISP_GET_REG(ISP_FETCH_MIPI_INFO);
-	cmd = fetch_info->mipi_word_num |
-			(fetch_info->mipi_byte_rel_pos << 16);
-	FMCU_PUSH(fmcu, addr, cmd);
-
-	/* dispatch size same as fetch size */
-	addr = ISP_GET_REG(ISP_DISPATCH_CH0_SIZE);
-	cmd = ((fetch_info->size.h & 0xFFFF) << 16) |
-			(fetch_info->size.w & 0xFFFF);
-	FMCU_PUSH(fmcu, addr, cmd);
-
-	return 0;
-}
-
-static int set_slice_spath_thumbscaler(
-		struct isp_fmcu_ctx_desc *fmcu,
-		uint32_t path_en,
-		uint32_t ctx_idx,
-		struct slice_thumbscaler_info *slc_scaler)
-{
-	uint32_t addr = 0, cmd = 0;
-
-	if (!path_en)
-		return 0;
-
-	addr = ISP_GET_REG(ISP_THMB_BEFORE_TRIM_SIZE);
-	cmd = ((slc_scaler->src0.h & 0x1FFF) << 16) |
-		(slc_scaler->src0.w & 0x1FFF);
-	FMCU_PUSH(fmcu, addr, cmd);
-
-	addr = ISP_GET_REG(ISP_THMB_Y_SLICE_SRC_SIZE);
-	cmd = ((slc_scaler->y_src_after_deci.h & 0x1FFF) << 16) |
-		(slc_scaler->y_src_after_deci.w & 0x1FFF);
-	FMCU_PUSH(fmcu, addr, cmd);
-
-	addr = ISP_GET_REG(ISP_THMB_Y_DES_SIZE);
-	cmd = ((slc_scaler->y_dst_after_scaler.h & 0x3FF) << 16) |
-		(slc_scaler->y_dst_after_scaler.w & 0x3FF);
-	FMCU_PUSH(fmcu, addr, cmd);
-
-	addr = ISP_GET_REG(ISP_THMB_Y_TRIM0_START);
-	cmd = ((slc_scaler->y_trim.start_y & 0x1FFF) << 16) |
-		(slc_scaler->y_trim.start_x & 0x1FFF);
-	FMCU_PUSH(fmcu, addr, cmd);
-
-	addr = ISP_GET_REG(ISP_THMB_Y_TRIM0_SIZE);
-	cmd = ((slc_scaler->y_trim.size_y & 0x1FFF) << 16) |
-		(slc_scaler->y_trim.size_x & 0x1FFF);
-	FMCU_PUSH(fmcu, addr, cmd);
-
-	addr = ISP_GET_REG(ISP_THMB_Y_INIT_PHASE);
-	cmd = ((slc_scaler->y_init_phase.h & 0x3FF) << 16) |
-		(slc_scaler->y_init_phase.w & 0x3FF);
-	FMCU_PUSH(fmcu, addr, cmd);
-
-
-	addr = ISP_GET_REG(ISP_THMB_UV_SLICE_SRC_SIZE);
-	cmd = ((slc_scaler->uv_src_after_deci.h & 0x1FFF) << 16) |
-		(slc_scaler->uv_src_after_deci.w & 0x1FFF);
-	FMCU_PUSH(fmcu, addr, cmd);
-
-	addr = ISP_GET_REG(ISP_THMB_UV_DES_SIZE);
-	cmd = ((slc_scaler->uv_dst_after_scaler.h & 0x3FF) << 16) |
-		(slc_scaler->uv_dst_after_scaler.w & 0x3FF);
-	FMCU_PUSH(fmcu, addr, cmd);
-
-	addr = ISP_GET_REG(ISP_THMB_UV_TRIM0_START);
-	cmd = ((slc_scaler->uv_trim.start_y & 0x1FFF) << 16) |
-		(slc_scaler->uv_trim.start_x & 0x1FFF);
-	FMCU_PUSH(fmcu, addr, cmd);
-
-	addr = ISP_GET_REG(ISP_THMB_UV_TRIM0_SIZE);
-	cmd = ((slc_scaler->uv_trim.size_y & 0x1FFF) << 16) |
-		(slc_scaler->uv_trim.size_x & 0x1FFF);
-	FMCU_PUSH(fmcu, addr, cmd);
-
-	addr = ISP_GET_REG(ISP_THMB_UV_INIT_PHASE);
-	cmd = ((slc_scaler->uv_init_phase.h & 0x3FF) << 16) |
-		(slc_scaler->uv_init_phase.w & 0x3FF);
-	FMCU_PUSH(fmcu, addr, cmd);
-
-	return 0;
-}
-
-static int set_slice_spath_scaler(
-		struct isp_fmcu_ctx_desc *fmcu,
-		uint32_t path_en,
-		uint32_t ctx_idx,
-		enum isp_sub_path_id spath_id,
-		struct slice_scaler_info *slc_scaler)
-{
-	uint32_t addr = 0, cmd = 0;
-	unsigned long base = scaler_base[spath_id];
-
-	if (!path_en) {
-		addr = ISP_GET_REG(ISP_SCALER_CFG) + base;
-		cmd = (0 << 31) | (1 << 8) | (1 << 9);
-		FMCU_PUSH(fmcu, addr, cmd);
-		return 0;
-	}
-
-	/* bit31 enable path */
-	addr = ISP_GET_REG(ISP_SCALER_CFG) + base;
-	cmd = ISP_REG_RD(ctx_idx, base + ISP_SCALER_CFG);
-	cmd |= (1 << 31);
-	FMCU_PUSH(fmcu, addr, cmd);
-
-	addr = ISP_GET_REG(ISP_SCALER_SRC_SIZE) + base;
-	cmd = (slc_scaler->src_size_x & 0x3FFF) |
-			((slc_scaler->src_size_y & 0x3FFF) << 16);
-	FMCU_PUSH(fmcu, addr, cmd);
-
-	addr = ISP_GET_REG(ISP_SCALER_DES_SIZE) + base;
-	cmd = (slc_scaler->dst_size_x & 0x3FFF) |
-			((slc_scaler->dst_size_y & 0x3FFF) << 16);
-	FMCU_PUSH(fmcu, addr, cmd);
-
-	addr = ISP_GET_REG(ISP_SCALER_TRIM0_START) + base;
-	cmd = (slc_scaler->trim0_start_x & 0x1FFF) |
-			((slc_scaler->trim0_start_y & 0x1FFF) << 16);
-	FMCU_PUSH(fmcu, addr, cmd);
-
-	addr = ISP_GET_REG(ISP_SCALER_TRIM0_SIZE) + base;
-	cmd = (slc_scaler->trim0_size_x & 0x1FFF) |
-			((slc_scaler->trim0_size_y & 0x1FFF) << 16);
-	FMCU_PUSH(fmcu, addr, cmd);
-
-	addr = ISP_GET_REG(ISP_SCALER_IP) + base;
-	cmd = (slc_scaler->scaler_ip_rmd & 0x1FFF) |
-			((slc_scaler->scaler_ip_int & 0xF) << 16);
-	FMCU_PUSH(fmcu, addr, cmd);
-
-	addr = ISP_GET_REG(ISP_SCALER_CIP) + base;
-	cmd = (slc_scaler->scaler_cip_rmd & 0x1FFF) |
-			((slc_scaler->scaler_cip_int & 0xF) << 16);
-	FMCU_PUSH(fmcu, addr, cmd);
-
-	addr = ISP_GET_REG(ISP_SCALER_TRIM1_START) + base;
-	cmd = (slc_scaler->trim1_start_x & 0x1FFF) |
-			((slc_scaler->trim1_start_y & 0x1FFF) << 16);
-	FMCU_PUSH(fmcu, addr, cmd);
-
-	addr = ISP_GET_REG(ISP_SCALER_TRIM1_SIZE) + base;
-	cmd = (slc_scaler->trim1_size_x & 0x1FFF) |
-			((slc_scaler->trim1_size_y & 0x1FFF) << 16);
-	FMCU_PUSH(fmcu, addr, cmd);
-
-	addr = ISP_GET_REG(ISP_SCALER_VER_IP) + base;
-	cmd = (slc_scaler->scaler_ip_rmd_ver & 0x1FFF) |
-			((slc_scaler->scaler_ip_int_ver & 0xF) << 16);
-	FMCU_PUSH(fmcu, addr, cmd);
-
-	addr = ISP_GET_REG(ISP_SCALER_VER_CIP) + base;
-	cmd = (slc_scaler->scaler_cip_rmd_ver & 0x1FFF) |
-			((slc_scaler->scaler_cip_int_ver & 0xF) << 16);
-	FMCU_PUSH(fmcu, addr, cmd);
-
-	return 0;
-}
-
-
-static int set_slice_spath_store(
-		struct isp_fmcu_ctx_desc *fmcu,
-		uint32_t path_en,
-		uint32_t ctx_idx,
-		enum isp_sub_path_id spath_id,
-		struct slice_store_info *slc_store)
-{
-	uint32_t addr = 0, cmd = 0;
-	unsigned long base = store_base[spath_id];
-
-	if (!path_en) {
-		/* bit0 bypass store */
-		addr = ISP_GET_REG(ISP_STORE_PARAM) + base;
-		cmd = 1;
-		FMCU_PUSH(fmcu, addr, cmd);
-		return 0;
-	}
-	addr = ISP_GET_REG(ISP_STORE_PARAM) + base;
-	cmd = ISP_REG_RD(ctx_idx, base + ISP_STORE_PARAM) & ~1;
-	FMCU_PUSH(fmcu, addr, cmd);
-
-	addr = ISP_GET_REG(ISP_STORE_SLICE_SIZE) + base;
-	cmd = ((slc_store->size.h & 0xFFFF) << 16) |
-			(slc_store->size.w & 0xFFFF);
-	FMCU_PUSH(fmcu, addr, cmd);
-
-	addr = ISP_GET_REG(ISP_STORE_BORDER) + base;
-	cmd = (slc_store->border.up_border & 0xFF) |
-			((slc_store->border.down_border & 0xFF) << 8) |
-			((slc_store->border.left_border & 0xFF) << 16) |
-			((slc_store->border.right_border & 0xFF) << 24);
-	FMCU_PUSH(fmcu, addr, cmd);
-
-	addr = ISP_GET_REG(ISP_STORE_SLICE_Y_ADDR) + base;
-	cmd = slc_store->addr.addr_ch0;
-	FMCU_PUSH(fmcu, addr, cmd);
-
-	addr = ISP_GET_REG(ISP_STORE_SLICE_U_ADDR) + base;
-	cmd = slc_store->addr.addr_ch1;
-	FMCU_PUSH(fmcu, addr, cmd);
-
-	addr = ISP_GET_REG(ISP_STORE_SLICE_V_ADDR) + base;
-	cmd = slc_store->addr.addr_ch2;
-	FMCU_PUSH(fmcu, addr, cmd);
-
-	addr = ISP_GET_REG(ISP_STORE_SHADOW_CLR) + base;
-	cmd = 1;
-	FMCU_PUSH(fmcu, addr, cmd);
-
-	return 0;
-}
-
-static int set_slice_3dnr_memctrl(
-		struct isp_fmcu_ctx_desc *fmcu,
-		struct slice_3dnr_memctrl_info *mem_ctrl)
-{
-	uint32_t addr = 0, cmd = 0;
-
-	if (mem_ctrl->bypass)
-		return 0;
-
-	addr = ISP_GET_REG(ISP_3DNR_MEM_CTRL_PARAM1);
-	cmd = ((mem_ctrl->start_col & 0x1FFF) << 16) |
-		(mem_ctrl->start_row & 0x1FFF);
-	FMCU_PUSH(fmcu, addr, cmd);
-
-	addr = ISP_GET_REG(ISP_3DNR_MEM_CTRL_PARAM3);
-	cmd = ((mem_ctrl->src.h & 0x1FFF) << 16) |
-		(mem_ctrl->src.w & 0x1FFF);
-	FMCU_PUSH(fmcu, addr, cmd);
-
-	addr = ISP_GET_REG(ISP_3DNR_MEM_CTRL_PARAM4);
-	cmd = ((mem_ctrl->ft_y.h & 0x1FFF) << 16) |
-		(mem_ctrl->ft_y.w & 0x1FFF);
-	FMCU_PUSH(fmcu, addr, cmd);
-
-	addr = ISP_GET_REG(ISP_3DNR_MEM_CTRL_PARAM5);
-	cmd = ((mem_ctrl->ft_uv.h & 0x1FFF) << 16) |
-		(mem_ctrl->ft_uv.w & 0x1FFF);
-	FMCU_PUSH(fmcu, addr, cmd);
-
-	addr = ISP_GET_REG(ISP_3DNR_MEM_CTRL_FT_CUR_LUMA_ADDR);
-	cmd = mem_ctrl->addr.addr_ch0;
-	FMCU_PUSH(fmcu, addr, cmd);
-
-	addr = ISP_GET_REG(ISP_3DNR_MEM_CTRL_FT_CUR_CHROMA_ADDR);
-	cmd = mem_ctrl->addr.addr_ch1;
-	FMCU_PUSH(fmcu, addr, cmd);
-
-	addr = ISP_GET_REG(ISP_3DNR_MEM_CTRL_LINE_MODE);
-	cmd = ((mem_ctrl->last_line_mode & 0x1) << 1) |
-		(mem_ctrl->first_line_mode & 0x1);
-	FMCU_PUSH(fmcu, addr, cmd);
-
-	return 0;
-}
-
-static int set_slice_3dnr_store(
-		struct isp_fmcu_ctx_desc *fmcu,
-		struct slice_3dnr_store_info *store)
-{
-	uint32_t addr = 0, cmd = 0;
-
-	if (store->bypass)
-		return 0;
-
-	addr = ISP_GET_REG(ISP_3DNR_STORE_SIZE);
-	cmd = ((store->size.h & 0xFFFF) << 16) |
-		(store->size.w & 0xFFFF);
-	FMCU_PUSH(fmcu, addr, cmd);
-
-	addr = ISP_GET_REG(ISP_3DNR_STORE_LUMA_ADDR);
-	cmd = store->addr.addr_ch0;
-	FMCU_PUSH(fmcu, addr, cmd);
-
-	addr = ISP_GET_REG(ISP_3DNR_STORE_CHROMA_ADDR);
-	cmd = store->addr.addr_ch1;
-	FMCU_PUSH(fmcu, addr, cmd);
-
-	return 0;
-}
-
-static int set_slice_3dnr_crop(
-		struct isp_fmcu_ctx_desc *fmcu,
-		struct slice_3dnr_crop_info *crop)
-{
-	uint32_t addr = 0, cmd = 0;
-
-	if (crop->bypass)
-		return 0;
-
-	addr = ISP_GET_REG(ISP_3DNR_MEM_CTRL_PRE_PARAM0);
-	cmd = crop->bypass & 0x1;
-	FMCU_PUSH(fmcu, addr, cmd);
-
-	addr = ISP_GET_REG(ISP_3DNR_MEM_CTRL_PRE_PARAM1);
-	cmd = ((crop->src.h & 0xFFFF) << 16) |
-		(crop->src.w & 0xFFFF);
-	FMCU_PUSH(fmcu, addr, cmd);
-
-	addr = ISP_GET_REG(ISP_3DNR_MEM_CTRL_PRE_PARAM2);
-	cmd = ((crop->dst.h & 0xFFFF) << 16) |
-		(crop->dst.w & 0xFFFF);
-	FMCU_PUSH(fmcu, addr, cmd);
-
-	addr = ISP_GET_REG(ISP_3DNR_MEM_CTRL_PRE_PARAM3);
-	cmd = ((crop->start_x & 0xFFFF) << 16) |
-		(crop->start_y & 0xFFFF);
-	FMCU_PUSH(fmcu, addr, cmd);
-
-	return 0;
-}
-
 static int set_slice_3dnr(
 		struct isp_fmcu_ctx_desc *fmcu,
 		struct isp_slice_desc *cur_slc,
@@ -2830,53 +2390,40 @@ static int set_slice_3dnr(
  * struct slice_3dnr_store_info   slice_3dnr_store;
  * struct slice_3dnr_crop_info    slice_3dnr_crop;
  */
-	set_slice_3dnr_memctrl(fmcu, &cur_slc->slice_3dnr_memctrl);
-	set_slice_3dnr_store(fmcu, &cur_slc->slice_3dnr_store);
+	struct isp_hw_nr3_fbc_slice nr3_fbc_slice;
+	struct isp_hw_nr3_fbd_slice fbd;
+	struct isp_hw_slice_3dnr_crop croparg;
+	struct isp_hw_slice_3dnr_store storearg;
+	struct isp_hw_slice_3dnr_memctrl memarg;
+
+	memarg.fmcu = fmcu;
+	memarg.mem_ctrl = &cur_slc->slice_3dnr_memctrl;
+	hw->isp_ioctl(fmcu, ISP_HW_CFG_SLICE_3DNR_MEMCTRL, &memarg);
+	storearg.fmcu = fmcu;
+	storearg.store = &cur_slc->slice_3dnr_store;
+	hw->isp_ioctl(fmcu, ISP_HW_CFG_SLICE_3DNR_STORE, &storearg);
 	if (pctx->nr3_fbc_fbd) {
-		hw->hw_ops.core_ops.isp_nr3_fbc_slice_set(fmcu, &cur_slc->slice_3dnr_fbc_store);
-		hw->hw_ops.core_ops.isp_nr3_fbd_slice_set(fmcu, &cur_slc->slice_3dnr_fbd_fetch);
+		nr3_fbc_slice.fmcu_handle = fmcu;
+		nr3_fbc_slice.fbc_store = &cur_slc->slice_3dnr_fbc_store;
+		fbd.fmcu_handle = fmcu;
+		fbd.fbd_fetch = &cur_slc->slice_3dnr_fbd_fetch;
+		hw->isp_ioctl(hw, ISP_HW_CFG_NR3_FBC_SLICE_SET, &nr3_fbc_slice);
+		hw->isp_ioctl(hw, ISP_HW_CFG_NR3_FBD_SLICE_SET, &fbd);
 	}
-	set_slice_3dnr_crop(fmcu, &cur_slc->slice_3dnr_crop);
+	croparg.fmcu = fmcu;
+	croparg.crop = &cur_slc->slice_3dnr_crop;
+	hw->isp_ioctl(hw, ISP_HW_CFG_SLICE_3DNR_CROP, &croparg);
 
 	return 0;
 }
-
-static int set_slice_nofilter(
-		struct isp_fmcu_ctx_desc *fmcu,
-		struct isp_slice_desc *cur_slc)
-{
-	uint32_t addr = 0, cmd = 0;
-	struct slice_noisefilter_info *map = &cur_slc->noisefilter_info;
-
-	pr_debug("seed0=%d,seed1=%d,seed2=%d,seed3=%d\n", map->seed0, map->seed1,
-		map->seed2, map->seed3);
-	addr = ISP_GET_REG(ISP_YUV_NF_SEED0);
-	cmd = map->seed0;
-	FMCU_PUSH(fmcu, addr, cmd);
-
-	addr = ISP_GET_REG(ISP_YUV_NF_SEED1);
-	cmd = map->seed1;
-	FMCU_PUSH(fmcu, addr, cmd);
-
-	addr = ISP_GET_REG(ISP_YUV_NF_SEED2);
-	cmd = map->seed2;
-	FMCU_PUSH(fmcu, addr, cmd);
-
-	addr = ISP_GET_REG(ISP_YUV_NF_SEED3);
-	cmd = map->seed3;
-	FMCU_PUSH(fmcu, addr, cmd);
-
-	return 0;
-}
-
 
 int isp_set_slices_fmcu_cmds(void *fmcu_handle,  void *ctx)
 {
 	int i, j;
 	int sw_ctx_id = 0;
 	int hw_ctx_id = 0;
+	uint32_t shape_mode = 0;
 	enum isp_work_mode wmode;
-	unsigned long base;
 	struct isp_slice_desc *cur_slc;
 	struct slice_store_info *slc_store;
 	struct slice_afbc_store_info *slc_afbc_store;
@@ -2885,16 +2432,17 @@ int isp_set_slices_fmcu_cmds(void *fmcu_handle,  void *ctx)
 	struct isp_fmcu_ctx_desc *fmcu;
 	struct isp_pipe_context *pctx = NULL;
 	struct cam_hw_info *hw = NULL;
-
-	uint32_t reg_off, addr = 0, cmd = 0, shape_mode = 0;
-	uint32_t shadow_done_cmd[ISP_CONTEXT_HW_NUM] = {
-		PRE0_SHADOW_DONE, CAP0_SHADOW_DONE,
-		PRE1_SHADOW_DONE, CAP1_SHADOW_DONE,
-	};
-	uint32_t all_done_cmd[ISP_CONTEXT_HW_NUM] = {
-		PRE0_ALL_DONE, CAP0_ALL_DONE,
-		PRE1_ALL_DONE, CAP1_ALL_DONE,
-	};
+	struct isp_hw_fbd_slice fbd_slice;
+	struct isp_hw_afbc_path_slice afbc_slice;
+	struct isp_hw_ltm_slice ltm;
+	struct isp_hw_fmcu_cfg fmcu_cfg;
+	struct isp_hw_slices_fmcu_cmds parg;
+	struct isp_hw_slice_spath spath_sotre;
+	struct isp_hw_slice_spath spath_scaler;
+	struct isp_hw_slice_spath_thumbscaler thumbscaler;
+	struct isp_hw_slice_nofilter slicearg;
+	struct isp_hw_set_slice_fetch fetcharg;
+	struct isp_hw_set_slice_nr_info nrarg;
 
 	if (!fmcu_handle || !ctx) {
 		pr_err("fail to get valid input ptr, fmcu_handle %p, ctx %p\n",
@@ -2915,264 +2463,93 @@ int isp_set_slices_fmcu_cmds(void *fmcu_handle,  void *ctx)
 	}
 
 	fmcu = (struct isp_fmcu_ctx_desc *)fmcu_handle;
-	if (fmcu->fid == 0)
-		base =  ISP_FMCU0_BASE;
-	else
-		base =  ISP_FMCU1_BASE;
-
 	cur_slc = &slc_ctx->slices[0];
 	shape_mode = cur_slc->slice_noisefilter_mode.shape_mode;
 	for (i = 0; i < SLICE_NUM_MAX; i++, cur_slc++) {
 		if (cur_slc->valid == 0)
 			continue;
-		if (wmode == ISP_CFG_MODE)
-			set_fmcu_cfg(fmcu, hw_ctx_id);
+		if (wmode == ISP_CFG_MODE) {
+			fmcu_cfg.fmcu = fmcu;
+			fmcu_cfg.ctx_id = hw_ctx_id;
+			hw->isp_ioctl(hw, ISP_HW_CFG_FMCU_CFG, &fmcu_cfg);
+		}
 
-		set_slice_nr_info(fmcu, cur_slc);
+		nrarg.fmcu = fmcu;
+		nrarg.slice_ynr = &cur_slc->slice_ynr;
+		nrarg.slice_nlm = &cur_slc->slice_nlm;
+		nrarg.start_row_mod4 = cur_slc->slice_postcdn.start_row_mod4;
+		hw->isp_ioctl(hw, ISP_HW_CFG_SET_SLICE_NR_INFO, &nrarg);
 
-		if (!cur_slc->slice_fbd_raw.fetch_fbd_bypass)
-			hw->hw_ops.core_ops.isp_fbd_slice_set(fmcu,
-					&cur_slc->slice_fbd_raw);
-		else
-			set_slice_fetch(fmcu, &cur_slc->slice_fetch);
+		if (!cur_slc->slice_fbd_raw.fetch_fbd_bypass) {
+			fbd_slice.fmcu_handle = fmcu;
+			fbd_slice.info = &cur_slc->slice_fbd_raw;
+			hw->isp_ioctl(hw, ISP_HW_CFG_FBD_SLICE_SET, &fbd_slice);
+		} else {
+			fetcharg.fmcu = fmcu;
+			fetcharg.fetch_info = &cur_slc->slice_fetch;
+			hw->isp_ioctl(fmcu, ISP_HW_CFG_SET_SLICE_FETCH, &fetcharg);
+		}
 
 		set_slice_3dnr(fmcu, cur_slc, hw, pctx);
-		if (pctx->ltm_rgb)
-			hw->hw_ops.core_ops.isp_ltm_slice_set(fmcu, cur_slc, LTM_RGB);
-		if (pctx->ltm_yuv)
-			hw->hw_ops.core_ops.isp_ltm_slice_set(fmcu, cur_slc, LTM_YUV);
-		if(shape_mode == 1)
-			set_slice_nofilter(fmcu, cur_slc);
+		if (pctx->ltm_rgb){
+			ltm.fmcu_handle = fmcu;
+			ltm.map = &cur_slc->slice_ltm_map[LTM_RGB];
+			ltm.ltm_id = LTM_RGB;
+			hw->isp_ioctl(hw, ISP_HW_CFG_LTM_SLICE_SET, &ltm);
+		}
+		if (pctx->ltm_yuv){
+			ltm.fmcu_handle = fmcu;
+			ltm.map = &cur_slc->slice_ltm_map[LTM_YUV];
+			ltm.ltm_id = LTM_YUV;
+			hw->isp_ioctl(hw, ISP_HW_CFG_LTM_SLICE_SET, &ltm);
+		}
+		if(shape_mode == 1) {
+			slicearg.fmcu = fmcu;
+			slicearg.noisefilter_info = &cur_slc->noisefilter_info;
+			hw->isp_ioctl(hw, ISP_HW_CFG_SLICE_NOFILTER, &slicearg);
+		}
 
 		for (j = 0; j < ISP_SPATH_NUM; j++) {
 			slc_store = &cur_slc->slice_store[j];
 			if (j == ISP_SPATH_FD) {
-				set_slice_spath_thumbscaler(fmcu,
-					cur_slc->path_en[j], sw_ctx_id,
-					&cur_slc->slice_thumbscaler);
+				thumbscaler.fmcu = fmcu;
+				thumbscaler.path_en = cur_slc->path_en[j];
+				thumbscaler.ctx_idx = sw_ctx_id;
+				thumbscaler.slc_scaler = &cur_slc->slice_thumbscaler;
+				hw->isp_ioctl(hw, ISP_HW_CFG_SLICE_SPATH_THUMBSCALER, &thumbscaler);
 			} else {
 				slc_scaler = &cur_slc->slice_scaler[j];
-				set_slice_spath_scaler(fmcu,
-					cur_slc->path_en[j], sw_ctx_id, j,
-					slc_scaler);
+				spath_scaler.fmcu = fmcu;
+				spath_scaler.path_en = cur_slc->path_en[j];
+				spath_scaler.ctx_idx = sw_ctx_id;
+				spath_scaler.spath_id= j;
+				spath_scaler.slc_scaler = slc_scaler;
+				hw->isp_ioctl(hw, ISP_HW_CFG_SLICE_SPATH_SCALER, &spath_scaler);
 			}
-			set_slice_spath_store(fmcu,
-				cur_slc->path_en[j], sw_ctx_id, j, slc_store);
+			spath_sotre.fmcu = fmcu;
+			spath_sotre.path_en = cur_slc->path_en[j];
+			spath_sotre.ctx_idx = sw_ctx_id;
+			spath_sotre.spath_id = j;
+			spath_sotre.slc_store = slc_store;
+			hw->isp_ioctl(hw, ISP_HW_CFG_SLICE_SPATH_STORE, &spath_sotre);
+
 			if (j < AFBC_PATH_NUM) {
 				slc_afbc_store = &cur_slc->slice_afbc_store[j];
-				if(slc_afbc_store->slc_afbc_on)
-					hw->hw_ops.core_ops.isp_afbc_path_slice_set(
-						fmcu, cur_slc->path_en[j],
-						sw_ctx_id, j, slc_afbc_store);
+				if(slc_afbc_store->slc_afbc_on){
+					afbc_slice.fmcu_handle = fmcu;
+					afbc_slice.path_en = cur_slc->path_en[j];
+					afbc_slice.ctx_idx = sw_ctx_id;
+					afbc_slice.spath_id = j;
+					afbc_slice.slc_afbc_store = slc_afbc_store;
+					hw->isp_ioctl(hw, ISP_HW_CFG_AFBC_PATH_SLICE_SET, &afbc_slice);
+				}
 			}
 		}
-
-		if (wmode == ISP_CFG_MODE) {
-			reg_off = ISP_CFG_CAP_FMCU_RDY;
-			addr = ISP_GET_REG(reg_off);
-		} else
-			addr = ISP_GET_REG(ISP_FETCH_START);
-		cmd = 1;
-		FMCU_PUSH(fmcu, addr, cmd);
-
-		addr = ISP_GET_REG(base + ISP_FMCU_CMD);
-		cmd = shadow_done_cmd[hw_ctx_id];
-		FMCU_PUSH(fmcu, addr, cmd);
-
-		addr = ISP_GET_REG(base + ISP_FMCU_CMD);
-		cmd = all_done_cmd[hw_ctx_id];
-		FMCU_PUSH(fmcu, addr, cmd);
+		parg.wmode = wmode;
+		parg.hw_ctx_id = hw_ctx_id;
+		parg.fmcu = fmcu;
+		hw->isp_ioctl(hw, ISP_HW_CFG_SLICE_FMCU_CMD, &parg);
 	}
-
-	return 0;
-}
-
-static int update_slice_nr_info(
-	uint32_t ctx_id,
-	struct isp_slice_desc *cur_slc)
-{
-	uint32_t addr = 0, cmd = 0;
-
-	/* NLM */
-	addr = ISP_NLM_RADIAL_1D_DIST;
-	cmd = ((cur_slc->slice_nlm.center_y_relative & 0x3FFF) << 16) |
-		(cur_slc->slice_nlm.center_x_relative & 0x3FFF);
-	ISP_REG_WR(ctx_id, addr, cmd);
-
-	/* Post CDN */
-	addr = ISP_POSTCDN_SLICE_CTRL;
-	cmd = cur_slc->slice_postcdn.start_row_mod4;
-	ISP_REG_WR(ctx_id, addr, cmd);
-
-	/* YNR */
-	addr = ISP_YNR_CFG31;
-	cmd = ((cur_slc->slice_ynr.center_offset_y & 0xFFFF) << 16) |
-		(cur_slc->slice_ynr.center_offset_x & 0xFFFF);
-	ISP_REG_WR(ctx_id, addr, cmd);
-
-	addr = ISP_YNR_CFG33;
-	cmd = ((cur_slc->slice_ynr.slice_height & 0xFFFF) << 16) |
-		(cur_slc->slice_ynr.slice_width & 0xFFFF);
-	ISP_REG_WR(ctx_id, addr, cmd);
-
-	return 0;
-}
-
-static int update_slice_fetch(uint32_t ctx_id,
-		struct slice_fetch_info *fetch_info)
-{
-	uint32_t addr = 0, cmd = 0;
-
-	addr = ISP_FETCH_MEM_SLICE_SIZE;
-	cmd = ((fetch_info->size.h & 0xFFFF) << 16) |
-			(fetch_info->size.w & 0xFFFF);
-	ISP_REG_WR(ctx_id, addr, cmd);
-
-	addr = ISP_FETCH_SLICE_Y_ADDR;
-	cmd = fetch_info->addr.addr_ch0;
-	ISP_REG_WR(ctx_id, addr, cmd);
-
-	addr = ISP_FETCH_SLICE_U_ADDR;
-	cmd = fetch_info->addr.addr_ch1;
-	ISP_REG_WR(ctx_id, addr, cmd);
-
-	addr = ISP_FETCH_SLICE_V_ADDR;
-	cmd = fetch_info->addr.addr_ch2;
-	ISP_REG_WR(ctx_id, addr, cmd);
-
-	addr = ISP_FETCH_MIPI_INFO;
-	cmd = fetch_info->mipi_word_num |
-			(fetch_info->mipi_byte_rel_pos << 16);
-	ISP_REG_WR(ctx_id, addr, cmd);
-
-	/* dispatch size same as fetch size */
-	addr = ISP_DISPATCH_CH0_SIZE;
-	cmd = ((fetch_info->size.h & 0xFFFF) << 16) |
-			(fetch_info->size.w & 0xFFFF);
-	ISP_REG_WR(ctx_id, addr, cmd);
-
-	return 0;
-}
-
-static int update_slice_spath_scaler(
-		uint32_t path_en,
-		uint32_t ctx_id,
-		enum isp_sub_path_id spath_id,
-		struct slice_scaler_info *slc_scaler)
-{
-	uint32_t addr = 0, cmd = 0;
-	uint32_t base = (uint32_t)scaler_base[spath_id];
-
-	if (!path_en) {
-		addr = ISP_SCALER_CFG + base;
-		cmd = (0 << 31) | (1 << 8) | (1 << 9);
-		ISP_REG_WR(ctx_id, addr, cmd);
-		return 0;
-	}
-
-	/* bit31 enable path */
-	addr = ISP_SCALER_CFG + base;
-	cmd = ISP_REG_RD(ctx_id, base + ISP_SCALER_CFG);
-	cmd |= (1 << 31);
-	ISP_REG_WR(ctx_id, addr, cmd);
-
-	addr = ISP_SCALER_SRC_SIZE + base;
-	cmd = (slc_scaler->src_size_x & 0x3FFF) |
-			((slc_scaler->src_size_y & 0x3FFF) << 16);
-	ISP_REG_WR(ctx_id, addr, cmd);
-
-	addr = ISP_SCALER_DES_SIZE + base;
-	cmd = (slc_scaler->dst_size_x & 0x3FFF) |
-			((slc_scaler->dst_size_y & 0x3FFF) << 16);
-	ISP_REG_WR(ctx_id, addr, cmd);
-
-	addr = ISP_SCALER_TRIM0_START + base;
-	cmd = (slc_scaler->trim0_start_x & 0x1FFF) |
-			((slc_scaler->trim0_start_y & 0x1FFF) << 16);
-	ISP_REG_WR(ctx_id, addr, cmd);
-
-	addr = ISP_SCALER_TRIM0_SIZE + base;
-	cmd = (slc_scaler->trim0_size_x & 0x1FFF) |
-			((slc_scaler->trim0_size_y & 0x1FFF) << 16);
-	ISP_REG_WR(ctx_id, addr, cmd);
-
-	addr = ISP_SCALER_IP + base;
-	cmd = (slc_scaler->scaler_ip_rmd & 0x1FFF) |
-			((slc_scaler->scaler_ip_int & 0xF) << 16);
-	ISP_REG_WR(ctx_id, addr, cmd);
-
-	addr = ISP_SCALER_CIP + base;
-	cmd = (slc_scaler->scaler_cip_rmd & 0x1FFF) |
-			((slc_scaler->scaler_cip_int & 0xF) << 16);
-	ISP_REG_WR(ctx_id, addr, cmd);
-
-	addr = ISP_SCALER_TRIM1_START + base;
-	cmd = (slc_scaler->trim1_start_x & 0x1FFF) |
-			((slc_scaler->trim1_start_y & 0x1FFF) << 16);
-	ISP_REG_WR(ctx_id, addr, cmd);
-
-	addr = ISP_SCALER_TRIM1_SIZE + base;
-	cmd = (slc_scaler->trim1_size_x & 0x1FFF) |
-			((slc_scaler->trim1_size_y & 0x1FFF) << 16);
-	ISP_REG_WR(ctx_id, addr, cmd);
-
-	addr = ISP_SCALER_VER_IP + base;
-	cmd = (slc_scaler->scaler_ip_rmd_ver & 0x1FFF) |
-			((slc_scaler->scaler_ip_int_ver & 0xF) << 16);
-	ISP_REG_WR(ctx_id, addr, cmd);
-
-	addr = ISP_SCALER_VER_CIP + base;
-	cmd = (slc_scaler->scaler_cip_rmd_ver & 0x1FFF) |
-			((slc_scaler->scaler_cip_int_ver & 0xF) << 16);
-	ISP_REG_WR(ctx_id, addr, cmd);
-
-	return 0;
-}
-
-
-static int update_slice_spath_store(
-		uint32_t path_en,
-		uint32_t ctx_id,
-		enum isp_sub_path_id spath_id,
-		struct slice_store_info *slc_store)
-{
-	uint32_t addr = 0, cmd = 0;
-	uint32_t base = (uint32_t)store_base[spath_id];
-
-	if (!path_en) {
-		/* bit0 bypass store */
-		addr = ISP_STORE_PARAM + base;
-		cmd = 1;
-		ISP_REG_WR(ctx_id, addr, cmd);
-		return 0;
-	}
-	addr = ISP_STORE_PARAM + base;
-	cmd = ISP_REG_RD(ctx_id, base + ISP_STORE_PARAM) & ~1;
-	ISP_REG_WR(ctx_id, addr, cmd);
-
-	addr = ISP_STORE_SLICE_SIZE + base;
-	cmd = ((slc_store->size.h & 0xFFFF) << 16) |
-			(slc_store->size.w & 0xFFFF);
-	ISP_REG_WR(ctx_id, addr, cmd);
-
-	addr = ISP_STORE_BORDER + base;
-	cmd = (slc_store->border.up_border & 0xFF) |
-			((slc_store->border.down_border & 0xFF) << 8) |
-			((slc_store->border.left_border & 0xFF) << 16) |
-			((slc_store->border.right_border & 0xFF) << 24);
-	ISP_REG_WR(ctx_id, addr, cmd);
-
-	addr = ISP_STORE_SLICE_Y_ADDR + base;
-	cmd = slc_store->addr.addr_ch0;
-	ISP_REG_WR(ctx_id, addr, cmd);
-
-	addr = ISP_STORE_SLICE_U_ADDR + base;
-	cmd = slc_store->addr.addr_ch1;
-	ISP_REG_WR(ctx_id, addr, cmd);
-
-	addr = ISP_STORE_SLICE_V_ADDR + base;
-	cmd = slc_store->addr.addr_ch2;
-	ISP_REG_WR(ctx_id, addr, cmd);
 
 	return 0;
 }
@@ -3190,6 +2567,11 @@ int isp_update_slice(
 	struct isp_slice_context *slc_ctx;
 	struct isp_pipe_context *pctx = NULL;
 	struct cam_hw_info * hw = NULL;
+	struct isp_hw_afbc_path_slice afbc_slice;
+	struct isp_hw_slice_scaler update;
+	struct isp_hw_slice_store store;
+	struct isp_hw_slice_fetch fetch;
+	struct isp_hw_slice_nr_info info;
 
 	if (!pctx_handle) {
 		pr_err("fail to get input ptr, null.\n");
@@ -3211,119 +2593,38 @@ int isp_update_slice(
 	}
 
 	cur_slc = &slc_ctx->slices[slice_id];
-	update_slice_nr_info(ctx_id, cur_slc);
-	update_slice_fetch(ctx_id, &cur_slc->slice_fetch);
+	info.ctx_id = ctx_id;
+	info.cur_slc = cur_slc;
+	hw->isp_ioctl(hw, ISP_HW_CFG_SLICE_NR_INFO, &info);
+	fetch.ctx_id = ctx_id;
+	fetch.fetch_info = &cur_slc->slice_fetch;
+	hw->isp_ioctl(hw, ISP_HW_CFG_SLICE_FETCH, &fetch);
 	for (j = 0; j < ISP_SPATH_NUM; j++) {
 		slc_store = &cur_slc->slice_store[j];
 		if (j != ISP_SPATH_FD) {
 			slc_scaler = &cur_slc->slice_scaler[j];
-			update_slice_spath_scaler(
-				cur_slc->path_en[j], ctx_id, j,
-				slc_scaler);
+			update.ctx_id = ctx_id;
+			update.path_en = cur_slc->path_en[j];
+			update.slc_scaler = slc_scaler;
+			update.spath_id = j;
+			hw->isp_ioctl(hw, ISP_HW_CFG_SLICE_SCALER, &update);
 		}
-		update_slice_spath_store(
-			cur_slc->path_en[j], ctx_id, j, slc_store);
+		store.path_en = cur_slc->path_en[j];
+		store.ctx_id = ctx_id;
+		store.spath_id = j;
+		store.slc_store = slc_store;
+		hw->isp_ioctl(hw, ISP_HW_CFG_SLICE_STORE, &store);
 		if (j < AFBC_PATH_NUM) {
 			slc_afbc_store = &cur_slc->slice_afbc_store[j];
-			if(slc_afbc_store->slc_afbc_on)
-				hw->hw_ops.core_ops.isp_afbc_path_slice_set(
-					NULL, cur_slc->path_en[j],
-					ctx_id, j, slc_afbc_store);
+			if(slc_afbc_store->slc_afbc_on) {
+				afbc_slice.fmcu_handle = NULL;
+				afbc_slice.path_en = cur_slc->path_en[j];
+				afbc_slice.ctx_idx = ctx_id;
+				afbc_slice.spath_id = j;
+				afbc_slice.slc_afbc_store = slc_afbc_store;
+				hw->isp_ioctl(hw, ISP_HW_CFG_AFBC_PATH_SLICE_SET, &afbc_slice);
+			}
 		}
 	}
-	return 0;
-}
-
-int isp_set_slw_fmcu_cmds(void *fmcu_handle, struct isp_pipe_context *pctx)
-{
-	int i;
-	unsigned long base, sbase;
-	uint32_t ctx_idx;
-	uint32_t reg_off, addr = 0, cmd = 0;
-	struct isp_fmcu_ctx_desc *fmcu;
-	struct isp_path_desc *path;
-	struct img_addr *fetch_addr, *store_addr;
-	struct isp_afbc_store_info *afbc_store_addr;
-	struct cam_hw_info *hw = NULL;
-
-	uint32_t shadow_done_cmd[ISP_CONTEXT_HW_NUM] = {
-		PRE0_SHADOW_DONE, CAP0_SHADOW_DONE,
-		PRE1_SHADOW_DONE, CAP1_SHADOW_DONE,
-	};
-	uint32_t all_done_cmd[ISP_CONTEXT_HW_NUM] = {
-		PRE0_ALL_DONE, CAP0_ALL_DONE,
-		PRE1_ALL_DONE, CAP1_ALL_DONE,
-	};
-
-	if (!fmcu_handle || !pctx) {
-		pr_err("fail to get valid input ptr, fmcu_handle %p, pctx %p\n",
-			fmcu_handle, pctx);
-		return -EFAULT;
-	}
-
-	fmcu = (struct isp_fmcu_ctx_desc *)fmcu_handle;
-	base = (fmcu->fid == 0) ? ISP_FMCU0_BASE : ISP_FMCU1_BASE;
-	fetch_addr = &pctx->fetch.addr;
-	ctx_idx = pctx->ctx_id;
-	hw = pctx->hw;
-
-	set_fmcu_cfg(fmcu, ctx_idx);
-
-	addr = ISP_GET_REG(ISP_FETCH_SLICE_Y_ADDR);
-	cmd = fetch_addr->addr_ch0;
-	FMCU_PUSH(fmcu, addr, cmd);
-
-	addr = ISP_GET_REG(ISP_FETCH_SLICE_U_ADDR);
-	cmd = fetch_addr->addr_ch1;
-	FMCU_PUSH(fmcu, addr, cmd);
-
-	addr = ISP_GET_REG(ISP_FETCH_SLICE_V_ADDR);
-	cmd = fetch_addr->addr_ch2;
-	FMCU_PUSH(fmcu, addr, cmd);
-
-	for (i = 0; i < ISP_SPATH_NUM; i++) {
-		path = &pctx->isp_path[i];
-
-		if (atomic_read(&path->user_cnt) < 1)
-			continue;
-
-		store_addr = &path->store.addr;
-		sbase = store_base[i];
-		afbc_store_addr = &path->afbc_store;
-
-		addr = ISP_GET_REG(ISP_STORE_SLICE_Y_ADDR) + sbase;
-		cmd = store_addr->addr_ch0;
-		FMCU_PUSH(fmcu, addr, cmd);
-
-		addr = ISP_GET_REG(ISP_STORE_SLICE_U_ADDR) + sbase;
-		cmd = store_addr->addr_ch1;
-		FMCU_PUSH(fmcu, addr, cmd);
-
-		addr = ISP_GET_REG(ISP_STORE_SLICE_V_ADDR) + sbase;
-		cmd = store_addr->addr_ch2;
-		FMCU_PUSH(fmcu, addr, cmd);
-
-		addr = ISP_GET_REG(ISP_STORE_SHADOW_CLR) + sbase;
-		cmd = 1;
-		FMCU_PUSH(fmcu, addr, cmd);
-
-		if ((i < AFBC_PATH_NUM) && (path->afbc_store.bypass == 0))
-			hw->hw_ops.core_ops.isp_afbc_fmcu_addr_set(fmcu,
-					afbc_store_addr, i);
-	}
-
-	reg_off = ISP_CFG_CAP_FMCU_RDY;
-	addr = ISP_GET_REG(reg_off);
-	cmd = 1;
-	FMCU_PUSH(fmcu, addr, cmd);
-
-	addr = ISP_GET_REG(base + ISP_FMCU_CMD);
-	cmd = shadow_done_cmd[ctx_idx];
-	FMCU_PUSH(fmcu, addr, cmd);
-
-	addr = ISP_GET_REG(base + ISP_FMCU_CMD);
-	cmd = all_done_cmd[ctx_idx];
-	FMCU_PUSH(fmcu, addr, cmd);
-
 	return 0;
 }

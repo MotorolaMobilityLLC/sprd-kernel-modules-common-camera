@@ -65,6 +65,30 @@ struct regfile_buf_info {
 	uint32_t dirty;
 };
 
+struct isp_dev_cfg_info {
+	uint32_t bypass;
+	uint32_t tm_bypass;
+	uint32_t sdw_mode;
+	uint32_t num_of_mod;
+	uint32_t *isp_cfg_map;
+
+	uint32_t cfg_main_sel;
+	uint32_t bp_pre0_pixel_rdy;
+	uint32_t bp_pre1_pixel_rdy;
+	uint32_t bp_cap0_pixel_rdy;
+	uint32_t bp_cap1_pixel_rdy;
+
+	/* 0: cfg trigger start. 1: fmcu trigger start */
+	uint32_t pre0_cmd_ready_mode;
+	uint32_t pre1_cmd_ready_mode;
+	uint32_t cap0_cmd_ready_mode;
+	uint32_t cap1_cmd_ready_mode;
+
+	uint32_t tm_set_number;
+	uint32_t cap0_th;
+	uint32_t cap1_th;
+};
+
 struct isp_cfg_buf {
 	struct regfile_buf_info reg_buf[CFG_BUF_NUM];
 	enum cfg_buf_id cur_buf_id;
@@ -81,6 +105,7 @@ struct isp_cfg_ctx_desc {
 	atomic_t  map_cnt;
 	struct isp_cfg_ops *ops;
 	struct cam_hw_ops *hw_ops;
+	struct cam_hw_info *hw;
 };
 
 struct isp_cfg_ops {
@@ -97,10 +122,8 @@ struct isp_cfg_ops {
 			enum isp_context_hw_id ctx_id);
 };
 
-
 struct isp_cfg_ctx_desc *get_isp_cfg_ctx_desc(void);
 int put_isp_cfg_ctx_desc(struct isp_cfg_ctx_desc *param);
-
 int debug_show_ctx_reg_buf(void *param);
 
 #endif /* _ISP_CFG_H_ */

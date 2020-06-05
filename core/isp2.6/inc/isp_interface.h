@@ -47,13 +47,6 @@ enum isp_context_hw_id {
 	ISP_CONTEXT_HW_NUM
 };
 
-enum isp_sub_path_id {
-	ISP_SPATH_CP = 0,
-	ISP_SPATH_VID,
-	ISP_SPATH_FD,
-	ISP_SPATH_NUM,
-};
-
 enum isp_path_cfg_cmd {
 	ISP_PATH_CFG_CTX_BASE,
 	ISP_PATH_CFG_CTX_SIZE,
@@ -61,8 +54,6 @@ enum isp_path_cfg_cmd {
 	ISP_PATH_CFG_CTX_UFRAME_SYNC,
 	ISP_PATH_CFG_PATH_BASE,
 	ISP_PATH_CFG_PATH_SIZE,
-	ISP_PATH_CFG_PATH_DST,
-	ISP_PATH_CFG_CTX_SUPERZOOM,
 	ISP_PATH_CFG_PATH_COMPRESSION,
 	ISP_PATH_CFG_PATH_UFRAME_SYNC,
 	ISP_PATH_CFG_OUTPUT_BUF,
@@ -70,14 +61,8 @@ enum isp_path_cfg_cmd {
 	ISP_PATH_CFG_3DNR_BUF,
 	ISP_PATH_CFG_RGB_LTM_BUF,
 	ISP_PATH_CFG_YUV_LTM_BUF,
-	ISP_PATH_CFG_SUPERZOOM_BUF,
+	ISP_PATH_CFG_POSTPROC_BUF,
 	ISP_PATH_CFG_3DNR_MODE,
-};
-
-enum isp_superzoom_status {
-	NONE_CAP_SUPERZOOM,
-	TO_DO_CAP_SUPERZOOM,
-	DOING_CAP_SUPERZOOM,
 };
 
 enum isp_3dnr_mode {
@@ -124,11 +109,29 @@ enum isp_ioctrl_cmd {
 	ISP_IOCTL_CFG_SEC,
 };
 
+enum isp_stream_state {
+	ISP_STREAM_NORMAL_PROC,
+	ISP_STREAM_POST_PROC,
+	ISP_STREAM_MAX,
+};
+
+enum isp_stream_buf_type {
+	ISP_STREAM_BUF_OUT,
+	ISP_STREAM_BUF_RESERVED,
+	ISP_STREAM_BUF_POSTPROC,
+	ISP_STREAM_BUF_RESULT,
+	ISP_STREAM_BUF_MAX,
+};
+
+enum isp_stream_data_src {
+	ISP_STREAM_SRC_DCAM,
+	ISP_STREAM_SRC_ISP,
+	ISP_STREAM_SRC_MAX,
+};
 
 struct isp_init_param {
 	uint32_t is_high_fps;
 	uint32_t cam_id;
-	uint32_t is_superzoom;
 };
 
 struct isp_ctx_base_desc {
@@ -240,8 +243,7 @@ struct isp_pipe_ops {
 	int (*set_callback)(void *isp_handle, int ctx_id,
 			isp_dev_callback cb, void *priv_data);
 	int (*update_clk)(void *isp_handle, void *arg);
-	int (*get_3dnr_cnt)(void *isp_handle, int ctx_id, void *param);
-	int (*clear_3dnr_cnt)(void *isp_handle, int ctx_id);
+	int (*clear_stream_ctrl)(void *isp_handle, int ctx_id);
 };
 
 struct isp_pipe_ops *get_isp_ops(void);
@@ -251,10 +253,8 @@ int put_isp_pipe_dev(void *isp_handle);
 
 int isp_hw_init(void *arg);
 int isp_hw_deinit(void *arg);
-int isp_hw_start(struct cam_hw_info *hw, void *arg);
 int isp_hw_stop(struct cam_hw_info *hw, void *arg);
 int sprd_isp_parse_dt(struct device_node *dn,
 		struct cam_hw_info *hw_info,
 		uint32_t *isp_count);
-void isp_hwsim_extra(uint32_t idx);
 #endif

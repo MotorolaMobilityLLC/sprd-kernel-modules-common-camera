@@ -56,11 +56,11 @@ int isp_hw_init(void *arg)
 	ret = sprd_cam_pw_on();
 	ret = sprd_cam_domain_eb();
 
-	ret = hw->hw_ops.isp_soc_ops.clk_enable(hw->soc_isp);
+	ret = hw->isp_ioctl(hw, ISP_HW_CFG_ENABLE_CLK, NULL);
 	if (ret)
 		goto clk_fail;
 
-	ret = hw->hw_ops.isp_soc_ops.reset(hw, NULL);
+	ret = hw->isp_ioctl(hw, ISP_HW_CFG_RESET, NULL);
 	if (ret)
 		goto reset_fail;
 
@@ -69,7 +69,7 @@ int isp_hw_init(void *arg)
 	return 0;
 
 reset_fail:
-	hw->hw_ops.isp_soc_ops.clk_disable(hw->soc_isp);
+	hw->isp_ioctl(hw, ISP_HW_CFG_DISABLE_CLK, NULL);
 clk_fail:
 	sprd_cam_domain_disable();
 	sprd_cam_pw_off();
@@ -91,64 +91,14 @@ int isp_hw_deinit(void *arg)
 	dev = (struct isp_pipe_dev *)arg;
 	hw = dev->isp_hw;
 
-	ret = hw->hw_ops.isp_soc_ops.reset(hw, NULL);
+	ret = hw->isp_ioctl(hw, ISP_HW_CFG_RESET, NULL);
 	ret = isp_irq_free(&hw->pdev->dev, arg);
-	ret = hw->hw_ops.isp_soc_ops.clk_disable(hw->soc_isp);
+	ret = hw->isp_ioctl(hw, ISP_HW_CFG_DISABLE_CLK, NULL);
 
 	sprd_cam_domain_disable();
 	sprd_cam_pw_off();
 
 	return ret;
-}
-
-struct isp_work_ctrl {
-	uint32_t work_en_sw;
-	uint32_t work_start;
-	uint32_t work_mode;
-};
-
-int isp_hw_start(struct cam_hw_info *hw, void *arg)
-{
-	int ret = 0;
-	struct isp_work_ctrl work_ctrl;
-
-	/* by SW config (for DVFS)*/
-	work_ctrl.work_mode = 1;
-	work_ctrl.work_en_sw = 0;
-	work_ctrl.work_start = 1;
-
-#if 0
-	/* to be refined. */
-	ISP_HREG_MWR(ISP_WORK_CTRL, BIT_0, work_ctrl.work_mode);
-	ISP_HREG_MWR(ISP_WORK_CTRL, BIT_1, (work_ctrl.work_start << 1));
-	ISP_HREG_MWR(ISP_WORK_CTRL, BIT_2, (work_ctrl.work_en_sw << 2));
-#endif
-	hw->hw_ops.core_ops.default_para_set(hw, NULL, ISP_HW_PARA);
-
-	return ret;
-}
-
-int isp_hw_stop(struct cam_hw_info *hw, void *arg)
-{
-	uint32_t id;
-	uint32_t cid;
-
-	id = hw->ip_isp->idx;
-
-	ISP_HREG_MWR(ISP_AXI_ITI2AXIM_CTRL, BIT_26, 1 << 26);
-
-	pr_info("ISP%d:ISP_AXI_AXIM_CTRL 0x%x INT STATUS 0x%x  0x%x 0x%x 0x%x\n",
-		id, ISP_HREG_RD(ISP_AXI_ITI2AXIM_CTRL),
-		ISP_HREG_RD(ISP_P0_INT_BASE + ISP_INT_STATUS),
-		ISP_HREG_RD(ISP_C0_INT_BASE + ISP_INT_STATUS),
-		ISP_HREG_RD(ISP_P1_INT_BASE + ISP_INT_STATUS),
-		ISP_HREG_RD(ISP_C1_INT_BASE + ISP_INT_STATUS));
-	udelay(10);
-
-	for (cid = 0; cid < 4; cid++)
-		hw->hw_ops.isp_irq_ops.irq_clear(hw->ip_isp, &cid);
-
-	return 0;
 }
 
 int sprd_isp_parse_dt(struct device_node *dn,

@@ -82,8 +82,6 @@ extern unsigned long s_isp_mmubase;
 #define ISP_WORK_CTRL				(0x0738UL)
 #define ISP_BLOCK_MODE				(0x073CUL)
 
-#define ISP_YUV_MULT                   (0x0740UL)
-
 #define ISP_CORE_STATUS				(0x8000UL)
 #define ISP_CORE_PMU_EN				(0x8010UL)
 #define ISP_CORE_BUSY_ON			(0x8014UL)
@@ -302,7 +300,6 @@ extern unsigned long s_isp_mmubase;
 #define ISP_UVD_PARAM3				(0x3620UL)
 #define ISP_UVD_PARAM4				(0x3624UL)
 #define ISP_UVD_PARAM5				(0x3628UL)
-
 
 #define ISP_HIST_PARAM				(0x5410UL)
 #define ISP_HIST_CFG_READY			(0x5414UL)
@@ -675,9 +672,6 @@ extern unsigned long s_isp_mmubase;
 #define ISP_SCALER_VID_CHROMA_HCOEFF_BUF1	(0x38380UL)
 #define ISP_SCALER_VID_LUMA_VCOEFF_BUF1		(0x387F0UL)
 #define ISP_SCALER_VID_CHROMA_VCOEFF_BUF1	(0x38DF0UL)
-
-
-
 
 #define ISP_STORE_DEBUG_BASE			(0x0200UL)
 #define ISP_STORE_PRE_CAP_BASE			(0xC100UL)

@@ -61,6 +61,7 @@ static int isp_fmcu_cmd_ready(struct isp_fmcu_ctx_desc *fmcu_ctx)
 	int ret = 0;
 	int cmd_num;
 	unsigned long base;
+	struct isp_hw_fmcu_cmd cmdarg;
 
 	if (!fmcu_ctx) {
 		pr_err("fail to get fmcu_ctx pointer\n");
@@ -98,10 +99,10 @@ static int isp_fmcu_cmd_ready(struct isp_fmcu_ctx_desc *fmcu_ctx)
 		}
 	}
 #endif
-	ISP_HREG_WR(base + ISP_FMCU_DDR_ADDR,
-				fmcu_ctx->hw_addr[fmcu_ctx->cur_buf_id]);
-	ISP_HREG_MWR(base + ISP_FMCU_CTRL, 0xFFFF0000, cmd_num << 16);
-	ISP_HREG_WR(base + ISP_FMCU_CMD_READY, 1);
+	cmdarg.base = base;
+	cmdarg.hw_addr = fmcu_ctx->hw_addr[fmcu_ctx->cur_buf_id];
+	cmdarg.cmd_num = cmd_num;
+	fmcu_ctx->hw->isp_ioctl(fmcu_ctx->hw, ISP_HW_CFG_FMCU_CMD, &cmdarg);
 
 	pr_debug("fmcu%d start done, cmdq len %d\n",
 		fmcu_ctx->fid,
@@ -116,6 +117,7 @@ static int isp_fmcu_start(struct isp_fmcu_ctx_desc *fmcu_ctx)
 	int ret = 0;
 	int cmd_num;
 	unsigned long base;
+	struct isp_hw_fmcu_start startarg;
 
 	if (!fmcu_ctx) {
 		pr_err("fail to get fmcu_ctx pointer\n");
@@ -161,11 +163,11 @@ static int isp_fmcu_start(struct isp_fmcu_ctx_desc *fmcu_ctx)
  * fmcu_ctx->cmdq_pos[fmcu_ctx->cur_buf_id] * sizeof(uint32_t));
  */
 
-	ISP_HREG_WR(base + ISP_FMCU_DDR_ADDR,
-			fmcu_ctx->hw_addr[fmcu_ctx->cur_buf_id]);
-	ISP_HREG_MWR(base + ISP_FMCU_CTRL, 0xFFFF0000, cmd_num << 16);
-	ISP_HREG_WR(base + ISP_FMCU_ISP_REG_REGION, ISP_OFFSET_RANGE);
-	ISP_HREG_WR(base + ISP_FMCU_START, 1);
+
+	startarg.base = base;
+	startarg.hw_addr = fmcu_ctx->hw_addr[fmcu_ctx->cur_buf_id];
+	startarg.cmd_num = cmd_num;
+	fmcu_ctx->hw->isp_ioctl(fmcu_ctx->hw, ISP_HW_CFG_FMCU_START, &startarg);
 
 	pr_debug("fmcu%d start done, cmdq len %d\n",
 		fmcu_ctx->fid,
@@ -325,6 +327,7 @@ static struct isp_fmcu_ctx_desc s_fmcu_desc[ISP_FMCU_NUM] = {
 struct isp_fmcu_ctx_desc *get_isp_fmcu_ctx_desc(void *arg)
 {
 	int i;
+	uint32_t fmcu_id;
 	struct isp_fmcu_ctx_desc *fmcu = NULL;
 	struct cam_hw_info *hw = NULL;
 
@@ -336,7 +339,8 @@ struct isp_fmcu_ctx_desc *get_isp_fmcu_ctx_desc(void *arg)
 	hw = (struct cam_hw_info *)arg;
 	for (i = 0; i < ISP_FMCU_NUM; i++) {
 		if (atomic_inc_return(&s_fmcu_desc[i].user_cnt) == 1) {
-			if (hw->hw_ops.core_ops.fmcu_valid_get(s_fmcu_desc[i].fid)) {
+			fmcu_id = s_fmcu_desc[i].fid;
+			if (hw->isp_ioctl(hw, ISP_HW_CFG_FMCU_VALID_GET, &fmcu_id)) {
 				fmcu = &s_fmcu_desc[i];
 				pr_info("fmcu %d , %p\n", fmcu->fid, fmcu);
 				break;

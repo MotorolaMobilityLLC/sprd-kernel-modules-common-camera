@@ -100,7 +100,7 @@ static struct camera_frame *dcam_prepare_frame(struct dcam_pipe_dev *dev,
 		return NULL;
 	}
 
-	frame = camera_dequeue(&path->result_queue);
+	frame = camera_dequeue(&path->result_queue, struct camera_frame, list);
 	if (!frame) {
 		pr_err("fail to available output buffer DCAM%u %s\n",
 			dev->idx, to_path_name(path_id));
@@ -109,11 +109,11 @@ static struct camera_frame *dcam_prepare_frame(struct dcam_pipe_dev *dev,
 
 	atomic_dec(&path->set_frm_cnt);
 	if (unlikely(frame->is_reserved)) {
-		pr_debug("DCAM%u %s use reserved buffer, out %u, result %u\n",
+		pr_warn("DCAM%u %s use reserved buffer, out %u, result %u\n",
 			dev->idx, to_path_name(path_id),
 			camera_queue_cnt(&path->out_buf_queue),
 			camera_queue_cnt(&path->result_queue));
-		camera_enqueue(&path->reserved_buf_queue, frame);
+		camera_enqueue(&path->reserved_buf_queue, &frame->list);
 		return NULL;
 	}
 
@@ -137,9 +137,9 @@ static struct camera_frame *dcam_prepare_frame(struct dcam_pipe_dev *dev,
 		pr_info("DCAM%u %s fid %u invalid 0 timestamp\n",
 			dev->idx, to_path_name(path_id), frame->fid);
 		if (frame->is_reserved)
-			camera_enqueue(&path->reserved_buf_queue, frame);
+			camera_enqueue(&path->reserved_buf_queue, &frame->list);
 		else
-			camera_enqueue(&path->out_buf_queue, frame);
+			camera_enqueue(&path->out_buf_queue, &frame->list);
 		if (frame->sync_data)
 			dcam_if_release_sync(frame->sync_data, frame);
 		frame = NULL;
@@ -240,7 +240,7 @@ static void dcam_fix_index(struct dcam_pipe_dev *dev,
 				frame->fid += (j - 1) * dev->slowmotion_count;
 				frame->fid += 1;
 			}
-			camera_enqueue(&path->result_queue, frame);
+			camera_enqueue(&path->result_queue, &frame->list);
 		}
 	}
 }
@@ -254,7 +254,7 @@ static int dcam_check_frame(struct dcam_pipe_dev *dev,
 	uint32_t frame_addr = 0, reg_value = 0;
 	unsigned long reg_addr = 0;
 
-	frame = camera_dequeue_peek(&path->result_queue);
+	frame = camera_dequeue_peek(&path->result_queue, struct camera_frame, list);
 	if (unlikely(!frame))
 		return 0;
 
@@ -362,7 +362,7 @@ static enum dcam_fix_result dcam_fix_index_if_needed(struct dcam_pipe_dev *dev)
 			if (frame == NULL)
 				continue;
 			frame->fid = dev->frame_index;
-			camera_enqueue(&path->result_queue, frame);
+			camera_enqueue(&path->result_queue, &frame->list);
 		}
 
 		if (vote) {
@@ -435,7 +435,9 @@ static void dcam_cap_sof(void *param)
 	struct dcam_path_desc *path = NULL;
 	struct dcam_sync_helper *helper = NULL;
 	struct camera_frame *pframe;
+	struct dcam_hw_path_ctrl path_ctrl;
 	enum dcam_fix_result fix_result;
+	struct dcam_hw_auto_copy copyarg;
 	unsigned long flag;
 	int i;
 
@@ -481,15 +483,25 @@ static void dcam_cap_sof(void *param)
 			path->frm_deci_cnt = 0;
 			if (path->path_id == DCAM_PATH_FULL) {
 				spin_lock_irqsave(&path->state_lock, flag);
-				if (path->state == DCAM_PATH_PAUSE) {
-					hw->hw_ops.core_ops.path_pause(dev->idx,
-						path->path_id);
+				if (path->state == DCAM_PATH_PAUSE
+					&& path->state_update) {
+					atomic_inc(&path->set_frm_cnt);
+					path_ctrl.idx = dev->idx;
+					path_ctrl.path_id = path->path_id;
+					path_ctrl.type = HW_DCAM_PATH_PAUSE;
+					hw->dcam_ioctl(hw, DCAM_HW_CFG_PATH_CTRL, &path_ctrl);
 					dev->auto_cpy_id |= DCAM_CTRL_FULL;
+				} else if (path->state == DCAM_PATH_RESUME
+					&& path->state_update) {
+					path_ctrl.idx = dev->idx;
+					path_ctrl.path_id = path->path_id;
+					path_ctrl.type = HW_DCAM_PATH_RESUME;
+					hw->dcam_ioctl(hw, DCAM_HW_CFG_PATH_CTRL, &path_ctrl);
+				}
+				path->state_update = 0;
+				if (path->state == DCAM_PATH_PAUSE) {
 					spin_unlock_irqrestore(&path->state_lock, flag);
 					continue;
-				} else if (path->state == DCAM_PATH_RESUME) {
-					hw->hw_ops.core_ops.path_resume(dev->idx,
-						path->path_id);
 				}
 				spin_unlock_irqrestore(&path->state_lock, flag);
 			}
@@ -506,7 +518,10 @@ static void dcam_cap_sof(void *param)
 
 dispatch_sof:
 	dev->auto_cpy_id = DCAM_CTRL_ALL;
-	hw->hw_ops.core_ops.auto_copy(dev->auto_cpy_id, dev);
+	copyarg.id = dev->auto_cpy_id;
+	copyarg.idx = dev->idx;
+	copyarg.glb_reg_lock = dev->glb_reg_lock;
+	hw->dcam_ioctl(hw, DCAM_HW_CFG_AUTO_COPY, &copyarg);
 	dev->auto_cpy_id = 0;
 
 	if (!dev->slowmotion_count
@@ -655,7 +670,7 @@ static void dcam_bin_path_done(void *param)
 
 	if (dev->offline) {
 		/* there is source buffer for offline process */
-		frame = camera_dequeue(&dev->proc_queue);
+		frame = camera_dequeue(&dev->proc_queue, struct camera_frame, list);
 		if (frame) {
 			cambuf_iommu_unmap(&frame->buf);
 			dev->dcam_cb_func(DCAM_CB_RET_SRC_BUF, frame,

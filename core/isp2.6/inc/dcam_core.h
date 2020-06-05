@@ -21,6 +21,7 @@
 #include "cam_queue.h"
 #include "dcam_interface.h"
 #include "cam_block.h"
+#include "cam_hw.h"
 
 #define DCAM_IN_Q_LEN  2
 #define DCAM_PROC_Q_LEN  12
@@ -68,23 +69,6 @@ enum dcam_path_state {
 	DCAM_PATH_RESUME,
 };
 
-struct dcam_mipi_info {
-	uint32_t sensor_if;  /* MIPI CSI-2 */
-	uint32_t format;  /* input color format */
-	uint32_t mode;   /* single or multi mode. */
-	uint32_t data_bits;
-	uint32_t pattern; /* bayer mode for rgb, yuv pattern for yuv */
-	uint32_t href;
-	uint32_t frm_deci;
-	uint32_t frm_skip;
-	uint32_t x_factor;
-	uint32_t y_factor;
-	uint32_t is_4in1;
-	uint32_t dcam_slice_mode;
-	uint32_t is_cphy;
-	struct img_trim cap_size;
-};
-
 struct dcam_rds_slice_ctrl {
 	uint32_t rds_input_h_global;
 	uint32_t rds_input_w_global;
@@ -94,15 +78,6 @@ struct dcam_rds_slice_ctrl {
 	uint32_t rds_init_phase_int0;
 	uint32_t rds_init_phase_rdm1;
 	uint32_t rds_init_phase_rdm0;
-};
-
-struct dcam_fetch_info {
-	uint32_t is_loose;
-	uint32_t endian;
-	uint32_t pattern;
-	struct img_size size;
-	struct img_trim trim;
-	struct img_addr addr;
 };
 
 struct dcam_path_desc {

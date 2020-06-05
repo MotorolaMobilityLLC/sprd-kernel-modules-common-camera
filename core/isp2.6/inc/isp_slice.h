@@ -328,12 +328,6 @@ struct isp_slice_context {
 	uint32_t overlap_right;
 };
 
-uint32_t ap_fmcu_reg_get(struct isp_fmcu_ctx_desc *fmcu,
-	uint32_t reg);
-
-void ap_fmcu_reg_write(struct isp_fmcu_ctx_desc *fmcu,
-	uint32_t ctx_id, uint32_t addr, uint32_t cmd);
-
 int isp_cfg_slice_fetch_info(
 			void *cfg_in, struct isp_slice_context *slc_ctx);
 

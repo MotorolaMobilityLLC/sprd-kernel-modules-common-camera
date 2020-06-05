@@ -19,6 +19,7 @@
 #include "isp_reg.h"
 #include "isp_core.h"
 #include "isp_cfg.h"
+#include "cam_debugger.h"
 
 #ifdef pr_fmt
 #undef pr_fmt
@@ -48,47 +49,31 @@ struct isp_cfg_map_sector {
 static uint32_t s_map_sec_cnt;
 static struct isp_cfg_map_sector s_map_sectors[ISP_CFG_MAP_MAX];
 
-struct isp_dev_cfg_info {
-	uint32_t bypass;
-	uint32_t tm_bypass;
-	uint32_t sdw_mode;
-	uint32_t num_of_mod;
-	uint32_t *isp_cfg_map;
-
-	uint32_t cfg_main_sel;
-	uint32_t bp_pre0_pixel_rdy;
-	uint32_t bp_pre1_pixel_rdy;
-	uint32_t bp_cap0_pixel_rdy;
-	uint32_t bp_cap1_pixel_rdy;
-
-	/* 0: cfg trigger start. 1: fmcu trigger start */
-	uint32_t pre0_cmd_ready_mode;
-	uint32_t pre1_cmd_ready_mode;
-	uint32_t cap0_cmd_ready_mode;
-	uint32_t cap1_cmd_ready_mode;
-
-	uint32_t tm_set_number;
-	uint32_t cap0_th;
-	uint32_t cap1_th;
-} s_cfg_settings = {
-	0, 1, 1, 0, NULL,
-	0, 1, 1, 1, 1,
-	0, 0, 0, 0,
-	0, 0, 0
-};
-
 int debug_show_ctx_reg_buf(void *param)
 {
 	struct seq_file *s = (struct seq_file *)param;
-	uint32_t ctx_id = *(uint32_t *)s->private;
+	struct cam_debug_bypass *debug_bypass = NULL;
+	struct cam_hw_info *hw = NULL;
+	uint32_t ctx_id = 0;
 	uint32_t i, item, start, count;
 	uint32_t addr;
 	unsigned long datap;
 	uint32_t cfg_map_size = 0;
 	uint32_t *cfg_map = NULL;
+	struct isp_dev_cfg_info s_cfg_settings = {
+		0, 1, 1, 0, NULL,
+		0, 1, 1, 1, 1,
+		0, 0, 0, 0,
+		0, 0, 0
+	};
+
+	debug_bypass = (struct cam_debug_bypass *)s->private;
+	ctx_id = debug_bypass->idx;
+	hw = debug_bypass->hw;
 
 	mutex_lock(&buf_mutex);
-	datap =  isp_cfg_ctx_addr[ctx_id];
+	datap = isp_cfg_ctx_addr[ctx_id];
+	hw->isp_ioctl(hw, ISP_HW_CFG_CFG_MAP_INFO_GET, &s_cfg_settings);
 	cfg_map_size = s_cfg_settings.num_of_mod;
 	cfg_map = s_cfg_settings.isp_cfg_map;
 	if (datap == 0UL) {
@@ -375,20 +360,18 @@ static int isp_cfg_map_init(struct isp_cfg_ctx_desc *cfg_ctx)
 	uint32_t i = 0;
 	uint32_t cfg_map_size = 0;
 	uint32_t *cfg_map = NULL;
-	uint32_t val;
+	struct isp_hw_cfg_map maparg;
+	struct isp_dev_cfg_info s_cfg_settings = {
+		0, 1, 1, 0, NULL,
+		0, 1, 1, 1, 1,
+		0, 0, 0, 0,
+		0, 0, 0
+	};
 
 	pr_debug("enter.");
+	cfg_ctx->hw->isp_ioctl(cfg_ctx->hw, ISP_HW_CFG_CFG_MAP_INFO_GET, &s_cfg_settings);
 	cfg_map_size = s_cfg_settings.num_of_mod;
 	cfg_map = s_cfg_settings.isp_cfg_map;
-	if (atomic_inc_return(&cfg_ctx->map_cnt) == 1) {
-		pr_info("cfg map init start\n");
-		for (i = 0; i < cfg_map_size; i++) {
-			ISP_HREG_WR(ISP_CFG0_BUF + i * 4,
-				cfg_map[i]);
-			ISP_HREG_WR(ISP_CFG1_BUF + i * 4,
-				cfg_map[i]);
-		}
-	}
 
 	/* only config once after system running */
 	if (s_map_sec_cnt == 0) {
@@ -417,53 +400,12 @@ static int isp_cfg_map_init(struct isp_cfg_ctx_desc *cfg_ctx)
 	}
 
 setting:
-	val = (s_cfg_settings.pre1_cmd_ready_mode << 27)|
-		(s_cfg_settings.pre0_cmd_ready_mode << 26)|
-		(s_cfg_settings.cap1_cmd_ready_mode << 25)|
-		(s_cfg_settings.cap0_cmd_ready_mode << 24)|
-		(s_cfg_settings.bp_cap1_pixel_rdy << 23) |
-		(s_cfg_settings.bp_cap0_pixel_rdy << 22) |
-		(s_cfg_settings.bp_pre1_pixel_rdy << 21) |
-		(s_cfg_settings.bp_pre0_pixel_rdy << 20) |
-		(s_cfg_settings.cfg_main_sel << 16) |
-		(s_cfg_settings.num_of_mod << 8) |
-		(s_cfg_settings.sdw_mode << 5) |
-		(s_cfg_settings.tm_bypass << 4) |
-		(s_cfg_settings.bypass);
+	maparg.map_cnt = cfg_ctx->map_cnt;
+	maparg.s_cfg_settings = &s_cfg_settings;
+	cfg_ctx->hw->isp_ioctl(cfg_ctx->hw, ISP_HW_CFG_MAP_INIT, &maparg);
 
-	ISP_HREG_WR(ISP_CFG_PAMATER, val);
-
-	if (!s_cfg_settings.tm_bypass) {
-		ISP_HREG_WR(ISP_CFG_TM_NUM,
-				s_cfg_settings.tm_set_number);
-		ISP_HREG_WR(ISP_CFG_CAP0_TH,
-				s_cfg_settings.cap0_th);
-		ISP_HREG_WR(ISP_CFG_CAP1_TH,
-				s_cfg_settings.cap1_th);
-	}
-
-	ISP_HREG_MWR(ISP_ARBITER_ENDIAN_COMM, BIT_0, 0x1);
 	return 0;
 }
-
-static int isp_cfg_start_isp(
-			struct isp_cfg_ctx_desc *cfg_ctx,
-			enum isp_context_hw_id ctx_id)
-{
-	unsigned long reg_addr[] = {
-		ISP_CFG_PRE0_START,
-		ISP_CFG_CAP0_START,
-		ISP_CFG_PRE1_START,
-		ISP_CFG_CAP1_START,
-	};
-
-	pr_debug("isp cfg start:  context_id %d, P0_addr 0x%x\n", ctx_id,
-		ISP_HREG_RD(ISP_CFG_PRE0_CMD_ADDR));
-
-	ISP_HREG_WR(reg_addr[ctx_id], 1);
-	return 0;
-}
-
 
 static int isp_cfg_config_block(
 			struct isp_cfg_ctx_desc *cfg_ctx,
@@ -584,10 +526,6 @@ static int isp_cfg_ctx_init(struct isp_cfg_ctx_desc *cfg_ctx)
 	for (i = 0; i < ISP_CONTEXT_SW_NUM; i++)
 		isp_cfg_poll_addr[i] = &isp_cfg_ctx_addr[i];
 
-	s_cfg_settings.isp_cfg_map =
-		cfg_ctx->hw_ops->core_ops.cfg_map_info_get(
-		&s_cfg_settings.num_of_mod);
-
 exit:
 	pr_info("cfg ctx init done\n");
 
@@ -626,7 +564,6 @@ struct isp_cfg_ops cfg_ops = {
 	.ctx_reset = isp_cfg_reset_ctxbuf,
 	.hw_init = isp_cfg_map_init,
 	.hw_cfg = isp_cfg_config_block,
-	.hw_start = isp_cfg_start_isp,
 };
 
 struct isp_cfg_ctx_desc s_ctx_desc = {

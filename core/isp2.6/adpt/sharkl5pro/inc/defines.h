@@ -32,6 +32,7 @@
 #define RAW_OVERLAP_LEFT			118
 #define RAW_OVERLAP_RIGHT			138
 #define ISP_SLCIE_HEIGHT_MAX			8192
+#define ISP_SCALER_UP_MAX			4
 
 /*
  *DCAM_CONTROL register bit map id

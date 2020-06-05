@@ -372,6 +372,8 @@ struct endian_field {
 	uint32_t vch3_endian: 2;
 };
 
+extern const unsigned long slowmotion_store_addr[3][4];
+
 /* DCAM2 registers define, the other same as DCAM0 */
 #define DCAM2_PATH0_BASE_WADDR		(0x0080UL)
 #define DCAM2_PATH1_BASE_WADDR		(0x0084UL)

@@ -20,7 +20,8 @@
 #include <linux/spinlock.h>
 #include <linux/kthread.h>
 #include <linux/sprd_ion.h>
-
+#include <linux/sprd_iommu.h>
+#include <linux/sprd_ion.h>
 #include <sprd_isp_hw.h>
 #include "sprd_img.h"
 #include <video/sprd_mmsys_pw_domain.h>
@@ -30,9 +31,6 @@
 #include "dcam_reg.h"
 #include "dcam_int.h"
 #include "dcam_path.h"
-
-#include <linux/sprd_iommu.h>
-#include <linux/sprd_ion.h>
 
 #ifdef pr_fmt
 #undef pr_fmt
@@ -86,7 +84,6 @@ static int dcam_cfg_rps(struct dcam_pipe_dev *dev, void *param)
 	return 0;
 }
 
-
 void dcam_ret_src_frame(void *param)
 {
 	struct camera_frame *frame;
@@ -123,14 +120,13 @@ void dcam_ret_out_frame(void *param)
 
 	if (frame->is_reserved) {
 		path =  (struct dcam_path_desc *)frame->priv_data;
-		camera_enqueue(&path->reserved_buf_queue, frame);
+		camera_enqueue(&path->reserved_buf_queue, &frame->list);
 	} else {
 		cambuf_iommu_unmap(&frame->buf);
 		dev = (struct dcam_pipe_dev *)frame->priv_data;
 		dev->dcam_cb_func(DCAM_CB_DATA_DONE, frame, dev->cb_priv_data);
 	}
 }
-
 
 void dcam_destroy_reserved_buf(void *param)
 {
@@ -170,7 +166,6 @@ void dcam_destroy_statis_buf(void *param)
 	frame = (struct camera_frame *)param;
 	put_empty_frame(frame);
 }
-
 
 static struct camera_buf *get_reserved_buffer(struct dcam_pipe_dev *dev)
 {
@@ -290,7 +285,7 @@ static void init_reserved_statis_bufferq(struct dcam_pipe_dev *dev)
 			if (newfrm) {
 				newfrm->is_reserved = 1;
 				memcpy(&newfrm->buf, ion_buf, sizeof(struct camera_buf));
-				camera_enqueue(&path->reserved_buf_queue, newfrm);
+				camera_enqueue(&path->reserved_buf_queue, &newfrm->list);
 				j++;
 			}
 			pr_debug("path%d reserved buffer %d\n", path->path_id, j);
@@ -320,11 +315,11 @@ static int init_statis_bufferq(struct dcam_pipe_dev *dev)
 
 		path = &dev->path[path_id];
 		camera_queue_init(&path->out_buf_queue,
-				DCAM_OUT_BUF_Q_LEN, 0, dcam_destroy_statis_buf);
+				DCAM_OUT_BUF_Q_LEN, dcam_destroy_statis_buf);
 		camera_queue_init(&path->result_queue,
-				DCAM_RESULT_Q_LEN, 0, dcam_destroy_statis_buf);
+				DCAM_RESULT_Q_LEN, dcam_destroy_statis_buf);
 		camera_queue_init(&path->reserved_buf_queue,
-				DCAM_RESERVE_BUF_Q_LEN, 0,
+				DCAM_RESERVE_BUF_Q_LEN,
 					dcam_destroy_statis_buf);
 	}
 
@@ -348,7 +343,7 @@ static int init_statis_bufferq(struct dcam_pipe_dev *dev)
 			pframe->irq_property = stats_type;
 			pframe->buf = *ion_buf;
 
-			ret = camera_enqueue(&path->out_buf_queue, pframe);
+			ret = camera_enqueue(&path->out_buf_queue, &pframe->list);
 			if (ret) {
 				pr_info("dcam%d statis %d overflow\n", dev->idx, stats_type);
 				put_empty_frame(pframe);
@@ -382,14 +377,14 @@ static int deinit_statis_bufferq(struct dcam_pipe_dev *dev)
 			continue;
 
 		atomic_set(&path->user_cnt, 0);
-		camera_queue_clear(&path->out_buf_queue);
-		camera_queue_clear(&path->result_queue);
-		camera_queue_clear(&path->reserved_buf_queue);
+		camera_queue_clear(&path->out_buf_queue, struct camera_frame, list);
+		camera_queue_clear(&path->result_queue, struct camera_frame, list);
+		camera_queue_clear(&path->reserved_buf_queue,
+			struct camera_frame, list);
 	}
 	pr_info("done.\n");
 	return ret;
 }
-
 
 static int unmap_statis_buffer(struct dcam_pipe_dev *dev)
 {
@@ -519,7 +514,7 @@ static int dcam_cfg_statis_buffer(
 		pframe->irq_property = input->type;
 		pframe->buf = *ion_buf;
 		path = &dev->path[path_id];
-		ret = camera_enqueue(&path->out_buf_queue, pframe);
+		ret = camera_enqueue(&path->out_buf_queue, &pframe->list);
 		pr_debug("statis %d, mfd %d, off %d, iova 0x%08x,  kaddr 0x%lx\n",
 			input->type, mfd, offset,
 			(uint32_t)pframe->buf.iova[0], pframe->buf.addr_k[0]);
@@ -591,7 +586,7 @@ static int dcam_cfg_statis_buffer_skip(struct dcam_pipe_dev *dev, struct camera_
 		goto exit;
 	}
 
-	ret = camera_enqueue(&dev->path[path_id].out_buf_queue, pframe);
+	ret = camera_enqueue(&dev->path[path_id].out_buf_queue, &pframe->list);
 exit:
 	return ret;
 }
@@ -654,12 +649,18 @@ static int dcam_offline_start_slices_hw(void *param)
 	struct dcam_path_desc *path = NULL;
 	struct dcam_fetch_info *fetch = NULL;
 	struct cam_hw_info *hw = NULL;
+	struct dcam_hw_start_fetch parm;
+	struct dcam_hw_cfg_bin_path bin_parm;
+	struct dcam_hw_force_copy copyarg;
+	struct dcam_hw_path_start patharg;
+	struct dcam_hw_slice_fetch slicearg;
+	struct dcam_hw_cfg_mipicap mipiarg;
 
 	dev = (struct dcam_pipe_dev *)param;
 	fetch = &dev->fetch;
 	hw = dev->hw;
 
-	pframe = camera_dequeue(&dev->in_queue);
+	pframe = camera_dequeue(&dev->in_queue, struct camera_frame, list);
 	if (pframe == NULL) {
 		pr_warn("no frame from in_q. dcam%d\n", dev->idx);
 		return 0;
@@ -691,7 +692,7 @@ static int dcam_offline_start_slices_hw(void *param)
 	ret = 0;
 
 	do {
-		ret = camera_enqueue(&dev->proc_queue, pframe);
+		ret = camera_enqueue(&dev->proc_queue, &pframe->list);
 		if (ret == 0)
 			break;
 		pr_info("wait for proc queue. loop %d\n", loop);
@@ -728,7 +729,17 @@ static int dcam_offline_start_slices_hw(void *param)
 			path->is_loose = loose_val;
 			atomic_set(&path->set_frm_cnt, 1);
 			atomic_inc(&path->set_frm_cnt);
-			hw->hw_ops.core_ops.path_start(dev, i);
+			patharg.path_id = i;
+			patharg.idx = dev->idx;
+			patharg.slowmotion_count = dev->slowmotion_count;
+			patharg.is_pdaf = dev->is_pdaf;
+			patharg.cap_info = dev->cap_info;
+			patharg.is_loose = dev->path[i].is_loose;
+			patharg.src_sel = dev->path[i].src_sel;
+			patharg.bayer_pattern = dev->path[i].bayer_pattern;
+			patharg.in_trim = dev->path[i].in_trim;
+			patharg.endian = dev->path[i].endian;
+			hw->dcam_ioctl(hw, DCAM_HW_CFG_PATH_START, &patharg);
 		} else {
 			pr_err("fail to set dcam%d path%d store frm\n",
 				dev->idx, path->path_id);
@@ -757,33 +768,24 @@ static int dcam_offline_start_slices_hw(void *param)
 		fetch_pitch = (fetch->size.w * 10 + 127) / 128;
 	}
 
-	if (hw->ip_dcam[dev->idx]->offline_slice_support
-		&& hw->hw_ops.core_ops.dcam_slice_fetch_set)
-		hw->hw_ops.core_ops.dcam_slice_fetch_set(dev);
+	if (hw->ip_dcam[dev->idx]->offline_slice_support) {
+		slicearg.idx = dev->idx;
+		slicearg.fetch = &dev->fetch;
+		hw->dcam_ioctl(hw, DCAM_HW_CFG_SLICE_FETCH_SET, &slicearg);
+	}
 
 	/* cfg mipicap */
-	DCAM_REG_MWR(dev->idx,
-		DCAM_MIPI_CAP_CFG, BIT_30, 0x1 << 30);
-	DCAM_REG_MWR(dev->idx,
-		DCAM_MIPI_CAP_CFG, BIT_29, 0x1 << 29);
-	DCAM_REG_MWR(dev->idx,
-		DCAM_MIPI_CAP_CFG, BIT_28, 0x1 << 28);
-	DCAM_REG_MWR(dev->idx,
-		DCAM_MIPI_CAP_CFG, BIT_12, 0x1 << 12);
-	DCAM_REG_MWR(dev->idx,
-		DCAM_MIPI_CAP_CFG, BIT_3, 0x0 << 3);
-	DCAM_REG_MWR(dev->idx,
-		DCAM_MIPI_CAP_CFG, BIT_1, 0x1 << 1);
 	reg_val = (pframe->height - 1) << 16;
 	reg_val |= (pframe->width/2 - 1);
-	DCAM_REG_WR(dev->idx, DCAM_MIPI_CAP_END, reg_val);
+	mipiarg.idx = dev->idx;
+	mipiarg.reg_val = reg_val;
+	hw->dcam_ioctl(hw, DCAM_HW_CFG_MIPICAP, &mipiarg);
 
 	/* cfg bin path */
-	DCAM_REG_MWR(dev->idx, DCAM_CAM_BIN_CFG, 0x3FF << 20, fetch_pitch << 20);
-
-	DCAM_AXIM_WR(IMG_FETCH_X,
-		(fetch_pitch << 16) | (fetch->trim.start_x & 0xffff));
-
+	bin_parm.idx = dev->idx;
+	bin_parm.fetch_pitch = fetch_pitch;
+	bin_parm.start_x = fetch->trim.start_x;
+	hw->dcam_ioctl(hw, DCAM_HW_CFG_BIN_PATH, &bin_parm);
 	dev->slice_count = 2;
 
 	mutex_lock(&dev->blk_dcam_pm->lsc.lsc_lock);
@@ -792,14 +794,17 @@ static int dcam_offline_start_slices_hw(void *param)
 
 	/* DCAM_CTRL_COEF will always set in dcam_init_lsc() */
 	//force_ids &= ~DCAM_CTRL_COEF;
-	hw->hw_ops.core_ops.force_copy(force_ids, dev);
+	copyarg.id = force_ids;
+	copyarg.idx = dev->idx;
+	copyarg.glb_reg_lock = dev->glb_reg_lock;
+	hw->dcam_ioctl(hw, DCAM_HW_CFG_FORCE_COPY, &copyarg);
 	udelay(500);
 	dev->iommu_status = (uint32_t)(-1);
 	atomic_set(&dev->state, STATE_RUNNING);
 	pr_info("slice0 fetch start\n");
 
 	/* start fetch */
-	DCAM_AXIM_WR(IMG_FETCH_START, 1);
+	hw->dcam_ioctl(hw, DCAM_HW_CFG_START_FETCH, NULL);
 
 	while(1) {
 		ret = wait_for_completion_interruptible_timeout(
@@ -816,21 +821,23 @@ static int dcam_offline_start_slices_hw(void *param)
 		}
 		ret = 0;
 
-		reg_val = DCAM_REG_RD(dev->idx, DCAM_BIN_BASE_WADDR0);
-		DCAM_REG_WR(dev->idx, DCAM_BIN_BASE_WADDR0, reg_val + fetch_pitch*128/8/2);
-		DCAM_AXIM_WR(IMG_FETCH_X,
-			(fetch_pitch << 16) | ((fetch->trim.start_x + fetch->trim.size_x/2) & 0x1fff));
-		DCAM_REG_MWR(dev->idx,
-			DCAM_MIPI_CAP_CFG, BIT_30, 0x0 << 30);
+		parm.fetch_pitch = fetch_pitch;
+		parm.size_x = fetch->trim.size_x;
+		parm.start_x = fetch->trim.start_x;
+		parm.idx = dev->idx;
+		hw->dcam_ioctl(hw, DCAM_HW_CFG_BIN_MIPI, &parm);
 
 		dcam_init_lsc_slice(dev, 0);
-		hw->hw_ops.core_ops.force_copy(force_ids, dev);
+		copyarg.id = force_ids;
+		copyarg.idx = dev->idx;
+		copyarg.glb_reg_lock = dev->glb_reg_lock;
+		hw->dcam_ioctl(hw, DCAM_HW_CFG_FORCE_COPY, &copyarg);
 		udelay(500);
 		dev->iommu_status = (uint32_t)(-1);
 		atomic_set(&dev->state, STATE_RUNNING);
 		pr_info("slice1 fetch start\n");
 
-		DCAM_AXIM_WR(IMG_FETCH_START, 1);
+		hw->dcam_ioctl(hw, DCAM_HW_CFG_START_FETCH, NULL);
 		break;
 	}
 
@@ -909,7 +916,10 @@ static int dcam_offline_start_slices_sw(void *param)
 	struct camera_frame *pframe = NULL;
 	struct dcam_path_desc *path;
 	struct dcam_fetch_info *fetch;
+	struct dcam_hw_force_copy copyarg;
 	struct cam_hw_info *hw = NULL;
+	struct dcam_hw_path_start patharg;
+	struct dcam_hw_slice_fetch slicearg;
 	uint32_t slice_no;
 
 	dev = (struct dcam_pipe_dev *)param;
@@ -918,13 +928,14 @@ static int dcam_offline_start_slices_sw(void *param)
 	hw = dev->hw;
 
 	if (dev->slice_count) {
-		pframe = camera_dequeue(&dev->proc_queue);
+		pframe = camera_dequeue(&dev->proc_queue,
+				struct camera_frame, list);
 		if (!pframe) {
 			pr_err("fail to map buf to dcam%d iommu.\n", dev->idx);
 			goto map_err;
 		}
 	} else {
-		pframe = camera_dequeue(&dev->in_queue);
+		pframe = camera_dequeue(&dev->in_queue, struct camera_frame, list);
 		if (pframe == NULL) {
 			pr_warn("no frame from in_q. dcam%d\n", dev->idx);
 			return 0;
@@ -961,7 +972,7 @@ static int dcam_offline_start_slices_sw(void *param)
 
 	loop = 0;
 	do {
-		ret = camera_enqueue(&dev->proc_queue, pframe);
+		ret = camera_enqueue(&dev->proc_queue, &pframe->list);
 		if (ret == 0)
 			break;
 		pr_info("wait for proc queue. loop %d\n", loop);
@@ -997,7 +1008,17 @@ static int dcam_offline_start_slices_sw(void *param)
 			/* interrupt need > 1 */
 			atomic_set(&path->set_frm_cnt, 1);
 			atomic_inc(&path->set_frm_cnt);
-			hw->hw_ops.core_ops.path_start(dev, i);
+			patharg.path_id = i;
+			patharg.idx = dev->idx;
+			patharg.slowmotion_count = dev->slowmotion_count;
+			patharg.is_pdaf = dev->is_pdaf;
+			patharg.cap_info = dev->cap_info;
+			patharg.is_loose = dev->path[i].is_loose;
+			patharg.src_sel = dev->path[i].src_sel;
+			patharg.bayer_pattern = dev->path[i].bayer_pattern;
+			patharg.in_trim = dev->path[i].in_trim;
+			patharg.endian = dev->path[i].endian;
+			hw->dcam_ioctl(hw, DCAM_HW_CFG_PATH_START, &patharg);
 		} else {
 			pr_err("fail to set dcam%d path%d store frm\n",
 				dev->idx, path->path_id);
@@ -1020,15 +1041,21 @@ static int dcam_offline_start_slices_sw(void *param)
 	fetch->trim.size_x = pframe->width;
 	fetch->trim.size_y = pframe->height;
 	fetch->addr.addr_ch0 = (uint32_t)pframe->buf.iova[0];
-	hw->hw_ops.core_ops.dcam_slice_fetch_set(dev);
+	slicearg.idx = dev->idx;
+	slicearg.fetch = &dev->fetch;
+	slicearg.slice_trim = dev->slice_trim;
+	hw->dcam_ioctl(hw, DCAM_HW_CFG_SLICE_FETCH_SET, &slicearg);
 
 	dcam_init_lsc_slice(dev, 0);
-	hw->hw_ops.core_ops.force_copy(force_ids, dev);
+	copyarg.id = force_ids;
+	copyarg.idx = dev->idx;
+	copyarg.glb_reg_lock = dev->glb_reg_lock;
+	hw->dcam_ioctl(hw, DCAM_HW_CFG_FORCE_COPY, &copyarg);
 	udelay(500);
 	dev->iommu_status = (uint32_t)(-1);
 	atomic_set(&dev->state, STATE_RUNNING);
 	dev->err_count = 1;
-	hw->hw_ops.core_ops.fetch_start(hw);
+	hw->dcam_ioctl(hw, DCAM_HW_CFG_FETCH_START, hw);
 	pr_debug("done slice %d.\n", slice_no);
 
 	return 0;
@@ -1060,6 +1087,11 @@ static int dcam_offline_start_frame(void *param)
 	struct dcam_path_desc *path = NULL;
 	struct dcam_fetch_info *fetch = NULL;
 	struct cam_hw_info *hw = NULL;
+	struct cam_hw_reg_trace trace;
+	struct dcam_hw_force_copy copyarg;
+	struct dcam_hw_fetch_set fetcharg;
+	struct dcam_hw_path_start patharg;
+	struct dcam_hw_fetch_block blokarg;
 
 	dev = (struct dcam_pipe_dev *)param;
 
@@ -1073,7 +1105,7 @@ static int dcam_offline_start_frame(void *param)
 	if (ret == ERESTARTSYS) {
 		pr_err("fail to wait as interrupted.\n");
 		ret = -EFAULT;
-		pframe = camera_dequeue(&dev->in_queue);
+		pframe = camera_dequeue(&dev->in_queue, struct camera_frame, list);
 		if (pframe == NULL) {
 			pr_warn("no frame from in_q. dcam%d\n", dev->idx);
 			return 0;
@@ -1082,7 +1114,7 @@ static int dcam_offline_start_frame(void *param)
 	} else if (ret == 0) {
 		pr_err("fail to wait as dcam%d offline timeout.\n", dev->idx);
 		ret = -EFAULT;
-		pframe = camera_dequeue(&dev->in_queue);
+		pframe = camera_dequeue(&dev->in_queue, struct camera_frame, list);
 		if (pframe == NULL) {
 			pr_warn("no frame from in_q. dcam%d\n", dev->idx);
 			return 0;
@@ -1100,7 +1132,7 @@ static int dcam_offline_start_frame(void *param)
 
 	fetch = &dev->fetch;
 
-	pframe = camera_dequeue(&dev->in_queue);
+	pframe = camera_dequeue(&dev->in_queue, struct camera_frame, list);
 	if (pframe == NULL) {
 		pr_warn("no frame from in_q. dcam%d\n", dev->idx);
 		return 0;
@@ -1108,14 +1140,17 @@ static int dcam_offline_start_frame(void *param)
 
 	if (DCAM_FETCH_TWICE(dev)) {
 		dev->raw_fetch_count++;
-		ret = hw->hw_ops.core_ops.dcam_fetch_block_set(dev);
+		blokarg.idx = dev->idx;
+		blokarg.raw_fetch_count = dev->raw_fetch_count;
+		ret = hw->dcam_ioctl(hw, DCAM_HW_CFG_FETCH_BLOCK_SET, &blokarg);
 		if (!DCAM_FIRST_FETCH(dev)) {
 			struct camera_frame *frame = NULL;
 
-			frame = camera_dequeue(&dev->proc_queue);
+			frame = camera_dequeue(&dev->proc_queue,
+					struct camera_frame, list);
 			if (frame) {
 				path = &dev->path[DCAM_PATH_BIN];
-				ret = camera_enqueue(&path->out_buf_queue, frame);
+				ret = camera_enqueue(&path->out_buf_queue, &frame->list);
 			}
 			pframe->endian = frame->endian;
 			pframe->pattern = frame->pattern;
@@ -1137,7 +1172,7 @@ static int dcam_offline_start_frame(void *param)
 
 	loop = 0;
 	do {
-		ret = camera_enqueue(&dev->proc_queue, pframe);
+		ret = camera_enqueue(&dev->proc_queue, &pframe->list);
 		if (ret == 0)
 			break;
 		pr_info("wait for proc queue. loop %d\n", loop);
@@ -1200,7 +1235,17 @@ static int dcam_offline_start_frame(void *param)
 			val_4in1 = ((dev->is_4in1) | (path->is_4in1));
 			atomic_set(&path->set_frm_cnt, 1);
 			atomic_inc(&path->set_frm_cnt);
-			hw->hw_ops.core_ops.path_start(dev, i);
+			patharg.path_id = i;
+			patharg.idx = dev->idx;
+			patharg.slowmotion_count = dev->slowmotion_count;
+			patharg.is_pdaf = dev->is_pdaf;
+			patharg.cap_info = dev->cap_info;
+			patharg.is_loose = dev->path[i].is_loose;
+			patharg.src_sel = dev->path[i].src_sel;
+			patharg.bayer_pattern = dev->path[i].bayer_pattern;
+			patharg.in_trim = dev->path[i].in_trim;
+			patharg.endian = dev->path[i].endian;
+			hw->dcam_ioctl(hw, DCAM_HW_CFG_PATH_START, &patharg);
 		} else {
 			pr_err("fail to set dcam%d path%d store frm\n",
 				dev->idx, path->path_id);
@@ -1216,7 +1261,7 @@ static int dcam_offline_start_frame(void *param)
 	  else
 	      fetch->is_loose = 0;
 	} else
-              fetch->is_loose = loose_val;
+	fetch->is_loose = loose_val;
 	pr_info("is_loose =%d",fetch->is_loose);
 	fetch->endian = pframe->endian;
 	fetch->pattern = pframe->pattern;
@@ -1228,7 +1273,9 @@ static int dcam_offline_start_frame(void *param)
 	fetch->trim.size_y = pframe->height;
 	fetch->addr.addr_ch0 = (uint32_t)pframe->buf.iova[0];
 
-	ret = hw->hw_ops.core_ops.dcam_fetch_set(dev);
+	fetcharg.idx = dev->idx;
+	fetcharg.fetch = fetch;
+	ret = hw->dcam_ioctl(hw, DCAM_HW_CFG_FETCH_SET, &fetcharg);
 
 	mutex_lock(&dev->blk_dcam_pm->lsc.lsc_lock);
 	dcam_init_lsc(dev, 0);
@@ -1236,18 +1283,22 @@ static int dcam_offline_start_frame(void *param)
 
 	/* DCAM_CTRL_COEF will always set in dcam_init_lsc() */
 	//force_ids &= ~DCAM_CTRL_COEF;
-	hw->hw_ops.core_ops.force_copy(force_ids, dev);
+	copyarg.id = force_ids;
+	copyarg.idx = dev->idx;
+	copyarg.glb_reg_lock = dev->glb_reg_lock;
+	hw->dcam_ioctl(hw, DCAM_HW_CFG_FORCE_COPY, &copyarg);
 	udelay(500);
 
 	dev->iommu_status = (uint32_t)(-1);
 	atomic_set(&dev->state, STATE_RUNNING);
 	dev->err_count = 1;
-	hw->hw_ops.core_ops.reg_trace(dev->idx, NORMAL_REG_TRACE);
-
+	trace.type = NORMAL_REG_TRACE;
+	trace.idx = dev->idx;
+	hw->isp_ioctl(hw, ISP_HW_CFG_REG_TRACE, &trace);
 	if (dev->dcamsec_eb)
 		pr_warn("camca : dcamsec_eb= %d, fetch disable\n", dev->dcamsec_eb);
 	else
-		hw->hw_ops.core_ops.fetch_start(hw);
+		hw->dcam_ioctl(hw, DCAM_HW_CFG_FETCH_START, hw);
 
 	return 0;
 
@@ -1595,11 +1646,11 @@ static int sprd_dcam_get_path(
 	}
 
 	camera_queue_init(&path->result_queue, DCAM_RESULT_Q_LEN,
-					0, dcam_ret_out_frame);
+					dcam_ret_out_frame);
 	camera_queue_init(&path->out_buf_queue, DCAM_OUT_BUF_Q_LEN,
-					0, dcam_ret_out_frame);
+					dcam_ret_out_frame);
 	camera_queue_init(&path->reserved_buf_queue, DCAM_RESERVE_BUF_Q_LEN,
-					0, dcam_destroy_reserved_buf);
+					dcam_destroy_reserved_buf);
 
 	return 0;
 }
@@ -1636,9 +1687,9 @@ static int sprd_dcam_put_path(
 		atomic_set(&path->user_cnt, 0);
 	}
 
-	camera_queue_clear(&path->result_queue);
-	camera_queue_clear(&path->out_buf_queue);
-	camera_queue_clear(&path->reserved_buf_queue);
+	camera_queue_clear(&path->result_queue, struct camera_frame, list);
+	camera_queue_clear(&path->out_buf_queue, struct camera_frame, list);
+	camera_queue_clear(&path->reserved_buf_queue, struct camera_frame, list);
 
 	pr_info("put dcam%d path %d done\n", dev->idx, path_id);
 	return ret;
@@ -1674,6 +1725,7 @@ static int sprd_dcam_cfg_path(
 	struct dcam_path_desc *path = NULL;
 	struct cam_hw_info *hw = NULL;
 	struct camera_frame *pframe = NULL;
+	struct dcam_hw_path_src_sel patharg;
 	uint32_t lowlux_4in1 = 0;
 	uint32_t shutoff = 0;
 	unsigned long flag = 0;
@@ -1722,7 +1774,7 @@ static int sprd_dcam_cfg_path(
 
 			pframe->is_reserved = 1;
 			pframe->priv_data = path;
-			ret = camera_enqueue(&path->reserved_buf_queue, pframe);
+			ret = camera_enqueue(&path->reserved_buf_queue, &pframe->list);
 			if (ret) {
 				pr_err("fail to enqueue frame of dcam path %d reserve buffer.\n",
 					path_id);
@@ -1741,14 +1793,14 @@ static int sprd_dcam_cfg_path(
 						sizeof(pframe->buf));
 					ret = camera_enqueue(
 						&path->reserved_buf_queue,
-						newfrm);
+						&newfrm->list);
 					i++;
 				}
 			}
 		} else {
 			pframe->is_reserved = 0;
 			pframe->priv_data = dev;
-			ret = camera_enqueue(&path->out_buf_queue, pframe);
+			ret = camera_enqueue(&path->out_buf_queue, &pframe->list);
 			if (ret) {
 				pr_err("fail to enqueue frame of dcam path %d\n",
 					path_id);
@@ -1769,13 +1821,15 @@ static int sprd_dcam_cfg_path(
 
 		if (lowlux_4in1) {
 			dev->lowlux_4in1 = 1;
-			ret = hw->hw_ops.core_ops.path_src_sel(dev,
-				PROCESS_RAW_SRC_SEL);
+			patharg.src_sel = PROCESS_RAW_SRC_SEL;
+			patharg.idx = dev->idx;
+			ret = hw->dcam_ioctl(hw, DCAM_HW_CFG_PATH_SRC_SEL, &patharg);
 			dev->skip_4in1 = 1; /* auto copy, so need skip 1 frame */
 		} else {
 			dev->lowlux_4in1 = 0;
-			ret = hw->hw_ops.core_ops.path_src_sel(dev,
-				ORI_RAW_SRC_SEL);
+			patharg.src_sel = PROCESS_RAW_SRC_SEL;
+			patharg.idx = dev->idx;
+			ret = hw->dcam_ioctl(hw, DCAM_HW_CFG_PATH_SRC_SEL, &patharg);
 			dev->skip_4in1 = 1;
 		}
 		pr_info("dev%d lowlux %d, skip_4in1 %d, full src: %s\n", dev->idx,
@@ -1903,7 +1957,7 @@ static int sprd_dcam_proc_frame(
 		}
 	}
 
-	ret = camera_enqueue(&dev->in_queue, pframe);
+	ret = camera_enqueue(&dev->in_queue, &pframe->list);
 	if (ret == 0)
 		complete(&dev->thread.thread_com);
 	else
@@ -1920,6 +1974,9 @@ static int sprd_dcam_ioctrl(void *dcam_handle,
 	struct dcam_mipi_info *cap = NULL;
 	struct dcam_path_desc *path = NULL;
 	struct camera_frame *frame = NULL;
+	struct dcam_hw_fbc_ctrl arg;
+	struct dcam_hw_ebd_set set;
+	struct cam_hw_gtm_update gtmarg;
 	int *fbc_mode = NULL;
 	uint32_t gtm_param_idx = 0;
 
@@ -1969,7 +2026,9 @@ static int sprd_dcam_ioctrl(void *dcam_handle,
 		break;
 	case DCAM_IOCTL_CFG_EBD:
 		dev->is_ebd = 1;
-		ret = dev->hw->hw_ops.core_ops.ebd_set(dev->idx, param);
+		set.idx = dev->idx;
+		set.p = param;
+		ret = dev->hw->dcam_ioctl(dev->hw, DCAM_HW_CFG_EBD_SET, &set);
 		break;
 	case DCAM_IOCTL_CFG_SEC:
 		ret = dcam_cfg_dcamsec(dev, param);
@@ -1987,9 +2046,9 @@ static int sprd_dcam_ioctrl(void *dcam_handle,
 			pr_info("Unsupport fbc mode %d\n", *fbc_mode);
 			return 0;
 		}
-		if (dev->hw->hw_ops.core_ops.dcam_fbc_ctrl)
-			dev->hw->hw_ops.core_ops.dcam_fbc_ctrl(
-				dev->idx, *fbc_mode);
+		arg.idx = dev->idx;
+		arg.fbc_mode = *fbc_mode;
+		dev->hw->dcam_ioctl(dev->hw, DCAM_HW_CFG_FBC_CTRL, &arg);
 
 		list_for_each_entry(frame, &path->reserved_buf_queue.head, list) {
 			if (!frame)
@@ -2021,8 +2080,12 @@ static int sprd_dcam_ioctrl(void *dcam_handle,
 		else
 			dev->blk_dcam_pm->gtm[DCAM_GTM_PARAM_PRE].update_en = 1;
 		dev->blk_dcam_pm->gtm[DCAM_GTM_PARAM_PRE].update |= BIT(0);
-		if (dev->hw->hw_ops.core_ops.cam_gtm_update)
-			dev->hw->hw_ops.core_ops.cam_gtm_update(gtm_param_idx, dev);
+		gtmarg.gtm_idx = gtm_param_idx;
+		gtmarg.idx = dev->idx;
+		gtmarg.hw = dev->hw;
+		gtmarg.blk_dcam_pm = dev->blk_dcam_pm;
+		gtmarg.glb_reg_lock = dev->glb_reg_lock;
+		dev->hw->dcam_ioctl(dev->hw, DCAM_HW_CFG_GTM_UPDATE, &gtmarg);
 		break;
 	default:
 		pr_err("fail to get a known cmd: %d\n", cmd);
@@ -2041,8 +2104,8 @@ static int sprd_dcam_cfg_param(void *dcam_handle, void *param)
 	struct dcam_pipe_dev *dev = NULL;
 	struct isp_io_param *io_param;
 	struct dcam_dev_param *pm = NULL;
-	struct dcam_cfg_entry *cfg_entry = NULL;
-	struct cam_hw_core_ops *ops = NULL;
+	struct cam_hw_info *ops = NULL;
+	struct dcam_hw_block_func_get get;
 
 	if (!dcam_handle || !param) {
 		pr_err("fail to get valid param, dcam_handle=%p, param=%p\n", dcam_handle, param);
@@ -2050,7 +2113,7 @@ static int sprd_dcam_cfg_param(void *dcam_handle, void *param)
 	}
 
 	dev = (struct dcam_pipe_dev *)dcam_handle;
-	ops = &dev->hw->hw_ops.core_ops;
+	ops = dev->hw;
 	pm = dev->blk_dcam_pm;
 	if (!pm) {
 		pr_err("fail to check param\n");
@@ -2061,12 +2124,13 @@ static int sprd_dcam_cfg_param(void *dcam_handle, void *param)
 	io_param = (struct isp_io_param *)param;
 
 	i = io_param->sub_block - DCAM_BLOCK_BASE;
-	cfg_entry = ops->block_func_get(i, DCAM_BLOCK_TYPE);
-	if (cfg_entry != NULL &&
-		cfg_entry->sub_block == io_param->sub_block) {
-		cfg_fun_ptr = cfg_entry->cfg_func;
+	get.index = i;
+	ops->dcam_ioctl(ops, DCAM_HW_CFG_BLOCK_FUNC_GET, &get);
+	if (get.dcam_entry!= NULL &&
+		get.dcam_entry->sub_block == io_param->sub_block) {
+		cfg_fun_ptr = get.dcam_entry->cfg_func;
 	} else { /* if not, some error */
-		pr_err("fail to check param, sub_block = %d, error\n", io_param->sub_block);
+		pr_err("fail to check param, io_param->sub_block = %d, error\n", io_param->sub_block);
 	}
 	if (cfg_fun_ptr == NULL) {
 		pr_debug("block %d not supported.\n", io_param->sub_block);
@@ -2094,7 +2158,6 @@ static int sprd_dcam_cfg_param(void *dcam_handle, void *param)
 exit:
 	return ret;
 }
-
 
 static int sprd_dcam_set_cb(void *dcam_handle,
 		dcam_dev_callback cb, void *priv_data)
@@ -2124,6 +2187,13 @@ static int sprd_dcam_dev_start(void *dcam_handle, int online)
 	struct dcam_sync_helper *helper = NULL;
 	struct dcam_path_desc *path = NULL;
 	struct cam_hw_info *hw = NULL;
+	struct cam_hw_reg_trace trace;
+	struct dcam_hw_path_ctrl pause;
+	struct dcam_hw_start parm;
+	struct dcam_hw_force_copy copyarg;
+	struct dcam_hw_mipi_cap caparg;
+	struct dcam_hw_path_start patharg;
+	struct dcam_hw_sram_ctrl sramarg;
 	unsigned long flag;
 
 	if (!dcam_handle) {
@@ -2201,7 +2271,10 @@ static int sprd_dcam_dev_start(void *dcam_handle, int online)
 		helper = dcam_get_sync_helper(dev);
 	}
 
-	ret = hw->hw_ops.core_ops.mipi_cap_set(dev);
+	caparg.idx = dev->idx;
+	caparg.cap_info = dev->cap_info;
+	ret = hw->dcam_ioctl(hw, DCAM_HW_CFG_MIPI_CAP_SET, &caparg);
+
 	if (ret < 0) {
 		pr_err("fail to set DCAM%u mipi cap\n", dev->idx);
 		return ret;
@@ -2209,6 +2282,16 @@ static int sprd_dcam_dev_start(void *dcam_handle, int online)
 
 	for (i = 0; i < DCAM_PATH_MAX; i++) {
 		path = &dev->path[i];
+		patharg.path_id = i;
+		patharg.idx = dev->idx;
+		patharg.slowmotion_count = dev->slowmotion_count;
+		patharg.is_pdaf = dev->is_pdaf;
+		patharg.cap_info = dev->cap_info;
+		patharg.is_loose = dev->path[i].is_loose;
+		patharg.src_sel = dev->path[i].src_sel;
+		patharg.bayer_pattern = dev->path[i].bayer_pattern;
+		patharg.in_trim = dev->path[i].in_trim;
+		patharg.endian = dev->path[i].endian;
 		atomic_set(&path->set_frm_cnt, 0);
 
 		if (atomic_read(&path->user_cnt) < 1 || atomic_read(&path->is_shutoff) > 0)
@@ -2217,9 +2300,11 @@ static int sprd_dcam_dev_start(void *dcam_handle, int online)
 		if (path->path_id == DCAM_PATH_FULL) {
 			spin_lock_irqsave(&path->state_lock, flag);
 			if (path->state == DCAM_PATH_PAUSE) {
-				hw->hw_ops.core_ops.path_start(dev, i);
-				hw->hw_ops.core_ops.path_pause(dev->idx,
-					path->path_id);
+				hw->dcam_ioctl(hw, DCAM_HW_CFG_PATH_START, &patharg);
+				pause.idx = dev->idx;
+				pause.path_id = path->path_id;
+				pause.type = HW_DCAM_PATH_PAUSE;
+				hw->dcam_ioctl(hw, DCAM_HW_CFG_PATH_CTRL, &pause);
 				spin_unlock_irqrestore(&path->state_lock, flag);
 				continue;
 			}
@@ -2234,14 +2319,17 @@ static int sprd_dcam_dev_start(void *dcam_handle, int online)
 		}
 
 		if (atomic_read(&path->set_frm_cnt) > 0)
-			hw->hw_ops.core_ops.path_start(dev, i);
+			hw->dcam_ioctl(hw, DCAM_HW_CFG_PATH_START, &patharg);
 	}
 
 	if (dev->is_4in1 == 0)
 		dcam_init_lsc(dev, 1);
 	/* DCAM_CTRL_COEF will always set in dcam_init_lsc() */
 	//force_ids &= ~DCAM_CTRL_COEF;
-	hw->hw_ops.core_ops.force_copy(force_ids, dev);
+	copyarg.id = force_ids;
+	copyarg.idx = dev->idx;
+	copyarg.glb_reg_lock = dev->glb_reg_lock;
+	hw->dcam_ioctl(hw, DCAM_HW_CFG_FORCE_COPY, &copyarg);
 
 	if (helper) {
 		if (helper->enabled)
@@ -2254,15 +2342,22 @@ static int sprd_dcam_dev_start(void *dcam_handle, int online)
 	atomic_set(&dev->path[DCAM_PATH_AFL].user_cnt, 0);
 
 	dcam_reset_int_tracker(dev->idx);
-	hw->hw_ops.core_ops.start(dev);
+	parm.idx = dev->idx;
+	parm.format = dev->cap_info.format;
+	hw->dcam_ioctl(hw, DCAM_HW_CFG_START, &parm);
 
-	if (dev->is_4in1 == 0)
-		hw->hw_ops.core_ops.sram_ctrl_set(dev, 1);
+	if (dev->is_4in1 == 0) {
+		sramarg.sram_ctrl_en = 1;
+		sramarg.idx = dev->idx;
+		hw->dcam_ioctl(hw, DCAM_HW_CFG_SRAM_CTRL_SET, &sramarg);
+	}
 
 	if (dev->idx < DCAM_ID_2)
 		atomic_inc(&s_dcam_working);
 	atomic_set(&dev->state, STATE_RUNNING);
-	hw->hw_ops.core_ops.reg_trace(dev->idx, NORMAL_REG_TRACE);
+	trace.type = NORMAL_REG_TRACE;
+	trace.idx = dev->idx;
+	hw->isp_ioctl(hw, ISP_HW_CFG_REG_TRACE, &trace);
 	dev->auto_cpy_id = 0;
 	dev->err_count = 1;
 	pr_info("dcam%d done state = %d\n", dev->idx, atomic_read(&dev->state));
@@ -2295,8 +2390,8 @@ static int sprd_dcam_dev_stop(void *dcam_handle)
 		return -EINVAL;
 	}
 
-	dev->hw->hw_ops.core_ops.stop(dev);
-	dev->hw->hw_ops.dcam_soc_ops.reset(dev->hw, &dev->idx);
+	dev->hw->dcam_ioctl(dev->hw, DCAM_HW_CFG_STOP, &dev->idx);
+	dev->hw->dcam_ioctl(dev->hw, DCAM_HW_CFG_RESET, &dev->idx);
 
 	if (0) {
 		int i;
@@ -2415,15 +2510,15 @@ static int sprd_dcam_dev_open(void *dcam_handle)
 	}
 
 	if (atomic_inc_return(&s_dcam_axi_opened) == 1)
-		hw->hw_ops.dcam_soc_ops.axi_init(dev);
-	ret = hw->hw_ops.dcam_soc_ops.reset(hw, &dev->idx);
+		hw->dcam_ioctl(hw, DCAM_HW_CFG_INIT_AXI, &dev->idx);
+	ret = hw->dcam_ioctl(hw, DCAM_HW_CFG_RESET, &dev->idx);
 	if (ret)
 		goto reset_fail;
 
 	camera_queue_init(&dev->in_queue, DCAM_IN_Q_LEN,
-				0, dcam_ret_src_frame);
+				dcam_ret_src_frame);
 	camera_queue_init(&dev->proc_queue, DCAM_PROC_Q_LEN,
-				0, dcam_ret_src_frame);
+				dcam_ret_src_frame);
 
 	atomic_set(&dev->state, STATE_IDLE);
 	spin_lock_init(&dev->glb_reg_lock);
@@ -2476,8 +2571,8 @@ int sprd_dcam_dev_close(void *dcam_handle)
 		return -EINVAL;
 	}
 
-	camera_queue_clear(&dev->in_queue);
-	camera_queue_clear(&dev->proc_queue);
+	camera_queue_clear(&dev->in_queue, struct camera_frame, list);
+	camera_queue_clear(&dev->proc_queue, struct camera_frame, list);
 
 	if (dev->blk_dcam_pm) {
 		mutex_destroy(&dev->blk_dcam_pm->lsc.lsc_lock);
@@ -2634,51 +2729,6 @@ int dcam_if_put_dev(void *dcam_handle)
 	mutex_unlock(&s_dcam_dev_mutex);
 
 	return ret;
-}
-
-int dcam_hwsim_extra(enum dcam_id idx)
-{
-	DCAM_REG_MWR(idx, ISP_BPC_PARAM, ((1 & 0x1) << 7), ((0 & 0x1) << 7));
-	pr_info("bpc<0x%x>[0x%x]\n", 0x0200, DCAM_REG_RD(idx, 0x0200));
-
-#if 0
-
-		uint32_t val;
-
-		val = (1 & 0x1) |
-		((1 & 0x1) << 1) |
-		((1 & 0x1) << 2) |
-		((1 & 0x1) << 3);
-		DCAM_REG_MWR(idx, ISP_BPC_PARAM, 0xF, val);
-
-		pr_info("blc\n");
-		DCAM_REG_MWR(idx, DCAM_BLC_PARA_R_B, BIT_31, 1 << 31);
-
-		pr_info("awb \n");
-		DCAM_REG_MWR(idx, ISP_AWBC_GAIN0, BIT_31, 1 << 31);
-
-		pr_info("lsc \n");
-		DCAM_REG_MWR(idx, DCAM_LENS_LOAD_ENABLE, BIT_0, 1);
-
-		pr_info("rgbg \n");
-		DCAM_REG_MWR(idx, ISP_RGBG_YRANDOM_PARAMETER0, BIT_0, 1);
-
-		pr_info("afl \n");
-		DCAM_REG_MWR(idx, ISP_AFL_FRM_CTRL0, BIT_0, 1);
-		DCAM_REG_MWR(idx, ISP_AFL_PARAM0, BIT_1, 1 << 1);
-
-		pr_info("rgbg_yrandom\n");
-		DCAM_REG_MWR(idx, ISP_RGBG_YRANDOM_PARAMETER0, BIT_1, 1 << 1);
-#endif
-
-#if 0
-		val = ((0 & 1) << 3) | (1 & 1);
-
-		pr_info("ppi ppi_phase_map_corr_en\n");
-		DCAM_REG_MWR(idx, ISP_PPI_PARAM, BIT_3 | BIT_0, val);
-#endif
-
-		return 0;
 }
 
 /* return the number of how many buf in the out_buf_queue */

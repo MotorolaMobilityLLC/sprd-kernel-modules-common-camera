@@ -176,7 +176,6 @@ enum dcam_ioctrl_cmd {
 	DCAM_IOCTL_CFG_GTM_UPDATE,
 };
 
-
 struct dcam_cap_cfg {
 	uint32_t sensor_if; /* MIPI CSI-2 */
 	uint32_t format; /* input color format */
@@ -193,7 +192,6 @@ struct dcam_cap_cfg {
 	uint32_t is_cphy;
 	struct img_trim cap_size;
 };
-
 
 struct dcam_path_cfg_param {
 	uint32_t slowmotion_count;
