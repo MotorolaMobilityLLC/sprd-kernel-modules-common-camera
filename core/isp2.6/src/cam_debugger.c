@@ -1076,7 +1076,14 @@ static int fbc_ctrl_read(struct seq_file *s, void *unused)
 
 	seq_printf(s, "\nUsage:\n");
 	seq_printf(s, "         echo ID override 1|0 > fbc_ctrl\n");
-	seq_printf(s, "         echo ID pre|cap|vid dcam|3dnr|isp 0|1 > fbc_ctrl\n");
+	seq_printf(s, "         echo ID pre|cap|vid 3dnr|isp 0|1 > fbc_ctrl\n");
+	seq_printf(s, "         echo ID pre|cap|vid dcam 0|1 > fbc_ctrl\n");
+	seq_printf(s, "         echo 0:DCAM_FBC_DISABLE\n");
+	seq_printf(s, "         echo 1:DCAM_FBC_FULL_10_BIT\n");
+	seq_printf(s, "         echo 3:DCAM_FBC_BIN_10_BIT\n");
+	seq_printf(s, "         echo 5:DCAM_FBC_FULL_14_BIT\n");
+	seq_printf(s, "         echo 7:DCAM_FBC_BIN_14_BIT\n");
+
 	seq_printf(s, "\nExample:\n");
 	seq_printf(s, "         echo 0 override 1 > fbc_ctrl   // enable fbc control override\n");
 	seq_printf(s, "         echo 1 cap dcam 1 > fbc_ctrl   // enable dcam fbc for cam1 capture channel\n");
@@ -1180,11 +1187,6 @@ static ssize_t fbc_ctrl_write(struct file *filp, const char __user *buffer,
 	s = c + 1;
 	if (kstrtouint(s, 10, &en) < 0) {
 		pr_err("fail to parse enable '%s'\n", s);
-		return -EINVAL;
-	}
-
-	if (en > 1) {
-		pr_err("fail to get valid enable %u\n", en);
 		return -EINVAL;
 	}
 

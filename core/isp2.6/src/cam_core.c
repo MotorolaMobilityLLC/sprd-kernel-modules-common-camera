@@ -642,7 +642,7 @@ static void cal_compression(struct camera_module *module)
 		ch_vid->compress_output = override->override[CH_VID][FBC_ISP];
 	}
 
-	if (module->idx > 1) {
+	if (module->dcam_idx > DCAM_ID_1) {
 		ch_cap->compress_input = 0;
 		ch_pre->compress_input = 0;
 	}
@@ -673,24 +673,33 @@ static void config_compression(struct camera_module *module)
 	struct isp_path_compression_desc path_compression_desc;
 	struct cam_hw_info *hw = NULL;
 	int fbc_mode = DCAM_FBC_DISABLE;
+	struct compression_override *override = NULL;
 
 	ch_pre = &module->channel[CAM_CH_PRE];
 	ch_cap = &module->channel[CAM_CH_CAP];
 	ch_vid = &module->channel[CAM_CH_VID];
 	hw = module->grp->hw_info;
+	override = &module->grp->debugger.compression[module->idx];
 
 	if (ch_cap->compress_input) {
 		fbc_mode = hw->ip_dcam[module->dcam_idx]->dcam_full_fbc_mode;
+		/* manually control compression policy here */
+		if (override->enable)
+			fbc_mode = override->override[CH_CAP][FBC_DCAM];
 		if (DCAM_FBC_FULL_14_BIT == fbc_mode)
 			ch_cap->compress_4bit_bypass = 0;
 	}
 
 	if (ch_pre->compress_input) {
 		fbc_mode = hw->ip_dcam[module->dcam_idx]->dcam_bin_fbc_mode;
+		/* manually control compression policy here */
+		if (override->enable)
+			fbc_mode = override->override[CH_PRE][FBC_DCAM];
 		if (DCAM_FBC_BIN_14_BIT == fbc_mode)
 			ch_pre->compress_4bit_bypass = 0;
 	}
 
+	pr_debug("fbc = %d\n", fbc_mode);
 	ch_vid->compress_input = ch_pre->compress_input;
 	ch_vid->compress_4bit_bypass = ch_pre->compress_4bit_bypass;
 
