@@ -28,9 +28,6 @@
 #define pr_fmt(fmt) "GTM: %d %d %s : "\
 	fmt, current->pid, __LINE__, __func__
 
-enum {
-	_UPDATE_INFO = BIT(0),
-};
 
 void dcam_k_raw_gtm_set_default(struct dcam_dev_raw_gtm_block_info *p)
 {
@@ -84,25 +81,18 @@ int dcam_k_raw_gtm_block(uint32_t gtm_param_idx,
 {
 	int ret = 0;
 	unsigned int i = 0;
+	uint32_t idx = param->idx;
 	unsigned int val = 0;
-	uint32_t idx = 0;
 	struct dcam_dev_raw_gtm_block_info *p;
 	struct dcam_dev_gtm_slice_info *gtm_slice;
 	struct dcam_pipe_dev *dev = NULL;
 	struct dcam_dev_gtm_param *gtm = NULL;
 
-	if (param == NULL || gtm_param_idx >= DCAM_GTM_PARAM_MAX)
-		return -EPERM;
-
 	gtm = &param->gtm[gtm_param_idx];
-	idx = param->idx;
-	/* update ? */
-	if (!(gtm->update & _UPDATE_INFO) || (!gtm->update_en))
-		return 0;
+	if (!gtm->update_en)
+                return 0;
 
 	dev = (struct dcam_pipe_dev *)param->dev;
-	gtm->update &= (~(_UPDATE_INFO));
-
 	p = &(gtm->gtm_info);
 	dcam_k_raw_gtm_set_default(p);
 
@@ -191,11 +181,6 @@ int dcam_k_cfg_raw_gtm(struct isp_io_param *param, struct dcam_dev_param *p)
 	int ret = 0;
 	struct dcam_dev_gtm_param *gtm = NULL;
 
-	if (NULL == param->property_param || NULL == p) {
-		pr_err("property_param is null error.\n");
-		return -1;
-	}
-
 	switch (param->property) {
 	case DCAM_PRO_RAW_GTM_BLOCK:
 		if (param->scene_id == PM_SCENE_CAP)
@@ -205,7 +190,7 @@ int dcam_k_cfg_raw_gtm(struct isp_io_param *param, struct dcam_dev_param *p)
 		/* online mode not need mutex, response faster
 		 * Offline need mutex to protect param
 		 */
-		if (DCAM_ONLINE_MODE) {
+		if (p->offline == 0) {
 			ret = copy_from_user((void *)&(gtm->gtm_info),
 				param->property_param,
 				sizeof(gtm->gtm_info));
@@ -213,7 +198,6 @@ int dcam_k_cfg_raw_gtm(struct isp_io_param *param, struct dcam_dev_param *p)
 				pr_err("fail to copy, ret=0x%x\n", (unsigned int)ret);
 				return -EPERM;
 			}
-			gtm->update |= _UPDATE_INFO;
 			if (param->scene_id != PM_SCENE_CAP)
 				dcam_k_raw_gtm_block(DCAM_GTM_PARAM_PRE, p);
 		} else {
@@ -226,7 +210,6 @@ int dcam_k_cfg_raw_gtm(struct isp_io_param *param, struct dcam_dev_param *p)
 				pr_err("fail to copy, ret=0x%x\n", (unsigned int)ret);
 				return -EPERM;
 			}
-			gtm->update |= _UPDATE_INFO;
 			mutex_unlock(&p->param_lock);
 		}
 		break;

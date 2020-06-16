@@ -45,19 +45,22 @@ int dcam_init_lsc_slice(void *in, uint32_t online)
 	struct lsc_slice slice;
 	struct dcam_dev_lsc_info *info = NULL;
 	struct dcam_dev_lsc_param *param = NULL;
-	struct dcam_pipe_dev *dev = (struct dcam_pipe_dev *)in;
+	struct dcam_pipe_dev *dev;
+	struct dcam_dev_param *blk_dcam_pm;
 	struct cam_hw_info *hw = NULL;
 	struct dcam_hw_force_copy copyarg;
 
+	blk_dcam_pm = (struct dcam_dev_param *)in;
+	dev = (struct dcam_pipe_dev *)blk_dcam_pm->dev;
 	hw = dev->hw;
-	param = &dev->blk_dcam_pm->lsc;
+	param = &blk_dcam_pm->lsc;
 	idx = dev->idx;
 	info = &param->lens_info;
 
 	/* need update grid_x_num and more when offline slice*/
-	if (online == 0 && dev->dcam_slice_mode == 1) {
-		start_roi = dev->cap_info.cap_size.size_x / 2;
-		grid_x_num_slice = (dev->cap_info.cap_size.size_x / 2 / 2 + info->grid_width - 1) / info->grid_width + 3;
+	if (online == 0 && dev->dcam_slice_mode == CAM_OFFLINE_SLICE_HW) {
+		start_roi = dev->cur_slice->start_x;
+		grid_x_num_slice = (dev->cur_slice->size_x / 2 + info->grid_width - 1) / info->grid_width + 3;
 	} else
 		grid_x_num_slice = info->grid_x_num;
 
@@ -95,15 +98,15 @@ int dcam_init_lsc(void *in, uint32_t online)
 	struct lsc_slice slice;
 	struct dcam_dev_lsc_info *info;
 	struct dcam_dev_lsc_param *param;
-	struct dcam_pipe_dev *dev = (struct dcam_pipe_dev *)in;
+	struct dcam_pipe_dev *dev;
+	struct dcam_dev_param *blk_dcam_pm;
 	struct cam_hw_info *hw = NULL;
 	struct dcam_hw_force_copy copyarg;
 
+	blk_dcam_pm = (struct dcam_dev_param *)in;
+	dev = (struct dcam_pipe_dev *)blk_dcam_pm->dev;
 	hw = dev->hw;
-	param = &dev->blk_dcam_pm->lsc;
-	if (!param->update) {
-		return 0;
-	}
+	param = &blk_dcam_pm->lsc;
 
 	idx = dev->idx;
 	info = &param->lens_info;
@@ -123,9 +126,9 @@ int dcam_init_lsc(void *in, uint32_t online)
 	}
 
 	/* need update grid_x_num and more when offline slice*/
-	if (online == 0 && dev->dcam_slice_mode == 1) {
+	if (online == 0 && dev->dcam_slice_mode == CAM_OFFLINE_SLICE_HW) {
 		start_roi = 0;
-		grid_x_num_slice = (dev->cap_info.cap_size.size_x / 2 / 2 + info->grid_width - 1) / info->grid_width + 3;
+		grid_x_num_slice = (dev->cur_slice->size_x / 2 + info->grid_width - 1) / info->grid_width + 3;
 	} else {
 		grid_x_num_slice = info->grid_x_num;
 	}
@@ -253,17 +256,15 @@ int dcam_update_lsc(void *in)
 	uint32_t grid_x_num_slice = 0;
 	struct dcam_dev_lsc_info *info = NULL;
 	struct dcam_dev_lsc_param *param = NULL;
-	struct dcam_pipe_dev *dev = (struct dcam_pipe_dev *)in;
+	struct dcam_pipe_dev *dev;
+	struct dcam_dev_param *blk_dcam_pm;
 	struct cam_hw_info *hw = NULL;
 	struct dcam_hw_auto_copy copyarg;
 
-	if (dev->idx == 1 && dev->dcam_slice_mode == 1) {
-		pr_debug("no need to update when offline slice\n");
-		return 0;
-	}
-
+	blk_dcam_pm = (struct dcam_dev_param *)in;
+	dev = (struct dcam_pipe_dev *)blk_dcam_pm->dev;
 	hw = dev->hw;
-	param = &dev->blk_dcam_pm->lsc;
+	param = &blk_dcam_pm->lsc;
 	if (!param->update) {
 		return 0;
 	}
@@ -383,6 +384,7 @@ int dcam_k_lsc_block(struct dcam_dev_param *p)
 	uint16_t *w_buff = NULL, *gain_tab = NULL;
 	struct dcam_dev_lsc_info *info;
 	struct dcam_dev_lsc_param *param;
+	unsigned long wtab_uaddr, gtab_uaddr;
 
 	param = &p->lsc;
 	info = &param->lens_info;
@@ -403,8 +405,9 @@ int dcam_k_lsc_block(struct dcam_dev_param *p)
 
 	if (param->update & _UPDATE_INFO) {
 		w_buff = (uint16_t *)param->weight_tab;
+		wtab_uaddr = (unsigned long)info->weight_tab_addr;
 		ret = copy_from_user((void *)w_buff,
-				info->weight_tab, info->weight_num);
+				(void __user *)wtab_uaddr, info->weight_num);
 		if (ret != 0) {
 			pr_err("fail to copy from user, ret = %d\n", ret);
 			ret = -EPERM;
@@ -418,8 +421,11 @@ int dcam_k_lsc_block(struct dcam_dev_param *p)
 		ret = -EPERM;
 		goto exit;
 	}
+
+	gtab_uaddr = (unsigned long)info->grid_tab_addr;
 	ret = copy_from_user((void *)gain_tab,
-			info->grid_tab, info->gridtab_len);
+			(void __user *)gtab_uaddr, info->gridtab_len);
+
 	if (ret != 0) {
 		pr_err("fail to copy from user, ret = %d\n", ret);
 		ret = -EPERM;

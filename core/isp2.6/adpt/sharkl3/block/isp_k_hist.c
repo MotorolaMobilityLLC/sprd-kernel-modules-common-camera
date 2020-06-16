@@ -25,7 +25,8 @@
 #define pr_fmt(fmt) "HIST: %d %d %s : "\
 	fmt, current->pid, __LINE__, __func__
 
-static int isp_k_hist_block(struct isp_io_param *param, uint32_t idx)
+static int isp_k_hist_block(struct isp_io_param *param,
+	struct isp_k_block *isp_k_param, uint32_t idx)
 {
 	int ret = 0;
 	struct isp_dev_hist_info hist_info;
@@ -61,7 +62,8 @@ static int isp_k_hist_block(struct isp_io_param *param, uint32_t idx)
 	return ret;
 }
 
-int isp_k_cfg_hist(struct isp_io_param *param, uint32_t idx)
+int isp_k_cfg_hist(struct isp_io_param *param,
+	struct isp_k_block *isp_k_param, uint32_t idx)
 {
 	int ret = 0;
 
@@ -76,7 +78,7 @@ int isp_k_cfg_hist(struct isp_io_param *param, uint32_t idx)
 
 	switch (param->property) {
 	case ISP_PRO_HIST_BLOCK:
-		ret = isp_k_hist_block(param, idx);
+		ret = isp_k_hist_block(param, isp_k_param, idx);
 		break;
 	default:
 		pr_err("fail to support cmd id = %d\n",

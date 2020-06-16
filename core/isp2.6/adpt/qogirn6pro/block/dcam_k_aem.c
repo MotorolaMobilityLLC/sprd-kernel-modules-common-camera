@@ -26,24 +26,18 @@
 	fmt, current->pid, __LINE__, __func__
 
 enum {
-	_UPDATE_BYPASS = BIT(0),
-	_UPDATE_MODE = BIT(1),
 	_UPDATE_WIN = BIT(2),
-	_UPDATE_SKIP = BIT(3),
-	_UPDATE_INFO = BIT(4),
 };
 
 int dcam_k_aem_bypass(struct dcam_dev_param *param)
 {
 	int ret = 0;
-	uint32_t idx = param->idx;
+	uint32_t idx = 0;
 
 	if (param == NULL)
 		return -EPERM;
-	/* update ? */
-	if (!(param->aem.update & _UPDATE_BYPASS))
-		return 0;
-	param->aem.update &= (~(_UPDATE_BYPASS));
+
+	idx = param->idx;
 	DCAM_REG_MWR(idx, DCAM_AEM_FRM_CTRL0, BIT_0,
 		param->aem.bypass & BIT_0);
 
@@ -53,16 +47,13 @@ int dcam_k_aem_bypass(struct dcam_dev_param *param)
 int dcam_k_aem_mode(struct dcam_dev_param *param)
 {
 	int ret = 0;
-	uint32_t idx = param->idx;
+	uint32_t idx = 0;
 	uint32_t mode = 0;
 
 	if (param == NULL)
 		return -1;
-	/* update ? */
-	if (!(param->aem.update & _UPDATE_MODE))
-		return 0;
-	param->aem.update &= (~(_UPDATE_MODE));
 
+	idx = param->idx;
 	mode = param->aem.mode;
 	DCAM_REG_MWR(idx, DCAM_AEM_FRM_CTRL0, BIT_2, mode << 2);
 
@@ -81,18 +72,21 @@ int dcam_k_aem_mode(struct dcam_dev_param *param)
 int dcam_k_aem_win(struct dcam_dev_param *param)
 {
 	int ret = 0;
-	uint32_t idx = param->idx;
+	uint32_t idx = 0;
 	uint32_t val = 0;
-	struct dcam_dev_aem_win *p; /* win_info; */
+	struct dcam_dev_aem_win *p = NULL; /* win_info; */
 
 	if (param == NULL)
 		return -1;
+
 	/* update ? */
 	if (!(param->aem.update & _UPDATE_WIN))
 		return 0;
 	param->aem.update &= (~(_UPDATE_WIN));
 
+	idx = param->idx;
 	p = &(param->aem.win_info);
+
 	val = ((p->offset_y & 0x1FFF) << 16) |
 			(p->offset_x & 0x1FFF);
 	DCAM_REG_WR(idx, DCAM_AEM_OFFSET, val);
@@ -105,6 +99,9 @@ int dcam_k_aem_win(struct dcam_dev_param *param)
 			(p->blk_num_x & 0xFF);
 	DCAM_REG_WR(idx, DCAM_AEM_BLK_NUM, val);
 
+	pr_debug("dcam%d, UPDATE win %d %d %d %d", idx,
+		p->blk_num_x, p->blk_num_y, p->blk_width, p->blk_height);
+
 	return ret;
 }
 
@@ -112,26 +109,24 @@ int dcam_k_aem_skip_num(struct dcam_dev_param *param)
 {
 	struct dcam_pipe_dev *dev;
 	int ret = 0;
-	uint32_t idx = param->idx;
+	uint32_t idx = 0;
 	uint32_t val = 0;
 
 	if (param == NULL)
 		return -1;
-	/* update ? */
-	if (!(param->aem.update & _UPDATE_SKIP))
-		return 0;
-	param->aem.update &= (~(_UPDATE_SKIP));
 
 	/*
 	 * use hardware slow motion feature
 	 * TODO: handle skip_num not equal to slowmotion_count - 1
 	 */
+	idx = param->idx;
 	dev = param->dev;
 	if (dev->slowmotion_count) {
 		pr_info("DCAM%u AEM ignore skip_num %u, slowmotion_count %u\n",
 			dev->idx, param->aem.skip_num, dev->slowmotion_count);
 		return 0;
 	}
+	pr_debug("dcam%d skip_num %d", idx, param->aem.skip_num);
 
 	val = (param->aem.skip_num & 0xF) << 4;
 	DCAM_REG_MWR(idx, DCAM_AEM_FRM_CTRL0, 0xF0, val);
@@ -149,17 +144,14 @@ int dcam_k_aem_skip_num(struct dcam_dev_param *param)
 int dcam_k_aem_rgb_thr(struct dcam_dev_param *param)
 {
 	int ret = 0;
-	uint32_t idx = param->idx;
+	uint32_t idx = 0;
 	uint32_t val = 0;
-	struct dcam_dev_aem_thr *p; /* aem_info; */
+	struct dcam_dev_aem_thr *p = NULL; /* aem_info; */
 
 	if (param == NULL)
 		return -1;
-	/* update ? */
-	if (!(param->aem.update & _UPDATE_INFO))
-		return 0;
-	param->aem.update &= (~(_UPDATE_INFO));
 
+	idx = param->idx;
 	p = &(param->aem.aem_info);
 	val = ((p->aem_r_thr.low_thr & 0x3FF) << 16) |
 		(p->aem_r_thr.high_thr & 0x3FF);
@@ -176,14 +168,11 @@ int dcam_k_aem_rgb_thr(struct dcam_dev_param *param)
 	return ret;
 }
 
-
-
 int dcam_k_cfg_aem(struct isp_io_param *param, struct dcam_dev_param *p)
 {
 	int ret = 0;
 	void *pcpy;
 	int size;
-	int32_t bit_update;
 	struct dcam_pipe_dev *dev;
 	FUNC_DCAM_PARAM sub_func = NULL;
 
@@ -191,31 +180,27 @@ int dcam_k_cfg_aem(struct isp_io_param *param, struct dcam_dev_param *p)
 	case DCAM_PRO_AEM_BYPASS:
 		pcpy = (void *)&(p->aem.bypass);
 		size = sizeof(p->aem.bypass);
-		bit_update = _UPDATE_BYPASS;
 		sub_func = dcam_k_aem_bypass;
 		break;
 	case DCAM_PRO_AEM_MODE:
 		pcpy = (void *)&(p->aem.mode);
 		size = sizeof(p->aem.mode);
-		bit_update = _UPDATE_MODE;
 		sub_func = dcam_k_aem_mode;
 		break;
 	case DCAM_PRO_AEM_WIN:
 		pcpy = (void *)&(p->aem.win_info);
 		size = sizeof(p->aem.win_info);
-		bit_update = _UPDATE_WIN;
+		p->aem.update |= _UPDATE_WIN;
 		sub_func = dcam_k_aem_win;
 		break;
 	case DCAM_PRO_AEM_SKIPNUM:
 		pcpy = (void *)&(p->aem.skip_num);
 		size = sizeof(p->aem.skip_num);
-		bit_update = _UPDATE_SKIP;
 		sub_func = dcam_k_aem_skip_num;
 		break;
 	case DCAM_PRO_AEM_RGB_THR:
 		pcpy = (void *)&(p->aem.aem_info);
 		size = sizeof(p->aem.aem_info);
-		bit_update = _UPDATE_INFO;
 		sub_func = dcam_k_aem_rgb_thr;
 		break;
 	default:
@@ -225,7 +210,7 @@ int dcam_k_cfg_aem(struct isp_io_param *param, struct dcam_dev_param *p)
 	}
 
 	dev = (struct dcam_pipe_dev *)p->dev;
-	if (!dev->offline &&
+	if (!p->offline &&
 		(atomic_read(&dev->state) == STATE_RUNNING) &&
 		(param->property == DCAM_PRO_AEM_WIN)) {
 		unsigned long flags = 0;
@@ -238,27 +223,26 @@ int dcam_k_cfg_aem(struct isp_io_param *param, struct dcam_dev_param *p)
 			return -EPERM;
 		}
 
-		pr_debug("dcam%d, re-config aem win (%d %d %d %d %d %d)\n", dev->idx,
-			cur.offset_x, cur.offset_y,
+		pr_debug("dcam%d re-config aem win (%d %d %d %d %d %d)\n",
+			p->idx, cur.offset_x, cur.offset_y,
 			cur.blk_num_x, cur.blk_num_y,
 			cur.blk_width, cur.blk_height);
 
 		spin_lock_irqsave(&path->size_lock, flags);
 		p->aem.win_info = cur;
-		p->aem.update |= bit_update;
+		p->aem.update |= _UPDATE_WIN;
 		spin_unlock_irqrestore(&path->size_lock, flags);
 
 		return ret;
 	}
 
-	if (DCAM_ONLINE_MODE) {
+	if (p->offline == 0) {
 		ret = copy_from_user(pcpy, param->property_param, size);
 		if (ret) {
 			pr_err("fail to copy from user ret=0x%x\n",
 				(unsigned int)ret);
 			return -EPERM;
 		}
-		p->aem.update |= bit_update;
 		ret = sub_func(p);
 	} else {
 		mutex_lock(&p->param_lock);
@@ -269,7 +253,6 @@ int dcam_k_cfg_aem(struct isp_io_param *param, struct dcam_dev_param *p)
 				(unsigned int)ret);
 			return -EPERM;
 		}
-		p->aem.update |= bit_update;
 		mutex_unlock(&p->param_lock);
 	}
 

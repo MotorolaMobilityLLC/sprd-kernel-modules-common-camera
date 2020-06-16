@@ -13,6 +13,7 @@
 #include <linux/uaccess.h>
 #include <sprd_mm.h>
 
+#include "sprd_isp_hw.h"
 #include "isp_reg.h"
 #include "cam_block.h"
 #include "isp_ltm.h"
@@ -179,9 +180,11 @@ int isp_k_ltm_rgb_block(struct isp_io_param *param,
 	int ret = 0;
 	struct isp_dev_rgb_ltm_info *p = NULL;
 
-	p = &isp_k_param->rgb_ltm;
-	ret = copy_from_user((void *)p, (void __user *)param->property_param,
-		sizeof(struct isp_dev_rgb_ltm_info));
+	p = &isp_k_param->ltm_rgb_info;
+
+	ret = copy_from_user((void *)p,
+			(void __user *)param->property_param,
+			sizeof(struct isp_dev_rgb_ltm_info));
 	if (ret != 0) {
 		pr_err("fail to get ltm from user, ret = %d\n", ret);
 		return -EPERM;
@@ -199,9 +202,11 @@ int isp_k_ltm_yuv_block(struct isp_io_param *param,
 	int ret = 0;
 	struct isp_dev_yuv_ltm_info *p = NULL;
 
-	p = &isp_k_param->yuv_ltm;
-	ret = copy_from_user((void *)p, (void __user *)param->property_param,
-		sizeof(struct isp_dev_yuv_ltm_info));
+	p = &isp_k_param->ltm_yuv_info;
+
+	ret = copy_from_user((void *)p,
+			(void __user *)param->property_param,
+			sizeof(struct isp_dev_yuv_ltm_info));
 	if (ret != 0) {
 		pr_err("fail to get ltm from user, ret = %d\n", ret);
 		return -EPERM;

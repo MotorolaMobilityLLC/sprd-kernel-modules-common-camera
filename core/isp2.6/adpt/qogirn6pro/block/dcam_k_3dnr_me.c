@@ -34,9 +34,6 @@
 #define DCAM2_3DNR_ME_WIDTH_MAX        (3264 >> 1)
 #define DCAM2_3DNR_ME_HEIGHT_MAX       (2448 >> 1)
 
-enum {
-	_UPDATE_NR3 = BIT(0),
-};
 
 struct roi_size {
 	uint32_t roi_width;
@@ -142,18 +139,18 @@ void dcam_k_3dnr_set_roi(struct isp_img_rect rect,
 int dcam_k_3dnr_me(struct dcam_dev_param *param)
 {
 	int ret = 0;
-	uint32_t idx = param->idx;
-	struct dcam_pipe_dev *dev = param->dev;
+	uint32_t idx = 0;
+	struct dcam_pipe_dev *dev = NULL;
 	struct dcam_dev_3dnr_me *p = NULL; /* nr3_me; */
 	struct dcam_path_desc *path;
 	struct isp_img_rect rect;
 
 	if (param == NULL)
 		return -EPERM;
-	/* update ? */
-	if (!(param->nr3.update & _UPDATE_NR3))
-		return 0;
-	param->nr3.update &= (~(_UPDATE_NR3));
+
+	idx = param->idx;
+	dev = param->dev;
+
 	/* debugfs bypass nr3 */
 	if (g_dcam_bypass[idx] & (1 << _E_NR3))
 		return 0;
@@ -198,7 +195,7 @@ int dcam_k_cfg_3dnr_me(struct isp_io_param *param, struct dcam_dev_param *p)
 
 	switch (param->property) {
 	case DCAM_PRO_3DNR_ME:
-		if (DCAM_ONLINE_MODE) {
+		if (p->offline == 0) {
 			ret = copy_from_user((void *)&(p->nr3.nr3_me),
 					param->property_param,
 					sizeof(p->nr3.nr3_me));
@@ -207,7 +204,6 @@ int dcam_k_cfg_3dnr_me(struct isp_io_param *param, struct dcam_dev_param *p)
 					(unsigned int)ret);
 				return -EPERM;
 			}
-			p->nr3.update |= _UPDATE_NR3;
 			ret = dcam_k_3dnr_me(p);
 		} else {
 			mutex_lock(&p->param_lock);
@@ -220,7 +216,6 @@ int dcam_k_cfg_3dnr_me(struct isp_io_param *param, struct dcam_dev_param *p)
 					(unsigned int)ret);
 				return -EPERM;
 			}
-			p->nr3.update |= _UPDATE_NR3;
 			mutex_unlock(&p->param_lock);
 		}
 

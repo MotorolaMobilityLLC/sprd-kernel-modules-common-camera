@@ -24,33 +24,19 @@
 #define pr_fmt(fmt) "AFM: %d %d %s : "\
 	fmt, current->pid, __LINE__, __func__
 
-enum {
-	_UPDATE_BYPASS = BIT(0),
-	_UPDATE_INFO = BIT(1),
-	_UPDATE_WIN = BIT(2),
-	_UPDATE_WIN_NUM = BIT(3),
-	_UPDATE_MODE = BIT(4),
-	_UPDATE_SKIP = BIT(5),
-	_UPDATE_CROP_EB = BIT(6),
-	_UPDATE_CROP_SIZE = BIT(7),
-	_UPDATE_TILE = BIT(8),
-};
 
 int dcam_k_afm_block(struct dcam_dev_param *param)
 {
 	int ret = 0;
-	uint32_t idx = param->idx;
+	uint32_t idx = 0;
 	int i = 0;
 	uint32_t val = 0;
-	struct dcam_dev_afm_info *p; /* af_param; */
+	struct dcam_dev_afm_info *p = NULL; /* af_param; */
 
 	if (param == NULL)
 		return -1;
-	/* update ? */
-	if (!(param->afm.update & _UPDATE_INFO))
-		return 0;
-	param->afm.update &= (~(_UPDATE_INFO));
 
+	idx = param->idx;
 	p = &(param->afm.af_param);
 
 #if 0 // afm block just set NR parameters. AFM control should be set by algo
@@ -131,14 +117,12 @@ int dcam_k_afm_block(struct dcam_dev_param *param)
 int dcam_k_afm_bypass(struct dcam_dev_param *param)
 {
 	int ret = 0;
-	uint32_t idx = param->idx;
+	uint32_t idx = 0;
 
 	if (param == NULL)
 		return -1;
-	/* update ? */
-	if (!(param->afm.update & _UPDATE_BYPASS))
-		return 0;
-	param->afm.update &= (~(_UPDATE_BYPASS));
+
+	idx = param->idx;
 	DCAM_REG_MWR(idx, ISP_AFM_FRM_CTRL, BIT_0, param->afm.bypass);
 
 	return ret;
@@ -147,16 +131,13 @@ int dcam_k_afm_bypass(struct dcam_dev_param *param)
 int dcam_k_afm_win(struct dcam_dev_param *param)
 {
 	int ret = 0;
-	uint32_t idx = param->idx;
+	uint32_t idx = 0;
 	struct isp_img_rect *p; /* win; */
 
 	if (param == NULL)
 		return -1;
-	/* update ? */
-	if (!(param->afm.update & _UPDATE_WIN))
-		return 0;
-	param->afm.update &= (~(_UPDATE_WIN));
 
+	idx = param->idx;
 	p = &(param->afm.win);
 	DCAM_REG_WR(idx, ISP_AFM_WIN_RANGE0S,
 			(p->y & 0x1FFF) << 16 | (p->x & 0x1FFF));
@@ -170,16 +151,13 @@ int dcam_k_afm_win(struct dcam_dev_param *param)
 int dcam_k_afm_win_num(struct dcam_dev_param *param)
 {
 	int ret = 0;
-	uint32_t idx = param->idx;
+	uint32_t idx = 0;
 	struct isp_img_size *p; /* win_num; */
 
 	if (param == NULL)
 		return -1;
-	/* update ? */
-	if (!(param->afm.update & _UPDATE_WIN_NUM))
-		return 0;
-	param->afm.update &= (~(_UPDATE_WIN_NUM));
 
+	idx = param->idx;
 	p = &(param->afm.win_num);
 
 	DCAM_REG_WR(idx, ISP_AFM_WIN_RANGE1S,
@@ -191,16 +169,13 @@ int dcam_k_afm_win_num(struct dcam_dev_param *param)
 int dcam_k_afm_mode(struct dcam_dev_param *param)
 {
 	int ret = 0;
-	uint32_t idx = param->idx;
+	uint32_t idx = 0;
 	uint32_t mode = 0;
 
 	if (param == NULL)
 		return -1;
-	/* update ? */
-	if (!(param->afm.update & _UPDATE_MODE))
-		return 0;
-	param->afm.update &= (~(_UPDATE_MODE));
 
+	idx = param->idx;
 	mode = param->afm.mode;
 	DCAM_REG_MWR(idx, ISP_AFM_FRM_CTRL,
 		BIT_2, mode << 2);
@@ -219,17 +194,15 @@ int dcam_k_afm_mode(struct dcam_dev_param *param)
 int dcam_k_afm_skipnum(struct dcam_dev_param *param)
 {
 	int ret = 0;
-	uint32_t idx = param->idx;
+	uint32_t idx = 0;
 	uint32_t skip_num = 0;
 
 	if (param == NULL)
 		return -1;
-	/* update ? */
-	if (!(param->afm.update & _UPDATE_SKIP))
-		return 0;
-	param->afm.update &= (~(_UPDATE_SKIP));
 
+	idx = param->idx;
 	skip_num = param->afm.skip_num;
+
 	DCAM_REG_MWR(idx, ISP_AFM_FRM_CTRL, 0xF0, (skip_num & 0xF) << 4);
 
 	/* afm_skip_num_clr */
@@ -243,16 +216,13 @@ int dcam_k_afm_skipnum(struct dcam_dev_param *param)
 int dcam_k_afm_crop_eb(struct dcam_dev_param *param)
 {
 	int ret = 0;
-	uint32_t idx = param->idx;
+	uint32_t idx = 0;
 	uint32_t crop_eb = 0;
 
 	if (param == NULL)
 		return -1;
-	/* update ? */
-	if (!(param->afm.update & _UPDATE_CROP_EB))
-		return 0;
-	param->afm.update &= (~(_UPDATE_CROP_EB));
 
+	idx = param->idx;
 	crop_eb = param->afm.crop_eb;
 	DCAM_REG_MWR(idx, ISP_AFM_PARAMETERS, BIT_1, crop_eb << 1);
 
@@ -327,16 +297,13 @@ static int dcam_afm_lbuf_share_mode(enum dcam_id idx, uint32_t width)
 int dcam_k_afm_crop_size(struct dcam_dev_param *param)
 {
 	int ret = 0;
-	uint32_t idx = param->idx;
+	uint32_t idx = 0;
 	struct isp_img_rect crop_size;
 
 	if (param == NULL)
 		return -1;
-	/* update ? */
-	if (!(param->afm.update & _UPDATE_CROP_SIZE))
-		return 0;
-	param->afm.update &= (~(_UPDATE_CROP_SIZE));
 
+	idx = param->idx;
 	crop_size = param->afm.crop_size;
 
 	DCAM_REG_WR(idx, ISP_AFM_CROP_START,
@@ -356,17 +323,14 @@ int dcam_k_afm_crop_size(struct dcam_dev_param *param)
 int dcam_k_afm_done_tilenum(struct dcam_dev_param *param)
 {
 	int ret = 0;
-	uint32_t idx = param->idx;
+	uint32_t idx = 0;
 	uint32_t val = 0;
 	struct isp_img_size done_tile_num;
 
 	if (param == NULL)
 		return -1;
-	/* update ? */
-	if (!(param->afm.update & _UPDATE_TILE))
-		return 0;
-	param->afm.update &= (~(_UPDATE_TILE));
 
+	idx = param->idx;
 	done_tile_num = param->afm.done_tile_num;
 
 	val = ((done_tile_num.width & 0x1F) << 12) |
@@ -381,62 +345,52 @@ int dcam_k_cfg_afm(struct isp_io_param *param, struct dcam_dev_param *p)
 	int ret = 0;
 	void *pcpy;
 	int size;
-	int32_t bit_update;
 	FUNC_DCAM_PARAM sub_func = NULL;
 
 	switch (param->property) {
 	case DCAM_PRO_AFM_BYPASS:
 		pcpy = (void *)&(p->afm.bypass);
 		size = sizeof(p->afm.bypass);
-		bit_update = _UPDATE_BYPASS;
 		sub_func = dcam_k_afm_bypass;
 		break;
 	case DCAM_PRO_AFM_BLOCK:
 		pcpy = (void *)&(p->afm.af_param);
 		size = sizeof(p->afm.af_param);
-		bit_update = _UPDATE_INFO;
 		sub_func = dcam_k_afm_block;
 		break;
 	case DCAM_PRO_AFM_WIN:
 		pcpy = (void *)&(p->afm.win);
 		size = sizeof(p->afm.win);
-		bit_update = _UPDATE_WIN;
 		sub_func = dcam_k_afm_win;
 		break;
 	case DCAM_PRO_AFM_WIN_NUM:
 		pcpy = (void *)&(p->afm.win_num);
 		size = sizeof(p->afm.win_num);
-		bit_update = _UPDATE_WIN_NUM;
 		sub_func = dcam_k_afm_win_num;
 		break;
 	case DCAM_PRO_AFM_MODE:
 		pcpy = (void *)&(p->afm.mode);
 		size = sizeof(p->afm.mode);
-		bit_update = _UPDATE_MODE;
 		sub_func = dcam_k_afm_mode;
 		break;
 	case DCAM_PRO_AFM_SKIPNUM:
 		pcpy = (void *)&(p->afm.skip_num);
 		size = sizeof(p->afm.skip_num);
-		bit_update = _UPDATE_SKIP;
 		sub_func = dcam_k_afm_skipnum;
 		break;
 	case DCAM_PRO_AFM_CROP_EB:
 		pcpy = (void *)&(p->afm.crop_eb);
 		size = sizeof(p->afm.crop_eb);
-		bit_update = _UPDATE_CROP_EB;
 		sub_func = dcam_k_afm_crop_eb;
 		break;
 	case DCAM_PRO_AFM_CROP_SIZE:
 		pcpy = (void *)&(p->afm.crop_size);
 		size = sizeof(p->afm.crop_size);
-		bit_update = _UPDATE_CROP_SIZE;
 		sub_func = dcam_k_afm_crop_size;
 		break;
 	case DCAM_PRO_AFM_DONE_TILENUM:
 		pcpy = (void *)&(p->afm.done_tile_num);
 		size = sizeof(p->afm.done_tile_num);
-		bit_update = _UPDATE_TILE;
 		sub_func = dcam_k_afm_done_tilenum;
 		break;
 	default:
@@ -444,14 +398,13 @@ int dcam_k_cfg_afm(struct isp_io_param *param, struct dcam_dev_param *p)
 			param->property);
 		return -EINVAL;
 	}
-	if (DCAM_ONLINE_MODE) {
+	if (p->offline == 0) {
 		ret = copy_from_user(pcpy, param->property_param, size);
 		if (ret) {
 			pr_err("fail to copy from user ret=0x%x\n",
 				(unsigned int)ret);
 			return -EPERM;
 		}
-		p->afm.update |= bit_update;
 		ret = sub_func(p);
 	} else {
 		mutex_lock(&p->param_lock);
@@ -462,7 +415,6 @@ int dcam_k_cfg_afm(struct isp_io_param *param, struct dcam_dev_param *p)
 				(unsigned int)ret);
 			return -EPERM;
 		}
-		p->afm.update |= bit_update;
 		mutex_unlock(&p->param_lock);
 	}
 

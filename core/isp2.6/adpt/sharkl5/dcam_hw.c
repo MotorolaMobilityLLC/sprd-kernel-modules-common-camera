@@ -493,6 +493,7 @@ static int sharkl5_dcam_slice_fetch_set(void *handle, void *arg)
 	uint32_t fetch_pitch;
 	struct dcam_hw_slice_fetch *slicearg = NULL;
 	struct dcam_fetch_info *fetch = NULL;
+	struct img_trim *cur_slice;
 	uint32_t reg_val;
 
 	if (!arg)
@@ -500,6 +501,7 @@ static int sharkl5_dcam_slice_fetch_set(void *handle, void *arg)
 
 	slicearg = (struct dcam_hw_slice_fetch *)arg;
 	fetch = slicearg->fetch;
+	cur_slice = slicearg->cur_slice;
 	/* !0 is loose */
 	if (fetch->is_loose != 0) {
 		fetch_pitch = fetch->size.w * 2;
@@ -540,9 +542,9 @@ static int sharkl5_dcam_slice_fetch_set(void *handle, void *arg)
 	DCAM_AXIM_WR(IMG_FETCH_RADDR, fetch->addr.addr_ch0);
 	DCAM_REG_WR(slicearg->idx, DCAM_CAM_BIN_CFG, BIT_5 | BIT_4);
 
-	reg_val = (0 << 16) | slicearg->slice_trim.start_x;
+	reg_val = (0 << 16) | cur_slice->start_x;
 	DCAM_REG_WR(slicearg->idx, DCAM_CROP0_START, reg_val);
-	reg_val = (slicearg->slice_trim.size_y << 17) | slicearg->slice_trim.size_x;
+	reg_val = (cur_slice->size_y << 17) | cur_slice->size_x;
 	DCAM_REG_WR(slicearg->idx, DCAM_CROP0_X, reg_val);
 
 	return ret;

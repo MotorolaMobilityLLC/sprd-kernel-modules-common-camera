@@ -13,8 +13,8 @@
 
 #include <linux/uaccess.h>
 #include <sprd_mm.h>
-#include "sprd_isp_hw.h"
 
+#include "sprd_isp_hw.h"
 #include "isp_reg.h"
 #include "cam_types.h"
 #include "cam_block.h"
@@ -32,7 +32,7 @@ static int isp_k_ynr_block(struct isp_io_param *param,
 	uint32_t val;
 	struct isp_dev_ynr_info_v2 *ynr;
 
-	ynr = &isp_k_param->ynr_param.ynr_info_v2;
+	ynr = &isp_k_param->ynr_info_v2_base;
 	ret = copy_from_user((void *)ynr,
 			param->property_param,
 			sizeof(struct isp_dev_ynr_info_v2));
@@ -42,6 +42,9 @@ static int isp_k_ynr_block(struct isp_io_param *param,
 	}
 	if (g_isp_bypass[idx] & (1 << _EISP_YNR))
 		ynr->bypass = 1;
+
+	memcpy(&isp_k_param->ynr_info_v2, ynr, sizeof(struct isp_dev_ynr_info_v2));
+
 	ISP_REG_MWR(idx, ISP_YNR_CONTRL0, BIT_0, ynr->bypass);
 	if (ynr->bypass)
 		return 0;
@@ -288,9 +291,10 @@ int isp_k_update_ynr(uint32_t idx,
 	uint32_t val, center_x, center_y;
 	uint32_t radius, radius_limit, dis_interval;
 	uint32_t max_radius, max_radius_limit;
-	struct isp_dev_ynr_info_v2 *ynr_info;
+	struct isp_dev_ynr_info_v2 *ynr_info, *pdst;
 
-	ynr_info = &isp_k_param->ynr_param.ynr_info_v2;
+	pdst = &isp_k_param->ynr_info_v2;
+	ynr_info = &isp_k_param->ynr_info_v2_base;
 	if (ynr_info->bypass)
 		return 0;
 
@@ -298,6 +302,9 @@ int isp_k_update_ynr(uint32_t idx,
 	center_y = new_height >> 1;
 	val = (center_y << 16) | center_x;
 	ISP_REG_WR(idx, ISP_YNR_CFG31, val);
+
+	pdst->center_x = center_x;
+	pdst->center_y = center_y;
 
 	radius = ynr_info->radius * new_width / old_width;
 	radius_limit = new_height * ynr_info->radius_factor / ynr_info->radius_base;
@@ -314,6 +321,9 @@ int isp_k_update_ynr(uint32_t idx,
 
 	val = (new_height << 16) | new_width;
 	ISP_REG_WR(idx, ISP_YNR_CFG33, val);
+
+	pdst->dis_interval = dis_interval;
+	pdst->radius = radius;
 
 	pr_debug("cen %d %d,  orig radius %d %d %d %d, base %d, new %d %d %d\n",
 		center_x, center_y, ynr_info->radius, ynr_info->max_radius,

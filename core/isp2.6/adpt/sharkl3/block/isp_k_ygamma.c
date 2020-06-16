@@ -26,24 +26,27 @@
 	fmt, current->pid, __LINE__, __func__
 
 
-static int isp_k_ygamma_block(struct isp_io_param *param, uint32_t idx)
+static int isp_k_ygamma_block(struct isp_io_param *param,
+	struct isp_k_block *isp_k_param, uint32_t idx)
 {
 	int ret = 0;
 	uint32_t i, val;
 	uint32_t buf_sel, ybuf_addr;
-	struct isp_dev_ygamma_info ygamma_info;
+	struct isp_dev_ygamma_info *ygamma_info;
 
-	ret = copy_from_user((void *)&ygamma_info,
+	ygamma_info = &isp_k_param->ygamma_info;
+
+	ret = copy_from_user((void *)ygamma_info,
 			param->property_param,
-			sizeof(ygamma_info));
+			sizeof(struct isp_dev_ygamma_info));
 	if (ret != 0) {
 		pr_err("fail to copy from user, ret = %d\n", ret);
 		return ret;
 	}
 	if (g_isp_bypass[idx] & (1 << _EISP_GAMY))
-		ygamma_info.bypass = 1;
-	ISP_REG_MWR(idx, ISP_YGAMMA_PARAM, BIT_0, ygamma_info.bypass);
-	if (ygamma_info.bypass)
+		ygamma_info->bypass = 1;
+	ISP_REG_MWR(idx, ISP_YGAMMA_PARAM, BIT_0, ygamma_info->bypass);
+	if (ygamma_info->bypass)
 		return 0;
 
 	buf_sel = 0;
@@ -51,20 +54,21 @@ static int isp_k_ygamma_block(struct isp_io_param *param, uint32_t idx)
 	ISP_REG_MWR(idx, ISP_YGAMMA_PARAM, BIT_1, buf_sel << 1);
 
 	for (i = 0; i < ISP_YUV_GAMMA_NUM - 1; i++) {
-		val = (ygamma_info.gain[i] & 0xFF);
+		val = ygamma_info->gain[i] | ((ygamma_info->gain[i+1] & 0xFF) << 8);
 		ISP_REG_WR(idx, ybuf_addr + i * 4, val);
 	}
 
 	return ret;
 }
 
-int isp_k_cfg_ygamma(struct isp_io_param *param, uint32_t idx)
+int isp_k_cfg_ygamma(struct isp_io_param *param,
+	struct isp_k_block *isp_k_param, uint32_t idx)
 {
 	int ret = 0;
 
 	switch (param->property) {
 	case ISP_PRO_YGAMMA_BLOCK:
-		ret = isp_k_ygamma_block(param, idx);
+		ret = isp_k_ygamma_block(param, isp_k_param, idx);
 		break;
 	default:
 		pr_err("fail to support cmd id = %d\n",

@@ -47,12 +47,15 @@ int dcam_init_lsc(void *in, uint32_t online)
 	uint16_t *w_buff = NULL, *gain_tab = NULL;
 	struct dcam_dev_lsc_info *info = NULL;
 	struct dcam_dev_lsc_param *param = NULL;
-	struct dcam_pipe_dev *dev = (struct dcam_pipe_dev *)in;
+	struct dcam_pipe_dev *dev;
+	struct dcam_dev_param *blk_dcam_pm;
 	struct cam_hw_info *hw = NULL;
 	struct dcam_hw_force_copy copyarg;
 
+	blk_dcam_pm = (struct dcam_dev_param *)in;
+	dev = (struct dcam_pipe_dev *)blk_dcam_pm->dev;
 	hw = dev->hw;
-	param = &dev->blk_dcam_pm->lsc;
+	param = &blk_dcam_pm->lsc;
 
 	copyarg.id = DCAM_CTRL_BIN;
 	copyarg.idx = dev->idx;
@@ -193,18 +196,17 @@ int dcam_update_lsc(void *in)
 	uint32_t val, lens_load_flag;
 	uint32_t buf_sel, offset, hw_addr;
 	uint16_t *w_buff = NULL, *gain_tab = NULL;
-	struct dcam_dev_lsc_info *info;
+	struct dcam_dev_lsc_info *info = NULL;
 	struct dcam_dev_lsc_param *param = NULL;
-	struct dcam_pipe_dev *dev = (struct dcam_pipe_dev *)in;
+	struct dcam_pipe_dev *dev;
+	struct dcam_dev_param *blk_dcam_pm;
 	struct cam_hw_info *hw = NULL;
 	struct dcam_hw_auto_copy copyarg;
-	if (dev->idx == 1 && dev->dcam_slice_mode == 1) {
-		pr_debug("no need to update when offline slice\n");
-		return 0;
-	}
 
+	blk_dcam_pm = (struct dcam_dev_param *)in;
+	dev = (struct dcam_pipe_dev *)blk_dcam_pm->dev;
 	hw = dev->hw;
-	param = &dev->blk_dcam_pm->lsc;
+	param = &blk_dcam_pm->lsc;
 	if (!param->update) {
 		return 0;
 	}
@@ -316,6 +318,7 @@ int dcam_k_lsc_block(struct dcam_dev_param *p)
 	uint16_t *w_buff = NULL, *gain_tab = NULL;
 	struct dcam_dev_lsc_info *info;
 	struct dcam_dev_lsc_param *param;
+	unsigned long wtab_uaddr, gtab_uaddr;
 
 	param = &p->lsc;
 	info = &param->lens_info;
@@ -336,8 +339,9 @@ int dcam_k_lsc_block(struct dcam_dev_param *p)
 
 	if (param->update & _UPDATE_INFO) {
 		w_buff = (uint16_t *)param->weight_tab;
+		wtab_uaddr = (unsigned long)info->weight_tab_addr;
 		ret = copy_from_user((void *)w_buff,
-				info->weight_tab, info->weight_num);
+				(void __user *)wtab_uaddr, info->weight_num);
 		if (ret != 0) {
 			pr_err("fail to copy from user, ret = %d\n", ret);
 			ret = -EPERM;
@@ -351,8 +355,11 @@ int dcam_k_lsc_block(struct dcam_dev_param *p)
 		ret = -EPERM;
 		goto exit;
 	}
+
+	gtab_uaddr = (unsigned long)info->grid_tab_addr;
 	ret = copy_from_user((void *)gain_tab,
-			info->grid_tab, info->gridtab_len);
+			(void __user *)gtab_uaddr, info->gridtab_len);
+
 	if (ret != 0) {
 		pr_err("fail to copy from user, ret = %d\n", ret);
 		ret = -EPERM;
@@ -366,6 +373,7 @@ int dcam_k_cfg_lsc(struct isp_io_param *param, struct dcam_dev_param *p)
 {
 	int ret = 0;
 	uint32_t bit_update = _UPDATE_GAIN;
+	struct dcam_dev_lsc_info __user * p_ulsc;
 
 	switch (param->property) {
 	case DCAM_PRO_LSC_BLOCK:
@@ -383,12 +391,15 @@ int dcam_k_cfg_lsc(struct isp_io_param *param, struct dcam_dev_param *p)
 		pr_err("fail to copy from user. ret %d\n", ret);
 		return ret;
 	}
-
 	pr_debug("update all %d\n", p->lsc.lens_info.update_all);
 	if (p->lsc.lens_info.update_all)
 		bit_update |= _UPDATE_INFO;
 	p->lsc.update |= bit_update;
 	ret = dcam_k_lsc_block(p);
+
+	p->lsc.lens_info.update_all = 0;
+	p_ulsc = (struct dcam_dev_lsc_info __user *)param->property_param;
+	put_user(p->lsc.lens_info.update_all, &p_ulsc->update_all);
 
 	return ret;
 }

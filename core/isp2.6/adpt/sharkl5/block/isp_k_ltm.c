@@ -140,9 +140,11 @@ int isp_k_ltm_yuv_block(struct isp_io_param *param,
 	int ret = 0;
 	struct isp_dev_yuv_ltm_info *p = NULL;
 
-	p = &isp_k_param->yuv_ltm;
-	ret = copy_from_user((void *)p, (void __user *)param->property_param,
-		sizeof(struct isp_dev_yuv_ltm_info));
+	p = &isp_k_param->ltm_yuv_info;
+
+	ret = copy_from_user((void *)p,
+			(void __user *)param->property_param,
+			sizeof(struct isp_dev_yuv_ltm_info));
 	if (ret != 0) {
 		pr_err("fail to get ltm from user, ret = %d\n", ret);
 		return -EPERM;
@@ -167,10 +169,4 @@ int isp_k_cfg_yuv_ltm(struct isp_io_param *param,
 	}
 
 	return ret;
-}
-
-int isp_k_cfg_rgb_ltm(struct isp_io_param *param,
-		struct isp_k_block *isp_k_param, uint32_t idx)
-{
-	return 0;
 }

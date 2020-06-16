@@ -35,7 +35,7 @@
 #define DCAM_LSC_BUF_SIZE 0x3000
 
 #define DCAM_OFFLINE_TIMEOUT		msecs_to_jiffies(2000)
-
+#define DCAM_OFFLINE_SLC_MAX 2
 
 // TODO: how many helpers there should be?
 #define DCAM_SYNC_HELPER_COUNT 20
@@ -56,6 +56,14 @@ struct dcam_cfg_entry {
 	func_dcam_cfg_param cfg_func;
 };
 
+enum dcam_context_id {
+	DCAM_CXT_0,
+	DCAM_CXT_1,
+	DCAM_CXT_2,
+	DCAM_CXT_3,
+	DCAM_CXT_NUM,
+};
+
 enum dcam_scaler_type {
 	DCAM_SCALER_BINNING = 0,
 	DCAM_SCALER_RAW_DOWNSISER,
@@ -68,6 +76,7 @@ enum dcam_path_state {
 	DCAM_PATH_PAUSE,
 	DCAM_PATH_RESUME,
 };
+
 
 struct dcam_rds_slice_ctrl {
 	uint32_t rds_input_h_global;
@@ -97,6 +106,7 @@ struct dcam_path_desc {
 	struct img_trim in_trim;
 	struct img_size out_size;
 
+	uint32_t base_update;
 	uint32_t bayer_pattern;
 	uint32_t out_fmt;
 	uint32_t is_loose;
@@ -121,8 +131,10 @@ struct dcam_path_desc {
 
 	atomic_t set_frm_cnt;
 	atomic_t is_shutoff;
+	struct camera_frame *cur_frame;
 	struct camera_queue reserved_buf_queue;
 	struct camera_queue out_buf_queue;
+	struct camera_queue alter_out_queue;
 	struct camera_queue result_queue;
 	struct dcam_rds_slice_ctrl gphase;
 };
@@ -162,6 +174,15 @@ struct dcam_sync_helper {
 	uint32_t enabled;
 	struct dcam_pipe_dev *dev;
 };
+
+
+/* for multi dcam context (offline) */
+struct dcam_pipe_context {
+	atomic_t user_cnt;
+	uint32_t ctx_id;
+	struct dcam_dev_param blk_pm;
+};
+
 
 /*
  * A dcam_pipe_dev is a digital IP including one input for raw RGB or YUV
@@ -204,6 +225,7 @@ struct dcam_pipe_dev {
 	atomic_t state;// TODO: use mutex to protect
 	uint32_t auto_cpy_id;
 
+	uint32_t base_fid;
 	uint32_t frame_index;
 	uint32_t index_to_set;
 	bool need_fix;
@@ -232,15 +254,15 @@ struct dcam_pipe_dev {
 	uint32_t lowlux_4in1; /* 4in1 low lux mode capture */
 	uint32_t skip_4in1; /* need skip 1 frame then change full source */
 	uint32_t is_3dnr;
-	uint32_t is_pdaf;
 	uint32_t is_ebd;
-	uint32_t pdaf_type;
 	uint32_t offline; /* flag: set 1 for 4in1 go through dcam1 bin */
 	uint32_t rps; /* raw_proc_scene 0:normal 1:hwsim*/
 	uint32_t dcam_slice_mode;
 	uint32_t slice_num;
 	uint32_t slice_count;
-	struct img_trim slice_trim;
+	struct img_trim slice_trim; /* for sw slices */
+	struct img_trim hw_slices[DCAM_OFFLINE_SLC_MAX]; /* for offline hw slices */
+	struct img_trim *cur_slice;
 	uint32_t raw_cap;
 	uint32_t raw_fetch_num;
 	uint32_t raw_fetch_count;
@@ -262,8 +284,9 @@ struct dcam_pipe_dev {
 	dcam_dev_callback dcam_cb_func;
 	void *cb_priv_data;
 
-	/* void *blk_lsc_pm_handle;  for lsc */
-	struct dcam_dev_param *blk_dcam_pm; /* for dcam context */
+	uint32_t cur_ctx_id;
+	struct dcam_pipe_context ctx[DCAM_CXT_NUM];
+
 	struct dcam_path_desc path[DCAM_PATH_MAX];
 
 	struct dcam_fetch_info fetch;

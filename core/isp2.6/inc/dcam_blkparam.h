@@ -15,7 +15,6 @@
 
 #include "sprd_isp_hw.h"
 
-#define DCAM_ONLINE_MODE		(1)
 
 enum dcam_gtm_param_type {
 	DCAM_GTM_PARAM_PRE,
@@ -34,18 +33,12 @@ struct dcam_dev_lsc_param {
 };
 
 struct dcam_dev_blc_param {
-	uint32_t update;
 	struct dcam_dev_blc_info blc_info;
 };
 
 struct dcam_dev_rgb_param {
-	uint32_t update;
 	struct dcam_dev_rgb_gain_info gain_info;
 	struct dcam_dev_rgb_dither_info rgb_dither;
-};
-
-struct dcam_dev_pdaf_param {
-	uint32_t update;
 };
 
 struct dcam_dev_hist_param {
@@ -54,29 +47,23 @@ struct dcam_dev_hist_param {
 };
 
 struct dcam_dev_aem_param {
-	uint32_t update;
-	uint32_t bypass;
 	uint32_t mode;
+	uint32_t bypass;
+	uint32_t update;
 	struct dcam_dev_aem_win win_info;
 	uint32_t skip_num;
 	struct dcam_dev_aem_thr aem_info;
 };
 
 struct dcam_dev_afl_param {
-	uint32_t update;
 	struct isp_dev_anti_flicker_new_info afl_info;
-	uint32_t bypass;
 };
 
 struct dcam_dev_awbc_param {
-	uint32_t update;
 	struct dcam_dev_awbc_info awbc_info;
-	struct img_rgb_info awbc_gain;
-	uint32_t bypass;
 };
 
 struct dcam_dev_bpc_param {
-	uint32_t update;
 	struct dcam_bpc_ppi_info ppi_info;
 	union {
 		struct dcam_dev_bpc_info bpc_info;
@@ -85,22 +72,19 @@ struct dcam_dev_bpc_param {
 };
 
 struct dcam_dev_grgb_param {
-	uint32_t update;
 	struct isp_dev_grgb_info grgb_info;
 };
 
 struct dcam_dev_3dnr_param {
-	uint32_t update;
 	struct dcam_dev_3dnr_me nr3_me;
 };
 
 struct dcam_dev_afm_param {
-	uint32_t update;
-	uint32_t bypass;
 	struct dcam_dev_afm_info af_param;
 	struct isp_img_rect win;
 	struct isp_img_size win_num;
 	uint32_t mode;
+	uint32_t bypass;
 	uint32_t skip_num;
 	uint32_t crop_eb;
 	struct isp_img_rect crop_size;
@@ -108,9 +92,19 @@ struct dcam_dev_afm_param {
 };
 
 struct dcam_dev_gtm_param {
-	uint32_t update;
 	uint32_t update_en;
 	struct dcam_dev_raw_gtm_block_info gtm_info;
+};
+
+struct dcam_dev_pdaf_param {
+	uint32_t bypass;
+	uint32_t mode;
+	uint32_t skip_num;
+	uint32_t pdaf_type;
+	struct isp_dev_pdaf_info pdaf_info;
+	struct dev_dcam_vc2_control vch2_info;
+	struct pdaf_ppi_info ppi_info;
+	struct pdaf_roi_info roi_info;
 };
 
 struct dcam_dev_param {
@@ -118,11 +112,12 @@ struct dcam_dev_param {
 	uint32_t idx; /* dcam dev idx */
 	void *dev;/* dcam_pipe_dev */
 	uint32_t dcam_slice_mode;
+	uint32_t offline;
+	uint32_t frm_idx;
 
 	struct dcam_dev_lsc_param lsc;
 	struct dcam_dev_blc_param blc;
 	struct dcam_dev_rgb_param rgb;
-	struct dcam_dev_pdaf_param pdaf;
 	struct dcam_dev_hist_param hist;
 	struct dcam_dev_aem_param aem;
 	struct dcam_dev_afl_param afl;
@@ -133,6 +128,7 @@ struct dcam_dev_param {
 	struct dcam_dev_afm_param afm;
 	struct dcam_dev_gtm_param gtm[DCAM_GTM_PARAM_MAX];
 	struct dcam_dev_lscm_param lscm;
+	struct dcam_dev_pdaf_param pdaf;
 };
 
 typedef int (*FUNC_DCAM_PARAM)(struct dcam_dev_param *param);

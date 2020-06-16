@@ -25,24 +25,14 @@
 #define pr_fmt(fmt) "RGBG: %d %d %s : "\
 	fmt, current->pid, __LINE__, __func__
 
-enum {
-	_UPDATE_DITH = BIT(0),
-	_UPDATE_GAIN = BIT(1),
-};
+
 int dcam_k_rgb_gain_block(struct dcam_dev_param *param)
 {
 	int ret = 0;
-	uint32_t idx = 0;
+	uint32_t idx = param->idx;
 	uint32_t val = 0;
-	struct dcam_dev_rgb_gain_info *p = NULL;
+	struct dcam_dev_rgb_gain_info *p;
 
-	if (param == NULL)
-		return -1;
-
-	idx = param->idx;
-	if (!(param->rgb.update & _UPDATE_GAIN))
-		return 0;
-	param->rgb.update &= (~(_UPDATE_GAIN));
 	p = &(param->rgb.gain_info);
 	DCAM_REG_MWR(idx, ISP_RGBG_YRANDOM_PARAMETER0, BIT_0, p->bypass);
 	if (p->bypass)
@@ -61,17 +51,9 @@ int dcam_k_rgb_gain_block(struct dcam_dev_param *param)
 int dcam_k_rgb_dither_random_block(struct dcam_dev_param *param)
 {
 	int ret = 0;
-	uint32_t idx = 0;
+	uint32_t idx = param->idx;
 	uint32_t val = 0;
-	struct dcam_dev_rgb_dither_info *p = NULL;
-
-	if (param == NULL)
-		return -1;
-
-	idx = param->idx;
-	if (!(param->rgb.update & _UPDATE_DITH))
-		return 0;
-	param->rgb.update &= (~(_UPDATE_DITH));
+	struct dcam_dev_rgb_dither_info *p;
 
 	p = &(param->rgb.rgb_dither);
 	DCAM_REG_MWR(idx, ISP_RGBG_YRANDOM_PARAMETER0,
@@ -105,17 +87,13 @@ int dcam_k_cfg_rgb_gain(struct isp_io_param *param, struct dcam_dev_param *p)
 {
 	int ret = 0;
 
-	if (param->property_param == NULL || NULL == p) {
-		pr_err("fail to get property_param\n");
-		return -1;
-	}
 	/* debug bypass rgb gain */
 	if (g_dcam_bypass[p->idx] & (1 << _E_RGB))
 		return 0;
 
 	switch (param->property) {
 	case DCAM_PRO_GAIN_BLOCK:
-		if (DCAM_ONLINE_MODE) {
+		if (p->offline == 0) {
 			/* memset(&gain_info, 0x00, sizeof(gain_info)); */
 			ret = copy_from_user((void *)&(p->rgb.gain_info),
 				param->property_param,
@@ -123,9 +101,8 @@ int dcam_k_cfg_rgb_gain(struct isp_io_param *param, struct dcam_dev_param *p)
 			if (ret) {
 				pr_err("fail to copy from user, ret = %d\n",
 					ret);
-				return -1;
+				return -EFAULT;
 			}
-			p->rgb.update |= _UPDATE_GAIN;
 			ret = dcam_k_rgb_gain_block(p);
 		} else {
 			mutex_lock(&p->param_lock);
@@ -138,7 +115,6 @@ int dcam_k_cfg_rgb_gain(struct isp_io_param *param, struct dcam_dev_param *p)
 					ret);
 				return -1;
 			}
-			p->rgb.update |= _UPDATE_GAIN;
 			mutex_unlock(&p->param_lock);
 		}
 		break;
@@ -161,9 +137,7 @@ int dcam_k_cfg_rgb_dither(struct isp_io_param *param, struct dcam_dev_param *p)
 
 	switch (param->property) {
 	case DCAM_PRO_GAIN_DITHER_BLOCK:
-		if (DCAM_ONLINE_MODE) {
-			/* memset(&rgb_gain, 0x00, sizeof(rgb_gain)); */
-
+		if (p->offline == 0) {
 			ret = copy_from_user((void *)&(p->rgb.rgb_dither),
 				param->property_param,
 				sizeof(p->rgb.rgb_dither));
@@ -172,7 +146,6 @@ int dcam_k_cfg_rgb_dither(struct isp_io_param *param, struct dcam_dev_param *p)
 					ret);
 				return -1;
 			}
-			p->rgb.update |= _UPDATE_DITH;
 			ret = dcam_k_rgb_dither_random_block(p);
 		} else {
 			mutex_lock(&p->param_lock);
@@ -185,7 +158,6 @@ int dcam_k_cfg_rgb_dither(struct isp_io_param *param, struct dcam_dev_param *p)
 					ret);
 				return -1;
 			}
-			p->rgb.update |= _UPDATE_DITH;
 			mutex_unlock(&p->param_lock);
 		}
 		break;

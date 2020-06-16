@@ -504,7 +504,7 @@ static int isp_k_3dnr_block(struct isp_io_param *param,
 	int ret = 0;
 	struct isp_dev_3dnr_info *pnr3;
 
-	pnr3 = &isp_k_param->nr3_info;
+	pnr3 = &isp_k_param->nr3_info_base;
 
 	ret = copy_from_user((void *)pnr3,
 			param->property_param,
@@ -515,6 +515,8 @@ static int isp_k_3dnr_block(struct isp_io_param *param,
 	}
 
 	isp_3dnr_config_blend(idx, &pnr3->blend);
+
+	memcpy(&isp_k_param->nr3d_info, pnr3, sizeof(struct isp_dev_3dnr_info));
 
 	return ret;
 }
@@ -555,7 +557,7 @@ void isp_3dnr_config_param(struct isp_3dnr_ctx_desc *ctx,
 	unsigned int val;
 	struct isp_dev_3dnr_info *pnr3;
 
-	pnr3 = &isp_k_param->nr3_info;
+	pnr3 = &isp_k_param->nr3_info_base;
 	if (!ctx) {
 		pr_err("fail to 3dnr_config_reg parm NULL\n");
 		return;
@@ -643,9 +645,10 @@ int isp_k_update_3dnr(uint32_t idx,
 	uint32_t r1_circle, r1_circle_limit;
 	uint32_t r2_circle, r2_circle_limit;
 	uint32_t r3_circle, r3_circle_limit;
-	struct isp_dev_3dnr_info *pnr3;
+	struct isp_dev_3dnr_info *pnr3, *pdst;
 
-	pnr3 = &isp_k_param->nr3_info;
+	pdst = &isp_k_param->nr3d_info;
+	pnr3 = &isp_k_param->nr3_info_base;
 
 	r1_circle = pnr3->blend.r1_circle * new_width / old_width;
 	r1_circle_limit = (new_width / 2);
@@ -675,6 +678,10 @@ int isp_k_update_3dnr(uint32_t idx,
 	val = ((r2_circle & 0xFFF) << 16) |
 	       (r3_circle & 0xFFF);
 	ISP_REG_WR(idx, ISP_3DNR_BLEND_CFG24, val);
+
+	pdst->blend.r1_circle = r1_circle;
+	pdst->blend.r2_circle = r2_circle;
+	pdst->blend.r3_circle = r3_circle;
 
 	pr_debug("orig %d %d %d, factor %d %d %d, base %d, new %d %d %d\n",
 		pnr3->blend.r1_circle, pnr3->blend.r2_circle, pnr3->blend.r3_circle,

@@ -29,9 +29,6 @@
 #define DCAM_3DNR_ROI_LINE_CUT 32u
 
 
-enum {
-	_UPDATE_NR3 = BIT(0),
-};
 
 struct roi_size {
 	uint32_t roi_width;
@@ -101,10 +98,7 @@ int dcam_k_3dnr_me(struct dcam_dev_param *param)
 
 	idx = param->idx;
 	dev = param->dev;
-	/* update ? */
-	if (!(param->nr3.update & _UPDATE_NR3))
-		return 0;
-	param->nr3.update &= (~(_UPDATE_NR3));
+
 	/* debugfs bypass nr3 */
 	if (g_dcam_bypass[idx] & (1 << _E_NR3))
 		return 0;
@@ -149,7 +143,7 @@ int dcam_k_cfg_3dnr_me(struct isp_io_param *param, struct dcam_dev_param *p)
 
 	switch (param->property) {
 	case DCAM_PRO_3DNR_ME:
-		if (DCAM_ONLINE_MODE) {
+		if (p->offline == 0) {
 			ret = copy_from_user((void *)&(p->nr3.nr3_me),
 					param->property_param,
 					sizeof(p->nr3.nr3_me));
@@ -157,7 +151,6 @@ int dcam_k_cfg_3dnr_me(struct isp_io_param *param, struct dcam_dev_param *p)
 				pr_err("fail to copy, ret=0x%x\n", (unsigned int)ret);
 				return -EPERM;
 			}
-			p->nr3.update |= _UPDATE_NR3;
 			ret = dcam_k_3dnr_me(p);
 		} else {
 			mutex_lock(&p->param_lock);
@@ -169,7 +162,6 @@ int dcam_k_cfg_3dnr_me(struct isp_io_param *param, struct dcam_dev_param *p)
 				pr_err("fail to copy, ret=0x%x\n", (unsigned int)ret);
 				return -EPERM;
 			}
-			p->nr3.update |= _UPDATE_NR3;
 			mutex_unlock(&p->param_lock);
 		}
 

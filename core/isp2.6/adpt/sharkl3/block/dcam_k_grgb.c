@@ -25,9 +25,6 @@
 #define pr_fmt(fmt) "GRGB: %d %d %s : "\
 	fmt, current->pid, __LINE__, __func__
 
-enum {
-	_UPDATE_BLOCK = BIT(0),
-};
 
 static int dcam_k_grgb_block(struct dcam_dev_param *param)
 {
@@ -37,9 +34,6 @@ static int dcam_k_grgb_block(struct dcam_dev_param *param)
 	uint32_t val = 0;
 	struct isp_dev_grgb_info *p;
 
-	if (!(param->grgb.update & _UPDATE_BLOCK))
-		return 0;
-	param->grgb.update &= (~(_UPDATE_BLOCK));
 	p = &(param->grgb.grgb_info);
 	/* debugfs bpc not bypass then write*/
 	if (g_dcam_bypass[idx] & (1 << _E_GRGB))
@@ -102,7 +96,6 @@ int dcam_k_cfg_grgb(struct isp_io_param *param, struct dcam_dev_param *p)
 	case ISP_PRO_GRGB_BLOCK:
 		dst_ptr = (void *)&(p->grgb.grgb_info);
 		dst_size = sizeof(struct isp_dev_grgb_info);
-		p->grgb.update |= _UPDATE_BLOCK;
 		sub_func = dcam_k_grgb_block;
 		break;
 	default:
@@ -112,7 +105,7 @@ int dcam_k_cfg_grgb(struct isp_io_param *param, struct dcam_dev_param *p)
 		return ret;
 	}
 
-	if (DCAM_ONLINE_MODE) {
+	if (p->offline == 0) {
 		ret = copy_from_user(dst_ptr,
 				param->property_param,
 				dst_size);

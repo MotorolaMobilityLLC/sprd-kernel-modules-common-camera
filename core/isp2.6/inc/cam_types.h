@@ -15,6 +15,7 @@
 #define _CAM_TYPES_H_
 
 #include <linux/workqueue.h>
+#include <linux/completion.h>
 #include "sprd_img.h"
 
 #ifndef MAX
@@ -158,6 +159,12 @@ enum cam_raw_format {
 	CAN_RAW_FORMAT_MAX
 };
 
+enum cam_frame_scene {
+	CAM_FRAME_COMMON = 0,
+	CAM_FRAME_FDRL,
+	CAM_FRAME_FDRH,
+};
+
 struct camera_format {
 	char *name;
 	uint32_t fourcc;
@@ -222,6 +229,7 @@ enum cam_evt_type {
 };
 
 enum isp_cb_type {
+	ISP_CB_GET_PMBUF,
 	ISP_CB_RET_SRC_BUF,
 	ISP_CB_RET_DST_BUF,
 	ISP_CB_DEV_ERR,
@@ -236,6 +244,7 @@ enum dcam_cb_type {
 
 	DCAM_CB_RET_SRC_BUF,
 	DCAM_CB_RET_DST_BUF,
+	DCAM_CB_GET_PMBUF,
 
 	DCAM_CB_DEV_ERR,
 	DCAM_CB_MMU_ERR,

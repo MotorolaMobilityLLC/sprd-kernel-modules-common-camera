@@ -24,9 +24,6 @@
 #define pr_fmt(fmt) "PDAF: %d %d %s : "\
 	fmt, current->pid, __LINE__, __func__
 
-enum {
-	_UPDATE_BYPASS = BIT(0),
-};
 
 static void write_pd_table(struct pdaf_ppi_info *pdaf_info, enum dcam_id idx)
 {
@@ -106,7 +103,6 @@ static int isp_k_pdaf_type3_block(struct isp_io_param *param, void *in)
 	struct dcam_pipe_dev  *dev = (struct dcam_pipe_dev *)p->dev;
 
 	idx = dev->idx;
-	dev->pdaf_type = 3;
 	memset(&vch2_info, 0x00, sizeof(vch2_info));
 	ret = copy_from_user((void *)&vch2_info,
 		param->property_param, sizeof(vch2_info));
@@ -171,10 +167,12 @@ static int isp_k_pdaf_block(struct isp_io_param *param, enum dcam_id idx)
 	return ret;
 }
 
-static int isp_k_pdaf_bypass(struct isp_io_param *param, enum dcam_id idx)
+static int isp_k_pdaf_bypass(
+	struct isp_io_param *param, struct dcam_dev_param *p)
 {
 	int ret = 0;
 	unsigned int bypass = 0;
+	 enum dcam_id idx = p->idx;
 
 	ret = copy_from_user((void *)&bypass,
 		param->property_param, sizeof(unsigned int));
@@ -184,6 +182,8 @@ static int isp_k_pdaf_bypass(struct isp_io_param *param, enum dcam_id idx)
 	}
 
 	bypass = !!bypass;
+	p->pdaf.bypass = bypass;
+	pr_info("dcam%d pdaf bypass %d\n", p->idx, bypass);
 	DCAM_REG_MWR(idx, ISP_PPI_PARAM, BIT_0, bypass);
 
 	return ret;
@@ -231,13 +231,12 @@ static int isp_k_pdaf_set_ppi_info(struct isp_io_param *param, enum dcam_id idx)
 	return ret;
 }
 
-static int isp_k_pdaf_set_roi(struct isp_io_param *param, void *in)
+static int isp_k_pdaf_set_roi(struct isp_io_param *param, enum dcam_id idx)
 {
 
 	int ret = 0;
 	unsigned int val = 0;
 	struct pdaf_roi_info roi_info;
-	struct dcam_dev_param *dev = (struct dcam_dev_param *)in;
 
 	pr_debug("E\n");
 	memset(&roi_info, 0x00, sizeof(roi_info));
@@ -251,11 +250,11 @@ static int isp_k_pdaf_set_roi(struct isp_io_param *param, void *in)
 		roi_info.win.start_y, roi_info.win.end_x, roi_info.win.end_y);
 	val = ((roi_info.win.start_y & 0xFFFF) << 16) |
 		(roi_info.win.start_x & 0xFFFF);
-	DCAM_REG_WR(dev->idx, ISP_PPI_AF_WIN_START, val);
+	DCAM_REG_WR(idx, ISP_PPI_AF_WIN_START, val);
 
 	val = ((roi_info.win.end_y & 0xFFFF) << 16) |
 		(roi_info.win.end_x & 0xFFFF);
-	DCAM_REG_WR(dev->idx, ISP_PPI_AF_WIN_END, val);
+	DCAM_REG_WR(idx, ISP_PPI_AF_WIN_END, val);
 
 	return ret;
 }
@@ -304,7 +303,6 @@ int dcam_k_cfg_pdaf(struct isp_io_param *param, struct dcam_dev_param *p)
 	int ret = 0;
 	enum dcam_id idx;
 	struct dcam_pipe_dev *dev = NULL;
-	dev = (struct dcam_pipe_dev *)p->dev;
 
 	if (!param || !p) {
 		pr_err("fail to get param\n");
@@ -316,14 +314,14 @@ int dcam_k_cfg_pdaf(struct isp_io_param *param, struct dcam_dev_param *p)
 		return -1;
 	}
 
+	dev = (struct dcam_pipe_dev *)p->dev;
 	idx = p->idx;
-	dev->is_pdaf = 1;
 	switch (param->property) {
 	case DCAM_PRO_PDAF_BLOCK:
 		ret = isp_k_pdaf_block(param, idx);
 		break;
 	case DCAM_PRO_PDAF_BYPASS:
-		ret = isp_k_pdaf_bypass(param, idx);
+		ret = isp_k_pdaf_bypass(param, p);
 		break;
 	case DCAM_PRO_PDAF_SET_MODE:
 		ret = isp_k_pdaf_set_mode(param, idx);
@@ -332,21 +330,25 @@ int dcam_k_cfg_pdaf(struct isp_io_param *param, struct dcam_dev_param *p)
 		ret = isp_k_pdaf_set_skip_num(param, idx);
 		break;
 	case DCAM_PRO_PDAF_SET_ROI:
-		ret = isp_k_pdaf_set_roi(param, p);
+		ret = isp_k_pdaf_set_roi(param, idx);
 		break;
 	case DCAM_PRO_PDAF_SET_PPI_INFO:
 		ret = isp_k_pdaf_set_ppi_info(param, idx);
 		break;
 	case DCAM_PRO_PDAF_TYPE1_BLOCK:
+		p->pdaf.pdaf_type = 1;
 		ret = isp_k_pdaf_type1_block(param, idx);
 		break;
 	case DCAM_PRO_PDAF_TYPE2_BLOCK:
+		p->pdaf.pdaf_type = 2;
 		ret = isp_k_pdaf_type2_block(param, idx);
 		break;
 	case DCAM_PRO_PDAF_TYPE3_BLOCK:
+		p->pdaf.pdaf_type = 3;
 		ret = isp_k_pdaf_type3_block(param, p);
 		break;
 	case DCAM_PRO_DUAL_PDAF_BLOCK:
+		p->pdaf.pdaf_type = 0;
 		ret = isp_k_dual_pdaf_block(param, idx);
 		break;
 	default:
@@ -354,7 +356,7 @@ int dcam_k_cfg_pdaf(struct isp_io_param *param, struct dcam_dev_param *p)
 			param->property);
 		break;
 	}
-	pr_debug("idx %d, Sub %d, ret %d\n", idx, param->property, ret);
+	pr_info("idx %d, Sub %d, ret %d\n", idx, param->property, ret);
 
 	return ret;
 }

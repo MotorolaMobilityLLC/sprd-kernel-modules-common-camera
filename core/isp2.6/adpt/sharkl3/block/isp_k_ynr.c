@@ -30,10 +30,11 @@ static int isp_k_ynr_block(struct isp_io_param *param,
 {
 	int ret = 0;
 	uint32_t val;
-	struct isp_dev_ynr_info *ynr;
 	unsigned int i = 0;
+	struct isp_dev_ynr_info *ynr;
 
-	ynr = &isp_k_param->ynr_param.ynr_info;
+	ynr = &isp_k_param->ynr_info;
+
 	ret = copy_from_user((void *)ynr,
 			param->property_param,
 			sizeof(struct isp_dev_ynr_info));

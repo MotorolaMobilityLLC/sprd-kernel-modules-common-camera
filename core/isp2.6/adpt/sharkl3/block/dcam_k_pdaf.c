@@ -24,9 +24,7 @@
 #define pr_fmt(fmt) "PDAF: %d %d %s : "\
 	fmt, current->pid, __LINE__, __func__
 
-enum {
-	_UPDATE_BYPASS = BIT(0),
-};
+
 
 static void write_pd_table(struct pdaf_ppi_info *pdaf_info, enum dcam_id idx)
 {
@@ -139,7 +137,6 @@ static int isp_k_pdaf_type3_block(struct isp_io_param *param, void *in)
 	struct dcam_pipe_dev  *dev = (struct dcam_pipe_dev *)p->dev;
 
 	idx = dev->idx;
-	dev->pdaf_type = 3;
 	memset(&vch2_info, 0x00, sizeof(vch2_info));
 	ret = copy_from_user((void *)&vch2_info,
 		param->property_param, sizeof(vch2_info));
@@ -230,10 +227,12 @@ static int isp_k_pdaf_block(struct isp_io_param *param, enum dcam_id idx)
 	return ret;
 }
 
-static int isp_k_pdaf_bypass(struct isp_io_param *param, enum dcam_id idx)
+static int isp_k_pdaf_bypass(
+	struct isp_io_param *param, struct dcam_dev_param *p)
 {
 	int ret = 0;
 	unsigned int bypass = 0;
+	 enum dcam_id idx = p->idx;
 
 	ret = copy_from_user((void *)&bypass,
 		param->property_param, sizeof(unsigned int));
@@ -242,6 +241,9 @@ static int isp_k_pdaf_bypass(struct isp_io_param *param, enum dcam_id idx)
 		return -1;
 	}
 
+	bypass = !!bypass;
+	p->pdaf.bypass = bypass;
+	pr_info("dcam%d pdaf bypass %d\n", p->idx, bypass);
 	if (bypass)
 		return ret;
 
@@ -365,13 +367,12 @@ int dcam_k_cfg_pdaf(struct isp_io_param *param, struct dcam_dev_param *p)
 
 	dev = (struct dcam_pipe_dev *)p->dev;
 	idx = p->idx;
-	dev->is_pdaf = 1;
 	switch (param->property) {
 	case DCAM_PRO_PDAF_BLOCK:
 		ret = isp_k_pdaf_block(param, idx);
 		break;
 	case DCAM_PRO_PDAF_BYPASS:
-		ret = isp_k_pdaf_bypass(param, idx);
+		ret = isp_k_pdaf_bypass(param, p);
 		break;
 	case DCAM_PRO_PDAF_SET_MODE:
 		ret = isp_k_pdaf_set_mode(param, idx);
@@ -386,15 +387,19 @@ int dcam_k_cfg_pdaf(struct isp_io_param *param, struct dcam_dev_param *p)
 		ret = isp_k_pdaf_set_roi(param, idx);
 		break;
 	case DCAM_PRO_PDAF_TYPE1_BLOCK:
+		p->pdaf.pdaf_type = 1;
 		ret = isp_k_pdaf_type1_block(param, idx);
 		break;
 	case DCAM_PRO_PDAF_TYPE2_BLOCK:
+		p->pdaf.pdaf_type = 2;
 		ret = isp_k_pdaf_type2_block(param, idx);
 		break;
 	case DCAM_PRO_PDAF_TYPE3_BLOCK:
+		p->pdaf.pdaf_type = 3;
 		ret = isp_k_pdaf_type3_block(param, p);
 		break;
 	case DCAM_PRO_DUAL_PDAF_BLOCK:
+		p->pdaf.pdaf_type = 0;
 		ret = isp_k_dual_pdaf_block(param, idx);
 		break;
 	default:

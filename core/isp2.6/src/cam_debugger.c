@@ -38,7 +38,7 @@
 uint32_t g_dcam_bypass[DCAM_ID_MAX] = { 0, 0, 0 };
 struct cam_dbg_dump g_dbg_dump;
 int s_dbg_work_mode = ISP_CFG_MODE;
-uint32_t g_isp_bypass[ISP_CONTEXT_SW_NUM] = { 0, 0, 0, 0, 0, 0, 0};
+uint32_t g_isp_bypass[ISP_CONTEXT_SW_NUM] = { 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 int g_dbg_iommu_mode = IOMMU_AUTO;
 int g_dbg_set_iommu_mode = IOMMU_AUTO;;
 

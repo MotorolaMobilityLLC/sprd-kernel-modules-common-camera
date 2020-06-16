@@ -119,7 +119,11 @@ enum isp_postproc_type {
 struct isp_pipe_dev;
 struct isp_pipe_context;
 
-typedef int (*func_isp_cfg_param)(struct isp_io_param *param, uint32_t idx);
+
+typedef int (*func_isp_cfg_param)(
+	struct isp_io_param *param,
+	struct isp_k_block *isp_k_param, uint32_t idx);
+
 typedef int(*isp_irq_postproc)(void *handle,uint32_t idx,
 	enum isp_postproc_type type);
 

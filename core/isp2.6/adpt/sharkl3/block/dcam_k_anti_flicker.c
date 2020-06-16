@@ -25,10 +25,6 @@
 #define pr_fmt(fmt) "AFL: %d %d %s : "\
 	fmt, current->pid, __LINE__, __func__
 
-enum {
-	_UPDATE_INFO = BIT(0),
-	_UPDATE_BYPASS = BIT(1),
-};
 
 #define V_COUNTER_INTERVAL 524288
 
@@ -93,11 +89,7 @@ int dcam_k_afl_block(struct dcam_dev_param *param)
 		return -1;
 
 	idx = param->idx;
-	if (!(param->afl.update & _UPDATE_INFO))
-		return 0;
-	param->afl.update &= (~(_UPDATE_INFO));
 	p = &(param->afl.afl_info);
-	param->afl.bypass = p->bypass;
 	pr_debug("cfg afl bypass %d, mode %d %d %d\n",
 		p->bypass, p->mode,
 		p->bayer2y_chanel, p->bayer2y_mode);
@@ -165,18 +157,15 @@ int dcam_k_afl_bypass(struct dcam_dev_param *param)
 		return -1;
 
 	idx = param->idx;
-	if (!(param->afl.update & _UPDATE_BYPASS))
-		return 0;
-	param->afl.update &= (~(_UPDATE_BYPASS));
 
 	mode = (DCAM_REG_RD(idx, ISP_AFL_FRM_CTRL) >> 2) & 1;
-	pr_debug("afl bypass %d, mode %d\n", param->afl.bypass, mode);
+	pr_debug("afl bypass %d, mode %d\n", param->afl.afl_info.bypass, mode);
 
-	DCAM_REG_MWR(idx, ISP_AFL_FRM_CTRL, BIT_0, param->afl.bypass);
+	DCAM_REG_MWR(idx, ISP_AFL_FRM_CTRL, BIT_0, param->afl.afl_info.bypass);
 	/* bayer2y, bypass should be same as afl bypass. */
-	DCAM_REG_MWR(idx, ISP_AFL_PARAM0, BIT_0, param->afl.bypass);
+	DCAM_REG_MWR(idx, ISP_AFL_PARAM0, BIT_0, param->afl.afl_info.bypass);
 
-	if (param->afl.bypass == 0) {
+	if (param->afl.afl_info.bypass == 0) {
 		/* It is better to set afl_skip_num_clr
 		 * when module is re-enable.
 		 */
@@ -195,20 +184,17 @@ int dcam_k_cfg_afl(struct isp_io_param *param, struct dcam_dev_param *p)
 	int ret = 0;
 	void *pcpy;
 	int size;
-	int32_t bit_update;
 	FUNC_DCAM_PARAM sub_func = NULL;
 
 	switch (param->property) {
 	case DCAM_PRO_AFL_BLOCK:
 		pcpy = (void *)&(p->afl.afl_info);
 		size = sizeof(p->afl.afl_info);
-		bit_update = _UPDATE_INFO;
 		sub_func = dcam_k_afl_block;
 		break;
 	case DCAM_PRO_AFL_BYPASS:
-		pcpy = (void *)&(p->afl.bypass);
-		size = sizeof(p->afl.bypass);
-		bit_update = _UPDATE_BYPASS;
+		pcpy = (void *)&(p->afl.afl_info.bypass);
+		size = sizeof(p->afl.afl_info.bypass);
 		sub_func = dcam_k_afl_bypass;
 		break;
 	default:
@@ -217,13 +203,12 @@ int dcam_k_cfg_afl(struct isp_io_param *param, struct dcam_dev_param *p)
 		return -EINVAL;
 	}
 
-	if (DCAM_ONLINE_MODE) {
+	if (p->offline == 0) {
 		ret = copy_from_user(pcpy, param->property_param, size);
 		if (ret) {
 			pr_err("fail to copy, ret=0x%x\n", (unsigned int)ret);
 			return -EPERM;
 		}
-		p->afl.update |= bit_update;
 		ret = sub_func(p);
 	} else {
 		mutex_lock(&p->param_lock);
@@ -233,7 +218,6 @@ int dcam_k_cfg_afl(struct isp_io_param *param, struct dcam_dev_param *p)
 			pr_err("fail to copy, ret=0x%x\n", (unsigned int)ret);
 			return -EPERM;
 		}
-		p->afl.update |= bit_update;
 		mutex_unlock(&p->param_lock);
 	}
 

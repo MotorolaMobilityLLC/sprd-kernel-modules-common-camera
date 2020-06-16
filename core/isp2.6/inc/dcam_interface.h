@@ -46,6 +46,7 @@
  */
 #define is_dcam_id(idx) ((idx) < DCAM_ID_MAX)
 
+
 /*
  * Enumerating output paths in dcam_if device.
  *
@@ -96,6 +97,8 @@ struct statis_path_buf_info {
 enum dcam_path_cfg_cmd {
 	DCAM_PATH_CFG_BASE = 0,
 	DCAM_PATH_CFG_OUTPUT_BUF,
+	DCAM_PATH_CFG_OUTPUT_ALTER_BUF,
+	DCAM_PATH_CLR_OUTPUT_ALTER_BUF,
 	DCAM_PATH_CFG_OUTPUT_RESERVED_BUF,
 	DCAM_PATH_CFG_SIZE,
 	DCAM_PATH_CFG_FULL_SOURCE, /* 4in1 select full path source */
@@ -162,8 +165,8 @@ enum dcam_ioctrl_cmd {
 	DCAM_IOCTL_CFG_CAP,
 	DCAM_IOCTL_CFG_STATIS_BUF,
 	DCAM_IOCTL_CFG_RESERV_STATSBUF,
-	DCAM_IOCTL_CFG_START,
-	DCAM_IOCTL_CFG_STOP,
+	DCAM_IOCTL_PUT_RESERV_STATSBUF,
+	DCAM_IOCTL_RECFG_PARAM,
 	DCAM_IOCTL_INIT_STATIS_Q,
 	DCAM_IOCTL_DEINIT_STATIS_Q,
 	DCAM_IOCTL_CFG_EBD,
@@ -233,7 +236,7 @@ struct dcam_pipe_ops {
 	int (*close)(void *handle);
 	int (*reset)(void *handle);
 	int (*start)(void *handle, int online);
-	int (*stop)(void *handle);
+	int (*stop)(void *handle, int pause);
 	int (*get_path)(void *handle, int path_id);
 	int (*put_path)(void *handle, int path_id);
 	int (*cfg_path)(void *dcam_handle,

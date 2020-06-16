@@ -25,16 +25,16 @@
 #define pr_fmt(fmt) "GAMMA: %d %d %s : "\
 	fmt, current->pid, __LINE__, __func__
 
-static int isp_k_gamma_block(
-	struct isp_io_param *param, uint32_t idx)
+static int isp_k_gamma_block(struct isp_io_param *param,
+	struct isp_k_block *isp_k_param, uint32_t idx)
 {
 	int ret = 0;
 	uint32_t i, buf_sel = 0;
 	uint32_t buf_addr, val;
-	struct isp_dev_gamma_info gamma_data;
 	struct isp_dev_gamma_info *gamma_info = NULL;
 
-	gamma_info = &gamma_data;
+	gamma_info = &isp_k_param->gamma_info;
+
 	ret = copy_from_user((void *)gamma_info,
 			param->property_param,
 			sizeof(struct isp_dev_gamma_info));
@@ -76,13 +76,14 @@ static int isp_k_gamma_block(
 	return ret;
 }
 
-int isp_k_cfg_gamma(struct isp_io_param *param, uint32_t idx)
+int isp_k_cfg_gamma(struct isp_io_param *param,
+	struct isp_k_block *isp_k_param, uint32_t idx)
 {
 	int ret = 0;
 
 	switch (param->property) {
 	case ISP_PRO_GAMMA_BLOCK:
-		ret = isp_k_gamma_block(param, idx);
+		ret = isp_k_gamma_block(param, isp_k_param, idx);
 		break;
 	default:
 		pr_err("fail to support cmd id = %d\n",

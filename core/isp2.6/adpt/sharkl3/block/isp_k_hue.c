@@ -25,32 +25,35 @@
 #define pr_fmt(fmt) "HUE: %d %d %s : "\
 	fmt, current->pid, __LINE__, __func__
 
-static int isp_k_hue_block(struct isp_io_param *param, uint32_t idx)
+static int isp_k_hue_block(struct isp_io_param *param,
+	struct isp_k_block *isp_k_param, uint32_t idx)
 {
 	int ret = 0;
-	struct isp_dev_hue_info_l3 hue_info;
+	struct isp_dev_hue_info_l3 *hue_info;
 
-	memset(&hue_info, 0x00, sizeof(hue_info));
+	hue_info = &isp_k_param->hue_info;
 
-	ret = copy_from_user((void *)&hue_info,
-		param->property_param, sizeof(hue_info));
+	ret = copy_from_user((void *)hue_info,
+			param->property_param,
+			sizeof(struct isp_dev_hue_info_l3));
 	if (ret != 0) {
 		pr_err("fail to copy_from_user, ret = 0x%x\n",
 			(unsigned int)ret);
 		return -1;
 	}
 	if (g_isp_bypass[idx] & (1 << _EISP_HUE))
-		hue_info.bypass = 1;
-	ISP_REG_MWR(idx, ISP_HUA_PARAM, BIT_0, hue_info.bypass);
-	if (hue_info.bypass)
+		hue_info->bypass = 1;
+	ISP_REG_MWR(idx, ISP_HUA_PARAM, BIT_0, hue_info->bypass);
+	if (hue_info->bypass)
 		return 0;
 
-	ISP_REG_MWR(idx, ISP_HUA_PARAM, 0x1FF0, hue_info.theta << 4);
+	ISP_REG_MWR(idx, ISP_HUA_PARAM, 0x1FF0, hue_info->theta << 4);
 
 	return ret;
 }
 
-int isp_k_cfg_hue(struct isp_io_param *param, uint32_t idx)
+int isp_k_cfg_hue(struct isp_io_param *param,
+	struct isp_k_block *isp_k_param, uint32_t idx)
 {
 	int ret = 0;
 
@@ -66,7 +69,7 @@ int isp_k_cfg_hue(struct isp_io_param *param, uint32_t idx)
 
 	switch (param->property) {
 	case ISP_PRO_HUE_BLOCK:
-		ret = isp_k_hue_block(param, idx);
+		ret = isp_k_hue_block(param, isp_k_param, idx);
 		break;
 
 	default:

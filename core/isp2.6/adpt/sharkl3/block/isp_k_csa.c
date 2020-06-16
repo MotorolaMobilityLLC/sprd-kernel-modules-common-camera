@@ -25,34 +25,37 @@
 #define pr_fmt(fmt) "CSA: %d %d %s : "\
 	fmt, current->pid, __LINE__, __func__
 
-static int isp_k_csa_block(struct isp_io_param *param, uint32_t idx)
+static int isp_k_csa_block(struct isp_io_param *param,
+	struct isp_k_block *isp_k_param, uint32_t idx)
 {
 	int ret = 0;
-	struct isp_dev_csa_info csa_info;
 	unsigned int val = 0;
+	struct isp_dev_csa_info *csa_info;
 
-	memset(&csa_info, 0x00, sizeof(csa_info));
+	csa_info = &isp_k_param->csa_info;
 
-	ret = copy_from_user((void *)&csa_info, param->property_param,
-			sizeof(csa_info));
+	ret = copy_from_user((void *)csa_info,
+			param->property_param,
+			sizeof(struct isp_dev_csa_info));
 	if (ret != 0) {
 		pr_err("fail to copy from user, ret = %d\n", ret);
 		return -EPERM;
 	}
 	if (g_isp_bypass[idx] & (1 << _EISP_SATURATION))
-		csa_info.bypass = 1;
-	ISP_REG_MWR(idx, ISP_CSA_PARAM, BIT_0, csa_info.bypass);
-	if (csa_info.bypass)
+		csa_info->bypass = 1;
+	ISP_REG_MWR(idx, ISP_CSA_PARAM, BIT_0, csa_info->bypass);
+	if (csa_info->bypass)
 		return 0;
 
-	val = ((csa_info.csa_factor_v & 0xFF) << 8) |
-		((csa_info.csa_factor_u & 0xFF) << 16);
+	val = ((csa_info->csa_factor_v & 0xFF) << 8) |
+		((csa_info->csa_factor_u & 0xFF) << 16);
 	ISP_REG_MWR(idx, ISP_CSA_PARAM, 0xFFFF00, val);
 
 	return ret;
 }
 
-int isp_k_cfg_csa(struct isp_io_param *param, uint32_t idx)
+int isp_k_cfg_csa(struct isp_io_param *param,
+	struct isp_k_block *isp_k_param, uint32_t idx)
 {
 	int ret = 0;
 
@@ -68,7 +71,7 @@ int isp_k_cfg_csa(struct isp_io_param *param, uint32_t idx)
 
 	switch (param->property) {
 	case ISP_PRO_CSA_BLOCK:
-		ret = isp_k_csa_block(param, idx);
+		ret = isp_k_csa_block(param, isp_k_param, idx);
 		break;
 	default:
 		pr_err("fail to support cmd id = %d\n",

@@ -25,9 +25,7 @@
 #define pr_fmt(fmt) "BPC: %d %d %s : "\
 	fmt, current->pid, __LINE__, __func__
 
-enum {
-	_UPDATE_BLOCK = BIT(0),
-};
+
 
 int dcam_k_bpc_block(struct dcam_dev_param *param)
 {
@@ -37,9 +35,6 @@ int dcam_k_bpc_block(struct dcam_dev_param *param)
 	uint32_t val = 0;
 	struct dcam_dev_bpc_info_l3 *p; /* bpc_info; */
 
-	if (!(param->bpc.update & _UPDATE_BLOCK))
-		return 0;
-	param->bpc.update &= (~(_UPDATE_BLOCK));
 	p = &(param->bpc.bpc_param.bpc_info_l3);
 	/* debugfs bpc not bypass then write*/
 	if (g_dcam_bypass[idx] & (1 << _E_BPC))
@@ -146,7 +141,6 @@ int dcam_k_cfg_bpc(struct isp_io_param *param, struct dcam_dev_param *p)
 	{
 		dst_ptr = (void *)&p->bpc.bpc_param.bpc_info_l3;
 		dst_size = sizeof(struct dcam_dev_bpc_info_l3);
-		p->bpc.update |= _UPDATE_BLOCK;
 		sub_func = dcam_k_bpc_block;
 		break;
 	}
@@ -157,7 +151,7 @@ int dcam_k_cfg_bpc(struct isp_io_param *param, struct dcam_dev_param *p)
 		return ret;
 	}
 
-	if (DCAM_ONLINE_MODE) {
+	if (p->offline == 0) {
 		ret = copy_from_user(dst_ptr,
 				param->property_param,
 				dst_size);

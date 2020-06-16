@@ -28,15 +28,15 @@
 
 
 static int load_vst_ivst_buf(
-	struct isp_dev_nlm_info_v2 *nlm_info, uint32_t idx)
+	struct isp_dev_nlm_info_v2 *nlm_info,
+	struct isp_k_block *isp_k_param, uint32_t idx)
 {
 	int ret = 0;
 	uint32_t buf_len;
 	uint32_t buf_sel;
 	unsigned long reg_addr;
 	unsigned long utab_addr;
-	void __user *vst_table;
-	void __user *ivst_table;
+	uint32_t *vst_ivst_buf;
 
 	buf_sel = 0;
 	ISP_REG_MWR(idx, ISP_VST_PARA, BIT_1, buf_sel << 1);
@@ -47,12 +47,14 @@ static int load_vst_ivst_buf(
 		if (nlm_info->vst_len < (ISP_VST_IVST_NUM * 4))
 			buf_len = nlm_info->vst_len;
 
+		vst_ivst_buf = isp_k_param->vst_buf;
 		utab_addr = (unsigned long)nlm_info->vst_table_addr;
 		pr_debug("vst table addr 0x%lx\n", utab_addr);
+		ret = copy_from_user((void *)vst_ivst_buf,
+				(void __user *)utab_addr, buf_len);
 
-		vst_table = (void __user *)utab_addr;
 		reg_addr = ISP_BASE_ADDR(idx) + ISP_VST_BUF0_ADDR;
-		ret = copy_from_user((void *)reg_addr, vst_table, buf_len);
+		memcpy((void *)reg_addr, vst_ivst_buf, buf_len);
 	}
 
 	if (nlm_info->ivst_bypass == 0 && nlm_info->ivst_table_addr) {
@@ -60,12 +62,14 @@ static int load_vst_ivst_buf(
 		if (nlm_info->ivst_len < (ISP_VST_IVST_NUM * 4))
 			buf_len = nlm_info->ivst_len;
 
+		vst_ivst_buf = isp_k_param->ivst_buf;
 		utab_addr = (unsigned long)nlm_info->ivst_table_addr;
 		pr_debug("ivst table addr 0x%lx\n", utab_addr);
+		ret = copy_from_user((void *)vst_ivst_buf,
+				(void __user *)utab_addr, buf_len);
 
-		ivst_table = (void __user *)utab_addr;
 		reg_addr = ISP_BASE_ADDR(idx) + ISP_IVST_BUF0_ADDR;
-		ret = copy_from_user((void *)reg_addr, ivst_table, buf_len);
+		memcpy((void *)reg_addr, vst_ivst_buf, buf_len);
 	}
 
 	return ret;
@@ -78,7 +82,7 @@ static int isp_k_nlm_block(struct isp_io_param *param,
 	uint32_t i, j, val = 0;
 	struct isp_dev_nlm_info_v2 *p;
 
-	p = &isp_k_param->nlm_info;
+	p = &isp_k_param->nlm_info_base;
 	ret = copy_from_user((void *)p,
 			(void __user *)param->property_param,
 			sizeof(struct isp_dev_nlm_info_v2));
@@ -92,6 +96,9 @@ static int isp_k_nlm_block(struct isp_io_param *param,
 		p->vst_bypass = 1;
 	if (g_isp_bypass[idx] & (1 << _EISP_IVST))
 		p->ivst_bypass = 1;
+
+	memcpy(&isp_k_param->nlm_info, p, sizeof(struct isp_dev_nlm_info_v2));
+
 	ISP_REG_MWR(idx, ISP_NLM_PARA, BIT_0, p->bypass);
 	ISP_REG_MWR(idx, ISP_VST_PARA, BIT_0, p->vst_bypass);
 	ISP_REG_MWR(idx, ISP_IVST_PARA, BIT_0, p->ivst_bypass);
@@ -211,7 +218,7 @@ static int isp_k_nlm_block(struct isp_io_param *param,
 		}
 	}
 
-	ret = load_vst_ivst_buf(p, idx);
+	ret = load_vst_ivst_buf(p, isp_k_param, idx);
 	return ret;
 }
 
@@ -244,9 +251,10 @@ int isp_k_update_nlm(uint32_t idx,
 	uint32_t center_x, center_y, radius_threshold;
 	uint32_t radius_limit, r_factor, r_base;
 	uint32_t filter_ratio, coef2, flat_thresh_coef;
-	struct isp_dev_nlm_info_v2 *p;
+	struct isp_dev_nlm_info_v2 *p, *pdst;
 
-	p = &isp_k_param->nlm_info;
+	pdst = &isp_k_param->nlm_info;
+	p = &isp_k_param->nlm_info_base;
 	if (p->bypass)
 		return 0;
 
@@ -263,6 +271,8 @@ int isp_k_update_nlm(uint32_t idx,
 	radius_limit = (new_width + new_height) * r_factor / r_base;
 	radius_threshold = (radius_threshold < radius_limit) ? radius_threshold : radius_limit;
 	ISP_REG_MWR(idx, ISP_NLM_RADIAL_1D_THRESHOLD, 0x7FFF, radius_threshold);
+
+	pdst->nlm_radial_1D_radius_threshold = radius_threshold;
 
 	pr_debug("center (%d %d)  raius %d  (%d %d), new %d\n",
 		center_x, center_y, p->nlm_radial_1D_radius_threshold,
@@ -293,6 +303,10 @@ int isp_k_update_nlm(uint32_t idx,
 		ISP_REG_MWR(idx,
 			ISP_NLM_RADIAL_1D_RATIO + i * 16 + j * 4,
 			0x3FFF0000, (coef2 << 16));
+
+		pdst->nlm_radial_1D_radius_threshold_filter_ratio[i][j] = filter_ratio;
+		pdst->nlm_radial_1D_coef2[i][j] = coef2;
+
 		if (j < 3) {
 			flat_thresh_coef =
 				p->nlm_first_lum_flat_thresh_coef[i][j];
@@ -302,6 +316,8 @@ int isp_k_update_nlm(uint32_t idx,
 			ISP_REG_MWR(idx,
 				ISP_NLM_RADIAL_1D_THR0 + i * 12 + j * 4,
 				0x7FFF, flat_thresh_coef);
+
+			pdst->nlm_first_lum_flat_thresh_coef[i][j] = flat_thresh_coef;
 		}
 		if (loop == 0)
 			pr_debug("filter coef2 flat (%d %d %d) (%d %d %d)\n",

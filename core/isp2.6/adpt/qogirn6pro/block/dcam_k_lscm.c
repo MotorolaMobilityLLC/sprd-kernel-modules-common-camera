@@ -28,23 +28,12 @@
 #define pr_fmt(fmt) "LSCM: %d %d %s : "\
 	fmt, current->pid, __LINE__, __func__
 
-enum {
-	_UPDATE_BYPASS = BIT(0),
-	_UPDATE_MONITOR = BIT(1),
-	_UPDATE_INFO = BIT(2),
-};
 
 int dcam_k_lscm_bypass(struct dcam_dev_param *param)
 {
 	int ret = 0;
 	uint32_t idx = param->idx;
 
-	if (param == NULL)
-		return -EPERM;
-	/* update ? */
-	if (!(param->lscm.update & _UPDATE_BYPASS))
-		return 0;
-	param->lscm.update &= (~(_UPDATE_BYPASS));
 	DCAM_REG_MWR(idx, DCAM_LSCM_FRM_CTRL0, BIT_0,
 		param->lscm.bypass & BIT_0);
 
@@ -57,13 +46,6 @@ int dcam_k_lscm_monitor(struct dcam_dev_param *param)
 	uint32_t idx = param->idx;
 	uint32_t mode = 0;
 	uint32_t val = 0;
-
-	if (param == NULL)
-		return -1;
-	/* update ? */
-	if (!(param->lscm.update & _UPDATE_MONITOR))
-		return 0;
-	param->lscm.update &= (~(_UPDATE_MONITOR));
 
 	DCAM_REG_MWR(idx, DCAM_LSCM_FRM_CTRL0, BIT_0, 0);
 
@@ -105,20 +87,17 @@ int dcam_k_cfg_lscm(struct isp_io_param *param, struct dcam_dev_param *p)
 	int ret = 0;
 	void *pcpy;
 	int size;
-	int32_t bit_update;
 	FUNC_DCAM_PARAM sub_func = NULL;
 
 	switch (param->property) {
 	case DCAM_PRO_LSCM_BYPASS:
 		pcpy = (void *)&(p->lscm.bypass);
 		size = sizeof(p->lscm.bypass);
-		bit_update = _UPDATE_BYPASS;
 		sub_func = dcam_k_lscm_bypass;
 		break;
 	case DCAM_PRO_LSC_MONITOR:
 		pcpy = (void *)&(p->lscm);
 		size = sizeof(p->lscm);
-		bit_update = _UPDATE_MONITOR;
 		sub_func = dcam_k_lscm_monitor;
 		break;
 	default:
@@ -127,13 +106,12 @@ int dcam_k_cfg_lscm(struct isp_io_param *param, struct dcam_dev_param *p)
 		return -EINVAL;
 	}
 
-	if (DCAM_ONLINE_MODE) {
+	if (p->offline == 0) {
 		ret = copy_from_user(pcpy, param->property_param, size);
 		if (ret) {
 			pr_err("fail to copy, ret=0x%x\n", (unsigned int)ret);
 			return -EPERM;
 		}
-		p->lscm.update |= bit_update;
 		ret = sub_func(p);
 	} else {
 		mutex_lock(&p->param_lock);
@@ -143,7 +121,6 @@ int dcam_k_cfg_lscm(struct isp_io_param *param, struct dcam_dev_param *p)
 			pr_err("fail to copy, ret=0x%x\n", (unsigned int)ret);
 			return -EPERM;
 		}
-		p->lscm.update |= bit_update;
 		mutex_unlock(&p->param_lock);
 	}
 

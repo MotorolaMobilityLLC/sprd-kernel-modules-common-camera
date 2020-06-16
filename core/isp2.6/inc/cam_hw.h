@@ -117,6 +117,7 @@ enum dcam_hw_cfg_cmd{
 	DCAM_HW_CFG_BINNING_4IN1_SET,
 	DCAM_HW_CFG_SRAM_CTRL_SET,
 	DCAM_HW_CFG_LBUF_SHARE_SET,
+	DCAM_HW_CFG_LBUF_SHARE_GET,
 	DCAM_HW_CFG_SLICE_FETCH_SET,
 	DCAM_HW_CFG_FBC_CTRL,
 	DCAM_HW_CFG_FBC_ADDR_SET,
@@ -125,6 +126,8 @@ enum dcam_hw_cfg_cmd{
 	DCAM_HW_CFG_GTM_LTM_DIS,
 	DCAM_HW_CFG_GTM_UPDATE,
 	DCAM_HW_CFG_BLOCK_FUNC_GET,
+	DCAM_HW_CFG_BLOCKS_SETALL,
+	DCAM_HW_CFG_BLOCKS_SETSTATIS,
 	DCAM_HW_CFG_MIPICAP,
 	DCAM_HW_CFG_START_FETCH,
 	DCAM_HW_CFG_BIN_MIPI,
@@ -262,7 +265,7 @@ struct cam_hw_gtm_update {
 struct dcam_hw_slice_fetch {
 	uint32_t idx;
 	struct dcam_fetch_info *fetch;
-	struct img_trim slice_trim;
+	struct img_trim *cur_slice;
 };
 
 struct dcam_hw_sram_ctrl {
@@ -316,6 +319,7 @@ struct dcam_fetch_info {
 	uint32_t is_loose;
 	uint32_t endian;
 	uint32_t pattern;
+	uint32_t pitch;
 	struct img_size size;
 	struct img_trim trim;
 	struct img_addr addr;
@@ -683,6 +687,7 @@ struct cam_hw_soc_info {
 	uint32_t awqos_high;
 	uint32_t awqos_low;
 };
+
 
 struct cam_hw_info {
 	enum cam_prj_id prj_id;

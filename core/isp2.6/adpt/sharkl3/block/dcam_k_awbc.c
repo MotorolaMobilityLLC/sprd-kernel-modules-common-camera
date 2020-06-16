@@ -25,11 +25,6 @@
 #define pr_fmt(fmt) "AWBC: %d %d %s : "\
 	fmt, current->pid, __LINE__, __func__
 
-enum {
-	_UPDATE_INFO = BIT(0),
-	_UPDATE_GAIN = BIT(1),
-	_UPDATE_BYPASS = BIT(2),
-};
 
 int dcam_k_awbc_block(struct dcam_dev_param *param)
 {
@@ -42,11 +37,6 @@ int dcam_k_awbc_block(struct dcam_dev_param *param)
 		return -EPERM;
 
 	idx = param->idx;
-	/* update ? */
-	if (!(param->awbc.update & _UPDATE_INFO))
-		return 0;
-	param->awbc.update &= (~(_UPDATE_INFO));
-
 	p = &(param->awbc.awbc_info);
 	DCAM_REG_MWR(idx, ISP_AWBC_PARAM, BIT_0,
 			p->awbc_bypass & 1);
@@ -88,12 +78,7 @@ int dcam_k_awbc_gain(struct dcam_dev_param *param)
 		return -EPERM;
 
 	idx = param->idx;
-	/* update ? */
-	if (!(param->awbc.update & _UPDATE_GAIN))
-		return 0;
-	param->awbc.update &= (~(_UPDATE_GAIN));
-
-	p = &(param->awbc.awbc_gain);
+	p = &(param->awbc.awbc_info.gain);
 	val = ((p->b & 0x3FFF) << 16) | (p->r & 0x3FFF);
 	DCAM_REG_WR(idx, ISP_AWBC_GAIN0, val);
 
@@ -113,11 +98,7 @@ int dcam_k_awbc_bypass(struct dcam_dev_param *param)
 		return -EPERM;
 
 	idx = param->idx;
-	/* update ? */
-	if (!(param->awbc.update & _UPDATE_BYPASS))
-		return 0;
-	param->awbc.update &= (~(_UPDATE_BYPASS));
-	bypass = param->awbc.bypass;
+	bypass = param->awbc.awbc_info.awbc_bypass;
 	DCAM_REG_MWR(idx, ISP_AWBC_PARAM, BIT_0, bypass & 1);
 
 	return ret;
@@ -128,7 +109,6 @@ int dcam_k_cfg_awbc(struct isp_io_param *param, struct dcam_dev_param *p)
 	int ret = 0;
 	void *pcpy;
 	int size;
-	int32_t bit_update;
 	FUNC_DCAM_PARAM sub_func = NULL;
 
 	/* debugfs bypass awbc */
@@ -139,19 +119,16 @@ int dcam_k_cfg_awbc(struct isp_io_param *param, struct dcam_dev_param *p)
 	case DCAM_PRO_AWBC_BLOCK:
 		pcpy = (void *)&(p->awbc.awbc_info);
 		size = sizeof(p->awbc.awbc_info);
-		bit_update = _UPDATE_INFO;
 		sub_func = dcam_k_awbc_block;
 		break;
 	case DCAM_PRO_AWBC_GAIN:
-		pcpy = (void *)&(p->awbc.awbc_gain);
-		size = sizeof(p->awbc.awbc_gain);
-		bit_update = _UPDATE_GAIN;
+		pcpy = (void *)&(p->awbc.awbc_info.gain);
+		size = sizeof(p->awbc.awbc_info.gain);
 		sub_func = dcam_k_awbc_gain;
 		break;
 	case DCAM_PRO_AWBC_BYPASS:
-		pcpy = (void *)&(p->awbc.bypass);
-		size = sizeof(p->awbc.bypass);
-		bit_update = _UPDATE_BYPASS;
+		pcpy = (void *)&(p->awbc.awbc_info.awbc_bypass);
+		size = sizeof(p->awbc.awbc_info.awbc_bypass);
 		sub_func = dcam_k_awbc_bypass;
 		break;
 	default:
@@ -159,25 +136,28 @@ int dcam_k_cfg_awbc(struct isp_io_param *param, struct dcam_dev_param *p)
 			param->property);
 		return -EINVAL;
 	}
-	if (DCAM_ONLINE_MODE) {
+
+	if (p->offline == 0) {
 		ret = copy_from_user(pcpy, param->property_param, size);
 		if (ret) {
-			pr_err("fail to copy, ret=0x%x\n", (unsigned int)ret);
+			pr_err("fail to copy from user ret=0x%x\n",
+				(unsigned int)ret);
 			return -EPERM;
 		}
-		p->awbc.update |= bit_update;
 		ret = sub_func(p);
-	} else {
-		mutex_lock(&p->param_lock);
-		ret = copy_from_user(pcpy, param->property_param, size);
-		if (ret) {
-			mutex_unlock(&p->param_lock);
-			pr_err("fail to copy,ret=0x%x\n", (unsigned int)ret);
-			return -EPERM;
-		}
-		p->awbc.update |= bit_update;
-		mutex_unlock(&p->param_lock);
+		return ret;
 	}
+
+	/* offline just save parameters in structure */
+	mutex_lock(&p->param_lock);
+	ret = copy_from_user(pcpy, param->property_param, size);
+	if (ret) {
+		mutex_unlock(&p->param_lock);
+		pr_err("fail to copy from user ret=0x%x\n",
+			(unsigned int)ret);
+		return -EPERM;
+	}
+	mutex_unlock(&p->param_lock);
 
 	return ret;
 }

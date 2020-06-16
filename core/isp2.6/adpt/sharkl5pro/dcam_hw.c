@@ -1063,9 +1063,44 @@ static int sharkl5pro_dcam_lbuf_share_set(void *handle, void *arg)
 	return ret;
 }
 
+static int sharkl5pro_dcam_lbuf_share_get(void *handle, void *arg)
+{
+	int i = 0;
+	int ret = 0;
+	int idx = 0;
+	struct cam_hw_lbuf_share *camarg = (struct cam_hw_lbuf_share *)arg;
+	uint32_t tb_w[] = {
+	/*     dcam0, dcam1 */
+		5664, 3264,
+		5184, 4160,
+		4672, 4672,
+		4160, 5184,
+		3264, 5664,
+	};
+
+	if (!arg)
+		return -EFAULT;
+
+	idx = camarg->idx;
+	camarg->width = 3264;
+
+	if (idx > DCAM_ID_1)
+		goto exit;
+
+	i = DCAM_AXIM_RD(DCAM_LBUF_SHARE_MODE) & 7;
+	if (i < 5) {
+		camarg->width = tb_w[i * 2 + idx];
+	}
+exit:
+	pr_debug("dcam%d, lbuf %d\n", idx, camarg->width);
+	return ret;
+}
+
 static int sharkl5pro_dcam_slice_fetch_set(void *handle, void *arg)
 {
 	int ret = 0;
+	uint32_t idx, reg_val, offset;
+	struct img_trim *cur_slice;
 	struct dcam_fetch_info *fetch = NULL;
 	struct dcam_hw_slice_fetch *slicearg = NULL;
 
@@ -1074,13 +1109,48 @@ static int sharkl5pro_dcam_slice_fetch_set(void *handle, void *arg)
 
 	slicearg = (struct dcam_hw_slice_fetch *)arg;
 	fetch = slicearg->fetch;
-	DCAM_REG_MWR(slicearg->idx, DCAM_BAYER_INFO_CFG,
+	cur_slice = slicearg->cur_slice;
+	idx = slicearg->idx;
+
+	/* cfg mipicap */
+	DCAM_REG_MWR(idx,
+		DCAM_MIPI_CAP_CFG, BIT_30, 0x1 << 30);
+	DCAM_REG_MWR(idx,
+		DCAM_MIPI_CAP_CFG, BIT_29, 0x1 << 29);
+	DCAM_REG_MWR(idx,
+		DCAM_MIPI_CAP_CFG, BIT_28, 0x1 << 28);
+	DCAM_REG_MWR(idx,
+		DCAM_MIPI_CAP_CFG, BIT_12, 0x1 << 12);
+	DCAM_REG_MWR(idx,
+		DCAM_MIPI_CAP_CFG, BIT_3, 0x0 << 3);
+	DCAM_REG_MWR(idx,
+		DCAM_MIPI_CAP_CFG, BIT_1, 0x1 << 1);
+
+	/* cfg bin path */
+	DCAM_REG_MWR(idx, DCAM_CAM_BIN_CFG, 0x3FF << 20, fetch->pitch << 20);
+	reg_val = (cur_slice->size_y -1 ) << 16;
+	reg_val |= (cur_slice->size_x - 1);
+	DCAM_REG_WR(idx, DCAM_MIPI_CAP_END, reg_val);
+
+	DCAM_REG_MWR(idx, DCAM_BAYER_INFO_CFG,
 		BIT_5 | BIT_4, (fetch->pattern & 3) << 4);
 	DCAM_AXIM_MWR(IMG_FETCH_CTRL, BIT_1 | BIT_0, fetch->is_loose);
 	DCAM_AXIM_MWR(IMG_FETCH_CTRL, BIT_3 | BIT_2, fetch->endian << 2);
+
 	DCAM_AXIM_WR(IMG_FETCH_SIZE,
-		(fetch->trim.size_y << 16) | (fetch->trim.size_x / 2 & 0xffff));
+		(cur_slice->size_y << 16) | (cur_slice->size_x & 0xffff));
+	DCAM_AXIM_WR(IMG_FETCH_X,
+		(fetch->pitch << 16) | (cur_slice->start_x & 0x1fff));
+
 	DCAM_AXIM_WR(IMG_FETCH_RADDR, fetch->addr.addr_ch0);
+
+	/* TODO - should based on output loose */
+	if (fetch->is_loose == 2)
+		offset = cur_slice->start_x * 2;
+	else
+		offset = cur_slice->start_x * 10 / 8;
+	reg_val = DCAM_REG_RD(idx, DCAM_BIN_BASE_WADDR0);
+	DCAM_REG_WR(idx, DCAM_BIN_BASE_WADDR0, reg_val + offset);
 
 	return ret;
 }
@@ -1287,6 +1357,72 @@ static int sharkl5pro_dcam_block_func_get(void *handle, void *arg)
 	return 0;
 }
 
+static int sharkl5pro_dcam_blocks_setall(void *handle, void *arg)
+{
+	uint32_t idx;
+	struct dcam_dev_param *p;
+
+	if (arg == NULL) {
+		pr_err("fail to get ptr %p\n", arg);
+		return -EFAULT;
+	}
+	p = (struct dcam_dev_param *)arg;
+	idx = p->idx;
+	dcam_k_awbc_block(p);
+	dcam_k_blc_block(p);
+	dcam_k_bpc_block(p);
+	dcam_k_rgb_gain_block(p);
+	dcam_k_raw_gtm_block(DCAM_GTM_PARAM_PRE, p);
+	/* simulator should set this block(random) carefully */
+	dcam_k_rgb_dither_random_block(p);
+	pr_info("dcam%d set all\n", idx);
+
+	return 0;
+}
+
+static int sharkl5pro_dcam_blocks_setstatis(void *handle, void *arg)
+{
+	uint32_t idx;
+	struct dcam_dev_param *p;
+
+	if (arg == NULL) {
+		pr_err("fail to get ptr %p\n", arg);
+		return -EFAULT;
+	}
+	p = (struct dcam_dev_param *)arg;
+	idx = p->idx;
+
+	p->aem.update = 0xff;
+	dcam_k_aem_bypass(p);
+	dcam_k_aem_mode(p);
+	dcam_k_aem_skip_num(p);
+	dcam_k_aem_rgb_thr(p);
+	dcam_k_aem_win(p);
+
+	dcam_k_afm_block(p);
+	dcam_k_afm_win(p);
+	dcam_k_afm_win_num(p);
+	dcam_k_afm_mode(p);
+	dcam_k_afm_skipnum(p);
+	dcam_k_afm_crop_eb(p);
+	dcam_k_afm_crop_size(p);
+	dcam_k_afm_done_tilenum(p);
+	dcam_k_afm_bypass(p);
+
+	dcam_k_afl_block(p);
+
+	dcam_k_bayerhist_block(p);
+
+	dcam_k_lscm_monitor(p);
+	dcam_k_lscm_bypass(p);
+
+	dcam_k_pdaf(p);
+	dcam_k_3dnr_me(p);
+
+	pr_info("dcam%d set statis done\n", idx);
+	return 0;
+}
+
 static int sharkl5pro_dcam_cfg_mipicap(void *handle, void *arg)
 {
 	struct dcam_hw_cfg_mipicap *mipiarg = NULL;
@@ -1366,6 +1502,7 @@ static struct hw_io_ctrl_fun sharkl5pro_dcam_ioctl_fun_tab[] = {
 	{DCAM_HW_CFG_BINNING_4IN1_SET,      sharkl5pro_dcam_binning_4in1_set},
 	{DCAM_HW_CFG_SRAM_CTRL_SET,         sharkl5pro_dcam_sram_ctrl_set},
 	{DCAM_HW_CFG_LBUF_SHARE_SET,        sharkl5pro_dcam_lbuf_share_set},
+	{DCAM_HW_CFG_LBUF_SHARE_GET,        sharkl5pro_dcam_lbuf_share_get},
 	{DCAM_HW_CFG_SLICE_FETCH_SET,       sharkl5pro_dcam_slice_fetch_set},
 	{DCAM_HW_CFG_FBC_CTRL,              sharkl5pro_dcam_fbc_ctrl},
 	{DCAM_HW_CFG_FBC_ADDR_SET,          sharkl5pro_dcam_fbc_addr_set},
@@ -1374,6 +1511,8 @@ static struct hw_io_ctrl_fun sharkl5pro_dcam_ioctl_fun_tab[] = {
 	{DCAM_HW_CFG_GTM_LTM_DIS,           sharkl5pro_cam_gtm_ltm_dis},
 	{DCAM_HW_CFG_GTM_UPDATE,            sharkl5pro_cam_gtm_update},
 	{DCAM_HW_CFG_BLOCK_FUNC_GET,        sharkl5pro_dcam_block_func_get},
+	{DCAM_HW_CFG_BLOCKS_SETALL,        sharkl5pro_dcam_blocks_setall},
+	{DCAM_HW_CFG_BLOCKS_SETSTATIS,        sharkl5pro_dcam_blocks_setstatis},
 	{DCAM_HW_CFG_MIPICAP,               sharkl5pro_dcam_cfg_mipicap},
 	{DCAM_HW_CFG_START_FETCH,           sharkl5pro_dcam_start_fetch},
 	{DCAM_HW_CFG_BIN_MIPI,              sharkl5pro_dcam_bin_mipi_cfg},

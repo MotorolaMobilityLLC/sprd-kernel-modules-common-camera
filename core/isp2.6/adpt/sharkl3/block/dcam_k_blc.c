@@ -25,9 +25,7 @@
 #define pr_fmt(fmt) "BLC: %d %d %s : "\
 	fmt, current->pid, __LINE__, __func__
 
-enum {
-	_UPDATE_INFO = BIT(0),
-};
+
 int dcam_k_blc_block(struct dcam_dev_param *param)
 {
 	int ret = 0;
@@ -35,14 +33,7 @@ int dcam_k_blc_block(struct dcam_dev_param *param)
 	unsigned int val = 0;
 	struct dcam_dev_blc_info *p;
 
-	if (param == NULL)
-		return -EPERM;
-
 	idx = param->idx;
-	/* update ? */
-	if (!(param->blc.update & _UPDATE_INFO))
-		return 0;
-	param->blc.update &= (~(_UPDATE_INFO));
 	p = &(param->blc.blc_info);
 
 	DCAM_REG_MWR(idx, DCAM_MIPI_CAP_CFG, BIT_18, p->bypass << 18);
@@ -62,11 +53,6 @@ int dcam_k_cfg_blc(struct isp_io_param *param, struct dcam_dev_param *p)
 {
 	int ret = 0;
 
-	if (NULL == param->property_param || NULL == p) {
-		pr_err("fail to get addr,param->property_param %p,p %p\n",
-			param->property_param, p);
-		return -1;
-	}
 	/* debugfs bypass blc */
 	if (g_dcam_bypass[p->idx] & (1 << _E_BLC))
 		return 0;
@@ -76,7 +62,7 @@ int dcam_k_cfg_blc(struct isp_io_param *param, struct dcam_dev_param *p)
 		/* online mode not need mutex, response faster
 		 * Offline need mutex to protect param
 		 */
-		if (DCAM_ONLINE_MODE) {
+		if (p->offline == 0) {
 			ret = copy_from_user((void *)&(p->blc.blc_info),
 				param->property_param,
 				sizeof(p->blc.blc_info));
@@ -84,7 +70,6 @@ int dcam_k_cfg_blc(struct isp_io_param *param, struct dcam_dev_param *p)
 				pr_err("fail to copy, ret=0x%x\n", (unsigned int)ret);
 				return -EPERM;
 			}
-			p->blc.update |= _UPDATE_INFO;
 			ret = dcam_k_blc_block(p);
 		} else {
 			mutex_lock(&p->param_lock);
@@ -96,7 +81,6 @@ int dcam_k_cfg_blc(struct isp_io_param *param, struct dcam_dev_param *p)
 				pr_err("fail to copy, ret=0x%x\n", (unsigned int)ret);
 				return -EPERM;
 			}
-			p->blc.update |= _UPDATE_INFO;
 			mutex_unlock(&p->param_lock);
 		}
 		break;

@@ -26,32 +26,35 @@
 	fmt, current->pid, __LINE__, __func__
 
 static int isp_k_brightness_block
-	(struct isp_io_param *param, uint32_t idx)
+	(struct isp_io_param *param,
+	struct isp_k_block *isp_k_param, uint32_t idx)
 {
 	int ret = 0;
-	struct isp_dev_brightness_info brightness_info;
+	struct isp_dev_brightness_info *brightness_info;
 
-	memset(&brightness_info, 0x00, sizeof(brightness_info));
+	brightness_info = &isp_k_param->brightness_info;
 
-	ret = copy_from_user((void *)&brightness_info, param->property_param,
-			sizeof(brightness_info));
+	ret = copy_from_user((void *)brightness_info,
+			param->property_param,
+			sizeof(struct isp_dev_brightness_info));
 	if (ret != 0) {
 		pr_err("fail to copy from user, ret = %d\n", ret);
 		return -EPERM;
 	}
 	if (g_isp_bypass[idx] & (1 << _EISP_BRIGHT))
-		brightness_info.bypass = 1;
-	ISP_REG_MWR(idx, ISP_BRIGHT_PARAM, BIT_0, brightness_info.bypass);
-	if ((brightness_info.bypass))
+		brightness_info->bypass = 1;
+	ISP_REG_MWR(idx, ISP_BRIGHT_PARAM, BIT_0, brightness_info->bypass);
+	if ((brightness_info->bypass))
 		return 0;
 
 	ISP_REG_MWR(idx, ISP_BRIGHT_PARAM, 0x1FE,
-		((brightness_info.factor & 0xFF) << 1));
+		((brightness_info->factor & 0xFF) << 1));
 
 	return ret;
 }
 
-int isp_k_cfg_brightness(struct isp_io_param *param, uint32_t idx)
+int isp_k_cfg_brightness(struct isp_io_param *param,
+	struct isp_k_block *isp_k_param, uint32_t idx)
 {
 	int ret = 0;
 
@@ -67,7 +70,7 @@ int isp_k_cfg_brightness(struct isp_io_param *param, uint32_t idx)
 
 	switch (param->property) {
 	case ISP_PRO_BRIGHT_BLOCK:
-		ret = isp_k_brightness_block(param, idx);
+		ret = isp_k_brightness_block(param, isp_k_param, idx);
 		break;
 	default:
 		pr_err("fail to support cmd id = %d\n",

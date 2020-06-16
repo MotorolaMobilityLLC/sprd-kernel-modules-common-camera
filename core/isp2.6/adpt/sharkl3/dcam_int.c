@@ -87,6 +87,7 @@ static struct camera_frame *dcam_prepare_frame(struct dcam_pipe_dev *dev,
 	struct camera_frame *frame = NULL;
 	struct dcam_frame_synchronizer *sync = NULL;
 	struct timespec *ts = NULL;
+	uint32_t dev_fid;
 
 	if (unlikely(!dev || !is_path_id(path_id)))
 		return NULL;
@@ -119,10 +120,11 @@ static struct camera_frame *dcam_prepare_frame(struct dcam_pipe_dev *dev,
 	}
 
 	/* assign same SOF time here for each path */
-	ts = &dev->frame_ts[tsid(frame->fid)];
+	dev_fid = frame->fid - dev->base_fid;
+	ts = &dev->frame_ts[tsid(dev_fid)];
 	frame->sensor_time.tv_sec = ts->tv_sec;
 	frame->sensor_time.tv_usec = ts->tv_nsec / NSEC_PER_USEC;
-	frame->boot_sensor_time = dev->frame_ts_boot[tsid(frame->fid)];
+	frame->boot_sensor_time = dev->frame_ts_boot[tsid(dev_fid)];
 
 	if (frame->sync_data) {
 		sync = (struct dcam_frame_synchronizer *)frame->sync_data;
@@ -134,7 +136,7 @@ static struct camera_frame *dcam_prepare_frame(struct dcam_pipe_dev *dev,
 	pr_debug("DCAM%u %s: TX DONE, fid %u, sync 0x%p\n",
 		 dev->idx, to_path_name(path_id), frame->fid, frame->sync_data);
 
-	if (!frame->boot_sensor_time) {
+	if (!dev->rps && !frame->boot_sensor_time) {
 		pr_info("DCAM%u %s fid %u invalid 0 timestamp\n",
 			dev->idx, to_path_name(path_id), frame->fid);
 		if (frame->is_reserved)
@@ -190,7 +192,7 @@ static void dcam_dispatch_sof_event(struct dcam_pipe_dev *dev)
 		frame->evt = IMG_TX_DONE;
 		frame->irq_type = CAMERA_IRQ_DONE;
 		frame->irq_property = IRQ_DCAM_SOF;
-		frame->fid = dev->frame_index;
+		frame->fid = dev->base_fid + dev->frame_index;
 		dev->dcam_cb_func(DCAM_CB_IRQ_EVENT, frame, dev->cb_priv_data);
 	}
 }
@@ -232,7 +234,7 @@ static void dcam_fix_index(struct dcam_pipe_dev *dev,
 						struct camera_frame,
 						list);
 			list_del(&frame->list);
-			frame->fid = begin - 1;
+			frame->fid = dev->base_fid + begin - 1;
 			if (i == DCAM_PATH_BIN) {
 				frame->fid += j;
 			} else if (i == DCAM_PATH_AEM) {
@@ -351,7 +353,7 @@ static enum dcam_fix_result dcam_fix_index_if_needed(struct dcam_pipe_dev *dev)
 			frame = camera_dequeue_tail(&path->result_queue);
 			if (frame == NULL)
 				continue;
-			frame->fid = dev->frame_index;
+			frame->fid = dev->base_fid + dev->frame_index;
 			camera_enqueue(&path->result_queue, &frame->list);
 		}
 
@@ -414,6 +416,54 @@ static enum dcam_fix_result dcam_fix_index_if_needed(struct dcam_pipe_dev *dev)
 	}
 }
 
+static void dcam_debug_dump(
+	struct dcam_pipe_dev *dev, struct dcam_dev_param *pm)
+{
+	int size;
+	struct timespec *frame_ts;
+	struct camera_frame *frame = NULL;
+	struct debug_base_info *base_info;
+	void *pm_data;
+
+	dev->dcam_cb_func(DCAM_CB_GET_PMBUF,
+		(void *)&frame, dev->cb_priv_data);
+	if (frame == NULL)
+		return;
+
+	base_info = (struct debug_base_info *)frame->buf.addr_k[0];
+	if (base_info == NULL) {
+		put_empty_frame(frame);
+		return;
+	}
+	base_info->cam_id = -1;
+	base_info->dcam_cid = dev->idx;
+	base_info->isp_cid = -1;
+	base_info->scene_id = PM_SCENE_PRE;
+	base_info->frame_id = dev->base_fid + dev->frame_index;
+
+	frame_ts = &dev->frame_ts[tsid(dev->frame_index)];
+	base_info->sec =  frame_ts->tv_sec;
+	base_info->usec = frame_ts->tv_nsec / NSEC_PER_USEC;
+
+	frame->fid = base_info->frame_id;
+	frame->sensor_time.tv_sec = base_info->sec;
+	frame->sensor_time.tv_usec = base_info->usec;
+
+	pm_data = (void *)(base_info + 1);
+	size = dcam_k_dump_pm(pm_data, (void *)pm);
+	if (size >= 0)
+		base_info->size = (int32_t)size;
+	else
+		base_info->size = 0;
+
+	pr_debug("dcam%d, scene %d  fid %d  dsize %d\n",
+		base_info->dcam_cid, base_info->scene_id,
+		base_info->frame_id, base_info->size);
+
+	dev->dcam_cb_func(DCAM_CB_STATIS_DONE,
+		frame, dev->cb_priv_data);
+}
+
 /*
  * Set buffer and update parameters. Fix potential index error issued by
  * interrupt delay.
@@ -430,6 +480,11 @@ static void dcam_cap_sof(void *param)
 	struct dcam_hw_auto_copy copyarg;
 	unsigned long flag;
 	int i;
+
+	if (dev->offline) {
+		pr_info("dcam%d offline\n", dev->idx);
+		return;
+	}
 
 	pr_debug("DCAM%d cap_sof\n", dev->idx);
 	hw = dev->hw;
@@ -501,7 +556,7 @@ static void dcam_cap_sof(void *param)
 
 	if (helper) {
 		if (helper->enabled)
-			helper->sync.index = dev->index_to_set;
+			helper->sync.index = dev->base_fid + dev->index_to_set;
 		else
 			dcam_put_sync_helper(dev, helper);
 	}
@@ -521,7 +576,7 @@ dispatch_sof:
 	dev->iommu_status = (uint32_t)(-1);
 
 	if (dev->flash_skip_fid == 0)
-		dev->flash_skip_fid = dev->frame_index;
+		dev->flash_skip_fid = dev->base_fid + dev->frame_index;
 	pframe = get_empty_frame();
 	if (pframe) {
 		pframe->evt = IMG_TX_DONE;
@@ -531,6 +586,7 @@ dispatch_sof:
 		dev->dcam_cb_func(DCAM_CB_IRQ_EVENT, pframe, dev->cb_priv_data);
 		dev->flash_skip_fid = 0;
 	}
+	dcam_debug_dump(dev, &dev->ctx[0].blk_pm);
 	dev->frame_index++;
 }
 
@@ -540,6 +596,11 @@ static void dcam_preview_sof(void *param)
 	struct dcam_pipe_dev *dev = (struct dcam_pipe_dev *)param;
 	struct dcam_path_desc *path = NULL;
 	int i = 0;
+
+	if (dev->offline) {
+		pr_info("dcam%d offline\n", dev->idx);
+		return;
+	}
 
 	dev->frame_index += dev->slowmotion_count;
 	pr_debug("DCAM%u cnt=%d, fid: %u\n", dev->idx,
@@ -563,6 +624,11 @@ static void dcam_sensor_eof(void *param)
 {
 	struct camera_frame *pframe;
 	struct dcam_pipe_dev *dev = (struct dcam_pipe_dev *)param;
+
+	if (dev->offline) {
+		pr_info("dcam%d offline\n", dev->idx);
+		return;
+	}
 
 	pframe = get_empty_frame();
 	if (pframe) {
@@ -627,7 +693,7 @@ static void dcam_bin_path_done(void *param)
 	}
 
 	if (dev->offline) {
-		if(dev->dcam_slice_mode)
+		if(dev->slice_num > 0)
 			complete(&dev->slice_done);
 	}
 

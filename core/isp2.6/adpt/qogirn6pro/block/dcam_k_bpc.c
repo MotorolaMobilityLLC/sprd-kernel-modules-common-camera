@@ -25,10 +25,6 @@
 #define pr_fmt(fmt) "BPC: %d %d %s : "\
 	fmt, current->pid, __LINE__, __func__
 
-enum {
-	_UPDATE_BLOCK = BIT(0),
-	_UPDATE_PPE = BIT(1),
-};
 
 int dcam_k_bpc_block(struct dcam_dev_param *param)
 {
@@ -37,16 +33,10 @@ int dcam_k_bpc_block(struct dcam_dev_param *param)
 	int i = 0;
 	uint32_t val = 0;
 	struct dcam_dev_bpc_info *p; /* bpc_info; */
-	if (param == NULL) {
-		pr_err("fail to check param\n");
-		return -1;
-	}
 
 	idx = param->idx;
-	if (!(param->bpc.update & _UPDATE_BLOCK))
-		return 0;
-	param->bpc.update &= (~(_UPDATE_BLOCK));
 	p = &(param->bpc.bpc_param.bpc_info);
+
 	/* debugfs bpc not bypass then write*/
 	if (g_dcam_bypass[idx] & (1 << _E_BPC))
 		p->bpc_bypass = 1;
@@ -132,9 +122,6 @@ int dcam_k_bpc_ppe_param(struct dcam_dev_param *param)
 	uint32_t val = 0;
 	struct dcam_bpc_ppi_info *p;
 
-	if (!(param->bpc.update & _UPDATE_PPE))
-		return 0;
-	param->bpc.update &= (~(_UPDATE_PPE));
 	p = &(param->bpc.ppi_info);
 
 	val = ((p->ppi_phase_map_corr_en & 1) << 3) | (p->ppi_bypass & 1);
@@ -194,7 +181,6 @@ int dcam_k_cfg_bpc(struct isp_io_param *param, struct dcam_dev_param *p)
 	{
 		dst_ptr = (void *)&p->bpc.bpc_param.bpc_info;
 		dst_size = sizeof(struct dcam_dev_bpc_info);
-		p->bpc.update |= _UPDATE_BLOCK;
 		sub_func = dcam_k_bpc_block;
 		break;
 	}
@@ -202,7 +188,6 @@ int dcam_k_cfg_bpc(struct isp_io_param *param, struct dcam_dev_param *p)
 	{
 		dst_ptr = (void *)&p->bpc.ppi_info;
 		dst_size = sizeof(struct dcam_bpc_ppi_info);
-		p->bpc.update |= _UPDATE_PPE;
 		sub_func = dcam_k_bpc_ppe_param;
 		break;
 	}
@@ -213,7 +198,7 @@ int dcam_k_cfg_bpc(struct isp_io_param *param, struct dcam_dev_param *p)
 		return ret;
 	}
 
-	if (DCAM_ONLINE_MODE) {
+	if (p->offline == 0) {
 		ret = copy_from_user(dst_ptr,
 				param->property_param,
 				dst_size);

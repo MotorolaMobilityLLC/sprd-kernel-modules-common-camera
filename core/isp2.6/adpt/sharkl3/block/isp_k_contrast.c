@@ -25,32 +25,35 @@
 #define pr_fmt(fmt) "CONTRAST: %d %d %s : "\
 	fmt, current->pid, __LINE__, __func__
 
-static int isp_k_contrast_block(struct isp_io_param *param, uint32_t idx)
+static int isp_k_contrast_block(struct isp_io_param *param,
+	struct isp_k_block *isp_k_param, uint32_t idx)
 {
 	int ret = 0;
-	struct isp_dev_contrast_info contrast_info;
+	struct isp_dev_contrast_info *contrast_info;
 
-	memset(&contrast_info, 0x00, sizeof(contrast_info));
+	contrast_info = &isp_k_param->contrast_info;
 
-	ret = copy_from_user((void *)&contrast_info, param->property_param,
-			sizeof(contrast_info));
+	ret = copy_from_user((void *)contrast_info,
+			param->property_param,
+			sizeof(struct isp_dev_contrast_info));
 	if (ret != 0) {
 		pr_err("fail to copy from user, ret = %d\n", ret);
 		return -EPERM;
 	}
 	if (g_isp_bypass[idx] & (1 << _EISP_CONTRAST))
-		contrast_info.bypass = 1;
-	ISP_REG_MWR(idx, ISP_CONTRAST_PARAM, BIT_0, contrast_info.bypass);
-	if (contrast_info.bypass)
+		contrast_info->bypass = 1;
+	ISP_REG_MWR(idx, ISP_CONTRAST_PARAM, BIT_0, contrast_info->bypass);
+	if (contrast_info->bypass)
 		return 0;
 
 	ISP_REG_MWR(idx, ISP_CONTRAST_PARAM,
-			0x1FE, (contrast_info.factor << 1));
+			0x1FE, (contrast_info->factor << 1));
 
 	return ret;
 }
 
-int isp_k_cfg_contrast(struct isp_io_param *param, uint32_t idx)
+int isp_k_cfg_contrast(struct isp_io_param *param,
+	struct isp_k_block *isp_k_param, uint32_t idx)
 {
 	int ret = 0;
 
@@ -66,7 +69,7 @@ int isp_k_cfg_contrast(struct isp_io_param *param, uint32_t idx)
 
 	switch (param->property) {
 	case ISP_PRO_CONTRAST_BLOCK:
-		ret = isp_k_contrast_block(param, idx);
+		ret = isp_k_contrast_block(param, isp_k_param, idx);
 		break;
 	default:
 		pr_err("fail to support cmd id = %d\n",

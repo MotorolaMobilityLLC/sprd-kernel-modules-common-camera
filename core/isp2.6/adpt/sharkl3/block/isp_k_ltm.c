@@ -28,15 +28,3 @@ int isp_ltm_config_param(struct isp_ltm_ctx_desc *ctx,
 		enum isp_ltm_region ltm_id){
 	return 0;
 }
-
-int isp_k_cfg_rgb_ltm(struct isp_io_param *param,
-		struct isp_k_block *isp_k_param, uint32_t idx)
-{
-	return 0;
-}
-
-int isp_k_cfg_yuv_ltm(struct isp_io_param *param,
-		struct isp_k_block *isp_k_param, uint32_t idx)
-{
-	return 0;
-}

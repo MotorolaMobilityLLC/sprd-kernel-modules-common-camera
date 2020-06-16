@@ -25,23 +25,20 @@
 	fmt, current->pid, __LINE__, __func__
 
 enum {
-	_UPDATE_INFO = BIT(0),
+	_UPDATE_ROI = BIT(0),
 };
 
 int dcam_k_bayerhist_block(struct dcam_dev_param *param)
 {
 	struct dcam_pipe_dev *dev;
 	int ret = 0;
-	uint32_t idx = param->idx;
+	uint32_t idx = 0;
 	struct dcam_dev_hist_info *p;
-
 
 	if (param == NULL)
 		return -1;
-	/* update ? */
-	if (!(param->hist.update & _UPDATE_INFO))
-		return 0;
-	param->hist.update &= (~(_UPDATE_INFO));
+
+	idx = param->idx;
 	p = &(param->hist.bayerHist_info);
 	DCAM_REG_MWR(idx, DCAM_HIST_FRM_CTRL0, BIT_0, p->hist_bypass);
 	if (p->hist_bypass)
@@ -84,13 +81,12 @@ int dcam_k_bayerhist_roi(struct dcam_dev_param *param)
 	uint32_t idx = param->idx;
 	struct dcam_dev_hist_info *p;
 
-
 	if (param == NULL)
 		return -1;
 	/* update ? */
-	if (!(param->hist.update & _UPDATE_INFO))
+	if (!(param->hist.update & _UPDATE_ROI))
 		return 0;
-	param->hist.update &= (~(_UPDATE_INFO));
+	param->hist.update &= (~(_UPDATE_ROI));
 	p = &(param->hist.bayerHist_info);
 	DCAM_REG_MWR(idx, DCAM_HIST_FRM_CTRL0, BIT_0, p->hist_bypass);
 	if (p->hist_bypass)
@@ -160,20 +156,21 @@ int dcam_k_cfg_bayerhist(struct isp_io_param *param,
 
 		spin_lock_irqsave(&path->size_lock, flags);
 		p->hist.bayerHist_info = cur;
-		p->hist.update |= _UPDATE_INFO;
+		p->hist.update |= _UPDATE_ROI;
 		spin_unlock_irqrestore(&path->size_lock, flags);
 
 		if (atomic_read(&dev->state) != STATE_RUNNING) {
 			ret = dcam_k_bayerhist_block(p);
-			pr_debug("dcam%d config hist %d, win (%d %d %d %d)\n", dev->idx,
-				cur.hist_bypass, cur.bayer_hist_stx, cur.bayer_hist_sty,
+			pr_debug("dcam%d config hist %d, win (%d %d %d %d)\n",
+				p->idx, cur.hist_bypass,
+				cur.bayer_hist_stx, cur.bayer_hist_sty,
 				cur.bayer_hist_endx, cur.bayer_hist_endy);
 		} else {
-			pr_debug("dcam%d re-config hist %d, win (%d %d %d %d)\n", dev->idx,
-				cur.hist_bypass, cur.bayer_hist_stx, cur.bayer_hist_sty,
+			pr_debug("dcam%d re-config hist %d, win (%d %d %d %d)\n",
+				p->idx, cur.hist_bypass,
+				cur.bayer_hist_stx, cur.bayer_hist_sty,
 				cur.bayer_hist_endx, cur.bayer_hist_endy);
 		}
-
 		break;
 	}
 	default:
