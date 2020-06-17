@@ -1640,19 +1640,22 @@ dequeue:
 		if (atomic_read(&path->user_cnt) < 1)
 			continue;
 		pframe = camera_dequeue_tail(&path->result_queue);
-		/* ret frame to original queue */
-		if (pframe->is_reserved)
-			camera_enqueue(
-				&path->reserved_buf_queue, &pframe->list);
-		else
-			camera_enqueue(
-				&path->out_buf_queue, &pframe->list);
+		if (pframe) {
+			/* ret frame to original queue */
+			if (pframe->is_reserved)
+				camera_enqueue(
+					&path->reserved_buf_queue, &pframe->list);
+			else
+				camera_enqueue(
+					&path->out_buf_queue, &pframe->list);
+		}
 		atomic_dec(&path->store_cnt);
 	}
 
 	pframe = camera_dequeue_tail(&pctx->proc_queue);
 inq_overflow:
-	cambuf_iommu_unmap(&pframe->buf);
+	if (pframe)
+		cambuf_iommu_unmap(&pframe->buf);
 map_err:
 input_err:
 	if (pframe) {

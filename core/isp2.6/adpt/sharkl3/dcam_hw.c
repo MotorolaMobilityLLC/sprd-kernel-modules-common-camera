@@ -159,7 +159,7 @@ static int sharkl3_dcam_axi_init(void *handle, void *arg)
 			ip->syscon.all_rst_mask, ~(ip->syscon.all_rst_mask));
 	}
 
-	hw->dcam_ioctl(hw, DCAM_AXIM_AQOS_MASK, NULL);
+	hw->dcam_ioctl(hw, DCAM_HW_CFG_SET_QOS, NULL);
 	/* the end, enable AXI writing */
 	DCAM_AXIM_MWR(AXIM_CTRL, BIT_24 | BIT_23, (0x0 << 23));
 
