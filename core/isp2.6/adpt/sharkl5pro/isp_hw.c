@@ -177,9 +177,14 @@ static int sharkl5pro_cam_bypass_data_get(void *handle, void *arg)
 }
 
 static uint32_t sharkl5pro_cam_reg_trace_tab[] = {
-	DCAM_CFG,
 	DCAM_APB_SRAM_CTRL,
+	DCAM_MIPI_CAP_CFG,
 	DCAM_IMAGE_CONTROL,
+	DCAM_CAP_FRM_CLR,
+	DCAM_FULL_CFG,
+	DCAM_FULL_PATH_STATUS,
+	DCAM_CAM_BIN_CFG,
+	DCAM_BIN_PATH_STATUS,
 	DCAM_PDAF_CONTROL,
 	DCAM_LENS_LOAD_ENABLE,
 	ISP_BPC_PARAM,
