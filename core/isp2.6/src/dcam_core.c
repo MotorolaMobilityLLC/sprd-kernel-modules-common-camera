@@ -56,6 +56,8 @@ struct statis_path_buf_info s_statis_path_info_all[] = {
 atomic_t s_dcam_working;
 atomic_t s_dcam_axi_opened;
 atomic_t s_dcam_opened[DCAM_ID_MAX];
+static DEFINE_MUTEX(s_dcam_dev_mutex);
+static struct dcam_pipe_dev *s_dcam_dev[DCAM_ID_MAX];
 
 /*
  * set MIPI capture related register
@@ -2534,12 +2536,14 @@ static int sprd_dcam_dev_open(void *dcam_handle)
 		pr_err("fail to get valid input ptr\n");
 		return -EFAULT;
 	}
+	mutex_lock(&s_dcam_dev_mutex);
 	dev = (struct dcam_pipe_dev *)dcam_handle;
 
 	ret = atomic_read(&dev->state);
 	if (unlikely(ret != STATE_INIT)) {
 		pr_err("fail to get a valid dev state, DCAM%u, state=%d\n",
 			dev->idx, ret);
+		mutex_unlock(&s_dcam_dev_mutex);
 		return -EINVAL;
 	}
 
@@ -2603,6 +2607,7 @@ static int sprd_dcam_dev_open(void *dcam_handle)
 	/* for debugfs */
 	atomic_inc(&s_dcam_opened[dev->idx]);
 
+	mutex_unlock(&s_dcam_dev_mutex);
 	pr_info("open dcam pipe dev[%d]!\n", dev->idx);
 
 	return 0;
@@ -2618,6 +2623,7 @@ exit:
 		dev->path[DCAM_PATH_BIN].rds_coeff_buf = NULL;
 		dev->path[DCAM_PATH_BIN].rds_coeff_size = 0;
 	}
+	mutex_unlock(&s_dcam_dev_mutex);
 	pr_info("fail to open dcam pipe dev[%d]!\n", dev->idx);
 
 	return ret;
@@ -2700,9 +2706,6 @@ uint32_t dcam_if_get_open_count(void)
 {
 	return atomic_read(&s_dcam_axi_opened);
 }
-
-static DEFINE_MUTEX(s_dcam_dev_mutex);
-static struct dcam_pipe_dev *s_dcam_dev[DCAM_ID_MAX];
 
 /*
  * Create a dcam_pipe_dev for designated cam_hw_info.

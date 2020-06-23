@@ -228,6 +228,7 @@ int cambuf_get_ionbuf(struct camera_buf *buf_info)
 			if (IS_ERR_OR_NULL(buf_info->dmabuf_p[i])) {
 				pr_err("fail to get dma buf %p\n",
 						buf_info->dmabuf_p[i]);
+				ret = -EINVAL;
 				goto failed;
 			}
 			if (g_mem_dbg)
@@ -242,7 +243,7 @@ failed:
 	for (i = 0; i < 3; i++) {
 		if (buf_info->mfd[i] <= 0)
 			continue;
-		if (buf_info->dmabuf_p[i]) {
+		if (!IS_ERR_OR_NULL(buf_info->dmabuf_p[i])) {
 			dma_buf_put(buf_info->dmabuf_p[i]);
 			buf_info->dmabuf_p[i] = NULL;
 			if (g_mem_dbg)
@@ -272,7 +273,7 @@ int cambuf_put_ionbuf(struct camera_buf *buf_info)
 	for (i = 0; i < 3; i++) {
 		if (buf_info->mfd[i] <= 0)
 			continue;
-		if (buf_info->dmabuf_p[i]) {
+		if (!IS_ERR_OR_NULL(buf_info->dmabuf_p[i])) {
 			dma_buf_put(buf_info->dmabuf_p[i]);
 			buf_info->dmabuf_p[i] = NULL;
 			if (g_mem_dbg)

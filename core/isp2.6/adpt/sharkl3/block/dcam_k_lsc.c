@@ -67,6 +67,11 @@ int dcam_init_lsc(void *in, uint32_t online)
 	}
 
 	idx = dev->idx;
+	if (idx == DCAM_ID_1 && DCAM_FIRST_FETCH(dev)){
+		pr_debug("lsc no need init\n");
+		return 0;
+	}
+
 	info = &param->lens_info;
 	param->update = 0;
 
