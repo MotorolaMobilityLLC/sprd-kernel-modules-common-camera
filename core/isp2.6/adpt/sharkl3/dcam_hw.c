@@ -194,6 +194,7 @@ static int sharkl3_dcam_start(void *handle, void *arg)
 	uint32_t image_vc = 0;
 	uint32_t image_data_type = IMG_TYPE_RAW;
 	uint32_t image_mode = 1;
+	uint32_t line_en = 0;
 
 	if (!arg) {
 		pr_err("fail to get valid arg\n");
@@ -210,7 +211,11 @@ static int sharkl3_dcam_start(void *handle, void *arg)
 
 	DCAM_REG_WR(parm->idx, DCAM_INT_CLR, 0xFFFFFFFF);
 	/* see DCAM_PREVIEW_SOF in dcam_int.h for details */
-	DCAM_REG_WR(parm->idx, DCAM_INT_EN, DCAMINT_IRQ_LINE_EN_NORMAL);
+	if (parm->idx != DCAM_ID_2)
+		line_en = DCAMINT_IRQ_LINE_EN_NORMAL;
+	else
+		line_en = DCAM2INT_IRQ_LINE_EN_NORMAL;
+	DCAM_REG_WR(parm->idx, DCAM_INT_EN, line_en);
 	/* trigger cap_en*/
 	DCAM_REG_MWR(parm->idx, DCAM_CFG, BIT_0, 1);
 
@@ -351,6 +356,7 @@ static int sharkl3_dcam_reset(void *handle, void *arg)
 	struct cam_hw_soc_info *soc = NULL;
 	struct cam_hw_ip_info *ip = NULL;
 	uint32_t bypass, eb;
+	uint32_t line_mask;
 
 	if (!handle || !arg) {
 		pr_err("fail to get input para\n");
@@ -371,10 +377,13 @@ static int sharkl3_dcam_reset(void *handle, void *arg)
 	for (i = 0x200; i < 0x400; i += 4)
 		DCAM_REG_WR(idx, i, 0);
 
-	DCAM_REG_MWR(idx, DCAM_INT_CLR,
-		DCAMINT_IRQ_LINE_MASK, DCAMINT_IRQ_LINE_MASK);
-	DCAM_REG_MWR(idx, DCAM_INT_EN,
-		DCAMINT_IRQ_LINE_MASK, DCAMINT_IRQ_LINE_MASK);
+	if (idx != DCAM_ID_2)
+		line_mask = DCAMINT_IRQ_LINE_MASK;
+	else
+		line_mask = DCAM2INT_IRQ_LINE_MASK;
+
+	DCAM_REG_MWR(idx, DCAM_INT_CLR, line_mask, line_mask);
+	DCAM_REG_MWR(idx, DCAM_INT_EN, line_mask, line_mask);
 
 	/* disable internal logic access sram */
 	DCAM_REG_MWR(idx, DCAM_APB_SRAM_CTRL, BIT_0, 0);
@@ -604,7 +613,10 @@ static int sharkl3_dcam_mipi_cap_set(void *handle, void *arg)
 
 	/* data format */
 	if (cap_info->format == DCAM_CAP_MODE_RAWRGB) {
-		DCAM_REG_MWR(idx, DCAM_MIPI_CAP_CFG, BIT_1, 1 << 1);
+		if (idx != DCAM_ID_2)
+			DCAM_REG_MWR(idx, DCAM_MIPI_CAP_CFG, BIT_1, BIT_1);
+		else
+			DCAM_REG_MWR(idx, DCAM_MIPI_CAP_CFG, BIT_1 | BIT_0, BIT_0);
 		DCAM_REG_MWR(idx, DCAM_MIPI_CAP_CFG, BIT_17 | BIT_16,
 				cap_info->pattern << 16);
 	} else if (cap_info->format == DCAM_CAP_MODE_YUV) {
