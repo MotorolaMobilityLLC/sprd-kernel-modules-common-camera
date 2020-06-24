@@ -23,7 +23,6 @@
 
 #include "isp_interface.h"
 #include "isp_reg.h"
-/* To include IOMMU relared registers which are common in both DCAM & ISP */
 #include "dcam_reg.h"
 #include "isp_int.h"
 #include "isp_core.h"
@@ -33,8 +32,6 @@
 #endif
 #define pr_fmt(fmt) "ISP_INT: %d %d %s : "\
 	fmt, current->pid, __LINE__, __func__
-
-
 
 typedef void(*isp_isr)(enum isp_context_hw_id idx, void *param);
 
@@ -166,6 +163,7 @@ static void isp_all_done(enum isp_context_hw_id hw_idx, void *isp_handle)
 		complete(&pctx->slice_done);
 		pr_debug("frame done.\n");
 	}
+
 	pctx->postproc_func(dev, idx, POSTPROC_FRAME_DONE);
 }
 
@@ -311,9 +309,9 @@ static struct camera_frame *isp_hist2_frame_prepare(enum isp_context_id idx,
 	buf = (uint32_t *)frame->buf.addr_k[0];
 
 	if (!frame->buf.addr_k[0]) {
-		pr_err("fail to get addr,err: null ptr\n");
+		pr_err("fail to get valid ptr\n");
 		if (camera_enqueue(&pctx->hist2_result_queue, &frame->list) < 0)
-			pr_err("fail to enqueue,fatal err\n");
+			pr_err("fail to enqueue\n");
 		return NULL;
 	}
 	for (i = 0; i < max_item; i++)
@@ -468,10 +466,9 @@ static irqreturn_t isp_isr_root(int irq, void *priv)
 	uint32_t val;
 
 	if (!isp_handle) {
-		pr_err("fail to get isp_handle: null dev\n");
+		pr_err("fail to get valid dev\n");
 		return IRQ_HANDLED;
 	}
-	pr_debug("isp irq %d, %p\n", irq, priv);
 
 	if (irq == isp_handle->irq_no[0]) {
 		iid = 0;
@@ -499,8 +496,8 @@ static irqreturn_t isp_isr_root(int irq, void *priv)
 		}
 
 		sw_ctx_id = isp_get_sw_context_id(c_id, isp_handle);
-		pr_debug(" sw %d, hw %d, irq_line: %08x\n",
-			sw_ctx_id, c_id , irq_line);
+		pr_debug("sw %d, hw %d, irq_line: %08x\n",
+			sw_ctx_id, c_id, irq_line);
 
 		if (sw_ctx_id < 0) {
 			ISP_HREG_WR(irq_offset + ISP_INT_CLR0, irq_line);
@@ -541,19 +538,17 @@ static irqreturn_t isp_isr_root(int irq, void *priv)
 			}
 		}
 
-		mmu_irq_line = ISP_HREG_RD(ISP_MMU_INT_BASE +
-				ISP_MMU_INT_MASKED_STS);
+		mmu_irq_line = ISP_MMU_RD(ISP_MMU_INT_STS);
 		if (unlikely(ISP_INT_LINE_MASK_MMU & mmu_irq_line)) {
 			pr_info("ISP ctx%d status 0x%x\n", sw_ctx_id, irq_line);
 			ctx = &isp_handle->ctx[sw_ctx_id];
-			val = ISP_MMU_RD(ISP_MMU_INT_MASKED_STS);
+			val = ISP_MMU_RD(ISP_MMU_INT_STS);
 
 			if (val != ctx->iommu_status) {
 				ctx->iommu_status = val;
 				isp_dump_iommu_regs();
 			}
-			ISP_HREG_WR(ISP_MMU_INT_BASE + ISP_MMU_INT_CLR,
-					mmu_irq_line);
+			ISP_MMU_WR(ISP_MMU_INT_CLR, mmu_irq_line);
 		}
 
 		for (k = 0; k < irq_numbers; k++) {
@@ -584,7 +579,7 @@ int isp_irq_request(struct device *p_dev,
 	struct isp_pipe_dev *ispdev;
 
 	if (!p_dev || !isp_handle || !irq_no) {
-		pr_err("fail to get Input ptr: p_dev,isp_handle,irq_no  %p, %p,%p;\n",
+		pr_err("fail to get valid input ptr p_dev %p isp_handle %p irq_no %p\n",
 			p_dev, isp_handle, irq_no);
 		return -EFAULT;
 	}
@@ -687,7 +682,7 @@ int isp_irq_free(struct device *p_dev, void *isp_handle)
 
 	ispdev = (struct isp_pipe_dev *)isp_handle;
 	if (!ispdev) {
-		pr_err("fail to get valid input ptr: ispdev = %p \n", ispdev);
+		pr_err("fail to get valid input ptr\n");
 		return -EFAULT;
 	}
 

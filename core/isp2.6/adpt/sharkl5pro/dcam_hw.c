@@ -157,6 +157,7 @@ static int sharkl5pro_dcam_axi_init(void *handle, void *arg)
 	}
 
 	hw->dcam_ioctl(hw, DCAM_HW_CFG_SET_QOS, NULL);
+
 	/* the end, enable AXI writing */
 	DCAM_AXIM_MWR(AXIM_CTRL, BIT_24 | BIT_23, (0x0 << 23));
 
@@ -198,6 +199,7 @@ static int sharkl5pro_dcam_start(void *handle, void *arg)
 	}
 
 	parm = (struct dcam_hw_start *)arg;
+
 	DCAM_REG_WR(parm->idx, DCAM_INT_CLR, 0xFFFFFFFF);
 	/* see DCAM_PREVIEW_SOF in dcam_int.h for details */
 	DCAM_REG_WR(parm->idx, DCAM_INT_EN, DCAMINT_IRQ_LINE_EN_NORMAL);
@@ -208,6 +210,7 @@ static int sharkl5pro_dcam_start(void *handle, void *arg)
 	reg_val = ((image_vc & 0x3) << 16) |
 		((image_data_type & 0x3F) << 8) | (image_mode & 0x3);
 	DCAM_REG_WR(parm->idx, DCAM_IMAGE_CONTROL, reg_val);
+
 	/* trigger cap_en*/
 	DCAM_REG_MWR(parm->idx, DCAM_MIPI_CAP_CFG, BIT_0, 1);
 
@@ -440,7 +443,7 @@ static int sharkl5pro_dcam_fetch_set(void *handle, void *arg)
 {
 	int ret = 0;
 	uint32_t fetch_pitch;
-	struct dcam_hw_fetch_set *fetcharg = NULL;
+	struct dcam_hw_fetch_set *fetch = NULL;
 
 	pr_debug("enter.\n");
 
@@ -449,39 +452,39 @@ static int sharkl5pro_dcam_fetch_set(void *handle, void *arg)
 		return -EFAULT;
 	}
 
-	fetcharg = (struct dcam_hw_fetch_set *)arg;
+	fetch = (struct dcam_hw_fetch_set *)arg;
 	/* !0 is loose */
-	if (fetcharg->fetch->is_loose != 0) {
-		fetch_pitch = (fetcharg->fetch->size.w * 16 + 127) / 128;
+	if (fetch->fetch_info->is_loose != 0) {
+		fetch_pitch = (fetch->fetch_info->size.w * 16 + 127) / 128;
 	} else {
-		fetch_pitch = (fetcharg->fetch->size.w * 10 + 127) / 128;
+		fetch_pitch = (fetch->fetch_info->size.w * 10 + 127) / 128;
 	}
 	pr_info("size [%d %d], start %d, pitch %d, 0x%x\n",
-		fetcharg->fetch->trim.size_x, fetcharg->fetch->trim.size_y,
-		fetcharg->fetch->trim.start_x, fetch_pitch, fetcharg->fetch->addr.addr_ch0);
+		fetch->fetch_info->trim.size_x, fetch->fetch_info->trim.size_y,
+		fetch->fetch_info->trim.start_x, fetch_pitch, fetch->fetch_info->addr.addr_ch0);
 	/* (bitfile)unit 32b,(spec)64b */
 
-	DCAM_REG_MWR(fetcharg->idx, DCAM_INT_CLR,
+	DCAM_REG_MWR(fetch->idx, DCAM_INT_CLR,
 		DCAMINT_IRQ_LINE_MASK, DCAMINT_IRQ_LINE_MASK);
-	DCAM_REG_MWR(fetcharg->idx, DCAM_INT_EN,
+	DCAM_REG_MWR(fetch->idx, DCAM_INT_EN,
 		DCAMINT_IRQ_LINE_MASK, DCAMINT_IRQ_LINE_MASK);
-	DCAM_REG_MWR(fetcharg->idx,
+	DCAM_REG_MWR(fetch->idx,
 		DCAM_MIPI_CAP_CFG, BIT_12, 0x1 << 12);
-	DCAM_REG_MWR(fetcharg->idx,
+	DCAM_REG_MWR(fetch->idx,
 		DCAM_MIPI_CAP_CFG, BIT_1, 0x1 << 1);
-	DCAM_REG_MWR(fetcharg->idx,
+	DCAM_REG_MWR(fetch->idx,
 		DCAM_MIPI_CAP_CFG, BIT_3, 0x0 << 3);
-	DCAM_REG_MWR(fetcharg->idx, DCAM_BAYER_INFO_CFG,
-		BIT_5 | BIT_4, (fetcharg->fetch->pattern & 3) << 4);
+	DCAM_REG_MWR(fetch->idx, DCAM_BAYER_INFO_CFG,
+		BIT_5 | BIT_4, (fetch->fetch_info->pattern & 3) << 4);
 	DCAM_AXIM_MWR(IMG_FETCH_CTRL,
-		BIT_1 | BIT_0, fetcharg->fetch->is_loose);
+		BIT_1 | BIT_0, fetch->fetch_info->is_loose);
 	DCAM_AXIM_MWR(IMG_FETCH_CTRL,
-		BIT_3 | BIT_2, fetcharg->fetch->endian << 2);
+		BIT_3 | BIT_2, fetch->fetch_info->endian << 2);
 	DCAM_AXIM_WR(IMG_FETCH_SIZE,
-		(fetcharg->fetch->trim.size_y << 16) | (fetcharg->fetch->trim.size_x & 0xffff));
+		(fetch->fetch_info->trim.size_y << 16) | (fetch->fetch_info->trim.size_x & 0xffff));
 	DCAM_AXIM_WR(IMG_FETCH_X,
-		(fetch_pitch << 16) | (fetcharg->fetch->trim.start_x & 0xffff));
-	DCAM_AXIM_WR(IMG_FETCH_RADDR, fetcharg->fetch->addr.addr_ch0);
+		(fetch_pitch << 16) | (fetch->fetch_info->trim.start_x & 0xffff));
+	DCAM_AXIM_WR(IMG_FETCH_RADDR, fetch->fetch_info->addr.addr_ch0);
 
 	pr_info("done.\n");
 
@@ -611,6 +614,7 @@ static int sharkl5pro_dcam_path_start(void *handle, void *arg)
 	}
 
 	patharg = (struct dcam_hw_path_start *)arg;
+
 	switch (patharg->path_id) {
 	case  DCAM_PATH_FULL:
 		DCAM_REG_MWR(patharg->idx, DCAM_PATH_ENDIAN,
@@ -627,7 +631,9 @@ static int sharkl5pro_dcam_path_start(void *handle, void *arg)
 
 		if (patharg->cap_info.format == DCAM_CAP_MODE_YUV)
 			DCAM_REG_MWR(patharg->idx, DCAM_CAM_BIN_CFG, BIT_0, 0x1);
+
 		break;
+
 	case  DCAM_PATH_BIN:
 		DCAM_REG_MWR(patharg->idx, DCAM_PATH_ENDIAN,
 			BIT_3 | BIT_2, patharg->endian.y_endian << 2);
@@ -647,6 +653,7 @@ static int sharkl5pro_dcam_path_start(void *handle, void *arg)
 		if (patharg->is_pdaf)
 			DCAM_REG_MWR(patharg->idx, DCAM_PPE_FRM_CTRL0, BIT_0, 1);
 		break;
+
 	case DCAM_PATH_VCH2:
 		/* data type for raw picture */
 		if (patharg->src_sel)
@@ -703,6 +710,7 @@ static int sharkl5pro_dcam_path_stop(void *handle, void *arg)
 	int ret = 0;
 	uint32_t idx;
 	uint32_t reg_val;
+
 	struct dcam_hw_path_stop *patharg = NULL;
 
 	pr_debug("enter.");
@@ -750,6 +758,7 @@ static int sharkl5pro_dcam_path_ctrl(void *handle, void *arg)
 	struct dcam_hw_path_ctrl *pathctl = NULL;
 
 	pathctl = (struct dcam_hw_path_ctrl *)arg;
+
 	switch (pathctl->path_id) {
 	case DCAM_PATH_FULL:
 		DCAM_REG_MWR(pathctl->idx, DCAM_FULL_CFG, BIT_0, pathctl->type);
@@ -776,6 +785,7 @@ static int sharkl5pro_dcam_path_ctrl(void *handle, void *arg)
 static int sharkl5pro_dcam_fetch_start(void *handle, void *arg)
 {
 	DCAM_AXIM_WR(IMG_FETCH_START, 1);
+
 	return 0;
 }
 
@@ -845,7 +855,6 @@ static int sharkl5pro_dcam_path_size_update(void *handle, void *arg)
 	uint32_t idx;
 	uint32_t reg_val;
 	struct dcam_hw_path_size *sizearg = NULL;
-	struct dcam_path_desc *path_3dnr = NULL;
 	struct isp_img_rect rect; /* for 3dnr path */
 
 	pr_debug("enter.");
@@ -883,9 +892,6 @@ static int sharkl5pro_dcam_path_size_update(void *handle, void *arg)
 		 * because, 3dnr set roi need know bin path crop size
 		 * 3dnr end_y should <= bin crop.end_y
 		 */
-		path_3dnr = sizearg->path;
-		path_3dnr->in_trim = sizearg->in_trim;
-		path_3dnr->in_size = sizearg->in_size;
 		if ((sizearg->in_size.w > sizearg->in_trim.size_x) ||
 			(sizearg->in_size.h > sizearg->in_trim.size_y)) {
 
@@ -966,6 +972,7 @@ static int sharkl5pro_dcam_full_path_src_sel(void *handle, void *arg)
 	}
 
 	patharg = (struct dcam_hw_path_src_sel *)arg;
+
 	switch (patharg->src_sel) {
 	case ORI_RAW_SRC_SEL:
 		DCAM_REG_MWR(patharg->idx, DCAM_FULL_CFG, BIT(4), 0);
@@ -1185,6 +1192,7 @@ static int sharkl5pro_dcam_binning_4in1_set(void *handle, void *arg)
 	}
 
 	binning = (struct dcam_hw_binning_4in1 *)arg;
+
 	if (binning->binning_4in1_en) {
 		DCAM_REG_MWR(binning->idx, DCAM_BAYER_INFO_CFG, BIT_0, 0);
 		DCAM_REG_MWR(binning->idx, DCAM_BAYER_INFO_CFG, BIT_1, 1 << 1);
@@ -1207,6 +1215,7 @@ static int sharkl5pro_dcam_sram_ctrl_set(void *handle, void *arg)
 	}
 
 	sramarg = (struct dcam_hw_sram_ctrl *)arg;
+
 	if (sramarg->sram_ctrl_en)
 		DCAM_REG_MWR(sramarg->idx, DCAM_APB_SRAM_CTRL, BIT_0, 1);
 	else
@@ -1220,6 +1229,7 @@ static int sharkl5pro_dcam_fbc_ctrl(void *handle, void *arg)
 	struct dcam_hw_fbc_ctrl *fbc_arg = NULL;
 
 	fbc_arg = (struct dcam_hw_fbc_ctrl *)arg;
+
 	DCAM_REG_MWR(fbc_arg->idx, DCAM_FBC_CTRL, 0x7, fbc_arg->fbc_mode);
 
 	return 0;
@@ -1230,6 +1240,7 @@ static int sharkl5pro_dcam_fbc_addr_set(void *handle, void *arg)
 	struct dcam_hw_fbc_addr *fbcadr = NULL;
 
 	fbcadr = (struct dcam_hw_fbc_addr *)arg;
+
 	if (!arg) {
 		pr_err("fail to get valid arg\n");
 		return -EFAULT;
@@ -1262,6 +1273,7 @@ static int sharkl5pro_cam_gtm_ltm_eb(void *handle, void *arg)
 	struct cam_hw_gtm_ltm_eb *eb = NULL;
 
 	eb = (struct cam_hw_gtm_ltm_eb *)arg;
+
 	if (eb->dcam_idx >= DCAM_ID_MAX || eb->isp_idx >= ISP_CONTEXT_SW_NUM) {
 		pr_err("fail to get dcam_idx %d isp_idx %d\n", eb->dcam_idx, eb->isp_idx);
 		return -EFAULT;
@@ -1283,6 +1295,7 @@ static int sharkl5pro_cam_gtm_ltm_dis(void *handle, void *arg)
 	struct cam_hw_gtm_ltm_dis *dis =NULL;
 
 	dis = (struct cam_hw_gtm_ltm_dis *)arg;
+
 	if (dis->dcam_idx >= DCAM_ID_MAX || dis->isp_idx >= ISP_CONTEXT_SW_NUM) {
 		pr_err("fail to get dcam_idx %d isp_idx %d\n", dis->dcam_idx, dis->isp_idx);
 		return -EFAULT;
@@ -1346,6 +1359,7 @@ static int sharkl5pro_dcam_block_func_get(void *handle, void *arg)
 	struct dcam_hw_block_func_get *fucarg = NULL;
 
 	fucarg = (struct dcam_hw_block_func_get *)arg;
+
 	if (fucarg->index < DCAM_BLOCK_TOTAL) {
 		block_func = (struct dcam_cfg_entry*)&dcam_cfg_func_tab[fucarg->index];
 		fucarg->dcam_entry= block_func;

@@ -246,6 +246,7 @@ static int isp_update_hist_roi(struct isp_pipe_context *pctx)
 
 	hist2_info.hist_roi.end_x = fetch->in_trim.size_x - 1;
 	hist2_info.hist_roi.end_y = fetch->in_trim.size_y - 1;
+
 	hist_arg.hist_roi = &hist2_info.hist_roi;
 	hist_arg.ctx_id = pctx->ctx_id;
 	pctx->hw->isp_ioctl(pctx->hw, ISP_HW_CFG_UPDATE_HIST_ROI, &hist_arg);
@@ -1256,6 +1257,7 @@ static int isp_set_offline_param(struct isp_pipe_context *pctx,
 	struct isp_pipe_dev *dev = NULL;
 	struct camera_frame *out_frame = NULL;
 	struct cam_hw_info *hw = NULL;
+	struct isp_hw_fetch_info fetch_para;
 
 	if (!pctx || !pframe || !tmp) {
 		pr_err("fail to get input ptr, pctx %p, pframe %p tmp %p\n",
@@ -1266,10 +1268,25 @@ static int isp_set_offline_param(struct isp_pipe_context *pctx,
 	dev = pctx->dev;
 	hw = dev->isp_hw;
 
+	memset(&fetch_para, 0, sizeof(fetch_para));
 	/* config fetch address */
 	isp_path_set_fetch_frm(pctx, pframe);
 	if (pctx->updated || pctx->sw_slice_num) {
-		hw->isp_ioctl(hw, ISP_HW_CFG_FETCH_SET, pctx);
+		fetch_para.ctx_id = pctx->ctx_id;
+		fetch_para.fbd_raw = &pctx->fbd_raw;
+		fetch_para.fbd_raw->fetch_fbd_4bit_bypass = pctx->fetch_fbd_4bit_bypass;
+		fetch_para.dispatch_bayer_mode = pctx->dispatch_bayer_mode;
+		fetch_para.dispatch_color = pctx->dispatch_color;
+		fetch_para.fetch_path_sel = pctx->fetch_path_sel;
+		fetch_para.is_loose = pctx->is_loose;
+		fetch_para.sec_mode = pctx->dev->sec_mode;
+		fetch_para.fetch_fmt = pctx->fetch.fetch_fmt;
+		fetch_para.in_trim = pctx->fetch.in_trim;
+		fetch_para.mipi_byte_rel_pos = pctx->fetch.mipi_byte_rel_pos;
+		fetch_para.mipi_word_num = pctx->fetch.mipi_word_num;
+		fetch_para.pitch = pctx->fetch.pitch;
+		fetch_para.in_fmt = pctx->in_fmt;
+		hw->isp_ioctl(hw, ISP_HW_CFG_FETCH_SET, &fetch_para);
 		if (pctx->in_fmt == IMG_PIX_FMT_NV21)
 			hw->isp_ioctl(hw, ISP_HW_CFG_ISP_CFG_SUBBLOCK, pctx);
 	}
@@ -2017,7 +2034,7 @@ static int isp_slice_ctx_init(struct isp_pipe_context *pctx, uint32_t * multi_sl
 	uint32_t val;
 	struct isp_path_desc *path;
 	struct slice_cfg_input slc_cfg_in;
-	struct isp_hw_nlm_ynr nlm_ynr;
+	struct isp_hw_nlm_ynr radius_adapt;
 
 	*multi_slice = 0;
 
@@ -2056,10 +2073,10 @@ static int isp_slice_ctx_init(struct isp_pipe_context *pctx, uint32_t * multi_sl
 			slc_cfg_in.frame_afbc_store[j] = &path->afbc_store;
 	}
 
-	nlm_ynr.val = val;
-	nlm_ynr.ctx_id = pctx->ctx_id;
-	nlm_ynr.slc_cfg_in = &slc_cfg_in;
-	path->hw->isp_ioctl(path->hw, ISP_HW_CFG_GET_NLM_YNR, &nlm_ynr);
+	radius_adapt.val = val;
+	radius_adapt.ctx_id = pctx->ctx_id;
+	radius_adapt.slc_cfg_in = &slc_cfg_in;
+	path->hw->isp_ioctl(path->hw, ISP_HW_CFG_GET_NLM_YNR, &radius_adapt);
 	isp_cfg_slices(&slc_cfg_in, pctx->slice_ctx, &pctx->valid_slc_num);
 
 	pr_debug("sw %d valid_slc_num %d\n", pctx->ctx_id, pctx->valid_slc_num);
@@ -2550,7 +2567,6 @@ static int sprd_isp_get_context(void *isp_handle, void *param)
 	complete(&pctx->frm_done);
 
 	init_isp_pm(&pctx->isp_k_param);
-
 	/* bypass fbd_raw by default */
 	pctx->fbd_raw.fetch_fbd_bypass = 1;
 	pctx->multi_slice = 0;
@@ -2591,7 +2607,7 @@ static int sprd_isp_get_context(void *isp_handle, void *param)
 	camera_queue_init(&pctx->hist2_result_queue, 16,
 		isp_destroy_statis_buf);
 	dfult_param.type = ISP_CFG_PARA;
-	dfult_param.index = &pctx->ctx_id;
+	dfult_param.index = pctx->ctx_id;
 	hw->isp_ioctl(hw, ISP_HW_CFG_DEFAULT_PARA_SET, &dfult_param);
 	reset_isp_irq_sw_cnt(pctx->ctx_id);
 
@@ -3384,7 +3400,6 @@ static int sprd_isp_cfg_blkparam(
 
 	/* lock to avoid block param across frame */
 	mutex_lock(&pctx->blkpm_lock);
-
 	if (io_param->sub_block == ISP_BLOCK_3DNR) {
 		if (pctx->mode_3dnr != MODE_3DNR_OFF)
 			ret = isp_k_cfg_3dnr(param, &pctx->isp_k_param, ctx_id);
@@ -3449,6 +3464,7 @@ static int sprd_isp_dev_open(void *isp_handle, void *param)
 	int ret = 0;
 	struct isp_pipe_dev *dev = NULL;
 	struct cam_hw_info *hw = NULL;
+	struct isp_hw_default_param tmp_default;
 
 	pr_debug("enter.\n");
 	if (!isp_handle || !param) {
@@ -3485,7 +3501,8 @@ static int sprd_isp_dev_open(void *isp_handle, void *param)
 		spin_lock_init(&dev->ctx_lock);
 
 		ret = isp_hw_init(dev);
-		ret = hw->isp_ioctl(hw, ISP_HW_CFG_START, NULL);
+		tmp_default.type = ISP_HW_PARA;
+		hw->isp_ioctl(hw, ISP_HW_CFG_DEFAULT_PARA_SET, &tmp_default);
 		ret = isp_context_init(dev);
 		if (ret) {
 			pr_err("fail to init isp context.\n");
@@ -3519,6 +3536,7 @@ int sprd_isp_dev_close(void *isp_handle)
 	dev = (struct isp_pipe_dev *)isp_handle;
 	hw = dev->isp_hw;
 	if (atomic_dec_return(&dev->enable) == 0) {
+
 		ret = hw->isp_ioctl(hw, ISP_HW_CFG_STOP, NULL);
 		ret = isp_context_deinit(dev);
 		mutex_destroy(&dev->path_mutex);

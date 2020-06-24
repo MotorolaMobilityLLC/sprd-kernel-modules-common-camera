@@ -14,7 +14,6 @@
 #include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/interrupt.h>
-
 #include "sprd_isp_hw.h"
 #include "sprd_img.h"
 #include <sprd_mm.h>
@@ -872,7 +871,7 @@ static void dcam_nr3_done(void *param)
 	if ((frame = dcam_prepare_frame(dev, DCAM_PATH_3DNR))) {
 		sync = (struct dcam_frame_synchronizer *)frame->sync_data;
 		if (unlikely(!sync)) {
-			pr_warn("sync not found\n");
+			pr_warn("DCAM%u 3DNR sync not found\n", dev->idx);
 		} else {
 			sync->nr3_me.sub_me_bypass = (p >> 8) & 0x1;
 			sync->nr3_me.project_mode = (p >> 4) & 0x1;

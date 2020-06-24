@@ -34,7 +34,7 @@
 #define pr_fmt(fmt) "ISP_DRV: %d %d %s : "\
 	fmt, current->pid, __LINE__, __func__
 
-static uint32_t  s_isp_irq_no[ISP_LOGICAL_COUNT];
+uint32_t s_isp_irq_no[ISP_LOGICAL_COUNT];
 unsigned long s_isp_regbase[ISP_MAX_COUNT];
 unsigned long isp_phys_base[ISP_MAX_COUNT];
 unsigned long s_isp_mmubase;

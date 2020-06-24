@@ -47,7 +47,7 @@ int isp_cfg_path_scaler(struct isp_path_desc *path);
 
 int isp_path_set_scaler_coeff(struct coeff_arg *arg,
 		uint32_t buf_sel,
-		struct isp_path_desc *path,
+		uint32_t spath_id,
 		uint32_t *coeff_buf);
 
 #endif

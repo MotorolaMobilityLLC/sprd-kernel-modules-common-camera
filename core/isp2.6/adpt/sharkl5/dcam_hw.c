@@ -449,17 +449,17 @@ static int sharkl5_dcam_fetch_set(void *handle, void *arg)
 
 	fetch = (struct dcam_hw_fetch_set *)arg;
 	/* !0 is loose */
-	if (fetch->fetch->is_loose != 0) {
-		fetch_pitch = fetch->fetch->size.w * 2;
+	if (fetch->fetch_info->is_loose != 0) {
+		fetch_pitch = fetch->fetch_info->size.w * 2;
 	} else {
 		/* to bytes */
-		fetch_pitch = (fetch->fetch->size.w + 3) / 4 * 5;
+		fetch_pitch = (fetch->fetch_info->size.w + 3) / 4 * 5;
 		/* bytes align 32b */
 		fetch_pitch = (fetch_pitch + 3) & (~0x3);
 	}
 	pr_info("size [%d %d], start %d, pitch %d, 0x%x\n",
-		fetch->fetch->trim.size_x, fetch->fetch->trim.size_y,
-		fetch->fetch->trim.start_x, fetch_pitch, fetch->fetch->addr.addr_ch0);
+		fetch->fetch_info->trim.size_x, fetch->fetch_info->trim.size_y,
+		fetch->fetch_info->trim.start_x, fetch_pitch, fetch->fetch_info->addr.addr_ch0);
 
 	/* (bitfile)unit 32b,(spec)64b */
 	DCAM_REG_MWR(fetch->idx, DCAM_INT_CLR,
@@ -472,17 +472,17 @@ static int sharkl5_dcam_fetch_set(void *handle, void *arg)
 
 	DCAM_REG_MWR(fetch->idx, DCAM_MIPI_CAP_CFG, 0x7, 0x3);
 	DCAM_REG_MWR(fetch->idx, DCAM_MIPI_CAP_CFG,
-		BIT_17 | BIT_16, (fetch->fetch->pattern & 3) << 16);
-	DCAM_AXIM_MWR(IMG_FETCH_CTRL, BIT_1, fetch->fetch->is_loose << 1);
-	DCAM_AXIM_MWR(IMG_FETCH_CTRL, BIT_3 | BIT_2, fetch->fetch->endian << 2);
+		BIT_17 | BIT_16, (fetch->fetch_info->pattern & 3) << 16);
+	DCAM_AXIM_MWR(IMG_FETCH_CTRL, BIT_1, fetch->fetch_info->is_loose << 1);
+	DCAM_AXIM_MWR(IMG_FETCH_CTRL, BIT_3 | BIT_2, fetch->fetch_info->endian << 2);
 	DCAM_AXIM_WR(IMG_FETCH_SIZE,
-		(fetch->fetch->trim.size_y << 16) | (fetch->fetch->trim.size_x & 0xffff));
+		(fetch->fetch_info->trim.size_y << 16) | (fetch->fetch_info->trim.size_x & 0xffff));
 	DCAM_AXIM_WR(IMG_FETCH_X,
-		(fetch_pitch << 16) | (fetch->fetch->trim.start_x & 0xffff));
+		(fetch_pitch << 16) | (fetch->fetch_info->trim.start_x & 0xffff));
 	DCAM_REG_WR(fetch->idx, DCAM_MIPI_CAP_START, 0);
 	DCAM_REG_WR(fetch->idx, DCAM_MIPI_CAP_END,
-		((fetch->fetch->trim.size_y - 1) << 16) | (fetch->fetch->trim.size_x - 1));
-	DCAM_AXIM_WR(IMG_FETCH_RADDR, fetch->fetch->addr.addr_ch0);
+		((fetch->fetch_info->trim.size_y - 1) << 16) | (fetch->fetch_info->trim.size_x - 1));
+	DCAM_AXIM_WR(IMG_FETCH_RADDR, fetch->fetch_info->addr.addr_ch0);
 
 	return ret;
 }
@@ -846,7 +846,6 @@ static int sharkl5_dcam_path_size_update(void *handle, void *arg)
 	uint32_t idx;
 	uint32_t reg_val;
 	struct dcam_hw_path_size *sizearg = NULL;
-	struct dcam_path_desc *path_3dnr = NULL;
 	struct isp_img_rect rect; /* for 3dnr path */
 
 	pr_debug("enter.");
@@ -890,9 +889,6 @@ static int sharkl5_dcam_path_size_update(void *handle, void *arg)
 		 * because, 3dnr set roi need know bin path crop size
 		 * 3dnr end_y should <= bin crop.end_y
 		 */
-		path_3dnr = &sizearg->path[DCAM_PATH_3DNR];
-		path_3dnr->in_trim = sizearg->in_trim;
-		path_3dnr->in_size = sizearg->in_size;
 		if ((sizearg->in_size.w > sizearg->in_trim.size_x) ||
 			(sizearg->in_size.h > sizearg->in_trim.size_y)) {
 

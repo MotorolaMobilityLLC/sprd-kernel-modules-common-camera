@@ -71,17 +71,16 @@ unsigned long coff_buf_addr[2][3][4] = {
 };
 
 int isp_path_set_scaler_coeff(struct coeff_arg *arg,
-		uint32_t buf_sel,
-		struct isp_path_desc *path,
+		uint32_t buf_sel, uint32_t spath_id,
 		uint32_t *coeff_buf)
 {
 	arg->h_coeff = coeff_buf;
 	arg->v_coeff = coeff_buf + (ISP_SC_COEFF_COEF_SIZE / 4);
 	arg->v_chroma_coeff = arg->v_coeff + (ISP_SC_COEFF_COEF_SIZE / 4);
-	arg->h_coeff_addr = coff_buf_addr[buf_sel][path->spath_id][0];
-	arg->h_chroma_coeff_addr = coff_buf_addr[buf_sel][path->spath_id][1];
-	arg->v_coeff_addr = coff_buf_addr[buf_sel][path->spath_id][2];
-	arg->v_chroma_coeff_addr = coff_buf_addr[buf_sel][path->spath_id][3];
+	arg->h_coeff_addr = coff_buf_addr[buf_sel][spath_id][0];
+	arg->h_chroma_coeff_addr = coff_buf_addr[buf_sel][spath_id][1];
+	arg->v_coeff_addr = coff_buf_addr[buf_sel][spath_id][2];
+	arg->v_chroma_coeff_addr = coff_buf_addr[buf_sel][spath_id][3];
 
 	return 0;
 }
@@ -1051,6 +1050,10 @@ int isp_set_path(struct isp_path_desc *path)
 	enum isp_afbc_path afbc_path_id = 0;
 	struct cam_hw_info *hw = NULL;
 	struct isp_hw_path_thumbscaler thumbscaler;
+	struct isp_hw_path_common path_common;
+	struct isp_hw_path_scaler path_scaler;
+	struct isp_hw_path_store path_store;
+	struct isp_hw_afbc_path afbc_path;
 
 	if (!path) {
 		pr_err("fail to get input ptr: null\n");
@@ -1066,12 +1069,35 @@ int isp_set_path(struct isp_path_desc *path)
 		thumbscaler.path = path;
 		hw->isp_ioctl(hw, ISP_HW_CFG_SET_PATH_THUMBSCALER, &thumbscaler);
 	} else {
-		hw->isp_ioctl(hw, ISP_HW_CFG_SET_PATH_COMMON, path);
-		hw->isp_ioctl(hw, ISP_HW_CFG_SET_PATH_SCALER, path);
+		path_common.ctx_id = path->attach_ctx->ctx_id;
+		path_common.skip_pipeline = path->skip_pipeline;
+		path_common.uv_sync_v = path->uv_sync_v;
+		path_common.frm_deci = path->frm_deci;
+		path_common.odata_mode = path->scaler.odata_mode;
+		path_common.spath_id = path->spath_id;
+		path_common.deci = path->deci;
+		path_common.src = path->src;
+		path_common.in_trim = path->in_trim;
+		path_common.out_trim = path->out_trim;
+		path_common.dst = path->dst;
+		hw->isp_ioctl(hw, ISP_HW_CFG_SET_PATH_COMMON, &path_common);
+
+		path_scaler.ctx_id = path->attach_ctx->ctx_id;
+		path_scaler.spath_id = path->spath_id;
+		path_scaler.scaler = &path->scaler;
+		path_scaler.regular_info = path->regular_info;
+		hw->isp_ioctl(hw, ISP_HW_CFG_SET_PATH_SCALER, &path_scaler);
 	}
-	hw->isp_ioctl(hw, ISP_HW_CFG_SET_PATH_STORE, path);
-	if (afbc_path_id < AFBC_PATH_NUM)
-		hw->isp_ioctl(hw, ISP_HW_CFG_AFBC_PATH_SET, path);
+	path_store.ctx_id = path->attach_ctx->ctx_id;
+	path_store.spath_id = path->spath_id;
+	path_store.store = path->store;
+	hw->isp_ioctl(hw, ISP_HW_CFG_SET_PATH_STORE, &path_store);
+	if (afbc_path_id < AFBC_PATH_NUM) {
+		afbc_path.ctx_id = path->attach_ctx->ctx_id;
+		afbc_path.spath_id = path->spath_id;
+		afbc_path.afbc_store = path->afbc_store;
+		hw->isp_ioctl(hw, ISP_HW_CFG_AFBC_PATH_SET, &afbc_path);
+	}
 	pr_debug("done.\n");
 	return ret;
 }

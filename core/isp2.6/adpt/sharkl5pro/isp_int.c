@@ -206,7 +206,7 @@ static void isp_fmcu_store_done(enum isp_context_hw_id hw_idx, void *isp_handle)
 
 	pctx = &dev->ctx[idx];
 
-	pr_debug("fmcu done sw:%d , ch_id[%d]\n", idx, pctx->ch_id);
+	pr_debug("fmcu done cxt_id:%d ch_id[%d]\n", idx, pctx->ch_id);
 	pctx->postproc_func(dev, idx, POSTPROC_FRAME_DONE);
 
 	if (pctx->enable_slowmotion == 1) {
@@ -225,21 +225,22 @@ static void isp_fmcu_shadow_done(enum isp_context_hw_id hw_idx, void *isp_handle
 
 	dev = (struct isp_pipe_dev *)isp_handle;
 	pctx_hw = &dev->hw_ctx[hw_idx];
-	if (pctx_hw->fmcu_handle ==  NULL)
+	if (pctx_hw->fmcu_handle == NULL) {
+		pr_warn("warn: no fmcu for hw %d\n", hw_idx);
 		return;
+	}
 
 	idx = isp_get_sw_context_id(hw_idx, dev);
 	if (idx < 0) {
 		pr_err("fail to get sw_id for hw_idx=%d\n", hw_idx);
 		return;
 	}
-
-	pr_debug("sw:%d done.\n", idx);
+	pr_debug("cxt_id:%d done.\n", idx);
 }
 
 static void isp_fmcu_load_done(enum isp_context_hw_id idx, void *isp_handle)
 {
-	pr_debug("sw:%d done.\n", idx);
+	pr_debug("cxt_id:%d done.\n", idx);
 }
 
 static void isp_3dnr_all_done(enum isp_context_hw_id hw_idx, void *isp_handle)
@@ -257,7 +258,8 @@ static void isp_3dnr_all_done(enum isp_context_hw_id hw_idx, void *isp_handle)
 
 	pctx = &dev->ctx[idx];
 
-	pr_debug("3dnr all done. sw:%d\n", idx);
+	pr_debug("3dnr all done. cxt_id:%d\n", idx);
+
 }
 
 static void isp_3dnr_shadow_done(enum isp_context_hw_id hw_idx, void *isp_handle)
@@ -275,7 +277,7 @@ static void isp_3dnr_shadow_done(enum isp_context_hw_id hw_idx, void *isp_handle
 
 	pctx = &dev->ctx[idx];
 
-	pr_debug("3dnr shadow done. sw:%d\n", idx);
+	pr_debug("3dnr shadow done. cxt_id:%d\n", idx);
 
 }
 
@@ -428,9 +430,7 @@ static void isp_hist_cal_done(enum isp_context_hw_id hw_idx, void *isp_handle)
 
 	if ((frame = isp_hist2_frame_prepare(idx, isp_handle)))
 		isp_dispatch_frame(idx, isp_handle, frame, ISP_CB_STATIS_DONE);
-
 }
-
 
 static isp_isr isp_isr_handler[32] = {
 	[ISP_INT_ISP_ALL_DONE] = isp_all_done,
@@ -547,7 +547,7 @@ static irqreturn_t isp_isr_root(int irq, void *priv)
 	} else if (irq == isp_handle->irq_no[1]) {
 		iid = 1;
 	} else {
-		pr_err("error irq %d mismatched\n", irq);
+		pr_err("fail to get irq %d mismatched\n", irq);
 		return IRQ_NONE;
 	}
 	pr_debug("isp irq %d, priv %p, iid %d\n", irq, priv, iid);
@@ -574,7 +574,8 @@ static irqreturn_t isp_isr_root(int irq, void *priv)
 		if (sw_ctx_id < 0) {
 			ISP_HREG_WR(irq_offset + ISP_INT_CLR0, irq_line);
 			if (irq_line & ISP_INT_LINE_MASK)
-				pr_debug("get valid sw_ctx_id, hw: %d irq_line: %08x\n", c_id, irq_line);
+				pr_debug("get c_id, hw: %d has no sw_ctx_id, irq_line: %08x\n",
+					c_id, irq_line);
 			continue;
 		}
 

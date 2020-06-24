@@ -2509,6 +2509,7 @@ int isp_set_slices_fmcu_cmds(void *fmcu_handle,  void *ctx)
 			hw->isp_ioctl(hw, ISP_HW_CFG_SLICE_NOFILTER, &slicearg);
 		}
 
+
 		for (j = 0; j < ISP_SPATH_NUM; j++) {
 			slc_store = &cur_slc->slice_store[j];
 			if (j == ISP_SPATH_FD) {
@@ -2545,6 +2546,7 @@ int isp_set_slices_fmcu_cmds(void *fmcu_handle,  void *ctx)
 				}
 			}
 		}
+
 		parg.wmode = wmode;
 		parg.hw_ctx_id = hw_ctx_id;
 		parg.fmcu = fmcu;

@@ -40,7 +40,6 @@
 #define ODATA_YUV420            1
 #define ODATA_YUV422            0
 
-#define ISP_SC_COEFF_BUF_SIZE		(24 << 10)
 #define ISP_SC_COEFF_COEF_SIZE		(1 << 10)
 #define ISP_SC_COEFF_TMP_SIZE		(21 << 10)
 
@@ -74,33 +73,6 @@ enum isp_work_mode {
 	ISP_CFG_MODE,
 	ISP_AP_MODE,
 	ISP_WM_MAX
-};
-
-enum isp_fetch_format {
-	ISP_FETCH_YUV422_3FRAME = 0,
-	ISP_FETCH_YUYV,
-	ISP_FETCH_UYVY,
-	ISP_FETCH_YVYU,
-	ISP_FETCH_VYUY,
-	ISP_FETCH_YUV422_2FRAME,
-	ISP_FETCH_YVU422_2FRAME,
-	ISP_FETCH_RAW10,
-	ISP_FETCH_CSI2_RAW10,
-	ISP_FETCH_FULL_RGB10,
-	ISP_FETCH_YUV420_2FRAME,
-	ISP_FETCH_YVU420_2FRAME,
-	ISP_FETCH_FORMAT_MAX
-};
-
-enum isp_store_format {
-	ISP_STORE_UYVY = 0x00,
-	ISP_STORE_YUV422_2FRAME,
-	ISP_STORE_YVU422_2FRAME,
-	ISP_STORE_YUV422_3FRAME,
-	ISP_STORE_YUV420_2FRAME,
-	ISP_STORE_YVU420_2FRAME,
-	ISP_STORE_YUV420_3FRAME,
-	ISP_STORE_FORMAT_MAX
 };
 
 enum isp_raw_format{
@@ -149,97 +121,6 @@ struct isp_fetch_info {
 	uint32_t mipi_word_num;
 };
 
-struct isp_fbd_raw_info {
-	/* ISP_FBD_RAW_SEL */
-	uint32_t pixel_start_in_hor:6;
-	uint32_t pixel_start_in_ver:2;
-	uint32_t chk_sum_auto_clr:1;
-	uint32_t fetch_fbd_bypass:1;
-	uint32_t fetch_fbd_4bit_bypass:1;
-	/* ISP_FBD_RAW_SLICE_SIZE */
-	uint32_t height;
-	uint32_t width;
-	/* ISP_FBD_RAW_PARAM0 */
-	uint32_t tiles_num_in_ver:11;
-	uint32_t tiles_num_in_hor:6;
-	/* ISP_FBD_RAW_PARAM1 */
-	uint32_t time_out_th:8;
-	uint32_t tiles_start_odd:1;
-	uint32_t tiles_num_pitch:8;
-	/* ISP_FBD_RAW_PARAM2 */
-	uint32_t header_addr_init;
-	/* ISP_FBD_RAW_PARAM3 */
-	uint32_t tile_addr_init_x256;
-	/* ISP_FBD_RAW_PARAM4 */
-	uint32_t fbd_cr_ch0123_val0;
-	/* ISP_FBD_RAW_PARAM5 */
-	uint32_t fbd_cr_ch0123_val1;
-	/* ISP_FBD_RAW_PARAM6 */
-	uint32_t fbd_cr_uv_val1:8;
-	uint32_t fbd_cr_y_val1:8;
-	uint32_t fbd_cr_uv_val0:8;
-	uint32_t fbd_cr_y_val0:8;
-	/* ISP_FBD_RAW_LOW_PARAM0 */
-	uint32_t low_bit_addr_init;
-	/* ISP_FBD_RAW_LOW_PARAM1 */
-	uint32_t low_bit_pitch:16;
-	/* ISP_FBD_RAW_HBLANK */
-	uint32_t hblank_en:1;
-	uint32_t hblank_num:16;
-	/* ISP_FBD_RAW_LOW_4BIT_PARAM0 */
-	uint32_t low_4bit_addr_init;
-	/* ISP_FBD_RAW_LOW_4BIT_PARAM1 */
-	uint32_t low_4bit_pitch:16;
-	/*
-	 * For ISP trim feature. In capture channel, DCAM FULL crop is not used
-	 * in zoom. ISP fetch trim is used instead.
-	 * @size is normally same as @width and @height above.
-	 */
-	struct img_size size;
-	struct img_trim trim;
-	uint32_t header_addr_offset;
-	uint32_t tile_addr_offset_x256;
-	uint32_t low_bit_addr_offset;
-	uint32_t low_4bit_addr_offset;
-};
-
-struct isp_regular_info {
-	uint32_t regular_mode;
-	uint32_t shrink_uv_dn_th;
-	uint32_t shrink_uv_up_th;
-	uint32_t shrink_y_dn_th;
-	uint32_t shrink_y_up_th;
-	uint32_t effect_v_th;
-	uint32_t effect_u_th;
-	uint32_t effect_y_th;
-	uint32_t shrink_c_range;
-	uint32_t shrink_c_offset;
-	uint32_t shrink_y_range;
-	uint32_t shrink_y_offset;
-};
-
-struct isp_scaler_info {
-	uint32_t scaler_bypass;
-	uint32_t odata_mode;
-	uint32_t scaler_y_ver_tap;
-	uint32_t scaler_uv_ver_tap;
-	uint32_t scaler_ip_int;
-	uint32_t scaler_ip_rmd;
-	uint32_t scaler_cip_int;
-	uint32_t scaler_cip_rmd;
-	uint32_t scaler_factor_in;
-	uint32_t scaler_factor_out;
-	uint32_t scaler_ver_ip_int;
-	uint32_t scaler_ver_ip_rmd;
-	uint32_t scaler_ver_cip_int;
-	uint32_t scaler_ver_cip_rmd;
-	uint32_t scaler_ver_factor_in;
-	uint32_t scaler_ver_factor_out;
-	uint32_t scaler_out_width;
-	uint32_t scaler_out_height;
-	uint32_t coeff_buf[ISP_SC_COEFF_BUF_SIZE];
-};
-
 struct isp_thumbscaler_info {
 	uint32_t scaler_bypass;
 	uint32_t odata_mode;
@@ -262,44 +143,6 @@ struct isp_thumbscaler_info {
 	struct img_size uv_src_after_deci;
 	struct img_size uv_dst_after_scaler;
 	struct img_size uv_init_phase;
-};
-
-struct isp_store_info {
-	uint32_t bypass;
-	uint32_t endian;
-	uint32_t speed_2x;
-	uint32_t mirror_en;
-	uint32_t max_len_sel;
-	uint32_t shadow_clr;
-	uint32_t store_res;
-	uint32_t rd_ctrl;
-	uint32_t shadow_clr_sel;
-	uint32_t total_size;
-	enum isp_store_format color_fmt; /* output color format */
-	struct img_size size;
-	struct img_addr addr;
-	struct img_addr slice_offset;
-	struct img_pitch pitch;
-};
-
-struct store_border {
-	uint32_t up_border;
-	uint32_t down_border;
-	uint32_t left_border;
-	uint32_t right_border;
-};
-
-struct isp_afbc_store_info {
-	uint32_t bypass;
-	uint32_t endian;
-	uint32_t mirror_en;
-	uint32_t color_format;
-	uint32_t tile_number_pitch;
-	uint32_t yaddr;
-	uint32_t yheader;
-	uint32_t header_offset;
-	struct img_size size;
-	struct store_border border;
 };
 
 struct isp_fbc_store_info {

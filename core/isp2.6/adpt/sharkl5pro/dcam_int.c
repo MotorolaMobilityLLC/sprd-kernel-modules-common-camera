@@ -1075,9 +1075,8 @@ static void dcam_dump_iommu_regs(struct dcam_pipe_dev *dev)
 			val[1] = DCAM_MMU_RD(reg + 4);
 			val[2] = DCAM_MMU_RD(reg + 8);
 			val[3] = DCAM_MMU_RD(reg + 12);
-			pr_err("offset=0x%04x: %08x %08x %08x %08x\n",
+			pr_err("fail to handle,offset=0x%04x: %08x %08x %08x %08x\n",
 					reg, val[0], val[1], val[2], val[3]);
-
 		}
 
 		pr_err("fbc %08x full %08x bin0 %08x bin1 %08x bin2 %08x "

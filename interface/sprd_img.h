@@ -974,7 +974,8 @@ struct sprd_img_path_rect {
 					   struct sprd_img_parm)
 #define SPRD_IMG_IO_STREAM_PAUSE         _IOW(SPRD_IMG_IO_MAGIC, 72, uint32_t)
 #define SPRD_IMG_IO_STREAM_RESUME        _IOW(SPRD_IMG_IO_MAGIC, 73, uint32_t)
-
+#define SPRD_IMG_IO_CAM_TEST        _IOW(SPRD_IMG_IO_MAGIC, 74, \
+						struct camt_info)
 
 /*
  * Dump dcam register.

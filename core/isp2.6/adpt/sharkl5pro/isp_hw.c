@@ -26,6 +26,7 @@ static unsigned long fbc_store_base[AFBC_PATH_NUM] = {
 	ISP_FBC_STORE2_BASE,
 };
 
+/*  following section is fmcu cmds of register update for slice */
 static unsigned long store_base[ISP_SPATH_NUM] = {
 	ISP_STORE_PRE_CAP_BASE,
 	ISP_STORE_VID_BASE,
@@ -154,6 +155,7 @@ static int sharkl5pro_cam_bypass_data_get(void *handle, void *arg)
 	struct cam_hw_bypass_data *data = NULL;
 
 	data = (struct cam_hw_bypass_data *)arg;
+
 	switch (data->type) {
 	case DCAM_BYPASS_TYPE:
 		bypass = (struct bypass_tag *)&sharkl5pro_dcam_bypass_tab[data->i];
@@ -216,6 +218,7 @@ static int sharkl5pro_cam_reg_trace(void *handle, void *arg)
 	struct cam_hw_reg_trace *trace = NULL;
 
 	trace = (struct cam_hw_reg_trace *)arg;
+
 	if (trace->type == NORMAL_REG_TRACE) {
 		goto normal_reg_trace;
 	} else if (trace->type == ABNORMAL_REG_TRACE) {
@@ -560,8 +563,8 @@ static int sharkl5pro_isp_default_param_set(void *handle, void *arg)
 
 	if (param->type == ISP_HW_PARA) {
 		goto isp_hw_para;
-	} else if (param->type == ISP_CFG_PARA && param->index) {
-		idx = *param->index;
+	} else if (param->type == ISP_CFG_PARA) {
+		idx = param->index;
 		goto isp_cfg_para;
 	} else {
 		pr_err("fail to get valid type %d\n", param->type);
@@ -712,7 +715,7 @@ isp_cfg_para:
 
 static int sharkl5pro_isp_path_common(void *handle, void *arg)
 {
-	struct isp_path_desc *path = NULL;
+	struct isp_hw_path_common *path_common = NULL;
 	uint32_t idx = 0;
 	struct img_deci_info *deciInfo = NULL;
 	unsigned long addr;
@@ -723,14 +726,14 @@ static int sharkl5pro_isp_path_common(void *handle, void *arg)
 	};
 	uint32_t path_off[ISP_SPATH_NUM] = {0, 2, 4};
 
-	path = (struct isp_path_desc *)arg;
-	idx = path->attach_ctx->ctx_id;
-	deciInfo = &path->deci;
-	addr = scaler_base[path->spath_id];
+	path_common = (struct isp_hw_path_common *)arg;
+	idx = path_common->ctx_id;
+	deciInfo = &path_common->deci;
+	addr = scaler_base[path_common->spath_id];
 
 	ISP_REG_MWR(idx, ISP_COMMON_SCL_PATH_SEL,
-		path_mask[path->spath_id],
-		(path->skip_pipeline << path_off[path->spath_id]));
+		path_mask[path_common->spath_id],
+		(path_common->skip_pipeline << path_off[path_common->spath_id]));
 
 	/* set path_eb*/
 	ISP_REG_MWR(idx, addr + ISP_SCALER_CFG,
@@ -744,13 +747,13 @@ static int sharkl5pro_isp_path_common(void *handle, void *arg)
 	ISP_REG_MWR(idx, addr + ISP_SCALER_CFG,
 		BIT_8, 0 << 8); /* scaler path stop */
 	ISP_REG_MWR(idx, addr + ISP_SCALER_CFG,
-		BIT_10, path->uv_sync_v << 10);
+		BIT_10, path_common->uv_sync_v << 10);
 
 	ISP_REG_MWR(idx, addr + ISP_SCALER_CFG, (BIT_23 | BIT_24),
-			(path->frm_deci & 3) << 23);
+			(path_common->frm_deci & 3) << 23);
 
 	ISP_REG_MWR(idx, addr + ISP_SCALER_CFG, BIT_6 | BIT_7,
-			path->scaler.odata_mode << 6);
+			path_common->odata_mode << 6);
 
 	/*set X/Y deci */
 	ISP_REG_MWR(idx, addr + ISP_SCALER_CFG, BIT_2,
@@ -764,34 +767,34 @@ static int sharkl5pro_isp_path_common(void *handle, void *arg)
 
 	/*src size*/
 	ISP_REG_WR(idx, addr + ISP_SCALER_SRC_SIZE,
-				((path->src.h & 0x3FFF) << 16) |
-					(path->src.w & 0x3FFF));
+				((path_common->src.h & 0x3FFF) << 16) |
+					(path_common->src.w & 0x3FFF));
 
 	/* trim0 */
 	ISP_REG_WR(idx, addr + ISP_SCALER_TRIM0_START,
-				((path->in_trim.start_y & 0x3FFF) << 16) |
-					(path->in_trim.start_x & 0x3FFF));
+				((path_common->in_trim.start_y & 0x3FFF) << 16) |
+					(path_common->in_trim.start_x & 0x3FFF));
 	ISP_REG_WR(idx, addr + ISP_SCALER_TRIM0_SIZE,
-				((path->in_trim.size_y & 0x3FFF) << 16) |
-					(path->in_trim.size_x & 0x3FFF));
+				((path_common->in_trim.size_y & 0x3FFF) << 16) |
+					(path_common->in_trim.size_x & 0x3FFF));
 
 	/* trim1 */
 	ISP_REG_WR(idx, addr + ISP_SCALER_TRIM1_START,
-				((path->out_trim.start_y & 0x3FFF) << 16) |
-					(path->out_trim.start_x & 0x3FFF));
+				((path_common->out_trim.start_y & 0x3FFF) << 16) |
+					(path_common->out_trim.start_x & 0x3FFF));
 	ISP_REG_WR(idx, addr + ISP_SCALER_TRIM1_SIZE,
-				((path->out_trim.size_y & 0x3FFF) << 16) |
-					(path->out_trim.size_x & 0x3FFF));
+				((path_common->out_trim.size_y & 0x3FFF) << 16) |
+					(path_common->out_trim.size_x & 0x3FFF));
 
 	/* des size */
 	ISP_REG_WR(idx, addr + ISP_SCALER_DES_SIZE,
-				((path->dst.h & 0x3FFF) << 16) |
-					(path->dst.w & 0x3FFF));
+				((path_common->dst.h & 0x3FFF) << 16) |
+					(path_common->dst.w & 0x3FFF));
 	pr_debug("sw %d, path src: %d %d; in_trim:%d %d %d %d, out_trim: %d %d %d %d, dst: %d %d \n",
-		idx, path->src.w, path->src.h, path->in_trim.start_x,
-		path->in_trim.start_y, path->in_trim.size_x, path->in_trim.size_y,
-		path->out_trim.start_x, path->out_trim.start_y, path->out_trim.size_x, path->out_trim.size_y,
-		path->dst.w, path->dst.h);
+		idx, path_common->src.w, path_common->src.h, path_common->in_trim.start_x,
+		path_common->in_trim.start_y, path_common->in_trim.size_x, path_common->in_trim.size_y,
+		path_common->out_trim.start_x, path_common->out_trim.start_y, path_common->out_trim.size_x, path_common->out_trim.size_y,
+		path_common->dst.w, path_common->dst.h);
 
 	return 0;
 }
@@ -801,17 +804,17 @@ static int sharkl5pro_isp_path_store(void *handle, void *arg)
 	int ret = 0;
 	uint32_t val = 0;
 	uint32_t idx = 0;
-	struct isp_path_desc *path = NULL;
+	struct isp_hw_path_store *path_store = NULL;
 	struct isp_store_info *store_info = NULL;
 	unsigned long addr = 0;
 
-	path = (struct isp_path_desc *)arg;
-	idx = path->attach_ctx->ctx_id;
-	store_info = &path->store;
-	addr = store_base[path->spath_id];
+	path_store = (struct isp_hw_path_store *)arg;
+	idx = path_store->ctx_id;
+	store_info = &path_store->store;
+	addr = store_base[path_store->spath_id];
 
 	pr_debug("isp set store in.  bypass %d, path_id:%d, w:%d,h:%d\n",
-			store_info->bypass, path->spath_id,
+			store_info->bypass, path_store->spath_id,
 			store_info->size.w, store_info->size.h);
 
 	ISP_REG_MWR(idx, addr + ISP_STORE_PARAM,
@@ -916,7 +919,7 @@ static void set_path_shrink_info(
 static int set_path_scaler_coeff(
 			uint32_t idx, unsigned long  scaler_base,
 			uint32_t *coeff_buf,
-			struct isp_path_desc *path)
+			uint32_t spath_id)
 {
 	int i = 0, rtn = 0;
 	uint32_t buf_sel;
@@ -929,7 +932,7 @@ static int set_path_scaler_coeff(
 	/* temp set: config mode always select buf 0 */
 	buf_sel = 0;
 
-	isp_path_set_scaler_coeff(&arg, buf_sel, path, coeff_buf);
+	isp_path_set_scaler_coeff(&arg, buf_sel, spath_id, coeff_buf);
 
 	for (i = 0; i < ISP_SC_COEFF_H_NUM; i++) {
 		ISP_REG_WR(idx, arg.h_coeff_addr, *arg.h_coeff);
@@ -965,14 +968,14 @@ static int set_path_scaler_coeff(
 static int sharkl5pro_isp_path_scaler(void *handle, void *arg)
 {
 	uint32_t reg_val, idx;
-	struct isp_path_desc *path = NULL;
+	struct isp_hw_path_scaler *path_scaler = NULL;
 	struct isp_scaler_info *scalerInfo = NULL;
 	unsigned long addr_base;
 
-	path = (struct isp_path_desc *)arg;
-	scalerInfo = &path->scaler;
-	addr_base = scaler_base[path->spath_id];
-	idx = path->attach_ctx->ctx_id;
+	path_scaler = (struct isp_hw_path_scaler *)arg;
+	scalerInfo = path_scaler->scaler;
+	addr_base = scaler_base[path_scaler->spath_id];
+	idx = path_scaler->ctx_id;
 
 	ISP_REG_MWR(idx, addr_base + ISP_SCALER_CFG, BIT_20,
 			scalerInfo->scaler_bypass << 20);
@@ -1009,10 +1012,10 @@ static int sharkl5pro_isp_path_scaler(void *handle, void *arg)
 
 	if (!scalerInfo->scaler_bypass)
 		set_path_scaler_coeff(idx,
-			addr_base, scalerInfo->coeff_buf, path);
+			addr_base, scalerInfo->coeff_buf, path_scaler->spath_id);
 
-	if (path->spath_id == ISP_SPATH_VID)
-		set_path_shrink_info(idx, addr_base, &path->regular_info);
+	if (path_scaler->spath_id == ISP_SPATH_VID)
+		set_path_shrink_info(idx, addr_base, &path_scaler->regular_info);
 
 	return 0;
 }
@@ -1252,6 +1255,7 @@ static int sharkl5pro_isp_block_func_get(void *handle, void *arg)
 	struct isp_hw_block_func *func_arg = NULL;
 
 	func_arg = (struct isp_hw_block_func *)arg;
+
 	if (func_arg->index < (ISP_BLOCK_TOTAL - ISP_BLOCK_BASE)) {
 		block_func = (struct dcam_cfg_entry*)&isp_cfg_func_tab[func_arg->index];
 		func_arg->isp_entry= block_func;
@@ -1268,28 +1272,25 @@ static int sharkl5pro_isp_fetch_set(void *handle, void *arg)
 	uint32_t en_3dnr;
 	uint32_t bwu_val = 0;
 	struct isp_fbd_raw_info *fbd_raw = NULL;
-	struct isp_pipe_context *pctx = NULL;
 	uint32_t idx = 0;
 	uint32_t bypass = 0;
-	struct isp_fetch_info *fetch = NULL;
+	struct isp_hw_fetch_info *fetch = NULL;
 
 	if (!arg) {
 		pr_err("fail to get valid arg\n");
 		return -EFAULT;
 	}
 
-	pctx = (struct isp_pipe_context *)arg;
-	fetch = &pctx->fetch;
-	fbd_raw = &pctx->fbd_raw;
-	idx = pctx->ctx_id;
-	fbd_raw->fetch_fbd_4bit_bypass = pctx->fetch_fbd_4bit_bypass;
+	fetch = (struct isp_hw_fetch_info *)arg;
+	fbd_raw = fetch->fbd_raw;
+	idx = fetch->ctx_id;
 
 	pr_debug("enter: fmt:%d, w:%d, h:%d\n", fetch->fetch_fmt,
 			fetch->in_trim.size_x, fetch->in_trim.size_y);
 
 	en_3dnr = 0;/* (pctx->mode_3dnr == MODE_3DNR_OFF) ? 0 : 1; */
 	ISP_REG_MWR(idx, ISP_COMMON_SPACE_SEL,
-			BIT_1 | BIT_0, pctx->dispatch_color);
+			BIT_1 | BIT_0, fetch->dispatch_color);
 
 	/* 11b: close store_dbg module */
 	ISP_REG_MWR(idx, ISP_COMMON_SPACE_SEL,
@@ -1297,7 +1298,7 @@ static int sharkl5pro_isp_fetch_set(void *handle, void *arg)
 	ISP_REG_MWR(idx, ISP_COMMON_SPACE_SEL, BIT_4, 0 << 4);
 
 	ISP_REG_MWR(idx, ISP_COMMON_SCL_PATH_SEL,
-			BIT_10, pctx->fetch_path_sel  << 10);
+			BIT_10, fetch->fetch_path_sel  << 10);
 	ISP_REG_MWR(idx, ISP_COMMON_SCL_PATH_SEL,
 			BIT_8, en_3dnr << 8); /* 3dnr off */
 	ISP_REG_MWR(idx, ISP_COMMON_SCL_PATH_SEL,
@@ -1315,19 +1316,19 @@ static int sharkl5pro_isp_fetch_set(void *handle, void *arg)
 			fetch->in_trim.size_x | (fetch->in_trim.size_y << 16));
 
 	pr_debug("camca, isp sec mode=%d , is_loose=%d, pitch_ch0=0x%x, 0x%x, 0x%x\n",
-		pctx->dev->sec_mode,
-		pctx->is_loose,
+		fetch->sec_mode,
+		fetch->is_loose,
 		fetch->pitch.pitch_ch0,
 		fetch->pitch.pitch_ch1,
 		fetch->pitch.pitch_ch2);
 
-	if(pctx->is_loose == ISP_RAW_HALF14 || pctx->is_loose == ISP_RAW_HALF10)
+	if(fetch->is_loose == ISP_RAW_HALF14 || fetch->is_loose == ISP_RAW_HALF10)
 		bwu_val = 0x40001;
 	else
 		bwu_val = 0x40000;
 	ISP_REG_WR(idx, ISP_BWU_PARAM, bwu_val);
 
-	if (pctx->dev->sec_mode == SEC_SPACE_PRIORITY) {
+	if (fetch->sec_mode == SEC_SPACE_PRIORITY) {
 		camca_isp_pitch_set(fetch->pitch.pitch_ch0,
 			fetch->pitch.pitch_ch1,
 			fetch->pitch.pitch_ch2);
@@ -1342,7 +1343,7 @@ static int sharkl5pro_isp_fetch_set(void *handle, void *arg)
 		fetch->mipi_word_num | (fetch->mipi_byte_rel_pos << 16));
 
 	/* fetch fbd */
-	if (pctx->fetch_path_sel) {
+	if (fetch->fetch_path_sel) {
 		ISP_REG_MWR(idx, ISP_FBD_RAW_SEL,
 			    BIT(0), fbd_raw->fetch_fbd_bypass);
 		ISP_REG_MWR(idx, ISP_FBD_RAW_SEL, BIT_16,
@@ -1374,7 +1375,7 @@ static int sharkl5pro_isp_fetch_set(void *handle, void *arg)
 	ISP_REG_WR(idx, ISP_DISPATCH_PIPE_BUF_CTRL_CH0,  0x64043C);
 	ISP_REG_WR(idx, ISP_DISPATCH_CH0_SIZE,
 		fetch->in_trim.size_x | (fetch->in_trim.size_y << 16));
-	ISP_REG_WR(idx, ISP_DISPATCH_CH0_BAYER, pctx->dispatch_bayer_mode);
+	ISP_REG_WR(idx, ISP_DISPATCH_CH0_BAYER, fetch->dispatch_bayer_mode);
 
 
 	ISP_REG_WR(idx, ISP_YDELAY_STEP, 0x144);
@@ -1418,7 +1419,7 @@ static int sharkl5pro_isp_afbc_path_set(void *handle, void *arg)
 	int ret = 0;
 	uint32_t val = 0;
 	uint32_t idx = 0;
-	struct isp_path_desc *path = NULL;
+	struct isp_hw_afbc_path *afbc_path = NULL;
 	struct isp_afbc_store_info *afbc_store_info = NULL;
 	unsigned long addr = 0;
 
@@ -1427,13 +1428,13 @@ static int sharkl5pro_isp_afbc_path_set(void *handle, void *arg)
 		return -EINVAL;
 	}
 
-	path = (struct isp_path_desc *)arg;
-	idx = path->attach_ctx->ctx_id;
-	afbc_store_info = &path->afbc_store;
-	addr = fbc_store_base[path->spath_id];
+	afbc_path = (struct isp_hw_afbc_path *)arg;
+	idx = afbc_path->ctx_id;
+	afbc_store_info = &afbc_path->afbc_store;
+	addr = fbc_store_base[afbc_path->spath_id];
 
 	pr_debug("isp set afbc store in. bypass %d, path_id:%d, w:%d,h:%d\n",
-			afbc_store_info->bypass, path->spath_id,
+			afbc_store_info->bypass, afbc_path->spath_id,
 			afbc_store_info->size.w, afbc_store_info->size.h);
 
 	ISP_REG_MWR(idx, addr + ISP_AFBC_STORE_PARAM,
@@ -2132,20 +2133,20 @@ static int sharkl5pro_isp_slices_fmcu_cmds(void *handle, void *arg)
 		base = ISP_FMCU1_BASE;
 
 	if (parg->wmode == ISP_CFG_MODE) {
-			reg_off = ISP_CFG_CAP_FMCU_RDY;
-			addr = ISP_GET_REG(reg_off);
-		} else
-			addr = ISP_GET_REG(ISP_FETCH_START);
-		cmd = 1;
-		FMCU_PUSH(parg->fmcu, addr, cmd);
+		reg_off = ISP_CFG_CAP_FMCU_RDY;
+		addr = ISP_GET_REG(reg_off);
+	} else
+		addr = ISP_GET_REG(ISP_FETCH_START);
+	cmd = 1;
+	FMCU_PUSH(parg->fmcu, addr, cmd);
 
-		addr = ISP_GET_REG(base + ISP_FMCU_CMD);
-		cmd = shadow_done_cmd[parg->hw_ctx_id];
-		FMCU_PUSH(parg->fmcu, addr, cmd);
+	addr = ISP_GET_REG(base + ISP_FMCU_CMD);
+	cmd = shadow_done_cmd[parg->hw_ctx_id];
+	FMCU_PUSH(parg->fmcu, addr, cmd);
 
-		addr = ISP_GET_REG(base + ISP_FMCU_CMD);
-		cmd = all_done_cmd[parg->hw_ctx_id];
-		FMCU_PUSH(parg->fmcu, addr, cmd);
+	addr = ISP_GET_REG(base + ISP_FMCU_CMD);
+	cmd = all_done_cmd[parg->hw_ctx_id];
+	FMCU_PUSH(parg->fmcu, addr, cmd);
 
 	return 0;
 }
@@ -2593,20 +2594,6 @@ static int sharkl5pro_isp_radius_adpt_parm(void *handle, void *arg)
 	return 0;
 }
 
-static int sharkl5pro_isp_hw_start(void *handle, void *arg)
-{
-	int ret = 0;
-	struct cam_hw_info *hw = NULL;
-	struct isp_hw_default_param param;
-
-	hw = (struct cam_hw_info *)handle;
-	param.type = ISP_HW_PARA;
-	param.index = NULL;
-	hw->isp_ioctl(hw, ISP_HW_CFG_DEFAULT_PARA_SET, &param);
-
-	return ret;
-}
-
 static int sharkl5pro_isp_hw_stop(void *handle, void *arg)
 {
 	uint32_t id;
@@ -2722,7 +2709,6 @@ static int sharkl5pro_isp_cfg_start_isp(void *handle, void *arg)
 		ISP_HREG_RD(ISP_CFG_PRE0_CMD_ADDR));
 
 	ISP_HREG_WR(reg_addr[ctx_id], 1);
-
 	return 0;
 }
 
@@ -2824,7 +2810,6 @@ static struct hw_io_ctrl_fun sharkl5pro_isp_ioctl_fun_tab[] = {
 	{ISP_HW_CFG_LTM_PARAM,               sharkl5pro_isp_ltm_param},
 	{ISP_HW_CFG_3DNR_PARAM,              sharkl5pro_isp_3dnr_param},
 	{ISP_HW_CFG_GET_NLM_YNR,             sharkl5pro_isp_radius_adpt_parm},
-	{ISP_HW_CFG_START,                   sharkl5pro_isp_hw_start},
 	{ISP_HW_CFG_STOP,                    sharkl5pro_isp_hw_stop},
 	{ISP_HW_CFG_STORE_SLICE_ADDR,        sharkl5pro_isp_store_slice_addr},
 	{ISP_HW_CFG_FETCH_SLICE_ADDR,        sharkl5pro_isp_fetch_slice_addr},

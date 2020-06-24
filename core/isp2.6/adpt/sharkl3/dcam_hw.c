@@ -136,7 +136,6 @@ static int sharkl3_dcam_axi_init(void *handle, void *arg)
 	idx = *(uint32_t *)arg;
 	ip = hw->ip_dcam[idx];
 	soc = hw->soc_dcam;
-
 	/* firstly, stop AXI writing. */
 	DCAM_AXIM_MWR(AXIM_CTRL, BIT_24 | BIT_23, (0x3 << 23));
 
@@ -160,6 +159,7 @@ static int sharkl3_dcam_axi_init(void *handle, void *arg)
 	}
 
 	hw->dcam_ioctl(hw, DCAM_HW_CFG_SET_QOS, NULL);
+
 	/* the end, enable AXI writing */
 	DCAM_AXIM_MWR(AXIM_CTRL, BIT_24 | BIT_23, (0x0 << 23));
 
@@ -202,6 +202,7 @@ static int sharkl3_dcam_start(void *handle, void *arg)
 	}
 
 	parm = (struct dcam_hw_start *)arg;
+
 	if (parm->format == DCAM_CAP_MODE_YUV)
 		image_data_type = IMG_TYPE_YUV;
 
@@ -234,6 +235,7 @@ static int sharkl3_dcam_stop(void *handle, void *arg)
 	}
 
 	idx = *(uint32_t *)arg;
+
 	DCAM_REG_MWR(idx, DCAM_PATH_STOP, 0x3F, 0x3F);
 	udelay(1000);
 	DCAM_REG_MWR(idx, DCAM_CFG, 0x3F, 0);
@@ -268,6 +270,7 @@ static int sharkl3_dcam_cap_disable(void *handle, void *arg)
 	}
 
 	idx = *(uint32_t *)arg;
+
 	/* stop  cap_en*/
 	DCAM_REG_MWR(idx, DCAM_MIPI_CAP_CFG, BIT_0, 0);
 	return ret;
@@ -336,7 +339,6 @@ static int sharkl3_dcam_force_copy(void *handle, void *arg)
 		mask = bitmap2;
 	}
 	pr_debug("DCAM%u: force copy 0x%0x, id 0x%x\n", copyarg->idx, mask, copyarg->id);
-
 	if (mask == 0)
 		return -EFAULT;
 
@@ -438,19 +440,19 @@ static int sharkl3_dcam_fetch_set(void *handle, void *arg)
 
 	fetch = (struct dcam_hw_fetch_set *)arg;
 	/* !0 is loose */
-	if (fetch->fetch->is_loose != 0) {
-		fetch_pitch = fetch->fetch->size.w * 2;
+	if (fetch->fetch_info->is_loose != 0) {
+		fetch_pitch = fetch->fetch_info->size.w * 2;
 	} else {
 		/* to bytes */
-		fetch_pitch = (fetch->fetch->size.w + 3) / 4 * 5;
+		fetch_pitch = (fetch->fetch_info->size.w + 3) / 4 * 5;
 		/* bytes align 32b */
 		fetch_pitch = (fetch_pitch + 3) & (~0x3);
 	}
 	pr_info("size [%d %d], start %d, pitch %d, 0x%x\n",
-		fetch->fetch->trim.size_x, fetch->fetch->trim.size_y,
-		fetch->fetch->trim.start_x, fetch_pitch, fetch->fetch->addr.addr_ch0);
-
+		fetch->fetch_info->trim.size_x, fetch->fetch_info->trim.size_y,
+		fetch->fetch_info->trim.start_x, fetch_pitch, fetch->fetch_info->addr.addr_ch0);
 	/* (bitfile)unit 32b,(spec)64b */
+
 	DCAM_REG_MWR(fetch->idx, DCAM_INT_CLR,
 		DCAMINT_IRQ_LINE_MASK, DCAMINT_IRQ_LINE_MASK);
 	DCAM_REG_MWR(fetch->idx, DCAM_INT_EN,
@@ -458,20 +460,19 @@ static int sharkl3_dcam_fetch_set(void *handle, void *arg)
 	DCAM_AXIM_MWR(IMG_FETCH_CTRL, 0x0F << 12, 0x0F << 12);
 	DCAM_AXIM_MWR(IMG_FETCH_CTRL, 0xFF << 4, 0xFF << 4);
 	fetch_pitch /= 4;
-
 	DCAM_REG_MWR(fetch->idx, DCAM_MIPI_CAP_CFG, 0x7, 0x3);
 	DCAM_REG_MWR(fetch->idx, DCAM_MIPI_CAP_CFG,
-		BIT_17 | BIT_16, (fetch->fetch->pattern & 3) << 16);
-	DCAM_AXIM_MWR(IMG_FETCH_CTRL, BIT_1, fetch->fetch->is_loose << 1);
-	DCAM_AXIM_MWR(IMG_FETCH_CTRL, BIT_3 | BIT_2, fetch->fetch->endian << 2);
+		BIT_17 | BIT_16, (fetch->fetch_info->pattern & 3) << 16);
+	DCAM_AXIM_MWR(IMG_FETCH_CTRL, BIT_1, fetch->fetch_info->is_loose << 1);
+	DCAM_AXIM_MWR(IMG_FETCH_CTRL, BIT_3 | BIT_2, fetch->fetch_info->endian << 2);
 	DCAM_AXIM_WR(IMG_FETCH_SIZE,
-		(fetch->fetch->trim.size_y << 16) | (fetch->fetch->trim.size_x & 0xffff));
+		(fetch->fetch_info->trim.size_y << 16) | (fetch->fetch_info->trim.size_x & 0xffff));
 	DCAM_AXIM_WR(IMG_FETCH_X,
-		(fetch_pitch << 16) | (fetch->fetch->trim.start_x & 0xffff));
+		(fetch_pitch << 16) | (fetch->fetch_info->trim.start_x & 0xffff));
 	DCAM_REG_WR(fetch->idx, DCAM_MIPI_CAP_START, 0);
 	DCAM_REG_WR(fetch->idx, DCAM_MIPI_CAP_END,
-		((fetch->fetch->trim.size_y - 1) << 16) | (fetch->fetch->trim.size_x - 1));
-	DCAM_AXIM_WR(IMG_FETCH_RADDR, fetch->fetch->addr.addr_ch0);
+		((fetch->fetch_info->trim.size_y - 1) << 16) | (fetch->fetch_info->trim.size_x - 1));
+	DCAM_AXIM_WR(IMG_FETCH_RADDR, fetch->fetch_info->addr.addr_ch0);
 
 	return ret;
 }
@@ -529,6 +530,7 @@ static int sharkl3_dcam_slice_fetch_set(void *handle, void *arg)
 		((fetch->trim.size_y - 1) << 16) | (fetch->trim.size_x - 1));
 
 	DCAM_AXIM_WR(IMG_FETCH_RADDR, fetch->addr.addr_ch0);
+
 	DCAM_REG_WR(slicearg->idx, DCAM_CAM_BIN_CFG, BIT_5 | BIT_4);
 
 	reg_val = (0 << 16) | cur_slice->start_x;
@@ -723,6 +725,7 @@ static int sharkl3_dcam_path_start(void *handle, void *arg)
 	}
 
 	patharg = (struct dcam_hw_path_start *)arg;
+
 	switch (patharg->path_id) {
 	case  DCAM_PATH_FULL:
 
@@ -863,6 +866,7 @@ static int sharkl3_dcam_path_ctrl(void *handle, void *arg)
 	struct dcam_hw_path_ctrl *patharg = NULL;
 
 	patharg = (struct dcam_hw_path_ctrl *)arg;
+
 	switch (patharg->path_id) {
 	case DCAM_PATH_FULL:
 		DCAM_REG_MWR(patharg->idx, DCAM_CFG, BIT_1, (patharg->type << 1));
@@ -900,7 +904,6 @@ static int sharkl3_dcam_path_size_update(void *handle, void *arg)
 	uint32_t idx;
 	uint32_t reg_val;
 	struct dcam_hw_path_size *sizearg = NULL;
-	struct dcam_path_desc *path_3dnr = NULL;
 	struct isp_img_rect rect; /* for 3dnr path */
 
 	pr_debug("enter.");
@@ -941,9 +944,6 @@ static int sharkl3_dcam_path_size_update(void *handle, void *arg)
 		 * because, 3dnr set roi need know bin path crop size
 		 * 3dnr end_y should <= bin crop.end_y
 		 */
-		path_3dnr = sizearg->path;
-		path_3dnr->in_trim = sizearg->in_trim;
-		path_3dnr->in_size = sizearg->in_size;
 		if ((sizearg->in_size.w > sizearg->in_trim.size_x) ||
 			(sizearg->in_size.h > sizearg->in_trim.size_y)) {
 
@@ -1054,6 +1054,7 @@ static int sharkl3_dcam_binning_4in1_set(void *handle, void *arg)
 	}
 
 	binning = (struct dcam_hw_binning_4in1 *)arg;
+
 	if (binning->binning_4in1_en) {
 		DCAM_REG_MWR(binning->idx, DCAM_MIPI_CAP_CFG, BIT_13, BIT_13);
 		DCAM_REG_MWR(binning->idx, DCAM_MIPI_CAP_CFG, BIT_12, 0 << 12);
@@ -1074,6 +1075,7 @@ static int sharkl3_dcam_sram_ctrl_set(void *handle, void *arg)
 	}
 
 	sramarg = (struct dcam_hw_sram_ctrl *)arg;
+
 	if (sramarg->sram_ctrl_en)
 		DCAM_REG_MWR(sramarg->idx, DCAM_APB_SRAM_CTRL, BIT_0, 1);
 	else
@@ -1109,6 +1111,7 @@ static int sharkl3_dcam_block_func_get(void *handle, void *arg)
 	struct dcam_hw_block_func_get *fucarg = NULL;
 
 	fucarg = (struct dcam_hw_block_func_get *)arg;
+
 	if (fucarg->index < DCAM_BLOCK_TOTAL) {
 		block_func = (struct dcam_cfg_entry*)&dcam_cfg_func_tab[fucarg->index];
 		fucarg->dcam_entry= block_func;

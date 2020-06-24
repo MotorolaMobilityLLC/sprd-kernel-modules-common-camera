@@ -30,6 +30,7 @@ KO_MODULE_SRC += \
   ifeq ($(ISP_DIR),isp2.6)
   KO_MODULE_SRC += $(wildcard $(KO_MODULE_PATH)/$(ISP_DIR)/adpt/$(ADAPT_DIR)/block/*.c)
   KO_MODULE_SRC += $(wildcard $(KO_MODULE_PATH)/$(ISP_DIR)/adpt/$(ADAPT_DIR)/*.c)
+  KO_MODULE_SRC += $(wildcard $(KO_MODULE_PATH)/$(ISP_DIR)/test/*.c)
   else
   KO_MODULE_SRC += $(wildcard $(KO_MODULE_PATH)/$(ISP_DIR)/block/*.c)
   endif
@@ -60,6 +61,7 @@ endif
 
 ifeq ($(ISP_DIR),isp2.6)
 ccflags-y += -I$(KO_MODULE_PATH)/$(ISP_DIR)/adpt/$(ADAPT_DIR)/inc
+ccflags-y += -I$(KO_MODULE_PATH)/$(ISP_DIR)/test/
 endif
 
 ifeq ($(ADAPT_DIR), sharkl3)

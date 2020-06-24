@@ -188,13 +188,6 @@ struct img_pitch {
 	uint32_t pitch_ch2;
 };
 
-struct img_deci_info {
-	uint32_t deci_y_eb;
-	uint32_t deci_y;
-	uint32_t deci_x_eb;
-	uint32_t deci_x;
-};
-
 struct img_size {
 	uint32_t w;
 	uint32_t h;

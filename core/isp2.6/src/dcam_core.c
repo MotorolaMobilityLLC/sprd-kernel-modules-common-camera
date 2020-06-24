@@ -156,7 +156,6 @@ void dcam_destroy_reserved_buf(void *param)
 	put_empty_frame(frame);
 }
 
-
 void dcam_destroy_statis_buf(void *param)
 {
 	struct camera_frame *frame;
@@ -1248,7 +1247,7 @@ static int dcam_offline_start_frame(void *param)
 
 		if (dev->slice_num <= 1) {
 			fetcharg.idx = dev->idx;
-			fetcharg.fetch = fetch;
+			fetcharg.fetch_info = fetch;
 			ret = hw->dcam_ioctl(hw, DCAM_HW_CFG_FETCH_SET, &fetcharg);
 		} else if (hw->ip_dcam[dev->idx]->offline_slice_support) {
 			slicearg.idx = dev->idx;

@@ -19,6 +19,7 @@
 #define ISP_CONTEXT_MAX				4
 #define  ISP_CONTEXT_SW_MAX			9
 
+extern uint32_t s_isp_irq_no[ISP_LOGICAL_COUNT];
 extern unsigned long s_isp_regbase[ISP_MAX_COUNT];
 extern unsigned long isp_phys_base[ISP_MAX_COUNT];
 extern unsigned long *isp_cfg_poll_addr[ISP_CONTEXT_SW_MAX];
@@ -625,8 +626,8 @@ extern unsigned long s_isp_mmubase;
 #define ISP_MMU_INT_BASE               (0xFFC00UL)
 #define ISP_MMU_INT_EN                 (0x0000UL)
 #define ISP_MMU_INT_CLR                (0x0004UL)
-#define ISP_MMU_INT_RAW_STS            (0x0008UL)
-#define ISP_MMU_INT_MASKED_STS         (0x000CUL)
+#define ISP_MMU_INT_RAW                (0x0008UL)
+#define ISP_MMU_INT_STS                (0x000CUL)
 #define ISP_MMU_FIRST_OFR              (0x0140UL)
 #define ISP_MMU_DEFAULT_PPN_SEC        (0x0234UL)
 #define ISP_MMU_SECURITY_EN            (0x03FCUL)
@@ -634,33 +635,6 @@ extern unsigned long s_isp_mmubase;
 /* Need to Delate */
 #define ISP_LTM_HIST_PARAM			(0x5510UL)
 #define ISP_LTM_MAP_PARAM0			(0x5F10UL)
-
-/* Need to delete */
-#define ISP_YNR_CFG31				(0x5190UL)
-#define ISP_YNR_CFG33				(0x5198UL)
-
-/* Need to Delate */
-#define ISP_THMB_CFG				(0xE010UL)
-#define ISP_THMB_BEFORE_TRIM_SIZE		(0xE014UL)
-#define ISP_THMB_Y_SLICE_SRC_SIZE		(0xE018UL)
-#define ISP_THMB_Y_DES_SIZE			(0xE01CUL)
-#define ISP_THMB_Y_TRIM0_START			(0xE020UL)
-#define ISP_THMB_Y_TRIM0_SIZE			(0xE024UL)
-#define ISP_THMB_Y_INIT_PHASE			(0xE028UL)
-#define ISP_THMB_Y_FACTOR_HOR			(0xE02CUL)
-#define ISP_THMB_Y_FACTOR_VER			(0xE030UL)
-#define ISP_THMB_UV_SLICE_SRC_SIZE		(0xE034UL)
-#define ISP_THMB_UV_DES_SIZE			(0xE038UL)
-#define ISP_THMB_UV_TRIM0_START			(0xE03CUL)
-#define ISP_THMB_UV_TRIM0_SIZE			(0xE040UL)
-#define ISP_THMB_UV_INIT_PHASE			(0xE044UL)
-#define ISP_THMB_UV_FACTOR_HOR			(0xE048UL)
-#define ISP_THMB_UV_FACTOR_VER			(0xE04CUL)
-#define ISP_THMB_SHRINK_CFG			(0xE050UL)
-#define ISP_THMB_EFFECT_CFG			(0xE054UL)
-#define ISP_THMB_REGULAR_CFG			(0xE058UL)
-#define ISP_THMB_SCL_DEBUG			(0xE05CUL)
-#define ISP_THMB_FRM_CNT_CLR			(0xE060UL)
 
 /******************************************************************************/
 

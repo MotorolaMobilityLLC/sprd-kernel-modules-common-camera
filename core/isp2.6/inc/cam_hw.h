@@ -19,6 +19,8 @@
 #include <linux/platform_device.h>
 #include "cam_types.h"
 
+#define ISP_SC_COEFF_BUF_SIZE		(24 << 10)
+
 extern struct cam_hw_info sharkl3_hw_info;
 extern struct cam_hw_info sharkl5_hw_info;
 extern struct cam_hw_info sharkl5pro_hw_info;
@@ -183,7 +185,6 @@ enum isp_hw_cfg_cmd{
 	ISP_HW_CFG_LTM_PARAM,
 	ISP_HW_CFG_3DNR_PARAM,
 	ISP_HW_CFG_GET_NLM_YNR,
-	ISP_HW_CFG_START,
 	ISP_HW_CFG_STOP,
 	ISP_HW_CFG_STORE_SLICE_ADDR,
 	ISP_HW_CFG_FETCH_SLICE_ADDR,
@@ -200,6 +201,223 @@ enum dcam_path_ctrl {
 	HW_DCAM_PATH_PAUSE = 0,
 	HW_DCAM_PATH_RESUME,
 	HW_DCAM_PATH_MAX
+};
+
+enum isp_store_format {
+	ISP_STORE_UYVY = 0x00,
+	ISP_STORE_YUV422_2FRAME,
+	ISP_STORE_YVU422_2FRAME,
+	ISP_STORE_YUV422_3FRAME,
+	ISP_STORE_YUV420_2FRAME,
+	ISP_STORE_YVU420_2FRAME,
+	ISP_STORE_YUV420_3FRAME,
+	ISP_STORE_FORMAT_MAX
+};
+
+enum isp_fetch_format {
+	ISP_FETCH_YUV422_3FRAME = 0,
+	ISP_FETCH_YUYV,
+	ISP_FETCH_UYVY,
+	ISP_FETCH_YVYU,
+	ISP_FETCH_VYUY,
+	ISP_FETCH_YUV422_2FRAME,
+	ISP_FETCH_YVU422_2FRAME,
+	ISP_FETCH_RAW10,
+	ISP_FETCH_CSI2_RAW10,
+	ISP_FETCH_FULL_RGB10,
+	ISP_FETCH_YUV420_2FRAME,
+	ISP_FETCH_YVU420_2FRAME,
+	ISP_FETCH_FORMAT_MAX
+};
+
+struct isp_fbd_raw_info {
+	/* ISP_FBD_RAW_SEL */
+	uint32_t pixel_start_in_hor:6;
+	uint32_t pixel_start_in_ver:2;
+	uint32_t chk_sum_auto_clr:1;
+	uint32_t fetch_fbd_bypass:1;
+	uint32_t fetch_fbd_4bit_bypass:1;
+	/* ISP_FBD_RAW_SLICE_SIZE */
+	uint32_t height;
+	uint32_t width;
+	/* ISP_FBD_RAW_PARAM0 */
+	uint32_t tiles_num_in_ver:11;
+	uint32_t tiles_num_in_hor:6;
+	/* ISP_FBD_RAW_PARAM1 */
+	uint32_t time_out_th:8;
+	uint32_t tiles_start_odd:1;
+	uint32_t tiles_num_pitch:8;
+	/* ISP_FBD_RAW_PARAM2 */
+	uint32_t header_addr_init;
+	/* ISP_FBD_RAW_PARAM3 */
+	uint32_t tile_addr_init_x256;
+	/* ISP_FBD_RAW_PARAM4 */
+	uint32_t fbd_cr_ch0123_val0;
+	/* ISP_FBD_RAW_PARAM5 */
+	uint32_t fbd_cr_ch0123_val1;
+	/* ISP_FBD_RAW_PARAM6 */
+	uint32_t fbd_cr_uv_val1:8;
+	uint32_t fbd_cr_y_val1:8;
+	uint32_t fbd_cr_uv_val0:8;
+	uint32_t fbd_cr_y_val0:8;
+	/* ISP_FBD_RAW_LOW_PARAM0 */
+	uint32_t low_bit_addr_init;
+	/* ISP_FBD_RAW_LOW_PARAM1 */
+	uint32_t low_bit_pitch:16;
+	/* ISP_FBD_RAW_HBLANK */
+	uint32_t hblank_en:1;
+	uint32_t hblank_num:16;
+	/* ISP_FBD_RAW_LOW_4BIT_PARAM0 */
+	uint32_t low_4bit_addr_init;
+	/* ISP_FBD_RAW_LOW_4BIT_PARAM1 */
+	uint32_t low_4bit_pitch:16;
+	/*
+	 * For ISP trim feature. In capture channel, DCAM FULL crop is not used
+	 * in zoom. ISP fetch trim is used instead.
+	 * @size is normally same as @width and @height above.
+	 */
+	struct img_size size;
+	struct img_trim trim;
+	uint32_t header_addr_offset;
+	uint32_t tile_addr_offset_x256;
+	uint32_t low_bit_addr_offset;
+	uint32_t low_4bit_addr_offset;
+};
+
+struct isp_hw_fetch_info {
+	uint32_t ctx_id;
+	uint32_t dispatch_color;
+	uint32_t fetch_path_sel;
+	uint32_t is_loose;
+	uint32_t dispatch_bayer_mode;
+	uint32_t in_fmt;
+	enum sprd_cam_sec_mode sec_mode;
+	enum isp_fetch_format fetch_fmt;
+	/* source buffer size */
+	struct img_size src;
+	/* support fetch trim */
+	struct img_trim in_trim;
+	struct img_addr addr;
+	struct img_addr trim_off;
+	struct img_pitch pitch;
+	uint32_t mipi_byte_rel_pos;
+	uint32_t mipi_word_num;
+	struct isp_fbd_raw_info *fbd_raw;
+};
+
+struct store_border {
+	uint32_t up_border;
+	uint32_t down_border;
+	uint32_t left_border;
+	uint32_t right_border;
+};
+
+struct isp_afbc_store_info {
+	uint32_t bypass;
+	uint32_t endian;
+	uint32_t mirror_en;
+	uint32_t color_format;
+	uint32_t tile_number_pitch;
+	uint32_t yaddr;
+	uint32_t yheader;
+	uint32_t header_offset;
+	struct img_size size;
+	struct store_border border;
+};
+
+struct isp_hw_afbc_path {
+	uint32_t ctx_id;
+	enum isp_sub_path_id spath_id;
+	struct isp_afbc_store_info afbc_store;
+};
+
+struct isp_store_info {
+	uint32_t bypass;
+	uint32_t endian;
+	uint32_t speed_2x;
+	uint32_t mirror_en;
+	uint32_t max_len_sel;
+	uint32_t shadow_clr;
+	uint32_t store_res;
+	uint32_t rd_ctrl;
+	uint32_t shadow_clr_sel;
+	uint32_t total_size;
+	enum isp_store_format color_fmt; /* output color format */
+	struct img_size size;
+	struct img_addr addr;
+	struct img_addr slice_offset;
+	struct img_pitch pitch;
+};
+
+struct isp_hw_path_store {
+	uint32_t ctx_id;
+	enum isp_sub_path_id spath_id;
+	struct isp_store_info store;
+};
+
+struct isp_scaler_info {
+	uint32_t scaler_bypass;
+	uint32_t odata_mode;
+	uint32_t scaler_y_ver_tap;
+	uint32_t scaler_uv_ver_tap;
+	uint32_t scaler_ip_int;
+	uint32_t scaler_ip_rmd;
+	uint32_t scaler_cip_int;
+	uint32_t scaler_cip_rmd;
+	uint32_t scaler_factor_in;
+	uint32_t scaler_factor_out;
+	uint32_t scaler_ver_ip_int;
+	uint32_t scaler_ver_ip_rmd;
+	uint32_t scaler_ver_cip_int;
+	uint32_t scaler_ver_cip_rmd;
+	uint32_t scaler_ver_factor_in;
+	uint32_t scaler_ver_factor_out;
+	uint32_t scaler_out_width;
+	uint32_t scaler_out_height;
+	uint32_t coeff_buf[ISP_SC_COEFF_BUF_SIZE];
+};
+
+struct isp_regular_info {
+	uint32_t regular_mode;
+	uint32_t shrink_uv_dn_th;
+	uint32_t shrink_uv_up_th;
+	uint32_t shrink_y_dn_th;
+	uint32_t shrink_y_up_th;
+	uint32_t effect_v_th;
+	uint32_t effect_u_th;
+	uint32_t effect_y_th;
+	uint32_t shrink_c_range;
+	uint32_t shrink_c_offset;
+	uint32_t shrink_y_range;
+	uint32_t shrink_y_offset;
+};
+
+struct isp_hw_path_scaler {
+	uint32_t ctx_id;
+	enum isp_sub_path_id spath_id;
+	struct isp_scaler_info *scaler;
+	struct isp_regular_info regular_info;
+};
+
+struct img_deci_info {
+	uint32_t deci_y_eb;
+	uint32_t deci_y;
+	uint32_t deci_x_eb;
+	uint32_t deci_x;
+};
+
+struct isp_hw_path_common {
+	uint32_t ctx_id;
+	uint32_t skip_pipeline;
+	uint32_t uv_sync_v;
+	uint32_t frm_deci;
+	uint32_t odata_mode;
+	enum isp_sub_path_id spath_id;
+	struct img_deci_info deci;
+	struct img_size src;
+	struct img_trim in_trim;
+	struct img_trim out_trim;
+	struct img_size dst;
 };
 
 struct isp_hw_hist_roi {
@@ -296,7 +514,6 @@ struct dcam_hw_path_size {
 	struct img_size in_size;
 	struct img_trim in_trim;
 	struct img_size out_size;
-	struct dcam_path_desc *path;
 };
 
 struct dcam_hw_path_src_sel {
@@ -362,7 +579,7 @@ struct dcam_hw_path_start {
 
 struct dcam_hw_fetch_set {
 	uint32_t idx;
-	struct dcam_fetch_info *fetch;
+	struct dcam_fetch_info *fetch_info;
 };
 
 struct dcam_hw_force_copy {
@@ -418,7 +635,7 @@ struct dcam_hw_ebd_set {
 
 struct isp_hw_default_param {
 	uint32_t type;
-	uint32_t *index;
+	uint32_t index;
 };
 
 struct isp_hw_block_func {

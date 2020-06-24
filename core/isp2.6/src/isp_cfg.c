@@ -400,6 +400,7 @@ static int isp_cfg_map_init(struct isp_cfg_ctx_desc *cfg_ctx)
 	}
 
 setting:
+
 	maparg.map_cnt = cfg_ctx->map_cnt;
 	maparg.s_cfg_settings = &s_cfg_settings;
 	cfg_ctx->hw->isp_ioctl(cfg_ctx->hw, ISP_HW_CFG_MAP_INIT, &maparg);

@@ -580,7 +580,6 @@ int dcam_path_set_store_frm(void *dcam_handle,
 				path_size.in_size = path->in_size;
 				path_size.in_trim = path->in_trim;
 				path_size.out_size = path->out_size;
-				path_size.path = &dev->path[DCAM_PATH_3DNR];
 				path_size.rds_init_phase_int0 = path->gphase.rds_init_phase_int0;
 				path_size.rds_init_phase_int1= path->gphase.rds_init_phase_int1;
 				path_size.rds_init_phase_rdm0= path->gphase.rds_init_phase_rdm0;
