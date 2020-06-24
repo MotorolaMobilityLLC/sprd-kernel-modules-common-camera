@@ -53,7 +53,7 @@
 #define CSI_2P2L_EFUSE_BLOCK_ID		7
 #define CSI_2L_EFUSE_BLOCK_ID		9
 
-#define CSI_PATTERN_ENABLE		0
+static int csi_pattern_enable = 0;
 #define IPG_CLK_CFG_MSK			0x3
 #define IPG_CLK_48M			0
 #define IPG_CLK_96M			1
@@ -109,7 +109,7 @@ static int csi_mipi_clk_enable(int sensor_id)
 		pr_err("fail to csi mipi clk src eb\n");
 		return ret;
 	}
-	if(CSI_PATTERN_ENABLE)
+	if(csi_pattern_enable)
 		clk_disable_unprepare(dt_info->csi_src_eb);//don't need enable in ipg mode
 
 	return ret;
@@ -137,7 +137,7 @@ static void csi_mipi_clk_disable(int sensor_id)
 
 	clk_disable_unprepare(dt_info->mipi_csi_gate_eb);
 	clk_disable_unprepare(dt_info->csi_eb_clk);
-	if(!CSI_PATTERN_ENABLE)
+	if(!csi_pattern_enable)
 		clk_disable_unprepare(dt_info->csi_src_eb);//don't need enable in ipg mode
 
 }
@@ -338,6 +338,7 @@ int csi_api_open(int bps_per_lane, int phy_id, int lane_num, int sensor_id, int 
 	int ret = 0;
 
 	struct csi_dt_node_info *dt_info = csi_get_dt_node_data(sensor_id);
+	csi_pattern_enable = is_pattern;
 
 	if (!dt_info) {
 		pr_err("fail to get valid phy ptr\n");
@@ -367,7 +368,7 @@ int csi_api_open(int bps_per_lane, int phy_id, int lane_num, int sensor_id, int 
 	csi_phy_init(dt_info, sensor_id);
 	csi_start(lane_num, sensor_id);
 
-	if (CSI_PATTERN_ENABLE)
+	if (csi_pattern_enable)
 		csi_ipg_mode_cfg(sensor_id, 1);
 
 	return ret;
@@ -389,7 +390,7 @@ int csi_api_close(uint32_t phy_id, int sensor_id)
 		return -EINVAL;
 	}
 
-	if (CSI_PATTERN_ENABLE)
+	if (csi_pattern_enable)
 		csi_ipg_mode_cfg(sensor_id, 0);
 	csi_close(sensor_id);
 	csi_controller_disable(dt_info, sensor_id);

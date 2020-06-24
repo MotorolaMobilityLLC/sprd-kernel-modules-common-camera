@@ -48,7 +48,7 @@
 #define CSI_2P2L_EFUSE_BLOCK_ID		7
 #define CSI_2L_EFUSE_BLOCK_ID		9
 
-#define CSI_PATTERN_ENABLE		0
+static int csi_pattern_enable = 0;
 #define IPG_CLK_CFG_MSK			0x3
 #define IPG_CLK_48M			0
 #define IPG_CLK_96M			1
@@ -81,7 +81,7 @@ static int csi_ipg_set_clk(int sensor_id)
 		pr_err("CSI: mipi clk enable err\n");
 		return -EINVAL;
 	}
-	if (CSI_PATTERN_ENABLE) {
+	if (csi_pattern_enable) {
 		clk_disable_unprepare(dt_info->csi_src_eb);
 	} else {
 		ret = clk_prepare_enable(dt_info->csi_src_eb);
@@ -385,7 +385,8 @@ int csi_api_open(int bps_per_lane, int phy_id, int lane_num, int sensor_id, int 
 		goto EXIT;
 	csi_start(sensor_id);
 	csi_set_on_lanes(lane_num, sensor_id);
-	if (CSI_PATTERN_ENABLE)
+	csi_pattern_enable = is_pattern;
+	if (csi_pattern_enable)
 		csi_ipg_mode_cfg(sensor_id);
 
 	return ret;

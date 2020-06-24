@@ -48,6 +48,11 @@ static int sprd_sensor_mipi_if_open(struct sprd_sensor_file_tag *p_file,
 {
 	int ret = 0;
 
+	if(if_cfg->lane_seq == 0xeeee)
+		csi_pattern = 1;
+	else
+		csi_pattern = 0;
+
 	ret = csi_api_open(if_cfg->bps_per_lane, if_cfg->phy_id,
 			   if_cfg->lane_num, p_file->sensor_id, csi_pattern,
 			   if_cfg->is_cphy, if_cfg->lane_seq);
@@ -305,7 +310,7 @@ static int sprd_sensor_io_set_i2c_addr(struct sprd_sensor_file_tag *p_file,
 	if (ret != 0)
 		return ret;
 	/* this addr means using csi pattern */
-	if (i2c_addr == 0xff) {
+	if (i2c_addr == 0xee) {
 		pr_info("enable csi testpattern mode!\n");
 		csi_pattern = 1;
 		return ret;
