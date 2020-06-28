@@ -1131,19 +1131,14 @@ struct isp_dev_hsv_curve_info {
 	uint32_t  hrange_right[5];
 };
 
-struct hsv_data {
-	uint16_t  hue[360];
-	uint16_t  sat[360];
-};
-
 struct isp_dev_hsv_info_v2 {
 	uint32_t  bypass;
 	struct isp_dev_hsv_curve_info curve_info;
 	uint32_t size;
-	union {
-		struct hsv_data hs; /* new format from sharkl5pro... */
-		uint32_t hsv_table[ISP_HSV_TABLE_NUM]; /* for roc1/sharkl5/sharkl3...*/
-	} d;
+	/* uint64_t for 32bits/64bits userspace/kernel compatable*/
+	uint64_t hsv_table_addr;
+	uint16_t  hue[360];
+	uint16_t  sat[360];
 };
 
 struct isp_dev_iircnr_info {

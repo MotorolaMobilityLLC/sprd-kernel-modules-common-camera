@@ -35,6 +35,8 @@ static int isp_k_hsv_block(struct isp_io_param *param,
 	uint32_t buf_sel = 0;
 	unsigned long reg_addr = 0;
 	struct isp_dev_hsv_info_v2 *hsv_info;
+	unsigned long utab_addr;
+	void __user *hsv_table;
 
 	hsv_info = &isp_k_param->hsv_info;
 
@@ -109,8 +111,21 @@ static int isp_k_hsv_block(struct isp_io_param *param,
 	buf_sel = 0;
 	ISP_REG_MWR(idx, ISP_HSV_PARAM, BIT_1, buf_sel << 1);
 
+	utab_addr = (unsigned long)hsv_info->hsv_table_addr;
+	pr_debug("hsv table addr 0x%lx\n", utab_addr);
+
+	hsv_table = (void __user *)utab_addr;
+	if ((hsv_info->size > (ISP_HSV_TABLE_NUM * 4)) ||
+		(hsv_table == NULL)) {
+		pr_err("fail to get hsv param: %p, %d\n", hsv_table, hsv_info->size);
+		return -EFAULT;
+	}
+
 	reg_addr = ISP_BASE_ADDR(idx) + ISP_HSV_BUF0_ADDR;
-	memcpy((void *)reg_addr, (void *)hsv_info->d.hsv_table, hsv_info->size);
+	ret = copy_from_user((void *)reg_addr,
+			hsv_table, hsv_info->size);
+	if (ret != 0)
+		pr_err("fail to copy: ret = %d\n", ret);
 
 	return ret;
 }

@@ -111,8 +111,8 @@ static int isp_k_hsv_block(struct isp_io_param *param,
 
 	reg_addr = ISP_HSV_BUF0_ADDR;
 	for(i = 0; i < 360; i++){
-		val = ((hsv_info->d.hs.sat[i] & 0x7FF) << 9 |
-				(hsv_info->d.hs.hue[i] & 0x1FF));
+		val = ((hsv_info->sat[i] & 0x7FF) << 9 |
+				(hsv_info->hue[i] & 0x1FF));
 		ISP_REG_WR(idx, reg_addr + i * 4, val);
 	}
 	return ret;
