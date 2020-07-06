@@ -1074,11 +1074,6 @@ static int sharkl5_dcam_sram_ctrl_set(void *handle, void *arg)
 	return 0;
 }
 
-static int dcam_k_cfg_null(struct isp_io_param *param, struct dcam_dev_param *p)
-{
-	return 0;
-}
-
 static struct dcam_cfg_entry dcam_cfg_func_tab[DCAM_BLOCK_TOTAL] = {
 [DCAM_BLOCK_BLC - DCAM_BLOCK_BASE]         = {DCAM_BLOCK_BLC,          dcam_k_cfg_blc},
 [DCAM_BLOCK_RGBG - DCAM_BLOCK_BASE]        = {DCAM_BLOCK_RGBG,         dcam_k_cfg_rgb_gain},
@@ -1091,7 +1086,7 @@ static struct dcam_cfg_entry dcam_cfg_func_tab[DCAM_BLOCK_TOTAL] = {
 [DCAM_BLOCK_BPC - DCAM_BLOCK_BASE]         = {DCAM_BLOCK_BPC,          dcam_k_cfg_bpc},
 [DCAM_BLOCK_3DNR_ME - DCAM_BLOCK_BASE]     = {DCAM_BLOCK_3DNR_ME,      dcam_k_cfg_3dnr_me},
 [DCAM_BLOCK_AFM - DCAM_BLOCK_BASE]         = {DCAM_BLOCK_AFM,          dcam_k_cfg_afm},
-[DCAM_BLOCK_BAYERHIST - DCAM_BLOCK_BASE]   = {DCAM_BLOCK_BAYERHIST,    dcam_k_cfg_null},
+[DCAM_BLOCK_BAYERHIST - DCAM_BLOCK_BASE]   = {DCAM_BLOCK_BAYERHIST,    dcam_k_cfg_bayerhist},
 };
 
 static int sharkl5_dcam_block_func_get(void *handle, void *arg)
