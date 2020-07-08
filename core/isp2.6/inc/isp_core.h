@@ -215,6 +215,8 @@ struct isp_path_desc {
 	uint32_t slave_path_id;
 	uint32_t store_fbc;/* 1 for fbc store; 0 for normal store */
 	uint32_t uframe_sync;
+	int32_t reserved_buf_fd;
+	size_t reserve_buf_size[3];
 	struct isp_pipe_context *attach_ctx;
 	struct cam_hw_info *hw;
 

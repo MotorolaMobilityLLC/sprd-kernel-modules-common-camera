@@ -2334,7 +2334,7 @@ static int isp_postproc_irq(void *handle,uint32_t idx,
 	enum isp_postproc_type type)
 {
 	int ret = 0;
-	int i;
+	int i, j;
 	struct isp_pipe_dev *dev = NULL;
 	struct isp_stream_ctrl *stream = NULL;
 	struct isp_pipe_context *pctx = NULL;
@@ -2437,6 +2437,13 @@ static int isp_postproc_irq(void *handle,uint32_t idx,
 			camera_enqueue(&pctx->in_queue, &pframe->list);
 			complete(&pctx->thread.thread_com);
 		} else {
+			if (pframe->buf.mfd[0] == path->reserved_buf_fd) {
+				for (j = 0; j < 3; j++) {
+					pframe->buf.size[j] = path->reserve_buf_size[j];
+					pr_debug("pframe->buf.size[j] = %d, path->reserve_buf_size[j] = %d",
+						(int)pframe->buf.size[j], (int)path->reserve_buf_size[j]);
+				}
+			}
 			cambuf_iommu_unmap(&pframe->buf);
 			pctx->isp_cb_func(ISP_CB_RET_DST_BUF,
 				pframe, pctx->cb_priv_data);
@@ -2904,7 +2911,7 @@ static int sprd_isp_cfg_path(void *isp_handle,
 			void *param)
 {
 	int ret = 0;
-	int i;
+	int i, j;
 	struct isp_pipe_context *pctx;
 	struct isp_pipe_dev *dev;
 	struct isp_path_desc *path = NULL;
@@ -2942,7 +2949,7 @@ static int sprd_isp_cfg_path(void *isp_handle,
 	switch (cfg_cmd) {
 	case ISP_PATH_CFG_OUTPUT_RESERVED_BUF:
 		pframe = (struct camera_frame *)param;
-		ret = cambuf_iommu_map(
+		ret = cambuf_iommu_map_single_page(
 				&pframe->buf, CAM_IOMMUDEV_ISP);
 		if (ret) {
 			pr_err("fail to map isp iommu buf.\n");
@@ -2961,6 +2968,9 @@ static int sprd_isp_cfg_path(void *isp_handle,
 
 			pframe->is_reserved = 1;
 			pframe->priv_data = path;
+			path->reserved_buf_fd = pframe->buf.mfd[0];
+			for (j = 0; j < 3; j++)
+				path->reserve_buf_size[j] = pframe->buf.size[j];
 			pr_info("reserved buf\n");
 			ret = camera_enqueue(&path->reserved_buf_queue,
 				&pframe->list);

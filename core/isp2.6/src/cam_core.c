@@ -5938,7 +5938,7 @@ static int img_ioctl_set_frame_addr(
 			unsigned long arg)
 {
 	int ret = 0;
-	uint32_t i, cmd;
+	uint32_t i, j, cmd;
 	struct sprd_img_parm param;
 	struct channel_context *ch = NULL;
 	struct channel_context *ch_prv = NULL;
@@ -5995,13 +5995,6 @@ static int img_ioctl_set_frame_addr(
 			pframe->buf.offset[2], param.is_reserved_buf,
 			pframe->user_fid);
 
-		if (param.is_reserved_buf) {
-			int32_t mfd = param.fd_array[i];
-			dcam_ops->ioctl(module->dcam_dev_handle,
-				DCAM_IOCTL_CFG_RESERV_STATSBUF,
-				&mfd);
-		}
-
 		ret = cambuf_get_ionbuf(&pframe->buf);
 		if (ret) {
 			put_empty_frame(pframe);
@@ -6033,11 +6026,17 @@ static int img_ioctl_set_frame_addr(
 				pframe1->buf.offset[1] = param.frame_addr_array[i].u;
 				pframe1->buf.offset[2] = param.frame_addr_array[i].v;
 				pframe1->channel_id = ch->ch_id;
+
 				ret = cambuf_get_ionbuf(&pframe1->buf);
 				if (ret) {
 					put_empty_frame(pframe1);
 					ret = -EFAULT;
 					break;
+				}
+
+				for (j = 0; j < 3; j++) {
+					pframe1->buf.size[j] = DCAM_RES_BUF_SIZE;
+					pr_debug("pframe1->buf.size[%d] = %d\n", j, (int)pframe1->buf.size[j]);
 				}
 				ret = dcam_ops->cfg_path(module->dcam_dev_handle,
 						cmd, ch->dcam_path_id, pframe1);
@@ -6050,6 +6049,8 @@ static int img_ioctl_set_frame_addr(
 			cmd = ISP_PATH_CFG_OUTPUT_BUF;
 			if (param.is_reserved_buf) {
 				ch->reserved_buf_fd = pframe->buf.mfd[0];
+				for (j = 0; j < 3; j++)
+					pframe->buf.size[j] = DCAM_RES_BUF_SIZE;
 				cmd = ISP_PATH_CFG_OUTPUT_RESERVED_BUF;
 			}
 			ret = isp_ops->cfg_path(module->isp_dev_handle, cmd,
@@ -6060,6 +6061,8 @@ static int img_ioctl_set_frame_addr(
 			cmd = DCAM_PATH_CFG_OUTPUT_BUF;
 			if (param.is_reserved_buf) {
 				ch->reserved_buf_fd = pframe->buf.mfd[0];
+				for (j = 0; j < 3; j++)
+					pframe->buf.size[j] = DCAM_RES_BUF_SIZE;
 				cmd = DCAM_PATH_CFG_OUTPUT_RESERVED_BUF;
 				pframe->is_reserved = 1;
 			} else if ((ch->ch_id == CAM_CH_CAP) &&
@@ -8120,7 +8123,7 @@ static int img_ioctl_4in1_set_raw_addr(struct camera_module *module,
 	struct sprd_img_parm param;
 	struct channel_context *ch;
 	struct camera_frame *pframe;
-	int i;
+	int i, j;
 
 	ret = copy_from_user(&param, (void __user *)arg,
 				sizeof(struct sprd_img_parm));
@@ -8165,6 +8168,8 @@ static int img_ioctl_4in1_set_raw_addr(struct camera_module *module,
 		if (param.is_reserved_buf) {
 			ch->reserved_buf_fd = pframe->buf.mfd[0];
 			pframe->is_reserved = 1;
+			for (j = 0; j < 3; j++)
+				pframe->buf.size[j] = DCAM_RES_BUF_SIZE;
 			ret = dcam_ops->cfg_path(module->dcam_dev_handle,
 					DCAM_PATH_CFG_OUTPUT_RESERVED_BUF,
 					ch->dcam_path_id, pframe);

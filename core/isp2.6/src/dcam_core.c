@@ -544,34 +544,6 @@ exit:
 	return ret;
 }
 
-/* use reserved buffer from user for statis as well */
-static int cfg_reserved_stat_buffer(
-		struct dcam_pipe_dev *dev, void *param)
-{
-	int32_t mfd;
-	struct camera_buf *ion_buf = NULL;
-
-	ion_buf = (struct camera_buf *)dev->internal_reserved_buf;
-	if (ion_buf) {
-		pr_debug("there is reserved buffer for stats\n");
-		return 0;
-	}
-
-	ion_buf = kzalloc(sizeof(*ion_buf), GFP_KERNEL);
-	if (!ion_buf) {
-		pr_err("fail to alloc buffer.\n");
-		return -EINVAL;
-	}
-
-	mfd = *(int32_t *)param;
-	ion_buf->mfd[0] = mfd;
-	ion_buf->type = CAM_BUF_USER;
-	dev->internal_reserved_buf = (void *)ion_buf;
-
-	pr_info("dcam%d, ion %p, mfd %d\n", dev->idx, ion_buf, mfd);
-	return 0;
-}
-
 static int dcam_cfg_statis_buffer_skip(struct dcam_pipe_dev *dev, struct camera_frame *pframe)
 {
 	int ret = 0;
@@ -1837,7 +1809,7 @@ static int sprd_dcam_cfg_path(
 
 	case DCAM_PATH_CFG_OUTPUT_RESERVED_BUF:
 		pframe = (struct camera_frame *)param;
-		ret = cambuf_iommu_map(&pframe->buf, CAM_IOMMUDEV_DCAM);
+		ret = cambuf_iommu_map_single_page(&pframe->buf, CAM_IOMMUDEV_DCAM);
 		if (ret)
 			goto exit;
 
@@ -2055,9 +2027,6 @@ static int sprd_dcam_ioctrl(void *dcam_handle,
 		break;
 	case DCAM_IOCTL_CFG_STATIS_BUF:
 		ret = dcam_cfg_statis_buffer(dev, param);
-		break;
-	case DCAM_IOCTL_CFG_RESERV_STATSBUF:
-		ret = cfg_reserved_stat_buffer(dev, param);
 		break;
 	case DCAM_IOCTL_PUT_RESERV_STATSBUF:
 		ret = put_reserved_buffer(dev);
