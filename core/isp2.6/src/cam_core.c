@@ -1826,7 +1826,7 @@ int dcam_callback(enum dcam_cb_type type, void *param, void *priv_data)
 		trace.idx = module->dcam_idx;
 		hw->isp_ioctl(hw, ISP_HW_CFG_REG_TRACE, &trace);
 
-		dcam_ops->stop(module->dcam_dev_handle, 0);
+		dcam_ops->stop(module->dcam_dev_handle, DCAM_STOP);
 
 		pframe = get_empty_frame();
 		if (pframe) {
@@ -3734,7 +3734,7 @@ exit_dev:
 static int deinit_aux_dcam(struct camera_module *module)
 {
 	int ret = 0;
-	int pause = 0;
+	int pause = DCAM_STOP;
 	int32_t path_id;
 	void *dcam;
 
@@ -3746,7 +3746,7 @@ static int deinit_aux_dcam(struct camera_module *module)
 		return ret;
 
 	if (dcam == module->dcam_dev_handle)
-		pause = 2;
+		pause = DCAM_PAUSE_OFFLINE;
 	ret = dcam_ops->stop(dcam, pause);
 
 	path_id = module->channel[CAM_CH_CAP].aux_dcam_path_id;
@@ -4044,7 +4044,7 @@ static int deinit_bigsize_aux(struct camera_module *module)
 
 	pr_info("E\n");
 	dev = module->aux_dcam_dev;
-	ret = dcam_ops->stop(dev, 0);
+	ret = dcam_ops->stop(dev, DCAM_STOP);
 	ret = dcam_ops->put_path(dev, DCAM_PATH_BIN);
 	ret += dcam_ops->close(dev);
 	ret += dcam_if_put_dev(dev);
@@ -6658,7 +6658,7 @@ static int img_ioctl_stream_off(
 	}
 
 	if (running) {
-		ret = dcam_ops->stop(module->dcam_dev_handle, 0);
+		ret = dcam_ops->stop(module->dcam_dev_handle, DCAM_STOP);
 		if (ret != 0)
 			pr_err("fail to stop dcam %d\n", ret);
 		sprd_stop_timer(&module->cam_timer);
@@ -6868,7 +6868,7 @@ static int img_ioctl_stream_pause(
 	pr_info("cam%d stream pause\n", module->idx);
 
 	module->paused = 1;
-	dcam_ops->stop(module->dcam_dev_handle, 1);
+	dcam_ops->stop(module->dcam_dev_handle, DCAM_PAUSE_ONLINE);
 
 	ch_prv = &module->channel[CAM_CH_PRE];
 	for (i = 0; i < CAM_CH_MAX; i++) {
@@ -7283,7 +7283,7 @@ static int raw_proc_done(struct camera_module *module)
 	if (atomic_read(&module->timeout_flag) == 1)
 		pr_err("fail to raw proc, timeout\n");
 
-	ret = dcam_ops->stop(module->dcam_dev_handle, 0);
+	ret = dcam_ops->stop(module->dcam_dev_handle, DCAM_STOP);
 	sprd_stop_timer(&module->cam_timer);
 
 	ret = dcam_ops->ioctl(module->dcam_dev_handle,
@@ -7704,7 +7704,7 @@ dst_fail:
 	cambuf_put_ionbuf(&src_frame->buf);
 src_fail:
 	put_empty_frame(src_frame);
-	ret = dcam_ops->stop(module->dcam_dev_handle, 0);
+	ret = dcam_ops->stop(module->dcam_dev_handle, DCAM_STOP);
 	pr_err("fail to call post raw proc\n");
 	return ret;
 }

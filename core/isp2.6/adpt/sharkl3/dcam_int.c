@@ -481,7 +481,7 @@ static void dcam_cap_sof(void *param)
 	int i;
 
 	if (dev->offline) {
-		pr_info("dcam%d offline\n", dev->idx);
+		pr_debug("dcam%d offline\n", dev->idx);
 		return;
 	}
 
@@ -597,7 +597,7 @@ static void dcam_preview_sof(void *param)
 	int i = 0;
 
 	if (dev->offline) {
-		pr_info("dcam%d offline\n", dev->idx);
+		pr_debug("dcam%d offline\n", dev->idx);
 		return;
 	}
 
@@ -625,7 +625,7 @@ static void dcam_sensor_eof(void *param)
 	struct dcam_pipe_dev *dev = (struct dcam_pipe_dev *)param;
 
 	if (dev->offline) {
-		pr_info("dcam%d offline\n", dev->idx);
+		pr_debug("dcam%d offline\n", dev->idx);
 		return;
 	}
 

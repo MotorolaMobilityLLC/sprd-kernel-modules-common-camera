@@ -179,6 +179,17 @@ enum dcam_ioctrl_cmd {
 	DCAM_IOCTL_CFG_GTM_UPDATE,
 };
 
+/*
+	DCAM_STOP: normal stop;
+	DCAM_PAUSE_ONLINE: online paused; pause for fdr use same dcam for following offline process
+	DCAM_PAUSE_OFFLINE: offline paused; after fdr use same dcam for offline process and prepare for online resume
+*/
+enum dcam_stop_cmd {
+	DCAM_STOP,
+	DCAM_PAUSE_ONLINE,
+	DCAM_PAUSE_OFFLINE
+};
+
 struct dcam_cap_cfg {
 	uint32_t sensor_if; /* MIPI CSI-2 */
 	uint32_t format; /* input color format */
@@ -236,7 +247,7 @@ struct dcam_pipe_ops {
 	int (*close)(void *handle);
 	int (*reset)(void *handle);
 	int (*start)(void *handle, int online);
-	int (*stop)(void *handle, int pause);
+	int (*stop)(void *handle, enum dcam_stop_cmd pause);
 	int (*get_path)(void *handle, int path_id);
 	int (*put_path)(void *handle, int path_id);
 	int (*cfg_path)(void *dcam_handle,

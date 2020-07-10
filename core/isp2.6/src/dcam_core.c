@@ -2433,7 +2433,7 @@ static int sprd_dcam_dev_start(void *dcam_handle, int online)
 	return ret;
 }
 
-static int sprd_dcam_dev_stop(void *dcam_handle, int pause)
+static int sprd_dcam_dev_stop(void *dcam_handle, enum dcam_stop_cmd pause)
 {
 	int ret = 0, state = 0;
 	int i = 0;
@@ -2484,7 +2484,7 @@ static int sprd_dcam_dev_stop(void *dcam_handle, int pause)
 			deinit_dcam_context(&dev->ctx[i]);
 	}
 	pm = &dev->ctx[DCAM_CXT_0].blk_pm;
-	if (pause == 0) {
+	if (pause == DCAM_STOP) {
 		pm->aem.bypass = 1;
 		pm->afm.bypass = 1;
 		pm->afl.afl_info.bypass = 1;
@@ -2497,7 +2497,7 @@ static int sprd_dcam_dev_stop(void *dcam_handle, int pause)
 		pr_info("stop all\n");
 
 		dev->is_3dnr = dev->is_4in1 = 0;
-	} else if (pause == 1) {
+	} else if (pause == DCAM_PAUSE_ONLINE) {
 		pm->frm_idx = dev->base_fid + dev->frame_index;
 		pr_info("dcam%d online pause fram id %d %d, base_fid %d, new %d\n", dev->idx,
 			dev->frame_index, dev->index_to_set, dev->base_fid, pm->frm_idx);
