@@ -276,6 +276,10 @@ static long sprd_fd_ioctl(struct file *file, unsigned int cmd,
 	module  = md->this_device->platform_data;
 
 	/* If fd already released then don't handle ioctl for another camera */
+	if (unlikely(!(ioctl_nr >= 0 && ioctl_nr < ARRAY_SIZE(fd_ioctl_cmds_table)))) {
+		pr_info("invalid cmd: 0x%xn", cmd);
+		return -EINVAL;
+	}
 
 	p_ioctl = &fd_ioctl_cmds_table[ioctl_nr];
 	if (!p_ioctl->cmd_proc) {
