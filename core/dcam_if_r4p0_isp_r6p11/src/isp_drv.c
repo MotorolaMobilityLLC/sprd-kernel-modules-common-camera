@@ -109,6 +109,7 @@ uint32_t fmcu_slice_capture_state_dual;
 uint32_t isp_frm_queue_len;
 static int sprd_isp_pipeline_proc_bin(void *handle);
 static int sprd_isp_pipeline_proc_full(void *handle);
+static int sprd_isp_pipeline_proc_yuv(void *handle);
 
 static void sprd_isp_reset_fmcu(void)
 {
@@ -135,8 +136,12 @@ static int offline_bin_thread_loop(void *arg)
 	pr_debug("+\n");
 	while (!dev->is_offline_bin_thread_stop) {
 		wait_for_completion(&dev->offline_bin_thread_com);
-		if (!dev->is_offline_bin_thread_stop)
-			sprd_isp_pipeline_proc_bin(arg);
+		if (!dev->is_offline_bin_thread_stop) {
+			if (dev->is_yuv_sn)
+				sprd_isp_pipeline_proc_yuv(arg);
+			else
+				sprd_isp_pipeline_proc_bin(arg);
+		}
 	}
 	complete(&dev->bin_stop);
 	pr_info("-\n");
@@ -1053,6 +1058,12 @@ int sprd_isp_start_pipeline_bin(void *handle, uint32_t cap_flag)
 	}
 
 	dev = (struct isp_pipe_dev *)handle;
+	if (dev->is_yuv_sn) {
+		/* YUV sensor support */
+		sprd_isp_start_pipeline_yuv(handle, cap_flag);
+		complete(&dev->offline_bin_thread_com);
+		return 0;
+	}
 	iid = ISP_GET_IID(dev->com_idx);
 	module = &dev->module_info;
 	off_desc = &module->off_desc;
@@ -1109,6 +1120,78 @@ int sprd_isp_start_pipeline_bin(void *handle, uint32_t cap_flag)
 
 exit:
 	pr_debug("exit\n");
+
+	return ret;
+}
+
+int sprd_isp_start_pipeline_yuv(void *handle, unsigned int cap_flag)
+{
+	enum isp_drv_rtn ret = ISP_RTN_SUCCESS;
+	struct isp_pipe_dev *dev = NULL;
+	enum isp_id iid = ISP_ID_0;
+	struct isp_offline_desc *off_desc = NULL;
+	struct offline_buf_desc *buf_desc_bin = NULL;
+	struct offline_buf_desc *buf_desc_full = NULL;
+	struct isp_module *module = NULL;
+
+	if (!handle) {
+		pr_err("fail to get ptr\n");
+		return -EFAULT;
+	}
+
+	dev = (struct isp_pipe_dev *)handle;
+	iid = ISP_GET_IID(dev->com_idx);
+	module = &dev->module_info;
+	off_desc = &module->off_desc;
+	buf_desc_bin = &off_desc->buf_desc_bin;
+	buf_desc_full = &off_desc->buf_desc_full;
+
+	if (buf_desc_full->zsl_queue.valid_cnt > ISP_OFF_CONSUMER_Q_SIZE) {
+		ret = isp_buf_recycle(buf_desc_full, &buf_desc_full->tmp_buf_queue,
+					&buf_desc_full->zsl_queue, 1);
+		if (ret)
+			goto exit;
+	}
+
+	if (buf_desc_bin->zsl_queue.valid_cnt > ISP_OFF_CONSUMER_Q_SIZE) {
+		ret = isp_buf_recycle(buf_desc_bin, &buf_desc_bin->tmp_buf_queue,
+					&buf_desc_bin->zsl_queue, 1);
+		if (ret)
+			goto exit;
+	}
+
+	if (buf_desc_full->zsl_queue.valid_cnt == 0) {
+		ret = ISP_RTN_SUCCESS;
+		pr_debug("wait new zsl frame\n");
+		goto exit;
+	}
+
+	if (dev->pre_state == ISP_ST_START) {
+		dev->bin_path_miss_cnt += 1;
+		pr_debug("dev->pre_state not done yet, miss this frame. %d",
+			dev->bin_path_miss_cnt);
+		goto exit;
+	}
+
+	if (fmcu_slice_capture_state == ISP_ST_START) {
+		pr_debug("fmcu not done yet, miss this frame.\n");
+		goto exit;
+	}
+
+	if (dev->cap_on == 0) {
+		dev->pre_state = ISP_ST_START;
+		pr_debug("pre_state START\n");
+	} else {
+		spin_lock(&isp_mod_lock);
+		fmcu_slice_capture_state = ISP_ST_START;
+		spin_unlock(&isp_mod_lock);
+		pr_debug("fmcu_slice_capture_state START\n");
+	}
+
+	dev->wait_full_tx_done = WAIT_CLEAR;
+
+exit:
+	pr_debug("X\n");
 
 	return ret;
 }
@@ -1851,6 +1934,224 @@ exit:
 	return ret;
 }
 
+static void ispdrv_bypass_all_block(struct isp_pipe_dev *dev, unsigned int idx)
+{
+	ISP_REG_WR(idx, ISP_PGG_PARAM, 1);
+	ISP_REG_WR(idx, ISP_BLC_PARAM, 1);
+	ISP_REG_WR(idx, ISP_POST_BLC_PARA, 1);
+	ISP_REG_WR(idx, ISP_RGBG_PARAM, 1);
+	ISP_REG_WR(idx, ISP_NLC_PARA, 1);
+	ISP_REG_WR(idx, ISP_LENS_PARAM, 1);
+	ISP_REG_WR(idx, ISP_RLSC_CTRL, 1);
+	ISP_REG_WR(idx, ISP_BINNING_PARAM, 1);
+	ISP_REG_WR(idx, ISP_AWBC_PARAM, 1);
+	ISP_REG_WR(idx, ISP_AEM_PARAM, 1);
+	ISP_REG_WR(idx, ISP_BPC_PARAM, 1);
+	ISP_REG_WR(idx, ISP_GRGB_CTRL, 1);
+	ISP_REG_WR(idx, ISP_VST_PARA, 1);
+	ISP_REG_WR(idx, ISP_NLM_PARA, 1);
+	ISP_REG_WR(idx, ISP_IVST_PARA, 1);
+	ISP_REG_WR(idx, ISP_CFAE_NEW_CFG0, 1);
+
+	ISP_REG_WR(idx, ISP_CMC10_PARAM, 1);
+	ISP_REG_WR(idx, ISP_GAMMA_PARAM, 1);
+	ISP_REG_WR(idx, ISP_HSV_PARAM, 1);
+	ISP_REG_WR(idx, ISP_PSTRZ_PARAM, 1);
+
+	ISP_REG_WR(idx, ISP_CCE_PARAM, 1);
+
+	ISP_REG_WR(idx, ISP_UVD_PARAM, 1);
+	ISP_REG_WR(idx, ISP_RGB_AFM_PARAM, 1);
+
+	ISP_REG_WR(idx, ISP_ANTI_FLICKER_NEW_PARAM0, 1);
+	ISP_REG_WR(idx, ISP_PRECDN_PARAM, 1);
+	ISP_REG_WR(idx, ISP_YNR_CTRL0, 1);
+	ISP_REG_WR(idx, ISP_BRIGHT_PARAM, 1);
+	ISP_REG_WR(idx, ISP_CONTRAST_PARAM, 1);
+	ISP_REG_WR(idx, ISP_HIST_PARAM, 1);
+	ISP_REG_WR(idx, ISP_HIST2_PARAM, 1);
+	ISP_REG_WR(idx, ISP_CDN_PARAM, 1);
+	ISP_REG_WR(idx, ISP_EE_PARAM, 1);
+	ISP_REG_WR(idx, ISP_CSA_PARAM, 1);
+	ISP_REG_WR(idx, ISP_HUA_PARAM, 1);
+	ISP_REG_WR(idx, ISP_POSTCDN_COMMON_CTRL, 1);
+	ISP_REG_WR(idx, ISP_YGAMMA_PARAM, 1);
+	ISP_REG_WR(idx, ISP_YDELAY_PARAM, 1);
+	ISP_REG_WR(idx, ISP_IIRCNR_PARAM, 1);
+	ISP_REG_WR(idx, ISP_YRANDOM_PARAM1, 1);
+	ISP_REG_WR(idx, ISP_YUV_NF_CTRL, 1);
+}
+
+/*
+ * FIXME: Yuv sensor support no-zsl only. If support zsl in the future,
+ * it should consider how to use the locks of pre and cap here and in isp_isr_root.
+ */
+static int sprd_isp_pipeline_proc_yuv(void *handle)
+{
+	enum isp_drv_rtn ret = ISP_RTN_SUCCESS;
+	struct isp_pipe_dev *dev = NULL;
+	struct isp_module *module_info = NULL;
+	struct isp_cctx_desc *cctx_desc = NULL;
+	struct camera_frame frame;
+	enum isp_id iid = ISP_ID_0;
+	enum isp_scene_id sid = ISP_SCENE_PRE;
+	unsigned int idx = 0;
+	struct isp_offline_desc *off_desc = NULL;
+	struct offline_buf_desc *buf_desc_bin = NULL;
+	struct offline_buf_desc *buf_desc_full = NULL;
+	struct camera_frame *p_offline_frame = NULL;
+	struct camera_frame *valid_frame = NULL;
+
+	if (unlikely(!handle)) {
+		pr_err("fail to get ptr\n");
+		return -EFAULT;
+	}
+
+	dev = (struct isp_pipe_dev *)handle;
+	if (dev->cap_on == 1)
+		sid = ISP_SCENE_CAP;
+
+	idx = dev->com_idx;
+	ISP_SET_SID(idx, sid);
+	iid = ISP_GET_IID(idx);
+	module_info = &dev->module_info;
+	off_desc = &module_info->off_desc;
+	buf_desc_bin = &off_desc->buf_desc_bin;
+	buf_desc_full = &off_desc->buf_desc_full;
+	if (unlikely(!module_info)) {
+		pr_err("fail to get module_info is NULL iid %d\n", iid);
+		ret = -EFAULT;
+		goto exit;
+	}
+
+	cctx_desc = module_info->cctx_desc;
+	if (unlikely(ISP_GET_MID(idx) == ISP_CFG_MODE &&
+		     cctx_desc == NULL)) {
+		pr_err("fail to get cctx_desc iid %d\n", iid);
+		ret = -EFAULT;
+		goto exit;
+	}
+
+	if (module_info->off_desc.valid == 0) {
+		pr_debug("isp%d stopped, can not process this frame\n", iid);
+		goto exit;
+	}
+	if ((sid == ISP_SCENE_PRE)
+		&& (fmcu_slice_capture_state == ISP_ST_START)) {
+		dev->pre_state = ISP_ST_STOP;
+		pr_debug("capture running, skip prev frame\n");
+		goto exit;
+	}
+	if ((sid == ISP_SCENE_CAP) && (dev->cap_on == 0)) {
+			fmcu_slice_capture_state = ISP_ST_STOP;
+			dev->is_wait_fmcu = 0;
+			complete(&dev->fmcu_com);
+			/* release offline buffer */
+			buf_desc_full = isp_offline_sel_buf(&module_info->off_desc,
+					   ISP_OFF_BUF_FULL);
+			if (isp_frame_dequeue(&buf_desc_full->zsl_queue, &frame)) {
+				pr_err("fail to deque full path\n");
+				ret = -EPERM;
+				goto exit;
+			}
+			if (isp_buf_queue_write(&buf_desc_full->tmp_buf_queue,
+					&frame)){
+				pr_err("fail to retrieve off buf full_path\n");
+				goto exit;
+			}
+
+			buf_desc_bin = isp_offline_sel_buf(&module_info->off_desc,
+					   ISP_OFF_BUF_BIN);
+			if (isp_frame_dequeue(&buf_desc_bin->zsl_queue, &frame)) {
+				pr_err("fail to deque full path\n");
+				ret = -EPERM;
+				goto exit;
+			}
+			if (isp_buf_queue_write(&buf_desc_bin->tmp_buf_queue,
+					&frame))
+				pr_err("fail to retrieve off buf full_path\n");
+			goto exit;
+
+	}
+
+
+	if (isp_frame_dequeue(&buf_desc_full->zsl_queue, &frame)) {
+		pr_err("fail to deque full path\n");
+		ret = -EPERM;
+		goto exit;
+	}
+	ISP_REG_WR(idx, ISP_FETCH_SLICE_Y_ADDR,
+		   frame.yaddr_vir);
+	p_offline_frame = &dev->offline_frame[ISP_OFF_BUF_FULL];
+	memcpy(p_offline_frame, &frame, sizeof(struct camera_frame));
+
+	if (isp_frame_dequeue(&buf_desc_bin->zsl_queue, &frame)) {
+		pr_err("fail to deque bin path\n");
+		ret = -EPERM;
+		goto exit;
+	}
+	ISP_REG_WR(idx, ISP_FETCH_SLICE_U_ADDR,
+		   frame.yaddr_vir);
+	p_offline_frame = &dev->offline_frame[ISP_OFF_BUF_BIN];
+	memcpy(p_offline_frame, &frame, sizeof(struct camera_frame));
+
+	if (sid == ISP_SCENE_CAP) {
+		dev->cap_on = 0;
+		valid_frame = &dev->offline_frame[ISP_OFF_BUF_FULL];
+		valid_frame->uaddr =
+			dev->offline_frame[ISP_OFF_BUF_BIN].yaddr_vir;
+
+		ret = prepare_fmcu_for_slice_cap(dev, valid_frame, idx);
+		if (unlikely(ret)) {
+			pr_err("fail to prepare fmcu slice cap , %d\n", ret);
+			goto exit;
+		}
+	}
+
+	ISP_REG_WR(idx, ISP_STORE_BASE + ISP_STORE_PARAM, 1);
+
+	do_shadow_clr(dev, idx, 0);
+	ispdrv_bypass_all_block(dev, idx);
+	isp_dbg_bypass_sblk(dev, idx);
+
+	/*
+	 * In CFG mode, init_hw will init isp CFG module and
+	 * flush dcache for cfg cmd buf, if you config registers
+	 * make sure the ISP_REG_xWR operation done before
+	 * init_hw, while using ISP_HREG_xWR, ignore this limit.
+	 * In AP mode, ignore this limit.
+	 */
+	if (likely(ISP_GET_MID(idx) == ISP_CFG_MODE)) {
+		ret = cctx_desc->intf->init_hw(cctx_desc, iid, sid);
+		ISP_HREG_MWR(iid, ISP_ARBITER_ENDIAN_CH0, 0x1, 0x0);
+		if (ret) {
+			pr_err("fail to init hw failed!\n");
+			goto exit;
+		}
+		pr_debug("init CFG hw done, iid %d, sid %d\n", iid, sid);
+	}
+	/*
+	 * bit8 in ISP_INT_ALL_DONE_CTRL used to enable
+	 * dispatch_done for all done ctrl, it means isp
+	 * all done interrupt will not occur if dispatch
+	 * not done.
+	 */
+	ISP_HREG_WR(idx, ISP_INT_ALL_DONE_CTRL + int_reg_base[iid][sid], 0xf8);
+
+	if (sid == ISP_SCENE_CAP) {
+		isp_clk_resume(iid, ISP_CLK_P_C);
+		ISP_HREG_WR(idx, ISP_FMCU_START, 1);
+		fmcu_slice_capture_state = ISP_ST_START;
+	} else {
+		isp_clk_resume(iid, ISP_CLK_P_P);
+		cctx_desc->intf->buf_ready(cctx_desc, iid, sid);
+	}
+
+exit:
+	pr_debug("exit\n");
+	return ret;
+}
+
 int sprd_isp_force_stop_pipeline(void *handle)
 {
 	enum isp_drv_rtn ret = 0;
@@ -1912,6 +2213,8 @@ int sprd_isp_stop_pipeline(void *handle)
 
 	dev = (struct isp_pipe_dev *)handle;
 	dev->cap_on = 0;
+	if (dev->is_yuv_sn)
+		dev->pre_state = ISP_ST_STOP;
 	if (dev->cap_flag != DCAM_CAPTURE_START_WITH_TIMESTAMP) {
 		wait_for_pipeline_proc_stop(handle);
 	} else {
@@ -3321,15 +3624,18 @@ _exit:
 
 int sprd_isp_set_offline_buffer(void *isp_handle, uint8_t off_type)
 {
-	int rtn = 0;
+	int rtn = ISP_RTN_SUCCESS;
 	struct camera_frame frame;
 	struct isp_pipe_dev *dev = NULL;
 	struct isp_module *module = NULL;
 	struct isp_offline_desc *off_desc = NULL;
 	struct offline_buf_desc *buf_desc = NULL;
+	int i;
+	int start;
+	int end;
 
 	if (!isp_handle) {
-		rtn = -ENODEV;
+		rtn = ISP_RTN_PARA_ERR;
 		goto _exit;
 	}
 
@@ -3337,69 +3643,72 @@ int sprd_isp_set_offline_buffer(void *isp_handle, uint8_t off_type)
 	off_desc = &dev->module_info.off_desc;
 	module = &dev->module_info;
 
-	buf_desc = isp_offline_sel_buf(off_desc, off_type);
-	if (off_desc->read_buf_err == 1) {
-		off_desc->read_buf_err = 0;
-		goto _exit;
+	if (off_type == ISP_OFF_BUF_BOTH) {
+		start = ISP_OFF_BUF_BIN;
+		end = ISP_OFF_BUF_FULL;
+	} else {
+		start = end = off_type;
 	}
 
-	off_desc->shadow_done_cnt = 0;
+	for (i = start; i <= end; i++) {
+		buf_desc = isp_offline_sel_buf(off_desc, i);
+		if (off_desc->read_buf_err == 1) {
+			off_desc->read_buf_err = 0;
+			goto _exit;
+		}
 
-	if (buf_desc->frame_queue.valid_cnt <= ISP_OFF_PRODUCER_Q_SIZE_MIN) {
-		pr_warn_ratelimited("type %d need > 1 frames, %d\n",
-			off_type, buf_desc->frame_queue.valid_cnt);
-		goto _exit;
+		off_desc->shadow_done_cnt = 0;
+
+		if (buf_desc->frame_queue.valid_cnt <= ISP_OFF_PRODUCER_Q_SIZE_MIN) {
+			pr_warn_ratelimited("type %d need > 1 frames, %d\n",
+				off_type, buf_desc->frame_queue.valid_cnt);
+			goto _exit;
+		}
+
+		if (isp_frame_dequeue(&buf_desc->frame_queue, &frame)) {
+			pr_err("fail to dequeue offline producer (%d)\n",
+				off_type);
+			rtn = ISP_RTN_PATH_ADDR_ERR;
+			goto _exit;
+		}
+
+		pr_debug("enqueued into zsl q, frame_id: %d\n", frame.fid);
+		if (unlikely(is_dual_cam && has_dual_cap_started &&
+			     off_type == ISP_OFF_BUF_FULL)) {
+			/* do not update ZSL queue, please note this is not 100%
+			 * precise that some frames can still slip into the queue
+			 */
+			if (isp_buf_queue_write(&buf_desc->tmp_buf_queue, &frame))
+				pr_err("fail to write frame to buf queue\n");
+			goto _exit;
+		} else if (isp_frame_enqueue(&buf_desc->zsl_queue, &frame)) {
+			pr_err("fail to enqueue offline consumer (%d)\n",
+				off_type);
+			rtn = ISP_RTN_PATH_ADDR_ERR;
+			goto _exit;
+		}
 	}
-
-	if (isp_frame_dequeue(&buf_desc->frame_queue, &frame)) {
-		pr_err("fail to dequeue offline producer (%d)\n",
-			off_type);
-		rtn = ISP_RTN_PATH_ADDR_ERR;
-		goto _exit;
-	}
-
-	pr_debug("enqueued into zsl q, frame_id: %d\n", frame.fid);
-	if (unlikely(is_dual_cam && has_dual_cap_started &&
-		     off_type == ISP_OFF_BUF_FULL)) {
-		/* do not update ZSL queue, please note this is not 100%
-		 * precise that some frames can still slip into the queue
-		 */
-		if (isp_buf_queue_write(&buf_desc->tmp_buf_queue, &frame))
-			pr_err("fail to write frame to buf queue\n");
-		goto _exit;
-	} else if (isp_frame_enqueue(&buf_desc->zsl_queue, &frame)) {
-		pr_err("fail to enqueue offline consumer (%d)\n",
-			off_type);
-		rtn = ISP_RTN_PATH_ADDR_ERR;
-		goto _exit;
-	}
-
-	pr_debug("start isp pipeline for %s\n",
-		((off_type == ISP_OFF_BUF_FULL) ?
-		"full_path" : "bin_path"));
-
-	if (off_type == ISP_OFF_BUF_BIN) {
+	switch (off_type) {
+	case ISP_OFF_BUF_BIN:
+	case ISP_OFF_BUF_BOTH:
 		rtn = sprd_isp_start_pipeline_bin(isp_handle,
 						  DCAM_CAPTURE_NONE);
-		if (rtn) {
-			pr_err("fail to start isp pipeline bin path\n");
-			rtn = -EFAULT;
-			goto _exit;
-		}
-	} else if (off_type == ISP_OFF_BUF_FULL) {
+		break;
+	case ISP_OFF_BUF_FULL:
 		rtn = sprd_isp_start_pipeline_full(isp_handle,
-						   DCAM_CAPTURE_NONE);
-		if (rtn) {
-			pr_err("fail to start isp pipeline full path\n");
-			rtn = -EFAULT;
-			goto _exit;
-		}
-	} else {
+						  DCAM_CAPTURE_NONE);
+		break;
+	default:
 		pr_err("fail to get off_type\n");
 		rtn = EINVAL;
 		goto _exit;
 	}
-
+	if (rtn) {
+		pr_err("fail to start isp pipeline %d path\n", off_type);
+		rtn = -EFAULT;
+		goto _exit;
+	}
+	pr_debug("start isp pipeline %d path\n", off_type);
 _exit:
 	pr_debug("Isp offline down end.\n");
 	return -rtn;

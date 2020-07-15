@@ -1281,6 +1281,12 @@ static int dcamio_start_capture(struct camera_file *camerafile,
 	pr_info("dcam%d, start capture, cap_flag %d\n",
 			dev->idx, cap_flag);
 
+	if (isp_dev->is_yuv_sn) {
+		/* enable capture for yuv sensor */
+		isp_dev->cap_on = 1;
+		goto exit;
+	}
+
 	if (!is_dual_cam) {
 		int i;
 #define DEQUEUE_TIMEOUT	(DCAM_TIMEOUT * 1000) /* us */

@@ -2644,6 +2644,12 @@ static int sprd_dcam_cfg(struct camera_dev *dev)
 	pdaf_path = &info->dcam_path[CAMERA_PDAF_PATH];
 	aem_path = &info->dcam_path[CAMERA_AEM_PATH];
 	ebd_path = &info->dcam_path[CAMERA_EBD_PATH];
+	if (info->sn_mode == DCAM_CAP_MODE_YUV) {
+		if (pre_path->is_work && !cap_path->is_work) {
+			pr_debug("this is video mode\n");
+			memcpy(cap_path, pre_path, sizeof(*pre_path));
+		}
+	}
 
 	ret = sprd_dcam_module_init(idx, (void *)dev);
 	if (unlikely(ret)) {
@@ -2907,6 +2913,7 @@ static int sprd_isp_path_cfg(struct camera_dev *dev)
 	int path_not_work = 0;
 	struct camera_info *info = NULL;
 	struct isp_path_info path_info;
+	struct isp_pipe_dev *isp_dev = NULL;
 	struct camera_path_spec *path_pre = NULL;
 	struct camera_path_spec *path_vid = NULL;
 	struct camera_path_spec *path_cap = NULL;
@@ -2921,11 +2928,15 @@ static int sprd_isp_path_cfg(struct camera_dev *dev)
 	mutex_lock(&dev->dcam_mutex);
 	info = &dev->dcam_cxt;
 	idx = dev->idx;
-
+	isp_dev = (struct isp_pipe_dev *)dev->isp_dev_handle;
 	path_pre = &info->dcam_path[CAMERA_PRE_PATH];
 	path_vid = &info->dcam_path[CAMERA_VID_PATH];
 	path_cap = &info->dcam_path[CAMERA_CAP_PATH];
 	path_info.is_slow_motion = info->is_slow_motion;
+	if (dev->dcam_cxt.sn_mode == DCAM_CAP_MODE_YUV)
+		isp_dev->is_yuv_sn = true;
+	else
+		isp_dev->is_yuv_sn = false;
 
 	if (info->is_loose)
 		path_cap->is_loose = 1;

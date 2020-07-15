@@ -731,14 +731,16 @@ struct isp_pipe_dev {
 
 	/* distance between matched frame */
 	int delta_full;
+
+	bool is_yuv_sn;
 };
 
 typedef void(*isp_isr)(void *param);
 typedef int(*isp_isr_func)(struct camera_frame *frame, void *param);
-
 int sprd_isp_stop(void *isp_handle, int is_irq);
 int sprd_isp_start_pipeline_bin(void *handle, uint32_t cap_flag);
 int sprd_isp_start_pipeline_full(void *handle, uint32_t cap_flag);
+int sprd_isp_start_pipeline_yuv(void *handle, unsigned int cap_flag);
 int sprd_isp_stop_pipeline(void *handle);
 int sprd_isp_force_stop_pipeline(void *handle);
 int sprd_isp_start(void *isp_handle, struct camera_frame *frame);

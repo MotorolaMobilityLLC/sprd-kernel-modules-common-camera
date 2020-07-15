@@ -2624,11 +2624,15 @@ int isp_fmcu_slice_cfg(void *fmcu_handler, struct slice_param_in *in_ptr,
 		goto exit;
 	}
 
-	rtn = set_slice_lsc_2d_info(in_ptr, cxt);
-	if (rtn) {
-		pr_err("fail to set slice lsc_2d info!\n");
-		goto exit;
-	}
+	if (in_ptr->fetch_format == ISP_FETCH_CSI2_RAW_10 ||
+		in_ptr->fetch_format == ISP_FETCH_RAW_10) {
+		rtn = set_slice_lsc_2d_info(in_ptr, cxt);
+		if (rtn) {
+			pr_err("fail to set slice lsc_2d info!\n");
+			goto exit;
+		}
+	} else
+		pr_debug("skip LSC for YUV format %d\n", in_ptr->fetch_format);
 
 	rtn = set_slice_fetch_info(in_ptr, cxt);
 	if (rtn) {

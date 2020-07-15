@@ -826,6 +826,23 @@ static void isp_path_done(enum isp_scl_id path_id, void *isp_handle)
 			tmp_frame->yaddr_vir = 0;
 		}
 
+		if (dev->is_yuv_sn == true) {
+			/* release offline buffer */
+			buf_desc = isp_offline_sel_buf(&module->off_desc,
+						       ISP_OFF_BUF_FULL);
+			tmp_frame = &dev->offline_frame[ISP_OFF_BUF_FULL];
+			if (tmp_frame->yaddr_vir) {
+				ret = isp_buf_queue_write(&buf_desc->tmp_buf_queue,
+							  tmp_frame);
+				if (ret) {
+					pr_err("fail to retrieve off buf bin_path\n");
+					return;
+				}
+				buf_desc->output_frame_count++;
+				tmp_frame->yaddr_vir = 0;
+			}
+		}
+
 		ret = isp_frame_dequeue(&path->frame_queue, &frame);
 		if (ret) {
 			pr_err("fail to dequeue frame path id %d\n", path_id);
@@ -1126,6 +1143,21 @@ static void isp_fmcu_config_done(void *isp_handle)
 		}
 
 		buf_desc->output_frame_count++;
+		if (dev->is_yuv_sn == true) {
+			/* release offline buffer */
+			buf_desc = isp_offline_sel_buf(&module->off_desc,
+					ISP_OFF_BUF_BIN);
+			tmp_frame = &dev->offline_frame[ISP_OFF_BUF_BIN];
+			if (tmp_frame->yaddr_vir) {
+				ret = isp_buf_queue_write(&buf_desc->tmp_buf_queue,
+					tmp_frame);
+				if (ret) {
+					pr_err("fail to retrieve off buf bin_path\n");
+					return;
+				}
+				buf_desc->output_frame_count++;
+			}
+		}
 		ret = pfiommu_free_addr_with_id(&frame.pfinfo, ISP_IOMMU_CH_AW,
 					  AW_ID_STORE_PRE_CAP_YUV);
 		if (ret)

@@ -556,7 +556,11 @@ static int isp_get_store_param(struct isp_path_desc *path)
 	store_info->endian = path->data_endian.uv_endian;
 	store_info->speed_2x = 1;
 	store_info->mirror_en = 0;
-	store_info->color_format = isp_store_format(path->output_format);
+	if (path->input_format == ISP_FETCH_YVU420_2FRAME)
+		store_info->color_format = isp_store_format(DCAM_YVU420);
+	else
+		store_info->color_format = isp_store_format(path->output_format);
+
 	store_info->max_len_sel = 0;
 	store_info->shadow_clr_sel = 1;
 	store_info->shadow_clr = 1;
