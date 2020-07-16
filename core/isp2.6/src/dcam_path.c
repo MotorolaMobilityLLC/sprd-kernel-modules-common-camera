@@ -303,6 +303,7 @@ int dcam_cfg_path_size(void *dcam_handle,
 			path_3dnr = &dev->path[DCAM_PATH_3DNR];
 			if (atomic_read(&path_3dnr->user_cnt) > 0)
 				path_3dnr->size_update = 1;
+			path_3dnr->in_trim = path->in_trim;
 		}
 		spin_unlock(&path->size_lock);
 
