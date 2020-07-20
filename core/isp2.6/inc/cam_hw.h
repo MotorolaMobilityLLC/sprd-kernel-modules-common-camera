@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Spreadtrum Communications Inc.
+ * Copyright (C) 2019-2020 Unisoc Communications Inc.
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -24,6 +24,7 @@
 extern struct cam_hw_info sharkl3_hw_info;
 extern struct cam_hw_info sharkl5_hw_info;
 extern struct cam_hw_info sharkl5pro_hw_info;
+extern struct cam_hw_info qogirl6_hw_info;
 
 typedef int (*hw_ioctl_fun)(void *handle, void *arg);
 

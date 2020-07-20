@@ -70,6 +70,8 @@ else ifeq ($(ADAPT_DIR), sharkl5pro)
 ccflags-y += -DPROJ_SHARKL5PRO
 else ifeq ($(ADAPT_DIR), sharkl5)
 ccflags-y += -DPROJ_SHARKL5
+else ifeq ($(ADAPT_DIR), qogirl6)
+ccflags-y += -DPROJ_QOGIRL6
 endif
 
 #

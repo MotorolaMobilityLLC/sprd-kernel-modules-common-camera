@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Spreadtrum Communications Inc.
+ * Copyright (C) 2019-2020 Unisoc Communications Inc.
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -9206,6 +9206,8 @@ static const struct of_device_id sprd_cam_of_match[] = {
 	{ .compatible = "sprd,sharkl5-cam", .data = &sharkl5_hw_info},
 	#elif defined (PROJ_SHARKL5PRO)
 	{ .compatible = "sprd,sharkl5pro-cam", .data = &sharkl5pro_hw_info},
+	#elif defined (PROJ_QOGIRL6)
+	{ .compatible = "sprd,qogirl6-cam", .data = &qogirl6_hw_info},
 	#endif
 	{ },
 };
