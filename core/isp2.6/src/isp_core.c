@@ -3158,7 +3158,7 @@ static int isp_cfg_statis_buffer(
 	struct camera_buf *ion_buf = NULL;
 	struct camera_frame *pframe;
 
-	if (!isp_handle || ctx_id >= ISP_CONTEXT_SW_NUM) {
+	if (!isp_handle || ctx_id < 0 || ctx_id >= ISP_CONTEXT_SW_NUM) {
 		pr_info("isp_handle=%p, cxt_id=%d\n", isp_handle, ctx_id);
 		return 0;
 	}
