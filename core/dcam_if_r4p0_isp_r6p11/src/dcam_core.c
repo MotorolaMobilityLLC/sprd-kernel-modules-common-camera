@@ -3789,6 +3789,7 @@ static int sprd_img_set_frame_addr(struct camera_file *camerafile,
 				buf_addr.frm_addr.mfd_y = p->fd_array[i];
 				buf_addr.frm_addr.mfd_u = p->fd_array[i];
 				buf_addr.frm_addr.mfd_v = p->fd_array[i];
+				buf_addr.frm_addr.user_fid = p->user_fid;
 
 				pr_debug("before stream_on, phy:0x%08x, 0x%08x, 0x%08x\n",
 						buf_addr.frm_addr.yaddr,
