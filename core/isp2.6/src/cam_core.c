@@ -833,7 +833,6 @@ static int cam_cfg_path_buffer(struct camera_module *module,
 	int ret = 0;
 	uint32_t j, isp_ctx_id, isp_path_id;
 	struct channel_context *ch = NULL;
-	struct channel_context *ch_pre = NULL;
 	struct cam_hw_info *hw = NULL;
 
 	if (!module) {
@@ -841,7 +840,6 @@ static int cam_cfg_path_buffer(struct camera_module *module,
 		return -EFAULT;
 	}
 
-	ch_pre = &module->channel[CAM_CH_PRE];
 	ch = &module->channel[index];
 	hw = module->grp->hw_info;
 	if (!ch->alloc_start)
@@ -905,14 +903,51 @@ static int cam_cfg_path_buffer(struct camera_module *module,
 		}
 	}
 
+	if (hw->ip_dcam[module->dcam_idx]->superzoom_support
+		&& ch->ch_id == CAM_CH_CAP) {
+		if (ch->postproc_buf== NULL)
+			return 0;
+		ret = isp_ops->cfg_path(module->isp_dev_handle,
+				ISP_PATH_CFG_POSTPROC_BUF,
+				isp_ctx_id, isp_path_id,
+				ch->postproc_buf);
+		if (ret) {
+			pr_err("fail to config isp superzoom buffer sw %d,  path id %d\n",
+				isp_ctx_id, isp_path_id);
+			goto exit;
+		}
+	}
+
+exit:
+	return ret;
+}
+
+static int cam_cfg_ltm_buffer(struct camera_module *module,
+	uint32_t index)
+{
+	int ret = 0;
+	uint32_t j, isp_ctx_id, isp_path_id;
+	struct channel_context *ch = NULL;
+	struct channel_context *ch_pre = NULL;
+
+	if (!module) {
+		pr_err("fail to get input ptr\n");
+		return -EFAULT;
+	}
+
+	ch_pre = &module->channel[CAM_CH_PRE];
+	ch = &module->channel[index];
+	isp_ctx_id = ch->isp_path_id >> ISP_CTXID_OFFSET;
+	isp_path_id = ch->isp_path_id & ISP_PATHID_MASK;
+
 	if (module->cam_uinfo.is_rgb_ltm) {
 		for (j = 0; j < ISP_LTM_BUF_NUM; j++) {
 			ch->ltm_bufs[LTM_RGB][j] =
 				ch_pre->ltm_bufs[LTM_RGB][j];
 			if (ch->ltm_bufs[LTM_RGB][j] == NULL) {
-				pr_debug("ch->ltm_bufs[%d][%d] NULL\n",
-					LTM_RGB, j);
-				continue;
+				pr_err("ch->ltm_bufs[%d][%d] NULL, index : %x\n",
+					LTM_RGB, j, index);
+				goto exit;
 			}
 			ret = isp_ops->cfg_path(module->isp_dev_handle,
 					ISP_PATH_CFG_RGB_LTM_BUF,
@@ -930,9 +965,9 @@ static int cam_cfg_path_buffer(struct camera_module *module,
 			ch->ltm_bufs[LTM_YUV][j] =
 				ch_pre->ltm_bufs[LTM_YUV][j];
 			if (ch->ltm_bufs[LTM_YUV][j] == NULL) {
-				pr_debug("ch->ltm_bufs[%d][%d] NULL\n",
-					LTM_YUV, j);
-				continue;
+				pr_err("ch->ltm_bufs[%d][%d] NULL, index\n",
+					LTM_YUV, j, index);
+				goto exit;
 			}
 			ret = isp_ops->cfg_path(module->isp_dev_handle,
 					ISP_PATH_CFG_YUV_LTM_BUF,
@@ -944,22 +979,6 @@ static int cam_cfg_path_buffer(struct camera_module *module,
 			}
 		}
 	}
-
-	if (hw->ip_dcam[module->dcam_idx]->superzoom_support
-		&& ch->ch_id == CAM_CH_CAP) {
-		if (ch->postproc_buf== NULL)
-			return 0;
-		ret = isp_ops->cfg_path(module->isp_dev_handle,
-				ISP_PATH_CFG_POSTPROC_BUF,
-				isp_ctx_id, isp_path_id,
-				ch->postproc_buf);
-		if (ret) {
-			pr_err("fail to config isp superzoom buffer sw %d,  path id %d\n",
-				isp_ctx_id, isp_path_id);
-			goto exit;
-		}
-	}
-
 exit:
 	return ret;
 }
@@ -1214,13 +1233,6 @@ static void alloc_buffers(struct work_struct *work)
 					}
 					cambuf_kmap(&pframe->buf);
 					channel->ltm_bufs[LTM_RGB][i] = pframe;
-				} else { /* CAM_CH_CAP case */
-					/*
-					 * LTM capture, USING preview path histo,
-					 * So, setting preview buf to capture path
-					 * */
-					channel->ltm_bufs[LTM_RGB][i] =
-						module->channel[CAM_CH_PRE].ltm_bufs[LTM_RGB][i];
 				}
 			}
 		}
@@ -1248,13 +1260,6 @@ static void alloc_buffers(struct work_struct *work)
 					}
 					cambuf_kmap(&pframe->buf);
 					channel->ltm_bufs[LTM_YUV][i] = pframe;
-				} else { /* CAM_CH_CAP case */
-					/*
-					 * LTM capture, USING preview path histo,
-					 * So, setting preview buf to capture path
-					 * */
-					channel->ltm_bufs[LTM_YUV][i] =
-						module->channel[CAM_CH_PRE].ltm_bufs[LTM_YUV][i];
 				}
 			}
 		}
@@ -6524,6 +6529,11 @@ cfg_ch_done:
 				pr_err("fail to cfg path buffer\n");
 				goto exit;
 			}
+		}
+		ret = cam_cfg_ltm_buffer(module, i);
+		if (ret) {
+			pr_err("fail to cfg ltm buffer\n");
+			goto exit;
 		}
 	}
 
