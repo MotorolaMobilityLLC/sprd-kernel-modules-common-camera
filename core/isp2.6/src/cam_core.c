@@ -945,7 +945,7 @@ static int cam_cfg_ltm_buffer(struct camera_module *module,
 			ch->ltm_bufs[LTM_RGB][j] =
 				ch_pre->ltm_bufs[LTM_RGB][j];
 			if (ch->ltm_bufs[LTM_RGB][j] == NULL) {
-				pr_err("ch->ltm_bufs[%d][%d] NULL, index : %x\n",
+				pr_err("fail to get rgb_buf ch->ltm_bufs[%d][%d] NULL, index : %x\n",
 					LTM_RGB, j, index);
 				goto exit;
 			}
@@ -965,7 +965,7 @@ static int cam_cfg_ltm_buffer(struct camera_module *module,
 			ch->ltm_bufs[LTM_YUV][j] =
 				ch_pre->ltm_bufs[LTM_YUV][j];
 			if (ch->ltm_bufs[LTM_YUV][j] == NULL) {
-				pr_err("ch->ltm_bufs[%d][%d] NULL, index\n",
+				pr_err("fail to get yuv_buf ch->ltm_bufs[%d][%d] NULL, index : %x\n",
 					LTM_YUV, j, index);
 				goto exit;
 			}
