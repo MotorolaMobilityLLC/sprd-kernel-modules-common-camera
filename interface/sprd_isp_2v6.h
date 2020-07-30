@@ -214,16 +214,16 @@ enum dcam_afm_property {
 };
 
 enum dcam_pdaf_property {
-	DCAM_PRO_PDAF_BLOCK,
-	DCAM_PRO_PDAF_BYPASS,
-	DCAM_PRO_PDAF_SET_MODE,
-	DCAM_PRO_PDAF_SET_SKIP_NUM,
-	DCAM_PRO_PDAF_SET_ROI,
-	DCAM_PRO_PDAF_SET_PPI_INFO,
-	DCAM_PRO_PDAF_TYPE1_BLOCK,
-	DCAM_PRO_PDAF_TYPE2_BLOCK,
-	DCAM_PRO_PDAF_TYPE3_BLOCK,
-	DCAM_PRO_DUAL_PDAF_BLOCK,
+	DCAM_PDAF_BYPASS,
+	DCAM_PDAF_TYPE3_SET_INFO,
+	DCAM_PDAF_TYPE3_SET_MODE,
+	DCAM_PDAF_TYPE3_SET_SKIP_NUM,
+	DCAM_PDAF_TYPE3_SET_ROI,
+	DCAM_PDAF_TYPE3_SET_PPI_INFO,
+	DCAM_PDAF_TYPE1_BLOCK,
+	DCAM_PDAF_TYPE2_BLOCK,
+	DCAM_PDAF_TYPE3_BLOCK,
+	DCAM_DUAL_PDAF_BLOCK,
 };
 
 enum isp_bchs_property {
@@ -1839,6 +1839,7 @@ struct isp_dev_pdaf_info {
 struct pdaf_ppi_info {
 	struct isp_img_size block_size;
 	struct isp_coord block;
+	uint32_t bypass;
 	uint32_t pd_pos_size;
 	uint32_t pattern_pixel_is_right[PDAF_PPI_NUM];
 	uint32_t pattern_pixel_row[PDAF_PPI_NUM];

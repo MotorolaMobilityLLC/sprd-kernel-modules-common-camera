@@ -151,6 +151,8 @@ static int isp_k_pdaf_type3_block(struct isp_io_param *param, void *in)
 		|(vch2_info.vch2_data_type & 0x3f) << 8
 		|(vch2_info.vch2_mode & 0x03));
 
+	DCAM_REG_MWR(idx, DCAM_VC2_CONTROL, BIT_1 | BIT_0, 0);
+
 	return ret;
 }
 
@@ -176,7 +178,7 @@ static int isp_k_dual_pdaf_block(struct isp_io_param *param, enum dcam_id idx)
 	return ret;
 }
 
-static int isp_k_pdaf_block(struct isp_io_param *param, enum dcam_id idx)
+static int isp_k_pdaf_type3_set_info(struct isp_io_param *param, enum dcam_id idx)
 {
 	int ret = 0;
 	unsigned int val = 0;
@@ -232,7 +234,6 @@ static int isp_k_pdaf_bypass(
 {
 	int ret = 0;
 	unsigned int bypass = 0;
-	 enum dcam_id idx = p->idx;
 
 	ret = copy_from_user((void *)&bypass,
 		param->property_param, sizeof(unsigned int));
@@ -244,18 +245,11 @@ static int isp_k_pdaf_bypass(
 	bypass = !!bypass;
 	p->pdaf.bypass = bypass;
 	pr_info("dcam%d pdaf bypass %d\n", p->idx, bypass);
-	if (bypass)
-		return ret;
-
-	DCAM_REG_MWR(idx, DCAM_CFG, BIT_3, 0x1 << 3);
-	DCAM_REG_MWR(idx, DCAM_CFG, BIT_4, 0x1 << 4);
-	DCAM_REG_MWR(idx, DCAM_PDAF_CONTROL, BIT_1 | BIT_0, 0x3);
-	DCAM_REG_MWR(idx, DCAM_VC2_CONTROL, BIT_1 | BIT_0, 0);
 
 	return ret;
 }
 
-static int isp_k_pdaf_set_ppi_info(struct isp_io_param *param, enum dcam_id idx)
+static int isp_k_pdaf_type3_set_ppi_info(struct isp_io_param *param, enum dcam_id idx)
 {
 	int ret = 0;
 	unsigned int val = 0;
@@ -276,7 +270,7 @@ static int isp_k_pdaf_set_ppi_info(struct isp_io_param *param, enum dcam_id idx)
 	return ret;
 }
 
-static int isp_k_pdaf_set_roi(struct isp_io_param *param, enum dcam_id idx)
+static int isp_k_pdaf_type3_set_roi(struct isp_io_param *param, enum dcam_id idx)
 {
 
 	int ret = 0;
@@ -308,7 +302,7 @@ static int isp_k_pdaf_set_roi(struct isp_io_param *param, enum dcam_id idx)
 	return ret;
 }
 
-static int isp_k_pdaf_set_skip_num(struct isp_io_param *param, enum dcam_id idx)
+static int isp_k_pdaf_type3_set_skip_num(struct isp_io_param *param, enum dcam_id idx)
 {
 	int ret = 0;
 	unsigned int skip_num = 0;
@@ -325,7 +319,7 @@ static int isp_k_pdaf_set_skip_num(struct isp_io_param *param, enum dcam_id idx)
 	return ret;
 }
 
-static int isp_k_pdaf_set_mode(struct isp_io_param *param, enum dcam_id idx)
+static int isp_k_pdaf_type3_set_mode(struct isp_io_param *param, enum dcam_id idx)
 {
 	int ret = 0;
 	uint32_t mode = 0;
@@ -368,37 +362,37 @@ int dcam_k_cfg_pdaf(struct isp_io_param *param, struct dcam_dev_param *p)
 	dev = (struct dcam_pipe_dev *)p->dev;
 	idx = p->idx;
 	switch (param->property) {
-	case DCAM_PRO_PDAF_BLOCK:
-		ret = isp_k_pdaf_block(param, idx);
-		break;
-	case DCAM_PRO_PDAF_BYPASS:
+	case DCAM_PDAF_BYPASS:
 		ret = isp_k_pdaf_bypass(param, p);
 		break;
-	case DCAM_PRO_PDAF_SET_MODE:
-		ret = isp_k_pdaf_set_mode(param, idx);
+	case DCAM_PDAF_TYPE3_SET_INFO:
+		ret = isp_k_pdaf_type3_set_info(param, idx);
 		break;
-	case DCAM_PRO_PDAF_SET_PPI_INFO:
-		ret = isp_k_pdaf_set_ppi_info(param, idx);
+	case DCAM_PDAF_TYPE3_SET_MODE:
+		ret = isp_k_pdaf_type3_set_mode(param, idx);
 		break;
-	case DCAM_PRO_PDAF_SET_SKIP_NUM:
-		ret = isp_k_pdaf_set_skip_num(param, idx);
+	case DCAM_PDAF_TYPE3_SET_PPI_INFO:
+		ret = isp_k_pdaf_type3_set_ppi_info(param, idx);
 		break;
-	case DCAM_PRO_PDAF_SET_ROI:
-		ret = isp_k_pdaf_set_roi(param, idx);
+	case DCAM_PDAF_TYPE3_SET_SKIP_NUM:
+		ret = isp_k_pdaf_type3_set_skip_num(param, idx);
 		break;
-	case DCAM_PRO_PDAF_TYPE1_BLOCK:
+	case DCAM_PDAF_TYPE3_SET_ROI:
+		ret = isp_k_pdaf_type3_set_roi(param, idx);
+		break;
+	case DCAM_PDAF_TYPE1_BLOCK:
 		p->pdaf.pdaf_type = 1;
 		ret = isp_k_pdaf_type1_block(param, idx);
 		break;
-	case DCAM_PRO_PDAF_TYPE2_BLOCK:
+	case DCAM_PDAF_TYPE2_BLOCK:
 		p->pdaf.pdaf_type = 2;
 		ret = isp_k_pdaf_type2_block(param, idx);
 		break;
-	case DCAM_PRO_PDAF_TYPE3_BLOCK:
+	case DCAM_PDAF_TYPE3_BLOCK:
 		p->pdaf.pdaf_type = 3;
 		ret = isp_k_pdaf_type3_block(param, p);
 		break;
-	case DCAM_PRO_DUAL_PDAF_BLOCK:
+	case DCAM_DUAL_PDAF_BLOCK:
 		p->pdaf.pdaf_type = 0;
 		ret = isp_k_dual_pdaf_block(param, idx);
 		break;

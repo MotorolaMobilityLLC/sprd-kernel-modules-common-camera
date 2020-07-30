@@ -115,6 +115,7 @@ static int isp_k_pdaf_type3_block(
 		pr_err("fail to copy from user, ret = %d\n", ret);
 		return -1;
 	}
+
 	idx = p->idx;
 	p->pdaf.pdaf_type = 3;
 
@@ -151,7 +152,7 @@ static int isp_k_dual_pdaf_block(
 	return ret;
 }
 
-static int isp_k_pdaf_block(
+static int isp_k_pdaf_type3_set_info(
 	struct isp_io_param *param, struct dcam_dev_param *p)
 {
 	int ret = 0;
@@ -192,14 +193,12 @@ static int isp_k_pdaf_bypass(struct isp_io_param *param, struct dcam_dev_param *
 
 	bypass = !!bypass;
 	p->pdaf.bypass = bypass;
-	DCAM_REG_MWR(p->idx, ISP_PPI_PARAM, BIT_0, bypass);
-
 	pr_info("dcam%d pdaf bypass %d\n", p->idx, bypass);
 
 	return ret;
 }
 
-static int isp_k_pdaf_set_ppi_info(
+static int isp_k_pdaf_type3_set_ppi_info(
 	struct isp_io_param *param, struct dcam_dev_param *p)
 {
 	int ret = 0;
@@ -214,6 +213,11 @@ static int isp_k_pdaf_set_ppi_info(
 		pr_err("fail to copy from user, ret = %d\n", ret);
 		return -1;
 	}
+
+	DCAM_REG_MWR(p->idx, ISP_PPI_PARAM, BIT_0, ppi_info->bypass);
+	if (ppi_info->bypass)
+		return 0;
+
 	write_pd_table(ppi_info, idx);
 
 	pr_debug("block area: (%d, %d) (%d, %d), block.w/h: %d, %d\n",
@@ -242,7 +246,7 @@ static int isp_k_pdaf_set_ppi_info(
 	return ret;
 }
 
-static int isp_k_pdaf_set_roi(
+static int isp_k_pdaf_type3_set_roi(
 	struct isp_io_param *param, struct dcam_dev_param *p)
 {
 
@@ -274,7 +278,7 @@ static int isp_k_pdaf_set_roi(
 	return ret;
 }
 
-static int isp_k_pdaf_set_skip_num(
+static int isp_k_pdaf_type3_set_skip_num(
 	struct isp_io_param *param, struct dcam_dev_param *p)
 {
 	int ret = 0;
@@ -296,7 +300,7 @@ static int isp_k_pdaf_set_skip_num(
 	return ret;
 }
 
-static int isp_k_pdaf_set_mode(
+static int isp_k_pdaf_type3_set_mode(
 	struct isp_io_param *param, struct dcam_dev_param *p)
 {
 	int ret = 0;
@@ -409,35 +413,35 @@ int dcam_k_cfg_pdaf(struct isp_io_param *param, struct dcam_dev_param *p)
 
 	idx = p->idx;
 	switch (param->property) {
-	case DCAM_PRO_PDAF_BLOCK:
-		ret = isp_k_pdaf_block(param, p);
-		break;
-	case DCAM_PRO_PDAF_BYPASS:
+	case DCAM_PDAF_BYPASS:
 		ret = isp_k_pdaf_bypass(param, p);
 		break;
-	case DCAM_PRO_PDAF_SET_MODE:
-		ret = isp_k_pdaf_set_mode(param, p);
+	case DCAM_PDAF_TYPE3_SET_INFO:
+		ret = isp_k_pdaf_type3_set_info(param, p);
 		break;
-	case DCAM_PRO_PDAF_SET_SKIP_NUM:
-		ret = isp_k_pdaf_set_skip_num(param, p);
+	case DCAM_PDAF_TYPE3_SET_MODE:
+		ret = isp_k_pdaf_type3_set_mode(param, p);
 		break;
-	case DCAM_PRO_PDAF_SET_ROI:
-		ret = isp_k_pdaf_set_roi(param, p);
+	case DCAM_PDAF_TYPE3_SET_SKIP_NUM:
+		ret = isp_k_pdaf_type3_set_skip_num(param, p);
 		break;
-	case DCAM_PRO_PDAF_SET_PPI_INFO:
-		ret = isp_k_pdaf_set_ppi_info(param, p);
+	case DCAM_PDAF_TYPE3_SET_ROI:
+		ret = isp_k_pdaf_type3_set_roi(param, p);
 		break;
-	case DCAM_PRO_PDAF_TYPE1_BLOCK:
+	case DCAM_PDAF_TYPE3_SET_PPI_INFO:
+		ret = isp_k_pdaf_type3_set_ppi_info(param, p);
+		break;
+	case DCAM_DUAL_PDAF_BLOCK:
+		ret = isp_k_dual_pdaf_block(param, p);
+		break;
+	case DCAM_PDAF_TYPE1_BLOCK:
 		ret = isp_k_pdaf_type1_block(param, p);
 		break;
-	case DCAM_PRO_PDAF_TYPE2_BLOCK:
+	case DCAM_PDAF_TYPE2_BLOCK:
 		ret = isp_k_pdaf_type2_block(param, p);
 		break;
-	case DCAM_PRO_PDAF_TYPE3_BLOCK:
+	case DCAM_PDAF_TYPE3_BLOCK:
 		ret = isp_k_pdaf_type3_block(param, p);
-		break;
-	case DCAM_PRO_DUAL_PDAF_BLOCK:
-		ret = isp_k_dual_pdaf_block(param, p);
 		break;
 	default:
 		pr_err("fail to support cmd id = %d\n",

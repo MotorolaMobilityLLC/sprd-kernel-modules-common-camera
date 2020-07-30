@@ -569,7 +569,7 @@ struct dcam_hw_path_start {
 	uint32_t path_id;
 	uint32_t idx;
 	uint32_t slowmotion_count;
-	uint32_t is_pdaf;
+	uint32_t pdaf_path_eb;
 	uint32_t is_loose;
 	uint32_t src_sel;
 	uint32_t bayer_pattern;

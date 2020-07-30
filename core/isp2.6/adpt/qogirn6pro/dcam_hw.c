@@ -644,7 +644,7 @@ static int qogirn6pro_dcam_path_start(void *handle, void *arg)
 		break;
 	case DCAM_PATH_PDAF:
 		/* pdaf path en */
-		if (patharg->is_pdaf)
+		if (patharg->pdaf_path_eb)
 			DCAM_REG_MWR(patharg->idx, DCAM_PPE_FRM_CTRL0, BIT_0, 1);
 		break;
 	case DCAM_PATH_VCH2:

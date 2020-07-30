@@ -905,7 +905,7 @@ static int dcam_offline_start_slices_sw(void *param)
 			patharg.path_id = i;
 			patharg.idx = dev->idx;
 			patharg.slowmotion_count = dev->slowmotion_count;
-			patharg.is_pdaf = 0;
+			patharg.pdaf_path_eb = 0;
 			patharg.cap_info = dev->cap_info;
 			patharg.is_loose = dev->path[i].is_loose;
 			patharg.src_sel = dev->path[i].src_sel;
@@ -1170,7 +1170,7 @@ static int dcam_offline_start_frame(void *param)
 			patharg.path_id = i;
 			patharg.idx = dev->idx;
 			patharg.slowmotion_count = dev->slowmotion_count;
-			patharg.is_pdaf = 0;
+			patharg.pdaf_path_eb = 0;
 			patharg.cap_info = dev->cap_info;
 			patharg.is_loose = dev->path[i].is_loose;
 			patharg.src_sel = dev->path[i].src_sel;
@@ -2354,7 +2354,7 @@ static int sprd_dcam_dev_start(void *dcam_handle, int online)
 		patharg.path_id = i;
 		patharg.idx = dev->idx;
 		patharg.slowmotion_count = dev->slowmotion_count;
-		patharg.is_pdaf = (pm->pdaf.bypass == 0) ? 1 : 0;
+		patharg.pdaf_path_eb = (pm->pdaf.bypass == 0) ? 1 : 0;
 		patharg.cap_info = dev->cap_info;
 		patharg.is_loose = dev->path[i].is_loose;
 		patharg.src_sel = dev->path[i].src_sel;
