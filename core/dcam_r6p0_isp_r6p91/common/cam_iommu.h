@@ -36,5 +36,6 @@ unsigned int pfiommu_get_kaddr(struct pfiommu_info *pfinfo);
 int pfiommu_free_addr(struct pfiommu_info *pfinfo);
 int pfiommu_free_addr_with_id(struct pfiommu_info *pfinfo,
 	enum sprd_iommu_chtype ctype, unsigned int cid);
+int pfiommu_get_single_page_addr(struct pfiommu_info *pfinfo);
 
 #endif /* _CAM_IOMMU_H_ */

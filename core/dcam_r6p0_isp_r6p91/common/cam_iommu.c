@@ -107,6 +107,42 @@ int  pfiommu_put_sg_table(void)
 	return 0;
 }
 
+int pfiommu_get_single_page_addr(struct pfiommu_info *pfinfo)
+{
+	int i;
+	int ret = 0;
+	struct sprd_iommu_map_data iommu_data;
+	pr_debug("%s, cb: %pS\n", __func__, __builtin_return_address(0));
+
+	for (i = 0; i < 2; i++) {
+		if (pfinfo->size[i] <= 0)
+			continue;
+
+		if (sprd_iommu_attach_device(pfinfo->dev) == 0) {
+			memset(&iommu_data, 0x00, sizeof(iommu_data));
+			iommu_data.buf = pfinfo->buf[i];
+			iommu_data.iova_size = pfinfo->size[i];
+			iommu_data.ch_type = SPRD_IOMMU_FM_CH_RW;
+			iommu_data.sg_offset = pfinfo->offset[i];
+
+			ret = sprd_iommu_map_single_page(pfinfo->dev, &iommu_data);
+			if (ret) {
+				pr_err("failed to get iommu kaddr %d\n", i);
+				return -EFAULT;
+			}
+
+			pfinfo->iova[i] = iommu_data.iova_addr;
+		} else {
+			ret = sprd_ion_get_phys_addr(-1, pfinfo->dmabuf_p[i],
+					       &pfinfo->iova[i],
+					       &pfinfo->size[i]);
+			pfinfo->iova[i] += pfinfo->offset[i];
+		}
+	}
+
+	return ret;
+}
+
 int pfiommu_get_addr(struct pfiommu_info *pfinfo)
 {
 	int i;
