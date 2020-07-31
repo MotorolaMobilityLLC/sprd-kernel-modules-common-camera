@@ -243,6 +243,7 @@ struct camera_module {
 	atomic_t timeout_flag;
 	struct mutex lock;
 	struct camera_group *grp;
+	uint32_t exit_flag;   /*= 1, normal exit, =0, abnormal exit*/
 
 	int attach_sensor_id;
 	uint32_t iommu_enable;
@@ -390,6 +391,7 @@ static void camera_put_empty_frame(void *param)
 {
 	int ret = 0;
 	struct camera_frame *frame;
+	struct camera_module *module;
 
 	if (!param) {
 		pr_err("fail to get valid param\n");
@@ -397,9 +399,13 @@ static void camera_put_empty_frame(void *param)
 	}
 
 	frame = (struct camera_frame *)param;
-	if (frame->priv_data)
-		kfree(frame->priv_data);
-	cambuf_put_ionbuf(&frame->buf);
+	module = frame->priv_data;
+	if (frame->priv_data) {
+		if(!frame->irq_type)
+			kfree(frame->priv_data);
+		else  if (module && module->exit_flag == 1)
+			cambuf_put_ionbuf(&frame->buf);
+	}
 	ret = put_empty_frame(frame);
 }
 
@@ -1739,6 +1745,7 @@ int isp_callback(enum isp_cb_type type, void *param, void *priv_data)
 				pframe->irq_property = IRQ_RAW_PROC_DONE;
 			} else {
 				pframe->irq_type = CAMERA_IRQ_IMG;
+				pframe->priv_data = module;
 
 				/* FDR frame done use specific irq_type */
 				if (pframe->irq_property != CAM_FRAME_COMMON) {
@@ -1774,6 +1781,7 @@ int isp_callback(enum isp_cb_type type, void *param, void *priv_data)
 	case ISP_CB_STATIS_DONE:
 		pframe->evt = IMG_TX_DONE;
 		pframe->irq_type = CAMERA_IRQ_STATIS;
+		pframe->priv_data = module;
 		if (atomic_read(&module->state) == CAM_RUNNING) {
 			ret = camera_enqueue(&module->frm_queue, &pframe->list);
 			if (ret) {
@@ -1910,6 +1918,7 @@ int dcam_callback(enum dcam_cb_type type, void *param, void *priv_data)
 				}
 				pframe->evt = IMG_TX_DONE;
 				pframe->irq_type = CAMERA_IRQ_IMG;
+				pframe->priv_data = module;
 				ret = camera_enqueue(&module->frm_queue, &pframe->list);
 				complete(&module->frm_com);
 				pr_info("get out raw frame: fd:%d\n", pframe->buf.mfd[0]);
@@ -1927,6 +1936,7 @@ int dcam_callback(enum dcam_cb_type type, void *param, void *priv_data)
 			/* set width,heigth */
 			pframe->width = channel->ch_uinfo.dst_size.w;
 			pframe->height = channel->ch_uinfo.dst_size.h;
+			pframe->priv_data = module;
 			ret = camera_enqueue(&module->frm_queue, &pframe->list);
 			complete(&module->frm_com);
 			pr_info("get out raw frame: fd:%d [%d %d]\n",
@@ -2099,6 +2109,7 @@ int dcam_callback(enum dcam_cb_type type, void *param, void *priv_data)
 					atomic_dec(&module->capture_frames_dcam);
 					pframe->evt = IMG_TX_DONE;
 					pframe->irq_type = CAMERA_IRQ_IMG;
+					pframe->priv_data = module;
 					ret = camera_enqueue(&module->frm_queue, &pframe->list);
 					complete(&module->frm_com);
 					pr_info("get fdr raw frame: fd %d\n", pframe->buf.mfd[0]);
@@ -2191,6 +2202,7 @@ int dcam_callback(enum dcam_cb_type type, void *param, void *priv_data)
 			return ret;
 		}
 		if (atomic_read(&module->state) == CAM_RUNNING) {
+			pframe->priv_data = module;
 			ret = camera_enqueue(&module->frm_queue, &pframe->list);
 			if (ret) {
 				put_empty_frame(pframe);
@@ -4701,6 +4713,7 @@ static int camera_module_init(struct camera_module *module)
 	mutex_init(&module->fdr_lock);
 	init_completion(&module->frm_com);
 	init_completion(&module->streamoff_com);
+	module->exit_flag = 0;
 
 	module->cap_status = CAM_CAPTURE_STOP;
 	module->dcam_cap_status = DCAM_CAPTURE_STOP;
@@ -7977,6 +7990,7 @@ static int img_ioctl_post_fdr(struct camera_module *module,
 		pframe->evt = IMG_TX_DONE;
 		pframe->irq_type = (pframe->irq_property == CAM_FRAME_FDRL) ?
 						CAMERA_IRQ_FDRL : CAMERA_IRQ_FDRH;
+		pframe->priv_data = module;
 		camera_enqueue(&module->frm_queue, &pframe->list);
 		complete(&module->frm_com);
 		goto exit;
@@ -8837,6 +8851,7 @@ static ssize_t sprd_img_write(struct file *file, const char __user *u_data,
 	switch (write_op.cmd) {
 	case SPRD_IMG_STOP_DCAM:
 		pr_info("user stop camera %d\n", module->idx);
+		module->exit_flag = 1;
 		complete(&module->frm_com);
 		break;
 
