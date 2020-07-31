@@ -378,14 +378,17 @@ static enum dcam_fix_result dcam_fix_index_if_needed(struct dcam_pipe_dev *dev)
 
 	dev->need_fix = false;
 
+	end = dev->frame_index;
+	begin = max(rounddown(end, dev->slowmotion_count), old_index + 1);
+	if (!begin)
+		return INDEX_FIXED;
+
 	/* restore timestamp and index for slow motion */
 	delta_ns = ktime_sub(dev->frame_ts_boot[tsid(old_index)],
 			     dev->frame_ts_boot[tsid(old_index - 1)]);
 	delta_ts = timespec_sub(dev->frame_ts[tsid(old_index)],
 				dev->frame_ts[tsid(old_index - 1)]);
 
-	end = dev->frame_index;
-	begin = max(rounddown(end, dev->slowmotion_count), old_index + 1);
 	while (--end >= begin) {
 		dev->frame_ts_boot[tsid(end)]
 			= ktime_sub_ns(dev->frame_ts_boot[tsid(end + 1)],
