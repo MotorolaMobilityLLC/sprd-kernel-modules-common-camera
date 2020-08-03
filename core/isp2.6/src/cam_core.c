@@ -935,6 +935,7 @@ static int cam_cfg_ltm_buffer(struct camera_module *module,
 	uint32_t j, isp_ctx_id, isp_path_id;
 	struct channel_context *ch = NULL;
 	struct channel_context *ch_pre = NULL;
+	struct channel_context *ch_cap = NULL;
 
 	if (!module) {
 		pr_err("fail to get input ptr\n");
@@ -942,6 +943,10 @@ static int cam_cfg_ltm_buffer(struct camera_module *module,
 	}
 
 	ch_pre = &module->channel[CAM_CH_PRE];
+	ch_cap = &module->channel[CAM_CH_CAP];
+	/*non-zsl capture, do nothing*/
+	if (!ch_pre->enable && ch_cap->enable)
+		return 0;
 	ch = &module->channel[index];
 	isp_ctx_id = ch->isp_path_id >> ISP_CTXID_OFFSET;
 	isp_path_id = ch->isp_path_id & ISP_PATHID_MASK;
