@@ -1464,6 +1464,7 @@ static struct camera_frame *deal_bigsize_frame(struct camera_module *module,
 		{
 			struct timespec cur_ts;
 
+			memset(&cur_ts, 0, sizeof(struct timespec));
 			pframe->boot_sensor_time = ktime_get_boottime();
 			ktime_get_ts(&cur_ts);
 			pframe->sensor_time.tv_sec = cur_ts.tv_sec;
@@ -1531,6 +1532,7 @@ static struct camera_frame *deal_4in1_frame(struct camera_module *module,
 		{
 			struct timespec cur_ts;
 
+			memset(&cur_ts, 0, sizeof(struct timespec));
 			pframe->boot_sensor_time = ktime_get_boottime();
 			ktime_get_ts(&cur_ts);
 			pframe->sensor_time.tv_sec = cur_ts.tv_sec;
@@ -4795,6 +4797,7 @@ static int img_ioctl_get_time(
 	struct sprd_img_time utime;
 	struct timespec ts;
 
+	memset(&ts, 0, sizeof(struct timespec));
 	ktime_get_ts(&ts);
 	utime.sec = ts.tv_sec;
 	utime.usec = ts.tv_nsec / NSEC_PER_USEC;
@@ -5475,6 +5478,7 @@ static int set_channels(
 	struct channel_context *ch = NULL;
 	struct channel_context *ch_pre = NULL, *ch_vid = NULL;
 
+	memset(&param, 0, sizeof(struct sprd_dcam_path_size));
 	pr_info("cam%d simu %d\n", module->idx, module->simulator);
 
 	ret = init_channels_size(module);
@@ -5517,7 +5521,7 @@ static int set_channels(
 	param.pre_dst_w = ch_pre->swap_size.w;
 	param.pre_dst_h = ch_pre->swap_size.h;
 	param.vid_dst_w = ch_vid->swap_size.w;
-	param.vid_dst_w = ch_vid->swap_size.h;
+	param.vid_dst_h = ch_vid->swap_size.h;
 	param.dcam_out_w = ch->swap_size.w;
 	param.dcam_out_h = ch->swap_size.w;
 	*in = param;
@@ -7574,6 +7578,7 @@ static int raw_proc_post(
 	struct dcam_pipe_dev *dev = NULL;
 	struct timespec cur_ts;
 
+	memset(&cur_ts, 0, sizeof(struct timespec));
 	pr_info("start\n");
 
 	ch = &module->channel[CAM_CH_CAP];
@@ -7744,6 +7749,7 @@ static int raw_proc_post_new(
 	struct camera_frame *dst_frame;
 	struct timespec cur_ts;
 
+	memset(&cur_ts, 0, sizeof(struct timespec));
 	pr_info("cam%d start\n", module->idx);
 
 	ch = &module->channel[CAM_CH_CAP];
@@ -7929,7 +7935,7 @@ static int img_ioctl_post_fdr(struct camera_module *module,
 	int32_t isp_path_id;
 	void *dcam;
 	struct channel_context *ch;
-	struct camera_frame *pframe, *pfrm[3];
+	struct camera_frame *pframe, *pfrm[3] = { NULL, NULL, NULL };
 	struct sprd_img_parm param;
 
 	ret = copy_from_user(&param, (void __user *)arg,
@@ -8171,7 +8177,7 @@ static int img_ioctl_4in1_post_proc(struct camera_module *module,
 	int ret = 0;
 	int iommu_enable;
 	struct channel_context *channel;
-	struct camera_frame *pframe;
+	struct camera_frame *pframe = NULL;
 	int i;
 	ktime_t sensor_time;
 	struct dcam_pipe_dev *dev = NULL;

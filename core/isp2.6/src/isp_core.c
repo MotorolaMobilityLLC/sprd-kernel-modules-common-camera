@@ -2031,7 +2031,7 @@ static int isp_slice_ctx_init(struct isp_pipe_context *pctx, uint32_t * multi_sl
 {
 	int ret = 0;
 	int j;
-	uint32_t val;
+	uint32_t val = 0;
 	struct isp_path_desc *path;
 	struct slice_cfg_input slc_cfg_in;
 	struct isp_hw_nlm_ynr radius_adapt;
@@ -2338,11 +2338,12 @@ static int isp_postproc_irq(void *handle,uint32_t idx,
 	struct isp_pipe_dev *dev = NULL;
 	struct isp_stream_ctrl *stream = NULL;
 	struct isp_pipe_context *pctx = NULL;
-	struct camera_frame *pframe;
+	struct camera_frame *pframe = NULL;
 	struct isp_path_desc *path;
 	struct timespec cur_ts;
 	ktime_t boot_time;
 
+	memset(&cur_ts, 0, sizeof(struct timespec));
 	if (!handle || type >= POSTPROC_MAX) {
 		pr_err("fail to get valid input handle %p, type %d\n",
 			handle, type);
