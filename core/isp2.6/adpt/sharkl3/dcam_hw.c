@@ -486,8 +486,10 @@ static int sharkl3_dcam_slice_fetch_set(void *handle, void *arg)
 	struct img_trim *cur_slice;
 	uint32_t reg_val;
 
-	if (!arg)
-		pr_err("fail to check param");
+	if (!arg) {
+		pr_err("fail to get valid arg\n");
+		return -EFAULT;
+	}
 
 	slicearg = (struct dcam_hw_slice_fetch *)arg;
 	fetch = slicearg->fetch;
