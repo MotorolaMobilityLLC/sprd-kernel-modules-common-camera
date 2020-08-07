@@ -6023,7 +6023,12 @@ static int img_ioctl_set_frame_addr(
 				pframe1->buf.offset[1] = param.frame_addr_array[i].u;
 				pframe1->buf.offset[2] = param.frame_addr_array[i].v;
 				pframe1->channel_id = ch->ch_id;
-				cambuf_get_ionbuf(&pframe1->buf);
+				ret = cambuf_get_ionbuf(&pframe1->buf);
+				if (ret) {
+					put_empty_frame(pframe1);
+					ret = -EFAULT;
+					break;
+				}
 				ret = dcam_ops->cfg_path(module->dcam_dev_handle,
 						cmd, ch->dcam_path_id, pframe1);
 				if (ret) {
