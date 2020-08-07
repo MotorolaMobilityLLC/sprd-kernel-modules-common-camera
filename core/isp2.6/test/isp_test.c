@@ -414,9 +414,9 @@ static int camt_isp_get_ctx_id(struct camt_info *info)
 	CHECK_NULL(info);
 
 	if (info->chip == CAMT_CHIP_ISP0) {
-		ctx_id = (0 << 1) | (info->path_id);
+		ctx_id = (0 << 1) | (info->path_id[0]);
 	} else if (info->chip == CAMT_CHIP_ISP1) {
-		ctx_id = (1 << 1) | (info->path_id);
+		ctx_id = (1 << 1) | (info->path_id[0]);
 	} else {
 		pr_err("fail to get valid chip %d\n", info->chip);
 		return 0;
@@ -559,7 +559,7 @@ static int camt_isp_cfg_store(struct ispt_context *ctx,
 	ctx_id = camt_isp_get_ctx_id(info);
 
 	store_info->ctx_id = ctx_id;
-	store_info->spath_id = info->path_id;
+	store_info->spath_id = info->path_id[0];
 	store->color_fmt = ISP_STORE_YUV420_2FRAME;
 	store->bypass = 0;
 	store->endian = ENDIAN_LITTLE;
@@ -606,7 +606,7 @@ static int camt_isp_cfg_store(struct ispt_context *ctx,
 	size = store->pitch.pitch_ch0 * info->input_size.h;
 	out_buf = &ctx->out_buf;
 	out_buf->type = CAM_BUF_USER;
-	out_buf->mfd[0] = info->outbuf_fd;
+	out_buf->mfd[0] = info->outbuf_fd[0];
 	ret = cambuf_get_ionbuf(out_buf);
 	if (ret) {
 		pr_err("fail to get out ion buffer\n");
@@ -722,7 +722,7 @@ int ispt_start(struct camt_info *info)
 	path_common.uv_sync_v = 0;
 	path_common.frm_deci = 0;
 	path_common.odata_mode = 1;
-	path_common.spath_id = info->path_id;
+	path_common.spath_id = info->path_id[0];
 	path_common.deci.deci_x_eb = 0;
 	path_common.deci.deci_y_eb = 0;
 	path_common.deci.deci_x = 0;
@@ -744,7 +744,7 @@ int ispt_start(struct camt_info *info)
 	/* TBD just bypass scaler */
 	ctx->scaler_info.scaler_bypass = 1;
 	path_scaler.ctx_id = ctx_id;
-	path_scaler.spath_id = info->path_id;
+	path_scaler.spath_id = info->path_id[0];
 	path_scaler.scaler = &ctx->scaler_info;
 	hw->isp_ioctl(hw, ISP_HW_CFG_SET_PATH_SCALER, &path_scaler);
 

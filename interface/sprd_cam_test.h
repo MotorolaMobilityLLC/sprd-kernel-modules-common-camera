@@ -12,6 +12,7 @@
  */
 #ifndef _SPRD_CAM_TEST_H_
 #define _SPRD_CAM_TEST_H_
+#define DRV_PATH_NUM 2
 
 #include "sprd_img.h"
 
@@ -70,7 +71,7 @@ struct camt_isp_info {
 struct camt_info {
 	enum camt_cmd cmd;
 	enum camt_chip chip;
-	unsigned int path_id;
+	unsigned int path_id[DRV_PATH_NUM];
 	/* 0: online; 1: offline */
 	unsigned int test_mode;
 	struct camt_isp_info isp_info[ISP_HW_MAX_COUNT];
@@ -93,7 +94,7 @@ struct camt_info {
 
 	/* buffer desc */
 	int inbuf_fd;
-	int outbuf_fd;
+	int outbuf_fd[DRV_PATH_NUM];
 };
 
 #endif

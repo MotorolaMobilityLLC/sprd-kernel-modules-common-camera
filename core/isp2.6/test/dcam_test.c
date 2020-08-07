@@ -21,6 +21,7 @@
 #include "dcam_interface.h"
 #include "cam_buf.h"
 #include "cam_test.h"
+#include "sprd_cam_test.h"
 
 #ifdef pr_fmt
 #undef pr_fmt
@@ -35,20 +36,24 @@
 	}				\
 }
 
+struct dcamt_context_comm {
+	struct img_size out_size;
+	struct camera_buf out_buf;
+};
+
 struct dcamt_context {
 	unsigned int state;
 	int dcam_idx;
-	int path_id;
+	int path_id[DRV_PATH_NUM];
 	int dcam_irq;
 
 	struct img_size in_size;
 	struct img_trim in_trim;
-	struct img_size out_size;
+	struct dcamt_context_comm comm_info[DRV_PATH_NUM];
 
 	struct img_endian endian;
 
 	struct camera_buf in_buf;
-	struct camera_buf out_buf;
 
 	int path_scl_sel;
 	int path_bin_ratio;
@@ -56,7 +61,7 @@ struct dcamt_context {
 	struct cam_hw_info *hw;
 
 	spinlock_t glb_reg_lock;
-	struct completion dcam_frame_com;
+	struct completion dcam_frame_com[DRV_PATH_NUM];
 };
 
 static char *dcam_dev_name[] = {
@@ -71,15 +76,15 @@ static struct dcamt_context *dcamt_cxt = NULL;
 static void dcam_full_path_done(void *param)
 {
 	struct dcamt_context *cxt = (struct dcamt_context *)param;
-
-	complete(&cxt->dcam_frame_com);
+	pr_info("dcam_full_path_done\n");
+	complete(&cxt->dcam_frame_com[DCAM_PATH_FULL]);
 }
 
 static void dcam_bin_path_done(void *param)
 {
 	struct dcamt_context *cxt = (struct dcamt_context *)param;
-
-	complete(&cxt->dcam_frame_com);
+	pr_info("dcam_bin_path_done\n");
+	complete(&cxt->dcam_frame_com[DCAM_PATH_BIN]);
 }
 
 static int get_dcam_idx(unsigned int camt_dcam_id)
@@ -122,13 +127,14 @@ static int get_dcam_path_id(unsigned int camt_dcam_path_id)
 	return path_id;
 }
 
-static int cfg_dcam_path_size(struct dcamt_context *cxt, struct camt_info *test_info)
+static int cfg_dcam_path_size(struct dcamt_context *cxt, struct camt_info *test_info, int i)
 {
 	int ret = 0;
 	uint32_t invalid;
 	struct img_size crop_size, dst_size;
 	struct cam_hw_info *hw = NULL;
 	uint32_t dcam_max_w = 0, dcam_max_h = 0;
+	struct dcamt_context_comm *dcamt_comm_info = NULL;
 
 	CHECK_NULL(cxt);
 	CHECK_NULL(test_info);
@@ -137,7 +143,9 @@ static int cfg_dcam_path_size(struct dcamt_context *cxt, struct camt_info *test_
 	dcam_max_w = hw->ip_dcam[cxt->dcam_idx]->max_width;
 	dcam_max_h = hw->ip_dcam[cxt->dcam_idx]->max_height;
 
-	switch (cxt->path_id) {
+	dcamt_comm_info = &cxt->comm_info[i];
+
+	switch (cxt->path_id[i]) {
 	case DCAM_PATH_FULL:
 		cxt->in_size.w = test_info->input_size.w;
 		cxt->in_size.h = test_info->input_size.h;
@@ -162,16 +170,16 @@ static int cfg_dcam_path_size(struct dcamt_context *cxt, struct camt_info *test_
 		}
 		if ((cxt->in_size.w > cxt->in_trim.size_x) ||
 			(cxt->in_size.h > cxt->in_trim.size_y)) {
-			cxt->out_size.w = cxt->in_trim.size_x;
-			cxt->out_size.h = cxt->in_trim.size_y;
+			dcamt_comm_info->out_size.w = cxt->in_trim.size_x;
+			dcamt_comm_info->out_size.h = cxt->in_trim.size_y;
 		} else {
-			cxt->out_size.w = cxt->in_size.w;
-			cxt->out_size.h = cxt->in_size.h;
+			dcamt_comm_info->out_size.w = cxt->in_size.w;
+			dcamt_comm_info->out_size.h = cxt->in_size.h;
 		}
 
 		pr_info("cfg dcam full path done. size %d %d %d %d\n",
 			cxt->in_size.w, cxt->in_size.h,
-			cxt->out_size.w, cxt->out_size.h);
+			dcamt_comm_info->out_size.w, dcamt_comm_info->out_size.h);
 		pr_info("trim %d %d %d %d\n",
 			cxt->in_trim.start_x, cxt->in_trim.start_y,
 			cxt->in_trim.size_x, cxt->in_trim.size_y);
@@ -184,8 +192,8 @@ static int cfg_dcam_path_size(struct dcamt_context *cxt, struct camt_info *test_
 		cxt->in_trim.start_y = test_info->crop_rect.y;
 		cxt->in_trim.size_x = test_info->crop_rect.w;
 		cxt->in_trim.size_y = test_info->crop_rect.h;
-		cxt->out_size.w = test_info->output_size.w;
-		cxt->out_size.h = test_info->output_size.h;
+		dcamt_comm_info->out_size.w = test_info->output_size.w;
+		dcamt_comm_info->out_size.h = test_info->output_size.h;
 
 		invalid = 0;
 		invalid |= ((cxt->in_size.w == 0) || (cxt->in_size.h == 0));
@@ -197,25 +205,25 @@ static int cfg_dcam_path_size(struct dcamt_context *cxt, struct camt_info *test_
 		invalid |= ((cxt->in_trim.start_y + cxt->in_trim.size_y) > cxt->in_size.h);
 
 		/* output size should not be larger than trim ROI */
-		invalid |= cxt->in_trim.size_x < cxt->out_size.w;
-		invalid |= cxt->in_trim.size_y < cxt->out_size.h;
+		invalid |= cxt->in_trim.size_x < dcamt_comm_info->out_size.w;
+		invalid |= cxt->in_trim.size_y < dcamt_comm_info->out_size.h;
 
 		/* Down scaling should not be smaller then 1/4*/
-		invalid |= cxt->in_trim.size_x > (cxt->out_size.w * DCAM_SCALE_DOWN_MAX);
-		invalid |= cxt->in_trim.size_y > (cxt->out_size.h * DCAM_SCALE_DOWN_MAX);
+		invalid |= cxt->in_trim.size_x > (dcamt_comm_info->out_size.w * DCAM_SCALE_DOWN_MAX);
+		invalid |= cxt->in_trim.size_y > (dcamt_comm_info->out_size.h * DCAM_SCALE_DOWN_MAX);
 
 		if (invalid) {
 			pr_err("fail to get valid size, size:%d %d, trim %d %d %d %d, dst %d %d\n",
 				cxt->in_size.w, cxt->in_size.h,
 				cxt->in_trim.start_x, cxt->in_trim.start_y,
 				cxt->in_trim.size_x, cxt->in_trim.size_y,
-				cxt->out_size.w, cxt->out_size.h);
+				dcamt_comm_info->out_size.w, dcamt_comm_info->out_size.h);
 			return -EINVAL;
 		}
 
 		crop_size.w = cxt->in_trim.size_x;
 		crop_size.h = cxt->in_trim.size_y;
-		dst_size = cxt->out_size;
+		dst_size = dcamt_comm_info->out_size;
 
 		if ((crop_size.w == dst_size.w) && (crop_size.h == dst_size.h))
 			cxt->path_scl_sel = 0x2;
@@ -240,14 +248,14 @@ static int cfg_dcam_path_size(struct dcamt_context *cxt, struct camt_info *test_
 
 		pr_info("cfg dcam bin path done. size %d %d dst %d %d\n",
 			cxt->in_size.w, cxt->in_size.h,
-			cxt->out_size.w, cxt->out_size.h);
+			dcamt_comm_info->out_size.w, dcamt_comm_info->out_size.h);
 		pr_info("scaler %d. trim %d %d %d %d\n", cxt->path_scl_sel,
 			cxt->in_trim.start_x, cxt->in_trim.start_y,
 			cxt->in_trim.size_x, cxt->in_trim.size_y);
 		break;
 
 	default:
-		pr_err("fail to get known path %d\n", cxt->path_id);
+		pr_err("fail to get known path %d\n", cxt->path_id[i]);
 		ret = -EFAULT;
 		break;
 	}
@@ -255,7 +263,7 @@ static int cfg_dcam_path_size(struct dcamt_context *cxt, struct camt_info *test_
 	return ret;
 }
 
-static int set_dcam_path_store_addr(struct dcamt_context *cxt, struct camt_info *test_info)
+static int set_dcam_path_store_addr(struct dcamt_context *cxt, struct camt_info *test_info, int i)
 {
 	int ret = 0;
 	int idx = 0, path_id = 0;
@@ -270,8 +278,10 @@ static int set_dcam_path_store_addr(struct dcamt_context *cxt, struct camt_info 
 
 	hw = cxt->hw;
 	idx = cxt->dcam_idx;
-	path_id = cxt->path_id;
-	addr = *(hw->ip_dcam[idx]->store_addr_tab + path_id);
+
+	path_id = cxt->path_id[i];
+	addr= *(hw->ip_dcam[idx]->store_addr_tab + path_id);
+
 	if (addr == 0L) {
 		pr_info("DCAM%d invalid path id %d", idx, path_id);
 		ret = -EINVAL;
@@ -281,9 +291,9 @@ static int set_dcam_path_store_addr(struct dcamt_context *cxt, struct camt_info 
 	if (get_iommu_status(CAM_IOMMUDEV_DCAM) == 0)
 		iommu_enable = 1;
 	size = test_info->pitch * test_info->input_size.h;
-	out_buf = &cxt->out_buf;
+	out_buf = &cxt->comm_info[i].out_buf;
 	out_buf->type = CAM_BUF_USER;
-	out_buf->mfd[0] = test_info->outbuf_fd;
+	out_buf->mfd[0] = test_info->outbuf_fd[i];
 	ret = cambuf_get_ionbuf(out_buf);
 	if (ret) {
 		pr_err("fail to get out ion buffer\n");
@@ -490,7 +500,9 @@ int dcamt_init(struct cam_hw_info *hw, struct camt_info *info)
 {
 	int ret = 0;
 	int dcam_idx = -1;
-	int dcam_path_id = -1;
+	int dcam_path_id[DRV_PATH_NUM] = {-1};
+	int i;
+
 	struct dcamt_context *cxt = NULL;
 
 	CHECK_NULL(hw);
@@ -504,7 +516,8 @@ int dcamt_init(struct cam_hw_info *hw, struct camt_info *info)
 
 	cxt->hw = hw;
 	spin_lock_init(&cxt->glb_reg_lock);
-	init_completion(&cxt->dcam_frame_com);
+	for(i = 0; i < DRV_PATH_NUM; i++)
+		init_completion(&cxt->dcam_frame_com[i]);
 	dcamt_cxt = cxt;
 
 	dcam_idx = get_dcam_idx(info->chip);
@@ -514,14 +527,19 @@ int dcamt_init(struct cam_hw_info *hw, struct camt_info *info)
 	}
 	cxt->dcam_idx = dcam_idx;
 
-	dcam_path_id = get_dcam_path_id(info->path_id);
-	if (dcam_path_id < 0) {
-		ret = -EINVAL;
-		goto info_fail;
-	}
-	cxt->path_id = dcam_path_id;
+	for(i = 0; i < DRV_PATH_NUM; i++)
+		dcam_path_id[i] = get_dcam_path_id(info->path_id[i]);
 
-	ret =  camt_dcam_hw_init(cxt);
+	for(i = 0; i < DRV_PATH_NUM; i++)
+	{
+		if (dcam_path_id[i] < 0) {
+			ret = -EINVAL;
+			goto info_fail;
+		}
+		cxt->path_id[i] = dcam_path_id[i];
+	}
+
+	ret = camt_dcam_hw_init(cxt);
 	if (ret)
 		return ret;
 
@@ -545,9 +563,12 @@ info_fail:
 
 int dcamt_start(struct camt_info *info)
 {
-	int ret = 0;
+	int rets[DRV_PATH_NUM];
+	int ret;
+	int result = 0;
 	int iommu_enable = 0;
 	unsigned int size;
+	int i;
 	struct camera_buf *in_buf = NULL;
 	struct dcam_fetch_info fetch = {0};
 	struct dcam_hw_path_start patharg = {0};
@@ -575,32 +596,36 @@ int dcamt_start(struct camt_info *info)
 		return 0;
 	}
 
-	ret = cfg_dcam_path_size(cxt, info);
-	if (ret)
-		goto exit;
+	for (i = 0; i < DRV_PATH_NUM; i++) {
+		/* check path enable or not */
+		/* if not */
+		ret = cfg_dcam_path_size(cxt, info, i);
+		if (ret)
+			goto exit;
 
-	ret = set_dcam_path_store_addr(cxt, info);
-	if (ret)
-		goto exit;
+		ret = set_dcam_path_store_addr(cxt, info, i);
+		if (ret)
+			goto exit;
 
-	/* set path size */
-	path_size.idx = cxt->dcam_idx;
-	path_size.path_id = cxt->path_id;
-	path_size.scaler_sel = cxt->path_scl_sel;
-	path_size.in_size = cxt->in_size;
-	path_size.in_trim = cxt->in_trim;
-	path_size.out_size = cxt->out_size;
-	hw->dcam_ioctl(hw, DCAM_HW_CFG_PATH_SIZE_UPDATE, &path_size);
+		/* set path size */
+		path_size.idx = cxt->dcam_idx;
+		path_size.path_id = cxt->path_id[i];
+		path_size.scaler_sel = cxt->path_scl_sel;
+		path_size.in_size = cxt->in_size;
+		path_size.in_trim = cxt->in_trim;
+		path_size.out_size = cxt->comm_info[i].out_size;
+		hw->dcam_ioctl(hw, DCAM_HW_CFG_PATH_SIZE_UPDATE, &path_size);
 
-	/* start dcam path */
-	patharg.path_id = cxt->path_id;
-	patharg.idx = cxt->dcam_idx;
-	patharg.cap_info.format = DCAM_CAP_MODE_RAWRGB;
-	patharg.is_loose = info->is_loose;
-	patharg.src_sel = 1;
-	patharg.in_trim = cxt->in_trim;
-	patharg.endian.y_endian = info->endian.y_endian;
-	hw->dcam_ioctl(hw, DCAM_HW_CFG_PATH_START, &patharg);
+		/* start dcam path */
+		patharg.path_id = cxt->path_id[i];
+		patharg.idx = cxt->dcam_idx;
+		patharg.cap_info.format = DCAM_CAP_MODE_RAWRGB;
+		patharg.is_loose = info->is_loose;
+		patharg.src_sel = 1;
+		patharg.in_trim = cxt->in_trim;
+		patharg.endian.y_endian = info->endian.y_endian;
+		hw->dcam_ioctl(hw, DCAM_HW_CFG_PATH_START, &patharg);
+	}
 
 	if (get_iommu_status(CAM_IOMMUDEV_DCAM) == 0)
 		iommu_enable = 1;
@@ -648,16 +673,27 @@ int dcamt_start(struct camt_info *info)
 	hw->dcam_ioctl(hw, DCAM_HW_CFG_FETCH_START, hw);
 
 	pr_info("wait for frame tx done\n");
-	ret = wait_for_completion_interruptible(&cxt->dcam_frame_com);
+
+	while(1) {
+		for(i = 0; i < DRV_PATH_NUM; i++) {
+			rets[i] = wait_for_completion_interruptible(&cxt->dcam_frame_com[i]);
+			result |= rets[i];
+		}
+		if(!result)
+			break;
+	}
+
 	pr_info("wait done\n");
 
 	cambuf_iommu_unmap(&cxt->in_buf);
 	cambuf_put_ionbuf(&cxt->in_buf);
 	memset(&cxt->in_buf, 0, sizeof(struct camera_buf));
 
-	cambuf_iommu_unmap(&cxt->out_buf);
-	cambuf_put_ionbuf(&cxt->out_buf);
-	memset(&cxt->out_buf, 0, sizeof(struct camera_buf));
+	for(i = 0; i < DRV_PATH_NUM; i++) {
+		cambuf_iommu_unmap(&cxt->comm_info[i].out_buf);
+		cambuf_put_ionbuf(&cxt->comm_info[i].out_buf);
+		memset(&cxt->comm_info[i].out_buf, 0, sizeof(struct camera_buf));
+	}
 
 exit:
 	return ret;
