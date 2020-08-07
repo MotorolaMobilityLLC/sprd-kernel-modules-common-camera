@@ -1045,14 +1045,16 @@ static int dcam_offline_start_frame(void *param)
 
 			frame = camera_dequeue(&dev->proc_queue,
 					struct camera_frame, list);
-			if (frame) {
+			if (!frame) {
+				goto wait_err;
+			} else {
 				path = &dev->path[DCAM_PATH_BIN];
 				ret = camera_enqueue(&path->out_buf_queue, &frame->list);
+				pframe->endian = frame->endian;
+				pframe->pattern = frame->pattern;
+				pframe->width = frame->width;
+				pframe->height = frame->height;
 			}
-			pframe->endian = frame->endian;
-			pframe->pattern = frame->pattern;
-			pframe->width = frame->width;
-			pframe->height = frame->height;
 		}
 	}
 

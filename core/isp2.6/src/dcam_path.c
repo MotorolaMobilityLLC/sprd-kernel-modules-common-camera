@@ -378,10 +378,10 @@ dcam_path_cycle_frame(struct dcam_pipe_dev *dev, struct dcam_path_desc *path)
 		if (cambuf_iommu_map(&frame->buf, CAM_IOMMUDEV_DCAM)) {
 			pr_err("mapping failed\n");
 			camera_enqueue(&path->alter_out_queue, &frame->list);
+			pr_debug("mapping raw buffer for ch %d, mfd %d\n",
+				frame->channel_id, frame->buf.mfd[0]);
 			frame = NULL;
 		}
-		pr_debug("mapping raw buffer for ch %d, mfd %d\n",
-			frame->channel_id, frame->buf.mfd[0]);
 	}
 
 	if (frame == NULL)
