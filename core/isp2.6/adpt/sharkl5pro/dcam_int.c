@@ -110,7 +110,7 @@ static struct camera_frame *dcam_prepare_frame(struct dcam_pipe_dev *dev,
 
 	atomic_dec(&path->set_frm_cnt);
 	if (unlikely(frame->is_reserved)) {
-		pr_warn("DCAM%u %s use reserved buffer, out %u, result %u\n",
+		pr_info_ratelimited("DCAM%u %s use reserved buffer, out %u, result %u\n",
 			dev->idx, to_path_name(path_id),
 			camera_queue_cnt(&path->out_buf_queue),
 			camera_queue_cnt(&path->result_queue));
