@@ -259,6 +259,11 @@ static long sprd_fd_ioctl(struct file *file, unsigned int cmd,
 
 	pr_debug("%s start %d\n", __func__, ioctl_nr);
 	module  = md->this_device->platform_data;
+
+	if (unlikely(!(ioctl_nr >= 0 && ioctl_nr < ARRAY_SIZE(fd_ioctl_cmds_table)))) {
+		pr_info("invalid cmd: 0x%xn", cmd);
+		return -EINVAL;
+	}
 	p_ioctl = &fd_ioctl_cmds_table[ioctl_nr];
 	if (!p_ioctl->cmd_proc) {
 		pr_err("SPRD_FD cmd function not defined %d", ioctl_nr);

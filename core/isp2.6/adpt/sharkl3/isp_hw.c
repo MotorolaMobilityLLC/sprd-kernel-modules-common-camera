@@ -721,7 +721,7 @@ isp_cfg_para:
 
 	ISP_REG_WR(idx, ISP_FETCH_LINE_DLY_CTRL, 0x8);
 	ISP_REG_WR(idx, ISP_DISPATCH_DLY,  0x253C);
-	ISP_REG_WR(idx, ISP_DISPATCH_LINE_DLY1,  0x280001C);
+	ISP_REG_WR(idx, ISP_DISPATCH_LINE_DLY1,  0x8280001C);
 	ISP_REG_WR(idx, ISP_DISPATCH_PIPE_BUF_CTRL_CH0,  0x64043C);
 	ISP_REG_WR(idx, ISP_YDELAY_STEP, 0x144);
 	ISP_REG_WR(idx, ISP_SCALER_PRE_CAP_BASE + ISP_SCALER_HBLANK, 0x4040);
@@ -905,7 +905,7 @@ static int sharkl3_isp_cfg_subblock(void *handle, void *arg)
 	ISP_REG_WR(idx, ISP_FETCH_MEM_SLICE_SIZE,
 		fetch->src.w | (fetch->src.h << 16));
 	ISP_REG_WR(idx, ISP_DISPATCH_DLY,  0x253C);
-	ISP_REG_WR(idx, ISP_DISPATCH_LINE_DLY1,  0x280001C);
+	ISP_REG_WR(idx, ISP_DISPATCH_LINE_DLY1,  0x8280001C);
 	ISP_REG_WR(idx, ISP_DISPATCH_PIPE_BUF_CTRL_CH0,  0x64043C);
 	ISP_REG_WR(idx, ISP_DISPATCH_CH0_SIZE,
 		fetch->in_trim.size_x | (fetch->in_trim.size_y << 16));
