@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019-2020 Unisoc Communications Inc.
+ * Copyright (C) 2020-2021 UNISOC Communications Inc.
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
