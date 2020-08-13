@@ -1434,7 +1434,7 @@ static int isp_offline_start_frame(void *ctx)
 			break;
 		}
 		pr_info_ratelimited("ctx %d wait for hw. loop %d\n", pctx->ctx_id, loop);
-		usleep_range(600, 2000);
+		usleep_range(600, 800);
 	} while (loop++ < 5000);
 
 	pframe = camera_dequeue(&pctx->in_queue, struct camera_frame, list);
