@@ -2533,7 +2533,7 @@ static int cal_channel_swapsize(struct camera_module *module)
 static int cal_channel_size_bininig(
 	struct camera_module *module, uint32_t bypass_always)
 {
-	uint32_t shift = 0, factor;
+	uint32_t shift = 0, factor = 0, align_size = 0;
 	uint32_t src_binning = 0;
 	struct channel_context *ch_prev;
 	struct channel_context *ch_vid;
@@ -2641,6 +2641,16 @@ static int cal_channel_size_bininig(
 				trim_pv.start_x, trim_pv.start_y,
 				trim_pv.size_x, trim_pv.size_y);
 		}
+
+		if (shift == 1)
+			align_size = 8;
+		else if (shift == 2)
+			align_size = 16;
+		else
+			align_size = 4;
+
+		trim_pv.size_x = ALIGN_DOWN(trim_pv.size_x, align_size);
+		trim_pv.size_y = ALIGN_DOWN(trim_pv.size_y, align_size / 2);
 
 		dcam_out.w = (trim_pv.size_x >> shift);
 		dcam_out.w = ALIGN_DOWN(dcam_out.w, 2);
