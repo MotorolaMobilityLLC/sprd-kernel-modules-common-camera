@@ -485,7 +485,6 @@ static void dcam_cap_sof(void *param)
 	struct cam_hw_info *hw = NULL;
 	struct dcam_path_desc *path = NULL;
 	struct dcam_sync_helper *helper = NULL;
-	struct camera_frame *pframe;
 	struct dcam_hw_path_ctrl path_ctrl;
 	enum dcam_fix_result fix_result;
 	struct dcam_hw_auto_copy copyarg;
@@ -586,17 +585,7 @@ dispatch_sof:
 		dcam_dispatch_sof_event(dev);
 	}
 	dev->iommu_status = (uint32_t)(-1);
-	if (dev->flash_skip_fid == 0)
-		dev->flash_skip_fid = dev->base_fid + dev->frame_index;
-	pframe = get_empty_frame();
-	if (pframe) {
-		pframe->evt = IMG_TX_DONE;
-		pframe->irq_type = CAMERA_IRQ_DONE;
-		pframe->irq_property = IRQ_DCAM_SOF;
-		pframe->fid = dev->flash_skip_fid;
-		dev->dcam_cb_func(DCAM_CB_IRQ_EVENT, pframe, dev->cb_priv_data);
-		dev->flash_skip_fid = 0;
-	}
+
 	dcam_debug_dump(dev, &dev->ctx[0].blk_pm);
 	dev->frame_index++;
 }

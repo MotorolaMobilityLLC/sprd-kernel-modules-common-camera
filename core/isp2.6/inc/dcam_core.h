@@ -267,7 +267,6 @@ struct dcam_pipe_dev {
 	uint32_t raw_cap;
 	uint32_t raw_fetch_num;
 	uint32_t raw_fetch_count;
-	uint32_t flash_skip_fid; /*for flash skip */
 	struct completion slice_done;
 	struct completion frm_done;
 	struct completion offline_complete;
