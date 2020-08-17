@@ -240,12 +240,11 @@ struct camera_frame *get_empty_frame(void)
 {
 	int ret = 0;
 	uint32_t i;
-	struct camera_queue *q = g_empty_frm_q;
 	struct camera_frame *pframe = NULL;
 
 	pr_debug("Enter.\n");
 	do {
-		pframe = camera_dequeue(q, struct camera_frame, list);
+		pframe = camera_dequeue(g_empty_frm_q, struct camera_frame, list);
 		if (pframe == NULL) {
 			if (in_interrupt()) {
 				/* fast alloc and return for irq handler */
@@ -265,7 +264,7 @@ struct camera_frame *get_empty_frame(void)
 				}
 				atomic_inc(&g_mem_dbg->empty_frm_cnt);
 				pr_debug("alloc frame %p\n", pframe);
-				ret = camera_enqueue(q, &pframe->list);
+				ret = camera_enqueue(g_empty_frm_q, &pframe->list);
 				if (ret) {
 					/* q full, return pframe directly here */
 					break;

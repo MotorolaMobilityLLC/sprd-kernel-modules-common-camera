@@ -248,8 +248,6 @@ struct isp_pipe_ops {
 	int (*clear_stream_ctrl)(void *isp_handle, int ctx_id);
 };
 
-struct isp_pipe_ops *get_isp_ops(void);
-
 void *get_isp_pipe_dev(void);
 int put_isp_pipe_dev(void *isp_handle);
 

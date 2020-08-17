@@ -2664,14 +2664,6 @@ static struct dcam_pipe_ops s_dcam_pipe_ops = {
 	.set_callback = sprd_dcam_set_cb,
 };
 
-/*
- * Get supported operations for a dcam_pipe_dev.
- */
-struct dcam_pipe_ops *dcam_if_get_ops(void)
-{
-	return &s_dcam_pipe_ops;
-}
-
 uint32_t dcam_if_get_open_count(void)
 {
 	return atomic_read(&s_dcam_axi_opened);
@@ -2709,6 +2701,10 @@ void *dcam_if_get_dev(uint32_t idx, struct cam_hw_info *hw)
 
 	dev->idx = idx;
 	dev->hw = hw;
+	/*
+	 * Operations for this dcam_pipe_dev.
+	 */
+	dev->dcam_pipe_ops = &s_dcam_pipe_ops;
 
 	/* frame sync helper */
 	spin_lock_init(&dev->helper_lock);

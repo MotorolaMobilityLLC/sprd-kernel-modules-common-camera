@@ -3587,11 +3587,6 @@ static struct isp_pipe_ops isp_ops = {
 	.clear_stream_ctrl = isp_put_stream_state,
 };
 
-struct isp_pipe_ops *get_isp_ops(void)
-{
-	return &isp_ops;
-}
-
 void *get_isp_pipe_dev(void)
 {
 	struct isp_pipe_dev *dev = NULL;
@@ -3612,6 +3607,9 @@ void *get_isp_pipe_dev(void)
 
 	atomic_set(&dev->user_cnt, 1);
 	atomic_set(&dev->enable, 0);
+
+	dev->isp_ops = &isp_ops;
+
 	s_isp_dev = dev;
 	if (dev)
 		pr_info("get isp pipe dev: %p\n", dev);

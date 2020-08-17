@@ -41,22 +41,20 @@ static int sprd_cam_flash_ctrl(uint32_t dcam_idx,
 	return ret;
 }
 
-static int sprd_cam_flash_open(void *flash_handle, void *arg)
+static int sprd_cam_flash_open(struct cam_flash_task_info *flash_ctx, void *arg)
 {
 	return 0;
 }
 
-static int sprd_cam_flash_close(void *flash_handle)
+static int sprd_cam_flash_close(struct cam_flash_task_info *flash_ctx)
 {
 	return 0;
 }
 
-static int sprd_cam_flash_cfg(void *flash_handle, void *cfg_parm)
+static int sprd_cam_flash_cfg(struct cam_flash_task_info *flash_ctx, void *cfg_parm)
 {
 	int ret = 0;
-	struct cam_flash_task_info *flash_ctx;
 
-	flash_ctx = (struct cam_flash_task_info *)flash_handle;
 	if (!flash_ctx) {
 		pr_err("fail to get flash handle\n");
 		goto exit;
@@ -70,7 +68,7 @@ exit:
 	return ret;
 }
 
-static int sprd_cam_flash_set(void *flash_handle, void *arg)
+static int sprd_cam_flash_set(struct cam_flash_task_info *flash_ctx, void *arg)
 {
 	int ret = 0;
 	unsigned int led0_ctrl;
@@ -78,16 +76,13 @@ static int sprd_cam_flash_set(void *flash_handle, void *arg)
 	unsigned int led0_status;
 	unsigned int led1_status;
 	struct sprd_img_set_flash *set_flash;
-	struct cam_flash_task_info *flash_ctx;
-
-	set_flash = (struct sprd_img_set_flash *)arg;
-
-	flash_ctx = (struct cam_flash_task_info *)flash_handle;
 
 	if (!flash_ctx) {
 		pr_err("fail to get flash handle\n");
 		goto exit;
 	}
+
+	set_flash = (struct sprd_img_set_flash *)arg;
 
 	memcpy((void *)&flash_ctx->set_flash, arg,
 		sizeof(struct sprd_img_set_flash));
@@ -101,30 +96,22 @@ exit:
 	return ret;
 }
 
-static int sprd_cam_flash_get_info(void *flash_handle, void *arg)
+static int sprd_cam_flash_get_info(struct cam_flash_task_info *flash_ctx, void *arg)
 {
-	struct cam_flash_task_info *flash_ctx;
-
-
-	flash_ctx = (struct cam_flash_task_info *)flash_handle;
-
 	sprd_flash_get_info(flash_ctx->set_flash.flash_index,
 		SPRD_FLASH_LED_ALL, (struct sprd_flash_capacity *)arg);
-
 	return 0;
 }
 
-static int sprd_cam_flash_start(void *flash_handle)
+static int sprd_cam_flash_start(struct cam_flash_task_info *flash_ctx)
 {
 	int ret = 0;
-	struct cam_flash_task_info *flash_ctx = NULL;
 	uint32_t need_light = 1;
 	uint32_t led0_ctrl;
 	uint32_t led1_ctrl;
 	uint32_t led0_status;
 	uint32_t led1_status;
 
-	flash_ctx = (struct cam_flash_task_info *)flash_handle;
 	if (flash_ctx == NULL) {
 		pr_err("fail to get valid input ptr\n");
 		return -EINVAL;
@@ -161,12 +148,8 @@ static int sprd_cam_flash_start(void *flash_handle)
 }
 
 
-static void sprd_cam_flash_set_frame_skip(void *flash_handle, int skip_frame)
+static void sprd_cam_flash_set_frame_skip(struct cam_flash_task_info *flash_ctx, int skip_frame)
 {
-	struct cam_flash_task_info *flash_ctx;
-
-	flash_ctx = (struct cam_flash_task_info *) flash_handle;
-
 	if (flash_ctx)
 		flash_ctx->skip_number = skip_frame;
 }
@@ -250,23 +233,17 @@ static int flash_thread_loop(void *arg)
 	return 0;
 }
 
-
 static struct cam_flash_ops flash_core_ops = {
 	.open = sprd_cam_flash_open,
-		.close = sprd_cam_flash_close,
-		.cfg_flash = sprd_cam_flash_cfg,
-		.set_flash = sprd_cam_flash_set,
-		.get_flash = sprd_cam_flash_get_info,
-		.start_flash = sprd_cam_flash_start,
-		.set_frame_skip = sprd_cam_flash_set_frame_skip,
+	.close = sprd_cam_flash_close,
+	.cfg_flash = sprd_cam_flash_cfg,
+	.set_flash = sprd_cam_flash_set,
+	.get_flash = sprd_cam_flash_get_info,
+	.start_flash = sprd_cam_flash_start,
+	.set_frame_skip = sprd_cam_flash_set_frame_skip,
 };
 
-struct cam_flash_ops *get_flash_ops(void)
-{
-	return &flash_core_ops;
-}
-
-void *get_cam_flash_handle(uint32_t cam_idx)
+struct cam_flash_task_info *get_cam_flash_handle(uint32_t cam_idx)
 {
 	struct cam_flash_task_info *flash_ctx = NULL;
 	char thread_name[20] = { 0 };
@@ -286,6 +263,8 @@ void *get_cam_flash_handle(uint32_t cam_idx)
 
 	flash_ctx->after_af = 0;
 
+	flash_ctx->flash_core_ops = &flash_core_ops;
+
 	flash_ctx->is_flash_thread_stop = 0;
 	init_completion(&flash_ctx->flash_thread_com);
 	sprintf(thread_name, "cam%d_flash_thread", flash_ctx->cam_idx);
@@ -297,20 +276,17 @@ void *get_cam_flash_handle(uint32_t cam_idx)
 		return NULL;
 	}
 
-	return (void *)flash_ctx;
+	return flash_ctx;
 }
 
-int put_cam_flash_handle(void *flash_handle)
+int put_cam_flash_handle(struct cam_flash_task_info *flash_ctx)
 {
 	int ret = 0;
-	struct cam_flash_task_info *flash_ctx = NULL;
 
-	if (!flash_handle) {
+	if (!flash_ctx) {
 		pr_err("fail to get valid input ptr\n");
 		return -EFAULT;
 	}
-
-	flash_ctx = (struct cam_flash_task_info *)flash_handle;
 
 	if (flash_ctx->flash_thread) {
 		flash_ctx->is_flash_thread_stop = 1;

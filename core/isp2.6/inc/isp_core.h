@@ -338,6 +338,7 @@ struct isp_pipe_dev {
 	struct isp_pipe_context ctx[ISP_CONTEXT_SW_NUM];
 	struct isp_pipe_hw_context hw_ctx[ISP_CONTEXT_HW_NUM];
 	struct cam_hw_info *isp_hw;
+	struct isp_pipe_ops *isp_ops;
 };
 
 struct isp_statis_buf_size_info {

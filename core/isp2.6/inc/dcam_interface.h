@@ -325,10 +325,7 @@ int dcam_if_release_sync(struct dcam_frame_synchronizer *sync,
  * TX_DONE interrupt.
  */
 #define dcam_if_is_sync_valid(sync, path_id) (sync->valid & BIT(path_id))
-/*
- * Retrieve dcam_if supported operations.
- */
-struct dcam_pipe_ops *dcam_if_get_ops(void);
+
 /*
  * Retrieve a dcam_if device for the hardware. A dcam_if device is a wrapper
  * with supported operations defined in dcam_pipe_ops.

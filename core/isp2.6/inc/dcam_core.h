@@ -293,6 +293,8 @@ struct dcam_pipe_dev {
 	struct camera_queue in_queue;
 	struct camera_queue proc_queue;
 	struct cam_thread_info thread;
+
+	struct dcam_pipe_ops *dcam_pipe_ops;
 };
 
 /*
