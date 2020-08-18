@@ -440,7 +440,7 @@ static void csi_dphy_2p2_reset(struct csi_dt_node_info *csi_info)
 	uint32_t cphy_sel_mask;
 	uint32_t cphy_sel_val;
 	uint32_t mask = 0;
-	uint32_t val;
+	uint32_t val = 0;
 
 	if (!csi_info) {
 		pr_err("fail to get valid dt_info ptr\n");
