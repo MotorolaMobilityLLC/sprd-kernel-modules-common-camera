@@ -14,7 +14,6 @@
 #ifndef _CAM_TYPES_H_
 #define _CAM_TYPES_H_
 
-#include <linux/workqueue.h>
 #include <linux/completion.h>
 #include "sprd_img.h"
 
@@ -271,18 +270,5 @@ typedef int(*isp_dev_callback)(enum isp_cb_type type, void *param,
 				void *priv_data);
 typedef int(*dcam_dev_callback)(enum dcam_cb_type type, void *param,
 				void *priv_data);
-
-
-#define CAM_WORK_DONE			0
-#define CAM_WORK_PENDING		1
-#define CAM_WORK_RUNNING		2
-
-struct sprd_cam_work {
-	atomic_t status;
-	void *priv_data;
-	struct timeval time;
-	ktime_t boot_time;
-	struct work_struct work;
-};
 
 #endif /* _CAM_TYPES_H_ */

@@ -1436,14 +1436,6 @@ check:
 
 
 	module->attach_sensor_id = res.sensor_id;
-	module->workqueue = create_workqueue("sprd_camera_module");
-	if (!module->workqueue) {
-		pr_err("fail to create camera dev wq\n");
-		ret = -EINVAL;
-		goto wq_fail;
-	}
-	atomic_set(&module->work.status, CAM_WORK_DONE);
-
 
 	if (dcam_idx == DCAM_ID_0)
 		res.flag = DCAM_RES_DCAM0_CAP | DCAM_RES_DCAM0_PATH;
@@ -1471,9 +1463,6 @@ check:
 	return 0;
 
 copy_fail:
-	destroy_workqueue(module->workqueue);
-	module->workqueue  = NULL;
-
 wq_fail:
 	module->isp_dev_handle->isp_ops->close(isp);
 
@@ -1529,8 +1518,6 @@ static int img_ioctl_put_cam_res(
 				module->idx);
 	}
 
-	destroy_workqueue(module->workqueue);
-	module->workqueue  = NULL;
 	module->attach_sensor_id = -1;
 
 	if (module->dcam_dev_handle) {
@@ -1790,7 +1777,18 @@ static int img_ioctl_stream_off(
 
 	pr_info("cam %d stream off. state: %d\n",
 		module->idx, atomic_read(&module->state));
-	flush_workqueue(module->workqueue);
+
+	ch = &module->channel[CAM_CH_CAP];
+	mutex_lock(&ch->buf_lock);
+	if (ch && ch->enable && ch->alloc_start) {
+		ret = wait_for_completion_interruptible(&ch->alloc_com);
+		if (ret != 0)
+			pr_err("fail to config channel/path param work %d\n", ret);
+		pr_debug("allsoc buffer done.\n");
+		ch->alloc_start = 0;
+	}
+	mutex_unlock(&ch->buf_lock);
+
 	atomic_set(&module->state, CAM_STREAM_OFF);
 	module->cap_status = CAM_CAPTURE_STOP;
 	module->dcam_cap_status = DCAM_CAPTURE_STOP;
@@ -1881,16 +1879,15 @@ static int img_ioctl_stream_off(
 			if (isp_ctx_id[i] != -1)
 				module->isp_dev_handle->isp_ops->put_context(module->isp_dev_handle,
 					isp_ctx_id[i]);
-
+			mutex_lock(&ch->buf_lock);
 			if (ch->alloc_start) {
-				ret = wait_for_completion_interruptible(
-					&ch->alloc_com);
+				ret = wait_for_completion_interruptible(&ch->alloc_com);
 				if (ret != 0)
-					pr_err("fail to config channel/path param work %d\n",
-						ret);
-				pr_info("alloc buffer done.\n");
+					pr_err("fail to config channel/path param work %d\n", ret);
+				pr_debug("alloc buffer done.\n");
 				ch->alloc_start = 0;
 			}
+			mutex_unlock(&ch->buf_lock);
 			if (ch->isp_updata) {
 				struct isp_offline_param *cur, *prev;
 
@@ -2201,6 +2198,7 @@ static int img_ioctl_start_capture(
 	uint32_t isp_idx = 0;
 	uint32_t cap_skip_num = 0;
 	uint32_t gtm_param_idx = DCAM_GTM_PARAM_CAP;
+	struct channel_context *ch = NULL;
 
 	ret = copy_from_user(&param, (void __user *)arg,
 			sizeof(struct sprd_img_capture_param));
@@ -2216,7 +2214,16 @@ static int img_ioctl_start_capture(
 	}
 	hw = module->grp->hw_info;
 	start_time = ktime_get_boottime();
-	flush_workqueue(module->workqueue);
+	ch = &module->channel[CAM_CH_CAP];
+	mutex_lock(&ch->buf_lock);
+	if (ch && ch->alloc_start) {
+		ret = wait_for_completion_interruptible(&ch->alloc_com);
+		if (ret != 0)
+			pr_err("fail to config channel/path param work %d\n", ret);
+		pr_debug("alloc buffer done.\n");
+		ch->alloc_start = 0;
+	}
+	mutex_unlock(&ch->buf_lock);
 
 	module->capture_scene = param.cap_scene;
 	isp_idx = module->channel[CAM_CH_CAP].isp_path_id >> ISP_CTXID_OFFSET;

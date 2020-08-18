@@ -66,6 +66,7 @@
 #define  CAM_STATIS_Q_LEN   16
 #define  CAM_ZOOM_COEFF_Q_LEN   10
 #define  CAM_PMBUF_Q_LEN	(PARAM_BUF_NUM_MAX)
+#define  CAM_ALLOC_Q_LEN   48
 
 /* TODO: tuning ratio limit for power/image quality */
 #define MAX_RDS_RATIO 3
@@ -222,7 +223,6 @@ struct channel_context {
 
 	uint32_t alloc_start;
 	struct completion alloc_com;
-	struct sprd_cam_work alloc_buf_work;
 
 	uint32_t uinfo_3dnr;	/* set by hal, 1:hw 3dnr; */
 	uint32_t type_3dnr;	/* CAM_3DNR_HW:enable hw,and alloc buffer */
@@ -236,6 +236,7 @@ struct channel_context {
 	/* dcam/isp shared frame buffer for full path */
 	struct camera_queue share_buf_queue;
 	struct camera_queue zoom_coeff_queue; /* channel specific coef queue */
+	struct mutex buf_lock;
 };
 
 struct camera_module {
@@ -281,10 +282,12 @@ struct camera_module {
 	struct camera_queue frm_queue; /* frame message queue for user*/
 	struct camera_queue irq_queue; /* IRQ message queue for user*/
 	struct camera_queue statis_queue; /* statis data queue or user*/
+	struct camera_queue alloc_queue; /* statis data queue or user*/
 
 
 	struct cam_thread_info cap_thrd;
 	struct cam_thread_info zoom_thrd;
+	struct cam_thread_info buf_thrd;
 
 	/*  dump raw  for debug*/
 	struct cam_thread_info dump_thrd;
@@ -298,8 +301,6 @@ struct camera_module {
 	struct completion streamoff_com;
 
 	struct timer_list cam_timer;
-	struct workqueue_struct *workqueue;
-	struct sprd_cam_work work;
 
 	struct camera_queue zsl_fifo_queue; /* for cmp timestamp */
 	struct camera_frame *dual_frame; /* 0: no, to find, -1: no need find */
@@ -848,14 +849,14 @@ static int cam_cfg_path_buffer(struct camera_module *module,
 	hw = module->grp->hw_info;
 	if (!ch->alloc_start)
 		return 0;
-	ret = wait_for_completion_interruptible(&ch->alloc_com);
-	if (ret != 0) {
-		pr_err("fail to config channel/path param work %d\n",
-			ret);
-		flush_workqueue(module->workqueue);
-		goto exit;
+
+	if (index == CAM_CH_PRE || index == CAM_CH_VID) {
+		ret = wait_for_completion_interruptible(&ch->alloc_com);
+		if (ret != 0) {
+			pr_err("fail to config channel/path param work %d\n", ret);
+			goto exit;
+		}
 	}
-	ch->alloc_start = 0;
 
 	if (atomic_read(&ch->err_status) != 0) {
 		pr_err("fail to get ch %d correct status\n", ch->ch_id);
@@ -921,8 +922,8 @@ static int cam_cfg_path_buffer(struct camera_module *module,
 			goto exit;
 		}
 	}
-
 exit:
+	ch->alloc_start = 0;
 	return ret;
 }
 
@@ -992,27 +993,33 @@ exit:
 	return ret;
 }
 
-static void alloc_buffers(struct work_struct *work)
+static void alloc_buffers(void *param)
 {
 	int ret = 0;
 	int i, count, total, iommu_enable;
 	uint32_t width, height, size, is_loose;
-	struct sprd_cam_work *alloc_work;
 	struct camera_module *module;
 	struct camera_frame *pframe;
 	struct channel_context *channel;
 	struct camera_debugger *debugger;
 	struct cam_hw_info *hw = NULL;
 	int path_id;
+	struct camera_frame *alloc_buf = NULL;
 
 	pr_info("enter.\n");
 
-	alloc_work = container_of(work, struct sprd_cam_work, work);
-	channel = container_of(alloc_work,
-			       struct channel_context, alloc_buf_work);
-	atomic_set(&alloc_work->status, CAM_WORK_RUNNING);
+	module = (struct camera_module *)param;
+	alloc_buf = camera_dequeue(&module->alloc_queue,
+		struct camera_frame, list);
 
-	module = (struct camera_module *)alloc_work->priv_data;
+	if (alloc_buf) {
+		channel = (struct channel_context *)alloc_buf->priv_data;
+		put_empty_frame(alloc_buf);
+	} else {
+		pr_err("fail to dequeue alloc_buf\n");
+		return;
+	}
+
 	hw = module->grp->hw_info;
 	iommu_enable = module->iommu_enable;
 
@@ -1275,14 +1282,13 @@ static void alloc_buffers(struct work_struct *work)
 	}
 
 exit:
-	complete(&channel->alloc_com);
-	atomic_set(&alloc_work->status, CAM_WORK_DONE);
 	if (channel->ch_id != CAM_CH_PRE &&
 		channel->ch_id != CAM_CH_VID) {
 		ret = cam_cfg_path_buffer(module, channel->ch_id);
 		if (ret)
 			pr_err("fail to cfg path buffer\n");
 	}
+	complete(&channel->alloc_com);
 	pr_info("ch %d done. status %d\n",
 		channel->ch_id, atomic_read(&channel->err_status));
 }
@@ -3062,6 +3068,7 @@ static int config_channel_size(
 	struct dcam_path_cfg_param ch_desc;
 	struct isp_ctx_size_desc ctx_size;
 	struct img_trim path_trim;
+	struct camera_frame *alloc_buf = NULL;
 
 	if (atomic_read(&module->state) == CAM_RUNNING) {
 		is_zoom = 1;
@@ -3082,13 +3089,14 @@ static int config_channel_size(
 			CAM_SHARED_BUF_NUM, put_k_frame);
 
 		/* alloc middle buffer for channel */
+		mutex_lock(&channel->buf_lock);
 		channel->alloc_start = 1;
-		channel->alloc_buf_work.priv_data = module;
-		atomic_set(&channel->alloc_buf_work.status, CAM_WORK_PENDING);
-		INIT_WORK(&channel->alloc_buf_work.work, alloc_buffers);
-		pr_info("module %p, channel %d, size %d %d\n", module,
-			channel->ch_id, channel->swap_size.w, channel->swap_size.h);
-		queue_work(module->workqueue, &channel->alloc_buf_work.work);
+		mutex_unlock(&channel->buf_lock);
+
+		alloc_buf = get_empty_frame();
+		alloc_buf->priv_data = (void *)channel;
+		camera_enqueue(&module->alloc_queue, &alloc_buf->list);
+		complete(&module->buf_thrd.thread_com);
 	}
 
 	memset(&ch_desc, 0, sizeof(ch_desc));
@@ -4738,6 +4746,7 @@ static int camera_module_init(struct camera_module *module)
 		channel->ch_id = ch;
 		channel->dcam_path_id = -1;
 		channel->isp_path_id = -1;
+		mutex_init(&channel->buf_lock);
 		init_completion(&channel->alloc_com);
 	}
 
@@ -4752,6 +4761,13 @@ static int camera_module_init(struct camera_module *module)
 	thrd = &module->zoom_thrd;
 	sprintf(thrd->thread_name, "cam%d_zoom", module->idx);
 	ret = camera_create_thread(module, thrd, zoom_proc);
+	if (ret)
+		goto exit;
+
+	/* create buf thread */
+	thrd = &module->buf_thrd;
+	sprintf(thrd->thread_name, "cam%d_alloc_buf", module->idx);
+	ret = camera_create_thread(module, thrd, alloc_buffers);
 	if (ret)
 		goto exit;
 
@@ -4775,25 +4791,36 @@ static int camera_module_init(struct camera_module *module)
 		CAM_IRQ_Q_LEN, camera_put_empty_frame);
 	camera_queue_init(&module->statis_queue,
 		CAM_STATIS_Q_LEN, camera_put_empty_frame);
-
+	camera_queue_init(&module->alloc_queue,
+		CAM_ALLOC_Q_LEN, camera_put_empty_frame);
 	pr_info("module[%d] init OK %p!\n", module->idx, module);
 	return 0;
 exit:
 	camera_stop_thread(&module->cap_thrd);
 	camera_stop_thread(&module->zoom_thrd);
+	camera_stop_thread(&module->buf_thrd);
 	camera_stop_thread(&module->dump_thrd);
 	return ret;
 }
 
 static int camera_module_deinit(struct camera_module *module)
 {
+	int ch = 0;
+	struct channel_context *channel = NULL;
+
 	put_cam_flash_handle(module->flash_core_handle);
 	camera_queue_clear(&module->frm_queue, struct camera_frame, list);
 	camera_queue_clear(&module->irq_queue, struct camera_frame, list);
 	camera_queue_clear(&module->statis_queue, struct camera_frame, list);
+	camera_queue_clear(&module->alloc_queue, struct camera_frame, list);
 	camera_stop_thread(&module->cap_thrd);
 	camera_stop_thread(&module->zoom_thrd);
+	camera_stop_thread(&module->buf_thrd);
 	camera_stop_thread(&module->dump_thrd);
+	for (ch = 0; ch < CAM_CH_MAX; ch++) {
+		channel = &module->channel[ch];
+		mutex_destroy(&channel->buf_lock);
+	}
 	mutex_destroy(&module->fdr_lock);
 	mutex_destroy(&module->lock);
 	return 0;
@@ -6070,11 +6097,6 @@ static int sprd_img_release(struct inode *node, struct file *file)
 
 	if (atomic_read(&module->state) == CAM_IDLE) {
 		module->attach_sensor_id = -1;
-
-		if (module->workqueue) {
-			destroy_workqueue(module->workqueue);
-			module->workqueue  = NULL;
-		}
 
 		dcam_dev = module->dcam_dev_handle;
 		isp_dev = module->isp_dev_handle;
