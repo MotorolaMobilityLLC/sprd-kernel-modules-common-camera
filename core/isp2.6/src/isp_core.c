@@ -52,7 +52,7 @@ static int sprd_isp_put_context(
 static int sprd_isp_put_path(
 	void *isp_handle, int ctx_id, int path_id);
 static int isp_slice_ctx_init(struct isp_pipe_context *pctx, uint32_t *multi_slice);
-static int isp_init_statis_q(void *isp_handle, int ctx_id);
+static int isp_init_statis_q(void *isp_handle, int ctx_id, struct isp_statis_buf_input *input);
 static int isp_unmap_statis_buffer(void *isp_handle, int ctx_id);
 static int sprd_isp_proc_frame(void *isp_handle, void *param, int ctx_id);
 
@@ -3163,7 +3163,6 @@ static int isp_cfg_statis_buffer(
 	int j;
 	int32_t mfd;
 	uint32_t offset;
-	enum isp_statis_buf_type stats_type = STATIS_HIST2;
 	struct isp_pipe_dev *dev = NULL;
 	struct isp_pipe_context *pctx;
 	struct camera_buf *ion_buf = NULL;
@@ -3182,45 +3181,12 @@ static int isp_cfg_statis_buffer(
 		return 0;
 	}
 
-	stats_type = input->type;
-	if (stats_type == STATIS_HIST2)
-		goto cfg_single;
-
-	memset(&pctx->statis_buf_array[0], 0, sizeof(pctx->statis_buf_array));
-	stats_type = STATIS_HIST2;
-
-	for (j = 0; j < STATIS_BUF_NUM_MAX; j++) {
-		mfd = input->mfd_array[stats_type][j];
-		offset = input->offset_array[stats_type][j];
-		if (mfd <= 0)
-			continue;
-		ion_buf = &pctx->statis_buf_array[j];
-		ion_buf->mfd[0] = mfd;
-		ion_buf->offset[0] = offset;
-		ion_buf->type = CAM_BUF_USER;
-		ret = cambuf_get_ionbuf(ion_buf);
-		if (ret) {
-			memset(ion_buf, 0, sizeof(struct camera_buf));
-			continue;
-		}
-
-		ret = cambuf_kmap(ion_buf);
-		if (ret) {
-			cambuf_put_ionbuf(ion_buf);
-			memset(ion_buf, 0, sizeof(struct camera_buf));
-			continue;
-		}
-
-		pr_debug("stats %d, j %d, buf %d, offset %d,  kaddr 0x%lx\n",
-				stats_type, j, mfd, offset, ion_buf->addr_k[0]);
+	if (input->type == STATIS_INIT) {
+		isp_init_statis_q(isp_handle, ctx_id, input);
+		pr_debug("init done\n");
+		return 0;
 	}
 
-	isp_init_statis_q(isp_handle, ctx_id);
-
-	pr_info("init done\n");
-	return 0;
-
-cfg_single:
 	for (j = 0; j < STATIS_BUF_NUM_MAX; j++) {
 		mfd = pctx->statis_buf_array[j].mfd[0];
 		offset = pctx->statis_buf_array[j].offset[0];
@@ -3244,7 +3210,7 @@ cfg_single:
 	pframe->buf = *ion_buf;
 	ret = camera_enqueue(&pctx->hist2_result_queue, &pframe->list);
 	if (ret) {
-		pr_info("statis %d overflow\n", stats_type);
+		pr_info("statis %d overflow\n", input->type);
 		put_empty_frame(pframe);
 	}
 	pr_debug("buf %d, off %d, kaddr 0x%lx iova 0x%08x\n",
@@ -3253,10 +3219,12 @@ cfg_single:
 	return 0;
 }
 
-static int isp_init_statis_q(void *isp_handle, int ctx_id)
+static int isp_init_statis_q(void *isp_handle, int ctx_id,
+		struct isp_statis_buf_input *input)
 {
 	int ret = 0;
 	int j;
+	int32_t mfd;
 	enum isp_statis_buf_type stats_type;
 	struct isp_pipe_dev *dev = NULL;
 	struct isp_pipe_context *pctx;
@@ -3266,10 +3234,26 @@ static int isp_init_statis_q(void *isp_handle, int ctx_id)
 	dev = (struct isp_pipe_dev *)isp_handle;
 	pctx = &dev->ctx[ctx_id];
 
+	memset(&pctx->statis_buf_array[0], 0, sizeof(pctx->statis_buf_array));
 	stats_type = STATIS_HIST2;
+
 	for (j = 0; j < STATIS_BUF_NUM_MAX; j++) {
+		mfd = input->mfd_array[stats_type][j];
+		if (mfd <= 0)
+			continue;
 		ion_buf = &pctx->statis_buf_array[j];
-		if (ion_buf->mfd[0] <= 0) {
+		ion_buf->mfd[0] = mfd;
+		ion_buf->offset[0] = input->offset_array[stats_type][j];
+		ion_buf->type = CAM_BUF_USER;
+		ret = cambuf_get_ionbuf(ion_buf);
+		if (ret) {
+			memset(ion_buf, 0, sizeof(struct camera_buf));
+			continue;
+		}
+
+		ret = cambuf_kmap(ion_buf);
+		if (ret) {
+			cambuf_put_ionbuf(ion_buf);
 			memset(ion_buf, 0, sizeof(struct camera_buf));
 			continue;
 		}
@@ -3284,8 +3268,8 @@ static int isp_init_statis_q(void *isp_handle, int ctx_id)
 			pr_info("statis %d overflow\n", stats_type);
 			put_empty_frame(pframe);
 		}
-		pr_debug("buf %d, off %d, kaddr 0x%lx iova 0x%08x\n",
-			ion_buf->mfd[0], ion_buf->offset[0],
+		pr_debug("buf_num %d, buf %d, off %d, kaddr 0x%lx iova 0x%08x\n",
+			j, ion_buf->mfd[0], ion_buf->offset[0],
 			ion_buf->addr_k[0], (uint32_t)ion_buf->iova[0]);
 	}
 
