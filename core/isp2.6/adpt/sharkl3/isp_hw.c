@@ -327,6 +327,15 @@ abnormal_reg_trace:
 			ISP_HREG_RD(addr + 12));
 	}
 
+	for (addr = 0; addr <= 0xFFFC; addr += 16) {
+		pr_info("0x%08lx: 0x%x 0x%x 0x%x 0x%x\n",
+			addr,
+			ISP_HREG_RD(addr),
+			ISP_HREG_RD(addr + 4),
+			ISP_HREG_RD(addr + 8),
+			ISP_HREG_RD(addr + 12));
+	}
+
 normal_reg_trace:
 	val_mmu = DCAM_MMU_RD(MMU_EN);
 	cnt = sizeof(sharkl3_cam_reg_trace_tab) /
