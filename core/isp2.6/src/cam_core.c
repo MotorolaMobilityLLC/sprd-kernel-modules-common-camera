@@ -205,7 +205,9 @@ struct channel_context {
 
 	/* isp_path_id combined from ctx_id | path_id.*/
 	/* isp_path_id = (ctx_id << ISP_PATH_BITS) | path_id */
+	int32_t isp_ctx_id;
 	int32_t isp_path_id;
+	int32_t slave_isp_ctx_id;
 	int32_t slave_isp_path_id;
 	int32_t isp_fdrl_path;
 	int32_t isp_fdrh_path;
@@ -719,14 +721,14 @@ static void config_compression(struct camera_module *module)
 		ctx_compression_desc.nr3_fbc_fbd = ch_cap->compress_3dnr;
 		module->isp_dev_handle->isp_ops->cfg_path(module->isp_dev_handle,
 				  ISP_PATH_CFG_CTX_COMPRESSION,
-				  ch_cap->isp_path_id >> ISP_CTXID_OFFSET,
+				  ch_cap->isp_ctx_id,
 				  0, &ctx_compression_desc);
 
 		path_compression_desc.store_fbc = ch_cap->compress_output;
 		module->isp_dev_handle->isp_ops->cfg_path(module->isp_dev_handle,
 				  ISP_PATH_CFG_PATH_COMPRESSION,
-				  ch_cap->isp_path_id >> ISP_CTXID_OFFSET,
-				  ch_cap->isp_path_id & ISP_PATHID_MASK,
+				  ch_cap->isp_ctx_id,
+				  ch_cap->isp_path_id,
 				  &path_compression_desc);
 	}
 
@@ -737,14 +739,14 @@ static void config_compression(struct camera_module *module)
 		ctx_compression_desc.nr3_fbc_fbd = ch_pre->compress_3dnr;
 		module->isp_dev_handle->isp_ops->cfg_path(module->isp_dev_handle,
 				  ISP_PATH_CFG_CTX_COMPRESSION,
-				  ch_pre->isp_path_id >> ISP_CTXID_OFFSET,
+				  ch_pre->isp_ctx_id,
 				  0, &ctx_compression_desc);
 
 		path_compression_desc.store_fbc = ch_pre->compress_output;
 		module->isp_dev_handle->isp_ops->cfg_path(module->isp_dev_handle,
 				  ISP_PATH_CFG_PATH_COMPRESSION,
-				  ch_pre->isp_path_id >> ISP_CTXID_OFFSET,
-				  ch_pre->isp_path_id & ISP_PATHID_MASK,
+				  ch_pre->isp_ctx_id,
+				  ch_pre->isp_path_id,
 				  &path_compression_desc);
 	}
 
@@ -755,14 +757,14 @@ static void config_compression(struct camera_module *module)
 		ctx_compression_desc.nr3_fbc_fbd = ch_vid->compress_3dnr;
 		module->isp_dev_handle->isp_ops->cfg_path(module->isp_dev_handle,
 				  ISP_PATH_CFG_CTX_COMPRESSION,
-				  ch_vid->isp_path_id >> ISP_CTXID_OFFSET,
+				  ch_vid->isp_ctx_id,
 				  0, &ctx_compression_desc);
 
 		path_compression_desc.store_fbc = ch_vid->compress_output;
 		module->isp_dev_handle->isp_ops->cfg_path(module->isp_dev_handle,
 				  ISP_PATH_CFG_PATH_COMPRESSION,
-				  ch_vid->isp_path_id >> ISP_CTXID_OFFSET,// TODO
-				  ch_vid->isp_path_id & ISP_PATHID_MASK,
+				  ch_vid->isp_ctx_id,
+				  ch_vid->isp_path_id,
 				  &path_compression_desc);
 	}
 }
@@ -892,8 +894,8 @@ static int cam_cfg_path_buffer(struct camera_module *module,
 			goto exit;
 		}
 	}
-	isp_ctx_id = ch->isp_path_id >> ISP_CTXID_OFFSET;
-	isp_path_id = ch->isp_path_id & ISP_PATHID_MASK;
+	isp_ctx_id = ch->isp_ctx_id;
+	isp_path_id = ch->isp_path_id;
 
 	for (j = 0; j < ISP_NR3_BUF_NUM; j++) {
 		if (ch->nr3_bufs[j] == NULL)
@@ -947,8 +949,8 @@ static int cam_cfg_ltm_buffer(struct camera_module *module,
 	if (!ch_pre->enable && ch_cap->enable)
 		return 0;
 	ch = &module->channel[index];
-	isp_ctx_id = ch->isp_path_id >> ISP_CTXID_OFFSET;
-	isp_path_id = ch->isp_path_id & ISP_PATHID_MASK;
+	isp_ctx_id = ch->isp_ctx_id;
+	isp_path_id = ch->isp_path_id;
 
 	if (module->cam_uinfo.is_rgb_ltm) {
 		for (j = 0; j < ISP_LTM_BUF_NUM; j++) {
@@ -1992,7 +1994,7 @@ int dcam_callback(enum dcam_cb_type type, void *param, void *priv_data)
 			}
 
 			ret = module->isp_dev_handle->isp_ops->proc_frame(module->isp_dev_handle, pframe,
-					channel->isp_path_id >> ISP_CTXID_OFFSET);
+					channel->isp_ctx_id);
 			if (ret) {
 				pr_warn_ratelimited("warning: isp proc frame failed.\n");
 				/* ISP in_queue maybe overflow.
@@ -3164,8 +3166,8 @@ static int config_channel_size(
 		kfree(ch_desc.priv_size_data);
 
 	if (!is_zoom && channel->ch_id == CAM_CH_PRE) {
-		isp_ctx_id = (channel->isp_path_id >> ISP_CTXID_OFFSET);
-		isp_path_id = (channel->isp_path_id & ISP_PATHID_MASK);
+		isp_ctx_id = channel->isp_ctx_id;
+		isp_path_id = channel->isp_path_id;
 		ctx_size.src.w = ch_uinfo->src_size.w;
 		ctx_size.src.h = ch_uinfo->src_size.h;
 		ctx_size.crop = channel->trim_dcam;
@@ -3195,8 +3197,8 @@ static int config_channel_size(
 	}
 
 cfg_isp:
-	isp_ctx_id = (channel->isp_path_id >> ISP_CTXID_OFFSET);
-	isp_path_id = (channel->isp_path_id & ISP_PATHID_MASK);
+	isp_ctx_id = channel->isp_ctx_id;
+	isp_path_id = channel->isp_path_id;
 
 	if (channel->ch_id == CAM_CH_CAP) {
 		ctx_size.src.w = ch_uinfo->src_size.w;
@@ -3224,7 +3226,7 @@ cfg_path:
 	if (channel->ch_id == CAM_CH_CAP && is_zoom) {
 		channel = &module->channel[CAM_CH_CAP_THM];
 		if (channel->enable) {
-			isp_path_id = (channel->isp_path_id & ISP_PATHID_MASK);
+			isp_path_id = channel->isp_path_id;
 			goto cfg_path;
 		}
 	}
@@ -3449,7 +3451,7 @@ static int capture_proc(void *param)
 			module->idx, pframe->fid,
 			pframe->width, pframe->height);
 		ret = module->isp_dev_handle->isp_ops->proc_frame(module->isp_dev_handle, pframe,
-					channel->isp_path_id >> ISP_CTXID_OFFSET);
+					channel->isp_ctx_id);
 	}
 
 	if (ret) {
@@ -4298,8 +4300,7 @@ static int init_cam_channel(
 		channel_prev = &module->channel[CAM_CH_PRE];
 		if (channel_prev->enable) {
 			channel->dcam_path_id = channel_prev->dcam_path_id;
-			isp_ctx_id = (channel_prev->isp_path_id
-				>> ISP_CTXID_OFFSET);
+			isp_ctx_id = channel_prev->isp_ctx_id;
 		} else {
 			dcam_path_id = DCAM_PATH_BIN;
 			new_dcam_path = 1;
@@ -4329,7 +4330,7 @@ static int init_cam_channel(
 			return -EINVAL;
 		}
 		channel->dcam_path_id = channel_prev->dcam_path_id;
-		isp_ctx_id = (channel_prev->isp_path_id >> ISP_CTXID_OFFSET);
+		isp_ctx_id = channel_prev->isp_ctx_id;
 		isp_path_id = ISP_SPATH_FD;
 		new_isp_path = 1;
 		break;
@@ -4341,7 +4342,7 @@ static int init_cam_channel(
 			return -EINVAL;
 		}
 		channel->dcam_path_id = channel_cap->dcam_path_id;
-		isp_ctx_id = (channel_cap->isp_path_id >> ISP_CTXID_OFFSET);
+		isp_ctx_id = channel_cap->isp_ctx_id;
 		isp_path_id = ISP_SPATH_FD;
 		new_isp_path = 1;
 		break;
@@ -4358,8 +4359,8 @@ static int init_cam_channel(
 	if (module->paused) {
 		new_isp_ctx = 0;
 		new_isp_path = 0;
-		isp_ctx_id = channel->isp_path_id >> ISP_CTXID_OFFSET;
-		isp_path_id = channel->isp_path_id & ISP_PATHID_MASK;
+		isp_ctx_id = channel->isp_ctx_id;
+		isp_path_id = channel->isp_path_id;
 	}
 
 	pr_info("ch %d, new: (%d %d %d)  path (%d %d %d)\n",
@@ -4517,8 +4518,8 @@ static int init_cam_channel(
 				module->isp_dev_handle->isp_ops->put_context(module->isp_dev_handle, isp_ctx_id);
 			goto exit;
 		}
-		channel->isp_path_id =
-			(int32_t)((isp_ctx_id << ISP_CTXID_OFFSET) | isp_path_id);
+		channel->isp_ctx_id = (int32_t)(isp_ctx_id);
+		channel->isp_path_id = (int32_t)(isp_path_id);
 		pr_debug("get isp path : 0x%x\n", channel->isp_path_id);
 
 		memset(&path_desc, 0, sizeof(path_desc));
@@ -4551,8 +4552,8 @@ static int init_cam_channel(
 				module->isp_dev_handle->isp_ops->put_context(module->isp_dev_handle, isp_ctx_id);
 			goto exit;
 		}
-		channel->slave_isp_path_id =
-			(int32_t)((isp_ctx_id << ISP_CTXID_OFFSET) | slave_path_id);
+		channel->slave_isp_ctx_id = (int32_t)(isp_ctx_id);
+		channel->slave_isp_path_id = (int32_t)(slave_path_id);
 		path_desc.slave_type = ISP_PATH_SLAVE;
 		path_desc.out_fmt = ch_uinfo->slave_img_fmt;
 		path_desc.endian.y_endian = ENDIAN_LITTLE;
@@ -4745,6 +4746,7 @@ static int camera_module_init(struct camera_module *module)
 		channel = &module->channel[ch];
 		channel->ch_id = ch;
 		channel->dcam_path_id = -1;
+		channel->isp_ctx_id = -1;
 		channel->isp_path_id = -1;
 		mutex_init(&channel->buf_lock);
 		init_completion(&channel->alloc_com);
@@ -4947,8 +4949,8 @@ static int set_capture_3dnr(struct camera_module *module,
 	}
 	pr_debug("mode %d\n", mode_3dnr);
 	module->isp_dev_handle->isp_ops->cfg_path(module->isp_dev_handle, ISP_PATH_CFG_3DNR_MODE,
-		ch->isp_path_id >> ISP_CTXID_OFFSET,
-		ch->isp_path_id & ISP_PATHID_MASK, &mode_3dnr);
+		ch->isp_ctx_id,
+		ch->isp_path_id, &mode_3dnr);
 
 	return 0;
 }
@@ -4986,8 +4988,8 @@ static int raw_proc_done(struct camera_module *module)
 		module->dcam_dev_handle->dcam_pipe_ops->put_path(module->dcam_dev_handle,
 					ch_raw->dcam_path_id);
 
-		isp_ctx_id = ch_raw->isp_path_id >> ISP_CTXID_OFFSET;
-		isp_path_id = ch_raw->isp_path_id & ISP_PATHID_MASK;
+		isp_ctx_id = ch_raw->isp_ctx_id;
+		isp_path_id = ch_raw->isp_path_id;
 
 		module->isp_dev_handle->isp_ops->put_path(module->isp_dev_handle,
 					isp_ctx_id, isp_path_id);
@@ -5003,8 +5005,8 @@ static int raw_proc_done(struct camera_module *module)
 	module->dcam_dev_handle->dcam_pipe_ops->put_path(module->dcam_dev_handle,
 					ch->dcam_path_id);
 
-	isp_ctx_id = ch->isp_path_id >> ISP_CTXID_OFFSET;
-	isp_path_id = ch->isp_path_id & ISP_PATHID_MASK;
+	isp_ctx_id = ch->isp_ctx_id;
+	isp_path_id = ch->isp_path_id;
 	module->isp_dev_handle->isp_ops->put_path(module->isp_dev_handle,
 					isp_ctx_id, isp_path_id);
 	module->isp_dev_handle->isp_ops->put_context(module->isp_dev_handle, isp_ctx_id);
@@ -5173,8 +5175,8 @@ static int raw_proc_pre(
 			isp_path_id, ctx_id);
 		goto fail_isppath;
 	}
-	ch->isp_path_id =
-		(int32_t)((ctx_id << ISP_CTXID_OFFSET) | isp_path_id);
+	ch->isp_ctx_id = (int32_t)(ctx_id);
+	ch->isp_path_id = (int32_t)(isp_path_id);
 	pr_info("get isp path : 0x%x\n", ch->isp_path_id);
 
 	memset(&isp_path_desc, 0, sizeof(isp_path_desc));
@@ -5359,8 +5361,8 @@ static int raw_proc_post(
 
 	ret = module->isp_dev_handle->isp_ops->cfg_path(module->isp_dev_handle,
 			ISP_PATH_CFG_OUTPUT_BUF,
-			ch->isp_path_id >> ISP_CTXID_OFFSET,
-			ch->isp_path_id & ISP_PATHID_MASK, dst_frame);
+			ch->isp_ctx_id,
+			ch->isp_path_id, dst_frame);
 	if (ret)
 		pr_err("fail to cfg isp out buffer.\n");
 
@@ -5481,8 +5483,8 @@ static int raw_proc_post_new(
 
 	ret = module->isp_dev_handle->isp_ops->cfg_path(module->isp_dev_handle,
 			ISP_PATH_CFG_OUTPUT_BUF,
-			ch->isp_path_id >> ISP_CTXID_OFFSET,
-			ch->isp_path_id & ISP_PATHID_MASK, dst_frame);
+			ch->isp_ctx_id,
+			ch->isp_path_id, dst_frame);
 	if (ret)
 		pr_err("fail to cfg isp out buffer.\n");
 

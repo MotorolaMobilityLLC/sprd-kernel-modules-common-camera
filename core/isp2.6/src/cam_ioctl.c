@@ -186,7 +186,7 @@ static int img_ioctl_set_statis_buf(
 			ch = &module->channel[CAM_CH_CAP];
 		if (ch->enable) {
 			ret = module->isp_dev_handle->isp_ops->ioctl(module->isp_dev_handle,
-					ch->isp_path_id >> ISP_CTXID_OFFSET,
+					ch->isp_ctx_id,
 					ISP_IOCTL_CFG_STATIS_BUF,
 					&statis_buf);
 		}
@@ -207,7 +207,7 @@ static int img_ioctl_cfg_param(
 {
 	int ret = 0;
 	int for_capture = 0, for_fdr = 0;
-	int32_t isp_path_id;
+	int32_t isp_path_id, isp_ctx_id;
 	struct channel_context *channel;
 	struct isp_io_param param;
 	struct dcam_pipe_dev *dev = NULL;
@@ -289,14 +289,15 @@ static int img_ioctl_cfg_param(
 		else
 			channel = &module->channel[CAM_CH_CAP];
 
-		if (channel->enable && channel->isp_path_id >= 0) {
+		if (channel->enable && channel->isp_ctx_id >= 0) {
 			isp_path_id = channel->isp_path_id;
+			isp_ctx_id = channel->isp_ctx_id;
 			if (param.scene_id == PM_SCENE_FDRL)
-				isp_path_id = channel->isp_fdrl_path;
+				isp_ctx_id = channel->isp_fdrl_path >> ISP_CTXID_OFFSET;
 			else if (param.scene_id == PM_SCENE_FDRH)
-				isp_path_id = channel->isp_fdrh_path;
+				isp_ctx_id = channel->isp_fdrh_path >> ISP_CTXID_OFFSET;
 			ret = module->isp_dev_handle->isp_ops->cfg_blk_param(module->isp_dev_handle,
-					isp_path_id >> ISP_CTXID_OFFSET, &param);
+					isp_ctx_id, &param);
 		}
 	}
 
@@ -622,9 +623,11 @@ static int img_ioctl_set_output_size(
 	module->last_channel_id = channel->ch_id;
 	channel->dcam_path_id = -1;
 	channel->aux_dcam_path_id = -1;
+	channel->isp_ctx_id = -1;
 	channel->isp_path_id = -1;
 	channel->isp_fdrh_path = -1;
 	channel->isp_fdrl_path = -1;
+	channel->slave_isp_ctx_id = -1;
 	channel->slave_isp_path_id = -1;
 
 	dst = &channel->ch_uinfo;
@@ -1161,8 +1164,8 @@ static int img_ioctl_set_frame_addr(
 				cmd = ISP_PATH_CFG_OUTPUT_RESERVED_BUF;
 			}
 			ret = module->isp_dev_handle->isp_ops->cfg_path(module->isp_dev_handle, cmd,
-					ch->isp_path_id >> ISP_CTXID_OFFSET,
-					ch->isp_path_id & ISP_PATHID_MASK,
+					ch->isp_ctx_id,
+					ch->isp_path_id,
 					pframe);
 		} else {
 			cmd = DCAM_PATH_CFG_OUTPUT_BUF;
@@ -1644,13 +1647,13 @@ cfg_ch_done:
 		uframe_sync = ch->ch_id != CAM_CH_CAP;
 		ret = module->isp_dev_handle->isp_ops->cfg_path(module->isp_dev_handle,
 					ISP_PATH_CFG_PATH_UFRAME_SYNC,
-					ch->isp_path_id >> ISP_CTXID_OFFSET,
-					ch->isp_path_id & ISP_PATHID_MASK,
+					ch->isp_ctx_id,
+					ch->isp_path_id,
 					&uframe_sync);
 		ret = module->isp_dev_handle->isp_ops->cfg_path(module->isp_dev_handle,
 					ISP_PATH_CFG_CTX_UFRAME_SYNC,
-					ch->isp_path_id >> ISP_CTXID_OFFSET,
-					ch->isp_path_id & ISP_PATHID_MASK,
+					ch->isp_ctx_id,
+					ch->isp_path_id,
 					&uframe_sync);
 
 		camera_queue_init(&ch->zoom_coeff_queue,
@@ -1681,8 +1684,8 @@ cfg_ch_done:
 			if (!ch->enable)
 				continue;
 
-			isp_ctx_id = ch->isp_path_id >> ISP_CTXID_OFFSET;
-			isp_path_id = ch->isp_path_id & ISP_PATHID_MASK;
+			isp_ctx_id = ch->isp_ctx_id;
+			isp_path_id = ch->isp_path_id;
 
 			module->isp_dev_handle->isp_ops->cfg_path(module->isp_dev_handle,
 						ISP_PATH_CFG_PATH_UFRAME_SYNC,
@@ -1856,15 +1859,15 @@ static int img_ioctl_stream_off(
 					ch->dcam_path_id);
 		}
 		if (ch->isp_path_id >= 0) {
-			isp_ctx_id[i] = ch->isp_path_id >> ISP_CTXID_OFFSET;
+			isp_ctx_id[i] = ch->isp_ctx_id;
 			module->isp_dev_handle->isp_ops->put_path(module->isp_dev_handle,
 					isp_ctx_id[i],
-					ch->isp_path_id & ISP_PATHID_MASK);
+					ch->isp_path_id);
 		}
 		if (ch->slave_isp_path_id >= 0) {
 			module->isp_dev_handle->isp_ops->put_path(module->isp_dev_handle,
 					isp_ctx_id[i],
-					ch->slave_isp_path_id & ISP_PATHID_MASK);
+					ch->slave_isp_path_id);
 		}
 	}
 
@@ -2226,7 +2229,7 @@ static int img_ioctl_start_capture(
 	mutex_unlock(&ch->buf_lock);
 
 	module->capture_scene = param.cap_scene;
-	isp_idx = module->channel[CAM_CH_CAP].isp_path_id >> ISP_CTXID_OFFSET;
+	isp_idx = module->channel[CAM_CH_CAP].isp_ctx_id;
 	if (module->capture_scene == CAPTURE_HDR
 		|| module->capture_scene == CAPTURE_FDR
 		|| module->capture_scene == CAPTURE_SW3DNR
@@ -2347,7 +2350,7 @@ static int img_ioctl_stop_capture(
 
 	pr_info("cam %d stop capture.\n", module->idx);
 	hw = module->grp->hw_info;
-	isp_idx = module->channel[CAM_CH_CAP].isp_path_id >> ISP_CTXID_OFFSET;
+	isp_idx = module->channel[CAM_CH_CAP].isp_ctx_id;
 	if (module->capture_scene == CAPTURE_HDR
 		|| module->capture_scene == CAPTURE_FDR
 		|| module->capture_scene == CAPTURE_SW3DNR
