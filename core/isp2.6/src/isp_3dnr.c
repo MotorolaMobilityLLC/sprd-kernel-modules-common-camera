@@ -27,7 +27,7 @@
 
 static int isp_3dnr_update_memctrl_base_on_mv(struct isp_3dnr_ctx_desc *ctx)
 {
-	struct isp_3dnr_mem_ctrl *mem_ctrl  = &ctx->mem_ctrl;
+	struct isp_3dnr_mem_ctrl *mem_ctrl = &ctx->mem_ctrl;
 
 	if (ctx->mv.mv_x < 0) {
 		if (ctx->mv.mv_x & 0x1) {
@@ -43,11 +43,11 @@ static int isp_3dnr_update_memctrl_base_on_mv(struct isp_3dnr_ctx_desc *ctx)
 				ctx->width + ctx->mv.mv_x;
 		}
 	} else if (ctx->mv.mv_x > 0) {
-		if (ctx->mv.mv_x  & 0x1) {
+		if (ctx->mv.mv_x & 0x1) {
 			mem_ctrl->ft_y_width =
-				ctx->width - ctx->mv.mv_x+1;
+				ctx->width - ctx->mv.mv_x + 1;
 			mem_ctrl->ft_uv_width =
-				ctx->width - ctx->mv.mv_x+1;
+				ctx->width - ctx->mv.mv_x + 1;
 			mem_ctrl->ft_luma_addr =
 				mem_ctrl->ft_luma_addr + ctx->mv.mv_x;
 			mem_ctrl->ft_chroma_addr =
@@ -67,11 +67,11 @@ static int isp_3dnr_update_memctrl_base_on_mv(struct isp_3dnr_ctx_desc *ctx)
 		if (ctx->mv.mv_y & 0x1) {
 			mem_ctrl->last_line_mode = 0;
 			mem_ctrl->ft_uv_height =
-				ctx->height/2 + ctx->mv.mv_y/2;
+				ctx->height / 2 + ctx->mv.mv_y / 2;
 		} else {
 			mem_ctrl->last_line_mode = 1;
 			mem_ctrl->ft_uv_height =
-				ctx->height/2 + ctx->mv.mv_y/2+1;
+				ctx->height / 2 + ctx->mv.mv_y / 2 + 1;
 		}
 		mem_ctrl->first_line_mode = 0;
 		mem_ctrl->ft_y_height =
@@ -79,7 +79,7 @@ static int isp_3dnr_update_memctrl_base_on_mv(struct isp_3dnr_ctx_desc *ctx)
 		mem_ctrl->ft_luma_addr = mem_ctrl->ft_luma_addr;
 		mem_ctrl->ft_chroma_addr = mem_ctrl->ft_chroma_addr;
 	} else if (ctx->mv.mv_y > 0) {
-		if ((ctx->mv.mv_y)  & 0x1) {
+		if ((ctx->mv.mv_y) & 0x1) {
 			/*temp modify first_line_mode =0*/
 			mem_ctrl->first_line_mode = 0;
 			mem_ctrl->last_line_mode = 0;
@@ -179,13 +179,13 @@ static int isp_3dnr_gen_memctrl_config(struct isp_3dnr_ctx_desc *ctx)
 	mem_ctrl->mv_y = ctx->mv.mv_y;
 
 	if (ctx->blending_cnt % 2 == 1) {
-		mem_ctrl->ft_luma_addr   = ctx->buf_info[0]->iova[0];
+		mem_ctrl->ft_luma_addr = ctx->buf_info[0]->iova[0];
 		mem_ctrl->ft_chroma_addr = ctx->buf_info[0]->iova[0] +
-						(ctx->width * ctx->height);
+			(ctx->width * ctx->height);
 	} else {
-		mem_ctrl->ft_luma_addr   = ctx->buf_info[1]->iova[0];
+		mem_ctrl->ft_luma_addr = ctx->buf_info[1]->iova[0];
 		mem_ctrl->ft_chroma_addr = ctx->buf_info[1]->iova[0] +
-						(ctx->width * ctx->height);
+			(ctx->width * ctx->height);
 	}
 
 	mem_ctrl->first_line_mode = 0;
@@ -240,11 +240,11 @@ static int isp_3dnr_gen_store_config(struct isp_3dnr_ctx_desc *ctx)
 	if (ctx->blending_cnt % 2 != 1) {
 		store->st_luma_addr   = ctx->buf_info[0]->iova[0];
 		store->st_chroma_addr = ctx->buf_info[0]->iova[0] +
-					(ctx->width * ctx->height);
+			(ctx->width * ctx->height);
 	} else {
 		store->st_luma_addr   = ctx->buf_info[1]->iova[0];
 		store->st_chroma_addr = ctx->buf_info[1]->iova[0] +
-					(ctx->width * ctx->height);
+			(ctx->width * ctx->height);
 	}
 
 	pr_debug("3DNR nr3store st_luma=0x%lx, st_chroma=0x%lx\n",
@@ -261,7 +261,7 @@ static int isp_3dnr_gen_store_config(struct isp_3dnr_ctx_desc *ctx)
 static int isp_3dnr_gen_fbd_fetch_config(struct isp_3dnr_ctx_desc *ctx)
 {
 	int ret = 0;
-	uint32_t pad_width=0,pad_height=0;
+	uint32_t pad_width = 0, pad_height = 0;
 	uint32_t cur_width = 0, cur_height = 0;
 	int mv_x = 0, mv_y = 0;
 
@@ -278,8 +278,8 @@ static int isp_3dnr_gen_fbd_fetch_config(struct isp_3dnr_ctx_desc *ctx)
 	cur_width = ctx->mem_ctrl.img_width;
 	cur_height = ctx->mem_ctrl.img_height;
 
-	if(cur_width % FBD_NR3_Y_PAD_WIDTH != 0 ||
-		cur_height % FBD_NR3_Y_PAD_HEIGHT != 0){
+	if (cur_width % FBD_NR3_Y_PAD_WIDTH != 0 ||
+		cur_height % FBD_NR3_Y_PAD_HEIGHT != 0) {
 		pad_width = (cur_width + FBD_NR3_Y_PAD_WIDTH - 1) /
 			FBD_NR3_Y_PAD_WIDTH * FBD_NR3_Y_PAD_WIDTH;
 		pad_height = (cur_height + FBD_NR3_Y_PAD_HEIGHT - 1) /
@@ -310,8 +310,8 @@ static int isp_3dnr_gen_fbd_fetch_config(struct isp_3dnr_ctx_desc *ctx)
 	fbd_fetch->y_tiles_num_pitch = pad_width / FBD_NR3_Y_WIDTH;
 	fbd_fetch->c_tiles_num_pitch = fbd_fetch->y_tiles_num_pitch;
 
-	fbd_fetch->y_pixel_size_in_hor = cur_width ;
-	fbd_fetch->y_pixel_size_in_ver = cur_height ;
+	fbd_fetch->y_pixel_size_in_hor = cur_width;
+	fbd_fetch->y_pixel_size_in_ver = cur_height;
 	fbd_fetch->c_pixel_size_in_hor = cur_width;
 	fbd_fetch->c_pixel_size_in_ver = cur_height / 2;
 	fbd_fetch->y_pixel_start_in_hor = 0;
@@ -343,7 +343,7 @@ static int isp_3dnr_gen_fbd_fetch_config(struct isp_3dnr_ctx_desc *ctx)
 	fbd_fetch->c_pixel_size_in_ver = ctx->mem_ctrl.ft_uv_height;
 
 	if (mv_x < 0) {
-		if ((mv_x)  & 0x1) {
+		if ((mv_x) & 0x1) {
 			fbd_fetch->y_pixel_start_in_hor = 0;
 			fbd_fetch->c_pixel_start_in_hor = 2;
 		} else {
@@ -375,10 +375,10 @@ static int isp_3dnr_gen_fbd_fetch_config(struct isp_3dnr_ctx_desc *ctx)
 		fbd_fetch->y_pixel_start_in_ver = (mv_y) & 0x1;
 		fbd_fetch->c_pixel_start_in_ver = (mv_y / 2) & 0x1;
 		fbd_fetch->y_tile_addr_init_x256 =
-			( (fbd_fetch->y_tile_addr_init_x256 >> 8) +
+			((fbd_fetch->y_tile_addr_init_x256 >> 8) +
 			fbd_fetch->y_tiles_num_pitch * (mv_y / 2)) << 8;
 		fbd_fetch->c_tile_addr_init_x256 =
-			( (fbd_fetch->c_tile_addr_init_x256 >> 8) +
+			((fbd_fetch->c_tile_addr_init_x256 >> 8) +
 			fbd_fetch->y_tiles_num_pitch * (mv_y / 4)) << 8;
 		fbd_fetch->y_header_addr_init =
 			fbd_fetch->y_header_addr_init -
@@ -431,8 +431,8 @@ static int isp_3dnr_gen_fbc_store_config(struct isp_3dnr_ctx_desc *ctx)
 	pad_width = cur_width;
 	pad_height = cur_height;
 
-	if((cur_width % FBC_NR3_Y_PAD_WIDTH) !=0 ||
-		(cur_height % FBC_NR3_Y_PAD_HEIGHT) !=0){
+	if ((cur_width % FBC_NR3_Y_PAD_WIDTH) != 0 ||
+		(cur_height % FBC_NR3_Y_PAD_HEIGHT) != 0) {
 		pad_width = (cur_width + FBC_NR3_Y_PAD_WIDTH - 1) /
 			FBC_NR3_Y_PAD_WIDTH * FBC_NR3_Y_PAD_WIDTH;
 		pad_height = (cur_height + FBC_NR3_Y_PAD_HEIGHT - 1) /
@@ -542,7 +542,7 @@ int isp_3dnr_gen_config(struct isp_3dnr_ctx_desc *ctx)
 }
 
 int isp_3dnr_update_memctrl_slice_info(struct nr3_slice *in,
-	struct nr3_slice_for_blending *out)
+		struct nr3_slice_for_blending *out)
 {
 	uint32_t end_row = 0, end_col = 0, ft_pitch = 0;
 	int mv_x = 0, mv_y = 0;
@@ -596,7 +596,7 @@ int isp_3dnr_update_memctrl_slice_info(struct nr3_slice *in,
 					out->src_lum_addr = out->src_lum_addr +
 						mv_x;
 					out->src_chr_addr = out->src_chr_addr +
-						mv_x-1;
+						mv_x - 1;
 				} else {
 					out->src_lum_addr = out->src_lum_addr +
 						mv_x;
@@ -622,9 +622,9 @@ int isp_3dnr_update_memctrl_slice_info(struct nr3_slice *in,
 			if (mv_x < 0) {
 				if ((mv_x) & 0x1) {
 					out->ft_y_width = out->ft_y_width + mv_x
-						+1;
+						+ 1;
 					out->ft_uv_width = out->ft_uv_width +
-						mv_x-1;
+						mv_x - 1;
 				} else {
 					out->ft_y_width = out->ft_y_width +
 						mv_x;
@@ -657,20 +657,20 @@ int isp_3dnr_update_memctrl_slice_info(struct nr3_slice *in,
 		} else{
 			out->last_line_mode = 1;
 			out->ft_uv_height = global_img_height / 2 +
-						mv_y / 2 + 1;
+				mv_y / 2 + 1;
 		}
 		out->first_line_mode = 0;
 		out->ft_y_height = global_img_height + mv_y;
 	} else if (mv_y > 0) {
 		if ((mv_y) & 0x1) {
 			out->first_line_mode = 1;
-			out->last_line_mode  = 0;
-			out->ft_y_height  = global_img_height - mv_y;
+			out->last_line_mode = 0;
+			out->ft_y_height = global_img_height - mv_y;
 			out->ft_uv_height = global_img_height / 2 - (mv_y / 2);
 			out->src_lum_addr += ft_pitch * mv_y;
 			out->src_chr_addr += ft_pitch * (mv_y / 2);
 		} else {
-			out->ft_y_height  = global_img_height - mv_y;
+			out->ft_y_height = global_img_height - mv_y;
 			out->ft_uv_height = global_img_height / 2 - (mv_y / 2);
 			out->src_lum_addr += ft_pitch * mv_y;
 			out->src_chr_addr += ft_pitch * (mv_y / 2);
@@ -775,22 +775,22 @@ int isp_3dnr_conversion_mv(struct isp_3dnr_ctx_desc *nr3_ctx)
 	output_width = nr3_ctx->width;
 	output_height = nr3_ctx->height;
 	ret = mv_conversion_base_on_resolution(
-			nr3_ctx->mvinfo->mv_x,
-			nr3_ctx->mvinfo->mv_y,
-			nr3_ctx->mvinfo->project_mode,
-			nr3_ctx->mvinfo->sub_me_bypass,
-			input_width,
-			output_width,
-			input_height,
-			output_height,
-			&output_x,
-			&output_y);
+		nr3_ctx->mvinfo->mv_x,
+		nr3_ctx->mvinfo->mv_y,
+		nr3_ctx->mvinfo->project_mode,
+		nr3_ctx->mvinfo->sub_me_bypass,
+		input_width,
+		output_width,
+		input_height,
+		output_height,
+		&output_x,
+		&output_y);
 
 	nr3_ctx->mv.mv_x = output_x;
 	nr3_ctx->mv.mv_y = output_y;
 
 	pr_debug("3DNR conv_mv in_x =%d, in_y =%d, out_x=%d, out_y=%d\n",
-			nr3_ctx->mvinfo->mv_x, nr3_ctx->mvinfo->mv_y,
+		nr3_ctx->mvinfo->mv_x, nr3_ctx->mvinfo->mv_y,
 		nr3_ctx->mv.mv_x, nr3_ctx->mv.mv_y);
 
 	return ret;

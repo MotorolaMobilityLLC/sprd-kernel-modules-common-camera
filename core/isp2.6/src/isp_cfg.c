@@ -94,7 +94,7 @@ int debug_show_ctx_reg_buf(void *param)
 		count = (item >> 16) & 0xffff;
 		for (addr = start; addr < (start + count); addr += 4)
 			seq_printf(s, "%04x:  %08x\n",
-				addr,  *(uint32_t *)(datap + addr));
+				addr, *(uint32_t *)(datap + addr));
 	}
 	mutex_unlock(&buf_mutex);
 	seq_puts(s, "------------------------\n");
@@ -124,12 +124,12 @@ static void cctx_init_page_buf_addr(
 }
 
 static void cctx_init_sw_page_buf_addr(
-				struct isp_cfg_ctx_desc *cfg_ctx,
-				void *sw_addr)
+		struct isp_cfg_ctx_desc *cfg_ctx,
+		void *sw_addr)
 {
 	unsigned long offset;
 	struct isp_cfg_buf *cfg_buf;
-	int  c_id, bid;
+	int c_id, bid;
 
 	for (c_id = 0; c_id < ISP_CONTEXT_SW_NUM; c_id++) {
 		offset = c_id * ISP_CFG_BUF_SIZE;
@@ -175,10 +175,10 @@ static void cctx_init_regbuf_addr(struct isp_cfg_ctx_desc *cfg_ctx)
 		cfg_buf->cur_buf_id = cur_regbuf_id = CFG_BUF_SW;
 		cur_regbuf_p = &cfg_buf->reg_buf[cur_regbuf_id];
 		isp_cfg_ctx_addr[c_id] =
-				(unsigned long)cur_regbuf_p->sw_addr;
+			(unsigned long)cur_regbuf_p->sw_addr;
 		pr_debug("init cctx_buf[%d] sw=%p, hw=0x%lx\n",
-					c_id, cur_regbuf_p->sw_addr,
-					cur_regbuf_p->hw_addr);
+			c_id, cur_regbuf_p->sw_addr,
+			cur_regbuf_p->hw_addr);
 	}
 
 }
@@ -194,7 +194,7 @@ static void cctx_deinit_regbuf_addr(struct isp_cfg_ctx_desc *cfg_ctx)
 }
 
 static void cctx_page_buf_aligned(struct isp_cfg_ctx_desc *cfg_ctx,
-					void **sw_addr, unsigned long *hw_addr)
+		void **sw_addr, unsigned long *hw_addr)
 {
 	void *kaddr;
 	unsigned long ofst_align = 0;
@@ -215,10 +215,9 @@ static void cctx_page_buf_aligned(struct isp_cfg_ctx_desc *cfg_ctx,
 			*hw_addr = aligned_iova;
 		}
 		pr_debug("aligned sw: %p, hw: 0x%lx, ofs: 0x%lx",
-					*sw_addr, *hw_addr, ofst_align);
+			*sw_addr, *hw_addr, ofst_align);
 	}
 }
-
 
 static int cctx_buf_init(struct isp_cfg_ctx_desc *cfg_ctx)
 {
@@ -291,9 +290,9 @@ static int cctx_buf_init(struct isp_cfg_ctx_desc *cfg_ctx)
 	cctx_init_regbuf_addr(cfg_ctx);
 
 	pr_debug("cmd sw: %p, hw: 0x%lx, size:0x%x\n",
-			sw_addr, hw_addr, (int)ion_buf->size[0]);
+		sw_addr, hw_addr, (int)ion_buf->size[0]);
 	pr_debug("cmd1 sw: 0x%lx, size:0x%x\n",
-			ion_buf_cached->addr_k[0], (int)ion_buf_cached->size[0]);
+		ion_buf_cached->addr_k[0], (int)ion_buf_cached->size[0]);
 
 	return 0;
 
@@ -409,10 +408,10 @@ setting:
 }
 
 static int isp_cfg_config_block(
-			struct isp_cfg_ctx_desc *cfg_ctx,
-			enum isp_context_id sw_ctx_id,
-			enum isp_context_hw_id hw_ctx_id,
-			uint32_t  fmcu_enable)
+		struct isp_cfg_ctx_desc *cfg_ctx,
+		enum isp_context_id sw_ctx_id,
+		enum isp_context_hw_id hw_ctx_id,
+		uint32_t fmcu_enable)
 {
 	int ret = 0;
 	uint32_t val = 0;
@@ -423,10 +422,10 @@ static int isp_cfg_config_block(
 	enum cfg_buf_id buf_id;
 	struct isp_cfg_buf *cfg_buf_p;
 	uint32_t ready_mode[ISP_CONTEXT_HW_NUM] = {
-		BIT_26, /* pre0_cmd_ready_mode */
-		BIT_24, /* cap0_cmd_ready_mode */
-		BIT_27, /* pre1_cmd_ready_mode */
-		BIT_25 /* cap1_cmd_ready_mode */
+		BIT_26,/* pre0_cmd_ready_mode */
+		BIT_24,/* cap0_cmd_ready_mode */
+		BIT_27,/* pre1_cmd_ready_mode */
+		BIT_25/* cap1_cmd_ready_mode */
 	};
 
 	if (!cfg_ctx) {
@@ -444,7 +443,7 @@ static int isp_cfg_config_block(
 		work_buf_vaddr = cfg_buf_p->reg_buf[buf_id].sw_addr;
 
 		pr_debug("ctx %d cmd buf %p, %p\n",
-				hw_ctx_id, work_buf_vaddr, shadow_buf_vaddr);
+			hw_ctx_id, work_buf_vaddr, shadow_buf_vaddr);
 
 		if (s_map_sec_cnt > 0)
 			goto copy_sec;
@@ -474,7 +473,7 @@ copy_sec:
 	/* sprd_ion_flush_dcache_area_wrapper(work_buf_vaddr, ISP_REG_SIZE); */
 
 	pr_debug("shadow: 0x%p, work: 0x%p, hw_addr: 0x%lx\n",
-			shadow_buf_vaddr, work_buf_vaddr, hw_addr);
+		shadow_buf_vaddr, work_buf_vaddr, hw_addr);
 
 	if (fmcu_enable)
 		val = ready_mode[hw_ctx_id];
@@ -568,7 +567,7 @@ struct isp_cfg_ops cfg_ops = {
 };
 
 struct isp_cfg_ctx_desc s_ctx_desc = {
-		.ops = &cfg_ops,
+	.ops = &cfg_ops,
 };
 
 struct isp_cfg_ctx_desc *get_isp_cfg_ctx_desc()
@@ -581,6 +580,6 @@ int put_isp_cfg_ctx_desc(struct isp_cfg_ctx_desc *param)
 	if (&s_ctx_desc == param)
 		return 0;
 	pr_err("fail to match param %p, %p\n",
-			param, &s_ctx_desc);
+		param, &s_ctx_desc);
 	return -EINVAL;
 }

@@ -37,17 +37,17 @@
  * 6. Min tile is 128 x 20
  * 7. Max tile is 65536 (tile_height x tile_width)
  */
-#define BIN_NUM_BIT			7
-#define TILE_NUM_MIN			4
-#define TILE_NUM_MAX			8
-#define TILE_MAX_SIZE			(1 << 16)
-#define TILE_WIDTH_MIN			160
+#define BIN_NUM_BIT             7
+#define TILE_NUM_MIN            4
+#define TILE_NUM_MAX            8
+#define TILE_MAX_SIZE           (1 << 16)
+#define TILE_WIDTH_MIN          160
 
 /*
  * row : 2, 4, 8
  * col : 2, 4, 8
  */
-#define MAX_TILE			64
+#define MAX_TILE                64
 
 /*
  * LTM Share ctx for pre / cap
@@ -220,6 +220,7 @@ static int isp_ltm_share_ctx_get_config(struct isp_ltm_ctx_desc *ctx,
 static int isp_ltm_share_ctx_init(uint32_t idx)
 {
 	enum isp_ltm_region ltm_id = 0;
+
 	s_share_ctx_param[idx].pre_ctx_status = 0;
 	s_share_ctx_param[idx].cap_ctx_status = 0;
 
@@ -410,7 +411,7 @@ static int ltm_calc_histo_param(ltm_param_t *param_histo)
 	uint32_t min_tile_width, max_tile_height, tile_width, tile_height;
 	uint32_t clipLimit_min, clipLimit;
 	uint32_t strength = param_histo->strength;
-	uint32_t frame_width  = param_histo->frame_width;
+	uint32_t frame_width = param_histo->frame_width;
 	uint32_t frame_height = param_histo->frame_height;
 #endif
 	ltm_calc_binning_factor(param_histo);
@@ -463,7 +464,7 @@ static int ltm_calc_histo_param(ltm_param_t *param_histo)
 	cropRight = cropCols >> 1;
 
 	clipLimit_min = tile_width * tile_height >> BIN_NUM_BIT;
-	clipLimit = clipLimit_min + ((clipLimit_min * strength)>>3);
+	clipLimit = clipLimit_min + ((clipLimit_min * strength) >> 3);
 
 	/* update patameters */
 	param_histo->cropUp = cropUp;
@@ -580,8 +581,6 @@ static void ltm_rgb_map_dump_data_rtl(ltm_param_t *param_map,
 	param_map_rtl->tile_start_y_rtl = img_tile1_ys_offset;
 	param_map_rtl->tile_left_flag_rtl = tile_left_flag;
 	param_map_rtl->tile_right_flag_rtl = tile_right_flag;
-
-	return;
 }
 
 
@@ -732,7 +731,7 @@ static int isp_ltm_gen_map_config(struct isp_ltm_ctx_desc *ctx,
 			frame_width_stat, frame_height_stat);
 
 	if (ctx->type == MODE_LTM_CAP) {
-		pr_debug("tile_num_x[%d], tile_num_y[%d], tile_width[%d], tile_height[%d],\
+		pr_debug("tile_num_x[%d], tile_num_y[%d], tile_width[%d], tile_height[%d], \
 			frame_width_stat[%d], frame_height_stat[%d], \
 			frame_width_map[%d], frame_height_map[%d]\n",
 			mnum.tile_num_x, mnum.tile_num_y,
@@ -751,7 +750,7 @@ static int isp_ltm_gen_map_config(struct isp_ltm_ctx_desc *ctx,
 	tm.tile_width = (ratio * ts.tile_width  + 128) >> 8 << 1;
 	tm.tile_height = (ratio * ts.tile_height + 128) >> 8 << 1;
 
-	crop_cols_curr = frame_width_map  - tm.tile_width  * mnum.tile_num_x;
+	crop_cols_curr = frame_width_map - tm.tile_width * mnum.tile_num_x;
 	crop_rows_curr = frame_height_map - tm.tile_height * mnum.tile_num_y;
 	crop_up_curr = crop_rows_curr >> 1;
 	crop_down_curr = crop_rows_curr >> 1;
@@ -837,7 +836,7 @@ static int isp_ltm_gen_map_config(struct isp_ltm_ctx_desc *ctx,
 
 int isp_ltm_gen_map_slice_config(struct isp_ltm_ctx_desc *ctx,
 				enum isp_ltm_region ltm_id,
-				struct isp_ltm_rtl_param  *prtl,
+				struct isp_ltm_rtl_param *prtl,
 				uint32_t *slice_info)
 {
 	struct isp_ltm_hist_param map_param;
@@ -853,11 +852,11 @@ int isp_ltm_gen_map_slice_config(struct isp_ltm_ctx_desc *ctx,
 	struct isp_ltm_tile_size tm;
 
 	uint32_t frame_width_stat, frame_height_stat;
-	uint32_t frame_width_map,  frame_height_map;
+	uint32_t frame_width_map, frame_height_map;
 
 	uint32_t ratio = 0;
 	uint32_t crop_cols_curr, crop_rows_curr;
-	uint32_t crop_up_curr,   crop_down_curr;
+	uint32_t crop_up_curr, crop_down_curr;
 	uint32_t crop_left_curr, crop_right_curr;
 
 	mnum.tile_num_x = hists->tile_num_x_minus + 1;
@@ -870,7 +869,7 @@ int isp_ltm_gen_map_slice_config(struct isp_ltm_ctx_desc *ctx,
 	frame_height_map = ctx->frame_height;
 
 	if (ctx->type == MODE_LTM_CAP) {
-		pr_debug("tile_num_x[%d], tile_num_y[%d], tile_width[%d], tile_height[%d],\
+		pr_debug("tile_num_x[%d], tile_num_y[%d], tile_width[%d], tile_height[%d], \
 			frame_width_stat[%d], frame_height_stat[%d], \
 			frame_width_map[%d], frame_height_map[%d]\n",
 			mnum.tile_num_x, mnum.tile_num_y,
@@ -888,7 +887,7 @@ int isp_ltm_gen_map_slice_config(struct isp_ltm_ctx_desc *ctx,
 	tm.tile_width = (ratio * ts.tile_width  + 128) >> 8 << 1;
 	tm.tile_height = (ratio * ts.tile_height + 128) >> 8 << 1;
 
-	crop_cols_curr = frame_width_map  - tm.tile_width  * mnum.tile_num_x;
+	crop_cols_curr = frame_width_map - tm.tile_width * mnum.tile_num_x;
 	crop_rows_curr = frame_height_map - tm.tile_height * mnum.tile_num_y;
 	crop_up_curr = crop_rows_curr >> 1;
 	crop_down_curr = crop_rows_curr >> 1;
@@ -928,7 +927,7 @@ int isp_ltm_gen_frame_config(struct isp_ltm_ctx_desc *ctx,
 
 	for (i = 0; i < ISP_LTM_BUF_NUM; i++) {
 		if (ctx->pbuf[ltm_id][i])
-		pr_debug("ctx->pbuf[%d][%d] =  0x%p, 0x%lx\n",
+			pr_debug("ctx->pbuf[%d][%d] =  0x%p, 0x%lx\n",
 			ltm_id, i, ctx->pbuf[ltm_id][i], ctx->pbuf[ltm_id][i]->iova[0]);
 	}
 
@@ -950,7 +949,7 @@ int isp_ltm_gen_frame_config(struct isp_ltm_ctx_desc *ctx,
 
 		ctx->map[ltm_id].bypass = s_share_ctx_param[ctx->ltm_index].pre_hist_bypass;
 
-		if (!ctx->map[ltm_id].bypass){
+		if (!ctx->map[ltm_id].bypass) {
 			while (ctx->fid > pre_fid) {
 				pr_info("LTM capture fid [%d] > previre fid [%d]\n",
 					ctx->fid, pre_fid);

@@ -26,7 +26,7 @@
 	fmt, current->pid, __LINE__, __func__
 
 #define ISP_SLICE_ALIGN_SIZE           2
-#define ISP_ALIGNED(size)              ((size) & ~(ISP_SLICE_ALIGN_SIZE - 1))
+#define ISP_ALIGNED(size)            ((size) & ~(ISP_SLICE_ALIGN_SIZE - 1))
 
 struct isp_scaler_slice_tmp {
 	uint32_t slice_row_num;
@@ -62,11 +62,11 @@ struct isp_scaler_slice_tmp {
 static int sprd_ispslice_noisefliter_info_set(struct isp_slice_desc *slc_ctx,
 	struct isp_slice_context *ctx)
 {
-	int rtn = 0,slice_id = 0;
+	int rtn = 0, slice_id = 0;
 	uint32_t slice_num = 0;
-	uint32_t slice_width = 0 ;
+	uint32_t slice_width = 0;
 	uint32_t seed0 = 0;
-	struct isp_slice_desc *cur_slc=slc_ctx;
+	struct isp_slice_desc *cur_slc = slc_ctx;
 	struct slice_noisefilter_info *noisefilter_info = NULL;
 	struct slice_scaler_info *scaler_info = NULL;
 
@@ -82,13 +82,13 @@ static int sprd_ispslice_noisefliter_info_set(struct isp_slice_desc *slc_ctx,
 	pr_debug("shape_mode=%d,slice_num=%d\n",
 		cur_slc->slice_noisefilter_mode.shape_mode, slice_num);
 	if (cur_slc->slice_noisefilter_mode.shape_mode == 1) {
-		for (slice_id = 0; slice_id < slice_num; slice_id++,cur_slc++) {
+		for (slice_id = 0; slice_id < slice_num; slice_id++, cur_slc++) {
 			noisefilter_info = &cur_slc->noisefilter_info;
 			noisefilter_info->seed0 = seed0;
 			slice_width = scaler_info->trim1_size_x;
 			sprd_noisefilter_seeds(slice_width,
-				noisefilter_info->seed0,&noisefilter_info->seed1,
-					&noisefilter_info->seed2, &noisefilter_info->seed3);
+				noisefilter_info->seed0, &noisefilter_info->seed1,
+				&noisefilter_info->seed2, &noisefilter_info->seed3);
 			pr_debug("seed0=%d,seed1=%d,seed2=%d,seed3=%d,slice_width=%d\n",
 				noisefilter_info->seed0, noisefilter_info->seed1,
 					noisefilter_info->seed2, noisefilter_info->seed3, slice_width);
@@ -151,7 +151,7 @@ static int get_slice_size_info(
 	pr_debug("max output w %d, slice_num %d, out limited slice_w %d\n",
 		max_w, slice_num, slice_w_out);
 
-	*w = (slice_w < slice_w_out) ?  slice_w : slice_w_out;
+	*w = (slice_w < slice_w_out) ? slice_w : slice_w_out;
 	*h = input->h / SLICE_H_NUM_MAX;
 
 	*w = ISP_ALIGNED(*w);
@@ -443,7 +443,7 @@ static void cfg_spath_trim0_info(
 					sinfo->overlap_bad_left;
 				if (sinfo->trim0_end_x < end)
 					slc_scaler->trim0_size_x =
-						sinfo->trim0_end_x-start;
+						sinfo->trim0_end_x - start;
 				else
 					slc_scaler->trim0_size_x = end - start;
 			} else {
@@ -497,11 +497,11 @@ static void cfg_spath_deci_info(
 		slc_scaler->trim0_size_x = slc_scaler->trim0_size_x /
 			sinfo->deci_x_align * sinfo->deci_x_align;
 	} else {
-		sinfo->trim0_start_adjust_x = (start + sinfo->deci_x_align - 1)/
+		sinfo->trim0_start_adjust_x = (start + sinfo->deci_x_align - 1) /
 			sinfo->deci_x_align * sinfo->deci_x_align - start;
 		slc_scaler->trim0_start_x += sinfo->trim0_start_adjust_x;
 		slc_scaler->trim0_size_x -= sinfo->trim0_start_adjust_x;
-		slc_scaler->trim0_size_x = slc_scaler->trim0_size_x/
+		slc_scaler->trim0_size_x = slc_scaler->trim0_size_x /
 			sinfo->deci_x_align * sinfo->deci_x_align;
 	}
 
@@ -514,14 +514,14 @@ static void cfg_spath_deci_info(
 
 	if (frm_trim0->start_y >= sinfo->start_row &&
 		(frm_trim0->start_y  <= (sinfo->end_row + 1))) {
-		slc_scaler->trim0_size_y = slc_scaler->trim0_size_y/
+		slc_scaler->trim0_size_y = slc_scaler->trim0_size_y /
 			sinfo->deci_y_align * sinfo->deci_y_align;
 	} else {
-		sinfo->trim0_start_adjust_y = (start + sinfo->deci_y_align - 1)/
+		sinfo->trim0_start_adjust_y = (start + sinfo->deci_y_align - 1) /
 			sinfo->deci_y_align * sinfo->deci_y_align - start;
 		slc_scaler->trim0_start_y += sinfo->trim0_start_adjust_y;
 		slc_scaler->trim0_size_y -= sinfo->trim0_start_adjust_y;
-		slc_scaler->trim0_size_y = slc_scaler->trim0_size_y/
+		slc_scaler->trim0_size_y = slc_scaler->trim0_size_y /
 			sinfo->deci_y_align * sinfo->deci_y_align;
 	}
 
@@ -592,48 +592,48 @@ static void cfg_spath_scaler_info(
 			} else {
 				if (slice->trim0_end_x >= slice->start_col
 					&& (slice->trim0_end_x <= slice->end_col
-					+1 - slice->overlap_bad_right)) {
+					+ 1 - slice->overlap_bad_right)) {
 					phase_tmp = last_phase -
 						((frm_trim0->size_x / 2) /
 						slice->deci_x -
 						out->scaler_in_width / 2) *
 						scl_factor_out;
-					out_tmp = (phase_tmp - phase_in)/
+					out_tmp = (phase_tmp - phase_in) /
 						scl_factor_in + 1;
 					out->scaler_out_width = out_tmp * 2;
 					phase_in = phase_tmp - (out_tmp - 1)
 						*scl_factor_in;
 				} else {
-					initial_phase = ((((start/
+					initial_phase = ((((start /
 					slice->deci_x_align *
 						slice->deci_x_align
-					-frm_trim0->start_x) / slice->deci_x) /
-						2+
-					(tap_hor_uv / 2)) * (scl_factor_out)+
-					(scl_factor_in - 1)) / scl_factor_in*
+					- frm_trim0->start_x) / slice->deci_x) /
+						2 +
+					(tap_hor_uv / 2)) * (scl_factor_out) +
+					(scl_factor_in - 1)) / scl_factor_in *
 					scl_factor_in;
 					slice->scaler_out_width_temp =
-					((last_phase - initial_phase)/
+					((last_phase - initial_phase) /
 					scl_factor_in + 1) * 2;
 
-					scl_temp = ((end / slice->deci_x_align*
+					scl_temp = ((end / slice->deci_x_align *
 					slice->deci_x_align -
-						frm_trim0->start_x)/
+						frm_trim0->start_x) /
 					slice->deci_x) / 2;
 					last_phase = ((
 						scl_temp - tap_hor_uv / 2)*
 					(scl_factor_out) - scl_factor_in / 2 -
-						1)/
+						1) /
 					scl_factor_in * scl_factor_in;
 
-					out_tmp = (last_phase - initial_phase)/
+					out_tmp = (last_phase - initial_phase) /
 						scl_factor_in + 1;
 					out->scaler_out_width = out_tmp * 2;
-					phase_in = initial_phase - (((start/
+					phase_in = initial_phase - (((start /
 					slice->deci_x_align *
-						slice->deci_x_align-
+						slice->deci_x_align -
 					frm_trim0->start_x) / slice->deci_x) /
-						2)*
+						2) *
 					scl_factor_out;
 				}
 			}
@@ -647,7 +647,7 @@ static void cfg_spath_scaler_info(
 		scl_factor_in = in->scaler_ver_factor_in;
 		scl_factor_out = in->scaler_ver_factor_out;
 		initial_phase = 0;
-		last_phase = initial_phase+
+		last_phase = initial_phase +
 			scl_factor_in * (in->scaler_out_height - 1);
 		tap_ver = in->scaler_y_ver_tap > in->scaler_uv_ver_tap ?
 			in->scaler_y_ver_tap : in->scaler_uv_ver_tap;
@@ -666,7 +666,7 @@ static void cfg_spath_scaler_info(
 				frm_trim0->size_y / slice->deci_y)
 				phase_tmp = last_phase;
 			else
-				phase_tmp = (out->scaler_in_height-
+				phase_tmp = (out->scaler_in_height -
 				tap_ver_uv / 2) * scl_factor_out - 1;
 			out_tmp = (phase_tmp - phase_in) / scl_factor_in + 1;
 			if (out_tmp % 2 == 1)
@@ -690,12 +690,12 @@ static void cfg_spath_scaler_info(
 					out_tmp - 1) * scl_factor_in;
 			} else {
 				if (slice->trim0_end_y >= slice->start_row &&
-					(slice->trim0_end_y <= slice->end_row+1
+					(slice->trim0_end_y <= slice->end_row + 1
 					-slice->overlap_bad_down)) {
 					phase_tmp = last_phase-
-					(frm_trim0->size_y / slice->deci_y-
+					(frm_trim0->size_y / slice->deci_y -
 					out->scaler_in_height) * scl_factor_out;
-					out_tmp = (phase_tmp - phase_in)/
+					out_tmp = (phase_tmp - phase_in) /
 						scl_factor_in + 1;
 					if (out_tmp % 2 == 1)
 						out_tmp -= 1;
@@ -706,26 +706,26 @@ static void cfg_spath_scaler_info(
 					phase_in = phase_tmp - (out_tmp - 1)
 						*scl_factor_in;
 				} else {
-					initial_phase = (((start/
+					initial_phase = (((start /
 					slice->deci_y_align *
 						slice->deci_y_align
-					-frm_trim0->start_y) / slice->deci_y+
-					(tap_ver_uv / 2)) * (scl_factor_out)+
+					- frm_trim0->start_y) / slice->deci_y +
+					(tap_ver_uv / 2)) * (scl_factor_out) +
 					(scl_factor_in - 1)) / (
 						scl_factor_in * 2)
 					*(scl_factor_in * 2);
 					slice->scaler_out_height_temp =
-						(last_phase - initial_phase)/
+						(last_phase - initial_phase) /
 						scl_factor_in + 1;
 					scl_temp = (end / slice->deci_y_align*
 					slice->deci_y_align -
-						frm_trim0->start_y)/
+						frm_trim0->start_y) /
 					slice->deci_y;
 					last_phase = ((
 						scl_temp - tap_ver_uv / 2)*
 					(scl_factor_out) - 1) / scl_factor_in
 					*scl_factor_in;
-					out_tmp = (last_phase - initial_phase)/
+					out_tmp = (last_phase - initial_phase) /
 						scl_factor_in + 1;
 					if (out_tmp % 2 == 1)
 						out_tmp -= 1;
@@ -733,9 +733,9 @@ static void cfg_spath_scaler_info(
 						out_tmp % 4 != 0)
 						out_tmp = out_tmp / 4 * 4;
 					out->scaler_out_height = out_tmp;
-					phase_in = initial_phase - (start/
+					phase_in = initial_phase - (start /
 					slice->deci_y_align *
-						slice->deci_y_align-
+						slice->deci_y_align -
 					frm_trim0->start_y) / slice->deci_y
 					*scl_factor_out;
 				}
@@ -776,13 +776,13 @@ static void cfg_spath_scaler_info(
 		out->scaler_out_height = out->scaler_in_height;
 		start = slice->start_col + slice->overlap_bad_left +
 			slice->trim0_start_adjust_x + slice->deci_x_align - 1;
-		slice->scaler_out_width_temp = (frm_trim0->size_x - (start/
-			slice->deci_x_align * slice->deci_x_align-
+		slice->scaler_out_width_temp = (frm_trim0->size_x - (start /
+			slice->deci_x_align * slice->deci_x_align -
 			frm_trim0->start_x)) / slice->deci_x;
 		start = slice->start_row + slice->overlap_bad_up +
 			slice->trim0_start_adjust_y + slice->deci_y_align - 1;
-		slice->scaler_out_height_temp = (frm_trim0->size_y - (start/
-			slice->deci_y_align * slice->deci_y_align-
+		slice->scaler_out_height_temp = (frm_trim0->size_y - (start /
+			slice->deci_y_align * slice->deci_y_align -
 			frm_trim0->start_y)) / slice->deci_y;
 	}
 }
@@ -813,17 +813,17 @@ void cfg_spath_trim1_info(
 				out->scaler_out_width - out->trim1_size_x;
 		} else {
 			if (slice->trim0_end_x >= slice->start_col &&
-				(slice->trim0_end_x <= slice->end_col+1
-				-slice->overlap_bad_right)) {
+				(slice->trim0_end_x <= slice->end_col + 1
+				- slice->overlap_bad_right)) {
 				out->trim1_size_x = in->scaler_out_width
-					-trim_sum_x;
-				out->trim1_start_x = out->scaler_out_width-
+					- trim_sum_x;
+				out->trim1_start_x = out->scaler_out_width -
 					out->trim1_size_x;
 			} else {
 				out->trim1_start_x =
-					slice->scaler_out_width_temp-
+					slice->scaler_out_width_temp -
 					(in->scaler_out_width - trim_sum_x);
-				out->trim1_size_x = (out->scaler_out_width-
+				out->trim1_size_x = (out->scaler_out_width -
 					out->trim1_start_x) & ~(pix_align - 1);
 			}
 		}
@@ -840,21 +840,21 @@ void cfg_spath_trim1_info(
 	} else {
 		if (slice->y == slice->slice_row_num - 1) {
 			out->trim1_size_y = in->scaler_out_height - trim_sum_y;
-			out->trim1_start_y = out->scaler_out_height-
+			out->trim1_start_y = out->scaler_out_height -
 				out->trim1_size_y;
 		} else {
 			if (slice->trim0_end_y >= slice->start_row &&
-				(slice->trim0_end_y <= slice->end_row+1
-				-slice->overlap_bad_down)) {
+				(slice->trim0_end_y <= slice->end_row + 1
+				- slice->overlap_bad_down)) {
 				out->trim1_size_y = in->scaler_out_height
-					-trim_sum_y;
-				out->trim1_start_y = out->scaler_out_height-
+					- trim_sum_y;
+				out->trim1_start_y = out->scaler_out_height -
 					out->trim1_size_y;
 			} else {
 				out->trim1_start_y =
-					slice->scaler_out_height_temp-
+					slice->scaler_out_height_temp -
 					(in->scaler_out_height - trim_sum_y);
-				out->trim1_size_y = (out->scaler_out_height-
+				out->trim1_size_y = (out->scaler_out_height -
 					out->trim1_start_y) & ~(pix_align - 1);
 			}
 		}
@@ -1112,7 +1112,7 @@ static int cfg_slice_scaler_info(
 }
 
 static void _cfg_slice_fetch(struct isp_fetch_info *frm_fetch,
-			     struct isp_slice_desc *cur_slc)
+		struct isp_slice_desc *cur_slc)
 {
 	uint32_t start_col, start_row;
 	uint32_t end_col, end_row;
@@ -1186,7 +1186,7 @@ static void _cfg_slice_fetch(struct isp_fetch_info *frm_fetch,
 }
 
 static void _cfg_slice_fbd_raw(struct isp_fbd_raw_info *frame_fbd_raw,
-			       struct isp_slice_desc *cur_slc)
+		struct isp_slice_desc *cur_slc)
 {
 	uint32_t left_tiles_num = 0,
 			right_tiles_num = 0,
@@ -1221,10 +1221,10 @@ static void _cfg_slice_fbd_raw(struct isp_fbd_raw_info *frame_fbd_raw,
 		left_tiles_num = 1;
 		left_size = ISP_FBD_TILE_WIDTH - start_col % ISP_FBD_TILE_WIDTH;
 	}
-	if ((end_col + 1) % ISP_FBD_TILE_WIDTH == 0){
+	if ((end_col + 1) % ISP_FBD_TILE_WIDTH == 0) {
 		right_tiles_num = 0;
-		right_size =0;
-	}else{
+		right_size = 0;
+	} else {
 		right_tiles_num = 1;
 		right_size = (end_col + 1) % ISP_FBD_TILE_WIDTH;
 	}
@@ -1238,10 +1238,10 @@ static void _cfg_slice_fbd_raw(struct isp_fbd_raw_info *frame_fbd_raw,
 		up_tiles_num = 1;
 		up_size = ISP_FBD_TILE_HEIGHT - start_row % ISP_FBD_TILE_HEIGHT;
 	}
-	if ((end_row + 1) % ISP_FBD_TILE_HEIGHT == 0){
+	if ((end_row + 1) % ISP_FBD_TILE_HEIGHT == 0) {
 		down_tiles_num = 0;
 		down_size = 0;
-	}else{
+	} else {
 		down_tiles_num = 1;
 		down_size = (end_row + 1) % ISP_FBD_TILE_HEIGHT;
 	}
@@ -1252,18 +1252,18 @@ static void _cfg_slice_fbd_raw(struct isp_fbd_raw_info *frame_fbd_raw,
 	slc_fbd_raw->tiles_num_in_hor = left_tiles_num + right_tiles_num + hor_middle_tiles_num;
 	slc_fbd_raw->tiles_num_in_ver = up_tiles_num + down_tiles_num + vertical_middle_tiles_num;
 	pr_debug("left_tiles_num %d right_tiles_num %d middle_tiles_num %d\n",
-		left_tiles_num,right_tiles_num,hor_middle_tiles_num);
+		left_tiles_num, right_tiles_num, hor_middle_tiles_num);
 	pr_debug("up_tiles_num %d down_tiles_num %d vertical_middle_tiles_num %d\n",
-		up_tiles_num,down_tiles_num,vertical_middle_tiles_num);
+		up_tiles_num, down_tiles_num, vertical_middle_tiles_num);
 	pr_debug("slice_tiles_num_in_ver %d slice_tiles_num_in_hor %d\n",
-		slc_fbd_raw->tiles_num_in_ver,slc_fbd_raw->tiles_num_in_hor);
+		slc_fbd_raw->tiles_num_in_ver, slc_fbd_raw->tiles_num_in_hor);
 	slc_fbd_raw->tiles_start_odd = left_offset_tiles_num % 2;
 	slc_fbd_raw->header_addr_init = frame_fbd_raw->header_addr_init
 		- (left_offset_tiles_num + up_offset_tiles_num * tiles_num_pitch) / 2;
-	slc_fbd_raw->tile_addr_init_x256 =frame_fbd_raw->tile_addr_init_x256
+	slc_fbd_raw->tile_addr_init_x256 = frame_fbd_raw->tile_addr_init_x256
 		+ (left_offset_tiles_num + up_offset_tiles_num * tiles_num_pitch) * ISP_FBD_BASE_ALIGN;
 	slc_fbd_raw->low_bit_addr_init = frame_fbd_raw->low_bit_addr_init
-		+ (start_col + start_row * global_img_width) /2;
+		+ (start_col + start_row * global_img_width) / 2;
 
 	/* have to copy these here for fmcu cmd queue, sad */
 	slc_fbd_raw->tiles_num_pitch = frame_fbd_raw->tiles_num_pitch;
@@ -1271,11 +1271,11 @@ static void _cfg_slice_fbd_raw(struct isp_fbd_raw_info *frame_fbd_raw,
 	slc_fbd_raw->low_4bit_pitch = frame_fbd_raw->low_4bit_pitch;
 	slc_fbd_raw->fetch_fbd_bypass = 0;
 
-	if(0 == frame_fbd_raw->fetch_fbd_4bit_bypass)
+	if (frame_fbd_raw->fetch_fbd_4bit_bypass == 0)
 		slc_fbd_raw->low_4bit_addr_init = frame_fbd_raw->low_4bit_addr_init
 		+ (start_col + start_row * global_img_width);
 
-	if(0 == frame_fbd_raw->fetch_fbd_4bit_bypass)
+	if (frame_fbd_raw->fetch_fbd_4bit_bypass == 0)
 		slc_fbd_raw->fetch_fbd_4bit_bypass = 0;
 	else
 		slc_fbd_raw->fetch_fbd_4bit_bypass = 1;
@@ -1553,12 +1553,12 @@ int isp_cfg_slice_afbc_store_info(
 				scl_out_width = slc_scaler->trim1_size_x;
 				scl_out_height = slc_scaler->trim1_size_y;
 
-				slc_afbc_store->border.up_border= overlap_up;
+				slc_afbc_store->border.up_border = overlap_up;
 				slc_afbc_store->border.left_border = overlap_left;
 				slc_afbc_store->border.down_border = overlap_down;
 				slc_afbc_store->border.right_border = overlap_right;
 
-				slc_afbc_store->size.h=
+				slc_afbc_store->size.h =
 					scl_out_height - overlap_up - overlap_down;
 				slc_afbc_store->size.w =
 					scl_out_width - overlap_left - overlap_right;
@@ -1657,12 +1657,12 @@ static int cfg_slice_3dnr_memctrl_info(
 		slc_3dnr_memctrl->bypass = mem_ctrl->bypass;
 		slc_3dnr_memctrl->first_line_mode = 0;
 		slc_3dnr_memctrl->last_line_mode = 0;
-		slc_3dnr_memctrl->start_row    = start_row;
-		slc_3dnr_memctrl->start_col    = start_col;
-		slc_3dnr_memctrl->src.h   = end_row - start_row + 1;
-		slc_3dnr_memctrl->src.w   = end_col - start_col + 1;
-		slc_3dnr_memctrl->ft_y.h  = end_row - start_row + 1;
-		slc_3dnr_memctrl->ft_y.w  = end_col - start_col + 1;
+		slc_3dnr_memctrl->start_row = start_row;
+		slc_3dnr_memctrl->start_col = start_col;
+		slc_3dnr_memctrl->src.h = end_row - start_row + 1;
+		slc_3dnr_memctrl->src.w = end_col - start_col + 1;
+		slc_3dnr_memctrl->ft_y.h = end_row - start_row + 1;
+		slc_3dnr_memctrl->ft_y.w = end_col - start_col + 1;
 		slc_3dnr_memctrl->ft_uv.h = (end_row - start_row + 1) >> 1;
 		slc_3dnr_memctrl->ft_uv.w = end_col - start_col + 1;
 
@@ -1751,24 +1751,24 @@ static int cfg_slice_3dnr_fbd_fetch_info(
 		Y_start_y = fetch_start_y;
 		UV_start_y = uv_fetch_start_y;
 		if (mv_x < 0) {
-			if ((0 == start_col) && (mv_x & 1)) {
+			if ((start_col == 0) && (mv_x & 1)) {
 				Y_start_x = fetch_start_x;
 				UV_start_x = fetch_start_x + 2;
-			} else if ((0 != start_col) && (mv_x & 1)) {
+			} else if ((start_col != 0) && (mv_x & 1)) {
 				Y_start_x = fetch_start_x + mv_x;
 				UV_start_x = fetch_start_x + mv_x + 1;
-			} else if (0 != start_col) {
+			} else if (start_col != 0) {
 				Y_start_x = fetch_start_x + mv_x;
 				UV_start_x = fetch_start_x + mv_x;
 			} else {
 				Y_start_x = fetch_start_x;
 				UV_start_x = fetch_start_x;
 			}
-		}else if (mv_x > 0) {
-			if ((0 == start_col) && (mv_x & 1)) {
+		} else if (mv_x > 0) {
+			if ((start_col == 0) && (mv_x & 1)) {
 				Y_start_x = fetch_start_x;
 				UV_start_x = fetch_start_x - 1;
-			} else if ((0 != start_col) && (mv_x & 1)) {
+			} else if ((start_col != 0) && (mv_x & 1)) {
 				Y_start_x = fetch_start_x;
 				UV_start_x = fetch_start_x - 1;
 			} else {
@@ -1804,17 +1804,17 @@ static int cfg_slice_3dnr_fbd_fetch_info(
 			left_size = 0;
 		} else {
 			left_tiles_num = 1;
-			left_size = FBD_NR3_Y_WIDTH - UV_start_x %  FBD_NR3_Y_WIDTH;
+			left_size = FBD_NR3_Y_WIDTH - UV_start_x % FBD_NR3_Y_WIDTH;
 		}
 		if ((UV_end_x + 1) % FBD_NR3_Y_WIDTH == 0)
 			right_tiles_num = 0;
 		else
 			right_tiles_num = 1;
 		right_size = (UV_end_x + 1) % FBD_NR3_Y_WIDTH;
-		middle_tiles_num= (slice_width - left_size - right_size) / FBD_NR3_Y_WIDTH;
-		slc_3dnr_fbd_fetch->fbd_c_pixel_start_in_hor= UV_start_x % FBD_NR3_Y_WIDTH;
-		slc_3dnr_fbd_fetch->fbd_c_tiles_num_in_hor= left_tiles_num + right_tiles_num + middle_tiles_num;
-		slc_3dnr_fbd_fetch->fbd_c_tiles_start_odd= left_offset_tiles_num % 2;
+		middle_tiles_num = (slice_width - left_size - right_size) / FBD_NR3_Y_WIDTH;
+		slc_3dnr_fbd_fetch->fbd_c_pixel_start_in_hor = UV_start_x % FBD_NR3_Y_WIDTH;
+		slc_3dnr_fbd_fetch->fbd_c_tiles_num_in_hor = left_tiles_num + right_tiles_num + middle_tiles_num;
+		slc_3dnr_fbd_fetch->fbd_c_tiles_start_odd = left_offset_tiles_num % 2;
 		if (mv_y < 0) {
 			Y_start_y = fetch_start_y;
 			UV_start_y = fetch_start_y;
@@ -1837,34 +1837,34 @@ static int cfg_slice_3dnr_fbd_fetch_info(
 		else
 			down_tiles_num = 1;
 		down_size = (Y_end_y + 1) % FBD_NR3_Y_HEIGHT;
-		vertical_middle_tiles_num= (slice_height - up_size - down_size) / FBD_NR3_Y_HEIGHT;
+		vertical_middle_tiles_num = (slice_height - up_size - down_size) / FBD_NR3_Y_HEIGHT;
 		slc_3dnr_fbd_fetch->fbd_y_pixel_start_in_ver = Y_start_y % FBD_NR3_Y_HEIGHT;
-		slc_3dnr_fbd_fetch->fbd_y_tiles_num_in_ver= up_tiles_num + down_tiles_num + vertical_middle_tiles_num;
+		slc_3dnr_fbd_fetch->fbd_y_tiles_num_in_ver = up_tiles_num + down_tiles_num + vertical_middle_tiles_num;
 		slc_3dnr_fbd_fetch->fbd_y_header_addr_init = nr3_fbd_fetch->y_header_addr_init
-			- (left_offset_tiles_num + up_offset_tiles_num* fbd_y_tiles_num_pitch) / 2;
+			- (left_offset_tiles_num + up_offset_tiles_num * fbd_y_tiles_num_pitch) / 2;
 		slc_3dnr_fbd_fetch->fbd_y_tile_addr_init_x256 = nr3_fbd_fetch->y_tile_addr_init_x256
-			+ (left_offset_tiles_num + up_offset_tiles_num * fbd_y_tiles_num_pitch)* FBC_NR3_BASE_ALIGN;
+			+ (left_offset_tiles_num + up_offset_tiles_num * fbd_y_tiles_num_pitch) * FBC_NR3_BASE_ALIGN;
 		up_offset_tiles_num = UV_start_y / FBD_NR3_Y_HEIGHT;
-		if (UV_start_y %  FBD_BAYER_HEIGHT == 0) {
+		if (UV_start_y % FBD_BAYER_HEIGHT == 0) {
 			up_tiles_num = 0;
 			up_size = 0;
 		} else {
 			up_tiles_num = 1;
-			up_size = FBD_NR3_Y_HEIGHT - UV_start_y %  FBD_NR3_Y_HEIGHT;
+			up_size = FBD_NR3_Y_HEIGHT - UV_start_y % FBD_NR3_Y_HEIGHT;
 		}
 		if ((UV_end_y + 1) % FBD_NR3_Y_HEIGHT == 0)
 			down_tiles_num = 0;
 		else
 			down_tiles_num = 1;
 		down_size = (UV_end_y + 1) % FBD_NR3_Y_HEIGHT;
-		vertical_middle_tiles_num = (slice_height / 2 - up_size- down_size)/FBD_NR3_Y_HEIGHT;
+		vertical_middle_tiles_num = (slice_height / 2 - up_size - down_size) / FBD_NR3_Y_HEIGHT;
 		slc_3dnr_fbd_fetch->fbd_c_pixel_start_in_ver = UV_start_y % FBD_NR3_Y_WIDTH;
 		slc_3dnr_fbd_fetch->fbd_c_tiles_num_in_ver = up_tiles_num + down_tiles_num
 			+ vertical_middle_tiles_num;
 		slc_3dnr_fbd_fetch->fbd_c_header_addr_init = nr3_fbd_fetch->c_header_addr_init
-			- (left_offset_tiles_num + up_offset_tiles_num* fbd_y_tiles_num_pitch) / 2;
+			- (left_offset_tiles_num + up_offset_tiles_num * fbd_y_tiles_num_pitch) / 2;
 		slc_3dnr_fbd_fetch->fbd_c_tile_addr_init_x256 = nr3_fbd_fetch->c_tile_addr_init_x256
-			+ (left_offset_tiles_num + up_offset_tiles_num* fbd_y_tiles_num_pitch) * FBC_NR3_BASE_ALIGN;
+			+ (left_offset_tiles_num + up_offset_tiles_num * fbd_y_tiles_num_pitch) * FBC_NR3_BASE_ALIGN;
 
 		slc_3dnr_fbd_fetch->fbd_y_tiles_num_pitch = nr3_fbd_fetch->y_tiles_num_pitch;
 
@@ -1895,20 +1895,20 @@ static int cfg_slice_3dnr_store_info(
 	uint32_t orig_e_col    = 0;
 	uint32_t orig_e_row    = 0;
 
-	uint32_t pitch_y = 0;
-	uint32_t pitch_u = 0;
-	uint32_t ch0_offset = 0;
-	uint32_t ch1_offset = 0;
+	uint32_t pitch_y       = 0;
+	uint32_t pitch_u       = 0;
+	uint32_t ch0_offset    = 0;
+	uint32_t ch1_offset    = 0;
 
 	struct slice_cfg_input *in_ptr = (struct slice_cfg_input *)cfg_in;
-	struct isp_3dnr_ctx_desc *nr3_ctx  = in_ptr->nr3_ctx;
-	struct isp_3dnr_store *nr3_store   = &nr3_ctx->nr3_store;
+	struct isp_3dnr_ctx_desc *nr3_ctx = in_ptr->nr3_ctx;
+	struct isp_3dnr_store *nr3_store = &nr3_ctx->nr3_store;
 	struct isp_slice_desc *cur_slc;
 
 	struct slice_3dnr_store_info *slc_3dnr_store;
 
-	pitch_y  = in_ptr->frame_in_size.w;
-	pitch_u  = in_ptr->frame_in_size.w;
+	pitch_y = in_ptr->frame_in_size.w;
+	pitch_u = in_ptr->frame_in_size.w;
 
 	cur_slc = &slc_ctx->slices[0];
 	if (nr3_ctx->type == NR3_FUNC_OFF) {
@@ -1929,18 +1929,18 @@ static int cfg_slice_3dnr_store_info(
 
 		start_col = cur_slc->slice_pos.start_col;
 		start_row = cur_slc->slice_pos.start_row;
-		end_col   = cur_slc->slice_pos.end_col;
-		end_row   = cur_slc->slice_pos.end_row;
+		end_col = cur_slc->slice_pos.end_col;
+		end_row = cur_slc->slice_pos.end_row;
 
 		orig_s_col = cur_slc->slice_pos_orig.start_col;
 		orig_s_row = cur_slc->slice_pos_orig.start_row;
 		orig_e_col = cur_slc->slice_pos_orig.end_col;
 		orig_e_row = cur_slc->slice_pos_orig.end_row;
 
-		overlap_left  = cur_slc->slice_overlap.overlap_left;
-		overlap_up    = cur_slc->slice_overlap.overlap_up;
+		overlap_left = cur_slc->slice_overlap.overlap_left;
+		overlap_up = cur_slc->slice_overlap.overlap_up;
 		overlap_right = cur_slc->slice_overlap.overlap_right;
-		overlap_down  = cur_slc->slice_overlap.overlap_down;
+		overlap_down = cur_slc->slice_overlap.overlap_down;
 
 		/* YUV420_2FRAME */
 		ch0_offset = orig_s_row * pitch_y + orig_s_col;
@@ -1967,13 +1967,13 @@ static int cfg_slice_3dnr_fbc_store_info(
 {
 	int ret = 0, idx = 0;
 
-	uint32_t slice_width ,slice_height ;
-	uint32_t store_slice_width,store_slice_height;
-	uint32_t uv_tile_w_num,uv_tile_h_num;
-	uint32_t y_tile_w_num,y_tile_h_num;
+	uint32_t slice_width, slice_height;
+	uint32_t store_slice_width, store_slice_height;
+	uint32_t uv_tile_w_num, uv_tile_h_num;
+	uint32_t y_tile_w_num, y_tile_h_num;
 	uint32_t store_left_offset_tiles_num;
-	uint32_t start_col,end_col,start_row, end_row;
-	uint32_t overlap_up,overlap_down,overlap_left, overlap_right;
+	uint32_t start_col, end_col, start_row, end_row;
+	uint32_t overlap_up, overlap_down, overlap_left, overlap_right;
 	struct slice_cfg_input *in_ptr = (struct slice_cfg_input *)cfg_in;
 	struct isp_3dnr_ctx_desc *nr3_ctx = in_ptr->nr3_ctx;
 	struct isp_3dnr_fbc_store *nr3_fbc_store = &nr3_ctx->nr3_fbc_store;
@@ -2014,9 +2014,9 @@ static int cfg_slice_3dnr_fbc_store_info(
 
 		store_left_offset_tiles_num = (start_col + overlap_left) / FBC_NR3_Y_WIDTH;
 
-		uv_tile_w_num= (store_slice_width + FBC_NR3_Y_WIDTH - 1) / FBC_NR3_Y_WIDTH;
+		uv_tile_w_num = (store_slice_width + FBC_NR3_Y_WIDTH - 1) / FBC_NR3_Y_WIDTH;
 		uv_tile_w_num = (uv_tile_w_num + 2 - 1) / 2 * 2;
-		uv_tile_h_num= (store_slice_height / 2 + FBC_NR3_Y_HEIGHT - 1) / FBC_NR3_Y_HEIGHT;
+		uv_tile_h_num = (store_slice_height / 2 + FBC_NR3_Y_HEIGHT - 1) / FBC_NR3_Y_HEIGHT;
 		y_tile_w_num = uv_tile_w_num;
 		y_tile_h_num = 2 * uv_tile_h_num;
 
@@ -2079,16 +2079,16 @@ static int cfg_slice_3dnr_crop_info(
 		if (cur_slc->valid == 0)
 			continue;
 		slc_3dnr_memctrl = &cur_slc->slice_3dnr_memctrl;
-		slc_3dnr_store   = &cur_slc->slice_3dnr_store;
-		slc_3dnr_crop	 = &cur_slc->slice_3dnr_crop;
+		slc_3dnr_store = &cur_slc->slice_3dnr_store;
+		slc_3dnr_crop = &cur_slc->slice_3dnr_crop;
 
-		overlap_left  = cur_slc->slice_overlap.overlap_left;
-		overlap_up    = cur_slc->slice_overlap.overlap_up;
+		overlap_left = cur_slc->slice_overlap.overlap_left;
+		overlap_up = cur_slc->slice_overlap.overlap_up;
 		overlap_right = cur_slc->slice_overlap.overlap_right;
-		overlap_down  = cur_slc->slice_overlap.overlap_down;
+		overlap_down = cur_slc->slice_overlap.overlap_down;
 
-		slc_3dnr_crop->bypass = !(overlap_left  || overlap_up ||
-						overlap_right || overlap_down);
+		slc_3dnr_crop->bypass = !(overlap_left || overlap_up ||
+			overlap_right || overlap_down);
 
 		slc_3dnr_crop->src.w = slc_3dnr_memctrl->src.w;
 		slc_3dnr_crop->src.h = slc_3dnr_memctrl->src.h;
@@ -2114,7 +2114,7 @@ static int cfg_slice_3dnr_memctrl_update_info(
 	int ret = 0, idx = 0;
 
 	struct slice_cfg_input *in_ptr = (struct slice_cfg_input *)cfg_in;
-	struct isp_3dnr_ctx_desc *nr3_ctx  = in_ptr->nr3_ctx;
+	struct isp_3dnr_ctx_desc *nr3_ctx = in_ptr->nr3_ctx;
 	struct isp_slice_desc *cur_slc;
 
 	struct nr3_slice nr3_fw_in;
@@ -2125,7 +2125,7 @@ static int cfg_slice_3dnr_memctrl_update_info(
 	memset((void *)&nr3_fw_in, 0, sizeof(nr3_fw_in));
 	memset((void *)&nr3_fw_out, 0, sizeof(nr3_fw_out));
 
-	nr3_fw_in.cur_frame_width  = in_ptr->frame_in_size.w;
+	nr3_fw_in.cur_frame_width = in_ptr->frame_in_size.w;
 	nr3_fw_in.cur_frame_height = in_ptr->frame_in_size.h;
 	nr3_fw_in.mv_x = nr3_ctx->mv.mv_x;
 	nr3_fw_in.mv_y = nr3_ctx->mv.mv_y;
@@ -2174,25 +2174,25 @@ static int cfg_slice_3dnr_memctrl_update_info(
 		isp_3dnr_update_memctrl_slice_info(&nr3_fw_in, &nr3_fw_out);
 
 		slc_3dnr_memctrl->first_line_mode = nr3_fw_out.first_line_mode;
-		slc_3dnr_memctrl->last_line_mode  = nr3_fw_out.last_line_mode;
-		slc_3dnr_memctrl->addr.addr_ch0   = nr3_fw_out.src_lum_addr;
-		slc_3dnr_memctrl->addr.addr_ch1   = nr3_fw_out.src_chr_addr;
-		slc_3dnr_memctrl->ft_y.w  = nr3_fw_out.ft_y_width;
-		slc_3dnr_memctrl->ft_y.h  = nr3_fw_out.ft_y_height;
+		slc_3dnr_memctrl->last_line_mode = nr3_fw_out.last_line_mode;
+		slc_3dnr_memctrl->addr.addr_ch0 = nr3_fw_out.src_lum_addr;
+		slc_3dnr_memctrl->addr.addr_ch1 = nr3_fw_out.src_chr_addr;
+		slc_3dnr_memctrl->ft_y.w = nr3_fw_out.ft_y_width;
+		slc_3dnr_memctrl->ft_y.h = nr3_fw_out.ft_y_height;
 		slc_3dnr_memctrl->ft_uv.w = nr3_fw_out.ft_uv_width;
 		slc_3dnr_memctrl->ft_uv.h = nr3_fw_out.ft_uv_height;
 
-		pr_debug("slice_num[%d], frame_width[%d], frame_height[%d], ",
+		pr_debug("slice_num[%d], frame_width[%d], frame_height[%d]\n",
 			nr3_fw_in.slice_num, nr3_fw_in.cur_frame_width,
 			nr3_fw_in.cur_frame_height);
-		pr_debug("start_col[%d], start_row[%d], ",
+		pr_debug("start_col[%d], start_row[%d]\n",
 			nr3_fw_out.start_col, nr3_fw_out.start_row);
 		pr_debug("src_lum_addr[0x%x], src_chr_addr[0x%x]\n",
 			nr3_fw_out.src_lum_addr, nr3_fw_out.src_chr_addr);
-		pr_debug("ft_y_width[%d], ft_y_height[%d], ft_uv_width[%d], ",
+		pr_debug("ft_y_width[%d], ft_y_height[%d], ft_uv_width[%d]\n",
 			nr3_fw_out.ft_y_width, nr3_fw_out.ft_y_height,
 			nr3_fw_out.ft_uv_width);
-		pr_debug("ft_uv_height[%d], last_line_mode[%d],	",
+		pr_debug("ft_uv_height[%d], last_line_mode[%d]\n",
 			nr3_fw_out.ft_uv_height, nr3_fw_out.last_line_mode);
 		pr_debug("first_line_mode[%d]\n", nr3_fw_out.first_line_mode);
 	}
@@ -2256,15 +2256,15 @@ int isp_cfg_slice_ltm_info(void *cfg_in,
 {
 	int ret = 0, idx = 0;
 	struct slice_cfg_input *in_ptr = (struct slice_cfg_input *)cfg_in;
-	struct isp_ltm_ctx_desc *ltm_ctx  = in_ptr->ltm_ctx;
-	struct isp_ltm_rtl_param  rtl_param;
-	struct isp_ltm_rtl_param  *prtl = &rtl_param;
+	struct isp_ltm_ctx_desc *ltm_ctx = in_ptr->ltm_ctx;
+	struct isp_ltm_rtl_param rtl_param;
+	struct isp_ltm_rtl_param *prtl = &rtl_param;
 
 	struct isp_slice_desc *cur_slc = NULL;
 	struct slice_ltm_map_info *slc_ltm_map;
 	uint32_t slice_info[4];
 
-	struct isp_ltm_map   *map   = &ltm_ctx->map[ltm_id];
+	struct isp_ltm_map *map = &ltm_ctx->map[ltm_id];
 
 	if (map->bypass)
 		return 0;
@@ -2300,12 +2300,12 @@ int isp_cfg_slice_ltm_info(void *cfg_in,
 		slc_ltm_map->tile_num_x = prtl->tile_x_num_rtl;
 		slc_ltm_map->tile_num_y = prtl->tile_y_num_rtl;
 		slc_ltm_map->tile_right_flag = prtl->tile_right_flag_rtl;
-		slc_ltm_map->tile_left_flag  = prtl->tile_left_flag_rtl;
+		slc_ltm_map->tile_left_flag = prtl->tile_left_flag_rtl;
 		slc_ltm_map->tile_start_x = prtl->tile_start_x_rtl;
 		slc_ltm_map->tile_start_y = prtl->tile_start_y_rtl;
 		slc_ltm_map->mem_addr = map->mem_init_addr +
-				prtl->tile_index_xs * 128 * 2;
-		pr_debug("ltm slice info: tile_num_x[%d], tile_num_y[%d], tile_right_flag[%d]\
+			prtl->tile_index_xs * 128 * 2;
+		pr_debug("ltm slice info: tile_num_x[%d], tile_num_y[%d], tile_right_flag[%d] \
 			tile_left_flag[%d], tile_start_x[%d], tile_start_y[%d], mem_addr[0x%x]\n",
 			slc_ltm_map->tile_num_x, slc_ltm_map->tile_num_y,
 			slc_ltm_map->tile_right_flag, slc_ltm_map->tile_left_flag,
@@ -2316,14 +2316,14 @@ int isp_cfg_slice_ltm_info(void *cfg_in,
 	return ret;
 }
 
-int isp_cfg_slice_noisefilter_info(void *cfg_in, struct isp_slice_context *slc_ctx){
-
+int isp_cfg_slice_noisefilter_info(void *cfg_in, struct isp_slice_context *slc_ctx)
+{
 	int ret = 0, rtn = 0;
 	struct isp_slice_desc *cur_slc;
 	struct slice_cfg_input *in_ptr = (struct slice_cfg_input *)cfg_in;
 	struct isp_k_block  *isp_k_param = in_ptr->nofilter_ctx;
 
-	if (!slc_ctx){
+	if (!slc_ctx) {
 		pr_err("fail to get input ptr, null.\n");
 		return -EFAULT;
 	}
@@ -2332,7 +2332,7 @@ int isp_cfg_slice_noisefilter_info(void *cfg_in, struct isp_slice_context *slc_c
 	cur_slc->slice_noisefilter_mode.seed_for_mode1 = isp_k_param->seed0_for_mode1;
 	cur_slc->slice_noisefilter_mode.shape_mode = isp_k_param->shape_mode;
 
-	rtn=sprd_ispslice_noisefliter_info_set(cur_slc, slc_ctx);
+	rtn = sprd_ispslice_noisefliter_info_set(cur_slc, slc_ctx);
 
 	return ret;
 
@@ -2417,7 +2417,7 @@ static int set_slice_3dnr(
 	return 0;
 }
 
-int isp_set_slices_fmcu_cmds(void *fmcu_handle,  void *ctx)
+int isp_set_slices_fmcu_cmds(void *fmcu_handle, void *ctx)
 {
 	int i, j;
 	int sw_ctx_id = 0;
@@ -2491,19 +2491,19 @@ int isp_set_slices_fmcu_cmds(void *fmcu_handle,  void *ctx)
 		}
 
 		set_slice_3dnr(fmcu, cur_slc, hw, pctx);
-		if (pctx->ltm_rgb){
+		if (pctx->ltm_rgb) {
 			ltm.fmcu_handle = fmcu;
 			ltm.map = &cur_slc->slice_ltm_map[LTM_RGB];
 			ltm.ltm_id = LTM_RGB;
 			hw->isp_ioctl(hw, ISP_HW_CFG_LTM_SLICE_SET, &ltm);
 		}
-		if (pctx->ltm_yuv){
+		if (pctx->ltm_yuv) {
 			ltm.fmcu_handle = fmcu;
 			ltm.map = &cur_slc->slice_ltm_map[LTM_YUV];
 			ltm.ltm_id = LTM_YUV;
 			hw->isp_ioctl(hw, ISP_HW_CFG_LTM_SLICE_SET, &ltm);
 		}
-		if(shape_mode == 1) {
+		if (shape_mode == 1) {
 			slicearg.fmcu = fmcu;
 			slicearg.noisefilter_info = &cur_slc->noisefilter_info;
 			hw->isp_ioctl(hw, ISP_HW_CFG_SLICE_NOFILTER, &slicearg);
@@ -2523,7 +2523,7 @@ int isp_set_slices_fmcu_cmds(void *fmcu_handle,  void *ctx)
 				spath_scaler.fmcu = fmcu;
 				spath_scaler.path_en = cur_slc->path_en[j];
 				spath_scaler.ctx_idx = sw_ctx_id;
-				spath_scaler.spath_id= j;
+				spath_scaler.spath_id = j;
 				spath_scaler.slc_scaler = slc_scaler;
 				hw->isp_ioctl(hw, ISP_HW_CFG_SLICE_SPATH_SCALER, &spath_scaler);
 			}
@@ -2536,7 +2536,7 @@ int isp_set_slices_fmcu_cmds(void *fmcu_handle,  void *ctx)
 
 			if (j < AFBC_PATH_NUM) {
 				slc_afbc_store = &cur_slc->slice_afbc_store[j];
-				if(slc_afbc_store->slc_afbc_on){
+				if (slc_afbc_store->slc_afbc_on) {
 					afbc_slice.fmcu_handle = fmcu;
 					afbc_slice.path_en = cur_slc->path_en[j];
 					afbc_slice.ctx_idx = sw_ctx_id;
@@ -2568,7 +2568,7 @@ int isp_update_slice(
 	struct slice_scaler_info *slc_scaler;
 	struct isp_slice_context *slc_ctx;
 	struct isp_pipe_context *pctx = NULL;
-	struct cam_hw_info * hw = NULL;
+	struct cam_hw_info *hw = NULL;
 	struct isp_hw_afbc_path_slice afbc_slice;
 	struct isp_hw_slice_scaler update;
 	struct isp_hw_slice_store store;
@@ -2618,7 +2618,7 @@ int isp_update_slice(
 		hw->isp_ioctl(hw, ISP_HW_CFG_SLICE_STORE, &store);
 		if (j < AFBC_PATH_NUM) {
 			slc_afbc_store = &cur_slc->slice_afbc_store[j];
-			if(slc_afbc_store->slc_afbc_on) {
+			if (slc_afbc_store->slc_afbc_on) {
 				afbc_slice.fmcu_handle = NULL;
 				afbc_slice.path_en = cur_slc->path_en[j];
 				afbc_slice.ctx_idx = ctx_id;

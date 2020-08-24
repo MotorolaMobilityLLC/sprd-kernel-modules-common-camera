@@ -86,7 +86,7 @@ int isp_path_set_scaler_coeff(struct coeff_arg *arg,
 }
 
 static uint32_t get_path_deci_factor(
-				uint32_t src_size, uint32_t dst_size)
+		uint32_t src_size, uint32_t dst_size)
 {
 	uint32_t factor = 0;
 
@@ -225,7 +225,7 @@ static int calc_scaler_param(struct img_trim *in_trim,
 			tmp_dstsize = out_size->h * d_max;
 			deci->deci_y =
 				get_path_deci_factor(in_trim->size_y,
-								tmp_dstsize);
+					tmp_dstsize);
 			deci->deci_y_eb = 1;
 			align_size = (1 << (deci->deci_y + 1)) *
 				ISP_PIXEL_ALIGN_HEIGHT;
@@ -240,7 +240,7 @@ static int calc_scaler_param(struct img_trim *in_trim,
 			deci->deci_y_eb = 0;
 		}
 		pr_debug("end out_size  w %d, h %d\n",
-				out_size->w, out_size->h);
+			out_size->w, out_size->h);
 
 		scaler->scaler_factor_out = out_size->w;
 		scaler->scaler_ver_factor_out = out_size->h;
@@ -468,7 +468,7 @@ int cfg_path_thumbscaler(struct isp_path_desc *path)
 	pr_debug("my frameY: %d %d %d %d\n",
 		scalerInfo->y_src_after_deci.w, scalerInfo->y_src_after_deci.h,
 		scalerInfo->y_dst_after_scaler.w,
-			scalerInfo->y_dst_after_scaler.h);
+		scalerInfo->y_dst_after_scaler.h);
 	pr_debug("my frameU: %d %d %d %d\n",
 		scalerInfo->uv_src_after_deci.w,
 		scalerInfo->uv_src_after_deci.h,
@@ -479,7 +479,7 @@ int cfg_path_thumbscaler(struct isp_path_desc *path)
 }
 
 static int cfg_fbd_raw(struct isp_pipe_context *pctx,
-	struct isp_ctx_size_desc *cfg_in)
+		struct isp_ctx_size_desc *cfg_in)
 {
 	int32_t tile_col = 0, tile_row = 0;
 	int32_t crop_start_x = 0, crop_start_y = 0,
@@ -489,7 +489,7 @@ static int cfg_fbd_raw(struct isp_pipe_context *pctx,
 	int32_t img_width = cfg_in->src.w;
 	int32_t end_x = 0, end_y = 0,
 		left_tiles_num = 0, right_tiles_num = 0,
-		middle_tiles_num = 0, left_size,right_size = 0;
+		middle_tiles_num = 0, left_size, right_size = 0;
 	int32_t up_tiles_num = 0, down_tiles_num = 0,
 		vertical_middle_tiles_num = 0,
 		up_size = 0, down_size = 0;
@@ -513,11 +513,11 @@ static int cfg_fbd_raw(struct isp_pipe_context *pctx,
 
 	tile_col = (fbd_raw->width + ISP_FBD_TILE_WIDTH - 1) / ISP_FBD_TILE_WIDTH;
 	tile_col = (tile_col + 2 - 1) / 2 * 2;
-	tile_row =(fbd_raw->height + ISP_FBD_TILE_HEIGHT - 1)/ ISP_FBD_TILE_HEIGHT;
+	tile_row = (fbd_raw->height + ISP_FBD_TILE_HEIGHT - 1) / ISP_FBD_TILE_HEIGHT;
 
 	fbd_raw->tiles_num_pitch = tile_col;
 	fbd_raw->low_bit_pitch = fbd_raw->tiles_num_pitch * ISP_FBD_TILE_WIDTH / 2;
-	if(0 == fbd_raw->fetch_fbd_4bit_bypass)
+	if (fbd_raw->fetch_fbd_4bit_bypass == 0)
 		fbd_raw->low_4bit_pitch = fbd_raw->tiles_num_pitch * ISP_FBD_TILE_WIDTH;
 
 	if (fbd_raw->trim.size_x != fbd_raw->size.w ||
@@ -540,11 +540,12 @@ static int cfg_fbd_raw(struct isp_pipe_context *pctx,
 			left_size = 0;
 		} else {
 			left_tiles_num = 1;
-			left_size = ISP_FBD_TILE_WIDTH - crop_start_x %  ISP_FBD_TILE_WIDTH;
+			left_size = ISP_FBD_TILE_WIDTH - crop_start_x % ISP_FBD_TILE_WIDTH;
 		}
 		if ((end_x + 1) % ISP_FBD_TILE_WIDTH == 0)
 			right_tiles_num = 0;
-		else right_tiles_num = 1;
+		else
+			right_tiles_num = 1;
 		right_size = (end_x + 1) % ISP_FBD_TILE_WIDTH;
 		middle_tiles_num = (crop_width - left_size - right_size) / ISP_FBD_TILE_WIDTH;
 
@@ -557,7 +558,8 @@ static int cfg_fbd_raw(struct isp_pipe_context *pctx,
 		}
 		if ((end_y + 1) % ISP_FBD_TILE_HEIGHT == 0)
 			down_tiles_num = 0;
-		else down_tiles_num = 1;
+		else
+			down_tiles_num = 1;
 		down_size = (end_y + 1) % ISP_FBD_TILE_HEIGHT;
 		vertical_middle_tiles_num = (crop_height - up_size - down_size) / ISP_FBD_TILE_HEIGHT;
 		fbd_raw->pixel_start_in_hor = crop_start_x % ISP_FBD_TILE_WIDTH;
@@ -569,8 +571,8 @@ static int cfg_fbd_raw(struct isp_pipe_context *pctx,
 			(left_offset_tiles_num + up_offset_tiles_num * tiles_num_pitch) / 2;
 		fbd_raw->tile_addr_offset_x256 =
 			(left_offset_tiles_num + up_offset_tiles_num * tiles_num_pitch) * ISP_FBD_BASE_ALIGN;
-		fbd_raw->low_bit_addr_offset = (crop_start_x + crop_start_y * img_width) /2;
-		if(0 == fbd_raw->fetch_fbd_4bit_bypass)
+		fbd_raw->low_bit_addr_offset = (crop_start_x + crop_start_y * img_width) / 2;
+		if (fbd_raw->fetch_fbd_4bit_bypass == 0)
 			fbd_raw->low_4bit_addr_offset = (crop_start_x + crop_start_y * img_width);
 		pr_debug("addr offset:header 0x%x, 8bit 0x%x, 2bit 0x%x, 4bit 0x%x\n",
 			fbd_raw->header_addr_offset, fbd_raw->tile_addr_offset_x256,
@@ -584,7 +586,7 @@ static int cfg_fbd_raw(struct isp_pipe_context *pctx,
 		fbd_raw->header_addr_offset = 0;
 		fbd_raw->tile_addr_offset_x256 = 0;
 		fbd_raw->low_bit_addr_offset = 0;
-		if(0 == fbd_raw->fetch_fbd_4bit_bypass)
+		if (fbd_raw->fetch_fbd_4bit_bypass == 0)
 			fbd_raw->low_4bit_addr_offset = 0;
 	}
 
@@ -624,7 +626,7 @@ int isp_cfg_ctx_base(struct isp_pipe_context *pctx, void *param)
 	else
 		pctx->dispatch_color = 2; /* yuv */
 
-	pr_info("ctx%d, in_fmt 0x%x, %d %d %d %d %d %d \n",
+	pr_info("ctx%d, in_fmt 0x%x, %d %d %d %d %d %d\n",
 		pctx->ctx_id, pctx->in_fmt, pctx->mode_3dnr,
 		pctx->mode_ltm, pctx->fetch_path_sel,
 		pctx->dispatch_bayer_mode, pctx->dispatch_color, pctx->is_loose);
@@ -665,8 +667,9 @@ int isp_cfg_ctx_size(struct isp_pipe_context *pctx, void *param)
 	pctx->input_trim = cfg_in->crop;
 
 	/*Bug 1024606 sw workaround
-	fetch fbd crop isp timeout when crop.start_y % 4 == 2 */
-	if(pctx->fetch_path_sel && (cfg_in->crop.start_y % 4 == 2)) {
+	 *fetch fbd crop isp timeout when crop.start_y % 4 == 2
+	 */
+	if (pctx->fetch_path_sel && (cfg_in->crop.start_y % 4 == 2)) {
 		pctx->input_trim.start_y -= 2;
 		pctx->input_trim.size_y += 2;
 		pr_info("fbd crop start_y: %d, size_y: %d",
@@ -677,8 +680,8 @@ int isp_cfg_ctx_size(struct isp_pipe_context *pctx, void *param)
 	fetch->src = pctx->input_size;
 	fetch->in_trim = pctx->input_trim;
 	fetch->fetch_fmt = get_fetch_format(pctx->in_fmt);
-	if(pctx->in_fmt == IMG_PIX_FMT_GREY) {
-		if(pctx->is_loose == ISP_RAW_HALF14 || pctx->is_loose == ISP_RAW_HALF10)
+	if (pctx->in_fmt == IMG_PIX_FMT_GREY) {
+		if (pctx->is_loose == ISP_RAW_HALF14 || pctx->is_loose == ISP_RAW_HALF10)
 			fetch->fetch_fmt = ISP_FETCH_RAW10;
 		else
 			fetch->fetch_fmt = ISP_FETCH_CSI2_RAW10;
@@ -689,9 +692,8 @@ int isp_cfg_ctx_size(struct isp_pipe_context *pctx, void *param)
 				intrim->start_x, intrim->start_y, intrim->size_x,
 					intrim->size_y, pctx->is_loose);
 
-	if (pctx->fetch_path_sel) {
+	if (pctx->fetch_path_sel)
 		cfg_fbd_raw(pctx, cfg_in);
-	}
 
 	switch (fetch->fetch_fmt) {
 	case ISP_FETCH_YUV422_3FRAME:
@@ -896,7 +898,8 @@ int isp_cfg_path_size(struct isp_path_desc *path, void *param)
 	path->in_trim = *crop;
 
 	/*Bug 1024606 sw workaround
-	fetch fbd crop isp timeout when crop.start_y % 4 == 2 */
+	 *fetch fbd crop isp timeout when crop.start_y % 4 == 2
+	 */
 	if (pctx->fetch_path_sel && pctx->input_trim.size_y % 4 == 2) {
 		path->in_trim.start_y += 2;
 		pr_info("crop start_y: %d, trim0 start_y: %d",
@@ -913,7 +916,7 @@ int isp_cfg_path_size(struct isp_path_desc *path, void *param)
 		path->spath_id, path->src.w, path->src.h,
 		path->in_trim.start_x, path->in_trim.start_y,
 		path->in_trim.size_x, path->in_trim.size_y,
-		path->out_trim.start_x, path->out_trim.start_y ,
+		path->out_trim.start_x, path->out_trim.start_y,
 		path->out_trim.size_x, path->out_trim.size_y,
 		path->dst.w, path->dst.h);
 
@@ -1134,8 +1137,8 @@ int isp_path_set_store_frm(
 	else
 		planes = 2;
 
-	if (0 == frame->buf.iova[0]) {
-		pr_err("fail to get valid iova address, fd = 0x%x \n",
+	if (frame->buf.iova[0] == 0) {
+		pr_err("fail to get valid iova address, fd = 0x%x\n",
 			frame->buf.mfd[0]);
 		return -EINVAL;
 	}
@@ -1153,7 +1156,7 @@ int isp_path_set_store_frm(
 			offset_u = store->pitch.pitch_ch0 * store->size.h;
 			yuv_addr[1] = yuv_addr[0] + offset_u;
 		} else {
-			yuv_addr[1] = frame->buf.iova[0] + store->total_size * 2 / 3;;
+			yuv_addr[1] = frame->buf.iova[0] + store->total_size * 2 / 3;
 		}
 	}
 
@@ -1223,7 +1226,7 @@ int isp_path_set_afbc_store_frm(
 	afbc_addr.yuv_addr = yuv_addr;
 	hw->isp_ioctl(hw, ISP_HW_CFG_AFBC_ADDR_SET, &afbc_addr);
 
-	path->afbc_store.yheader= yuv_addr[0];
+	path->afbc_store.yheader = yuv_addr[0];
 	path->afbc_store.yaddr = yuv_addr[1];
 
 	pr_debug("path %d afbc done 0x%x 0x%x\n", path->spath_id,
@@ -1233,7 +1236,7 @@ int isp_path_set_afbc_store_frm(
 }
 
 int isp_path_set_fetch_frm(struct isp_pipe_context *pctx,
-			   struct camera_frame *frame)
+		struct camera_frame *frame)
 {
 	int ret = 0;
 	int idx;
@@ -1260,10 +1263,10 @@ int isp_path_set_fetch_frm(struct isp_pipe_context *pctx,
 
 		fbd_raw = &pctx->fbd_raw;
 		dcam_if_cal_compressed_addr(pctx->input_size.w,
-					    pctx->input_size.h,
-					    frame->buf.iova[0],
-					    &fbd_addr,
-					    frame->compress_4bit_bypass);
+			pctx->input_size.h,
+			frame->buf.iova[0],
+			&fbd_addr,
+			frame->compress_4bit_bypass);
 		fbd.fbd_addr = &fbd_addr;
 		fbd.fbd_raw = fbd_raw;
 		fbd.idx = idx;
@@ -1272,13 +1275,13 @@ int isp_path_set_fetch_frm(struct isp_pipe_context *pctx,
 		fbd_raw->header_addr_init = fbd_addr.addr1;
 		fbd_raw->tile_addr_init_x256 = fbd_addr.addr1;
 		fbd_raw->low_bit_addr_init = fbd_addr.addr2;
-		if (0 == fbd_raw->fetch_fbd_4bit_bypass)
+		if (fbd_raw->fetch_fbd_4bit_bypass == 0)
 			fbd_raw->low_4bit_addr_init = fbd_addr.addr3;
 
 		pr_debug("fetch_fbd: %u 0x%lx 0x%lx, 0x%lx, size %u %u\n",
-			 frame->fid, fbd_addr.addr0,
-			 fbd_addr.addr1, fbd_addr.addr2,
-			 pctx->input_size.w, pctx->input_size.h);
+			frame->fid, fbd_addr.addr0,
+			fbd_addr.addr1, fbd_addr.addr2,
+			pctx->input_size.w, pctx->input_size.h);
 
 		return 0;
 	}

@@ -277,7 +277,7 @@ int sprd_isp_parse_dt(struct device_node *dn,
 			}
 
 			pr_info("ISP%d dts OK! regbase %lx, irq %d\n", i,
-				s_isp_regbase[0],  s_isp_irq_no[i]);
+				s_isp_regbase[0], s_isp_irq_no[i]);
 		}
 	} else {
 		pr_err("fail to match isp device node\n");
