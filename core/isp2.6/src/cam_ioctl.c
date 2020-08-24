@@ -26,8 +26,8 @@ static int img_ioctl_get_time(
 
 	memset(&ts, 0, sizeof(struct timespec));
 	ktime_get_ts(&ts);
-	utime.sec = ts.tv_sec;
-	utime.usec = ts.tv_nsec / NSEC_PER_USEC;
+	utime.sec = (uint32_t)ts.tv_sec;
+	utime.usec = (uint32_t)(ts.tv_nsec / NSEC_PER_USEC);
 	pr_debug("get_time %d.%06d\n", utime.sec, utime.usec);
 
 	ret = copy_to_user((void __user *)arg, &utime,
@@ -234,7 +234,7 @@ static int img_ioctl_cfg_param(
 	if ((param.scene_id == PM_SCENE_FDRL) ||
 		(param.scene_id == PM_SCENE_FDRH))
 		for_fdr = 1;
-	for_capture = (param.scene_id == PM_SCENE_CAP) | for_fdr;
+	for_capture = (param.scene_id == PM_SCENE_CAP ? 1 : 0) | for_fdr;
 
 	if (for_capture &&
 		(module->channel[CAM_CH_CAP].enable == 0)) {
@@ -252,7 +252,7 @@ static int img_ioctl_cfg_param(
 	mutex_lock(&module->fdr_lock);
 	if (for_fdr && (module->fdr_init == 0)) {
 		ret = init_fdr_context(module, &module->channel[CAM_CH_CAP]);
-		if (ret) {
+		if (unlikely(ret)) {
 			pr_err("fail to init fdr\n");
 			mutex_unlock(&module->fdr_lock);
 			return 0;
