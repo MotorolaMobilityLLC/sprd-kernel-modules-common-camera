@@ -1777,7 +1777,7 @@ static int img_ioctl_stream_off(
 		module->idx, atomic_read(&module->state));
 
 	ch = &module->channel[CAM_CH_CAP];
-	mutex_lock(&ch->buf_lock);
+	mutex_lock(&module->buf_lock[ch->ch_id]);
 	if (ch && ch->enable && ch->alloc_start) {
 		ret = wait_for_completion_interruptible(&ch->alloc_com);
 		if (ret != 0)
@@ -1785,7 +1785,7 @@ static int img_ioctl_stream_off(
 		pr_debug("allsoc buffer done.\n");
 		ch->alloc_start = 0;
 	}
-	mutex_unlock(&ch->buf_lock);
+	mutex_unlock(&module->buf_lock[ch->ch_id]);
 
 	atomic_set(&module->state, CAM_STREAM_OFF);
 	module->cap_status = CAM_CAPTURE_STOP;
@@ -1877,7 +1877,7 @@ static int img_ioctl_stream_off(
 			if (isp_ctx_id[i] != -1)
 				module->isp_dev_handle->isp_ops->put_context(module->isp_dev_handle,
 					isp_ctx_id[i]);
-			mutex_lock(&ch->buf_lock);
+			mutex_lock(&module->buf_lock[ch->ch_id]);
 			if (ch->alloc_start) {
 				ret = wait_for_completion_interruptible(&ch->alloc_com);
 				if (ret != 0)
@@ -1885,7 +1885,7 @@ static int img_ioctl_stream_off(
 				pr_debug("alloc buffer done.\n");
 				ch->alloc_start = 0;
 			}
-			mutex_unlock(&ch->buf_lock);
+			mutex_unlock(&module->buf_lock[ch->ch_id]);
 			if (ch->isp_updata) {
 				struct isp_offline_param *cur, *prev;
 
@@ -2213,7 +2213,7 @@ static int img_ioctl_start_capture(
 	hw = module->grp->hw_info;
 	start_time = ktime_get_boottime();
 	ch = &module->channel[CAM_CH_CAP];
-	mutex_lock(&ch->buf_lock);
+	mutex_lock(&module->buf_lock[ch->ch_id]);
 	if (ch && ch->alloc_start) {
 		ret = wait_for_completion_interruptible(&ch->alloc_com);
 		if (ret != 0)
@@ -2221,7 +2221,7 @@ static int img_ioctl_start_capture(
 		pr_debug("alloc buffer done.\n");
 		ch->alloc_start = 0;
 	}
-	mutex_unlock(&ch->buf_lock);
+	mutex_unlock(&module->buf_lock[ch->ch_id]);
 
 	module->capture_scene = param.cap_scene;
 	isp_idx = module->channel[CAM_CH_CAP].isp_ctx_id;

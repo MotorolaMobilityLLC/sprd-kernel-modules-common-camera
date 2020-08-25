@@ -233,7 +233,6 @@ struct channel_context {
 	/* dcam/isp shared frame buffer for full path */
 	struct camera_queue share_buf_queue;
 	struct camera_queue zoom_coeff_queue; /* channel specific coef queue */
-	struct mutex buf_lock;
 };
 
 struct camera_module {
@@ -274,6 +273,7 @@ struct camera_module {
 
 	uint32_t last_channel_id;
 	struct channel_context channel[CAM_CH_MAX];
+	struct mutex buf_lock[CAM_CH_MAX];
 
 	struct completion frm_com;
 	struct camera_queue frm_queue; /* frame message queue for user*/
@@ -3082,9 +3082,9 @@ static int config_channel_size(
 			CAM_SHARED_BUF_NUM, put_k_frame);
 
 		/* alloc middle buffer for channel */
-		mutex_lock(&channel->buf_lock);
+		mutex_lock(&module->buf_lock[channel->ch_id]);
 		channel->alloc_start = 1;
-		mutex_unlock(&channel->buf_lock);
+		mutex_unlock(&module->buf_lock[channel->ch_id]);
 
 		alloc_buf = get_empty_frame();
 		alloc_buf->priv_data = (void *)channel;
@@ -4716,7 +4716,7 @@ static int camera_module_init(struct camera_module *module)
 		channel->dcam_path_id = -1;
 		channel->isp_ctx_id = -1;
 		channel->isp_path_id = -1;
-		mutex_init(&channel->buf_lock);
+		mutex_init(&module->buf_lock[channel->ch_id]);
 		init_completion(&channel->alloc_com);
 	}
 
@@ -4789,7 +4789,7 @@ static int camera_module_deinit(struct camera_module *module)
 	camera_stop_thread(&module->dump_thrd);
 	for (ch = 0; ch < CAM_CH_MAX; ch++) {
 		channel = &module->channel[ch];
-		mutex_destroy(&channel->buf_lock);
+		mutex_destroy(&module->buf_lock[channel->ch_id]);
 	}
 	mutex_destroy(&module->fdr_lock);
 	mutex_destroy(&module->lock);
