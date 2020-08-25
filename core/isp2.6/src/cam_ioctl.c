@@ -17,8 +17,8 @@
 /*---------------  Misc interface start --------------- */
 
 static int img_ioctl_get_time(
-			struct camera_module *module,
-			unsigned long arg)
+		struct camera_module *module,
+		unsigned long arg)
 {
 	int ret = 0;
 	struct sprd_img_time utime;
@@ -31,7 +31,7 @@ static int img_ioctl_get_time(
 	pr_debug("get_time %d.%06d\n", utime.sec, utime.usec);
 
 	ret = copy_to_user((void __user *)arg, &utime,
-				sizeof(struct sprd_img_time));
+		sizeof(struct sprd_img_time));
 	if (unlikely(ret)) {
 		pr_err("fail to put user info, ret %d\n", ret);
 		return -EFAULT;
@@ -48,8 +48,8 @@ static int img_ioctl_set_flash(
 	struct sprd_img_set_flash set_param;
 
 	ret = copy_from_user((void *)&set_param,
-				(void __user *)arg,
-				sizeof(struct sprd_img_set_flash));
+		(void __user *)arg,
+		sizeof(struct sprd_img_set_flash));
 	if (ret) {
 		pr_err("fail to get user info\n");
 		ret = -EFAULT;
@@ -60,7 +60,7 @@ static int img_ioctl_set_flash(
 	module->flash_info.led1_ctrl = set_param.led1_ctrl;
 	module->flash_info.led0_status = set_param.led0_status;
 	module->flash_info.led1_status = set_param.led1_status;
-	pr_info("led0_ctrl=%d,led1_ctrl=%d\n",set_param.led0_ctrl,set_param.led1_ctrl);
+	pr_info("led0_ctrl=%d,led1_ctrl=%d\n", set_param.led0_ctrl, set_param.led1_ctrl);
 
 	ret = module->flash_core_handle->flash_core_ops->set_flash(module->flash_core_handle,
 		(void *)&set_param);
@@ -69,15 +69,15 @@ exit:
 }
 
 static int img_ioctl_cfg_flash(
-			struct camera_module *module,
-			unsigned long arg)
+		struct camera_module *module,
+		unsigned long arg)
 {
 	int ret = 0;
 	struct sprd_flash_cfg_param cfg_parm;
 
 	ret = copy_from_user((void *) &cfg_parm,
-				(void __user *)arg,
-				sizeof(struct sprd_flash_cfg_param));
+		(void __user *)arg,
+		sizeof(struct sprd_flash_cfg_param));
 	if (ret) {
 		pr_err("fail to get user info\n");
 		ret = -EFAULT;
@@ -91,8 +91,8 @@ exit:
 }
 
 static int img_ioctl_get_flash(
-			struct camera_module *module,
-			unsigned long arg)
+		struct camera_module *module,
+		unsigned long arg)
 {
 	int ret = 0;
 	struct sprd_flash_capacity flash_info = {0};
@@ -101,14 +101,14 @@ static int img_ioctl_get_flash(
 		(void *)&flash_info);
 
 	ret = copy_to_user((void __user *)arg, (void *)&flash_info,
-					sizeof(struct sprd_flash_capacity));
+		sizeof(struct sprd_flash_capacity));
 
 	return ret;
 }
 
 static int img_ioctl_get_iommu_status(
-			struct camera_module *module,
-			unsigned long arg)
+		struct camera_module *module,
+		unsigned long arg)
 {
 	int ret = 0;
 	unsigned int iommu_enable;
@@ -122,7 +122,7 @@ static int img_ioctl_get_iommu_status(
 	module->iommu_enable = iommu_enable;
 
 	ret = copy_to_user((void __user *)arg, &iommu_enable,
-				sizeof(unsigned char));
+		sizeof(unsigned char));
 
 	if (unlikely(ret)) {
 		pr_err("fail to copy to user, ret %d\n", ret);
@@ -136,15 +136,15 @@ exit:
 
 
 static int img_ioctl_set_statis_buf(
-			struct camera_module *module,
-			unsigned long arg)
+		struct camera_module *module,
+		unsigned long arg)
 {
 	int ret = 0;
 	struct channel_context *ch = NULL;
 	struct isp_statis_buf_input statis_buf;
 
 	ret = copy_from_user((void *)&statis_buf,
-			(void *)arg, sizeof(struct isp_statis_buf_input));
+		(void *)arg, sizeof(struct isp_statis_buf_input));
 	if (unlikely(ret)) {
 		pr_err("fail to copy from user, ret %d\n", ret);
 		ret = -EFAULT;
@@ -161,7 +161,7 @@ static int img_ioctl_set_statis_buf(
 	}
 
 	if ((statis_buf.type != STATIS_INIT) &&
-		(statis_buf.type < STATIS_TYPE_MAX)&&
+		(statis_buf.type < STATIS_TYPE_MAX) &&
 		(atomic_read(&module->state) != CAM_RUNNING)) {
 		pr_warn("should not configure statis buf for state %d\n",
 			atomic_read(&module->state));
@@ -175,8 +175,8 @@ static int img_ioctl_set_statis_buf(
 
 	if (statis_buf.type < STATIS_HIST2) {
 		ret = module->dcam_dev_handle->dcam_pipe_ops->ioctl(module->dcam_dev_handle,
-					DCAM_IOCTL_CFG_STATIS_BUF,
-					&statis_buf);
+			DCAM_IOCTL_CFG_STATIS_BUF,
+			&statis_buf);
 	}
 
 	if ((statis_buf.type == STATIS_INIT) ||
@@ -186,9 +186,9 @@ static int img_ioctl_set_statis_buf(
 			ch = &module->channel[CAM_CH_CAP];
 		if (ch->enable) {
 			ret = module->isp_dev_handle->isp_ops->ioctl(module->isp_dev_handle,
-					ch->isp_ctx_id,
-					ISP_IOCTL_CFG_STATIS_BUF,
-					&statis_buf);
+			ch->isp_ctx_id,
+			ISP_IOCTL_CFG_STATIS_BUF,
+			&statis_buf);
 		}
 	}
 
@@ -202,8 +202,8 @@ exit:
 }
 
 static int img_ioctl_cfg_param(
-			struct camera_module *module,
-			unsigned long arg)
+		struct camera_module *module,
+		unsigned long arg)
 {
 	int ret = 0;
 	int for_capture = 0, for_fdr = 0;
@@ -213,7 +213,7 @@ static int img_ioctl_cfg_param(
 	struct dcam_pipe_dev *dev = NULL;
 
 	ret = copy_from_user((void *)&param,
-			(void *)arg, sizeof(struct isp_io_param));
+		(void *)arg, sizeof(struct isp_io_param));
 	if (unlikely(ret)) {
 		pr_err("fail to copy from user, ret %d\n", ret);
 		ret = -EFAULT;
@@ -239,9 +239,9 @@ static int img_ioctl_cfg_param(
 	if (for_capture &&
 		(module->channel[CAM_CH_CAP].enable == 0)) {
 		pr_warn("ch scene_id[%d] ch_cap en[%d] ch_pre en[%d]\n",
-				param.scene_id,
-				module->channel[CAM_CH_CAP].enable,
-				module->channel[CAM_CH_PRE].enable);
+		param.scene_id,
+		module->channel[CAM_CH_CAP].enable,
+		module->channel[CAM_CH_PRE].enable);
 
 		return 0;
 	}
@@ -296,7 +296,7 @@ static int img_ioctl_cfg_param(
 			else if (param.scene_id == PM_SCENE_FDRH)
 				isp_ctx_id = channel->isp_fdrh_ctx;
 			ret = module->isp_dev_handle->isp_ops->cfg_blk_param(module->isp_dev_handle,
-					isp_ctx_id, &param);
+				isp_ctx_id, &param);
 		}
 	}
 
@@ -306,8 +306,8 @@ exit:
 
 
 static int img_ioctl_set_function_mode(
-			struct camera_module *module,
-			unsigned long arg)
+		struct camera_module *module,
+		unsigned long arg)
 {
 	int ret = 0;
 	/*struct sprd_img_sensor_if *dst;*/
@@ -347,7 +347,6 @@ exit:
 	return ret;
 }
 
-
 /*---------------  Misc interface end --------------- */
 
 
@@ -356,8 +355,8 @@ exit:
 /*---------------  capture(sensor input) config interface start -------------*/
 
 static int img_ioctl_set_sensor_if(
-			struct camera_module *module,
-			unsigned long arg)
+		struct camera_module *module,
+		unsigned long arg)
 {
 	int ret = 0;
 	struct sprd_img_sensor_if *dst;
@@ -365,8 +364,8 @@ static int img_ioctl_set_sensor_if(
 	dst = &module->cam_uinfo.sensor_if;
 
 	ret = copy_from_user(dst,
-				(void __user *)arg,
-				sizeof(struct sprd_img_sensor_if));
+		(void __user *)arg,
+		sizeof(struct sprd_img_sensor_if));
 	pr_info("sensor_if %d %x %x, %d.....mipi %d %d %d %d\n",
 		dst->if_type, dst->img_fmt, dst->img_ptn, dst->frm_deci,
 		dst->if_spec.mipi.use_href, dst->if_spec.mipi.bits_per_pxl,
@@ -383,14 +382,14 @@ exit:
 }
 
 static int img_ioctl_set_mode(
-			struct camera_module *module,
-			unsigned long arg)
+		struct camera_module *module,
+		unsigned long arg)
 {
 	int ret = 0;
 
 	ret = copy_from_user(&module->cam_uinfo.capture_mode,
-				(void __user *)arg,
-				sizeof(uint32_t));
+		(void __user *)arg,
+		sizeof(uint32_t));
 
 	pr_info("mode %d\n", module->cam_uinfo.capture_mode);
 	if (unlikely(ret)) {
@@ -404,16 +403,16 @@ exit:
 }
 
 static int img_ioctl_set_cam_security(
-			struct camera_module *module,
-			unsigned long arg)
+		struct camera_module *module,
+		unsigned long arg)
 {
 	int ret = 0;
 	bool sec_ret = 0;
 	struct sprd_cam_sec_cfg uparam;
 
 	ret = copy_from_user(&uparam,
-				(void __user *)arg,
-				sizeof(struct sprd_cam_sec_cfg));
+		(void __user *)arg,
+		sizeof(struct sprd_cam_sec_cfg));
 
 	if (unlikely(ret)) {
 		pr_err("fail to copy from user, ret %d\n", ret);
@@ -422,9 +421,9 @@ static int img_ioctl_set_cam_security(
 	}
 
 	pr_info("camca : conn = %d, security mode %d,  u camsec_mode=%d, u work_mode=%d\n",
-				module->grp->ca_conn,
-				module->grp->camsec_cfg.camsec_mode,
-				uparam.camsec_mode, uparam.work_mode);
+		module->grp->ca_conn,
+		module->grp->camsec_cfg.camsec_mode,
+		uparam.camsec_mode, uparam.work_mode);
 
 	if (uparam.camsec_mode != SEC_UNABLE) {
 		if (!module->grp->ca_conn)
@@ -461,8 +460,8 @@ exit:
 }
 
 static int img_ioctl_set_sensor_size(
-			struct camera_module *module,
-			unsigned long arg)
+		struct camera_module *module,
+		unsigned long arg)
 {
 	int ret = 0;
 	struct sprd_img_size *dst;
@@ -470,8 +469,8 @@ static int img_ioctl_set_sensor_size(
 	dst = &module->cam_uinfo.sn_size;
 
 	ret = copy_from_user(dst,
-				(void __user *)arg,
-				sizeof(struct sprd_img_size));
+		(void __user *)arg,
+		sizeof(struct sprd_img_size));
 
 	pr_info("sensor_size %d %d\n", dst->w, dst->h);
 	module->cam_uinfo.dcam_slice_mode = dst->w > DCAM_24M_WIDTH ? CAM_OFFLINE_SLICE_HW : 0;
@@ -486,8 +485,8 @@ exit:
 }
 
 static int img_ioctl_set_sensor_trim(
-			struct camera_module *module,
-			unsigned long arg)
+		struct camera_module *module,
+		unsigned long arg)
 {
 	int ret = 0;
 	struct sprd_img_rect *dst;
@@ -495,8 +494,8 @@ static int img_ioctl_set_sensor_trim(
 	dst = &module->cam_uinfo.sn_rect;
 
 	ret = copy_from_user(dst,
-				(void __user *)arg,
-				sizeof(struct sprd_img_rect));
+		(void __user *)arg,
+		sizeof(struct sprd_img_rect));
 	pr_info("sensor_trim %d %d %d %d\n", dst->x, dst->y, dst->w, dst->h);
 	/* make sure MIPI CAP size is 4 pixel aligned */
 	if (unlikely(ret || (dst->w | dst->h) & (DCAM_MIPI_CAP_ALIGN - 1))) {
@@ -510,8 +509,8 @@ exit:
 }
 
 static int img_ioctl_set_sensor_max_size(
-			struct camera_module *module,
-			unsigned long arg)
+		struct camera_module *module,
+		unsigned long arg)
 {
 	int ret = 0;
 	struct sprd_img_size *dst;
@@ -519,8 +518,8 @@ static int img_ioctl_set_sensor_max_size(
 	dst = &module->cam_uinfo.sn_max_size;
 
 	ret = copy_from_user(dst,
-				(void __user *)arg,
-				sizeof(struct sprd_img_size));
+		(void __user *)arg,
+		sizeof(struct sprd_img_size));
 	pr_info("sensor_max_size %d %d\n", dst->w, dst->h);
 
 	if (unlikely(ret)) {
@@ -534,8 +533,8 @@ exit:
 }
 
 static int img_ioctl_set_cap_skip_num(
-			struct camera_module *module,
-			unsigned long arg)
+		struct camera_module *module,
+		unsigned long arg)
 {
 	int ret = 0;
 	uint32_t *dst;
@@ -543,8 +542,8 @@ static int img_ioctl_set_cap_skip_num(
 	dst = &module->cam_uinfo.capture_skip;
 
 	ret = copy_from_user(dst,
-				(void __user *)arg,
-				sizeof(uint32_t));
+		(void __user *)arg,
+		sizeof(uint32_t));
 	if (unlikely(ret)) {
 		pr_err("fail to copy from user, ret %d\n", ret);
 		return -EFAULT;
@@ -554,7 +553,6 @@ static int img_ioctl_set_cap_skip_num(
 	return 0;
 }
 
-
 /*---------------  capture(sensor input) config interface end --------------- */
 
 
@@ -562,8 +560,8 @@ static int img_ioctl_set_cap_skip_num(
 /*---------------  Channel config interface start --------------- */
 
 static int img_ioctl_set_output_size(
-			struct camera_module *module,
-			unsigned long arg)
+		struct camera_module *module,
+		unsigned long arg)
 {
 	int ret = 0;
 	uint32_t scene_mode;
@@ -592,8 +590,8 @@ static int img_ioctl_set_output_size(
 		(module->channel[CAM_CH_RAW].enable == 0)) {
 		channel = &module->channel[CAM_CH_RAW];
 		channel->enable = 1;
-	} else if ((scene_mode == DCAM_SCENE_MODE_PREVIEW)  &&
-			(module->channel[CAM_CH_PRE].enable == 0)) {
+	} else if ((scene_mode == DCAM_SCENE_MODE_PREVIEW) &&
+		(module->channel[CAM_CH_PRE].enable == 0)) {
 		channel = &module->channel[CAM_CH_PRE];
 		channel->enable = 1;
 	} else if (((scene_mode == DCAM_SCENE_MODE_RECORDING) ||
@@ -601,8 +599,8 @@ static int img_ioctl_set_output_size(
 			(module->channel[CAM_CH_VID].enable == 0)) {
 		channel = &module->channel[CAM_CH_VID];
 		channel->enable = 1;
-	} else if ((scene_mode == DCAM_SCENE_MODE_CAPTURE)  &&
-			(module->channel[CAM_CH_CAP].enable == 0)) {
+	} else if ((scene_mode == DCAM_SCENE_MODE_CAPTURE) &&
+		(module->channel[CAM_CH_CAP].enable == 0)) {
 		channel = &module->channel[CAM_CH_CAP];
 		channel->enable = 1;
 	} else if (module->channel[CAM_CH_PRE].enable == 0) {
@@ -647,7 +645,7 @@ static int img_ioctl_set_output_size(
 	ret |= get_user(dst->slave_img_en, &uparam->aux_img.enable);
 	ret |= get_user(dst->slave_img_fmt, &uparam->aux_img.pixel_fmt);
 	ret |= copy_from_user(&dst->slave_img_size,
-			&uparam->aux_img.dst_size, sizeof(struct sprd_img_size));
+		&uparam->aux_img.dst_size, sizeof(struct sprd_img_size));
 
 	// TODO get this from HAL
 	dst->is_compressed = 0;
@@ -669,8 +667,8 @@ exit:
 }
 
 static int img_ioctl_get_ch_id(
-			struct camera_module *module,
-			unsigned long arg)
+		struct camera_module *module,
+		unsigned long arg)
 {
 	int ret = 0;
 
@@ -688,7 +686,7 @@ static int img_ioctl_get_ch_id(
 	pr_info("cam_channel: get ch id: %d\n", module->last_channel_id);
 
 	ret = copy_to_user((void __user *)arg, &module->last_channel_id,
-				sizeof(uint32_t));
+		sizeof(uint32_t));
 	if (unlikely(ret))
 		pr_err("fail to copy to user. ret %d\n", ret);
 
@@ -699,15 +697,15 @@ exit:
 }
 
 static int img_ioctl_dcam_path_size(
-			struct camera_module *module,
-			unsigned long arg)
+		struct camera_module *module,
+		unsigned long arg)
 {
 	int ret = 0;
 	struct sprd_dcam_path_size param;
 
 	ret = copy_from_user(
-			&param, (void __user *)arg,
-			sizeof(struct sprd_dcam_path_size));
+		&param, (void __user *)arg,
+		sizeof(struct sprd_dcam_path_size));
 	param.dcam_out_w = param.dcam_in_w;
 	param.dcam_out_h = param.dcam_in_h;
 
@@ -728,17 +726,15 @@ static int img_ioctl_dcam_path_size(
 			param.dcam_out_w, param.dcam_out_h);
 
 	ret = copy_to_user((void __user *)arg, &param,
-			sizeof(struct sprd_dcam_path_size));
+		sizeof(struct sprd_dcam_path_size));
 
 exit:
 	return ret;
 }
 
-
-
 static int img_ioctl_set_shrink(
-			struct camera_module *module,
-			unsigned long arg)
+		struct camera_module *module,
+		unsigned long arg)
 {
 	int ret = 0;
 	uint32_t channel_id;
@@ -770,7 +766,7 @@ exit:
 }
 
  static int img_ioctl_ebd_control(struct camera_module *module,
-			 unsigned long arg)
+		unsigned long arg)
 {
 	int ret = 0;
 	struct sprd_ebd_control ebd_tmp;
@@ -788,7 +784,7 @@ exit:
 		return 0;
 
 	ret = copy_from_user(&ebd_tmp, &uparam->ebd_ctrl,
-			sizeof(struct sprd_ebd_control));
+		sizeof(struct sprd_ebd_control));
 	if (unlikely(ret)) {
 		pr_err("fail to copy pdaf param from user, ret %d\n", ret);
 		return -EFAULT;
@@ -798,20 +794,20 @@ exit:
 		ebd_tmp.image_vc, ebd_tmp.image_dt);
 
 	ret = module->dcam_dev_handle->dcam_pipe_ops->ioctl(module->dcam_dev_handle,
-				DCAM_IOCTL_CFG_EBD, &ebd_tmp);
+		DCAM_IOCTL_CFG_EBD, &ebd_tmp);
 
 	return ret;
 }
 
 static int img_ioctl_set_zoom_mode(
-			struct camera_module *module,
-			unsigned long arg)
+		struct camera_module *module,
+		unsigned long arg)
 {
 	int ret = 0;
 
 	ret = copy_from_user(&module->is_smooth_zoom,
-			     (void __user *)arg,
-			     sizeof(uint32_t));
+		(void __user *)arg,
+		sizeof(uint32_t));
 
 	pr_info("is_smooth_zoom %d\n", module->is_smooth_zoom);
 	if (unlikely(ret)) {
@@ -825,8 +821,8 @@ exit:
 }
 
 static int img_ioctl_set_crop(
-			struct camera_module *module,
-			unsigned long arg)
+		struct camera_module *module,
+		unsigned long arg)
 {
 	int ret = 0, zoom = 0;
 	uint32_t channel_id;
@@ -878,8 +874,8 @@ static int img_ioctl_set_crop(
 	}
 
 	ret = copy_from_user(crop,
-			(void __user *)&uparam->crop_rect,
-			sizeof(struct sprd_img_rect));
+		(void __user *)&uparam->crop_rect,
+		sizeof(struct sprd_img_rect));
 	if (unlikely(ret)) {
 		pr_err("fail to copy from user, ret %d\n", ret);
 		goto exit;
@@ -952,15 +948,15 @@ exit:
 }
 
 static int img_ioctl_get_fmt(
-			struct camera_module *module,
-			unsigned long arg)
+		struct camera_module *module,
+		unsigned long arg)
 {
 	int ret = 0;
 	struct sprd_img_get_fmt fmt_desc;
 	struct camera_format *fmt = NULL;
 
 	ret = copy_from_user(&fmt_desc, (void __user *)arg,
-				sizeof(struct sprd_img_get_fmt));
+		sizeof(struct sprd_img_get_fmt));
 	if (unlikely(ret)) {
 		pr_err("fail to copy from user ret %d\n", ret);
 		ret = -EFAULT;
@@ -976,8 +972,8 @@ static int img_ioctl_get_fmt(
 	fmt_desc.fmt = fmt->fourcc;
 
 	ret = copy_to_user((void __user *)arg,
-				&fmt_desc,
-				sizeof(struct sprd_img_get_fmt));
+		&fmt_desc,
+		sizeof(struct sprd_img_get_fmt));
 	if (unlikely(ret)) {
 		pr_err("fail to put user info, GET_FMT, ret %d\n", ret);
 		ret = -EFAULT;
@@ -988,8 +984,8 @@ exit:
 }
 
 static int img_ioctl_check_fmt(
-			struct camera_module *module,
-			unsigned long arg)
+		struct camera_module *module,
+		unsigned long arg)
 {
 	int ret = 0;
 	uint32_t channel_id;
@@ -1003,8 +999,8 @@ static int img_ioctl_check_fmt(
 
 	pr_debug("check fmt\n");
 	ret = copy_from_user(&img_format,
-				(void __user *)arg,
-				sizeof(struct sprd_img_format));
+		(void __user *)arg,
+		sizeof(struct sprd_img_format));
 	if (ret) {
 		pr_err("fail to get img_format\n");
 		return -EFAULT;
@@ -1033,8 +1029,8 @@ static int img_ioctl_check_fmt(
 
 	img_format.need_binning = 0;
 	ret = copy_to_user((void __user *)arg,
-			&img_format,
-			sizeof(struct sprd_img_format));
+		&img_format,
+		sizeof(struct sprd_img_format));
 	if (ret) {
 		ret = -EFAULT;
 		pr_err("fail to copy to user\n");
@@ -1045,8 +1041,8 @@ exit:
 }
 
 static int img_ioctl_set_frame_addr(
-			struct camera_module *module,
-			unsigned long arg)
+		struct camera_module *module,
+		unsigned long arg)
 {
 	int ret = 0;
 	uint32_t i, j, cmd;
@@ -1062,7 +1058,7 @@ static int img_ioctl_set_frame_addr(
 	}
 
 	ret = copy_from_user(&param, (void __user *)arg,
-				sizeof(struct sprd_img_parm));
+		sizeof(struct sprd_img_parm));
 	if (ret) {
 		pr_err("fail to copy from user. ret %d\n", ret);
 		return -EFAULT;
@@ -1077,11 +1073,11 @@ static int img_ioctl_set_frame_addr(
 	}
 
 	pr_debug("ch %d, buffer_count %d\n", param.channel_id,
-			param.buffer_count);
+		param.buffer_count);
 
 	if (param.channel_id == CAM_CH_CAP) {
 		pr_info("ch %d, buffer_count %d\n", param.channel_id,
-				param.buffer_count);
+		param.buffer_count);
 	}
 
 	ch_prv = &module->channel[CAM_CH_PRE];
@@ -1150,7 +1146,7 @@ static int img_ioctl_set_frame_addr(
 					pr_debug("pframe1->buf.size[%d] = %d\n", j, (int)pframe1->buf.size[j]);
 				}
 				ret = module->dcam_dev_handle->dcam_pipe_ops->cfg_path(module->dcam_dev_handle,
-						cmd, ch->dcam_path_id, pframe1);
+					cmd, ch->dcam_path_id, pframe1);
 				if (ret) {
 					cambuf_put_ionbuf(&pframe1->buf);
 					put_empty_frame(pframe1);
@@ -1165,9 +1161,9 @@ static int img_ioctl_set_frame_addr(
 				cmd = ISP_PATH_CFG_OUTPUT_RESERVED_BUF;
 			}
 			ret = module->isp_dev_handle->isp_ops->cfg_path(module->isp_dev_handle, cmd,
-					ch->isp_ctx_id,
-					ch->isp_path_id,
-					pframe);
+				ch->isp_ctx_id,
+				ch->isp_path_id,
+				pframe);
 		} else {
 			cmd = DCAM_PATH_CFG_OUTPUT_BUF;
 			if (param.is_reserved_buf) {
@@ -1183,7 +1179,7 @@ static int img_ioctl_set_frame_addr(
 			}
 
 			ret = module->dcam_dev_handle->dcam_pipe_ops->cfg_path(module->dcam_dev_handle,
-					cmd, ch->dcam_path_id, pframe);
+				cmd, ch->dcam_path_id, pframe);
 			/* 4in1_raw_capture, maybe need two image once */
 			if (ch->second_path_enable) {
 				ch->is_loose = module->cam_uinfo.sensor_if.if_spec.mipi.is_loose;
@@ -1241,7 +1237,7 @@ static int img_ioctl_set_frame_addr(
  * frame rate.
  */
 static int img_ioctl_set_frm_deci(struct camera_module *module,
-				  unsigned long arg)
+		unsigned long arg)
 {
 	struct sprd_img_parm __user *uparam = NULL;
 	struct channel_context *ch = NULL;
@@ -1263,7 +1259,7 @@ static int img_ioctl_set_frm_deci(struct camera_module *module,
 	}
 
 	if ((channel_id >= CAM_CH_MAX) ||
-	    (module->channel[channel_id].enable == 0)) {
+		(module->channel[channel_id].enable == 0)) {
 		pr_err("fail to get valid channel id %d\n", channel_id);
 		return -EPERM;
 	}
@@ -1275,8 +1271,8 @@ static int img_ioctl_set_frm_deci(struct camera_module *module,
 }
 
 static int img_ioctl_set_frame_id_base(
-			struct camera_module *module,
-			unsigned long arg)
+		struct camera_module *module,
+		unsigned long arg)
 {
 	int ret = 0;
 	uint32_t channel_id, frame_id_base;
@@ -1290,7 +1286,7 @@ static int img_ioctl_set_frame_id_base(
 	}
 
 	uparam = (struct sprd_img_parm __user *)arg;
-	ret =  get_user(channel_id, &uparam->channel_id);
+	ret = get_user(channel_id, &uparam->channel_id);
 	ret |= get_user(frame_id_base, &uparam->frame_base_id);
 	if (ret) {
 		pr_err("fail to get from user. ret %d\n", ret);
@@ -1315,8 +1311,8 @@ static int img_ioctl_set_frame_id_base(
 /*--------------- Core controlling interface start --------------- */
 
 static int img_ioctl_get_cam_res(
-			struct camera_module *module,
-			unsigned long arg)
+		struct camera_module *module,
+		unsigned long arg)
 {
 	int ret = 0;
 	int dcam_idx, retry = 1;
@@ -1327,7 +1323,7 @@ static int img_ioctl_get_cam_res(
 	void *isp = NULL;
 
 	ret = copy_from_user(&res, (void __user *)arg,
-				sizeof(struct sprd_img_res));
+		sizeof(struct sprd_img_res));
 	if (ret) {
 		pr_err("fail to copy_from_user\n");
 		return -EFAULT;
@@ -1345,7 +1341,7 @@ static int img_ioctl_get_cam_res(
 	rps_info =  !!res.flag;
 	module->simulator = rps_info;
 	if (unlikely(rps_info)) {
-		 if (res.sensor_id >= DCAM_ID_MAX) {
+		if (res.sensor_id >= DCAM_ID_MAX) {
 			/* invalid sensor id means no senor and any DCAM is OK */
 			/* camera offline simulator should set to it */
 			dcam_idx = DCAM_ID_0;
@@ -1390,10 +1386,10 @@ check:
 		module->grp->camsec_cfg.camsec_mode);
 
 	if (module->grp->camsec_cfg.camsec_mode != SEC_UNABLE) {
-		bool  sec_eb = true;
+		bool sec_eb = true;
 
 		ret = module->dcam_dev_handle->dcam_pipe_ops->ioctl(module->dcam_dev_handle,
-				DCAM_IOCTL_CFG_SEC, &sec_eb);
+			DCAM_IOCTL_CFG_SEC, &sec_eb);
 	}
 
 	if (ret) {
@@ -1403,7 +1399,7 @@ check:
 
 	if (rps_info)
 		module->dcam_dev_handle->dcam_pipe_ops->ioctl(module->dcam_dev_handle,
-				DCAM_IOCTL_CFG_RPS, &rps_info);
+			DCAM_IOCTL_CFG_RPS, &rps_info);
 
 	ret = module->dcam_dev_handle->dcam_pipe_ops->set_callback(dcam, dcam_callback, module);
 	if (ret) {
@@ -1453,10 +1449,10 @@ check:
 		res.sensor_id, res.width, res.height, module->idx, module->dcam_idx);
 
 	pr_info("get camera res for sensor %d res %x done.\n",
-					res.sensor_id, res.flag);
+		res.sensor_id, res.flag);
 
 	ret = copy_to_user((void __user *)arg, &res,
-				sizeof(struct sprd_img_res));
+		sizeof(struct sprd_img_res));
 	if (ret) {
 		pr_err("fail to copy_to_user\n");
 		ret = -EFAULT;
@@ -1489,15 +1485,15 @@ no_dcam:
 
 
 static int img_ioctl_put_cam_res(
-			struct camera_module *module,
-			unsigned long arg)
+		struct camera_module *module,
+		unsigned long arg)
 {
 	int ret = 0;
 	uint32_t idx;
 	struct sprd_img_res res = {0};
 
 	ret = copy_from_user(&res, (void __user *)arg,
-				sizeof(struct sprd_img_res));
+		sizeof(struct sprd_img_res));
 	if (ret) {
 		pr_err("fail to copy_from_user\n");
 		return -EFAULT;
@@ -1518,8 +1514,8 @@ static int img_ioctl_put_cam_res(
 
 	if (module->attach_sensor_id != res.sensor_id) {
 		pr_warn("warn: mismatch sensor id: %d, %d for cam %d\n",
-				module->attach_sensor_id, res.sensor_id,
-				module->idx);
+			module->attach_sensor_id, res.sensor_id,
+			module->idx);
 	}
 
 	module->attach_sensor_id = -1;
@@ -1541,7 +1537,7 @@ static int img_ioctl_put_cam_res(
 		res.sensor_id, res.width, res.height, module->idx);
 
 	pr_info("put camera res for sensor %d res %x done.",
-					res.sensor_id, res.flag);
+			res.sensor_id, res.flag);
 	ret = copy_to_user((void __user *)arg, &res,
 			sizeof(struct sprd_img_res));
 	if (ret)
@@ -1551,8 +1547,8 @@ static int img_ioctl_put_cam_res(
 }
 
 static int img_ioctl_stream_on(
-			struct camera_module *module,
-			unsigned long arg)
+		struct camera_module *module,
+		unsigned long arg)
 {
 	int ret = 0;
 	uint32_t online = 1;
@@ -1575,7 +1571,7 @@ static int img_ioctl_stream_on(
 
 	if (atomic_read(&module->state) != CAM_CFG_CH) {
 		pr_info("cam%d error state: %d\n", module->idx,
-				atomic_read(&module->state));
+			atomic_read(&module->state));
 		return -EFAULT;
 	}
 
@@ -1636,7 +1632,7 @@ cfg_ch_done:
 	}
 
 	ret = module->dcam_dev_handle->dcam_pipe_ops->ioctl(module->dcam_dev_handle,
-				DCAM_IOCTL_INIT_STATIS_Q, NULL);
+		DCAM_IOCTL_INIT_STATIS_Q, NULL);
 
 	for (i = 0;  i < CAM_CH_MAX; i++) {
 		ch = &module->channel[i];
@@ -1647,15 +1643,15 @@ cfg_ch_done:
 
 		uframe_sync = ch->ch_id != CAM_CH_CAP;
 		ret = module->isp_dev_handle->isp_ops->cfg_path(module->isp_dev_handle,
-					ISP_PATH_CFG_PATH_UFRAME_SYNC,
-					ch->isp_ctx_id,
-					ch->isp_path_id,
-					&uframe_sync);
+			ISP_PATH_CFG_PATH_UFRAME_SYNC,
+			ch->isp_ctx_id,
+			ch->isp_path_id,
+			&uframe_sync);
 		ret = module->isp_dev_handle->isp_ops->cfg_path(module->isp_dev_handle,
-					ISP_PATH_CFG_CTX_UFRAME_SYNC,
-					ch->isp_ctx_id,
-					ch->isp_path_id,
-					&uframe_sync);
+			ISP_PATH_CFG_CTX_UFRAME_SYNC,
+			ch->isp_ctx_id,
+			ch->isp_path_id,
+			&uframe_sync);
 
 		camera_queue_init(&ch->zoom_coeff_queue,
 			(module->is_smooth_zoom ? CAM_ZOOM_COEFF_Q_LEN : 1),
@@ -1689,17 +1685,17 @@ cfg_ch_done:
 			isp_path_id = ch->isp_path_id;
 
 			module->isp_dev_handle->isp_ops->cfg_path(module->isp_dev_handle,
-						ISP_PATH_CFG_PATH_UFRAME_SYNC,
-						isp_ctx_id, isp_path_id,
-						&uframe_sync);
+				ISP_PATH_CFG_PATH_UFRAME_SYNC,
+				isp_ctx_id, isp_path_id,
+				&uframe_sync);
 		}
 	}
 
 	camera_queue_init(&module->zsl_fifo_queue,
-			CAM_SHARED_BUF_NUM, put_k_frame);
+		CAM_SHARED_BUF_NUM, put_k_frame);
 	/* no need release buffer, only release camera_frame */
 	camera_queue_init(&module->remosaic_queue,
-			CAM_IRQ_Q_LEN, cam_release_camera_frame);
+		CAM_IRQ_Q_LEN, cam_release_camera_frame);
 
 	set_cap_info(module);
 
@@ -1757,8 +1753,8 @@ exit:
 
 
 static int img_ioctl_stream_off(
-			struct camera_module *module,
-			unsigned long arg)
+		struct camera_module *module,
+		unsigned long arg)
 {
 	int ret = 0;
 	uint32_t i, j;
@@ -1772,7 +1768,7 @@ static int img_ioctl_stream_off(
 	if ((atomic_read(&module->state) != CAM_RUNNING) &&
 		(atomic_read(&module->state) != CAM_CFG_CH)) {
 		pr_info("cam%d state: %d\n", module->idx,
-				atomic_read(&module->state));
+			atomic_read(&module->state));
 		return -EFAULT;
 	}
 
@@ -1847,9 +1843,9 @@ static int img_ioctl_stream_off(
 		}
 
 		pr_info("clear ch %d, dcam path %d, isp path 0x%x\n",
-				ch->ch_id,
-				ch->dcam_path_id,
-				ch->isp_path_id);
+			ch->ch_id,
+			ch->dcam_path_id,
+			ch->isp_path_id);
 		/* prv & vid use same dcam bin path, no need to put it twice */
 		if (ch->ch_id == CAM_CH_VID && ch_prv->enable)
 			dcam_path_id = -1;
@@ -1862,13 +1858,13 @@ static int img_ioctl_stream_off(
 		if (ch->isp_path_id >= 0) {
 			isp_ctx_id[i] = ch->isp_ctx_id;
 			module->isp_dev_handle->isp_ops->put_path(module->isp_dev_handle,
-					isp_ctx_id[i],
-					ch->isp_path_id);
+				isp_ctx_id[i],
+				ch->isp_path_id);
 		}
 		if (ch->slave_isp_path_id >= 0) {
 			module->isp_dev_handle->isp_ops->put_path(module->isp_dev_handle,
-					isp_ctx_id[i],
-					ch->slave_isp_path_id);
+				isp_ctx_id[i],
+				ch->slave_isp_path_id);
 		}
 	}
 
@@ -1965,11 +1961,11 @@ static int img_ioctl_stream_off(
 
 	if (running) {
 		/* wait for read thread take all events in frm_queue,
-		  * frm_queue max len is CAM_FRAME_Q_LEN
-		  * then we loop for this counter.
-		  * if read thread has exited unexpectedly,
-		  * queue_clear() will clear frm_queue as well
-		  */
+		 * frm_queue max len is CAM_FRAME_Q_LEN
+		 * then we loop for this counter.
+		 * if read thread has exited unexpectedly,
+		 * queue_clear() will clear frm_queue as well
+		 */
 		j = CAM_FRAME_Q_LEN;
 		while (j--) {
 			i = camera_queue_cnt(&module->frm_queue);
@@ -2008,8 +2004,8 @@ static int img_ioctl_stream_off(
 }
 
 static int img_ioctl_stream_pause(
-			struct camera_module *module,
-			unsigned long arg)
+		struct camera_module *module,
+		unsigned long arg)
 {
 	int ret = 0;
 	uint32_t i;
@@ -2019,7 +2015,7 @@ static int img_ioctl_stream_pause(
 
 	if (atomic_read(&module->state) != CAM_RUNNING) {
 		pr_info("cam%d state: %d\n", module->idx,
-				atomic_read(&module->state));
+			atomic_read(&module->state));
 		return -EFAULT;
 	}
 
@@ -2050,7 +2046,7 @@ static int img_ioctl_stream_pause(
 		}
 	}
 
-	for (i = 0;  i < CAM_CH_MAX; i++) {
+	for (i = 0; i < CAM_CH_MAX; i++) {
 		ch = &module->channel[i];
 		if (!ch->enable || (ch->ch_id == CAM_CH_RAW))
 			continue;
@@ -2087,8 +2083,8 @@ static int img_ioctl_stream_pause(
 }
 
 static int img_ioctl_stream_resume(
-			struct camera_module *module,
-			unsigned long arg)
+		struct camera_module *module,
+		unsigned long arg)
 {
 	int ret = 0;
 	uint32_t i, online = 1;
@@ -2097,7 +2093,7 @@ static int img_ioctl_stream_resume(
 
 	if (atomic_read(&module->state) != CAM_RUNNING) {
 		pr_info("cam%d error state: %d\n", module->idx,
-				atomic_read(&module->state));
+			atomic_read(&module->state));
 		return -EFAULT;
 	}
 
@@ -2110,7 +2106,7 @@ static int img_ioctl_stream_resume(
 	}
 	mutex_unlock(&module->fdr_lock);
 
-	for (i = 0;  i < CAM_CH_MAX; i++) {
+	for (i = 0; i < CAM_CH_MAX; i++) {
 		ch = &module->channel[i];
 		if (!ch->enable)
 			continue;
@@ -2140,12 +2136,12 @@ static int img_ioctl_stream_resume(
 		config_channel_size(module, ch);
 
 	ret = module->dcam_dev_handle->dcam_pipe_ops->ioctl(module->dcam_dev_handle,
-				DCAM_IOCTL_RECFG_PARAM, NULL);
+		DCAM_IOCTL_RECFG_PARAM, NULL);
 
 	ret = module->dcam_dev_handle->dcam_pipe_ops->ioctl(module->dcam_dev_handle,
-				DCAM_IOCTL_INIT_STATIS_Q, NULL);
+		DCAM_IOCTL_INIT_STATIS_Q, NULL);
 
-	for (i = 0;  i < CAM_CH_MAX; i++) {
+	for (i = 0; i < CAM_CH_MAX; i++) {
 		ch = &module->channel[i];
 		if (!ch->enable)
 			continue;
@@ -2190,8 +2186,8 @@ exit:
 }
 
 static int img_ioctl_start_capture(
-			struct camera_module *module,
-			unsigned long arg)
+		struct camera_module *module,
+		unsigned long arg)
 {
 	int ret = 0;
 	struct sprd_img_capture_param param;
@@ -2213,7 +2209,7 @@ static int img_ioctl_start_capture(
 
 	if (atomic_read(&module->state) != CAM_RUNNING) {
 		pr_info("cam%d state: %d\n", module->idx,
-				atomic_read(&module->state));
+			atomic_read(&module->state));
 		return ret;
 	}
 	hw = module->grp->hw_info;
@@ -2254,8 +2250,8 @@ static int img_ioctl_start_capture(
 		ch_desc.endian.y_endian = ENDIAN_LITTLE;
 		ch_desc.bayer_pattern = module->cam_uinfo.sensor_if.img_ptn;
 		ret = module->dcam_dev_handle->dcam_pipe_ops->cfg_path(module->dcam_dev_handle,
-				DCAM_PATH_CFG_BASE,
-				module->channel[CAM_CH_CAP].dcam_path_id, &ch_desc);
+			DCAM_PATH_CFG_BASE,
+			module->channel[CAM_CH_CAP].dcam_path_id, &ch_desc);
 	}
 
 	atomic_set(&module->cap_skip_frames, -1);
@@ -2330,16 +2326,14 @@ static int img_ioctl_start_capture(
 	return ret;
 }
 
-
 static int img_ioctl_stop_capture(
-			struct camera_module *module,
-			unsigned long arg)
+		struct camera_module *module,
+		unsigned long arg)
 {
 	struct channel_context *channel = NULL;
 	struct cam_hw_info *hw = NULL;
 	struct cam_hw_gtm_ltm_eb eb;
 	uint32_t isp_idx = 0;
-
 
 	if (module->cap_status == CAM_CAPTURE_STOP) {
 		pr_info("cam%d alreay capture stopped\n", module->idx);
@@ -2439,7 +2433,7 @@ static int img_ioctl_raw_proc(
 		rps_info = 1;
 		pr_info("hwsim\n");
 		ret = module->dcam_dev_handle->dcam_pipe_ops->ioctl(module->dcam_dev_handle,
-				DCAM_IOCTL_CFG_RPS, &rps_info);
+			DCAM_IOCTL_CFG_RPS, &rps_info);
 		if (ret != 0) {
 			pr_err("fail to config rps %d\n", ret);
 			return -EFAULT;
@@ -2488,7 +2482,7 @@ static int img_ioctl_raw_proc(
 }
 
 static int img_ioctl_post_fdr(struct camera_module *module,
-					unsigned long arg)
+		unsigned long arg)
 {
 	int ret = 0;
 	int i;
@@ -2591,7 +2585,7 @@ static int img_ioctl_post_fdr(struct camera_module *module,
 		goto exit;
 	}
 
-#if 0 // TODO -- high zoom for fdr
+#if 0// TODO -- high zoom for fdr
 	if (ch->cap_status == TO_DO_CAP_SUPERZOOM) {
 		pframe = get_empty_frame();
 		memcpy(pframe, pfrm[0], sizeof(struct camera_frame));
@@ -2655,7 +2649,7 @@ exit:
 /* set addr for 4in1 raw which need remosaic
  */
 static int img_ioctl_4in1_set_raw_addr(struct camera_module *module,
-					unsigned long arg)
+		unsigned long arg)
 {
 	int ret;
 	enum dcam_id idx;
@@ -2665,7 +2659,7 @@ static int img_ioctl_4in1_set_raw_addr(struct camera_module *module,
 	int i, j;
 
 	ret = copy_from_user(&param, (void __user *)arg,
-				sizeof(struct sprd_img_parm));
+		sizeof(struct sprd_img_parm));
 	if (ret) {
 		pr_err("fail to copy_from_user\n");
 		return -EFAULT;
@@ -2677,7 +2671,7 @@ static int img_ioctl_4in1_set_raw_addr(struct camera_module *module,
 		(param.buffer_count == 0) ||
 		(module->channel[param.channel_id].enable == 0)) {
 		pr_err("fail to get valid channel id %d. buf cnt %d\n",
-				param.channel_id,  param.buffer_count);
+			param.channel_id,  param.buffer_count);
 		return -EFAULT;
 	}
 	pr_info("ch %d, buffer_count %d\n", param.channel_id,
@@ -2710,12 +2704,12 @@ static int img_ioctl_4in1_set_raw_addr(struct camera_module *module,
 			for (j = 0; j < 3; j++)
 				pframe->buf.size[j] = DCAM_RES_BUF_SIZE;
 			ret = module->dcam_dev_handle->dcam_pipe_ops->cfg_path(module->dcam_dev_handle,
-					DCAM_PATH_CFG_OUTPUT_RESERVED_BUF,
-					ch->dcam_path_id, pframe);
+				DCAM_PATH_CFG_OUTPUT_RESERVED_BUF,
+				ch->dcam_path_id, pframe);
 		} else {
 			ret = module->dcam_dev_handle->dcam_pipe_ops->cfg_path(module->dcam_dev_handle,
-					DCAM_PATH_CFG_OUTPUT_BUF,
-					ch->dcam_path_id, pframe);
+				DCAM_PATH_CFG_OUTPUT_BUF,
+				ch->dcam_path_id, pframe);
 		}
 
 		if (ret) {
@@ -2735,7 +2729,7 @@ static int img_ioctl_4in1_set_raw_addr(struct camera_module *module,
 /* buffer set to kernel after remosaic
  */
 static int img_ioctl_4in1_post_proc(struct camera_module *module,
-					unsigned long arg)
+		unsigned long arg)
 {
 	struct sprd_img_parm param;
 	int ret = 0;
@@ -2750,7 +2744,7 @@ static int img_ioctl_4in1_post_proc(struct camera_module *module,
 	uint32_t shutoff = 0;
 
 	ret = copy_from_user(&param, (void __user *)arg,
-				sizeof(struct sprd_img_parm));
+		sizeof(struct sprd_img_parm));
 	if (ret) {
 		pr_err("fail to copy_from_user\n");
 		return -EFAULT;
@@ -2838,7 +2832,7 @@ exit:
 }
 
 static int img_ioctl_get_path_rect(struct camera_module *module,
-                        unsigned long arg)
+		unsigned long arg)
 {
 	int ret = 0;
 	struct sprd_img_path_rect parm;
@@ -2850,7 +2844,7 @@ static int img_ioctl_get_path_rect(struct camera_module *module,
 
 	memset((void *)&parm, 0, sizeof(parm));
 	ret = copy_from_user(&parm, (void __user *)arg,
-				sizeof(struct sprd_img_path_rect));
+		sizeof(struct sprd_img_path_rect));
 	if (ret) {
 		pr_err("fail to get user info ret %d\n", ret);
 		return -EFAULT;
@@ -2869,7 +2863,7 @@ static int img_ioctl_get_path_rect(struct camera_module *module,
 		parm.af_valid_rect.w, parm.af_valid_rect.h);
 
 	ret = copy_to_user((void __user *)arg, &parm,
-			sizeof(struct sprd_img_path_rect));
+		sizeof(struct sprd_img_path_rect));
 	if (ret) {
 		ret = -EFAULT;
 		pr_err("fail to copy to user\n");
@@ -2883,7 +2877,7 @@ static int img_ioctl_get_path_rect(struct camera_module *module,
  * if auto 3dnr, will be set when previewing
  */
 static int ioctl_set_3dnr_mode(struct camera_module *module,
-                        unsigned long arg)
+		unsigned long arg)
 {
 	int ret = 0;
 	struct sprd_img_3dnr_mode parm;
@@ -2897,7 +2891,7 @@ static int ioctl_set_3dnr_mode(struct camera_module *module,
 
 	memset((void *)&parm, 0, sizeof(parm));
 	ret = copy_from_user(&parm, (void __user *)arg,
-				sizeof(parm));
+		sizeof(parm));
 	if (ret) {
 		pr_err("fail to get user info ret %d\n", ret);
 		return -EFAULT;
@@ -2929,7 +2923,7 @@ static int ioctl_set_3dnr_mode(struct camera_module *module,
  * 190614: hal set 1 if need, but not set 0(default 0)
  */
 static int ioctl_set_auto_3dnr_mode(struct camera_module *module,
-                        unsigned long arg)
+		unsigned long arg)
 {
 	int ret = 0;
 	struct sprd_img_auto_3dnr_mode parm;
@@ -2953,7 +2947,7 @@ static int ioctl_set_auto_3dnr_mode(struct camera_module *module,
 }
 
 static int ioctl_get_capability(struct camera_module *module,
-                        unsigned long arg)
+		unsigned long arg)
 {
 	int ret = 0;
 	struct sprd_img_size size = {0};
@@ -2967,7 +2961,7 @@ static int ioctl_get_capability(struct camera_module *module,
 	size.w = ISP_WIDTH_MAX;
 	size.h = ISP_HEIGHT_MAX;
 	ret = copy_to_user((void __user *)arg, &size,
-				sizeof(struct sprd_img_size));
+		sizeof(struct sprd_img_size));
 	if (unlikely(ret)) {
 		pr_err("fail to get capability, ret %d\n", ret);
 		ret = -EFAULT;
@@ -2980,7 +2974,6 @@ exit:
 
 /*--------------- Core controlling interface end --------------- */
 
-
 static int img_ioctl_path_pause(struct camera_module *module, unsigned long arg)
 {
 	int ret = 0;
@@ -2988,7 +2981,7 @@ static int img_ioctl_path_pause(struct camera_module *module, unsigned long arg)
 	struct dcam_pipe_dev *dev = NULL;
 
 	pr_debug("pause %d with dcam %d not running\n",
-			module->idx, module->dcam_idx);
+		module->idx, module->dcam_idx);
 	dev = (struct dcam_pipe_dev *)module->dcam_dev_handle;
 	module->path_state = dcam_path_state;
 	if (atomic_read(&module->state) == CAM_RUNNING) {

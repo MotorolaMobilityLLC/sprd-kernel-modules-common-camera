@@ -519,7 +519,7 @@ static int isp_update_offline_size(
 	struct isp_path_desc *path;
 	struct isp_ctx_size_desc cfg;
 	uint32_t update[ISP_SPATH_NUM] = {
-		ISP_PATH0_TRIM,	ISP_PATH1_TRIM, ISP_PATH2_TRIM};
+		ISP_PATH0_TRIM, ISP_PATH1_TRIM, ISP_PATH2_TRIM};
 
 	if (in_param->valid & ISP_SRC_SIZE) {
 		memcpy(&pctx->original, &in_param->src_info,

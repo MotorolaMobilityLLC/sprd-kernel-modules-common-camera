@@ -495,7 +495,7 @@ int cambuf_iommu_unmap(
 
 	if (!buf_info->dev ||
 		((buf_info->mapping_state & CAM_BUF_MAPPING_DEV) == 0)) {
-		pr_info("buf dev %p, may not be mapping %d \n",
+		pr_info("buf dev %p, may not be mapping %d\n",
 			buf_info->dev, buf_info->mapping_state);
 		return ret;
 	}

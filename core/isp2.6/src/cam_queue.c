@@ -81,7 +81,7 @@ struct camera_frame *camera_dequeue_tail(struct camera_queue *q)
 		fatal_err = (list_empty(&q->head) ^ (q->cnt == 0));
 		if (fatal_err)
 			pr_debug("error:  empty %d, cnt %d\n",
-					list_empty(&q->head), q->cnt);
+				list_empty(&q->head), q->cnt);
 		goto unlock;
 	}
 
@@ -96,8 +96,8 @@ unlock:
 
 struct camera_frame *
 camera_dequeue_if(struct camera_queue *q,
-		  bool (*filter)(struct camera_frame *, void *),
-		  void *data)
+		bool (*filter)(struct camera_frame *, void *),
+		void *data)
 {
 	int fatal_err;
 	unsigned long flags;
@@ -116,11 +116,11 @@ camera_dequeue_if(struct camera_queue *q,
 
 	if (list_empty(&q->head) || q->cnt == 0) {
 		pr_debug("queue empty %d, %d\n",
-				list_empty(&q->head), q->cnt);
+			list_empty(&q->head), q->cnt);
 		fatal_err = (list_empty(&q->head) ^ (q->cnt == 0));
 		if (fatal_err)
 			pr_err("fail to get list node, empty %d, cnt %d\n",
-					list_empty(&q->head), q->cnt);
+				list_empty(&q->head), q->cnt);
 		goto unlock;
 	}
 
@@ -178,8 +178,8 @@ uint32_t camera_queue_cnt(struct camera_queue *q)
  *        t, no use now
  */
 int camera_queue_same_frame(struct camera_queue *q0, struct camera_queue *q1,
-			struct camera_frame **pf0, struct camera_frame **pf1,
-			int64_t t)
+		struct camera_frame **pf0, struct camera_frame **pf1,
+		int64_t t)
 {
 	int ret = 0;
 	unsigned long flags0, flags1;

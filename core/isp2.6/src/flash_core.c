@@ -32,7 +32,7 @@
 static int img_opt_flash(void *param);
 
 static int sprd_cam_flash_ctrl(uint32_t dcam_idx,
-					struct sprd_img_set_flash *set_flash)
+		struct sprd_img_set_flash *set_flash)
 {
 	int ret;
 

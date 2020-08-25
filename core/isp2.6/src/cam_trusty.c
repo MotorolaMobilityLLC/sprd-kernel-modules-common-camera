@@ -576,7 +576,7 @@ void cam_ca_disconnect(void)
 }
 
 bool camca_isp_fetch_addr_set(unsigned long y_addr, unsigned long u_addr,
-				unsigned long v_addr)
+		unsigned long v_addr)
 {
 	pr_info("no trusty version\n");
 	return 1;
@@ -589,7 +589,7 @@ bool camca_isp_pitch_set(uint32_t y_pitch, uint32_t u_pitch, uint32_t v_pitch)
 }
 
 bool camca_isp_3dnr_fetch_set(uint32_t chroma, uint32_t luma,
-				uint32_t pitch)
+		uint32_t pitch)
 {
 	pr_info("no trusty version\n");
 	return 1;

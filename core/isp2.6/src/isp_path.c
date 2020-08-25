@@ -85,8 +85,8 @@ int isp_path_set_scaler_coeff(struct coeff_arg *arg,
 	return 0;
 }
 
-static uint32_t get_path_deci_factor(
-		uint32_t src_size, uint32_t dst_size)
+static uint32_t get_path_deci_factor(uint32_t src_size,
+			uint32_t dst_size)
 {
 	uint32_t factor = 0;
 

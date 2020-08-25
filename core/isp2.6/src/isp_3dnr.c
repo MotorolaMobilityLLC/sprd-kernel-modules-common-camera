@@ -121,7 +121,6 @@ static int isp_3dnr_update_memctrl_base_on_mv(struct isp_3dnr_ctx_desc *ctx)
 	return 0;
 }
 
-
 static int isp_3dnr_gen_memctrl_config(struct isp_3dnr_ctx_desc *ctx)
 {
 	int ret = 0;
