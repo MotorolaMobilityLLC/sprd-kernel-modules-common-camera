@@ -207,7 +207,7 @@ static int img_ioctl_cfg_param(
 {
 	int ret = 0;
 	int for_capture = 0, for_fdr = 0;
-	int32_t isp_path_id, isp_ctx_id;
+	int32_t isp_ctx_id;
 	struct channel_context *channel;
 	struct isp_io_param param;
 	struct dcam_pipe_dev *dev = NULL;
@@ -290,12 +290,11 @@ static int img_ioctl_cfg_param(
 			channel = &module->channel[CAM_CH_CAP];
 
 		if (channel->enable && channel->isp_ctx_id >= 0) {
-			isp_path_id = channel->isp_path_id;
 			isp_ctx_id = channel->isp_ctx_id;
 			if (param.scene_id == PM_SCENE_FDRL)
-				isp_ctx_id = channel->isp_fdrl_path >> ISP_CTXID_OFFSET;
+				isp_ctx_id = channel->isp_fdrl_ctx;
 			else if (param.scene_id == PM_SCENE_FDRH)
-				isp_ctx_id = channel->isp_fdrh_path >> ISP_CTXID_OFFSET;
+				isp_ctx_id = channel->isp_fdrh_ctx;
 			ret = module->isp_dev_handle->isp_ops->cfg_blk_param(module->isp_dev_handle,
 					isp_ctx_id, &param);
 		}
@@ -627,6 +626,8 @@ static int img_ioctl_set_output_size(
 	channel->isp_path_id = -1;
 	channel->isp_fdrh_path = -1;
 	channel->isp_fdrl_path = -1;
+	channel->isp_fdrh_ctx = -1;
+	channel->isp_fdrl_ctx = -1;
 	channel->slave_isp_ctx_id = -1;
 	channel->slave_isp_path_id = -1;
 
@@ -2491,7 +2492,7 @@ static int img_ioctl_post_fdr(struct camera_module *module,
 {
 	int ret = 0;
 	int i;
-	int32_t isp_path_id;
+	int32_t isp_path_id, isp_ctx_id;
 	void *dcam;
 	struct channel_context *ch;
 	struct camera_frame *pframe, *pfrm[3] = { NULL, NULL, NULL };
@@ -2529,9 +2530,11 @@ static int img_ioctl_post_fdr(struct camera_module *module,
 		if (param.scene_mode == FDR_POST_LOW) {
 			pframe->irq_property = CAM_FRAME_FDRL;
 			isp_path_id = ch->isp_fdrl_path;
+			isp_ctx_id = ch->isp_fdrl_ctx;
 		} else {
 			pframe->irq_property = CAM_FRAME_FDRH;
 			isp_path_id = ch->isp_fdrh_path;
+			isp_ctx_id = ch->isp_fdrh_ctx;
 		}
 		ret = cambuf_get_ionbuf(&pframe->buf);
 		if (ret) {
@@ -2581,8 +2584,8 @@ static int img_ioctl_post_fdr(struct camera_module *module,
 	pframe->height = ch->ch_uinfo.dst_size.h;
 	ret = module->isp_dev_handle->isp_ops->cfg_path(module->isp_dev_handle,
 			ISP_PATH_CFG_OUTPUT_BUF,
-			isp_path_id >> ISP_CTXID_OFFSET,
-			isp_path_id & ISP_PATHID_MASK, pfrm[2]);
+			isp_ctx_id,
+			isp_path_id, pfrm[2]);
 	if (ret) {
 		pr_err("fail to cfg isp out buffer.\n");
 		goto exit;
@@ -2619,17 +2622,17 @@ static int img_ioctl_post_fdr(struct camera_module *module,
 isp_proc:
 	ret = module->isp_dev_handle->isp_ops->cfg_path(module->isp_dev_handle,
 			ISP_PATH_CFG_OUTPUT_BUF,
-			isp_path_id >> ISP_CTXID_OFFSET,
-			isp_path_id & ISP_PATHID_MASK, pfrm[2]);
+			isp_ctx_id,
+			isp_path_id, pfrm[2]);
 	if (ret) {
 		pr_err("fail to cfg isp out buffer.\n");
 		goto exit;
 	}
 
 	pframe = pfrm[1];
-	pr_info("fdr %d , isp path 0x%x\n", pframe->irq_property, isp_path_id);
+	pr_info("fdr %d , isp path 0x%x ctx_id 0x%x\n", pframe->irq_property, isp_path_id, isp_ctx_id);
 	ret = module->isp_dev_handle->isp_ops->proc_frame(module->isp_dev_handle, pframe,
-		isp_path_id >> ISP_CTXID_OFFSET);
+		isp_ctx_id);
 
 	pr_info("scene %d, frm fd (%d 0x%x), (%d 0x%x), (%d 0x%x)\n",
 		param.scene_mode,

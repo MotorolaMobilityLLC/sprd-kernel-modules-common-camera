@@ -69,14 +69,9 @@
 #define  CAM_ALLOC_Q_LEN   48
 
 /* TODO: tuning ratio limit for power/image quality */
-#define MAX_RDS_RATIO 3
 #define RATIO_SHIFT 16
 
-#define ISP_PATHID_BITS 8
-#define ISP_PATHID_MASK 0x3
-#define ISP_CTXID_OFFSET ISP_PATHID_BITS
 #define ISP_SLICE_OVERLAP_W_MAX 64
-#define DCAM_4IN1_FRAMES 16
 #define ALIGN_UP(a, x)	(((a) + (x) - 1) & (~((x) - 1)))
 
 /* TODO: need to pass the num to driver by hal */
@@ -203,13 +198,13 @@ struct channel_context {
 	/* for which need anoter dcam & path offline processing.*/
 	int32_t aux_dcam_path_id;
 
-	/* isp_path_id combined from ctx_id | path_id.*/
-	/* isp_path_id = (ctx_id << ISP_PATH_BITS) | path_id */
 	int32_t isp_ctx_id;
 	int32_t isp_path_id;
 	int32_t slave_isp_ctx_id;
 	int32_t slave_isp_path_id;
+	int32_t isp_fdrl_ctx;
 	int32_t isp_fdrl_path;
+	int32_t isp_fdrh_ctx;
 	int32_t isp_fdrh_path;
 	int32_t reserved_buf_fd;
 
@@ -1882,16 +1877,16 @@ int dcam_callback(enum dcam_cb_type type, void *param, void *priv_data)
 
 		if (channel->ch_id == CAM_CH_CAP && pframe->irq_property != CAM_FRAME_COMMON) {
 			/* FDR frames should always be processed by ISP */
-			int32_t isp_path_id;
+			int32_t isp_ctx_id;
 
 			if (pframe->irq_property == CAM_FRAME_FDRL)
-				isp_path_id = channel->isp_fdrl_path;
+				isp_ctx_id = channel->isp_fdrl_ctx;
 			else
-				isp_path_id = channel->isp_fdrh_path;
-			pr_info("fdr %d mfd %d, path 0x%x\n", pframe->irq_property,
-				pframe->buf.mfd[0], isp_path_id);
+				isp_ctx_id = channel->isp_fdrh_ctx;
+			pr_info("fdr %d mfd %d, ctx_id 0x%x\n", pframe->irq_property,
+				pframe->buf.mfd[0], isp_ctx_id);
 			ret = module->isp_dev_handle->isp_ops->proc_frame(module->isp_dev_handle, pframe,
-				isp_path_id >> ISP_CTXID_OFFSET);
+				isp_ctx_id);
 			return ret;
 		}
 
@@ -1958,7 +1953,7 @@ int dcam_callback(enum dcam_cb_type type, void *param, void *priv_data)
 		} else if (channel->ch_id == CAM_CH_PRE
 			|| channel->ch_id == CAM_CH_VID) {
 
-			pr_debug("proc isp path %d\n", channel->isp_path_id);
+			pr_debug("proc isp path %d, ctx %d\n", channel->isp_path_id, channel->isp_ctx_id);
 			/* ISP in_queue maybe overflow.
 			 * If previous frame with size updating is dicarded by ISP,
 			 * we should set it in current frame for ISP input
@@ -2020,16 +2015,16 @@ int dcam_callback(enum dcam_cb_type type, void *param, void *priv_data)
 
 			if (pframe->irq_property != CAM_FRAME_COMMON) {
 				/* FDR frames should always be processed by ISP */
-				int32_t isp_path_id;
+				int32_t isp_ctx_id;
 
 				if (pframe->irq_property == CAM_FRAME_FDRL)
-					isp_path_id = channel->isp_fdrl_path;
+					isp_ctx_id = channel->isp_fdrl_ctx;
 				else
-					isp_path_id = channel->isp_fdrh_path;
-				pr_info("fdr %d mfd %d, path 0x%x\n", pframe->irq_property,
-					pframe->buf.mfd[0], isp_path_id);
+					isp_ctx_id = channel->isp_fdrh_ctx;
+				pr_info("fdr %d mfd %d, ctx_id 0x%x\n", pframe->irq_property,
+					pframe->buf.mfd[0], isp_ctx_id);
 				ret = module->isp_dev_handle->isp_ops->proc_frame(module->isp_dev_handle, pframe,
-					isp_path_id >> ISP_CTXID_OFFSET);
+					isp_ctx_id);
 				return ret;
 			}
 
@@ -3818,14 +3813,12 @@ static int init_fdr_context(
 	int ret = 0;
 	int i = 0, isp_zoom;
 	int isp_ctx_id = 0, isp_path_id = 0;
-//	int isp_coeff = SUPERZOOM_DEFAULT_COEFF;
-//	int superzoom_flag = 1;
 	int32_t *cur_ctx;
+	int32_t *cur_path;
 	struct camera_uchannel *ch_uinfo;
 	struct isp_ctx_base_desc ctx_desc;
 	struct isp_ctx_size_desc ctx_size;
 	struct isp_path_base_desc path_desc;
-//	struct img_size size = { 0, 0 };
 	struct img_trim path_trim;
 	struct isp_init_param init_param;
 
@@ -3857,11 +3850,12 @@ init_isp:
 	isp_zoom = 1;
 	ch_uinfo = &ch->ch_uinfo;
 	for (i = 0; i < 2; i++) {
-		cur_ctx = (i == 0) ? &ch->isp_fdrl_path : &ch->isp_fdrh_path;
-		if (*cur_ctx >= 0)
+		cur_ctx = (i == 0) ? &ch->isp_fdrl_ctx : &ch->isp_fdrh_ctx;
+		cur_path = (i == 0) ? &ch->isp_fdrl_path : &ch->isp_fdrh_path;
+		if ((*cur_ctx >= 0) && (*cur_path >= 0))
 			continue;
 
-		// get context id and config context
+		/* get context id and config context */
 		memset(&init_param, 0, sizeof(struct isp_init_param));
 		init_param.cam_id = module->idx;
 		ret = module->isp_dev_handle->isp_ops->get_context(module->isp_dev_handle, &init_param);
@@ -3901,7 +3895,7 @@ init_isp:
 		ret = module->isp_dev_handle->isp_ops->cfg_path(module->isp_dev_handle,
 				ISP_PATH_CFG_CTX_SIZE, isp_ctx_id, 0, &ctx_size);
 
-		// get path id and config path
+		/* get path id and config path */
 		isp_path_id = ISP_SPATH_CP;
 		ret = module->isp_dev_handle->isp_ops->get_path(
 				module->isp_dev_handle, isp_ctx_id, isp_path_id);
@@ -3953,8 +3947,8 @@ init_isp:
 				ISP_PATH_CFG_PATH_SIZE,
 				isp_ctx_id, isp_path_id, &path_trim);
 
-		*cur_ctx = (int32_t)((isp_ctx_id << ISP_CTXID_OFFSET) | isp_path_id);
-
+		*cur_ctx = (int32_t)isp_ctx_id;
+		*cur_path = (int32_t)isp_path_id;
 		pr_info("init fdrl path %x\n", *cur_ctx);
 	}
 	module->fdr_init = 1;
@@ -3978,18 +3972,18 @@ static int deinit_fdr_context(
 	pr_info("enter\n");
 	deinit_aux_dcam(module);
 
-	if (ch->isp_fdrl_path >= 0) {
-		isp_path_id = ch->isp_fdrl_path & ISP_PATHID_MASK;
-		isp_ctx_id = ch->isp_fdrl_path >> ISP_CTXID_OFFSET;
+	if (ch->isp_fdrl_path >= 0 && ch->isp_fdrl_ctx >= 0) {
+		isp_path_id = ch->isp_fdrl_path;
+		isp_ctx_id = ch->isp_fdrl_ctx;
 		module->isp_dev_handle->isp_ops->put_path(module->isp_dev_handle,
 					isp_ctx_id, isp_path_id);
 		module->isp_dev_handle->isp_ops->put_context(module->isp_dev_handle, isp_ctx_id);
 		pr_info("put 0x%x done\n", ch->isp_fdrl_path);
 	}
 
-	if (ch->isp_fdrh_path >= 0) {
-		isp_path_id = ch->isp_fdrh_path & ISP_PATHID_MASK;
-		isp_ctx_id = ch->isp_fdrh_path >> ISP_CTXID_OFFSET;
+	if (ch->isp_fdrh_path >= 0 && ch->isp_fdrh_ctx >= 0) {
+		isp_path_id = ch->isp_fdrh_path;
+		isp_ctx_id = ch->isp_fdrh_ctx;
 		module->isp_dev_handle->isp_ops->put_path(module->isp_dev_handle,
 					isp_ctx_id, isp_path_id);
 		module->isp_dev_handle->isp_ops->put_context(module->isp_dev_handle, isp_ctx_id);
@@ -3998,6 +3992,8 @@ static int deinit_fdr_context(
 
 	ch->isp_fdrl_path = -1;
 	ch->isp_fdrh_path = -1;
+	ch->isp_fdrh_ctx = -1;
+	ch->isp_fdrl_ctx = -1;
 	module->fdr_init = 0;
 	module->fdr_done = 0;
 	pr_info("done\n");
