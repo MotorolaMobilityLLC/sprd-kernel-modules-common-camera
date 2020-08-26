@@ -24,7 +24,6 @@
 #define pr_fmt(fmt) "PDAF: %d %d %s : "\
 	fmt, current->pid, __LINE__, __func__
 
-
 static void write_pd_table(struct pdaf_ppi_info *pdaf_info, enum dcam_id idx)
 {
 	int i = 0;
@@ -399,6 +398,7 @@ int dcam_k_cfg_pdaf(struct isp_io_param *param, struct dcam_dev_param *p)
 	int ret = 0;
 	enum dcam_id idx;
 	struct dcam_pipe_dev *dev = NULL;
+
 	dev = (struct dcam_pipe_dev *)p->dev;
 
 	if (!param || !p) {

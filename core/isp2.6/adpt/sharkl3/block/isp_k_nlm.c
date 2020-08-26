@@ -26,7 +26,6 @@
 #define pr_fmt(fmt) "NLM: %d %d %s : "\
 	fmt, current->pid, __LINE__, __func__
 
-
 static int load_vst_ivst_buf(
 	struct isp_dev_nlm_info_v2 *nlm_info,
 	struct isp_k_block *isp_k_param, uint32_t idx)

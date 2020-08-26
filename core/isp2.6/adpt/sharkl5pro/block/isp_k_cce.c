@@ -25,7 +25,6 @@
 #define pr_fmt(fmt) "CCE: %d %d %s : "\
 	fmt, current->pid, __LINE__, __func__
 
-
 static int isp_k_cce_block(struct isp_io_param *param,
 	struct isp_k_block *isp_k_param, uint32_t idx)
 {

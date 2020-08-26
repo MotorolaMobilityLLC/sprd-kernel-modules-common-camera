@@ -25,9 +25,8 @@
 #define pr_fmt(fmt) "BRIGHTNESS: %d %d %s : "\
 	fmt, current->pid, __LINE__, __func__
 
-static int isp_k_brightness_block
-	(struct isp_io_param *param,
-	struct isp_k_block *isp_k_param, uint32_t idx)
+static int isp_k_brightness_block(struct isp_io_param *param,
+		struct isp_k_block *isp_k_param, uint32_t idx)
 {
 	int ret = 0;
 	struct isp_dev_brightness_info *brightness_info;
@@ -73,8 +72,7 @@ int isp_k_cfg_brightness(struct isp_io_param *param,
 		ret = isp_k_brightness_block(param, isp_k_param, idx);
 		break;
 	default:
-		pr_err("fail to support cmd id = %d\n",
-			param->property);
+		pr_err("fail to support cmd id = %d\n", param->property);
 		break;
 	}
 

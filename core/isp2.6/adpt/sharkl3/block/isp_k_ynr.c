@@ -175,8 +175,7 @@ int isp_k_cfg_ynr(struct isp_io_param *param,
 		ret = isp_k_ynr_block(param, isp_k_param, idx);
 		break;
 	default:
-		pr_err("fail to support cmd id = %d\n",
-			param->property);
+		pr_err("fail to support cmd id = %d\n", param->property);
 		break;
 	}
 
@@ -189,42 +188,6 @@ int isp_k_update_ynr(uint32_t idx,
 	uint32_t new_height, uint32_t old_height)
 {
 	int ret = 0;
-
-	/* This part need to update base on sharkl3 ynr block */
-#if 0
-	uint32_t val, center_x, center_y;
-	uint32_t radius, radius_limit, dis_interval;
-	uint32_t max_radius, max_radius_limit;
-	struct isp_dev_ynr_info *ynr_info;
-
-	ynr_info = &isp_k_param->ynr_param.ynr_info;
-	if (ynr_info->bypass)
-		return 0;
-
-
-	center_x = new_width >> 1;
-	center_y = new_height >> 1;
-	val = (center_x << 16) | center_y;
-	ISP_REG_WR(idx, ISP_YNR_CFG12, val);
-
-	radius = ynr_info->radius * new_width / old_width;
-	radius_limit = new_height * ynr_info->radius_factor / ynr_info->radius_base;
-	radius = (radius < radius_limit) ? radius : radius_limit;
-
-	max_radius = ynr_info->max_radius * new_width / old_width;
-	max_radius_limit = (new_height + new_width) *
-		ynr_info->max_radius_factor / ynr_info->radius_base;
-	max_radius = (max_radius < max_radius_limit) ? max_radius : max_radius_limit;
-	dis_interval = ((max_radius - radius) >> 2);
-
-	val = (radius << 16) | dis_interval;
-	ISP_REG_WR(idx, ISP_YNR_CFG13, val);
-
-	pr_debug("cen %d %d,  orig radius %d %d %d %d, base %d, new %d %d %d\n",
-		center_x, center_y, ynr_info->radius, ynr_info->max_radius,
-		ynr_info->radius_factor, ynr_info->max_radius_factor,
-		ynr_info->radius_base, radius, max_radius, dis_interval);
-#endif
 
 	return ret;
 }

@@ -20,10 +20,10 @@
 #define IMG_TYPE_YUV                    0x1E
 
 /*
-.* pdaf bypass is bit3 of DCAM_CFG
+ * pdaf bypass is bit3 of DCAM_CFG
 .* 4in1 bypass is bit12 of DCAM_MIPI_CAP_CFG
 .* blc bypass is bit18 of DCAM_MIPI_CAP_CFG
-.*/
+ */
 #define DCAM_PDAF_BYPASS_CTRL          DCAM_CFG
 #define DCAM_4IN1_BYPASS_CTRL          DCAM_MIPI_CAP_CFG
 #define DCAM_BLC_BYPASS_CTRL           DCAM_MIPI_CAP_CFG
@@ -390,7 +390,7 @@ static int dcamhw_reset(void *handle, void *arg)
 	/* disable internal logic access sram */
 	DCAM_REG_MWR(idx, DCAM_APB_SRAM_CTRL, BIT_0, 0);
 
-	DCAM_REG_WR(idx, DCAM_CFG, 0); /* disable all path */
+	DCAM_REG_WR(idx, DCAM_CFG, 0);/* disable all path */
 	if (idx != DCAM_ID_2)
 		DCAM_REG_WR(idx, DCAM_IMAGE_CONTROL, 0x2b << 8 | 0x01);
 	else
@@ -406,8 +406,8 @@ static int dcamhw_reset(void *handle, void *arg)
 	DCAM_REG_MWR(idx, ISP_RGBG_YRANDOM_PARAMETER0, BIT_0, bypass);
 	DCAM_REG_MWR(idx, DCAM_LENS_LOAD_ENABLE, BIT_0, bypass);
 	DCAM_REG_MWR(idx, ISP_AWBC_PARAM, BIT_0, bypass);
-	DCAM_REG_MWR(idx, ISP_BPC_PARAM, 0xF, 0xF); /*bpc bypass all */
-	DCAM_REG_MWR(idx, ISP_AFL_PARAM0, BIT_1, bypass << 1); /*bayer2y*/
+	DCAM_REG_MWR(idx, ISP_BPC_PARAM, 0xF, 0xF);/*bpc bypass all */
+	DCAM_REG_MWR(idx, ISP_AFL_PARAM0, BIT_1, bypass << 1);/*bayer2y*/
 	DCAM_REG_MWR(idx, ISP_BPC_GC_CFG, 0x7, 6);
 	DCAM_REG_MWR(idx, ISP_BPC_PARAM, 0x0F, 0xF);
 	DCAM_REG_MWR(idx, DCAM_GRGB_CTRL, BIT_0, 1);
@@ -630,7 +630,7 @@ static int dcamhw_mipi_cap_set(void *handle, void *arg)
 			return -EINVAL;
 		}
 
-		DCAM_REG_MWR(idx, DCAM_MIPI_CAP_CFG, BIT_1,  0 << 1);
+		DCAM_REG_MWR(idx, DCAM_MIPI_CAP_CFG, BIT_1, 0 << 1);
 		DCAM_REG_MWR(idx, DCAM_MIPI_CAP_FRM_CTRL,
 				BIT_1 | BIT_0, cap_info->pattern);
 
@@ -717,7 +717,7 @@ static int dcamhw_path_start(void *handle, void *arg)
 	int ret = 0;
 	uint32_t value;
 	struct dcam_hw_path_start *patharg = NULL;
-	struct isp_img_rect rect; /* for 3dnr */
+	struct isp_img_rect rect;/* for 3dnr */
 
 	pr_debug("enter.");
 
@@ -729,10 +729,10 @@ static int dcamhw_path_start(void *handle, void *arg)
 	patharg = (struct dcam_hw_path_start *)arg;
 
 	switch (patharg->path_id) {
-	case  DCAM_PATH_FULL:
+	case DCAM_PATH_FULL:
 
 		DCAM_REG_MWR(patharg->idx, DCAM_PATH_ENDIAN,
-			BIT_17 |  BIT_16, patharg->endian.y_endian << 16);
+			BIT_17 | BIT_16, patharg->endian.y_endian << 16);
 
 		DCAM_REG_MWR(patharg->idx, DCAM_FULL_CFG, BIT_0, patharg->is_loose);
 		DCAM_REG_MWR(patharg->idx, DCAM_FULL_CFG, BIT_2, patharg->src_sel << 2);
@@ -745,7 +745,7 @@ static int dcamhw_path_start(void *handle, void *arg)
 		}
 		break;
 
-	case  DCAM_PATH_BIN:
+	case DCAM_PATH_BIN:
 		DCAM_REG_MWR(patharg->idx, DCAM_PATH_ENDIAN,
 			BIT_19 |  BIT_18, patharg->endian.y_endian << 18);
 
@@ -804,8 +804,7 @@ static int dcamhw_path_start(void *handle, void *arg)
 			break;
 		}
 		DCAM_REG_WR(patharg->idx, NR3_FAST_ME_PARAM, 0x8);
-		dcam_k_3dnr_set_roi(rect,
-				0/* project_mode=0 */, patharg->idx);
+		dcam_k_3dnr_set_roi(rect, 0/* project_mode=0 */, patharg->idx);
 		break;
 	default:
 		break;
@@ -833,25 +832,25 @@ static int dcamhw_path_stop(void *handle, void *arg)
 	idx = patharg->idx;
 
 	switch (patharg->path_id) {
-	case  DCAM_PATH_FULL:
+	case DCAM_PATH_FULL:
 		reg_val = 0;
 		DCAM_REG_MWR(idx, DCAM_PATH_STOP, BIT_0, 1);
 		DCAM_REG_MWR(idx, DCAM_CFG, BIT_1, (0 << 1));
 		break;
-	case  DCAM_PATH_BIN:
+	case DCAM_PATH_BIN:
 		DCAM_REG_MWR(idx, DCAM_PATH_STOP, BIT_1, 1 << 1);
 		DCAM_REG_MWR(idx, DCAM_CFG, BIT_2, (0 << 2));
 		break;
-	case  DCAM_PATH_PDAF:
+	case DCAM_PATH_PDAF:
 		DCAM_REG_MWR(idx, DCAM_PATH_STOP, BIT_3, 1 << 3);
 		DCAM_REG_MWR(idx, DCAM_CFG, BIT_3, (0 << 3));
 		break;
-	case  DCAM_PATH_VCH2:
+	case DCAM_PATH_VCH2:
 		DCAM_REG_MWR(idx, DCAM_PATH_STOP, BIT_4, 1 << 4);
 		DCAM_REG_MWR(idx, DCAM_CFG, BIT_4, (0 << 4));
 		break;
 
-	case  DCAM_PATH_VCH3:
+	case DCAM_PATH_VCH3:
 		DCAM_REG_MWR(idx, DCAM_PATH_STOP, BIT_5, 1 << 5);
 		DCAM_REG_MWR(idx, DCAM_CFG, BIT_5, (0 << 5));
 		break;
@@ -989,8 +988,7 @@ static int dcamhw_path_size_update(void *handle, void *arg)
 				rect.x, rect.y, rect.w, rect.h);
 			break;
 		}
-		dcam_k_3dnr_set_roi(rect,
-				0/* project_mode=0 */, idx);
+		dcam_k_3dnr_set_roi(rect, 0/* project_mode=0 */, idx);
 		break;
 	default:
 		break;
@@ -1115,11 +1113,11 @@ static int dcamhw_block_func_get(void *handle, void *arg)
 	fucarg = (struct dcam_hw_block_func_get *)arg;
 
 	if (fucarg->index < DCAM_BLOCK_TOTAL) {
-		block_func = (struct dcam_cfg_entry*)&dcam_cfg_func_tab[fucarg->index];
-		fucarg->dcam_entry= block_func;
+		block_func = (struct dcam_cfg_entry *)&dcam_cfg_func_tab[fucarg->index];
+		fucarg->dcam_entry = block_func;
 	}
 
-	if (block_func == NULL){
+	if (block_func == NULL) {
 		pr_err("fail to get valid block func %d\n", DCAM_BLOCK_TYPE);
 		return -EFAULT;
 	}

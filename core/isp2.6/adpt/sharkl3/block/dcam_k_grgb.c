@@ -99,16 +99,13 @@ int dcam_k_cfg_grgb(struct isp_io_param *param, struct dcam_dev_param *p)
 		sub_func = dcam_k_grgb_block;
 		break;
 	default:
-		pr_err("fail to support property %d\n",
-			param->property);
+		pr_err("fail to support property %d\n", param->property);
 		ret = -EINVAL;
 		return ret;
 	}
 
 	if (p->offline == 0) {
-		ret = copy_from_user(dst_ptr,
-				param->property_param,
-				dst_size);
+		ret = copy_from_user(dst_ptr, param->property_param, dst_size);
 		if (ret) {
 			pr_err("fail to copy from user, ret = %d\n", ret);
 			goto exit;
@@ -117,12 +114,10 @@ int dcam_k_cfg_grgb(struct isp_io_param *param, struct dcam_dev_param *p)
 			ret = sub_func(p);
 	} else {
 		mutex_lock(&p->param_lock);
-		ret = copy_from_user(dst_ptr,
-				param->property_param,
-				dst_size);
-		if (ret) {
+		ret = copy_from_user(dst_ptr, param->property_param, dst_size);
+		if (ret)
 			pr_err("fail to copy from user, ret = %d\n", ret);
-		}
+
 		mutex_unlock(&p->param_lock);
 	}
 

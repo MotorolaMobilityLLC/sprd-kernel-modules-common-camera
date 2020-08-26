@@ -22,8 +22,7 @@
 #define pr_fmt(fmt) "blk_comm: %d %d %s : "\
 	fmt, current->pid, __LINE__, __func__
 
-
-int init_dcam_pm(struct dcam_dev_param *blk_pm_ctx )
+int init_dcam_pm(struct dcam_dev_param *blk_pm_ctx)
 {
 	/* bypass all blocks by default */
 	blk_pm_ctx->lsc.lens_info.bypass = 1;
@@ -109,8 +108,6 @@ int dcam_k_dump_pm(void *pdst, void *psrc)
 	return size;
 }
 
-
-
 int init_isp_pm(struct isp_k_block *isp_k_param)
 {
 	isp_k_param->nlm_info_base.bypass = 1;
@@ -141,7 +138,7 @@ int init_isp_pm(struct isp_k_block *isp_k_param)
 	isp_k_param->nlm_info.bypass = 1;
 	isp_k_param->ygamma_info.bypass = 1;
 	isp_k_param->yrandom_info.bypass = 1;
-	isp_k_param->nf_info.yrandom_bypass= 1;
+	isp_k_param->nf_info.yrandom_bypass = 1;
 
 	return 0;
 }

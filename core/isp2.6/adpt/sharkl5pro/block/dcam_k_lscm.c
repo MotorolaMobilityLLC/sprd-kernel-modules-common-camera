@@ -28,7 +28,6 @@
 #define pr_fmt(fmt) "LSCM: %d %d %s : "\
 	fmt, current->pid, __LINE__, __func__
 
-
 int dcam_k_lscm_bypass(struct dcam_dev_param *param)
 {
 	int ret = 0;
@@ -58,8 +57,7 @@ int dcam_k_lscm_monitor(struct dcam_dev_param *param)
 		DCAM_REG_MWR(idx, DCAM_LSCM_FRM_CTRL1, BIT_0, 0x1);
 	else
 		/* trigger multi frame works after skip_num */
-		DCAM_REG_MWR(idx,
-			DCAM_LSCM_FRM_CTRL0, BIT_3, (0x1 << 3));
+		DCAM_REG_MWR(idx, DCAM_LSCM_FRM_CTRL0, BIT_3, (0x1 << 3));
 
 	val = (param->lscm.skip_num & 0xF) << 4;
 	DCAM_REG_MWR(idx, DCAM_LSCM_FRM_CTRL0, 0xF0, val);

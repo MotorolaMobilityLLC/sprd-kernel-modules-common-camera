@@ -28,28 +28,27 @@
 #define DCAM_3DNR_ROI_SIZE_ALIGN 16u
 #define DCAM_3DNR_ROI_LINE_CUT 32u
 
-
 struct roi_size {
 	uint32_t roi_width;
 	uint32_t roi_height;
 };
 
 /* [DCAM_ID] [project_Mode] */
-struct roi_size roi_max_size_info [2][2] = {
+struct roi_size roi_max_size_info[2][2] = {
 	{
-		{2304,1728},
-		{4608,3456}
+		{2304, 1728},
+		{4608, 3456}
 	},
 	{
-		{2128,1600},
-		{4256,3200}
+		{2128, 1600},
+		{4256, 3200}
 	}
 };
 
 /* input: rect: bin path crop size, include start point(x,y), and size(w,h)
  */
 void dcam_k_3dnr_set_roi(struct isp_img_rect rect,
-			 uint32_t project_mode, uint32_t idx)
+	uint32_t project_mode, uint32_t idx)
 {
 	uint32_t roi_w_max, roi_h_max;
 	uint32_t roi_w, roi_h, roi_x = 0, roi_y = 0;
@@ -91,7 +90,7 @@ int dcam_k_3dnr_me(struct dcam_dev_param *param)
 	int ret = 0;
 	uint32_t idx = 0;
 	struct dcam_pipe_dev *dev = NULL;
-	struct dcam_dev_3dnr_me *p = NULL; /* nr3_me; */
+	struct dcam_dev_3dnr_me *p = NULL;/* nr3_me; */
 	struct dcam_path_desc *path;
 	struct isp_img_rect rect;
 	uint32_t val = 0;
@@ -124,8 +123,7 @@ int dcam_k_3dnr_me(struct dcam_dev_param *param)
 	rect.h = path->in_trim.size_y;
 	if ((rect.x + rect.w) <= dev->cap_info.cap_size.size_x &&
 		(rect.y + rect.h) <= dev->cap_info.cap_size.size_y)
-	dcam_k_3dnr_set_roi(rect,
-			    p->nr3_project_mode, idx);
+		dcam_k_3dnr_set_roi(rect, p->nr3_project_mode, idx);
 
 	return ret;
 }
@@ -160,8 +158,7 @@ int dcam_k_cfg_3dnr_me(struct isp_io_param *param, struct dcam_dev_param *p)
 
 		break;
 	default:
-		pr_err("fail to support property %d\n",
-			param->property);
+		pr_err("fail to support property %d\n", param->property);
 		ret = -EINVAL;
 		break;
 	}

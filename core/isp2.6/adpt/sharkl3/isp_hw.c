@@ -38,19 +38,19 @@ static unsigned long store_base[ISP_SPATH_NUM] = {
 };
 
 static const struct bypass_tag sharkl3_dcam_bypass_tab[] = {
-	[_E_4IN1] = {"4in1", DCAM_4IN1_BYPASS_CTRL,       12}, /* 0x100.b12 */
-	[_E_PDAF] = {"pdaf", DCAM_PDAF_BYPASS_CTRL,       3}, /* 0x008.b3 */
-	[_E_LSC]  = {"lsc",  DCAM_LENS_LOAD_ENABLE,       0}, /* 0x138.b0 */
-	[_E_AEM]  = {"aem",  DCAM_AEM_FRM_CTRL0,          0}, /* 0x150.b0 */
-	[_E_AFL]  = {"afl",  ISP_AFL_FRM_CTRL,            0}, /* 0x170.b0 */
-	[_E_AFM]  = {"afm",  ISP_AFM_FRM_CTRL,            0}, /* 0x1A0.b0 */
-	[_E_BPC]  = {"bpc",  ISP_BPC_PARAM,               0}, /* 0x200.b0 */
-	[_E_BLC]  = {"blc",  DCAM_BLC_BYPASS_CTRL,        18}, /* 0x100.b18 */
-	[_E_RGB]  = {"rgb",  ISP_RGBG_PARAM,              0}, /* 0x22c.b0 rgb gain */
-	[_E_RAND] = {"rand", ISP_RGBG_YRANDOM_PARAMETER0, 0}, /* 0x238.b0 */
-	[_E_AWBC] = {"awbc", ISP_AWBC_GAIN0,              31}, /* 0x380.b31 */
-	[_E_NR3]  = {"nr3",  NR3_FAST_ME_PARAM,           0}, /* 0x3F0.b0 */
-	[_E_GRGB] = {"grgb", DCAM_GRGB_CTRL,              0}, /* 0x120.b1 */
+	[_E_4IN1] = {"4in1", DCAM_4IN1_BYPASS_CTRL,       12},/* 0x100.b12 */
+	[_E_PDAF] = {"pdaf", DCAM_PDAF_BYPASS_CTRL,       3},/* 0x008.b3 */
+	[_E_LSC]  = {"lsc",  DCAM_LENS_LOAD_ENABLE,       0},/* 0x138.b0 */
+	[_E_AEM]  = {"aem",  DCAM_AEM_FRM_CTRL0,          0},/* 0x150.b0 */
+	[_E_AFL]  = {"afl",  ISP_AFL_FRM_CTRL,            0},/* 0x170.b0 */
+	[_E_AFM]  = {"afm",  ISP_AFM_FRM_CTRL,            0},/* 0x1A0.b0 */
+	[_E_BPC]  = {"bpc",  ISP_BPC_PARAM,               0},/* 0x200.b0 */
+	[_E_BLC]  = {"blc",  DCAM_BLC_BYPASS_CTRL,        18},/* 0x100.b18 */
+	[_E_RGB]  = {"rgb",  ISP_RGBG_PARAM,              0},/* 0x22c.b0 rgb gain */
+	[_E_RAND] = {"rand", ISP_RGBG_YRANDOM_PARAMETER0, 0},/* 0x238.b0 */
+	[_E_AWBC] = {"awbc", ISP_AWBC_GAIN0,              31},/* 0x380.b31 */
+	[_E_NR3]  = {"nr3",  NR3_FAST_ME_PARAM,           0},/* 0x3F0.b0 */
+	[_E_GRGB] = {"grgb", DCAM_GRGB_CTRL,              0},/* 0x120.b1 */
 };
 
 static const struct bypass_tag isp_bypass_tab[] = {
@@ -59,7 +59,7 @@ static const struct bypass_tag isp_bypass_tab[] = {
 [_EISP_IVST]       = {"ivst",       ISP_IVST_PARA,           0, 1},
 [_EISP_CFA]        = {"cfa",        ISP_CFAE_NEW_CFG0,       0, 1},
 [_EISP_CMC]        = {"cmc",        ISP_CMC10_PARAM,         0, 1},
-[_EISP_GAMC]       = {"gamma-c",    ISP_GAMMA_PARAM,         0, 1}, /* Gamma correction */
+[_EISP_GAMC]       = {"gamma-c",    ISP_GAMMA_PARAM,         0, 1},/* Gamma correction */
 [_EISP_HSV]        = {"hsv",        ISP_HSV_PARAM,           0, 1},
 [_EISP_HIST]       = {"hist",       ISP_HIST_PARAM,          0, 1},
 [_EISP_HIST2]      = {"hist2",      ISP_HIST2_PARAM,         0, 1},
@@ -80,7 +80,7 @@ static const struct bypass_tag isp_bypass_tab[] = {
 [_EISP_YUVNF]      = {"yuvnf",      ISP_YUV_NF_CTRL,         0, 1},
 
 	{"ydelay",    ISP_YDELAY_PARAM, 0, 1},
-	{"cce",    ISP_CCE_PARAM, 0, 0},
+	{"cce",       ISP_CCE_PARAM, 0, 0},
 	/* can't bypass when prev */
 	{"scale-pre", ISP_SCALER_PRE_CAP_BASE + ISP_SCALER_CFG, 20, 0},
 	{"store-pre", ISP_STORE_PRE_CAP_BASE + ISP_STORE_PARAM, 0, 0},
@@ -541,13 +541,13 @@ static int isphw_irq_clear(void *handle, void *arg)
 }
 
 static uint32_t ISP_CFG_MAP[] __aligned(8) = {
-	0x00080710, /*0x0710  - 0x0714 , 2   , common path sel*/
-	0x00041C10, /*0x1C10  - 0x1C10 , 1   , VST*/
+	0x00080710,/*0x0710  - 0x0714 , 2   , common path sel*/
+	0x00041C10,/*0x1C10  - 0x1C10 , 1   , VST*/
 	0x01702010,/*0x2010  - 0x217C , 92  , NLM*/
-	0x00041E10, /*0x1E10  - 0x1E10 , 1   , IVST*/
+	0x00041E10,/*0x1E10  - 0x1E10 , 1   , IVST*/
 	0x00503010,/*0x3010  - 0x305C , 20  , CFA_NEW*/
-	0x00183110, /*0x3110  - 0x3124 , 6   , CMC10*/
-	0x00043210, /*0x3210  - 0x3210 , 1   , GAMC_NEW*/
+	0x00183110,/*0x3110  - 0x3124 , 6   , CMC10*/
+	0x00043210,/*0x3210  - 0x3210 , 1   , GAMC_NEW*/
 	0x00403310,/*0x3310  - 0x334C , 16  , HSV*/
 	0x00243410,/*0x3410  - 0x3430 , 9   , PSTRZ*/
 	0x001C3510,/*0x3510  - 0x3528 , 7   , CCE*/
@@ -576,9 +576,9 @@ static uint32_t ISP_CFG_MAP[] __aligned(8) = {
 	0x0044C010,/*0xC010  - 0xC050 , 17  , SCL_CAP*/
 	0x0034C110,/*0xC110  - 0xC140 , 13  , SCL_CAP_store*/
 	0x0044C210,/*0xC210  - 0xC250 , 17  ,SCL_CAP_noisefilter*/
-	0x00300110, /*0x110   - 0x13C  , 12  , FETCH*/
-	0x00300210, /*0x210   - 0x23C  , 12  , STORE*/
-	0x001C0310, /*0x310   - 0x328  , 7   , DISPATCH*/
+	0x00300110,/*0x110   - 0x13C  , 12  , FETCH*/
+	0x00300210,/*0x210   - 0x23C  , 12  , STORE*/
+	0x001C0310,/*0x310   - 0x328  , 7   , DISPATCH*/
 	0x05A18000,/*0x18000 - 0x1859C, 360 , ISP_HSV_BUF0_CH0*/
 	0x10019000,/*0x19000 - 0x19FFC, 1024, ISP_VST_BUF0_CH0*/
 	0x1001A000,/*0x1A000 - 0x1AFFC, 1024, ISP_IVST_BUF0_CH0*/
@@ -586,14 +586,14 @@ static uint32_t ISP_CFG_MAP[] __aligned(8) = {
 	0x0401C000,/*0x1C000 - 0x1C3FC, 256 , ISP_FGAMMA_G_BUF0_CH0*/
 	0x0401D000,/*0x1D000 - 0x1D3FC, 256 , ISP_FGAMMA_B_BUF0_CH0*/
 	0x0205E000,/*0x1E000 - 0x1E200, 129 , ISP_YGAMMA_BUF0_CH0*/
-	0x00839100, /*0x39100 - 0x3917C, 32  , CAP_HOR_CORF_Y_BUF0_CH0*/
-	0x00439300, /*0x39300 - 0x3933C, 16  , CAP_HOR_CORF_UV_BUF0*/
-	0x021394F0, /*0x394F0 - 0x396FC, 132 , CAP_VER_CORF_Y_BUF0_CH0*/
-	0x02139AF0, /*0x39AF0 - 0x39CFC, 132 , CAP_VER_CORF_UV_BUF0*/
-	0x00838100, /*0x38100 - 0x3817C, 32  , VID_HOR_CORF_Y_BUF0_CH0*/
-	0x00438300, /*0x38300 - 0x3833C, 16  , VID_HOR_CORF_UV_BUF0*/
-	0x021384F0, /*0x384F0 - 0x386FC, 132 , VID_VER_CORF_Y_BUF0_CH0*/
-	0x02138AF0, /*0x38AF0 - 0x38CFC, 132 , VID_VER_CORF_UV_BUF0*/
+	0x00839100,/*0x39100 - 0x3917C, 32  , CAP_HOR_CORF_Y_BUF0_CH0*/
+	0x00439300,/*0x39300 - 0x3933C, 16  , CAP_HOR_CORF_UV_BUF0*/
+	0x021394F0,/*0x394F0 - 0x396FC, 132 , CAP_VER_CORF_Y_BUF0_CH0*/
+	0x02139AF0,/*0x39AF0 - 0x39CFC, 132 , CAP_VER_CORF_UV_BUF0*/
+	0x00838100,/*0x38100 - 0x3817C, 32  , VID_HOR_CORF_Y_BUF0_CH0*/
+	0x00438300,/*0x38300 - 0x3833C, 16  , VID_HOR_CORF_UV_BUF0*/
+	0x021384F0,/*0x384F0 - 0x386FC, 132 , VID_VER_CORF_Y_BUF0_CH0*/
+	0x02138AF0,/*0x38AF0 - 0x38CFC, 132 , VID_VER_CORF_UV_BUF0*/
 };
 
 static int isphw_cfg_map_info_get(void *handle, void *arg)
@@ -781,9 +781,9 @@ static struct isp_cfg_entry isp_cfg_func_tab[ISP_BLOCK_TOTAL - ISP_BLOCK_BASE] =
 [ISP_BLOCK_CCE - ISP_BLOCK_BASE]        = {ISP_BLOCK_CCE,        isp_k_cfg_cce},
 [ISP_BLOCK_CDN - ISP_BLOCK_BASE]        = {ISP_BLOCK_CDN,        isp_k_cfg_cdn},
 [ISP_BLOCK_CFA - ISP_BLOCK_BASE]        = {ISP_BLOCK_CFA,        isp_k_cfg_cfa},
-[ISP_BLOCK_NLM - ISP_BLOCK_BASE]    	= {ISP_BLOCK_NLM,        isp_k_cfg_nlm},
+[ISP_BLOCK_NLM - ISP_BLOCK_BASE]        = {ISP_BLOCK_NLM,        isp_k_cfg_nlm},
 [ISP_BLOCK_YNR - ISP_BLOCK_BASE]        = {ISP_BLOCK_YNR,        isp_k_cfg_ynr},
-[ISP_BLOCK_BRIGHTNESS - ISP_BLOCK_BASE]	= {ISP_BLOCK_BRIGHTNESS, isp_k_cfg_brightness},
+[ISP_BLOCK_BRIGHTNESS - ISP_BLOCK_BASE] = {ISP_BLOCK_BRIGHTNESS, isp_k_cfg_brightness},
 [ISP_BLOCK_CONTRAST - ISP_BLOCK_BASE]   = {ISP_BLOCK_CONTRAST,   isp_k_cfg_contrast},
 [ISP_BLOCK_CSA - ISP_BLOCK_BASE]        = {ISP_BLOCK_CSA,        isp_k_cfg_csa},
 [ISP_BLOCK_HUE - ISP_BLOCK_BASE]        = {ISP_BLOCK_HUE,        isp_k_cfg_hue},
@@ -809,11 +809,11 @@ static int isphw_block_func_get(void *handle, void *arg)
 	fucarg = (struct isp_hw_block_func *)arg;
 
 	if (fucarg->index < (ISP_BLOCK_TOTAL - ISP_BLOCK_BASE)) {
-		block_func = (struct isp_cfg_entry*)&isp_cfg_func_tab[fucarg->index];
-		fucarg->isp_entry= block_func;
+		block_func = (struct isp_cfg_entry *)&isp_cfg_func_tab[fucarg->index];
+		fucarg->isp_entry = block_func;
 	}
 
-	if (block_func == NULL){
+	if (block_func == NULL) {
 		pr_err("fail to get valid block func %d\n", ISP_BLOCK_TYPE);
 		return -EFAULT;
 	}
@@ -904,7 +904,7 @@ static int isphw_cfg_subblock(void *handle, void *arg)
 	ISP_REG_MWR(idx, ISP_COMMON_SPACE_SEL, 0x0F, 0x0A);
 	ISP_REG_MWR(idx, ISP_FETCH_PARAM, (0xF << 4),
 		fetch->fetch_fmt << 4);
-	ISP_REG_WR(idx, ISP_FETCH_SLICE_Y_PITCH,fetch->pitch.pitch_ch0);
+	ISP_REG_WR(idx, ISP_FETCH_SLICE_Y_PITCH, fetch->pitch.pitch_ch0);
 	ISP_REG_WR(idx, ISP_FETCH_SLICE_U_PITCH, fetch->pitch.pitch_ch1);
 	ISP_REG_WR(idx, ISP_FETCH_SLICE_V_PITCH, fetch->pitch.pitch_ch2);
 	ISP_REG_WR(idx, ISP_FETCH_SLICE_Y_ADDR, fetch->addr.addr_ch0);
@@ -979,15 +979,15 @@ static int isphw_path_common(void *handle, void *arg)
 
 	/* set path_eb*/
 	ISP_REG_MWR(idx, addr + ISP_SCALER_CFG,
-		BIT_31, 1 << 31); /* path enable */
+		BIT_31, 1 << 31);/* path enable */
 	ISP_REG_MWR(idx, addr + ISP_SCALER_CFG,
-		BIT_30, 0 << 30); /* CLK_SWITCH*/
+		BIT_30, 0 << 30);/* CLK_SWITCH*/
 	ISP_REG_MWR(idx, addr + ISP_SCALER_CFG,
-		BIT_29, 0 << 29); /* sw_switch_en*/
+		BIT_29, 0 << 29);/* sw_switch_en*/
 	ISP_REG_MWR(idx, addr + ISP_SCALER_CFG,
-		BIT_9, 0 << 9); /* bypass all scaler */
+		BIT_9, 0 << 9);/* bypass all scaler */
 	ISP_REG_MWR(idx, addr + ISP_SCALER_CFG,
-		BIT_8, 0 << 8); /* scaler path stop */
+		BIT_8, 0 << 8);/* scaler path stop */
 	ISP_REG_MWR(idx, addr + ISP_SCALER_CFG,
 		BIT_10, path_common->uv_sync_v << 10);
 
@@ -1360,8 +1360,8 @@ static int isphw_slw_fmcu_cmds(void *handle, void *arg)
 		cmd = 1;
 		FMCU_PUSH(fmcu, addr, cmd);
 
-		if ((i < AFBC_PATH_NUM) && (path->afbc_store.bypass == 0)){
-			fmcu_addr.yheader= afbc_store_addr->yheader;
+		if ((i < AFBC_PATH_NUM) && (path->afbc_store.bypass == 0)) {
+			fmcu_addr.yheader = afbc_store_addr->yheader;
 			fmcu_addr.yaddr= afbc_store_addr->yaddr;
 			fmcu_addr.fmcu = fmcu;
 			fmcu_addr.index = i;
@@ -1407,9 +1407,9 @@ static int isphw_fmcu_cfg(void *handle, void *arg)
 	 * until CFG module configs isp registers done.
 	 */
 	if (cfg->fmcu->fid == 0)
-		base =  ISP_FMCU0_BASE;
+		base = ISP_FMCU0_BASE;
 	else
-		base =  ISP_FMCU1_BASE;
+		base = ISP_FMCU1_BASE;
 	addr = ISP_GET_REG(base + ISP_FMCU_CMD);
 	cmd = CFG_TRIGGER_PULSE;
 	FMCU_PUSH(cfg->fmcu, addr, cmd);
@@ -1857,7 +1857,7 @@ static int isphw_radius_adpt_parm(void *handle, void *arg)
 	parm->slc_cfg_in->nlm_center_x = parm->val & 0x3FFF;
 	parm->slc_cfg_in->nlm_center_y = (parm->val >> 16) & 0x3FFF;
 
-	pr_debug("ctx %d,  nlm center %d %d",parm->ctx_id,
+	pr_debug("ctx %d,  nlm center %d %d", parm->ctx_id,
 		parm->slc_cfg_in->nlm_center_x, parm->slc_cfg_in->nlm_center_y);
 
 	return 0;

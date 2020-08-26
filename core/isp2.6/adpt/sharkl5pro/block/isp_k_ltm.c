@@ -25,8 +25,8 @@
 #define pr_fmt(fmt) "LTM MAP: %d %d %s : "\
 	fmt, current->pid, __LINE__, __func__
 
-#define	ISP_LTM_HIST_BUF0		0
-#define	ISP_LTM_HIST_BUF1		1
+#define	ISP_LTM_HIST_BUF0              0
+#define	ISP_LTM_HIST_BUF1              1
 
 static void isp_ltm_config_hists(uint32_t idx,
 	enum isp_ltm_region ltm_id, struct isp_ltm_hists *hists)
@@ -70,14 +70,14 @@ static void isp_ltm_config_hists(uint32_t idx,
 
 	val = ((hists->roi_start_y & 0x1FFF) << 16) |
 		(hists->roi_start_x & 0x1FFF);
-	ISP_REG_WR(idx, base + ISP_LTM_ROI_START, val); /* slice */
+	ISP_REG_WR(idx, base + ISP_LTM_ROI_START, val);/* slice */
 
 	/* tile_num_y tile_num_x HOW TODO */
 	val = ((hists->tile_num_y_minus & 0x7)   << 28) |
 		((hists->tile_height      & 0x1FF) << 16) |
 		((hists->tile_num_x_minus & 0x7)   << 12) |
 		(hists->tile_width       & 0x1FF);
-	ISP_REG_WR(idx, base + ISP_LTM_TILE_RANGE, val); /* slice */
+	ISP_REG_WR(idx, base + ISP_LTM_TILE_RANGE, val);/* slice */
 
 	val = ((hists->clip_limit_min & 0xFFFF) << 16) |
 		(hists->clip_limit     & 0xFFFF);
@@ -87,13 +87,13 @@ static void isp_ltm_config_hists(uint32_t idx,
 	ISP_REG_WR(idx, base + ISP_LTM_THRES, val);
 
 	val = hists->addr;
-	ISP_REG_WR(idx, base + ISP_LTM_ADDR, val); /* slice */
+	ISP_REG_WR(idx, base + ISP_LTM_ADDR, val);/* slice */
 
 	val = ((hists->wr_num & 0x1FF) << 16) |
 		(hists->pitch & 0xFFFF);
-	ISP_REG_WR(idx, base + ISP_LTM_PITCH, val); /* slice */
+	ISP_REG_WR(idx, base + ISP_LTM_PITCH, val);/* slice */
 
-	if (ISP_LTM_HIST_BUF0 == hists->buf_sel)
+	if (hists->buf_sel == ISP_LTM_HIST_BUF0)
 		buf_addr = buf_addr_0;
 	else
 		buf_addr = buf_addr_1;
@@ -127,29 +127,29 @@ static void isp_ltm_config_map(uint32_t idx,
 		return;
 
 	val = ((map->fetch_wait_line & 0x1) << 4) |
-		((map->fetch_wait_en   & 0x1) << 3) |
-		((map->hist_error_en   & 0x1) << 2) |
-		((map->burst8_en       & 0x1) << 1) |
-		(map->bypass          & 0x1);
+		((map->fetch_wait_en & 0x1) << 3) |
+		((map->hist_error_en & 0x1) << 2) |
+		((map->burst8_en & 0x1) << 1) |
+		(map->bypass & 0x1);
 	ISP_REG_WR(idx, base + ISP_LTM_MAP_PARAM0, val);
 
-	val = ((map->tile_y_num  & 0x7)   << 28) |
-		((map->tile_x_num  & 0x7)   << 24) |
+	val = ((map->tile_y_num & 0x7) << 28) |
+		((map->tile_x_num & 0x7) << 24) |
 		((map->tile_height & 0x3FF) << 12) |
-		(map->tile_width  & 0x3FF);
-	ISP_REG_WR(idx, base + ISP_LTM_MAP_PARAM1, val); /* slice */
+		(map->tile_width & 0x3FF);
+	ISP_REG_WR(idx, base + ISP_LTM_MAP_PARAM1, val);/* slice */
 
 	val = map->tile_size_pro & 0xFFFFF;
 	ISP_REG_WR(idx, base + ISP_LTM_MAP_PARAM2, val);
 
-	val = ((map->tile_right_flag & 0x1)   << 23) |
-		((map->tile_start_y    & 0x7FF) << 12) |
-		((map->tile_left_flag  & 0x1)   << 11) |
-		(map->tile_start_x    & 0x7FF);
-	ISP_REG_WR(idx, base + ISP_LTM_MAP_PARAM3, val); /* slice */
+	val = ((map->tile_right_flag & 0x1) << 23) |
+		((map->tile_start_y & 0x7FF) << 12) |
+		((map->tile_left_flag & 0x1) << 11) |
+		(map->tile_start_x & 0x7FF);
+	ISP_REG_WR(idx, base + ISP_LTM_MAP_PARAM3, val);/* slice */
 
 	val = map->mem_init_addr;
-	ISP_REG_WR(idx, base + ISP_LTM_MAP_PARAM4, val); /* slice */
+	ISP_REG_WR(idx, base + ISP_LTM_MAP_PARAM4, val);/* slice */
 
 	val = (map->hist_pitch & 0x7) << 24;
 	ISP_REG_WR(idx, base + ISP_LTM_MAP_PARAM5, val);
@@ -161,14 +161,14 @@ int isp_ltm_config_param(struct isp_ltm_ctx_desc *ctx,
 {
 	uint32_t idx = ctx->isp_pipe_ctx_id;
 	struct isp_ltm_hists *hists = &ctx->hists[ltm_id];
-	struct isp_ltm_map   *map   = &ctx->map[ltm_id];
+	struct isp_ltm_map *map = &ctx->map[ltm_id];
 
 	if (ctx->bypass) {
 		hists->bypass = 1;
-		map->bypass  = 1;
+		map->bypass = 1;
 	}
 
-	isp_ltm_config_hists(idx,ltm_id, hists);
+	isp_ltm_config_hists(idx, ltm_id, hists);
 	isp_ltm_config_map(idx, ltm_id, map);
 
 	return 0;

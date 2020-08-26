@@ -24,8 +24,6 @@
 #define pr_fmt(fmt) "PDAF: %d %d %s : "\
 	fmt, current->pid, __LINE__, __func__
 
-
-
 static void write_pd_table(struct pdaf_ppi_info *pdaf_info, enum dcam_id idx)
 {
 	int i = 0;
@@ -218,7 +216,7 @@ static int isp_k_pdaf_type3_set_info(struct isp_io_param *param, enum dcam_id id
 	DCAM_REG_MWR(idx, DCAM_PDAF_SKIP_FRM, 0xf0,
 		pdaf_info.skip_num << 4);
 	DCAM_REG_MWR(idx, DCAM_PDAF_SKIP_FRM, BIT_2,
-		pdaf_info.mode_sel<< 2);
+		pdaf_info.mode_sel << 2);
 
 	if (pdaf_info.mode_sel)
 		DCAM_REG_MWR(idx, DCAM_PDAF_SKIP_FRM, BIT_3,
@@ -291,7 +289,7 @@ static int isp_k_pdaf_type3_set_roi(struct isp_io_param *param, enum dcam_id idx
 	DCAM_REG_MWR(idx, DCAM_CFG, BIT_3, 0x1 << 3);
 	DCAM_REG_MWR(idx, DCAM_CFG, BIT_4, 0x1 << 4);
 	val = (((roi_info.win.end_y - roi_info.win.start_y) & 0x1FFF) << 13) |
-		((roi_info.win.end_x - roi_info.win.start_x)& 0x1FFF);
+		((roi_info.win.end_x - roi_info.win.start_x) & 0x1FFF);
 	DCAM_REG_WR(idx, DCAM_PDAF_EXTR_ROI_SIZE, val);
 	DCAM_REG_MWR(idx, DCAM_PDAF_CONTROL, BIT_1 | BIT_0, 0x3);
 	DCAM_REG_MWR(idx, DCAM_VC2_CONTROL, BIT_1 | BIT_0, 0);
@@ -331,12 +329,10 @@ static int isp_k_pdaf_type3_set_mode(struct isp_io_param *param, enum dcam_id id
 		return -1;
 	}
 
-	DCAM_REG_MWR(idx, DCAM_PDAF_SKIP_FRM, BIT_2,
-		mode << 2);
+	DCAM_REG_MWR(idx, DCAM_PDAF_SKIP_FRM, BIT_2, mode << 2);
 
 	if (mode)
-		DCAM_REG_MWR(idx, DCAM_PDAF_SKIP_FRM, BIT_3,
-			(0x1 << 3));
+		DCAM_REG_MWR(idx, DCAM_PDAF_SKIP_FRM, BIT_3, (0x1 << 3));
 	else
 		DCAM_REG_MWR(idx, DCAM_PDAF_SKIP_FRM1, BIT_0, 0x1);
 
@@ -397,8 +393,7 @@ int dcam_k_cfg_pdaf(struct isp_io_param *param, struct dcam_dev_param *p)
 		ret = isp_k_dual_pdaf_block(param, idx);
 		break;
 	default:
-		pr_err("fail to support cmd id = %d\n",
-			param->property);
+		pr_err("fail to support cmd id = %d\n", param->property);
 		break;
 	}
 	pr_info("idx %d, Sub %d, ret %d\n", idx, param->property, ret);

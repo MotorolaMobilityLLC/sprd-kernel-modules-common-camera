@@ -25,7 +25,6 @@
 #define pr_fmt(fmt) "AFL: %d %d %s : "\
 	fmt, current->pid, __LINE__, __func__
 
-
 #define V_COUNTER_INTERVAL 524288
 
 static uint32_t get_afl_data_num(uint32_t afl_stepy,

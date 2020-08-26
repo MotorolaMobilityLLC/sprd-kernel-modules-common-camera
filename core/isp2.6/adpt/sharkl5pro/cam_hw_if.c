@@ -107,11 +107,10 @@ static int camhwif_dcam_ioctl(void *handle,
 	hw_ioctl_fun hw_ctrl = NULL;
 
 	hw_ctrl = dcamhw_ioctl_get_fun(cmd);
-	if (NULL != hw_ctrl) {
+	if (hw_ctrl != NULL)
 		ret = hw_ctrl(handle, arg);
-	} else {
+	else
 		pr_err("hw_core_ctrl_fun is null, cmd %d", cmd);
-	}
 
 	return ret;
 }
@@ -123,11 +122,10 @@ static int camhwif_isp_ioctl(void *handle,
 	hw_ioctl_fun hw_ctrl = NULL;
 
 	hw_ctrl = isphw_ioctl_get_fun(cmd);
-	if (NULL != hw_ctrl) {
+	if (hw_ctrl != NULL)
 		ret = hw_ctrl(handle, arg);
-	} else {
+	else
 		pr_err("hw_core_ctrl_fun is null, cmd %d", cmd);
-	}
 
 	return ret;
 }

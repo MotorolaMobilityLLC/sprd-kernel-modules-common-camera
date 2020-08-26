@@ -46,7 +46,7 @@ static int camhwif_dcam_ioctl(void *handle,
 	hw_ioctl_fun hw_ctrl = NULL;
 
 	hw_ctrl = dcamhw_ioctl_get_fun(cmd);
-	if (NULL != hw_ctrl)
+	if (hw_ctrl != NULL)
 		ret = hw_ctrl(handle, arg);
 	else
 		pr_debug("not support cmd %d", cmd);
@@ -60,7 +60,7 @@ static int camhwif_isp_ioctl(void *handle, enum isp_hw_cfg_cmd cmd, void *arg)
 	hw_ioctl_fun hw_ctrl = NULL;
 
 	hw_ctrl = isphw_ioctl_get_fun(cmd);
-	if (NULL != hw_ctrl)
+	if (hw_ctrl != NULL)
 		ret = hw_ctrl(handle, arg);
 	else
 		pr_debug("not support cmd %d", cmd);

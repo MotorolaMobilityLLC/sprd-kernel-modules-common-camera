@@ -380,7 +380,7 @@ static isp_isr isp_isr_handler[32] = {
 	[ISP_INT_DISPATCH_DONE] = isp_dispatch_done,
 	[ISP_INT_STORE_DONE_PRE] = isp_pre_store_done,
 	[ISP_INT_STORE_DONE_VID] = isp_vid_store_done,
-	[ISP_INT_NR3_ALL_DONE]	 = isp_3dnr_all_done,
+	[ISP_INT_NR3_ALL_DONE] = isp_3dnr_all_done,
 	[ISP_INT_NR3_SHADOW_DONE] = isp_3dnr_shadow_done,
 	[ISP_INT_FMCU_LOAD_DONE] = isp_fmcu_load_done,
 	[ISP_INT_FMCU_SHADOW_DONE] = isp_fmcu_shadow_done,
@@ -491,9 +491,8 @@ static irqreturn_t isp_isr_root(int irq, void *priv)
 		irq_vect = isp_int_ctxs[c_id].irq_vect;
 
 		irq_line = ISP_HREG_RD(irq_offset + ISP_INT_INT0);
-		if (unlikely(irq_line == 0)) {
+		if (unlikely(irq_line == 0))
 			continue;
-		}
 
 		sw_ctx_id = isp_get_sw_context_id(c_id, isp_handle);
 		pr_debug("sw %d, hw %d, irq_line: %08x\n",
@@ -560,7 +559,7 @@ static irqreturn_t isp_isr_root(int irq, void *priv)
 						c_id, isp_handle);
 				}
 			}
-			irq_line  &= ~(1 << irq_id);
+			irq_line &= ~(1 << irq_id);
 			if (!irq_line)
 				break;
 		}
@@ -575,7 +574,7 @@ int isp_int_irq_request(struct device *p_dev,
 		uint32_t *irq_no, void *isp_handle)
 {
 	int ret = 0;
-	uint32_t  id;
+	uint32_t id;
 	struct isp_pipe_dev *ispdev;
 
 	if (!p_dev || !isp_handle || !irq_no) {
@@ -628,7 +627,7 @@ int isp_int_trace_isp_irq_cnt(int ctx_id)
 		return 0;
 
 	for (i = 0; i < 32; i++)
-		if(irq_done[ctx_id][i])
+		if (irq_done[ctx_id][i])
 			pr_info("done %d %d :   %d\n", ctx_id, i, irq_done[ctx_id][i]);
 
 #ifdef ISP_INT_RECORD
@@ -636,20 +635,20 @@ int isp_int_trace_isp_irq_cnt(int ctx_id)
 		uint32_t cnt, j;
 		int idx = ctx_id;
 		for (cnt = 0; cnt < (uint32_t)irq_done[idx][ISP_INT_SHADOW_DONE]; cnt += 4) {
-			j = (cnt & (INT_RCD_SIZE - 1)); //rolling
+			j = (cnt & (INT_RCD_SIZE - 1));//rolling
 			pr_info("isp%u j=%d, %03d.%04d, %03d.%04d, %03d.%04d, %03d.%04d, %03d.%04d, %03d.%04d\n",
 			idx, j, (uint32_t)isp_int_recorder[idx][ISP_INT_ISP_ALL_DONE][j] >> 16,
-			 (uint32_t)isp_int_recorder[idx][ISP_INT_ISP_ALL_DONE][j] & 0xffff,
-			 (uint32_t)isp_int_recorder[idx][ISP_INT_SHADOW_DONE][j] >> 16,
-			 (uint32_t)isp_int_recorder[idx][ISP_INT_SHADOW_DONE][j] & 0xffff,
-			 (uint32_t)isp_int_recorder[idx][ISP_INT_DISPATCH_DONE][j] >> 16,
-			 (uint32_t)isp_int_recorder[idx][ISP_INT_DISPATCH_DONE][j] & 0xffff,
-			 (uint32_t)isp_int_recorder[idx][ISP_INT_STORE_DONE_PRE][j] >> 16,
-			 (uint32_t)isp_int_recorder[idx][ISP_INT_STORE_DONE_PRE][j] & 0xffff,
-			 (uint32_t)isp_int_recorder[idx][ISP_INT_STORE_DONE_VID][j] >> 16,
-			 (uint32_t)isp_int_recorder[idx][ISP_INT_STORE_DONE_VID][j] & 0xffff,
-			 (uint32_t)isp_int_recorder[idx][ISP_INT_FMCU_CONFIG_DONE][j] >> 16,
-			 (uint32_t)isp_int_recorder[idx][ISP_INT_FMCU_CONFIG_DONE][j] & 0xffff);
+			(uint32_t)isp_int_recorder[idx][ISP_INT_ISP_ALL_DONE][j] & 0xffff,
+			(uint32_t)isp_int_recorder[idx][ISP_INT_SHADOW_DONE][j] >> 16,
+			(uint32_t)isp_int_recorder[idx][ISP_INT_SHADOW_DONE][j] & 0xffff,
+			(uint32_t)isp_int_recorder[idx][ISP_INT_DISPATCH_DONE][j] >> 16,
+			(uint32_t)isp_int_recorder[idx][ISP_INT_DISPATCH_DONE][j] & 0xffff,
+			(uint32_t)isp_int_recorder[idx][ISP_INT_STORE_DONE_PRE][j] >> 16,
+			(uint32_t)isp_int_recorder[idx][ISP_INT_STORE_DONE_PRE][j] & 0xffff,
+			(uint32_t)isp_int_recorder[idx][ISP_INT_STORE_DONE_VID][j] >> 16,
+			(uint32_t)isp_int_recorder[idx][ISP_INT_STORE_DONE_VID][j] & 0xffff,
+			(uint32_t)isp_int_recorder[idx][ISP_INT_FMCU_CONFIG_DONE][j] >> 16,
+			(uint32_t)isp_int_recorder[idx][ISP_INT_FMCU_CONFIG_DONE][j] & 0xffff);
 		}
 	}
 #endif
@@ -671,7 +670,7 @@ int isp_int_trace_isp_irq_sw_cnt(int ctx_id)
 		return 0;
 
 	for (i = 0; i < 32; i++)
-		if(irq_done_sw[ctx_id][i])
+		if (irq_done_sw[ctx_id][i])
 			pr_info("done %d %d :   %d\n", ctx_id, i, irq_done_sw[ctx_id][i]);
 	return 0;
 }

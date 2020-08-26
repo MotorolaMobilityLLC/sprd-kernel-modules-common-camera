@@ -12,7 +12,7 @@
  */
 #include <linux/uaccess.h>
 #include <sprd_mm.h>
-#include  "cam_trusty.h"
+#include "cam_trusty.h"
 
 #include "sprd_isp_hw.h"
 #include "isp_reg.h"
@@ -25,95 +25,52 @@
 #define pr_fmt(fmt) "3DNR: %d %d %s : "\
 	fmt, current->pid, __LINE__, __func__
 
-#if 0
-static struct isp_3dnr_blend_info g_3dnr_param_pre = {
-	1, 0,
-	128, 128, 128,
-	5, 3, 3, 255, 255, 255,
-	0, 255, 0, 255,
-	30, 30, 30, 30, 30, 30, 30, 30, 30,
-	20, 20, 20, 20, 20, 20, 20, 20, 20,
-	20, 20, 20, 20, 20, 20, 20, 20, 20,
-	63, 63, 63, 63, 63, 63, 63, 63, 63,
-	63, 63, 63, 63, 63, 63, 63, 63, 63,
-	63, 63, 63, 63, 63, 63, 63, 63, 63,
-	127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127,
-	31, 37, 48, 63,
-	31, 37, 48, 63,
-	1, 2, 2, 3,
-	1, 2, 2, 3,
-	814, 931, 1047
-};
-
-static struct isp_3dnr_blend_info g_3dnr_param_cap = {
-	1, 0,
-	128, 128, 128,
-	5, 3, 3, 255, 255, 255,
-	0, 255, 0, 255,
-	30, 30, 30, 30, 30, 30, 30, 30, 30,
-	30, 30, 30, 30, 30, 30, 30, 30, 30,
-	30, 30, 30, 30, 30, 30, 30, 30, 30,
-	63, 63, 63, 63, 63, 63, 63, 63, 63,
-	63, 63, 63, 63, 63, 63, 63, 63, 63,
-	63, 63, 63, 63, 63, 63, 63, 63, 63,
-	127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127,
-	31, 37, 48, 63,
-	31, 37, 48, 63,
-	1, 2, 2, 3,
-	1, 2, 2, 3,
-	814, 931, 1047
-};
-#endif
-/*
- * static function
- */
-
 static void isp_3dnr_config_mem_ctrl(uint32_t idx,
-				     struct isp_3dnr_mem_ctrl *mem_ctrl, bool  nr3sec_eb)
+		struct isp_3dnr_mem_ctrl *mem_ctrl, bool  nr3sec_eb)
 {
 	unsigned int val;
 
 	if (g_isp_bypass[idx] & (1 << _EISP_NR3))
 		mem_ctrl->bypass = 1;
 
-	val = ((mem_ctrl->nr3_done_mode & 0x1) << 1)	|
-	      ((mem_ctrl->nr3_ft_path_sel & 0x1) << 2)  |
-	      ((mem_ctrl->back_toddr_en & 0x1) << 6)	|
-	      ((mem_ctrl->chk_sum_clr_en & 0x1) << 9)	|
-	      ((mem_ctrl->data_toyuv_en & 0x1) << 12)	|
-	      ((mem_ctrl->roi_mode & 0x1) << 14)	|
-	      ((mem_ctrl->retain_num & 0x7F) << 16)	|
-	      ((mem_ctrl->ref_pic_flag & 0x1) << 23)	|
-	      ((mem_ctrl->ft_max_len_sel & 0x1) << 28)	|
-	       (mem_ctrl->bypass & 0x1);
+	val = ((mem_ctrl->nr3_done_mode & 0x1) << 1) |
+		((mem_ctrl->nr3_ft_path_sel & 0x1) << 2) |
+		((mem_ctrl->back_toddr_en & 0x1) << 6) |
+		((mem_ctrl->chk_sum_clr_en & 0x1) << 9) |
+		((mem_ctrl->data_toyuv_en & 0x1) << 12) |
+		((mem_ctrl->roi_mode & 0x1) << 14) |
+		((mem_ctrl->retain_num & 0x7F) << 16) |
+		((mem_ctrl->ref_pic_flag & 0x1) << 23) |
+		((mem_ctrl->ft_max_len_sel & 0x1) << 28) |
+		(mem_ctrl->bypass & 0x1);
 	ISP_REG_WR(idx, ISP_3DNR_MEM_CTRL_PARAM0, val);
 
-	val = ((mem_ctrl->last_line_mode & 0x1) << 1)	|
-	      ((mem_ctrl->first_line_mode & 0x1));
+	val = ((mem_ctrl->last_line_mode & 0x1) << 1) |
+		((mem_ctrl->first_line_mode & 0x1));
 	ISP_REG_WR(idx, ISP_3DNR_MEM_CTRL_LINE_MODE, val);
 
 	val = ((mem_ctrl->start_col & 0x1FFF) << 16) |
-	       (mem_ctrl->start_row & 0x1FFF);
+		(mem_ctrl->start_row & 0x1FFF);
 	ISP_REG_WR(idx, ISP_3DNR_MEM_CTRL_PARAM1, val);
 
 	val = ((mem_ctrl->global_img_height & 0x1FFF) << 16) |
-	       (mem_ctrl->global_img_width & 0x1FFF);
+		(mem_ctrl->global_img_width & 0x1FFF);
 	ISP_REG_WR(idx, ISP_3DNR_MEM_CTRL_PARAM2, val);
 
 	val = ((mem_ctrl->img_height & 0xFFF) << 16)	|
-	       (mem_ctrl->img_width & 0xFFF);
+		(mem_ctrl->img_width & 0xFFF);
 	ISP_REG_WR(idx, ISP_3DNR_MEM_CTRL_PARAM3, val);
 
-	val = ((mem_ctrl->ft_y_height & 0xFFF) << 16)	|
-	       (mem_ctrl->ft_y_width & 0xFFF);
+	val = ((mem_ctrl->ft_y_height & 0xFFF) << 16) |
+		(mem_ctrl->ft_y_width & 0xFFF);
 	ISP_REG_WR(idx, ISP_3DNR_MEM_CTRL_PARAM4, val);
 
-	val = (mem_ctrl->ft_uv_width & 0xFFF)
-		| ((mem_ctrl->ft_uv_height & 0xFFF) << 16);
+	val = (mem_ctrl->ft_uv_width & 0xFFF) |
+		((mem_ctrl->ft_uv_height & 0xFFF) << 16);
 	ISP_REG_WR(idx, ISP_3DNR_MEM_CTRL_PARAM5, val);
 
 	val = ((mem_ctrl->mv_x & 0xFF) << 8) |
-	       (mem_ctrl->mv_y & 0xFF);
+		(mem_ctrl->mv_y & 0xFF);
 	ISP_REG_WR(idx, ISP_3DNR_MEM_CTRL_PARAM7, val);
 
 
@@ -138,42 +95,30 @@ static void isp_3dnr_config_mem_ctrl(uint32_t idx,
 		(mem_ctrl->blend_y_en_start_row & 0xFFF);
 	ISP_REG_WR(idx, ISP_3DNR_MEM_CTRL_PARAM8, val);
 
-	/*
-	 * following code in minicode ? How TODO
-	 *
-	 * val = (((mem_ctrl->img_height - 1) & 0xFFF) << 16)    |
-	 *        ((mem_ctrl->img_width - 1) & 0xFFF);
-	 */
-	val = ((mem_ctrl->blend_y_en_end_col & 0xFFF) << 16)    |
-	       (mem_ctrl->blend_y_en_end_row & 0xFFF);
+	val = ((mem_ctrl->blend_y_en_end_col & 0xFFF) << 16) |
+		(mem_ctrl->blend_y_en_end_row & 0xFFF);
 	ISP_REG_WR(idx, ISP_3DNR_MEM_CTRL_PARAM9, val);
 
-	val = ((mem_ctrl->blend_uv_en_start_col & 0xFFF) << 16)	|
-	       (mem_ctrl->blend_uv_en_start_row & 0xFFF);
+	val = ((mem_ctrl->blend_uv_en_start_col & 0xFFF) << 16) |
+		(mem_ctrl->blend_uv_en_start_row & 0xFFF);
 	ISP_REG_WR(idx, ISP_3DNR_MEM_CTRL_PARAM10, val);
 
-	/*
-	 * following code in minicode ? How TODO
-	 *
-	 * val = (((mem_ctrl->img_height/2 - 1) & 0xFFF) << 16)    |
-	 *        ((mem_ctrl->img_width - 1) & 0xFFF);
-	 */
-	val = ((mem_ctrl->blend_uv_en_end_col & 0xFFF) << 16)	|
-	       (mem_ctrl->blend_uv_en_end_row & 0xFFF);
+	val = ((mem_ctrl->blend_uv_en_end_col & 0xFFF) << 16) |
+		(mem_ctrl->blend_uv_en_end_row & 0xFFF);
 	ISP_REG_WR(idx, ISP_3DNR_MEM_CTRL_PARAM11, val);
 
-	val = ((mem_ctrl->ft_hblank_num & 0xFFFF) << 16)	|
-	      ((mem_ctrl->pipe_hblank_num & 0xFF) << 8)		|
-	       (mem_ctrl->pipe_flush_line_num & 0xFF);
+	val = ((mem_ctrl->ft_hblank_num & 0xFFFF) << 16) |
+		((mem_ctrl->pipe_hblank_num & 0xFF) << 8) |
+		(mem_ctrl->pipe_flush_line_num & 0xFF);
 	ISP_REG_WR(idx, ISP_3DNR_MEM_CTRL_PARAM12, val);
 
-	val = ((mem_ctrl->pipe_nfull_num & 0x7FF) << 16)	|
-	       (mem_ctrl->ft_fifo_nfull_num & 0xFFF);
+	val = ((mem_ctrl->pipe_nfull_num & 0x7FF) << 16) |
+		(mem_ctrl->ft_fifo_nfull_num & 0xFFF);
 	ISP_REG_WR(idx, ISP_3DNR_MEM_CTRL_PARAM13, val);
 }
 
 static void isp_3dnr_config_blend(uint32_t idx,
-				  struct isp_3dnr_blend_info *blend)
+		struct isp_3dnr_blend_info *blend)
 {
 	unsigned int val;
 
@@ -186,166 +131,166 @@ static void isp_3dnr_config_blend(uint32_t idx,
 	ISP_REG_MWR(idx, ISP_3DNR_BLEND_CONTROL0, BIT_2, blend->filter_switch << 2);
 
 	val = ((blend->y_pixel_src_weight[0] & 0xFF) << 24) |
-	      ((blend->u_pixel_src_weight[0] & 0xFF) << 16) |
-	      ((blend->v_pixel_src_weight[0] & 0xFF) << 8)  |
-	       (blend->y_pixel_noise_threshold & 0xFF);
+		((blend->u_pixel_src_weight[0] & 0xFF) << 16) |
+		((blend->v_pixel_src_weight[0] & 0xFF) << 8) |
+		(blend->y_pixel_noise_threshold & 0xFF);
 	ISP_REG_WR(idx, ISP_3DNR_BLEND_CFG1, val);
 
 	val = ((blend->u_pixel_noise_threshold & 0xFF) << 24) |
-	      ((blend->v_pixel_noise_threshold & 0xFF) << 16) |
-	      ((blend->y_pixel_noise_weight & 0xFF) << 8)     |
-	       (blend->u_pixel_noise_weight & 0xFF);
+		((blend->v_pixel_noise_threshold & 0xFF) << 16) |
+		((blend->y_pixel_noise_weight & 0xFF) << 8) |
+		(blend->u_pixel_noise_weight & 0xFF);
 	ISP_REG_WR(idx, ISP_3DNR_BLEND_CFG2, val);
 
 	val = ((blend->v_pixel_noise_weight & 0xFF) << 24) |
-	      ((blend->threshold_radial_variation_u_range_min & 0xFF) << 16) |
-	      ((blend->threshold_radial_variation_u_range_max & 0xFF) << 8)  |
-	       (blend->threshold_radial_variation_v_range_min & 0xFF);
+		((blend->threshold_radial_variation_u_range_min & 0xFF) << 16) |
+		((blend->threshold_radial_variation_u_range_max & 0xFF) << 8) |
+		(blend->threshold_radial_variation_v_range_min & 0xFF);
 	ISP_REG_WR(idx, ISP_3DNR_BLEND_CFG3, val);
 
 	val = ((blend->threshold_radial_variation_v_range_max & 0xFF) << 24) |
-	      ((blend->y_threshold_polyline_0 & 0xFF) << 16)		     |
-	      ((blend->y_threshold_polyline_1 & 0xFF) << 8)		     |
-	       (blend->y_threshold_polyline_2 & 0xFF);
+		((blend->y_threshold_polyline_0 & 0xFF) << 16) |
+		((blend->y_threshold_polyline_1 & 0xFF) << 8) |
+		(blend->y_threshold_polyline_2 & 0xFF);
 	ISP_REG_WR(idx, ISP_3DNR_BLEND_CFG4, val);
 
-	val = ((blend->y_threshold_polyline_3 & 0xFF) << 24)	|
-	      ((blend->y_threshold_polyline_4 & 0xFF) << 16)	|
-	      ((blend->y_threshold_polyline_5 & 0xFF) << 8)	|
-	       (blend->y_threshold_polyline_6 & 0xFF);
+	val = ((blend->y_threshold_polyline_3 & 0xFF) << 24) |
+		((blend->y_threshold_polyline_4 & 0xFF) << 16) |
+		((blend->y_threshold_polyline_5 & 0xFF) << 8) |
+		(blend->y_threshold_polyline_6 & 0xFF);
 	ISP_REG_WR(idx, ISP_3DNR_BLEND_CFG5, val);
 
-	val = ((blend->y_threshold_polyline_7 & 0xFF) << 24)	|
-	      ((blend->y_threshold_polyline_8 & 0xFF) << 16)	|
-	      ((blend->u_threshold_polyline_0 & 0xFF) << 8)	|
-	       (blend->u_threshold_polyline_1 & 0xFF);
+	val = ((blend->y_threshold_polyline_7 & 0xFF) << 24) |
+		((blend->y_threshold_polyline_8 & 0xFF) << 16) |
+		((blend->u_threshold_polyline_0 & 0xFF) << 8) |
+		(blend->u_threshold_polyline_1 & 0xFF);
 	ISP_REG_WR(idx, ISP_3DNR_BLEND_CFG6, val);
 
-	val = ((blend->u_threshold_polyline_2 & 0xFF) << 24)	|
-	      ((blend->u_threshold_polyline_3 & 0xFF) << 16)	|
-	      ((blend->u_threshold_polyline_4 & 0xFF) << 8)	|
-	       (blend->u_threshold_polyline_5 & 0xFF);
+	val = ((blend->u_threshold_polyline_2 & 0xFF) << 24) |
+		((blend->u_threshold_polyline_3 & 0xFF) << 16) |
+		((blend->u_threshold_polyline_4 & 0xFF) << 8) |
+		(blend->u_threshold_polyline_5 & 0xFF);
 	ISP_REG_WR(idx, ISP_3DNR_BLEND_CFG7, val);
 
-	val = ((blend->u_threshold_polyline_6 & 0xFF) << 24)	|
-	      ((blend->u_threshold_polyline_7 & 0xFF) << 16)	|
-	      ((blend->u_threshold_polyline_8 & 0xFF) << 8)	|
-	       (blend->v_threshold_polyline_0 & 0xFF);
+	val = ((blend->u_threshold_polyline_6 & 0xFF) << 24) |
+		((blend->u_threshold_polyline_7 & 0xFF) << 16) |
+		((blend->u_threshold_polyline_8 & 0xFF) << 8) |
+		(blend->v_threshold_polyline_0 & 0xFF);
 	ISP_REG_WR(idx, ISP_3DNR_BLEND_CFG8, val);
 
-	val = ((blend->v_threshold_polyline_1 & 0xFF) << 24)	|
-	      ((blend->v_threshold_polyline_2 & 0xFF) << 16)	|
-	      ((blend->v_threshold_polyline_3 & 0xFF) << 8)	|
-	       (blend->v_threshold_polyline_4 & 0xFF);
+	val = ((blend->v_threshold_polyline_1 & 0xFF) << 24) |
+		((blend->v_threshold_polyline_2 & 0xFF) << 16) |
+		((blend->v_threshold_polyline_3 & 0xFF) << 8) |
+		(blend->v_threshold_polyline_4 & 0xFF);
 	ISP_REG_WR(idx, ISP_3DNR_BLEND_CFG9, val);
 
-	val = ((blend->v_threshold_polyline_5 & 0xFF) << 24)	|
-	      ((blend->v_threshold_polyline_6 & 0xFF) << 16)	|
-	      ((blend->v_threshold_polyline_7 & 0xFF) << 8)	|
-	       (blend->v_threshold_polyline_8 & 0xFF);
+	val = ((blend->v_threshold_polyline_5 & 0xFF) << 24) |
+		((blend->v_threshold_polyline_6 & 0xFF) << 16) |
+		((blend->v_threshold_polyline_7 & 0xFF) << 8) |
+		(blend->v_threshold_polyline_8 & 0xFF);
 	ISP_REG_WR(idx, ISP_3DNR_BLEND_CFG10, val);
 
 	val = ((blend->y_intensity_gain_polyline_0 & 0x7F) << 24) |
-	      ((blend->y_intensity_gain_polyline_1 & 0x7F) << 16) |
-	      ((blend->y_intensity_gain_polyline_2 & 0x7F) << 8)  |
-	       (blend->y_intensity_gain_polyline_3 & 0x7F);
+		((blend->y_intensity_gain_polyline_1 & 0x7F) << 16) |
+		((blend->y_intensity_gain_polyline_2 & 0x7F) << 8) |
+		(blend->y_intensity_gain_polyline_3 & 0x7F);
 	ISP_REG_WR(idx, ISP_3DNR_BLEND_CFG11, val);
 
 	val = ((blend->y_intensity_gain_polyline_4 & 0x7F) << 24) |
-	      ((blend->y_intensity_gain_polyline_5 & 0x7F) << 16) |
-	      ((blend->y_intensity_gain_polyline_6 & 0x7F) << 8)  |
-	       (blend->y_intensity_gain_polyline_7 & 0x7F);
+		((blend->y_intensity_gain_polyline_5 & 0x7F) << 16) |
+		((blend->y_intensity_gain_polyline_6 & 0x7F) << 8) |
+		(blend->y_intensity_gain_polyline_7 & 0x7F);
 	ISP_REG_WR(idx, ISP_3DNR_BLEND_CFG12, val);
 
 	val = ((blend->y_intensity_gain_polyline_8 & 0x7F) << 24) |
-	      ((blend->u_intensity_gain_polyline_0 & 0x7F) << 16) |
-	      ((blend->u_intensity_gain_polyline_1 & 0x7F) << 8)  |
-	       (blend->u_intensity_gain_polyline_2 & 0x7F);
+		((blend->u_intensity_gain_polyline_0 & 0x7F) << 16) |
+		((blend->u_intensity_gain_polyline_1 & 0x7F) << 8) |
+		(blend->u_intensity_gain_polyline_2 & 0x7F);
 	ISP_REG_WR(idx, ISP_3DNR_BLEND_CFG13, val);
 
 	val = ((blend->u_intensity_gain_polyline_3 & 0x7F) << 24) |
-	      ((blend->u_intensity_gain_polyline_4 & 0x7F) << 16) |
-	      ((blend->u_intensity_gain_polyline_5 & 0x7F) << 8)  |
-	       (blend->u_intensity_gain_polyline_6 & 0x7F);
+		((blend->u_intensity_gain_polyline_4 & 0x7F) << 16) |
+		((blend->u_intensity_gain_polyline_5 & 0x7F) << 8) |
+		(blend->u_intensity_gain_polyline_6 & 0x7F);
 	ISP_REG_WR(idx, ISP_3DNR_BLEND_CFG14, val);
 
 	val = ((blend->u_intensity_gain_polyline_7 & 0x7F) << 24) |
-	      ((blend->u_intensity_gain_polyline_8 & 0x7F) << 16) |
-	      ((blend->v_intensity_gain_polyline_0 & 0x7F) << 8)  |
-	       (blend->v_intensity_gain_polyline_1 & 0x7F);
+		((blend->u_intensity_gain_polyline_8 & 0x7F) << 16) |
+		((blend->v_intensity_gain_polyline_0 & 0x7F) << 8) |
+		(blend->v_intensity_gain_polyline_1 & 0x7F);
 	ISP_REG_WR(idx, ISP_3DNR_BLEND_CFG15, val);
 
 	val = ((blend->v_intensity_gain_polyline_2 & 0x7F) << 24) |
-	      ((blend->v_intensity_gain_polyline_3 & 0x7F) << 16) |
-	      ((blend->v_intensity_gain_polyline_4 & 0x7F) << 8)  |
-	       (blend->v_intensity_gain_polyline_5 & 0x7F);
+		((blend->v_intensity_gain_polyline_3 & 0x7F) << 16) |
+		((blend->v_intensity_gain_polyline_4 & 0x7F) << 8) |
+		(blend->v_intensity_gain_polyline_5 & 0x7F);
 	ISP_REG_WR(idx, ISP_3DNR_BLEND_CFG16, val);
 
 	val = ((blend->v_intensity_gain_polyline_6 & 0x7F) << 24) |
-	      ((blend->v_intensity_gain_polyline_7 & 0x7F) << 16) |
-	      ((blend->v_intensity_gain_polyline_8 & 0x7F) << 8)  |
-	       (blend->gradient_weight_polyline_0 & 0x7F);
+		((blend->v_intensity_gain_polyline_7 & 0x7F) << 16) |
+		((blend->v_intensity_gain_polyline_8 & 0x7F) << 8) |
+		(blend->gradient_weight_polyline_0 & 0x7F);
 	ISP_REG_WR(idx, ISP_3DNR_BLEND_CFG17, val);
 
 	val = ((blend->gradient_weight_polyline_1 & 0x7F) << 24) |
-	      ((blend->gradient_weight_polyline_2 & 0x7F) << 16) |
-	      ((blend->gradient_weight_polyline_3 & 0x7F) << 8)	 |
-	       (blend->gradient_weight_polyline_4 & 0x7F);
+		((blend->gradient_weight_polyline_2 & 0x7F) << 16) |
+		((blend->gradient_weight_polyline_3 & 0x7F) << 8) |
+		(blend->gradient_weight_polyline_4 & 0x7F);
 	ISP_REG_WR(idx, ISP_3DNR_BLEND_CFG18, val);
 
 	val = ((blend->gradient_weight_polyline_5 & 0x7F) << 24) |
-	      ((blend->gradient_weight_polyline_6 & 0x7F) << 16) |
-	      ((blend->gradient_weight_polyline_7 & 0x7F) << 8)  |
-	       (blend->gradient_weight_polyline_8 & 0x7F);
+		((blend->gradient_weight_polyline_6 & 0x7F) << 16) |
+		((blend->gradient_weight_polyline_7 & 0x7F) << 8) |
+		(blend->gradient_weight_polyline_8 & 0x7F);
 	ISP_REG_WR(idx, ISP_3DNR_BLEND_CFG19, val);
 
-	val = ((blend->gradient_weight_polyline_9 & 0x7F) << 24)  |
-	      ((blend->gradient_weight_polyline_10 & 0x7F) << 16) |
-	      ((blend->u_threshold_factor0 & 0x7F) << 8)	  |
-	       (blend->u_threshold_factor1 & 0x7F);
+	val = ((blend->gradient_weight_polyline_9 & 0x7F) << 24) |
+		((blend->gradient_weight_polyline_10 & 0x7F) << 16) |
+		((blend->u_threshold_factor0 & 0x7F) << 8) |
+		(blend->u_threshold_factor1 & 0x7F);
 	ISP_REG_WR(idx, ISP_3DNR_BLEND_CFG20, val);
 
-	val = ((blend->u_threshold_factor2 & 0x7F) << 24)	|
-	      ((blend->u_threshold_factor3 & 0x7F) << 16)	|
-	      ((blend->v_threshold_factor0 & 0x7F) << 8)	|
-	       (blend->v_threshold_factor1 & 0x7F);
+	val = ((blend->u_threshold_factor2 & 0x7F) << 24) |
+		((blend->u_threshold_factor3 & 0x7F) << 16) |
+		((blend->v_threshold_factor0 & 0x7F) << 8) |
+		(blend->v_threshold_factor1 & 0x7F);
 	ISP_REG_WR(idx, ISP_3DNR_BLEND_CFG21, val);
 
 	val = ((blend->v_threshold_factor2 & 0x7F) << 24) |
-	      ((blend->v_threshold_factor3 & 0x7F) << 16) |
-	      ((blend->u_divisor_factor0 & 0x7) << 12)	  |
-	      ((blend->u_divisor_factor1 & 0x7) << 8)	  |
-	      ((blend->u_divisor_factor2 & 0x7) << 4)	  |
-	       (blend->u_divisor_factor3 & 0x7);
+		((blend->v_threshold_factor3 & 0x7F) << 16) |
+		((blend->u_divisor_factor0 & 0x7) << 12) |
+		((blend->u_divisor_factor1 & 0x7) << 8) |
+		((blend->u_divisor_factor2 & 0x7) << 4) |
+		(blend->u_divisor_factor3 & 0x7);
 	ISP_REG_WR(idx, ISP_3DNR_BLEND_CFG22, val);
 
-	val = ((blend->v_divisor_factor0 & 0x7) << 28)	|
-	      ((blend->v_divisor_factor1 & 0x7) << 24)	|
-	      ((blend->v_divisor_factor2 & 0x7) << 20)	|
-	      ((blend->v_divisor_factor3 & 0x7) << 16)	|
-	       (blend->r1_circle & 0xFFF);
+	val = ((blend->v_divisor_factor0 & 0x7) << 28) |
+		((blend->v_divisor_factor1 & 0x7) << 24) |
+		((blend->v_divisor_factor2 & 0x7) << 20) |
+		((blend->v_divisor_factor3 & 0x7) << 16) |
+		(blend->r1_circle & 0xFFF);
 	ISP_REG_WR(idx, ISP_3DNR_BLEND_CFG23, val);
 
 	val = ((blend->r2_circle & 0xFFF) << 16) |
-	       (blend->r3_circle & 0xFFF);
+		(blend->r3_circle & 0xFFF);
 	ISP_REG_WR(idx, ISP_3DNR_BLEND_CFG24, val);
 }
 
 static void isp_3dnr_config_store(uint32_t idx,
-				  struct isp_3dnr_store *nr3_store)
+		struct isp_3dnr_store *nr3_store)
 {
 	unsigned int val;
 
 	if (g_isp_bypass[idx] & (1 << _EISP_NR3))
 		nr3_store->st_bypass = 1;
-	val = ((nr3_store->chk_sum_clr_en & 0x1) << 4)	|
-	      ((nr3_store->shadow_clr_sel & 0x1) << 3)	|
-	      ((nr3_store->st_max_len_sel & 0x1) << 1)	|
-	       (nr3_store->st_bypass & 0x1);
+	val = ((nr3_store->chk_sum_clr_en & 0x1) << 4) |
+		((nr3_store->shadow_clr_sel & 0x1) << 3) |
+		((nr3_store->st_max_len_sel & 0x1) << 1) |
+		(nr3_store->st_bypass & 0x1);
 	ISP_REG_WR(idx, ISP_3DNR_STORE_PARAM, val);
 
-	val = ((nr3_store->img_height & 0xFFFF) << 16)	|
-	       (nr3_store->img_width & 0xFFFF);
+	val = ((nr3_store->img_height & 0xFFFF) << 16) |
+		(nr3_store->img_width & 0xFFFF);
 	ISP_REG_WR(idx, ISP_3DNR_STORE_SIZE, val);
 
 	val = nr3_store->st_luma_addr;
@@ -359,27 +304,25 @@ static void isp_3dnr_config_store(uint32_t idx,
 }
 
 static void isp_3dnr_config_crop(uint32_t idx,
-				 struct isp_3dnr_crop *crop)
+		struct isp_3dnr_crop *crop)
 {
 	unsigned int val;
 
 	if (g_isp_bypass[idx] & (1 << _EISP_NR3))
 		crop->crop_bypass = 1;
-	ISP_REG_MWR(idx,
-		    ISP_3DNR_MEM_CTRL_PRE_PARAM0,
-		    BIT_0,
-		    crop->crop_bypass);
+	ISP_REG_MWR(idx, ISP_3DNR_MEM_CTRL_PRE_PARAM0,
+			BIT_0, crop->crop_bypass);
 
 	val = ((crop->src_height & 0xFFFF) << 16) |
-	       (crop->src_width & 0xFFFF);
+		(crop->src_width & 0xFFFF);
 	ISP_REG_WR(idx, ISP_3DNR_MEM_CTRL_PRE_PARAM1, val);
 
 	val = ((crop->dst_height & 0xFFFF) << 16) |
-	       (crop->dst_width & 0xFFFF);
+		(crop->dst_width & 0xFFFF);
 	ISP_REG_WR(idx, ISP_3DNR_MEM_CTRL_PRE_PARAM2, val);
 
-	val = ((crop->start_x & 0xFFFF) << 16)	  |
-	       (crop->start_y & 0xFFFF);
+	val = ((crop->start_x & 0xFFFF) << 16) |
+		(crop->start_y & 0xFFFF);
 	ISP_REG_WR(idx, ISP_3DNR_MEM_CTRL_PRE_PARAM3, val);
 }
 
@@ -428,9 +371,8 @@ static unsigned long irq_base[ISP_CONTEXT_MAX] = {
 #endif /* _NR3_DATA_TO_YUV_ */
 
 void isp_3dnr_config_param(struct isp_3dnr_ctx_desc *ctx,
-			   struct isp_k_block *isp_k_param,
-			   uint32_t idx,
-			   enum nr3_func_type type_id)
+		struct isp_k_block *isp_k_param, uint32_t idx,
+		enum nr3_func_type type_id)
 {
 	struct isp_3dnr_mem_ctrl *mem_ctrl = NULL;
 	struct isp_3dnr_store *nr3_store = NULL;
@@ -468,9 +410,9 @@ void isp_3dnr_config_param(struct isp_3dnr_ctx_desc *ctx,
 		blend_cnt = 3;
 
 	val = ((pnr3->blend.y_pixel_src_weight[blend_cnt] & 0xFF) << 24) |
-	      ((pnr3->blend.u_pixel_src_weight[blend_cnt] & 0xFF) << 16) |
-	      ((pnr3->blend.v_pixel_src_weight[blend_cnt] & 0xFF) << 8)  |
-	       (pnr3->blend.y_pixel_noise_threshold & 0xFF);
+		((pnr3->blend.u_pixel_src_weight[blend_cnt] & 0xFF) << 16) |
+		((pnr3->blend.v_pixel_src_weight[blend_cnt] & 0xFF) << 8) |
+		(pnr3->blend.y_pixel_noise_threshold & 0xFF);
 	ISP_REG_WR(idx, ISP_3DNR_BLEND_CFG1, val);
 
 
@@ -484,12 +426,9 @@ void isp_3dnr_config_param(struct isp_3dnr_ctx_desc *ctx,
 		pr_info("val after 0x%x\n", val);
 		ISP_HREG_MWR(irq_base[idx] + ISP_INT_ALL_DONE_CTRL, 0x1F, val);
 
-		ISP_REG_MWR(idx, ISP_STORE_PRE_CAP_BASE + ISP_STORE_PARAM,
-			BIT_0, 0);
-		ISP_REG_MWR(idx, ISP_STORE_VID_BASE + ISP_STORE_PARAM,
-			BIT_0, 1);
-		ISP_REG_MWR(idx, ISP_STORE_THUMB_BASE + ISP_STORE_PARAM,
-			BIT_0, 1);
+		ISP_REG_MWR(idx, ISP_STORE_PRE_CAP_BASE + ISP_STORE_PARAM, BIT_0, 0);
+		ISP_REG_MWR(idx, ISP_STORE_VID_BASE + ISP_STORE_PARAM, BIT_0, 1);
+		ISP_REG_MWR(idx, ISP_STORE_THUMB_BASE + ISP_STORE_PARAM, BIT_0, 1);
 	} else {
 		uint32_t val = 0;
 
@@ -499,16 +438,12 @@ void isp_3dnr_config_param(struct isp_3dnr_ctx_desc *ctx,
 		pr_info("val after 0x%x\n", val);
 		ISP_HREG_MWR(irq_base[idx] + ISP_INT_ALL_DONE_CTRL, 0x1F, val);
 
-		ISP_REG_MWR(idx, ISP_STORE_PRE_CAP_BASE + ISP_STORE_PARAM,
-			BIT_0, 1);
-		ISP_REG_MWR(idx, ISP_STORE_VID_BASE + ISP_STORE_PARAM,
-			BIT_0, 1);
-		ISP_REG_MWR(idx, ISP_STORE_THUMB_BASE + ISP_STORE_PARAM,
-			BIT_0, 1);
+		ISP_REG_MWR(idx, ISP_STORE_PRE_CAP_BASE + ISP_STORE_PARAM, BIT_0, 1);
+		ISP_REG_MWR(idx, ISP_STORE_VID_BASE + ISP_STORE_PARAM, BIT_0, 1);
+		ISP_REG_MWR(idx, ISP_STORE_THUMB_BASE + ISP_STORE_PARAM, BIT_0, 1);
 	}
-#endif /* _NR3_DATA_TO_YUV_ */
+#endif/* _NR3_DATA_TO_YUV_ */
 }
-
 
 int isp_k_update_3dnr(uint32_t idx,
 	struct isp_k_block *isp_k_param,
@@ -543,14 +478,14 @@ int isp_k_update_3dnr(uint32_t idx,
 	r3_circle = (r3_circle < r3_circle_limit) ? r3_circle : r3_circle_limit;
 
 	val = ((pnr3->blend.v_divisor_factor0 & 0x7) << 28) |
-	      ((pnr3->blend.v_divisor_factor1 & 0x7) << 24) |
-	      ((pnr3->blend.v_divisor_factor2 & 0x7) << 20) |
-	      ((pnr3->blend.v_divisor_factor3 & 0x7) << 16) |
-	       (r1_circle & 0xFFF);
+		((pnr3->blend.v_divisor_factor1 & 0x7) << 24) |
+		((pnr3->blend.v_divisor_factor2 & 0x7) << 20) |
+		((pnr3->blend.v_divisor_factor3 & 0x7) << 16) |
+		(r1_circle & 0xFFF);
 	ISP_REG_WR(idx, ISP_3DNR_BLEND_CFG23, val);
 
 	val = ((r2_circle & 0xFFF) << 16) |
-	       (r3_circle & 0xFFF);
+		(r3_circle & 0xFFF);
 	ISP_REG_WR(idx, ISP_3DNR_BLEND_CFG24, val);
 
 	pdst->blend.r1_circle = r1_circle;
@@ -564,7 +499,6 @@ int isp_k_update_3dnr(uint32_t idx,
 		r1_circle, r2_circle, r3_circle);
 	return 0;
 }
-
 
 int isp_k_cfg_3dnr(struct isp_io_param *param,
 	struct isp_k_block *isp_k_param, uint32_t idx)

@@ -35,7 +35,6 @@
 
 typedef void(*isp_isr)(enum isp_context_hw_id idx, void *param);
 
-
 static const uint32_t isp_irq_process[] = {
 	ISP_INT_SHADOW_DONE,
 	ISP_INT_DISPATCH_DONE,

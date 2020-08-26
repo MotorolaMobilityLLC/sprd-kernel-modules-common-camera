@@ -13,9 +13,9 @@
 
 #ifdef CAM_HW_ADPT_LAYER
 
-#define DCAMX_STOP_TIMEOUT 2000
-#define DCAM_AXI_STOP_TIMEOUT 2000
-#define DCAM_AXIM_AQOS_MASK (0x30FFFF)
+#define DCAMX_STOP_TIMEOUT             2000
+#define DCAM_AXI_STOP_TIMEOUT          2000
+#define DCAM_AXIM_AQOS_MASK            (0x30FFFF)
 #define IMG_TYPE_RAW                   0x2B
 #define IMG_TYPE_YUV                   0x1E
 
@@ -414,7 +414,7 @@ static int dcamhw_reset(void *handle, void *arg)
 	/* default bypass all blocks */
 	bypass = 1;
 	DCAM_REG_MWR(idx, DCAM_BAYER_INFO_CFG, BIT_0, bypass);
-	DCAM_REG_MWR(idx, DCAM_BLC_PARA_R_B, BIT_31, bypass<< 31);
+	DCAM_REG_MWR(idx, DCAM_BLC_PARA_R_B, BIT_31, bypass << 31);
 	DCAM_REG_MWR(idx, ISP_RGBG_YRANDOM_PARAMETER0,
 		BIT_1, bypass << 1);
 	DCAM_REG_MWR(idx, ISP_RGBG_YRANDOM_PARAMETER0,
@@ -454,11 +454,11 @@ static int dcamhw_fetch_set(void *handle, void *arg)
 
 	fetch = (struct dcam_hw_fetch_set *)arg;
 	/* !0 is loose */
-	if (fetch->fetch_info->is_loose != 0) {
+	if (fetch->fetch_info->is_loose != 0)
 		fetch_pitch = (fetch->fetch_info->size.w * 16 + 127) / 128;
-	} else {
+	else
 		fetch_pitch = (fetch->fetch_info->size.w * 10 + 127) / 128;
-	}
+
 	pr_info("size [%d %d], start %d, pitch %d, 0x%x\n",
 		fetch->fetch_info->trim.size_x, fetch->fetch_info->trim.size_y,
 		fetch->fetch_info->trim.start_x, fetch_pitch, fetch->fetch_info->addr.addr_ch0);
@@ -603,7 +603,7 @@ static int dcamhw_mipi_cap_set(void *handle, void *arg)
 static int dcamhw_path_start(void *handle, void *arg)
 {
 	int ret = 0;
-	struct isp_img_rect rect; /* for 3dnr */
+	struct isp_img_rect rect;/* for 3dnr */
 	struct dcam_hw_path_start *patharg = NULL;
 
 	pr_debug("enter.");
@@ -694,8 +694,7 @@ static int dcamhw_path_start(void *handle, void *arg)
 			break;
 		}
 		DCAM_REG_WR(patharg->idx, NR3_FAST_ME_PARAM, 0x8);
-		dcam_k_3dnr_set_roi(rect,
-				0/* project_mode=0 */, patharg->idx);
+		dcam_k_3dnr_set_roi(rect, 0/* project_mode=0 */, patharg->idx);
 		break;
 	default:
 		break;
@@ -805,7 +804,7 @@ static int dcamhw_calc_rds_phase_info(void *handle, void *arg)
 	int col_tap = raw_tap_ver * 2;
 	uint16_t output_slice_start_x = 0, output_slice_start_y = 0;
 	struct dcam_rds_slice_ctrl *gphase = NULL;
-	struct dcam_hw_calc_rds_phase * info = NULL;
+	struct dcam_hw_calc_rds_phase *info = NULL;
 
 	if (!arg) {
 		pr_err("fail to get valid handle\n");
@@ -813,7 +812,7 @@ static int dcamhw_calc_rds_phase_info(void *handle, void *arg)
 	}
 
 	info = (struct dcam_hw_calc_rds_phase *)arg;
-	gphase =info->gphase;
+	gphase = info->gphase;
 
 	raw_input_hor = (uint16_t)(gphase->rds_input_w_global * adj_hor);
 	raw_output_hor = (uint16_t)(gphase->rds_output_w_global * adj_hor);
@@ -824,13 +823,11 @@ static int dcamhw_calc_rds_phase_info(void *handle, void *arg)
 	glb_phase_h = (raw_input_ver - raw_output_ver) >> 1;
 
 	if (info->slice_id)
-	{
-		output_slice_start_x = (info->slice_end1 * raw_output_hor -1 - glb_phase_w) / raw_input_hor + 1;
-	}
+		output_slice_start_x = (info->slice_end1 * raw_output_hor - 1 - glb_phase_w) / raw_input_hor + 1;
 
 	sphase_w = glb_phase_w + output_slice_start_x * gphase->rds_input_w_global;
 
-	spixel_w = sphase_w / gphase->rds_output_w_global - raw_tap  + 1;
+	spixel_w = sphase_w / gphase->rds_output_w_global - raw_tap + 1;
 
 	spixel_w = spixel_w < 0 ? 0 : spixel_w;
 
@@ -840,7 +837,7 @@ static int dcamhw_calc_rds_phase_info(void *handle, void *arg)
 	gphase->rds_init_phase_rdm0 = (uint16_t)(sphase_w - gphase->rds_output_w_global * gphase->rds_init_phase_int0);
 
 	sphase_h = glb_phase_h + output_slice_start_y * gphase->rds_input_h_global;
-	spixel_h = sphase_h / gphase->rds_output_h_global - col_tap  + 1;
+	spixel_h = sphase_h / gphase->rds_output_h_global - col_tap + 1;
 	spixel_h = spixel_h < 0 ? 0 : spixel_h;
 	sphase_h -= spixel_h * gphase->rds_output_h_global;
 	gphase->rds_init_phase_int1 = (int16_t)(sphase_h / gphase->rds_output_h_global);
@@ -855,7 +852,7 @@ static int dcamhw_path_size_update(void *handle, void *arg)
 	uint32_t idx;
 	uint32_t reg_val;
 	struct dcam_hw_path_size *sizearg = NULL;
-	struct isp_img_rect rect; /* for 3dnr path */
+	struct isp_img_rect rect;/* for 3dnr path */
 
 	pr_debug("enter.");
 	if (!arg) {
@@ -867,7 +864,7 @@ static int dcamhw_path_size_update(void *handle, void *arg)
 	idx = sizearg->idx;
 
 	switch (sizearg->path_id) {
-	case  DCAM_PATH_FULL:
+	case DCAM_PATH_FULL:
 		if ((sizearg->in_size.w > sizearg->in_trim.size_x) ||
 			(sizearg->in_size.h > sizearg->in_trim.size_y)) {
 
@@ -882,7 +879,7 @@ static int dcamhw_path_size_update(void *handle, void *arg)
 			DCAM_REG_MWR(idx, DCAM_FULL_CFG, BIT_1, 0 << 1);
 		}
 		break;
-	case  DCAM_PATH_BIN:
+	case DCAM_PATH_BIN:
 		DCAM_REG_MWR(idx, DCAM_CAM_BIN_CFG,
 					BIT_6, sizearg->bin_ratio << 6);
 		DCAM_REG_MWR(idx, DCAM_CAM_BIN_CFG,
@@ -950,8 +947,7 @@ static int dcamhw_path_size_update(void *handle, void *arg)
 				rect.x, rect.y, rect.w, rect.h);
 			break;
 		}
-		dcam_k_3dnr_set_roi(rect,
-				0/* project_mode=0 */, idx);
+		dcam_k_3dnr_set_roi(rect, 0/* project_mode=0 */, idx);
 		break;
 	default:
 		break;
@@ -1001,12 +997,12 @@ static int dcamhw_lbuf_share_set(void *handle, void *arg)
 		4160, 5184,
 		3264, 5664,
 	};
-	char chip_type[64]= { 0 };
+	char chip_type[64] = { 0 };
 	struct cam_hw_lbuf_share *camarg = (struct cam_hw_lbuf_share *)arg;
 
 	sprd_kproperty_get("lwfq/type", chip_type, "-1");
 	/*0: T618 1:T610*/
-	dcam_hw_linebuf_len[camarg->idx]= camarg->width;
+	dcam_hw_linebuf_len[camarg->idx] = camarg->width;
 	pr_debug("dcam_hw_linebuf_len[0] = %d, [1] = %d %s\n",
 		dcam_hw_linebuf_len[0], dcam_hw_linebuf_len[1], chip_type);
 	if (!strncmp(chip_type, "1", strlen("1"))) {
@@ -1023,7 +1019,7 @@ static int dcamhw_lbuf_share_set(void *handle, void *arg)
 				pr_err("fail to check param,unsupprot img width\n");
 				return -EINVAL;
 			}
-		} else if (0 < dcam_hw_linebuf_len[0] && dcam_hw_linebuf_len[0] <= DCAM_8M_WIDTH){
+		} else if (0 < dcam_hw_linebuf_len[0] && dcam_hw_linebuf_len[0] <= DCAM_8M_WIDTH) {
 			if (dcam_hw_linebuf_len[1] > DCAM_16M_WIDTH) {
 				pr_err("fail to check param,unsupprot img width\n");
 				return -EINVAL;
@@ -1095,9 +1091,9 @@ static int dcamhw_lbuf_share_get(void *handle, void *arg)
 		goto exit;
 
 	i = DCAM_AXIM_RD(DCAM_LBUF_SHARE_MODE) & 7;
-	if (i < 5) {
+	if (i < 5)
 		camarg->width = tb_w[i * 2 + idx];
-	}
+
 exit:
 	pr_debug("dcam%d, lbuf %d\n", idx, camarg->width);
 	return ret;
@@ -1135,7 +1131,7 @@ static int dcamhw_slice_fetch_set(void *handle, void *arg)
 
 	/* cfg bin path */
 	DCAM_REG_MWR(idx, DCAM_CAM_BIN_CFG, 0x3FF << 20, fetch->pitch << 20);
-	reg_val = (cur_slice->size_y -1 ) << 16;
+	reg_val = (cur_slice->size_y - 1) << 16;
 	reg_val |= (cur_slice->size_x - 1);
 	DCAM_REG_WR(idx, DCAM_MIPI_CAP_END, reg_val);
 
@@ -1292,7 +1288,7 @@ static int cam_gtm_ltm_eb(void *handle, void *arg)
 
 static int cam_gtm_ltm_dis(void *handle, void *arg)
 {
-	struct cam_hw_gtm_ltm_dis *dis =NULL;
+	struct cam_hw_gtm_ltm_dis *dis = NULL;
 
 	dis = (struct cam_hw_gtm_ltm_dis *)arg;
 
@@ -1361,8 +1357,8 @@ static int dcamhw_block_func_get(void *handle, void *arg)
 	fucarg = (struct dcam_hw_block_func_get *)arg;
 
 	if (fucarg->index < DCAM_BLOCK_TOTAL) {
-		block_func = (struct dcam_cfg_entry*)&dcam_hw_cfg_func_tab[fucarg->index];
-		fucarg->dcam_entry= block_func;
+		block_func = (struct dcam_cfg_entry *)&dcam_hw_cfg_func_tab[fucarg->index];
+		fucarg->dcam_entry = block_func;
 	}
 
 	if (block_func == NULL)
@@ -1480,7 +1476,7 @@ static int dcamhw_bin_mipi_cfg(void *handle, void *arg)
 
 static int dcamhw_cfg_bin_path(void *handle, void *arg)
 {
-	struct dcam_hw_cfg_bin_path*parm = NULL;
+	struct dcam_hw_cfg_bin_path *parm = NULL;
 
 	parm = (struct dcam_hw_cfg_bin_path *)arg;
 

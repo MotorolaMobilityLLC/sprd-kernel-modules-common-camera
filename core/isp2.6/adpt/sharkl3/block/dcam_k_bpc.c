@@ -25,15 +25,13 @@
 #define pr_fmt(fmt) "BPC: %d %d %s : "\
 	fmt, current->pid, __LINE__, __func__
 
-
-
 int dcam_k_bpc_block(struct dcam_dev_param *param)
 {
 	int ret = 0;
 	uint32_t idx = param->idx;
 	int i = 0;
 	uint32_t val = 0;
-	struct dcam_dev_bpc_info_l3 *p; /* bpc_info; */
+	struct dcam_dev_bpc_info_l3 *p;/* bpc_info; */
 
 	p = &(param->bpc.bpc_param.bpc_info_l3);
 	/* debugfs bpc not bypass then write*/
@@ -145,16 +143,13 @@ int dcam_k_cfg_bpc(struct isp_io_param *param, struct dcam_dev_param *p)
 		break;
 	}
 	default:
-		pr_err("fail to support property %d\n",
-			param->property);
+		pr_err("fail to support property %d\n", param->property);
 		ret = -EINVAL;
 		return ret;
 	}
 
 	if (p->offline == 0) {
-		ret = copy_from_user(dst_ptr,
-				param->property_param,
-				dst_size);
+		ret = copy_from_user(dst_ptr, param->property_param, dst_size);
 		if (ret) {
 			pr_err("fail to copy from user, ret = %d\n", ret);
 			goto exit;
@@ -163,12 +158,10 @@ int dcam_k_cfg_bpc(struct isp_io_param *param, struct dcam_dev_param *p)
 			ret = sub_func(p);
 	} else {
 		mutex_lock(&p->param_lock);
-		ret = copy_from_user(dst_ptr,
-				param->property_param,
-				dst_size);
-		if (ret) {
+		ret = copy_from_user(dst_ptr, param->property_param, dst_size);
+		if (ret)
 			pr_err("fail to copy from user, ret = %d\n", ret);
-		}
+
 		mutex_unlock(&p->param_lock);
 	}
 exit:

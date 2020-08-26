@@ -26,7 +26,6 @@
 #define pr_fmt(fmt) "AEM: %d %d %s : "\
 	fmt, current->pid, __LINE__, __func__
 
-
 enum {
 	_UPDATE_WIN = BIT(2),
 };
@@ -65,8 +64,7 @@ int dcam_k_aem_mode(struct dcam_dev_param *param)
 		DCAM_REG_MWR(idx, DCAM_AEM_FRM_CTRL1, BIT_0, 0x1);
 	else
 		/* trigger multi frame works after skip_num */
-		DCAM_REG_MWR(idx,
-			DCAM_AEM_FRM_CTRL0, BIT_3, (0x1 << 3));
+		DCAM_REG_MWR(idx, DCAM_AEM_FRM_CTRL0, BIT_3, (0x1 << 3));
 
 	return ret;
 }
@@ -76,7 +74,7 @@ int dcam_k_aem_win(struct dcam_dev_param *param)
 	int ret = 0;
 	uint32_t idx = 0;
 	uint32_t val = 0;
-	struct dcam_dev_aem_win *p = NULL; /* win_info; */
+	struct dcam_dev_aem_win *p = NULL;/* win_info; */
 
 	if (param == NULL)
 		return -1;
@@ -133,7 +131,7 @@ int dcam_k_aem_rgb_thr(struct dcam_dev_param *param)
 	int ret = 0;
 	uint32_t idx = 0;
 	uint32_t val = 0;
-	struct dcam_dev_aem_thr *p = NULL; /* aem_info; */
+	struct dcam_dev_aem_thr *p = NULL;/* aem_info; */
 
 	if (param == NULL)
 		return -1;
@@ -155,8 +153,6 @@ int dcam_k_aem_rgb_thr(struct dcam_dev_param *param)
 
 	return ret;
 }
-
-
 
 int dcam_k_cfg_aem(struct isp_io_param *param, struct dcam_dev_param *p)
 {
@@ -194,8 +190,7 @@ int dcam_k_cfg_aem(struct isp_io_param *param, struct dcam_dev_param *p)
 		sub_func = dcam_k_aem_rgb_thr;
 		break;
 	default:
-		pr_err("fail to support property %d\n",
-			param->property);
+		pr_err("fail to support property %d\n", param->property);
 		return -EINVAL;
 	}
 

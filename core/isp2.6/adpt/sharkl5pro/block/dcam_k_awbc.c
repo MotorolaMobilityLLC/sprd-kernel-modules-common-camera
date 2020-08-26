@@ -25,13 +25,12 @@
 #define pr_fmt(fmt) "AWBC: %d %d %s : "\
 	fmt, current->pid, __LINE__, __func__
 
-
 int dcam_k_awbc_block(struct dcam_dev_param *param)
 {
 	int ret = 0;
 	uint32_t idx = 0;
 	uint32_t val = 0;
-	struct dcam_dev_awbc_info *p = NULL; /* awbc_info; */
+	struct dcam_dev_awbc_info *p = NULL;/* awbc_info; */
 
 	if (param == NULL)
 		return -EPERM;
@@ -73,7 +72,7 @@ int dcam_k_awbc_gain(struct dcam_dev_param *param)
 	int ret = 0;
 	uint32_t idx = 0;
 	uint32_t val = 0;
-	struct img_rgb_info *p = NULL; /* awbc_gain; */
+	struct img_rgb_info *p = NULL;/* awbc_gain; */
 
 	if (param == NULL)
 		return -EPERM;

@@ -25,7 +25,6 @@
 #define pr_fmt(fmt) "BLC: %d %d %s : "\
 	fmt, current->pid, __LINE__, __func__
 
-
 int dcam_k_blc_block(struct dcam_dev_param *param)
 {
 	int ret = 0;

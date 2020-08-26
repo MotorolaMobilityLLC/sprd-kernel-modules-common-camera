@@ -67,7 +67,7 @@ int dcam_init_lsc(void *in, uint32_t online)
 	}
 
 	idx = dev->idx;
-	if (idx == DCAM_ID_1 && DCAM_FIRST_FETCH(dev)){
+	if (idx == DCAM_ID_1 && DCAM_FIRST_FETCH(dev)) {
 		pr_debug("lsc no need init\n");
 		return 0;
 	}
@@ -199,17 +199,15 @@ int dcam_update_lsc(void *in)
 	dev = (struct dcam_pipe_dev *)blk_dcam_pm->dev;
 	hw = dev->hw;
 	param = &blk_dcam_pm->lsc;
-	if (!param->update) {
+	if (!param->update)
 		return 0;
-	}
 
 	idx = dev->idx;
 	info = &param->lens_info;
 	update = param->update;
 	param->update = 0;
-	if (g_dcam_bypass[idx] & (1 << _E_LSC)) {
+	if (g_dcam_bypass[idx] & (1 << _E_LSC))
 		return 0;
-	}
 	if (info->bypass) {
 		pr_debug("bypass\n");
 		DCAM_REG_MWR(idx, DCAM_LENS_LOAD_ENABLE, BIT_0, 1);
@@ -360,7 +358,7 @@ int dcam_k_cfg_lsc(struct isp_io_param *param, struct dcam_dev_param *p)
 {
 	int ret = 0;
 	uint32_t bit_update = _UPDATE_GAIN;
-	struct dcam_dev_lsc_info __user * p_ulsc;
+	struct dcam_dev_lsc_info __user *p_ulsc;
 
 	switch (param->property) {
 	case DCAM_PRO_LSC_BLOCK:

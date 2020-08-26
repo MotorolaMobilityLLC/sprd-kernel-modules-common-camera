@@ -110,7 +110,6 @@ static int isp_k_post_cdn_block(struct isp_io_param *param,
 	return ret;
 }
 
-
 int isp_k_cfg_post_cdn(struct isp_io_param *param,
 	struct isp_k_block *isp_k_param, uint32_t idx)
 {
