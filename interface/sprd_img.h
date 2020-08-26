@@ -489,6 +489,7 @@ struct sprd_img_parm {
 	struct sprd_img_binding	  aux_img;
 	struct sprd_slave_info    slave_frame_info;
 	uint32_t                  reserved[4];
+	uint32_t                  raw_callback;
 };
 
 #pragma pack(push, 4)

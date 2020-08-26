@@ -313,6 +313,7 @@ static int dcamio_set_output_size(struct camera_file *camerafile,
 	info->dst_size.h = parm.dst_size.h;
 	info->pxl_fmt = parm.pixel_fmt;
 	info->need_isp_tool = parm.need_isp_tool;
+	info->raw_callback = parm.raw_callback;
 	info->need_isp = parm.need_isp;
 	info->rt_refocus = parm.rt_refocus;
 	info->path_input_rect.x = parm.crop_rect.x;

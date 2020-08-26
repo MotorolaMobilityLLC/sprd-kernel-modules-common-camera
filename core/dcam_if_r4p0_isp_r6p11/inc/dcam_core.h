@@ -200,6 +200,7 @@ struct camera_info {
 	struct sprd_flash_capacity capacity;
 	uint32_t uframe_sync;/* frame sync for video and callback channel */
 	struct camera_dbg_dump dump_info;
+	uint32_t raw_callback;
 };
 
 struct camera_group;

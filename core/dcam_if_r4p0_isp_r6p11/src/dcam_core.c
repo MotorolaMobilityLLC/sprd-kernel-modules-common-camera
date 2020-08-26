@@ -1706,8 +1706,9 @@ static int sprd_img_full_tx_done(struct camera_frame *frame, void *param)
 	int ret = DCAM_RTN_SUCCESS;
 	struct camera_dev *dev = (struct camera_dev *)param;
 
-	if (dev->dcam_cxt.need_isp_tool) {
-		pr_debug("raw cap: dcam full path tx done\n");
+	if (dev->dcam_cxt.need_isp_tool || dev->dcam_cxt.raw_callback) {
+		pr_debug("raw callback %d need isp tool %d\n", dev->dcam_cxt.raw_callback,
+			dev->dcam_cxt.need_isp_tool);
 		sprd_img_tx_done(frame, param);
 		return 0;
 	}
@@ -2673,17 +2674,26 @@ static int sprd_dcam_cfg(struct camera_dev *dev)
 
 	/* config dcam_if raw path */
 	if (raw_path->is_work) {
-		/* set raw path mode, Binn or full raw */
-		raw_path->is_work = info->need_isp_tool;
-		pr_info("full for raw cap\n");
+		if (info->raw_callback) {
+			raw_path->is_work = RAW_CALLBACK;
+			pre_path->is_work = 0;
+			cap_path->is_work = 0;
+			vid_path->is_work = 0;
+			pdaf_path->is_work = 0;
+			ebd_path->is_work = 0;
+			pr_debug("it is raw callback\n");
+		} else {
+			/* set raw path mode, Binn or full raw */
+			raw_path->is_work = info->need_isp_tool;
+			pr_debug("full for raw cap\n");
+		}
 
 		/* set size, for in, out */
 		raw_path->in_size = info->cap_out_size;
 		ret = sprd_dcam_cfg_raw_path(raw_path, idx);
-		if (unlikely(ret)) {
+		if (unlikely(ret))
 			pr_err("fail to config dcam raw path cap\n");
-			goto exit;
-		}
+		goto exit;
 	}
 
 	/* config dcam_if prev path or vid path:bin path */
@@ -3876,6 +3886,7 @@ static int sprd_img_get_free_channel(struct camera_file *camerafile,
 	path_id.output_size.h = dev->dcam_cxt.dst_size.h;
 	path_id.fourcc = dev->dcam_cxt.pxl_fmt;
 	path_id.need_isp_tool = dev->dcam_cxt.need_isp_tool;
+	path_id.raw_callback = dev->dcam_cxt.raw_callback;
 	path_id.need_isp = dev->dcam_cxt.need_isp;
 	path_id.rt_refocus = dev->dcam_cxt.rt_refocus;
 	path_id.input_trim.x = dev->dcam_cxt.path_input_rect.x;

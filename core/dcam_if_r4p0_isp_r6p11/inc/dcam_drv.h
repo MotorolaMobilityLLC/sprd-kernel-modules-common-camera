@@ -220,6 +220,7 @@ enum{
 	NO_RAW_CAPTURE = 0x0,
 	FULL_RAW_CAPTURE,
 	BIN_RAW_CAPTURE,
+	RAW_CALLBACK,
 };
 
 enum dcam_glb_reg_id {
@@ -388,6 +389,7 @@ struct camera_get_path_id {
 	struct camera_size input_size;
 	struct camera_rect input_trim;
 	struct camera_size output_size;
+	uint32_t raw_callback;
 };
 
 struct dcam_path_info {

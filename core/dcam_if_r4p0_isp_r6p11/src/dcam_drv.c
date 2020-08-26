@@ -626,7 +626,9 @@ static int dcam_raw_path_set_next_frm(enum dcam_id idx)
 		reg = DCAM0_FULL_BASE_WADDR;
 	else if (raw_path->valid == BIN_RAW_CAPTURE)
 		reg = DCAM0_BIN_BASE_WADDR0;
-	else {
+	else if (raw_path->valid == RAW_CALLBACK) {
+		reg = DCAM0_VCH2_BASE_WADDR;
+	} else {
 		pr_err("fail to get valid raw capture mode\n");
 		return -EINVAL;
 	}
@@ -880,10 +882,12 @@ static void dcam_auto_copy(enum dcam_id idx)
 		tmp |= BIT(9); /* enable raw path auto copy */
 	if (s_p_dcam_mod[idx]->dcam_raw_path.valid == BIN_RAW_CAPTURE)
 		tmp |= BIT(11); /* enable bin path auto copy */
+	if (s_p_dcam_mod[idx]->dcam_raw_path.valid == RAW_CALLBACK)
+		tmp |= BIT(17); /* enable vc2 path auto copy */
 
 	tmp |= BIT(1); /* enable mipi cap auto copy */
 	sprd_dcam_glb_reg_mwr(idx, DCAM0_CONTROL,
-				BIT(1) | BIT(9) | BIT(11) | BIT(13) | BIT(15),
+				BIT(1) | BIT(9) | BIT(11) | BIT(13) | BIT(15) | BIT(17),
 				tmp, DCAM_CONTROL_REG);
 }
 
@@ -1016,12 +1020,10 @@ static void dcam_full_path_sof(enum dcam_id idx)
 	struct camera_dev *cam_dev = NULL;
 	struct isp_pipe_dev *isp_dev = NULL;
 
+	cam_dev = (struct camera_dev *)s_p_dcam_mod[idx]->dev_handle;
+	isp_dev = (struct isp_pipe_dev *)cam_dev->isp_dev_handle;
 	/* TODO: doesn't consider skip frame */
 	if (s_p_dcam_mod[idx]->dcam_full_path.valid) {
-
-		cam_dev = (struct camera_dev *)s_p_dcam_mod[idx]->dev_handle;
-		isp_dev = (struct isp_pipe_dev *)cam_dev->isp_dev_handle;
-
 		frame.irq_type = CAMERA_IRQ_DONE;
 		frame.irq_property = IRQ_DCAM_SOF;
 		frame.flags = ISP_OFF_BUF_FULL;
@@ -1045,6 +1047,11 @@ static void dcam_full_path_sof(enum dcam_id idx)
 
 		if (isp_dev->wait_full_tx_done == WAIT_CLEAR)
 			atomic_set(&dcam_full_path_time_flag, DCAM_TIME_SOF);
+	}
+	/* RAW callback used */
+	if (cam_dev->dcam_cxt.raw_callback) {
+		pr_debug("it is raw callback\n");
+		dcam_raw_path_set_next_frm(idx);
 	}
 }
 
@@ -1601,9 +1608,17 @@ static void dcam_vch2_path_tx_done(enum dcam_id idx)
 {
 	dcam_isr_func user_func;
 	void *data;
+	struct camera_dev* cam_dev = NULL;
 
 	if (DCAM_ADDR_INVALID(s_p_dcam_mod[idx]))
 		return;
+
+	cam_dev = (struct camera_dev*)s_p_dcam_mod[idx]->dev_handle;
+	if (cam_dev->dcam_cxt.raw_callback) {
+		pr_debug("it is raw callback\n");
+		dcam_raw_path_done(idx);
+		return;
+	}
 
 	user_func = s_user_func[idx][DCAM_VCH2_PATH_TX_DONE];
 	data = s_user_data[idx][DCAM_VCH2_PATH_TX_DONE];
@@ -2389,10 +2404,10 @@ int sprd_camera_get_path_id(struct camera_get_path_id *path_id,
 		path_id->is_path_work[CAMERA_PRE_PATH],
 		path_id->is_path_work[CAMERA_VID_PATH],
 		path_id->is_path_work[CAMERA_CAP_PATH]);
-	pr_info("DCAM: scene_mode %d, need_isp_tool %d\n", scene_mode,
-		path_id->need_isp_tool);
+	pr_info("DCAM: scene_mode %d, need_isp_tool %d, raw_callback %d\n", scene_mode,
+		path_id->need_isp_tool, path_id->raw_callback);
 	/* TODO: which is PDAF/AEM PATH */
-	if (path_id->need_isp_tool)
+	if (path_id->need_isp_tool || path_id->raw_callback)
 		*channel_id = CAMERA_RAW_PATH;
 	else if (path_id->fourcc == V4L2_PIX_FMT_GREY &&
 		 !path_id->is_path_work[CAMERA_RAW_PATH])
@@ -3864,6 +3879,62 @@ static int dcam_bin_raw_path_start(enum dcam_id idx,
 	return -rtn;
 }
 
+static int dcam_raw_callback_path_start(enum dcam_id idx,
+				struct dcam_path_desc *path)
+{
+	enum dcam_drv_rtn rtn = DCAM_RTN_SUCCESS;
+	unsigned int reg_val = 0;
+	unsigned long addr = 0;
+	unsigned long image_vc = 0;
+	unsigned long image_data_type = 0;
+	unsigned long image_mode = 1;
+	struct camera_dev *cam_dev = NULL;
+
+	if (path->valid_param.data_endian) {
+		sprd_dcam_glb_reg_mwr(idx, DCAM0_PATH_ENDIAN,
+			BIT_9 | BIT_8,
+			path->data_endian.y_endian << 2,
+			DCAM_ENDIAN_REG);
+		sprd_dcam_glb_reg_mwr(idx, DCAM_AXIM_WORD_ENDIAN,
+			BIT_0, 0,
+			DCAM_AXI_ENDIAN_REG);
+		pr_debug("raw_path: data_endian y=0x%x\n",
+			path->data_endian.y_endian);
+	}
+
+	cam_dev = (struct camera_dev *)s_p_dcam_mod[idx]->dev_handle;
+	if (cam_dev->dcam_cxt.data_bits == DCAM_CAP_8_BITS)
+		image_data_type = 0x2a;
+	else if (cam_dev->dcam_cxt.data_bits == DCAM_CAP_10_BITS)
+		image_data_type = 0x2b;
+
+	/* setup data type raw10 */
+	reg_val = ((image_vc & 0x3) << 16) |
+		((image_data_type & 0x3F) << 8) | (image_mode & 0x3);
+	if (idx == DCAM_ID_0)
+		addr = DCAM0_VC2_CONTROL;
+	else {
+		pr_err("fail to support raw callback\n");
+		return -DCAM_RTN_IO_ID_ERR;
+	}
+	pr_debug("DCAM%d callback data type 0x%lx\n", idx, image_data_type);
+	DCAM_REG_WR(idx, addr, reg_val);
+	/* when use vch data type, must set 0 here */
+	addr = DCAM0_IMAGE_DT_VC_CONTROL;
+	DCAM_REG_WR(idx, addr, 0);
+
+	rtn = dcam_raw_path_set_next_frm(idx);
+	if (rtn) {
+		pr_err("fail to set raw path next frm %d\n", rtn);
+		return -(rtn);
+	}
+	sprd_dcam_glb_reg_owr(idx, DCAM0_CFG, BIT_4, DCAM_CFG_REG);
+	sprd_dcam_glb_reg_mwr(idx, DCAM0_CONTROL,
+		      BIT(16), BIT(16), DCAM_CONTROL_REG);
+
+	return -rtn;
+}
+
 static int dcam_pdaf_path_start(enum dcam_id idx,
 				struct dcam_path_pdaf *path,
 				void *statis_module)
@@ -4031,6 +4102,13 @@ int sprd_dcam_start(enum dcam_id idx, struct camera_frame *frame,
 		rtn = dcam_bin_raw_path_start(idx, raw_path);
 		if (unlikely(rtn)) {
 			pr_err("fail to start bin raw path %d\n", rtn);
+			return -(rtn);
+		}
+	}
+	if (raw_path->valid == RAW_CALLBACK) {
+		rtn = dcam_raw_callback_path_start(idx, raw_path);
+		if (rtn) {
+			pr_err("fail to start raw callback path %d\n", rtn);
 			return -(rtn);
 		}
 	}
