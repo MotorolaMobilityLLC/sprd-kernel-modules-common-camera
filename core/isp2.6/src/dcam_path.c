@@ -375,7 +375,7 @@ dcam_path_cycle_frame(struct dcam_pipe_dev *dev, struct dcam_path_desc *path)
 
 	if (frame && (src == 0)) {
 		/* usr buffer for raw, mapping delay to here*/
-		if (cambuf_iommu_map(&frame->buf, CAM_IOMMUDEV_DCAM)) {
+		if (cam_buf_iommu_map(&frame->buf, CAM_IOMMUDEV_DCAM)) {
 			pr_err("mapping failed\n");
 			camera_enqueue(&path->alter_out_queue, &frame->list);
 			pr_debug("mapping raw buffer for ch %d, mfd %d\n",
@@ -399,7 +399,7 @@ dcam_path_cycle_frame(struct dcam_pipe_dev *dev, struct dcam_path_desc *path)
 		else if (src == 1)
 			camera_enqueue(&path->out_buf_queue, &frame->list);
 		else {
-			cambuf_iommu_unmap(&frame->buf);
+			cam_buf_iommu_unmap(&frame->buf);
 			camera_enqueue(&path->alter_out_queue, &frame->list);
 		}
 

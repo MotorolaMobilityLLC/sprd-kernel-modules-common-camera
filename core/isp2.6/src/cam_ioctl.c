@@ -115,7 +115,7 @@ static int img_ioctl_get_iommu_status(
 	struct device	*dcam_dev;
 
 	dcam_dev = &module->grp->pdev->dev;
-	if (get_iommu_status(CAM_IOMMUDEV_DCAM) == 0)
+	if (cam_buf_iommu_status_get(CAM_IOMMUDEV_DCAM) == 0)
 		iommu_enable = 1;
 	else
 		iommu_enable = 0;
@@ -427,15 +427,15 @@ static int img_ioctl_set_cam_security(
 
 	if (uparam.camsec_mode != SEC_UNABLE) {
 		if (!module->grp->ca_conn)
-			module->grp->ca_conn = cam_ca_connect();
+			module->grp->ca_conn = cam_trusty_connect();
 
 		if (!module->grp->ca_conn) {
-			pr_err("fail to init cam_ca_connect\n");
+			pr_err("fail to init cam_trusty_connect\n");
 			ret = -EFAULT;
 			goto exit;
 		}
 
-		sec_ret = camca_security_set(&uparam, CAM_TRUSTY_ENTER);
+		sec_ret = cam_trusty_security_set(&uparam, CAM_TRUSTY_ENTER);
 
 		if (!sec_ret) {
 			ret = -EFAULT;
@@ -1102,7 +1102,7 @@ static int img_ioctl_set_frame_addr(
 			pframe->buf.offset[2], param.is_reserved_buf,
 			pframe->user_fid);
 
-		ret = cambuf_get_ionbuf(&pframe->buf);
+		ret = cam_buf_ionbuf_get(&pframe->buf);
 		if (ret) {
 			put_empty_frame(pframe);
 			ret = -EFAULT;
@@ -1134,7 +1134,7 @@ static int img_ioctl_set_frame_addr(
 				pframe1->buf.offset[2] = param.frame_addr_array[i].v;
 				pframe1->channel_id = ch->ch_id;
 
-				ret = cambuf_get_ionbuf(&pframe1->buf);
+				ret = cam_buf_ionbuf_get(&pframe1->buf);
 				if (ret) {
 					put_empty_frame(pframe1);
 					ret = -EFAULT;
@@ -1148,7 +1148,7 @@ static int img_ioctl_set_frame_addr(
 				ret = module->dcam_dev_handle->dcam_pipe_ops->cfg_path(module->dcam_dev_handle,
 					cmd, ch->dcam_path_id, pframe1);
 				if (ret) {
-					cambuf_put_ionbuf(&pframe1->buf);
+					cam_buf_ionbuf_put(&pframe1->buf);
 					put_empty_frame(pframe1);
 				}
 			}
@@ -1194,7 +1194,7 @@ static int img_ioctl_set_frame_addr(
 		if (ret) {
 			pr_err("fail to set output buffer for ch%d.\n",
 				ch->ch_id);
-			cambuf_put_ionbuf(&pframe->buf);
+			cam_buf_ionbuf_put(&pframe->buf);
 			put_empty_frame(pframe);
 			ret = -EFAULT;
 			break;
@@ -1995,7 +1995,7 @@ static int img_ioctl_stream_off(
 	if (raw_cap)
 		complete(&module->streamoff_com);
 
-	ret = mdbg_check();
+	ret = cam_buf_mdbg_check();
 	pr_info("cam %d stream off done.\n", module->idx);
 
 	return ret;
@@ -2528,7 +2528,7 @@ static int img_ioctl_post_fdr(struct camera_module *module,
 			isp_path_id = ch->isp_fdrh_path;
 			isp_ctx_id = ch->isp_fdrh_ctx;
 		}
-		ret = cambuf_get_ionbuf(&pframe->buf);
+		ret = cam_buf_ionbuf_get(&pframe->buf);
 		if (ret) {
 			put_empty_frame(pframe);
 			goto exit;
@@ -2542,7 +2542,7 @@ static int img_ioctl_post_fdr(struct camera_module *module,
 		pr_info("cam%d, fdr context is not init, return.\n", module->idx);
 		for (i = 0; i < 2; i++) {
 			if (pfrm[i]) {
-				cambuf_put_ionbuf(&pfrm[i]->buf);
+				cam_buf_ionbuf_put(&pfrm[i]->buf);
 				put_empty_frame(pfrm[i]);
 			}
 		}
@@ -2558,7 +2558,7 @@ static int img_ioctl_post_fdr(struct camera_module *module,
 
 	dcam = module->aux_dcam_dev;
 	if (dcam == NULL) {
-		cambuf_put_ionbuf(&pfrm[0]->buf);
+		cam_buf_ionbuf_put(&pfrm[0]->buf);
 		put_empty_frame(pfrm[0]);
 		goto isp_proc;
 	}
@@ -2588,7 +2588,7 @@ static int img_ioctl_post_fdr(struct camera_module *module,
 		pframe = get_empty_frame();
 		memcpy(pframe, pfrm[0], sizeof(struct camera_frame));
 		pframe->buf.dmabuf_p[0] = NULL;
-		ret = cambuf_get_ionbuf(&pframe->buf);
+		ret = cam_buf_ionbuf_get(&pframe->buf);
 		if (ret) {
 			put_empty_frame(pframe);
 			goto exit;
@@ -2637,7 +2637,7 @@ isp_proc:
 exit:
 	for (i = 0; i < 3; i++) {
 		if (pfrm[i]) {
-			cambuf_put_ionbuf(&pfrm[i]->buf);
+			cam_buf_ionbuf_put(&pfrm[i]->buf);
 			put_empty_frame(pfrm[i]);
 		}
 	}
@@ -2688,7 +2688,7 @@ static int img_ioctl_4in1_set_raw_addr(struct camera_module *module,
 		pframe->height = ch->ch_uinfo.src_size.h;
 		pr_debug("mfd %d, reserved %d\n", pframe->buf.mfd[0],
 			param.is_reserved_buf);
-		ret = cambuf_get_ionbuf(&pframe->buf);
+		ret = cam_buf_ionbuf_get(&pframe->buf);
 		if (ret) {
 			pr_err("fail to get ion buffer\n");
 			put_empty_frame(pframe);
@@ -2713,7 +2713,7 @@ static int img_ioctl_4in1_set_raw_addr(struct camera_module *module,
 		if (ret) {
 			pr_err("fail to set output buffer for ch%d.\n",
 				ch->ch_id);
-			cambuf_put_ionbuf(&pframe->buf);
+			cam_buf_ionbuf_put(&pframe->buf);
 			put_empty_frame(pframe);
 			ret = -EFAULT;
 			break;
@@ -2797,7 +2797,7 @@ static int img_ioctl_4in1_post_proc(struct camera_module *module,
 	pframe->buf.addr_vir[2] = param.frame_addr_vir_array[0].v;
 	pframe->channel_id = channel->ch_id;
 
-	ret = cambuf_get_ionbuf(&pframe->buf);
+	ret = cam_buf_ionbuf_get(&pframe->buf);
 	if (ret) {
 		put_empty_frame(pframe);
 		return -EFAULT;

@@ -112,7 +112,7 @@ static void cam_ca_free_msg_buf_list(struct list_head *list)
 	}
 }
 
-bool cam_ca_connect(void)
+bool cam_trusty_connect(void)
 {
 	struct cam_ca_ctrl *ca = &cam_ca;
 	int chan_conn_ret = 0;
@@ -163,7 +163,7 @@ bool cam_ca_connect(void)
 	return ret;
 }
 
-void cam_ca_disconnect(void)
+void cam_trusty_disconnect(void)
 {
 	struct cam_ca_ctrl *ca = &cam_ca;
 
@@ -346,8 +346,8 @@ bool camca_get_status(void)
 }
 
 
-bool camca_isp_fetch_addr_set(unsigned long y_addr, unsigned long u_addr,
-				unsigned long v_addr)
+bool cam_trusty_isp_fetch_addr_set(unsigned long y_addr, unsigned long u_addr,
+	unsigned long v_addr)
 {
 	struct img_yuv_reg_msg  yuv_addr_set;
 	bool ret = true;
@@ -378,7 +378,7 @@ bool camca_isp_fetch_addr_set(unsigned long y_addr, unsigned long u_addr,
 
 }
 
-bool camca_isp_pitch_set(uint32_t y_pitch, uint32_t u_pitch, uint32_t v_pitch)
+bool cam_trusty_isp_pitch_set(uint32_t y_pitch, uint32_t u_pitch, uint32_t v_pitch)
 {
 	struct img_pitch_reg_msg  pitch_set;
 	bool ret = true;
@@ -408,8 +408,7 @@ bool camca_isp_pitch_set(uint32_t y_pitch, uint32_t u_pitch, uint32_t v_pitch)
 	return ret;
 }
 
-bool camca_isp_3dnr_fetch_set(uint32_t chroma, uint32_t luma,
-			uint32_t pitch)
+bool cam_trusty_isp_3dnr_fetch_set(uint32_t chroma, uint32_t luma, uint32_t pitch)
 {
 	struct isp_3dnr_reg_msg  isp_3dnr_pitch_set;
 	bool ret = true;
@@ -441,7 +440,7 @@ bool camca_isp_3dnr_fetch_set(uint32_t chroma, uint32_t luma,
 	return ret;
 }
 
-bool camca_csi_switch_ctrl_set(uint32_t csi_sel_ctrl)
+bool cam_trusty_csi_switch_ctrl_set(uint32_t csi_sel_ctrl)
 {
 	struct csi_switch_ctrl_msg  switch_ctrl;
 	bool ret = true;
@@ -539,7 +538,7 @@ bool camca_exit_tamode(struct sprd_cam_sec_cfg *camsec_cfg)
 
 }
 
-bool camca_security_set(struct sprd_cam_sec_cfg *camsec_cfg,
+bool cam_trusty_security_set(struct sprd_cam_sec_cfg *camsec_cfg,
 	enum cam_trusty_mode mode)
 {
 	bool ret = true;
@@ -564,44 +563,46 @@ bool camca_security_set(struct sprd_cam_sec_cfg *camsec_cfg,
 #else
 
 /* add dummy fun for un trusty version */
-bool cam_ca_connect(void)
+bool cam_trusty_connect(void)
 {
 	pr_info("no trusty version\n");
 	return 1;
 }
 
-void cam_ca_disconnect(void)
+void cam_trusty_disconnect(void)
 {
 	pr_info("no trusty version\n");
 }
 
-bool camca_isp_fetch_addr_set(unsigned long y_addr, unsigned long u_addr,
-		unsigned long v_addr)
-{
-	pr_info("no trusty version\n");
-	return 1;
-}
-
-bool camca_isp_pitch_set(uint32_t y_pitch, uint32_t u_pitch, uint32_t v_pitch)
+bool cam_trusty_isp_fetch_addr_set(unsigned long y_addr,
+	unsigned long u_addr, unsigned long v_addr)
 {
 	pr_info("no trusty version\n");
 	return 1;
 }
 
-bool camca_isp_3dnr_fetch_set(uint32_t chroma, uint32_t luma,
-		uint32_t pitch)
+bool cam_trusty_isp_pitch_set(uint32_t y_pitch, uint32_t u_pitch,
+	uint32_t v_pitch)
 {
 	pr_info("no trusty version\n");
 	return 1;
 }
 
-bool camca_csi_switch_ctrl_set(uint32_t csi_sel_ctrl)
+bool cam_trusty_isp_3dnr_fetch_set(uint32_t chroma, uint32_t luma,
+	uint32_t pitch)
 {
 	pr_info("no trusty version\n");
 	return 1;
 }
 
-bool camca_security_set(struct sprd_cam_sec_cfg *camsec_cfg, enum cam_trusty_mode mode)
+bool cam_trusty_csi_switch_ctrl_set(uint32_t csi_sel_ctrl)
+{
+	pr_info("no trusty version\n");
+	return 1;
+}
+
+bool cam_trusty_security_set(struct sprd_cam_sec_cfg *camsec_cfg,
+	enum cam_trusty_mode mode)
 {
 	pr_info("no trusty version\n");
 	return 1;

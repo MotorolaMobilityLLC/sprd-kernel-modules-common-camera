@@ -169,7 +169,7 @@ static int fd_ioctl_get_iommu_status(struct fd_module *module,
 	unsigned int status;
 
 	mutex_lock(&module->mod_lock);
-	if (get_iommu_status(CAM_IOMMUDEV_FD) ==  0)
+	if (cam_buf_iommu_status_get(CAM_IOMMUDEV_FD) ==  0)
 		status = SPRD_FD_IOMMU_ENABLED;
 	else
 		status = SPRD_FD_IOMMU_DISABLED;

@@ -341,7 +341,7 @@ static int camt_isp_cfg_init(struct ispt_context *ctx)
 	memset(ion_buf, 0, sizeof(ctx->cfg_buf));
 	sprintf(ion_buf->name, "isp_cfg_ctx");
 
-	if (get_iommu_status(CAM_IOMMUDEV_ISP) == 0) {
+	if (cam_buf_iommu_status_get(CAM_IOMMUDEV_ISP) == 0) {
 		pr_debug("isp iommu enable\n");
 		iommu_enable = 1;
 	} else {
@@ -349,21 +349,21 @@ static int camt_isp_cfg_init(struct ispt_context *ctx)
 		iommu_enable = 0;
 	}
 	size = CAMT_ISP_CFG_BUF_SIZE;
-	ret = cambuf_alloc(ion_buf, size, 0, iommu_enable);
+	ret = cam_buf_alloc(ion_buf, size, 0, iommu_enable);
 	if (ret) {
 		pr_err("fail to get cfg buffer\n");
 		ret = -EFAULT;
 		goto err_alloc_cfg;
 	}
 
-	ret = cambuf_kmap(ion_buf);
+	ret = cam_buf_kmap(ion_buf);
 	if (ret) {
 		pr_err("fail to kmap cfg buffer\n");
 		ret = -EFAULT;
 		goto err_kmap_cfg;
 	}
 
-	ret = cambuf_iommu_map(ion_buf, CAM_IOMMUDEV_ISP);
+	ret = cam_buf_iommu_map(ion_buf, CAM_IOMMUDEV_ISP);
 	if (ret) {
 		pr_err("fail to map cfg buffer\n");
 		ret = -EFAULT;
@@ -400,9 +400,9 @@ static int camt_isp_cfg_init(struct ispt_context *ctx)
 	return ret;
 
 err_hwmap_cfg:
-	cambuf_kunmap(ion_buf);
+	cam_buf_kunmap(ion_buf);
 err_kmap_cfg:
-	cambuf_free(ion_buf);
+	cam_buf_free(ion_buf);
 err_alloc_cfg:
 	return ret;
 }
@@ -504,7 +504,7 @@ static int camt_isp_cfg_fetch(struct ispt_context *ctx,
 	fetch->trim_off.addr_ch1 = trim_offset[1];
 	fetch->trim_off.addr_ch2 = trim_offset[2];
 
-	if (get_iommu_status(CAM_IOMMUDEV_ISP) == 0) {
+	if (cam_buf_iommu_status_get(CAM_IOMMUDEV_ISP) == 0) {
 		pr_debug("isp iommu enable\n");
 		iommu_enable = 1;
 	} else {
@@ -515,16 +515,16 @@ static int camt_isp_cfg_fetch(struct ispt_context *ctx,
 	in_buf = &ctx->in_buf;
 	in_buf->type = CAM_BUF_USER;
 	in_buf->mfd[0] = info->inbuf_fd;
-	ret = cambuf_get_ionbuf(in_buf);
+	ret = cam_buf_ionbuf_get(in_buf);
 	if (ret) {
 		pr_err("fail to get out ion buffer\n");
 		goto exit;
 	}
 
-	ret = cambuf_iommu_map(in_buf, CAM_IOMMUDEV_ISP);
+	ret = cam_buf_iommu_map(in_buf, CAM_IOMMUDEV_ISP);
 	if (ret) {
 		pr_err("fail to map to iommu\n");
-		cambuf_put_ionbuf(in_buf);
+		cam_buf_ionbuf_put(in_buf);
 		goto exit;
 	}
 
@@ -595,7 +595,7 @@ static int camt_isp_cfg_store(struct ispt_context *ctx,
 		break;
 	}
 
-	if (get_iommu_status(CAM_IOMMUDEV_ISP) == 0) {
+	if (cam_buf_iommu_status_get(CAM_IOMMUDEV_ISP) == 0) {
 		pr_debug("isp iommu enable\n");
 		iommu_enable = 1;
 	} else {
@@ -607,16 +607,16 @@ static int camt_isp_cfg_store(struct ispt_context *ctx,
 	out_buf = &ctx->out_buf;
 	out_buf->type = CAM_BUF_USER;
 	out_buf->mfd[0] = info->outbuf_fd[0];
-	ret = cambuf_get_ionbuf(out_buf);
+	ret = cam_buf_ionbuf_get(out_buf);
 	if (ret) {
 		pr_err("fail to get out ion buffer\n");
 		goto exit;
 	}
 
-	ret = cambuf_iommu_map(out_buf, CAM_IOMMUDEV_ISP);
+	ret = cam_buf_iommu_map(out_buf, CAM_IOMMUDEV_ISP);
 	if (ret) {
 		pr_err("fail to map to iommu\n");
-		cambuf_put_ionbuf(out_buf);
+		cam_buf_ionbuf_put(out_buf);
 		goto exit;
 	}
 
@@ -778,12 +778,12 @@ int ispt_start(struct camt_info *info)
 	ret = wait_for_completion_interruptible(&ctx->frame_done);
 	pr_info("wait done\n");
 
-	cambuf_iommu_unmap(&ctx->in_buf);
-	cambuf_put_ionbuf(&ctx->in_buf);
+	cam_buf_iommu_unmap(&ctx->in_buf);
+	cam_buf_ionbuf_put(&ctx->in_buf);
 	memset(&ctx->in_buf, 0, sizeof(struct camera_buf));
 
-	cambuf_iommu_unmap(&ctx->out_buf);
-	cambuf_put_ionbuf(&ctx->out_buf);
+	cam_buf_iommu_unmap(&ctx->out_buf);
+	cam_buf_ionbuf_put(&ctx->out_buf);
 	memset(&ctx->out_buf, 0, sizeof(struct camera_buf));
 
 	pr_info("ispt_start done\n");
@@ -808,9 +808,9 @@ int ispt_stop(void)
 		isp_cfg_poll_addr[i] = NULL;
 	}
 
-	cambuf_iommu_unmap(ion_buf);
-	cambuf_kunmap(ion_buf);
-	cambuf_free(ion_buf);
+	cam_buf_iommu_unmap(ion_buf);
+	cam_buf_kunmap(ion_buf);
+	cam_buf_free(ion_buf);
 
 	camt_isp_hw_deinit(ctx);
 

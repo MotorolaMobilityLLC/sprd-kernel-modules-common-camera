@@ -92,7 +92,7 @@ void isp_unmap_frame(void *param)
 		return;
 	}
 	frame = (struct camera_frame *)param;
-	cambuf_iommu_unmap(&frame->buf);
+	cam_buf_iommu_unmap(&frame->buf);
 }
 
 void isp_ret_out_frame(void *param)
@@ -118,7 +118,7 @@ void isp_ret_out_frame(void *param)
 	else {
 		pctx = path->attach_ctx;
 		if (frame->buf.mapping_state & CAM_BUF_MAPPING_DEV)
-			cambuf_iommu_unmap(&frame->buf);
+			cam_buf_iommu_unmap(&frame->buf);
 		pctx->isp_cb_func(
 			ISP_CB_RET_DST_BUF,
 			frame, pctx->cb_priv_data);
@@ -141,7 +141,7 @@ void isp_ret_src_frame(void *param)
 		frame, frame->channel_id, frame->buf.mfd[0]);
 	free_offline_pararm(frame->param_data);
 	frame->param_data = NULL;
-	cambuf_iommu_unmap(&frame->buf);
+	cam_buf_iommu_unmap(&frame->buf);
 	pctx->isp_cb_func(
 		ISP_CB_RET_SRC_BUF,
 		frame, pctx->cb_priv_data);
@@ -166,8 +166,8 @@ void isp_destroy_reserved_buf(void *param)
 	 *  2:  copy of reserved buffer.
 	 */
 	if (frame->is_reserved == 1) {
-		cambuf_iommu_unmap(&frame->buf);
-		cambuf_put_ionbuf(&frame->buf);
+		cam_buf_iommu_unmap(&frame->buf);
+		cam_buf_ionbuf_put(&frame->buf);
 	}
 	put_empty_frame(frame);
 }
@@ -585,7 +585,7 @@ static int set_fmcu_slw_queue(
 		return -EINVAL;
 	}
 
-	ret = cambuf_iommu_map(&pframe->buf, CAM_IOMMUDEV_ISP);
+	ret = cam_buf_iommu_map(&pframe->buf, CAM_IOMMUDEV_ISP);
 	if (ret) {
 		pr_err("fail to map buf to ISP iommu. cxt %d\n", pctx->ctx_id);
 		ret = -EINVAL;
@@ -620,7 +620,7 @@ static int set_fmcu_slw_queue(
 		}
 
 		if (out_frame->is_reserved == 0) {
-			ret = cambuf_iommu_map(&out_frame->buf, CAM_IOMMUDEV_ISP);
+			ret = cam_buf_iommu_map(&out_frame->buf, CAM_IOMMUDEV_ISP);
 			pr_debug("map output buffer %08x\n", (uint32_t)out_frame->buf.iova[0]);
 			if (ret) {
 				camera_enqueue(&path->out_buf_queue, &out_frame->list);
@@ -647,7 +647,7 @@ static int set_fmcu_slw_queue(
 				camera_enqueue(&path->reserved_buf_queue,
 						&out_frame->list);
 			else {
-				cambuf_iommu_unmap(&out_frame->buf);
+				cam_buf_iommu_unmap(&out_frame->buf);
 				camera_enqueue(&path->out_buf_queue,
 						&out_frame->list);
 			}
@@ -1155,7 +1155,7 @@ normal_out_put:
 	if (out_frame != NULL) {
 		if (out_frame->is_reserved == 0 &&
 			(out_frame->buf.mapping_state & CAM_BUF_MAPPING_DEV) == 0) {
-			ret = cambuf_iommu_map(&out_frame->buf, CAM_IOMMUDEV_ISP);
+			ret = cam_buf_iommu_map(&out_frame->buf, CAM_IOMMUDEV_ISP);
 			pr_debug("map output buffer %08x\n", (uint32_t)out_frame->buf.iova[0]);
 			if (ret) {
 				camera_enqueue(&path->out_buf_queue, &out_frame->list);
@@ -1321,8 +1321,8 @@ static int isp_set_offline_param(struct isp_pipe_context *pctx,
 		ret = isp_path_set_store_frm(path, out_frame);
 		/* If some error comes then do not start ISP */
 		if (ret) {
-			cambuf_iommu_unmap(&out_frame->buf);
-			cambuf_put_ionbuf(&out_frame->buf);
+			cam_buf_iommu_unmap(&out_frame->buf);
+			cam_buf_ionbuf_put(&out_frame->buf);
 			put_empty_frame(out_frame);
 			ret = -EINVAL;
 			goto exit;
@@ -1365,7 +1365,7 @@ static int isp_set_offline_param(struct isp_pipe_context *pctx,
 					&path->reserved_buf_queue, &out_frame->list);
 				dev->ltm_handle->ops->clear_status(pctx->ltm_ctx.ltm_index);
 			} else {
-				cambuf_iommu_unmap(&out_frame->buf);
+				cam_buf_iommu_unmap(&out_frame->buf);
 				camera_enqueue(
 					&path->out_buf_queue, &out_frame->list);
 			}
@@ -1448,7 +1448,7 @@ static int isp_offline_start_frame(void *ctx)
 			pctx->ctx_id, pctx->attach_cam_id,
 			pframe->fid, pframe->channel_id, pframe->buf.mfd[0]);
 
-	ret = cambuf_iommu_map(&pframe->buf, CAM_IOMMUDEV_ISP);
+	ret = cam_buf_iommu_map(&pframe->buf, CAM_IOMMUDEV_ISP);
 	if (ret) {
 		pr_err("fail to map buf to ISP iommu. cxt %d\n",
 			pctx->ctx_id);
@@ -1669,7 +1669,7 @@ dequeue:
 	pframe = camera_dequeue_tail(&pctx->proc_queue);
 inq_overflow:
 	if (pframe)
-		cambuf_iommu_unmap(&pframe->buf);
+		cam_buf_iommu_unmap(&pframe->buf);
 map_err:
 input_err:
 	if (pframe) {
@@ -2369,7 +2369,7 @@ static int isp_postproc_irq(void *handle, uint32_t idx,
 				pctx->ctx_id);
 		} else {
 			/* return buffer to cam channel shared buffer queue. */
-			cambuf_iommu_unmap(&pframe->buf);
+			cam_buf_iommu_unmap(&pframe->buf);
 			pctx->isp_cb_func(ISP_CB_RET_SRC_BUF, pframe,
 				pctx->cb_priv_data);
 			pr_debug("sw %d, ch_id %d, fid:%d, shard buffer cnt:%d\n",
@@ -2430,7 +2430,7 @@ static int isp_postproc_irq(void *handle, uint32_t idx,
 			camera_enqueue(&path->reserved_buf_queue, &pframe->list);
 		} else if (stream && stream->cur_cnt != stream->max_cnt &&
 			stream->state == ISP_STREAM_POST_PROC) {
-			cambuf_iommu_unmap(&pframe->buf);
+			cam_buf_iommu_unmap(&pframe->buf);
 			camera_enqueue(&pctx->in_queue, &pframe->list);
 			complete(&pctx->thread.thread_com);
 		} else {
@@ -2441,7 +2441,7 @@ static int isp_postproc_irq(void *handle, uint32_t idx,
 						(int)pframe->buf.size[j], (int)path->reserve_buf_size[j]);
 				}
 			}
-			cambuf_iommu_unmap(&pframe->buf);
+			cam_buf_iommu_unmap(&pframe->buf);
 			pctx->isp_cb_func(ISP_CB_RET_DST_BUF,
 				pframe, pctx->cb_priv_data);
 		}
@@ -2946,8 +2946,8 @@ static int sprd_isp_cfg_path(void *isp_handle,
 	switch (cfg_cmd) {
 	case ISP_PATH_CFG_OUTPUT_RESERVED_BUF:
 		pframe = (struct camera_frame *)param;
-		ret = cambuf_iommu_map_single_page(
-			&pframe->buf, CAM_IOMMUDEV_ISP);
+		ret = cam_buf_iommu_single_page_map(&pframe->buf,
+			CAM_IOMMUDEV_ISP);
 		if (ret) {
 			pr_err("fail to map isp iommu buf.\n");
 			ret = -EINVAL;
@@ -3004,7 +3004,7 @@ static int sprd_isp_cfg_path(void *isp_handle,
 		break;
 	case ISP_PATH_CFG_3DNR_BUF:
 		pframe = (struct camera_frame *)param;
-		ret = cambuf_iommu_map(&pframe->buf, CAM_IOMMUDEV_ISP);
+		ret = cam_buf_iommu_map(&pframe->buf, CAM_IOMMUDEV_ISP);
 		if (ret) {
 			pr_err("fail to map isp iommu buf.\n");
 			ret = -EINVAL;
@@ -3027,14 +3027,14 @@ static int sprd_isp_cfg_path(void *isp_handle,
 		}
 		if (i == 2) {
 			pr_err("fail to set isp ctx %d nr3 buffers.\n", ctx_id);
-			cambuf_iommu_unmap(&pframe->buf);
+			cam_buf_iommu_unmap(&pframe->buf);
 			goto exit;
 		}
 		break;
 	case ISP_PATH_CFG_RGB_LTM_BUF:
 		pframe = (struct camera_frame *)param;
 		if (pctx->mode_ltm == MODE_LTM_PRE) {
-			ret = cambuf_iommu_map(&pframe->buf, CAM_IOMMUDEV_ISP);
+			ret = cam_buf_iommu_map(&pframe->buf, CAM_IOMMUDEV_ISP);
 			if (ret) {
 				pr_err("fail to isp map iommu buf.\n");
 				ret = -EINVAL;
@@ -3058,7 +3058,7 @@ static int sprd_isp_cfg_path(void *isp_handle,
 	case ISP_PATH_CFG_YUV_LTM_BUF:
 		pframe = (struct camera_frame *)param;
 		if (pctx->mode_ltm == MODE_LTM_PRE) {
-			ret = cambuf_iommu_map(&pframe->buf, CAM_IOMMUDEV_ISP);
+			ret = cam_buf_iommu_map(&pframe->buf, CAM_IOMMUDEV_ISP);
 			if (ret) {
 				pr_err("fail to isp map iommu buf.\n");
 				ret = -EINVAL;
@@ -3081,7 +3081,7 @@ static int sprd_isp_cfg_path(void *isp_handle,
 		break;
 	case ISP_PATH_CFG_POSTPROC_BUF:
 		pframe = (struct camera_frame *)param;
-		ret = cambuf_iommu_map(&pframe->buf, CAM_IOMMUDEV_ISP);
+		ret = cam_buf_iommu_map(&pframe->buf, CAM_IOMMUDEV_ISP);
 		if (ret) {
 			pr_err("fail to superzoom map isp iommu buf.\n");
 			ret = -EINVAL;
@@ -3238,15 +3238,15 @@ static int isp_init_statis_q(void *isp_handle, int ctx_id,
 		ion_buf->mfd[0] = mfd;
 		ion_buf->offset[0] = input->offset_array[stats_type][j];
 		ion_buf->type = CAM_BUF_USER;
-		ret = cambuf_get_ionbuf(ion_buf);
+		ret = cam_buf_ionbuf_get(ion_buf);
 		if (ret) {
 			memset(ion_buf, 0, sizeof(struct camera_buf));
 			continue;
 		}
 
-		ret = cambuf_kmap(ion_buf);
+		ret = cam_buf_kmap(ion_buf);
 		if (ret) {
-			cambuf_put_ionbuf(ion_buf);
+			cam_buf_ionbuf_put(ion_buf);
 			memset(ion_buf, 0, sizeof(struct camera_buf));
 			continue;
 		}
@@ -3293,8 +3293,8 @@ static int isp_unmap_statis_buffer(void *isp_handle, int ctx_id)
 			ctx_id, ion_buf->mfd[0], ion_buf->offset[0],
 			ion_buf->addr_k[0], (uint32_t)ion_buf->iova[0]);
 
-		cambuf_kunmap(ion_buf);
-		cambuf_put_ionbuf(ion_buf);
+		cam_buf_kunmap(ion_buf);
+		cam_buf_ionbuf_put(ion_buf);
 		memset(ion_buf, 0, sizeof(struct camera_buf));
 	}
 

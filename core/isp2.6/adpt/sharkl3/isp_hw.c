@@ -853,7 +853,7 @@ static int sharkl3_isp_fetch_set(void *handle, void *arg)
 		fetch->pitch.pitch_ch2);
 
 	if (fetch->sec_mode == SEC_SPACE_PRIORITY) {
-		camca_isp_pitch_set(fetch->pitch.pitch_ch0,
+		cam_trusty_isp_pitch_set(fetch->pitch.pitch_ch0,
 			fetch->pitch.pitch_ch1,
 			fetch->pitch.pitch_ch2);
 	} else {

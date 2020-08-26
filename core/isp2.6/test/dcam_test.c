@@ -288,22 +288,22 @@ static int set_dcam_path_store_addr(struct dcamt_context *cxt, struct camt_info 
 		goto exit;
 	}
 
-	if (get_iommu_status(CAM_IOMMUDEV_DCAM) == 0)
+	if (cam_buf_iommu_status_get(CAM_IOMMUDEV_DCAM) == 0)
 		iommu_enable = 1;
 	size = test_info->pitch * test_info->input_size.h;
 	out_buf = &cxt->comm_info[i].out_buf;
 	out_buf->type = CAM_BUF_USER;
 	out_buf->mfd[0] = test_info->outbuf_fd[i];
-	ret = cambuf_get_ionbuf(out_buf);
+	ret = cam_buf_ionbuf_get(out_buf);
 	if (ret) {
 		pr_err("fail to get out ion buffer\n");
 		goto exit;
 	}
 
-	ret = cambuf_iommu_map(out_buf, CAM_IOMMUDEV_DCAM);
+	ret = cam_buf_iommu_map(out_buf, CAM_IOMMUDEV_DCAM);
 	if (ret) {
 		pr_err("fail to map to iommu\n");
-		cambuf_put_ionbuf(out_buf);
+		cam_buf_ionbuf_put(out_buf);
 		goto exit;
 	}
 
@@ -627,23 +627,23 @@ int dcamt_start(struct camt_info *info)
 		hw->dcam_ioctl(hw, DCAM_HW_CFG_PATH_START, &patharg);
 	}
 
-	if (get_iommu_status(CAM_IOMMUDEV_DCAM) == 0)
+	if (cam_buf_iommu_status_get(CAM_IOMMUDEV_DCAM) == 0)
 		iommu_enable = 1;
 
 	size = info->pitch * info->input_size.h;
 	in_buf = &cxt->in_buf;
 	in_buf->type = CAM_BUF_USER;
 	in_buf->mfd[0] = info->inbuf_fd;
-	ret = cambuf_get_ionbuf(in_buf);
+	ret = cam_buf_ionbuf_get(in_buf);
 	if (ret) {
 		pr_err("fail to get out ion buffer\n");
 		goto exit;
 	}
 
-	ret = cambuf_iommu_map(in_buf, CAM_IOMMUDEV_DCAM);
+	ret = cam_buf_iommu_map(in_buf, CAM_IOMMUDEV_DCAM);
 	if (ret) {
 		pr_err("fail to map to iommu\n");
-		cambuf_put_ionbuf(in_buf);
+		cam_buf_ionbuf_put(in_buf);
 		goto exit;
 	}
 
@@ -685,13 +685,13 @@ int dcamt_start(struct camt_info *info)
 
 	pr_info("wait done\n");
 
-	cambuf_iommu_unmap(&cxt->in_buf);
-	cambuf_put_ionbuf(&cxt->in_buf);
+	cam_buf_iommu_unmap(&cxt->in_buf);
+	cam_buf_ionbuf_put(&cxt->in_buf);
 	memset(&cxt->in_buf, 0, sizeof(struct camera_buf));
 
 	for(i = 0; i < DRV_PATH_NUM; i++) {
-		cambuf_iommu_unmap(&cxt->comm_info[i].out_buf);
-		cambuf_put_ionbuf(&cxt->comm_info[i].out_buf);
+		cam_buf_iommu_unmap(&cxt->comm_info[i].out_buf);
+		cam_buf_ionbuf_put(&cxt->comm_info[i].out_buf);
 		memset(&cxt->comm_info[i].out_buf, 0, sizeof(struct camera_buf));
 	}
 

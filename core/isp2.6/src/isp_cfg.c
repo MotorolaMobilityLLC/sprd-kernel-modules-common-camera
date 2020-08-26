@@ -234,7 +234,7 @@ static int cctx_buf_init(struct isp_cfg_ctx_desc *cfg_ctx)
 	memset(ion_buf, 0, sizeof(cfg_ctx->ion_pool));
 	sprintf(ion_buf->name, "isp_cfg_ctx");
 
-	if (get_iommu_status(CAM_IOMMUDEV_ISP) == 0) {
+	if (cam_buf_iommu_status_get(CAM_IOMMUDEV_ISP) == 0) {
 		pr_debug("isp iommu enable\n");
 		iommu_enable = 1;
 	} else {
@@ -242,21 +242,21 @@ static int cctx_buf_init(struct isp_cfg_ctx_desc *cfg_ctx)
 		iommu_enable = 0;
 	}
 	size = ISP_CFG_BUF_SIZE_HW_PADDING;
-	ret = cambuf_alloc(ion_buf, size, 0, iommu_enable);
+	ret = cam_buf_alloc(ion_buf, size, 0, iommu_enable);
 	if (ret) {
 		pr_err("fail to get cfg buffer\n");
 		ret = -EFAULT;
 		goto err_alloc_cfg;
 	}
 
-	ret = cambuf_kmap(ion_buf);
+	ret = cam_buf_kmap(ion_buf);
 	if (ret) {
 		pr_err("fail to kmap cfg buffer\n");
 		ret = -EFAULT;
 		goto err_kmap_cfg;
 	}
 
-	ret = cambuf_iommu_map(ion_buf, CAM_IOMMUDEV_ISP);
+	ret = cam_buf_iommu_map(ion_buf, CAM_IOMMUDEV_ISP);
 	if (ret) {
 		pr_err("fail to map cfg buffer\n");
 		ret = -EFAULT;
@@ -269,14 +269,14 @@ static int cctx_buf_init(struct isp_cfg_ctx_desc *cfg_ctx)
 	sprintf(ion_buf_cached->name, "isp_cfg_swctx");
 
 	size = ISP_CFG_BUF_SIZE_SW_ALL;
-	ret = cambuf_alloc(ion_buf_cached, size, 0, iommu_enable | CAM_BUF_CAHCED);
+	ret = cam_buf_alloc(ion_buf_cached, size, 0, iommu_enable | CAM_BUF_CAHCED);
 	if (ret) {
 		pr_err("fail to get cfg buffer\n");
 		ret = -EFAULT;
 		goto err_alloc_cfg1;
 	}
 
-	ret = cambuf_kmap(ion_buf_cached);
+	ret = cam_buf_kmap(ion_buf_cached);
 	if (ret) {
 		pr_err("fail to kmap cfg buffer\n");
 		ret = -EFAULT;
@@ -297,13 +297,13 @@ static int cctx_buf_init(struct isp_cfg_ctx_desc *cfg_ctx)
 	return 0;
 
 err_kmap_cfg1:
-	cambuf_free(ion_buf_cached);
+	cam_buf_free(ion_buf_cached);
 err_alloc_cfg1:
-	cambuf_iommu_unmap(ion_buf);
+	cam_buf_iommu_unmap(ion_buf);
 err_hwmap_cfg:
-	cambuf_kunmap(ion_buf);
+	cam_buf_kunmap(ion_buf);
 err_kmap_cfg:
-	cambuf_free(ion_buf);
+	cam_buf_free(ion_buf);
 err_alloc_cfg:
 	return ret;
 }
@@ -318,13 +318,13 @@ static int cctx_buf_deinit(struct isp_cfg_ctx_desc *cfg_ctx)
 	cctx_deinit_regbuf_addr(cfg_ctx);
 	cctx_deinit_page_buf_addr(cfg_ctx);
 
-	cambuf_iommu_unmap(ion_buf);
-	cambuf_kunmap(ion_buf);
-	cambuf_free(ion_buf);
+	cam_buf_iommu_unmap(ion_buf);
+	cam_buf_kunmap(ion_buf);
+	cam_buf_free(ion_buf);
 
 	ion_buf = &cfg_ctx->ion_pool_cached;
-	cambuf_kunmap(ion_buf);
-	cambuf_free(ion_buf);
+	cam_buf_kunmap(ion_buf);
+	cam_buf_free(ion_buf);
 
 	return 0;
 }

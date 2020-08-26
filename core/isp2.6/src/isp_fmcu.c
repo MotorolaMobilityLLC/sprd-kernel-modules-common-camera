@@ -219,28 +219,28 @@ static int isp_fmcu_ctx_init(struct isp_fmcu_ctx_desc *fmcu_ctx)
 		memset(ion_buf, 0, sizeof(fmcu_ctx->ion_pool[i]));
 		sprintf(ion_buf->name, "isp_fmcu_ctx%d", i);
 
-		if (get_iommu_status(CAM_IOMMUDEV_ISP) == 0) {
+		if (cam_buf_iommu_status_get(CAM_IOMMUDEV_ISP) == 0) {
 			pr_debug("isp iommu enable\n");
 			iommu_enable = 1;
 		} else {
 			pr_debug("isp iommu disable\n");
 			iommu_enable = 0;
 		}
-		ret = cambuf_alloc(ion_buf,
-				fmcu_ctx->cmdq_size, 0, iommu_enable);
+		ret = cam_buf_alloc(ion_buf, fmcu_ctx->cmdq_size,
+			0, iommu_enable);
 		if (ret) {
 			pr_err("fail to get fmcu buffer\n");
 			ret = -EFAULT;
 			goto err_alloc_fmcu;
 		}
 
-		ret = cambuf_kmap(ion_buf);
+		ret = cam_buf_kmap(ion_buf);
 		if (ret) {
 			pr_err("fail to kmap fmcu buffer\n");
 			ret = -EFAULT;
 			goto err_kmap_fmcu;
 		}
-		ret = cambuf_iommu_map(ion_buf, CAM_IOMMUDEV_ISP);
+		ret = cam_buf_iommu_map(ion_buf, CAM_IOMMUDEV_ISP);
 		if (ret) {
 			pr_err("fail to map fmcu buffer\n");
 			ret = -EFAULT;
@@ -260,19 +260,19 @@ err_hwmap_fmcu:
 	for (i = 0; i < MAX_BUF; i++) {
 		ion_buf = &fmcu_ctx->ion_pool[i];
 		if (ion_buf)
-			cambuf_iommu_unmap(ion_buf);
+			cam_buf_iommu_unmap(ion_buf);
 	}
 err_kmap_fmcu:
 	for (i = 0; i < MAX_BUF; i++) {
 		ion_buf = &fmcu_ctx->ion_pool[i];
 		if (ion_buf)
-			cambuf_kunmap(ion_buf);
+			cam_buf_kunmap(ion_buf);
 	}
 err_alloc_fmcu:
 	for (i = 0; i < MAX_BUF; i++) {
 		ion_buf = &fmcu_ctx->ion_pool[i];
 		if (ion_buf)
-			cambuf_free(ion_buf);
+			cam_buf_free(ion_buf);
 	}
 	pr_err("fail to init fmcu%d.\n", fmcu_ctx->fid);
 	return ret;
@@ -292,9 +292,9 @@ static int isp_fmcu_ctx_deinit(struct isp_fmcu_ctx_desc *fmcu_ctx)
 	pr_debug("Enter\n");
 	for (i = 0; i < MAX_BUF; i++) {
 		ion_buf = &fmcu_ctx->ion_pool[i];
-		cambuf_iommu_unmap(ion_buf);
-		cambuf_kunmap(ion_buf);
-		cambuf_free(ion_buf);
+		cam_buf_iommu_unmap(ion_buf);
+		cam_buf_kunmap(ion_buf);
+		cam_buf_free(ion_buf);
 	}
 
 	pr_debug("Done\n");

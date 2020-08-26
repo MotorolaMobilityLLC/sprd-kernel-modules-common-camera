@@ -123,13 +123,16 @@ struct cam_ca_ctrl {
 	struct list_head rx_msg_queue;
 };
 
-bool cam_ca_connect(void);
-void cam_ca_disconnect(void);
-bool camca_isp_fetch_addr_set(unsigned long y_addr, unsigned long u_addr,
-										unsigned long v_addr);
-bool  camca_isp_pitch_set(uint32_t y_pitch, uint32_t u_pitch,uint32_t v_pitch);
-bool  camca_isp_3dnr_fetch_set(uint32_t chroma, uint32_t luma, uint32_t pitch);
-bool  camca_csi_switch_ctrl_set(uint32_t csi_sel_ctrl);
-bool  camca_security_set(struct  sprd_cam_sec_cfg *camsec_cfg, enum cam_trusty_mode mode);
+bool cam_trusty_connect(void);
+void cam_trusty_disconnect(void);
+bool cam_trusty_isp_fetch_addr_set(unsigned long y_addr,
+	unsigned long u_addr, unsigned long v_addr);
+bool  cam_trusty_isp_pitch_set(uint32_t y_pitch, uint32_t u_pitch,
+	uint32_t v_pitch);
+bool  cam_trusty_isp_3dnr_fetch_set(uint32_t chroma, uint32_t luma,
+	uint32_t pitch);
+bool  cam_trusty_csi_switch_ctrl_set(uint32_t csi_sel_ctrl);
+bool  cam_trusty_security_set(struct  sprd_cam_sec_cfg *camsec_cfg,
+	enum cam_trusty_mode mode);
 
 #endif

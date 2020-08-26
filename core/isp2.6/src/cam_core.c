@@ -124,7 +124,6 @@ static struct camera_format output_img_fmt[] = {
 };
 
 struct camera_group;
-int s_dbg_superzoom_coeff = -1;
 
 /* user set information for camera module */
 struct camera_uchannel {
@@ -373,11 +372,11 @@ static void put_k_frame(void *param)
 
 	frame = (struct camera_frame *)param;
 	if (frame->buf.type == CAM_BUF_USER)
-		cambuf_put_ionbuf(&frame->buf);
+		cam_buf_ionbuf_put(&frame->buf);
 	else {
 		if (frame->buf.mapping_state)
-			cambuf_kunmap(&frame->buf);
-		cambuf_free(&frame->buf);
+			cam_buf_kunmap(&frame->buf);
+		cam_buf_free(&frame->buf);
 	}
 	ret = put_empty_frame(frame);
 }
@@ -399,7 +398,7 @@ static void camera_put_empty_frame(void *param)
 		if (!frame->irq_type)
 			kfree(frame->priv_data);
 		else if (module && module->exit_flag == 1)
-			cambuf_put_ionbuf(&frame->buf);
+			cam_buf_ionbuf_put(&frame->buf);
 	}
 	ret = put_empty_frame(frame);
 }
@@ -459,15 +458,15 @@ buf_init:
 		ion_buf->mfd[0] = mfd;
 		ion_buf->offset[0] = input->offset_pmdbg[j];
 		ion_buf->type = CAM_BUF_USER;
-		ret = cambuf_get_ionbuf(ion_buf);
+		ret = cam_buf_ionbuf_get(ion_buf);
 		if (ret) {
 			memset(ion_buf, 0, sizeof(struct camera_buf));
 			continue;
 		}
-		ret = cambuf_kmap(ion_buf);
+		ret = cam_buf_kmap(ion_buf);
 		if (ret) {
 			pr_err("fail to kmap statis buf %d\n", mfd);
-			cambuf_put_ionbuf(ion_buf);
+			cam_buf_ionbuf_put(ion_buf);
 			memset(ion_buf, 0, sizeof(struct camera_buf));
 			continue;
 		}
@@ -538,8 +537,8 @@ static int cam_uncfg_param_buffer(struct camera_module *module)
 
 		pr_debug("cam%d, j %d,  mfd %d, offset %d\n",
 			module->idx, j, mfd, ion_buf->offset[0]);
-		cambuf_kunmap(ion_buf);
-		cambuf_put_ionbuf(ion_buf);
+		cam_buf_kunmap(ion_buf);
+		cam_buf_ionbuf_put(ion_buf);
 		memset(ion_buf, 0, sizeof(struct camera_buf));
 	}
 
@@ -1091,9 +1090,7 @@ static void alloc_buffers(void *param)
 				channel->ch_id,
 				pframe->buf.buf_sec);
 
-			ret = cambuf_alloc(
-					&pframe->buf, size,
-					0, iommu_enable);
+			ret = cam_buf_alloc(&pframe->buf, size, 0, iommu_enable);
 			if (ret) {
 				pr_err("fail to alloc buf: %d ch %d\n",
 						i, channel->ch_id);
@@ -1106,7 +1103,7 @@ static void alloc_buffers(void *param)
 			if (ret) {
 				pr_err("fail to enqueue shared buf: %d ch %d\n",
 					i, channel->ch_id);
-				cambuf_free(&pframe->buf);
+				cam_buf_free(&pframe->buf);
 				put_empty_frame(pframe);
 				/* no break here and will retry */
 			} else {
@@ -1161,7 +1158,7 @@ static void alloc_buffers(void *param)
 				pframe->buf.buf_sec);
 		}
 
-		ret = cambuf_alloc(&pframe->buf, size, 0, 1);
+		ret = cam_buf_alloc(&pframe->buf, size, 0, 1);
 		if (ret) {
 			pr_err("fail to alloc superzoom buf\n");
 			put_empty_frame(pframe);
@@ -1198,7 +1195,7 @@ static void alloc_buffers(void *param)
 					pframe->buf.buf_sec);
 			}
 
-			ret = cambuf_alloc(&pframe->buf, size, 0, iommu_enable);
+			ret = cam_buf_alloc(&pframe->buf, size, 0, iommu_enable);
 			if (ret) {
 				pr_err("fail to alloc 3dnr buf: %d ch %d\n",
 					i, channel->ch_id);
@@ -1234,8 +1231,7 @@ static void alloc_buffers(void *param)
 							channel->ch_id,
 							pframe->buf.buf_sec);
 					}
-					ret = cambuf_alloc(&pframe->buf, size, 0,
-							   iommu_enable);
+					ret = cam_buf_alloc(&pframe->buf, size, 0, iommu_enable);
 					if (ret) {
 						pr_err("fail to alloc ltm buf: %d ch %d\n",
 							i, channel->ch_id);
@@ -1243,7 +1239,7 @@ static void alloc_buffers(void *param)
 						atomic_inc(&channel->err_status);
 						goto exit;
 					}
-					cambuf_kmap(&pframe->buf);
+					cam_buf_kmap(&pframe->buf);
 					channel->ltm_bufs[LTM_RGB][i] = pframe;
 				}
 			}
@@ -1261,8 +1257,7 @@ static void alloc_buffers(void *param)
 							channel->ch_id,
 							pframe->buf.buf_sec);
 					}
-					ret = cambuf_alloc(&pframe->buf, size, 0,
-						iommu_enable);
+					ret = cam_buf_alloc(&pframe->buf, size, 0, iommu_enable);
 					if (ret) {
 						pr_err("fail to alloc ltm buf: %d ch %d\n",
 							i, channel->ch_id);
@@ -1270,7 +1265,7 @@ static void alloc_buffers(void *param)
 						atomic_inc(&channel->err_status);
 						goto exit;
 					}
-					cambuf_kmap(&pframe->buf);
+					cam_buf_kmap(&pframe->buf);
 					channel->ltm_bufs[LTM_YUV][i] = pframe;
 				}
 			}
@@ -1604,7 +1599,7 @@ struct camera_frame *deal_4in1_raw_capture(struct camera_module *module,
 		return pframe;
 	}
 	/* not report */
-	cambuf_put_ionbuf(&pframe->buf);
+	cam_buf_ionbuf_put(&pframe->buf);
 	put_empty_frame(pframe);
 
 	return NULL;
@@ -1659,7 +1654,7 @@ int isp_callback(enum isp_cb_type type, void *param, void *priv_data)
 		if (pframe->irq_property != CAM_FRAME_COMMON) {
 			/* FDR frames from user */
 			pr_info("fdr %d src buf %d return", pframe->irq_property, pframe->buf.mfd[0]);
-			cambuf_put_ionbuf(&pframe->buf);
+			cam_buf_ionbuf_put(&pframe->buf);
 			put_empty_frame(pframe);
 			break;
 		}
@@ -1689,9 +1684,9 @@ int isp_callback(enum isp_cb_type type, void *param, void *priv_data)
 			 * just release it, no need to return
 			 */
 			if (pframe->buf.type == CAM_BUF_USER)
-				cambuf_put_ionbuf(&pframe->buf);
+				cam_buf_ionbuf_put(&pframe->buf);
 			else
-				cambuf_free(&pframe->buf);
+				cam_buf_free(&pframe->buf);
 			pr_info("raw proc return mid frame %p\n", pframe);
 			put_empty_frame(pframe);
 		} else {
@@ -1746,7 +1741,7 @@ int isp_callback(enum isp_cb_type type, void *param, void *priv_data)
 		if (atomic_read(&module->state) == CAM_RUNNING) {
 			if (module->cap_status == CAM_CAPTURE_RAWPROC) {
 				pr_info("raw proc return dst frame %p\n", pframe);
-				cambuf_put_ionbuf(&pframe->buf);
+				cam_buf_ionbuf_put(&pframe->buf);
 				module->cap_status = CAM_CAPTURE_RAWPROC_DONE;
 				pframe->irq_type = CAMERA_IRQ_DONE;
 				pframe->irq_property = IRQ_RAW_PROC_DONE;
@@ -1772,7 +1767,7 @@ int isp_callback(enum isp_cb_type type, void *param, void *priv_data)
 
 			ret = camera_enqueue(&module->frm_queue, &pframe->list);
 			if (ret) {
-				cambuf_put_ionbuf(&pframe->buf);
+				cam_buf_ionbuf_put(&pframe->buf);
 				put_empty_frame(pframe);
 			} else {
 				complete(&module->frm_com);
@@ -1780,7 +1775,7 @@ int isp_callback(enum isp_cb_type type, void *param, void *priv_data)
 					ch_id, pframe, pframe->evt, pframe->buf.mfd[0]);
 			}
 		} else {
-			cambuf_put_ionbuf(&pframe->buf);
+			cam_buf_ionbuf_put(&pframe->buf);
 			put_empty_frame(pframe);
 		}
 		break;
@@ -1895,7 +1890,7 @@ int dcam_callback(enum dcam_cb_type type, void *param, void *priv_data)
 				camera_enqueue(&channel->share_buf_queue, &pframe->list);
 			} else {
 				/* 4in1 or raw buffer is allocate from user */
-				cambuf_put_ionbuf(&pframe->buf);
+				cam_buf_ionbuf_put(&pframe->buf);
 				put_empty_frame(pframe);
 			}
 		} else if (channel->ch_id == CAM_CH_RAW) {
@@ -2039,7 +2034,7 @@ int dcam_callback(enum dcam_cb_type type, void *param, void *priv_data)
 
 				if (pframe->img_fmt == IMG_PIX_FMT_GREY) {
 					pr_info("FDR capture stopped, free buf fd %d\n", pframe->buf.mfd[0]);
-					cambuf_put_ionbuf(&pframe->buf);
+					cam_buf_ionbuf_put(&pframe->buf);
 					put_empty_frame(pframe);
 					return ret;
 				}
@@ -2266,7 +2261,7 @@ int dcam_callback(enum dcam_cb_type type, void *param, void *priv_data)
 		if (pframe->irq_property != CAM_FRAME_COMMON) {
 			pr_info("fdr %d src return, mfd %d\n",
 				pframe->irq_property, pframe->buf.mfd[0]);
-			cambuf_put_ionbuf(&pframe->buf);
+			cam_buf_ionbuf_put(&pframe->buf);
 			put_empty_frame(pframe);
 			break;
 		}
@@ -2293,14 +2288,14 @@ int dcam_callback(enum dcam_cb_type type, void *param, void *priv_data)
 			 * and case 4in1 after stream off
 			 * just release it, no need to return
 			 */
-			cambuf_put_ionbuf(&pframe->buf);
+			cam_buf_ionbuf_put(&pframe->buf);
 			put_empty_frame(pframe);
 			pr_info("cap status %d, state %d\n",
 				module->cap_status,
 				atomic_read(&module->state));
 		} else {
 			pr_err("fail to get cap status\n");
-			cambuf_put_ionbuf(&pframe->buf);
+			cam_buf_ionbuf_put(&pframe->buf);
 			put_empty_frame(pframe);
 		}
 		break;
@@ -3008,7 +3003,7 @@ static int config_channel_bigsize(
 			pframe->endian = ENDIAN_LITTLE;
 			pframe->pattern = module->cam_uinfo.sensor_if.img_ptn;
 			pframe->buf.buf_sec = 0;
-			ret = cambuf_alloc(&pframe->buf, size, 0, iommu_enable);
+			ret = cam_buf_alloc(&pframe->buf, size, 0, iommu_enable);
 			if (ret) {
 				pr_err("fail to alloc buf: %d ch %d\n",
 					i, channel->ch_id);
@@ -3563,12 +3558,12 @@ static int dump_one_frame(struct camera_module *module,
 	else
 		strcat(file_name, ".mipi_raw");
 
-	if (cambuf_kmap(&pframe->buf)) {
+	if (cam_buf_kmap(&pframe->buf)) {
 		pr_err("fail to kmap dump buf\n");
 		return -EFAULT;
 	}
 	write_image_to_file((char *)pframe->buf.addr_k[0], size, file_name);
-	cambuf_kunmap(&pframe->buf);
+	cam_buf_kunmap(&pframe->buf);
 	pr_debug("dump for ch %d, size %d, kaddr %p, file %s\n", ch_id,
 		(int)size, (void *)pframe->buf.addr_k[0], file_name);
 
@@ -4890,7 +4885,7 @@ static struct camera_frame *get_secondary_buf(struct sprd_img_parm *p,
 	pframe->channel_id = ch->ch_id;
 	pframe->img_fmt = ch->ch_uinfo.dst_fmt;
 
-	ret = cambuf_get_ionbuf(&pframe->buf);
+	ret = cam_buf_ionbuf_get(&pframe->buf);
 	if (ret) {
 		put_empty_frame(pframe);
 		pr_err("fail to get second buffer fail, ret %d\n", ret);
@@ -5241,7 +5236,7 @@ static int raw_proc_post(struct camera_module *module,
 	src_frame->time = src_frame->sensor_time;
 	src_frame->boot_time = ktime_get_boottime();
 	src_frame->boot_sensor_time = src_frame->boot_time;
-	ret = cambuf_get_ionbuf(&src_frame->buf);
+	ret = cam_buf_ionbuf_get(&src_frame->buf);
 	if (ret)
 		goto src_fail;
 
@@ -5255,7 +5250,7 @@ static int raw_proc_post(struct camera_module *module,
 	dst_frame->time = src_frame->time;
 	dst_frame->boot_time = src_frame->boot_time;
 	dst_frame->boot_sensor_time = src_frame->boot_sensor_time;
-	ret = cambuf_get_ionbuf(&dst_frame->buf);
+	ret = cam_buf_ionbuf_get(&dst_frame->buf);
 	if (ret)
 		goto dst_fail;
 
@@ -5281,7 +5276,7 @@ static int raw_proc_post(struct camera_module *module,
 		mid_frame->buf.type = CAM_BUF_USER;
 		mid_frame->buf.mfd[0] = proc_info->fd_dst0;
 		mid_frame->buf.offset[0] = proc_info->dst0_offset;
-		ret = cambuf_get_ionbuf(&mid_frame->buf);
+		ret = cam_buf_ionbuf_get(&mid_frame->buf);
 		if (ret)
 			goto mid_fail;
 	} else {
@@ -5302,8 +5297,7 @@ static int raw_proc_post(struct camera_module *module,
 		else
 			size = width * height * 3;
 		size = ALIGN(size, CAM_BUF_ALIGN_SIZE);
-		ret = cambuf_alloc(&mid_frame->buf,
-			size, 0, module->iommu_enable);
+		ret = cam_buf_alloc(&mid_frame->buf, size, 0, module->iommu_enable);
 		if (ret)
 			goto mid_fail;
 	}
@@ -5343,15 +5337,15 @@ static int raw_proc_post(struct camera_module *module,
 
 dcam_out_fail:
 	if (mid_frame->buf.type == CAM_BUF_USER)
-		cambuf_put_ionbuf(&mid_frame->buf);
+		cam_buf_ionbuf_put(&mid_frame->buf);
 	else
-		cambuf_free(&mid_frame->buf);
+		cam_buf_free(&mid_frame->buf);
 mid_fail:
 	put_empty_frame(mid_frame);
-	cambuf_put_ionbuf(&dst_frame->buf);
+	cam_buf_ionbuf_put(&dst_frame->buf);
 dst_fail:
 	put_empty_frame(dst_frame);
-	cambuf_put_ionbuf(&src_frame->buf);
+	cam_buf_ionbuf_put(&src_frame->buf);
 src_fail:
 	put_empty_frame(src_frame);
 	ret = module->dcam_dev_handle->dcam_pipe_ops->stop(module->dcam_dev_handle, DCAM_STOP);
@@ -5393,7 +5387,7 @@ static int raw_proc_post_new(
 	src_frame->height = proc_info->src_size.height;
 	src_frame->endian = proc_info->src_y_endian;
 	src_frame->pattern = proc_info->src_pattern;
-	ret = cambuf_get_ionbuf(&src_frame->buf);
+	ret = cam_buf_ionbuf_get(&src_frame->buf);
 	if (ret)
 		goto src_fail;
 
@@ -5411,7 +5405,7 @@ static int raw_proc_post_new(
 	dst_frame->buf.offset[0] = proc_info->dst1_offset;
 	dst_frame->channel_id = ch->ch_id;
 	dst_frame->img_fmt = ch->ch_uinfo.dst_fmt;
-	ret = cambuf_get_ionbuf(&dst_frame->buf);
+	ret = cam_buf_ionbuf_get(&dst_frame->buf);
 	if (ret)
 		goto dst_fail;
 
@@ -5423,7 +5417,7 @@ static int raw_proc_post_new(
 		mid_frame->buf.type = CAM_BUF_USER;
 		mid_frame->buf.mfd[0] = proc_info->fd_dst0;
 		mid_frame->buf.offset[0] = proc_info->dst0_offset;
-		ret = cambuf_get_ionbuf(&mid_frame->buf);
+		ret = cam_buf_ionbuf_get(&mid_frame->buf);
 		if (ret)
 			goto mid_fail;
 	} else {
@@ -5456,13 +5450,13 @@ static int raw_proc_post_new(
 	return ret;
 
 dcam_out_fail:
-	cambuf_put_ionbuf(&mid_frame->buf);
+	cam_buf_ionbuf_put(&mid_frame->buf);
 mid_fail:
 	put_empty_frame(mid_frame);
-	cambuf_put_ionbuf(&dst_frame->buf);
+	cam_buf_ionbuf_put(&dst_frame->buf);
 dst_fail:
 	put_empty_frame(dst_frame);
-	cambuf_put_ionbuf(&src_frame->buf);
+	cam_buf_ionbuf_put(&src_frame->buf);
 src_fail:
 	put_empty_frame(src_frame);
 	pr_err("fail to call post raw proc\n");
@@ -5688,7 +5682,7 @@ rewait:
 				(pframe->irq_type == CAMERA_IRQ_FDRL) ||
 				(pframe->irq_type == CAMERA_IRQ_FDRH) ||
 				(pframe->irq_type == CAMERA_IRQ_IMG)) {
-				cambuf_put_ionbuf(&pframe->buf);
+				cam_buf_ionbuf_put(&pframe->buf);
 				pchannel = &module->channel[pframe->channel_id];
 				if (pframe->buf.mfd[0] ==
 					pchannel->reserved_buf_fd) {
@@ -5953,11 +5947,11 @@ static int sprd_img_open(struct inode *node, struct file *file)
 		/* should check all needed interface here. */
 
 		if (grp->hw_info && grp->hw_info->soc_dcam->pdev)
-			ret = cambuf_reg_iommudev(
+			ret = cam_buf_iommudev_reg(
 				&grp->hw_info->soc_dcam->pdev->dev,
 				CAM_IOMMUDEV_DCAM);
 		if (grp->hw_info && grp->hw_info->soc_isp->pdev)
-			ret = cambuf_reg_iommudev(
+			ret = cam_buf_iommudev_reg(
 				&grp->hw_info->soc_isp->pdev->dev,
 				CAM_IOMMUDEV_ISP);
 
@@ -6029,7 +6023,8 @@ static int sprd_img_release(struct inode *node, struct file *file)
 		bool ret = 0;
 
 		module->grp->camsec_cfg.camsec_mode = SEC_UNABLE;
-		ret = camca_security_set(&module->grp->camsec_cfg, CAM_TRUSTY_EXIT);
+		ret = cam_trusty_security_set(&module->grp->camsec_cfg,
+			CAM_TRUSTY_EXIT);
 
 		pr_info("camca :camsec_mode%d, ret %d\n",
 			module->grp->camsec_cfg.camsec_mode, ret);
@@ -6084,8 +6079,8 @@ static int sprd_img_release(struct inode *node, struct file *file)
 
 	if (atomic_dec_return(&group->camera_opened) == 0) {
 
-		cambuf_unreg_iommudev(CAM_IOMMUDEV_DCAM);
-		cambuf_unreg_iommudev(CAM_IOMMUDEV_ISP);
+		cam_buf_iommudev_unreg(CAM_IOMMUDEV_DCAM);
+		cam_buf_iommudev_unreg(CAM_IOMMUDEV_ISP);
 
 		pr_info("release %p\n", g_empty_frm_q);
 
@@ -6096,7 +6091,7 @@ static int sprd_img_release(struct inode *node, struct file *file)
 		camera_queue_clear(g_empty_state_q, struct isp_stream_ctrl, list);
 		g_empty_state_q = NULL;
 
-		ret = mdbg_check();
+		ret = cam_buf_mdbg_check();
 	}
 
 	pr_info("sprd_img: cam %d release end.\n", idx);
@@ -6177,13 +6172,13 @@ static int sprd_cam_probe(struct platform_device *pdev)
 	}
 
 	/* for get ta status
-	 * group->ca_conn  = cam_ca_connect();
+	 * group->ca_conn  = cam_trusty_connect();
 	 */
 	if (group->ca_conn)
 		pr_info("cam ca-ta unconnect\n");
 
 	group->debugger.hw = group->hw_info;
-	ret = cam_debugfs_init(&group->debugger);
+	ret = cam_debugger_init(&group->debugger);
 	if (ret)
 		pr_err("fail to init cam debugfs\n");
 
@@ -6208,7 +6203,7 @@ static int sprd_cam_remove(struct platform_device *pdev)
 	group = image_dev.this_device->platform_data;
 	if (group) {
 		if (group->ca_conn)
-			cam_ca_disconnect();
+			cam_trusty_disconnect();
 		kfree(group);
 		image_dev.this_device->platform_data = NULL;
 	}

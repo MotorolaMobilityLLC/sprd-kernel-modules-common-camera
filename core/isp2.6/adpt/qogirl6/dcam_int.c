@@ -170,7 +170,7 @@ static void dcam_dispatch_frame(struct dcam_pipe_dev *dev,
 
 	/* data path has independent buffer. statis share one same buffer */
 	if (type == DCAM_CB_DATA_DONE)
-		cambuf_iommu_unmap(&frame->buf);
+		cam_buf_iommu_unmap(&frame->buf);
 
 	dev->dcam_cb_func(type, frame, dev->cb_priv_data);
 }
@@ -656,7 +656,7 @@ static void dcam_full_path_done(void *param)
 				/* need skip 1 frame when switch full source
 				 * give buffer back to queue
 				 */
-				cambuf_iommu_unmap(&frame->buf);
+				cam_buf_iommu_unmap(&frame->buf);
 				dev->dcam_cb_func(DCAM_CB_RET_SRC_BUF, frame,
 					dev->cb_priv_data);
 				return;
@@ -723,7 +723,7 @@ static void dcam_bin_path_done(void *param)
 		/* there is source buffer for offline process */
 		frame = camera_dequeue(&dev->proc_queue, struct camera_frame, list);
 		if (frame) {
-			cambuf_iommu_unmap(&frame->buf);
+			cam_buf_iommu_unmap(&frame->buf);
 			dev->dcam_cb_func(DCAM_CB_RET_SRC_BUF, frame,
 					  dev->cb_priv_data);
 		}

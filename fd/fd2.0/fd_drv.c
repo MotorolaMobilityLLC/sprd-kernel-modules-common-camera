@@ -312,10 +312,10 @@ static int fd_unmap_buf(struct fd_drv *hw_handle)
 
 	for (i = 0; i <  FD_BUF_INDEX_MAX; i++) {
 		if(hw_handle->fd_buf_info[i].mfd != 0 && FD_BUF_CFG_INDEX != i) {
-			ret = cambuf_iommu_unmap(&hw_handle->fd_buf_info[i].buf_info);
+			ret = cam_buf_iommu_unmap(&hw_handle->fd_buf_info[i].buf_info);
 			if (ret)
 				pr_err("FD_DRV unmap err %d index\n", i);
-                  	cambuf_put_ionbuf(&hw_handle->fd_buf_info[i].buf_info);
+			cam_buf_ionbuf_put(&hw_handle->fd_buf_info[i].buf_info);
 			hw_handle->fd_buf_info[i].mfd = 0;
 		}
 	}
@@ -522,10 +522,10 @@ int sprd_fd_drv_close(void *drv_handle)
 
 	for (i = 0; i <  FD_BUF_INDEX_MAX; i++) {
 		if(hw_handle->fd_buf_info[i].mfd != 0 && (hw_handle->fd_buf_info[i].buf_info.mapping_state & CAM_BUF_MAPPING_DEV)) {
-			ret = cambuf_iommu_unmap(&hw_handle->fd_buf_info[i].buf_info);
+			ret = cam_buf_iommu_unmap(&hw_handle->fd_buf_info[i].buf_info);
 			if (ret)
 				pr_err("fail to unmap FD_BUF_CFG_INDEX\n", i);
-                  	cambuf_put_ionbuf(&hw_handle->fd_buf_info[i].buf_info);
+			cam_buf_ionbuf_put(&hw_handle->fd_buf_info[i].buf_info);
 			hw_handle->fd_buf_info[i].mfd = 0;
 		}
 	}
@@ -579,9 +579,7 @@ int sprd_fd_drv_init(void **fd_handle,
 	if (handle == NULL)
 		return -ENOMEM;
 	ret = sprd_fd_parse_dt(handle, dn);
-	cambuf_reg_iommudev(
-			&handle->pdev->dev,
-			CAM_IOMMUDEV_FD);
+	cam_buf_iommudev_reg(&handle->pdev->dev, CAM_IOMMUDEV_FD);
 	if (ret) {
 		pr_err("FD:ERR parse dt failed");
 		kfree(handle);
@@ -599,7 +597,7 @@ int sprd_fd_drv_deinit(void *fd_handle)
 	hw_handle = (struct fd_drv *)fd_handle;
 	if (hw_handle == NULL)
 		return -ENOMEM;
-	cambuf_unreg_iommudev(CAM_IOMMUDEV_FD);
+	cam_buf_iommudev_unreg(CAM_IOMMUDEV_FD);
 
 	kfree(hw_handle);
 	return 0;
@@ -654,7 +652,7 @@ static int fd_get_buf(unsigned int val,
 	buf_info->mfd[1] = 0;
 	buf_info->mfd[2] = 0;
 	buf_info->type = CAM_BUF_USER;
-	ret = cambuf_get_ionbuf(buf_info);
+	ret = cam_buf_ionbuf_get(buf_info);
 	return ret;
 }
 
@@ -715,7 +713,7 @@ static int fd_write_baddr(struct fd_drv *hw_handle,
 		pr_err("FD_DRV iommu get buf err index %d\n", index);
 		return ret;
 	}
-	ret = cambuf_iommu_map(&hw_handle->fd_buf_info[index].buf_info,
+	ret = cam_buf_iommu_map(&hw_handle->fd_buf_info[index].buf_info,
 		CAM_IOMMUDEV_FD);
 	if (ret) {
 		pr_err("FD_DRV iommu map err index %d\n", index);

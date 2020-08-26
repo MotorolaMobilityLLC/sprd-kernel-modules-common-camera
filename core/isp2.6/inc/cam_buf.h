@@ -62,28 +62,25 @@ struct camera_buf {
 	uint32_t mapping_state;
 };
 
-int cambuf_reg_iommudev(struct device *dev,
+int cam_buf_iommudev_reg(struct device *dev,
 	enum cam_iommudev_type type);
-int cambuf_unreg_iommudev(enum cam_iommudev_type type);
-int get_iommu_status(enum cam_iommudev_type type);
+int cam_buf_iommudev_unreg(enum cam_iommudev_type type);
+int cam_buf_iommu_status_get(enum cam_iommudev_type type);
 
-int cambuf_get_ionbuf(struct camera_buf *buf_info);
-int cambuf_put_ionbuf(struct camera_buf *buf_info);
-int cambuf_iommu_map_single_page(
-			struct camera_buf *buf_info,
-			enum cam_iommudev_type type);
-int cambuf_iommu_map(
-			struct camera_buf *buf_info,
-			enum cam_iommudev_type type);
-int cambuf_iommu_unmap(
-			struct camera_buf *buf_info);
+int cam_buf_ionbuf_get(struct camera_buf *buf_info);
+int cam_buf_ionbuf_put(struct camera_buf *buf_info);
+int cam_buf_iommu_single_page_map(struct camera_buf *buf_info,
+	enum cam_iommudev_type type);
+int cam_buf_iommu_map(struct camera_buf *buf_info,
+	enum cam_iommudev_type type);
+int cam_buf_iommu_unmap(struct camera_buf *buf_info);
 
-int cambuf_kmap(struct camera_buf *buf_info);
-int cambuf_kunmap(struct camera_buf *buf_info);
+int cam_buf_kmap(struct camera_buf *buf_info);
+int cam_buf_kunmap(struct camera_buf *buf_info);
 
-int  cambuf_alloc(struct camera_buf *buf_info,
-		size_t size, size_t align, int iommu_enable);
-int cambuf_free(struct camera_buf *buf_info);
+int  cam_buf_alloc(struct camera_buf *buf_info, size_t size,
+	size_t align, int iommu_enable);
+int cam_buf_free(struct camera_buf *buf_info);
 
-int mdbg_check(void);
+int cam_buf_mdbg_check(void);
 #endif /* _CAM_BUF_H_ */

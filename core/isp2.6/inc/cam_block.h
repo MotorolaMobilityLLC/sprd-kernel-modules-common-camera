@@ -194,7 +194,7 @@ int isp_k_cfg_yrandom(struct isp_io_param *param,
 	struct isp_k_block *isp_k_param,  uint32_t idx);
 int isp_k_cfg_yuv_noisefilter(struct isp_io_param *param,
 	struct isp_k_block *isp_k_param, uint32_t idx);
-void sprd_noisefilter_seeds(uint32_t image_width,
+void cam_block_noisefilter_seeds(uint32_t image_width,
 	uint32_t seed0, uint32_t *seed1, uint32_t *seed2, uint32_t *seed3);
 
 int isp_k_update_nlm(uint32_t idx,

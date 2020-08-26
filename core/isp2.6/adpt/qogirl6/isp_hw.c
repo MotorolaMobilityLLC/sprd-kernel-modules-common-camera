@@ -1326,7 +1326,7 @@ static int qogirl6_isp_fetch_set(void *handle, void *arg)
 	ISP_REG_WR(idx, ISP_BWU_PARAM, bwu_val);
 
 	if (fetch->sec_mode == SEC_SPACE_PRIORITY) {
-		camca_isp_pitch_set(fetch->pitch.pitch_ch0,
+		cam_trusty_isp_pitch_set(fetch->pitch.pitch_ch0,
 			fetch->pitch.pitch_ch1,
 			fetch->pitch.pitch_ch2);
 	} else {

@@ -47,7 +47,6 @@ extern atomic_t s_dcam_axi_opened;
 extern atomic_t s_dcam_opened[DCAM_ID_MAX];
 extern struct isp_pipe_dev *s_isp_dev;
 extern uint32_t s_dbg_linebuf_len;
-extern int s_dbg_superzoom_coeff;
 
 static struct dentry *debugfs_base;
 static uint32_t debug_ctx_id[4] = {0, 1, 2, 3};
@@ -60,7 +59,7 @@ static struct dentry *s_p_dentry;
  * dcam sub block bypass
  * How: echo 4in1:1 > bypass_dcam0
  */
-static ssize_t dcam_bypass_write(struct file *filp,
+static ssize_t camdebugger_dcam_bypass_write(struct file *filp,
 		const char __user *buffer, size_t count, loff_t *ppos)
 {
 	struct seq_file *p = (struct seq_file *)filp->private_data;
@@ -150,7 +149,7 @@ static ssize_t dcam_bypass_write(struct file *filp,
 	return count;
 }
 
-static int dcam_bypass_read(struct seq_file *s, void *unused)
+static int camdebugger_dcam_bypass_read(struct seq_file *s, void *unused)
 {
 	uint32_t addr, val;
 	struct cam_debug_bypass *debug_bypass = NULL;
@@ -197,22 +196,24 @@ static int dcam_bypass_read(struct seq_file *s, void *unused)
 	return 0;
 }
 
-static int dcam_bypass_open(struct inode *inode, struct file *file)
+static int camdebugger_dcam_bypass_open(struct inode *inode,
+	struct file *file)
 {
-	return single_open(file, dcam_bypass_read, inode->i_private);
+	return single_open(file, camdebugger_dcam_bypass_read, inode->i_private);
 }
 
 static const struct file_operations bypass_ops = {
 	.owner = THIS_MODULE,
-	.open = dcam_bypass_open,
+	.open = camdebugger_dcam_bypass_open,
 	.read = seq_read,
-	.write = dcam_bypass_write,
+	.write = camdebugger_dcam_bypass_write,
 	.llseek = seq_lseek,
 	.release = single_release,
 };
 
 /* read dcamx register once */
-static int dcam_reg_show(struct seq_file *s, void *unused)
+static int camdebugger_dcam_reg_show(struct seq_file *s,
+	void *unused)
 {
 	uint32_t idx = *(uint32_t *)s->private;
 	int addr;
@@ -249,14 +250,15 @@ static int dcam_reg_show(struct seq_file *s, void *unused)
 	return 0;
 }
 
-static int dcam_reg_open(struct inode *inode, struct file *file)
+static int camdebugger_dcam_reg_open(struct inode *inode,
+	struct file *file)
 {
-	return single_open(file, dcam_reg_show, inode->i_private);
+	return single_open(file, camdebugger_dcam_reg_show, inode->i_private);
 }
 
 static const struct file_operations dcam_reg_ops = {
 	.owner = THIS_MODULE,
-	.open = dcam_reg_open,
+	.open = camdebugger_dcam_reg_open,
 	.read = seq_read,
 	.llseek = seq_lseek,
 	.release = single_release,
@@ -265,9 +267,8 @@ static const struct file_operations dcam_reg_ops = {
 static char zoom_mode_strings[5][8] = {
 	"bypass", "bin2", "bin4", "rds", "adapt"};
 
-static ssize_t zoom_mode_show(
-		struct file *filp, char __user *buffer,
-		size_t count, loff_t *ppos)
+static ssize_t camdebugger_zoom_mode_show(struct file *filp,
+	char __user *buffer, size_t count, loff_t *ppos)
 {
 	char buf[16];
 
@@ -279,9 +280,8 @@ static ssize_t zoom_mode_show(
 		buf, strlen(buf));
 }
 
-static ssize_t zoom_mode_write(
-		struct file *filp, const char __user *buffer,
-		size_t count, loff_t *ppos)
+static ssize_t camdebugger_zoom_mode_write(struct file *filp,
+	const char __user *buffer, size_t count, loff_t *ppos)
 {
 	int ret = 0;
 	char msg[8];
@@ -320,13 +320,12 @@ static ssize_t zoom_mode_write(
 static const struct file_operations zoom_mode_ops = {
 	.owner = THIS_MODULE,
 	.open = simple_open,
-	.read = zoom_mode_show,
-	.write = zoom_mode_write,
+	.read = camdebugger_zoom_mode_show,
+	.write = camdebugger_zoom_mode_write,
 };
 
-static ssize_t rds_limit_show(
-		struct file *filp, char __user *buffer,
-		size_t count, loff_t *ppos)
+static ssize_t camdebugger_rds_limit_show(struct file *filp,
+	char __user *buffer, size_t count, loff_t *ppos)
 {
 	char buf[16];
 
@@ -337,9 +336,8 @@ static ssize_t rds_limit_show(
 		buf, strlen(buf));
 }
 
-static ssize_t rds_limit_write(
-		struct file *filp, const char __user *buffer,
-		size_t count, loff_t *ppos)
+static ssize_t camdebugger_rds_limit_write(struct file *filp,
+	const char __user *buffer, size_t count, loff_t *ppos)
 {
 	int ret = 0;
 	char msg[8];
@@ -369,13 +367,12 @@ static ssize_t rds_limit_write(
 static const struct file_operations rds_limit_ops = {
 	.owner = THIS_MODULE,
 	.open = simple_open,
-	.read = rds_limit_show,
-	.write = rds_limit_write,
+	.read = camdebugger_rds_limit_show,
+	.write = camdebugger_rds_limit_write,
 };
 
-static ssize_t dump_raw_show(
-		struct file *filp, char __user *buffer,
-		size_t count, loff_t *ppos)
+static ssize_t camdebugger_dump_raw_show(struct file *filp,
+	char __user *buffer, size_t count, loff_t *ppos)
 {
 	const char *desc = "0: disable, 1: both, 2: full, 3: bin";
 	char buf[48];
@@ -387,9 +384,8 @@ static ssize_t dump_raw_show(
 		buf, strlen(buf));
 }
 
-static ssize_t dump_raw_write(
-		struct file *filp, const char __user *buffer,
-		size_t count, loff_t *ppos)
+static ssize_t camdebugger_dump_raw_write(struct file *filp,
+	const char __user *buffer, size_t count, loff_t *ppos)
 {
 	int ret = 0;
 	char msg[8];
@@ -420,13 +416,12 @@ static ssize_t dump_raw_write(
 static const struct file_operations dump_raw_ops = {
 	.owner = THIS_MODULE,
 	.open = simple_open,
-	.read = dump_raw_show,
-	.write = dump_raw_write,
+	.read = camdebugger_dump_raw_show,
+	.write = camdebugger_dump_raw_write,
 };
 
-static ssize_t dump_count_write(
-		struct file *filp, const char __user *buffer,
-		size_t count, loff_t *ppos)
+static ssize_t camdebugger_dump_count_write(struct file *filp,
+	const char __user *buffer, size_t count, loff_t *ppos)
 {
 	int ret = 0;
 	char msg[8];
@@ -471,10 +466,11 @@ static ssize_t dump_count_write(
 static const struct file_operations dump_count_ops = {
 	.owner = THIS_MODULE,
 	.open = simple_open,
-	.write = dump_count_write,
+	.write = camdebugger_dump_count_write,
 };
 
-static int replace_image_read(struct seq_file *s, void *unused)
+static int camdebugger_replace_image_read(struct seq_file *s,
+	void *unused)
 {
 	struct dcam_image_replacer *replacer = NULL;
 	char *str;
@@ -502,13 +498,14 @@ static int replace_image_read(struct seq_file *s, void *unused)
 	return 0;
 }
 
-static int replace_image_open(struct inode *inode, struct file *file)
+static int camdebugger_replace_image_open(struct inode *inode,
+	struct file *file)
 {
-	return single_open(file, replace_image_read, inode->i_private);
+	return single_open(file, camdebugger_replace_image_read, inode->i_private);
 }
 
-static ssize_t replace_image_write(struct file *filp, const char __user *buffer,
-		size_t count, loff_t *ppos)
+static ssize_t camdebugger_replace_image_write(struct file *filp,
+	const char __user *buffer, size_t count, loff_t *ppos)
 {
 	struct seq_file *p = (struct seq_file *)filp->private_data;
 	struct dcam_image_replacer *replacer =
@@ -585,9 +582,9 @@ static ssize_t replace_image_write(struct file *filp, const char __user *buffer,
 
 static const struct file_operations replace_image_ops = {
 	.owner = THIS_MODULE,
-	.open = replace_image_open,
+	.open = camdebugger_replace_image_open,
 	.read = seq_read,
-	.write = replace_image_write,
+	.write = camdebugger_replace_image_write,
 };
 
 /* /sys/kernel/debug/sprd_dcam/
@@ -595,7 +592,7 @@ static const struct file_operations replace_image_ops = {
  * dcam0/1/2_reg,dcam_axi_reg: cat .....(no echo > )
  * reg_dcam: echo 0xxxx > reg_dcam, then cat reg_dcam
  */
-static int dcam_debugfs_init(struct camera_debugger *debugger)
+static int camdebugger_dcam_init(struct camera_debugger *debugger)
 {
 	/* folder in /sys/kernel/debug/ */
 	const char tb_folder[] = {"sprd_dcam"};
@@ -666,7 +663,7 @@ static int dcam_debugfs_init(struct camera_debugger *debugger)
 	return ret;
 }
 
-static int dcam_debugfs_deinit(void)
+static int camdebugger_dcam_deinit(void)
 {
 	if (s_p_dentry)
 		debugfs_remove_recursive(s_p_dentry);
@@ -675,13 +672,13 @@ static int dcam_debugfs_deinit(void)
 	return 0;
 }
 #else
-static int dcam_debugfs_init(struct camera_debugger *debugger)
+static int camdebugger_dcam_init(struct camera_debugger *debugger)
 {
 	memset(g_dcam_bypass, 0x00, sizeof(g_dcam_bypass));
 	return 0;
 }
 
-static int dcam_debugfs_deinit(void)
+static int camdebugger_dcam_deinit(void)
 {
 	return 0;
 }
@@ -691,27 +688,29 @@ static int dcam_debugfs_deinit(void)
 /* isp debug fs starts */
 #define DBG_REGISTER
 #ifdef DBG_REGISTER
-static int reg_buf_show(struct seq_file *s, void *unused)
+static int camdebugger_reg_buf_show(struct seq_file *s, void *unused)
 {
 	debug_show_ctx_reg_buf((void *)s);
 	return 0;
 }
 
-static int reg_buf_open(struct inode *inode, struct file *file)
+static int camdebugger_reg_buf_open(struct inode *inode,
+	struct file *file)
 {
-	return single_open(file, reg_buf_show, inode->i_private);
+	return single_open(file, camdebugger_reg_buf_show, inode->i_private);
 }
 
 static const struct file_operations reg_buf_ops = {
 	.owner = THIS_MODULE,
-	.open = reg_buf_open,
+	.open = camdebugger_reg_buf_open,
 	.read = seq_read,
 	.llseek = seq_lseek,
 	.release = single_release,
 };
 #endif
 
-static int isp_bypass_read(struct seq_file *s, void *unused)
+static int camdebugger_isp_bypass_read(struct seq_file *s,
+	void *unused)
 {
 	uint32_t addr, val;
 	struct cam_debug_bypass *debug_bypass = NULL;
@@ -761,7 +760,7 @@ static int isp_bypass_read(struct seq_file *s, void *unused)
 	return 0;
 }
 
-static ssize_t isp_bypass_write(struct file *filp,
+static ssize_t camdebugger_isp_bypass_write(struct file *filp,
 		const char __user *buffer, size_t count, loff_t *ppos)
 {
 	struct seq_file *p = (struct seq_file *)filp->private_data;
@@ -868,25 +867,25 @@ static ssize_t isp_bypass_write(struct file *filp,
 	return count;
 }
 
-static int isp_bypass_open(struct inode *inode, struct file *file)
+static int camdebugger_isp_bypass_open(struct inode *inode,
+	struct file *file)
 {
-	return single_open(file, isp_bypass_read, inode->i_private);
+	return single_open(file, camdebugger_isp_bypass_read, inode->i_private);
 }
 
 static const struct file_operations isp_bypass_ops = {
 	.owner = THIS_MODULE,
-	.open = isp_bypass_open,
+	.open = camdebugger_isp_bypass_open,
 	.read = seq_read,
-	.write = isp_bypass_write,
+	.write = camdebugger_isp_bypass_write,
 };
 
 static uint8_t work_mode_string[2][16] = {
 	"ISP_CFG_MODE", "ISP_AP_MODE"
 };
 
-static ssize_t work_mode_show(
-		struct file *filp, char __user *buffer,
-		size_t count, loff_t *ppos)
+static ssize_t camdebugger_work_mode_show(struct file *filp,
+	char __user *buffer, size_t count, loff_t *ppos)
 {
 	char buf[16];
 
@@ -898,9 +897,8 @@ static ssize_t work_mode_show(
 		buf, strlen(buf));
 }
 
-static ssize_t work_mode_write(
-		struct file *filp, const char __user *buffer,
-		size_t count, loff_t *ppos)
+static ssize_t camdebugger_work_mode_write(struct file *filp,
+	const char __user *buffer, size_t count, loff_t *ppos)
 {
 	int ret = 0;
 	char msg[8];
@@ -931,8 +929,8 @@ static ssize_t work_mode_write(
 static const struct file_operations work_mode_ops = {
 	.owner =	THIS_MODULE,
 	.open = simple_open,
-	.read = work_mode_show,
-	.write = work_mode_write,
+	.read = camdebugger_work_mode_show,
+	.write = camdebugger_work_mode_write,
 };
 
 static uint8_t iommu_mode_string[4][32] = {
@@ -942,9 +940,8 @@ static uint8_t iommu_mode_string[4][32] = {
 	"IOMMU_ON"
 };
 
-static ssize_t iommu_mode_show(
-		struct file *filp, char __user *buffer,
-		size_t count, loff_t *ppos)
+static ssize_t camdebugger_iommu_mode_show(struct file *filp,
+	char __user *buffer, size_t count, loff_t *ppos)
 {
 	char buf[64];
 
@@ -959,9 +956,8 @@ static ssize_t iommu_mode_show(
 		buf, strlen(buf));
 }
 
-static ssize_t iommu_mode_write(
-		struct file *filp, const char __user *buffer,
-		size_t count, loff_t *ppos)
+static ssize_t camdebugger_iommu_mode_write(struct file *filp,
+	const char __user *buffer, size_t count, loff_t *ppos)
 {
 	int ret = 0;
 	char msg[8];
@@ -999,13 +995,12 @@ static ssize_t iommu_mode_write(
 static const struct file_operations iommu_mode_ops = {
 	.owner = THIS_MODULE,
 	.open = simple_open,
-	.read = iommu_mode_show,
-	.write = iommu_mode_write,
+	.read = camdebugger_iommu_mode_show,
+	.write = camdebugger_iommu_mode_write,
 };
 
-static ssize_t lbuf_len_show(
-		struct file *filp, char __user *buffer,
-		size_t count, loff_t *ppos)
+static ssize_t camdebugger_lbuf_len_show(struct file *filp,
+	char __user *buffer, size_t count, loff_t *ppos)
 {
 	char buf[16];
 
@@ -1016,7 +1011,7 @@ static ssize_t lbuf_len_show(
 		buf, strlen(buf));
 }
 
-static ssize_t lbuf_len_write(struct file *filp,
+static ssize_t camdebugger_lbuf_len_write(struct file *filp,
 		const char __user *buffer,
 		size_t count, loff_t *ppos)
 {
@@ -1044,11 +1039,11 @@ static ssize_t lbuf_len_write(struct file *filp,
 static const struct file_operations lbuf_len_ops = {
 	.owner = THIS_MODULE,
 	.open = simple_open,
-	.read = lbuf_len_show,
-	.write = lbuf_len_write,
+	.read = camdebugger_lbuf_len_show,
+	.write = camdebugger_lbuf_len_write,
 };
 
-static int fbc_ctrl_read(struct seq_file *s, void *unused)
+static int camdebugger_fbc_ctrl_read(struct seq_file *s, void *unused)
 {
 	struct compression_override *override = NULL;
 	int i = 0;
@@ -1092,13 +1087,13 @@ static int fbc_ctrl_read(struct seq_file *s, void *unused)
 	return 0;
 }
 
-static int fbc_ctrl_open(struct inode *inode, struct file *file)
+static int camdebugger_fbc_ctrl_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, fbc_ctrl_read, inode->i_private);
+	return single_open(file, camdebugger_fbc_ctrl_read, inode->i_private);
 }
 
-static ssize_t fbc_ctrl_write(struct file *filp, const char __user *buffer,
-		size_t count, loff_t *ppos)
+static ssize_t camdebugger_fbc_ctrl_write(struct file *filp,
+	const char __user *buffer, size_t count, loff_t *ppos)
 {
 	struct seq_file *p = (struct seq_file *)filp->private_data;
 	struct compression_override *override =
@@ -1204,60 +1199,12 @@ static ssize_t fbc_ctrl_write(struct file *filp, const char __user *buffer,
 
 static const struct file_operations fbc_ctrl_ops = {
 	.owner = THIS_MODULE,
-	.open = fbc_ctrl_open,
+	.open = camdebugger_fbc_ctrl_open,
 	.read = seq_read,
-	.write = fbc_ctrl_write,
+	.write = camdebugger_fbc_ctrl_write,
 };
 
-static ssize_t superzoom_coeff_show(
-		struct file *filp, char __user *buffer,
-		size_t count, loff_t *ppos)
-{
-	char buf[8];
-
-	snprintf(buf, sizeof(buf), "%d\n", s_dbg_superzoom_coeff);
-
-	return simple_read_from_buffer(
-		buffer, count, ppos,
-		buf, strlen(buf));
-}
-
-static ssize_t superzoom_coeff_write(struct file *filp,
-		const char __user *buffer,
-		size_t count, loff_t *ppos)
-{
-	int ret = 0;
-	char msg[8];
-	int val;
-
-	if (count > 2)
-		return -EINVAL;
-
-	ret = copy_from_user(msg, (void __user *)buffer, count);
-	if (ret) {
-		pr_err("fail to superzoom copy_from_user\n");
-		return -EFAULT;
-	}
-
-	msg[7] = '\0';
-	val = simple_strtol(msg, NULL, 0);
-	if (val >= 4 || val < 0) {
-		pr_err("superzoom write coeff err %d, %s\n", val, msg);
-		return -EFAULT;
-	}
-
-	s_dbg_superzoom_coeff = val;
-	return count;
-}
-
-static const struct file_operations superzoom_coeff_ops = {
-	.owner = THIS_MODULE,
-	.open = simple_open,
-	.read = superzoom_coeff_show,
-	.write = superzoom_coeff_write,
-};
-
-static int isp_debugfs_init(struct camera_debugger *debugger)
+static int camdebugger_isp_init(struct camera_debugger *debugger)
 {
 	struct dentry *entry = NULL;
 	static struct cam_debug_bypass isp_debug_bypass[4];
@@ -1320,10 +1267,6 @@ static int isp_debugfs_init(struct camera_debugger *debugger)
 		debugfs_base, &isp_debug_bypass[3], &isp_bypass_ops))
 		return -ENOMEM;
 
-	if (!debugfs_create_file("superzoom_coeff", 0660,
-		debugfs_base, NULL, &superzoom_coeff_ops))
-		return -ENOMEM;
-
 	entry = debugfs_create_file("fbc_ctrl", 0660, debugfs_base,
 		&debugger->compression[0], &fbc_ctrl_ops);
 	if (IS_ERR_OR_NULL(entry))
@@ -1332,7 +1275,7 @@ static int isp_debugfs_init(struct camera_debugger *debugger)
 	return 0;
 }
 
-static int isp_debugfs_deinit(void)
+static int camdebugger_isp_deinit(void)
 {
 	if (debugfs_base)
 		debugfs_remove_recursive(debugfs_base);
@@ -1341,24 +1284,24 @@ static int isp_debugfs_deinit(void)
 }
 /* isp debug fs end */
 
-int cam_debugfs_init(struct camera_debugger *debugger)
+int cam_debugger_init(struct camera_debugger *debugger)
 {
 	int ret = 0;
 
-	ret = dcam_debugfs_init(debugger);
+	ret = camdebugger_dcam_init(debugger);
 	if (ret)
 		pr_err("fail to init dcam debugfs\n");
-	ret = isp_debugfs_init(debugger);
+	ret = camdebugger_isp_init(debugger);
 	if (ret)
 		pr_err("fail to init isp debugfs\n");
 
 	return ret;
 }
 
-int cam_debugfs_deinit(void)
+int cam_debugger_deinit(void)
 {
-	dcam_debugfs_deinit();
-	isp_debugfs_deinit();
+	camdebugger_dcam_deinit();
+	camdebugger_isp_deinit();
 
 	return 0;
 }

@@ -100,7 +100,7 @@ void dcam_ret_src_frame(void *param)
 	pr_debug("frame %p, ch_id %d, buf_fd %d\n",
 		frame, frame->channel_id, frame->buf.mfd[0]);
 
-	cambuf_iommu_unmap(&frame->buf);
+	cam_buf_iommu_unmap(&frame->buf);
 	dev->dcam_cb_func(
 		DCAM_CB_RET_SRC_BUF,
 		frame, dev->cb_priv_data);
@@ -123,7 +123,7 @@ void dcam_ret_out_frame(void *param)
 		path = (struct dcam_path_desc *)frame->priv_data;
 		camera_enqueue(&path->reserved_buf_queue, &frame->list);
 	} else {
-		cambuf_iommu_unmap(&frame->buf);
+		cam_buf_iommu_unmap(&frame->buf);
 		dev = (struct dcam_pipe_dev *)frame->priv_data;
 		dev->dcam_cb_func(DCAM_CB_DATA_DONE, frame, dev->cb_priv_data);
 	}
@@ -149,8 +149,8 @@ void dcam_destroy_reserved_buf(void *param)
 	 *  2:  copy of reserved buffer.
 	 */
 	if (frame->is_reserved == 1) {
-		cambuf_iommu_unmap(&frame->buf);
-		cambuf_put_ionbuf(&frame->buf);
+		cam_buf_iommu_unmap(&frame->buf);
+		cam_buf_ionbuf_put(&frame->buf);
 	}
 	put_empty_frame(frame);
 }
@@ -181,11 +181,11 @@ static struct camera_buf *get_reserved_buffer(struct dcam_pipe_dev *dev)
 		goto nomem;
 	}
 
-	if (get_iommu_status(CAM_IOMMUDEV_DCAM) == 0)
+	if (cam_buf_iommu_status_get(CAM_IOMMUDEV_DCAM) == 0)
 		iommu_enable = 1;
 
 	size = DCAM_INTERNAL_RES_BUF_SIZE;
-	ret = cambuf_alloc(ion_buf, size, 0, iommu_enable);
+	ret = cam_buf_alloc(ion_buf, size, 0, iommu_enable);
 	if (ret) {
 		pr_err("fail to get dcam reserverd buffer\n");
 		goto ion_fail;
@@ -212,7 +212,7 @@ static int put_reserved_buffer(struct dcam_pipe_dev *dev)
 	pr_info("dcam%d, ion %p\n", dev->idx, ion_buf);
 
 	if (ion_buf->type != CAM_BUF_USER)
-		cambuf_free(ion_buf);
+		cam_buf_free(ion_buf);
 
 	kfree(ion_buf);
 	dev->internal_reserved_buf = NULL;
@@ -266,7 +266,7 @@ static void init_reserved_statis_bufferq(struct dcam_pipe_dev *dev)
 	ion_buf = (struct camera_buf *)dev->internal_reserved_buf;
 
 	if (ion_buf->type == CAM_BUF_USER) {
-		ret = cambuf_get_ionbuf(ion_buf);
+		ret = cam_buf_ionbuf_get(ion_buf);
 		if (ret) {
 			pr_err("fail to get buf for %d\n", ion_buf->mfd[0]);
 			return;
@@ -274,7 +274,7 @@ static void init_reserved_statis_bufferq(struct dcam_pipe_dev *dev)
 		pr_debug("reserverd statis buffer get %p\n", ion_buf);
 	}
 
-	ret = cambuf_iommu_map(ion_buf, CAM_IOMMUDEV_DCAM);
+	ret = cam_buf_iommu_map(ion_buf, CAM_IOMMUDEV_DCAM);
 	if (ret) {
 		pr_err("fail to map dcam reserved buffer to iommu\n");
 		return;
@@ -345,19 +345,19 @@ static int init_statis_bufferq(struct dcam_pipe_dev *dev)
 			if (ion_buf->mfd[0] <= 0)
 				continue;
 
-			ret = cambuf_get_ionbuf(ion_buf);
+			ret = cam_buf_ionbuf_get(ion_buf);
 			if (ret) {
 				continue;
 			}
 
-			ret = cambuf_iommu_map(ion_buf, CAM_IOMMUDEV_DCAM);
+			ret = cam_buf_iommu_map(ion_buf, CAM_IOMMUDEV_DCAM);
 			if (ret) {
-				cambuf_put_ionbuf(ion_buf);
+				cam_buf_ionbuf_put(ion_buf);
 				continue;
 			}
 
 			if (stats_type != STATIS_PDAF) {
-				ret = cambuf_kmap(ion_buf);
+				ret = cam_buf_kmap(ion_buf);
 				if (ret) {
 					pr_err("fail to kmap statis buf %d\n", ion_buf->mfd[0]);
 					memset(ion_buf->addr_k, 0, sizeof(ion_buf->addr_k));
@@ -438,9 +438,9 @@ static int unmap_statis_buffer(struct dcam_pipe_dev *dev)
 				stats_type, j, mfd, ion_buf->offset[0]);
 
 			if (ion_buf->mapping_state & CAM_BUF_MAPPING_KERNEL)
-				cambuf_kunmap(ion_buf);
-			cambuf_iommu_unmap(ion_buf);
-			cambuf_put_ionbuf(ion_buf);
+				cam_buf_kunmap(ion_buf);
+			cam_buf_iommu_unmap(ion_buf);
+			cam_buf_ionbuf_put(ion_buf);
 			memset(ion_buf->iova, 0, sizeof(ion_buf->iova));
 			memset(ion_buf->addr_k, 0, sizeof(ion_buf->addr_k));
 		}
@@ -450,9 +450,9 @@ static int unmap_statis_buffer(struct dcam_pipe_dev *dev)
 		ion_buf = dev->internal_reserved_buf;
 		pr_debug("reserved statis buffer unmap %p\n", ion_buf);
 
-		cambuf_iommu_unmap(ion_buf);
+		cam_buf_iommu_unmap(ion_buf);
 		if (ion_buf->type == CAM_BUF_USER)
-			cambuf_put_ionbuf(ion_buf);
+			cam_buf_ionbuf_put(ion_buf);
 	}
 
 	pr_info("done\n");
@@ -621,15 +621,15 @@ static int init_dcam_context(
 	struct dcam_dev_param *blk_pm_ctx = &pctx->blk_pm;
 
 	memset(blk_pm_ctx, 0, sizeof(struct dcam_dev_param));
-	if (get_iommu_status(CAM_IOMMUDEV_DCAM) == 0)
+	if (cam_buf_iommu_status_get(CAM_IOMMUDEV_DCAM) == 0)
 		iommu_enable = 1;
 
-	ret = cambuf_alloc(&blk_pm_ctx->lsc.buf,
-			DCAM_LSC_BUF_SIZE, 0, iommu_enable);
+	ret = cam_buf_alloc(&blk_pm_ctx->lsc.buf, DCAM_LSC_BUF_SIZE,
+		0, iommu_enable);
 	if (ret)
 		goto alloc_fail;
 
-	ret = cambuf_kmap(&blk_pm_ctx->lsc.buf);
+	ret = cam_buf_kmap(&blk_pm_ctx->lsc.buf);
 	if (ret)
 		goto map_fail;
 
@@ -647,7 +647,7 @@ static int init_dcam_context(
 	return 0;
 
 map_fail:
-	cambuf_free(&blk_pm_ctx->lsc.buf);
+	cam_buf_free(&blk_pm_ctx->lsc.buf);
 alloc_fail:
 	pr_err("failed %d\n", ret);
 	return ret;
@@ -663,9 +663,9 @@ static int deinit_dcam_context(struct dcam_pipe_context *pctx)
 	mutex_destroy(&blk_pm_ctx->param_lock);
 	mutex_destroy(&blk_pm_ctx->lsc.lsc_lock);
 
-	cambuf_iommu_unmap(&blk_pm_ctx->lsc.buf);
-	cambuf_kunmap(&blk_pm_ctx->lsc.buf);
-	cambuf_free(&blk_pm_ctx->lsc.buf);
+	cam_buf_iommu_unmap(&blk_pm_ctx->lsc.buf);
+	cam_buf_kunmap(&blk_pm_ctx->lsc.buf);
+	cam_buf_free(&blk_pm_ctx->lsc.buf);
 	atomic_set(&pctx->user_cnt, 0);
 
 	pr_info("dcam%d ctx %d done\n", dev->idx, pctx->ctx_id);
@@ -810,7 +810,7 @@ static int dcam_offline_start_slices_sw(void *param)
 		pr_debug("size %d %d,  endian %d, pattern %d\n",
 			pframe->width, pframe->height, pframe->endian, pframe->pattern);
 
-		ret = cambuf_iommu_map(&pframe->buf, CAM_IOMMUDEV_DCAM);
+		ret = cam_buf_iommu_map(&pframe->buf, CAM_IOMMUDEV_DCAM);
 		if (ret) {
 			pr_err("fail to map buf to dcam%d iommu.\n", dev->idx);
 			goto map_err;
@@ -929,7 +929,7 @@ dequeue:
 	pframe = camera_dequeue_tail(&dev->proc_queue);
 inq_overflow:
 wait_err:
-	cambuf_iommu_unmap(&pframe->buf);
+	cam_buf_iommu_unmap(&pframe->buf);
 	complete(&dev->slice_done);
 	complete(&dev->frm_done);
 map_err:
@@ -1056,7 +1056,7 @@ static int dcam_offline_start_frame(void *param)
 	pctx = &dev->ctx[dev->cur_ctx_id];
 	pm = &pctx->blk_pm;
 	if ((pm->lsc.buf.mapping_state & CAM_BUF_MAPPING_DEV) == 0) {
-		ret = cambuf_iommu_map(&pm->lsc.buf, CAM_IOMMUDEV_DCAM);
+		ret = cam_buf_iommu_map(&pm->lsc.buf, CAM_IOMMUDEV_DCAM);
 		if (ret)
 			pm->lsc.buf.iova[0] = 0L;
 	}
@@ -1068,7 +1068,7 @@ static int dcam_offline_start_frame(void *param)
 		dev->dcam_slice_mode, pframe->width, pframe->height,
 		pframe->endian, pframe->pattern);
 
-	ret = cambuf_iommu_map(&pframe->buf, CAM_IOMMUDEV_DCAM);
+	ret = cam_buf_iommu_map(&pframe->buf, CAM_IOMMUDEV_DCAM);
 	if (ret) {
 		pr_err("fail to map buf to dcam%d iommu.\n", dev->idx);
 		goto map_err;
@@ -1267,7 +1267,7 @@ static int dcam_offline_start_frame(void *param)
 dequeue:
 	pframe = camera_dequeue_tail(&dev->proc_queue);
 inq_overflow:
-	cambuf_iommu_unmap(&pframe->buf);
+	cam_buf_iommu_unmap(&pframe->buf);
 map_err:
 	complete(&dev->slice_done);
 	complete(&dev->frm_done);
@@ -1752,7 +1752,7 @@ static int sprd_dcam_cfg_path(
 	switch (cfg_cmd) {
 	case DCAM_PATH_CFG_OUTPUT_BUF:
 		pframe = (struct camera_frame *)param;
-		ret = cambuf_iommu_map(&pframe->buf, CAM_IOMMUDEV_DCAM);
+		ret = cam_buf_iommu_map(&pframe->buf, CAM_IOMMUDEV_DCAM);
 		if (ret)
 			goto exit;
 
@@ -1765,7 +1765,7 @@ static int sprd_dcam_cfg_path(
 		if (ret) {
 			pr_err("fail to enqueue frame of dcam path %d\n",
 				path_id);
-			cambuf_iommu_unmap(&pframe->buf);
+			cam_buf_iommu_unmap(&pframe->buf);
 			goto exit;
 		}
 		pr_debug("config dcam output buffer.\n");
@@ -1792,7 +1792,7 @@ static int sprd_dcam_cfg_path(
 				break;
 			pr_info("clr fdr raw buf fd %d, type %d, mapping %x\n",
 				pframe->buf.mfd[0], pframe->buf.type, pframe->buf.mapping_state);
-			cambuf_put_ionbuf(&pframe->buf);
+			cam_buf_ionbuf_put(&pframe->buf);
 			put_empty_frame(pframe);
 
 		} while (1);
@@ -1801,7 +1801,8 @@ static int sprd_dcam_cfg_path(
 
 	case DCAM_PATH_CFG_OUTPUT_RESERVED_BUF:
 		pframe = (struct camera_frame *)param;
-		ret = cambuf_iommu_map_single_page(&pframe->buf, CAM_IOMMUDEV_DCAM);
+		ret = cam_buf_iommu_single_page_map(&pframe->buf,
+			CAM_IOMMUDEV_DCAM);
 		if (ret)
 			goto exit;
 
@@ -1811,7 +1812,7 @@ static int sprd_dcam_cfg_path(
 		if (ret) {
 			pr_err("fail to enqueue frame of dcam path %d reserve buffer.\n",
 				path_id);
-			cambuf_iommu_unmap(&pframe->buf);
+			cam_buf_iommu_unmap(&pframe->buf);
 			goto exit;
 		}
 
@@ -2199,7 +2200,7 @@ static int sprd_dcam_dev_start(void *dcam_handle, int online)
 	pm = &dev->ctx[dev->cur_ctx_id].blk_pm;
 
 	if ((pm->lsc.buf.mapping_state & CAM_BUF_MAPPING_DEV) == 0) {
-		ret = cambuf_iommu_map(&pm->lsc.buf, CAM_IOMMUDEV_DCAM);
+		ret = cam_buf_iommu_map(&pm->lsc.buf, CAM_IOMMUDEV_DCAM);
 		if (ret)
 			pm->lsc.buf.iova[0] = 0L;
 	}
@@ -2437,7 +2438,7 @@ static int sprd_dcam_dev_stop(void *dcam_handle, enum dcam_stop_cmd pause)
 	}
 
 	if (pm->lsc.buf.mapping_state & CAM_BUF_MAPPING_DEV)
-		cambuf_iommu_unmap(&pm->lsc.buf);
+		cam_buf_iommu_unmap(&pm->lsc.buf);
 
 	dev->err_count = 0;
 	dev->offline = 0;

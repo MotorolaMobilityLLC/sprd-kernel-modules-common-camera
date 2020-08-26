@@ -17,7 +17,8 @@
 
 #include "cam_types.h"
 
-static uint32_t sprd_noisefilter_24b_shift8(uint32_t seed, uint32_t *data_out)
+static uint32_t camblock_noisefilter_24b_shift8(uint32_t seed,
+	uint32_t *data_out)
 {
 	uint32_t bit_0 = 0, bit_1 = 0;
 	uint32_t bit_2 = 0, bit_3 = 0;
@@ -46,17 +47,17 @@ static uint32_t sprd_noisefilter_24b_shift8(uint32_t seed, uint32_t *data_out)
 	return out;
 }
 
-void sprd_noisefilter_seeds(uint32_t image_width,
+void cam_block_noisefilter_seeds(uint32_t image_width,
 	uint32_t seed0, uint32_t *seed1, uint32_t *seed2, uint32_t *seed3)
 {
 	uint32_t i = 0;
 
-	*seed1 = sprd_noisefilter_24b_shift8(seed0, NULL);
+	*seed1 = camblock_noisefilter_24b_shift8(seed0, NULL);
 	*seed2 = seed0;
 
 	for (i = 0; i < image_width; i++)
-		*seed2 = sprd_noisefilter_24b_shift8(*seed2, NULL);
+		*seed2 = camblock_noisefilter_24b_shift8(*seed2, NULL);
 
-	*seed3 = sprd_noisefilter_24b_shift8(*seed2, NULL);
+	*seed3 = camblock_noisefilter_24b_shift8(*seed2, NULL);
 }
 

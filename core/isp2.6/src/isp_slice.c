@@ -86,7 +86,7 @@ static int sprd_ispslice_noisefliter_info_set(struct isp_slice_desc *slc_ctx,
 			noisefilter_info = &cur_slc->noisefilter_info;
 			noisefilter_info->seed0 = seed0;
 			slice_width = scaler_info->trim1_size_x;
-			sprd_noisefilter_seeds(slice_width,
+			cam_block_noisefilter_seeds(slice_width,
 				noisefilter_info->seed0, &noisefilter_info->seed1,
 				&noisefilter_info->seed2, &noisefilter_info->seed3);
 			pr_debug("seed0=%d,seed1=%d,seed2=%d,seed3=%d,slice_width=%d\n",

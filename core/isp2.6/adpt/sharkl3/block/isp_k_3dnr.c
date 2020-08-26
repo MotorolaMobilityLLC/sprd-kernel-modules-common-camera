@@ -130,13 +130,12 @@ static void isp_3dnr_config_mem_ctrl(uint32_t idx,
 		ISP_REG_WR(idx, ISP_3DNR_MEM_CTRL_FT_CTRL_PITCH, val);
 	} else {
 		val = mem_ctrl->img_width & 0xFFFF;
-		camca_isp_3dnr_fetch_set(mem_ctrl->ft_chroma_addr,
-						mem_ctrl->ft_luma_addr,
-						val);
+		cam_trusty_isp_3dnr_fetch_set(mem_ctrl->ft_chroma_addr,
+			mem_ctrl->ft_luma_addr, val);
 	}
 
-	val = ((mem_ctrl->blend_y_en_start_col & 0xFFF) << 16)  |
-	       (mem_ctrl->blend_y_en_start_row & 0xFFF);
+	val = ((mem_ctrl->blend_y_en_start_col & 0xFFF) << 16) |
+		(mem_ctrl->blend_y_en_start_row & 0xFFF);
 	ISP_REG_WR(idx, ISP_3DNR_MEM_CTRL_PARAM8, val);
 
 	/*
