@@ -44,7 +44,6 @@ static int isp_k_cdn_block(struct isp_io_param *param,
 	}
 	if (g_isp_bypass[idx] & (1 << _EISP_CDN))
 		cdn_info->bypass = 1;
-	ISP_REG_MWR(idx, ISP_CDN_PARAM, BIT_0, cdn_info->bypass);
 	if (cdn_info->bypass)
 		return 0;
 

@@ -131,6 +131,12 @@ enum isp_stream_data_src {
 	ISP_STREAM_SRC_MAX,
 };
 
+enum isp_stream_frame_type {
+	ISP_STREAM_SIGNLE,
+	ISP_STREAM_MULTI,
+	ISP_STRESM_MAX,
+};
+
 struct isp_init_param {
 	uint32_t is_high_fps;
 	uint32_t cam_id;
@@ -245,7 +251,6 @@ struct isp_pipe_ops {
 	int (*set_callback)(void *isp_handle, int ctx_id,
 			isp_dev_callback cb, void *priv_data);
 	int (*update_clk)(void *isp_handle, void *arg);
-	int (*clear_stream_ctrl)(void *isp_handle, int ctx_id);
 };
 
 void *get_isp_pipe_dev(void);

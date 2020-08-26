@@ -42,7 +42,6 @@ static int isp_k_contrast_block(struct isp_io_param *param,
 	}
 	if (g_isp_bypass[idx] & (1 << _EISP_CONTRAST))
 		contrast_info->bypass = 1;
-	ISP_REG_MWR(idx, ISP_CONTRAST_PARAM, BIT_0, contrast_info->bypass);
 	if (contrast_info->bypass)
 		return 0;
 

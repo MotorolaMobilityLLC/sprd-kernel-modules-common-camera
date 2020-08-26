@@ -44,7 +44,6 @@ static int isp_k_ynr_block(struct isp_io_param *param,
 	}
 	if (g_isp_bypass[idx] & (1 << _EISP_YNR))
 		ynr->bypass = 1;
-	ISP_REG_MWR(idx, ISP_YNR_CONTRL0, BIT_0, ynr->bypass);
 	if (ynr->bypass)
 		return 0;
 

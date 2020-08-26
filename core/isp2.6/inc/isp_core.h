@@ -245,7 +245,6 @@ struct isp_path_desc {
 
 struct isp_pipe_context {
 	atomic_t user_cnt;
-	atomic_t state_user_cnt;
 	uint32_t started;
 	uint32_t ctx_id;
 	uint32_t in_fmt; /* forcc */

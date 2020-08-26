@@ -2253,7 +2253,6 @@ static int img_ioctl_start_capture(
 	}
 
 	atomic_set(&module->cap_skip_frames, -1);
-	module->isp_dev_handle->isp_ops->clear_stream_ctrl(module->isp_dev_handle, isp_idx);
 
 	/* recognize the capture scene */
 	if (param.type == DCAM_CAPTURE_START_FROM_NEXT_SOF) {

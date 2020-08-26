@@ -88,6 +88,13 @@ enum dcam_fbc_mode_type {
 	DCAM_FBC_BIN_14_BIT = 0x7,
 };
 
+enum isp_yuv_block_ctrl_type {
+	ISP_YUV_BLOCK_CFG,
+	ISP_YUV_BLOCK_DISABLE,
+	ISP_YUV_BLOCK_ENABLE,
+	ISP_YUV_BLOCK_MAX
+};
+
 enum isp_sub_path_id {
 	ISP_SPATH_CP = 0,
 	ISP_SPATH_VID,
@@ -195,6 +202,7 @@ enum isp_hw_cfg_cmd{
 	ISP_HW_CFG_FETCH_START,
 	ISP_HW_CFG_FMCU_CMD,
 	ISP_HW_CFG_FMCU_START,
+	ISP_HW_CFG_YUV_BLOCK_CTRL_TYPE,
 	ISP_HW_CFG_MAX
 };
 
@@ -838,6 +846,12 @@ struct isp_hw_fmcu_start {
 	unsigned long base;
 	unsigned long hw_addr;
 	int cmd_num;
+};
+
+struct isp_hw_yuv_block_ctrl {
+	uint32_t idx;
+	uint32_t type;
+	struct isp_k_block *blk_param;
 };
 
 struct hw_io_ctrl_fun {

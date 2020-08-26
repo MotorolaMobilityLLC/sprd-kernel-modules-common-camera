@@ -890,7 +890,6 @@ static int isphw_fmcu_available(void *handle, void *arg)
 static int isphw_cfg_subblock(void *handle, void *arg)
 {
 	uint32_t idx = 0;
-	uint32_t bypass = 1;
 	struct isp_pipe_context *pctx = NULL;
 	struct isp_fetch_info *fetch = NULL;
 
@@ -913,44 +912,15 @@ static int isphw_cfg_subblock(void *handle, void *arg)
 	ISP_REG_WR(idx, ISP_FETCH_LINE_DLY_CTRL, 0x8);
 	ISP_REG_WR(idx, ISP_FETCH_MEM_SLICE_SIZE,
 		fetch->src.w | (fetch->src.h << 16));
-	ISP_REG_WR(idx, ISP_DISPATCH_DLY,  0x253C);
-	ISP_REG_WR(idx, ISP_DISPATCH_LINE_DLY1,  0x8280001C);
-	ISP_REG_WR(idx, ISP_DISPATCH_PIPE_BUF_CTRL_CH0,  0x64043C);
+	ISP_REG_WR(idx, ISP_DISPATCH_DLY, 0x253C);
+	ISP_REG_WR(idx, ISP_DISPATCH_LINE_DLY1, 0x8280001C);
+	ISP_REG_WR(idx, ISP_DISPATCH_PIPE_BUF_CTRL_CH0, 0x64043C);
 	ISP_REG_WR(idx, ISP_DISPATCH_CH0_SIZE,
 		fetch->in_trim.size_x | (fetch->in_trim.size_y << 16));
 	ISP_REG_WR(idx, ISP_DISPATCH_CH0_BAYER, pctx->dispatch_bayer_mode);
 
 	pr_debug("pitch ch0 %d, ch1 %d, ch2 %d\n",
 		fetch->pitch.pitch_ch0, fetch->pitch.pitch_ch1, fetch->pitch.pitch_ch2);
-
-	/*superzoom need to bypass below sublock*/
-	ISP_REG_MWR(idx, ISP_VST_PARA, BIT_0, bypass);
-	ISP_REG_MWR(idx, ISP_NLM_PARA, BIT_0, bypass);
-	ISP_REG_MWR(idx, ISP_IVST_PARA, BIT_0, bypass);
-	ISP_REG_MWR(idx, ISP_CFAE_NEW_CFG0, BIT_0, bypass);
-	ISP_REG_MWR(idx, ISP_CMC10_PARAM, BIT_0, bypass);
-	ISP_REG_MWR(idx, ISP_GAMMA_PARAM, BIT_0, bypass);
-	ISP_REG_MWR(idx, ISP_HSV_PARAM, BIT_0, bypass);
-	ISP_REG_MWR(idx, ISP_PSTRZ_PARAM, BIT_0, bypass);
-	ISP_REG_MWR(idx, ISP_CCE_PARAM, BIT_0, bypass);
-	ISP_REG_MWR(idx, ISP_UVD_PARAM, BIT_0, bypass);
-	ISP_REG_MWR(idx, ISP_3DNR_MEM_CTRL_PARAM0, BIT_0, bypass);
-	ISP_REG_MWR(idx, ISP_3DNR_MEM_CTRL_LINE_MODE, BIT_0, bypass);
-	ISP_REG_MWR(idx, ISP_PRECDN_PARAM, BIT_0, bypass);
-	ISP_REG_MWR(idx, ISP_YNR_CONTRL0, BIT_0, bypass);
-	ISP_REG_MWR(idx, ISP_BRIGHT_PARAM, BIT_0, bypass);
-	ISP_REG_MWR(idx, ISP_CONTRAST_PARAM, BIT_0, bypass);
-	ISP_REG_MWR(idx, ISP_HIST_PARAM, BIT_0, bypass);
-	ISP_REG_MWR(idx, ISP_HIST2_PARAM, BIT_0, bypass);
-	ISP_REG_MWR(idx, ISP_CDN_PARAM, BIT_0, bypass);
-	ISP_REG_MWR(idx, ISP_POSTCDN_COMMON_CTRL, BIT_0, bypass);
-	ISP_REG_MWR(idx, ISP_EE_PARAM, BIT_0, bypass);
-	ISP_REG_MWR(idx, ISP_YGAMMA_PARAM, BIT_0, bypass);
-	ISP_REG_MWR(idx, ISP_CSA_PARAM, BIT_0, bypass);
-	ISP_REG_MWR(idx, ISP_HUA_PARAM, BIT_0, bypass);
-	ISP_REG_MWR(idx, ISP_IIRCNR_PARAM, BIT_0, bypass);
-	ISP_REG_MWR(idx, ISP_YRANDOM_PARAM1, BIT_0, bypass);
-	ISP_HREG_MWR(ISP_YUV_MULT, BIT_31, 0);
 
 	return 0;
 }
@@ -2031,6 +2001,77 @@ static int isphw_fmcu_start(void *handle, void *arg)
 	return 0;
 }
 
+static int isphw_yuv_block_ctrl(void *handle, void *arg)
+{
+	uint32_t ret = 0;
+	uint32_t idx = 0;
+	uint32_t type = 0;
+	struct isp_k_block *p = NULL;
+	struct isp_hw_yuv_block_ctrl *blk_ctrl = NULL;
+
+	if (!arg) {
+		pr_err("fail to get valid input arg\n");
+		return -EFAULT;
+	}
+
+	blk_ctrl = (struct isp_hw_yuv_block_ctrl *)arg;
+	type = blk_ctrl->type;
+	idx = blk_ctrl->idx;
+
+	if (type == ISP_YUV_BLOCK_CFG) {
+		p = blk_ctrl->blk_param;
+		goto BLOCK_CFG;
+	} else if (type == ISP_YUV_BLOCK_DISABLE) {
+		goto BLOCK_BYPASS;
+	} else {
+		pr_err("fail to support type %d\n", type);
+	}
+
+BLOCK_CFG:
+	ISP_REG_MWR(idx, ISP_CCE_PARAM, BIT_0, p->cce_info.bypass);
+	ISP_REG_MWR(idx, ISP_BRIGHT_PARAM, BIT_0, p->brightness_info.bypass);
+	ISP_REG_MWR(idx, ISP_CONTRAST_PARAM, BIT_0, p->contrast_info.bypass);
+	ISP_REG_MWR(idx, ISP_HUA_PARAM, BIT_0, p->hue_info.bypass);
+	ISP_REG_MWR(idx, ISP_CSA_PARAM, BIT_0, p->csa_info.bypass);
+	ISP_REG_MWR(idx, ISP_CDN_PARAM, BIT_0, p->cdn_info.bypass);
+	ISP_REG_MWR(idx, ISP_EE_PARAM, BIT_0, p->edge_info.bypass);
+	ISP_REG_MWR(idx, ISP_IIRCNR_PARAM, BIT_0, p->iircnr_info.bypass);
+	ISP_REG_MWR(idx, ISP_YUV_NF_CTRL, BIT_0, p->nf_info.yrandom_bypass);
+	ISP_REG_MWR(idx, ISP_POSTCDN_COMMON_CTRL,
+		BIT_0, p->post_cdn_info.bypass);
+	ISP_REG_MWR(idx, ISP_PRECDN_PARAM, BIT_0, p->pre_cdn_info.bypass);
+	ISP_REG_MWR(idx, ISP_PSTRZ_PARAM, BIT_0, p->pstrz_info.bypass);
+	ISP_REG_MWR(idx, ISP_UVD_PARAM, BIT_0, p->uvd_info.bypass);
+	ISP_REG_MWR(idx, ISP_YGAMMA_PARAM, BIT_0, p->ygamma_info.bypass);
+	ISP_REG_MWR(idx, ISP_YNR_CONTRL0, BIT_0, p->ynr_info.bypass);
+	ISP_REG_MWR(idx, ISP_YRANDOM_PARAM1, BIT_0, p->yrandom_info.bypass);
+	ISP_HREG_MWR(ISP_YUV_MULT, BIT_31, 1 << 31);
+	return ret;
+
+BLOCK_BYPASS:
+	ISP_REG_MWR(idx, ISP_CCE_PARAM, BIT_0, 1);
+	ISP_REG_MWR(idx, ISP_BRIGHT_PARAM, BIT_0, 1);
+	ISP_REG_MWR(idx, ISP_CONTRAST_PARAM, BIT_0, 1);
+	ISP_REG_MWR(idx, ISP_HUA_PARAM, BIT_0, 1);
+	ISP_REG_MWR(idx, ISP_CSA_PARAM, BIT_0, 1);
+	ISP_REG_MWR(idx, ISP_CDN_PARAM, BIT_0, 1);
+	ISP_REG_MWR(idx, ISP_EE_PARAM, BIT_0, 1);
+	ISP_REG_MWR(idx, ISP_HIST2_PARAM, BIT_0, 1);
+	ISP_REG_MWR(idx, ISP_IIRCNR_PARAM, BIT_0, 1);
+	ISP_REG_MWR(idx, ISP_YUV_NF_CTRL, BIT_0, 1);
+	ISP_REG_MWR(idx, ISP_3DNR_MEM_CTRL_PARAM0, BIT_0, 1);
+	ISP_REG_MWR(idx, ISP_POSTCDN_COMMON_CTRL, BIT_0, 1);
+	ISP_REG_MWR(idx, ISP_PRECDN_PARAM, BIT_0, 1);
+	ISP_REG_MWR(idx, ISP_PSTRZ_PARAM, BIT_0, 1);
+	ISP_REG_MWR(idx, ISP_UVD_PARAM, BIT_0, 1);
+	ISP_REG_MWR(idx, ISP_YGAMMA_PARAM, BIT_0, 1);
+	ISP_REG_MWR(idx, ISP_YNR_CONTRL0, BIT_0, 1);
+	ISP_REG_MWR(idx, ISP_YRANDOM_PARAM1, BIT_0, 1);
+	ISP_HREG_MWR(ISP_YUV_MULT, BIT_31, 0 << 31);
+
+	return ret;
+}
+
 static struct hw_io_ctrl_fun isp_hw_ioctl_fun_tab[] = {
 	{ISP_HW_CFG_ENABLE_CLK,              isphw_clk_eb},
 	{ISP_HW_CFG_DISABLE_CLK,             isphw_clk_dis},
@@ -2076,6 +2117,7 @@ static struct hw_io_ctrl_fun isp_hw_ioctl_fun_tab[] = {
 	{ISP_HW_CFG_FETCH_START,             isphw_fetch_start},
 	{ISP_HW_CFG_FMCU_CMD,                isphw_set_fmcu_cmd},
 	{ISP_HW_CFG_FMCU_START,              isphw_fmcu_start},
+	{ISP_HW_CFG_YUV_BLOCK_CTRL_TYPE,     isphw_yuv_block_ctrl},
 };
 
 static hw_ioctl_fun isphw_ioctl_get_fun(enum isp_hw_cfg_cmd cmd)

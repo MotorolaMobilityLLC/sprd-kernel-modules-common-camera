@@ -43,7 +43,6 @@ static int isp_k_hue_block(struct isp_io_param *param,
 	}
 	if (g_isp_bypass[idx] & (1 << _EISP_HUE))
 		hue_info->bypass = 1;
-	ISP_REG_MWR(idx, ISP_HUA_PARAM, BIT_0, hue_info->bypass);
 	if (hue_info->bypass)
 		return 0;
 

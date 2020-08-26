@@ -78,6 +78,7 @@ struct isp_stream_ctrl {
 	enum isp_stream_state state;
 	enum isp_stream_buf_type buf_type;
 	enum isp_stream_data_src data_src;
+	enum isp_stream_frame_type frame_type;
 	struct img_size in;
 	struct img_trim in_crop;
 	struct img_size out[ISP_SPATH_NUM];

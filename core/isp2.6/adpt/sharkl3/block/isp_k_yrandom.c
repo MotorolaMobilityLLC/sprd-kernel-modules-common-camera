@@ -43,8 +43,6 @@ static int isp_k_yrandom_block(struct isp_io_param *param,
 	}
 	if (g_isp_bypass[idx] & (1 << _EISP_YRAND))
 		yrandom_info->bypass = 1;
-	ISP_REG_MWR(idx, ISP_YRANDOM_PARAM1,
-		BIT_0, yrandom_info->bypass);
 	if (yrandom_info->bypass)
 		return 0;
 

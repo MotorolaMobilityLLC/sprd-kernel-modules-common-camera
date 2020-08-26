@@ -729,7 +729,9 @@ static int proc_slices(struct isp_pipe_context *pctx,
 	int hw_ctx_id = -1, first_slice = 1;
 	uint32_t slice_id, cnt = 0;
 	struct isp_pipe_dev *dev = NULL;
-	struct isp_cfg_ctx_desc *cfg_desc;
+	struct isp_cfg_ctx_desc *cfg_desc = NULL;
+	struct cam_hw_info *hw = NULL;
+	struct isp_hw_yuv_block_ctrl blk_ctrl;
 
 	pr_debug("enter. need_slice %d\n", pctx->multi_slice);
 	hw_ctx_id = isp_get_hw_context_id(pctx);
@@ -741,6 +743,7 @@ static int proc_slices(struct isp_pipe_context *pctx,
 	dev = pctx->dev;
 	cfg_desc = (struct isp_cfg_ctx_desc *)dev->cfg_handle;
 	pctx->is_last_slice = 0;
+	hw = pctx->hw;
 	for (slice_id = 0; slice_id < SLICE_NUM_MAX; slice_id++) {
 		if (pctx->is_last_slice == 1)
 			break;
@@ -756,18 +759,25 @@ static int proc_slices(struct isp_pipe_context *pctx,
 			pctx->valid_slc_num, pctx->is_last_slice);
 
 		pctx->started = 1;
+		mutex_lock(&pctx->blkpm_lock);
+		blk_ctrl.idx = pctx->ctx_id;
+		blk_ctrl.blk_param = &pctx->isp_k_param;
+		if (pctx->in_fmt == IMG_PIX_FMT_NV21)
+			blk_ctrl.type = ISP_YUV_BLOCK_DISABLE;
+		else
+			blk_ctrl.type = ISP_YUV_BLOCK_CFG;
+		hw->isp_ioctl(hw, ISP_HW_CFG_YUV_BLOCK_CTRL_TYPE, &blk_ctrl);
 		if (first_slice) {
 			first_slice = 0;
-			mutex_lock(&pctx->blkpm_lock);
 			isp_check_debug_dump(pctx, pframe);
 			ret = cfg_desc->ops->hw_cfg(
 				cfg_desc, pctx->ctx_id, hw_ctx_id, 0);
-			mutex_unlock(&pctx->blkpm_lock);
 		} else {
 			/* todo - update slice registers only */
 			ret = cfg_desc->ops->hw_cfg(
 				cfg_desc, pctx->ctx_id, hw_ctx_id, 0);
 		}
+		mutex_unlock(&pctx->blkpm_lock);
 
 		ret = cfg_desc->hw->isp_ioctl(cfg_desc->hw,
 					ISP_HW_CFG_START_ISP, &hw_ctx_id);
@@ -1395,6 +1405,7 @@ static int isp_offline_start_frame(void *ctx)
 	struct isp_fmcu_ctx_desc *fmcu = NULL;
 	struct cam_hw_info *hw = NULL;
 	struct offline_tmp_param tmp = {0};
+	struct isp_hw_yuv_block_ctrl blk_ctrl;
 
 	pctx = (struct isp_pipe_context *)ctx;
 	pr_debug("enter sw id %d, user_cnt=%d, ch_id=%d, cam_id=%d\n",
@@ -1610,9 +1621,15 @@ static int isp_offline_start_frame(void *ctx)
 		/* blkpm_lock to avoid user config block param across frame */
 		mutex_lock(&pctx->blkpm_lock);
 		isp_check_debug_dump(pctx, pframe);
+		blk_ctrl.idx = pctx->ctx_id;
+		blk_ctrl.blk_param = &pctx->isp_k_param;
+		if (pctx->in_fmt == IMG_PIX_FMT_NV21)
+			blk_ctrl.type = ISP_YUV_BLOCK_DISABLE;
+		else
+			blk_ctrl.type = ISP_YUV_BLOCK_CFG;
+		hw->isp_ioctl(hw, ISP_HW_CFG_YUV_BLOCK_CTRL_TYPE, &blk_ctrl);
 		ret = cfg_desc->ops->hw_cfg(cfg_desc,
 					pctx->ctx_id, hw_ctx_id, kick_fmcu);
-
 		mutex_unlock(&pctx->blkpm_lock);
 
 		if (kick_fmcu) {
@@ -1842,7 +1859,6 @@ static int isp_context_init(struct isp_pipe_dev *dev)
 		pctx->attach_cam_id = CAM_ID_MAX;
 		pctx->hw = dev->isp_hw;
 		atomic_set(&pctx->user_cnt, 0);
-		atomic_set(&pctx->state_user_cnt, 0);
 		pr_debug("isp context %d init done!\n", cid[i]);
 	}
 
@@ -1990,7 +2006,6 @@ static int isp_context_deinit(struct isp_pipe_dev *dev)
 		sprd_isp_put_context(dev, pctx->ctx_id);
 
 		atomic_set(&pctx->user_cnt, 0);
-		atomic_set(&pctx->state_user_cnt, 0);
 		mutex_destroy(&pctx->param_mutex);
 		mutex_destroy(&pctx->blkpm_lock);
 	}
@@ -2089,6 +2104,7 @@ static int isp_get_stream_state(struct isp_pipe_context *pctx)
 	uint32_t normal_cnt = 0, postproc_cnt = 0;
 	uint32_t maxw = 0, maxh = 0;
 	uint32_t scl_x = 0, scl_w = 0, scl_h = 0;
+	enum isp_stream_frame_type frame_type = ISP_STREAM_SIGNLE;
 	struct isp_stream_ctrl *stream = NULL;
 	struct isp_path_desc *path = NULL;
 	struct isp_stream_ctrl tmp_stream[5];
@@ -2098,8 +2114,7 @@ static int isp_get_stream_state(struct isp_pipe_context *pctx)
 		return -EFAULT;
 	}
 
-	if (atomic_inc_return(&pctx->state_user_cnt) > 1) {
-		atomic_dec(&pctx->state_user_cnt);
+	if (pctx->stream_ctrl_in_q.cnt != 0) {
 		pr_debug("cxt %d stream state not complete\n", pctx->ctx_id);
 		return ret;
 	}
@@ -2203,12 +2218,15 @@ static int isp_get_stream_state(struct isp_pipe_context *pctx)
 			tmp_stream[i].in_crop.size_x, tmp_stream[i].in_crop.size_y);
 	}
 
-	if (pctx->mode_3dnr == MODE_3DNR_CAP)
+	if (pctx->mode_3dnr == MODE_3DNR_CAP) {
 		normal_cnt = normal_cnt + NR3_BLEND_CNT - 1;
+		frame_type = ISP_STREAM_MULTI;
+	}
 	for (i = 0; i < normal_cnt; i++) {
 		stream = get_empty_state();
 		stream->state = ISP_STREAM_NORMAL_PROC;
 		stream->data_src = ISP_STREAM_SRC_DCAM;
+		stream->frame_type = frame_type;
 		stream->in = pctx->src_info.src;
 		stream->in_crop = pctx->src_info.src_crop;
 		stream->in_fmt = pctx->src_info.src_fmt;
@@ -2251,6 +2269,7 @@ static int isp_get_stream_state(struct isp_pipe_context *pctx)
 		stream = get_empty_state();
 		stream->state = ISP_STREAM_POST_PROC;
 		stream->data_src = ISP_STREAM_SRC_ISP;
+		stream->frame_type = frame_type;
 		stream->in_fmt = tmp_stream[i].in_fmt;
 		stream->in = tmp_stream[i].in;
 		stream->in_crop = tmp_stream[i].in_crop;
@@ -2281,49 +2300,6 @@ static int isp_get_stream_state(struct isp_pipe_context *pctx)
 		}
 	}
 
-	return ret;
-}
-
-static int isp_put_stream_state(void *isp_handle, int ctx_id)
-{
-	int ret = 0;
-	struct isp_pipe_dev *dev;
-	struct isp_pipe_context *pctx;
-	struct isp_stream_ctrl *stream = NULL;
-
-	if (!isp_handle) {
-		pr_err("fail to input ptr NULL");
-		ret = -EFAULT;
-		goto exit;
-	}
-
-	if (ctx_id < 0 || ctx_id >= ISP_CONTEXT_SW_NUM) {
-		pr_err("fail to ctx_id is err  %d", ctx_id);
-		ret = -EFAULT;
-		goto exit;
-	}
-
-	dev = (struct isp_pipe_dev *)isp_handle;
-	pctx = &dev->ctx[ctx_id];
-
-	do {
-		stream = camera_dequeue(&pctx->stream_ctrl_in_q,
-			struct isp_stream_ctrl, list);
-		if (stream)
-			put_empty_state(stream);
-	} while (stream);
-
-	do {
-		stream = camera_dequeue(&pctx->stream_ctrl_proc_q,
-			struct isp_stream_ctrl, list);
-		if (stream)
-			put_empty_state(stream);
-	} while (stream);
-
-	if (atomic_dec_return(&pctx->state_user_cnt) != 0)
-		atomic_set(&pctx->state_user_cnt, 0);
-
-exit:
 	return ret;
 }
 
@@ -2359,9 +2335,6 @@ static int isp_postproc_irq(void *handle, uint32_t idx,
 
 	stream = camera_dequeue(&pctx->stream_ctrl_proc_q,
 		struct isp_stream_ctrl, list);
-	if (stream && stream->cur_cnt == stream->max_cnt)
-		isp_put_stream_state(dev, pctx->ctx_id);
-
 	pframe = camera_dequeue(&pctx->proc_queue, struct camera_frame, list);
 	if (pframe) {
 		if (stream && stream->data_src == ISP_STREAM_SRC_ISP) {
@@ -2480,9 +2453,12 @@ static int sprd_isp_proc_frame(void *isp_handle, void *param, int ctx_id)
 
 	stream = camera_dequeue_peek(&pctx->stream_ctrl_in_q,
 		struct isp_stream_ctrl, list);
-	if (stream && stream->data_src == ISP_STREAM_SRC_ISP) {
-		pr_debug("isp postproc running: frame need write back\n");
-		return -EFAULT;
+	if (stream && stream->state == ISP_STREAM_POST_PROC) {
+		if (stream->frame_type == ISP_STREAM_SIGNLE ||
+			stream->data_src == ISP_STREAM_SRC_ISP) {
+			pr_debug("isp postproc running: frame need write back\n");
+			return -EFAULT;
+		}
 	}
 
 	pr_debug("cam%d ctx %d, fid %d, ch_id %d, buf  %d, 3dnr %d , w %d, h %d\n",
@@ -3351,7 +3327,6 @@ static int sprd_isp_cfg_blkparam(
 	struct isp_pipe_dev *dev = NULL;
 	struct isp_io_param *io_param = NULL;
 	func_isp_cfg_param cfg_fun_ptr = NULL;
-	struct isp_stream_ctrl *stream = NULL;
 	struct cam_hw_info *ops = NULL;
 	struct isp_hw_block_func fucarg;
 
@@ -3375,15 +3350,6 @@ static int sprd_isp_cfg_blkparam(
 		pr_err("fail to use unable isp ctx %d.\n", ctx_id);
 		mutex_unlock(&dev->path_mutex);
 		return -EINVAL;
-	}
-
-	stream = camera_dequeue_peek(&pctx->stream_ctrl_proc_q,
-		struct isp_stream_ctrl, list);
-	if (stream && stream->data_src == ISP_STREAM_SRC_ISP &&
-		io_param->sub_block != ISP_BLOCK_CCE) {
-		pr_debug("isp postproc running: do not need update para\n");
-		mutex_unlock(&dev->path_mutex);
-		return 0;
 	}
 
 	/* lock to avoid block param across frame */
@@ -3561,7 +3527,6 @@ static struct isp_pipe_ops isp_ops = {
 	.cfg_blk_param = sprd_isp_cfg_blkparam,
 	.proc_frame = sprd_isp_proc_frame,
 	.set_callback = sprd_isp_set_sb,
-	.clear_stream_ctrl = isp_put_stream_state,
 };
 
 void *get_isp_pipe_dev(void)
