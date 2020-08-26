@@ -603,7 +603,7 @@ static int dcamhw_mipi_cap_set(void *handle, void *arg)
 static int dcamhw_path_start(void *handle, void *arg)
 {
 	int ret = 0;
-	struct isp_img_rect rect;/* for 3dnr */
+	struct isp_img_rect rect;
 	struct dcam_hw_path_start *patharg = NULL;
 
 	pr_debug("enter.");
@@ -852,7 +852,7 @@ static int dcamhw_path_size_update(void *handle, void *arg)
 	uint32_t idx;
 	uint32_t reg_val;
 	struct dcam_hw_path_size *sizearg = NULL;
-	struct isp_img_rect rect;/* for 3dnr path */
+	struct isp_img_rect rect;
 
 	pr_debug("enter.");
 	if (!arg) {

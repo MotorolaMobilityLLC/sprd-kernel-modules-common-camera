@@ -635,7 +635,7 @@ int isp_int_trace_isp_irq_cnt(int ctx_id)
 		uint32_t cnt, j;
 		int idx = ctx_id;
 		for (cnt = 0; cnt < (uint32_t)irq_done[idx][ISP_INT_SHADOW_DONE]; cnt += 4) {
-			j = (cnt & (INT_RCD_SIZE - 1));//rolling
+			j = (cnt & (INT_RCD_SIZE - 1));
 			pr_info("isp%u j=%d, %03d.%04d, %03d.%04d, %03d.%04d, %03d.%04d, %03d.%04d, %03d.%04d\n",
 			idx, j, (uint32_t)isp_int_recorder[idx][ISP_INT_ISP_ALL_DONE][j] >> 16,
 			(uint32_t)isp_int_recorder[idx][ISP_INT_ISP_ALL_DONE][j] & 0xffff,

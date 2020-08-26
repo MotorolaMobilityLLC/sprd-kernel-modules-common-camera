@@ -30,7 +30,7 @@ int dcam_k_afm_block(struct dcam_dev_param *param)
 	uint32_t idx = 0;
 	int i = 0;
 	uint32_t val = 0;
-	struct dcam_dev_afm_info *p = NULL;/* af_param; */
+	struct dcam_dev_afm_info *p = NULL;
 
 	if (param == NULL)
 		return -1;
@@ -110,7 +110,7 @@ int dcam_k_afm_win(struct dcam_dev_param *param)
 {
 	int ret = 0;
 	uint32_t idx = 0;
-	struct isp_img_rect *p;/* win; */
+	struct isp_img_rect *p;
 
 	if (param == NULL)
 		return -1;
@@ -130,7 +130,7 @@ int dcam_k_afm_win_num(struct dcam_dev_param *param)
 {
 	int ret = 0;
 	uint32_t idx = 0;
-	struct isp_img_size *p;/* win_num; */
+	struct isp_img_size *p;
 
 	if (param == NULL)
 		return -1;

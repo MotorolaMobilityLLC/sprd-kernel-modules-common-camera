@@ -70,14 +70,14 @@ static void isp_ltm_config_hists(uint32_t idx,
 
 	val = ((hists->roi_start_y & 0x1FFF) << 16) |
 		(hists->roi_start_x & 0x1FFF);
-	ISP_REG_WR(idx, base + ISP_LTM_ROI_START, val);/* slice */
+	ISP_REG_WR(idx, base + ISP_LTM_ROI_START, val);
 
 	/* tile_num_y tile_num_x HOW TODO */
 	val = ((hists->tile_num_y_minus & 0x7)   << 28) |
 		((hists->tile_height      & 0x1FF) << 16) |
 		((hists->tile_num_x_minus & 0x7)   << 12) |
 		(hists->tile_width       & 0x1FF);
-	ISP_REG_WR(idx, base + ISP_LTM_TILE_RANGE, val);/* slice */
+	ISP_REG_WR(idx, base + ISP_LTM_TILE_RANGE, val);
 
 	val = ((hists->clip_limit_min & 0xFFFF) << 16) |
 		(hists->clip_limit     & 0xFFFF);
@@ -87,11 +87,11 @@ static void isp_ltm_config_hists(uint32_t idx,
 	ISP_REG_WR(idx, base + ISP_LTM_THRES, val);
 
 	val = hists->addr;
-	ISP_REG_WR(idx, base + ISP_LTM_ADDR, val);/* slice */
+	ISP_REG_WR(idx, base + ISP_LTM_ADDR, val);
 
 	val = ((hists->wr_num & 0x1FF) << 16) |
 		(hists->pitch & 0xFFFF);
-	ISP_REG_WR(idx, base + ISP_LTM_PITCH, val);/* slice */
+	ISP_REG_WR(idx, base + ISP_LTM_PITCH, val);
 
 	if (hists->buf_sel == ISP_LTM_HIST_BUF0)
 		buf_addr = buf_addr_0;
@@ -137,7 +137,7 @@ static void isp_ltm_config_map(uint32_t idx,
 		((map->tile_x_num & 0x7) << 24) |
 		((map->tile_height & 0x3FF) << 12) |
 		(map->tile_width & 0x3FF);
-	ISP_REG_WR(idx, base + ISP_LTM_MAP_PARAM1, val);/* slice */
+	ISP_REG_WR(idx, base + ISP_LTM_MAP_PARAM1, val);
 
 	val = map->tile_size_pro & 0xFFFFF;
 	ISP_REG_WR(idx, base + ISP_LTM_MAP_PARAM2, val);
@@ -146,10 +146,10 @@ static void isp_ltm_config_map(uint32_t idx,
 		((map->tile_start_y & 0x7FF) << 12) |
 		((map->tile_left_flag & 0x1) << 11) |
 		(map->tile_start_x & 0x7FF);
-	ISP_REG_WR(idx, base + ISP_LTM_MAP_PARAM3, val);/* slice */
+	ISP_REG_WR(idx, base + ISP_LTM_MAP_PARAM3, val);
 
 	val = map->mem_init_addr;
-	ISP_REG_WR(idx, base + ISP_LTM_MAP_PARAM4, val);/* slice */
+	ISP_REG_WR(idx, base + ISP_LTM_MAP_PARAM4, val);
 
 	val = (map->hist_pitch & 0x7) << 24;
 	ISP_REG_WR(idx, base + ISP_LTM_MAP_PARAM5, val);

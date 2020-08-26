@@ -903,7 +903,7 @@ void dcam_int_dump_int_tracker(uint32_t idx)
 	{
 		uint32_t cnt, j;
 		for (cnt = 0; cnt < (uint32_t)dcam_int_tracker[idx][DCAM_SENSOR_EOF]; cnt += 4) {
-			j = (cnt & (INT_RCD_SIZE - 1));//rolling
+			j = (cnt & (INT_RCD_SIZE - 1));
 			pr_info("DCAM%u j=%d, %03d.%04d, %03d.%04d, %03d.%04d, %03d.%04d, %03d.%04d, %03d.%04d\n",
 			idx, j, (uint32_t)dcam_int_recorder[idx][DCAM_SENSOR_EOF][j] >> 16,
 			(uint32_t)dcam_int_recorder[idx][DCAM_SENSOR_EOF][j] & 0xffff,

@@ -484,8 +484,7 @@ int isp_k_update_3dnr(uint32_t idx,
 		(r1_circle & 0xFFF);
 	ISP_REG_WR(idx, ISP_3DNR_BLEND_CFG23, val);
 
-	val = ((r2_circle & 0xFFF) << 16) |
-		(r3_circle & 0xFFF);
+	val = ((r2_circle & 0xFFF) << 16) | (r3_circle & 0xFFF);
 	ISP_REG_WR(idx, ISP_3DNR_BLEND_CFG24, val);
 
 	pdst->blend.r1_circle = r1_circle;

@@ -140,7 +140,7 @@ int dcam_k_3dnr_me(struct dcam_dev_param *param)
 	int ret = 0;
 	uint32_t idx = 0;
 	struct dcam_pipe_dev *dev = NULL;
-	struct dcam_dev_3dnr_me *p = NULL;/* nr3_me; */
+	struct dcam_dev_3dnr_me *p = NULL;
 	struct dcam_path_desc *path;
 	struct isp_img_rect rect;
 

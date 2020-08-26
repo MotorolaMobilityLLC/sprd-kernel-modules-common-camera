@@ -31,7 +31,7 @@ int dcam_k_bpc_block(struct dcam_dev_param *param)
 	uint32_t idx = param->idx;
 	int i = 0;
 	uint32_t val = 0;
-	struct dcam_dev_bpc_info_l3 *p;/* bpc_info; */
+	struct dcam_dev_bpc_info_l3 *p;
 
 	p = &(param->bpc.bpc_param.bpc_info_l3);
 	/* debugfs bpc not bypass then write*/

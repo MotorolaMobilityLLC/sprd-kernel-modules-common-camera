@@ -74,7 +74,7 @@ int dcam_k_aem_win(struct dcam_dev_param *param)
 	int ret = 0;
 	uint32_t idx = 0;
 	uint32_t val = 0;
-	struct dcam_dev_aem_win *p = NULL;/* win_info; */
+	struct dcam_dev_aem_win *p = NULL;
 
 	if (param == NULL)
 		return -1;
@@ -131,7 +131,7 @@ int dcam_k_aem_rgb_thr(struct dcam_dev_param *param)
 	int ret = 0;
 	uint32_t idx = 0;
 	uint32_t val = 0;
-	struct dcam_dev_aem_thr *p = NULL;/* aem_info; */
+	struct dcam_dev_aem_thr *p = NULL;
 
 	if (param == NULL)
 		return -1;
