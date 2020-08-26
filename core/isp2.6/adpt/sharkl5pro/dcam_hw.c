@@ -20,14 +20,14 @@
 #define IMG_TYPE_YUV                   0x1E
 
 extern atomic_t s_dcam_working;
-static uint32_t dcam_linebuf_len[3] = {0, 0, 0};
+static uint32_t dcam_hw_linebuf_len[3] = {0, 0, 0};
 extern void sprd_kproperty_get(const char *key, char *value,
 	const char *default_value);
 static uint32_t g_gtm_en = 0;
 static uint32_t g_ltm_bypass = 1;
 static atomic_t clk_users;
 
-static int sharkl5pro_dcam_clk_eb(void *handle, void *arg)
+static int dcamhw_clk_eb(void *handle, void *arg)
 {
 	int ret = 0;
 	struct cam_hw_info *hw = NULL;
@@ -87,7 +87,7 @@ static int sharkl5pro_dcam_clk_eb(void *handle, void *arg)
 	return ret;
 }
 
-static int sharkl5pro_dcam_clk_dis(void *handle, void *arg)
+static int dcamhw_clk_dis(void *handle, void *arg)
 {
 	int ret = 0;
 	struct cam_hw_info *hw = NULL;
@@ -117,7 +117,7 @@ static int sharkl5pro_dcam_clk_dis(void *handle, void *arg)
 	return ret;
 }
 
-static int sharkl5pro_dcam_axi_init(void *handle, void *arg)
+static int dcamhw_axi_init(void *handle, void *arg)
 {
 	uint32_t time_out = 0;
 	uint32_t idx = 0;
@@ -164,7 +164,7 @@ static int sharkl5pro_dcam_axi_init(void *handle, void *arg)
 	return 0;
 }
 
-static int sharkl5pro_dcam_qos_set(void *handle, void *arg)
+static int dcamhw_qos_set(void *handle, void *arg)
 {
 	uint32_t reg_val = 0;
 	struct cam_hw_info *hw = NULL;
@@ -184,7 +184,7 @@ static int sharkl5pro_dcam_qos_set(void *handle, void *arg)
 	return 0;
 }
 
-static int sharkl5pro_dcam_start(void *handle, void *arg)
+static int dcamhw_start(void *handle, void *arg)
 {
 	int ret = 0;
 	struct dcam_hw_start *parm = NULL;
@@ -217,7 +217,7 @@ static int sharkl5pro_dcam_start(void *handle, void *arg)
 	return ret;
 }
 
-static int sharkl5pro_dcam_stop(void *handle, void *arg)
+static int dcamhw_stop(void *handle, void *arg)
 {
 	int ret = 0;
 	int time_out = DCAMX_STOP_TIMEOUT;
@@ -253,7 +253,7 @@ static int sharkl5pro_dcam_stop(void *handle, void *arg)
 	return ret;
 }
 
-static int sharkl5pro_dcam_cap_disable(void *handle, void *arg)
+static int dcamhw_cap_disable(void *handle, void *arg)
 {
 	int ret = 0;
 	uint32_t idx = 0;
@@ -270,7 +270,7 @@ static int sharkl5pro_dcam_cap_disable(void *handle, void *arg)
 	return ret;
 }
 
-static int sharkl5pro_dcam_auto_copy(void *handle, void *arg)
+static int dcamhw_auto_copy(void *handle, void *arg)
 {
 	struct dcam_hw_auto_copy *copyarg = NULL;
 	const uint32_t bitmap[] = {
@@ -309,7 +309,7 @@ static int sharkl5pro_dcam_auto_copy(void *handle, void *arg)
 	return 0;
 }
 
-static int sharkl5pro_dcam_force_copy(void *handle, void *arg)
+static int dcamhw_force_copy(void *handle, void *arg)
 {
 	struct dcam_hw_force_copy *forcpy = NULL;
 	const uint32_t bitmap[] = {
@@ -346,7 +346,7 @@ static int sharkl5pro_dcam_force_copy(void *handle, void *arg)
 	return 0;
 }
 
-static int sharkl5pro_dcam_reset(void *handle, void *arg)
+static int dcamhw_reset(void *handle, void *arg)
 {
 	int ret = 0;
 	enum dcam_id idx = 0;
@@ -433,13 +433,13 @@ static int sharkl5pro_dcam_reset(void *handle, void *arg)
 	DCAM_REG_WR(idx, NR3_FAST_ME_PARAM, 0x109);
 	DCAM_REG_MWR(idx, DCAM_GTM_GLB_CTRL, BIT_0, 0);
 	DCAM_REG_MWR(idx, DCAM_FBC_CTRL, BIT_0, 0);
-	dcam_linebuf_len[idx] = 0;
+	dcam_hw_linebuf_len[idx] = 0;
 	pr_info("DCAM%d: reset end\n", idx);
 
 	return ret;
 }
 
-static int sharkl5pro_dcam_fetch_set(void *handle, void *arg)
+static int dcamhw_fetch_set(void *handle, void *arg)
 {
 	int ret = 0;
 	uint32_t fetch_pitch;
@@ -491,7 +491,7 @@ static int sharkl5pro_dcam_fetch_set(void *handle, void *arg)
 	return ret;
 }
 
-static int sharkl5pro_dcam_mipi_cap_set(void *handle, void *arg)
+static int dcamhw_mipi_cap_set(void *handle, void *arg)
 {
 	int ret = 0;
 	uint32_t idx = 0;
@@ -600,7 +600,7 @@ static int sharkl5pro_dcam_mipi_cap_set(void *handle, void *arg)
 	return ret;
 }
 
-static int sharkl5pro_dcam_path_start(void *handle, void *arg)
+static int dcamhw_path_start(void *handle, void *arg)
 {
 	int ret = 0;
 	struct isp_img_rect rect; /* for 3dnr */
@@ -705,7 +705,7 @@ static int sharkl5pro_dcam_path_start(void *handle, void *arg)
 	return ret;
 }
 
-static int sharkl5pro_dcam_path_stop(void *handle, void *arg)
+static int dcamhw_path_stop(void *handle, void *arg)
 {
 	int ret = 0;
 	uint32_t idx;
@@ -753,7 +753,7 @@ static int sharkl5pro_dcam_path_stop(void *handle, void *arg)
 	return ret;
 }
 
-static int sharkl5pro_dcam_path_ctrl(void *handle, void *arg)
+static int dcamhw_path_ctrl(void *handle, void *arg)
 {
 	struct dcam_hw_path_ctrl *pathctl = NULL;
 
@@ -782,14 +782,14 @@ static int sharkl5pro_dcam_path_ctrl(void *handle, void *arg)
 	return 0;
 }
 
-static int sharkl5pro_dcam_fetch_start(void *handle, void *arg)
+static int dcamhw_fetch_start(void *handle, void *arg)
 {
 	DCAM_AXIM_WR(IMG_FETCH_START, 1);
 
 	return 0;
 }
 
-static int sharkl5pro_dcam_calc_rds_phase_info(void *handle, void *arg)
+static int dcamhw_calc_rds_phase_info(void *handle, void *arg)
 {
 	int32_t rtn = 0;
 	uint16_t adj_hor = 1, adj_ver = 1;
@@ -849,7 +849,7 @@ static int sharkl5pro_dcam_calc_rds_phase_info(void *handle, void *arg)
 	return rtn;
 }
 
-static int sharkl5pro_dcam_path_size_update(void *handle, void *arg)
+static int dcamhw_path_size_update(void *handle, void *arg)
 {
 	int ret = 0;
 	uint32_t idx;
@@ -961,7 +961,7 @@ static int sharkl5pro_dcam_path_size_update(void *handle, void *arg)
 	return ret;
 }
 
-static int sharkl5pro_dcam_full_path_src_sel(void *handle, void *arg)
+static int dcamhw_full_path_src_sel(void *handle, void *arg)
 {
 	int ret = 0;
 	struct dcam_hw_path_src_sel *patharg = NULL;
@@ -989,7 +989,7 @@ static int sharkl5pro_dcam_full_path_src_sel(void *handle, void *arg)
 	return ret;
 }
 
-static int sharkl5pro_dcam_lbuf_share_set(void *handle, void *arg)
+static int dcamhw_lbuf_share_set(void *handle, void *arg)
 {
 	int i = 0;
 	int ret = 0;
@@ -1006,25 +1006,25 @@ static int sharkl5pro_dcam_lbuf_share_set(void *handle, void *arg)
 
 	sprd_kproperty_get("lwfq/type", chip_type, "-1");
 	/*0: T618 1:T610*/
-	dcam_linebuf_len[camarg->idx]= camarg->width;
-	pr_debug("dcam_linebuf_len[0] = %d, [1] = %d %s\n",
-		dcam_linebuf_len[0], dcam_linebuf_len[1], chip_type);
+	dcam_hw_linebuf_len[camarg->idx]= camarg->width;
+	pr_debug("dcam_hw_linebuf_len[0] = %d, [1] = %d %s\n",
+		dcam_hw_linebuf_len[0], dcam_hw_linebuf_len[1], chip_type);
 	if (!strncmp(chip_type, "1", strlen("1"))) {
-		if (dcam_linebuf_len[0] > DCAM_16M_WIDTH && dcam_linebuf_len[1] > 0) {
+		if (dcam_hw_linebuf_len[0] > DCAM_16M_WIDTH && dcam_hw_linebuf_len[1] > 0) {
 				pr_err("fail to check param,unsupprot img width\n");
 				return -EINVAL;
-		}else if (dcam_linebuf_len[0] <= DCAM_16M_WIDTH && dcam_linebuf_len[0] > DCAM_13M_WIDTH) {
-			if (dcam_linebuf_len[1] > DCAM_8M_WIDTH) {
-				pr_err("fail to check param,unsupprot img width\n");
-				return -EINVAL;
-			}
-		} else if (dcam_linebuf_len[0] <= DCAM_13M_WIDTH && dcam_linebuf_len[0] > DCAM_8M_WIDTH) {
-			if (dcam_linebuf_len[1] > DCAM_13M_WIDTH) {
+		}else if (dcam_hw_linebuf_len[0] <= DCAM_16M_WIDTH && dcam_hw_linebuf_len[0] > DCAM_13M_WIDTH) {
+			if (dcam_hw_linebuf_len[1] > DCAM_8M_WIDTH) {
 				pr_err("fail to check param,unsupprot img width\n");
 				return -EINVAL;
 			}
-		} else if (0 < dcam_linebuf_len[0] && dcam_linebuf_len[0] <= DCAM_8M_WIDTH){
-			if (dcam_linebuf_len[1] > DCAM_16M_WIDTH) {
+		} else if (dcam_hw_linebuf_len[0] <= DCAM_13M_WIDTH && dcam_hw_linebuf_len[0] > DCAM_8M_WIDTH) {
+			if (dcam_hw_linebuf_len[1] > DCAM_13M_WIDTH) {
+				pr_err("fail to check param,unsupprot img width\n");
+				return -EINVAL;
+			}
+		} else if (0 < dcam_hw_linebuf_len[0] && dcam_hw_linebuf_len[0] <= DCAM_8M_WIDTH){
+			if (dcam_hw_linebuf_len[1] > DCAM_16M_WIDTH) {
 				pr_err("fail to check param,unsupprot img width\n");
 				return -EINVAL;
 			}
@@ -1070,7 +1070,7 @@ static int sharkl5pro_dcam_lbuf_share_set(void *handle, void *arg)
 	return ret;
 }
 
-static int sharkl5pro_dcam_lbuf_share_get(void *handle, void *arg)
+static int dcamhw_lbuf_share_get(void *handle, void *arg)
 {
 	int i = 0;
 	int ret = 0;
@@ -1103,7 +1103,7 @@ exit:
 	return ret;
 }
 
-static int sharkl5pro_dcam_slice_fetch_set(void *handle, void *arg)
+static int dcamhw_slice_fetch_set(void *handle, void *arg)
 {
 	int ret = 0;
 	uint32_t idx, reg_val, offset;
@@ -1162,7 +1162,7 @@ static int sharkl5pro_dcam_slice_fetch_set(void *handle, void *arg)
 	return ret;
 }
 
-static int sharkl5pro_dcam_ebd_set(void *handle, void *arg)
+static int dcamhw_ebd_set(void *handle, void *arg)
 {
 	struct dcam_hw_ebd_set *ebd = NULL;
 
@@ -1182,7 +1182,7 @@ static int sharkl5pro_dcam_ebd_set(void *handle, void *arg)
 	return 0;
 }
 
-static int sharkl5pro_dcam_binning_4in1_set(void *handle, void *arg)
+static int dcamhw_binning_4in1_set(void *handle, void *arg)
 {
 	struct dcam_hw_binning_4in1 *binning = NULL;
 
@@ -1205,7 +1205,7 @@ static int sharkl5pro_dcam_binning_4in1_set(void *handle, void *arg)
 	return 0;
 }
 
-static int sharkl5pro_dcam_sram_ctrl_set(void *handle, void *arg)
+static int dcamhw_sram_ctrl_set(void *handle, void *arg)
 {
 	struct dcam_hw_sram_ctrl *sramarg = NULL;
 
@@ -1224,7 +1224,7 @@ static int sharkl5pro_dcam_sram_ctrl_set(void *handle, void *arg)
 	return 0;
 }
 
-static int sharkl5pro_dcam_fbc_ctrl(void *handle, void *arg)
+static int dcamhw_fbc_ctrl(void *handle, void *arg)
 {
 	struct dcam_hw_fbc_ctrl *fbc_arg = NULL;
 
@@ -1235,7 +1235,7 @@ static int sharkl5pro_dcam_fbc_ctrl(void *handle, void *arg)
 	return 0;
 }
 
-static int sharkl5pro_dcam_fbc_addr_set(void *handle, void *arg)
+static int dcamhw_fbc_addr_set(void *handle, void *arg)
 {
 	struct dcam_hw_fbc_addr *fbcadr = NULL;
 
@@ -1253,7 +1253,7 @@ static int sharkl5pro_dcam_fbc_addr_set(void *handle, void *arg)
 	return 0;
 }
 
-static int sharkl5pro_dcam_gtm_status_get(void *handle, void *arg)
+static int dcamhw_gtm_status_get(void *handle, void *arg)
 {
 	int val = 0;
 	uint32_t idx;
@@ -1268,7 +1268,7 @@ static int sharkl5pro_dcam_gtm_status_get(void *handle, void *arg)
 	return val;
 }
 
-static int sharkl5pro_cam_gtm_ltm_eb(void *handle, void *arg)
+static int cam_gtm_ltm_eb(void *handle, void *arg)
 {
 	struct cam_hw_gtm_ltm_eb *eb = NULL;
 
@@ -1290,7 +1290,7 @@ static int sharkl5pro_cam_gtm_ltm_eb(void *handle, void *arg)
 	return 0;
 }
 
-static int sharkl5pro_cam_gtm_ltm_dis(void *handle, void *arg)
+static int cam_gtm_ltm_dis(void *handle, void *arg)
 {
 	struct cam_hw_gtm_ltm_dis *dis =NULL;
 
@@ -1315,7 +1315,7 @@ static int sharkl5pro_cam_gtm_ltm_dis(void *handle, void *arg)
 	return 0;
 }
 
-static int sharkl5pro_cam_gtm_update(void *handle, void *arg)
+static int cam_gtm_update(void *handle, void *arg)
 {
 	int ret = 0;
 	struct cam_hw_gtm_update *gtmarg = NULL;
@@ -1336,7 +1336,7 @@ static int sharkl5pro_cam_gtm_update(void *handle, void *arg)
 	return ret;
 }
 
-static struct dcam_cfg_entry dcam_cfg_func_tab[DCAM_BLOCK_TOTAL] = {
+static struct dcam_cfg_entry dcam_hw_cfg_func_tab[DCAM_BLOCK_TOTAL] = {
 [DCAM_BLOCK_BLC - DCAM_BLOCK_BASE]         = {DCAM_BLOCK_BLC,         dcam_k_cfg_blc},
 [DCAM_BLOCK_AEM - DCAM_BLOCK_BASE]         = {DCAM_BLOCK_AEM,         dcam_k_cfg_aem},
 [DCAM_BLOCK_AWBC - DCAM_BLOCK_BASE]        = {DCAM_BLOCK_AWBC,        dcam_k_cfg_awbc},
@@ -1353,7 +1353,7 @@ static struct dcam_cfg_entry dcam_cfg_func_tab[DCAM_BLOCK_TOTAL] = {
 [DCAM_BLOCK_LSCM - DCAM_BLOCK_BASE]        = {DCAM_BLOCK_LSCM,        dcam_k_cfg_lscm},
 };
 
-static int sharkl5pro_dcam_block_func_get(void *handle, void *arg)
+static int dcamhw_block_func_get(void *handle, void *arg)
 {
 	void *block_func = NULL;
 	struct dcam_hw_block_func_get *fucarg = NULL;
@@ -1361,7 +1361,7 @@ static int sharkl5pro_dcam_block_func_get(void *handle, void *arg)
 	fucarg = (struct dcam_hw_block_func_get *)arg;
 
 	if (fucarg->index < DCAM_BLOCK_TOTAL) {
-		block_func = (struct dcam_cfg_entry*)&dcam_cfg_func_tab[fucarg->index];
+		block_func = (struct dcam_cfg_entry*)&dcam_hw_cfg_func_tab[fucarg->index];
 		fucarg->dcam_entry= block_func;
 	}
 
@@ -1371,7 +1371,7 @@ static int sharkl5pro_dcam_block_func_get(void *handle, void *arg)
 	return 0;
 }
 
-static int sharkl5pro_dcam_blocks_setall(void *handle, void *arg)
+static int dcamhw_blocks_setall(void *handle, void *arg)
 {
 	uint32_t idx;
 	struct dcam_dev_param *p;
@@ -1394,7 +1394,7 @@ static int sharkl5pro_dcam_blocks_setall(void *handle, void *arg)
 	return 0;
 }
 
-static int sharkl5pro_dcam_blocks_setstatis(void *handle, void *arg)
+static int dcamhw_blocks_setstatis(void *handle, void *arg)
 {
 	uint32_t idx;
 	struct dcam_dev_param *p;
@@ -1437,7 +1437,7 @@ static int sharkl5pro_dcam_blocks_setstatis(void *handle, void *arg)
 	return 0;
 }
 
-static int sharkl5pro_dcam_cfg_mipicap(void *handle, void *arg)
+static int dcamhw_cfg_mipicap(void *handle, void *arg)
 {
 	struct dcam_hw_cfg_mipicap *mipiarg = NULL;
 
@@ -1454,14 +1454,14 @@ static int sharkl5pro_dcam_cfg_mipicap(void *handle, void *arg)
 	return 0;
 }
 
-static int sharkl5pro_dcam_start_fetch(void *handle, void *arg)
+static int dcamhw_start_fetch(void *handle, void *arg)
 {
 	DCAM_AXIM_WR(IMG_FETCH_START, 1);
 
 	return 0;
 }
 
-static int sharkl5pro_dcam_bin_mipi_cfg(void *handle, void *arg)
+static int dcamhw_bin_mipi_cfg(void *handle, void *arg)
 {
 	uint32_t reg_val = 0;
 	struct dcam_hw_start_fetch *parm = NULL;
@@ -1478,7 +1478,7 @@ static int sharkl5pro_dcam_bin_mipi_cfg(void *handle, void *arg)
 	return 0;
 }
 
-static int sharkl5pro_dcam_cfg_bin_path(void *handle, void *arg)
+static int dcamhw_cfg_bin_path(void *handle, void *arg)
 {
 	struct dcam_hw_cfg_bin_path*parm = NULL;
 
@@ -1492,57 +1492,57 @@ static int sharkl5pro_dcam_cfg_bin_path(void *handle, void *arg)
 	return 0;
 }
 
-static struct hw_io_ctrl_fun sharkl5pro_dcam_ioctl_fun_tab[] = {
-	{DCAM_HW_CFG_ENABLE_CLK,            sharkl5pro_dcam_clk_eb},
-	{DCAM_HW_CFG_DISABLE_CLK,           sharkl5pro_dcam_clk_dis},
-	{DCAM_HW_CFG_INIT_AXI,              sharkl5pro_dcam_axi_init},
-	{DCAM_HW_CFG_SET_QOS,               sharkl5pro_dcam_qos_set},
-	{DCAM_HW_CFG_RESET,                 sharkl5pro_dcam_reset},
-	{DCAM_HW_CFG_START,                 sharkl5pro_dcam_start},
-	{DCAM_HW_CFG_STOP,                  sharkl5pro_dcam_stop},
-	{DCAM_HW_CFG_STOP_CAP_EB,           sharkl5pro_dcam_cap_disable},
-	{DCAM_HW_CFG_FETCH_START,           sharkl5pro_dcam_fetch_start},
-	{DCAM_HW_CFG_AUTO_COPY,             sharkl5pro_dcam_auto_copy},
-	{DCAM_HW_CFG_FORCE_COPY,            sharkl5pro_dcam_force_copy},
-	{DCAM_HW_CFG_PATH_START,            sharkl5pro_dcam_path_start},
-	{DCAM_HW_CFG_PATH_STOP,             sharkl5pro_dcam_path_stop},
-	{DCAM_HW_CFG_PATH_CTRL,             sharkl5pro_dcam_path_ctrl},
-	{DCAM_HW_CFG_PATH_SRC_SEL,          sharkl5pro_dcam_full_path_src_sel},
-	{DCAM_HW_CFG_PATH_SIZE_UPDATE,      sharkl5pro_dcam_path_size_update},
-	{DCAM_HW_CFG_CALC_RDS_PHASE_INFO,   sharkl5pro_dcam_calc_rds_phase_info},
-	{DCAM_HW_CFG_MIPI_CAP_SET,          sharkl5pro_dcam_mipi_cap_set},
-	{DCAM_HW_CFG_FETCH_SET,             sharkl5pro_dcam_fetch_set},
-	{DCAM_HW_CFG_EBD_SET,               sharkl5pro_dcam_ebd_set},
-	{DCAM_HW_CFG_BINNING_4IN1_SET,      sharkl5pro_dcam_binning_4in1_set},
-	{DCAM_HW_CFG_SRAM_CTRL_SET,         sharkl5pro_dcam_sram_ctrl_set},
-	{DCAM_HW_CFG_LBUF_SHARE_SET,        sharkl5pro_dcam_lbuf_share_set},
-	{DCAM_HW_CFG_LBUF_SHARE_GET,        sharkl5pro_dcam_lbuf_share_get},
-	{DCAM_HW_CFG_SLICE_FETCH_SET,       sharkl5pro_dcam_slice_fetch_set},
-	{DCAM_HW_CFG_FBC_CTRL,              sharkl5pro_dcam_fbc_ctrl},
-	{DCAM_HW_CFG_FBC_ADDR_SET,          sharkl5pro_dcam_fbc_addr_set},
-	{DCAM_HW_CFG_GTM_STATUS_GET,        sharkl5pro_dcam_gtm_status_get},
-	{DCAM_HW_CFG_GTM_LTM_EB,            sharkl5pro_cam_gtm_ltm_eb},
-	{DCAM_HW_CFG_GTM_LTM_DIS,           sharkl5pro_cam_gtm_ltm_dis},
-	{DCAM_HW_CFG_GTM_UPDATE,            sharkl5pro_cam_gtm_update},
-	{DCAM_HW_CFG_BLOCK_FUNC_GET,        sharkl5pro_dcam_block_func_get},
-	{DCAM_HW_CFG_BLOCKS_SETALL,        sharkl5pro_dcam_blocks_setall},
-	{DCAM_HW_CFG_BLOCKS_SETSTATIS,        sharkl5pro_dcam_blocks_setstatis},
-	{DCAM_HW_CFG_MIPICAP,               sharkl5pro_dcam_cfg_mipicap},
-	{DCAM_HW_CFG_START_FETCH,           sharkl5pro_dcam_start_fetch},
-	{DCAM_HW_CFG_BIN_MIPI,              sharkl5pro_dcam_bin_mipi_cfg},
-	{DCAM_HW_CFG_BIN_PATH,              sharkl5pro_dcam_cfg_bin_path},
+static struct hw_io_ctrl_fun dcam_ioctl_fun_tab[] = {
+	{DCAM_HW_CFG_ENABLE_CLK,            dcamhw_clk_eb},
+	{DCAM_HW_CFG_DISABLE_CLK,           dcamhw_clk_dis},
+	{DCAM_HW_CFG_INIT_AXI,              dcamhw_axi_init},
+	{DCAM_HW_CFG_SET_QOS,               dcamhw_qos_set},
+	{DCAM_HW_CFG_RESET,                 dcamhw_reset},
+	{DCAM_HW_CFG_START,                 dcamhw_start},
+	{DCAM_HW_CFG_STOP,                  dcamhw_stop},
+	{DCAM_HW_CFG_STOP_CAP_EB,           dcamhw_cap_disable},
+	{DCAM_HW_CFG_FETCH_START,           dcamhw_fetch_start},
+	{DCAM_HW_CFG_AUTO_COPY,             dcamhw_auto_copy},
+	{DCAM_HW_CFG_FORCE_COPY,            dcamhw_force_copy},
+	{DCAM_HW_CFG_PATH_START,            dcamhw_path_start},
+	{DCAM_HW_CFG_PATH_STOP,             dcamhw_path_stop},
+	{DCAM_HW_CFG_PATH_CTRL,             dcamhw_path_ctrl},
+	{DCAM_HW_CFG_PATH_SRC_SEL,          dcamhw_full_path_src_sel},
+	{DCAM_HW_CFG_PATH_SIZE_UPDATE,      dcamhw_path_size_update},
+	{DCAM_HW_CFG_CALC_RDS_PHASE_INFO,   dcamhw_calc_rds_phase_info},
+	{DCAM_HW_CFG_MIPI_CAP_SET,          dcamhw_mipi_cap_set},
+	{DCAM_HW_CFG_FETCH_SET,             dcamhw_fetch_set},
+	{DCAM_HW_CFG_EBD_SET,               dcamhw_ebd_set},
+	{DCAM_HW_CFG_BINNING_4IN1_SET,      dcamhw_binning_4in1_set},
+	{DCAM_HW_CFG_SRAM_CTRL_SET,         dcamhw_sram_ctrl_set},
+	{DCAM_HW_CFG_LBUF_SHARE_SET,        dcamhw_lbuf_share_set},
+	{DCAM_HW_CFG_LBUF_SHARE_GET,        dcamhw_lbuf_share_get},
+	{DCAM_HW_CFG_SLICE_FETCH_SET,       dcamhw_slice_fetch_set},
+	{DCAM_HW_CFG_FBC_CTRL,              dcamhw_fbc_ctrl},
+	{DCAM_HW_CFG_FBC_ADDR_SET,          dcamhw_fbc_addr_set},
+	{DCAM_HW_CFG_GTM_STATUS_GET,        dcamhw_gtm_status_get},
+	{DCAM_HW_CFG_GTM_LTM_EB,            cam_gtm_ltm_eb},
+	{DCAM_HW_CFG_GTM_LTM_DIS,           cam_gtm_ltm_dis},
+	{DCAM_HW_CFG_GTM_UPDATE,            cam_gtm_update},
+	{DCAM_HW_CFG_BLOCK_FUNC_GET,        dcamhw_block_func_get},
+	{DCAM_HW_CFG_BLOCKS_SETALL,        dcamhw_blocks_setall},
+	{DCAM_HW_CFG_BLOCKS_SETSTATIS,        dcamhw_blocks_setstatis},
+	{DCAM_HW_CFG_MIPICAP,               dcamhw_cfg_mipicap},
+	{DCAM_HW_CFG_START_FETCH,           dcamhw_start_fetch},
+	{DCAM_HW_CFG_BIN_MIPI,              dcamhw_bin_mipi_cfg},
+	{DCAM_HW_CFG_BIN_PATH,              dcamhw_cfg_bin_path},
 };
 
-static hw_ioctl_fun sharkl5pro_dcam_ioctl_get_fun(enum dcam_hw_cfg_cmd cmd)
+static hw_ioctl_fun dcamhw_ioctl_get_fun(enum dcam_hw_cfg_cmd cmd)
 {
 	hw_ioctl_fun hw_ctrl = NULL;
 	uint32_t total_num = 0;
 	uint32_t i = 0;
 
-	total_num = sizeof(sharkl5pro_dcam_ioctl_fun_tab) / sizeof(struct hw_io_ctrl_fun);
+	total_num = sizeof(dcam_ioctl_fun_tab) / sizeof(struct hw_io_ctrl_fun);
 	for (i = 0; i < total_num; i++) {
-		if (cmd == sharkl5pro_dcam_ioctl_fun_tab[i].cmd) {
-			hw_ctrl = sharkl5pro_dcam_ioctl_fun_tab[i].hw_ctrl;
+		if (cmd == dcam_ioctl_fun_tab[i].cmd) {
+			hw_ctrl = dcam_ioctl_fun_tab[i].hw_ctrl;
 			break;
 		}
 	}

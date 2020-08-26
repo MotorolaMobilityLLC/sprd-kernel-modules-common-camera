@@ -57,7 +57,7 @@ int dcam_hw_init(void *arg)
 	ret = sprd_cam_domain_eb();
 	/* prepare clk */
 	hw->dcam_ioctl(hw, DCAM_HW_CFG_ENABLE_CLK, NULL);
-	ret = dcam_irq_request(&hw->pdev->dev,
+	ret = dcam_int_irq_request(&hw->pdev->dev,
 		hw->ip_dcam[dev->idx]->irq_no, arg);
 
 	return ret;
@@ -82,7 +82,7 @@ int dcam_hw_deinit(void *arg)
 	dev = (struct dcam_pipe_dev *)arg;
 	hw = dev->hw;
 
-	dcam_irq_free(&hw->pdev->dev, arg);
+	dcam_int_irq_free(&hw->pdev->dev, arg);
 	/* unprepare clk and other resource */
 	hw->dcam_ioctl(hw, DCAM_HW_CFG_DISABLE_CLK, NULL);
 	ret = sprd_cam_domain_disable();

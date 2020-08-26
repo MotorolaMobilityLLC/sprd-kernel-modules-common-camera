@@ -2342,7 +2342,7 @@ static int sprd_dcam_dev_start(void *dcam_handle, int online)
 	/* TODO: change AFL trigger */
 	atomic_set(&dev->path[DCAM_PATH_AFL].user_cnt, 0);
 
-	dcam_reset_int_tracker(dev->idx);
+	dcam_int_reset_int_tracker(dev->idx);
 	parm.idx = dev->idx;
 	parm.format = dev->cap_info.format;
 	hw->dcam_ioctl(hw, DCAM_HW_CFG_START, &parm);
@@ -2403,8 +2403,8 @@ static int sprd_dcam_dev_stop(void *dcam_handle, enum dcam_stop_cmd pause)
 				dev->idx, i, dev->frame_ts_boot[i]);
 	}
 
-	dcam_dump_int_tracker(dev->idx);
-	dcam_reset_int_tracker(dev->idx);
+	dcam_int_dump_int_tracker(dev->idx);
+	dcam_int_reset_int_tracker(dev->idx);
 
 	if (dev->idx < DCAM_ID_2)
 		atomic_dec(&s_dcam_working);

@@ -100,13 +100,13 @@ enum isp_irq_id {
 	(1 << ISP_INT_FMCU_STORE_DONE) | \
 	(1 << ISP_INT_HIST_CAL_DONE))
 
-int reset_isp_irq_cnt(int ctx_id);
-int trace_isp_irq_cnt(int ctx_id);
+int isp_int_reset_isp_irq_cnt(int ctx_id);
+int isp_int_trace_isp_irq_cnt(int ctx_id);
 
-int reset_isp_irq_sw_cnt(int ctx_id);
-int trace_isp_irq_sw_cnt(int ctx_id);
+int isp_int_reset_isp_irq_sw_cnt(int ctx_id);
+int isp_int_trace_isp_irq_sw_cnt(int ctx_id);
 
-int isp_irq_request(struct device *p_dev,
+int isp_int_irq_request(struct device *p_dev,
 	uint32_t *irq_no, void *isp_handle);
-int isp_irq_free(struct device *p_dev, void *isp_handle);
+int isp_int_irq_free(struct device *p_dev, void *isp_handle);
 #endif

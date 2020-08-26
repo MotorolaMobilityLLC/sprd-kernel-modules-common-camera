@@ -69,7 +69,7 @@ static char *isp_dev_name[] = {"isp0",
 				"isp1"
 				};
 
-static inline void record_isp_int(
+static inline void ispint_record_isp_int(
 	enum isp_context_id sw_cid,
 	enum isp_context_hw_id c_id, uint32_t irq_line)
 {
@@ -106,7 +106,7 @@ static inline void record_isp_int(
 #endif
 }
 
-static int isp_err_pre_proc(enum isp_context_hw_id hw_idx, void *isp_handle)
+static int ispint_err_pre_proc(enum isp_context_hw_id hw_idx, void *isp_handle)
 {
 	struct isp_pipe_dev *dev = NULL;
 	struct isp_pipe_context *pctx;
@@ -125,7 +125,7 @@ static int isp_err_pre_proc(enum isp_context_hw_id hw_idx, void *isp_handle)
 	return 0;
 }
 
-static void isp_all_done(enum isp_context_hw_id hw_idx, void *isp_handle)
+static void ispint_all_done(enum isp_context_hw_id hw_idx, void *isp_handle)
 {
 	struct isp_pipe_dev *dev = NULL;
 	struct isp_pipe_context *pctx;
@@ -160,32 +160,32 @@ static void isp_all_done(enum isp_context_hw_id hw_idx, void *isp_handle)
 	pctx->postproc_func(dev, idx, POSTPROC_FRAME_DONE);
 }
 
-static void isp_shadow_done(enum isp_context_hw_id idx, void *isp_handle)
+static void ispint_shadow_done(enum isp_context_hw_id idx, void *isp_handle)
 {
 	pr_debug("cxt_id:%d shadow done.\n", idx);
 }
 
-static void isp_dispatch_done(enum isp_context_hw_id idx, void *isp_handle)
+static void ispint_dispatch_done(enum isp_context_hw_id idx, void *isp_handle)
 {
 	pr_debug("cxt_id:%d done.\n", idx);
 }
 
-static void isp_pre_store_done(enum isp_context_hw_id idx, void *isp_handle)
+static void ispint_pre_store_done(enum isp_context_hw_id idx, void *isp_handle)
 {
 	pr_debug("cxt_id:%d done.\n", idx);
 }
 
-static void isp_vid_store_done(enum isp_context_hw_id idx, void *isp_handle)
+static void ispint_vid_store_done(enum isp_context_hw_id idx, void *isp_handle)
 {
 	pr_debug("cxt_id:%d done.\n", idx);
 }
 
-static void isp_thumb_store_done(enum isp_context_hw_id idx, void *isp_handle)
+static void ispint_thumb_store_done(enum isp_context_hw_id idx, void *isp_handle)
 {
 	pr_debug("cxt_id:%d done.\n", idx);
 }
 
-static void isp_fmcu_store_done(enum isp_context_hw_id hw_idx, void *isp_handle)
+static void ispint_fmcu_store_done(enum isp_context_hw_id hw_idx, void *isp_handle)
 {
 	struct isp_pipe_dev *dev = NULL;
 	struct isp_pipe_context *pctx;
@@ -219,7 +219,7 @@ static void isp_fmcu_store_done(enum isp_context_hw_id hw_idx, void *isp_handle)
 	}
 }
 
-static void isp_fmcu_shadow_done(enum isp_context_hw_id hw_idx, void *isp_handle)
+static void ispint_fmcu_shadow_done(enum isp_context_hw_id hw_idx, void *isp_handle)
 {
 	int idx = -1;
 	struct isp_pipe_dev *dev = NULL;
@@ -240,12 +240,12 @@ static void isp_fmcu_shadow_done(enum isp_context_hw_id hw_idx, void *isp_handle
 	pr_debug("cxt_id:%d done.\n", idx);
 }
 
-static void isp_fmcu_load_done(enum isp_context_hw_id idx, void *isp_handle)
+static void ispint_fmcu_load_done(enum isp_context_hw_id idx, void *isp_handle)
 {
 	pr_debug("cxt_id:%d done.\n", idx);
 }
 
-static void isp_3dnr_all_done(enum isp_context_hw_id hw_idx, void *isp_handle)
+static void ispint_3dnr_all_done(enum isp_context_hw_id hw_idx, void *isp_handle)
 {
 	struct isp_pipe_context *pctx;
 	struct isp_pipe_dev *dev;
@@ -264,7 +264,7 @@ static void isp_3dnr_all_done(enum isp_context_hw_id hw_idx, void *isp_handle)
 
 }
 
-static void isp_3dnr_shadow_done(enum isp_context_hw_id hw_idx, void *isp_handle)
+static void ispint_3dnr_shadow_done(enum isp_context_hw_id hw_idx, void *isp_handle)
 {
 	struct isp_pipe_context *pctx;
 	struct isp_pipe_dev *dev;
@@ -283,7 +283,7 @@ static void isp_3dnr_shadow_done(enum isp_context_hw_id hw_idx, void *isp_handle
 
 }
 
-static void isp_yuv_ltm_hists_done(enum isp_context_hw_id hw_idx, void *isp_handle)
+static void ispint_yuv_ltm_hists_done(enum isp_context_hw_id hw_idx, void *isp_handle)
 {
 	struct isp_pipe_context *pctx;
 	struct isp_pipe_dev *dev;
@@ -314,7 +314,7 @@ static void isp_yuv_ltm_hists_done(enum isp_context_hw_id hw_idx, void *isp_hand
 	}
 }
 
-static struct camera_frame *isp_hist2_frame_prepare(enum isp_context_id idx,
+static struct camera_frame *ispint_hist2_frame_prepare(enum isp_context_id idx,
 						void *isp_handle)
 {
 	int i = 0;
@@ -353,7 +353,7 @@ static struct camera_frame *isp_hist2_frame_prepare(enum isp_context_id idx,
 	return frame;
 }
 
-static void isp_dispatch_frame(enum isp_context_id idx,
+static void ispint_dispatch_frame(enum isp_context_id idx,
 				void *isp_handle,
 				struct camera_frame *frame,
 				enum isp_cb_type type)
@@ -399,23 +399,23 @@ static void isp_hist_cal_done(enum isp_context_hw_id hw_idx, void *isp_handle)
 	if (pctx->ch_id != CAM_CH_PRE)
 		return;
 
-	if ((frame = isp_hist2_frame_prepare(idx, isp_handle)))
-		isp_dispatch_frame(idx, isp_handle, frame, ISP_CB_STATIS_DONE);
+	if ((frame = ispint_hist2_frame_prepare(idx, isp_handle)))
+		ispint_dispatch_frame(idx, isp_handle, frame, ISP_CB_STATIS_DONE);
 }
 
 static isp_isr isp_isr_handler[32] = {
-	[ISP_INT_ISP_ALL_DONE] = isp_all_done,
-	[ISP_INT_SHADOW_DONE] = isp_shadow_done,
-	[ISP_INT_DISPATCH_DONE] = isp_dispatch_done,
-	[ISP_INT_STORE_DONE_PRE] = isp_pre_store_done,
-	[ISP_INT_STORE_DONE_VID] = isp_vid_store_done,
-	[ISP_INT_NR3_ALL_DONE] = isp_3dnr_all_done,
-	[ISP_INT_NR3_SHADOW_DONE] = isp_3dnr_shadow_done,
-	[ISP_INT_STORE_DONE_THUMBNAIL] = isp_thumb_store_done,
-	[ISP_INT_YUV_LTMHISTS_DONE] = isp_yuv_ltm_hists_done,
-	[ISP_INT_FMCU_LOAD_DONE] = isp_fmcu_load_done,
-	[ISP_INT_FMCU_SHADOW_DONE] = isp_fmcu_shadow_done,
-	[ISP_INT_FMCU_STORE_DONE] = isp_fmcu_store_done,
+	[ISP_INT_ISP_ALL_DONE] = ispint_all_done,
+	[ISP_INT_SHADOW_DONE] = ispint_shadow_done,
+	[ISP_INT_DISPATCH_DONE] = ispint_dispatch_done,
+	[ISP_INT_STORE_DONE_PRE] = ispint_pre_store_done,
+	[ISP_INT_STORE_DONE_VID] = ispint_vid_store_done,
+	[ISP_INT_NR3_ALL_DONE] = ispint_3dnr_all_done,
+	[ISP_INT_NR3_SHADOW_DONE] = ispint_3dnr_shadow_done,
+	[ISP_INT_STORE_DONE_THUMBNAIL] = ispint_thumb_store_done,
+	[ISP_INT_YUV_LTMHISTS_DONE] = ispint_yuv_ltm_hists_done,
+	[ISP_INT_FMCU_LOAD_DONE] = ispint_fmcu_load_done,
+	[ISP_INT_FMCU_SHADOW_DONE] = ispint_fmcu_shadow_done,
+	[ISP_INT_FMCU_STORE_DONE] = ispint_fmcu_store_done,
 	[ISP_INT_HIST_CAL_DONE] = isp_hist_cal_done,
 };
 
@@ -451,7 +451,7 @@ struct isp_int_ctx {
 		},
 };
 
-static void  isp_dump_iommu_regs(void)
+static void  ispint_dump_iommu_regs(void)
 {
 	uint32_t reg = 0;
 	uint32_t val[4];
@@ -497,7 +497,7 @@ static void  isp_dump_iommu_regs(void)
 		ISP_HREG_RD(ISP_STORE_THUMB_BASE + ISP_STORE_SLICE_V_ADDR));
 }
 
-static irqreturn_t isp_isr_root(int irq, void *priv)
+static irqreturn_t ispint_isr_root(int irq, void *priv)
 {
 	unsigned long irq_offset;
 	uint32_t iid;
@@ -553,7 +553,7 @@ static irqreturn_t isp_isr_root(int irq, void *priv)
 
 		isp_handle->ctx[sw_ctx_id].in_irq_handler = 1;
 
-		record_isp_int(sw_ctx_id, c_id, irq_line);
+		ispint_record_isp_int(sw_ctx_id, c_id, irq_line);
 
 		/*clear the interrupt*/
 		ISP_HREG_WR(irq_offset + ISP_INT_CLR0, irq_line);
@@ -584,12 +584,12 @@ static irqreturn_t isp_isr_root(int irq, void *priv)
 
 				if (val != ctx->iommu_status) {
 					ctx->iommu_status = val;
-					isp_dump_iommu_regs();
+					ispint_dump_iommu_regs();
 				}
 			}
 
 			/*handle the error here*/
-			if (isp_err_pre_proc(c_id, isp_handle)) {
+			if (ispint_err_pre_proc(c_id, isp_handle)) {
 				pr_err("fail to handle the error here c_id %d irq_line 0x%x\n", c_id, irq_line);
 				isp_handle->ctx[sw_ctx_id].in_irq_handler = 0;
 				return IRQ_HANDLED;
@@ -616,7 +616,7 @@ static irqreturn_t isp_isr_root(int irq, void *priv)
 }
 
 
-int isp_irq_request(struct device *p_dev,
+int isp_int_irq_request(struct device *p_dev,
 		uint32_t *irq_no, void *isp_handle)
 {
 	int ret = 0;
@@ -633,7 +633,7 @@ int isp_irq_request(struct device *p_dev,
 	for (id = 0; id < ISP_LOGICAL_COUNT; id++) {
 		ispdev->irq_no[id] = irq_no[id];
 		ret = devm_request_irq(p_dev,
-				ispdev->irq_no[id], isp_isr_root,
+				ispdev->irq_no[id], ispint_isr_root,
 				IRQF_SHARED, isp_dev_name[id], (void *)ispdev);
 		if (ret) {
 			pr_err("fail to install isp%d irq_no %d\n",
@@ -651,7 +651,7 @@ int isp_irq_request(struct device *p_dev,
 	return ret;
 }
 
-int reset_isp_irq_cnt(int ctx_id)
+int isp_int_reset_isp_irq_cnt(int ctx_id)
 {
 	if (ctx_id < ISP_CONTEXT_HW_NUM)
 		memset(irq_done[ctx_id], 0, sizeof(irq_done[ctx_id]));
@@ -665,7 +665,7 @@ int reset_isp_irq_cnt(int ctx_id)
 	return 0;
 }
 
-int trace_isp_irq_cnt(int ctx_id)
+int isp_int_trace_isp_irq_cnt(int ctx_id)
 {
 	int i;
 
@@ -701,14 +701,14 @@ int trace_isp_irq_cnt(int ctx_id)
 	return 0;
 }
 
-int reset_isp_irq_sw_cnt(int ctx_id)
+int isp_int_reset_isp_irq_sw_cnt(int ctx_id)
 {
 	if (ctx_id < ISP_CONTEXT_SW_NUM)
 		memset(irq_done_sw[ctx_id], 0, sizeof(irq_done_sw[ctx_id]));
 
 	return 0;
 }
-int trace_isp_irq_sw_cnt(int ctx_id)
+int isp_int_trace_isp_irq_sw_cnt(int ctx_id)
 {
 	int i;
 
@@ -721,7 +721,7 @@ int trace_isp_irq_sw_cnt(int ctx_id)
 	return 0;
 }
 
-int isp_irq_free(struct device *p_dev, void *isp_handle)
+int isp_int_irq_free(struct device *p_dev, void *isp_handle)
 {
 	struct isp_pipe_dev *ispdev;
 

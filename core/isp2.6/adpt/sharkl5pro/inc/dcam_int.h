@@ -183,10 +183,10 @@ enum {
 	(DCAMINT_ALL_ERROR | DCAMINT_ALL_TX_DONE |\
 	 BIT(DCAM_PREVIEW_SOF))
 
-int dcam_irq_request(struct device *pdev, int irq, void *param);
-void dcam_irq_free(struct device *pdev, void *param);
+int dcam_int_irq_request(struct device *pdev, int irq, void *param);
+void dcam_int_irq_free(struct device *pdev, void *param);
 
-void dcam_reset_int_tracker(uint32_t idx);
-void dcam_dump_int_tracker(uint32_t idx);
+void dcam_int_reset_int_tracker(uint32_t idx);
+void dcam_int_dump_int_tracker(uint32_t idx);
 
 #endif

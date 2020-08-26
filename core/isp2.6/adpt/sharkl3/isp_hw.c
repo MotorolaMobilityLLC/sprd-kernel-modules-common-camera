@@ -53,7 +53,7 @@ static const struct bypass_tag sharkl3_dcam_bypass_tab[] = {
 	[_E_GRGB] = {"grgb", DCAM_GRGB_CTRL,              0}, /* 0x120.b1 */
 };
 
-static const struct bypass_tag sharkl3_isp_bypass_tab[] = {
+static const struct bypass_tag isp_bypass_tab[] = {
 [_EISP_NLM]        = {"nlm",        ISP_NLM_PARA,            0, 1},
 [_EISP_VST]        = {"vst",        ISP_VST_PARA,            0, 1},
 [_EISP_IVST]       = {"ivst",       ISP_IVST_PARA,           0, 1},
@@ -97,7 +97,7 @@ static const struct bypass_tag sharkl3_isp_bypass_tab[] = {
 	{"cfg",       ISP_CFG_PAMATER, 0, 0},
 };
 
-static void set_path_shrink_info(uint32_t idx,
+static void isp_set_path_shrink_info(uint32_t idx,
 		unsigned long scaler_base,
 		struct isp_regular_info *regular_info)
 {
@@ -151,7 +151,7 @@ static void set_path_shrink_info(uint32_t idx,
 		pr_debug("regular_mode %d\n", regular_info->regular_mode);
 }
 
-static int set_path_scaler_coeff(
+static int isp_set_path_scaler_coeff(
 			uint32_t idx, unsigned long  scaler_base,
 			uint32_t *coeff_buf,
 			uint32_t spath_id)
@@ -213,8 +213,8 @@ static int sharkl3_cam_bypass_count_get(void *handle, void *arg)
 			sizeof(sharkl3_dcam_bypass_tab[0]);
 		break;
 	case ISP_BYPASS_TYPE:
-		cnt = sizeof(sharkl3_isp_bypass_tab) /
-			sizeof(sharkl3_isp_bypass_tab[0]);
+		cnt = sizeof(isp_bypass_tab) /
+			sizeof(isp_bypass_tab[0]);
 		break;
 	default:
 		pr_err("fail to support bypass type %d\n", type);
@@ -239,7 +239,7 @@ static int sharkl3_cam_bypass_data_get(void *handle, void *arg)
 		bypass = (struct bypass_tag *)&sharkl3_dcam_bypass_tab[data->i];
 		break;
 	case ISP_BYPASS_TYPE:
-		bypass = (struct bypass_tag *)&sharkl3_isp_bypass_tab[data->i];
+		bypass = (struct bypass_tag *)&isp_bypass_tab[data->i];
 		break;
 	default:
 		pr_err("fail to support bypass type %d\n", data->type);
@@ -356,7 +356,7 @@ normal_reg_trace:
 	return 0;
 }
 
-static int sharkl3_isp_clk_eb(void *handle, void *arg)
+static int isp_clk_eb(void *handle, void *arg)
 {
 	int ret = 0;
 	struct cam_hw_info *hw = NULL;
@@ -399,7 +399,7 @@ static int sharkl3_isp_clk_eb(void *handle, void *arg)
 	return ret;
 }
 
-static int sharkl3_isp_clk_dis(void *handle, void *arg)
+static int isp_clk_dis(void *handle, void *arg)
 {
 	int ret = 0;
 	struct cam_hw_info *hw = NULL;
@@ -421,7 +421,7 @@ static int sharkl3_isp_clk_dis(void *handle, void *arg)
 	return ret;
 }
 
-static int sharkl3_isp_reset(void *handle, void *arg)
+static int isp_reset(void *handle, void *arg)
 {
 	int rtn = 0;
 	uint32_t cid;
@@ -472,7 +472,7 @@ static int sharkl3_isp_reset(void *handle, void *arg)
 	return rtn;
 }
 
-static int sharkl3_isp_irq_enable(void *handle, void *arg)
+static int isp_irq_enable(void *handle, void *arg)
 {
 	uint32_t ctx_id;
 	uint32_t mask = ~0;
@@ -496,7 +496,7 @@ static int sharkl3_isp_irq_enable(void *handle, void *arg)
 	return 0;
 }
 
-static int sharkl3_isp_irq_disable(void *handle, void *arg)
+static int isp_irq_disable(void *handle, void *arg)
 {
 	uint32_t ctx_id;
 
@@ -518,7 +518,7 @@ static int sharkl3_isp_irq_disable(void *handle, void *arg)
 	return 0;
 }
 
-static int sharkl3_isp_irq_clear(void *handle, void *arg)
+static int isp_irq_clear(void *handle, void *arg)
 {
 	uint32_t ctx_id;
 
@@ -596,7 +596,7 @@ static uint32_t ISP_CFG_MAP[] __aligned(8) = {
 	0x02138AF0, /*0x38AF0 - 0x38CFC, 132 , VID_VER_CORF_UV_BUF0*/
 };
 
-static int sharkl3_isp_cfg_map_info_get(void *handle, void *arg)
+static int isp_cfg_map_info_get(void *handle, void *arg)
 {
 	struct isp_dev_cfg_info *info = NULL;
 
@@ -612,7 +612,7 @@ static int sharkl3_isp_cfg_map_info_get(void *handle, void *arg)
 	return 0;
 }
 
-static int sharkl3_isp_default_param_set(void *handle, void *arg)
+static int isp_default_param_set(void *handle, void *arg)
 {
 	uint32_t idx = 0;
 	uint32_t bypass = 1;
@@ -801,7 +801,7 @@ static struct isp_cfg_entry isp_cfg_func_tab[ISP_BLOCK_TOTAL - ISP_BLOCK_BASE] =
 [ISP_BLOCK_YRANDOM - ISP_BLOCK_BASE]    = {ISP_BLOCK_YRANDOM,    isp_k_cfg_yrandom},
 };
 
-static int sharkl3_isp_block_func_get(void *handle, void *arg)
+static int isp_block_func_get(void *handle, void *arg)
 {
 	void *block_func = NULL;
 	struct isp_hw_block_func *fucarg = NULL;
@@ -821,7 +821,7 @@ static int sharkl3_isp_block_func_get(void *handle, void *arg)
 	return 0;
 }
 
-static int sharkl3_isp_fetch_set(void *handle, void *arg)
+static int isp_fetch_set(void *handle, void *arg)
 {
 	uint32_t idx = 0;
 	uint32_t bypass = 0;
@@ -878,7 +878,7 @@ static int sharkl3_isp_fetch_set(void *handle, void *arg)
 }
 
 /* workaround: temp disable FMCU 1 for not working */
-static int sharkl3_isp_fmcu_available(void *handle, void *arg)
+static int isp_fmcu_available(void *handle, void *arg)
 {
 	uint32_t fmcu_id;
 
@@ -887,7 +887,7 @@ static int sharkl3_isp_fmcu_available(void *handle, void *arg)
 	return (fmcu_id > 0) ? 0 : 1;
 }
 
-static int sharkl3_isp_cfg_subblock(void *handle, void *arg)
+static int isp_cfg_subblock(void *handle, void *arg)
 {
 	uint32_t idx = 0;
 	uint32_t bypass = 1;
@@ -955,7 +955,7 @@ static int sharkl3_isp_cfg_subblock(void *handle, void *arg)
 	return 0;
 }
 
-static int sharkl3_isp_path_common(void *handle, void *arg)
+static int isp_path_common(void *handle, void *arg)
 {
 	struct isp_hw_path_common *path_common = NULL;
 	uint32_t idx = 0;
@@ -1041,7 +1041,7 @@ static int sharkl3_isp_path_common(void *handle, void *arg)
 	return 0;
 }
 
-static int sharkl3_isp_path_store(void *handle, void *arg)
+static int isp_path_store(void *handle, void *arg)
 {
 	int ret = 0;
 	uint32_t val = 0;
@@ -1104,7 +1104,7 @@ static int sharkl3_isp_path_store(void *handle, void *arg)
 	return ret;
 }
 
-static int sharkl3_isp_path_scaler(void *handle, void *arg)
+static int isp_path_scaler(void *handle, void *arg)
 {
 	uint32_t reg_val, idx;
 	struct isp_hw_path_scaler *path_scaler = NULL;
@@ -1150,16 +1150,16 @@ static int sharkl3_isp_path_scaler(void *handle, void *arg)
 		scalerInfo->scaler_ver_factor_out);
 
 	if (!scalerInfo->scaler_bypass)
-		set_path_scaler_coeff(idx,
+		isp_set_path_scaler_coeff(idx,
 			addr_base, scalerInfo->coeff_buf, path_scaler->spath_id);
 
 	if (path_scaler->spath_id == ISP_SPATH_VID)
-		set_path_shrink_info(idx, addr_base, &path_scaler->regular_info);
+		isp_set_path_shrink_info(idx, addr_base, &path_scaler->regular_info);
 
 	return 0;
 }
 
-static int sharkl3_isp_slice_scaler(void *handle, void *arg)
+static int isp_slice_scaler(void *handle, void *arg)
 {
 	uint32_t addr = 0, cmd = 0;
 	uint32_t base = 0;
@@ -1234,7 +1234,7 @@ static int sharkl3_isp_slice_scaler(void *handle, void *arg)
 	return 0;
 }
 
-static int sharkl3_isp_slice_store(void *handle, void *arg)
+static int isp_slice_store(void *handle, void *arg)
 {
 	uint32_t addr = 0, cmd = 0;
 	uint32_t base = 0;
@@ -1281,7 +1281,7 @@ static int sharkl3_isp_slice_store(void *handle, void *arg)
 	return 0;
 }
 
-static int sharkl3_isp_slw_fmcu_cmds(void *handle, void *arg)
+static int isp_slw_fmcu_cmds(void *handle, void *arg)
 {
 	int i;
 	unsigned long base, sbase;
@@ -1385,7 +1385,7 @@ static int sharkl3_isp_slw_fmcu_cmds(void *handle, void *arg)
 	return 0;
 }
 
-static int sharkl3_isp_fmcu_cfg(void *handle, void *arg)
+static int isp_fmcu_cfg(void *handle, void *arg)
 {
 	uint32_t addr = 0, cmd = 0;
 	struct isp_hw_fmcu_cfg *cfg = NULL;
@@ -1417,7 +1417,7 @@ static int sharkl3_isp_fmcu_cfg(void *handle, void *arg)
 	return 0;
 }
 
-static int sharkl3_isp_slice_fetch(void *handle, void *arg)
+static int isp_slice_fetch(void *handle, void *arg)
 {
 	uint32_t addr = 0, cmd = 0;
 	struct isp_hw_slice_fetch *fetch = NULL;
@@ -1454,7 +1454,7 @@ static int sharkl3_isp_slice_fetch(void *handle, void *arg)
 	return 0;
 }
 
-static int sharkl3_isp_slice_nr_info(void *handle, void *arg)
+static int isp_slice_nr_info(void *handle, void *arg)
 {
 	uint32_t addr = 0, cmd = 0;
 	struct isp_hw_slice_nr_info *info = NULL;
@@ -1475,7 +1475,7 @@ static int sharkl3_isp_slice_nr_info(void *handle, void *arg)
 	return 0;
 }
 
-static int sharkl3_isp_slices_fmcu_cmds(void *handle, void *arg)
+static int isp_slices_fmcu_cmds(void *handle, void *arg)
 {
 	uint32_t reg_off, addr = 0, cmd = 0;
 	unsigned long base = 0;
@@ -1515,7 +1515,7 @@ static int sharkl3_isp_slices_fmcu_cmds(void *handle, void *arg)
 	return 0;
 }
 
-static int sharkl3_isp_slice_nofilter(void *handle, void *arg)
+static int isp_slice_nofilter(void *handle, void *arg)
 {
 	uint32_t addr = 0, cmd = 0;
 	struct isp_hw_slice_nofilter *slicearg = NULL;
@@ -1544,7 +1544,7 @@ static int sharkl3_isp_slice_nofilter(void *handle, void *arg)
 	return 0;
 }
 
-static int sharkl3_isp_slice_3dnr_crop(void *handle, void *arg)
+static int isp_slice_3dnr_crop(void *handle, void *arg)
 {
 	uint32_t addr = 0, cmd = 0;
 	struct isp_hw_slice_3dnr_crop *croparg = NULL;
@@ -1576,7 +1576,7 @@ static int sharkl3_isp_slice_3dnr_crop(void *handle, void *arg)
 	return 0;
 }
 
-static int sharkl3_isp_slice_3dnr_store(void *handle, void *arg)
+static int isp_slice_3dnr_store(void *handle, void *arg)
 {
 	uint32_t addr = 0, cmd = 0;
 	struct isp_hw_slice_3dnr_store *storearg = NULL;
@@ -1602,7 +1602,7 @@ static int sharkl3_isp_slice_3dnr_store(void *handle, void *arg)
 	return 0;
 }
 
-static int sharkl3_isp_slice_3dnr_memctrl(void *handle, void *arg)
+static int isp_slice_3dnr_memctrl(void *handle, void *arg)
 {
 	uint32_t addr = 0, cmd = 0;
 	struct isp_hw_slice_3dnr_memctrl *memarg = NULL;
@@ -1648,7 +1648,7 @@ static int sharkl3_isp_slice_3dnr_memctrl(void *handle, void *arg)
 	return 0;
 }
 
-static int sharkl3_isp_slice_spath_store(void *handle, void *arg)
+static int isp_slice_spath_store(void *handle, void *arg)
 {
 	uint32_t addr = 0, cmd = 0;
 	unsigned long base = 0;
@@ -1699,7 +1699,7 @@ static int sharkl3_isp_slice_spath_store(void *handle, void *arg)
 	return 0;
 }
 
-static int sharkl3_isp_slice_spath_scaler(void *handle, void *arg)
+static int isp_slice_spath_scaler(void *handle, void *arg)
 {
 	uint32_t addr = 0, cmd = 0;
 	unsigned long base = 0;
@@ -1774,7 +1774,7 @@ static int sharkl3_isp_slice_spath_scaler(void *handle, void *arg)
 	return 0;
 }
 
-static int sharkl3_isp_set_slice_fetch(void *handle, void *arg)
+static int isp_set_slice_fetch(void *handle, void *arg)
 {
 	uint32_t addr = 0, cmd = 0;
 	struct isp_hw_set_slice_fetch *fetcharg = NULL;
@@ -1812,7 +1812,7 @@ static int sharkl3_isp_set_slice_fetch(void *handle, void *arg)
 	return 0;
 }
 
-static int sharkl3_isp_set_slice_nr_info(void *handle, void *arg)
+static int isp_set_slice_nr_info(void *handle, void *arg)
 {
 	uint32_t addr = 0, cmd = 0;
 	struct isp_hw_set_slice_nr_info *nrarg = NULL;
@@ -1832,7 +1832,7 @@ static int sharkl3_isp_set_slice_nr_info(void *handle, void *arg)
 	return 0;
 }
 
-static int sharkl3_isp_3dnr_param(void *handle, void *arg)
+static int isp_set_3dnr_param(void *handle, void *arg)
 {
 	struct isp_hw_ltm_3dnr_param *parm = NULL;
 
@@ -1847,7 +1847,7 @@ static int sharkl3_isp_3dnr_param(void *handle, void *arg)
 	return 0;
 }
 
-static int sharkl3_isp_radius_adpt_parm(void *handle, void *arg)
+static int isp_radius_adpt_parm(void *handle, void *arg)
 {
 	struct isp_hw_nlm_ynr *parm = NULL;
 
@@ -1863,7 +1863,7 @@ static int sharkl3_isp_radius_adpt_parm(void *handle, void *arg)
 	return 0;
 }
 
-static int sharkl3_isp_hw_stop(void *handle, void *arg)
+static int isp_hw_stop(void *handle, void *arg)
 {
 	uint32_t id;
 	uint32_t cid;
@@ -1888,7 +1888,7 @@ static int sharkl3_isp_hw_stop(void *handle, void *arg)
 	return 0;
 }
 
-static int sharkl3_isp_store_slice_addr(void *handle, void *arg)
+static int isp_store_slice_addr(void *handle, void *arg)
 {
 	struct isp_hw_store_slice_addr *parm = NULL;
 
@@ -1901,7 +1901,7 @@ static int sharkl3_isp_store_slice_addr(void *handle, void *arg)
 	return 0;
 }
 
-static int sharkl3_isp_fetch_slice_addr(void *handle, void *arg)
+static int isp_fetch_slice_addr(void *handle, void *arg)
 {
 	struct isp_hw_fetch_slice_addr *parm = NULL;
 
@@ -1914,7 +1914,7 @@ static int sharkl3_isp_fetch_slice_addr(void *handle, void *arg)
 	return 0;
 }
 
-static int sharkl3_isp_cfg_map_init(void *handle, void *arg)
+static int isp_cfg_map_init(void *handle, void *arg)
 {
 	uint32_t val = 0;
 	uint32_t i = 0;
@@ -1962,7 +1962,7 @@ static int sharkl3_isp_cfg_map_init(void *handle, void *arg)
 	return 0;
 }
 
-static int sharkl3_isp_cfg_start_isp(void *handle, void *arg)
+static int isp_cfg_start_isp(void *handle, void *arg)
 {
 	uint32_t ctx_id = 0;
 	unsigned long reg_addr[] = {
@@ -1981,7 +1981,7 @@ static int sharkl3_isp_cfg_start_isp(void *handle, void *arg)
 	return 0;
 }
 
-static int sharkl3_isp_update_hist_roi(void *handle, void *arg)
+static int isp_update_hist_roi(void *handle, void *arg)
 {
 	uint32_t val = 0;
 	struct isp_hw_hist_roi *hist_arg = NULL;
@@ -1997,14 +1997,14 @@ static int sharkl3_isp_update_hist_roi(void *handle, void *arg)
 	return 0;
 }
 
-static int sharkl3_isp_fetch_start(void *handle, void *arg)
+static int isp_fetch_start(void *handle, void *arg)
 {
 	ISP_HREG_WR(ISP_FETCH_START, 1);
 
 	return 0;
 }
 
-static int sharkl3_isp_fmcu_cmd(void *handle, void *arg)
+static int isp_set_fmcu_cmd(void *handle, void *arg)
 {
 	struct isp_hw_fmcu_cmd *cmdarg = NULL;
 
@@ -2017,7 +2017,7 @@ static int sharkl3_isp_fmcu_cmd(void *handle, void *arg)
 	return 0;
 }
 
-static int sharkl3_isp_fmcu_start(void *handle, void *arg)
+static int isp_fmcu_start(void *handle, void *arg)
 {
 	struct isp_hw_fmcu_start *startarg = NULL;
 
@@ -2031,63 +2031,63 @@ static int sharkl3_isp_fmcu_start(void *handle, void *arg)
 	return 0;
 }
 
-static struct hw_io_ctrl_fun sharkl3_isp_ioctl_fun_tab[] = {
-	{ISP_HW_CFG_ENABLE_CLK,              sharkl3_isp_clk_eb},
-	{ISP_HW_CFG_DISABLE_CLK,             sharkl3_isp_clk_dis},
-	{ISP_HW_CFG_RESET,                   sharkl3_isp_reset},
-	{ISP_HW_CFG_ENABLE_IRQ,              sharkl3_isp_irq_enable},
-	{ISP_HW_CFG_DISABLE_IRQ,             sharkl3_isp_irq_disable},
-	{ISP_HW_CFG_CLEAR_IRQ,               sharkl3_isp_irq_clear},
-	{ISP_HW_CFG_FETCH_SET,               sharkl3_isp_fetch_set},
-	{ISP_HW_CFG_DEFAULT_PARA_SET,        sharkl3_isp_default_param_set},
-	{ISP_HW_CFG_BLOCK_FUNC_GET,          sharkl3_isp_block_func_get},
-	{ISP_HW_CFG_CFG_MAP_INFO_GET,        sharkl3_isp_cfg_map_info_get},
-	{ISP_HW_CFG_FMCU_VALID_GET,          sharkl3_isp_fmcu_available},
+static struct hw_io_ctrl_fun isp_ioctl_fun_tab[] = {
+	{ISP_HW_CFG_ENABLE_CLK,              isp_clk_eb},
+	{ISP_HW_CFG_DISABLE_CLK,             isp_clk_dis},
+	{ISP_HW_CFG_RESET,                   isp_reset},
+	{ISP_HW_CFG_ENABLE_IRQ,              isp_irq_enable},
+	{ISP_HW_CFG_DISABLE_IRQ,             isp_irq_disable},
+	{ISP_HW_CFG_CLEAR_IRQ,               isp_irq_clear},
+	{ISP_HW_CFG_FETCH_SET,               isp_fetch_set},
+	{ISP_HW_CFG_DEFAULT_PARA_SET,        isp_default_param_set},
+	{ISP_HW_CFG_BLOCK_FUNC_GET,          isp_block_func_get},
+	{ISP_HW_CFG_CFG_MAP_INFO_GET,        isp_cfg_map_info_get},
+	{ISP_HW_CFG_FMCU_VALID_GET,          isp_fmcu_available},
 	{ISP_HW_CFG_BYPASS_DATA_GET,         sharkl3_cam_bypass_data_get},
 	{ISP_HW_CFG_BYPASS_COUNT_GET,        sharkl3_cam_bypass_count_get},
 	{ISP_HW_CFG_REG_TRACE,               sharkl3_cam_reg_trace},
-	{ISP_HW_CFG_ISP_CFG_SUBBLOCK,        sharkl3_isp_cfg_subblock},
-	{ISP_HW_CFG_SET_PATH_COMMON,         sharkl3_isp_path_common},
-	{ISP_HW_CFG_SET_PATH_STORE,          sharkl3_isp_path_store},
-	{ISP_HW_CFG_SET_PATH_SCALER,         sharkl3_isp_path_scaler},
-	{ISP_HW_CFG_SLICE_SCALER,            sharkl3_isp_slice_scaler},
-	{ISP_HW_CFG_SLICE_STORE,             sharkl3_isp_slice_store},
-	{ISP_HW_CFG_SLW_FMCU_CMDS,           sharkl3_isp_slw_fmcu_cmds},
-	{ISP_HW_CFG_FMCU_CFG,                sharkl3_isp_fmcu_cfg},
-	{ISP_HW_CFG_SLICE_FETCH,             sharkl3_isp_slice_fetch},
-	{ISP_HW_CFG_SLICE_NR_INFO,           sharkl3_isp_slice_nr_info},
-	{ISP_HW_CFG_SLICE_FMCU_CMD,          sharkl3_isp_slices_fmcu_cmds},
-	{ISP_HW_CFG_SLICE_NOFILTER,          sharkl3_isp_slice_nofilter},
-	{ISP_HW_CFG_SLICE_3DNR_CROP,         sharkl3_isp_slice_3dnr_crop},
-	{ISP_HW_CFG_SLICE_3DNR_STORE,        sharkl3_isp_slice_3dnr_store},
-	{ISP_HW_CFG_SLICE_3DNR_MEMCTRL,      sharkl3_isp_slice_3dnr_memctrl},
-	{ISP_HW_CFG_SLICE_SPATH_STORE,       sharkl3_isp_slice_spath_store},
-	{ISP_HW_CFG_SLICE_SPATH_SCALER,      sharkl3_isp_slice_spath_scaler},
-	{ISP_HW_CFG_SET_SLICE_FETCH,         sharkl3_isp_set_slice_fetch},
-	{ISP_HW_CFG_SET_SLICE_NR_INFO,       sharkl3_isp_set_slice_nr_info},
-	{ISP_HW_CFG_3DNR_PARAM,              sharkl3_isp_3dnr_param},
-	{ISP_HW_CFG_GET_NLM_YNR,             sharkl3_isp_radius_adpt_parm},
-	{ISP_HW_CFG_STOP,                    sharkl3_isp_hw_stop},
-	{ISP_HW_CFG_STORE_SLICE_ADDR,        sharkl3_isp_store_slice_addr},
-	{ISP_HW_CFG_FETCH_SLICE_ADDR,        sharkl3_isp_fetch_slice_addr},
-	{ISP_HW_CFG_MAP_INIT,                sharkl3_isp_cfg_map_init},
-	{ISP_HW_CFG_START_ISP,               sharkl3_isp_cfg_start_isp},
-	{ISP_HW_CFG_UPDATE_HIST_ROI,         sharkl3_isp_update_hist_roi},
-	{ISP_HW_CFG_FETCH_START,             sharkl3_isp_fetch_start},
-	{ISP_HW_CFG_FMCU_CMD,                sharkl3_isp_fmcu_cmd},
-	{ISP_HW_CFG_FMCU_START,              sharkl3_isp_fmcu_start},
+	{ISP_HW_CFG_ISP_CFG_SUBBLOCK,        isp_cfg_subblock},
+	{ISP_HW_CFG_SET_PATH_COMMON,         isp_path_common},
+	{ISP_HW_CFG_SET_PATH_STORE,          isp_path_store},
+	{ISP_HW_CFG_SET_PATH_SCALER,         isp_path_scaler},
+	{ISP_HW_CFG_SLICE_SCALER,            isp_slice_scaler},
+	{ISP_HW_CFG_SLICE_STORE,             isp_slice_store},
+	{ISP_HW_CFG_SLW_FMCU_CMDS,           isp_slw_fmcu_cmds},
+	{ISP_HW_CFG_FMCU_CFG,                isp_fmcu_cfg},
+	{ISP_HW_CFG_SLICE_FETCH,             isp_slice_fetch},
+	{ISP_HW_CFG_SLICE_NR_INFO,           isp_slice_nr_info},
+	{ISP_HW_CFG_SLICE_FMCU_CMD,          isp_slices_fmcu_cmds},
+	{ISP_HW_CFG_SLICE_NOFILTER,          isp_slice_nofilter},
+	{ISP_HW_CFG_SLICE_3DNR_CROP,         isp_slice_3dnr_crop},
+	{ISP_HW_CFG_SLICE_3DNR_STORE,        isp_slice_3dnr_store},
+	{ISP_HW_CFG_SLICE_3DNR_MEMCTRL,      isp_slice_3dnr_memctrl},
+	{ISP_HW_CFG_SLICE_SPATH_STORE,       isp_slice_spath_store},
+	{ISP_HW_CFG_SLICE_SPATH_SCALER,      isp_slice_spath_scaler},
+	{ISP_HW_CFG_SET_SLICE_FETCH,         isp_set_slice_fetch},
+	{ISP_HW_CFG_SET_SLICE_NR_INFO,       isp_set_slice_nr_info},
+	{ISP_HW_CFG_3DNR_PARAM,              isp_set_3dnr_param},
+	{ISP_HW_CFG_GET_NLM_YNR,             isp_radius_adpt_parm},
+	{ISP_HW_CFG_STOP,                    isp_hw_stop},
+	{ISP_HW_CFG_STORE_SLICE_ADDR,        isp_store_slice_addr},
+	{ISP_HW_CFG_FETCH_SLICE_ADDR,        isp_fetch_slice_addr},
+	{ISP_HW_CFG_MAP_INIT,                isp_cfg_map_init},
+	{ISP_HW_CFG_START_ISP,               isp_cfg_start_isp},
+	{ISP_HW_CFG_UPDATE_HIST_ROI,         isp_update_hist_roi},
+	{ISP_HW_CFG_FETCH_START,             isp_fetch_start},
+	{ISP_HW_CFG_FMCU_CMD,                isp_set_fmcu_cmd},
+	{ISP_HW_CFG_FMCU_START,              isp_fmcu_start},
 };
 
-static hw_ioctl_fun sharkl3_isp_ioctl_get_fun(enum isp_hw_cfg_cmd cmd)
+static hw_ioctl_fun isp_ioctl_get_fun(enum isp_hw_cfg_cmd cmd)
 {
 	hw_ioctl_fun hw_ctrl = NULL;
 	uint32_t total_num = 0;
 	uint32_t i = 0;
 
-	total_num = sizeof(sharkl3_isp_ioctl_fun_tab) / sizeof(struct hw_io_ctrl_fun);
+	total_num = sizeof(isp_ioctl_fun_tab) / sizeof(struct hw_io_ctrl_fun);
 	for (i = 0; i < total_num; i++) {
-		if (cmd == sharkl3_isp_ioctl_fun_tab[i].cmd) {
-			hw_ctrl = sharkl3_isp_ioctl_fun_tab[i].hw_ctrl;
+		if (cmd == isp_ioctl_fun_tab[i].cmd) {
+			hw_ctrl = isp_ioctl_fun_tab[i].hw_ctrl;
 			break;
 		}
 	}

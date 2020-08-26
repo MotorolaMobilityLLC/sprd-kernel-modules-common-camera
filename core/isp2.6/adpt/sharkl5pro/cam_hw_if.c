@@ -63,7 +63,7 @@ const unsigned long slowmotion_store_addr[3][4] = {
 	}
 };
 
-static uint32_t sharkl5pro_path_ctrl_id[DCAM_PATH_MAX] = {
+static uint32_t path_ctrl_id[DCAM_PATH_MAX] = {
 	[DCAM_PATH_FULL] = DCAM_CTRL_FULL,
 	[DCAM_PATH_BIN] = DCAM_CTRL_BIN,
 	[DCAM_PATH_PDAF] = DCAM_CTRL_PDAF,
@@ -78,7 +78,7 @@ static uint32_t sharkl5pro_path_ctrl_id[DCAM_PATH_MAX] = {
 	[DCAM_PATH_LSCM] = DCAM_CTRL_COEF,
 };
 
-static unsigned long sharkl5pro_dcam_store_addr[DCAM_PATH_MAX] = {
+static unsigned long dcam_store_addr[DCAM_PATH_MAX] = {
 	[DCAM_PATH_FULL] = DCAM_FULL_BASE_WADDR,
 	[DCAM_PATH_BIN] = DCAM_BIN_BASE_WADDR0,
 	[DCAM_PATH_PDAF] = DCAM_PDAF_BASE_WADDR,
@@ -93,20 +93,20 @@ static unsigned long sharkl5pro_dcam_store_addr[DCAM_PATH_MAX] = {
 	[DCAM_PATH_LSCM] = DCAM_LSCM_BASE_WADDR,
 };
 
-static uint32_t sharkl5pro_isp_ctx_fmcu_support[ISP_CONTEXT_HW_NUM] = {
+static uint32_t isp_ctx_fmcu_support[ISP_CONTEXT_HW_NUM] = {
 	[ISP_CONTEXT_HW_P0] = 1,
 	[ISP_CONTEXT_HW_C0] = 1,
 	[ISP_CONTEXT_HW_P1] = 1,
 	[ISP_CONTEXT_HW_C1] = 1,
 };
 
-static int sharkl5pro_dcam_ioctl(void *handle,
+static int camhwif_dcam_ioctl(void *handle,
 	enum dcam_hw_cfg_cmd cmd, void *arg)
 {
 	int ret = 0;
 	hw_ioctl_fun hw_ctrl = NULL;
 
-	hw_ctrl = sharkl5pro_dcam_ioctl_get_fun(cmd);
+	hw_ctrl = dcamhw_ioctl_get_fun(cmd);
 	if (NULL != hw_ctrl) {
 		ret = hw_ctrl(handle, arg);
 	} else {
@@ -116,13 +116,13 @@ static int sharkl5pro_dcam_ioctl(void *handle,
 	return ret;
 }
 
-static int sharkl5pro_isp_ioctl(void *handle,
+static int camhwif_isp_ioctl(void *handle,
 	enum isp_hw_cfg_cmd cmd, void *arg)
 {
 	int ret = 0;
 	hw_ioctl_fun hw_ctrl = NULL;
 
-	hw_ctrl = sharkl5pro_isp_ioctl_get_fun(cmd);
+	hw_ctrl = isphw_ioctl_get_fun(cmd);
 	if (NULL != hw_ctrl) {
 		ret = hw_ctrl(handle, arg);
 	} else {
@@ -132,9 +132,9 @@ static int sharkl5pro_isp_ioctl(void *handle,
 	return ret;
 }
 
-static struct cam_hw_soc_info sharkl5pro_dcam_soc_info;
-static struct cam_hw_soc_info sharkl5pro_isp_soc_info;
-static struct cam_hw_ip_info sharkl5pro_dcam[DCAM_ID_MAX] = {
+static struct cam_hw_soc_info dcam_soc_info;
+static struct cam_hw_soc_info isp_soc_info;
+static struct cam_hw_ip_info dcam[DCAM_ID_MAX] = {
 	[DCAM_ID_0] = {
 		.slm_path = BIT(DCAM_PATH_BIN) | BIT(DCAM_PATH_AEM)
 			| BIT(DCAM_PATH_HIST),
@@ -144,8 +144,8 @@ static struct cam_hw_ip_info sharkl5pro_dcam[DCAM_ID_MAX] = {
 		.superzoom_support = 1,
 		.dcam_full_fbc_mode = DCAM_FBC_FULL_14_BIT,
 		.dcam_bin_fbc_mode = DCAM_FBC_BIN_14_BIT,
-		.store_addr_tab = sharkl5pro_dcam_store_addr,
-		.path_ctrl_id_tab = sharkl5pro_path_ctrl_id,
+		.store_addr_tab = dcam_store_addr,
+		.path_ctrl_id_tab = path_ctrl_id,
 		.pdaf_type3_reg_addr = DCAM_PPE_RIGHT_WADDR,
 		.rds_en = 0,
 	},
@@ -158,8 +158,8 @@ static struct cam_hw_ip_info sharkl5pro_dcam[DCAM_ID_MAX] = {
 		.superzoom_support = 1,
 		.dcam_full_fbc_mode = DCAM_FBC_FULL_14_BIT,
 		.dcam_bin_fbc_mode = DCAM_FBC_BIN_14_BIT,
-		.store_addr_tab = sharkl5pro_dcam_store_addr,
-		.path_ctrl_id_tab = sharkl5pro_path_ctrl_id,
+		.store_addr_tab = dcam_store_addr,
+		.path_ctrl_id_tab = path_ctrl_id,
 		.pdaf_type3_reg_addr = DCAM_PPE_RIGHT_WADDR,
 		.rds_en = 0,
 	},
@@ -172,27 +172,27 @@ static struct cam_hw_ip_info sharkl5pro_dcam[DCAM_ID_MAX] = {
 		.superzoom_support = 1,
 		.dcam_full_fbc_mode = DCAM_FBC_DISABLE,
 		.dcam_bin_fbc_mode = DCAM_FBC_DISABLE,
-		.store_addr_tab = sharkl5pro_dcam_store_addr,
-		.path_ctrl_id_tab = sharkl5pro_path_ctrl_id,
+		.store_addr_tab = dcam_store_addr,
+		.path_ctrl_id_tab = path_ctrl_id,
 		.pdaf_type3_reg_addr = DCAM_PPE_RIGHT_WADDR,
 		.rds_en = 0,
 	},
 };
-static struct cam_hw_ip_info sharkl5pro_isp = {
+static struct cam_hw_ip_info isp = {
 	.slm_cfg_support = 1,
-	.ctx_fmcu_support = sharkl5pro_isp_ctx_fmcu_support,
+	.ctx_fmcu_support = isp_ctx_fmcu_support,
 };
 
 struct cam_hw_info sharkl5pro_hw_info = {
 	.prj_id = SHARKL5pro,
 	.pdev = NULL,
-	.soc_dcam = &sharkl5pro_dcam_soc_info,
-	.soc_isp = &sharkl5pro_isp_soc_info,
-	.ip_dcam[DCAM_ID_0] = &sharkl5pro_dcam[DCAM_ID_0],
-	.ip_dcam[DCAM_ID_1] = &sharkl5pro_dcam[DCAM_ID_1],
-	.ip_dcam[DCAM_ID_2] = &sharkl5pro_dcam[DCAM_ID_2],
-	.ip_isp = &sharkl5pro_isp,
-	.dcam_ioctl = sharkl5pro_dcam_ioctl,
-	.isp_ioctl = sharkl5pro_isp_ioctl,
+	.soc_dcam = &dcam_soc_info,
+	.soc_isp = &isp_soc_info,
+	.ip_dcam[DCAM_ID_0] = &dcam[DCAM_ID_0],
+	.ip_dcam[DCAM_ID_1] = &dcam[DCAM_ID_1],
+	.ip_dcam[DCAM_ID_2] = &dcam[DCAM_ID_2],
+	.ip_isp = &isp,
+	.dcam_ioctl = camhwif_dcam_ioctl,
+	.isp_ioctl = camhwif_isp_ioctl,
 
 };

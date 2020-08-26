@@ -64,7 +64,7 @@ int isp_hw_init(void *arg)
 	if (ret)
 		goto reset_fail;
 
-	ret = isp_irq_request(&hw->pdev->dev, s_isp_irq_no, arg);
+	ret = isp_int_irq_request(&hw->pdev->dev, s_isp_irq_no, arg);
 
 	return 0;
 
@@ -92,7 +92,7 @@ int isp_hw_deinit(void *arg)
 	hw = dev->isp_hw;
 
 	ret = hw->isp_ioctl(hw, ISP_HW_CFG_RESET, NULL);
-	ret = isp_irq_free(&hw->pdev->dev, arg);
+	ret = isp_int_irq_free(&hw->pdev->dev, arg);
 	ret = hw->isp_ioctl(hw, ISP_HW_CFG_DISABLE_CLK, NULL);
 
 	sprd_cam_domain_disable();
