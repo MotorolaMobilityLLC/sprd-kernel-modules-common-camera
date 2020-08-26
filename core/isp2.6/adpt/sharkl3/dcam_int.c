@@ -884,7 +884,7 @@ static void dcam_nr3_done(void *param)
 /*
  * reset tracker
  */
-void dcam_reset_int_tracker(uint32_t idx)
+void dcam_int_reset_int_tracker(uint32_t idx)
 {
 	if (is_dcam_id(idx))
 		memset(dcam_int_tracker[idx], 0, sizeof(dcam_int_tracker[idx]));
@@ -900,7 +900,7 @@ void dcam_reset_int_tracker(uint32_t idx)
 /*
  * print int count
  */
-void dcam_dump_int_tracker(uint32_t idx)
+void dcam_int_dump_int_tracker(uint32_t idx)
 {
 	int i = 0;
 
@@ -1189,7 +1189,7 @@ static irqreturn_t dcam_isr_root(int irq, void *priv)
 /*
  * request irq each time we open a camera
  */
-int dcam_irq_request(struct device *pdev, int irq, void *param)
+int dcam_int_irq_request(struct device *pdev, int irq, void *param)
 {
 	struct dcam_pipe_dev *dev = NULL;
 	int ret = 0;
@@ -1211,7 +1211,7 @@ int dcam_irq_request(struct device *pdev, int irq, void *param)
 		return -EFAULT;
 	}
 
-	dcam_reset_int_tracker(dev->idx);
+	dcam_int_reset_int_tracker(dev->idx);
 
 	return ret;
 }
@@ -1219,7 +1219,7 @@ int dcam_irq_request(struct device *pdev, int irq, void *param)
 /*
  * free irq each time we close a camera
  */
-void dcam_irq_free(struct device *pdev, void *param)
+void dcam_int_irq_free(struct device *pdev, void *param)
 {
 	struct dcam_pipe_dev *dev = NULL;
 

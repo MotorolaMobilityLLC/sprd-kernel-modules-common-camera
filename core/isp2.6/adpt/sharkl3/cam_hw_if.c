@@ -39,13 +39,13 @@
 #include "isp_hw.c"
 #undef CAM_HW_ADPT_LAYER
 
-static int dcam_ioctl(void *handle,
+static int camhwif_dcam_ioctl(void *handle,
 	enum dcam_hw_cfg_cmd cmd, void *arg)
 {
 	int ret = 0;
 	hw_ioctl_fun hw_ctrl = NULL;
 
-	hw_ctrl = dcam_ioctl_get_fun(cmd);
+	hw_ctrl = dcamhw_ioctl_get_fun(cmd);
 	if (NULL != hw_ctrl)
 		ret = hw_ctrl(handle, arg);
 	else
@@ -54,12 +54,12 @@ static int dcam_ioctl(void *handle,
 	return ret;
 }
 
-static int isp_ioctl(void *handle, enum isp_hw_cfg_cmd cmd, void *arg)
+static int camhwif_isp_ioctl(void *handle, enum isp_hw_cfg_cmd cmd, void *arg)
 {
 	int ret = 0;
 	hw_ioctl_fun hw_ctrl = NULL;
 
-	hw_ctrl = isp_ioctl_get_fun(cmd);
+	hw_ctrl = isphw_ioctl_get_fun(cmd);
 	if (NULL != hw_ctrl)
 		ret = hw_ctrl(handle, arg);
 	else
@@ -183,6 +183,6 @@ struct cam_hw_info sharkl3_hw_info = {
 	.ip_dcam[DCAM_ID_1] = &dcam[DCAM_ID_1],
 	.ip_dcam[DCAM_ID_2] = &dcam[DCAM_ID_2],
 	.ip_isp = &isp,
-	.dcam_ioctl = dcam_ioctl,
-	.isp_ioctl = isp_ioctl,
+	.dcam_ioctl = camhwif_dcam_ioctl,
+	.isp_ioctl = camhwif_isp_ioctl,
 };

@@ -30,7 +30,7 @@
 
 static atomic_t clk_users;
 
-static int dcam_clk_eb(void *handle, void *arg)
+static int dcamhw_clk_eb(void *handle, void *arg)
 {
 	int ret = 0;
 	struct cam_hw_info *hw = NULL;
@@ -89,7 +89,7 @@ static int dcam_clk_eb(void *handle, void *arg)
 	return ret;
 }
 
-static int dcam_clk_dis(void *handle, void *arg)
+static int dcamhw_clk_dis(void *handle, void *arg)
 {
 	int ret = 0;
 	struct cam_hw_info *hw = NULL;
@@ -119,7 +119,7 @@ static int dcam_clk_dis(void *handle, void *arg)
 	return ret;
 }
 
-static int dcam_axi_init(void *handle, void *arg)
+static int dcamhw_axi_init(void *handle, void *arg)
 {
 	uint32_t time_out = 0;
 	uint32_t idx = 0;
@@ -166,7 +166,7 @@ static int dcam_axi_init(void *handle, void *arg)
 	return 0;
 }
 
-static int dcam_qos_set(void *handle, void *arg)
+static int dcamhw_qos_set(void *handle, void *arg)
 {
 	uint32_t reg_val = 0;
 	struct cam_hw_info *hw = NULL;
@@ -186,7 +186,7 @@ static int dcam_qos_set(void *handle, void *arg)
 	return 0;
 }
 
-static int dcam_start(void *handle, void *arg)
+static int dcamhw_start(void *handle, void *arg)
 {
 	int ret = 0;
 	struct dcam_hw_start *parm = NULL;
@@ -223,7 +223,7 @@ static int dcam_start(void *handle, void *arg)
 	return ret;
 }
 
-static int dcam_stop(void *handle, void *arg)
+static int dcamhw_stop(void *handle, void *arg)
 {
 	int ret = 0;
 	int time_out = DCAMX_STOP_TIMEOUT;
@@ -259,7 +259,7 @@ static int dcam_stop(void *handle, void *arg)
 	return ret;
 }
 
-static int dcam_cap_disable(void *handle, void *arg)
+static int dcamhw_cap_disable(void *handle, void *arg)
 {
 	int ret = 0;
 	uint32_t idx = 0;
@@ -276,7 +276,7 @@ static int dcam_cap_disable(void *handle, void *arg)
 	return ret;
 }
 
-static int dcam_auto_copy(void *handle, void *arg)
+static int dcamhw_auto_copy(void *handle, void *arg)
 {
 	struct dcam_hw_auto_copy *copyarg = NULL;
 	const uint32_t bitmap[] = {
@@ -314,7 +314,7 @@ static int dcam_auto_copy(void *handle, void *arg)
 	return 0;
 }
 
-static int dcam_force_copy(void *handle, void *arg)
+static int dcamhw_force_copy(void *handle, void *arg)
 {
 	struct dcam_hw_force_copy *copyarg = NULL;
 	const uint32_t bitmap[] = {
@@ -349,7 +349,7 @@ static int dcam_force_copy(void *handle, void *arg)
 	return 0;
 }
 
-static int dcam_reset(void *handle, void *arg)
+static int dcamhw_reset(void *handle, void *arg)
 {
 	int ret = 0;
 	int i = 0;
@@ -425,7 +425,7 @@ static int dcam_reset(void *handle, void *arg)
 	return ret;
 }
 
-static int dcam_fetch_set(void *handle, void *arg)
+static int dcamhw_fetch_set(void *handle, void *arg)
 {
 	int ret = 0;
 	uint32_t fetch_pitch;
@@ -477,7 +477,7 @@ static int dcam_fetch_set(void *handle, void *arg)
 	return ret;
 }
 
-static int dcam_slice_fetch_set(void *handle, void *arg)
+static int dcamhw_slice_fetch_set(void *handle, void *arg)
 {
 	int ret = 0;
 	uint32_t fetch_pitch;
@@ -543,7 +543,7 @@ static int dcam_slice_fetch_set(void *handle, void *arg)
 	return ret;
 }
 
-static int dcam_fetch_block_set(void *handle, void *arg)
+static int dcamhw_fetch_block_set(void *handle, void *arg)
 {
 	int ret = 0;
 	struct dcam_hw_fetch_block *fetcharg = NULL;
@@ -591,7 +591,7 @@ static int dcam_fetch_block_set(void *handle, void *arg)
 	return ret;
 }
 
-static int dcam_mipi_cap_set(void *handle, void *arg)
+static int dcamhw_mipi_cap_set(void *handle, void *arg)
 {
 	int ret = 0;
 	uint32_t idx = 0;
@@ -712,7 +712,7 @@ static int dcam_mipi_cap_set(void *handle, void *arg)
 	return ret;
 }
 
-static int dcam_path_start(void *handle, void *arg)
+static int dcamhw_path_start(void *handle, void *arg)
 {
 	int ret = 0;
 	uint32_t value;
@@ -815,7 +815,7 @@ static int dcam_path_start(void *handle, void *arg)
 	return ret;
 }
 
-static int dcam_path_stop(void *handle, void *arg)
+static int dcamhw_path_stop(void *handle, void *arg)
 {
 	int ret = 0;
 	uint32_t reg_val;
@@ -863,7 +863,7 @@ static int dcam_path_stop(void *handle, void *arg)
 	return ret;
 }
 
-static int dcam_path_ctrl(void *handle, void *arg)
+static int dcamhw_path_ctrl(void *handle, void *arg)
 {
 	struct dcam_hw_path_ctrl *patharg = NULL;
 
@@ -892,7 +892,7 @@ static int dcam_path_ctrl(void *handle, void *arg)
 	return 0;
 }
 
-static int dcam_fetch_start(void *handle, void *arg)
+static int dcamhw_fetch_start(void *handle, void *arg)
 {
 	DCAM_AXIM_MWR(IMG_FETCH_CTRL, BIT_16, 0 << 16);
 	DCAM_AXIM_WR(IMG_FETCH_START, 1);
@@ -900,7 +900,7 @@ static int dcam_fetch_start(void *handle, void *arg)
 	return 0;
 }
 
-static int dcam_path_size_update(void *handle, void *arg)
+static int dcamhw_path_size_update(void *handle, void *arg)
 {
 	int ret = 0;
 	uint32_t idx;
@@ -1000,7 +1000,7 @@ static int dcam_path_size_update(void *handle, void *arg)
 	return ret;
 }
 
-static int dcam_full_path_src_sel(void *handle, void *arg)
+static int dcamhw_full_path_src_sel(void *handle, void *arg)
 {
 	int ret = 0;
 	struct dcam_hw_path_src_sel *patharg = NULL;
@@ -1028,7 +1028,7 @@ static int dcam_full_path_src_sel(void *handle, void *arg)
 	return ret;
 }
 
-static int dcam_ebd_set(void *handle, void *arg)
+static int dcamhw_ebd_set(void *handle, void *arg)
 {
 	struct dcam_hw_ebd_set *ebd = NULL;
 
@@ -1046,7 +1046,7 @@ static int dcam_ebd_set(void *handle, void *arg)
 	return 0;
 }
 
-static int dcam_binning_4in1_set(void *handle, void *arg)
+static int dcamhw_binning_4in1_set(void *handle, void *arg)
 {
 	struct dcam_hw_binning_4in1 *binning = NULL;
 
@@ -1067,7 +1067,7 @@ static int dcam_binning_4in1_set(void *handle, void *arg)
 	return 0;
 }
 
-static int dcam_sram_ctrl_set(void *handle, void *arg)
+static int dcamhw_sram_ctrl_set(void *handle, void *arg)
 {
 	struct dcam_hw_sram_ctrl *sramarg = NULL;
 
@@ -1086,7 +1086,7 @@ static int dcam_sram_ctrl_set(void *handle, void *arg)
 	return 0;
 }
 
-static int dcam_k_cfg_null(struct isp_io_param *param, struct dcam_dev_param *p)
+static int dcamhw_k_cfg_null(struct isp_io_param *param, struct dcam_dev_param *p)
 {
 	return 0;
 }
@@ -1104,10 +1104,10 @@ static struct dcam_cfg_entry dcam_cfg_func_tab[DCAM_BLOCK_TOTAL] = {
 [DCAM_BLOCK_GRGB - DCAM_BLOCK_BASE]        = {DCAM_BLOCK_GRGB,         dcam_k_cfg_grgb},
 [DCAM_BLOCK_3DNR_ME - DCAM_BLOCK_BASE]     = {DCAM_BLOCK_3DNR_ME,      dcam_k_cfg_3dnr_me},
 [DCAM_BLOCK_AFM - DCAM_BLOCK_BASE]         = {DCAM_BLOCK_AFM,          dcam_k_cfg_afm},
-[DCAM_BLOCK_BAYERHIST - DCAM_BLOCK_BASE]   = {DCAM_BLOCK_BAYERHIST,    dcam_k_cfg_null},
+[DCAM_BLOCK_BAYERHIST - DCAM_BLOCK_BASE]   = {DCAM_BLOCK_BAYERHIST,    dcamhw_k_cfg_null},
 };
 
-static int dcam_block_func_get(void *handle, void *arg)
+static int dcamhw_block_func_get(void *handle, void *arg)
 {
 	void *block_func = NULL;
 	struct dcam_hw_block_func_get *fucarg = NULL;
@@ -1127,7 +1127,7 @@ static int dcam_block_func_get(void *handle, void *arg)
 	return 0;
 }
 
-static int dcam_cfg_mipicap(void *handle, void *arg)
+static int dcamhw_cfg_mipicap(void *handle, void *arg)
 {
 	struct dcam_hw_cfg_mipicap *mipiarg = NULL;
 
@@ -1144,14 +1144,14 @@ static int dcam_cfg_mipicap(void *handle, void *arg)
 	return 0;
 }
 
-static int dcam_start_fetch(void *handle, void *arg)
+static int dcamhw_start_fetch(void *handle, void *arg)
 {
 	DCAM_AXIM_WR(IMG_FETCH_START, 1);
 
 	return 0;
 }
 
-static int dcam_bin_mipi_cfg(void *handle, void *arg)
+static int dcamhw_bin_mipi_cfg(void *handle, void *arg)
 {
 	uint32_t reg_val = 0;
 	struct dcam_hw_start_fetch *parm = NULL;
@@ -1168,7 +1168,7 @@ static int dcam_bin_mipi_cfg(void *handle, void *arg)
 	return 0;
 }
 
-static int dcam_cfg_bin_path(void *handle, void *arg)
+static int dcamhw_cfg_bin_path(void *handle, void *arg)
 {
 	struct dcam_hw_cfg_bin_path *parm = NULL;
 
@@ -1182,48 +1182,48 @@ static int dcam_cfg_bin_path(void *handle, void *arg)
 	return 0;
 }
 
-static struct hw_io_ctrl_fun dcam_ioctl_fun_tab[] = {
-	{DCAM_HW_CFG_ENABLE_CLK,            dcam_clk_eb},
-	{DCAM_HW_CFG_DISABLE_CLK,           dcam_clk_dis},
-	{DCAM_HW_CFG_INIT_AXI,              dcam_axi_init},
-	{DCAM_HW_CFG_SET_QOS,               dcam_qos_set},
-	{DCAM_HW_CFG_RESET,                 dcam_reset},
-	{DCAM_HW_CFG_START,                 dcam_start},
-	{DCAM_HW_CFG_STOP,                  dcam_stop},
-	{DCAM_HW_CFG_STOP_CAP_EB,           dcam_cap_disable},
-	{DCAM_HW_CFG_FETCH_START,           dcam_fetch_start},
-	{DCAM_HW_CFG_AUTO_COPY,             dcam_auto_copy},
-	{DCAM_HW_CFG_FORCE_COPY,            dcam_force_copy},
-	{DCAM_HW_CFG_PATH_START,            dcam_path_start},
-	{DCAM_HW_CFG_PATH_STOP,             dcam_path_stop},
-	{DCAM_HW_CFG_PATH_CTRL,             dcam_path_ctrl},
-	{DCAM_HW_CFG_PATH_SRC_SEL,          dcam_full_path_src_sel},
-	{DCAM_HW_CFG_PATH_SIZE_UPDATE,      dcam_path_size_update},
-	{DCAM_HW_CFG_MIPI_CAP_SET,          dcam_mipi_cap_set},
-	{DCAM_HW_CFG_FETCH_SET,             dcam_fetch_set},
-	{DCAM_HW_CFG_FETCH_BLOCK_SET,       dcam_fetch_block_set},
-	{DCAM_HW_CFG_EBD_SET,               dcam_ebd_set},
-	{DCAM_HW_CFG_BINNING_4IN1_SET,      dcam_binning_4in1_set},
-	{DCAM_HW_CFG_SRAM_CTRL_SET,         dcam_sram_ctrl_set},
-	{DCAM_HW_CFG_SLICE_FETCH_SET,       dcam_slice_fetch_set},
-	{DCAM_HW_CFG_BLOCK_FUNC_GET,        dcam_block_func_get},
-	{DCAM_HW_CFG_MIPICAP,               dcam_cfg_mipicap},
-	{DCAM_HW_CFG_START_FETCH,           dcam_start_fetch},
-	{DCAM_HW_CFG_BIN_MIPI,              dcam_bin_mipi_cfg},
-	{DCAM_HW_CFG_BIN_PATH,              dcam_cfg_bin_path},
+static struct hw_io_ctrl_fun dcam_hw_ioctl_fun_tab[] = {
+	{DCAM_HW_CFG_ENABLE_CLK,            dcamhw_clk_eb},
+	{DCAM_HW_CFG_DISABLE_CLK,           dcamhw_clk_dis},
+	{DCAM_HW_CFG_INIT_AXI,              dcamhw_axi_init},
+	{DCAM_HW_CFG_SET_QOS,               dcamhw_qos_set},
+	{DCAM_HW_CFG_RESET,                 dcamhw_reset},
+	{DCAM_HW_CFG_START,                 dcamhw_start},
+	{DCAM_HW_CFG_STOP,                  dcamhw_stop},
+	{DCAM_HW_CFG_STOP_CAP_EB,           dcamhw_cap_disable},
+	{DCAM_HW_CFG_FETCH_START,           dcamhw_fetch_start},
+	{DCAM_HW_CFG_AUTO_COPY,             dcamhw_auto_copy},
+	{DCAM_HW_CFG_FORCE_COPY,            dcamhw_force_copy},
+	{DCAM_HW_CFG_PATH_START,            dcamhw_path_start},
+	{DCAM_HW_CFG_PATH_STOP,             dcamhw_path_stop},
+	{DCAM_HW_CFG_PATH_CTRL,             dcamhw_path_ctrl},
+	{DCAM_HW_CFG_PATH_SRC_SEL,          dcamhw_full_path_src_sel},
+	{DCAM_HW_CFG_PATH_SIZE_UPDATE,      dcamhw_path_size_update},
+	{DCAM_HW_CFG_MIPI_CAP_SET,          dcamhw_mipi_cap_set},
+	{DCAM_HW_CFG_FETCH_SET,             dcamhw_fetch_set},
+	{DCAM_HW_CFG_FETCH_BLOCK_SET,       dcamhw_fetch_block_set},
+	{DCAM_HW_CFG_EBD_SET,               dcamhw_ebd_set},
+	{DCAM_HW_CFG_BINNING_4IN1_SET,      dcamhw_binning_4in1_set},
+	{DCAM_HW_CFG_SRAM_CTRL_SET,         dcamhw_sram_ctrl_set},
+	{DCAM_HW_CFG_SLICE_FETCH_SET,       dcamhw_slice_fetch_set},
+	{DCAM_HW_CFG_BLOCK_FUNC_GET,        dcamhw_block_func_get},
+	{DCAM_HW_CFG_MIPICAP,               dcamhw_cfg_mipicap},
+	{DCAM_HW_CFG_START_FETCH,           dcamhw_start_fetch},
+	{DCAM_HW_CFG_BIN_MIPI,              dcamhw_bin_mipi_cfg},
+	{DCAM_HW_CFG_BIN_PATH,              dcamhw_cfg_bin_path},
 };
 
-static hw_ioctl_fun dcam_ioctl_get_fun(
+static hw_ioctl_fun dcamhw_ioctl_get_fun(
 	enum dcam_hw_cfg_cmd cmd)
 {
 	hw_ioctl_fun hw_ctrl = NULL;
 	uint32_t total_num = 0;
 	uint32_t i = 0;
 
-	total_num = sizeof(dcam_ioctl_fun_tab) / sizeof(struct hw_io_ctrl_fun);
+	total_num = sizeof(dcam_hw_ioctl_fun_tab) / sizeof(struct hw_io_ctrl_fun);
 	for (i = 0; i < total_num; i++) {
-		if (cmd == dcam_ioctl_fun_tab[i].cmd) {
-			hw_ctrl = dcam_ioctl_fun_tab[i].hw_ctrl;
+		if (cmd == dcam_hw_ioctl_fun_tab[i].cmd) {
+			hw_ctrl = dcam_hw_ioctl_fun_tab[i].hw_ctrl;
 			break;
 		}
 	}
