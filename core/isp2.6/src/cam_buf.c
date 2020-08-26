@@ -383,9 +383,8 @@ failed:
 
 EXPORT_SYMBOL(cambuf_iommu_map_single_page);
 
-int cambuf_iommu_map(
-			struct camera_buf *buf_info,
-			enum cam_iommudev_type type)
+int cambuf_iommu_map(struct camera_buf *buf_info,
+		enum cam_iommudev_type type)
 {
 	int i;
 	int ret = 0;
@@ -480,8 +479,7 @@ failed:
 }
 EXPORT_SYMBOL(cambuf_iommu_map);
 
-int cambuf_iommu_unmap(
-		struct camera_buf *buf_info)
+int cambuf_iommu_unmap(struct camera_buf *buf_info)
 {
 	int i;
 	int ret = 0;

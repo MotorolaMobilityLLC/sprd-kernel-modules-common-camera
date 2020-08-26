@@ -1161,9 +1161,7 @@ static int img_ioctl_set_frame_addr(
 				cmd = ISP_PATH_CFG_OUTPUT_RESERVED_BUF;
 			}
 			ret = module->isp_dev_handle->isp_ops->cfg_path(module->isp_dev_handle, cmd,
-				ch->isp_ctx_id,
-				ch->isp_path_id,
-				pframe);
+				ch->isp_ctx_id, ch->isp_path_id, pframe);
 		} else {
 			cmd = DCAM_PATH_CFG_OUTPUT_BUF;
 			if (param.is_reserved_buf) {

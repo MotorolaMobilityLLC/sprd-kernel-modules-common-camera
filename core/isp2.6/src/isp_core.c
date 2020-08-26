@@ -620,8 +620,7 @@ static int set_fmcu_slw_queue(
 		}
 
 		if (out_frame->is_reserved == 0) {
-			ret = cambuf_iommu_map(
-					&out_frame->buf, CAM_IOMMUDEV_ISP);
+			ret = cambuf_iommu_map(&out_frame->buf, CAM_IOMMUDEV_ISP);
 			pr_debug("map output buffer %08x\n", (uint32_t)out_frame->buf.iova[0]);
 			if (ret) {
 				camera_enqueue(&path->out_buf_queue, &out_frame->list);
@@ -1156,8 +1155,7 @@ normal_out_put:
 	if (out_frame != NULL) {
 		if (out_frame->is_reserved == 0 &&
 			(out_frame->buf.mapping_state & CAM_BUF_MAPPING_DEV) == 0) {
-			ret = cambuf_iommu_map(
-					&out_frame->buf, CAM_IOMMUDEV_ISP);
+			ret = cambuf_iommu_map(&out_frame->buf, CAM_IOMMUDEV_ISP);
 			pr_debug("map output buffer %08x\n", (uint32_t)out_frame->buf.iova[0]);
 			if (ret) {
 				camera_enqueue(&path->out_buf_queue, &out_frame->list);
@@ -3006,8 +3004,7 @@ static int sprd_isp_cfg_path(void *isp_handle,
 		break;
 	case ISP_PATH_CFG_3DNR_BUF:
 		pframe = (struct camera_frame *)param;
-		ret = cambuf_iommu_map(
-			&pframe->buf, CAM_IOMMUDEV_ISP);
+		ret = cambuf_iommu_map(&pframe->buf, CAM_IOMMUDEV_ISP);
 		if (ret) {
 			pr_err("fail to map isp iommu buf.\n");
 			ret = -EINVAL;
@@ -3037,8 +3034,7 @@ static int sprd_isp_cfg_path(void *isp_handle,
 	case ISP_PATH_CFG_RGB_LTM_BUF:
 		pframe = (struct camera_frame *)param;
 		if (pctx->mode_ltm == MODE_LTM_PRE) {
-			ret = cambuf_iommu_map(
-				 &pframe->buf, CAM_IOMMUDEV_ISP);
+			ret = cambuf_iommu_map(&pframe->buf, CAM_IOMMUDEV_ISP);
 			if (ret) {
 				pr_err("fail to isp map iommu buf.\n");
 				ret = -EINVAL;
@@ -3062,8 +3058,7 @@ static int sprd_isp_cfg_path(void *isp_handle,
 	case ISP_PATH_CFG_YUV_LTM_BUF:
 		pframe = (struct camera_frame *)param;
 		if (pctx->mode_ltm == MODE_LTM_PRE) {
-			ret = cambuf_iommu_map(
-				&pframe->buf, CAM_IOMMUDEV_ISP);
+			ret = cambuf_iommu_map(&pframe->buf, CAM_IOMMUDEV_ISP);
 			if (ret) {
 				pr_err("fail to isp map iommu buf.\n");
 				ret = -EINVAL;
@@ -3086,8 +3081,7 @@ static int sprd_isp_cfg_path(void *isp_handle,
 		break;
 	case ISP_PATH_CFG_POSTPROC_BUF:
 		pframe = (struct camera_frame *)param;
-		ret = cambuf_iommu_map(
-			&pframe->buf, CAM_IOMMUDEV_ISP);
+		ret = cambuf_iommu_map(&pframe->buf, CAM_IOMMUDEV_ISP);
 		if (ret) {
 			pr_err("fail to superzoom map isp iommu buf.\n");
 			ret = -EINVAL;

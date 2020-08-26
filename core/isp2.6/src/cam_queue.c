@@ -94,10 +94,8 @@ unlock:
 	return pframe;
 }
 
-struct camera_frame *
-camera_dequeue_if(struct camera_queue *q,
-		bool (*filter)(struct camera_frame *, void *),
-		void *data)
+struct camera_frame *camera_dequeue_if(struct camera_queue *q,
+	bool (*filter)(struct camera_frame *, void *), void *data)
 {
 	int fatal_err;
 	unsigned long flags;

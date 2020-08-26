@@ -68,9 +68,8 @@ static struct dcam_pipe_dev *s_dcam_dev[DCAM_ID_MAX];
 
 static int dcam_cfg_dcamsec(struct dcam_pipe_dev *dev, void *param)
 {
-	//bool *sec_eb = (bool *)param;
 
-	dev->dcamsec_eb = 0;//*sec_eb;
+	dev->dcamsec_eb = 0;
 
 	pr_info("camca : dcamsec_mode=%d\n", dev->dcamsec_eb);
 	return 0;
@@ -1057,8 +1056,7 @@ static int dcam_offline_start_frame(void *param)
 	pctx = &dev->ctx[dev->cur_ctx_id];
 	pm = &pctx->blk_pm;
 	if ((pm->lsc.buf.mapping_state & CAM_BUF_MAPPING_DEV) == 0) {
-		ret = cambuf_iommu_map(
-			&pm->lsc.buf, CAM_IOMMUDEV_DCAM);
+		ret = cambuf_iommu_map(&pm->lsc.buf, CAM_IOMMUDEV_DCAM);
 		if (ret)
 			pm->lsc.buf.iova[0] = 0L;
 	}
@@ -1203,8 +1201,7 @@ static int dcam_offline_start_frame(void *param)
 
 	for (i = 0; i < dev->slice_num; i++) {
 		ret = wait_for_completion_interruptible_timeout(
-			&dev->slice_done,
-			DCAM_OFFLINE_TIMEOUT);
+			&dev->slice_done, DCAM_OFFLINE_TIMEOUT);
 		if (ret == ERESTARTSYS) {
 			pr_err("fail to wait as interrupted\n");
 			ret = -EFAULT;
@@ -1314,9 +1311,7 @@ static int dcam_offline_thread_loop(void *arg)
 
 			if (thrd->proc_func(dev)) {
 				pr_err("fail to start dcam pipe to proc. exit thread\n");
-				dev->dcam_cb_func(
-					DCAM_CB_DEV_ERR, dev,
-					dev->cb_priv_data);
+				dev->dcam_cb_func(DCAM_CB_DEV_ERR, dev, dev->cb_priv_data);
 				break;
 			}
 		} else {
@@ -1356,8 +1351,7 @@ static int dcam_stop_offline_thread(void *param)
 
 	/* wait for last frame done */
 	ret = wait_for_completion_interruptible_timeout(
-		&dev->frm_done,
-		DCAM_OFFLINE_TIMEOUT);
+		&dev->frm_done, DCAM_OFFLINE_TIMEOUT);
 	if (ret == -ERESTARTSYS)
 		pr_err("interrupt when isp wait\n");
 	else if (ret == 0)
@@ -1560,8 +1554,7 @@ exit:
 	spin_unlock_irqrestore(&dev->helper_lock, flags);
 
 	if (running_low)
-		pr_warn_ratelimited("DCAM%u helper is running low...\n",
-			dev->idx);
+		pr_warn_ratelimited("DCAM%u helper is running low...\n", dev->idx);
 
 	return helper;
 }
@@ -1916,38 +1909,7 @@ static int dcam_get_path_rect(struct dcam_pipe_dev *dev, void *param)
 	p->af_valid_rect.y = afm_crop->y;
 	p->af_valid_rect.w = afm_crop->w;
 	p->af_valid_rect.h = afm_crop->h;
-#if 0
-	/* trim rect */
-	val = DCAM_REG_RD(dev->id, DCAM_BIN_CROP_START);
-	if (val & (1 << 31)) {
-		param->trim_valid_rect.x = val & 0x1FFF; /* b12:b0 */
-		param->trim_valid_rect.y = (val >> 16) & 0x1FFF; /* b28:b16 */
-		val = DCAM_REG_RD(dev->id, ISP_AFM_CROP_SIZE);
-		param->trim_valid_rect.w = val & 0x1FFF;
-		param->trim_valid_rect.h = (val >> 16) & 0x1FFF;
-	} else {
 
-	}
-
-	/* aem */
-	val = DCAM_REG_RD(dev->idx, DCAM_AEM_OFFSET);
-	param->ae_valid_rect.x = val & 0x1FFF;
-	param->ae_valid_rect.y = (val >> 16) & 0x1FFF;
-	val = DCAM_REG_RD(dev->idx, DCAM_AEM_BLK_NUM);
-	blk_num_w = val & 0xFF;
-	blk_num_h = (val >> 8) 0xFF;
-	val = DCAM_REG_RD(dev->idx, DCAM_AEM_BLK_SIZE);
-	param->ae_valid_rect.w = (val & 0xFF) * blk_num_w;
-	param->ae_valid_rect.h = ((val >> 8) & 0xFF) * blk_num_h;
-
-	/* afm */
-	val = DCAM_REG_RD(dev->idx, ISP_RAW_AFM_CROP_START);
-	param->af_valid_rect.x = val & 0x1FFF;
-	param->af_valid_rect.y = (val >> 16) & 0x1FFF;
-	val = DCAM_REG_RD(dev->idx, ISP_RAW_AFM_CROP_SIZE);
-	param->af_valid_rect.w = val & 0x1FFF;
-	param->af_valid_rect.h = (val >> 16) & 0x1FFF;
-#endif
 	return 0;
 }
 
@@ -2237,8 +2199,7 @@ static int sprd_dcam_dev_start(void *dcam_handle, int online)
 	pm = &dev->ctx[dev->cur_ctx_id].blk_pm;
 
 	if ((pm->lsc.buf.mapping_state & CAM_BUF_MAPPING_DEV) == 0) {
-		ret = cambuf_iommu_map(
-			&pm->lsc.buf, CAM_IOMMUDEV_DCAM);
+		ret = cambuf_iommu_map(&pm->lsc.buf, CAM_IOMMUDEV_DCAM);
 		if (ret)
 			pm->lsc.buf.iova[0] = 0L;
 	}
