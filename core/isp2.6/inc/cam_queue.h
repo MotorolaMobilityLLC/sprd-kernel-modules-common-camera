@@ -97,7 +97,7 @@ struct camera_queue {
 	void (*destroy)(void *param);
 };
 
-#define camera_dequeue(queue, type, member) ({		\
+#define cam_queue_dequeue(queue, type, member) ({		\
 	unsigned long __flags;				\
 	struct camera_queue *__q = (queue);		\
 	type *__node = NULL;				\
@@ -115,7 +115,7 @@ struct camera_queue {
 	__node;	\
 })
 
-#define camera_dequeue_peek(queue, type, member) ({		\
+#define cam_queue_dequeue_peek(queue, type, member) ({		\
 	unsigned long __flags;				\
 	struct camera_queue *__q = (queue);		\
 	type *__node = NULL;				\
@@ -130,7 +130,7 @@ struct camera_queue {
 	__node;	\
 })
 
-#define camera_queue_clear(queue, type, member) ({		\
+#define cam_queue_clear(queue, type, member) ({		\
 	unsigned long __flags;				\
 	struct camera_queue *__q = (queue);		\
 	type *__node = NULL;				\
@@ -159,25 +159,23 @@ struct camera_queue {
 	}	\
 })
 
-int camera_enqueue(struct camera_queue *q, struct list_head *list);
-struct camera_frame *camera_dequeue_tail(struct camera_queue *q);
-struct camera_frame *
-camera_dequeue_if(struct camera_queue *q,
-		  bool (*filter)(struct camera_frame *, void *),
-		  void *data);
-int camera_queue_init(struct camera_queue *q,
+int cam_queue_enqueue(struct camera_queue *q, struct list_head *list);
+struct camera_frame *cam_queue_dequeue_tail(struct camera_queue *q);
+struct camera_frame *cam_queue_dequeue_if(struct camera_queue *q,
+	bool (*filter)(struct camera_frame *, void *), void *data);
+int cam_queue_init(struct camera_queue *q,
 			uint32_t max, void (*cb_func)(void *));
-uint32_t camera_queue_cnt(struct camera_queue *q);
-int camera_queue_same_frame(struct camera_queue *q0, struct camera_queue *q1,
-			struct camera_frame **pf0, struct camera_frame **pf1,
-			int64_t t);
+uint32_t cam_queue_cnt_get(struct camera_queue *q);
+int cam_queue_same_frame_get(struct camera_queue *q0,
+	struct camera_queue *q1, struct camera_frame **pf0,
+	struct camera_frame **pf1, int64_t t);
 
-struct camera_frame *get_empty_frame(void);
-int put_empty_frame(struct camera_frame *pframe);
-void free_empty_frame(void *param);
+struct camera_frame *cam_queue_empty_frame_get(void);
+int cam_queue_empty_frame_put(struct camera_frame *pframe);
+void cam_queue_empty_frame_free(void *param);
 
-struct isp_stream_ctrl *get_empty_state(void);
-void put_empty_state(void *param);
-void free_empty_state(void *param);
+struct isp_stream_ctrl *cam_queue_empty_state_get(void);
+void cam_queue_empty_state_put(void *param);
+void cam_queue_empty_state_free(void *param);
 
 #endif /* _CAM_QUEUE_H_ */

@@ -365,11 +365,11 @@ dcam_path_cycle_frame(struct dcam_pipe_dev *dev, struct dcam_path_desc *path)
 
 	if (path->path_id == DCAM_PATH_FULL && path->src_sel == 0) {
 		/* get raw buffer */
-		frame = camera_dequeue(&path->alter_out_queue, struct camera_frame, list);
+		frame = cam_queue_dequeue(&path->alter_out_queue, struct camera_frame, list);
 		src = 0;
 	}
 	if (frame == NULL) {
-		frame = camera_dequeue(&path->out_buf_queue, struct camera_frame, list);
+		frame = cam_queue_dequeue(&path->out_buf_queue, struct camera_frame, list);
 		src = 1;
 	}
 
@@ -377,7 +377,7 @@ dcam_path_cycle_frame(struct dcam_pipe_dev *dev, struct dcam_path_desc *path)
 		/* usr buffer for raw, mapping delay to here*/
 		if (cam_buf_iommu_map(&frame->buf, CAM_IOMMUDEV_DCAM)) {
 			pr_err("mapping failed\n");
-			camera_enqueue(&path->alter_out_queue, &frame->list);
+			cam_queue_enqueue(&path->alter_out_queue, &frame->list);
 			pr_debug("mapping raw buffer for ch %d, mfd %d\n",
 				frame->channel_id, frame->buf.mfd[0]);
 			frame = NULL;
@@ -385,7 +385,7 @@ dcam_path_cycle_frame(struct dcam_pipe_dev *dev, struct dcam_path_desc *path)
 	}
 
 	if (frame == NULL)
-		frame = camera_dequeue(&path->reserved_buf_queue, struct camera_frame, list);
+		frame = cam_queue_dequeue(&path->reserved_buf_queue, struct camera_frame, list);
 
 	if (frame == NULL) {
 		pr_debug("DCAM%u %s buffer unavailable\n",
@@ -393,14 +393,14 @@ dcam_path_cycle_frame(struct dcam_pipe_dev *dev, struct dcam_path_desc *path)
 		return ERR_PTR(-ENOMEM);
 	}
 
-	if (camera_enqueue(&path->result_queue, &frame->list) < 0) {
+	if (cam_queue_enqueue(&path->result_queue, &frame->list) < 0) {
 		if (frame->is_reserved)
-			camera_enqueue(&path->reserved_buf_queue, &frame->list);
+			cam_queue_enqueue(&path->reserved_buf_queue, &frame->list);
 		else if (src == 1)
-			camera_enqueue(&path->out_buf_queue, &frame->list);
+			cam_queue_enqueue(&path->out_buf_queue, &frame->list);
 		else {
 			cam_buf_iommu_unmap(&frame->buf);
-			camera_enqueue(&path->alter_out_queue, &frame->list);
+			cam_queue_enqueue(&path->alter_out_queue, &frame->list);
 		}
 
 		pr_err("fail to enqueue frame to result_queue, DCAM%u %s output queue overflow\n",
@@ -488,7 +488,7 @@ int dcam_path_set_store_frm(void *dcam_handle,
 
 		if ((path_id < DCAM_IMAGE_REPLACER_PATH_MAX)
 			&& replacer->enabled[path_id])
-			saved = camera_dequeue(&path->reserved_buf_queue,
+			saved = cam_queue_dequeue(&path->reserved_buf_queue,
 				struct camera_frame, list);
 	}
 
@@ -662,7 +662,7 @@ int dcam_path_set_store_frm(void *dcam_handle,
 		(path_id == DCAM_PATH_AEM || path_id == DCAM_PATH_HIST)
 		&& (slm_path & BIT(path_id))) {
 		/* configure reserved buffer for AEM and hist */
-		frame = camera_dequeue(&path->reserved_buf_queue,
+		frame = cam_queue_dequeue(&path->reserved_buf_queue,
 			struct camera_frame, list);
 		if (!frame) {
 			pr_debug("DCAM%u %s buffer unavailable\n",
@@ -685,7 +685,7 @@ int dcam_path_set_store_frm(void *dcam_handle,
 
 
 		/* put it back */
-		camera_enqueue(&path->reserved_buf_queue, &frame->list);
+		cam_queue_enqueue(&path->reserved_buf_queue, &frame->list);
 	} else if (dev->slowmotion_count && path_id == DCAM_PATH_BIN) {
 		i = 1;
 		while (i < dev->slowmotion_count) {
@@ -723,7 +723,7 @@ int dcam_path_set_store_frm(void *dcam_handle,
 
 enqueue_reserved:
 	if (saved)
-		camera_enqueue(&path->reserved_buf_queue, &saved->list);
+		cam_queue_enqueue(&path->reserved_buf_queue, &saved->list);
 
 	return ret;
 }

@@ -278,7 +278,6 @@ int cam_buf_kunmap(struct camera_buf *buf_info)
 
 	buf_info->mapping_state &= ~CAM_BUF_MAPPING_KERNEL;
 	return ret;
-
 }
 
 int cam_buf_alloc(struct camera_buf *buf_info,

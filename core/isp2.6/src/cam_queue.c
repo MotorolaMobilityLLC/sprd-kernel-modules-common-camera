@@ -26,7 +26,7 @@
 	fmt, current->pid, __LINE__, __func__
 
 
-int camera_enqueue(struct camera_queue *q, struct list_head *list)
+int cam_queue_enqueue(struct camera_queue *q, struct list_head *list)
 {
 	int ret = 0;
 	unsigned long flags;
@@ -58,7 +58,7 @@ unlock:
 }
 
 /* dequeue frame from tail of queue */
-struct camera_frame *camera_dequeue_tail(struct camera_queue *q)
+struct camera_frame *cam_queue_dequeue_tail(struct camera_queue *q)
 {
 	int fatal_err;
 	unsigned long flags;
@@ -94,8 +94,8 @@ unlock:
 	return pframe;
 }
 
-struct camera_frame *camera_dequeue_if(struct camera_queue *q,
-			bool (*filter)(struct camera_frame *, void *),void *data)
+struct camera_frame *cam_queue_dequeue_if(struct camera_queue *q,
+	bool (*filter)(struct camera_frame *, void *), void *data)
 {
 	int fatal_err;
 	unsigned long flags;
@@ -138,7 +138,7 @@ unlock:
 	return pframe;
 }
 
-int camera_queue_init(struct camera_queue *q,
+int cam_queue_init(struct camera_queue *q,
 	uint32_t max, void (*cb_func)(void *))
 {
 	int ret = 0;
@@ -158,7 +158,7 @@ int camera_queue_init(struct camera_queue *q,
 }
 
 /* get the number of how many buf in the queue */
-uint32_t camera_queue_cnt(struct camera_queue *q)
+uint32_t cam_queue_cnt_get(struct camera_queue *q)
 {
 	unsigned long flags;
 	uint32_t tmp;
@@ -175,9 +175,9 @@ uint32_t camera_queue_cnt(struct camera_queue *q)
  *        *pf0, *pf1, return the two frame
  *        t, no use now
  */
-int camera_queue_same_frame(struct camera_queue *q0, struct camera_queue *q1,
-		struct camera_frame **pf0, struct camera_frame **pf1,
-		int64_t t)
+int cam_queue_same_frame_get(struct camera_queue *q0,
+	struct camera_queue *q1,struct camera_frame **pf0,
+	struct camera_frame **pf1, int64_t t)
 {
 	int ret = 0;
 	unsigned long flags0, flags1;
@@ -234,7 +234,7 @@ _EXT:
 /* in irq handler, may return NULL if alloc failed
  * else: will always retry alloc and return valid frame
  */
-struct camera_frame *get_empty_frame(void)
+struct camera_frame *cam_queue_empty_frame_get(void)
 {
 	int ret = 0;
 	uint32_t i;
@@ -242,7 +242,7 @@ struct camera_frame *get_empty_frame(void)
 
 	pr_debug("Enter.\n");
 	do {
-		pframe = camera_dequeue(g_empty_frm_q, struct camera_frame, list);
+		pframe = cam_queue_dequeue(g_empty_frm_q, struct camera_frame, list);
 		if (pframe == NULL) {
 			if (in_interrupt()) {
 				/* fast alloc and return for irq handler */
@@ -262,7 +262,7 @@ struct camera_frame *get_empty_frame(void)
 				}
 				atomic_inc(&g_mem_dbg->empty_frm_cnt);
 				pr_debug("alloc frame %p\n", pframe);
-				ret = camera_enqueue(g_empty_frm_q, &pframe->list);
+				ret = cam_queue_enqueue(g_empty_frm_q, &pframe->list);
 				if (ret) {
 					/* q full, return pframe directly here */
 					break;
@@ -279,7 +279,7 @@ struct camera_frame *get_empty_frame(void)
 }
 
 
-int put_empty_frame(struct camera_frame *pframe)
+int cam_queue_empty_frame_put(struct camera_frame *pframe)
 {
 	int ret = 0;
 
@@ -290,7 +290,7 @@ int put_empty_frame(struct camera_frame *pframe)
 	pr_debug("put frame %p\n", pframe);
 
 	memset(pframe, 0, sizeof(struct camera_frame));
-	ret = camera_enqueue(g_empty_frm_q, &pframe->list);
+	ret = cam_queue_enqueue(g_empty_frm_q, &pframe->list);
 	if (ret) {
 		pr_info("queue should be enlarged\n");
 		atomic_dec(&g_mem_dbg->empty_frm_cnt);
@@ -299,7 +299,7 @@ int put_empty_frame(struct camera_frame *pframe)
 	return 0;
 }
 
-void free_empty_frame(void *param)
+void cam_queue_empty_frame_free(void *param)
 {
 	struct camera_frame *pframe;
 
@@ -310,7 +310,7 @@ void free_empty_frame(void *param)
 	kfree(pframe);
 }
 
-struct isp_stream_ctrl *get_empty_state(void)
+struct isp_stream_ctrl *cam_queue_empty_state_get(void)
 {
 	int ret = 0;
 	uint32_t i;
@@ -319,7 +319,7 @@ struct isp_stream_ctrl *get_empty_state(void)
 
 	pr_debug("Enter.\n");
 	do {
-		stream_state = camera_dequeue(q, struct isp_stream_ctrl, list);
+		stream_state = cam_queue_dequeue(q, struct isp_stream_ctrl, list);
 		if (stream_state == NULL) {
 			if (in_interrupt()) {
 				/* fast alloc and return for irq handler */
@@ -339,7 +339,7 @@ struct isp_stream_ctrl *get_empty_state(void)
 				}
 				atomic_inc(&g_mem_dbg->empty_state_cnt);
 				pr_debug("alloc frame %p\n", stream_state);
-				ret = camera_enqueue(q, &stream_state->list);
+				ret = cam_queue_enqueue(q, &stream_state->list);
 				if (ret) {
 					/* q full, return pframe directly here */
 					break;
@@ -355,7 +355,7 @@ struct isp_stream_ctrl *get_empty_state(void)
 	return stream_state;
 }
 
-void put_empty_state(void *param)
+void cam_queue_empty_state_put(void *param)
 {
 	int ret = 0;
 	struct isp_stream_ctrl *stream_state = NULL;
@@ -368,7 +368,7 @@ void put_empty_state(void *param)
 	pr_debug("put state %p\n", stream_state);
 
 	memset(stream_state, 0, sizeof(struct isp_stream_ctrl));
-	ret = camera_enqueue(g_empty_state_q, &stream_state->list);
+	ret = cam_queue_enqueue(g_empty_state_q, &stream_state->list);
 	if (ret) {
 		pr_debug("queue should be enlarged\n");
 		atomic_dec(&g_mem_dbg->empty_state_cnt);
@@ -376,7 +376,7 @@ void put_empty_state(void *param)
 	}
 }
 
-void free_empty_state(void *param)
+void cam_queue_empty_state_free(void *param)
 {
 	struct isp_stream_ctrl *stream_state = NULL;
 

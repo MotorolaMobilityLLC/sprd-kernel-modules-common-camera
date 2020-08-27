@@ -358,7 +358,7 @@ static struct camera_frame *isp_hist2_frame_prepare(enum isp_context_id idx,
 	dev = (struct isp_pipe_dev *)isp_handle;
 	pctx = &dev->ctx[idx];
 
-	frame = camera_dequeue(&pctx->hist2_result_queue, struct camera_frame, list);
+	frame = cam_queue_dequeue(&pctx->hist2_result_queue, struct camera_frame, list);
 	if (!frame) {
 		pr_debug("isp ctx_id[%d] hist2_result_queue unavailable\n", idx);
 		return NULL;
@@ -368,7 +368,7 @@ static struct camera_frame *isp_hist2_frame_prepare(enum isp_context_id idx,
 
 	if (!frame->buf.addr_k[0]) {
 		pr_err("fail to get valid ptr\n");
-		if (camera_enqueue(&pctx->hist2_result_queue, &frame->list) < 0)
+		if (cam_queue_enqueue(&pctx->hist2_result_queue, &frame->list) < 0)
 			pr_err("fail to enqueue\n");
 		return NULL;
 	}

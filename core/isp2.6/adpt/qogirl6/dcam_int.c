@@ -94,12 +94,12 @@ static struct camera_frame *dcam_prepare_frame(struct dcam_pipe_dev *dev,
 		pr_warn("DCAM%u %s cnt %d, deci %u, out %u, result %u\n",
 			dev->idx, to_path_name(path_id),
 			atomic_read(&path->set_frm_cnt), path->frm_deci,
-			camera_queue_cnt(&path->out_buf_queue),
-			camera_queue_cnt(&path->result_queue));
+			cam_queue_cnt_get(&path->out_buf_queue),
+			cam_queue_cnt_get(&path->result_queue));
 		return NULL;
 	}
 
-	frame = camera_dequeue(&path->result_queue, struct camera_frame, list);
+	frame = cam_queue_dequeue(&path->result_queue, struct camera_frame, list);
 	if (!frame) {
 		pr_err("fail to available output buffer DCAM%u %s\n",
 			dev->idx, to_path_name(path_id));
@@ -110,9 +110,9 @@ static struct camera_frame *dcam_prepare_frame(struct dcam_pipe_dev *dev,
 	if (unlikely(frame->is_reserved)) {
 		pr_warn("DCAM%u %s use reserved buffer, out %u, result %u\n",
 			dev->idx, to_path_name(path_id),
-			camera_queue_cnt(&path->out_buf_queue),
-			camera_queue_cnt(&path->result_queue));
-		camera_enqueue(&path->reserved_buf_queue, &frame->list);
+			cam_queue_cnt_get(&path->out_buf_queue),
+			cam_queue_cnt_get(&path->result_queue));
+		cam_queue_enqueue(&path->reserved_buf_queue, &frame->list);
 		return NULL;
 	}
 
@@ -137,9 +137,9 @@ static struct camera_frame *dcam_prepare_frame(struct dcam_pipe_dev *dev,
 		pr_info("DCAM%u %s fid %u invalid 0 timestamp\n",
 			dev->idx, to_path_name(path_id), frame->fid);
 		if (frame->is_reserved)
-			camera_enqueue(&path->reserved_buf_queue, &frame->list);
+			cam_queue_enqueue(&path->reserved_buf_queue, &frame->list);
 		else
-			camera_enqueue(&path->out_buf_queue, &frame->list);
+			cam_queue_enqueue(&path->out_buf_queue, &frame->list);
 		if (frame->sync_data)
 			dcam_if_release_sync(frame->sync_data, frame);
 		frame = NULL;
@@ -180,7 +180,7 @@ static void dcam_dispatch_sof_event(struct dcam_pipe_dev *dev)
 	struct camera_frame *frame = NULL;
 	struct timespec cur_ts;
 
-	frame = get_empty_frame();
+	frame = cam_queue_empty_frame_get();
 	if (frame) {
 		ktime_get_ts(&cur_ts);
 		frame->boot_sensor_time = ktime_get_boottime();
@@ -212,7 +212,7 @@ static void dcam_fix_index(struct dcam_pipe_dev *dev,
 		if (atomic_read(&path->user_cnt) < 1 || atomic_read(&path->is_shutoff) > 0)
 			continue;
 
-		if (camera_queue_cnt(&path->result_queue) < count)
+		if (cam_queue_cnt_get(&path->result_queue) < count)
 			continue;
 
 		pr_info("DCAM%u %s fix %u index to %u\n",
@@ -221,7 +221,7 @@ static void dcam_fix_index(struct dcam_pipe_dev *dev,
 
 		j = 0;
 		while (j++ < count) {
-			frame = camera_dequeue_tail(&path->result_queue);
+			frame = cam_queue_dequeue_tail(&path->result_queue);
 			list_add_tail(&frame->list, &head);
 		}
 
@@ -240,7 +240,7 @@ static void dcam_fix_index(struct dcam_pipe_dev *dev,
 				frame->fid += (j - 1) * dev->slowmotion_count;
 				frame->fid += 1;
 			}
-			camera_enqueue(&path->result_queue, &frame->list);
+			cam_queue_enqueue(&path->result_queue, &frame->list);
 		}
 	}
 }
@@ -254,7 +254,7 @@ static int dcam_check_frame(struct dcam_pipe_dev *dev,
 	uint32_t frame_addr = 0, reg_value = 0;
 	unsigned long reg_addr = 0;
 
-	frame = camera_dequeue_peek(&path->result_queue, struct camera_frame, list);
+	frame = cam_queue_dequeue_peek(&path->result_queue, struct camera_frame, list);
 	if (unlikely(!frame))
 		return 0;
 
@@ -277,7 +277,7 @@ static int dcam_check_frame(struct dcam_pipe_dev *dev,
 
 	pr_debug("DCAM%u %s frame 0x%08x reg 0x%08x cnt %u\n",
 		 dev->idx, to_path_name(path->path_id),
-		 frame_addr, reg_value, camera_queue_cnt(&path->result_queue));
+		 frame_addr, reg_value, cam_queue_cnt_get(&path->result_queue));
 
 	return frame_addr == reg_value;
 }
@@ -358,11 +358,11 @@ static enum dcam_fix_result dcam_fix_index_if_needed(struct dcam_pipe_dev *dev)
 			    || path->path_id == DCAM_PATH_FULL)
 				vote |= dcam_check_frame(dev, path);
 
-			frame = camera_dequeue_tail(&path->result_queue);
+			frame = cam_queue_dequeue_tail(&path->result_queue);
 			if (frame == NULL)
 				continue;
 			frame->fid = dev->base_fid + dev->frame_index;
-			camera_enqueue(&path->result_queue, &frame->list);
+			cam_queue_enqueue(&path->result_queue, &frame->list);
 		}
 
 		if (vote) {
@@ -411,7 +411,7 @@ static enum dcam_fix_result dcam_fix_index_if_needed(struct dcam_pipe_dev *dev)
 	} else /* if (cur_n != dev->slowmotion_count - 1) */{
 		/* fix index for last 1~4 frames */
 		struct dcam_path_desc *path = &dev->path[DCAM_PATH_BIN];
-		if (camera_queue_cnt(&path->result_queue)
+		if (cam_queue_cnt_get(&path->result_queue)
 		    <= dev->slowmotion_count) {
 			/*
 			 * ignore TX DONE if already handled in last interrupt
@@ -440,7 +440,7 @@ static void dcam_debug_dump(
 
 	base_info = (struct debug_base_info *)frame->buf.addr_k[0];
 	if (base_info == NULL) {
-		put_empty_frame(frame);
+		cam_queue_empty_frame_put(frame);
 		return;
 	}
 	base_info->cam_id = -1;
@@ -629,7 +629,7 @@ static void dcam_sensor_eof(void *param)
 
 	pr_debug("DCAM%d sn_eof\n", dev->idx);
 
-	pframe = get_empty_frame();
+	pframe = cam_queue_empty_frame_get();
 	if (pframe) {
 		pframe->evt = IMG_TX_DONE;
 		pframe->irq_type = CAMERA_IRQ_DONE;
@@ -690,8 +690,8 @@ static void dcam_bin_path_done(void *param)
 	if (cnt <= dev->slowmotion_count) {
 		pr_warn("DCAM%u BIN cnt %d, deci %u, out %u, result %u\n",
 			dev->idx, cnt, path->frm_deci,
-			camera_queue_cnt(&path->out_buf_queue),
-			camera_queue_cnt(&path->result_queue));
+			cam_queue_cnt_get(&path->out_buf_queue),
+			cam_queue_cnt_get(&path->result_queue));
 		return;
 	}
 
@@ -721,7 +721,7 @@ static void dcam_bin_path_done(void *param)
 
 	if (dev->offline) {
 		/* there is source buffer for offline process */
-		frame = camera_dequeue(&dev->proc_queue, struct camera_frame, list);
+		frame = cam_queue_dequeue(&dev->proc_queue, struct camera_frame, list);
 		if (frame) {
 			cam_buf_iommu_unmap(&frame->buf);
 			dev->dcam_cb_func(DCAM_CB_RET_SRC_BUF, frame,
