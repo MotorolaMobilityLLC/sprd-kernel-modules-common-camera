@@ -258,6 +258,10 @@ struct camera_file {
 int img_get_timestamp(struct timeval *tv);
 void gen_frm_timestamp(struct frm_timestamp *pts);
 int sprd_img_start_flash(struct camera_frame *frame, void *param);
-
+int sprd_camera_stream_off(struct camera_group *group, enum dcam_id idx);
+int sprd_img_get_dcam_dev(struct camera_file *pcamerafile,
+				 struct camera_dev **ppdev,
+				 struct camera_info **ppinfo);
+extern int dcamio_stream_off(struct camera_file *camerafile, unsigned long arg, uint32_t cmd);
 #endif /* _DCAM_CORE_H_ */
 

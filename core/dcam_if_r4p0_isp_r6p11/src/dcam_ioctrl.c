@@ -22,9 +22,6 @@ struct dcam_io_ctrl_fun {
 
 bool has_dual_cap_started;
 
-static int dcamio_stream_off(struct camera_file *camerafile,
-                             unsigned long arg, uint32_t cmd);
-
 static int dcamio_set_mode(struct camera_file *camerafile, unsigned long arg,
 			   uint32_t cmd)
 
@@ -508,6 +505,8 @@ static int dcamio_put_dcam_res(struct camera_file *camerafile,
 	int idx = DCAM_ID_0;
 	struct sprd_img_res res = {0};
 	struct camera_group *group = NULL;
+	struct camera_dev *dev = NULL;
+	struct camera_info *info = NULL;
 
 	if (!camerafile) {
 		ret = -EFAULT;
@@ -547,7 +546,18 @@ static int dcamio_put_dcam_res(struct camera_file *camerafile,
 	 * Sometimes there is no stream off ioctl coming. Do it here before
 	 * disabling modules.
 	 */
-	dcamio_stream_off(camerafile, arg, cmd);
+	ret = sprd_camera_stream_off(group, idx);
+	if (unlikely(ret != 0))
+			pr_err("SPRD_IMG%d: fail to stream off\n", idx);
+
+	sprd_img_get_dcam_dev(camerafile, &dev, &info);
+
+	info->is_3dnr = 0;
+	if (dev->dcam_cxt.need_isp_tool) {
+		ret = sprd_isp_stop_pipeline(dev->isp_dev_handle);
+		if (ret)
+			pr_err("fail to stop isp pipeline\n");
+	}
 
 	ret = sprd_dcam_module_dis(idx);
 	if (unlikely(ret != 0)) {
@@ -876,7 +886,7 @@ static int dcamio_stream_on(struct camera_file *camerafile, unsigned long arg,
 	return ret;
 }
 
-static int dcamio_stream_off(struct camera_file *camerafile, unsigned long arg,
+int dcamio_stream_off(struct camera_file *camerafile, unsigned long arg,
 			     uint32_t cmd)
 {
 	int ret = 0;

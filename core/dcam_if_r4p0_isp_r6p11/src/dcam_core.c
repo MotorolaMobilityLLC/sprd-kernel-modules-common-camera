@@ -129,7 +129,7 @@ static struct dcam_cfg_fun dcam_cfg_fun_tab[] = {
 	 {DCAM_BLOCK_RAW_AEM,		dcam_k_cfg_raw_aem},
 };
 
-static int sprd_camera_stream_off(struct camera_group *group,
+int sprd_camera_stream_off(struct camera_group *group,
 				  enum dcam_id idx);
 
 /* Internal Function Implementation */
@@ -2427,7 +2427,7 @@ static int sprd_img_k_release(struct inode *node, struct file *file)
 					i);
 				return -1;
 			}
-			sprd_camera_stream_off(group, i);
+			dcamio_stream_off(camerafile, 0, 0);
 			sprd_isp_module_dis(group->dev[i]->isp_dev_handle, i);
 			sprd_dcam_module_dis(i);
 			sprd_camera_dev_deinit(group, i);
@@ -3190,7 +3190,7 @@ exit:
 	return ret;
 }
 
-static int sprd_camera_stream_off(struct camera_group *group,
+int sprd_camera_stream_off(struct camera_group *group,
 				  enum dcam_id idx)
 {
 	int ret = 0;
@@ -3979,7 +3979,7 @@ exit:
 	return ret;
 }
 
-static int sprd_img_get_dcam_dev(struct camera_file *pcamerafile,
+int sprd_img_get_dcam_dev(struct camera_file *pcamerafile,
 				 struct camera_dev **ppdev,
 				 struct camera_info **ppinfo)
 {
