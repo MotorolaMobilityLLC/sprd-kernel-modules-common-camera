@@ -1277,8 +1277,6 @@ static int isphw_fetch_set(void *handle, void *arg)
 	en_3dnr = 0;/* (pctx->mode_3dnr == MODE_3DNR_OFF) ? 0 : 1; */
 	ISP_REG_MWR(idx, ISP_COMMON_SPACE_SEL,
 			BIT_1 | BIT_0, fetch->dispatch_color);
-	if (fetch->in_fmt != IMG_PIX_FMT_GREY)
-		ISP_REG_MWR(idx, ISP_YUV_MULT, BIT_31, 0 << 31);
 	/* 11b: close store_dbg module */
 	ISP_REG_MWR(idx, ISP_COMMON_SPACE_SEL,
 			BIT_3 | BIT_2, 3 << 2);

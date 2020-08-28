@@ -83,8 +83,6 @@ extern unsigned long s_isp_mmubase;
 #define ISP_WORK_CTRL				(0x0738UL)
 #define ISP_BLOCK_MODE				(0x073CUL)
 
-#define ISP_YUV_MULT                   (0x0740UL)
-
 #define ISP_CORE_STATUS				(0x8000UL)
 #define ISP_CORE_PMU_EN				(0x8010UL)
 #define ISP_CORE_BUSY_ON			(0x8014UL)

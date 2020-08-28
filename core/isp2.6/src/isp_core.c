@@ -1127,6 +1127,8 @@ static struct camera_frame *isp_get_path_out_frame(
 			break;
 		case ISP_STREAM_BUF_POSTPROC:
 			out_frame = pctx->postproc_buf;
+			cam_buf_iommu_map(&out_frame->buf,
+				CAM_IOMMUDEV_ISP);
 			tmp->valid_out_frame = 1;
 			break;
 		case ISP_STREAM_BUF_RESULT:
@@ -1454,9 +1456,10 @@ static int isp_offline_start_frame(void *ctx)
 	}
 
 	if ((pframe->fid & 0x1f) == 0)
-		pr_info(" sw %d, cam%d , fid %d, ch_id %d, buf_fd %d\n",
+		pr_info(" sw %d, cam%d , fid %d, ch_id %d, buf_fd %d %x\n",
 			pctx->ctx_id, pctx->attach_cam_id,
-			pframe->fid, pframe->channel_id, pframe->buf.mfd[0]);
+			pframe->fid, pframe->channel_id, pframe->buf.mfd[0],
+			pframe->buf.iova[0]);
 
 	ret = cam_buf_iommu_map(&pframe->buf, CAM_IOMMUDEV_ISP);
 	if (ret) {
@@ -1663,8 +1666,6 @@ done:
 unlock:
 	mutex_unlock(&pctx->param_mutex);
 dequeue:
-	if (tmp.stream)
-		cam_queue_empty_state_put(tmp.stream);
 	for (i = 0; i < ISP_SPATH_NUM; i++) {
 		path = &pctx->isp_path[i];
 		if (atomic_read(&path->user_cnt) < 1)
@@ -1695,9 +1696,14 @@ input_err:
 		if (pframe->sync_data)
 			dcam_if_release_sync(pframe->sync_data, pframe);
 		/* return buffer to cam channel shared buffer queue. */
-		pctx->isp_cb_func(ISP_CB_RET_SRC_BUF, pframe, pctx->cb_priv_data);
+		if (tmp.stream && tmp.stream->data_src == ISP_STREAM_SRC_ISP)
+			pr_debug("isp postproc no need return\n");
+		else
+			pctx->isp_cb_func(ISP_CB_RET_SRC_BUF, pframe, pctx->cb_priv_data);
 	}
 
+	if (tmp.stream)
+		cam_queue_empty_state_put(tmp.stream);
 	if (pctx->enable_slowmotion) {
 		for (i = 0; i < pctx->slowmotion_count - 1; i++) {
 			pframe = cam_queue_dequeue(&pctx->in_queue,
@@ -2341,6 +2347,7 @@ static int isp_postproc_irq(void *handle, uint32_t idx,
 		if (stream && stream->data_src == ISP_STREAM_SRC_ISP) {
 			pr_info("isp %d post proc, do not need to return frame\n",
 				pctx->ctx_id);
+			cam_buf_iommu_unmap(&pframe->buf);
 		} else {
 			/* return buffer to cam channel shared buffer queue. */
 			cam_buf_iommu_unmap(&pframe->buf);

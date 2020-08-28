@@ -542,6 +542,7 @@ static int isphw_irq_clear(void *handle, void *arg)
 
 static uint32_t ISP_CFG_MAP[] __aligned(8) = {
 	0x00080710,/*0x0710  - 0x0714 , 2   , common path sel*/
+	0x00040740,/*0x0740  - 0x0740 , 1   , yuv mult */
 	0x00041C10,/*0x1C10  - 0x1C10 , 1   , VST*/
 	0x01702010,/*0x2010  - 0x217C , 92  , NLM*/
 	0x00041E10,/*0x1E10  - 0x1E10 , 1   , IVST*/
@@ -863,7 +864,7 @@ static int isphw_fetch_set(void *handle, void *arg)
 	}
 
 	if (fetch->in_fmt != IMG_PIX_FMT_GREY)
-		ISP_HREG_MWR(ISP_YUV_MULT, BIT_31, 0 << 31);
+		ISP_REG_MWR(idx, ISP_YUV_MULT, BIT_31, 0 << 31);
 
 	pr_debug("isp_fetch: bayer mode=%d ,mipi_word_num %d, mipi_pos %d\n",
 		fetch->dispatch_bayer_mode,
@@ -2045,7 +2046,7 @@ BLOCK_CFG:
 	ISP_REG_MWR(idx, ISP_YGAMMA_PARAM, BIT_0, p->ygamma_info.bypass);
 	ISP_REG_MWR(idx, ISP_YNR_CONTRL0, BIT_0, p->ynr_info.bypass);
 	ISP_REG_MWR(idx, ISP_YRANDOM_PARAM1, BIT_0, p->yrandom_info.bypass);
-	ISP_HREG_MWR(ISP_YUV_MULT, BIT_31, 1 << 31);
+	ISP_REG_MWR(idx, ISP_YUV_MULT, BIT_31, 1 << 31);
 	return ret;
 
 BLOCK_BYPASS:
@@ -2067,7 +2068,7 @@ BLOCK_BYPASS:
 	ISP_REG_MWR(idx, ISP_YGAMMA_PARAM, BIT_0, 1);
 	ISP_REG_MWR(idx, ISP_YNR_CONTRL0, BIT_0, 1);
 	ISP_REG_MWR(idx, ISP_YRANDOM_PARAM1, BIT_0, 1);
-	ISP_HREG_MWR(ISP_YUV_MULT, BIT_31, 0 << 31);
+	ISP_REG_MWR(idx, ISP_YUV_MULT, BIT_31, 0 << 31);
 
 	return ret;
 }
