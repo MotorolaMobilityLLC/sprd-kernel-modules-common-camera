@@ -21,12 +21,12 @@
 #include "cam_types.h"
 
 
-#define ISP_MAX_LINE_WIDTH		2592
+#define ISP_MAX_LINE_WIDTH              2592
 
-#define ISP_NR3_BUF_NUM 2
-#define ISP_LTM_BUF_NUM 10
+#define ISP_NR3_BUF_NUM                 2
+#define ISP_LTM_BUF_NUM                 10
 
-#define CAMERA_RESERVE_FRAME_NUM	0xffffffff
+#define CAMERA_RESERVE_FRAME_NUM        0xffffffff
 
 enum isp_context_id {
 	ISP_CONTEXT_P0,
@@ -180,14 +180,14 @@ struct isp_path_compression_desc {
 	uint32_t store_fbc;
 };
 
-#define ISP_FBC_3DNR_PAD_WIDTH 256
-#define ISP_FBC_3DNR_PAD_HEIGHT 4
-#define ISP_FBC_STORE_TILE_WIDTH 32
-#define ISP_FBC_STORE_TILE_HEIGHT 8
+#define ISP_FBC_3DNR_PAD_WIDTH          256
+#define ISP_FBC_3DNR_PAD_HEIGHT         4
+#define ISP_FBC_STORE_TILE_WIDTH        32
+#define ISP_FBC_STORE_TILE_HEIGHT       8
 
 static inline void
 isp_3dnr_cal_compressed_addr(uint32_t width, uint32_t height, addr_t in,
-			     struct compressed_addr *out)
+			struct compressed_addr *out)
 {
 	uint32_t pixel_count, header_bytes_y, header_bytes_c;
 
@@ -205,7 +205,7 @@ isp_3dnr_cal_compressed_addr(uint32_t width, uint32_t height, addr_t in,
 	out->addr0 = in;
 	out->addr1 = ALIGN(out->addr0 + header_bytes_y, FBC_TILE_ADDR_ALIGN);
 	out->addr2 = ALIGN(out->addr1 + header_bytes_c + pixel_count,
-			   FBC_TILE_ADDR_ALIGN);
+			FBC_TILE_ADDR_ALIGN);
 }
 
 static inline uint32_t

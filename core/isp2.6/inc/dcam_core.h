@@ -23,29 +23,29 @@
 #include "cam_block.h"
 #include "cam_hw.h"
 
-#define DCAM_IN_Q_LEN  2
-#define DCAM_PROC_Q_LEN  12
+#define DCAM_IN_Q_LEN                     2
+#define DCAM_PROC_Q_LEN                   12
 
 /* TODO: extend these for slow motion dev */
-#define DCAM_RESULT_Q_LEN 12
-#define DCAM_OUT_BUF_Q_LEN 16
-#define DCAM_RESERVE_BUF_Q_LEN 12
+#define DCAM_RESULT_Q_LEN                 12
+#define DCAM_OUT_BUF_Q_LEN                16
+#define DCAM_RESERVE_BUF_Q_LEN            12
 
-#define DCAM_INTERNAL_RES_BUF_SIZE  0xC0000
-#define DCAM_LSC_BUF_SIZE 0x3000
+#define DCAM_INTERNAL_RES_BUF_SIZE        0xC0000
+#define DCAM_LSC_BUF_SIZE                 0x3000
 
-#define DCAM_OFFLINE_TIMEOUT		msecs_to_jiffies(2000)
-#define DCAM_OFFLINE_SLC_MAX 2
+#define DCAM_OFFLINE_TIMEOUT              msecs_to_jiffies(2000)
+#define DCAM_OFFLINE_SLC_MAX              2
 
 // TODO: how many helpers there should be?
-#define DCAM_SYNC_HELPER_COUNT 20
+#define DCAM_SYNC_HELPER_COUNT            20
 /* DO NOT MODIFY!! */
-#define DCAM_FRAME_TIMESTAMP_COUNT 0x40
+#define DCAM_FRAME_TIMESTAMP_COUNT        0x40
 /* get index of timestamp from frame index */
-#define tsid(x) ((x) & (DCAM_FRAME_TIMESTAMP_COUNT - 1))
-#define DCAM_FETCH_TWICE(dev)  (dev->raw_fetch_num > 1)
-#define DCAM_FIRST_FETCH(dev)  (dev->raw_fetch_count == 1)
-#define DCAM_LAST_FETCH(dev)   (dev->raw_fetch_count == 2)
+#define tsid(x)                           ((x) & (DCAM_FRAME_TIMESTAMP_COUNT - 1))
+#define DCAM_FETCH_TWICE(dev)             (dev->raw_fetch_num > 1)
+#define DCAM_FIRST_FETCH(dev)             (dev->raw_fetch_count == 1)
+#define DCAM_LAST_FETCH(dev)              (dev->raw_fetch_count == 2)
 
 struct dcam_pipe_dev;
 
@@ -76,7 +76,6 @@ enum dcam_path_state {
 	DCAM_PATH_PAUSE,
 	DCAM_PATH_RESUME,
 };
-
 
 struct dcam_rds_slice_ctrl {
 	uint32_t rds_input_h_global;
@@ -119,7 +118,7 @@ struct dcam_path_desc {
 	uint32_t is_slw;
 	uint32_t slw_frm_num;
 	uint32_t bin_ratio;
-	uint32_t scaler_sel; /* 0: bining, 1: RDS, 2&3: bypass */
+	uint32_t scaler_sel;/* 0: bining, 1: RDS, 2&3: bypass */
 	void *rds_coeff_buf;
 	uint32_t rds_coeff_size;
 
@@ -175,14 +174,12 @@ struct dcam_sync_helper {
 	struct dcam_pipe_dev *dev;
 };
 
-
 /* for multi dcam context (offline) */
 struct dcam_pipe_context {
 	atomic_t user_cnt;
 	uint32_t ctx_id;
 	struct dcam_dev_param blk_pm;
 };
-
 
 /*
  * A dcam_pipe_dev is a digital IP including one input for raw RGB or YUV
@@ -247,21 +244,21 @@ struct dcam_pipe_dev {
 	spinlock_t glb_reg_lock;
 	bool  dcamsec_eb;
 	uint32_t err_status;// TODO: change to use state
-	uint32_t err_count; /* iommu register dump count in dcam_err */
+	uint32_t err_count;/* iommu register dump count in dcam_err */
 
 	uint32_t is_loose;
 	uint32_t is_4in1;
-	uint32_t lowlux_4in1; /* 4in1 low lux mode capture */
-	uint32_t skip_4in1; /* need skip 1 frame then change full source */
+	uint32_t lowlux_4in1;/* 4in1 low lux mode capture */
+	uint32_t skip_4in1;/* need skip 1 frame then change full source */
 	uint32_t is_3dnr;
 	uint32_t is_ebd;
-	uint32_t offline; /* flag: set 1 for 4in1 go through dcam1 bin */
-	uint32_t rps; /* raw_proc_scene 0:normal 1:hwsim*/
+	uint32_t offline;/* flag: set 1 for 4in1 go through dcam1 bin */
+	uint32_t rps;/* raw_proc_scene 0:normal 1:hwsim*/
 	uint32_t dcam_slice_mode;
 	uint32_t slice_num;
 	uint32_t slice_count;
-	struct img_trim slice_trim; /* for sw slices */
-	struct img_trim hw_slices[DCAM_OFFLINE_SLC_MAX]; /* for offline hw slices */
+	struct img_trim slice_trim;/* for sw slices */
+	struct img_trim hw_slices[DCAM_OFFLINE_SLC_MAX];/* for offline hw slices */
 	struct img_trim *cur_slice;
 	uint32_t raw_cap;
 	uint32_t raw_fetch_num;
@@ -276,7 +273,7 @@ struct dcam_pipe_dev {
 	uint32_t iommu_enable;
 	struct dcam_mipi_info cap_info;
 
-	void *internal_reserved_buf; /* for statis path output */
+	void *internal_reserved_buf;/* for statis path output */
 
 	struct camera_buf statis_buf_array[STATIS_TYPE_MAX][STATIS_BUF_NUM_MAX];
 
@@ -312,5 +309,5 @@ struct dcam_sync_helper *dcam_get_sync_helper(struct dcam_pipe_dev *dev);
  * available and all paths are using reserved memory.
  */
 void dcam_put_sync_helper(struct dcam_pipe_dev *dev,
-			  struct dcam_sync_helper *helper);
+			struct dcam_sync_helper *helper);
 #endif

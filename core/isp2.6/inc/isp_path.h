@@ -14,14 +14,14 @@
 #ifndef _ISP_PATH_H_
 #define _ISP_PATH_H_
 
-#define SHRINK_Y_UP_TH 235
-#define SHRINK_Y_DN_TH 16
-#define SHRINK_UV_UP_TH 240
-#define SHRINK_UV_DN_TH 16
-#define SHRINK_Y_OFFSET 16
-#define SHRINK_Y_RANGE 3
-#define SHRINK_C_OFFSET 16
-#define SHRINK_C_RANGE 6
+#define SHRINK_Y_UP_TH                  235
+#define SHRINK_Y_DN_TH                  16
+#define SHRINK_UV_UP_TH                 240
+#define SHRINK_UV_DN_TH                 16
+#define SHRINK_Y_OFFSET                 16
+#define SHRINK_Y_RANGE                  3
+#define SHRINK_C_OFFSET                 16
+#define SHRINK_C_RANGE                  6
 
 int isp_cfg_ctx_base(struct isp_pipe_context *pctx, void *param);
 int isp_cfg_ctx_size(struct isp_pipe_context *pctx, void *param);
@@ -36,7 +36,7 @@ int isp_cfg_path_uframe_sync(struct isp_path_desc *path, void *param);
 
 int isp_set_path(struct isp_path_desc *path);
 int isp_path_set_fetch_frm(struct isp_pipe_context *pctx,
-			   struct camera_frame *frame);
+		struct camera_frame *frame);
 int isp_path_set_store_frm(
 		struct isp_path_desc *path,
 		struct camera_frame *frame);

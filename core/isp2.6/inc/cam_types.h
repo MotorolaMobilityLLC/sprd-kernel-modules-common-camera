@@ -24,10 +24,9 @@
 #define MIN(__a, __b) (((__a) < (__b)) ? (__a) : (__b))
 #endif
 
-#define ZOOM_RATIO_DEFAULT     1000
-#define CAM_BUF_ALIGN_SIZE		4
-#define	ALIGN_OFFSET			16
-
+#define ZOOM_RATIO_DEFAULT              1000
+#define CAM_BUF_ALIGN_SIZE              4
+#define	ALIGN_OFFSET                    16
 
 /*************** for global debug starts********************/
 
@@ -205,7 +204,6 @@ struct img_scaler_info {
 	struct img_size dst_size;
 };
 
-
 struct cam_thread_info {
 	atomic_t thread_stop;
 	void *ctx_handle;
@@ -243,10 +241,10 @@ enum dcam_cb_type {
 
 };
 
-#define FBC_TILE_WIDTH 64
-#define FBC_TILE_HEIGHT 4
-#define FBC_TILE_ADDR_ALIGN 256
-#define FBC_HEADER_REDUNDANT 64
+#define FBC_TILE_WIDTH                  64
+#define FBC_TILE_HEIGHT                 4
+#define FBC_TILE_ADDR_ALIGN             256
+#define FBC_HEADER_REDUNDANT            64
 
 /* for fbc/fbd */
 typedef unsigned long addr_t;
@@ -271,4 +269,4 @@ typedef int(*isp_dev_callback)(enum isp_cb_type type, void *param,
 typedef int(*dcam_dev_callback)(enum dcam_cb_type type, void *param,
 				void *priv_data);
 
-#endif /* _CAM_TYPES_H_ */
+#endif/* _CAM_TYPES_H_ */

@@ -21,8 +21,8 @@
 #include "ion.h"
 /* #include "ion_priv.h" */
 
-#define CAM_BUF_NAME_LEN		32
-#define CAM_BUF_CAHCED		(1 << 31)
+#define CAM_BUF_NAME_LEN         32
+#define CAM_BUF_CAHCED           (1 << 31)
 
 enum cam_buf_type {
 	CAM_BUF_NONE,
@@ -51,13 +51,13 @@ struct camera_buf {
 	int32_t mfd[3];
 	struct dma_buf *dmabuf_p[3];
 
-	void *ionbuf[3]; /* for iommu map */
+	void *ionbuf[3];/* for iommu map */
 	uint32_t offset[3];
 	size_t size[3];
 	unsigned long addr_vir[3];
 	unsigned long addr_k[3];
 	unsigned long iova[3];
-	struct device *dev; /* mapped device */
+	struct device *dev;/* mapped device */
 	enum cam_buf_type type;
 	uint32_t mapping_state;
 };
@@ -83,4 +83,4 @@ int  cam_buf_alloc(struct camera_buf *buf_info, size_t size,
 int cam_buf_free(struct camera_buf *buf_info);
 
 int cam_buf_mdbg_check(void);
-#endif /* _CAM_BUF_H_ */
+#endif/* _CAM_BUF_H_ */

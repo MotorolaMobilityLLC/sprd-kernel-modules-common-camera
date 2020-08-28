@@ -15,21 +15,20 @@
 #ifndef _ISP_SLICE_H_
 #define _ISP_SLICE_H_
 
+#define SLICE_NUM_MAX                   4
+#define SLICE_W_NUM_MAX                 4
+#define SLICE_H_NUM_MAX                 1
+#define SLICE_OVERLAP_W_MAX             64
 
-#define SLICE_NUM_MAX				4
-#define SLICE_W_NUM_MAX				4
-#define SLICE_H_NUM_MAX				1
-#define SLICE_OVERLAP_W_MAX			64
+#define YUV_OVERLAP_UP                  46
+#define YUV_OVERLAP_DOWN                68
+#define YUV_OVERLAP_LEFT                106
+#define YUV_OVERLAP_RIGHT               126
 
-#define YUV_OVERLAP_UP				46
-#define YUV_OVERLAP_DOWN			68
-#define YUV_OVERLAP_LEFT			106
-#define YUV_OVERLAP_RIGHT			126
-
-#define YUVSCALER_OVERLAP_UP			32
-#define YUVSCALER_OVERLAP_DOWN			52
-#define YUVSCALER_OVERLAP_LEFT			48
-#define YUVSCALER_OVERLAP_RIGHT			68
+#define YUVSCALER_OVERLAP_UP            32
+#define YUVSCALER_OVERLAP_DOWN          52
+#define YUVSCALER_OVERLAP_LEFT          48
+#define YUVSCALER_OVERLAP_RIGHT         68
 
 #define FMCU_PUSH(fmcu, addr, cmd) \
 		fmcu->ops->push_cmdq(fmcu, addr, cmd)
@@ -82,7 +81,7 @@ struct slice_thumbscaler_info {
 	struct img_size uv_factor_in;
 	struct img_size uv_factor_out;
 
-	struct img_size src0; /* input image/slice size */
+	struct img_size src0;/* input image/slice size */
 
 	struct img_trim y_trim;
 	struct img_size y_src_after_deci;

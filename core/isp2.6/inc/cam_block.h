@@ -27,8 +27,7 @@ struct isp_k_block {
 	uint32_t seed0_for_mode1;
 	uint32_t shape_mode;
 
-
-	 /* sharkl5/sharkl5pro  */
+	/* sharkl5/sharkl5pro  */
 	struct isp_dev_grgb_info grgb_info;
 	struct isp_dev_bchs_info bchs_info;
 	struct isp_dev_rgb_ltm_info ltm_rgb_info;
@@ -40,7 +39,7 @@ struct isp_k_block {
 	struct isp_dev_uvd_info_v2 uvd_info_v2;
 	struct isp_dev_ynr_info_v2 ynr_info_v2;
 
-	 /* sharkl3 only */
+	/* sharkl3 only */
 	struct isp_dev_brightness_info brightness_info;
 	struct isp_dev_contrast_info contrast_info;
 	struct isp_dev_csa_info csa_info;
@@ -70,7 +69,6 @@ struct isp_k_block {
 	uint32_t ivst_buf[ISP_VST_IVST_NUM2];
 };
 
-
 int dcam_init_lsc_slice(void *param, uint32_t online);
 int dcam_init_lsc(void *param, uint32_t online);
 int dcam_update_lsc(void *param);
@@ -94,7 +92,7 @@ int dcam_k_cfg_grgb(struct isp_io_param *param, struct dcam_dev_param *p);
 int dcam_k_cfg_3dnr_me(struct isp_io_param *param, struct dcam_dev_param *p);
 int dcam_k_cfg_afm(struct isp_io_param *param, struct dcam_dev_param *p);
 void dcam_k_3dnr_set_roi(struct isp_img_rect rect,
-			 uint32_t project_mode, uint32_t idx);
+			uint32_t project_mode, uint32_t idx);
 
 /* for dcam driver internal */
 int dcam_k_blc_block(struct dcam_dev_param *param);
@@ -136,7 +134,6 @@ int dcam_k_lscm_monitor(struct dcam_dev_param *param);
 
 int dcam_k_pdaf(struct dcam_dev_param *param);
 /* for dcam driver internal end */
-
 
 int isp_k_cfg_nlm(struct isp_io_param *param,
 	struct isp_k_block *isp_k_param, uint32_t idx);
@@ -214,14 +211,12 @@ int isp_k_update_imbalance(uint32_t idx,
 	uint32_t new_width, uint32_t old_width,
 	uint32_t new_height, uint32_t old_height);
 
-
-int init_dcam_pm(struct dcam_dev_param *blk_pm_ctx );
+int init_dcam_pm(struct dcam_dev_param *blk_pm_ctx);
 int init_isp_pm(struct isp_k_block *isp_k_param);
 
 /* for param debug */
 int dcam_k_dump_pm(void *pdst, void *psrc);
 int isp_k_dump_pm(void *pdst, void *psrc);
-
 
 /* for bypass dcam,isp sub-block */
 enum block_bypass {
@@ -243,6 +238,7 @@ enum block_bypass {
 	_E_GTM,
 };
 extern uint32_t g_dcam_bypass[];
+
 enum isp_bypass {
 	_EISP_GC = 0, /* E:enum, ISP: isp */
 	_EISP_NLM,
@@ -280,10 +276,10 @@ enum isp_bypass {
 extern uint32_t g_isp_bypass[];
 
 struct bypass_tag {
-	char *p; /* abbreviation */
+	char *p;/* abbreviation */
 	uint32_t addr;
-	uint32_t bpos; /* bit position */
-	uint32_t all; /* 1: all bypass except preview path */
+	uint32_t bpos;/* bit position */
+	uint32_t all;/* 1: all bypass except preview path */
 };
 uint32_t dcam_tb_bypass_get_count(void);
 struct bypass_tag *dcam_tb_bypass_get_data(uint32_t index);

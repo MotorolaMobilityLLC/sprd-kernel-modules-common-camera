@@ -31,7 +31,7 @@ struct cam_flash_task_info {
 	uint32_t frame_skipped;
 	uint32_t after_af;
 	struct timeval timestamp;
-	uint32_t skip_number;	/*cap skip*/
+	uint32_t skip_number;/*cap skip*/
 	uint32_t cam_idx;
 
 	struct completion flash_thread_com;

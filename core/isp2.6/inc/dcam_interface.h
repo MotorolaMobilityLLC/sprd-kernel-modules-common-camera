@@ -24,27 +24,27 @@
  * modification to these values may cause some function in isp_slice.c not
  * work, check @_cfg_slice_fbd_raw and all other symbol references for details
  */
-#define DCAM_FBC_TILE_WIDTH 64
-#define DCAM_FBC_TILE_HEIGHT 4
+#define DCAM_FBC_TILE_WIDTH             64
+#define DCAM_FBC_TILE_HEIGHT            4
 
 /* 4-pixel align for MIPI CAP input from CSI */
-#define DCAM_MIPI_CAP_ALIGN 4
+#define DCAM_MIPI_CAP_ALIGN             4
 
 /* 2-pixel align for RDS output size */
-#define DCAM_RDS_OUT_ALIGN 2
+#define DCAM_RDS_OUT_ALIGN              2
 
 /* 16-pixel align for debug convenience */
-#define DCAM_OUTPUT_DEBUG_ALIGN 16
+#define DCAM_OUTPUT_DEBUG_ALIGN         16
 
 /* align size for full/bin crop, use 4 for zzhdr sensor, 2 for normal sensor */
-#define DCAM_CROP_SIZE_ALIGN 4
+#define DCAM_CROP_SIZE_ALIGN            4
 
-#define DCAM_SCALE_DOWN_MAX 4
+#define DCAM_SCALE_DOWN_MAX             4
 
 /*
  * Quick function to check is @idx valid.
  */
-#define is_dcam_id(idx) ((idx) < DCAM_ID_MAX)
+#define is_dcam_id(idx)                 ((idx) < DCAM_ID_MAX)
 
 
 /*
@@ -101,7 +101,7 @@ enum dcam_path_cfg_cmd {
 	DCAM_PATH_CLR_OUTPUT_ALTER_BUF,
 	DCAM_PATH_CFG_OUTPUT_RESERVED_BUF,
 	DCAM_PATH_CFG_SIZE,
-	DCAM_PATH_CFG_FULL_SOURCE, /* 4in1 select full path source */
+	DCAM_PATH_CFG_FULL_SOURCE,/* 4in1 select full path source */
 	DCAM_PATH_CFG_SHUTOFF,
 	DCAM_PATH_CFG_STATE,
 };
@@ -125,8 +125,8 @@ dcam_if_cal_compressed_addr(uint32_t width,
 		return;
 
 	tile_col = (width + FBC_TILE_WIDTH - 1) / FBC_TILE_WIDTH;
-	tile_col = (tile_col + 2 -1) / 2 * 2;
-	tile_row =(height + FBC_TILE_HEIGHT - 1) / FBC_TILE_HEIGHT;
+	tile_col = (tile_col + 2 - 1) / 2 * 2;
+	tile_row = (height + FBC_TILE_HEIGHT - 1) / FBC_TILE_HEIGHT;
 	header_size = (tile_col * tile_row + 1) / 2;
 	header_bytes = header_size + FBC_HEADER_REDUNDANT;
 	pixel_count = tile_col * tile_row * FBC_TILE_ADDR_ALIGN;
@@ -148,8 +148,8 @@ dcam_if_cal_compressed_size(uint32_t width,
 	int32_t tile_col = 0, tile_row = 0, header_size = 0;
 
 	tile_col = (width + FBC_TILE_WIDTH - 1) / FBC_TILE_WIDTH;
-	tile_col = (tile_col + 2 -1) / 2 * 2;
-	tile_row =(height + FBC_TILE_HEIGHT - 1) / FBC_TILE_HEIGHT;
+	tile_col = (tile_col + 2 - 1) / 2 * 2;
+	tile_row = (height + FBC_TILE_HEIGHT - 1) / FBC_TILE_HEIGHT;
 	header_size = (tile_col * tile_row + 1) / 2;
 	pixel_count = tile_col * tile_row * FBC_TILE_ADDR_ALIGN;
 	header = header_size + FBC_HEADER_REDUNDANT
@@ -179,10 +179,10 @@ enum dcam_ioctrl_cmd {
 };
 
 /*
-	DCAM_STOP: normal stop;
-	DCAM_PAUSE_ONLINE: online paused; pause for fdr use same dcam for following offline process
-	DCAM_PAUSE_OFFLINE: offline paused; after fdr use same dcam for offline process and prepare for online resume
-*/
+ *DCAM_STOP: normal stop;
+ *DCAM_PAUSE_ONLINE: online paused; pause for fdr use same dcam for following offline process
+ *DCAM_PAUSE_OFFLINE: offline paused; after fdr use same dcam for offline process and prepare for online resume
+ */
 enum dcam_stop_cmd {
 	DCAM_STOP,
 	DCAM_PAUSE_ONLINE,
@@ -190,11 +190,11 @@ enum dcam_stop_cmd {
 };
 
 struct dcam_cap_cfg {
-	uint32_t sensor_if; /* MIPI CSI-2 */
-	uint32_t format; /* input color format */
-	uint32_t mode; /* single or multi mode. */
+	uint32_t sensor_if;/* MIPI CSI-2 */
+	uint32_t format;/* input color format */
+	uint32_t mode;/* single or multi mode. */
 	uint32_t data_bits;
-	uint32_t pattern; /* bayer mode for rgb, yuv pattern for yuv */
+	uint32_t pattern;/* bayer mode for rgb, yuv pattern for yuv */
 	uint32_t href;
 	uint32_t frm_deci;
 	uint32_t frm_skip;
@@ -319,7 +319,7 @@ int dcam_if_set_sync_enable(void *handle, int path_id, int enable);
  * can be recycled for next use.
  */
 int dcam_if_release_sync(struct dcam_frame_synchronizer *sync,
-			 struct camera_frame *frame);
+			struct camera_frame *frame);
 /*
  * Test if frame data is valid for path_id. Data will be valid only after
  * TX_DONE interrupt.
@@ -349,4 +349,4 @@ uint32_t get_outbuf_queue_cnt(void *dev, int path_id);
 
 uint32_t dcam_if_get_open_count(void);
 
-#endif /* _DCAM_INTERFACE_H_ */
+#endif/* _DCAM_INTERFACE_H_ */

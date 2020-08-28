@@ -11,7 +11,6 @@
  * GNU General Public License for more details.
  */
 
-
 #ifndef _ISP_FMCU_H_
 #define _ISP_FMCU_H_
 
@@ -21,7 +20,7 @@
 
 #include "cam_buf.h"
 
-#define ISP_FMCU_CMDQ_SIZE		0x1000
+#define ISP_FMCU_CMDQ_SIZE          0x1000
 
 enum fmcu_id {
 	ISP_FMCU_0,
@@ -86,4 +85,4 @@ struct isp_fmcu_ops {
 struct isp_fmcu_ctx_desc *get_isp_fmcu_ctx_desc(void *arg);
 int put_isp_fmcu_ctx_desc(struct isp_fmcu_ctx_desc *fmcu);
 
-#endif /* _ISP_FMCU_H_ */
+#endif/* _ISP_FMCU_H_ */

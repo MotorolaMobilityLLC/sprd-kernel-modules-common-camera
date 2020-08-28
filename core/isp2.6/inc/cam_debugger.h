@@ -3,7 +3,6 @@
 
 #include "dcam_interface.h"
 
-
 /* compression override commands */
 enum {
 	CH_PRE = 0,

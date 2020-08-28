@@ -16,8 +16,8 @@
 
 #include "dcam_core.h"
 
-#define DCAM_PATH_WMAX_ROC1			6000
-#define DCAM_PATH_HMAX_ROC1			4000
+#define DCAM_PATH_WMAX_ROC1                     6000
+#define DCAM_PATH_HMAX_ROC1                     4000
 
 const char *to_path_name(enum dcam_path_id path_id);
 
@@ -30,7 +30,7 @@ int dcam_cfg_path_size(void *dcam_handle,
 				void *param);
 int dcam_path_set_slowmotion_frame(struct dcam_pipe_dev *dev);
 int dcam_path_set_skip_num(struct dcam_pipe_dev *dev,
-			   int path_id, uint32_t skip_num);
+				int path_id, uint32_t skip_num);
 
 /* / TODO: refine this*/
 int dcam_path_set_store_frm(

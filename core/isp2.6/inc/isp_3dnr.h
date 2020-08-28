@@ -22,19 +22,19 @@ extern "C" {
 #include "dcam_interface.h"
 #include "isp_interface.h"
 
-#define FBC_NR3_Y_PAD_WIDTH 256
-#define FBC_NR3_Y_PAD_HEIGHT 4
-#define FBC_NR3_Y_WIDTH 128
-#define FBC_NR3_Y_HEIGHT 2
-#define FBC_NR3_BASE_ALIGN 256
-#define FBD_NR3_Y_PAD_WIDTH 256
-#define FBD_NR3_Y_PAD_HEIGHT 4
-#define FBD_NR3_Y_WIDTH 128
-#define FBD_NR3_Y_HEIGHT 2
-#define FBD_NR3_BASE_ALIGN 256
-#define FBD_BAYER_HEIGHT 4
+#define FBC_NR3_Y_PAD_WIDTH            256
+#define FBC_NR3_Y_PAD_HEIGHT           4
+#define FBC_NR3_Y_WIDTH                128
+#define FBC_NR3_Y_HEIGHT               2
+#define FBC_NR3_BASE_ALIGN             256
+#define FBD_NR3_Y_PAD_WIDTH            256
+#define FBD_NR3_Y_PAD_HEIGHT           4
+#define FBD_NR3_Y_WIDTH                128
+#define FBD_NR3_Y_HEIGHT               2
+#define FBD_NR3_BASE_ALIGN             256
+#define FBD_BAYER_HEIGHT               4
 
-#define NR3_BLEND_CNT 5
+#define NR3_BLEND_CNT                  5
 
 enum nr3_func_type {
 	NR3_FUNC_OFF,
@@ -45,16 +45,6 @@ enum nr3_func_type {
 };
 
 struct isp_3dnr_mem_ctrl {
-#if 0
-	uint32_t ft_max_len_sel;
-	uint32_t ref_pic_flag;
-	uint32_t retain_num;
-	uint32_t roi_mode;
-	uint32_t data_toyuv_en;
-	uint32_t chk_sum_clr_en;
-	uint32_t back_toddr_en;
-	uint32_t nr3_done_mode;
-#endif
 	uint32_t bypass;
 	uint32_t nr3_done_mode;
 	uint32_t nr3_ft_path_sel;
@@ -177,8 +167,8 @@ struct mv_conversion {
 	uint32_t nr3_channel_sel;
 	uint32_t project_mode;
 	uint32_t sub_me_bypass;
-	int	 roi_start_x;
-	int	 roi_start_y;
+	int roi_start_x;
+	int roi_start_y;
 	uint32_t roi_width;
 	uint32_t roi_height;
 	uint32_t input_width;
@@ -232,17 +222,6 @@ struct nr3_slice_for_blending {
 	uint32_t offset_start_x;
 	uint32_t offset_start_y;
 	uint32_t crop_bypass;
-
-#if 0
-	uint32_t src_lum_addr;
-	uint32_t src_chr_addr;
-	uint32_t ft_y_width;
-	uint32_t ft_y_height;
-	uint32_t ft_uv_width;
-	uint32_t ft_uv_height;
-	uint32_t first_line_mode;
-	uint32_t last_line_mode;
-#endif
 };
 /* capture */
 
@@ -279,9 +258,9 @@ int isp_3dnr_update_memctrl_slice_info(struct nr3_slice *in, struct nr3_slice_fo
 int isp_3dnr_gen_config(struct isp_3dnr_ctx_desc *ctx);
 
 void isp_3dnr_config_param(struct isp_3dnr_ctx_desc *ctx,
-			   struct isp_k_block *isp_k_param,
-			   uint32_t idx,
-			   enum nr3_func_type type_id);
+			struct isp_k_block *isp_k_param,
+			uint32_t idx,
+			enum nr3_func_type type_id);
 
 void isp_3dnr_bypass_config(uint32_t idx);
 
@@ -289,4 +268,4 @@ void isp_3dnr_bypass_config(uint32_t idx);
 }
 #endif
 
-#endif /* _ISP_3DNR_H_ */
+#endif/* _ISP_3DNR_H_ */

@@ -19,7 +19,7 @@
 #include <linux/platform_device.h>
 #include "cam_types.h"
 
-#define ISP_SC_COEFF_BUF_SIZE		(24 << 10)
+#define ISP_SC_COEFF_BUF_SIZE   (24 << 10)
 
 extern struct cam_hw_info sharkl3_hw_info;
 extern struct cam_hw_info sharkl5_hw_info;
@@ -39,7 +39,8 @@ enum dcam_id {
 };
 
 /* The project id must keep same with the DT cfg
- * new added project should always added in the end */
+ * new added project should always added in the end
+ */
 enum cam_prj_id {
 	SHARKL3,
 	SHARKL5,
@@ -102,7 +103,7 @@ enum isp_sub_path_id {
 	ISP_SPATH_NUM,
 };
 
-enum dcam_hw_cfg_cmd{
+enum dcam_hw_cfg_cmd {
 	DCAM_HW_CFG_ENABLE_CLK,
 	DCAM_HW_CFG_DISABLE_CLK,
 	DCAM_HW_CFG_INIT_AXI,
@@ -145,7 +146,7 @@ enum dcam_hw_cfg_cmd{
 	DCAM_HW_CFG_MAX
 };
 
-enum isp_hw_cfg_cmd{
+enum isp_hw_cfg_cmd {
 	ISP_HW_CFG_ENABLE_CLK,
 	ISP_HW_CFG_DISABLE_CLK,
 	ISP_HW_CFG_RESET,
@@ -351,7 +352,7 @@ struct isp_store_info {
 	uint32_t rd_ctrl;
 	uint32_t shadow_clr_sel;
 	uint32_t total_size;
-	enum isp_store_format color_fmt; /* output color format */
+	enum isp_store_format color_fmt;/* output color format */
 	struct img_size size;
 	struct img_addr addr;
 	struct img_addr slice_offset;
@@ -552,11 +553,11 @@ struct dcam_fetch_info {
 };
 
 struct dcam_mipi_info {
-	uint32_t sensor_if;  /* MIPI CSI-2 */
-	uint32_t format;  /* input color format */
-	uint32_t mode;   /* single or multi mode. */
+	uint32_t sensor_if;/* MIPI CSI-2 */
+	uint32_t format;/* input color format */
+	uint32_t mode;/* single or multi mode. */
 	uint32_t data_bits;
-	uint32_t pattern; /* bayer mode for rgb, yuv pattern for yuv */
+	uint32_t pattern;/* bayer mode for rgb, yuv pattern for yuv */
 	uint32_t href;
 	uint32_t frm_deci;
 	uint32_t frm_skip;
@@ -618,7 +619,7 @@ struct reg_add_val_tag {
 	unsigned int valid;
 	unsigned int dvalue;
 	unsigned int rw;
-	unsigned int wc; /* write clean */
+	unsigned int wc;/* write clean */
 };
 
 struct coeff_arg {
@@ -920,7 +921,6 @@ struct cam_hw_soc_info {
 	uint32_t awqos_low;
 };
 
-
 struct cam_hw_info {
 	enum cam_prj_id prj_id;
 	struct platform_device *pdev;
@@ -928,8 +928,8 @@ struct cam_hw_info {
 	struct cam_hw_soc_info *soc_isp;
 	struct cam_hw_ip_info *ip_dcam[DCAM_ID_MAX];
 	struct cam_hw_ip_info *ip_isp;
-	int (*dcam_ioctl)(void *,uint32_t, void *);
-	int (*isp_ioctl)(void *,uint32_t, void *);
+	int (*dcam_ioctl)(void *, uint32_t, void *);
+	int (*isp_ioctl)(void *, uint32_t, void *);
 };
 
 #endif

@@ -22,13 +22,13 @@ extern "C" {
 #include "dcam_interface.h"
 #include "isp_interface.h"
 
-#define LTM_HIST_TABLE_NUM		128
-#define LTM_MIN_TILE_WIDTH		128
-#define LTM_MIN_TILE_HEIGHT		20
-#define LTM_MAX_TILE_RANGE		65536
-#define LTM_MAX_ROI_X			240
-#define LTM_MAX_ROI_Y			180
-#define LTM_ID_MAX			3
+#define LTM_HIST_TABLE_NUM              128
+#define LTM_MIN_TILE_WIDTH              128
+#define LTM_MIN_TILE_HEIGHT             20
+#define LTM_MAX_TILE_RANGE              65536
+#define LTM_MAX_ROI_X                   240
+#define LTM_MAX_ROI_Y                   180
+#define LTM_ID_MAX                      3
 
 typedef struct isp_ltm_hist_param {
 	/* match ltm stat info */
@@ -64,7 +64,6 @@ typedef struct isp_ltm_hist_param {
 	uint32_t cropRows;
 	uint32_t cropCols;
 } ltm_param_t;
-
 
 typedef struct isp_ltm_rtl_param {
 	int tile_index_xs;
@@ -137,7 +136,7 @@ struct isp_ltm_map {
 	uint32_t tile_y_num;
 
 	/* ISP_LTM_MAP_PARAM2 0x0018 */
-	uint32_t tile_size_pro; /* ltmap_tile_width x ltmap_tile_height */
+	uint32_t tile_size_pro;/* ltmap_tile_width x ltmap_tile_height */
 
 	/* ISP_LTM_MAP_PARAM3 0x001c */
 	uint32_t tile_start_x;
@@ -249,26 +248,26 @@ struct isp_ltm_tilenum_minus1 {
 	uint32_t tile_num_y;
 };
 
-struct isp_ltm_text{
+struct isp_ltm_text {
 	uint32_t text_point_alpha;
 	uint32_t text_point_thres;
 	uint32_t textture_proporion;
 };
 
 struct isp_ltm_stat_info {
-	uint32_t bypass; /* bypass */
+	uint32_t bypass;/* bypass */
 	struct isp_ltm_tilenum_minus1 tile_num;
 	struct isp_ltm_text ltm_text;
 	uint32_t strength;
 	uint32_t tile_num_auto;
-	uint32_t text_point_thres; /* text_point_thres */
-	uint32_t region_est_en; /* region_est_en */
+	uint32_t text_point_thres;/* text_point_thres */
+	uint32_t region_est_en;/* region_est_en */
 	uint32_t channel_sel;
 	uint32_t ltm_hist_table[LTM_HIST_TABLE_NUM];
 };
 
 struct isp_ltm_map_info {
-	uint32_t bypass; /* ltm map bypass */
+	uint32_t bypass;/* ltm map bypass */
 	uint32_t ltm_map_video_mode;
 };
 
@@ -287,7 +286,7 @@ int isp_ltm_gen_frame_config(struct isp_ltm_ctx_desc *ctx,
 	enum isp_ltm_region ltm_id, struct isp_ltm_info *ltm_info);
 int isp_ltm_gen_map_slice_config(struct isp_ltm_ctx_desc *ctx,
 			enum isp_ltm_region ltm_id,
-			struct isp_ltm_rtl_param  *prtl,
+			struct isp_ltm_rtl_param *prtl,
 			uint32_t *slice_info);
 
 int isp_ltm_config_param(struct isp_ltm_ctx_desc *ctx,

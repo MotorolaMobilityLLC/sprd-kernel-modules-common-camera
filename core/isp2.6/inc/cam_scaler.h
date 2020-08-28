@@ -14,25 +14,25 @@
 #ifndef _CAM_SCALER_H_
 #define _CAM_SCALER_H_
 
-#define COSSIN_Q				30
-#define pi					3.14159265359
+#define COSSIN_Q                                30
+#define pi                                      3.14159265359
 /* pi * (1 << 32) */
-#define PI_32					0x3243F6A88UL
-#define ARC_32_COEF				0x80000000
+#define PI_32                                   0x3243F6A88UL
+#define ARC_32_COEF                             0x80000000
 /* convert arc of double type to int32 type */
 
 unsigned char isp_gen_scale_coeff(short i_w,
-				   short i_h,
-				   short o_w,
-				   short o_h,
-				   unsigned int *coeff_h_ptr,
-				   unsigned int *coeff_v_lum_ptr,
-				   unsigned int *coeff_v_ch_ptr,
-				   unsigned char scaling2yuv420,
-				   unsigned char *scaler_tap,
-				   unsigned char *chrome_tap,
-				   void *temp_buf_ptr,
-				   unsigned int temp_buf_size);
+				short i_h,
+				short o_w,
+				short o_h,
+				unsigned int *coeff_h_ptr,
+				unsigned int *coeff_v_lum_ptr,
+				unsigned int *coeff_v_ch_ptr,
+				unsigned char scaling2yuv420,
+				unsigned char *scaler_tap,
+				unsigned char *chrome_tap,
+				void *temp_buf_ptr,
+				unsigned int temp_buf_size);
 
 int dcam_gen_rds_coeff(
 		uint16_t src_width, uint16_t src_height,

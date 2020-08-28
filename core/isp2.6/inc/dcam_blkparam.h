@@ -15,7 +15,6 @@
 
 #include "sprd_isp_hw.h"
 
-
 enum dcam_gtm_param_type {
 	DCAM_GTM_PARAM_PRE,
 	DCAM_GTM_PARAM_CAP,
@@ -109,7 +108,7 @@ struct dcam_dev_pdaf_param {
 
 struct dcam_dev_param {
 	struct mutex param_lock;
-	uint32_t idx; /* dcam dev idx */
+	uint32_t idx;/* dcam dev idx */
 	void *dev;/* dcam_pipe_dev */
 	uint32_t dcam_slice_mode;
 	uint32_t offline;

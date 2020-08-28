@@ -26,48 +26,48 @@
 #include "isp_3dnr.h"
 #include "isp_ltm.h"
 
-#define ISP_LINE_BUFFER_W		ISP_MAX_LINE_WIDTH
-#define ISP_IN_Q_LEN            4
-#define ISP_PROC_Q_LEN          2
-#define ISP_RESULT_Q_LEN        2
-#define ISP_SLW_IN_Q_LEN        12
-#define ISP_SLW_PROC_Q_LEN      12
-#define ISP_SLW_RESULT_Q_LEN    12
-#define ISP_OUT_BUF_Q_LEN       32
-#define ISP_RESERVE_BUF_Q_LEN   12
-#define ISP_STREAM_STATE_Q_LEN  12
+#define ISP_LINE_BUFFER_W          ISP_MAX_LINE_WIDTH
+#define ISP_IN_Q_LEN               4
+#define ISP_PROC_Q_LEN             2
+#define ISP_RESULT_Q_LEN           2
+#define ISP_SLW_IN_Q_LEN           12
+#define ISP_SLW_PROC_Q_LEN         12
+#define ISP_SLW_RESULT_Q_LEN       12
+#define ISP_OUT_BUF_Q_LEN          32
+#define ISP_RESERVE_BUF_Q_LEN      12
+#define ISP_STREAM_STATE_Q_LEN     12
 
-#define ODATA_YUV420            1
-#define ODATA_YUV422            0
+#define ODATA_YUV420               1
+#define ODATA_YUV422               0
 
-#define ISP_SC_COEFF_COEF_SIZE		(1 << 10)
-#define ISP_SC_COEFF_TMP_SIZE		(21 << 10)
+#define ISP_SC_COEFF_COEF_SIZE     (1 << 10)
+#define ISP_SC_COEFF_TMP_SIZE      (21 << 10)
 
-#define ISP_SC_H_COEF_SIZE		0xC0
-#define ISP_SC_V_COEF_SIZE		0x210
-#define ISP_SC_V_CHROM_COEF_SIZE	0x210
+#define ISP_SC_H_COEF_SIZE         0xC0
+#define ISP_SC_V_COEF_SIZE         0x210
+#define ISP_SC_V_CHROM_COEF_SIZE   0x210
 
-#define ISP_SC_COEFF_H_NUM		(ISP_SC_H_COEF_SIZE / 6)
-#define ISP_SC_COEFF_H_CHROMA_NUM	(ISP_SC_H_COEF_SIZE / 12)
-#define ISP_SC_COEFF_V_NUM		(ISP_SC_V_COEF_SIZE / 4)
-#define ISP_SC_COEFF_V_CHROMA_NUM	(ISP_SC_V_CHROM_COEF_SIZE / 4)
+#define ISP_SC_COEFF_H_NUM         (ISP_SC_H_COEF_SIZE / 6)
+#define ISP_SC_COEFF_H_CHROMA_NUM  (ISP_SC_H_COEF_SIZE / 12)
+#define ISP_SC_COEFF_V_NUM         (ISP_SC_V_COEF_SIZE / 4)
+#define ISP_SC_COEFF_V_CHROMA_NUM  (ISP_SC_V_CHROM_COEF_SIZE / 4)
 
-#define ISP_PIXEL_ALIGN_WIDTH		4
-#define ISP_PIXEL_ALIGN_HEIGHT		2
+#define ISP_PIXEL_ALIGN_WIDTH      4
+#define ISP_PIXEL_ALIGN_HEIGHT     2
 
-#define AFBC_PADDING_W_YUV420			32
-#define AFBC_PADDING_H_YUV420			8
-#define AFBC_HEADER_SIZE			16
-#define AFBC_PAYLOAD_SIZE			384
+#define AFBC_PADDING_W_YUV420      32
+#define AFBC_PADDING_H_YUV420      8
+#define AFBC_HEADER_SIZE           16
+#define AFBC_PAYLOAD_SIZE          84
 
-#define ISP_FBD_TILE_WIDTH        64
-#define ISP_FBD_TILE_HEIGHT       4
-#define ISP_FBD_BASE_ALIGN        256
+#define ISP_FBD_TILE_WIDTH         64
+#define ISP_FBD_TILE_HEIGHT        4
+#define ISP_FBD_BASE_ALIGN         256
 
-#define ISP_ALIGN_W(_a)	((_a) & ~(ISP_PIXEL_ALIGN_WIDTH - 1))
-#define ISP_ALIGN_H(_a)	((_a) & ~(ISP_PIXEL_ALIGN_HEIGHT - 1))
-#define ISP_DIV_ALIGN_W(_a, _b)	(((_a) / (_b)) & ~(ISP_PIXEL_ALIGN_WIDTH - 1))
-#define ISP_DIV_ALIGN_H(_a, _b)	(((_a) / (_b)) & ~(ISP_PIXEL_ALIGN_HEIGHT - 1))
+#define ISP_ALIGN_W(_a)            ((_a) & ~(ISP_PIXEL_ALIGN_WIDTH - 1))
+#define ISP_ALIGN_H(_a)            ((_a) & ~(ISP_PIXEL_ALIGN_HEIGHT - 1))
+#define ISP_DIV_ALIGN_W(_a, _b)    (((_a) / (_b)) & ~(ISP_PIXEL_ALIGN_WIDTH - 1))
+#define ISP_DIV_ALIGN_H(_a, _b)    (((_a) / (_b)) & ~(ISP_PIXEL_ALIGN_HEIGHT - 1))
 
 enum isp_work_mode {
 	ISP_CFG_MODE,
@@ -75,7 +75,7 @@ enum isp_work_mode {
 	ISP_WM_MAX
 };
 
-enum isp_raw_format{
+enum isp_raw_format {
 	ISP_RAW_PACK10 = 0x00,
 	ISP_RAW_HALF10 = 0x01,
 	ISP_RAW_HALF14 = 0x02,
@@ -91,12 +91,11 @@ enum isp_postproc_type {
 struct isp_pipe_dev;
 struct isp_pipe_context;
 
-
 typedef int (*func_isp_cfg_param)(
 	struct isp_io_param *param,
 	struct isp_k_block *isp_k_param, uint32_t idx);
 
-typedef int(*isp_irq_postproc)(void *handle,uint32_t idx,
+typedef int(*isp_irq_postproc)(void *handle, uint32_t idx,
 	enum isp_postproc_type type);
 
 struct isp_cfg_entry {
@@ -247,7 +246,7 @@ struct isp_pipe_context {
 	atomic_t user_cnt;
 	uint32_t started;
 	uint32_t ctx_id;
-	uint32_t in_fmt; /* forcc */
+	uint32_t in_fmt;/* forcc */
 	uint32_t is_loose;
 	enum camera_id attach_cam_id;
 	enum cam_ch_id ch_id;
@@ -263,7 +262,7 @@ struct isp_pipe_context {
 	uint32_t slowmotion_count;
 	uint32_t uframe_sync;
 	uint32_t dispatch_color;
-	uint32_t dispatch_bayer_mode; /* RAWRGB_GR, RAWRGB_Gb, RAWRGB_R... */
+	uint32_t dispatch_bayer_mode;/* RAWRGB_GR, RAWRGB_Gb, RAWRGB_R... */
 	uint32_t fetch_path_sel;/* 1: fetch_fbd; 0: fetch */
 	uint32_t fetch_fbd_4bit_bypass;/* 0: 14bit; 1: 10bit */
 	uint32_t nr3_fbc_fbd;/* 1: 3dnr compressed; 0: 3dnr plain data */
@@ -283,7 +282,7 @@ struct isp_pipe_context {
 	struct isp_path_desc isp_path[ISP_SPATH_NUM];
 	struct isp_pipe_dev *dev;
 	struct isp_k_block isp_k_param;
-	struct mutex blkpm_lock; /* lock block param to avoid acrossing frame */
+	struct mutex blkpm_lock;/* lock block param to avoid acrossing frame */
 	void *slice_ctx;
 	struct camera_queue in_queue;
 	struct camera_queue proc_queue;

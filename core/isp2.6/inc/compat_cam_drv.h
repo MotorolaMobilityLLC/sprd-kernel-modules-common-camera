@@ -14,7 +14,7 @@
 #ifndef _COMPAT_CAM_DRV_H_
 #define _COMPAT_CAM_DRV_H_
 
-#define COMPAT_SPRD_ISP_IO_CFG_PARAM	\
+#define COMPAT_SPRD_ISP_IO_CFG_PARAM \
 	_IOWR(SPRD_IMG_IO_MAGIC, 41, struct compat_isp_io_param)
 
 struct compat_isp_io_param {
@@ -29,4 +29,4 @@ long compat_sprd_img_ioctl(
 		unsigned int cmd,
 		unsigned long param);
 
-#endif /* _COMPAT_CAM_DRV_H_ */
+#endif/* _COMPAT_CAM_DRV_H_ */
