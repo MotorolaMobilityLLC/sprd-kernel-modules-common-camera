@@ -421,7 +421,7 @@ static const struct file_operations dump_raw_ops = {
 };
 
 static ssize_t camdebugger_dump_count_write(struct file *filp,
-	const char __user *buffer, size_t count, loff_t *ppos)
+		const char __user *buffer, size_t count, loff_t *ppos)
 {
 	int ret = 0;
 	char msg[8];
@@ -470,7 +470,7 @@ static const struct file_operations dump_count_ops = {
 };
 
 static int camdebugger_replace_image_read(struct seq_file *s,
-	void *unused)
+		void *unused)
 {
 	struct dcam_image_replacer *replacer = NULL;
 	char *str;
@@ -499,13 +499,13 @@ static int camdebugger_replace_image_read(struct seq_file *s,
 }
 
 static int camdebugger_replace_image_open(struct inode *inode,
-	struct file *file)
+		struct file *file)
 {
 	return single_open(file, camdebugger_replace_image_read, inode->i_private);
 }
 
 static ssize_t camdebugger_replace_image_write(struct file *filp,
-	const char __user *buffer, size_t count, loff_t *ppos)
+		const char __user *buffer, size_t count, loff_t *ppos)
 {
 	struct seq_file *p = (struct seq_file *)filp->private_data;
 	struct dcam_image_replacer *replacer =
@@ -868,7 +868,7 @@ static ssize_t camdebugger_isp_bypass_write(struct file *filp,
 }
 
 static int camdebugger_isp_bypass_open(struct inode *inode,
-	struct file *file)
+		struct file *file)
 {
 	return single_open(file, camdebugger_isp_bypass_read, inode->i_private);
 }
@@ -885,7 +885,7 @@ static uint8_t work_mode_string[2][16] = {
 };
 
 static ssize_t camdebugger_work_mode_show(struct file *filp,
-	char __user *buffer, size_t count, loff_t *ppos)
+		char __user *buffer, size_t count, loff_t *ppos)
 {
 	char buf[16];
 
@@ -898,7 +898,7 @@ static ssize_t camdebugger_work_mode_show(struct file *filp,
 }
 
 static ssize_t camdebugger_work_mode_write(struct file *filp,
-	const char __user *buffer, size_t count, loff_t *ppos)
+		const char __user *buffer, size_t count, loff_t *ppos)
 {
 	int ret = 0;
 	char msg[8];
@@ -941,7 +941,7 @@ static uint8_t iommu_mode_string[4][32] = {
 };
 
 static ssize_t camdebugger_iommu_mode_show(struct file *filp,
-	char __user *buffer, size_t count, loff_t *ppos)
+		char __user *buffer, size_t count, loff_t *ppos)
 {
 	char buf[64];
 
@@ -957,7 +957,7 @@ static ssize_t camdebugger_iommu_mode_show(struct file *filp,
 }
 
 static ssize_t camdebugger_iommu_mode_write(struct file *filp,
-	const char __user *buffer, size_t count, loff_t *ppos)
+		const char __user *buffer, size_t count, loff_t *ppos)
 {
 	int ret = 0;
 	char msg[8];
@@ -1000,7 +1000,7 @@ static const struct file_operations iommu_mode_ops = {
 };
 
 static ssize_t camdebugger_lbuf_len_show(struct file *filp,
-	char __user *buffer, size_t count, loff_t *ppos)
+		char __user *buffer, size_t count, loff_t *ppos)
 {
 	char buf[16];
 
@@ -1093,7 +1093,7 @@ static int camdebugger_fbc_ctrl_open(struct inode *inode, struct file *file)
 }
 
 static ssize_t camdebugger_fbc_ctrl_write(struct file *filp,
-	const char __user *buffer, size_t count, loff_t *ppos)
+		const char __user *buffer, size_t count, loff_t *ppos)
 {
 	struct seq_file *p = (struct seq_file *)filp->private_data;
 	struct compression_override *override =

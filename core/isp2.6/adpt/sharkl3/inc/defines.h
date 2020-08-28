@@ -15,21 +15,21 @@
 #define _ADPT_DEFINES_H_
 
 /* configure fmcu with isp register offset, range is 0x60b-0x60c */
-#define ISP_OFFSET_RANGE		0x60c060b
+#define ISP_OFFSET_RANGE                        0x60c060b
 
-#define ISP_WIDTH_MAX  4672
-#define ISP_HEIGHT_MAX  3504
-#define DCAM_24M_WIDTH  5664
-#define DCAM_PATH_WMAX			5000
-#define DCAM_PATH_HMAX			4000
-#define RAW_OVERLAP_UP				62
-#define RAW_OVERLAP_DOWN			82
-#define RAW_OVERLAP_LEFT			122
-#define RAW_OVERLAP_RIGHT			142
-#define ISP_SLCIE_HEIGHT_MAX			4096
-#define DCAM_RDS_OUT_LIMIT 2048
-#define ISP_SCALER_UP_MAX			4
-#define DCAM_RES_BUF_SIZE	(4672 * 3504 * 3 / 2)
+#define ISP_WIDTH_MAX                           4672
+#define ISP_HEIGHT_MAX                          3504
+#define DCAM_24M_WIDTH                          5664
+#define DCAM_PATH_WMAX                          5000
+#define DCAM_PATH_HMAX                          4000
+#define RAW_OVERLAP_UP                          62
+#define RAW_OVERLAP_DOWN                        82
+#define RAW_OVERLAP_LEFT                        122
+#define RAW_OVERLAP_RIGHT                       142
+#define ISP_SLCIE_HEIGHT_MAX                    4096
+#define DCAM_RDS_OUT_LIMIT                      2048
+#define ISP_SCALER_UP_MAX                       4
+#define DCAM_RES_BUF_SIZE                       (4672 * 3504 * 3 / 2)
 /*
  *DCAM_CONTROL register bit map id
  * for force_cpy/auto_cpy control
@@ -46,7 +46,7 @@ enum dcam_ctrl_id {
 };
 #define DCAM_CTRL_ALL  0xff
 
-enum raw_pitch_format{
+enum raw_pitch_format {
 	RAW_PACK10 = 0x00,
 	RAW_HALF10 = 0x01,
 	RAW_HALF14 = 0x02,
@@ -58,10 +58,9 @@ static inline uint32_t cal_sprd_raw_pitch(uint32_t w, uint32_t is_loose)
 	uint32_t mod16_len[16] = {0, 8, 8, 8, 8, 12, 12, 12,
 				12, 16, 16, 16, 16, 20, 20, 20};
 
-	if (is_loose == RAW_PACK10) {
+	if (is_loose == RAW_PACK10)
 		return ((w >> 4) * 20 + (mod16_len[w & 0xf]));
-	} else {
+	else
 		return w*2;
-	}
 }
 #endif

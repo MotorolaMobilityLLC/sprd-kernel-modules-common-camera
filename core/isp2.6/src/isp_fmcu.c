@@ -30,7 +30,6 @@
 #define pr_fmt(fmt) "ISP_FMCU %d: %d %s:" \
 	fmt, current->pid, __LINE__, __func__
 
-
 static int isp_fmcu_push_cmd(struct isp_fmcu_ctx_desc *fmcu_ctx,
 				uint32_t addr, uint32_t cmd)
 {
@@ -163,7 +162,6 @@ static int isp_fmcu_start(struct isp_fmcu_ctx_desc *fmcu_ctx)
  * fmcu_ctx->cmdq_pos[fmcu_ctx->cur_buf_id] * sizeof(uint32_t));
  */
 
-
 	startarg.base = base;
 	startarg.hw_addr = fmcu_ctx->hw_addr[fmcu_ctx->cur_buf_id];
 	startarg.cmd_num = cmd_num;
@@ -176,7 +174,6 @@ static int isp_fmcu_start(struct isp_fmcu_ctx_desc *fmcu_ctx)
 	fmcu_ctx->cur_buf_id = !(fmcu_ctx->cur_buf_id);
 	return ret;
 }
-
 
 static int isp_fmcu_ctx_reset(struct isp_fmcu_ctx_desc *fmcu_ctx)
 {
@@ -208,7 +205,6 @@ static int isp_fmcu_ctx_init(struct isp_fmcu_ctx_desc *fmcu_ctx)
 		return -EFAULT;
 	}
 	pr_debug("Enter\n");
-
 
 	fmcu_ctx->cmdq_size = ISP_FMCU_CMDQ_SIZE;
 	fmcu_ctx->lock = __SPIN_LOCK_UNLOCKED(&fmcu_ctx->lock);
@@ -300,7 +296,6 @@ static int isp_fmcu_ctx_deinit(struct isp_fmcu_ctx_desc *fmcu_ctx)
 	pr_debug("Done\n");
 	return ret;
 }
-
 
 struct isp_fmcu_ops fmcu_ops = {
 	.ctx_init = isp_fmcu_ctx_init,

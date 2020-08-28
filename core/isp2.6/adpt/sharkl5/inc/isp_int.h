@@ -15,9 +15,7 @@
 #define _ISP_INT_H_
 
 #include <linux/platform_device.h>
-
 #include "cam_types.h"
-
 
 enum isp_irq_id {
 	ISP_INT_ISP_ALL_DONE,
@@ -60,52 +58,50 @@ enum isp_irq_id {
 	ISP_INT_MMU_PAOR_RD,
 	ISP_INT_MMU_PAOR_WR,
 };
-#define ISP_INT_FMCU_STORE_DONE ISP_INT_FMCU_CONFIG_DONE
+#define ISP_INT_FMCU_STORE_DONE               ISP_INT_FMCU_CONFIG_DONE
 
-#define ISP_INT_LINE_MASK_ERR \
-	((1 << ISP_INT_FMCU_TIMEOUT) | \
-	(1 << ISP_INT_FMCU_CMD_ERROR) | \
-	(1 << ISP_INT_FBD_FETCH_ERR) | \
-	(1 << ISP_INT_NR3_FBD_ERR) | \
-	(1 << ISP_INT_NR3_FBC_ERR) | \
-	(1 << ISP_INT_VID_FBC_ERR) | \
+#define ISP_INT_LINE_MASK_ERR                 \
+	((1 << ISP_INT_FMCU_TIMEOUT) |        \
+	(1 << ISP_INT_FMCU_CMD_ERROR) |       \
+	(1 << ISP_INT_FBD_FETCH_ERR) |        \
+	(1 << ISP_INT_NR3_FBD_ERR) |          \
+	(1 << ISP_INT_NR3_FBC_ERR) |          \
+	(1 << ISP_INT_VID_FBC_ERR) |          \
 	(1 << ISP_INT_AXI_TIMEOUT))
 
 
-#define ISP_INT_LINE_MASK_MMU \
-	((1 << ISP_INT_MMU_VAOR_RD) | \
-	(1 << ISP_INT_MMU_VAOR_WR) | \
-	(1 << ISP_INT_MMU_INV_RD) | \
-	(1 << ISP_INT_MMU_INV_WR) | \
-	(1 << ISP_INT_MMU_UNS_RD) | \
-	(1 << ISP_INT_MMU_UNS_WR) | \
-	(1 << ISP_INT_MMU_PAOR_RD) | \
+#define ISP_INT_LINE_MASK_MMU                 \
+	((1 << ISP_INT_MMU_VAOR_RD) |         \
+	(1 << ISP_INT_MMU_VAOR_WR) |          \
+	(1 << ISP_INT_MMU_INV_RD) |           \
+	(1 << ISP_INT_MMU_INV_WR) |           \
+	(1 << ISP_INT_MMU_UNS_RD) |           \
+	(1 << ISP_INT_MMU_UNS_WR) |           \
+	(1 << ISP_INT_MMU_PAOR_RD) |          \
 	(1 << ISP_INT_MMU_PAOR_WR))
 
-#define ISP_INT_LINE_MASK \
-	((1 << ISP_INT_ISP_ALL_DONE) | \
-	(1 << ISP_INT_SHADOW_DONE) | \
-	(1 << ISP_INT_DISPATCH_DONE) | \
-	(1 << ISP_INT_STORE_DONE_OUT) | \
-	(1 << ISP_INT_STORE_DONE_PRE) | \
-	(1 << ISP_INT_STORE_DONE_VID) | \
-	(1 << ISP_INT_STORE_DONE_VID_SKIP) | \
-	(1 << ISP_INT_NR3_ALL_DONE) | \
-	(1 << ISP_INT_NR3_SHADOW_DONE) | \
+#define ISP_INT_LINE_MASK                     \
+	((1 << ISP_INT_ISP_ALL_DONE) |        \
+	(1 << ISP_INT_SHADOW_DONE) |          \
+	(1 << ISP_INT_DISPATCH_DONE) |        \
+	(1 << ISP_INT_STORE_DONE_OUT) |       \
+	(1 << ISP_INT_STORE_DONE_PRE) |       \
+	(1 << ISP_INT_STORE_DONE_VID) |       \
+	(1 << ISP_INT_STORE_DONE_VID_SKIP) |  \
+	(1 << ISP_INT_NR3_ALL_DONE) |         \
+	(1 << ISP_INT_NR3_SHADOW_DONE) |      \
 	(1 << ISP_INT_STORE_DONE_THUMBNAIL) | \
-	(1 << ISP_INT_YUV_LTMHISTS_DONE) | \
-	(1 << ISP_INT_FMCU_LOAD_DONE) | \
-	(1 << ISP_INT_FMCU_CMD_X) | \
-	(1 << ISP_INT_FMCU_SHADOW_DONE) | \
-	(1 << ISP_INT_FMCU_STORE_DONE) | \
+	(1 << ISP_INT_YUV_LTMHISTS_DONE) |    \
+	(1 << ISP_INT_FMCU_LOAD_DONE) |       \
+	(1 << ISP_INT_FMCU_CMD_X) |           \
+	(1 << ISP_INT_FMCU_SHADOW_DONE) |     \
+	(1 << ISP_INT_FMCU_STORE_DONE) |      \
 	(1 << ISP_INT_HIST_CAL_DONE))
 
 int isp_int_reset_isp_irq_cnt(int ctx_id);
 int isp_int_trace_isp_irq_cnt(int ctx_id);
-
 int isp_int_reset_isp_irq_sw_cnt(int ctx_id);
 int isp_int_trace_isp_irq_sw_cnt(int ctx_id);
-
 int isp_int_irq_request(struct device *p_dev,
 	uint32_t *irq_no, void *isp_handle);
 int isp_int_irq_free(struct device *p_dev, void *isp_handle);

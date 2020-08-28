@@ -21,7 +21,6 @@ extern unsigned long g_dcam_regbase[];
 extern unsigned long g_dcam_aximbase;
 extern unsigned long g_dcam_mmubase;
 
-
 /* DCAM0/DCAM1 module registers define */
 #define DCAM_IP_REVISION            (0x0000UL)
 #define DCAM_CONTROL                (0x0004UL)
@@ -285,84 +284,84 @@ struct endian_field {
 extern const unsigned long slowmotion_store_addr[3][4];
 
 /* DCAM2 registers define, the other same as DCAM0 */
-#define DCAM2_PATH1_BASE_WADDR		(0x0010UL)
-#define DCAM2_PATH0_BASE_WADDR		(0x0020UL)
-#define DCAM2_IMAGE_CONTROL             (0x0114UL)
-#define DCAM2_MIPI_CAP_START            (0x010CUL)
-#define DCAM2_MIPI_CAP_END              (0x0110UL)
+#define DCAM2_PATH1_BASE_WADDR      (0x0010UL)
+#define DCAM2_PATH0_BASE_WADDR      (0x0020UL)
+#define DCAM2_IMAGE_CONTROL         (0x0114UL)
+#define DCAM2_MIPI_CAP_START        (0x010CUL)
+#define DCAM2_MIPI_CAP_END          (0x0110UL)
 /* DCAM2 registers define end */
 
 /* DCAM AXIM registers define 1 */
-#define AXIM_CTRL               (0x0000UL)
-#define AXIM_DBG_STS            (0x0004UL)
-#define CAP_SENSOR_CTRL         (0x0008UL)
-#define AXIM_WORD_ENDIAN        (0x000CUL)
-#define MMU_CTRL                (0x0010UL)
-#define DCAM_SPARE_REG_0        (0x0014UL)
-#define AXIM_SPARE_REG_0        (0x0018UL)
-#define SPARE_REG_ICG           (0x001CUL)
-#define IMG_FETCH_START         (0x0020UL)
-#define IMG_FETCH_CTRL          (0x0024UL)
-#define IMG_FETCH_SIZE          (0x0028UL)
-#define IMG_FETCH_X             (0x002CUL)
-#define IMG_FETCH_RADDR         (0x0030UL)
+#define AXIM_CTRL                   (0x0000UL)
+#define AXIM_DBG_STS                (0x0004UL)
+#define CAP_SENSOR_CTRL             (0x0008UL)
+#define AXIM_WORD_ENDIAN            (0x000CUL)
+#define MMU_CTRL                    (0x0010UL)
+#define DCAM_SPARE_REG_0            (0x0014UL)
+#define AXIM_SPARE_REG_0            (0x0018UL)
+#define SPARE_REG_ICG               (0x001CUL)
+#define IMG_FETCH_START             (0x0020UL)
+#define IMG_FETCH_CTRL              (0x0024UL)
+#define IMG_FETCH_SIZE              (0x0028UL)
+#define IMG_FETCH_X                 (0x002CUL)
+#define IMG_FETCH_RADDR             (0x0030UL)
 
-#define DCAM_LBUF_SHARE_MODE    (0x0040UL)
+#define DCAM_LBUF_SHARE_MODE        (0x0040UL)
 
 /* DCAM AXIM registers define 2 */
-#define MMU_EN				(0x0000UL)
-#define MMU_UPDATE			(0x0004UL)
-#define MMU_MIN_VPN			(0x0008UL)
-#define MMU_VPN_RANGE			(0x000CUL)
-#define MMU_PT_ADDR			(0x0010UL)
-#define MMU_DEFAULT_PAGE		(0x0014UL)
-#define MMU_VAOR_ADDR_RD		(0x0018UL)
-#define MMU_VAOR_ADDR_WR		(0x001CUL)
-#define MMU_INV_ADDR_RD			(0x0020UL)
-#define MMU_INV_ADDR_WR			(0x0024UL)
-#define MMU_UNS_ADDR_RD			(0x0028UL)
-#define MMU_UNS_ADDR_WR			(0x002CUL)
-#define MMU_MISS_CNT			(0x0030UL)
-#define MMU_PT_UPDATE_QOS		(0x0034UL)
-#define MMU_VERSION			(0x0038UL)
-#define MMU_MIN_PPN1			(0x003CUL)
-#define MMU_PPN_RANGE1			(0x0040UL)
-#define MMU_MIN_PPN2			(0x0044UL)
-#define MMU_PPN_RANGE2			(0x0048UL)
-#define MMU_VPN_PAOR_RD			(0x004CUL)
-#define MMU_VPN_PAOR_WR			(0x0050UL)
-#define MMU_PPN_PAOR_RD			(0x0054UL)
-#define MMU_PPN_PAOR_WR			(0x0058UL)
-#define MMU_REG_AU_MANAGE		(0x005CUL)
-#define MMU_PAGE_RD_CH			(0x0060UL)
-#define MMU_PAGE_WR_CH			(0x0064UL)
-#define MMU_READ_PAGE_CMD_CNT		(0x0068UL)
-#define MMU_READ_PAGE_LATENCY_CNT	(0x006CUL)
-#define MMU_PAGE_MAX_LATENCY		(0x0070UL)
-#define MMU_STS				(0x0080UL)
-#define MMU_EN_SHAD			(0x0084UL)
-#define MMU_MIN_VPN_SHAD		(0x0088UL)
-#define MMU_VPN_RANGE_SHAD		(0x008CUL)
-#define MMU_PT_ADDR_SHAD		(0x0090UL)
-#define MMU_DEFAULT_PAGE_SHAD		(0x0094UL)
-#define MMU_PT_UPDATE_QOS_SHAD		(0x0098UL)
-#define MMU_MIN_PPN1_SHAD		(0x009CUL)
-#define MMU_PPN_RANGE1_SHAD		(0x00A0UL)
-#define MMU_MIN_PPN2_SHAD		(0x00A4UL)
-#define MMU_PPN_RANGE2_SHAD		(0x00A8UL)
+#define MMU_EN                      (0x0000UL)
+#define MMU_UPDATE                  (0x0004UL)
+#define MMU_MIN_VPN                 (0x0008UL)
+#define MMU_VPN_RANGE               (0x000CUL)
+#define MMU_PT_ADDR                 (0x0010UL)
+#define MMU_DEFAULT_PAGE            (0x0014UL)
+#define MMU_VAOR_ADDR_RD            (0x0018UL)
+#define MMU_VAOR_ADDR_WR            (0x001CUL)
+#define MMU_INV_ADDR_RD             (0x0020UL)
+#define MMU_INV_ADDR_WR             (0x0024UL)
+#define MMU_UNS_ADDR_RD             (0x0028UL)
+#define MMU_UNS_ADDR_WR             (0x002CUL)
+#define MMU_MISS_CNT                (0x0030UL)
+#define MMU_PT_UPDATE_QOS           (0x0034UL)
+#define MMU_VERSION                 (0x0038UL)
+#define MMU_MIN_PPN1                (0x003CUL)
+#define MMU_PPN_RANGE1              (0x0040UL)
+#define MMU_MIN_PPN2                (0x0044UL)
+#define MMU_PPN_RANGE2              (0x0048UL)
+#define MMU_VPN_PAOR_RD             (0x004CUL)
+#define MMU_VPN_PAOR_WR             (0x0050UL)
+#define MMU_PPN_PAOR_RD             (0x0054UL)
+#define MMU_PPN_PAOR_WR             (0x0058UL)
+#define MMU_REG_AU_MANAGE           (0x005CUL)
+#define MMU_PAGE_RD_CH              (0x0060UL)
+#define MMU_PAGE_WR_CH              (0x0064UL)
+#define MMU_READ_PAGE_CMD_CNT       (0x0068UL)
+#define MMU_READ_PAGE_LATENCY_CNT   (0x006CUL)
+#define MMU_PAGE_MAX_LATENCY        (0x0070UL)
+#define MMU_STS                     (0x0080UL)
+#define MMU_EN_SHAD                 (0x0084UL)
+#define MMU_MIN_VPN_SHAD            (0x0088UL)
+#define MMU_VPN_RANGE_SHAD          (0x008CUL)
+#define MMU_PT_ADDR_SHAD            (0x0090UL)
+#define MMU_DEFAULT_PAGE_SHAD       (0x0094UL)
+#define MMU_PT_UPDATE_QOS_SHAD      (0x0098UL)
+#define MMU_MIN_PPN1_SHAD           (0x009CUL)
+#define MMU_PPN_RANGE1_SHAD         (0x00A0UL)
+#define MMU_MIN_PPN2_SHAD           (0x00A4UL)
+#define MMU_PPN_RANGE2_SHAD         (0x00A8UL)
 
 /* buffer addr map */
-#define RDS_COEF_TABLE_START		(0x0340UL)
-#define RDS_COEF_TABLE_SIZE		(0x00C0UL)
+#define RDS_COEF_TABLE_START        (0x0340UL)
+#define RDS_COEF_TABLE_SIZE         (0x00C0UL)
 
-#define LSC_WEI_TABLE_START		(0x0400UL)
+#define LSC_WEI_TABLE_START         (0x0400UL)
 
-#define PDAF_CORR_TABLE_START		(0x0E00UL)
-#define PDAF_CORR_TABLE_SIZE		(0x0200UL)
+#define PDAF_CORR_TABLE_START       (0x0E00UL)
+#define PDAF_CORR_TABLE_SIZE        (0x0200UL)
 
-#define LSC_GRID_BUF_START0		(0x4000UL)
-#define LSC_GRID_BUF_START1		(0x8000UL)
-#define LSC_GRID_BUF_SIZE		(0x4000UL)
+#define LSC_GRID_BUF_START0         (0x4000UL)
+#define LSC_GRID_BUF_START1         (0x8000UL)
+#define LSC_GRID_BUF_SIZE           (0x4000UL)
 
 #define DCAM_PATH_CROP_ALIGN 4
 
@@ -393,24 +392,24 @@ extern const unsigned long slowmotion_store_addr[3][4];
  *
  */
 
-#define DCAM_BASE(idx)                  (g_dcam_regbase[idx])
-#define DCAM_AXIM_BASE			(g_dcam_aximbase)
+#define DCAM_BASE(idx)              (g_dcam_regbase[idx])
+#define DCAM_AXIM_BASE              (g_dcam_aximbase)
 /* TODO: implement mmu */
-#define DCAM_MMU_BASE			(g_dcam_mmubase)
+#define DCAM_MMU_BASE               (g_dcam_mmubase)
 
-#define DCAM_REG_WR(idx, reg, val)        (REG_WR(DCAM_BASE(idx)+(reg), (val)))
-#define DCAM_REG_RD(idx, reg)             (REG_RD(DCAM_BASE(idx)+(reg)))
+#define DCAM_REG_WR(idx, reg, val)  (REG_WR(DCAM_BASE(idx)+(reg), (val)))
+#define DCAM_REG_RD(idx, reg)       (REG_RD(DCAM_BASE(idx)+(reg)))
 #define DCAM_REG_MWR(idx, reg, msk, val) \
-	DCAM_REG_WR((idx), (reg), \
+	DCAM_REG_WR((idx), (reg),      \
 	((val) & (msk)) | (DCAM_REG_RD(idx, reg) & (~(msk))))
 
-#define DCAM_AXIM_WR(reg, val)            (REG_WR(DCAM_AXIM_BASE+(reg), (val)))
-#define DCAM_AXIM_RD(reg)                 (REG_RD(DCAM_AXIM_BASE+(reg)))
+#define DCAM_AXIM_WR(reg, val)      (REG_WR(DCAM_AXIM_BASE+(reg), (val)))
+#define DCAM_AXIM_RD(reg)            (REG_RD(DCAM_AXIM_BASE+(reg)))
 #define DCAM_AXIM_MWR(reg, msk, val) \
 	DCAM_AXIM_WR((reg), ((val) & (msk)) | (DCAM_AXIM_RD(reg) & (~(msk))))
 
-#define DCAM_MMU_WR(reg, val)             (REG_WR(DCAM_MMU_BASE+(reg), (val)))
-#define DCAM_MMU_RD(reg)                  (REG_RD(DCAM_MMU_BASE+(reg)))
+#define DCAM_MMU_WR(reg, val)      (REG_WR(DCAM_MMU_BASE+(reg), (val)))
+#define DCAM_MMU_RD(reg)            (REG_RD(DCAM_MMU_BASE+(reg)))
 #define DCAM_MMU_MWR(reg, msk, val) \
 	DCAM_MMU_WR((reg), ((val) & (msk)) | (DCAM_MMU_RD(reg) & (~(msk))))
 
@@ -418,4 +417,4 @@ extern const unsigned long slowmotion_store_addr[3][4];
 
 int dcam_reg_set_default_value(int idx);
 int dcam_aximreg_set_default_value(void);
-#endif /* _DCAM_REG_H_ */
+#endif/* _DCAM_REG_H_ */

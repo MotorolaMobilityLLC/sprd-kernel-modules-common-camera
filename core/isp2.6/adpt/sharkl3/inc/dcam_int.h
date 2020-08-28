@@ -107,73 +107,73 @@ enum {
  * error bits
  * same in DCAM0/1
  */
-#define DCAMINT_ALL_ERROR \
-	(BIT(DCAM_DCAM_OVF) |\
-	 BIT(DCAM_CAP_LINE_ERR) |\
-	 BIT(DCAM_CAP_FRM_ERR)  |\
-	 BIT(DCAM_MMU_INT))
+#define DCAMINT_ALL_ERROR                         \
+	(BIT(DCAM_DCAM_OVF) |                     \
+	BIT(DCAM_CAP_LINE_ERR) |                  \
+	BIT(DCAM_CAP_FRM_ERR) |                   \
+	BIT(DCAM_MMU_INT))
 
 /*
  * fatal error bits
  */
-#define DCAMINT_FATAL_ERROR \
-	(BIT(DCAM_DCAM_OVF) |\
-	 BIT(DCAM_CAP_LINE_ERR) |\
-	 BIT(DCAM_CAP_FRM_ERR))
+#define DCAMINT_FATAL_ERROR                       \
+	(BIT(DCAM_DCAM_OVF) |                     \
+	BIT(DCAM_CAP_LINE_ERR) |                   \
+	BIT(DCAM_CAP_FRM_ERR))
 
 /*
  * SOF bits
  * some bits is reserved in DCAM2
  */
-#define DCAMINT_ALL_SOF \
-	(BIT(DCAM_SENSOR_SOF) |\
-	 BIT(DCAM_CAP_SOF) |\
-	 BIT(DCAM_PREVIEW_SOF) |\
-	 BIT(DCAM_AFL_LAST_SOF))
+#define DCAMINT_ALL_SOF                           \
+	(BIT(DCAM_SENSOR_SOF) |                   \
+	BIT(DCAM_CAP_SOF) |                       \
+	BIT(DCAM_PREVIEW_SOF) |                   \
+	BIT(DCAM_AFL_LAST_SOF))
 
 /*
  * TX DONE bits
  * some bits is reserved in DCAM2
  * NOTE: BIT(24) is mmu_int in DCAM2
  */
-#define DCAMINT_ALL_TX_DONE \
-	(BIT(DCAM_FULL_PATH_TX_DONE) |\
-	 BIT(DCAM_PREV_PATH_TX_DONE) |\
-	 BIT(DCAM_PDAF_PATH_TX_DONE) |\
-	 BIT(DCAM_VCH2_PATH_TX_DONE) |\
-	 BIT(DCAM_VCH3_PATH_TX_DONE) |\
-	 BIT(DCAM_AEM_TX_DONE) |\
-	 BIT(DCAM_AFL_TX_DONE) |\
-	 BIT(DCAM_AFM_INTREQ0) |\
-	 BIT(DCAM_AFM_INTREQ1) |\
-	 BIT(DCAM_NR3_TX_DONE))
+#define DCAMINT_ALL_TX_DONE                       \
+	(BIT(DCAM_FULL_PATH_TX_DONE) |            \
+	BIT(DCAM_PREV_PATH_TX_DONE) |             \
+	BIT(DCAM_PDAF_PATH_TX_DONE) |             \
+	BIT(DCAM_VCH2_PATH_TX_DONE) |             \
+	BIT(DCAM_VCH3_PATH_TX_DONE) |             \
+	BIT(DCAM_AEM_TX_DONE) |                   \
+	BIT(DCAM_AFL_TX_DONE) |                   \
+	BIT(DCAM_AFM_INTREQ0) |                   \
+	BIT(DCAM_AFM_INTREQ1) |                   \
+	BIT(DCAM_NR3_TX_DONE))
 
 /*
  * all currently useful bits on irq line
  */
-#define DCAMINT_IRQ_LINE_MASK \
+#define DCAMINT_IRQ_LINE_MASK                     \
 	(DCAMINT_ALL_ERROR | DCAMINT_ALL_TX_DONE |\
-	 BIT(DCAM_CAP_SOF) |\
-	 BIT(DCAM_SENSOR_EOF) |\
-	 BIT(DCAM_PREVIEW_SOF))
+	BIT(DCAM_CAP_SOF) |                       \
+	BIT(DCAM_SENSOR_EOF) |                    \
+	BIT(DCAM_PREVIEW_SOF))
 
 /* enabled interrupt source in normal scene */
-#define DCAMINT_IRQ_LINE_EN_NORMAL \
+#define DCAMINT_IRQ_LINE_EN_NORMAL                \
 	(DCAMINT_ALL_ERROR | DCAMINT_ALL_TX_DONE |\
-	 BIT(DCAM_CAP_SOF) |\
-	 BIT(DCAM_SENSOR_EOF))
+	BIT(DCAM_CAP_SOF) |                       \
+	BIT(DCAM_SENSOR_EOF))
 
-#define DCAM2INT_IRQ_LINE_MASK \
+#define DCAM2INT_IRQ_LINE_MASK                    \
 	(DCAMINT_FATAL_ERROR | BIT(DCAM2_MMU_INT) \
-	|BIT(DCAM2_FULL_PATH_TX_DONE) |\
-	 BIT(DCAM2_SENSOR_EOF) |\
-	 BIT(DCAM2_SENSOR_SOF))
+	| BIT(DCAM2_FULL_PATH_TX_DONE) |          \
+	BIT(DCAM2_SENSOR_EOF) |                   \
+	BIT(DCAM2_SENSOR_SOF))
 
-#define DCAM2INT_IRQ_LINE_EN_NORMAL \
+#define DCAM2INT_IRQ_LINE_EN_NORMAL               \
 	(DCAMINT_FATAL_ERROR | BIT(DCAM2_MMU_INT) \
-	|BIT(DCAM2_FULL_PATH_TX_DONE) |\
-	 BIT(DCAM2_SENSOR_EOF) |\
-	 BIT(DCAM2_SENSOR_SOF))
+	| BIT(DCAM2_FULL_PATH_TX_DONE) |          \
+	BIT(DCAM2_SENSOR_EOF) |                   \
+	BIT(DCAM2_SENSOR_SOF))
 
 /*
  * enabled interrupt source in slow motion scene
@@ -185,9 +185,9 @@ enum {
  * software has to set auto copy at the last DCAM_CAP_SOF of four frames. So we
  * just use DCAM_CAP_SOF to do all the work.
  */
-#define DCAMINT_IRQ_LINE_EN_SLM \
+#define DCAMINT_IRQ_LINE_EN_SLM                   \
 	(DCAMINT_ALL_ERROR | DCAMINT_ALL_TX_DONE |\
-	 BIT(DCAM_PREVIEW_SOF))
+	BIT(DCAM_PREVIEW_SOF))
 
 int dcam_int_irq_request(struct device *pdev, int irq, void *param);
 void dcam_int_irq_free(struct device *pdev, void *param);

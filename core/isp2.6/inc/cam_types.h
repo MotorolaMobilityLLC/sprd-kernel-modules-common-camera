@@ -26,7 +26,11 @@
 
 #define ZOOM_RATIO_DEFAULT              1000
 #define CAM_BUF_ALIGN_SIZE              4
-#define	ALIGN_OFFSET                    16
+#define ALIGN_OFFSET                    16
+#define FBC_TILE_WIDTH                  64
+#define FBC_TILE_HEIGHT                 4
+#define FBC_TILE_ADDR_ALIGN             256
+#define FBC_HEADER_REDUNDANT            64
 
 /*************** for global debug starts********************/
 
@@ -240,11 +244,6 @@ enum dcam_cb_type {
 	DCAM_CB_MMU_ERR,
 
 };
-
-#define FBC_TILE_WIDTH                  64
-#define FBC_TILE_HEIGHT                 4
-#define FBC_TILE_ADDR_ALIGN             256
-#define FBC_HEADER_REDUNDANT            64
 
 /* for fbc/fbd */
 typedef unsigned long addr_t;

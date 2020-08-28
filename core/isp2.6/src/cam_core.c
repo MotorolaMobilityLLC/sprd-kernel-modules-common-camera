@@ -415,7 +415,6 @@ static void camcore_release_camera_frame(void *param)
 	cam_queue_empty_frame_put(frame);
 }
 
-
 static int camcore_cfg_param_buffer(
 		struct camera_module *module,
 		struct isp_statis_buf_input *input)
@@ -544,8 +543,6 @@ static int camcore_uncfg_param_buffer(struct camera_module *module)
 	return 0;
 }
 
-
-/* compression policy */
 static void camcore_cal_compression(struct camera_module *module)
 {
 	struct channel_context *ch_pre, *ch_cap, *ch_vid;
@@ -711,16 +708,16 @@ static void camcore_config_compression(struct camera_module *module)
 		ctx_compression_desc.fetch_fbd_4bit_bypass = ch_cap->compress_4bit_bypass;
 		ctx_compression_desc.nr3_fbc_fbd = ch_cap->compress_3dnr;
 		module->isp_dev_handle->isp_ops->cfg_path(module->isp_dev_handle,
-				  ISP_PATH_CFG_CTX_COMPRESSION,
-				  ch_cap->isp_ctx_id,
-				  0, &ctx_compression_desc);
+				ISP_PATH_CFG_CTX_COMPRESSION,
+				ch_cap->isp_ctx_id,
+				0, &ctx_compression_desc);
 
 		path_compression_desc.store_fbc = ch_cap->compress_output;
 		module->isp_dev_handle->isp_ops->cfg_path(module->isp_dev_handle,
-				  ISP_PATH_CFG_PATH_COMPRESSION,
-				  ch_cap->isp_ctx_id,
-				  ch_cap->isp_path_id,
-				  &path_compression_desc);
+				ISP_PATH_CFG_PATH_COMPRESSION,
+				ch_cap->isp_ctx_id,
+				ch_cap->isp_path_id,
+				&path_compression_desc);
 	}
 
 	/* preview context */
@@ -729,16 +726,16 @@ static void camcore_config_compression(struct camera_module *module)
 		ctx_compression_desc.fetch_fbd_4bit_bypass = ch_pre->compress_4bit_bypass;
 		ctx_compression_desc.nr3_fbc_fbd = ch_pre->compress_3dnr;
 		module->isp_dev_handle->isp_ops->cfg_path(module->isp_dev_handle,
-				  ISP_PATH_CFG_CTX_COMPRESSION,
-				  ch_pre->isp_ctx_id,
-				  0, &ctx_compression_desc);
+				ISP_PATH_CFG_CTX_COMPRESSION,
+				ch_pre->isp_ctx_id,
+				0, &ctx_compression_desc);
 
 		path_compression_desc.store_fbc = ch_pre->compress_output;
 		module->isp_dev_handle->isp_ops->cfg_path(module->isp_dev_handle,
-				  ISP_PATH_CFG_PATH_COMPRESSION,
-				  ch_pre->isp_ctx_id,
-				  ch_pre->isp_path_id,
-				  &path_compression_desc);
+				ISP_PATH_CFG_PATH_COMPRESSION,
+				ch_pre->isp_ctx_id,
+				ch_pre->isp_path_id,
+				&path_compression_desc);
 	}
 
 	/* video context */
@@ -747,22 +744,22 @@ static void camcore_config_compression(struct camera_module *module)
 		ctx_compression_desc.fetch_fbd_4bit_bypass = ch_vid->compress_4bit_bypass;
 		ctx_compression_desc.nr3_fbc_fbd = ch_vid->compress_3dnr;
 		module->isp_dev_handle->isp_ops->cfg_path(module->isp_dev_handle,
-				  ISP_PATH_CFG_CTX_COMPRESSION,
-				  ch_vid->isp_ctx_id,
-				  0, &ctx_compression_desc);
+				ISP_PATH_CFG_CTX_COMPRESSION,
+				ch_vid->isp_ctx_id,
+				0, &ctx_compression_desc);
 
 		path_compression_desc.store_fbc = ch_vid->compress_output;
 		module->isp_dev_handle->isp_ops->cfg_path(module->isp_dev_handle,
-				  ISP_PATH_CFG_PATH_COMPRESSION,
-				  ch_vid->isp_ctx_id,
-				  ch_vid->isp_path_id,
-				  &path_compression_desc);
+				ISP_PATH_CFG_PATH_COMPRESSION,
+				ch_vid->isp_ctx_id,
+				ch_vid->isp_path_id,
+				&path_compression_desc);
 	}
 }
 
 static void camcore_prepare_frame_from_file(struct camera_queue *queue,
-				    char *filename,
-				    uint32_t width, uint32_t height, uint32_t is_loose)
+				char *filename,
+				uint32_t width, uint32_t height, uint32_t is_loose)
 {
 	struct camera_frame *frame, *f;
 	struct file *raw;
@@ -5513,10 +5510,8 @@ static struct cam_ioctl_cmd ioctl_cmds_table[] = {
 	[_IOC_NR(SPRD_ISP_IO_POST_3DNR)]            = {SPRD_ISP_IO_POST_3DNR,            NULL},
 	[_IOC_NR(SPRD_STATIS_IO_CFG_PARAM)]         = {SPRD_STATIS_IO_CFG_PARAM,         NULL},
 	[_IOC_NR(SPRD_ISP_IO_RAW_CAP)]              = {SPRD_ISP_IO_RAW_CAP,              camioctl_raw_proc},
-
 	[_IOC_NR(SPRD_IMG_IO_GET_DCAM_RES)]         = {SPRD_IMG_IO_GET_DCAM_RES,         camioctl_cam_res_get},
 	[_IOC_NR(SPRD_IMG_IO_PUT_DCAM_RES)]         = {SPRD_IMG_IO_PUT_DCAM_RES,         camioctl_cam_res_put},
-
 	[_IOC_NR(SPRD_ISP_IO_SET_PULSE_LINE)]       = {SPRD_ISP_IO_SET_PULSE_LINE,       NULL},
 	[_IOC_NR(SPRD_ISP_IO_CFG_START)]            = {SPRD_ISP_IO_CFG_START,            NULL},
 	[_IOC_NR(SPRD_ISP_IO_POST_YNR)]             = {SPRD_ISP_IO_POST_YNR,             NULL},

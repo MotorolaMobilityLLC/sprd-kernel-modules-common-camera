@@ -10,27 +10,26 @@
  *
  */
 
-
 #ifndef MM_AHB_L5PRO_H
 #define MM_AHB_L5PRO_H
 
-#define REG_MM_AHB_AHB_EB                      (0x0000)
-#define REG_MM_AHB_AHB_RST                     (0x0004)
-#define REG_MM_AHB_GEN_CLK_CFG                 (0x0008)
-#define REG_MM_AHB_MM_QOS                      (0x000C)
-#define REG_MM_AHB_MM_LP_DISABLE               (0x0010)
-#define REG_MM_AHB_MM_LPC_CTRL_ISP             (0x0014)
-#define REG_MM_AHB_MM_LPC_CTRL_JPG             (0x0018)
-#define REG_MM_AHB_MM_LPC_CTRL_CPP             (0x001C)
-#define REG_MM_AHB_MM_LPC_CTRL_MM_MAIN_MTX_S0  (0x0020)
-#define REG_MM_AHB_MM_LPC_CTRL_AXI2AHB_M0      (0x0024)
-#define REG_MM_AHB_MM_LPC_CTRL_DCAM_ASYNC_BDG  (0x0028)
-#define REG_MM_AHB_MM_LPC_CTRL_MTX_ASYNC_BDG   (0x002C)
-#define REG_MM_AHB_MIPI_CSI_SEL_CTRL           (0x0030)
-#define REG_MM_AHB_MM_0P5_APPEND               (0x0034)
-#define REG_MM_AHB_MM_IP_BUSY                  (0x0038)
-#define REG_MM_AHB_MM_AS_BDG_STATE             (0x003C)
-#define REG_MM_AHB_MM_LPC_CTRL_FD              (0x0040)
+#define REG_MM_AHB_AHB_EB                         (0x0000)
+#define REG_MM_AHB_AHB_RST                        (0x0004)
+#define REG_MM_AHB_GEN_CLK_CFG                    (0x0008)
+#define REG_MM_AHB_MM_QOS                         (0x000C)
+#define REG_MM_AHB_MM_LP_DISABLE                  (0x0010)
+#define REG_MM_AHB_MM_LPC_CTRL_ISP                (0x0014)
+#define REG_MM_AHB_MM_LPC_CTRL_JPG                (0x0018)
+#define REG_MM_AHB_MM_LPC_CTRL_CPP                (0x001C)
+#define REG_MM_AHB_MM_LPC_CTRL_MM_MAIN_MTX_S0     (0x0020)
+#define REG_MM_AHB_MM_LPC_CTRL_AXI2AHB_M0         (0x0024)
+#define REG_MM_AHB_MM_LPC_CTRL_DCAM_ASYNC_BDG     (0x0028)
+#define REG_MM_AHB_MM_LPC_CTRL_MTX_ASYNC_BDG      (0x002C)
+#define REG_MM_AHB_MIPI_CSI_SEL_CTRL              (0x0030)
+#define REG_MM_AHB_MM_0P5_APPEND                  (0x0034)
+#define REG_MM_AHB_MM_IP_BUSY                     (0x0038)
+#define REG_MM_AHB_MM_AS_BDG_STATE                (0x003C)
+#define REG_MM_AHB_MM_LPC_CTRL_FD                 (0x0040)
 
 /* REG_MM_AHB_AHB_EB */
 
@@ -184,7 +183,4 @@
 #define BIT_MM_AHB_LP_EB_FD                       BIT(16)
 #define BIT_MM_AHB_LP_NUM_FD(x)                   (((x) & 0xFFFF))
 
-
 #endif /* MM_AHB_H */
-
-

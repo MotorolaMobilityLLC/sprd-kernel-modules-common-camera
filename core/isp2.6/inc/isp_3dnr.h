@@ -55,7 +55,6 @@ struct isp_3dnr_mem_ctrl {
 	uint32_t retain_num;
 	uint32_t ref_pic_flag;
 	uint32_t ft_max_len_sel;
-
 	uint32_t first_line_mode;
 	uint32_t last_line_mode;
 	uint32_t start_row;
@@ -230,20 +229,16 @@ struct isp_3dnr_ctx_desc {
 	uint32_t type;
 	uint32_t blending_cnt;
 	uint32_t mode;
-
 	uint32_t width;
 	uint32_t height;
-	enum  sprd_cam_sec_mode  nr3_sec_mode;
-
+	enum sprd_cam_sec_mode nr3_sec_mode;
 	struct fast_mv mv;
 	struct nr3_me_data *mvinfo;
-
 	struct isp_3dnr_mem_ctrl mem_ctrl;
 	struct isp_3dnr_store nr3_store;
 	struct isp_3dnr_fbd_fetch nr3_fbd_fetch;
 	struct isp_3dnr_fbc_store nr3_fbc_store;
 	struct isp_3dnr_crop crop;
-
 	struct camera_buf *buf_info[ISP_NR3_BUF_NUM];
 };
 
@@ -258,9 +253,8 @@ int isp_3dnr_update_memctrl_slice_info(struct nr3_slice *in, struct nr3_slice_fo
 int isp_3dnr_gen_config(struct isp_3dnr_ctx_desc *ctx);
 
 void isp_3dnr_config_param(struct isp_3dnr_ctx_desc *ctx,
-			struct isp_k_block *isp_k_param,
-			uint32_t idx,
-			enum nr3_func_type type_id);
+	struct isp_k_block *isp_k_param, uint32_t idx,
+	enum nr3_func_type type_id);
 
 void isp_3dnr_bypass_config(uint32_t idx);
 

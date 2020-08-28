@@ -72,22 +72,17 @@ struct slice_thumbscaler_info {
 	uint32_t out_of_range;
 	uint32_t scaler_bypass;
 	uint32_t odata_mode;
-
 	struct img_deci_info y_deci;
 	struct img_deci_info uv_deci;
-
 	struct img_size y_factor_in;
 	struct img_size y_factor_out;
 	struct img_size uv_factor_in;
 	struct img_size uv_factor_out;
-
 	struct img_size src0;/* input image/slice size */
-
 	struct img_trim y_trim;
 	struct img_size y_src_after_deci;
 	struct img_size y_dst_after_scaler;
 	struct img_size y_init_phase;
-
 	struct img_trim uv_trim;
 	struct img_size uv_src_after_deci;
 	struct img_size uv_dst_after_scaler;
@@ -255,10 +250,8 @@ struct slice_3dnr_crop_info {
 
 struct slice_ltm_map_info {
 	uint32_t bypass;
-
 	uint32_t tile_width;
 	uint32_t tile_height;
-
 	uint32_t tile_num_x;
 	uint32_t tile_num_y;
 	uint32_t tile_right_flag;

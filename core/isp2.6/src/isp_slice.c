@@ -60,7 +60,7 @@ struct isp_scaler_slice_tmp {
 };
 
 static int sprd_ispslice_noisefliter_info_set(struct isp_slice_desc *slc_ctx,
-	struct isp_slice_context *ctx)
+		struct isp_slice_context *ctx)
 {
 	int rtn = 0, slice_id = 0;
 	uint32_t slice_num = 0;
@@ -260,19 +260,19 @@ static int cfg_slice_base_info(
 			end_row = start_row + slice_height - 1;
 			if (i != 0)
 				cur_slc->slice_overlap.overlap_up =
-							slc_ctx->overlap_up;
+					slc_ctx->overlap_up;
 			if (j != 0)
 				cur_slc->slice_overlap.overlap_left =
-							slc_ctx->overlap_left;
+					slc_ctx->overlap_left;
 			if (i != (slice_total_row - 1))
 				cur_slc->slice_overlap.overlap_down =
-							slc_ctx->overlap_down;
+					slc_ctx->overlap_down;
 			else
 				end_row = img_height - 1;
 
 			if (j != (slice_total_col - 1))
 				cur_slc->slice_overlap.overlap_right =
-							slc_ctx->overlap_right;
+					slc_ctx->overlap_right;
 			else
 				end_col = img_width - 1;
 
@@ -862,10 +862,10 @@ void cfg_spath_trim1_info(
 }
 
 static int cfg_slice_thumbscaler(
-	struct isp_slice_desc *cur_slc,
-	struct img_trim *frm_trim0,
-	struct isp_thumbscaler_info *scalerFrame,
-	struct slice_thumbscaler_info *scalerSlice)
+		struct isp_slice_desc *cur_slc,
+		struct img_trim *frm_trim0,
+		struct isp_thumbscaler_info *scalerFrame,
+		struct slice_thumbscaler_info *scalerSlice)
 {
 	int ret = 0;
 	uint32_t half;
@@ -1078,15 +1078,15 @@ static int cfg_slice_scaler_info(
 				slc_scaler);
 
 			if (cur_slc->y == 0 &&
-			    (cur_slc->x + 1) < SLICE_W_NUM_MAX &&
-			    SLICE_W_NUM_MAX > 1)
+				(cur_slc->x + 1) < SLICE_W_NUM_MAX &&
+				SLICE_W_NUM_MAX > 1)
 				trim1_sum_x[j][cur_slc->x + 1] =
 					slc_scaler->trim1_size_x +
 					trim1_sum_x[j][cur_slc->x];
 
 			if (cur_slc->x == 0 &&
-			    (cur_slc->y + 1) < SLICE_H_NUM_MAX &&
-			    SLICE_H_NUM_MAX > 1)
+				(cur_slc->y + 1) < SLICE_H_NUM_MAX &&
+				SLICE_H_NUM_MAX > 1)
 				trim1_sum_y[j][cur_slc->y + 1] =
 					slc_scaler->trim1_size_y +
 					trim1_sum_y[j][cur_slc->y];
@@ -1349,15 +1349,15 @@ int isp_cfg_slice_store_info(
 				slc_store->size.h =
 					slc_thumbscaler->y_dst_after_scaler.h;
 				if (cur_slc->y == 0 &&
-				    (cur_slc->x + 1) < SLICE_W_NUM_MAX &&
-				    SLICE_W_NUM_MAX > 1)
+					(cur_slc->x + 1) < SLICE_W_NUM_MAX &&
+					SLICE_W_NUM_MAX > 1)
 					start_col_out[j][cur_slc->x + 1] =
 						slc_store->size.w +
 						start_col_out[j][cur_slc->x];
 
 				if (cur_slc->x == 0 &&
-				    (cur_slc->y + 1) < SLICE_H_NUM_MAX &&
-				    SLICE_H_NUM_MAX > 1)
+					(cur_slc->y + 1) < SLICE_H_NUM_MAX &&
+					SLICE_H_NUM_MAX > 1)
 					start_row_out[j][cur_slc->y + 1] =
 						slc_store->size.h +
 						start_row_out[j][cur_slc->y];
@@ -1367,15 +1367,15 @@ int isp_cfg_slice_store_info(
 				slc_store->size.h = slc_scaler->trim1_size_y;
 
 				if (cur_slc->y == 0 &&
-				    (cur_slc->x + 1) < SLICE_W_NUM_MAX &&
-				    SLICE_W_NUM_MAX > 1)
+					(cur_slc->x + 1) < SLICE_W_NUM_MAX &&
+					SLICE_W_NUM_MAX > 1)
 					start_col_out[j][cur_slc->x + 1] =
 						slc_store->size.w +
 						start_col_out[j][cur_slc->x];
 
 				if (cur_slc->x == 0 &&
-				    (cur_slc->y + 1) < SLICE_H_NUM_MAX &&
-				    SLICE_H_NUM_MAX > 1)
+					(cur_slc->y + 1) < SLICE_H_NUM_MAX &&
+					SLICE_H_NUM_MAX > 1)
 					start_row_out[j][cur_slc->y + 1] =
 						slc_store->size.h +
 						start_row_out[j][cur_slc->y];

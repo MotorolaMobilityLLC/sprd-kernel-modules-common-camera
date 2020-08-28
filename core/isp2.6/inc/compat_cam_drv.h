@@ -25,8 +25,8 @@ struct compat_isp_io_param {
 };
 
 long compat_sprd_img_ioctl(
-		struct file *file,
-		unsigned int cmd,
-		unsigned long param);
+	struct file *file,
+	unsigned int cmd,
+	unsigned long param);
 
 #endif/* _COMPAT_CAM_DRV_H_ */

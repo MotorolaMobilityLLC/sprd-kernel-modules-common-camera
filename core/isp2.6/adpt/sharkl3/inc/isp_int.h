@@ -18,7 +18,6 @@
 
 #include "cam_types.h"
 
-
 enum isp_irq_id {
 	ISP_INT_ISP_ALL_DONE,
 	ISP_INT_SHADOW_DONE,
@@ -61,45 +60,45 @@ enum isp_mmu_irq {
 	RAW_INVALID_ID_W,
 	MMU_INT_NUMBER3,
 };
-#define ISP_INT_FMCU_STORE_DONE ISP_INT_FMCU_CONFIG_DONE
+#define ISP_INT_FMCU_STORE_DONE               ISP_INT_FMCU_CONFIG_DONE
 
-#define ISP_INT_LINE_MASK_ERR \
-	((1 << ISP_INT_FMCU_TIMEOUT) | \
+#define ISP_INT_LINE_MASK_ERR                 \
+	((1 << ISP_INT_FMCU_TIMEOUT) |        \
 	(1 << ISP_INT_FMCU_CMD_ERROR))
 
-#define ISP_INT_LINE_MASK_MMU \
-	((1 << RAW_OUT_OF_RNGE_R) | \
-	(1 << RAW_OUT_OF_RNGE_W) | \
-	(1 << RAW_UNSECURE_R) | \
-	(1 << RAW_UNSECURE_W) | \
-	(1 << RAW_INVALID_PAGE_R) | \
-	(1 << RAW_INVALID_PAGE_W) | \
-	(1 << RAW_INVALID_ID_R) | \
+#define ISP_INT_LINE_MASK_MMU                 \
+	((1 << RAW_OUT_OF_RNGE_R) |           \
+	(1 << RAW_OUT_OF_RNGE_W) |            \
+	(1 << RAW_UNSECURE_R) |               \
+	(1 << RAW_UNSECURE_W) |               \
+	(1 << RAW_INVALID_PAGE_R) |           \
+	(1 << RAW_INVALID_PAGE_W) |           \
+	(1 << RAW_INVALID_ID_R) |             \
 	(1 << RAW_INVALID_ID_W))
 
-#define ISP_INT_LINE_MASK \
-	((1 << ISP_INT_ISP_ALL_DONE) | \
-	(1 << ISP_INT_SHADOW_DONE) | \
-	(1 << ISP_INT_DISPATCH_DONE) | \
-	(1 << ISP_INT_STORE_DONE_OUT) | \
-	(1 << ISP_INT_STORE_DONE_PRE) | \
-	(1 << ISP_INT_STORE_DONE_VID) | \
-	(1 << ISP_INT_STORE_DONE_VID_SKIP) | \
-	(1 << ISP_INT_NR3_ALL_DONE) | \
-	(1 << ISP_INT_NR3_SHADOW_DONE) | \
-	(1 << ISP_INT_FMCU_LOAD_DONE) | \
-	(1 << ISP_INT_FMCU_CMD_X) | \
-	(1 << ISP_INT_FMCU_SHADOW_DONE) | \
-	(1 << ISP_INT_FMCU_STORE_DONE) | \
+#define ISP_INT_LINE_MASK                     \
+	((1 << ISP_INT_ISP_ALL_DONE) |        \
+	(1 << ISP_INT_SHADOW_DONE) |          \
+	(1 << ISP_INT_DISPATCH_DONE) |        \
+	(1 << ISP_INT_STORE_DONE_OUT) |       \
+	(1 << ISP_INT_STORE_DONE_PRE) |       \
+	(1 << ISP_INT_STORE_DONE_VID) |       \
+	(1 << ISP_INT_STORE_DONE_VID_SKIP) |  \
+	(1 << ISP_INT_NR3_ALL_DONE) |         \
+	(1 << ISP_INT_NR3_SHADOW_DONE) |      \
+	(1 << ISP_INT_FMCU_LOAD_DONE) |       \
+	(1 << ISP_INT_FMCU_CMD_X) |           \
+	(1 << ISP_INT_FMCU_SHADOW_DONE) |     \
+	(1 << ISP_INT_FMCU_STORE_DONE) |      \
 	(1 << ISP_INT_HIST_CAL_DONE))
 
-#define ISP_INT_LINE_FMCU_MASK \
-	((1 << ISP_INT_FMCU_LOAD_DONE) | \
-	(1 << ISP_INT_FMCU_CONFIG_DONE) | \
-	(1 << ISP_INT_FMCU_SHADOW_DONE) | \
-	(1 << ISP_INT_FMCU_CMD_X) | \
-	(1 << ISP_INT_FMCU_TIMEOUT) | \
-	(1 << ISP_INT_FMCU_CMD_ERROR) | \
+#define ISP_INT_LINE_FMCU_MASK                \
+	((1 << ISP_INT_FMCU_LOAD_DONE) |      \
+	(1 << ISP_INT_FMCU_CONFIG_DONE) |     \
+	(1 << ISP_INT_FMCU_SHADOW_DONE) |     \
+	(1 << ISP_INT_FMCU_CMD_X) |           \
+	(1 << ISP_INT_FMCU_TIMEOUT) |         \
+	(1 << ISP_INT_FMCU_CMD_ERROR) |       \
 	(1 << ISP_INT_FMCU_STOP_DONE))
 
 int isp_int_reset_isp_irq_cnt(int ctx_id);

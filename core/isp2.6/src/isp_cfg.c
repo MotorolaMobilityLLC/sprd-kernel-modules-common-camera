@@ -101,7 +101,6 @@ int debug_show_ctx_reg_buf(void *param)
 	return 0;
 }
 
-
 static void cctx_init_page_buf_addr(
 				struct isp_cfg_ctx_desc *cfg_ctx,
 				void *sw_addr,
@@ -283,7 +282,6 @@ static int cctx_buf_init(struct isp_cfg_ctx_desc *cfg_ctx)
 		goto err_kmap_cfg1;
 	}
 
-
 	cctx_page_buf_aligned(cfg_ctx, &sw_addr, &hw_addr);
 	cctx_init_page_buf_addr(cfg_ctx, sw_addr, hw_addr);
 	cctx_init_sw_page_buf_addr(cfg_ctx, (void *)ion_buf_cached->addr_k[0]);
@@ -307,7 +305,6 @@ err_kmap_cfg:
 err_alloc_cfg:
 	return ret;
 }
-
 
 static int cctx_buf_deinit(struct isp_cfg_ctx_desc *cfg_ctx)
 {
@@ -351,7 +348,6 @@ static int isp_cfg_reset_ctxbuf(
 
 	return 0;
 }
-
 
 /*  Interface */
 static int isp_cfg_map_init(struct isp_cfg_ctx_desc *cfg_ctx)
@@ -497,7 +493,6 @@ copy_sec:
 	return ret;
 }
 
-
 static int isp_cfg_ctx_init(struct isp_cfg_ctx_desc *cfg_ctx)
 {
 	int ret = 0;
@@ -556,7 +551,6 @@ exit:
 
 	return ret;
 }
-
 
 struct isp_cfg_ops cfg_ops = {
 	.ctx_init = isp_cfg_ctx_init,

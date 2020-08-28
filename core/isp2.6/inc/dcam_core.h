@@ -221,7 +221,6 @@ struct dcam_pipe_dev {
 	uint32_t irq;
 	atomic_t state;// TODO: use mutex to protect
 	uint32_t auto_cpy_id;
-
 	uint32_t base_fid;
 	uint32_t frame_index;
 	uint32_t index_to_set;
@@ -230,22 +229,17 @@ struct dcam_pipe_dev {
 	uint32_t iommu_status;
 	struct timespec frame_ts[DCAM_FRAME_TIMESTAMP_COUNT];
 	ktime_t frame_ts_boot[DCAM_FRAME_TIMESTAMP_COUNT];
-
 	uint32_t slowmotion_count;
-
 	uint32_t helper_enabled;
 	spinlock_t helper_lock;
 	struct list_head helper_list;
 	struct dcam_sync_helper helpers[DCAM_SYNC_HELPER_COUNT];
 	struct dcam_image_replacer *replacer;
-
 	struct cam_hw_info *hw;
-
 	spinlock_t glb_reg_lock;
-	bool  dcamsec_eb;
+	bool dcamsec_eb;
 	uint32_t err_status;// TODO: change to use state
 	uint32_t err_count;/* iommu register dump count in dcam_err */
-
 	uint32_t is_loose;
 	uint32_t is_4in1;
 	uint32_t lowlux_4in1;/* 4in1 low lux mode capture */
@@ -266,30 +260,21 @@ struct dcam_pipe_dev {
 	struct completion slice_done;
 	struct completion frm_done;
 	struct completion offline_complete;
-
 	uint32_t zoom_ratio;
 	struct img_trim next_roi;
-
 	uint32_t iommu_enable;
 	struct dcam_mipi_info cap_info;
-
 	void *internal_reserved_buf;/* for statis path output */
-
 	struct camera_buf statis_buf_array[STATIS_TYPE_MAX][STATIS_BUF_NUM_MAX];
-
 	dcam_dev_callback dcam_cb_func;
 	void *cb_priv_data;
-
 	uint32_t cur_ctx_id;
 	struct dcam_pipe_context ctx[DCAM_CXT_NUM];
-
 	struct dcam_path_desc path[DCAM_PATH_MAX];
-
 	struct dcam_fetch_info fetch;
 	struct camera_queue in_queue;
 	struct camera_queue proc_queue;
 	struct cam_thread_info thread;
-
 	struct dcam_pipe_ops *dcam_pipe_ops;
 };
 

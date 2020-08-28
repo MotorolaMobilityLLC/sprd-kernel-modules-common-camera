@@ -70,19 +70,16 @@ struct isp_dev_cfg_info {
 	uint32_t sdw_mode;
 	uint32_t num_of_mod;
 	uint32_t *isp_cfg_map;
-
 	uint32_t cfg_main_sel;
 	uint32_t bp_pre0_pixel_rdy;
 	uint32_t bp_pre1_pixel_rdy;
 	uint32_t bp_cap0_pixel_rdy;
 	uint32_t bp_cap1_pixel_rdy;
-
 	/* 0: cfg trigger start. 1: fmcu trigger start */
 	uint32_t pre0_cmd_ready_mode;
 	uint32_t pre1_cmd_ready_mode;
 	uint32_t cap0_cmd_ready_mode;
 	uint32_t cap1_cmd_ready_mode;
-
 	uint32_t tm_set_number;
 	uint32_t cap0_th;
 	uint32_t cap1_th;
@@ -116,7 +113,7 @@ struct isp_cfg_ops {
 	int (*hw_cfg)(struct isp_cfg_ctx_desc *cfg_ctx,
 			enum isp_context_id sw_ctx_id,
 			enum isp_context_hw_id hw_ctx_id,
-			uint32_t  fmcu_enable);
+			uint32_t fmcu_enable);
 	int (*hw_start)(struct isp_cfg_ctx_desc *cfg_ctx,
 			enum isp_context_hw_id ctx_id);
 };

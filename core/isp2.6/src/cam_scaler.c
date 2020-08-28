@@ -18,27 +18,26 @@
 
 /* Macro Definitions */
 
-#define SCALER_COEF_TAB_LEN_HOR		48
-#define SCALER_COEF_TAB_LEN_VER		132
+#define SCALER_COEF_TAB_LEN_HOR         48
+#define SCALER_COEF_TAB_LEN_VER         132
 
-#define GSC_FIX				24
-#define GSC_COUNT			256
-#define GSC_ABS(_a)			((_a) < 0 ? -(_a) : (_a))
-#define GSC_SIGN2(input, p) \
+#define GSC_FIX                         24
+#define GSC_COUNT                       256
+#define GSC_ABS(_a)                     ((_a) < 0 ? -(_a) : (_a))
+#define GSC_SIGN2(input, p)             \
 	{ if (p >= 0) input = 1; if (p < 0) input = -1; }
-#define COEF_ARR_ROWS			9
-#define COEF_ARR_COLUMNS		8
-#define COEF_ARR_COL_MAX		16
-#define MIN_POOL_SIZE			(6 * 1024)
-#define TRUE				1
-#define FALSE				0
-#define SCI_MEMSET			memset
-#define MAX(_x, _y)			(((_x) > (_y)) ? (_x) : (_y))
+#define COEF_ARR_ROWS                   9
+#define COEF_ARR_COLUMNS                8
+#define COEF_ARR_COL_MAX                16
+#define MIN_POOL_SIZE                   (6 * 1024)
+#define TRUE                            1
+#define FALSE                           0
+#define SCI_MEMSET                      memset
+#define MAX(_x, _y)                  (((_x) > (_y)) ? (_x) : (_y))
 
-#define SINCOS_BIT_31			(1 << 31)
-#define SINCOS_BIT_30			(1 << 30)
-#define SMULL(x, y)			((int64_t)(x) * (int64_t)(y))
-
+#define SINCOS_BIT_31                   (1 << 31)
+#define SINCOS_BIT_30                   (1 << 30)
+#define SMULL(x, y)                  ((int64_t)(x) * (int64_t)(y))
 
 struct gsc_mem_pool {
 	unsigned long begin_addr;
@@ -188,7 +187,6 @@ static int cos_core(int arc_q33, int sign)
 	return R;
 }
 
-
 /* API Function Implementation */
 
 /****************************************************************************/
@@ -244,7 +242,6 @@ static int cam_sin_32(int n)
 
 	return cos_core(n, s);
 }
-
 
 /****************************************************************************/
 /* Purpose: get the cos value of an arc at Q32                              */

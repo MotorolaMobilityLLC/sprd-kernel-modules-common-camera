@@ -939,7 +939,6 @@ map_err:
 	return ret;
 }
 
-
 static int dcam_offline_start_frame(void *param)
 {
 	int ret = 0;
@@ -1391,9 +1390,8 @@ static int dcam_create_offline_thread(void *param)
 /*
  * Helper function to initialize dcam_sync_helper.
  */
-static inline void
-_init_sync_helper_locked(struct dcam_pipe_dev *dev,
-		struct dcam_sync_helper *helper)
+static inline void _init_sync_helper_locked(struct dcam_pipe_dev *dev,
+			struct dcam_sync_helper *helper)
 {
 	memset(&helper->sync, 0, sizeof(struct dcam_frame_synchronizer));
 	helper->enabled = 0;
@@ -1461,9 +1459,8 @@ int dcam_if_set_sync_enable(void *handle, int path_id, int enable)
 /*
  * Helper function to put dcam_sync_helper.
  */
-static inline void
-_put_sync_helper_locked(struct dcam_pipe_dev *dev,
-		struct dcam_sync_helper *helper)
+static inline void _put_sync_helper_locked(struct dcam_pipe_dev *dev,
+			struct dcam_sync_helper *helper)
 {
 	_init_sync_helper_locked(dev, helper);
 	list_add_tail(&helper->list, &dev->helper_list);
@@ -1649,8 +1646,7 @@ static int sprd_dcam_get_path(
 	return 0;
 }
 
-static int sprd_dcam_put_path(
-	void *dcam_handle, int path_id)
+static int sprd_dcam_put_path(void *dcam_handle, int path_id)
 {
 	int ret = 0;
 	struct dcam_pipe_dev *dev;
@@ -1691,8 +1687,8 @@ static int sprd_dcam_put_path(
 }
 
 static inline void sprd_dcam_show_frame_info(struct dcam_pipe_dev *dev,
-		struct dcam_path_desc *path,
-		struct camera_frame *frame)
+			struct dcam_path_desc *path,
+			struct camera_frame *frame)
 {
 	uint32_t size = 0, is_loose = 0;
 
@@ -1710,9 +1706,7 @@ static inline void sprd_dcam_show_frame_info(struct dcam_pipe_dev *dev,
 		frame->buf.iova[0], size);
 }
 
-static int sprd_dcam_cfg_path(
-	void *dcam_handle,
-	enum dcam_path_cfg_cmd cfg_cmd,
+static int sprd_dcam_cfg_path(void *dcam_handle, enum dcam_path_cfg_cmd cfg_cmd,
 	int path_id, void *param)
 {
 	int ret = 0;
@@ -1953,8 +1947,7 @@ static int sprd_dcam_proc_frame(
 	return ret;
 }
 
-static int sprd_dcam_ioctrl(void *dcam_handle,
-	enum dcam_ioctrl_cmd cmd, void *param)
+static int sprd_dcam_ioctrl(void *dcam_handle, enum dcam_ioctrl_cmd cmd, void *param)
 {
 	int ret = 0;
 	struct dcam_pipe_dev *dev = NULL;

@@ -252,7 +252,7 @@ static int calc_scaler_param(struct img_trim *in_trim,
 }
 
 static int calc_scaler_coeff(struct isp_scaler_info *scaler,
-	uint32_t scale2yuv420)
+		uint32_t scale2yuv420)
 {
 	uint32_t *tmp_buf = NULL;
 	uint32_t *h_coeff = NULL;
@@ -1046,7 +1046,6 @@ uint32_t get_path_val(struct isp_thumbscaler_info *scalerInfo, struct isp_path_d
 	return val;
 }
 
-/* config path common register */
 int isp_set_path(struct isp_path_desc *path)
 {
 	int ret = 0;

@@ -417,14 +417,14 @@ static int isp_ltm_process_frame_previous(struct isp_pipe_context *pctx,
 }
 
 static int isp_ltm_process_frame(struct isp_pipe_context *pctx,
-				 struct camera_frame *pframe)
+				struct camera_frame *pframe)
 {
 	int ret = 0;
 
 	/* pre & cap */
 	pctx->ltm_ctx.type = pctx->mode_ltm;
 	pctx->ltm_ctx.fid = pframe->fid;
-	pctx->ltm_ctx.frame_width  = pctx->input_trim.size_x;
+	pctx->ltm_ctx.frame_width = pctx->input_trim.size_x;
 	pctx->ltm_ctx.frame_height = pctx->input_trim.size_y;
 	pctx->ltm_ctx.isp_pipe_ctx_id = pctx->ctx_id;
 
@@ -508,8 +508,8 @@ static int isp_afbc_store(struct isp_path_desc *path)
 }
 
 static int isp_update_offline_size(
-	struct isp_pipe_context *pctx,
-	struct isp_offline_param *in_param)
+		struct isp_pipe_context *pctx,
+		struct isp_offline_param *in_param)
 {
 	int ret = 0;
 	int i;
@@ -565,8 +565,8 @@ static int isp_update_offline_size(
 }
 
 static int set_fmcu_slw_queue(
-	struct isp_fmcu_ctx_desc *fmcu,
-	struct isp_pipe_context *pctx)
+		struct isp_fmcu_ctx_desc *fmcu,
+		struct isp_pipe_context *pctx)
 {
 	int ret = 0, i;
 	uint32_t frame_id;
@@ -666,8 +666,8 @@ static int set_fmcu_slw_queue(
 }
 
 static void isp_check_debug_dump(
-	struct isp_pipe_context *pctx,
-	struct camera_frame *proc_frame)
+		struct isp_pipe_context *pctx,
+		struct camera_frame *proc_frame)
 {
 	int size;
 	struct camera_frame *frame = NULL;
@@ -722,7 +722,7 @@ static void isp_check_debug_dump(
 }
 
 static int proc_slices(struct isp_pipe_context *pctx,
-	struct camera_frame *pframe)
+		struct camera_frame *pframe)
 {
 	int ret = 0;
 	int hw_ctx_id = -1, first_slice = 1;
@@ -896,7 +896,7 @@ int isp_get_sw_context_id(enum isp_context_hw_id hw_ctx_id, struct isp_pipe_dev 
 
 int isp_context_bind(struct isp_pipe_context *pctx, int fmcu_need)
 {
-	int i = 0,  m = 0, loop;
+	int i = 0, m = 0, loop;
 	int hw_ctx_id = -1;
 	unsigned long flag = 0;
 	struct isp_pipe_dev *dev = NULL;
@@ -1103,8 +1103,9 @@ static void isp_sw_slice_prepare(struct isp_pipe_context *pctx,
 }
 
 static struct camera_frame *isp_get_path_out_frame(
-	struct isp_pipe_context *pctx, struct isp_path_desc *path,
-	struct offline_tmp_param *tmp)
+				struct isp_pipe_context *pctx,
+				struct isp_path_desc *path,
+				struct offline_tmp_param *tmp)
 {
 	int ret = 0;
 	struct camera_frame *out_frame = NULL;
@@ -1181,7 +1182,7 @@ exit:
 }
 
 static int isp_cfg_offline_param(struct isp_pipe_context *pctx,
-	struct camera_frame *pframe, struct offline_tmp_param *tmp)
+		struct camera_frame *pframe, struct offline_tmp_param *tmp)
 {
 	int ret = 0;
 	int i = 0;
@@ -1256,7 +1257,7 @@ static int isp_cfg_offline_param(struct isp_pipe_context *pctx,
 }
 
 static int isp_set_offline_param(struct isp_pipe_context *pctx,
-	struct camera_frame *pframe, struct offline_tmp_param *tmp)
+		struct camera_frame *pframe, struct offline_tmp_param *tmp)
 {
 	int ret = 0;
 	int i = 0, loop = 0;
@@ -1587,8 +1588,7 @@ static int isp_offline_start_frame(void *ctx)
 	}
 
 	ret = wait_for_completion_interruptible_timeout(
-					&pctx->frm_done,
-					ISP_CONTEXT_TIMEOUT);
+			&pctx->frm_done, ISP_CONTEXT_TIMEOUT);
 	if (ret == ERESTARTSYS) {
 		pr_err("fail to interrupt, when isp wait\n");
 		ret = -EFAULT;
@@ -3299,7 +3299,7 @@ static int sprd_isp_cfg_sec(struct isp_pipe_dev *dev, void *param)
 }
 
 static int sprd_isp_ioctl(void *isp_handle, int ctx_id,
-	enum isp_ioctrl_cmd cmd, void *param)
+		enum isp_ioctrl_cmd cmd, void *param)
 {
 	int ret = 0;
 	struct isp_pipe_dev *dev = NULL;

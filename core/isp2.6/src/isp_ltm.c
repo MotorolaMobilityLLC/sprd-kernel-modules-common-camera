@@ -25,7 +25,7 @@
 #define pr_fmt(fmt) "LTM logic: %d %d %s : "\
 	fmt, current->pid, __LINE__, __func__
 
-#define ISP_LTM_TIMEOUT			msecs_to_jiffies(100)
+#define ISP_LTM_TIMEOUT         msecs_to_jiffies(100)
 
 /*
  * 1. The static of preview frame N can be applied to another preview frame N+1
@@ -55,7 +55,7 @@
 static struct isp_ltm_share_ctx_param s_share_ctx_param[LTM_ID_MAX];
 
 static int isp_ltm_share_ctx_set_status(int status, int context_idx,
-	int type, uint32_t idx)
+		int type, uint32_t idx)
 {
 	mutex_lock(&s_share_ctx_param[idx].share_mutex);
 
@@ -119,7 +119,7 @@ static int isp_ltm_share_ctx_get_update(int type, uint32_t idx)
 }
 
 static int isp_ltm_share_ctx_set_completion(int frame_idx,
-	enum isp_ltm_region ltm_id, uint32_t idx)
+		enum isp_ltm_region ltm_id, uint32_t idx)
 {
 	atomic_set(&s_share_ctx_param[idx].wait_completion[ltm_id], frame_idx);
 
@@ -331,7 +331,6 @@ int isp_put_ltm_share_ctx_desc(struct isp_ltm_share_ctx_desc *param)
 			param, &s_share_ctx_desc);
 	return -EINVAL;
 }
-
 
 /*
  * LTM logical and algorithm
@@ -583,7 +582,6 @@ static void ltm_rgb_map_dump_data_rtl(ltm_param_t *param_map,
 	param_map_rtl->tile_right_flag_rtl = tile_right_flag;
 }
 
-
 static int isp_ltm_gen_histo_config(struct isp_ltm_ctx_desc *ctx,
 			enum isp_ltm_region ltm_id,
 			struct isp_ltm_stat_info *tuning)
@@ -827,7 +825,6 @@ static int isp_ltm_gen_map_config(struct isp_ltm_ctx_desc *ctx,
 
 	return 0;
 }
-
 
 /*
  * external function interface

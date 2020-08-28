@@ -306,7 +306,6 @@ struct dcam_frame_synchronizer {
 	uint32_t index;
 	uint32_t valid;
 	struct camera_frame *frames[DCAM_PATH_MAX];
-
 	struct nr3_me_data nr3_me;
 };
 
