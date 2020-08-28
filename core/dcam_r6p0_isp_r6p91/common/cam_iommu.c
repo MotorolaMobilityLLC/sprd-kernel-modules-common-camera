@@ -18,6 +18,8 @@
 #include <linux/mutex.h>
 #include <linux/slab.h>
 
+#define DCAM_MAX_OUT_SIZE                              ((4160*3120*3)>>1)
+
 struct fd_map_dma {
 	struct list_head list;
 	int fd;
@@ -113,6 +115,13 @@ int pfiommu_get_single_page_addr(struct pfiommu_info *pfinfo)
 	int ret = 0;
 	struct sprd_iommu_map_data iommu_data;
 	pr_debug("%s, cb: %pS\n", __func__, __builtin_return_address(0));
+
+	if (pfinfo->size[0] > 0)
+		pfinfo->size[0] = (DCAM_MAX_OUT_SIZE + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1);
+	if (pfinfo->size[1] > 0)
+		pfinfo->size[1] = (DCAM_MAX_OUT_SIZE + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1);
+	if (pfinfo->size[2] > 0)
+		pfinfo->size[2] = (DCAM_MAX_OUT_SIZE + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1);
 
 	for (i = 0; i < 2; i++) {
 		if (pfinfo->size[i] <= 0)

@@ -82,7 +82,7 @@
 #define DCAM_FRM_QUEUE_LENGTH                          4
 
 #define DCAM_STATE_QUICKQUIT                           0x01
-#define DCAM_MAX_OUT_SIZE                              ((4160*3120*3)>>1)
+
 
 typedef void (*dcam_isr)(void);
 
@@ -791,15 +791,6 @@ static int32_t _dcam_path_set_next_frm(enum dcam_path_index path_index,
 	}
 
 	if (frame.pfinfo.mfd[0] == reserved_frame->pfinfo.mfd[0]) {
-			if (frame.pfinfo.size[0] > 0)
-				frame.pfinfo.size[0] =
-					(DCAM_MAX_OUT_SIZE + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1);
-			if (frame.pfinfo.size[1] > 0)
-				frame.pfinfo.size[1] =
-					(DCAM_MAX_OUT_SIZE + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1);
-			if (frame.pfinfo.size[2] > 0)
-				frame.pfinfo.size[2] =
-					(DCAM_MAX_OUT_SIZE + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1);
 			DCAM_TRACE("path 0x%x, fd 0x%x, {0x%x,0x%x,0x%x}\n",
 				path_index, frame.pfinfo.mfd[0], frame.pfinfo.size[0],
 				frame.pfinfo.size[1],frame.pfinfo.size[2]);
