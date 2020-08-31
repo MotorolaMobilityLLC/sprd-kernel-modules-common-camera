@@ -62,7 +62,8 @@ struct isp_scaler_slice_tmp {
 static int sprd_ispslice_noisefliter_info_set(struct isp_slice_desc *slc_ctx,
 		struct isp_slice_context *ctx)
 {
-	int rtn = 0, slice_id = 0;
+	int rtn = 0;
+	uint32_t slice_id = 0;
 	uint32_t slice_num = 0;
 	uint32_t slice_width = 0;
 	uint32_t seed0 = 0;
