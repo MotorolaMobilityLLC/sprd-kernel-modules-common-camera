@@ -1992,7 +1992,7 @@ static int sprd_isp_pipeline_proc_yuv(void *handle)
 	struct isp_pipe_dev *dev = NULL;
 	struct isp_module *module_info = NULL;
 	struct isp_cctx_desc *cctx_desc = NULL;
-	struct camera_frame frame;
+	struct camera_frame frame = {0};
 	enum isp_id iid = ISP_ID_0;
 	enum isp_scene_id sid = ISP_SCENE_PRE;
 	unsigned int idx = 0;
