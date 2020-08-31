@@ -1038,11 +1038,12 @@ static int dcamhw_lbuf_share_set(void *handle, void *arg)
 			break;
 		}
 		for (i = 4; i >= 0; i--) {
-			if (camarg->width <= tb_w[i * 2])
+			if (camarg->width <= tb_w[i * 2]) {
+				DCAM_AXIM_MWR(DCAM_LBUF_SHARE_MODE, 0x7, i);
+				pr_debug("alloc dcam linebuf %d %d\n", tb_w[i*2], tb_w[i*2 + 1]);
 				break;
+			}
 		}
-		DCAM_AXIM_MWR(DCAM_LBUF_SHARE_MODE, 0x7, i);
-		pr_info("alloc dcam linebuf %d %d\n", tb_w[i*2], tb_w[i*2 + 1]);
 		break;
 	case 1:
 		if (camarg->width > tb_w[9]) {
@@ -1050,12 +1051,12 @@ static int dcamhw_lbuf_share_set(void *handle, void *arg)
 			break;
 		}
 		for (i = 0; i <= 4; i++) {
-			if (camarg->width <= tb_w[i * 2 + 1])
+			if (camarg->width <= tb_w[i * 2 + 1]) {
+				DCAM_AXIM_MWR(DCAM_LBUF_SHARE_MODE, 0x7, i);
+				pr_debug("alloc dcam linebuf %d %d\n", tb_w[i*2], tb_w[i*2 + 1]);
 				break;
+			}
 		}
-
-		DCAM_AXIM_MWR(DCAM_LBUF_SHARE_MODE, 0x7, i);
-		pr_info("alloc dcam linebuf %d %d\n", tb_w[i*2], tb_w[i*2 + 1]);
 		break;
 	default:
 		pr_err("fail to get valid dcam id %d\n", camarg->idx);

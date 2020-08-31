@@ -994,19 +994,21 @@ static int dcamhw_lbuf_share_set(void *handle, void *arg)
 	switch (camarg->idx) {
 	case 0:
 		for (i = 3; i >= 0; i--) {
-			if (camarg->width <= tb_w[i * 2])
+			if (camarg->width <= tb_w[i * 2]) {
+				DCAM_AXIM_WR(DCAM_LBUF_SHARE_MODE, i);
+				pr_debug("alloc dcam linebuf %d %d\n", tb_w[i*2], tb_w[i*2 + 1]);
 				break;
+			}
 		}
-		DCAM_AXIM_WR(DCAM_LBUF_SHARE_MODE, i);
-		pr_info("alloc dcam linebuf %d %d\n", tb_w[i*2], tb_w[i*2 + 1]);
 		break;
 	case 1:
 		for (i = 0; i < 3; i++) {
-			if (camarg->width <= tb_w[i * 2 + 1])
+			if (camarg->width <= tb_w[i * 2 + 1]) {
+				DCAM_AXIM_WR(DCAM_LBUF_SHARE_MODE, i);
+				pr_debug("alloc dcam linebuf %d %d\n", tb_w[i*2], tb_w[i*2 + 1]);
 				break;
+			}
 		}
-		DCAM_AXIM_WR(DCAM_LBUF_SHARE_MODE, i);
-		pr_info("alloc dcam linebuf %d %d\n", tb_w[i*2], tb_w[i*2 + 1]);
 		break;
 	default:
 		pr_info("dcam %d no this setting\n", camarg->idx);
