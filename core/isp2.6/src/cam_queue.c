@@ -25,7 +25,6 @@
 #define pr_fmt(fmt) "cam_queue: %d %d %s : "\
 	fmt, current->pid, __LINE__, __func__
 
-
 int cam_queue_enqueue(struct camera_queue *q, struct list_head *list)
 {
 	int ret = 0;
@@ -277,7 +276,6 @@ struct camera_frame *cam_queue_empty_frame_get(void)
 	pr_debug("Done. get frame %p\n", pframe);
 	return pframe;
 }
-
 
 int cam_queue_empty_frame_put(struct camera_frame *pframe)
 {

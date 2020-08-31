@@ -312,7 +312,7 @@ struct dcam_frame_synchronizer {
 /*
  * Enables/Disables frame sync for path_id. Should be called before streaming.
  */
-int dcam_if_set_sync_enable(void *handle, int path_id, int enable);
+int dcamcore_dcam_if_sync_enable_set(void *handle, int path_id, int enable);
 /*
  * Release frame sync reference for @frame thus dcam_frame_synchronizer data
  * can be recycled for next use.
@@ -346,6 +346,6 @@ int dcam_if_parse_dt(struct platform_device *pdev,
 			uint32_t *dcam_count);
 uint32_t get_outbuf_queue_cnt(void *dev, int path_id);
 
-uint32_t dcam_if_get_open_count(void);
+uint32_t dcamcore_dcam_if_open_count_get(void);
 
 #endif/* _DCAM_INTERFACE_H_ */
