@@ -1100,7 +1100,7 @@ static void camcore_alloc_buffers(void *param)
 					i, channel->ch_id);
 				cam_buf_free(&pframe->buf);
 				cam_queue_empty_frame_put(pframe);
-				/* no break here and will retry */
+				break;
 			} else {
 				count++;
 				pr_debug("frame %p,idx %d,cnt %d,phy_addr %p\n",
