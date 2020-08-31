@@ -118,8 +118,8 @@ struct isp_cfg_ops {
 			enum isp_context_hw_id ctx_id);
 };
 
-struct isp_cfg_ctx_desc *get_isp_cfg_ctx_desc(void);
-int put_isp_cfg_ctx_desc(struct isp_cfg_ctx_desc *param);
-int debug_show_ctx_reg_buf(void *param);
+struct isp_cfg_ctx_desc *isp_cfg_ctx_desc_get(void);
+int isp_cfg_ctx_desc_put(struct isp_cfg_ctx_desc *param);
+int isp_cfg_ctx_reg_buf_debug_show(void *param);
 
 #endif/* _ISP_CFG_H_ */

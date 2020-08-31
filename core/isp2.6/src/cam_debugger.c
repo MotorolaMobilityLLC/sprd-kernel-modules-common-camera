@@ -690,7 +690,7 @@ static int camdebugger_dcam_deinit(void)
 #ifdef DBG_REGISTER
 static int camdebugger_reg_buf_show(struct seq_file *s, void *unused)
 {
-	debug_show_ctx_reg_buf((void *)s);
+	isp_cfg_ctx_reg_buf_debug_show((void *)s);
 	return 0;
 }
 

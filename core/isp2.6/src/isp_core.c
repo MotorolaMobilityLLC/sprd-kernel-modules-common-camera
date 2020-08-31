@@ -47,14 +47,14 @@
 	fmt, current->pid, __LINE__, __func__
 
 unsigned long *isp_cfg_poll_addr[ISP_CONTEXT_SW_NUM];
-static int sprd_isp_put_context(
+static int ispcore_context_put(
 	void *isp_handle, int ctx_id);
-static int sprd_isp_put_path(
+static int ispcore_path_put(
 	void *isp_handle, int ctx_id, int path_id);
-static int isp_slice_ctx_init(struct isp_pipe_context *pctx, uint32_t *multi_slice);
-static int isp_init_statis_q(void *isp_handle, int ctx_id, struct isp_statis_buf_input *input);
-static int isp_unmap_statis_buffer(void *isp_handle, int ctx_id);
-static int sprd_isp_proc_frame(void *isp_handle, void *param, int ctx_id);
+static int ispcore_slice_ctx_init(struct isp_pipe_context *pctx, uint32_t *multi_slice);
+static int ispcore_statis_q_init(void *isp_handle, int ctx_id, struct isp_statis_buf_input *input);
+static int ispcore_statis_buffer_unmap(void *isp_handle, int ctx_id);
+static int ispcore_frame_proc(void *isp_handle, void *param, int ctx_id);
 
 static DEFINE_MUTEX(isp_pipe_dev_mutex);
 
@@ -70,7 +70,7 @@ struct offline_tmp_param {
 	struct isp_stream_ctrl *stream;
 };
 
-static void free_offline_pararm(void *param)
+static void ispcore_offline_pararm_free(void *param)
 {
 	struct isp_offline_param *cur, *prev;
 
@@ -83,7 +83,7 @@ static void free_offline_pararm(void *param)
 	}
 }
 
-void isp_unmap_frame(void *param)
+static void ispcore_frame_unmap(void *param)
 {
 	struct camera_frame *frame;
 
@@ -95,7 +95,7 @@ void isp_unmap_frame(void *param)
 	cam_buf_iommu_unmap(&frame->buf);
 }
 
-void isp_ret_out_frame(void *param)
+static void ispcore_out_frame_ret(void *param)
 {
 	struct camera_frame *frame;
 	struct isp_pipe_context *pctx;
@@ -124,7 +124,7 @@ void isp_ret_out_frame(void *param)
 	}
 }
 
-void isp_ret_src_frame(void *param)
+static void ispcore_src_frame_ret(void *param)
 {
 	struct camera_frame *frame;
 	struct isp_pipe_context *pctx;
@@ -138,7 +138,7 @@ void isp_ret_src_frame(void *param)
 	pctx = (struct isp_pipe_context *)frame->priv_data;
 	pr_debug("frame %p, ch_id %d, buf_fd %d\n",
 		frame, frame->channel_id, frame->buf.mfd[0]);
-	free_offline_pararm(frame->param_data);
+	ispcore_offline_pararm_free(frame->param_data);
 	frame->param_data = NULL;
 	cam_buf_iommu_unmap(&frame->buf);
 	pctx->isp_cb_func(
@@ -146,7 +146,7 @@ void isp_ret_src_frame(void *param)
 		frame, pctx->cb_priv_data);
 }
 
-void isp_destroy_reserved_buf(void *param)
+static void ispcore_reserved_buf_destroy(void *param)
 {
 	struct camera_frame *frame;
 
@@ -171,7 +171,7 @@ void isp_destroy_reserved_buf(void *param)
 	cam_queue_empty_frame_put(frame);
 }
 
-void isp_destroy_statis_buf(void *param)
+static void ispcore_statis_buf_destroy(void *param)
 {
 	struct camera_frame *frame;
 
@@ -184,7 +184,7 @@ void isp_destroy_statis_buf(void *param)
 	cam_queue_empty_frame_put(frame);
 }
 
-int isp_adapt_blkparam(struct isp_pipe_context *pctx)
+static int ispcore_blkparam_adapt(struct isp_pipe_context *pctx)
 {
 	uint32_t new_width, old_width;
 	uint32_t new_height, old_height;
@@ -230,7 +230,7 @@ int isp_adapt_blkparam(struct isp_pipe_context *pctx)
 	return 0;
 }
 
-static int isp_update_hist_roi(struct isp_pipe_context *pctx)
+static int ispcore_hist_roi_update(struct isp_pipe_context *pctx)
 {
 	int ret = 0;
 	struct isp_dev_hist2_info hist2_info;
@@ -253,7 +253,7 @@ static int isp_update_hist_roi(struct isp_pipe_context *pctx)
 	return ret;
 }
 
-static int isp_3dnr_process_frame(struct isp_pipe_context *pctx,
+static int ispcore_3dnr_frame_process(struct isp_pipe_context *pctx,
 		struct camera_frame *pframe)
 {
 	struct isp_3dnr_ctx_desc *nr3_ctx;
@@ -313,7 +313,7 @@ static int isp_3dnr_process_frame(struct isp_pipe_context *pctx,
 			nr3_ctx->mvinfo = NULL;
 		}
 
-		isp_3dnr_gen_config(nr3_ctx);
+		isp_3dnr_config_gen(nr3_ctx);
 		isp_3dnr_config_param(nr3_ctx,
 			&pctx->isp_k_param,
 			pctx->ctx_id,
@@ -344,7 +344,7 @@ static int isp_3dnr_process_frame(struct isp_pipe_context *pctx,
 		if (nr3_ctx->mode == MODE_3DNR_OFF)
 			return 0;
 
-		isp_3dnr_gen_config(nr3_ctx);
+		isp_3dnr_config_gen(nr3_ctx);
 		isp_3dnr_config_param(nr3_ctx,
 			&pctx->isp_k_param,
 			pctx->ctx_id,
@@ -360,13 +360,13 @@ static int isp_3dnr_process_frame(struct isp_pipe_context *pctx,
 		/* default: bypass 3dnr */
 		nr3_ctx->type = NR3_FUNC_OFF;
 		isp_3dnr_bypass_config(pctx->ctx_id);
-		pr_debug("isp_offline_start_frame MODE_3DNR_OFF\n");
+		pr_debug("ispcore_offline_frame_start MODE_3DNR_OFF\n");
 		break;
 	default:
 		/* default: bypass 3dnr */
 		nr3_ctx->type = NR3_FUNC_OFF;
 		isp_3dnr_bypass_config(pctx->ctx_id);
-		pr_debug("isp_offline_start_frame default\n");
+		pr_debug("ispcore_offline_frame_start default\n");
 		break;
 	}
 
@@ -376,7 +376,7 @@ static int isp_3dnr_process_frame(struct isp_pipe_context *pctx,
 	return 0;
 }
 
-static int isp_ltm_process_frame_previous(struct isp_pipe_context *pctx,
+static int ispcore_ltm_frame_previous_process(struct isp_pipe_context *pctx,
 		struct camera_frame *pframe)
 {
 	if (!pctx || !pframe) {
@@ -416,7 +416,7 @@ static int isp_ltm_process_frame_previous(struct isp_pipe_context *pctx,
 	return 0;
 }
 
-static int isp_ltm_process_frame(struct isp_pipe_context *pctx,
+static int ispcore_ltm_frame_process(struct isp_pipe_context *pctx,
 				struct camera_frame *pframe)
 {
 	int ret = 0;
@@ -433,7 +433,7 @@ static int isp_ltm_process_frame(struct isp_pipe_context *pctx,
 
 	/* pre & cap */
 	if (pctx->ltm_rgb)
-		ret = isp_ltm_gen_frame_config(&pctx->ltm_ctx, LTM_RGB,
+		ret = isp_ltm_frame_config_gen(&pctx->ltm_ctx, LTM_RGB,
 			(struct isp_ltm_info *)&pctx->isp_k_param.ltm_rgb_info);
 	if (ret == -1) {
 		pctx->mode_ltm = MODE_LTM_OFF;
@@ -441,7 +441,7 @@ static int isp_ltm_process_frame(struct isp_pipe_context *pctx,
 	}
 
 	if (pctx->ltm_yuv)
-		ret = isp_ltm_gen_frame_config(&pctx->ltm_ctx, LTM_YUV,
+		ret = isp_ltm_frame_config_gen(&pctx->ltm_ctx, LTM_YUV,
 			(struct isp_ltm_info *)&pctx->isp_k_param.ltm_yuv_info);
 	if (ret == -1) {
 		pctx->mode_ltm = MODE_LTM_OFF;
@@ -462,7 +462,7 @@ static int isp_ltm_process_frame(struct isp_pipe_context *pctx,
 	return ret;
 }
 
-static int isp_afbc_store(struct isp_path_desc *path)
+static int ispcore_afbc_store(struct isp_path_desc *path)
 {
 	uint32_t w_tile_num = 0, h_tile_num = 0;
 	uint32_t pad_width = 0, pad_height = 0;
@@ -507,7 +507,7 @@ static int isp_afbc_store(struct isp_path_desc *path)
 	return 0;
 }
 
-static int isp_update_offline_size(
+static int ispcore_offline_size_update(
 		struct isp_pipe_context *pctx,
 		struct isp_offline_param *in_param)
 {
@@ -528,7 +528,7 @@ static int isp_update_offline_size(
 		cfg.crop.start_y = 0;
 		cfg.crop.size_x = cfg.src.w;
 		cfg.crop.size_y = cfg.src.h;
-		ret = isp_cfg_ctx_size(pctx, &cfg);
+		ret = isp_path_ctx_size_cfg(pctx, &cfg);
 		pctx->src_info.src = pctx->input_size;
 		pctx->src_info.src_crop = pctx->input_trim;
 		pr_debug("isp sw %d update size: %d %d\n",
@@ -554,7 +554,7 @@ static int isp_update_offline_size(
 			continue;
 		}
 
-		ret = isp_cfg_path_size(path, &path_trim);
+		ret = isp_path_size_cfg(path, &path_trim);
 		path->stream_in_trim = path->in_trim;
 		pr_debug("update isp path%d trim %d %d %d %d\n",
 			i, path_trim.start_x, path_trim.start_y,
@@ -564,7 +564,7 @@ static int isp_update_offline_size(
 	return ret;
 }
 
-static int set_fmcu_slw_queue(
+static int ispcore_fmcu_slw_queue_set(
 		struct isp_fmcu_ctx_desc *fmcu,
 		struct isp_pipe_context *pctx)
 {
@@ -599,7 +599,7 @@ static int set_fmcu_slw_queue(
 	pframe->width = pctx->input_size.w;
 	pframe->height = pctx->input_size.h;
 	frame_id = pframe->fid;
-	isp_path_set_fetch_frm(pctx, pframe);
+	isp_path_fetch_frm_set(pctx, pframe);
 
 	for (i = 0; i < ISP_SPATH_NUM; i++) {
 		path = &pctx->isp_path[i];
@@ -636,9 +636,9 @@ static int set_fmcu_slw_queue(
 		pr_debug("isp output buf, iova 0x%x, phy: 0x%x\n",
 				(uint32_t)out_frame->buf.iova[0],
 				(uint32_t)out_frame->buf.addr_k[0]);
-		isp_path_set_store_frm(path, out_frame);
+		isp_path_store_frm_set(path, out_frame);
 		if ((i < AFBC_PATH_NUM) && (path->afbc_store.bypass == 0))
-			isp_path_set_afbc_store_frm(path, out_frame);
+			isp_path_afbc_store_frm_set(path, out_frame);
 
 		ret = cam_queue_enqueue(&path->result_queue, &out_frame->list);
 		if (ret) {
@@ -665,7 +665,7 @@ static int set_fmcu_slw_queue(
 	return ret;
 }
 
-static void isp_check_debug_dump(
+static void ispcore_debug_dump_check(
 		struct isp_pipe_context *pctx,
 		struct camera_frame *proc_frame)
 {
@@ -721,7 +721,7 @@ static void isp_check_debug_dump(
 		frame, pctx->cb_priv_data);
 }
 
-static int proc_slices(struct isp_pipe_context *pctx,
+static int ispcore_slices_proc(struct isp_pipe_context *pctx,
 		struct camera_frame *pframe)
 {
 	int ret = 0;
@@ -733,7 +733,7 @@ static int proc_slices(struct isp_pipe_context *pctx,
 	struct isp_hw_yuv_block_ctrl blk_ctrl;
 
 	pr_debug("enter. need_slice %d\n", pctx->multi_slice);
-	hw_ctx_id = isp_get_hw_context_id(pctx);
+	hw_ctx_id = isp_core_hw_context_id_get(pctx);
 	if (hw_ctx_id < 0) {
 		pr_err("fail to get valid hw for ctx %d\n", pctx->ctx_id);
 		return -EINVAL;
@@ -768,7 +768,7 @@ static int proc_slices(struct isp_pipe_context *pctx,
 		hw->isp_ioctl(hw, ISP_HW_CFG_YUV_BLOCK_CTRL_TYPE, &blk_ctrl);
 		if (first_slice) {
 			first_slice = 0;
-			isp_check_debug_dump(pctx, pframe);
+			ispcore_debug_dump_check(pctx, pframe);
 			ret = cfg_desc->ops->hw_cfg(
 				cfg_desc, pctx->ctx_id, hw_ctx_id, 0);
 		} else {
@@ -799,7 +799,7 @@ exit:
 	return ret;
 }
 
-static uint32_t isp_get_fid_across_context(struct isp_pipe_dev *dev, enum camera_id cam_id)
+static uint32_t ispcore_fid_across_context_get(struct isp_pipe_dev *dev, enum camera_id cam_id)
 {
 	struct isp_pipe_context *ctx;
 	struct isp_path_desc *path;
@@ -838,7 +838,7 @@ static uint32_t isp_get_fid_across_context(struct isp_pipe_dev *dev, enum camera
 	return target_fid;
 }
 
-static bool isp_check_fid(struct camera_frame *frame, void *data)
+static bool ispcore_fid_check(struct camera_frame *frame, void *data)
 {
 	uint32_t target_fid;
 
@@ -852,7 +852,7 @@ static bool isp_check_fid(struct camera_frame *frame, void *data)
 		|| frame->user_fid == target_fid;
 }
 
-int isp_get_hw_context_id(struct isp_pipe_context *pctx)
+int isp_core_hw_context_id_get(struct isp_pipe_context *pctx)
 {
 	int i;
 	int hw_ctx_id = -1;
@@ -875,7 +875,7 @@ int isp_get_hw_context_id(struct isp_pipe_context *pctx)
 	return hw_ctx_id;
 }
 
-int isp_get_sw_context_id(enum isp_context_hw_id hw_ctx_id, struct isp_pipe_dev *dev)
+int isp_core_sw_context_id_get(enum isp_context_hw_id hw_ctx_id, struct isp_pipe_dev *dev)
 {
 	int sw_id = -1;
 	struct isp_pipe_hw_context *pctx_hw;
@@ -894,7 +894,7 @@ int isp_get_sw_context_id(enum isp_context_hw_id hw_ctx_id, struct isp_pipe_dev 
 	return -1;
 }
 
-int isp_context_bind(struct isp_pipe_context *pctx, int fmcu_need)
+int isp_core_context_bind(struct isp_pipe_context *pctx, int fmcu_need)
 {
 	int i = 0, m = 0, loop;
 	int hw_ctx_id = -1;
@@ -955,14 +955,14 @@ exit:
 	return 0;
 }
 
-int isp_context_unbind(struct isp_pipe_context *pctx)
+int isp_core_context_unbind(struct isp_pipe_context *pctx)
 {
 	int i, cnt;
 	struct isp_pipe_dev *dev = NULL;
 	struct isp_pipe_hw_context *pctx_hw;
 	unsigned long flag = 0;
 
-	if (isp_get_hw_context_id(pctx) < 0) {
+	if (isp_core_hw_context_id_get(pctx) < 0) {
 		pr_err("fail to binding sw ctx %d to any hw ctx\n", pctx->ctx_id);
 		return -EINVAL;
 	}
@@ -1001,7 +1001,7 @@ exit:
 	return 0;
 }
 
-static int isp_slice_needed(struct isp_pipe_context *pctx)
+static int ispcore_slice_needed(struct isp_pipe_context *pctx)
 {
 	int i;
 	struct isp_path_desc *path;
@@ -1019,7 +1019,7 @@ static int isp_slice_needed(struct isp_pipe_context *pctx)
 	return 0;
 }
 
-static void isp_sw_slice_prepare(struct isp_pipe_context *pctx,
+static void ispcore_sw_slice_prepare(struct isp_pipe_context *pctx,
 		struct camera_frame *pframe)
 {
 	struct isp_fetch_info *fetch = &pctx->fetch;
@@ -1083,7 +1083,7 @@ static void isp_sw_slice_prepare(struct isp_pipe_context *pctx,
 		path->out_trim.start_y = 0;
 		path->out_trim.size_x = path->dst.w = store->size.w;
 		path->out_trim.size_y = path->dst.h = store->size.h;
-		isp_cfg_path_scaler(path);
+		isp_path_scaler_cfg(path);
 	}
 
 	if (slice_num > SLICE_NUM_MAX) {
@@ -1102,7 +1102,7 @@ static void isp_sw_slice_prepare(struct isp_pipe_context *pctx,
 	}
 }
 
-static struct camera_frame *isp_get_path_out_frame(
+static struct camera_frame *ispcore_path_out_frame_get(
 				struct isp_pipe_context *pctx,
 				struct isp_path_desc *path,
 				struct offline_tmp_param *tmp)
@@ -1152,7 +1152,7 @@ normal_out_put:
 		if (path->uframe_sync
 			&& tmp->target_fid != CAMERA_RESERVE_FRAME_NUM)
 			out_frame = cam_queue_dequeue_if(&path->out_buf_queue,
-				isp_check_fid, (void *)&tmp->target_fid);
+				ispcore_fid_check, (void *)&tmp->target_fid);
 		else
 			out_frame = cam_queue_dequeue(&path->out_buf_queue,
 				struct camera_frame, list);
@@ -1181,7 +1181,7 @@ exit:
 	return out_frame;
 }
 
-static int isp_cfg_offline_param(struct isp_pipe_context *pctx,
+static int ispcore_offline_param_cfg(struct isp_pipe_context *pctx,
 		struct camera_frame *pframe, struct offline_tmp_param *tmp)
 {
 	int ret = 0;
@@ -1205,7 +1205,7 @@ static int isp_cfg_offline_param(struct isp_pipe_context *pctx,
 		pctx->in_fmt = stream->in_fmt;
 		cfg.src = stream->in;
 		cfg.crop = stream->in_crop;
-		isp_cfg_ctx_size(pctx, &cfg);
+		isp_path_ctx_size_cfg(pctx, &cfg);
 		pr_debug("isp %d in_size %d %d crop_szie %d %d %d %d\n",
 			pctx->ctx_id, stream->in.w, stream->in.h,
 			stream->in_crop.start_x, stream->in_crop.start_y,
@@ -1216,7 +1216,7 @@ static int isp_cfg_offline_param(struct isp_pipe_context *pctx,
 				continue;
 			path->dst = stream->out[i];
 			path_trim = stream->out_crop[i];
-			isp_cfg_path_size(path, &path_trim);
+			isp_path_size_cfg(path, &path_trim);
 			pr_debug("isp %d out_size %d %d crop_szie %d %d %d %d\n",
 				pctx->ctx_id, stream->out[i].w, stream->out[i].h,
 				stream->out_crop[i].start_x, stream->out_crop[i].start_y,
@@ -1234,29 +1234,29 @@ static int isp_cfg_offline_param(struct isp_pipe_context *pctx,
 	}
 
 	if (pframe->sw_slice_num)
-		isp_sw_slice_prepare(pctx, pframe);
+		ispcore_sw_slice_prepare(pctx, pframe);
 
 	in_param = (struct isp_offline_param *)pframe->param_data;
 	if (in_param) {
 		/*preview*/
-		isp_update_offline_size(pctx, in_param);
-		free_offline_pararm(in_param);
+		ispcore_offline_size_update(pctx, in_param);
+		ispcore_offline_pararm_free(in_param);
 		pframe->param_data = NULL;
 	}
-	isp_update_hist_roi(pctx);
+	ispcore_hist_roi_update(pctx);
 	/*update NR param for crop/scaling image */
-	isp_adapt_blkparam(pctx);
+	ispcore_blkparam_adapt(pctx);
 	/* the context/path maybe init/updated after dev start. */
 	if (pctx->updated || pctx->sw_slice_num)
-		ret = isp_slice_ctx_init(pctx, &tmp->multi_slice);
+		ret = ispcore_slice_ctx_init(pctx, &tmp->multi_slice);
 	if (pctx->uframe_sync)
-		tmp->target_fid = isp_get_fid_across_context(pctx->dev,
+		tmp->target_fid = ispcore_fid_across_context_get(pctx->dev,
 			pctx->attach_cam_id);
 
 	return ret;
 }
 
-static int isp_set_offline_param(struct isp_pipe_context *pctx,
+static int ispcore_offline_param_set(struct isp_pipe_context *pctx,
 		struct camera_frame *pframe, struct offline_tmp_param *tmp)
 {
 	int ret = 0;
@@ -1279,7 +1279,7 @@ static int isp_set_offline_param(struct isp_pipe_context *pctx,
 
 	memset(&fetch_para, 0, sizeof(fetch_para));
 	/* config fetch address */
-	isp_path_set_fetch_frm(pctx, pframe);
+	isp_path_fetch_frm_set(pctx, pframe);
 	if (pctx->updated || pctx->sw_slice_num) {
 		fetch_para.ctx_id = pctx->ctx_id;
 		fetch_para.fbd_raw = &pctx->fbd_raw;
@@ -1307,15 +1307,15 @@ static int isp_set_offline_param(struct isp_pipe_context *pctx,
 			continue;
 
 		if ((i < AFBC_PATH_NUM) && (path->afbc_store.bypass == 0))
-			ret = isp_afbc_store(path);
+			ret = ispcore_afbc_store(path);
 
 		if (pctx->updated || pctx->sw_slice_num)
-			ret = isp_set_path(path);
+			ret = isp_path_set(path);
 
 		/* slave path output buffer binding to master buffer*/
 		if (path->bind_type == ISP_PATH_SLAVE)
 			continue;
-		out_frame = isp_get_path_out_frame(pctx, path, tmp);
+		out_frame = ispcore_path_out_frame_get(pctx, path, tmp);
 		if (out_frame) {
 			out_frame->fid = pframe->fid;
 			out_frame->sensor_time = pframe->sensor_time;
@@ -1330,7 +1330,7 @@ static int isp_set_offline_param(struct isp_pipe_context *pctx,
 			pctx->ctx_id, out_frame->is_reserved,
 			(uint32_t)out_frame->buf.iova[0], out_frame->user_fid,
 			out_frame->buf.mfd[0]);
-		ret = isp_path_set_store_frm(path, out_frame);
+		ret = isp_path_store_frm_set(path, out_frame);
 		/* If some error comes then do not start ISP */
 		if (ret) {
 			cam_buf_iommu_unmap(&out_frame->buf);
@@ -1340,7 +1340,7 @@ static int isp_set_offline_param(struct isp_pipe_context *pctx,
 			goto exit;
 		}
 		if ((i < AFBC_PATH_NUM) && (path->afbc_store.bypass == 0))
-			isp_path_set_afbc_store_frm(path, out_frame);
+			isp_path_afbc_store_frm_set(path, out_frame);
 
 		if (path->bind_type == ISP_PATH_MASTER) {
 			struct camera_frame temp;
@@ -1348,7 +1348,7 @@ static int isp_set_offline_param(struct isp_pipe_context *pctx,
 			temp.buf.iova[0] = out_frame->buf.iova[0] + path->store.total_size;
 			temp.buf.iova[1] = temp.buf.iova[2] = 0;
 			slave_path = &pctx->isp_path[path->slave_path_id];
-			isp_path_set_store_frm(slave_path, &temp);
+			isp_path_store_frm_set(slave_path, &temp);
 		}
 		/*
 		 * context proc_queue frame number
@@ -1391,7 +1391,7 @@ exit:
 	return ret;
 }
 
-static int isp_offline_start_frame(void *ctx)
+static int ispcore_offline_frame_start(void *ctx)
 {
 	int ret = 0;
 	int i = 0, loop = 0, kick_fmcu = 0, slc_by_ap = 0;
@@ -1423,7 +1423,7 @@ static int isp_offline_start_frame(void *ctx)
 	hw = dev->isp_hw;
 	cfg_desc = (struct isp_cfg_ctx_desc *)dev->cfg_handle;
 
-	if (pctx->multi_slice | isp_slice_needed(pctx))
+	if (pctx->multi_slice | ispcore_slice_needed(pctx))
 		use_fmcu = FMCU_IS_NEED;
 	if (use_fmcu && (pctx->mode_3dnr != MODE_3DNR_OFF))
 		use_fmcu |= FMCU_IS_MUST; /* force fmcu used*/
@@ -1434,9 +1434,9 @@ static int isp_offline_start_frame(void *ctx)
 
 	loop = 0;
 	do {
-		ret = isp_context_bind(pctx, use_fmcu);
+		ret = isp_core_context_bind(pctx, use_fmcu);
 		if (!ret) {
-			hw_ctx_id = isp_get_hw_context_id(pctx);
+			hw_ctx_id = isp_core_hw_context_id_get(pctx);
 			if (hw_ctx_id >= 0 && hw_ctx_id < ISP_CONTEXT_HW_NUM)
 				pctx_hw = &dev->hw_ctx[hw_ctx_id];
 			else
@@ -1496,14 +1496,14 @@ static int isp_offline_start_frame(void *ctx)
 	tmp.target_fid = CAMERA_RESERVE_FRAME_NUM;
 	tmp.hw_ctx_id = hw_ctx_id;
 	tmp.stream = NULL;
-	ret = isp_cfg_offline_param(pctx, pframe, &tmp);
+	ret = ispcore_offline_param_cfg(pctx, pframe, &tmp);
 	if (ret) {
 		pr_err("fail to cfg offline param.\n");
 		ret = 0;
 		goto unlock;
 	}
 
-	ret = isp_set_offline_param(pctx, pframe, &tmp);
+	ret = ispcore_offline_param_set(pctx, pframe, &tmp);
 	if (ret) {
 		pr_err("fail to set offline param.\n");
 		ret = 0;
@@ -1517,9 +1517,9 @@ static int isp_offline_start_frame(void *ctx)
 		goto unlock;
 	}
 
-	isp_ltm_process_frame_previous(pctx, pframe);
-	isp_3dnr_process_frame(pctx, pframe);
-	isp_ltm_process_frame(pctx, pframe);
+	ispcore_ltm_frame_previous_process(pctx, pframe);
+	ispcore_3dnr_frame_process(pctx, pframe);
+	ispcore_ltm_frame_process(pctx, pframe);
 
 	use_fmcu = 0;
 	fmcu = (struct isp_fmcu_ctx_desc *)pctx_hw->fmcu_handle;
@@ -1581,7 +1581,7 @@ static int isp_offline_start_frame(void *ctx)
 
 	if (pctx->enable_slowmotion) {
 		for (i = 0; i < pctx->slowmotion_count - 1; i++) {
-			ret = set_fmcu_slw_queue(fmcu, pctx);
+			ret = ispcore_fmcu_slw_queue_set(fmcu, pctx);
 			if (ret)
 				pr_err("fail to set fmcu slw queue\n");
 		}
@@ -1612,7 +1612,7 @@ static int isp_offline_start_frame(void *ctx)
 	pctx_hw->fmcu_used = use_fmcu;
 
 	if (slc_by_ap) {
-		ret = proc_slices(pctx, pframe);
+		ret = ispcore_slices_proc(pctx, pframe);
 		goto done;
 	}
 
@@ -1622,7 +1622,7 @@ static int isp_offline_start_frame(void *ctx)
 
 		/* blkpm_lock to avoid user config block param across frame */
 		mutex_lock(&pctx->blkpm_lock);
-		isp_check_debug_dump(pctx, pframe);
+		ispcore_debug_dump_check(pctx, pframe);
 		blk_ctrl.idx = pctx->ctx_id;
 		blk_ctrl.blk_param = &pctx->isp_k_param;
 		if (pctx->in_fmt == IMG_PIX_FMT_NV21)
@@ -1690,7 +1690,7 @@ inq_overflow:
 map_err:
 input_err:
 	if (pframe) {
-		free_offline_pararm(pframe->param_data);
+		ispcore_offline_pararm_free(pframe->param_data);
 		pframe->param_data = NULL;
 		/* release sync data as if ISP has consumed */
 		if (pframe->sync_data)
@@ -1709,7 +1709,7 @@ input_err:
 			pframe = cam_queue_dequeue(&pctx->in_queue,
 					struct camera_frame, list);
 			if (pframe) {
-				free_offline_pararm(pframe->param_data);
+				ispcore_offline_pararm_free(pframe->param_data);
 				pframe->param_data = NULL;
 				/* release sync data as if ISP has consumed */
 				if (pframe->sync_data)
@@ -1720,11 +1720,11 @@ input_err:
 		}
 	}
 	if (pctx_hw)
-		isp_context_unbind(pctx);
+		isp_core_context_unbind(pctx);
 	return ret;
 }
 
-static int isp_offline_thread_loop(void *arg)
+static int ispcore_offline_thread_loop(void *arg)
 {
 	struct isp_pipe_dev *dev = NULL;
 	struct isp_pipe_context *pctx;
@@ -1766,7 +1766,7 @@ static int isp_offline_thread_loop(void *arg)
 	return 0;
 }
 
-static int isp_stop_offline_thread(void *param)
+static int ispcore_offline_thread_stop(void *param)
 {
 	int cnt = 0;
 	int ret = 0;
@@ -1801,7 +1801,7 @@ static int isp_stop_offline_thread(void *param)
 	return 0;
 }
 
-static int isp_create_offline_thread(void *param)
+static int ispcore_offline_thread_create(void *param)
 {
 	struct isp_pipe_context *pctx;
 	struct cam_thread_info *thrd;
@@ -1817,11 +1817,11 @@ static int isp_create_offline_thread(void *param)
 		return 0;
 	}
 
-	thrd->proc_func = isp_offline_start_frame;
+	thrd->proc_func = ispcore_offline_frame_start;
 	sprintf(thread_name, "isp_ctx%d_offline", pctx->ctx_id);
 	atomic_set(&thrd->thread_stop, 0);
 	init_completion(&thrd->thread_com);
-	thrd->thread_task = kthread_run(isp_offline_thread_loop,
+	thrd->thread_task = kthread_run(ispcore_offline_thread_loop,
 		thrd, "%s", thread_name);
 	if (IS_ERR_OR_NULL(thrd->thread_task)) {
 		pr_err("fail to start offline thread for isp sw %d err %ld\n",
@@ -1833,7 +1833,7 @@ static int isp_create_offline_thread(void *param)
 	return 0;
 }
 
-static int isp_context_init(struct isp_pipe_dev *dev)
+static int ispcore_context_init(struct isp_pipe_dev *dev)
 {
 	int ret = 0;
 	int i, bind_fmcu;
@@ -1875,7 +1875,7 @@ static int isp_context_init(struct isp_pipe_dev *dev)
 			isp_cfg_poll_addr[i] = &s_isp_regbase[0];
 
 	} else {
-		cfg_desc = get_isp_cfg_ctx_desc();
+		cfg_desc = isp_cfg_ctx_desc_get();
 		if (!cfg_desc || !cfg_desc->ops) {
 			pr_err("fail to get isp cfg ctx %p.\n", cfg_desc);
 			ret = -EINVAL;
@@ -1897,7 +1897,7 @@ static int isp_context_init(struct isp_pipe_dev *dev)
 	}
 	dev->cfg_handle = cfg_desc;
 
-	dev->ltm_handle = isp_get_ltm_share_ctx_desc();
+	dev->ltm_handle = isp_ltm_share_ctx_desc_get();
 
 	pr_info("isp hw contexts init start!\n");
 	for (i = 0; i < ISP_CONTEXT_HW_NUM; i++) {
@@ -1923,7 +1923,7 @@ static int isp_context_init(struct isp_pipe_dev *dev)
 		}
 
 		if (bind_fmcu) {
-			fmcu = get_isp_fmcu_ctx_desc(hw);
+			fmcu = isp_fmcu_ctx_desc_get(hw);
 			pr_debug("get fmcu %p\n", fmcu);
 
 			if (fmcu && fmcu->ops) {
@@ -1931,7 +1931,7 @@ static int isp_context_init(struct isp_pipe_dev *dev)
 				ret = fmcu->ops->ctx_init(fmcu);
 				if (ret) {
 					pr_err("fail to init fmcu ctx\n");
-					put_isp_fmcu_ctx_desc(fmcu);
+					isp_fmcu_ctx_desc_put(fmcu);
 				} else {
 					pctx_hw->fmcu_handle = fmcu;
 				}
@@ -1980,12 +1980,12 @@ static int isp_context_init(struct isp_pipe_dev *dev)
 hw_fail:
 	cfg_desc->ops->ctx_deinit(cfg_desc);
 ctx_fail:
-	put_isp_cfg_ctx_desc(cfg_desc);
+	isp_cfg_ctx_desc_put(cfg_desc);
 cfg_null:
 	return ret;
 }
 
-static int isp_context_deinit(struct isp_pipe_dev *dev)
+static int ispcore_context_deinit(struct isp_pipe_dev *dev)
 {
 	int ret = 0;
 	int i, j;
@@ -2006,9 +2006,9 @@ static int isp_context_deinit(struct isp_pipe_dev *dev)
 			path = &pctx->isp_path[j];
 			path_id = path->spath_id;
 			if (atomic_read(&path->user_cnt) > 0)
-				sprd_isp_put_path(dev, pctx->ctx_id, path_id);
+				ispcore_path_put(dev, pctx->ctx_id, path_id);
 		}
-		sprd_isp_put_context(dev, pctx->ctx_id);
+		ispcore_context_put(dev, pctx->ctx_id);
 
 		atomic_set(&pctx->user_cnt, 0);
 		mutex_destroy(&pctx->param_mutex);
@@ -2020,7 +2020,7 @@ static int isp_context_deinit(struct isp_pipe_dev *dev)
 		fmcu = (struct isp_fmcu_ctx_desc *)pctx_hw->fmcu_handle;
 		if (fmcu) {
 			fmcu->ops->ctx_deinit(fmcu);
-			put_isp_fmcu_ctx_desc(fmcu);
+			isp_fmcu_ctx_desc_put(fmcu);
 		}
 		pctx_hw->fmcu_handle = NULL;
 		pctx_hw->fmcu_used = 0;
@@ -2032,18 +2032,18 @@ static int isp_context_deinit(struct isp_pipe_dev *dev)
 	cfg_desc = (struct isp_cfg_ctx_desc *)dev->cfg_handle;
 	if (cfg_desc) {
 		cfg_desc->ops->ctx_deinit(cfg_desc);
-		put_isp_cfg_ctx_desc(cfg_desc);
+		isp_cfg_ctx_desc_put(cfg_desc);
 	}
 	dev->cfg_handle = NULL;
 
-	isp_put_ltm_share_ctx_desc(dev->ltm_handle);
+	isp_ltm_share_ctx_desc_put(dev->ltm_handle);
 	dev->ltm_handle = NULL;
 
 	pr_debug("done.\n");
 	return ret;
 }
 
-static int isp_slice_ctx_init(struct isp_pipe_context *pctx, uint32_t *multi_slice)
+static int ispcore_slice_ctx_init(struct isp_pipe_context *pctx, uint32_t *multi_slice)
 {
 	int ret = 0;
 	int j;
@@ -2054,7 +2054,7 @@ static int isp_slice_ctx_init(struct isp_pipe_context *pctx, uint32_t *multi_sli
 
 	*multi_slice = 0;
 
-	if  ((isp_slice_needed(pctx) == 0) && (pctx->enable_slowmotion == 0)) {
+	if  ((ispcore_slice_needed(pctx) == 0) && (pctx->enable_slowmotion == 0)) {
 		pr_debug("sw %d don't need to slice , slowmotion %d\n",
 			pctx->ctx_id, pctx->enable_slowmotion);
 		return 0;
@@ -2102,7 +2102,7 @@ exit:
 	return ret;
 }
 
-static int isp_get_stream_state(struct isp_pipe_context *pctx)
+static int ispcore_stream_state_get(struct isp_pipe_context *pctx)
 {
 	int ret = 0;
 	int i = 0, j = 0;
@@ -2308,7 +2308,7 @@ static int isp_get_stream_state(struct isp_pipe_context *pctx)
 	return ret;
 }
 
-static int isp_postproc_irq(void *handle, uint32_t idx,
+static int ispcore_postproc_irq(void *handle, uint32_t idx,
 	enum isp_postproc_type type)
 {
 	int ret = 0;
@@ -2331,7 +2331,7 @@ static int isp_postproc_irq(void *handle, uint32_t idx,
 	dev = (struct isp_pipe_dev *)handle;
 	pctx = &dev->ctx[idx];
 	if (pctx->enable_slowmotion == 0) {
-		isp_context_unbind(pctx);
+		isp_core_context_unbind(pctx);
 		complete(&pctx->frm_done);
 	}
 
@@ -2435,7 +2435,7 @@ static int isp_postproc_irq(void *handle, uint32_t idx,
 }
 
 /* offline process frame */
-static int sprd_isp_proc_frame(void *isp_handle, void *param, int ctx_id)
+static int ispcore_frame_proc(void *isp_handle, void *param, int ctx_id)
 {
 	int ret = 0;
 	struct camera_frame *pframe;
@@ -2477,7 +2477,7 @@ static int sprd_isp_proc_frame(void *isp_handle, void *param, int ctx_id)
 	ret = cam_queue_enqueue(&pctx->in_queue, &pframe->list);
 	if (ret == 0) {
 		if (!pframe->param_data)
-			isp_get_stream_state(pctx);
+			ispcore_stream_state_get(pctx);
 		if (pctx->enable_slowmotion && ++slw_frm_cnt < pctx->slowmotion_count)
 			return ret;
 		complete(&pctx->thread.thread_com);
@@ -2492,7 +2492,7 @@ static int sprd_isp_proc_frame(void *isp_handle, void *param, int ctx_id)
  * Input param is possible max_size of image.
  * Return valid context id, or -1 for failure.
  */
-static int sprd_isp_get_context(void *isp_handle, void *param)
+static int ispcore_context_get(void *isp_handle, void *param)
 {
 	int ret = 0;
 	int i;
@@ -2564,13 +2564,13 @@ static int sprd_isp_get_context(void *isp_handle, void *param)
 	pctx->attach_cam_id = init_param->cam_id;
 	pctx->ltm_ctx.ltm_index = pctx->attach_cam_id;
 	pctx->enable_slowmotion = 0;
-	pctx->postproc_func = isp_postproc_irq;
+	pctx->postproc_func = ispcore_postproc_irq;
 	if (init_param->is_high_fps)
 		pctx->enable_slowmotion = hw->ip_isp->slm_cfg_support;
 	pr_info("cam%d isp slowmotion eb %d\n",
 		pctx->attach_cam_id, pctx->enable_slowmotion);
 
-	ret = isp_create_offline_thread(pctx);
+	ret = ispcore_offline_thread_create(pctx);
 	if (unlikely(ret != 0)) {
 		pr_err("fail to create offline thread for isp cxt:%d\n",
 				pctx->ctx_id);
@@ -2579,14 +2579,14 @@ static int sprd_isp_get_context(void *isp_handle, void *param)
 
 	if (init_param->is_high_fps == 0) {
 		cam_queue_init(&pctx->in_queue,
-			ISP_IN_Q_LEN, isp_ret_src_frame);
+			ISP_IN_Q_LEN, ispcore_src_frame_ret);
 		cam_queue_init(&pctx->proc_queue,
-			ISP_PROC_Q_LEN, isp_ret_src_frame);
+			ISP_PROC_Q_LEN, ispcore_src_frame_ret);
 	} else {
 		cam_queue_init(&pctx->in_queue,
-			ISP_SLW_IN_Q_LEN, isp_ret_src_frame);
+			ISP_SLW_IN_Q_LEN, ispcore_src_frame_ret);
 		cam_queue_init(&pctx->proc_queue,
-			ISP_SLW_PROC_Q_LEN, isp_ret_src_frame);
+			ISP_SLW_PROC_Q_LEN, ispcore_src_frame_ret);
 	}
 
 	cam_queue_init(&pctx->stream_ctrl_in_q,
@@ -2594,7 +2594,7 @@ static int sprd_isp_get_context(void *isp_handle, void *param)
 	cam_queue_init(&pctx->stream_ctrl_proc_q,
 		ISP_STREAM_STATE_Q_LEN, cam_queue_empty_state_put);
 	cam_queue_init(&pctx->hist2_result_queue, 16,
-		isp_destroy_statis_buf);
+		ispcore_statis_buf_destroy);
 	dfult_param.type = ISP_CFG_PARA;
 	dfult_param.index = pctx->ctx_id;
 	hw->isp_ioctl(hw, ISP_HW_CFG_DEFAULT_PARA_SET, &dfult_param);
@@ -2623,7 +2623,7 @@ exit:
  * we free buffer here may cause memory over-writting and perhaps system crash.
  * Delay buffer Q clear is a just solution to reduce this risk
  */
-static int sprd_isp_put_context(void *isp_handle, int ctx_id)
+static int ispcore_context_put(void *isp_handle, int ctx_id)
 {
 	int ret = 0;
 	int i;
@@ -2647,7 +2647,7 @@ static int sprd_isp_put_context(void *isp_handle, int ctx_id)
 	mutex_lock(&dev->path_mutex);
 
 	if (atomic_read(&pctx->user_cnt) == 1)
-		isp_stop_offline_thread(&pctx->thread);
+		ispcore_offline_thread_stop(&pctx->thread);
 
 	if (atomic_dec_return(&pctx->user_cnt) == 0) {
 		pctx->started = 0;
@@ -2681,7 +2681,7 @@ static int sprd_isp_put_context(void *isp_handle, int ctx_id)
 					pctx->ltm_ctx.ltm_index);
 				for (i = 0; i < ISP_LTM_BUF_NUM; i++) {
 					if (pctx->ltm_buf[LTM_RGB][i]) {
-						isp_unmap_frame(pctx->ltm_buf[LTM_RGB][i]);
+						ispcore_frame_unmap(pctx->ltm_buf[LTM_RGB][i]);
 						pctx->ltm_buf[LTM_RGB][i] = NULL;
 					}
 				}
@@ -2693,7 +2693,7 @@ static int sprd_isp_put_context(void *isp_handle, int ctx_id)
 					pctx->ltm_ctx.ltm_index);
 				for (i = 0; i < ISP_LTM_BUF_NUM; i++) {
 					if (pctx->ltm_buf[LTM_YUV][i]) {
-						isp_unmap_frame(pctx->ltm_buf[LTM_YUV][i]);
+						ispcore_frame_unmap(pctx->ltm_buf[LTM_YUV][i]);
 						pctx->ltm_buf[LTM_YUV][i] = NULL;
 					}
 				}
@@ -2720,7 +2720,7 @@ static int sprd_isp_put_context(void *isp_handle, int ctx_id)
 
 		for (i = 0; i < ISP_NR3_BUF_NUM; i++) {
 			if (pctx->nr3_buf[i]) {
-				isp_unmap_frame(pctx->nr3_buf[i]);
+				ispcore_frame_unmap(pctx->nr3_buf[i]);
 				pctx->nr3_buf[i] = NULL;
 			}
 		}
@@ -2741,7 +2741,7 @@ static int sprd_isp_put_context(void *isp_handle, int ctx_id)
 		}
 
 		if (pctx->postproc_buf) {
-			isp_unmap_frame(pctx->postproc_buf);
+			ispcore_frame_unmap(pctx->postproc_buf);
 			pctx->postproc_buf = NULL;
 			pr_info("sw %d, superzoom out buffer unmap\n", pctx->ctx_id);
 		}
@@ -2750,7 +2750,7 @@ static int sprd_isp_put_context(void *isp_handle, int ctx_id)
 		pctx->isp_cb_func = NULL;
 		pctx->cb_priv_data = NULL;
 		isp_int_trace_isp_irq_sw_cnt(pctx->ctx_id);
-		isp_unmap_statis_buffer(isp_handle, ctx_id);
+		ispcore_statis_buffer_unmap(isp_handle, ctx_id);
 	} else {
 		pr_debug("ctx%d.already release.\n", ctx_id);
 		atomic_set(&pctx->user_cnt, 0);
@@ -2770,7 +2770,7 @@ static int sprd_isp_put_context(void *isp_handle, int ctx_id)
  * Enable path of sepicific path_id for specific context.
  * The context must be enable before get_path.
  */
-static int sprd_isp_get_path(void *isp_handle, int ctx_id, int path_id)
+static int ispcore_path_get(void *isp_handle, int ctx_id, int path_id)
 {
 	struct isp_pipe_context *pctx;
 	struct isp_pipe_dev *dev;
@@ -2816,14 +2816,14 @@ static int sprd_isp_get_path(void *isp_handle, int ctx_id, int path_id)
 	if (path->q_init == 0) {
 		if (pctx->enable_slowmotion)
 			cam_queue_init(&path->result_queue,
-				ISP_SLW_RESULT_Q_LEN, isp_ret_out_frame);
+				ISP_SLW_RESULT_Q_LEN, ispcore_out_frame_ret);
 		else
 			cam_queue_init(&path->result_queue,
-				ISP_RESULT_Q_LEN, isp_ret_out_frame);
+				ISP_RESULT_Q_LEN, ispcore_out_frame_ret);
 		cam_queue_init(&path->out_buf_queue, ISP_OUT_BUF_Q_LEN,
-			isp_ret_out_frame);
+			ispcore_out_frame_ret);
 		cam_queue_init(&path->reserved_buf_queue,
-			ISP_RESERVE_BUF_Q_LEN, isp_destroy_reserved_buf);
+			ISP_RESERVE_BUF_Q_LEN, ispcore_reserved_buf_destroy);
 		path->q_init = 1;
 	}
 
@@ -2835,7 +2835,7 @@ static int sprd_isp_get_path(void *isp_handle, int ctx_id, int path_id)
  * Disable path of sepicific path_id for specific context.
  * The path and context should be enable before this.
  */
-static int sprd_isp_put_path(void *isp_handle, int ctx_id, int path_id)
+static int ispcore_path_put(void *isp_handle, int ctx_id, int path_id)
 {
 	int ret = 0;
 	struct isp_pipe_context *pctx;
@@ -2886,7 +2886,7 @@ static int sprd_isp_put_path(void *isp_handle, int ctx_id, int path_id)
 	return ret;
 }
 
-static int sprd_isp_cfg_path(void *isp_handle,
+static int ispcore_path_cfg(void *isp_handle,
 			enum isp_path_cfg_cmd cfg_cmd,
 			int ctx_id, int path_id,
 			void *param)
@@ -3076,12 +3076,12 @@ static int sprd_isp_cfg_path(void *isp_handle,
 			pframe->buf.mfd[0]);
 		break;
 	case ISP_PATH_CFG_CTX_BASE:
-		ret = isp_cfg_ctx_base(pctx, param);
+		ret = isp_path_ctx_base_cfg(pctx, param);
 		pctx->updated = 1;
 		break;
 	case ISP_PATH_CFG_CTX_SIZE:
 		mutex_lock(&pctx->param_mutex);
-		ret = isp_cfg_ctx_size(pctx, param);
+		ret = isp_path_ctx_size_cfg(pctx, param);
 		pctx->src_info.src = pctx->input_size;
 		pctx->src_info.src_crop = pctx->input_trim;
 		pctx->updated = 1;
@@ -3090,21 +3090,21 @@ static int sprd_isp_cfg_path(void *isp_handle,
 		mutex_unlock(&pctx->param_mutex);
 		break;
 	case ISP_PATH_CFG_CTX_COMPRESSION:
-		ret = isp_cfg_ctx_compression(pctx, param);
+		ret = isp_path_ctx_compression_cfg(pctx, param);
 		break;
 	case ISP_PATH_CFG_CTX_UFRAME_SYNC:
-		ret = isp_cfg_ctx_uframe_sync(pctx, param);
+		ret = isp_path_ctx_uframe_sync_cfg(pctx, param);
 		break;
 	case ISP_PATH_CFG_PATH_BASE:
-		ret = isp_cfg_path_base(path, param);
+		ret = isp_path_base_cfg(path, param);
 		pctx->updated = 1;
 		break;
 	case ISP_PATH_CFG_PATH_SIZE:
 		mutex_lock(&pctx->param_mutex);
-		ret = isp_cfg_path_size(path, param);
+		ret = isp_path_size_cfg(path, param);
 		if (path->bind_type == ISP_PATH_MASTER) {
 			slave_path = &pctx->isp_path[path->slave_path_id];
-			ret = isp_cfg_path_size(slave_path, param);
+			ret = isp_path_size_cfg(slave_path, param);
 			slave_path->stream_in_trim = slave_path->in_trim;
 		}
 		path->stream_in_trim = path->in_trim;
@@ -3112,11 +3112,11 @@ static int sprd_isp_cfg_path(void *isp_handle,
 		mutex_unlock(&pctx->param_mutex);
 		break;
 	case ISP_PATH_CFG_PATH_COMPRESSION:
-		ret = isp_cfg_path_compression(path, param);
+		ret = isp_path_compression_cfg(path, param);
 		break;
 
 	case ISP_PATH_CFG_PATH_UFRAME_SYNC:
-		ret = isp_cfg_path_uframe_sync(path, param);
+		ret = isp_path_uframe_sync_cfg(path, param);
 		break;
 	case ISP_PATH_CFG_3DNR_MODE:
 		mutex_lock(&pctx->param_mutex);
@@ -3132,7 +3132,7 @@ exit:
 	return ret;
 }
 
-static int isp_cfg_statis_buffer(
+static int ispcore_statis_buffer_cfg(
 		void *isp_handle, int ctx_id,
 		struct isp_statis_buf_input *input)
 {
@@ -3159,7 +3159,7 @@ static int isp_cfg_statis_buffer(
 	}
 
 	if (input->type == STATIS_INIT) {
-		isp_init_statis_q(isp_handle, ctx_id, input);
+		ispcore_statis_q_init(isp_handle, ctx_id, input);
 		pr_debug("init done\n");
 		return 0;
 	}
@@ -3196,7 +3196,7 @@ static int isp_cfg_statis_buffer(
 	return 0;
 }
 
-static int isp_init_statis_q(void *isp_handle, int ctx_id,
+static int ispcore_statis_q_init(void *isp_handle, int ctx_id,
 		struct isp_statis_buf_input *input)
 {
 	int ret = 0;
@@ -3253,7 +3253,7 @@ static int isp_init_statis_q(void *isp_handle, int ctx_id,
 	return ret;
 }
 
-static int isp_unmap_statis_buffer(void *isp_handle, int ctx_id)
+static int ispcore_statis_buffer_unmap(void *isp_handle, int ctx_id)
 {
 	int ret = 0;
 	int j;
@@ -3286,7 +3286,7 @@ static int isp_unmap_statis_buffer(void *isp_handle, int ctx_id)
 	return ret;
 }
 
-static int sprd_isp_cfg_sec(struct isp_pipe_dev *dev, void *param)
+static int ispcore_sec_cfg(struct isp_pipe_dev *dev, void *param)
 {
 
 	enum sprd_cam_sec_mode *sec_mode = (enum sprd_cam_sec_mode *)param;
@@ -3298,7 +3298,7 @@ static int sprd_isp_cfg_sec(struct isp_pipe_dev *dev, void *param)
 	return 0;
 }
 
-static int sprd_isp_ioctl(void *isp_handle, int ctx_id,
+static int ispcore_ioctl(void *isp_handle, int ctx_id,
 		enum isp_ioctrl_cmd cmd, void *param)
 {
 	int ret = 0;
@@ -3312,10 +3312,10 @@ static int sprd_isp_ioctl(void *isp_handle, int ctx_id,
 
 	switch (cmd) {
 	case ISP_IOCTL_CFG_STATIS_BUF:
-		ret = isp_cfg_statis_buffer(isp_handle, ctx_id, param);
+		ret = ispcore_statis_buffer_cfg(isp_handle, ctx_id, param);
 		break;
 	case ISP_IOCTL_CFG_SEC:
-		ret = sprd_isp_cfg_sec(dev, param);
+		ret = ispcore_sec_cfg(dev, param);
 		break;
 	default:
 		pr_err("fail to get known cmd: %d\n", cmd);
@@ -3326,7 +3326,7 @@ static int sprd_isp_ioctl(void *isp_handle, int ctx_id,
 	return ret;
 }
 
-static int sprd_isp_cfg_blkparam(
+static int ispcore_blkparam_cfg(
 	void *isp_handle, int ctx_id, void *param)
 {
 	int ret = 0;
@@ -3393,7 +3393,7 @@ static int sprd_isp_cfg_blkparam(
 	return ret;
 }
 
-static int sprd_isp_set_sb(void *isp_handle, int ctx_id,
+static int ispcore_callback_set(void *isp_handle, int ctx_id,
 		isp_dev_callback cb, void *priv_data)
 {
 	int ret = 0;
@@ -3421,7 +3421,7 @@ static int sprd_isp_set_sb(void *isp_handle, int ctx_id,
 	return ret;
 }
 
-static int sprd_isp_dev_open(void *isp_handle, void *param)
+static int ispcore_dev_open(void *isp_handle, void *param)
 {
 	int ret = 0;
 	struct isp_pipe_dev *dev = NULL;
@@ -3465,7 +3465,7 @@ static int sprd_isp_dev_open(void *isp_handle, void *param)
 		ret = isp_hw_init(dev);
 		tmp_default.type = ISP_HW_PARA;
 		hw->isp_ioctl(hw, ISP_HW_CFG_DEFAULT_PARA_SET, &tmp_default);
-		ret = isp_context_init(dev);
+		ret = ispcore_context_init(dev);
 		if (ret) {
 			pr_err("fail to init isp context.\n");
 			ret = -EFAULT;
@@ -3484,7 +3484,7 @@ err_init:
 	return ret;
 }
 
-int sprd_isp_dev_close(void *isp_handle)
+static int ispcore_dev_close(void *isp_handle)
 {
 	int ret = 0;
 	struct isp_pipe_dev *dev = NULL;
@@ -3500,7 +3500,7 @@ int sprd_isp_dev_close(void *isp_handle)
 	if (atomic_dec_return(&dev->enable) == 0) {
 
 		ret = hw->isp_ioctl(hw, ISP_HW_CFG_STOP, NULL);
-		ret = isp_context_deinit(dev);
+		ret = ispcore_context_deinit(dev);
 		mutex_destroy(&dev->path_mutex);
 		ret = isp_hw_deinit(dev);
 	}
@@ -3510,34 +3510,21 @@ int sprd_isp_dev_close(void *isp_handle)
 
 }
 
-static int sprd_isp_dev_reset(void *isp_handle, void *param)
-{
-	int ret = 0;
-
-	if (!isp_handle || !param) {
-		pr_err("fail to get valid input ptr, isp_handle %p, param %p\n",
-			isp_handle, param);
-		return -EFAULT;
-	}
-	return ret;
-}
-
 static struct isp_pipe_ops isp_ops = {
-	.open = sprd_isp_dev_open,
-	.close = sprd_isp_dev_close,
-	.reset = sprd_isp_dev_reset,
-	.get_context = sprd_isp_get_context,
-	.put_context = sprd_isp_put_context,
-	.get_path = sprd_isp_get_path,
-	.put_path = sprd_isp_put_path,
-	.cfg_path = sprd_isp_cfg_path,
-	.ioctl = sprd_isp_ioctl,
-	.cfg_blk_param = sprd_isp_cfg_blkparam,
-	.proc_frame = sprd_isp_proc_frame,
-	.set_callback = sprd_isp_set_sb,
+	.open = ispcore_dev_open,
+	.close = ispcore_dev_close,
+	.get_context = ispcore_context_get,
+	.put_context = ispcore_context_put,
+	.get_path = ispcore_path_get,
+	.put_path = ispcore_path_put,
+	.cfg_path = ispcore_path_cfg,
+	.ioctl = ispcore_ioctl,
+	.cfg_blk_param = ispcore_blkparam_cfg,
+	.proc_frame = ispcore_frame_proc,
+	.set_callback = ispcore_callback_set,
 };
 
-void *get_isp_pipe_dev(void)
+void *isp_core_pipe_dev_get(void)
 {
 	struct isp_pipe_dev *dev = NULL;
 
@@ -3569,7 +3556,7 @@ exit:
 	return dev;
 }
 
-int put_isp_pipe_dev(void *isp_handle)
+int isp_core_pipe_dev_put(void *isp_handle)
 {
 	int ret = 0;
 	int user_cnt, en_cnt;

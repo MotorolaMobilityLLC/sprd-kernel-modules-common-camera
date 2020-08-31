@@ -25,7 +25,7 @@
 #define pr_fmt(fmt) "3DNR logic: %d %d %s : "\
 	fmt, current->pid, __LINE__, __func__
 
-static int isp_3dnr_update_memctrl_base_on_mv(struct isp_3dnr_ctx_desc *ctx)
+static int isp3dnr_memctrl_base_on_mv_update(struct isp_3dnr_ctx_desc *ctx)
 {
 	struct isp_3dnr_mem_ctrl *mem_ctrl = &ctx->mem_ctrl;
 
@@ -121,7 +121,7 @@ static int isp_3dnr_update_memctrl_base_on_mv(struct isp_3dnr_ctx_desc *ctx)
 	return 0;
 }
 
-static int isp_3dnr_gen_memctrl_config(struct isp_3dnr_ctx_desc *ctx)
+static int isp3dnr_memctrl_config_gen(struct isp_3dnr_ctx_desc *ctx)
 {
 	int ret = 0;
 	struct isp_3dnr_mem_ctrl *mem_ctrl = NULL;
@@ -191,7 +191,7 @@ static int isp_3dnr_gen_memctrl_config(struct isp_3dnr_ctx_desc *ctx)
 	mem_ctrl->last_line_mode = 0;
 
 	if (ctx->type == NR3_FUNC_PRE || ctx->type == NR3_FUNC_CAP)
-		isp_3dnr_update_memctrl_base_on_mv(ctx);
+		isp3dnr_memctrl_base_on_mv_update(ctx);
 
 	/*configuration param 8~11*/
 	mem_ctrl->blend_y_en_start_row = 0;
@@ -215,7 +215,7 @@ static int isp_3dnr_gen_memctrl_config(struct isp_3dnr_ctx_desc *ctx)
 	return ret;
 }
 
-static int isp_3dnr_gen_store_config(struct isp_3dnr_ctx_desc *ctx)
+static int isp3dnr_store_config_gen(struct isp_3dnr_ctx_desc *ctx)
 {
 	int ret = 0;
 	struct isp_3dnr_store *store = NULL;
@@ -257,7 +257,7 @@ static int isp_3dnr_gen_store_config(struct isp_3dnr_ctx_desc *ctx)
 	return ret;
 }
 
-static int isp_3dnr_gen_fbd_fetch_config(struct isp_3dnr_ctx_desc *ctx)
+static int isp3dnr_fbd_fetch_config_gen(struct isp_3dnr_ctx_desc *ctx)
 {
 	int ret = 0;
 	uint32_t pad_width = 0, pad_height = 0;
@@ -404,7 +404,7 @@ static int isp_3dnr_gen_fbd_fetch_config(struct isp_3dnr_ctx_desc *ctx)
 	return ret;
 }
 
-static int isp_3dnr_gen_fbc_store_config(struct isp_3dnr_ctx_desc *ctx)
+static int isp3dnr_fbc_store_config_gen(struct isp_3dnr_ctx_desc *ctx)
 {
 	int ret = 0;
 	uint32_t pad_width = 0, pad_height = 0;
@@ -470,7 +470,7 @@ static int isp_3dnr_gen_fbc_store_config(struct isp_3dnr_ctx_desc *ctx)
 	return ret;
 }
 
-static int isp_3dnr_gen_crop_config(struct isp_3dnr_ctx_desc *ctx)
+static int isp3dnr_crop_config_gen(struct isp_3dnr_ctx_desc *ctx)
 {
 	int ret = 0;
 
@@ -490,7 +490,7 @@ static int isp_3dnr_gen_crop_config(struct isp_3dnr_ctx_desc *ctx)
 	return ret;
 }
 
-int isp_3dnr_gen_config(struct isp_3dnr_ctx_desc *ctx)
+int isp_3dnr_config_gen(struct isp_3dnr_ctx_desc *ctx)
 {
 	int ret = 0;
 
@@ -499,14 +499,14 @@ int isp_3dnr_gen_config(struct isp_3dnr_ctx_desc *ctx)
 		return -EINVAL;
 	}
 
-	ret = isp_3dnr_gen_memctrl_config(ctx);
+	ret = isp3dnr_memctrl_config_gen(ctx);
 	if (ret) {
 		pr_err("fail to generate mem ctrl configuration\n");
 		return ret;
 	}
 
 	if (!ctx->nr3_store.st_bypass) {
-		ret = isp_3dnr_gen_store_config(ctx);
+		ret = isp3dnr_store_config_gen(ctx);
 		if (ret) {
 			pr_err("fail to generate store configuration\n");
 			return ret;
@@ -514,7 +514,7 @@ int isp_3dnr_gen_config(struct isp_3dnr_ctx_desc *ctx)
 	}
 
 	if (!ctx->nr3_fbc_store.bypass) {
-		ret = isp_3dnr_gen_fbc_store_config(ctx);
+		ret = isp3dnr_fbc_store_config_gen(ctx);
 		if (ret) {
 			pr_err("fail to generate fbc store configuration\n");
 			return ret;
@@ -522,14 +522,14 @@ int isp_3dnr_gen_config(struct isp_3dnr_ctx_desc *ctx)
 	}
 
 	if (ctx->mem_ctrl.nr3_ft_path_sel) {
-		ret = isp_3dnr_gen_fbd_fetch_config(ctx);
+		ret = isp3dnr_fbd_fetch_config_gen(ctx);
 		if (ret) {
 			pr_err("fail to generate fbd fetch configuration\n");
 			return ret;
 		}
 	}
 
-	ret = isp_3dnr_gen_crop_config(ctx);
+	ret = isp3dnr_crop_config_gen(ctx);
 	if (ret) {
 		pr_err("fail to generate crop configuration\n");
 		return ret;
@@ -540,7 +540,7 @@ int isp_3dnr_gen_config(struct isp_3dnr_ctx_desc *ctx)
 	return ret;
 }
 
-int isp_3dnr_update_memctrl_slice_info(struct nr3_slice *in,
+int isp_3dnr_memctrl_slice_info_update(struct nr3_slice *in,
 		struct nr3_slice_for_blending *out)
 {
 	uint32_t end_row = 0, end_col = 0, ft_pitch = 0;
@@ -697,7 +697,7 @@ int isp_3dnr_update_memctrl_slice_info(struct nr3_slice *in,
  *   out_mv_x
  *   out_mv_y
  */
-static int mv_conversion_base_on_resolution(
+static int isp3dnr_mv_conversion_base_on_resolution(
 		int mv_x, int mv_y,
 		uint32_t mode_projection,
 		uint32_t sub_me_bypass,
@@ -773,7 +773,7 @@ int isp_3dnr_conversion_mv(struct isp_3dnr_ctx_desc *nr3_ctx)
 	input_height = nr3_ctx->mvinfo->src_height;
 	output_width = nr3_ctx->width;
 	output_height = nr3_ctx->height;
-	ret = mv_conversion_base_on_resolution(
+	ret = isp3dnr_mv_conversion_base_on_resolution(
 		nr3_ctx->mvinfo->mv_x,
 		nr3_ctx->mvinfo->mv_y,
 		nr3_ctx->mvinfo->project_mode,

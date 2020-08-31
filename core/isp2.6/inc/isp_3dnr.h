@@ -243,14 +243,14 @@ struct isp_3dnr_ctx_desc {
 };
 
 int isp_3dnr_conversion_mv(struct isp_3dnr_ctx_desc *ctx);
-int isp_3dnr_update_memctrl_slice_info(struct nr3_slice *in, struct nr3_slice_for_blending *out);
+int isp_3dnr_memctrl_slice_info_update(struct nr3_slice *in, struct nr3_slice_for_blending *out);
 
 /*
  * Generate configuration of 3dnr,
  * incluing:
  * mem ctrl, crop, store
  */
-int isp_3dnr_gen_config(struct isp_3dnr_ctx_desc *ctx);
+int isp_3dnr_config_gen(struct isp_3dnr_ctx_desc *ctx);
 
 void isp_3dnr_config_param(struct isp_3dnr_ctx_desc *ctx,
 	struct isp_k_block *isp_k_param, uint32_t idx,

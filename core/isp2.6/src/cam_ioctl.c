@@ -1379,7 +1379,7 @@ check:
 
 	isp = module->isp_dev_handle;
 	if (isp == NULL) {
-		isp = get_isp_pipe_dev();
+		isp = isp_core_pipe_dev_get();
 		if (IS_ERR_OR_NULL(isp)) {
 			pr_err("fail to get isp\n");
 			module->isp_dev_handle = NULL;
@@ -1437,7 +1437,7 @@ wq_fail:
 	module->isp_dev_handle->isp_ops->close(isp);
 
 isp_fail:
-	put_isp_pipe_dev(isp);
+	isp_core_pipe_dev_put(isp);
 	module->isp_dev_handle = NULL;
 
 no_isp:
@@ -1496,7 +1496,7 @@ static int camioctl_cam_res_put(struct camera_module *module,
 	}
 	if (module->isp_dev_handle) {
 		module->isp_dev_handle->isp_ops->close(module->isp_dev_handle);
-		put_isp_pipe_dev(module->isp_dev_handle);
+		isp_core_pipe_dev_put(module->isp_dev_handle);
 		module->isp_dev_handle = NULL;
 	}
 

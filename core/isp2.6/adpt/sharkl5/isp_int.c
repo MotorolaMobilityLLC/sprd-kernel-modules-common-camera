@@ -114,7 +114,7 @@ static int ispint_err_pre_proc(enum isp_context_hw_id hw_idx, void *isp_handle)
 
 	//pr_err("isp cxt_id:%d error happened\n", idx);
 	dev = (struct isp_pipe_dev *)isp_handle;
-	idx = isp_get_sw_context_id(hw_idx, dev);
+	idx = isp_core_sw_context_id_get(hw_idx, dev);
 	if (idx < 0) {
 		pr_err("fail to get sw_id for hw_idx=%d\n", hw_idx);
 		return 0;
@@ -133,7 +133,7 @@ static void ispint_all_done(enum isp_context_hw_id hw_idx, void *isp_handle)
 	int idx = -1;
 
 	dev = (struct isp_pipe_dev *)isp_handle;
-	idx = isp_get_sw_context_id(hw_idx, dev);
+	idx = isp_core_sw_context_id_get(hw_idx, dev);
 	if (idx < 0) {
 		pr_err("fail to get sw_id for hw_idx=%d\n", hw_idx);
 		return;
@@ -200,7 +200,7 @@ static void ispint_fmcu_store_done(enum isp_context_hw_id hw_idx, void *isp_hand
 		return;
 	}
 
-	idx = isp_get_sw_context_id(hw_idx, dev);
+	idx = isp_core_sw_context_id_get(hw_idx, dev);
 	if (idx < 0) {
 		pr_err("fail to get sw_id for hw_idx=%d\n", hw_idx);
 		return;
@@ -212,7 +212,7 @@ static void ispint_fmcu_store_done(enum isp_context_hw_id hw_idx, void *isp_hand
 	pctx->postproc_func(dev, idx, POSTPROC_FRAME_DONE);
 
 	if (pctx->enable_slowmotion == 1) {
-		isp_context_unbind(pctx);
+		isp_core_context_unbind(pctx);
 		complete(&pctx->frm_done);
 		for (i = 0; i < pctx->slowmotion_count - 1; i++)
 			pctx->postproc_func(dev, idx, POSTPROC_FRAME_DONE);
@@ -232,7 +232,7 @@ static void ispint_fmcu_shadow_done(enum isp_context_hw_id hw_idx, void *isp_han
 		return;
 	}
 
-	idx = isp_get_sw_context_id(hw_idx, dev);
+	idx = isp_core_sw_context_id_get(hw_idx, dev);
 	if (idx < 0) {
 		pr_err("fail to get sw_id for hw_idx=%d\n", hw_idx);
 		return;
@@ -252,7 +252,7 @@ static void ispint_3dnr_all_done(enum isp_context_hw_id hw_idx, void *isp_handle
 	int idx = -1;
 
 	dev = (struct isp_pipe_dev *)isp_handle;
-	idx = isp_get_sw_context_id(hw_idx, dev);
+	idx = isp_core_sw_context_id_get(hw_idx, dev);
 	if (idx < 0) {
 		pr_err("fail to get sw_id for hw_idx=%d\n", hw_idx);
 		return;
@@ -271,7 +271,7 @@ static void ispint_3dnr_shadow_done(enum isp_context_hw_id hw_idx, void *isp_han
 	int idx = -1;
 
 	dev = (struct isp_pipe_dev *)isp_handle;
-	idx = isp_get_sw_context_id(hw_idx, dev);
+	idx = isp_core_sw_context_id_get(hw_idx, dev);
 	if (idx < 0) {
 		pr_err("fail to get sw_id for hw_idx=%d\n", hw_idx);
 		return;
@@ -291,7 +291,7 @@ static void ispint_yuv_ltm_hists_done(enum isp_context_hw_id hw_idx, void *isp_h
 	int idx = -1;
 
 	dev = (struct isp_pipe_dev *)isp_handle;
-	idx = isp_get_sw_context_id(hw_idx, dev);
+	idx = isp_core_sw_context_id_get(hw_idx, dev);
 	if (idx < 0) {
 		pr_err("fail to get sw_id for hw_idx=%d\n", hw_idx);
 		return;
@@ -387,7 +387,7 @@ static void isp_hist_cal_done(enum isp_context_hw_id hw_idx, void *isp_handle)
 	int idx = -1;
 
 	dev = (struct isp_pipe_dev *)isp_handle;
-	idx = isp_get_sw_context_id(hw_idx, dev);
+	idx = isp_core_sw_context_id_get(hw_idx, dev);
 	if (idx < 0) {
 		pr_err("fail to get sw_id for hw_idx=%d\n", hw_idx);
 		return;
@@ -539,7 +539,7 @@ static irqreturn_t ispint_isr_root(int irq, void *priv)
 			continue;
 		}
 
-		sw_ctx_id = isp_get_sw_context_id(c_id, isp_handle);
+		sw_ctx_id = isp_core_sw_context_id_get(c_id, isp_handle);
 		pr_debug("sw %d, hw %d, irq_line: %08x\n",
 			sw_ctx_id, c_id, irq_line);
 

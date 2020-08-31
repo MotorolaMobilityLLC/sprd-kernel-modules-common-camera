@@ -279,12 +279,12 @@ struct isp_ltm_info {
 /*
  * EXPORT function interface
  */
-struct isp_ltm_share_ctx_desc *isp_get_ltm_share_ctx_desc(void);
-int isp_put_ltm_share_ctx_desc(struct isp_ltm_share_ctx_desc *param);
+struct isp_ltm_share_ctx_desc *isp_ltm_share_ctx_desc_get(void);
+int isp_ltm_share_ctx_desc_put(struct isp_ltm_share_ctx_desc *param);
 
-int isp_ltm_gen_frame_config(struct isp_ltm_ctx_desc *ctx,
+int isp_ltm_frame_config_gen(struct isp_ltm_ctx_desc *ctx,
 	enum isp_ltm_region ltm_id, struct isp_ltm_info *ltm_info);
-int isp_ltm_gen_map_slice_config(struct isp_ltm_ctx_desc *ctx,
+int isp_ltm_map_slice_config_gen(struct isp_ltm_ctx_desc *ctx,
 			enum isp_ltm_region ltm_id,
 			struct isp_ltm_rtl_param *prtl,
 			uint32_t *slice_info);

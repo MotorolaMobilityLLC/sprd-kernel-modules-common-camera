@@ -942,7 +942,7 @@ static int isphw_set_path_scaler_coeff(
 	/* temp set: config mode always select buf 0 */
 	buf_sel = 0;
 
-	isp_path_set_scaler_coeff(&arg, buf_sel, spath_id, coeff_buf);
+	isp_path_scaler_coeff_set(&arg, buf_sel, spath_id, coeff_buf);
 
 	for (i = 0; i < ISP_SC_COEFF_H_NUM; i++) {
 		ISP_REG_WR(idx, arg.h_coeff_addr, *arg.h_coeff);

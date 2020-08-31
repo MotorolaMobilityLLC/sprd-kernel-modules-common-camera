@@ -23,29 +23,28 @@
 #define SHRINK_C_OFFSET                 16
 #define SHRINK_C_RANGE                  6
 
-int isp_cfg_ctx_base(struct isp_pipe_context *pctx, void *param);
-int isp_cfg_ctx_size(struct isp_pipe_context *pctx, void *param);
-int isp_cfg_ctx_compression(struct isp_pipe_context *pctx, void *param);
-int isp_cfg_ctx_uframe_sync(struct isp_pipe_context *pctx, void *param);
+int isp_path_ctx_base_cfg(struct isp_pipe_context *pctx, void *param);
+int isp_path_ctx_size_cfg(struct isp_pipe_context *pctx, void *param);
+int isp_path_ctx_compression_cfg(struct isp_pipe_context *pctx, void *param);
+int isp_path_ctx_uframe_sync_cfg(struct isp_pipe_context *pctx, void *param);
 
-int isp_cfg_path_base(struct isp_path_desc *path, void *param);
-int isp_cfg_path_size(struct isp_path_desc *path, void *param);
-int isp_cfg_path_dst_size(struct isp_path_desc *path, void *param);
-int isp_cfg_path_compression(struct isp_path_desc *path, void *param);
-int isp_cfg_path_uframe_sync(struct isp_path_desc *path, void *param);
+int isp_path_base_cfg(struct isp_path_desc *path, void *param);
+int isp_path_size_cfg(struct isp_path_desc *path, void *param);
+int isp_path_compression_cfg(struct isp_path_desc *path, void *param);
+int isp_path_uframe_sync_cfg(struct isp_path_desc *path, void *param);
 
-int isp_set_path(struct isp_path_desc *path);
-int isp_path_set_fetch_frm(struct isp_pipe_context *pctx,
+int isp_path_set(struct isp_path_desc *path);
+int isp_path_fetch_frm_set(struct isp_pipe_context *pctx,
 		struct camera_frame *frame);
-int isp_path_set_store_frm(
+int isp_path_store_frm_set(
 		struct isp_path_desc *path,
 		struct camera_frame *frame);
-int isp_path_set_afbc_store_frm(
+int isp_path_afbc_store_frm_set(
 		struct isp_path_desc *path,
 		struct camera_frame *frame);
-int isp_cfg_path_scaler(struct isp_path_desc *path);
+int isp_path_scaler_cfg(struct isp_path_desc *path);
 
-int isp_path_set_scaler_coeff(struct coeff_arg *arg,
+int isp_path_scaler_coeff_set(struct coeff_arg *arg,
 		uint32_t buf_sel,
 		uint32_t spath_id,
 		uint32_t *coeff_buf);

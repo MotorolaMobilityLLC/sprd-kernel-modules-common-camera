@@ -49,7 +49,7 @@ struct isp_cfg_map_sector {
 static uint32_t s_map_sec_cnt;
 static struct isp_cfg_map_sector s_map_sectors[ISP_CFG_MAP_MAX];
 
-int debug_show_ctx_reg_buf(void *param)
+int isp_cfg_ctx_reg_buf_debug_show(void *param)
 {
 	struct seq_file *s = (struct seq_file *)param;
 	struct cam_debug_bypass *debug_bypass = NULL;
@@ -101,7 +101,7 @@ int debug_show_ctx_reg_buf(void *param)
 	return 0;
 }
 
-static void cctx_init_page_buf_addr(
+static void ispcfg_cctx_page_buf_addr_init(
 				struct isp_cfg_ctx_desc *cfg_ctx,
 				void *sw_addr,
 				unsigned long hw_addr)
@@ -122,7 +122,7 @@ static void cctx_init_page_buf_addr(
 	}
 }
 
-static void cctx_init_sw_page_buf_addr(
+static void ispcfg_cctx_sw_page_buf_addr_init(
 		struct isp_cfg_ctx_desc *cfg_ctx,
 		void *sw_addr)
 {
@@ -142,7 +142,7 @@ static void cctx_init_sw_page_buf_addr(
 	}
 }
 
-static void cctx_deinit_page_buf_addr(struct isp_cfg_ctx_desc *cfg_ctx)
+static void ispcfg_cctx_page_buf_addr_deinit(struct isp_cfg_ctx_desc *cfg_ctx)
 {
 	struct isp_cfg_buf *cfg_buf;
 	int c_id, bid;
@@ -156,7 +156,7 @@ static void cctx_deinit_page_buf_addr(struct isp_cfg_ctx_desc *cfg_ctx)
 	}
 }
 
-static void cctx_init_regbuf_addr(struct isp_cfg_ctx_desc *cfg_ctx)
+static void ispcfg_cctx_regbuf_addr_init(struct isp_cfg_ctx_desc *cfg_ctx)
 {
 	struct isp_cfg_buf *cfg_buf;
 	struct regfile_buf_info *cur_regbuf_p;
@@ -182,7 +182,7 @@ static void cctx_init_regbuf_addr(struct isp_cfg_ctx_desc *cfg_ctx)
 
 }
 
-static void cctx_deinit_regbuf_addr(struct isp_cfg_ctx_desc *cfg_ctx)
+static void ispcfg_cctx_regbuf_addr_deinit(struct isp_cfg_ctx_desc *cfg_ctx)
 {
 	int c_id;
 
@@ -192,7 +192,7 @@ static void cctx_deinit_regbuf_addr(struct isp_cfg_ctx_desc *cfg_ctx)
 	mutex_unlock(&buf_mutex);
 }
 
-static void cctx_page_buf_aligned(struct isp_cfg_ctx_desc *cfg_ctx,
+static void ispcfg_cctx_page_buf_aligned(struct isp_cfg_ctx_desc *cfg_ctx,
 		void **sw_addr, unsigned long *hw_addr)
 {
 	void *kaddr;
@@ -218,7 +218,7 @@ static void cctx_page_buf_aligned(struct isp_cfg_ctx_desc *cfg_ctx,
 	}
 }
 
-static int cctx_buf_init(struct isp_cfg_ctx_desc *cfg_ctx)
+static int ispcfg_cctx_buf_init(struct isp_cfg_ctx_desc *cfg_ctx)
 {
 	int ret = 0;
 	unsigned int iommu_enable = 0;
@@ -282,10 +282,10 @@ static int cctx_buf_init(struct isp_cfg_ctx_desc *cfg_ctx)
 		goto err_kmap_cfg1;
 	}
 
-	cctx_page_buf_aligned(cfg_ctx, &sw_addr, &hw_addr);
-	cctx_init_page_buf_addr(cfg_ctx, sw_addr, hw_addr);
-	cctx_init_sw_page_buf_addr(cfg_ctx, (void *)ion_buf_cached->addr_k[0]);
-	cctx_init_regbuf_addr(cfg_ctx);
+	ispcfg_cctx_page_buf_aligned(cfg_ctx, &sw_addr, &hw_addr);
+	ispcfg_cctx_page_buf_addr_init(cfg_ctx, sw_addr, hw_addr);
+	ispcfg_cctx_sw_page_buf_addr_init(cfg_ctx, (void *)ion_buf_cached->addr_k[0]);
+	ispcfg_cctx_regbuf_addr_init(cfg_ctx);
 
 	pr_debug("cmd sw: %p, hw: 0x%lx, size:0x%x\n",
 		sw_addr, hw_addr, (int)ion_buf->size[0]);
@@ -306,14 +306,14 @@ err_alloc_cfg:
 	return ret;
 }
 
-static int cctx_buf_deinit(struct isp_cfg_ctx_desc *cfg_ctx)
+static int ispcfg_cctx_buf_deinit(struct isp_cfg_ctx_desc *cfg_ctx)
 {
 	struct camera_buf *ion_buf = NULL;
 
 	ion_buf = &cfg_ctx->ion_pool;
 
-	cctx_deinit_regbuf_addr(cfg_ctx);
-	cctx_deinit_page_buf_addr(cfg_ctx);
+	ispcfg_cctx_regbuf_addr_deinit(cfg_ctx);
+	ispcfg_cctx_page_buf_addr_deinit(cfg_ctx);
 
 	cam_buf_iommu_unmap(ion_buf);
 	cam_buf_kunmap(ion_buf);
@@ -326,7 +326,7 @@ static int cctx_buf_deinit(struct isp_cfg_ctx_desc *cfg_ctx)
 	return 0;
 }
 
-static int isp_cfg_reset_ctxbuf(
+static int ispcfg_ctxbuf_reset(
 		struct isp_cfg_ctx_desc *cfg_ctx,
 		enum isp_context_id ctx_id)
 {
@@ -350,7 +350,7 @@ static int isp_cfg_reset_ctxbuf(
 }
 
 /*  Interface */
-static int isp_cfg_map_init(struct isp_cfg_ctx_desc *cfg_ctx)
+static int ispcfg_map_init(struct isp_cfg_ctx_desc *cfg_ctx)
 {
 	uint32_t i = 0;
 	uint32_t cfg_map_size = 0;
@@ -403,7 +403,7 @@ setting:
 	return 0;
 }
 
-static int isp_cfg_config_block(
+static int ispcfg_block_config(
 		struct isp_cfg_ctx_desc *cfg_ctx,
 		enum isp_context_id sw_ctx_id,
 		enum isp_context_hw_id hw_ctx_id,
@@ -493,7 +493,7 @@ copy_sec:
 	return ret;
 }
 
-static int isp_cfg_ctx_init(struct isp_cfg_ctx_desc *cfg_ctx)
+static int ispcfg_ctx_init(struct isp_cfg_ctx_desc *cfg_ctx)
 {
 	int ret = 0;
 	int i;
@@ -512,7 +512,7 @@ static int isp_cfg_ctx_init(struct isp_cfg_ctx_desc *cfg_ctx)
 	cfg_ctx->lock = __SPIN_LOCK_UNLOCKED(&cfg_ctx->lock);
 	atomic_set(&cfg_ctx->map_cnt, 0);
 
-	ret = cctx_buf_init(cfg_ctx);
+	ret = ispcfg_cctx_buf_init(cfg_ctx);
 	if (ret) {
 		pr_err("fail to init isp cfg ctx buffer.\n");
 		return -EFAULT;
@@ -527,7 +527,7 @@ exit:
 	return ret;
 }
 
-static int isp_cfg_ctx_deinit(struct isp_cfg_ctx_desc *cfg_ctx)
+static int ispcfg_ctx_deinit(struct isp_cfg_ctx_desc *cfg_ctx)
 {
 	int ret = 0;
 
@@ -543,7 +543,7 @@ static int isp_cfg_ctx_deinit(struct isp_cfg_ctx_desc *cfg_ctx)
 	}
 
 	atomic_set(&cfg_ctx->map_cnt, 0);
-	ret = cctx_buf_deinit(cfg_ctx);
+	ret = ispcfg_cctx_buf_deinit(cfg_ctx);
 	if (ret)
 		pr_err("fail to deinit isp cfg ctx buffer.\n");
 exit:
@@ -553,23 +553,23 @@ exit:
 }
 
 struct isp_cfg_ops cfg_ops = {
-	.ctx_init = isp_cfg_ctx_init,
-	.ctx_deinit = isp_cfg_ctx_deinit,
-	.ctx_reset = isp_cfg_reset_ctxbuf,
-	.hw_init = isp_cfg_map_init,
-	.hw_cfg = isp_cfg_config_block,
+	.ctx_init = ispcfg_ctx_init,
+	.ctx_deinit = ispcfg_ctx_deinit,
+	.ctx_reset = ispcfg_ctxbuf_reset,
+	.hw_init = ispcfg_map_init,
+	.hw_cfg = ispcfg_block_config,
 };
 
 struct isp_cfg_ctx_desc s_ctx_desc = {
 	.ops = &cfg_ops,
 };
 
-struct isp_cfg_ctx_desc *get_isp_cfg_ctx_desc()
+struct isp_cfg_ctx_desc *isp_cfg_ctx_desc_get()
 {
 	return &s_ctx_desc;
 }
 
-int put_isp_cfg_ctx_desc(struct isp_cfg_ctx_desc *param)
+int isp_cfg_ctx_desc_put(struct isp_cfg_ctx_desc *param)
 {
 	if (&s_ctx_desc == param)
 		return 0;

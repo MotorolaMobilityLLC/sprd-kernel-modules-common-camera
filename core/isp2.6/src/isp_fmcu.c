@@ -30,7 +30,7 @@
 #define pr_fmt(fmt) "ISP_FMCU %d: %d %s:" \
 	fmt, current->pid, __LINE__, __func__
 
-static int isp_fmcu_push_cmd(struct isp_fmcu_ctx_desc *fmcu_ctx,
+static int ispfmcu_cmd_push(struct isp_fmcu_ctx_desc *fmcu_ctx,
 				uint32_t addr, uint32_t cmd)
 {
 	int ret = 0;
@@ -55,7 +55,7 @@ static int isp_fmcu_push_cmd(struct isp_fmcu_ctx_desc *fmcu_ctx,
 	return ret;
 }
 
-static int isp_fmcu_cmd_ready(struct isp_fmcu_ctx_desc *fmcu_ctx)
+static int ispfmcu_cmd_ready(struct isp_fmcu_ctx_desc *fmcu_ctx)
 {
 	int ret = 0;
 	int cmd_num;
@@ -111,7 +111,7 @@ static int isp_fmcu_cmd_ready(struct isp_fmcu_ctx_desc *fmcu_ctx)
 	return ret;
 }
 
-static int isp_fmcu_start(struct isp_fmcu_ctx_desc *fmcu_ctx)
+static int ispfmcu_start(struct isp_fmcu_ctx_desc *fmcu_ctx)
 {
 	int ret = 0;
 	int cmd_num;
@@ -175,7 +175,7 @@ static int isp_fmcu_start(struct isp_fmcu_ctx_desc *fmcu_ctx)
 	return ret;
 }
 
-static int isp_fmcu_ctx_reset(struct isp_fmcu_ctx_desc *fmcu_ctx)
+static int ispfmcu_ctx_reset(struct isp_fmcu_ctx_desc *fmcu_ctx)
 {
 	int ret = 0;
 
@@ -193,7 +193,7 @@ static int isp_fmcu_ctx_reset(struct isp_fmcu_ctx_desc *fmcu_ctx)
 	return ret;
 }
 
-static int isp_fmcu_ctx_init(struct isp_fmcu_ctx_desc *fmcu_ctx)
+static int ispfmcu_ctx_init(struct isp_fmcu_ctx_desc *fmcu_ctx)
 {
 	int ret = 0;
 	int i;
@@ -274,7 +274,7 @@ err_alloc_fmcu:
 	return ret;
 }
 
-static int isp_fmcu_ctx_deinit(struct isp_fmcu_ctx_desc *fmcu_ctx)
+static int ispfmcu_ctx_deinit(struct isp_fmcu_ctx_desc *fmcu_ctx)
 {
 	int ret = 0;
 	int i;
@@ -298,12 +298,12 @@ static int isp_fmcu_ctx_deinit(struct isp_fmcu_ctx_desc *fmcu_ctx)
 }
 
 struct isp_fmcu_ops fmcu_ops = {
-	.ctx_init = isp_fmcu_ctx_init,
-	.ctx_deinit = isp_fmcu_ctx_deinit,
-	.ctx_reset = isp_fmcu_ctx_reset,
-	.push_cmdq = isp_fmcu_push_cmd,
-	.hw_start = isp_fmcu_start,
-	.cmd_ready = isp_fmcu_cmd_ready,
+	.ctx_init = ispfmcu_ctx_init,
+	.ctx_deinit = ispfmcu_ctx_deinit,
+	.ctx_reset = ispfmcu_ctx_reset,
+	.push_cmdq = ispfmcu_cmd_push,
+	.hw_start = ispfmcu_start,
+	.cmd_ready = ispfmcu_cmd_ready,
 };
 
 static struct isp_fmcu_ctx_desc s_fmcu_desc[ISP_FMCU_NUM] = {
@@ -319,7 +319,7 @@ static struct isp_fmcu_ctx_desc s_fmcu_desc[ISP_FMCU_NUM] = {
 	},
 };
 
-struct isp_fmcu_ctx_desc *get_isp_fmcu_ctx_desc(void *arg)
+struct isp_fmcu_ctx_desc *isp_fmcu_ctx_desc_get(void *arg)
 {
 	int i;
 	uint32_t fmcu_id;
@@ -347,7 +347,7 @@ struct isp_fmcu_ctx_desc *get_isp_fmcu_ctx_desc(void *arg)
 	return fmcu;
 }
 
-int put_isp_fmcu_ctx_desc(struct isp_fmcu_ctx_desc *fmcu)
+int isp_fmcu_ctx_desc_put(struct isp_fmcu_ctx_desc *fmcu)
 {
 	int i;
 

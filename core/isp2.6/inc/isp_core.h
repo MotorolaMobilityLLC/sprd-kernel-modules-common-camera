@@ -345,9 +345,9 @@ struct isp_statis_buf_size_info {
 	size_t buf_cnt;
 };
 
-int isp_get_hw_context_id(struct isp_pipe_context *pctx);
-int isp_get_sw_context_id(enum isp_context_hw_id hw_ctx_id, struct isp_pipe_dev *dev);
-int isp_context_bind(struct isp_pipe_context *pctx,  int fmcu_need);
-int isp_context_unbind(struct isp_pipe_context *pctx);
+int isp_core_hw_context_id_get(struct isp_pipe_context *pctx);
+int isp_core_sw_context_id_get(enum isp_context_hw_id hw_ctx_id, struct isp_pipe_dev *dev);
+int isp_core_context_bind(struct isp_pipe_context *pctx,  int fmcu_need);
+int isp_core_context_unbind(struct isp_pipe_context *pctx);
 
 #endif

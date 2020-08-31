@@ -249,8 +249,8 @@ struct isp_pipe_ops {
 	int (*update_clk)(void *isp_handle, void *arg);
 };
 
-void *get_isp_pipe_dev(void);
-int put_isp_pipe_dev(void *isp_handle);
+void *isp_core_pipe_dev_get(void);
+int isp_core_pipe_dev_put(void *isp_handle);
 
 int isp_hw_init(void *arg);
 int isp_hw_deinit(void *arg);

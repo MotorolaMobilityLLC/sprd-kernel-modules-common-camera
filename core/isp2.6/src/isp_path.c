@@ -70,7 +70,7 @@ unsigned long coff_buf_addr[2][3][4] = {
 	},
 };
 
-int isp_path_set_scaler_coeff(struct coeff_arg *arg,
+int isp_path_scaler_coeff_set(struct coeff_arg *arg,
 		uint32_t buf_sel, uint32_t spath_id,
 		uint32_t *coeff_buf)
 {
@@ -85,7 +85,7 @@ int isp_path_set_scaler_coeff(struct coeff_arg *arg,
 	return 0;
 }
 
-static uint32_t get_path_deci_factor(uint32_t src_size,
+static uint32_t isppath_deci_factor_get(uint32_t src_size,
 			uint32_t dst_size)
 {
 	uint32_t factor = 0;
@@ -102,7 +102,7 @@ static uint32_t get_path_deci_factor(uint32_t src_size,
 	return factor;
 }
 
-static enum isp_store_format get_store_format(uint32_t forcc)
+static enum isp_store_format isppath_store_format_get(uint32_t forcc)
 {
 	enum isp_store_format format = ISP_STORE_FORMAT_MAX;
 
@@ -130,7 +130,7 @@ static enum isp_store_format get_store_format(uint32_t forcc)
 	return format;
 }
 
-static enum isp_store_format get_afbc_store_format(uint32_t forcc)
+static enum isp_store_format isppath_afbc_store_format_get(uint32_t forcc)
 {
 	enum isp_store_format format = ISP_STORE_FORMAT_MAX;
 
@@ -149,7 +149,7 @@ static enum isp_store_format get_afbc_store_format(uint32_t forcc)
 	return format;
 }
 
-static enum isp_fetch_format get_fetch_format(uint32_t forcc)
+static enum isp_fetch_format isppath_fetch_format_get(uint32_t forcc)
 {
 	enum isp_fetch_format format = ISP_FETCH_FORMAT_MAX;
 
@@ -177,7 +177,7 @@ static enum isp_fetch_format get_fetch_format(uint32_t forcc)
 	return format;
 }
 
-static int calc_scaler_param(struct img_trim *in_trim,
+static int isppath_scaler_param_calc(struct img_trim *in_trim,
 	struct img_size *out_size, struct isp_scaler_info *scaler,
 	struct img_deci_info *deci)
 {
@@ -205,7 +205,7 @@ static int calc_scaler_param(struct img_trim *in_trim,
 		if (in_trim->size_x > out_size->w * d_max) {
 			tmp_dstsize = out_size->w * d_max;
 			deci->deci_x =
-				get_path_deci_factor(in_trim->size_x,
+				isppath_deci_factor_get(in_trim->size_x,
 								tmp_dstsize);
 			deci->deci_x_eb = 1;
 			align_size = (1 << (deci->deci_x + 1)) *
@@ -224,7 +224,7 @@ static int calc_scaler_param(struct img_trim *in_trim,
 		if (in_trim->size_y > out_size->h * d_max) {
 			tmp_dstsize = out_size->h * d_max;
 			deci->deci_y =
-				get_path_deci_factor(in_trim->size_y,
+				isppath_deci_factor_get(in_trim->size_y,
 					tmp_dstsize);
 			deci->deci_y_eb = 1;
 			align_size = (1 << (deci->deci_y + 1)) *
@@ -251,7 +251,7 @@ static int calc_scaler_param(struct img_trim *in_trim,
 	return ret;
 }
 
-static int calc_scaler_coeff(struct isp_scaler_info *scaler,
+static int isppath_scaler_coeff_calc(struct isp_scaler_info *scaler,
 		uint32_t scale2yuv420)
 {
 	uint32_t *tmp_buf = NULL;
@@ -288,13 +288,13 @@ static int calc_scaler_coeff(struct isp_scaler_info *scaler,
 	return 0;
 }
 
-int isp_cfg_path_scaler(struct isp_path_desc *path)
+int isp_path_scaler_cfg(struct isp_path_desc *path)
 {
 	int ret = 0;
 	uint32_t is_yuv422, scale2yuv420 = 0;
 	struct isp_scaler_info *scaler = &path->scaler;
 
-	ret = calc_scaler_param(&path->in_trim, &path->dst,
+	ret = isppath_scaler_param_calc(&path->in_trim, &path->dst,
 						&path->scaler, &path->deci);
 	if (ret) {
 		pr_err("fail to set scaler.\n");
@@ -312,7 +312,7 @@ int isp_cfg_path_scaler(struct isp_path_desc *path)
 	} else {
 		scaler->scaler_bypass = 0;
 		scale2yuv420 = is_yuv422 ? 0 : 1;
-		ret = calc_scaler_coeff(scaler, scale2yuv420);
+		ret = isppath_scaler_coeff_calc(scaler, scale2yuv420);
 	}
 
 	scaler->odata_mode = is_yuv422 ? 0x00 : 0x01;
@@ -320,7 +320,7 @@ int isp_cfg_path_scaler(struct isp_path_desc *path)
 	return ret;
 }
 
-static uint32_t cal_deci(uint32_t src, uint32_t dst)
+static uint32_t isppath_deci_cal(uint32_t src, uint32_t dst)
 {
 	uint32_t deci = 1;
 
@@ -339,13 +339,13 @@ static uint32_t cal_deci(uint32_t src, uint32_t dst)
 	return deci;
 }
 
-static int cal_trim_deci_info(
+static int isppath_trim_deci_info_cal(
 		uint32_t src, uint32_t dst,
 		uint32_t *trim, uint32_t *deci)
 {
 	uint32_t tmp;
 
-	tmp = cal_deci(src, dst);
+	tmp = isppath_deci_cal(src, dst);
 	if (tmp == 0)
 		return -EINVAL;
 
@@ -354,12 +354,12 @@ static int cal_trim_deci_info(
 		*deci = tmp;
 	} else {
 		*trim = (src / (2 * tmp) * (2 * tmp));
-		*deci = cal_deci(*trim, dst);
+		*deci = isppath_deci_cal(*trim, dst);
 	}
 	return 0;
 }
 
-int cfg_path_thumbscaler(struct isp_path_desc *path)
+static int isppath_path_thumbscaler_cfg(struct isp_path_desc *path)
 {
 	int ret = 0;
 	uint32_t deci_w, deci_h, trim_w, trim_h;
@@ -375,8 +375,8 @@ int cfg_path_thumbscaler(struct isp_path_desc *path)
 	src.w = path->in_trim.size_x;
 	src.h = path->in_trim.size_y;
 	dst = path->dst;
-	ret = cal_trim_deci_info(src.w, dst.w, &trim_w, &deci_w);
-	ret |= cal_trim_deci_info(src.h, dst.h, &trim_h, &deci_h);
+	ret = isppath_trim_deci_info_cal(src.w, dst.w, &trim_w, &deci_w);
+	ret |= isppath_trim_deci_info_cal(src.h, dst.h, &trim_h, &deci_h);
 	if (ret) {
 		pr_err("fail to set thumbscaler ydeci. src %d %d, dst %d %d\n",
 					src.w, src.h, dst.w, dst.h);
@@ -478,7 +478,7 @@ int cfg_path_thumbscaler(struct isp_path_desc *path)
 	return ret;
 }
 
-static int cfg_fbd_raw(struct isp_pipe_context *pctx,
+static int isppath_fbd_raw_cfg(struct isp_pipe_context *pctx,
 		struct isp_ctx_size_desc *cfg_in)
 {
 	int32_t tile_col = 0, tile_row = 0;
@@ -593,7 +593,7 @@ static int cfg_fbd_raw(struct isp_pipe_context *pctx,
 	return 0;
 }
 
-int isp_cfg_ctx_base(struct isp_pipe_context *pctx, void *param)
+int isp_path_ctx_base_cfg(struct isp_pipe_context *pctx, void *param)
 {
 	int ret = 0;
 	struct isp_ctx_base_desc *cfg_in;
@@ -633,7 +633,7 @@ int isp_cfg_ctx_base(struct isp_pipe_context *pctx, void *param)
 	return ret;
 }
 
-int isp_cfg_ctx_size(struct isp_pipe_context *pctx, void *param)
+int isp_path_ctx_size_cfg(struct isp_pipe_context *pctx, void *param)
 {
 	int ret = 0;
 	int invalid = 0;
@@ -679,7 +679,7 @@ int isp_cfg_ctx_size(struct isp_pipe_context *pctx, void *param)
 	intrim = &pctx->input_trim;
 	fetch->src = pctx->input_size;
 	fetch->in_trim = pctx->input_trim;
-	fetch->fetch_fmt = get_fetch_format(pctx->in_fmt);
+	fetch->fetch_fmt = isppath_fetch_format_get(pctx->in_fmt);
 	if (pctx->in_fmt == IMG_PIX_FMT_GREY) {
 		if (pctx->is_loose == ISP_RAW_HALF14 || pctx->is_loose == ISP_RAW_HALF10)
 			fetch->fetch_fmt = ISP_FETCH_RAW10;
@@ -693,7 +693,7 @@ int isp_cfg_ctx_size(struct isp_pipe_context *pctx, void *param)
 					intrim->size_y, pctx->is_loose);
 
 	if (pctx->fetch_path_sel)
-		cfg_fbd_raw(pctx, cfg_in);
+		isppath_fbd_raw_cfg(pctx, cfg_in);
 
 	switch (fetch->fetch_fmt) {
 	case ISP_FETCH_YUV422_3FRAME:
@@ -791,7 +791,7 @@ int isp_cfg_ctx_size(struct isp_pipe_context *pctx, void *param)
 	return ret;
 }
 
-int isp_cfg_ctx_compression(struct isp_pipe_context *pctx, void *param)
+int isp_path_ctx_compression_cfg(struct isp_pipe_context *pctx, void *param)
 {
 	struct isp_ctx_compression_desc *compression = param;
 
@@ -805,7 +805,7 @@ int isp_cfg_ctx_compression(struct isp_pipe_context *pctx, void *param)
 	return 0;
 }
 
-int isp_cfg_ctx_uframe_sync(struct isp_pipe_context *pctx, void *param)
+int isp_path_ctx_uframe_sync_cfg(struct isp_pipe_context *pctx, void *param)
 {
 	pctx->uframe_sync |= *(uint32_t *)param;
 
@@ -814,7 +814,7 @@ int isp_cfg_ctx_uframe_sync(struct isp_pipe_context *pctx, void *param)
 	return 0;
 }
 
-int isp_cfg_path_base(struct isp_path_desc *path, void *param)
+int isp_path_base_cfg(struct isp_path_desc *path, void *param)
 {
 	int ret = 0;
 	struct isp_path_base_desc *cfg_in;
@@ -844,7 +844,7 @@ int isp_cfg_path_base(struct isp_path_desc *path, void *param)
 	path->stream_dst = path->dst;
 
 	/* CFG output format */
-	store->color_fmt = get_store_format(path->out_fmt);
+	store->color_fmt = isppath_store_format_get(path->out_fmt);
 	if (store->color_fmt == ISP_STORE_UYVY)
 		path->uv_sync_v = 1;
 	else
@@ -866,7 +866,7 @@ int isp_cfg_path_base(struct isp_path_desc *path, void *param)
 	return ret;
 }
 
-int isp_cfg_path_size(struct isp_path_desc *path, void *param)
+int isp_path_size_cfg(struct isp_path_desc *path, void *param)
 {
 	int ret = 0;
 	struct img_size src;
@@ -926,7 +926,7 @@ int isp_cfg_path_size(struct isp_path_desc *path, void *param)
 		afbc_store->endian = path->data_endian.uv_endian;
 		afbc_store->mirror_en = 0;
 		afbc_store->color_format =
-			get_afbc_store_format(path->out_fmt);
+			isppath_afbc_store_format_get(path->out_fmt);
 		afbc_store->tile_number_pitch = 0;
 		afbc_store->header_offset = 0x0;
 
@@ -942,9 +942,9 @@ int isp_cfg_path_size(struct isp_path_desc *path, void *param)
 	}
 
 	if (path->spath_id == ISP_SPATH_FD)
-		ret = cfg_path_thumbscaler(path);
+		ret = isppath_path_thumbscaler_cfg(path);
 	else
-		ret = isp_cfg_path_scaler(path);
+		ret = isp_path_scaler_cfg(path);
 
 	store->size.w = path->dst.w;
 	store->size.h = path->dst.h;
@@ -989,7 +989,7 @@ int isp_cfg_path_size(struct isp_path_desc *path, void *param)
 	return ret;
 }
 
-int isp_cfg_path_compression(struct isp_path_desc *path, void *param)
+int isp_path_compression_cfg(struct isp_path_desc *path, void *param)
 {
 	struct isp_path_compression_desc *compression = param;
 
@@ -1000,7 +1000,7 @@ int isp_cfg_path_compression(struct isp_path_desc *path, void *param)
 	return 0;
 }
 
-int isp_cfg_path_uframe_sync(struct isp_path_desc *path, void *param)
+int isp_path_uframe_sync_cfg(struct isp_path_desc *path, void *param)
 {
 	path->uframe_sync = *(uint32_t *)param;
 
@@ -1009,7 +1009,7 @@ int isp_cfg_path_uframe_sync(struct isp_path_desc *path, void *param)
 	return 0;
 }
 
-static uint32_t cal_deci_par(uint32_t deci)
+static uint32_t isppath_deci_par_cal(uint32_t deci)
 {
 	/* 0: 1/2, 1: 1/4, 2: 1/8, 3: 1/16*/
 	if (deci == 16)
@@ -1022,16 +1022,16 @@ static uint32_t cal_deci_par(uint32_t deci)
 		return 0;
 }
 
-uint32_t get_path_val(struct isp_thumbscaler_info *scalerInfo, struct isp_path_desc *path)
+static uint32_t isppath_val_get(struct isp_thumbscaler_info *scalerInfo, struct isp_path_desc *path)
 {
 	uint32_t val;
 	uint32_t y_deci_w_par, y_deci_h_par;
 	uint32_t uv_deci_w_par, uv_deci_h_par;
 
-	y_deci_w_par = cal_deci_par(scalerInfo->y_deci.deci_x);
-	y_deci_h_par = cal_deci_par(scalerInfo->y_deci.deci_y);
-	uv_deci_w_par = cal_deci_par(scalerInfo->uv_deci.deci_x);
-	uv_deci_h_par = cal_deci_par(scalerInfo->uv_deci.deci_y);
+	y_deci_w_par = isppath_deci_par_cal(scalerInfo->y_deci.deci_x);
+	y_deci_h_par = isppath_deci_par_cal(scalerInfo->y_deci.deci_y);
+	uv_deci_w_par = isppath_deci_par_cal(scalerInfo->uv_deci.deci_x);
+	uv_deci_h_par = isppath_deci_par_cal(scalerInfo->uv_deci.deci_y);
 	val = ((path->frm_deci & 0x3) << 2) |
 		((scalerInfo->odata_mode & 0x3) << 4) |
 		((y_deci_w_par & 0x3) << 16) |
@@ -1046,7 +1046,7 @@ uint32_t get_path_val(struct isp_thumbscaler_info *scalerInfo, struct isp_path_d
 	return val;
 }
 
-int isp_set_path(struct isp_path_desc *path)
+int isp_path_set(struct isp_path_desc *path)
 {
 	int ret = 0;
 	enum isp_afbc_path afbc_path_id = 0;
@@ -1067,7 +1067,7 @@ int isp_set_path(struct isp_path_desc *path)
 
 	pr_debug("enter.\n");
 	if (path->spath_id == ISP_SPATH_FD) {
-		thumbscaler.val = get_path_val(&path->thumbscaler, path);
+		thumbscaler.val = isppath_val_get(&path->thumbscaler, path);
 		thumbscaler.path = path;
 		hw->isp_ioctl(hw, ISP_HW_CFG_SET_PATH_THUMBSCALER, &thumbscaler);
 	} else {
@@ -1104,7 +1104,7 @@ int isp_set_path(struct isp_path_desc *path)
 	return ret;
 }
 
-int isp_path_set_store_frm(
+int isp_path_store_frm_set(
 		struct isp_path_desc *path,
 		struct camera_frame *frame)
 {
@@ -1191,7 +1191,7 @@ int isp_path_set_store_frm(
 	return ret;
 }
 
-int isp_path_set_afbc_store_frm(
+int isp_path_afbc_store_frm_set(
 		struct isp_path_desc *path,
 		struct camera_frame *frame)
 {
@@ -1234,7 +1234,7 @@ int isp_path_set_afbc_store_frm(
 	return ret;
 }
 
-int isp_path_set_fetch_frm(struct isp_pipe_context *pctx,
+int isp_path_fetch_frm_set(struct isp_pipe_context *pctx,
 		struct camera_frame *frame)
 {
 	int ret = 0;

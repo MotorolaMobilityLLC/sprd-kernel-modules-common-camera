@@ -2172,7 +2172,7 @@ static int cfg_slice_3dnr_memctrl_update_info(
 			nr3_fw_out.ft_uv_height, nr3_fw_out.last_line_mode);
 		pr_debug("first_line_mode[%d]\n", nr3_fw_out.first_line_mode);
 
-		isp_3dnr_update_memctrl_slice_info(&nr3_fw_in, &nr3_fw_out);
+		isp_3dnr_memctrl_slice_info_update(&nr3_fw_in, &nr3_fw_out);
 
 		slc_3dnr_memctrl->first_line_mode = nr3_fw_out.first_line_mode;
 		slc_3dnr_memctrl->last_line_mode = nr3_fw_out.last_line_mode;
@@ -2293,7 +2293,7 @@ int isp_cfg_slice_ltm_info(void *cfg_in,
 		slice_info[2] = cur_slc->slice_pos.end_col;
 		slice_info[3] = cur_slc->slice_pos.end_row;
 
-		isp_ltm_gen_map_slice_config(ltm_ctx, ltm_id, prtl, slice_info);
+		isp_ltm_map_slice_config_gen(ltm_ctx, ltm_id, prtl, slice_info);
 
 		slc_ltm_map->tile_width = map->tile_width;
 		slc_ltm_map->tile_height = map->tile_height;
@@ -2454,7 +2454,7 @@ int isp_set_slices_fmcu_cmds(void *fmcu_handle, void *ctx)
 	pctx = (struct isp_pipe_context *)ctx;
 	hw = pctx->hw;
 	sw_ctx_id = pctx->ctx_id;
-	hw_ctx_id = isp_get_hw_context_id(pctx);
+	hw_ctx_id = isp_core_hw_context_id_get(pctx);
 	pr_info("get hw context id=%d\n", hw_ctx_id);
 	wmode = pctx->dev->wmode;
 	slc_ctx = (struct isp_slice_context *)pctx->slice_ctx;

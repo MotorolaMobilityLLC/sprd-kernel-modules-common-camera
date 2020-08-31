@@ -6053,7 +6053,7 @@ static int camcore_release(struct inode *node, struct file *file)
 		if (isp_dev) {
 			pr_info("force close isp %p\n", isp_dev);
 			module->isp_dev_handle->isp_ops->close(isp_dev);
-			put_isp_pipe_dev(isp_dev);
+			isp_core_pipe_dev_put(isp_dev);
 			module->isp_dev_handle = NULL;
 		}
 	}
