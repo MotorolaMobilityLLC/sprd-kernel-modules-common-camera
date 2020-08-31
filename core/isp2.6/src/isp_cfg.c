@@ -221,7 +221,7 @@ static void cctx_page_buf_aligned(struct isp_cfg_ctx_desc *cfg_ctx,
 static int cctx_buf_init(struct isp_cfg_ctx_desc *cfg_ctx)
 {
 	int ret = 0;
-	int iommu_enable = 0;
+	unsigned int iommu_enable = 0;
 	size_t size;
 	void *sw_addr = NULL;
 	unsigned long hw_addr = 0;

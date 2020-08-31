@@ -35,7 +35,7 @@ static struct cam_mem_dbg_info s_mem_dbg;
 struct cam_mem_dbg_info *g_mem_dbg = &s_mem_dbg;
 static atomic_t s_dev_cnt;
 struct iommudev_info {
-	int32_t type;
+	enum cam_iommudev_type type;
 	int32_t iommu_en;
 	struct device *dev;
 
@@ -281,7 +281,7 @@ int cam_buf_kunmap(struct camera_buf *buf_info)
 }
 
 int cam_buf_alloc(struct camera_buf *buf_info,
-		size_t size, size_t align, int iommu_enable)
+		size_t size, size_t align, unsigned int iommu_enable)
 {
 	int ret = 0;
 	int heap_type;
