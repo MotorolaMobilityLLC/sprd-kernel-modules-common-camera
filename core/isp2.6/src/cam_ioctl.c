@@ -319,7 +319,7 @@ static int camioctl_function_mode_set(struct camera_module *module,
 	/* no use */
 	module->cam_uinfo.is_3dnr = 0;
 
-	pr_info("4in1:[%d], 3dnr[%d], rgb_ltm[%d], yuv_ltm[%d], dual[%d]\n, afbc[%d]\n",
+	pr_info("4in1:[%d], 3dnr[%d], rgb_ltm[%d], yuv_ltm[%d], dual[%d], afbc[%d]\n",
 		module->cam_uinfo.is_4in1,
 		module->cam_uinfo.is_3dnr,
 		module->cam_uinfo.is_rgb_ltm,
@@ -1019,7 +1019,7 @@ static int camioctl_frame_addr_set(struct camera_module *module,
 		unsigned long arg)
 {
 	int ret = 0;
-	uint32_t i, j, cmd;
+	uint32_t i = 0, cmd = ISP_PATH_CFG_OUTPUT_BUF;
 	struct sprd_img_parm param;
 	struct channel_context *ch = NULL;
 	struct channel_context *ch_prv = NULL;
@@ -1084,7 +1084,7 @@ static int camioctl_frame_addr_set(struct camera_module *module,
 		}
 
 		if (param.channel_id == CAM_CH_CAP || param.is_reserved_buf) {
-			pr_info("ch %d, mfd %d, off 0x%x 0x%x 0x%x, size 0x%x, reserved %d\n",
+			pr_debug("ch %d, mfd %d, off 0x%x 0x%x 0x%x, size 0x%x, reserved %d\n",
 				pframe->channel_id, pframe->buf.mfd[0],
 				pframe->buf.offset[0], pframe->buf.offset[1],
 				pframe->buf.offset[2], (uint32_t)pframe->buf.size[0],
@@ -1092,47 +1092,18 @@ static int camioctl_frame_addr_set(struct camera_module *module,
 		}
 
 		if (ch->isp_path_id >= 0 && param.pixel_fmt != IMG_PIX_FMT_GREY) {
-			struct camera_frame *pframe1;
-
-			if (param.is_reserved_buf &&
-				((ch->ch_id == CAM_CH_CAP)
-				|| (ch->ch_id == CAM_CH_PRE)
-				|| (ch->ch_id == CAM_CH_VID && !ch_prv->enable))) {
-				cmd = DCAM_PATH_CFG_OUTPUT_RESERVED_BUF;
-				pframe1 = cam_queue_empty_frame_get();
-				pframe1->is_reserved = 1;
-				pframe1->buf.type = CAM_BUF_USER;
-				pframe1->buf.mfd[0] = param.fd_array[i];
-				pframe1->buf.offset[0] = param.frame_addr_array[i].y;
-				pframe1->buf.offset[1] = param.frame_addr_array[i].u;
-				pframe1->buf.offset[2] = param.frame_addr_array[i].v;
-				pframe1->channel_id = ch->ch_id;
-
-				ret = cam_buf_ionbuf_get(&pframe1->buf);
-				if (ret) {
-					cam_queue_empty_frame_put(pframe1);
-					ret = -EFAULT;
-					break;
-				}
-
-				for (j = 0; j < 3; j++) {
-					pframe1->buf.size[j] = DCAM_RES_BUF_SIZE;
-					pr_debug("pframe1->buf.size[%d] = %d\n", j, (int)pframe1->buf.size[j]);
-				}
-				ret = module->dcam_dev_handle->dcam_pipe_ops->cfg_path(module->dcam_dev_handle,
-					cmd, ch->dcam_path_id, pframe1);
-				if (ret) {
-					cam_buf_ionbuf_put(&pframe1->buf);
-					cam_queue_empty_frame_put(pframe1);
-				}
-			}
 
 			cmd = ISP_PATH_CFG_OUTPUT_BUF;
 			if (param.is_reserved_buf) {
 				ch->reserved_buf_fd = pframe->buf.mfd[0];
-				for (j = 0; j < 3; j++)
-					pframe->buf.size[j] = DCAM_RES_BUF_SIZE;
-				cmd = ISP_PATH_CFG_OUTPUT_RESERVED_BUF;
+				pframe->is_reserved = 1;
+				ch->res_frame = pframe;
+				pr_debug("ch %d, mfd 0x%x, off 0x%x 0x%x 0x%x, size %d user_fid[%d]\n",
+					pframe->channel_id, pframe->buf.mfd[0],
+					pframe->buf.offset[0], pframe->buf.offset[1],
+					pframe->buf.offset[2], (uint32_t)pframe->buf.size[0],
+					pframe->user_fid);
+				continue;
 			}
 			ret = module->isp_dev_handle->isp_ops->cfg_path(module->isp_dev_handle, cmd,
 				ch->isp_ctx_id, ch->isp_path_id, pframe);
@@ -1140,10 +1111,14 @@ static int camioctl_frame_addr_set(struct camera_module *module,
 			cmd = DCAM_PATH_CFG_OUTPUT_BUF;
 			if (param.is_reserved_buf) {
 				ch->reserved_buf_fd = pframe->buf.mfd[0];
-				for (j = 0; j < 3; j++)
-					pframe->buf.size[j] = DCAM_RES_BUF_SIZE;
-				cmd = DCAM_PATH_CFG_OUTPUT_RESERVED_BUF;
 				pframe->is_reserved = 1;
+				ch->res_frame = pframe;
+				pr_debug("ch %d, mfd 0x%x, off 0x%x 0x%x 0x%x, size %d user_fid[%d]\n",
+					pframe->channel_id, pframe->buf.mfd[0],
+					pframe->buf.offset[0], pframe->buf.offset[1],
+					pframe->buf.offset[2], (uint32_t)pframe->buf.size[0],
+					pframe->user_fid);
+				continue;
 			} else if ((ch->ch_id == CAM_CH_CAP) &&
 					param.pixel_fmt == IMG_PIX_FMT_GREY) {
 				pframe->img_fmt = param.pixel_fmt;
@@ -1602,6 +1577,7 @@ cfg_ch_done:
 	ret = module->dcam_dev_handle->dcam_pipe_ops->ioctl(module->dcam_dev_handle,
 		DCAM_IOCTL_INIT_STATIS_Q, NULL);
 
+	camcore_resframe_set(module);
 	for (i = 0;  i < CAM_CH_MAX; i++) {
 		ch = &module->channel[i];
 		if (!ch->enable || (ch->ch_id == CAM_CH_RAW))
@@ -2656,8 +2632,10 @@ static int camioctl_4in1_raw_addr_set(struct camera_module *module,
 		if (param.is_reserved_buf) {
 			ch->reserved_buf_fd = pframe->buf.mfd[0];
 			pframe->is_reserved = 1;
+			ch->res_frame = pframe;
 			for (j = 0; j < 3; j++)
-				pframe->buf.size[j] = DCAM_RES_BUF_SIZE;
+				pframe->buf.size[j] = cal_sprd_raw_pitch(ch->ch_uinfo.src_size.w, module->cam_uinfo.sensor_if.if_spec.mipi.is_loose)
+					* ch->ch_uinfo.src_size.h;
 			ret = module->dcam_dev_handle->dcam_pipe_ops->cfg_path(module->dcam_dev_handle,
 				DCAM_PATH_CFG_OUTPUT_RESERVED_BUF,
 				ch->dcam_path_id, pframe);

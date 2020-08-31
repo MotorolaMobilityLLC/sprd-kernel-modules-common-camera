@@ -1797,8 +1797,10 @@ static int dcamcore_path_cfg(void *dcam_handle, enum dcam_path_cfg_cmd cfg_cmd,
 		pframe = (struct camera_frame *)param;
 		ret = cam_buf_iommu_single_page_map(&pframe->buf,
 			CAM_IOMMUDEV_DCAM);
-		if (ret)
+		if (ret) {
+			pr_err("fail to map dcam path %d reserve buffer.\n", path_id);
 			goto exit;
+		}
 
 		pframe->is_reserved = 1;
 		pframe->priv_data = path;

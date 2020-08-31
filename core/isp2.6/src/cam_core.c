@@ -205,7 +205,6 @@ struct channel_context {
 	int32_t isp_fdrl_path;
 	int32_t isp_fdrh_ctx;
 	int32_t isp_fdrh_path;
-	int32_t reserved_buf_fd;
 
 	struct camera_uchannel ch_uinfo;
 	struct img_size swap_size;
@@ -228,6 +227,8 @@ struct channel_context {
 	struct camera_frame *postproc_buf;
 	struct camera_frame *nr3_bufs[ISP_NR3_BUF_NUM];
 	struct camera_frame *ltm_bufs[LTM_MAX][ISP_LTM_BUF_NUM];
+	struct camera_frame *res_frame;
+	int32_t reserved_buf_fd;
 
 	/* dcam/isp shared frame buffer for full path */
 	struct camera_queue share_buf_queue;
@@ -5457,6 +5458,135 @@ dst_fail:
 src_fail:
 	cam_queue_empty_frame_put(src_frame);
 	pr_err("fail to call post raw proc\n");
+	return ret;
+}
+
+static int camcore_resframe_set(struct camera_module *module)
+{
+	int ret = 0;
+	struct channel_context *ch = NULL, *ch_prv = NULL;
+	uint32_t i = 0, j = 0, cmd = ISP_PATH_CFG_OUTPUT_RESERVED_BUF;
+	uint32_t max_size = 0, out_size = 0, in_size = 0;
+	struct camera_frame *pframe = NULL;
+	struct camera_frame *pframe1;
+
+	for (i = 0; i < CAM_CH_MAX; i++) {
+		ch = &module->channel[i];
+		if (ch->enable) {
+			if (ch->ch_uinfo.dst_fmt != IMG_PIX_FMT_GREY)
+				out_size = ch->ch_uinfo.dst_size.w *ch->ch_uinfo.dst_size.h * 3 / 2;
+			else
+				out_size = cal_sprd_raw_pitch(ch->ch_uinfo.dst_size.w, module->cam_uinfo.sensor_if.if_spec.mipi.is_loose)
+					* ch->ch_uinfo.dst_size.h;
+
+			if (ch->ch_uinfo.sn_fmt != IMG_PIX_FMT_GREY)
+				in_size = ch->ch_uinfo.src_size.w *ch->ch_uinfo.src_size.h * 3 / 2;
+			else
+				in_size = cal_sprd_raw_pitch(ch->ch_uinfo.src_size.w, module->cam_uinfo.sensor_if.if_spec.mipi.is_loose)
+					* ch->ch_uinfo.src_size.h;
+
+			max_size = max3(max_size, out_size, in_size);
+			pr_debug("cam%d, ch %d, max_size = %d, %d, %d\n", module->idx, i, max_size, in_size, out_size);
+		}
+	}
+
+	ch_prv = &module->channel[CAM_CH_PRE];
+	for (i = 0; i < CAM_CH_MAX; i++) {
+		ch = &module->channel[i];
+		pframe = ch->res_frame;
+		if (!ch->enable || !pframe)
+			continue;
+		if (ch->isp_path_id >= 0 && ch->ch_uinfo.dst_fmt != IMG_PIX_FMT_GREY) {
+			if (((ch->ch_id == CAM_CH_CAP)
+				|| (ch->ch_id == CAM_CH_PRE)
+				|| (ch->ch_id == CAM_CH_VID && !ch_prv->enable))) {
+				cmd = DCAM_PATH_CFG_OUTPUT_RESERVED_BUF;
+				pframe1 = cam_queue_empty_frame_get();
+				pframe1->is_reserved = 1;
+				pframe1->buf.type = CAM_BUF_USER;
+				pframe1->buf.mfd[0] = pframe->buf.mfd[0];
+				pframe1->buf.offset[0] = pframe->buf.offset[0];
+				pframe1->buf.offset[1] = pframe->buf.offset[1];
+				pframe1->buf.offset[2] = pframe->buf.offset[2];
+				pframe1->channel_id = ch->ch_id;
+
+				ret = cam_buf_ionbuf_get(&pframe1->buf);
+				if (ret) {
+					pr_err("fail to get ionbuf on cam%d, ch %d\n", module->idx, i);
+					cam_queue_empty_frame_put(pframe1);
+					ret = -EFAULT;
+					break;
+				}
+
+				for (j = 0; j < 3; j++)
+					pframe1->buf.size[j] = max_size;
+				ret = module->dcam_dev_handle->dcam_pipe_ops->cfg_path(module->dcam_dev_handle,
+					cmd, ch->dcam_path_id, pframe1);
+				if (ret) {
+					pr_err("fail to cfg path on cam%d, ch %d\n", module->idx, i);
+					cam_buf_ionbuf_put(&pframe1->buf);
+					cam_queue_empty_frame_put(pframe1);
+				}
+			}
+
+			cmd = ISP_PATH_CFG_OUTPUT_RESERVED_BUF;
+			for (j = 0; j < 3; j++)
+				pframe->buf.size[j] = max_size;
+
+			ret = module->isp_dev_handle->isp_ops->cfg_path(module->isp_dev_handle, cmd,
+				ch->isp_ctx_id, ch->isp_path_id, pframe);
+		} else {
+			cmd = DCAM_PATH_CFG_OUTPUT_RESERVED_BUF;
+			for (j = 0; j < 3; j++)
+				pframe->buf.size[j] = max_size;
+
+			ret = module->dcam_dev_handle->dcam_pipe_ops->cfg_path(module->dcam_dev_handle,
+				cmd, ch->dcam_path_id, pframe);
+			/* 4in1_raw_capture, maybe need two image once */
+			if (ch->second_path_enable) {
+				uint32_t is_loose = 0;
+				uint32_t offset = 0;
+
+				ch->is_loose = module->cam_uinfo.sensor_if.if_spec.mipi.is_loose;
+
+				pframe1 = cam_queue_empty_frame_get();
+				pframe1->buf.type = CAM_BUF_USER;
+				pframe1->buf.mfd[0] = ch->res_frame->buf.mfd[0];
+				/* raw capture: 4cell + bin-sum, cal offset */
+				if (ch->dcam_path_id == 0)
+					is_loose = 0;
+				else
+					is_loose = ch->is_loose;
+				offset = cal_sprd_raw_pitch(ch->ch_uinfo.src_size.w, is_loose);
+				offset *= ch->ch_uinfo.src_size.h;
+				offset = ALIGN_UP(offset, PAGE_SIZE);
+				/* first buf offset: p->frame_addr_array[i].y */
+				offset += pframe->buf.offset[0];
+				pframe1->buf.offset[0] = offset;
+				pframe1->channel_id = ch->ch_id;
+				pframe1->img_fmt = ch->ch_uinfo.dst_fmt;
+
+				ret = cam_buf_ionbuf_get(&pframe1->buf);
+				if (ret) {
+					cam_queue_empty_frame_put(pframe1);
+					pr_err("fail to get second buffer fail, ret %d\n", ret);
+					ret = -EFAULT;
+					break;
+				}
+				ret = module->dcam_dev_handle->dcam_pipe_ops->cfg_path(module->dcam_dev_handle,
+					cmd, ch->second_path_id, pframe1);
+			}
+		}
+
+		if (ret) {
+			pr_err("fail to set output buffer for ch%d.\n", ch->ch_id);
+			cam_buf_ionbuf_put(&pframe->buf);
+			cam_queue_empty_frame_put(pframe);
+			ret = -EFAULT;
+			break;
+		}
+	}
+
 	return ret;
 }
 

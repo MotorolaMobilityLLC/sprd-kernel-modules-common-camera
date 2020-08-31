@@ -29,7 +29,6 @@
 #define ISP_SLCIE_HEIGHT_MAX                    4096
 #define DCAM_RDS_OUT_LIMIT                      2048
 #define ISP_SCALER_UP_MAX                       4
-#define DCAM_RES_BUF_SIZE                       (4672 * 3504 * 3 / 2)
 /*
  *DCAM_CONTROL register bit map id
  * for force_cpy/auto_cpy control

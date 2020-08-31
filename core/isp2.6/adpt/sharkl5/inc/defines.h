@@ -29,7 +29,6 @@
 #define ISP_SLCIE_HEIGHT_MAX                    8192
 #define DCAM_RDS_OUT_LIMIT                      2048
 #define ISP_SCALER_UP_MAX                       4
-#define DCAM_RES_BUF_SIZE                       (8000 * 6000 * 3 / 2)
 #define DCAM_CTRL_ALL                           0xff
 
 /*
