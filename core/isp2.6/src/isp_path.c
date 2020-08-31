@@ -266,7 +266,7 @@ static int calc_scaler_coeff(struct isp_scaler_info *scaler,
 	v_coeff = tmp_buf + (ISP_SC_COEFF_COEF_SIZE / 4);
 	v_chroma_coeff = v_coeff + (ISP_SC_COEFF_COEF_SIZE / 4);
 
-	if (!(isp_gen_scale_coeff((short)scaler->scaler_factor_in,
+	if (!(cam_scaler_isp_scale_coeff_gen((short)scaler->scaler_factor_in,
 				(short)scaler->scaler_ver_factor_in,
 				(short)scaler->scaler_factor_out,
 				(short)scaler->scaler_ver_factor_out,

@@ -288,7 +288,7 @@ int dcam_cfg_path_size(void *dcam_handle,
 			ret = hw->dcam_ioctl(hw, DCAM_HW_CFG_CALC_RDS_PHASE_INFO, &arg);
 			if (ret)
 				pr_err("fail to calc rds phase info\n");
-			dcam_gen_rds_coeff((uint16_t)crop_size.w,
+			cam_scaler_dcam_rds_coeff_gen((uint16_t)crop_size.w,
 				(uint16_t)crop_size.h,
 				(uint16_t)dst_size.w,
 				(uint16_t)dst_size.h,

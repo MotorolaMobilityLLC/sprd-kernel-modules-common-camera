@@ -21,7 +21,7 @@
 #define ARC_32_COEF                             0x80000000
 /* convert arc of double type to int32 type */
 
-unsigned char isp_gen_scale_coeff(short i_w,
+unsigned char cam_scaler_isp_scale_coeff_gen(short i_w,
 				short i_h,
 				short o_w,
 				short o_h,
@@ -34,7 +34,7 @@ unsigned char isp_gen_scale_coeff(short i_w,
 				void *temp_buf_ptr,
 				unsigned int temp_buf_size);
 
-int dcam_gen_rds_coeff(
+int cam_scaler_dcam_rds_coeff_gen(
 		uint16_t src_width, uint16_t src_height,
 		uint16_t dst_width, uint16_t dst_height,
 		uint32_t *coeff_buf);
