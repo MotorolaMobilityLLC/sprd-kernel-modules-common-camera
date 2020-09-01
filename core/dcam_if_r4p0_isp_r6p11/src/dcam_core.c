@@ -2427,7 +2427,7 @@ static int sprd_img_k_release(struct inode *node, struct file *file)
 					i);
 				return -1;
 			}
-			dcamio_stream_off(camerafile, 0, 0);
+			sprd_camera_stream_off(group, i);
 			sprd_isp_module_dis(group->dev[i]->isp_dev_handle, i);
 			sprd_dcam_module_dis(i);
 			sprd_camera_dev_deinit(group, i);

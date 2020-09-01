@@ -262,6 +262,5 @@ int sprd_camera_stream_off(struct camera_group *group, enum dcam_id idx);
 int sprd_img_get_dcam_dev(struct camera_file *pcamerafile,
 				 struct camera_dev **ppdev,
 				 struct camera_info **ppinfo);
-extern int dcamio_stream_off(struct camera_file *camerafile, unsigned long arg, uint32_t cmd);
 #endif /* _DCAM_CORE_H_ */
 
