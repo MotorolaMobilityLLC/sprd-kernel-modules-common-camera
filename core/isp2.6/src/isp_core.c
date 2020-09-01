@@ -747,7 +747,7 @@ static int ispcore_slices_proc(struct isp_pipe_context *pctx,
 		if (pctx->is_last_slice == 1)
 			break;
 
-		ret = isp_update_slice(pctx, pctx->ctx_id, slice_id);
+		ret = isp_slice_update(pctx, pctx->ctx_id, slice_id);
 		if (ret < 0)
 			continue;
 
@@ -1543,25 +1543,25 @@ static int ispcore_offline_frame_start(void *ctx)
 		}
 		slc_cfg.frame_fetch = &pctx->fetch;
 		slc_cfg.frame_fbd_raw = &pctx->fbd_raw;
-		isp_cfg_slice_fetch_info(&slc_cfg, pctx->slice_ctx);
-		isp_cfg_slice_store_info(&slc_cfg, pctx->slice_ctx);
+		isp_slice_fetch_info_cfg(&slc_cfg, pctx->slice_ctx);
+		isp_slice_store_info_cfg(&slc_cfg, pctx->slice_ctx);
 		if (path->afbc_store.bypass == 0)
-			isp_cfg_slice_afbc_store_info(&slc_cfg, pctx->slice_ctx);
+			isp_slice_afbc_store_info_cfg(&slc_cfg, pctx->slice_ctx);
 
 		/* 3DNR Capture case: Using CP Config */
 		slc_cfg.frame_in_size.w = pctx->input_trim.size_x;
 		slc_cfg.frame_in_size.h = pctx->input_trim.size_y;
 		slc_cfg.nr3_ctx = &pctx->nr3_ctx;
-		isp_cfg_slice_3dnr_info(&slc_cfg, pctx->slice_ctx);
+		isp_slice_3dnr_info_cfg(&slc_cfg, pctx->slice_ctx);
 
 		slc_cfg.ltm_ctx = &pctx->ltm_ctx;
 		if (pctx->ltm_rgb)
-			isp_cfg_slice_ltm_info(&slc_cfg, pctx->slice_ctx, LTM_RGB);
+			isp_slice_ltm_info_cfg(&slc_cfg, pctx->slice_ctx, LTM_RGB);
 		if (pctx->ltm_yuv)
-			isp_cfg_slice_ltm_info(&slc_cfg, pctx->slice_ctx, LTM_YUV);
+			isp_slice_ltm_info_cfg(&slc_cfg, pctx->slice_ctx, LTM_YUV);
 
 		slc_cfg.nofilter_ctx = &pctx->isp_k_param;
-		isp_cfg_slice_noisefilter_info(&slc_cfg, pctx->slice_ctx);
+		isp_slice_noisefilter_info_cfg(&slc_cfg, pctx->slice_ctx);
 
 		if (!use_fmcu) {
 			pr_debug("use ap support slices for ctx %d hw %d\n",
@@ -1570,7 +1570,7 @@ static int ispcore_offline_frame_start(void *ctx)
 		} else {
 			pr_debug("use fmcu support slices for ctx %d hw %d\n",
 				pctx->ctx_id, hw_ctx_id);
-			ret = isp_set_slices_fmcu_cmds((void *)fmcu, pctx);
+			ret = isp_slice_fmcu_cmds_set((void *)fmcu, pctx);
 			if (ret == 0)
 				kick_fmcu = 1;
 		}
@@ -2061,7 +2061,7 @@ static int ispcore_slice_ctx_init(struct isp_pipe_context *pctx, uint32_t *multi
 	}
 
 	if (pctx->slice_ctx == NULL) {
-		pctx->slice_ctx = get_isp_slice_ctx();
+		pctx->slice_ctx = isp_slice_ctx_get();
 		if (IS_ERR_OR_NULL(pctx->slice_ctx)) {
 			pr_err("fail to get memory for slice_ctx.\n");
 			pctx->slice_ctx = NULL;
@@ -2093,7 +2093,7 @@ static int ispcore_slice_ctx_init(struct isp_pipe_context *pctx, uint32_t *multi
 	radius_adapt.ctx_id = pctx->ctx_id;
 	radius_adapt.slc_cfg_in = &slc_cfg_in;
 	path->hw->isp_ioctl(path->hw, ISP_HW_CFG_GET_NLM_YNR, &radius_adapt);
-	isp_cfg_slices(&slc_cfg_in, pctx->slice_ctx, &pctx->valid_slc_num);
+	isp_slice_cfg(&slc_cfg_in, pctx->slice_ctx, &pctx->valid_slc_num);
 
 	pr_debug("sw %d valid_slc_num %d\n", pctx->ctx_id, pctx->valid_slc_num);
 	if (pctx->valid_slc_num > 1)
@@ -2661,7 +2661,7 @@ static int ispcore_context_put(void *isp_handle, int ctx_id)
 		};
 
 		if (pctx->slice_ctx)
-			put_isp_slice_ctx(&pctx->slice_ctx);
+			isp_slice_ctx_put(&pctx->slice_ctx);
 
 		cam_queue_clear(&pctx->in_queue, struct camera_frame, list);
 		cam_queue_clear(&pctx->proc_queue, struct camera_frame, list);

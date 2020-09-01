@@ -22,7 +22,7 @@
 /*
  * dcam_if fbc capability limit
  * modification to these values may cause some function in isp_slice.c not
- * work, check @_cfg_slice_fbd_raw and all other symbol references for details
+ * work, check @ispslice_slice_fbd_raw_cfg and all other symbol references for details
  */
 #define DCAM_FBC_TILE_WIDTH             64
 #define DCAM_FBC_TILE_HEIGHT            4

@@ -59,7 +59,7 @@ struct isp_scaler_slice_tmp {
 	uint32_t scaler_out_width_temp;
 };
 
-static int sprd_ispslice_noisefliter_info_set(struct isp_slice_desc *slc_ctx,
+static int ispslice_noisefliter_info_set(struct isp_slice_desc *slc_ctx,
 		struct isp_slice_context *ctx)
 {
 	int rtn = 0;
@@ -101,7 +101,7 @@ exit:
 	return rtn;
 }
 
-static int get_slice_size_info(
+static int ispslice_slice_size_info_get(
 			struct slice_cfg_input *in_ptr,
 			uint32_t *w, uint32_t *h)
 {
@@ -161,7 +161,7 @@ static int get_slice_size_info(
 	return rtn;
 }
 
-static int get_slice_overlap_info(
+static int ispslice_slice_overlap_info_get(
 			struct slice_cfg_input *in_ptr,
 			struct isp_slice_context *slc_ctx)
 {
@@ -184,7 +184,7 @@ static int get_slice_overlap_info(
 	return 0;
 }
 
-static int cfg_slice_base_info(
+static int ispslice_slice_base_info_cfg(
 			struct slice_cfg_input *in_ptr,
 			struct isp_slice_context *slc_ctx,
 			uint32_t *valid_slc_num)
@@ -201,9 +201,9 @@ static int cfg_slice_base_info(
 
 	struct isp_slice_desc *cur_slc;
 
-	rtn = get_slice_size_info(in_ptr, &slice_width, &slice_height);
+	rtn = ispslice_slice_size_info_get(in_ptr, &slice_width, &slice_height);
 
-	rtn = get_slice_overlap_info(in_ptr, slc_ctx);
+	rtn = ispslice_slice_overlap_info_get(in_ptr, slc_ctx);
 
 	img_height = in_ptr->frame_in_size.h;
 	img_width = in_ptr->frame_in_size.w;
@@ -339,7 +339,7 @@ static int cfg_slice_base_info(
 	return rtn;
 }
 
-static int cfg_slice_nr_info(
+static int ispslice_slice_nr_info_cfg(
 		struct slice_cfg_input *in_ptr,
 		struct isp_slice_context *slc_ctx)
 {
@@ -386,7 +386,7 @@ static int cfg_slice_nr_info(
 	return 0;
 }
 
-static void cfg_spath_trim0_info(
+static void ispslice_spath_trim0_info_cfg(
 		struct isp_scaler_slice_tmp *sinfo,
 		struct img_trim *frm_trim0,
 		struct slice_scaler_info *slc_scaler)
@@ -471,7 +471,7 @@ static void cfg_spath_trim0_info(
 	}
 }
 
-static void cfg_spath_deci_info(
+static void ispslice_spath_deci_info_cfg(
 		struct isp_scaler_slice_tmp *sinfo,
 		struct img_deci_info *frm_deci,
 		struct img_trim *frm_trim0,
@@ -533,14 +533,14 @@ static void cfg_spath_deci_info(
 
 }
 
-static void calc_scaler_phase(uint32_t phase, uint32_t factor,
+static void ispslice_scaler_phase_calc(uint32_t phase, uint32_t factor,
 	uint32_t *phase_int, uint32_t *phase_rmd)
 {
 	phase_int[0] = (uint32_t)(phase / factor);
 	phase_rmd[0] = (uint32_t)(phase - factor * phase_int[0]);
 }
 
-static void cfg_spath_scaler_info(
+static void ispslice_spath_scaler_info_cfg(
 		struct isp_scaler_slice_tmp *slice,
 		struct img_trim *frm_trim0,
 		struct isp_scaler_info *in,
@@ -640,9 +640,9 @@ static void cfg_spath_scaler_info(
 			}
 		}
 
-		calc_scaler_phase(phase_in * 4, scl_factor_out * 2,
+		ispslice_scaler_phase_calc(phase_in * 4, scl_factor_out * 2,
 			&out->scaler_ip_int, &out->scaler_ip_rmd);
-		calc_scaler_phase(phase_in, scl_factor_out,
+		ispslice_scaler_phase_calc(phase_in, scl_factor_out,
 			&out->scaler_cip_int, &out->scaler_cip_rmd);
 
 		scl_factor_in = in->scaler_ver_factor_in;
@@ -743,13 +743,13 @@ static void cfg_spath_scaler_info(
 			}
 		}
 
-		calc_scaler_phase(phase_in, scl_factor_out,
+		ispslice_scaler_phase_calc(phase_in, scl_factor_out,
 			&out->scaler_ip_int_ver, &out->scaler_ip_rmd_ver);
 		if (in->odata_mode == 1) {
 			phase_in /= 2;
 			scl_factor_out /= 2;
 		}
-		calc_scaler_phase(phase_in, scl_factor_out,
+		ispslice_scaler_phase_calc(phase_in, scl_factor_out,
 			&out->scaler_cip_int_ver, &out->scaler_cip_rmd_ver);
 
 		if (out->scaler_ip_int >= 16) {
@@ -788,7 +788,7 @@ static void cfg_spath_scaler_info(
 	}
 }
 
-void cfg_spath_trim1_info(
+void isp_slice_spath_trim1_info_cfg(
 		struct isp_scaler_slice_tmp *slice,
 		struct img_trim *frm_trim0,
 		struct isp_scaler_info *in,
@@ -862,7 +862,7 @@ void cfg_spath_trim1_info(
 	}
 }
 
-static int cfg_slice_thumbscaler(
+static int ispslice_slice_thumbscaler_cfg(
 		struct isp_slice_desc *cur_slc,
 		struct img_trim *frm_trim0,
 		struct isp_thumbscaler_info *scalerFrame,
@@ -970,7 +970,7 @@ static int cfg_slice_thumbscaler(
 	return ret;
 }
 
-static int cfg_slice_scaler_info(
+static int ispslice_slice_scaler_info_cfg(
 		struct slice_cfg_input *in_ptr,
 		struct isp_slice_context *slc_ctx)
 {
@@ -1026,7 +1026,7 @@ static int cfg_slice_scaler_info(
 			pr_debug("path %d  enable.\n", j);
 
 			if (j == ISP_SPATH_FD) {
-				cfg_slice_thumbscaler(cur_slc,
+				ispslice_slice_thumbscaler_cfg(cur_slc,
 					in_ptr->frame_trim0[j],
 					(struct isp_thumbscaler_info *)
 					in_ptr->frame_scaler[j],
@@ -1062,20 +1062,20 @@ static int cfg_slice_scaler_info(
 			sinfo.trim0_end_y = frm_trim0->start_y +
 				frm_trim0->size_y;
 
-			cfg_spath_trim0_info(&sinfo, frm_trim0, slc_scaler);
+			ispslice_spath_trim0_info_cfg(&sinfo, frm_trim0, slc_scaler);
 			if (slc_scaler->out_of_range) {
 				cur_slc->path_en[j] = 0;
 				continue;
 			}
 
-			cfg_spath_deci_info(&sinfo, frm_deci, frm_trim0,
+			ispslice_spath_deci_info_cfg(&sinfo, frm_deci, frm_trim0,
 				slc_scaler);
-			cfg_spath_scaler_info(&sinfo, frm_trim0, frm_scaler,
+			ispslice_spath_scaler_info_cfg(&sinfo, frm_trim0, frm_scaler,
 				slc_scaler);
 
 			sinfo.trim1_sum_x = trim1_sum_x[j][cur_slc->x];
 			sinfo.trim1_sum_y = trim1_sum_y[j][cur_slc->y];
-			cfg_spath_trim1_info(&sinfo, frm_trim0, frm_scaler,
+			isp_slice_spath_trim1_info_cfg(&sinfo, frm_trim0, frm_scaler,
 				slc_scaler);
 
 			if (cur_slc->y == 0 &&
@@ -1112,7 +1112,7 @@ static int cfg_slice_scaler_info(
 	return 0;
 }
 
-static void _cfg_slice_fetch(struct isp_fetch_info *frm_fetch,
+static void ispslice_slice_fetch_cfg(struct isp_fetch_info *frm_fetch,
 		struct isp_slice_desc *cur_slc)
 {
 	uint32_t start_col, start_row;
@@ -1186,7 +1186,7 @@ static void _cfg_slice_fetch(struct isp_fetch_info *frm_fetch,
 		 slc_fetch->size.w, slc_fetch->size.h);
 }
 
-static void _cfg_slice_fbd_raw(struct isp_fbd_raw_info *frame_fbd_raw,
+static void ispslice_slice_fbd_raw_cfg(struct isp_fbd_raw_info *frame_fbd_raw,
 		struct isp_slice_desc *cur_slc)
 {
 	uint32_t left_tiles_num = 0,
@@ -1288,7 +1288,7 @@ static void _cfg_slice_fbd_raw(struct isp_fbd_raw_info *frame_fbd_raw,
 		 slc_fbd_raw->low_4bit_addr_init);
 }
 
-int isp_cfg_slice_fetch_info(void *cfg_in, struct isp_slice_context *slc_ctx)
+int isp_slice_fetch_info_cfg(void *cfg_in, struct isp_slice_context *slc_ctx)
 {
 	int i;
 	struct slice_cfg_input *in_ptr = (struct slice_cfg_input *)cfg_in;
@@ -1299,15 +1299,15 @@ int isp_cfg_slice_fetch_info(void *cfg_in, struct isp_slice_context *slc_ctx)
 			continue;
 
 		if (!in_ptr->frame_fbd_raw->fetch_fbd_bypass)
-			_cfg_slice_fbd_raw(in_ptr->frame_fbd_raw, cur_slc);
+			ispslice_slice_fbd_raw_cfg(in_ptr->frame_fbd_raw, cur_slc);
 		else
-			_cfg_slice_fetch(in_ptr->frame_fetch, cur_slc);
+			ispslice_slice_fetch_cfg(in_ptr->frame_fetch, cur_slc);
 	}
 
 	return 0;
 }
 
-int isp_cfg_slice_store_info(
+int isp_slice_store_info_cfg(
 		void *cfg_in, struct isp_slice_context *slc_ctx)
 {
 	int i, j;
@@ -1484,7 +1484,7 @@ int isp_cfg_slice_store_info(
 	return 0;
 }
 
-int isp_cfg_slice_afbc_store_info(
+int isp_slice_afbc_store_info_cfg(
 		void *cfg_in, struct isp_slice_context *slc_ctx)
 {
 	int i = 0, j = 0, slice_id = 0;
@@ -1602,7 +1602,7 @@ int isp_cfg_slice_afbc_store_info(
 	return 0;
 }
 
-static int cfg_slice_3dnr_memctrl_info(
+static int ispslice_3dnr_memctrl_info_cfg(
 		void *cfg_in, struct isp_slice_context *slc_ctx)
 {
 	int ret = 0, idx = 0;
@@ -1676,7 +1676,7 @@ static int cfg_slice_3dnr_memctrl_info(
 	return ret;
 }
 
-static int cfg_slice_3dnr_fbd_fetch_info(
+static int ispslice_3dnr_fbd_fetch_info_cfg(
 		void *cfg_in, struct isp_slice_context *slc_ctx)
 {
 	int ret = 0, idx = 0;
@@ -1874,7 +1874,7 @@ static int cfg_slice_3dnr_fbd_fetch_info(
 	return ret;
 }
 
-static int cfg_slice_3dnr_store_info(
+static int ispslice_3dnr_store_info_cfg(
 		void *cfg_in, struct isp_slice_context *slc_ctx)
 {
 	int ret = 0, idx = 0;
@@ -1963,7 +1963,7 @@ static int cfg_slice_3dnr_store_info(
 	return ret;
 }
 
-static int cfg_slice_3dnr_fbc_store_info(
+static int ispslice_3dnr_fbc_store_info_cfg(
 		void *cfg_in, struct isp_slice_context *slc_ctx)
 {
 	int ret = 0, idx = 0;
@@ -2042,7 +2042,7 @@ static int cfg_slice_3dnr_fbc_store_info(
 	return ret;
 }
 
-static int cfg_slice_3dnr_crop_info(
+static int ispslice_3dnr_crop_info_cfg(
 		void *cfg_in, struct isp_slice_context *slc_ctx)
 {
 	int ret = 0;
@@ -2109,7 +2109,7 @@ static int cfg_slice_3dnr_crop_info(
 	return ret;
 }
 
-static int cfg_slice_3dnr_memctrl_update_info(
+static int ispslice_3dnr_memctrl_update_info_cfg(
 		void *cfg_in, struct isp_slice_context *slc_ctx)
 {
 	int ret = 0, idx = 0;
@@ -2201,32 +2201,32 @@ static int cfg_slice_3dnr_memctrl_update_info(
 	return ret;
 }
 
-int isp_cfg_slice_3dnr_info(
+int isp_slice_3dnr_info_cfg(
 		void *cfg_in, struct isp_slice_context *slc_ctx)
 {
 	int ret = 0;
 	struct slice_cfg_input *in_ptr = (struct slice_cfg_input *)cfg_in;
 
-	ret = cfg_slice_3dnr_memctrl_info(cfg_in, slc_ctx);
+	ret = ispslice_3dnr_memctrl_info_cfg(cfg_in, slc_ctx);
 	if (ret) {
 		pr_err("fail to set slice 3dnr mem ctrl!\n");
 		goto exit;
 	}
 
-	ret = cfg_slice_3dnr_memctrl_update_info(cfg_in, slc_ctx);
+	ret = ispslice_3dnr_memctrl_update_info_cfg(cfg_in, slc_ctx);
 	if (ret) {
 		pr_err("fail to update slice 3dnr mem ctrl!\n");
 		goto exit;
 	}
 
-	ret = cfg_slice_3dnr_store_info(cfg_in, slc_ctx);
+	ret = ispslice_3dnr_store_info_cfg(cfg_in, slc_ctx);
 	if (ret) {
 		pr_err("fail to set slice 3dnr store info!\n");
 		goto exit;
 	}
 
 	if (!in_ptr->nr3_ctx->nr3_fbc_store.bypass) {
-		ret = cfg_slice_3dnr_fbc_store_info(cfg_in, slc_ctx);
+		ret = ispslice_3dnr_fbc_store_info_cfg(cfg_in, slc_ctx);
 		if (ret) {
 			pr_err("fail to set slice 3dnr fbc store info!\n");
 			goto exit;
@@ -2234,14 +2234,14 @@ int isp_cfg_slice_3dnr_info(
 	}
 
 	if (in_ptr->nr3_ctx->mem_ctrl.nr3_ft_path_sel) {
-		ret = cfg_slice_3dnr_fbd_fetch_info(cfg_in, slc_ctx);
+		ret = ispslice_3dnr_fbd_fetch_info_cfg(cfg_in, slc_ctx);
 		if (ret) {
 			pr_err("fail to set slice 3dnr fbd fetch ctrl!\n");
 			goto exit;
 		}
 	}
 
-	ret = cfg_slice_3dnr_crop_info(cfg_in, slc_ctx);
+	ret = ispslice_3dnr_crop_info_cfg(cfg_in, slc_ctx);
 	if (ret) {
 		pr_err("fail to set slice 3dnr crop info!\n");
 		goto exit;
@@ -2251,7 +2251,7 @@ exit:
 	return ret;
 }
 
-int isp_cfg_slice_ltm_info(void *cfg_in,
+int isp_slice_ltm_info_cfg(void *cfg_in,
 	struct isp_slice_context *slc_ctx,
 	enum isp_ltm_region ltm_id)
 {
@@ -2317,7 +2317,7 @@ int isp_cfg_slice_ltm_info(void *cfg_in,
 	return ret;
 }
 
-int isp_cfg_slice_noisefilter_info(void *cfg_in, struct isp_slice_context *slc_ctx)
+int isp_slice_noisefilter_info_cfg(void *cfg_in, struct isp_slice_context *slc_ctx)
 {
 	int ret = 0, rtn = 0;
 	struct isp_slice_desc *cur_slc;
@@ -2333,13 +2333,13 @@ int isp_cfg_slice_noisefilter_info(void *cfg_in, struct isp_slice_context *slc_c
 	cur_slc->slice_noisefilter_mode.seed_for_mode1 = isp_k_param->seed0_for_mode1;
 	cur_slc->slice_noisefilter_mode.shape_mode = isp_k_param->shape_mode;
 
-	rtn = sprd_ispslice_noisefliter_info_set(cur_slc, slc_ctx);
+	rtn = ispslice_noisefliter_info_set(cur_slc, slc_ctx);
 
 	return ret;
 
 }
 
-int isp_cfg_slices(void *cfg_in,
+int isp_slice_cfg(void *cfg_in,
 		struct isp_slice_context *slc_ctx,
 		uint32_t *valid_slc_num)
 {
@@ -2352,16 +2352,16 @@ int isp_cfg_slices(void *cfg_in,
 	}
 	memset(slc_ctx, 0, sizeof(struct isp_slice_context));
 
-	cfg_slice_base_info(in_ptr, slc_ctx, valid_slc_num);
+	ispslice_slice_base_info_cfg(in_ptr, slc_ctx, valid_slc_num);
 
-	cfg_slice_scaler_info(in_ptr, slc_ctx);
+	ispslice_slice_scaler_info_cfg(in_ptr, slc_ctx);
 
-	cfg_slice_nr_info(in_ptr, slc_ctx);
+	ispslice_slice_nr_info_cfg(in_ptr, slc_ctx);
 
 	return ret;
 }
 
-void *get_isp_slice_ctx()
+void *isp_slice_ctx_get()
 {
 	struct isp_slice_context *ptr;
 
@@ -2372,7 +2372,7 @@ void *get_isp_slice_ctx()
 	return ptr;
 }
 
-int put_isp_slice_ctx(void **slc_ctx)
+int isp_slice_ctx_put(void **slc_ctx)
 {
 	if (*slc_ctx)
 		vfree(*slc_ctx);
@@ -2380,7 +2380,7 @@ int put_isp_slice_ctx(void **slc_ctx)
 	return 0;
 }
 
-static int set_slice_3dnr(
+static int ispslice_3dnr_set(
 		struct isp_fmcu_ctx_desc *fmcu,
 		struct isp_slice_desc *cur_slc,
 		struct cam_hw_info *hw,
@@ -2418,7 +2418,7 @@ static int set_slice_3dnr(
 	return 0;
 }
 
-int isp_set_slices_fmcu_cmds(void *fmcu_handle, void *ctx)
+int isp_slice_fmcu_cmds_set(void *fmcu_handle, void *ctx)
 {
 	int i, j;
 	int sw_ctx_id = 0;
@@ -2491,7 +2491,7 @@ int isp_set_slices_fmcu_cmds(void *fmcu_handle, void *ctx)
 			hw->isp_ioctl(fmcu, ISP_HW_CFG_SET_SLICE_FETCH, &fetcharg);
 		}
 
-		set_slice_3dnr(fmcu, cur_slc, hw, pctx);
+		ispslice_3dnr_set(fmcu, cur_slc, hw, pctx);
 		if (pctx->ltm_rgb) {
 			ltm.fmcu_handle = fmcu;
 			ltm.map = &cur_slc->slice_ltm_map[LTM_RGB];
@@ -2557,7 +2557,7 @@ int isp_set_slices_fmcu_cmds(void *fmcu_handle, void *ctx)
 	return 0;
 }
 
-int isp_update_slice(
+int isp_slice_update(
 		void *pctx_handle,
 		uint32_t ctx_id,
 		uint32_t slice_id)
