@@ -93,7 +93,7 @@ static struct camera_frame *dcamint_prepare_frame(struct dcam_pipe_dev *dev,
 	path = &dev->path[path_id];
 	if (atomic_read(&path->set_frm_cnt) <= 1) {
 		pr_warn_ratelimited("DCAM%u %s cnt %d, deci %u, out %u, result %u\n",
-			dev->idx, to_path_name(path_id),
+			dev->idx, dcam_path_name_get(path_id),
 			atomic_read(&path->set_frm_cnt), path->frm_deci,
 			cam_queue_cnt_get(&path->out_buf_queue),
 			cam_queue_cnt_get(&path->result_queue));
@@ -103,14 +103,14 @@ static struct camera_frame *dcamint_prepare_frame(struct dcam_pipe_dev *dev,
 	frame = cam_queue_dequeue(&path->result_queue, struct camera_frame, list);
 	if (!frame) {
 		pr_err("fail to get buf,DCAM%u %s output buffer unavailable\n",
-			dev->idx, to_path_name(path_id));
+			dev->idx, dcam_path_name_get(path_id));
 		return NULL;
 	}
 
 	atomic_dec(&path->set_frm_cnt);
 	if (unlikely(frame->is_reserved)) {
 		pr_warn("DCAM%u %s use reserved buffer, out %u, result %u, fid %d\n",
-			dev->idx, to_path_name(path_id),
+			dev->idx, dcam_path_name_get(path_id),
 			cam_queue_cnt_get(&path->out_buf_queue),
 			cam_queue_cnt_get(&path->result_queue), frame->fid);
 		cam_queue_enqueue(&path->reserved_buf_queue, &frame->list);
@@ -128,21 +128,21 @@ static struct camera_frame *dcamint_prepare_frame(struct dcam_pipe_dev *dev,
 		sync = (struct dcam_frame_synchronizer *)frame->sync_data;
 		sync->valid |= BIT(path_id);
 		pr_debug("DCAM%u %s sync ready, id %u, sync 0x%p\n", dev->idx,
-			to_path_name(path_id), sync->index, sync);
+			dcam_path_name_get(path_id), sync->index, sync);
 	}
 
 	pr_debug("DCAM%u %s: TX DONE, fid %u, sync 0x%p\n",
-		 dev->idx, to_path_name(path_id), frame->fid, frame->sync_data);
+		 dev->idx, dcam_path_name_get(path_id), frame->fid, frame->sync_data);
 
 	if (!dev->rps && !frame->boot_sensor_time) {
 		pr_info("DCAM%u %s fid %u invalid 0 timestamp\n",
-			dev->idx, to_path_name(path_id), frame->fid);
+			dev->idx, dcam_path_name_get(path_id), frame->fid);
 		if (frame->is_reserved)
 			cam_queue_enqueue(&path->reserved_buf_queue, &frame->list);
 		else
 			cam_queue_enqueue(&path->out_buf_queue, &frame->list);
 		if (frame->sync_data)
-			dcam_if_release_sync(frame->sync_data, frame);
+			dcam_core_dcam_if_release_sync(frame->sync_data, frame);
 		frame = NULL;
 	}
 
@@ -217,7 +217,7 @@ static void dcamint_fix_index(struct dcam_pipe_dev *dev,
 			continue;
 
 		pr_info("DCAM%u %s fix %u index to %u\n",
-			dev->idx, to_path_name(i), count, begin);
+			dev->idx, dcam_path_name_get(i), count, begin);
 		INIT_LIST_HEAD(&head);
 
 		j = 0;
@@ -267,7 +267,7 @@ static int dcamint_check_frame(struct dcam_pipe_dev *dev,
 	reg_value = DCAM_REG_RD(dev->idx, reg_addr);
 
 	pr_debug("DCAM%u %s frame 0x%08x reg 0x%08x cnt %u\n",
-		 dev->idx, to_path_name(path->path_id),
+		 dev->idx, dcam_path_name_get(path->path_id),
 		 frame_addr, reg_value, cam_queue_cnt_get(&path->result_queue));
 
 	return frame_addr == reg_value;
@@ -510,7 +510,7 @@ static void dcamint_cap_sof(void *param)
 
 	/* don't need frame sync in slow motion */
 	if (!dev->slowmotion_count)
-		helper = dcam_get_sync_helper(dev);
+		helper = dcam_core_sync_helper_get(dev);
 
 	for (i = 0; i < DCAM_PATH_MAX; i++) {
 		path = &dev->path[i];
@@ -549,7 +549,7 @@ static void dcamint_cap_sof(void *param)
 				}
 				spin_unlock_irqrestore(&path->state_lock, flag);
 			}
-			dcam_path_set_store_frm(dev, path, helper);
+			dcam_path_store_frm_set(dev, path, helper);
 		}
 	}
 
@@ -557,7 +557,7 @@ static void dcamint_cap_sof(void *param)
 		if (helper->enabled)
 			helper->sync.index = dev->base_fid + dev->index_to_set;
 		else
-			dcam_put_sync_helper(dev, helper);
+			dcam_core_sync_helper_put(dev, helper);
 	}
 
 dispatch_sof:
@@ -601,7 +601,7 @@ static void dcamint_preview_sof(void *param)
 			continue;
 
 		/* frame deci is deprecated in slow motion */
-		dcam_path_set_store_frm(dev, path, NULL);
+		dcam_path_store_frm_set(dev, path, NULL);
 	}
 
 	dcamint_dispatch_sof_event(dev);
@@ -818,7 +818,7 @@ static void dcamint_afl_done(void *param)
 	if (unlikely(dev->idx == DCAM_ID_2))
 		return;
 
-	dcam_path_set_store_frm(dev, &dev->path[DCAM_PATH_AFL], NULL);
+	dcam_path_store_frm_set(dev, &dev->path[DCAM_PATH_AFL], NULL);
 	if ((frame = dcamint_prepare_frame(dev, DCAM_PATH_AFL)))
 		dcamint_dispatch_frame(dev, DCAM_PATH_AFL, frame, DCAM_CB_STATIS_DONE);
 }
@@ -859,7 +859,7 @@ static void dcamint_nr3_done(void *param)
 			 * Since 3DNR AXI buffer is not used, we can release it
 			 * here. This will not affect motion vector in @sync.
 			 */
-			dcam_if_release_sync(sync, frame);
+			dcam_core_dcam_if_release_sync(sync, frame);
 		}
 
 		dcamint_dispatch_frame(dev, DCAM_PATH_3DNR, frame, DCAM_CB_STATIS_DONE);

@@ -484,7 +484,7 @@ static int camdebugger_replace_image_read(struct seq_file *s,
 			str = "<disabled>";
 			if (replacer[i].enabled[j])
 				str = replacer[i].filename[j];
-			seq_printf(s, "   %s: %s\n", to_path_name(j), str);
+			seq_printf(s, "   %s: %s\n", dcam_path_name_get(j), str);
 		}
 	}
 
@@ -573,7 +573,7 @@ static ssize_t camdebugger_replace_image_write(struct file *filp,
 	strcpy(replacer[dcam].filename[path], s);
 
 	pr_info("DCAM%u %s set replace image: %u %s\n",
-		dcam, to_path_name(path),
+		dcam, dcam_path_name_get(path),
 		replacer[dcam].enabled[path],
 		replacer[dcam].filename[path]);
 

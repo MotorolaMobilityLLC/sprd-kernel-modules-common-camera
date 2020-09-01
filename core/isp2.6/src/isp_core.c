@@ -371,7 +371,7 @@ static int isp_3dnr_process_frame(struct isp_pipe_context *pctx,
 	}
 
 	if (fsync)
-		dcam_if_release_sync(fsync, pframe);
+		dcam_core_dcam_if_release_sync(fsync, pframe);
 
 	return 0;
 }
@@ -1694,7 +1694,7 @@ input_err:
 		pframe->param_data = NULL;
 		/* release sync data as if ISP has consumed */
 		if (pframe->sync_data)
-			dcam_if_release_sync(pframe->sync_data, pframe);
+			dcam_core_dcam_if_release_sync(pframe->sync_data, pframe);
 		/* return buffer to cam channel shared buffer queue. */
 		if (tmp.stream && tmp.stream->data_src == ISP_STREAM_SRC_ISP)
 			pr_debug("isp postproc no need return\n");
@@ -1713,7 +1713,7 @@ input_err:
 				pframe->param_data = NULL;
 				/* release sync data as if ISP has consumed */
 				if (pframe->sync_data)
-					dcam_if_release_sync(pframe->sync_data, pframe);
+					dcam_core_dcam_if_release_sync(pframe->sync_data, pframe);
 				/* return buffer to cam channel shared buffer queue. */
 				pctx->isp_cb_func(ISP_CB_RET_SRC_BUF, pframe, pctx->cb_priv_data);
 			}

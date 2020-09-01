@@ -459,7 +459,7 @@ static int dcamcore_statis_buffer_unmap(struct dcam_pipe_dev *dev)
 	return 0;
 }
 
-static int dcam_cfg_statis_buffer(
+static int dcamcore_statis_buffer_cfg(
 		struct dcam_pipe_dev *dev,
 		struct isp_statis_buf_input *input)
 {
@@ -867,7 +867,7 @@ static int dcamcore_offline_slices_sw_start(void *param)
 		path = &dev->path[i];
 		if (atomic_read(&path->user_cnt) < 1 || atomic_read(&path->is_shutoff) > 0)
 			continue;
-		ret = dcam_path_set_store_frm(dev, path, NULL); /* TODO: */
+		ret = dcam_path_store_frm_set(dev, path, NULL); /* TODO: */
 		if (ret == 0) {
 			/* interrupt need > 1 */
 			atomic_set(&path->set_frm_cnt, 1);
@@ -1124,7 +1124,7 @@ static int dcamcore_offline_frame_start(void *param)
 		path = &dev->path[i];
 		if (atomic_read(&path->user_cnt) < 1 || atomic_read(&path->is_shutoff) > 0)
 			continue;
-		ret = dcam_path_set_store_frm(dev, path, NULL); /* TODO: */
+		ret = dcam_path_store_frm_set(dev, path, NULL); /* TODO: */
 		if (ret == 0) {
 			/* interrupt need > 1 */
 			if (i == DCAM_PATH_FULL || i == DCAM_PATH_BIN) {
@@ -1451,7 +1451,7 @@ int dcamcore_dcam_if_sync_enable_set(void *handle, int path_id, int enable)
 		dev->helper_enabled &= ~BIT(path_id);
 
 	pr_info("DCAM%u %s %s frame sync\n", dev->idx,
-		to_path_name(path_id), enable ? "enable" : "disable");
+		dcam_path_name_get(path_id), enable ? "enable" : "disable");
 
 	return 0;
 }
@@ -1470,7 +1470,7 @@ static inline void dcamcore_sync_helper_locked_put(struct dcam_pipe_dev *dev,
  * Release frame sync reference for @frame thus dcam_frame_synchronizer data
  * can be recycled for next use.
  */
-int dcam_if_release_sync(struct dcam_frame_synchronizer *sync,
+int dcam_core_dcam_if_release_sync(struct dcam_frame_synchronizer *sync,
 		struct camera_frame *frame)
 {
 	struct dcam_sync_helper *helper = NULL;
@@ -1503,7 +1503,7 @@ int dcam_if_release_sync(struct dcam_frame_synchronizer *sync,
 	sync->frames[path_id] = NULL;
 
 	pr_debug("DCAM%u %s release sync, id %u, data 0x%p\n",
-		dev->idx, to_path_name(path_id), sync->index, sync);
+		dev->idx, dcam_path_name_get(path_id), sync->index, sync);
 
 	spin_lock_irqsave(&dev->helper_lock, flags);
 	if (unlikely(!helper->enabled)) {
@@ -1526,7 +1526,7 @@ exit:
 /*
  * Get an empty dcam_sync_helper. Returns NULL if no empty helper remains.
  */
-struct dcam_sync_helper *dcam_get_sync_helper(struct dcam_pipe_dev *dev)
+struct dcam_sync_helper *dcam_core_sync_helper_get(struct dcam_pipe_dev *dev)
 {
 	struct dcam_sync_helper *helper = NULL;
 	unsigned long flags = 0;
@@ -1565,7 +1565,7 @@ exit:
  *
  * This is also an code defect in CAP_SOF that should be changed later...
  */
-void dcam_put_sync_helper(struct dcam_pipe_dev *dev,
+void dcam_core_sync_helper_put(struct dcam_pipe_dev *dev,
 		struct dcam_sync_helper *helper)
 {
 	unsigned long flags = 0;
@@ -1700,7 +1700,7 @@ static inline void dcamcore_frame_info_show(struct dcam_pipe_dev *dev,
 		size = cal_sprd_raw_pitch(frame->width, is_loose) * frame->height;
 
 	pr_debug("DCAM%u %s frame %u %u size %u %u buf %08lx %08x\n",
-		dev->idx, to_path_name(path->path_id),
+		dev->idx, dcam_path_name_get(path->path_id),
 		frame->is_reserved, frame->is_compressed,
 		frame->width, frame->height,
 		frame->buf.iova[0], size);
@@ -1828,10 +1828,10 @@ static int dcamcore_path_cfg(void *dcam_handle, enum dcam_path_cfg_cmd cfg_cmd,
 		}
 		break;
 	case DCAM_PATH_CFG_SIZE:
-		ret = dcam_cfg_path_size(dev, path, param);
+		ret = dcam_path_size_cfg(dev, path, param);
 		break;
 	case DCAM_PATH_CFG_BASE:
-		ret = dcam_cfg_path_base(dev, path, param);
+		ret = dcam_path_base_cfg(dev, path, param);
 		break;
 	case DCAM_PATH_CFG_FULL_SOURCE:
 		lowlux_4in1 = *(uint32_t *)param;
@@ -1981,7 +1981,7 @@ static int dcamcore_ioctrl(void *dcam_handle, enum dcam_ioctrl_cmd cmd, void *pa
 		dev->slice_count = 0;
 		break;
 	case DCAM_IOCTL_CFG_STATIS_BUF:
-		ret = dcam_cfg_statis_buffer(dev, param);
+		ret = dcamcore_statis_buffer_cfg(dev, param);
 		break;
 	case DCAM_IOCTL_PUT_RESERV_STATSBUF:
 		ret = dcamcore_reserved_buffer_put(dev);
@@ -2262,7 +2262,7 @@ static int dcamcore_dev_start(void *dcam_handle, int online)
 		dcamcore_dcam_if_sync_enable_set(dev, DCAM_PATH_BIN, 1);
 		dcamcore_dcam_if_sync_enable_set(dev, DCAM_PATH_3DNR, 1);
 
-		helper = dcam_get_sync_helper(dev);
+		helper = dcam_core_sync_helper_get(dev);
 	}
 
 	caparg.idx = dev->idx;
@@ -2305,10 +2305,10 @@ static int dcamcore_dev_start(void *dcam_handle, int online)
 			spin_unlock_irqrestore(&path->state_lock, flag);
 		}
 
-		ret = dcam_path_set_store_frm(dev, path, helper);
+		ret = dcam_path_store_frm_set(dev, path, helper);
 		if (ret < 0) {
 			pr_err("fail to set frame for DCAM%u %s , ret %d\n",
-				dev->idx, to_path_name(path->path_id), ret);
+				dev->idx, dcam_path_name_get(path->path_id), ret);
 			return ret;
 		}
 
@@ -2329,7 +2329,7 @@ static int dcamcore_dev_start(void *dcam_handle, int online)
 		if (helper->enabled)
 			helper->sync.index = dev->base_fid + dev->index_to_set;
 		else
-			dcam_put_sync_helper(dev, helper);
+			dcam_core_sync_helper_put(dev, helper);
 	}
 
 	/* TODO: change AFL trigger */
@@ -2507,7 +2507,7 @@ static int dcamcore_dev_open(void *dcam_handle)
 	}
 	dev->cur_ctx_id = DCAM_CXT_0;
 
-	ret = dcam_hw_init(dev);
+	ret = dcam_drv_hw_init(dev);
 	if (ret) {
 		pr_err("fail to open DCAM%u, ret: %d\n",
 			dev->idx, ret);
@@ -2538,7 +2538,7 @@ static int dcamcore_dev_open(void *dcam_handle)
 
 reset_fail:
 	atomic_dec(&s_dcam_axi_opened);
-	ret = dcam_hw_deinit(dev);
+	ret = dcam_drv_hw_deinit(dev);
 hw_fail:
 	dcamcore_context_deinit(pctx);
 exit:
@@ -2589,7 +2589,7 @@ int dcamcore_dev_close(void *dcam_handle)
 		dev->path[DCAM_PATH_BIN].rds_coeff_size = 0;
 	}
 
-	ret = dcam_hw_deinit(dev);
+	ret = dcam_drv_hw_deinit(dev);
 
 	atomic_set(&dev->state, STATE_INIT);
 	/* for debugfs */
@@ -2626,7 +2626,7 @@ uint32_t dcamcore_dcam_if_open_count_get(void)
 /*
  * Create a dcam_pipe_dev for designated cam_hw_info.
  */
-void *dcam_if_get_dev(uint32_t idx, struct cam_hw_info *hw)
+void *dcam_core_dcam_if_dev_get(uint32_t idx, struct cam_hw_info *hw)
 {
 	struct dcam_pipe_dev *dev = NULL;
 

@@ -48,7 +48,7 @@ int dcam_k_afm_block(struct dcam_dev_param *param)
 		((p->afm_skip_num & 0x7) << 4);
 	DCAM_REG_MWR(idx, ISP_AFM_FRM_CTRL, 0x7C, val);
 	/* TODO bad to set same register in different locations */
-	dcam_path_set_skip_num(param->dev, DCAM_PATH_AFM,
+	dcam_path_skip_num_set(param->dev, DCAM_PATH_AFM,
 			       param->afm.af_param.afm_skip_num);
 	if (p->bypass)
 		return 0;
@@ -208,7 +208,7 @@ int dcam_k_afm_skipnum(struct dcam_dev_param *param)
 	/* afm_skip_num_clr */
 	DCAM_REG_MWR(idx, ISP_AFM_FRM_CTRL1, BIT_1, 1 << 1);
 
-	dcam_path_set_skip_num(param->dev, DCAM_PATH_AFM, param->afm.skip_num);
+	dcam_path_skip_num_set(param->dev, DCAM_PATH_AFM, param->afm.skip_num);
 
 	return ret;
 }

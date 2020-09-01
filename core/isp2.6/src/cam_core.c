@@ -1395,7 +1395,7 @@ static struct camera_frame *camcore_deal_dual_frame(struct camera_module *module
 		pframe = camcore_dual_fifo_queue(module, pframe, channel);
 		if (pframe) {
 			if (pframe->sync_data)
-				dcam_if_release_sync(pframe->sync_data,
+				dcam_core_dcam_if_release_sync(pframe->sync_data,
 					pframe);
 			ret = module->dcam_dev_handle->dcam_pipe_ops->cfg_path(module->dcam_dev_handle,
 				DCAM_PATH_CFG_OUTPUT_BUF,
@@ -1410,7 +1410,7 @@ static struct camera_frame *camcore_deal_dual_frame(struct camera_module *module
 		module->dual_frame = NULL;
 		/* cur frame to out_buf_queue */
 		if (pframe->sync_data)
-			dcam_if_release_sync(pframe->sync_data,	pframe);
+			dcam_core_dcam_if_release_sync(pframe->sync_data,	pframe);
 		ret = module->dcam_dev_handle->dcam_pipe_ops->cfg_path(module->dcam_dev_handle,
 			DCAM_PATH_CFG_OUTPUT_BUF,
 			channel->dcam_path_id, pframe);
@@ -1424,7 +1424,7 @@ static struct camera_frame *camcore_deal_dual_frame(struct camera_module *module
 			module->dual_frame = NULL;
 			/* cur frame to out_buf_queue */
 			if (pframe->sync_data)
-				dcam_if_release_sync(pframe->sync_data,
+				dcam_core_dcam_if_release_sync(pframe->sync_data,
 					pframe);
 			ret = module->dcam_dev_handle->dcam_pipe_ops->cfg_path(module->dcam_dev_handle,
 				DCAM_PATH_CFG_OUTPUT_BUF,
@@ -1445,7 +1445,7 @@ static struct camera_frame *camcore_deal_bigsize_frame(struct camera_module *mod
 
 	/* full path release sync */
 	if (pframe->sync_data)
-		dcam_if_release_sync(pframe->sync_data, pframe);
+		dcam_core_dcam_if_release_sync(pframe->sync_data, pframe);
 	/* 1: aux dcam bin tx done, set frame to isp
 	 * 2: lowlux capture, dcam0 full path done, set frame to isp
 	 */
@@ -1513,7 +1513,7 @@ static struct camera_frame *camcore_deal_4in1_frame(struct camera_module *module
 
 	/* full path release sync */
 	if (pframe->sync_data)
-		dcam_if_release_sync(pframe->sync_data,	pframe);
+		dcam_core_dcam_if_release_sync(pframe->sync_data,	pframe);
 	/* 1: aux dcam bin tx done, set frame to isp
 	 * 2: lowlux capture, dcam0 full path done, set frame to isp
 	 */
@@ -1905,7 +1905,7 @@ int camcore_dcam_callback(enum dcam_cb_type type, void *param, void *priv_data)
 				pr_info("cap time %lld, frame time %lld\n",
 					module->capture_times, pframe->boot_sensor_time);
 				if (pframe->sync_data)
-					dcam_if_release_sync(pframe->sync_data, pframe);
+					dcam_core_dcam_if_release_sync(pframe->sync_data, pframe);
 				if (channel->ch_uinfo.scene == DCAM_SCENE_MODE_CAPTURE
 					&& capture == 0) {
 					ret = module->dcam_dev_handle->dcam_pipe_ops->cfg_path(module->dcam_dev_handle,
@@ -1997,7 +1997,7 @@ int camcore_dcam_callback(enum dcam_cb_type type, void *param, void *priv_data)
 					channel->dcam_path_id, pframe);
 				/* release sync if ISP don't need it */
 				if (pframe->sync_data)
-					dcam_if_release_sync(pframe->sync_data,
+					dcam_core_dcam_if_release_sync(pframe->sync_data,
 							     pframe);
 			}
 		} else if (channel->ch_id == CAM_CH_CAP) {
@@ -2024,7 +2024,7 @@ int camcore_dcam_callback(enum dcam_cb_type type, void *param, void *priv_data)
 				 * to ISP.
 				 */
 				if (pframe->sync_data)
-					dcam_if_release_sync(pframe->sync_data,
+					dcam_core_dcam_if_release_sync(pframe->sync_data,
 							     pframe);
 
 				if (pframe->img_fmt == IMG_PIX_FMT_GREY) {
@@ -2088,7 +2088,7 @@ int camcore_dcam_callback(enum dcam_cb_type type, void *param, void *priv_data)
 				/* FDR catpure should wait for RAW buffer except time condition */
 				if (module->capture_scene == CAPTURE_FDR) {
 					if (pframe->sync_data)
-						dcam_if_release_sync(pframe->sync_data, pframe);
+						dcam_core_dcam_if_release_sync(pframe->sync_data, pframe);
 					if ((pframe->boot_sensor_time < module->capture_times) ||
 						(pframe->img_fmt != IMG_PIX_FMT_GREY) ||
 						(atomic_read(&module->capture_frames_dcam) < 1)) {
@@ -2122,7 +2122,7 @@ int camcore_dcam_callback(enum dcam_cb_type type, void *param, void *priv_data)
 						pframe->boot_sensor_time
 						);
 					if (pframe->sync_data)
-						dcam_if_release_sync(pframe->sync_data, pframe);
+						dcam_core_dcam_if_release_sync(pframe->sync_data, pframe);
 					ret = module->dcam_dev_handle->dcam_pipe_ops->cfg_path(
 						module->dcam_dev_handle,
 						DCAM_PATH_CFG_OUTPUT_BUF,
@@ -2144,7 +2144,7 @@ int camcore_dcam_callback(enum dcam_cb_type type, void *param, void *priv_data)
 							module->dcam_cap_status, cap_frame);
 						atomic_dec(&module->cap_skip_frames);
 						if (pframe->sync_data)
-							dcam_if_release_sync(pframe->sync_data, pframe);
+							dcam_core_dcam_if_release_sync(pframe->sync_data, pframe);
 						ret = module->dcam_dev_handle->dcam_pipe_ops->cfg_path(
 							module->dcam_dev_handle,
 							DCAM_PATH_CFG_OUTPUT_BUF,
@@ -2165,7 +2165,7 @@ int camcore_dcam_callback(enum dcam_cb_type type, void *param, void *priv_data)
 			if (ret) {
 				pr_debug("capture queue overflow\n");
 				if (pframe->sync_data)
-					dcam_if_release_sync(pframe->sync_data,
+					dcam_core_dcam_if_release_sync(pframe->sync_data,
 							     pframe);
 				ret = module->dcam_dev_handle->dcam_pipe_ops->cfg_path(
 						module->dcam_dev_handle,
@@ -3673,7 +3673,7 @@ static int camcore_init_aux_dcam(struct camera_module *module,
 	for ( ; dcam == NULL && dcam_idx <= DCAM_ID_1; dcam_idx++) {
 		if (dcam_idx == module->dcam_idx)
 			continue;
-		dcam = dcam_if_get_dev(dcam_idx, grp->hw_info);
+		dcam = dcam_core_dcam_if_dev_get(dcam_idx, grp->hw_info);
 		if (IS_ERR_OR_NULL(dcam)) {
 			pr_info("get dcam%d failed\n", dcam_idx);
 			continue;
@@ -3986,7 +3986,7 @@ static int camcore_init_bigsize_aux(struct camera_module *module,
 
 	dcam = module->aux_dcam_dev;
 	if (dcam == NULL) {
-		dcam = dcam_if_get_dev(dcam_idx, grp->hw_info);
+		dcam = dcam_core_dcam_if_dev_get(dcam_idx, grp->hw_info);
 		if (IS_ERR_OR_NULL(dcam)) {
 			pr_err("fail to get dcam%d\n", dcam_idx);
 			return -EFAULT;
@@ -6147,7 +6147,7 @@ static int camcore_probe(struct platform_device *pdev)
 
 	pr_info("sprd img probe pdev name %s\n", pdev->name);
 	pr_info("sprd dcam dev name %s\n", pdev->dev.init_name);
-	ret = dcam_if_parse_dt(pdev, group->hw_info, &group->dcam_count);
+	ret = dcam_drv_dt_parse(pdev, group->hw_info, &group->dcam_count);
 	if (ret) {
 		pr_err("fail to parse dcam dts\n");
 		goto probe_pw_fail;

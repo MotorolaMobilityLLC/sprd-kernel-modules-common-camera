@@ -294,7 +294,7 @@ struct nr3_me_data {
  * Some data which can be read directly from register is also included in this
  * object.
  * After data in image or statis buffer consumed, consumer modules must call
- * dcam_if_release_sync() to notify dcam_if.
+ * dcam_core_dcam_if_release_sync() to notify dcam_if.
  *
  * @index:             frame index tracked by dcam_if
  * @valid:             camera_frame valid bit for each path
@@ -317,7 +317,7 @@ int dcamcore_dcam_if_sync_enable_set(void *handle, int path_id, int enable);
  * Release frame sync reference for @frame thus dcam_frame_synchronizer data
  * can be recycled for next use.
  */
-int dcam_if_release_sync(struct dcam_frame_synchronizer *sync,
+int dcam_core_dcam_if_release_sync(struct dcam_frame_synchronizer *sync,
 			struct camera_frame *frame);
 /*
  * Test if frame data is valid for path_id. Data will be valid only after
@@ -329,7 +329,7 @@ int dcam_if_release_sync(struct dcam_frame_synchronizer *sync,
  * Retrieve a dcam_if device for the hardware. A dcam_if device is a wrapper
  * with supported operations defined in dcam_pipe_ops.
  */
-void *dcam_if_get_dev(uint32_t idx, struct cam_hw_info *hw);
+void *dcam_core_dcam_if_dev_get(uint32_t idx, struct cam_hw_info *hw);
 /*
  * Release a dcam_if device after capture finished.
  */
@@ -339,9 +339,9 @@ int dcam_hwsim_extra(enum dcam_id idx);
 /*
  * Retrieve hardware info from dt.
  */
-int dcam_hw_init(void *arg);
-int dcam_hw_deinit(void *arg);
-int dcam_if_parse_dt(struct platform_device *pdev,
+int dcam_drv_hw_init(void *arg);
+int dcam_drv_hw_deinit(void *arg);
+int dcam_drv_dt_parse(struct platform_device *pdev,
 			struct cam_hw_info *hw_info,
 			uint32_t *dcam_count);
 uint32_t get_outbuf_queue_cnt(void *dev, int path_id);

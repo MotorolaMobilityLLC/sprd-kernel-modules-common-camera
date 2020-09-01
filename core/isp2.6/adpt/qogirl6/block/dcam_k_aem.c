@@ -134,7 +134,7 @@ int dcam_k_aem_skip_num(struct dcam_dev_param *param)
 	/* It is better to set aem_skip_num_clr when new skip_num is set. */
 	DCAM_REG_MWR(idx, DCAM_AEM_FRM_CTRL1, BIT_1, 1 << 1);
 	/* hw skip, no need software skip again
-	 * dcam_path_set_skip_num(param->dev,
+	 * dcam_path_skip_num_set(param->dev,
 	 *	DCAM_PATH_AEM, param->aem.skip_num);
 	 */
 

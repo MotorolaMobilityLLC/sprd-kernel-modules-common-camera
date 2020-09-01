@@ -39,7 +39,7 @@ unsigned long g_dcam_mmubase;
  * Initialize dcam_if hardware, power/clk/int should be prepared after this call
  * returns. It also brings the dcam_pipe_dev from INIT state to IDLE state.
  */
-int dcam_hw_init(void *arg)
+int dcam_drv_hw_init(void *arg)
 {
 	int ret = 0;
 	struct dcam_pipe_dev *dev = NULL;
@@ -68,7 +68,7 @@ int dcam_hw_init(void *arg)
  * Registers will be inaccessible and dcam_pipe_dev will enter INIT state from
  * IDLE state.
  */
-int dcam_hw_deinit(void *arg)
+int dcam_drv_hw_deinit(void *arg)
 {
 	int ret = 0;
 	struct dcam_pipe_dev *dev = NULL;
@@ -91,7 +91,7 @@ int dcam_hw_deinit(void *arg)
 	return ret;
 }
 
-int dcam_if_parse_dt(struct platform_device *pdev,
+int dcam_drv_dt_parse(struct platform_device *pdev,
 			struct cam_hw_info *hw_info,
 			uint32_t *dcam_count)
 {

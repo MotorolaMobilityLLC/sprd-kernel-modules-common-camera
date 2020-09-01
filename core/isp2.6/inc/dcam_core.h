@@ -285,7 +285,7 @@ struct dcam_pipe_dev {
 /*
  * Get an empty dcam_sync_helper. Returns NULL if no empty helper remains.
  */
-struct dcam_sync_helper *dcam_get_sync_helper(struct dcam_pipe_dev *dev);
+struct dcam_sync_helper *dcam_core_sync_helper_get(struct dcam_pipe_dev *dev);
 /*
  * Put an empty dcam_sync_helper.
  *
@@ -293,6 +293,6 @@ struct dcam_sync_helper *dcam_get_sync_helper(struct dcam_pipe_dev *dev);
  * it should be returned to circle. This only happens when no buffer is
  * available and all paths are using reserved memory.
  */
-void dcam_put_sync_helper(struct dcam_pipe_dev *dev,
+void dcam_core_sync_helper_put(struct dcam_pipe_dev *dev,
 			struct dcam_sync_helper *helper);
 #endif

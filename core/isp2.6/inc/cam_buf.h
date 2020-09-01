@@ -46,11 +46,9 @@ enum cam_iommudev_type {
 struct camera_buf {
 	char name[CAM_BUF_NAME_LEN];
 	bool buf_sec;
-
 	/* user buffer info */
 	int32_t mfd[3];
 	struct dma_buf *dmabuf_p[3];
-
 	void *ionbuf[3];/* for iommu map */
 	uint32_t offset[3];
 	size_t size[3];

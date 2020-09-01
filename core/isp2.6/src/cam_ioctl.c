@@ -1332,7 +1332,7 @@ check:
 
 	dcam = module->dcam_dev_handle;
 	if (dcam == NULL) {
-		dcam = dcam_if_get_dev(dcam_idx, grp->hw_info);
+		dcam = dcam_core_dcam_if_dev_get(dcam_idx, grp->hw_info);
 		if (IS_ERR_OR_NULL(dcam)) {
 			if (retry) {
 				dcam_idx++;
