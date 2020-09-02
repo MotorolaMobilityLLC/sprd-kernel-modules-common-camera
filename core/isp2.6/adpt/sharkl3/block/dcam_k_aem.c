@@ -159,7 +159,7 @@ int dcam_k_cfg_aem(struct isp_io_param *param, struct dcam_dev_param *p)
 	int ret = 0;
 	void *pcpy;
 	int size;
-	struct dcam_pipe_dev *dev;
+	struct dcam_sw_context *dcam_sw_ctx = NULL;
 	FUNC_DCAM_PARAM sub_func = NULL;
 
 	switch (param->property) {
@@ -194,13 +194,13 @@ int dcam_k_cfg_aem(struct isp_io_param *param, struct dcam_dev_param *p)
 		return -EINVAL;
 	}
 
-	dev = (struct dcam_pipe_dev *)p->dev;
+	dcam_sw_ctx = (struct dcam_sw_context *)p->dev;
 	if (!p->offline &&
-		(atomic_read(&dev->state) == STATE_RUNNING) &&
+		(atomic_read(&dcam_sw_ctx->state) == STATE_RUNNING) &&
 		(param->property == DCAM_PRO_AEM_WIN)) {
 		unsigned long flags = 0;
 		struct dcam_dev_aem_win cur;
-		struct dcam_path_desc *path = &dev->path[DCAM_PATH_AEM];
+		struct dcam_path_desc *path = &dcam_sw_ctx->path[DCAM_PATH_AEM];
 
 		ret = copy_from_user(&cur, param->property_param, size);
 		if (ret) {
@@ -209,7 +209,7 @@ int dcam_k_cfg_aem(struct isp_io_param *param, struct dcam_dev_param *p)
 		}
 
 		pr_debug("dcam%d re-config aem win (%d %d %d %d %d %d)\n",
-			dev->idx, cur.offset_x, cur.offset_y,
+			dcam_sw_ctx->hw_ctx_id, cur.offset_x, cur.offset_y,
 			cur.blk_num_x, cur.blk_num_y,
 			cur.blk_width, cur.blk_height);
 
@@ -227,6 +227,8 @@ int dcam_k_cfg_aem(struct isp_io_param *param, struct dcam_dev_param *p)
 			pr_err("fail to copy, ret=0x%x\n", (unsigned int)ret);
 			return -EPERM;
 		}
+		if (p->idx == DCAM_HW_CONTEXT_MAX)
+			return 0;
 		ret = sub_func(p);
 	} else {
 		mutex_lock(&p->param_lock);

@@ -210,6 +210,10 @@ int dcam_k_cfg_afl(struct isp_io_param *param, struct dcam_dev_param *p)
 				(unsigned int)ret);
 			return -EPERM;
 		}
+
+		if (p->idx == DCAM_HW_CONTEXT_MAX)
+			return 0;
+
 		ret = sub_func(p);
 	} else {
 		mutex_lock(&p->param_lock);

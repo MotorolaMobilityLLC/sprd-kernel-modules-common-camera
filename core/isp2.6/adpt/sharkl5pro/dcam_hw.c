@@ -1128,6 +1128,8 @@ static int dcamhw_slice_fetch_set(void *handle, void *arg)
 		prev_picth = (slicearg->slice_trim.size_x * 16 + 127) / 128;
 		bfp = 5;
 	}
+	DCAM_REG_MWR(idx, DCAM_INT_CLR, DCAMINT_IRQ_LINE_MASK, DCAMINT_IRQ_LINE_MASK);
+	DCAM_REG_MWR(idx, DCAM_INT_EN, DCAMINT_IRQ_LINE_MASK, DCAMINT_IRQ_LINE_MASK);
 
 	if (slicearg->dcam_slice_mode == CAM_OFFLINE_SLICE_SW) {
 		DCAM_REG_MWR(idx, DCAM_MIPI_CAP_CFG, BIT_12, 0x1 << 12);

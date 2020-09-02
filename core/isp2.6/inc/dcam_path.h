@@ -21,19 +21,19 @@
 
 const char *dcam_path_name_get(enum dcam_path_id path_id);
 
-int dcam_path_base_cfg(void *dcam_handle,
+int dcam_path_base_cfg(void *dcam_ctx_handle,
 				struct dcam_path_desc *path,
 				void *param);
 
-int dcam_path_size_cfg(void *dcam_handle,
+int dcam_path_size_cfg(void *dcam_ctx_handle,
 				struct dcam_path_desc *path,
 				void *param);
-int dcam_path_skip_num_set(struct dcam_pipe_dev *dev,
+int dcam_path_skip_num_set(void *dcam_ctx_handle,
 				int path_id, uint32_t skip_num);
 
 /* / TODO: refine this*/
 int dcam_path_store_frm_set(
-			void *dcam_handle,
+			void *dcam_ctx_handle,
 			struct dcam_path_desc *path,
 			struct dcam_sync_helper *helper);
 #endif

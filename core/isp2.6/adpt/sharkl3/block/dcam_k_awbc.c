@@ -110,10 +110,6 @@ int dcam_k_cfg_awbc(struct isp_io_param *param, struct dcam_dev_param *p)
 	int size;
 	FUNC_DCAM_PARAM sub_func = NULL;
 
-	/* debugfs bypass awbc */
-	if (g_dcam_bypass[p->idx] & (1 << _E_AWBC))
-		return 0;
-
 	switch (param->property) {
 	case DCAM_PRO_AWBC_BLOCK:
 		pcpy = (void *)&(p->awbc.awbc_info);
@@ -143,6 +139,10 @@ int dcam_k_cfg_awbc(struct isp_io_param *param, struct dcam_dev_param *p)
 				(unsigned int)ret);
 			return -EPERM;
 		}
+
+		if (p->idx == DCAM_HW_CONTEXT_MAX || (g_dcam_bypass[p->idx] & (1 << _E_AWBC)))
+			return 0;
+
 		ret = sub_func(p);
 		return ret;
 	}

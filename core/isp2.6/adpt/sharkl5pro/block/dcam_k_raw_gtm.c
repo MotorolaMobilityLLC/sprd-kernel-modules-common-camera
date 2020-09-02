@@ -84,14 +84,14 @@ int dcam_k_raw_gtm_block(uint32_t gtm_param_idx,
 	unsigned int val = 0;
 	struct dcam_dev_raw_gtm_block_info *p;
 	struct dcam_dev_gtm_slice_info *gtm_slice;
-	struct dcam_pipe_dev *dev = NULL;
+	struct dcam_sw_context *sw_ctx = NULL;
 	struct dcam_dev_gtm_param *gtm = NULL;
 
 	gtm = &param->gtm[gtm_param_idx];
 	if (!gtm->update_en)
 		return 0;
 
-	dev = (struct dcam_pipe_dev *)param->dev;
+	sw_ctx = (struct dcam_sw_context *)param->dev;
 	p = &(gtm->gtm_info);
 	dcam_k_raw_gtm_set_default(p);
 
@@ -102,7 +102,7 @@ int dcam_k_raw_gtm_block(uint32_t gtm_param_idx,
 	if (!p->gtm_mod_en)
 		return 0;
 
-	if (atomic_read(&dev->state) != STATE_RUNNING)
+	if (atomic_read(&sw_ctx->state) != STATE_RUNNING)
 		p->gtm_cur_is_first_frame = 1;
 
 	val = ((p->gtm_map_bypass & 0x1) << 1) |
@@ -125,7 +125,7 @@ int dcam_k_raw_gtm_block(uint32_t gtm_param_idx,
 	val = p->gtm_yavg_diff_thr & 0x3FFF;
 	DCAM_REG_WR(idx, GTM_HIST_CTRL2, val);
 
-	p->gtm_hist_total = dev->cap_info.cap_size.size_x * dev->cap_info.cap_size.size_y;
+	p->gtm_hist_total = sw_ctx->cap_info.cap_size.size_x * sw_ctx->cap_info.cap_size.size_y;
 	val = p->gtm_hist_total & 0x3FFFFFF;
 	DCAM_REG_WR(idx, GTM_HIST_CTRL5, val);
 

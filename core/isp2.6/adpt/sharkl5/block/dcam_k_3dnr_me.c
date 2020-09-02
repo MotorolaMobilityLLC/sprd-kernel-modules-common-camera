@@ -88,8 +88,8 @@ int dcam_k_3dnr_me(struct dcam_dev_param *param)
 {
 	int ret = 0;
 	uint32_t idx = 0;
-	struct dcam_pipe_dev *dev = NULL;
-	struct dcam_dev_3dnr_me *p = NULL; /* nr3_me; */
+	struct dcam_sw_context *dev = NULL;
+	struct dcam_dev_3dnr_me *p = NULL;
 	struct dcam_path_desc *path;
 	struct isp_img_rect rect;
 
@@ -97,7 +97,7 @@ int dcam_k_3dnr_me(struct dcam_dev_param *param)
 		return -EPERM;
 
 	idx = param->idx;
-	dev = param->dev;
+	dev = (struct dcam_sw_context *)param->dev;
 
 	/* debugfs bypass nr3 */
 	if (g_dcam_bypass[idx] & (1 << _E_NR3))
@@ -151,6 +151,9 @@ int dcam_k_cfg_3dnr_me(struct isp_io_param *param, struct dcam_dev_param *p)
 				pr_err("fail to copy, ret=0x%x\n", (unsigned int)ret);
 				return -EPERM;
 			}
+			if (p->idx == DCAM_HW_CONTEXT_MAX)
+				return 0;
+
 			ret = dcam_k_3dnr_me(p);
 		} else {
 			mutex_lock(&p->param_lock);

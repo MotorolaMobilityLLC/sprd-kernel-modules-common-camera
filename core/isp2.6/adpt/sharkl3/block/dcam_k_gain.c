@@ -35,6 +35,10 @@ int dcam_k_rgb_gain_block(struct dcam_dev_param *param)
 	if (param == NULL)
 		return -1;
 
+	/* debug bypass rgb gain */
+	if (param->idx == DCAM_HW_CONTEXT_MAX || (g_dcam_bypass[param->idx] & (1 << _E_RGB)))
+		return 0;
+
 	idx = param->idx;
 	p = &(param->rgb.gain_info);
 
@@ -61,6 +65,10 @@ int dcam_k_rgb_dither_random_block(struct dcam_dev_param *param)
 
 	if (param == NULL)
 		return -1;
+
+	/* debugfs bypass rgb dither(rand) */
+	if (param->idx == DCAM_HW_CONTEXT_MAX || (g_dcam_bypass[param->idx] & (1 << _E_RAND)))
+		return 0;
 
 	idx = param->idx;
 	p = &(param->rgb.rgb_dither);
@@ -94,10 +102,6 @@ int dcam_k_rgb_dither_random_block(struct dcam_dev_param *param)
 int dcam_k_cfg_rgb_gain(struct isp_io_param *param, struct dcam_dev_param *p)
 {
 	int ret = 0;
-
-	/* debug bypass rgb gain */
-	if (g_dcam_bypass[p->idx] & (1 << _E_RGB))
-		return 0;
 
 	switch (param->property) {
 	case DCAM_PRO_GAIN_BLOCK:
@@ -135,10 +139,6 @@ int dcam_k_cfg_rgb_gain(struct isp_io_param *param, struct dcam_dev_param *p)
 int dcam_k_cfg_rgb_dither(struct isp_io_param *param, struct dcam_dev_param *p)
 {
 	int ret = 0;
-
-	/* debugfs bypass rgb dither(rand) */
-	if (g_dcam_bypass[p->idx] & (1 << _E_RAND))
-		return 0;
 
 	switch (param->property) {
 	case DCAM_PRO_GAIN_DITHER_BLOCK:

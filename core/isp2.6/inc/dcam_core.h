@@ -43,9 +43,9 @@
 #define DCAM_FRAME_TIMESTAMP_COUNT        0x40
 /* get index of timestamp from frame index */
 #define tsid(x)                           ((x) & (DCAM_FRAME_TIMESTAMP_COUNT - 1))
-#define DCAM_FETCH_TWICE(dev)             (dev->raw_fetch_num > 1)
-#define DCAM_FIRST_FETCH(dev)             (dev->raw_fetch_count == 1)
-#define DCAM_LAST_FETCH(dev)              (dev->raw_fetch_count == 2)
+#define DCAM_FETCH_TWICE(p)               (p->raw_fetch_num > 1)
+#define DCAM_FIRST_FETCH(p)               (p->raw_fetch_count == 1)
+#define DCAM_LAST_FETCH(p)                (p->raw_fetch_count == 2)
 
 struct dcam_pipe_dev;
 
@@ -171,7 +171,7 @@ struct dcam_sync_helper {
 	struct list_head list;
 	struct dcam_frame_synchronizer sync;
 	uint32_t enabled;
-	struct dcam_pipe_dev *dev;
+	void *dev;
 };
 
 /* for multi dcam context (offline) */
@@ -216,16 +216,19 @@ struct dcam_pipe_context {
  *
  * @raw_proc_scene:    hwsim flag for offline process
  */
-struct dcam_pipe_dev {
-	uint32_t idx;
-	uint32_t irq;
-	atomic_t state;// TODO: use mutex to protect
+struct dcam_sw_context {
+	atomic_t user_cnt;
+	atomic_t state;/* TODO: use mutex to protect */
+
+	uint32_t sw_ctx_id;
+	uint32_t hw_ctx_id;
+	struct dcam_hw_context *hw_ctx;
+
 	uint32_t auto_cpy_id;
 	uint32_t base_fid;
 	uint32_t frame_index;
 	uint32_t index_to_set;
 	bool need_fix;
-	uint32_t handled_bits;
 	uint32_t iommu_status;
 	struct timespec frame_ts[DCAM_FRAME_TIMESTAMP_COUNT];
 	ktime_t frame_ts_boot[DCAM_FRAME_TIMESTAMP_COUNT];
@@ -235,10 +238,9 @@ struct dcam_pipe_dev {
 	struct list_head helper_list;
 	struct dcam_sync_helper helpers[DCAM_SYNC_HELPER_COUNT];
 	struct dcam_image_replacer *replacer;
-	struct cam_hw_info *hw;
 	spinlock_t glb_reg_lock;
 	bool dcamsec_eb;
-	uint32_t err_status;// TODO: change to use state
+	uint32_t err_status;/* TODO: change to use state */
 	uint32_t err_count;/* iommu register dump count in dcam_err */
 	uint32_t pack_bits;
 	uint32_t is_4in1;
@@ -266,7 +268,6 @@ struct dcam_pipe_dev {
 	struct dcam_mipi_info cap_info;
 	void *internal_reserved_buf;/* for statis path output */
 	struct camera_buf statis_buf_array[STATIS_TYPE_MAX][STATIS_BUF_NUM_MAX];
-	dcam_dev_callback dcam_cb_func;
 	void *cb_priv_data;
 	uint32_t cur_ctx_id;
 	struct dcam_pipe_context ctx[DCAM_CXT_NUM];
@@ -275,9 +276,35 @@ struct dcam_pipe_dev {
 	struct camera_queue in_queue;
 	struct camera_queue proc_queue;
 	struct cam_thread_info thread;
-	struct dcam_pipe_ops *dcam_pipe_ops;
+	struct dcam_pipe_dev *dev;
+	dcam_dev_callback dcam_cb_func;
 };
 
+struct dcam_hw_context {
+	atomic_t user_cnt;
+	uint32_t irq;
+	uint32_t sw_ctx_id;
+	uint32_t hw_ctx_id;
+	uint32_t handled_bits;
+	struct dcam_sw_context *sw_ctx;
+};
+
+struct dcam_pipe_dev {
+	atomic_t user_cnt;
+	atomic_t enable;
+	struct dcam_sw_context sw_ctx[DCAM_SW_CONTEXT_MAX];
+	struct dcam_hw_context hw_ctx[DCAM_HW_CONTEXT_MAX];
+	struct mutex path_mutex;
+	spinlock_t ctx_lock;
+	struct dcam_pipe_ops *dcam_pipe_ops;
+	struct cam_hw_info *hw;
+};
+
+enum dcam_bind_mode {
+	DCAM_BIND_FIXED = 0,
+	DCAM_BIND_DYNAMIC,
+	DCAM_BIND_MAX
+};
 /*
  * Test if frame sync is enabled for path @path_id.
  */
@@ -285,7 +312,7 @@ struct dcam_pipe_dev {
 /*
  * Get an empty dcam_sync_helper. Returns NULL if no empty helper remains.
  */
-struct dcam_sync_helper *dcam_core_sync_helper_get(struct dcam_pipe_dev *dev);
+struct dcam_sync_helper *dcam_core_sync_helper_get(void *dev);
 /*
  * Put an empty dcam_sync_helper.
  *
@@ -293,6 +320,11 @@ struct dcam_sync_helper *dcam_core_sync_helper_get(struct dcam_pipe_dev *dev);
  * it should be returned to circle. This only happens when no buffer is
  * available and all paths are using reserved memory.
  */
-void dcam_core_sync_helper_put(struct dcam_pipe_dev *dev,
+void dcam_core_sync_helper_put(void *dev,
 			struct dcam_sync_helper *helper);
+
+int dcam_core_context_bind(struct dcam_sw_context *pctx, enum dcam_bind_mode mode, uint32_t dcam_idx);
+int dcam_core_context_unbind(struct dcam_sw_context *pctx);
+int dcam_core_hw_context_id_get(struct dcam_sw_context *pctx);
+
 #endif

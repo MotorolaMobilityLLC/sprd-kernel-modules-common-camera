@@ -109,7 +109,7 @@ struct dcam_dev_pdaf_param {
 struct dcam_dev_param {
 	struct mutex param_lock;
 	uint32_t idx;/* dcam dev idx */
-	void *dev;/* dcam_pipe_dev */
+	void *dev;/* dcam_sw_ctx */
 	uint32_t dcam_slice_mode;
 	uint32_t offline;
 	uint32_t frm_idx;

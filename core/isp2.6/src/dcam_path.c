@@ -55,24 +55,22 @@ const char *dcam_path_name_get(enum dcam_path_id path_id)
 	return is_path_id(path_id) ? _DCAM_PATH_NAMES[path_id] : "(null)";
 }
 
-int dcam_path_base_cfg(void *dcam_handle,
+int dcam_path_base_cfg(void *dcam_ctx_handle,
 		struct dcam_path_desc *path, void *param)
 {
 	int ret = 0;
-	uint32_t idx;
 	unsigned long flags = 0;
-	struct dcam_pipe_dev *dev = NULL;
-	struct dcam_path_cfg_param *ch_desc;
+	struct dcam_sw_context *dcam_sw_ctx = NULL;
+	struct dcam_path_cfg_param *ch_desc = NULL;
 
-	if (!dcam_handle || !path || !param) {
+	if (!dcam_ctx_handle || !path || !param) {
 		pr_err("fail to get valid param, dcam_handle=%p, path=%p, param=%p.\n",
-			dcam_handle, path, param);
+			dcam_ctx_handle, path, param);
 		return -EFAULT;
 	}
-	dev = (struct dcam_pipe_dev *)dcam_handle;
+	dcam_sw_ctx = (struct dcam_sw_context *)dcam_ctx_handle;
 	ch_desc = (struct dcam_path_cfg_param *)param;
-	idx = dev->idx;
-	dev->cap_info.cap_size = ch_desc->input_trim;
+	dcam_sw_ctx->cap_info.cap_size = ch_desc->input_trim;
 
 	switch (path->path_id) {
 	case DCAM_PATH_FULL:
@@ -100,9 +98,9 @@ int dcam_path_base_cfg(void *dcam_handle,
 		 * Better not binding dcam_if feature to BIN path, which is a
 		 * architecture defect and not going to be fixed now.
 		 */
-		dev->slowmotion_count = ch_desc->slowmotion_count;
-		dev->is_3dnr |= ch_desc->enable_3dnr;
-		dev->raw_cap = ch_desc->raw_cap;
+		dcam_sw_ctx->slowmotion_count = ch_desc->slowmotion_count;
+		dcam_sw_ctx->is_3dnr |= ch_desc->enable_3dnr;
+		dcam_sw_ctx->raw_cap = ch_desc->raw_cap;
 		break;
 	case DCAM_PATH_VCH2:
 		path->endian = ch_desc->endian;
@@ -116,37 +114,32 @@ int dcam_path_base_cfg(void *dcam_handle,
 	return ret;
 }
 
-int dcam_path_size_cfg(void *dcam_handle,
+int dcam_path_size_cfg(void *dcam_ctx_handle,
 		struct dcam_path_desc *path,
 		void *param)
 {
 	int ret = 0;
-	uint32_t idx;
-	uint32_t invalid;
+	uint32_t invalid = 0;
 	struct img_size crop_size, dst_size;
-	struct dcam_pipe_dev *dev = NULL;
+	struct dcam_sw_context *dcam_sw_ctx = NULL;
 	struct dcam_path_cfg_param *ch_desc;
 	struct cam_hw_info *hw = NULL;
 	struct dcam_hw_calc_rds_phase arg;
-	uint32_t dcam_max_w = 0, dcam_max_h = 0;
 	unsigned long flag;
 
-	if (!dcam_handle || !path || !param) {
+	if (!dcam_ctx_handle || !path || !param) {
 		pr_err("fail to get valid param, dcam_handle=%p, path=%p, param=%p.\n",
-			dcam_handle, path, param);
+			dcam_ctx_handle, path, param);
 		return -EFAULT;
 	}
-	dev = (struct dcam_pipe_dev *)dcam_handle;
-	hw = dev->hw;
+	dcam_sw_ctx = (struct dcam_sw_context *)dcam_ctx_handle;
+	hw = dcam_sw_ctx->dev->hw;
 	if (!hw) {
 		pr_err("fail to get a valid hw, hw ptr is NULL.\n");
 		return -EFAULT;
 	}
 
 	ch_desc = (struct dcam_path_cfg_param *)param;
-	idx = dev->idx;
-	dcam_max_w = hw->ip_dcam[idx]->max_width;
-	dcam_max_h = hw->ip_dcam[idx]->max_height;
 
 	switch (path->path_id) {
 	case DCAM_PATH_FULL:
@@ -160,8 +153,6 @@ int dcam_path_size_cfg(void *dcam_handle,
 
 		invalid = 0;
 		invalid |= ((path->in_size.w == 0) || (path->in_size.h == 0));
-		invalid |= (path->in_size.w > dcam_max_w);
-		invalid |= (path->in_size.h > dcam_max_h);
 		invalid |= ((path->in_trim.start_x +
 				path->in_trim.size_x) > path->in_size.w);
 		invalid |= ((path->in_trim.start_y +
@@ -209,7 +200,7 @@ int dcam_path_size_cfg(void *dcam_handle,
 		 */
 		spin_lock_irqsave(&path->size_lock, flag);
 		if (path->size_update) {
-			if (atomic_read(&dev->state) != STATE_RUNNING)
+			if (atomic_read(&dcam_sw_ctx->state) != STATE_RUNNING)
 				pr_info("Overwrite dcam path size before dcam start if any\n");
 			else {
 				spin_unlock_irqrestore(&path->size_lock, flag);
@@ -224,10 +215,6 @@ int dcam_path_size_cfg(void *dcam_handle,
 
 		invalid = 0;
 		invalid |= ((path->in_size.w == 0) || (path->in_size.h == 0));
-		if (!dev->dcam_slice_mode) {
-			invalid |= (path->in_size.w > dcam_max_w);
-			invalid |= (path->in_size.h > dcam_max_h);
-		}
 		/* trim should not be out range of source */
 		invalid |= ((path->in_trim.start_x +
 				path->in_trim.size_x) > path->in_size.w);
@@ -302,7 +289,7 @@ int dcam_path_size_cfg(void *dcam_handle,
 		{
 			struct dcam_path_desc *path_3dnr;
 
-			path_3dnr = &dev->path[DCAM_PATH_3DNR];
+			path_3dnr = &dcam_sw_ctx->path[DCAM_PATH_3DNR];
 			if (atomic_read(&path_3dnr->user_cnt) > 0)
 				path_3dnr->size_update = 1;
 			path_3dnr->in_trim = path->in_trim;
@@ -338,32 +325,32 @@ int dcam_path_size_cfg(void *dcam_handle,
  * is set by algorithm, we should configure AEM output address accordingly in
  * CAP SOF every @skip_num frame.
  */
-int dcam_path_skip_num_set(struct dcam_pipe_dev *dev,
+int dcam_path_skip_num_set(void *dcam_ctx_handle,
 		int path_id, uint32_t skip_num)
 {
 	struct dcam_path_desc *path = NULL;
-
-	if (unlikely(!dev || !is_path_id(path_id)))
+	struct dcam_sw_context *dcam_sw_ctx = (struct dcam_sw_context *)dcam_ctx_handle;
+	if (unlikely(!dcam_sw_ctx || !is_path_id(path_id)))
 		return -EINVAL;
 
-	if (atomic_read(&dev->state) == STATE_RUNNING) {
+	if (atomic_read(&dcam_sw_ctx->state) == STATE_RUNNING) {
 		pr_warn("DCAM%u %s set skip_num while running is forbidden\n",
-			dev->idx, dcam_path_name_get(path_id));
+			dcam_sw_ctx->hw_ctx_id, dcam_path_name_get(path_id));
 		return -EINVAL;
 	}
 
-	path = &dev->path[path_id];
+	path = &dcam_sw_ctx->path[path_id];
 	path->frm_deci = skip_num;
 	path->frm_deci_cnt = 0;
 
 	pr_info("DCAM%u %s set skip_num %u\n",
-		dev->idx, dcam_path_name_get(path_id), skip_num);
+		dcam_sw_ctx->hw_ctx_id, dcam_path_name_get(path_id), skip_num);
 
 	return 0;
 }
 
 static inline struct camera_frame *
-dcam_path_frame_cycle(struct dcam_pipe_dev *dev, struct dcam_path_desc *path)
+dcam_path_frame_cycle(struct dcam_sw_context *dcam_sw_ctx, struct dcam_path_desc *path)
 {
 	uint32_t src;
 	struct camera_frame *frame = NULL;
@@ -394,7 +381,7 @@ dcam_path_frame_cycle(struct dcam_pipe_dev *dev, struct dcam_path_desc *path)
 
 	if (frame == NULL) {
 		pr_debug("DCAM%u %s buffer unavailable\n",
-			dev->idx, dcam_path_name_get(path->path_id));
+			dcam_sw_ctx->hw_ctx_id, dcam_path_name_get(path->path_id));
 		return ERR_PTR(-ENOMEM);
 	}
 
@@ -409,11 +396,11 @@ dcam_path_frame_cycle(struct dcam_pipe_dev *dev, struct dcam_path_desc *path)
 		}
 
 		pr_err("fail to enqueue frame to result_queue, DCAM%u %s output queue overflow\n",
-			dev->idx, dcam_path_name_get(path->path_id));
+			dcam_sw_ctx->hw_ctx_id, dcam_path_name_get(path->path_id));
 		return ERR_PTR(-EPERM);
 	}
 
-	frame->fid = dev->base_fid + dev->index_to_set;
+	frame->fid = dcam_sw_ctx->base_fid + dcam_sw_ctx->index_to_set;
 	frame->sync_data = NULL;
 
 	return frame;
@@ -429,11 +416,11 @@ static inline void dcam_path_frame_pointer_swap(struct camera_frame **frame1,
 	*frame2 = frame;
 }
 
-int dcam_path_store_frm_set(void *dcam_handle,
+int dcam_path_store_frm_set(void *dcam_ctx_handle,
 		struct dcam_path_desc *path,
 		struct dcam_sync_helper *helper)
 {
-	struct dcam_pipe_dev *dev = NULL;
+	struct dcam_sw_context *dcam_sw_ctx = (struct dcam_sw_context *)dcam_ctx_handle;
 	struct dcam_dev_param *blk_dcam_pm;
 	struct cam_hw_info *hw = NULL;
 	struct camera_frame *frame = NULL, *saved = NULL;
@@ -446,33 +433,33 @@ int dcam_path_store_frm_set(void *dcam_handle,
 	int i = 0, ret = 0;
 	uint32_t slm_path = 0;
 
-	if (unlikely(!dcam_handle || !path))
+	if (unlikely(!dcam_ctx_handle || !path))
 		return -EINVAL;
 
-	dev = (struct dcam_pipe_dev *)dcam_handle;
-	blk_dcam_pm = &dev->ctx[dev->cur_ctx_id].blk_pm;
-	hw = dev->hw;
-	idx = dev->idx;
+	dcam_sw_ctx = (struct dcam_sw_context *)dcam_ctx_handle;
+	blk_dcam_pm = &dcam_sw_ctx->ctx[dcam_sw_ctx->cur_ctx_id].blk_pm;
+	hw = dcam_sw_ctx->dev->hw;
+	idx = dcam_sw_ctx->hw_ctx_id;
 	path_id = path->path_id;
-	dev->auto_cpy_id |= *(hw->ip_dcam[idx]->path_ctrl_id_tab + path_id);
+	dcam_sw_ctx->auto_cpy_id |= *(hw->ip_dcam[idx]->path_ctrl_id_tab + path_id);
 
-	if (dev->cap_info.format == DCAM_CAP_MODE_YUV)
-		dev->auto_cpy_id |= *(hw->ip_dcam[idx]->path_ctrl_id_tab + DCAM_PATH_BIN);
+	if (dcam_sw_ctx->cap_info.format == DCAM_CAP_MODE_YUV)
+		dcam_sw_ctx->auto_cpy_id |= *(hw->ip_dcam[idx]->path_ctrl_id_tab + DCAM_PATH_BIN);
 
 	pr_debug("DCAM%u %s enter\n", idx, dcam_path_name_get(path_id));
 
-	frame = dcam_path_frame_cycle(dev, path);
+	frame = dcam_path_frame_cycle(dcam_sw_ctx, path);
 	if (IS_ERR(frame))
 		return PTR_ERR(frame);
 
 	/* assign last buffer for AEM and HIST in slow motion */
-	i = dev->slowmotion_count - 1;
+	i = dcam_sw_ctx->slowmotion_count - 1;
 
-	if (dev->slowmotion_count && path_id == DCAM_PATH_AEM) {
+	if (dcam_sw_ctx->slowmotion_count && path_id == DCAM_PATH_AEM) {
 		/* slow motion AEM */
 		addr = slowmotion_store_addr[_aem][i];
 		frame->fid += i;
-	} else if (dev->slowmotion_count && path_id == DCAM_PATH_HIST) {
+	} else if (dcam_sw_ctx->slowmotion_count && path_id == DCAM_PATH_HIST) {
 		/* slow motion HIST */
 		addr = slowmotion_store_addr[_hist][i];
 		frame->fid += i;
@@ -488,8 +475,8 @@ int dcam_path_store_frm_set(void *dcam_handle,
 	}
 
 	/* replace image data for debug */
-	if (dev->replacer) {
-		struct dcam_image_replacer *replacer = dev->replacer;
+	if (dcam_sw_ctx->replacer) {
+		struct dcam_image_replacer *replacer = dcam_sw_ctx->replacer;
 
 		if ((path_id < DCAM_IMAGE_REPLACER_PATH_MAX)
 			&& replacer->enabled[path_id])
@@ -519,7 +506,7 @@ int dcam_path_store_frm_set(void *dcam_handle,
 			frame->buf.iova[0] + STATIS_HIST_HEADER_SIZE);
 	} else {
 		DCAM_REG_WR(idx, addr, frame->buf.iova[0]);
-		if (dev->cap_info.format == DCAM_CAP_MODE_YUV) {
+		if (dcam_sw_ctx->cap_info.format == DCAM_CAP_MODE_YUV) {
 			if (path_id == DCAM_PATH_FULL) {
 				u_addr = *(hw->ip_dcam[idx]->store_addr_tab + DCAM_PATH_BIN);
 				DCAM_REG_WR(idx, u_addr, frame->buf.iova[0]+frame->width * frame->height);
@@ -553,7 +540,7 @@ int dcam_path_store_frm_set(void *dcam_handle,
 		(uint32_t)addr, (uint32_t)frame->buf.iova[0]);
 
 	/* bind frame sync data if it is not reserved buffer and not raw */
-	if (helper && !frame->is_reserved && is_sync_enabled(dev, path_id)
+	if (helper && !frame->is_reserved && is_sync_enabled(dcam_sw_ctx, path_id)
 		&& !(path_id == DCAM_PATH_FULL && path->src_sel == 0)) {
 		helper->enabled |= BIT(path_id);
 		helper->sync.frames[path_id] = frame;
@@ -573,10 +560,10 @@ int dcam_path_store_frm_set(void *dcam_handle,
 		 */
 		if (spin_trylock_irqsave(&path->size_lock, flags)) {
 			if (path->size_update && !frame->is_reserved) {
-				path_size.idx = dev->idx;
-				path_size.auto_cpy_id = dev->auto_cpy_id;
-				path_size.size_x = dev->cap_info.cap_size.size_x;
-				path_size.size_y = dev->cap_info.cap_size.size_y;
+				path_size.idx = dcam_sw_ctx->hw_ctx_id;
+				path_size.auto_cpy_id = dcam_sw_ctx->auto_cpy_id;
+				path_size.size_x = dcam_sw_ctx->cap_info.cap_size.size_x;
+				path_size.size_y = dcam_sw_ctx->cap_info.cap_size.size_y;
 				path_size.path_id = path->path_id;
 				path_size.src_sel = path->src_sel;
 				path_size.bin_ratio = path->bin_ratio;
@@ -596,8 +583,8 @@ int dcam_path_store_frm_set(void *dcam_handle,
 				path->priv_size_data = NULL;
 
 				if (path_id == DCAM_PATH_BIN) {
-					dev->next_roi = path->in_trim;
-					dev->zoom_ratio = ZOOM_RATIO_DEFAULT *
+					dcam_sw_ctx->next_roi = path->in_trim;
+					dcam_sw_ctx->zoom_ratio = ZOOM_RATIO_DEFAULT *
 						path->in_size.w / path->in_trim.size_x;
 				}
 			}
@@ -606,17 +593,17 @@ int dcam_path_store_frm_set(void *dcam_handle,
 		spin_lock_irqsave(&path->size_lock, flags);
 		if (path_id == DCAM_PATH_FULL && path->base_update) {
 			struct dcam_hw_path_src_sel patharg;
-			patharg.idx = dev->idx;
+			patharg.idx = dcam_sw_ctx->hw_ctx_id;
 			patharg.src_sel = path->src_sel;
 			ret = hw->dcam_ioctl(hw, DCAM_HW_CFG_PATH_SRC_SEL, &patharg);
 		}
 		path->base_update = 0;
 		spin_unlock_irqrestore(&path->size_lock, flags);
 	}
-	frame->zoom_ratio = dev->zoom_ratio;
+	frame->zoom_ratio = dcam_sw_ctx->zoom_ratio;
 
 	/* Re-config aem win if it is updated */
-	if (path_id == DCAM_PATH_AEM && !dev->offline) {
+	if (path_id == DCAM_PATH_AEM && !dcam_sw_ctx->offline) {
 		struct dcam_dev_aem_win *win;
 		struct sprd_img_rect *zoom_rect;
 
@@ -631,10 +618,10 @@ int dcam_path_store_frm_set(void *dcam_handle,
 				sizeof(struct dcam_dev_aem_win));
 			win++;
 			zoom_rect = (struct sprd_img_rect *)win;
-			zoom_rect->x = dev->next_roi.start_x;
-			zoom_rect->y = dev->next_roi.start_y;
-			zoom_rect->w = dev->next_roi.size_x;
-			zoom_rect->h = dev->next_roi.size_y;
+			zoom_rect->x = dcam_sw_ctx->next_roi.start_x;
+			zoom_rect->y = dcam_sw_ctx->next_roi.start_y;
+			zoom_rect->w = dcam_sw_ctx->next_roi.size_x;
+			zoom_rect->h = dcam_sw_ctx->next_roi.size_y;
 		}
 		spin_unlock_irqrestore(&path->size_lock, flags);
 	}
@@ -663,7 +650,7 @@ int dcam_path_store_frm_set(void *dcam_handle,
 	}
 
 	slm_path = hw->ip_dcam[idx]->slm_path;
-	if (dev->slowmotion_count && !dev->index_to_set &&
+	if (dcam_sw_ctx->slowmotion_count && !dcam_sw_ctx->index_to_set &&
 		(path_id == DCAM_PATH_AEM || path_id == DCAM_PATH_HIST)
 		&& (slm_path & BIT(path_id))) {
 		/* configure reserved buffer for AEM and hist */
@@ -676,14 +663,14 @@ int dcam_path_store_frm_set(void *dcam_handle,
 		}
 
 		i = 0;
-		while (i < dev->slowmotion_count - 1) {
+		while (i < dcam_sw_ctx->slowmotion_count - 1) {
 			if (path_id == DCAM_PATH_AEM)
 				addr = slowmotion_store_addr[_aem][i];
 			else
 				addr = slowmotion_store_addr[_hist][i];
 			DCAM_REG_WR(idx, addr, frame->buf.iova[0]);
 
-			pr_debug("DCAM%u %s set reserved frame\n", dev->idx,
+			pr_debug("DCAM%u %s set reserved frame\n", dcam_sw_ctx->hw_ctx_id,
 				 dcam_path_name_get(path_id));
 			i++;
 		}
@@ -691,12 +678,12 @@ int dcam_path_store_frm_set(void *dcam_handle,
 
 		/* put it back */
 		cam_queue_enqueue(&path->reserved_buf_queue, &frame->list);
-	} else if (dev->slowmotion_count && path_id == DCAM_PATH_BIN) {
+	} else if (dcam_sw_ctx->slowmotion_count && path_id == DCAM_PATH_BIN) {
 		i = 1;
-		while (i < dev->slowmotion_count) {
-			frame = dcam_path_frame_cycle(dev, path);
+		while (i < dcam_sw_ctx->slowmotion_count) {
+			frame = dcam_path_frame_cycle(dcam_sw_ctx, path);
 			/* in init phase, return failure if error happens */
-			if (IS_ERR(frame) && !dev->index_to_set) {
+			if (IS_ERR(frame) && !dcam_sw_ctx->index_to_set) {
 				ret = PTR_ERR(frame);
 				goto enqueue_reserved;
 			}
@@ -713,7 +700,7 @@ int dcam_path_store_frm_set(void *dcam_handle,
 				dcam_path_frame_pointer_swap(&frame, &saved);
 			atomic_inc(&path->set_frm_cnt);
 
-			frame->fid = dev->base_fid + dev->index_to_set + i;
+			frame->fid = dcam_sw_ctx->base_fid + dcam_sw_ctx->index_to_set + i;
 
 			pr_debug("DCAM%u BIN set frame: fid %u, count %d\n",
 				idx, frame->fid,
@@ -721,9 +708,9 @@ int dcam_path_store_frm_set(void *dcam_handle,
 			i++;
 		}
 
-		if (unlikely(i != dev->slowmotion_count))
+		if (unlikely(i != dcam_sw_ctx->slowmotion_count))
 			pr_warn("DCAM%u BIN %d frame missed\n",
-				idx, dev->slowmotion_count - i);
+				idx, dcam_sw_ctx->slowmotion_count - i);
 	}
 
 enqueue_reserved:

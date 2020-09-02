@@ -47,31 +47,31 @@ int dcam_init_lsc(void *in, uint32_t online)
 	uint16_t *w_buff = NULL, *gain_tab = NULL;
 	struct dcam_dev_lsc_info *info = NULL;
 	struct dcam_dev_lsc_param *param = NULL;
-	struct dcam_pipe_dev *dev;
+	struct dcam_sw_context *dcam_sw_ctx;
 	struct dcam_dev_param *blk_dcam_pm;
 	struct cam_hw_info *hw = NULL;
 	struct dcam_hw_force_copy copyarg;
 
 	blk_dcam_pm = (struct dcam_dev_param *)in;
-	dev = (struct dcam_pipe_dev *)blk_dcam_pm->dev;
-	hw = dev->hw;
+	dcam_sw_ctx = (struct dcam_sw_context *)blk_dcam_pm->dev;
+	hw = dcam_sw_ctx->dev->hw;
 	param = &blk_dcam_pm->lsc;
 
 	copyarg.id = DCAM_CTRL_BIN;
-	copyarg.idx = dev->idx;
-	copyarg.glb_reg_lock = dev->glb_reg_lock;
+	copyarg.idx = dcam_sw_ctx->hw_ctx_id;
+	copyarg.glb_reg_lock = dcam_sw_ctx->glb_reg_lock;
 	if (!param->update) {
 		/* need, because other block need coef */
 		hw->dcam_ioctl(hw, DCAM_HW_CFG_FORCE_COPY, &copyarg);
 		return 0;
 	}
 
-	idx = dev->idx;
+	idx = dcam_sw_ctx->hw_ctx_id;
 	info = &param->lens_info;
 	param->update = 0;
 	param->load_trigger = 0;
 	/* debugfs bypass, not return, need force copy */
-	if (g_dcam_bypass[idx] & (1 << _E_LSC))
+	if (idx == DCAM_HW_CONTEXT_MAX || g_dcam_bypass[idx] & (1 << _E_LSC))
 		info->bypass = 1;
 	if (info->bypass) {
 		pr_debug("bypass\n");
@@ -198,26 +198,27 @@ int dcam_update_lsc(void *in)
 	uint16_t *w_buff = NULL, *gain_tab = NULL;
 	struct dcam_dev_lsc_info *info = NULL;
 	struct dcam_dev_lsc_param *param = NULL;
-	struct dcam_pipe_dev *dev;
+	struct dcam_sw_context *dcam_sw_ctx;
 	struct dcam_dev_param *blk_dcam_pm;
 	struct cam_hw_info *hw = NULL;
 	struct dcam_hw_auto_copy copyarg;
 
 	blk_dcam_pm = (struct dcam_dev_param *)in;
-	dev = (struct dcam_pipe_dev *)blk_dcam_pm->dev;
-	hw = dev->hw;
+	dcam_sw_ctx = (struct dcam_sw_context *)blk_dcam_pm->dev;
+	hw = dcam_sw_ctx->dev->hw;
 	param = &blk_dcam_pm->lsc;
 	if (!param->update) {
 		return 0;
 	}
 
-	idx = dev->idx;
+	idx = dcam_sw_ctx->hw_ctx_id;
 	info = &param->lens_info;
 	update = param->update;
 	param->update = 0;
-	if (g_dcam_bypass[idx] & (1 << _E_LSC)) {
+
+	if (idx == DCAM_HW_CONTEXT_MAX || g_dcam_bypass[idx] & (1 << _E_LSC))
 		return 0;
-	}
+
 	if (info->bypass) {
 		pr_debug("bypass\n");
 		DCAM_REG_MWR(idx, DCAM_LENS_LOAD_ENABLE, BIT_0, 1);
@@ -295,12 +296,12 @@ int dcam_update_lsc(void *in)
 	buf_sel = !((val & BIT_1) >> 1);
 	DCAM_REG_MWR(idx, DCAM_LENS_LOAD_ENABLE, BIT_1, buf_sel << 1);
 
-	pr_debug("sof %d, buf_sel %d\n", dev->frame_index, buf_sel);
+	pr_debug("sof %d, buf_sel %d\n", dcam_sw_ctx->frame_index, buf_sel);
 
 	/*  auto cpy lens registers next sof */
 	copyarg.id = DCAM_CTRL_BIN;
-	copyarg.idx = dev->idx;
-	copyarg.glb_reg_lock = dev->glb_reg_lock;
+	copyarg.idx = idx;
+	copyarg.glb_reg_lock = dcam_sw_ctx->glb_reg_lock;
 	hw->dcam_ioctl(hw, DCAM_HW_CFG_AUTO_COPY, &copyarg);
 
 	pr_debug("done\n");

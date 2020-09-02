@@ -869,6 +869,7 @@ static int dcamhw_path_size_update(void *handle, void *arg)
 	uint32_t reg_val;
 	struct dcam_hw_path_size *sizearg = NULL;
 	struct isp_img_rect rect; /* for 3dnr path */
+	struct cam_hw_info *hw = (struct cam_hw_info *)handle;
 
 	pr_debug("enter.");
 
@@ -879,6 +880,12 @@ static int dcamhw_path_size_update(void *handle, void *arg)
 
 	sizearg = (struct dcam_hw_path_size *)arg;
 	idx = sizearg->idx;
+
+	if (sizearg->in_size.w > hw->ip_dcam[idx]->max_width ||
+		sizearg->in_size.h > hw->ip_dcam[idx]->max_height) {
+		pr_err("fail to get valid in_size\n");
+		return -EFAULT;
+	}
 
 	switch (sizearg->path_id) {
 	case  DCAM_PATH_FULL:
@@ -1180,7 +1187,64 @@ static int dcamhw_bin_path_cfg(void *handle, void *arg)
 	return 0;
 }
 
-static struct hw_io_ctrl_fun dcam_ioctl_fun_tab[] = {
+static int dcamhw_blocks_setall(void *handle, void *arg)
+{
+	struct dcam_dev_param *p = (struct dcam_dev_param *)arg;
+
+	if (arg == NULL) {
+		pr_err("fail to get ptr %p\n", arg);
+		return -EFAULT;
+	}
+
+	dcam_k_awbc_block(p);
+	dcam_k_blc_block(p);
+	dcam_k_bpc_block(p);
+	dcam_k_rgb_gain_block(p);
+	/* simulator should set this block(random) carefully */
+	dcam_k_rgb_dither_random_block(p);
+	pr_debug("dcam%d set all\n", p->idx);
+
+	return 0;
+}
+
+static int dcamhw_blocks_setstatis(void *handle, void *arg)
+{
+	struct dcam_dev_param *p = (struct dcam_dev_param *)arg;
+
+	if (arg == NULL) {
+		pr_err("fail to get ptr %p\n", arg);
+		return -EFAULT;
+	}
+
+	p->aem.update = 0xff;
+	dcam_k_aem_bypass(p);
+	dcam_k_aem_mode(p);
+	dcam_k_aem_skip_num(p);
+	dcam_k_aem_rgb_thr(p);
+	dcam_k_aem_win(p);
+
+	dcam_k_afm_block(p);
+	dcam_k_afm_win(p);
+	dcam_k_afm_win_num(p);
+	dcam_k_afm_mode(p);
+	dcam_k_afm_skipnum(p);
+	dcam_k_afm_crop_eb(p);
+	dcam_k_afm_crop_size(p);
+	dcam_k_afm_done_tilenum(p);
+	dcam_k_afm_bypass(p);
+
+	dcam_k_afl_block(p);
+	dcam_k_bayerhist_block(p);
+
+	dcam_k_pdaf(p);
+	dcam_k_3dnr_me(p);
+
+	pr_debug("dcam%d set statis done\n", p->idx);
+	return 0;
+}
+
+
+static struct hw_io_ctrl_fun dcam_hw_ioctl_fun_tab[] = {
 	{DCAM_HW_CFG_ENABLE_CLK,            dcamhw_clk_eb},
 	{DCAM_HW_CFG_DISABLE_CLK,           dcamhw_clk_dis},
 	{DCAM_HW_CFG_INIT_AXI,              dcamhw_axi_init},
@@ -1205,6 +1269,8 @@ static struct hw_io_ctrl_fun dcam_ioctl_fun_tab[] = {
 	{DCAM_HW_CFG_LBUF_SHARE_SET,        dcamhw_lbuf_share_set},
 	{DCAM_HW_CFG_SLICE_FETCH_SET,       dcamhw_slice_fetch_set},
 	{DCAM_HW_CFG_BLOCK_FUNC_GET,        dcamhw_block_func_get},
+	{DCAM_HW_CFG_BLOCKS_SETALL,         dcamhw_blocks_setall},
+	{DCAM_HW_CFG_BLOCKS_SETSTATIS,      dcamhw_blocks_setstatis},
 	{DCAM_HW_CFG_MIPICAP,               dcamhw_mipicap_cfg},
 	{DCAM_HW_CFG_BIN_MIPI,              dcamhw_bin_mipi_cfg},
 	{DCAM_HW_CFG_BIN_PATH,              dcamhw_bin_path_cfg},
@@ -1217,10 +1283,10 @@ static hw_ioctl_fun dcamhw_ioctl_fun_get(
 	uint32_t total_num = 0;
 	uint32_t i = 0;
 
-	total_num = sizeof(dcam_ioctl_fun_tab) / sizeof(struct hw_io_ctrl_fun);
+	total_num = sizeof(dcam_hw_ioctl_fun_tab) / sizeof(struct hw_io_ctrl_fun);
 	for (i = 0; i < total_num; i++) {
-		if (cmd == dcam_ioctl_fun_tab[i].cmd) {
-			hw_ctrl = dcam_ioctl_fun_tab[i].hw_ctrl;
+		if (cmd == dcam_hw_ioctl_fun_tab[i].cmd) {
+			hw_ctrl = dcam_hw_ioctl_fun_tab[i].hw_ctrl;
 			break;
 		}
 	}

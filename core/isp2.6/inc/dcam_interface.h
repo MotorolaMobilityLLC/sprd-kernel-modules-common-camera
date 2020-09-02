@@ -46,6 +46,23 @@
  */
 #define is_dcam_id(idx)                 ((idx) < DCAM_ID_MAX)
 
+enum dcam_sw_context_id {
+	DCAM_SW_CONTEXT_0 = 0,
+	DCAM_SW_CONTEXT_1,
+	DCAM_SW_CONTEXT_2,
+	DCAM_SW_CONTEXT_3,
+	DCAM_SW_CONTEXT_4,
+	DCAM_SW_CONTEXT_5,
+	DCAM_SW_CONTEXT_6,
+	DCAM_SW_CONTEXT_MAX,
+};
+
+enum dcam_hw_context_id {
+	DCAM_HW_CONTEXT_0 = 0,
+	DCAM_HW_CONTEXT_1,
+	DCAM_HW_CONTEXT_2,
+	DCAM_HW_CONTEXT_MAX,
+};
 
 /*
  * Enumerating output paths in dcam_if device.
@@ -95,6 +112,7 @@ struct statis_path_buf_info {
 #define is_path_id(id) ((id) >= DCAM_PATH_FULL && (id) < DCAM_PATH_MAX)
 
 enum dcam_path_cfg_cmd {
+	DCAM_PATH_CFG_CTX_BASE = 0,
 	DCAM_PATH_CFG_BASE = 0,
 	DCAM_PATH_CFG_OUTPUT_BUF,
 	DCAM_PATH_CFG_OUTPUT_ALTER_BUF,
@@ -249,15 +267,14 @@ struct dcam_pipe_ops {
 	int (*stop)(void *handle, enum dcam_stop_cmd pause);
 	int (*get_path)(void *handle, int path_id);
 	int (*put_path)(void *handle, int path_id);
-	int (*cfg_path)(void *dcam_handle,
-				enum dcam_path_cfg_cmd cfg_cmd,
-				int path_id, void *param);
+	int (*cfg_path)(void *dcam_handle, enum dcam_path_cfg_cmd cfg_cmd, int path_id, void *param);
 	int (*ioctl)(void *handle, enum dcam_ioctrl_cmd cmd, void *arg);
 	int (*cfg_blk_param)(void *handle, void *param);
 	int (*proc_frame)(void *handle, void *param);
-	int (*set_callback)(void *handle,
-			dcam_dev_callback cb, void *priv_data);
+	int (*set_callback)(void *handle, int ctx_id, dcam_dev_callback cb, void *priv_data);
 	int (*update_clk)(void *handle, void *arg);
+	int (*get_context)(void *dcam_handle);
+	int (*put_context)(void *dcam_handle, int ctx_id);
 };
 
 /*
@@ -329,11 +346,11 @@ int dcam_core_dcam_if_release_sync(struct dcam_frame_synchronizer *sync,
  * Retrieve a dcam_if device for the hardware. A dcam_if device is a wrapper
  * with supported operations defined in dcam_pipe_ops.
  */
-void *dcam_core_dcam_if_dev_get(uint32_t idx, struct cam_hw_info *hw);
+void *dcam_core_pipe_dev_get(struct cam_hw_info *hw);
 /*
  * Release a dcam_if device after capture finished.
  */
-int dcam_core_dcam_if_dev_put(void *dcam_handle);
+int dcam_core_pipe_dev_put(void *dcam_handle);
 
 /*
  * Retrieve hardware info from dt.

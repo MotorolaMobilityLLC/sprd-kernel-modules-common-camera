@@ -154,6 +154,10 @@ int dcam_k_cfg_bpc(struct isp_io_param *param, struct dcam_dev_param *p)
 			ret = -1;
 			goto exit;
 		}
+
+		if (p->idx == DCAM_HW_CONTEXT_MAX)
+			return 0;
+
 		if (sub_func)
 			ret = sub_func(p);
 	} else {
