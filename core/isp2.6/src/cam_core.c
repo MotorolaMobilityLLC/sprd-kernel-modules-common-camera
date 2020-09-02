@@ -933,9 +933,10 @@ static int camcore_cfg_ltm_buffer(struct camera_module *module,
 
 	ch_pre = &module->channel[CAM_CH_PRE];
 	ch_cap = &module->channel[CAM_CH_CAP];
-	/*non-zsl capture, do nothing*/
-	if (!ch_pre->enable && ch_cap->enable)
+	/*non-zsl capture, or video path while preview path enable, do nothing*/
+	if ((!ch_pre->enable && ch_cap->enable) || (index == CAM_CH_VID && ch_pre->enable))
 		return 0;
+
 	ch = &module->channel[index];
 	isp_ctx_id = ch->isp_ctx_id;
 	isp_path_id = ch->isp_path_id;
