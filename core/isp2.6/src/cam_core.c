@@ -3783,7 +3783,8 @@ static int camcore_deinit_aux_dcam(struct camera_module *module)
 }
 
 
-static int camcore_init_fdr_context(struct camera_module *module, struct channel_context *ch)
+static int camcore_init_fdr_context(struct camera_module *module,
+		struct channel_context *ch)
 {
 	int ret = 0;
 	int i = 0, isp_zoom;
@@ -3882,20 +3883,6 @@ init_isp:
 		if (isp_zoom == 0) {
 			path_desc.output_size.w = ch_uinfo->src_size.w;
 			path_desc.output_size.h = ch_uinfo->src_size.h;
-#if 0// TODO -- fdr HIGH zoom
-		} else if (capture_is_superzoom(ch_uinfo, ch, isp_coeff)) {
-			size.w = MIN(isp_coeff * ch->trim_isp.size_x, ch_uinfo->dst_size.w);
-			size.h = MIN(isp_coeff * ch->trim_isp.size_y, ch_uinfo->dst_size.h);
-			//ch->cap_status = TO_DO_CAP_SUPERZOOM;
-			pr_info("cam%d, sw %d, src %d %d, dst0 %d %d,  dst1 %d %d\n",
-				module->idx, isp_ctx_id, ch->trim_isp.size_x, ch->trim_isp.size_y,
-				size.w, size.h,  ch_uinfo->dst_size.w, ch_uinfo->dst_size.h);
-
-			ret = module->isp_dev_handle->isp_ops->cfg_path(module->isp_dev_handle,
-					ISP_PATH_CFG_CTX_SUPERZOOM,
-					isp_ctx_id, isp_path_id, &superzoom_flag);
-			path_desc.output_size = size;
-#endif
 		} else {
 			path_desc.output_size.w = ch_uinfo->dst_size.w;
 			path_desc.output_size.h = ch_uinfo->dst_size.h;

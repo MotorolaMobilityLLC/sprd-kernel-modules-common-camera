@@ -2539,29 +2539,23 @@ static int camioctl_post_fdr(struct camera_module *module,
 	pframe->height = ch->ch_uinfo.dst_size.h;
 	ret = module->isp_dev_handle->isp_ops->cfg_path(module->isp_dev_handle,
 			ISP_PATH_CFG_OUTPUT_BUF,
-			isp_ctx_id,
-			isp_path_id, pfrm[2]);
+			isp_ctx_id, isp_path_id, pfrm[2]);
 	if (ret) {
 		pr_err("fail to cfg isp out buffer.\n");
 		goto exit;
 	}
 
-#if 0// TODO -- high zoom for fdr
-	if (ch->cap_status == TO_DO_CAP_SUPERZOOM) {
-		pframe = cam_queue_empty_frame_get();
-		memcpy(pframe, pfrm[0], sizeof(struct camera_frame));
-		pframe->buf.dmabuf_p[0] = NULL;
-		ret = cam_buf_ionbuf_get(&pframe->buf);
-		if (ret) {
-			cam_queue_empty_frame_put(pframe);
-			goto exit;
-		}
-		module->isp_dev_handle->isp_ops->cfg_path(module->isp_dev_handle,
-				ISP_PATH_CFG_SUPERZOOM_BUF,
-				isp_path_id >> ISP_CTXID_OFFSET,
-				isp_path_id & ISP_PATHID_MASK, pframe);
+	pframe = cam_queue_empty_frame_get();
+	memcpy(pframe, pfrm[0], sizeof(struct camera_frame));
+	pframe->buf.dmabuf_p[0] = NULL;
+	ret = cam_buf_ionbuf_get(&pframe->buf);
+	if (ret) {
+		cam_queue_empty_frame_put(pframe);
+		goto exit;
 	}
-#endif
+	module->isp_dev_handle->isp_ops->cfg_path(module->isp_dev_handle,
+			ISP_PATH_CFG_POSTPROC_BUF,
+			isp_ctx_id, isp_path_id, pframe);
 
 	ret = module->dcam_dev_handle->dcam_pipe_ops->proc_frame(dcam, pfrm[0]);
 

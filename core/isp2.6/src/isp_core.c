@@ -1128,8 +1128,7 @@ static struct camera_frame *ispcore_path_out_frame_get(
 			break;
 		case ISP_STREAM_BUF_POSTPROC:
 			out_frame = pctx->postproc_buf;
-			cam_buf_iommu_map(&out_frame->buf,
-				CAM_IOMMUDEV_ISP);
+			cam_buf_iommu_map(&out_frame->buf, CAM_IOMMUDEV_ISP);
 			tmp->valid_out_frame = 1;
 			break;
 		case ISP_STREAM_BUF_RESULT:
@@ -3065,12 +3064,6 @@ static int ispcore_path_cfg(void *isp_handle,
 		break;
 	case ISP_PATH_CFG_POSTPROC_BUF:
 		pframe = (struct camera_frame *)param;
-		ret = cam_buf_iommu_map(&pframe->buf, CAM_IOMMUDEV_ISP);
-		if (ret) {
-			pr_err("fail to superzoom map isp iommu buf.\n");
-			ret = -EINVAL;
-			goto exit;
-		}
 		pctx->postproc_buf = pframe;
 		pr_debug("isp %d postproc buffer %d.\n", pctx->ctx_id,
 			pframe->buf.mfd[0]);
