@@ -71,7 +71,7 @@ static ssize_t camdebugger_dcam_bypass_write(struct file *filp,
 	uint32_t bypass_cnt = 0;
 	char buf[256];
 	uint32_t val = 1; /* default bypass */
-	int i;
+	uint32_t i;
 	char name[16];
 	int bypass_all = 0;
 
@@ -158,7 +158,7 @@ static int camdebugger_dcam_bypass_read(struct seq_file *s, void *unused)
 	uint32_t type;
 	uint32_t idx = 0;
 	uint32_t bypass_cnt = 0;
-	int i = 0;
+	uint32_t i = 0;
 
 	if (!s) {
 		pr_err("fail to get valid param\n");
@@ -216,7 +216,7 @@ static int camdebugger_dcam_reg_show(struct seq_file *s,
 	void *unused)
 {
 	uint32_t idx = *(uint32_t *)s->private;
-	int addr;
+	uint32_t addr;
 	const uint32_t addr_end[] = {0x400, 0x400, 0x110, 0x44};
 
 
@@ -516,7 +516,7 @@ static ssize_t camdebugger_replace_image_write(struct file *filp,
 	int ret;
 
 	/* filename is less than this value, which is intentional */
-	if (count > DCAM_IMAGE_REPLACER_FILENAME_MAX) {
+	if (count > DCAM_IMAGE_REPLACER_FILENAME_MAX || count < 1) {
 		pr_err("fail to get filename size\n");
 		return -EINVAL;
 	}
@@ -719,7 +719,7 @@ static int camdebugger_isp_bypass_read(struct seq_file *s,
 	uint32_t type;
 	uint32_t idx = 0;
 	uint32_t bypass_cnt = 0;
-	int i = 0;
+	uint32_t i = 0;
 
 	if (!s) {
 		pr_err("fail to get valid input para\n");
@@ -773,7 +773,7 @@ static ssize_t camdebugger_isp_bypass_write(struct file *filp,
 	uint32_t bypass_cnt = 0;
 	char buf[256];
 	uint32_t val = 2;
-	int i;
+	uint32_t i;
 	char name[16 + 1];
 	uint32_t bypass_all = 0;
 
@@ -1099,10 +1099,10 @@ static ssize_t camdebugger_fbc_ctrl_write(struct file *filp,
 	struct compression_override *override =
 		(struct compression_override *)p->private;
 	char buf[32] = { 0 }, *s, *c;
-	unsigned int id = 0, ch, type, en = 0;
+	unsigned int id = 0, ch, type = 0, en = 0;
 	int ret;
 
-	if (count > 32) {
+	if (count > 32 || count < 1) {
 		pr_err("fail to get command count\n");
 		return -EINVAL;
 	}

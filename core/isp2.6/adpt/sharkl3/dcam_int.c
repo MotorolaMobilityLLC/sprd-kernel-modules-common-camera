@@ -201,8 +201,8 @@ static void dcamint_fix_index(struct dcam_pipe_dev *dev,
 	struct dcam_path_desc *path = NULL;
 	struct camera_frame *frame = NULL;
 	struct list_head head;
-	uint32_t count = 0;
-	int i = 0, j = 0;
+	uint32_t count = 0, j = 0;
+	int i = 0;
 
 	for (i = 0; i < DCAM_PATH_MAX; i++) {
 		path = &dev->path[i];
@@ -664,7 +664,7 @@ static void dcamint_bin_path_done(void *param)
 	struct dcam_pipe_dev *dev = (struct dcam_pipe_dev *)param;
 	struct dcam_path_desc *path = NULL;
 	struct camera_frame *frame = NULL;
-	int i = 0, cnt = 0;
+	uint32_t i = 0, cnt = 0;
 
 	if (unlikely(dev->idx == DCAM_ID_2))
 		return;

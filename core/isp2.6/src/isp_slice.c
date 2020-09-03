@@ -202,6 +202,8 @@ static int ispslice_slice_base_info_cfg(
 	struct isp_slice_desc *cur_slc;
 
 	rtn = ispslice_slice_size_info_get(in_ptr, &slice_width, &slice_height);
+	if (slice_width == 0 || slice_height == 0)
+		return -EINVAL;
 
 	rtn = ispslice_slice_overlap_info_get(in_ptr, slc_ctx);
 

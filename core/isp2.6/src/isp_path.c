@@ -377,6 +377,8 @@ static int isppath_path_thumbscaler_cfg(struct isp_path_desc *path)
 	dst = path->dst;
 	ret = isppath_trim_deci_info_cal(src.w, dst.w, &trim_w, &deci_w);
 	ret |= isppath_trim_deci_info_cal(src.h, dst.h, &trim_h, &deci_h);
+	if (deci_w == 0 || deci_h == 0)
+		return -EINVAL;
 	if (ret) {
 		pr_err("fail to set thumbscaler ydeci. src %d %d, dst %d %d\n",
 					src.w, src.h, dst.w, dst.h);

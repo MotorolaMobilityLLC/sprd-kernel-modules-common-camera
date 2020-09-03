@@ -192,7 +192,7 @@ static void ispint_fmcu_store_done(enum isp_context_hw_id hw_idx, void *isp_hand
 	struct isp_pipe_dev *dev = NULL;
 	struct isp_pipe_context *pctx;
 	struct isp_pipe_hw_context *pctx_hw;
-	int i;
+	uint32_t i = 0;
 	int idx = -1;
 
 	dev = (struct isp_pipe_dev *)isp_handle;

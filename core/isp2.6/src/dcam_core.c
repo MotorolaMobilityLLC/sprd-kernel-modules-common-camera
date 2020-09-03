@@ -2390,14 +2390,6 @@ static int dcamcore_dev_stop(void *dcam_handle, enum dcam_stop_cmd pause)
 	dev->hw->dcam_ioctl(dev->hw, DCAM_HW_CFG_STOP, &dev->idx);
 	dev->hw->dcam_ioctl(dev->hw, DCAM_HW_CFG_RESET, &dev->idx);
 
-	if (0) {
-		int i;
-
-		for (i = 0; i < DCAM_FRAME_TIMESTAMP_COUNT; i++)
-			pr_info("DCAM%u i=%02d t=%lld\n",
-				dev->idx, i, dev->frame_ts_boot[i]);
-	}
-
 	dcam_int_dump_int_tracker(dev->idx);
 	dcam_int_reset_int_tracker(dev->idx);
 
