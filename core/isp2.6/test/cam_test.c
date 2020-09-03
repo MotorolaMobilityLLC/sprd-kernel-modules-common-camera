@@ -53,7 +53,7 @@ void camt_write_image_to_file(unsigned char *buffer,
 			buffer += result;
 		}
 		pr_debug("write result: %d, size: %d, pos: %d\n",
-			result,  left, wfp->f_pos);
+		(uint32_t)result, (uint32_t)size, (uint32_t)wfp->f_pos);
 		total += result;
 	} while ((result > 0) && (left > 0));
 	filp_close(wfp, NULL);

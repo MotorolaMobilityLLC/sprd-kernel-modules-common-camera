@@ -80,7 +80,7 @@ static struct iommudev_info *cambuf_iommu_dev_get(
 /*************** some externel interface only for camera driver ****************/
 int cam_buf_mdbg_check(void)
 {
-	int val[8];
+	int val[10];
 
 	val[0] = atomic_read(&g_mem_dbg->ion_alloc_cnt);
 	val[1] = atomic_read(&g_mem_dbg->ion_kmap_cnt);
@@ -90,9 +90,10 @@ int cam_buf_mdbg_check(void)
 	val[5] = atomic_read(&g_mem_dbg->iommu_map_cnt[1]);
 	val[6] = atomic_read(&g_mem_dbg->iommu_map_cnt[2]);
 	val[7] = atomic_read(&g_mem_dbg->empty_state_cnt);
+	val[8] = atomic_read(&g_mem_dbg->isp_sw_context_cnt);
 
-	pr_info("mdbg info: %d, %d, %d, %d, %d, %d, %d, %d\n",
-			val[0], val[1], val[2], val[3], val[4], val[5], val[6], val[7]);
+	pr_info("mdbg info: %d, %d, %d, %d, %d, %d, %d, %d %d\n",
+		val[0], val[1], val[2], val[3], val[4], val[5], val[6], val[7], val[8]);
 	return 0;
 }
 

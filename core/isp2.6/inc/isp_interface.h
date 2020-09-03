@@ -20,6 +20,7 @@
 #include "cam_hw.h"
 #include "cam_types.h"
 
+#define ISP_SW_CONTEXT_NUM              32
 #define ISP_MAX_LINE_WIDTH              2592
 #define ISP_NR3_BUF_NUM                 2
 #define ISP_LTM_BUF_NUM                 10
@@ -149,7 +150,7 @@ struct isp_ctx_base_desc {
 	uint32_t ltm_rgb;
 	uint32_t ltm_yuv;
 	uint32_t in_fmt;
-	uint32_t is_loose;
+	uint32_t pack_bits;
 	uint32_t bayer_pattern;
 	uint32_t enable_slowmotion;
 	uint32_t slowmotion_count;
@@ -162,7 +163,7 @@ struct isp_ctx_size_desc {
 	struct img_trim crop;
 };
 
-struct isp_ctx_compression_desc {
+struct isp_ctx_compress_desc {
 	uint32_t fetch_fbd;
 	uint32_t fetch_fbd_4bit_bypass;
 	uint32_t nr3_fbc_fbd;
@@ -255,6 +256,7 @@ int isp_core_pipe_dev_put(void *isp_handle);
 
 int isp_drv_hw_init(void *arg);
 int isp_hw_deinit(void *arg);
+int isp_drv_pipeinfo_get(void *arg, uint32_t hw_id);
 int sprd_isp_dt_parse(struct device_node *dn,
 		struct cam_hw_info *hw_info,
 		uint32_t *isp_count);

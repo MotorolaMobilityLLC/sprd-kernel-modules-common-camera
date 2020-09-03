@@ -620,7 +620,7 @@ int dcamt_start(struct camt_info *info)
 		patharg.path_id = cxt->path_id[i];
 		patharg.idx = cxt->dcam_idx;
 		patharg.cap_info.format = DCAM_CAP_MODE_RAWRGB;
-		patharg.is_loose = info->is_loose;
+		patharg.pack_bits = info->is_loose;
 		patharg.src_sel = 1;
 		patharg.in_trim = cxt->in_trim;
 		patharg.endian.y_endian = info->endian.y_endian;
@@ -648,7 +648,7 @@ int dcamt_start(struct camt_info *info)
 	}
 
 	/* fetch set */
-	fetch.is_loose = info->is_loose;
+	fetch.pack_bits = info->is_loose;
 	fetch.endian = ENDIAN_LITTLE;
 	fetch.pattern = 0;
 	fetch.size.w = cxt->in_size.w;

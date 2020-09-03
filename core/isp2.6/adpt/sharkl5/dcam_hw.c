@@ -450,7 +450,7 @@ static int dcamhw_fetch_set(void *handle, void *arg)
 
 	fetch = (struct dcam_hw_fetch_set *)arg;
 	/* !0 is loose */
-	if (fetch->fetch_info->is_loose != 0) {
+	if (fetch->fetch_info->pack_bits != 0) {
 		fetch_pitch = fetch->fetch_info->size.w * 2;
 	} else {
 		/* to bytes */
@@ -474,7 +474,7 @@ static int dcamhw_fetch_set(void *handle, void *arg)
 	DCAM_REG_MWR(fetch->idx, DCAM_MIPI_CAP_CFG, 0x7, 0x3);
 	DCAM_REG_MWR(fetch->idx, DCAM_MIPI_CAP_CFG,
 		BIT_17 | BIT_16, (fetch->fetch_info->pattern & 3) << 16);
-	DCAM_AXIM_MWR(IMG_FETCH_CTRL, BIT_1, fetch->fetch_info->is_loose << 1);
+	DCAM_AXIM_MWR(IMG_FETCH_CTRL, BIT_1, fetch->fetch_info->pack_bits << 1);
 	DCAM_AXIM_MWR(IMG_FETCH_CTRL, BIT_3 | BIT_2, fetch->fetch_info->endian << 2);
 	DCAM_AXIM_WR(IMG_FETCH_SIZE,
 		(fetch->fetch_info->trim.size_y << 16) | (fetch->fetch_info->trim.size_x & 0xffff));
@@ -505,7 +505,7 @@ static int dcamhw_slice_fetch_set(void *handle, void *arg)
 	fetch = slicearg->fetch;
 	cur_slice = slicearg->cur_slice;
 	/* !0 is loose */
-	if (fetch->is_loose != 0) {
+	if (fetch->pack_bits != 0) {
 		fetch_pitch = fetch->size.w * 2;
 	} else {
 		/* to bytes */
@@ -524,7 +524,7 @@ static int dcamhw_slice_fetch_set(void *handle, void *arg)
 		BIT_17 | BIT_16, (fetch->pattern & 3) << 16);
 
 	DCAM_AXIM_MWR(IMG_FETCH_CTRL,
-		BIT_1, fetch->is_loose << 1);
+		BIT_1, fetch->pack_bits << 1);
 	DCAM_AXIM_MWR(IMG_FETCH_CTRL,
 		BIT_3 | BIT_2, fetch->endian << 2);
 	DCAM_AXIM_MWR(IMG_FETCH_CTRL,
@@ -678,7 +678,7 @@ static int dcamhw_path_start(void *handle, void *arg)
 		DCAM_REG_MWR(patharg->idx, DCAM_PATH_ENDIAN,
 			BIT_17 |  BIT_16, patharg->endian.y_endian << 16);
 
-		DCAM_REG_MWR(patharg->idx, DCAM_FULL_CFG, BIT_0, patharg->is_loose);
+		DCAM_REG_MWR(patharg->idx, DCAM_FULL_CFG, BIT_0, patharg->pack_bits);
 		DCAM_REG_MWR(patharg->idx, DCAM_FULL_CFG, BIT_2, patharg->src_sel << 2);
 
 		/* full_path_en */
@@ -692,7 +692,7 @@ static int dcamhw_path_start(void *handle, void *arg)
 			BIT_19 |  BIT_18, patharg->endian.y_endian << 18);
 
 		DCAM_REG_MWR(patharg->idx,
-			DCAM_CAM_BIN_CFG, BIT_0, patharg->is_loose);
+			DCAM_CAM_BIN_CFG, BIT_0, patharg->pack_bits);
 		DCAM_REG_MWR(patharg->idx, DCAM_CAM_BIN_CFG,
 				BIT_16, !!patharg->slowmotion_count << 16);
 		DCAM_REG_MWR(patharg->idx, DCAM_CAM_BIN_CFG,

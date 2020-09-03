@@ -399,7 +399,6 @@ static int dcamcore_statis_bufferq_deinit(struct dcam_pipe_dev *dev)
 		path = &dev->path[path_id];
 
 		pr_debug("path_id[%d] i[%d]\n", path_id, i);
-
 		if (path_id == DCAM_PATH_MAX)
 			continue;
 
@@ -436,7 +435,6 @@ static int dcamcore_statis_buffer_unmap(struct dcam_pipe_dev *dev)
 
 			pr_debug("stats %d,  j %d,  mfd %d, offset %d\n",
 				stats_type, j, mfd, ion_buf->offset[0]);
-
 			if (ion_buf->mapping_state & CAM_BUF_MAPPING_KERNEL)
 				cam_buf_kunmap(ion_buf);
 			cam_buf_iommu_unmap(ion_buf);
@@ -663,7 +661,8 @@ static int dcamcore_context_deinit(struct dcam_pipe_context *pctx)
 	mutex_destroy(&blk_pm_ctx->param_lock);
 	mutex_destroy(&blk_pm_ctx->lsc.lsc_lock);
 
-	cam_buf_iommu_unmap(&blk_pm_ctx->lsc.buf);
+	if (blk_pm_ctx->lsc.buf.mapping_state & CAM_BUF_MAPPING_DEV)
+		cam_buf_iommu_unmap(&blk_pm_ctx->lsc.buf);
 	cam_buf_kunmap(&blk_pm_ctx->lsc.buf);
 	cam_buf_free(&blk_pm_ctx->lsc.buf);
 	atomic_set(&pctx->user_cnt, 0);
@@ -685,8 +684,8 @@ static int dcamcore_hw_slices_set(struct dcam_pipe_dev *dev,
 		goto slices;
 	}
 
-	if (dev->fetch.is_loose == 2)
-		f_align = 8;/* 8p * 16bits/p = 128 bits fetch aligned */
+	if (dev->fetch.pack_bits == 2)
+		f_align = 8;  /* 8p * 16bits/p = 128 bits fetch aligned */
 	else
 		f_align = 64;/* 64p * 10bits/p = 128bits * 5 */
 
@@ -877,7 +876,7 @@ static int dcamcore_offline_slices_sw_start(void *param)
 			patharg.slowmotion_count = dev->slowmotion_count;
 			patharg.pdaf_path_eb = 0;
 			patharg.cap_info = dev->cap_info;
-			patharg.is_loose = dev->path[i].is_loose;
+			patharg.pack_bits = dev->path[i].pack_bits;
 			patharg.src_sel = dev->path[i].src_sel;
 			patharg.bayer_pattern = dev->path[i].bayer_pattern;
 			patharg.in_trim = dev->path[i].in_trim;
@@ -896,7 +895,7 @@ static int dcamcore_offline_slices_sw_start(void *param)
 	dev->cur_slice = &dev->slice_trim;
 
 	/* cfg fetch */
-	fetch->is_loose = 0;
+	fetch->pack_bits = 0;
 	fetch->endian = pframe->endian;
 	fetch->pattern = pframe->pattern;
 	fetch->size.w = pframe->width;
@@ -909,6 +908,9 @@ static int dcamcore_offline_slices_sw_start(void *param)
 	slicearg.idx = dev->idx;
 	slicearg.fetch = &dev->fetch;
 	slicearg.cur_slice = dev->cur_slice;
+	slicearg.slice_trim = dev->slice_trim;
+	slicearg.dcam_slice_mode = dev->dcam_slice_mode;
+	slicearg.slice_count = dev->slice_count;
 	hw->dcam_ioctl(hw, DCAM_HW_CFG_SLICE_FETCH_SET, &slicearg);
 
 	dcam_init_lsc_slice(&dev->ctx[dev->cur_ctx_id].blk_pm, 0);
@@ -1128,12 +1130,12 @@ static int dcamcore_offline_frame_start(void *param)
 		if (ret == 0) {
 			/* interrupt need > 1 */
 			if (i == DCAM_PATH_FULL || i == DCAM_PATH_BIN) {
-				if (dev->rps == 1)
-					loose_val = (loose_val | (dev->is_loose) | (path->is_loose));
+				if(dev->rps == 1)
+					loose_val = (loose_val | (dev->pack_bits) | (path->pack_bits));
 				else
-					loose_val = ((dev->is_loose) | (path->is_loose));
+					loose_val = ((dev->pack_bits) | (path->pack_bits));
 			}
-			path->is_loose = loose_val;
+			path->pack_bits = loose_val;
 			val_4in1 = ((dev->is_4in1) | (path->is_4in1));
 			atomic_set(&path->set_frm_cnt, 1);
 			atomic_inc(&path->set_frm_cnt);
@@ -1142,7 +1144,7 @@ static int dcamcore_offline_frame_start(void *param)
 			patharg.slowmotion_count = dev->slowmotion_count;
 			patharg.pdaf_path_eb = 0;
 			patharg.cap_info = dev->cap_info;
-			patharg.is_loose = dev->path[i].is_loose;
+			patharg.pack_bits = dev->path[i].pack_bits;
 			patharg.src_sel = dev->path[i].src_sel;
 			patharg.bayer_pattern = dev->path[i].bayer_pattern;
 			patharg.in_trim = dev->path[i].in_trim;
@@ -1157,14 +1159,14 @@ static int dcamcore_offline_frame_start(void *param)
 	}
 
 	/* todo - need to cfg fetch param from input or frame. */
-	fetch->is_loose = loose_val;
-	if (val_4in1 == 1) {
-		if (dev->rps == 1)
-			fetch->is_loose = loose_val;
+	fetch->pack_bits = loose_val;
+	if(val_4in1 == 1) {
+		if(dev->rps == 1)
+			fetch->pack_bits = loose_val;
 		else
-			fetch->is_loose = 0;
+			fetch->pack_bits = 0;
 	}
-	pr_info("is_loose =%d", fetch->is_loose);
+	pr_info("pack_bits =%d",fetch->pack_bits);
 	fetch->endian = pframe->endian;
 	fetch->pattern = pframe->pattern;
 	fetch->size.w = pframe->width;
@@ -1174,12 +1176,6 @@ static int dcamcore_offline_frame_start(void *param)
 	fetch->trim.size_x = pframe->width;
 	fetch->trim.size_y = pframe->height;
 	fetch->addr.addr_ch0 = (uint32_t)pframe->buf.iova[0];
-	if (fetch->is_loose != 0) {
-		fetch->pitch = (fetch->size.w * 16 + 127) / 128;
-	} else {
-		fetch->pitch = (fetch->size.w * 10 + 127) / 128;
-	}
-
 	ret = dcamcore_hw_slices_set(dev, pframe, dev_lbuf);
 	if (ret)
 		goto dequeue;
@@ -1222,6 +1218,9 @@ static int dcamcore_offline_frame_start(void *param)
 			slicearg.idx = dev->idx;
 			slicearg.fetch = fetch;
 			slicearg.cur_slice = dev->cur_slice;
+			slicearg.slice_trim = dev->slice_trim;
+			slicearg.dcam_slice_mode = dev->dcam_slice_mode;
+			slicearg.slice_count = dev->slice_count;
 			hw->dcam_ioctl(hw, DCAM_HW_CFG_SLICE_FETCH_SET, &slicearg);
 		}
 
@@ -1690,14 +1689,14 @@ static inline void dcamcore_frame_info_show(struct dcam_pipe_dev *dev,
 			struct dcam_path_desc *path,
 			struct camera_frame *frame)
 {
-	uint32_t size = 0, is_loose = 0;
+	uint32_t size = 0, pack_bits = 0;
 
-	is_loose = path->is_loose;
+	pack_bits = path->pack_bits;
 	if (frame->is_compressed)
 		size = dcam_if_cal_compressed_size(frame->width,
 			frame->height, frame->compress_4bit_bypass);
 	else
-		size = cal_sprd_raw_pitch(frame->width, is_loose) * frame->height;
+		size = cal_sprd_raw_pitch(frame->width, pack_bits) * frame->height;
 
 	pr_debug("DCAM%u %s frame %u %u size %u %u buf %08lx %08x\n",
 		dev->idx, dcam_path_name_get(path->path_id),
@@ -2283,7 +2282,7 @@ static int dcamcore_dev_start(void *dcam_handle, int online)
 		patharg.slowmotion_count = dev->slowmotion_count;
 		patharg.pdaf_path_eb = (pm->pdaf.bypass == 0) ? 1 : 0;
 		patharg.cap_info = dev->cap_info;
-		patharg.is_loose = dev->path[i].is_loose;
+		patharg.pack_bits = dev->path[i].pack_bits;
 		patharg.src_sel = dev->path[i].src_sel;
 		patharg.bayer_pattern = dev->path[i].bayer_pattern;
 		patharg.in_trim = dev->path[i].in_trim;

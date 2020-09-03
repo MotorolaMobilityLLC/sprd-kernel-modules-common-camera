@@ -149,34 +149,6 @@ static enum isp_store_format isppath_afbc_store_format_get(uint32_t forcc)
 	return format;
 }
 
-static enum isp_fetch_format isppath_fetch_format_get(uint32_t forcc)
-{
-	enum isp_fetch_format format = ISP_FETCH_FORMAT_MAX;
-
-	switch (forcc) {
-	case IMG_PIX_FMT_GREY:
-		format = ISP_FETCH_CSI2_RAW10;
-		break;
-	case IMG_PIX_FMT_UYVY:
-		format = ISP_FETCH_UYVY;
-		break;
-	case IMG_PIX_FMT_YUV422P:
-		format = ISP_FETCH_YUV422_3FRAME;
-		break;
-	case IMG_PIX_FMT_NV12:
-		format = ISP_FETCH_YUV420_2FRAME;
-		break;
-	case IMG_PIX_FMT_NV21:
-		format = ISP_FETCH_YVU420_2FRAME;
-		break;
-	default:
-		format = ISP_FETCH_FORMAT_MAX;
-		pr_err("fail to get support format 0x%x\n", forcc);
-		break;
-	}
-	return format;
-}
-
 static int isppath_scaler_param_calc(struct img_trim *in_trim,
 	struct img_size *out_size, struct isp_scaler_info *scaler,
 	struct img_deci_info *deci)
@@ -482,170 +454,13 @@ static int isppath_path_thumbscaler_cfg(struct isp_path_desc *path)
 	return ret;
 }
 
-static int isppath_fbd_raw_cfg(struct isp_pipe_context *pctx,
-		struct isp_ctx_size_desc *cfg_in)
-{
-	int32_t tile_col = 0, tile_row = 0;
-	int32_t crop_start_x = 0, crop_start_y = 0,
-		crop_width = 0, crop_height = 0;
-	int32_t left_offset_tiles_num = 0,
-		up_offset_tiles_num = 0;
-	int32_t img_width = cfg_in->src.w;
-	int32_t end_x = 0, end_y = 0,
-		left_tiles_num = 0, right_tiles_num = 0,
-		middle_tiles_num = 0, left_size, right_size = 0;
-	int32_t up_tiles_num = 0, down_tiles_num = 0,
-		vertical_middle_tiles_num = 0,
-		up_size = 0, down_size = 0;
-	int32_t tiles_num_pitch = 0;
-
-	struct isp_fbd_raw_info *fbd_raw = &pctx->fbd_raw;
-
-	fbd_raw->width = cfg_in->src.w;
-	fbd_raw->height = cfg_in->src.h;
-
-	fbd_raw->size = pctx->input_size;
-	fbd_raw->trim = pctx->input_trim;
-
-	pr_debug("fbd raw info: width %d, height %d, trim: x %d, y %d, w %d, h %d\n",
-		fbd_raw->size.w, fbd_raw->size.h,
-		fbd_raw->trim.start_x, fbd_raw->trim.start_y,
-		fbd_raw->trim.size_x, fbd_raw->trim.size_y);
-
-	fbd_raw->fetch_fbd_bypass = 0;
-	fbd_raw->fetch_fbd_4bit_bypass = pctx->fetch_fbd_4bit_bypass;
-
-	tile_col = (fbd_raw->width + ISP_FBD_TILE_WIDTH - 1) / ISP_FBD_TILE_WIDTH;
-	tile_col = (tile_col + 2 - 1) / 2 * 2;
-	tile_row = (fbd_raw->height + ISP_FBD_TILE_HEIGHT - 1) / ISP_FBD_TILE_HEIGHT;
-
-	fbd_raw->tiles_num_pitch = tile_col;
-	fbd_raw->low_bit_pitch = fbd_raw->tiles_num_pitch * ISP_FBD_TILE_WIDTH / 2;
-	if (fbd_raw->fetch_fbd_4bit_bypass == 0)
-		fbd_raw->low_4bit_pitch = fbd_raw->tiles_num_pitch * ISP_FBD_TILE_WIDTH;
-
-	if (fbd_raw->trim.size_x != fbd_raw->size.w ||
-		fbd_raw->trim.size_y != fbd_raw->size.h) {
-		tiles_num_pitch = fbd_raw->tiles_num_pitch;
-		fbd_raw->width = fbd_raw->trim.size_x;
-		fbd_raw->height = fbd_raw->trim.size_y;
-
-		crop_start_x = fbd_raw->trim.start_x;
-		crop_start_y = fbd_raw->trim.start_y;
-		crop_width = fbd_raw->trim.size_x;
-		crop_height = fbd_raw->trim.size_y;
-
-		left_offset_tiles_num = crop_start_x / ISP_FBD_TILE_WIDTH;
-		up_offset_tiles_num = crop_start_y / ISP_FBD_TILE_HEIGHT;
-		end_x = crop_start_x + crop_width - 1;
-		end_y = crop_start_y + crop_height - 1;
-		if (crop_start_x %  ISP_FBD_TILE_WIDTH == 0) {
-			left_tiles_num = 0;
-			left_size = 0;
-		} else {
-			left_tiles_num = 1;
-			left_size = ISP_FBD_TILE_WIDTH - crop_start_x % ISP_FBD_TILE_WIDTH;
-		}
-		if ((end_x + 1) % ISP_FBD_TILE_WIDTH == 0)
-			right_tiles_num = 0;
-		else
-			right_tiles_num = 1;
-		right_size = (end_x + 1) % ISP_FBD_TILE_WIDTH;
-		middle_tiles_num = (crop_width - left_size - right_size) / ISP_FBD_TILE_WIDTH;
-
-		if (crop_start_y % ISP_FBD_TILE_HEIGHT == 0) {
-			up_tiles_num = 0;
-			up_size = 0;
-		} else {
-			up_tiles_num = 1;
-			up_size = ISP_FBD_TILE_HEIGHT - crop_start_y % ISP_FBD_TILE_HEIGHT;
-		}
-		if ((end_y + 1) % ISP_FBD_TILE_HEIGHT == 0)
-			down_tiles_num = 0;
-		else
-			down_tiles_num = 1;
-		down_size = (end_y + 1) % ISP_FBD_TILE_HEIGHT;
-		vertical_middle_tiles_num = (crop_height - up_size - down_size) / ISP_FBD_TILE_HEIGHT;
-		fbd_raw->pixel_start_in_hor = crop_start_x % ISP_FBD_TILE_WIDTH;
-		fbd_raw->pixel_start_in_ver = crop_start_y % ISP_FBD_TILE_HEIGHT;
-		fbd_raw->tiles_num_in_ver = up_tiles_num + down_tiles_num + vertical_middle_tiles_num;
-		fbd_raw->tiles_num_in_hor = left_tiles_num + right_tiles_num + middle_tiles_num;
-		fbd_raw->tiles_start_odd = left_offset_tiles_num % 2;
-		fbd_raw->header_addr_offset =
-			(left_offset_tiles_num + up_offset_tiles_num * tiles_num_pitch) / 2;
-		fbd_raw->tile_addr_offset_x256 =
-			(left_offset_tiles_num + up_offset_tiles_num * tiles_num_pitch) * ISP_FBD_BASE_ALIGN;
-		fbd_raw->low_bit_addr_offset = (crop_start_x + crop_start_y * img_width) / 2;
-		if (fbd_raw->fetch_fbd_4bit_bypass == 0)
-			fbd_raw->low_4bit_addr_offset = (crop_start_x + crop_start_y * img_width);
-		pr_debug("addr offset:header 0x%x, 8bit 0x%x, 2bit 0x%x, 4bit 0x%x\n",
-			fbd_raw->header_addr_offset, fbd_raw->tile_addr_offset_x256,
-			fbd_raw->low_bit_addr_offset, fbd_raw->low_4bit_addr_offset);
-	} else {
-		fbd_raw->pixel_start_in_hor = 0;
-		fbd_raw->pixel_start_in_ver = 0;
-		fbd_raw->tiles_num_in_hor = tile_col;
-		fbd_raw->tiles_num_in_ver = tile_row;
-		fbd_raw->tiles_start_odd = 0;
-		fbd_raw->header_addr_offset = 0;
-		fbd_raw->tile_addr_offset_x256 = 0;
-		fbd_raw->low_bit_addr_offset = 0;
-		if (fbd_raw->fetch_fbd_4bit_bypass == 0)
-			fbd_raw->low_4bit_addr_offset = 0;
-	}
-
-	return 0;
-}
-
-int isp_path_ctx_base_cfg(struct isp_pipe_context *pctx, void *param)
-{
-	int ret = 0;
-	struct isp_ctx_base_desc *cfg_in;
-
-	if (!pctx || !param) {
-		pr_err("fail to get valid input ptr, pctx %p, param %p\n",
-			pctx, param);
-		return -EFAULT;
-	}
-
-	cfg_in = (struct isp_ctx_base_desc *)param;
-	if (pctx->enable_slowmotion) {
-		pctx->enable_slowmotion = cfg_in->enable_slowmotion;
-		pctx->slowmotion_count = cfg_in->slowmotion_count;
-	}
-	pctx->slw_state = cfg_in->slw_state;
-	pctx->mode_3dnr = cfg_in->mode_3dnr;
-	pctx->mode_ltm = cfg_in->mode_ltm;
-	pctx->ltm_rgb = cfg_in->ltm_rgb;
-	pctx->ltm_yuv = cfg_in->ltm_yuv;
-	pctx->in_fmt = cfg_in->in_fmt;
-	pctx->src_info.src_fmt = cfg_in->in_fmt;
-	pctx->is_loose = cfg_in->is_loose;
-	pctx->dispatch_bayer_mode = cfg_in->bayer_pattern;
-	pctx->dev->ltm_handle->ops->set_status(1, pctx->ctx_id,
-		pctx->mode_ltm, pctx->attach_cam_id);
-	pctx->ch_id = cfg_in->ch_id;
-	if (pctx->in_fmt == IMG_PIX_FMT_GREY)
-		pctx->dispatch_color = 0; /* raw rgb */
-	else
-		pctx->dispatch_color = 2; /* yuv */
-
-	pr_info("ctx%d, in_fmt 0x%x, %d %d %d %d %d %d\n",
-		pctx->ctx_id, pctx->in_fmt, pctx->mode_3dnr,
-		pctx->mode_ltm, pctx->fetch_path_sel,
-		pctx->dispatch_bayer_mode, pctx->dispatch_color, pctx->is_loose);
-	return ret;
-}
-
-int isp_path_ctx_size_cfg(struct isp_pipe_context *pctx, void *param)
+int isp_path_fetchsize_update(struct isp_sw_context *pctx, void *param)
 {
 	int ret = 0;
 	int invalid = 0;
-	unsigned long trim_offset[3] = { 0 };
 	struct isp_ctx_size_desc *cfg_in;
 	struct img_size *src;
 	struct img_trim *intrim;
-	struct isp_fetch_info *fetch = &pctx->fetch;
 
 	if (!pctx || !param) {
 		pr_err("fail to get valid input ptr, pctx %p, param %p\n",
@@ -667,153 +482,172 @@ int isp_path_ctx_size_cfg(struct isp_pipe_context *pctx, void *param)
 		return -EINVAL;
 	}
 
-	pctx->input_size = cfg_in->src;
-	pctx->input_trim = cfg_in->crop;
-
-	/*Bug 1024606 sw workaround
-	 *fetch fbd crop isp timeout when crop.start_y % 4 == 2
-	 */
-	if (pctx->fetch_path_sel && (cfg_in->crop.start_y % 4 == 2)) {
-		pctx->input_trim.start_y -= 2;
-		pctx->input_trim.size_y += 2;
-		pr_info("fbd crop start_y: %d, size_y: %d",
-			pctx->input_trim.start_y, pctx->input_trim.size_y);
-	}
-
-	intrim = &pctx->input_trim;
-	fetch->src = pctx->input_size;
-	fetch->in_trim = pctx->input_trim;
-	fetch->fetch_fmt = isppath_fetch_format_get(pctx->in_fmt);
-	if (pctx->in_fmt == IMG_PIX_FMT_GREY) {
-		if (pctx->is_loose == ISP_RAW_HALF14 || pctx->is_loose == ISP_RAW_HALF10)
-			fetch->fetch_fmt = ISP_FETCH_RAW10;
-		else
-			fetch->fetch_fmt = ISP_FETCH_CSI2_RAW10;
-	}
-
-	pr_debug("ctx%d fetch fmt: %d  in %d %d, crop %d %d %d %d is_loose %d\n",
-			pctx->ctx_id, fetch->fetch_fmt, src->w, src->h,
-				intrim->start_x, intrim->start_y, intrim->size_x,
-					intrim->size_y, pctx->is_loose);
-
-	if (pctx->fetch_path_sel)
-		isppath_fbd_raw_cfg(pctx, cfg_in);
-
-	switch (fetch->fetch_fmt) {
-	case ISP_FETCH_YUV422_3FRAME:
-		fetch->pitch.pitch_ch0 = pctx->input_size.w;
-		fetch->pitch.pitch_ch1 = pctx->input_size.w / 2;
-		fetch->pitch.pitch_ch2 = pctx->input_size.w / 2;
-		trim_offset[0] = intrim->start_y *
-			fetch->pitch.pitch_ch0 + intrim->start_x;
-		trim_offset[1] = intrim->start_y *
-			fetch->pitch.pitch_ch1 + intrim->start_x / 2;
-		trim_offset[2] = intrim->start_y *
-			fetch->pitch.pitch_ch2 + intrim->start_x / 2;
-		break;
-
-	case ISP_FETCH_YUYV:
-	case ISP_FETCH_UYVY:
-	case ISP_FETCH_YVYU:
-	case ISP_FETCH_VYUY:
-		fetch->pitch.pitch_ch0 = pctx->input_size.w * 2;
-		trim_offset[0] = intrim->start_y *
-			fetch->pitch.pitch_ch0 + intrim->start_x * 2;
-		break;
-	case ISP_FETCH_RAW10:
-		fetch->pitch.pitch_ch0 = cal_sprd_raw_pitch(pctx->input_size.w, pctx->is_loose);
-		trim_offset[0] = intrim->start_y *
-			fetch->pitch.pitch_ch0 + intrim->start_x * 2;
-		break;
-
-	case ISP_FETCH_YUV422_2FRAME:
-	case ISP_FETCH_YVU422_2FRAME:
-		fetch->pitch.pitch_ch0 = pctx->input_size.w;
-		fetch->pitch.pitch_ch1 = pctx->input_size.w;
-		trim_offset[0] = intrim->start_y *
-			fetch->pitch.pitch_ch0 + intrim->start_x;
-		trim_offset[1] = intrim->start_y *
-			fetch->pitch.pitch_ch1 + intrim->start_x;
-		break;
-
-	case ISP_FETCH_YUV420_2FRAME:
-	case ISP_FETCH_YVU420_2FRAME:
-		fetch->pitch.pitch_ch0 = pctx->input_size.w;
-		fetch->pitch.pitch_ch1 = pctx->input_size.w;
-		trim_offset[0] = intrim->start_y *
-			fetch->pitch.pitch_ch0 / 2 + intrim->start_x;
-		trim_offset[1] = intrim->start_y *
-			fetch->pitch.pitch_ch1 / 2 + intrim->start_x;
-		break;
-
-	case ISP_FETCH_FULL_RGB10:
-		fetch->pitch.pitch_ch0 = pctx->input_size.w * 3;
-		trim_offset[0] = intrim->start_y *
-			fetch->pitch.pitch_ch0 + intrim->start_x * 3;
-		break;
-
-	case ISP_FETCH_CSI2_RAW10:
-	{
-		uint32_t mipi_byte_info = 0;
-		uint32_t mipi_word_info = 0;
-		uint32_t start_col = intrim->start_x;
-		uint32_t start_row = intrim->start_y;
-		uint32_t end_col =  intrim->start_x + intrim->size_x - 1;
-		uint32_t mipi_word_num_start[16] = {
-			0, 1, 1, 1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 4, 5, 5};
-		uint32_t mipi_word_num_end[16] = {
-			0, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5};
-
-		mipi_byte_info = start_col & 0xF;
-		mipi_word_info =
-			((end_col + 1) >> 4) * 5
-			+ mipi_word_num_end[(end_col + 1) & 0xF]
-			- ((start_col + 1) >> 4) * 5
-			- mipi_word_num_start[(start_col + 1) & 0xF] + 1;
-		fetch->mipi_byte_rel_pos = mipi_byte_info;
-		fetch->mipi_word_num = mipi_word_info;
-		fetch->pitch.pitch_ch0 = cal_sprd_raw_pitch(pctx->input_size.w, 0);
-		/* same as slice starts */
-		trim_offset[0] = start_row * fetch->pitch.pitch_ch0
-					+ (start_col >> 2) * 5
-					+ (start_col & 0x3);
-		if (!pctx->fetch_path_sel)
-			pr_debug("fetch pitch %d, offset %ld, rel_pos %d, wordn %d\n",
-				 fetch->pitch.pitch_ch0, trim_offset[0],
-				 mipi_byte_info, mipi_word_info);
-		break;
-	}
-	default:
-		pr_err("fail to get fetch format: %d\n", fetch->fetch_fmt);
-		break;
-	}
-
-	fetch->trim_off.addr_ch0 = trim_offset[0];
-	fetch->trim_off.addr_ch1 = trim_offset[1];
-	fetch->trim_off.addr_ch2 = trim_offset[2];
+	pctx->pipe_src.src = cfg_in->src;
+	pctx->pipe_src.crop = cfg_in->crop;
 
 	return ret;
 }
 
-int isp_path_ctx_compression_cfg(struct isp_pipe_context *pctx, void *param)
+int isp_path_comn_uinfo_set(struct isp_sw_context *pctx, void *param)
 {
-	struct isp_ctx_compression_desc *compression = param;
+	int ret = 0;
+	struct isp_ctx_base_desc *cfg_in = NULL;
+	struct isp_uinfo *uinfo = NULL;
 
-	pctx->fetch_path_sel = compression->fetch_fbd;
-	pctx->fetch_fbd_4bit_bypass = compression->fetch_fbd_4bit_bypass;
-	pctx->nr3_fbc_fbd = compression->nr3_fbc_fbd;
+	if (!pctx || !param) {
+		pr_err("fail to get valid input ptr, pctx %p, param %p\n",
+			pctx, param);
+		return -EFAULT;
+	}
+
+	cfg_in = (struct isp_ctx_base_desc *)param;
+	uinfo = &pctx->uinfo;
+
+	if (uinfo->enable_slowmotion) {
+		uinfo->enable_slowmotion = cfg_in->enable_slowmotion;
+		uinfo->slowmotion_count = cfg_in->slowmotion_count;
+	}
+	uinfo->in_fmt = cfg_in->in_fmt;
+	uinfo->pack_bits = cfg_in->pack_bits;
+	uinfo->bayer_pattern = cfg_in->bayer_pattern;
+	uinfo->ltm_rgb = cfg_in->ltm_rgb;
+	uinfo->ltm_yuv = cfg_in->ltm_yuv;
+	uinfo->slw_state = cfg_in->slw_state;
+	uinfo->mode_ltm = cfg_in->mode_ltm;
+	uinfo->mode_3dnr = cfg_in->mode_3dnr;
+	pctx->dev->ltm_handle->ops->set_status(1, pctx->ctx_id,
+		uinfo->mode_ltm, pctx->attach_cam_id);
+	pctx->ch_id = cfg_in->ch_id;
+
+	pr_debug("ctx%d, in_fmt 0x%x, %d %d mode_ltm %d ltm_eb %d\n", pctx->ctx_id,
+		uinfo->in_fmt, uinfo->pack_bits, uinfo->bayer_pattern, uinfo->mode_ltm,
+		uinfo->ltm_rgb);
+
+	return ret;
+}
+
+int isp_path_fetch_uinfo_set(struct isp_sw_context *pctx, void *param)
+{
+	int ret = 0;
+	int invalid = 0;
+	struct isp_ctx_size_desc *cfg_in = NULL;
+	struct isp_uinfo *uinfo = NULL;
+	struct img_size *src = NULL;
+	struct img_trim *crop = NULL;
+
+	if (!pctx || !param) {
+		pr_err("fail to get valid input ptr, pctx %p, param %p\n",
+			pctx, param);
+		return -EFAULT;
+	}
+
+	cfg_in = (struct isp_ctx_size_desc *)param;
+	uinfo = &pctx->uinfo;
+	src = &cfg_in->src;
+	crop = &cfg_in->crop;
+	if (((crop->start_x + crop->size_x) > src->w) ||
+		((crop->start_y + crop->size_y) > src->h))
+		invalid |= 1;
+	invalid |= ((crop->start_x & 1) | (crop->start_y & 1));
+	if (invalid) {
+		pr_err("fail to get valid ctx size. src %d %d, crop %d %d %d %d\n",
+			src->w, src->h, crop->start_x, crop->size_y,
+			crop->size_x, crop->size_y);
+		return -EINVAL;
+	}
+
+	uinfo->src = *src;
+	uinfo->crop = *crop;
+	pctx->isp_k_param.src_w = uinfo->src.w;
+	pctx->isp_k_param.src_h = uinfo->src.h;
+
+	pr_debug("isp %d src %d %d crop %d %d %d %d\n",
+		pctx->ctx_id, uinfo->src.w, uinfo->src.h,
+		uinfo->crop.start_x, uinfo->crop.start_y,
+		uinfo->crop.size_x, uinfo->crop.size_y);
+
+	return ret;
+}
+
+int isp_path_storecomn_uinfo_set(struct isp_path_uinfo *path,
+	void *param)
+{
+	int ret = 0;
+	struct isp_path_base_desc *cfg_in = NULL;
+
+	if (!path || !param) {
+		pr_err("fail to get valid input ptr, path %p, param %p\n",
+			path, param);
+		return -EFAULT;
+	}
+	cfg_in = (struct isp_path_base_desc *)param;
+
+	path->out_fmt = cfg_in->out_fmt;
+	path->data_endian = cfg_in->endian;
+	path->bind_type = cfg_in->slave_type;
+	path->regular_mode = cfg_in->regular_mode;
+	path->slave_path_id = cfg_in->slave_path_id;
+	path->dst = cfg_in->output_size;
+
+	return ret;
+}
+
+int isp_path_storecrop_uinfo_set(struct isp_path_uinfo *path,
+	void *param)
+{
+	int ret = 0;
+	struct img_trim *crop = NULL;
+
+	if (!path || !param) {
+		pr_err("fail to get valid input ptr, path %p, param %p\n",
+			path, param);
+		return -EFAULT;
+	}
+
+	crop = (struct img_trim *)param;
+	path->in_trim = *crop;
+
+	return ret;
+}
+
+int isp_path_compress_uinfo_set(struct isp_sw_context *pctx,
+		void *param)
+{
+	struct isp_ctx_compress_desc *compress = NULL;
+	struct isp_uinfo *uinfo = NULL;
+
+	if (!pctx || !param) {
+		pr_err("fail to get valid input ptr, pctx %p, param %p\n",
+			pctx, param);
+		return -EFAULT;
+	}
+
+	compress = (struct isp_ctx_compress_desc *)param;
+	uinfo = &pctx->uinfo;
+	uinfo->fetch_path_sel = compress->fetch_fbd;
+	uinfo->fetch_fbd_4bit_bypass = compress->fetch_fbd_4bit_bypass;
+	uinfo->nr3_fbc_fbd = compress->nr3_fbc_fbd;
 
 	pr_debug("ctx %u, fetch_fbd %d, compress_3dnr %d\n",
-		pctx->ctx_id, pctx->fetch_path_sel, pctx->nr3_fbc_fbd);
+		pctx->ctx_id, uinfo->fetch_path_sel, uinfo->nr3_fbc_fbd);
 
 	return 0;
 }
 
-int isp_path_ctx_uframe_sync_cfg(struct isp_pipe_context *pctx, void *param)
+int isp_path_fetchsync_uinfo_set(struct isp_sw_context *pctx,
+		void *param)
 {
-	pctx->uframe_sync |= *(uint32_t *)param;
+	struct isp_uinfo *uinfo = NULL;
 
-	pr_debug("ctx %u, uframe_sync %u\n", pctx->ctx_id, pctx->uframe_sync);
+	if (!pctx || !param) {
+		pr_err("fail to get valid input ptr, pctx %p, param %p\n",
+			pctx, param);
+		return -EFAULT;
+	}
+
+	uinfo = &pctx->uinfo;
+	uinfo->uframe_sync |= *(uint32_t *)param;
+	pr_debug("ctx %u, uframe_sync %u\n", pctx->ctx_id, uinfo->uframe_sync);
 
 	return 0;
 }
@@ -875,7 +709,7 @@ int isp_path_size_cfg(struct isp_path_desc *path, void *param)
 	int ret = 0;
 	struct img_size src;
 	struct img_trim *crop;
-	struct isp_pipe_context *pctx = NULL;
+	struct isp_sw_context *pctx = NULL;
 	struct isp_store_info *store = NULL;
 	struct isp_afbc_store_info *afbc_store = &path->afbc_store;
 
@@ -887,8 +721,8 @@ int isp_path_size_cfg(struct isp_path_desc *path, void *param)
 	pctx = path->attach_ctx;
 	store = &path->store;
 	crop = (struct img_trim *)param;
-	src.w = pctx->input_trim.size_x;
-	src.h = pctx->input_trim.size_y;
+	src.w = pctx->pipe_src.crop.size_x;
+	src.h = pctx->pipe_src.crop.size_y;
 	if (((crop->start_x + crop->size_x) > src.w) ||
 		((crop->start_y + crop->size_y) > src.h)) {
 		pr_err("fail to sw %d get path trim(%d %d %d %d) outside of src (%d %d)\n",
@@ -902,12 +736,11 @@ int isp_path_size_cfg(struct isp_path_desc *path, void *param)
 	path->in_trim = *crop;
 
 	/*Bug 1024606 sw workaround
-	 *fetch fbd crop isp timeout when crop.start_y % 4 == 2
-	 */
-	if (pctx->fetch_path_sel && pctx->input_trim.size_y % 4 == 2) {
+	fetch fbd crop isp timeout when crop.start_y % 4 == 2 */
+	if (pctx->pipe_src.fetch_path_sel && pctx->pipe_src.crop.size_y % 4 == 2) {
 		path->in_trim.start_y += 2;
 		pr_info("crop start_y: %d, trim0 start_y: %d",
-			pctx->input_trim.start_y,
+			pctx->pipe_src.crop.start_y,
 			path->in_trim.start_y);
 	}
 
@@ -1116,7 +949,7 @@ int isp_path_store_frm_set(
 	int idx;
 	int planes;
 	unsigned long offset_u, offset_v, yuv_addr[3] = {0};
-	struct isp_pipe_context *pctx;
+	struct isp_sw_context *pctx;
 	struct isp_store_info *store;
 	unsigned long addr;
 	struct isp_hw_store_slice_addr store_slice;
@@ -1182,7 +1015,7 @@ int isp_path_store_frm_set(
 	store_slice.addr = addr;
 	store_slice.idx = idx;
 	store_slice.yuv_addr = yuv_addr;
-	pctx->hw->isp_ioctl(pctx->hw, ISP_HW_CFG_STORE_SLICE_ADDR, &store_slice);
+	pctx->hw->isp_ioctl(pctx->hw, ISP_HW_CFG_STORE_FRAME_ADDR, &store_slice);
 
 	path->store.addr.addr_ch0 = yuv_addr[0];
 	path->store.addr.addr_ch1 = yuv_addr[1];
@@ -1202,7 +1035,7 @@ int isp_path_afbc_store_frm_set(
 	int ret = 0;
 	int idx = 0;
 	unsigned long yuv_addr[2] = {0};
-	struct isp_pipe_context *pctx = NULL;
+	struct isp_sw_context *pctx = NULL;
 	struct isp_afbc_store_info *afbc_store = NULL;
 	struct cam_hw_info *hw = NULL;
 	struct isp_hw_afbc_addr afbc_addr;
@@ -1238,14 +1071,14 @@ int isp_path_afbc_store_frm_set(
 	return ret;
 }
 
-int isp_path_fetch_frm_set(struct isp_pipe_context *pctx,
+int isp_path_fetch_frm_set(struct isp_sw_context *pctx,
 		struct camera_frame *frame)
 {
 	int ret = 0;
 	int idx;
 	int planes;
 	unsigned long offset_u, offset_v, yuv_addr[3] = {0};
-	struct isp_fetch_info *fetch = &pctx->fetch;
+	struct isp_hw_fetch_info *fetch = NULL;
 	struct cam_hw_info *hw = NULL;
 	struct isp_hw_fbd_addr fbd;
 	struct isp_hw_fetch_slice_addr fetch_slice;
@@ -1259,17 +1092,18 @@ int isp_path_fetch_frm_set(struct isp_pipe_context *pctx,
 
 	idx = pctx->ctx_id;
 	hw = pctx->hw;
+	fetch = &pctx->pipe_info.fetch;
 
-	if (pctx->fetch_path_sel) {
+	if (pctx->pipe_src.fetch_path_sel) {
 		struct compressed_addr fbd_addr;
 		struct isp_fbd_raw_info *fbd_raw;
 
-		fbd_raw = &pctx->fbd_raw;
-		dcam_if_cal_compressed_addr(pctx->input_size.w,
-			pctx->input_size.h,
-			frame->buf.iova[0],
-			&fbd_addr,
-			frame->compress_4bit_bypass);
+		fbd_raw = &pctx->pipe_info.fetch_fbd;
+		dcam_if_cal_compressed_addr(pctx->pipe_src.src.w,
+					    pctx->pipe_src.src.h,
+					    frame->buf.iova[0],
+					    &fbd_addr,
+					    frame->compress_4bit_bypass);
 		fbd.fbd_addr = &fbd_addr;
 		fbd.fbd_raw = fbd_raw;
 		fbd.idx = idx;
@@ -1282,9 +1116,9 @@ int isp_path_fetch_frm_set(struct isp_pipe_context *pctx,
 			fbd_raw->low_4bit_addr_init = fbd_addr.addr3;
 
 		pr_debug("fetch_fbd: %u 0x%lx 0x%lx, 0x%lx, size %u %u\n",
-			frame->fid, fbd_addr.addr0,
-			fbd_addr.addr1, fbd_addr.addr2,
-			pctx->input_size.w, pctx->input_size.h);
+			 frame->fid, fbd_addr.addr0,
+			 fbd_addr.addr1, fbd_addr.addr2,
+			 pctx->pipe_src.src.w, pctx->pipe_src.src.h);
 
 		return 0;
 	}
@@ -1328,7 +1162,7 @@ int isp_path_fetch_frm_set(struct isp_pipe_context *pctx,
 	} else {
 		fetch_slice.idx = idx;
 		fetch_slice.yuv_addr = yuv_addr;
-		hw->isp_ioctl(hw, ISP_HW_CFG_FETCH_SLICE_ADDR, &fetch_slice);
+		hw->isp_ioctl(hw, ISP_HW_CFG_FETCH_FRAME_ADDR, &fetch_slice);
 	}
 
 	pr_debug("camca  isp sec_mode=%d,  %lx %lx %lx\n", pctx->dev->sec_mode,

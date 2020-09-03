@@ -907,17 +907,18 @@ static int isphw_fetch_set(void *handle, void *arg)
 		ISP_REG_WR(idx, ISP_FETCH_SLICE_V_PITCH, fetch->pitch.pitch_ch2);
 	}
 
-	if (fetch->in_fmt != IMG_PIX_FMT_GREY)
-		ISP_REG_MWR(idx, ISP_YUV_MULT, BIT_31, 0 << 31);
+	if (fetch->fetch_fmt == ISP_FETCH_YUV420_2FRAME ||
+		fetch->fetch_fmt == ISP_FETCH_YVU420_2FRAME)
+		ISP_HREG_MWR(ISP_YUV_MULT, BIT_31, 0 << 31);
 
 	pr_debug("isp_fetch: bayer mode=%d ,mipi_word_num %d, mipi_pos %d\n",
-		fetch->dispatch_bayer_mode,
+		fetch->bayer_pattern,
 		fetch->mipi_word_num, fetch->mipi_byte_rel_pos);
 	ISP_REG_WR(idx, ISP_FETCH_MIPI_INFO,
 		fetch->mipi_word_num | (fetch->mipi_byte_rel_pos << 16));
 	ISP_REG_WR(idx, ISP_DISPATCH_CH0_SIZE,
 		fetch->in_trim.size_x | (fetch->in_trim.size_y << 16));
-	ISP_REG_WR(idx, ISP_DISPATCH_CH0_BAYER, fetch->dispatch_bayer_mode);
+	ISP_REG_WR(idx, ISP_DISPATCH_CH0_BAYER, fetch->bayer_pattern);
 
 	return 0;
 }
@@ -935,12 +936,10 @@ static int isphw_fmcu_available(void *handle, void *arg)
 static int isphw_subblock_cfg(void *handle, void *arg)
 {
 	uint32_t idx = 0;
-	struct isp_pipe_context *pctx = NULL;
-	struct isp_fetch_info *fetch = NULL;
+	struct isp_hw_fetch_info *fetch = NULL;
 
-	pctx = (struct isp_pipe_context *)arg;
-	fetch = &pctx->fetch;
-	idx = pctx->ctx_id;
+	fetch = (struct isp_hw_fetch_info *)arg;
+	idx = fetch->ctx_id;
 	pr_debug("superzoom enter: fmt:%d, in_trim %d %d, src %d %d\n",
 		fetch->fetch_fmt, fetch->in_trim.size_x, fetch->in_trim.size_y,
 		fetch->src.w, fetch->src.h);
@@ -962,7 +961,7 @@ static int isphw_subblock_cfg(void *handle, void *arg)
 	ISP_REG_WR(idx, ISP_DISPATCH_PIPE_BUF_CTRL_CH0, 0x64043C);
 	ISP_REG_WR(idx, ISP_DISPATCH_CH0_SIZE,
 		fetch->in_trim.size_x | (fetch->in_trim.size_y << 16));
-	ISP_REG_WR(idx, ISP_DISPATCH_CH0_BAYER, pctx->dispatch_bayer_mode);
+	ISP_REG_WR(idx, ISP_DISPATCH_CH0_BAYER, fetch->bayer_pattern);
 
 	pr_debug("pitch ch0 %d, ch1 %d, ch2 %d\n",
 		fetch->pitch.pitch_ch0, fetch->pitch.pitch_ch1, fetch->pitch.pitch_ch2);
@@ -1903,7 +1902,7 @@ static int isphw_stop(void *handle, void *arg)
 	return 0;
 }
 
-static int isphw_slice_addr_store(void *handle, void *arg)
+static int isphw_frame_addr_store(void *handle, void *arg)
 {
 	struct isp_hw_store_slice_addr *parm = NULL;
 
@@ -1916,7 +1915,7 @@ static int isphw_slice_addr_store(void *handle, void *arg)
 	return 0;
 }
 
-static int isphw_slice_addr_fetch(void *handle, void *arg)
+static int isphw_frame_addr_fetch(void *handle, void *arg)
 {
 	struct isp_hw_fetch_slice_addr *parm = NULL;
 
@@ -2154,8 +2153,8 @@ static struct hw_io_ctrl_fun isp_hw_ioctl_fun_tab[] = {
 	{ISP_HW_CFG_3DNR_PARAM,              isphw_3dnr_param_set},
 	{ISP_HW_CFG_GET_NLM_YNR,             isphw_radius_parm_adpt},
 	{ISP_HW_CFG_STOP,                    isphw_stop},
-	{ISP_HW_CFG_STORE_SLICE_ADDR,        isphw_slice_addr_store},
-	{ISP_HW_CFG_FETCH_SLICE_ADDR,        isphw_slice_addr_fetch},
+	{ISP_HW_CFG_STORE_FRAME_ADDR,        isphw_frame_addr_store},
+	{ISP_HW_CFG_FETCH_FRAME_ADDR,        isphw_frame_addr_fetch},
 	{ISP_HW_CFG_MAP_INIT,                isphw_map_init_cfg},
 	{ISP_HW_CFG_START_ISP,               isphw_isp_start_cfg},
 	{ISP_HW_CFG_UPDATE_HIST_ROI,         isphw_hist_roi_update},

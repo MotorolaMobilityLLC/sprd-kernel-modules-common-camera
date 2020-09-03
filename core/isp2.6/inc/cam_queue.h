@@ -15,6 +15,7 @@
 #define _CAM_QUEUE_H_
 
 #include <linux/types.h>
+#include <linux/list.h>
 #include <linux/spinlock.h>
 
 #include "cam_types.h"

@@ -52,12 +52,12 @@ enum raw_pitch_format {
 	RAW_FORMAT_MAX
 };
 
-static inline uint32_t cal_sprd_raw_pitch(uint32_t w, uint32_t is_loose)
+static inline uint32_t cal_sprd_raw_pitch(uint32_t w, uint32_t pack_bits)
 {
 	uint32_t mod16_len[16] = {0, 8, 8, 8, 8, 12, 12, 12,
 				12, 16, 16, 16, 16, 20, 20, 20};
 
-	if (is_loose == RAW_PACK10)
+	if (pack_bits == RAW_PACK10)
 		return ((w >> 4) * 20 + (mod16_len[w & 0xf]));
 	else
 		return w*2;

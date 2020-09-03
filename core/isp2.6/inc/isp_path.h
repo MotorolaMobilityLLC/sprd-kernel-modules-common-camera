@@ -23,18 +23,22 @@
 #define SHRINK_C_OFFSET                 16
 #define SHRINK_C_RANGE                  6
 
-int isp_path_ctx_base_cfg(struct isp_pipe_context *pctx, void *param);
-int isp_path_ctx_size_cfg(struct isp_pipe_context *pctx, void *param);
-int isp_path_ctx_compression_cfg(struct isp_pipe_context *pctx, void *param);
-int isp_path_ctx_uframe_sync_cfg(struct isp_pipe_context *pctx, void *param);
+int isp_path_comn_uinfo_set(struct isp_sw_context *pctx, void *param);
+int isp_path_fetch_uinfo_set(struct isp_sw_context *pctx, void *param);
+int isp_path_compress_uinfo_set(struct isp_sw_context *pctx, void *param);
+int isp_path_fetchsync_uinfo_set(struct isp_sw_context *pctx, void *param);
 
 int isp_path_base_cfg(struct isp_path_desc *path, void *param);
 int isp_path_size_cfg(struct isp_path_desc *path, void *param);
 int isp_path_compression_cfg(struct isp_path_desc *path, void *param);
 int isp_path_uframe_sync_cfg(struct isp_path_desc *path, void *param);
 
+int isp_path_storecomn_uinfo_set(struct isp_path_uinfo *path, void *param);
+int isp_path_storecrop_uinfo_set(struct isp_path_uinfo *path, void *param);
+
+int isp_path_fetchsize_update(struct isp_sw_context *pctx, void *param);
 int isp_path_set(struct isp_path_desc *path);
-int isp_path_fetch_frm_set(struct isp_pipe_context *pctx,
+int isp_path_fetch_frm_set(struct isp_sw_context *pctx,
 		struct camera_frame *frame);
 int isp_path_store_frm_set(
 		struct isp_path_desc *path,

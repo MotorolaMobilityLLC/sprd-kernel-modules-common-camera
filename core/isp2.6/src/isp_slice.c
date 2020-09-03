@@ -196,7 +196,7 @@ static int ispslice_slice_base_info_cfg(
 	uint32_t slice_total_row, slice_total_col, slice_num;
 	uint32_t fetch_start_x, fetch_start_y;
 	uint32_t fetch_end_x, fetch_end_y;
-	struct isp_fetch_info *frame_fetch = in_ptr->frame_fetch;
+	struct isp_hw_fetch_info *frame_fetch = in_ptr->frame_fetch;
 	struct isp_fbd_raw_info *frame_fbd_raw = in_ptr->frame_fbd_raw;
 
 	struct isp_slice_desc *cur_slc;
@@ -236,11 +236,11 @@ static int ispslice_slice_base_info_cfg(
 		slice_width, slice_height, slice_num);
 	if (!frame_fbd_raw->fetch_fbd_bypass)
 		pr_debug("src %d %d, fbd_raw crop %d %d %d %d\n",
-			frame_fetch->src.w, frame_fetch->src.h,
+			frame_fbd_raw->width, frame_fbd_raw->height,
 			fetch_start_x, fetch_start_y, fetch_end_x, fetch_end_y);
 	else
 		pr_debug("src %d %d, fetch crop %d %d %d %d\n",
-			frame_fbd_raw->width, frame_fbd_raw->height,
+			frame_fetch->src.w, frame_fetch->src.h,
 			fetch_start_x, fetch_start_y, fetch_end_x, fetch_end_y);
 
 	for (i = 0; i < SLICE_NUM_MAX; i++)
@@ -1107,7 +1107,7 @@ static int ispslice_slice_scaler_info_cfg(
 	return 0;
 }
 
-static void ispslice_slice_fetch_cfg(struct isp_fetch_info *frm_fetch,
+static void ispslice_slice_fetch_cfg(struct isp_hw_fetch_info *frm_fetch,
 		struct isp_slice_desc *cur_slc)
 {
 	uint32_t start_col, start_row;
@@ -1283,7 +1283,7 @@ static void ispslice_slice_fbd_raw_cfg(struct isp_fbd_raw_info *frame_fbd_raw,
 		 slc_fbd_raw->low_4bit_addr_init);
 }
 
-int isp_slice_fetch_info_cfg(void *cfg_in, struct isp_slice_context *slc_ctx)
+static int ispslice_fetch_info_cfg(void *cfg_in, struct isp_slice_context *slc_ctx)
 {
 	int i;
 	struct slice_cfg_input *in_ptr = (struct slice_cfg_input *)cfg_in;
@@ -1302,7 +1302,7 @@ int isp_slice_fetch_info_cfg(void *cfg_in, struct isp_slice_context *slc_ctx)
 	return 0;
 }
 
-int isp_slice_store_info_cfg(
+static int ispslice_store_info_cfg(
 		void *cfg_in, struct isp_slice_context *slc_ctx)
 {
 	int i, j;
@@ -1472,7 +1472,7 @@ int isp_slice_store_info_cfg(
 	return 0;
 }
 
-int isp_slice_afbc_store_info_cfg(
+static int ispslice_afbc_store_info_cfg(
 		void *cfg_in, struct isp_slice_context *slc_ctx)
 {
 	int i = 0, j = 0, slice_id = 0;
@@ -2189,7 +2189,7 @@ static int ispslice_3dnr_memctrl_update_info_cfg(
 	return ret;
 }
 
-int isp_slice_3dnr_info_cfg(
+static int ispslice_3dnr_info_cfg(
 		void *cfg_in, struct isp_slice_context *slc_ctx)
 {
 	int ret = 0;
@@ -2239,7 +2239,7 @@ exit:
 	return ret;
 }
 
-int isp_slice_ltm_info_cfg(void *cfg_in,
+static int ispslice_ltm_info_cfg(void *cfg_in,
 	struct isp_slice_context *slc_ctx,
 	enum isp_ltm_region ltm_id)
 {
@@ -2305,7 +2305,7 @@ int isp_slice_ltm_info_cfg(void *cfg_in,
 	return ret;
 }
 
-int isp_slice_noisefilter_info_cfg(void *cfg_in, struct isp_slice_context *slc_ctx)
+static int ispslice_noisefilter_info_cfg(void *cfg_in, struct isp_slice_context *slc_ctx)
 {
 	int ret = 0, rtn = 0;
 	struct isp_slice_desc *cur_slc;
@@ -2327,8 +2327,31 @@ int isp_slice_noisefilter_info_cfg(void *cfg_in, struct isp_slice_context *slc_c
 
 }
 
-int isp_slice_cfg(void *cfg_in,
-		struct isp_slice_context *slc_ctx,
+int isp_slice_info_cfg(void *cfg_in, struct isp_slice_context *slc_ctx)
+{
+	struct slice_cfg_input *in_ptr = NULL;
+
+	if (!cfg_in || !slc_ctx) {
+		pr_err("fail to get input ptr, null.\n");
+		return -EFAULT;
+	}
+
+	in_ptr = (struct slice_cfg_input *)cfg_in;
+	ispslice_fetch_info_cfg(cfg_in, slc_ctx);
+	ispslice_store_info_cfg(cfg_in, slc_ctx);
+	if (in_ptr->store_afbc_bypass == 0)
+		ispslice_afbc_store_info_cfg(cfg_in, slc_ctx);
+	ispslice_3dnr_info_cfg(cfg_in, slc_ctx);
+	if (in_ptr->ltm_rgb_eb)
+		ispslice_ltm_info_cfg(cfg_in, slc_ctx, LTM_RGB);
+	if (in_ptr->ltm_yuv_eb)
+		ispslice_ltm_info_cfg(cfg_in, slc_ctx, LTM_YUV);
+	ispslice_noisefilter_info_cfg(cfg_in, slc_ctx);
+
+	return 0;
+}
+
+int isp_slice_base_cfg(void *cfg_in, struct isp_slice_context *slc_ctx,
 		uint32_t *valid_slc_num)
 {
 	int ret = 0;
@@ -2372,7 +2395,7 @@ static int ispslice_3dnr_set(
 		struct isp_fmcu_ctx_desc *fmcu,
 		struct isp_slice_desc *cur_slc,
 		struct cam_hw_info *hw,
-		struct isp_pipe_context *pctx)
+		struct isp_sw_context *pctx)
 {
 /*
  * struct slice_3dnr_memctrl_info slice_3dnr_memctrl;
@@ -2391,7 +2414,7 @@ static int ispslice_3dnr_set(
 	storearg.fmcu = fmcu;
 	storearg.store = &cur_slc->slice_3dnr_store;
 	hw->isp_ioctl(fmcu, ISP_HW_CFG_SLICE_3DNR_STORE, &storearg);
-	if (pctx->nr3_fbc_fbd) {
+	if (pctx->pipe_src.nr3_fbc_fbd) {
 		nr3_fbc_slice.fmcu_handle = fmcu;
 		nr3_fbc_slice.fbc_store = &cur_slc->slice_3dnr_fbc_store;
 		fbd.fmcu_handle = fmcu;
@@ -2419,7 +2442,7 @@ int isp_slice_fmcu_cmds_set(void *fmcu_handle, void *ctx)
 	struct slice_scaler_info *slc_scaler;
 	struct isp_slice_context *slc_ctx;
 	struct isp_fmcu_ctx_desc *fmcu;
-	struct isp_pipe_context *pctx = NULL;
+	struct isp_sw_context *pctx = NULL;
 	struct cam_hw_info *hw = NULL;
 	struct isp_hw_fbd_slice fbd_slice;
 	struct isp_hw_afbc_path_slice afbc_slice;
@@ -2439,7 +2462,7 @@ int isp_slice_fmcu_cmds_set(void *fmcu_handle, void *ctx)
 		return -EFAULT;
 	}
 
-	pctx = (struct isp_pipe_context *)ctx;
+	pctx = (struct isp_sw_context *)ctx;
 	hw = pctx->hw;
 	sw_ctx_id = pctx->ctx_id;
 	hw_ctx_id = isp_core_hw_context_id_get(pctx);
@@ -2480,13 +2503,13 @@ int isp_slice_fmcu_cmds_set(void *fmcu_handle, void *ctx)
 		}
 
 		ispslice_3dnr_set(fmcu, cur_slc, hw, pctx);
-		if (pctx->ltm_rgb) {
+		if (pctx->pipe_src.ltm_rgb){
 			ltm.fmcu_handle = fmcu;
 			ltm.map = &cur_slc->slice_ltm_map[LTM_RGB];
 			ltm.ltm_id = LTM_RGB;
 			hw->isp_ioctl(hw, ISP_HW_CFG_LTM_SLICE_SET, &ltm);
 		}
-		if (pctx->ltm_yuv) {
+		if (pctx->pipe_src.ltm_yuv){
 			ltm.fmcu_handle = fmcu;
 			ltm.map = &cur_slc->slice_ltm_map[LTM_YUV];
 			ltm.ltm_id = LTM_YUV;
@@ -2556,8 +2579,8 @@ int isp_slice_update(
 	struct slice_afbc_store_info *slc_afbc_store;
 	struct slice_scaler_info *slc_scaler;
 	struct isp_slice_context *slc_ctx;
-	struct isp_pipe_context *pctx = NULL;
-	struct cam_hw_info *hw = NULL;
+	struct isp_sw_context *pctx = NULL;
+	struct cam_hw_info * hw = NULL;
 	struct isp_hw_afbc_path_slice afbc_slice;
 	struct isp_hw_slice_scaler update;
 	struct isp_hw_slice_store store;
@@ -2569,7 +2592,7 @@ int isp_slice_update(
 		return -EFAULT;
 	}
 
-	pctx = (struct isp_pipe_context *)pctx_handle;
+	pctx = (struct isp_sw_context *)pctx_handle;
 	hw = pctx->hw;
 	slc_ctx = (struct isp_slice_context *)pctx->slice_ctx;
 	if (slc_ctx->slice_num < 1) {

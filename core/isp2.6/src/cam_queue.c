@@ -11,8 +11,6 @@
  * GNU General Public License for more details.
  */
 
-#include <linux/types.h>
-#include <linux/list.h>
 #include <linux/slab.h>
 
 #include "cam_types.h"

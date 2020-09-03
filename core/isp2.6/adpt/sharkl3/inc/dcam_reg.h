@@ -251,13 +251,13 @@ struct path_stop_field {
 };
 
 struct full_cfg_field {
-	uint32_t is_loose: 1;
+	uint32_t pack_bits: 1;
 	uint32_t crop_eb: 1;
 	uint32_t src_sel: 1;
 };
 
 struct bin_cfg_field {
-	uint32_t is_loose: 1;
+	uint32_t pack_bits: 1;
 	uint32_t bin_ratio: 1;
 	uint32_t scaler_sel: 2;
 	uint32_t reserved: 12;

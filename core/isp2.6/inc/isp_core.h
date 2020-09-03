@@ -36,6 +36,7 @@
 #define ISP_OUT_BUF_Q_LEN          32
 #define ISP_RESERVE_BUF_Q_LEN      12
 #define ISP_STREAM_STATE_Q_LEN     12
+#define ISP_SW_CONTEXT_Q_LEN       ISP_SW_CONTEXT_NUM
 
 #define ODATA_YUV420               1
 #define ODATA_YUV422               0
@@ -89,7 +90,8 @@ enum isp_postproc_type {
 };
 
 struct isp_pipe_dev;
-struct isp_pipe_context;
+struct isp_sw_context;
+
 
 typedef int (*func_isp_cfg_param)(
 	struct isp_io_param *param,
@@ -107,17 +109,6 @@ struct stream_ctrl_info {
 	uint32_t src_fmt;
 	struct img_size src;
 	struct img_trim src_crop;
-};
-
-struct isp_fetch_info {
-	enum isp_fetch_format fetch_fmt;
-	struct img_size src;/* source buffer size */
-	struct img_trim in_trim;/* support fetch trim */
-	struct img_addr addr;
-	struct img_addr trim_off;
-	struct img_pitch pitch;
-	uint32_t mipi_byte_rel_pos;
-	uint32_t mipi_word_num;
 };
 
 struct isp_thumbscaler_info {
@@ -181,9 +172,12 @@ struct isp_fbc_store_info {
 };
 
 struct slice_cfg_input {
+	uint32_t ltm_rgb_eb;
+	uint32_t ltm_yuv_eb;
+	uint32_t store_afbc_bypass;
 	struct img_size frame_in_size;
 	struct img_size *frame_out_size[ISP_SPATH_NUM];
-	struct isp_fetch_info *frame_fetch;
+	struct isp_hw_fetch_info *frame_fetch;
 	struct isp_fbd_raw_info *frame_fbd_raw;
 	struct isp_store_info *frame_store[ISP_SPATH_NUM];
 	struct isp_afbc_store_info *frame_afbc_store[AFBC_PATH_NUM];
@@ -197,7 +191,7 @@ struct slice_cfg_input {
 	uint32_t ynr_center_y;
 	struct isp_3dnr_ctx_desc *nr3_ctx;
 	struct isp_ltm_ctx_desc *ltm_ctx;
-	struct isp_k_block  *nofilter_ctx;
+	struct isp_k_block *nofilter_ctx;
 };
 
 struct isp_path_desc {
@@ -216,7 +210,7 @@ struct isp_path_desc {
 	uint32_t uframe_sync;
 	int32_t reserved_buf_fd;
 	size_t reserve_buf_size[3];
-	struct isp_pipe_context *attach_ctx;
+	struct isp_sw_context *attach_ctx;
 	struct cam_hw_info *hw;
 
 	struct isp_regular_info regular_info;
@@ -242,51 +236,90 @@ struct isp_path_desc {
 	struct camera_queue result_queue;
 };
 
-struct isp_pipe_context {
-	atomic_t user_cnt;
-	uint32_t started;
-	uint32_t ctx_id;
-	uint32_t in_fmt;/* forcc */
-	uint32_t is_loose;
-	enum camera_id attach_cam_id;
-	enum cam_ch_id ch_id;
-	uint32_t in_irq_handler;
-	uint32_t iommu_status;
-	uint32_t updated;
-	uint32_t mode_3dnr;
-	uint32_t mode_ltm;
+struct isp_pipe_info {
+	struct isp_hw_fetch_info fetch;
+	struct isp_fbd_raw_info fetch_fbd;
+	struct isp_hw_path_store store[ISP_SPATH_NUM];
+	struct isp_hw_path_scaler scaler[ISP_SPATH_NUM];
+	struct isp_hw_afbc_path afbc[AFBC_PATH_NUM];
+};
+
+struct isp_path_uinfo {
+	uint32_t out_fmt;
+	uint32_t bind_type;
+	uint32_t slave_path_id;
+	uint32_t regular_mode;
+	struct img_endian data_endian;
+	struct img_size dst;
+	struct img_trim in_trim;
+};
+
+struct isp_uinfo {
+	/* common info from cam core */
+	uint32_t in_fmt;
+	uint32_t pack_bits;
+	/* GR, R, B, Gb */
+	uint32_t bayer_pattern;
 	uint32_t ltm_rgb;
 	uint32_t ltm_yuv;
+	uint32_t mode_ltm;
+	uint32_t mode_3dnr;
 	uint32_t slw_state;
 	uint32_t enable_slowmotion;
 	uint32_t slowmotion_count;
 	uint32_t uframe_sync;
-	uint32_t dispatch_color;
-	uint32_t dispatch_bayer_mode;/* RAWRGB_GR, RAWRGB_Gb, RAWRGB_R... */
-	uint32_t fetch_path_sel;/* 1: fetch_fbd; 0: fetch */
-	uint32_t fetch_fbd_4bit_bypass;/* 0: 14bit; 1: 10bit */
-	uint32_t nr3_fbc_fbd;/* 1: 3dnr compressed; 0: 3dnr plain data */
-	/* lock ctx/path param(size) updated from zoom */
-	struct mutex param_mutex;
 
-	/* original: source image (from dcam/sensor) scaler info.
-	 * it will be used to re-caclulate parameters for some blocks,
-	 * because user alwas set parameters for sensor size image
-	 */
+	/* compression info from cam core */
+	/* 1: fetch_fbd; 0: fetch */
+	uint32_t fetch_path_sel;
+	/* 0: 14bit; 1: 10bit */
+	uint32_t fetch_fbd_4bit_bypass;
+	/* 1: 3dnr compressed; 0: 3dnr plain data */
+	uint32_t nr3_fbc_fbd;
+
+	/* input info from cam core */
+	struct img_size src;
+	struct img_trim crop;
 	struct img_scaler_info original;
-	struct img_size input_size;
-	struct img_trim input_trim;
-	struct stream_ctrl_info src_info;
-	struct isp_fetch_info fetch;
-	struct isp_fbd_raw_info fbd_raw;
+
+	/* output info from cam core */
+	struct isp_path_uinfo path_info[ISP_SPATH_NUM];
+};
+
+struct isp_sw_context {
+	struct list_head list;
+	atomic_t user_cnt;
+	atomic_t state_user_cnt;
+	uint32_t started;
+	uint32_t ctx_id;
+	uint32_t in_irq_handler;
+	uint32_t iommu_status;
+	uint32_t updated;
+	enum camera_id attach_cam_id;
+	enum cam_ch_id ch_id;
+
+	struct isp_uinfo uinfo;
+	struct isp_uinfo pipe_src;
+	struct isp_pipe_info pipe_info;
+
 	struct isp_path_desc isp_path[ISP_SPATH_NUM];
 	struct isp_pipe_dev *dev;
-	struct isp_k_block isp_k_param;
-	struct mutex blkpm_lock;/* lock block param to avoid acrossing frame */
+	struct cam_hw_info *hw;
 	void *slice_ctx;
+	struct isp_k_block isp_k_param;
+	struct isp_3dnr_ctx_desc nr3_ctx;
+	struct isp_ltm_ctx_desc ltm_ctx;
+
+	struct cam_thread_info thread;
+	struct completion frm_done;
+	struct completion slice_done;
+	/* lock ctx/path param(size) updated from zoom */
+	struct mutex param_mutex;
+	/* lock block param to avoid acrossing frame */
+	struct mutex blkpm_lock;
+
 	struct camera_queue in_queue;
 	struct camera_queue proc_queue;
-
 	struct camera_queue stream_ctrl_in_q;
 	struct camera_queue stream_ctrl_proc_q;
 
@@ -296,31 +329,24 @@ struct isp_pipe_context {
 	struct camera_buf statis_buf_array[STATIS_BUF_NUM_MAX];
 	struct camera_queue hist2_result_queue;
 
-	struct cam_thread_info thread;
-	struct completion frm_done;
-	struct completion slice_done;
 	uint32_t multi_slice;
 	uint32_t is_last_slice;
 	uint32_t valid_slc_num;
 	uint32_t sw_slice_num;
 	uint32_t sw_slice_no;
 
-	struct isp_3dnr_ctx_desc nr3_ctx;
-	struct isp_ltm_ctx_desc ltm_ctx;
-
 	isp_irq_postproc postproc_func;
 	isp_dev_callback isp_cb_func;
 	void *cb_priv_data;
-	struct cam_hw_info *hw;
 };
 
-struct isp_pipe_hw_context {
+struct isp_hw_context {
 	atomic_t user_cnt;
 	uint32_t sw_ctx_id;
 	uint32_t hw_ctx_id;
 	uint32_t fmcu_used;
 	void *fmcu_handle;
-	struct isp_pipe_context *pctx;
+	struct isp_sw_context *pctx;
 };
 
 struct isp_pipe_dev {
@@ -333,8 +359,9 @@ struct isp_pipe_dev {
 	enum sprd_cam_sec_mode sec_mode;
 	void *cfg_handle;
 	struct isp_ltm_share_ctx_desc *ltm_handle;
-	struct isp_pipe_context ctx[ISP_CONTEXT_SW_NUM];
-	struct isp_pipe_hw_context hw_ctx[ISP_CONTEXT_HW_NUM];
+	struct camera_queue sw_ctx_q;
+	struct isp_sw_context *sw_ctx[ISP_SW_CONTEXT_NUM];
+	struct isp_hw_context hw_ctx[ISP_CONTEXT_HW_NUM];
 	struct cam_hw_info *isp_hw;
 	struct isp_pipe_ops *isp_ops;
 };
@@ -345,9 +372,9 @@ struct isp_statis_buf_size_info {
 	size_t buf_cnt;
 };
 
-int isp_core_hw_context_id_get(struct isp_pipe_context *pctx);
+int isp_core_hw_context_id_get(struct isp_sw_context *pctx);
 int isp_core_sw_context_id_get(enum isp_context_hw_id hw_ctx_id, struct isp_pipe_dev *dev);
-int isp_core_context_bind(struct isp_pipe_context *pctx,  int fmcu_need);
-int isp_core_context_unbind(struct isp_pipe_context *pctx);
+int isp_core_context_bind(struct isp_sw_context *pctx,  int fmcu_need);
+int isp_core_context_unbind(struct isp_sw_context *pctx);
 
 #endif

@@ -59,8 +59,8 @@ int dcam_init_lsc_slice(void *in, uint32_t online)
 
 	/* need update grid_x_num and more when offline slice*/
 	if (online == 0 && dev->dcam_slice_mode == CAM_OFFLINE_SLICE_HW) {
-		start_roi = dev->cur_slice->start_x;
-		grid_x_num_slice = (dev->cur_slice->size_x / 2 + info->grid_width - 1) / info->grid_width + 3;
+		start_roi = dev->cur_slice ->start_x - DCAM_OVERLAP;
+		grid_x_num_slice = ((dev->cur_slice->size_x + DCAM_OVERLAP) / 2 + info->grid_width - 1) / info->grid_width + 3;
 	} else
 		grid_x_num_slice = info->grid_x_num;
 
@@ -128,7 +128,7 @@ int dcam_init_lsc(void *in, uint32_t online)
 	/* need update grid_x_num and more when offline slice*/
 	if (online == 0 && dev->dcam_slice_mode == CAM_OFFLINE_SLICE_HW) {
 		start_roi = 0;
-		grid_x_num_slice = (dev->cur_slice->size_x / 2 + info->grid_width - 1) / info->grid_width + 3;
+		grid_x_num_slice = ((dev->cur_slice->size_x + DCAM_OVERLAP) / 2 + info->grid_width - 1) / info->grid_width + 3;
 	} else {
 		grid_x_num_slice = info->grid_x_num;
 	}

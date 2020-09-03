@@ -154,6 +154,7 @@ enum isp_hw_cfg_cmd {
 	ISP_HW_CFG_DISABLE_IRQ,
 	ISP_HW_CFG_CLEAR_IRQ,
 	ISP_HW_CFG_FETCH_SET,
+	ISP_HW_CFG_FETCH_FBD_SET,
 	ISP_HW_CFG_DEFAULT_PARA_SET,
 	ISP_HW_CFG_BLOCK_FUNC_GET,
 	ISP_HW_CFG_CFG_MAP_INFO_GET,
@@ -195,8 +196,8 @@ enum isp_hw_cfg_cmd {
 	ISP_HW_CFG_3DNR_PARAM,
 	ISP_HW_CFG_GET_NLM_YNR,
 	ISP_HW_CFG_STOP,
-	ISP_HW_CFG_STORE_SLICE_ADDR,
-	ISP_HW_CFG_FETCH_SLICE_ADDR,
+	ISP_HW_CFG_STORE_FRAME_ADDR,
+	ISP_HW_CFG_FETCH_FRAME_ADDR,
 	ISP_HW_CFG_MAP_INIT,
 	ISP_HW_CFG_START_ISP,
 	ISP_HW_CFG_UPDATE_HIST_ROI,
@@ -241,6 +242,7 @@ enum isp_fetch_format {
 };
 
 struct isp_fbd_raw_info {
+	uint32_t ctx_id;
 	/* ISP_FBD_RAW_SEL */
 	uint32_t pixel_start_in_hor:6;
 	uint32_t pixel_start_in_ver:2;
@@ -298,21 +300,17 @@ struct isp_hw_fetch_info {
 	uint32_t ctx_id;
 	uint32_t dispatch_color;
 	uint32_t fetch_path_sel;
-	uint32_t is_loose;
-	uint32_t dispatch_bayer_mode;
-	uint32_t in_fmt;
+	uint32_t pack_bits;
+	uint32_t bayer_pattern;
 	enum sprd_cam_sec_mode sec_mode;
 	enum isp_fetch_format fetch_fmt;
-	/* source buffer size */
 	struct img_size src;
-	/* support fetch trim */
 	struct img_trim in_trim;
 	struct img_addr addr;
 	struct img_addr trim_off;
 	struct img_pitch pitch;
 	uint32_t mipi_byte_rel_pos;
 	uint32_t mipi_word_num;
-	struct isp_fbd_raw_info *fbd_raw;
 };
 
 struct store_border {
@@ -352,7 +350,7 @@ struct isp_store_info {
 	uint32_t rd_ctrl;
 	uint32_t shadow_clr_sel;
 	uint32_t total_size;
-	enum isp_store_format color_fmt;/* output color format */
+	enum isp_store_format color_fmt;
 	struct img_size size;
 	struct img_addr addr;
 	struct img_addr slice_offset;
@@ -492,8 +490,11 @@ struct cam_hw_gtm_update {
 
 struct dcam_hw_slice_fetch {
 	uint32_t idx;
+	uint32_t slice_count;
+	uint32_t dcam_slice_mode;
 	struct dcam_fetch_info *fetch;
 	struct img_trim *cur_slice;
+	struct img_trim slice_trim;
 };
 
 struct dcam_hw_sram_ctrl {
@@ -543,21 +544,20 @@ struct dcam_hw_path_stop {
 };
 
 struct dcam_fetch_info {
-	uint32_t is_loose;
+	uint32_t pack_bits;
 	uint32_t endian;
 	uint32_t pattern;
-	uint32_t pitch;
 	struct img_size size;
 	struct img_trim trim;
 	struct img_addr addr;
 };
 
 struct dcam_mipi_info {
-	uint32_t sensor_if;/* MIPI CSI-2 */
-	uint32_t format;/* input color format */
-	uint32_t mode;/* single or multi mode. */
+	uint32_t sensor_if;
+	uint32_t format;
+	uint32_t mode;
 	uint32_t data_bits;
-	uint32_t pattern;/* bayer mode for rgb, yuv pattern for yuv */
+	uint32_t pattern;
 	uint32_t href;
 	uint32_t frm_deci;
 	uint32_t frm_skip;
@@ -579,7 +579,7 @@ struct dcam_hw_path_start {
 	uint32_t idx;
 	uint32_t slowmotion_count;
 	uint32_t pdaf_path_eb;
-	uint32_t is_loose;
+	uint32_t pack_bits;
 	uint32_t src_sel;
 	uint32_t bayer_pattern;
 	struct img_trim in_trim;
@@ -619,7 +619,7 @@ struct reg_add_val_tag {
 	unsigned int valid;
 	unsigned int dvalue;
 	unsigned int rw;
-	unsigned int wc;/* write clean */
+	unsigned int wc;
 };
 
 struct coeff_arg {

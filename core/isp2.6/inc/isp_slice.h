@@ -10,10 +10,11 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  */
-#include "isp_fmcu.h"
 
 #ifndef _ISP_SLICE_H_
 #define _ISP_SLICE_H_
+
+#include "isp_fmcu.h"
 
 #define SLICE_NUM_MAX                   4
 #define SLICE_W_NUM_MAX                 4
@@ -320,36 +321,11 @@ struct isp_slice_context {
 	uint32_t overlap_right;
 };
 
-int isp_slice_fetch_info_cfg(
-			void *cfg_in, struct isp_slice_context *slc_ctx);
-
-int isp_slice_store_info_cfg(
-		void *cfg_in, struct isp_slice_context *slc_ctx);
-
-int isp_slice_afbc_store_info_cfg(
-		void *cfg_in, struct isp_slice_context *slc_ctx);
-
-int isp_slice_3dnr_info_cfg(
-		void *cfg_in, struct isp_slice_context *slc_ctx);
-int isp_slice_noisefilter_info_cfg(void *cfg_in, struct isp_slice_context *slc_ctx);
-
-
-int isp_slice_ltm_info_cfg(void *cfg_in,
-	struct isp_slice_context *slc_ctx, enum isp_ltm_region ltm_id);
-int isp_slice_cfg(void *cfg_in, struct isp_slice_context *slc_ctx,
-		uint32_t *valid_slc_num);
-
+int isp_slice_info_cfg(void *cfg_in, struct isp_slice_context *slc_ctx);
+int isp_slice_base_cfg(void *cfg_in, struct isp_slice_context *slc_ctx, uint32_t *valid_slc_num);
 void *isp_slice_ctx_get(void);
 int isp_slice_ctx_put(void **slc_ctx);
-
 int isp_slice_fmcu_cmds_set(void *fmcu_handle,  void *ctx);
+int isp_slice_update(void *pctx_handle, uint32_t ctx_idx, uint32_t slice_id);
 
-int isp_set_slw_fmcu_cmds(
-		void *fmcu_handle,
-		struct isp_pipe_context *pctx);
-
-int isp_slice_update(
-		void *pctx_handle,
-		uint32_t ctx_idx,
-		uint32_t slice_id);
 #endif

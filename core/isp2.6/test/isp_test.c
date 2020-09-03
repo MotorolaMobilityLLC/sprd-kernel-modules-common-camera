@@ -442,13 +442,12 @@ static int camt_isp_cfg_fetch(struct ispt_context *ctx,
 	ctx_id = camt_isp_get_ctx_id(info);
 
 	fetch->ctx_id = ctx_id;
-	fetch->dispatch_bayer_mode = info->bayer_mode;
+	fetch->bayer_pattern = info->bayer_mode;
 	fetch->dispatch_color = 0;
 	fetch->fetch_path_sel = 0;
-	fetch->is_loose = 0;
+	fetch->pack_bits = 0;
 	fetch->sec_mode = 0;
 	fetch->fetch_fmt = ISP_FETCH_CSI2_RAW10;
-	fetch->in_fmt = IMG_PIX_FMT_GREY;
 	fetch->in_trim.start_x = info->crop_rect.x;
 	fetch->in_trim.start_y = info->crop_rect.y;
 	fetch->in_trim.size_x = info->crop_rect.w;
@@ -715,7 +714,7 @@ int ispt_start(struct camt_info *info)
 	yuv_addr[2] = ctx->fetch_info.addr.addr_ch2;
 	fetch_addr.idx = ctx->fetch_info.ctx_id;
 	fetch_addr.yuv_addr = yuv_addr;
-	hw->isp_ioctl(hw, ISP_HW_CFG_FETCH_SLICE_ADDR, &fetch_addr);
+	hw->isp_ioctl(hw, ISP_HW_CFG_FETCH_FRAME_ADDR, &fetch_addr);
 
 	path_common.ctx_id = ctx_id;
 	path_common.skip_pipeline = 0;
@@ -761,7 +760,7 @@ int ispt_start(struct camt_info *info)
 	store_addr.idx = ctx->path_store.ctx_id;
 	store_addr.yuv_addr = yuv_addr;
 	store_addr.addr = ISP_STORE_PRE_CAP_BASE;
-	hw->isp_ioctl(hw, ISP_HW_CFG_STORE_SLICE_ADDR, &store_addr);
+	hw->isp_ioctl(hw, ISP_HW_CFG_STORE_FRAME_ADDR, &store_addr);
 
 	pr_info("fail to ctx_id %d addr %lx\n", ctx_id, ctx->isp_cxt[ctx_id].cfg_hw_addr);
 	ISP_HREG_WR(camt_cfg_addr_reg[ctx_id], ctx->isp_cxt[ctx_id].cfg_hw_addr);

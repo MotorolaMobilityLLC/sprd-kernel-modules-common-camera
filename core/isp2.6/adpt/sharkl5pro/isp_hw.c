@@ -231,7 +231,7 @@ static int cam_reg_trace(void *handle, void *arg)
 
 abnormal_reg_trace:
 	pr_info("DCAM%d: Register list\n", trace->idx);
-	for (addr = DCAM_IP_REVISION; addr <= ISP_AFL_SUM2;
+	for (addr = DCAM_IP_REVISION; addr <= DCAM_LSC_WEI_LAST1;
 		addr += 16) {
 		pr_info("0x%03lx: 0x%x 0x%x 0x%x 0x%x\n",
 			addr,
@@ -251,6 +251,7 @@ abnormal_reg_trace:
 			DCAM_AXIM_RD(addr + 12));
 	}
 
+	pr_info("ISP: Register list\n");
 	for (addr = ISP_INT_EN0; addr <= ISP_INT_ALL_DONE_SRC_CTRL;
 		addr += 16) {
 		pr_info("0x%lx: 0x%x 0x%x 0x%x 0x%x\n",
@@ -1335,11 +1336,8 @@ static int isphw_block_func_get(void *handle, void *arg)
 
 static int isphw_fetch_set(void *handle, void *arg)
 {
-	uint32_t en_3dnr;
 	uint32_t bwu_val = 0;
-	struct isp_fbd_raw_info *fbd_raw = NULL;
 	uint32_t idx = 0;
-	uint32_t bypass = 0;
 	struct isp_hw_fetch_info *fetch = NULL;
 
 	if (!arg) {
@@ -1348,52 +1346,50 @@ static int isphw_fetch_set(void *handle, void *arg)
 	}
 
 	fetch = (struct isp_hw_fetch_info *)arg;
-	fbd_raw = fetch->fbd_raw;
 	idx = fetch->ctx_id;
 
 	pr_debug("enter: fmt:%d, w:%d, h:%d\n", fetch->fetch_fmt,
 			fetch->in_trim.size_x, fetch->in_trim.size_y);
 
-	en_3dnr = 0;/* (pctx->mode_3dnr == MODE_3DNR_OFF) ? 0 : 1; */
-	ISP_REG_MWR(idx, ISP_COMMON_SPACE_SEL,
-			BIT_1 | BIT_0, fetch->dispatch_color);
-
-	/* 11b: close store_dbg module */
-	ISP_REG_MWR(idx, ISP_COMMON_SPACE_SEL,
-			BIT_3 | BIT_2, 3 << 2);
+	ISP_REG_MWR(idx, ISP_COMMON_SPACE_SEL, BIT_1 | BIT_0, fetch->dispatch_color);
+	ISP_REG_MWR(idx, ISP_COMMON_SPACE_SEL, BIT_3 | BIT_2, 3 << 2);
 	ISP_REG_MWR(idx, ISP_COMMON_SPACE_SEL, BIT_4, 0 << 4);
+	ISP_REG_MWR(idx, ISP_COMMON_SCL_PATH_SEL, BIT_10, fetch->fetch_path_sel << 10);
+	ISP_REG_MWR(idx, ISP_COMMON_SCL_PATH_SEL, BIT_8, 0 << 8);
+	ISP_REG_MWR(idx, ISP_COMMON_SCL_PATH_SEL, BIT_5 | BIT_4, 3 << 4);
+	ISP_REG_MWR(idx, ISP_COMMON_SCL_PATH_SEL, BIT_3 | BIT_2, 3 << 2);
+	ISP_REG_MWR(idx, ISP_COMMON_SCL_PATH_SEL, BIT_1 | BIT_0, 3 << 0);
 
-	ISP_REG_MWR(idx, ISP_COMMON_SCL_PATH_SEL,
-			BIT_10, fetch->fetch_path_sel << 10);
-	ISP_REG_MWR(idx, ISP_COMMON_SCL_PATH_SEL,
-			BIT_8, en_3dnr << 8);/* 3dnr off */
-	ISP_REG_MWR(idx, ISP_COMMON_SCL_PATH_SEL,
-			BIT_5 | BIT_4, 3 << 4);/* thumb path off */
-	ISP_REG_MWR(idx, ISP_COMMON_SCL_PATH_SEL,
-			BIT_3 | BIT_2, 3 << 2);/* vid path off */
-	ISP_REG_MWR(idx, ISP_COMMON_SCL_PATH_SEL,
-			BIT_1 | BIT_0, 3 << 0);/* pre/cap path off */
-	ISP_REG_MWR(idx, ISP_FBD_RAW_SEL, BIT(0), 0x1);/* fbd off */
-
-	ISP_REG_MWR(idx, ISP_FETCH_PARAM, BIT_0, bypass);
-	ISP_REG_MWR(idx, ISP_FETCH_PARAM,
-			(0xF << 4), fetch->fetch_fmt << 4);
-	ISP_REG_WR(idx, ISP_FETCH_MEM_SLICE_SIZE,
-			fetch->in_trim.size_x | (fetch->in_trim.size_y << 16));
-
-	pr_debug("camca, isp sec mode=%d , is_loose=%d, pitch_ch0=0x%x, 0x%x, 0x%x\n",
-		fetch->sec_mode,
-		fetch->is_loose,
-		fetch->pitch.pitch_ch0,
-		fetch->pitch.pitch_ch1,
-		fetch->pitch.pitch_ch2);
-
-	if (fetch->is_loose == ISP_RAW_HALF14 || fetch->is_loose == ISP_RAW_HALF10)
+	ISP_REG_MWR(idx, ISP_FBD_RAW_SEL, BIT(0), 0x1);
+	if(fetch->pack_bits == ISP_RAW_HALF14 || fetch->pack_bits == ISP_RAW_HALF10)
 		bwu_val = 0x40001;
 	else
 		bwu_val = 0x40000;
 	ISP_REG_WR(idx, ISP_BWU_PARAM, bwu_val);
 
+	ISP_REG_WR(idx, ISP_DISPATCH_DLY,  0x253C);
+	ISP_REG_WR(idx, ISP_DISPATCH_LINE_DLY1,  0x280001C);
+	ISP_REG_WR(idx, ISP_DISPATCH_PIPE_BUF_CTRL_CH0,  0x64043C);
+	ISP_REG_WR(idx, ISP_DISPATCH_CH0_SIZE,
+		fetch->in_trim.size_x | (fetch->in_trim.size_y << 16));
+	ISP_REG_WR(idx, ISP_DISPATCH_CH0_BAYER, fetch->bayer_pattern);
+
+	ISP_REG_WR(idx, ISP_YDELAY_STEP, 0x144);
+	ISP_REG_WR(idx, ISP_SCALER_PRE_CAP_BASE + ISP_SCALER_HBLANK, 0x4040);
+	ISP_REG_WR(idx, ISP_SCALER_PRE_CAP_BASE + ISP_SCALER_RES, 0xFF);
+	ISP_REG_WR(idx, ISP_SCALER_PRE_CAP_BASE + ISP_SCALER_DEBUG, 1);
+
+	pr_debug("camca, isp sec mode=%d , pack_bits=%d, pitch_ch0=0x%x, 0x%x, 0x%x\n",
+		fetch->sec_mode,
+		fetch->pack_bits,
+		fetch->pitch.pitch_ch0,
+		fetch->pitch.pitch_ch1,
+		fetch->pitch.pitch_ch2);
+
+	ISP_REG_MWR(idx, ISP_FETCH_PARAM, BIT_0, 0);
+	ISP_REG_MWR(idx, ISP_FETCH_PARAM, (0xF << 4), fetch->fetch_fmt << 4);
+	ISP_REG_WR(idx, ISP_FETCH_MEM_SLICE_SIZE,
+			fetch->in_trim.size_x | (fetch->in_trim.size_y << 16));
 	if (fetch->sec_mode == SEC_SPACE_PRIORITY) {
 		cam_trusty_isp_pitch_set(fetch->pitch.pitch_ch0,
 			fetch->pitch.pitch_ch1,
@@ -1408,49 +1404,38 @@ static int isphw_fetch_set(void *handle, void *arg)
 	ISP_REG_WR(idx, ISP_FETCH_MIPI_INFO,
 		fetch->mipi_word_num | (fetch->mipi_byte_rel_pos << 16));
 
-	/* fetch fbd */
-	if (fetch->fetch_path_sel) {
-		ISP_REG_MWR(idx, ISP_FBD_RAW_SEL,
-			BIT(0), fbd_raw->fetch_fbd_bypass);
-		ISP_REG_MWR(idx, ISP_FBD_RAW_SEL, BIT_16,
-			fbd_raw->fetch_fbd_4bit_bypass << 16);
-		ISP_REG_MWR(idx, ISP_FBD_RAW_SEL,
-			0x00003f00, fbd_raw->pixel_start_in_hor << 8);
-		ISP_REG_MWR(idx, ISP_FBD_RAW_SEL,
-			0x00000030, fbd_raw->pixel_start_in_ver << 4);
-		ISP_REG_WR(idx, ISP_FBD_RAW_SLICE_SIZE,
-			fbd_raw->width | (fbd_raw->height << 16));
-		ISP_REG_WR(idx, ISP_FBD_RAW_PARAM0,
-			fbd_raw->tiles_num_in_hor
-			| (fbd_raw->tiles_num_in_ver << 16));
-		ISP_REG_WR(idx, ISP_FBD_RAW_PARAM1,
-			0xff << 16
-			| (fbd_raw->tiles_start_odd & 0x1) << 8
-			| ((fbd_raw->tiles_num_pitch) & 0xff));
-		ISP_REG_WR(idx, ISP_FBD_RAW_LOW_PARAM1, fbd_raw->low_bit_pitch);
-		if (fbd_raw->fetch_fbd_4bit_bypass == 0) {
-			ISP_REG_WR(idx, ISP_FBD_RAW_LOW_4BIT_PARAM1,
-				fbd_raw->low_4bit_pitch);
-		}
-		ISP_REG_MWR(idx, ISP_FETCH_PARAM, BIT_0, 0x1);
-		pr_info("enable fbd: %d\n", !fbd_raw->fetch_fbd_bypass);
+	pr_debug("end\n");
+	return 0;
+}
+
+static int isphw_fetch_fbd_set(void *handle, void *arg)
+{
+	struct isp_fbd_raw_info *fbd_raw = NULL;
+	uint32_t idx = 0;
+
+	if (!arg) {
+		pr_err("fail to get valid arg\n");
+		return -EFAULT;
 	}
 
-	ISP_REG_WR(idx, ISP_DISPATCH_DLY, 0x253C);
-	ISP_REG_WR(idx, ISP_DISPATCH_LINE_DLY1, 0x8280001C);
-	ISP_REG_WR(idx, ISP_DISPATCH_PIPE_BUF_CTRL_CH0, 0x64043C);
-	ISP_REG_WR(idx, ISP_DISPATCH_CH0_SIZE,
-		fetch->in_trim.size_x | (fetch->in_trim.size_y << 16));
-	ISP_REG_WR(idx, ISP_DISPATCH_CH0_BAYER, fetch->dispatch_bayer_mode);
+	fbd_raw = (struct isp_fbd_raw_info *)arg;
+	idx = fbd_raw->ctx_id;
 
+	ISP_REG_MWR(idx, ISP_FBD_RAW_SEL, BIT(0), fbd_raw->fetch_fbd_bypass);
+	ISP_REG_MWR(idx, ISP_FBD_RAW_SEL, BIT_16, fbd_raw->fetch_fbd_4bit_bypass << 16);
+	ISP_REG_MWR(idx, ISP_FBD_RAW_SEL, 0x00003f00, fbd_raw->pixel_start_in_hor << 8);
+	ISP_REG_MWR(idx, ISP_FBD_RAW_SEL, 0x00000030, fbd_raw->pixel_start_in_ver << 4);
+	ISP_REG_WR(idx, ISP_FBD_RAW_SLICE_SIZE, fbd_raw->width | (fbd_raw->height << 16));
+	ISP_REG_WR(idx, ISP_FBD_RAW_PARAM0,
+		fbd_raw->tiles_num_in_hor | (fbd_raw->tiles_num_in_ver << 16));
+	ISP_REG_WR(idx, ISP_FBD_RAW_PARAM1, 0xff << 16 |
+		(fbd_raw->tiles_start_odd & 0x1) << 8 | ((fbd_raw->tiles_num_pitch) & 0xff));
+	ISP_REG_WR(idx, ISP_FBD_RAW_LOW_PARAM1, fbd_raw->low_bit_pitch);
+	if (fbd_raw->fetch_fbd_4bit_bypass == 0)
+		ISP_REG_WR(idx, ISP_FBD_RAW_LOW_4BIT_PARAM1, fbd_raw->low_4bit_pitch);
+	ISP_REG_MWR(idx, ISP_FETCH_PARAM, BIT_0, 0x1);
+	pr_debug("enable fbd: %d\n", !fbd_raw->fetch_fbd_bypass);
 
-	ISP_REG_WR(idx, ISP_YDELAY_STEP, 0x144);
-	ISP_REG_WR(idx, ISP_SCALER_PRE_CAP_BASE
-		+ ISP_SCALER_HBLANK, 0x4040);
-	ISP_REG_WR(idx, ISP_SCALER_PRE_CAP_BASE + ISP_SCALER_RES, 0xFF);
-	ISP_REG_WR(idx, ISP_SCALER_PRE_CAP_BASE + ISP_SCALER_DEBUG, 1);
-
-	pr_debug("end\n");
 	return 0;
 }
 
@@ -1917,12 +1902,10 @@ static int isphw_slice_3dnr_fbd_fetch(void *handle, void *arg)
 static int isphw_subblock_cfg(void *handle, void *arg)
 {
 	uint32_t idx = 0;
-	struct isp_pipe_context *pctx = NULL;
-	struct isp_fetch_info *fetch = NULL;
+	struct isp_hw_fetch_info *fetch = NULL;
 
-	pctx = (struct isp_pipe_context *)arg;
-	fetch = &pctx->fetch;
-	idx = pctx->ctx_id;
+	fetch = (struct isp_hw_fetch_info *)arg;
+	idx = fetch->ctx_id;
 	pr_debug("superzoom enter: fmt:%d, in_trim %d %d, src %d %d\n",
 		fetch->fetch_fmt, fetch->in_trim.size_x, fetch->in_trim.size_y,
 		fetch->src.w, fetch->src.h);
@@ -1948,7 +1931,7 @@ static int isphw_subblock_cfg(void *handle, void *arg)
 	ISP_REG_WR(idx, ISP_DISPATCH_PIPE_BUF_CTRL_CH0, 0x64043C);
 	ISP_REG_WR(idx, ISP_DISPATCH_CH0_SIZE,
 				fetch->in_trim.size_x | (fetch->in_trim.size_y << 16));
-	ISP_REG_WR(idx, ISP_DISPATCH_CH0_BAYER, pctx->dispatch_bayer_mode);
+	ISP_REG_WR(idx, ISP_DISPATCH_CH0_BAYER, fetch->bayer_pattern);
 	pr_debug("pitch ch0 %d, ch1 %d, ch2 %d\n",
 		fetch->pitch.pitch_ch0, fetch->pitch.pitch_ch1, fetch->pitch.pitch_ch2);
 
@@ -2667,7 +2650,8 @@ static int isphw_stop(void *handle, void *arg)
 	return 0;
 }
 
-static int isphw_slice_addr_store(void *handle, void *arg)
+
+static int isphw_frame_addr_store(void *handle, void *arg)
 {
 	struct isp_hw_store_slice_addr *parm = NULL;
 
@@ -2680,7 +2664,7 @@ static int isphw_slice_addr_store(void *handle, void *arg)
 	return 0;
 }
 
-static int isphw_slice_addr_fetch(void *handle, void *arg)
+static int isphw_frame_addr_fetch(void *handle, void *arg)
 {
 	struct isp_hw_fetch_slice_addr *parm = NULL;
 
@@ -2881,6 +2865,7 @@ static struct hw_io_ctrl_fun isp_ioctl_fun_tab[] = {
 	{ISP_HW_CFG_DISABLE_IRQ,             isphw_irq_disable},
 	{ISP_HW_CFG_CLEAR_IRQ,               isphw_irq_clear},
 	{ISP_HW_CFG_FETCH_SET,               isphw_fetch_set},
+	{ISP_HW_CFG_FETCH_FBD_SET,           isphw_fetch_fbd_set},
 	{ISP_HW_CFG_DEFAULT_PARA_SET,        isphw_default_param_set},
 	{ISP_HW_CFG_BLOCK_FUNC_GET,          isphw_block_func_get},
 	{ISP_HW_CFG_CFG_MAP_INFO_GET,        isphw_cfg_map_info_get},
@@ -2922,8 +2907,8 @@ static struct hw_io_ctrl_fun isp_ioctl_fun_tab[] = {
 	{ISP_HW_CFG_3DNR_PARAM,              isphw_3dnr_param_set},
 	{ISP_HW_CFG_GET_NLM_YNR,             isphw_radius_parm_adpt},
 	{ISP_HW_CFG_STOP,                    isphw_stop},
-	{ISP_HW_CFG_STORE_SLICE_ADDR,        isphw_slice_addr_store},
-	{ISP_HW_CFG_FETCH_SLICE_ADDR,        isphw_slice_addr_fetch},
+	{ISP_HW_CFG_STORE_FRAME_ADDR,        isphw_frame_addr_store},
+	{ISP_HW_CFG_FETCH_FRAME_ADDR,        isphw_frame_addr_fetch},
 	{ISP_HW_CFG_MAP_INIT,                isphw_map_init_cfg},
 	{ISP_HW_CFG_START_ISP,               isphw_isp_start_cfg},
 	{ISP_HW_CFG_UPDATE_HIST_ROI,         isphw_hist_roi_update},

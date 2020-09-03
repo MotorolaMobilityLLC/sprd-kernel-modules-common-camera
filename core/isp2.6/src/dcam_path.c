@@ -79,7 +79,7 @@ int dcam_path_base_cfg(void *dcam_handle,
 		path->src_sel = ch_desc->is_raw ? 0 : 1;
 		path->frm_deci = ch_desc->frm_deci;
 		path->frm_skip = ch_desc->frm_skip;
-		path->is_loose = ch_desc->is_loose;
+		path->pack_bits = ch_desc->pack_bits;
 		path->endian = ch_desc->endian;
 		path->is_4in1 = ch_desc->is_4in1;
 		path->bayer_pattern = ch_desc->bayer_pattern;
@@ -90,7 +90,7 @@ int dcam_path_base_cfg(void *dcam_handle,
 		path->frm_deci = ch_desc->frm_deci;
 		path->frm_skip = ch_desc->frm_skip;
 
-		path->is_loose = ch_desc->is_loose;
+		path->pack_bits = ch_desc->pack_bits;
 		path->endian = ch_desc->endian;
 		path->is_4in1 = ch_desc->is_4in1;
 		path->bayer_pattern = ch_desc->bayer_pattern;
@@ -222,7 +222,7 @@ int dcam_path_size_cfg(void *dcam_handle,
 
 		invalid = 0;
 		invalid |= ((path->in_size.w == 0) || (path->in_size.h == 0));
-		if (dev->dcam_slice_mode != CAM_OFFLINE_SLICE_SW) {
+		if (!dev->dcam_slice_mode) {
 			invalid |= (path->in_size.w > dcam_max_w);
 			invalid |= (path->in_size.h > dcam_max_h);
 		}
@@ -316,6 +316,9 @@ int dcam_path_size_cfg(void *dcam_handle,
 		break;
 
 	default:
+		if (path->path_id == DCAM_PATH_VCH2 && path->src_sel)
+			return ret;
+
 		pr_err("fail to get known path %d\n", path->path_id);
 		ret = -EFAULT;
 		break;

@@ -696,19 +696,32 @@ static void dcamint_bin_path_done(void *param)
 	}
 
 	if (dev->offline) {
-		if (dev->slice_num > 0) {
-			pr_debug("dcam%d offline slice%d done.\n",
-				dev->idx, (dev->slice_num - dev->slice_count));
-			complete(&dev->slice_done);
-			dev->slice_count--;
-			if (dev->slice_count > 0)
-				return;
+		if (dev->dcam_slice_mode != CAM_OFFLINE_SLICE_SW) {
+			if (dev->slice_num > 0) {
+				pr_debug("dcam%d offline slice%d done.\n",
+					dev->idx, (dev->slice_num - dev->slice_count));
+				complete(&dev->slice_done);
+				dev->slice_count--;
+				if (dev->slice_count > 0)
+					return;
+			}
 		}
 	}
 
 	if ((frame = dcamint_frame_prepare(dev, DCAM_PATH_BIN))) {
-		if (dev->idx == DCAM_ID_1 && dev->dcam_slice_mode == 1)
+		if (dev->idx == DCAM_ID_1 && dev->dcam_slice_mode == CAM_OFFLINE_SLICE_HW)
 			frame->dcam_idx = DCAM_ID_1;
+		if (dev->dcam_slice_mode == CAM_OFFLINE_SLICE_SW) {
+			frame->dcam_idx = dev->idx;
+			frame->sw_slice_num = dev->slice_num;
+			frame->sw_slice_no = dev->slice_num - dev->slice_count;
+			frame->slice_trim = dev->slice_trim;
+
+			if (dev->slice_count > 0)
+			   dev->slice_count--;
+			if (dev->slice_count == 0)
+			   dev->slice_num = 0;
+		}
 		dcamint_frame_dispatch(dev, DCAM_PATH_BIN, frame,
 					DCAM_CB_DATA_DONE);
 	}
@@ -720,14 +733,16 @@ static void dcamint_bin_path_done(void *param)
 				DCAM_CB_DATA_DONE);
 
 	if (dev->offline) {
-		/* there is source buffer for offline process */
-		frame = cam_queue_dequeue(&dev->proc_queue, struct camera_frame, list);
-		if (frame) {
-			cam_buf_iommu_unmap(&frame->buf);
-			dev->dcam_cb_func(DCAM_CB_RET_SRC_BUF, frame,
-					dev->cb_priv_data);
+		if ((dev->dcam_slice_mode == CAM_OFFLINE_SLICE_SW && dev->slice_count == 0)
+			|| dev->dcam_slice_mode != CAM_OFFLINE_SLICE_SW) {
+			/* there is source buffer for offline process */
+			frame = cam_queue_dequeue(&dev->proc_queue, struct camera_frame, list);
+			if (frame) {
+				cam_buf_iommu_unmap(&frame->buf);
+				dev->dcam_cb_func(DCAM_CB_RET_SRC_BUF, frame,
+						  dev->cb_priv_data);
+			}
 		}
-		pr_info("dcam%d frame done.\n", dev->idx);
 		complete(&dev->frm_done);
 	}
 }
@@ -781,8 +796,11 @@ static void dcamint_vch2_path_done(void *param)
 
 	type = path->src_sel ? DCAM_CB_DATA_DONE : DCAM_CB_STATIS_DONE;
 
-	if ((frame = dcamint_frame_prepare(dev, DCAM_PATH_VCH2)))
+	if ((frame = dcamint_frame_prepare(dev, DCAM_PATH_VCH2))) {
+		if (dev->dcam_slice_mode)
+			frame->irq_type = CAMERA_IRQ_BIGSIZE_DONE;
 		dcamint_frame_dispatch(dev, DCAM_PATH_VCH2, frame, type);
+	}
 }
 
 /*

@@ -104,7 +104,6 @@ int dcam_drv_dt_parse(struct platform_device *pdev,
 	void __iomem *reg_base = NULL;
 	struct resource reg_res = {0}, irq_res = {0};
 	uint32_t count = 0, prj_id = 0;
-	int super_index = -1;
 	uint32_t dcam_max_w = 0, dcam_max_h = 0;
 	int i = 0, irq = 0;
 	int args_count = 0;
@@ -142,11 +141,8 @@ int dcam_drv_dt_parse(struct platform_device *pdev,
 	hw_info->pdev = pdev;
 	hw_info->prj_id = (enum cam_prj_id) prj_id;
 
-	pr_info("superzoom :super_index id %d\n", super_index);
-
 	dcam_max_w = DCAM_PATH_WMAX;
 	dcam_max_h = DCAM_PATH_HMAX;
-
 	if (prj_id == ROC1) {
 		dcam_max_w = DCAM_PATH_WMAX_ROC1;
 		dcam_max_h = DCAM_PATH_HMAX_ROC1;

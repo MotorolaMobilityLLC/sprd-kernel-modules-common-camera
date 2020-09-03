@@ -1129,7 +1129,7 @@ static int camioctl_frame_addr_set(struct camera_module *module,
 				cmd, ch->dcam_path_id, pframe);
 			/* 4in1_raw_capture, maybe need two image once */
 			if (ch->second_path_enable) {
-				ch->is_loose = module->cam_uinfo.sensor_if.if_spec.mipi.is_loose;
+				ch->pack_bits = module->cam_uinfo.sensor_if.if_spec.mipi.is_loose;
 				pframe = camcore_secondary_buf_get(&param, ch, i);
 				if (!pframe) {
 					ret = -EFAULT;
@@ -1879,7 +1879,7 @@ static int camioctl_stream_off(struct camera_module *module,
 				if (ch->postproc_buf) {
 					camcore_k_frame_put(ch->postproc_buf);
 					ch->postproc_buf = NULL;
-					pr_info("superzoom put frame\n");
+					pr_info("postproc put frame\n");
 				}
 			}
 		}
@@ -2192,7 +2192,7 @@ static int camioctl_capture_start(struct camera_module *module,
 
 		/* reconfig full path to raw */
 		memset(&ch_desc, 0, sizeof(ch_desc));
-		ch_desc.is_loose = 2;
+		ch_desc.pack_bits = 2;
 		ch_desc.is_raw = 1;
 		ch_desc.endian.y_endian = ENDIAN_LITTLE;
 		ch_desc.bayer_pattern = module->cam_uinfo.sensor_if.img_ptn;
@@ -2306,7 +2306,7 @@ static int camioctl_capture_stop(struct camera_module *module,
 
 		pr_info("STOP FDR capture\n");
 		memset(&ch_desc, 0, sizeof(ch_desc));
-		ch_desc.is_loose = module->cam_uinfo.sensor_if.if_spec.mipi.is_loose;
+		ch_desc.pack_bits = module->cam_uinfo.sensor_if.if_spec.mipi.is_loose;
 		ch_desc.is_raw = 0;
 		ch_desc.endian.y_endian = ENDIAN_LITTLE;
 		ch_desc.bayer_pattern = module->cam_uinfo.sensor_if.img_ptn;

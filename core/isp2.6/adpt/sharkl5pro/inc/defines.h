@@ -17,13 +17,14 @@
 /* configure fmcu with isp register offset, range is 0x620-0x630 */
 #define ISP_OFFSET_RANGE               0x6300620
 
-#define ISP_WIDTH_MAX                  8048
-#define ISP_HEIGHT_MAX                 6036
+#define ISP_WIDTH_MAX                  9248
+#define ISP_HEIGHT_MAX                 6944
 #define DCAM_24M_WIDTH                 5664
 #define DCAM_16M_WIDTH                 4672
 #define DCAM_13M_WIDTH                 4160
 #define DCAM_8M_WIDTH                  3264
 #define DCAM_RDS_OUT_LIMIT             2160
+#define DCAM_OVERLAP                   64
 
 #define DCAM_PATH_WMAX                 8048
 #define DCAM_PATH_HMAX                 6036
@@ -57,9 +58,9 @@ enum raw_pitch_format {
 	RAW_FORMAT_MAX
 };
 
-static inline uint32_t cal_sprd_raw_pitch(uint32_t w, uint32_t is_loose)
+static inline uint32_t cal_sprd_raw_pitch(uint32_t w, uint32_t pack_bits)
 {
-	if (is_loose == RAW_PACK10)
+	if(pack_bits == RAW_PACK10)
 		w = (w * 10 + 127) / 128 * 128 / 8;
 	else
 		w = (w * 16 + 127) / 128 * 128 / 8;
