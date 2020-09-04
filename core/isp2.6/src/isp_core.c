@@ -3455,7 +3455,7 @@ static int ispcore_dev_open(void *isp_handle, void *param)
 		mutex_init(&dev->path_mutex);
 		spin_lock_init(&dev->ctx_lock);
 
-		ret = isp_hw_init(dev);
+		ret = isp_drv_hw_init(dev);
 		tmp_default.type = ISP_HW_PARA;
 		hw->isp_ioctl(hw, ISP_HW_CFG_DEFAULT_PARA_SET, &tmp_default);
 		ret = ispcore_context_init(dev);

@@ -39,7 +39,7 @@ unsigned long s_isp_regbase[ISP_MAX_COUNT];
 unsigned long isp_phys_base[ISP_MAX_COUNT];
 unsigned long s_isp_mmubase;
 
-int isp_hw_init(void *arg)
+int isp_drv_hw_init(void *arg)
 {
 	int ret = 0;
 	struct isp_pipe_dev *dev = NULL;

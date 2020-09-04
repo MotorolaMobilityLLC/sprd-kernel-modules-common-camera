@@ -252,7 +252,7 @@ struct isp_pipe_ops {
 void *isp_core_pipe_dev_get(void);
 int isp_core_pipe_dev_put(void *isp_handle);
 
-int isp_hw_init(void *arg);
+int isp_drv_hw_init(void *arg);
 int isp_hw_deinit(void *arg);
 int sprd_isp_parse_dt(struct device_node *dn,
 		struct cam_hw_info *hw_info,

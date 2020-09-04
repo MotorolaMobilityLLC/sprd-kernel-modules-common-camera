@@ -39,7 +39,6 @@
 
 #include "cam_types.h"
 #include "cam_buf.h"
-#include "mm_ahb_l5pro.h"
 #include "fd_core.h"
 #include "fd_drv.h"
 #include "fd_reg.h"
