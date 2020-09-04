@@ -28,7 +28,7 @@
 #include <linux/sprd_ion.h>
 
 #include <sprd_mm.h>
-#include <sprd_isp_hw.h>
+#include <isp_hw.h>
 #include "sprd_img.h"
 #include "cam_trusty.h"
 #include "cam_test.h"

@@ -15,7 +15,7 @@
 #include <linux/uaccess.h>
 #include <linux/vmalloc.h>
 #include <sprd_mm.h>
-#include "sprd_isp_hw.h"
+#include "isp_hw.h"
 
 #include "dcam_reg.h"
 #include "dcam_core.h"

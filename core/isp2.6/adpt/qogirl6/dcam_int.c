@@ -14,7 +14,7 @@
 #include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/interrupt.h>
-#include "sprd_isp_hw.h"
+#include "isp_hw.h"
 #include "sprd_img.h"
 #include <sprd_mm.h>
 #include "dcam_reg.h"

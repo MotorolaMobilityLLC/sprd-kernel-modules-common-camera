@@ -16,7 +16,7 @@
 #include <linux/uaccess.h>
 
 #include <sprd_mm.h>
-#include <sprd_isp_hw.h>
+#include <isp_hw.h>
 #include "sprd_img.h"
 
 #include "compat_cam_drv.h"

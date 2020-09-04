@@ -14,7 +14,7 @@
 #include <linux/uaccess.h>
 #include <sprd_mm.h>
 
-#include "sprd_isp_hw.h"
+#include "isp_hw.h"
 #include "dcam_core.h"
 #include "dcam_reg.h"
 

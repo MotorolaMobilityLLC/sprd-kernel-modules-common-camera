@@ -11,8 +11,8 @@
  * GNU General Public License for more details.
  */
 
-#ifndef _SPRD_ISP_HW_H_
-#define _SPRD_ISP_HW_H_
+#ifndef _ISP_HW_H_
+#define _ISP_HW_H_
 
 #include "defines.h"
 #include "sprd_isp_2v6.h"

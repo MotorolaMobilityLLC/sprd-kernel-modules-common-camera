@@ -12,7 +12,7 @@
  */
 #include <linux/uaccess.h>
 #include <sprd_mm.h>
-#include "sprd_isp_hw.h"
+#include "isp_hw.h"
 #include <linux/mutex.h>
 
 #include "isp_reg.h"

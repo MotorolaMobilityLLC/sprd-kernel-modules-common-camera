@@ -13,7 +13,7 @@
 #ifndef _DCAM_BLKPARAM_H_
 #define _DCAM_BLKPARAM_H_
 
-#include "sprd_isp_hw.h"
+#include "isp_hw.h"
 
 enum dcam_gtm_param_type {
 	DCAM_GTM_PARAM_PRE,

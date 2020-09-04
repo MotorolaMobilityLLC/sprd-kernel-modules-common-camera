@@ -14,7 +14,7 @@
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <sprd_mm.h>
-#include "sprd_isp_hw.h"
+#include "isp_hw.h"
 #include "sprd_img.h"
 
 #include "cam_trusty.h"

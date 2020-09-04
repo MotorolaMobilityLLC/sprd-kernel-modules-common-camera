@@ -22,7 +22,7 @@
 #include <linux/sprd_ion.h>
 #include <linux/sprd_iommu.h>
 #include <linux/sprd_ion.h>
-#include <sprd_isp_hw.h>
+#include <isp_hw.h>
 #include "sprd_img.h"
 #include <video/sprd_mmsys_pw_domain.h>
 #include <sprd_mm.h>
