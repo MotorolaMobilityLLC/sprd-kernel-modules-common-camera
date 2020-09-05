@@ -39,11 +39,12 @@ int mmsys_set_fix_dvfs_value(unsigned long fix_volt) {
     fix_reg = (fix_volt & 0x7) << 1;
 
     if (fix_on)
-        DVFS_REG_WR_ABS(REG_TOP_DVFS_APB_DCDC_MM_FIX_VOLTAGE_CTRL,
-                        (fix_reg | BIT_DCDC_MM_FIX_VOLTAGE_EN));
+        regmap_update_bits(g_mmreg_map.mmdvfs_top_regmap, REG_TOP_DVFS_APB_DCDC_MM_FIX_VOLTAGE_CTRL,
+                         BIT_DCDC_MM_FIX_VOLTAGE_EN, (fix_reg | BIT_DCDC_MM_FIX_VOLTAGE_EN));
     else
-        DVFS_REG_WR_ABS(REG_TOP_DVFS_APB_DCDC_MM_FIX_VOLTAGE_CTRL,
-                        fix_reg & (~BIT_DCDC_MM_FIX_VOLTAGE_EN));
+        regmap_update_bits(g_mmreg_map.mmdvfs_top_regmap, REG_TOP_DVFS_APB_DCDC_MM_FIX_VOLTAGE_CTRL,
+                        BIT_DCDC_MM_FIX_VOLTAGE_EN, fix_reg & (~BIT_DCDC_MM_FIX_VOLTAGE_EN));
+
 
     pr_info("dvfs ops: %s\n", __func__);
     return MM_DVFS_SUCCESS;
@@ -53,7 +54,7 @@ int top_mm_dvfs_current_volt(struct devfreq *devfreq) {
     unsigned int volt_reg;
 
     msleep(1);
-    volt_reg = DVFS_REG_RD_ABS(REG_TOP_DVFS_APB_DCDC_MM_DVFS_STATE_DBG);
+    regmap_read(g_mmreg_map.mmdvfs_top_regmap, REG_TOP_DVFS_APB_DCDC_MM_DVFS_STATE_DBG, &volt_reg);
     volt_reg = (volt_reg >> 20) & 0x7;
     pr_info("dvfs_debug : %s volt_reg=%d \n", __func__, volt_reg);
     return volt_reg;

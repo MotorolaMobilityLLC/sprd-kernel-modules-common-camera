@@ -94,6 +94,7 @@ static int mmsys_dvfs_notify_callback(struct notifier_block *nb,
 static int mmsys_dvfs_probe(struct platform_device *pdev) {
     struct device *dev = &pdev->dev;
     struct device_node *np = pdev->dev.of_node;
+    struct device_node *top_node;
     struct mmsys_dvfs *mmsys;
     void __iomem *reg_base = NULL;
     struct resource reg_res = {0};
@@ -142,7 +143,18 @@ static int mmsys_dvfs_probe(struct platform_device *pdev) {
         pr_err("fail to map mmsys dvfs top reg base\n");
         goto err_iounmap;
     }
-    g_mmreg_map.mmdvfs_top_regbase = (unsigned long)reg_base;
+    top_node = of_parse_phandle(np, "sprd,topdvfs_controller", 0);
+    if (!top_node){
+      pr_err("Failed to find 'sprd,topdvfs_controller' node\n");
+      ret = -EINVAL;
+      goto err;
+    }
+    g_mmreg_map.mmdvfs_top_regmap = syscon_node_to_regmap(top_node);
+    if (IS_ERR(g_mmreg_map.mmdvfs_top_regmap)) {
+      pr_err("No regmap for syscon mmdvfs_top_regmap\n");
+      ret = -ENODEV;
+      goto err;
+    }
 
     reg_res.start = REGS_MM_AHB_REG_START;
     reg_res.end = REGS_MM_AHB_REG_END;
@@ -188,6 +200,8 @@ static int mmsys_dvfs_probe(struct platform_device *pdev) {
 
 err_iounmap:
 err:
+    if (top_node)
+      of_node_put(top_node);
     return ret;
 }
 

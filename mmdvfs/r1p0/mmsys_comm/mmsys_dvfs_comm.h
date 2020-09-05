@@ -25,6 +25,7 @@
 #include <linux/of_device.h>
 #include <linux/of_irq.h>
 #include <linux/regmap.h>
+#include <linux/mfd/syscon.h>
 #include <linux/semaphore.h>
 #include <linux/spinlock.h>
 #include <linux/platform_device.h>
@@ -150,7 +151,7 @@ struct ip_dvfs_para {
 
 struct mmreg_map {
     unsigned long mmdvfs_ahb_regbase;
-    unsigned long mmdvfs_top_regbase;
+    struct regmap *mmdvfs_top_regmap;
     unsigned long mm_ahb_regbase;
     unsigned long mm_power_regbase;
     unsigned long mm_power_on_regbase;

@@ -16,9 +16,9 @@ static int get_ip_status(struct devfreq *devfreq,
     volt_reg = DVFS_REG_RD(REG_MM_DVFS_AHB_MM_DVFS_VOLTAGE_DBG);
     clk_reg = DVFS_REG_RD(REG_MM_DVFS_AHB_MM_DVFS_CGM_CFG_DBG);
     // top
-    ip_volt =
-        ((DVFS_REG_RD_ABS(REG_TOP_DVFS_APB_DCDC_MM_DVFS_STATE_DBG)) >> 20) &
-        0x7;
+    regmap_read(g_mmreg_map.mmdvfs_top_regmap, REG_TOP_DVFS_APB_DCDC_MM_DVFS_STATE_DBG, &ip_volt);
+    ip_volt = (ip_volt >> 20) & 0x07;
+
     for (i = 0; i < 8; i++) {
         if (ip_volt == isp_dvfs_config_table[i].volt) {
             ip_status->top_volt = isp_dvfs_config_table[i].volt_value;
@@ -193,36 +193,36 @@ static void mm_dvfs_force_en(u32 on) {
 }
 
 void mm_sw_dvfs_onoff(u32 on) {
-    u32 sw_ctrl_reg = 0;
+
 
     pr_debug("dvfs ops: %s , %d\n", __func__, on);
 
     mutex_lock(&mmsys_glob_reg_lock);
-    sw_ctrl_reg = DVFS_REG_RD_ABS(REG_TOP_DVFS_APB_SUBSYS_SW_DVFS_EN_CFG);
+
 
     if (on)
-        DVFS_REG_WR_ABS(REG_TOP_DVFS_APB_SUBSYS_SW_DVFS_EN_CFG,
-                        sw_ctrl_reg | BIT_MM_SYS_SW_DVFS_EN);
+        regmap_update_bits(g_mmreg_map.mmdvfs_top_regmap, REG_TOP_DVFS_APB_SUBSYS_SW_DVFS_EN_CFG,
+                        BIT_MM_SYS_SW_DVFS_EN, BIT_MM_SYS_SW_DVFS_EN);
     else
-        DVFS_REG_WR_ABS(REG_TOP_DVFS_APB_SUBSYS_SW_DVFS_EN_CFG,
-                        sw_ctrl_reg & (~BIT_MM_SYS_SW_DVFS_EN));
+        regmap_update_bits(g_mmreg_map.mmdvfs_top_regmap, REG_TOP_DVFS_APB_SUBSYS_SW_DVFS_EN_CFG,
+                        BIT_MM_SYS_SW_DVFS_EN, 0);
     mutex_unlock(&mmsys_glob_reg_lock);
 }
 
 void mmdcdc_sw_dvfs_onoff(u32 on) {
-    u32 sw_ctrl_reg = 0;
+
 
     pr_debug("dvfs ops: %s , %d\n", __func__, on);
 
     mutex_lock(&mmsys_glob_reg_lock);
-    sw_ctrl_reg = DVFS_REG_RD_ABS(REG_TOP_DVFS_APB_DCDC_MM_SW_DVFS_CTRL);
+
 
     if (on)
-        DVFS_REG_WR_ABS(REG_TOP_DVFS_APB_DCDC_MM_SW_DVFS_CTRL,
-                        sw_ctrl_reg | BIT_DCDC_MM_SW_TUNE_EN);
+        regmap_update_bits(g_mmreg_map.mmdvfs_top_regmap, REG_TOP_DVFS_APB_DCDC_MM_SW_DVFS_CTRL,
+                        BIT_DCDC_MM_SW_TUNE_EN, BIT_DCDC_MM_SW_TUNE_EN);
     else
-        DVFS_REG_WR_ABS(REG_TOP_DVFS_APB_DCDC_MM_SW_DVFS_CTRL,
-                        sw_ctrl_reg & (~BIT_DCDC_MM_SW_TUNE_EN));
+        regmap_update_bits(g_mmreg_map.mmdvfs_top_regmap, REG_TOP_DVFS_APB_DCDC_MM_SW_DVFS_CTRL,
+                        BIT_DCDC_MM_SW_TUNE_EN, 0);
     mutex_unlock(&mmsys_glob_reg_lock);
 }
 
