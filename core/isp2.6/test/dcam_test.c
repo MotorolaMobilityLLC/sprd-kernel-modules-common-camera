@@ -130,7 +130,7 @@ static int get_dcam_path_id(unsigned int camt_dcam_path_id)
 static int cfg_dcam_path_size(struct dcamt_context *cxt, struct camt_info *test_info, int i)
 {
 	int ret = 0;
-	uint32_t invalid;
+	bool invalid;
 	struct img_size crop_size, dst_size;
 	struct cam_hw_info *hw = NULL;
 	uint32_t dcam_max_w = 0, dcam_max_h = 0;
