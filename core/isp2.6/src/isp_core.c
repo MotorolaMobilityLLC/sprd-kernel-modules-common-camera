@@ -1001,7 +1001,7 @@ exit:
 	return 0;
 }
 
-static int ispcore_slice_needed(struct isp_pipe_context *pctx)
+static uint32_t ispcore_slice_needed(struct isp_pipe_context *pctx)
 {
 	int i;
 	struct isp_path_desc *path;
