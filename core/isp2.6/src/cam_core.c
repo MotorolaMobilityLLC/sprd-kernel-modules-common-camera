@@ -2846,8 +2846,8 @@ static int camcore_cal_channel_size_rds(struct camera_module *module)
 		dcam_out.h = ALIGN(dcam_out.h, align_h);
 
 		/* keep same ratio between width and height */
-		ratio16_w = div_u64((uint64_t)trim_pv.size_x << RATIO_SHIFT, dcam_out.w);
-		ratio16_h = div_u64((uint64_t)trim_pv.size_y << RATIO_SHIFT, dcam_out.h);
+		ratio16_w = (uint32_t)div_u64((uint64_t)trim_pv.size_x << RATIO_SHIFT, dcam_out.w);
+		ratio16_h = (uint32_t)div_u64((uint64_t)trim_pv.size_y << RATIO_SHIFT, dcam_out.h);
 		ratio_min = min(ratio16_w, ratio16_h);
 
 		/* if sensor size is too small */
@@ -2898,8 +2898,8 @@ static int camcore_cal_channel_size_rds(struct camera_module *module)
 			dcam_out.h = ALIGN(dcam_out.h, align_h);
 
 			/* keep same ratio between width and height */
-			ratio16_w = div_u64((uint64_t)trim_pv.size_x << RATIO_SHIFT, dcam_out.w);
-			ratio16_h = div_u64((uint64_t)trim_pv.size_y << RATIO_SHIFT, dcam_out.h);
+			ratio16_w = (uint32_t)div_u64((uint64_t)trim_pv.size_x << RATIO_SHIFT, dcam_out.w);
+			ratio16_h = (uint32_t)div_u64((uint64_t)trim_pv.size_y << RATIO_SHIFT, dcam_out.h);
 			ratio_min = min(ratio16_w, ratio16_h);
 		}
 

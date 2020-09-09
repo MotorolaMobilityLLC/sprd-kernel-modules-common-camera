@@ -220,7 +220,7 @@ static int dcamcore_reserved_buffer_put(struct dcam_pipe_dev *dev)
 	return 0;
 }
 
-static int dcamcore_statis_type_to_path_id(enum isp_statis_buf_type type)
+static enum dcam_path_id dcamcore_statis_type_to_path_id(enum isp_statis_buf_type type)
 {
 	switch (type) {
 	case STATIS_AEM:
@@ -240,7 +240,7 @@ static int dcamcore_statis_type_to_path_id(enum isp_statis_buf_type type)
 	case STATIS_LSCM:
 		return DCAM_PATH_LSCM;
 	default:
-		return -1;
+		return DCAM_PATH_MAX;
 	}
 }
 
@@ -504,7 +504,7 @@ static int dcamcore_statis_buffer_cfg(
 	} else if (atomic_read(&dev->state) == STATE_RUNNING) {
 
 		path_id = dcamcore_statis_type_to_path_id(input->type);
-		if (path_id < 0) {
+		if (path_id == DCAM_PATH_MAX) {
 			pr_err("fail to get a valid statis type: %d\n", input->type);
 			ret = -EINVAL;
 			goto exit;
@@ -546,10 +546,10 @@ exit:
 static int dcamcore_statis_buffer_skip_cfg(struct dcam_pipe_dev *dev, struct camera_frame *pframe)
 {
 	int ret = 0;
-	int path_id;
+	enum dcam_path_id path_id;
 
 	path_id = dcamcore_statis_type_to_path_id(pframe->irq_property);
-	if (path_id < 0) {
+	if (path_id == DCAM_PATH_MAX) {
 		pr_err("invalid statis type: %d\n", pframe->irq_property);
 		ret = -EINVAL;
 		goto exit;
