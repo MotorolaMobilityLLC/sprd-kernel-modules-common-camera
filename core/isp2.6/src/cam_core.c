@@ -2610,7 +2610,7 @@ static int camcore_cal_channel_size_bininig(
 				(trim_pv.size_y >= (dst_p.h * 2 * factor / 10)) &&
 				(trim_pv.size_y >= (dst_v.h * 2 * factor / 10)))
 					shift = 1;
-			if (trim_pv.size_x <= isp_linebuf_len && (SEC_UNABLE == module->grp->camsec_cfg.camsec_mode))
+			if ((trim_pv.size_x <= isp_linebuf_len) && (module->grp->camsec_cfg.camsec_mode == SEC_UNABLE))
 				shift = 0;
 			else if (((trim_pv.size_x >> shift) > ch_prev->swap_size.w) ||
 				((trim_pv.size_y >> shift) > ch_prev->swap_size.h))
