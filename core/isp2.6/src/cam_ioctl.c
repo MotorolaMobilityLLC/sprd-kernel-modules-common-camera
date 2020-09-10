@@ -963,7 +963,7 @@ static int camioctl_fmt_check(struct camera_module *module,
 		unsigned long arg)
 {
 	int ret = 0;
-	uint32_t channel_id;
+	enum cam_ch_id channel_id;
 	struct sprd_img_format img_format;
 	struct channel_context *channel;
 
@@ -987,7 +987,7 @@ static int camioctl_fmt_check(struct camera_module *module,
 		return -EFAULT;
 	}
 
-	channel_id = img_format.channel_id;
+	channel_id = (enum cam_ch_id)img_format.channel_id;
 	channel = &module->channel[channel_id];
 
 	if (atomic_read(&module->state) == CAM_CFG_CH) {
@@ -1953,6 +1953,7 @@ static int camioctl_stream_pause(struct camera_module *module,
 	int32_t dcam_path_id;
 	struct channel_context *ch = NULL;
 	struct channel_context *ch_prv = NULL;
+	struct dcam_pipe_dev *dev;
 
 	if (atomic_read(&module->state) != CAM_RUNNING) {
 		pr_info("cam%d state: %d\n", module->idx,
@@ -1960,10 +1961,16 @@ static int camioctl_stream_pause(struct camera_module *module,
 		return -EFAULT;
 	}
 
+	if (module->dcam_dev_handle == NULL) {
+		pr_err("fail to cam%d dcam_dev_handle is NULL\n", module->idx);
+		return -EFAULT;
+	}
+
 	pr_info("cam%d stream pause\n", module->idx);
 
 	module->paused = 1;
-	module->dcam_dev_handle->dcam_pipe_ops->stop(module->dcam_dev_handle, DCAM_PAUSE_ONLINE);
+	dev = module->dcam_dev_handle;
+	dev->dcam_pipe_ops->stop(dev, DCAM_PAUSE_ONLINE);
 
 	ch_prv = &module->channel[CAM_CH_PRE];
 	for (i = 0; i < CAM_CH_MAX; i++) {
@@ -1982,8 +1989,7 @@ static int camioctl_stream_pause(struct camera_module *module,
 			dcam_path_id = ch->dcam_path_id;
 		if (dcam_path_id >= 0) {
 			pr_info("put dcam path %d\n", ch->dcam_path_id);
-			module->dcam_dev_handle->dcam_pipe_ops->put_path(module->dcam_dev_handle,
-					ch->dcam_path_id);
+			dev->dcam_pipe_ops->put_path(dev, ch->dcam_path_id);
 		}
 	}
 
@@ -2006,12 +2012,9 @@ static int camioctl_stream_pause(struct camera_module *module,
 		}
 	}
 
-	if (module->dcam_dev_handle) {
-		ret = module->dcam_dev_handle->dcam_pipe_ops->ioctl(module->dcam_dev_handle,
-				DCAM_IOCTL_DEINIT_STATIS_Q, NULL);
-		if (ret != 0)
-			pr_err("fail to deinit statis q %d\n", ret);
-	}
+	ret = dev->dcam_pipe_ops->ioctl(dev, DCAM_IOCTL_DEINIT_STATIS_Q, NULL);
+	if (ret != 0)
+		pr_err("fail to deinit statis q %d\n", ret);
 
 	for (i = 0; i < CAM_CH_MAX; i++) {
 		ch = &module->channel[i];
@@ -2030,6 +2033,7 @@ static int camioctl_stream_resume(struct camera_module *module,
 	uint32_t i, online = 1;
 	struct channel_context *ch = NULL;
 	struct channel_context *ch_pre = NULL, *ch_vid = NULL;
+	struct dcam_pipe_dev *dev;
 
 	if (atomic_read(&module->state) != CAM_RUNNING) {
 		pr_info("cam%d error state: %d\n", module->idx,
@@ -2038,6 +2042,8 @@ static int camioctl_stream_resume(struct camera_module *module,
 	}
 
 	pr_info("cam%d stream resume enter\n", module->idx);
+
+	dev = module->dcam_dev_handle;
 
 	mutex_lock(&module->fdr_lock);
 	if (module->fdr_init || module->fdr_done) {
@@ -2075,11 +2081,9 @@ static int camioctl_stream_resume(struct camera_module *module,
 	if (ch->enable)
 		camcore_config_channel_size(module, ch);
 
-	ret = module->dcam_dev_handle->dcam_pipe_ops->ioctl(module->dcam_dev_handle,
-		DCAM_IOCTL_RECFG_PARAM, NULL);
+	ret = dev->dcam_pipe_ops->ioctl(dev, DCAM_IOCTL_RECFG_PARAM, NULL);
 
-	ret = module->dcam_dev_handle->dcam_pipe_ops->ioctl(module->dcam_dev_handle,
-		DCAM_IOCTL_INIT_STATIS_Q, NULL);
+	ret = dev->dcam_pipe_ops->ioctl(dev, DCAM_IOCTL_INIT_STATIS_Q, NULL);
 
 	for (i = 0; i < CAM_CH_MAX; i++) {
 		ch = &module->channel[i];
@@ -2095,8 +2099,7 @@ static int camioctl_stream_resume(struct camera_module *module,
 					struct camera_frame, list);
 				if (pframe == NULL)
 					break;
-				ret = module->dcam_dev_handle->dcam_pipe_ops->cfg_path(
-						module->dcam_dev_handle,
+				ret = dev->dcam_pipe_ops->cfg_path(dev,
 						DCAM_PATH_CFG_OUTPUT_BUF,
 						ch->dcam_path_id, pframe);
 				if (ret) {
@@ -2112,7 +2115,7 @@ static int camioctl_stream_resume(struct camera_module *module,
 	module->paused = 0;
 	camcore_set_cap_info(module);
 
-	ret = module->dcam_dev_handle->dcam_pipe_ops->start(module->dcam_dev_handle, online);
+	ret = dev->dcam_pipe_ops->start(dev, online);
 	if (ret < 0) {
 		pr_err("fail to start dcam dev, ret %d\n", ret);
 		goto exit;

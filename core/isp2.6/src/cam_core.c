@@ -5189,7 +5189,7 @@ static int camcore_raw_post_proc(struct camera_module *module,
 	uint32_t width;
 	uint32_t height;
 	uint32_t is_loose;
-	size_t size;
+	uint32_t size;
 	struct channel_context *ch;
 	struct camera_frame *src_frame;
 	struct camera_frame *mid_frame;
@@ -5295,7 +5295,7 @@ static int camcore_raw_post_proc(struct camera_module *module,
 		else
 			size = width * height * 3;
 		size = ALIGN(size, CAM_BUF_ALIGN_SIZE);
-		ret = cam_buf_alloc(&mid_frame->buf, size, 0, module->iommu_enable);
+		ret = cam_buf_alloc(&mid_frame->buf, (size_t)size, 0, module->iommu_enable);
 		if (ret)
 			goto mid_fail;
 	}
