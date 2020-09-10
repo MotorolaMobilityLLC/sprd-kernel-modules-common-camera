@@ -105,19 +105,19 @@ int dcam_k_cfg_grgb(struct isp_io_param *param, struct dcam_dev_param *p)
 	}
 
 	if (p->offline == 0) {
-		ret = copy_from_user(dst_ptr, param->property_param, dst_size);
-		if (ret) {
-			pr_err("fail to copy from user, ret = %d\n", ret);
+		if (copy_from_user(dst_ptr, param->property_param, dst_size)) {
+			pr_err("fail to copy from user\n");
+			ret = -1;
 			goto exit;
 		}
 		if (sub_func)
 			ret = sub_func(p);
 	} else {
 		mutex_lock(&p->param_lock);
-		ret = copy_from_user(dst_ptr, param->property_param, dst_size);
-		if (ret)
-			pr_err("fail to copy from user, ret = %d\n", ret);
-
+		if (copy_from_user(dst_ptr, param->property_param, dst_size)) {
+			pr_err("fail to copy from user\n");
+			ret = -1;
+		}
 		mutex_unlock(&p->param_lock);
 	}
 

@@ -918,6 +918,7 @@ int isp_ltm_frame_config_gen(struct isp_ltm_ctx_desc *ctx,
 	int ret = 0;
 	int pre_fid = 0;
 	int i = 0;
+	long timeout = 0;
 
 	pr_debug("type[%d], fid[%d], frame_width[%d], frame_height[%d]\n",
 		ctx->type, ctx->fid, ctx->frame_width, ctx->frame_height);
@@ -962,10 +963,10 @@ int isp_ltm_frame_config_gen(struct isp_ltm_ctx_desc *ctx,
 
 				ispltm_share_ctx_completion_set(ctx->fid, ltm_id, ctx->ltm_index);
 
-				ret = wait_for_completion_interruptible_timeout(
+				timeout = wait_for_completion_interruptible_timeout(
 					&s_share_ctx_param[ctx->ltm_index].share_comp[ltm_id], ISP_LTM_TIMEOUT);
-				if (ret <= 0) {
-					pr_err("fail to wait completion [%d]\n", ret);
+				if (timeout <= 0) {
+					pr_err("fail to wait completion [%ld]\n", timeout);
 					ctx->type = MODE_LTM_OFF;
 					ctx->bypass = 1;
 					ret = -1;
