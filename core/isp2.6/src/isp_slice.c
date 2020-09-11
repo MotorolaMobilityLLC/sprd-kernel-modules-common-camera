@@ -1085,13 +1085,6 @@ static int ispslice_slice_scaler_info_cfg(
 					slc_scaler->trim1_size_x +
 					trim1_sum_x[j][cur_slc->x];
 
-			if (cur_slc->x == 0 &&
-				(cur_slc->y + 1) < SLICE_H_NUM_MAX &&
-				SLICE_H_NUM_MAX > 1)
-				trim1_sum_y[j][cur_slc->y + 1] =
-					slc_scaler->trim1_size_y +
-					trim1_sum_y[j][cur_slc->y];
-
 			slc_scaler->src_size_x = sinfo.end_col - sinfo.start_col
 				+1;
 			slc_scaler->src_size_y = sinfo.end_row - sinfo.start_row
@@ -1373,13 +1366,6 @@ int isp_slice_store_info_cfg(
 					start_col_out[j][cur_slc->x + 1] =
 						slc_store->size.w +
 						start_col_out[j][cur_slc->x];
-
-				if (cur_slc->x == 0 &&
-					(cur_slc->y + 1) < SLICE_H_NUM_MAX &&
-					SLICE_H_NUM_MAX > 1)
-					start_row_out[j][cur_slc->y + 1] =
-						slc_store->size.h +
-						start_row_out[j][cur_slc->y];
 			} else {
 				start_col = cur_slc->slice_pos.start_col;
 				start_row = cur_slc->slice_pos.start_row;

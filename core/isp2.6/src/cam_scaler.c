@@ -1117,7 +1117,7 @@ static void camscaler_rds_weight_normalize(
 	int64_t tmp_sum = 0;
 	int temp_value;
 	int64_t tmp_weight64 = 0;
-	u_int8_t i;
+	int i;
 	int sum = 0;
 	int diff;
 

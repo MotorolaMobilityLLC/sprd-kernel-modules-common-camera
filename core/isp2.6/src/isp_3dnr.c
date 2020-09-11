@@ -76,8 +76,6 @@ static int isp3dnr_memctrl_base_on_mv_update(struct isp_3dnr_ctx_desc *ctx)
 		mem_ctrl->first_line_mode = 0;
 		mem_ctrl->ft_y_height =
 			ctx->height + ctx->mv.mv_y;
-		mem_ctrl->ft_luma_addr = mem_ctrl->ft_luma_addr;
-		mem_ctrl->ft_chroma_addr = mem_ctrl->ft_chroma_addr;
 	} else if (ctx->mv.mv_y > 0) {
 		if ((ctx->mv.mv_y) & 0x1) {
 			/*temp modify first_line_mode =0*/
