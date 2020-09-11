@@ -62,6 +62,7 @@ static int sprd_rotdrv_rot_format_get(
 		break;
 	case ROT_RGB888:
 		fmt = ROT_FOUR_BYTES;
+		break;
 	default:
 		pr_err("fail to get invalid format\n");
 		break;
