@@ -2686,8 +2686,6 @@ int set_dcam_cap_cfg(enum dcam_id idx, enum dcam_cfg_id id, void *param)
 					pr_warn("Only yuv can x,y-deci\n");
 					rtn = 0;
 				} else { /* only for yuv */
-					uint32_t tmp = 0;
-
 					tmp = cap_dec->x_factor << 16;
 					tmp |= (cap_dec->y_factor << 18);
 					DCAM_REG_MWR(idx, DCAM0_MIPI_CAP_CFG,
