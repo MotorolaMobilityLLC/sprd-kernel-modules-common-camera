@@ -3059,7 +3059,7 @@ static int camcore_config_channel_size(
 	int ret = 0;
 	int is_zoom, loop_count;
 	uint32_t isp_ctx_id, isp_path_id;
-	struct isp_offline_param *isp_param;
+	struct isp_offline_param *isp_param = NULL;
 	struct channel_context *vid;
 	struct camera_uchannel *ch_uinfo = NULL;
 	struct cam_hw_info *hw = NULL;
@@ -3226,6 +3226,10 @@ cfg_path:
 	pr_info("update channel size done for CAP\n");
 
 exit:
+	if (isp_param != NULL) {
+		kfree(isp_param);
+		isp_param = NULL;
+	}
 	return ret;
 }
 
