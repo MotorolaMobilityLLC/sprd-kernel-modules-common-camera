@@ -92,8 +92,13 @@ static int dvfs_probe(struct platform_device *pdev) {
         goto err;
     }
 
-    of_property_read_u32(np, "sprd,dvfs-work-index-def",
+    ret = of_property_read_u32(np, "sprd,dvfs-work-index-def",
                          &module->module_dvfs_para.ip_coffe.work_index_def);
+    if (ret) {
+        pr_err("fail to get dvfs-work-index-def\n");
+        goto err;
+    }
+
     platform_set_drvdata(pdev, module);
     module->devfreq =
         devm_devfreq_add_device(dev, &dvfs_profile, "jpg_dvfs", NULL);
