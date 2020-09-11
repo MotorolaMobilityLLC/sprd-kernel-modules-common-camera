@@ -1108,8 +1108,10 @@ static int dcamhw_slice_fetch_set(void *handle, void *arg)
 	struct dcam_fetch_info *fetch = NULL;
 	struct dcam_hw_slice_fetch *slicearg = NULL;
 
-	if (!arg)
+	if (!arg) {
 		pr_err("fail to check param");
+		return -1;
+	}
 
 	slicearg = (struct dcam_hw_slice_fetch *)arg;
 	fetch = slicearg->fetch;

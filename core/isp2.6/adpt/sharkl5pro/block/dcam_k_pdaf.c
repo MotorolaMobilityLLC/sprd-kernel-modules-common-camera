@@ -399,8 +399,6 @@ int dcam_k_cfg_pdaf(struct isp_io_param *param, struct dcam_dev_param *p)
 	enum dcam_id idx;
 	struct dcam_pipe_dev *dev = NULL;
 
-	dev = (struct dcam_pipe_dev *)p->dev;
-
 	if (!param || !p) {
 		pr_err("fail to get param\n");
 		return -1;
@@ -410,6 +408,8 @@ int dcam_k_cfg_pdaf(struct isp_io_param *param, struct dcam_dev_param *p)
 		pr_err("fail to get property_param\n");
 		return -1;
 	}
+
+	dev = (struct dcam_pipe_dev *)p->dev;
 
 	idx = p->idx;
 	switch (param->property) {
