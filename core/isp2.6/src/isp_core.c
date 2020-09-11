@@ -1122,19 +1122,24 @@ static struct camera_frame *ispcore_path_out_frame_get(
 		case ISP_STREAM_BUF_RESERVED:
 			out_frame = cam_queue_dequeue(&path->reserved_buf_queue,
 				struct camera_frame, list);
-			tmp->valid_out_frame = 1;
-			pr_debug("reserved buffer %d %lx\n",
-				out_frame->is_reserved, out_frame->buf.iova[0]);
+			if (out_frame) {
+				tmp->valid_out_frame = 1;
+				pr_debug("reserved buffer %d %lx\n",
+					out_frame->is_reserved, out_frame->buf.iova[0]);
+			}
 			break;
 		case ISP_STREAM_BUF_POSTPROC:
 			out_frame = pctx->postproc_buf;
-			cam_buf_iommu_map(&out_frame->buf, CAM_IOMMUDEV_ISP);
-			tmp->valid_out_frame = 1;
+			if (out_frame) {
+				cam_buf_iommu_map(&out_frame->buf, CAM_IOMMUDEV_ISP);
+				tmp->valid_out_frame = 1;
+			}
 			break;
 		case ISP_STREAM_BUF_RESULT:
 			out_frame = cam_queue_dequeue(&path->result_queue,
 				struct camera_frame, list);
-			tmp->valid_out_frame = 1;
+			if (out_frame)
+				tmp->valid_out_frame = 1;
 			break;
 		default:
 			pr_err("fail to support buf_type %d\n", tmp->stream->buf_type);

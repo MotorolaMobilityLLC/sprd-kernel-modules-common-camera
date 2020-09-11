@@ -1721,15 +1721,17 @@ static int camioctl_stream_off(struct camera_module *module,
 		module->idx, atomic_read(&module->state));
 
 	ch = &module->channel[CAM_CH_CAP];
-	mutex_lock(&module->buf_lock[ch->ch_id]);
-	if (ch && ch->enable && ch->alloc_start) {
-		ret = wait_for_completion_interruptible(&ch->alloc_com);
-		if (ret != 0)
-			pr_err("fail to config channel/path param work %d\n", ret);
-		pr_debug("allsoc buffer done.\n");
-		ch->alloc_start = 0;
+	if (ch) {
+		mutex_lock(&module->buf_lock[ch->ch_id]);
+		if (ch->enable && ch->alloc_start) {
+			ret = wait_for_completion_interruptible(&ch->alloc_com);
+			if (ret != 0)
+				pr_err("fail to config channel/path param work %d\n", ret);
+			pr_debug("allsoc buffer done.\n");
+			ch->alloc_start = 0;
+		}
+		mutex_unlock(&module->buf_lock[ch->ch_id]);
 	}
-	mutex_unlock(&module->buf_lock[ch->ch_id]);
 
 	atomic_set(&module->state, CAM_STREAM_OFF);
 	module->cap_status = CAM_CAPTURE_STOP;
@@ -2158,15 +2160,17 @@ static int camioctl_start_capture(struct camera_module *module,
 	hw = module->grp->hw_info;
 	start_time = ktime_get_boottime();
 	ch = &module->channel[CAM_CH_CAP];
-	mutex_lock(&module->buf_lock[ch->ch_id]);
-	if (ch && ch->alloc_start) {
-		ret = wait_for_completion_interruptible(&ch->alloc_com);
-		if (ret != 0)
-			pr_err("fail to config channel/path param work %d\n", ret);
-		pr_debug("alloc buffer done.\n");
-		ch->alloc_start = 0;
+	if(ch) {
+		mutex_lock(&module->buf_lock[ch->ch_id]);
+		if (ch->alloc_start) {
+			ret = wait_for_completion_interruptible(&ch->alloc_com);
+			if (ret != 0)
+				pr_err("fail to config channel/path param work %d\n", ret);
+			pr_debug("alloc buffer done.\n");
+			ch->alloc_start = 0;
+		}
+		mutex_unlock(&module->buf_lock[ch->ch_id]);
 	}
-	mutex_unlock(&module->buf_lock[ch->ch_id]);
 
 	module->capture_scene = param.cap_scene;
 	isp_idx = module->channel[CAM_CH_CAP].isp_ctx_id;
