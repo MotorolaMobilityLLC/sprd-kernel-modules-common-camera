@@ -1019,6 +1019,7 @@ static void dcam_full_path_sof(enum dcam_id idx)
 	void *data = s_user_data[idx][DCAM_CAP_SOF];
 	struct camera_dev *cam_dev = NULL;
 	struct isp_pipe_dev *isp_dev = NULL;
+	enum dcam_drv_rtn rtn = DCAM_RTN_SUCCESS;
 
 	cam_dev = (struct camera_dev *)s_p_dcam_mod[idx]->dev_handle;
 	isp_dev = (struct isp_pipe_dev *)cam_dev->isp_dev_handle;
@@ -1051,7 +1052,9 @@ static void dcam_full_path_sof(enum dcam_id idx)
 	/* RAW callback used */
 	if (cam_dev->dcam_cxt.raw_callback) {
 		pr_debug("it is raw callback\n");
-		dcam_raw_path_set_next_frm(idx);
+		rtn = dcam_raw_path_set_next_frm(idx);
+		if (rtn)
+			pr_err("fail to set next raw frm rtn %d\n", rtn);
 	}
 }
 
@@ -2518,6 +2521,11 @@ int set_dcam_cap_cfg(enum dcam_id idx, enum dcam_cfg_id id, void *param)
 		pr_err("fail to get ptr\n");
 		return -EFAULT;
 	}
+
+	if ((!param) && (id != DCAM_CAP_FRM_COUNT_CLR)) {
+		pr_err("fail to get param\n");
+		return -EFAULT;
+	}
 	cap_desc = &s_p_dcam_mod[idx]->dcam_cap;
 
 	switch (id) {
@@ -3044,7 +3052,6 @@ int set_dcam_full_path_cfg(enum dcam_id idx, enum dcam_cfg_id id, void *param)
 		}
 		break;
 	case DCAM_PATH_BIN_RATIO:
-		path->bin_ratio = *(uint32_t *)param;
 		/* full path not support binning */
 		path->bin_ratio = 0;
 		break;

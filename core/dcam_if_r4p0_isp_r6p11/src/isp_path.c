@@ -1104,7 +1104,7 @@ void isp_path_set_scl(uint32_t idx, struct isp_path_desc *path, uint32_t addr)
 
 	/*CFG frame deci*/
 	frm_deci = path->frm_deci;
-	if (frm_deci >= 0 && frm_deci <= 3) {
+	if ((int)frm_deci >= 0 && frm_deci <= 3) {
 		pr_debug("path frame_deci: %d\n", frm_deci);
 		ISP_REG_MWR(idx, addr+ISP_SCALER_CFG, (BIT_23 | BIT_24),
 			    frm_deci << 23);

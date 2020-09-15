@@ -650,8 +650,8 @@ int isp_offline_get_buf(struct isp_offline_desc *off_desc, uint8_t off_type)
 			if (sprd_iommu_attach_device(&s_isp_pdev->dev) != 0) {
 				frame.kva = ion_buf->kva;
 				frame.yaddr_vir = ion_buf->addr.yaddr_vir;
-				isp_buf_queue_write(&buf_desc->tmp_buf_queue,
-						    &frame);
+				if (isp_buf_queue_write(&buf_desc->tmp_buf_queue, &frame))
+					pr_err("fail to write buf queue\n");
 			}
 			continue;
 		}
@@ -1329,7 +1329,7 @@ int isp_block_buf_alloc(struct isp_pipe_dev *dev)
 			pr_err("fail to alloc lsc buf, ret %d\n", ret);
 			return -EPERM;
 		}
-		isp_gen_buf_hw_map(&isp_k_param->lsc_buf_info);
+		ret = isp_gen_buf_hw_map(&isp_k_param->lsc_buf_info);
 		if (ret) {
 			pr_err("fail to map lsc buf, iid%d ret %d\n",
 			       iid, ret);

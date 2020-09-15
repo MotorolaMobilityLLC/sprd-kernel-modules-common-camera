@@ -552,7 +552,8 @@ static int dcamio_put_dcam_res(struct camera_file *camerafile,
 
 	sprd_img_get_dcam_dev(camerafile, &dev, &info);
 
-	info->is_3dnr = 0;
+	if (info)
+		info->is_3dnr = 0;
 	if (dev->dcam_cxt.need_isp_tool) {
 		ret = sprd_isp_stop_pipeline(dev->isp_dev_handle);
 		if (ret)

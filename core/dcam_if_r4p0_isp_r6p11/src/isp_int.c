@@ -1773,7 +1773,7 @@ int isp_irq_callback(enum isp_id iid, enum isp_irq_id irq_id,
 
 void isp_irq_ctrl(struct isp_pipe_dev *dev, bool enable)
 {
-	uint32_t idx = dev->com_idx;
+	uint32_t idx = 0;
 	enum isp_id iid = ISP_ID_0;
 	enum isp_scene_id sid = ISP_SCENE_PRE;
 	uint32_t base_addr = 0;
@@ -1786,6 +1786,7 @@ void isp_irq_ctrl(struct isp_pipe_dev *dev, bool enable)
 		return;
 
 	iid = ISP_GET_IID(dev->com_idx);
+	idx = dev->com_idx;
 
 	for (sid = ISP_SCENE_PRE; sid < ISP_SCENE_NUM; sid++) {
 		base_addr = int_reg_base[iid][sid];

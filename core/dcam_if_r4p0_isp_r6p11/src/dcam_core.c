@@ -661,7 +661,7 @@ static int sprd_dcam_cfg_full_path(struct camera_path_spec *path,
 	uint32_t param;
 	struct size_transfer tmp;
 
-	if (path == NULL || idx < 0 || idx >= DCAM_ID_MAX) {
+	if (path == NULL || (int)idx < 0 || idx >= DCAM_ID_MAX) {
 		ret = -EINVAL;
 		goto exit;
 	}
@@ -708,7 +708,7 @@ static int sprd_dcam_cfg_bin_path(struct camera_path_spec *path,
 	uint32_t param;
 	struct size_transfer tmp;
 
-	if (path == NULL || idx < 0 || idx >= DCAM_ID_MAX) {
+	if (path == NULL || (int)idx < 0 || idx >= DCAM_ID_MAX) {
 		ret = -EINVAL;
 		goto exit;
 	}
@@ -2087,7 +2087,7 @@ static void sprd_camera_dev_deinit(struct camera_group *group, enum dcam_id idx)
 {
 	struct camera_dev *dev = NULL;
 
-	if (unlikely(idx < 0 || idx >= DCAM_ID_MAX)) {
+	if (unlikely((int)idx < 0 || idx >= DCAM_ID_MAX)) {
 		pr_err("fail to deinit dcam idx=%d\n", idx);
 		return;
 	}
@@ -2138,7 +2138,7 @@ static int sprd_camera_dev_init(struct camera_group *group, enum dcam_id idx)
 	}
 
 	atomic_set(&dev->run_flag, 1);
-	if (unlikely(idx < 0 || idx >= DCAM_ID_MAX)) {
+	if (unlikely((int)idx < 0 || idx >= DCAM_ID_MAX)) {
 		vfree(dev);
 		pr_err("fail to deinit dcam idx=%d\n", idx);
 		return -EFAULT;
@@ -2427,7 +2427,8 @@ static int sprd_img_k_release(struct inode *node, struct file *file)
 					i);
 				return -1;
 			}
-			sprd_camera_stream_off(group, i);
+			if (sprd_camera_stream_off(group, i))
+				pr_err("fail to stream off, dev %d\n", i);
 			sprd_isp_module_dis(group->dev[i]->isp_dev_handle, i);
 			sprd_dcam_module_dis(i);
 			sprd_camera_dev_deinit(group, i);
@@ -3105,7 +3106,7 @@ static int sprd_camera_stream_on(struct camera_file *camerafile)
 	idx = camerafile->idx;
 	pr_info("dcam%d stream on +\n", idx);
 
-	if (unlikely(idx < 0 || idx >= DCAM_ID_MAX)) {
+	if (unlikely((int)idx < 0 || idx >= DCAM_ID_MAX)) {
 		pr_err("fail to get dcam idx=%d\n", idx);
 		ret = -EFAULT;
 		goto exit;
@@ -3199,7 +3200,7 @@ int sprd_camera_stream_off(struct camera_group *group,
 	struct isp_pipe_dev *isp_dev = NULL;
 
 	pr_info("dcam%d stream off +\n", idx);
-	if (unlikely(idx < 0 || idx >= DCAM_ID_MAX)) {
+	if (unlikely((int)idx < 0 || idx >= DCAM_ID_MAX)) {
 		pr_err("fail to get dcam idx=%d\n", idx);
 		ret = -EFAULT;
 		goto exit;
@@ -3403,7 +3404,7 @@ static int sprd_img_check_fmt(struct camera_file *camerafile,
 
 	group = camerafile->grp;
 	idx = camerafile->idx;
-	if (unlikely(idx < 0 || idx >= DCAM_ID_MAX)) {
+	if (unlikely((int)idx < 0 || idx >= DCAM_ID_MAX)) {
 		pr_err("fail to get dcam idx=%d\n", idx);
 		ret = -EFAULT;
 		goto exit;
@@ -3488,7 +3489,7 @@ static int sprd_img_set_crop(struct camera_file *camerafile,
 
 	group = camerafile->grp;
 	idx = camerafile->idx;
-	if (unlikely(idx < 0 || idx >= DCAM_ID_MAX)) {
+	if (unlikely((int)idx < 0 || idx >= DCAM_ID_MAX)) {
 		pr_err("fail to get dcam idx=%d\n", idx);
 		ret = -EFAULT;
 		goto exit;
@@ -3596,7 +3597,7 @@ static int sprd_img_set_sensor_if(struct camera_file *camerafile,
 
 	group = camerafile->grp;
 	idx = camerafile->idx;
-	if (idx < 0 || idx >= DCAM_ID_MAX) {
+	if ((int)idx < 0 || idx >= DCAM_ID_MAX) {
 		ret = -EFAULT;
 		pr_err("fail to get idx=%d\n", idx);
 		goto exit;
@@ -3669,7 +3670,7 @@ static int sprd_img_set_frame_addr(struct camera_file *camerafile,
 
 	group = camerafile->grp;
 	idx = camerafile->idx;
-	if (unlikely(idx < 0 || idx >= DCAM_ID_MAX)) {
+	if (unlikely((int)idx < 0 || idx >= DCAM_ID_MAX)) {
 		pr_err("fail to get dcam idx=%d\n", idx);
 		ret = -EFAULT;
 		goto exit;
@@ -3860,7 +3861,7 @@ static int sprd_img_get_free_channel(struct camera_file *camerafile,
 
 	group = camerafile->grp;
 	idx = camerafile->idx;
-	if (unlikely(idx < 0 || idx >= DCAM_ID_MAX)) {
+	if (unlikely((int)idx < 0 || idx >= DCAM_ID_MAX)) {
 		pr_err("fail to get dcam idx=%d\n", idx);
 		ret = -EFAULT;
 		goto exit;
