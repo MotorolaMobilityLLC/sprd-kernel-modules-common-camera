@@ -115,36 +115,16 @@ static int mmsys_dvfs_probe(struct platform_device *pdev) {
     };
 #endif
 
-    ret = of_property_read_u32(np, "sprd,dvfs-sys-sw-dvfs-en",
+    of_property_read_u32(np, "sprd,dvfs-sys-sw-dvfs-en",
                          &mmsys->mmsys_dvfs_para.sys_sw_dvfs_en);
-    if (ret) {
-        pr_err("fail to get dvfs-sys-sw-dvfs-en\n");
-        goto err;
-    }
-    ret = of_property_read_u32(np, "sprd,dvfs-sys-dvfs-hold-en",
+    of_property_read_u32(np, "sprd,dvfs-sys-dvfs-hold-en",
                          &mmsys->mmsys_dvfs_para.sys_dvfs_hold_en);
-    if (ret) {
-        pr_err("fail to get dvfs-sys-dvfs-hold-en\n");
-        goto err;
-    }
-    ret = of_property_read_u32(np, "sprd,dvfs-sys-dvfs-clk-gate-ctrl",
+    of_property_read_u32(np, "sprd,dvfs-sys-dvfs-clk-gate-ctrl",
                          &mmsys->mmsys_dvfs_para.sys_dvfs_clk_gate_ctrl);
-    if (ret) {
-        pr_err("fail to get dvfs-sys-dvfs-clk-gate-ctrl\n");
-        goto err;
-    }
-    ret = of_property_read_u32(np, "sprd,dvfs-sys-dvfs-wait_window",
+    of_property_read_u32(np, "sprd,dvfs-sys-dvfs-wait_window",
                          &mmsys->mmsys_dvfs_para.sys_dvfs_wait_window);
-    if (ret) {
-        pr_err("fail to get dvfs-sys-dvfs-wait_window\n");
-        goto err;
-    }
-    ret = of_property_read_u32(np, "sprd,dvfs-sys-dvfs-min_volt",
+    of_property_read_u32(np, "sprd,dvfs-sys-dvfs-min_volt",
                          &mmsys->mmsys_dvfs_para.sys_dvfs_min_volt);
-    if (ret) {
-        pr_err("fail to get dvfs-sys-dvfs-min_volt\n");
-        goto err;
-    }
 
     reg_res.start = REGS_MM_DVFS_AHB_START;
     reg_res.end = REGS_MM_DVFS_AHB_END;
