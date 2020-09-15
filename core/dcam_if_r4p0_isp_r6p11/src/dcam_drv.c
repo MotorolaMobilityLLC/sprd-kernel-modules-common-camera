@@ -36,7 +36,7 @@
 #include "sprd_mm.h"
 #include "dcam_drv.h"
 #include "gen_scale_coef.h"
-#include "getyuvinput.h"
+//#include "getyuvinput.h"
 #include "isp_drv.h"
 #include "dcam_buf.h"
 #include "dcam_core.h"
