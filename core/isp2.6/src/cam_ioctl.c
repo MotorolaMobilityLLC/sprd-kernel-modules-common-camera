@@ -186,7 +186,7 @@ static int camioctl_statis_buf_set(struct camera_module *module,
 
 	if ((statis_buf.type == STATIS_DBG_INIT) ||
 		(statis_buf.type == STATIS_PARAM)) {
-		ret = camcore_cfg_param_buffer(module, &statis_buf);
+		ret = camcore_param_buffer_cfg(module, &statis_buf);
 	}
 
 exit:
@@ -242,7 +242,7 @@ static int camioctl_cfg_param(struct camera_module *module,
 
 	mutex_lock(&module->fdr_lock);
 	if (for_fdr && (module->fdr_init == 0)) {
-		ret = camcore_init_fdr_context(module, &module->channel[CAM_CH_CAP]);
+		ret = camcore_fdr_context_init(module, &module->channel[CAM_CH_CAP]);
 		if (unlikely(ret)) {
 			pr_err("fail to init fdr\n");
 			mutex_unlock(&module->fdr_lock);
@@ -1527,33 +1527,33 @@ static int camioctl_stream_on(struct camera_module *module,
 		goto cfg_ch_done;
 
 	/* settle down compression policy here */
-	camcore_cal_compression(module);
+	camcore_compression_cal(module);
 
 	ret = camcore_channels_size_init(module);
 	if (module->zoom_solution == ZOOM_DEFAULT)
-		camcore_cal_channel_size_bininig(module, 1);
+		camcore_channel_size_bininig_cal(module, 1);
 	else if (module->zoom_solution == ZOOM_BINNING2 ||
 		module->zoom_solution == ZOOM_BINNING4)
-		camcore_cal_channel_size_bininig(module, 0);
+		camcore_channel_size_bininig_cal(module, 0);
 	else
-		camcore_cal_channel_size_rds(module);
+		camcore_channel_size_rds_cal(module);
 
-	camcore_config_compression(module);
+	camcore_compression_config(module);
 
 	ch_pre = &module->channel[CAM_CH_PRE];
 	if (ch_pre->enable)
-		camcore_config_channel_size(module, ch_pre);
+		camcore_channel_size_config(module, ch_pre);
 
 	ch_vid = &module->channel[CAM_CH_VID];
 	if (ch_vid->enable && !ch_pre->enable)
-		camcore_config_channel_size(module, ch_vid);
+		camcore_channel_size_config(module, ch_vid);
 
 	ch = &module->channel[CAM_CH_CAP];
 	if (ch->enable) {
-		camcore_config_channel_size(module, ch);
+		camcore_channel_size_config(module, ch);
 		/* alloc dcam1 memory and cfg out buf */
 		if (module->cam_uinfo.dcam_slice_mode)
-			camcore_config_channel_bigsize(module, ch);
+			camcore_channel_bigsize_config(module, ch);
 	}
 cfg_ch_done:
 
@@ -1599,10 +1599,10 @@ cfg_ch_done:
 
 		cam_queue_init(&ch->zoom_coeff_queue,
 			(module->is_smooth_zoom ? CAM_ZOOM_COEFF_Q_LEN : 1),
-			camcore_put_empty_frame);
+			camcore_empty_frame_put);
 
 		if (i == CAM_CH_PRE || i == CAM_CH_VID) {
-			ret = camcore_cfg_path_buffer(module, i);
+			ret = camcore_path_buffer_cfg(module, i);
 			if (ret) {
 				pr_err("fail to cfg path buffer\n");
 				goto exit;
@@ -1636,12 +1636,12 @@ cfg_ch_done:
 	}
 
 	cam_queue_init(&module->zsl_fifo_queue,
-		CAM_SHARED_BUF_NUM, camcore_put_k_frame);
+		CAM_SHARED_BUF_NUM, camcore_k_frame_put);
 	/* no need release buffer, only release camera_frame */
 	cam_queue_init(&module->remosaic_queue,
-		CAM_IRQ_Q_LEN, camcore_release_camera_frame);
+		CAM_IRQ_Q_LEN, camcore_camera_frame_release);
 
-	camcore_set_cap_info(module);
+	camcore_cap_info_set(module);
 
 	module->dual_frame = NULL;
 	dev = (struct dcam_pipe_dev *)module->dcam_dev_handle;
@@ -1671,7 +1671,7 @@ cfg_ch_done:
 	ret = camcore_timer_start(&module->cam_timer, CAMERA_TIMEOUT);
 
 	if (module->dump_thrd.thread_task) {
-		cam_queue_init(&module->dump_queue, 10, camcore_put_k_frame);
+		cam_queue_init(&module->dump_queue, 10, camcore_k_frame_put);
 		init_completion(&module->dump_com);
 		mutex_lock(&g_dbg_dump.dump_lock);
 		i = module->dcam_idx;
@@ -1782,7 +1782,7 @@ static int camioctl_stream_off(struct camera_module *module,
 		if (ch->ch_id == CAM_CH_CAP) {
 			mutex_lock(&module->fdr_lock);
 			if (module->fdr_init)
-				camcore_deinit_fdr_context(module, ch);
+				camcore_fdr_context_deinit(module, ch);
 			mutex_unlock(&module->fdr_lock);
 		}
 
@@ -1849,7 +1849,7 @@ static int camioctl_stream_off(struct camera_module *module,
 
 			for (j = 0; j < ISP_NR3_BUF_NUM; j++) {
 				if (ch->nr3_bufs[j]) {
-					camcore_put_k_frame(ch->nr3_bufs[j]);
+					camcore_k_frame_put(ch->nr3_bufs[j]);
 					ch->nr3_bufs[j] = NULL;
 				}
 			}
@@ -1858,7 +1858,7 @@ static int camioctl_stream_off(struct camera_module *module,
 				for (j = 0; j < ISP_LTM_BUF_NUM; j++) {
 					if (ch->ltm_bufs[LTM_RGB][j]) {
 						if (ch->ch_id == CAM_CH_PRE)
-							camcore_put_k_frame(ch->ltm_bufs[LTM_RGB][j]);
+							camcore_k_frame_put(ch->ltm_bufs[LTM_RGB][j]);
 						ch->ltm_bufs[LTM_RGB][j] = NULL;
 					}
 				}
@@ -1868,7 +1868,7 @@ static int camioctl_stream_off(struct camera_module *module,
 				for (j = 0; j < ISP_LTM_BUF_NUM; j++) {
 					if (ch->ltm_bufs[LTM_YUV][j]) {
 						if (ch->ch_id == CAM_CH_PRE)
-							camcore_put_k_frame(ch->ltm_bufs[LTM_YUV][j]);
+							camcore_k_frame_put(ch->ltm_bufs[LTM_YUV][j]);
 						ch->ltm_bufs[LTM_YUV][j] = NULL;
 					}
 				}
@@ -1877,7 +1877,7 @@ static int camioctl_stream_off(struct camera_module *module,
 			if (hw->ip_dcam[module->dcam_idx]->superzoom_support
 				&& ch->ch_id == CAM_CH_CAP) {
 				if (ch->postproc_buf) {
-					camcore_put_k_frame(ch->postproc_buf);
+					camcore_k_frame_put(ch->postproc_buf);
 					ch->postproc_buf = NULL;
 					pr_info("superzoom put frame\n");
 				}
@@ -1935,7 +1935,7 @@ static int camioctl_stream_off(struct camera_module *module,
 		module->auto_3dnr = 0;
 	}
 
-	camcore_uncfg_param_buffer(module);
+	camcore_param_buffer_uncfg(module);
 
 	atomic_set(&module->state, CAM_IDLE);
 	if (raw_cap)
@@ -2062,26 +2062,26 @@ static int camioctl_stream_resume(struct camera_module *module,
 	}
 
 	if (module->zoom_solution == ZOOM_DEFAULT)
-		camcore_cal_channel_size_bininig(module, 1);
+		camcore_channel_size_bininig_cal(module, 1);
 	else if (module->zoom_solution == ZOOM_BINNING2 ||
 		module->zoom_solution == ZOOM_BINNING4)
-		camcore_cal_channel_size_bininig(module, 0);
+		camcore_channel_size_bininig_cal(module, 0);
 	else
-		camcore_cal_channel_size_rds(module);
+		camcore_channel_size_rds_cal(module);
 
-	camcore_config_compression(module);
+	camcore_compression_config(module);
 
 	ch_pre = &module->channel[CAM_CH_PRE];
 	if (ch_pre->enable)
-		camcore_config_channel_size(module, ch_pre);
+		camcore_channel_size_config(module, ch_pre);
 
 	ch_vid = &module->channel[CAM_CH_VID];
 	if (ch_vid->enable && !ch_pre->enable)
-		camcore_config_channel_size(module, ch_vid);
+		camcore_channel_size_config(module, ch_vid);
 
 	ch = &module->channel[CAM_CH_CAP];
 	if (ch->enable)
-		camcore_config_channel_size(module, ch);
+		camcore_channel_size_config(module, ch);
 
 	ret = dev->dcam_pipe_ops->ioctl(dev, DCAM_IOCTL_RECFG_PARAM, NULL);
 
@@ -2115,7 +2115,7 @@ static int camioctl_stream_resume(struct camera_module *module,
 	}
 
 	module->paused = 0;
-	camcore_set_cap_info(module);
+	camcore_cap_info_set(module);
 
 	ret = dev->dcam_pipe_ops->start(dev, online);
 	if (ret < 0) {
@@ -2240,7 +2240,7 @@ static int camioctl_start_capture(struct camera_module *module,
 			module->lowlux_4in1 = 0;
 			atomic_set(&module->capture_frames_dcam, CAP_NUM_COMMON);
 		}
-		camcore_config_4in1_channel_size(module, module->lowlux_4in1);
+		camcore_4in1_channel_size_config(module, module->lowlux_4in1);
 	} else if (param.type == DCAM_CAPTURE_START) {
 		module->dcam_cap_status = DCAM_CAPTURE_START;
 		atomic_set(&module->capture_frames_dcam, CAP_NUM_COMMON);

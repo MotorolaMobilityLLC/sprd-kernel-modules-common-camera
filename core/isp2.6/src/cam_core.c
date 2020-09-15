@@ -356,10 +356,10 @@ struct cam_global_ctrl g_camctrl = {
 
 static int camioctl_stream_off(struct camera_module *module,
 			unsigned long arg);
-static int camcore_deinit_fdr_context(struct camera_module *module,
+static int camcore_fdr_context_deinit(struct camera_module *module,
 			struct channel_context *ch);
 
-static void camcore_put_k_frame(void *param)
+static void camcore_k_frame_put(void *param)
 {
 	int ret = 0;
 	struct camera_frame *frame;
@@ -380,7 +380,7 @@ static void camcore_put_k_frame(void *param)
 	ret = cam_queue_empty_frame_put(frame);
 }
 
-static void camcore_put_empty_frame(void *param)
+static void camcore_empty_frame_put(void *param)
 {
 	int ret = 0;
 	struct camera_frame *frame;
@@ -406,7 +406,7 @@ static void camcore_put_empty_frame(void *param)
  * for remosaic_queue, it save camera_frame info when
  * buf send to hal for remosaic, use again when 4in1_post
  */
-static void camcore_release_camera_frame(void *param)
+static void camcore_camera_frame_release(void *param)
 {
 	struct camera_frame *frame;
 
@@ -416,7 +416,7 @@ static void camcore_release_camera_frame(void *param)
 	cam_queue_empty_frame_put(frame);
 }
 
-static int camcore_cfg_param_buffer(
+static int camcore_param_buffer_cfg(
 		struct camera_module *module,
 		struct isp_statis_buf_input *input)
 {
@@ -442,7 +442,7 @@ buf_init:
 	pr_info("cam%d, start\n", module->idx);
 	memset(&module->pmbuf_array[0], 0, sizeof(module->pmbuf_array));
 	cam_queue_init(&module->param_queue,
-		CAM_PMBUF_Q_LEN, camcore_release_camera_frame);
+		CAM_PMBUF_Q_LEN, camcore_camera_frame_release);
 
 	for (j = 0; j < PARAM_BUF_NUM_MAX; j++) {
 		mfd = input->mfd_pmdbg[j];
@@ -515,7 +515,7 @@ exit:
 	return ret;
 }
 
-static int camcore_uncfg_param_buffer(struct camera_module *module)
+static int camcore_param_buffer_uncfg(struct camera_module *module)
 {
 	int j;
 	int32_t mfd;
@@ -544,7 +544,7 @@ static int camcore_uncfg_param_buffer(struct camera_module *module)
 	return 0;
 }
 
-static void camcore_cal_compression(struct camera_module *module)
+static void camcore_compression_cal(struct camera_module *module)
 {
 	struct channel_context *ch_pre, *ch_cap, *ch_vid;
 	struct cam_hw_info *dcam_hw;
@@ -663,7 +663,7 @@ static void camcore_cal_compression(struct camera_module *module)
 		ch_vid->compress_output);
 }
 
-static void camcore_config_compression(struct camera_module *module)
+static void camcore_compression_config(struct camera_module *module)
 {
 	struct channel_context *ch_pre, *ch_cap, *ch_vid;
 	struct isp_ctx_compression_desc ctx_compression_desc;
@@ -823,7 +823,7 @@ enqueue_frame:
 	cam_queue_enqueue(queue, &frame->list);
 }
 
-static int camcore_cfg_path_buffer(struct camera_module *module,
+static int camcore_path_buffer_cfg(struct camera_module *module,
 	uint32_t index)
 {
 	int ret = 0;
@@ -1272,7 +1272,7 @@ static void camcore_alloc_buffers(void *param)
 exit:
 	if (channel->ch_id != CAM_CH_PRE &&
 		channel->ch_id != CAM_CH_VID) {
-		ret = camcore_cfg_path_buffer(module, channel->ch_id);
+		ret = camcore_path_buffer_cfg(module, channel->ch_id);
 		if (ret)
 			pr_err("fail to cfg path buffer\n");
 	}
@@ -1281,7 +1281,7 @@ exit:
 		channel->ch_id, atomic_read(&channel->err_status));
 }
 
-static int camcore_set_cap_info(struct camera_module *module)
+static int camcore_cap_info_set(struct camera_module *module)
 {
 	int ret = 0;
 	struct camera_uinfo *info = &module->cam_uinfo;
@@ -1342,7 +1342,7 @@ static struct camera_frame *camcore_dual_fifo_queue(struct camera_module *module
 	return NULL;
 }
 
-static int camcore_dual_get_same_frame(struct camera_module *module)
+static int camcore_dual_same_frame_get(struct camera_module *module)
 {
 	struct camera_group *grp;
 	struct camera_module *pmd[CAM_COUNT];
@@ -1384,7 +1384,7 @@ static int camcore_dual_get_same_frame(struct camera_module *module)
  * return: 0: pframe to isp
  *         1: no need more deal
  */
-static struct camera_frame *camcore_deal_dual_frame(struct camera_module *module,
+static struct camera_frame *camcore_dual_frame_deal(struct camera_module *module,
 		struct camera_frame *pframe,
 		struct channel_context *channel)
 {
@@ -1419,7 +1419,7 @@ static struct camera_frame *camcore_deal_dual_frame(struct camera_module *module
 		return pftmp;
 	}
 	/* get the same frame */
-	ret = camcore_dual_get_same_frame(module);
+	ret = camcore_dual_same_frame_get(module);
 	if (!ret) {
 		pftmp = module->dual_frame;
 		if (pftmp) {
@@ -1439,7 +1439,7 @@ static struct camera_frame *camcore_deal_dual_frame(struct camera_module *module
 	return pframe;
 }
 
-static struct camera_frame *camcore_deal_bigsize_frame(struct camera_module *module,
+static struct camera_frame *camcore_bigsize_frame_deal(struct camera_module *module,
 		struct camera_frame *pframe,
 		struct channel_context *channel)
 {
@@ -1503,7 +1503,7 @@ static struct camera_frame *camcore_deal_bigsize_frame(struct camera_module *mod
 	return NULL;
 }
 
-static struct camera_frame *camcore_deal_4in1_frame(struct camera_module *module,
+static struct camera_frame *camcore_4in1_frame_deal(struct camera_module *module,
 		struct camera_frame *pframe,
 		struct channel_context *channel)
 {
@@ -1576,7 +1576,7 @@ static struct camera_frame *camcore_deal_4in1_frame(struct camera_module *module
  * full path: sensor raw(4cell), bin path: 4in1 bin sum
  * two image save in one fd(one buffer), full + bin
  */
-struct camera_frame *camcore_deal_4in1_raw_capture(struct camera_module *module,
+struct camera_frame *camcore_4in1_raw_capture_deal(struct camera_module *module,
 		struct camera_frame *pframe)
 {
 	static uint32_t flag_path; /* b0:bin tx done, b1:full tx done */
@@ -1927,7 +1927,7 @@ int camcore_dcam_callback(enum dcam_cb_type type, void *param, void *priv_data)
 			if (pframe->irq_type != CAMERA_IRQ_4IN1_DONE)
 				pframe->irq_type = CAMERA_IRQ_IMG;
 			if (module->cam_uinfo.is_4in1) {
-				pframe = camcore_deal_4in1_raw_capture(module, pframe);
+				pframe = camcore_4in1_raw_capture_deal(module, pframe);
 				if (!pframe)
 					return 0;
 			}
@@ -2057,7 +2057,7 @@ int camcore_dcam_callback(enum dcam_cb_type type, void *param, void *priv_data)
 			/* cap scene special process */
 			if (module->dcam_cap_status == DCAM_CAPTURE_START_WITH_TIMESTAMP) {
 
-				pframe = camcore_deal_dual_frame(module,
+				pframe = camcore_dual_frame_deal(module,
 						pframe, channel);
 
 				if (!pframe)
@@ -2067,7 +2067,7 @@ int camcore_dcam_callback(enum dcam_cb_type type, void *param, void *priv_data)
 					atomic_dec(&module->capture_frames_dcam);
 
 			} else if (module->cam_uinfo.is_4in1) {
-				pframe = camcore_deal_4in1_frame(module,
+				pframe = camcore_4in1_frame_deal(module,
 						pframe, channel);
 				if (!pframe)
 					return 0;
@@ -2076,7 +2076,7 @@ int camcore_dcam_callback(enum dcam_cb_type type, void *param, void *priv_data)
 					atomic_dec(&module->capture_frames_dcam);
 
 			} else if (module->cam_uinfo.dcam_slice_mode) {
-				pframe = camcore_deal_bigsize_frame(module,
+				pframe = camcore_bigsize_frame_deal(module,
 						pframe, channel);
 				if (!pframe)
 					return 0;
@@ -2303,7 +2303,7 @@ int camcore_dcam_callback(enum dcam_cb_type type, void *param, void *priv_data)
 	return ret;
 }
 
-static inline uint32_t camcore_fix_scale(uint32_t size_in, uint32_t ratio16)
+static inline uint32_t camcore_scale_fix(uint32_t size_in, uint32_t ratio16)
 {
 	uint64_t size_scaled;
 
@@ -2313,17 +2313,17 @@ static inline uint32_t camcore_fix_scale(uint32_t size_in, uint32_t ratio16)
 	return (uint32_t)size_scaled;
 }
 
-static void camcore_get_diff_trim(struct sprd_img_rect *orig,
+static void camcore_diff_trim_get(struct sprd_img_rect *orig,
 	uint32_t ratio16, struct img_trim *trim0, struct img_trim *trim1)
 {
-	trim1->start_x = camcore_fix_scale(orig->x - trim0->start_x, ratio16);
-	trim1->start_y = camcore_fix_scale(orig->y - trim0->start_y, ratio16);
-	trim1->size_x =  camcore_fix_scale(orig->w, ratio16);
+	trim1->start_x = camcore_scale_fix(orig->x - trim0->start_x, ratio16);
+	trim1->start_y = camcore_scale_fix(orig->y - trim0->start_y, ratio16);
+	trim1->size_x =  camcore_scale_fix(orig->w, ratio16);
 	trim1->size_x = ALIGN(trim1->size_x, 2);
-	trim1->size_y =  camcore_fix_scale(orig->h, ratio16);
+	trim1->size_y =  camcore_scale_fix(orig->h, ratio16);
 }
 
-static inline void camcore_get_largest_crop(
+static inline void camcore_largest_crop_get(
 	struct sprd_img_rect *crop_dst, struct sprd_img_rect *crop1)
 {
 	uint32_t end_x, end_y;
@@ -2344,17 +2344,17 @@ static inline void camcore_get_largest_crop(
 	}
 }
 
-static inline uint32_t camcore_multiply_ratio16(uint64_t num, uint32_t ratio16)
+static inline uint32_t camcore_ratio16_multiply(uint64_t num, uint32_t ratio16)
 {
 	return (uint32_t)((num * ratio16) >> 16);
 }
 
-static inline uint32_t camcore_divide_ratio16(uint64_t num, uint32_t ratio16)
+static inline uint32_t camcore_ratio16_divide(uint64_t num, uint32_t ratio16)
 {
 	return (uint32_t)div64_u64(num << 16, ratio16);
 }
 
-static int camcore_cal_channel_swapsize(struct camera_module *module)
+static int camcore_channel_swapsize_cal(struct camera_module *module)
 {
 	uint32_t src_binning = 0;
 	uint32_t ratio_min, shift;
@@ -2492,8 +2492,8 @@ static int camcore_cal_channel_swapsize(struct camera_module *module)
 	}
 	ratio_min = MIN(ratio_min, ((module->rds_limit << RATIO_SHIFT) / 10));
 	ratio_min = MAX(ratio_min, (1 << RATIO_SHIFT));
-	max.w = camcore_fix_scale(max.w, ratio_min);
-	max.h = camcore_fix_scale(max.h, ratio_min);
+	max.w = camcore_scale_fix(max.w, ratio_min);
+	max.h = camcore_scale_fix(max.h, ratio_min);
 	if (max.w > DCAM_RDS_OUT_LIMIT) {
 		max.w = DCAM_RDS_OUT_LIMIT;
 		max.h = src_p.h * max.w / src_p.w;
@@ -2532,7 +2532,7 @@ static int camcore_cal_channel_swapsize(struct camera_module *module)
 	return 0;
 }
 
-static int camcore_cal_channel_size_bininig(
+static int camcore_channel_size_bininig_cal(
 	struct camera_module *module, uint32_t bypass_always)
 {
 	uint32_t shift = 0, factor = 0, align_size = 0;
@@ -2578,7 +2578,7 @@ static int camcore_cal_channel_size_bininig(
 	}
 	if (ch_prev->enable || (!ch_prev->enable && ch_vid->enable)) {
 		crop_dst = *crop_p;
-		camcore_get_largest_crop(&crop_dst, crop_v);
+		camcore_largest_crop_get(&crop_dst, crop_v);
 		trim_pv.start_x = crop_dst.x;
 		trim_pv.start_y = crop_dst.y;
 		trim_pv.size_x = crop_dst.w;
@@ -2709,7 +2709,7 @@ static int camcore_cal_channel_size_bininig(
 
 	if (ch_cap->enable) {
 		ch_cap->trim_dcam = trim_c;
-		camcore_get_diff_trim(&ch_cap->ch_uinfo.src_crop,
+		camcore_diff_trim_get(&ch_cap->ch_uinfo.src_crop,
 			(1 << RATIO_SHIFT), &trim_c, &ch_cap->trim_isp);
 		ch_cap->trim_isp.start_x &= ~1;
 		ch_cap->trim_isp.start_y &= ~1;
@@ -2728,7 +2728,7 @@ static int camcore_cal_channel_size_bininig(
 	return 0;
 }
 
-static int camcore_cal_channel_size_rds(struct camera_module *module)
+static int camcore_channel_size_rds_cal(struct camera_module *module)
 {
 	uint32_t ratio_min, is_same_fov = 0;
 	uint32_t ratio_p_w, ratio_p_h;
@@ -2782,8 +2782,8 @@ static int camcore_cal_channel_size_rds(struct camera_module *module)
 
 	if (ch_prev->enable) {
 		crop_dst = *crop_p;
-		camcore_get_largest_crop(&crop_dst, crop_v);
-		camcore_get_largest_crop(&crop_dst, crop_c);
+		camcore_largest_crop_get(&crop_dst, crop_v);
+		camcore_largest_crop_get(&crop_dst, crop_c);
 		trim_pv.start_x = crop_dst.x;
 		trim_pv.start_y = crop_dst.y;
 		trim_pv.size_x = crop_dst.w;
@@ -2832,8 +2832,8 @@ static int camcore_cal_channel_size_rds(struct camera_module *module)
 		/* align bin path output size */
 		align_w = align_h = DCAM_RDS_OUT_ALIGN;
 		align_w = MAX(align_w, DCAM_OUTPUT_DEBUG_ALIGN);
-		dcam_out.w = camcore_divide_ratio16(trim_pv.size_x, ratio_min);
-		dcam_out.h = camcore_divide_ratio16(trim_pv.size_y, ratio_min);
+		dcam_out.w = camcore_ratio16_divide(trim_pv.size_x, ratio_min);
+		dcam_out.h = camcore_ratio16_divide(trim_pv.size_y, ratio_min);
 
 		/* avoid isp fetch fbd timeout when isp src width > 1856 */
 		if (dcam_out.w > 1856)
@@ -2884,8 +2884,8 @@ static int camcore_cal_channel_size_rds(struct camera_module *module)
 				trim_pv.start_x, trim_pv.start_y,
 				trim_pv.size_x, trim_pv.size_y);
 		} else {
-			dcam_out.w = camcore_divide_ratio16(trim_pv.size_x, ratio_min);
-			dcam_out.h = camcore_divide_ratio16(trim_pv.size_y, ratio_min);
+			dcam_out.w = camcore_ratio16_divide(trim_pv.size_x, ratio_min);
+			dcam_out.h = camcore_ratio16_divide(trim_pv.size_y, ratio_min);
 			dcam_out.w = ALIGN(dcam_out.w, align_w);
 			dcam_out.h = ALIGN(dcam_out.h, align_h);
 		}
@@ -2914,9 +2914,9 @@ static int camcore_cal_channel_size_rds(struct camera_module *module)
 		ch_prev->dst_dcam = dcam_out;
 
 		ch_prev->trim_isp.size_x =
-			camcore_divide_ratio16(ch_prev->ch_uinfo.src_crop.w, ratio_min);
+			camcore_ratio16_divide(ch_prev->ch_uinfo.src_crop.w, ratio_min);
 		ch_prev->trim_isp.size_y =
-			camcore_divide_ratio16(ch_prev->ch_uinfo.src_crop.h, ratio_min);
+			camcore_ratio16_divide(ch_prev->ch_uinfo.src_crop.h, ratio_min);
 		ch_prev->trim_isp.size_x = min(ch_prev->trim_isp.size_x, dcam_out.w);
 		ch_prev->trim_isp.size_y = min(ch_prev->trim_isp.size_y, dcam_out.h);
 		ch_prev->trim_isp.start_x =
@@ -2930,9 +2930,9 @@ static int camcore_cal_channel_size_rds(struct camera_module *module)
 
 		if (ch_vid->enable) {
 			ch_vid->trim_isp.size_x =
-				camcore_divide_ratio16(ch_vid->ch_uinfo.src_crop.w, ratio_min);
+				camcore_ratio16_divide(ch_vid->ch_uinfo.src_crop.w, ratio_min);
 			ch_vid->trim_isp.size_y =
-				camcore_divide_ratio16(ch_vid->ch_uinfo.src_crop.h, ratio_min);
+				camcore_ratio16_divide(ch_vid->ch_uinfo.src_crop.h, ratio_min);
 			ch_vid->trim_isp.size_x = min(ch_vid->trim_isp.size_x, dcam_out.w);
 			ch_vid->trim_isp.size_y = min(ch_vid->trim_isp.size_y, dcam_out.h);
 			ch_vid->trim_isp.start_x =
@@ -2948,7 +2948,7 @@ static int camcore_cal_channel_size_rds(struct camera_module *module)
 
 	if (ch_cap->enable) {
 		ch_cap->trim_dcam = trim_c;
-		camcore_get_diff_trim(&ch_cap->ch_uinfo.src_crop,
+		camcore_diff_trim_get(&ch_cap->ch_uinfo.src_crop,
 			(1 << RATIO_SHIFT), &trim_c, &ch_cap->trim_isp);
 		ch_cap->trim_isp.start_x &= ~1;
 		ch_cap->trim_isp.start_y &= ~1;
@@ -2968,7 +2968,7 @@ static int camcore_cal_channel_size_rds(struct camera_module *module)
 	return 0;
 }
 
-static int camcore_config_channel_bigsize(
+static int camcore_channel_bigsize_config(
 	struct camera_module *module,
 	struct channel_context *channel)
 {
@@ -3052,7 +3052,7 @@ static int camcore_config_channel_bigsize(
 	return ret;
 }
 
-static int camcore_config_channel_size(
+static int camcore_channel_size_config(
 	struct camera_module *module,
 	struct channel_context *channel)
 {
@@ -3084,7 +3084,7 @@ static int camcore_config_channel_size(
 
 	if (!is_zoom && (channel->swap_size.w > 0)) {
 		cam_queue_init(&channel->share_buf_queue,
-			CAM_SHARED_BUF_NUM, camcore_put_k_frame);
+			CAM_SHARED_BUF_NUM, camcore_k_frame_put);
 
 		/* alloc middle buffer for channel */
 		mutex_lock(&module->buf_lock[channel->ch_id]);
@@ -3236,7 +3236,7 @@ exit:
 /* set capture channel size for isp fetch and crop, scaler
  * lowlux: 1: size / 2, 0: full size
  */
-static int camcore_config_4in1_channel_size(struct camera_module *module,
+static int camcore_4in1_channel_size_config(struct camera_module *module,
 		uint32_t lowlux_flag)
 {
 	struct channel_context *ch;
@@ -3281,17 +3281,17 @@ static int camcore_config_4in1_channel_size(struct camera_module *module,
 	ch_tmp.trim_dcam.size_y = p->src_crop.h;
 	ch_tmp.swap_size.w = p->src_size.w;
 	ch_tmp.swap_size.h = p->src_size.h;
-	camcore_get_diff_trim(&ch_tmp.ch_uinfo.src_crop,
+	camcore_diff_trim_get(&ch_tmp.ch_uinfo.src_crop,
 		(1 << RATIO_SHIFT), &ch_tmp.trim_dcam, &ch_tmp.trim_isp);
 	pr_info("trim_isp[%d %d %d %d]\n", ch_tmp.trim_isp.start_x,
 		ch_tmp.trim_isp.start_y, ch_tmp.trim_isp.size_x,
 		ch_tmp.trim_isp.size_y);
-	camcore_config_channel_size(module, &ch_tmp);
+	camcore_channel_size_config(module, &ch_tmp);
 
 	return 0;
 }
 
-static int camcore_get_slice_num_info(struct sprd_img_size *src, struct sprd_img_size *dst)
+static int camcore_slice_num_info_get(struct sprd_img_size *src, struct sprd_img_size *dst)
 {
 	uint32_t slice_num, slice_w, slice_w_out;
 	uint32_t slice_max_w, max_w;
@@ -3398,17 +3398,17 @@ next:
 			update_always = 1;
 
 		if (module->zoom_solution == ZOOM_DEFAULT)
-			camcore_cal_channel_size_bininig(module, 1);
+			camcore_channel_size_bininig_cal(module, 1);
 		else if (module->zoom_solution == ZOOM_BINNING2 ||
 			module->zoom_solution == ZOOM_BINNING4)
-			camcore_cal_channel_size_bininig(module, 0);
+			camcore_channel_size_bininig_cal(module, 0);
 		else
-			camcore_cal_channel_size_rds(module);
+			camcore_channel_size_rds_cal(module);
 
 		if (ch_cap->enable && (update_c || update_always))
-			camcore_config_channel_size(module, ch_cap);
+			camcore_channel_size_config(module, ch_cap);
 		if (ch_prev->enable && (update_pv || update_always))
-			camcore_config_channel_size(module, ch_prev);
+			camcore_channel_size_config(module, ch_prev);
 		goto next;
 	}
 	return 0;
@@ -3428,7 +3428,7 @@ static int camcore_capture_proc(void *param)
 		(module->fdr_done & (1 << CAMERA_IRQ_FDRH))) {
 		pr_info("cam%d fdr done\n", module->idx);
 		if (module->fdr_init)
-			camcore_deinit_fdr_context(module, &module->channel[CAM_CH_CAP]);
+			camcore_fdr_context_deinit(module, &module->channel[CAM_CH_CAP]);
 		module->fdr_done = 0;
 		mutex_unlock(&module->fdr_lock);
 		return 0;
@@ -3469,7 +3469,7 @@ static int camcore_capture_proc(void *param)
 		 * So we need to free pframe buffer explicitely.
 		 */
 		if (ret)
-			camcore_put_k_frame((void *)pframe);
+			camcore_k_frame_put((void *)pframe);
 	}
 	return 0;
 }
@@ -3505,7 +3505,7 @@ static void camcore_write_image_to_file(uint8_t *buffer,
 	pr_debug("write image done, total=%d\n", (uint32_t)total);
 }
 
-static int camcore_dump_one_frame(struct camera_module *module,
+static int camcore_one_frame_dump(struct camera_module *module,
 		struct camera_frame *pframe)
 {
 	ssize_t size = 0;
@@ -3631,7 +3631,7 @@ static int camcore_dumpraw_proc(void *param)
 
 			channel = &module->channel[pframe->channel_id];
 			if (camcore_should_dump(dbg->dump_en, channel->dcam_path_id)) {
-				camcore_dump_one_frame(module, pframe);
+				camcore_one_frame_dump(module, pframe);
 				module->dump_count--;
 				cnt++;
 			}
@@ -3663,7 +3663,7 @@ static int camcore_dumpraw_proc(void *param)
 	return 0;
 }
 
-static int camcore_init_aux_dcam(struct camera_module *module,
+static int camcore_aux_dcam_init(struct camera_module *module,
 		struct channel_context *channel)
 {
 	int ret = 0;
@@ -3764,7 +3764,7 @@ exit_dev:
 	return ret;
 }
 
-static int camcore_deinit_aux_dcam(struct camera_module *module)
+static int camcore_aux_dcam_deinit(struct camera_module *module)
 {
 	int ret = 0;
 	int pause = DCAM_STOP;
@@ -3802,7 +3802,7 @@ static int camcore_deinit_aux_dcam(struct camera_module *module)
 }
 
 
-static int camcore_init_fdr_context(struct camera_module *module,
+static int camcore_fdr_context_init(struct camera_module *module,
 		struct channel_context *ch)
 {
 	int ret = 0;
@@ -3820,7 +3820,7 @@ static int camcore_init_fdr_context(struct camera_module *module,
 	pr_info("cam%d enter\n", module->idx);
 
 	module->fdr_done = 0;
-	ret = camcore_init_aux_dcam(module, ch);
+	ret = camcore_aux_dcam_init(module, ch);
 	if (ret) {
 		pr_err("fail to init aux dcam\n");
 		goto init_isp;
@@ -3939,17 +3939,17 @@ init_isp:
 
 exit:
 	pr_err("failed %d\n", ret);
-	camcore_deinit_aux_dcam(module);
+	camcore_aux_dcam_deinit(module);
 	return ret;
 }
 
-static int camcore_deinit_fdr_context(struct camera_module *module, struct channel_context *ch)
+static int camcore_fdr_context_deinit(struct camera_module *module, struct channel_context *ch)
 {
 	int ret = 0;
 	int isp_ctx_id = 0, isp_path_id = 0;
 
 	pr_info("enter\n");
-	camcore_deinit_aux_dcam(module);
+	camcore_aux_dcam_deinit(module);
 
 	if (ch->isp_fdrl_path >= 0 && ch->isp_fdrl_ctx >= 0) {
 		isp_path_id = ch->isp_fdrl_path;
@@ -3979,7 +3979,7 @@ static int camcore_deinit_fdr_context(struct camera_module *module, struct chann
 	return ret;
 }
 
-static int camcore_init_bigsize_aux(struct camera_module *module,
+static int camcore_bigsize_aux_init(struct camera_module *module,
 		struct channel_context *channel)
 {
 	int ret = 0;
@@ -4214,7 +4214,7 @@ static int camcore_channels_size_init(struct camera_module *module)
 	if (format == DCAM_CAP_MODE_YUV)
 		module->zoom_solution = ZOOM_DEFAULT;
 
-	camcore_cal_channel_swapsize(module);
+	camcore_channel_swapsize_cal(module);
 
 	pr_info("zoom_solution %d, limit %d %d\n",
 		module->zoom_solution,
@@ -4547,7 +4547,7 @@ static int camcore_channel_init(struct camera_module *module,
 	}
 	/* bigsize setting */
 	if (channel->ch_id == CAM_CH_CAP && module->cam_uinfo.dcam_slice_mode) {
-		ret = camcore_init_bigsize_aux(module, channel);
+		ret = camcore_bigsize_aux_init(module, channel);
 		if (ret < 0) {
 			pr_err("fail to init dcam for 4in1, ret = %d\n", ret);
 			goto exit;
@@ -4752,13 +4752,13 @@ static int camcore_module_init(struct camera_module *module)
 	module->attach_sensor_id = SPRD_SENSOR_ID_MAX + 1;
 	module->is_smooth_zoom = 1;
 	cam_queue_init(&module->frm_queue,
-		CAM_FRAME_Q_LEN, camcore_put_empty_frame);
+		CAM_FRAME_Q_LEN, camcore_empty_frame_put);
 	cam_queue_init(&module->irq_queue,
-		CAM_IRQ_Q_LEN, camcore_put_empty_frame);
+		CAM_IRQ_Q_LEN, camcore_empty_frame_put);
 	cam_queue_init(&module->statis_queue,
-		CAM_STATIS_Q_LEN, camcore_put_empty_frame);
+		CAM_STATIS_Q_LEN, camcore_empty_frame_put);
 	cam_queue_init(&module->alloc_queue,
-		CAM_ALLOC_Q_LEN, camcore_put_empty_frame);
+		CAM_ALLOC_Q_LEN, camcore_empty_frame_put);
 	pr_info("module[%d] init OK %p!\n", module->idx, module);
 	return 0;
 exit:
@@ -4807,36 +4807,36 @@ static int camcore_channels_set(struct camera_module *module,
 
 	ret = camcore_channels_size_init(module);
 	if (module->zoom_solution == ZOOM_DEFAULT)
-		camcore_cal_channel_size_bininig(module, 1);
+		camcore_channel_size_bininig_cal(module, 1);
 	else if (module->zoom_solution == ZOOM_BINNING2 ||
 		module->zoom_solution == ZOOM_BINNING4)
-		camcore_cal_channel_size_bininig(module, 0);
+		camcore_channel_size_bininig_cal(module, 0);
 	else
-		camcore_cal_channel_size_rds(module);
+		camcore_channel_size_rds_cal(module);
 
-	camcore_config_compression(module);
+	camcore_compression_config(module);
 
 	ch_pre = &module->channel[CAM_CH_PRE];
 	if (ch_pre->enable) {
 		swap_size = ch_pre->swap_size;
 		ch_pre->swap_size = size0;
 		cam_queue_init(&ch_pre->share_buf_queue,
-			CAM_SHARED_BUF_NUM, camcore_put_k_frame);
-		camcore_config_channel_size(module, ch_pre);
+			CAM_SHARED_BUF_NUM, camcore_k_frame_put);
+		camcore_channel_size_config(module, ch_pre);
 		ch_pre->swap_size = swap_size;
 	}
 
 	ch_vid = &module->channel[CAM_CH_VID];
 	if (ch_vid->enable && !ch_pre->enable)
-		camcore_config_channel_size(module, ch_vid);
+		camcore_channel_size_config(module, ch_vid);
 
 	ch = &module->channel[CAM_CH_CAP];
 	if (ch->enable) {
 		swap_size = ch->swap_size;
 		ch->swap_size = size0;
 		cam_queue_init(&ch->share_buf_queue,
-			CAM_SHARED_BUF_NUM, camcore_put_k_frame);
-		camcore_config_channel_size(module, ch);
+			CAM_SHARED_BUF_NUM, camcore_k_frame_put);
+		camcore_channel_size_config(module, ch);
 		ch->swap_size = swap_size;
 	}
 
@@ -5055,7 +5055,7 @@ static int camcore_raw_pre_proc(
 		ch->ch_uinfo.dst_size.w = proc_info->dst_size.width;
 		ch->ch_uinfo.dst_size.h = proc_info->dst_size.height;
 		module->cam_uinfo.dcam_slice_mode = CAM_OFFLINE_SLICE_SW;
-		module->cam_uinfo.slice_num = camcore_get_slice_num_info(&ch->ch_uinfo.src_size,
+		module->cam_uinfo.slice_num = camcore_slice_num_info_get(&ch->ch_uinfo.src_size,
 			&ch->ch_uinfo.dst_size);
 		module->cam_uinfo.slice_count = 0;
 		module->auto_3dnr = 0;
@@ -5322,7 +5322,7 @@ static int camcore_raw_post_proc(struct camera_module *module,
 	pr_info("raw proc, src %p, mid %p, dst %p\n",
 		src_frame, mid_frame, dst_frame);
 	cam_queue_init(&ch->share_buf_queue,
-			CAM_SHARED_BUF_NUM, camcore_put_k_frame);
+			CAM_SHARED_BUF_NUM, camcore_k_frame_put);
 	module->cap_status = CAM_CAPTURE_RAWPROC;
 	module->dcam_cap_status = DCAM_CAPTURE_START;
 	atomic_set(&module->state, CAM_RUNNING);
