@@ -2063,27 +2063,17 @@ int camcore_dcam_callback(enum dcam_cb_type type, void *param, void *priv_data)
 				if (!pframe)
 					return 0;
 
-				if (atomic_read(&module->capture_frames_dcam) > 0)
-					atomic_dec(&module->capture_frames_dcam);
-
 			} else if (module->cam_uinfo.is_4in1) {
 				pframe = camcore_4in1_frame_deal(module,
 						pframe, channel);
 				if (!pframe)
 					return 0;
 
-				if (atomic_read(&module->capture_frames_dcam) > 0)
-					atomic_dec(&module->capture_frames_dcam);
-
 			} else if (module->cam_uinfo.dcam_slice_mode) {
 				pframe = camcore_bigsize_frame_deal(module,
 						pframe, channel);
 				if (!pframe)
 					return 0;
-
-				if (atomic_read(&module->capture_frames_dcam) > 0)
-					atomic_dec(&module->capture_frames_dcam);
-
 			} else if (module->dcam_cap_status == DCAM_CAPTURE_START_FROM_NEXT_SOF) {
 
 				/* FDR catpure should wait for RAW buffer except time condition */
@@ -2139,7 +2129,6 @@ int camcore_dcam_callback(enum dcam_cb_type type, void *param, void *priv_data)
 						pr_info("cam%d cap type[%d] num[%d]\n", module->idx,
 							module->dcam_cap_status,
 							cap_frame);
-						atomic_dec(&module->capture_frames_dcam);
 					} else {
 						pr_info("cam%d cap type[%d] num[%d]\n", module->idx,
 							module->dcam_cap_status, cap_frame);
@@ -2164,7 +2153,7 @@ int camcore_dcam_callback(enum dcam_cb_type type, void *param, void *priv_data)
 			else
 				ret = cam_queue_enqueue(&channel->share_buf_queue, &pframe->list);
 			if (ret) {
-				pr_debug("capture queue overflow\n");
+				pr_info("capture queue overflow\n");
 				if (pframe->sync_data)
 					dcam_core_dcam_if_release_sync(pframe->sync_data,
 							     pframe);
@@ -2173,6 +2162,9 @@ int camcore_dcam_callback(enum dcam_cb_type type, void *param, void *priv_data)
 						DCAM_PATH_CFG_OUTPUT_BUF,
 						channel->dcam_path_id, pframe);
 			} else {
+				if (atomic_read(&module->capture_frames_dcam) > 0)
+					atomic_dec(&module->capture_frames_dcam);
+				pr_debug("capture_frames_dcam = %d\n", atomic_read(&module->capture_frames_dcam));
 				complete(&module->cap_thrd.thread_com);
 			}
 		} else {
