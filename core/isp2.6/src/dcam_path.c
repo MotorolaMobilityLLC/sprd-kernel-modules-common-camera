@@ -358,7 +358,7 @@ int dcam_path_skip_num_set(struct dcam_pipe_dev *dev,
 }
 
 static inline struct camera_frame *
-dcam_path_cycle_frame(struct dcam_pipe_dev *dev, struct dcam_path_desc *path)
+dcam_path_frame_cycle(struct dcam_pipe_dev *dev, struct dcam_path_desc *path)
 {
 	uint32_t src;
 	struct camera_frame *frame = NULL;
@@ -456,7 +456,7 @@ int dcam_path_store_frm_set(void *dcam_handle,
 
 	pr_debug("DCAM%u %s enter\n", idx, dcam_path_name_get(path_id));
 
-	frame = dcam_path_cycle_frame(dev, path);
+	frame = dcam_path_frame_cycle(dev, path);
 	if (IS_ERR(frame))
 		return PTR_ERR(frame);
 
@@ -689,7 +689,7 @@ int dcam_path_store_frm_set(void *dcam_handle,
 	} else if (dev->slowmotion_count && path_id == DCAM_PATH_BIN) {
 		i = 1;
 		while (i < dev->slowmotion_count) {
-			frame = dcam_path_cycle_frame(dev, path);
+			frame = dcam_path_frame_cycle(dev, path);
 			/* in init phase, return failure if error happens */
 			if (IS_ERR(frame) && !dev->index_to_set) {
 				ret = PTR_ERR(frame);

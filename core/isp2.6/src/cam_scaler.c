@@ -313,7 +313,7 @@ static unsigned char camscaler_init_pool(void *buffer_ptr, unsigned int buffer_s
 	return TRUE;
 }
 
-static void *camscaler_alloc_mem(unsigned int size, unsigned int align_shift,
+static void *camscaler_mem_alloc(unsigned int size, unsigned int align_shift,
 	struct gsc_mem_pool *pool_ptr)
 {
 	unsigned long begin_addr = 0;
@@ -404,7 +404,7 @@ static short camscaler_sum_fun(short *data, signed char ilen)
 	return tmp_sum;
 }
 
-static void camscaler_adjust_filter_inter(short *filter, unsigned char ilen)
+static void camscaler_filter_inter_adjust(short *filter, unsigned char ilen)
 {
 	int i, midi;
 	int tmpi, tmp_S;
@@ -442,7 +442,7 @@ static void camscaler_adjust_filter_inter(short *filter, unsigned char ilen)
 	}
 }
 
-static short camscaler_cal_y_model_coef(short coef_length, short *coef_data_ptr,
+static short camscaler_y_model_coef_cal(short coef_length, short *coef_data_ptr,
 	short n, short m, struct gsc_mem_pool *pool_ptr)
 {
 	signed char mount;
@@ -455,11 +455,11 @@ static short camscaler_cal_y_model_coef(short coef_length, short *coef_data_ptr,
 	int64_t angle_x, angle_y;
 	int64_t a, b, t;
 
-	filter = camscaler_alloc_mem(GSC_COUNT * sizeof(int64_t),
+	filter = camscaler_mem_alloc(GSC_COUNT * sizeof(int64_t),
 		3, pool_ptr);
-	tmp_filter = camscaler_alloc_mem(GSC_COUNT * sizeof(int64_t),
+	tmp_filter = camscaler_mem_alloc(GSC_COUNT * sizeof(int64_t),
 		3, pool_ptr);
-	normal_filter = camscaler_alloc_mem(GSC_COUNT * sizeof(short),
+	normal_filter = camscaler_mem_alloc(GSC_COUNT * sizeof(short),
 		2, pool_ptr);
 
 	if (NULL == filter || NULL == tmp_filter
@@ -514,7 +514,7 @@ static short camscaler_cal_y_model_coef(short coef_length, short *coef_data_ptr,
 		camscaler_normalize_inter(tmp_filter, normal_filter, (signed char) mount);
 		sum_val = camscaler_sum_fun(normal_filter, mount);
 		if (sum_val != 256)
-			camscaler_adjust_filter_inter(normal_filter, mount);
+			camscaler_filter_inter_adjust(normal_filter, mount);
 
 		mount = 0;
 		for (kk = i; kk < coef_length; kk += 8) {
@@ -526,19 +526,19 @@ static short camscaler_cal_y_model_coef(short coef_length, short *coef_data_ptr,
 	return 0;
 }
 
-static short camscaler_cal_y_scaling_coef(short tap, short d, short i,
+static short camscaler_y_scaling_coef_cal(short tap, short d, short i,
 	short *y_coef_data_ptr, short dir, struct gsc_mem_pool *pool_ptr)
 {
 	unsigned short coef_length;
 
 	coef_length = (unsigned short) (tap * 8);
 	SCI_MEMSET(y_coef_data_ptr, 0, coef_length * sizeof(short));
-	camscaler_cal_y_model_coef(coef_length, y_coef_data_ptr, i, d, pool_ptr);
+	camscaler_y_model_coef_cal(coef_length, y_coef_data_ptr, i, d, pool_ptr);
 
 	return coef_length;
 }
 
-static short camscaler_cal_uv_scaling_coef(short tap, short d, short i,
+static short camscaler_uv_scaling_coef_cal(short tap, short d, short i,
 				short *uv_coef_data_ptr, short dir,
 				struct gsc_mem_pool *pool_ptr)
 {
@@ -546,7 +546,7 @@ static short camscaler_cal_uv_scaling_coef(short tap, short d, short i,
 
 	if (dir == 1) {
 		uv_coef_length = (short)(tap * 8);
-		camscaler_cal_y_model_coef(uv_coef_length,
+		camscaler_y_model_coef_cal(uv_coef_length,
 			uv_coef_data_ptr,
 			i, d, pool_ptr);
 	} else {
@@ -555,7 +555,7 @@ static short camscaler_cal_uv_scaling_coef(short tap, short d, short i,
 		else
 			uv_coef_length = (short)(2 * 8);
 
-		camscaler_cal_y_model_coef(uv_coef_length,
+		camscaler_y_model_coef_cal(uv_coef_length,
 			uv_coef_data_ptr,
 			i, d, pool_ptr);
 	}
@@ -563,7 +563,7 @@ static short camscaler_cal_uv_scaling_coef(short tap, short d, short i,
 	return uv_coef_length;
 }
 
-static void camscaler_get_filter(short *coef_data_ptr, short *out_filter,
+static void camscaler_filter_get(short *coef_data_ptr, short *out_filter,
 	short iI_hor, short coef_len, short *filter_len)
 {
 	short i, pos_start;
@@ -588,7 +588,7 @@ static void camscaler_get_filter(short *coef_data_ptr, short *out_filter,
 	}
 }
 
-static void camscaler_write_scaler_coef(short *dst_coef_ptr,
+static void camscaler_scaler_coef_write(short *dst_coef_ptr,
 	short *coef_ptr, short dst_pitch, short src_pitch)
 {
 	int i, j;
@@ -602,7 +602,7 @@ static void camscaler_write_scaler_coef(short *dst_coef_ptr,
 	}
 }
 
-static void camscaler_set_hor_register_coef(unsigned int *reg_coef_ptr,
+static void camscaler_hor_register_coef_set(unsigned int *reg_coef_ptr,
 	short *y_coef_ptr, short *uv_coef_ptr)
 {
 	int i = 0;
@@ -655,7 +655,7 @@ static void camscaler_set_hor_register_coef(unsigned int *reg_coef_ptr,
 	}
 }
 
-static void camscaler_set_ver_register_coef(unsigned int *reg_coef_lum_ptr,
+static void camscaler_ver_register_coef_set(unsigned int *reg_coef_lum_ptr,
 				unsigned int *reg_coef_ch_ptr,
 				short *y_coef_ptr,
 				short *uv_coef_ptr,
@@ -712,7 +712,7 @@ static void camscaler_set_ver_register_coef(unsigned int *reg_coef_lum_ptr,
 	}
 }
 
-static void camscaler_check_coef_range(short *coef_ptr, short rows,
+static void camscaler_coef_range_check(short *coef_ptr, short rows,
 	short columns, short pitch)
 {
 	short i, j;
@@ -751,7 +751,7 @@ static void camscaler_check_coef_range(short *coef_ptr, short rows,
 	}
 }
 
-static void camscaler_cal_ver_edge_coef(short *coeff_ptr, short d, short i,
+static void camscaler_ver_edge_coef_cal(short *coeff_ptr, short d, short i,
 	short tap, short pitch)
 {
 	int phase_temp[9];
@@ -881,45 +881,45 @@ unsigned char cam_scaler_isp_scale_coeff_gen(short i_w, short i_h,
 		return FALSE;
 
 	coef_buf_size = COEF_ARR_ROWS * COEF_ARR_COL_MAX * sizeof(short);
-	cong_y_com_hor = (short *)camscaler_alloc_mem(coef_buf_size, 2, &pool);
-	cong_uv_com_hor = (short *)camscaler_alloc_mem(coef_buf_size, 2, &pool);
-	cong_y_com_ver = (short *)camscaler_alloc_mem(coef_buf_size, 2, &pool);
-	cong_uv_com_ver =  (short *)camscaler_alloc_mem(coef_buf_size, 2, &pool);
+	cong_y_com_hor = (short *)camscaler_mem_alloc(coef_buf_size, 2, &pool);
+	cong_uv_com_hor = (short *)camscaler_mem_alloc(coef_buf_size, 2, &pool);
+	cong_y_com_ver = (short *)camscaler_mem_alloc(coef_buf_size, 2, &pool);
+	cong_uv_com_ver =  (short *)camscaler_mem_alloc(coef_buf_size, 2, &pool);
 
 	if (NULL == cong_y_com_hor || NULL == cong_uv_com_hor ||
 		NULL == cong_y_com_ver || NULL == cong_uv_com_ver)
 		return FALSE;
 
-	temp_filter_ptr = camscaler_alloc_mem(filter_buf_size, 2, &pool);
-	filter_ptr = camscaler_alloc_mem(filter_buf_size, 2, &pool);
+	temp_filter_ptr = camscaler_mem_alloc(filter_buf_size, 2, &pool);
+	filter_ptr = camscaler_mem_alloc(filter_buf_size, 2, &pool);
 	if (NULL == temp_filter_ptr || NULL == filter_ptr)
 		return FALSE;
 
 	/* calculate coefficients of Y component in horizontal direction */
-	coef_len = camscaler_cal_y_scaling_coef(8,
+	coef_len = camscaler_y_scaling_coef_cal(8,
 				d_hor,
 				i_hor,
 				temp_filter_ptr,
 				1,
 				&pool);
-	camscaler_get_filter(temp_filter_ptr, filter_ptr, 8, coef_len, filter_len);
+	camscaler_filter_get(temp_filter_ptr, filter_ptr, 8, coef_len, filter_len);
 	pr_debug("scale y coef hor\n");
-	camscaler_write_scaler_coef(cong_y_com_hor, filter_ptr, 8, 8);
-	camscaler_check_coef_range(cong_y_com_hor, 8, 8, 8);
+	camscaler_scaler_coef_write(cong_y_com_hor, filter_ptr, 8, 8);
+	camscaler_coef_range_check(cong_y_com_hor, 8, 8, 8);
 
 	/* calculate coefficients of UV component in horizontal direction */
-	coef_len = camscaler_cal_uv_scaling_coef(4,
+	coef_len = camscaler_uv_scaling_coef_cal(4,
 				d_hor,
 				i_hor,
 				temp_filter_ptr,
 				1,
 				&pool);
-	camscaler_get_filter(temp_filter_ptr, filter_ptr, 8, coef_len, filter_len);
+	camscaler_filter_get(temp_filter_ptr, filter_ptr, 8, coef_len, filter_len);
 	pr_debug("scale uv coef hor\n");
-	camscaler_write_scaler_coef(cong_uv_com_hor, filter_ptr, 8, 4);
-	camscaler_check_coef_range(cong_uv_com_hor, 8, 4, 8);
+	camscaler_scaler_coef_write(cong_uv_com_hor, filter_ptr, 8, 4);
+	camscaler_coef_range_check(cong_uv_com_hor, 8, 4, 8);
 	/* write the coefficient to register format */
-	camscaler_set_hor_register_coef(coeff_h_ptr, cong_y_com_hor, cong_uv_com_hor);
+	camscaler_hor_register_coef_set(coeff_h_ptr, cong_y_com_hor, cong_uv_com_hor);
 
 	luma_ver_tap = ((unsigned char)(d_ver / i_ver)) * 2;
 	chrome_ver_tap = luma_ver_tap;
@@ -934,16 +934,16 @@ unsigned char cam_scaler_isp_scale_coeff_gen(short i_w, short i_h,
 	*scaler_tap = (unsigned char)luma_ver_tap;
 
 	/* calculate coefficients of Y component in vertical direction */
-	coef_len = camscaler_cal_y_scaling_coef(luma_ver_tap,
+	coef_len = camscaler_y_scaling_coef_cal(luma_ver_tap,
 				d_ver,
 				i_ver,
 				temp_filter_ptr,
 				0,
 				&pool);
-	camscaler_get_filter(temp_filter_ptr, filter_ptr, 8, coef_len, filter_len);
+	camscaler_filter_get(temp_filter_ptr, filter_ptr, 8, coef_len, filter_len);
 	pr_debug("scale y coef ver\n");
-	camscaler_write_scaler_coef(cong_y_com_ver, filter_ptr, 16, filter_len[0]);
-	camscaler_check_coef_range(cong_y_com_ver, 8, luma_ver_tap, 16);
+	camscaler_scaler_coef_write(cong_y_com_ver, filter_ptr, 16, filter_len[0]);
+	camscaler_coef_range_check(cong_y_com_ver, 8, luma_ver_tap, 16);
 
 	/* calculate coefficients of UV component in vertical direction */
 	if (scaling2yuv420) {
@@ -961,22 +961,22 @@ unsigned char cam_scaler_isp_scale_coeff_gen(short i_w, short i_h,
 
 	*chrome_tap = (unsigned char)chrome_ver_tap;
 
-	coef_len = camscaler_cal_uv_scaling_coef((short) (chrome_ver_tap),
+	coef_len = camscaler_uv_scaling_coef_cal((short) (chrome_ver_tap),
 				d_ver,
 				i_ver_bak_uv,
 				temp_filter_ptr,
 				0,
 				&pool);
-	camscaler_get_filter(temp_filter_ptr, filter_ptr, 8, coef_len, filter_len);
+	camscaler_filter_get(temp_filter_ptr, filter_ptr, 8, coef_len, filter_len);
 	pr_debug("scale uv coef ver\n");
-	camscaler_write_scaler_coef(cong_uv_com_ver, filter_ptr, 16, filter_len[0]);
-	camscaler_check_coef_range(cong_uv_com_ver, 8, chrome_ver_tap, 16);
+	camscaler_scaler_coef_write(cong_uv_com_ver, filter_ptr, 16, filter_len[0]);
+	camscaler_coef_range_check(cong_uv_com_ver, 8, chrome_ver_tap, 16);
 
 	/* calculate edge coefficients of Y component in vertical direction */
 	if (2 * i_ver_bak_y <= d_ver)
 		/* only scale down */
 		pr_debug("scale y coef ver down\n");
-	camscaler_cal_ver_edge_coef(cong_y_com_ver,
+	camscaler_ver_edge_coef_cal(cong_y_com_ver,
 			d_ver,
 			i_ver_bak_y,
 			luma_ver_tap,
@@ -986,14 +986,14 @@ unsigned char cam_scaler_isp_scale_coeff_gen(short i_w, short i_h,
 	if (2 * i_ver_bak_uv <= d_ver)
 		/* only scale down */
 		pr_debug("scale uv coef ver down\n");
-	camscaler_cal_ver_edge_coef(cong_uv_com_ver,
+	camscaler_ver_edge_coef_cal(cong_uv_com_ver,
 			d_ver,
 			i_ver_bak_uv,
 			chrome_ver_tap,
 			16);
 
 	/* write the coefficient to register format */
-	camscaler_set_ver_register_coef(coeff_v_lum_ptr, coeff_v_ch_ptr,
+	camscaler_ver_register_coef_set(coeff_v_lum_ptr, coeff_v_ch_ptr,
 			cong_y_com_ver, cong_uv_com_ver, d_ver,
 			i_ver, scaling2yuv420);
 

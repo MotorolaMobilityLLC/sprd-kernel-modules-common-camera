@@ -96,7 +96,7 @@ exit:
 	return ret;
 }
 
-static int sprd_cam_flash_get_info(struct cam_flash_task_info *flash_ctx, void *arg)
+static int sprd_cam_flash_info_get(struct cam_flash_task_info *flash_ctx, void *arg)
 {
 	sprd_flash_get_info(flash_ctx->set_flash.flash_index,
 		SPRD_FLASH_LED_ALL, (struct sprd_flash_capacity *)arg);
@@ -238,7 +238,7 @@ static struct cam_flash_ops flash_core_ops = {
 	.close = sprd_cam_flash_close,
 	.cfg_flash = sprd_cam_flash_cfg,
 	.set_flash = sprd_cam_flash_set,
-	.get_flash = sprd_cam_flash_get_info,
+	.get_flash = sprd_cam_flash_info_get,
 	.start_flash = sprd_cam_flash_start,
 	.set_frame_skip = sprd_cam_flash_set_frame_skip,
 };

@@ -193,7 +193,7 @@ exit:
 	return ret;
 }
 
-static int camioctl_cfg_param(struct camera_module *module,
+static int camioctl_param_cfg(struct camera_module *module,
 		unsigned long arg)
 {
 	int ret = 0;
@@ -2131,7 +2131,7 @@ exit:
 	return ret;
 }
 
-static int camioctl_start_capture(struct camera_module *module,
+static int camioctl_capture_start(struct camera_module *module,
 		unsigned long arg)
 {
 	int ret = 0;
@@ -2272,7 +2272,7 @@ static int camioctl_start_capture(struct camera_module *module,
 	return ret;
 }
 
-static int camioctl_stop_capture(struct camera_module *module,
+static int camioctl_capture_stop(struct camera_module *module,
 		unsigned long arg)
 {
 	struct channel_context *channel = NULL;
@@ -2425,7 +2425,7 @@ static int camioctl_raw_proc(struct camera_module *module,
 	return ret;
 }
 
-static int camioctl_post_fdr(struct camera_module *module,
+static int camioctl_fdr_post(struct camera_module *module,
 		unsigned long arg)
 {
 	int ret = 0;
