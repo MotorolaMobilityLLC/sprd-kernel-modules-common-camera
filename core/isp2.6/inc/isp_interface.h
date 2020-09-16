@@ -247,6 +247,7 @@ struct isp_pipe_ops {
 	int (*set_callback)(void *isp_handle, int ctx_id,
 			isp_dev_callback cb, void *priv_data);
 	int (*update_clk)(void *isp_handle, void *arg);
+	int (*clear_stream_ctrl)(void *isp_handle, int ctx_id);
 };
 
 void *isp_core_pipe_dev_get(void);

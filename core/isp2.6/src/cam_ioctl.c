@@ -1084,7 +1084,7 @@ static int camioctl_frame_addr_set(struct camera_module *module,
 		}
 
 		if (param.channel_id == CAM_CH_CAP || param.is_reserved_buf) {
-			pr_debug("ch %d, mfd %d, off 0x%x 0x%x 0x%x, size 0x%x, reserved %d\n",
+			pr_debug("ch %d, mfd 0x%x, off 0x%x 0x%x 0x%x, size 0x%x, reserved %d\n",
 				pframe->channel_id, pframe->buf.mfd[0],
 				pframe->buf.offset[0], pframe->buf.offset[1],
 				pframe->buf.offset[2], (uint32_t)pframe->buf.size[0],
@@ -2186,7 +2186,7 @@ static int camioctl_capture_start(struct camera_module *module,
 		module->dcam_dev_handle->dcam_pipe_ops->ioctl(module->dcam_dev_handle,
 			DCAM_IOCTL_CFG_GTM_UPDATE, &gtm_param_idx);
 	}
-
+	module->isp_dev_handle->isp_ops->clear_stream_ctrl(module->isp_dev_handle, isp_idx);
 	if (module->capture_scene == CAPTURE_FDR) {
 		struct dcam_path_cfg_param ch_desc;
 

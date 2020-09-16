@@ -2312,6 +2312,39 @@ static int ispcore_stream_state_get(struct isp_pipe_context *pctx)
 	return ret;
 }
 
+static int ispcore_stream_state_put(void *isp_handle, int ctx_id)
+{
+	int ret = 0;
+	struct isp_pipe_dev *dev = NULL;
+	struct isp_pipe_context *pctx = NULL;
+	struct isp_stream_ctrl *stream = NULL;
+
+	if (!isp_handle) {
+		pr_err("fail to input ptr NULL\n");
+		ret = -EFAULT;
+		goto exit;
+	}
+
+	if (ctx_id < 0 || ctx_id >= ISP_CONTEXT_SW_NUM) {
+		pr_debug("fail to ctx_id is err  %d\n", ctx_id);
+		ret = -EFAULT;
+		goto exit;
+	}
+
+	dev = (struct isp_pipe_dev *)isp_handle;
+	pctx = &dev->ctx[ctx_id];
+
+	do {
+		stream = cam_queue_dequeue(&pctx->stream_ctrl_in_q,
+			struct isp_stream_ctrl, list);
+		if (stream)
+			cam_queue_empty_state_put(stream);
+	} while(stream);
+
+exit:
+	return ret;
+}
+
 static int ispcore_postproc_irq(void *handle, uint32_t idx,
 	enum isp_postproc_type type)
 {
@@ -3520,6 +3553,7 @@ static struct isp_pipe_ops isp_ops = {
 	.cfg_blk_param = ispcore_blkparam_cfg,
 	.proc_frame = ispcore_frame_proc,
 	.set_callback = ispcore_callback_set,
+	.clear_stream_ctrl = ispcore_stream_state_put,
 };
 
 void *isp_core_pipe_dev_get(void)
