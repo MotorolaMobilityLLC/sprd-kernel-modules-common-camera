@@ -101,7 +101,7 @@ int isp_hw_deinit(void *arg)
 	return ret;
 }
 
-int sprd_isp_parse_dt(struct device_node *dn,
+int sprd_isp_dt_parse(struct device_node *dn,
 		struct cam_hw_info *hw_info,
 		uint32_t *isp_count)
 {

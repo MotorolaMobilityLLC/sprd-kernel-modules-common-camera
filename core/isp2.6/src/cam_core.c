@@ -6289,7 +6289,7 @@ static int camcore_probe(struct platform_device *pdev)
 	}
 
 	pr_info("sprd isp dev name %s\n", pdev->dev.init_name);
-	ret = sprd_isp_parse_dt(pdev->dev.of_node, group->hw_info,
+	ret = sprd_isp_dt_parse(pdev->dev.of_node, group->hw_info,
 		&group->isp_count);
 	if (ret) {
 		pr_err("fail to parse isp dts\n");
