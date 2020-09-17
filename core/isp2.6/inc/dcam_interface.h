@@ -114,7 +114,7 @@ enum dcam_path_cfg_cmd {
  */
 static inline void
 dcam_if_cal_compressed_addr(uint32_t width,
-			uint32_t height, addr_t in,
+			uint32_t height, unsigned long in,
 			struct compressed_addr *out,
 			uint32_t compress_4bit_bypass)
 {
@@ -132,7 +132,7 @@ dcam_if_cal_compressed_addr(uint32_t width,
 	pixel_count = tile_col * tile_row * FBC_TILE_ADDR_ALIGN;
 	low2 = pixel_count >> 2;
 
-	out->addr0 = in;
+	out->addr0 = (uint32_t)in;
 	out->addr1 = ALIGN(out->addr0 + header_bytes, FBC_TILE_ADDR_ALIGN);//payload addr
 	out->addr2 = ALIGN(out->addr1 + pixel_count, FBC_TILE_ADDR_ALIGN);//mid 2 bit_addr
 	if (!compress_4bit_bypass)

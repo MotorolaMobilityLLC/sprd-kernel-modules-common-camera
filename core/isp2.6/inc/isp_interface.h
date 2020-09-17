@@ -182,7 +182,7 @@ struct isp_path_compression_desc {
 };
 
 static inline void isp_3dnr_cal_compressed_addr(uint32_t width,
-			uint32_t height, addr_t in,
+			uint32_t height, unsigned long in,
 			struct compressed_addr *out)
 {
 	uint32_t pixel_count, header_bytes_y, header_bytes_c;
@@ -198,7 +198,7 @@ static inline void isp_3dnr_cal_compressed_addr(uint32_t width,
 	header_bytes_c = pixel_count >> 10;
 	header_bytes_c += FBC_HEADER_REDUNDANT;
 
-	out->addr0 = in;
+	out->addr0 = (uint32_t)in;
 	out->addr1 = ALIGN(out->addr0 + header_bytes_y, FBC_TILE_ADDR_ALIGN);
 	out->addr2 = ALIGN(out->addr1 + header_bytes_c + pixel_count,
 			FBC_TILE_ADDR_ALIGN);

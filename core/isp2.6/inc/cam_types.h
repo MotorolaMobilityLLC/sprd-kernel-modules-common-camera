@@ -245,19 +245,16 @@ enum dcam_cb_type {
 
 };
 
-/* for fbc/fbd */
-typedef unsigned long addr_t;
-
 /*
  * @addr0: start address of this buffer
  * @addr1: tile address for raw, y tile address for yuv
  * @addr2: low 2 bit address for raw, uv tile address for yuv
  */
 struct compressed_addr {
-	addr_t addr0;
-	addr_t addr1;
-	addr_t addr2;
-	addr_t addr3;
+	uint32_t addr0;
+	uint32_t addr1;
+	uint32_t addr2;
+	uint32_t addr3;
 };
 
 extern struct camera_queue *g_empty_frm_q;
