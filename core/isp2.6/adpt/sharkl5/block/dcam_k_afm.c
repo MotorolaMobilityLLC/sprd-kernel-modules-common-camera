@@ -224,6 +224,7 @@ int dcam_k_afm_crop_eb(struct dcam_dev_param *param)
 
 	idx = param->idx;
 	crop_eb = param->afm.crop_eb;
+	pr_debug("Dcam%d, afm crop_eb:%d\n", param->idx, crop_eb);
 	DCAM_REG_MWR(idx, ISP_AFM_PARAMETERS, BIT_1, crop_eb << 1);
 
 	return ret;
@@ -240,7 +241,7 @@ int dcam_k_afm_crop_size(struct dcam_dev_param *param)
 
 	idx = param->idx;
 	crop_size = param->afm.crop_size;
-
+	pr_debug("Dcam%d, afm crop_size:(x:%d y:%d w:%d h:%d)\n", param->idx, crop_size.x,crop_size.y,crop_size.w,crop_size.h);
 	DCAM_REG_WR(idx, ISP_AFM_CROP_START,
 		(crop_size.y & 0x1FFF) << 16 |
 		(crop_size.x & 0X1FFF));

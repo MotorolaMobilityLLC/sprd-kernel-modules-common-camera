@@ -352,7 +352,7 @@ static int dcamhw_reset(void *handle, void *arg)
 	enum dcam_id idx = 0;
 	struct cam_hw_soc_info *soc = NULL;
 	struct cam_hw_ip_info *ip = NULL;
-	struct cam_hw_info *hw = NULL;	
+	struct cam_hw_info *hw = NULL;
 	uint32_t time_out = 0, flag = 0;
 	uint32_t bypass, eb;
 	uint32_t reset_bit[DCAM_ID_MAX] = {
@@ -428,6 +428,7 @@ static int dcamhw_reset(void *handle, void *arg)
 	DCAM_REG_MWR(idx, ISP_AWBC_GAIN0, BIT_31, bypass << 31);
 	DCAM_REG_MWR(idx, ISP_BPC_PARAM, 0xF, 0xF); /*bpc bypass all */
 	DCAM_REG_MWR(idx, ISP_AFM_FRM_CTRL, BIT_0, bypass);
+	DCAM_REG_MWR(idx, ISP_AFM_PARAMETERS, BIT_1, eb << 1); /* afm crop eb */
 	DCAM_REG_MWR(idx, NR3_FAST_ME_PARAM, BIT_0, bypass);
 	pr_info("DCAM%d: reset end\n", idx);
 
