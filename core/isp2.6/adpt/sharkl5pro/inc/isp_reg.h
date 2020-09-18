@@ -81,6 +81,8 @@ extern unsigned long s_isp_mmubase;
 #define ISP_COMMON_PMU_RAM_MASK                 (0x0734UL)
 #define ISP_WORK_CTRL                           (0x0738UL)
 #define ISP_BLOCK_MODE                          (0x073CUL)
+#define ISP_NLM_STATUS                          (0x0800UL)
+#define ISP_IIRCNR_STATUS                       (0x0A74UL)
 
 #define ISP_CORE_STATUS                         (0x8000UL)
 #define ISP_CORE_PMU_EN                         (0x8010UL)
