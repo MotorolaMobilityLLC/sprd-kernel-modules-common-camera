@@ -441,7 +441,7 @@ static void csi_dphy_2p2_reset(struct csi_dt_node_info *csi_info)
 	uint32_t cphy_sel_val;
 	uint32_t mask = 0;
 	uint32_t val = 0;
-
+	int ret;
 	if (!csi_info) {
 		pr_err("fail to get valid dt_info ptr\n");
 		return;
@@ -458,9 +458,13 @@ static void csi_dphy_2p2_reset(struct csi_dt_node_info *csi_info)
 	case CSI_RX1:
 		cphy_sel_mask = 7 << (csi_info->controller_id * 4);
 		cphy_sel_val  = 3 << csi_info->controller_id * 4;
-		regmap_read(phy->cam_ahb_syscon,
+		ret = regmap_read(phy->cam_ahb_syscon,
 			REG_MM_AHB_MIPI_CSI2_CTRL,
 			&val);
+		if(ret) {
+			pr_err("fail to read REG_MM_AHB_MIPI_CSI2_CTRL");
+			break;
+		}
 		val = (val & (~cphy_sel_mask)) | cphy_sel_val;
 		regmap_write(phy->cam_ahb_syscon,
 			REG_MM_AHB_MIPI_CSI2_CTRL,
@@ -475,9 +479,13 @@ static void csi_dphy_2p2_reset(struct csi_dt_node_info *csi_info)
 		REG_ANLG_PHY_G1_ANALOG_MIPI_CSI_4LANE_MIPI_PHY_BIST_TEST,
 		mask, ~mask);
 
-		regmap_read(phy->cam_ahb_syscon,
+		ret = regmap_read(phy->cam_ahb_syscon,
 			REG_MM_AHB_MIPI_CSI2_CTRL,
 			&val);
+		if(ret) {
+			pr_err("fail to read REG_MM_AHB_MIPI_CSI2_CTRL");
+			break;
+		}
 		val = (val & (~cphy_sel_mask)) | 0x0;
 		regmap_write(phy->cam_ahb_syscon,
 			REG_MM_AHB_MIPI_CSI2_CTRL,
@@ -486,9 +494,13 @@ static void csi_dphy_2p2_reset(struct csi_dt_node_info *csi_info)
 	case CSI_RX2:
 		cphy_sel_mask = 7 << (csi_info->controller_id * 4);
 		cphy_sel_val  = 1 << csi_info->controller_id * 4;
-		regmap_read(phy->cam_ahb_syscon,
+		ret = regmap_read(phy->cam_ahb_syscon,
 			REG_MM_AHB_MIPI_CSI2_CTRL,
 			&val);
+		if(ret) {
+			pr_err("fail to read REG_MM_AHB_MIPI_CSI2_CTRL");
+			break;
+		}
 		val = (val & (~cphy_sel_mask)) | cphy_sel_val;
 		regmap_write(phy->cam_ahb_syscon,
 			REG_MM_AHB_MIPI_CSI2_CTRL,
@@ -502,18 +514,26 @@ static void csi_dphy_2p2_reset(struct csi_dt_node_info *csi_info)
 		REG_ANLG_PHY_G1_ANALOG_MIPI_CSI_4LANE_MIPI_PHY_BIST_TEST,
 		mask, ~mask);
 
-		regmap_read(phy->cam_ahb_syscon,
+		ret = regmap_read(phy->cam_ahb_syscon,
 			REG_MM_AHB_MIPI_CSI2_CTRL,
 			&val);
+		if(ret) {
+			pr_err("fail to read REG_MM_AHB_MIPI_CSI2_CTRL");
+			break;
+		}
 		val = (val & (~cphy_sel_mask)) | 0x0;
 		regmap_write(phy->cam_ahb_syscon,
 			REG_MM_AHB_MIPI_CSI2_CTRL,
 			val);
 
 		cphy_sel_val  = 2 << csi_info->controller_id * 4;
-		regmap_read(phy->cam_ahb_syscon,
+		ret = regmap_read(phy->cam_ahb_syscon,
 			REG_MM_AHB_MIPI_CSI2_CTRL,
 			&val);
+		if(ret) {
+			pr_err("fail to read REG_MM_AHB_MIPI_CSI2_CTRL");
+			break;
+		}
 		val = (val & (~cphy_sel_mask)) | cphy_sel_val;
 		regmap_write(phy->cam_ahb_syscon,
 			REG_MM_AHB_MIPI_CSI2_CTRL,
@@ -526,9 +546,13 @@ static void csi_dphy_2p2_reset(struct csi_dt_node_info *csi_info)
 		REG_ANLG_PHY_G1_ANALOG_MIPI_CSI_4LANE_MIPI_PHY_BIST_TEST,
 		mask, ~mask);
 
-		regmap_read(phy->cam_ahb_syscon,
+		ret = regmap_read(phy->cam_ahb_syscon,
 			REG_MM_AHB_MIPI_CSI2_CTRL,
 			&val);
+		if(ret) {
+			pr_err("fail to read REG_MM_AHB_MIPI_CSI2_CTRL");
+			break;
+		}
 		val = (val & (~cphy_sel_mask)) | 0x0;
 		regmap_write(phy->cam_ahb_syscon,
 			REG_MM_AHB_MIPI_CSI2_CTRL,
@@ -728,7 +752,7 @@ void csi_controller_enable(struct csi_dt_node_info *dt_info, int32_t idx)
 	uint32_t mask_rst = 0;
 	unsigned long flag = 0;
 	unsigned int val = 0;
-
+	int ret;
 	if (!dt_info) {
 		pr_err("fail to get valid dt_info ptr\n");
 		return;
@@ -776,8 +800,11 @@ void csi_controller_enable(struct csi_dt_node_info *dt_info, int32_t idx)
 
 	spin_unlock_irqrestore(&csi_dump_lock[dt_info->controller_id], flag);
 
-	regmap_read(phy->cam_ahb_syscon, REG_MM_AHB_MIPI_CSI2_CTRL, &val);
-
+	ret = regmap_read(phy->cam_ahb_syscon, REG_MM_AHB_MIPI_CSI2_CTRL, &val);
+	if(ret) {
+		pr_err("fail to read REG_MM_AHB_MIPI_CSI2_CTRL");
+		return;
+	}
 	if (dt_info->controller_id == CSI_RX0 ||
 			dt_info->controller_id == CSI_RX1) {
 		cphy_sel_mask = 7 << (dt_info->controller_id * 4);
