@@ -45,7 +45,7 @@ static char *dcam_dev_name[] = {"DCAM0",
 				"DCAM2"
 				};
 
-static inline void dcamint_record_dcam_int(uint32_t idx, uint32_t status)
+static inline void dcamint_dcam_int_record(uint32_t idx, uint32_t status)
 {
 	uint32_t i;
 
@@ -78,7 +78,7 @@ static inline void dcamint_record_dcam_int(uint32_t idx, uint32_t status)
 /*
  * Dequeue a frame from result queue.
  */
-static struct camera_frame *dcamint_prepare_frame(struct dcam_pipe_dev *dev,
+static struct camera_frame *dcamint_frame_prepare(struct dcam_pipe_dev *dev,
 				enum dcam_path_id path_id)
 {
 	struct dcam_path_desc *path = NULL;
@@ -152,7 +152,7 @@ static struct camera_frame *dcamint_prepare_frame(struct dcam_pipe_dev *dev,
 /*
  * Add timestamp and dispatch frame.
  */
-static void dcamint_dispatch_frame(struct dcam_pipe_dev *dev,
+static void dcamint_frame_dispatch(struct dcam_pipe_dev *dev,
 				enum dcam_path_id path_id,
 				struct camera_frame *frame,
 				enum dcam_cb_type type)
@@ -176,7 +176,7 @@ static void dcamint_dispatch_frame(struct dcam_pipe_dev *dev,
 	dev->dcam_cb_func(type, frame, dev->cb_priv_data);
 }
 
-static void dcamint_dispatch_sof_event(struct dcam_pipe_dev *dev)
+static void dcamint_sof_event_dispatch(struct dcam_pipe_dev *dev)
 {
 	struct camera_frame *frame = NULL;
 	struct timespec cur_ts;
@@ -195,7 +195,7 @@ static void dcamint_dispatch_sof_event(struct dcam_pipe_dev *dev)
 	}
 }
 
-static void dcamint_fix_index(struct dcam_pipe_dev *dev,
+static void dcamint_index_fix(struct dcam_pipe_dev *dev,
 			   uint32_t begin, uint32_t num_group)
 {
 	struct dcam_path_desc *path = NULL;
@@ -249,7 +249,7 @@ static void dcamint_fix_index(struct dcam_pipe_dev *dev,
 /*
  * Check if frame in result queue of @path is occupied by hardware.
  */
-static int dcamint_check_frame(struct dcam_pipe_dev *dev,
+static int dcamint_frame_check(struct dcam_pipe_dev *dev,
 		struct dcam_path_desc *path)
 {
 	struct camera_frame *frame = NULL;
@@ -347,7 +347,7 @@ static enum dcam_fix_result dcamint_fix_index_if_needed(struct dcam_pipe_dev *de
 			 */
 			if (path->path_id == DCAM_PATH_BIN
 				|| path->path_id == DCAM_PATH_FULL)
-				vote |= dcamint_check_frame(dev, path);
+				vote |= dcamint_frame_check(dev, path);
 
 			frame = cam_queue_dequeue_tail(&path->result_queue);
 			if (frame == NULL)
@@ -396,7 +396,7 @@ static enum dcam_fix_result dcamint_fix_index_if_needed(struct dcam_pipe_dev *de
 	if (old_n != dev->slowmotion_count - 1) {
 		/* fix index for last 1~8 frames */
 		dev->handled_bits = DCAMINT_ALL_TX_DONE;
-		dcamint_fix_index(dev, cur_rd, 2);
+		dcamint_index_fix(dev, cur_rd, 2);
 
 		return BUFFER_READY;
 	} else /* if (cur_n != dev->slowmotion_count - 1) */{
@@ -409,7 +409,7 @@ static enum dcam_fix_result dcamint_fix_index_if_needed(struct dcam_pipe_dev *de
 			 */
 			dev->handled_bits = DCAMINT_ALL_TX_DONE;
 		}
-		dcamint_fix_index(dev, cur_rd, 1);
+		dcamint_index_fix(dev, cur_rd, 1);
 
 		return INDEX_FIXED;
 	}
@@ -570,7 +570,7 @@ dispatch_sof:
 
 	if (!dev->slowmotion_count
 		|| !(dev->frame_index % dev->slowmotion_count)) {
-		dcamint_dispatch_sof_event(dev);
+		dcamint_sof_event_dispatch(dev);
 	}
 	dev->iommu_status = (uint32_t)(-1);
 
@@ -604,7 +604,7 @@ static void dcamint_preview_sof(void *param)
 		dcam_path_store_frm_set(dev, path, NULL);
 	}
 
-	dcamint_dispatch_sof_event(dev);
+	dcamint_sof_event_dispatch(dev);
 }
 
 /* for Flash */
@@ -635,7 +635,7 @@ static void dcamint_full_path_done(void *param)
 	struct dcam_pipe_dev *dev = (struct dcam_pipe_dev *)param;
 	struct camera_frame *frame = NULL;
 
-	if ((frame = dcamint_prepare_frame(dev, DCAM_PATH_FULL))) {
+	if ((frame = dcamint_frame_prepare(dev, DCAM_PATH_FULL))) {
 		if (dev->is_4in1) {
 			if (dev->skip_4in1 > 0) {
 				dev->skip_4in1--;
@@ -652,7 +652,7 @@ static void dcamint_full_path_done(void *param)
 			else/* low lux, to isp as normal */
 				frame->irq_type = CAMERA_IRQ_IMG;
 		}
-		dcamint_dispatch_frame(dev, DCAM_PATH_FULL, frame, DCAM_CB_DATA_DONE);
+		dcamint_frame_dispatch(dev, DCAM_PATH_FULL, frame, DCAM_CB_DATA_DONE);
 	}
 }
 
@@ -684,7 +684,7 @@ static void dcamint_bin_path_done(void *param)
 			complete(&dev->slice_done);
 	}
 
-	if ((frame = dcamint_prepare_frame(dev, DCAM_PATH_BIN))) {
+	if ((frame = dcamint_frame_prepare(dev, DCAM_PATH_BIN))) {
 		if (dev->dcam_slice_mode) {
 			frame->dcam_idx = dev->idx;
 			frame->sw_slice_num = dev->slice_num;
@@ -708,13 +708,13 @@ static void dcamint_bin_path_done(void *param)
 				pr_err("fail to start dcam/isp for raw proc\n");
 			return;
 		}
-		dcamint_dispatch_frame(dev, DCAM_PATH_BIN, frame, DCAM_CB_DATA_DONE);
+		dcamint_frame_dispatch(dev, DCAM_PATH_BIN, frame, DCAM_CB_DATA_DONE);
 	}
 
 	i = 0;
 	while (++i < dev->slowmotion_count)
-		dcamint_dispatch_frame(dev, DCAM_PATH_BIN,
-				dcamint_prepare_frame(dev, DCAM_PATH_BIN),
+		dcamint_frame_dispatch(dev, DCAM_PATH_BIN,
+				dcamint_frame_prepare(dev, DCAM_PATH_BIN),
 				DCAM_CB_DATA_DONE);
 
 	if (dev->offline) {
@@ -743,8 +743,8 @@ static void dcamint_aem_done(void *param)
 	if (unlikely(dev->idx == DCAM_ID_2))
 		return;
 
-	if ((frame = dcamint_prepare_frame(dev, DCAM_PATH_AEM)))
-		dcamint_dispatch_frame(dev, DCAM_PATH_AEM, frame, DCAM_CB_STATIS_DONE);
+	if ((frame = dcamint_frame_prepare(dev, DCAM_PATH_AEM)))
+		dcamint_frame_dispatch(dev, DCAM_PATH_AEM, frame, DCAM_CB_STATIS_DONE);
 }
 
 /*
@@ -758,8 +758,8 @@ static void dcamint_pdaf_path_done(void *param)
 	if (unlikely(dev->idx == DCAM_ID_2))
 		return;
 
-	if ((frame = dcamint_prepare_frame(dev, DCAM_PATH_PDAF)))
-		dcamint_dispatch_frame(dev, DCAM_PATH_PDAF, frame, DCAM_CB_STATIS_DONE);
+	if ((frame = dcamint_frame_prepare(dev, DCAM_PATH_PDAF)))
+		dcamint_frame_dispatch(dev, DCAM_PATH_PDAF, frame, DCAM_CB_STATIS_DONE);
 }
 
 /*
@@ -776,8 +776,8 @@ static void dcamint_vch2_path_done(void *param)
 		return;
 
 	type = path->src_sel ? DCAM_CB_DATA_DONE : DCAM_CB_STATIS_DONE;
-	if ((frame = dcamint_prepare_frame(dev, DCAM_PATH_VCH2)))
-		dcamint_dispatch_frame(dev, DCAM_PATH_VCH2, frame, type);
+	if ((frame = dcamint_frame_prepare(dev, DCAM_PATH_VCH2)))
+		dcamint_frame_dispatch(dev, DCAM_PATH_VCH2, frame, type);
 }
 
 /*
@@ -791,8 +791,8 @@ static void dcamint_vch3_path_done(void *param)
 	if (unlikely(dev->idx == DCAM_ID_2))
 		return;
 
-	if ((frame = dcamint_prepare_frame(dev, DCAM_PATH_VCH3)))
-		dcamint_dispatch_frame(dev, DCAM_PATH_AFM, frame, DCAM_CB_STATIS_DONE);
+	if ((frame = dcamint_frame_prepare(dev, DCAM_PATH_VCH3)))
+		dcamint_frame_dispatch(dev, DCAM_PATH_AFM, frame, DCAM_CB_STATIS_DONE);
 }
 
 /*
@@ -806,8 +806,8 @@ static void dcamint_afm_done(void *param)
 	if (unlikely(dev->idx == DCAM_ID_2))
 		return;
 
-	if ((frame = dcamint_prepare_frame(dev, DCAM_PATH_AFM)))
-		dcamint_dispatch_frame(dev, DCAM_PATH_AFM, frame, DCAM_CB_STATIS_DONE);
+	if ((frame = dcamint_frame_prepare(dev, DCAM_PATH_AFM)))
+		dcamint_frame_dispatch(dev, DCAM_PATH_AFM, frame, DCAM_CB_STATIS_DONE);
 }
 
 static void dcamint_afl_done(void *param)
@@ -819,8 +819,8 @@ static void dcamint_afl_done(void *param)
 		return;
 
 	dcam_path_store_frm_set(dev, &dev->path[DCAM_PATH_AFL], NULL);
-	if ((frame = dcamint_prepare_frame(dev, DCAM_PATH_AFL)))
-		dcamint_dispatch_frame(dev, DCAM_PATH_AFL, frame, DCAM_CB_STATIS_DONE);
+	if ((frame = dcamint_frame_prepare(dev, DCAM_PATH_AFL)))
+		dcamint_frame_dispatch(dev, DCAM_PATH_AFL, frame, DCAM_CB_STATIS_DONE);
 }
 
 /*
@@ -841,7 +841,7 @@ static void dcamint_nr3_done(void *param)
 	out0 = DCAM_REG_RD(dev->idx, NR3_FAST_ME_OUT0);
 	out1 = DCAM_REG_RD(dev->idx, NR3_FAST_ME_OUT1);
 
-	if ((frame = dcamint_prepare_frame(dev, DCAM_PATH_3DNR))) {
+	if ((frame = dcamint_frame_prepare(dev, DCAM_PATH_3DNR))) {
 		sync = (struct dcam_frame_synchronizer *)frame->sync_data;
 		if (unlikely(!sync)) {
 			pr_warn("DCAM%u 3DNR sync not found\n", dev->idx);
@@ -862,7 +862,7 @@ static void dcamint_nr3_done(void *param)
 			dcam_core_dcam_if_release_sync(sync, frame);
 		}
 
-		dcamint_dispatch_frame(dev, DCAM_PATH_3DNR, frame, DCAM_CB_STATIS_DONE);
+		dcamint_frame_dispatch(dev, DCAM_PATH_3DNR, frame, DCAM_CB_STATIS_DONE);
 	}
 }
 
@@ -870,7 +870,7 @@ static void dcamint_nr3_done(void *param)
 /*
  * reset tracker
  */
-void dcam_int_reset_int_tracker(uint32_t idx)
+void dcamint_int_tracker_reset(uint32_t idx)
 {
 	if (is_dcam_id(idx))
 		memset(dcam_int_tracker[idx], 0, sizeof(dcam_int_tracker[idx]));
@@ -886,7 +886,7 @@ void dcam_int_reset_int_tracker(uint32_t idx)
 /*
  * print int count
  */
-void dcam_int_dump_int_tracker(uint32_t idx)
+void dcamint_int_tracker_dump(uint32_t idx)
 {
 	int i = 0;
 
@@ -1029,7 +1029,7 @@ static const struct {
  * report error back to adaptive layer
  */
 
-static void dcamint_dump_iommu_regs(struct dcam_pipe_dev *dev)
+static void dcamint_iommu_regs_dump(struct dcam_pipe_dev *dev)
 {
 	uint32_t reg = 0;
 	uint32_t val[4];
@@ -1085,7 +1085,7 @@ static irqreturn_t dcamint_error_handler(struct dcam_pipe_dev *dev,
 		uint32_t val = DCAM_MMU_RD(MMU_STS);
 
 		if (val != dev->iommu_status) {
-			dcamint_dump_iommu_regs(dev);
+			dcamint_iommu_regs_dump(dev);
 			dev->iommu_status = val;
 		}
 	}
@@ -1136,7 +1136,7 @@ static irqreturn_t dcamint_isr_root(int irq, void *priv)
 
 	DCAM_REG_WR(dev->idx, DCAM_INT_CLR, status);
 
-	dcamint_record_dcam_int(dev->idx, status);
+	dcamint_dcam_int_record(dev->idx, status);
 
 	if (unlikely(DCAMINT_ALL_ERROR & status)) {
 		dcamint_error_handler(dev, status);
@@ -1197,7 +1197,7 @@ int dcam_int_irq_request(struct device *pdev, int irq, void *param)
 		return -EFAULT;
 	}
 
-	dcam_int_reset_int_tracker(dev->idx);
+	dcamint_int_tracker_reset(dev->idx);
 
 	return ret;
 }

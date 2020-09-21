@@ -45,7 +45,7 @@ static int camhwif_dcam_ioctl(void *handle,
 	int ret = 0;
 	hw_ioctl_fun hw_ctrl = NULL;
 
-	hw_ctrl = dcamhw_ioctl_get_fun(cmd);
+	hw_ctrl = dcamhw_ioctl_fun_get(cmd);
 	if (hw_ctrl != NULL)
 		ret = hw_ctrl(handle, arg);
 	else

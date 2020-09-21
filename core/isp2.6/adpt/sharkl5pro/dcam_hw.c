@@ -788,7 +788,7 @@ static int dcamhw_fetch_start(void *handle, void *arg)
 	return 0;
 }
 
-static int dcamhw_calc_rds_phase_info(void *handle, void *arg)
+static int dcamhw_rds_phase_info_calc(void *handle, void *arg)
 {
 	int32_t rtn = 0;
 	uint16_t adj_hor = 1, adj_ver = 1;
@@ -1436,7 +1436,7 @@ static int dcamhw_blocks_setstatis(void *handle, void *arg)
 	return 0;
 }
 
-static int dcamhw_cfg_mipicap(void *handle, void *arg)
+static int dcamhw_mipicap_cfg(void *handle, void *arg)
 {
 	struct dcam_hw_cfg_mipicap *mipiarg = NULL;
 
@@ -1449,13 +1449,6 @@ static int dcamhw_cfg_mipicap(void *handle, void *arg)
 	DCAM_REG_MWR(mipiarg->idx, DCAM_MIPI_CAP_CFG, BIT_3, 0x0 << 3);
 	DCAM_REG_MWR(mipiarg->idx, DCAM_MIPI_CAP_CFG, BIT_1, 0x1 << 1);
 	DCAM_REG_WR(mipiarg->idx, DCAM_MIPI_CAP_END, mipiarg->reg_val);
-
-	return 0;
-}
-
-static int dcamhw_start_fetch(void *handle, void *arg)
-{
-	DCAM_AXIM_WR(IMG_FETCH_START, 1);
 
 	return 0;
 }
@@ -1477,7 +1470,7 @@ static int dcamhw_bin_mipi_cfg(void *handle, void *arg)
 	return 0;
 }
 
-static int dcamhw_cfg_bin_path(void *handle, void *arg)
+static int dcamhw_bin_path_cfg(void *handle, void *arg)
 {
 	struct dcam_hw_cfg_bin_path *parm = NULL;
 
@@ -1508,7 +1501,7 @@ static struct hw_io_ctrl_fun dcam_ioctl_fun_tab[] = {
 	{DCAM_HW_CFG_PATH_CTRL,             dcamhw_path_ctrl},
 	{DCAM_HW_CFG_PATH_SRC_SEL,          dcamhw_full_path_src_sel},
 	{DCAM_HW_CFG_PATH_SIZE_UPDATE,      dcamhw_path_size_update},
-	{DCAM_HW_CFG_CALC_RDS_PHASE_INFO,   dcamhw_calc_rds_phase_info},
+	{DCAM_HW_CFG_CALC_RDS_PHASE_INFO,   dcamhw_rds_phase_info_calc},
 	{DCAM_HW_CFG_MIPI_CAP_SET,          dcamhw_mipi_cap_set},
 	{DCAM_HW_CFG_FETCH_SET,             dcamhw_fetch_set},
 	{DCAM_HW_CFG_EBD_SET,               dcamhw_ebd_set},
@@ -1526,13 +1519,12 @@ static struct hw_io_ctrl_fun dcam_ioctl_fun_tab[] = {
 	{DCAM_HW_CFG_BLOCK_FUNC_GET,        dcamhw_block_func_get},
 	{DCAM_HW_CFG_BLOCKS_SETALL,        dcamhw_blocks_setall},
 	{DCAM_HW_CFG_BLOCKS_SETSTATIS,        dcamhw_blocks_setstatis},
-	{DCAM_HW_CFG_MIPICAP,               dcamhw_cfg_mipicap},
-	{DCAM_HW_CFG_START_FETCH,           dcamhw_start_fetch},
+	{DCAM_HW_CFG_MIPICAP,               dcamhw_mipicap_cfg},
 	{DCAM_HW_CFG_BIN_MIPI,              dcamhw_bin_mipi_cfg},
-	{DCAM_HW_CFG_BIN_PATH,              dcamhw_cfg_bin_path},
+	{DCAM_HW_CFG_BIN_PATH,              dcamhw_bin_path_cfg},
 };
 
-static hw_ioctl_fun dcamhw_ioctl_get_fun(enum dcam_hw_cfg_cmd cmd)
+static hw_ioctl_fun dcamhw_ioctl_fun_get(enum dcam_hw_cfg_cmd cmd)
 {
 	hw_ioctl_fun hw_ctrl = NULL;
 	uint32_t total_num = 0;
