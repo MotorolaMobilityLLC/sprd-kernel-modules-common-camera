@@ -362,7 +362,9 @@ static int isppath_trim_deci_info_cal(
 static int isppath_path_thumbscaler_cfg(struct isp_path_desc *path)
 {
 	int ret = 0;
-	uint32_t deci_w, deci_h, trim_w, trim_h;
+	uint32_t deci_w = 0;
+	uint32_t deci_h = 0;
+	uint32_t trim_w, trim_h;
 	uint32_t offset, shift, is_yuv422;
 
 	struct img_size src, dst;
