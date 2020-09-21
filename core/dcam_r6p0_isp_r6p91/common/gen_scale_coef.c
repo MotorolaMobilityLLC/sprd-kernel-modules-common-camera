@@ -720,17 +720,17 @@ unsigned char dcam_gen_scale_coeff(short i_w,
 	check_coef_range(cong_uv_com_ver, 8, chrome_ver_tap, 16);
 
 	/* calculate edge coefficients of Y component in vertical direction */
-	if (2 * i_ver_bak_y <= d_ver)
+	if (2 * i_ver_bak_y <= d_ver) {
 		/* only scale down */
 		pr_debug("scale y coef ver down\n");
 		cal_ver_edge_coef(cong_y_com_ver,
-				  d_ver,
-				  i_ver_bak_y,
-				  luma_ver_tap,
-				  16);
-
+				d_ver,
+				i_ver_bak_y,
+				luma_ver_tap,
+				16);
+	}
 	/* calculate edge coefficients of UV component in vertical direction */
-	if (2 * i_ver_bak_uv <= d_ver)
+	if (2 * i_ver_bak_uv <= d_ver) {
 		/* only scale down */
 		pr_debug("scale uv coef ver down\n");
 		cal_ver_edge_coef(cong_uv_com_ver,
@@ -738,6 +738,7 @@ unsigned char dcam_gen_scale_coeff(short i_w,
 				  i_ver_bak_uv,
 				  chrome_ver_tap,
 				  16);
+	}
 
 	/* write the coefficient to register format */
 	set_ver_register_coef(coeff_v_lum_ptr, coeff_v_ch_ptr,

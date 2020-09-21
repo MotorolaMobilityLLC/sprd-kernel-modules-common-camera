@@ -38,12 +38,12 @@ static int32_t isp_k_arbiter_block(struct isp_io_param *param)
 		| (arbiter_info.endian_ch0.fetch_endian & 0x3);
 	ISP_REG_WR(ISP_ARBITER_ENDIAN_CH0, val);
 
-	val = ((arbiter_info.endian_ch1.bpc_endian & 0x3) << 8)
+	/*val = ((arbiter_info.endian_ch1.bpc_endian & 0x3) << 8)
 		| ((arbiter_info.endian_ch1.lens_endian & 0x3) << 6)
 		| ((arbiter_info.endian_ch1.store_endian & 0x3) << 4)
 		| ((arbiter_info.endian_ch1.fetch_bit_reorder & 0x1) << 2)
 		| (arbiter_info.endian_ch1.fetch_endian & 0x3);
-	/*ISP_REG_WR(ISP_ARBITER_ENDIAN_CH1, val);*/
+	ISP_REG_WR(ISP_ARBITER_ENDIAN_CH1, val);*/
 
 	val = (arbiter_info.para.pause_cycle & 0xFF)
 		| ((arbiter_info.para.reset & 0x1) << 8);

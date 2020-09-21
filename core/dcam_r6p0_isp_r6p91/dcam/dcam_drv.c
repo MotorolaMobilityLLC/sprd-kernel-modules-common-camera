@@ -494,19 +494,45 @@ void print_isp_regs(void)
 
 static int dcam_enable_clk(void)
 {
+	int ret = DCAM_RTN_SUCCESS;
+
 	pr_info("clk enable! %d", atomic_read(&s_dcam_users));
 	if (atomic_read(&s_dcam_users) == 1) {
-		clk_set_parent(dcam0_clk, dcam0_clk_parent);
-		clk_prepare_enable(dcam0_clk);
+		ret = clk_set_parent(dcam0_clk, dcam0_clk_parent);
+		if (ret) {
+			pr_err("set clk parent fail\n");
+			return ret;
+		}
+		ret = clk_prepare_enable(dcam0_clk);
+		if (ret) {
+			pr_err("enable clk fail\n");
+			return ret;
+		}
 
-		clk_set_parent(dcam0_axi_clk, dcam0_axi_clk_default);
-		clk_prepare_enable(dcam0_axi_clk);
+		ret = clk_set_parent(dcam0_axi_clk, dcam0_axi_clk_default);
+		if (ret) {
+			pr_err("set axi clk fail\n");
+			return ret;
+		}
+		ret = clk_prepare_enable(dcam0_axi_clk);
+		if (ret) {
+			pr_err("enable axi clk fail\n");
+			return ret;
+		}
 
-		clk_prepare_enable(dcam0_eb);
-		clk_prepare_enable(dcam0_axi_eb);
+		ret = clk_prepare_enable(dcam0_eb);
+		if (ret) {
+			pr_err("enable dcam fail\n");
+			return ret;
+		}
+		ret = clk_prepare_enable(dcam0_axi_eb);
+		if (ret) {
+			pr_err("enable dcam axi fail\n");
+			return ret;
+		}
 	}
 
-	return 0;
+	return ret;
 }
 
 static int dcam_disable_clk(void)
@@ -759,6 +785,9 @@ static int32_t _dcam_path_set_next_frm(enum dcam_path_index path_index,
 		path_max_frm_cnt = DCAM_PATH_2_FRM_CNT_MAX;
 		p_heap = &s_p_dcam_mod->dcam_path2.frame_queue;
 		p_buf_queue = &s_p_dcam_mod->dcam_path2.buf_queue;
+	} else {
+		pr_err("path_index 0x%x error\n", path_index);
+		return -1;
 	}
 
 	/* iommu get addr */
@@ -791,15 +820,15 @@ static int32_t _dcam_path_set_next_frm(enum dcam_path_index path_index,
 	}
 
 	if (frame.pfinfo.mfd[0] == reserved_frame->pfinfo.mfd[0]) {
-			DCAM_TRACE("path 0x%x, fd 0x%x, {0x%x,0x%x,0x%x}\n",
-				path_index, frame.pfinfo.mfd[0], frame.pfinfo.size[0],
+		DCAM_TRACE("path 0x%x, fd 0x%x, {0x%x,0x%x,0x%x}\n",
+			path_index, frame.pfinfo.mfd[0], frame.pfinfo.size[0],
+			frame.pfinfo.size[1],frame.pfinfo.size[2]);
+		if (pfiommu_get_single_page_addr(&frame.pfinfo)) {
+			pr_err("get a page failed, fd 0x%x, size {0x%x,0x%x,%d}\n",
+				frame.pfinfo.mfd[0], frame.pfinfo.size[0],
 				frame.pfinfo.size[1],frame.pfinfo.size[2]);
-			if (pfiommu_get_single_page_addr(&frame.pfinfo)) {
-				pr_err("get signle page failed, fd 0x%x, size {0x%x,0x%x,%d}\n",
-					frame.pfinfo.mfd[0], frame.pfinfo.size[0],
-					frame.pfinfo.size[1],frame.pfinfo.size[2]);
-				return -1;
-			}
+			return -1;
+		}
 	} else {
 		if (pfiommu_get_addr(&frame.pfinfo)) {
 			pr_err("get frame address failed!\n");
@@ -3070,7 +3099,10 @@ static void    _dcam_path0_overflow(void)
 
 	pr_info("_path0_overflow.\n");
 	path = &s_p_dcam_mod->dcam_path0;
-	_dcam_frame_dequeue(&path->frame_queue, &frame);
+	if (_dcam_frame_dequeue(&path->frame_queue, &frame)) {
+		pr_err("path0 ov dq frame error\n");
+		return;
+	}
 
 	if (user_func)
 		(*user_func)(&frame, data);
@@ -3158,7 +3190,10 @@ static void    _dcam_path1_overflow(void)
 
 	pr_info("_path1_overflow.\n");
 	path = &s_p_dcam_mod->dcam_path1;
-	_dcam_frame_dequeue(&path->frame_queue, &frame);
+	if (_dcam_frame_dequeue(&path->frame_queue, &frame)) {
+		pr_err("path1 ov dq frame error\n");
+		return;
+	}
 
 	if (user_func)
 		(*user_func)(&frame, data);
@@ -3254,7 +3289,10 @@ static void    _dcam_path2_ov(void)
 
 	pr_info("_path2_overflow.\n");
 	path = &s_p_dcam_mod->dcam_path2;
-	_dcam_frame_dequeue(&path->frame_queue, &frame);
+	if (_dcam_frame_dequeue(&path->frame_queue, &frame)) {
+		pr_err("path2 ov dq frame error\n");
+		return;
+	}
 
 	if (user_func)
 		(*user_func)(&frame, data);
@@ -3933,7 +3971,11 @@ int32_t    dcam_module_en(struct device_node *dn)
 		__pm_stay_awake(&dcam_wakelock);
 		sprd_cam_pw_on();
 		sprd_cam_domain_eb();
-		dcam_enable_clk();
+		ret = dcam_enable_clk();
+		if (ret) {
+			pr_err("enable clk fail\n");
+			return ret;
+		}
 
 		ret = request_irq(s_dcam_irq, _dcam_isr_root,
 			  IRQF_SHARED, "DCAM",
@@ -4558,8 +4600,13 @@ int32_t dcam_stop_sc_coeff(void)
 int sprd_get_ver_id(void)
 {
 	unsigned int chipid = 0;
+	int ret = 0;
 
-	regmap_read(aon_apb_gpr, REG_AON_APB_AON_VER_ID, &chipid);
+	ret = regmap_read(aon_apb_gpr, REG_AON_APB_AON_VER_ID, &chipid);
+	if (ret < 0) {
+		chipid = 0x1;
+	}
+
 	chipid = chipid & 0xff;
 	if (chipid == 0x1)
 		return 1;
