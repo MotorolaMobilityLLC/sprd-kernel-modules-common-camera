@@ -85,6 +85,7 @@ struct isp_3dnr_mem_ctrl {
 	uint32_t pipe_flush_line_num;
 	uint32_t pipe_nfull_num;
 	uint32_t ft_fifo_nfull_num;
+	struct img_addr frame_addr;
 };
 
 struct isp_3dnr_store {

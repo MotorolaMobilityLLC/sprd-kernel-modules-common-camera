@@ -1638,9 +1638,9 @@ static int ispslice_3dnr_memctrl_info_cfg(
 		ch0_offset = start_row * pitch_y + start_col;
 		ch1_offset = ((start_row * pitch_u + 1) >> 1) + start_col;
 
-		slc_3dnr_memctrl->addr.addr_ch0 = mem_ctrl->ft_luma_addr +
+		slc_3dnr_memctrl->addr.addr_ch0 = mem_ctrl->frame_addr.addr_ch0 +
 			ch0_offset;
-		slc_3dnr_memctrl->addr.addr_ch1 = mem_ctrl->ft_chroma_addr +
+		slc_3dnr_memctrl->addr.addr_ch1 = mem_ctrl->frame_addr.addr_ch1 +
 			ch1_offset;
 
 		slc_3dnr_memctrl->bypass = mem_ctrl->bypass;

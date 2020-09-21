@@ -184,6 +184,8 @@ static int isp3dnr_memctrl_config_gen(struct isp_3dnr_ctx_desc *ctx)
 		mem_ctrl->ft_chroma_addr = ctx->buf_info[1]->iova[0] +
 			(ctx->width * ctx->height);
 	}
+	mem_ctrl->frame_addr.addr_ch0 = mem_ctrl->ft_luma_addr;
+	mem_ctrl->frame_addr.addr_ch1 = mem_ctrl->ft_chroma_addr;
 
 	mem_ctrl->first_line_mode = 0;
 	mem_ctrl->last_line_mode = 0;
