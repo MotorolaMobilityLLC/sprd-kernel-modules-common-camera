@@ -497,9 +497,10 @@ static int dcamhw_slice_fetch_set(void *handle, void *arg)
 	struct img_trim *cur_slice;
 	uint32_t reg_val;
 
-	if (!arg)
+	if (!arg) {
 		pr_err("fail to check param");
-
+		return -1;
+	}
 	slicearg = (struct dcam_hw_slice_fetch *)arg;
 	fetch = slicearg->fetch;
 	cur_slice = slicearg->cur_slice;
