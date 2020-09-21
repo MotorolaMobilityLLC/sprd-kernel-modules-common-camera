@@ -3149,9 +3149,11 @@ static int camcore_channel_size_config(
 		}
 	} while (--loop_count);
 
-	if (ret && ch_desc.priv_size_data)
+	if (ret && ch_desc.priv_size_data) {
 		kfree(ch_desc.priv_size_data);
-
+		ch_desc.priv_size_data = NULL;
+		isp_param = NULL;
+	}
 	if (!is_zoom && channel->ch_id == CAM_CH_PRE) {
 		isp_ctx_id = channel->isp_ctx_id;
 		isp_path_id = channel->isp_path_id;
