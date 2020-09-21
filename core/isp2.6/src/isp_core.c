@@ -1330,7 +1330,7 @@ static int ispcore_offline_param_set(struct isp_pipe_context *pctx,
 		}
 
 		/* config store buffer */
-		pr_debug("isp %d is_reserved %d iova 0x%x, user_fid: %x mfd %x\n",
+		pr_debug("isp %d is_reserved %d iova 0x%x, user_fid: %x mfd 0x%x\n",
 			pctx->ctx_id, out_frame->is_reserved,
 			(uint32_t)out_frame->buf.iova[0], out_frame->user_fid,
 			out_frame->buf.mfd[0]);
@@ -2435,9 +2435,9 @@ static int ispcore_postproc_irq(void *handle, uint32_t idx,
 		pframe->time.tv_sec = cur_ts.tv_sec;
 		pframe->time.tv_usec = cur_ts.tv_nsec / NSEC_PER_USEC;
 
-		pr_debug("ctx %d path %d, ch_id %d, fid %d, storen %d, queue cnt:%d\n",
-			pctx->ctx_id, path->spath_id, pframe->channel_id, pframe->fid,
-			atomic_read(&path->store_cnt), path->result_queue.cnt);
+		pr_debug("ctx %d path %d, ch_id %d, fid %d, mfd 0x%x, storen %d, queue cnt:%d, is_reserved %d\n",
+			pctx->ctx_id, path->spath_id, pframe->channel_id, pframe->fid, pframe->buf.mfd[0],
+			atomic_read(&path->store_cnt), path->result_queue.cnt, pframe->is_reserved);
 		pr_debug("time_sensor %03d.%6d, time_isp %03d.%06d\n",
 			(uint32_t)pframe->sensor_time.tv_sec,
 			(uint32_t)pframe->sensor_time.tv_usec,
