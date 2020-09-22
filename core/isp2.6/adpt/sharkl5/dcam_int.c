@@ -910,7 +910,7 @@ static void dcamint_nr3_done(void *param)
 /*
  * reset tracker
  */
-void dcamint_int_tracker_reset(uint32_t idx)
+void dcam_int_tracker_reset(uint32_t idx)
 {
 	if (is_dcam_id(idx))
 		memset(dcam_int_tracker[idx], 0, sizeof(dcam_int_tracker[idx]));
@@ -926,7 +926,7 @@ void dcamint_int_tracker_reset(uint32_t idx)
 /*
  * print int count
  */
-void dcamint_int_tracker_dump(uint32_t idx)
+void dcam_int_tracker_dump(uint32_t idx)
 {
 	int i = 0;
 
@@ -1244,7 +1244,7 @@ int dcam_int_irq_request(struct device *pdev, int irq, void *param)
 		return -EFAULT;
 	}
 
-	dcamint_int_tracker_reset(dev->idx);
+	dcam_int_tracker_reset(dev->idx);
 
 	return ret;
 }

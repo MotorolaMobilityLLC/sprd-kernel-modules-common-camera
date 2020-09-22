@@ -121,7 +121,7 @@ static int camhwif_isp_ioctl(void *handle,
 	int ret = 0;
 	hw_ioctl_fun hw_ctrl = NULL;
 
-	hw_ctrl = isphw_ioctl_get_fun(cmd);
+	hw_ctrl = isphw_ioctl_fun_get(cmd);
 	if (hw_ctrl != NULL)
 		ret = hw_ctrl(handle, arg);
 	else

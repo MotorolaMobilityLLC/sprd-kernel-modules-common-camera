@@ -76,7 +76,7 @@ static char *isp_dev_name[] = {"isp0",
 				"isp1"
 				};
 
-static inline void ispint_record_isp_int(
+static inline void ispint_isp_int_record(
 	enum isp_context_id sw_cid,
 	enum isp_context_hw_id c_id, uint32_t irq_line)
 {
@@ -324,7 +324,7 @@ static struct camera_frame *ispint_hist2_frame_prepare(enum isp_context_id idx,
 	return frame;
 }
 
-static void ispint_dispatch_frame(enum isp_context_id idx,
+static void ispint_frame_dispatch(enum isp_context_id idx,
 				void *isp_handle,
 				struct camera_frame *frame,
 				enum isp_cb_type type)
@@ -371,7 +371,7 @@ static void ispint_hist_cal_done(enum isp_context_hw_id hw_idx, void *isp_handle
 		return;
 
 	if ((frame = ispint_hist2_frame_prepare(idx, isp_handle)))
-		ispint_dispatch_frame(idx, isp_handle, frame, ISP_CB_STATIS_DONE);
+		ispint_frame_dispatch(idx, isp_handle, frame, ISP_CB_STATIS_DONE);
 }
 
 static isp_isr isp_isr_handler[32] = {
@@ -420,7 +420,7 @@ struct isp_int_ctx {
 		},
 };
 
-static void ispint_dump_iommu_regs(void)
+static void ispint_iommu_regs_dump(void)
 {
 	uint32_t reg = 0;
 	uint32_t val[4];
@@ -508,7 +508,7 @@ static irqreturn_t ispint_isr_root(int irq, void *priv)
 
 		isp_handle->ctx[sw_ctx_id].in_irq_handler = 1;
 
-		ispint_record_isp_int(sw_ctx_id, c_id, irq_line);
+		ispint_isp_int_record(sw_ctx_id, c_id, irq_line);
 
 		/*clear the interrupt*/
 		ISP_HREG_WR(irq_offset + ISP_INT_CLR0, irq_line);
@@ -545,7 +545,7 @@ static irqreturn_t ispint_isr_root(int irq, void *priv)
 
 			if (val != ctx->iommu_status) {
 				ctx->iommu_status = val;
-				ispint_dump_iommu_regs();
+				ispint_iommu_regs_dump();
 			}
 			ISP_MMU_WR(ISP_MMU_INT_CLR, mmu_irq_line);
 		}
@@ -605,7 +605,7 @@ int isp_int_irq_request(struct device *p_dev,
 	return ret;
 }
 
-int isp_int_reset_isp_irq_cnt(int ctx_id)
+int isp_int_isp_irq_cnt_reset(int ctx_id)
 {
 	if (ctx_id < ISP_CONTEXT_HW_NUM)
 		memset(irq_done[ctx_id], 0, sizeof(irq_done[ctx_id]));
@@ -619,7 +619,7 @@ int isp_int_reset_isp_irq_cnt(int ctx_id)
 	return 0;
 }
 
-int isp_int_trace_isp_irq_cnt(int ctx_id)
+int isp_int_isp_irq_cnt_trace(int ctx_id)
 {
 	int i;
 
@@ -655,14 +655,14 @@ int isp_int_trace_isp_irq_cnt(int ctx_id)
 	return 0;
 }
 
-int isp_int_reset_isp_irq_sw_cnt(int ctx_id)
+int isp_int_isp_irq_sw_cnt_reset(int ctx_id)
 {
 	if (ctx_id < ISP_CONTEXT_SW_NUM)
 		memset(irq_done_sw[ctx_id], 0, sizeof(irq_done_sw[ctx_id]));
 
 	return 0;
 }
-int isp_int_trace_isp_irq_sw_cnt(int ctx_id)
+int isp_int_isp_irq_sw_cnt_trace(int ctx_id)
 {
 	int i;
 

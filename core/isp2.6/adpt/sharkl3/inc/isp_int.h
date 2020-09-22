@@ -101,11 +101,11 @@ enum isp_mmu_irq {
 	(1 << ISP_INT_FMCU_CMD_ERROR) |       \
 	(1 << ISP_INT_FMCU_STOP_DONE))
 
-int isp_int_reset_isp_irq_cnt(int ctx_id);
-int isp_int_trace_isp_irq_cnt(int ctx_id);
+int isp_int_isp_irq_cnt_reset(int ctx_id);
+int isp_int_isp_irq_cnt_trace(int ctx_id);
 
-int isp_int_reset_isp_irq_sw_cnt(int ctx_id);
-int isp_int_trace_isp_irq_sw_cnt(int ctx_id);
+int isp_int_isp_irq_sw_cnt_reset(int ctx_id);
+int isp_int_isp_irq_sw_cnt_trace(int ctx_id);
 
 int isp_int_irq_request(struct device *p_dev,
 	uint32_t *irq_no, void *isp_handle);

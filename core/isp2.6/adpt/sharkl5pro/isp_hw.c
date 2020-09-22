@@ -872,7 +872,7 @@ static int isphw_path_store(void *handle, void *arg)
 	return ret;
 }
 
-static void isphw_set_path_shrink_info(
+static void isphw_path_shrink_info_set(
 			uint32_t idx, unsigned long  scaler_base,
 			struct isp_regular_info *regular_info)
 {
@@ -926,7 +926,7 @@ static void isphw_set_path_shrink_info(
 		pr_debug("regular_mode %d\n", regular_info->regular_mode);
 }
 
-static int isphw_set_path_scaler_coeff(
+static int isphw_path_scaler_coeff_set(
 			uint32_t idx, unsigned long  scaler_base,
 			uint32_t *coeff_buf,
 			uint32_t spath_id)
@@ -1021,11 +1021,11 @@ static int isphw_path_scaler(void *handle, void *arg)
 		scalerInfo->scaler_ver_factor_out);
 
 	if (!scalerInfo->scaler_bypass)
-		isphw_set_path_scaler_coeff(idx,
+		isphw_path_scaler_coeff_set(idx,
 			addr_base, scalerInfo->coeff_buf, path_scaler->spath_id);
 
 	if (path_scaler->spath_id == ISP_SPATH_VID)
-		isphw_set_path_shrink_info(idx, addr_base, &path_scaler->regular_info);
+		isphw_path_shrink_info_set(idx, addr_base, &path_scaler->regular_info);
 
 	return 0;
 }
@@ -1858,7 +1858,7 @@ static int isphw_slice_3dnr_fbd_fetch(void *handle, void *arg)
 	return 0;
 }
 
-static int isphw_cfg_subblock(void *handle, void *arg)
+static int isphw_subblock_cfg(void *handle, void *arg)
 {
 	uint32_t idx = 0;
 	struct isp_pipe_context *pctx = NULL;
@@ -2471,7 +2471,7 @@ static int isphw_slice_spath_thumbscaler(void *handle, void *arg)
 	return 0;
 }
 
-static int isphw_set_slice_fetch(void *handle, void *arg)
+static int isphw_slice_fetch_set(void *handle, void *arg)
 {
 	uint32_t addr = 0, cmd = 0;
 	struct isp_hw_set_slice_fetch *fetcharg = NULL;
@@ -2509,7 +2509,7 @@ static int isphw_set_slice_fetch(void *handle, void *arg)
 	return 0;
 }
 
-static int isphw_set_slice_nr_info(void *handle, void *arg)
+static int isphw_slice_nr_info_set(void *handle, void *arg)
 {
 	uint32_t addr = 0, cmd = 0;
 	struct isp_hw_set_slice_nr_info *nrarg = NULL;
@@ -2540,7 +2540,7 @@ static int isphw_set_slice_nr_info(void *handle, void *arg)
 	return 0;
 }
 
-static int isphw_set_ltm_param(void *handle, void *arg)
+static int isphw_ltm_param_set(void *handle, void *arg)
 {
 	struct isp_hw_ltm_3dnr_param *parm = NULL;
 
@@ -2552,7 +2552,7 @@ static int isphw_set_ltm_param(void *handle, void *arg)
 	return 0;
 }
 
-static int isphw_set_3dnr_param(void *handle, void *arg)
+static int isphw_3dnr_param_set(void *handle, void *arg)
 {
 	struct isp_hw_ltm_3dnr_param *parm = NULL;
 
@@ -2566,7 +2566,7 @@ static int isphw_set_3dnr_param(void *handle, void *arg)
 	return 0;
 }
 
-static int isphw_radius_adpt_parm(void *handle, void *arg)
+static int isphw_radius_parm_adpt(void *handle, void *arg)
 {
 	struct isp_hw_nlm_ynr *parm = NULL;
 
@@ -2611,7 +2611,7 @@ static int isphw_stop(void *handle, void *arg)
 	return 0;
 }
 
-static int isphw_store_slice_addr(void *handle, void *arg)
+static int isphw_slice_addr_store(void *handle, void *arg)
 {
 	struct isp_hw_store_slice_addr *parm = NULL;
 
@@ -2624,7 +2624,7 @@ static int isphw_store_slice_addr(void *handle, void *arg)
 	return 0;
 }
 
-static int isphw_fetch_slice_addr(void *handle, void *arg)
+static int isphw_slice_addr_fetch(void *handle, void *arg)
 {
 	struct isp_hw_fetch_slice_addr *parm = NULL;
 
@@ -2637,7 +2637,7 @@ static int isphw_fetch_slice_addr(void *handle, void *arg)
 	return 0;
 }
 
-static int isphw_cfg_map_init(void *handle, void *arg)
+static int isphw_map_init_cfg(void *handle, void *arg)
 {
 	uint32_t val = 0;
 	uint32_t i = 0;
@@ -2685,7 +2685,7 @@ static int isphw_cfg_map_init(void *handle, void *arg)
 	return 0;
 }
 
-static int isphw_cfg_start_isp(void *handle, void *arg)
+static int isphw_isp_start_cfg(void *handle, void *arg)
 {
 	uint32_t ctx_id = 0;
 	unsigned long reg_addr[] = {
@@ -2704,7 +2704,7 @@ static int isphw_cfg_start_isp(void *handle, void *arg)
 	return 0;
 }
 
-static int isphw_update_hist_roi(void *handle, void *arg)
+static int isphw_hist_roi_update(void *handle, void *arg)
 {
 	uint32_t val = 0;
 	struct isp_hw_hist_roi *hist_arg = NULL;
@@ -2727,7 +2727,7 @@ static int isphw_fetch_start(void *handle, void *arg)
 	return 0;
 }
 
-static int isphw_set_fmcu_cmd(void *handle, void *arg)
+static int isphw_fmcu_cmd_set(void *handle, void *arg)
 {
 	struct isp_hw_fmcu_cmd *cmdarg = NULL;
 
@@ -2832,7 +2832,7 @@ static struct hw_io_ctrl_fun isp_ioctl_fun_tab[] = {
 	{ISP_HW_CFG_BYPASS_DATA_GET,         cam_bypass_data_get},
 	{ISP_HW_CFG_BYPASS_COUNT_GET,        cam_bypass_count_get},
 	{ISP_HW_CFG_REG_TRACE,               cam_reg_trace},
-	{ISP_HW_CFG_ISP_CFG_SUBBLOCK,        isphw_cfg_subblock},
+	{ISP_HW_CFG_ISP_CFG_SUBBLOCK,        isphw_subblock_cfg},
 	{ISP_HW_CFG_SET_PATH_COMMON,         isphw_path_common},
 	{ISP_HW_CFG_SET_PATH_STORE,          isphw_path_store},
 	{ISP_HW_CFG_SET_PATH_SCALER,         isphw_path_scaler},
@@ -2860,24 +2860,24 @@ static struct hw_io_ctrl_fun isp_ioctl_fun_tab[] = {
 	{ISP_HW_CFG_SLICE_SPATH_STORE,       isphw_slice_spath_store},
 	{ISP_HW_CFG_SLICE_SPATH_SCALER,      isphw_slice_spath_scaler},
 	{ISP_HW_CFG_SLICE_SPATH_THUMBSCALER, isphw_slice_spath_thumbscaler},
-	{ISP_HW_CFG_SET_SLICE_FETCH,         isphw_set_slice_fetch},
-	{ISP_HW_CFG_SET_SLICE_NR_INFO,       isphw_set_slice_nr_info},
-	{ISP_HW_CFG_LTM_PARAM,               isphw_set_ltm_param},
-	{ISP_HW_CFG_3DNR_PARAM,              isphw_set_3dnr_param},
-	{ISP_HW_CFG_GET_NLM_YNR,             isphw_radius_adpt_parm},
+	{ISP_HW_CFG_SET_SLICE_FETCH,         isphw_slice_fetch_set},
+	{ISP_HW_CFG_SET_SLICE_NR_INFO,       isphw_slice_nr_info_set},
+	{ISP_HW_CFG_LTM_PARAM,               isphw_ltm_param_set},
+	{ISP_HW_CFG_3DNR_PARAM,              isphw_3dnr_param_set},
+	{ISP_HW_CFG_GET_NLM_YNR,             isphw_radius_parm_adpt},
 	{ISP_HW_CFG_STOP,                    isphw_stop},
-	{ISP_HW_CFG_STORE_SLICE_ADDR,        isphw_store_slice_addr},
-	{ISP_HW_CFG_FETCH_SLICE_ADDR,        isphw_fetch_slice_addr},
-	{ISP_HW_CFG_MAP_INIT,                isphw_cfg_map_init},
-	{ISP_HW_CFG_START_ISP,               isphw_cfg_start_isp},
-	{ISP_HW_CFG_UPDATE_HIST_ROI,         isphw_update_hist_roi},
+	{ISP_HW_CFG_STORE_SLICE_ADDR,        isphw_slice_addr_store},
+	{ISP_HW_CFG_FETCH_SLICE_ADDR,        isphw_slice_addr_fetch},
+	{ISP_HW_CFG_MAP_INIT,                isphw_map_init_cfg},
+	{ISP_HW_CFG_START_ISP,               isphw_isp_start_cfg},
+	{ISP_HW_CFG_UPDATE_HIST_ROI,         isphw_hist_roi_update},
 	{ISP_HW_CFG_FETCH_START,             isphw_fetch_start},
-	{ISP_HW_CFG_FMCU_CMD,                isphw_set_fmcu_cmd},
+	{ISP_HW_CFG_FMCU_CMD,                isphw_fmcu_cmd_set},
 	{ISP_HW_CFG_FMCU_START,              isphw_fmcu_start},
 	{ISP_HW_CFG_YUV_BLOCK_CTRL_TYPE,     isphw_yuv_block_ctrl},
 };
 
-static hw_ioctl_fun isphw_ioctl_get_fun(
+static hw_ioctl_fun isphw_ioctl_fun_get(
 	enum isp_hw_cfg_cmd cmd)
 {
 	hw_ioctl_fun hw_ctrl = NULL;

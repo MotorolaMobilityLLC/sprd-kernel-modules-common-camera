@@ -1371,7 +1371,7 @@ static int ispcore_offline_param_set(struct isp_pipe_context *pctx,
 		} while (loop++ < 500);
 
 		if (ret) {
-			isp_int_trace_isp_irq_cnt(tmp->hw_ctx_id);
+			isp_int_isp_irq_cnt_trace(tmp->hw_ctx_id);
 			pr_err("fail to enqueue, hw %d, path %d, store %d\n",
 				tmp->hw_ctx_id, path->spath_id,
 				atomic_read(&path->store_cnt));
@@ -2029,7 +2029,7 @@ static int ispcore_context_deinit(struct isp_pipe_dev *dev)
 		pctx_hw->fmcu_handle = NULL;
 		pctx_hw->fmcu_used = 0;
 		atomic_set(&pctx_hw->user_cnt, 0);
-		isp_int_trace_isp_irq_cnt(i);
+		isp_int_isp_irq_cnt_trace(i);
 	}
 	pr_info("isp contexts deinit done!\n");
 
@@ -2635,7 +2635,7 @@ static int ispcore_context_get(void *isp_handle, void *param)
 	dfult_param.type = ISP_CFG_PARA;
 	dfult_param.index = pctx->ctx_id;
 	hw->isp_ioctl(hw, ISP_HW_CFG_DEFAULT_PARA_SET, &dfult_param);
-	isp_int_reset_isp_irq_sw_cnt(pctx->ctx_id);
+	isp_int_isp_irq_sw_cnt_reset(pctx->ctx_id);
 
 	goto exit;
 
@@ -2786,7 +2786,7 @@ static int ispcore_context_put(void *isp_handle, int ctx_id)
 		pctx->postproc_func = NULL;
 		pctx->isp_cb_func = NULL;
 		pctx->cb_priv_data = NULL;
-		isp_int_trace_isp_irq_sw_cnt(pctx->ctx_id);
+		isp_int_isp_irq_sw_cnt_trace(pctx->ctx_id);
 		ispcore_statis_buffer_unmap(isp_handle, ctx_id);
 	} else {
 		pr_debug("ctx%d.already release.\n", ctx_id);

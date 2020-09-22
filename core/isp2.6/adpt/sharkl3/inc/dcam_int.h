@@ -192,7 +192,7 @@ enum {
 int dcam_int_irq_request(struct device *pdev, int irq, void *param);
 void dcam_int_irq_free(struct device *pdev, void *param);
 
-void dcamint_int_tracker_reset(uint32_t idx);
-void dcamint_int_tracker_dump(uint32_t idx);
+void dcam_int_tracker_reset(uint32_t idx);
+void dcam_int_tracker_dump(uint32_t idx);
 
 #endif
