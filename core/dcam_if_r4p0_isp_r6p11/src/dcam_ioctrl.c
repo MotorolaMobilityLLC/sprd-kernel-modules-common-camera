@@ -1106,14 +1106,12 @@ static int dcamio_cfg_flash(struct camera_file *camerafile, unsigned long arg,
 		ret = -EFAULT;
 		goto exit;
 	}
-#if 0
-	/*need add flash cfg here*/
+
 	ret = sprd_flash_cfg(&cfg_parm);
 	if (ret) {
 		pr_err("fail to sprd_flash_cfg\n");
 		goto exit;
 	}
-#endif
 	DCAM_TRACE("config flash, ret %d\n", ret);
 
 exit:
