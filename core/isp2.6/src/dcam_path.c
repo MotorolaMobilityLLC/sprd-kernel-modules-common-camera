@@ -128,6 +128,7 @@ int dcam_path_size_cfg(void *dcam_handle,
 	struct cam_hw_info *hw = NULL;
 	struct dcam_hw_calc_rds_phase arg;
 	uint32_t dcam_max_w = 0, dcam_max_h = 0;
+	unsigned long flag;
 
 	if (!dcam_handle || !path || !param) {
 		pr_err("fail to get valid param, dcam_handle=%p, path=%p, param=%p.\n",
@@ -148,9 +149,9 @@ int dcam_path_size_cfg(void *dcam_handle,
 
 	switch (path->path_id) {
 	case DCAM_PATH_FULL:
-		spin_lock(&path->size_lock);
+		spin_lock_irqsave(&path->size_lock, flag);
 		if (path->size_update) {
-			spin_unlock(&path->size_lock);
+			spin_unlock_irqrestore(&path->size_lock, flag);
 			return -EFAULT;
 		}
 		path->in_size = ch_desc->input_size;
@@ -165,7 +166,7 @@ int dcam_path_size_cfg(void *dcam_handle,
 		invalid |= ((path->in_trim.start_y +
 				path->in_trim.size_y) > path->in_size.h);
 		if (invalid) {
-			spin_unlock(&path->size_lock);
+			spin_unlock_irqrestore(&path->size_lock, flag);
 			pr_err("fail to get valid size, size:%d %d, trim %d %d %d %d\n",
 				path->in_size.w, path->in_size.h,
 				path->in_trim.start_x, path->in_trim.start_y,
@@ -184,7 +185,7 @@ int dcam_path_size_cfg(void *dcam_handle,
 
 		path->priv_size_data = ch_desc->priv_size_data;
 		path->size_update = 1;
-		spin_unlock(&path->size_lock);
+		spin_unlock_irqrestore(&path->size_lock, flag);
 
 		pr_info("cfg full path done. size %d %d %d %d\n",
 			path->in_size.w, path->in_size.h,
@@ -205,12 +206,12 @@ int dcam_path_size_cfg(void *dcam_handle,
 		 * if error return, caller can discard updating
 		 * or try cfg_size again after while.
 		 */
-		spin_lock(&path->size_lock);
+		spin_lock_irqsave(&path->size_lock, flag);
 		if (path->size_update) {
 			if (atomic_read(&dev->state) != STATE_RUNNING)
 				pr_info("Overwrite dcam path size before dcam start if any\n");
 			else {
-				spin_unlock(&path->size_lock);
+				spin_unlock_irqrestore(&path->size_lock, flag);
 				pr_info("Previous path updating pending\n");
 				return -EFAULT;
 			}
@@ -243,7 +244,7 @@ int dcam_path_size_cfg(void *dcam_handle,
 				(path->out_size.h * DCAM_SCALE_DOWN_MAX);
 
 		if (invalid) {
-			spin_unlock(&path->size_lock);
+			spin_unlock_irqrestore(&path->size_lock, flag);
 			pr_err("fail to get valid size, size:%d %d, trim %d %d %d %d, dst %d %d\n",
 				path->in_size.w, path->in_size.h,
 				path->in_trim.start_x, path->in_trim.start_y,
@@ -305,7 +306,7 @@ int dcam_path_size_cfg(void *dcam_handle,
 				path_3dnr->size_update = 1;
 			path_3dnr->in_trim = path->in_trim;
 		}
-		spin_unlock(&path->size_lock);
+		spin_unlock_irqrestore(&path->size_lock, flag);
 
 		pr_info("cfg bin path done. size %d %d  dst %d %d\n",
 			path->in_size.w, path->in_size.h,
