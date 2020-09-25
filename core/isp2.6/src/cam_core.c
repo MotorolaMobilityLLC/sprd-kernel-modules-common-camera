@@ -224,6 +224,8 @@ struct channel_context {
 	uint32_t mode_ltm;
 	uint32_t ltm_rgb;
 	uint32_t ltm_yuv;
+	struct camera_frame *fdrl_zoom_buf;
+	struct camera_frame *fdrh_zoom_buf;
 	struct camera_frame *postproc_buf;
 	struct camera_frame *nr3_bufs[ISP_NR3_BUF_NUM];
 	struct camera_frame *ltm_bufs[LTM_MAX][ISP_LTM_BUF_NUM];
@@ -3951,6 +3953,8 @@ static int camcore_fdr_context_deinit(struct camera_module *module, struct chann
 		module->isp_dev_handle->isp_ops->put_path(module->isp_dev_handle,
 			isp_ctx_id, isp_path_id);
 		module->isp_dev_handle->isp_ops->put_context(module->isp_dev_handle, isp_ctx_id);
+		cam_buf_ionbuf_put(&ch->fdrl_zoom_buf->buf);
+		cam_queue_empty_frame_put(ch->fdrl_zoom_buf);
 		pr_info("put 0x%x done\n", ch->isp_fdrl_path);
 	}
 
@@ -3960,6 +3964,8 @@ static int camcore_fdr_context_deinit(struct camera_module *module, struct chann
 		module->isp_dev_handle->isp_ops->put_path(module->isp_dev_handle,
 			isp_ctx_id, isp_path_id);
 		module->isp_dev_handle->isp_ops->put_context(module->isp_dev_handle, isp_ctx_id);
+		cam_buf_ionbuf_put(&ch->fdrh_zoom_buf->buf);
+		cam_queue_empty_frame_put(ch->fdrh_zoom_buf);
 		pr_info("put 0x%x done\n", ch->isp_fdrh_path);
 	}
 

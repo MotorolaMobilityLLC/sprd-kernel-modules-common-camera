@@ -2536,6 +2536,12 @@ static int camioctl_fdr_post(struct camera_module *module,
 		cam_queue_empty_frame_put(pframe);
 		goto exit;
 	}
+
+	if (param.scene_mode == FDR_POST_LOW)
+		ch->fdrl_zoom_buf = pframe;
+	else
+		ch->fdrh_zoom_buf = pframe;
+
 	module->isp_dev_handle->isp_ops->cfg_path(module->isp_dev_handle,
 			ISP_PATH_CFG_POSTPROC_BUF,
 			isp_ctx_id, isp_path_id, pframe);
