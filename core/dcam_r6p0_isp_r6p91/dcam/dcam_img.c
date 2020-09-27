@@ -59,7 +59,7 @@
 #define DCAM_MAJOR_VERSION                      1
 #define DCAM_MINOR_VERSION                      0
 #define DCAM_RELEASE                            0
-#define DCAM_QUEUE_LENGTH                       96
+#define DCAM_QUEUE_LENGTH                       128
 #define DCAM_TIMING_LEN                         16
 
 #ifdef CONFIG_SC_FPGA
@@ -1164,14 +1164,17 @@ static int sprd_img_queue_write(struct dcam_queue *queue,
 
 		if (node->irq_type == CAMERA_IRQ_IMG
 			|| node->irq_flag == IMG_TX_STOP
-			|| node->irq_flag == IMG_TX_ERR)
+			|| node->irq_flag == IMG_TX_ERR) {
 			pr_err("q full, flag 0x%x path %d index 0x%x wr %d/%d\n",
 				node->irq_flag, node->f_type, node->index,
 				queue->wcnt, queue->rcnt);
-		else
+		} else {
 			pr_err("q full, isp irq %d, property %d, flag 0x%x, wr %d/%d\n",
 				node->irq_type, node->irq_property,
 				node->irq_flag, queue->wcnt, queue->rcnt);
+			if (node->irq_property == IRQ_DCAM_SOF)
+				return -EINVAL;
+		}
 	}
 
 	return 0;
