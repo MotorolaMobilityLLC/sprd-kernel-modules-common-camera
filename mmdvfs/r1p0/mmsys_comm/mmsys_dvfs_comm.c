@@ -51,7 +51,7 @@ int mmsys_set_fix_dvfs_value(unsigned long fix_volt) {
 }
 
 int top_mm_dvfs_current_volt(struct devfreq *devfreq) {
-    unsigned int volt_reg;
+    unsigned int volt_reg = 0;
 
     msleep(1);
     regmap_read(g_mmreg_map.mmdvfs_top_regmap, REG_TOP_DVFS_APB_DCDC_MM_DVFS_STATE_DBG, &volt_reg);

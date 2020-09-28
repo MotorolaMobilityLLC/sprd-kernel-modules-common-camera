@@ -94,7 +94,7 @@ static int mmsys_dvfs_notify_callback(struct notifier_block *nb,
 static int mmsys_dvfs_probe(struct platform_device *pdev) {
     struct device *dev = &pdev->dev;
     struct device_node *np = pdev->dev.of_node;
-    struct device_node *top_node;
+    struct device_node *top_node = NULL;
     struct mmsys_dvfs *mmsys;
     void __iomem *reg_base = NULL;
     struct resource reg_res = {0};
