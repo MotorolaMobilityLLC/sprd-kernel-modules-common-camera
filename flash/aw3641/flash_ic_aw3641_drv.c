@@ -10,8 +10,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  */
-#define pr_fmt(fmt) "%s:%d " fmt, __func__, __LINE__
-
 #include <linux/device.h>
 #include <linux/errno.h>
 #include <linux/kernel.h>
@@ -25,6 +23,11 @@
 #include <linux/module.h>
 #include "sprd_img.h"
 #include "flash_drv.h"
+
+#ifdef pr_fmt
+#undef pr_fmt
+#endif
+#define pr_fmt(fmt) "FLASH_AW3641: %d %d %s : " fmt, current->pid, __LINE__, __func__
 
 #define FLASH_DRIVER_NAME "flash-aw3641"
 #define FLASH_GPIO_MAX 2
@@ -83,7 +86,7 @@ static int sprd_flash_aw3641_open_pwm(void *drvd, uint8_t idx, int level)
 			udelay(550);
 			spin_lock_irqsave(&flash_lock, flags);
 			for (i = 0; i < FLASH_MAX_PWM - level; i++) {
-				pr_info("flash_aw3641_open_pwm:%d\n", i);
+				pr_info("open_pwm:%d\n", i);
 				ret = gpio_direction_output(gpio_id, SPRD_FLASH_OFF);
 				udelay(2);
 				ret = gpio_direction_output(gpio_id, SPRD_FLASH_ON);
@@ -125,7 +128,8 @@ static int sprd_flash_aw3641_open_torch(void *drvd, uint8_t idx)
 
 	if (!drv_data)
 		return -EFAULT;
-	pr_info("flash_aw3641_open_torch\n");
+
+	pr_info("torch_led_index:%d, idx:%d\n", drv_data->torch_led_index, idx);
 	idx = drv_data->torch_led_index;
 	if (SPRD_FLASH_LED0 & idx) {
 		gpio_id = drv_data->gpio_tab[GPIO_CHIP_EN];
@@ -149,7 +153,7 @@ static int sprd_flash_aw3641_close_torch(void *drvd, uint8_t idx)
 
 	if (!drv_data)
 		return -EFAULT;
-	pr_info("flash_aw3641_close_torch\n");
+	pr_info("torch_led_index:%d, idx:%d\n", drv_data->torch_led_index, idx);
 	idx = drv_data->torch_led_index;
 	if (SPRD_FLASH_LED0 & idx) {
 		gpio_id = drv_data->gpio_tab[GPIO_CHIP_EN];
@@ -180,7 +184,7 @@ static int sprd_flash_aw3641_open_preflash(void *drvd, uint8_t idx)
 
 	if (!drv_data)
 		return -EFAULT;
-	pr_info("flash_aw3641_open_preflash\n");
+	pr_info("torch_led_index:%d, idx:%d\n", drv_data->torch_led_index, idx);
 	idx = drv_data->torch_led_index;
 	if (SPRD_FLASH_LED0 & idx) {
 		gpio_id = drv_data->gpio_tab[GPIO_CHIP_EN];
@@ -204,7 +208,7 @@ static int sprd_flash_aw3641_close_preflash(void *drvd, uint8_t idx)
 
 	if (!drv_data)
 		return -EFAULT;
-	pr_info("flash_aw3641_close_preflash\n");
+	pr_info("torch_led_index:%d, idx:%d\n", drv_data->torch_led_index, idx);
 	idx = drv_data->torch_led_index;
 	if (SPRD_FLASH_LED0 & idx) {
 		gpio_id = drv_data->gpio_tab[GPIO_CHIP_EN];
@@ -234,7 +238,8 @@ static int sprd_flash_aw3641_open_highlight(void *drvd, uint8_t idx)
 	struct flash_driver_data *drv_data = (struct flash_driver_data *)drvd;
 	if (!drv_data)
 			return -EFAULT;
-	pr_info("flash_aw3641_open_highlight, highlight_opened:%d\n", highlight_opened);
+
+	pr_info("highlight_opened:%d\n", highlight_opened);
 	if(1 ==  highlight_opened) {
 		gpio_id = drv_data->gpio_tab[GPIO_FLASH_TORCH_MODE];
 		if (gpio_is_valid(gpio_id)) {
@@ -267,7 +272,7 @@ static int sprd_flash_aw3641_close_highlight(void *drvd, uint8_t idx)
 
 	if (!drv_data)
 		return -EFAULT;
-	pr_info("flash_aw3641_close_highlight\n");
+	pr_info("torch_led_index:%d, idx:%d\n", drv_data->torch_led_index, idx);
 	idx = drv_data->torch_led_index;
 	if (SPRD_FLASH_LED0 & idx) {
 		gpio_id = drv_data->gpio_tab[GPIO_CHIP_EN];
@@ -297,6 +302,7 @@ static int sprd_flash_aw3641_cfg_value_torch(void *drvd, uint8_t idx,
 	int ret = 0;
 	int gpio_id = 0;
 	struct flash_driver_data *drv_data = (struct flash_driver_data *)drvd;
+	pr_info("torch_led_index:%d, idx:%d\n", drv_data->torch_led_index, idx);
 	idx = drv_data->torch_led_index;
 	if (SPRD_FLASH_LED0 & idx) {
 		gpio_id = drv_data->gpio_tab[GPIO_FLASH_TORCH_MODE];
@@ -316,8 +322,8 @@ static int sprd_flash_aw3641_cfg_value_preflash(void *drvd, uint8_t idx, struct 
 	int ret = 0;
 	int gpio_id = 0;
 	struct flash_driver_data *drv_data = (struct flash_driver_data *)drvd;
+	pr_info("torch_led_index:%d, idx:%d\n", drv_data->torch_led_index, idx);
 	idx = drv_data->torch_led_index;
-	pr_info("flash_aw3641_cfg_value_preflash\n");
 	if (SPRD_FLASH_LED0 & idx) {
 		gpio_id = drv_data->gpio_tab[GPIO_FLASH_TORCH_MODE];
 		if (gpio_is_valid(gpio_id)) {
@@ -334,7 +340,7 @@ static int sprd_flash_aw3641_cfg_value_highlight(void *drvd, uint8_t idx, struct
 						 *element)
 {
 	int ret = 0;
-	pr_info("flash_aw3641_cfg_value_highlight:%d\n", element->index);
+	pr_info("element->index:%d\n", element->index);
 	g_high_level = element->index;
 	return ret;
 }
