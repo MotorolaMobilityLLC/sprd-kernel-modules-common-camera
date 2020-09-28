@@ -3555,7 +3555,7 @@ static int camcore_one_frame_dump(struct camera_module *module,
 		sprintf(tmp_str, "_tile%08lx",
 			addr.addr1 - pframe->buf.iova[0]);
 		strcat(file_name, tmp_str);
-		sprintf(tmp_str, "_low2tile%08lx",
+		sprintf(tmp_str, "_low2tile%08x",
 			addr.addr2 - addr.addr1);
 		strcat(file_name, tmp_str);
 		size = dcam_if_cal_compressed_size(pframe->width,
