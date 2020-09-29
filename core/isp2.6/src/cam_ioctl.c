@@ -2433,7 +2433,7 @@ static int camioctl_fdr_post(struct camera_module *module,
 	int32_t isp_path_id, isp_ctx_id;
 	void *dcam;
 	struct channel_context *ch;
-	struct camera_frame *pframe, *pfrm[3] = { NULL, NULL, NULL };
+	struct camera_frame *pframe = NULL, *pfrm[3] = { NULL, NULL, NULL };
 	struct sprd_img_parm param;
 
 	ret = copy_from_user(&param, (void __user *)arg,
@@ -2441,6 +2441,13 @@ static int camioctl_fdr_post(struct camera_module *module,
 	if (ret) {
 		pr_err("fail to copy_from_user\n");
 		return -EFAULT;
+	}
+
+	mutex_lock(&module->fdr_lock);
+	if (module->fdr_init == 0) {
+		mutex_unlock(&module->fdr_lock);
+		pr_debug("deinit_fdr_context may be called for stream off\n");
+		return 0;
 	}
 
 	ch = &module->channel[CAM_CH_CAP];
@@ -2480,26 +2487,6 @@ static int camioctl_fdr_post(struct camera_module *module,
 			goto exit;
 		}
 		pfrm[i] = pframe;
-	}
-
-	/* temp solution for multi camera FDR */
-	/* return derectly, no offline process */
-	if (module->fdr_init == 0) {
-		pr_info("cam%d, fdr context is not init, return.\n", module->idx);
-		for (i = 0; i < 2; i++) {
-			if (pfrm[i]) {
-				cam_buf_ionbuf_put(&pfrm[i]->buf);
-				cam_queue_empty_frame_put(pfrm[i]);
-			}
-		}
-		pframe = pfrm[2];
-		pframe->evt = IMG_TX_DONE;
-		pframe->irq_type = (pframe->irq_property == CAM_FRAME_FDRL) ?
-						CAMERA_IRQ_FDRL : CAMERA_IRQ_FDRH;
-		pframe->priv_data = module;
-		cam_queue_enqueue(&module->frm_queue, &pframe->list);
-		complete(&module->frm_com);
-		goto exit;
 	}
 
 	dcam = module->aux_dcam_dev;
@@ -2554,6 +2541,7 @@ static int camioctl_fdr_post(struct camera_module *module,
 		pfrm[1]->buf.mfd[0], pfrm[1]->buf.offset[0],
 		pfrm[2]->buf.mfd[0], pfrm[2]->buf.offset[0]);
 
+	mutex_unlock(&module->fdr_lock);
 	return 0;
 
 
@@ -2578,6 +2566,7 @@ isp_proc:
 		pfrm[1]->buf.mfd[0], pfrm[1]->buf.offset[0],
 		pfrm[2]->buf.mfd[0], pfrm[2]->buf.offset[0]);
 
+	mutex_unlock(&module->fdr_lock);
 	return 0;
 
 exit:
@@ -2587,6 +2576,7 @@ exit:
 			cam_queue_empty_frame_put(pfrm[i]);
 		}
 	}
+	mutex_unlock(&module->fdr_lock);
 	return ret;
 }
 
