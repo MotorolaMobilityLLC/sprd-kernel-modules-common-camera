@@ -2360,7 +2360,7 @@ static int camcore_channel_swapsize_cal(struct camera_module *module)
 	struct channel_context *ch_prev = NULL;
 	struct channel_context *ch_vid = NULL;
 	struct channel_context *ch_cap = NULL;
-	struct img_size max_bypass, max_bin, max_rds, temp, max_bin_tmp;
+	struct img_size max_bypass, max_bin, max_rds, temp;
 	struct img_size src_p, dst_p, dst_v, max;
 
 	ch_prev = &module->channel[CAM_CH_PRE];
@@ -2415,9 +2415,7 @@ static int camcore_channel_swapsize_cal(struct camera_module *module)
 	max_bin = src_p;
 	shift = 0;
 	if (src_binning == 1) {
-		if (max_bin.w <= isp_linebuf_len)
-			shift = 0;
-		else if ((max_bin.w > isp_linebuf_len) &&
+		if ((max_bin.w > isp_linebuf_len) &&
 			(dst_p.w <= isp_linebuf_len) &&
 			(dst_v.w <= isp_linebuf_len))
 			shift = 1;
@@ -2431,9 +2429,7 @@ static int camcore_channel_swapsize_cal(struct camera_module *module)
 		pr_info("shift %d for binning, p=%d v=%d  src=%d, %d\n",
 			shift, dst_p.w, dst_v.w, max_bin.w, isp_linebuf_len);
 	} else {
-		if (max_bin.w <= isp_linebuf_len)
-			shift = 0;
-		else if ((max_bin.w >= (dst_p.w * 2)) &&
+		if ((max_bin.w >= (dst_p.w * 2)) &&
 			(max_bin.w >= (dst_v.w * 2)))
 			shift = 1;
 		else if ((max_bin.w > isp_linebuf_len) &&
@@ -2452,14 +2448,7 @@ static int camcore_channel_swapsize_cal(struct camera_module *module)
 		shift = 1;
 	max_bin.w >>= shift;
 	max_bin.h >>= shift;
-	if (src_p.w >= isp_linebuf_len)
-		max_bin_tmp.w = MAX(max_bin.w, isp_linebuf_len);
-	else
-		max_bin_tmp.w = max_bin.w;
-	max_bin_tmp.h = ((max_bin_tmp.w * max_bin.h) / max_bin.w) & (~3);
 
-	max_bin.w = ALIGN(max_bin_tmp.w + ALIGN_OFFSET, ALIGN_OFFSET);
-	max_bin.h = ALIGN(max_bin_tmp.h + ALIGN_OFFSET, ALIGN_OFFSET);
 	/* go through rds path */
 	if ((dst_p.w == 0) || (dst_p.h == 0)) {
 		pr_err("fail to get valid w %d h %d\n", dst_p.w, dst_p.h);
@@ -2540,7 +2529,6 @@ static int camcore_channel_size_bininig_cal(
 	struct img_trim trim_c = {0};
 	struct img_trim *isp_trim;
 	struct img_size src_p, dst_p, dst_v, dcam_out;
-	uint32_t isp_linebuf_len = g_camctrl.isp_linebuf_len;
 
 	ch_prev = &module->channel[CAM_CH_PRE];
 	ch_cap = &module->channel[CAM_CH_CAP];
@@ -2604,9 +2592,7 @@ static int camcore_channel_size_bininig_cal(
 				(trim_pv.size_y >= (dst_p.h * 2 * factor / 10)) &&
 				(trim_pv.size_y >= (dst_v.h * 2 * factor / 10)))
 					shift = 1;
-			if ((trim_pv.size_x <= isp_linebuf_len) && (module->grp->camsec_cfg.camsec_mode == SEC_UNABLE))
-				shift = 0;
-			else if (((trim_pv.size_x >> shift) > ch_prev->swap_size.w) ||
+			if (((trim_pv.size_x >> shift) > ch_prev->swap_size.w) ||
 				((trim_pv.size_y >> shift) > ch_prev->swap_size.h))
 				shift++;
 		}
