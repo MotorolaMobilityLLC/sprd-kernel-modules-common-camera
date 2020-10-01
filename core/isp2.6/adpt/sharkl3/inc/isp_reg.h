@@ -632,10 +632,6 @@ extern unsigned long s_isp_mmubase;
 #define ISP_MMU_DEFAULT_PPN_SEC                 (0x0234UL)
 #define ISP_MMU_SECURITY_EN                     (0x03FCUL)
 
-/* Need to Delate */
-#define ISP_LTM_HIST_PARAM                      (0x5510UL)
-#define ISP_LTM_MAP_PARAM0                      (0x5F10UL)
-
 /******************************************************************************/
 
 #define ISP_BASE_ADDR(idx)                      (*(isp_cfg_poll_addr[idx]))

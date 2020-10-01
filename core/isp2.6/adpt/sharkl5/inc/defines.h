@@ -31,6 +31,18 @@
 #define ISP_SCALER_UP_MAX                       4
 #define DCAM_CTRL_ALL                           0xff
 
+#define ISP_SC_COEFF_COEF_SIZE                  (1 << 10)
+#define ISP_SC_COEFF_TMP_SIZE                   (21 << 10)
+
+#define ISP_SC_H_COEF_SIZE                      0xC0
+#define ISP_SC_V_COEF_SIZE                      0x210
+#define ISP_SC_V_CHROM_COEF_SIZE                0x210
+
+#define ISP_SC_COEFF_H_NUM                      (ISP_SC_H_COEF_SIZE / 6)
+#define ISP_SC_COEFF_H_CHROMA_NUM               (ISP_SC_H_COEF_SIZE / 12)
+#define ISP_SC_COEFF_V_NUM                      (ISP_SC_V_COEF_SIZE / 4)
+#define ISP_SC_COEFF_V_CHROMA_NUM               (ISP_SC_V_CHROM_COEF_SIZE / 4)
+
 /*
  *DCAM_CONTROL register bit map id
  * for force_cpy/auto_cpy control

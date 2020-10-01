@@ -725,7 +725,7 @@ static int qogirn6pro_isp_path_common(void *handle, void *arg)
 
 	ISP_REG_MWR(idx, ISP_COMMON_SCL_PATH_SEL,
 		path_mask[path->spath_id],
-		(path->skip_pipeline << path_off[path->spath_id]));
+		(0 << path_off[path->spath_id]));
 
 	/* set path_eb*/
 	ISP_REG_MWR(idx, addr + ISP_SCALER_CFG,
@@ -816,16 +816,12 @@ static int qogirn6pro_isp_path_store(void *handle, void *arg)
 
 	ISP_REG_MWR(idx, addr + ISP_STORE_PARAM,
 		BIT_1, (store_info->max_len_sel << 1));
-
 	ISP_REG_MWR(idx, addr + ISP_STORE_PARAM,
 		BIT_2, (store_info->speed_2x << 2));
-
 	ISP_REG_MWR(idx, addr + ISP_STORE_PARAM,
 		BIT_3, (store_info->mirror_en << 3));
-
 	ISP_REG_MWR(idx, addr + ISP_STORE_PARAM,
 		0xF0, (store_info->color_fmt << 4));
-
 	ISP_REG_MWR(idx, addr + ISP_STORE_PARAM,
 		0x300, (store_info->endian << 8));
 
@@ -837,6 +833,9 @@ static int qogirn6pro_isp_path_store(void *handle, void *arg)
 	ISP_REG_WR(idx, addr + ISP_STORE_Y_PITCH, store_info->pitch.pitch_ch0);
 	ISP_REG_WR(idx, addr + ISP_STORE_U_PITCH, store_info->pitch.pitch_ch1);
 	ISP_REG_WR(idx, addr + ISP_STORE_V_PITCH, store_info->pitch.pitch_ch2);
+	ISP_REG_WR(idx, addr + ISP_STORE_SLICE_Y_ADDR, store_info->addr.addr_ch0);
+	ISP_REG_WR(idx, addr + ISP_STORE_SLICE_U_ADDR, store_info->addr.addr_ch1);
+	ISP_REG_WR(idx, addr + ISP_STORE_SLICE_V_ADDR, store_info->addr.addr_ch2);
 
 	pr_debug("set_store size %d %d\n",
 		store_info->size.w, store_info->size.h);
@@ -924,7 +923,13 @@ static int set_path_scaler_coeff(
 	/* temp set: config mode always select buf 0 */
 	buf_sel = 0;
 
-	isp_path_scaler_coeff_set(&arg, buf_sel, path, coeff_buf);
+	arg.h_coeff = coeff_buf;
+	arg.v_coeff = coeff_buf + (ISP_SC_COEFF_COEF_SIZE / 4);
+	arg.v_chroma_coeff = arg.v_coeff + (ISP_SC_COEFF_COEF_SIZE / 4);
+	arg.h_coeff_addr = coff_buf_addr[buf_sel][spath_id][0];
+	arg.h_chroma_coeff_addr = coff_buf_addr[buf_sel][spath_id][1];
+	arg.v_coeff_addr = coff_buf_addr[buf_sel][spath_id][2];
+	arg.v_chroma_coeff_addr = coff_buf_addr[buf_sel][spath_id][3];
 
 	for (i = 0; i < ISP_SC_COEFF_H_NUM; i++) {
 		ISP_REG_WR(idx, arg.h_coeff_addr, *arg.h_coeff);
@@ -1015,19 +1020,25 @@ static int qogirn6pro_isp_path_scaler(void *handle, void *arg)
 static int qogirn6pro_isp_path_thumbscaler(void *handle, void *arg)
 {
 	uint32_t val, idx;
-	struct isp_hw_path_thumbscaler *path_thumbscaler = NULL;
-	struct isp_thumbscaler_info *scalerInfo = NULL;
+	struct isp_hw_thumbscaler_info *scalerInfo = NULL;
 
-	path_thumbscaler = (struct isp_hw_path_thumbscaler *)arg;
-	scalerInfo = &path_thumbscaler->path->thumbscaler;
-	idx = path_thumbscaler->path->attach_ctx->ctx_id;
+	scalerInfo =(struct isp_hw_thumbscaler_info *)arg;
+	idx = scalerInfo->idx;
 
-	ISP_REG_MWR(idx, ISP_COMMON_SCL_PATH_SEL,
-		BIT_5 | BIT_4, (path_thumbscaler->path->skip_pipeline << 4));
-
+	ISP_REG_MWR(idx, ISP_COMMON_SCL_PATH_SEL, BIT_5 | BIT_4, (0 << 4));
 	ISP_REG_MWR(idx, ISP_THMB_CFG, BIT_0, scalerInfo->scaler_bypass & 0x1);
 
-	ISP_REG_MWR(idx, ISP_THMB_CFG, 0xBBBB003C, path_thumbscaler->val);
+	val = ((scalerInfo->frame_deci & 0x3) << 2) |
+		((scalerInfo->odata_mode & 0x3) << 4) |
+		((scalerInfo->y_deci.deci_x & 0x3) << 16) |
+		((scalerInfo->y_deci.deci_x_eb & 0x1) << 19) |
+		((scalerInfo->y_deci.deci_y & 0x3) << 20) |
+		((scalerInfo->y_deci.deci_y_eb & 0x1) << 23) |
+		((scalerInfo->uv_deci.deci_x & 0x3) << 24) |
+		((scalerInfo->uv_deci.deci_x_eb & 0x1) << 27) |
+		((scalerInfo->uv_deci.deci_y & 0x3) << 28) |
+		((scalerInfo->uv_deci.deci_y_eb & 0x1) << 31);
+	ISP_REG_MWR(idx, ISP_THMB_CFG, 0xBBBB003C, val);
 
 	val = ((scalerInfo->y_factor_in.w & 0x1FFF) << 16) |
 		(scalerInfo->y_factor_out.w & 0x3FF);
@@ -1327,6 +1338,9 @@ static int qogirn6pro_isp_fetch_set(void *handle, void *arg)
 		ISP_REG_WR(idx, ISP_FETCH_SLICE_U_PITCH, fetch->pitch.pitch_ch1);
 		ISP_REG_WR(idx, ISP_FETCH_SLICE_V_PITCH, fetch->pitch.pitch_ch2);
 	}
+	ISP_REG_WR(idx, ISP_FETCH_SLICE_Y_ADDR, fetch->addr_hw.addr_ch0);
+	ISP_REG_WR(idx, ISP_FETCH_SLICE_U_ADDR, fetch->addr_hw.addr_ch1);
+	ISP_REG_WR(idx, ISP_FETCH_SLICE_V_ADDR, fetch->addr_hw.addr_ch2);
 
 	ISP_REG_WR(idx, ISP_FETCH_LINE_DLY_CTRL, 0x8);
 	ISP_REG_WR(idx, ISP_FETCH_MIPI_INFO,
@@ -1388,22 +1402,6 @@ static int qogirn6pro_isp_fmcu_available(void *handle, void *arg)
 	return (fmcu_id > 0) ? 0 : 1;
 }
 
-static int qogirn6pro_isp_afbc_addr_set(void *handle, void *arg)
-{
-	struct isp_hw_afbc_addr *parm = NULL;
-	unsigned long afbc_addr = 0;
-
-	parm = (struct isp_hw_afbc_addr *)arg;
-	afbc_addr = fbc_store_base[parm->spath_id];
-
-	ISP_REG_WR(parm->idx, afbc_addr +
-		ISP_AFBC_STORE_SLICE_Y_HEADER, parm->yuv_addr[0]);
-	ISP_REG_WR(parm->idx, afbc_addr +
-		ISP_AFBC_STORE_SLICE_Y_ADDR, parm->yuv_addr[1]);
-
-	return 0;
-}
-
 static int qogirn6pro_isp_afbc_path_set(void *handle, void *arg)
 {
 	int ret = 0;
@@ -1455,6 +1453,8 @@ static int qogirn6pro_isp_afbc_path_set(void *handle, void *arg)
 
 	val = afbc_store_info->header_offset;
 	ISP_REG_WR(idx, addr+ISP_AFBC_STORE_SLICE_HEADER_OFFSET_ADDR, val);
+	ISP_REG_WR(idx, addr + ISP_AFBC_STORE_SLICE_Y_HEADER, afbc_store_info->yheader);
+	ISP_REG_WR(idx, addr + ISP_AFBC_STORE_SLICE_Y_ADDR, afbc_store_info->yaddr);
 
 	return ret;
 }
@@ -2623,32 +2623,6 @@ static int qogirn6pro_isp_hw_stop(void *handle, void *arg)
 	return 0;
 }
 
-static int qogirn6pro_isp_store_slice_addr(void *handle, void *arg)
-{
-	struct isp_hw_store_slice_addr *parm = NULL;
-
-	parm = (struct isp_hw_store_slice_addr *)arg;
-
-	ISP_REG_WR(parm->idx, parm->addr + ISP_STORE_SLICE_Y_ADDR, parm->yuv_addr[0]);
-	ISP_REG_WR(parm->idx, parm->addr + ISP_STORE_SLICE_U_ADDR, parm->yuv_addr[1]);
-	ISP_REG_WR(parm->idx, parm->addr + ISP_STORE_SLICE_V_ADDR, parm->yuv_addr[2]);
-
-	return 0;
-}
-
-static int qogirn6pro_isp_fetch_slice_addr(void *handle, void *arg)
-{
-	struct isp_hw_fetch_slice_addr *parm = NULL;
-
-	parm = (struct isp_hw_fetch_slice_addr *)arg;
-
-	ISP_REG_WR(parm->idx, ISP_FETCH_SLICE_Y_ADDR, parm->yuv_addr[0]);
-	ISP_REG_WR(parm->idx, ISP_FETCH_SLICE_U_ADDR, parm->yuv_addr[1]);
-	ISP_REG_WR(parm->idx, ISP_FETCH_SLICE_V_ADDR, parm->yuv_addr[2]);
-
-	return 0;
-}
-
 static int qogirn6pro_isp_cfg_map_init(void *handle, void *arg)
 {
 	uint32_t val = 0;
@@ -2789,7 +2763,6 @@ static struct hw_io_ctrl_fun qogirn6pro_isp_ioctl_fun_tab[] = {
 	{ISP_HW_CFG_SET_PATH_THUMBSCALER,    qogirn6pro_isp_path_thumbscaler},
 	{ISP_HW_CFG_SLICE_SCALER,            qogirn6pro_isp_slice_scaler},
 	{ISP_HW_CFG_SLICE_STORE,             qogirn6pro_isp_slice_store},
-	{ISP_HW_CFG_AFBC_ADDR_SET,           qogirn6pro_isp_afbc_addr_set},
 	{ISP_HW_CFG_AFBC_PATH_SET,           qogirn6pro_isp_afbc_path_set},
 	{ISP_HW_CFG_FBD_SLICE_SET,           qogirn6pro_isp_fbd_slice_set},
 	{ISP_HW_CFG_FBD_ADDR_SET,            qogirn6pro_isp_fbd_addr_set},
@@ -2817,7 +2790,6 @@ static struct hw_io_ctrl_fun qogirn6pro_isp_ioctl_fun_tab[] = {
 	{ISP_HW_CFG_GET_NLM_YNR,             qogirn6pro_isp_radius_adpt_parm},
 	{ISP_HW_CFG_START,                   qogirn6pro_isp_hw_start},
 	{ISP_HW_CFG_STOP,                    qogirn6pro_isp_hw_stop},
-	{ISP_HW_CFG_STORE_FRAME_ADDR,        qogirn6pro_isp_store_slice_addr},
 	{ISP_HW_CFG_FETCH_FRAME_ADDR,        qogirn6pro_isp_fetch_slice_addr},
 	{ISP_HW_CFG_MAP_INIT,                qogirn6pro_isp_cfg_map_init},
 	{ISP_HW_CFG_START_ISP,               qogirn6pro_isp_cfg_start_isp},

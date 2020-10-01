@@ -78,8 +78,6 @@ struct ispt_context {
 
 	struct cam_hw_info *hw;
 	struct isp_hw_fetch_info fetch_info;
-	struct isp_scaler_info scaler_info;
-	struct isp_hw_path_common path_common;
 	struct isp_hw_path_scaler path_scaler;
 	struct isp_hw_path_store path_store;
 
@@ -683,12 +681,8 @@ int ispt_start(struct camt_info *info)
 	uint32_t ctx_id = 0;
 	struct ispt_context *ctx = NULL;
 	struct cam_hw_info *hw = NULL;
-	struct isp_hw_path_common path_common;
-	struct isp_hw_path_scaler path_scaler;
-	struct isp_hw_fetch_slice_addr fetch_addr;
-	struct isp_hw_store_slice_addr store_addr;
+	struct isp_hw_path_scaler *path_scaler = NULL;
 	struct isp_hw_default_param dfult_param;
-	unsigned long yuv_addr[3] = {0};
 
 	ctx = ispt_cxt;
 	hw = ctx->hw;
@@ -707,45 +701,33 @@ int ispt_start(struct camt_info *info)
 	dfult_param.type = ISP_CFG_PARA;
 	dfult_param.index = ctx_id;
 	hw->isp_ioctl(hw, ISP_HW_CFG_DEFAULT_PARA_SET, &dfult_param);
-
+	hw->isp_ioctl(hw, ISP_HW_CFG_FETCH_FRAME_ADDR, &ctx->fetch_info);
 	hw->isp_ioctl(hw, ISP_HW_CFG_FETCH_SET, &ctx->fetch_info);
-	yuv_addr[0] = ctx->fetch_info.addr.addr_ch0;
-	yuv_addr[1] = ctx->fetch_info.addr.addr_ch1;
-	yuv_addr[2] = ctx->fetch_info.addr.addr_ch2;
-	fetch_addr.idx = ctx->fetch_info.ctx_id;
-	fetch_addr.yuv_addr = yuv_addr;
-	hw->isp_ioctl(hw, ISP_HW_CFG_FETCH_FRAME_ADDR, &fetch_addr);
 
-	path_common.ctx_id = ctx_id;
-	path_common.skip_pipeline = 0;
-	path_common.uv_sync_v = 0;
-	path_common.frm_deci = 0;
-	path_common.odata_mode = 1;
-	path_common.spath_id = info->path_id[0];
-	path_common.deci.deci_x_eb = 0;
-	path_common.deci.deci_y_eb = 0;
-	path_common.deci.deci_x = 0;
-	path_common.deci.deci_y = 0;
-	path_common.src.w = info->input_size.w;
-	path_common.src.h = info->input_size.h;
-	path_common.in_trim.start_x = info->crop_rect.x;
-	path_common.in_trim.start_y = info->crop_rect.y;
-	path_common.in_trim.size_x = info->crop_rect.w;
-	path_common.in_trim.size_y = info->crop_rect.h;
-	path_common.out_trim.start_x = 0;
-	path_common.out_trim.start_y = 0;
-	path_common.out_trim.size_x = info->output_size.w;
-	path_common.out_trim.size_y = info->output_size.h;
-	path_common.dst.w = info->output_size.w;
-	path_common.dst.h = info->output_size.h;
-	hw->isp_ioctl(hw, ISP_HW_CFG_SET_PATH_COMMON, &path_common);
-
+	path_scaler->ctx_id = ctx_id;
+	path_scaler->uv_sync_v = 0;
+	path_scaler->frm_deci = 0;
+	path_scaler->scaler.odata_mode = 1;
+	path_scaler->spath_id = info->path_id[0];
+	path_scaler->deci.deci_x_eb = 0;
+	path_scaler->deci.deci_y_eb = 0;
+	path_scaler->deci.deci_x = 0;
+	path_scaler->deci.deci_y = 0;
+	path_scaler->src.w = info->input_size.w;
+	path_scaler->src.h = info->input_size.h;
+	path_scaler->in_trim.start_x = info->crop_rect.x;
+	path_scaler->in_trim.start_y = info->crop_rect.y;
+	path_scaler->in_trim.size_x = info->crop_rect.w;
+	path_scaler->in_trim.size_y = info->crop_rect.h;
+	path_scaler->out_trim.start_x = 0;
+	path_scaler->out_trim.start_y = 0;
+	path_scaler->out_trim.size_x = info->output_size.w;
+	path_scaler->out_trim.size_y = info->output_size.h;
+	path_scaler->dst.w = info->output_size.w;
+	path_scaler->dst.h = info->output_size.h;
 	/* TBD just bypass scaler */
-	ctx->scaler_info.scaler_bypass = 1;
-	path_scaler.ctx_id = ctx_id;
-	path_scaler.spath_id = info->path_id[0];
-	path_scaler.scaler = &ctx->scaler_info;
-	hw->isp_ioctl(hw, ISP_HW_CFG_SET_PATH_SCALER, &path_scaler);
+	path_scaler->scaler.scaler_bypass = 1;
+	hw->isp_ioctl(hw, ISP_HW_CFG_SET_PATH_SCALER, path_scaler);
 
 	ret = camt_isp_cfg_store(ctx, info);
 	if (ret) {
@@ -753,14 +735,8 @@ int ispt_start(struct camt_info *info)
 		goto exit;
 	}
 
+	hw->isp_ioctl(hw, ISP_HW_CFG_STORE_FRAME_ADDR, &ctx->path_store);
 	hw->isp_ioctl(hw, ISP_HW_CFG_SET_PATH_STORE, &ctx->path_store);
-	yuv_addr[0] = ctx->path_store.store.addr.addr_ch0;
-	yuv_addr[1] = ctx->path_store.store.addr.addr_ch1;
-	yuv_addr[2] = ctx->path_store.store.addr.addr_ch2;
-	store_addr.idx = ctx->path_store.ctx_id;
-	store_addr.yuv_addr = yuv_addr;
-	store_addr.addr = ISP_STORE_PRE_CAP_BASE;
-	hw->isp_ioctl(hw, ISP_HW_CFG_STORE_FRAME_ADDR, &store_addr);
 
 	pr_info("fail to ctx_id %d addr %lx\n", ctx_id, ctx->isp_cxt[ctx_id].cfg_hw_addr);
 	ISP_HREG_WR(camt_cfg_addr_reg[ctx_id], ctx->isp_cxt[ctx_id].cfg_hw_addr);

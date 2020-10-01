@@ -41,18 +41,6 @@
 #define ODATA_YUV420               1
 #define ODATA_YUV422               0
 
-#define ISP_SC_COEFF_COEF_SIZE     (1 << 10)
-#define ISP_SC_COEFF_TMP_SIZE      (21 << 10)
-
-#define ISP_SC_H_COEF_SIZE         0xC0
-#define ISP_SC_V_COEF_SIZE         0x210
-#define ISP_SC_V_CHROM_COEF_SIZE   0x210
-
-#define ISP_SC_COEFF_H_NUM         (ISP_SC_H_COEF_SIZE / 6)
-#define ISP_SC_COEFF_H_CHROMA_NUM  (ISP_SC_H_COEF_SIZE / 12)
-#define ISP_SC_COEFF_V_NUM         (ISP_SC_V_COEF_SIZE / 4)
-#define ISP_SC_COEFF_V_CHROMA_NUM  (ISP_SC_V_CHROM_COEF_SIZE / 4)
-
 #define ISP_PIXEL_ALIGN_WIDTH      4
 #define ISP_PIXEL_ALIGN_HEIGHT     2
 
@@ -111,70 +99,9 @@ struct stream_ctrl_info {
 	struct img_trim src_crop;
 };
 
-struct isp_thumbscaler_info {
-	uint32_t scaler_bypass;
-	uint32_t odata_mode;
-
-	struct img_deci_info y_deci;
-	struct img_deci_info uv_deci;
-
-	struct img_size y_factor_in;
-	struct img_size y_factor_out;
-	struct img_size uv_factor_in;
-	struct img_size uv_factor_out;
-
-	struct img_size src0;
-	struct img_trim y_trim;
-	struct img_size y_src_after_deci;
-	struct img_size y_dst_after_scaler;
-	struct img_size y_init_phase;
-
-	struct img_trim uv_trim;
-	struct img_size uv_src_after_deci;
-	struct img_size uv_dst_after_scaler;
-	struct img_size uv_init_phase;
-};
-
-struct isp_fbc_store_info {
-	/* ISP_FBC_STORE_PARAM */
-	uint32_t endian:2;
-	uint32_t color_format:4;
-	uint32_t mirror_en:1;
-	uint32_t slice_mode_en:1;
-	uint32_t bypass_flag:1;
-	/* ISP_FBC_STORE_SLICE_SIZE */
-	uint32_t size_in_ver;
-	uint32_t size_in_hor;
-	/* ISP_FBC_STORE_BORDER */
-	uint32_t right_border:8;
-	uint32_t left_border:8;
-	uint32_t down_border:8;
-	uint32_t up_border:8;
-	/* ISP_FBC_STORE_SLICE_Y_ADDR */
-	uint32_t y_tile_addr_init_x256;
-	/* ISP_FBC_STORE_SLICE_C_ADDR */
-	uint32_t c_tile_addr_init_x256;
-	/* ISP_FBC_STORE_P0 */
-	uint32_t func_bits:8;
-	/* ISP_FBC_STORE_TILE_PITCH */
-	uint32_t tile_number_pitch:16;
-	/* ISP_FBC_STORE_SLICE_Y_HEADER */
-	uint32_t y_header_addr_init;
-	/* ISP_FBC_STORE_SLICE_C_HEADER */
-	uint32_t c_header_addr_init;
-	/* ISP_FBC_STORE_CONSTANT */
-	uint32_t fbc_constant_yuv;
-	/* ISP_FBC_STORE_TILE_NUM */
-	uint32_t tile_number:20;
-	/* ISP_FBC_STORE_NFULL_LEVEL */
-	uint32_t c_nearly_full_level:8;
-	uint32_t y_nearly_full_level:9;
-};
-
 struct slice_cfg_input {
 	uint32_t ltm_rgb_eb;
 	uint32_t ltm_yuv_eb;
-	uint32_t store_afbc_bypass;
 	struct img_size frame_in_size;
 	struct img_size *frame_out_size[ISP_SPATH_NUM];
 	struct isp_hw_fetch_info *frame_fetch;
@@ -198,37 +125,10 @@ struct isp_path_desc {
 	atomic_t user_cnt;
 	atomic_t store_cnt;
 	enum isp_sub_path_id spath_id;
-	uint32_t base_frm_id;
-	uint32_t frm_cnt;
-	uint32_t skip_pipeline;
-	uint32_t uv_sync_v;
-	uint32_t frm_deci;
-	uint32_t out_fmt;
-	uint32_t bind_type;
-	uint32_t slave_path_id;
-	uint32_t store_fbc;/* 1 for fbc store; 0 for normal store */
-	uint32_t uframe_sync;
 	int32_t reserved_buf_fd;
 	size_t reserve_buf_size[3];
 	struct isp_sw_context *attach_ctx;
 	struct cam_hw_info *hw;
-
-	struct isp_regular_info regular_info;
-	struct isp_store_info store;
-	struct isp_fbc_store_info fbc_store;
-	struct isp_afbc_store_info afbc_store;
-	union {
-		struct isp_scaler_info scaler;
-		struct isp_thumbscaler_info thumbscaler;
-	};
-	struct img_deci_info deci;
-	struct img_trim in_trim;
-	struct img_trim stream_in_trim;
-	struct img_trim out_trim;
-	struct img_size src;
-	struct img_size dst;
-	struct img_size stream_dst;
-	struct img_endian data_endian;
 
 	int q_init;
 	struct camera_queue reserved_buf_queue;
@@ -239,16 +139,20 @@ struct isp_path_desc {
 struct isp_pipe_info {
 	struct isp_hw_fetch_info fetch;
 	struct isp_fbd_raw_info fetch_fbd;
-	struct isp_hw_path_store store[ISP_SPATH_NUM];
 	struct isp_hw_path_scaler scaler[ISP_SPATH_NUM];
+	struct isp_hw_thumbscaler_info thumb_scaler;
+	struct isp_hw_path_store store[ISP_SPATH_NUM];
 	struct isp_hw_afbc_path afbc[AFBC_PATH_NUM];
 };
 
 struct isp_path_uinfo {
+	/* 1 for fbc store; 0 for normal store */
+	uint32_t store_fbc;
 	uint32_t out_fmt;
 	uint32_t bind_type;
 	uint32_t slave_path_id;
 	uint32_t regular_mode;
+	uint32_t uframe_sync;
 	struct img_endian data_endian;
 	struct img_size dst;
 	struct img_trim in_trim;

@@ -26,6 +26,7 @@
 #include "isp_reg.h"
 #include "isp_int.h"
 #include "isp_core.h"
+#include "isp_path.h"
 
 #ifdef pr_fmt
 #undef pr_fmt
@@ -76,7 +77,7 @@ clk_fail:
 	return ret;
 }
 
-int isp_hw_deinit(void *arg)
+int isp_drv_hw_deinit(void *arg)
 {
 	int ret = 0;
 	struct isp_pipe_dev *dev = NULL;
@@ -126,6 +127,53 @@ static enum isp_fetch_format ispdrv_fetch_format_get(uint32_t forcc,
 	default:
 		format = ISP_FETCH_FORMAT_MAX;
 		pr_err("fail to get support format 0x%x\n", forcc);
+		break;
+	}
+	return format;
+}
+
+static enum isp_store_format ispdrv_store_format_get(uint32_t forcc)
+{
+	enum isp_store_format format = ISP_STORE_FORMAT_MAX;
+
+	switch (forcc) {
+	case IMG_PIX_FMT_UYVY:
+		format = ISP_STORE_UYVY;
+		break;
+	case IMG_PIX_FMT_YUV422P:
+		format = ISP_STORE_YUV422_3FRAME;
+		break;
+	case IMG_PIX_FMT_NV12:
+		format = ISP_STORE_YUV420_2FRAME;
+		break;
+	case IMG_PIX_FMT_NV21:
+		format = ISP_STORE_YVU420_2FRAME;
+		break;
+	case IMG_PIX_FMT_YUV420:
+		format = ISP_STORE_YUV420_3FRAME;
+		break;
+	default:
+		format = ISP_STORE_FORMAT_MAX;
+		pr_err("fail to get support format 0x%x\n", forcc);
+		break;
+	}
+	return format;
+}
+
+static enum isp_store_format ispdrv_afbc_store_format_get(uint32_t forcc)
+{
+	enum isp_store_format format = ISP_STORE_FORMAT_MAX;
+
+	switch (forcc) {
+	case IMG_PIX_FMT_NV12:
+		format = ISP_STORE_YUV420_2FRAME;
+		break;
+	case IMG_PIX_FMT_NV21:
+		format = ISP_STORE_YVU420_2FRAME;
+		break;
+	default:
+		format = ISP_STORE_FORMAT_MAX;
+		pr_err("fail to get support afbc format 0x%x\n", forcc);
 		break;
 	}
 	return format;
@@ -371,12 +419,359 @@ static int ispdrv_fetch_normal_get(void *cfg_in, void *cfg_out)
 	return ret;
 }
 
+static int ispdrv_store_afbc_get(struct isp_path_uinfo *in_ptr,
+	struct isp_hw_afbc_path *afbc)
+{
+	uint32_t w_tile_num = 0, h_tile_num = 0;
+	uint32_t pad_width = 0, pad_height = 0;
+	uint32_t header_size = 0, tile_data_size = 0;
+	uint32_t header_addr = 0;
+	struct isp_afbc_store_info *store_info = NULL;
+
+	if (!in_ptr || !afbc) {
+		pr_err("fail to get valid input ptr %p\n", in_ptr, afbc);
+		return -EFAULT;
+	}
+
+	store_info = &afbc->afbc_store;
+	store_info->bypass = 0;
+	store_info->endian = in_ptr->data_endian.uv_endian;
+	store_info->mirror_en = 0;
+	store_info->color_format = ispdrv_afbc_store_format_get(in_ptr->out_fmt);
+	store_info->tile_number_pitch = 0;
+	store_info->header_offset = 0x0;
+	store_info->border.up_border = 0;
+	store_info->border.down_border = 0;
+	store_info->border.left_border = 0;
+	store_info->border.right_border = 0;
+	store_info->size.w = in_ptr->dst.w;
+	store_info->size.h = in_ptr->dst.h;
+
+	pad_width = (store_info->size.w + AFBC_PADDING_W_YUV420 - 1)
+		/ AFBC_PADDING_W_YUV420 * AFBC_PADDING_W_YUV420;
+	pad_height = (store_info->size.h + AFBC_PADDING_H_YUV420 - 1)
+		/ AFBC_PADDING_H_YUV420 * AFBC_PADDING_H_YUV420;
+
+	w_tile_num = pad_width / AFBC_PADDING_W_YUV420;
+	h_tile_num = pad_height / AFBC_PADDING_H_YUV420;
+
+	header_size = w_tile_num * h_tile_num * AFBC_HEADER_SIZE;
+	tile_data_size = w_tile_num * h_tile_num * AFBC_PAYLOAD_SIZE;
+	header_addr = store_info->yheader;
+
+	store_info->header_offset = (header_size + 1024 - 1) / 1024 * 1024;
+	store_info->yheader = header_addr;
+	store_info->yaddr = store_info->yheader + store_info->header_offset;
+	store_info->tile_number_pitch = w_tile_num;
+
+	pr_debug("afbc w_tile_num = %d, h_tile_num = %d\n", w_tile_num, h_tile_num);
+	pr_debug("afbc header_offset = %x, yheader = %x, yaddr = %x\n",
+		store_info->header_offset, store_info->yheader, store_info->yaddr);
+
+	return 0;
+}
+
+static ispdrv_store_normal_get(struct isp_path_uinfo *in_ptr,
+	struct isp_hw_path_store *store_info)
+{
+	int ret = 0;
+	struct isp_store_info *store = NULL;
+
+	if (!in_ptr || !store_info) {
+		pr_err("fail to get valid input ptr %p\n", in_ptr, store_info);
+		return -EFAULT;
+	}
+
+	store = &store_info->store;
+	store->color_fmt = ispdrv_store_format_get(in_ptr->out_fmt);
+	store->bypass = 0;
+	store->endian = in_ptr->data_endian.uv_endian;
+	store->speed_2x = 1;
+	store->mirror_en = 0;
+	store->max_len_sel = 0;
+	store->shadow_clr_sel = 1;
+	store->shadow_clr = 1;
+	store->store_res = 1;
+	store->rd_ctrl = 0;
+
+	store->size.w = in_ptr->dst.w;
+	store->size.h = in_ptr->dst.h;
+	switch (store->color_fmt) {
+	case ISP_STORE_UYVY:
+		store->pitch.pitch_ch0 = store->size.w * 2;
+		store->total_size = store->size.w * store->size.h * 2;
+		break;
+	case ISP_STORE_YUV422_2FRAME:
+	case ISP_STORE_YVU422_2FRAME:
+		store->pitch.pitch_ch0 = store->size.w;
+		store->pitch.pitch_ch1 = store->size.w;
+		store->total_size = store->size.w * store->size.h * 2;
+		break;
+	case ISP_STORE_YUV420_2FRAME:
+	case ISP_STORE_YVU420_2FRAME:
+		store->pitch.pitch_ch0 = store->size.w;
+		store->pitch.pitch_ch1 = store->size.w;
+		store->total_size = store->size.w * store->size.h * 3 / 2;
+		break;
+	case ISP_STORE_YUV422_3FRAME:
+		store->pitch.pitch_ch0 = store->size.w;
+		store->pitch.pitch_ch1 = store->size.w / 2;
+		store->pitch.pitch_ch2 = store->size.w / 2;
+		store->total_size = store->size.w * store->size.h * 2;
+		break;
+	case ISP_STORE_YUV420_3FRAME:
+		store->pitch.pitch_ch0 = store->size.w;
+		store->pitch.pitch_ch1 = store->size.w / 2;
+		store->pitch.pitch_ch2 = store->size.w / 2;
+		store->total_size = store->size.w * store->size.h * 3 / 2;
+		break;
+	default:
+		pr_err("fail to get support store fmt: %d\n", store->color_fmt);
+		store->pitch.pitch_ch0 = 0;
+		store->pitch.pitch_ch1 = 0;
+		store->pitch.pitch_ch2 = 0;
+		break;
+	}
+
+	return ret;
+}
+
+static ispdrv_path_scaler_get(struct isp_path_uinfo *in_ptr,
+	struct isp_hw_path_scaler *path)
+{
+	int ret = 0;
+	uint32_t is_yuv422 = 0, scale2yuv420 = 0;
+	struct isp_scaler_info *scaler = NULL;
+
+	if (!in_ptr || !path) {
+		pr_err("fail to get valid input ptr %p\n", in_ptr, path);
+		return -EFAULT;
+	}
+
+	scaler = &path->scaler;
+	if (in_ptr->out_fmt == IMG_PIX_FMT_UYVY)
+		path->uv_sync_v = 1;
+	else
+		path->uv_sync_v = 0;
+	path->frm_deci = 0;
+	path->dst = in_ptr->dst;
+	path->in_trim = in_ptr->in_trim;
+	path->out_trim.start_x = 0;
+	path->out_trim.start_y = 0;
+	path->out_trim.size_x = in_ptr->dst.w;
+	path->out_trim.size_y = in_ptr->dst.h;
+	ret = isp_path_scaler_param_calc(&path->in_trim, &path->dst,
+		&path->scaler, &path->deci);
+	if (ret) {
+		pr_err("fail to calc scaler.\n");
+		return ret;
+	}
+
+	if (in_ptr->out_fmt == IMG_PIX_FMT_YUV422P)
+		is_yuv422 = 1;
+
+	if ((scaler->scaler_ver_factor_in == scaler->scaler_ver_factor_out)
+		&& (scaler->scaler_factor_in == scaler->scaler_factor_out)
+		&& is_yuv422) {
+		scaler->scaler_bypass = 1;
+	} else {
+		scaler->scaler_bypass = 0;
+		scale2yuv420 = is_yuv422 ? 0 : 1;
+		ret = isp_path_scaler_coeff_calc(scaler, scale2yuv420);
+	}
+	scaler->odata_mode = is_yuv422 ? 0x00 : 0x01;
+
+	return ret;
+}
+
+static uint32_t ispdrv_deci_factor_cal(uint32_t deci)
+{
+	/* 0: 1/2, 1: 1/4, 2: 1/8, 3: 1/16*/
+	if (deci == 16)
+		return 3;
+	else if (deci == 8)
+		return 2;
+	else if (deci == 4)
+		return 1;
+	else
+		return 0;
+}
+
+static uint32_t ispdrv_deci_cal(uint32_t src, uint32_t dst)
+{
+	uint32_t deci = 1;
+
+	if (src <= dst * 4)
+		deci = 1;
+	else if (src <= dst * 8)
+		deci = 2;
+	else if (src <= dst * 16)
+		deci = 4;
+	else if (src <= dst * 32)
+		deci = 8;
+	else if (src <= dst * 64)
+		deci = 16;
+	else
+		deci = 0;
+	return deci;
+}
+
+static int ispdrv_trim_deci_info_cal(uint32_t src, uint32_t dst,
+	uint32_t *trim, uint32_t *deci)
+{
+	uint32_t tmp;
+
+	tmp = ispdrv_deci_cal(src, dst);
+	if (tmp == 0)
+		return -EINVAL;
+
+	if ((src % (2 * tmp)) == 0) {
+		*trim = src;
+		*deci = tmp;
+	} else {
+		*trim = (src / (2 * tmp) * (2 * tmp));
+		*deci = ispdrv_deci_cal(*trim, dst);
+	}
+	return 0;
+}
+
+static int ispdrv_thumb_scaler_get(struct isp_path_uinfo *in_ptr,
+	struct isp_hw_thumbscaler_info *scalerInfo)
+{
+	int ret = 0;
+	uint32_t deci_w = 0;
+	uint32_t deci_h = 0;
+	uint32_t trim_w, trim_h;
+	uint32_t offset, shift, is_yuv422 = 0;
+	struct img_size src, dst;
+
+	if (!in_ptr || !scalerInfo) {
+		pr_err("fail to get valid input ptr %p\n", in_ptr, scalerInfo);
+		return -EFAULT;
+	}
+
+	scalerInfo->scaler_bypass = 0;
+	scalerInfo->frame_deci = 0;
+	/* y factor & deci */
+	src.w = in_ptr->in_trim.size_x;
+	src.h = in_ptr->in_trim.size_y;
+	dst = in_ptr->dst;
+	ret = ispdrv_trim_deci_info_cal(src.w, dst.w, &trim_w, &deci_w);
+	ret |= ispdrv_trim_deci_info_cal(src.h, dst.h, &trim_h, &deci_h);
+	if (deci_w == 0 || deci_h == 0)
+		return -EINVAL;
+	if (ret) {
+		pr_err("fail to set thumbscaler ydeci. src %d %d, dst %d %d\n",
+					src.w, src.h, dst.w, dst.h);
+		return ret;
+	}
+
+	scalerInfo->y_deci.deci_x = deci_w;
+	scalerInfo->y_deci.deci_y = deci_h;
+	if (deci_w > 1)
+		scalerInfo->y_deci.deci_x_eb = 1;
+	else
+		scalerInfo->y_deci.deci_x_eb = 0;
+	if (deci_h > 1)
+		scalerInfo->y_deci.deci_y_eb = 1;
+	else
+		scalerInfo->y_deci.deci_y_eb = 0;
+	scalerInfo->y_factor_in.w = trim_w / deci_w;
+	scalerInfo->y_factor_in.h = trim_h / deci_h;
+	scalerInfo->y_factor_out = in_ptr->dst;
+
+	if (in_ptr->out_fmt == IMG_PIX_FMT_YUV422P)
+		is_yuv422 = 1;
+
+	/* uv factor & deci, input: yuv422(isp pipeline format) */
+	shift = is_yuv422 ? 0 : 1;
+	scalerInfo->uv_deci.deci_x = deci_w;
+	scalerInfo->uv_deci.deci_y = deci_h;
+	if (deci_w > 1)
+		scalerInfo->uv_deci.deci_x_eb = 1;
+	else
+		scalerInfo->uv_deci.deci_x_eb = 0;
+	if (deci_h > 1)
+		scalerInfo->uv_deci.deci_y_eb = 1;
+	else
+		scalerInfo->uv_deci.deci_y_eb = 0;
+	trim_w >>= 1;
+	scalerInfo->uv_factor_in.w = trim_w / deci_w;
+	scalerInfo->uv_factor_in.h = trim_h / deci_h;
+	scalerInfo->uv_factor_out.w = dst.w / 2;
+	scalerInfo->uv_factor_out.h = dst.h >> shift;
+
+	scalerInfo->src0.w = in_ptr->in_trim.size_x;
+	scalerInfo->src0.h = in_ptr->in_trim.size_y;
+
+	/* y trim */
+	trim_w = scalerInfo->y_factor_in.w * scalerInfo->y_deci.deci_x;
+	offset = (in_ptr->in_trim.size_x - trim_w) / 2;
+	scalerInfo->y_trim.start_x = in_ptr->in_trim.start_x + offset;
+	scalerInfo->y_trim.size_x = trim_w;
+
+	trim_h = scalerInfo->y_factor_in.h * scalerInfo->y_deci.deci_y;
+	offset = (in_ptr->in_trim.size_y - trim_h) / 2;
+	scalerInfo->y_trim.start_y = in_ptr->in_trim.start_y + offset;
+	scalerInfo->y_trim.size_y = trim_h;
+
+	scalerInfo->y_src_after_deci = scalerInfo->y_factor_in;
+	scalerInfo->y_dst_after_scaler = scalerInfo->y_factor_out;
+
+	/* uv trim */
+	trim_w = scalerInfo->uv_factor_in.w * scalerInfo->uv_deci.deci_x;
+	offset = (in_ptr->in_trim.size_x / 2 - trim_w) / 2;
+	scalerInfo->uv_trim.start_x = in_ptr->in_trim.start_x / 2 + offset;
+	scalerInfo->uv_trim.size_x = trim_w;
+
+	trim_h = scalerInfo->uv_factor_in.h * scalerInfo->uv_deci.deci_y;
+	offset = (in_ptr->in_trim.size_y - trim_h) / 2;
+	scalerInfo->uv_trim.start_y = in_ptr->in_trim.start_y + offset;
+	scalerInfo->uv_trim.size_y = trim_h;
+
+	scalerInfo->uv_src_after_deci = scalerInfo->uv_factor_in;
+	scalerInfo->uv_dst_after_scaler = scalerInfo->uv_factor_out;
+	scalerInfo->odata_mode = is_yuv422 ? 0x00 : 0x01;
+
+	scalerInfo->y_deci.deci_x = ispdrv_deci_factor_cal(scalerInfo->y_deci.deci_x);
+	scalerInfo->y_deci.deci_y = ispdrv_deci_factor_cal(scalerInfo->y_deci.deci_y);
+	scalerInfo->uv_deci.deci_x = ispdrv_deci_factor_cal(scalerInfo->uv_deci.deci_x);
+	scalerInfo->uv_deci.deci_x = ispdrv_deci_factor_cal(scalerInfo->uv_deci.deci_x);
+
+	pr_debug("deciY %d %d, Yfactor (%d %d) => (%d %d) ytrim (%d %d %d %d)\n",
+		scalerInfo->y_deci.deci_x, scalerInfo->y_deci.deci_y,
+		scalerInfo->y_factor_in.w, scalerInfo->y_factor_in.h,
+		scalerInfo->y_factor_out.w, scalerInfo->y_factor_out.h,
+		scalerInfo->y_trim.start_x, scalerInfo->y_trim.start_y,
+		scalerInfo->y_trim.size_x, scalerInfo->y_trim.size_y);
+	pr_debug("deciU %d %d, Ufactor (%d %d) => (%d %d), Utrim (%d %d %d %d)\n",
+		scalerInfo->uv_deci.deci_x, scalerInfo->uv_deci.deci_y,
+		scalerInfo->uv_factor_in.w, scalerInfo->uv_factor_in.h,
+		scalerInfo->uv_factor_out.w, scalerInfo->uv_factor_out.h,
+		scalerInfo->uv_trim.start_x, scalerInfo->uv_trim.start_y,
+		scalerInfo->uv_trim.size_x, scalerInfo->uv_trim.size_y);
+
+	pr_debug("my frameY: %d %d %d %d\n",
+		scalerInfo->y_src_after_deci.w, scalerInfo->y_src_after_deci.h,
+		scalerInfo->y_dst_after_scaler.w,
+		scalerInfo->y_dst_after_scaler.h);
+	pr_debug("my frameU: %d %d %d %d\n",
+		scalerInfo->uv_src_after_deci.w,
+		scalerInfo->uv_src_after_deci.h,
+		scalerInfo->uv_dst_after_scaler.w,
+		scalerInfo->uv_dst_after_scaler.h);
+
+	return ret;
+}
+
 int isp_drv_pipeinfo_get(void *arg, uint32_t hw_id)
 {
 	int ret = 0;
+	uint32_t i = 0;
 	struct isp_sw_context *ctx = NULL;
 	struct isp_pipe_info *pipe_in = NULL;
 	struct isp_uinfo *pipe_src = NULL;
+	struct isp_path_uinfo *path_info = NULL;
 
 	if (!arg) {
 		pr_err("fail to get valid arg\n");
@@ -400,6 +795,49 @@ int isp_drv_pipeinfo_get(void *arg, uint32_t hw_id)
 	if (ret) {
 		pr_err("fail to get pipe fetch fbd info\n");
 		return -EFAULT;
+	}
+
+	for (i = 0; i < ISP_SPATH_NUM; i++) {
+		path_info = &pipe_src->path_info[i];
+		if (atomic_read(&ctx->isp_path[i].user_cnt) < 1)
+			continue;
+		pipe_in->store[i].ctx_id = ctx->ctx_id;
+		pipe_in->store[i].spath_id = i;
+		ret = ispdrv_store_normal_get(path_info, &pipe_in->store[i]);
+		if (ret) {
+			pr_err("fail to get pipe store normal info\n");
+			return -EFAULT;
+		}
+
+		if (i < AFBC_PATH_NUM) {
+			pipe_in->afbc[i].ctx_id = ctx->ctx_id;
+			pipe_in->afbc[i].spath_id = i;
+			ispdrv_store_afbc_get(path_info, &pipe_in->afbc[i]);
+			/* store normal should bypass when afbc store work */
+			if (path_info->store_fbc)
+				pipe_in->store[i].store.bypass = 1;
+			else
+				pipe_in->afbc[i].afbc_store.bypass = 1;
+		}
+
+		if (i != ISP_SPATH_FD) {
+			pipe_in->scaler[i].ctx_id = ctx->ctx_id;
+			pipe_in->scaler[i].spath_id = i;
+			pipe_in->scaler[i].src.w = pipe_src->crop.size_x;
+			pipe_in->scaler[i].src.h = pipe_src->crop.size_y;
+			ret = ispdrv_path_scaler_get(path_info, &pipe_in->scaler[i]);
+			if (ret) {
+				pr_err("fail to get pipe path scaler info\n");
+				return -EFAULT;
+			}
+		} else {
+			pipe_in->thumb_scaler.idx = ctx->ctx_id;
+			ret = ispdrv_thumb_scaler_get(path_info, &pipe_in->thumb_scaler);
+			if (ret) {
+				pr_err("fail to get pipe thumb scaler info\n");
+				return -EFAULT;
+			}
+		}
 	}
 
 	return ret;

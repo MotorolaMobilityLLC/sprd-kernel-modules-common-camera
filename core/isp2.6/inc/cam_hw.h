@@ -103,6 +103,12 @@ enum isp_sub_path_id {
 	ISP_SPATH_NUM,
 };
 
+enum isp_afbc_path {
+	AFBC_PATH_PRE = 0,
+	AFBC_PATH_VID,
+	AFBC_PATH_NUM,
+};
+
 enum dcam_hw_cfg_cmd {
 	DCAM_HW_CFG_ENABLE_CLK,
 	DCAM_HW_CFG_DISABLE_CLK,
@@ -163,13 +169,11 @@ enum isp_hw_cfg_cmd {
 	ISP_HW_CFG_BYPASS_COUNT_GET,
 	ISP_HW_CFG_REG_TRACE,
 	ISP_HW_CFG_ISP_CFG_SUBBLOCK,
-	ISP_HW_CFG_SET_PATH_COMMON,
 	ISP_HW_CFG_SET_PATH_STORE,
 	ISP_HW_CFG_SET_PATH_SCALER,
 	ISP_HW_CFG_SET_PATH_THUMBSCALER,
 	ISP_HW_CFG_SLICE_SCALER,
 	ISP_HW_CFG_SLICE_STORE,
-	ISP_HW_CFG_AFBC_ADDR_SET,
 	ISP_HW_CFG_AFBC_PATH_SET,
 	ISP_HW_CFG_FBD_SLICE_SET,
 	ISP_HW_CFG_FBD_ADDR_SET,
@@ -308,6 +312,7 @@ struct isp_hw_fetch_info {
 	struct img_trim in_trim;
 	struct img_addr addr;
 	struct img_addr trim_off;
+	struct img_addr addr_hw;
 	struct img_pitch pitch;
 	uint32_t mipi_byte_rel_pos;
 	uint32_t mipi_word_num;
@@ -400,13 +405,6 @@ struct isp_regular_info {
 	uint32_t shrink_y_offset;
 };
 
-struct isp_hw_path_scaler {
-	uint32_t ctx_id;
-	enum isp_sub_path_id spath_id;
-	struct isp_scaler_info *scaler;
-	struct isp_regular_info regular_info;
-};
-
 struct img_deci_info {
 	uint32_t deci_y_eb;
 	uint32_t deci_y;
@@ -414,18 +412,18 @@ struct img_deci_info {
 	uint32_t deci_x;
 };
 
-struct isp_hw_path_common {
+struct isp_hw_path_scaler {
 	uint32_t ctx_id;
-	uint32_t skip_pipeline;
 	uint32_t uv_sync_v;
 	uint32_t frm_deci;
-	uint32_t odata_mode;
 	enum isp_sub_path_id spath_id;
 	struct img_deci_info deci;
 	struct img_size src;
 	struct img_trim in_trim;
 	struct img_trim out_trim;
 	struct img_size dst;
+	struct isp_scaler_info scaler;
+	struct isp_regular_info regular_info;
 };
 
 struct isp_hw_hist_roi {
@@ -603,17 +601,6 @@ struct dcam_hw_start {
 	uint32_t format;
 };
 
-struct isp_hw_fetch_slice_addr {
-	unsigned long *yuv_addr;
-	int idx;
-};
-
-struct isp_hw_store_slice_addr {
-	unsigned long addr;
-	unsigned long *yuv_addr;
-	int idx;
-};
-
 struct reg_add_val_tag {
 	unsigned int addr;
 	unsigned int valid;
@@ -658,9 +645,30 @@ struct dcam_hw_block_func_get {
 	uint32_t index;
 };
 
-struct isp_hw_path_thumbscaler {
-	struct isp_path_desc *path;
-	uint32_t val;
+struct isp_hw_thumbscaler_info {
+	uint32_t idx;
+	uint32_t scaler_bypass;
+	uint32_t odata_mode;
+	uint32_t frame_deci;
+
+	struct img_deci_info y_deci;
+	struct img_deci_info uv_deci;
+
+	struct img_size y_factor_in;
+	struct img_size y_factor_out;
+	struct img_size uv_factor_in;
+	struct img_size uv_factor_out;
+
+	struct img_size src0;
+	struct img_trim y_trim;
+	struct img_size y_src_after_deci;
+	struct img_size y_dst_after_scaler;
+	struct img_size y_init_phase;
+
+	struct img_trim uv_trim;
+	struct img_size uv_src_after_deci;
+	struct img_size uv_dst_after_scaler;
+	struct img_size uv_init_phase;
 };
 
 struct cam_hw_bypass_data {
@@ -716,6 +724,8 @@ struct isp_hw_slw_fmcu_cmds {
 	uint32_t ctx_id;
 	struct img_addr fetchaddr;
 	struct isp_fmcu_ctx_desc *fmcu_handle;
+	struct isp_afbc_store_info afbc_store[AFBC_PATH_NUM];
+	struct isp_store_info store[ISP_SPATH_NUM];
 	struct isp_path_desc *isp_path;
 };
 

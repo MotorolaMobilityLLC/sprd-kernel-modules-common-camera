@@ -33,60 +33,7 @@
 #define ISP_SC_COEFF_UP_MAX         4
 #define ISP_SC_COEFF_DOWN_MAX       4
 
-static unsigned long store_base[ISP_SPATH_NUM] = {
-	ISP_STORE_PRE_CAP_BASE,
-	ISP_STORE_VID_BASE,
-	ISP_STORE_THUMB_BASE,
-};
-
-unsigned long coff_buf_addr[2][3][4] = {
-	{
-		{
-			ISP_SCALER_PRE_LUMA_HCOEFF_BUF0,
-			ISP_SCALER_PRE_CHROMA_HCOEFF_BUF0,
-			ISP_SCALER_PRE_LUMA_VCOEFF_BUF0,
-			ISP_SCALER_PRE_CHROMA_VCOEFF_BUF0,
-		},
-		{
-			ISP_SCALER_VID_LUMA_HCOEFF_BUF0,
-			ISP_SCALER_VID_CHROMA_HCOEFF_BUF0,
-			ISP_SCALER_VID_LUMA_VCOEFF_BUF0,
-			ISP_SCALER_VID_CHROMA_VCOEFF_BUF0,
-		}
-	},
-	{
-		{
-			ISP_SCALER_PRE_LUMA_HCOEFF_BUF1,
-			ISP_SCALER_PRE_CHROMA_HCOEFF_BUF1,
-			ISP_SCALER_PRE_LUMA_VCOEFF_BUF1,
-			ISP_SCALER_PRE_CHROMA_VCOEFF_BUF1,
-		},
-		{
-			ISP_SCALER_VID_LUMA_HCOEFF_BUF1,
-			ISP_SCALER_VID_CHROMA_HCOEFF_BUF1,
-			ISP_SCALER_VID_LUMA_VCOEFF_BUF1,
-			ISP_SCALER_VID_CHROMA_VCOEFF_BUF1,
-		}
-	},
-};
-
-int isp_path_scaler_coeff_set(struct coeff_arg *arg,
-		uint32_t buf_sel, uint32_t spath_id,
-		uint32_t *coeff_buf)
-{
-	arg->h_coeff = coeff_buf;
-	arg->v_coeff = coeff_buf + (ISP_SC_COEFF_COEF_SIZE / 4);
-	arg->v_chroma_coeff = arg->v_coeff + (ISP_SC_COEFF_COEF_SIZE / 4);
-	arg->h_coeff_addr = coff_buf_addr[buf_sel][spath_id][0];
-	arg->h_chroma_coeff_addr = coff_buf_addr[buf_sel][spath_id][1];
-	arg->v_coeff_addr = coff_buf_addr[buf_sel][spath_id][2];
-	arg->v_chroma_coeff_addr = coff_buf_addr[buf_sel][spath_id][3];
-
-	return 0;
-}
-
-static uint32_t isppath_deci_factor_get(uint32_t src_size,
-			uint32_t dst_size)
+static uint32_t isppath_deci_factor_get(uint32_t src_size, uint32_t dst_size)
 {
 	uint32_t factor = 0;
 
@@ -102,54 +49,7 @@ static uint32_t isppath_deci_factor_get(uint32_t src_size,
 	return factor;
 }
 
-static enum isp_store_format isppath_store_format_get(uint32_t forcc)
-{
-	enum isp_store_format format = ISP_STORE_FORMAT_MAX;
-
-	switch (forcc) {
-	case IMG_PIX_FMT_UYVY:
-		format = ISP_STORE_UYVY;
-		break;
-	case IMG_PIX_FMT_YUV422P:
-		format = ISP_STORE_YUV422_3FRAME;
-		break;
-	case IMG_PIX_FMT_NV12:
-		format = ISP_STORE_YUV420_2FRAME;
-		break;
-	case IMG_PIX_FMT_NV21:
-		format = ISP_STORE_YVU420_2FRAME;
-		break;
-	case IMG_PIX_FMT_YUV420:
-		format = ISP_STORE_YUV420_3FRAME;
-		break;
-	default:
-		format = ISP_STORE_FORMAT_MAX;
-		pr_err("fail to get support format 0x%x\n", forcc);
-		break;
-	}
-	return format;
-}
-
-static enum isp_store_format isppath_afbc_store_format_get(uint32_t forcc)
-{
-	enum isp_store_format format = ISP_STORE_FORMAT_MAX;
-
-	switch (forcc) {
-	case IMG_PIX_FMT_NV12:
-		format = ISP_STORE_YUV420_2FRAME;
-		break;
-	case IMG_PIX_FMT_NV21:
-		format = ISP_STORE_YVU420_2FRAME;
-		break;
-	default:
-		format = ISP_STORE_FORMAT_MAX;
-		pr_err("fail to get support afbc format 0x%x\n", forcc);
-		break;
-	}
-	return format;
-}
-
-static int isppath_scaler_param_calc(struct img_trim *in_trim,
+int isp_path_scaler_param_calc(struct img_trim *in_trim,
 	struct img_size *out_size, struct isp_scaler_info *scaler,
 	struct img_deci_info *deci)
 {
@@ -223,7 +123,7 @@ static int isppath_scaler_param_calc(struct img_trim *in_trim,
 	return ret;
 }
 
-static int isppath_scaler_coeff_calc(struct isp_scaler_info *scaler,
+int isp_path_scaler_coeff_calc(struct isp_scaler_info *scaler,
 		uint32_t scale2yuv420)
 {
 	uint32_t *tmp_buf = NULL;
@@ -258,200 +158,6 @@ static int isppath_scaler_coeff_calc(struct isp_scaler_info *scaler,
 	scaler->scaler_uv_ver_tap = uv_tap;
 
 	return 0;
-}
-
-int isp_path_scaler_cfg(struct isp_path_desc *path)
-{
-	int ret = 0;
-	uint32_t is_yuv422, scale2yuv420 = 0;
-	struct isp_scaler_info *scaler = &path->scaler;
-
-	ret = isppath_scaler_param_calc(&path->in_trim, &path->dst,
-						&path->scaler, &path->deci);
-	if (ret) {
-		pr_err("fail to set scaler.\n");
-		return ret;
-	}
-
-	is_yuv422 = 0;
-	if (path->store.color_fmt <= ISP_STORE_YUV422_3FRAME)
-		is_yuv422 = 1;
-
-	if ((scaler->scaler_ver_factor_in == scaler->scaler_ver_factor_out)
-		&& (scaler->scaler_factor_in == scaler->scaler_factor_out)
-		&& is_yuv422) {
-		scaler->scaler_bypass = 1;
-	} else {
-		scaler->scaler_bypass = 0;
-		scale2yuv420 = is_yuv422 ? 0 : 1;
-		ret = isppath_scaler_coeff_calc(scaler, scale2yuv420);
-	}
-
-	scaler->odata_mode = is_yuv422 ? 0x00 : 0x01;
-
-	return ret;
-}
-
-static uint32_t isppath_deci_cal(uint32_t src, uint32_t dst)
-{
-	uint32_t deci = 1;
-
-	if (src <= dst * 4)
-		deci = 1;
-	else if (src <= dst * 8)
-		deci = 2;
-	else if (src <= dst * 16)
-		deci = 4;
-	else if (src <= dst * 32)
-		deci = 8;
-	else if (src <= dst * 64)
-		deci = 16;
-	else
-		deci = 0;
-	return deci;
-}
-
-static int isppath_trim_deci_info_cal(
-		uint32_t src, uint32_t dst,
-		uint32_t *trim, uint32_t *deci)
-{
-	uint32_t tmp;
-
-	tmp = isppath_deci_cal(src, dst);
-	if (tmp == 0)
-		return -EINVAL;
-
-	if ((src % (2 * tmp)) == 0) {
-		*trim = src;
-		*deci = tmp;
-	} else {
-		*trim = (src / (2 * tmp) * (2 * tmp));
-		*deci = isppath_deci_cal(*trim, dst);
-	}
-	return 0;
-}
-
-static int isppath_path_thumbscaler_cfg(struct isp_path_desc *path)
-{
-	int ret = 0;
-	uint32_t deci_w = 0;
-	uint32_t deci_h = 0;
-	uint32_t trim_w, trim_h;
-	uint32_t offset, shift, is_yuv422;
-
-	struct img_size src, dst;
-	struct isp_thumbscaler_info *scalerInfo;
-
-	scalerInfo = &path->thumbscaler;
-	scalerInfo->scaler_bypass = 0;
-
-	/* y factor & deci */
-	src.w = path->in_trim.size_x;
-	src.h = path->in_trim.size_y;
-	dst = path->dst;
-	ret = isppath_trim_deci_info_cal(src.w, dst.w, &trim_w, &deci_w);
-	ret |= isppath_trim_deci_info_cal(src.h, dst.h, &trim_h, &deci_h);
-	if (deci_w == 0 || deci_h == 0)
-		return -EINVAL;
-	if (ret) {
-		pr_err("fail to set thumbscaler ydeci. src %d %d, dst %d %d\n",
-					src.w, src.h, dst.w, dst.h);
-		return ret;
-	}
-
-	scalerInfo->y_deci.deci_x = deci_w;
-	scalerInfo->y_deci.deci_y = deci_h;
-	if (deci_w > 1)
-		scalerInfo->y_deci.deci_x_eb = 1;
-	else
-		scalerInfo->y_deci.deci_x_eb = 0;
-	if (deci_h > 1)
-		scalerInfo->y_deci.deci_y_eb = 1;
-	else
-		scalerInfo->y_deci.deci_y_eb = 0;
-	scalerInfo->y_factor_in.w = trim_w / deci_w;
-	scalerInfo->y_factor_in.h = trim_h / deci_h;
-	scalerInfo->y_factor_out = path->dst;
-
-	is_yuv422 = 0;
-	if (path->store.color_fmt <= ISP_STORE_YUV422_3FRAME)
-		is_yuv422 = 1;
-
-	/* uv factor & deci, input: yuv422(isp pipeline format) */
-	shift = is_yuv422 ? 0 : 1;
-	scalerInfo->uv_deci.deci_x = deci_w;
-	scalerInfo->uv_deci.deci_y = deci_h;
-	if (deci_w > 1)
-		scalerInfo->uv_deci.deci_x_eb = 1;
-	else
-		scalerInfo->uv_deci.deci_x_eb = 0;
-	if (deci_h > 1)
-		scalerInfo->uv_deci.deci_y_eb = 1;
-	else
-		scalerInfo->uv_deci.deci_y_eb = 0;
-	trim_w >>= 1;
-	scalerInfo->uv_factor_in.w = trim_w / deci_w;
-	scalerInfo->uv_factor_in.h = trim_h / deci_h;
-	scalerInfo->uv_factor_out.w = dst.w / 2;
-	scalerInfo->uv_factor_out.h = dst.h >> shift;
-
-	scalerInfo->src0.w = path->in_trim.size_x;
-	scalerInfo->src0.h = path->in_trim.size_y;
-
-	/* y trim */
-	trim_w = scalerInfo->y_factor_in.w * scalerInfo->y_deci.deci_x;
-	offset = (path->in_trim.size_x - trim_w) / 2;
-	scalerInfo->y_trim.start_x = path->in_trim.start_x + offset;
-	scalerInfo->y_trim.size_x = trim_w;
-
-	trim_h = scalerInfo->y_factor_in.h * scalerInfo->y_deci.deci_y;
-	offset = (path->in_trim.size_y - trim_h) / 2;
-	scalerInfo->y_trim.start_y = path->in_trim.start_y + offset;
-	scalerInfo->y_trim.size_y = trim_h;
-
-	scalerInfo->y_src_after_deci = scalerInfo->y_factor_in;
-	scalerInfo->y_dst_after_scaler = scalerInfo->y_factor_out;
-
-	/* uv trim */
-	trim_w = scalerInfo->uv_factor_in.w * scalerInfo->uv_deci.deci_x;
-	offset = (path->in_trim.size_x / 2 - trim_w) / 2;
-	scalerInfo->uv_trim.start_x = path->in_trim.start_x / 2 + offset;
-	scalerInfo->uv_trim.size_x = trim_w;
-
-	trim_h = scalerInfo->uv_factor_in.h * scalerInfo->uv_deci.deci_y;
-	offset = (path->in_trim.size_y - trim_h) / 2;
-	scalerInfo->uv_trim.start_y = path->in_trim.start_y + offset;
-	scalerInfo->uv_trim.size_y = trim_h;
-
-	scalerInfo->uv_src_after_deci = scalerInfo->uv_factor_in;
-	scalerInfo->uv_dst_after_scaler = scalerInfo->uv_factor_out;
-
-	scalerInfo->odata_mode = is_yuv422 ? 0x00 : 0x01;
-
-	pr_debug("deciY %d %d, Yfactor (%d %d) => (%d %d) ytrim (%d %d %d %d)\n",
-		scalerInfo->y_deci.deci_x, scalerInfo->y_deci.deci_y,
-		scalerInfo->y_factor_in.w, scalerInfo->y_factor_in.h,
-		scalerInfo->y_factor_out.w, scalerInfo->y_factor_out.h,
-		scalerInfo->y_trim.start_x, scalerInfo->y_trim.start_y,
-		scalerInfo->y_trim.size_x, scalerInfo->y_trim.size_y);
-	pr_debug("deciU %d %d, Ufactor (%d %d) => (%d %d), Utrim (%d %d %d %d)\n",
-		scalerInfo->uv_deci.deci_x, scalerInfo->uv_deci.deci_y,
-		scalerInfo->uv_factor_in.w, scalerInfo->uv_factor_in.h,
-		scalerInfo->uv_factor_out.w, scalerInfo->uv_factor_out.h,
-		scalerInfo->uv_trim.start_x, scalerInfo->uv_trim.start_y,
-		scalerInfo->uv_trim.size_x, scalerInfo->uv_trim.size_y);
-
-	pr_debug("my frameY: %d %d %d %d\n",
-		scalerInfo->y_src_after_deci.w, scalerInfo->y_src_after_deci.h,
-		scalerInfo->y_dst_after_scaler.w,
-		scalerInfo->y_dst_after_scaler.h);
-	pr_debug("my frameU: %d %d %d %d\n",
-		scalerInfo->uv_src_after_deci.w,
-		scalerInfo->uv_src_after_deci.h,
-		scalerInfo->uv_dst_after_scaler.w,
-		scalerInfo->uv_dst_after_scaler.h);
-
-	return ret;
 }
 
 int isp_path_fetchsize_update(struct isp_sw_context *pctx, void *param)
@@ -569,48 +275,7 @@ int isp_path_fetch_uinfo_set(struct isp_sw_context *pctx, void *param)
 	return ret;
 }
 
-int isp_path_storecomn_uinfo_set(struct isp_path_uinfo *path,
-	void *param)
-{
-	int ret = 0;
-	struct isp_path_base_desc *cfg_in = NULL;
-
-	if (!path || !param) {
-		pr_err("fail to get valid input ptr, path %p, param %p\n",
-			path, param);
-		return -EFAULT;
-	}
-	cfg_in = (struct isp_path_base_desc *)param;
-
-	path->out_fmt = cfg_in->out_fmt;
-	path->data_endian = cfg_in->endian;
-	path->bind_type = cfg_in->slave_type;
-	path->regular_mode = cfg_in->regular_mode;
-	path->slave_path_id = cfg_in->slave_path_id;
-	path->dst = cfg_in->output_size;
-
-	return ret;
-}
-
-int isp_path_storecrop_uinfo_set(struct isp_path_uinfo *path,
-	void *param)
-{
-	int ret = 0;
-	struct img_trim *crop = NULL;
-
-	if (!path || !param) {
-		pr_err("fail to get valid input ptr, path %p, param %p\n",
-			path, param);
-		return -EFAULT;
-	}
-
-	crop = (struct img_trim *)param;
-	path->in_trim = *crop;
-
-	return ret;
-}
-
-int isp_path_compress_uinfo_set(struct isp_sw_context *pctx,
+int isp_path_fetch_compress_uinfo_set(struct isp_sw_context *pctx,
 		void *param)
 {
 	struct isp_ctx_compress_desc *compress = NULL;
@@ -634,8 +299,7 @@ int isp_path_compress_uinfo_set(struct isp_sw_context *pctx,
 	return 0;
 }
 
-int isp_path_fetchsync_uinfo_set(struct isp_sw_context *pctx,
-		void *param)
+int isp_path_fetchsync_uinfo_set(struct isp_sw_context *pctx, void *param)
 {
 	struct isp_uinfo *uinfo = NULL;
 
@@ -652,293 +316,83 @@ int isp_path_fetchsync_uinfo_set(struct isp_sw_context *pctx,
 	return 0;
 }
 
-int isp_path_base_cfg(struct isp_path_desc *path, void *param)
+int isp_path_storecrop_update(struct isp_path_uinfo *path, void *param)
 {
 	int ret = 0;
-	struct isp_path_base_desc *cfg_in;
-	struct isp_store_info *store = &path->store;
+	struct img_trim *crop = NULL;
 
 	if (!path || !param) {
-		pr_err("fail to get valid input ptr, path %p, param %p\n",
-			path, param);
+		pr_err("fail to get valid input ptr, path %p, param %p\n", path, param);
+		return -EFAULT;
+	}
+
+	crop = (struct img_trim *)param;
+	path->in_trim = *crop;
+
+	return ret;
+}
+
+int isp_path_storecomn_uinfo_set(struct isp_path_uinfo *path, void *param)
+{
+	int ret = 0;
+	struct isp_path_base_desc *cfg_in = NULL;
+
+	if (!path || !param) {
+		pr_err("fail to get valid input ptr, path %p, param %p\n", path, param);
 		return -EFAULT;
 	}
 	cfg_in = (struct isp_path_base_desc *)param;
-	path->skip_pipeline = 0;
-	path->frm_deci = 0;
+
 	path->out_fmt = cfg_in->out_fmt;
 	path->data_endian = cfg_in->endian;
 	path->bind_type = cfg_in->slave_type;
-	path->regular_info.regular_mode = cfg_in->regular_mode;
-	if (path->bind_type == ISP_PATH_MASTER)
-		path->slave_path_id = cfg_in->slave_path_id;
-
-	/* dst size should be configured once
-	 * and only once.
-	 * It should not be changed after stream_on.
-	 * So, cfg it as base.
-	 */
+	path->regular_mode = cfg_in->regular_mode;
+	path->slave_path_id = cfg_in->slave_path_id;
 	path->dst = cfg_in->output_size;
-	path->stream_dst = path->dst;
-
-	/* CFG output format */
-	store->color_fmt = isppath_store_format_get(path->out_fmt);
-	if (store->color_fmt == ISP_STORE_UYVY)
-		path->uv_sync_v = 1;
-	else
-		path->uv_sync_v = 0;
-
-	store->bypass = 0;
-	store->endian = path->data_endian.uv_endian;
-	store->speed_2x = 1;
-	store->mirror_en = 0;
-	store->max_len_sel = 0;
-	store->shadow_clr_sel = 1;
-	store->shadow_clr = 1;
-	store->store_res = 1;
-	store->rd_ctrl = 0;
-	pr_debug("path %d, fmt 0x%x, store %d, dst_size %d %d\n",
-		path->spath_id, path->out_fmt,
-		store->color_fmt, path->dst.w, path->dst.h);
 
 	return ret;
 }
 
-int isp_path_size_cfg(struct isp_path_desc *path, void *param)
+int isp_path_storecrop_uinfo_set(struct isp_path_uinfo *path, void *param)
 {
 	int ret = 0;
-	struct img_size src;
-	struct img_trim *crop;
-	struct isp_sw_context *pctx = NULL;
-	struct isp_store_info *store = NULL;
-	struct isp_afbc_store_info *afbc_store = &path->afbc_store;
+	struct img_trim *crop = NULL;
 
 	if (!path || !param) {
-		pr_err("fail to get valid input ptr, path %p, param %p\n",
-			path, param);
+		pr_err("fail to get valid input ptr, path %p, param %p\n", path, param);
 		return -EFAULT;
 	}
-	pctx = path->attach_ctx;
-	store = &path->store;
+
 	crop = (struct img_trim *)param;
-	src.w = pctx->pipe_src.crop.size_x;
-	src.h = pctx->pipe_src.crop.size_y;
-	if (((crop->start_x + crop->size_x) > src.w) ||
-		((crop->start_y + crop->size_y) > src.h)) {
-		pr_err("fail to sw %d get path trim(%d %d %d %d) outside of src (%d %d)\n",
-			pctx->ctx_id, crop->start_x, crop->start_y,
-			crop->size_x, crop->size_y, src.w, src.h);
-		return -EINVAL;
-	}
-
-	/* no trim in isp scaler. */
-	path->src = src;
 	path->in_trim = *crop;
+	pr_debug("path crop info %d, %d %d %d\n", path->in_trim.start_x,
+		path->in_trim.start_y, path->in_trim.size_x, path->in_trim.size_y);
 
-	/*Bug 1024606 sw workaround
-	fetch fbd crop isp timeout when crop.start_y % 4 == 2 */
-	if (pctx->pipe_src.fetch_path_sel && pctx->pipe_src.crop.size_y % 4 == 2) {
-		path->in_trim.start_y += 2;
-		pr_info("crop start_y: %d, trim0 start_y: %d",
-			pctx->pipe_src.crop.start_y,
-			path->in_trim.start_y);
-	}
-
-	path->out_trim.start_x = 0;
-	path->out_trim.start_y = 0;
-	path->out_trim.size_x = path->dst.w;
-	path->out_trim.size_y = path->dst.h;
-	pr_debug("sw %d, path %d. src %d %d ; in_trim %d %d %d %d ; out_trim %d %d %d %d ; dst %d %d\n",
-		pctx->ctx_id,
-		path->spath_id, path->src.w, path->src.h,
-		path->in_trim.start_x, path->in_trim.start_y,
-		path->in_trim.size_x, path->in_trim.size_y,
-		path->out_trim.start_x, path->out_trim.start_y,
-		path->out_trim.size_x, path->out_trim.size_y,
-		path->dst.w, path->dst.h);
-
-	if (path->store_fbc) {
-		afbc_store->bypass = 0;
-		store->bypass = 1;
-		afbc_store->endian = path->data_endian.uv_endian;
-		afbc_store->mirror_en = 0;
-		afbc_store->color_format =
-			isppath_afbc_store_format_get(path->out_fmt);
-		afbc_store->tile_number_pitch = 0;
-		afbc_store->header_offset = 0x0;
-
-		afbc_store->border.up_border = 0;
-		afbc_store->border.down_border = 0;
-		afbc_store->border.left_border = 0;
-		afbc_store->border.right_border = 0;
-		pr_info("path afbc %d, fmt 0x%x, store %d, dst_size %d %d\n",
-			path->spath_id, path->out_fmt,
-			store->color_fmt, path->dst.w, path->dst.h);
-	} else {
-		afbc_store->bypass = 1;
-	}
-
-	if (path->spath_id == ISP_SPATH_FD)
-		ret = isppath_path_thumbscaler_cfg(path);
-	else
-		ret = isp_path_scaler_cfg(path);
-
-	store->size.w = path->dst.w;
-	store->size.h = path->dst.h;
-
-	switch (store->color_fmt) {
-	case ISP_STORE_UYVY:
-		store->pitch.pitch_ch0 = store->size.w * 2;
-		store->total_size = store->size.w * store->size.h * 2;
-		break;
-
-	case ISP_STORE_YUV422_2FRAME:
-	case ISP_STORE_YVU422_2FRAME:
-		store->pitch.pitch_ch0 = store->size.w;
-		store->pitch.pitch_ch1 = store->size.w;
-		store->total_size = store->size.w * store->size.h * 2;
-		break;
-	case ISP_STORE_YUV420_2FRAME:
-	case ISP_STORE_YVU420_2FRAME:
-		store->pitch.pitch_ch0 = store->size.w;
-		store->pitch.pitch_ch1 = store->size.w;
-		store->total_size = store->size.w * store->size.h * 3 / 2;
-		break;
-	case ISP_STORE_YUV422_3FRAME:
-		store->pitch.pitch_ch0 = store->size.w;
-		store->pitch.pitch_ch1 = store->size.w / 2;
-		store->pitch.pitch_ch2 = store->size.w / 2;
-		store->total_size = store->size.w * store->size.h * 2;
-		break;
-	case ISP_STORE_YUV420_3FRAME:
-		store->pitch.pitch_ch0 = store->size.w;
-		store->pitch.pitch_ch1 = store->size.w / 2;
-		store->pitch.pitch_ch2 = store->size.w / 2;
-		store->total_size = store->size.w * store->size.h * 3 / 2;
-		break;
-	default:
-		pr_err("fail to get support store fmt: %d\n", store->color_fmt);
-		store->pitch.pitch_ch0 = 0;
-		store->pitch.pitch_ch1 = 0;
-		store->pitch.pitch_ch2 = 0;
-		break;
-	}
 	return ret;
 }
 
-int isp_path_compression_cfg(struct isp_path_desc *path, void *param)
-{
-	struct isp_path_compression_desc *compression = param;
-
-	path->store_fbc = compression->store_fbc;
-
-	pr_debug("path %d, store_fbc %u\n", path->spath_id, path->store_fbc);
-
-	return 0;
-}
-
-int isp_path_uframe_sync_cfg(struct isp_path_desc *path, void *param)
-{
-	path->uframe_sync = *(uint32_t *)param;
-
-	pr_debug("path %d, uframe_sync %u\n", path->spath_id, path->uframe_sync);
-
-	return 0;
-}
-
-static uint32_t isppath_deci_par_cal(uint32_t deci)
-{
-	/* 0: 1/2, 1: 1/4, 2: 1/8, 3: 1/16*/
-	if (deci == 16)
-		return 3;
-	else if (deci == 8)
-		return 2;
-	else if (deci == 4)
-		return 1;
-	else
-		return 0;
-}
-
-static uint32_t isppath_val_get(struct isp_thumbscaler_info *scalerInfo, struct isp_path_desc *path)
-{
-	uint32_t val;
-	uint32_t y_deci_w_par, y_deci_h_par;
-	uint32_t uv_deci_w_par, uv_deci_h_par;
-
-	y_deci_w_par = isppath_deci_par_cal(scalerInfo->y_deci.deci_x);
-	y_deci_h_par = isppath_deci_par_cal(scalerInfo->y_deci.deci_y);
-	uv_deci_w_par = isppath_deci_par_cal(scalerInfo->uv_deci.deci_x);
-	uv_deci_h_par = isppath_deci_par_cal(scalerInfo->uv_deci.deci_y);
-	val = ((path->frm_deci & 0x3) << 2) |
-		((scalerInfo->odata_mode & 0x3) << 4) |
-		((y_deci_w_par & 0x3) << 16) |
-		((scalerInfo->y_deci.deci_x_eb & 0x1) << 19) |
-		((y_deci_h_par & 0x3) << 20) |
-		((scalerInfo->y_deci.deci_y_eb & 0x1) << 23) |
-		((uv_deci_w_par & 0x3) << 24) |
-		((scalerInfo->uv_deci.deci_x_eb & 0x1) << 27) |
-		((uv_deci_h_par & 0x3) << 28) |
-		((scalerInfo->uv_deci.deci_y_eb & 0x1) << 31);
-
-	return val;
-}
-
-int isp_path_set(struct isp_path_desc *path)
+int isp_path_store_compress_uinfo_set(struct isp_path_uinfo *path, void *param)
 {
 	int ret = 0;
-	enum isp_afbc_path afbc_path_id = 0;
-	struct cam_hw_info *hw = NULL;
-	struct isp_hw_path_thumbscaler thumbscaler;
-	struct isp_hw_path_common path_common;
-	struct isp_hw_path_scaler path_scaler;
-	struct isp_hw_path_store path_store;
-	struct isp_hw_afbc_path afbc_path;
+	struct isp_path_compression_desc *cfg_in = NULL;
 
-	if (!path) {
-		pr_err("fail to get input ptr: null\n");
-		return -EINVAL;
+	if (!path || !param) {
+		pr_err("fail to get valid input ptr, path %p, param %p\n", path, param);
+		return -EFAULT;
 	}
 
-	afbc_path_id = (enum isp_afbc_path)path->spath_id;
-	hw = path->hw;
+	cfg_in = (struct isp_path_compression_desc *)param;
+	path->store_fbc = cfg_in->store_fbc;
 
-	pr_debug("enter.\n");
-	if (path->spath_id == ISP_SPATH_FD) {
-		thumbscaler.val = isppath_val_get(&path->thumbscaler, path);
-		thumbscaler.path = path;
-		hw->isp_ioctl(hw, ISP_HW_CFG_SET_PATH_THUMBSCALER, &thumbscaler);
-	} else {
-		path_common.ctx_id = path->attach_ctx->ctx_id;
-		path_common.skip_pipeline = path->skip_pipeline;
-		path_common.uv_sync_v = path->uv_sync_v;
-		path_common.frm_deci = path->frm_deci;
-		path_common.odata_mode = path->scaler.odata_mode;
-		path_common.spath_id = path->spath_id;
-		path_common.deci = path->deci;
-		path_common.src = path->src;
-		path_common.in_trim = path->in_trim;
-		path_common.out_trim = path->out_trim;
-		path_common.dst = path->dst;
-		hw->isp_ioctl(hw, ISP_HW_CFG_SET_PATH_COMMON, &path_common);
-
-		path_scaler.ctx_id = path->attach_ctx->ctx_id;
-		path_scaler.spath_id = path->spath_id;
-		path_scaler.scaler = &path->scaler;
-		path_scaler.regular_info = path->regular_info;
-		hw->isp_ioctl(hw, ISP_HW_CFG_SET_PATH_SCALER, &path_scaler);
-	}
-	path_store.ctx_id = path->attach_ctx->ctx_id;
-	path_store.spath_id = path->spath_id;
-	path_store.store = path->store;
-	hw->isp_ioctl(hw, ISP_HW_CFG_SET_PATH_STORE, &path_store);
-	if (afbc_path_id < AFBC_PATH_NUM) {
-		afbc_path.ctx_id = path->attach_ctx->ctx_id;
-		afbc_path.spath_id = path->spath_id;
-		afbc_path.afbc_store = path->afbc_store;
-		hw->isp_ioctl(hw, ISP_HW_CFG_AFBC_PATH_SET, &afbc_path);
-	}
-	pr_debug("done.\n");
 	return ret;
+}
+
+int isp_path_storeframe_sync_set(struct isp_path_uinfo *path, void *param)
+{
+	path->uframe_sync = *(uint32_t *)param;
+	pr_debug("path, uframe_sync %u\n", path->uframe_sync);
+
+	return 0;
 }
 
 int isp_path_store_frm_set(
@@ -949,10 +403,8 @@ int isp_path_store_frm_set(
 	int idx;
 	int planes;
 	unsigned long offset_u, offset_v, yuv_addr[3] = {0};
-	struct isp_sw_context *pctx;
-	struct isp_store_info *store;
-	unsigned long addr;
-	struct isp_hw_store_slice_addr store_slice;
+	struct isp_sw_context *pctx = NULL;
+	struct isp_store_info *store = NULL;
 
 	if (!path || !frame) {
 		pr_err("fail to get valid input ptr, path %p, frame %p\n",
@@ -961,9 +413,8 @@ int isp_path_store_frm_set(
 	}
 	pr_debug("enter.\n");
 	pctx = path->attach_ctx;
-	store = &path->store;
+	store = &pctx->pipe_info.store[path->spath_id].store;
 	idx = pctx->ctx_id;
-	addr = store_base[path->spath_id];
 
 	if (store->color_fmt == ISP_STORE_UYVY)
 		planes = 1;
@@ -998,7 +449,7 @@ int isp_path_store_frm_set(
 
 	if ((planes > 2) && yuv_addr[2] == 0) {
 		offset_v = store->pitch.pitch_ch1 * store->size.h;
-		if (path->store.color_fmt == ISP_STORE_YUV420_3FRAME)
+		if (store->color_fmt == ISP_STORE_YUV420_3FRAME)
 			offset_v >>= 1;
 		yuv_addr[2] = yuv_addr[1] + offset_v;
 	}
@@ -1012,18 +463,11 @@ int isp_path_store_frm_set(
 		path->spath_id, planes,
 		yuv_addr[0], yuv_addr[1], yuv_addr[2]);
 
-	store_slice.addr = addr;
-	store_slice.idx = idx;
-	store_slice.yuv_addr = yuv_addr;
-	pctx->hw->isp_ioctl(pctx->hw, ISP_HW_CFG_STORE_FRAME_ADDR, &store_slice);
-
-	path->store.addr.addr_ch0 = yuv_addr[0];
-	path->store.addr.addr_ch1 = yuv_addr[1];
-	path->store.addr.addr_ch2 = yuv_addr[2];
-	pr_debug("sw %d , done %x %x %x\n",
-		pctx->ctx_id, path->store.addr.addr_ch0,
-		path->store.addr.addr_ch1,
-		path->store.addr.addr_ch2);
+	store->addr.addr_ch0 = yuv_addr[0];
+	store->addr.addr_ch1 = yuv_addr[1];
+	store->addr.addr_ch2 = yuv_addr[2];
+	pr_debug("sw %d , done %x %x %x\n", pctx->ctx_id, store->addr.addr_ch0,
+		store->addr.addr_ch1, store->addr.addr_ch2);
 
 	return ret;
 }
@@ -1038,7 +482,6 @@ int isp_path_afbc_store_frm_set(
 	struct isp_sw_context *pctx = NULL;
 	struct isp_afbc_store_info *afbc_store = NULL;
 	struct cam_hw_info *hw = NULL;
-	struct isp_hw_afbc_addr afbc_addr;
 
 	if (!path || !frame) {
 		pr_err("fail to get valid input ptr, path %p, frame %p\n",
@@ -1048,25 +491,19 @@ int isp_path_afbc_store_frm_set(
 	pr_debug("afbc enter.\n");
 	hw = path->hw;
 	pctx = path->attach_ctx;
-	afbc_store = &path->afbc_store;
+	afbc_store = &pctx->pipe_info.afbc[path->spath_id].afbc_store;
 	idx = pctx->ctx_id;
 
 	yuv_addr[0] = frame->buf.iova[0];
 	yuv_addr[1] = frame->buf.iova[1];
-
 	if (yuv_addr[1] == 0)
 		yuv_addr[1] = yuv_addr[0] + afbc_store->header_offset;
 
-	afbc_addr.idx = idx;
-	afbc_addr.spath_id = path->spath_id;
-	afbc_addr.yuv_addr = yuv_addr;
-	hw->isp_ioctl(hw, ISP_HW_CFG_AFBC_ADDR_SET, &afbc_addr);
-
-	path->afbc_store.yheader = yuv_addr[0];
-	path->afbc_store.yaddr = yuv_addr[1];
+	afbc_store->yheader = yuv_addr[0];
+	afbc_store->yaddr = yuv_addr[1];
 
 	pr_debug("path %d afbc done 0x%x 0x%x\n", path->spath_id,
-		path->afbc_store.yheader, path->afbc_store.yaddr);
+		afbc_store->yheader, afbc_store->yaddr);
 
 	return ret;
 }
@@ -1081,7 +518,6 @@ int isp_path_fetch_frm_set(struct isp_sw_context *pctx,
 	struct isp_hw_fetch_info *fetch = NULL;
 	struct cam_hw_info *hw = NULL;
 	struct isp_hw_fbd_addr fbd;
-	struct isp_hw_fetch_slice_addr fetch_slice;
 
 	if (!pctx || !frame) {
 		pr_err("fail to get valid input ptr, pctx %p, frame %p\n",
@@ -1152,18 +588,15 @@ int isp_path_fetch_frm_set(struct isp_sw_context *pctx,
 	fetch->addr.addr_ch0 = yuv_addr[0];
 	fetch->addr.addr_ch1 = yuv_addr[1];
 	fetch->addr.addr_ch2 = yuv_addr[2];
-
 	yuv_addr[0] += fetch->trim_off.addr_ch0;
 	yuv_addr[1] += fetch->trim_off.addr_ch1;
 	yuv_addr[2] += fetch->trim_off.addr_ch2;
+	fetch->addr_hw.addr_ch0 = yuv_addr[0];
+	fetch->addr_hw.addr_ch1 = yuv_addr[1];
+	fetch->addr_hw.addr_ch2 = yuv_addr[2];
 
-	if (pctx->dev->sec_mode == SEC_SPACE_PRIORITY) {
+	if (pctx->dev->sec_mode == SEC_SPACE_PRIORITY)
 		cam_trusty_isp_fetch_addr_set(yuv_addr[0], yuv_addr[1], yuv_addr[2]);
-	} else {
-		fetch_slice.idx = idx;
-		fetch_slice.yuv_addr = yuv_addr;
-		hw->isp_ioctl(hw, ISP_HW_CFG_FETCH_FRAME_ADDR, &fetch_slice);
-	}
 
 	pr_debug("camca  isp sec_mode=%d,  %lx %lx %lx\n", pctx->dev->sec_mode,
 		yuv_addr[0],

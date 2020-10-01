@@ -15,24 +15,36 @@
 #define _ADPT_DEFINES_H_
 
 /* configure fmcu with isp register offset, range is 0x620-0x630 */
-#define ISP_OFFSET_RANGE		0x6300620
+#define ISP_OFFSET_RANGE           0x6300620
 
-#define ISP_WIDTH_MAX   8048
-#define ISP_HEIGHT_MAX  6036
-#define DCAM_24M_WIDTH  5664
-#define DCAM_16M_WIDTH  4672
-#define DCAM_13M_WIDTH  4160
-#define DCAM_8M_WIDTH  3264
-#define DCAM_RDS_OUT_LIMIT 2160
+#define ISP_WIDTH_MAX              8048
+#define ISP_HEIGHT_MAX             6036
+#define DCAM_24M_WIDTH             5664
+#define DCAM_16M_WIDTH             4672
+#define DCAM_13M_WIDTH             4160
+#define DCAM_8M_WIDTH              3264
+#define DCAM_RDS_OUT_LIMIT         2160
 
-#define DCAM_PATH_WMAX			8048
-#define DCAM_PATH_HMAX			6036
-#define RAW_OVERLAP_UP				58
-#define RAW_OVERLAP_DOWN			78
-#define RAW_OVERLAP_LEFT			118
-#define RAW_OVERLAP_RIGHT			138
-#define ISP_SLCIE_HEIGHT_MAX			8192
-#define ISP_SCALER_UP_MAX			4
+#define DCAM_PATH_WMAX             8048
+#define DCAM_PATH_HMAX             6036
+#define RAW_OVERLAP_UP             58
+#define RAW_OVERLAP_DOWN           78
+#define RAW_OVERLAP_LEFT           118
+#define RAW_OVERLAP_RIGHT          138
+#define ISP_SLCIE_HEIGHT_MAX       8192
+#define ISP_SCALER_UP_MAX          4
+
+#define ISP_SC_COEFF_COEF_SIZE     (1 << 10)
+#define ISP_SC_COEFF_TMP_SIZE      (21 << 10)
+
+#define ISP_SC_H_COEF_SIZE         0xC0
+#define ISP_SC_V_COEF_SIZE         0x210
+#define ISP_SC_V_CHROM_COEF_SIZE   0x210
+
+#define ISP_SC_COEFF_H_NUM         (ISP_SC_H_COEF_SIZE / 6)
+#define ISP_SC_COEFF_H_CHROMA_NUM  (ISP_SC_H_COEF_SIZE / 12)
+#define ISP_SC_COEFF_V_NUM         (ISP_SC_V_COEF_SIZE / 4)
+#define ISP_SC_COEFF_V_CHROMA_NUM  (ISP_SC_V_CHROM_COEF_SIZE / 4)
 
 /*
  *DCAM_CONTROL register bit map id

@@ -105,11 +105,11 @@ static inline void ispint_isp_int_record(
 
 static int ispint_err_pre_proc(enum isp_context_hw_id hw_idx, void *isp_handle)
 {
+	unsigned long addr = 0;
 	struct isp_pipe_dev *dev = NULL;
 	struct isp_sw_context *pctx;
 	int idx = -1;
 
-	//pr_err("isp cxt_id:%d error happened\n", idx);
 	dev = (struct isp_pipe_dev *)isp_handle;
 	idx = isp_core_sw_context_id_get(hw_idx, dev);
 	if (idx < 0) {
@@ -117,8 +117,30 @@ static int ispint_err_pre_proc(enum isp_context_hw_id hw_idx, void *isp_handle)
 		return 0;
 	}
 	pctx = dev->sw_ctx[idx];
-	/* todo: isp error handling */
-	/*pctx->isp_cb_func(ISP_CB_DEV_ERR, dev, pctx->cb_priv_data);*/
+
+	pr_info("isp sw %d hw %d\n", idx, hw_idx);
+	pr_info("ISP: sw cfg Register list\n");
+	/* TBD: should add necessary cfg register print */
+	for (addr = 0xc010; addr <= 0xc150; addr += 16) {
+		pr_info("0x%lx: 0x%x 0x%x 0x%x 0x%x\n",
+			addr,
+			ISP_REG_RD(idx, addr),
+			ISP_REG_RD(idx, addr + 4),
+			ISP_REG_RD(idx, addr + 8),
+			ISP_REG_RD(idx, addr + 12));
+	}
+
+	pr_info("ISP: hw Register list\n");
+	/* TBD: should add necessary hw register print */
+	for (addr = 0xc010; addr <= 0xc150; addr += 16) {
+		pr_info("0x%lx: 0x%x 0x%x 0x%x 0x%x\n",
+			addr,
+			ISP_HREG_RD(addr),
+			ISP_HREG_RD(addr + 4),
+			ISP_HREG_RD(addr + 8),
+			ISP_HREG_RD(addr + 12));
+	}
+
 	return 0;
 }
 

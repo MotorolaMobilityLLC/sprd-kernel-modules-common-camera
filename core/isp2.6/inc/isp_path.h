@@ -25,32 +25,24 @@
 
 int isp_path_comn_uinfo_set(struct isp_sw_context *pctx, void *param);
 int isp_path_fetch_uinfo_set(struct isp_sw_context *pctx, void *param);
-int isp_path_compress_uinfo_set(struct isp_sw_context *pctx, void *param);
+int isp_path_fetch_compress_uinfo_set(struct isp_sw_context *pctx, void *param);
 int isp_path_fetchsync_uinfo_set(struct isp_sw_context *pctx, void *param);
-
-int isp_path_base_cfg(struct isp_path_desc *path, void *param);
-int isp_path_size_cfg(struct isp_path_desc *path, void *param);
-int isp_path_compression_cfg(struct isp_path_desc *path, void *param);
-int isp_path_uframe_sync_cfg(struct isp_path_desc *path, void *param);
 
 int isp_path_storecomn_uinfo_set(struct isp_path_uinfo *path, void *param);
 int isp_path_storecrop_uinfo_set(struct isp_path_uinfo *path, void *param);
+int isp_path_store_compress_uinfo_set(struct isp_path_uinfo *path, void *param);
+int isp_path_storeframe_sync_set(struct isp_path_uinfo *path, void *param);
 
 int isp_path_fetchsize_update(struct isp_sw_context *pctx, void *param);
-int isp_path_set(struct isp_path_desc *path);
-int isp_path_fetch_frm_set(struct isp_sw_context *pctx,
-		struct camera_frame *frame);
-int isp_path_store_frm_set(
-		struct isp_path_desc *path,
-		struct camera_frame *frame);
-int isp_path_afbc_store_frm_set(
-		struct isp_path_desc *path,
-		struct camera_frame *frame);
-int isp_path_scaler_cfg(struct isp_path_desc *path);
+int isp_path_storecrop_update(struct isp_path_uinfo *path, void *param);
 
-int isp_path_scaler_coeff_set(struct coeff_arg *arg,
-		uint32_t buf_sel,
-		uint32_t spath_id,
-		uint32_t *coeff_buf);
+int isp_path_fetch_frm_set(struct isp_sw_context *pctx, struct camera_frame *frame);
+int isp_path_store_frm_set(struct isp_path_desc *path, struct camera_frame *frame);
+int isp_path_afbc_store_frm_set(struct isp_path_desc *path, struct camera_frame *frame);
+
+int isp_path_scaler_param_calc(struct img_trim *in_trim,
+		struct img_size *out_size, struct isp_scaler_info *scaler,
+		struct img_deci_info *deci);
+int isp_path_scaler_coeff_calc(struct isp_scaler_info *scaler, uint32_t scale2yuv420);
 
 #endif

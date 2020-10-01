@@ -66,6 +66,7 @@ enum isp_irq_id {
 	(1 << ISP_INT_FMCU_CMD_ERROR) |      \
 	(1 << ISP_INT_FBD_FETCH_ERR) |       \
 	(1 << ISP_INT_NR3_FBD_ERR) |         \
+	(1 << ISP_INT_AXI_TIMEOUT) |         \
 	(1 << ISP_INT_NR3_FBC_ERR))
 
 #define ISP_INT_LINE_MASK_MMU                (1 << ISP_INT_MMU_ERR)

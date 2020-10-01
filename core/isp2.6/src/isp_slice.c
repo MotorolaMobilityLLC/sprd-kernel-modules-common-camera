@@ -867,7 +867,7 @@ void isp_slice_spath_trim1_info_cfg(
 static int ispslice_slice_thumbscaler_cfg(
 		struct isp_slice_desc *cur_slc,
 		struct img_trim *frm_trim0,
-		struct isp_thumbscaler_info *scalerFrame,
+		struct isp_hw_thumbscaler_info *scalerFrame,
 		struct slice_thumbscaler_info *scalerSlice)
 {
 	int ret = 0;
@@ -1030,7 +1030,7 @@ static int ispslice_slice_scaler_info_cfg(
 			if (j == ISP_SPATH_FD) {
 				ispslice_slice_thumbscaler_cfg(cur_slc,
 					in_ptr->frame_trim0[j],
-					(struct isp_thumbscaler_info *)
+					(struct isp_hw_thumbscaler_info *)
 					in_ptr->frame_scaler[j],
 					&cur_slc->slice_thumbscaler);
 				continue;
@@ -1496,7 +1496,8 @@ static int ispslice_afbc_store_info_cfg(
 			continue;
 		for (j = 0; j < AFBC_PATH_NUM; j++) {
 			frm_afbc_store = in_ptr->frame_afbc_store[j];
-			if (frm_afbc_store == NULL || cur_slc->path_en[j] == 0)
+			if (frm_afbc_store == NULL || cur_slc->path_en[j] == 0
+				|| frm_afbc_store->bypass)
 				/* path is not valid. */
 				continue;
 			slc_afbc_store = &cur_slc->slice_afbc_store[j];
@@ -2330,8 +2331,7 @@ int isp_slice_info_cfg(void *cfg_in, struct isp_slice_context *slc_ctx)
 	in_ptr = (struct slice_cfg_input *)cfg_in;
 	ispslice_fetch_info_cfg(cfg_in, slc_ctx);
 	ispslice_store_info_cfg(cfg_in, slc_ctx);
-	if (in_ptr->store_afbc_bypass == 0)
-		ispslice_afbc_store_info_cfg(cfg_in, slc_ctx);
+	ispslice_afbc_store_info_cfg(cfg_in, slc_ctx);
 	ispslice_3dnr_info_cfg(cfg_in, slc_ctx);
 	if (in_ptr->ltm_rgb_eb)
 		ispslice_ltm_info_cfg(cfg_in, slc_ctx, LTM_RGB);

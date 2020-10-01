@@ -89,12 +89,6 @@ enum isp_ltm_region {
 	LTM_MAX
 };
 
-enum isp_afbc_path {
-	AFBC_PATH_PRE = 0,
-	AFBC_PATH_VID,
-	AFBC_PATH_NUM,
-};
-
 enum isp_path_binding_type {
 	ISP_PATH_ALONE = 0,
 	ISP_PATH_MASTER,
@@ -255,7 +249,7 @@ void *isp_core_pipe_dev_get(void);
 int isp_core_pipe_dev_put(void *isp_handle);
 
 int isp_drv_hw_init(void *arg);
-int isp_hw_deinit(void *arg);
+int isp_drv_hw_deinit(void *arg);
 int isp_drv_pipeinfo_get(void *arg, uint32_t hw_id);
 int sprd_isp_dt_parse(struct device_node *dn,
 		struct cam_hw_info *hw_info,

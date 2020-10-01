@@ -411,7 +411,6 @@ static int ispcfg_block_config(
 {
 	int ret = 0;
 	uint32_t val = 0;
-	unsigned long flag;
 	void *shadow_buf_vaddr = NULL;
 	void *work_buf_vaddr = NULL;
 	unsigned long hw_addr = 0;
@@ -476,9 +475,9 @@ copy_sec:
 	else
 		val = 0;
 
-	spin_lock_irqsave(&cfg_ctx->lock, flag);
+	spin_lock(&cfg_ctx->lock);
 	ISP_HREG_MWR(ISP_CFG_PAMATER, ready_mode[hw_ctx_id], val);
-	spin_unlock_irqrestore(&cfg_ctx->lock, flag);
+	spin_unlock(&cfg_ctx->lock);
 
 	ISP_HREG_WR(cfg_cmd_addr_reg[hw_ctx_id], hw_addr);
 

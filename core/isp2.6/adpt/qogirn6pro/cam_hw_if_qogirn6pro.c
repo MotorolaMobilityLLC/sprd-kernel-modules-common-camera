@@ -33,15 +33,42 @@
 #define pr_fmt(fmt) "CAM_HW_IF_N6PRO: %d %d %s : "\
 	fmt, current->pid, __LINE__, __func__
 
+static unsigned long coff_buf_addr[2][3][4] = {
+	{
+		{
+			ISP_SCALER_PRE_LUMA_HCOEFF_BUF0,
+			ISP_SCALER_PRE_CHROMA_HCOEFF_BUF0,
+			ISP_SCALER_PRE_LUMA_VCOEFF_BUF0,
+			ISP_SCALER_PRE_CHROMA_VCOEFF_BUF0,
+		},
+		{
+			ISP_SCALER_VID_LUMA_HCOEFF_BUF0,
+			ISP_SCALER_VID_CHROMA_HCOEFF_BUF0,
+			ISP_SCALER_VID_LUMA_VCOEFF_BUF0,
+			ISP_SCALER_VID_CHROMA_VCOEFF_BUF0,
+		}
+	},
+	{
+		{
+			ISP_SCALER_PRE_LUMA_HCOEFF_BUF1,
+			ISP_SCALER_PRE_CHROMA_HCOEFF_BUF1,
+			ISP_SCALER_PRE_LUMA_VCOEFF_BUF1,
+			ISP_SCALER_PRE_CHROMA_VCOEFF_BUF1,
+		},
+		{
+			ISP_SCALER_VID_LUMA_HCOEFF_BUF1,
+			ISP_SCALER_VID_CHROMA_HCOEFF_BUF1,
+			ISP_SCALER_VID_LUMA_VCOEFF_BUF1,
+			ISP_SCALER_VID_CHROMA_VCOEFF_BUF1,
+		}
+	},
+};
+
 #define CAM_HW_ADPT_LAYER
 #include "dcam_hw.c"
 #include "isp_hw.c"
 #undef CAM_HW_ADPT_LAYER
 
-/*
- * TODO slow motion
- * remove unused address for AEM and HIST
- */
 const unsigned long slowmotion_store_addr[3][4] = {
 	{
 		DCAM_BIN_BASE_WADDR0,
