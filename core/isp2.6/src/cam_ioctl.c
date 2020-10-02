@@ -1900,6 +1900,7 @@ static int camioctl_stream_off(struct camera_module *module,
 		ch->ch_id = i;
 		ch->dcam_path_id = -1;
 		ch->isp_path_id = -1;
+		ch->isp_ctx_id = -1;
 		init_completion(&ch->alloc_com);
 	}
 
