@@ -3099,10 +3099,7 @@ static void    _dcam_path0_overflow(void)
 
 	pr_info("_path0_overflow.\n");
 	path = &s_p_dcam_mod->dcam_path0;
-	if (_dcam_frame_dequeue(&path->frame_queue, &frame)) {
-		pr_err("path0 ov dq frame error\n");
-		return;
-	}
+	_dcam_frame_dequeue(&path->frame_queue, &frame);
 
 	if (user_func)
 		(*user_func)(&frame, data);
@@ -3190,10 +3187,7 @@ static void    _dcam_path1_overflow(void)
 
 	pr_info("_path1_overflow.\n");
 	path = &s_p_dcam_mod->dcam_path1;
-	if (_dcam_frame_dequeue(&path->frame_queue, &frame)) {
-		pr_err("path1 ov dq frame error\n");
-		return;
-	}
+	_dcam_frame_dequeue(&path->frame_queue, &frame);
 
 	if (user_func)
 		(*user_func)(&frame, data);
@@ -3289,10 +3283,7 @@ static void    _dcam_path2_ov(void)
 
 	pr_info("_path2_overflow.\n");
 	path = &s_p_dcam_mod->dcam_path2;
-	if (_dcam_frame_dequeue(&path->frame_queue, &frame)) {
-		pr_err("path2 ov dq frame error\n");
-		return;
-	}
+	_dcam_frame_dequeue(&path->frame_queue, &frame);
 
 	if (user_func)
 		(*user_func)(&frame, data);
