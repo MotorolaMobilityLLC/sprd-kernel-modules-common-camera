@@ -1149,8 +1149,10 @@ static struct camera_frame *ispcore_path_out_frame_get(
 		case ISP_STREAM_BUF_POSTPROC:
 			out_frame = pctx->postproc_buf;
 			if (out_frame) {
-				cam_buf_iommu_map(&out_frame->buf, CAM_IOMMUDEV_ISP);
+				ret = cam_buf_iommu_map(&out_frame->buf, CAM_IOMMUDEV_ISP);
 				tmp->valid_out_frame = 1;
+				if (ret)
+					out_frame = NULL;
 			}
 			break;
 		case ISP_STREAM_BUF_RESULT:
