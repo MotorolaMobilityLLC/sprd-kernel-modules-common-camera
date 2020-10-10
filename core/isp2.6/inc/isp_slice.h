@@ -259,7 +259,7 @@ struct slice_ltm_map_info {
 	uint32_t tile_left_flag;
 	uint32_t tile_start_x;
 	uint32_t tile_start_y;
-	uint32_t mem_addr;
+	unsigned long mem_addr;
 };
 
 struct slice_noisefilter_info {

@@ -1345,26 +1345,17 @@ static int ispslice_store_info_cfg(
 				slc_store->size.h =
 					slc_thumbscaler->y_dst_after_scaler.h;
 				if (cur_slc->y == 0 &&
-					(cur_slc->x + 1) < SLICE_W_NUM_MAX &&
-					SLICE_W_NUM_MAX > 1)
+					(cur_slc->x + 1) < SLICE_W_NUM_MAX)
 					start_col_out[j][cur_slc->x + 1] =
 						slc_store->size.w +
 						start_col_out[j][cur_slc->x];
-
-				if (cur_slc->x == 0 &&
-					(cur_slc->y + 1) < SLICE_H_NUM_MAX &&
-					SLICE_H_NUM_MAX > 1)
-					start_row_out[j][cur_slc->y + 1] =
-						slc_store->size.h +
-						start_row_out[j][cur_slc->y];
 
 			} else if (slc_scaler->scaler_bypass == 0) {
 				slc_store->size.w = slc_scaler->trim1_size_x;
 				slc_store->size.h = slc_scaler->trim1_size_y;
 
 				if (cur_slc->y == 0 &&
-					(cur_slc->x + 1) < SLICE_W_NUM_MAX &&
-					SLICE_W_NUM_MAX > 1)
+					(cur_slc->x + 1) < SLICE_W_NUM_MAX)
 					start_col_out[j][cur_slc->x + 1] =
 						slc_store->size.w +
 						start_col_out[j][cur_slc->x];
