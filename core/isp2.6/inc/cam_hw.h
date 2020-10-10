@@ -203,6 +203,7 @@ enum isp_hw_cfg_cmd {
 	ISP_HW_CFG_STORE_FRAME_ADDR,
 	ISP_HW_CFG_FETCH_FRAME_ADDR,
 	ISP_HW_CFG_MAP_INIT,
+	ISP_HW_CFG_CMD_READY,
 	ISP_HW_CFG_START_ISP,
 	ISP_HW_CFG_UPDATE_HIST_ROI,
 	ISP_HW_CFG_FETCH_START,
@@ -929,6 +930,12 @@ struct cam_hw_soc_info {
 	uint32_t arqos_low;
 	uint32_t awqos_high;
 	uint32_t awqos_low;
+};
+
+struct isp_hw_cfg_info {
+	uint32_t hw_ctx_id;
+	uint32_t fmcu_enable;
+	uint32_t hw_addr;
 };
 
 struct cam_hw_info {

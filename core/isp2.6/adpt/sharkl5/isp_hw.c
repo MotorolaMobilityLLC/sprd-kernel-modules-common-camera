@@ -14,11 +14,20 @@
 #ifdef CAM_HW_ADPT_LAYER
 
 #define ISP_AXI_STOP_TIMEOUT			1000
+spinlock_t isp_cfg_lock;
+
 static unsigned long irq_base[4] = {
 	ISP_P0_INT_BASE,
 	ISP_C0_INT_BASE,
 	ISP_P1_INT_BASE,
 	ISP_C1_INT_BASE
+};
+
+unsigned long cfg_cmd_addr_reg[ISP_CONTEXT_HW_NUM] = {
+	ISP_CFG_PRE0_CMD_ADDR,
+	ISP_CFG_CAP0_CMD_ADDR,
+	ISP_CFG_PRE1_CMD_ADDR,
+	ISP_CFG_CAP1_CMD_ADDR
 };
 
 static unsigned long store_base[ISP_SPATH_NUM] = {
@@ -588,6 +597,7 @@ static int isphw_default_param_set(void *handle, void *arg)
 
 	param = (struct isp_hw_default_param *)arg;
 	hw = (struct cam_hw_info *)handle;
+	spin_lock_init(&isp_cfg_lock);
 
 	if (param->type == ISP_HW_PARA) {
 		goto isp_hw_para;
@@ -2297,6 +2307,38 @@ static int isphw_map_init_cfg(void *handle, void *arg)
 	return 0;
 }
 
+static int isphw_cfg_cmd_ready(void *handle, void *arg)
+{
+	struct isp_hw_cfg_info *cfg_info = (struct isp_hw_cfg_info *)arg;
+	uint32_t val = 0;
+	uint32_t hw_ctx_id = cfg_info->hw_ctx_id;
+	uint32_t ready_mode[ISP_CONTEXT_HW_NUM] = {
+		BIT_26,/* pre0_cmd_ready_mode */
+		BIT_24,/* cap0_cmd_ready_mode */
+		BIT_27,/* pre1_cmd_ready_mode */
+		BIT_25/* cap1_cmd_ready_mode */
+	};
+
+	if (cfg_info->fmcu_enable)
+		val = ready_mode[hw_ctx_id];
+	else
+		val = 0;
+
+	spin_lock(&isp_cfg_lock);
+	ISP_HREG_MWR(ISP_CFG_PAMATER, ready_mode[hw_ctx_id], val);
+	spin_unlock(&isp_cfg_lock);
+
+	ISP_HREG_WR(cfg_cmd_addr_reg[hw_ctx_id], cfg_info->hw_addr);
+	pr_debug("ctx %d,  reg %08x  %08x, hw_addr %lx, val %08x\n",
+		hw_ctx_id,
+		(uint32_t)cfg_cmd_addr_reg[hw_ctx_id],
+		(uint32_t)ISP_GET_REG(cfg_cmd_addr_reg[hw_ctx_id]),
+		cfg_info->hw_addr,
+		ISP_HREG_RD(cfg_cmd_addr_reg[hw_ctx_id]));
+
+	return 0;
+}
+
 static int isphw_isp_start_cfg(void *handle, void *arg)
 {
 	uint32_t ctx_id = 0;
@@ -2473,6 +2515,7 @@ static struct hw_io_ctrl_fun isp_ioctl_fun_tab[] = {
 	{ISP_HW_CFG_STORE_FRAME_ADDR,        isphw_frame_addr_store},
 	{ISP_HW_CFG_FETCH_FRAME_ADDR,        isphw_frame_addr_fetch},
 	{ISP_HW_CFG_MAP_INIT,                isphw_map_init_cfg},
+	{ISP_HW_CFG_CMD_READY,               isphw_cfg_cmd_ready},
 	{ISP_HW_CFG_START_ISP,               isphw_isp_start_cfg},
 	{ISP_HW_CFG_UPDATE_HIST_ROI,         isphw_hist_roi_update},
 	{ISP_HW_CFG_FETCH_START,             isphw_fetch_start},

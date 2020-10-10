@@ -96,7 +96,6 @@ struct isp_cfg_ctx_desc {
 	struct isp_cfg_buf cfg_buf[ISP_CONTEXT_SW_NUM];
 	struct camera_buf ion_pool;
 	struct camera_buf ion_pool_cached;
-	spinlock_t lock;
 	atomic_t user_cnt;
 	atomic_t map_cnt;
 	struct isp_cfg_ops *ops;

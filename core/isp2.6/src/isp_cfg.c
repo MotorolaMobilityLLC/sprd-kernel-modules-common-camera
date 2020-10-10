@@ -34,13 +34,6 @@ struct isp_cfg_map_sector {
 	uint32_t size;
 };
 
-unsigned long cfg_cmd_addr_reg[ISP_CONTEXT_HW_NUM] = {
-	ISP_CFG_PRE0_CMD_ADDR,
-	ISP_CFG_CAP0_CMD_ADDR,
-	ISP_CFG_PRE1_CMD_ADDR,
-	ISP_CFG_CAP1_CMD_ADDR
-};
-
 /* s_map_sec_cnt/s_map_sectors only configure once
  * due to ISP_CFG_MAP[] is static and fixed
  */
@@ -334,18 +327,12 @@ static int ispcfg_block_config(
 		uint32_t fmcu_enable)
 {
 	int ret = 0;
-	uint32_t val = 0;
 	void *shadow_buf_vaddr = NULL;
 	void *work_buf_vaddr = NULL;
 	unsigned long hw_addr = 0;
 	enum cfg_buf_id buf_id;
 	struct isp_cfg_buf *cfg_buf_p;
-	uint32_t ready_mode[ISP_CONTEXT_HW_NUM] = {
-		BIT_26,/* pre0_cmd_ready_mode */
-		BIT_24,/* cap0_cmd_ready_mode */
-		BIT_27,/* pre1_cmd_ready_mode */
-		BIT_25/* cap1_cmd_ready_mode */
-	};
+	struct isp_hw_cfg_info cfg_info = { 0 };
 
 	if (!cfg_ctx) {
 		pr_err("fail to get cfg_ctx pointer\n");
@@ -363,7 +350,6 @@ static int ispcfg_block_config(
 
 		pr_debug("ctx %d cmd buf %p, %p\n",
 			hw_ctx_id, work_buf_vaddr, shadow_buf_vaddr);
-
 		if (s_map_sec_cnt > 0)
 			goto copy_sec;
 
@@ -394,23 +380,10 @@ copy_sec:
 	pr_debug("shadow: 0x%p, work: 0x%p, hw_addr: 0x%lx\n",
 		shadow_buf_vaddr, work_buf_vaddr, hw_addr);
 
-	if (fmcu_enable)
-		val = ready_mode[hw_ctx_id];
-	else
-		val = 0;
-
-	spin_lock(&cfg_ctx->lock);
-	ISP_HREG_MWR(ISP_CFG_PAMATER, ready_mode[hw_ctx_id], val);
-	spin_unlock(&cfg_ctx->lock);
-
-	ISP_HREG_WR(cfg_cmd_addr_reg[hw_ctx_id], hw_addr);
-
-	pr_debug("ctx %d,  reg %08x  %08x, hw_addr %lx, val %08x\n",
-		hw_ctx_id,
-		(uint32_t)cfg_cmd_addr_reg[hw_ctx_id],
-		(uint32_t)ISP_GET_REG(cfg_cmd_addr_reg[hw_ctx_id]),
-		hw_addr,
-		ISP_HREG_RD(cfg_cmd_addr_reg[hw_ctx_id]));
+	cfg_info.fmcu_enable = fmcu_enable;
+	cfg_info.hw_ctx_id = hw_ctx_id;
+	cfg_info.hw_addr = hw_addr;
+	cfg_ctx->hw->isp_ioctl(cfg_ctx->hw, ISP_HW_CFG_CMD_READY, &cfg_info);
 
 	pr_debug("Done\n");
 	return ret;
@@ -432,7 +405,6 @@ static int ispcfg_ctx_init(struct isp_cfg_ctx_desc *cfg_ctx)
 		goto exit;
 	}
 
-	cfg_ctx->lock = __SPIN_LOCK_UNLOCKED(&cfg_ctx->lock);
 	atomic_set(&cfg_ctx->map_cnt, 0);
 
 	ret = ispcfg_cctx_buf_init(cfg_ctx);
