@@ -84,7 +84,8 @@ static int dvfs_probe(struct platform_device *pdev) {
     if (IS_ERR(module->clk_module_core))
         dev_err(dev, "Cannot get the clk_module_core clk\n");
 
-    of_property_read_u32(np, "sprd,dvfs-wait-window", &module->dvfs_wait_window);
+    if (of_property_read_u32(np, "sprd,dvfs-wait-window", &module->dvfs_wait_window))
+        pr_err("np:sprd,dvfs-wait-window");
 #endif
     ret = dev_pm_opp_of_add_table(dev);
     if (ret) {
@@ -92,8 +93,9 @@ static int dvfs_probe(struct platform_device *pdev) {
         goto err;
     }
 
-    of_property_read_u32(np, "sprd,dvfs-work-index-def",
-                         &module->module_dvfs_para.ip_coffe.work_index_def);
+    if (of_property_read_u32(np, "sprd,dvfs-work-index-def",
+                         &module->module_dvfs_para.ip_coffe.work_index_def))
+        pr_err("np: the value of the of_property_read_u32\n");
     platform_set_drvdata(pdev, module);
     module->devfreq =
         devm_devfreq_add_device(dev, &dvfs_profile, "mtx_dvfs", NULL);
