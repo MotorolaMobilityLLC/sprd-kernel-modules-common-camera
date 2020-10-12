@@ -18,6 +18,16 @@
 
 #define ISP_HW_MAX_COUNT (4)
 
+typedef enum ispt_fmt {
+	ISPT_FMT_UYVY = 0,
+	ISPT_FMT_YUV422_2FRAME,
+	ISPT_FMT_YUV420_2FRAME,
+	ISPT_FMT_YVU420_2FRAME,
+	ISPT_FMT_YVU422_2FRAME,
+	ISPT_FMT_YUV422_3FRAME,
+	ISPT_FMT_YUV420_3FRAME,
+} ispt_fmt_id;
+
 enum camt_cmd {
 	CAMT_CMD_INIT = 0,
 	CAMT_CMD_START,
@@ -66,6 +76,12 @@ struct camt_isp_info {
 	/* buffer desc */
 	int inbuf_fd;
 	int outbuf_fd;
+};
+
+struct img_store_addr {
+	unsigned long addr_ch0;
+	unsigned long addr_ch1;
+	unsigned long addr_ch2;
 };
 
 struct camt_info {

@@ -22,6 +22,7 @@
 #include "isp_reg.h"
 #include "isp_int.h"
 #include "isp_cfg.h"
+#include "sprd_cam_test.h"
 
 #ifdef pr_fmt
 #undef pr_fmt
@@ -445,7 +446,7 @@ static int camt_isp_cfg_fetch(struct ispt_context *ctx,
 	fetch->fetch_path_sel = 0;
 	fetch->pack_bits = 0;
 	fetch->sec_mode = 0;
-	fetch->fetch_fmt = ISP_FETCH_CSI2_RAW10;
+	fetch->fetch_fmt = ISP_FETCH_RAW10;
 	fetch->in_trim.start_x = info->crop_rect.x;
 	fetch->in_trim.start_y = info->crop_rect.y;
 	fetch->in_trim.size_x = info->crop_rect.w;
@@ -458,6 +459,9 @@ static int camt_isp_cfg_fetch(struct ispt_context *ctx,
 	case ISP_FETCH_YVYU:
 	case ISP_FETCH_VYUY:
 	case ISP_FETCH_RAW10:
+		fetch->pitch.pitch_ch0 = cal_sprd_raw_pitch(info->input_size.w, 1);
+		trim_offset[0] = 0;
+		break;
 	case ISP_FETCH_YUV422_2FRAME:
 	case ISP_FETCH_YVU422_2FRAME:
 	case ISP_FETCH_YUV420_2FRAME:
@@ -525,12 +529,12 @@ static int camt_isp_cfg_fetch(struct ispt_context *ctx,
 		goto exit;
 	}
 
-	fetch->addr.addr_ch0 = in_buf->iova[0];
-	fetch->addr.addr_ch1 = in_buf->iova[1];
-	fetch->addr.addr_ch2 = in_buf->iova[2];
-	fetch->addr.addr_ch0 += fetch->trim_off.addr_ch0;
-	fetch->addr.addr_ch1 += fetch->trim_off.addr_ch1;
-	fetch->addr.addr_ch2 += fetch->trim_off.addr_ch2;
+	fetch->addr_hw.addr_ch0 = in_buf->iova[0];
+	fetch->addr_hw.addr_ch1 = in_buf->iova[1];
+	fetch->addr_hw.addr_ch2 = in_buf->iova[2];
+	fetch->addr_hw.addr_ch0 += fetch->trim_off.addr_ch0;
+	fetch->addr_hw.addr_ch1 += fetch->trim_off.addr_ch1;
+	fetch->addr_hw.addr_ch2 += fetch->trim_off.addr_ch2;
 
 	return ret;
 exit:
@@ -538,7 +542,7 @@ exit:
 }
 
 static int camt_isp_cfg_store(struct ispt_context *ctx,
-	struct camt_info *info)
+	struct camt_info *info, int i)
 {
 	int ret = 0;
 	uint32_t ctx_id = 0;
@@ -556,7 +560,7 @@ static int camt_isp_cfg_store(struct ispt_context *ctx,
 	ctx_id = camt_isp_get_ctx_id(info);
 
 	store_info->ctx_id = ctx_id;
-	store_info->spath_id = info->path_id[0];
+	store_info->spath_id = info->path_id[i];
 	store->color_fmt = ISP_STORE_YUV420_2FRAME;
 	store->bypass = 0;
 	store->endian = ENDIAN_LITTLE;
@@ -603,7 +607,7 @@ static int camt_isp_cfg_store(struct ispt_context *ctx,
 	size = store->pitch.pitch_ch0 * info->input_size.h;
 	out_buf = &ctx->out_buf;
 	out_buf->type = CAM_BUF_USER;
-	out_buf->mfd[0] = info->outbuf_fd[0];
+	out_buf->mfd[0] = info->outbuf_fd[i];
 	ret = cam_buf_ionbuf_get(out_buf);
 	if (ret) {
 		pr_err("fail to get out ion buffer\n");
@@ -679,6 +683,7 @@ int ispt_start(struct camt_info *info)
 {
 	int ret = 0;
 	uint32_t ctx_id = 0;
+	int i = 0;
 	struct ispt_context *ctx = NULL;
 	struct cam_hw_info *hw = NULL;
 	struct isp_hw_path_scaler *path_scaler = NULL;
@@ -686,7 +691,7 @@ int ispt_start(struct camt_info *info)
 
 	ctx = ispt_cxt;
 	hw = ctx->hw;
-
+	path_scaler = &ctx->path_scaler;
 	ret = camt_isp_cfg_fetch(ctx, info);
 	if (ret) {
 		pr_err("fail to cfg isp param\n");
@@ -704,39 +709,41 @@ int ispt_start(struct camt_info *info)
 	hw->isp_ioctl(hw, ISP_HW_CFG_FETCH_FRAME_ADDR, &ctx->fetch_info);
 	hw->isp_ioctl(hw, ISP_HW_CFG_FETCH_SET, &ctx->fetch_info);
 
-	path_scaler->ctx_id = ctx_id;
-	path_scaler->uv_sync_v = 0;
-	path_scaler->frm_deci = 0;
-	path_scaler->scaler.odata_mode = 1;
-	path_scaler->spath_id = info->path_id[0];
-	path_scaler->deci.deci_x_eb = 0;
-	path_scaler->deci.deci_y_eb = 0;
-	path_scaler->deci.deci_x = 0;
-	path_scaler->deci.deci_y = 0;
-	path_scaler->src.w = info->input_size.w;
-	path_scaler->src.h = info->input_size.h;
-	path_scaler->in_trim.start_x = info->crop_rect.x;
-	path_scaler->in_trim.start_y = info->crop_rect.y;
-	path_scaler->in_trim.size_x = info->crop_rect.w;
-	path_scaler->in_trim.size_y = info->crop_rect.h;
-	path_scaler->out_trim.start_x = 0;
-	path_scaler->out_trim.start_y = 0;
-	path_scaler->out_trim.size_x = info->output_size.w;
-	path_scaler->out_trim.size_y = info->output_size.h;
-	path_scaler->dst.w = info->output_size.w;
-	path_scaler->dst.h = info->output_size.h;
-	/* TBD just bypass scaler */
-	path_scaler->scaler.scaler_bypass = 1;
-	hw->isp_ioctl(hw, ISP_HW_CFG_SET_PATH_SCALER, path_scaler);
+	for (i = 0; i < DRV_PATH_NUM; i++) {
+		path_scaler->ctx_id = ctx_id;
+		path_scaler->uv_sync_v = 0;
+		path_scaler->frm_deci = 0;
+		path_scaler->scaler.odata_mode = 1;
+		path_scaler->spath_id = info->path_id[i];
+		path_scaler->deci.deci_x_eb = 0;
+		path_scaler->deci.deci_y_eb = 0;
+		path_scaler->deci.deci_x = 0;
+		path_scaler->deci.deci_y = 0;
+		path_scaler->src.w = info->input_size.w;
+		path_scaler->src.h = info->input_size.h;
+		path_scaler->in_trim.start_x = info->crop_rect.x;
+		path_scaler->in_trim.start_y = info->crop_rect.y;
+		path_scaler->in_trim.size_x = info->crop_rect.w;
+		path_scaler->in_trim.size_y = info->crop_rect.h;
+		path_scaler->out_trim.start_x = 0;
+		path_scaler->out_trim.start_y = 0;
+		path_scaler->out_trim.size_x = info->output_size.w;
+		path_scaler->out_trim.size_y = info->output_size.h;
+		path_scaler->dst.w = info->output_size.w;
+		path_scaler->dst.h = info->output_size.h;
+		/* TBD just bypass scaler */
+		path_scaler->scaler.scaler_bypass = 1;
+		hw->isp_ioctl(hw, ISP_HW_CFG_SET_PATH_SCALER, path_scaler);
 
-	ret = camt_isp_cfg_store(ctx, info);
-	if (ret) {
-		pr_err("fail to cfg isp param\n");
-		goto exit;
+		ret = camt_isp_cfg_store(ctx, info, i);
+		if (ret) {
+			pr_err("fail to cfg isp param\n");
+			goto exit;
+		}
+
+		hw->isp_ioctl(hw, ISP_HW_CFG_STORE_FRAME_ADDR, &ctx->path_store);
+		hw->isp_ioctl(hw, ISP_HW_CFG_SET_PATH_STORE, &ctx->path_store);
 	}
-
-	hw->isp_ioctl(hw, ISP_HW_CFG_STORE_FRAME_ADDR, &ctx->path_store);
-	hw->isp_ioctl(hw, ISP_HW_CFG_SET_PATH_STORE, &ctx->path_store);
 
 	pr_info("fail to ctx_id %d addr %lx\n", ctx_id, ctx->isp_cxt[ctx_id].cfg_hw_addr);
 	ISP_HREG_WR(camt_cfg_addr_reg[ctx_id], ctx->isp_cxt[ctx_id].cfg_hw_addr);
