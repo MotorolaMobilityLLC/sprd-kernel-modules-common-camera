@@ -4660,15 +4660,10 @@ static int camcore_thread_create(struct camera_module *module,
 
 static void camcore_thread_stop(struct cam_thread_info *thrd)
 {
-	unsigned long timeleft = 0;
-
 	if (thrd->thread_task) {
 		atomic_set(&thrd->thread_stop, 1);
 		complete(&thrd->thread_com);
-		timeleft = wait_for_completion_timeout(&thrd->thread_stop_com,
-				msecs_to_jiffies(THREAD_STOP_TIMEOUT));
-		if (timeleft == 0)
-			pr_err("fail to stop %s thread, timeout\n", thrd->thread_name);
+		wait_for_completion_interruptible(&thrd->thread_stop_com);
 		thrd->thread_task = NULL;
 	}
 }
