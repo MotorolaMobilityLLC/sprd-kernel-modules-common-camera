@@ -281,13 +281,5 @@ struct bypass_tag {
 	uint32_t bpos;/* bit position */
 	uint32_t all;/* 1: all bypass except preview path */
 };
-uint32_t dcam_tb_bypass_get_count(void);
-struct bypass_tag *dcam_tb_bypass_get_data(uint32_t index);
-
-uint32_t isp_tb_bypass_get_count(void);
-struct bypass_tag *isp_tb_bypass_get_data(uint32_t index);
-
-uint32_t dcam_trace_regs_get_count(void);
-uint32_t dcam_trace_regs_get_data(uint32_t index);
 
 #endif

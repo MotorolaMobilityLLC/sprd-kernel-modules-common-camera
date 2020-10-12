@@ -2338,11 +2338,6 @@ static inline void camcore_largest_crop_get(
 	}
 }
 
-static inline uint32_t camcore_ratio16_multiply(uint64_t num, uint32_t ratio16)
-{
-	return (uint32_t)((num * ratio16) >> 16);
-}
-
 static inline uint32_t camcore_ratio16_divide(uint64_t num, uint32_t ratio16)
 {
 	return (uint32_t)div64_u64(num << 16, ratio16);

@@ -615,6 +615,4 @@ extern const unsigned long slowmotion_store_addr[3][4];
 
 /* TODO: add DCAM0/1 lsc grid table mapping */
 
-int dcam_reg_set_default_value(int idx);
-int dcam_aximreg_set_default_value(void);
 #endif /* _DCAM_REG_H_ */

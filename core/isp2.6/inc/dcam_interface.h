@@ -335,7 +335,6 @@ void *dcam_core_dcam_if_dev_get(uint32_t idx, struct cam_hw_info *hw);
  */
 int dcam_if_put_dev(void *dcam_handle);
 
-int dcam_hwsim_extra(enum dcam_id idx);
 /*
  * Retrieve hardware info from dt.
  */

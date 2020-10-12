@@ -28,7 +28,6 @@ int dcam_path_base_cfg(void *dcam_handle,
 int dcam_path_size_cfg(void *dcam_handle,
 				struct dcam_path_desc *path,
 				void *param);
-int dcam_path_set_slowmotion_frame(struct dcam_pipe_dev *dev);
 int dcam_path_skip_num_set(struct dcam_pipe_dev *dev,
 				int path_id, uint32_t skip_num);
 

@@ -96,17 +96,6 @@ static const struct bypass_tag isp_bypass_tab[] = {
 	{"cfg",       ISP_CFG_PAMATER, 0, 0},
 };
 
-uint32_t isp_ap_fmcu_reg_get(struct isp_fmcu_ctx_desc *fmcu, uint32_t reg)
-{
-	uint32_t addr = 0;
-	if (fmcu)
-		addr = ISP_GET_REG(reg);
-	else
-		addr = reg;
-
-	return addr;
-}
-
 void ap_fmcu_reg_write(struct isp_fmcu_ctx_desc *fmcu,
 		uint32_t ctx_id, uint32_t addr, uint32_t cmd)
 {
