@@ -4614,7 +4614,7 @@ static int camcore_thread_loop(void *arg)
 	thrd = (struct cam_thread_info *)arg;
 	module = (struct camera_module *)thrd->ctx_handle;
 	idx = module->idx;
-	pr_info("%s loop starts\n", thrd->thread_name);
+	pr_info("%s loop starts %px\n", thrd->thread_name, thrd);
 	while (1) {
 		if (wait_for_completion_interruptible(
 			&thrd->thread_com) == 0) {
@@ -4658,7 +4658,7 @@ static void camcore_thread_stop(struct cam_thread_info *thrd)
 	if (thrd->thread_task) {
 		atomic_set(&thrd->thread_stop, 1);
 		complete(&thrd->thread_com);
-		wait_for_completion_interruptible(&thrd->thread_stop_com);
+		wait_for_completion(&thrd->thread_stop_com);
 		thrd->thread_task = NULL;
 	}
 }
@@ -6169,13 +6169,13 @@ static int camcore_release(struct inode *node, struct file *file)
 
 	pr_info("cam %d, state %d\n", idx,
 		atomic_read(&module->state));
-	pr_info("used: %d, module %p, %p, grp %p\n",
+	pr_info("used: %d, module %px, %px, grp %px\n",
 		group->module_used, module, group->module[idx], group);
 
 	spin_lock_irqsave(&group->module_lock, flag);
 	if (((group->module_used & (1 << idx)) == 0) ||
 		(group->module[idx] != module)) {
-		pr_err("fail to release camera %d. used:%x, module:%p\n",
+		pr_err("fail to release camera %d. used:%x, module:%px\n",
 			idx, group->module_used, module);
 		spin_unlock_irqrestore(&group->module_lock, flag);
 		return -EFAULT;
@@ -6191,14 +6191,14 @@ static int camcore_release(struct inode *node, struct file *file)
 		isp_dev = module->isp_dev_handle;
 
 		if (dcam_dev) {
-			pr_info("force close dcam %p\n", dcam_dev);
+			pr_info("force close dcam %px\n", dcam_dev);
 			module->dcam_dev_handle->dcam_pipe_ops->close(dcam_dev);
 			dcam_if_put_dev(dcam_dev);
 			module->dcam_dev_handle = NULL;
 		}
 
 		if (isp_dev) {
-			pr_info("force close isp %p\n", isp_dev);
+			pr_info("force close isp %px\n", isp_dev);
 			module->isp_dev_handle->isp_ops->close(isp_dev);
 			isp_core_pipe_dev_put(isp_dev);
 			module->isp_dev_handle = NULL;
@@ -6219,7 +6219,7 @@ static int camcore_release(struct inode *node, struct file *file)
 		cam_buf_iommudev_unreg(CAM_IOMMUDEV_DCAM);
 		cam_buf_iommudev_unreg(CAM_IOMMUDEV_ISP);
 
-		pr_info("release %p\n", g_empty_frm_q);
+		pr_info("release %px\n", g_empty_frm_q);
 
 		/* g_leak_debug_cnt should be 0 after clr, or else memory leak.
 		 */
