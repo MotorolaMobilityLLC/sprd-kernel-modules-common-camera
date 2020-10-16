@@ -23,6 +23,7 @@
 #include "isp_int.h"
 #include "isp_cfg.h"
 #include "sprd_cam_test.h"
+#include "isp_core.h"
 
 #ifdef pr_fmt
 #undef pr_fmt
@@ -91,6 +92,7 @@ static char *isp_dev_name[] = {
 };
 
 static struct ispt_context *ispt_cxt = NULL;
+unsigned long tmp_addr[4] = {0};
 
 static void isp_all_done(int isp_hw_id, void *param)
 {
@@ -319,13 +321,13 @@ static int camt_isp_hw_deinit(struct ispt_context *cxt)
 	return ret;
 }
 
-static int camt_isp_cfg_init(struct ispt_context *ctx)
+static int camt_isp_cfg_init(struct ispt_context *ctx, struct camt_info *info)
 {
 	int ret = 0, i = 0;
 	int iommu_enable = 0;
 	size_t size;
 	void *sw_addr = NULL;
-	unsigned long hw_addr = 0, aligned_addr = 0, tmp_addr = 0;
+	unsigned long hw_addr = 0, aligned_addr = 0;
 	struct camera_buf *ion_buf = NULL;
 	struct isp_hw_cfg_map maparg;
 	struct isp_dev_cfg_info cfg_settings = {
@@ -385,8 +387,8 @@ static int camt_isp_cfg_init(struct ispt_context *ctx)
 	for (i = 0; i < ISP_HW_MAX_COUNT; i++) {
 		ctx->isp_cxt[i].cfg_sw_addr = sw_addr + i * CAMT_CFG_SIZE;
 		ctx->isp_cxt[i].cfg_hw_addr = hw_addr + i * CAMT_CFG_SIZE;
-		tmp_addr = (unsigned long)ctx->isp_cxt[i].cfg_sw_addr;
-		isp_cfg_poll_addr[i] = &tmp_addr;
+		tmp_addr[i] = (unsigned long)ctx->isp_cxt[i].cfg_sw_addr;
+		isp_cfg_poll_addr[i] = &tmp_addr[i];
 		pr_info("isp ctx %d sw=%p, hw:0x%lx\n",
 			i, ctx->isp_cxt[i].cfg_sw_addr, ctx->isp_cxt[i].cfg_hw_addr);
 	}
@@ -394,8 +396,8 @@ static int camt_isp_cfg_init(struct ispt_context *ctx)
 	ctx->hw->isp_ioctl(ctx->hw, ISP_HW_CFG_CFG_MAP_INFO_GET, &cfg_settings);
 	maparg.map_cnt = ctx->cfg_map_cnt;
 	maparg.s_cfg_settings = &cfg_settings;
-	//ctx->hw->isp_ioctl(ctx->hw, ISP_HW_CFG_MAP_INIT, &maparg);
-
+	if (info->test_mode == ISP_CFG_MODE)
+		ctx->hw->isp_ioctl(ctx->hw, ISP_HW_CFG_MAP_INIT, &maparg);
 	return ret;
 
 err_hwmap_cfg:
@@ -657,17 +659,16 @@ int ispt_init(struct cam_hw_info *hw, struct camt_info *info)
 		goto exit;
 	}
 
-	ret = camt_isp_cfg_init(cxt);
+	ret = camt_isp_cfg_init(cxt, info);
 	if (ret) {
 		pr_err("fail to init cfg\n");
 		goto cfg_init_fail;
 	}
 
-	if (info->test_mode) {
+	if (info->test_mode == ISP_AP_MODE) {
 		for (i = 0; i < ISP_HW_MAX_COUNT; i++)
 			isp_cfg_poll_addr[i] = &s_isp_regbase[0];
 	}
-
 	pr_info("init ok\n");
 	return ret;
 
