@@ -331,6 +331,8 @@ struct camera_group {
 	uint32_t dcam_count;/*dts cfg dcam count*/
 	uint32_t isp_count;/*dts cfg isp count*/
 
+	atomic_t runner_nr; /*running camera num*/
+
 	struct miscdevice *md;
 	struct platform_device *pdev;
 	struct camera_queue empty_frm_q;
@@ -6224,6 +6226,7 @@ static int camcore_release(struct inode *node, struct file *file)
 		g_empty_state_q = NULL;
 
 		ret = cam_buf_mdbg_check();
+		atomic_set(&group->runner_nr, 0);
 	}
 
 	pr_info("sprd_img: cam %d release end.\n", idx);
@@ -6283,6 +6286,7 @@ static int camcore_probe(struct platform_device *pdev)
 		goto probe_pw_fail;
 	}
 	atomic_set(&group->camera_opened, 0);
+	atomic_set(&group->runner_nr, 0);
 	spin_lock_init(&group->module_lock);
 	spin_lock_init(&group->rawproc_lock);
 

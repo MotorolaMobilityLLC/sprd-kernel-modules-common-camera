@@ -1681,6 +1681,7 @@ cfg_ch_done:
 		}
 		mutex_unlock(&g_dbg_dump.dump_lock);
 	}
+	atomic_inc(&module->grp->runner_nr);
 
 	pr_info("stream on done.\n");
 	return 0;
@@ -1905,6 +1906,9 @@ static int camioctl_stream_off(struct camera_module *module,
 	}
 
 	if (running) {
+		if (atomic_dec_return(&module->grp->runner_nr) == 0)
+			module->isp_dev_handle->isp_ops->reset(module->isp_dev_handle, hw);
+
 		/* wait for read thread take all events in frm_queue,
 		 * frm_queue max len is CAM_FRAME_Q_LEN
 		 * then we loop for this counter.

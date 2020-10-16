@@ -140,6 +140,7 @@ static int ispint_err_pre_proc(enum isp_context_hw_id hw_idx, void *isp_handle)
 			ISP_HREG_RD(addr + 8),
 			ISP_HREG_RD(addr + 12));
 	}
+	pctx->isp_cb_func(ISP_CB_DEV_ERR, dev, pctx->cb_priv_data);
 
 	return 0;
 }

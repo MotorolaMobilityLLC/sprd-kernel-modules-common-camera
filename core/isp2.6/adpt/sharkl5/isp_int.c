@@ -121,7 +121,7 @@ static int ispint_err_pre_proc(enum isp_context_hw_id hw_idx, void *isp_handle)
 	}
 	pctx = dev->sw_ctx[idx];
 	/* todo: isp error handling */
-	/*pctx->isp_cb_func(ISP_CB_DEV_ERR, dev, pctx->cb_priv_data);*/
+	pctx->isp_cb_func(ISP_CB_DEV_ERR, dev, pctx->cb_priv_data);
 	return 0;
 }
 

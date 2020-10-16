@@ -3537,9 +3537,87 @@ static int ispcore_dev_close(void *isp_handle)
 
 }
 
+static int ispcore_dev_reset(void *isp_handle, void *param)
+{
+	int ret = 0;
+	struct isp_pipe_dev *dev = NULL;
+	struct cam_hw_info *hw = NULL;
+	struct isp_cfg_ctx_desc *cfg_desc = NULL;
+	struct isp_fmcu_ctx_desc *fmcu = NULL;
+	int i = 0;
+	struct isp_hw_context *pctx_hw = NULL;
+	struct isp_hw_default_param tmp_default;
+
+
+	if (!isp_handle || !param) {
+		pr_err("fail to get valid input ptr, isp_handle %p, param %p\n",
+			isp_handle, param);
+		return -EFAULT;
+	}
+	dev = (struct isp_pipe_dev *)isp_handle;
+	hw = (struct cam_hw_info *)param;
+
+	hw->isp_ioctl(hw, ISP_HW_CFG_RESET, NULL);
+	tmp_default.type = ISP_HW_PARA;
+	hw->isp_ioctl(hw, ISP_HW_CFG_DEFAULT_PARA_SET, &tmp_default);
+
+	cfg_desc = dev->cfg_handle;
+	if (cfg_desc && cfg_desc->ops)
+		ret = cfg_desc->ops->hw_init(cfg_desc);
+
+	for (i = 0; i < ISP_CONTEXT_HW_NUM; i++) {
+		pctx_hw = &dev->hw_ctx[i];
+		pctx_hw->hw_ctx_id = i;
+		pctx_hw->sw_ctx_id = 0xffff;
+		atomic_set(&pctx_hw->user_cnt, 0);
+
+		hw->isp_ioctl(hw, ISP_HW_CFG_CLEAR_IRQ, &i);
+		hw->isp_ioctl(hw, ISP_HW_CFG_ENABLE_IRQ, &i);
+
+		pr_debug("isp hw context %d init done. fmcu %p\n",
+				i, pctx_hw->fmcu_handle);
+
+		fmcu = (struct isp_fmcu_ctx_desc *)pctx_hw->fmcu_handle;
+		if (fmcu) {
+			uint32_t val[2];
+			unsigned long reg_offset = 0;
+			uint32_t reg_bits[4] = { 0x00, 0x02, 0x01, 0x03};
+
+			reg_offset = (fmcu->fid == 0) ?
+						ISP_COMMON_FMCU0_PATH_SEL :
+						ISP_COMMON_FMCU1_PATH_SEL;
+			if (reg_offset == 0) {
+				pr_info("no fmcu sel register\n");
+				continue;
+			}
+
+			ISP_HREG_MWR(reg_offset, BIT_1 | BIT_0, reg_bits[i]);
+			pr_debug("FMCU%d reg_bits %d for hw_ctx %d\n", fmcu->fid, reg_bits[i], i);
+
+			val[0] = ISP_HREG_RD(ISP_COMMON_FMCU0_PATH_SEL);
+			val[1] = ISP_HREG_RD(ISP_COMMON_FMCU1_PATH_SEL);
+
+			if ((val[0] & 3) == (val[1] & 3)) {
+				pr_warn("isp fmcus select same context %d\n", val[0] & 3);
+				if (fmcu->fid == 0) {
+					/* force to set different value */
+					reg_offset = ISP_COMMON_FMCU1_PATH_SEL;
+					ISP_HREG_MWR(reg_offset, BIT_1 | BIT_0, reg_bits[(i + 1) & 3]);
+					pr_debug("force FMCU1 regbits %d\n", reg_bits[(i + 1) & 3]);
+				}
+			}
+		}
+	}
+	sprd_iommu_restore(&hw->soc_isp->pdev->dev);
+
+	pr_debug("isp dev reset done\n");
+	return ret;
+}
+
 static struct isp_pipe_ops isp_ops = {
 	.open = ispcore_dev_open,
 	.close = ispcore_dev_close,
+	.reset = ispcore_dev_reset,
 	.get_context = ispcore_context_get,
 	.put_context = ispcore_context_put,
 	.get_path = ispcore_path_get,
