@@ -626,7 +626,8 @@ static int ispcore_fmcu_slw_queue_set(
 		}
 		atomic_inc(&path->store_cnt);
 		slw.store[i] = pctx->pipe_info.store[i].store;
-		slw.afbc_store[i] = pctx->pipe_info.afbc[i].afbc_store;
+		if ((i < AFBC_PATH_NUM) && pctx->pipe_src.path_info[i].store_fbc)
+			slw.afbc_store[i] = pctx->pipe_info.afbc[i].afbc_store;
 	}
 
 	slw.fmcu_handle = fmcu;
