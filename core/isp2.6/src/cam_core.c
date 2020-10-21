@@ -57,7 +57,6 @@
 #define CAMERA_TIMEOUT                  5000
 #define THREAD_STOP_TIMEOUT             3000
 
-
 #define CAM_COUNT                       CAM_ID_MAX
 /* TODO: extend this for slow motion dev */
 #define CAM_SHARED_BUF_NUM              16
@@ -162,7 +161,7 @@ struct camera_uinfo {
 	uint32_t is_rgb_ltm;
 	uint32_t is_yuv_ltm;
 	uint32_t is_dual;
-	uint32_t dcam_slice_mode;   /*1: hw,  2:sw*/
+	uint32_t dcam_slice_mode;/*1: hw,  2:sw*/
 	uint32_t slice_num;
 	uint32_t slice_count;
 	uint32_t is_afbc;
@@ -175,7 +174,6 @@ struct sprd_img_flash_info {
 	uint32_t led1_status;
 	uint32_t flash_last_status;
 };
-
 
 struct channel_context {
 	enum cam_ch_id ch_id;
@@ -191,7 +189,7 @@ struct channel_context {
 	uint32_t compress_output;
 
 	int32_t dcam_path_id;
-	uint32_t second_path_id; /* second path */
+	uint32_t second_path_id;/* second path */
 	uint32_t second_path_enable;
 
 	/* for which need anoter dcam & path offline processing.*/
@@ -219,8 +217,8 @@ struct channel_context {
 	uint32_t alloc_start;
 	struct completion alloc_com;
 
-	uint32_t uinfo_3dnr;	/* set by hal, 1:hw 3dnr; */
-	uint32_t type_3dnr;	/* CAM_3DNR_HW:enable hw,and alloc buffer */
+	uint32_t uinfo_3dnr;/* set by hal, 1:hw 3dnr; */
+	uint32_t type_3dnr;/* CAM_3DNR_HW:enable hw,and alloc buffer */
 	uint32_t mode_ltm;
 	uint32_t ltm_rgb;
 	uint32_t ltm_yuv;
@@ -234,7 +232,7 @@ struct channel_context {
 
 	/* dcam/isp shared frame buffer for full path */
 	struct camera_queue share_buf_queue;
-	struct camera_queue zoom_coeff_queue; /* channel specific coef queue */
+	struct camera_queue zoom_coeff_queue;/* channel specific coef queue */
 };
 
 struct camera_module {
@@ -243,7 +241,7 @@ struct camera_module {
 	atomic_t timeout_flag;
 	struct mutex lock;
 	struct camera_group *grp;
-	uint32_t exit_flag;   /*= 1, normal exit, =0, abnormal exit*/
+	uint32_t exit_flag;/*= 1, normal exit, =0, abnormal exit*/
 
 	int attach_sensor_id;
 	uint32_t iommu_enable;
@@ -267,10 +265,10 @@ struct camera_module {
 	uint32_t simulator;
 
 	uint32_t is_smooth_zoom;
-	uint32_t zoom_solution; /* for dynamic zoom type swicth. */
-	uint32_t rds_limit; /* raw downsizer limit */
-	uint32_t binning_limit; /* binning limit: 1 - 1/2,  2 - 1/4 */
-	uint32_t zoom_ratio; /* userspace zoom ratio for aem statis */
+	uint32_t zoom_solution;/* for dynamic zoom type swicth. */
+	uint32_t rds_limit;/* raw downsizer limit */
+	uint32_t binning_limit;/* binning limit: 1 - 1/2,  2 - 1/4 */
+	uint32_t zoom_ratio;/* userspace zoom ratio for aem statis */
 	struct camera_uinfo cam_uinfo;
 
 	uint32_t last_channel_id;
@@ -278,10 +276,10 @@ struct camera_module {
 	struct mutex buf_lock[CAM_CH_MAX];
 
 	struct completion frm_com;
-	struct camera_queue frm_queue; /* frame message queue for user*/
-	struct camera_queue irq_queue; /* IRQ message queue for user*/
-	struct camera_queue statis_queue; /* statis data queue or user*/
-	struct camera_queue alloc_queue; /* statis data queue or user*/
+	struct camera_queue frm_queue;/* frame message queue for user*/
+	struct camera_queue irq_queue;/* IRQ message queue for user*/
+	struct camera_queue statis_queue;/* statis data queue or user*/
+	struct camera_queue alloc_queue;/* statis data queue or user*/
 
 
 	struct cam_thread_info cap_thrd;
@@ -301,15 +299,15 @@ struct camera_module {
 
 	struct timer_list cam_timer;
 
-	struct camera_queue zsl_fifo_queue; /* for cmp timestamp */
-	struct camera_frame *dual_frame; /* 0: no, to find, -1: no need find */
-	atomic_t capture_frames_dcam; /* how many frames to report, -1:always */
+	struct camera_queue zsl_fifo_queue;/* for cmp timestamp */
+	struct camera_frame *dual_frame;/* 0: no, to find, -1: no need find */
+	atomic_t capture_frames_dcam;/* how many frames to report, -1:always */
 	atomic_t cap_skip_frames;
-	int64_t capture_times; /* *ns, timestamp get from start_capture */
+	int64_t capture_times;/* *ns, timestamp get from start_capture */
 	uint32_t capture_scene;
-	uint32_t lowlux_4in1; /* flag */
-	struct camera_queue remosaic_queue; /* 4in1: save camera_frame when remosaic */
-	uint32_t auto_3dnr; /* 1: enable hw,and alloc buffer before stream on */
+	uint32_t lowlux_4in1;/* flag */
+	struct camera_queue remosaic_queue;/* 4in1: save camera_frame when remosaic */
+	uint32_t auto_3dnr;/* 1: enable hw,and alloc buffer before stream on */
 	struct sprd_img_flash_info flash_info;
 	uint32_t flash_skip_fid;
 	uint32_t path_state;
@@ -330,8 +328,8 @@ struct camera_group {
 	spinlock_t rawproc_lock;
 	uint32_t rawproc_in;
 
-	uint32_t dcam_count; /*dts cfg dcam count*/
-	uint32_t isp_count; /*dts cfg isp count*/
+	uint32_t dcam_count;/*dts cfg dcam count*/
+	uint32_t isp_count;/*dts cfg isp count*/
 
 	struct miscdevice *md;
 	struct platform_device *pdev;
@@ -920,7 +918,7 @@ exit:
 	return ret;
 }
 
-static int camcore_cfg_ltm_buffer(struct camera_module *module,
+static int camcore_ltm_buffer_cfg(struct camera_module *module,
 	uint32_t index)
 {
 	int ret = 0;
@@ -987,7 +985,7 @@ exit:
 	return ret;
 }
 
-static void camcore_alloc_buffers(void *param)
+static void camcore_buffers_alloc(void *param)
 {
 	int ret = 0;
 	int i, count, total, iommu_enable;
@@ -1329,7 +1327,7 @@ static struct camera_frame *camcore_dual_fifo_queue(struct camera_module *module
 
 	/* zsl, save frames to fifo buffer */
 	ret = cam_queue_enqueue(&module->zsl_fifo_queue, &pframe->list);
-	if (ret) /* fail */
+	if (ret)
 		return pframe;
 
 	if (get_outbuf_queue_cnt(module->dcam_dev_handle,
@@ -1458,7 +1456,7 @@ static struct camera_frame *camcore_bigsize_frame_deal(struct camera_module *mod
 		 * recove this time:190415
 		 *
 		 * if (pframe->sensor_time.tv_sec == 0 &&
-		 *	pframe->sensor_time.tv_usec == 0)
+		 * pframe->sensor_time.tv_usec == 0)
 		 */
 		{
 			struct timespec cur_ts;
@@ -1581,7 +1579,7 @@ static struct camera_frame *camcore_4in1_frame_deal(struct camera_module *module
 struct camera_frame *camcore_4in1_raw_capture_deal(struct camera_module *module,
 		struct camera_frame *pframe)
 {
-	static uint32_t flag_path; /* b0:bin tx done, b1:full tx done */
+	static uint32_t flag_path;/* b0:bin tx done, b1:full tx done */
 
 	/* full path tx done */
 	if (pframe->irq_type == CAMERA_IRQ_4IN1_DONE) {
@@ -1899,7 +1897,7 @@ int camcore_dcam_callback(enum dcam_cb_type type, void *param, void *priv_data)
 					if (module->dcam_cap_status != DCAM_CAPTURE_START_FROM_NEXT_SOF) {
 						capture = 1;
 					} else if (pframe->boot_sensor_time > module->capture_times) {
-						/*  raw capture with flash */
+						/* raw capture with flash */
 						capture = 1;
 					}
 				}
@@ -2000,8 +1998,7 @@ int camcore_dcam_callback(enum dcam_cb_type type, void *param, void *priv_data)
 					channel->dcam_path_id, pframe);
 				/* release sync if ISP don't need it */
 				if (pframe->sync_data)
-					dcam_core_dcam_if_release_sync(pframe->sync_data,
-							     pframe);
+					dcam_core_dcam_if_release_sync(pframe->sync_data, pframe);
 			}
 		} else if (channel->ch_id == CAM_CH_CAP) {
 
@@ -2158,7 +2155,7 @@ int camcore_dcam_callback(enum dcam_cb_type type, void *param, void *priv_data)
 				pr_info("capture queue overflow\n");
 				if (pframe->sync_data)
 					dcam_core_dcam_if_release_sync(pframe->sync_data,
-							     pframe);
+								pframe);
 				ret = module->dcam_dev_handle->dcam_pipe_ops->cfg_path(
 						module->dcam_dev_handle,
 						DCAM_PATH_CFG_OUTPUT_BUF,
@@ -2837,7 +2834,7 @@ static int camcore_channel_size_rds_cal(struct camera_module *module)
 
 		if ((1 << RATIO_SHIFT) >= ratio_min) {
 			/* enlarge @trim_pv and crop it in isp */
-			uint32_t align = 2; /* TODO set to 4 for zzhdr */
+			uint32_t align = 2;/* TODO set to 4 for zzhdr */
 
 			trim_pv.size_x = max(trim_pv.size_x, dcam_out.w);
 			trim_pv.size_y = max(trim_pv.size_y, dcam_out.h);
@@ -3778,7 +3775,6 @@ static int camcore_aux_dcam_deinit(struct camera_module *module)
 	return ret;
 }
 
-
 static int camcore_fdr_context_init(struct camera_module *module,
 		struct channel_context *ch)
 {
@@ -4709,7 +4705,7 @@ static int camcore_module_init(struct camera_module *module)
 	/* create buf thread */
 	thrd = &module->buf_thrd;
 	sprintf(thrd->thread_name, "cam%d_alloc_buf", module->idx);
-	ret = camcore_thread_create(module, thrd, camcore_alloc_buffers);
+	ret = camcore_thread_create(module, thrd, camcore_buffers_alloc);
 	if (ret)
 		goto exit;
 
@@ -6235,7 +6231,6 @@ static int camcore_release(struct inode *node, struct file *file)
 
 	return ret;
 }
-
 
 static const struct file_operations image_fops = {
 	.open = camcore_open,

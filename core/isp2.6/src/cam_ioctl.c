@@ -1608,7 +1608,7 @@ cfg_ch_done:
 				goto exit;
 			}
 		}
-		ret = camcore_cfg_ltm_buffer(module, i);
+		ret = camcore_ltm_buffer_cfg(module, i);
 		if (ret) {
 			pr_err("fail to cfg ltm buffer\n");
 			goto exit;
