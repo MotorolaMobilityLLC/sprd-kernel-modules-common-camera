@@ -2154,8 +2154,7 @@ int camcore_dcam_callback(enum dcam_cb_type type, void *param, void *priv_data)
 			if (ret) {
 				pr_info("capture queue overflow\n");
 				if (pframe->sync_data)
-					dcam_core_dcam_if_release_sync(pframe->sync_data,
-								pframe);
+					dcam_core_dcam_if_release_sync(pframe->sync_data, pframe);
 				ret = module->dcam_dev_handle->dcam_pipe_ops->cfg_path(
 						module->dcam_dev_handle,
 						DCAM_PATH_CFG_OUTPUT_BUF,
