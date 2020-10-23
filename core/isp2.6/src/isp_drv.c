@@ -118,7 +118,8 @@ static enum isp_fetch_format ispdrv_fetch_format_get(uint32_t forcc,
 	return format;
 }
 
-static int ispdrv_fetch_normal_get(void *cfg_in, void *cfg_out)
+static int ispdrv_fetch_normal_get(void *cfg_in, void *cfg_out,
+		struct camera_frame *frame)
 {
 	int ret = 0;
 	unsigned long trim_offset[3] = { 0 };
@@ -127,7 +128,7 @@ static int ispdrv_fetch_normal_get(void *cfg_in, void *cfg_out)
 	struct isp_hw_fetch_info *fetch = NULL;
 	struct isp_uinfo *pipe_src = NULL;
 
-	if (!cfg_in || !cfg_out) {
+	if (!cfg_in || !cfg_out || !frame) {
 		pr_err("fail to get valid input ptr, %p, %p\n", cfg_in, cfg_out);
 		return -EFAULT;
 	}
@@ -147,6 +148,7 @@ static int ispdrv_fetch_normal_get(void *cfg_in, void *cfg_out)
 		fetch->dispatch_color = 2;
 	fetch->fetch_path_sel = pipe_src->fetch_path_sel;
 	fetch->pack_bits = pipe_src->pack_bits;
+	fetch->addr.addr_ch0 = frame->buf.iova[0];
 
 	switch (fetch->fetch_fmt) {
 	case ISP_FETCH_YUV422_3FRAME:
@@ -156,6 +158,8 @@ static int ispdrv_fetch_normal_get(void *cfg_in, void *cfg_out)
 		trim_offset[0] = intrim->start_y * fetch->pitch.pitch_ch0 + intrim->start_x;
 		trim_offset[1] = intrim->start_y * fetch->pitch.pitch_ch1 + intrim->start_x / 2;
 		trim_offset[2] = intrim->start_y * fetch->pitch.pitch_ch2 + intrim->start_x / 2;
+		fetch->addr.addr_ch1 = fetch->addr.addr_ch0 + fetch->pitch.pitch_ch0 * fetch->src.h;
+		fetch->addr.addr_ch2 = fetch->addr.addr_ch1 + fetch->pitch.pitch_ch1 * fetch->src.h;
 		break;
 	case ISP_FETCH_YUYV:
 	case ISP_FETCH_UYVY:
@@ -174,6 +178,7 @@ static int ispdrv_fetch_normal_get(void *cfg_in, void *cfg_out)
 		fetch->pitch.pitch_ch1 = src->w;
 		trim_offset[0] = intrim->start_y * fetch->pitch.pitch_ch0 + intrim->start_x;
 		trim_offset[1] = intrim->start_y * fetch->pitch.pitch_ch1 + intrim->start_x;
+		fetch->addr.addr_ch1 = fetch->addr.addr_ch0 + fetch->pitch.pitch_ch0 * fetch->src.h;
 		break;
 	case ISP_FETCH_YUV420_2FRAME:
 	case ISP_FETCH_YVU420_2FRAME:
@@ -181,6 +186,7 @@ static int ispdrv_fetch_normal_get(void *cfg_in, void *cfg_out)
 		fetch->pitch.pitch_ch1 = src->w;
 		trim_offset[0] = intrim->start_y * fetch->pitch.pitch_ch0 / 2 + intrim->start_x;
 		trim_offset[1] = intrim->start_y * fetch->pitch.pitch_ch1 / 2 + intrim->start_x;
+		fetch->addr.addr_ch1 = fetch->addr.addr_ch0 + fetch->pitch.pitch_ch0 * fetch->src.h;
 		break;
 	case ISP_FETCH_FULL_RGB10:
 		fetch->pitch.pitch_ch0 = src->w * 3;
@@ -219,9 +225,9 @@ static int ispdrv_fetch_normal_get(void *cfg_in, void *cfg_out)
 		break;
 	}
 
-	fetch->trim_off.addr_ch0 = trim_offset[0];
-	fetch->trim_off.addr_ch1 = trim_offset[1];
-	fetch->trim_off.addr_ch2 = trim_offset[2];
+	fetch->addr_hw.addr_ch0 = fetch->addr.addr_ch0 + trim_offset[0];
+	fetch->addr_hw.addr_ch1 = fetch->addr.addr_ch1 + trim_offset[1];
+	fetch->addr_hw.addr_ch2 = fetch->addr.addr_ch2 + trim_offset[2];
 
 	return ret;
 }
@@ -245,7 +251,8 @@ static enum isp_store_format ispdrv_afbc_store_format_get(uint32_t forcc)
 	return format;
 }
 
-static int ispdrv_fbd_raw_get(void *cfg_in, void *cfg_out)
+static int ispdrv_fbd_raw_get(void *cfg_in, void *cfg_out,
+		struct camera_frame *frame)
 {
 	int32_t tile_col = 0, tile_row = 0;
 	int32_t crop_start_x = 0, crop_start_y = 0,
@@ -263,7 +270,7 @@ static int ispdrv_fbd_raw_get(void *cfg_in, void *cfg_out)
 	struct isp_uinfo *pipe_src = NULL;
 	struct isp_fbd_raw_info *fbd_raw = NULL;
 
-	if (!cfg_in || !cfg_out) {
+	if (!cfg_in || !cfg_out || !frame) {
 		pr_err("fail to get valid input ptr, %p, %p\n", cfg_in, cfg_out);
 		return -EFAULT;
 	}
@@ -374,6 +381,21 @@ static int ispdrv_fbd_raw_get(void *cfg_in, void *cfg_out)
 			fbd_raw->low_4bit_addr_offset = 0;
 	}
 
+	dcam_if_cal_compressed_addr(fbd_raw->width, fbd_raw->height,
+			frame->buf.iova[0], &fbd_raw->hw_addr,
+			frame->compress_4bit_bypass);
+	/* store start address for slice use */
+	fbd_raw->header_addr_init = fbd_raw->hw_addr.addr1;
+	fbd_raw->tile_addr_init_x256 = fbd_raw->hw_addr.addr1;
+	fbd_raw->low_bit_addr_init = fbd_raw->hw_addr.addr2;
+	if (fbd_raw->fetch_fbd_4bit_bypass == 0)
+		fbd_raw->low_4bit_addr_init = fbd_raw->hw_addr.addr3;
+
+	pr_debug("fetch_fbd: %u 0x%lx 0x%lx, 0x%lx, size %u %u\n",
+		 frame->fid, fbd_raw->hw_addr.addr0,
+		 fbd_raw->hw_addr.addr1, fbd_raw->hw_addr.addr2,
+		pipe_src->src.w, pipe_src->src.h);
+
 	return 0;
 }
 
@@ -402,6 +424,7 @@ static enum isp_store_format ispdrv_store_format_get(uint32_t forcc)
 		pr_err("fail to get support format 0x%x\n", forcc);
 		break;
 	}
+
 	return format;
 }
 
@@ -702,7 +725,7 @@ static int ispdrv_thumb_scaler_get(struct isp_path_uinfo *in_ptr,
 	return ret;
 }
 
-int isp_drv_pipeinfo_get(void *arg, uint32_t hw_id)
+int isp_drv_pipeinfo_get(void *arg, void *frame)
 {
 	int ret = 0;
 	uint32_t i = 0;
@@ -710,26 +733,28 @@ int isp_drv_pipeinfo_get(void *arg, uint32_t hw_id)
 	struct isp_pipe_info *pipe_in = NULL;
 	struct isp_uinfo *pipe_src = NULL;
 	struct isp_path_uinfo *path_info = NULL;
+	struct camera_frame *pframe = NULL;
 
-	if (!arg) {
-		pr_err("fail to get valid arg\n");
+	if (!arg || !frame) {
+		pr_err("fail to get valid arg %p frame %p\n", arg, frame);
 		return -EFAULT;
 	}
 
 	ctx = (struct isp_sw_context *)arg;
+	pframe = (struct camera_frame *)frame;
 	pipe_src = &ctx->pipe_src;
 	pipe_in = &ctx->pipe_info;
 
 	pipe_in->fetch.ctx_id = ctx->ctx_id;
 	pipe_in->fetch.sec_mode = ctx->dev->sec_mode;
-	ret = ispdrv_fetch_normal_get(pipe_src, &pipe_in->fetch);
+	ret = ispdrv_fetch_normal_get(pipe_src, &pipe_in->fetch, pframe);
 	if (ret) {
 		pr_err("fail to get pipe fetch info\n");
 		return -EFAULT;
 	}
 
 	pipe_in->fetch_fbd.ctx_id = ctx->ctx_id;
-	ret = ispdrv_fbd_raw_get(pipe_src, &pipe_in->fetch_fbd);
+	ret = ispdrv_fbd_raw_get(pipe_src, &pipe_in->fetch_fbd, pframe);
 	if (ret) {
 		pr_err("fail to get pipe fetch fbd info\n");
 		return -EFAULT;
@@ -820,6 +845,10 @@ int isp_drv_dt_parse(struct device_node *dn,
 	pr_info("after isp dev device node %s, full name %s\n",
 		isp_node->name, isp_node->full_name);
 	soc_isp->pdev = of_find_device_by_node(isp_node);
+	if (soc_isp->pdev == NULL) {
+		pr_err("fail to get isp pdev\n");
+		return -EFAULT;
+	}
 	pr_info("sprd s_isp_pdev name %s\n", soc_isp->pdev->name);
 
 	if (of_device_is_compatible(isp_node, "sprd,isp")) {
@@ -972,6 +1001,7 @@ int isp_drv_hw_init(void *arg)
 	int ret = 0;
 	struct isp_pipe_dev *dev = NULL;
 	struct cam_hw_info *hw = NULL;
+	struct isp_hw_default_param default_para;
 
 	if (!arg) {
 		pr_err("fail to get valid arg\n");
@@ -982,7 +1012,11 @@ int isp_drv_hw_init(void *arg)
 	hw = dev->isp_hw;
 
 	ret = sprd_cam_pw_on();
+	if (ret)
+		goto exit;
 	ret = sprd_cam_domain_eb();
+	if (ret)
+		goto power_eb_fail;
 
 	ret = hw->isp_ioctl(hw, ISP_HW_CFG_ENABLE_CLK, NULL);
 	if (ret)
@@ -993,6 +1027,11 @@ int isp_drv_hw_init(void *arg)
 		goto reset_fail;
 
 	ret = isp_int_irq_request(&hw->pdev->dev, s_isp_irq_no, arg);
+	if (ret)
+		goto reset_fail;
+
+	default_para.type = ISP_HW_PARA;
+	hw->isp_ioctl(hw, ISP_HW_CFG_DEFAULT_PARA_SET, &default_para);
 
 	return 0;
 
@@ -1000,8 +1039,9 @@ reset_fail:
 	hw->isp_ioctl(hw, ISP_HW_CFG_DISABLE_CLK, NULL);
 clk_fail:
 	sprd_cam_domain_disable();
+power_eb_fail:
 	sprd_cam_pw_off();
-
+exit:
 	return ret;
 }
 
@@ -1020,8 +1060,14 @@ int isp_drv_hw_deinit(void *arg)
 	hw = dev->isp_hw;
 
 	ret = hw->isp_ioctl(hw, ISP_HW_CFG_RESET, NULL);
+	if (ret)
+		pr_err("fail to reset isp\n");
 	ret = isp_int_irq_free(&hw->pdev->dev, arg);
+	if (ret)
+		pr_err("fail to free isp irq\n");
 	ret = hw->isp_ioctl(hw, ISP_HW_CFG_DISABLE_CLK, NULL);
+	if (ret)
+		pr_err("fail to disable isp clk\n");
 
 	sprd_cam_domain_disable();
 	sprd_cam_pw_off();

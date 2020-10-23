@@ -19,7 +19,6 @@
 
 #include "cam_trusty.h"
 #include "cam_scaler.h"
-#include "isp_reg.h"
 #include "isp_core.h"
 #include "isp_path.h"
 
@@ -320,53 +319,17 @@ int isp_path_fetch_frm_set(struct isp_sw_context *pctx,
 		struct camera_frame *frame)
 {
 	int ret = 0;
-	int idx;
 	int planes;
 	unsigned long offset_u, offset_v, yuv_addr[3] = {0};
 	struct isp_hw_fetch_info *fetch = NULL;
-	struct cam_hw_info *hw = NULL;
-	struct isp_hw_fbd_addr fbd;
 
 	if (!pctx || !frame) {
-		pr_err("fail to get valid input ptr, pctx %p, frame %p\n",
-			pctx, frame);
+		pr_err("fail to get valid pctx %p, frame %p\n", pctx, frame);
 		return -EINVAL;
 	}
 	pr_debug("enter.\n");
 
-	idx = pctx->ctx_id;
-	hw = pctx->hw;
 	fetch = &pctx->pipe_info.fetch;
-
-	if (pctx->pipe_src.fetch_path_sel) {
-		struct compressed_addr fbd_addr;
-		struct isp_fbd_raw_info *fbd_raw;
-
-		fbd_raw = &pctx->pipe_info.fetch_fbd;
-		dcam_if_cal_compressed_addr(pctx->pipe_src.src.w,
-					    pctx->pipe_src.src.h,
-					    frame->buf.iova[0],
-					    &fbd_addr,
-					    frame->compress_4bit_bypass);
-		fbd.fbd_addr = &fbd_addr;
-		fbd.fbd_raw = fbd_raw;
-		fbd.idx = idx;
-		hw->isp_ioctl(hw, ISP_HW_CFG_FBD_ADDR_SET, &fbd);
-		/* store start address for slice use */
-		fbd_raw->header_addr_init = fbd_addr.addr1;
-		fbd_raw->tile_addr_init_x256 = fbd_addr.addr1;
-		fbd_raw->low_bit_addr_init = fbd_addr.addr2;
-		if (fbd_raw->fetch_fbd_4bit_bypass == 0)
-			fbd_raw->low_4bit_addr_init = fbd_addr.addr3;
-
-		pr_debug("fetch_fbd: %u 0x%lx 0x%lx, 0x%lx, size %u %u\n",
-			 frame->fid, fbd_addr.addr0,
-			 fbd_addr.addr1, fbd_addr.addr2,
-			 pctx->pipe_src.src.w, pctx->pipe_src.src.h);
-
-		return 0;
-	}
-
 	if (fetch->fetch_fmt == ISP_FETCH_YUV422_3FRAME)
 		planes = 3;
 	else if ((fetch->fetch_fmt == ISP_FETCH_YUV422_2FRAME)
@@ -387,7 +350,6 @@ int isp_path_fetch_frm_set(struct isp_sw_context *pctx,
 	}
 
 	if ((planes > 2) && yuv_addr[2] == 0) {
-		/* ISP_FETCH_YUV422_3FRAME */
 		offset_v = fetch->pitch.pitch_ch1 * fetch->src.h;
 		yuv_addr[2] = yuv_addr[1] + offset_v;
 	}

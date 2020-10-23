@@ -1341,7 +1341,7 @@ static int ispcore_offline_param_cfg(struct isp_sw_context *pctx,
 		ispcore_offline_pararm_free(in_param);
 		pframe->param_data = NULL;
 	}
-	isp_drv_pipeinfo_get(pctx, tmp->hw_ctx_id);
+	isp_drv_pipeinfo_get(pctx, pframe);
 	ispcore_hist_roi_update(pctx);
 	/*update NR param for crop/scaling image */
 	ispcore_blkparam_adapt(pctx);
@@ -1380,9 +1380,9 @@ static int ispcore_offline_param_set(struct isp_sw_context *pctx,
 	pipe_src = &pctx->pipe_src;
 	pipe_in = &pctx->pipe_info;
 
-	/* config fetch address */
-	isp_path_fetch_frm_set(pctx, pframe);
 	hw->isp_ioctl(hw, ISP_HW_CFG_FETCH_FRAME_ADDR, &pipe_in->fetch);
+	if (pipe_src->fetch_path_sel)
+		hw->isp_ioctl(hw, ISP_HW_CFG_FBD_ADDR_SET, &pipe_in->fetch_fbd);
 	if (pctx->updated || pctx->sw_slice_num) {
 		hw->isp_ioctl(hw, ISP_HW_CFG_FETCH_SET, &pipe_in->fetch);
 		if (pipe_src->fetch_path_sel)
@@ -1735,7 +1735,7 @@ static int ispcore_offline_frame_start(void *ctx)
 			}
 		} else {
 			pr_debug("cfg start. fid %d\n", frame_id);
-			ret = hw->isp_ioctl(hw, ISP_HW_CFG_START_ISP, &hw_ctx_id);
+			hw->isp_ioctl(hw, ISP_HW_CFG_START_ISP, &hw_ctx_id);
 		}
 	} else {
 		if (kick_fmcu) {
@@ -2999,7 +2999,7 @@ static int ispcore_context_get(void *isp_handle, void *param)
 {
 	int ret = 0;
 	int i;
-	int sel_ctx_id = -1;
+	int sel_ctx_id = 0;
 	struct isp_sw_context *pctx = NULL;
 	struct isp_pipe_dev *dev = NULL;
 	struct isp_path_desc *path = NULL;
@@ -3325,7 +3325,7 @@ static int ispcore_context_init(struct isp_pipe_dev *dev)
 		}
 
 		if (bind_fmcu) {
-			fmcu = isp_fmcu_ctx_desc_get(hw);
+			fmcu = isp_fmcu_ctx_desc_get(hw, i);
 			pr_debug("get fmcu %p\n", fmcu);
 
 			if (fmcu && fmcu->ops) {
@@ -3343,37 +3343,6 @@ static int ispcore_context_init(struct isp_pipe_dev *dev)
 		}
 		pr_info("isp hw context %d init done. fmcu %p\n",
 				i, pctx_hw->fmcu_handle);
-
-		fmcu = (struct isp_fmcu_ctx_desc *)pctx_hw->fmcu_handle;
-		if (fmcu) {
-			uint32_t val[2];
-			unsigned long reg_offset = 0;
-			uint32_t reg_bits[4] = { 0x00, 0x02, 0x01, 0x03};
-
-			reg_offset = (fmcu->fid == 0) ?
-						ISP_COMMON_FMCU0_PATH_SEL :
-						ISP_COMMON_FMCU1_PATH_SEL;
-			if (reg_offset == 0) {
-				pr_info("no fmcu sel register\n");
-				continue;
-			}
-
-			ISP_HREG_MWR(reg_offset, BIT_1 | BIT_0, reg_bits[i]);
-			pr_debug("FMCU%d reg_bits %d for hw_ctx %d\n", fmcu->fid, reg_bits[i], i);
-
-			val[0] = ISP_HREG_RD(ISP_COMMON_FMCU0_PATH_SEL);
-			val[1] = ISP_HREG_RD(ISP_COMMON_FMCU1_PATH_SEL);
-
-			if ((val[0] & 3) == (val[1] & 3)) {
-				pr_warn("isp fmcus select same context %d\n", val[0] & 3);
-				if (fmcu->fid == 0) {
-					/* force to set different value */
-					reg_offset = ISP_COMMON_FMCU1_PATH_SEL;
-					ISP_HREG_MWR(reg_offset, BIT_1 | BIT_0, reg_bits[(i + 1) & 3]);
-					pr_debug("force FMCU1 regbits %d\n", reg_bits[(i + 1) & 3]);
-				}
-			}
-		}
 	}
 
 	pr_debug("done!\n");
@@ -3453,7 +3422,6 @@ static int ispcore_dev_open(void *isp_handle, void *param)
 	int ret = 0;
 	struct isp_pipe_dev *dev = NULL;
 	struct cam_hw_info *hw = NULL;
-	struct isp_hw_default_param tmp_default;
 
 	pr_debug("enter.\n");
 	if (!isp_handle || !param) {
@@ -3490,8 +3458,6 @@ static int ispcore_dev_open(void *isp_handle, void *param)
 		spin_lock_init(&dev->ctx_lock);
 
 		ret = isp_drv_hw_init(dev);
-		tmp_default.type = ISP_HW_PARA;
-		hw->isp_ioctl(hw, ISP_HW_CFG_DEFAULT_PARA_SET, &tmp_default);
 		ret = ispcore_context_init(dev);
 		if (ret) {
 			pr_err("fail to init isp context.\n");

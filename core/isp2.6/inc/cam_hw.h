@@ -294,6 +294,7 @@ struct isp_fbd_raw_info {
 	 */
 	struct img_size size;
 	struct img_trim trim;
+	struct compressed_addr hw_addr;
 	uint32_t header_addr_offset;
 	uint32_t tile_addr_offset_x256;
 	uint32_t low_bit_addr_offset;
@@ -763,12 +764,6 @@ struct isp_hw_afbc_addr {
 	unsigned long *yuv_addr;
 };
 
-struct isp_hw_fbd_addr {
-	int idx;
-	struct compressed_addr *fbd_addr;
-	struct isp_fbd_raw_info *fbd_raw;
-};
-
 struct isp_hw_fbd_slice {
 	struct isp_fmcu_ctx_desc *fmcu_handle;
 	struct slice_fbd_raw_info *info;
@@ -857,6 +852,11 @@ struct isp_hw_fmcu_start {
 	unsigned long base;
 	unsigned long hw_addr;
 	int cmd_num;
+};
+
+struct isp_hw_fmcu_sel {
+	uint32_t fmcu_id;
+	uint32_t hw_idx;
 };
 
 struct isp_hw_yuv_block_ctrl {

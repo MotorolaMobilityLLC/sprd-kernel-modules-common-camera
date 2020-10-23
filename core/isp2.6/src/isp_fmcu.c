@@ -18,11 +18,9 @@
 #include <sprd_mm.h>
 
 #include "cam_types.h"
-
 #include "isp_reg.h"
 #include "isp_fmcu.h"
 #include "cam_hw.h"
-#include "defines.h"
 
 #ifdef pr_fmt
 #undef pr_fmt
@@ -317,12 +315,13 @@ static struct isp_fmcu_ctx_desc s_fmcu_desc[ISP_FMCU_NUM] = {
 	},
 };
 
-struct isp_fmcu_ctx_desc *isp_fmcu_ctx_desc_get(void *arg)
+struct isp_fmcu_ctx_desc *isp_fmcu_ctx_desc_get(void *arg, uint32_t hw_idx)
 {
 	int i;
 	uint32_t fmcu_id;
 	struct isp_fmcu_ctx_desc *fmcu = NULL;
 	struct cam_hw_info *hw = NULL;
+	struct isp_hw_fmcu_sel fmcu_sel = {0};
 
 	if (!arg) {
 		pr_err("fail to get valid arg\n");
@@ -333,7 +332,9 @@ struct isp_fmcu_ctx_desc *isp_fmcu_ctx_desc_get(void *arg)
 	for (i = 0; i < ISP_FMCU_NUM; i++) {
 		if (atomic_inc_return(&s_fmcu_desc[i].user_cnt) == 1) {
 			fmcu_id = s_fmcu_desc[i].fid;
-			if (hw->isp_ioctl(hw, ISP_HW_CFG_FMCU_VALID_GET, &fmcu_id)) {
+			fmcu_sel.fmcu_id = fmcu_id;
+			fmcu_sel.hw_idx = hw_idx;
+			if (hw->isp_ioctl(hw, ISP_HW_CFG_FMCU_VALID_GET, &fmcu_sel)) {
 				fmcu = &s_fmcu_desc[i];
 				pr_info("fmcu %d , %p\n", fmcu->fid, fmcu);
 				break;

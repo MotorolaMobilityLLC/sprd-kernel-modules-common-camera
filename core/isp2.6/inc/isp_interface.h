@@ -250,7 +250,7 @@ int isp_core_pipe_dev_put(void *isp_handle);
 
 int isp_drv_hw_init(void *arg);
 int isp_drv_hw_deinit(void *arg);
-int isp_drv_pipeinfo_get(void *arg, uint32_t hw_id);
+int isp_drv_pipeinfo_get(void *arg, void *frame);
 int isp_drv_dt_parse(struct device_node *dn,
 		struct cam_hw_info *hw_info,
 		uint32_t *isp_count);

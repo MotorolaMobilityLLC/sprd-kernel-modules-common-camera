@@ -1558,27 +1558,25 @@ static int  qogirn6pro_isp_fbd_addr_set(void *handle, void *arg)
 	uint32_t addr = 0;
 	struct compressed_addr *fbd_addr = NULL;
 	struct isp_fbd_raw_info *fbd_raw = NULL;
-	struct isp_hw_fbd_addr *fbdarg = NULL;
 
 	if (!arg) {
 		pr_err("fail to get valid arg\n");
 		return -EFAULT;
 	}
 
-	fbdarg = (struct isp_hw_fbd_addr *)arg;
-	fbd_addr = fbdarg->fbd_addr;
-	fbd_raw = fbdarg->fbd_raw;
+	fbd_raw = (struct isp_fbd_raw_info *)arg;
+	fbd_addr = &fbd_raw->hw_addr;
 
 	addr = fbd_addr->addr1 - fbd_raw->header_addr_offset;
-	ISP_REG_WR(fbdarg->idx, ISP_FBD_RAW_PARAM2, addr);
+	ISP_REG_WR(fbd_raw->ctx_id, ISP_FBD_RAW_PARAM2, addr);
 	addr = fbd_addr->addr1 + fbd_raw->tile_addr_offset_x256;
-	ISP_REG_WR(fbdarg->idx, ISP_FBD_RAW_PARAM3, addr);
+	ISP_REG_WR(fbd_raw->ctx_id, ISP_FBD_RAW_PARAM3, addr);
 	addr = fbd_addr->addr2 + fbd_raw->low_bit_addr_offset;
-	ISP_REG_WR(fbdarg->idx, ISP_FBD_RAW_LOW_PARAM0, addr);
+	ISP_REG_WR(fbd_raw->ctx_id, ISP_FBD_RAW_LOW_PARAM0, addr);
 
 	if (0 == fbd_raw->fetch_fbd_4bit_bypass) {
 		addr = fbd_addr->addr3 + fbd_raw->low_4bit_addr_offset;
-		ISP_REG_WR(fbdarg->idx, ISP_FBD_RAW_LOW_4BIT_PARAM0, addr);
+		ISP_REG_WR(fbd_raw->ctx_id, ISP_FBD_RAW_LOW_4BIT_PARAM0, addr);
 	}
 
 	return 0;

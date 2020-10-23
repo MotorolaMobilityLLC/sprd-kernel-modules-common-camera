@@ -1432,11 +1432,28 @@ static int isphw_fetch_fbd_set(void *handle, void *arg)
 /* workaround: temp disable FMCU 1 for not working */
 static int isphw_fmcu_available(void *handle, void *arg)
 {
-	uint32_t fmcu_id = 0;
+	uint32_t fmcu_valid = 0;
+	struct isp_hw_fmcu_sel *fmcu_sel = NULL;
+	uint32_t reg_bits[ISP_CONTEXT_HW_NUM] = {
+			ISP_CONTEXT_HW_P0, ISP_CONTEXT_HW_P1,
+			ISP_CONTEXT_HW_C0, ISP_CONTEXT_HW_C1};
+	uint32_t reg_offset[ISP_FMCU_NUM] = {
+			ISP_COMMON_FMCU0_PATH_SEL,
+			ISP_COMMON_FMCU1_PATH_SEL};
 
-	fmcu_id = *(uint32_t *)arg;
+	if (!arg) {
+		pr_err("fail to get valid arg\n");
+		return -EINVAL;
+	}
 
-	return (fmcu_id > 0) ? 0 : 1;
+	fmcu_sel = (struct isp_hw_fmcu_sel *)arg;
+	fmcu_valid = (fmcu_sel->fmcu_id > 0) ? 0 : 1;
+
+	if (fmcu_valid)
+		ISP_HREG_MWR(reg_offset[fmcu_sel->fmcu_id], BIT_1 | BIT_0,
+			reg_bits[fmcu_sel->hw_idx]);
+
+	return fmcu_valid;
 }
 
 static int isphw_afbc_path_set(void *handle, void *arg)
@@ -1595,27 +1612,25 @@ static int  isphw_fbd_addr_set(void *handle, void *arg)
 	uint32_t addr = 0;
 	struct compressed_addr *fbd_addr = NULL;
 	struct isp_fbd_raw_info *fbd_raw = NULL;
-	struct isp_hw_fbd_addr *fbdarg = NULL;
 
 	if (!arg) {
 		pr_err("fail to get valid arg\n");
 		return -EFAULT;
 	}
 
-	fbdarg = (struct isp_hw_fbd_addr *)arg;
-	fbd_addr = fbdarg->fbd_addr;
-	fbd_raw = fbdarg->fbd_raw;
+	fbd_raw = (struct isp_fbd_raw_info *)arg;
+	fbd_addr = &fbd_raw->hw_addr;
 
 	addr = fbd_addr->addr1 - fbd_raw->header_addr_offset;
-	ISP_REG_WR(fbdarg->idx, ISP_FBD_RAW_PARAM2, addr);
+	ISP_REG_WR(fbd_raw->ctx_id, ISP_FBD_RAW_PARAM2, addr);
 	addr = fbd_addr->addr1 + fbd_raw->tile_addr_offset_x256;
-	ISP_REG_WR(fbdarg->idx, ISP_FBD_RAW_PARAM3, addr);
+	ISP_REG_WR(fbd_raw->ctx_id, ISP_FBD_RAW_PARAM3, addr);
 	addr = fbd_addr->addr2 + fbd_raw->low_bit_addr_offset;
-	ISP_REG_WR(fbdarg->idx, ISP_FBD_RAW_LOW_PARAM0, addr);
+	ISP_REG_WR(fbd_raw->ctx_id, ISP_FBD_RAW_LOW_PARAM0, addr);
 
 	if (0 == fbd_raw->fetch_fbd_4bit_bypass) {
 		addr = fbd_addr->addr3 + fbd_raw->low_4bit_addr_offset;
-		ISP_REG_WR(fbdarg->idx, ISP_FBD_RAW_LOW_4BIT_PARAM0, addr);
+		ISP_REG_WR(fbd_raw->ctx_id, ISP_FBD_RAW_LOW_4BIT_PARAM0, addr);
 	}
 
 	return 0;
@@ -2656,6 +2671,9 @@ static int isphw_frame_addr_fetch(void *handle, void *arg)
 	fetch = (struct isp_hw_fetch_info *)arg;
 	idx = fetch->ctx_id;
 
+	if (fetch->sec_mode == SEC_SPACE_PRIORITY)
+		cam_trusty_isp_fetch_addr_set(fetch->addr_hw.addr_ch0,
+			fetch->addr_hw.addr_ch1, fetch->addr_hw.addr_ch2);
 	ISP_REG_WR(idx, ISP_FETCH_SLICE_Y_ADDR, fetch->addr_hw.addr_ch0);
 	ISP_REG_WR(idx, ISP_FETCH_SLICE_U_ADDR, fetch->addr_hw.addr_ch1);
 	ISP_REG_WR(idx, ISP_FETCH_SLICE_V_ADDR, fetch->addr_hw.addr_ch2);

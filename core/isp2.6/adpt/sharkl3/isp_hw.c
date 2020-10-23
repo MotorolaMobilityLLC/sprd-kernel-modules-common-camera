@@ -932,11 +932,18 @@ static int isphw_fetch_set(void *handle, void *arg)
 /* workaround: temp disable FMCU 1 for not working */
 static int isphw_fmcu_available(void *handle, void *arg)
 {
-	uint32_t fmcu_id;
+	uint32_t fmcu_valid = 0;
+	struct isp_hw_fmcu_sel *fmcu_sel = NULL;
 
-	fmcu_id = *(uint32_t *)arg;
+	if (!arg) {
+		pr_err("fail to get valid arg\n");
+		return -EINVAL;
+	}
 
-	return (fmcu_id > 0) ? 0 : 1;
+	fmcu_sel = (struct isp_hw_fmcu_sel *)arg;
+	fmcu_valid = (fmcu_sel->fmcu_id > 0) ? 0 : 1;
+
+	return fmcu_valid;
 }
 
 static int isphw_subblock_cfg(void *handle, void *arg)

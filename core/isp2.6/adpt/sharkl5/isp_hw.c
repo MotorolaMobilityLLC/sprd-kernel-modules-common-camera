@@ -1390,11 +1390,28 @@ static int isphw_fetch_fbd_set(void *handle, void *arg)
 /* workaround: temp disable FMCU 1 for not working */
 static int isphw_fmcu_available(void *handle, void *arg)
 {
-	uint32_t fmcu_id = 0;
+	uint32_t fmcu_valid = 0;
+	struct isp_hw_fmcu_sel *fmcu_sel = NULL;
+	uint32_t reg_bits[ISP_CONTEXT_HW_NUM] = {
+			ISP_CONTEXT_HW_P0, ISP_CONTEXT_HW_P1,
+			ISP_CONTEXT_HW_C0, ISP_CONTEXT_HW_C1};
+	uint32_t reg_offset[ISP_FMCU_NUM] = {
+			ISP_COMMON_FMCU0_PATH_SEL,
+			ISP_COMMON_FMCU1_PATH_SEL};
 
-	fmcu_id = *(uint32_t *)arg;
+	if (!arg) {
+		pr_err("fail to get valid arg\n");
+		return -EINVAL;
+	}
 
-	return (fmcu_id > 0) ? 0 : 1;
+	fmcu_sel = (struct isp_hw_fmcu_sel *)arg;
+	fmcu_valid = (fmcu_sel->fmcu_id > 0) ? 0 : 1;
+
+	if (fmcu_valid)
+		ISP_HREG_MWR(reg_offset[fmcu_sel->fmcu_id], BIT_1 | BIT_0,
+			reg_bits[fmcu_sel->hw_idx]);
+
+	return fmcu_valid;
 }
 
 static int isphw_ltm_slice_set(void *handle, void *arg)
