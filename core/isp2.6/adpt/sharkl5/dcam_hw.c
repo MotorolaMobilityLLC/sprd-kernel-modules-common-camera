@@ -349,6 +349,7 @@ static int dcamhw_force_copy(void *handle, void *arg)
 static int dcamhw_reset(void *handle, void *arg)
 {
 	int ret = 0;
+	uint32_t i = 0;
 	enum dcam_id idx = 0;
 	struct cam_hw_soc_info *soc = NULL;
 	struct cam_hw_ip_info *ip = NULL;
@@ -395,6 +396,25 @@ static int dcamhw_reset(void *handle, void *arg)
 		regmap_update_bits(soc->cam_ahb_gpr,
 			ip->syscon.rst, ip->syscon.rst_mask, ~(ip->syscon.rst_mask));
 	}
+
+	for (i = 0x200; i < 0x400; i += 4)
+		DCAM_REG_WR(idx, i, 0);
+
+	/*set AEM low and high thr to default
+	 *
+		0x62900334 | 0x005a0109
+		0x62900338 | 0x005a0109
+		0x6290033c | 0x005a016d
+		0x62900340 | 0x005a0109
+		0x62900344 | 0x005a0109
+		0x62900348 | 0x005a016d
+	 */
+	DCAM_REG_WR(idx, DCAM_AEM_RED_THR, 0x005a0109);
+	DCAM_REG_WR(idx, DCAM_AEM_BLUE_THR, 0x005a0109);
+	DCAM_REG_WR(idx, DCAM_AEM_GREEN_THR, 0x005a016d);
+	DCAM_REG_WR(idx, DCAM_AEM_SHORT_RED_THR, 0x005a0109);
+	DCAM_REG_WR(idx, DCAM_AEM_SHORT_BLUE_THR, 0x005a0109);
+	DCAM_REG_WR(idx, DCAM_AEM_SHORT_GREEN_THR, 0x005a016d);
 
 	DCAM_REG_MWR(idx, DCAM_INT_CLR,
 		DCAMINT_IRQ_LINE_MASK, DCAMINT_IRQ_LINE_MASK);
