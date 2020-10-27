@@ -13,9 +13,6 @@
 
 #ifdef CAM_IOCTL_LAYER
 
-
-/*---------------  Misc interface start --------------- */
-
 static int camioctl_time_get(struct camera_module *module,
 		unsigned long arg)
 {
@@ -126,7 +123,6 @@ static int camioctl_iommu_status_get(struct camera_module *module,
 exit:
 	return ret;
 }
-
 
 static int camioctl_statis_buf_set(struct camera_module *module,
 		unsigned long arg)
@@ -295,7 +291,6 @@ exit:
 	return ret;
 }
 
-
 static int camioctl_function_mode_set(struct camera_module *module,
 		unsigned long arg)
 {
@@ -326,39 +321,6 @@ static int camioctl_function_mode_set(struct camera_module *module,
 		module->cam_uinfo.is_yuv_ltm,
 		module->cam_uinfo.is_dual,
 		module->cam_uinfo.is_afbc);
-
-	if (unlikely(ret)) {
-		pr_err("fail to copy from user, ret %d\n", ret);
-		ret = -EFAULT;
-		goto exit;
-	}
-
-exit:
-	return ret;
-}
-
-/*---------------  Misc interface end --------------- */
-
-
-
-
-/*---------------  capture(sensor input) config interface start -------------*/
-
-static int camioctl_sensor_if_set(struct camera_module *module,
-		unsigned long arg)
-{
-	int ret = 0;
-	struct sprd_img_sensor_if *dst;
-
-	dst = &module->cam_uinfo.sensor_if;
-
-	ret = copy_from_user(dst,
-		(void __user *)arg,
-		sizeof(struct sprd_img_sensor_if));
-	pr_info("sensor_if %d %x %x, %d.....mipi %d %d %d %d\n",
-		dst->if_type, dst->img_fmt, dst->img_ptn, dst->frm_deci,
-		dst->if_spec.mipi.use_href, dst->if_spec.mipi.bits_per_pxl,
-		dst->if_spec.mipi.is_loose, dst->if_spec.mipi.lane_num);
 
 	if (unlikely(ret)) {
 		pr_err("fail to copy from user, ret %d\n", ret);
@@ -440,6 +402,32 @@ static int camioctl_cam_security_set(struct camera_module *module,
 		module->grp->camsec_cfg.camsec_mode = uparam.camsec_mode;
 
 		ret = sprd_iommu_set_cam_bypass(false);
+	}
+
+exit:
+	return ret;
+}
+
+static int camioctl_sensor_if_set(struct camera_module *module,
+		unsigned long arg)
+{
+	int ret = 0;
+	struct sprd_img_sensor_if *dst;
+
+	dst = &module->cam_uinfo.sensor_if;
+
+	ret = copy_from_user(dst,
+		(void __user *)arg,
+		sizeof(struct sprd_img_sensor_if));
+	pr_info("sensor_if %d %x %x, %d.....mipi %d %d %d %d\n",
+		dst->if_type, dst->img_fmt, dst->img_ptn, dst->frm_deci,
+		dst->if_spec.mipi.use_href, dst->if_spec.mipi.bits_per_pxl,
+		dst->if_spec.mipi.is_loose, dst->if_spec.mipi.lane_num);
+
+	if (unlikely(ret)) {
+		pr_err("fail to copy from user, ret %d\n", ret);
+		ret = -EFAULT;
+		goto exit;
 	}
 
 exit:
@@ -537,11 +525,6 @@ static int camioctl_cap_skip_num_set(	struct camera_module *module,
 	return 0;
 }
 
-/*---------------  capture(sensor input) config interface end --------------- */
-
-
-
-/*---------------  Channel config interface start --------------- */
 static int camioctl_output_size_set(struct camera_module *module,
 		unsigned long arg)
 {
@@ -1015,6 +998,70 @@ exit:
 	return ret;
 }
 
+/*
+ * SPRD_IMG_IO_PATH_FRM_DECI
+ *
+ * Set frame deci factor for each channel, which controls the number of dropped
+ * frames in ISP output path. It's typically used in slow motion scene. There're
+ * two situations in slow motion: preview and recording. HAL will set related
+ * parameters according to the table below:
+ *
+ * ===================================================================================
+ * |     scene     |  channel  |  is_high_fps  |  high_fps_skip_num  |  deci_factor  |
+ * |---------------|-----------|---------------|---------------------|---------------|
+ * |    normal     |  preview  |       0       |          0          |       0       |
+ * |    preview    |           |               |                     |               |
+ * |---------------|-----------|---------------|---------------------|---------------|
+ * |  slow motion  |  preview  |       1       |          4          |       3       |
+ * |    preview    |           |               |                     |               |
+ * |---------------|-----------|---------------|---------------------|---------------|
+ * |               |  preview  |       1       |          4          |       3       |
+ * |  slow motion  |           |               |                     |               |
+ * |   recording   |-----------|---------------|---------------------|---------------|
+ * |               |   video   |       1       |          4          |       0       |
+ * |               |           |               |                     |               |
+ * ===================================================================================
+ *
+ * Here, is_high_fps means sensor is running at a high frame rate, thus DCAM
+ * slow motion function should be enabled. And deci_factor controls how many
+ * frames will be dropped by ISP path before DONE interrupt generated. The
+ * high_fps_skip_num is responsible for keeping SOF interrupt running at 30
+ * frame rate.
+ */
+static int camioctl_frm_deci_set(struct camera_module *module,
+		unsigned long arg)
+{
+	struct sprd_img_parm __user *uparam = NULL;
+	struct channel_context *ch = NULL;
+	uint32_t deci_factor = 0, channel_id = 0;
+	int ret = 0;
+
+	if ((atomic_read(&module->state) != CAM_CFG_CH) &&
+		(atomic_read(&module->state) != CAM_RUNNING)) {
+		pr_warn("warn: only for state CFG_CH or RUNNING\n");
+		return 0;
+	}
+
+	uparam = (struct sprd_img_parm __user *)arg;
+	ret |= get_user(channel_id, &uparam->channel_id);
+	ret |= get_user(deci_factor, &uparam->deci);
+	if (ret) {
+		pr_err("fail to get from user. ret %d\n", ret);
+		return -EFAULT;
+	}
+
+	if ((channel_id >= CAM_CH_MAX) ||
+		(module->channel[channel_id].enable == 0)) {
+		pr_err("fail to get valid channel id %d\n", channel_id);
+		return -EPERM;
+	}
+
+	ch = &module->channel[channel_id];
+	ch->ch_uinfo.deci_factor = deci_factor;
+
+	return ret;
+}
+
 static int camioctl_frame_addr_set(struct camera_module *module,
 		unsigned long arg)
 {
@@ -1153,70 +1200,6 @@ static int camioctl_frame_addr_set(struct camera_module *module,
 	return ret;
 }
 
-/*
- * SPRD_IMG_IO_PATH_FRM_DECI
- *
- * Set frame deci factor for each channel, which controls the number of dropped
- * frames in ISP output path. It's typically used in slow motion scene. There're
- * two situations in slow motion: preview and recording. HAL will set related
- * parameters according to the table below:
- *
- * ===================================================================================
- * |     scene     |  channel  |  is_high_fps  |  high_fps_skip_num  |  deci_factor  |
- * |---------------|-----------|---------------|---------------------|---------------|
- * |    normal     |  preview  |       0       |          0          |       0       |
- * |    preview    |           |               |                     |               |
- * |---------------|-----------|---------------|---------------------|---------------|
- * |  slow motion  |  preview  |       1       |          4          |       3       |
- * |    preview    |           |               |                     |               |
- * |---------------|-----------|---------------|---------------------|---------------|
- * |               |  preview  |       1       |          4          |       3       |
- * |  slow motion  |           |               |                     |               |
- * |   recording   |-----------|---------------|---------------------|---------------|
- * |               |   video   |       1       |          4          |       0       |
- * |               |           |               |                     |               |
- * ===================================================================================
- *
- * Here, is_high_fps means sensor is running at a high frame rate, thus DCAM
- * slow motion function should be enabled. And deci_factor controls how many
- * frames will be dropped by ISP path before DONE interrupt generated. The
- * high_fps_skip_num is responsible for keeping SOF interrupt running at 30
- * frame rate.
- */
-static int camioctl_frm_deci_set(struct camera_module *module,
-		unsigned long arg)
-{
-	struct sprd_img_parm __user *uparam = NULL;
-	struct channel_context *ch = NULL;
-	uint32_t deci_factor = 0, channel_id = 0;
-	int ret = 0;
-
-	if ((atomic_read(&module->state) != CAM_CFG_CH) &&
-		(atomic_read(&module->state) != CAM_RUNNING)) {
-		pr_warn("warn: only for state CFG_CH or RUNNING\n");
-		return 0;
-	}
-
-	uparam = (struct sprd_img_parm __user *)arg;
-	ret |= get_user(channel_id, &uparam->channel_id);
-	ret |= get_user(deci_factor, &uparam->deci);
-	if (ret) {
-		pr_err("fail to get from user. ret %d\n", ret);
-		return -EFAULT;
-	}
-
-	if ((channel_id >= CAM_CH_MAX) ||
-		(module->channel[channel_id].enable == 0)) {
-		pr_err("fail to get valid channel id %d\n", channel_id);
-		return -EPERM;
-	}
-
-	ch = &module->channel[channel_id];
-	ch->ch_uinfo.deci_factor = deci_factor;
-
-	return ret;
-}
-
 static int camioctl_frame_id_base_set(	struct camera_module *module,
 		unsigned long arg)
 {
@@ -1249,243 +1232,259 @@ static int camioctl_frame_id_base_set(	struct camera_module *module,
 
 	return ret;
 }
-/*---------------  Channel config interface end --------------- */
 
-
-
-
-/*--------------- Core controlling interface start --------------- */
-
-static int camioctl_cam_res_get(struct camera_module *module,
+static int camioctl_stream_off(struct camera_module *module,
 		unsigned long arg)
 {
 	int ret = 0;
-	int dcam_idx, retry = 1;
-	uint32_t rps_info = 0;
-	struct sprd_img_res res = {0};
-	struct camera_group *grp = module->grp;
-	void *dcam = NULL;
-	void *isp = NULL;
+	uint32_t i, j;
+	uint32_t raw_cap = 0, running = 0;
+	int32_t dcam_path_id;
+	struct channel_context *ch = NULL;
+	struct channel_context *ch_prv = NULL;
+	int isp_ctx_id[CAM_CH_MAX] = { -1 };
+	struct cam_hw_info *hw = NULL;
 
-	ret = copy_from_user(&res, (void __user *)arg,
-		sizeof(struct sprd_img_res));
-	if (ret) {
-		pr_err("fail to copy_from_user\n");
-		return -EFAULT;
-	}
-
-	if (atomic_read(&module->state) != CAM_INIT) {
-		pr_err("fail to get cam%d state: %d\n",
-			module->idx, atomic_read(&module->state));
-		return -EFAULT;
-	}
-	pr_info("cam%d get res, flag %d, sensor %d\n",
-		module->idx, res.flag, res.sensor_id);
-
-	dcam_idx = -1;
-	rps_info =  !!res.flag;
-	module->simulator = rps_info;
-	if (unlikely(rps_info)) {
-		if (res.sensor_id >= DCAM_ID_MAX) {
-			/* invalid sensor id means no senor and any DCAM is OK */
-			/* camera offline simulator should set to it */
-			dcam_idx = DCAM_ID_0;
-			retry = 1;
-		} else {
-			dcam_idx = res.sensor_id;
-		}
-	} else if (res.sensor_id < SPRD_SENSOR_ID_MAX) {
-		/* get a preferred dcam dev */
-		dcam_idx = sprd_sensor_find_dcam_id(res.sensor_id);
-	}
-
-check:
-	if (!is_dcam_id(dcam_idx) || (dcam_idx < 0)) {
-		pr_err("fail to get dcam id for sensor: %d\n", res.sensor_id);
-		return -EFAULT;
-	}
-
-	dcam = module->dcam_dev_handle;
-	if (dcam == NULL) {
-		dcam = dcam_core_dcam_if_dev_get(dcam_idx, grp->hw_info);
-		if (IS_ERR_OR_NULL(dcam)) {
-			if (retry) {
-				dcam_idx++;
-				goto check;
-			}
-			pr_err("fail to get dcam%d\n", dcam_idx);
-			ret = -EINVAL;
-			goto no_dcam;
-		}
-		module->dcam_dev_handle = dcam;
-		module->dcam_idx = dcam_idx;
-	}
-
-	ret = module->dcam_dev_handle->dcam_pipe_ops->open(dcam);
-	if (ret) {
-		ret = -EINVAL;
-		goto dcam_fail;
-	}
-
-	pr_info("camca get camera res camsec mode %d.\n",
-		module->grp->camsec_cfg.camsec_mode);
-
-	if (module->grp->camsec_cfg.camsec_mode != SEC_UNABLE) {
-		bool sec_eb = true;
-
-		ret = module->dcam_dev_handle->dcam_pipe_ops->ioctl(module->dcam_dev_handle,
-			DCAM_IOCTL_CFG_SEC, &sec_eb);
-	}
-
-	if (ret) {
-		pr_err("fail to set cam sec %d.\n", module->grp->camsec_cfg.camsec_mode);
-		goto dcam_cb_fail;
-	}
-
-	if (rps_info)
-		module->dcam_dev_handle->dcam_pipe_ops->ioctl(module->dcam_dev_handle,
-			DCAM_IOCTL_CFG_RPS, &rps_info);
-
-	ret = module->dcam_dev_handle->dcam_pipe_ops->set_callback(dcam, camcore_dcam_callback, module);
-	if (ret) {
-		pr_err("fail to set cam%d callback for dcam.\n", dcam_idx);
-		goto dcam_cb_fail;
-	}
-
-	isp = module->isp_dev_handle;
-	if (isp == NULL) {
-		isp = isp_core_pipe_dev_get();
-		if (IS_ERR_OR_NULL(isp)) {
-			pr_err("fail to get isp\n");
-			module->isp_dev_handle = NULL;
-			ret = -EINVAL;
-			goto no_isp;
-		}
-		module->isp_dev_handle = isp;
-	}
-
-	ret = module->isp_dev_handle->isp_ops->ioctl(module->isp_dev_handle, 0,
-		ISP_IOCTL_CFG_SEC, &module->grp->camsec_cfg.camsec_mode);
-
-	if (ret) {
-		pr_err("fail to set isp sec %d.\n", module->grp->camsec_cfg.camsec_mode);
-		goto wq_fail;
-	}
-
-	ret = module->isp_dev_handle->isp_ops->open(isp, grp->hw_info);
-	if (ret) {
-		pr_err("fail to enable isp module.\n");
-		ret = -EINVAL;
-		goto isp_fail;
-	}
-
-
-	module->attach_sensor_id = res.sensor_id;
-
-	if (dcam_idx == DCAM_ID_0)
-		res.flag = DCAM_RES_DCAM0_CAP | DCAM_RES_DCAM0_PATH;
-	else if (dcam_idx == DCAM_ID_1)
-		res.flag = DCAM_RES_DCAM1_CAP | DCAM_RES_DCAM1_PATH;
-	else
-		res.flag = DCAM_RES_DCAM2_CAP | DCAM_RES_DCAM2_PATH;
-
-
-	pr_debug("sensor %d w %u h %u, cam [%d], dcam %d\n",
-		res.sensor_id, res.width, res.height, module->idx, module->dcam_idx);
-
-	pr_info("get camera res for sensor %d res %x done.\n",
-		res.sensor_id, res.flag);
-
-	ret = copy_to_user((void __user *)arg, &res,
-		sizeof(struct sprd_img_res));
-	if (ret) {
-		pr_err("fail to copy_to_user\n");
-		ret = -EFAULT;
-		goto copy_fail;
-	}
-	atomic_set(&module->state, CAM_IDLE);
-	pr_info("cam%d get res done\n", module->idx);
-	return 0;
-
-copy_fail:
-wq_fail:
-	module->isp_dev_handle->isp_ops->close(isp);
-
-isp_fail:
-	isp_core_pipe_dev_put(isp);
-	module->isp_dev_handle = NULL;
-
-no_isp:
-dcam_cb_fail:
-	module->dcam_dev_handle->dcam_pipe_ops->close(dcam);
-
-dcam_fail:
-	dcam_if_put_dev(dcam);
-	module->dcam_dev_handle = NULL;
-no_dcam:
-	pr_err("fail to get camera res for sensor: %d\n", res.sensor_id);
-
-	return ret;
-}
-
-
-static int camioctl_cam_res_put(struct camera_module *module,
-		unsigned long arg)
-{
-	int ret = 0;
-	uint32_t idx;
-	struct sprd_img_res res = {0};
-
-	ret = copy_from_user(&res, (void __user *)arg,
-		sizeof(struct sprd_img_res));
-	if (ret) {
-		pr_err("fail to copy_from_user\n");
-		return -EFAULT;
-	}
-
-	pr_info("cam%d put res state: %d\n", module->idx,
-		atomic_read(&module->state));
-
-	ret = camioctl_stream_off(module, arg);
-
-	if (atomic_read(&module->state) != CAM_IDLE) {
-		pr_info("cam%d error state: %d\n", module->idx,
+	if ((atomic_read(&module->state) != CAM_RUNNING) &&
+		(atomic_read(&module->state) != CAM_CFG_CH)) {
+		pr_info("cam%d state: %d\n", module->idx,
 			atomic_read(&module->state));
 		return -EFAULT;
 	}
 
-	idx = module->idx;
+	if (atomic_read(&module->state) == CAM_RUNNING)
+		running = 1;
 
-	if (module->attach_sensor_id != res.sensor_id) {
-		pr_warn("warn: mismatch sensor id: %d, %d for cam %d\n",
-			module->attach_sensor_id, res.sensor_id,
-			module->idx);
+	pr_info("cam %d stream off. state: %d\n",
+		module->idx, atomic_read(&module->state));
+
+	ch = &module->channel[CAM_CH_CAP];
+	if (ch) {
+		mutex_lock(&module->buf_lock[ch->ch_id]);
+		if (ch->enable && ch->alloc_start) {
+			ret = wait_for_completion_interruptible(&ch->alloc_com);
+			if (ret != 0)
+				pr_err("fail to config channel/path param work %d\n", ret);
+			pr_debug("allsoc buffer done.\n");
+			ch->alloc_start = 0;
+		}
+		mutex_unlock(&module->buf_lock[ch->ch_id]);
 	}
 
-	module->attach_sensor_id = -1;
+	atomic_set(&module->state, CAM_STREAM_OFF);
+	module->cap_status = CAM_CAPTURE_STOP;
+	module->dcam_cap_status = DCAM_CAPTURE_STOP;
+
+	hw = module->grp->hw_info;
+	/* stop raw dump */
+	if (module->dump_thrd.thread_task) {
+		if (module->in_dump)
+			complete(&module->dump_com);
+		mutex_lock(&g_dbg_dump.dump_lock);
+		i = module->dcam_idx;
+		if (i < 2) {
+			g_dbg_dump.dump_start[i] = NULL;
+			g_dbg_dump.dump_count = 0;
+		}
+		mutex_unlock(&g_dbg_dump.dump_lock);
+		j = 0;
+		while (module->in_dump && (j++ < THREAD_STOP_TIMEOUT)) {
+			pr_info("camera%d in dump, wait...%d\n", module->idx, j);
+			msleep(10);
+		}
+	}
+
+	if (running) {
+		ret = module->dcam_dev_handle->dcam_pipe_ops->stop(module->dcam_dev_handle, DCAM_STOP);
+		if (ret != 0)
+			pr_err("fail to stop dcam %d\n", ret);
+		camcore_timer_stop(&module->cam_timer);
+	}
+
+	if (module->cam_uinfo.is_4in1)
+		camcore_4in1_slave_deinit(module);
+	if (module->cam_uinfo.dcam_slice_mode && module->aux_dcam_dev)
+		camcore_bigsize_slave_deinit(module);
+
+	ch_prv = &module->channel[CAM_CH_PRE];
+	for (i = 0; i < CAM_CH_MAX; i++) {
+		ch = &module->channel[i];
+		isp_ctx_id[i] = -1;
+		if (!ch->enable)
+			continue;
+		if (ch->ch_id == CAM_CH_RAW) {
+			raw_cap = 1;
+			if (module->cam_uinfo.is_4in1)
+				camcore_4in1_secondary_path_deinit(module, ch);
+		}
+		if (ch->ch_id == CAM_CH_CAP) {
+			mutex_lock(&module->fdr_lock);
+			if (module->fdr_init)
+				camcore_fdr_context_deinit(module, ch);
+			mutex_unlock(&module->fdr_lock);
+		}
+
+		pr_info("clear ch %d, dcam path %d, isp path 0x%x\n",
+			ch->ch_id,
+			ch->dcam_path_id,
+			ch->isp_path_id);
+		/* prv & vid use same dcam bin path, no need to put it twice */
+		if (ch->ch_id == CAM_CH_VID && ch_prv->enable)
+			dcam_path_id = -1;
+		else
+			dcam_path_id = ch->dcam_path_id;
+		if (dcam_path_id >= 0) {
+			module->dcam_dev_handle->dcam_pipe_ops->put_path(module->dcam_dev_handle,
+					ch->dcam_path_id);
+		}
+		if (ch->isp_path_id >= 0) {
+			isp_ctx_id[i] = ch->isp_ctx_id;
+			module->isp_dev_handle->isp_ops->put_path(module->isp_dev_handle,
+				isp_ctx_id[i],
+				ch->isp_path_id);
+		}
+		if (ch->slave_isp_path_id >= 0) {
+			module->isp_dev_handle->isp_ops->put_path(module->isp_dev_handle,
+				isp_ctx_id[i],
+				ch->slave_isp_path_id);
+		}
+	}
+
+	for (i = 0; i < CAM_CH_MAX; i++) {
+		ch = &module->channel[i];
+		if (!ch->enable || (ch->ch_id == CAM_CH_RAW))
+			continue;
+		cam_queue_clear(&ch->zoom_coeff_queue,
+			struct camera_frame, list);
+
+		if ((ch->ch_id == CAM_CH_PRE) || (ch->ch_id == CAM_CH_CAP)) {
+			if (isp_ctx_id[i] != -1)
+				module->isp_dev_handle->isp_ops->put_context(module->isp_dev_handle,
+					isp_ctx_id[i]);
+			mutex_lock(&module->buf_lock[ch->ch_id]);
+			if (ch->alloc_start) {
+				ret = wait_for_completion_interruptible(&ch->alloc_com);
+				if (ret != 0)
+					pr_err("fail to config channel/path param work %d\n", ret);
+				pr_debug("alloc buffer done.\n");
+				ch->alloc_start = 0;
+			}
+			mutex_unlock(&module->buf_lock[ch->ch_id]);
+			if (ch->isp_updata) {
+				struct isp_offline_param *cur, *prev;
+
+				cur = (struct isp_offline_param *)ch->isp_updata;
+				ch->isp_updata = NULL;
+				while (cur) {
+					prev = (struct isp_offline_param *)cur->prev;
+					pr_info("free %p\n", cur);
+					kfree(cur);
+					cur = prev;
+				}
+			}
+			cam_queue_clear(&ch->share_buf_queue,
+				struct camera_frame, list);
+
+			for (j = 0; j < ISP_NR3_BUF_NUM; j++) {
+				if (ch->nr3_bufs[j]) {
+					camcore_k_frame_put(ch->nr3_bufs[j]);
+					ch->nr3_bufs[j] = NULL;
+				}
+			}
+
+			if (module->cam_uinfo.is_rgb_ltm) {
+				for (j = 0; j < ISP_LTM_BUF_NUM; j++) {
+					if (ch->ltm_bufs[LTM_RGB][j]) {
+						if (ch->ch_id == CAM_CH_PRE)
+							camcore_k_frame_put(ch->ltm_bufs[LTM_RGB][j]);
+						ch->ltm_bufs[LTM_RGB][j] = NULL;
+					}
+				}
+			}
+
+			if (module->cam_uinfo.is_yuv_ltm) {
+				for (j = 0; j < ISP_LTM_BUF_NUM; j++) {
+					if (ch->ltm_bufs[LTM_YUV][j]) {
+						if (ch->ch_id == CAM_CH_PRE)
+							camcore_k_frame_put(ch->ltm_bufs[LTM_YUV][j]);
+						ch->ltm_bufs[LTM_YUV][j] = NULL;
+					}
+				}
+			}
+
+			if (hw->ip_dcam[module->dcam_idx]->superzoom_support
+				&& ch->ch_id == CAM_CH_CAP) {
+				if (ch->postproc_buf) {
+					camcore_k_frame_put(ch->postproc_buf);
+					ch->postproc_buf = NULL;
+					pr_info("postproc put frame\n");
+				}
+			}
+		}
+	}
 
 	if (module->dcam_dev_handle) {
-		module->dcam_dev_handle->dcam_pipe_ops->close(module->dcam_dev_handle);
-		dcam_if_put_dev(module->dcam_dev_handle);
-		module->dcam_dev_handle = NULL;
-	}
-	if (module->isp_dev_handle) {
-		module->isp_dev_handle->isp_ops->close(module->isp_dev_handle);
-		isp_core_pipe_dev_put(module->isp_dev_handle);
-		module->isp_dev_handle = NULL;
+		ret = module->dcam_dev_handle->dcam_pipe_ops->ioctl(module->dcam_dev_handle,
+				DCAM_IOCTL_DEINIT_STATIS_Q, NULL);
+		if (ret != 0)
+			pr_err("fail to deinit statis q %d\n", ret);
+		ret = module->dcam_dev_handle->dcam_pipe_ops->ioctl(module->dcam_dev_handle,
+				DCAM_IOCTL_PUT_RESERV_STATSBUF, NULL);
 	}
 
-	atomic_set(&module->state, CAM_INIT);
+	for (i = 0; i < CAM_CH_MAX; i++) {
+		ch = &module->channel[i];
+		memset(ch, 0, sizeof(struct channel_context));
+		ch->ch_id = i;
+		ch->dcam_path_id = -1;
+		ch->isp_path_id = -1;
+		ch->isp_ctx_id = -1;
+		init_completion(&ch->alloc_com);
+	}
 
-	pr_debug("sensor %d w %u h %u, cam [%d]\n",
-		res.sensor_id, res.width, res.height, module->idx);
+	if (running) {
+		if (atomic_dec_return(&module->grp->runner_nr) == 0)
+			module->isp_dev_handle->isp_ops->reset(module->isp_dev_handle, hw);
 
-	pr_info("put camera res for sensor %d res %x done.",
-			res.sensor_id, res.flag);
-	ret = copy_to_user((void __user *)arg, &res,
-			sizeof(struct sprd_img_res));
-	if (ret)
-		pr_err("fail to copy_to_user!\n");
+		/* wait for read thread take all events in frm_queue,
+		 * frm_queue max len is CAM_FRAME_Q_LEN
+		 * then we loop for this counter.
+		 * if read thread has exited unexpectedly,
+		 * queue_clear() will clear frm_queue as well
+		 */
+		j = CAM_FRAME_Q_LEN;
+		while (j--) {
+			i = cam_queue_cnt_get(&module->frm_queue);
+			if (i == 0)
+				break;
+			pr_info("camera%d wait for read %d %d\n", module->idx, i, j);
+			msleep(20);
+		}
+
+		if (module->dual_frame) {
+			cam_queue_enqueue(&module->zsl_fifo_queue,
+				&module->dual_frame->list);
+			module->dual_frame = NULL;
+		}
+		cam_queue_clear(&module->zsl_fifo_queue,
+			struct camera_frame, list);
+		cam_queue_clear(&module->remosaic_queue,
+			struct camera_frame, list);
+		if (module->dump_thrd.thread_task)
+			cam_queue_clear(&module->dump_queue,
+				struct camera_frame, list);
+		/* default 0, hal set 1 when needed */
+		module->auto_3dnr = 0;
+	}
+
+	camcore_param_buffer_uncfg(module);
+
+	atomic_set(&module->state, CAM_IDLE);
+	if (raw_cap)
+		complete(&module->streamoff_com);
+
+	ret = cam_buf_mdbg_check();
+	pr_info("cam %d stream off done.\n", module->idx);
 
 	return ret;
 }
@@ -1696,262 +1695,6 @@ exit:
 	return ret;
 }
 
-static int camioctl_stream_off(struct camera_module *module,
-		unsigned long arg)
-{
-	int ret = 0;
-	uint32_t i, j;
-	uint32_t raw_cap = 0, running = 0;
-	int32_t dcam_path_id;
-	struct channel_context *ch = NULL;
-	struct channel_context *ch_prv = NULL;
-	int isp_ctx_id[CAM_CH_MAX] = { -1 };
-	struct cam_hw_info *hw = NULL;
-
-	if ((atomic_read(&module->state) != CAM_RUNNING) &&
-		(atomic_read(&module->state) != CAM_CFG_CH)) {
-		pr_info("cam%d state: %d\n", module->idx,
-			atomic_read(&module->state));
-		return -EFAULT;
-	}
-
-	if (atomic_read(&module->state) == CAM_RUNNING)
-		running = 1;
-
-	pr_info("cam %d stream off. state: %d\n",
-		module->idx, atomic_read(&module->state));
-
-	ch = &module->channel[CAM_CH_CAP];
-	if (ch) {
-		mutex_lock(&module->buf_lock[ch->ch_id]);
-		if (ch->enable && ch->alloc_start) {
-			ret = wait_for_completion_interruptible(&ch->alloc_com);
-			if (ret != 0)
-				pr_err("fail to config channel/path param work %d\n", ret);
-			pr_debug("allsoc buffer done.\n");
-			ch->alloc_start = 0;
-		}
-		mutex_unlock(&module->buf_lock[ch->ch_id]);
-	}
-
-	atomic_set(&module->state, CAM_STREAM_OFF);
-	module->cap_status = CAM_CAPTURE_STOP;
-	module->dcam_cap_status = DCAM_CAPTURE_STOP;
-
-	hw = module->grp->hw_info;
-	/* stop raw dump */
-	if (module->dump_thrd.thread_task) {
-		if (module->in_dump)
-			complete(&module->dump_com);
-		mutex_lock(&g_dbg_dump.dump_lock);
-		i = module->dcam_idx;
-		if (i < 2) {
-			g_dbg_dump.dump_start[i] = NULL;
-			g_dbg_dump.dump_count = 0;
-		}
-		mutex_unlock(&g_dbg_dump.dump_lock);
-		j = 0;
-		while (module->in_dump && (j++ < THREAD_STOP_TIMEOUT)) {
-			pr_info("camera%d in dump, wait...%d\n", module->idx, j);
-			msleep(10);
-		}
-	}
-
-	if (running) {
-		ret = module->dcam_dev_handle->dcam_pipe_ops->stop(module->dcam_dev_handle, DCAM_STOP);
-		if (ret != 0)
-			pr_err("fail to stop dcam %d\n", ret);
-		camcore_timer_stop(&module->cam_timer);
-	}
-
-	if (module->cam_uinfo.is_4in1)
-		camcore_4in1_slave_deinit(module);
-	if (module->cam_uinfo.dcam_slice_mode && module->aux_dcam_dev)
-		camcore_bigsize_slave_deinit(module);
-
-	ch_prv = &module->channel[CAM_CH_PRE];
-	for (i = 0; i < CAM_CH_MAX; i++) {
-		ch = &module->channel[i];
-		isp_ctx_id[i] = -1;
-		if (!ch->enable)
-			continue;
-		if (ch->ch_id == CAM_CH_RAW) {
-			raw_cap = 1;
-			if (module->cam_uinfo.is_4in1)
-				camcore_4in1_secondary_path_deinit(module, ch);
-		}
-		if (ch->ch_id == CAM_CH_CAP) {
-			mutex_lock(&module->fdr_lock);
-			if (module->fdr_init)
-				camcore_fdr_context_deinit(module, ch);
-			mutex_unlock(&module->fdr_lock);
-		}
-
-		pr_info("clear ch %d, dcam path %d, isp path 0x%x\n",
-			ch->ch_id,
-			ch->dcam_path_id,
-			ch->isp_path_id);
-		/* prv & vid use same dcam bin path, no need to put it twice */
-		if (ch->ch_id == CAM_CH_VID && ch_prv->enable)
-			dcam_path_id = -1;
-		else
-			dcam_path_id = ch->dcam_path_id;
-		if (dcam_path_id >= 0) {
-			module->dcam_dev_handle->dcam_pipe_ops->put_path(module->dcam_dev_handle,
-					ch->dcam_path_id);
-		}
-		if (ch->isp_path_id >= 0) {
-			isp_ctx_id[i] = ch->isp_ctx_id;
-			module->isp_dev_handle->isp_ops->put_path(module->isp_dev_handle,
-				isp_ctx_id[i],
-				ch->isp_path_id);
-		}
-		if (ch->slave_isp_path_id >= 0) {
-			module->isp_dev_handle->isp_ops->put_path(module->isp_dev_handle,
-				isp_ctx_id[i],
-				ch->slave_isp_path_id);
-		}
-	}
-
-	for (i = 0;  i < CAM_CH_MAX; i++) {
-		ch = &module->channel[i];
-		if (!ch->enable || (ch->ch_id == CAM_CH_RAW))
-			continue;
-		cam_queue_clear(&ch->zoom_coeff_queue,
-			struct camera_frame, list);
-
-		if ((ch->ch_id == CAM_CH_PRE) || (ch->ch_id == CAM_CH_CAP)) {
-			if (isp_ctx_id[i] != -1)
-				module->isp_dev_handle->isp_ops->put_context(module->isp_dev_handle,
-					isp_ctx_id[i]);
-			mutex_lock(&module->buf_lock[ch->ch_id]);
-			if (ch->alloc_start) {
-				ret = wait_for_completion_interruptible(&ch->alloc_com);
-				if (ret != 0)
-					pr_err("fail to config channel/path param work %d\n", ret);
-				pr_debug("alloc buffer done.\n");
-				ch->alloc_start = 0;
-			}
-			mutex_unlock(&module->buf_lock[ch->ch_id]);
-			if (ch->isp_updata) {
-				struct isp_offline_param *cur, *prev;
-
-				cur = (struct isp_offline_param *)ch->isp_updata;
-				ch->isp_updata = NULL;
-				while (cur) {
-					prev = (struct isp_offline_param *)cur->prev;
-					pr_info("free %p\n", cur);
-					kfree(cur);
-					cur = prev;
-				}
-			}
-			cam_queue_clear(&ch->share_buf_queue,
-				struct camera_frame, list);
-
-			for (j = 0; j < ISP_NR3_BUF_NUM; j++) {
-				if (ch->nr3_bufs[j]) {
-					camcore_k_frame_put(ch->nr3_bufs[j]);
-					ch->nr3_bufs[j] = NULL;
-				}
-			}
-
-			if (module->cam_uinfo.is_rgb_ltm) {
-				for (j = 0; j < ISP_LTM_BUF_NUM; j++) {
-					if (ch->ltm_bufs[LTM_RGB][j]) {
-						if (ch->ch_id == CAM_CH_PRE)
-							camcore_k_frame_put(ch->ltm_bufs[LTM_RGB][j]);
-						ch->ltm_bufs[LTM_RGB][j] = NULL;
-					}
-				}
-			}
-
-			if (module->cam_uinfo.is_yuv_ltm) {
-				for (j = 0; j < ISP_LTM_BUF_NUM; j++) {
-					if (ch->ltm_bufs[LTM_YUV][j]) {
-						if (ch->ch_id == CAM_CH_PRE)
-							camcore_k_frame_put(ch->ltm_bufs[LTM_YUV][j]);
-						ch->ltm_bufs[LTM_YUV][j] = NULL;
-					}
-				}
-			}
-
-			if (hw->ip_dcam[module->dcam_idx]->superzoom_support
-				&& ch->ch_id == CAM_CH_CAP) {
-				if (ch->postproc_buf) {
-					camcore_k_frame_put(ch->postproc_buf);
-					ch->postproc_buf = NULL;
-					pr_info("postproc put frame\n");
-				}
-			}
-		}
-	}
-
-	if (module->dcam_dev_handle) {
-		ret = module->dcam_dev_handle->dcam_pipe_ops->ioctl(module->dcam_dev_handle,
-				DCAM_IOCTL_DEINIT_STATIS_Q, NULL);
-		if (ret != 0)
-			pr_err("fail to deinit statis q %d\n", ret);
-		ret = module->dcam_dev_handle->dcam_pipe_ops->ioctl(module->dcam_dev_handle,
-				DCAM_IOCTL_PUT_RESERV_STATSBUF, NULL);
-	}
-
-	for (i = 0; i < CAM_CH_MAX; i++) {
-		ch = &module->channel[i];
-		memset(ch, 0, sizeof(struct channel_context));
-		ch->ch_id = i;
-		ch->dcam_path_id = -1;
-		ch->isp_path_id = -1;
-		ch->isp_ctx_id = -1;
-		init_completion(&ch->alloc_com);
-	}
-
-	if (running) {
-		if (atomic_dec_return(&module->grp->runner_nr) == 0)
-			module->isp_dev_handle->isp_ops->reset(module->isp_dev_handle, hw);
-
-		/* wait for read thread take all events in frm_queue,
-		 * frm_queue max len is CAM_FRAME_Q_LEN
-		 * then we loop for this counter.
-		 * if read thread has exited unexpectedly,
-		 * queue_clear() will clear frm_queue as well
-		 */
-		j = CAM_FRAME_Q_LEN;
-		while (j--) {
-			i = cam_queue_cnt_get(&module->frm_queue);
-			if (i == 0)
-				break;
-			pr_info("camera%d wait for read %d %d\n", module->idx, i, j);
-			msleep(20);
-		}
-
-		if (module->dual_frame) {
-			cam_queue_enqueue(&module->zsl_fifo_queue,
-				&module->dual_frame->list);
-			module->dual_frame = NULL;
-		}
-		cam_queue_clear(&module->zsl_fifo_queue,
-			struct camera_frame, list);
-		cam_queue_clear(&module->remosaic_queue,
-			struct camera_frame, list);
-		if (module->dump_thrd.thread_task)
-			cam_queue_clear(&module->dump_queue,
-				struct camera_frame, list);
-		/* default 0, hal set 1 when needed */
-		module->auto_3dnr = 0;
-	}
-
-	camcore_param_buffer_uncfg(module);
-
-	atomic_set(&module->state, CAM_IDLE);
-	if (raw_cap)
-		complete(&module->streamoff_com);
-
-	ret = cam_buf_mdbg_check();
-	pr_info("cam %d stream off done.\n", module->idx);
-
-	return ret;
-}
-
 static int camioctl_stream_pause(struct camera_module *module,
 		unsigned long arg)
 {
@@ -2133,6 +1876,239 @@ static int camioctl_stream_resume(struct camera_module *module,
 
 exit:
 	pr_info("cam%d stream resume failed\n", module->idx);
+	return ret;
+}
+
+static int camioctl_cam_res_get(struct camera_module *module,
+		unsigned long arg)
+{
+	int ret = 0;
+	int dcam_idx, retry = 1;
+	uint32_t rps_info = 0;
+	struct sprd_img_res res = {0};
+	struct camera_group *grp = module->grp;
+	void *dcam = NULL;
+	void *isp = NULL;
+
+	ret = copy_from_user(&res, (void __user *)arg,
+		sizeof(struct sprd_img_res));
+	if (ret) {
+		pr_err("fail to copy_from_user\n");
+		return -EFAULT;
+	}
+
+	if (atomic_read(&module->state) != CAM_INIT) {
+		pr_err("fail to get cam%d state: %d\n",
+			module->idx, atomic_read(&module->state));
+		return -EFAULT;
+	}
+	pr_info("cam%d get res, flag %d, sensor %d\n",
+		module->idx, res.flag, res.sensor_id);
+
+	dcam_idx = -1;
+	rps_info =  !!res.flag;
+	module->simulator = rps_info;
+	if (unlikely(rps_info)) {
+		if (res.sensor_id >= DCAM_ID_MAX) {
+			/* invalid sensor id means no senor and any DCAM is OK */
+			/* camera offline simulator should set to it */
+			dcam_idx = DCAM_ID_0;
+			retry = 1;
+		} else {
+			dcam_idx = res.sensor_id;
+		}
+	} else if (res.sensor_id < SPRD_SENSOR_ID_MAX) {
+		/* get a preferred dcam dev */
+		dcam_idx = sprd_sensor_find_dcam_id(res.sensor_id);
+	}
+
+check:
+	if (!is_dcam_id(dcam_idx) || (dcam_idx < 0)) {
+		pr_err("fail to get dcam id for sensor: %d\n", res.sensor_id);
+		return -EFAULT;
+	}
+
+	dcam = module->dcam_dev_handle;
+	if (dcam == NULL) {
+		dcam = dcam_core_dcam_if_dev_get(dcam_idx, grp->hw_info);
+		if (IS_ERR_OR_NULL(dcam)) {
+			if (retry) {
+				dcam_idx++;
+				goto check;
+			}
+			pr_err("fail to get dcam%d\n", dcam_idx);
+			ret = -EINVAL;
+			goto no_dcam;
+		}
+		module->dcam_dev_handle = dcam;
+		module->dcam_idx = dcam_idx;
+	}
+
+	ret = module->dcam_dev_handle->dcam_pipe_ops->open(dcam);
+	if (ret) {
+		ret = -EINVAL;
+		goto dcam_fail;
+	}
+
+	pr_info("camca get camera res camsec mode %d.\n",
+		module->grp->camsec_cfg.camsec_mode);
+
+	if (module->grp->camsec_cfg.camsec_mode != SEC_UNABLE) {
+		bool sec_eb = true;
+
+		ret = module->dcam_dev_handle->dcam_pipe_ops->ioctl(module->dcam_dev_handle,
+			DCAM_IOCTL_CFG_SEC, &sec_eb);
+	}
+
+	if (ret) {
+		pr_err("fail to set cam sec %d.\n", module->grp->camsec_cfg.camsec_mode);
+		goto dcam_cb_fail;
+	}
+
+	if (rps_info)
+		module->dcam_dev_handle->dcam_pipe_ops->ioctl(module->dcam_dev_handle,
+			DCAM_IOCTL_CFG_RPS, &rps_info);
+
+	ret = module->dcam_dev_handle->dcam_pipe_ops->set_callback(dcam, camcore_dcam_callback, module);
+	if (ret) {
+		pr_err("fail to set cam%d callback for dcam.\n", dcam_idx);
+		goto dcam_cb_fail;
+	}
+
+	isp = module->isp_dev_handle;
+	if (isp == NULL) {
+		isp = isp_core_pipe_dev_get();
+		if (IS_ERR_OR_NULL(isp)) {
+			pr_err("fail to get isp\n");
+			module->isp_dev_handle = NULL;
+			ret = -EINVAL;
+			goto no_isp;
+		}
+		module->isp_dev_handle = isp;
+	}
+
+	ret = module->isp_dev_handle->isp_ops->ioctl(module->isp_dev_handle, 0,
+		ISP_IOCTL_CFG_SEC, &module->grp->camsec_cfg.camsec_mode);
+
+	if (ret) {
+		pr_err("fail to set isp sec %d.\n", module->grp->camsec_cfg.camsec_mode);
+		goto wq_fail;
+	}
+
+	ret = module->isp_dev_handle->isp_ops->open(isp, grp->hw_info);
+	if (ret) {
+		pr_err("fail to enable isp module.\n");
+		ret = -EINVAL;
+		goto isp_fail;
+	}
+
+
+	module->attach_sensor_id = res.sensor_id;
+
+	if (dcam_idx == DCAM_ID_0)
+		res.flag = DCAM_RES_DCAM0_CAP | DCAM_RES_DCAM0_PATH;
+	else if (dcam_idx == DCAM_ID_1)
+		res.flag = DCAM_RES_DCAM1_CAP | DCAM_RES_DCAM1_PATH;
+	else
+		res.flag = DCAM_RES_DCAM2_CAP | DCAM_RES_DCAM2_PATH;
+
+
+	pr_debug("sensor %d w %u h %u, cam [%d], dcam %d\n",
+		res.sensor_id, res.width, res.height, module->idx, module->dcam_idx);
+
+	pr_info("get camera res for sensor %d res %x done.\n",
+		res.sensor_id, res.flag);
+
+	ret = copy_to_user((void __user *)arg, &res,
+		sizeof(struct sprd_img_res));
+	if (ret) {
+		pr_err("fail to copy_to_user\n");
+		ret = -EFAULT;
+		goto copy_fail;
+	}
+	atomic_set(&module->state, CAM_IDLE);
+	pr_info("cam%d get res done\n", module->idx);
+	return 0;
+
+copy_fail:
+wq_fail:
+	module->isp_dev_handle->isp_ops->close(isp);
+
+isp_fail:
+	isp_core_pipe_dev_put(isp);
+	module->isp_dev_handle = NULL;
+
+no_isp:
+dcam_cb_fail:
+	module->dcam_dev_handle->dcam_pipe_ops->close(dcam);
+
+dcam_fail:
+	dcam_if_put_dev(dcam);
+	module->dcam_dev_handle = NULL;
+no_dcam:
+	pr_err("fail to get camera res for sensor: %d\n", res.sensor_id);
+
+	return ret;
+}
+
+static int camioctl_cam_res_put(struct camera_module *module,
+		unsigned long arg)
+{
+	int ret = 0;
+	uint32_t idx;
+	struct sprd_img_res res = {0};
+
+	ret = copy_from_user(&res, (void __user *)arg,
+		sizeof(struct sprd_img_res));
+	if (ret) {
+		pr_err("fail to copy_from_user\n");
+		return -EFAULT;
+	}
+
+	pr_info("cam%d put res state: %d\n", module->idx,
+		atomic_read(&module->state));
+
+	ret = camioctl_stream_off(module, arg);
+
+	if (atomic_read(&module->state) != CAM_IDLE) {
+		pr_info("cam%d error state: %d\n", module->idx,
+			atomic_read(&module->state));
+		return -EFAULT;
+	}
+
+	idx = module->idx;
+
+	if (module->attach_sensor_id != res.sensor_id) {
+		pr_warn("warn: mismatch sensor id: %d, %d for cam %d\n",
+			module->attach_sensor_id, res.sensor_id,
+			module->idx);
+	}
+
+	module->attach_sensor_id = -1;
+
+	if (module->dcam_dev_handle) {
+		module->dcam_dev_handle->dcam_pipe_ops->close(module->dcam_dev_handle);
+		dcam_if_put_dev(module->dcam_dev_handle);
+		module->dcam_dev_handle = NULL;
+	}
+	if (module->isp_dev_handle) {
+		module->isp_dev_handle->isp_ops->close(module->isp_dev_handle);
+		isp_core_pipe_dev_put(module->isp_dev_handle);
+		module->isp_dev_handle = NULL;
+	}
+
+	atomic_set(&module->state, CAM_INIT);
+
+	pr_debug("sensor %d w %u h %u, cam [%d]\n",
+		res.sensor_id, res.width, res.height, module->idx);
+
+	pr_info("put camera res for sensor %d res %x done.",
+			res.sensor_id, res.flag);
+	ret = copy_to_user((void __user *)arg, &res,
+			sizeof(struct sprd_img_res));
+	if (ret)
+		pr_err("fail to copy_to_user!\n");
+
 	return ret;
 }
 
@@ -2772,48 +2748,6 @@ exit:
 	return ret;
 }
 
-static int camioctl_path_rect_get(struct camera_module *module,
-		unsigned long arg)
-{
-	int ret = 0;
-	struct sprd_img_path_rect parm;
-
-	if (!module) {
-		pr_err("fail to get valid param\n");
-		return -EINVAL;
-	}
-
-	memset((void *)&parm, 0, sizeof(parm));
-	ret = copy_from_user(&parm, (void __user *)arg,
-		sizeof(struct sprd_img_path_rect));
-	if (ret) {
-		pr_err("fail to get user info ret %d\n", ret);
-		return -EFAULT;
-	}
-
-	ret = module->dcam_dev_handle->dcam_pipe_ops->ioctl(module->dcam_dev_handle,
-		DCAM_IOCTL_GET_PATH_RECT, &parm);
-	pr_debug("TRIM rect info x %d y %d w %d h %d\n",
-		parm.trim_valid_rect.x, parm.trim_valid_rect.y,
-		parm.trim_valid_rect.w, parm.trim_valid_rect.h);
-	pr_debug("AE rect info x %d y %d w %d h %d\n",
-		parm.ae_valid_rect.x, parm.ae_valid_rect.y,
-		parm.ae_valid_rect.w, parm.ae_valid_rect.h);
-	pr_debug("AF rect info x %d y %d w %d h %d\n",
-		parm.af_valid_rect.x, parm.af_valid_rect.y,
-		parm.af_valid_rect.w, parm.af_valid_rect.h);
-
-	ret = copy_to_user((void __user *)arg, &parm,
-		sizeof(struct sprd_img_path_rect));
-	if (ret) {
-		ret = -EFAULT;
-		pr_err("fail to copy to user\n");
-		return ret;
-	}
-
-	return ret;
-}
-
 /* set which channel use hw 3dnr
  * if auto 3dnr, will be set when previewing
  */
@@ -2913,7 +2847,47 @@ exit:
 	return ret;
 }
 
-/*--------------- Core controlling interface end --------------- */
+static int camioctl_path_rect_get(struct camera_module *module,
+		unsigned long arg)
+{
+	int ret = 0;
+	struct sprd_img_path_rect parm;
+
+	if (!module) {
+		pr_err("fail to get valid param\n");
+		return -EINVAL;
+	}
+
+	memset((void *)&parm, 0, sizeof(parm));
+	ret = copy_from_user(&parm, (void __user *)arg,
+		sizeof(struct sprd_img_path_rect));
+	if (ret) {
+		pr_err("fail to get user info ret %d\n", ret);
+		return -EFAULT;
+	}
+
+	ret = module->dcam_dev_handle->dcam_pipe_ops->ioctl(module->dcam_dev_handle,
+		DCAM_IOCTL_GET_PATH_RECT, &parm);
+	pr_debug("TRIM rect info x %d y %d w %d h %d\n",
+		parm.trim_valid_rect.x, parm.trim_valid_rect.y,
+		parm.trim_valid_rect.w, parm.trim_valid_rect.h);
+	pr_debug("AE rect info x %d y %d w %d h %d\n",
+		parm.ae_valid_rect.x, parm.ae_valid_rect.y,
+		parm.ae_valid_rect.w, parm.ae_valid_rect.h);
+	pr_debug("AF rect info x %d y %d w %d h %d\n",
+		parm.af_valid_rect.x, parm.af_valid_rect.y,
+		parm.af_valid_rect.w, parm.af_valid_rect.h);
+
+	ret = copy_to_user((void __user *)arg, &parm,
+		sizeof(struct sprd_img_path_rect));
+	if (ret) {
+		ret = -EFAULT;
+		pr_err("fail to copy to user\n");
+		return ret;
+	}
+
+	return ret;
+}
 
 static int camioctl_path_pause(struct camera_module *module,
 	unsigned long arg)
