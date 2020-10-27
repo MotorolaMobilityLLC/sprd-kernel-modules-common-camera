@@ -1083,9 +1083,12 @@ static int ioctl_get_scale_cap(struct cpp_device *dev,
 	ret = sprd_scale_drv_capability_get(&sc_cap_param);
 	if (ret != 0) /* set  false, by default its value is 1 */
 		sc_cap_param.is_supported = 0;
+	else
+		sc_cap_param.is_supported = 1;
 
 	ret = copy_to_user((void  __user *)arg,
 			&sc_cap_param, sizeof(sc_cap_param));
+
 	if (ret != 0) {
 		pr_err("fail to copy TO user, ret = %d\n", ret);
 		ret = -EFAULT;
