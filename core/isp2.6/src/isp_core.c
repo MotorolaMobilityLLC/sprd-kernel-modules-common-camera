@@ -1078,6 +1078,7 @@ static struct camera_frame *ispcore_path_out_frame_get(
 				struct offline_tmp_param *tmp)
 {
 	int ret = 0;
+	int j = 0;
 	struct camera_frame *out_frame = NULL;
 
 	if (!pctx || !path || !tmp) {
@@ -1143,6 +1144,13 @@ normal_out_put:
 	if (out_frame != NULL) {
 		if (out_frame->is_reserved == 0 &&
 			(out_frame->buf.mapping_state & CAM_BUF_MAPPING_DEV) == 0) {
+			if (out_frame->buf.mfd[0] == path->reserved_buf_fd) {
+				for (j = 0; j < 3; j++) {
+					out_frame->buf.size[j] = path->reserve_buf_size[j];
+					pr_debug("out_frame->buf.size[j] = %d, path->reserve_buf_size[j] = %d",
+						(int)out_frame->buf.size[j], (int)path->reserve_buf_size[j]);
+				}
+			}
 			ret = cam_buf_iommu_map(&out_frame->buf, CAM_IOMMUDEV_ISP);
 			pr_debug("map output buffer %08x\n", (uint32_t)out_frame->buf.iova[0]);
 			if (ret) {
