@@ -691,35 +691,25 @@ static int camcore_resframe_set(struct camera_module *module)
 				cmd, ch->dcam_path_id, pframe);
 			/* 4in1_raw_capture, maybe need two image once */
 			if (ch->second_path_enable) {
-				uint32_t pack_bits = 0;
-				uint32_t offset = 0;
-
-				ch->pack_bits = module->cam_uinfo.sensor_if.if_spec.mipi.is_loose;
-
 				pframe1 = cam_queue_empty_frame_get();
+				pframe1->is_reserved = 1;
 				pframe1->buf.type = CAM_BUF_USER;
-				pframe1->buf.mfd[0] = ch->res_frame->buf.mfd[0];
-				/* raw capture: 4cell + bin-sum, cal offset */
-				if (ch->dcam_path_id == 0)
-					pack_bits = 0;
-				else
-					pack_bits = ch->pack_bits;
-				offset = cal_sprd_raw_pitch(ch->ch_uinfo.src_size.w, pack_bits);
-				offset *= ch->ch_uinfo.src_size.h;
-				offset = ALIGN_UP(offset, PAGE_SIZE);
-				/* first buf offset: p->frame_addr_array[i].y */
-				offset += pframe->buf.offset[0];
-				pframe1->buf.offset[0] = offset;
+				pframe1->buf.mfd[0] = pframe->buf.mfd[0];
+				pframe1->buf.offset[0] = pframe->buf.offset[0];
+				pframe1->buf.offset[1] = pframe->buf.offset[1];
+				pframe1->buf.offset[2] = pframe->buf.offset[2];
 				pframe1->channel_id = ch->ch_id;
-				pframe1->img_fmt = ch->ch_uinfo.dst_fmt;
 
 				ret = cam_buf_ionbuf_get(&pframe1->buf);
 				if (ret) {
+					pr_err("fail to get ionbuf on cam%d, ch %d\n", module->idx, i);
 					cam_queue_empty_frame_put(pframe1);
-					pr_err("fail to get second buffer fail, ret %d\n", ret);
 					ret = -EFAULT;
 					break;
 				}
+
+				for (j = 0; j < 3; j++)
+					pframe1->buf.size[j] = max_size;
 				ret = module->dcam_dev_handle->dcam_pipe_ops->cfg_path(module->dcam_dev_handle,
 					cmd, ch->second_path_id, pframe1);
 			}
@@ -4819,6 +4809,7 @@ static int camcore_raw_proc_done(struct camera_module *module)
 
 		ch_raw->enable = 0;
 		ch_raw->dcam_path_id = -1;
+		ch_raw->isp_ctx_id = -1;
 		ch_raw->isp_path_id = -1;
 		ch_raw->aux_dcam_path_id = -1;
 	}
@@ -4926,6 +4917,7 @@ static int camcore_raw_pre_proc(
 	/* not care 4in1 */
 	ch = &module->channel[CAM_CH_CAP];
 	ch->dcam_path_id = -1;
+	ch->isp_ctx_id = -1;
 	ch->isp_path_id = -1;
 	ch->aux_dcam_path_id = -1;
 
@@ -5062,6 +5054,7 @@ fail_isppath:
 fail_ispctx:
 	module->dcam_dev_handle->dcam_pipe_ops->put_path(module->dcam_dev_handle, ch->dcam_path_id);
 	ch->dcam_path_id = -1;
+	ch->isp_ctx_id = -1;
 	ch->isp_path_id = -1;
 	ch->aux_dcam_path_id = -1;
 
