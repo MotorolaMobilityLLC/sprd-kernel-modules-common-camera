@@ -1144,7 +1144,7 @@ enqueue_frame:
 	cam_queue_enqueue(queue, &frame->list);
 }
 
-static int camcore_path_buffer_cfg(struct camera_module *module,
+static int camcore_buffer_path_cfg(struct camera_module *module,
 	uint32_t index)
 {
 	int ret = 0;
@@ -1239,7 +1239,7 @@ exit:
 	return ret;
 }
 
-static int camcore_ltm_buffer_cfg(struct camera_module *module,
+static int camcore_buffer_ltm_cfg(struct camera_module *module,
 	uint32_t index)
 {
 	int ret = 0;
@@ -1593,7 +1593,7 @@ static void camcore_buffers_alloc(void *param)
 exit:
 	if (channel->ch_id != CAM_CH_PRE &&
 		channel->ch_id != CAM_CH_VID) {
-		ret = camcore_path_buffer_cfg(module, channel->ch_id);
+		ret = camcore_buffer_path_cfg(module, channel->ch_id);
 		if (ret)
 			pr_err("fail to cfg path buffer\n");
 	}

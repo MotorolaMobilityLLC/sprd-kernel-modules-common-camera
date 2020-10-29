@@ -1601,13 +1601,13 @@ cfg_ch_done:
 			camcore_empty_frame_put);
 
 		if (i == CAM_CH_PRE || i == CAM_CH_VID) {
-			ret = camcore_path_buffer_cfg(module, i);
+			ret = camcore_buffer_path_cfg(module, i);
 			if (ret) {
 				pr_err("fail to cfg path buffer\n");
 				goto exit;
 			}
 		}
-		ret = camcore_ltm_buffer_cfg(module, i);
+		ret = camcore_buffer_ltm_cfg(module, i);
 		if (ret) {
 			pr_err("fail to cfg ltm buffer\n");
 			goto exit;
