@@ -205,12 +205,12 @@ static int cfg_dcam_path_size(struct dcamt_context *cxt, struct camt_info *test_
 		invalid |= ((cxt->in_trim.start_y + cxt->in_trim.size_y) > cxt->in_size.h);
 
 		/* output size should not be larger than trim ROI */
-		invalid |= cxt->in_trim.size_x < dcamt_comm_info->out_size.w;
-		invalid |= cxt->in_trim.size_y < dcamt_comm_info->out_size.h;
+		invalid |= (cxt->in_trim.size_x < dcamt_comm_info->out_size.w);
+		invalid |= (cxt->in_trim.size_y < dcamt_comm_info->out_size.h);
 
 		/* Down scaling should not be smaller then 1/4*/
-		invalid |= cxt->in_trim.size_x > (dcamt_comm_info->out_size.w * DCAM_SCALE_DOWN_MAX);
-		invalid |= cxt->in_trim.size_y > (dcamt_comm_info->out_size.h * DCAM_SCALE_DOWN_MAX);
+		invalid |= (cxt->in_trim.size_x > (dcamt_comm_info->out_size.w * DCAM_SCALE_DOWN_MAX));
+		invalid |= (cxt->in_trim.size_y > (dcamt_comm_info->out_size.h * DCAM_SCALE_DOWN_MAX));
 
 		if (invalid) {
 			pr_err("fail to get valid size, size:%d %d, trim %d %d %d %d, dst %d %d\n",
@@ -465,6 +465,9 @@ static int camt_dcam_hw_init(struct dcamt_context *cxt)
 
 	ret = sprd_cam_pw_on();
 	ret |= sprd_cam_domain_eb();
+
+	if (ret)
+		return -EFAULT;
 
 	hw->dcam_ioctl(hw, DCAM_HW_CFG_ENABLE_CLK, NULL);
 	cxt->dcam_irq = hw->ip_dcam[cxt->dcam_idx]->irq_no;

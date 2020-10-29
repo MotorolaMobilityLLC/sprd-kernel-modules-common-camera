@@ -101,11 +101,10 @@ exit:
 	return rtn;
 }
 
-static int ispslice_slice_size_info_get(
+static void ispslice_slice_size_info_get(
 			struct slice_cfg_input *in_ptr,
 			uint32_t *w, uint32_t *h)
 {
-	int rtn = 0;
 	uint32_t j;
 	uint32_t slice_num, slice_w, slice_w_out;
 	uint32_t slice_max_w, max_w;
@@ -157,8 +156,6 @@ static int ispslice_slice_size_info_get(
 
 	*w = ISP_ALIGNED(*w);
 	*h = ISP_ALIGNED(*h);
-
-	return rtn;
 }
 
 static int ispslice_slice_overlap_info_get(
@@ -201,7 +198,7 @@ static int ispslice_slice_base_info_cfg(
 
 	struct isp_slice_desc *cur_slc;
 
-	rtn = ispslice_slice_size_info_get(in_ptr, &slice_width, &slice_height);
+	ispslice_slice_size_info_get(in_ptr, &slice_width, &slice_height);
 	if (slice_width == 0 || slice_height == 0)
 		return -EINVAL;
 
@@ -462,9 +459,6 @@ static void ispslice_spath_trim0_info_cfg(
 		}
 	}
 
-	/* trim0 y */
-	start = sinfo->start_row + sinfo->overlap_bad_up;
-	end = sinfo->end_row + 1 - sinfo->overlap_bad_down;
 	if (sinfo->slice_row_num == 1) {
 		slc_scaler->trim0_start_y = frm_trim0->start_y;
 		slc_scaler->trim0_size_y = frm_trim0->size_y;
@@ -1714,8 +1708,6 @@ static int ispslice_3dnr_fbd_fetch_info_cfg(
 		tile_col = pad_slice_width / FBD_NR3_Y_WIDTH;
 		tile_row = pad_slice_height / FBD_NR3_Y_HEIGHT;
 
-		left_offset_tiles_num = start_col / FBD_NR3_Y_WIDTH;
-
 		slc_3dnr_fbd_fetch->fbd_y_pixel_size_in_hor = slice_width;
 		slc_3dnr_fbd_fetch->fbd_y_pixel_size_in_ver = slice_height;
 		slc_3dnr_fbd_fetch->fbd_c_pixel_size_in_hor = slice_width;
@@ -2005,7 +1997,7 @@ static int ispslice_3dnr_fbc_store_info_cfg(
 			y_tile_w_num * y_tile_h_num;
 		slc_3dnr_fbc_store->fbc_size_in_ver = store_slice_height;
 		slc_3dnr_fbc_store->fbc_size_in_hor = store_slice_width;
-		slc_3dnr_fbc_store->fbc_y_tile_addr_init_x256 = nr3_fbc_store->y_tile_addr_init_x256
+		slc_3dnr_fbc_store->fbc_y_tile_addr_init_x256 = (uint32_t)nr3_fbc_store->y_tile_addr_init_x256
 			+ store_left_offset_tiles_num * FBC_NR3_BASE_ALIGN;
 		slc_3dnr_fbc_store->fbc_c_tile_addr_init_x256 = nr3_fbc_store->c_tile_addr_init_x256
 			+ store_left_offset_tiles_num * FBC_NR3_BASE_ALIGN;

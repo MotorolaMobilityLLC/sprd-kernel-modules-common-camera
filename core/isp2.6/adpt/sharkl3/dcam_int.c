@@ -1107,7 +1107,7 @@ static irqreturn_t dcamint_isr_root(int irq, void *priv)
 	struct dcam_pipe_dev *dev = (struct dcam_pipe_dev *)priv;
 	uint32_t status = 0;
 	uint32_t line_mask;
-	int i = 0;
+	unsigned int i = 0;
 
 	if (unlikely(irq != dev->irq)) {
 		pr_err("fail to get irq,DCAM%u irq %d mismatch %d\n",

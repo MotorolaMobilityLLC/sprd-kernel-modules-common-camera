@@ -588,7 +588,7 @@ bool cam_trusty_isp_pitch_set(uint32_t y_pitch, uint32_t u_pitch,
 	return 1;
 }
 
-bool cam_trusty_isp_3dnr_fetch_set(unsigned long chroma, uint32_t luma,
+bool cam_trusty_isp_3dnr_fetch_set(unsigned long chroma, unsigned long luma,
 	uint32_t pitch)
 {
 	pr_info("no trusty version\n");
