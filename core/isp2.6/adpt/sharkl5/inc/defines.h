@@ -26,7 +26,8 @@
 #define RAW_OVERLAP_DOWN                        82
 #define RAW_OVERLAP_LEFT                        122
 #define RAW_OVERLAP_RIGHT                       142
-#define ISP_SLCIE_HEIGHT_MAX                    8192
+#define DCAM_SW_SLICE_HEIGHT_MAX                8192
+#define DCAM_HW_SLICE_WIDTH_MAX                 8192
 #define DCAM_RDS_OUT_LIMIT                      2048
 #define ISP_SCALER_UP_MAX                       4
 #define DCAM_CTRL_ALL                           0xff

@@ -279,8 +279,7 @@ struct camera_module {
 	struct camera_queue frm_queue;/* frame message queue for user*/
 	struct camera_queue irq_queue;/* IRQ message queue for user*/
 	struct camera_queue statis_queue;/* statis data queue or user*/
-	struct camera_queue alloc_queue;/* statis data queue or user*/
-
+	struct camera_queue alloc_queue;/* alloc data queue or user*/
 
 	struct cam_thread_info cap_thrd;
 	struct cam_thread_info zoom_thrd;
@@ -481,7 +480,7 @@ static int camcore_slice_num_info_get(struct sprd_img_size *src, struct sprd_img
 	slice_w = MIN(slice_w, slice_w_out);
 	slice_w = ALIGN(slice_w, 2);
 	slice_num = (input_w + slice_w - 1) / slice_w;
-	if (dst->h > ISP_SLCIE_HEIGHT_MAX)
+	if (dst->h > DCAM_SW_SLICE_HEIGHT_MAX)
 		slice_num *= 2;
 	return slice_num;
 }
@@ -1318,6 +1317,7 @@ static void camcore_buffers_alloc(void *param)
 	struct cam_hw_info *hw = NULL;
 	int path_id = 0;
 	struct camera_frame *alloc_buf = NULL;
+	uint32_t is_super_size = 0;
 
 	pr_info("enter.\n");
 
@@ -1436,6 +1436,8 @@ static void camcore_buffers_alloc(void *param)
 
 	debugger = &module->grp->debugger;
 	path_id = channel->dcam_path_id;
+	is_super_size = (module->cam_uinfo.dcam_slice_mode == CAM_OFFLINE_SLICE_HW
+		&& width >= DCAM_HW_SLICE_WIDTH_MAX) ? 1 : 0;
 	if (path_id >= 0 && path_id < DCAM_IMAGE_REPLACER_PATH_MAX) {
 		struct dcam_image_replacer *replacer;
 
@@ -1453,7 +1455,8 @@ static void camcore_buffers_alloc(void *param)
 	}
 
 	if (hw->ip_dcam[module->dcam_idx]->superzoom_support
-		&& channel->ch_id == CAM_CH_CAP) {
+		&& channel->ch_id == CAM_CH_CAP
+		&& !is_super_size) {
 		/*more than 8x zoom capture alloc buf*/
 
 		uint32_t w = channel->ch_uinfo.dst_size.w / ISP_SCALER_UP_MAX;
@@ -3805,7 +3808,11 @@ static int camcore_channel_init(struct camera_module *module,
 		break;
 
 	case CAM_CH_CAP:
-		dcam_path_id = DCAM_PATH_FULL;
+		if ( module->grp->hw_info->prj_id == SHARKL5pro && ch_uinfo->src_size.w >= DCAM_HW_SLICE_WIDTH_MAX) {
+			dcam_path_id = DCAM_PATH_VCH2;
+			module->auto_3dnr = 0;
+		} else
+			dcam_path_id = DCAM_PATH_FULL;
 		if (module->simulator &&
 			!module->channel[CAM_CH_PRE].enable &&
 			!module->channel[CAM_CH_VID].enable)
@@ -3841,7 +3848,10 @@ static int camcore_channel_init(struct camera_module *module,
 		break;
 
 	case CAM_CH_RAW:
-		dcam_path_id = DCAM_PATH_FULL;
+		if ( module->grp->hw_info->prj_id == SHARKL5pro && ch_uinfo->src_size.w >= 8192)
+			dcam_path_id = DCAM_PATH_VCH2;
+		else
+			dcam_path_id = DCAM_PATH_FULL;
 		new_dcam_path = 1;
 		break;
 
@@ -4629,6 +4639,22 @@ static int camcore_dumpraw_proc(void *param)
 				module->dump_count--;
 				cnt++;
 			}
+
+			if (module->cam_uinfo.dcam_slice_mode == CAM_OFFLINE_SLICE_SW) {
+				struct channel_context *ch = NULL;
+
+				pr_debug("slice %d %p\n", module->cam_uinfo.slice_count, pframe);
+				module->cam_uinfo.slice_count++;
+				ch = &module->channel[CAM_CH_CAP];
+				module->dcam_dev_handle->dcam_pipe_ops->cfg_path(module->dcam_dev_handle,
+						DCAM_PATH_CFG_OUTPUT_BUF, ch->dcam_path_id, pframe);
+				if (module->cam_uinfo.slice_count >= module->cam_uinfo.slice_num)
+					module->cam_uinfo.slice_count = 0;
+				else
+					module->dcam_dev_handle->dcam_pipe_ops->proc_frame(module->dcam_dev_handle, pframe);
+				continue;
+			}
+
 			/* return it to dcam output queue */
 			if (module->cam_uinfo.is_4in1 &&
 				channel->aux_dcam_path_id == DCAM_PATH_BIN &&
@@ -5172,7 +5198,7 @@ static int camcore_raw_post_proc(struct camera_module *module,
 		height = proc_info->src_size.height;
 		if (module->cam_uinfo.dcam_slice_mode == CAM_OFFLINE_SLICE_SW) {
 			width = width / module->cam_uinfo.slice_num;
-			if (proc_info->dst_size.height > ISP_SLCIE_HEIGHT_MAX)
+			if (proc_info->dst_size.height > DCAM_SW_SLICE_HEIGHT_MAX)
 				width *= 2;
 			width = ALIGN(width, 4);
 		}

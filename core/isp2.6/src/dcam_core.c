@@ -148,7 +148,7 @@ int dcamcore_slice_trim_get(uint32_t width, uint32_t heigth, uint32_t slice_num,
 		return -EFAULT;
 	}
 
-	if (heigth > ISP_SLCIE_HEIGHT_MAX) {
+	if (heigth > DCAM_SW_SLICE_HEIGHT_MAX) {
 		slice_x_num = slice_num / 2;
 		slice_y_num = 2;
 	} else {
@@ -348,7 +348,9 @@ static void dcamcore_reserved_statis_bufferq_init(struct dcam_pipe_dev *dev)
 			continue;
 
 		path = &dev->path[path_id];
-		j = 0;
+		if (path_id == DCAM_PATH_VCH2 && path->src_sel)
+			continue;
+		j  = 0;
 		while (j < DCAM_RESERVE_BUF_Q_LEN) {
 			newfrm = cam_queue_empty_frame_get();
 			if (newfrm) {
@@ -419,6 +421,8 @@ static int dcamcore_statis_bufferq_init(struct dcam_pipe_dev *dev)
 			continue;
 
 		path = &dev->path[path_id];
+		if (path_id == DCAM_PATH_VCH2 && path->src_sel)
+			continue;
 		cam_queue_init(&path->out_buf_queue,
 			DCAM_OUT_BUF_Q_LEN, dcamcore_statis_buf_destroy);
 		cam_queue_init(&path->result_queue,
@@ -438,6 +442,9 @@ static int dcamcore_statis_bufferq_init(struct dcam_pipe_dev *dev)
 			continue;
 
 		path = &dev->path[path_id];
+		if (path_id == DCAM_PATH_VCH2 && path->src_sel)
+			continue;
+
 		for (j = 0; j < STATIS_BUF_NUM_MAX; j++) {
 			ion_buf = &dev->statis_buf_array[stats_type][j];
 			if (ion_buf->mfd[0] <= 0)
@@ -496,6 +503,9 @@ static int dcamcore_statis_bufferq_deinit(struct dcam_pipe_dev *dev)
 		path_id = s_statis_path_info_all[i].path_id;
 		path = &dev->path[path_id];
 
+		if (path_id == DCAM_PATH_VCH2 && path->src_sel)
+			continue;
+
 		pr_debug("path_id[%d] i[%d]\n", path_id, i);
 		if (path_id == DCAM_PATH_MAX)
 			continue;
@@ -518,11 +528,15 @@ static int dcamcore_statis_buffer_unmap(struct dcam_pipe_dev *dev)
 	enum dcam_path_id path_id;
 	enum isp_statis_buf_type stats_type;
 	struct camera_buf *ion_buf = NULL;
+	struct dcam_path_desc *path;
 
 	for (i = 0; i < ARRAY_SIZE(s_statis_path_info_all); i++) {
 		path_id = s_statis_path_info_all[i].path_id;
 		stats_type = s_statis_path_info_all[i].buf_type;
+		path = &dev->path[path_id];
 		if (!stats_type)
+			continue;
+		if (path_id == DCAM_PATH_VCH2 && path->src_sel)
 			continue;
 
 		for (j = 0; j < STATIS_BUF_NUM_MAX; j++) {
@@ -576,6 +590,9 @@ static int dcamcore_statis_buffer_cfg(
 			stats_type = s_statis_path_info_all[i].buf_type;
 			if (!stats_type)
 				continue;
+			path = &dev->path[path_id];
+			if (path_id == DCAM_PATH_VCH2 && path->src_sel)
+				continue;
 
 			for (j = 0; j < STATIS_BUF_NUM_MAX; j++) {
 				mfd = input->mfd_array[stats_type][j];
@@ -605,6 +622,10 @@ static int dcamcore_statis_buffer_cfg(
 			ret = -EINVAL;
 			goto exit;
 		}
+
+		path = &dev->path[path_id];
+		if (path_id == DCAM_PATH_VCH2 && path->src_sel)
+			goto exit;
 
 		for (j = 0; j < STATIS_BUF_NUM_MAX; j++) {
 			mfd = dev->statis_buf_array[input->type][j].mfd[0];
@@ -959,7 +980,7 @@ static int dcamcore_offline_frame_start(void *param)
 	struct dcam_hw_force_copy copyarg;
 	struct dcam_hw_fetch_set fetcharg;
 	struct dcam_hw_path_start patharg;
-	struct dcam_hw_fetch_block blokarg;
+	struct dcam_hw_fetch_block blockarg;
 	struct cam_hw_lbuf_share lbufarg;
 	struct dcam_hw_slice_fetch slicearg;
 	struct dcam_pipe_context *pctx = NULL;
@@ -1008,9 +1029,9 @@ static int dcamcore_offline_frame_start(void *param)
 
 	if (DCAM_FETCH_TWICE(dev)) {
 		dev->raw_fetch_count++;
-		blokarg.idx = dev->idx;
-		blokarg.raw_fetch_count = dev->raw_fetch_count;
-		ret = hw->dcam_ioctl(hw, DCAM_HW_CFG_FETCH_BLOCK_SET, &blokarg);
+		blockarg.idx = dev->idx;
+		blockarg.raw_fetch_count = dev->raw_fetch_count;
+		ret = hw->dcam_ioctl(hw, DCAM_HW_CFG_FETCH_BLOCK_SET, &blockarg);
 		if (!DCAM_FIRST_FETCH(dev)) {
 			struct camera_frame *frame = NULL;
 
