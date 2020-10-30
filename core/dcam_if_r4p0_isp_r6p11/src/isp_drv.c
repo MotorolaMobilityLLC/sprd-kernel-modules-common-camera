@@ -1543,6 +1543,7 @@ int sprd_isp_start_pipeline_full(void *handle, uint32_t cap_flag)
 
 	if (isp_frame_dequeue(&buf_desc->zsl_queue, &frame)) {
 		pr_err("fail to get offline_buf full_path frame\n");
+		spin_unlock_irqrestore(&isp_mod_lock, flag);
 		ret = -ENOMEM;
 		goto err_exit;
 	}
