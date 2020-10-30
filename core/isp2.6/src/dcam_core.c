@@ -85,6 +85,104 @@ static int dcamcore_rps_cfg(struct dcam_pipe_dev *dev, void *param)
 	return 0;
 }
 
+static int dcamcore_hw_slices_set(struct dcam_pipe_dev *dev,
+	struct camera_frame *pframe, uint32_t slice_wmax)
+{
+	int ret = 0, i = 0;
+	uint32_t w, offset = 0;
+	uint32_t slc_w = 0, f_align;
+
+	w = pframe->width;
+	if (w <= slice_wmax) {
+		slc_w = w;
+		goto slices;
+	}
+
+	if (dev->fetch.pack_bits == 2)
+		f_align = 8;  /* 8p * 16bits/p = 128 bits fetch aligned */
+	else
+		f_align = 64;/* 64p * 10bits/p = 128bits * 5 */
+
+	slc_w = slice_wmax / f_align * f_align;
+
+	/* can not get valid slice w aligned  */
+	if ((slc_w > slice_wmax) ||
+		(slc_w * DCAM_OFFLINE_SLC_MAX) < pframe->width) {
+		pr_err("dcam%d failed, pic_w %d, slc_limit %d, algin %d\n",
+			dev->idx, pframe->width, slice_wmax, f_align);
+		return -EFAULT;
+	}
+
+slices:
+	while (w > 0) {
+		dev->hw_slices[i].start_x = offset;
+		dev->hw_slices[i].start_y = 0;
+		dev->hw_slices[i].size_x = (w > slc_w) ? slc_w : w;
+		dev->hw_slices[i].size_y = pframe->height;
+		pr_info("slc%d, (%d %d %d %d), limit %d\n", i,
+			dev->hw_slices[i].start_x, dev->hw_slices[i].start_y,
+			dev->hw_slices[i].size_x, dev->hw_slices[i].size_y,
+			slice_wmax);
+
+		w -= dev->hw_slices[i].size_x;
+		offset += dev->hw_slices[i].size_x;
+		i++;
+	}
+	dev->slice_num = i;
+	dev->slice_count = i;
+
+	return ret;
+}
+
+int dcamcore_slice_trim_get(uint32_t width, uint32_t heigth, uint32_t slice_num,
+	uint32_t slice_no, struct img_trim *slice_trim)
+{
+	int ret = 0;
+	uint32_t slice_w = 0, slice_h = 0;
+	uint32_t slice_x_num = 0, slice_y_num = 0;
+	uint32_t start_x = 0, size_x = 0;
+	uint32_t start_y = 0, size_y = 0;
+
+	if (!width || !slice_num || !slice_trim) {
+		pr_err("fail to get valid param %d, %d, %p.\n", width, slice_num, slice_trim);
+		return -EFAULT;
+	}
+
+	if (heigth > ISP_SLCIE_HEIGHT_MAX) {
+		slice_x_num = slice_num / 2;
+		slice_y_num = 2;
+	} else {
+		slice_x_num = slice_num;
+		slice_y_num = 1;
+	}
+	slice_w = width / slice_x_num;
+	slice_w = ALIGN(slice_w, 2);
+	slice_h = heigth / slice_y_num;
+	slice_h = ALIGN(slice_h, 2);
+
+	start_x = slice_w * (slice_no % slice_x_num);
+	size_x = slice_w;
+	if (size_x & 0x03) {
+		if (slice_no != 0) {
+			start_x -=  ALIGN(size_x, 4) - size_x;
+			size_x = ALIGN(size_x, 4);
+		} else {
+			start_x -=  ALIGN(size_x, 4);
+			size_x = ALIGN(size_x, 4);
+		}
+	}
+
+	start_y = (slice_no / slice_x_num) * slice_h;
+	size_y = slice_h;
+
+	slice_trim->start_x = start_x;
+	slice_trim->size_x = size_x;
+	slice_trim->start_y = start_y;
+	slice_trim->size_y = size_y;
+	pr_debug("slice %d [%d, %d, %d, %d].\n", slice_no, start_x, size_x, start_y, size_y);
+	return ret;
+}
+
 void dcamcore_src_frame_ret(void *param)
 {
 	struct camera_frame *frame;
@@ -155,19 +253,6 @@ void dcamcore_reserved_buf_destroy(void *param)
 	cam_queue_empty_frame_put(frame);
 }
 
-void dcamcore_statis_buf_destroy(void *param)
-{
-	struct camera_frame *frame;
-
-	if (!param) {
-		pr_err("fail to get valid param.\n");
-		return;
-	}
-
-	frame = (struct camera_frame *)param;
-	cam_queue_empty_frame_put(frame);
-}
-
 static struct camera_buf *dcamcore_reserved_buffer_get(struct dcam_pipe_dev *dev)
 {
 	int ret = 0;
@@ -218,30 +303,6 @@ static int dcamcore_reserved_buffer_put(struct dcam_pipe_dev *dev)
 	dev->internal_reserved_buf = NULL;
 
 	return 0;
-}
-
-static enum dcam_path_id dcamcore_statis_type_to_path_id(enum isp_statis_buf_type type)
-{
-	switch (type) {
-	case STATIS_AEM:
-		return DCAM_PATH_AEM;
-	case STATIS_AFM:
-		return DCAM_PATH_AFM;
-	case STATIS_AFL:
-		return DCAM_PATH_AFL;
-	case STATIS_HIST:
-		return DCAM_PATH_HIST;
-	case STATIS_PDAF:
-		return DCAM_PATH_PDAF;
-	case STATIS_EBD:
-		return DCAM_PATH_VCH2;
-	case STATIS_3DNR:
-		return DCAM_PATH_3DNR;
-	case STATIS_LSCM:
-		return DCAM_PATH_LSCM;
-	default:
-		return DCAM_PATH_MAX;
-	}
 }
 
 static void dcamcore_reserved_statis_bufferq_init(struct dcam_pipe_dev *dev)
@@ -300,6 +361,43 @@ static void dcamcore_reserved_statis_bufferq_init(struct dcam_pipe_dev *dev)
 		}
 	}
 	pr_info("done\n");
+}
+
+static enum dcam_path_id dcamcore_statis_type_to_path_id(enum isp_statis_buf_type type)
+{
+	switch (type) {
+	case STATIS_AEM:
+		return DCAM_PATH_AEM;
+	case STATIS_AFM:
+		return DCAM_PATH_AFM;
+	case STATIS_AFL:
+		return DCAM_PATH_AFL;
+	case STATIS_HIST:
+		return DCAM_PATH_HIST;
+	case STATIS_PDAF:
+		return DCAM_PATH_PDAF;
+	case STATIS_EBD:
+		return DCAM_PATH_VCH2;
+	case STATIS_3DNR:
+		return DCAM_PATH_3DNR;
+	case STATIS_LSCM:
+		return DCAM_PATH_LSCM;
+	default:
+		return DCAM_PATH_MAX;
+	}
+}
+
+void dcamcore_statis_buf_destroy(void *param)
+{
+	struct camera_frame *frame;
+
+	if (!param) {
+		pr_err("fail to get valid param.\n");
+		return;
+	}
+
+	frame = (struct camera_frame *)param;
+	cam_queue_empty_frame_put(frame);
 }
 
 static int dcamcore_statis_bufferq_init(struct dcam_pipe_dev *dev)
@@ -558,58 +656,6 @@ exit:
 	return ret;
 }
 
-static void dcamcore_debug_offline_dump(
-	struct dcam_pipe_dev *dev,
-	struct dcam_dev_param *pm,
-	struct camera_frame *proc_frame)
-{
-	int size;
-	struct camera_frame *frame = NULL;
-	struct debug_base_info *base_info;
-	void *pm_data;
-
-	dev->dcam_cb_func(DCAM_CB_GET_PMBUF,
-		(void *)&frame, dev->cb_priv_data);
-	if (frame == NULL) {
-		pr_debug("no pmbuf for dcam%d\n", dev->idx);
-		return;
-	}
-
-	base_info = (struct debug_base_info *)frame->buf.addr_k[0];
-	if (base_info == NULL) {
-		cam_queue_empty_frame_put(frame);
-		return;
-	}
-	base_info->cam_id = -1;
-	base_info->dcam_cid = dev->idx | (proc_frame->irq_property << 8);
-	base_info->isp_cid = -1;
-	base_info->scene_id = PM_SCENE_CAP;
-	if (proc_frame->irq_property == CAM_FRAME_FDRL)
-		base_info->scene_id = PM_SCENE_FDRL;
-	if (proc_frame->irq_property == CAM_FRAME_FDRH)
-		base_info->scene_id = PM_SCENE_FDRH;
-
-	base_info->frame_id = proc_frame->fid;
-	base_info->sec = proc_frame->sensor_time.tv_sec;
-	base_info->usec = proc_frame->sensor_time.tv_usec;
-	frame->fid = proc_frame->fid;
-	frame->sensor_time = proc_frame->sensor_time;
-
-	pm_data = (void *)(base_info + 1);
-	size = dcam_k_dump_pm(pm_data, (void *)pm);
-	if (size >= 0)
-		base_info->size = (int32_t)size;
-	else
-		base_info->size = 0;
-
-	pr_debug("dcam_cxt %d, scene %d  fid %d  dsize %d\n",
-		base_info->dcam_cid, base_info->scene_id,
-		base_info->frame_id, base_info->size);
-
-	dev->dcam_cb_func(DCAM_CB_STATIS_DONE,
-		frame, dev->cb_priv_data);
-}
-
 static int dcamcore_context_init(
 		struct dcam_pipe_dev *dev,
 		struct dcam_pipe_context *pctx)
@@ -671,102 +717,56 @@ static int dcamcore_context_deinit(struct dcam_pipe_context *pctx)
 	return 0;
 }
 
-static int dcamcore_hw_slices_set(struct dcam_pipe_dev *dev,
-	struct camera_frame *pframe, uint32_t slice_wmax)
+static void dcamcore_offline_debug_dump(
+	struct dcam_pipe_dev *dev,
+	struct dcam_dev_param *pm,
+	struct camera_frame *proc_frame)
 {
-	int ret = 0, i = 0;
-	uint32_t w, offset = 0;
-	uint32_t slc_w = 0, f_align;
+	int size;
+	struct camera_frame *frame = NULL;
+	struct debug_base_info *base_info;
+	void *pm_data;
 
-	w = pframe->width;
-	if (w <= slice_wmax) {
-		slc_w = w;
-		goto slices;
+	dev->dcam_cb_func(DCAM_CB_GET_PMBUF,
+		(void *)&frame, dev->cb_priv_data);
+	if (frame == NULL) {
+		pr_debug("no pmbuf for dcam%d\n", dev->idx);
+		return;
 	}
 
-	if (dev->fetch.pack_bits == 2)
-		f_align = 8;  /* 8p * 16bits/p = 128 bits fetch aligned */
+	base_info = (struct debug_base_info *)frame->buf.addr_k[0];
+	if (base_info == NULL) {
+		cam_queue_empty_frame_put(frame);
+		return;
+	}
+	base_info->cam_id = -1;
+	base_info->dcam_cid = dev->idx | (proc_frame->irq_property << 8);
+	base_info->isp_cid = -1;
+	base_info->scene_id = PM_SCENE_CAP;
+	if (proc_frame->irq_property == CAM_FRAME_FDRL)
+		base_info->scene_id = PM_SCENE_FDRL;
+	if (proc_frame->irq_property == CAM_FRAME_FDRH)
+		base_info->scene_id = PM_SCENE_FDRH;
+
+	base_info->frame_id = proc_frame->fid;
+	base_info->sec = proc_frame->sensor_time.tv_sec;
+	base_info->usec = proc_frame->sensor_time.tv_usec;
+	frame->fid = proc_frame->fid;
+	frame->sensor_time = proc_frame->sensor_time;
+
+	pm_data = (void *)(base_info + 1);
+	size = dcam_k_dump_pm(pm_data, (void *)pm);
+	if (size >= 0)
+		base_info->size = (int32_t)size;
 	else
-		f_align = 64;/* 64p * 10bits/p = 128bits * 5 */
+		base_info->size = 0;
 
-	slc_w = slice_wmax / f_align * f_align;
+	pr_debug("dcam_cxt %d, scene %d  fid %d  dsize %d\n",
+		base_info->dcam_cid, base_info->scene_id,
+		base_info->frame_id, base_info->size);
 
-	/* can not get valid slice w aligned  */
-	if ((slc_w > slice_wmax) ||
-		(slc_w * DCAM_OFFLINE_SLC_MAX) < pframe->width) {
-		pr_err("dcam%d failed, pic_w %d, slc_limit %d, algin %d\n",
-			dev->idx, pframe->width, slice_wmax, f_align);
-		return -EFAULT;
-	}
-
-slices:
-	while (w > 0) {
-		dev->hw_slices[i].start_x = offset;
-		dev->hw_slices[i].start_y = 0;
-		dev->hw_slices[i].size_x = (w > slc_w) ? slc_w : w;
-		dev->hw_slices[i].size_y = pframe->height;
-		pr_info("slc%d, (%d %d %d %d), limit %d\n", i,
-			dev->hw_slices[i].start_x, dev->hw_slices[i].start_y,
-			dev->hw_slices[i].size_x, dev->hw_slices[i].size_y,
-			slice_wmax);
-
-		w -= dev->hw_slices[i].size_x;
-		offset += dev->hw_slices[i].size_x;
-		i++;
-	}
-	dev->slice_num = i;
-	dev->slice_count = i;
-
-	return ret;
-}
-
-int dcamcore_slice_trim_get(uint32_t width, uint32_t heigth, uint32_t slice_num,
-	uint32_t slice_no, struct img_trim *slice_trim)
-{
-	int ret = 0;
-	uint32_t slice_w = 0, slice_h = 0;
-	uint32_t slice_x_num = 0, slice_y_num = 0;
-	uint32_t start_x = 0, size_x = 0;
-	uint32_t start_y = 0, size_y = 0;
-
-	if (!width || !slice_num || !slice_trim) {
-		pr_err("fail to get valid param %d, %d, %p.\n", width, slice_num, slice_trim);
-		return -EFAULT;
-	}
-
-	if (heigth > ISP_SLCIE_HEIGHT_MAX) {
-		slice_x_num = slice_num / 2;
-		slice_y_num = 2;
-	} else {
-		slice_x_num = slice_num;
-		slice_y_num = 1;
-	}
-	slice_w = width / slice_x_num;
-	slice_w = ALIGN(slice_w, 2);
-	slice_h = heigth / slice_y_num;
-	slice_h = ALIGN(slice_h, 2);
-
-	start_x = slice_w * (slice_no % slice_x_num);
-	size_x = slice_w;
-	if (size_x & 0x03) {
-		if (slice_no != 0) {
-			start_x -=  ALIGN(size_x, 4) - size_x;
-			size_x = ALIGN(size_x, 4);
-		} else {
-			start_x -=  ALIGN(size_x, 4);
-			size_x = ALIGN(size_x, 4);
-		}
-	}
-
-	start_y = (slice_no / slice_x_num) * slice_h;
-	size_y = slice_h;
-
-	slice_trim->start_x = start_x;
-	slice_trim->size_x = size_x;
-	slice_trim->start_y = start_y;
-	slice_trim->size_y = size_y;
-	pr_debug("slice %d [%d, %d, %d, %d].\n", slice_no, start_x, size_x, start_y, size_y);
-	return ret;
+	dev->dcam_cb_func(DCAM_CB_STATIS_DONE,
+		frame, dev->cb_priv_data);
 }
 
 static int dcamcore_offline_slices_sw_start(void *param)
@@ -1249,7 +1249,7 @@ static int dcamcore_offline_frame_start(void *param)
 			trace.type = NORMAL_REG_TRACE;
 			trace.idx = dev->idx;
 			hw->isp_ioctl(hw, ISP_HW_CFG_REG_TRACE, &trace);
-			dcamcore_debug_offline_dump(dev, pm, pframe);
+			dcamcore_offline_debug_dump(dev, pm, pframe);
 		}
 
 		/* start fetch */
@@ -1419,6 +1419,16 @@ static inline int dcamcore_sync_helper_init(struct dcam_pipe_dev *dev)
 }
 
 /*
+ * Helper function to put dcam_sync_helper.
+ */
+static inline void dcamcore_sync_helper_locked_put(struct dcam_pipe_dev *dev,
+			struct dcam_sync_helper *helper)
+{
+	dcamcore_sync_helper_locked_init(dev, helper);
+	list_add_tail(&helper->list, &dev->helper_list);
+}
+
+/*
  * Enables/Disables frame sync for path_id. Should be called before streaming.
  */
 int dcamcore_dcam_if_sync_enable_set(void *handle, int path_id, int enable)
@@ -1453,16 +1463,6 @@ int dcamcore_dcam_if_sync_enable_set(void *handle, int path_id, int enable)
 		dcam_path_name_get(path_id), enable ? "enable" : "disable");
 
 	return 0;
-}
-
-/*
- * Helper function to put dcam_sync_helper.
- */
-static inline void dcamcore_sync_helper_locked_put(struct dcam_pipe_dev *dev,
-			struct dcam_sync_helper *helper)
-{
-	dcamcore_sync_helper_locked_init(dev, helper);
-	list_add_tail(&helper->list, &dev->helper_list);
 }
 
 /*
@@ -1579,6 +1579,79 @@ void dcam_core_sync_helper_put(struct dcam_pipe_dev *dev,
 	spin_unlock_irqrestore(&dev->helper_lock, flags);
 }
 
+static int dcamcore_param_cfg(void *dcam_handle, void *param)
+{
+	int ret = 0;
+	uint32_t i = 0;
+	func_dcam_cfg_param cfg_fun_ptr = NULL;
+	struct dcam_pipe_dev *dev = NULL;
+	struct isp_io_param *io_param;
+	struct dcam_dev_param *pm = NULL;
+	struct cam_hw_info *ops = NULL;
+	struct dcam_hw_block_func_get get;
+	struct dcam_pipe_context *pctx;
+
+	if (!dcam_handle || !param) {
+		pr_err("fail to get valid param, dev %p, param %p\n",
+			dcam_handle, param);
+		return -EFAULT;
+	}
+
+	dev = (struct dcam_pipe_dev *)dcam_handle;
+	ops = dev->hw;
+	io_param = (struct isp_io_param *)param;
+
+	pctx = &dev->ctx[DCAM_CXT_0];
+	if (io_param->scene_id == PM_SCENE_FDRL)
+		pctx = &dev->ctx[DCAM_CXT_1];
+	if (io_param->scene_id == PM_SCENE_FDRH)
+		pctx = &dev->ctx[DCAM_CXT_2];
+	pm = &pctx->blk_pm;
+
+	if (atomic_read(&pctx->user_cnt) == 0) {
+		pr_info("dcam%d ctx %d not init\n", dev->idx, pctx->ctx_id);
+		ret = dcamcore_context_init(dev, pctx);
+		if (ret)
+			goto exit;
+	}
+
+	i = io_param->sub_block - DCAM_BLOCK_BASE;
+	get.index = i;
+	ops->dcam_ioctl(ops, DCAM_HW_CFG_BLOCK_FUNC_GET, &get);
+	if (get.dcam_entry != NULL &&
+		get.dcam_entry->sub_block == io_param->sub_block) {
+		cfg_fun_ptr = get.dcam_entry->cfg_func;
+	} else { /* if not, some error */
+		pr_err("fail to check param, io_param->sub_block = %d, error\n", io_param->sub_block);
+	}
+	if (cfg_fun_ptr == NULL) {
+		pr_debug("block %d not supported.\n", io_param->sub_block);
+		goto exit;
+	}
+
+	if (dev->dcam_slice_mode && dev->slice_count > 0
+		&& (io_param->sub_block != DCAM_BLOCK_LSC))
+		return 0;
+
+	if (io_param->sub_block == DCAM_BLOCK_LSC)
+		mutex_lock(&pm->lsc.lsc_lock);
+
+	pm->dcam_slice_mode = dev->dcam_slice_mode;
+	ret = cfg_fun_ptr(io_param, pm);
+
+	if (io_param->sub_block == DCAM_BLOCK_LSC)
+		mutex_unlock(&pm->lsc.lsc_lock);
+
+	if ((io_param->sub_block == DCAM_BLOCK_LSC) &&
+		(dev->offline == 0) &&
+		(atomic_read(&dev->state) == STATE_RUNNING)) {
+		dcam_update_lsc(pm);
+	}
+
+exit:
+	return ret;
+}
+
 static int dcamcore_param_reconfig(
 	struct dcam_pipe_dev *dev, uint32_t cxt_id)
 {
@@ -1607,6 +1680,65 @@ static int dcamcore_param_reconfig(
 	hw->dcam_ioctl(hw, DCAM_HW_CFG_BLOCKS_SETALL, pm);
 
 	pr_info("dcam%d done\n", dev->idx);
+	return ret;
+}
+
+static inline void dcamcore_frame_info_show(struct dcam_pipe_dev *dev,
+			struct dcam_path_desc *path,
+			struct camera_frame *frame)
+{
+	uint32_t size = 0, pack_bits = 0;
+
+	pack_bits = path->pack_bits;
+	if (frame->is_compressed)
+		size = dcam_if_cal_compressed_size(frame->width,
+			frame->height, frame->compress_4bit_bypass);
+	else
+		size = cal_sprd_raw_pitch(frame->width, pack_bits) * frame->height;
+
+	pr_debug("DCAM%u %s frame %u %u size %u %u buf %08lx %08x\n",
+		dev->idx, dcam_path_name_get(path->path_id),
+		frame->is_reserved, frame->is_compressed,
+		frame->width, frame->height,
+		frame->buf.iova[0], size);
+}
+
+/* offline process frame */
+static int dcamcore_frame_proc(
+		void *dcam_handle, void *param)
+{
+	int ret = 0;
+	struct dcam_pipe_dev *dev = NULL;
+	struct camera_frame *pframe;
+
+	if (!dcam_handle || !param) {
+		pr_err("fail to get a valid param, dcam_handle=%p, param=%p\n", dcam_handle, param);
+		return -EFAULT;
+	}
+	dev = (struct dcam_pipe_dev *)dcam_handle;
+
+	pr_debug("dcam%d offline proc frame!\n", dev->idx);
+	/* if enable, 4in1 capture once more then dcam1 can't run
+	 * if (atomic_read(&dev->state) == STATE_RUNNING) {
+	 *	pr_err("DCAM%u started for online\n", dev->idx);
+	 *	return -EFAULT;
+	 * }
+	 */
+	pframe = (struct camera_frame *)param;
+	pframe->priv_data = dev;
+
+	if (dev->slice_count != 0 &&
+		dev->dcam_slice_mode == CAM_OFFLINE_SLICE_SW) {
+		complete(&dev->thread.thread_com);
+		return ret;
+	}
+
+	ret = cam_queue_enqueue(&dev->in_queue, &pframe->list);
+	if (ret == 0)
+		complete(&dev->thread.thread_com);
+	else
+		pr_err("fail to enqueue frame to dev->in_queue, ret = %d\n", ret);
+
 	return ret;
 }
 
@@ -1683,26 +1815,6 @@ static int dcamcore_path_put(void *dcam_handle, int path_id)
 
 	pr_info("put dcam%d path %d done\n", dev->idx, path_id);
 	return ret;
-}
-
-static inline void dcamcore_frame_info_show(struct dcam_pipe_dev *dev,
-			struct dcam_path_desc *path,
-			struct camera_frame *frame)
-{
-	uint32_t size = 0, pack_bits = 0;
-
-	pack_bits = path->pack_bits;
-	if (frame->is_compressed)
-		size = dcam_if_cal_compressed_size(frame->width,
-			frame->height, frame->compress_4bit_bypass);
-	else
-		size = cal_sprd_raw_pitch(frame->width, pack_bits) * frame->height;
-
-	pr_debug("DCAM%u %s frame %u %u size %u %u buf %08lx %08x\n",
-		dev->idx, dcam_path_name_get(path->path_id),
-		frame->is_reserved, frame->is_compressed,
-		frame->width, frame->height,
-		frame->buf.iova[0], size);
 }
 
 static int dcamcore_path_cfg(void *dcam_handle, enum dcam_path_cfg_cmd cfg_cmd,
@@ -1909,45 +2021,6 @@ static int dcamcore_path_rect_get(struct dcam_pipe_dev *dev, void *param)
 	return 0;
 }
 
-/* offline process frame */
-static int dcamcore_frame_proc(
-		void *dcam_handle, void *param)
-{
-	int ret = 0;
-	struct dcam_pipe_dev *dev = NULL;
-	struct camera_frame *pframe;
-
-	if (!dcam_handle || !param) {
-		pr_err("fail to get a valid param, dcam_handle=%p, param=%p\n", dcam_handle, param);
-		return -EFAULT;
-	}
-	dev = (struct dcam_pipe_dev *)dcam_handle;
-
-	pr_debug("dcam%d offline proc frame!\n", dev->idx);
-	/* if enable, 4in1 capture once more then dcam1 can't run
-	 * if (atomic_read(&dev->state) == STATE_RUNNING) {
-	 *	pr_err("DCAM%u started for online\n", dev->idx);
-	 *	return -EFAULT;
-	 * }
-	 */
-	pframe = (struct camera_frame *)param;
-	pframe->priv_data = dev;
-
-	if (dev->slice_count != 0 &&
-		dev->dcam_slice_mode == CAM_OFFLINE_SLICE_SW) {
-		complete(&dev->thread.thread_com);
-		return ret;
-	}
-
-	ret = cam_queue_enqueue(&dev->in_queue, &pframe->list);
-	if (ret == 0)
-		complete(&dev->thread.thread_com);
-	else
-		pr_err("fail to enqueue frame to dev->in_queue, ret = %d\n", ret);
-
-	return ret;
-}
-
 static int dcamcore_ioctrl(void *dcam_handle, enum dcam_ioctrl_cmd cmd, void *param)
 {
 	int ret = 0;
@@ -2068,79 +2141,6 @@ static int dcamcore_ioctrl(void *dcam_handle, enum dcam_ioctrl_cmd cmd, void *pa
 		break;
 	}
 
-	return ret;
-}
-
-static int dcamcore_param_cfg(void *dcam_handle, void *param)
-{
-	int ret = 0;
-	uint32_t i = 0;
-	func_dcam_cfg_param cfg_fun_ptr = NULL;
-	struct dcam_pipe_dev *dev = NULL;
-	struct isp_io_param *io_param;
-	struct dcam_dev_param *pm = NULL;
-	struct cam_hw_info *ops = NULL;
-	struct dcam_hw_block_func_get get;
-	struct dcam_pipe_context *pctx;
-
-	if (!dcam_handle || !param) {
-		pr_err("fail to get valid param, dev %p, param %p\n",
-			dcam_handle, param);
-		return -EFAULT;
-	}
-
-	dev = (struct dcam_pipe_dev *)dcam_handle;
-	ops = dev->hw;
-	io_param = (struct isp_io_param *)param;
-
-	pctx = &dev->ctx[DCAM_CXT_0];
-	if (io_param->scene_id == PM_SCENE_FDRL)
-		pctx = &dev->ctx[DCAM_CXT_1];
-	if (io_param->scene_id == PM_SCENE_FDRH)
-		pctx = &dev->ctx[DCAM_CXT_2];
-	pm = &pctx->blk_pm;
-
-	if (atomic_read(&pctx->user_cnt) == 0) {
-		pr_info("dcam%d ctx %d not init\n", dev->idx, pctx->ctx_id);
-		ret = dcamcore_context_init(dev, pctx);
-		if (ret)
-			goto exit;
-	}
-
-	i = io_param->sub_block - DCAM_BLOCK_BASE;
-	get.index = i;
-	ops->dcam_ioctl(ops, DCAM_HW_CFG_BLOCK_FUNC_GET, &get);
-	if (get.dcam_entry != NULL &&
-		get.dcam_entry->sub_block == io_param->sub_block) {
-		cfg_fun_ptr = get.dcam_entry->cfg_func;
-	} else { /* if not, some error */
-		pr_err("fail to check param, io_param->sub_block = %d, error\n", io_param->sub_block);
-	}
-	if (cfg_fun_ptr == NULL) {
-		pr_debug("block %d not supported.\n", io_param->sub_block);
-		goto exit;
-	}
-
-	if (dev->dcam_slice_mode && dev->slice_count > 0
-		&& (io_param->sub_block != DCAM_BLOCK_LSC))
-		return 0;
-
-	if (io_param->sub_block == DCAM_BLOCK_LSC)
-		mutex_lock(&pm->lsc.lsc_lock);
-
-	pm->dcam_slice_mode = dev->dcam_slice_mode;
-	ret = cfg_fun_ptr(io_param, pm);
-
-	if (io_param->sub_block == DCAM_BLOCK_LSC)
-		mutex_unlock(&pm->lsc.lsc_lock);
-
-	if ((io_param->sub_block == DCAM_BLOCK_LSC) &&
-		(dev->offline == 0) &&
-		(atomic_read(&dev->state) == STATE_RUNNING)) {
-		dcam_update_lsc(pm);
-	}
-
-exit:
 	return ret;
 }
 
@@ -2611,11 +2611,6 @@ static struct dcam_pipe_ops s_dcam_pipe_ops = {
 	.set_callback = dcamcore_cb_set,
 };
 
-uint32_t dcamcore_dcam_if_open_count_get(void)
-{
-	return atomic_read(&s_dcam_axi_opened);
-}
-
 /*
  * Create a dcam_pipe_dev for designated cam_hw_info.
  */
@@ -2674,7 +2669,7 @@ exit:
 /*
  * Release a dcam_pipe_dev.
  */
-int dcam_if_put_dev(void *dcam_handle)
+int dcam_core_dcam_if_dev_put(void *dcam_handle)
 {
 	uint32_t idx = 0;
 	int ret = 0;
@@ -2712,15 +2707,5 @@ int dcam_if_put_dev(void *dcam_handle)
 	mutex_unlock(&s_dcam_dev_mutex);
 
 	return ret;
-}
-
-/* return the number of how many buf in the out_buf_queue */
-uint32_t get_outbuf_queue_cnt(void *dev, int path_id)
-{
-	struct dcam_path_desc *path;
-
-	path = &(((struct dcam_pipe_dev *)dev)->path[path_id]);
-
-	return cam_queue_cnt_get(&path->out_buf_queue);
 }
 

@@ -333,7 +333,7 @@ void *dcam_core_dcam_if_dev_get(uint32_t idx, struct cam_hw_info *hw);
 /*
  * Release a dcam_if device after capture finished.
  */
-int dcam_if_put_dev(void *dcam_handle);
+int dcam_core_dcam_if_dev_put(void *dcam_handle);
 
 /*
  * Retrieve hardware info from dt.
@@ -343,8 +343,5 @@ int dcam_drv_hw_deinit(void *arg);
 int dcam_drv_dt_parse(struct platform_device *pdev,
 			struct cam_hw_info *hw_info,
 			uint32_t *dcam_count);
-uint32_t get_outbuf_queue_cnt(void *dev, int path_id);
-
-uint32_t dcamcore_dcam_if_open_count_get(void);
 
 #endif/* _DCAM_INTERFACE_H_ */

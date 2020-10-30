@@ -2043,7 +2043,7 @@ dcam_cb_fail:
 	module->dcam_dev_handle->dcam_pipe_ops->close(dcam);
 
 dcam_fail:
-	dcam_if_put_dev(dcam);
+	dcam_core_dcam_if_dev_put(dcam);
 	module->dcam_dev_handle = NULL;
 no_dcam:
 	pr_err("fail to get camera res for sensor: %d\n", res.sensor_id);
@@ -2088,7 +2088,7 @@ static int camioctl_cam_res_put(struct camera_module *module,
 
 	if (module->dcam_dev_handle) {
 		module->dcam_dev_handle->dcam_pipe_ops->close(module->dcam_dev_handle);
-		dcam_if_put_dev(module->dcam_dev_handle);
+		dcam_core_dcam_if_dev_put(module->dcam_dev_handle);
 		module->dcam_dev_handle = NULL;
 	}
 	if (module->isp_dev_handle) {

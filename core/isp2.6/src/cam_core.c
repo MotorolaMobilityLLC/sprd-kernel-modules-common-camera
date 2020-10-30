@@ -551,6 +551,16 @@ static int camcore_capture_3dnr_set(struct camera_module *module,
 	return 0;
 }
 
+/* return the number of how many buf in the out_buf_queue */
+uint32_t camcore_outbuf_queue_cnt_get(void *dev, int path_id)
+{
+	struct dcam_path_desc *path;
+
+	path = &(((struct dcam_pipe_dev *)dev)->path[path_id]);
+
+	return cam_queue_cnt_get(&path->out_buf_queue);
+}
+
 static void camcore_k_frame_put(void *param)
 {
 	int ret = 0;
@@ -1607,7 +1617,7 @@ static struct camera_frame *camcore_dual_fifo_queue(struct camera_module *module
 	if (ret)
 		return pframe;
 
-	if (get_outbuf_queue_cnt(module->dcam_dev_handle,
+	if (camcore_outbuf_queue_cnt_get(module->dcam_dev_handle,
 		channel->dcam_path_id) < 1) {
 		/* do fifo */
 		pframe = cam_queue_dequeue(&module->zsl_fifo_queue,
@@ -2769,7 +2779,7 @@ static int camcore_bigsize_aux_init(struct camera_module *module,
 exit_close:
 	module->dcam_dev_handle->dcam_pipe_ops->close(module->aux_dcam_dev);
 exit_dev:
-	dcam_if_put_dev(module->aux_dcam_dev);
+	dcam_core_dcam_if_dev_put(module->aux_dcam_dev);
 	module->aux_dcam_dev = NULL;
 	return ret;
 }
@@ -2784,7 +2794,7 @@ static int camcore_bigsize_slave_deinit(struct camera_module *module)
 	ret = module->dcam_dev_handle->dcam_pipe_ops->stop(dev, DCAM_STOP);
 	ret = module->dcam_dev_handle->dcam_pipe_ops->put_path(dev, DCAM_PATH_BIN);
 	ret += module->dcam_dev_handle->dcam_pipe_ops->close(dev);
-	ret += dcam_if_put_dev(dev);
+	ret += dcam_core_dcam_if_dev_put(dev);
 	module->aux_dcam_dev = NULL;
 	pr_info("Done, ret = %d\n", ret);
 
@@ -4235,7 +4245,7 @@ exit_close:
 		module->dcam_dev_handle->dcam_pipe_ops->close(module->aux_dcam_dev);
 exit_dev:
 	if (newdcam)
-		dcam_if_put_dev(module->aux_dcam_dev);
+		dcam_core_dcam_if_dev_put(module->aux_dcam_dev);
 	module->aux_dcam_dev = NULL;
 	return ret;
 }
@@ -4267,7 +4277,7 @@ static int camcore_aux_dcam_deinit(struct camera_module *module)
 	if (dcam != module->dcam_dev_handle) {
 		pr_info("close and put dcam %d\n", module->aux_dcam_id);
 		ret += module->dcam_dev_handle->dcam_pipe_ops->close(dcam);
-		ret += dcam_if_put_dev(dcam);
+		ret += dcam_core_dcam_if_dev_put(dcam);
 	}
 
 	module->aux_dcam_dev = NULL;
@@ -6178,7 +6188,7 @@ static int camcore_release(struct inode *node, struct file *file)
 		if (dcam_dev) {
 			pr_info("force close dcam %px\n", dcam_dev);
 			module->dcam_dev_handle->dcam_pipe_ops->close(dcam_dev);
-			dcam_if_put_dev(dcam_dev);
+			dcam_core_dcam_if_dev_put(dcam_dev);
 			module->dcam_dev_handle = NULL;
 		}
 
