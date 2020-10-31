@@ -25,6 +25,143 @@
 #define pr_fmt(fmt) "3DNR logic: %d %d %s : "\
 	fmt, current->pid, __LINE__, __func__
 
+static int isp3dnr_store_config_gen(struct isp_3dnr_ctx_desc *ctx)
+{
+	int ret = 0;
+	struct isp_3dnr_store *store = NULL;
+
+	if (!ctx) {
+		pr_err("fail to get valid 3dnr store parameter\n");
+		return -EINVAL;
+	}
+
+	store = &ctx->nr3_store;
+
+	store->img_width  = ctx->width;
+	store->img_height = ctx->height;
+	store->st_pitch = ctx->width;
+
+	store->chk_sum_clr_en = 1;
+	store->shadow_clr_sel = 1;
+	store->st_max_len_sel = 1;
+	store->shadow_clr = 1;
+
+	if (ctx->blending_cnt % 2 != 1) {
+		store->st_luma_addr = ctx->buf_info[0]->iova[0];
+		store->st_chroma_addr = ctx->buf_info[0]->iova[0] +
+			(ctx->width * ctx->height);
+	} else {
+		store->st_luma_addr = ctx->buf_info[1]->iova[0];
+		store->st_chroma_addr = ctx->buf_info[1]->iova[0] +
+			(ctx->width * ctx->height);
+	}
+
+	pr_debug("3DNR nr3store st_luma=0x%lx, st_chroma=0x%lx\n",
+		store->st_luma_addr, store->st_chroma_addr);
+	pr_debug("3DNR nr3store w=%d,h=%d,frame_w=%d,frame_h=%d\n",
+		store->img_width,
+		store->img_height,
+		ctx->width,
+		ctx->height);
+
+	return ret;
+}
+
+static int isp3dnr_crop_config_gen(struct isp_3dnr_ctx_desc *ctx)
+{
+	int ret = 0;
+
+	if (!ctx) {
+		pr_err("fail to get valid 3dnr crop parameter\n");
+		return -EINVAL;
+	}
+
+	ctx->crop.crop_bypass = 1;
+	ctx->crop.src_width = ctx->width;
+	ctx->crop.src_height = ctx->height;
+	ctx->crop.dst_width = ctx->width;
+	ctx->crop.dst_height = ctx->height;
+	ctx->crop.start_x = 0;
+	ctx->crop.start_y = 0;
+
+	return ret;
+}
+
+/*
+ * INPUT:
+ *   mv_x		: input mv_x (3DNR GME output)
+ *   mv_y		: input mv_y (3DNR GME output)
+ *   mode_projection	: mode projection in 3DNR GME
+ *			: 1 - interlaced mode
+ *			: 0 - step mode
+ *   sub_me_bypass	: 1 - sub pixel motion estimation bypass
+ *			: 0 - do sub pixel motion estimation
+ *   input_width	:  input image width for binning and bayer scaler
+ *   output_width	: output image width for binning and bayer scaler
+ *   input_height	:  input image width for binning and bayer scaler
+ *   output_height	: output image width for binning and bayer scaler
+ *
+ * OUTPUT:
+ *   out_mv_x
+ *   out_mv_y
+ */
+static int isp3dnr_mv_conversion_base_on_resolution(
+		int mv_x, int mv_y,
+		uint32_t mode_projection,
+		uint32_t sub_me_bypass,
+		int iw, int ow,
+		int ih, int oh,
+		int *o_mv_x, int *o_mv_y)
+{
+	if (sub_me_bypass == 1) {
+		if (mode_projection == 1) {
+			if (mv_x > 0)
+				*o_mv_x = (mv_x * 2 * ow + (iw >> 1)) / iw;
+			else
+				*o_mv_x = (mv_x * 2 * ow - (iw >> 1)) / iw;
+
+			if (mv_y > 0)
+				*o_mv_y = (mv_y * 2 * oh + (ih >> 1)) / ih;
+			else
+				*o_mv_y = (mv_y * 2 * oh - (ih >> 1)) / ih;
+		} else {
+			if (mv_x > 0)
+				*o_mv_x = (mv_x * ow + (iw >> 1)) / iw;
+			else
+				*o_mv_x = (mv_x * ow - (iw >> 1)) / iw;
+
+			if (mv_y > 0)
+				*o_mv_y = (mv_y * oh + (ih >> 1)) / ih;
+			else
+				*o_mv_y = (mv_y * oh - (ih >> 1)) / ih;
+		}
+	} else {
+		if (mode_projection == 1) {
+			if (mv_x > 0)
+				*o_mv_x = (mv_x * ow + (iw >> 1)) / iw;
+			else
+				*o_mv_x = (mv_x * ow - (iw >> 1)) / iw;
+
+			if (mv_y > 0)
+				*o_mv_y = (mv_y * oh + (ih >> 1)) / ih;
+			else
+				*o_mv_y = (mv_y * oh - (ih >> 1)) / ih;
+		} else {
+			if (mv_x > 0)
+				*o_mv_x = (mv_x * ow + iw) / (iw * 2);
+			else
+				*o_mv_x = (mv_x * ow - iw) / (iw * 2);
+
+			if (mv_y > 0)
+				*o_mv_y = (mv_y * oh + ih) / (ih * 2);
+			else
+				*o_mv_y = (mv_y * oh - ih) / (ih * 2);
+		}
+	}
+
+	return 0;
+}
+
 static int isp3dnr_memctrl_base_on_mv_update(struct isp_3dnr_ctx_desc *ctx)
 {
 	struct isp_3dnr_mem_ctrl *mem_ctrl = &ctx->mem_ctrl;
@@ -211,48 +348,6 @@ static int isp3dnr_memctrl_config_gen(struct isp_3dnr_ctx_desc *ctx)
 	/*configuration param 13*/
 	mem_ctrl->pipe_nfull_num = 100;
 	mem_ctrl->ft_fifo_nfull_num = 2648;
-
-	return ret;
-}
-
-static int isp3dnr_store_config_gen(struct isp_3dnr_ctx_desc *ctx)
-{
-	int ret = 0;
-	struct isp_3dnr_store *store = NULL;
-
-	if (!ctx) {
-		pr_err("fail to get valid 3dnr store parameter\n");
-		return -EINVAL;
-	}
-
-	store = &ctx->nr3_store;
-
-	store->img_width  = ctx->width;
-	store->img_height = ctx->height;
-	store->st_pitch   = ctx->width;
-
-	store->chk_sum_clr_en = 1;
-	store->shadow_clr_sel = 1;
-	store->st_max_len_sel = 1;
-	store->shadow_clr = 1;
-
-	if (ctx->blending_cnt % 2 != 1) {
-		store->st_luma_addr   = ctx->buf_info[0]->iova[0];
-		store->st_chroma_addr = ctx->buf_info[0]->iova[0] +
-			(ctx->width * ctx->height);
-	} else {
-		store->st_luma_addr   = ctx->buf_info[1]->iova[0];
-		store->st_chroma_addr = ctx->buf_info[1]->iova[0] +
-			(ctx->width * ctx->height);
-	}
-
-	pr_debug("3DNR nr3store st_luma=0x%lx, st_chroma=0x%lx\n",
-		store->st_luma_addr, store->st_chroma_addr);
-	pr_debug("3DNR nr3store w=%d,h=%d,frame_w=%d,frame_h=%d\n",
-		store->img_width,
-		store->img_height,
-		ctx->width,
-		ctx->height);
 
 	return ret;
 }
@@ -470,26 +565,6 @@ static int isp3dnr_fbc_store_config_gen(struct isp_3dnr_ctx_desc *ctx)
 	return ret;
 }
 
-static int isp3dnr_crop_config_gen(struct isp_3dnr_ctx_desc *ctx)
-{
-	int ret = 0;
-
-	if (!ctx) {
-		pr_err("fail to get valid 3dnr crop parameter\n");
-		return -EINVAL;
-	}
-
-	ctx->crop.crop_bypass = 1;
-	ctx->crop.src_width = ctx->width;
-	ctx->crop.src_height = ctx->height;
-	ctx->crop.dst_width = ctx->width;
-	ctx->crop.dst_height = ctx->height;
-	ctx->crop.start_x = 0;
-	ctx->crop.start_y = 0;
-
-	return ret;
-}
-
 int isp_3dnr_config_gen(struct isp_3dnr_ctx_desc *ctx)
 {
 	int ret = 0;
@@ -673,81 +748,6 @@ int isp_3dnr_memctrl_slice_info_update(struct nr3_slice *in,
 			out->ft_uv_height = global_img_height / 2 - (mv_y / 2);
 			out->src_lum_addr += ft_pitch * mv_y;
 			out->src_chr_addr += ft_pitch * (mv_y / 2);
-		}
-	}
-
-	return 0;
-}
-
-/*
- * INPUT:
- *   mv_x		: input mv_x (3DNR GME output)
- *   mv_y		: input mv_y (3DNR GME output)
- *   mode_projection	: mode projection in 3DNR GME
- *			: 1 - interlaced mode
- *			: 0 - step mode
- *   sub_me_bypass	: 1 - sub pixel motion estimation bypass
- *			: 0 - do sub pixel motion estimation
- *   input_width	:  input image width for binning and bayer scaler
- *   output_width	: output image width for binning and bayer scaler
- *   input_height	:  input image width for binning and bayer scaler
- *   output_height	: output image width for binning and bayer scaler
- *
- * OUTPUT:
- *   out_mv_x
- *   out_mv_y
- */
-static int isp3dnr_mv_conversion_base_on_resolution(
-		int mv_x, int mv_y,
-		uint32_t mode_projection,
-		uint32_t sub_me_bypass,
-		int iw, int ow,
-		int ih, int oh,
-		int *o_mv_x, int *o_mv_y)
-{
-	if (sub_me_bypass == 1) {
-		if (mode_projection == 1) {
-			if (mv_x > 0)
-				*o_mv_x = (mv_x * 2 * ow + (iw >> 1)) / iw;
-			else
-				*o_mv_x = (mv_x * 2 * ow - (iw >> 1)) / iw;
-
-			if (mv_y > 0)
-				*o_mv_y = (mv_y * 2 * oh + (ih >> 1)) / ih;
-			else
-				*o_mv_y = (mv_y * 2 * oh - (ih >> 1)) / ih;
-		} else {
-			if (mv_x > 0)
-				*o_mv_x = (mv_x * ow + (iw >> 1)) / iw;
-			else
-				*o_mv_x = (mv_x * ow - (iw >> 1)) / iw;
-
-			if (mv_y > 0)
-				*o_mv_y = (mv_y * oh + (ih >> 1)) / ih;
-			else
-				*o_mv_y = (mv_y * oh - (ih >> 1)) / ih;
-		}
-	} else {
-		if (mode_projection == 1) {
-			if (mv_x > 0)
-				*o_mv_x = (mv_x * ow + (iw >> 1)) / iw;
-			else
-				*o_mv_x = (mv_x * ow - (iw >> 1)) / iw;
-
-			if (mv_y > 0)
-				*o_mv_y = (mv_y * oh + (ih >> 1)) / ih;
-			else
-				*o_mv_y = (mv_y * oh - (ih >> 1)) / ih;
-		} else {
-			if (mv_x > 0)
-				*o_mv_x = (mv_x * ow + iw) / (iw * 2);
-			else
-				*o_mv_x = (mv_x * ow - iw) / (iw * 2);
-
-			if (mv_y > 0)
-				*o_mv_y = (mv_y * oh + ih) / (ih * 2);
-			else
-				*o_mv_y = (mv_y * oh - ih) / (ih * 2);
 		}
 	}
 

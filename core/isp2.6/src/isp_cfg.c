@@ -27,15 +27,6 @@
 #define pr_fmt(fmt) "ISP_CFG: %d: %d %s:" \
 	fmt, current->pid, __LINE__, __func__
 
-unsigned long cfg_cmd_addr_reg[ISP_CONTEXT_HW_NUM] = {
-	ISP_CFG_PRE0_CMD_ADDR,
-	ISP_CFG_CAP0_CMD_ADDR,
-	ISP_CFG_PRE1_CMD_ADDR,
-	ISP_CFG_CAP1_CMD_ADDR
-};
-
-unsigned long isp_cfg_ctx_addr[ISP_CONTEXT_SW_NUM] = { 0 };
-
 static DEFINE_MUTEX(buf_mutex);
 
 struct isp_cfg_map_sector {
@@ -43,63 +34,19 @@ struct isp_cfg_map_sector {
 	uint32_t size;
 };
 
+unsigned long cfg_cmd_addr_reg[ISP_CONTEXT_HW_NUM] = {
+	ISP_CFG_PRE0_CMD_ADDR,
+	ISP_CFG_CAP0_CMD_ADDR,
+	ISP_CFG_PRE1_CMD_ADDR,
+	ISP_CFG_CAP1_CMD_ADDR
+};
+
 /* s_map_sec_cnt/s_map_sectors only configure once
  * due to ISP_CFG_MAP[] is static and fixed
  */
 static uint32_t s_map_sec_cnt;
 static struct isp_cfg_map_sector s_map_sectors[ISP_CFG_MAP_MAX];
-
-int isp_cfg_ctx_reg_buf_debug_show(void *param)
-{
-	struct seq_file *s = (struct seq_file *)param;
-	struct cam_debug_bypass *debug_bypass = NULL;
-	struct cam_hw_info *hw = NULL;
-	uint32_t ctx_id = 0;
-	uint32_t i, item, start, count;
-	uint32_t addr;
-	unsigned long datap;
-	uint32_t cfg_map_size = 0;
-	uint32_t *cfg_map = NULL;
-	struct isp_dev_cfg_info s_cfg_settings = {
-		0, 1, 1, 0, NULL,
-		0, 1, 1, 1, 1,
-		0, 0, 0, 0,
-		0, 0, 0
-	};
-
-	debug_bypass = (struct cam_debug_bypass *)s->private;
-	ctx_id = debug_bypass->idx;
-	hw = debug_bypass->hw;
-
-	mutex_lock(&buf_mutex);
-	datap = isp_cfg_ctx_addr[ctx_id];
-	hw->isp_ioctl(hw, ISP_HW_CFG_CFG_MAP_INFO_GET, &s_cfg_settings);
-	cfg_map_size = s_cfg_settings.num_of_mod;
-	cfg_map = s_cfg_settings.isp_cfg_map;
-	if (datap == 0UL) {
-		mutex_unlock(&buf_mutex);
-		seq_printf(s,
-			"----ctx %d cfg buf freed.---\n", ctx_id);
-		return 0;
-	}
-
-	seq_printf(s,
-		"dump regsigters buf of ISP context %d - kaddr: 0x%lx\n",
-		ctx_id, datap);
-
-	for (i = 0; i < cfg_map_size; i++) {
-		seq_puts(s, "---------------\n");
-		item = cfg_map[i];
-		start = item & 0xffff;
-		count = (item >> 16) & 0xffff;
-		for (addr = start; addr < (start + count); addr += 4)
-			seq_printf(s, "%04x:  %08x\n",
-				addr, *(uint32_t *)(datap + addr));
-	}
-	mutex_unlock(&buf_mutex);
-	seq_puts(s, "------------------------\n");
-	return 0;
-}
+unsigned long isp_cfg_ctx_addr[ISP_CONTEXT_SW_NUM] = { 0 };
 
 static void ispcfg_cctx_page_buf_addr_init(
 				struct isp_cfg_ctx_desc *cfg_ctx,
@@ -326,29 +273,6 @@ static int ispcfg_cctx_buf_deinit(struct isp_cfg_ctx_desc *cfg_ctx)
 	return 0;
 }
 
-static int ispcfg_ctxbuf_reset(
-		struct isp_cfg_ctx_desc *cfg_ctx,
-		enum isp_context_id ctx_id)
-{
-	void *shadow_buf_vaddr = NULL;
-
-	if (!cfg_ctx) {
-		pr_err("fail to get cfg_ctx pointer\n");
-		return -EFAULT;
-	}
-	pr_debug("Enter\n");
-
-	shadow_buf_vaddr = (void *)isp_cfg_ctx_addr[ctx_id];
-	if (!IS_ERR_OR_NULL(shadow_buf_vaddr)) {
-		memset(shadow_buf_vaddr, 0x0, ISP_REG_SIZE);
-		pr_debug("ctx %d reset shadow page buf\n", ctx_id);
-	}
-
-	pr_debug("Done\n");
-
-	return 0;
-}
-
 /*  Interface */
 static int ispcfg_map_init(struct isp_cfg_ctx_desc *cfg_ctx)
 {
@@ -551,10 +475,33 @@ exit:
 	return ret;
 }
 
+static int ispcfg_ctx_buf_reset(
+		struct isp_cfg_ctx_desc *cfg_ctx,
+		enum isp_context_id ctx_id)
+{
+	void *shadow_buf_vaddr = NULL;
+
+	if (!cfg_ctx) {
+		pr_err("fail to get cfg_ctx pointer\n");
+		return -EFAULT;
+	}
+	pr_debug("Enter\n");
+
+	shadow_buf_vaddr = (void *)isp_cfg_ctx_addr[ctx_id];
+	if (!IS_ERR_OR_NULL(shadow_buf_vaddr)) {
+		memset(shadow_buf_vaddr, 0x0, ISP_REG_SIZE);
+		pr_debug("ctx %d reset shadow page buf\n", ctx_id);
+	}
+
+	pr_debug("Done\n");
+
+	return 0;
+}
+
 struct isp_cfg_ops cfg_ops = {
 	.ctx_init = ispcfg_ctx_init,
 	.ctx_deinit = ispcfg_ctx_deinit,
-	.ctx_reset = ispcfg_ctxbuf_reset,
+	.ctx_reset = ispcfg_ctx_buf_reset,
 	.hw_init = ispcfg_map_init,
 	.hw_cfg = ispcfg_block_config,
 };
@@ -575,4 +522,56 @@ int isp_cfg_ctx_desc_put(struct isp_cfg_ctx_desc *param)
 	pr_err("fail to match param %p, %p\n",
 		param, &s_ctx_desc);
 	return -EINVAL;
+}
+
+int isp_cfg_ctx_reg_buf_debug_show(void *param)
+{
+	struct seq_file *s = (struct seq_file *)param;
+	struct cam_debug_bypass *debug_bypass = NULL;
+	struct cam_hw_info *hw = NULL;
+	uint32_t ctx_id = 0;
+	uint32_t i, item, start, count;
+	uint32_t addr;
+	unsigned long datap;
+	uint32_t cfg_map_size = 0;
+	uint32_t *cfg_map = NULL;
+	struct isp_dev_cfg_info s_cfg_settings = {
+		0, 1, 1, 0, NULL,
+		0, 1, 1, 1, 1,
+		0, 0, 0, 0,
+		0, 0, 0
+	};
+
+	debug_bypass = (struct cam_debug_bypass *)s->private;
+	ctx_id = debug_bypass->idx;
+	hw = debug_bypass->hw;
+
+	mutex_lock(&buf_mutex);
+	datap = isp_cfg_ctx_addr[ctx_id];
+	hw->isp_ioctl(hw, ISP_HW_CFG_CFG_MAP_INFO_GET, &s_cfg_settings);
+	cfg_map_size = s_cfg_settings.num_of_mod;
+	cfg_map = s_cfg_settings.isp_cfg_map;
+	if (datap == 0UL) {
+		mutex_unlock(&buf_mutex);
+		seq_printf(s,
+			"----ctx %d cfg buf freed.---\n", ctx_id);
+		return 0;
+	}
+
+	seq_printf(s,
+		"dump regsigters buf of ISP context %d - kaddr: 0x%lx\n",
+		ctx_id, datap);
+
+	for (i = 0; i < cfg_map_size; i++) {
+		seq_puts(s, "---------------\n");
+		item = cfg_map[i];
+		start = item & 0xffff;
+		count = (item >> 16) & 0xffff;
+		for (addr = start; addr < (start + count); addr += 4)
+			seq_printf(s, "%04x:  %08x\n",
+				addr, *(uint32_t *)(datap + addr));
+	}
+	mutex_unlock(&buf_mutex);
+	seq_puts(s, "------------------------\n");
+	return 0;
 }
