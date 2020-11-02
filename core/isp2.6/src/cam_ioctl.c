@@ -1262,10 +1262,8 @@ static int camioctl_stream_off(struct camera_module *module,
 	if (ch) {
 		mutex_lock(&module->buf_lock[ch->ch_id]);
 		if (ch->enable && ch->alloc_start) {
-			ret = wait_for_completion_interruptible(&ch->alloc_com);
-			if (ret != 0)
-				pr_err("fail to config channel/path param work %d\n", ret);
-			pr_debug("allsoc buffer done.\n");
+			wait_for_completion(&ch->alloc_com);
+			pr_debug("alloc buffer done.\n");
 			ch->alloc_start = 0;
 		}
 		mutex_unlock(&module->buf_lock[ch->ch_id]);
@@ -1363,9 +1361,7 @@ static int camioctl_stream_off(struct camera_module *module,
 					isp_ctx_id[i]);
 			mutex_lock(&module->buf_lock[ch->ch_id]);
 			if (ch->alloc_start) {
-				ret = wait_for_completion_interruptible(&ch->alloc_com);
-				if (ret != 0)
-					pr_err("fail to config channel/path param work %d\n", ret);
+				wait_for_completion(&ch->alloc_com);
 				pr_debug("alloc buffer done.\n");
 				ch->alloc_start = 0;
 			}
