@@ -49,6 +49,44 @@ static uint32_t isppath_deci_factor_get(uint32_t src_size, uint32_t dst_size)
 	return factor;
 }
 
+int isp_path_comn_uinfo_set(struct isp_sw_context *pctx, void *param)
+{
+	int ret = 0;
+	struct isp_ctx_base_desc *cfg_in = NULL;
+	struct isp_uinfo *uinfo = NULL;
+
+	if (!pctx || !param) {
+		pr_err("fail to get valid input ptr, pctx %p, param %p\n",
+			pctx, param);
+		return -EFAULT;
+	}
+
+	cfg_in = (struct isp_ctx_base_desc *)param;
+	uinfo = &pctx->uinfo;
+
+	if (uinfo->enable_slowmotion) {
+		uinfo->enable_slowmotion = cfg_in->enable_slowmotion;
+		uinfo->slowmotion_count = cfg_in->slowmotion_count;
+	}
+	uinfo->in_fmt = cfg_in->in_fmt;
+	uinfo->pack_bits = cfg_in->pack_bits;
+	uinfo->bayer_pattern = cfg_in->bayer_pattern;
+	uinfo->ltm_rgb = cfg_in->ltm_rgb;
+	uinfo->ltm_yuv = cfg_in->ltm_yuv;
+	uinfo->slw_state = cfg_in->slw_state;
+	uinfo->mode_ltm = cfg_in->mode_ltm;
+	uinfo->mode_3dnr = cfg_in->mode_3dnr;
+	pctx->dev->ltm_handle->ops->set_status(1, pctx->ctx_id,
+		uinfo->mode_ltm, pctx->attach_cam_id);
+	pctx->ch_id = cfg_in->ch_id;
+
+	pr_debug("ctx%d, in_fmt 0x%x, %d %d mode_ltm %d ltm_eb %d\n", pctx->ctx_id,
+		uinfo->in_fmt, uinfo->pack_bits, uinfo->bayer_pattern, uinfo->mode_ltm,
+		uinfo->ltm_rgb);
+
+	return ret;
+}
+
 int isp_path_scaler_param_calc(struct img_trim *in_trim,
 	struct img_size *out_size, struct isp_scaler_info *scaler,
 	struct img_deci_info *deci)
@@ -194,44 +232,6 @@ int isp_path_fetchsize_update(struct isp_sw_context *pctx, void *param)
 	return ret;
 }
 
-int isp_path_comn_uinfo_set(struct isp_sw_context *pctx, void *param)
-{
-	int ret = 0;
-	struct isp_ctx_base_desc *cfg_in = NULL;
-	struct isp_uinfo *uinfo = NULL;
-
-	if (!pctx || !param) {
-		pr_err("fail to get valid input ptr, pctx %p, param %p\n",
-			pctx, param);
-		return -EFAULT;
-	}
-
-	cfg_in = (struct isp_ctx_base_desc *)param;
-	uinfo = &pctx->uinfo;
-
-	if (uinfo->enable_slowmotion) {
-		uinfo->enable_slowmotion = cfg_in->enable_slowmotion;
-		uinfo->slowmotion_count = cfg_in->slowmotion_count;
-	}
-	uinfo->in_fmt = cfg_in->in_fmt;
-	uinfo->pack_bits = cfg_in->pack_bits;
-	uinfo->bayer_pattern = cfg_in->bayer_pattern;
-	uinfo->ltm_rgb = cfg_in->ltm_rgb;
-	uinfo->ltm_yuv = cfg_in->ltm_yuv;
-	uinfo->slw_state = cfg_in->slw_state;
-	uinfo->mode_ltm = cfg_in->mode_ltm;
-	uinfo->mode_3dnr = cfg_in->mode_3dnr;
-	pctx->dev->ltm_handle->ops->set_status(1, pctx->ctx_id,
-		uinfo->mode_ltm, pctx->attach_cam_id);
-	pctx->ch_id = cfg_in->ch_id;
-
-	pr_debug("ctx%d, in_fmt 0x%x, %d %d mode_ltm %d ltm_eb %d\n", pctx->ctx_id,
-		uinfo->in_fmt, uinfo->pack_bits, uinfo->bayer_pattern, uinfo->mode_ltm,
-		uinfo->ltm_rgb);
-
-	return ret;
-}
-
 int isp_path_fetch_uinfo_set(struct isp_sw_context *pctx, void *param)
 {
 	int ret = 0;
@@ -314,6 +314,104 @@ int isp_path_fetchsync_uinfo_set(struct isp_sw_context *pctx, void *param)
 	pr_debug("ctx %u, uframe_sync %u\n", pctx->ctx_id, uinfo->uframe_sync);
 
 	return 0;
+}
+
+int isp_path_fetch_frm_set(struct isp_sw_context *pctx,
+		struct camera_frame *frame)
+{
+	int ret = 0;
+	int idx;
+	int planes;
+	unsigned long offset_u, offset_v, yuv_addr[3] = {0};
+	struct isp_hw_fetch_info *fetch = NULL;
+	struct cam_hw_info *hw = NULL;
+	struct isp_hw_fbd_addr fbd;
+
+	if (!pctx || !frame) {
+		pr_err("fail to get valid input ptr, pctx %p, frame %p\n",
+			pctx, frame);
+		return -EINVAL;
+	}
+	pr_debug("enter.\n");
+
+	idx = pctx->ctx_id;
+	hw = pctx->hw;
+	fetch = &pctx->pipe_info.fetch;
+
+	if (pctx->pipe_src.fetch_path_sel) {
+		struct compressed_addr fbd_addr;
+		struct isp_fbd_raw_info *fbd_raw;
+
+		fbd_raw = &pctx->pipe_info.fetch_fbd;
+		dcam_if_cal_compressed_addr(pctx->pipe_src.src.w,
+					    pctx->pipe_src.src.h,
+					    frame->buf.iova[0],
+					    &fbd_addr,
+					    frame->compress_4bit_bypass);
+		fbd.fbd_addr = &fbd_addr;
+		fbd.fbd_raw = fbd_raw;
+		fbd.idx = idx;
+		hw->isp_ioctl(hw, ISP_HW_CFG_FBD_ADDR_SET, &fbd);
+		/* store start address for slice use */
+		fbd_raw->header_addr_init = fbd_addr.addr1;
+		fbd_raw->tile_addr_init_x256 = fbd_addr.addr1;
+		fbd_raw->low_bit_addr_init = fbd_addr.addr2;
+		if (fbd_raw->fetch_fbd_4bit_bypass == 0)
+			fbd_raw->low_4bit_addr_init = fbd_addr.addr3;
+
+		pr_debug("fetch_fbd: %u 0x%lx 0x%lx, 0x%lx, size %u %u\n",
+			 frame->fid, fbd_addr.addr0,
+			 fbd_addr.addr1, fbd_addr.addr2,
+			 pctx->pipe_src.src.w, pctx->pipe_src.src.h);
+
+		return 0;
+	}
+
+	if (fetch->fetch_fmt == ISP_FETCH_YUV422_3FRAME)
+		planes = 3;
+	else if ((fetch->fetch_fmt == ISP_FETCH_YUV422_2FRAME)
+			|| (fetch->fetch_fmt == ISP_FETCH_YVU422_2FRAME)
+			|| (fetch->fetch_fmt == ISP_FETCH_YUV420_2FRAME)
+			|| (fetch->fetch_fmt == ISP_FETCH_YVU420_2FRAME))
+		planes = 2;
+	else
+		planes = 1;
+
+	yuv_addr[0] = frame->buf.iova[0];
+	yuv_addr[1] = frame->buf.iova[1];
+	yuv_addr[2] = frame->buf.iova[2];
+
+	if ((planes > 1) && yuv_addr[1] == 0) {
+		offset_u = fetch->pitch.pitch_ch0 * fetch->src.h;
+		yuv_addr[1] = yuv_addr[0] + offset_u;
+	}
+
+	if ((planes > 2) && yuv_addr[2] == 0) {
+		/* ISP_FETCH_YUV422_3FRAME */
+		offset_v = fetch->pitch.pitch_ch1 * fetch->src.h;
+		yuv_addr[2] = yuv_addr[1] + offset_v;
+	}
+
+	/* set the start address of source frame */
+	fetch->addr.addr_ch0 = yuv_addr[0];
+	fetch->addr.addr_ch1 = yuv_addr[1];
+	fetch->addr.addr_ch2 = yuv_addr[2];
+	yuv_addr[0] += fetch->trim_off.addr_ch0;
+	yuv_addr[1] += fetch->trim_off.addr_ch1;
+	yuv_addr[2] += fetch->trim_off.addr_ch2;
+	fetch->addr_hw.addr_ch0 = yuv_addr[0];
+	fetch->addr_hw.addr_ch1 = yuv_addr[1];
+	fetch->addr_hw.addr_ch2 = yuv_addr[2];
+
+	if (pctx->dev->sec_mode == SEC_SPACE_PRIORITY)
+		cam_trusty_isp_fetch_addr_set(yuv_addr[0], yuv_addr[1], yuv_addr[2]);
+
+	pr_debug("camca  isp sec_mode=%d,  %lx %lx %lx\n", pctx->dev->sec_mode,
+		yuv_addr[0],
+		yuv_addr[1],
+		yuv_addr[2]);
+
+	return ret;
 }
 
 int isp_path_storecrop_update(struct isp_path_uinfo *path, void *param)
@@ -504,104 +602,6 @@ int isp_path_afbc_store_frm_set(
 
 	pr_debug("path %d afbc done 0x%x 0x%x\n", path->spath_id,
 		afbc_store->yheader, afbc_store->yaddr);
-
-	return ret;
-}
-
-int isp_path_fetch_frm_set(struct isp_sw_context *pctx,
-		struct camera_frame *frame)
-{
-	int ret = 0;
-	int idx;
-	int planes;
-	unsigned long offset_u, offset_v, yuv_addr[3] = {0};
-	struct isp_hw_fetch_info *fetch = NULL;
-	struct cam_hw_info *hw = NULL;
-	struct isp_hw_fbd_addr fbd;
-
-	if (!pctx || !frame) {
-		pr_err("fail to get valid input ptr, pctx %p, frame %p\n",
-			pctx, frame);
-		return -EINVAL;
-	}
-	pr_debug("enter.\n");
-
-	idx = pctx->ctx_id;
-	hw = pctx->hw;
-	fetch = &pctx->pipe_info.fetch;
-
-	if (pctx->pipe_src.fetch_path_sel) {
-		struct compressed_addr fbd_addr;
-		struct isp_fbd_raw_info *fbd_raw;
-
-		fbd_raw = &pctx->pipe_info.fetch_fbd;
-		dcam_if_cal_compressed_addr(pctx->pipe_src.src.w,
-					    pctx->pipe_src.src.h,
-					    frame->buf.iova[0],
-					    &fbd_addr,
-					    frame->compress_4bit_bypass);
-		fbd.fbd_addr = &fbd_addr;
-		fbd.fbd_raw = fbd_raw;
-		fbd.idx = idx;
-		hw->isp_ioctl(hw, ISP_HW_CFG_FBD_ADDR_SET, &fbd);
-		/* store start address for slice use */
-		fbd_raw->header_addr_init = fbd_addr.addr1;
-		fbd_raw->tile_addr_init_x256 = fbd_addr.addr1;
-		fbd_raw->low_bit_addr_init = fbd_addr.addr2;
-		if (fbd_raw->fetch_fbd_4bit_bypass == 0)
-			fbd_raw->low_4bit_addr_init = fbd_addr.addr3;
-
-		pr_debug("fetch_fbd: %u 0x%lx 0x%lx, 0x%lx, size %u %u\n",
-			 frame->fid, fbd_addr.addr0,
-			 fbd_addr.addr1, fbd_addr.addr2,
-			 pctx->pipe_src.src.w, pctx->pipe_src.src.h);
-
-		return 0;
-	}
-
-	if (fetch->fetch_fmt == ISP_FETCH_YUV422_3FRAME)
-		planes = 3;
-	else if ((fetch->fetch_fmt == ISP_FETCH_YUV422_2FRAME)
-			|| (fetch->fetch_fmt == ISP_FETCH_YVU422_2FRAME)
-			|| (fetch->fetch_fmt == ISP_FETCH_YUV420_2FRAME)
-			|| (fetch->fetch_fmt == ISP_FETCH_YVU420_2FRAME))
-		planes = 2;
-	else
-		planes = 1;
-
-	yuv_addr[0] = frame->buf.iova[0];
-	yuv_addr[1] = frame->buf.iova[1];
-	yuv_addr[2] = frame->buf.iova[2];
-
-	if ((planes > 1) && yuv_addr[1] == 0) {
-		offset_u = fetch->pitch.pitch_ch0 * fetch->src.h;
-		yuv_addr[1] = yuv_addr[0] + offset_u;
-	}
-
-	if ((planes > 2) && yuv_addr[2] == 0) {
-		/* ISP_FETCH_YUV422_3FRAME */
-		offset_v = fetch->pitch.pitch_ch1 * fetch->src.h;
-		yuv_addr[2] = yuv_addr[1] + offset_v;
-	}
-
-	/* set the start address of source frame */
-	fetch->addr.addr_ch0 = yuv_addr[0];
-	fetch->addr.addr_ch1 = yuv_addr[1];
-	fetch->addr.addr_ch2 = yuv_addr[2];
-	yuv_addr[0] += fetch->trim_off.addr_ch0;
-	yuv_addr[1] += fetch->trim_off.addr_ch1;
-	yuv_addr[2] += fetch->trim_off.addr_ch2;
-	fetch->addr_hw.addr_ch0 = yuv_addr[0];
-	fetch->addr_hw.addr_ch1 = yuv_addr[1];
-	fetch->addr_hw.addr_ch2 = yuv_addr[2];
-
-	if (pctx->dev->sec_mode == SEC_SPACE_PRIORITY)
-		cam_trusty_isp_fetch_addr_set(yuv_addr[0], yuv_addr[1], yuv_addr[2]);
-
-	pr_debug("camca  isp sec_mode=%d,  %lx %lx %lx\n", pctx->dev->sec_mode,
-		yuv_addr[0],
-		yuv_addr[1],
-		yuv_addr[2]);
 
 	return ret;
 }

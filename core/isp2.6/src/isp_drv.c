@@ -39,64 +39,50 @@ unsigned long s_isp_regbase[ISP_MAX_COUNT];
 unsigned long isp_phys_base[ISP_MAX_COUNT];
 unsigned long s_isp_mmubase;
 
-int isp_drv_hw_init(void *arg)
+static ispdrv_path_scaler_get(struct isp_path_uinfo *in_ptr,
+	struct isp_hw_path_scaler *path)
 {
 	int ret = 0;
-	struct isp_pipe_dev *dev = NULL;
-	struct cam_hw_info *hw = NULL;
+	uint32_t is_yuv422 = 0, scale2yuv420 = 0;
+	struct isp_scaler_info *scaler = NULL;
 
-	if (!arg) {
-		pr_err("fail to get valid arg\n");
+	if (!in_ptr || !path) {
+		pr_err("fail to get valid input ptr %p\n", in_ptr, path);
 		return -EFAULT;
 	}
 
-	dev = (struct isp_pipe_dev *)arg;
-	hw = dev->isp_hw;
-
-	ret = sprd_cam_pw_on();
-	ret = sprd_cam_domain_eb();
-
-	ret = hw->isp_ioctl(hw, ISP_HW_CFG_ENABLE_CLK, NULL);
-	if (ret)
-		goto clk_fail;
-
-	ret = hw->isp_ioctl(hw, ISP_HW_CFG_RESET, NULL);
-	if (ret)
-		goto reset_fail;
-
-	ret = isp_int_irq_request(&hw->pdev->dev, s_isp_irq_no, arg);
-
-	return 0;
-
-reset_fail:
-	hw->isp_ioctl(hw, ISP_HW_CFG_DISABLE_CLK, NULL);
-clk_fail:
-	sprd_cam_domain_disable();
-	sprd_cam_pw_off();
-
-	return ret;
-}
-
-int isp_drv_hw_deinit(void *arg)
-{
-	int ret = 0;
-	struct isp_pipe_dev *dev = NULL;
-	struct cam_hw_info *hw = NULL;
-
-	if (!arg) {
-		pr_err("fail to get valid arg\n");
-		return -EFAULT;
+	scaler = &path->scaler;
+	if (in_ptr->out_fmt == IMG_PIX_FMT_UYVY)
+		path->uv_sync_v = 1;
+	else
+		path->uv_sync_v = 0;
+	path->frm_deci = 0;
+	path->dst = in_ptr->dst;
+	path->in_trim = in_ptr->in_trim;
+	path->out_trim.start_x = 0;
+	path->out_trim.start_y = 0;
+	path->out_trim.size_x = in_ptr->dst.w;
+	path->out_trim.size_y = in_ptr->dst.h;
+	ret = isp_path_scaler_param_calc(&path->in_trim, &path->dst,
+		&path->scaler, &path->deci);
+	if (ret) {
+		pr_err("fail to calc scaler.\n");
+		return ret;
 	}
 
-	dev = (struct isp_pipe_dev *)arg;
-	hw = dev->isp_hw;
+	if (in_ptr->out_fmt == IMG_PIX_FMT_YUV422P)
+		is_yuv422 = 1;
 
-	ret = hw->isp_ioctl(hw, ISP_HW_CFG_RESET, NULL);
-	ret = isp_int_irq_free(&hw->pdev->dev, arg);
-	ret = hw->isp_ioctl(hw, ISP_HW_CFG_DISABLE_CLK, NULL);
-
-	sprd_cam_domain_disable();
-	sprd_cam_pw_off();
+	if ((scaler->scaler_ver_factor_in == scaler->scaler_ver_factor_out)
+		&& (scaler->scaler_factor_in == scaler->scaler_factor_out)
+		&& is_yuv422) {
+		scaler->scaler_bypass = 1;
+	} else {
+		scaler->scaler_bypass = 0;
+		scale2yuv420 = is_yuv422 ? 0 : 1;
+		ret = isp_path_scaler_coeff_calc(scaler, scale2yuv420);
+	}
+	scaler->odata_mode = is_yuv422 ? 0x00 : 0x01;
 
 	return ret;
 }
@@ -132,32 +118,112 @@ static enum isp_fetch_format ispdrv_fetch_format_get(uint32_t forcc,
 	return format;
 }
 
-static enum isp_store_format ispdrv_store_format_get(uint32_t forcc)
+static int ispdrv_fetch_normal_get(void *cfg_in, void *cfg_out)
 {
-	enum isp_store_format format = ISP_STORE_FORMAT_MAX;
+	int ret = 0;
+	unsigned long trim_offset[3] = { 0 };
+	struct img_size *src = NULL;
+	struct img_trim *intrim = NULL;
+	struct isp_hw_fetch_info *fetch = NULL;
+	struct isp_uinfo *pipe_src = NULL;
 
-	switch (forcc) {
-	case IMG_PIX_FMT_UYVY:
-		format = ISP_STORE_UYVY;
+	if (!cfg_in || !cfg_out) {
+		pr_err("fail to get valid input ptr, %p, %p\n", cfg_in, cfg_out);
+		return -EFAULT;
+	}
+
+	pipe_src = (struct isp_uinfo *)cfg_in;
+	fetch = (struct isp_hw_fetch_info *)cfg_out;
+
+	src = &pipe_src->src;
+	intrim = &pipe_src->crop;
+	fetch->src = *src;
+	fetch->in_trim = *intrim;
+	fetch->fetch_fmt = ispdrv_fetch_format_get(pipe_src->in_fmt, pipe_src->pack_bits);
+	fetch->bayer_pattern = pipe_src->bayer_pattern;
+	if (pipe_src->in_fmt == IMG_PIX_FMT_GREY)
+		fetch->dispatch_color = 0;
+	else
+		fetch->dispatch_color = 2;
+	fetch->fetch_path_sel = pipe_src->fetch_path_sel;
+	fetch->pack_bits = pipe_src->pack_bits;
+
+	switch (fetch->fetch_fmt) {
+	case ISP_FETCH_YUV422_3FRAME:
+		fetch->pitch.pitch_ch0 = src->w;
+		fetch->pitch.pitch_ch1 = src->w / 2;
+		fetch->pitch.pitch_ch2 = src->w / 2;
+		trim_offset[0] = intrim->start_y * fetch->pitch.pitch_ch0 + intrim->start_x;
+		trim_offset[1] = intrim->start_y * fetch->pitch.pitch_ch1 + intrim->start_x / 2;
+		trim_offset[2] = intrim->start_y * fetch->pitch.pitch_ch2 + intrim->start_x / 2;
 		break;
-	case IMG_PIX_FMT_YUV422P:
-		format = ISP_STORE_YUV422_3FRAME;
+	case ISP_FETCH_YUYV:
+	case ISP_FETCH_UYVY:
+	case ISP_FETCH_YVYU:
+	case ISP_FETCH_VYUY:
+		fetch->pitch.pitch_ch0 = src->w * 2;
+		trim_offset[0] = intrim->start_y * fetch->pitch.pitch_ch0 + intrim->start_x * 2;
 		break;
-	case IMG_PIX_FMT_NV12:
-		format = ISP_STORE_YUV420_2FRAME;
+	case ISP_FETCH_RAW10:
+		fetch->pitch.pitch_ch0 = cal_sprd_raw_pitch(src->w, pipe_src->pack_bits);
+		trim_offset[0] = intrim->start_y * fetch->pitch.pitch_ch0 + intrim->start_x * 2;
 		break;
-	case IMG_PIX_FMT_NV21:
-		format = ISP_STORE_YVU420_2FRAME;
+	case ISP_FETCH_YUV422_2FRAME:
+	case ISP_FETCH_YVU422_2FRAME:
+		fetch->pitch.pitch_ch0 = src->w;
+		fetch->pitch.pitch_ch1 = src->w;
+		trim_offset[0] = intrim->start_y * fetch->pitch.pitch_ch0 + intrim->start_x;
+		trim_offset[1] = intrim->start_y * fetch->pitch.pitch_ch1 + intrim->start_x;
 		break;
-	case IMG_PIX_FMT_YUV420:
-		format = ISP_STORE_YUV420_3FRAME;
+	case ISP_FETCH_YUV420_2FRAME:
+	case ISP_FETCH_YVU420_2FRAME:
+		fetch->pitch.pitch_ch0 = src->w;
+		fetch->pitch.pitch_ch1 = src->w;
+		trim_offset[0] = intrim->start_y * fetch->pitch.pitch_ch0 / 2 + intrim->start_x;
+		trim_offset[1] = intrim->start_y * fetch->pitch.pitch_ch1 / 2 + intrim->start_x;
 		break;
-	default:
-		format = ISP_STORE_FORMAT_MAX;
-		pr_err("fail to get support format 0x%x\n", forcc);
+	case ISP_FETCH_FULL_RGB10:
+		fetch->pitch.pitch_ch0 = src->w * 3;
+		trim_offset[0] = intrim->start_y * fetch->pitch.pitch_ch0 + intrim->start_x * 3;
+		break;
+	case ISP_FETCH_CSI2_RAW10:
+	{
+		uint32_t mipi_byte_info = 0;
+		uint32_t mipi_word_info = 0;
+		uint32_t start_col = intrim->start_x;
+		uint32_t start_row = intrim->start_y;
+		uint32_t end_col =  intrim->start_x + intrim->size_x - 1;
+		uint32_t mipi_word_num_start[16] = {
+			0, 1, 1, 1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 4, 5, 5};
+		uint32_t mipi_word_num_end[16] = {
+			0, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5};
+
+		mipi_byte_info = start_col & 0xF;
+		mipi_word_info = ((end_col + 1) >> 4) * 5
+			+ mipi_word_num_end[(end_col + 1) & 0xF]
+			- ((start_col + 1) >> 4) * 5
+			- mipi_word_num_start[(start_col + 1) & 0xF] + 1;
+		fetch->mipi_byte_rel_pos = mipi_byte_info;
+		fetch->mipi_word_num = mipi_word_info;
+		fetch->pitch.pitch_ch0 = cal_sprd_raw_pitch(src->w, 0);
+		/* same as slice starts */
+		trim_offset[0] = start_row * fetch->pitch.pitch_ch0 + (start_col >> 2) * 5 + (start_col & 0x3);
+		if (!pipe_src->fetch_path_sel)
+			pr_debug("fetch pitch %d, offset %ld, rel_pos %d, wordn %d\n",
+				 fetch->pitch.pitch_ch0, trim_offset[0],
+				 mipi_byte_info, mipi_word_info);
 		break;
 	}
-	return format;
+	default:
+		pr_err("fail to get fetch format: %d\n", fetch->fetch_fmt);
+		break;
+	}
+
+	fetch->trim_off.addr_ch0 = trim_offset[0];
+	fetch->trim_off.addr_ch1 = trim_offset[1];
+	fetch->trim_off.addr_ch2 = trim_offset[2];
+
+	return ret;
 }
 
 static enum isp_store_format ispdrv_afbc_store_format_get(uint32_t forcc)
@@ -311,112 +377,32 @@ static int ispdrv_fbd_raw_get(void *cfg_in, void *cfg_out)
 	return 0;
 }
 
-static int ispdrv_fetch_normal_get(void *cfg_in, void *cfg_out)
+static enum isp_store_format ispdrv_store_format_get(uint32_t forcc)
 {
-	int ret = 0;
-	unsigned long trim_offset[3] = { 0 };
-	struct img_size *src = NULL;
-	struct img_trim *intrim = NULL;
-	struct isp_hw_fetch_info *fetch = NULL;
-	struct isp_uinfo *pipe_src = NULL;
+	enum isp_store_format format = ISP_STORE_FORMAT_MAX;
 
-	if (!cfg_in || !cfg_out) {
-		pr_err("fail to get valid input ptr, %p, %p\n", cfg_in, cfg_out);
-		return -EFAULT;
-	}
-
-	pipe_src = (struct isp_uinfo *)cfg_in;
-	fetch = (struct isp_hw_fetch_info *)cfg_out;
-
-	src = &pipe_src->src;
-	intrim = &pipe_src->crop;
-	fetch->src = *src;
-	fetch->in_trim = *intrim;
-	fetch->fetch_fmt = ispdrv_fetch_format_get(pipe_src->in_fmt, pipe_src->pack_bits);
-	fetch->bayer_pattern = pipe_src->bayer_pattern;
-	if (pipe_src->in_fmt == IMG_PIX_FMT_GREY)
-		fetch->dispatch_color = 0;
-	else
-		fetch->dispatch_color = 2;
-	fetch->fetch_path_sel = pipe_src->fetch_path_sel;
-	fetch->pack_bits = pipe_src->pack_bits;
-
-	switch (fetch->fetch_fmt) {
-	case ISP_FETCH_YUV422_3FRAME:
-		fetch->pitch.pitch_ch0 = src->w;
-		fetch->pitch.pitch_ch1 = src->w / 2;
-		fetch->pitch.pitch_ch2 = src->w / 2;
-		trim_offset[0] = intrim->start_y * fetch->pitch.pitch_ch0 + intrim->start_x;
-		trim_offset[1] = intrim->start_y * fetch->pitch.pitch_ch1 + intrim->start_x / 2;
-		trim_offset[2] = intrim->start_y * fetch->pitch.pitch_ch2 + intrim->start_x / 2;
+	switch (forcc) {
+	case IMG_PIX_FMT_UYVY:
+		format = ISP_STORE_UYVY;
 		break;
-	case ISP_FETCH_YUYV:
-	case ISP_FETCH_UYVY:
-	case ISP_FETCH_YVYU:
-	case ISP_FETCH_VYUY:
-		fetch->pitch.pitch_ch0 = src->w * 2;
-		trim_offset[0] = intrim->start_y * fetch->pitch.pitch_ch0 + intrim->start_x * 2;
+	case IMG_PIX_FMT_YUV422P:
+		format = ISP_STORE_YUV422_3FRAME;
 		break;
-	case ISP_FETCH_RAW10:
-		fetch->pitch.pitch_ch0 = cal_sprd_raw_pitch(src->w, pipe_src->pack_bits);
-		trim_offset[0] = intrim->start_y * fetch->pitch.pitch_ch0 + intrim->start_x * 2;
+	case IMG_PIX_FMT_NV12:
+		format = ISP_STORE_YUV420_2FRAME;
 		break;
-	case ISP_FETCH_YUV422_2FRAME:
-	case ISP_FETCH_YVU422_2FRAME:
-		fetch->pitch.pitch_ch0 = src->w;
-		fetch->pitch.pitch_ch1 = src->w;
-		trim_offset[0] = intrim->start_y * fetch->pitch.pitch_ch0 + intrim->start_x;
-		trim_offset[1] = intrim->start_y * fetch->pitch.pitch_ch1 + intrim->start_x;
+	case IMG_PIX_FMT_NV21:
+		format = ISP_STORE_YVU420_2FRAME;
 		break;
-	case ISP_FETCH_YUV420_2FRAME:
-	case ISP_FETCH_YVU420_2FRAME:
-		fetch->pitch.pitch_ch0 = src->w;
-		fetch->pitch.pitch_ch1 = src->w;
-		trim_offset[0] = intrim->start_y * fetch->pitch.pitch_ch0 / 2 + intrim->start_x;
-		trim_offset[1] = intrim->start_y * fetch->pitch.pitch_ch1 / 2 + intrim->start_x;
+	case IMG_PIX_FMT_YUV420:
+		format = ISP_STORE_YUV420_3FRAME;
 		break;
-	case ISP_FETCH_FULL_RGB10:
-		fetch->pitch.pitch_ch0 = src->w * 3;
-		trim_offset[0] = intrim->start_y * fetch->pitch.pitch_ch0 + intrim->start_x * 3;
-		break;
-	case ISP_FETCH_CSI2_RAW10:
-	{
-		uint32_t mipi_byte_info = 0;
-		uint32_t mipi_word_info = 0;
-		uint32_t start_col = intrim->start_x;
-		uint32_t start_row = intrim->start_y;
-		uint32_t end_col =  intrim->start_x + intrim->size_x - 1;
-		uint32_t mipi_word_num_start[16] = {
-			0, 1, 1, 1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 4, 5, 5};
-		uint32_t mipi_word_num_end[16] = {
-			0, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5};
-
-		mipi_byte_info = start_col & 0xF;
-		mipi_word_info = ((end_col + 1) >> 4) * 5
-			+ mipi_word_num_end[(end_col + 1) & 0xF]
-			- ((start_col + 1) >> 4) * 5
-			- mipi_word_num_start[(start_col + 1) & 0xF] + 1;
-		fetch->mipi_byte_rel_pos = mipi_byte_info;
-		fetch->mipi_word_num = mipi_word_info;
-		fetch->pitch.pitch_ch0 = cal_sprd_raw_pitch(src->w, 0);
-		/* same as slice starts */
-		trim_offset[0] = start_row * fetch->pitch.pitch_ch0 + (start_col >> 2) * 5 + (start_col & 0x3);
-		if (!pipe_src->fetch_path_sel)
-			pr_debug("fetch pitch %d, offset %ld, rel_pos %d, wordn %d\n",
-				 fetch->pitch.pitch_ch0, trim_offset[0],
-				 mipi_byte_info, mipi_word_info);
-		break;
-	}
 	default:
-		pr_err("fail to get fetch format: %d\n", fetch->fetch_fmt);
+		format = ISP_STORE_FORMAT_MAX;
+		pr_err("fail to get support format 0x%x\n", forcc);
 		break;
 	}
-
-	fetch->trim_off.addr_ch0 = trim_offset[0];
-	fetch->trim_off.addr_ch1 = trim_offset[1];
-	fetch->trim_off.addr_ch2 = trim_offset[2];
-
-	return ret;
+	return format;
 }
 
 static int ispdrv_store_afbc_get(struct isp_path_uinfo *in_ptr,
@@ -532,54 +518,6 @@ static ispdrv_store_normal_get(struct isp_path_uinfo *in_ptr,
 		store->pitch.pitch_ch2 = 0;
 		break;
 	}
-
-	return ret;
-}
-
-static ispdrv_path_scaler_get(struct isp_path_uinfo *in_ptr,
-	struct isp_hw_path_scaler *path)
-{
-	int ret = 0;
-	uint32_t is_yuv422 = 0, scale2yuv420 = 0;
-	struct isp_scaler_info *scaler = NULL;
-
-	if (!in_ptr || !path) {
-		pr_err("fail to get valid input ptr %p\n", in_ptr, path);
-		return -EFAULT;
-	}
-
-	scaler = &path->scaler;
-	if (in_ptr->out_fmt == IMG_PIX_FMT_UYVY)
-		path->uv_sync_v = 1;
-	else
-		path->uv_sync_v = 0;
-	path->frm_deci = 0;
-	path->dst = in_ptr->dst;
-	path->in_trim = in_ptr->in_trim;
-	path->out_trim.start_x = 0;
-	path->out_trim.start_y = 0;
-	path->out_trim.size_x = in_ptr->dst.w;
-	path->out_trim.size_y = in_ptr->dst.h;
-	ret = isp_path_scaler_param_calc(&path->in_trim, &path->dst,
-		&path->scaler, &path->deci);
-	if (ret) {
-		pr_err("fail to calc scaler.\n");
-		return ret;
-	}
-
-	if (in_ptr->out_fmt == IMG_PIX_FMT_YUV422P)
-		is_yuv422 = 1;
-
-	if ((scaler->scaler_ver_factor_in == scaler->scaler_ver_factor_out)
-		&& (scaler->scaler_factor_in == scaler->scaler_factor_out)
-		&& is_yuv422) {
-		scaler->scaler_bypass = 1;
-	} else {
-		scaler->scaler_bypass = 0;
-		scale2yuv420 = is_yuv422 ? 0 : 1;
-		ret = isp_path_scaler_coeff_calc(scaler, scale2yuv420);
-	}
-	scaler->odata_mode = is_yuv422 ? 0x00 : 0x01;
 
 	return ret;
 }
@@ -843,7 +781,7 @@ int isp_drv_pipeinfo_get(void *arg, uint32_t hw_id)
 	return ret;
 }
 
-int sprd_isp_dt_parse(struct device_node *dn,
+int isp_drv_dt_parse(struct device_node *dn,
 		struct cam_hw_info *hw_info,
 		uint32_t *isp_count)
 {
@@ -1027,4 +965,66 @@ int sprd_isp_dt_parse(struct device_node *dn,
 	}
 
 	return 0;
+}
+
+int isp_drv_hw_init(void *arg)
+{
+	int ret = 0;
+	struct isp_pipe_dev *dev = NULL;
+	struct cam_hw_info *hw = NULL;
+
+	if (!arg) {
+		pr_err("fail to get valid arg\n");
+		return -EFAULT;
+	}
+
+	dev = (struct isp_pipe_dev *)arg;
+	hw = dev->isp_hw;
+
+	ret = sprd_cam_pw_on();
+	ret = sprd_cam_domain_eb();
+
+	ret = hw->isp_ioctl(hw, ISP_HW_CFG_ENABLE_CLK, NULL);
+	if (ret)
+		goto clk_fail;
+
+	ret = hw->isp_ioctl(hw, ISP_HW_CFG_RESET, NULL);
+	if (ret)
+		goto reset_fail;
+
+	ret = isp_int_irq_request(&hw->pdev->dev, s_isp_irq_no, arg);
+
+	return 0;
+
+reset_fail:
+	hw->isp_ioctl(hw, ISP_HW_CFG_DISABLE_CLK, NULL);
+clk_fail:
+	sprd_cam_domain_disable();
+	sprd_cam_pw_off();
+
+	return ret;
+}
+
+int isp_drv_hw_deinit(void *arg)
+{
+	int ret = 0;
+	struct isp_pipe_dev *dev = NULL;
+	struct cam_hw_info *hw = NULL;
+
+	if (!arg) {
+		pr_err("fail to get valid arg\n");
+		return -EFAULT;
+	}
+
+	dev = (struct isp_pipe_dev *)arg;
+	hw = dev->isp_hw;
+
+	ret = hw->isp_ioctl(hw, ISP_HW_CFG_RESET, NULL);
+	ret = isp_int_irq_free(&hw->pdev->dev, arg);
+	ret = hw->isp_ioctl(hw, ISP_HW_CFG_DISABLE_CLK, NULL);
+
+	sprd_cam_domain_disable();
+	sprd_cam_pw_off();
+
+	return ret;
 }

@@ -395,97 +395,6 @@ static int ispltm_binning_factor_calc(ltm_param_t *histo)
 	return ret;
 }
 
-static int ispltm_histo_param_calc(ltm_param_t *param_histo)
-{
-#if 0
-	uint8 min_tile_num, binning_factor, max_tile_col, min_tile_row,	tile_num_x, tile_num_y;
-	uint8 cropRows, cropCols, cropUp, cropLeft, cropRight;
-	uint16 min_tile_width, max_tile_height, tile_width, tile_height;
-	uint16 clipLimit_min, clipLimit;
-	uint8 strength = param_histo->strength;
-#else
-	uint32_t max_tile_col, min_tile_row;
-	uint32_t tile_num_x, tile_num_y;
-	uint32_t cropRows, cropCols, cropUp, cropLeft, cropRight, cropDown;
-	uint32_t min_tile_width, max_tile_height, tile_width, tile_height;
-	uint32_t clipLimit_min, clipLimit;
-	uint32_t strength = param_histo->strength;
-	uint32_t frame_width = param_histo->frame_width;
-	uint32_t frame_height = param_histo->frame_height;
-#endif
-	ispltm_binning_factor_calc(param_histo);
-
-	frame_width = param_histo->frame_width;
-	frame_height = param_histo->frame_height;
-
-	if (param_histo->tile_num_auto) {
-		int v_ceil = 0;
-		int tmp = 0;
-
-		max_tile_col = MAX(MIN(frame_width / (TILE_WIDTH_MIN * 2) * 2,
-				TILE_NUM_MAX), TILE_NUM_MIN);
-		min_tile_width = frame_width / (max_tile_col * 2) * 2;
-		max_tile_height = TILE_MAX_SIZE / (min_tile_width * 2) * 2;
-		/*
-		 * min_tile_row = (uint8)MAX(MIN(ceil((float)frame_height /
-		 *  max_tile_height), TILE_NUM_MAX), TILE_NUM_MIN);
-		 */
-		v_ceil = (frame_height + max_tile_height - 1) / max_tile_height;
-		min_tile_row = MAX(MIN(v_ceil, TILE_NUM_MAX), TILE_NUM_MIN);
-
-		tile_num_y = (min_tile_row / 2) * 2;
-		tile_num_x = MIN(MAX(((tile_num_y * frame_width / frame_height) / 2) * 2,
-				TILE_NUM_MIN), max_tile_col);
-
-		tile_width = frame_width / (2 * tile_num_x) * 2;
-		tile_height = frame_height / (2 * tile_num_y) * 2;
-
-		while (tile_width * tile_height >= TILE_MAX_SIZE) {
-			tile_num_y = MIN(MAX(tile_num_y + 2, TILE_NUM_MIN), TILE_NUM_MAX);
-			tmp = ((tile_num_y * frame_width / frame_height) / 2) * 2;
-			tile_num_x = MIN(MAX(tmp, TILE_NUM_MIN), max_tile_col);
-
-			tile_width = frame_width / (2 * tile_num_x) * 2;
-			tile_height = frame_height / (2 * tile_num_y) * 2;
-		}
-	} else {
-		tile_num_x = param_histo->tile_num_x;
-		tile_num_y = param_histo->tile_num_y;
-		tile_width = frame_width / (2 * tile_num_x) * 2;
-		tile_height = frame_height / (2 * tile_num_y) * 2;
-	}
-
-	cropRows = frame_height - tile_height * tile_num_y;
-	cropCols = frame_width - tile_width * tile_num_x;
-	cropUp = cropRows >> 1;
-	cropDown = cropRows >> 1;
-	cropLeft = cropCols >> 1;
-	cropRight = cropCols >> 1;
-
-	clipLimit_min = tile_width * tile_height >> BIN_NUM_BIT;
-	clipLimit = clipLimit_min + ((clipLimit_min * strength) >> 3);
-
-	/* update patameters */
-	param_histo->cropUp = cropUp;
-	param_histo->cropDown = cropDown;
-	param_histo->cropLeft = cropLeft;
-	param_histo->cropRight = cropRight;
-	param_histo->cropRows = cropRows;
-	param_histo->cropCols = cropCols;
-	param_histo->tile_width = tile_width;
-	param_histo->tile_height = tile_height;
-	param_histo->frame_width = frame_width;
-	param_histo->frame_height = frame_height;
-	param_histo->clipLimit = clipLimit;
-	param_histo->clipLimit_min = clipLimit_min;
-	/* param_histo->binning_en = binning_factor; */
-	param_histo->tile_num_x = tile_num_x;
-	param_histo->tile_num_y = tile_num_y;
-	param_histo->tile_size = tile_width * tile_height;
-
-	return 0;
-}
-
 static void ispltm_rgb_map_dump_data_rtl(ltm_param_t *param_map,
 				uint32_t *img_info,
 				ltm_map_rtl_t *param_map_rtl)
@@ -580,6 +489,97 @@ static void ispltm_rgb_map_dump_data_rtl(ltm_param_t *param_map,
 	param_map_rtl->tile_start_y_rtl = img_tile1_ys_offset;
 	param_map_rtl->tile_left_flag_rtl = tile_left_flag;
 	param_map_rtl->tile_right_flag_rtl = tile_right_flag;
+}
+
+static int ispltm_histo_param_calc(ltm_param_t *param_histo)
+{
+#if 0
+	uint8 min_tile_num, binning_factor, max_tile_col, min_tile_row,	tile_num_x, tile_num_y;
+	uint8 cropRows, cropCols, cropUp, cropLeft, cropRight;
+	uint16 min_tile_width, max_tile_height, tile_width, tile_height;
+	uint16 clipLimit_min, clipLimit;
+	uint8 strength = param_histo->strength;
+#else
+	uint32_t max_tile_col, min_tile_row;
+	uint32_t tile_num_x, tile_num_y;
+	uint32_t cropRows, cropCols, cropUp, cropLeft, cropRight, cropDown;
+	uint32_t min_tile_width, max_tile_height, tile_width, tile_height;
+	uint32_t clipLimit_min, clipLimit;
+	uint32_t strength = param_histo->strength;
+	uint32_t frame_width = param_histo->frame_width;
+	uint32_t frame_height = param_histo->frame_height;
+#endif
+	ispltm_binning_factor_calc(param_histo);
+
+	frame_width = param_histo->frame_width;
+	frame_height = param_histo->frame_height;
+
+	if (param_histo->tile_num_auto) {
+		int v_ceil = 0;
+		int tmp = 0;
+
+		max_tile_col = MAX(MIN(frame_width / (TILE_WIDTH_MIN * 2) * 2,
+				TILE_NUM_MAX), TILE_NUM_MIN);
+		min_tile_width = frame_width / (max_tile_col * 2) * 2;
+		max_tile_height = TILE_MAX_SIZE / (min_tile_width * 2) * 2;
+		/*
+		 * min_tile_row = (uint8)MAX(MIN(ceil((float)frame_height /
+		 *  max_tile_height), TILE_NUM_MAX), TILE_NUM_MIN);
+		 */
+		v_ceil = (frame_height + max_tile_height - 1) / max_tile_height;
+		min_tile_row = MAX(MIN(v_ceil, TILE_NUM_MAX), TILE_NUM_MIN);
+
+		tile_num_y = (min_tile_row / 2) * 2;
+		tile_num_x = MIN(MAX(((tile_num_y * frame_width / frame_height) / 2) * 2,
+				TILE_NUM_MIN), max_tile_col);
+
+		tile_width = frame_width / (2 * tile_num_x) * 2;
+		tile_height = frame_height / (2 * tile_num_y) * 2;
+
+		while (tile_width * tile_height >= TILE_MAX_SIZE) {
+			tile_num_y = MIN(MAX(tile_num_y + 2, TILE_NUM_MIN), TILE_NUM_MAX);
+			tmp = ((tile_num_y * frame_width / frame_height) / 2) * 2;
+			tile_num_x = MIN(MAX(tmp, TILE_NUM_MIN), max_tile_col);
+
+			tile_width = frame_width / (2 * tile_num_x) * 2;
+			tile_height = frame_height / (2 * tile_num_y) * 2;
+		}
+	} else {
+		tile_num_x = param_histo->tile_num_x;
+		tile_num_y = param_histo->tile_num_y;
+		tile_width = frame_width / (2 * tile_num_x) * 2;
+		tile_height = frame_height / (2 * tile_num_y) * 2;
+	}
+
+	cropRows = frame_height - tile_height * tile_num_y;
+	cropCols = frame_width - tile_width * tile_num_x;
+	cropUp = cropRows >> 1;
+	cropDown = cropRows >> 1;
+	cropLeft = cropCols >> 1;
+	cropRight = cropCols >> 1;
+
+	clipLimit_min = tile_width * tile_height >> BIN_NUM_BIT;
+	clipLimit = clipLimit_min + ((clipLimit_min * strength) >> 3);
+
+	/* update patameters */
+	param_histo->cropUp = cropUp;
+	param_histo->cropDown = cropDown;
+	param_histo->cropLeft = cropLeft;
+	param_histo->cropRight = cropRight;
+	param_histo->cropRows = cropRows;
+	param_histo->cropCols = cropCols;
+	param_histo->tile_width = tile_width;
+	param_histo->tile_height = tile_height;
+	param_histo->frame_width = frame_width;
+	param_histo->frame_height = frame_height;
+	param_histo->clipLimit = clipLimit;
+	param_histo->clipLimit_min = clipLimit_min;
+	/* param_histo->binning_en = binning_factor; */
+	param_histo->tile_num_x = tile_num_x;
+	param_histo->tile_num_y = tile_num_y;
+	param_histo->tile_size = tile_width * tile_height;
+
+	return 0;
 }
 
 static int ispltm_histo_config_gen(struct isp_ltm_ctx_desc *ctx,
