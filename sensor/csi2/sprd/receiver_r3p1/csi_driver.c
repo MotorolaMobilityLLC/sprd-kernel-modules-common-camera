@@ -268,7 +268,7 @@ void csi_reg_trace(unsigned int idx)
 	}
 	spin_unlock_irqrestore(&csi_dump_lock[idx], flag);
 }
-
+#if 0
 /* used to write testcode or testdata to cphy */
 static void phy_write(int32_t idx, unsigned int code_in,
 	unsigned int data_in, unsigned int mask)
@@ -320,7 +320,7 @@ static void phy_read(int32_t idx, unsigned int code_in,
 	*test_out = (uint8_t)temp;
 	pr_debug("PHY Read addr %x value = 0x%x.\r\n", code_in, temp);
 }
-
+#endif
 #ifdef FPAG_BRINGUP
 static void csi_phy_lane_cfg(unsigned int phy_id, int32_t idx,
 	bool lane_switch_eb, uint64_t lane_seq)

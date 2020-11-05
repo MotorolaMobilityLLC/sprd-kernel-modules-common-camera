@@ -152,7 +152,7 @@ static int sprd_sensor_io_set_pd(struct sprd_sensor_file_tag *p_file,
 static int sprd_sensor_io_set_cammot(struct sprd_sensor_file_tag *p_file,
 				     unsigned long arg)
 {
-	int ret = 0;
+	int ret = 0, ret1 = 0;
 	unsigned int vdd_val;
 
 	ret = copy_from_user(&vdd_val, (unsigned int *)arg,
@@ -163,18 +163,18 @@ static int sprd_sensor_io_set_cammot(struct sprd_sensor_file_tag *p_file,
 			vdd_val,
 			SPRD_SENSOR_MOT_GPIO_TAG_E);
 		//if (ret)
-			ret = sprd_sensor_set_voltage(p_file->sensor_id,
+			ret1 = sprd_sensor_set_voltage(p_file->sensor_id,
 					      vdd_val,
 					      SENSOR_REGULATOR_CAMMOT_ID_E);
 	}
 
-	return ret;
+	return ret & ret1;
 }
 
 static int sprd_sensor_io_set_avdd(struct sprd_sensor_file_tag *p_file,
 				   unsigned long arg)
 {
-	int ret = 0;
+	int ret = 0, ret1 = 0;
 	unsigned int vdd_val;
 
 	ret = copy_from_user(&vdd_val, (unsigned int *)arg,
@@ -186,18 +186,18 @@ static int sprd_sensor_io_set_avdd(struct sprd_sensor_file_tag *p_file,
 			vdd_val,
 			SPRD_SENSOR_AVDD_GPIO_TAG_E);
 	//	if (ret)
-			ret = sprd_sensor_set_voltage(p_file->sensor_id,
+			ret1 = sprd_sensor_set_voltage(p_file->sensor_id,
 					      vdd_val,
 					      SENSOR_REGULATOR_CAMAVDD_ID_E);
 	}
 
-	return ret;
+	return ret & ret1;
 }
 
 static int sprd_sensor_io_set_dvdd(struct sprd_sensor_file_tag *p_file,
 				   unsigned long arg)
 {
-	int ret = 0;
+	int ret = 0, ret1 = 0;
 	unsigned int vdd_val;
 
 	ret = copy_from_user(&vdd_val, (unsigned int *)arg,
@@ -209,17 +209,17 @@ static int sprd_sensor_io_set_dvdd(struct sprd_sensor_file_tag *p_file,
 			vdd_val,
 			SPRD_SENSOR_DVDD_GPIO_TAG_E);
 		//if (ret)
-			ret = sprd_sensor_set_voltage(p_file->sensor_id,
+			ret1 = sprd_sensor_set_voltage(p_file->sensor_id,
 					vdd_val,
 					SENSOR_REGULATOR_CAMDVDD_ID_E);
 	}
-	return ret;
+	return ret & ret1;
 }
 
 static int sprd_sensor_io_set_iovdd(struct sprd_sensor_file_tag *p_file,
 				    unsigned long arg)
 {
-	int ret = 0;
+	int ret = 0, ret1 = 0;
 	unsigned int vdd_val;
 
 	ret = copy_from_user(&vdd_val, (unsigned int *)arg,
@@ -231,11 +231,11 @@ static int sprd_sensor_io_set_iovdd(struct sprd_sensor_file_tag *p_file,
 			vdd_val,
 			SPRD_SENSOR_IOVDD_GPIO_TAG_E);
 	//	if (ret)
-			ret = sprd_sensor_set_voltage(p_file->sensor_id,
+			ret1 = sprd_sensor_set_voltage(p_file->sensor_id,
 					      vdd_val,
 					      SENSOR_REGULATOR_VDDIO_E);
 	}
-	return ret;
+	return ret & ret1;
 }
 
 static int sprd_sensor_io_set_mclk(struct sprd_sensor_file_tag *p_file,
@@ -518,6 +518,7 @@ static long sprd_sensor_file_ioctl(struct file *file, unsigned int cmd,
 		ret = copy_from_user(&p_file->sensor_id, (unsigned int *)arg,
 				     sizeof(unsigned int));
 		pr_debug("sensor id %d cmd 0x%x\n", p_file->sensor_id, cmd);
+
 		mutex_unlock(&p_mod->sensor_id_lock);
 	}
 
