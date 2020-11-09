@@ -11,14 +11,9 @@
  * GNU General Public License for more details.
  */
 
-#ifndef _ADPT_DEFINES_H_
-#define _ADPT_DEFINES_H_
+#ifndef _DCAM_HW_ADPT_H_
+#define _DCAM_HW_ADPT_H_
 
-/* configure fmcu with isp register offset, range is 0x60b-0x60c */
-#define ISP_OFFSET_RANGE                        0x60c060b
-
-#define ISP_WIDTH_MAX                           4672
-#define ISP_HEIGHT_MAX                          3504
 #define DCAM_24M_WIDTH                          5664
 #define DCAM_PATH_WMAX                          5000
 #define DCAM_PATH_HMAX                          4000
@@ -29,19 +24,6 @@
 #define DCAM_SW_SLICE_HEIGHT_MAX                4096
 #define DCAM_HW_SLICE_WIDTH_MAX                 4096
 #define DCAM_RDS_OUT_LIMIT                      2048
-#define ISP_SCALER_UP_MAX                       4
-
-#define ISP_SC_COEFF_COEF_SIZE                  (1 << 10)
-#define ISP_SC_COEFF_TMP_SIZE                   (21 << 10)
-
-#define ISP_SC_H_COEF_SIZE                      0xC0
-#define ISP_SC_V_COEF_SIZE                      0x210
-#define ISP_SC_V_CHROM_COEF_SIZE                0x210
-
-#define ISP_SC_COEFF_H_NUM                      (ISP_SC_H_COEF_SIZE / 6)
-#define ISP_SC_COEFF_H_CHROMA_NUM               (ISP_SC_H_COEF_SIZE / 12)
-#define ISP_SC_COEFF_V_NUM                      (ISP_SC_V_COEF_SIZE / 4)
-#define ISP_SC_COEFF_V_CHROMA_NUM               (ISP_SC_V_CHROM_COEF_SIZE / 4)
 
 /*
  *DCAM_CONTROL register bit map id

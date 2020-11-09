@@ -18,10 +18,12 @@
 
 #include "cam_trusty.h"
 #include "dcam_reg.h"
-#include "defines.h"
+#include "dcam_hw_adpt.h"
 #include "dcam_int.h"
 #include "dcam_path.h"
+
 #include "isp_reg.h"
+#include "isp_hw_adpt.h"
 #include "isp_core.h"
 #include "isp_int.h"
 #include "isp_slice.h"

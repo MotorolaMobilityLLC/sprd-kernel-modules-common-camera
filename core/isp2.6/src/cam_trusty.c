@@ -18,7 +18,7 @@
 #include <linux/wait.h>
 #include <linux/sched.h>
 #include  "cam_trusty.h"
-#include  "defines.h"
+#include  "dcam_hw_adpt.h"
 #ifdef pr_fmt
 #undef pr_fmt
 #endif

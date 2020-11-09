@@ -15,7 +15,8 @@
 #include <video/sprd_mmsys_pw_domain.h>
 
 #include "sprd_mm.h"
-#include "defines.h"
+#include "dcam_hw_adpt.h"
+#include "isp_hw_adpt.h"
 #include "cam_buf.h"
 #include "cam_test.h"
 
