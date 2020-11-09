@@ -19,7 +19,6 @@
 #define TA_RESP_BIT		1 <<  31
 
 /*Todo for faceid sec funcation*/
-#define CAM_FACEID_SEC
 #define FACEID_VERSION 			1
 #define GET_TXBUF_TIMEOUT	10
 #define CA_READ_TIMEOUT		1000
@@ -68,8 +67,8 @@ struct img_pitch_reg_msg {
 struct isp_3dnr_reg_msg {
 	uint32_t msg_cmd;
 	uint32_t  ft_luma_addr;
-	uint32_t  ft_chroma_addr;
-	uint32_t  ft_pitch;
+	unsigned long  ft_chroma_addr;
+	unsigned long  ft_pitch;
 };
 
 struct csi_switch_ctrl_msg {

@@ -47,7 +47,7 @@
 #define ISP_SC_COEFF_H_CHROMA_NUM      (ISP_SC_H_COEF_SIZE / 12)
 #define ISP_SC_COEFF_V_NUM             (ISP_SC_V_COEF_SIZE / 4)
 #define ISP_SC_COEFF_V_CHROMA_NUM      (ISP_SC_V_CHROM_COEF_SIZE / 4)
-
+#define CAM_FACEID_SEC
 /*
  *DCAM_CONTROL register bit map id
  * for force_cpy/auto_cpy control

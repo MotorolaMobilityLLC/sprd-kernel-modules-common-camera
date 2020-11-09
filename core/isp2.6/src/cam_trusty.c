@@ -18,7 +18,7 @@
 #include <linux/wait.h>
 #include <linux/sched.h>
 #include  "cam_trusty.h"
-
+#include  "defines.h"
 #ifdef pr_fmt
 #undef pr_fmt
 #endif
@@ -26,8 +26,7 @@
 	fmt, current->pid, __LINE__, __func__
 
 
-#if 0//def CAM_FACEID_SEC
-
+#ifdef CAM_FACEID_SEC
 #include <linux/device.h>
 #include <linux/trusty/trusty_ipc.h>
 
@@ -408,7 +407,7 @@ bool cam_trusty_isp_pitch_set(uint32_t y_pitch, uint32_t u_pitch, uint32_t v_pit
 	return ret;
 }
 
-bool cam_trusty_isp_3dnr_fetch_set(uint32_t chroma, uint32_t luma, uint32_t pitch)
+bool cam_trusty_isp_3dnr_fetch_set(unsigned long chroma, unsigned long luma, uint32_t pitch)
 {
 	struct isp_3dnr_reg_msg  isp_3dnr_pitch_set;
 	bool ret = true;
