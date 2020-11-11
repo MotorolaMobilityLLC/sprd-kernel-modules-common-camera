@@ -92,7 +92,7 @@ static void isp_ltm_config_hists(uint32_t idx,
 		(hists->pitch & 0xFFFF);
 	ISP_REG_WR(idx, base + ISP_LTM_PITCH, val); /* slice */
 
-	if (ISP_LTM_HIST_BUF0 == hists->buf_sel)
+	if (hists->buf_sel == ISP_LTM_HIST_BUF0)
 		buf_addr = buf_addr_0;
 	else
 		buf_addr = buf_addr_1;

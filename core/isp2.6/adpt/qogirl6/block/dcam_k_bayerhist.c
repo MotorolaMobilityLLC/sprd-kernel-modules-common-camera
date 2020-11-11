@@ -78,11 +78,12 @@ int dcam_k_bayerhist_block(struct dcam_dev_param *param)
 int dcam_k_bayerhist_roi(struct dcam_dev_param *param)
 {
 	int ret = 0;
-	uint32_t idx = param->idx;
-	struct dcam_dev_hist_info *p;
+	uint32_t idx = 0;
+	struct dcam_dev_hist_info *p = NULL;
 
 	if (param == NULL)
 		return -1;
+	idx = param->idx;
 
 	if (!(param->hist.update & _UPDATE_ROI))
 		return 0;

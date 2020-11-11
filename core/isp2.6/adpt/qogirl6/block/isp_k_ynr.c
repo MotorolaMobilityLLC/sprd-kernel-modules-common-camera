@@ -43,8 +43,6 @@ static int isp_k_ynr_block(struct isp_io_param *param,
 		ynr->bypass = 1;
 
 	memcpy(&isp_k_param->ynr_info_v2, ynr, sizeof(struct isp_dev_ynr_info_v2));
-
-	ISP_REG_MWR(idx, ISP_YNR_CONTRL0, BIT_0, ynr->bypass);
 	if (ynr->bypass)
 		return 0;
 

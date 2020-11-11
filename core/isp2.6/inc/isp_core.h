@@ -153,6 +153,7 @@ struct isp_path_uinfo {
 	uint32_t slave_path_id;
 	uint32_t regular_mode;
 	uint32_t uframe_sync;
+	uint32_t scaler_coeff_ex;
 	struct img_endian data_endian;
 	struct img_size dst;
 	struct img_trim in_trim;
@@ -172,6 +173,7 @@ struct isp_uinfo {
 	uint32_t enable_slowmotion;
 	uint32_t slowmotion_count;
 	uint32_t uframe_sync;
+	uint32_t scaler_coeff_ex;
 
 	/* compression info from cam core */
 	/* 1: fetch_fbd; 0: fetch */

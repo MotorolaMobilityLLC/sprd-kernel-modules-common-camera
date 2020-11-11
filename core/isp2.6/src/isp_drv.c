@@ -47,7 +47,7 @@ static ispdrv_path_scaler_get(struct isp_path_uinfo *in_ptr,
 	struct isp_scaler_info *scaler = NULL;
 
 	if (!in_ptr || !path) {
-		pr_err("fail to get valid input ptr %p\n", in_ptr, path);
+		pr_err("fail to get valid input ptr %p, %p\n", in_ptr, path);
 		return -EFAULT;
 	}
 
@@ -66,7 +66,7 @@ static ispdrv_path_scaler_get(struct isp_path_uinfo *in_ptr,
 	ret = isp_path_scaler_param_calc(&path->in_trim, &path->dst,
 		&path->scaler, &path->deci);
 	if (ret) {
-		pr_err("fail to calc scaler.\n");
+		pr_err("fail to calc scaler param.\n");
 		return ret;
 	}
 
@@ -79,8 +79,20 @@ static ispdrv_path_scaler_get(struct isp_path_uinfo *in_ptr,
 		scaler->scaler_bypass = 1;
 	} else {
 		scaler->scaler_bypass = 0;
-		scale2yuv420 = is_yuv422 ? 0 : 1;
-		ret = isp_path_scaler_coeff_calc(scaler, scale2yuv420);
+
+		if (in_ptr->scaler_coeff_ex) {
+			/*0:yuv422 to 422 ;1:yuv422 to 420 2:yuv420 to 420*/
+			scaler->work_mode = 2;
+			ret = isp_path_scaler_coeff_calc_ex(scaler);
+		}  else {
+			scale2yuv420 = is_yuv422 ? 0 : 1;
+			ret = isp_path_scaler_coeff_calc(scaler, scale2yuv420);
+		}
+
+		if (ret) {
+			pr_err("fail to calc scaler coeff.\n");
+			return ret;
+		}
 	}
 	scaler->odata_mode = is_yuv422 ? 0x00 : 0x01;
 
@@ -788,6 +800,7 @@ int isp_drv_pipeinfo_get(void *arg, void *frame)
 			pipe_in->scaler[i].spath_id = i;
 			pipe_in->scaler[i].src.w = pipe_src->crop.size_x;
 			pipe_in->scaler[i].src.h = pipe_src->crop.size_y;
+			path_info->scaler_coeff_ex = ctx->hw->ip_isp->scaler_coeff_ex;
 			ret = ispdrv_path_scaler_get(path_info, &pipe_in->scaler[i]);
 			if (ret) {
 				pr_err("fail to get pipe path scaler info\n");

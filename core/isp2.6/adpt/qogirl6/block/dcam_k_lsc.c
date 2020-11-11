@@ -59,8 +59,8 @@ int dcam_init_lsc_slice(void *in, uint32_t online)
 
 	/* need update grid_x_num and more when offline slice*/
 	if (online == 0 && dev->dcam_slice_mode == CAM_OFFLINE_SLICE_HW) {
-		start_roi = dev->cur_slice->start_x;
-		grid_x_num_slice = (dev->cur_slice->size_x / 2 + info->grid_width - 1) / info->grid_width + 3;
+		start_roi = dev->cur_slice->start_x - DCAM_OVERLAP;
+		grid_x_num_slice = ((dev->cur_slice->size_x + DCAM_OVERLAP) / 2 + info->grid_width - 1) / info->grid_width + 3;
 	} else
 		grid_x_num_slice = info->grid_x_num;
 
@@ -128,7 +128,7 @@ int dcam_init_lsc(void *in, uint32_t online)
 	/* need update grid_x_num and more when offline slice*/
 	if (online == 0 && dev->dcam_slice_mode == CAM_OFFLINE_SLICE_HW) {
 		start_roi = 0;
-		grid_x_num_slice = (dev->cur_slice->size_x / 2 + info->grid_width - 1) / info->grid_width + 3;
+		grid_x_num_slice = ((dev->cur_slice->size_x + DCAM_OVERLAP) / 2 + info->grid_width - 1) / info->grid_width + 3;
 	} else {
 		grid_x_num_slice = info->grid_x_num;
 	}
@@ -265,17 +265,16 @@ int dcam_update_lsc(void *in)
 	dev = (struct dcam_pipe_dev *)blk_dcam_pm->dev;
 	hw = dev->hw;
 	param = &blk_dcam_pm->lsc;
-	if (!param->update) {
+	if (!param->update)
 		return 0;
-	}
 
 	idx = dev->idx;
 	info = &param->lens_info;
 	update = param->update;
 	param->update = 0;
-	if (g_dcam_bypass[idx] & (1 << _E_LSC)) {
+	if (g_dcam_bypass[idx] & (1 << _E_LSC))
 		return 0;
-	}
+
 	if (info->bypass) {
 		pr_debug("bypass\n");
 		DCAM_REG_MWR(idx, DCAM_LENS_LOAD_ENABLE, BIT_0, 1);
@@ -307,7 +306,7 @@ int dcam_update_lsc(void *in)
 
 		lens_load_flag = (val & BIT_2);
 		if (lens_load_flag == 0) {
-			pr_debug("last lens load is not done. skip\n");
+			pr_info("last lens load is not done. skip\n");
 			return 0;
 		}
 		/* clear lens_load_flag */

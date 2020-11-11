@@ -142,8 +142,7 @@ int dcam_k_cfg_rgb_dither(struct isp_io_param *param, struct dcam_dev_param *p)
 				param->property_param,
 				sizeof(p->rgb.rgb_dither));
 			if (ret) {
-				pr_err("fail to copy from user, ret = %d\n",
-					ret);
+				pr_err("fail to copy from user, ret = %d\n", ret);
 				return -1;
 			}
 			ret = dcam_k_rgb_dither_random_block(p);
@@ -154,16 +153,14 @@ int dcam_k_cfg_rgb_dither(struct isp_io_param *param, struct dcam_dev_param *p)
 				sizeof(p->rgb.rgb_dither));
 			if (ret) {
 				mutex_unlock(&p->param_lock);
-				pr_err("fail to copy from user, ret = %d\n",
-					ret);
+				pr_err("fail to copy from user, ret = %d\n", ret);
 				return -1;
 			}
 			mutex_unlock(&p->param_lock);
 		}
 		break;
 	default:
-		pr_err("fail to support property %d\n",
-			param->property);
+		pr_err("fail to support property %d\n", param->property);
 		ret = -EINVAL;
 		break;
 	}

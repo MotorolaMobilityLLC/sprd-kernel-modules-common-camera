@@ -34,4 +34,6 @@
 #define ISP_SC_COEFF_V_NUM                      (ISP_SC_V_COEF_SIZE / 4)
 #define ISP_SC_COEFF_V_CHROMA_NUM               (ISP_SC_V_CHROM_COEF_SIZE / 4)
 
+#define ISP_SC_COEFF_BUF_SIZE                   (24 << 10)
+
 #endif

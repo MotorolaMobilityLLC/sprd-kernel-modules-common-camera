@@ -18,8 +18,7 @@
 #include <linux/of.h>
 #include <linux/platform_device.h>
 #include "cam_types.h"
-
-#define ISP_SC_COEFF_BUF_SIZE   (24 << 10)
+#include "isp_hw.h"
 
 extern struct cam_hw_info sharkl3_hw_info;
 extern struct cam_hw_info sharkl5_hw_info;
@@ -370,9 +369,18 @@ struct isp_hw_path_store {
 	struct isp_store_info store;
 };
 
+struct scaler_phase_info {
+    int32_t   scaler_init_phase[2];
+    int16_t   scaler_init_phase_int[2][2]; /*[hor/ver][luma/chroma]*/
+    uint16_t  scaler_init_phase_rmd[2][2]; /*[hor/ver][luma/chroma]*/
+};
+
 struct isp_scaler_info {
 	uint32_t scaler_bypass;
+	uint32_t scaler_path_stop;
 	uint32_t odata_mode;
+	uint32_t scaler_y_hor_tap;
+	uint32_t scaler_uv_hor_tap;
 	uint32_t scaler_y_ver_tap;
 	uint32_t scaler_uv_ver_tap;
 	uint32_t scaler_ip_int;
@@ -389,7 +397,9 @@ struct isp_scaler_info {
 	uint32_t scaler_ver_factor_out;
 	uint32_t scaler_out_width;
 	uint32_t scaler_out_height;
+	uint32_t work_mode;
 	uint32_t coeff_buf[ISP_SC_COEFF_BUF_SIZE];
+	struct scaler_phase_info init_phase_info;
 };
 
 struct isp_regular_info {
@@ -613,6 +623,7 @@ struct reg_add_val_tag {
 
 struct coeff_arg {
 	uint32_t *h_coeff;
+	uint32_t *h_chroma_coeff;
 	uint32_t *v_coeff;
 	uint32_t *v_chroma_coeff;
 	uint32_t h_coeff_addr;
@@ -904,6 +915,7 @@ struct cam_hw_ip_info {
 
 	/* For isp support info */
 	uint32_t slm_cfg_support;
+	uint32_t scaler_coeff_ex;
 	uint32_t *ctx_fmcu_support;
 };
 

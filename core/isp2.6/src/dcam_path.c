@@ -15,6 +15,7 @@
 #include <sprd_mm.h>
 
 #include "cam_scaler.h"
+#include "cam_scaler_ex.h"
 #include "cam_queue.h"
 #include "cam_debugger.h"
 #include "dcam_reg.h"

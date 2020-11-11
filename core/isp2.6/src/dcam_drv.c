@@ -218,11 +218,18 @@ int dcam_drv_dt_parse(struct platform_device *pdev,
 		pr_err("fail to read clk, dcam_eb\n");
 		goto err_iounmap;
 	}
-	soc_dcam->axi_eb = of_clk_get_by_name(dn, "dcam_axi_eb");
-	if (IS_ERR_OR_NULL(soc_dcam->axi_eb)) {
-		pr_err("fail to read clk, dcam_axi_eb\n");
-		goto err_iounmap;
+
+	if (hw_info->prj_id == SHARKL3
+		|| hw_info->prj_id == SHARKL5
+		|| hw_info->prj_id == ROC1
+		|| hw_info->prj_id == SHARKL5pro) {
+		soc_dcam->axi_eb = of_clk_get_by_name(dn, "dcam_axi_eb");
+		if (IS_ERR_OR_NULL(soc_dcam->axi_eb)) {
+			pr_err("fail to read clk, dcam_axi_eb\n");
+			goto err_iounmap;
+		}
 	}
+
 	soc_dcam->clk = of_clk_get_by_name(dn, "dcam_clk");
 	if (IS_ERR_OR_NULL(soc_dcam->clk)) {
 		pr_err("fail to read clk, dcam_clk\n");
@@ -249,7 +256,9 @@ int dcam_drv_dt_parse(struct platform_device *pdev,
 		soc_dcam->bpc_clk_default = clk_get_parent(soc_dcam->bpc_clk);
 	}
 
-	if (hw_info->prj_id != SHARKL3) {
+	if (hw_info->prj_id == SHARKL5
+		|| hw_info->prj_id == ROC1
+		|| hw_info->prj_id == SHARKL5pro) {
 		soc_dcam->axi_clk = of_clk_get_by_name(dn, "dcam_axi_clk");
 		if (IS_ERR_OR_NULL(soc_dcam->clk)) {
 			pr_err("fail to read clk, axi_clk\n");

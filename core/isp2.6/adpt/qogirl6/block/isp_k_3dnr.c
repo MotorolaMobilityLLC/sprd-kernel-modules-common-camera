@@ -314,10 +314,8 @@ static void isp_3dnr_config_store(uint32_t idx,
 	val = nr3_store->st_pitch & 0xFFFF;
 	ISP_REG_WR(idx, ISP_3DNR_STORE_PITCH, val);
 
-	ISP_REG_MWR(idx,
-		    ISP_3DNR_STORE_SHADOW_CLR,
-		    BIT_0,
-		    nr3_store->shadow_clr);
+	ISP_REG_MWR(idx, ISP_3DNR_STORE_SHADOW_CLR,
+		BIT_0, nr3_store->shadow_clr);
 }
 
 static void isp_3dnr_config_fbd_fetch(uint32_t idx,
@@ -436,10 +434,8 @@ static void isp_3dnr_config_crop(uint32_t idx,
 
 	if (g_isp_bypass[idx] & (1 << _EISP_NR3))
 		crop->crop_bypass = 1;
-	ISP_REG_MWR(idx,
-		    ISP_3DNR_MEM_CTRL_PRE_PARAM0,
-		    BIT_0,
-		    crop->crop_bypass);
+	ISP_REG_MWR(idx, ISP_3DNR_MEM_CTRL_PRE_PARAM0,
+		BIT_0, crop->crop_bypass);
 
 	val = ((crop->src_height & 0xFFFF) << 16) |
 	       (crop->src_width & 0xFFFF);
@@ -500,9 +496,8 @@ static unsigned long irq_base[ISP_CONTEXT_MAX] = {
 #endif /* _NR3_DATA_TO_YUV_ */
 
 void isp_3dnr_config_param(struct isp_3dnr_ctx_desc *ctx,
-			   struct isp_k_block *isp_k_param,
-			   uint32_t idx,
-			   enum nr3_func_type type_id)
+		struct isp_k_block *isp_k_param, uint32_t idx,
+		enum nr3_func_type type_id)
 {
 	struct isp_3dnr_mem_ctrl *mem_ctrl = NULL;
 	struct isp_3dnr_store *nr3_store = NULL;

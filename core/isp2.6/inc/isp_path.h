@@ -44,5 +44,6 @@ int isp_path_scaler_param_calc(struct img_trim *in_trim,
 		struct img_size *out_size, struct isp_scaler_info *scaler,
 		struct img_deci_info *deci);
 int isp_path_scaler_coeff_calc(struct isp_scaler_info *scaler, uint32_t scale2yuv420);
+int isp_path_scaler_coeff_calc_ex(struct isp_scaler_info *scaler);
 
 #endif

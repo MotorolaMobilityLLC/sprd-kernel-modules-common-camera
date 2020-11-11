@@ -209,6 +209,7 @@ static struct cam_hw_ip_info qogirn6pro_dcam[DCAM_ID_MAX] = {
 };
 static struct cam_hw_ip_info qogirn6pro_isp = {
 	.slm_cfg_support = 1,
+	.scaler_coeff_ex = 1,
 	.ctx_fmcu_support = qogirn6pro_isp_ctx_fmcu_support,
 };
 

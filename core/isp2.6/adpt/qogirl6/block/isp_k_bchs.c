@@ -40,16 +40,14 @@ static int isp_k_bchs_block(struct isp_io_param *param,
 	}
 	if (g_isp_bypass[idx] & (1 << _EISP_BCHS))
 		bchs_info->bchs_bypass = 1;
-	ISP_REG_MWR(idx, ISP_BCHS_PARAM, BIT_0, bchs_info->bchs_bypass);
 	if (bchs_info->bchs_bypass)
 		return 0;
 
-	ISP_REG_MWR(idx, ISP_BCHS_PARAM, 0xffffffff,
+	ISP_REG_MWR(idx, ISP_BCHS_PARAM, 0x1e,
 		(bchs_info->cnta_en << 4) |
 		(bchs_info->brta_en << 3) |
 		(bchs_info->hua_en << 2) |
-		(bchs_info->csa_en << 1) |
-		(bchs_info->bchs_bypass << 0));
+		(bchs_info->csa_en << 1));
 
 	ISP_REG_MWR(idx, ISP_CSA_FACTOR, 0xffffffff,
 		(bchs_info->csa_factor_u << 8) |

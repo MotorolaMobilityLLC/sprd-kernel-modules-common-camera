@@ -164,8 +164,7 @@ int dcam_k_afm_mode(struct dcam_dev_param *param)
 	if (mode == 0)
 		DCAM_REG_MWR(idx, ISP_AFM_FRM_CTRL1, BIT_0, 1);
 	else
-		DCAM_REG_MWR(idx, ISP_AFM_FRM_CTRL,
-			BIT_3, 1 << 3);
+		DCAM_REG_MWR(idx, ISP_AFM_FRM_CTRL, BIT_3, 1 << 3);
 
 	return ret;
 }

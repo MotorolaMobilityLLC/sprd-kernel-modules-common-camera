@@ -187,9 +187,9 @@ int dcam_k_cfg_bpc(struct isp_io_param *param, struct dcam_dev_param *p)
 		ret = copy_from_user(dst_ptr,
 				param->property_param,
 				dst_size);
-		if (ret) {
+		if (ret)
 			pr_err("fail to copy from user, ret = %d\n", ret);
-		}
+
 		mutex_unlock(&p->param_lock);
 	}
 exit:

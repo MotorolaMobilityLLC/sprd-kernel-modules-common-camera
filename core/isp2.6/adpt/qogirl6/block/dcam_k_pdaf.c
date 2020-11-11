@@ -337,6 +337,7 @@ int dcam_k_pdaf(struct dcam_dev_param *p)
 		pr_debug("dcam%d pdaf bypass\n", idx);
 		return 0;
 	}
+
 	pr_debug("dcam%d reconfigure pdaf param, type %d\n", idx, p->pdaf.pdaf_type);
 
 	/* mode */
@@ -397,7 +398,6 @@ int dcam_k_cfg_pdaf(struct isp_io_param *param, struct dcam_dev_param *p)
 	int ret = 0;
 	enum dcam_id idx;
 	struct dcam_pipe_dev *dev = NULL;
-	dev = (struct dcam_pipe_dev *)p->dev;
 
 	if (!param || !p) {
 		pr_err("fail to get param\n");
@@ -408,6 +408,8 @@ int dcam_k_cfg_pdaf(struct isp_io_param *param, struct dcam_dev_param *p)
 		pr_err("fail to get property_param\n");
 		return -1;
 	}
+
+	dev = (struct dcam_pipe_dev *)p->dev;
 
 	idx = p->idx;
 	switch (param->property) {
@@ -429,6 +431,9 @@ int dcam_k_cfg_pdaf(struct isp_io_param *param, struct dcam_dev_param *p)
 	case DCAM_PDAF_TYPE3_SET_PPI_INFO:
 		ret = isp_k_pdaf_type3_set_ppi_info(param, p);
 		break;
+	case DCAM_DUAL_PDAF_BLOCK:
+		ret = isp_k_dual_pdaf_block(param, p);
+		break;
 	case DCAM_PDAF_TYPE1_BLOCK:
 		ret = isp_k_pdaf_type1_block(param, p);
 		break;
@@ -437,9 +442,6 @@ int dcam_k_cfg_pdaf(struct isp_io_param *param, struct dcam_dev_param *p)
 		break;
 	case DCAM_PDAF_TYPE3_BLOCK:
 		ret = isp_k_pdaf_type3_block(param, p);
-		break;
-	case DCAM_DUAL_PDAF_BLOCK:
-		ret = isp_k_dual_pdaf_block(param, p);
 		break;
 	default:
 		pr_err("fail to support cmd id = %d\n",

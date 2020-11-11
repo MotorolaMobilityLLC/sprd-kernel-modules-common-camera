@@ -63,8 +63,7 @@ int dcam_k_aem_mode(struct dcam_dev_param *param)
 		DCAM_REG_MWR(idx, DCAM_AEM_FRM_CTRL1, BIT_0, 0x1);
 	else
 		/* trigger multi frame works after skip_num */
-		DCAM_REG_MWR(idx,
-			DCAM_AEM_FRM_CTRL0, BIT_3, (0x1 << 3));
+		DCAM_REG_MWR(idx, DCAM_AEM_FRM_CTRL0, BIT_3, (0x1 << 3));
 
 	return ret;
 }

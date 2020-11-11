@@ -20,14 +20,14 @@
 #define IMG_TYPE_YUV                   0x1E
 
 extern atomic_t s_dcam_working;
-static uint32_t dcam_linebuf_len[3] = {0, 0, 0};
+static uint32_t dcam_hw_linebuf_len[3] = {0, 0, 0};
 extern void sprd_kproperty_get(const char *key, char *value,
 	const char *default_value);
 static uint32_t g_gtm_en = 0;
 static uint32_t g_ltm_bypass = 1;
 static atomic_t clk_users;
 
-static int qogirl6_dcam_clk_eb(void *handle, void *arg)
+static int dcamhw_clk_eb(void *handle, void *arg)
 {
 	int ret = 0;
 	struct cam_hw_info *hw = NULL;
@@ -46,6 +46,7 @@ static int qogirl6_dcam_clk_eb(void *handle, void *arg)
 	}
 
 	hw = (struct cam_hw_info *)handle;
+
 	soc = hw->soc_dcam;
 	ret = clk_set_parent(soc->clk, soc->clk_parent);
 	if (ret) {
@@ -59,35 +60,18 @@ static int qogirl6_dcam_clk_eb(void *handle, void *arg)
 		clk_set_parent(soc->clk, soc->clk_default);
 		return ret;
 	}
-	ret = clk_set_parent(soc->axi_clk, soc->axi_clk_parent);
-	if (ret) {
-		pr_err("fail to set axi_clk parent\n");
-		clk_set_parent(soc->axi_clk, soc->axi_clk_parent);
-		return ret;
-	}
-	ret = clk_prepare_enable(soc->axi_clk);
-	if (ret) {
-		pr_err(" fail to enable axi_clk\n");
-		clk_set_parent(soc->axi_clk, soc->axi_clk_default);
-		return ret;
-	}
+
 	ret = clk_prepare_enable(soc->core_eb);
 	if (ret) {
 		pr_err("fail to set eb\n");
 		clk_disable_unprepare(soc->clk);
 		return ret;
 	}
-	ret = clk_prepare_enable(soc->axi_eb);
-	if (ret) {
-		pr_err("fail to set dcam axi clk\n");
-		clk_disable_unprepare(soc->clk);
-		clk_disable_unprepare(soc->core_eb);
-	}
 
 	return ret;
 }
 
-static int qogirl6_dcam_clk_dis(void *handle, void *arg)
+static int dcamhw_clk_dis(void *handle, void *arg)
 {
 	int ret = 0;
 	struct cam_hw_info *hw = NULL;
@@ -107,17 +91,14 @@ static int qogirl6_dcam_clk_dis(void *handle, void *arg)
 
 	hw = (struct cam_hw_info *)handle;
 	soc = hw->soc_dcam;
-	clk_set_parent(soc->axi_clk, soc->axi_clk_default);
-	clk_disable_unprepare(soc->axi_clk);
 	clk_set_parent(soc->clk, soc->clk_default);
 	clk_disable_unprepare(soc->clk);
-	clk_disable_unprepare(soc->axi_eb);
 	clk_disable_unprepare(soc->core_eb);
 
 	return ret;
 }
 
-static int qogirl6_dcam_axi_init(void *handle, void *arg)
+static int dcamhw_axi_init(void *handle, void *arg)
 {
 	uint32_t time_out = 0;
 	uint32_t idx = 0;
@@ -156,14 +137,14 @@ static int qogirl6_dcam_axi_init(void *handle, void *arg)
 			ip->syscon.all_rst_mask, ~(ip->syscon.all_rst_mask));
 	}
 
-	hw->dcam_ioctl(hw, DCAM_HW_CFG_SET_QOS, NULL);
+	//hw->dcam_ioctl(hw, DCAM_HW_CFG_SET_QOS, NULL);
 	/* the end, enable AXI writing */
 	DCAM_AXIM_MWR(AXIM_CTRL, BIT_24 | BIT_23, (0x0 << 23));
 
 	return 0;
 }
 
-static int qogirl6_dcam_qos_set(void *handle, void *arg)
+static int dcamhw_qos_set(void *handle, void *arg)
 {
 	uint32_t reg_val = 0;
 	struct cam_hw_info *hw = NULL;
@@ -183,7 +164,7 @@ static int qogirl6_dcam_qos_set(void *handle, void *arg)
 	return 0;
 }
 
-static int qogirl6_dcam_start(void *handle, void *arg)
+static int dcamhw_start(void *handle, void *arg)
 {
 	int ret = 0;
 	struct dcam_hw_start *parm = NULL;
@@ -214,7 +195,7 @@ static int qogirl6_dcam_start(void *handle, void *arg)
 	return ret;
 }
 
-static int qogirl6_dcam_stop(void *handle, void *arg)
+static int dcamhw_stop(void *handle, void *arg)
 {
 	int ret = 0;
 	int time_out = DCAMX_STOP_TIMEOUT;
@@ -250,7 +231,7 @@ static int qogirl6_dcam_stop(void *handle, void *arg)
 	return ret;
 }
 
-static int qogirl6_dcam_cap_disable(void *handle, void *arg)
+static int dcamhw_cap_disable(void *handle, void *arg)
 {
 	int ret = 0;
 	uint32_t idx = 0;
@@ -267,7 +248,7 @@ static int qogirl6_dcam_cap_disable(void *handle, void *arg)
 	return ret;
 }
 
-static int qogirl6_dcam_auto_copy(void *handle, void *arg)
+static int dcamhw_auto_copy(void *handle, void *arg)
 {
 	struct dcam_hw_auto_copy *copyarg = NULL;
 	const uint32_t bitmap[] = {
@@ -306,7 +287,7 @@ static int qogirl6_dcam_auto_copy(void *handle, void *arg)
 	return 0;
 }
 
-static int qogirl6_dcam_force_copy(void *handle, void *arg)
+static int dcamhw_force_copy(void *handle, void *arg)
 {
 	struct dcam_hw_force_copy *forcpy = NULL;
 	const uint32_t bitmap[] = {
@@ -343,7 +324,7 @@ static int qogirl6_dcam_force_copy(void *handle, void *arg)
 	return 0;
 }
 
-static int qogirl6_dcam_reset(void *handle, void *arg)
+static int dcamhw_reset(void *handle, void *arg)
 {
 	int ret = 0;
 	enum dcam_id idx = 0;
@@ -430,13 +411,13 @@ static int qogirl6_dcam_reset(void *handle, void *arg)
 	DCAM_REG_WR(idx, NR3_FAST_ME_PARAM, 0x109);
 	DCAM_REG_MWR(idx, DCAM_GTM_GLB_CTRL, BIT_0, 0);
 	DCAM_REG_MWR(idx, DCAM_FBC_CTRL, BIT_0, 0);
-	dcam_linebuf_len[idx] = 0;
+	dcam_hw_linebuf_len[idx] = 0;
 	pr_info("DCAM%d: reset end\n", idx);
 
 	return ret;
 }
 
-static int qogirl6_dcam_fetch_set(void *handle, void *arg)
+static int dcamhw_fetch_set(void *handle, void *arg)
 {
 	int ret = 0;
 	uint32_t fetch_pitch;
@@ -451,11 +432,11 @@ static int qogirl6_dcam_fetch_set(void *handle, void *arg)
 
 	fetch = (struct dcam_hw_fetch_set *)arg;
 	/* !0 is loose */
-	if (fetch->fetch_info->is_loose != 0) {
+	if (fetch->fetch_info->pack_bits != 0)
 		fetch_pitch = (fetch->fetch_info->size.w * 16 + 127) / 128;
-	} else {
+	else
 		fetch_pitch = (fetch->fetch_info->size.w * 10 + 127) / 128;
-	}
+
 	pr_info("size [%d %d], start %d, pitch %d, 0x%x\n",
 		fetch->fetch_info->trim.size_x, fetch->fetch_info->trim.size_y,
 		fetch->fetch_info->trim.start_x, fetch_pitch, fetch->fetch_info->addr.addr_ch0);
@@ -474,7 +455,7 @@ static int qogirl6_dcam_fetch_set(void *handle, void *arg)
 	DCAM_REG_MWR(fetch->idx, DCAM_BAYER_INFO_CFG,
 		BIT_5 | BIT_4, (fetch->fetch_info->pattern & 3) << 4);
 	DCAM_AXIM_MWR(IMG_FETCH_CTRL,
-		BIT_1 | BIT_0, fetch->fetch_info->is_loose);
+		BIT_1 | BIT_0, fetch->fetch_info->pack_bits);
 	DCAM_AXIM_MWR(IMG_FETCH_CTRL,
 		BIT_3 | BIT_2, fetch->fetch_info->endian << 2);
 	DCAM_AXIM_WR(IMG_FETCH_SIZE,
@@ -488,7 +469,7 @@ static int qogirl6_dcam_fetch_set(void *handle, void *arg)
 	return ret;
 }
 
-static int qogirl6_dcam_mipi_cap_set(void *handle, void *arg)
+static int dcamhw_mipi_cap_set(void *handle, void *arg)
 {
 	int ret = 0;
 	uint32_t idx = 0;
@@ -597,7 +578,7 @@ static int qogirl6_dcam_mipi_cap_set(void *handle, void *arg)
 	return ret;
 }
 
-static int qogirl6_dcam_path_start(void *handle, void *arg)
+static int dcamhw_path_start(void *handle, void *arg)
 {
 	int ret = 0;
 	struct isp_img_rect rect; /* for 3dnr */
@@ -617,7 +598,7 @@ static int qogirl6_dcam_path_start(void *handle, void *arg)
 			BIT_17 |  BIT_16, patharg->endian.y_endian << 16);
 
 		DCAM_REG_MWR(patharg->idx, DCAM_FULL_CFG,
-			BIT_2 | BIT_3, patharg->is_loose << 2);
+			BIT_2 | BIT_3, patharg->pack_bits << 2);
 		DCAM_REG_MWR(patharg->idx, DCAM_FULL_CFG, BIT_4, patharg->src_sel << 4);
 
 		/* full_path_en */
@@ -632,7 +613,7 @@ static int qogirl6_dcam_path_start(void *handle, void *arg)
 		DCAM_REG_MWR(patharg->idx, DCAM_PATH_ENDIAN,
 			BIT_3 | BIT_2, patharg->endian.y_endian << 2);
 		DCAM_REG_MWR(patharg->idx, DCAM_CAM_BIN_CFG,
-			BIT_2 | BIT_3, patharg->is_loose << 2);
+			BIT_2 | BIT_3, patharg->pack_bits << 2);
 		DCAM_REG_MWR(patharg->idx, DCAM_CAM_BIN_CFG,
 				BIT_16, !!patharg->slowmotion_count << 16);
 		DCAM_REG_MWR(patharg->idx, DCAM_CAM_BIN_CFG,
@@ -650,7 +631,7 @@ static int qogirl6_dcam_path_start(void *handle, void *arg)
 	case DCAM_PATH_VCH2:
 		/* data type for raw picture */
 		if (patharg->src_sel)
-			DCAM_REG_WR(patharg->idx, DCAM_VC2_CONTROL, 0x2b << 8 | 0x01);
+			DCAM_REG_WR(patharg->idx, DCAM_VC2_CONTROL, 0x2b << 8 | 0x01 << 4);
 
 		DCAM_REG_MWR(patharg->idx, DCAM_PATH_ENDIAN,
 			BIT_23 |  BIT_22, patharg->endian.y_endian << 22);
@@ -687,8 +668,7 @@ static int qogirl6_dcam_path_start(void *handle, void *arg)
 			break;
 		}
 		DCAM_REG_WR(patharg->idx, NR3_FAST_ME_PARAM, 0x8);
-		dcam_k_3dnr_set_roi(rect,
-				0/* project_mode=0 */, patharg->idx);
+		dcam_k_3dnr_set_roi(rect, 0/* project_mode=0 */, patharg->idx);
 		break;
 	default:
 		break;
@@ -698,7 +678,7 @@ static int qogirl6_dcam_path_start(void *handle, void *arg)
 	return ret;
 }
 
-static int qogirl6_dcam_path_stop(void *handle, void *arg)
+static int dcamhw_path_stop(void *handle, void *arg)
 {
 	int ret = 0;
 	uint32_t idx;
@@ -745,7 +725,7 @@ static int qogirl6_dcam_path_stop(void *handle, void *arg)
 	return ret;
 }
 
-static int qogirl6_dcam_path_ctrl(void *handle, void *arg)
+static int dcamhw_path_ctrl(void *handle, void *arg)
 {
 	struct dcam_hw_path_ctrl *pathctl = NULL;
 
@@ -773,13 +753,13 @@ static int qogirl6_dcam_path_ctrl(void *handle, void *arg)
 	return 0;
 }
 
-static int qogirl6_dcam_fetch_start(void *handle, void *arg)
+static int dcamhw_fetch_start(void *handle, void *arg)
 {
 	DCAM_AXIM_WR(IMG_FETCH_START, 1);
 	return 0;
 }
 
-static int qogirl6_dcam_calc_rds_phase_info(void *handle, void *arg)
+static int dcamhw_rds_phase_info_calc(void *handle, void *arg)
 {
 	int32_t rtn = 0;
 	uint16_t adj_hor = 1, adj_ver = 1;
@@ -814,9 +794,7 @@ static int qogirl6_dcam_calc_rds_phase_info(void *handle, void *arg)
 	glb_phase_h = (raw_input_ver - raw_output_ver) >> 1;
 
 	if (info->slice_id)
-	{
-		output_slice_start_x = (info->slice_end1 * raw_output_hor -1 - glb_phase_w) / raw_input_hor + 1;
-	}
+		output_slice_start_x = (info->slice_end1 * raw_output_hor - 1 - glb_phase_w) / raw_input_hor + 1;
 
 	sphase_w = glb_phase_w + output_slice_start_x * gphase->rds_input_w_global;
 
@@ -839,7 +817,7 @@ static int qogirl6_dcam_calc_rds_phase_info(void *handle, void *arg)
 	return rtn;
 }
 
-static int qogirl6_dcam_path_size_update(void *handle, void *arg)
+static int dcamhw_path_size_update(void *handle, void *arg)
 {
 	int ret = 0;
 	uint32_t idx;
@@ -940,8 +918,7 @@ static int qogirl6_dcam_path_size_update(void *handle, void *arg)
 				rect.x, rect.y, rect.w, rect.h);
 			break;
 		}
-		dcam_k_3dnr_set_roi(rect,
-				0/* project_mode=0 */, idx);
+		dcam_k_3dnr_set_roi(rect, 0/* project_mode=0 */, idx);
 		break;
 	default:
 		break;
@@ -951,7 +928,7 @@ static int qogirl6_dcam_path_size_update(void *handle, void *arg)
 	return ret;
 }
 
-static int qogirl6_dcam_full_path_src_sel(void *handle, void *arg)
+static int dcamhw_full_path_src_sel(void *handle, void *arg)
 {
 	int ret = 0;
 	struct dcam_hw_path_src_sel *patharg = NULL;
@@ -978,7 +955,7 @@ static int qogirl6_dcam_full_path_src_sel(void *handle, void *arg)
 	return ret;
 }
 
-static int qogirl6_dcam_lbuf_share_set(void *handle, void *arg)
+static int dcamhw_lbuf_share_set(void *handle, void *arg)
 {
 	int i = 0;
 	int ret = 0;
@@ -990,37 +967,35 @@ static int qogirl6_dcam_lbuf_share_set(void *handle, void *arg)
 		4160, 5184,
 		3264, 5664,
 	};
-	//char chip_type[64]= { 0 };
+	char chip_type[64] = { 0 };
 	struct cam_hw_lbuf_share *camarg = (struct cam_hw_lbuf_share *)arg;
 
-//	sprd_kproperty_get("lwfq/type", chip_type, "-1");
+	sprd_kproperty_get("lwfq/type", chip_type, "-1");
 	/*0: T618 1:T610*/
-	dcam_linebuf_len[camarg->idx]= camarg->width;
-//	pr_debug("dcam_linebuf_len[0] = %d, [1] = %d %s\n",
-//		dcam_linebuf_len[0], dcam_linebuf_len[1], chip_type);
-#if 0
+	dcam_hw_linebuf_len[camarg->idx] = camarg->width;
+	pr_debug("dcam_hw_linebuf_len[0] = %d, [1] = %d %s\n",
+		dcam_hw_linebuf_len[0], dcam_hw_linebuf_len[1], chip_type);
 	if (!strncmp(chip_type, "1", strlen("1"))) {
-		if (dcam_linebuf_len[0] > DCAM_16M_WIDTH && dcam_linebuf_len[1] > 0) {
+		if (dcam_hw_linebuf_len[0] > DCAM_16M_WIDTH && dcam_hw_linebuf_len[1] > 0) {
 				pr_err("fail to check param,unsupprot img width\n");
 				return -EINVAL;
-		}else if (dcam_linebuf_len[0] <= DCAM_16M_WIDTH && dcam_linebuf_len[0] > DCAM_13M_WIDTH) {
-			if (dcam_linebuf_len[1] > DCAM_8M_WIDTH) {
-				pr_err("fail to check param,unsupprot img width\n");
-				return -EINVAL;
-			}
-		} else if (dcam_linebuf_len[0] <= DCAM_13M_WIDTH && dcam_linebuf_len[0] > DCAM_8M_WIDTH) {
-			if (dcam_linebuf_len[1] > DCAM_13M_WIDTH) {
+		}else if (dcam_hw_linebuf_len[0] <= DCAM_16M_WIDTH && dcam_hw_linebuf_len[0] > DCAM_13M_WIDTH) {
+			if (dcam_hw_linebuf_len[1] > DCAM_8M_WIDTH) {
 				pr_err("fail to check param,unsupprot img width\n");
 				return -EINVAL;
 			}
-		} else if (0 < dcam_linebuf_len[0] && dcam_linebuf_len[0] <= DCAM_8M_WIDTH){
-			if (dcam_linebuf_len[1] > DCAM_16M_WIDTH) {
+		} else if (dcam_hw_linebuf_len[0] <= DCAM_13M_WIDTH && dcam_hw_linebuf_len[0] > DCAM_8M_WIDTH) {
+			if (dcam_hw_linebuf_len[1] > DCAM_13M_WIDTH) {
+				pr_err("fail to check param,unsupprot img width\n");
+				return -EINVAL;
+			}
+		} else if (0 < dcam_hw_linebuf_len[0] && dcam_hw_linebuf_len[0] <= DCAM_8M_WIDTH) {
+			if (dcam_hw_linebuf_len[1] > DCAM_16M_WIDTH) {
 				pr_err("fail to check param,unsupprot img width\n");
 				return -EINVAL;
 			}
 		}
 	}
-#endif
 	if (atomic_read(&s_dcam_working) > 0) {
 		pr_warn("dcam 0/1 already in working\n");
 		return 0;
@@ -1033,11 +1008,12 @@ static int qogirl6_dcam_lbuf_share_set(void *handle, void *arg)
 			break;
 		}
 		for (i = 4; i >= 0; i--) {
-			if (camarg->width <= tb_w[i * 2])
+			if (camarg->width <= tb_w[i * 2]) {
+				DCAM_AXIM_MWR(DCAM_LBUF_SHARE_MODE, 0x7, i);
+				pr_debug("alloc dcam linebuf %d %d\n", tb_w[i*2], tb_w[i*2 + 1]);
 				break;
+			}
 		}
-		DCAM_AXIM_MWR(DCAM_LBUF_SHARE_MODE, 0x7, i);
-		pr_info("alloc dcam linebuf %d %d\n", tb_w[i*2], tb_w[i*2 + 1]);
 		break;
 	case 1:
 		if (camarg->width > tb_w[9]) {
@@ -1045,12 +1021,12 @@ static int qogirl6_dcam_lbuf_share_set(void *handle, void *arg)
 			break;
 		}
 		for (i = 0; i <= 4; i++) {
-			if (camarg->width <= tb_w[i * 2 + 1])
+			if (camarg->width <= tb_w[i * 2 + 1]) {
+				DCAM_AXIM_MWR(DCAM_LBUF_SHARE_MODE, 0x7, i);
+				pr_debug("alloc dcam linebuf %d %d\n", tb_w[i*2], tb_w[i*2 + 1]);
 				break;
+			}
 		}
-
-		DCAM_AXIM_MWR(DCAM_LBUF_SHARE_MODE, 0x7, i);
-		pr_info("alloc dcam linebuf %d %d\n", tb_w[i*2], tb_w[i*2 + 1]);
 		break;
 	default:
 		pr_err("fail to get valid dcam id %d\n", camarg->idx);
@@ -1061,7 +1037,7 @@ static int qogirl6_dcam_lbuf_share_set(void *handle, void *arg)
 	return ret;
 }
 
-static int qogirl6_dcam_lbuf_share_get(void *handle, void *arg)
+static int dcamhw_lbuf_share_get(void *handle, void *arg)
 {
 	int i = 0;
 	int ret = 0;
@@ -1086,73 +1062,111 @@ static int qogirl6_dcam_lbuf_share_get(void *handle, void *arg)
 		goto exit;
 
 	i = DCAM_AXIM_RD(DCAM_LBUF_SHARE_MODE) & 7;
-	if (i < 5) {
+	if (i < 5)
 		camarg->width = tb_w[i * 2 + idx];
-	}
+
 exit:
 	pr_debug("dcam%d, lbuf %d\n", idx, camarg->width);
 	return ret;
 }
-static int qogirl6_dcam_slice_fetch_set(void *handle, void *arg)
+
+static int dcamhw_slice_fetch_set(void *handle, void *arg)
 {
 	int ret = 0;
-	uint32_t idx, reg_val, offset;
-	struct img_trim *cur_slice;
+	uint32_t idx;
+	struct img_trim *cur_slice = NULL;
 	struct dcam_fetch_info *fetch = NULL;
 	struct dcam_hw_slice_fetch *slicearg = NULL;
+	uint32_t fetch_pitch, prev_picth, bfp;
 
-	if (!arg)
-		pr_err("fail to check param");
+	if (!arg) {
+		pr_err("fail to check param\n");
+		return -1;
+	}
 
 	slicearg = (struct dcam_hw_slice_fetch *)arg;
 	fetch = slicearg->fetch;
 	cur_slice = slicearg->cur_slice;
 	idx = slicearg->idx;
 
-	/* cfg mipicap */
-	DCAM_REG_MWR(idx,
-		DCAM_MIPI_CAP_CFG, BIT_30, 0x1 << 30);
-	DCAM_REG_MWR(idx,
-		DCAM_MIPI_CAP_CFG, BIT_29, 0x1 << 29);
-	DCAM_REG_MWR(idx,
-		DCAM_MIPI_CAP_CFG, BIT_28, 0x1 << 28);
-	DCAM_REG_MWR(idx,
-		DCAM_MIPI_CAP_CFG, BIT_12, 0x1 << 12);
-	DCAM_REG_MWR(idx,
-		DCAM_MIPI_CAP_CFG, BIT_3, 0x0 << 3);
-	DCAM_REG_MWR(idx,
-		DCAM_MIPI_CAP_CFG, BIT_1, 0x1 << 1);
+	if (fetch->pack_bits != 0) {
+		fetch_pitch = (fetch->size.w * 16 + 127) / 128;
+		prev_picth = (slicearg->slice_trim.size_x * 16 + 127) / 128;
+		bfp = 8;
+	} else {
+		fetch_pitch = (fetch->size.w * 10 + 127) / 128;
+		prev_picth = (slicearg->slice_trim.size_x * 16 + 127) / 128;
+		bfp = 5;
+	}
 
-	/* cfg bin path */
-	DCAM_REG_MWR(idx, DCAM_CAM_BIN_CFG, 0x3FF << 20, fetch->pitch << 20);
-	reg_val = (cur_slice->size_y -1 ) << 16;
-	reg_val |= (cur_slice->size_x - 1);
-	DCAM_REG_WR(idx, DCAM_MIPI_CAP_END, reg_val);
+	if (slicearg->dcam_slice_mode == CAM_OFFLINE_SLICE_SW) {
+		DCAM_REG_MWR(idx, DCAM_MIPI_CAP_CFG, BIT_12, 0x1 << 12);
+		DCAM_REG_MWR(idx, DCAM_MIPI_CAP_CFG, BIT_1, 0x1 << 1);
+		DCAM_REG_MWR(idx, DCAM_MIPI_CAP_CFG, BIT_3, 0x0 << 3);
+		DCAM_REG_MWR(idx, DCAM_BAYER_INFO_CFG, BIT_5 | BIT_4, (fetch->pattern & 3) << 4);
+		DCAM_AXIM_MWR(IMG_FETCH_CTRL, BIT_1 | BIT_0, fetch->pack_bits);
+		DCAM_AXIM_MWR(IMG_FETCH_CTRL, BIT_3 | BIT_2, fetch->endian << 2);
+		DCAM_AXIM_MWR(IMG_FETCH_CTRL, 0xFF << 4, 0x01 << 4);
+		DCAM_AXIM_MWR(IMG_FETCH_CTRL, 0x0F << 12, 0x01 << 12);
 
-	DCAM_REG_MWR(idx, DCAM_BAYER_INFO_CFG,
-		BIT_5 | BIT_4, (fetch->pattern & 3) << 4);
-	DCAM_AXIM_MWR(IMG_FETCH_CTRL, BIT_1 | BIT_0, fetch->is_loose);
-	DCAM_AXIM_MWR(IMG_FETCH_CTRL, BIT_3 | BIT_2, fetch->endian << 2);
+		DCAM_AXIM_WR(IMG_FETCH_SIZE,
+			(slicearg->slice_trim.size_y << 16) | (slicearg->slice_trim.size_x & 0x1fff));
+		DCAM_AXIM_WR(IMG_FETCH_X, (fetch_pitch << 16) | (slicearg->slice_trim.start_x & 0x1fff));
+		DCAM_AXIM_WR(IMG_FETCH_RADDR, fetch->addr.addr_ch0);
 
-	DCAM_AXIM_WR(IMG_FETCH_SIZE,
-		(cur_slice->size_y << 16) | (cur_slice->size_x & 0xffff));
-	DCAM_AXIM_WR(IMG_FETCH_X,
-		(fetch->pitch << 16) | (cur_slice->start_x & 0x1fff));
+		DCAM_REG_WR(idx, DCAM_CAM_BIN_CFG, (prev_picth << 20) | BIT_5 | BIT_4 | BIT_0);
+		DCAM_REG_MWR(idx, DCAM_CAM_BIN_CFG, BIT_2 | BIT_3, fetch->pack_bits << 2);
+	} else {
+		if (slicearg->slice_count == 2) {
+			DCAM_REG_MWR(idx, DCAM_BAYER_INFO_CFG,
+				BIT_5 | BIT_4, (fetch->pattern & 3) << 4);
+			DCAM_AXIM_MWR(IMG_FETCH_CTRL, BIT_1 | BIT_0, fetch->pack_bits);
+			DCAM_AXIM_MWR(IMG_FETCH_CTRL, BIT_3 | BIT_2, fetch->endian << 2);
 
-	DCAM_AXIM_WR(IMG_FETCH_RADDR, fetch->addr.addr_ch0);
+			/* cfg mipicap */
+			DCAM_REG_MWR(idx, DCAM_MIPI_CAP_CFG, BIT_28, 0x1 << 28);
+			DCAM_REG_MWR(idx, DCAM_MIPI_CAP_CFG, BIT_29, 0x1 << 29);
+			DCAM_REG_MWR(idx, DCAM_MIPI_CAP_CFG, BIT_30, 0x0 << 30);
+			DCAM_REG_MWR(idx, DCAM_MIPI_CAP_CFG, BIT_12, 0x1 << 12);
+			DCAM_REG_MWR(idx, DCAM_MIPI_CAP_CFG, BIT_3, 0x0 << 3);
+			DCAM_REG_MWR(idx, DCAM_MIPI_CAP_CFG, BIT_1, 0x1 << 1);
 
-	/* TODO - should based on output loose */
-	if (fetch->is_loose == 2)
-		offset = cur_slice->start_x * 2;
-	else
-		offset = cur_slice->start_x * 10 / 8;
-	reg_val = DCAM_REG_RD(idx, DCAM_BIN_BASE_WADDR0);
-	DCAM_REG_WR(idx, DCAM_BIN_BASE_WADDR0, reg_val + offset);
+			DCAM_AXIM_WR(IMG_FETCH_RADDR, fetch->addr.addr_ch0);
+			DCAM_AXIM_WR(IMG_FETCH_SIZE,
+				(cur_slice->size_y << 16) | ((cur_slice->size_x + DCAM_OVERLAP)& 0xffff));
+			DCAM_AXIM_WR(IMG_FETCH_X, (fetch_pitch << 16) | (cur_slice->start_x & 0x1fff));
+
+			/* cfg bin path */
+			DCAM_REG_MWR(idx, DCAM_CAM_BIN_CFG,
+				(0x3FF << 20) |(1 << 1), (fetch_pitch << 20) | (1 << 1));
+			DCAM_REG_WR(idx, DCAM_CAM_BIN_CROP_START, (0<< 16) | 0 & 0x1fff);
+			DCAM_REG_WR(idx, DCAM_CAM_BIN_CROP_SIZE,
+				((cur_slice->size_y & 0x1fff) << 16) | (cur_slice->size_x & 0x1fff));
+		} else {
+			uint32_t reg_val = 0;
+
+			DCAM_REG_MWR(idx, DCAM_MIPI_CAP_CFG, BIT_30, 0x1 << 30);
+			DCAM_AXIM_WR(IMG_FETCH_RADDR, fetch->addr.addr_ch0
+				+ (cur_slice->start_x - DCAM_OVERLAP) * bfp / 4);
+			DCAM_AXIM_WR(IMG_FETCH_SIZE,
+				(cur_slice->size_y  << 16) | ((cur_slice->size_x + DCAM_OVERLAP) & 0x1fff));
+			DCAM_AXIM_WR(IMG_FETCH_X, (fetch_pitch << 16) | (0 & 0x1fff));
+			DCAM_REG_MWR(idx, DCAM_CAM_BIN_CFG,
+				(0x3FF << 20) |(1 << 1), (fetch_pitch << 20) | (1 << 1));
+			DCAM_REG_WR(idx, DCAM_CAM_BIN_CROP_START,
+				(0 << 16) | (DCAM_OVERLAP & 0x1fff));
+			DCAM_REG_WR(idx, DCAM_CAM_BIN_CROP_SIZE,
+				((cur_slice->size_y & 0x1fff) << 16) | (cur_slice->size_x & 0x1fff));
+
+			reg_val = DCAM_REG_RD(idx, DCAM_BIN_BASE_WADDR0);
+			DCAM_REG_WR(idx, DCAM_BIN_BASE_WADDR0, reg_val + cur_slice->start_x * bfp / 4);
+		}
+	}
 
 	return ret;
 }
 
-static int qogirl6_dcam_ebd_set(void *handle, void *arg)
+static int dcamhw_ebd_set(void *handle, void *arg)
 {
 	struct dcam_hw_ebd_set *ebd = NULL;
 
@@ -1172,7 +1186,7 @@ static int qogirl6_dcam_ebd_set(void *handle, void *arg)
 	return 0;
 }
 
-static int qogirl6_dcam_binning_4in1_set(void *handle, void *arg)
+static int dcamhw_binning_4in1_set(void *handle, void *arg)
 {
 	struct dcam_hw_binning_4in1 *binning = NULL;
 
@@ -1194,7 +1208,7 @@ static int qogirl6_dcam_binning_4in1_set(void *handle, void *arg)
 	return 0;
 }
 
-static int qogirl6_dcam_sram_ctrl_set(void *handle, void *arg)
+static int dcamhw_sram_ctrl_set(void *handle, void *arg)
 {
 	struct dcam_hw_sram_ctrl *sramarg = NULL;
 
@@ -1212,7 +1226,7 @@ static int qogirl6_dcam_sram_ctrl_set(void *handle, void *arg)
 	return 0;
 }
 
-static int qogirl6_dcam_fbc_ctrl(void *handle, void *arg)
+static int dcamhw_fbc_ctrl(void *handle, void *arg)
 {
 	struct dcam_hw_fbc_ctrl *fbc_arg = NULL;
 
@@ -1222,7 +1236,7 @@ static int qogirl6_dcam_fbc_ctrl(void *handle, void *arg)
 	return 0;
 }
 
-static int qogirl6_dcam_fbc_addr_set(void *handle, void *arg)
+static int dcamhw_fbc_addr_set(void *handle, void *arg)
 {
 	struct dcam_hw_fbc_addr *fbcadr = NULL;
 
@@ -1239,7 +1253,7 @@ static int qogirl6_dcam_fbc_addr_set(void *handle, void *arg)
 	return 0;
 }
 
-static int qogirl6_dcam_gtm_status_get(void *handle, void *arg)
+static int dcamhw_gtm_status_get(void *handle, void *arg)
 {
 	int val = 0;
 	uint32_t idx;
@@ -1254,7 +1268,7 @@ static int qogirl6_dcam_gtm_status_get(void *handle, void *arg)
 	return val;
 }
 
-static int qogirl6_cam_gtm_ltm_eb(void *handle, void *arg)
+static int cam_gtm_ltm_eb(void *handle, void *arg)
 {
 	struct cam_hw_gtm_ltm_eb *eb = NULL;
 
@@ -1275,7 +1289,7 @@ static int qogirl6_cam_gtm_ltm_eb(void *handle, void *arg)
 	return 0;
 }
 
-static int qogirl6_cam_gtm_ltm_dis(void *handle, void *arg)
+static int cam_gtm_ltm_dis(void *handle, void *arg)
 {
 	struct cam_hw_gtm_ltm_dis *dis =NULL;
 
@@ -1299,7 +1313,7 @@ static int qogirl6_cam_gtm_ltm_dis(void *handle, void *arg)
 	return 0;
 }
 
-static int qogirl6_cam_gtm_update(void *handle, void *arg)
+static int cam_gtm_update(void *handle, void *arg)
 {
 	int ret = 0;
 	struct cam_hw_gtm_update *gtmarg = NULL;
@@ -1320,7 +1334,7 @@ static int qogirl6_cam_gtm_update(void *handle, void *arg)
 	return ret;
 }
 
-static struct dcam_cfg_entry dcam_cfg_func_tab[DCAM_BLOCK_TOTAL] = {
+static struct dcam_cfg_entry dcam_hw_cfg_func_tab[DCAM_BLOCK_TOTAL] = {
 [DCAM_BLOCK_BLC - DCAM_BLOCK_BASE]         = {DCAM_BLOCK_BLC,         dcam_k_cfg_blc},
 [DCAM_BLOCK_AEM - DCAM_BLOCK_BASE]         = {DCAM_BLOCK_AEM,         dcam_k_cfg_aem},
 [DCAM_BLOCK_AWBC - DCAM_BLOCK_BASE]        = {DCAM_BLOCK_AWBC,        dcam_k_cfg_awbc},
@@ -1337,15 +1351,15 @@ static struct dcam_cfg_entry dcam_cfg_func_tab[DCAM_BLOCK_TOTAL] = {
 [DCAM_BLOCK_LSCM - DCAM_BLOCK_BASE]        = {DCAM_BLOCK_LSCM,        dcam_k_cfg_lscm},
 };
 
-static int qogirl6_dcam_block_func_get(void *handle, void *arg)
+static int dcamhw_block_func_get(void *handle, void *arg)
 {
 	void *block_func = NULL;
 	struct dcam_hw_block_func_get *fucarg = NULL;
 
 	fucarg = (struct dcam_hw_block_func_get *)arg;
 	if (fucarg->index < DCAM_BLOCK_TOTAL) {
-		block_func = (struct dcam_cfg_entry*)&dcam_cfg_func_tab[fucarg->index];
-		fucarg->dcam_entry= block_func;
+		block_func = (struct dcam_cfg_entry *)&dcam_hw_cfg_func_tab[fucarg->index];
+		fucarg->dcam_entry = block_func;
 	}
 
 	if (block_func == NULL)
@@ -1354,7 +1368,7 @@ static int qogirl6_dcam_block_func_get(void *handle, void *arg)
 	return 0;
 }
 
-static int qogirl6_dcam_blocks_setall(void *handle, void *arg)
+static int dcamhw_blocks_setall(void *handle, void *arg)
 {
 	uint32_t idx;
 	struct dcam_dev_param *p;
@@ -1377,7 +1391,7 @@ static int qogirl6_dcam_blocks_setall(void *handle, void *arg)
 	return 0;
 }
 
-static int qogirl6_dcam_blocks_setstatis(void *handle, void *arg)
+static int dcamhw_blocks_setstatis(void *handle, void *arg)
 {
 	uint32_t idx;
 	struct dcam_dev_param *p;
@@ -1419,7 +1433,8 @@ static int qogirl6_dcam_blocks_setstatis(void *handle, void *arg)
 	pr_info("dcam%d set statis done\n", idx);
 	return 0;
 }
-static int qogirl6_dcam_cfg_mipicap(void *handle, void *arg)
+
+static int dcamhw_mipicap_cfg(void *handle, void *arg)
 {
 	struct dcam_hw_cfg_mipicap *mipiarg = NULL;
 
@@ -1436,14 +1451,7 @@ static int qogirl6_dcam_cfg_mipicap(void *handle, void *arg)
 	return 0;
 }
 
-static int qogirl6_dcam_start_fetch(void *handle, void *arg)
-{
-	DCAM_AXIM_WR(IMG_FETCH_START, 1);
-
-	return 0;
-}
-
-static int qogirl6_dcam_bin_mipi_cfg(void *handle, void *arg)
+static int dcamhw_bin_mipi_cfg(void *handle, void *arg)
 {
 	uint32_t reg_val = 0;
 	struct dcam_hw_start_fetch *parm = NULL;
@@ -1460,7 +1468,7 @@ static int qogirl6_dcam_bin_mipi_cfg(void *handle, void *arg)
 	return 0;
 }
 
-static int qogirl6_dcam_cfg_bin_path(void *handle, void *arg)
+static int dcamhw_bin_path_cfg(void *handle, void *arg)
 {
 	struct dcam_hw_cfg_bin_path*parm = NULL;
 
@@ -1474,57 +1482,56 @@ static int qogirl6_dcam_cfg_bin_path(void *handle, void *arg)
 	return 0;
 }
 
-static struct hw_io_ctrl_fun qogirl6_dcam_ioctl_fun_tab[] = {
-	{DCAM_HW_CFG_ENABLE_CLK,            qogirl6_dcam_clk_eb},
-	{DCAM_HW_CFG_DISABLE_CLK,           qogirl6_dcam_clk_dis},
-	{DCAM_HW_CFG_INIT_AXI,              qogirl6_dcam_axi_init},
-	{DCAM_HW_CFG_SET_QOS,               qogirl6_dcam_qos_set},
-	{DCAM_HW_CFG_RESET,                 qogirl6_dcam_reset},
-	{DCAM_HW_CFG_START,                 qogirl6_dcam_start},
-	{DCAM_HW_CFG_STOP,                  qogirl6_dcam_stop},
-	{DCAM_HW_CFG_STOP_CAP_EB,           qogirl6_dcam_cap_disable},
-	{DCAM_HW_CFG_FETCH_START,           qogirl6_dcam_fetch_start},
-	{DCAM_HW_CFG_AUTO_COPY,             qogirl6_dcam_auto_copy},
-	{DCAM_HW_CFG_FORCE_COPY,            qogirl6_dcam_force_copy},
-	{DCAM_HW_CFG_PATH_START,            qogirl6_dcam_path_start},
-	{DCAM_HW_CFG_PATH_STOP,             qogirl6_dcam_path_stop},
-	{DCAM_HW_CFG_PATH_CTRL,             qogirl6_dcam_path_ctrl},
-	{DCAM_HW_CFG_PATH_SRC_SEL,          qogirl6_dcam_full_path_src_sel},
-	{DCAM_HW_CFG_PATH_SIZE_UPDATE,     qogirl6_dcam_path_size_update},
-	{DCAM_HW_CFG_CALC_RDS_PHASE_INFO,   qogirl6_dcam_calc_rds_phase_info},
-	{DCAM_HW_CFG_MIPI_CAP_SET,          qogirl6_dcam_mipi_cap_set},
-	{DCAM_HW_CFG_FETCH_SET,             qogirl6_dcam_fetch_set},
-	{DCAM_HW_CFG_EBD_SET,               qogirl6_dcam_ebd_set},
-	{DCAM_HW_CFG_BINNING_4IN1_SET,      qogirl6_dcam_binning_4in1_set},
-	{DCAM_HW_CFG_SRAM_CTRL_SET,         qogirl6_dcam_sram_ctrl_set},
-	{DCAM_HW_CFG_LBUF_SHARE_SET,        qogirl6_dcam_lbuf_share_set},
-	{DCAM_HW_CFG_LBUF_SHARE_GET,        qogirl6_dcam_lbuf_share_get},
-	{DCAM_HW_CFG_SLICE_FETCH_SET,       qogirl6_dcam_slice_fetch_set},
-	{DCAM_HW_CFG_FBC_CTRL,              qogirl6_dcam_fbc_ctrl},
-	{DCAM_HW_CFG_FBC_ADDR_SET,          qogirl6_dcam_fbc_addr_set},
-	{DCAM_HW_CFG_GTM_STATUS_GET,        qogirl6_dcam_gtm_status_get},
-	{DCAM_HW_CFG_GTM_LTM_EB,            qogirl6_cam_gtm_ltm_eb},
-	{DCAM_HW_CFG_GTM_LTM_DIS,           qogirl6_cam_gtm_ltm_dis},
-	{DCAM_HW_CFG_GTM_UPDATE,            qogirl6_cam_gtm_update},
-	{DCAM_HW_CFG_BLOCK_FUNC_GET,        qogirl6_dcam_block_func_get},
-	{DCAM_HW_CFG_BLOCKS_SETALL,        qogirl6_dcam_blocks_setall},
-	{DCAM_HW_CFG_BLOCKS_SETSTATIS,        qogirl6_dcam_blocks_setstatis},
-	{DCAM_HW_CFG_MIPICAP,               qogirl6_dcam_cfg_mipicap},
-	{DCAM_HW_CFG_START_FETCH,           qogirl6_dcam_start_fetch},
-	{DCAM_HW_CFG_BIN_MIPI,              qogirl6_dcam_bin_mipi_cfg},
-	{DCAM_HW_CFG_BIN_PATH,              qogirl6_dcam_cfg_bin_path},
+static struct hw_io_ctrl_fun dcam_ioctl_fun_tab[] = {
+	{DCAM_HW_CFG_ENABLE_CLK,            dcamhw_clk_eb},
+	{DCAM_HW_CFG_DISABLE_CLK,           dcamhw_clk_dis},
+	{DCAM_HW_CFG_INIT_AXI,              dcamhw_axi_init},
+	{DCAM_HW_CFG_SET_QOS,               dcamhw_qos_set},
+	{DCAM_HW_CFG_RESET,                 dcamhw_reset},
+	{DCAM_HW_CFG_START,                 dcamhw_start},
+	{DCAM_HW_CFG_STOP,                  dcamhw_stop},
+	{DCAM_HW_CFG_STOP_CAP_EB,           dcamhw_cap_disable},
+	{DCAM_HW_CFG_FETCH_START,           dcamhw_fetch_start},
+	{DCAM_HW_CFG_AUTO_COPY,             dcamhw_auto_copy},
+	{DCAM_HW_CFG_FORCE_COPY,            dcamhw_force_copy},
+	{DCAM_HW_CFG_PATH_START,            dcamhw_path_start},
+	{DCAM_HW_CFG_PATH_STOP,             dcamhw_path_stop},
+	{DCAM_HW_CFG_PATH_CTRL,             dcamhw_path_ctrl},
+	{DCAM_HW_CFG_PATH_SRC_SEL,          dcamhw_full_path_src_sel},
+	{DCAM_HW_CFG_PATH_SIZE_UPDATE,      dcamhw_path_size_update},
+	{DCAM_HW_CFG_CALC_RDS_PHASE_INFO,   dcamhw_rds_phase_info_calc},
+	{DCAM_HW_CFG_MIPI_CAP_SET,          dcamhw_mipi_cap_set},
+	{DCAM_HW_CFG_FETCH_SET,             dcamhw_fetch_set},
+	{DCAM_HW_CFG_EBD_SET,               dcamhw_ebd_set},
+	{DCAM_HW_CFG_BINNING_4IN1_SET,      dcamhw_binning_4in1_set},
+	{DCAM_HW_CFG_SRAM_CTRL_SET,         dcamhw_sram_ctrl_set},
+	{DCAM_HW_CFG_LBUF_SHARE_SET,        dcamhw_lbuf_share_set},
+	{DCAM_HW_CFG_LBUF_SHARE_GET,        dcamhw_lbuf_share_get},
+	{DCAM_HW_CFG_SLICE_FETCH_SET,       dcamhw_slice_fetch_set},
+	{DCAM_HW_CFG_FBC_CTRL,              dcamhw_fbc_ctrl},
+	{DCAM_HW_CFG_FBC_ADDR_SET,          dcamhw_fbc_addr_set},
+	{DCAM_HW_CFG_GTM_STATUS_GET,        dcamhw_gtm_status_get},
+	{DCAM_HW_CFG_GTM_LTM_EB,            cam_gtm_ltm_eb},
+	{DCAM_HW_CFG_GTM_LTM_DIS,           cam_gtm_ltm_dis},
+	{DCAM_HW_CFG_GTM_UPDATE,            cam_gtm_update},
+	{DCAM_HW_CFG_BLOCK_FUNC_GET,        dcamhw_block_func_get},
+	{DCAM_HW_CFG_BLOCKS_SETALL,         dcamhw_blocks_setall},
+	{DCAM_HW_CFG_BLOCKS_SETSTATIS,      dcamhw_blocks_setstatis},
+	{DCAM_HW_CFG_MIPICAP,               dcamhw_mipicap_cfg},
+	{DCAM_HW_CFG_BIN_MIPI,              dcamhw_bin_mipi_cfg},
+	{DCAM_HW_CFG_BIN_PATH,              dcamhw_bin_path_cfg},
 };
 
-static hw_ioctl_fun qogirl6_dcam_ioctl_get_fun(enum dcam_hw_cfg_cmd cmd)
+static hw_ioctl_fun dcamhw_ioctl_fun_get(enum dcam_hw_cfg_cmd cmd)
 {
 	hw_ioctl_fun hw_ctrl = NULL;
 	uint32_t total_num = 0;
 	uint32_t i = 0;
 
-	total_num = sizeof(qogirl6_dcam_ioctl_fun_tab) / sizeof(struct hw_io_ctrl_fun);
+	total_num = sizeof(dcam_ioctl_fun_tab) / sizeof(struct hw_io_ctrl_fun);
 	for (i = 0; i < total_num; i++) {
-		if (cmd == qogirl6_dcam_ioctl_fun_tab[i].cmd) {
-			hw_ctrl = qogirl6_dcam_ioctl_fun_tab[i].hw_ctrl;
+		if (cmd == dcam_ioctl_fun_tab[i].cmd) {
+			hw_ctrl = dcam_ioctl_fun_tab[i].hw_ctrl;
 			break;
 		}
 	}

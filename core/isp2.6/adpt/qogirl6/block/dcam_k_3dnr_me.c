@@ -177,8 +177,7 @@ int dcam_k_3dnr_me(struct dcam_dev_param *param)
 	rect.h = path->in_trim.size_y;
 	if ((rect.x + rect.w) <= dev->cap_info.cap_size.size_x &&
 		(rect.y + rect.h) <= dev->cap_info.cap_size.size_y)
-	dcam_k_3dnr_set_roi(rect,
-			    p->nr3_project_mode, idx);
+		dcam_k_3dnr_set_roi(rect, p->nr3_project_mode, idx);
 
 	/*  sub_me_bypass.  */
 	DCAM_REG_MWR(idx, NR3_FAST_ME_PARAM, BIT(3), 0 << 3);
@@ -218,8 +217,7 @@ int dcam_k_cfg_3dnr_me(struct isp_io_param *param, struct dcam_dev_param *p)
 
 		break;
 	default:
-		pr_err("fail to support property %d\n",
-			param->property);
+		pr_err("fail to support property %d\n", param->property);
 		ret = -EINVAL;
 		break;
 	}
