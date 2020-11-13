@@ -555,7 +555,7 @@ static int camcore_capture_3dnr_set(struct camera_module *module,
 }
 
 /* return the number of how many buf in the out_buf_queue */
-uint32_t camcore_outbuf_queue_cnt_get(void *dev, int path_id)
+static uint32_t camcore_outbuf_queue_cnt_get(void *dev, int path_id)
 {
 	struct dcam_path_desc *path;
 
@@ -1805,7 +1805,7 @@ static struct camera_frame *camcore_4in1_frame_deal(struct camera_module *module
  * full path: sensor raw(4cell), bin path: 4in1 bin sum
  * two image save in one fd(one buffer), full + bin
  */
-struct camera_frame *camcore_4in1_raw_capture_deal(struct camera_module *module,
+static struct camera_frame *camcore_4in1_raw_capture_deal(struct camera_module *module,
 		struct camera_frame *pframe)
 {
 	static uint32_t flag_path;/* b0:bin tx done, b1:full tx done */
