@@ -135,7 +135,7 @@ slices:
 }
 
 
-int dcamcore_slice_trim_get(uint32_t width, uint32_t heigth, uint32_t slice_num,
+static int dcamcore_slice_trim_get(uint32_t width, uint32_t heigth, uint32_t slice_num,
 	uint32_t slice_no, struct img_trim *slice_trim)
 {
 	int ret = 0;
@@ -184,7 +184,7 @@ int dcamcore_slice_trim_get(uint32_t width, uint32_t heigth, uint32_t slice_num,
 	return ret;
 }
 
-void dcamcore_src_frame_ret(void *param)
+static void dcamcore_src_frame_ret(void *param)
 {
 	struct camera_frame *frame;
 	struct dcam_sw_context *pctx;
@@ -205,7 +205,7 @@ void dcamcore_src_frame_ret(void *param)
 		frame, pctx->cb_priv_data);
 }
 
-void dcamcore_out_frame_ret(void *param)
+static void dcamcore_out_frame_ret(void *param)
 {
 	struct camera_frame *frame;
 	struct dcam_sw_context *pctx = NULL;

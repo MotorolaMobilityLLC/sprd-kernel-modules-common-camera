@@ -374,7 +374,7 @@ static void ispint_frame_dispatch(enum isp_context_id idx,
 	pctx->isp_cb_func(type, frame, pctx->cb_priv_data);
 }
 
-static void isp_hist_cal_done(enum isp_context_hw_id hw_idx, void *isp_handle)
+static void ispint_hist_cal_done(enum isp_context_hw_id hw_idx, void *isp_handle)
 {
 	struct camera_frame *frame = NULL;
 	struct isp_pipe_dev *dev = NULL;
@@ -410,7 +410,7 @@ static isp_isr isp_isr_handler[32] = {
 	[ISP_INT_FMCU_LOAD_DONE] = ispint_fmcu_load_done,
 	[ISP_INT_FMCU_SHADOW_DONE] = ispint_fmcu_shadow_done,
 	[ISP_INT_FMCU_STORE_DONE] = ispint_fmcu_store_done,
-	[ISP_INT_HIST_CAL_DONE] = isp_hist_cal_done,
+	[ISP_INT_HIST_CAL_DONE] = ispint_hist_cal_done,
 };
 
 struct isp_int_ctx {

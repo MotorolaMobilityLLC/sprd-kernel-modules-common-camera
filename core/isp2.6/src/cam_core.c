@@ -2028,7 +2028,7 @@ static struct camera_frame *camcore_bigsize_frame_deal(struct camera_module *mod
 	return NULL;
 }
 
-int camcore_isp_callback(enum isp_cb_type type, void *param, void *priv_data)
+static int camcore_isp_callback(enum isp_cb_type type, void *param, void *priv_data)
 {
 	int ret = 0;
 	uint32_t ch_id;
@@ -2228,7 +2228,7 @@ int camcore_isp_callback(enum isp_cb_type type, void *param, void *priv_data)
 	return ret;
 }
 
-int camcore_dcam_callback(enum dcam_cb_type type, void *param, void *priv_data)
+static int camcore_dcam_callback(enum dcam_cb_type type, void *param, void *priv_data)
 {
 	int ret = 0;
 	struct camera_frame *pframe;
@@ -5713,7 +5713,7 @@ static struct cam_ioctl_cmd ioctl_cmds_table[] = {
 	[_IOC_NR(SPRD_IMG_IO_SET_SENSOR_SIZE)]      = {SPRD_IMG_IO_SET_SENSOR_SIZE,      camioctl_sensor_size_set},
 	[_IOC_NR(SPRD_IMG_IO_SET_SENSOR_TRIM)]      = {SPRD_IMG_IO_SET_SENSOR_TRIM,      camioctl_sensor_trim_set},
 	[_IOC_NR(SPRD_IMG_IO_SET_FRM_ID_BASE)]      = {SPRD_IMG_IO_SET_FRM_ID_BASE,      camioctl_frame_id_base_set},
-	[_IOC_NR(SPRD_IMG_IO_SET_CROP)]             = {SPRD_IMG_IO_SET_CROP,             canioctl_crop_set},
+	[_IOC_NR(SPRD_IMG_IO_SET_CROP)]             = {SPRD_IMG_IO_SET_CROP,             camioctl_crop_set},
 	[_IOC_NR(SPRD_IMG_IO_SET_FLASH)]            = {SPRD_IMG_IO_SET_FLASH,            camioctl_flash_set},
 	[_IOC_NR(SPRD_IMG_IO_SET_OUTPUT_SIZE)]      = {SPRD_IMG_IO_SET_OUTPUT_SIZE,      camioctl_output_size_set},
 	[_IOC_NR(SPRD_IMG_IO_SET_ZOOM_MODE)]        = {SPRD_IMG_IO_SET_ZOOM_MODE,        camioctl_zoom_mode_set},

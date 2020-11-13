@@ -782,7 +782,7 @@ exit:
 	return ret;
 }
 
-static int canioctl_crop_set(struct camera_module *module,
+static int camioctl_crop_set(struct camera_module *module,
 		unsigned long arg)
 {
 	int ret = 0, zoom = 0;
