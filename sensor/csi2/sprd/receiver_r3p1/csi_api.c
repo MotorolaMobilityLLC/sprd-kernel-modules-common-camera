@@ -254,7 +254,7 @@ int csi_api_dt_node_init(struct device *dev, struct device_node *dn,
 
 	csi_info->phy.anlg_phy_g10_syscon = regmap_syscon;
 
-	csi_reg_base_save(csi_info, sensor_id);
+	csi_reg_base_save(csi_info, csi_info->controller_id);
 
 	s_csi_dt_info_p[sensor_id] = csi_info;
 	pr_info("csi dt info:sensor_id :%d, csi_info:0x%p\n",
@@ -364,12 +364,12 @@ int csi_api_open(int bps_per_lane, int phy_id, int lane_num, int sensor_id, int 
 	csi_phy_power_down(dt_info, sensor_id, 0);
 	csi_phy_testclr_init(&dt_info->phy);
 	csi_controller_enable(dt_info);
-	csi_phy_testclr(sensor_id, &dt_info->phy);
-	csi_phy_init(dt_info, sensor_id);
-	csi_start(lane_num, sensor_id);
+	csi_phy_testclr(dt_info->controller_id, &dt_info->phy);
+	csi_phy_init(dt_info, dt_info->controller_id);
+	csi_start(lane_num, dt_info->controller_id);
 
 	if (csi_pattern_enable)
-		csi_ipg_mode_cfg(sensor_id, 1);
+		csi_ipg_mode_cfg(dt_info->controller_id, 1);
 
 	return ret;
 
@@ -389,11 +389,12 @@ int csi_api_close(uint32_t phy_id, int sensor_id)
 		pr_err("fail to get valid phy ptr\n");
 		return -EINVAL;
 	}
+	//csi_api_reg_trace();
 
 	if (csi_pattern_enable)
-		csi_ipg_mode_cfg(sensor_id, 0);
-	csi_close(sensor_id);
-	csi_controller_disable(dt_info, sensor_id);
+		csi_ipg_mode_cfg(dt_info->controller_id, 0);
+	csi_close(dt_info->controller_id);
+	csi_controller_disable(dt_info, dt_info->controller_id);
 	csi_phy_power_down(dt_info, sensor_id, 1);
 	csi_mipi_clk_disable(sensor_id);
 	pr_info("csi api close ret: %d\n", ret);
