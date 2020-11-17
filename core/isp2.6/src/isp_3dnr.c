@@ -22,7 +22,7 @@
 #ifdef pr_fmt
 #undef pr_fmt
 #endif
-#define pr_fmt(fmt) "3DNR logic: %d %d %s : "\
+#define pr_fmt(fmt) "ISP_3DNR: %d %d %s : "\
 	fmt, current->pid, __LINE__, __func__
 
 static int isp3dnr_store_config_gen(struct isp_3dnr_ctx_desc *ctx)
@@ -565,7 +565,7 @@ static int isp3dnr_fbc_store_config_gen(struct isp_3dnr_ctx_desc *ctx)
 	return ret;
 }
 
-int isp_3dnr_config_gen(struct isp_3dnr_ctx_desc *ctx)
+static int isp3dnr_config_gen(struct isp_3dnr_ctx_desc *ctx)
 {
 	int ret = 0;
 
@@ -754,7 +754,7 @@ int isp_3dnr_memctrl_slice_info_update(struct nr3_slice *in,
 	return 0;
 }
 
-int isp_3dnr_conversion_mv(struct isp_3dnr_ctx_desc *nr3_ctx)
+static int isp3dnr_conversion_mv(struct isp_3dnr_ctx_desc *nr3_ctx)
 {
 	int ret = 0;
 	int output_x = 0;
@@ -793,4 +793,201 @@ int isp_3dnr_conversion_mv(struct isp_3dnr_ctx_desc *nr3_ctx)
 		nr3_ctx->mv.mv_x, nr3_ctx->mv.mv_y);
 
 	return ret;
+}
+
+static int isp3dnr_pipe_proc(void *handle, void *param, uint32_t mode)
+{
+	int ret = 0;
+	struct isp_3dnr_ctx_desc *nr3_ctx = NULL;
+	struct dcam_frame_synchronizer *fsync = NULL;
+
+	if (!handle) {
+		pr_err("fail to get valid input ptr\n");
+		return -EFAULT;
+	}
+
+	nr3_ctx = (struct isp_3dnr_ctx_desc *)handle;
+	fsync = (struct dcam_frame_synchronizer *)param;
+	switch (mode) {
+	case MODE_3DNR_PRE:
+		nr3_ctx->type = NR3_FUNC_PRE;
+
+		if (fsync && fsync->nr3_me.valid) {
+			nr3_ctx->mv.mv_x = fsync->nr3_me.mv_x;
+			nr3_ctx->mv.mv_y = fsync->nr3_me.mv_y;
+			nr3_ctx->mvinfo = &fsync->nr3_me;
+
+			isp3dnr_conversion_mv(nr3_ctx);
+		} else {
+			pr_err("fail to get binning path mv, set default 0\n");
+			nr3_ctx->mv.mv_x = 0;
+			nr3_ctx->mv.mv_y = 0;
+			nr3_ctx->mvinfo = NULL;
+		}
+
+		isp3dnr_config_gen(nr3_ctx);
+		isp_3dnr_config_param(nr3_ctx);
+
+		pr_debug("3DNR_PRE path mv[%d, %d]!\n.",
+			nr3_ctx->mv.mv_x, nr3_ctx->mv.mv_y);
+		break;
+	case MODE_3DNR_CAP:
+		nr3_ctx->type = NR3_FUNC_CAP;
+		if (nr3_ctx->mode == MODE_3DNR_OFF)
+			return 0;
+
+		if (fsync && fsync->nr3_me.valid) {
+			nr3_ctx->mv.mv_x = fsync->nr3_me.mv_x;
+			nr3_ctx->mv.mv_y = fsync->nr3_me.mv_y;
+			nr3_ctx->mvinfo = &fsync->nr3_me;
+			if (nr3_ctx->mvinfo->src_width != nr3_ctx->width ||
+				nr3_ctx->mvinfo->src_height != nr3_ctx->height) {
+				isp3dnr_conversion_mv(nr3_ctx);
+			}
+		} else {
+			pr_err("fail to get full path mv, set default 0\n");
+			nr3_ctx->mv.mv_x = 0;
+			nr3_ctx->mv.mv_y = 0;
+		}
+
+		isp3dnr_config_gen(nr3_ctx);
+		isp_3dnr_config_param(nr3_ctx);
+
+		pr_debug("3DNR_CAP path mv[%d, %d]!\n.",
+			nr3_ctx->mv.mv_x, nr3_ctx->mv.mv_y);
+		break;
+	default:
+		/* default: bypass 3dnr */
+		nr3_ctx->type = NR3_FUNC_OFF;
+		isp_3dnr_bypass_config(nr3_ctx->ctx_id);
+		pr_debug("ispcore_offline_frame_start default\n");
+		break;
+	}
+
+	return ret;
+}
+
+static int isp3dnr_cfg_param(void *handle,
+		enum isp_3dnr_cfg_cmd cmd, void *param)
+{
+	int ret = 0;
+	uint32_t i = 0;
+	uint32_t nr3_compress_eb = 0;
+	struct isp_3dnr_ctx_desc *nr3_ctx = NULL;
+	struct camera_frame * pframe = NULL;
+	struct img_trim *crop = NULL;
+
+	if (!handle || !param) {
+		pr_err("fail to get valid input ptr\n");
+		return -EFAULT;
+	}
+
+	nr3_ctx = (struct isp_3dnr_ctx_desc *)handle;
+	switch (cmd) {
+	case ISP_3DNR_CFG_BUF:
+		pframe = (struct camera_frame *)param;
+		ret = cam_buf_iommu_map(&pframe->buf, CAM_IOMMUDEV_ISP);
+		if (ret) {
+			pr_err("fail to map isp iommu buf.\n");
+			ret = -EINVAL;
+			goto exit;
+		}
+		for (i = 0; i < ISP_NR3_BUF_NUM; i++) {
+			if (nr3_ctx->buf_info[i] == NULL) {
+				nr3_ctx->buf_info[i] = &pframe->buf;
+				pr_debug("3DNR CFGB[%d][0x%p] = 0x%lx\n",
+					i, pframe, nr3_ctx->buf_info[i]->iova[0]);
+				break;
+			} else {
+				pr_debug("3DNR CFGB[%d][0x%p][0x%p] failed\n",
+					i, pframe, nr3_ctx->buf_info[i]);
+			}
+		}
+		if (i == 2) {
+			pr_err("fail to set isp nr3 buffers.\n");
+			cam_buf_iommu_unmap(&pframe->buf);
+			goto exit;
+		}
+		break;
+	case ISP_3DNR_CFG_MODE:
+		nr3_ctx->mode = *(uint32_t *)param;
+		pr_debug("3DNR mode %d\n", nr3_ctx->mode);
+		break;
+	case ISP_3DNR_CFG_BLEND_CNT:
+		nr3_ctx->blending_cnt = *(uint32_t *)param;
+		pr_debug("3DNR blending cnt %d\n", nr3_ctx->blending_cnt);
+		break;
+	case ISP_3DNR_CFG_FBD_INFO:
+		nr3_compress_eb = *(uint32_t *)param;
+		if (nr3_compress_eb) {
+			nr3_ctx->nr3_store.st_bypass = 1;
+			nr3_ctx->nr3_fbc_store.bypass = 0;
+			nr3_ctx->mem_ctrl.nr3_ft_path_sel = 1;
+		} else {
+			nr3_ctx->nr3_store.st_bypass = 0;
+			nr3_ctx->nr3_fbc_store.bypass = 1;
+			nr3_ctx->mem_ctrl.nr3_ft_path_sel = 0;
+		}
+		break;
+	case ISP_3DNR_CFG_SIZE_INFO:
+		crop = (struct img_trim *)param;
+		/* Check Zoom or not */
+		if ((crop->size_x != nr3_ctx->width) || (crop->size_y != nr3_ctx->height)) {
+			nr3_ctx->blending_cnt = 0;
+			pr_debug("3DNR %d size changed, reset blend cnt\n", nr3_ctx->ctx_id);
+		}
+		nr3_ctx->width = crop->size_x;
+		nr3_ctx->height = crop->size_y;
+		break;
+	case ISP_3DNR_CFG_BLEND_INFO:
+		nr3_ctx->nr3_belnd = (struct isp_3dnr_blend_info *)param;
+		break;
+	default:
+		pr_err("fail to get known cmd: %d\n", cmd);
+		ret = -EFAULT;
+		break;
+	}
+
+exit:
+	return ret;
+}
+
+void *isp_3dnr_ctx_get(uint32_t idx)
+{
+	struct isp_3dnr_ctx_desc *nr3_ctx = NULL;
+
+	nr3_ctx = vzalloc(sizeof(struct isp_3dnr_ctx_desc));
+	if (IS_ERR_OR_NULL(nr3_ctx))
+		return NULL;
+
+	nr3_ctx->ctx_id = idx;
+	nr3_ctx->ops.cfg_param = isp3dnr_cfg_param;
+	nr3_ctx->ops.pipe_proc = isp3dnr_pipe_proc;
+
+	return nr3_ctx;
+}
+
+void isp_3dnr_ctx_put(void *nr3_handle)
+{
+	struct isp_3dnr_ctx_desc *nr3_ctx = NULL;
+	struct camera_buf *buf_info = NULL;
+	uint32_t i = 0;
+
+	if (!nr3_handle) {
+		pr_err("fail to get valid nr3 handle\n");
+		return;
+	}
+
+	nr3_ctx = (struct isp_3dnr_ctx_desc *)nr3_handle;
+	for (i = 0; i < ISP_NR3_BUF_NUM; i++) {
+		buf_info = nr3_ctx->buf_info[i];
+		if (buf_info && buf_info->mapping_state & CAM_BUF_MAPPING_DEV) {
+			cam_buf_iommu_unmap(buf_info);
+			buf_info = NULL;
+		}
+	}
+
+	if (nr3_ctx)
+		vfree(nr3_ctx);
+	nr3_ctx = NULL;
 }

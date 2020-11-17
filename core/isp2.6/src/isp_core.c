@@ -259,7 +259,7 @@ static int ispcore_hist_roi_update(struct isp_sw_context *pctx)
 static int ispcore_3dnr_frame_process(struct isp_sw_context *pctx,
 		struct camera_frame *pframe)
 {
-	struct isp_3dnr_ctx_desc *nr3_ctx = NULL;
+	struct isp_3dnr_ctx_desc *nr3_handle = NULL;
 	struct dcam_frame_synchronizer *fsync = NULL;
 	struct isp_uinfo *pipe_src = NULL;
 
@@ -270,151 +270,18 @@ static int ispcore_3dnr_frame_process(struct isp_sw_context *pctx,
 			 fsync->nr3_me.mv_x, fsync->nr3_me.mv_y,
 			 fsync->nr3_me.src_width, fsync->nr3_me.src_height);
 	}
-	nr3_ctx = &pctx->nr3_ctx;
+
+	nr3_handle = (struct isp_3dnr_ctx_desc *)pctx->nr3_handle;
 	pipe_src = &pctx->pipe_src;
 
-	if (pipe_src->nr3_fbc_fbd) {
-		nr3_ctx->nr3_store.st_bypass = 1;
-		nr3_ctx->nr3_fbc_store.bypass = 0;
-		nr3_ctx->mem_ctrl.nr3_ft_path_sel = 1;
-	} else {
-		nr3_ctx->nr3_store.st_bypass = 0;
-		nr3_ctx->nr3_fbc_store.bypass = 1;
-		nr3_ctx->mem_ctrl.nr3_ft_path_sel = 0;
-	}
-
-	/*  Check Zoom or not */
-	if ((pipe_src->crop.size_x != pctx->nr3_ctx.width) ||
-		(pipe_src->crop.size_y != pctx->nr3_ctx.height)) {
-		pr_debug("isp %d frame size changed, reset 3dnr blending\n",
-			pctx->ctx_id);
-		pctx->nr3_ctx.blending_cnt = 0;
-	}
-
-	nr3_ctx->width  = pipe_src->crop.size_x;
-	nr3_ctx->height = pipe_src->crop.size_y;
-
-	pr_debug("isp %d nr3_type %d input.w[%d], input.h[%d], trim.w[%d], trim.h[%d]\n",
-		pctx->ctx_id, pctx->uinfo.mode_3dnr,
-		pipe_src->src.w, pipe_src->src.h,
-		pipe_src->crop.size_x, pipe_src->crop.size_y);
-
-	switch (pctx->uinfo.mode_3dnr) {
-	case MODE_3DNR_PRE:
-		nr3_ctx->type = NR3_FUNC_PRE;
-
-		if (fsync && fsync->nr3_me.valid) {
-			nr3_ctx->mv.mv_x = fsync->nr3_me.mv_x;
-			nr3_ctx->mv.mv_y = fsync->nr3_me.mv_y;
-			nr3_ctx->mvinfo = &fsync->nr3_me;
-
-			isp_3dnr_conversion_mv(nr3_ctx);
-		} else {
-			pr_err("fail to get binning path mv, set default 0\n");
-			nr3_ctx->mv.mv_x = 0;
-			nr3_ctx->mv.mv_y = 0;
-			nr3_ctx->mvinfo = NULL;
-		}
-
-		isp_3dnr_config_gen(nr3_ctx);
-		isp_3dnr_config_param(nr3_ctx,
-			&pctx->isp_k_param,
-			pctx->ctx_id,
-			NR3_FUNC_PRE);
-
-		pr_debug("MODE_3DNR_PRE frame type: %d from dcam binning path mv[%d, %d]!\n.",
-			 pframe->channel_id,
-			 nr3_ctx->mv.mv_x,
-			 nr3_ctx->mv.mv_y);
-		break;
-
-	case MODE_3DNR_CAP:
-		nr3_ctx->type = NR3_FUNC_CAP;
-
-		if (fsync && fsync->nr3_me.valid) {
-			nr3_ctx->mv.mv_x = fsync->nr3_me.mv_x;
-			nr3_ctx->mv.mv_y = fsync->nr3_me.mv_y;
-			if (pipe_src->src.w != pipe_src->crop.size_x ||
-				pipe_src->src.h != pipe_src->crop.size_y) {
-				nr3_ctx->mvinfo = &fsync->nr3_me;
-				isp_3dnr_conversion_mv(nr3_ctx);
-			}
-		} else {
-			pr_err("fail to get full path mv, set default 0\n");
-			nr3_ctx->mv.mv_x = 0;
-			nr3_ctx->mv.mv_y = 0;
-		}
-		if (nr3_ctx->mode == MODE_3DNR_OFF)
-			return 0;
-
-		isp_3dnr_config_gen(nr3_ctx);
-		isp_3dnr_config_param(nr3_ctx,
-			&pctx->isp_k_param,
-			pctx->ctx_id,
-			NR3_FUNC_CAP);
-
-		pr_debug("MODE_3DNR_CAP frame type: %d from dcam binning path mv[%d, %d]!\n.",
-			pframe->channel_id,
-			nr3_ctx->mv.mv_x,
-			nr3_ctx->mv.mv_y);
-		break;
-
-	case MODE_3DNR_OFF:
-		/* default: bypass 3dnr */
-		nr3_ctx->type = NR3_FUNC_OFF;
-		isp_3dnr_bypass_config(pctx->ctx_id);
-		pr_debug("ispcore_offline_frame_start MODE_3DNR_OFF\n");
-		break;
-	default:
-		/* default: bypass 3dnr */
-		nr3_ctx->type = NR3_FUNC_OFF;
-		isp_3dnr_bypass_config(pctx->ctx_id);
-		pr_debug("ispcore_offline_frame_start default\n");
-		break;
-	}
+	nr3_handle->ops.cfg_param(nr3_handle, ISP_3DNR_CFG_FBD_INFO, &pipe_src->nr3_fbc_fbd);
+	nr3_handle->ops.cfg_param(nr3_handle, ISP_3DNR_CFG_SIZE_INFO, &pipe_src->crop);
+	nr3_handle->ops.cfg_param(nr3_handle, ISP_3DNR_CFG_BLEND_INFO,
+			&pctx->isp_k_param.nr3_info_base.blend);
+	nr3_handle->ops.pipe_proc(nr3_handle, fsync, pctx->uinfo.mode_3dnr);
 
 	if (fsync)
 		dcam_core_dcam_if_release_sync(fsync, pframe);
-
-	return 0;
-}
-
-static int ispcore_ltm_frame_previous_process(struct isp_sw_context *pctx,
-		struct camera_frame *pframe)
-{
-	if (!pctx || !pframe) {
-		pr_err("fail to get valid parameter pctx %p pframe %p\n",
-			pctx, pframe);
-		return -EINVAL;
-	}
-
-	/*
-	 * Only preview path care of frame size changed
-	 * Because capture path, USING hist from preview path
-	 */
-	if (pctx->pipe_src.mode_ltm != MODE_LTM_PRE)
-		return 0;
-
-	/*  Check Zoom or not */
-	if ((pctx->pipe_src.crop.size_x != pctx->ltm_ctx.frame_width) ||
-		(pctx->pipe_src.crop.size_y != pctx->ltm_ctx.frame_height) ||
-		((pframe->fid - pctx->ltm_ctx.fid) != 1)||
-		(pframe->fid == 0)){
-		pr_debug("frame size changed or frame id not series , bypass ltm map\n");
-
-		/* 1. hists from preview path always on
-		 * 2. map will be off one time in preview case
-		 */
-		if (pctx->pipe_src.ltm_rgb)
-			pctx->ltm_ctx.map[LTM_RGB].bypass = 1;
-		if (pctx->pipe_src.ltm_yuv)
-			pctx->ltm_ctx.map[LTM_YUV].bypass = 1;
-	} else {
-		if (pctx->pipe_src.ltm_rgb)
-			pctx->ltm_ctx.map[LTM_RGB].bypass = 0;
-		if (pctx->pipe_src.ltm_yuv)
-			pctx->ltm_ctx.map[LTM_YUV].bypass = 0;
-	}
 
 	return 0;
 }
@@ -425,8 +292,42 @@ static int ispcore_ltm_frame_process(struct isp_sw_context *pctx,
 	int ret = 0;
 	struct isp_uinfo *pipe_src = NULL;
 
-	pipe_src = &pctx->pipe_src;
+	if (!pctx || !pframe) {
+		pr_err("fail to get valid parameter pctx %p pframe %p\n",
+			pctx, pframe);
+		return -EINVAL;
+	}
 
+	pipe_src = &pctx->pipe_src;
+	/*
+	 * Only preview path care of frame size changed
+	 * Because capture path, USING hist from preview path
+	 */
+	if (pipe_src->mode_ltm != MODE_LTM_PRE)
+		goto start_proc;
+
+	/*  Check Zoom or not */
+	if ((pipe_src->crop.size_x != pctx->ltm_ctx.frame_width) ||
+		(pipe_src->crop.size_y != pctx->ltm_ctx.frame_height) ||
+		((pframe->fid - pctx->ltm_ctx.fid) != 1)||
+		(pframe->fid == 0)){
+		pr_debug("frame size changed or frame id not series , bypass ltm map\n");
+
+		/* 1. hists from preview path always on
+		 * 2. map will be off one time in preview case
+		 */
+		if (pipe_src->ltm_rgb)
+			pctx->ltm_ctx.map[LTM_RGB].bypass = 1;
+		if (pipe_src->ltm_yuv)
+			pctx->ltm_ctx.map[LTM_YUV].bypass = 1;
+	} else {
+		if (pipe_src->ltm_rgb)
+			pctx->ltm_ctx.map[LTM_RGB].bypass = 0;
+		if (pipe_src->ltm_yuv)
+			pctx->ltm_ctx.map[LTM_YUV].bypass = 0;
+	}
+
+start_proc:
 	pctx->ltm_ctx.type = pipe_src->mode_ltm;
 	pctx->ltm_ctx.fid = pframe->fid;
 	pctx->ltm_ctx.frame_width  = pipe_src->crop.size_x;
@@ -1278,11 +1179,13 @@ static int ispcore_offline_param_cfg(struct isp_sw_context *pctx,
 {
 	int ret = 0;
 	int i = 0;
+	uint32_t nr3_mode = 0, blend_cnt = 0;
 	struct isp_offline_param *in_param = NULL;
 	struct isp_stream_ctrl *stream = NULL;
 	struct isp_path_desc *path = NULL;
 	struct isp_uinfo *pipe_src = NULL;
 	struct isp_path_uinfo *path_info = NULL;
+	struct isp_3dnr_ctx_desc *nr3_ctx = NULL;
 	struct isp_ctx_size_desc cfg;
 	struct img_trim path_trim;
 
@@ -1297,6 +1200,7 @@ static int ispcore_offline_param_cfg(struct isp_sw_context *pctx,
 	stream = cam_queue_dequeue(&pctx->stream_ctrl_in_q,
 		struct isp_stream_ctrl, list);
 	tmp->stream = stream;
+	nr3_ctx = (struct isp_3dnr_ctx_desc *)pctx->nr3_handle;
 	if (stream) {
 		pipe_src->in_fmt = stream->in_fmt;
 		cfg.src = stream->in;
@@ -1320,12 +1224,11 @@ static int ispcore_offline_param_cfg(struct isp_sw_context *pctx,
 				stream->out_crop[i].size_x, stream->out_crop[i].size_y);
 		}
 		if (pctx->uinfo.mode_3dnr == MODE_3DNR_CAP) {
-			pctx->nr3_ctx.blending_cnt =
-				stream->cur_cnt % NR3_BLEND_CNT;
-			if (stream->data_src == ISP_STREAM_SRC_ISP)
-				pctx->nr3_ctx.mode = MODE_3DNR_OFF;
-			else
-				pctx->nr3_ctx.mode = MODE_3DNR_CAP;
+			nr3_mode = stream->data_src == ISP_STREAM_SRC_ISP ?
+				MODE_3DNR_OFF: MODE_3DNR_CAP;
+			blend_cnt = stream->cur_cnt % NR3_BLEND_CNT;
+			nr3_ctx->ops.cfg_param(nr3_ctx, ISP_3DNR_CFG_MODE, &nr3_mode);
+			nr3_ctx->ops.cfg_param(nr3_ctx, ISP_3DNR_CFG_BLEND_CNT, &blend_cnt);
 		}
 		pctx->updated = 1;
 	}
@@ -1617,7 +1520,6 @@ static int ispcore_offline_frame_start(void *ctx)
 		goto unlock;
 	}
 
-	ispcore_ltm_frame_previous_process(pctx, pframe);
 	ispcore_3dnr_frame_process(pctx, pframe);
 	ispcore_ltm_frame_process(pctx, pframe);
 
@@ -1647,7 +1549,7 @@ static int ispcore_offline_frame_start(void *ctx)
 		slc_cfg.frame_fbd_raw = &pctx->pipe_info.fetch_fbd;
 		slc_cfg.frame_in_size.w = pctx->pipe_src.crop.size_x;
 		slc_cfg.frame_in_size.h = pctx->pipe_src.crop.size_y;
-		slc_cfg.nr3_ctx = &pctx->nr3_ctx;
+		slc_cfg.nr3_ctx = (struct isp_3dnr_ctx_desc *)pctx->nr3_handle;
 		slc_cfg.ltm_ctx = &pctx->ltm_ctx;
 		slc_cfg.nofilter_ctx = &pctx->isp_k_param;
 		isp_slice_info_cfg(&slc_cfg, pctx->slice_ctx);
@@ -2477,6 +2379,7 @@ static int ispcore_path_cfg(void *isp_handle,
 	struct isp_path_uinfo *slave_path = NULL;
 	struct camera_frame *pframe = NULL;
 	struct isp_path_uinfo *path_info = NULL;
+	struct isp_3dnr_ctx_desc *nr3_ctx = NULL;
 
 	if (!isp_handle || !param) {
 		pr_err("fail to get valid input ptr, isp_handle %p, param %p\n",
@@ -2496,6 +2399,7 @@ static int ispcore_path_cfg(void *isp_handle,
 	pctx = dev->sw_ctx[ctx_id];
 	path = &pctx->isp_path[path_id];
 	path_info = &pctx->uinfo.path_info[path_id];
+	nr3_ctx = (struct isp_3dnr_ctx_desc *)pctx->nr3_handle;
 
 	if ((cfg_cmd != ISP_PATH_CFG_CTX_BASE) &&
 		(cfg_cmd != ISP_PATH_CFG_CTX_SIZE) &&
@@ -2567,31 +2471,9 @@ static int ispcore_path_cfg(void *isp_handle,
 		}
 		break;
 	case ISP_PATH_CFG_3DNR_BUF:
-		pframe = (struct camera_frame *)param;
-		ret = cam_buf_iommu_map(&pframe->buf, CAM_IOMMUDEV_ISP);
+		ret = nr3_ctx->ops.cfg_param(nr3_ctx, ISP_3DNR_CFG_BUF, param);
 		if (ret) {
-			pr_err("fail to map isp iommu buf.\n");
-			ret = -EINVAL;
-			goto exit;
-		}
-		for (i = 0; i < ISP_NR3_BUF_NUM; i++) {
-			if (pctx->nr3_buf[i] == NULL) {
-				pctx->nr3_buf[i] = pframe;
-				pctx->nr3_ctx.buf_info[i] =
-					&pctx->nr3_buf[i]->buf;
-				pr_debug("3DNR CFGB[%d][0x%p][0x%p] = 0x%lx, 0x%lx\n",
-					i, pframe, pctx->nr3_buf[i],
-					pctx->nr3_ctx.buf_info[i]->iova[0],
-					pctx->nr3_buf[i]->buf.iova[0]);
-				break;
-			} else {
-				pr_debug("3DNR CFGB[%d][0x%p][0x%p] failed\n",
-					i, pframe, pctx->nr3_buf[i]);
-			}
-		}
-		if (i == 2) {
 			pr_err("fail to set isp ctx %d nr3 buffers.\n", ctx_id);
-			cam_buf_iommu_unmap(&pframe->buf);
 			goto exit;
 		}
 		break;
@@ -3031,6 +2913,16 @@ static int ispcore_context_get(void *isp_handle, void *param)
 		cfg_desc->ops->ctx_reset(cfg_desc, sel_ctx_id);
 	}
 
+	if (pctx->nr3_handle == NULL) {
+		pctx->nr3_handle = isp_3dnr_ctx_get(pctx->ctx_id);
+		if (IS_ERR_OR_NULL(pctx->nr3_handle)) {
+			pr_err("fail to get memory for nr3_ctx.\n");
+			pctx->nr3_handle = NULL;
+			ret = -ENOMEM;
+			goto thrd_err;
+		}
+	}
+
 	for (i = 0; i < ISP_SPATH_NUM; i++) {
 		path = &pctx->isp_path[i];
 		path->spath_id = i;
@@ -3209,11 +3101,9 @@ static int ispcore_context_put(void *isp_handle, int ctx_id)
 			}
 		}
 
-		for (i = 0; i < ISP_NR3_BUF_NUM; i++) {
-			if (pctx->nr3_buf[i]) {
-				ispcore_frame_unmap(pctx->nr3_buf[i]);
-				pctx->nr3_buf[i] = NULL;
-			}
+		if (pctx->nr3_handle) {
+			isp_3dnr_ctx_put(pctx->nr3_handle);
+			pctx->nr3_handle = NULL;
 		}
 
 		/* clear path queue. */

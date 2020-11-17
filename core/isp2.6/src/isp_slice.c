@@ -1582,7 +1582,7 @@ static int ispslice_3dnr_memctrl_info_cfg(
 	int ret = 0, idx = 0;
 
 	struct slice_cfg_input *in_ptr = (struct slice_cfg_input *)cfg_in;
-	struct isp_3dnr_ctx_desc *nr3_ctx  = in_ptr->nr3_ctx;
+	struct isp_3dnr_ctx_desc *nr3_ctx = in_ptr->nr3_ctx;
 	struct isp_3dnr_mem_ctrl *mem_ctrl = &nr3_ctx->mem_ctrl;
 	struct isp_slice_desc *cur_slc;
 
@@ -2229,11 +2229,6 @@ static int ispslice_3dnr_set(
 		struct cam_hw_info *hw,
 		struct isp_sw_context *pctx)
 {
-/*
- * struct slice_3dnr_memctrl_info slice_3dnr_memctrl;
- * struct slice_3dnr_store_info   slice_3dnr_store;
- * struct slice_3dnr_crop_info    slice_3dnr_crop;
- */
 	struct isp_hw_nr3_fbc_slice nr3_fbc_slice;
 	struct isp_hw_nr3_fbd_slice fbd;
 	struct isp_hw_slice_3dnr_crop croparg;

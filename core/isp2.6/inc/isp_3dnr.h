@@ -223,10 +223,24 @@ struct nr3_slice_for_blending {
 	uint32_t offset_start_y;
 	uint32_t crop_bypass;
 };
-/* capture */
+
+enum isp_3dnr_cfg_cmd {
+	ISP_3DNR_CFG_BUF,
+	ISP_3DNR_CFG_MODE,
+	ISP_3DNR_CFG_BLEND_CNT,
+	ISP_3DNR_CFG_FBD_INFO,
+	ISP_3DNR_CFG_SIZE_INFO,
+	ISP_3DNR_CFG_BLEND_INFO,
+	ISP_3DNR_CFG_MAX,
+};
+
+struct isp_3dnr_ops {
+	int (*cfg_param)(void *nr3_handle, enum isp_3dnr_cfg_cmd cmd, void *param);
+	int (*pipe_proc)(void *nr3_handle, void *param, uint32_t mode);
+};
 
 struct isp_3dnr_ctx_desc {
-	uint32_t bypass;
+	uint32_t ctx_id;
 	uint32_t type;
 	uint32_t blending_cnt;
 	uint32_t mode;
@@ -241,23 +255,16 @@ struct isp_3dnr_ctx_desc {
 	struct isp_3dnr_fbc_store nr3_fbc_store;
 	struct isp_3dnr_crop crop;
 	struct camera_buf *buf_info[ISP_NR3_BUF_NUM];
+	struct isp_3dnr_blend_info *nr3_belnd;
+	struct isp_3dnr_ops ops;
 };
 
-int isp_3dnr_conversion_mv(struct isp_3dnr_ctx_desc *ctx);
-int isp_3dnr_memctrl_slice_info_update(struct nr3_slice *in, struct nr3_slice_for_blending *out);
-
-/*
- * Generate configuration of 3dnr,
- * incluing:
- * mem ctrl, crop, store
- */
-int isp_3dnr_config_gen(struct isp_3dnr_ctx_desc *ctx);
-
-void isp_3dnr_config_param(struct isp_3dnr_ctx_desc *ctx,
-	struct isp_k_block *isp_k_param, uint32_t idx,
-	enum nr3_func_type type_id);
-
+int isp_3dnr_memctrl_slice_info_update(struct nr3_slice *in,
+	struct nr3_slice_for_blending *out);
+void isp_3dnr_config_param(struct isp_3dnr_ctx_desc *ctx);
 void isp_3dnr_bypass_config(uint32_t idx);
+void *isp_3dnr_ctx_get(uint32_t idx);
+void isp_3dnr_ctx_put(void *ctx);
 
 #ifdef __cplusplus
 }

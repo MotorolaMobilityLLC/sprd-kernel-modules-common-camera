@@ -212,8 +212,8 @@ struct isp_sw_context {
 	struct isp_pipe_dev *dev;
 	struct cam_hw_info *hw;
 	void *slice_ctx;
+	void *nr3_handle;
 	struct isp_k_block isp_k_param;
-	struct isp_3dnr_ctx_desc nr3_ctx;
 	struct isp_ltm_ctx_desc ltm_ctx;
 
 	struct cam_thread_info thread;

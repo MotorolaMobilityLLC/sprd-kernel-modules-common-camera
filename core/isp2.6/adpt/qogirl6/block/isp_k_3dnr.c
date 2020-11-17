@@ -495,59 +495,50 @@ static unsigned long irq_base[ISP_CONTEXT_MAX] = {
 };
 #endif /* _NR3_DATA_TO_YUV_ */
 
-void isp_3dnr_config_param(struct isp_3dnr_ctx_desc *ctx,
-		struct isp_k_block *isp_k_param, uint32_t idx,
-		enum nr3_func_type type_id)
+void isp_3dnr_config_param(struct isp_3dnr_ctx_desc *ctx)
 {
 	struct isp_3dnr_mem_ctrl *mem_ctrl = NULL;
 	struct isp_3dnr_store *nr3_store = NULL;
 	struct isp_3dnr_fbd_fetch *nr3_fbd_fetch = NULL;
 	struct isp_3dnr_fbc_store *nr3_fbc_store = NULL;
+	struct isp_3dnr_blend_info *blend = NULL;
 	struct isp_3dnr_crop *crop = NULL;
-	uint32_t blend_cnt = 0;
+	uint32_t blend_cnt = 0, idx = 0;
 	unsigned int val;
-	struct isp_dev_3dnr_info *pnr3;
 
-	pnr3 = &isp_k_param->nr3_info_base;
 	if (!ctx) {
 		pr_err("fail to 3dnr_config_reg parm NULL\n");
 		return;
 	}
 
-	/*config memctl*/
+	idx = ctx->ctx_id;
+	blend = ctx->nr3_belnd;
 	mem_ctrl = &ctx->mem_ctrl;
 	isp_3dnr_config_mem_ctrl(idx, mem_ctrl, ctx->nr3_sec_mode);
 
-	/*config store*/
 	nr3_store = &ctx->nr3_store;
 	isp_3dnr_config_store(idx, nr3_store);
 
-	/*config fbc store*/
 	nr3_fbc_store = &ctx->nr3_fbc_store;
 	isp_3dnr_config_fbc_store(idx, nr3_fbc_store);
 
-	/*config fbd fetch*/
 	nr3_fbd_fetch = &ctx->nr3_fbd_fetch;
 	isp_3dnr_config_fbd_fetch(idx, nr3_fbd_fetch);
 
-	/*config crop*/
 	crop = &ctx->crop;
 	isp_3dnr_config_crop(idx, crop);
 
-	/* config bypass blending */
-	ISP_REG_MWR(idx, ISP_3DNR_BLEND_CONTROL0, BIT_0, ctx->bypass & 0x1);
-
-	/* open nr3 path in common config */
+	ISP_REG_MWR(idx, ISP_3DNR_BLEND_CONTROL0, BIT_0, 0);
 	ISP_REG_MWR(idx, ISP_COMMON_SCL_PATH_SEL, BIT_8, 0x1 << 8);
 
 	blend_cnt = ctx->blending_cnt;
 	if (blend_cnt > 3)
 		blend_cnt = 3;
 
-	val = ((pnr3->blend.y_pixel_src_weight[blend_cnt] & 0xFF) << 24) |
-	      ((pnr3->blend.u_pixel_src_weight[blend_cnt] & 0xFF) << 16) |
-	      ((pnr3->blend.v_pixel_src_weight[blend_cnt] & 0xFF) << 8)  |
-	       (pnr3->blend.y_pixel_noise_threshold & 0xFF);
+	val = ((blend->y_pixel_src_weight[blend_cnt] & 0xFF) << 24) |
+		((blend->u_pixel_src_weight[blend_cnt] & 0xFF) << 16) |
+		((blend->v_pixel_src_weight[blend_cnt] & 0xFF) << 8) |
+		(blend->y_pixel_noise_threshold & 0xFF);
 	ISP_REG_WR(idx, ISP_3DNR_BLEND_CFG1, val);
 
 
