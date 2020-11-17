@@ -603,7 +603,7 @@ int dcam_path_store_frm_set(void *dcam_ctx_handle,
 	frame->zoom_ratio = dcam_sw_ctx->zoom_ratio;
 
 	/* Re-config aem win if it is updated */
-	if (path_id == DCAM_PATH_AEM && !dcam_sw_ctx->offline) {
+	if (path_id == DCAM_PATH_AEM && (!dcam_sw_ctx->offline || dcam_sw_ctx->rps)) {
 		struct dcam_dev_aem_win *win;
 		struct sprd_img_rect *zoom_rect;
 
