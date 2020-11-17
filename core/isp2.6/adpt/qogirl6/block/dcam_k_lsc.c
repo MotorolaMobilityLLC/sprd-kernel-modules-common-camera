@@ -45,22 +45,22 @@ int dcam_init_lsc_slice(void *in, uint32_t online)
 	struct lsc_slice slice;
 	struct dcam_dev_lsc_info *info = NULL;
 	struct dcam_dev_lsc_param *param = NULL;
-	struct dcam_pipe_dev *dev;
+	struct dcam_sw_context *dcam_sw_ctx = NULL;
 	struct dcam_dev_param *blk_dcam_pm;
 	struct cam_hw_info *hw = NULL;
 	struct dcam_hw_force_copy copyarg;
 
 	blk_dcam_pm = (struct dcam_dev_param *)in;
-	dev = (struct dcam_pipe_dev *)blk_dcam_pm->dev;
-	hw = dev->hw;
+	dcam_sw_ctx = (struct dcam_sw_context *)blk_dcam_pm->dev;
+	hw = dcam_sw_ctx->dev->hw;
 	param = &blk_dcam_pm->lsc;
-	idx = dev->idx;
+	idx = blk_dcam_pm->idx;
 	info = &param->lens_info;
 
 	/* need update grid_x_num and more when offline slice*/
-	if (online == 0 && dev->dcam_slice_mode == CAM_OFFLINE_SLICE_HW) {
-		start_roi = dev->cur_slice->start_x - DCAM_OVERLAP;
-		grid_x_num_slice = ((dev->cur_slice->size_x + DCAM_OVERLAP) / 2 + info->grid_width - 1) / info->grid_width + 3;
+	if (online == 0 && dcam_sw_ctx->dcam_slice_mode == CAM_OFFLINE_SLICE_HW) {
+		start_roi = dcam_sw_ctx->cur_slice ->start_x - DCAM_OVERLAP;
+		grid_x_num_slice = ((dcam_sw_ctx->cur_slice->size_x + DCAM_OVERLAP) / 2 + info->grid_width - 1) / info->grid_width + 3;
 	} else
 		grid_x_num_slice = info->grid_x_num;
 
@@ -75,8 +75,8 @@ int dcam_init_lsc_slice(void *in, uint32_t online)
 
 	/* force copy must be after first load done and load clear */
 	copyarg.id = DCAM_CTRL_COEF;
-	copyarg.idx = dev->idx;
-	copyarg.glb_reg_lock = dev->glb_reg_lock;
+	copyarg.idx = idx;
+	copyarg.glb_reg_lock = dcam_sw_ctx->glb_reg_lock;
 	hw->dcam_ioctl(hw, DCAM_HW_CFG_FORCE_COPY, &copyarg);
 
 	pr_info("w %d, grid len %d grid %d  num_t %d (%d, %d)\n",
@@ -98,23 +98,23 @@ int dcam_init_lsc(void *in, uint32_t online)
 	struct lsc_slice slice;
 	struct dcam_dev_lsc_info *info;
 	struct dcam_dev_lsc_param *param;
-	struct dcam_pipe_dev *dev;
+	struct dcam_sw_context *dcam_sw_ctx = NULL;
 	struct dcam_dev_param *blk_dcam_pm;
 	struct cam_hw_info *hw = NULL;
 	struct dcam_hw_force_copy copyarg;
 
 	blk_dcam_pm = (struct dcam_dev_param *)in;
-	dev = (struct dcam_pipe_dev *)blk_dcam_pm->dev;
-	hw = dev->hw;
+	dcam_sw_ctx = (struct dcam_sw_context *)blk_dcam_pm->dev;
+	hw = dcam_sw_ctx->dev->hw;
 	param = &blk_dcam_pm->lsc;
 
-	idx = dev->idx;
+	idx = blk_dcam_pm->idx;
 	info = &param->lens_info;
 	param->update = 0;
 	param->load_trigger = 0;
 	copyarg.id = DCAM_CTRL_COEF;
-	copyarg.idx = dev->idx;
-	copyarg.glb_reg_lock = dev->glb_reg_lock;
+	copyarg.idx = idx;
+	copyarg.glb_reg_lock = dcam_sw_ctx->glb_reg_lock;
 	/* debugfs bypass, not return, need force copy */
 	if (g_dcam_bypass[idx] & (1 << _E_LSC))
 		info->bypass = 1;
@@ -126,9 +126,9 @@ int dcam_init_lsc(void *in, uint32_t online)
 	}
 
 	/* need update grid_x_num and more when offline slice*/
-	if (online == 0 && dev->dcam_slice_mode == CAM_OFFLINE_SLICE_HW) {
+	if (online == 0 && dcam_sw_ctx->dcam_slice_mode == CAM_OFFLINE_SLICE_HW) {
 		start_roi = 0;
-		grid_x_num_slice = ((dev->cur_slice->size_x + DCAM_OVERLAP) / 2 + info->grid_width - 1) / info->grid_width + 3;
+		grid_x_num_slice = ((dcam_sw_ctx->cur_slice->size_x + DCAM_OVERLAP) / 2 + info->grid_width - 1) / info->grid_width + 3;
 	} else {
 		grid_x_num_slice = info->grid_x_num;
 	}
@@ -256,19 +256,19 @@ int dcam_update_lsc(void *in)
 	uint32_t grid_x_num_slice = 0;
 	struct dcam_dev_lsc_info *info = NULL;
 	struct dcam_dev_lsc_param *param = NULL;
-	struct dcam_pipe_dev *dev;
+	struct dcam_sw_context *dcam_sw_ctx = NULL;
 	struct dcam_dev_param *blk_dcam_pm;
 	struct cam_hw_info *hw = NULL;
 	struct dcam_hw_auto_copy copyarg;
 
 	blk_dcam_pm = (struct dcam_dev_param *)in;
-	dev = (struct dcam_pipe_dev *)blk_dcam_pm->dev;
-	hw = dev->hw;
+	dcam_sw_ctx = (struct dcam_sw_context *)blk_dcam_pm->dev;
+	hw = dcam_sw_ctx->dev->hw;
 	param = &blk_dcam_pm->lsc;
 	if (!param->update)
 		return 0;
 
-	idx = dev->idx;
+	idx = blk_dcam_pm->idx;
 	info = &param->lens_info;
 	update = param->update;
 	param->update = 0;
@@ -281,7 +281,7 @@ int dcam_update_lsc(void *in)
 		return 0;
 	}
 
-	if (dev->idx == 1 && dev->dcam_slice_mode == 1)
+	if (idx == 1 && dcam_sw_ctx->dcam_slice_mode == 1)
 		grid_x_num_slice = info->grid_x_num / 2;
 	else
 		grid_x_num_slice = info->grid_x_num;
@@ -290,7 +290,7 @@ int dcam_update_lsc(void *in)
 	gain_tab = (uint16_t *)param->buf.addr_k[0];
 	hw_addr = (uint32_t)param->buf.iova[0];
 	if (!w_buff || !gain_tab || !hw_addr) {
-		pr_err("fail to get buf %p %p %x\n", w_buff, gain_tab, hw_addr);
+		pr_err("fail to get buf %px %px %x\n", w_buff, gain_tab, hw_addr);
 		ret = -EPERM;
 		goto exit;
 	}
@@ -360,12 +360,12 @@ int dcam_update_lsc(void *in)
 	buf_sel = !((val & BIT_1) >> 1);
 	DCAM_REG_MWR(idx, DCAM_LENS_LOAD_ENABLE, BIT_1, buf_sel << 1);
 
-	pr_debug("sof %d, buf_sel %d\n", dev->frame_index, buf_sel);
+	pr_debug("sof %d, buf_sel %d\n", dcam_sw_ctx->frame_index, buf_sel);
 
 	/* step 4: auto cpy lens registers next sof */
 	copyarg.id = DCAM_CTRL_BIN;
-	copyarg.idx = dev->idx;
-	copyarg.glb_reg_lock = dev->glb_reg_lock;
+	copyarg.idx = idx;
+	copyarg.glb_reg_lock = dcam_sw_ctx->glb_reg_lock;
 	hw->dcam_ioctl(hw, DCAM_HW_CFG_AUTO_COPY, &copyarg);
 
 	pr_debug("done\n");

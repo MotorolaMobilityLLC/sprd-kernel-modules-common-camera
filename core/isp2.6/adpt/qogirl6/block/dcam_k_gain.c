@@ -87,10 +87,6 @@ int dcam_k_cfg_rgb_gain(struct isp_io_param *param, struct dcam_dev_param *p)
 {
 	int ret = 0;
 
-	/* debug bypass rgb gain */
-	if (g_dcam_bypass[p->idx] & (1 << _E_RGB))
-		return 0;
-
 	switch (param->property) {
 	case DCAM_PRO_GAIN_BLOCK:
 		if (p->offline == 0) {
@@ -103,6 +99,9 @@ int dcam_k_cfg_rgb_gain(struct isp_io_param *param, struct dcam_dev_param *p)
 					ret);
 				return -EFAULT;
 			}
+			/* debug bypass rgb gain */
+			if (p->idx == DCAM_HW_CONTEXT_MAX || (g_dcam_bypass[p->idx] & (1 << _E_RGB)))
+				return 0;
 			ret = dcam_k_rgb_gain_block(p);
 		} else {
 			mutex_lock(&p->param_lock);
@@ -131,10 +130,6 @@ int dcam_k_cfg_rgb_dither(struct isp_io_param *param, struct dcam_dev_param *p)
 {
 	int ret = 0;
 
-	/* debugfs bypass rgb dither(rand) */
-	if (g_dcam_bypass[p->idx] & (1 << _E_RAND))
-		return 0;
-
 	switch (param->property) {
 	case DCAM_PRO_GAIN_DITHER_BLOCK:
 		if (p->offline == 0) {
@@ -145,6 +140,9 @@ int dcam_k_cfg_rgb_dither(struct isp_io_param *param, struct dcam_dev_param *p)
 				pr_err("fail to copy from user, ret = %d\n", ret);
 				return -1;
 			}
+			/* debugfs bypass rgb dither(rand) */
+			if (p->idx == DCAM_HW_CONTEXT_MAX || (g_dcam_bypass[p->idx] & (1 << _E_RAND)))
+				return 0;
 			ret = dcam_k_rgb_dither_random_block(p);
 		} else {
 			mutex_lock(&p->param_lock);

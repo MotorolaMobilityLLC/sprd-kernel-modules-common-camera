@@ -106,7 +106,7 @@ int dcam_k_aem_win(struct dcam_dev_param *param)
 
 int dcam_k_aem_skip_num(struct dcam_dev_param *param)
 {
-	struct dcam_pipe_dev *dev;
+	struct dcam_sw_context *sw_ctx = NULL;
 	int ret = 0;
 	uint32_t idx = 0;
 	uint32_t val = 0;
@@ -119,10 +119,10 @@ int dcam_k_aem_skip_num(struct dcam_dev_param *param)
 	 * TODO: handle skip_num not equal to slowmotion_count - 1
 	 */
 	idx = param->idx;
-	dev = param->dev;
-	if (dev->slowmotion_count) {
-		pr_debug("DCAM%u AEM ignore skip_num %u, slowmotion_count %u\n",
-			dev->idx, param->aem.skip_num, dev->slowmotion_count);
+	sw_ctx = param->dev;
+	if (sw_ctx->slowmotion_count) {
+		pr_info("DCAM%u AEM ignore skip_num %u, slowmotion_count %u\n",
+			sw_ctx->hw_ctx_id, param->aem.skip_num, sw_ctx->slowmotion_count);
 		return 0;
 	}
 	pr_debug("dcam%d skip_num %d", idx, param->aem.skip_num);
@@ -172,7 +172,7 @@ int dcam_k_cfg_aem(struct isp_io_param *param, struct dcam_dev_param *p)
 	int ret = 0;
 	void *pcpy;
 	int size;
-	struct dcam_pipe_dev *dev;
+	struct dcam_sw_context *dev;
 	FUNC_DCAM_PARAM sub_func = NULL;
 
 	switch (param->property) {
@@ -208,7 +208,7 @@ int dcam_k_cfg_aem(struct isp_io_param *param, struct dcam_dev_param *p)
 		return -EINVAL;
 	}
 
-	dev = (struct dcam_pipe_dev *)p->dev;
+	dev = (struct dcam_sw_context *)p->dev;
 	if (!p->offline &&
 		(atomic_read(&dev->state) == STATE_RUNNING) &&
 		(param->property == DCAM_PRO_AEM_WIN)) {
@@ -242,6 +242,8 @@ int dcam_k_cfg_aem(struct isp_io_param *param, struct dcam_dev_param *p)
 				(unsigned int)ret);
 			return -EPERM;
 		}
+		if (p->idx == DCAM_HW_CONTEXT_MAX)
+			return 0;
 		ret = sub_func(p);
 	} else {
 		mutex_lock(&p->param_lock);
