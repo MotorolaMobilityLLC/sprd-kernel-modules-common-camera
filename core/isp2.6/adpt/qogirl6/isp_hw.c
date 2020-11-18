@@ -293,7 +293,7 @@ abnormal_reg_trace:
 			DCAM_AXIM_RD(addr + 12));
 	}
 
-	pr_info("ISP: Register list\n");
+	pr_info("ISP: int Register list\n");
 	for (addr = ISP_INT_EN0; addr <= ISP_INT_ALL_DONE_SRC_CTRL;
 		addr += 16) {
 		pr_info("0x%lx: 0x%x 0x%x 0x%x 0x%x\n",
@@ -753,7 +753,7 @@ isp_hw_cfg_para:
 	ISP_REG_MWR(idx, ISP_GAMMA_PARAM, BIT_0, bypass);
 	ISP_REG_MWR(idx, ISP_HSV_PARAM, BIT_0, bypass);
 	ISP_REG_MWR(idx, ISP_PSTRZ_PARAM, BIT_0, bypass);
-	ISP_REG_MWR(idx, ISP_CCE_PARAM, BIT_0, bypass);
+	ISP_REG_MWR(idx, ISP_CCE_PARAM, BIT_0, 0);
 
 	ISP_REG_MWR(idx, ISP_UVD_PARAM, BIT_0, 1);
 	ISP_REG_MWR(idx, ISP_PRECDN_PARAM, BIT_0, 1);
@@ -1369,7 +1369,7 @@ static int isphw_slice_store(void *handle, void *arg)
 }
 
 static struct isp_cfg_entry isp_hw_cfg_func_tab[ISP_BLOCK_TOTAL - ISP_BLOCK_BASE] = {
-[ISP_BLOCK_CFA - ISP_BLOCK_BASE]      = {ISP_BLOCK_CFA,      isp_k_cfg_cfa},
+[ISP_BLOCK_CCE - ISP_BLOCK_BASE]      = {ISP_BLOCK_CCE,      isp_k_cfg_cce},
 #if 0
 [ISP_BLOCK_BCHS - ISP_BLOCK_BASE]     = {ISP_BLOCK_BCHS,     isp_k_cfg_bchs},
 [ISP_BLOCK_YGAMMA - ISP_BLOCK_BASE]   = {ISP_BLOCK_YGAMMA,   isp_k_cfg_ygamma},
@@ -2819,6 +2819,38 @@ static int isphw_map_init_cfg(void *handle, void *arg)
 	return 0;
 }
 
+static int isphw_cfg_cmd_ready(void *handle, void *arg)
+{
+	struct isp_hw_cfg_info *cfg_info = (struct isp_hw_cfg_info *)arg;
+	uint32_t val = 0;
+	uint32_t hw_ctx_id = cfg_info->hw_ctx_id;
+	uint32_t ready_mode[ISP_CONTEXT_HW_NUM] = {
+		BIT_26,/* pre0_cmd_ready_mode */
+		BIT_24,/* cap0_cmd_ready_mode */
+		BIT_27,/* pre1_cmd_ready_mode */
+		BIT_25/* cap1_cmd_ready_mode */
+	};
+
+	if (cfg_info->fmcu_enable)
+		val = ready_mode[hw_ctx_id];
+	else
+		val = 0;
+
+	spin_lock(&isp_cfg_lock);
+	ISP_HREG_MWR(ISP_CFG_PAMATER, ready_mode[hw_ctx_id], val);
+	spin_unlock(&isp_cfg_lock);
+
+	ISP_HREG_WR(cfg_cmd_addr_reg[hw_ctx_id], cfg_info->hw_addr);
+	pr_debug("ctx %d,  reg %08x  %08x, hw_addr %lx, val %08x\n",
+		hw_ctx_id,
+		(uint32_t)cfg_cmd_addr_reg[hw_ctx_id],
+		(uint32_t)ISP_GET_REG(cfg_cmd_addr_reg[hw_ctx_id]),
+		cfg_info->hw_addr,
+		ISP_HREG_RD(cfg_cmd_addr_reg[hw_ctx_id]));
+
+	return 0;
+}
+
 static int isphw_isp_start_cfg(void *handle, void *arg)
 {
 	uint32_t ctx_id = 0;
@@ -2915,7 +2947,7 @@ static int isphw_yuv_block_ctrl(void *handle, void *arg)
 	}
 
 BLOCK_CFG:
-	ISP_REG_MWR(idx, ISP_CCE_PARAM, BIT_0, p->cce_info.bypass);
+	ISP_REG_MWR(idx, ISP_CCE_PARAM, BIT_0, 0);
 	ISP_REG_MWR(idx, ISP_BCHS_PARAM, BIT_0, p->bchs_info.bchs_bypass);
 	ISP_REG_MWR(idx, ISP_CDN_PARAM, BIT_0, p->cdn_info.bypass);
 	ISP_REG_MWR(idx, ISP_EE_PARAM, BIT_0, p->edge_info.bypass);
@@ -2932,7 +2964,7 @@ BLOCK_CFG:
 	return ret;
 
 BLOCK_BYPASS:
-	ISP_REG_MWR(idx, ISP_CCE_PARAM, BIT_0, 1);
+	ISP_REG_MWR(idx, ISP_CCE_PARAM, BIT_0, 0);
 	ISP_REG_MWR(idx, ISP_BCHS_PARAM, BIT_0, 1);
 	ISP_REG_MWR(idx, ISP_CDN_PARAM, BIT_0, 1);
 	ISP_REG_MWR(idx, ISP_EE_PARAM, BIT_0, 1);
@@ -3002,6 +3034,7 @@ static struct hw_io_ctrl_fun isp_ioctl_fun_tab[] = {
 	{ISP_HW_CFG_STORE_FRAME_ADDR,        isphw_frame_addr_store},
 	{ISP_HW_CFG_FETCH_FRAME_ADDR,        isphw_frame_addr_fetch},
 	{ISP_HW_CFG_MAP_INIT,                isphw_map_init_cfg},
+	{ISP_HW_CFG_CMD_READY,               isphw_cfg_cmd_ready},
 	{ISP_HW_CFG_START_ISP,               isphw_isp_start_cfg},
 	{ISP_HW_CFG_UPDATE_HIST_ROI,         isphw_hist_roi_update},
 	{ISP_HW_CFG_FETCH_START,             isphw_fetch_start},
