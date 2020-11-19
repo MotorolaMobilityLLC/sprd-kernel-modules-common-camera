@@ -123,14 +123,14 @@ int dcam_k_afl_block(struct dcam_dev_param *param)
 	DCAM_REG_WR(idx, ISP_AFL_PARAM1, (p->afl_stepx & 0xFFFFFF));
 	DCAM_REG_WR(idx, ISP_AFL_PARAM2, (p->afl_stepy & 0xFFFFFF));
 
-	val = (p->start_col & 0xFFFF) |
-		((p->end_col & 0xFFFF) << 16);
+	val = (p->start_col & 0x1FFF) |
+		((p->end_col & 0x1FFF) << 16);
 	DCAM_REG_WR(idx, ISP_AFL_COL_POS, val);
 
 	DCAM_REG_WR(idx, ISP_AFL_REGION0, p->step_x_region);
 	DCAM_REG_WR(idx, ISP_AFL_REGION1, p->step_y_region);
-	val = (p->step_x_start_region & 0xFFFF) |
-		((p->step_x_end_region & 0xFFFF) << 16);
+	val = (p->step_x_start_region & 0x1FFF) |
+		((p->step_x_end_region & 0x1FFF) << 16);
 	DCAM_REG_WR(idx, ISP_AFL_REGION2, val);
 
 	p->afl_glb_total_num =

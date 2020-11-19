@@ -3351,7 +3351,7 @@ static int ispcore_dev_open(void *isp_handle, void *param)
 			dev->wmode = s_dbg_work_mode;
 		g_camctrl.isp_wmode = dev->wmode;
 
-		dev->isp_hw = param;
+		dev->isp_hw = hw;
 		mutex_init(&dev->path_mutex);
 		spin_lock_init(&dev->ctx_lock);
 

@@ -902,15 +902,11 @@ int isp_drv_dt_parse(struct device_node *dn,
 
 		iommu_node = of_parse_phandle(isp_node, "iommus", 0);
 		if (iommu_node) {
-			if (of_address_to_resource(iommu_node, 0, &res))
-				pr_err("fail to get ISP IOMMU addr\n");
-			else {
-				reg_base = ioremap(res.start, res.end - res.start + 1);
-				if (!reg_base)
-					pr_err("fail to map ISP IOMMU base\n");
-				else
-					s_isp_mmubase = (unsigned long)reg_base;
-			}
+			reg_base = of_iomap(iommu_node, 0);
+			if (!reg_base)
+				pr_err("fail to map ISP IOMMU base\n");
+			else
+				s_isp_mmubase = (unsigned long)reg_base;
 		}
 		pr_info("ISP IOMMU Base  0x%lx\n", s_isp_mmubase);
 
@@ -957,7 +953,7 @@ int isp_drv_dt_parse(struct device_node *dn,
 		}
 
 		args_count = syscon_get_args_by_name(isp_node, "reset",
-			sizeof(args), args);
+			ARRAY_SIZE(args), args);
 		if (args_count == ARRAY_SIZE(args)) {
 			ip_isp->syscon.rst = args[0];
 			ip_isp->syscon.rst_mask = args[1];
@@ -967,12 +963,12 @@ int isp_drv_dt_parse(struct device_node *dn,
 		}
 
 		args_count = syscon_get_args_by_name(isp_node, "isp_ahb_reset",
-			sizeof(args), args);
+			ARRAY_SIZE(args), args);
 		if (args_count == ARRAY_SIZE(args))
 			ip_isp->syscon.rst_ahb_mask = args[1];
 
 		args_count = syscon_get_args_by_name(isp_node, "isp_vau_reset",
-			sizeof(args), args);
+			ARRAY_SIZE(args), args);
 		if (args_count == ARRAY_SIZE(args))
 			ip_isp->syscon.rst_vau_mask = args[1];
 

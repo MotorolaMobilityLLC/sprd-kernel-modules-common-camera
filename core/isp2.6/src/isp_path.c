@@ -80,9 +80,9 @@ int isp_path_comn_uinfo_set(struct isp_sw_context *pctx, void *param)
 		uinfo->mode_ltm, pctx->attach_cam_id);
 	pctx->ch_id = cfg_in->ch_id;
 
-	pr_debug("ctx%d, in_fmt 0x%x, %d %d mode_ltm %d ltm_eb %d\n", pctx->ctx_id,
+	pr_debug("ctx%d, in_fmt 0x%x, %d %d mode_ltm %d ltm_eb %d slw_state %d\n", pctx->ctx_id,
 		uinfo->in_fmt, uinfo->pack_bits, uinfo->bayer_pattern, uinfo->mode_ltm,
-		uinfo->ltm_rgb);
+		uinfo->ltm_rgb, uinfo->slw_state);
 
 	return ret;
 }

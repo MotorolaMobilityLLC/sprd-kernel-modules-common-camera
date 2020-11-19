@@ -148,23 +148,16 @@ int dcam_drv_dt_parse(struct platform_device *pdev,
 		return -EINVAL;
 	}
 
-	pr_info("dev: %s, full name: %s, cam_ahb_gpr: %p, count: %u\n",
-		pdev->name, dn->full_name, ahb_map, count);
-
-	pr_info("DCAM dcam_max_w = %u dcam_max_h = %u\n", dcam_max_w, dcam_max_h);
+	pr_info("dev: %s, full name: %s, cam_ahb_gpr: %p, count: %u, DCAM dcam_max.w.h %u %u\n",
+		pdev->name, dn->full_name, ahb_map, count, dcam_max_w, dcam_max_h);
 
 	iommu_node = of_parse_phandle(dn, "iommus", 0);
 	if (iommu_node) {
-		if (of_address_to_resource(iommu_node, 0, &reg_res))
-			pr_err("fail to get DCAM IOMMU  addr\n");
-		else {
-			reg_base = ioremap(reg_res.start,
-				reg_res.end - reg_res.start + 1);
-			if (!reg_base)
-				pr_err("fail to map DCAM IOMMU base\n");
-			else
-				g_dcam_mmubase = (unsigned long)reg_base;
-		}
+		reg_base = of_iomap(iommu_node, 0);
+		if (!reg_base)
+			pr_err("fail to map DCAM IOMMU base\n");
+		else
+			g_dcam_mmubase = (unsigned long)reg_base;
 	}
 	pr_info("DCAM IOMMU Base  0x%lx\n", g_dcam_mmubase);
 
@@ -268,7 +261,7 @@ int dcam_drv_dt_parse(struct platform_device *pdev,
 		soc_dcam->axi_clk_default = clk_get_parent(soc_dcam->axi_clk);
 	}
 
-	args_count = syscon_get_args_by_name(dn, "dcam_all_reset", sizeof(args), args);
+	args_count = syscon_get_args_by_name(dn, "dcam_all_reset", ARRAY_SIZE(args), args);
 	if (args_count != ARRAY_SIZE(args)) {
 		pr_err("fail to get dcam all reset syscon\n");
 		return -EINVAL;
@@ -303,7 +296,7 @@ int dcam_drv_dt_parse(struct platform_device *pdev,
 			goto err_iounmap;
 		}
 		ip_dcam->reg_base = (unsigned long) reg_base;
-		g_dcam_regbase[i] = (unsigned long)reg_base; /* TODO */
+		g_dcam_regbase[i] = (unsigned long)reg_base;
 
 		pr_info("DCAM%d reg: %s 0x%lx %lx, irq: %s %u\n", i,
 			reg_res.name, ip_dcam->phy_base, ip_dcam->reg_base,
@@ -323,12 +316,7 @@ int dcam_drv_dt_parse(struct platform_device *pdev,
 		}
 	}
 
-	if (of_address_to_resource(dn, i, &reg_res)) {
-		pr_err("fail to get AXIM phy addr\n");
-		goto err_iounmap;
-	}
-
-	reg_base = ioremap(reg_res.start, reg_res.end - reg_res.start + 1);
+	reg_base = of_iomap(dn, i);
 	if (!reg_base) {
 		pr_err("fail to map AXIM reg base\n");
 		goto err_iounmap;
