@@ -345,6 +345,8 @@ struct camera_group {
 	struct cam_hw_info *hw_info;
 };
 
+struct cam_thread_info g_switch_thrd;
+
 struct cam_ioctl_cmd {
 	unsigned int cmd;
 	int (*cmd_proc)(struct camera_module *module, unsigned long arg);
@@ -2267,7 +2269,7 @@ static int camcore_dcam_callback(enum dcam_cb_type type, void *param, void *priv
 		pr_err("fail to check cb type. camera %d\n", module->idx);
 		csi_api_reg_trace();
 		trace.type = ABNORMAL_REG_TRACE;
-		trace.idx = module->dcam_idx;
+		trace.idx = module->dcam_dev_handle->sw_ctx[module->cur_sw_ctx_id].hw_ctx_id;
 		hw->isp_ioctl(hw, ISP_HW_CFG_REG_TRACE, &trace);
 
 		module->dcam_dev_handle->dcam_pipe_ops->stop(&module->dcam_dev_handle->sw_ctx[module->cur_sw_ctx_id], DCAM_STOP);
@@ -4252,11 +4254,7 @@ static int camcore_aux_dcam_init(struct camera_module *module,
 	loop = 0;
 	do {
 		sw_ctx = &module->dcam_dev_handle->sw_ctx[module->cur_aux_sw_ctx_id];
-#if 0
-		ret = dcam_core_context_bind(sw_ctx, DCAM_BIND_DYNAMIC, module->aux_dcam_id);
-#else
-		ret = dcam_core_context_bind(sw_ctx, DCAM_BIND_FIXED, module->aux_dcam_id);
-#endif
+		ret = dcam_core_context_bind(sw_ctx, grp->hw_info->csi_connect_type, module->aux_dcam_id);
 		if (!ret) {
 			if (sw_ctx->hw_ctx_id < 0 || sw_ctx->hw_ctx_id >= DCAM_HW_CONTEXT_MAX)
 				pr_err("fail to get hw_ctx_id\n");
@@ -4802,9 +4800,7 @@ static int camcore_timer_stop(struct timer_list *cam_timer)
 
 static int camcore_thread_loop(void *arg)
 {
-	int idx;
-	struct camera_module *module;
-	struct cam_thread_info *thrd;
+	struct cam_thread_info *thrd = NULL;
 
 	if (!arg) {
 		pr_err("fail to get valid input ptr\n");
@@ -4812,8 +4808,6 @@ static int camcore_thread_loop(void *arg)
 	}
 
 	thrd = (struct cam_thread_info *)arg;
-	module = (struct camera_module *)thrd->ctx_handle;
-	idx = module->idx;
 	pr_info("%s loop starts %px\n", thrd->thread_name, thrd);
 	while (1) {
 		if (wait_for_completion_interruptible(
@@ -4823,7 +4817,7 @@ static int camcore_thread_loop(void *arg)
 				break;
 			}
 			pr_info("thread %s trigger\n", thrd->thread_name);
-			thrd->proc_func(module);
+			thrd->proc_func(thrd->ctx_handle);
 		} else {
 			pr_debug("thread %s exit!", thrd->thread_name);
 			break;
@@ -4835,10 +4829,9 @@ static int camcore_thread_loop(void *arg)
 	return 0;
 }
 
-static int camcore_thread_create(struct camera_module *module,
-	struct cam_thread_info *thrd, void *func)
+static int camcore_thread_create(void *ctx_handle, struct cam_thread_info *thrd, void *func)
 {
-	thrd->ctx_handle = module;
+	thrd->ctx_handle = ctx_handle;
 	thrd->proc_func = func;
 	atomic_set(&thrd->thread_stop, 0);
 	init_completion(&thrd->thread_com);
@@ -5147,11 +5140,7 @@ static int camcore_raw_pre_proc(
 	atomic_set(&module->state, CAM_CFG_CH);
 	loop = 0;
 	do {
-#if 0
-		ret = dcam_core_context_bind(sw_ctx, DCAM_BIND_DYNAMIC, module->dcam_idx);
-#else
-		ret = dcam_core_context_bind(sw_ctx, DCAM_BIND_FIXED, module->dcam_idx);
-#endif
+		ret = dcam_core_context_bind(sw_ctx, hw->csi_connect_type, module->dcam_idx);
 		if (!ret) {
 			if (sw_ctx->hw_ctx_id < 0 || sw_ctx->hw_ctx_id >= DCAM_HW_CONTEXT_MAX)
 				pr_err("fail to get hw_ctx_id\n");
@@ -5986,7 +5975,7 @@ rewait:
 			}
 			csi_api_reg_trace();
 			trace.type = ABNORMAL_REG_TRACE;
-			trace.idx = module->dcam_idx;
+			trace.idx = module->dcam_dev_handle->sw_ctx[module->cur_sw_ctx_id].hw_ctx_id;
 			hw->isp_ioctl(hw, ISP_HW_CFG_REG_TRACE, &trace);
 			read_op.evt = pframe->evt;
 			read_op.parm.frame.irq_type = pframe->irq_type;
@@ -6341,6 +6330,23 @@ static int camcore_release(struct inode *node, struct file *file)
 	return ret;
 }
 
+static int camcore_csi_switch_proc(void *param)
+{
+	struct camera_group *group = (struct camera_group *)param;
+	struct camera_module *module = NULL;
+	unsigned long arg = 0;
+	if(!group) {
+		pr_err("fail to get valid group ptr\n");
+		return -EFAULT;
+	}
+
+	module = group->module[CAM_ID_0];
+
+	pr_info("Get group:%px, module = %px\n", group, module);
+	camiotcl_csi_switch(module, arg);
+	return 0;
+}
+
 static const struct file_operations image_fops = {
 	.open = camcore_open,
 	.unlocked_ioctl = camcore_ioctl,
@@ -6418,6 +6424,12 @@ static int camcore_probe(struct platform_device *pdev)
 	 */
 	if (group->ca_conn)
 		pr_info("cam ca-ta unconnect\n");
+
+	/* create switch ctx thread */
+	sprintf(g_switch_thrd.thread_name, "csi_switch");
+	ret = camcore_thread_create(group, &g_switch_thrd, camcore_csi_switch_proc);
+	if (ret)
+		pr_err("fail to create switch thread\n");
 
 	group->debugger.hw = group->hw_info;
 	ret = cam_debugger_init(&group->debugger);

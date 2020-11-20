@@ -57,13 +57,6 @@ enum dcam_sw_context_id {
 	DCAM_SW_CONTEXT_MAX,
 };
 
-enum dcam_hw_context_id {
-	DCAM_HW_CONTEXT_0 = 0,
-	DCAM_HW_CONTEXT_1,
-	DCAM_HW_CONTEXT_2,
-	DCAM_HW_CONTEXT_MAX,
-};
-
 /*
  * Enumerating output paths in dcam_if device.
  *

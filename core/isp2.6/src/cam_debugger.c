@@ -35,7 +35,7 @@
 #define WORK_MODE_SLEN  2
 #define LBUF_LEN_SLEN   8
 
-uint32_t g_dcam_bypass[DCAM_HW_CONTEXT_MAX] = { 0, 0, 0 };
+uint32_t g_dcam_bypass[DCAM_HW_CONTEXT_MAX] = {0};
 struct cam_dbg_dump g_dbg_dump;
 int s_dbg_work_mode = ISP_CFG_MODE;
 uint32_t g_isp_bypass[ISP_CONTEXT_SW_NUM] = { 0, 0, 0, 0, 0, 0, 0, 0, 0 };
@@ -469,6 +469,31 @@ static const struct file_operations dump_count_ops = {
 	.write = camdebugger_dump_count_write,
 };
 
+extern struct cam_thread_info g_switch_thrd;
+static ssize_t camdebugger_csi_switch_write(struct file *filp,
+		const char __user *buffer, size_t count, loff_t *ppos)
+{
+	int ret = 0;
+	char msg[8];
+
+	ret = copy_from_user(msg, (void __user *)buffer, count);
+	if (ret) {
+		pr_err("fail to copy_from_user\n");
+		return -EFAULT;
+	}
+
+	complete(&g_switch_thrd.thread_com);
+	pr_info("msg : %s\n", msg);
+
+	return count;
+}
+
+static const struct file_operations csi_switch_ops = {
+	.owner = THIS_MODULE,
+	.open = simple_open,
+	.write = camdebugger_csi_switch_write,
+};
+
 static int camdebugger_replace_image_read(struct seq_file *s,
 		void *unused)
 {
@@ -648,6 +673,9 @@ static int camdebugger_dcam_init(struct camera_debugger *debugger)
 	if (!debugfs_create_file("dump_count", 0664,
 		pd, NULL, &dump_count_ops))
 		ret |= BIT(10);
+	if (!debugfs_create_file("csi_switch", 0664,
+		pd, debugger, &csi_switch_ops))
+		ret |= BIT(11);
 	mutex_init(&g_dbg_dump.dump_lock);
 
 	entry = debugfs_create_file("replace_image", 0644, pd,

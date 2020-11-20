@@ -222,5 +222,5 @@ struct cam_hw_info sharkl5pro_hw_info = {
 	.ip_isp = &isp,
 	.dcam_ioctl = camhwif_dcam_ioctl,
 	.isp_ioctl = camhwif_isp_ioctl,
-
+	.csi_connect_type = DCAM_BIND_FIXED,
 };

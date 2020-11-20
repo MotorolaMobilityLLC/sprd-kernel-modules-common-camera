@@ -127,12 +127,12 @@ static struct camera_frame *dcamint_frame_prepare(struct dcam_hw_context *dcam_h
 	if (frame->sync_data) {
 		sync = (struct dcam_frame_synchronizer *)frame->sync_data;
 		sync->valid |= BIT(path_id);
-		pr_debug("DCAM%u %s sync ready, id %u, sync 0x%p\n", dcam_hw_ctx->hw_ctx_id,
+		pr_debug("DCAM%u %s sync ready, id %u, sync 0x%px\n", dcam_hw_ctx->hw_ctx_id,
 			dcam_path_name_get(path_id), sync->index, sync);
 	}
 
-	pr_debug("DCAM%u %s: TX DONE, fid %u, sync 0x%p\n",
-		 dcam_hw_ctx->hw_ctx_id, dcam_path_name_get(path_id), frame->fid, frame->sync_data);
+	pr_debug("DCAM%u %s: TX DONE, fid %u, sync 0x%px\n",
+		dcam_hw_ctx->hw_ctx_id, dcam_path_name_get(path_id), frame->fid, frame->sync_data);
 
 	if (!sw_ctx->rps && !frame->boot_sensor_time) {
 		pr_info("DCAM%u %s fid %u invalid 0 timestamp\n",

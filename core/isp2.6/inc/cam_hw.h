@@ -148,6 +148,8 @@ enum dcam_hw_cfg_cmd {
 	DCAM_HW_CFG_START_FETCH,
 	DCAM_HW_CFG_BIN_MIPI,
 	DCAM_HW_CFG_BIN_PATH,
+	DCAM_HW_DISCONECT_CSI,
+	DCAM_HW_CONECT_CSI,
 	DCAM_HW_CFG_MAX
 };
 
@@ -959,6 +961,7 @@ struct cam_hw_info {
 	struct cam_hw_ip_info *ip_isp;
 	int (*dcam_ioctl)(void *, uint32_t, void *);
 	int (*isp_ioctl)(void *, uint32_t, void *);
+	uint32_t csi_connect_type;
 };
 
 #endif

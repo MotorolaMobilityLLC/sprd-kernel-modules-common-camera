@@ -692,7 +692,7 @@ static void dcamint_bin_path_done(void *param)
 	struct camera_frame *frame = NULL;
 	int i = 0, cnt = 0;
 
-	pr_info("bin_path_done\n");
+	pr_debug("bin_path_done hw_ctx_id = %d, sw_ctx_id = %d\n", sw_ctx->hw_ctx_id, sw_ctx->sw_ctx_id);
 	path = &sw_ctx->path[DCAM_PATH_BIN];
 	cnt = atomic_read(&path->set_frm_cnt);
 	if (cnt <= sw_ctx->slowmotion_count) {
@@ -1052,10 +1052,6 @@ static const struct {
 	{
 		ARRAY_SIZE(_DCAM1_SEQUENCE),
 		_DCAM1_SEQUENCE,
-	},
-	{
-		ARRAY_SIZE(_DCAM2_SEQUENCE),
-		_DCAM2_SEQUENCE,
 	},
 };
 

@@ -2240,7 +2240,7 @@ static int dcamcore_dev_start(void *dcam_handle, int online)
 			pr_err("fail to creat offline thread\n");
 			return ret;
 		}
-		if (pctx->hw_ctx_id < DCAM_ID_2)
+		if (pctx->hw_ctx_id <= DCAM_HW_CONTEXT_1)
 			atomic_dec(&s_dcam_working);
 		atomic_set(&pctx->state, STATE_RUNNING);
 		return ret;
@@ -2252,7 +2252,7 @@ static int dcamcore_dev_start(void *dcam_handle, int online)
 		return -EINVAL;
 	}
 
-	pr_info("DCAM%u start: %p, state = %d\n", pctx->hw_ctx_id, pctx, atomic_read(&pctx->state));
+	pr_info("DCAM%u start: %px, state = %d\n", pctx->hw_ctx_id, pctx, atomic_read(&pctx->state));
 
 	ret = dcamcore_sync_helper_init(pctx);
 	if (ret < 0) {
@@ -2382,7 +2382,7 @@ static int dcamcore_dev_start(void *dcam_handle, int online)
 		hw->dcam_ioctl(hw, DCAM_HW_CFG_SRAM_CTRL_SET, &sramarg);
 	}
 
-	if (pctx->hw_ctx_id < DCAM_ID_2)
+	if (pctx->hw_ctx_id <= DCAM_HW_CONTEXT_1)
 		atomic_inc(&s_dcam_working);
 	atomic_set(&pctx->state, STATE_RUNNING);
 	trace.type = NORMAL_REG_TRACE;
@@ -2428,7 +2428,7 @@ static int dcamcore_dev_stop(void *dcam_handle, enum dcam_stop_cmd pause)
 	dcam_int_tracker_dump(pctx->hw_ctx_id);
 	dcam_int_tracker_reset(pctx->hw_ctx_id);
 
-	if (pctx->hw_ctx_id < DCAM_HW_CONTEXT_2)
+	if (pctx->hw_ctx_id <= DCAM_HW_CONTEXT_1)
 		atomic_dec(&s_dcam_working);
 	atomic_set(&pctx->state, STATE_IDLE);
 
@@ -2782,6 +2782,76 @@ static struct dcam_pipe_ops s_dcam_pipe_ops = {
 	.put_context = dcamcore_context_put,
 };
 
+int dcam_core_ctx_switch(struct dcam_sw_context *ori_sw_ctx, struct dcam_sw_context *new_sw_ctx, struct dcam_hw_context *hw_ctx)
+{
+	int ret = 0;
+	struct cam_hw_info *hw = NULL;
+	struct dcam_pipe_dev *dev;
+	struct dcam_hw_path_start patharg;
+	struct dcam_path_desc *path = NULL;
+	struct dcam_hw_mipi_cap caparg;
+	struct dcam_hw_start parm;
+	uint32_t i = 0;
+	struct dcam_hw_force_copy copyarg;
+	struct cam_hw_reg_trace trace;
+
+	dev = ori_sw_ctx->dev;
+	hw = ori_sw_ctx->dev->hw;
+	pr_info("hw =  0x%px\n", hw);
+	if (atomic_dec_return(&hw_ctx->user_cnt) == 0)
+		hw->dcam_ioctl(hw, DCAM_HW_DISCONECT_CSI, &hw_ctx->hw_ctx_id);
+	else {
+		pr_err("DCAM%d: fail to get valid user cnt %d\n", hw_ctx->hw_ctx_id, atomic_read(&hw_ctx->user_cnt));
+		return -1;
+	}
+	dcam_core_context_unbind(ori_sw_ctx);
+
+	hw_ctx->hw_ctx_id = 0;
+	ret = dcam_core_context_bind(new_sw_ctx, hw->csi_connect_type, hw_ctx->hw_ctx_id);
+	for (i = 0; i < DCAM_PATH_MAX; i++) {
+		path = &new_sw_ctx->path[i];
+		patharg.path_id = i;
+		patharg.idx = new_sw_ctx->hw_ctx_id;
+		patharg.slowmotion_count = new_sw_ctx->slowmotion_count;
+		patharg.cap_info = new_sw_ctx->cap_info;
+		patharg.pack_bits = new_sw_ctx->path[i].pack_bits;
+		patharg.src_sel = new_sw_ctx->path[i].src_sel;
+		patharg.bayer_pattern = new_sw_ctx->path[i].bayer_pattern;
+		patharg.in_trim = new_sw_ctx->path[i].in_trim;
+		patharg.endian = new_sw_ctx->path[i].endian;
+		atomic_set(&path->set_frm_cnt, 0);
+		if (atomic_read(&path->user_cnt) < 1 || atomic_read(&path->is_shutoff) > 0)
+			continue;
+
+		ret = dcam_path_store_frm_set(new_sw_ctx, path, NULL);
+
+		hw->dcam_ioctl(hw, DCAM_HW_CFG_PATH_START, &patharg);
+	}
+	pr_info("new_sw_ctx->hw_ctx_id = %d\n", new_sw_ctx->hw_ctx_id);
+	caparg.idx = new_sw_ctx->hw_ctx_id;
+	caparg.cap_info = new_sw_ctx->cap_info;
+	ret = hw->dcam_ioctl(hw, DCAM_HW_CFG_MIPI_CAP_SET, &caparg);
+
+	ret = dev->dcam_pipe_ops->ioctl(new_sw_ctx, DCAM_IOCTL_RECFG_PARAM, NULL);
+
+	copyarg.id = DCAM_CTRL_ALL;
+	copyarg.idx = new_sw_ctx->hw_ctx_id;
+	copyarg.glb_reg_lock = new_sw_ctx->glb_reg_lock;
+	hw->dcam_ioctl(hw, DCAM_HW_CFG_FORCE_COPY, &copyarg);
+
+
+	trace.type = NORMAL_REG_TRACE;
+	trace.idx = new_sw_ctx->hw_ctx_id;
+	hw->isp_ioctl(hw, ISP_HW_CFG_REG_TRACE, &trace);
+
+	parm.idx = new_sw_ctx->hw_ctx_id;
+	parm.format = new_sw_ctx->cap_info.format;
+	hw->dcam_ioctl(hw, DCAM_HW_CFG_START, &parm);
+
+	hw->dcam_ioctl(hw, DCAM_HW_CONECT_CSI, hw_ctx);
+	return ret;
+}
+
 int dcam_core_hw_context_id_get(struct dcam_sw_context *pctx)
 {
 	int i = 0;
@@ -2815,8 +2885,8 @@ int dcam_core_context_bind(struct dcam_sw_context *pctx, enum dcam_bind_mode mod
 		if (pctx->sw_ctx_id == pctx_hw->sw_ctx_id
 			&& pctx_hw->sw_ctx == pctx) {
 			atomic_inc(&pctx_hw->user_cnt);
-			pr_info("sw %d & hw %d already binding, cnt=%d\n",
-				pctx->sw_ctx_id, i, atomic_read(&pctx_hw->user_cnt));
+			pr_info("sw %d & hw %d are already binded, cnt=%d\n",
+				pctx->sw_ctx_id, dcam_idx, atomic_read(&pctx_hw->user_cnt));
 			spin_unlock_irqrestore(&dev->ctx_lock, flag);
 			return 0;
 		}
@@ -2831,7 +2901,7 @@ int dcam_core_context_bind(struct dcam_sw_context *pctx, enum dcam_bind_mode mod
 			if (pctx->sw_ctx_id == pctx_hw->sw_ctx_id
 				&& pctx_hw->sw_ctx == pctx) {
 				atomic_inc(&pctx_hw->user_cnt);
-				pr_info("sw %d & hw %d already binding, cnt=%d\n",
+				pr_info("sw %d & hw %d are already binded, cnt=%d\n",
 					pctx->sw_ctx_id, i, atomic_read(&pctx_hw->user_cnt));
 				spin_unlock_irqrestore(&dev->ctx_lock, flag);
 				return 0;
@@ -2858,7 +2928,7 @@ exit:
 	pctx->hw_ctx_id = pctx_hw->hw_ctx_id;
 	pctx->hw_ctx = pctx_hw;
 	pctx->ctx[DCAM_CXT_0].blk_pm.idx = pctx_hw->hw_ctx_id;
-	pr_info("sw_ctx_id=%d, hw_ctx_id=%d, mode=%d\n", pctx_hw->sw_ctx_id, hw_ctx_id, mode);
+	pr_info("sw_ctx_id=%d, hw_ctx_id=%d, mode=%d, cnt=%d\n", pctx_hw->sw_ctx_id, hw_ctx_id, mode, atomic_read(&pctx_hw->user_cnt));
 	return 0;
 }
 

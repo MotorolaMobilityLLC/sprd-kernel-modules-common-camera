@@ -48,6 +48,13 @@ enum raw_pitch_format {
 	RAW_FORMAT_MAX
 };
 
+enum dcam_hw_context_id {
+	DCAM_HW_CONTEXT_0 = 0,
+	DCAM_HW_CONTEXT_1,
+	DCAM_HW_CONTEXT_2,
+	DCAM_HW_CONTEXT_MAX,
+};
+
 static inline uint32_t cal_sprd_raw_pitch(uint32_t w, uint32_t pack_bits)
 {
 	uint32_t mod16_len[16] = {0, 8, 8, 8, 8, 12, 12, 12,
