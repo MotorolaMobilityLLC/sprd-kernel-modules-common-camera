@@ -79,7 +79,6 @@ static int isp_k_edge_block(struct isp_io_param *param,
 		(edge_info->ee_cv_t[0] & 0x3FF);
 	ISP_REG_WR(idx, ISP_EE_ADP_CFG0, val);
 
-	ISP_REG_WR(idx, ISP_EE_ADP_CFG1, val);
 	val = ((edge_info->ee_cv_clip.p & 0xFF) << 24) |
 			((edge_info->ee_cv_clip.n & 0xFF) << 16) |
 			(edge_info->ee_cv_t[3] & 0x3FF);

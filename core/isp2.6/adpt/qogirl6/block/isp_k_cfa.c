@@ -54,8 +54,7 @@ static int isp_k_cfa_block(struct isp_io_param *param,
 
 	val = ((cfa_info->weight_control_bypass & 0x1) << 31) |
 			((cfa_info->uni_dir_intplt_thr_new & 0xFFF) << 12) |
-			((cfa_info->strong_edge_thr & 0xFF) << 4) |
-			((cfa_info->grid_gain_new & 0xF));
+			((cfa_info->strong_edge_thr & 0xFF) << 4);
 	ISP_REG_WR(idx, ISP_CFAE_INTP_CFG1, val);
 
 	val = (cfa_info->cdcr_adj_factor & 0x3F) |
@@ -77,6 +76,7 @@ static int isp_k_cfa_block(struct isp_io_param *param,
 
 	ISP_REG_MWR(idx, ISP_CFAE_NEW_CFG0, BIT_2, cfa_info->css_bypass << 2);
 
+#if 0
 	val = (cfa_info->css_weak_edge_thr & 0x1FFF) |
 			((cfa_info->css_edge_thr & 0x1FFF) << 16);
 	ISP_REG_WR(idx, ISP_CFAE_CSS_CFG0, val);
@@ -132,7 +132,7 @@ static int isp_k_cfa_block(struct isp_io_param *param,
 	val = ((cfa_info->css_skin_v_top[1] & 0x3FF) << 10) |
 			(cfa_info->css_skin_v_down[1] & 0x3FF);
 	ISP_REG_WR(idx, ISP_CFAE_CSS_CFG11, val);
-
+#endif
 	return ret;
 }
 

@@ -134,16 +134,16 @@ static void isp_ltm_config_map(uint32_t idx,
 
 	val = ((map->tile_y_num  & 0x7)   << 28) |
 		((map->tile_x_num  & 0x7)   << 24) |
-		((map->tile_height & 0x3FF) << 12) |
-		(map->tile_width  & 0x3FF);
+		((map->tile_height & 0x7FF) << 12) |
+		(map->tile_width  & 0x7FF);
 	ISP_REG_WR(idx, base + ISP_LTM_MAP_PARAM1, val); /* slice */
 
-	val = map->tile_size_pro & 0xFFFFF;
+	val = map->tile_size_pro & 0x3FFFFF;
 	ISP_REG_WR(idx, base + ISP_LTM_MAP_PARAM2, val);
 
-	val = ((map->tile_right_flag & 0x1)   << 23) |
-		((map->tile_start_y    & 0x7FF) << 12) |
-		((map->tile_left_flag  & 0x1)   << 11) |
+	val = ((map->tile_right_flag & 0x1)   << 31) |
+		((map->tile_start_y    & 0xFFF) << 16) |
+		((map->tile_left_flag  & 0x1)   << 15) |
 		(map->tile_start_x    & 0x7FF);
 	ISP_REG_WR(idx, base + ISP_LTM_MAP_PARAM3, val); /* slice */
 

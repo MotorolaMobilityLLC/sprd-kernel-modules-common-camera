@@ -1370,28 +1370,25 @@ static int isphw_slice_store(void *handle, void *arg)
 
 static struct isp_cfg_entry isp_hw_cfg_func_tab[ISP_BLOCK_TOTAL - ISP_BLOCK_BASE] = {
 [ISP_BLOCK_CCE - ISP_BLOCK_BASE]      = {ISP_BLOCK_CCE,      isp_k_cfg_cce},
-#if 0
-[ISP_BLOCK_BCHS - ISP_BLOCK_BASE]     = {ISP_BLOCK_BCHS,     isp_k_cfg_bchs},
+[ISP_BLOCK_NLM - ISP_BLOCK_BASE]      = {ISP_BLOCK_NLM,      isp_k_cfg_nlm},
+[ISP_BLOCK_CFA - ISP_BLOCK_BASE]      = {ISP_BLOCK_CFA,      isp_k_cfg_cfa},
 [ISP_BLOCK_YGAMMA - ISP_BLOCK_BASE]   = {ISP_BLOCK_YGAMMA,   isp_k_cfg_ygamma},
 [ISP_BLOCK_GAMMA - ISP_BLOCK_BASE]    = {ISP_BLOCK_GAMMA,    isp_k_cfg_gamma},
-[ISP_BLOCK_NLM - ISP_BLOCK_BASE]      = {ISP_BLOCK_NLM,      isp_k_cfg_nlm},
+[ISP_BLOCK_CMC - ISP_BLOCK_BASE]      = {ISP_BLOCK_CMC,      isp_k_cfg_cmc10},
+[ISP_BLOCK_PRE_CDN - ISP_BLOCK_BASE]  = {ISP_BLOCK_PRE_CDN,  isp_k_cfg_pre_cdn},
 [ISP_BLOCK_YNR - ISP_BLOCK_BASE]      = {ISP_BLOCK_YNR,      isp_k_cfg_ynr},
+[ISP_BLOCK_UVD - ISP_BLOCK_BASE]      = {ISP_BLOCK_UVD,      isp_k_cfg_uvd},
+[ISP_BLOCK_CDN - ISP_BLOCK_BASE]      = {ISP_BLOCK_CDN,      isp_k_cfg_cdn},
+[ISP_BLOCK_EDGE - ISP_BLOCK_BASE]     = {ISP_BLOCK_EDGE,     isp_k_cfg_edge},
+[ISP_BLOCK_POST_CDN - ISP_BLOCK_BASE] = {ISP_BLOCK_POST_CDN, isp_k_cfg_post_cdn},
+[ISP_BLOCK_IIRCNR - ISP_BLOCK_BASE]   = {ISP_BLOCK_IIRCNR,   isp_k_cfg_iircnr},
+[ISP_BLOCK_YRANDOM - ISP_BLOCK_BASE]  = {ISP_BLOCK_YRANDOM,  isp_k_cfg_yrandom},
+[ISP_BLOCK_BCHS - ISP_BLOCK_BASE]     = {ISP_BLOCK_BCHS,     isp_k_cfg_bchs},
+[ISP_BLOCK_HIST2 - ISP_BLOCK_BASE]    = {ISP_BLOCK_HIST2,    isp_k_cfg_hist2},
 [ISP_BLOCK_RGB_LTM- ISP_BLOCK_BASE]   = {ISP_BLOCK_RGB_LTM,  isp_k_cfg_rgb_ltm},
 [ISP_BLOCK_YUV_LTM - ISP_BLOCK_BASE]  = {ISP_BLOCK_YUV_LTM,  isp_k_cfg_yuv_ltm},
-[ISP_BLOCK_CCE - ISP_BLOCK_BASE]      = {ISP_BLOCK_CCE,      isp_k_cfg_cce},
-[ISP_BLOCK_UVD - ISP_BLOCK_BASE]      = {ISP_BLOCK_UVD,      isp_k_cfg_uvd},
-[ISP_BLOCK_CFA - ISP_BLOCK_BASE]      = {ISP_BLOCK_CFA,      isp_k_cfg_cfa},
-[ISP_BLOCK_CMC - ISP_BLOCK_BASE]      = {ISP_BLOCK_CMC,      isp_k_cfg_cmc10},
-[ISP_BLOCK_CDN - ISP_BLOCK_BASE]      = {ISP_BLOCK_CDN,      isp_k_cfg_cdn},
+#if 0
 [ISP_BLOCK_HSV - ISP_BLOCK_BASE]      = {ISP_BLOCK_HSV,      isp_k_cfg_hsv},
-[ISP_BLOCK_GRGB - ISP_BLOCK_BASE]     = {ISP_BLOCK_GRGB,     isp_k_cfg_grgb},
-[ISP_BLOCK_EDGE - ISP_BLOCK_BASE]     = {ISP_BLOCK_EDGE,     isp_k_cfg_edge},
-[ISP_BLOCK_HIST2 - ISP_BLOCK_BASE]    = {ISP_BLOCK_HIST2,    isp_k_cfg_hist2},
-[ISP_BLOCK_IIRCNR - ISP_BLOCK_BASE]   = {ISP_BLOCK_IIRCNR,   isp_k_cfg_iircnr},
-[ISP_BLOCK_PRE_CDN - ISP_BLOCK_BASE]  = {ISP_BLOCK_PRE_CDN,  isp_k_cfg_pre_cdn},
-[ISP_BLOCK_POST_CDN - ISP_BLOCK_BASE] = {ISP_BLOCK_POST_CDN, isp_k_cfg_post_cdn},
-[ISP_BLOCK_PSTRZ - ISP_BLOCK_BASE]    = {ISP_BLOCK_PSTRZ,    isp_k_cfg_pstrz},
-[ISP_BLOCK_YRANDOM - ISP_BLOCK_BASE]  = {ISP_BLOCK_YRANDOM,  isp_k_cfg_yrandom},
 #endif
 };
 

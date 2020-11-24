@@ -208,8 +208,8 @@ static int isp_k_nlm_block(struct isp_io_param *param,
 		((p->update_flat_thr_bypass & 0x1) << 3);
 	ISP_REG_MWR(idx, ISP_NLM_RADIAL_1D_PARAM, 0xF, val);
 
-	val = ((p->nlm_radial_1D_center_y & 0x3FFF) << 16) |
-			(p->nlm_radial_1D_center_x & 0x3FFF);
+	val = ((p->nlm_radial_1D_center_y & 0x7FFF) << 16) |
+			(p->nlm_radial_1D_center_x & 0x7FFF);
 	ISP_REG_WR(idx, ISP_NLM_RADIAL_1D_DIST, val);
 
 	val = p->nlm_radial_1D_radius_threshold & 0x7FFF;
@@ -258,6 +258,8 @@ static int isp_k_nlm_imblance(struct isp_io_param *param,
 	struct isp_dev_nlm_imblance_v1 *imblance_info;
 
 	imblance_info = &isp_k_param->imbalance_info_base;
+
+	return ret;
 
 	ret = copy_from_user((void *)imblance_info,
 			(void __user *)param->property_param,

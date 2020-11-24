@@ -47,8 +47,8 @@ static int isp_k_yrandom_block(struct isp_io_param *param,
 		return 0;
 
 	val = (yrandom_info->seed << 8) |
-		((yrandom_info->mode & 1) << 7);
-	ISP_REG_MWR(idx, ISP_YRANDOM_PARAM1, 0xFFFFFF80, val);
+		((yrandom_info->mode & 1) << 1);
+	ISP_REG_MWR(idx, ISP_YRANDOM_PARAM1, 0xFFFFFF02, val);
 
 	if (yrandom_info->mode == 0)
 		ISP_REG_WR(idx, ISP_YRANDOM_INIT, 1);
