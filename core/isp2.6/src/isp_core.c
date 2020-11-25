@@ -100,6 +100,10 @@ static void ispcore_out_frame_ret(void *param)
 
 	frame = (struct camera_frame *)param;
 	path = (struct isp_path_desc *)frame->priv_data;
+	if (!path) {
+		pr_err("fail to get out_frame path.\n");
+		return;
+	}
 
 	pr_debug("frame %p, ch_id %d, buf_fd %d\n",
 		frame, frame->channel_id, frame->buf.mfd[0]);
@@ -126,6 +130,11 @@ static void ispcore_src_frame_ret(void *param)
 
 	frame = (struct camera_frame *)param;
 	pctx = (struct isp_sw_context *)frame->priv_data;
+	if (!pctx) {
+	pr_err("fail to get src_frame pctx.\n");
+	return;
+	}
+
 	pr_debug("frame %p, ch_id %d, buf_fd %d\n",
 		frame, frame->channel_id, frame->buf.mfd[0]);
 	ispcore_offline_pararm_free(frame->param_data);
