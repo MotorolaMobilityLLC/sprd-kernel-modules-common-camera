@@ -42,8 +42,10 @@ int dcam_k_bpc_block(struct dcam_dev_param *param)
 		p->bpc_bypass = 1;
 
 	/* following bit can be 0 only if bpc_bypss is 0 */
-	if (p->bpc_bypass == 1)
+	if (p->bpc_bypass == 1) {
 		p->bpc_double_bypass = 1;
+		p->bpc_mod_en = 0;
+	}
 	if (p->bpc_double_bypass == 1)
 		p->bpc_three_bypass = 1;
 	if (p->bpc_three_bypass == 1)
@@ -52,7 +54,8 @@ int dcam_k_bpc_block(struct dcam_dev_param *param)
 	val = (p->bpc_bypass & 0x1) |
 		((p->bpc_double_bypass & 0x1) << 1) |
 		((p->bpc_three_bypass & 0x1) << 2) |
-		((p->bpc_four_bypass & 0x1) << 3);
+		((p->bpc_four_bypass & 0x1) << 3) |
+		((p->bpc_mod_en & 0x1) << 30);
 	DCAM_REG_MWR(idx, ISP_BPC_PARAM, 0xF, val);
 	val = DCAM_REG_RD(idx, ISP_BPC_PARAM);
 	if (p->bpc_bypass)
@@ -65,9 +68,6 @@ int dcam_k_bpc_block(struct dcam_dev_param *param)
 		((p->bpc_edge_rd_mode & 0x3) << 10) |
 		((p->bpc_pos_out_en & 0x1) << 16) |
 		((p->bpc_map_clr_en & 0x1) << 17) |
-		((p->bpc_rd_max_len_sel & 0x1) << 18) |
-		((p->bpc_wr_max_len_sel & 0x1) << 19) |
-		((p->bpc_blk_mode & 0x1) << 20) |
 		((p->bpc_mod_en & 0x1) << 30) |
 		((p->bpc_cg_dis & 0x1) << 31);
 	DCAM_REG_MWR(idx, ISP_BPC_PARAM, 0xC01F0FF0, val);

@@ -52,17 +52,19 @@ int dcam_k_awbc_block(struct dcam_dev_param *param)
 		(p->gain.gr & 0x3FFF);
 	DCAM_REG_WR(idx, ISP_AWBC_GAIN1, val);
 
-	val = ((p->thrd.b & 0x3FF) << 20) |
-		((p->thrd.gr & 0x3FF) << 10) |
-		(p->thrd.r & 0x3FF);
+	val = ((p->thrd.b & 0x3FFF) << 16) |
+		(p->thrd.r & 0x3FFF);
 	DCAM_REG_WR(idx, ISP_AWBC_THRD, val);
 
-	val = ((p->gain_offset.b & 0x7FF) << 16) |
-		(p->gain_offset.r & 0x7FF);
+	val = ((p->thrd.gr & 0x3FFF));
+	DCAM_REG_WR(idx, ISP_AWBC_THRD1, val);
+
+	val = ((p->gain_offset.b & 0x7FFF) << 16) |
+		(p->gain_offset.r & 0x7FFF);
 	DCAM_REG_WR(idx, ISP_AWBC_OFFSET0, val);
 
-	val = ((p->gain_offset.gb & 0x7FF) << 16) |
-		(p->gain_offset.gr & 0x7FF);
+	val = ((p->gain_offset.gb & 0x7FFF) << 16) |
+		(p->gain_offset.gr & 0x7FFF);
 	DCAM_REG_WR(idx, ISP_AWBC_OFFSET1, val);
 
 	return ret;
