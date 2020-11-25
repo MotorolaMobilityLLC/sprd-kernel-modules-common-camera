@@ -15,6 +15,7 @@
 #define _SPRD_SENSOR_CORE_H_
 
 #include <linux/of_device.h>
+#include <linux/pm_wakeup.h>
 #include <video/sprd_sensor_k.h>
 
 #ifdef CONFIG_REGULATOR_SC2721
@@ -107,10 +108,11 @@ struct sprd_sensor_core_module_tag {
 	unsigned int padding;
 	struct mutex sensor_id_lock;
 	//struct wake_lock wakelock;
-	struct wakeup_source ws;
+	struct wakeup_source *ws;
 };
 
 struct sprd_sensor_file_tag {
+	struct miscdevice *md;
 	unsigned int sensor_mclk;
 	unsigned int phy_id;
 	unsigned int if_type;

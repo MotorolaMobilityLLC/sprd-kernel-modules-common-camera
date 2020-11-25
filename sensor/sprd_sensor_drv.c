@@ -1287,7 +1287,7 @@ int sprd_sensor_write_regtab(struct sensor_reg_tab_tag *p_reg_table,
 	struct sensor_reg_tag *sensor_reg_ptr;
 	struct sensor_reg_bits_tag reg_bit;
 	uint32_t i;
-	struct timeval time1 = {0}, time2 = {0};
+	/*struct timeval time1 = {0}, time2 = {0};*/
 	struct sprd_sensor_mem_tag p_mem = {0};
 
 	size = cnt * sizeof(*sensor_reg_ptr);
@@ -1306,7 +1306,7 @@ int sprd_sensor_write_regtab(struct sensor_reg_tab_tag *p_reg_table,
 
 	sensor_reg_ptr = (struct sensor_reg_tag *)pBuff;
 
-	do_gettimeofday(&time1);
+	/*do_gettimeofday(&time1);*/
 
 	switch (p_reg_table->burst_mode) {
 	case SPRD_SENSOR_I2C_SINGLE_WRITE: {
@@ -1377,11 +1377,11 @@ int sprd_sensor_write_regtab(struct sensor_reg_tab_tag *p_reg_table,
 exit:
 	if (p_mem.buf_ptr)
 		sprd_sensor_free(&p_mem);
-	do_gettimeofday(&time2);
+	/*do_gettimeofday(&time2);
 	pr_debug("sensor w RegTab: done, ret %d, cnt %d, time %d us\n",
 		ret, cnt,
 		(uint32_t) ((time2.tv_sec - time1.tv_sec) * 1000000 +
-			(time2.tv_usec - time1.tv_usec)));
+			(time2.tv_usec - time1.tv_usec)));*/
 	return ret;
 }
 
@@ -1395,7 +1395,7 @@ int sprd_sensor_k_write_regtab(struct sensor_reg_tab_tag *p_reg_table,
 	struct sensor_reg_tag *sensor_reg_ptr;
 	struct sensor_reg_bits_tag reg_bit;
 	uint32_t i;
-	struct timeval time1 = {0}, time2 = {0};
+	/*struct timeval time1 = {0}, time2 = {0};*/
 	struct sprd_sensor_mem_tag p_mem = {0};
 
 	size = cnt * sizeof(*sensor_reg_ptr);
@@ -1479,11 +1479,11 @@ int sprd_sensor_k_write_regtab(struct sensor_reg_tab_tag *p_reg_table,
 exit:
 	if (p_mem.buf_ptr)
 		sprd_sensor_free(&p_mem);
-	do_gettimeofday(&time2);
+	/*do_gettimeofday(&time2);
 	pr_debug("sensor w RegTab: done, ret %d, cnt %d, time %d us\n",
 		ret, cnt,
 		(uint32_t) ((time2.tv_sec - time1.tv_sec) * 1000000 +
-			(time2.tv_usec - time1.tv_usec)));
+			(time2.tv_usec - time1.tv_usec)));*/
 	return ret;
 }
 

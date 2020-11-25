@@ -31,6 +31,7 @@ endif
 #
 # Build Options
 #
+ccflags-y += -I$(KO_MODULE_PATH)
 ccflags-y += -I$(KO_MODULE_PATH)/../common
 ccflags-y += -I$(KO_MODULE_PATH)/../interface
 ccflags-y += -I$(KO_MODULE_PATH)/csi2/sprd/$(CSI_DIR)

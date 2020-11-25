@@ -26,7 +26,18 @@
 #include <linux/poll.h>
 #include <linux/slab.h>
 #include <linux/sched.h>
+#include <linux/version.h>
+
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 4, 0))
 #include <video/sprd_mmsys_pw_domain.h>
+#else
+#include <linux/pm_runtime.h>
+#include <linux/pm_domain.h>
+
+extern int sprd_cam_pw_on(struct generic_pm_domain *domain);
+extern int sprd_cam_pw_off(struct generic_pm_domain *domain);
+#endif
+
 
 #include "csi_api.h"
 #ifdef CONFIG_COMPAT
@@ -624,6 +635,7 @@ static int sprd_sensor_file_open(struct inode *node, struct file *file)
 	}
 
 	if (atomic_inc_return(&p_mod->total_users) == 1) {
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 4, 0))
 		ret = sprd_cam_pw_on();
 		if (ret) {
 			pr_err("sensor: mm power on err\n");
@@ -631,9 +643,14 @@ static int sprd_sensor_file_open(struct inode *node, struct file *file)
 			goto exit;
 		}
 		sprd_cam_domain_eb();
+#else
+//		ret = pm_runtime_get(md->this_device);
+		ret = sprd_cam_pw_on(NULL);
+#endif
 /*		wake_lock(&p_mod->wakelock);*/
-		__pm_stay_awake(&p_mod->ws);
+		__pm_stay_awake(p_mod->ws);
 	}
+	p_file->md = md;
 	file->private_data = p_file;
 	p_file->mod_data = p_mod;
 	pr_info("open sensor file successfully\n");
@@ -683,10 +700,15 @@ static int sprd_sensor_file_release(struct inode *node, struct file *file)
 					0, power[i][1]);
 	}
 	if (atomic_dec_return(&p_mod->total_users) == 0) {
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 4, 0))
 		sprd_cam_domain_disable();
 		sprd_cam_pw_off();
+#else
+//		pm_runtime_put(p_file->md->this_device);
+		ret = sprd_cam_pw_off(NULL);
+#endif
 /*		wake_unlock(&p_mod->wakelock);*/
-		__pm_relax(&p_mod->ws);
+		__pm_relax(p_mod->ws);
 	}
 	kfree(p_file);
 	p_file = NULL;
@@ -761,7 +783,8 @@ static int sprd_sensor_core_module_init(void)
 	wake_lock_init(&p_data->wakelock, WAKE_LOCK_SUSPEND,
 		       "Camera Sensor Waklelock");
 		       */
-	wakeup_source_init(&p_data->ws,"Camera Sensor Wakeup Source");
+	p_data->ws = wakeup_source_create("Camera Sensor Wakeup Source");
+	wakeup_source_add(p_data->ws);
 
 	atomic_set(&p_data->total_users, 0);
 	sprd_sensor_register_driver();
@@ -790,7 +813,7 @@ static void sprd_sensor_core_module_exit(void)
 	if (p_data) {
 		mutex_destroy(&p_data->sensor_id_lock);
 /*		wake_lock_destroy(&p_data->wakelock);*/
-		wakeup_source_trash(&p_data->ws);
+		wakeup_source_destroy(p_data->ws);
 		kfree(p_data);
 		p_data = NULL;
 	}
