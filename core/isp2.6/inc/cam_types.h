@@ -16,6 +16,7 @@
 
 #include <linux/completion.h>
 #include "sprd_img.h"
+#include "cam_porting.h"
 
 #ifndef MAX
 #define MAX(__a, __b) (((__a) > (__b)) ? (__a) : (__b))
@@ -265,5 +266,6 @@ typedef int(*isp_dev_callback)(enum isp_cb_type type, void *param,
 				void *priv_data);
 typedef int(*dcam_dev_callback)(enum dcam_cb_type type, void *param,
 				void *priv_data);
+typedef int (*proc_func)(void *param);
 
 #endif/* _CAM_TYPES_H_ */

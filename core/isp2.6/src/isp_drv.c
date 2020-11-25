@@ -21,8 +21,6 @@
 #include <linux/regmap.h>
 #include <linux/interrupt.h>
 #include <sprd_mm.h>
-#include <video/sprd_mmsys_pw_domain.h>
-
 #include "isp_reg.h"
 #include "isp_int.h"
 #include "isp_core.h"
@@ -832,7 +830,6 @@ int isp_drv_dt_parse(struct device_node *dn,
 	struct device_node *qos_node = NULL;
 	struct device_node *iommu_node = NULL;
 	struct resource res = {0};
-	int args_count = 0;
 	uint32_t args[2];
 
 	/* todo: should update according to SharkL5/ROC1 dts
@@ -952,9 +949,8 @@ int isp_drv_dt_parse(struct device_node *dn,
 			return PTR_ERR(soc_isp->cam_ahb_gpr);
 		}
 
-		args_count = syscon_get_args_by_name(isp_node, "reset",
-			ARRAY_SIZE(args), args);
-		if (args_count == ARRAY_SIZE(args)) {
+		if (!cam_syscon_get_args_by_name(isp_node, "reset",
+			ARRAY_SIZE(args), args)) {
 			ip_isp->syscon.rst = args[0];
 			ip_isp->syscon.rst_mask = args[1];
 		} else {
@@ -962,14 +958,12 @@ int isp_drv_dt_parse(struct device_node *dn,
 			return -EINVAL;
 		}
 
-		args_count = syscon_get_args_by_name(isp_node, "isp_ahb_reset",
-			ARRAY_SIZE(args), args);
-		if (args_count == ARRAY_SIZE(args))
+		if (!cam_syscon_get_args_by_name(isp_node, "isp_ahb_reset",
+			ARRAY_SIZE(args), args))
 			ip_isp->syscon.rst_ahb_mask = args[1];
 
-		args_count = syscon_get_args_by_name(isp_node, "isp_vau_reset",
-			ARRAY_SIZE(args), args);
-		if (args_count == ARRAY_SIZE(args))
+		if (!cam_syscon_get_args_by_name(isp_node, "isp_vau_reset",
+			ARRAY_SIZE(args), args))
 			ip_isp->syscon.rst_vau_mask = args[1];
 
 		if (of_address_to_resource(isp_node, i, &res))
@@ -1020,12 +1014,17 @@ int isp_drv_hw_init(void *arg)
 	dev = (struct isp_pipe_dev *)arg;
 	hw = dev->isp_hw;
 
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 4, 0))
 	ret = sprd_cam_pw_on();
 	if (ret)
 		goto exit;
 	ret = sprd_cam_domain_eb();
 	if (ret)
 		goto power_eb_fail;
+#else
+	if (ret)
+		goto exit;
+#endif
 
 	ret = hw->isp_ioctl(hw, ISP_HW_CFG_ENABLE_CLK, NULL);
 	if (ret)
@@ -1047,9 +1046,11 @@ int isp_drv_hw_init(void *arg)
 reset_fail:
 	hw->isp_ioctl(hw, ISP_HW_CFG_DISABLE_CLK, NULL);
 clk_fail:
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 4, 0))
 	sprd_cam_domain_disable();
 power_eb_fail:
 	sprd_cam_pw_off();
+#endif
 exit:
 	return ret;
 }
@@ -1078,8 +1079,9 @@ int isp_drv_hw_deinit(void *arg)
 	if (ret)
 		pr_err("fail to disable isp clk\n");
 
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 4, 0))
 	sprd_cam_domain_disable();
 	sprd_cam_pw_off();
-
+#endif
 	return ret;
 }

@@ -21,8 +21,6 @@
 
 extern atomic_t s_dcam_working;
 static uint32_t dcam_hw_linebuf_len[3] = {0, 0, 0};
-extern void sprd_kproperty_get(const char *key, char *value,
-	const char *default_value);
 static uint32_t g_gtm_en = 0;
 static uint32_t g_ltm_bypass = 1;
 static atomic_t clk_users;
@@ -997,10 +995,10 @@ static int dcamhw_lbuf_share_set(void *handle, void *arg)
 		4160, 5184,
 		3264, 5664,
 	};
-	char chip_type[64] = { 0 };
+	char chip_type[64]= { 0 };
 	struct cam_hw_lbuf_share *camarg = (struct cam_hw_lbuf_share *)arg;
 
-	sprd_kproperty_get("lwfq/type", chip_type, "-1");
+	cam_kproperty_get("lwfq/type", chip_type, "-1");
 	/*0: T618 1:T610*/
 	dcam_hw_linebuf_len[camarg->idx] = camarg->width;
 	pr_debug("dcam_hw_linebuf_len[0] = %d, [1] = %d %s\n",

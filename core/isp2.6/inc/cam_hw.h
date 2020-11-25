@@ -959,8 +959,8 @@ struct cam_hw_info {
 	struct cam_hw_soc_info *soc_isp;
 	struct cam_hw_ip_info *ip_dcam[DCAM_ID_MAX];
 	struct cam_hw_ip_info *ip_isp;
-	int (*dcam_ioctl)(void *, uint32_t, void *);
-	int (*isp_ioctl)(void *, uint32_t, void *);
+	int (*dcam_ioctl)(void *,enum dcam_hw_cfg_cmd, void *);
+	int (*isp_ioctl)(void *,enum isp_hw_cfg_cmd, void *);
 	uint32_t csi_connect_type;
 };
 

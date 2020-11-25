@@ -12,6 +12,8 @@
  */
 
 #include <linux/uaccess.h>
+#include <linux/fs.h>
+
 #include "cam_test.h"
 
 #ifdef pr_fmt
@@ -47,7 +49,7 @@ void camt_write_image_to_file(unsigned char *buffer,
 	pr_info("write image buf=%p, size=%d\n", buffer, left);
 	do {
 		cur = min(left, per);
-		result = kernel_write(wfp, buffer, cur, &wfp->f_pos);
+		result = cam_kernel_write(wfp, buffer, cur, &wfp->f_pos);
 		if (result > 0) {
 			left -= result;
 			buffer += result;
@@ -77,7 +79,7 @@ void read_image_from_file(unsigned char *buffer,
 	pr_info("read image buf=%p, size=%d\n", buffer, left);
 	do {
 		cur = min(left, per);
-		result = kernel_read(fp, buffer, cur, &fp->f_pos);
+		result = cam_kernel_read(fp, buffer, cur, &fp->f_pos);
 		if (result > 0) {
 			left -= result;
 			buffer += result;

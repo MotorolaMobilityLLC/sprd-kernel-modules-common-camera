@@ -30,8 +30,8 @@
 #include <linux/uaccess.h>
 #include <linux/vmalloc.h>
 #include <sprd_mm.h>
-#include <video/sprd_mmsys_pw_domain.h>
 
+#include "cam_types.h"
 #include "cpp_drv.h"
 #include "cpp_hw.h"
 

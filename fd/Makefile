@@ -12,6 +12,11 @@ KO_MODULE_NAME := sprd_fd
 KO_MODULE_OUT := $(BSP_MODULES_OUT)/$(KO_MODULE_NAME)
 KO_MODULE_KBUILD := $(CURDIR)/Kbuild
 
+ifeq ($(strip $(BSP_KERNEL_VERSION)),kernel5.4)
+KBUILD_EXTRA_SYMBOLS += $(BSP_MODULES_OUT)/sprd_camera/Module.symvers
+export KBUILD_EXTRA_SYMBOLS
+endif
+
 .PHONY: modules modules_install clean
 
 modules:

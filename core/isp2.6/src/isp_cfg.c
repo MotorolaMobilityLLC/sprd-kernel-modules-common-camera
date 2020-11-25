@@ -15,6 +15,7 @@
 #include <sprd_mm.h>
 #include <linux/sprd_iommu.h>
 #include <linux/sprd_ion.h>
+#include <linux/seq_file.h>
 
 #include "isp_reg.h"
 #include "isp_core.h"

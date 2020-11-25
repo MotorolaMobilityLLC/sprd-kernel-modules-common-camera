@@ -30,9 +30,9 @@
 #include <linux/uaccess.h>
 #include <linux/vmalloc.h>
 #include <sprd_mm.h>
+#include "cam_types.h"
 #include "sprd_cpp.h"
 #include "sprd_img.h"
-#include <uapi/video/sprd_mmsys_pw_domain.h>
 
 #include "cpp_int.h"
 #include "cpp_drv.h"
@@ -113,8 +113,12 @@ static void cppcore_module_disable(struct cpp_device *dev)
 	ret = dev->cppif->cppdrv_ops->ioctl(CPP_DRV_CLK_DIS, dev->hw_info, soc_cpp);
 	if (ret)
 	goto fail;
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 4, 0))
 	sprd_cam_domain_disable();
 	sprd_cam_pw_off();
+#else
+	pm_runtime_put(&dev->pdev->dev);
+#endif
 fail:
 	mutex_unlock(&dev->lock);
 }
@@ -185,12 +189,20 @@ static int cppcore_open(struct inode *node, struct file *file)
 			atomic_read(&dev->users));
 		return 0;
 	}
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 4, 0))
 	ret = sprd_cam_pw_on();
 	if (ret) {
 		pr_err("%s fail to power on cpp\n", __func__);
 		goto fail;
 	}
 	sprd_cam_domain_eb();
+#else
+	ret = pm_runtime_get(&dev->pdev->dev);
+	if (ret) {
+		pr_err("%s fail to power on cpp\n", __func__);
+		goto fail;
+	}
+#endif
 	hw = dev->hw_info;
 	if (!hw) {
 		pr_err("fail to get valid cpp hw info\n");
@@ -223,8 +235,12 @@ static int cppcore_open(struct inode *node, struct file *file)
 vzalloc_fail:
 	cppcore_module_disable(dev);
 enable_fail:
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 4, 0))
 	sprd_cam_domain_disable();
 	ret = sprd_cam_pw_off();
+#else
+	ret = pm_runtime_put(&dev->pdev->dev);
+#endif
 	if (ret) {
 		pr_err("%s: failed to camera power off\n", __func__);
 		return ret;
@@ -331,6 +347,10 @@ static int cppcore_probe(struct platform_device *pdev)
 	dev->io_base = hw_info->ip_cpp->io_base;
 	mutex_init(&dev->lock);
 	atomic_set(&dev->users, 0);
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0))
+	pm_runtime_enable(&pdev->dev);
+	pm_runtime_set_active(&pdev->dev);
+#endif
 	platform_set_drvdata(pdev, (void *)dev);
 	CPP_TRACE("cpp probe OK\n");
 

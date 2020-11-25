@@ -12,8 +12,6 @@
  */
 
 #include <linux/delay.h>
-#include <video/sprd_mmsys_pw_domain.h>
-
 #include "sprd_mm.h"
 #include "dcam_hw_adpt.h"
 #include "isp_hw_adpt.h"
@@ -271,9 +269,10 @@ static int camt_isp_hw_init(struct ispt_context *cxt)
 	struct isp_hw_default_param tmp_default;
 
 	hw = cxt->hw;
-
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 4, 0))
 	ret = sprd_cam_pw_on();
 	ret |= sprd_cam_domain_eb();
+#endif
 
 	hw->isp_ioctl(hw, ISP_HW_CFG_ENABLE_CLK, NULL);
 	hw->isp_ioctl(hw, ISP_HW_CFG_RESET, NULL);
@@ -315,10 +314,10 @@ static int camt_isp_hw_deinit(struct ispt_context *cxt)
 		devm_free_irq(&hw->pdev->dev, cxt->isp_irq[i], cxt);
 	}
 	hw->isp_ioctl(hw, ISP_HW_CFG_DISABLE_CLK, NULL);
-
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 4, 0))
 	sprd_cam_domain_disable();
 	sprd_cam_pw_off();
-
+#endif
 	return ret;
 }
 

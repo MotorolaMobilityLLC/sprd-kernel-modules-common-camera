@@ -33,7 +33,6 @@
 #include <linux/mfd/syscon.h>
 #include <linux/regmap.h>
 #include "sprd_img.h"
-#include <video/sprd_mmsys_pw_domain.h>
 #include <sprd_mm.h>
 #include <sprd_fd.h>
 
@@ -141,15 +140,13 @@ static int sprd_fd_config_syscon(struct fd_drv *handle,
 	int ret = 0;
 
 	for (i = 0; i < FD_SYSCON_MAX; i++) {
-
-		handle->syscon[i].reg_map = syscon_regmap_lookup_by_name(dn,
+		handle->syscon[i].reg_map = cam_syscon_regmap_lookup_by_name(dn,
 						fd_syscons[i]);
 		if (handle->syscon[i].reg_map == NULL) {
 			pr_err("FD_ERR, failed to get syscon %d\n", i);
 			return -1;
 		}
-		ret = syscon_get_args_by_name(dn, fd_syscons[i], 2, args);
-		if (ret < 0) {
+		if (cam_syscon_get_args_by_name(dn, fd_syscons[i], 2, args)) {
 			pr_err("FD_ERR, fail  get syscon args ret %d i %d\n",
 					ret, i);
 			return ret;
@@ -458,6 +455,7 @@ int sprd_fd_drv_open(void *drv_handle)
 	}
 
 	if (atomic_inc_return(&hw_handle->pw_users) == 1) {
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 4, 0))
 		ret = sprd_cam_pw_on();
 		if (ret != 0) {
 			pr_err("FD_ERR: sprd cam_sys power on failed %d\n",
@@ -465,6 +463,14 @@ int sprd_fd_drv_open(void *drv_handle)
 			return ret;
 		}
 		ret = sprd_cam_domain_eb();
+#else
+		ret = pm_runtime_get(&hw_handle->pdev->dev);
+		if (ret != 0) {
+			pr_err("FD_ERR: sprd cam_sys power on failed %d\n",
+							ret);
+			return ret;
+		}
+#endif
 		fd_clk_enable(hw_handle);
 		fd_regmap_on(hw_handle, FD_SYSCON_ENABLE);
 #if FD_DVFS_ENABLED
@@ -554,8 +560,12 @@ int sprd_fd_drv_close(void *drv_handle)
 #endif
 		fd_regmap_off(hw_handle, FD_SYSCON_ENABLE);
 		fd_disable_clk(hw_handle);
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 4, 0))
 		sprd_cam_domain_disable();
 		ret = sprd_cam_pw_off();
+#else
+		ret = pm_runtime_put(&hw_handle->pdev->dev);
+#endif
 		if (ret != 0) {
 			pr_err("FD_ERR: sprd cam_sys power off failed\n");
 			return ret;

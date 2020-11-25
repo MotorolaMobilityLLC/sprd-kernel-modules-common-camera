@@ -20,7 +20,6 @@
 #include <linux/sprd_iommu.h>
 #include <linux/sprd_ion.h>
 
-#include "ion.h"
 #include "cam_types.h"
 #include "cam_buf.h"
 #include "cam_queue.h"
@@ -314,7 +313,7 @@ int cam_buf_alloc(struct camera_buf *buf_info,
 				ION_HEAP_ID_MASK_MM;
 	}
 
-	buf_info->dmabuf_p[0] = ion_new_alloc(size, heap_type, flag);
+	buf_info->dmabuf_p[0] = cam_ion_alloc(size, heap_type, flag);
 	if (IS_ERR_OR_NULL(buf_info->dmabuf_p[0])) {
 		pr_err("fail to alloc ion buf size = 0x%x\n", (int)size);
 		ret = -ENOMEM;
@@ -342,7 +341,7 @@ int cam_buf_alloc(struct camera_buf *buf_info,
 	return 0;
 
 failed:
-	ion_free(buf_info->dmabuf_p[0]);
+	cam_ion_free(buf_info->dmabuf_p[0]);
 	buf_info->dmabuf_p[0] = NULL;
 	buf_info->ionbuf[0] = NULL;
 	buf_info->size[0] = 0;
@@ -371,7 +370,7 @@ int cam_buf_free(struct camera_buf *buf_info)
 
 	dmabuf = buf_info->dmabuf_p[0];
 	if (dmabuf) {
-		ion_free(dmabuf);
+		cam_ion_free(dmabuf);
 		buf_info->dmabuf_p[0] = NULL;
 		buf_info->mfd[0] = 0;
 		buf_info->size[0] = 0;

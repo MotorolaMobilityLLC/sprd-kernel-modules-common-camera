@@ -23,10 +23,12 @@ KO_MODULE_SRC += $(wildcard $(KO_MODULE_PATH)/$(CPP_DIR)/hw/$(ADAPT_DIR)/*.c)
 #
 # Build Options
 #
+ccflags-y += -I$(KO_MODULE_PATH)/../core/isp2.6/inc/
 ccflags-y += -I$(KO_MODULE_PATH)/../common
 ccflags-y += -I$(KO_MODULE_PATH)/../interface
 ccflags-y += -I$(KO_MODULE_PATH)/$(CPP_DIR)/inc
 ccflags-y += -I$(KO_MODULE_PATH)/$(CPP_DIR)/hw/$(ADAPT_DIR)
+ccflags-y += -I$(srctree)/drivers/staging/android/ion
 
 #
 # Final Objects

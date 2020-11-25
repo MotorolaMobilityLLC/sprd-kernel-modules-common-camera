@@ -23,7 +23,9 @@
 #include <linux/spinlock.h>
 #include <linux/sprd_ion.h>
 #include <linux/kthread.h>
-#include <video/sprd_mmsys_pw_domain.h>
+
+#include "isp_hw.h"
+#include "sprd_img.h"
 #include <sprd_mm.h>
 
 #include "isp_hw.h"

@@ -342,6 +342,10 @@ static int sprd_fd_probe(struct platform_device *pdev)
 	mutex_init(&module->mod_lock);
 	pr_info("%s end ret %d\n", __func__, ret);
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0))
+	pm_runtime_enable(&pdev->dev);
+	pm_runtime_set_active(&pdev->dev);
+#endif
 	return ret;
 }
 

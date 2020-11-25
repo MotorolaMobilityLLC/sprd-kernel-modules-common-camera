@@ -386,15 +386,14 @@ static enum dcam_fix_result dcamint_fix_index_if_needed(struct dcam_hw_context *
 	/* restore timestamp and index for slow motion */
 	delta_ns = ktime_sub(dev->frame_ts_boot[tsid(old_index)],
 			dev->frame_ts_boot[tsid(old_index - 1)]);
-	delta_ts = timespec_sub(dev->frame_ts[tsid(old_index)],
+	delta_ts = cam_timespec_sub(dev->frame_ts[tsid(old_index)],
 				dev->frame_ts[tsid(old_index - 1)]);
-
 	while (--end >= begin) {
 		dev->frame_ts_boot[tsid(end)]
 			= ktime_sub_ns(dev->frame_ts_boot[tsid(end + 1)],
 				delta_ns);
 		dev->frame_ts[tsid(end)]
-			= timespec_sub(dev->frame_ts[tsid(end + 1)],
+			= cam_timespec_sub(dev->frame_ts[tsid(end + 1)],
 				delta_ts);
 	}
 

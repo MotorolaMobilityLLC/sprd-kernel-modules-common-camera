@@ -25,7 +25,6 @@
 #include <linux/uaccess.h>
 #include <linux/slab.h>
 #include <linux/sprd_iommu.h>
-#include <linux/sprd_ion.h>
 
 #include <sprd_mm.h>
 #include <isp_hw.h>
@@ -1126,7 +1125,7 @@ static void camcore_prepare_frame_from_file(struct camera_queue *queue,
 	left = total;
 	do {
 		cur = min((uint32_t)left, per);
-		result = kernel_read(raw, buf, cur, &raw->f_pos);
+		result = cam_kernel_read(raw, buf, cur, &raw->f_pos);
 		buf += result;
 		left -= result;
 	} while (result > 0 && left > 0);
@@ -1309,7 +1308,7 @@ exit:
 	return ret;
 }
 
-static void camcore_buffers_alloc(void *param)
+static int camcore_buffers_alloc(void *param)
 {
 	int ret = 0;
 	int i, count, total, iommu_enable;
@@ -1336,7 +1335,7 @@ static void camcore_buffers_alloc(void *param)
 		cam_queue_empty_frame_put(alloc_buf);
 	} else {
 		pr_err("fail to dequeue alloc_buf\n");
-		return;
+		return -1;
 	}
 
 	hw = module->grp->hw_info;
@@ -1614,6 +1613,7 @@ exit:
 	complete(&channel->alloc_com);
 	pr_info("ch %d done. status %d\n",
 		channel->ch_id, atomic_read(&channel->err_status));
+	return ret;
 }
 
 /* frame to fifo queue for dual camera
@@ -4555,7 +4555,7 @@ static void camcore_write_image_to_file(uint8_t *buffer,
 	pr_debug("write image buf=%p, size=%d\n", buffer, (uint32_t)size);
 	do {
 		writ = (BYTE_PER_ONCE < size) ? BYTE_PER_ONCE : size;
-		result = kernel_write(wfp, buffer, writ, &wfp->f_pos);
+		result = cam_kernel_write(wfp, buffer, writ, &wfp->f_pos);
 		pr_debug("write result: %d, size: %d, pos: %d\n",
 		(uint32_t)result,  (uint32_t)size, (uint32_t)wfp->f_pos);
 
@@ -4743,9 +4743,16 @@ static int camcore_dumpraw_proc(void *param)
 	return 0;
 }
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0))
+static void camcore_timer_callback(struct timer_list *t)
+{
+	struct camera_module *module = from_timer(module, t, cam_timer);
+#else
 static void camcore_timer_callback(unsigned long data)
 {
 	struct camera_module *module = (struct camera_module *)data;
+#endif
+
 	struct camera_frame *frame;
 	int ret = 0;
 
@@ -4777,7 +4784,11 @@ static void camcore_timer_callback(unsigned long data)
 static void camcore_timer_init(struct timer_list *cam_timer,
 		unsigned long data)
 {
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0))
+	timer_setup(cam_timer, camcore_timer_callback, 0);
+#else
 	setup_timer(cam_timer, camcore_timer_callback, data);
+#endif
 }
 
 static int camcore_timer_start(struct timer_list *cam_timer,
@@ -4831,7 +4842,8 @@ static int camcore_thread_loop(void *arg)
 	return 0;
 }
 
-static int camcore_thread_create(void *ctx_handle, struct cam_thread_info *thrd, void *func)
+static int camcore_thread_create(void *ctx_handle,
+	struct cam_thread_info *thrd, proc_func func)
 {
 	thrd->ctx_handle = ctx_handle;
 	thrd->proc_func = func;
@@ -6130,6 +6142,10 @@ static int camcore_open(struct inode *node, struct file *file)
 		return -EMFILE;
 	}
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0))
+	ret = pm_runtime_get(&grp->hw_info->pdev->dev);
+#endif
+
 	pr_info("sprd_img: the camera opened count %d\n",
 		atomic_read(&grp->camera_opened));
 
@@ -6220,6 +6236,10 @@ alloc_fail:
 
 exit:
 	atomic_dec(&grp->camera_opened);
+
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0))
+	pm_runtime_put_autosuspend(&grp->hw_info->pdev->dev);
+#endif
 
 	pr_err("fail to open camera %d\n", ret);
 	return ret;
@@ -6326,6 +6346,9 @@ static int camcore_release(struct inode *node, struct file *file)
 
 		ret = cam_buf_mdbg_check();
 		atomic_set(&group->runner_nr, 0);
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0))
+		ret = pm_runtime_put_autosuspend(&group->hw_info->pdev->dev);
+#endif
 	}
 
 	pr_info("sprd_img: cam %d release end.\n", idx);
@@ -6421,6 +6444,11 @@ static int camcore_probe(struct platform_device *pdev)
 		pr_err("fail to parse isp dts\n");
 		goto probe_pw_fail;
 	}
+
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0))
+	pm_runtime_set_active(&pdev->dev);
+	pm_runtime_enable(&pdev->dev);
+#endif
 
 	/* for get ta status
 	 * group->ca_conn  = cam_trusty_connect();

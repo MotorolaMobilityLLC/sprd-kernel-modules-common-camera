@@ -21,8 +21,6 @@
 
 extern atomic_t s_dcam_working;
 static uint32_t dcam_hw_linebuf_len[3] = {0, 0, 0};
-extern void sprd_kproperty_get(const char *key, char *value,
-	const char *default_value);
 static uint32_t g_gtm_en = 0;
 static uint32_t g_ltm_bypass = 1;
 static atomic_t clk_users;

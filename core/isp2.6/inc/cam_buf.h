@@ -18,8 +18,7 @@
 #include <linux/device.h>
 #include <linux/sprd_iommu.h>
 
-#include "ion.h"
-/* #include "ion_priv.h" */
+#include "cam_porting.h"
 
 #define CAM_BUF_NAME_LEN         32
 #define CAM_BUF_CAHCED           (1 << 31)

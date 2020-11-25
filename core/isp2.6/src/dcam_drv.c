@@ -19,8 +19,6 @@
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
 #include <linux/regmap.h>
-#include <video/sprd_mmsys_pw_domain.h>
-
 #include "dcam_int.h"
 #include "dcam_path.h"
 #include "dcam_reg.h"
@@ -52,9 +50,10 @@ int dcam_drv_hw_init(void *arg)
 
 	dev = (struct dcam_pipe_dev *)arg;
 	hw = dev->hw;
-
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 4, 0))
 	ret = sprd_cam_pw_on();
 	ret = sprd_cam_domain_eb();
+#endif
 	/* prepare clk */
 	hw->dcam_ioctl(hw, DCAM_HW_CFG_ENABLE_CLK, NULL);
 	return ret;
@@ -80,9 +79,10 @@ int dcam_drv_hw_deinit(void *arg)
 	hw = dev->hw;
 	/* unprepare clk and other resource */
 	hw->dcam_ioctl(hw, DCAM_HW_CFG_DISABLE_CLK, NULL);
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 4, 0))
 	ret = sprd_cam_domain_disable();
 	ret = sprd_cam_pw_off();
-
+#endif
 	return ret;
 }
 
@@ -101,7 +101,6 @@ int dcam_drv_dt_parse(struct platform_device *pdev,
 	uint32_t count = 0, prj_id = 0;
 	uint32_t dcam_max_w = 0, dcam_max_h = 0;
 	int i = 0, irq = 0;
-	int args_count = 0;
 	uint32_t args[2];
 	char dcam_name[20];
 
@@ -261,8 +260,7 @@ int dcam_drv_dt_parse(struct platform_device *pdev,
 		soc_dcam->axi_clk_default = clk_get_parent(soc_dcam->axi_clk);
 	}
 
-	args_count = syscon_get_args_by_name(dn, "dcam_all_reset", ARRAY_SIZE(args), args);
-	if (args_count != ARRAY_SIZE(args)) {
+	if (cam_syscon_get_args_by_name(dn, "dcam_all_reset", ARRAY_SIZE(args), args)) {
 		pr_err("fail to get dcam all reset syscon\n");
 		return -EINVAL;
 	}
@@ -305,9 +303,8 @@ int dcam_drv_dt_parse(struct platform_device *pdev,
 		ip_dcam->syscon.all_rst = args[0];
 		ip_dcam->syscon.all_rst_mask = args[1];
 		sprintf(dcam_name, "dcam%d_reset", i);
-		args_count = syscon_get_args_by_name(dn, dcam_name,
-			sizeof(args), args);
-		if (args_count == ARRAY_SIZE(args)) {
+		if (!cam_syscon_get_args_by_name(dn, dcam_name,
+			ARRAY_SIZE(args), args)) {
 			ip_dcam->syscon.rst = args[0];
 			ip_dcam->syscon.rst_mask = args[1];
 		} else {
