@@ -2241,7 +2241,7 @@ int camcore_dcam_callback(enum dcam_cb_type type, void *param, void *priv_data)
 	uint32_t gtm_param_idx = DCAM_GTM_PARAM_PRE;
 
 	if (!param || !priv_data) {
-		pr_err("fail to get valid param %p %p\n", param, priv_data);
+		pr_err("fail to get valid param %px %px\n", param, priv_data);
 		return -EFAULT;
 	}
 
@@ -2280,7 +2280,7 @@ int camcore_dcam_callback(enum dcam_cb_type type, void *param, void *priv_data)
 	pframe->priv_data = NULL;
 	channel = &module->channel[pframe->channel_id];
 
-	pr_debug("module %p, cam%d ch %d.  cb cmd %d, frame %p\n",
+	pr_debug("module %px, cam%d ch %d.  cb cmd %d, frame %px\n",
 		module, module->idx, pframe->channel_id, type, pframe);
 
 	switch (type) {
@@ -2308,7 +2308,7 @@ int camcore_dcam_callback(enum dcam_cb_type type, void *param, void *priv_data)
 		}
 
 		if (atomic_read(&module->state) != CAM_RUNNING || module->paused) {
-			pr_info("stream off or paused. put frame %p\n", pframe);
+			pr_info("stream off or paused. put frame %px\n", pframe);
 			if (pframe->buf.type == CAM_BUF_KERNEL) {
 				cam_queue_enqueue(&channel->share_buf_queue, &pframe->list);
 			} else {

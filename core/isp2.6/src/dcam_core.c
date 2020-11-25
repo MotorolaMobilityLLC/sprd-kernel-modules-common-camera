@@ -2583,6 +2583,7 @@ static int dcamcore_dev_open(void *dcam_handle)
 		return -EFAULT;
 	}
 
+	mutex_lock(&dev->ctx_mutex);
 	if (atomic_inc_return(&dev->enable) == 1) {
 		ret = dcamcore_context_init(dev);
 		if (ret) {
@@ -2603,6 +2604,7 @@ static int dcamcore_dev_open(void *dcam_handle)
 		mutex_init(&dev->path_mutex);
 		spin_lock_init(&dev->ctx_lock);
 	}
+	mutex_unlock(&dev->ctx_mutex);
 	pr_info("open dcam pipe dev done!\n");
 	return 0;
 
@@ -2610,6 +2612,7 @@ context_init_fail:
 	dcamcore_context_deinit(dev);
 exit:
 	atomic_dec(&dev->enable);
+	mutex_unlock(&dev->ctx_mutex);
 	pr_err("fail to open dcam dev!\n");
 	return ret;
 }
@@ -2932,6 +2935,7 @@ void *dcam_core_pipe_dev_get(struct cam_hw_info *hw)
 
 	atomic_set(&dev->user_cnt, 1);
 	atomic_set(&dev->enable, 0);
+	mutex_init(&dev->ctx_mutex);
 
 	dev->dcam_pipe_ops = &s_dcam_pipe_ops;
 	dev->hw = hw;
@@ -2973,6 +2977,7 @@ int dcam_core_pipe_dev_put(void *dcam_handle)
 
 	if (atomic_dec_return(&dev->user_cnt) == 0) {
 		pr_info("free dcam pipe dev %px\n", dev);
+		mutex_destroy(&dev->ctx_mutex);
 		vfree(dev);
 		dev = NULL;
 		s_dcam_dev = NULL;

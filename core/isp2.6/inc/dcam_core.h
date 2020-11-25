@@ -294,6 +294,7 @@ struct dcam_pipe_dev {
 	atomic_t enable;
 	struct dcam_sw_context sw_ctx[DCAM_SW_CONTEXT_MAX];
 	struct dcam_hw_context hw_ctx[DCAM_HW_CONTEXT_MAX];
+	struct mutex ctx_mutex;
 	struct mutex path_mutex;
 	spinlock_t ctx_lock;
 	struct dcam_pipe_ops *dcam_pipe_ops;
