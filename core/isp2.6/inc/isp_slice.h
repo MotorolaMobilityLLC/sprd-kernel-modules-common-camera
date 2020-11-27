@@ -272,7 +272,7 @@ struct slice_noisefilter_info {
 
 struct slice_noisefilter_mode_info {
 	uint32_t seed_for_mode1;
-	uint32_t shape_mode;
+	uint32_t yrandom_mode;
 };
 
 struct isp_slice_desc {

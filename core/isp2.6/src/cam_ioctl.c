@@ -1422,8 +1422,7 @@ static int camioctl_stream_off(struct camera_module *module,
 				}
 			}
 
-			if (hw->ip_dcam[module->dcam_idx]->superzoom_support
-				&& ch->ch_id == CAM_CH_CAP) {
+			if (hw->ip_dcam[module->dcam_idx]->superzoom_support) {
 				if (ch->postproc_buf) {
 					camcore_k_frame_put(ch->postproc_buf);
 					ch->postproc_buf = NULL;

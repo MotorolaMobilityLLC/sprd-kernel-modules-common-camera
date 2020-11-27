@@ -85,12 +85,12 @@ static int ispslice_noisefliter_info_set(struct isp_slice_desc *slc_ctx,
 	}
 
 	slice_num = ctx->slice_num;
-	scaler_info = &cur_slc->slice_scaler[0];
 	seed0 = cur_slc->slice_noisefilter_mode.seed_for_mode1;
-	pr_debug("shape_mode=%d,slice_num=%d\n",
-		cur_slc->slice_noisefilter_mode.shape_mode, slice_num);
-	if (cur_slc->slice_noisefilter_mode.shape_mode == 1) {
+	pr_debug("yrandom_mode=%d,slice_num=%d\n",
+		cur_slc->slice_noisefilter_mode.yrandom_mode, slice_num);
+	if (cur_slc->slice_noisefilter_mode.yrandom_mode == 1) {
 		for (slice_id = 0; slice_id < slice_num; slice_id++, cur_slc++) {
+			scaler_info = &cur_slc->slice_scaler[0];
 			noisefilter_info = &cur_slc->noisefilter_info;
 			noisefilter_info->seed0 = seed0;
 			slice_width = scaler_info->trim1_size_x;
@@ -2336,7 +2336,7 @@ static int ispslice_noisefilter_info_cfg(void *cfg_in, struct isp_slice_context 
 
 	cur_slc = &slc_ctx->slices[0];
 	cur_slc->slice_noisefilter_mode.seed_for_mode1 = isp_k_param->seed0_for_mode1;
-	cur_slc->slice_noisefilter_mode.shape_mode = isp_k_param->shape_mode;
+	cur_slc->slice_noisefilter_mode.yrandom_mode = isp_k_param->yrandom_mode;
 
 	rtn = ispslice_noisefliter_info_set(cur_slc, slc_ctx);
 
@@ -2412,7 +2412,7 @@ int isp_slice_fmcu_cmds_set(void *fmcu_handle, void *ctx)
 	int i, j;
 	int sw_ctx_id = 0;
 	int hw_ctx_id = 0;
-	uint32_t shape_mode = 0;
+	uint32_t yrandom_mode = 0;
 	enum isp_work_mode wmode;
 	struct isp_slice_desc *cur_slc;
 	struct slice_store_info *slc_store;
@@ -2454,7 +2454,7 @@ int isp_slice_fmcu_cmds_set(void *fmcu_handle, void *ctx)
 
 	fmcu = (struct isp_fmcu_ctx_desc *)fmcu_handle;
 	cur_slc = &slc_ctx->slices[0];
-	shape_mode = cur_slc->slice_noisefilter_mode.shape_mode;
+	yrandom_mode = cur_slc->slice_noisefilter_mode.yrandom_mode;
 	for (i = 0; i < SLICE_NUM_MAX; i++, cur_slc++) {
 		if (cur_slc->valid == 0)
 			continue;
@@ -2493,7 +2493,7 @@ int isp_slice_fmcu_cmds_set(void *fmcu_handle, void *ctx)
 			ltm.ltm_id = LTM_YUV;
 			hw->isp_ioctl(hw, ISP_HW_CFG_LTM_SLICE_SET, &ltm);
 		}
-		if (shape_mode == 1) {
+		if (yrandom_mode == 1) {
 			slicearg.fmcu = fmcu;
 			slicearg.noisefilter_info = &cur_slc->noisefilter_info;
 			hw->isp_ioctl(hw, ISP_HW_CFG_SLICE_NOFILTER, &slicearg);

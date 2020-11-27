@@ -56,7 +56,7 @@ static int isp_k_noisefilter_block(struct isp_io_param *param,
 
 	if (nf_info->shape_mode != 0) {
 		isp_k_param->seed0_for_mode1 = nf_info->yrandom_seed[0];
-		isp_k_param->shape_mode = nf_info->shape_mode;
+		isp_k_param->yrandom_mode = nf_info->yrandom_mode;
 		pr_debug("seed0_for_mode1=%d\n", isp_k_param->seed0_for_mode1);
 		cam_block_noisefilter_seeds(isp_k_param->src_w,
 			nf_info->yrandom_seed[0], &nf_info->yrandom_seed[1],

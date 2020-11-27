@@ -1222,8 +1222,7 @@ static int camcore_buffer_path_cfg(struct camera_module *module,
 		}
 	}
 
-	if (hw->ip_dcam[module->dcam_idx]->superzoom_support
-		&& ch->ch_id == CAM_CH_CAP) {
+	if (hw->ip_dcam[module->dcam_idx]->superzoom_support) {
 		if (ch->postproc_buf == NULL)
 			return 0;
 		ret = module->isp_dev_handle->isp_ops->cfg_path(module->isp_dev_handle,
@@ -1313,9 +1312,11 @@ static void camcore_buffers_alloc(void *param)
 	int ret = 0;
 	int i, count, total, iommu_enable;
 	uint32_t width = 0, height = 0, size = 0, pack_bits = 0;
+	uint32_t postproc_w = 0, postproc_h = 0;
 	struct camera_module *module;
 	struct camera_frame *pframe;
-	struct channel_context *channel;
+	struct channel_context *channel = NULL;
+	struct channel_context *channel_vid = NULL;
 	struct camera_debugger *debugger;
 	struct cam_hw_info *hw = NULL;
 	int path_id = 0;
@@ -1338,6 +1339,7 @@ static void camcore_buffers_alloc(void *param)
 
 	hw = module->grp->hw_info;
 	iommu_enable = module->iommu_enable;
+	channel_vid = &module->channel[CAM_CH_VID];
 
 	if (channel->ch_id != CAM_CH_CAP &&
 		hw->ip_dcam[module->dcam_idx]->rds_en) {
@@ -1457,15 +1459,19 @@ static void camcore_buffers_alloc(void *param)
 			DCAM_IOCTL_CFG_REPLACER, NULL);
 	}
 
-	if (hw->ip_dcam[module->dcam_idx]->superzoom_support
-		&& channel->ch_id == CAM_CH_CAP
-		&& !is_super_size) {
+	if (hw->ip_dcam[module->dcam_idx]->superzoom_support && !is_super_size) {
 		/*more than 8x zoom capture alloc buf*/
 
-		uint32_t w = channel->ch_uinfo.dst_size.w / ISP_SCALER_UP_MAX;
-		uint32_t h = channel->ch_uinfo.dst_size.h / ISP_SCALER_UP_MAX;
+		postproc_w = channel->ch_uinfo.dst_size.w / ISP_SCALER_UP_MAX;
+		postproc_h = channel->ch_uinfo.dst_size.h / ISP_SCALER_UP_MAX;
+		if (channel->ch_id != CAM_CH_CAP && channel_vid->enable) {
+			postproc_w = MAX(channel->ch_uinfo.dst_size.w,
+				channel_vid->ch_uinfo.dst_size.w) / ISP_SCALER_UP_MAX;
+			postproc_h = MAX(channel->ch_uinfo.dst_size.h,
+				channel_vid->ch_uinfo.dst_size.h) / ISP_SCALER_UP_MAX;
+		}
 
-		size = ((w + 1) & (~1)) * h * 3 / 2;
+		size = ((postproc_w + 1) & (~1)) * postproc_h * 3 / 2;
 		size = ALIGN(size, CAM_BUF_ALIGN_SIZE);
 		pframe = cam_queue_empty_frame_get();
 		if (!pframe) {
@@ -1492,7 +1498,7 @@ static void camcore_buffers_alloc(void *param)
 
 		channel->postproc_buf = pframe;
 		pr_info("idx %d, superzoom w %d, h %d, buf %p\n",
-			module->dcam_idx, w, h, pframe);
+			module->dcam_idx, postproc_w, postproc_h, pframe);
 	}
 
 	pr_debug("channel->ch_id = %d, channel->type_3dnr = %d, channel->uinfo_3dnr = %d\n",

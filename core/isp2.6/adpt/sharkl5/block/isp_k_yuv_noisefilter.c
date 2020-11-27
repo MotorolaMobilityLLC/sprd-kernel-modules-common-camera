@@ -54,18 +54,20 @@ static int isp_k_noisefilter_block(struct isp_io_param *param,
 	ISP_REG_MWR(idx, ISP_YUV_NF_CTRL, 0x2E, val);
 	ISP_REG_WR(idx, ISP_YUV_NF_SEED_INIT, 1);
 
-	if (nf_info->shape_mode == 0) {
-		ISP_REG_WR(idx, ISP_YUV_NF_SEED0, nf_info->yrandom_seed[0]);
-		ISP_REG_WR(idx, ISP_YUV_NF_SEED1, nf_info->yrandom_seed[1]);
-		ISP_REG_WR(idx, ISP_YUV_NF_SEED2, nf_info->yrandom_seed[2]);
-		ISP_REG_WR(idx, ISP_YUV_NF_SEED3, nf_info->yrandom_seed[3]);
-
-	} else {
+	if (nf_info->shape_mode != 0) {
 		isp_k_param->seed0_for_mode1 = nf_info->yrandom_seed[0];
-		isp_k_param->shape_mode = nf_info->shape_mode;
+		isp_k_param->yrandom_mode = nf_info->yrandom_mode;
 		pr_debug("seed0_for_mode1=%d\n", isp_k_param->seed0_for_mode1);
+		cam_block_noisefilter_seeds(isp_k_param->src_w,
+			nf_info->yrandom_seed[0], &nf_info->yrandom_seed[1],
+			&nf_info->yrandom_seed[2], &nf_info->yrandom_seed[3]);
 	}
-	val = (nf_info->takebit[0]  & 0xF) |
+	ISP_REG_WR(idx, ISP_YUV_NF_SEED0, nf_info->yrandom_seed[0]);
+	ISP_REG_WR(idx, ISP_YUV_NF_SEED1, nf_info->yrandom_seed[1]);
+	ISP_REG_WR(idx, ISP_YUV_NF_SEED2, nf_info->yrandom_seed[2]);
+	ISP_REG_WR(idx, ISP_YUV_NF_SEED3, nf_info->yrandom_seed[3]);
+
+	val = (nf_info->takebit[0] & 0xF) |
 			((nf_info->takebit[1] & 0xF) << 4) |
 			((nf_info->takebit[2] & 0xF) << 8) |
 			((nf_info->takebit[3] & 0xF) << 12) |

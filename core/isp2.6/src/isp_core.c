@@ -131,8 +131,8 @@ static void ispcore_src_frame_ret(void *param)
 	frame = (struct camera_frame *)param;
 	pctx = (struct isp_sw_context *)frame->priv_data;
 	if (!pctx) {
-	pr_err("fail to get src_frame pctx.\n");
-	return;
+		pr_err("fail to get src_frame pctx.\n");
+		return;
 	}
 
 	pr_debug("frame %p, ch_id %d, buf_fd %d\n",
@@ -1036,8 +1036,8 @@ static struct camera_frame *ispcore_path_out_frame_get(
 				struct isp_path_desc *path,
 				struct offline_tmp_param *tmp)
 {
-	int ret = 0;
-	int j = 0;
+	int ret = 0, j = 0;
+	uint32_t buf_type = 0;
 	struct camera_frame *out_frame = NULL;
 
 	if (!pctx || !path || !tmp) {
@@ -1046,7 +1046,8 @@ static struct camera_frame *ispcore_path_out_frame_get(
 	}
 
 	if (tmp->stream) {
-		switch (tmp->stream->buf_type) {
+		buf_type = tmp->stream->buf_type[path->spath_id];
+		switch (buf_type) {
 		case ISP_STREAM_BUF_OUT:
 			goto normal_out_put;
 		case ISP_STREAM_BUF_RESERVED:
@@ -1146,7 +1147,6 @@ static int ispcore_offline_size_update(
 		cfg.crop.start_y = 0;
 		cfg.crop.size_x = cfg.src.w;
 		cfg.crop.size_y = cfg.src.h;
-		ret = isp_path_fetchsize_update(pctx, &cfg);
 		pctx->uinfo.src = cfg.src;
 		pctx->uinfo.crop = cfg.crop;
 		pr_debug("isp sw %d update size: %d %d\n",
@@ -1173,7 +1173,6 @@ static int ispcore_offline_size_update(
 			continue;
 		}
 
-		ret = isp_path_storecrop_update(&pctx->pipe_src.path_info[i], &path_trim);
 		path_info->in_trim = path_trim;
 		pr_debug("update isp path%d trim %d %d %d %d\n",
 			i, path_trim.start_x, path_trim.start_y,
@@ -1189,7 +1188,6 @@ static int ispcore_offline_param_cfg(struct isp_sw_context *pctx,
 	int ret = 0;
 	int i = 0;
 	uint32_t nr3_mode = 0, blend_cnt = 0;
-	struct isp_offline_param *in_param = NULL;
 	struct isp_stream_ctrl *stream = NULL;
 	struct isp_path_desc *path = NULL;
 	struct isp_uinfo *pipe_src = NULL;
@@ -1245,13 +1243,6 @@ static int ispcore_offline_param_cfg(struct isp_sw_context *pctx,
 	if (pframe->sw_slice_num)
 		ispcore_sw_slice_prepare(pctx, pframe);
 
-	in_param = (struct isp_offline_param *)pframe->param_data;
-	if (in_param) {
-		/*preview*/
-		ispcore_offline_size_update(pctx, in_param);
-		ispcore_offline_pararm_free(in_param);
-		pframe->param_data = NULL;
-	}
 	isp_drv_pipeinfo_get(pctx, pframe);
 	ispcore_hist_roi_update(pctx);
 	/*update NR param for crop/scaling image */
@@ -1901,14 +1892,6 @@ static int ispcore_stream_state_get(struct isp_sw_context *pctx)
 		maxh = maxh / ISP_SCALER_UP_MAX;
 		maxh = MAX(maxh, uinfo->crop.size_y);
 		maxh = ISP_ALIGN_H(maxh);
-		/* This is for ensure the last postproc frame buf is OUT for user
-		 * Then the frame before should be POST. Thus, only one post
-		 * buffer is enough for all the isp postproc process
-		 */
-		if ((postproc_cnt + i) % 2 == 1)
-			tmp_stream[i].buf_type = ISP_STREAM_BUF_OUT;
-		else
-			tmp_stream[i].buf_type = ISP_STREAM_BUF_POSTPROC;
 
 		if (i == 0) {
 			tmp_stream[i].in_fmt = uinfo->in_fmt;
@@ -1928,6 +1911,15 @@ static int ispcore_stream_state_get(struct isp_sw_context *pctx)
 			path_info = &uinfo->path_info[j];
 			if (atomic_read(&path->user_cnt) < 1)
 				continue;
+			/* This is for ensure the last postproc frame buf is OUT for user
+			.* Then the frame before should be POST. Thus, only one post
+			.* buffer is enough for all the isp postproc process */
+			if ((postproc_cnt + i) % 2 == 1)
+				tmp_stream[i].buf_type[j] = ISP_STREAM_BUF_OUT;
+			else
+				tmp_stream[i].buf_type[j] = ISP_STREAM_BUF_POSTPROC;
+			if (j != ISP_SPATH_CP && (i != postproc_cnt - 1))
+				tmp_stream[i].buf_type[j] = ISP_STREAM_BUF_RESERVED;
 			if (i == (postproc_cnt - 1)) {
 				tmp_stream[i].out[j] = path_info->dst;
 				tmp_stream[i].out_crop[j].start_x = 0;
@@ -1974,6 +1966,11 @@ static int ispcore_stream_state_get(struct isp_sw_context *pctx)
 			path_info = &uinfo->path_info[j];
 			if (atomic_read(&path->user_cnt) < 1)
 				continue;
+			/* Use reserved buffer when not 3dnr last frame */
+			if (normal_cnt == 1 || i == (NR3_BLEND_CNT - 1))
+				stream->buf_type[j] = ISP_STREAM_BUF_OUT;
+			else
+				stream->buf_type[j] = ISP_STREAM_BUF_RESERVED;
 			stream->out[j] = path_info->dst;
 			stream->out_crop[j] = path_info->in_trim;
 			if (postproc_cnt) {
@@ -1985,11 +1982,6 @@ static int ispcore_stream_state_get(struct isp_sw_context *pctx)
 				stream->out_crop[j].start_x, stream->out_crop[j].start_y,
 				stream->out_crop[j].size_x, stream->out_crop[j].size_y);
 		}
-		/* Use reserved buffer when not 3dnr last frame */
-		if (normal_cnt == 1 || i == (NR3_BLEND_CNT - 1))
-			stream->buf_type = ISP_STREAM_BUF_OUT;
-		else
-			stream->buf_type = ISP_STREAM_BUF_RESERVED;
 		stream->cur_cnt = i;
 		stream->max_cnt = normal_cnt + postproc_cnt - 1;
 		pr_debug("stream type %d cur_cnt %d max_cnt %d\n",
@@ -2021,6 +2013,7 @@ static int ispcore_stream_state_get(struct isp_sw_context *pctx)
 			path = &pctx->isp_path[j];
 			if (atomic_read(&path->user_cnt) < 1)
 				continue;
+			stream->buf_type[j] = tmp_stream[i].buf_type[j];
 			stream->out[j] = tmp_stream[i].out[j];
 			stream->out_crop[j] = tmp_stream[i].out_crop[j];
 			pr_debug("isp %d out_size %d %d crop_szie %d %d %d %d\n",
@@ -2030,7 +2023,6 @@ static int ispcore_stream_state_get(struct isp_sw_context *pctx)
 		}
 		if (i == 0)
 			stream->data_src = ISP_STREAM_SRC_DCAM;
-		stream->buf_type = tmp_stream[i].buf_type;
 		stream->cur_cnt = i + normal_cnt;
 		stream->max_cnt = normal_cnt + postproc_cnt - 1;
 		ret = cam_queue_enqueue(&pctx->stream_ctrl_in_q, &stream->list);
@@ -2211,6 +2203,7 @@ static int ispcore_frame_proc(void *isp_handle, void *param, int ctx_id)
 	struct isp_sw_context *pctx;
 	struct isp_pipe_dev *dev;
 	struct isp_stream_ctrl *stream = NULL;
+	struct isp_offline_param *in_param = NULL;
 
 	if (!isp_handle || !param) {
 		pr_err("fail to get valid input ptr, isp_handle %p, param %p\n",
@@ -2237,6 +2230,14 @@ static int ispcore_frame_proc(void *isp_handle, void *param, int ctx_id)
 		}
 	}
 
+	in_param = (struct isp_offline_param *)pframe->param_data;
+	if (in_param) {
+		/*preview*/
+		ispcore_offline_size_update(pctx, in_param);
+		ispcore_offline_pararm_free(in_param);
+		pframe->param_data = NULL;
+	}
+
 	pr_debug("cam%d ctx %d, fid %d, ch_id %d, buf  %d, 3dnr %d , w %d, h %d\n",
 		pctx->attach_cam_id, ctx_id, pframe->fid,
 		pframe->channel_id, pframe->buf.mfd[0], pctx->uinfo.mode_3dnr,
@@ -2244,8 +2245,7 @@ static int ispcore_frame_proc(void *isp_handle, void *param, int ctx_id)
 
 	ret = cam_queue_enqueue(&pctx->in_queue, &pframe->list);
 	if (ret == 0) {
-		if (!pframe->param_data)
-			ispcore_stream_state_get(pctx);
+		ispcore_stream_state_get(pctx);
 		if (pctx->uinfo.enable_slowmotion &&
 			++slw_frm_cnt < pctx->uinfo.slowmotion_count)
 			return ret;

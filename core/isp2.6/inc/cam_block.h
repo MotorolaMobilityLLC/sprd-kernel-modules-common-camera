@@ -25,7 +25,7 @@ struct isp_k_block {
 	struct isp_dev_ynr_info_v2 ynr_info_v2_base;
 	struct isp_dev_3dnr_info nr3_info_base;
 	uint32_t seed0_for_mode1;
-	uint32_t shape_mode;
+	uint32_t yrandom_mode;
 
 	/* sharkl5/sharkl5pro  */
 	struct isp_dev_grgb_info grgb_info;
