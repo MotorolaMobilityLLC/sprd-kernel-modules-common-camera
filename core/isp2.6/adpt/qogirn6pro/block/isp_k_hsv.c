@@ -25,6 +25,7 @@
 #define pr_fmt(fmt) "HSV: %d %d %s : "\
 	fmt, current->pid, __LINE__, __func__
 
+#define ISP_HSV_BUF0_BYTE 360
 
 static int isp_k_hsv_block(struct isp_io_param *param,
 	struct isp_k_block *isp_k_param, uint32_t idx)
@@ -110,7 +111,7 @@ static int isp_k_hsv_block(struct isp_io_param *param,
 	ISP_REG_MWR(idx, ISP_HSV_PARAM, BIT_1, buf_sel << 1);
 
 	reg_addr = ISP_HSV_BUF0_ADDR;
-	for(i = 0; i < 360; i++){
+	for (i = 0; i < ISP_HSV_BUF0_BYTE; i++) {
 		val = ((hsv_info->d.hs.sat[i] & 0x7FF) << 9 |
 				(hsv_info->d.hs.hue[i] & 0x1FF));
 		ISP_REG_WR(idx, reg_addr + i * 4, val);

@@ -27,7 +27,6 @@
 	fmt, current->pid, __LINE__, __func__
 #define ISP_VST_IVST_BUF_ADDR_IDX		1024
 
-
 static int load_vst_ivst_buf(
 	struct isp_dev_nlm_info_v2 *nlm_info,
 	struct isp_k_block *isp_k_param, uint32_t idx)
@@ -57,8 +56,8 @@ static int load_vst_ivst_buf(
 				(void __user *)utab_addr, buf_len);
 
 		/*recombine the vst/ivst table as requires of l5pro's vst/ivst module*/
-		for(i = 0; i < ISP_VST_IVST_BUF_ADDR_IDX - 2; i++){
-			for(j = 0; j < 2; j++){
+		for (i = 0; i < ISP_VST_IVST_BUF_ADDR_IDX - 2; i++) {
+			for (j = 0; j < 2; j++) {
 				val = ((vst_ivst_buf[i + 2 * j] & 0x3fff) << 16) | (vst_ivst_buf[i + 2 * j + 1] & 0x3fff);
 				ISP_REG_WR(idx, ISP_VST_BUF0_ADDR + (2 * i + j) * 4, val);
 			}
@@ -88,8 +87,8 @@ static int load_vst_ivst_buf(
 				(void __user *)utab_addr, buf_len);
 
 		/*recombine the vst/ivst table as requires of l5pro's vst/ivst module*/
-		for(i = 0; i < ISP_VST_IVST_BUF_ADDR_IDX - 2; i++){
-			for(j = 0; j < 2; j++){
+		for (i = 0; i < ISP_VST_IVST_BUF_ADDR_IDX - 2; i++) {
+			for (j = 0; j < 2; j++) {
 				val = ((vst_ivst_buf[i + 2 * j] & 0x3fff) << 16) | (vst_ivst_buf[i + 2 * j + 1] & 0x3fff);
 				ISP_REG_WR(idx, ISP_IVST_BUF0_ADDR + (2 * i + j) * 4, val);
 			}
@@ -105,7 +104,7 @@ static int load_vst_ivst_buf(
 		ISP_REG_WR(idx, ISP_IVST_BUF0_ADDR + 2 * 1023 * 4, val);
 
 		val = ((vst_ivst_buf[1024] & 0x3fff) << 16) | (vst_ivst_buf[1024] & 0x3fff);
-		ISP_REG_WR(idx, ISP_IVST_BUF0_ADDR + ( 2 * 1023 + 1) * 4, val);
+		ISP_REG_WR(idx, ISP_IVST_BUF0_ADDR + (2 * 1023 + 1) * 4, val);
 	}
 	return ret;
 }
@@ -348,16 +347,16 @@ static int isp_k_nlm_imblance(struct isp_io_param *param,
 		(imblance_info->nlm_imblance_lum1_flag3_r & 0x7ff));
 	ISP_REG_WR(idx, ISP_NLM_IMBLANCE_PARA21,
 		(imblance_info->imblance_sat_lumth & 0x3ff << 16) |
-		(imblance_info->nlm_imblance_lum3_flag3_r & 0x7ff ));
+		(imblance_info->nlm_imblance_lum3_flag3_r & 0x7ff));
 	ISP_REG_WR(idx, ISP_NLM_IMBLANCE_PARA22,
 		(imblance_info->nlm_imblance_diff[2] & 0x3ff << 16) |
-		(imblance_info->nlm_imblance_diff[1] & 0x3ff ));
+		(imblance_info->nlm_imblance_diff[1] & 0x3ff));
 	ISP_REG_WR(idx, ISP_NLM_IMBLANCE_PARA23,
 		(imblance_info->nlm_imblance_ff_wt1 & 0x3ff << 16) |
-		(imblance_info->nlm_imblance_ff_wt0 & 0x3ff ));
+		(imblance_info->nlm_imblance_ff_wt0 & 0x3ff));
 	ISP_REG_WR(idx, ISP_NLM_IMBLANCE_PARA24,
 		(imblance_info->nlm_imblance_ff_wt3 & 0x3ff << 16) |
-		(imblance_info->nlm_imblance_ff_wt2 & 0x3ff ));
+		(imblance_info->nlm_imblance_ff_wt2 & 0x3ff));
 	ISP_REG_WR(idx, ISP_NLM_IMBLANCE_PARA25,
 		(imblance_info->nlm_imblance_ff_wr0 & 0xff) |
 		((imblance_info->nlm_imblance_ff_wr1 & 0xff) << 8) |
@@ -374,9 +373,9 @@ static int isp_k_nlm_imblance(struct isp_io_param *param,
 		((imblance_info->imblance_radial_1D_protect_ratio_max & 0x7ff) << 16));
 	ISP_REG_WR(idx, ISP_NLM_IMBLANCE_PARA28,
 		(imblance_info->imblance_radial_1D_center_x & 0xffff << 16) |
-		(imblance_info->imblance_radial_1D_center_y & 0xffff ));
+		(imblance_info->imblance_radial_1D_center_y & 0xffff));
 	ISP_REG_WR(idx, ISP_NLM_IMBLANCE_PARA29,
-		(imblance_info->imblance_radial_1D_radius_thr & 0xffff ));
+		(imblance_info->imblance_radial_1D_radius_thr & 0xffff));
 
 	return ret;
 }
@@ -530,7 +529,7 @@ int isp_k_update_imbalance(uint32_t idx,
 	pr_debug("center %d %d,  orig radius %d %d, base %d, new %d %d\n",
 		center_x, center_y, imbalance_info->imblance_radial_1D_radius_thr,
 		imbalance_info->imblance_radial_1D_radius_thr_factor,
-		imbalance_info->radius_base,radius_limit,radius);
+		imbalance_info->radius_base, radius_limit, radius);
 
 	return ret;
 }

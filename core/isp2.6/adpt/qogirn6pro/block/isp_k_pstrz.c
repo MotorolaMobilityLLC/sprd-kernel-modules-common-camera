@@ -46,7 +46,6 @@ static int isp_k_pstrz_block(struct isp_io_param *param,
 	}
 	if (g_isp_bypass[idx] & (1 << _EISP_PSTRZ))
 		pstrz_info->bypass = 1;
-	ISP_REG_MWR(idx, ISP_PSTRZ_PARAM, BIT_0, pstrz_info->bypass);
 	if (pstrz_info->bypass)
 		return 0;
 
@@ -56,21 +55,21 @@ static int isp_k_pstrz_block(struct isp_io_param *param,
 	for (i = 0; i < POSTERIZE_NUM2 - 1; i++) {
 		val = ((pstrz_info->pstrz_r_data[i + 1] & 0xFF) |
 			(pstrz_info->pstrz_r_data[i] & 0xFF) << 8);
-		ISP_REG_WR(idx, buf_addr +  i * 4, val);
+		ISP_REG_WR(idx, buf_addr + i * 4, val);
 	}
 
 	buf_addr = ISP_PSTRZ_G_BUF0;
 	for (i = 0; i < POSTERIZE_NUM2 - 1; i++) {
 		val = ((pstrz_info->pstrz_g_data[i + 1] & 0xFF) |
 			(pstrz_info->pstrz_g_data[i] & 0xFF) << 8);
-		ISP_REG_WR(idx, buf_addr +  i * 4, val);
+		ISP_REG_WR(idx, buf_addr + i * 4, val);
 	}
 
 	buf_addr = ISP_PSTRZ_B_BUF0;
 	for (i = 0; i < POSTERIZE_NUM2 - 1; i++) {
 		val = ((pstrz_info->pstrz_b_data[i + 1] & 0xFF) |
 			(pstrz_info->pstrz_b_data[i] & 0xFF) << 8);
-		ISP_REG_WR(idx, buf_addr +  i * 4, val);
+		ISP_REG_WR(idx, buf_addr + i * 4, val);
 	}
 
 	buf_sel = 0;

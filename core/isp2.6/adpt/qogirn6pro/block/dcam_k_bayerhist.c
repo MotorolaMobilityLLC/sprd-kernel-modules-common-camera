@@ -30,7 +30,7 @@ enum {
 
 int dcam_k_bayerhist_block(struct dcam_dev_param *param)
 {
-	struct dcam_pipe_dev *dev;
+	struct dcam_sw_context *sw_ctx = NULL;
 	int ret = 0;
 	uint32_t idx = 0;
 	struct dcam_dev_hist_info *p;
@@ -48,10 +48,10 @@ int dcam_k_bayerhist_block(struct dcam_dev_param *param)
 	 * use hardware slow motion feature
 	 * TODO: handle skip_num not equal to slowmotion_count - 1
 	 */
-	dev = param->dev;
-	if (p->hist_skip_num > 0 && dev->slowmotion_count) {
+	sw_ctx = param->dev;
+	if (p->hist_skip_num > 0 && sw_ctx->slowmotion_count) {
 		pr_debug("DCAM%u HIST ignore skip_num %u, slowmotion_count %u\n",
-			dev->idx, p->hist_skip_num, dev->slowmotion_count);
+			sw_ctx->hw_ctx_id, p->hist_skip_num, sw_ctx->slowmotion_count);
 		p->hist_skip_num = 0;
 	}
 
@@ -78,11 +78,13 @@ int dcam_k_bayerhist_block(struct dcam_dev_param *param)
 int dcam_k_bayerhist_roi(struct dcam_dev_param *param)
 {
 	int ret = 0;
-	uint32_t idx = param->idx;
-	struct dcam_dev_hist_info *p;
+	uint32_t idx = 0;
+	struct dcam_dev_hist_info *p = NULL;
 
 	if (param == NULL)
 		return -1;
+	idx = param->idx;
+
 	/* update ? */
 	if (!(param->hist.update & _UPDATE_ROI))
 		return 0;
@@ -137,7 +139,7 @@ int dcam_k_cfg_bayerhist(struct isp_io_param *param,
 		dcam_k_bayerhist_bypass(p);
 		break;
 	case DCAM_PRO_BAYERHIST_BLOCK: {
-		struct dcam_pipe_dev *dev;
+		struct dcam_sw_context *sw_ctx = NULL;
 		unsigned long flags = 0;
 		struct dcam_dev_hist_info cur;
 		struct dcam_path_desc *path;
@@ -151,15 +153,16 @@ int dcam_k_cfg_bayerhist(struct isp_io_param *param,
 			return -EPERM;
 		}
 
-		dev = (struct dcam_pipe_dev *)p->dev;
-		path = &dev->path[DCAM_PATH_HIST];
+		sw_ctx = (struct dcam_sw_context *)p->dev;
+		path = &sw_ctx->path[DCAM_PATH_HIST];
 
 		spin_lock_irqsave(&path->size_lock, flags);
 		p->hist.bayerHist_info = cur;
 		p->hist.update |= _UPDATE_ROI;
 		spin_unlock_irqrestore(&path->size_lock, flags);
-
-		if (atomic_read(&dev->state) != STATE_RUNNING) {
+		if (p->idx == DCAM_HW_CONTEXT_MAX)
+			return 0;
+		if (atomic_read(&sw_ctx->state) != STATE_RUNNING) {
 			ret = dcam_k_bayerhist_block(p);
 			pr_debug("dcam%d config hist %d, win (%d %d %d %d)\n",
 				p->idx, cur.hist_bypass,

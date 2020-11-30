@@ -25,7 +25,6 @@
 #define pr_fmt(fmt) "CCE: %d %d %s : "\
 	fmt, current->pid, __LINE__, __func__
 
-
 static int isp_k_cce_block(struct isp_io_param *param,
 	struct isp_k_block *isp_k_param, uint32_t idx)
 {
@@ -45,8 +44,6 @@ static int isp_k_cce_block(struct isp_io_param *param,
 
 	if (g_isp_bypass[idx] & (1 << _EISP_CCE))
 		cce_info->bypass = 1;
-
-	ISP_REG_MWR(idx, ISP_CCE_PARAM, BIT_0, cce_info->bypass);
 	if (cce_info->bypass)
 		return 0;
 

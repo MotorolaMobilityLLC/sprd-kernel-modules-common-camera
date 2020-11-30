@@ -44,8 +44,6 @@ static int isp_k_post_cdn_block(struct isp_io_param *param,
 	}
 	if (g_isp_bypass[idx] & (1 << _EISP_POSTCDN))
 		post_cdn_info->bypass = 1;
-	ISP_REG_MWR(idx, ISP_POSTCDN_COMMON_CTRL,
-		BIT_0, post_cdn_info->bypass);
 	if (post_cdn_info->bypass)
 		return 0;
 
@@ -109,7 +107,6 @@ static int isp_k_post_cdn_block(struct isp_io_param *param,
 
 	return ret;
 }
-
 
 int isp_k_cfg_post_cdn(struct isp_io_param *param,
 	struct isp_k_block *isp_k_param, uint32_t idx)

@@ -25,7 +25,6 @@
 #define pr_fmt(fmt) "BLC: %d %d %s : "\
 	fmt, current->pid, __LINE__, __func__
 
-
 int dcam_k_blc_block(struct dcam_dev_param *param)
 {
 	int ret = 0;
@@ -56,10 +55,6 @@ int dcam_k_cfg_blc(struct isp_io_param *param, struct dcam_dev_param *p)
 {
 	int ret = 0;
 
-	/* debugfs bypass blc */
-	if (g_dcam_bypass[p->idx] & (1 << _E_BLC))
-		return 0;
-
 	switch (param->property) {
 	case DCAM_PRO_BLC_BLOCK:
 		/* online mode not need mutex, response faster
@@ -74,6 +69,8 @@ int dcam_k_cfg_blc(struct isp_io_param *param, struct dcam_dev_param *p)
 					(unsigned int)ret);
 				return -EPERM;
 			}
+			if (p->idx == DCAM_HW_CONTEXT_MAX || (g_dcam_bypass[p->idx] & (1 << _E_BLC)))
+				return 0;
 			ret = dcam_k_blc_block(p);
 		} else {
 			mutex_lock(&p->param_lock);

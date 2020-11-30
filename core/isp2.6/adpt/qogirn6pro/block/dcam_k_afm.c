@@ -24,14 +24,13 @@
 #define pr_fmt(fmt) "AFM: %d %d %s : "\
 	fmt, current->pid, __LINE__, __func__
 
-
 int dcam_k_afm_block(struct dcam_dev_param *param)
 {
 	int ret = 0;
 	uint32_t idx = 0;
 	int i = 0;
 	uint32_t val = 0;
-	struct dcam_dev_afm_info *p = NULL; /* af_param; */
+	struct dcam_dev_afm_info *p = NULL;
 
 	if (param == NULL)
 		return -1;
@@ -39,27 +38,6 @@ int dcam_k_afm_block(struct dcam_dev_param *param)
 	idx = param->idx;
 	p = &(param->afm.af_param);
 
-#if 0 // afm block just set NR parameters. AFM control should be set by algo
-	if (g_dcam_bypass[idx] & (1 << _E_AFM))
-		p->bypass = 1;
-	val = (p->bypass & 0x1) |
-		((p->afm_mode_sel & 0x1) << 2) |
-		((p->afm_mul_enable & 0x1) << 3) |
-		((p->afm_skip_num & 0x7) << 4);
-	DCAM_REG_MWR(idx, ISP_AFM_FRM_CTRL, 0x7C, val);
-	/* TODO bad to set same register in different locations */
-	dcam_path_skip_num_set(param->dev, DCAM_PATH_AFM,
-			       param->afm.af_param.afm_skip_num);
-	if (p->bypass)
-		return 0;
-
-	/* 0 - single mode , trigger afm_sgl_start */
-	if (p->afm_mode_sel == 0)
-		DCAM_REG_MWR(idx, ISP_AFM_FRM_CTRL1, BIT_0, 1);
-
-	/* afm_skip_num_clr */
-	DCAM_REG_MWR(idx, ISP_AFM_FRM_CTRL1, BIT_1, 1 << 1);
-#endif
 	val = (p->afm_cg_dis & 0x1) |
 		((p->afm_iir_enable & 0x1) << 2) |
 		((p->afm_lum_stat_chn_sel & 0x3) << 4) |
@@ -132,7 +110,7 @@ int dcam_k_afm_win(struct dcam_dev_param *param)
 {
 	int ret = 0;
 	uint32_t idx = 0;
-	struct isp_img_rect *p; /* win; */
+	struct isp_img_rect *p;
 
 	if (param == NULL)
 		return -1;
@@ -152,7 +130,7 @@ int dcam_k_afm_win_num(struct dcam_dev_param *param)
 {
 	int ret = 0;
 	uint32_t idx = 0;
-	struct isp_img_size *p; /* win_num; */
+	struct isp_img_size *p;
 
 	if (param == NULL)
 		return -1;
@@ -185,8 +163,7 @@ int dcam_k_afm_mode(struct dcam_dev_param *param)
 	if (mode == 0)
 		DCAM_REG_MWR(idx, ISP_AFM_FRM_CTRL1, BIT_0, 1);
 	else
-		DCAM_REG_MWR(idx, ISP_AFM_FRM_CTRL,
-			BIT_3, 1 << 3);
+		DCAM_REG_MWR(idx, ISP_AFM_FRM_CTRL, BIT_3, 1 << 3);
 
 	return ret;
 }
@@ -263,7 +240,7 @@ static int dcam_afm_lbuf_share_mode(enum dcam_id idx, uint32_t width)
 	case DCAM_ID_1:
 		if (width > tb_w[7])
 			pr_err("fail to check param, unsupprot roi size\n");
-		else if(width <= tb_w[line_buf * 3 + 1])
+		else if (width <= tb_w[line_buf * 3 + 1])
 			pr_debug("no need to update afm line buf\n");
 		else {
 			{for (i = 0; i <= 3; i++)
@@ -277,7 +254,7 @@ static int dcam_afm_lbuf_share_mode(enum dcam_id idx, uint32_t width)
 	case DCAM_ID_2:
 		if (width > tb_w[11])
 			pr_err("fail to check param, unsupprot roi size\n");
-		else if(width <= tb_w[line_buf * 3 + 2])
+		else if (width <= tb_w[line_buf * 3 + 2])
 			pr_debug("no need to update afm line buf\n");
 		else {
 			pr_debug("idx[%d] width[%d], line_buf = %d\n", idx, width, line_buf);
@@ -405,6 +382,8 @@ int dcam_k_cfg_afm(struct isp_io_param *param, struct dcam_dev_param *p)
 				(unsigned int)ret);
 			return -EPERM;
 		}
+		if (p->idx == DCAM_HW_CONTEXT_MAX)
+			return 0;
 		ret = sub_func(p);
 	} else {
 		mutex_lock(&p->param_lock);

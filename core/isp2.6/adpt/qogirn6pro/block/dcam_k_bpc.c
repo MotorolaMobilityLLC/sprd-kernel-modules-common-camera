@@ -25,14 +25,13 @@
 #define pr_fmt(fmt) "BPC: %d %d %s : "\
 	fmt, current->pid, __LINE__, __func__
 
-
 int dcam_k_bpc_block(struct dcam_dev_param *param)
 {
 	int ret = 0;
 	uint32_t idx;
 	int i = 0;
 	uint32_t val = 0;
-	struct dcam_dev_bpc_info *p; /* bpc_info; */
+	struct dcam_dev_bpc_info *p;
 
 	idx = param->idx;
 	p = &(param->bpc.bpc_param.bpc_info);
@@ -139,32 +138,6 @@ int dcam_k_bpc_ppe_param(struct dcam_dev_param *param)
 		offset += 4;
 	}
 
-	// following parameters should set in dcam_k_pdaf only once.
-#if 0
-	val = (p->bpc_ppi_block_start_row & 0xFFFF) |
-		((p->bpc_ppi_block_end_row & 0xFFFF) << 16);
-	DCAM_REG_WR(idx, ISP_ZZBPC_PPI_RANG, val);
-
-	val = (p->bpc_ppi_block_start_col & 0xFFFF) |
-		((p->bpc_ppi_block_end_col & 0xFFFF) << 16);
-	DCAM_REG_WR(idx, ISP_ZZBPC_PPI_RANG1, val);
-
-	val = ((p->bpc_ppi_block_width & 0x3) << 4) |
-		((p->bpc_ppi_block_height & 0x3) << 6) |
-		((p->bpc_ppi_phase_pixel_num & 0x7F) << 16);
-	DCAM_REG_WR(idx, ISP_PPI_PARAM, val);
-
-	for (i = 0; i < 32; i++) {
-		val = (p->bpc_ppi_pattern_col[i * 2] & 0x3F) |
-			((p->bpc_ppi_pattern_row[i * 2] & 0x3F) << 6) |
-			((p->bpc_ppi_pattern_pos[i * 2] & 0x1) << 12) |
-			((p->bpc_ppi_pattern_col[i * 2 + 1] & 0x3F) << 16) |
-			((p->bpc_ppi_pattern_row[i * 2 + 1] & 0x3F) << 22) |
-			((p->bpc_ppi_pattern_pos[i * 2 + 1] & 0x1) << 28);
-		DCAM_REG_WR(idx, ISP_PPI_PATTERN01 + i * 4, val);
-	}
-#endif
-
 	return ret;
 }
 
@@ -206,6 +179,8 @@ int dcam_k_cfg_bpc(struct isp_io_param *param, struct dcam_dev_param *p)
 			pr_err("fail to copy from user, ret = %d\n", ret);
 			goto exit;
 		}
+		if (p->idx == DCAM_HW_CONTEXT_MAX)
+			return 0;
 		if (sub_func)
 			ret = sub_func(p);
 	} else {
@@ -213,9 +188,9 @@ int dcam_k_cfg_bpc(struct isp_io_param *param, struct dcam_dev_param *p)
 		ret = copy_from_user(dst_ptr,
 				param->property_param,
 				dst_size);
-		if (ret) {
+		if (ret)
 			pr_err("fail to copy from user, ret = %d\n", ret);
-		}
+
 		mutex_unlock(&p->param_lock);
 	}
 exit:

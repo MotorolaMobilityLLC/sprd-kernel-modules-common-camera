@@ -24,7 +24,6 @@
 #define pr_fmt(fmt) "PDAF: %d %d %s : "\
 	fmt, current->pid, __LINE__, __func__
 
-
 static void write_pd_table(struct pdaf_ppi_info *pdaf_info, enum dcam_id idx)
 {
 	int i = 0;
@@ -68,6 +67,8 @@ static int isp_k_pdaf_type1_block(
 		return -1;
 	}
 	p->pdaf.pdaf_type = 1;
+	if (idx == DCAM_HW_CONTEXT_MAX)
+		return 0;
 
 	DCAM_REG_WR(idx, DCAM_PDAF_CONTROL,
 		(vch2_info->vch2_vc & 0x03) << 16
@@ -92,6 +93,8 @@ static int isp_k_pdaf_type2_block(
 		return -1;
 	}
 	p->pdaf.pdaf_type = 2;
+	if (idx == DCAM_HW_CONTEXT_MAX)
+		return 0;
 
 	DCAM_REG_WR(idx, DCAM_PDAF_CONTROL,
 		(vch2_info->vch2_vc & 0x03) << 16
@@ -115,8 +118,11 @@ static int isp_k_pdaf_type3_block(
 		pr_err("fail to copy from user, ret = %d\n", ret);
 		return -1;
 	}
+
 	idx = p->idx;
 	p->pdaf.pdaf_type = 3;
+	if (idx == DCAM_HW_CONTEXT_MAX)
+		return 0;
 
 	pr_debug("pdaf_info.vch2_mode = %d\n", vch2_info->vch2_mode);
 	DCAM_REG_WR(idx, DCAM_PDAF_CONTROL,
@@ -142,6 +148,8 @@ static int isp_k_dual_pdaf_block(
 		return -1;
 	}
 	p->pdaf.pdaf_type = 0;
+	if (idx == DCAM_HW_CONTEXT_MAX)
+		return 0;
 
 	DCAM_REG_WR(idx, DCAM_PDAF_CONTROL,
 		(vch2_info->vch2_vc & 0x03) << 16
@@ -166,6 +174,9 @@ static int isp_k_pdaf_type3_set_info(
 		pr_err("fail to copy from user, ret = %d\n", ret);
 		return -1;
 	}
+
+	if (idx == DCAM_HW_CONTEXT_MAX)
+		return 0;
 
 	/* phase map corr en */
 	val = pdaf_info->phase_map_corr_en;
@@ -192,8 +203,7 @@ static int isp_k_pdaf_bypass(struct isp_io_param *param, struct dcam_dev_param *
 
 	bypass = !!bypass;
 	p->pdaf.bypass = bypass;
-
-	pr_info("dcam%d pdaf bypass %d\n", p->idx, bypass);
+	pr_info("pdaf bypass %d\n", bypass);
 
 	return ret;
 }
@@ -213,6 +223,8 @@ static int isp_k_pdaf_type3_set_ppi_info(
 		pr_err("fail to copy from user, ret = %d\n", ret);
 		return -1;
 	}
+	if (idx == DCAM_HW_CONTEXT_MAX)
+		return 0;
 
 	DCAM_REG_MWR(p->idx, ISP_PPI_PARAM, BIT_0, ppi_info->bypass);
 	if (ppi_info->bypass)
@@ -267,6 +279,9 @@ static int isp_k_pdaf_type3_set_roi(
 	pr_debug("win start:(%d, %d) end:(%d, %d)\n", roi_info->win.start_x,
 		roi_info->win.start_y, roi_info->win.end_x, roi_info->win.end_y);
 
+	if (idx == DCAM_HW_CONTEXT_MAX)
+		return 0;
+
 	val = ((roi_info->win.start_y & 0xFFFF) << 16) |
 		(roi_info->win.start_x & 0xFFFF);
 	DCAM_REG_WR(idx, ISP_PPI_AF_WIN_START, val);
@@ -292,6 +307,8 @@ static int isp_k_pdaf_type3_set_skip_num(
 		return -1;
 	}
 	p->pdaf.skip_num = skip_num;
+	if (idx == DCAM_HW_CONTEXT_MAX)
+		return 0;
 
 	DCAM_REG_MWR(idx, DCAM_PPE_FRM_CTRL0, 0xF0,
 		skip_num << 4);
@@ -317,6 +334,10 @@ static int isp_k_pdaf_type3_set_mode(
 	/* single/multi mode */
 	mode = !!mode;
 	p->pdaf.mode = mode;
+
+	if (idx == DCAM_HW_CONTEXT_MAX)
+		return 0;
+
 	DCAM_REG_MWR(idx, DCAM_PPE_FRM_CTRL0, BIT_2, mode << 2);
 	DCAM_REG_MWR(idx, DCAM_PPE_FRM_CTRL0, BIT_3, mode << 3);
 
@@ -397,9 +418,6 @@ int dcam_k_pdaf(struct dcam_dev_param *p)
 int dcam_k_cfg_pdaf(struct isp_io_param *param, struct dcam_dev_param *p)
 {
 	int ret = 0;
-	enum dcam_id idx;
-	struct dcam_pipe_dev *dev = NULL;
-	dev = (struct dcam_pipe_dev *)p->dev;
 
 	if (!param || !p) {
 		pr_err("fail to get param\n");
@@ -411,13 +429,12 @@ int dcam_k_cfg_pdaf(struct isp_io_param *param, struct dcam_dev_param *p)
 		return -1;
 	}
 
-	idx = p->idx;
 	switch (param->property) {
-	case DCAM_PDAF_TYPE3_SET_INFO:
-		ret = isp_k_pdaf_type3_set_info(param, p);
-		break;
 	case DCAM_PDAF_BYPASS:
 		ret = isp_k_pdaf_bypass(param, p);
+		break;
+	case DCAM_PDAF_TYPE3_SET_INFO:
+		ret = isp_k_pdaf_type3_set_info(param, p);
 		break;
 	case DCAM_PDAF_TYPE3_SET_MODE:
 		ret = isp_k_pdaf_type3_set_mode(param, p);
@@ -431,6 +448,9 @@ int dcam_k_cfg_pdaf(struct isp_io_param *param, struct dcam_dev_param *p)
 	case DCAM_PDAF_TYPE3_SET_PPI_INFO:
 		ret = isp_k_pdaf_type3_set_ppi_info(param, p);
 		break;
+	case DCAM_DUAL_PDAF_BLOCK:
+		ret = isp_k_dual_pdaf_block(param, p);
+		break;
 	case DCAM_PDAF_TYPE1_BLOCK:
 		ret = isp_k_pdaf_type1_block(param, p);
 		break;
@@ -440,15 +460,12 @@ int dcam_k_cfg_pdaf(struct isp_io_param *param, struct dcam_dev_param *p)
 	case DCAM_PDAF_TYPE3_BLOCK:
 		ret = isp_k_pdaf_type3_block(param, p);
 		break;
-	case DCAM_DUAL_PDAF_BLOCK:
-		ret = isp_k_dual_pdaf_block(param, p);
-		break;
 	default:
 		pr_err("fail to support cmd id = %d\n",
 			param->property);
 		break;
 	}
-	pr_debug("idx %d, Sub %d, ret %d\n", idx, param->property, ret);
+	pr_debug("idx %d, Sub %d, ret %d\n", p->idx, param->property, ret);
 
 	return ret;
 }

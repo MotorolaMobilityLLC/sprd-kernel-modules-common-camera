@@ -19,6 +19,7 @@
 #define DCAM_13M_WIDTH                 4160
 #define DCAM_8M_WIDTH                  3264
 #define DCAM_RDS_OUT_LIMIT             2160
+#define DCAM_OVERLAP                   64
 
 #define DCAM_PATH_WMAX                 8048
 #define DCAM_PATH_HMAX                 6036
@@ -28,6 +29,7 @@
 #define RAW_OVERLAP_RIGHT              138
 #define DCAM_SW_SLICE_HEIGHT_MAX       8192
 #define DCAM_HW_SLICE_WIDTH_MAX        8192
+#define CAM_FACEID_SEC
 
 /*
  *DCAM_CONTROL register bit map id

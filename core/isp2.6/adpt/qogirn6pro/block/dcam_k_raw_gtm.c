@@ -28,7 +28,6 @@
 #define pr_fmt(fmt) "GTM: %d %d %s : "\
 	fmt, current->pid, __LINE__, __func__
 
-
 void dcam_k_raw_gtm_set_default(struct dcam_dev_raw_gtm_block_info *p)
 {
 	p->gtm_tm_out_bit_depth = 0xE;
@@ -64,7 +63,7 @@ int dcam_k_raw_gtm_slice(uint32_t idx, struct dcam_dev_gtm_slice_info *gtm_slice
 	unsigned int val = 0;
 
 	/* for slice */
-	val =((gtm_slice->gtm_slice_main & 0x1) <<7);
+	val =((gtm_slice->gtm_slice_main & 0x1) << 7);
 	DCAM_REG_MWR(idx, DCAM_GTM_GLB_CTRL, 0x80, val);
 
 	val = (gtm_slice->gtm_slice_line_startpos & 0x1FFF);
@@ -85,14 +84,14 @@ int dcam_k_raw_gtm_block(uint32_t gtm_param_idx,
 	unsigned int val = 0;
 	struct dcam_dev_raw_gtm_block_info *p;
 	struct dcam_dev_gtm_slice_info *gtm_slice;
-	struct dcam_pipe_dev *dev = NULL;
+	struct dcam_sw_context *sw_ctx = NULL;
 	struct dcam_dev_gtm_param *gtm = NULL;
 
 	gtm = &param->gtm[gtm_param_idx];
 	if (!gtm->update_en)
-                return 0;
+		return 0;
 
-	dev = (struct dcam_pipe_dev *)param->dev;
+	sw_ctx = (struct dcam_sw_context *)param->dev;
 	p = &(gtm->gtm_info);
 	dcam_k_raw_gtm_set_default(p);
 
@@ -103,14 +102,14 @@ int dcam_k_raw_gtm_block(uint32_t gtm_param_idx,
 	if (!p->gtm_mod_en)
 		return 0;
 
-	if (atomic_read(&dev->state) != STATE_RUNNING)
+	if (atomic_read(&sw_ctx->state) != STATE_RUNNING)
 		p->gtm_cur_is_first_frame = 1;
 
-	val =((p->gtm_map_bypass & 0x1) <<1) |
-		((p->gtm_hist_stat_bypass & 0x1) <<2) |
-		((p->gtm_tm_param_calc_by_hw & 0x1) <<3) |
-		((p->gtm_cur_is_first_frame &0x1)<<4) |
-		((p->gtm_tm_luma_est_mode & 0x3)<<5) |
+	val = ((p->gtm_map_bypass & 0x1) << 1) |
+		((p->gtm_hist_stat_bypass & 0x1) << 2) |
+		((p->gtm_tm_param_calc_by_hw & 0x1) << 3) |
+		((p->gtm_cur_is_first_frame &0x1) << 4) |
+		((p->gtm_tm_luma_est_mode & 0x3) << 5) |
 		((p->gtm_tm_in_bit_depth & 0xF) << 24) |
 		((p->gtm_tm_out_bit_depth & 0xF) << 28);
 	DCAM_REG_MWR(idx, DCAM_GTM_GLB_CTRL, 0xFF00007E, val);
@@ -126,7 +125,7 @@ int dcam_k_raw_gtm_block(uint32_t gtm_param_idx,
 	val = p->gtm_yavg_diff_thr & 0x3FFF;
 	DCAM_REG_WR(idx, GTM_HIST_CTRL2, val);
 
-	p->gtm_hist_total = dev->cap_info.cap_size.size_x * dev->cap_info.cap_size.size_y;
+	p->gtm_hist_total = sw_ctx->cap_info.cap_size.size_x * sw_ctx->cap_info.cap_size.size_y;
 	val = p->gtm_hist_total & 0x3FFFFFF;
 	DCAM_REG_WR(idx, GTM_HIST_CTRL5, val);
 
@@ -165,9 +164,9 @@ int dcam_k_raw_gtm_block(uint32_t gtm_param_idx,
 	val = (p->tm_rgb2y_b_coeff & 0x7FF);
 	DCAM_REG_MWR(idx, GTM_TM_RGB2YCOEFF1, 0x7FF, val);
 
-	for (i = 0; i < GTM_HIST_XPTS_CNT / 2; i+=2) {
-		val = ((p->tm_hist_xpts[i] & 0x3FFF) << 16) | (p->tm_hist_xpts[i+1] & 0x3FFF);
-		DCAM_REG_WR(idx, GTM_HIST_XPTS + i*2, val);
+	for (i = 0; i < GTM_HIST_XPTS_CNT / 2; i += 2) {
+		val = ((p->tm_hist_xpts[i] & 0x3FFF) << 16) | (p->tm_hist_xpts[i + 1] & 0x3FFF);
+		DCAM_REG_WR(idx, GTM_HIST_XPTS + i * 2, val);
 	}
 
 	/* for slice */

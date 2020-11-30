@@ -25,8 +25,8 @@
 #define pr_fmt(fmt) "3DNR: %d %d %s : "\
 	fmt, current->pid, __LINE__, __func__
 
-#define DCAM_3DNR_ROI_SIZE_ALIGN 16u
-#define DCAM_3DNR_ROI_LINE_CUT 32u
+#define DCAM_3DNR_ROI_SIZE_ALIGN       16u
+#define DCAM_3DNR_ROI_LINE_CUT         32u
 #define DCAM0_3DNR_ME_WIDTH_MAX        (5664 >> 1)
 #define DCAM0_3DNR_ME_HEIGHT_MAX       (4248 >> 1)
 #define DCAM1_3DNR_ME_WIDTH_MAX        (8048 >> 1)
@@ -34,14 +34,13 @@
 #define DCAM2_3DNR_ME_WIDTH_MAX        (3264 >> 1)
 #define DCAM2_3DNR_ME_HEIGHT_MAX       (2448 >> 1)
 
-
 struct roi_size {
 	uint32_t roi_width;
 	uint32_t roi_height;
 };
 
 int dcam_k_3dnr_convert_roi(struct isp_img_rect src, struct isp_img_size *dst,
-			 uint32_t project_mode, uint32_t idx)
+		uint32_t project_mode, uint32_t idx)
 {
 	int roi_width_max = 0, roi_height_max = 0;
 	uint32_t lbuf = 0;
@@ -49,8 +48,8 @@ int dcam_k_3dnr_convert_roi(struct isp_img_rect src, struct isp_img_size *dst,
 	switch (idx) {
 	case DCAM_ID_0:
 		if (project_mode == 0) {
-			roi_width_max = MIN(src.w ,DCAM0_3DNR_ME_WIDTH_MAX);
-			roi_height_max = MIN(src.h ,DCAM0_3DNR_ME_HEIGHT_MAX);
+			roi_width_max = MIN(src.w, DCAM0_3DNR_ME_WIDTH_MAX);
+			roi_height_max = MIN(src.h, DCAM0_3DNR_ME_HEIGHT_MAX);
 		} else {
 			roi_width_max = src.w;
 			roi_height_max = src.h;
@@ -58,8 +57,8 @@ int dcam_k_3dnr_convert_roi(struct isp_img_rect src, struct isp_img_size *dst,
 		break;
 	case DCAM_ID_1:
 		if (project_mode == 0) {
-			roi_width_max = MIN(src.w ,DCAM1_3DNR_ME_WIDTH_MAX / 2);
-			roi_height_max = MIN(src.h ,DCAM1_3DNR_ME_HEIGHT_MAX);
+			roi_width_max = MIN(src.w, DCAM1_3DNR_ME_WIDTH_MAX / 2);
+			roi_height_max = MIN(src.h, DCAM1_3DNR_ME_HEIGHT_MAX);
 		} else {
 			if (src.w > DCAM1_3DNR_ME_WIDTH_MAX) {
 				lbuf = 1;
@@ -74,8 +73,8 @@ int dcam_k_3dnr_convert_roi(struct isp_img_rect src, struct isp_img_size *dst,
 		break;
 	case DCAM_ID_2:
 		if (project_mode == 0) {
-			roi_width_max = MIN(src.w ,DCAM2_3DNR_ME_WIDTH_MAX);
-			roi_height_max = MIN(src.h ,DCAM2_3DNR_ME_HEIGHT_MAX);
+			roi_width_max = MIN(src.w, DCAM2_3DNR_ME_WIDTH_MAX);
+			roi_height_max = MIN(src.h, DCAM2_3DNR_ME_HEIGHT_MAX);
 		} else {
 			lbuf = DCAM_AXIM_RD(DCAM_LBUF_SHARE_MODE);
 			if (lbuf == 1) {
@@ -100,7 +99,7 @@ int dcam_k_3dnr_convert_roi(struct isp_img_rect src, struct isp_img_size *dst,
 /* input: rect: bin path crop size, include start point(x,y), and size(w,h)
  */
 void dcam_k_3dnr_set_roi(struct isp_img_rect rect,
-			 uint32_t project_mode, uint32_t idx)
+		uint32_t project_mode, uint32_t idx)
 {
 	uint32_t roi_w, roi_h, roi_x = 0, roi_y = 0;
 	struct isp_img_size smax = {0, 0};
@@ -140,8 +139,8 @@ int dcam_k_3dnr_me(struct dcam_dev_param *param)
 {
 	int ret = 0;
 	uint32_t idx = 0;
-	struct dcam_pipe_dev *dev = NULL;
-	struct dcam_dev_3dnr_me *p = NULL; /* nr3_me; */
+	struct dcam_sw_context *dev = NULL;
+	struct dcam_dev_3dnr_me *p = NULL;
 	struct dcam_path_desc *path;
 	struct isp_img_rect rect;
 
@@ -149,7 +148,7 @@ int dcam_k_3dnr_me(struct dcam_dev_param *param)
 		return -EPERM;
 
 	idx = param->idx;
-	dev = param->dev;
+	dev = (struct dcam_sw_context *)param->dev;
 
 	/* debugfs bypass nr3 */
 	if (g_dcam_bypass[idx] & (1 << _E_NR3))
@@ -180,8 +179,7 @@ int dcam_k_3dnr_me(struct dcam_dev_param *param)
 	rect.h = path->in_trim.size_y;
 	if ((rect.x + rect.w) <= dev->cap_info.cap_size.size_x &&
 		(rect.y + rect.h) <= dev->cap_info.cap_size.size_y)
-	dcam_k_3dnr_set_roi(rect,
-			    p->nr3_project_mode, idx);
+		dcam_k_3dnr_set_roi(rect, p->nr3_project_mode, idx);
 
 	/*  sub_me_bypass.  */
 	DCAM_REG_MWR(idx, NR3_FAST_ME_PARAM, BIT(3), 0 << 3);
@@ -204,6 +202,8 @@ int dcam_k_cfg_3dnr_me(struct isp_io_param *param, struct dcam_dev_param *p)
 					(unsigned int)ret);
 				return -EPERM;
 			}
+			if (p->idx == DCAM_HW_CONTEXT_MAX)
+				return 0;
 			ret = dcam_k_3dnr_me(p);
 		} else {
 			mutex_lock(&p->param_lock);
@@ -221,8 +221,7 @@ int dcam_k_cfg_3dnr_me(struct isp_io_param *param, struct dcam_dev_param *p)
 
 		break;
 	default:
-		pr_err("fail to support property %d\n",
-			param->property);
+		pr_err("fail to support property %d\n", param->property);
 		ret = -EINVAL;
 		break;
 	}

@@ -25,13 +25,12 @@
 #define pr_fmt(fmt) "AWBC: %d %d %s : "\
 	fmt, current->pid, __LINE__, __func__
 
-
 int dcam_k_awbc_block(struct dcam_dev_param *param)
 {
 	int ret = 0;
 	uint32_t idx = 0;
 	uint32_t val = 0;
-	struct dcam_dev_awbc_info *p = NULL; /* awbc_info; */
+	struct dcam_dev_awbc_info *p = NULL;
 
 	if (param == NULL)
 		return -EPERM;
@@ -73,7 +72,7 @@ int dcam_k_awbc_gain(struct dcam_dev_param *param)
 	int ret = 0;
 	uint32_t idx = 0;
 	uint32_t val = 0;
-	struct img_rgb_info *p = NULL; /* awbc_gain; */
+	struct img_rgb_info *p = NULL;
 
 	if (param == NULL)
 		return -EPERM;
@@ -112,10 +111,6 @@ int dcam_k_cfg_awbc(struct isp_io_param *param,	struct dcam_dev_param *p)
 	int size;
 	FUNC_DCAM_PARAM sub_func = NULL;
 
-	/* debugfs bypass awbc */
-	if (g_dcam_bypass[p->idx] & (1 << _E_AWBC))
-		return 0;
-
 	switch (param->property) {
 	case DCAM_PRO_AWBC_BLOCK:
 		pcpy = (void *)&(p->awbc.awbc_info);
@@ -145,6 +140,8 @@ int dcam_k_cfg_awbc(struct isp_io_param *param,	struct dcam_dev_param *p)
 				(unsigned int)ret);
 			return -EPERM;
 		}
+		if (p->idx == DCAM_HW_CONTEXT_MAX || (g_dcam_bypass[p->idx] & (1 << _E_AWBC)))
+			return 0;
 		ret = sub_func(p);
 		return ret;
 	}

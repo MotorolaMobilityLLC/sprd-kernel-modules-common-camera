@@ -25,7 +25,6 @@
 #define pr_fmt(fmt) "AFL: %d %d %s : "\
 	fmt, current->pid, __LINE__, __func__
 
-
 #define V_COUNTER_INTERVAL 524288
 
 static uint32_t get_afl_data_num(uint32_t afl_stepy,
@@ -210,6 +209,8 @@ int dcam_k_cfg_afl(struct isp_io_param *param, struct dcam_dev_param *p)
 				(unsigned int)ret);
 			return -EPERM;
 		}
+		if (p->idx == DCAM_HW_CONTEXT_MAX)
+			return 0;
 		ret = sub_func(p);
 	} else {
 		mutex_lock(&p->param_lock);
