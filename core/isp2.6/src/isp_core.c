@@ -2924,9 +2924,8 @@ static int ispcore_context_get(void *isp_handle, void *param)
 
 	if (pctx->nr3_handle == NULL) {
 		pctx->nr3_handle = isp_3dnr_ctx_get(pctx->ctx_id);
-		if (IS_ERR_OR_NULL(pctx->nr3_handle)) {
+		if (!pctx->nr3_handle) {
 			pr_err("fail to get memory for nr3_ctx.\n");
-			pctx->nr3_handle = NULL;
 			ret = -ENOMEM;
 			goto thrd_err;
 		}

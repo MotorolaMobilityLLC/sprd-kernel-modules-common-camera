@@ -957,7 +957,7 @@ void *isp_3dnr_ctx_get(uint32_t idx)
 	struct isp_3dnr_ctx_desc *nr3_ctx = NULL;
 
 	nr3_ctx = vzalloc(sizeof(struct isp_3dnr_ctx_desc));
-	if (IS_ERR_OR_NULL(nr3_ctx))
+	if (!nr3_ctx)
 		return NULL;
 
 	nr3_ctx->ctx_id = idx;
