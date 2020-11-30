@@ -600,6 +600,10 @@ static int dcamhw_path_start(void *handle, void *arg)
 		DCAM_REG_MWR(patharg->idx, DCAM_FULL_CFG,
 			BIT_2 | BIT_3, patharg->pack_bits << 2);
 		DCAM_REG_MWR(patharg->idx, DCAM_FULL_CFG, BIT_4, patharg->src_sel << 4);
+		if (patharg->pack_bits == 0) {
+			DCAM_REG_MWR(patharg->idx, DCAM_BAYER_INFO_CFG, 0x3 << 16, 1 << 16);
+			DCAM_REG_MWR(patharg->idx, DCAM_BAYER_INFO_CFG, 0x7 << 18, 4 << 18);
+		}
 
 		/* full_path_en */
 		DCAM_REG_MWR(patharg->idx, DCAM_FULL_CFG, BIT_0, (0x1));
@@ -941,7 +945,7 @@ static int dcamhw_full_path_src_sel(void *handle, void *arg)
 	patharg = (struct dcam_hw_path_src_sel *)arg;
 	switch (patharg->src_sel) {
 	case ORI_RAW_SRC_SEL:
-		DCAM_REG_MWR(patharg->idx, DCAM_FULL_CFG, BIT(4), 0);
+		DCAM_REG_MWR(patharg->idx, DCAM_FULL_CFG, BIT(4), 0 << 4);
 		break;
 	case PROCESS_RAW_SRC_SEL:
 		DCAM_REG_MWR(patharg->idx, DCAM_FULL_CFG, BIT(4), BIT(4));
