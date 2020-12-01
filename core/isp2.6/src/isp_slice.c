@@ -500,7 +500,7 @@ static void ispslice_spath_scaler_info_cfg(
 	}
 }
 
-void ispslice_spath_trim1_info_cfg(
+static void ispslice_spath_trim1_info_cfg(
 		struct isp_scaler_slice_tmp *slice,
 		struct img_trim *frm_trim0,
 		struct isp_scaler_info *in,

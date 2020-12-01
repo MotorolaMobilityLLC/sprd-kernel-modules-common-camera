@@ -132,7 +132,7 @@ static void isphw_ap_fmcu_reg_write(struct isp_fmcu_ctx_desc *fmcu,
 		ISP_REG_WR(ctx_id, addr, cmd);
 }
 
-static int cam_bypass_count_get(void *handle, void *arg)
+static int isphw_bypass_count_get(void *handle, void *arg)
 {
 	int cnt = 0;
 	uint32_t type = 0;
@@ -159,7 +159,7 @@ static int cam_bypass_count_get(void *handle, void *arg)
 	return cnt;
 }
 
-static int cam_bypass_data_get(void *handle, void *arg)
+static int isphw_bypass_data_get(void *handle, void *arg)
 {
 	struct bypass_tag *bypass = NULL;
 	struct cam_hw_bypass_data *data = NULL;
@@ -221,7 +221,7 @@ static uint32_t cam_reg_trace_tab[] = {
 	DCAM_LSCM_BASE_WADDR,
 };
 
-static int cam_reg_trace(void *handle, void *arg)
+static int isphw_reg_trace(void *handle, void *arg)
 {
 	unsigned long addr = 0;
 	uint32_t val_mmu, val[8], i, j, n, cnt;
@@ -2916,9 +2916,9 @@ static struct hw_io_ctrl_fun isp_ioctl_fun_tab[] = {
 	{ISP_HW_CFG_BLOCK_FUNC_GET,          isphw_block_func_get},
 	{ISP_HW_CFG_CFG_MAP_INFO_GET,        isphw_cfg_map_info_get},
 	{ISP_HW_CFG_FMCU_VALID_GET,          isphw_fmcu_available},
-	{ISP_HW_CFG_BYPASS_DATA_GET,         cam_bypass_data_get},
-	{ISP_HW_CFG_BYPASS_COUNT_GET,        cam_bypass_count_get},
-	{ISP_HW_CFG_REG_TRACE,               cam_reg_trace},
+	{ISP_HW_CFG_BYPASS_DATA_GET,         isphw_bypass_data_get},
+	{ISP_HW_CFG_BYPASS_COUNT_GET,        isphw_bypass_count_get},
+	{ISP_HW_CFG_REG_TRACE,               isphw_reg_trace},
 	{ISP_HW_CFG_ISP_CFG_SUBBLOCK,        isphw_subblock_cfg},
 	{ISP_HW_CFG_SET_PATH_STORE,          isphw_path_store},
 	{ISP_HW_CFG_SET_PATH_SCALER,         isphw_path_scaler},

@@ -406,7 +406,7 @@ dcam_path_frame_cycle(struct dcam_sw_context *dcam_sw_ctx, struct dcam_path_desc
 	return frame;
 }
 
-static inline void dcam_path_frame_pointer_swap(struct camera_frame **frame1,
+static inline void dcampath_frame_pointer_swap(struct camera_frame **frame1,
 			struct camera_frame **frame2)
 {
 	struct camera_frame *frame;
@@ -485,7 +485,7 @@ int dcam_path_store_frm_set(void *dcam_ctx_handle,
 	}
 
 	if (saved)
-		dcam_path_frame_pointer_swap(&frame, &saved);
+		dcampath_frame_pointer_swap(&frame, &saved);
 	if (frame->is_compressed) {
 		struct compressed_addr fbc_addr;
 		struct img_size *size = &path->out_size;
@@ -515,7 +515,7 @@ int dcam_path_store_frm_set(void *dcam_ctx_handle,
 		}
 	}
 	if (saved)
-		dcam_path_frame_pointer_swap(&frame, &saved);
+		dcampath_frame_pointer_swap(&frame, &saved);
 
 	atomic_inc(&path->set_frm_cnt);
 	if (path_id == DCAM_PATH_AFL)
@@ -694,10 +694,10 @@ int dcam_path_store_frm_set(void *dcam_ctx_handle,
 
 			addr = slowmotion_store_addr[_bin][i];
 			if (saved)
-				dcam_path_frame_pointer_swap(&frame, &saved);
+				dcampath_frame_pointer_swap(&frame, &saved);
 			DCAM_REG_WR(idx, addr, frame->buf.iova[0]);
 			if (saved)
-				dcam_path_frame_pointer_swap(&frame, &saved);
+				dcampath_frame_pointer_swap(&frame, &saved);
 			atomic_inc(&path->set_frm_cnt);
 
 			frame->fid = dcam_sw_ctx->base_fid + dcam_sw_ctx->index_to_set + i;

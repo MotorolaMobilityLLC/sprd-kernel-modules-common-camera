@@ -228,7 +228,7 @@ static void dcamcore_out_frame_ret(void *param)
 	}
 }
 
-void dcamcore_reserved_buf_destroy(void *param)
+static void dcamcore_reserved_buf_destroy(void *param)
 {
 	struct camera_frame *frame;
 
@@ -391,7 +391,7 @@ static enum dcam_path_id dcamcore_statis_type_to_path_id(enum isp_statis_buf_typ
 	}
 }
 
-void dcamcore_statis_buf_destroy(void *param)
+static void dcamcore_statis_buf_destroy(void *param)
 {
 	struct camera_frame *frame;
 
@@ -1454,7 +1454,7 @@ static inline void dcamcore_sync_helper_locked_put(struct dcam_sw_context *pctx,
 /*
  * Enables/Disables frame sync for path_id. Should be called before streaming.
  */
-int dcamcore_dcam_if_sync_enable_set(void *handle, int path_id, int enable)
+int dcam_core_dcam_if_sync_enable_set(void *handle, int path_id, int enable)
 {
 	struct dcam_sw_context *pctx = NULL;
 	int ret = 0;
@@ -2294,9 +2294,9 @@ static int dcamcore_dev_start(void *dcam_handle, int online)
 	pctx->helper_enabled = 0;
 	if (!pctx->slowmotion_count) {
 		/* enable frame sync for 3DNR in normal mode */
-		dcamcore_dcam_if_sync_enable_set(pctx, DCAM_PATH_FULL, 1);
-		dcamcore_dcam_if_sync_enable_set(pctx, DCAM_PATH_BIN, 1);
-		dcamcore_dcam_if_sync_enable_set(pctx, DCAM_PATH_3DNR, 1);
+		dcam_core_dcam_if_sync_enable_set(pctx, DCAM_PATH_FULL, 1);
+		dcam_core_dcam_if_sync_enable_set(pctx, DCAM_PATH_BIN, 1);
+		dcam_core_dcam_if_sync_enable_set(pctx, DCAM_PATH_3DNR, 1);
 
 		helper = dcam_core_sync_helper_get(pctx);
 	}

@@ -1326,7 +1326,7 @@ static int dcamhw_gtm_ltm_eb(void *handle, void *arg)
 	return 0;
 }
 
-static int cam_gtm_ltm_dis(void *handle, void *arg)
+static int dcamhw_gtm_ltm_dis(void *handle, void *arg)
 {
 	struct cam_hw_gtm_ltm_dis *dis = NULL;
 
@@ -1351,7 +1351,7 @@ static int cam_gtm_ltm_dis(void *handle, void *arg)
 	return 0;
 }
 
-static int cam_gtm_update(void *handle, void *arg)
+static int dcamhw_gtm_update(void *handle, void *arg)
 {
 	int ret = 0;
 	struct cam_hw_gtm_update *gtmarg = NULL;
@@ -1551,8 +1551,8 @@ static struct hw_io_ctrl_fun dcam_ioctl_fun_tab[] = {
 	{DCAM_HW_CFG_FBC_ADDR_SET,          dcamhw_fbc_addr_set},
 	{DCAM_HW_CFG_GTM_STATUS_GET,        dcamhw_gtm_status_get},
 	{DCAM_HW_CFG_GTM_LTM_EB,            dcamhw_gtm_ltm_eb},
-	{DCAM_HW_CFG_GTM_LTM_DIS,           cam_gtm_ltm_dis},
-	{DCAM_HW_CFG_GTM_UPDATE,            cam_gtm_update},
+	{DCAM_HW_CFG_GTM_LTM_DIS,           dcamhw_gtm_ltm_dis},
+	{DCAM_HW_CFG_GTM_UPDATE,            dcamhw_gtm_update},
 	{DCAM_HW_CFG_BLOCK_FUNC_GET,        dcamhw_block_func_get},
 	{DCAM_HW_CFG_BLOCKS_SETALL,         dcamhw_blocks_setall},
 	{DCAM_HW_CFG_BLOCKS_SETSTATIS,      dcamhw_blocks_setstatis},
