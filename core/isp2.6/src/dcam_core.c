@@ -2667,9 +2667,10 @@ static int dcamcore_context_get(void *dcam_handle)
 		atomic_dec(&pctx->user_cnt);
 	}
 
-	if (sel_ctx_id == -1)
-		goto exit;/* ISP cfg mode, get free context */
-
+	if (sel_ctx_id == -1) {
+		pr_err("fail to get dam sw context\n");
+		goto exit;
+	}
 	ret = atomic_read(&pctx->state);
 	if (unlikely(ret != STATE_INIT)) {
 		pr_err("fail to get a valid ctx state, ctx%u, state=%d\n",
@@ -2711,7 +2712,7 @@ static int dcamcore_context_get(void *dcam_handle)
 	atomic_inc(&s_dcam_opened[pctx->sw_ctx_id]);
 exit:
 	mutex_unlock(&dev->path_mutex);
-	pr_info("success to get context id %d\n", sel_ctx_id);
+	pr_info("Get context id %d\n", sel_ctx_id);
 	return sel_ctx_id;
 }
 

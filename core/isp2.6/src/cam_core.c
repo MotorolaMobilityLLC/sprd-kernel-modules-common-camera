@@ -4256,7 +4256,7 @@ static int camcore_aux_dcam_init(struct camera_module *module,
 		sw_ctx = &module->dcam_dev_handle->sw_ctx[module->cur_aux_sw_ctx_id];
 		ret = dcam_core_context_bind(sw_ctx, grp->hw_info->csi_connect_type, module->aux_dcam_id);
 		if (!ret) {
-			if (sw_ctx->hw_ctx_id < 0 || sw_ctx->hw_ctx_id >= DCAM_HW_CONTEXT_MAX)
+			if (sw_ctx->hw_ctx_id >= DCAM_HW_CONTEXT_MAX)
 				pr_err("fail to get hw_ctx_id\n");
 			break;
 		}
@@ -5142,7 +5142,7 @@ static int camcore_raw_pre_proc(
 	do {
 		ret = dcam_core_context_bind(sw_ctx, hw->csi_connect_type, module->dcam_idx);
 		if (!ret) {
-			if (sw_ctx->hw_ctx_id < 0 || sw_ctx->hw_ctx_id >= DCAM_HW_CONTEXT_MAX)
+			if (sw_ctx->hw_ctx_id >= DCAM_HW_CONTEXT_MAX)
 				pr_err("fail to get hw_ctx_id\n");
 			break;
 		}

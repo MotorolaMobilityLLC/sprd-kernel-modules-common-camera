@@ -1543,14 +1543,12 @@ static int camioctl_stream_on(struct camera_module *module,
 	uint32_t online = 1;
 	uint32_t i, line_w, isp_ctx_id, isp_path_id;
 	uint32_t uframe_sync, live_ch_count = 0, shutoff = 0;
-	int hw_ctx_id = DCAM_HW_CONTEXT_MAX;
 
 	struct channel_context *ch = NULL;
 	struct channel_context *ch_pre = NULL, *ch_vid = NULL;
 	struct cam_hw_info *hw = NULL;
 	struct dcam_pipe_dev *dev = (struct dcam_pipe_dev *)module->dcam_dev_handle;
 	struct dcam_sw_context *sw_ctx = &dev->sw_ctx[module->cur_sw_ctx_id];
-	struct dcam_hw_context *hw_ctx = NULL;
 	struct cam_hw_lbuf_share camarg;
 
 	ret = copy_from_user(&online, (void __user *)arg, sizeof(uint32_t));
@@ -1706,21 +1704,18 @@ cfg_ch_done:
 	do {
 		ret = dcam_core_context_bind(sw_ctx, hw->csi_connect_type, module->dcam_idx);
 		if (!ret) {
-			hw_ctx_id = dcam_core_hw_context_id_get(sw_ctx);
-			if (hw_ctx_id >= 0 && hw_ctx_id < DCAM_HW_CONTEXT_MAX)
-				hw_ctx = &dev->hw_ctx[hw_ctx_id];
-			else
+			if (sw_ctx->hw_ctx_id >= DCAM_HW_CONTEXT_MAX)
 				pr_err("fail to get hw_ctx_id\n");
 			break;
 		}
-		pr_info_ratelimited("ctx %d wait for hw. loop %d\n", hw_ctx->hw_ctx_id, loop);
+		pr_info_ratelimited("ctx %d wait for hw. loop %d\n", sw_ctx->hw_ctx_id, loop);
 		usleep_range(600, 800);
 	} while (loop++ < 5000);
 
 	if(hw->csi_connect_type == DCAM_BIND_DYNAMIC) {
 		struct dcam_switch_param csi_switch;
 		csi_switch.csi_id = module->dcam_idx;
-		csi_switch.dcam_id= hw_ctx->hw_ctx_id;
+		csi_switch.dcam_id= sw_ctx->hw_ctx_id;
 		pr_info("csi_switch.csi_id = %d, csi_switch.dcam_id = %d\n", csi_switch.csi_id, csi_switch.dcam_id);
 		/* switch connect */
 		hw->dcam_ioctl(hw, DCAM_HW_CONECT_CSI, &csi_switch);
@@ -1743,7 +1738,7 @@ cfg_ch_done:
 		do {
 			ret = dcam_core_context_bind(aux_sw_ctx, hw->csi_connect_type, module->aux_dcam_id);
 			if (!ret) {
-				if (aux_sw_ctx->hw_ctx_id < 0 || aux_sw_ctx->hw_ctx_id >= DCAM_HW_CONTEXT_MAX)
+				if (aux_sw_ctx->hw_ctx_id >= DCAM_HW_CONTEXT_MAX)
 					pr_err("fail to get hw_ctx_id\n");
 				break;
 			}
@@ -2046,11 +2041,12 @@ check:
 		goto dcam_fail;
 	}
 
-	module->cur_sw_ctx_id = module->dcam_dev_handle->dcam_pipe_ops->get_context(module->dcam_dev_handle);
-	if (module->cur_sw_ctx_id < 0) {
-		pr_err("fail to get dcam context for cam%d ch %d\n",
-			module->idx);
+	ret = module->dcam_dev_handle->dcam_pipe_ops->get_context(module->dcam_dev_handle);
+	if (ret < 0) {
+		pr_err("fail to get dcam context for cam%d\n", module->idx);
 		goto dcam_cb_fail;
+	} else {
+		module->cur_sw_ctx_id = ret;
 	}
 
 	module->dcam_dev_handle->dcam_pipe_ops->set_callback(module->dcam_dev_handle,
@@ -2064,11 +2060,10 @@ check:
 
 		ret = module->dcam_dev_handle->dcam_pipe_ops->ioctl(&module->dcam_dev_handle->sw_ctx[module->cur_sw_ctx_id],
 			DCAM_IOCTL_CFG_SEC, &sec_eb);
-	}
-
-	if (ret) {
-		pr_err("fail to set cam sec %d.\n", module->grp->camsec_cfg.camsec_mode);
-		goto dcam_cb_fail;
+		if (ret) {
+			pr_err("fail to set cam sec %d.\n", module->grp->camsec_cfg.camsec_mode);
+			goto dcam_cb_fail;
+		}
 	}
 
 	if (rps_info)
