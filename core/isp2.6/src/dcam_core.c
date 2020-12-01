@@ -2725,8 +2725,8 @@ static int dcamcore_context_put(void *dcam_handle, int ctx_id)
 		pr_err("fail to get valid input ptr\n");
 		return -EFAULT;
 	}
-	if (ctx_id < 0 || ctx_id >= ISP_CONTEXT_SW_NUM) {
-		pr_err("fail to get legal ctx_id %d\n", ctx_id);
+	if (ctx_id < 0 || ctx_id >= DCAM_SW_CONTEXT_MAX) {
+		pr_err("fail to get a vaild sw_ctx_id %d\n", ctx_id);
 		return -EFAULT;
 	}
 
