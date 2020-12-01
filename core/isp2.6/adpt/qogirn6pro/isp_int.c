@@ -306,6 +306,7 @@ static void ispint_rgb_ltm_hists_done(enum isp_context_hw_id hw_idx, void *isp_h
 {
 	struct isp_sw_context *pctx;
 	struct isp_pipe_dev *dev;
+	struct isp_ltm_ctx_desc *rgb_ltm = NULL;
 	int completion = 0;
 	int idx = -1;
 
@@ -317,20 +318,14 @@ static void ispint_rgb_ltm_hists_done(enum isp_context_hw_id hw_idx, void *isp_h
 	}
 
 	pctx = dev->sw_ctx[idx];
+	rgb_ltm = (struct isp_ltm_ctx_desc *)pctx->rgb_ltm_handle;
+	if (!rgb_ltm)
+		return;
 
-	dev->ltm_handle->ops->set_frmidx(pctx->ltm_ctx.fid, pctx->ltm_ctx.ltm_index);
-	completion = dev->ltm_handle->ops->get_completion(LTM_RGB,
-		pctx->ltm_ctx.ltm_index);
-	pr_debug("ltm rgb hists done. cxt_id:%d, %d, fid:[%d], completion[%d]\n",
-		idx, pctx->ltm_ctx.isp_pipe_ctx_id,
-		pctx->ltm_ctx.fid, completion);
-
-	if (completion && (pctx->ltm_ctx.fid >= completion)) {
-		completion = dev->ltm_handle->ops->complete_completion(LTM_RGB,
-			pctx->ltm_ctx.ltm_index);
-		pr_info("complete completion fid [%d], completion[%d]\n",
-			pctx->ltm_ctx.fid, completion);
-	}
+	rgb_ltm->ltm_ops.sync_ops.set_frmidx(rgb_ltm);
+	completion = rgb_ltm->ltm_ops.sync_ops.get_completion(rgb_ltm);
+	if (completion && (rgb_ltm->fid >= completion))
+		completion = rgb_ltm->ltm_ops.sync_ops.do_completion(rgb_ltm);
 }
 
 static struct camera_frame *ispint_hist2_frame_prepare(enum isp_context_id idx,

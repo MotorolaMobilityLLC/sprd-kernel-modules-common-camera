@@ -156,20 +156,19 @@ static void isp_ltm_config_map(uint32_t idx,
 }
 
 
-int isp_ltm_config_param(struct isp_ltm_ctx_desc *ctx,
-		enum isp_ltm_region ltm_id)
+int isp_ltm_config_param(struct isp_ltm_ctx_desc *ctx)
 {
-	uint32_t idx = ctx->isp_pipe_ctx_id;
-	struct isp_ltm_hists *hists = &ctx->hists[ltm_id];
-	struct isp_ltm_map *map = &ctx->map[ltm_id];
+	uint32_t idx = ctx->ctx_id;
+	struct isp_ltm_hists *hists = &ctx->hists;
+	struct isp_ltm_map *map = &ctx->map;
 
 	if (ctx->bypass) {
 		hists->bypass = 1;
 		map->bypass = 1;
 	}
 
-	isp_ltm_config_hists(idx, ltm_id, hists);
-	isp_ltm_config_map(idx, ltm_id, map);
+	isp_ltm_config_hists(idx, ctx->ltm_id, hists);
+	isp_ltm_config_map(idx, ctx->ltm_id, map);
 
 	return 0;
 }
@@ -190,8 +189,7 @@ int isp_k_ltm_rgb_block(struct isp_io_param *param,
 		return -EPERM;
 	}
 
-	pr_debug("isp %d ltm hist %d map %d\n",
-		idx, p->ltm_stat.bypass, p->ltm_map.bypass);
+	pr_debug("isp %d ltm hist %d map %d\n", idx, p->ltm_stat.bypass, p->ltm_map.bypass);
 
 	return ret;
 }

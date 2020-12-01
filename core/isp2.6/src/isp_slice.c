@@ -2256,26 +2256,28 @@ static int ispslice_3dnr_set(
 	return 0;
 }
 
-static int ispslice_ltm_info_cfg(void *cfg_in,
-	struct isp_slice_context *slc_ctx,
-	enum isp_ltm_region ltm_id)
+static int ispslice_ltm_info_cfg(struct isp_ltm_ctx_desc *ltm_ctx,
+		struct isp_slice_context *slc_ctx, enum isp_ltm_region ltm_id)
 {
 	int ret = 0, idx = 0;
-	struct slice_cfg_input *in_ptr = (struct slice_cfg_input *)cfg_in;
-	struct isp_ltm_ctx_desc *ltm_ctx = in_ptr->ltm_ctx;
 	struct isp_ltm_rtl_param rtl_param;
 	struct isp_ltm_rtl_param *prtl = &rtl_param;
 
 	struct isp_slice_desc *cur_slc = NULL;
 	struct slice_ltm_map_info *slc_ltm_map;
 	uint32_t slice_info[4];
+	struct isp_ltm_map *map = NULL;
 
-	struct isp_ltm_map *map = &ltm_ctx->map[ltm_id];
+	if (!ltm_ctx || !slc_ctx) {
+		pr_err("fail to get invalid in_ptr\n");
+		return -1;
+	}
 
+	map = &ltm_ctx->map;
 	if (map->bypass)
 		return 0;
 
-	if (ltm_ctx->type == MODE_LTM_OFF) {
+	if (ltm_ctx->mode == MODE_LTM_OFF) {
 		for (idx = 0; idx < SLICE_NUM_MAX; idx++) {
 			cur_slc = &slc_ctx->slices[idx];
 			if (cur_slc->valid == 0)
@@ -2298,7 +2300,7 @@ static int ispslice_ltm_info_cfg(void *cfg_in,
 		slice_info[2] = cur_slc->slice_pos.end_col;
 		slice_info[3] = cur_slc->slice_pos.end_row;
 
-		isp_ltm_map_slice_config_gen(ltm_ctx, ltm_id, prtl, slice_info);
+		isp_ltm_map_slice_config_gen(ltm_ctx, prtl, slice_info);
 
 		slc_ltm_map->tile_width = map->tile_width;
 		slc_ltm_map->tile_height = map->tile_height;
@@ -2359,9 +2361,9 @@ int isp_slice_info_cfg(void *cfg_in, struct isp_slice_context *slc_ctx)
 	ispslice_afbc_store_info_cfg(cfg_in, slc_ctx);
 	ispslice_3dnr_info_cfg(cfg_in, slc_ctx);
 	if (in_ptr->ltm_rgb_eb)
-		ispslice_ltm_info_cfg(cfg_in, slc_ctx, LTM_RGB);
+		ispslice_ltm_info_cfg(in_ptr->rgb_ltm, slc_ctx, LTM_RGB);
 	if (in_ptr->ltm_yuv_eb)
-		ispslice_ltm_info_cfg(cfg_in, slc_ctx, LTM_YUV);
+		ispslice_ltm_info_cfg(in_ptr->yuv_ltm, slc_ctx, LTM_YUV);
 	ispslice_noisefilter_info_cfg(cfg_in, slc_ctx);
 
 	return 0;

@@ -302,6 +302,8 @@ static int ispcore_ltm_frame_process(struct isp_sw_context *pctx,
 {
 	int ret = 0;
 	struct isp_uinfo *pipe_src = NULL;
+	struct isp_ltm_ctx_desc *rgb_ltm = NULL;
+	struct isp_ltm_ctx_desc *yuv_ltm = NULL;
 
 	if (!pctx || !pframe) {
 		pr_err("fail to get valid parameter pctx %p pframe %p\n",
@@ -310,72 +312,30 @@ static int ispcore_ltm_frame_process(struct isp_sw_context *pctx,
 	}
 
 	pipe_src = &pctx->pipe_src;
-	/*
-	 * Only preview path care of frame size changed
-	 * Because capture path, USING hist from preview path
-	 */
-	if (pipe_src->mode_ltm != MODE_LTM_PRE)
-		goto start_proc;
+	rgb_ltm = (struct isp_ltm_ctx_desc *)pctx->rgb_ltm_handle;
+	yuv_ltm = (struct isp_ltm_ctx_desc *)pctx->yuv_ltm_handle;
 
-	/*  Check Zoom or not */
-	if ((pipe_src->crop.size_x != pctx->ltm_ctx.frame_width) ||
-		(pipe_src->crop.size_y != pctx->ltm_ctx.frame_height) ||
-		((pframe->fid - pctx->ltm_ctx.fid) != 1)||
-		(pframe->fid == 0)){
-		pr_debug("frame size changed or frame id not series , bypass ltm map\n");
+	if (!rgb_ltm || !yuv_ltm)
+		return 0;
 
-		/* 1. hists from preview path always on
-		 * 2. map will be off one time in preview case
-		 */
-		if (pipe_src->ltm_rgb)
-			pctx->ltm_ctx.map[LTM_RGB].bypass = 1;
-		if (pipe_src->ltm_yuv)
-			pctx->ltm_ctx.map[LTM_YUV].bypass = 1;
-	} else {
-		if (pipe_src->ltm_rgb)
-			pctx->ltm_ctx.map[LTM_RGB].bypass = 0;
-		if (pipe_src->ltm_yuv)
-			pctx->ltm_ctx.map[LTM_YUV].bypass = 0;
-	}
+	rgb_ltm->ltm_ops.core_ops.cfg_param(rgb_ltm, ISP_LTM_CFG_MODE, &pipe_src->mode_ltm);
+	yuv_ltm->ltm_ops.core_ops.cfg_param(yuv_ltm, ISP_LTM_CFG_MODE, &pipe_src->mode_ltm);
+	rgb_ltm->ltm_ops.core_ops.cfg_param(rgb_ltm, ISP_LTM_CFG_FRAME_ID, &pframe->fid);
+	rgb_ltm->ltm_ops.core_ops.cfg_param(rgb_ltm, ISP_LTM_CFG_SIZE_INFO, &pipe_src->crop);
+	yuv_ltm->ltm_ops.core_ops.cfg_param(yuv_ltm, ISP_LTM_CFG_FRAME_ID, &pframe->fid);
+	yuv_ltm->ltm_ops.core_ops.cfg_param(yuv_ltm, ISP_LTM_CFG_SIZE_INFO, &pipe_src->crop);
 
-start_proc:
-	pctx->ltm_ctx.type = pipe_src->mode_ltm;
-	pctx->ltm_ctx.fid = pframe->fid;
-	pctx->ltm_ctx.frame_width  = pipe_src->crop.size_x;
-	pctx->ltm_ctx.frame_height = pipe_src->crop.size_y;
-	pctx->ltm_ctx.isp_pipe_ctx_id = pctx->ctx_id;
-
-	pr_debug("LTM: type %d rgb %d yuv %d ctx id%d\n",
-		pctx->ltm_ctx.type, pipe_src->ltm_rgb,
-		pipe_src->ltm_yuv, pctx->ctx_id);
-
-	/* pre & cap */
-	if (pipe_src->ltm_rgb)
-		ret = isp_ltm_frame_config_gen(&pctx->ltm_ctx, LTM_RGB,
-			(struct isp_ltm_info *)&pctx->isp_k_param.ltm_rgb_info);
+	ret = rgb_ltm->ltm_ops.core_ops.pipe_proc(rgb_ltm, &pctx->isp_k_param.ltm_rgb_info);
 	if (ret == -1) {
 		pipe_src->mode_ltm = MODE_LTM_OFF;
 		pr_err("fail to rgb LTM cfg frame, DISABLE\n");
 	}
 
-	if (pipe_src->ltm_yuv)
-		ret = isp_ltm_frame_config_gen(&pctx->ltm_ctx, LTM_YUV,
-			(struct isp_ltm_info *)&pctx->isp_k_param.ltm_yuv_info);
+	ret = yuv_ltm->ltm_ops.core_ops.pipe_proc(yuv_ltm, &pctx->isp_k_param.ltm_yuv_info);
 	if (ret == -1) {
 		pipe_src->mode_ltm = MODE_LTM_OFF;
 		pr_err("fail to yuv LTM cfg frame, DISABLE\n");
 	}
-
-	pr_debug("type[%d], fid[%d], frame_width[%d], frame_height[%d], isp_pipe_ctx_id[%d]\n",
-		pctx->ltm_ctx.type,
-		pctx->ltm_ctx.fid,
-		pctx->ltm_ctx.frame_width,
-		pctx->ltm_ctx.frame_height,
-		pctx->ltm_ctx.isp_pipe_ctx_id);
-
-	pr_debug("frame_height_stat[%d], frame_width_stat[%d]",
-		pctx->ltm_ctx.frame_height_stat,
-		pctx->ltm_ctx.frame_width_stat);
 
 	return ret;
 }
@@ -468,7 +428,6 @@ static int ispcore_fmcu_slw_queue_set(
 			}
 			return -EINVAL;
 		}
-		atomic_inc(&path->store_cnt);
 		slw.store[i] = pctx->pipe_info.store[i].store;
 		if ((i < AFBC_PATH_NUM) && pctx->pipe_src.path_info[i].store_fbc)
 			slw.afbc_store[i] = pctx->pipe_info.afbc[i].afbc_store;
@@ -1272,6 +1231,8 @@ static int ispcore_offline_param_set(struct isp_sw_context *pctx,
 	struct cam_hw_info *hw = NULL;
 	struct isp_pipe_info *pipe_in = NULL;
 	struct isp_uinfo *pipe_src = NULL;
+	struct isp_ltm_ctx_desc *rgb_ltm = NULL;
+	struct isp_ltm_ctx_desc *yuv_ltm = NULL;
 
 	if (!pctx || !pframe || !tmp) {
 		pr_err("fail to get input ptr, pctx %p, pframe %p tmp %p\n",
@@ -1283,6 +1244,8 @@ static int ispcore_offline_param_set(struct isp_sw_context *pctx,
 	hw = dev->isp_hw;
 	pipe_src = &pctx->pipe_src;
 	pipe_in = &pctx->pipe_info;
+	rgb_ltm = (struct isp_ltm_ctx_desc *)pctx->rgb_ltm_handle;
+	yuv_ltm = (struct isp_ltm_ctx_desc *)pctx->yuv_ltm_handle;
 
 	hw->isp_ioctl(hw, ISP_HW_CFG_FETCH_FRAME_ADDR, &pipe_in->fetch);
 	if (pipe_src->fetch_path_sel)
@@ -1373,14 +1336,16 @@ static int ispcore_offline_param_set(struct isp_sw_context *pctx,
 
 		if (ret) {
 			isp_int_isp_irq_cnt_trace(tmp->hw_ctx_id);
-			pr_err("fail to enqueue, hw %d, path %d, store %d\n",
-				tmp->hw_ctx_id, path->spath_id,
-				atomic_read(&path->store_cnt));
+			pr_err("fail to enqueue, hw %d, path %d\n",
+				tmp->hw_ctx_id, path->spath_id);
 			/* ret frame to original queue */
 			if (out_frame->is_reserved) {
 				cam_queue_enqueue(
 					&path->reserved_buf_queue, &out_frame->list);
-				dev->ltm_handle->ops->clear_status(pctx->ltm_ctx.ltm_index);
+				if (rgb_ltm)
+					rgb_ltm->ltm_ops.sync_ops.clear_status(rgb_ltm);
+				if (yuv_ltm)
+					yuv_ltm->ltm_ops.sync_ops.clear_status(yuv_ltm);
 			} else {
 				cam_buf_iommu_unmap(&out_frame->buf);
 				cam_queue_enqueue(
@@ -1389,7 +1354,6 @@ static int ispcore_offline_param_set(struct isp_sw_context *pctx,
 			ret = -EINVAL;
 			goto exit;
 		}
-		atomic_inc(&path->store_cnt);
 	}
 
 exit:
@@ -1413,6 +1377,8 @@ static int ispcore_offline_frame_start(void *ctx)
 	struct cam_hw_info *hw = NULL;
 	struct offline_tmp_param tmp = {0};
 	struct isp_hw_yuv_block_ctrl blk_ctrl;
+	struct isp_ltm_ctx_desc *rgb_ltm = NULL;
+	struct isp_ltm_ctx_desc *yuv_ltm = NULL;
 
 	pctx = (struct isp_sw_context *)ctx;
 	pr_debug("enter sw id %d, user_cnt=%d, ch_id=%d, cam_id=%d\n",
@@ -1427,6 +1393,8 @@ static int ispcore_offline_frame_start(void *ctx)
 	dev = pctx->dev;
 	hw = dev->isp_hw;
 	cfg_desc = (struct isp_cfg_ctx_desc *)dev->cfg_handle;
+	rgb_ltm = (struct isp_ltm_ctx_desc *)pctx->rgb_ltm_handle;
+	yuv_ltm = (struct isp_ltm_ctx_desc *)pctx->yuv_ltm_handle;
 
 	if (pctx->multi_slice | ispcore_slice_needed(pctx))
 		use_fmcu = FMCU_IS_NEED;
@@ -1518,7 +1486,10 @@ static int ispcore_offline_frame_start(void *ctx)
 	if (tmp.valid_out_frame == -1) {
 		pr_debug(" No available output buffer sw %d, hw %d,discard\n",
 			pctx_hw->sw_ctx_id, pctx_hw->hw_ctx_id);
-		dev->ltm_handle->ops->clear_status(pctx->ltm_ctx.ltm_index);
+		if (rgb_ltm)
+			rgb_ltm->ltm_ops.sync_ops.clear_status(rgb_ltm);
+		if (yuv_ltm)
+			yuv_ltm->ltm_ops.sync_ops.clear_status(yuv_ltm);
 		goto unlock;
 	}
 
@@ -1552,7 +1523,8 @@ static int ispcore_offline_frame_start(void *ctx)
 		slc_cfg.frame_in_size.w = pctx->pipe_src.crop.size_x;
 		slc_cfg.frame_in_size.h = pctx->pipe_src.crop.size_y;
 		slc_cfg.nr3_ctx = (struct isp_3dnr_ctx_desc *)pctx->nr3_handle;
-		slc_cfg.ltm_ctx = &pctx->ltm_ctx;
+		slc_cfg.rgb_ltm = (struct isp_ltm_ctx_desc *)pctx->rgb_ltm_handle;
+		slc_cfg.yuv_ltm = (struct isp_ltm_ctx_desc *)pctx->yuv_ltm_handle;;
 		slc_cfg.nofilter_ctx = &pctx->isp_k_param;
 		isp_slice_info_cfg(&slc_cfg, pctx->slice_ctx);
 
@@ -1671,7 +1643,6 @@ dequeue:
 				cam_queue_enqueue(
 					&path->out_buf_queue, &pframe->list);
 		}
-		atomic_dec(&path->store_cnt);
 	}
 
 	pframe = cam_queue_dequeue_tail(&pctx->proc_queue);
@@ -2155,14 +2126,13 @@ static int ispcore_postproc_irq(void *handle, uint32_t idx,
 				pctx->ctx_id, path->spath_id);
 			continue;
 		}
-		atomic_dec(&path->store_cnt);
 		pframe->boot_time = boot_time;
 		pframe->time.tv_sec = cur_ts.tv_sec;
 		pframe->time.tv_usec = cur_ts.tv_nsec / NSEC_PER_USEC;
 
-		pr_debug("ctx %d path %d, ch_id %d, fid %d, mfd 0x%x, storen %d, queue cnt:%d, is_reserved %d\n",
+		pr_debug("ctx %d path %d, ch_id %d, fid %d, mfd 0x%x, queue cnt:%d, is_reserved %d\n",
 			pctx->ctx_id, path->spath_id, pframe->channel_id, pframe->fid, pframe->buf.mfd[0],
-			atomic_read(&path->store_cnt), path->result_queue.cnt, pframe->is_reserved);
+			path->result_queue.cnt, pframe->is_reserved);
 		pr_debug("time_sensor %03d.%6d, time_isp %03d.%06d\n",
 			(uint32_t)pframe->sensor_time.tv_sec,
 			(uint32_t)pframe->sensor_time.tv_usec,
@@ -2301,9 +2271,6 @@ static int ispcore_path_get(void *isp_handle, int ctx_id, int path_id)
 	}
 
 	mutex_unlock(&dev->path_mutex);
-
-	atomic_set(&path->store_cnt, 0);
-
 	if (path->q_init == 0) {
 		if (pctx->uinfo.enable_slowmotion)
 			cam_queue_init(&path->result_queue,
@@ -2391,6 +2358,8 @@ static int ispcore_path_cfg(void *isp_handle,
 	struct camera_frame *pframe = NULL;
 	struct isp_path_uinfo *path_info = NULL;
 	struct isp_3dnr_ctx_desc *nr3_ctx = NULL;
+	struct isp_ltm_ctx_desc *rgb_ltm = NULL;
+	struct isp_ltm_ctx_desc *yuv_ltm = NULL;
 
 	if (!isp_handle || !param) {
 		pr_err("fail to get valid input ptr, isp_handle %p, param %p\n",
@@ -2411,6 +2380,8 @@ static int ispcore_path_cfg(void *isp_handle,
 	path = &pctx->isp_path[path_id];
 	path_info = &pctx->uinfo.path_info[path_id];
 	nr3_ctx = (struct isp_3dnr_ctx_desc *)pctx->nr3_handle;
+	rgb_ltm = (struct isp_ltm_ctx_desc *)pctx->rgb_ltm_handle;
+	yuv_ltm = (struct isp_ltm_ctx_desc *)pctx->yuv_ltm_handle;
 
 	if ((cfg_cmd != ISP_PATH_CFG_CTX_BASE) &&
 		(cfg_cmd != ISP_PATH_CFG_CTX_SIZE) &&
@@ -2489,52 +2460,22 @@ static int ispcore_path_cfg(void *isp_handle,
 		}
 		break;
 	case ISP_PATH_CFG_RGB_LTM_BUF:
-		pframe = (struct camera_frame *)param;
-		if (pctx->uinfo.mode_ltm == MODE_LTM_PRE) {
-			ret = cam_buf_iommu_map(&pframe->buf, CAM_IOMMUDEV_ISP);
-			if (ret) {
-				pr_err("fail to isp map iommu buf.\n");
-				ret = -EINVAL;
-				goto exit;
-			}
+		if (!rgb_ltm)
+			return 0;
+		ret = rgb_ltm->ltm_ops.core_ops.cfg_param(rgb_ltm, ISP_LTM_CFG_BUF, param);
+		if (ret) {
+			pr_err("fail to set isp ctx %d rgb ltm buffers.\n", ctx_id);
+			goto exit;
 		}
-		for (i = 0; i < ISP_LTM_BUF_NUM; i++) {
-			if (pctx->ltm_buf[LTM_RGB][i] == NULL) {
-				pctx->ltm_buf[LTM_RGB][i] = pframe;
-				pctx->ltm_ctx.pbuf[LTM_RGB][i] = &pframe->buf;
-				pr_debug("LTM CFGB[%d][0x%p][0x%p] = 0x%lx, 0x%lx\n",
-					i, pframe, pctx->ltm_buf[LTM_RGB][i],
-					pctx->ltm_ctx.pbuf[LTM_RGB][i]->iova[0],
-					pctx->ltm_buf[LTM_RGB][i]->buf.iova[0]);
-				break;
-			}
-		}
-		pr_debug("isp ctx [%d], ltm buf idx [%d], buf addr [0x%p]\n",
-			pctx->ctx_id, i, pframe);
 		break;
 	case ISP_PATH_CFG_YUV_LTM_BUF:
-		pframe = (struct camera_frame *)param;
-		if (pctx->pipe_src.mode_ltm == MODE_LTM_PRE) {
-			ret = cam_buf_iommu_map(&pframe->buf, CAM_IOMMUDEV_ISP);
-			if (ret) {
-				pr_err("fail to isp map iommu buf.\n");
-				ret = -EINVAL;
-				goto exit;
-			}
+		if (!yuv_ltm)
+			return 0;
+		ret = yuv_ltm->ltm_ops.core_ops.cfg_param(yuv_ltm, ISP_LTM_CFG_BUF, param);
+		if (ret) {
+			pr_err("fail to set isp ctx %d yuv ltm buffers.\n", ctx_id);
+			goto exit;
 		}
-		for (i = 0; i < ISP_LTM_BUF_NUM; i++) {
-			if (pctx->ltm_buf[LTM_YUV][i] == NULL) {
-				pctx->ltm_buf[LTM_YUV][i] = pframe;
-				pctx->ltm_ctx.pbuf[LTM_YUV][i] = &pframe->buf;
-				pr_debug("LTM CFGB[%d][0x%p][0x%p] = 0x%lx, 0x%lx\n",
-					i, pframe, pctx->ltm_buf[LTM_YUV][i],
-					pctx->ltm_ctx.pbuf[LTM_YUV][i]->iova[0],
-					pctx->ltm_buf[LTM_YUV][i]->buf.iova[0]);
-				break;
-			}
-		}
-		pr_debug("isp ctx [%d], ltm buf idx [%d], buf addr [0x%p]\n",
-			pctx->ctx_id, i, pframe);
 		break;
 	case ISP_PATH_CFG_POSTPROC_BUF:
 		pframe = (struct camera_frame *)param;
@@ -2924,24 +2865,6 @@ static int ispcore_context_get(void *isp_handle, void *param)
 		cfg_desc->ops->ctx_reset(cfg_desc, sel_ctx_id);
 	}
 
-	if (pctx->nr3_handle == NULL) {
-		pctx->nr3_handle = isp_3dnr_ctx_get(pctx->ctx_id);
-		if (!pctx->nr3_handle) {
-			pr_err("fail to get memory for nr3_ctx.\n");
-			ret = -ENOMEM;
-			goto thrd_err;
-		}
-	}
-
-	for (i = 0; i < ISP_SPATH_NUM; i++) {
-		path = &pctx->isp_path[i];
-		path->spath_id = i;
-		path->attach_ctx = pctx;
-		path->q_init = 0;
-		path->hw = hw;
-		atomic_set(&path->user_cnt, 0);
-	}
-
 	mutex_init(&pctx->param_mutex);
 	mutex_init(&pctx->blkpm_lock);
 	init_completion(&pctx->frm_done);
@@ -2955,13 +2878,50 @@ static int ispcore_context_get(void *isp_handle, void *param)
 	pctx->multi_slice = 0;
 	pctx->started = 0;
 	pctx->attach_cam_id = init_param->cam_id;
-	pctx->ltm_ctx.ltm_index = pctx->attach_cam_id;
 	pctx->uinfo.enable_slowmotion = 0;
 	pctx->postproc_func = ispcore_postproc_irq;
 	if (init_param->is_high_fps)
 		pctx->uinfo.enable_slowmotion = hw->ip_isp->slm_cfg_support;
 	pr_info("cam%d isp slowmotion eb %d\n",
 		pctx->attach_cam_id, pctx->uinfo.enable_slowmotion);
+
+	if (pctx->nr3_handle == NULL) {
+		pctx->nr3_handle = isp_3dnr_ctx_get(pctx->ctx_id);
+		if (!pctx->nr3_handle) {
+			pr_err("fail to get memory for nr3_ctx.\n");
+			ret = -ENOMEM;
+			goto nr3_err;
+		}
+	}
+
+	if (pctx->rgb_ltm_handle == NULL && hw->ip_isp->rgb_ltm_support) {
+		pctx->rgb_ltm_handle = isp_ltm_rgb_ctx_get(pctx->ctx_id,
+			pctx->attach_cam_id);
+		if (!pctx->rgb_ltm_handle) {
+			pr_err("fail to get memory for ltm_rgb_ctx.\n");
+			ret = -ENOMEM;
+			goto rgb_ltm_err;
+		}
+	}
+
+	if (pctx->yuv_ltm_handle == NULL && hw->ip_isp->yuv_ltm_support) {
+		pctx->yuv_ltm_handle = isp_ltm_yuv_ctx_get(pctx->ctx_id,
+			pctx->attach_cam_id);
+		if (!pctx->yuv_ltm_handle) {
+			pr_err("fail to get memory for ltm_yuv_ctx.\n");
+			ret = -ENOMEM;
+			goto yuv_ltm_err;
+		}
+	}
+
+	for (i = 0; i < ISP_SPATH_NUM; i++) {
+		path = &pctx->isp_path[i];
+		path->spath_id = i;
+		path->attach_ctx = pctx;
+		path->q_init = 0;
+		path->hw = hw;
+		atomic_set(&path->user_cnt, 0);
+	}
 
 	ret = ispcore_offline_thread_create(pctx);
 	if (unlikely(ret != 0)) {
@@ -2996,6 +2956,21 @@ static int ispcore_context_get(void *isp_handle, void *param)
 	goto exit;
 
 thrd_err:
+	if (pctx->yuv_ltm_handle && hw->ip_isp->yuv_ltm_support) {
+		isp_ltm_yuv_ctx_put(pctx->yuv_ltm_handle);
+		pctx->yuv_ltm_handle = NULL;
+	}
+yuv_ltm_err:
+	if (pctx->rgb_ltm_handle && hw->ip_isp->rgb_ltm_support) {
+		isp_ltm_rgb_ctx_put(pctx->rgb_ltm_handle);
+		pctx->rgb_ltm_handle = NULL;
+	}
+rgb_ltm_err:
+	if (pctx->nr3_handle) {
+		isp_3dnr_ctx_put(pctx->nr3_handle);
+		pctx->nr3_handle = NULL;
+	}
+nr3_err:
 	atomic_dec(&pctx->user_cnt); /* free context */
 	sel_ctx_id = -1;
 exit:
@@ -3024,6 +2999,9 @@ static int ispcore_context_put(void *isp_handle, int ctx_id)
 	struct isp_pipe_dev *dev;
 	struct isp_sw_context *pctx;
 	struct isp_path_desc *path;
+	struct cam_hw_info *hw = NULL;
+	struct isp_ltm_ctx_desc *rgb_ltm = NULL;
+	struct isp_ltm_ctx_desc *yuv_ltm = NULL;
 
 	if (!isp_handle) {
 		pr_err("fail to get valid input ptr\n");
@@ -3036,6 +3014,9 @@ static int ispcore_context_put(void *isp_handle, int ctx_id)
 
 	dev = (struct isp_pipe_dev *)isp_handle;
 	pctx = dev->sw_ctx[ctx_id];
+	hw = dev->isp_hw;
+	rgb_ltm = (struct isp_ltm_ctx_desc *)pctx->rgb_ltm_handle;
+	yuv_ltm = (struct isp_ltm_ctx_desc *)pctx->yuv_ltm_handle;
 
 	mutex_lock(&dev->path_mutex);
 
@@ -3065,55 +3046,21 @@ static int ispcore_context_put(void *isp_handle, int ctx_id)
 		cam_queue_clear(&pctx->stream_ctrl_proc_q,
 			struct isp_stream_ctrl, list);
 
-		dev->ltm_handle->ops->set_status(0, ctx_id, pctx->pipe_src.mode_ltm,
-						pctx->attach_cam_id);
-		if (pctx->uinfo.mode_ltm == MODE_LTM_PRE) {
-			if (pctx->uinfo.ltm_rgb) {
-				dev->ltm_handle->ops->clear_status(pctx->ltm_ctx.ltm_index);
-				dev->ltm_handle->ops->complete_completion(LTM_RGB,
-					pctx->ltm_ctx.ltm_index);
-				for (i = 0; i < ISP_LTM_BUF_NUM; i++) {
-					if (pctx->ltm_buf[LTM_RGB][i]) {
-						ispcore_frame_unmap(pctx->ltm_buf[LTM_RGB][i]);
-						pctx->ltm_buf[LTM_RGB][i] = NULL;
-					}
-				}
-			}
-
-			if (pctx->uinfo.ltm_yuv) {
-				dev->ltm_handle->ops->clear_status(pctx->ltm_ctx.ltm_index);
-				dev->ltm_handle->ops->complete_completion(LTM_YUV,
-					pctx->ltm_ctx.ltm_index);
-				for (i = 0; i < ISP_LTM_BUF_NUM; i++) {
-					if (pctx->ltm_buf[LTM_YUV][i]) {
-						ispcore_frame_unmap(pctx->ltm_buf[LTM_YUV][i]);
-						pctx->ltm_buf[LTM_YUV][i] = NULL;
-					}
-				}
-			}
-		}
-
-		if (pctx->uinfo.mode_ltm == MODE_LTM_CAP) {
-			if (pctx->uinfo.ltm_rgb) {
-				dev->ltm_handle->ops->clear_status(pctx->ltm_ctx.ltm_index);
-				for (i = 0; i < ISP_LTM_BUF_NUM; i++) {
-					if (pctx->ltm_buf[LTM_RGB][i])
-						pctx->ltm_buf[LTM_RGB][i] = NULL;
-				}
-			}
-
-			if (pctx->uinfo.ltm_yuv) {
-				dev->ltm_handle->ops->clear_status(pctx->ltm_ctx.ltm_index);
-				for (i = 0; i < ISP_LTM_BUF_NUM; i++) {
-					if (pctx->ltm_buf[LTM_YUV][i])
-						pctx->ltm_buf[LTM_YUV][i] = NULL;
-				}
-			}
-		}
-
 		if (pctx->nr3_handle) {
 			isp_3dnr_ctx_put(pctx->nr3_handle);
 			pctx->nr3_handle = NULL;
+		}
+
+		if (pctx->rgb_ltm_handle && hw->ip_isp->rgb_ltm_support) {
+			rgb_ltm->ltm_ops.sync_ops.set_status(rgb_ltm, 0);
+			isp_ltm_rgb_ctx_put(pctx->rgb_ltm_handle);
+			pctx->rgb_ltm_handle = NULL;
+		}
+
+		if (pctx->yuv_ltm_handle && hw->ip_isp->yuv_ltm_support) {
+			yuv_ltm->ltm_ops.sync_ops.set_status(yuv_ltm, 0);
+			isp_ltm_yuv_ctx_put(pctx->yuv_ltm_handle);
+			pctx->yuv_ltm_handle = NULL;
 		}
 
 		/* clear path queue. */
@@ -3197,8 +3144,7 @@ static int ispcore_context_init(struct isp_pipe_dev *dev)
 			goto hw_fail;
 	}
 	dev->cfg_handle = cfg_desc;
-
-	dev->ltm_handle = isp_ltm_share_ctx_desc_get();
+	isp_ltm_sync_init();
 
 	pr_info("isp hw contexts init start!\n");
 	for (i = 0; i < ISP_CONTEXT_HW_NUM; i++) {
@@ -3309,8 +3255,7 @@ static int ispcore_context_deinit(struct isp_pipe_dev *dev)
 	}
 	dev->cfg_handle = NULL;
 
-	isp_ltm_share_ctx_desc_put(dev->ltm_handle);
-	dev->ltm_handle = NULL;
+	isp_ltm_sync_deinit();
 
 	pr_debug("done.\n");
 	return ret;

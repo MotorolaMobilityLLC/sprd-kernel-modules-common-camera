@@ -77,10 +77,6 @@ enum isp_postproc_type {
 	POSTPROC_MAX,
 };
 
-struct isp_pipe_dev;
-struct isp_sw_context;
-
-
 typedef int (*func_isp_cfg_param)(
 	struct isp_io_param *param,
 	struct isp_k_block *isp_k_param, uint32_t idx);
@@ -91,12 +87,6 @@ typedef int(*isp_irq_postproc)(void *handle, uint32_t idx,
 struct isp_cfg_entry {
 	uint32_t sub_block;
 	func_isp_cfg_param cfg_func;
-};
-
-struct stream_ctrl_info {
-	uint32_t src_fmt;
-	struct img_size src;
-	struct img_trim src_crop;
 };
 
 struct slice_cfg_input {
@@ -117,13 +107,13 @@ struct slice_cfg_input {
 	uint32_t ynr_center_x;
 	uint32_t ynr_center_y;
 	struct isp_3dnr_ctx_desc *nr3_ctx;
-	struct isp_ltm_ctx_desc *ltm_ctx;
+	struct isp_ltm_ctx_desc *rgb_ltm;
+	struct isp_ltm_ctx_desc *yuv_ltm;
 	struct isp_k_block *nofilter_ctx;
 };
 
 struct isp_path_desc {
 	atomic_t user_cnt;
-	atomic_t store_cnt;
 	enum isp_sub_path_id spath_id;
 	int32_t reserved_buf_fd;
 	size_t reserve_buf_size[3];
@@ -213,8 +203,9 @@ struct isp_sw_context {
 	struct cam_hw_info *hw;
 	void *slice_ctx;
 	void *nr3_handle;
+	void *rgb_ltm_handle;
+	void *yuv_ltm_handle;
 	struct isp_k_block isp_k_param;
-	struct isp_ltm_ctx_desc ltm_ctx;
 
 	struct cam_thread_info thread;
 	struct completion frm_done;
@@ -230,8 +221,6 @@ struct isp_sw_context {
 	struct camera_queue stream_ctrl_proc_q;
 
 	struct camera_frame *postproc_buf;
-	struct camera_frame *nr3_buf[ISP_NR3_BUF_NUM];
-	struct camera_frame *ltm_buf[LTM_MAX][ISP_LTM_BUF_NUM];
 	struct camera_buf statis_buf_array[STATIS_BUF_NUM_MAX];
 	struct camera_queue hist2_result_queue;
 
@@ -264,7 +253,6 @@ struct isp_pipe_dev {
 	enum isp_work_mode wmode;
 	enum sprd_cam_sec_mode sec_mode;
 	void *cfg_handle;
-	struct isp_ltm_share_ctx_desc *ltm_handle;
 	struct camera_queue sw_ctx_q;
 	struct isp_sw_context *sw_ctx[ISP_SW_CONTEXT_NUM];
 	struct isp_hw_context hw_ctx[ISP_CONTEXT_HW_NUM];

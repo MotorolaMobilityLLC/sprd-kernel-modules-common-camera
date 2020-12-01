@@ -673,10 +673,8 @@ isp_hw_para:
 	/* enable axim transfering */
 	ISP_HREG_MWR(ISP_AXI_ITI2AXIM_CTRL, BIT_26, 0);
 	/* to be defined. */
-	ISP_HREG_MWR(
-		ISP_COMMON_SHADOW_CTRL_CH0, BIT_16, (1 << 16));
-	ISP_HREG_MWR(
-		ISP_COMMON_SHADOW_CTRL_CH0, BIT_21, (0 << 21));
+	ISP_HREG_MWR(ISP_COMMON_SHADOW_CTRL_CH0, BIT_16, (1 << 16));
+	ISP_HREG_MWR(ISP_COMMON_SHADOW_CTRL_CH0, BIT_21, (0 << 21));
 	ISP_HREG_MWR(ISP_COMMON_PMU_RAM_MASK, BIT_0, 1);
 	ISP_HREG_MWR(ISP_BLOCK_MODE, 0xF, 0);
 	/* dispatch_done should be disable? */
@@ -2963,8 +2961,7 @@ static struct hw_io_ctrl_fun isp_ioctl_fun_tab[] = {
 	{ISP_HW_CFG_YUV_BLOCK_CTRL_TYPE,     isphw_yuv_block_ctrl},
 };
 
-static hw_ioctl_fun isphw_ioctl_fun_get(
-	enum isp_hw_cfg_cmd cmd)
+static hw_ioctl_fun isphw_ioctl_fun_get(enum isp_hw_cfg_cmd cmd)
 {
 	hw_ioctl_fun hw_ctrl = NULL;
 	uint32_t total_num = 0;

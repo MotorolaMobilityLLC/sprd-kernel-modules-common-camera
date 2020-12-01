@@ -888,7 +888,7 @@ static int isp3dnr_cfg_param(void *handle,
 		pframe = (struct camera_frame *)param;
 		ret = cam_buf_iommu_map(&pframe->buf, CAM_IOMMUDEV_ISP);
 		if (ret) {
-			pr_err("fail to map isp iommu buf.\n");
+			pr_err("fail to map isp 3dnr iommu buf.\n");
 			ret = -EINVAL;
 			goto exit;
 		}

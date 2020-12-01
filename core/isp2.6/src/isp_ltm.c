@@ -15,14 +15,13 @@
 #include "isp_hw.h"
 #include <linux/mutex.h>
 
-#include "isp_reg.h"
 #include "cam_block.h"
 #include "isp_ltm.h"
 
 #ifdef pr_fmt
 #undef pr_fmt
 #endif
-#define pr_fmt(fmt) "LTM logic: %d %d %s : "\
+#define pr_fmt(fmt) "ISP_LTM: %d %d %s : "\
 	fmt, current->pid, __LINE__, __func__
 
 #define ISP_LTM_TIMEOUT         msecs_to_jiffies(100)
@@ -52,285 +51,261 @@
 /*
  * LTM Share ctx for pre / cap
  */
-static struct isp_ltm_share_ctx_param s_share_ctx_param[LTM_ID_MAX];
+static struct isp_ltm_sync s_rgb_ltm_sync[LTM_ID_MAX];
+static struct isp_ltm_sync s_yuv_ltm_sync[LTM_ID_MAX];
 
-static int ispltm_share_ctx_status_set(int status, int context_idx,
-		int type, uint32_t idx)
+static void ispltm_sync_status_set(void *handle, int status)
 {
-	mutex_lock(&s_share_ctx_param[idx].share_mutex);
+	struct isp_ltm_ctx_desc *ltm_ctx = NULL;
+	struct isp_ltm_sync *sync = NULL;
 
-	if (type == MODE_LTM_PRE) {
-		s_share_ctx_param[idx].pre_ctx_status = status;
-		s_share_ctx_param[idx].pre_cid = context_idx;
-	} else {
-		s_share_ctx_param[idx].cap_ctx_status = status;
-		s_share_ctx_param[idx].cap_cid = context_idx;
+	if (!handle) {
+		pr_err("fail to get invalid ptr\n");
+		return;
 	}
 
-	mutex_unlock(&s_share_ctx_param[idx].share_mutex);
-
-	return 0;
+	ltm_ctx = (struct isp_ltm_ctx_desc *)handle;
+	sync = ltm_ctx->sync;
+	mutex_lock(&sync->share_mutex);
+	if (ltm_ctx->mode == MODE_LTM_PRE) {
+		sync->pre_ctx_status = status;
+		sync->pre_cid = ltm_ctx->ctx_id;
+	} else {
+		sync->cap_ctx_status = status;
+		sync->cap_cid = ltm_ctx->ctx_id;
+	}
+	mutex_unlock(&sync->share_mutex);
 }
 
-static int ispltm_share_ctx_status_get(int type, uint32_t idx)
+static int ispltm_sync_status_get(void *handle, int type)
 {
 	int status = 0;
+	struct isp_ltm_ctx_desc *ltm_ctx = NULL;
+	struct isp_ltm_sync *sync = NULL;
 
-	mutex_lock(&s_share_ctx_param[idx].share_mutex);
+	if (!handle) {
+		pr_err("fail to get invalid ptr\n");
+		return -EFAULT;
+	}
 
+	ltm_ctx = (struct isp_ltm_ctx_desc *)handle;
+	sync = ltm_ctx->sync;
+
+	mutex_lock(&sync->share_mutex);
 	if (type == MODE_LTM_PRE)
-		status = s_share_ctx_param[idx].pre_ctx_status;
+		status = sync->pre_ctx_status;
 	else
-		status = s_share_ctx_param[idx].cap_ctx_status;
-
-	mutex_unlock(&s_share_ctx_param[idx].share_mutex);
+		status = sync->cap_ctx_status;
+	mutex_unlock(&sync->share_mutex);
 
 	return status;
 }
 
-static int ispltm_share_ctx_update_set(int update, int type, uint32_t idx)
+static int ispltm_sync_completion_set(void *handle, int frame_idx)
 {
-	mutex_lock(&s_share_ctx_param[idx].share_mutex);
+	struct isp_ltm_ctx_desc *ltm_ctx = NULL;
+	struct isp_ltm_sync *sync = NULL;
 
-	if (type == MODE_LTM_PRE)
-		s_share_ctx_param[idx].pre_update = update;
-	else
-		s_share_ctx_param[idx].cap_update = update;
+	if (!handle) {
+		pr_err("fail to get invalid ptr\n");
+		return -EFAULT;
+	}
 
-	mutex_unlock(&s_share_ctx_param[idx].share_mutex);
+	ltm_ctx = (struct isp_ltm_ctx_desc *)handle;
+	sync = ltm_ctx->sync;
+	atomic_set(&sync->wait_completion, frame_idx);
 
 	return 0;
 }
 
-static int ispltm_share_ctx_update_get(int type, uint32_t idx)
-{
-	int update = 0;
-
-	mutex_lock(&s_share_ctx_param[idx].share_mutex);
-
-	if (type == MODE_LTM_PRE)
-		update = s_share_ctx_param[idx].pre_update;
-	else
-		update = s_share_ctx_param[idx].cap_update;
-
-	mutex_unlock(&s_share_ctx_param[idx].share_mutex);
-
-	return update;
-}
-
-static int ispltm_share_ctx_completion_set(int frame_idx,
-		enum isp_ltm_region ltm_id, uint32_t idx)
-{
-	atomic_set(&s_share_ctx_param[idx].wait_completion[ltm_id], frame_idx);
-
-	return 0;
-}
-
-static int ispltm_share_ctx_completion_get(enum isp_ltm_region ltm_id,
-	uint32_t index)
+static int ispltm_sync_completion_get(void *handle)
 {
 	int idx = 0;
+	struct isp_ltm_ctx_desc *ltm_ctx = NULL;
+	struct isp_ltm_sync *sync = NULL;
 
-	idx = atomic_read(&s_share_ctx_param[index].wait_completion[ltm_id]);
+	if (!handle) {
+		pr_err("fail to get invalid ptr\n");
+		return -EFAULT;
+	}
+
+	ltm_ctx = (struct isp_ltm_ctx_desc *)handle;
+	sync = ltm_ctx->sync;
+
+	mutex_lock(&sync->share_mutex);
+	idx = atomic_read(&sync->wait_completion);
+	mutex_unlock(&sync->share_mutex);
 
 	return idx;
 }
 
-static int ispltm_share_ctx_completion_complete(enum isp_ltm_region ltm_id,
-	uint32_t index)
+static int ispltm_sync_completion_done(void *handle)
 {
 	int idx = 0;
+	struct isp_ltm_ctx_desc *ltm_ctx = NULL;
+	struct isp_ltm_sync *sync = NULL;
 
-	idx = atomic_read(&s_share_ctx_param[index].wait_completion[ltm_id]);
+	if (!handle) {
+		pr_err("fail to get invalid ptr\n");
+		return -EFAULT;
+	}
 
+	ltm_ctx = (struct isp_ltm_ctx_desc *)handle;
+	sync = ltm_ctx->sync;
+
+	mutex_lock(&sync->share_mutex);
+	idx = atomic_read(&sync->wait_completion);
 	if (idx) {
-		atomic_set(&s_share_ctx_param[index].wait_completion[ltm_id], 0);
-		complete(&s_share_ctx_param[index].share_comp[ltm_id]);
+		atomic_set(&sync->wait_completion, 0);
+		complete(&sync->share_comp);
 	}
+	mutex_unlock(&sync->share_mutex);
 
 	return idx;
 }
 
-static int ispltm_share_ctx_fid_set(int frame_idx, uint32_t idx)
+static void ispltm_sync_fid_set(void *handle)
 {
-	atomic_set(&s_share_ctx_param[idx].pre_fid, frame_idx);
+	struct isp_ltm_ctx_desc *ltm_ctx = NULL;
+	struct isp_ltm_sync *sync = NULL;
 
-	return 0;
+	if (!handle) {
+		pr_err("fail to get invalid ptr\n");
+		return;
+	}
+
+	ltm_ctx = (struct isp_ltm_ctx_desc *)handle;
+	sync = ltm_ctx->sync;
+	mutex_lock(&sync->share_mutex);
+	atomic_set(&sync->pre_fid, ltm_ctx->fid);
+	mutex_unlock(&sync->share_mutex);
 }
 
-static int ispltm_share_ctx_fid_get(uint32_t idx)
+static int ispltm_sync_config_set(struct isp_ltm_ctx_desc *ctx,
+		struct isp_ltm_hists *hists)
 {
-	int fid = 0;
+	struct isp_ltm_sync *sync = NULL;
 
-	fid = atomic_read(&s_share_ctx_param[idx].pre_fid);
+	if (!ctx || !hists) {
+		pr_err("fail to get invalid ptr %p\n", ctx);
+		return -EFAULT;
+	}
 
-	return fid;
-}
-
-static int ispltm_share_ctx_config_set(struct isp_ltm_ctx_desc *ctx,
-	struct isp_ltm_hists *hists, uint32_t idx)
-{
-	if (ctx->type != MODE_LTM_PRE) {
+	sync = ctx->sync;
+	if (ctx->mode != MODE_LTM_PRE) {
 		pr_err("fail to set share ctx, only pre support, except ctx[%d]\n",
-			ctx->type);
+			ctx->mode);
 		return 0;
 	}
 
-	mutex_lock(&s_share_ctx_param[idx].share_mutex);
-
-	s_share_ctx_param[idx].pre_hist_bypass = hists->bypass;
-
-	s_share_ctx_param[idx].pre_frame_h = ctx->frame_height_stat;
-	s_share_ctx_param[idx].pre_frame_w = ctx->frame_width_stat;
-
-	s_share_ctx_param[idx].tile_num_x_minus = hists->tile_num_x_minus;
-	s_share_ctx_param[idx].tile_num_y_minus = hists->tile_num_y_minus;
-	s_share_ctx_param[idx].tile_width = hists->tile_width;
-	s_share_ctx_param[idx].tile_height = hists->tile_height;
-
-	mutex_unlock(&s_share_ctx_param[idx].share_mutex);
+	mutex_lock(&sync->share_mutex);
+	sync->pre_hist_bypass = hists->bypass;
+	sync->pre_frame_h = ctx->frame_height_stat;
+	sync->pre_frame_w = ctx->frame_width_stat;
+	sync->tile_num_x_minus = hists->tile_num_x_minus;
+	sync->tile_num_y_minus = hists->tile_num_y_minus;
+	sync->tile_width = hists->tile_width;
+	sync->tile_height = hists->tile_height;
+	mutex_unlock(&sync->share_mutex);
 
 	return 0;
 }
 
-static int ispltm_share_ctx_config_get(struct isp_ltm_ctx_desc *ctx,
-	struct isp_ltm_hists *hists, uint32_t idx)
+static int ispltm_sync_config_get(struct isp_ltm_ctx_desc *ctx,
+		struct isp_ltm_hists *hists)
 {
-	if (ctx->type != MODE_LTM_CAP) {
-		pr_err("fail to set share ctx, only cap support, except ctx[%d]\n",
-			ctx->type);
+	struct isp_ltm_sync *sync = NULL;
+
+	if (!ctx || !hists) {
+		pr_err("fail to get invalid ptr %p\n", ctx);
+		return -EFAULT;
+	}
+
+	sync = ctx->sync;
+	if (ctx->mode != MODE_LTM_CAP) {
+		pr_err("fail to set share ctx, only cap support, except ctx[%d]\n", ctx->mode);
 		return 0;
 	}
 
-	mutex_lock(&s_share_ctx_param[idx].share_mutex);
-
-	ctx->frame_height_stat = s_share_ctx_param[idx].pre_frame_h;
-	ctx->frame_width_stat = s_share_ctx_param[idx].pre_frame_w;
-
-	hists->tile_num_x_minus = s_share_ctx_param[idx].tile_num_x_minus;
-	hists->tile_num_y_minus = s_share_ctx_param[idx].tile_num_y_minus;
-	hists->tile_width = s_share_ctx_param[idx].tile_width;
-	hists->tile_height = s_share_ctx_param[idx].tile_height;
-
-	mutex_unlock(&s_share_ctx_param[idx].share_mutex);
+	mutex_lock(&sync->share_mutex);
+	ctx->frame_height_stat = sync->pre_frame_h;
+	ctx->frame_width_stat = sync->pre_frame_w;
+	hists->tile_num_x_minus = sync->tile_num_x_minus;
+	hists->tile_num_y_minus = sync->tile_num_y_minus;
+	hists->tile_width = sync->tile_width;
+	hists->tile_height = sync->tile_height;
+	mutex_unlock(&sync->share_mutex);
 
 	return 0;
 }
 
-static int ispltm_share_ctx_init(uint32_t idx)
+static void ispltm_sync_ctx_init(struct isp_ltm_sync *sync)
 {
-	enum isp_ltm_region ltm_id = 0;
-
-	s_share_ctx_param[idx].pre_ctx_status = 0;
-	s_share_ctx_param[idx].cap_ctx_status = 0;
-
-	s_share_ctx_param[idx].pre_cid = 0;
-	s_share_ctx_param[idx].cap_cid = 0;
-
-	s_share_ctx_param[idx].pre_update = 0;
-	s_share_ctx_param[idx].cap_update = 0;
-
-	s_share_ctx_param[idx].pre_hist_bypass = 1;
-
-	s_share_ctx_param[idx].pre_frame_h = 0;
-	s_share_ctx_param[idx].pre_frame_w = 0;
-	s_share_ctx_param[idx].cap_frame_h = 0;
-	s_share_ctx_param[idx].cap_frame_w = 0;
-
-	s_share_ctx_param[idx].tile_num_x_minus = 0;
-	s_share_ctx_param[idx].tile_num_y_minus = 0;
-	s_share_ctx_param[idx].tile_width = 0;
-	s_share_ctx_param[idx].tile_height = 0;
-
-	/* s_share_ctx_param.wait_completion = 0; */
-	for (ltm_id = 0; ltm_id < LTM_MAX; ltm_id++) {
-		atomic_set(&s_share_ctx_param[idx].wait_completion[ltm_id], 0);
-		init_completion(&s_share_ctx_param[idx].share_comp[ltm_id]);
+	if (!sync) {
+		pr_err("fail to get valid input ptr\n");
+		return;
 	}
 
-	mutex_init(&s_share_ctx_param[idx].share_mutex);
-
-	return 0;
+	sync->pre_ctx_status = 0;
+	sync->cap_ctx_status = 0;
+	sync->pre_cid = 0;
+	sync->cap_cid = 0;
+	sync->pre_update = 0;
+	sync->cap_update = 0;
+	sync->pre_hist_bypass = 1;
+	sync->pre_frame_h = 0;
+	sync->pre_frame_w = 0;
+	sync->cap_frame_h = 0;
+	sync->cap_frame_w = 0;
+	sync->tile_num_x_minus = 0;
+	sync->tile_num_y_minus = 0;
+	sync->tile_width = 0;
+	sync->tile_height = 0;
+	atomic_set(&sync->wait_completion, 0);
+	init_completion(&sync->share_comp);
+	mutex_init(&sync->share_mutex);
 }
 
-static int ispltm_share_ctx_deinit(uint32_t idx)
+static void ispltm_sync_ctx_deinit(struct isp_ltm_sync *sync)
 {
-	s_share_ctx_param[idx].pre_ctx_status = 0;
-	s_share_ctx_param[idx].cap_ctx_status = 0;
-
-	s_share_ctx_param[idx].pre_cid = 0;
-	s_share_ctx_param[idx].cap_cid = 0;
-
-	s_share_ctx_param[idx].pre_update = 0;
-	s_share_ctx_param[idx].cap_update = 0;
-
-	s_share_ctx_param[idx].pre_frame_h = 0;
-	s_share_ctx_param[idx].pre_frame_w = 0;
-	s_share_ctx_param[idx].cap_frame_h = 0;
-	s_share_ctx_param[idx].cap_frame_w = 0;
-
-	s_share_ctx_param[idx].tile_num_x_minus = 0;
-	s_share_ctx_param[idx].tile_num_y_minus = 0;
-	s_share_ctx_param[idx].tile_width = 0;
-	s_share_ctx_param[idx].tile_height = 0;
-
-	return 0;
-}
-
-static int ispltm_share_ctx_clear(uint32_t idx)
-{
-	s_share_ctx_param[idx].pre_hist_bypass = 1;
-	return 0;
-}
-
-struct isp_ltm_share_ctx_ops s_ltm_share_ctx_ops = {
-	.init = ispltm_share_ctx_init,
-	.deinit = ispltm_share_ctx_deinit,
-	.set_status = ispltm_share_ctx_status_set,
-	.get_status = ispltm_share_ctx_status_get,
-	.set_update = ispltm_share_ctx_update_set,
-	.get_update = ispltm_share_ctx_update_get,
-	.set_frmidx = ispltm_share_ctx_fid_set,
-	.get_frmidx = ispltm_share_ctx_fid_get,
-	.set_config = ispltm_share_ctx_config_set,
-	.get_config = ispltm_share_ctx_config_get,
-	.set_completion = ispltm_share_ctx_completion_set,
-	.get_completion = ispltm_share_ctx_completion_get,
-	.complete_completion = ispltm_share_ctx_completion_complete,
-	.clear_status = ispltm_share_ctx_clear,
-};
-
-struct isp_ltm_share_ctx_desc s_share_ctx_desc = {
-	.param[0] = &s_share_ctx_param[0],
-	.param[1] = &s_share_ctx_param[1],
-	.param[2] = &s_share_ctx_param[2],
-	.ops = &s_ltm_share_ctx_ops,
-};
-
-struct isp_ltm_share_ctx_desc *isp_ltm_share_ctx_desc_get(void)
-{
-	uint32_t i = 0;
-
-	for (i = 0; i < LTM_ID_MAX; i++)
-		ispltm_share_ctx_init(i);
-
-	return &s_share_ctx_desc;
-}
-
-int isp_ltm_share_ctx_desc_put(struct isp_ltm_share_ctx_desc *param)
-{
-	uint32_t i = 0;
-
-	if (&s_share_ctx_desc == param) {
-		for (i = 0; i < LTM_ID_MAX; i++)
-			ispltm_share_ctx_deinit(i);
-		return 0;
+	if (!sync) {
+		pr_err("fail to get valid input ptr\n");
+		return;
 	}
 
-	pr_err("fail to match param %p, %p\n",
-			param, &s_share_ctx_desc);
-	return -EINVAL;
+	sync->pre_ctx_status = 0;
+	sync->cap_ctx_status = 0;
+	sync->pre_cid = 0;
+	sync->cap_cid = 0;
+	sync->pre_update = 0;
+	sync->cap_update = 0;
+	sync->pre_frame_h = 0;
+	sync->pre_frame_w = 0;
+	sync->cap_frame_h = 0;
+	sync->cap_frame_w = 0;
+	sync->tile_num_x_minus = 0;
+	sync->tile_num_y_minus = 0;
+	sync->tile_width = 0;
+	sync->tile_height = 0;
 }
+
+static void ispltm_sync_status_clear(void *handle)
+{
+	struct isp_ltm_ctx_desc *ltm_ctx = NULL;
+	struct isp_ltm_sync *sync = NULL;
+
+	if (!handle) {
+		pr_err("fail to get invalid ptr\n");
+		return;
+	}
+
+	ltm_ctx = (struct isp_ltm_ctx_desc *)handle;
+	sync = ltm_ctx->sync;
+	mutex_lock(&sync->share_mutex);
+	sync->pre_hist_bypass = 1;
+	mutex_unlock(&sync->share_mutex);
+}
+
 
 /*
  * LTM logical and algorithm
@@ -583,14 +558,13 @@ static int ispltm_histo_param_calc(ltm_param_t *param_histo)
 }
 
 static int ispltm_histo_config_gen(struct isp_ltm_ctx_desc *ctx,
-			enum isp_ltm_region ltm_id,
 			struct isp_ltm_stat_info *tuning)
 {
 	int ret = 0;
 	int idx = 0;
 	struct isp_ltm_hist_param hist_param;
 	struct isp_ltm_hist_param *param = &hist_param;
-	struct isp_ltm_hists *hists = &ctx->hists[ltm_id];
+	struct isp_ltm_hists *hists = &ctx->hists;
 
 	/* Check bypass condition */
 	param->bypass = tuning->bypass;
@@ -600,7 +574,7 @@ static int ispltm_histo_config_gen(struct isp_ltm_ctx_desc *ctx,
 		/* set value to 0, preview case
 		 * let map block will be disable when next frame
 		 */
-		if (ctx->type == MODE_LTM_PRE) {
+		if (ctx->mode == MODE_LTM_PRE) {
 			ctx->frame_width = 0;
 			ctx->frame_height = 0;
 		}
@@ -648,7 +622,7 @@ static int ispltm_histo_config_gen(struct isp_ltm_ctx_desc *ctx,
 	hists->clip_limit_min = param->clipLimit_min;
 	hists->texture_proportion = param->text_proportion;
 	hists->text_point_thres = param->text_point_thres;
-	hists->addr = ctx->pbuf[ltm_id][idx]->iova[0];
+	hists->addr = ctx->buf_info[idx]->iova[0];
 	hists->pitch = param->tile_num_x - 1;
 	hists->wr_num = param->tile_num_x * 32;
 
@@ -658,8 +632,7 @@ static int ispltm_histo_config_gen(struct isp_ltm_ctx_desc *ctx,
 	ctx->frame_width_stat = param->frame_width;
 	ctx->frame_height_stat = param->frame_height;
 
-	pr_debug("ltm hist idx[%d], hist addr[0x%lx]\n",
-		ctx->fid, hists->addr);
+	pr_debug("ltm hist idx[%d], hist addr[0x%lx] bypass %d\n", ctx->fid, hists->addr, hists->bypass);
 	pr_debug("binning_en[%d], tile_num_x_minus[%d], tile_num_y_minus[%d]\n",
 		hists->binning_en,
 		hists->tile_num_x_minus,
@@ -677,8 +650,7 @@ static int ispltm_histo_config_gen(struct isp_ltm_ctx_desc *ctx,
 }
 
 static int ispltm_map_config_gen(struct isp_ltm_ctx_desc *ctx,
-			enum isp_ltm_region ltm_id, struct isp_ltm_map_info *tuning,
-			int type)
+			struct isp_ltm_map_info *tuning, int type)
 {
 	int idx = 0;
 
@@ -687,8 +659,8 @@ static int ispltm_map_config_gen(struct isp_ltm_ctx_desc *ctx,
 	struct isp_ltm_rtl_param  rtl_param;
 	struct isp_ltm_rtl_param  *prtl = &rtl_param;
 
-	struct isp_ltm_hists *hists = &ctx->hists[ltm_id];
-	struct isp_ltm_map *map = &ctx->map[ltm_id];
+	struct isp_ltm_hists *hists = &ctx->hists;
+	struct isp_ltm_map *map = &ctx->map;
 
 	struct isp_ltm_tile_num_minus1 mnum;
 	struct isp_ltm_tile_size ts;
@@ -728,7 +700,7 @@ static int ispltm_map_config_gen(struct isp_ltm_ctx_desc *ctx,
 		pr_err("fail to get input param, width stat %d, height stat %d\n",
 			frame_width_stat, frame_height_stat);
 
-	if (ctx->type == MODE_LTM_CAP) {
+	if (ctx->mode == MODE_LTM_CAP) {
 		pr_debug("tile_num_x[%d], tile_num_y[%d], tile_width[%d], tile_height[%d], \
 			frame_width_stat[%d], frame_height_stat[%d], \
 			frame_width_map[%d], frame_height_map[%d]\n",
@@ -808,9 +780,9 @@ static int ispltm_map_config_gen(struct isp_ltm_ctx_desc *ctx,
 	if (tuning->ltm_map_video_mode) {
 		if (idx == 0)
 			idx = ISP_LTM_BUF_NUM;
-		map->mem_init_addr = ctx->pbuf[ltm_id][idx - 1]->iova[0];
+		map->mem_init_addr = ctx->buf_info[idx - 1]->iova[0];
 	} else {
-		map->mem_init_addr = ctx->pbuf[ltm_id][idx]->iova[0];
+		map->mem_init_addr = ctx->buf_info[idx]->iova[0];
 	}
 
 	pr_debug("tile_width[%d], tile_height[%d], tile_x_num[%d], tile_y_num[%d]\n",
@@ -826,15 +798,244 @@ static int ispltm_map_config_gen(struct isp_ltm_ctx_desc *ctx,
 	return 0;
 }
 
-/*
- * external function interface
- *
- */
+static int ispltm_pipe_proc(void *handle, void *param)
+{
+	int ret = 0;
+	struct isp_ltm_ctx_desc *ctx = NULL;
+	struct isp_ltm_info *ltm_info = NULL;
+	struct isp_ltm_sync *sync = NULL;
+	int pre_fid = 0;
+	long timeout = 0;
 
+	if (!handle || !param) {
+		pr_err("fail to get valid input ptr %p\n", handle);
+		return -EFAULT;
+	}
+
+	ctx = (struct isp_ltm_ctx_desc *)handle;
+	ltm_info = (struct isp_ltm_info *)param;
+	sync = ctx->sync;
+
+	if (ctx->enable == 0)
+		return 0;
+
+	pr_debug("type[%d], fid[%d], frame_width[%d], frame_height[%d] bypass %d\n",
+		ctx->mode, ctx->fid, ctx->frame_width, ctx->frame_height, ctx->bypass);
+	switch (ctx->mode) {
+	case MODE_LTM_PRE:
+		ltm_info->ltm_map.ltm_map_video_mode = 1;
+		ispltm_histo_config_gen(ctx, &ltm_info->ltm_stat);
+		ispltm_map_config_gen(ctx, &ltm_info->ltm_map, ISP_PRO_LTM_PRE_PARAM);
+		isp_ltm_config_param(ctx);
+		ispltm_sync_config_set(ctx, &ctx->hists);
+		break;
+	case MODE_LTM_CAP:
+		ispltm_sync_config_get(ctx, &ctx->hists);
+		pre_fid = atomic_read(&sync->pre_fid);
+		ctx->map.bypass = sync->pre_hist_bypass;
+		if (!ctx->map.bypass) {
+			while (ctx->fid > pre_fid) {
+				pr_debug("LTM capture fid [%d] > previre fid [%d]\n",
+					ctx->fid, pre_fid);
+
+				if (ispltm_sync_status_get(ctx, MODE_LTM_PRE) == 0) {
+					pr_err("fail to use free pre context\n");
+					ctx->mode = MODE_LTM_OFF;
+					ctx->bypass = 1;
+					ret = -1;
+					break;
+				}
+
+				ispltm_sync_completion_set(ctx, ctx->fid);
+				timeout = wait_for_completion_interruptible_timeout(
+					&sync->share_comp, ISP_LTM_TIMEOUT);
+				if (timeout <= 0) {
+					pr_err("fail to wait completion [%ld]\n", timeout);
+					ctx->mode = MODE_LTM_OFF;
+					ctx->bypass = 1;
+					ret = -1;
+					break;
+				}
+
+				pre_fid = atomic_read(&sync->pre_fid);
+				if (ctx->fid > pre_fid) {
+					/*
+					 * Still cap fid > pre fid
+					 * Means context of pre has release
+					 * this complete from isp_core before release
+					 */
+					pr_err("fail to use free pre context\n");
+					ctx->mode = MODE_LTM_OFF;
+					ctx->bypass = 1;
+					ret = -1;
+					break;
+				}
+			}
+		}
+		ltm_info->ltm_stat.bypass = 1;
+		ltm_info->ltm_map.ltm_map_video_mode = 0;
+		ispltm_histo_config_gen(ctx, &ltm_info->ltm_stat);
+		ispltm_map_config_gen(ctx, &ltm_info->ltm_map, ISP_PRO_LTM_CAP_PARAM);
+		isp_ltm_config_param(ctx);
+		break;
+	case MODE_LTM_OFF:
+		ctx->bypass = 1;
+		isp_ltm_config_param(ctx);
+		break;
+	default:
+		ctx->bypass = 1;
+		isp_ltm_config_param(ctx);
+		break;
+	}
+
+	return ret;
+}
+
+static int ispltm_cfg_param(void *handle,
+		enum isp_ltm_cfg_cmd cmd, void *param)
+{
+	int ret = 0;
+	uint32_t i = 0, fid = 0;
+	struct isp_ltm_ctx_desc *ltm_ctx = NULL;
+	struct camera_frame * pframe = NULL;
+	struct img_trim *crop = NULL;
+
+	if (!handle || !param) {
+		pr_err("fail to get valid input ptr\n");
+		return -EFAULT;
+	}
+
+	ltm_ctx = (struct isp_ltm_ctx_desc *)handle;
+	switch (cmd) {
+	case ISP_LTM_CFG_EB:
+		ltm_ctx->enable = *(uint32_t *)param;
+		pr_debug("LTM enable %d\n", ltm_ctx->enable);
+		break;
+	case ISP_LTM_CFG_MODE:
+		ltm_ctx->mode = *(uint32_t *)param;
+		break;
+	case ISP_LTM_CFG_BUF:
+		pframe = (struct camera_frame *)param;
+		if (ltm_ctx->mode == MODE_LTM_PRE) {
+			ret = cam_buf_iommu_map(&pframe->buf, CAM_IOMMUDEV_ISP);
+			if (ret) {
+				pr_err("fail to map isp ltm iommu buf.\n");
+				ret = -EINVAL;
+				goto exit;
+			}
+		}
+
+		for (i = 0; i < ISP_LTM_BUF_NUM; i++) {
+			if (ltm_ctx->buf_info[i] == NULL) {
+				ltm_ctx->buf_info[i] = &pframe->buf;
+				pr_debug("LTM CFGB[%d][0x%p] = 0x%lx\n",
+					i, pframe, ltm_ctx->buf_info[i]->iova[0]);
+				break;
+			} else {
+				pr_debug("LTM CFGB[%d][0x%p][0x%p] failed\n",
+					i, pframe, ltm_ctx->buf_info[i]);
+			}
+		}
+		break;
+	case ISP_LTM_CFG_FRAME_ID:
+		fid = *(uint32_t *)param;
+		if (ltm_ctx->mode == MODE_LTM_PRE) {
+			if (((fid - ltm_ctx->fid) != 1) || (fid == 0)) {
+				ltm_ctx->map.bypass = 1;
+			} else if (ltm_ctx->enable) {
+				ltm_ctx->map.bypass = 0;
+			}
+		}
+		ltm_ctx->fid = fid;
+		pr_debug("LTM frame id %d\n", ltm_ctx->fid);
+		break;
+	case ISP_LTM_CFG_SIZE_INFO:
+		crop = (struct img_trim *)param;
+		if (ltm_ctx->mode == MODE_LTM_PRE) {
+			if ((crop->size_x != ltm_ctx->frame_width) ||
+				(crop->size_y != ltm_ctx->frame_height)) {
+				ltm_ctx->map.bypass = 1;
+			} else if (ltm_ctx->enable) {
+				ltm_ctx->map.bypass = 0;
+			}
+		}
+		ltm_ctx->frame_width = crop->size_x;
+		ltm_ctx->frame_height = crop->size_y;
+		break;
+	default:
+		pr_err("fail to get known cmd: %d\n", cmd);
+		ret = -EFAULT;
+		break;
+	}
+
+exit:
+	return ret;
+}
+
+static struct isp_ltm_ctx_desc *ispltm_ctx_init(uint32_t idx, uint32_t cam_id)
+{
+	struct isp_ltm_ctx_desc *ltm_ctx = NULL;
+
+	ltm_ctx = vzalloc(sizeof(struct isp_ltm_ctx_desc));
+	if (!ltm_ctx) {
+		pr_err("fail to alloc isp %d ltm ctx\n", idx);
+		return NULL;
+	}
+
+	ltm_ctx->ctx_id = idx;
+	ltm_ctx->cam_id = cam_id;
+	ltm_ctx->ltm_ops.core_ops.cfg_param = ispltm_cfg_param;
+	ltm_ctx->ltm_ops.core_ops.pipe_proc = ispltm_pipe_proc;
+	ltm_ctx->ltm_ops.sync_ops.set_status = ispltm_sync_status_set;
+	ltm_ctx->ltm_ops.sync_ops.clear_status = ispltm_sync_status_clear;
+	ltm_ctx->ltm_ops.sync_ops.set_frmidx = ispltm_sync_fid_set;
+	ltm_ctx->ltm_ops.sync_ops.get_completion = ispltm_sync_completion_get;
+	ltm_ctx->ltm_ops.sync_ops.do_completion = ispltm_sync_completion_done;
+
+	return ltm_ctx;
+}
+
+static void ispltm_ctx_deinit(void *handle)
+{
+	uint32_t i = 0;
+	struct isp_ltm_ctx_desc *ltm_ctx = NULL;
+	struct camera_buf *buf_info = NULL;
+
+	if (!handle) {
+		pr_err("fail to get valid ltm handle\n");
+		return;
+	}
+
+	ltm_ctx = (struct isp_ltm_ctx_desc *)handle;
+	if (ltm_ctx->enable && ltm_ctx->mode == MODE_LTM_PRE) {
+		ltm_ctx->ltm_ops.sync_ops.clear_status(ltm_ctx);
+		ltm_ctx->ltm_ops.sync_ops.do_completion(ltm_ctx);
+		for (i = 0; i < ISP_LTM_BUF_NUM; i++) {
+			buf_info = ltm_ctx->buf_info[i];
+			if (buf_info && buf_info->mapping_state & CAM_BUF_MAPPING_DEV) {
+				cam_buf_iommu_unmap(buf_info);
+				buf_info = NULL;
+			}
+		}
+	}
+
+	if (ltm_ctx->enable && ltm_ctx->mode == MODE_LTM_PRE) {
+		ltm_ctx->ltm_ops.sync_ops.clear_status(ltm_ctx);
+		for (i = 0; i < ISP_LTM_BUF_NUM; i++) {
+			buf_info = ltm_ctx->buf_info[i];
+			if (buf_info)
+				buf_info = NULL;
+		}
+	}
+
+	if (ltm_ctx)
+		vfree(ltm_ctx);
+	ltm_ctx = NULL;
+}
+
+/* * external function interface * */
 int isp_ltm_map_slice_config_gen(struct isp_ltm_ctx_desc *ctx,
-				enum isp_ltm_region ltm_id,
-				struct isp_ltm_rtl_param *prtl,
-				uint32_t *slice_info)
+			struct isp_ltm_rtl_param *prtl, uint32_t *slice_info)
 {
 	struct isp_ltm_hist_param map_param;
 	struct isp_ltm_hist_param *param = &map_param;
@@ -842,7 +1043,7 @@ int isp_ltm_map_slice_config_gen(struct isp_ltm_ctx_desc *ctx,
 	 * struct isp_ltm_rtl_param  rtl_param;
 	 * struct isp_ltm_rtl_param *prtl = &rtl_param;
 	 */
-	struct isp_ltm_hists *hists = &ctx->hists[ltm_id];
+	struct isp_ltm_hists *hists = &ctx->hists;
 
 	struct isp_ltm_tile_num_minus1 mnum;
 	struct isp_ltm_tile_size ts;
@@ -865,7 +1066,7 @@ int isp_ltm_map_slice_config_gen(struct isp_ltm_ctx_desc *ctx,
 	frame_width_map = ctx->frame_width;
 	frame_height_map = ctx->frame_height;
 
-	if (ctx->type == MODE_LTM_CAP) {
+	if (ctx->mode == MODE_LTM_CAP) {
 		pr_debug("tile_num_x[%d], tile_num_y[%d], tile_width[%d], tile_height[%d], \
 			frame_width_stat[%d], frame_height_stat[%d], \
 			frame_width_map[%d], frame_height_map[%d]\n",
@@ -912,98 +1113,64 @@ int isp_ltm_map_slice_config_gen(struct isp_ltm_ctx_desc *ctx,
 	return 0;
 }
 
-int isp_ltm_frame_config_gen(struct isp_ltm_ctx_desc *ctx,
-		enum isp_ltm_region ltm_id, struct isp_ltm_info *ltm_info)
+void *isp_ltm_rgb_ctx_get(uint32_t idx, enum camera_id cam_id)
 {
-	int ret = 0;
-	int pre_fid = 0;
-	int i = 0;
-	long timeout = 0;
+	struct isp_ltm_ctx_desc *ltm_ctx = NULL;
 
-	pr_debug("type[%d], fid[%d], frame_width[%d], frame_height[%d]\n",
-		ctx->type, ctx->fid, ctx->frame_width, ctx->frame_height);
-
-	for (i = 0; i < ISP_LTM_BUF_NUM; i++) {
-		if (ctx->pbuf[ltm_id][i])
-			pr_debug("ctx->pbuf[%d][%d] =  0x%p, 0x%lx\n",
-			ltm_id, i, ctx->pbuf[ltm_id][i], ctx->pbuf[ltm_id][i]->iova[0]);
+	ltm_ctx = ispltm_ctx_init(idx, cam_id);
+	if (!ltm_ctx) {
+		pr_err("fail to get invalid ltm_ctx\n");
+		return NULL;
 	}
 
-	switch (ctx->type) {
-	case MODE_LTM_PRE:
-		ltm_info->ltm_map.ltm_map_video_mode = 1;
-		ispltm_histo_config_gen(ctx, ltm_id, &ltm_info->ltm_stat);
-		ispltm_map_config_gen(ctx, ltm_id, &ltm_info->ltm_map,
-			ISP_PRO_LTM_PRE_PARAM);
-		isp_ltm_config_param(ctx, ltm_id);
-		ispltm_share_ctx_config_set(ctx, &ctx->hists[ltm_id], ctx->ltm_index);
-		break;
-	case MODE_LTM_CAP:
-		ispltm_share_ctx_config_get(ctx, &ctx->hists[ltm_id], ctx->ltm_index);
-		pre_fid = atomic_read(&s_share_ctx_param[ctx->ltm_index].pre_fid);
+	ltm_ctx->sync = &s_rgb_ltm_sync[cam_id];
+	ltm_ctx->ltm_id = LTM_RGB;
 
-		pr_debug("LTM capture fid [%d], previre fid [%d]\n",
-						ctx->fid, pre_fid);
+	return ltm_ctx;
+}
 
-		ctx->map[ltm_id].bypass = s_share_ctx_param[ctx->ltm_index].pre_hist_bypass;
+void isp_ltm_rgb_ctx_put(void *ltm_handle)
+{
+	ispltm_ctx_deinit(ltm_handle);
+}
 
-		if (!ctx->map[ltm_id].bypass) {
-			while (ctx->fid > pre_fid) {
-				pr_info("LTM capture fid [%d] > previre fid [%d]\n",
-					ctx->fid, pre_fid);
+void *isp_ltm_yuv_ctx_get(uint32_t idx, enum camera_id cam_id)
+{
+	struct isp_ltm_ctx_desc *ltm_ctx = NULL;
 
-				if (ispltm_share_ctx_status_get(MODE_LTM_PRE,
-					ctx->ltm_index) == 0) {
-					pr_err("fail to use free pre context\n");
-					ctx->type = MODE_LTM_OFF;
-					ctx->bypass = 1;
-					ret = -1;
-					break;
-				}
-
-				ispltm_share_ctx_completion_set(ctx->fid, ltm_id, ctx->ltm_index);
-
-				timeout = wait_for_completion_interruptible_timeout(
-					&s_share_ctx_param[ctx->ltm_index].share_comp[ltm_id], ISP_LTM_TIMEOUT);
-				if (timeout <= 0) {
-					pr_err("fail to wait completion [%ld]\n", timeout);
-					ctx->type = MODE_LTM_OFF;
-					ctx->bypass = 1;
-					ret = -1;
-					break;
-				}
-
-				pre_fid = atomic_read(&s_share_ctx_param[ctx->ltm_index].pre_fid);
-				if (ctx->fid > pre_fid) {
-					/*
-					 * Still cap fid > pre fid
-					 * Means context of pre has release
-					 * this complete from isp_core before release
-					 */
-					pr_err("fail to use free pre context\n");
-					ctx->type = MODE_LTM_OFF;
-					ctx->bypass = 1;
-					ret = -1;
-					break;
-				}
-			}
-		}
-		ltm_info->ltm_stat.bypass = 1;
-		ltm_info->ltm_map.ltm_map_video_mode = 0;
-		ispltm_histo_config_gen(ctx, ltm_id, &ltm_info->ltm_stat);
-		ispltm_map_config_gen(ctx, ltm_id, &ltm_info->ltm_map,
-			ISP_PRO_LTM_CAP_PARAM);
-		isp_ltm_config_param(ctx, ltm_id);
-		break;
-	case MODE_LTM_OFF:
-		ctx->bypass = 1;
-		isp_ltm_config_param(ctx, ltm_id);
-		break;
-	default:
-		ctx->bypass = 1;
-		isp_ltm_config_param(ctx, ltm_id);
-		break;
+	ltm_ctx = ispltm_ctx_init(idx, cam_id);
+	if (!ltm_ctx) {
+		pr_err("fail to get invalid ltm_ctx\n");
+		return NULL;
 	}
 
-	return ret;
+	ltm_ctx->sync = &s_yuv_ltm_sync[cam_id];
+	ltm_ctx->ltm_id = LTM_YUV;
+
+	return ltm_ctx;
+}
+
+void isp_ltm_yuv_ctx_put(void *ltm_handle)
+{
+	ispltm_ctx_deinit(ltm_handle);
+}
+
+void isp_ltm_sync_init(void)
+{
+	uint32_t i = 0;
+
+	for (i = 0; i < LTM_ID_MAX; i++) {
+		ispltm_sync_ctx_init(&s_rgb_ltm_sync[i]);
+		ispltm_sync_ctx_init(&s_yuv_ltm_sync[i]);
+	}
+}
+
+void isp_ltm_sync_deinit(void)
+{
+	uint32_t i = 0;
+
+	for (i = 0; i < LTM_ID_MAX; i++) {
+		ispltm_sync_ctx_deinit(&s_rgb_ltm_sync[i]);
+		ispltm_sync_ctx_deinit(&s_yuv_ltm_sync[i]);
+	}
 }

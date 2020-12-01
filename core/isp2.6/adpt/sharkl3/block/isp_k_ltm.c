@@ -24,8 +24,7 @@
 #define pr_fmt(fmt) "LTM MAP: %d %d %s : "\
 	fmt, current->pid, __LINE__, __func__
 
-int isp_ltm_config_param(struct isp_ltm_ctx_desc *ctx,
-		enum isp_ltm_region ltm_id)
+int isp_ltm_config_param(struct isp_ltm_ctx_desc *ctx)
 {
 	return 0;
 }

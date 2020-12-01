@@ -54,6 +54,8 @@ int isp_path_comn_uinfo_set(struct isp_sw_context *pctx, void *param)
 	int ret = 0;
 	struct isp_ctx_base_desc *cfg_in = NULL;
 	struct isp_uinfo *uinfo = NULL;
+	struct isp_ltm_ctx_desc *rgb_ltm = NULL;
+	struct isp_ltm_ctx_desc *yuv_ltm = NULL;
 
 	if (!pctx || !param) {
 		pr_err("fail to get valid input ptr, pctx %p, param %p\n",
@@ -63,6 +65,8 @@ int isp_path_comn_uinfo_set(struct isp_sw_context *pctx, void *param)
 
 	cfg_in = (struct isp_ctx_base_desc *)param;
 	uinfo = &pctx->uinfo;
+	rgb_ltm = (struct isp_ltm_ctx_desc *)pctx->rgb_ltm_handle;
+	yuv_ltm = (struct isp_ltm_ctx_desc *)pctx->yuv_ltm_handle;
 
 	if (uinfo->enable_slowmotion) {
 		uinfo->enable_slowmotion = cfg_in->enable_slowmotion;
@@ -76,8 +80,16 @@ int isp_path_comn_uinfo_set(struct isp_sw_context *pctx, void *param)
 	uinfo->slw_state = cfg_in->slw_state;
 	uinfo->mode_ltm = cfg_in->mode_ltm;
 	uinfo->mode_3dnr = cfg_in->mode_3dnr;
-	pctx->dev->ltm_handle->ops->set_status(1, pctx->ctx_id,
-		uinfo->mode_ltm, pctx->attach_cam_id);
+	if (rgb_ltm) {
+		rgb_ltm->ltm_ops.core_ops.cfg_param(rgb_ltm, ISP_LTM_CFG_EB, &uinfo->ltm_rgb);
+		rgb_ltm->ltm_ops.core_ops.cfg_param(rgb_ltm, ISP_LTM_CFG_MODE, &uinfo->mode_ltm);
+		rgb_ltm->ltm_ops.sync_ops.set_status(rgb_ltm, 1);
+	}
+	if (yuv_ltm) {
+		yuv_ltm->ltm_ops.core_ops.cfg_param(yuv_ltm, ISP_LTM_CFG_EB, &uinfo->ltm_yuv);
+		yuv_ltm->ltm_ops.core_ops.cfg_param(yuv_ltm, ISP_LTM_CFG_MODE, &uinfo->mode_ltm);
+		yuv_ltm->ltm_ops.sync_ops.set_status(yuv_ltm, 1);
+	}
 	pctx->ch_id = cfg_in->ch_id;
 
 	pr_debug("ctx%d, in_fmt 0x%x, %d %d mode_ltm %d ltm_eb %d slw_state %d\n", pctx->ctx_id,
