@@ -2950,8 +2950,7 @@ BLOCK_CFG:
 	ISP_REG_MWR(idx, ISP_EE_PARAM, BIT_0, p->edge_info.bypass);
 	ISP_REG_MWR(idx, ISP_IIRCNR_PARAM, BIT_0, p->iircnr_info.bypass);
 	ISP_REG_MWR(idx, ISP_YUV_NF_CTRL, BIT_0, p->nf_info.yrandom_bypass);
-	ISP_REG_MWR(idx, ISP_POSTCDN_COMMON_CTRL,
-		BIT_0, p->post_cdn_info.bypass);
+	ISP_REG_MWR(idx, ISP_POSTCDN_COMMON_CTRL,BIT_0, p->post_cdn_info.bypass);
 	ISP_REG_MWR(idx, ISP_PRECDN_PARAM, BIT_0, p->pre_cdn_info.bypass);
 	ISP_REG_MWR(idx, ISP_PSTRZ_PARAM, BIT_0, p->pstrz_info_v2.bypass);
 	ISP_REG_MWR(idx, ISP_UVD_PARAM, BIT_0, p->uvd_info_v2.bypass);
