@@ -77,6 +77,12 @@ enum dcam_path_state {
 	DCAM_PATH_RESUME,
 };
 
+enum dcam_csi_state {
+	DCAM_CSI_IDLE,
+	DCAM_CSI_PAUSE,
+	DCAM_CSI_RESUME,
+};
+
 struct dcam_rds_slice_ctrl {
 	uint32_t rds_input_h_global;
 	uint32_t rds_input_w_global;
@@ -223,6 +229,7 @@ struct dcam_sw_context {
 	uint32_t sw_ctx_id;
 	uint32_t hw_ctx_id;
 	struct dcam_hw_context *hw_ctx;
+	uint32_t csi_connect_stat;
 
 	uint32_t auto_cpy_id;
 	uint32_t base_fid;

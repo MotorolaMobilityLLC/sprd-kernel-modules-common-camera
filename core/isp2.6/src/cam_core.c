@@ -1790,9 +1790,9 @@ static struct camera_frame *camcore_4in1_frame_deal(struct camera_module *module
 		shutoff = 1;
 		dev = module->dcam_dev_handle;
 		patharg.path_id = channel->dcam_path_id;
-		patharg.idx = module->dcam_idx;
+		patharg.idx = module->dcam_dev_handle->sw_ctx[module->cur_sw_ctx_id].hw_ctx_id;
 		dev->hw->dcam_ioctl(dev->hw, DCAM_HW_CFG_PATH_STOP, &patharg);
-		dev->hw->dcam_ioctl(dev->hw, DCAM_HW_CFG_STOP_CAP_EB, &module->dcam_idx);
+		dev->hw->dcam_ioctl(dev->hw, DCAM_HW_CFG_STOP_CAP_EB, &patharg.idx);
 		module->dcam_dev_handle->dcam_pipe_ops->cfg_path(&module->dcam_dev_handle->sw_ctx[module->cur_sw_ctx_id],
 			DCAM_PATH_CFG_SHUTOFF,
 			channel->dcam_path_id, &shutoff);
@@ -2149,7 +2149,7 @@ static int camcore_isp_callback(enum isp_cb_type type, void *param, void *priv_d
 					 * alloced by kernel
 					 */
 					if (module->cam_uinfo.is_4in1)
-						ret = module->dcam_dev_handle->dcam_pipe_ops->cfg_path(&module->dcam_dev_handle->sw_ctx[module->cur_aux_sw_ctx_id],
+						ret = module->dcam_dev_handle->dcam_pipe_ops->cfg_path(&module->dcam_dev_handle->sw_ctx[module->cur_sw_ctx_id],
 							DCAM_PATH_CFG_OUTPUT_BUF,
 							channel->aux_dcam_path_id,
 							pframe);
@@ -4972,7 +4972,7 @@ static int camcore_raw_pre_proc(
 	uint32_t loop = 0;
 	unsigned long flag = 0;
 	struct camera_group *grp = module->grp;
-	struct cam_hw_info *hw = NULL;
+	struct cam_hw_info *hw = grp->hw_info;
 	struct channel_context *ch = NULL;
 	struct img_trim path_trim;
 	struct dcam_path_cfg_param ch_desc;
@@ -5015,6 +5015,18 @@ static int camcore_raw_pre_proc(
 
 	dev = (struct dcam_pipe_dev *)module->dcam_dev_handle;
 	sw_ctx = &dev->sw_ctx[module->cur_sw_ctx_id];
+
+	loop = 0;
+	do {
+		ret = dcam_core_context_bind(sw_ctx, hw->csi_connect_type, module->dcam_idx);
+		if (!ret) {
+			if (sw_ctx->hw_ctx_id < 0 || sw_ctx->hw_ctx_id >= DCAM_HW_CONTEXT_MAX)
+				pr_err("fail to get hw_ctx_id\n");
+			break;
+		}
+		pr_info_ratelimited("ctx %d wait for hw. loop %d\n", sw_ctx->hw_ctx_id, loop);
+		usleep_range(600, 800);
+	} while (loop++ < 5000);
 
 	if ((module->grp->hw_info->prj_id == SHARKL3)
 		&& proc_info->src_size.width > ISP_WIDTH_MAX
@@ -5069,10 +5081,9 @@ static int camcore_raw_pre_proc(
 	ret = module->dcam_dev_handle->dcam_pipe_ops->cfg_path(sw_ctx,
 		DCAM_PATH_CFG_SIZE, ch->dcam_path_id, &ch_desc);
 
-	hw = grp->hw_info;
-	camarg.idx = module->dcam_idx;
+	camarg.idx = sw_ctx->hw_ctx_id;
 	camarg.width = proc_info->src_size.width;
-	if (hw->ip_dcam[module->dcam_idx]->lbuf_share_support)
+	if (hw->ip_dcam[sw_ctx->hw_ctx_id]->lbuf_share_support)
 		hw->dcam_ioctl(hw, DCAM_HW_CFG_LBUF_SHARE_SET, &camarg);
 
 	/* specify isp context & path */
@@ -5138,17 +5149,6 @@ static int camcore_raw_pre_proc(
 	ch->enable = 1;
 	ch->ch_uinfo.dst_fmt = isp_path_desc.out_fmt;
 	atomic_set(&module->state, CAM_CFG_CH);
-	loop = 0;
-	do {
-		ret = dcam_core_context_bind(sw_ctx, hw->csi_connect_type, module->dcam_idx);
-		if (!ret) {
-			if (sw_ctx->hw_ctx_id >= DCAM_HW_CONTEXT_MAX)
-				pr_err("fail to get hw_ctx_id\n");
-			break;
-		}
-		pr_info_ratelimited("ctx %d wait for hw. loop %d\n", sw_ctx->hw_ctx_id, loop);
-		usleep_range(600, 800);
-	} while (loop++ < 5000);
 
 	pr_info("done, dcam path %d, isp_path 0x%x\n",
 		dcam_path_id, ch->isp_path_id);

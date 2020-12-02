@@ -1524,6 +1524,17 @@ static int camioctl_stream_off(struct camera_module *module,
 	}
 
 	camcore_param_buffer_uncfg(module);
+
+	if(hw->csi_connect_type == DCAM_BIND_DYNAMIC && sw_ctx->csi_connect_stat == DCAM_CSI_RESUME) {
+		struct dcam_switch_param csi_switch;
+		csi_switch.csi_id = module->dcam_idx;
+		csi_switch.dcam_id= sw_ctx->hw_ctx_id;
+		pr_info("csi_switch.csi_id = %d, csi_switch.dcam_id = %d\n", csi_switch.csi_id, csi_switch.dcam_id);
+		/* switch disconnect */
+		hw->dcam_ioctl(hw, DCAM_HW_DISCONECT_CSI, &csi_switch);
+		sw_ctx->csi_connect_stat = DCAM_CSI_IDLE;
+	}
+
 	dcam_core_context_unbind(sw_ctx);
 
 	atomic_set(&module->state, CAM_IDLE);
@@ -1712,16 +1723,18 @@ cfg_ch_done:
 		usleep_range(600, 800);
 	} while (loop++ < 5000);
 
-	if(hw->csi_connect_type == DCAM_BIND_DYNAMIC) {
+	ret = hw->dcam_ioctl(hw, DCAM_HW_CFG_RESET, &sw_ctx->hw_ctx_id);
+
+	if(hw->csi_connect_type == DCAM_BIND_DYNAMIC && sw_ctx->csi_connect_stat != DCAM_CSI_RESUME) {
 		struct dcam_switch_param csi_switch;
 		csi_switch.csi_id = module->dcam_idx;
 		csi_switch.dcam_id= sw_ctx->hw_ctx_id;
 		pr_info("csi_switch.csi_id = %d, csi_switch.dcam_id = %d\n", csi_switch.csi_id, csi_switch.dcam_id);
 		/* switch connect */
 		hw->dcam_ioctl(hw, DCAM_HW_CONECT_CSI, &csi_switch);
+		sw_ctx->csi_connect_stat = DCAM_CSI_RESUME;
 	}
 
-	ret = hw->dcam_ioctl(hw, DCAM_HW_CFG_RESET, &sw_ctx->hw_ctx_id);
 	if (ret)
 		pr_err("fail to reset dcam%d\n", sw_ctx->hw_ctx_id);
 
@@ -2218,6 +2231,7 @@ static int camioctl_capture_start(struct camera_module *module,
 	uint32_t cap_skip_num = 0;
 	uint32_t gtm_param_idx = DCAM_GTM_PARAM_CAP;
 	struct channel_context *ch = NULL;
+	struct dcam_sw_context *sw_ctx = NULL;
 
 	ret = copy_from_user(&param, (void __user *)arg,
 			sizeof(struct sprd_img_capture_param));
@@ -2246,6 +2260,7 @@ static int camioctl_capture_start(struct camera_module *module,
 		mutex_unlock(&module->buf_lock[ch->ch_id]);
 	}
 
+	sw_ctx = &module->dcam_dev_handle->sw_ctx[module->cur_sw_ctx_id];
 	module->capture_scene = param.cap_scene;
 	isp_idx = module->channel[CAM_CH_CAP].isp_ctx_id;
 	if (module->capture_scene == CAPTURE_HDR
@@ -2253,11 +2268,11 @@ static int camioctl_capture_start(struct camera_module *module,
 		|| module->capture_scene == CAPTURE_SW3DNR
 		|| module->capture_scene == CAPTURE_HW3DNR
 		|| module->capture_scene == CAPTURE_FLASH) {
-		dis.dcam_idx = module->dcam_idx;
+		dis.dcam_idx = sw_ctx->hw_ctx_id;
 		dis.isp_idx = isp_idx;
 		hw->dcam_ioctl(hw, DCAM_HW_CFG_GTM_LTM_DIS, &dis);
 	} else if (param.type == DCAM_CAPTURE_START_FROM_NEXT_SOF) {
-		module->dcam_dev_handle->dcam_pipe_ops->ioctl(&module->dcam_dev_handle->sw_ctx[module->cur_sw_ctx_id],
+		module->dcam_dev_handle->dcam_pipe_ops->ioctl(sw_ctx,
 			DCAM_IOCTL_CFG_GTM_UPDATE, &gtm_param_idx);
 	}
 	module->isp_dev_handle->isp_ops->clear_stream_ctrl(module->isp_dev_handle, isp_idx);
@@ -2270,7 +2285,7 @@ static int camioctl_capture_start(struct camera_module *module,
 		ch_desc.is_raw = 1;
 		ch_desc.endian.y_endian = ENDIAN_LITTLE;
 		ch_desc.bayer_pattern = module->cam_uinfo.sensor_if.img_ptn;
-		ret = module->dcam_dev_handle->dcam_pipe_ops->cfg_path(&module->dcam_dev_handle->sw_ctx[module->cur_sw_ctx_id],
+		ret = module->dcam_dev_handle->dcam_pipe_ops->cfg_path(sw_ctx,
 			DCAM_PATH_CFG_BASE,
 			module->channel[CAM_CH_CAP].dcam_path_id, &ch_desc);
 	}
@@ -2280,7 +2295,7 @@ static int camioctl_capture_start(struct camera_module *module,
 	/* recognize the capture scene */
 	if (param.type == DCAM_CAPTURE_START_FROM_NEXT_SOF) {
 		module->dcam_cap_status = DCAM_CAPTURE_START_FROM_NEXT_SOF;
-		idx = module->dcam_idx;
+		idx = sw_ctx->hw_ctx_id;
 		cap_skip_num = hw->dcam_ioctl(hw, DCAM_HW_CFG_GTM_STATUS_GET, &idx);
 		atomic_set(&module->cap_skip_frames, cap_skip_num);
 		atomic_set(&module->capture_frames_dcam, param.cap_cnt);
@@ -2304,7 +2319,7 @@ static int camioctl_capture_start(struct camera_module *module,
 				module->lowlux_4in1 = 0;
 			} else {
 				module->lowlux_4in1 = 1;
-				module->dcam_dev_handle->dcam_pipe_ops->cfg_path(&module->dcam_dev_handle->sw_ctx[module->cur_sw_ctx_id],
+				module->dcam_dev_handle->dcam_pipe_ops->cfg_path(sw_ctx,
 					DCAM_PATH_CFG_FULL_SOURCE,
 					DCAM_PATH_FULL,
 					&module->lowlux_4in1);
@@ -2353,12 +2368,14 @@ static int camioctl_capture_stop(struct camera_module *module,
 	struct cam_hw_info *hw = NULL;
 	struct cam_hw_gtm_ltm_eb eb;
 	uint32_t isp_idx = 0;
+	struct dcam_sw_context *sw_ctx = NULL;
 
 	if (module->cap_status == CAM_CAPTURE_STOP) {
 		pr_info("cam%d alreay capture stopped\n", module->idx);
 		return 0;
 	}
 
+	sw_ctx = &module->dcam_dev_handle->sw_ctx[module->cur_sw_ctx_id];
 	module->cap_status = CAM_CAPTURE_STOP;
 	module->dcam_cap_status = DCAM_CAPTURE_STOP;
 
@@ -2370,7 +2387,7 @@ static int camioctl_capture_stop(struct camera_module *module,
 		|| module->capture_scene == CAPTURE_SW3DNR
 		|| module->capture_scene == CAPTURE_HW3DNR
 		|| module->capture_scene == CAPTURE_FLASH) {
-		eb.dcam_idx = module->dcam_idx;
+		eb.dcam_idx = sw_ctx->hw_ctx_id;
 		eb.isp_idx = isp_idx;
 		hw->dcam_ioctl(hw, DCAM_HW_CFG_GTM_LTM_EB, &eb);
 	}
@@ -2384,11 +2401,11 @@ static int camioctl_capture_stop(struct camera_module *module,
 		ch_desc.is_raw = 0;
 		ch_desc.endian.y_endian = ENDIAN_LITTLE;
 		ch_desc.bayer_pattern = module->cam_uinfo.sensor_if.img_ptn;
-		module->dcam_dev_handle->dcam_pipe_ops->cfg_path(&module->dcam_dev_handle->sw_ctx[module->cur_sw_ctx_id],
+		module->dcam_dev_handle->dcam_pipe_ops->cfg_path(sw_ctx,
 				DCAM_PATH_CFG_BASE,
 				module->channel[CAM_CH_CAP].dcam_path_id, &ch_desc);
 
-		module->dcam_dev_handle->dcam_pipe_ops->cfg_path(&module->dcam_dev_handle->sw_ctx[module->cur_sw_ctx_id],
+		module->dcam_dev_handle->dcam_pipe_ops->cfg_path(sw_ctx,
 				DCAM_PATH_CLR_OUTPUT_ALTER_BUF,
 				module->channel[CAM_CH_CAP].dcam_path_id, &ch_desc);
 	}
@@ -2399,7 +2416,7 @@ static int camioctl_capture_stop(struct camera_module *module,
 	 */
 	if (module->cam_uinfo.is_dual && module->dual_frame) {
 		channel = &module->channel[module->dual_frame->channel_id];
-		module->dcam_dev_handle->dcam_pipe_ops->cfg_path(&module->dcam_dev_handle->sw_ctx[module->cur_sw_ctx_id],
+		module->dcam_dev_handle->dcam_pipe_ops->cfg_path(sw_ctx,
 				DCAM_PATH_CFG_OUTPUT_BUF,
 				channel->dcam_path_id, module->dual_frame);
 		pr_info("stop capture comes before start capture, dcam_path_Id = %d\n", channel->dcam_path_id);
@@ -2413,7 +2430,7 @@ static int camioctl_capture_stop(struct camera_module *module,
 	/* 4in1 lowlux deinit */
 	if (module->cam_uinfo.is_4in1 && module->lowlux_4in1) {
 		module->lowlux_4in1 = 0;
-		module->dcam_dev_handle->dcam_pipe_ops->cfg_path(&module->dcam_dev_handle->sw_ctx[module->cur_sw_ctx_id],
+		module->dcam_dev_handle->dcam_pipe_ops->cfg_path(sw_ctx,
 				DCAM_PATH_CFG_FULL_SOURCE,
 				DCAM_PATH_FULL,
 				&module->lowlux_4in1);
@@ -2832,9 +2849,9 @@ static int camioctl_4in1_post_proc(struct camera_module *module,
 		pr_err("fail to start dcam dev, ret %d\n", ret);
 		goto exit;
 	}
-	lbuf.idx = module->dcam_idx;
+	lbuf.idx = sw_ctx->hw_ctx_id;
 	lbuf.width = pframe->width;
-	if (dev->hw->ip_dcam[module->dcam_idx]->lbuf_share_support)
+	if (dev->hw->ip_dcam[sw_ctx->hw_ctx_id]->lbuf_share_support)
 		dev->hw->dcam_ioctl(dev->hw, DCAM_HW_CFG_LBUF_SHARE_SET, &lbuf);
 
 	ret = module->dcam_dev_handle->dcam_pipe_ops->proc_frame(sw_ctx, pframe);
@@ -2993,33 +3010,57 @@ static int camioctl_path_pause(struct camera_module *module,
 	struct dcam_sw_context *sw_ctx = &module->dcam_dev_handle->sw_ctx[module->cur_sw_ctx_id];
 	struct dcam_hw_context *hw_ctx = sw_ctx->hw_ctx;
 	struct dcam_switch_param csi_switch;
+	struct dcam_path_desc *path = NULL;
+	uint32_t j = 0;
+	struct camera_frame *frame = NULL;
 
 	if (hw->csi_connect_type == DCAM_BIND_DYNAMIC) {
 		module->path_state = dcam_path_state;
 		if (sw_ctx->hw_ctx_id == DCAM_HW_CONTEXT_MAX)
 			return 0;
 
-		/* stop */
-		hw->dcam_ioctl(hw, DCAM_HW_CFG_STOP, &sw_ctx->hw_ctx_id);
-
 		/* switch disconnect */
 		csi_switch.csi_id = module->dcam_idx;
 		csi_switch.dcam_id= sw_ctx->hw_ctx_id;
-		pr_info("cam%d csi_switch.csi_id = %d, csi_switch.dcam_id = %d,sw_ctx_id = %d\n",
-			module->idx, csi_switch.csi_id, csi_switch.dcam_id, sw_ctx->sw_ctx_id);
+
 		if (atomic_read(&hw_ctx->user_cnt) > 0)
 			hw->dcam_ioctl(hw, DCAM_HW_DISCONECT_CSI, &csi_switch);
 		else {
 			pr_err("fail to get DCAM%d valid user cnt %d\n", hw_ctx->hw_ctx_id, atomic_read(&hw_ctx->user_cnt));
 			return -1;
 		}
+		pr_info("cam%d csi_switch.csi_id = %d, csi_switch.dcam_id = %d,sw_ctx_id = %d\n",
+			module->idx, csi_switch.csi_id, csi_switch.dcam_id, sw_ctx->sw_ctx_id);
+
+		usleep_range(1000 * 300, 1000 * 300);
 
 		/* reset */
 		hw->dcam_ioctl(hw, DCAM_HW_CFG_RESET, &sw_ctx->hw_ctx_id);
 
 		/* unbind */
 		dcam_core_context_unbind(sw_ctx);
+
+		/* result q clear */
+		for (j = 0; j < DCAM_PATH_MAX; j++) {
+			path = &sw_ctx->path[j];
+			if (path == NULL)
+				continue;
+			frame = cam_queue_dequeue(&path->result_queue, struct camera_frame, list);
+			while (frame) {
+				pr_info("DCAM%u path%d fid %u\n", sw_ctx->sw_ctx_id, j, frame->fid);
+				if (frame->is_reserved)
+					cam_queue_enqueue(&path->reserved_buf_queue, &frame->list);
+				else
+					cam_queue_enqueue(&path->out_buf_queue, &frame->list);
+				if (frame->sync_data)
+					dcam_core_dcam_if_release_sync(frame->sync_data, frame);
+
+				frame = cam_queue_dequeue(&path->result_queue, struct camera_frame, list);
+			}
+		}
+
 		atomic_set(&sw_ctx->state, STATE_IDLE);
+		sw_ctx->csi_connect_stat = DCAM_CSI_PAUSE;
 	} else {
 		module->path_state = dcam_path_state;
 		if (atomic_read(&module->state) == CAM_RUNNING) {
@@ -3044,7 +3085,7 @@ static int camioctl_path_resume(struct camera_module *module,
 	struct dcam_sw_context *sw_ctx = &module->dcam_dev_handle->sw_ctx[module->cur_sw_ctx_id];
 	struct dcam_switch_param csi_switch;
 
-	pr_info("resume cam%d with dcam %d module %px, sw_ctx_id = %d\n",
+	pr_info("resume cam%d with csi_id %d module %px, sw_ctx_id = %d\n",
 		module->idx, module->dcam_idx, module, sw_ctx->sw_ctx_id);
 	if (hw->csi_connect_type == DCAM_BIND_DYNAMIC) {
 		module->path_state = dcam_path_state;
@@ -3075,6 +3116,7 @@ static int camioctl_path_resume(struct camera_module *module,
 			pr_err("fail to start dcam dev, ret %d\n", ret);
 			return -1;
 		}
+		sw_ctx->csi_connect_stat = DCAM_CSI_RESUME;
 	} else {
 		module->path_state = dcam_path_state;
 		if (atomic_read(&module->state) == CAM_RUNNING) {

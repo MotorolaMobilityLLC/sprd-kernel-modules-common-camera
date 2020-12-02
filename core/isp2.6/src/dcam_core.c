@@ -2415,23 +2415,24 @@ static int dcamcore_dev_stop(void *dcam_handle, enum dcam_stop_cmd pause)
 			pr_err("fail to stop offline thread\n");
 		}
 	}
-
+	hw = pctx->dev->hw;
 	state = atomic_read(&pctx->state);
-	if (unlikely(state == STATE_INIT) || unlikely(state == STATE_IDLE)) {
+	if ((unlikely(state == STATE_INIT) || unlikely(state == STATE_IDLE)) &&
+			((pctx->csi_connect_stat == DCAM_CSI_RESUME) || (hw->csi_connect_type == DCAM_BIND_FIXED))) {
 		pr_warn("DCAM%d not started yet\n", pctx->hw_ctx_id);
 		return -EINVAL;
 	}
-	hw = pctx->dev->hw;
-	hw->dcam_ioctl(hw, DCAM_HW_CFG_STOP, &pctx->hw_ctx_id);
-	hw->dcam_ioctl(hw, DCAM_HW_CFG_RESET, &pctx->hw_ctx_id);
+	if (pctx->hw_ctx_id != DCAM_HW_CONTEXT_MAX) {
+		hw->dcam_ioctl(hw, DCAM_HW_CFG_STOP, &pctx->hw_ctx_id);
+		hw->dcam_ioctl(hw, DCAM_HW_CFG_RESET, &pctx->hw_ctx_id);
 
-	dcam_int_tracker_dump(pctx->hw_ctx_id);
-	dcam_int_tracker_reset(pctx->hw_ctx_id);
+		dcam_int_tracker_dump(pctx->hw_ctx_id);
+		dcam_int_tracker_reset(pctx->hw_ctx_id);
 
-	if (pctx->hw_ctx_id <= DCAM_HW_CONTEXT_1)
-		atomic_dec(&s_dcam_working);
+		if (pctx->hw_ctx_id <= DCAM_HW_CONTEXT_1)
+			atomic_dec(&s_dcam_working);
+	}
 	atomic_set(&pctx->state, STATE_IDLE);
-
 	for (i = DCAM_CXT_1; i < DCAM_CXT_NUM; i++) {
 		pctx->ctx[i].ctx_id = i;
 		if (atomic_read(&pctx->ctx[i].user_cnt)  > 0)
@@ -3030,8 +3031,8 @@ int dcam_core_pipe_dev_put(void *dcam_handle)
 		return -EFAULT;
 	}
 
-	pr_info("put dcam pipe dev:%px, s_dcam_dev:%px,  users: %d\n",
-		dev, s_dcam_dev, atomic_read(&dev->user_cnt));
+	pr_info("put dcam pipe dev:%px, s_dcam_dev:%px,  users: %d, enable: %d\n",
+		dev, s_dcam_dev, atomic_read(&dev->user_cnt), atomic_read(&dev->enable));
 
 	mutex_lock(&s_dcam_dev_mutex);
 

@@ -409,8 +409,6 @@ static int dcamhw_reset(void *handle, void *arg)
 	DCAM_REG_MWR(idx, ISP_BPC_PARAM, BIT_0, bypass);
 	DCAM_REG_MWR(idx, ISP_AFM_FRM_CTRL, BIT_0, bypass);
 	DCAM_REG_WR(idx, NR3_FAST_ME_PARAM, 0x109);
-	DCAM_REG_MWR(idx, DCAM_GTM_GLB_CTRL, BIT_0, 0);
-	DCAM_REG_MWR(idx, DCAM_FBC_CTRL, BIT_0, 0);
 	dcam_hw_linebuf_len[idx] = 0;
 	pr_info("DCAM%d: reset end\n", idx);
 
