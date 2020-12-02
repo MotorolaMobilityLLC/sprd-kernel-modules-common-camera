@@ -21,7 +21,8 @@
 struct csi_phy_info {
 	struct regmap *cam_ahb_syscon;
 	struct regmap *aon_apb_syscon;
-	struct regmap *anlg_phy_g10_syscon; /* anlg_phy control */
+	struct regmap *anlg_phy_g4_syscon; /* anlg_phy control */
+	struct regmap *anlg_phy_g4l_syscon; /* anlg_phy control */
 	unsigned int phy_id;
 };
 

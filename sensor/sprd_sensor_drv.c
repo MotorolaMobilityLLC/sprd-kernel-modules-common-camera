@@ -62,7 +62,12 @@ static const char *const sprd_sensor_gpio_names[] = {
 
 static const struct sensor_mclk_tag c_sensor_mclk_tab[] = {
 	{96, "clk_96m"},
+#ifdef MCLK_NEW_PROCESS1
+	{64, "clk_64m"},
+	{51, "clk_51m2"},
+#else
 	{77, "clk_76m8"},
+#endif
 	{48, "clk_48m"},
 	{26, "clk_26m"},
 };
@@ -639,10 +644,11 @@ int sprd_sensor_set_mclk(unsigned int *saved_clk, unsigned int set_mclk,
 		pr_err("sensor clock no device %d\n", sensor_id);
 		return -EINVAL;
 	}
+    pr_info("set_mclk %d\n", set_mclk);
 
 	if (set_mclk == 0) {
 		if (p_dev->mclk_freq) {
-#ifdef MCLK_NEW_PROCESS
+#if 0//def MCLK_NEW_PROCESS
 		if (p_dev->sensor_clk) {
 				clk_disable_unprepare(p_dev->sensor_clk);
 			}
@@ -652,10 +658,12 @@ int sprd_sensor_set_mclk(unsigned int *saved_clk, unsigned int set_mclk,
 				else if (p_dev->ccir_eb)
 					clk_disable_unprepare(p_dev->ccir_eb);
 #else
+#ifndef MCLK_NEW_PROCESS
 			if (p_dev->sensor_eb)
 				clk_disable_unprepare(p_dev->sensor_eb);
 			else if (p_dev->ccir_eb)
 				clk_disable_unprepare(p_dev->ccir_eb);
+#endif
 
 			if (p_dev->sensor_clk) {
 				ret = clk_set_parent(p_dev->sensor_clk,
@@ -672,6 +680,12 @@ int sprd_sensor_set_mclk(unsigned int *saved_clk, unsigned int set_mclk,
 				}
 				clk_disable_unprepare(p_dev->sensor_clk);
 			}
+#ifdef MCLK_NEW_PROCESS
+			if (p_dev->sensor_eb)
+				clk_disable_unprepare(p_dev->sensor_eb);
+			else if (p_dev->ccir_eb)
+				clk_disable_unprepare(p_dev->ccir_eb);
+#endif
 #endif
 		}
 	} else if (p_dev->mclk_freq != set_mclk) {
@@ -1747,6 +1761,17 @@ int sprd_sensor_find_dcam_id(int sensor_id)
 			pr_debug("find sensor %d attached dcam id %d\n",
 				 sensor_id,
 				 s_sensor_dev_data[i]->attch_dcam_id);
+#ifdef MCLK_NEW_PROCESS1
+            if(i == 2)
+				return 4;//sharkl6pro dcam3_1
+            if(i == 3)
+				return 3;//sharkl6pro dcam2_2
+         //   if(i == 4)
+		//		return 2;//sharkl6pro dcam2_1
+            if(i == 5)
+				return 5;//sharkl6pro dcam3_2
+
+#endif
 			return s_sensor_dev_data[i]->attch_dcam_id;
 		}
 	}

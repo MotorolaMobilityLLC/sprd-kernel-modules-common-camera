@@ -35,8 +35,12 @@ ccflags-y += -I$(KO_MODULE_PATH)
 ccflags-y += -I$(KO_MODULE_PATH)/../common
 ccflags-y += -I$(KO_MODULE_PATH)/../interface
 ccflags-y += -I$(KO_MODULE_PATH)/csi2/sprd/$(CSI_DIR)
-ifeq ($(CSI_DIR),"receiver_r3p1")
+ifeq ($(strip $(CSI_DIR)),receiver_r3p1)
 ccflags-y += -DMCLK_NEW_PROCESS
+endif
+ifeq ($(strip $(CSI_DIR)),receiver_r3p1v2)
+ccflags-y += -DMCLK_NEW_PROCESS
+ccflags-y += -DMCLK_NEW_PROCESS1
 endif
 #
 # Final Objects

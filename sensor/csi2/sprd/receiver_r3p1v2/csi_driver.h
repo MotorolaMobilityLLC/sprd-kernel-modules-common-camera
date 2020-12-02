@@ -29,12 +29,15 @@ struct dphy_lane_cfg {
 
 enum csi_phy_t {
 	PHY_4LANE = 0,
+	PHY_4LANE1,
 	PHY_2P2,
 	PHY_2P2RO,
 	PHY_2P2_M,
 	PHY_2P2_S,
 	PHY_2P2RO_M,
 	PHY_2P2RO_S,
+	PHY_CPHY,
+	PHY_CPHY1,
 	PHY_MAX,
 };
 
@@ -42,6 +45,7 @@ enum csi_controller_t {
 	CSI_RX0 = 0,
 	CSI_RX1,
 	CSI_RX2,
+	CSI_RX3,
 	CSI_RX_MAX,
 };
 
@@ -82,6 +86,8 @@ enum csi_registers_t {
 	PHY_DEBUG_EN = 0x88,
 	PHY_LINE_START_DELAY = 0x8C,
 	PHY_IPG_CFG_ADD = 0x90,
+	PHY_TEST_S_CRTL0 = 0xa0,
+	PHY_TEST_S_CRTL1 = 0xa4,
 };
 
 int csi_reg_base_save(struct csi_dt_node_info *dt_info, int32_t idx);
@@ -103,6 +109,10 @@ int csi_ahb_reset(struct csi_phy_info *phy,
 		  unsigned int csi_id);
 void csi_reg_trace(unsigned int idx);
 void csi_ipg_mode_cfg(uint32_t idx, int enable);
+int reg_dump_rd(unsigned long reg, int len, char *reg_name);
+int reg_mwr(unsigned int reg, unsigned int msk, unsigned int value);
+int reg_wr(unsigned int reg, unsigned int value);
+int reg_rd(unsigned int reg);
 
 #define CSI_REG_WR(idx, reg, val)  (REG_WR(CSI_BASE(idx)+reg, val))
 #define CSI_REG_RD(idx, reg)  (REG_RD(CSI_BASE(idx)+reg))

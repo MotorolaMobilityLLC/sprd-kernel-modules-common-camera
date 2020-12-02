@@ -72,7 +72,7 @@ static int sprd_sensor_mipi_if_open(struct sprd_sensor_file_tag *p_file,
 		return ret;
 	}
 	p_file->mipi_state = SPRD_SENSOR_MIPI_STATE_ON_E;
-	p_file->phy_id = if_cfg->is_cphy == 1 ? 5 : if_cfg->phy_id;
+	p_file->phy_id = if_cfg->phy_id;
 	p_file->if_type = SPRD_SENSOR_INTERFACE_MIPI_E;
 	pr_info("open csi successfully\n");
 

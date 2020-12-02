@@ -81,7 +81,7 @@ static int csi_mipi_clk_enable(int sensor_id)
 		return -EINVAL;
 	}
 
-	if (!dt_info->mipi_csi_gate_eb || !dt_info->csi_eb_clk) {
+	if (!dt_info->csi_eb_clk) {
 		pr_err("fail to csi mipi clk enable\n");
 		return -EINVAL;
 	}
@@ -91,26 +91,35 @@ static int csi_mipi_clk_enable(int sensor_id)
 		pr_err("fail to csi eb clk\n");
 		return ret;
 	}
+	reg_mwr(0x3000000c,BIT_2, BIT_2);
 
-	ret = clk_prepare_enable(dt_info->mipi_csi_gate_eb);
-	if (ret) {
-		pr_err("fail to mipi csi mipi gate clk\n");
-		return ret;
-	}
 
 	regmap_update_bits(dt_info->phy.aon_apb_syscon,
 		REG_AON_APB_CGM_CLK_TOP_REG1,
 		MASK_AON_APB_CGM_CPHY_CFG_EN,
 		MASK_AON_APB_CGM_CPHY_CFG_EN);
+	regmap_update_bits(dt_info->phy.aon_apb_syscon,
+		0x0c, 0x04, 0x04);
 
-	ret = clk_prepare_enable(dt_info->csi_src_eb);
+	//ret = clk_prepare_enable(dt_info->csi_src_eb);
 
 	if (ret){
 		pr_err("fail to csi mipi clk src eb\n");
 		return ret;
 	}
-	if(csi_pattern_enable)
-		clk_disable_unprepare(dt_info->csi_src_eb);//don't need enable in ipg mode
+	if(csi_pattern_enable){
+		clk_prepare_enable(dt_info->csi_src_eb);//don't need enable in ipg mode
+		//reg_mwr(0x3000000c,BIT_16, BIT_16);
+    }else{
+		pr_info("don't need enable ipg mode\n");
+		//	reg_mwr(0x3000000c,BIT_16, ~BIT_16);
+	//	reg_mwr(0x6491009c,0x1f, 0x1f);
+	//	reg_mwr(0x6491009c,0x1f, 0x00);
+		//reg_mwr(0x64804004, BIT_12, BIT_12);//0x0c bit12//0x30 bit12?? can't access
+		reg_mwr(0x649100a0,0x1f, 0x1f);
+
+		//reg_mwr(0x64900004, BIT_12, BIT_12);//
+    }
 
 	return ret;
 }
@@ -125,20 +134,25 @@ static void csi_mipi_clk_disable(int sensor_id)
 	}
 
 
-	if (!dt_info->mipi_csi_gate_eb || !dt_info->csi_eb_clk) {
+	if (!dt_info->csi_eb_clk) {
 		pr_err("fail to csi mipi clk disable\n");
 		return;
 	}
+
 
 	regmap_update_bits(dt_info->phy.aon_apb_syscon,
 		REG_AON_APB_CGM_CLK_TOP_REG1,
 		MASK_AON_APB_CGM_CPHY_CFG_EN,
 		~MASK_AON_APB_CGM_CPHY_CFG_EN);
+	regmap_update_bits(dt_info->phy.aon_apb_syscon,
+		0x0c, 0x04, ~0x04);
 
-	clk_disable_unprepare(dt_info->mipi_csi_gate_eb);
+	//clk_disable_unprepare(dt_info->mipi_csi_gate_eb);
 	clk_disable_unprepare(dt_info->csi_eb_clk);
-	if(!csi_pattern_enable)
+	if(csi_pattern_enable)
 		clk_disable_unprepare(dt_info->csi_src_eb);//don't need enable in ipg mode
+    else
+		pr_info("don't need disable ipg mode\n");
 
 }
 
@@ -219,10 +233,10 @@ int csi_api_dt_node_init(struct device *dev, struct device_node *dn,
 			csi_info->reg_base);
 
 	/* read clocks */
-
+/*
 	csi_info->mipi_csi_gate_eb = of_clk_get_by_name(dn,
 					"clk_mipi_csi_gate_eb");
-
+*/
 	csi_info->csi_eb_clk = of_clk_get_by_name(dn, "clk_csi_eb");
 
 
@@ -246,13 +260,22 @@ int csi_api_dt_node_init(struct device *dev, struct device_node *dn,
 	csi_info->phy.aon_apb_syscon = regmap_syscon;
 
 	regmap_syscon = syscon_regmap_lookup_by_phandle(dn,
-					"sprd,anlg_phy_g10_controller");
+					"sprd,anlg_phy_g4_controller");
 	if (IS_ERR_OR_NULL(regmap_syscon)) {
-		pr_err("csi_dt_init:fail to get anlg_phy_g10_controller\n");
+		pr_err("csi_dt_init:fail to get anlg_phy_g4_controller\n");
 		return PTR_ERR(regmap_syscon);
 	}
 
-	csi_info->phy.anlg_phy_g10_syscon = regmap_syscon;
+	csi_info->phy.anlg_phy_g4_syscon = regmap_syscon;
+
+	regmap_syscon = syscon_regmap_lookup_by_phandle(dn,
+					"sprd,anlg_phy_g4l_controller");
+	if (IS_ERR_OR_NULL(regmap_syscon)) {
+		pr_err("csi_dt_init:fail to get anlg_phy_g4l_controller\n");
+		return PTR_ERR(regmap_syscon);
+	}
+
+	csi_info->phy.anlg_phy_g4l_syscon = regmap_syscon;
 
 	csi_reg_base_save(csi_info, csi_info->controller_id);
 
@@ -345,9 +368,16 @@ int csi_api_open(int bps_per_lane, int phy_id, int lane_num, int sensor_id, int 
 		return -EINVAL;
 	}
 	if (is_cphy){
-		phy_id = 5;
-		dt_info->phy.phy_id = 5;
+		phy_id = (phy_id == 0) ? 8 : 9;
+		dt_info->phy.phy_id = phy_id;
 	}
+/*	phy_id = (phy_id == 2) ? 4 : phy_id;
+	dt_info->phy.phy_id = phy_id;
+*/
+
+
+	pr_info("csi open phy_id: %d\n", phy_id);
+
 	dt_info->lane_seq = lane_seq;
 	ret = csi_ahb_reset(&dt_info->phy, dt_info->controller_id);
 	if (unlikely(ret))
@@ -366,7 +396,10 @@ int csi_api_open(int bps_per_lane, int phy_id, int lane_num, int sensor_id, int 
 	csi_controller_enable(dt_info);
 	csi_phy_testclr(dt_info->controller_id, &dt_info->phy);
 	csi_phy_init(dt_info, dt_info->controller_id);
-	csi_start(lane_num, dt_info->controller_id);
+	if(phy_id == 5 || phy_id == 7)
+		csi_start(4, dt_info->controller_id);
+	else
+		csi_start(lane_num, dt_info->controller_id);
 
 	if (csi_pattern_enable)
 		csi_ipg_mode_cfg(dt_info->controller_id, 1);
