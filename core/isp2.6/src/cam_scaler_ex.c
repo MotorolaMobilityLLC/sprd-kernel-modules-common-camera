@@ -626,6 +626,7 @@ static int camscaler_sin_core(int arc_q33, int sign)
 	short uv_coef_arr[32][8];
 	if (y_coef_ptr == NULL || uv_coef_ptr == NULL) {
 		pr_debug("coef_ptr is NULL!\n");
+		return;
 	}
 
  	for (i = 0; i < 32; i++) {
