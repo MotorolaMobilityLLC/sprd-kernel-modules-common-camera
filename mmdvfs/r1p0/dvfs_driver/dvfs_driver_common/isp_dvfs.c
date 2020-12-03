@@ -101,9 +101,9 @@ static int set_idle_freq(struct devfreq *devfreq, unsigned long idle_freq) {
 
     get_ip_index_from_table(isp_dvfs_config_table, idle_freq, &index);
 
-    index_cfg_reg = DVFS_REG_RD(REG_MM_DVFS_AHB_ISP_DVFS_INDEX_CFG);
+    index_cfg_reg = DVFS_REG_RD(REG_MM_DVFS_AHB_ISP_DVFS_INDEX_IDLE_CFG);
     index_cfg_reg = (index_cfg_reg & (~0x7)) | index;
-    DVFS_REG_WR(REG_MM_DVFS_AHB_ISP_DVFS_INDEX_CFG, index_cfg_reg);
+    DVFS_REG_WR(REG_MM_DVFS_AHB_ISP_DVFS_INDEX_IDLE_CFG, index_cfg_reg);
 
     pr_info("dvfs ops: %s, work_freq=%lu, index=%d,\n", __func__, idle_freq,
             index);
