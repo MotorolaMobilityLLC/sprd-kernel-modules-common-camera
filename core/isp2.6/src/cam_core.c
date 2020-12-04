@@ -2746,12 +2746,13 @@ static int camcore_bigsize_aux_init(struct camera_module *module,
 		module->aux_dcam_dev = dev;
 	}
 
-	module->cur_aux_sw_ctx_id = module->dcam_dev_handle->dcam_pipe_ops->get_context(dev);
-	if (module->cur_aux_sw_ctx_id < 0) {
+	ret = module->dcam_dev_handle->dcam_pipe_ops->get_context(dev);
+	if (ret < 0) {
 		pr_err("fail to get dcam context for cam%d ch %d\n",
 			module->idx);
 		goto exit_close;
-	}
+	}else
+	   module->cur_aux_sw_ctx_id = ret;
 	module->aux_dcam_id = DCAM_HW_CONTEXT_1;
 	dev->sw_ctx[module->cur_aux_sw_ctx_id].dcam_slice_mode = module->cam_uinfo.dcam_slice_mode;
 	dev->sw_ctx[module->cur_aux_sw_ctx_id].slice_num = module->cam_uinfo.slice_num;
@@ -4222,12 +4223,13 @@ static int camcore_aux_dcam_init(struct camera_module *module,
 		return -EFAULT;
 	}
 
-	module->cur_aux_sw_ctx_id = module->dcam_dev_handle->dcam_pipe_ops->get_context(dcam);
-	if (module->cur_aux_sw_ctx_id < 0) {
+	ret = module->dcam_dev_handle->dcam_pipe_ops->get_context(dcam);
+	if (ret < 0) {
 		pr_err("fail to get dcam context for cam%d ch %d\n",
 			module->idx);
 		goto exit_close;
-	}
+	}else
+	   module->cur_aux_sw_ctx_id = ret;
 	pr_info("New a aux_dcam_id:%d, cur_aux_sw_ctx_id: %d, module->dcam_idx:%d\n", module->aux_dcam_id, module->cur_aux_sw_ctx_id, module->dcam_idx);
 
 	if (dcam == NULL) {
