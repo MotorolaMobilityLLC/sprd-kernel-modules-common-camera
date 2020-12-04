@@ -55,6 +55,17 @@ enum dcam_hw_context_id {
 	DCAM_HW_CONTEXT_MAX,
 };
 
+/*
+ * Supported dcam_if index. Number 0&1 for dcam_if and 2 for dcam_if_lite.
+ */
+
+enum dcam_id {
+	DCAM_ID_0 = 0,
+	DCAM_ID_1,
+	DCAM_ID_2,
+	DCAM_ID_MAX,
+};
+
 static inline uint32_t cal_sprd_raw_pitch(uint32_t w, uint32_t is_loose)
 {
 	uint32_t mod16_len[16] = {0, 8, 8, 8, 8, 12, 12, 12,

@@ -114,6 +114,7 @@ struct dcam_path_desc {
 	uint32_t base_update;
 	uint32_t bayer_pattern;
 	uint32_t out_fmt;
+	uint32_t data_bits;
 	uint32_t pack_bits;
 	uint32_t is_4in1;
 

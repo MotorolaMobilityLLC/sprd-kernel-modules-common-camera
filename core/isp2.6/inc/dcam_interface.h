@@ -223,6 +223,8 @@ struct dcam_path_cfg_param {
 	uint32_t is_raw;
 	uint32_t pack_bits;
 	uint32_t bayer_pattern;
+	uint32_t dcam_out_fmt;
+	uint32_t dcam_out_bits;
 	uint32_t is_4in1;
 	uint32_t frm_deci;
 	uint32_t frm_skip;

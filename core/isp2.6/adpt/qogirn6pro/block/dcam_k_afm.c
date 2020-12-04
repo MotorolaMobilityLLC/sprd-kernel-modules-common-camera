@@ -219,7 +219,7 @@ static int dcam_afm_lbuf_share_mode(enum dcam_id idx, uint32_t width)
 		3080, 3040, 3264,
 	};
 
-	line_buf = (DCAM_AXIM_RD(DCAM_LBUF_SHARE_MODE) >> 4) & 0x3;
+	line_buf = (DCAM_AXIM_RD(idx, DCAM_LBUF_SHARE_MODE) >> 4) & 0x3;
 
 	switch (idx) {
 	case DCAM_ID_0:
@@ -234,7 +234,7 @@ static int dcam_afm_lbuf_share_mode(enum dcam_id idx, uint32_t width)
 			}
 
 			pr_debug("idx[%d] width[%d], line_buf = %d i = %d\n", idx, width, line_buf, i);
-			DCAM_AXIM_MWR(DCAM_LBUF_SHARE_MODE, 0x3 << 4, i << 4);
+			DCAM_AXIM_MWR(idx, DCAM_LBUF_SHARE_MODE, 0x3 << 4, i << 4);
 		}
 		break;
 	case DCAM_ID_1:
@@ -248,7 +248,7 @@ static int dcam_afm_lbuf_share_mode(enum dcam_id idx, uint32_t width)
 					break;
 			}
 			pr_debug("idx[%d] width[%d], line_buf = %d i = %d\n", idx, width, line_buf, i);
-			DCAM_AXIM_MWR(DCAM_LBUF_SHARE_MODE, 0x3 << 4, i << 4);
+			DCAM_AXIM_MWR(idx, DCAM_LBUF_SHARE_MODE, 0x3 << 4, i << 4);
 		}
 		break;
 	case DCAM_ID_2:
@@ -258,7 +258,7 @@ static int dcam_afm_lbuf_share_mode(enum dcam_id idx, uint32_t width)
 			pr_debug("no need to update afm line buf\n");
 		else {
 			pr_debug("idx[%d] width[%d], line_buf = %d\n", idx, width, line_buf);
-			DCAM_AXIM_MWR(DCAM_LBUF_SHARE_MODE, 0x3 << 4, 3 << 4);
+			DCAM_AXIM_MWR(idx, DCAM_LBUF_SHARE_MODE, 0x3 << 4, 3 << 4);
 		}
 		break;
 	default:
@@ -267,7 +267,7 @@ static int dcam_afm_lbuf_share_mode(enum dcam_id idx, uint32_t width)
 		break;
 	}
 
-	pr_debug("afm_line_buf_share = 0x%x\n", DCAM_AXIM_RD(DCAM_LBUF_SHARE_MODE));
+	pr_debug("afm_line_buf_share = 0x%x\n", DCAM_AXIM_RD(idx, DCAM_LBUF_SHARE_MODE));
 	return ret;
 }
 

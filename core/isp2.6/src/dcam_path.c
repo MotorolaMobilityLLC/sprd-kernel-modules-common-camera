@@ -82,6 +82,8 @@ int dcam_path_base_cfg(void *dcam_ctx_handle,
 		path->endian = ch_desc->endian;
 		path->is_4in1 = ch_desc->is_4in1;
 		path->bayer_pattern = ch_desc->bayer_pattern;
+		path->out_fmt = ch_desc->dcam_out_fmt;
+		path->data_bits = ch_desc->dcam_out_bits;
 		path->base_update = 1;
 		spin_unlock_irqrestore(&path->size_lock, flags);
 		break;
@@ -93,6 +95,9 @@ int dcam_path_base_cfg(void *dcam_ctx_handle,
 		path->endian = ch_desc->endian;
 		path->is_4in1 = ch_desc->is_4in1;
 		path->bayer_pattern = ch_desc->bayer_pattern;
+		path->out_fmt = ch_desc->dcam_out_fmt;
+		path->data_bits = ch_desc->dcam_out_bits;
+
 		/*
 		 * TODO:
 		 * Better not binding dcam_if feature to BIN path, which is a

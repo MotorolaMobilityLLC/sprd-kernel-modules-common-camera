@@ -399,10 +399,10 @@ static void print_reg(int idx)
 		addr += 16) {
 		pr_info("0x%03lx: 0x%x 0x%x 0x%x 0x%x\n",
 			addr,
-			DCAM_AXIM_RD(addr),
-			DCAM_AXIM_RD(addr + 4),
-			DCAM_AXIM_RD(addr + 8),
-			DCAM_AXIM_RD(addr + 12));
+			REG_RD(g_dcam_aximbase[idx] + addr),
+			REG_RD(g_dcam_aximbase[idx] + addr + 4),
+			REG_RD(g_dcam_aximbase[idx] + addr + 8),
+			REG_RD(g_dcam_aximbase[idx] + addr + 12));
 	}
 }
 

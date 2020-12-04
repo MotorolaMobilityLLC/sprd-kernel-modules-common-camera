@@ -18,7 +18,7 @@
 #include "dcam_interface.h"
 
 extern unsigned long g_dcam_regbase[];
-extern unsigned long g_dcam_aximbase;
+extern unsigned long g_dcam_aximbase[];
 extern unsigned long g_dcam_mmubase;
 
 /* DCAM0/DCAM1 module registers define */
@@ -393,7 +393,7 @@ extern const unsigned long slowmotion_store_addr[3][4];
  */
 
 #define DCAM_BASE(idx)              (g_dcam_regbase[idx])
-#define DCAM_AXIM_BASE              (g_dcam_aximbase)
+#define DCAM_AXIM_BASE              (g_dcam_aximbase[0])
 /* TODO: implement mmu */
 #define DCAM_MMU_BASE               (g_dcam_mmubase)
 

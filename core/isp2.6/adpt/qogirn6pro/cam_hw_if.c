@@ -16,6 +16,9 @@
 #include <linux/spinlock.h>
 #include <sprd_mm.h>
 
+#include <linux/mfd/syscon.h>
+#include <linux/of_address.h>
+
 #include "cam_trusty.h"
 #include "dcam_reg.h"
 #include "dcam_hw_adpt.h"
@@ -67,28 +70,162 @@ static unsigned long coff_buf_addr[2][3][4] = {
 };
 
 #define CAM_HW_ADPT_LAYER
+
 #include "dcam_hw.c"
 #include "isp_hw.c"
+
+static int camhw_get_all_rst(void *handle, void *arg)
+{
+	int ret = 0;
+	struct cam_hw_info *hw = NULL;
+	uint32_t args[2];
+	struct device_node *dn = (struct device_node *)arg;
+	struct cam_hw_ip_info *dcam_info = NULL;
+
+	if (!handle) {
+		pr_err("fail to get invalid handle\n");
+		return -EINVAL;
+	}
+
+	hw = (struct cam_hw_info *)handle;
+
+	ret = cam_syscon_get_args_by_name(dn, "dcam01_all_reset", ARRAY_SIZE(args), args);
+	if (ret) {
+		pr_err("fail to get dcam all reset syscon\n");
+		return -EINVAL;
+	}
+
+	dcam_info = hw->ip_dcam[0];
+	dcam_info->syscon.all_rst = args[0];
+	dcam_info->syscon.all_rst_mask= args[1];
+	dcam_info = hw->ip_dcam[1];
+	dcam_info->syscon.all_rst = args[0];
+	dcam_info->syscon.all_rst_mask= args[1];
+
+	ret = cam_syscon_get_args_by_name(dn, "dcam23_all_reset", ARRAY_SIZE(args), args);
+	if (ret) {
+		pr_err("fail to get dcam all reset syscon\n");
+		return -EINVAL;
+	}
+
+	dcam_info = hw->ip_dcam[2];
+	dcam_info->syscon.all_rst = args[0];
+	dcam_info->syscon.all_rst_mask= args[1];
+	dcam_info = hw->ip_dcam[3];
+	dcam_info->syscon.all_rst = args[0];
+	dcam_info->syscon.all_rst_mask= args[1];
+
+	return ret;
+}
+
+static int camhw_get_axi_base(void *handle, void *arg)
+{
+	struct cam_hw_info *hw = NULL;
+	struct device_node *dn = (struct device_node *)arg;
+	int pos = 0;
+	uint32_t count;
+	struct resource reg_res = {0};
+	void __iomem *reg_base = NULL;
+	struct cam_hw_soc_info *soc_dcam;
+	if (!handle) {
+		pr_err("fail to get invalid handle\n");
+		return -EINVAL;
+	}
+
+	hw = (struct cam_hw_info *)handle;
+	soc_dcam = hw->soc_dcam;
+	if (of_property_read_u32(dn, "sprd,dcam-count", &count)) {
+		pr_err("fail to parse the property of sprd,dcam-count\n");
+		return -EINVAL;
+	}
+
+	pos = count;
+	if (of_address_to_resource(dn, pos, &reg_res)) {
+		pr_err("fail to get AXIM phy addr\n");
+		goto err_axi_iounmap;
+	}
+
+	reg_base = ioremap(reg_res.start, reg_res.end - reg_res.start + 1);
+	if (!reg_base) {
+		pr_err("fail to map AXIM reg base\n");
+		goto err_axi_iounmap;
+	}
+
+	g_dcam_aximbase[0] = (unsigned long)reg_base;
+	soc_dcam->axi_reg_base[0] = (unsigned long)reg_base;
+	g_dcam_aximbase[1] = (unsigned long)reg_base;
+	soc_dcam->axi_reg_base[1] = (unsigned long)reg_base;
+
+	pos = count + 1;
+	if (of_address_to_resource(dn, pos, &reg_res)) {
+		pr_err("fail to get AXIM phy addr\n");
+		goto err_axi_iounmap;
+	}
+
+	reg_base = ioremap(reg_res.start, reg_res.end - reg_res.start + 1);
+	if (!reg_base) {
+		pr_err("fail to map AXIM reg base\n");
+		goto err_axi_iounmap;
+	}
+
+	g_dcam_aximbase[2] = (unsigned long)reg_base;
+	soc_dcam->axi_reg_base[2] = (unsigned long)reg_base;
+	g_dcam_aximbase[3] = (unsigned long)reg_base;
+	soc_dcam->axi_reg_base[3] = (unsigned long)reg_base;
+	return 0;
+
+err_axi_iounmap:
+	if (pos == (count + 1))
+		iounmap((void __iomem *)g_dcam_aximbase[0]);
+	g_dcam_aximbase[0] = 0;
+	g_dcam_aximbase[1] = 0;
+	g_dcam_aximbase[2] = 0;
+	g_dcam_aximbase[3] = 0;
+	return -1;
+}
+
+static struct hw_io_ctrl_fun cam_ioctl_fun_tab[] = {
+	{CAM_HW_GET_ALL_RST,            camhw_get_all_rst},
+	{CAM_HW_GET_AXI_BASE,           camhw_get_axi_base},
+};
+
+static hw_ioctl_fun camhw_ioctl_fun_get(enum cam_hw_cfg_cmd cmd)
+{
+	hw_ioctl_fun hw_ctrl = NULL;
+	uint32_t total_num = 0;
+	uint32_t i = 0;
+
+	total_num = sizeof(cam_ioctl_fun_tab) / sizeof(struct hw_io_ctrl_fun);
+	for (i = 0; i < total_num; i++) {
+		if (cmd == cam_ioctl_fun_tab[i].cmd) {
+			hw_ctrl = cam_ioctl_fun_tab[i].hw_ctrl;
+			break;
+		}
+	}
+
+	return hw_ctrl;
+}
+
 #undef CAM_HW_ADPT_LAYER
 
 const unsigned long slowmotion_store_addr[3][4] = {
 	{
 		DCAM_BIN_BASE_WADDR0,
-		DCAM_BIN_BASE_WADDR1,
-		DCAM_BIN_BASE_WADDR2,
-		DCAM_BIN_BASE_WADDR3
+		DCAM_BIN_BASE_WADDR0,
+		DCAM_BIN_BASE_WADDR0,
+		DCAM_BIN_BASE_WADDR0
 	},
 	{
 		DCAM_AEM_BASE_WADDR,
-		DCAM_AEM_BASE_WADDR1,
-		DCAM_AEM_BASE_WADDR2,
-		DCAM_AEM_BASE_WADDR3
+		DCAM_AEM_BASE_WADDR,
+		DCAM_AEM_BASE_WADDR,
+		DCAM_AEM_BASE_WADDR
 	},
 	{
 		DCAM_HIST_BASE_WADDR,
-		DCAM_HIST_BASE_WADDR1,
-		DCAM_HIST_BASE_WADDR2,
-		DCAM_HIST_BASE_WADDR3
+		DCAM_HIST_BASE_WADDR,
+		DCAM_HIST_BASE_WADDR,
+		DCAM_HIST_BASE_WADDR
 	}
 };
 
@@ -139,7 +276,7 @@ static int camhwif_dcam_ioctl(void *handle,
 	if (hw_ctrl != NULL)
 		ret = hw_ctrl(handle, arg);
 	else
-		pr_err("hw_core_ctrl_fun is null, cmd %d", cmd);
+		pr_err("hw_core_ctrl_fun is null, cmd %d\n", cmd);
 
 	return ret;
 }
@@ -154,7 +291,22 @@ static int camhwif_isp_ioctl(void *handle,
 	if (hw_ctrl != NULL)
 		ret = hw_ctrl(handle, arg);
 	else
-		pr_err("hw_core_ctrl_fun is null, cmd %d", cmd);
+		pr_err("hw_core_ctrl_fun is null, cmd %d\n", cmd);
+
+	return ret;
+}
+
+static int camhwif_cam_ioctl(void *handle,
+	enum cam_hw_cfg_cmd cmd, void *arg)
+{
+	int ret = 0;
+	hw_ioctl_fun hw_ctrl = NULL;
+
+	hw_ctrl = camhw_ioctl_fun_get(cmd);
+	if (hw_ctrl != NULL)
+		ret = hw_ctrl(handle, arg);
+	else
+		pr_err("hw_core_ctrl_fun is null, cmd %d\n", cmd);
 
 	return ret;
 }
@@ -191,17 +343,29 @@ static struct cam_hw_ip_info dcam[DCAM_ID_MAX] = {
 		.rds_en = 0,
 	},
 	[DCAM_ID_2] = {
-		.slm_path = BIT(DCAM_PATH_BIN) | BIT(DCAM_PATH_AEM)
-			| BIT(DCAM_PATH_HIST),
+		.slm_path = BIT(DCAM_PATH_BIN),
 		.lbuf_share_support = 0,
 		.offline_slice_support = 0,
-		.afl_gbuf_size = STATIS_AFL_GBUF_SIZE,
+		.afl_gbuf_size = 0,
 		.superzoom_support = 1,
 		.dcam_full_fbc_mode = DCAM_FBC_DISABLE,
 		.dcam_bin_fbc_mode = DCAM_FBC_DISABLE,
 		.store_addr_tab = dcam_store_addr,
 		.path_ctrl_id_tab = path_ctrl_id,
-		.pdaf_type3_reg_addr = DCAM_PPE_RIGHT_WADDR,
+		.pdaf_type3_reg_addr = 0,
+		.rds_en = 0,
+	},
+	[DCAM_ID_3] = {
+		.slm_path = BIT(DCAM_PATH_BIN),
+		.lbuf_share_support = 0,
+		.offline_slice_support = 0,
+		.afl_gbuf_size = 0,
+		.superzoom_support = 1,
+		.dcam_full_fbc_mode = DCAM_FBC_DISABLE,
+		.dcam_bin_fbc_mode = DCAM_FBC_DISABLE,
+		.store_addr_tab = dcam_store_addr,
+		.path_ctrl_id_tab = path_ctrl_id,
+		.pdaf_type3_reg_addr = 0,
 		.rds_en = 0,
 	},
 };
@@ -221,8 +385,9 @@ struct cam_hw_info qogirn6pro_hw_info = {
 	.ip_dcam[DCAM_ID_0] = &dcam[DCAM_ID_0],
 	.ip_dcam[DCAM_ID_1] = &dcam[DCAM_ID_1],
 	.ip_dcam[DCAM_ID_2] = &dcam[DCAM_ID_2],
+	.ip_dcam[DCAM_ID_3] = &dcam[DCAM_ID_3],
 	.ip_isp = &isp,
 	.dcam_ioctl = camhwif_dcam_ioctl,
 	.isp_ioctl = camhwif_isp_ioctl,
-
+	.cam_ioctl = camhwif_cam_ioctl,
 };

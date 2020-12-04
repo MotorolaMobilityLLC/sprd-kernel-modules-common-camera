@@ -2269,7 +2269,9 @@ static int camcore_dcam_callback(enum dcam_cb_type type, void *param, void *priv
 
 	if (unlikely(type == DCAM_CB_DEV_ERR)) {
 		pr_err("fail to check cb type. camera %d\n", module->idx);
+#ifndef CAM_ON_HAPS
 		csi_api_reg_trace();
+#endif
 		trace.type = ABNORMAL_REG_TRACE;
 		trace.idx = module->dcam_dev_handle->sw_ctx[module->cur_sw_ctx_id].hw_ctx_id;
 		hw->isp_ioctl(hw, ISP_HW_CFG_REG_TRACE, &trace);
@@ -5975,7 +5977,9 @@ rewait:
 				pr_err("fail to get hw ops.\n");
 				return -EFAULT;
 			}
+#ifndef CAM_ON_HAPS
 			csi_api_reg_trace();
+#endif
 			trace.type = ABNORMAL_REG_TRACE;
 			trace.idx = module->dcam_dev_handle->sw_ctx[module->cur_sw_ctx_id].hw_ctx_id;
 			hw->isp_ioctl(hw, ISP_HW_CFG_REG_TRACE, &trace);
@@ -6494,6 +6498,8 @@ static const struct of_device_id sprd_cam_of_match[] = {
 	{ .compatible = "sprd,sharkl5pro-cam", .data = &sharkl5pro_hw_info},
 	#elif defined (PROJ_QOGIRL6)
 	{ .compatible = "sprd,qogirl6-cam", .data = &qogirl6_hw_info},
+	#elif defined (PROJ_QOGIRN6PRO)
+	{ .compatible = "sprd,qogirn6pro-cam", .data = &qogirn6pro_hw_info},
 	#endif
 	{ },
 };

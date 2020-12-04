@@ -17,7 +17,7 @@
 #include <linux/bitops.h>
 
 extern unsigned long g_dcam_regbase[];
-extern unsigned long g_dcam_aximbase;
+extern unsigned long g_dcam_aximbase[];
 extern unsigned long g_dcam_mmubase;
 
 #define DCAM_PATH_CROP_ALIGN                  8
@@ -591,7 +591,7 @@ extern const unsigned long slowmotion_store_addr[3][4];
  */
 
 #define DCAM_BASE(idx)                        (g_dcam_regbase[idx])
-#define DCAM_AXIM_BASE                        (g_dcam_aximbase)
+#define DCAM_AXIM_BASE                        (g_dcam_aximbase[0])
 /* TODO: implement mmu */
 #define DCAM_MMU_BASE                         (g_dcam_mmubase)
 
@@ -601,9 +601,9 @@ extern const unsigned long slowmotion_store_addr[3][4];
 	DCAM_REG_WR((idx), (reg),             \
 	((val) & (msk)) | (DCAM_REG_RD(idx, reg) & (~(msk))))
 
-#define DCAM_AXIM_WR(reg, val)                (REG_WR(DCAM_AXIM_BASE+(reg), (val)))
-#define DCAM_AXIM_RD(reg)                     (REG_RD(DCAM_AXIM_BASE+(reg)))
-#define DCAM_AXIM_MWR(reg, msk, val)          \
+#define DCAM_AXIM_WR(reg, val)            (REG_WR(DCAM_AXIM_BASE+(reg), (val)))
+#define DCAM_AXIM_RD(reg)                 (REG_RD(DCAM_AXIM_BASE+(reg)))
+#define DCAM_AXIM_MWR(reg, msk, val) \
 	DCAM_AXIM_WR((reg), ((val) & (msk)) | (DCAM_AXIM_RD(reg) & (~(msk))))
 
 #define DCAM_MMU_WR(reg, val)                 (REG_WR(DCAM_MMU_BASE+(reg), (val)))

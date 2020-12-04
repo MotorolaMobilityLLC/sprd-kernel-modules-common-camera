@@ -13,9 +13,13 @@
 
 #ifdef CAM_HW_ADPT_LAYER
 
+#include <video/sprd_mmsys_pw_domain_qogirn6pro.h>
+
 #define DCAMX_STOP_TIMEOUT             2000
 #define DCAM_AXI_STOP_TIMEOUT          2000
-#define DCAM_AXIM_AQOS_MASK            (0x30FFFF)
+#define DCAM_AXIM_AQOS_MASK            (0xF030FFFF)
+#define DCAM_LITE_AXIM_AQOS_MASK       (0x30FFFF)
+
 #define IMG_TYPE_RAW                   0x2B
 #define IMG_TYPE_YUV                   0x1E
 
@@ -45,6 +49,7 @@ static int dcamhw_clk_eb(void *handle, void *arg)
 
 	hw = (struct cam_hw_info *)handle;
 	soc = hw->soc_dcam;
+#ifndef CAM_ON_HAPS
 	ret = clk_set_parent(soc->clk, soc->clk_parent);
 	if (ret) {
 		pr_err("fail to set clk parent\n");
@@ -81,7 +86,15 @@ static int dcamhw_clk_eb(void *handle, void *arg)
 		clk_disable_unprepare(soc->clk);
 		clk_disable_unprepare(soc->core_eb);
 	}
-
+#else
+	regmap_update_bits(soc->cam_ahb_gpr, 0xC, BIT_0, BIT_0);
+	regmap_update_bits(soc->cam_ahb_gpr, 0xC, BIT_1, BIT_1);
+	regmap_update_bits(soc->cam_ahb_gpr, 0xC, BIT_3, BIT_3);
+	regmap_update_bits(soc->cam_ahb_gpr, 0xC, BIT_4, BIT_4);
+	regmap_update_bits(soc->cam_ahb_gpr, 0xC, BIT_5, BIT_5);
+	regmap_update_bits(soc->cam_ahb_gpr, 0xC, BIT_11, BIT_11);
+	regmap_update_bits(soc->cam_ahb_gpr, 0xC, BIT_16, BIT_16);
+#endif
 	return ret;
 }
 
@@ -105,13 +118,37 @@ static int dcamhw_clk_dis(void *handle, void *arg)
 
 	hw = (struct cam_hw_info *)handle;
 	soc = hw->soc_dcam;
+#ifndef CAM_ON_HAPS
 	clk_set_parent(soc->axi_clk, soc->axi_clk_default);
 	clk_disable_unprepare(soc->axi_clk);
 	clk_set_parent(soc->clk, soc->clk_default);
 	clk_disable_unprepare(soc->clk);
 	clk_disable_unprepare(soc->axi_eb);
 	clk_disable_unprepare(soc->core_eb);
+#else
+	regmap_update_bits(soc->cam_ahb_gpr, 0xC, BIT_0, ~BIT_0);
+	regmap_update_bits(soc->cam_ahb_gpr, 0xC, BIT_1, ~BIT_1);
+	regmap_update_bits(soc->cam_ahb_gpr, 0xC, BIT_3, ~BIT_3);
+	regmap_update_bits(soc->cam_ahb_gpr, 0xC, BIT_4, ~BIT_4);
+	regmap_update_bits(soc->cam_ahb_gpr, 0xC, BIT_5, ~BIT_5);
+	regmap_update_bits(soc->cam_ahb_gpr, 0xC, BIT_11, ~BIT_11);
+	regmap_update_bits(soc->cam_ahb_gpr, 0xC, BIT_16, ~BIT_16);
 
+#endif
+	return ret;
+}
+
+static int dcamhw_pw_on(void *handle, void *arg)
+{
+	int ret = 0;
+	ret = sprd_dcam_pw_on();
+	return ret;
+}
+
+static int dcamhw_pw_off(void *handle, void *arg)
+{
+	int ret = 0;
+	ret = sprd_dcam_pw_off();
 	return ret;
 }
 
@@ -122,6 +159,7 @@ static int dcamhw_axi_init(void *handle, void *arg)
 	struct cam_hw_info *hw = NULL;
 	struct cam_hw_soc_info *soc = NULL;
 	struct cam_hw_ip_info *ip = NULL;
+	uint32_t ctrl_reg = 0, dbg_reg = 0;
 
 	if (!handle || !arg) {
 		pr_err("fail to get valid arg\n");
@@ -132,19 +170,27 @@ static int dcamhw_axi_init(void *handle, void *arg)
 	idx = *(uint32_t *)arg;
 	ip = hw->ip_dcam[idx];
 	soc = hw->soc_dcam;
+	if (idx <= DCAM_ID_1) {
+		ctrl_reg = AXIM_CTRL;
+		dbg_reg = AXIM_DBG_STS;
+	} else {
+		ctrl_reg = DCAM_LITE_AXIM_CTRL;
+		dbg_reg = DCAM_LITE_AXIM_DBG_STS;
+	}
+
 	/* firstly, stop AXI writing. */
-	DCAM_AXIM_MWR(AXIM_CTRL, BIT_24 | BIT_23, (0x3 << 23));
+	DCAM_AXIM_MWR(idx, ctrl_reg, BIT_24 | BIT_23, (0x3 << 23));
 
 	/* then wait for AHB busy cleared */
 	while (++time_out < DCAM_AXI_STOP_TIMEOUT) {
-		if (0 == (DCAM_AXIM_RD(AXIM_DBG_STS) & 0x1F00F))
+		if (0 == (DCAM_AXIM_RD(idx, dbg_reg) & 0x1F00F))
 			break;
 		udelay(1000);
 	}
 
 	if (time_out >= DCAM_AXI_STOP_TIMEOUT) {
 		pr_info("dcam axim timeout status 0x%x\n",
-			DCAM_AXIM_RD(AXIM_DBG_STS));
+			DCAM_AXIM_RD(idx, dbg_reg));
 	} else {
 		/* reset dcam all (0/1/2/bus) */
 		regmap_update_bits(soc->cam_ahb_gpr, ip->syscon.all_rst,
@@ -154,10 +200,10 @@ static int dcamhw_axi_init(void *handle, void *arg)
 			ip->syscon.all_rst_mask, ~(ip->syscon.all_rst_mask));
 	}
 
-	hw->dcam_ioctl(hw, DCAM_HW_CFG_SET_QOS, NULL);
+	hw->dcam_ioctl(hw, DCAM_HW_CFG_SET_QOS, arg);
 
 	/* the end, enable AXI writing */
-	DCAM_AXIM_MWR(AXIM_CTRL, BIT_24 | BIT_23, (0x0 << 23));
+	DCAM_AXIM_MWR(idx, ctrl_reg, BIT_24 | BIT_23, (0x0 << 23));
 
 	return 0;
 }
@@ -167,6 +213,7 @@ static int dcamhw_qos_set(void *handle, void *arg)
 	uint32_t reg_val = 0;
 	struct cam_hw_info *hw = NULL;
 	struct cam_hw_soc_info *soc = NULL;
+	uint32_t id = *(uint32_t *)arg;
 
 	if (!handle) {
 		pr_err("fail to get invalid handle\n");
@@ -175,9 +222,16 @@ static int dcamhw_qos_set(void *handle, void *arg)
 
 	hw = (struct cam_hw_info *)handle;
 	soc = hw->soc_dcam;
-	reg_val = (0x0 << 20) | ((soc->arqos_low & 0xF) << 12) | (0x8 << 8) |
-		((soc->awqos_high & 0xF) << 4) | (soc->awqos_low & 0xF);
-	REG_MWR(soc->axi_reg_base + AXIM_CTRL, DCAM_AXIM_AQOS_MASK, reg_val);
+
+	if (id <= DCAM_ID_1) {
+		reg_val = (0xF << 28) | (0x0 <<20) | ((soc->arqos_low & 0xF) << 12) | (0x8 << 8) |
+			((soc->awqos_high & 0xF) << 4) | (soc->awqos_low & 0xF);
+		REG_MWR(soc->axi_reg_base[id] + AXIM_CTRL, DCAM_AXIM_AQOS_MASK, reg_val);
+	} else {
+		reg_val = (0x0 <<20) | ((soc->arqos_low & 0xF) << 12) | (0x8 << 8) |
+			((soc->awqos_high & 0xF) << 4) | (soc->awqos_low & 0xF);
+		REG_MWR(soc->axi_reg_base[id] + AXIM_CTRL, DCAM_LITE_AXIM_AQOS_MASK, reg_val);
+	}
 
 	return 0;
 }
@@ -353,6 +407,7 @@ static int dcamhw_reset(void *handle, void *arg)
 	struct cam_hw_ip_info *ip = NULL;
 	uint32_t time_out = 0, flag = 0;
 	uint32_t bypass, eb;
+	uint32_t dbg_sts_reg;
 	uint32_t reset_bit[DCAM_ID_MAX] = {
 		BIT(5),
 		BIT(4),
@@ -371,22 +426,27 @@ static int dcamhw_reset(void *handle, void *arg)
 	hw = (struct cam_hw_info *)handle;
 	soc = hw->soc_dcam;
 	ip = hw->ip_dcam[idx];
+	if (idx <= DCAM_ID_1)
+		dbg_sts_reg = AXIM_DBG_STS;
+	else
+		dbg_sts_reg = DCAM_LITE_AXIM_DBG_STS;
 
 	pr_info("DCAM%d: reset.\n", idx);
 	/* then wait for AXIM cleared */
 	while (++time_out < DCAM_AXI_STOP_TIMEOUT) {
-		if (0 == (DCAM_AXIM_RD(AXIM_DBG_STS) & sts_bit[idx]))
+		if (0 == (DCAM_AXIM_RD(idx, dbg_sts_reg) & sts_bit[idx]))
 			break;
 		udelay(1000);
 	}
 
 	if (time_out >= DCAM_AXI_STOP_TIMEOUT) {
 		pr_info("DCAM%d: reset timeout, axim status 0x%x\n", idx,
-			DCAM_AXIM_RD(AXIM_DBG_STS));
+			DCAM_AXIM_RD(idx, dbg_sts_reg));
 	} else {
 		flag = reset_bit[idx];
 		pr_debug("DCAM%d, rst=0x%x, rst_mask=0x%x flag=0x%x\n",
 			idx, ip->syscon.rst, ip->syscon.rst_mask, flag);
+
 		regmap_update_bits(soc->cam_ahb_gpr,
 			ip->syscon.rst, ip->syscon.rst_mask, ip->syscon.rst_mask);
 		udelay(10);
@@ -474,15 +534,15 @@ static int dcamhw_fetch_set(void *handle, void *arg)
 		DCAM_MIPI_CAP_CFG, BIT_3, 0x0 << 3);
 	DCAM_REG_MWR(fetch->idx, DCAM_BAYER_INFO_CFG,
 		BIT_5 | BIT_4, (fetch->fetch_info->pattern & 3) << 4);
-	DCAM_AXIM_MWR(IMG_FETCH_CTRL,
+	DCAM_AXIM_MWR(0, IMG_FETCH_CTRL,
 		BIT_1 | BIT_0, fetch->fetch_info->pack_bits);
-	DCAM_AXIM_MWR(IMG_FETCH_CTRL,
+	DCAM_AXIM_MWR(0, IMG_FETCH_CTRL,
 		BIT_3 | BIT_2, fetch->fetch_info->endian << 2);
-	DCAM_AXIM_WR(IMG_FETCH_SIZE,
+	DCAM_AXIM_WR(0, IMG_FETCH_SIZE,
 		(fetch->fetch_info->trim.size_y << 16) | (fetch->fetch_info->trim.size_x & 0xffff));
-	DCAM_AXIM_WR(IMG_FETCH_X,
+	DCAM_AXIM_WR(0, IMG_FETCH_X,
 		(fetch_pitch << 16) | (fetch->fetch_info->trim.start_x & 0xffff));
-	DCAM_AXIM_WR(IMG_FETCH_RADDR, fetch->fetch_info->addr.addr_ch0);
+	DCAM_AXIM_WR(0, IMG_FETCH_RADDR, fetch->fetch_info->addr.addr_ch0);
 
 	pr_info("done.\n");
 
@@ -781,7 +841,7 @@ static int dcamhw_path_ctrl(void *handle, void *arg)
 
 static int dcamhw_fetch_start(void *handle, void *arg)
 {
-	DCAM_AXIM_WR(IMG_FETCH_START, 1);
+	DCAM_AXIM_WR(0, IMG_FETCH_START, 1);
 
 	return 0;
 }
@@ -995,11 +1055,12 @@ static int dcamhw_lbuf_share_set(void *handle, void *arg)
 		4160, 5184,
 		3264, 5664,
 	};
-	char chip_type[64] = { 0 };
 	struct cam_hw_lbuf_share *camarg = (struct cam_hw_lbuf_share *)arg;
+/*
+	char chip_type[64] = { 0 };
 
-	sprd_kproperty_get("lwfq/type", chip_type, "-1");
-	/*0: T618 1:T610*/
+	cam_kproperty_get("lwfq/type", chip_type, "-1");
+	//0: T618 1:T610
 	dcam_hw_linebuf_len[camarg->idx] = camarg->width;
 	pr_debug("dcam_hw_linebuf_len[0] = %d, [1] = %d %s\n",
 		dcam_hw_linebuf_len[0], dcam_hw_linebuf_len[1], chip_type);
@@ -1028,16 +1089,16 @@ static int dcamhw_lbuf_share_set(void *handle, void *arg)
 		pr_warn("dcam 0/1 already in working\n");
 		return 0;
 	}
-
+*/
 	switch (camarg->idx) {
 	case 0:
 		if (camarg->width > tb_w[0]) {
-			DCAM_AXIM_MWR(DCAM_LBUF_SHARE_MODE, 0x7, 2);
+			DCAM_AXIM_MWR(0, DCAM_LBUF_SHARE_MODE, 0x7, 2);
 			break;
 		}
 		for (i = 4; i >= 0; i--) {
 			if (camarg->width <= tb_w[i * 2]) {
-				DCAM_AXIM_MWR(DCAM_LBUF_SHARE_MODE, 0x7, i);
+				DCAM_AXIM_MWR(0, DCAM_LBUF_SHARE_MODE, 0x7, i);
 				pr_debug("alloc dcam linebuf %d %d\n", tb_w[i*2], tb_w[i*2 + 1]);
 				break;
 			}
@@ -1045,12 +1106,12 @@ static int dcamhw_lbuf_share_set(void *handle, void *arg)
 		break;
 	case 1:
 		if (camarg->width > tb_w[9]) {
-			DCAM_AXIM_MWR(DCAM_LBUF_SHARE_MODE, 0x7, 2);
+			DCAM_AXIM_MWR(1, DCAM_LBUF_SHARE_MODE, 0x7, 2);
 			break;
 		}
 		for (i = 0; i <= 4; i++) {
 			if (camarg->width <= tb_w[i * 2 + 1]) {
-				DCAM_AXIM_MWR(DCAM_LBUF_SHARE_MODE, 0x7, i);
+				DCAM_AXIM_MWR(1, DCAM_LBUF_SHARE_MODE, 0x7, i);
 				pr_debug("alloc dcam linebuf %d %d\n", tb_w[i*2], tb_w[i*2 + 1]);
 				break;
 			}
@@ -1060,7 +1121,7 @@ static int dcamhw_lbuf_share_set(void *handle, void *arg)
 		pr_err("fail to get valid dcam id %d\n", camarg->idx);
 		ret = 1;
 	}
-	DCAM_AXIM_MWR(DCAM_LBUF_SHARE_MODE, 0x3 << 8, 0 << 8);
+	DCAM_AXIM_MWR(camarg->idx, DCAM_LBUF_SHARE_MODE, 0x3 << 8, 0 << 8);
 
 	return ret;
 }
@@ -1089,7 +1150,7 @@ static int dcamhw_lbuf_share_get(void *handle, void *arg)
 	if (idx > DCAM_ID_1)
 		goto exit;
 
-	i = DCAM_AXIM_RD(DCAM_LBUF_SHARE_MODE) & 7;
+	i = DCAM_AXIM_RD(0, DCAM_LBUF_SHARE_MODE) & 7;
 	if (i < 5)
 		camarg->width = tb_w[i * 2 + idx];
 
@@ -1134,15 +1195,15 @@ static int dcamhw_slice_fetch_set(void *handle, void *arg)
 		DCAM_REG_MWR(idx, DCAM_MIPI_CAP_CFG, BIT_1, 0x1 << 1);
 		DCAM_REG_MWR(idx, DCAM_MIPI_CAP_CFG, BIT_3, 0x0 << 3);
 		DCAM_REG_MWR(idx, DCAM_BAYER_INFO_CFG, BIT_5 | BIT_4, (fetch->pattern & 3) << 4);
-		DCAM_AXIM_MWR(IMG_FETCH_CTRL, BIT_1 | BIT_0, fetch->pack_bits);
-		DCAM_AXIM_MWR(IMG_FETCH_CTRL, BIT_3 | BIT_2, fetch->endian << 2);
-		DCAM_AXIM_MWR(IMG_FETCH_CTRL, 0xFF << 4, 0x01 << 4);
-		DCAM_AXIM_MWR(IMG_FETCH_CTRL, 0x0F << 12, 0x01 << 12);
+		DCAM_AXIM_MWR(idx, IMG_FETCH_CTRL, BIT_1 | BIT_0, fetch->pack_bits);
+		DCAM_AXIM_MWR(idx, IMG_FETCH_CTRL, BIT_3 | BIT_2, fetch->endian << 2);
+		DCAM_AXIM_MWR(idx, IMG_FETCH_CTRL, 0xFF << 4, 0x01 << 4);
+		DCAM_AXIM_MWR(idx, IMG_FETCH_CTRL, 0x0F << 12, 0x01 << 12);
 
-		DCAM_AXIM_WR(IMG_FETCH_SIZE,
+		DCAM_AXIM_WR(idx, IMG_FETCH_SIZE,
 			(slicearg->slice_trim.size_y << 16) | (slicearg->slice_trim.size_x & 0x1fff));
-		DCAM_AXIM_WR(IMG_FETCH_X, (fetch_pitch << 16) | (slicearg->slice_trim.start_x & 0x1fff));
-		DCAM_AXIM_WR(IMG_FETCH_RADDR, fetch->addr.addr_ch0);
+		DCAM_AXIM_WR(idx, IMG_FETCH_X, (fetch_pitch << 16) | (slicearg->slice_trim.start_x & 0x1fff));
+		DCAM_AXIM_WR(idx, IMG_FETCH_RADDR, fetch->addr.addr_ch0);
 
 		DCAM_REG_WR(idx, DCAM_CAM_BIN_CFG, (prev_picth << 20) | BIT_5 | BIT_4 | BIT_0);
 		DCAM_REG_MWR(idx, DCAM_CAM_BIN_CFG, BIT_2 | BIT_3, fetch->pack_bits << 2);
@@ -1150,8 +1211,8 @@ static int dcamhw_slice_fetch_set(void *handle, void *arg)
 		if (slicearg->slice_count == 2) {
 			DCAM_REG_MWR(idx, DCAM_BAYER_INFO_CFG,
 				BIT_5 | BIT_4, (fetch->pattern & 3) << 4);
-			DCAM_AXIM_MWR(IMG_FETCH_CTRL, BIT_1 | BIT_0, fetch->pack_bits);
-			DCAM_AXIM_MWR(IMG_FETCH_CTRL, BIT_3 | BIT_2, fetch->endian << 2);
+			DCAM_AXIM_MWR(idx, IMG_FETCH_CTRL, BIT_1 | BIT_0, fetch->pack_bits);
+			DCAM_AXIM_MWR(idx, IMG_FETCH_CTRL, BIT_3 | BIT_2, fetch->endian << 2);
 
 			/* cfg mipicap */
 			DCAM_REG_MWR(idx, DCAM_MIPI_CAP_CFG, BIT_28, 0x1 << 28);
@@ -1161,10 +1222,10 @@ static int dcamhw_slice_fetch_set(void *handle, void *arg)
 			DCAM_REG_MWR(idx, DCAM_MIPI_CAP_CFG, BIT_3, 0x0 << 3);
 			DCAM_REG_MWR(idx, DCAM_MIPI_CAP_CFG, BIT_1, 0x1 << 1);
 
-			DCAM_AXIM_WR(IMG_FETCH_RADDR, fetch->addr.addr_ch0);
-			DCAM_AXIM_WR(IMG_FETCH_SIZE,
+			DCAM_AXIM_WR(idx, IMG_FETCH_RADDR, fetch->addr.addr_ch0);
+			DCAM_AXIM_WR(idx, IMG_FETCH_SIZE,
 				(cur_slice->size_y << 16) | ((cur_slice->size_x + DCAM_OVERLAP)& 0xffff));
-			DCAM_AXIM_WR(IMG_FETCH_X, (fetch_pitch << 16) | (cur_slice->start_x & 0x1fff));
+			DCAM_AXIM_WR(idx, IMG_FETCH_X, (fetch_pitch << 16) | (cur_slice->start_x & 0x1fff));
 
 			/* cfg bin path */
 			DCAM_REG_MWR(idx, DCAM_CAM_BIN_CFG,
@@ -1176,11 +1237,11 @@ static int dcamhw_slice_fetch_set(void *handle, void *arg)
 			uint32_t reg_val = 0;
 
 			DCAM_REG_MWR(idx, DCAM_MIPI_CAP_CFG, BIT_30, 0x1 << 30);
-			DCAM_AXIM_WR(IMG_FETCH_RADDR, fetch->addr.addr_ch0
+			DCAM_AXIM_WR(idx, IMG_FETCH_RADDR, fetch->addr.addr_ch0
 				+ (cur_slice->start_x - DCAM_OVERLAP) * bfp / 4);
-			DCAM_AXIM_WR(IMG_FETCH_SIZE,
+			DCAM_AXIM_WR(idx, IMG_FETCH_SIZE,
 				(cur_slice->size_y  << 16) | ((cur_slice->size_x + DCAM_OVERLAP) & 0x1fff));
-			DCAM_AXIM_WR(IMG_FETCH_X, (fetch_pitch << 16) | (0 & 0x1fff));
+			DCAM_AXIM_WR(idx, IMG_FETCH_X, (fetch_pitch << 16) | (0 & 0x1fff));
 			DCAM_REG_MWR(idx, DCAM_CAM_BIN_CFG,
 				(0x3FF << 20) |(1 << 1), (fetch_pitch << 20) | (1 << 1));
 			DCAM_REG_WR(idx, DCAM_CAM_BIN_CROP_START,
@@ -1497,7 +1558,7 @@ static int dcamhw_bin_mipi_cfg(void *handle, void *arg)
 
 	reg_val = DCAM_REG_RD(parm->idx, DCAM_BIN_BASE_WADDR0);
 	DCAM_REG_WR(parm->idx, DCAM_BIN_BASE_WADDR0, reg_val + parm->fetch_pitch*128/8/2);
-	DCAM_AXIM_WR(IMG_FETCH_X,
+	DCAM_AXIM_WR(parm->idx, IMG_FETCH_X,
 		(parm->fetch_pitch << 16) | ((parm->start_x + parm->size_x/2) & 0x1fff));
 	DCAM_REG_MWR(parm->idx,
 		DCAM_MIPI_CAP_CFG, BIT_30, 0x0 << 30);
@@ -1513,7 +1574,7 @@ static int dcamhw_bin_path_cfg(void *handle, void *arg)
 
 	DCAM_REG_MWR(parm->idx, DCAM_CAM_BIN_CFG, 0x3FF << 20, parm->fetch_pitch << 20);
 
-	DCAM_AXIM_WR(IMG_FETCH_X,
+	DCAM_AXIM_WR(parm->idx, IMG_FETCH_X,
 		(parm->fetch_pitch << 16) | (parm->start_x & 0xffff));
 
 	return 0;
@@ -1532,6 +1593,8 @@ static int dcamhw_bayer_hist_roi_update(void *handle, void *arg)
 static struct hw_io_ctrl_fun dcam_ioctl_fun_tab[] = {
 	{DCAM_HW_CFG_ENABLE_CLK,            dcamhw_clk_eb},
 	{DCAM_HW_CFG_DISABLE_CLK,           dcamhw_clk_dis},
+	{DCAM_HW_CFG_PW_ON,                 dcamhw_pw_on},
+	{DCAM_HW_CFG_PW_OFF,                dcamhw_pw_off},
 	{DCAM_HW_CFG_INIT_AXI,              dcamhw_axi_init},
 	{DCAM_HW_CFG_SET_QOS,               dcamhw_qos_set},
 	{DCAM_HW_CFG_RESET,                 dcamhw_reset},

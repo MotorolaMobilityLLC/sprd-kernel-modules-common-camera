@@ -22,6 +22,7 @@
 #include "dcam_int.h"
 #include "dcam_path.h"
 #include "dcam_reg.h"
+#include <sprd_mm.h>
 
 #ifdef pr_fmt
 #undef pr_fmt
@@ -30,7 +31,7 @@
 	fmt, current->pid, __LINE__, __func__
 
 unsigned long g_dcam_regbase[DCAM_ID_MAX];
-unsigned long g_dcam_aximbase;
+unsigned long g_dcam_aximbase[DCAM_ID_MAX];
 unsigned long g_dcam_mmubase;
 
 /*
@@ -55,6 +56,7 @@ int dcam_drv_hw_init(void *arg)
 	ret = sprd_cam_domain_eb();
 #endif
 	/* prepare clk */
+	hw->dcam_ioctl(hw, DCAM_HW_CFG_PW_ON, NULL);
 	hw->dcam_ioctl(hw, DCAM_HW_CFG_ENABLE_CLK, NULL);
 	return ret;
 }
@@ -78,8 +80,9 @@ int dcam_drv_hw_deinit(void *arg)
 	dev = (struct dcam_pipe_dev *)arg;
 	hw = dev->hw;
 	/* unprepare clk and other resource */
-	hw->dcam_ioctl(hw, DCAM_HW_CFG_DISABLE_CLK, NULL);
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 4, 0))
+	hw->dcam_ioctl(hw, DCAM_HW_CFG_DISABLE_CLK, NULL);
+	hw->dcam_ioctl(hw, DCAM_HW_CFG_PW_OFF, NULL);
 	ret = sprd_cam_domain_disable();
 	ret = sprd_cam_pw_off();
 #endif
@@ -103,6 +106,7 @@ int dcam_drv_dt_parse(struct platform_device *pdev,
 	int i = 0, irq = 0;
 	uint32_t args[2];
 	char dcam_name[20];
+	int ret = 0;
 
 	pr_info("start dcam dts parse\n");
 
@@ -200,6 +204,7 @@ int dcam_drv_dt_parse(struct platform_device *pdev,
 	}
 
 	/* read dcam clk */
+#ifndef CAM_ON_HAPS
 	soc_dcam->core_eb = of_clk_get_by_name(dn, "dcam_eb");
 	if (IS_ERR_OR_NULL(soc_dcam->core_eb)) {
 		pr_err("fail to read clk, dcam_eb\n");
@@ -259,11 +264,8 @@ int dcam_drv_dt_parse(struct platform_device *pdev,
 		}
 		soc_dcam->axi_clk_default = clk_get_parent(soc_dcam->axi_clk);
 	}
+#endif
 
-	if (cam_syscon_get_args_by_name(dn, "dcam_all_reset", ARRAY_SIZE(args), args)) {
-		pr_err("fail to get dcam all reset syscon\n");
-		return -EINVAL;
-	}
 	for (i = 0; i < count; i++) {
 		ip_dcam = hw_info->ip_dcam[i];
 		/* DCAM index */
@@ -300,8 +302,6 @@ int dcam_drv_dt_parse(struct platform_device *pdev,
 			reg_res.name, ip_dcam->phy_base, ip_dcam->reg_base,
 			irq_res.name, ip_dcam->irq_no);
 
-		ip_dcam->syscon.all_rst = args[0];
-		ip_dcam->syscon.all_rst_mask = args[1];
 		sprintf(dcam_name, "dcam%d_reset", i);
 		if (!cam_syscon_get_args_by_name(dn, dcam_name,
 			ARRAY_SIZE(args), args)) {
@@ -313,16 +313,13 @@ int dcam_drv_dt_parse(struct platform_device *pdev,
 		}
 	}
 
-	reg_base = of_iomap(dn, i);
-	if (!reg_base) {
-		pr_err("fail to map AXIM reg base\n");
+	ret = hw_info->cam_ioctl(hw_info, CAM_HW_GET_ALL_RST, dn);
+	if (ret)
+		return -1;
+
+	ret = hw_info->cam_ioctl(hw_info, CAM_HW_GET_AXI_BASE, dn);
+	if (ret)
 		goto err_iounmap;
-	}
-	g_dcam_aximbase = (unsigned long)reg_base; /* TODO */
-	soc_dcam->axi_reg_base = (unsigned long)reg_base;
-
-	pr_info("DCAM AXIM reg: %s %lx\n", reg_res.name, g_dcam_aximbase);
-
 	*dcam_count = count;
 
 	return 0;

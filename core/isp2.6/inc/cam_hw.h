@@ -24,18 +24,9 @@ extern struct cam_hw_info sharkl3_hw_info;
 extern struct cam_hw_info sharkl5_hw_info;
 extern struct cam_hw_info sharkl5pro_hw_info;
 extern struct cam_hw_info qogirl6_hw_info;
+extern struct cam_hw_info qogirn6pro_hw_info;
 
 typedef int (*hw_ioctl_fun)(void *handle, void *arg);
-
-/*
- * Supported dcam_if index. Number 0&1 for dcam_if and 2 for dcam_if_lite.
- */
-enum dcam_id {
-	DCAM_ID_0 = 0,
-	DCAM_ID_1,
-	DCAM_ID_2,
-	DCAM_ID_MAX,
-};
 
 /* The project id must keep same with the DT cfg
  * new added project should always added in the end
@@ -111,6 +102,8 @@ enum isp_afbc_path {
 enum dcam_hw_cfg_cmd {
 	DCAM_HW_CFG_ENABLE_CLK,
 	DCAM_HW_CFG_DISABLE_CLK,
+	DCAM_HW_CFG_PW_ON,
+	DCAM_HW_CFG_PW_OFF,
 	DCAM_HW_CFG_INIT_AXI,
 	DCAM_HW_CFG_SET_QOS,
 	DCAM_HW_CFG_RESET,
@@ -158,6 +151,8 @@ enum dcam_hw_cfg_cmd {
 enum isp_hw_cfg_cmd {
 	ISP_HW_CFG_ENABLE_CLK,
 	ISP_HW_CFG_DISABLE_CLK,
+	ISP_HW_CFG_PW_ON,
+	ISP_HW_CFG_PW_OFF,
 	ISP_HW_CFG_RESET,
 	ISP_HW_CFG_ENABLE_IRQ,
 	ISP_HW_CFG_DISABLE_IRQ,
@@ -214,6 +209,11 @@ enum isp_hw_cfg_cmd {
 	ISP_HW_CFG_FMCU_START,
 	ISP_HW_CFG_YUV_BLOCK_CTRL_TYPE,
 	ISP_HW_CFG_MAX
+};
+
+enum cam_hw_cfg_cmd {
+	CAM_HW_GET_ALL_RST,
+	CAM_HW_GET_AXI_BASE,
 };
 
 enum dcam_path_ctrl {
@@ -930,7 +930,7 @@ struct cam_hw_ip_info {
 
 struct cam_hw_soc_info {
 	struct platform_device *pdev;
-	unsigned long axi_reg_base;
+	unsigned long axi_reg_base[DCAM_ID_MAX];
 
 	struct regmap *cam_ahb_gpr;
 	struct regmap *aon_apb_gpr;
@@ -968,6 +968,7 @@ struct cam_hw_info {
 	struct cam_hw_ip_info *ip_isp;
 	int (*dcam_ioctl)(void *,enum dcam_hw_cfg_cmd, void *);
 	int (*isp_ioctl)(void *,enum isp_hw_cfg_cmd, void *);
+	int (*cam_ioctl)(void *,enum cam_hw_cfg_cmd, void *);
 	uint32_t csi_connect_type;
 };
 

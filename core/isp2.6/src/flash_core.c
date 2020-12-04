@@ -36,7 +36,9 @@ static int sprd_cam_flash_ctrl(uint32_t dcam_idx,
 {
 	int ret;
 
+#ifndef CAM_ON_HAPS
 	ret = sprd_flash_ctrl(set_flash);
+#endif
 	pr_info("%d set flash\n", dcam_idx);
 	return ret;
 }
@@ -59,8 +61,9 @@ static int sprd_cam_flash_cfg(struct cam_flash_task_info *flash_ctx, void *cfg_p
 		pr_err("fail to get flash handle\n");
 		goto exit;
 	}
-
+#ifndef CAM_ON_HAPS
 	ret = sprd_flash_cfg((struct sprd_flash_cfg_param *) cfg_parm);
+#endif
 	if (ret)
 		pr_err("fail to sprd_flash_cfg\n");
 
@@ -98,8 +101,10 @@ exit:
 
 static int sprd_cam_flash_info_get(struct cam_flash_task_info *flash_ctx, void *arg)
 {
+#ifndef CAM_ON_HAPS
 	sprd_flash_get_info(flash_ctx->set_flash.flash_index,
 		SPRD_FLASH_LED_ALL, (struct sprd_flash_capacity *)arg);
+#endif
 	return 0;
 }
 

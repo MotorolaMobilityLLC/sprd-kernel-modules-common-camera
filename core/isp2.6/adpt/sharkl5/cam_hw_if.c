@@ -15,6 +15,8 @@
 #include <linux/regmap.h>
 #include <linux/spinlock.h>
 #include <sprd_mm.h>
+#include <linux/mfd/syscon.h>
+#include <linux/of_address.h>
 
 #include "cam_trusty.h"
 #include "dcam_reg.h"
@@ -69,6 +71,109 @@ static unsigned long coff_buf_addr[2][3][4] = {
 #define CAM_HW_ADPT_LAYER
 #include "dcam_hw.c"
 #include "isp_hw.c"
+
+static int camhw_get_all_rst(void *handle, void *arg)
+{
+	int ret = 0;
+	struct cam_hw_info *hw = NULL;
+	uint32_t args[2];
+	struct device_node *dn = (struct device_node *)arg;
+	struct cam_hw_ip_info *dcam_info = NULL;
+
+	int i = 0;
+	if (!handle) {
+		pr_err("fail to get invalid handle\n");
+		return -EINVAL;
+	}
+
+	hw = (struct cam_hw_info *)handle;
+
+	ret = cam_syscon_get_args_by_name(dn, "dcam_all_reset", ARRAY_SIZE(args), args);
+	if (ret) {
+		pr_err("fail to get dcam all reset syscon\n");
+		return -EINVAL;
+	}
+
+	for (i = 0; i < DCAM_ID_MAX; i++) {
+		dcam_info = hw->ip_dcam[i];
+		dcam_info->syscon.all_rst = args[0];
+		dcam_info->syscon.all_rst_mask= args[1];
+	}
+
+	return ret;
+}
+
+static int camhw_get_axi_base(void *handle, void *arg)
+{
+	struct cam_hw_info *hw = NULL;
+	struct device_node *dn = (struct device_node *)arg;
+	int pos = 0;
+	uint32_t count;
+	struct resource reg_res = {0};
+	void __iomem *reg_base = NULL;
+	struct cam_hw_soc_info *soc_dcam;
+	int i = 0;
+	if (!handle) {
+		pr_err("fail to get invalid handle\n");
+		return -EINVAL;
+	}
+
+	hw = (struct cam_hw_info *)handle;
+	soc_dcam = hw->soc_dcam;
+	if (of_property_read_u32(dn, "sprd,dcam-count", &count)) {
+		pr_err("fail to parse the property of sprd,dcam-count\n");
+		return -EINVAL;
+	}
+
+	pos = count;
+	if (of_address_to_resource(dn, pos, &reg_res)) {
+		pr_err("fail to get AXIM phy addr\n");
+		goto err_axi_iounmap;
+	}
+
+	reg_base = ioremap(reg_res.start, reg_res.end - reg_res.start + 1);
+	if (!reg_base) {
+		pr_err("fail to map AXIM reg base\n");
+		goto err_axi_iounmap;
+	}
+
+	for (i = 0; i < count; i++) {
+		g_dcam_aximbase[i] = (unsigned long)reg_base;
+		soc_dcam->axi_reg_base[i] = (unsigned long)reg_base;
+	}
+
+	return 0;
+
+err_axi_iounmap:
+	g_dcam_aximbase[0] = 0;
+	g_dcam_aximbase[1] = 0;
+	g_dcam_aximbase[2] = 0;
+	g_dcam_aximbase[3] = 0;
+	return -1;
+}
+
+static struct hw_io_ctrl_fun cam_ioctl_fun_tab[] = {
+	{CAM_HW_GET_ALL_RST,            camhw_get_all_rst},
+	{CAM_HW_GET_AXI_BASE,           camhw_get_axi_base},
+};
+
+static hw_ioctl_fun camhw_ioctl_fun_get(enum cam_hw_cfg_cmd cmd)
+{
+	hw_ioctl_fun hw_ctrl = NULL;
+	uint32_t total_num = 0;
+	uint32_t i = 0;
+
+	total_num = sizeof(cam_ioctl_fun_tab) / sizeof(struct hw_io_ctrl_fun);
+	for (i = 0; i < total_num; i++) {
+		if (cmd == cam_ioctl_fun_tab[i].cmd) {
+			hw_ctrl = cam_ioctl_fun_tab[i].hw_ctrl;
+			break;
+		}
+	}
+
+	return hw_ctrl;
+}
+
 #undef CAM_HW_ADPT_LAYER
 
 static int camhwif_dcam_ioctl(void *handle,
@@ -81,7 +186,7 @@ static int camhwif_dcam_ioctl(void *handle,
 	if (NULL != hw_ctrl)
 		ret = hw_ctrl(handle, arg);
 	else
-		pr_debug("not support cmd %d", cmd);
+		pr_debug("not support cmd %d\n", cmd);
 
 	return ret;
 }
@@ -95,7 +200,22 @@ static int camhwif_isp_ioctl(void *handle, enum isp_hw_cfg_cmd cmd, void *arg)
 	if (NULL != hw_ctrl)
 		ret = hw_ctrl(handle, arg);
 	else
-		pr_debug("not support cmd %d", cmd);
+		pr_debug("not support cmd %d\n", cmd);
+
+	return ret;
+}
+
+static int camhwif_cam_ioctl(void *handle,
+	enum cam_hw_cfg_cmd cmd, void *arg)
+{
+	int ret = 0;
+	hw_ioctl_fun hw_ctrl = NULL;
+
+	hw_ctrl = camhw_ioctl_fun_get(cmd);
+	if (hw_ctrl != NULL)
+		ret = hw_ctrl(handle, arg);
+	else
+		pr_debug("hw_core_ctrl_fun is null, cmd %d\n", cmd);
 
 	return ret;
 }
@@ -227,5 +347,6 @@ struct cam_hw_info sharkl5_hw_info = {
 	.ip_isp = &isp,
 	.dcam_ioctl = camhwif_dcam_ioctl,
 	.isp_ioctl = camhwif_isp_ioctl,
+	.cam_ioctl = camhwif_cam_ioctl,
 	.csi_connect_type = DCAM_BIND_FIXED,
 };

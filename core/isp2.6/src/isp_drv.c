@@ -893,6 +893,7 @@ int isp_drv_dt_parse(struct device_node *dn,
 		*isp_count = count;
 
 		/* read clk from dts */
+#ifndef CAM_ON_HAPS
 		soc_isp->core_eb = of_clk_get_by_name(isp_node, "isp_eb");
 		if (IS_ERR_OR_NULL(soc_isp->core_eb)) {
 			pr_err("fail to read dts isp eb\n");
@@ -914,7 +915,7 @@ int isp_drv_dt_parse(struct device_node *dn,
 			return -EFAULT;
 		}
 		soc_isp->clk_default = clk_get_parent(soc_isp->clk);
-
+#endif
 		iommu_node = of_parse_phandle(isp_node, "iommus", 0);
 		if (iommu_node) {
 			reg_base = of_iomap(iommu_node, 0);
@@ -1039,6 +1040,10 @@ int isp_drv_hw_init(void *arg)
 	ret = sprd_cam_domain_eb();
 	if (ret)
 		goto power_eb_fail;
+
+	ret = hw->isp_ioctl(hw, ISP_HW_CFG_PW_ON, NULL);
+	if (ret)
+		goto isp_power_fail;
 #else
 	if (ret)
 		goto exit;
@@ -1065,6 +1070,8 @@ reset_fail:
 	hw->isp_ioctl(hw, ISP_HW_CFG_DISABLE_CLK, NULL);
 clk_fail:
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 4, 0))
+	hw->isp_ioctl(hw, ISP_HW_CFG_PW_OFF, NULL);
+isp_power_fail:
 	sprd_cam_domain_disable();
 power_eb_fail:
 	sprd_cam_pw_off();
@@ -1096,6 +1103,9 @@ int isp_drv_hw_deinit(void *arg)
 	ret = hw->isp_ioctl(hw, ISP_HW_CFG_DISABLE_CLK, NULL);
 	if (ret)
 		pr_err("fail to disable isp clk\n");
+	ret = hw->isp_ioctl(hw, ISP_HW_CFG_PW_OFF, NULL);
+	if (ret)
+		pr_err("fail to power off isp\n");
 
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 4, 0))
 	sprd_cam_domain_disable();

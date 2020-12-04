@@ -13,6 +13,8 @@
 
 #ifdef CAM_HW_ADPT_LAYER
 
+#include <video/sprd_mmsys_pw_domain_qogirn6pro.h>
+
 #define ISP_AXI_STOP_TIMEOUT           1000
 spinlock_t isp_cfg_lock;
 
@@ -254,10 +256,10 @@ abnormal_reg_trace:
 		addr += 16) {
 		pr_info("0x%03lx: 0x%x 0x%x 0x%x 0x%x\n",
 			addr,
-			DCAM_AXIM_RD(addr),
-			DCAM_AXIM_RD(addr + 4),
-			DCAM_AXIM_RD(addr + 8),
-			DCAM_AXIM_RD(addr + 12));
+			DCAM_AXIM_RD(trace->idx, addr),
+			DCAM_AXIM_RD(trace->idx, addr + 4),
+			DCAM_AXIM_RD(trace->idx, addr + 8),
+			DCAM_AXIM_RD(trace->idx, addr + 12));
 	}
 
 	pr_info("ISP: Register list\n");
@@ -355,6 +357,20 @@ normal_reg_trace:
 	return 0;
 }
 
+static int isphw_pw_on(void *handle, void *arg)
+{
+	int ret = 0;
+	ret = sprd_isp_pw_on();
+	return ret;
+}
+
+static int isphw_pw_off(void *handle, void *arg)
+{
+	int ret = 0;
+	ret = sprd_isp_pw_off();
+	return ret;
+}
+
 static int isphw_clk_eb(void *handle, void *arg)
 {
 	int ret = 0;
@@ -369,6 +385,7 @@ static int isphw_clk_eb(void *handle, void *arg)
 
 	hw = (struct cam_hw_info *)handle;
 	soc = hw->soc_isp;
+#ifndef CAM_ON_HAPS
 	ret = clk_set_parent(soc->clk, soc->clk_parent);
 	if (ret) {
 		pr_err("fail to set parent, ret = %d\n", ret);
@@ -394,7 +411,15 @@ static int isphw_clk_eb(void *handle, void *arg)
 		clk_disable_unprepare(soc->core_eb);
 		return ret;
 	}
+#else
+	regmap_update_bits(soc->cam_ahb_gpr, 0x4, BIT_0, BIT_0);
+	regmap_update_bits(soc->cam_ahb_gpr, 0x4, BIT_5, BIT_5);
+	regmap_update_bits(soc->cam_ahb_gpr, 0x4, BIT_6, BIT_6);
+	regmap_update_bits(soc->cam_ahb_gpr, 0x4, BIT_7, BIT_7);
+	regmap_update_bits(soc->cam_ahb_gpr, 0x4, BIT_9, BIT_9);
+	regmap_update_bits(soc->cam_ahb_gpr, 0x4, BIT_10, BIT_10);
 
+#endif
 	return ret;
 }
 
@@ -412,11 +437,23 @@ static int isphw_clk_dis(void *handle, void *arg)
 
 	hw = (struct cam_hw_info *)handle;
 	soc = hw->soc_isp;
+#ifndef CAM_ON_HAPS
+
 	clk_set_parent(soc->clk, soc->clk_default);
 	clk_disable_unprepare(soc->clk);
 	clk_disable_unprepare(soc->axi_eb);
 	clk_disable_unprepare(soc->core_eb);
 
+#else
+
+	regmap_update_bits(soc->cam_ahb_gpr, 0x4, BIT_0, ~BIT_0);
+	regmap_update_bits(soc->cam_ahb_gpr, 0x4, BIT_5, ~BIT_5);
+	regmap_update_bits(soc->cam_ahb_gpr, 0x4, BIT_6, ~BIT_6);
+	regmap_update_bits(soc->cam_ahb_gpr, 0x4, BIT_7, ~BIT_7);
+	regmap_update_bits(soc->cam_ahb_gpr, 0x4, BIT_9, ~BIT_9);
+	regmap_update_bits(soc->cam_ahb_gpr, 0x4, BIT_10, ~BIT_10);
+
+#endif
 	return ret;
 }
 
@@ -2905,6 +2942,8 @@ BLOCK_BYPASS:
 static struct hw_io_ctrl_fun isp_ioctl_fun_tab[] = {
 	{ISP_HW_CFG_ENABLE_CLK,              isphw_clk_eb},
 	{ISP_HW_CFG_DISABLE_CLK,             isphw_clk_dis},
+	{ISP_HW_CFG_PW_ON,                   isphw_pw_on},
+	{ISP_HW_CFG_PW_OFF,                  isphw_pw_off},
 	{ISP_HW_CFG_RESET,                   isphw_reset},
 	{ISP_HW_CFG_ENABLE_IRQ,              isphw_irq_enable},
 	{ISP_HW_CFG_DISABLE_IRQ,             isphw_irq_disable},

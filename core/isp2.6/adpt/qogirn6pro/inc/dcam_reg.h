@@ -17,7 +17,7 @@
 #include <linux/bitops.h>
 
 extern unsigned long g_dcam_regbase[];
-extern unsigned long g_dcam_aximbase;
+extern unsigned long g_dcam_aximbase[];
 extern unsigned long g_dcam_mmubase;
 
 #define DCAM_PATH_CROP_ALIGN                  8
@@ -553,6 +553,18 @@ extern const unsigned long slowmotion_store_addr[3][4];
 #define LSC_GRID_BUF_START2                   (0xc000UL)
 #define LSC_GRID_BUF_SIZE2                    (0x3000UL)
 
+#define DCAM_LITE_AXIMMU_BASE                 (0x8000UL)
+#define DCAM_LITE_AXIM_STATUS0                (DCAM_LITE_AXIMMU_BASE + 0x0000UL)
+#define DCAM_LITE_AXIM_CTRL                   (DCAM_LITE_AXIMMU_BASE + 0x0004UL)
+#define DCAM_LITE_AXIM_DBG_STS                (DCAM_LITE_AXIMMU_BASE + 0x0008UL)
+#define DCAM_LITE_CAP_SENSOR_CTRL             (DCAM_LITE_AXIMMU_BASE + 0x000CUL)
+#define DCAM_LITE_AXIM_WORD_ENDIAN            (DCAM_LITE_AXIMMU_BASE + 0x0010UL)
+#define DCAM_LITE_DCAM_SPARE_REG_0            (DCAM_LITE_AXIMMU_BASE + 0x0014UL)
+#define DCAM_LITE_AXIM_SPARE_REG_0            (DCAM_LITE_AXIMMU_BASE + 0x0018UL)
+#define DCAM_LITE_SPARE_REG_ICG               (DCAM_LITE_AXIMMU_BASE + 0x001CUL)
+#define DCAM_LITE_PROT_CFG                    (DCAM_LITE_AXIMMU_BASE + 0x0020UL)
+#define DCAM_LITE_PMU_CFG                     (DCAM_LITE_AXIMMU_BASE + 0x0024UL)
+
 /*
  * DCAM register map range of qogirn6pro
  *
@@ -591,7 +603,8 @@ extern const unsigned long slowmotion_store_addr[3][4];
  */
 
 #define DCAM_BASE(idx)                        (g_dcam_regbase[idx])
-#define DCAM_AXIM_BASE                        (g_dcam_aximbase)
+#define DCAM_AXIM_BASE(idx)                   (g_dcam_aximbase[idx])
+
 /* TODO: implement mmu */
 #define DCAM_MMU_BASE                         (g_dcam_mmubase)
 
@@ -601,10 +614,10 @@ extern const unsigned long slowmotion_store_addr[3][4];
 	DCAM_REG_WR((idx), (reg),             \
 	((val) & (msk)) | (DCAM_REG_RD(idx, reg) & (~(msk))))
 
-#define DCAM_AXIM_WR(reg, val)                (REG_WR(DCAM_AXIM_BASE+(reg), (val)))
-#define DCAM_AXIM_RD(reg)                     (REG_RD(DCAM_AXIM_BASE+(reg)))
-#define DCAM_AXIM_MWR(reg, msk, val)          \
-	DCAM_AXIM_WR((reg), ((val) & (msk)) | (DCAM_AXIM_RD(reg) & (~(msk))))
+#define DCAM_AXIM_WR(id, reg, val)            (REG_WR(DCAM_AXIM_BASE(id)+(reg), (val)))
+#define DCAM_AXIM_RD(id, reg)                 (REG_RD(DCAM_AXIM_BASE(id)+(reg)))
+#define DCAM_AXIM_MWR(id, reg, msk, val) \
+	DCAM_AXIM_WR((id), (reg), ((val) & (msk)) | (DCAM_AXIM_RD((id), (reg)) & (~(msk))))
 
 #define DCAM_MMU_WR(reg, val)                 (REG_WR(DCAM_MMU_BASE+(reg), (val)))
 #define DCAM_MMU_RD(reg)                       (REG_RD(DCAM_MMU_BASE+(reg)))

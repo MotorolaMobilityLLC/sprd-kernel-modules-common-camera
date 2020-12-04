@@ -66,7 +66,7 @@ int dcam_k_3dnr_convert_roi(struct isp_img_rect src, struct isp_img_size *dst,
 			} else if (src.w > DCAM1_3DNR_ME_WIDTH_MAX / 2) {
 				lbuf = 0;
 			}
-			DCAM_AXIM_MWR(DCAM_LBUF_SHARE_MODE, BIT_28, lbuf << 28);
+			DCAM_AXIM_MWR(idx, DCAM_LBUF_SHARE_MODE, BIT_28, lbuf << 28);
 			roi_width_max = src.w;
 			roi_height_max = src.h;
 		}
@@ -76,7 +76,7 @@ int dcam_k_3dnr_convert_roi(struct isp_img_rect src, struct isp_img_size *dst,
 			roi_width_max = MIN(src.w, DCAM2_3DNR_ME_WIDTH_MAX);
 			roi_height_max = MIN(src.h, DCAM2_3DNR_ME_HEIGHT_MAX);
 		} else {
-			lbuf = DCAM_AXIM_RD(DCAM_LBUF_SHARE_MODE);
+			lbuf = DCAM_AXIM_RD(idx, DCAM_LBUF_SHARE_MODE);
 			if (lbuf == 1) {
 				DCAM_REG_MWR(idx, NR3_FAST_ME_PARAM, BIT_0, BIT_0);
 				return 0;
