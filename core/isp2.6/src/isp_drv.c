@@ -39,7 +39,7 @@ unsigned long s_isp_regbase[ISP_MAX_COUNT];
 unsigned long isp_phys_base[ISP_MAX_COUNT];
 unsigned long s_isp_mmubase;
 
-static ispdrv_path_scaler_get(struct isp_path_uinfo *in_ptr,
+static int ispdrv_path_scaler_get(struct isp_path_uinfo *in_ptr,
 	struct isp_hw_path_scaler *path)
 {
 	int ret = 0;
@@ -403,7 +403,7 @@ static int ispdrv_fbd_raw_get(void *cfg_in, void *cfg_out,
 	if (fbd_raw->fetch_fbd_4bit_bypass == 0)
 		fbd_raw->low_4bit_addr_init = fbd_raw->hw_addr.addr3;
 
-	pr_debug("fetch_fbd: %u 0x%lx 0x%lx, 0x%lx, size %u %u\n",
+	pr_debug("fetch_fbd: %u 0x%x 0x%x, 0x%x, size %u %u\n",
 		 frame->fid, fbd_raw->hw_addr.addr0,
 		 fbd_raw->hw_addr.addr1, fbd_raw->hw_addr.addr2,
 		pipe_src->src.w, pipe_src->src.h);

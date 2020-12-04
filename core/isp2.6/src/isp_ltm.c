@@ -558,7 +558,7 @@ static int ispltm_histo_param_calc(ltm_param_t *param_histo)
 	cropLeft = cropCols >> 1;
 	cropRight = cropCols >> 1;
 
-	clipLimit_min = tile_width * tile_height >> BIN_NUM_BIT;
+	clipLimit_min = (tile_width * tile_height) >> BIN_NUM_BIT;
 	clipLimit = clipLimit_min + ((clipLimit_min * strength) >> 3);
 
 	/* update patameters */
