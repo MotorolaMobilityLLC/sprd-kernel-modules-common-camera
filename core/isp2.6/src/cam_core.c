@@ -4810,7 +4810,7 @@ static int camcore_thread_loop(void *arg)
 	thrd = (struct cam_thread_info *)arg;
 	pr_info("%s loop starts %px\n", thrd->thread_name, thrd);
 	while (1) {
-		if (wait_for_completion_interruptible(
+		if (!IS_ERR_OR_NULL(thrd) && wait_for_completion_interruptible(
 			&thrd->thread_com) == 0) {
 			if (atomic_cmpxchg(&thrd->thread_stop, 1, 0) == 1) {
 				pr_info("thread %s should stop.\n", thrd->thread_name);
@@ -6277,6 +6277,8 @@ static int camcore_release(struct inode *node, struct file *file)
 
 	ret = camioctl_stream_off(module, 0L);
 
+	camcore_module_deinit(module);
+
 	if (atomic_read(&module->state) == CAM_IDLE) {
 		module->attach_sensor_id = -1;
 
@@ -6297,7 +6299,6 @@ static int camcore_release(struct inode *node, struct file *file)
 			module->isp_dev_handle = NULL;
 		}
 	}
-	camcore_module_deinit(module);
 
 	spin_lock_irqsave(&group->module_lock, flag);
 	group->module_used &= ~(1 << idx);
