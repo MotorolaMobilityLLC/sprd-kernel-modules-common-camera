@@ -331,6 +331,7 @@ static int cppcore_probe(struct platform_device *pdev)
 	dev->io_base = hw_info->ip_cpp->io_base;
 	mutex_init(&dev->lock);
 	atomic_set(&dev->users, 0);
+	platform_set_drvdata(pdev, (void *)dev);
 	CPP_TRACE("cpp probe OK\n");
 
 	return 0;

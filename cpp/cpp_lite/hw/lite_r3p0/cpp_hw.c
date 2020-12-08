@@ -384,7 +384,6 @@ int cpphw_probe(struct platform_device *pdev, struct cpp_hw_info * hw_info)
 	}
 
 	ip_cpp->irq = irq;
-	platform_set_drvdata(pdev, (void *)soc_cpp);
 	np = pdev->dev.of_node;
 	/* read global register */
 	for (i = 0; i < ARRAY_SIZE(syscon_name); i++) {
