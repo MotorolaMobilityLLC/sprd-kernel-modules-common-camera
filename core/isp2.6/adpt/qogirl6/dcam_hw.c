@@ -977,12 +977,7 @@ static int dcamhw_lbuf_share_set(void *handle, void *arg)
 	};
 
 	struct cam_hw_lbuf_share *camarg = (struct cam_hw_lbuf_share *)arg;
-/*
-	if (atomic_read(&s_dcam_working) > 0) {
-		pr_warn("dcam 0/1 already in working\n");
-		return 0;
-	}
-*/
+
 	switch (camarg->idx) {
 	case 0:
 		if (camarg->width > tb_w[0]) {
@@ -1480,8 +1475,9 @@ static int dcamhw_csi_disconnect(void *handle, void *arg)
 	hw = (struct cam_hw_info *)handle;
 
 	regmap_update_bits(hw->soc_dcam->cam_ahb_gpr, 0x48 + idx *4, 0x600, 3 << 9);
-	regmap_update_bits(hw->soc_dcam->cam_ahb_gpr, 0x48 + idx *4, BIT_0, 1);
-	regmap_update_bits(hw->soc_dcam->cam_ahb_gpr, 0x48 + idx *4, BIT_0, 0);
+	regmap_update_bits(hw->soc_dcam->cam_ahb_gpr, 0x48 + idx *4, BIT_0, BIT_0);
+	regmap_update_bits(hw->soc_dcam->cam_ahb_gpr, 0x48 + idx *4, BIT_0, ~BIT_0);
+
 	while (time_out) {
 		regmap_read(hw->soc_dcam->cam_ahb_gpr, 0x48 + idx *4, &val);
 		val &= BIT_25;
@@ -1523,14 +1519,34 @@ static int dcamhw_csi_connect(void *handle, void *arg)
 	idx = csi_switch->dcam_id;
 
 	pr_info("DCAM%d connect to csi%d\n", idx, csi_idx);
-	regmap_update_bits(hw->soc_dcam->cam_ahb_gpr, 0x48 + idx *4, BIT_8, ~BIT_8);/* set sw mode */
-	regmap_update_bits(hw->soc_dcam->cam_ahb_gpr, 0x48 + idx *4, BIT_24, BIT_24);/* open irq */
+
 	regmap_update_bits(hw->soc_dcam->cam_ahb_gpr, 0x48 + idx *4, BIT_9 | BIT_10, csi_idx << 9);/* select csi for dcam */
-	regmap_update_bits(hw->soc_dcam->cam_ahb_gpr, 0x48 + idx *4, BIT_0, BIT_0);/* triger switch */
-	regmap_update_bits(hw->soc_dcam->cam_ahb_gpr, 0x48 + idx *4, BIT_0, ~BIT_0);/* triger switch */
+	regmap_update_bits(hw->soc_dcam->cam_ahb_gpr, 0x48 + idx *4, BIT_0, BIT_0);
+	regmap_update_bits(hw->soc_dcam->cam_ahb_gpr, 0x48 + idx *4, BIT_0, ~BIT_0);
 
 	return 0;
 }
+
+static int dcamhw_csi_force_enable(void *handle, void *arg)
+{
+	uint32_t idx = 0, csi_idx = 0;
+	struct cam_hw_info *hw = NULL;
+	struct dcam_switch_param *csi_switch = NULL;
+
+	csi_switch = (struct dcam_switch_param *)arg;
+	hw = (struct cam_hw_info *)handle;
+	csi_idx = csi_switch->csi_id;
+	idx = csi_switch->dcam_id;
+
+	pr_debug("DCAM%d force to csi%d\n", idx, csi_idx);
+
+	regmap_update_bits(hw->soc_dcam->cam_ahb_gpr, 0x48 + idx *4, BIT_9 | BIT_10, csi_idx << 9);/* select csi for dcam */
+	regmap_update_bits(hw->soc_dcam->cam_ahb_gpr, 0x48 + idx *4, BIT_8, BIT_8);
+	regmap_update_bits(hw->soc_dcam->cam_ahb_gpr, 0x48 + idx *4, BIT_8, ~BIT_8);
+
+	return 0;
+}
+
 
 static struct hw_io_ctrl_fun dcam_ioctl_fun_tab[] = {
 	{DCAM_HW_CFG_ENABLE_CLK,            dcamhw_clk_eb},
@@ -1571,7 +1587,8 @@ static struct hw_io_ctrl_fun dcam_ioctl_fun_tab[] = {
 	{DCAM_HW_CFG_BIN_MIPI,              dcamhw_bin_mipi_cfg},
 	{DCAM_HW_CFG_BIN_PATH,              dcamhw_bin_path_cfg},
 	{DCAM_HW_DISCONECT_CSI,             dcamhw_csi_disconnect},
-	{DCAM_HW_CONECT_CSI,                dcamhw_csi_connect}
+	{DCAM_HW_CONECT_CSI,                dcamhw_csi_connect},
+	{DCAM_HW_FORCE_EN_CSI,              dcamhw_csi_force_enable}
 };
 
 static hw_ioctl_fun dcamhw_ioctl_fun_get(enum dcam_hw_cfg_cmd cmd)

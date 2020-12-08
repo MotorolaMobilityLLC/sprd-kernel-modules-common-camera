@@ -2004,7 +2004,7 @@ static struct camera_frame *camcore_bigsize_frame_deal(struct camera_module *mod
 		return pframe;
 	}
 	/* dcam0 full tx done, frame send to dcam1 or drop */
-	pr_info("raw frame[%d] fd %d, size[%d %d], 0x%x, channel_id %d, catpure_cnt = %d, time %lld\n",
+	pr_info("raw frame[%d] fd %d, size[%d %d], addr_vir[0]:0x%x, channel_id %d, catpure_cnt = %d, time %lld\n",
 			pframe->fid, pframe->buf.mfd[0], pframe->width,
 			pframe->height, (uint32_t)pframe->buf.addr_vir[0], pframe->channel_id,
 			atomic_read(&module->capture_frames_dcam), pframe->boot_sensor_time);
@@ -5820,7 +5820,7 @@ static long camcore_ioctl(struct file *file, unsigned int cmd,
 	/* There is race condition under several cases during stream/off
 	 * Take care of lock use
 	 */
-	if (atomic_read(&module->state) != CAM_RUNNING) {
+	if (atomic_read(&module->state) != CAM_RUNNING || cmd == SPRD_IMG_IO_STREAM_OFF) {
 		mutex_lock(&module->lock);
 		locked = 1;
 	}

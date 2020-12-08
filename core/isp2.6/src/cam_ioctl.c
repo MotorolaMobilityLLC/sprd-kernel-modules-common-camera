@@ -1459,7 +1459,7 @@ static int camioctl_stream_off(struct camera_module *module,
 				}
 			}
 
-			if (hw->ip_dcam[module->dcam_idx]->superzoom_support) {
+			if (hw->ip_dcam[sw_ctx->hw_ctx_id]->superzoom_support) {
 				if (ch->postproc_buf) {
 					camcore_k_frame_put(ch->postproc_buf);
 					ch->postproc_buf = NULL;
@@ -1731,7 +1731,7 @@ cfg_ch_done:
 		csi_switch.dcam_id= sw_ctx->hw_ctx_id;
 		pr_info("csi_switch.csi_id = %d, csi_switch.dcam_id = %d\n", csi_switch.csi_id, csi_switch.dcam_id);
 		/* switch connect */
-		hw->dcam_ioctl(hw, DCAM_HW_CONECT_CSI, &csi_switch);
+		hw->dcam_ioctl(hw, DCAM_HW_FORCE_EN_CSI, &csi_switch);
 		sw_ctx->csi_connect_stat = DCAM_CSI_RESUME;
 	}
 
@@ -3047,7 +3047,7 @@ static int camioctl_path_pause(struct camera_module *module,
 				continue;
 			frame = cam_queue_dequeue(&path->result_queue, struct camera_frame, list);
 			while (frame) {
-				pr_info("DCAM%u path%d fid %u\n", sw_ctx->sw_ctx_id, j, frame->fid);
+				pr_debug("DCAM%u path%d fid %u\n", sw_ctx->sw_ctx_id, j, frame->fid);
 				if (frame->is_reserved)
 					cam_queue_enqueue(&path->reserved_buf_queue, &frame->list);
 				else
