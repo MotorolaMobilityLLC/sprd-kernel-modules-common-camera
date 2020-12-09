@@ -198,6 +198,9 @@ extern unsigned long s_isp_mmubase;
 #define ISP_NLM_IMBLANCE_PARA28                 (0x1F80UL)
 #define ISP_NLM_IMBLANCE_PARA29                 (0x1F84UL)
 #define ISP_NLM_IMBLANCE_PARA30                 (0x1F88UL)
+#define ISP_NLM_IMBLANCE_PARA31                 (0x1F8CUL)
+#define ISP_NLM_IMBLANCE_PARA32                 (0x1F90UL)
+
 
 #define ISP_VST_BUF0_ADDR                       (0x19000UL)
 #define ISP_IVST_BUF0_ADDR                      (0x29000UL)
@@ -266,6 +269,15 @@ extern unsigned long s_isp_mmubase;
 #define ISP_HSV_CFG21                           (0x3368UL)
 #define ISP_HSV_BUF0_ADDR                       (0x18000UL)
 #define ISP_HSV_BUF1_ADDR                       (0x21000UL)
+#define ISP_HSV_A_BUF0_CH0                      (0x18000UL)
+#define ISP_HSV_A_BUF1_CH0                      (0x21000UL)
+#define ISP_HSV_B_BUF0_CH0                      (0x18200UL)
+#define ISP_HSV_B_BUF1_CH0                      (0x21200UL)
+#define ISP_HSV_C_BUF0_CH0                      (0x18400UL)
+#define ISP_HSV_C_BUF1_CH0                      (0x21400UL)
+#define ISP_HSV_D_BUF0_CH0                      (0x18600UL)
+#define ISP_HSV_D_BUF1_CH0                      (0x21600UL)
+
 
 #define ISP_HIST2_STATUS                        (0x3700UL)
 #define ISP_HIST2_PARAM                         (0x3710UL)

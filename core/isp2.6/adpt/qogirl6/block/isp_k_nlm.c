@@ -255,28 +255,21 @@ static int isp_k_nlm_imblance(struct isp_io_param *param,
 	struct isp_k_block *isp_k_param, uint32_t idx)
 {
 	int ret = 0;
-	struct isp_dev_nlm_imblance_v1 *imblance_info;
-
-	imblance_info = &isp_k_param->imbalance_info_base;
-
-	return ret;
-
+	struct isp_dev_nlm_imblance_v2 *imblance_info;
+	imblance_info = &isp_k_param->imbalance_info_base2;
 	ret = copy_from_user((void *)imblance_info,
 			(void __user *)param->property_param,
-			sizeof(struct isp_dev_nlm_imblance_v1));
+			sizeof(struct isp_dev_nlm_imblance_v2));
 	if (ret != 0) {
 		pr_err("fail to copy from user, ret = %d\n", ret);
 		return  ret;
 	}
-
-	memcpy(&isp_k_param->imblance_info, imblance_info, sizeof(struct isp_dev_nlm_imblance_v1));
-
+	memcpy(&isp_k_param->imblance_info2, imblance_info, sizeof(struct isp_dev_nlm_imblance_v2));
 	/* new added below */
 	ISP_REG_MWR(idx, ISP_NLM_IMBLANCE_CTRL, BIT_0,
 			imblance_info->nlm_imblance_bypass);
 	if (imblance_info->nlm_imblance_bypass == 1)
 		return 0;
-
 	ISP_REG_MWR(idx, ISP_NLM_IMBLANCE_CTRL, BIT_1,
 			imblance_info->imblance_radial_1D_en);
 	ISP_REG_WR(idx, ISP_NLM_IMBLANCE_PARA1,
@@ -334,10 +327,10 @@ static int isp_k_nlm_imblance(struct isp_io_param *param,
 		((imblance_info->nlm_imblance_slash_edge_thr[2] & 0xff) << 16) |
 		((imblance_info->nlm_imblance_slash_edge_thr[1] & 0xff) << 24));
 	ISP_REG_WR(idx, ISP_NLM_IMBLANCE_PARA17,
-		(imblance_info->nlm_imblance_hv_flat_thr[2] & 0x3ff << 16) |
+		((imblance_info->nlm_imblance_hv_flat_thr[2] & 0x3ff) << 16) |
 		(imblance_info->nlm_imblance_hv_flat_thr[1] & 0x3ff));
 	ISP_REG_WR(idx, ISP_NLM_IMBLANCE_PARA18,
-		(imblance_info->nlm_imblance_slash_flat_thr[2] & 0x3ff << 16) |
+		((imblance_info->nlm_imblance_slash_flat_thr[2] & 0x3ff) << 16) |
 		(imblance_info->nlm_imblance_slash_flat_thr[1] & 0x3ff));
 	ISP_REG_WR(idx, ISP_NLM_IMBLANCE_PARA19,
 		(imblance_info->nlm_imblance_S_baohedu[1][0] & 0xff) |
@@ -345,20 +338,20 @@ static int isp_k_nlm_imblance(struct isp_io_param *param,
 		((imblance_info->nlm_imblance_S_baohedu[1][1] & 0xff) << 16) |
 		((imblance_info->nlm_imblance_S_baohedu[2][1] & 0xff) << 24));
 	ISP_REG_WR(idx, ISP_NLM_IMBLANCE_PARA20,
-		(imblance_info->nlm_imblance_lum2_flag3_r & 0x7ff << 16) |
+		((imblance_info->nlm_imblance_lum2_flag3_r & 0x7ff) << 16) |
 		(imblance_info->nlm_imblance_lum1_flag3_r & 0x7ff));
 	ISP_REG_WR(idx, ISP_NLM_IMBLANCE_PARA21,
-		(imblance_info->imblance_sat_lumth & 0x3ff << 16) |
-		(imblance_info->nlm_imblance_lum3_flag3_r & 0x7ff ));
+		((imblance_info->imblance_sat_lumth & 0x3ff) << 16) |
+		(imblance_info->nlm_imblance_lum3_flag3_r & 0x7ff));
 	ISP_REG_WR(idx, ISP_NLM_IMBLANCE_PARA22,
-		(imblance_info->nlm_imblance_diff[2] & 0x3ff << 16) |
-		(imblance_info->nlm_imblance_diff[1] & 0x3ff ));
+		((imblance_info->nlm_imblance_diff[2] & 0x3ff) << 16) |
+		(imblance_info->nlm_imblance_diff[1] & 0x3ff));
 	ISP_REG_WR(idx, ISP_NLM_IMBLANCE_PARA23,
-		(imblance_info->nlm_imblance_ff_wt1 & 0x3ff << 16) |
+		((imblance_info->nlm_imblance_ff_wt1 & 0x3ff) << 16) |
 		(imblance_info->nlm_imblance_ff_wt0 & 0x3ff ));
 	ISP_REG_WR(idx, ISP_NLM_IMBLANCE_PARA24,
-		(imblance_info->nlm_imblance_ff_wt3 & 0x3ff << 16) |
-		(imblance_info->nlm_imblance_ff_wt2 & 0x3ff ));
+		((imblance_info->nlm_imblance_ff_wt3 & 0x3ff) << 16) |
+		(imblance_info->nlm_imblance_ff_wt2 & 0x3ff));
 	ISP_REG_WR(idx, ISP_NLM_IMBLANCE_PARA25,
 		(imblance_info->nlm_imblance_ff_wr0 & 0xff) |
 		((imblance_info->nlm_imblance_ff_wr1 & 0xff) << 8) |
@@ -374,11 +367,18 @@ static int isp_k_nlm_imblance(struct isp_io_param *param,
 		((imblance_info->imblance_radial_1D_coef_r4 & 0xff) << 8) |
 		((imblance_info->imblance_radial_1D_protect_ratio_max & 0x7ff) << 16));
 	ISP_REG_WR(idx, ISP_NLM_IMBLANCE_PARA28,
-		(imblance_info->imblance_radial_1D_center_x & 0xffff << 16) |
-		(imblance_info->imblance_radial_1D_center_y & 0xffff ));
+		((imblance_info->imblance_radial_1D_center_x & 0xffff) << 16) |
+		(imblance_info->imblance_radial_1D_center_y & 0xffff));
 	ISP_REG_WR(idx, ISP_NLM_IMBLANCE_PARA29,
-		(imblance_info->imblance_radial_1D_radius_thr & 0xffff ));
-
+		(imblance_info->imblance_radial_1D_radius_thr & 0xffff));
+	ISP_REG_WR(idx, ISP_NLM_IMBLANCE_PARA31,
+		(imblance_info->med_diff[0] & 0x3ff ) |
+		((imblance_info->med_diff[1] & 0x3ff) << 10) |
+		((imblance_info->med_diff[2] & 0x3ff) << 20) |
+		((imblance_info->grgb_mode & 0x1) << 30));
+	ISP_REG_WR(idx, ISP_NLM_IMBLANCE_PARA32,
+		((imblance_info->gb_ratio & 0xffff) << 16) |
+		(imblance_info->gr_ratio & 0xffff));
 	return ret;
 }
 
@@ -501,13 +501,13 @@ int isp_k_update_imbalance(uint32_t idx,
 	int ret = 0;
 	uint32_t val, center_x, center_y;
 	uint32_t radius, radius_limit;
-	struct isp_dev_nlm_imblance_v1 *imbalance_info, *pdst;
+	struct isp_dev_nlm_imblance_v2 *imbalance_info, *pdst;
 
-	imbalance_info = &isp_k_param->imbalance_info_base;
+	imbalance_info = &isp_k_param->imbalance_info_base2;
 	if (imbalance_info->nlm_imblance_bypass)
 		return 0;
 
-	pdst = &isp_k_param->imblance_info;
+	pdst = &isp_k_param->imblance_info2;
 
 	center_x = new_width >> 1;
 	center_y = new_height >> 1;

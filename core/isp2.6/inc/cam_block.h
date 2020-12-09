@@ -22,18 +22,21 @@ struct isp_k_block {
 	struct isp_dev_nlm_info_v2 nlm_info_base;
 	struct isp_dev_nlm_imblance imbalance_info_v0_base;
 	struct isp_dev_nlm_imblance_v1 imbalance_info_base;
+	struct isp_dev_nlm_imblance_v2 imbalance_info_base2;
 	struct isp_dev_ynr_info_v2 ynr_info_v2_base;
 	struct isp_dev_3dnr_info nr3_info_base;
 	uint32_t seed0_for_mode1;
 	uint32_t yrandom_mode;
 
-	/* sharkl5/sharkl5pro  */
+	/* sharkl6 */
 	struct isp_dev_grgb_info grgb_info;
 	struct isp_dev_bchs_info bchs_info;
 	struct isp_dev_rgb_ltm_info ltm_rgb_info;
 	struct isp_dev_yuv_ltm_info ltm_yuv_info;
 	struct isp_dev_nlm_imblance imblance_info_v0;
 	struct isp_dev_nlm_imblance_v1 imblance_info;
+	struct isp_dev_nlm_imblance_v2 imblance_info2;
+	struct isp_dev_hsv_info_v3 hsv_info3;
 	/* sharkl5/sharkl5pro diff blocks*/
 	struct isp_dev_posterize_info_v2 pstrz_info_v2;
 	struct isp_dev_uvd_info_v2 uvd_info_v2;

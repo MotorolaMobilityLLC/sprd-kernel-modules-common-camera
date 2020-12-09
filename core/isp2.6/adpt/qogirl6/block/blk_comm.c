@@ -57,12 +57,12 @@ int init_dcam_pm(struct dcam_dev_param *blk_pm_ctx )
 int dcam_k_dump_pm(void *pdst, void *psrc)
 {
 	int size;
-	struct dcam_param_data_l5pro *pm_data;
+	struct dcam_param_data_l6 *pm_data;
 	struct dcam_dev_param *blk_dcam_pm;
 
 	if (!pdst || !psrc)
 		return -1;
-	pm_data = (struct dcam_param_data_l5pro *)pdst;
+	pm_data = (struct dcam_param_data_l6 *)pdst;
 	blk_dcam_pm = (struct dcam_dev_param *)psrc;
 
 	memcpy(&pm_data->lens_info,
@@ -148,10 +148,10 @@ int init_isp_pm(struct isp_k_block *isp_k_param)
 int isp_k_dump_pm(void *pdst, void *psrc)
 {
 	int size;
-	struct isp_param_data_l5pro *pm_data;
+	struct isp_param_data_l6 *pm_data;
 	struct isp_k_block *isp_k_param;
 
-	pm_data = (struct isp_param_data_l5pro *)pdst;
+	pm_data = (struct isp_param_data_l6 *)pdst;
 	isp_k_param = (struct isp_k_block *)psrc;
 
 	memcpy(&pm_data->grgb_info,
@@ -170,9 +170,9 @@ int isp_k_dump_pm(void *pdst, void *psrc)
 		&isp_k_param->ltm_yuv_info,
 		sizeof(struct isp_dev_yuv_ltm_info));
 
-	memcpy(&pm_data->imblance_info,
-		&isp_k_param->imblance_info,
-		sizeof(struct isp_dev_nlm_imblance_v1));
+	memcpy(&pm_data->imblance_info2,
+		&isp_k_param->imblance_info2,
+		sizeof(struct isp_dev_nlm_imblance_v2));
 
 	memcpy(&pm_data->pstrz_info_v2,
 		&isp_k_param->pstrz_info_v2,
@@ -222,9 +222,9 @@ int isp_k_dump_pm(void *pdst, void *psrc)
 		&isp_k_param->gamma_info,
 		sizeof(struct isp_dev_gamma_info));
 
-	memcpy(&pm_data->hsv_info,
-		&isp_k_param->hsv_info,
-		sizeof(struct isp_dev_hsv_info_v2));
+	memcpy(&pm_data->hsv_info3,
+		&isp_k_param->hsv_info3,
+		sizeof(struct isp_dev_hsv_info_v3));
 
 	memcpy(&pm_data->iircnr_info,
 		&isp_k_param->iircnr_info,
