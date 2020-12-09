@@ -11,8 +11,8 @@
  * GNU General Public License for more details.
  */
 
-#include <dt-bindings/soc/sprd,sharkl5pro-regs.h>
-#include <dt-bindings/soc/sprd,sharkl5pro-mask.h>
+//#include <dt-bindings/soc/sprd,sharkl6-regs.h>
+//#include <dt-bindings/soc/sprd,sharkl6-mask.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
