@@ -598,9 +598,15 @@ static int dcamhw_path_start(void *handle, void *arg)
 		DCAM_REG_MWR(patharg->idx, DCAM_FULL_CFG,
 			BIT_2 | BIT_3, patharg->pack_bits << 2);
 		DCAM_REG_MWR(patharg->idx, DCAM_FULL_CFG, BIT_4, patharg->src_sel << 4);
-		if (patharg->pack_bits == 0) {
-			DCAM_REG_MWR(patharg->idx, DCAM_BAYER_INFO_CFG, 0x3 << 16, 1 << 16);
+
+		if (patharg->pack_bits == 0) {/*10bit*/
 			DCAM_REG_MWR(patharg->idx, DCAM_BAYER_INFO_CFG, 0x7 << 18, 4 << 18);
+			DCAM_REG_MWR(patharg->idx, DCAM_BAYER_INFO_CFG, 0x3 << 16, 1 << 16);
+		} else if (patharg->pack_bits == 2) {/*14bit*/
+			DCAM_REG_MWR(patharg->idx, DCAM_BAYER_INFO_CFG, 0x7 << 18, 4 << 18);
+			DCAM_REG_MWR(patharg->idx, DCAM_BAYER_INFO_CFG, 0x3 << 16, 3 << 16);
+		} else {
+			pr_debug("full path pack_bits %d\n", patharg->pack_bits);
 		}
 
 		/* full_path_en */
