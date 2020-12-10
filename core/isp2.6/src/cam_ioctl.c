@@ -1236,34 +1236,23 @@ static int camioctl_frame_id_base_set(	struct camera_module *module,
 int camiotcl_csi_switch(struct camera_module *module, unsigned long arg)
 {
 	int ret = 0;
-	uint32_t idx= 0xFF, new_idx = 0xFF;
+	uint32_t idx = 0, new_idx = 0;
 	struct dcam_sw_context *ori_sw_ctx = NULL;
 	struct dcam_sw_context *new_sw_ctx = NULL;
 	struct dcam_hw_context *hw_ctx = NULL;
-	struct dcam_pipe_dev *dev = NULL;
+	struct dcam_pipe_dev *dev = (struct dcam_pipe_dev *)module->dcam_dev_handle;
 
-#if 0
-	ret = copy_from_user(&new_idx, (void __user *)arg, sizeof(uint32_t));
-	if (ret) {
-		pr_err("fail to copy_from_user\n");
-		return -EFAULT;
-	}
-#endif
-	new_idx = 0;
-	idx = module->idx = 0;
 	if (new_idx < 0 || new_idx > DCAM_SW_CONTEXT_MAX) {
 		pr_err("fail to get valid idx %d\n", new_idx);
 		return -EFAULT;
 	}
-	dev = (struct dcam_pipe_dev *)module->dcam_dev_handle;
-	idx = 0;
 	ori_sw_ctx = &dev->sw_ctx[idx];
-	hw_ctx = ori_sw_ctx->hw_ctx;
-	new_sw_ctx = ori_sw_ctx;//&dev->sw_ctx[new_idx];
-	if (!new_sw_ctx || !ori_sw_ctx) {
+	if (!ori_sw_ctx) {
 		pr_err("fail to get working context %d %d\n", idx, new_idx);
 		return -EFAULT;
 	}
+	hw_ctx = ori_sw_ctx->hw_ctx;
+	new_sw_ctx = ori_sw_ctx; /* &dev->sw_ctx[new_idx]; */
 
 	ret = dcam_core_ctx_switch(ori_sw_ctx, new_sw_ctx, hw_ctx);
 
@@ -1557,7 +1546,7 @@ static int camioctl_stream_on(struct camera_module *module,
 
 	struct channel_context *ch = NULL;
 	struct channel_context *ch_pre = NULL, *ch_vid = NULL;
-	struct cam_hw_info *hw = NULL;
+	struct cam_hw_info *hw = module->grp->hw_info;
 	struct dcam_pipe_dev *dev = (struct dcam_pipe_dev *)module->dcam_dev_handle;
 	struct dcam_sw_context *sw_ctx = &dev->sw_ctx[module->cur_sw_ctx_id];
 	struct cam_hw_lbuf_share camarg;
@@ -1568,19 +1557,30 @@ static int camioctl_stream_on(struct camera_module *module,
 		return -EFAULT;
 	}
 
-	online = !!online;
-
 	if (atomic_read(&module->state) != CAM_CFG_CH) {
 		pr_info("cam%d error state: %d\n", module->idx,
 			atomic_read(&module->state));
 		return -EFAULT;
 	}
 
-	module->flash_skip_fid = 0;
 	atomic_set(&module->state, CAM_STREAM_ON);
-	pr_info("cam%d stream on online %d, sw_ctx_id = %d\n", module->idx, online, sw_ctx->sw_ctx_id);
-
+	module->flash_skip_fid = 0;
 	module->simu_fid = 0;
+
+	loop = 0;
+	do {
+		ret = dcam_core_context_bind(sw_ctx, hw->csi_connect_type, module->dcam_idx);
+		if (!ret) {
+			if (sw_ctx->hw_ctx_id >= DCAM_HW_CONTEXT_MAX)
+				pr_err("fail to get hw_ctx_id\n");
+			break;
+		}
+		pr_info_ratelimited("ctx %d wait for hw. loop %d\n", sw_ctx->hw_ctx_id, loop);
+		usleep_range(600, 800);
+	} while (loop++ < 5000);
+
+	online = !!online;
+	pr_info("cam%d stream on online %d, sw_ctx_id = %d\n", module->idx, online, sw_ctx->sw_ctx_id);
 	if (!online)
 		goto cfg_ch_done;
 
@@ -1618,13 +1618,12 @@ cfg_ch_done:
 	/* line buffer share mode setting
 	 * Precondition: dcam0, dcam1 size not conflict
 	 */
-	hw = module->grp->hw_info;
 	line_w = module->cam_uinfo.sn_rect.w;
 	if (module->cam_uinfo.is_4in1)
 		line_w /= 2;
-	camarg.idx = module->dcam_idx;
+	camarg.idx = sw_ctx->hw_ctx_id;
 	camarg.width = line_w;
-	if (hw->ip_dcam[module->dcam_idx]->lbuf_share_support)
+	if (hw->ip_dcam[sw_ctx->hw_ctx_id]->lbuf_share_support)
 		ret = hw->dcam_ioctl(hw, DCAM_HW_CFG_LBUF_SHARE_SET, &camarg);
 	if (ret) {
 		pr_err("fail to set line buf share\n");
@@ -1710,18 +1709,6 @@ cfg_ch_done:
 	if (module->channel[CAM_CH_CAP].enable)
 		dev->dcam_pipe_ops->cfg_path(sw_ctx, DCAM_PATH_CFG_STATE,
 			DCAM_PATH_FULL, &module->path_state);
-
-	loop = 0;
-	do {
-		ret = dcam_core_context_bind(sw_ctx, hw->csi_connect_type, module->dcam_idx);
-		if (!ret) {
-			if (sw_ctx->hw_ctx_id >= DCAM_HW_CONTEXT_MAX)
-				pr_err("fail to get hw_ctx_id\n");
-			break;
-		}
-		pr_info_ratelimited("ctx %d wait for hw. loop %d\n", sw_ctx->hw_ctx_id, loop);
-		usleep_range(600, 800);
-	} while (loop++ < 5000);
 
 	ret = hw->dcam_ioctl(hw, DCAM_HW_CFG_RESET, &sw_ctx->hw_ctx_id);
 
@@ -3093,7 +3080,7 @@ static int camioctl_path_resume(struct camera_module *module,
 		do {
 			ret = dcam_core_context_bind(sw_ctx, hw->csi_connect_type, module->dcam_idx);
 			if (!ret) {
-				if (sw_ctx->hw_ctx_id < 0 || sw_ctx->hw_ctx_id >= DCAM_HW_CONTEXT_MAX)
+				if (sw_ctx->hw_ctx_id >= DCAM_HW_CONTEXT_MAX)
 					pr_err("fail to get hw_ctx_id\n");
 				break;
 			}
