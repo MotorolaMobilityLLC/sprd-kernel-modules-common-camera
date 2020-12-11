@@ -578,8 +578,7 @@ static irqreturn_t ispint_isr_root(int irq, void *priv)
 		}
 
 		sw_ctx_id = isp_core_sw_context_id_get(c_id, isp_handle);
-		pr_debug("sw %d, hw %d, irq_line: %08x\n",
-			sw_ctx_id, c_id, irq_line);
+		pr_debug("sw %d, hw %d, irq_line: %08x\n", sw_ctx_id, c_id, irq_line);
 
 		if (sw_ctx_id < 0) {
 			ISP_HREG_WR(irq_offset + ISP_INT_CLR0, irq_line);

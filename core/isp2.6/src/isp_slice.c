@@ -1159,7 +1159,10 @@ static void ispslice_slice_fetch_cfg(struct isp_hw_fetch_info *frm_fetch,
 			pitch->pitch_ch0, ch_offset[0],
 			slc_fetch->mipi_byte_rel_pos, slc_fetch->mipi_word_num);
 		break;
-
+	case ISP_FETCH_FULL_RGB10:
+		ch_offset[0] = start_row * pitch->pitch_ch0 + start_col * 8;
+		pr_debug("isp full rgb pitch %d offset %d\n", pitch->pitch_ch0, ch_offset[0]);
+		break;
 	default:
 		ch_offset[0] = start_row * pitch->pitch_ch0 + start_col * 2;
 		break;
@@ -1367,19 +1370,17 @@ static int ispslice_store_info_cfg(
 					cur_slc->slice_overlap.overlap_down;
 
 				pr_debug("slice %d. pos %d %d %d %d, ovl %d %d %d %d\n",
-					i, start_col, end_col,
-					start_row, end_row,
-					overlap_up, overlap_down,
-					overlap_left, overlap_right);
+					i, start_col, end_col, start_row, end_row,
+					overlap_up, overlap_down, overlap_left, overlap_right);
 
 				slc_store->size.w = end_col - start_col + 1 -
 						overlap_left - overlap_right;
 				slc_store->size.h = end_row - start_row + 1 -
 						overlap_up - overlap_down;
-				slc_store->border.up_border = overlap_left;
-				slc_store->border.down_border = overlap_left;
+				slc_store->border.up_border = overlap_up;
+				slc_store->border.down_border = overlap_down;
 				slc_store->border.left_border = overlap_left;
-				slc_store->border.right_border = overlap_left;
+				slc_store->border.right_border = overlap_right;
 				if (cur_slc->y == 0)
 					start_col_out[j][cur_slc->x] =
 						start_col + overlap_left;
@@ -1442,7 +1443,13 @@ static int ispslice_store_info_cfg(
 					start_row_out[j][cur_slc->y] *
 					frm_store->pitch.pitch_ch2 / 2;
 				break;
+			case ISP_STORE_FULL_RGB:
+				ch0_offset = start_col_out[j][cur_slc->x] * 8 +
+					start_row_out[j][cur_slc->y] *
+					frm_store->pitch.pitch_ch0;
+				break;
 			default:
+				pr_err("fail to support store format %d\n", frm_store->color_fmt);
 				break;
 			}
 			slc_store->addr.addr_ch0 =

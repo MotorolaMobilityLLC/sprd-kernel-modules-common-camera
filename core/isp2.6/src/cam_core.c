@@ -217,6 +217,8 @@ struct channel_context {
 	uint32_t alloc_start;
 	struct completion alloc_com;
 
+	struct isp_secen_ctrl_info isp_scene_ctrl;
+
 	uint32_t uinfo_3dnr;/* set by hal, 1:hw 3dnr; */
 	uint32_t type_3dnr;/* CAM_3DNR_HW:enable hw,and alloc buffer */
 	uint32_t mode_ltm;
@@ -4353,7 +4355,7 @@ static int camcore_fdr_context_init(struct camera_module *module,
 		struct channel_context *ch)
 {
 	int ret = 0;
-	int i = 0, isp_zoom;
+	int i = 0;
 	int isp_ctx_id = 0, isp_path_id = 0;
 	int32_t *cur_ctx;
 	int32_t *cur_path;
@@ -4364,6 +4366,8 @@ static int camcore_fdr_context_init(struct camera_module *module,
 	struct img_trim path_trim;
 	struct isp_init_param init_param;
 	struct dcam_pipe_dev *dcam = NULL;
+	struct cam_data_ctrl_in ctrl_in;
+	struct isp_data_ctrl_cfg *fdrl_ctrl = NULL;
 
 	pr_info("cam%d enter\n", module->idx);
 
@@ -4391,11 +4395,22 @@ static int camcore_fdr_context_init(struct camera_module *module,
 	}
 
 init_isp:
-	isp_zoom = 1;
 	ch_uinfo = &ch->ch_uinfo;
+	ctrl_in.scene_type = CAM_SCENE_CTRL_FDR_L;
+	ctrl_in.src.w = ch_uinfo->src_size.w;
+	ctrl_in.src.h = ch_uinfo->src_size.h;
+	ctrl_in.crop.start_x = ch_uinfo->src_crop.x;
+	ctrl_in.crop.start_y = ch_uinfo->src_crop.y;
+	ctrl_in.crop.size_x = ch_uinfo->src_crop.w;
+	ctrl_in.crop.size_y = ch_uinfo->src_crop.h;
+	ctrl_in.dst.w = ch_uinfo->dst_size.w;
+	ctrl_in.dst.h = ch_uinfo->dst_size.h;
+	ret = module->isp_dev_handle->isp_ops->set_datactrl(module->isp_dev_handle,
+				&ctrl_in, &ch->isp_scene_ctrl);
 	for (i = 0; i < 2; i++) {
 		cur_ctx = (i == 0) ? &ch->isp_fdrl_ctx : &ch->isp_fdrh_ctx;
 		cur_path = (i == 0) ? &ch->isp_fdrl_path : &ch->isp_fdrh_path;
+		fdrl_ctrl = (i == 0) ? &ch->isp_scene_ctrl.fdrl_ctrl : &ch->isp_scene_ctrl.fdrh_ctrl;
 		if ((*cur_ctx >= 0) && (*cur_path >= 0))
 			continue;
 
@@ -4413,29 +4428,15 @@ init_isp:
 			isp_ctx_id, camcore_isp_callback, module);
 
 		memset(&ctx_desc, 0, sizeof(struct isp_ctx_base_desc));
-		ctx_desc.in_fmt = ch_uinfo->sn_fmt;
+		ctx_desc.in_fmt = fdrl_ctrl->in_format;
 		ctx_desc.pack_bits = module->cam_uinfo.sensor_if.if_spec.mipi.is_loose;
 		ctx_desc.bayer_pattern = module->cam_uinfo.sensor_if.img_ptn;
 		ctx_desc.ch_id = ch->ch_id;
 		ret = module->isp_dev_handle->isp_ops->cfg_path(module->isp_dev_handle,
 			ISP_PATH_CFG_CTX_BASE, isp_ctx_id, 0, &ctx_desc);
 
-		ctx_size.src.w = ch_uinfo->src_size.w;
-		ctx_size.src.h = ch_uinfo->src_size.h;
-
-		if (isp_zoom == 0) {
-			/* no zoom in ISP */
-			ctx_size.crop.start_x = 0;
-			ctx_size.crop.start_y = 0;
-			ctx_size.crop.size_x = ctx_size.src.w;
-			ctx_size.crop.size_y = ctx_size.src.h;
-		} else {
-			/* zoom in ISP : fetch trim */
-			ctx_size.crop.start_x = ch_uinfo->src_crop.x;
-			ctx_size.crop.start_y = ch_uinfo->src_crop.y;
-			ctx_size.crop.size_x = ch_uinfo->src_crop.w;
-			ctx_size.crop.size_y = ch_uinfo->src_crop.h;
-		}
+		ctx_size.src = fdrl_ctrl->src;
+		ctx_size.crop = fdrl_ctrl->crop;
 		ret = module->isp_dev_handle->isp_ops->cfg_path(module->isp_dev_handle,
 				ISP_PATH_CFG_CTX_SIZE, isp_ctx_id, 0, &ctx_size);
 
@@ -4445,34 +4446,20 @@ init_isp:
 			module->isp_dev_handle, isp_ctx_id, isp_path_id);
 
 		memset(&path_desc, 0, sizeof(path_desc));
-		path_desc.out_fmt = ch_uinfo->dst_fmt;
+		path_desc.out_fmt = fdrl_ctrl->out_format;
 		path_desc.endian.y_endian = ENDIAN_LITTLE;
 		path_desc.endian.uv_endian = ENDIAN_LITTLE;
-		if (isp_zoom == 0) {
-			path_desc.output_size.w = ch_uinfo->src_size.w;
-			path_desc.output_size.h = ch_uinfo->src_size.h;
-		} else {
-			path_desc.output_size.w = ch_uinfo->dst_size.w;
-			path_desc.output_size.h = ch_uinfo->dst_size.h;
-		}
+		path_desc.output_size.w = fdrl_ctrl->dst.w;
+		path_desc.output_size.h = fdrl_ctrl->dst.h;
 		ret = module->isp_dev_handle->isp_ops->cfg_path(module->isp_dev_handle,
 			ISP_PATH_CFG_PATH_BASE,
 			isp_ctx_id, isp_path_id, &path_desc);
 
-		if (isp_zoom == 0) {
-			/* no zoom in ISP */
-			path_trim.start_x = 0;
-			path_trim.start_y = 0;
-			path_trim.size_x = ch_uinfo->src_size.w;
-			path_trim.size_y = ch_uinfo->src_size.h;
-		} else {
-			/* zoom in ISP : fetch trim, scaler no trim  */
-			path_trim.start_x = 0;
-			path_trim.start_y = 0;
-			path_trim.size_x = ch_uinfo->src_crop.w;
-			path_trim.size_y = ch_uinfo->src_crop.h;
-		}
-
+		/* zoom in ISP : fetch trim, scaler no trim  */
+		path_trim.start_x = 0;
+		path_trim.start_y = 0;
+		path_trim.size_x = fdrl_ctrl->crop.size_x;
+		path_trim.size_y = fdrl_ctrl->crop.size_y;
 		ret = module->isp_dev_handle->isp_ops->cfg_path(module->isp_dev_handle,
 				ISP_PATH_CFG_PATH_SIZE,
 				isp_ctx_id, isp_path_id, &path_trim);

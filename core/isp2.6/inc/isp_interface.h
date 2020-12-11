@@ -223,6 +223,32 @@ struct isp_offline_param {
 	void *prev;
 };
 
+enum isp_start_ctrl {
+	ISP_START_CTRL_EN,
+	ISP_START_CTRL_DIS,
+	ISP_START_CTRL_MAX,
+};
+
+enum isp_callback_ctrl {
+	ISP_CALLBACK_CTRL_USER,
+	ISP_CALLBACK_CTRL_MAX,
+};
+
+struct isp_data_ctrl_cfg {
+	enum isp_start_ctrl start_ctrl;
+	enum isp_callback_ctrl callback_ctrl;
+	uint32_t in_format;
+	uint32_t out_format;
+	struct img_size src;
+	struct img_trim crop;
+	struct img_size dst;
+};
+
+struct isp_secen_ctrl_info {
+	struct isp_data_ctrl_cfg fdrl_ctrl;
+	struct isp_data_ctrl_cfg fdrh_ctrl;
+};
+
 struct isp_pipe_ops {
 	int (*open)(void *isp_handle, void *arg);
 	int (*close)(void *isp_handle);
@@ -243,6 +269,7 @@ struct isp_pipe_ops {
 			isp_dev_callback cb, void *priv_data);
 	int (*update_clk)(void *isp_handle, void *arg);
 	int (*clear_stream_ctrl)(void *isp_handle, int ctx_id);
+	int (*set_datactrl)(void *handle, void *in, void *out);
 };
 
 void *isp_core_pipe_dev_get(void);

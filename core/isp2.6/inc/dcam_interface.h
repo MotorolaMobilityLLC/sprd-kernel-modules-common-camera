@@ -235,6 +235,25 @@ struct dcam_path_cfg_param {
 	struct img_size output_size;
 };
 
+enum dcam_start_ctrl {
+	DCAM_START_CTRL_EN,
+	DCAM_START_CTRL_DIS,
+	DCAM_START_CTRL_MAX,
+};
+
+enum dcam_callback_ctrl {
+	DCAM_CALLBACK_CTRL_USER,
+	DCAM_CALLBACK_CTRL_ISP,
+	DCAM_CALLBACK_CTRL_MAX,
+};
+
+struct dcam_data_ctrl_info {
+	enum dcam_start_ctrl start_ctrl;
+	enum dcam_callback_ctrl callback_ctrl;
+	uint32_t in_format;
+	uint32_t out_format;
+};
+
 /*
  * supported operations for dcam_if device
  *
@@ -268,6 +287,7 @@ struct dcam_pipe_ops {
 	int (*update_clk)(void *handle, void *arg);
 	int (*get_context)(void *dcam_handle);
 	int (*put_context)(void *dcam_handle, int ctx_id);
+	int (*get_datactrl)(void *handle, void *in, void *out);
 };
 
 /*

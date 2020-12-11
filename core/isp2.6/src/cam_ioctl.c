@@ -2471,7 +2471,6 @@ static int camioctl_raw_proc(struct camera_module *module,
 	}
 
 	if (proc_info.scene == RAW_PROC_SCENE_RAWCAP) {
-
 		error_state = ((proc_info.cmd == RAW_PROC_PRE) &&
 			(atomic_read(&module->state) != CAM_IDLE));
 		error_state |= ((proc_info.cmd == RAW_PROC_POST) &&
@@ -2506,9 +2505,12 @@ static int camioctl_fdr_post(struct camera_module *module,
 	int i;
 	int32_t isp_path_id, isp_ctx_id;
 	struct dcam_pipe_dev *dcam = NULL;
-	struct channel_context *ch;
+	struct channel_context *ch = NULL;
 	struct camera_frame *pframe = NULL, *pfrm[3] = { NULL, NULL, NULL };
 	struct sprd_img_parm param;
+	struct dcam_data_ctrl_info dcam_ctrl;
+	struct cam_data_ctrl_in ctrl_in;
+	struct isp_data_ctrl_cfg *fdr_ctrl = NULL;
 
 	ret = copy_from_user(&param, (void __user *)arg,
 				sizeof(struct sprd_img_parm));
@@ -2550,10 +2552,12 @@ static int camioctl_fdr_post(struct camera_module *module,
 			pframe->irq_property = CAM_FRAME_FDRL;
 			isp_path_id = ch->isp_fdrl_path;
 			isp_ctx_id = ch->isp_fdrl_ctx;
+			fdr_ctrl = &ch->isp_scene_ctrl.fdrl_ctrl;
 		} else {
 			pframe->irq_property = CAM_FRAME_FDRH;
 			isp_path_id = ch->isp_fdrh_path;
 			isp_ctx_id = ch->isp_fdrh_ctx;
+			fdr_ctrl = &ch->isp_scene_ctrl.fdrh_ctrl;
 		}
 		ret = cam_buf_ionbuf_get(&pframe->buf);
 		if (ret) {
@@ -2570,20 +2574,28 @@ static int camioctl_fdr_post(struct camera_module *module,
 		goto isp_proc;
 	}
 
+	ctrl_in.scene_type = (param.scene_mode == FDR_POST_LOW) ? CAM_SCENE_CTRL_FDR_L : CAM_SCENE_CTRL_FDR_H;
+	ret = module->dcam_dev_handle->dcam_pipe_ops->get_datactrl(&dcam->sw_ctx[module->cur_aux_sw_ctx_id],
+			&ctrl_in, &dcam_ctrl);
+	if (ret) {
+		pr_err("fail to get dcam data ctrl.\n");
+		goto exit;
+	}
+
+	if (dcam_ctrl.start_ctrl == DCAM_START_CTRL_DIS)
+		goto isp_proc;
 	ret = module->dcam_dev_handle->dcam_pipe_ops->cfg_path(&dcam->sw_ctx[module->cur_aux_sw_ctx_id],
-			DCAM_PATH_CFG_OUTPUT_BUF,
-			ch->aux_dcam_path_id, pfrm[1]);
+			DCAM_PATH_CFG_OUTPUT_BUF, ch->aux_dcam_path_id, pfrm[1]);
 	if (ret) {
 		pr_err("fail to cfg dcam out buffer.\n");
 		goto exit;
 	}
 
 	pframe = pfrm[2];
-	pframe->width = ch->ch_uinfo.dst_size.w;
-	pframe->height = ch->ch_uinfo.dst_size.h;
+	pframe->width = fdr_ctrl->dst.w;
+	pframe->height = fdr_ctrl->dst.h;
 	ret = module->isp_dev_handle->isp_ops->cfg_path(module->isp_dev_handle,
-			ISP_PATH_CFG_OUTPUT_BUF,
-			isp_ctx_id, isp_path_id, pfrm[2]);
+		ISP_PATH_CFG_OUTPUT_BUF, isp_ctx_id, isp_path_id, pfrm[2]);
 	if (ret) {
 		pr_err("fail to cfg isp out buffer.\n");
 		goto exit;
@@ -2614,22 +2626,22 @@ static int camioctl_fdr_post(struct camera_module *module,
 		pfrm[0]->buf.mfd[0], pfrm[0]->buf.offset[0],
 		pfrm[1]->buf.mfd[0], pfrm[1]->buf.offset[0],
 		pfrm[2]->buf.mfd[0], pfrm[2]->buf.offset[0]);
-
 	mutex_unlock(&module->fdr_lock);
 	return 0;
 
 
 isp_proc:
+	pfrm[1]->width = fdr_ctrl->dst.w;
+	pfrm[1]->height = fdr_ctrl->dst.h;
 	ret = module->isp_dev_handle->isp_ops->cfg_path(module->isp_dev_handle,
 			ISP_PATH_CFG_OUTPUT_BUF,
-			isp_ctx_id,
-			isp_path_id, pfrm[2]);
+			isp_ctx_id, isp_path_id, pfrm[1]);
 	if (ret) {
 		pr_err("fail to cfg isp out buffer.\n");
 		goto exit;
 	}
 
-	pframe = pfrm[1];
+	pframe = pfrm[0];
 	pr_info("fdr %d , isp path 0x%x ctx_id 0x%x\n", pframe->irq_property, isp_path_id, isp_ctx_id);
 	ret = module->isp_dev_handle->isp_ops->proc_frame(module->isp_dev_handle, pframe,
 		isp_ctx_id);

@@ -25,6 +25,8 @@
 #define IMG_PIX_FMT_RGB565  img_fourcc('R', 'G', 'B', 'P')
 /* 16  RGB-5-6-5 BE  */
 #define IMG_PIX_FMT_RGB565X img_fourcc('R', 'G', 'B', 'R')
+/* Full RGB 8bit/10bit/14bit */
+#define IMG_PIX_FMT_FULL_RGB img_fourcc('R', 'G', 'B', 'F')
 
 /* Grey formats */
 #define IMG_PIX_FMT_GREY    img_fourcc('G', 'R', 'E', 'Y') /*  8  Greyscale   */

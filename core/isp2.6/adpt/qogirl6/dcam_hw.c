@@ -960,6 +960,23 @@ static int dcamhw_full_path_src_sel(void *handle, void *arg)
 		break;
 	}
 
+	DCAM_REG_MWR(patharg->idx, DCAM_FULL_CFG, BIT_2 | BIT_3, patharg->pack_bits << 2);
+	/* input pack_bit is 14bit must same with DCAM_BAYER_INFO_CFG Bit8~10 */
+	DCAM_REG_MWR(patharg->idx, DCAM_BAYER_INFO_CFG, 0x7 << 18, 4 << 18);
+	switch (patharg->pack_bits) {
+	case 0:
+		DCAM_REG_MWR(patharg->idx, DCAM_BAYER_INFO_CFG, 0x3 << 16, 1 << 16);
+		break;
+	case 2:
+		DCAM_REG_MWR(patharg->idx, DCAM_BAYER_INFO_CFG, 0x3 << 16, 3 << 16);
+		break;
+	default:
+		/* other case 1 & 3, TBD */
+		pr_err("fail to support src_sel %d\n", patharg->pack_bits);
+		ret = -EINVAL;
+		break;
+	}
+
 	return ret;
 }
 
@@ -969,11 +986,11 @@ static int dcamhw_lbuf_share_set(void *handle, void *arg)
 	int ret = 0;
 	uint32_t tb_w[] = {
 	/*     dcam0, dcam1 */
-		5664, 3264,
+		5664, 3648,
 		5184, 4160,
 		4672, 4672,
 		4160, 5184,
-		3264, 5664,
+		3648, 5664,
 	};
 
 	struct cam_hw_lbuf_share *camarg = (struct cam_hw_lbuf_share *)arg;
@@ -1022,11 +1039,11 @@ static int dcamhw_lbuf_share_get(void *handle, void *arg)
 	struct cam_hw_lbuf_share *camarg = (struct cam_hw_lbuf_share *)arg;
 	uint32_t tb_w[] = {
 	/*     dcam0, dcam1 */
-		5664, 3264,
+		5664, 3648,
 		5184, 4160,
 		4672, 4672,
 		4160, 5184,
-		3264, 5664,
+		3648, 5664,
 	};
 
 	if (!arg)

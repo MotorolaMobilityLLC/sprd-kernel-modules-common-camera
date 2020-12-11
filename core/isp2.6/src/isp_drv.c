@@ -54,6 +54,10 @@ static int ispdrv_path_scaler_get(struct isp_path_uinfo *in_ptr,
 		path->uv_sync_v = 1;
 	else
 		path->uv_sync_v = 0;
+	if (in_ptr->out_fmt == IMG_PIX_FMT_FULL_RGB)
+		path->path_sel = 2;
+	else
+		path->path_sel = 0;
 	path->frm_deci = 0;
 	path->dst = in_ptr->dst;
 	path->in_trim = in_ptr->in_trim;
@@ -71,9 +75,9 @@ static int ispdrv_path_scaler_get(struct isp_path_uinfo *in_ptr,
 	if (in_ptr->out_fmt == IMG_PIX_FMT_YUV422P)
 		is_yuv422 = 1;
 
-	if ((scaler->scaler_ver_factor_in == scaler->scaler_ver_factor_out)
+	if (((scaler->scaler_ver_factor_in == scaler->scaler_ver_factor_out)
 		&& (scaler->scaler_factor_in == scaler->scaler_factor_out)
-		&& is_yuv422) {
+		&& is_yuv422) || in_ptr->out_fmt == IMG_PIX_FMT_FULL_RGB) {
 		scaler->scaler_bypass = 1;
 	} else {
 		scaler->scaler_bypass = 0;
@@ -98,14 +102,14 @@ static int ispdrv_path_scaler_get(struct isp_path_uinfo *in_ptr,
 }
 
 static enum isp_fetch_format ispdrv_fetch_format_get(uint32_t forcc,
-	uint32_t pack_bits)
+		uint32_t pack_bits)
 {
 	enum isp_fetch_format format = ISP_FETCH_FORMAT_MAX;
 
 	switch (forcc) {
 	case IMG_PIX_FMT_GREY:
 		format = ISP_FETCH_CSI2_RAW10;
-		if(pack_bits == ISP_RAW_HALF14 || pack_bits == ISP_RAW_HALF10)
+		if (pack_bits == ISP_RAW_HALF14 || pack_bits == ISP_RAW_HALF10)
 			format = ISP_FETCH_RAW10;
 		break;
 	case IMG_PIX_FMT_UYVY:
@@ -119,6 +123,9 @@ static enum isp_fetch_format ispdrv_fetch_format_get(uint32_t forcc,
 		break;
 	case IMG_PIX_FMT_NV21:
 		format = ISP_FETCH_YVU420_2FRAME;
+		break;
+	case IMG_PIX_FMT_FULL_RGB:
+		format = ISP_FETCH_FULL_RGB10;
 		break;
 	default:
 		format = ISP_FETCH_FORMAT_MAX;
@@ -154,6 +161,8 @@ static int ispdrv_fetch_normal_get(void *cfg_in, void *cfg_out,
 	fetch->bayer_pattern = pipe_src->bayer_pattern;
 	if (pipe_src->in_fmt == IMG_PIX_FMT_GREY)
 		fetch->dispatch_color = 0;
+	else if (pipe_src->in_fmt == IMG_PIX_FMT_FULL_RGB)
+		fetch->dispatch_color = 1;
 	else
 		fetch->dispatch_color = 2;
 	fetch->fetch_path_sel = pipe_src->fetch_path_sel;
@@ -199,8 +208,8 @@ static int ispdrv_fetch_normal_get(void *cfg_in, void *cfg_out,
 		fetch->addr.addr_ch1 = fetch->addr.addr_ch0 + fetch->pitch.pitch_ch0 * fetch->src.h;
 		break;
 	case ISP_FETCH_FULL_RGB10:
-		fetch->pitch.pitch_ch0 = src->w * 3;
-		trim_offset[0] = intrim->start_y * fetch->pitch.pitch_ch0 + intrim->start_x * 3;
+		fetch->pitch.pitch_ch0 = src->w * 8;
+		trim_offset[0] = intrim->start_y * fetch->pitch.pitch_ch0 + intrim->start_x * 8;
 		break;
 	case ISP_FETCH_CSI2_RAW10:
 	{
@@ -429,6 +438,9 @@ static enum isp_store_format ispdrv_store_format_get(uint32_t forcc)
 	case IMG_PIX_FMT_YUV420:
 		format = ISP_STORE_YUV420_3FRAME;
 		break;
+	case IMG_PIX_FMT_FULL_RGB:
+		format = ISP_STORE_FULL_RGB;
+		break;
 	default:
 		format = ISP_STORE_FORMAT_MAX;
 		pr_err("fail to get support format 0x%x\n", forcc);
@@ -505,7 +517,10 @@ static ispdrv_store_normal_get(struct isp_path_uinfo *in_ptr,
 	store->color_fmt = ispdrv_store_format_get(in_ptr->out_fmt);
 	store->bypass = 0;
 	store->endian = in_ptr->data_endian.uv_endian;
-	store->speed_2x = 1;
+	if (store->color_fmt == ISP_STORE_FULL_RGB)
+		store->speed_2x = 0;
+	else
+		store->speed_2x = 1;
 	store->mirror_en = 0;
 	store->max_len_sel = 0;
 	store->shadow_clr_sel = 1;
@@ -543,6 +558,9 @@ static ispdrv_store_normal_get(struct isp_path_uinfo *in_ptr,
 		store->pitch.pitch_ch1 = store->size.w / 2;
 		store->pitch.pitch_ch2 = store->size.w / 2;
 		store->total_size = store->size.w * store->size.h * 3 / 2;
+		break;
+	case ISP_STORE_FULL_RGB:
+		store->pitch.pitch_ch0 = store->size.w * 8;
 		break;
 	default:
 		pr_err("fail to get support store fmt: %d\n", store->color_fmt);

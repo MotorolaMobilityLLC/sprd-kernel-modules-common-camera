@@ -230,6 +230,7 @@ enum isp_store_format {
 	ISP_STORE_YUV420_2FRAME,
 	ISP_STORE_YVU420_2FRAME,
 	ISP_STORE_YUV420_3FRAME,
+	ISP_STORE_FULL_RGB,
 	ISP_STORE_FORMAT_MAX
 };
 
@@ -432,6 +433,7 @@ struct isp_hw_path_scaler {
 	uint32_t ctx_id;
 	uint32_t uv_sync_v;
 	uint32_t frm_deci;
+	uint32_t path_sel;
 	enum isp_sub_path_id spath_id;
 	struct img_deci_info deci;
 	struct img_size src;
@@ -543,6 +545,7 @@ struct dcam_hw_path_size {
 
 struct dcam_hw_path_src_sel {
 	uint32_t src_sel;
+	uint32_t pack_bits;
 	uint32_t idx;
 };
 

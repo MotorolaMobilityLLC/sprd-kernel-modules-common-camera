@@ -244,7 +244,20 @@ enum dcam_cb_type {
 
 	DCAM_CB_DEV_ERR,
 	DCAM_CB_MMU_ERR,
+};
 
+enum cam_scene_ctrl_type {
+	CAM_SCENE_CTRL_FDR_L,
+	CAM_SCENE_CTRL_FDR_H,
+	CAM_SCENE_CTRL_MAX,
+};
+
+struct cam_data_ctrl_in {
+	enum cam_scene_ctrl_type scene_type;
+	uint32_t ctx_id;
+	struct img_size src;
+	struct img_trim crop;
+	struct img_size dst;
 };
 
 /*

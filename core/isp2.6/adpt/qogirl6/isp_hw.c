@@ -359,7 +359,7 @@ abnormal_reg_trace:
 	}
 
 	pr_info("ISP common status: register list\n");
-	for (addr = ISP_NLM_STATUS; addr <= ISP_IIRCNR_STATUS;
+	for (addr = ISP_COMMON_VERSION; addr <= ISP_IIRCNR_STATUS;
 			addr += 16) {
 		pr_info("0x%lx: 0x%x 0x%x 0x%x 0x%x\n",
 			addr,
@@ -1057,8 +1057,12 @@ static int isphw_path_scaler(void *handle, void *arg)
 	addr = scaler_base[path_scaler->spath_id];
 	ISP_REG_MWR(idx, ISP_COMMON_SCL_PATH_SEL,
 		path_mask[path_scaler->spath_id],
-		(0 << path_off[path_scaler->spath_id]));
+		(path_scaler->path_sel << path_off[path_scaler->spath_id]));
 
+	if (path_scaler->path_sel == 2) {
+		ISP_REG_MWR(idx, ISP_COMMON_SPACE_SEL, BIT_3 | BIT_2, 1 << 2);
+		ISP_REG_MWR(idx, ISP_COMMON_SCL_PATH_SEL, BIT_7, 1 << 7);
+	}
 	/* set path_eb*/
 	ISP_REG_MWR(idx, addr + ISP_YUV_SCALER_CFG,
 		BIT_31, 1 << 31); /* path enable */
@@ -1075,6 +1079,8 @@ static int isphw_path_scaler(void *handle, void *arg)
 		BIT_20 | BIT_21, scalerInfo->work_mode << 20);
 	ISP_REG_MWR(idx, addr + ISP_YUV_SCALER_CFG, (BIT_24 | BIT_25 | BIT_26 | BIT_27 | BIT_28),
 			(path_scaler->frm_deci & 3) << 24);
+	if (path_scaler->path_sel == 2)
+		ISP_REG_MWR(idx, addr + ISP_YUV_SCALER_CFG, BIT_0, 1 << 0);
 
 	/*set X/Y deci */
 	ISP_REG_MWR(idx, addr + ISP_YUV_SCALER_CFG, BIT_6,
@@ -1425,7 +1431,6 @@ static int isphw_fetch_set(void *handle, void *arg)
 
 	pr_debug("enter: fmt:%d, w:%d, h:%d\n", fetch->fetch_fmt,
 			fetch->in_trim.size_x, fetch->in_trim.size_y);
-
 	ISP_REG_MWR(idx, ISP_COMMON_SPACE_SEL, BIT_1 | BIT_0, fetch->dispatch_color);
 	ISP_REG_MWR(idx, ISP_COMMON_SPACE_SEL, BIT_3 | BIT_2, 3 << 2);
 	ISP_REG_MWR(idx, ISP_COMMON_SPACE_SEL, BIT_4, 0 << 4);

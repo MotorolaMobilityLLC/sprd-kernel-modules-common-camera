@@ -3424,6 +3424,104 @@ static int ispcore_dev_reset(void *isp_handle, void *param)
 	return ret;
 }
 
+static int ispcore_scene_fdr_set(uint32_t prj_id,
+		struct cam_data_ctrl_in *in, struct isp_secen_ctrl_info * out)
+{
+	int ret = 0, i = 0;
+	struct isp_data_ctrl_cfg *fdr_ctrl = NULL;
+
+	if (!in || !out) {
+		pr_err("fail to get valid input ptr\n");
+		return -EFAULT;
+	}
+
+	for (i = 0; i < 2; i++) {
+		fdr_ctrl = (i == 0) ? &out->fdrl_ctrl : &out->fdrh_ctrl;
+		switch (prj_id) {
+		case SHARKL5pro:
+			fdr_ctrl->in_format = IMG_PIX_FMT_GREY;
+			fdr_ctrl->out_format = IMG_PIX_FMT_NV21;
+			fdr_ctrl->src = in->src;
+			fdr_ctrl->crop = in->crop;
+			fdr_ctrl->dst = in->dst;
+			break;
+		case QOGIRL6:
+			if (i == 0) {
+				fdr_ctrl->in_format = IMG_PIX_FMT_GREY;
+				fdr_ctrl->out_format = IMG_PIX_FMT_FULL_RGB;
+				fdr_ctrl->src = in->src;
+				fdr_ctrl->crop = in->crop;
+				fdr_ctrl->dst.w = in->crop.size_x;
+				fdr_ctrl->dst.h = in->crop.size_y;
+			} else {
+				fdr_ctrl->in_format = IMG_PIX_FMT_FULL_RGB;
+				fdr_ctrl->out_format = IMG_PIX_FMT_NV21;
+				fdr_ctrl->src = out->fdrl_ctrl.dst;
+				fdr_ctrl->crop.start_x = 0;
+				fdr_ctrl->crop.start_y = 0;
+				fdr_ctrl->crop.size_x = fdr_ctrl->src.w;
+				fdr_ctrl->crop.size_y = fdr_ctrl->src.h;
+				fdr_ctrl->dst = in->dst;
+			}
+			break;
+		case QOGIRN6pro:
+			if (i == 0) {
+				fdr_ctrl->start_ctrl = ISP_START_CTRL_DIS;
+			} else {
+				fdr_ctrl->in_format = IMG_PIX_FMT_FULL_RGB;
+				fdr_ctrl->out_format = IMG_PIX_FMT_NV21;
+				fdr_ctrl->src = in->src;
+				fdr_ctrl->crop = in->crop;
+				fdr_ctrl->dst = in->dst;
+			}
+			break;
+		default:
+			pr_err("fail to support current project %d\n", prj_id);
+			ret = -EFAULT;
+			break;
+		}
+	}
+
+	return ret;
+}
+
+static int ispcore_datactrl_set(void *handle, void *in, void *out)
+{
+	int ret = 0;
+	uint32_t prj_id = 0;
+	struct isp_pipe_dev *dev = NULL;
+	struct isp_secen_ctrl_info *secen_ctrl = NULL;
+	struct cam_data_ctrl_in *cfg_in = NULL;
+
+	if (!handle || !in || !out) {
+		pr_err("fail to get valid input ptr %p %p %p\n", handle, in, out);
+		return -EFAULT;
+	}
+
+	dev = (struct isp_pipe_dev *)handle;
+	cfg_in = (struct cam_data_ctrl_in *)in;
+	secen_ctrl = (struct isp_secen_ctrl_info *)out;
+	prj_id = dev->isp_hw->prj_id;
+
+	switch (cfg_in->scene_type) {
+	case CAM_SCENE_CTRL_FDR_L:
+	case CAM_SCENE_CTRL_FDR_H:
+		ret = ispcore_scene_fdr_set(prj_id, cfg_in, secen_ctrl);
+		if (ret) {
+			pr_err("fail to set scene fdr %d\n", prj_id);
+			goto exit;
+		}
+		break;
+	default:
+		pr_err("fail to support current scene %d\n", cfg_in->scene_type);
+		ret = -EFAULT;
+		break;
+	}
+
+exit:
+	return ret;
+}
+
 static struct isp_pipe_ops isp_ops = {
 	.open = ispcore_dev_open,
 	.close = ispcore_dev_close,
@@ -3438,6 +3536,7 @@ static struct isp_pipe_ops isp_ops = {
 	.proc_frame = ispcore_frame_proc,
 	.set_callback = ispcore_callback_set,
 	.clear_stream_ctrl = ispcore_stream_state_put,
+	.set_datactrl = ispcore_datactrl_set,
 };
 
 void *isp_core_pipe_dev_get(void)

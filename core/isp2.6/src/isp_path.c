@@ -477,6 +477,7 @@ int isp_path_storecomn_uinfo_set(struct isp_path_uinfo *path, void *param)
 	path->regular_mode = cfg_in->regular_mode;
 	path->slave_path_id = cfg_in->slave_path_id;
 	path->dst = cfg_in->output_size;
+	pr_debug("isp %d dst w %d h %d\n", path->dst.w, path->dst.h);
 
 	return ret;
 }

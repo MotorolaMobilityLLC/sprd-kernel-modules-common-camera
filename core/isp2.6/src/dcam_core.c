@@ -1074,10 +1074,8 @@ static int dcamcore_offline_frame_start(void *param)
 
 	/* FDR solution: select context for frame type */
 	sw_pctx->cur_ctx_id = DCAM_CXT_0;
-	if (pframe->irq_property != CAM_FRAME_COMMON) {
+	if (pframe->irq_property != CAM_FRAME_COMMON)
 		sw_pctx->cur_ctx_id = DCAM_CXT_1;
-		udelay(800);
-	}
 	pctx = &sw_pctx->ctx[sw_pctx->cur_ctx_id];
 	pm = &pctx->blk_pm;
 	if ((pm->lsc.buf.mapping_state & CAM_BUF_MAPPING_DEV) == 0) {
@@ -2764,6 +2762,111 @@ static int dcamcore_context_put(void *dcam_handle, int ctx_id)
 	return ret;
 }
 
+static int dcamcore_scene_fdrl_get(uint32_t prj_id,
+		struct dcam_data_ctrl_info * out)
+{
+	int ret = 0;
+
+	if (!out) {
+		pr_err("fail to get valid input ptr\n");
+		return -EFAULT;
+	}
+
+	switch (prj_id) {
+	case SHARKL5pro:
+		out->start_ctrl = DCAM_START_CTRL_EN;
+		out->callback_ctrl = DCAM_CALLBACK_CTRL_ISP;
+		break;
+	case QOGIRL6:
+		out->start_ctrl = DCAM_START_CTRL_EN;
+		out->callback_ctrl = DCAM_CALLBACK_CTRL_ISP;
+		break;
+	case QOGIRN6pro:
+		out->start_ctrl = DCAM_START_CTRL_EN;
+		out->callback_ctrl = DCAM_CALLBACK_CTRL_USER;
+		break;
+	default:
+		pr_err("fail to support current project %d\n", prj_id);
+		ret = -EFAULT;
+		break;
+	}
+
+	return ret;
+}
+
+static int dcamcore_scene_fdrh_get(uint32_t prj_id,
+		struct dcam_data_ctrl_info * out)
+{
+	int ret = 0;
+
+	if (!out) {
+		pr_err("fail to get valid input ptr\n");
+		return -EFAULT;
+	}
+
+	switch (prj_id) {
+	case SHARKL5pro:
+		out->start_ctrl = DCAM_START_CTRL_EN;
+		out->callback_ctrl = DCAM_CALLBACK_CTRL_ISP;
+		break;
+	case QOGIRL6:
+		out->start_ctrl = DCAM_START_CTRL_DIS;
+		break;
+	case QOGIRN6pro:
+		out->start_ctrl = DCAM_START_CTRL_DIS;
+		break;
+	default:
+		pr_err("fail to support current project %d\n", prj_id);
+		ret = -EFAULT;
+		break;
+	}
+
+	return ret;
+}
+
+static int dcamcore_datactrl_get(void *handle, void *in, void *out)
+{
+	int ret = 0;
+	uint32_t prj_id = 0;
+	struct dcam_sw_context *pctx = NULL;
+	struct dcam_data_ctrl_info *data_ctrl = NULL;
+	struct cam_data_ctrl_in *cfg_in = NULL;
+
+	if (!handle || !in || !out) {
+		pr_err("fail to get valid input ptr %p %p %p\n", handle, in, out);
+		return -EFAULT;
+	}
+
+	pctx = (struct dcam_sw_context *)handle;
+	cfg_in = (struct cam_data_ctrl_in *)in;
+	data_ctrl = (struct dcam_data_ctrl_info *)out;
+	prj_id = pctx->dev->hw->prj_id;
+
+	switch (cfg_in->scene_type) {
+	case CAM_SCENE_CTRL_FDR_L:
+		ret = dcamcore_scene_fdrl_get(prj_id, data_ctrl);
+		if (ret) {
+			pr_err("fail to get scene fdrl %d\n", prj_id);
+			goto exit;
+		}
+		break;
+	case CAM_SCENE_CTRL_FDR_H:
+		ret = dcamcore_scene_fdrh_get(prj_id, data_ctrl);
+		if (ret) {
+			pr_err("fail to get scene fdrh %d\n", prj_id);
+			goto exit;
+		}
+		break;
+	default:
+		pr_err("fail to support current scene %d\n", cfg_in->scene_type);
+		ret = -EFAULT;
+		break;
+	}
+
+exit:
+	return ret;
+}
+
 /*
  * Operations for this dcam_pipe_ops.
  */
@@ -2781,6 +2884,7 @@ static struct dcam_pipe_ops s_dcam_pipe_ops = {
 	.set_callback = dcamcore_cb_set,
 	.get_context = dcamcore_context_get,
 	.put_context = dcamcore_context_put,
+	.get_datactrl = dcamcore_datactrl_get,
 };
 
 int dcam_core_ctx_switch(struct dcam_sw_context *ori_sw_ctx, struct dcam_sw_context *new_sw_ctx, struct dcam_hw_context *hw_ctx)

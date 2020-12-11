@@ -595,6 +595,7 @@ int dcam_path_store_frm_set(void *dcam_ctx_handle,
 			struct dcam_hw_path_src_sel patharg;
 			patharg.idx = dcam_sw_ctx->hw_ctx_id;
 			patharg.src_sel = path->src_sel;
+			patharg.pack_bits = path->pack_bits;
 			ret = hw->dcam_ioctl(hw, DCAM_HW_CFG_PATH_SRC_SEL, &patharg);
 		}
 		path->base_update = 0;
