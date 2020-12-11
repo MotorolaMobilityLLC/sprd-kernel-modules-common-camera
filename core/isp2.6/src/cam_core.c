@@ -5785,6 +5785,7 @@ static struct cam_ioctl_cmd ioctl_cmds_table[] = {
 	[_IOC_NR(SPRD_IMG_IO_CAPABILITY)]           = {SPRD_IMG_IO_CAPABILITY,           camioctl_capability_get},
 	[_IOC_NR(SPRD_IMG_IO_POST_FDR)]             = {SPRD_IMG_IO_POST_FDR,             camioctl_fdr_post},
 	[_IOC_NR(SPRD_IMG_IO_CAM_TEST)]             = {SPRD_IMG_IO_CAM_TEST,             camioctl_cam_test},
+	[_IOC_NR(SPRD_IMG_IO_DCAM_SWITCH)]          = {SPRD_IMG_IO_DCAM_SWITCH,          camioctl_csi_switch},
 };
 
 static long camcore_ioctl(struct file *file, unsigned int cmd,
@@ -6369,7 +6370,7 @@ static int camcore_csi_switch_proc(void *param)
 	module = group->module[CAM_ID_0];
 
 	pr_info("Get group:%px, module = %px\n", group, module);
-	camiotcl_csi_switch(module, arg);
+	camioctl_ctx_switch(module, arg);
 	return 0;
 }
 

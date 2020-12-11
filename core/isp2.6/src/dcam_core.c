@@ -2798,7 +2798,6 @@ int dcam_core_ctx_switch(struct dcam_sw_context *ori_sw_ctx, struct dcam_sw_cont
 
 	dev = ori_sw_ctx->dev;
 	hw = ori_sw_ctx->dev->hw;
-	pr_info("hw =  0x%px\n", hw);
 	if (atomic_dec_return(&hw_ctx->user_cnt) == 0)
 		hw->dcam_ioctl(hw, DCAM_HW_DISCONECT_CSI, &hw_ctx->hw_ctx_id);
 	else {
@@ -2921,7 +2920,7 @@ int dcam_core_context_bind(struct dcam_sw_context *pctx, enum dcam_bind_mode mod
 exit:
 	spin_unlock_irqrestore(&dev->ctx_lock, flag);
 	if (hw_ctx_id == DCAM_HW_CONTEXT_MAX) {
-		pr_err("fail to get hw_ctx_id. mode=%d\n", mode);
+		pr_debug("fail to get hw_ctx_id. mode=%d\n", mode);
 		return -1;
 	}
 	pctx_hw->sw_ctx = pctx;
