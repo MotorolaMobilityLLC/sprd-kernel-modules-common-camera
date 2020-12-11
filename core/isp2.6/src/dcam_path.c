@@ -628,25 +628,15 @@ int dcam_path_store_frm_set(void *dcam_ctx_handle,
 
 	/* Re-config hist win if it is updated */
 	if (path_id == DCAM_PATH_HIST) {
-#if defined (PROJ_SHARKL5PRO)
-		/*
-		 * TODO: WORKAROUND
-		 * Update parameters which may be dynamically changed. Currently
-		 * bayerhist block is only in SharkL5Pro.
-		 */
 		spin_lock_irqsave(&path->size_lock, flags);
-		dcam_k_bayerhist_roi(blk_dcam_pm);
-
+		hw->dcam_ioctl(hw, DCAM_HW_CFG_HIST_ROI_UPDATE, blk_dcam_pm);
 		if (frame->buf.addr_k[0]) {
 			struct dcam_dev_hist_info *info = NULL;
-
 			info = (struct dcam_dev_hist_info *)frame->buf.addr_k[0];
 			memcpy(info, &blk_dcam_pm->hist.bayerHist_info,
 				sizeof(struct dcam_dev_hist_info));
 		}
 		spin_unlock_irqrestore(&path->size_lock, flags);
-#endif
-
 	}
 
 	slm_path = hw->ip_dcam[idx]->slm_path;

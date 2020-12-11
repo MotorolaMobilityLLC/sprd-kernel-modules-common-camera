@@ -1519,6 +1519,16 @@ static int dcamhw_bin_path_cfg(void *handle, void *arg)
 	return 0;
 }
 
+static int dcamhw_bayer_hist_roi_update(void *handle, void *arg)
+{
+	struct dcam_dev_param *blk_dcam_pm = NULL;
+
+	blk_dcam_pm = (struct dcam_dev_param *)arg;
+	dcam_k_bayerhist_roi(blk_dcam_pm);
+
+	return 0;
+}
+
 static struct hw_io_ctrl_fun dcam_ioctl_fun_tab[] = {
 	{DCAM_HW_CFG_ENABLE_CLK,            dcamhw_clk_eb},
 	{DCAM_HW_CFG_DISABLE_CLK,           dcamhw_clk_dis},
@@ -1557,6 +1567,7 @@ static struct hw_io_ctrl_fun dcam_ioctl_fun_tab[] = {
 	{DCAM_HW_CFG_MIPICAP,               dcamhw_mipicap_cfg},
 	{DCAM_HW_CFG_BIN_MIPI,              dcamhw_bin_mipi_cfg},
 	{DCAM_HW_CFG_BIN_PATH,              dcamhw_bin_path_cfg},
+	{DCAM_HW_CFG_HIST_ROI_UPDATE,       dcamhw_bayer_hist_roi_update},
 };
 
 static hw_ioctl_fun dcamhw_ioctl_fun_get(enum dcam_hw_cfg_cmd cmd)
