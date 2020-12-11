@@ -206,18 +206,21 @@ static int cppcore_open(struct inode *node, struct file *file)
 	hw = dev->hw_info;
 	if (!hw) {
 		pr_err("fail to get valid cpp hw info\n");
-		return -1;
+		goto fail;
 	}
 	cppif = vzalloc(sizeof(struct cpp_pipe_dev));
 	if (!cppif) {
 		pr_err("fail to alloc memory \n");
-		return 0;
+		goto fail;
 	}
 	ret = cpp_drv_get_cpp_res(cppif, hw);
+	if (ret) {
+		pr_err("fail to get cpp res\n");
+		goto fail;
+	}
 	dev->cppif = cppif;
 	ret = cppcore_module_enable(dev);
 	if (ret) {
-		ret = -EFAULT;
 		pr_err("fail to enable cpp module\n");
 		goto enable_fail;
 	}
@@ -243,13 +246,13 @@ enable_fail:
 #endif
 	if (ret) {
 		pr_err("%s: failed to camera power off\n", __func__);
-		return ret;
 	}
 fail:
 	if (atomic_dec_return(&dev->users) != 0)
 		CPP_TRACE("others is using cpp device\n");
 	file->private_data = NULL;
-
+	if (cppif)
+		vfree(cppif);
 	return ret;
 }
 
@@ -269,6 +272,10 @@ static int cppcore_release(struct inode *node,
 		pr_err("fail to close cpp device\n");
 		return -EFAULT;
 	}
+	if (dev->cppif == NULL) {
+		pr_err("fail to get cppif\n");
+		return -EFAULT;
+	}
 
 	if (atomic_dec_return(&dev->users) != 0) {
 		CPP_TRACE("others is using cpp device\n");
@@ -282,14 +289,11 @@ static int cppcore_release(struct inode *node,
 		vfree(dev->cppif->scif);
 		dev->cppif->scif = NULL;
 	}
-
 	cpp_int_irq_free(dev->cppif);
 	cppcore_module_disable(dev);
 
-	if (dev->cppif) {
-		vfree(dev->cppif);
-		dev->cppif = NULL;
-	}
+	vfree(dev->cppif);
+	dev->cppif = NULL;
 
 	file->private_data = NULL;
 	CPP_TRACE("cpp release success\n");

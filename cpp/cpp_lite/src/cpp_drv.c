@@ -1113,11 +1113,9 @@ static int cppdrv_scale_slice_param_check(void *arg1, void *arg2)
 			p->bp_des_rect.h, p->input_fmt);
 		return -1;
 	}
-	if ((p->bp_en == 1) && (MOD2(p->bp_des_rect.x) != 0 ||
-		OSIDE(p->bp_des_rect.x, 0,
-		SCALE_FRAME_HEIGHT_MAX) ||
-		OSIDE(p->bp_des_rect.y, 0,
-		SCALE_FRAME_HEIGHT_MAX))) {
+	if ((p->bp_en == 1) && (MOD2(p->bp_des_rect.x) != 0||
+		(p->bp_des_rect.x > SCALE_FRAME_HEIGHT_MAX)||
+		(p->bp_des_rect.y > SCALE_FRAME_HEIGHT_MAX)) ){
 		pr_err("fail to check bp_des offset x:%d,y:%d\n",
 			p->bp_des_rect.x, p->bp_des_rect.y);
 		return -1;
@@ -1813,16 +1811,17 @@ static int cppdrv_init(void *arg)
 int cpp_drv_get_cpp_res(struct cpp_pipe_dev *cppif, struct cpp_hw_info *hw)
 {
 	int ret = 0;
-	if (!cppif ||!hw ) {
+	if (!cppif || !hw ) {
 		pr_err("fail to get valid input dev %p, hw  %p\n",
 			cppif, hw);
 		ret= -EFAULT;
+	} else {
+	    cppif->hw_info = hw;
+	    spin_lock_init(&cppif->slock);
+	    cppif->pdev= hw->pdev;
+	    cppif->irq = hw->ip_cpp->irq;
+	    cppif->io_base = hw->ip_cpp->io_base;
+	    ret = cppdrv_init(cppif);
 	}
-	cppif->hw_info = hw;
-	spin_lock_init(&cppif->slock);
-	cppif->pdev= hw->pdev;
-	cppif->irq = hw->ip_cpp->irq;
-	cppif->io_base = hw->ip_cpp->io_base;
-	ret = cppdrv_init(cppif);
-	return ret;
+   return ret;
 }
