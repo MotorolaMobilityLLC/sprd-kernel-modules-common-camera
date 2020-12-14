@@ -29,6 +29,8 @@ struct dma_buf * cam_ion_alloc(size_t len, unsigned int heap_id_mask,
 					unsigned int flags);
 void cam_ion_free(struct dma_buf *dmabuf);
 
+struct file *cam_filp_open(const char *, int, umode_t);
+int cam_filp_close(struct file *, fl_owner_t id);
 ssize_t cam_kernel_read(struct file *, void *, size_t, loff_t *);
 ssize_t cam_kernel_write(struct file *, void *, size_t, loff_t *);
 
@@ -44,5 +46,6 @@ struct regmap *cam_syscon_regmap_lookup_by_name(
 					const char *name);
 struct timespec cam_timespec_sub(struct timespec lhs,
 					struct timespec rhs);
+
 
 #endif

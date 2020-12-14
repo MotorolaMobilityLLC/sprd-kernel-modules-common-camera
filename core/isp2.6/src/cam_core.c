@@ -1115,7 +1115,7 @@ static void camcore_prepare_frame_from_file(struct camera_queue *queue,
 
 	pr_info("reading %u bytes from %s\n", total, fullname);
 	start = ktime_get_boottime();
-	raw = filp_open(fullname, O_RDONLY, 0);
+	raw = cam_filp_open(fullname, O_RDONLY, 0);
 	if (IS_ERR_OR_NULL(raw)) {
 		pr_err("fail to open data file\n");
 		goto enqueue_frame;
@@ -4547,7 +4547,7 @@ static void camcore_write_image_to_file(uint8_t *buffer,
 	ssize_t result = 0, total = 0, writ = 0;
 	struct file *wfp;
 
-	wfp = filp_open(file, O_CREAT|O_RDWR, 0666);
+	wfp = cam_filp_open(file, O_CREAT|O_RDWR, 0666);
 	if (IS_ERR_OR_NULL(wfp)) {
 		pr_err("fail to open file %s\n", file);
 		return;

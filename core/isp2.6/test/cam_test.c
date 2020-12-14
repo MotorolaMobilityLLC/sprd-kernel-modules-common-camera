@@ -40,7 +40,7 @@ void camt_write_image_to_file(unsigned char *buffer,
 	unsigned int per = BYTE_PER_ONCE;
 	struct file *wfp;
 
-	wfp = filp_open(file, O_CREAT|O_RDWR, 0666);
+	wfp = cam_filp_open(file, O_CREAT|O_RDWR, 0666);
 	if (IS_ERR_OR_NULL(wfp)) {
 		pr_err("fail to open file %s\n", file);
 		return;
@@ -69,7 +69,7 @@ void read_image_from_file(unsigned char *buffer,
 	unsigned int per = BYTE_PER_ONCE;
 	struct file *fp;
 
-	fp = filp_open(file, O_RDONLY, 0);
+	fp = cam_filp_open(file, O_RDONLY, 0);
 	if (IS_ERR_OR_NULL(fp)) {
 		pr_err("fail to open file %s\n", file);
 		return;

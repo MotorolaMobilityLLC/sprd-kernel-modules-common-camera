@@ -35,6 +35,16 @@ void cam_ion_free(struct dma_buf *dmabuf)
 	ion_free((struct ion_buffer *)dmabuf->priv);
 }
 
+struct file *cam_filp_open(const char *filename, int flags, umode_t mode)
+{
+	return NULL;
+}
+
+int cam_filp_close(struct file *filp, fl_owner_t id)
+{
+	return 0;
+}
+
 ssize_t cam_kernel_read(struct file *file, void *buf, size_t count, loff_t *pos)
 {
 	return 0;
@@ -95,6 +105,16 @@ struct dma_buf * cam_ion_alloc(size_t len, unsigned int heap_id_mask,
 void cam_ion_free(struct dma_buf *dmabuf)
 {
 	ion_free(dmabuf);
+}
+
+struct file *cam_filp_open(const char *filename, int flags, umode_t mode)
+{
+	return filp_open(filename, flags, mode);
+}
+
+int cam_filp_close(struct file *filp, fl_owner_t id)
+{
+	return filp_close(filp, id);
 }
 
 ssize_t cam_kernel_read(struct file *file, void *buf, size_t count, loff_t *pos)
