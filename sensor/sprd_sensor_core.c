@@ -644,8 +644,8 @@ static int sprd_sensor_file_open(struct inode *node, struct file *file)
 		}
 		sprd_cam_domain_eb();
 #else
-//		ret = pm_runtime_get(md->this_device);
-		ret = sprd_cam_pw_on(NULL);
+		ret = pm_runtime_get(md->this_device);
+//		ret = sprd_cam_pw_on(NULL);
 #endif
 /*		wake_lock(&p_mod->wakelock);*/
 		__pm_stay_awake(p_mod->ws);
@@ -704,8 +704,8 @@ static int sprd_sensor_file_release(struct inode *node, struct file *file)
 		sprd_cam_domain_disable();
 		sprd_cam_pw_off();
 #else
-//		pm_runtime_put(p_file->md->this_device);
-		ret = sprd_cam_pw_off(NULL);
+		pm_runtime_put(p_file->md->this_device);
+//		ret = sprd_cam_pw_off(NULL);
 #endif
 /*		wake_unlock(&p_mod->wakelock);*/
 		__pm_relax(p_mod->ws);
