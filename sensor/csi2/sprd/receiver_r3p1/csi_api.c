@@ -71,16 +71,19 @@ static struct csi_dt_node_info *csi_get_dt_node_data(int sensor_id)
 }
 /* csi src 0 soc, 1 sensor, and csi test pattern clk */
 
+int cnt = 0;
 static int csi_mipi_clk_enable(int sensor_id)
 {
 	struct csi_dt_node_info *dt_info = csi_get_dt_node_data(sensor_id);
 	int ret = 0;
 	void __iomem *reg_base = NULL;
 
-	reg_base = ioremap_nocache(0x30000008, 1);
-	if (!reg_base) {
-		pr_info("0x%x: ioremap failed\n", 0x30000008);
-		return -1;
+	if(!cnt) {
+		reg_base = ioremap_nocache(0x30000008, 1);
+		if (!reg_base) {
+			pr_info("0x%x: ioremap failed\n", 0x30000008);
+			return -1;
+		}
 	}
 
 	if (!dt_info) {
@@ -92,19 +95,20 @@ static int csi_mipi_clk_enable(int sensor_id)
 		pr_err("fail to csi mipi clk enable\n");
 		return -EINVAL;
 	}
-	REG_MWR(reg_base, BIT_5 | BIT_4 | BIT_3, BIT_5 | BIT_4 | BIT_3);
-	iounmap(reg_base);
-	reg_base = ioremap_nocache(0x3001004c, 9);
-	if (!reg_base) {
-		pr_info("0x%x: ioremap failed\n", 0x3001004c);
-		return -1;
+	if(!cnt) {
+		REG_MWR(reg_base, BIT_5 | BIT_4 | BIT_3, BIT_5 | BIT_4 | BIT_3);
+		iounmap(reg_base);
+		reg_base = ioremap_nocache(0x3001004c, 9);
+		if (!reg_base) {
+			pr_info("0x%x: ioremap failed\n", 0x3001004c);
+			return -1;
+		}
+		REG_MWR(reg_base, BIT_16, ~BIT_16);
+		REG_MWR(reg_base + 4, BIT_16, ~BIT_16);
+		REG_MWR(reg_base + 8, BIT_16, ~BIT_16);
+		iounmap(reg_base);
+		//csi_api_reg_trace();
 	}
-	REG_MWR(reg_base, BIT_16, ~BIT_16);
-	REG_MWR(reg_base + 4, BIT_16, ~BIT_16);
-	REG_MWR(reg_base + 8, BIT_16, ~BIT_16);
-	iounmap(reg_base);
-	//csi_api_reg_trace();
-
 	ret = clk_prepare_enable(dt_info->csi_eb_clk);
 	if (ret) {
 		pr_err("fail to csi eb clk\n");
@@ -130,7 +134,7 @@ static int csi_mipi_clk_enable(int sensor_id)
 	}
 	if(csi_pattern_enable)
 		clk_disable_unprepare(dt_info->csi_src_eb);//don't need enable in ipg mode
-
+	cnt++;
 	return ret;
 }
 
@@ -153,7 +157,7 @@ static void csi_mipi_clk_disable(int sensor_id)
 		REG_AON_APB_CGM_CLK_TOP_REG1,
 		MASK_AON_APB_CGM_CPHY_CFG_EN,
 		~MASK_AON_APB_CGM_CPHY_CFG_EN);
-
+	cnt--;
 	//clk_disable_unprepare(dt_info->mipi_csi_gate_eb);
 	//clk_disable_unprepare(dt_info->csi_eb_clk);
 	if(!csi_pattern_enable)
