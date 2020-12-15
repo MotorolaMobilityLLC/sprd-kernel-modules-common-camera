@@ -410,7 +410,7 @@ static int sprd_img_pulse_write(struct camera_pulse_queue *queue,
 	return 0;
 }
 
-static int __attribute__((unused)) sprd_img_pulse_read(struct camera_pulse_queue *queue,
+static int sprd_img_pulse_read(struct camera_pulse_queue *queue,
 			       struct sprd_img_vcm_param *node)
 {
 	unsigned long flags;
@@ -428,35 +428,6 @@ static int __attribute__((unused)) sprd_img_pulse_read(struct camera_pulse_queue
 		queue->rcnt++;
 		if (queue->read > &queue->node[CAMERA_QUEUE_LENGTH - 1])
 			queue->read = &queue->node[0];
-	}
-
-	if (!flag)
-		ret = -EAGAIN;
-	spin_unlock_irqrestore(&queue->lock, flags);
-
-	return ret;
-}
-
-static int sprd_img_pulse_read_tail(struct camera_pulse_queue *queue,
-			       struct sprd_img_vcm_param *node)
-{
-	unsigned long flags;
-	int ret = DCAM_RTN_SUCCESS;
-	int flag = 0;
-	struct sprd_img_vcm_param *temp = NULL;
-
-	if (NULL == queue || NULL == node)
-		return -EINVAL;
-
-	spin_lock_irqsave(&queue->lock, flags);
-	if  (queue->read != queue->write) {
-		temp = queue->write-1;
-		if (temp <  &queue->node[0])
-			temp = &queue->node[CAMERA_QUEUE_LENGTH - 1];
-		flag = 1;
-		*node = *temp;
-		queue->read = queue->write;
-		queue->rcnt = queue->wcnt;
 	}
 
 	if (!flag)
@@ -1987,7 +1958,7 @@ static void sprd_img_handle_pulse_line(struct work_struct *work)
 		container_of(pulse, struct camera_info, pulse_info);
 	struct sprd_img_vcm_param vcm_info;
 
-	ret = sprd_img_pulse_read_tail(&info->pulse_info.vcm_queue, &vcm_info);
+	ret = sprd_img_pulse_read(&info->pulse_info.vcm_queue, &vcm_info);
 	if (ret != 0)
 		goto exit;
 
