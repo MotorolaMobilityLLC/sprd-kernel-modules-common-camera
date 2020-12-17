@@ -20,7 +20,6 @@
 #define IMG_TYPE_YUV                   0x1E
 
 extern atomic_t s_dcam_working;
-static uint32_t dcam_hw_linebuf_len[3] = {0, 0, 0};
 static uint32_t g_gtm_en = 0;
 static uint32_t g_ltm_bypass = 1;
 static atomic_t clk_users;
@@ -431,7 +430,6 @@ static int dcamhw_reset(void *handle, void *arg)
 	DCAM_REG_WR(idx, NR3_FAST_ME_PARAM, 0x109);
 	DCAM_REG_MWR(idx, DCAM_GTM_GLB_CTRL, BIT_0, 0);
 	DCAM_REG_MWR(idx, DCAM_FBC_CTRL, BIT_0, 0);
-	dcam_hw_linebuf_len[idx] = 0;
 	pr_info("DCAM%d: reset end\n", idx);
 
 	return ret;
@@ -987,6 +985,7 @@ static int dcamhw_lbuf_share_set(void *handle, void *arg)
 {
 	int i = 0;
 	int ret = 0;
+	struct cam_hw_lbuf_share *camarg = (struct cam_hw_lbuf_share *)arg;
 	uint32_t tb_w[] = {
 	/*     dcam0, dcam1 */
 		5664, 3264,
@@ -995,35 +994,7 @@ static int dcamhw_lbuf_share_set(void *handle, void *arg)
 		4160, 5184,
 		3264, 5664,
 	};
-	char chip_type[64]= { 0 };
-	struct cam_hw_lbuf_share *camarg = (struct cam_hw_lbuf_share *)arg;
 
-	cam_kproperty_get("lwfq/type", chip_type, "-1");
-	/*0: T618 1:T610*/
-	dcam_hw_linebuf_len[camarg->idx] = camarg->width;
-	pr_debug("dcam_hw_linebuf_len[0] = %d, [1] = %d %s\n",
-		dcam_hw_linebuf_len[0], dcam_hw_linebuf_len[1], chip_type);
-	if (!strncmp(chip_type, "1", strlen("1"))) {
-		if (dcam_hw_linebuf_len[0] > DCAM_16M_WIDTH && dcam_hw_linebuf_len[1] > 0) {
-				pr_err("fail to check param,unsupprot img width\n");
-				return -EINVAL;
-		}else if (dcam_hw_linebuf_len[0] <= DCAM_16M_WIDTH && dcam_hw_linebuf_len[0] > DCAM_13M_WIDTH) {
-			if (dcam_hw_linebuf_len[1] > DCAM_8M_WIDTH) {
-				pr_err("fail to check param,unsupprot img width\n");
-				return -EINVAL;
-			}
-		} else if (dcam_hw_linebuf_len[0] <= DCAM_13M_WIDTH && dcam_hw_linebuf_len[0] > DCAM_8M_WIDTH) {
-			if (dcam_hw_linebuf_len[1] > DCAM_13M_WIDTH) {
-				pr_err("fail to check param,unsupprot img width\n");
-				return -EINVAL;
-			}
-		} else if (0 < dcam_hw_linebuf_len[0] && dcam_hw_linebuf_len[0] <= DCAM_8M_WIDTH) {
-			if (dcam_hw_linebuf_len[1] > DCAM_16M_WIDTH) {
-				pr_err("fail to check param,unsupprot img width\n");
-				return -EINVAL;
-			}
-		}
-	}
 	if (atomic_read(&s_dcam_working) > 0) {
 		pr_warn("dcam 0/1 already in working\n");
 		return 0;
