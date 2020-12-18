@@ -1999,7 +1999,7 @@ static int ispslice_3dnr_fbc_store_info_cfg(
 		slc_3dnr_fbc_store->fbc_size_in_hor = store_slice_width;
 		slc_3dnr_fbc_store->fbc_y_tile_addr_init_x256 = (uint32_t)nr3_fbc_store->y_tile_addr_init_x256
 			+ store_left_offset_tiles_num * FBC_NR3_BASE_ALIGN;
-		slc_3dnr_fbc_store->fbc_c_tile_addr_init_x256 = nr3_fbc_store->c_tile_addr_init_x256
+		slc_3dnr_fbc_store->fbc_c_tile_addr_init_x256 = (uint32_t)nr3_fbc_store->c_tile_addr_init_x256
 			+ store_left_offset_tiles_num * FBC_NR3_BASE_ALIGN;
 		slc_3dnr_fbc_store->fbc_y_header_addr_init = nr3_fbc_store->y_header_addr_init
 			- store_left_offset_tiles_num / 2;
