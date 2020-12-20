@@ -40,6 +40,7 @@
 #include "isp_slice.h"
 #include "isp_cfg.h"
 #include "dcam_core.h"
+#include "isp_pyr_rec.h"
 
 #ifdef pr_fmt
 #undef pr_fmt
@@ -335,6 +336,42 @@ static int ispcore_ltm_frame_process(struct isp_sw_context *pctx,
 			pipe_src->mode_ltm = MODE_LTM_OFF;
 			pr_err("fail to yuv LTM cfg frame, DISABLE\n");
 		}
+	}
+
+	return ret;
+}
+
+static int ispcore_rec_frame_process(struct isp_sw_context *pctx,
+	struct isp_hw_context *pctx_hw, struct camera_frame *pframe)
+{
+	int ret = 0;
+	struct isp_pipe_info *pipe_in = NULL;
+	struct isp_rec_ctx_desc *rec_ctx = NULL;
+	struct isp_pyr_rec_in cfg_in;
+
+	if (!pctx || !pctx_hw || !pframe) {
+		pr_err("fail to get valid parameter pctx %p pframe %p\n",
+			pctx, pframe);
+		return -EINVAL;
+	}
+
+	pipe_in = &pctx->pipe_info;
+	rec_ctx = (struct isp_rec_ctx_desc *)pctx->rec_handle;
+
+	if (pframe->need_pyr_rec) {
+		cfg_in.in_fetch.addr = pipe_in->fetch.addr;
+		cfg_in.in_fetch.in_trim = pipe_in->fetch.in_trim;
+		cfg_in.out_store.store.addr = pipe_in->store[ISP_SPATH_CP].store.addr;
+		cfg_in.out_store.store.size = pipe_in->store[ISP_SPATH_CP].store.size;
+	}
+
+	if (rec_ctx) {
+		rec_ctx->ops.cfg_param(rec_ctx, ISP_REC_CFG_WORK_MODE, &pctx->dev->wmode);
+		rec_ctx->ops.cfg_param(rec_ctx, ISP_REC_CFG_HW_CTX_IDX, &pctx_hw->hw_ctx_id);
+		rec_ctx->ops.cfg_param(rec_ctx, ISP_REC_CFG_FMCU_HANDLE, pctx_hw->fmcu_handle);
+		ret = rec_ctx->ops.pipe_proc(rec_ctx, &cfg_in);
+		if (ret == -1)
+			pr_err("fail to proc rec frame\n");
 	}
 
 	return ret;
@@ -1491,9 +1528,6 @@ static int ispcore_offline_frame_start(void *ctx)
 		goto unlock;
 	}
 
-	ispcore_3dnr_frame_process(pctx, pframe);
-	ispcore_ltm_frame_process(pctx, pframe);
-
 	use_fmcu = 0;
 	fmcu = (struct isp_fmcu_ctx_desc *)pctx_hw->fmcu_handle;
 	if (fmcu) {
@@ -1501,6 +1535,10 @@ static int ispcore_offline_frame_start(void *ctx)
 		if (use_fmcu)
 			fmcu->ops->ctx_reset(fmcu);
 	}
+
+	ispcore_3dnr_frame_process(pctx, pframe);
+	ispcore_ltm_frame_process(pctx, pframe);
+	ispcore_rec_frame_process(pctx, pctx_hw, pframe);
 
 	if (tmp.multi_slice || pctx->uinfo.enable_slowmotion) {
 		struct slice_cfg_input slc_cfg;
@@ -2358,6 +2396,7 @@ static int ispcore_path_cfg(void *isp_handle,
 	struct isp_3dnr_ctx_desc *nr3_ctx = NULL;
 	struct isp_ltm_ctx_desc *rgb_ltm = NULL;
 	struct isp_ltm_ctx_desc *yuv_ltm = NULL;
+	struct isp_rec_ctx_desc *rec_ctx = NULL;
 
 	if (!isp_handle || !param) {
 		pr_err("fail to get valid input ptr, isp_handle %p, param %p\n",
@@ -2380,6 +2419,7 @@ static int ispcore_path_cfg(void *isp_handle,
 	nr3_ctx = (struct isp_3dnr_ctx_desc *)pctx->nr3_handle;
 	rgb_ltm = (struct isp_ltm_ctx_desc *)pctx->rgb_ltm_handle;
 	yuv_ltm = (struct isp_ltm_ctx_desc *)pctx->yuv_ltm_handle;
+	rec_ctx = (struct isp_rec_ctx_desc *)pctx->rec_handle;
 
 	if ((cfg_cmd != ISP_PATH_CFG_CTX_BASE) &&
 		(cfg_cmd != ISP_PATH_CFG_CTX_SIZE) &&
@@ -2472,6 +2512,15 @@ static int ispcore_path_cfg(void *isp_handle,
 		ret = yuv_ltm->ltm_ops.core_ops.cfg_param(yuv_ltm, ISP_LTM_CFG_BUF, param);
 		if (ret) {
 			pr_err("fail to set isp ctx %d yuv ltm buffers.\n", ctx_id);
+			goto exit;
+		}
+		break;
+	case ISP_PATH_CFG_PYR_REC_BUF:
+		if (!rec_ctx)
+			return 0;
+		ret = rec_ctx->ops.cfg_param(rec_ctx, ISP_REC_CFG_BUF, param);
+		if (ret) {
+			pr_err("fail to set isp ctx %d rec buffer.\n", ctx_id);
 			goto exit;
 		}
 		break;
@@ -2894,7 +2943,7 @@ static int ispcore_context_get(void *isp_handle, void *param)
 
 	if (pctx->rgb_ltm_handle == NULL && hw->ip_isp->rgb_ltm_support) {
 		pctx->rgb_ltm_handle = isp_ltm_rgb_ctx_get(pctx->ctx_id,
-			pctx->attach_cam_id);
+			pctx->attach_cam_id, hw);
 		if (!pctx->rgb_ltm_handle) {
 			pr_err("fail to get memory for ltm_rgb_ctx.\n");
 			ret = -ENOMEM;
@@ -2904,11 +2953,20 @@ static int ispcore_context_get(void *isp_handle, void *param)
 
 	if (pctx->yuv_ltm_handle == NULL && hw->ip_isp->yuv_ltm_support) {
 		pctx->yuv_ltm_handle = isp_ltm_yuv_ctx_get(pctx->ctx_id,
-			pctx->attach_cam_id);
+			pctx->attach_cam_id, hw);
 		if (!pctx->yuv_ltm_handle) {
 			pr_err("fail to get memory for ltm_yuv_ctx.\n");
 			ret = -ENOMEM;
 			goto yuv_ltm_err;
+		}
+	}
+
+	if (pctx->rec_handle == NULL && hw->ip_isp->pyr_rec_support) {
+		pctx->rec_handle = isp_pyr_rec_ctx_get(pctx->ctx_id, hw);
+		if (!pctx->rec_handle) {
+			pr_err("fail to get memory for rec_ctx.\n");
+			ret = -ENOMEM;
+			goto rec_err;
 		}
 	}
 
@@ -2954,6 +3012,11 @@ static int ispcore_context_get(void *isp_handle, void *param)
 	goto exit;
 
 thrd_err:
+	if (pctx->rec_handle && hw->ip_isp->pyr_rec_support) {
+		isp_pyr_rec_ctx_put(pctx->rec_handle);
+		pctx->rec_handle = NULL;
+	}
+rec_err:
 	if (pctx->yuv_ltm_handle && hw->ip_isp->yuv_ltm_support) {
 		isp_ltm_yuv_ctx_put(pctx->yuv_ltm_handle);
 		pctx->yuv_ltm_handle = NULL;
@@ -3059,6 +3122,11 @@ static int ispcore_context_put(void *isp_handle, int ctx_id)
 			yuv_ltm->ltm_ops.sync_ops.set_status(yuv_ltm, 0);
 			isp_ltm_yuv_ctx_put(pctx->yuv_ltm_handle);
 			pctx->yuv_ltm_handle = NULL;
+		}
+
+		if (pctx->rec_handle && hw->ip_isp->pyr_rec_support) {
+			isp_pyr_rec_ctx_put(pctx->rec_handle);
+			pctx->rec_handle = NULL;
 		}
 
 		/* clear path queue. */
@@ -3184,8 +3252,7 @@ static int ispcore_context_init(struct isp_pipe_dev *dev)
 				pr_info("no more fmcu or ops\n");
 			}
 		}
-		pr_info("isp hw context %d init done. fmcu %p\n",
-				i, pctx_hw->fmcu_handle);
+		pr_info("isp hw context %d init done. fmcu %p\n", i, pctx_hw->fmcu_handle);
 	}
 
 	pr_debug("done!\n");

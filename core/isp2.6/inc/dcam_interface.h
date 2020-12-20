@@ -24,14 +24,15 @@
 
 /* 2-pixel align for RDS output size */
 #define DCAM_RDS_OUT_ALIGN              2
-
 /* 16-pixel align for debug convenience */
 #define DCAM_OUTPUT_DEBUG_ALIGN         16
 
 /* align size for full/bin crop, use 4 for zzhdr sensor, 2 for normal sensor */
 #define DCAM_CROP_SIZE_ALIGN            4
-
 #define DCAM_SCALE_DOWN_MAX             4
+
+/* dcam dec pyramid layer num */
+#define DCAM_PYR_DEC_LAYER_NUM          4
 
 /*
  * Quick function to check is @idx valid.
@@ -110,6 +111,26 @@ enum dcam_path_cfg_cmd {
 	DCAM_PATH_CFG_STATE,
 };
 
+/* Just cal multilayer pyr_dec size but not include layer0 size */
+static inline uint32_t dcam_if_cal_pyramid_size(uint32_t w, uint32_t h)
+{
+	uint32_t total_w = 0, total_h = 0, i = 0;
+	uint32_t w_align = PYR_DEC_WIDTH_ALIGN;
+	uint32_t h_align = PYR_DEC_HEIGHT_ALIGN;
+
+	for (i = 0; i < DCAM_PYR_DEC_LAYER_NUM; i++) {
+		w_align *= 2;
+		h_align *= 2;
+	}
+
+	w = ALIGN(w, w_align);
+	h = ALIGN(h, h_align);
+	total_w = w / 2 + w / 4 + w / 8 + w / 16;
+	total_h = h / 2 + h / 4 + h / 8 + h / 16;
+
+	return total_w * total_h * 3;
+}
+
 enum dcam_ioctrl_cmd {
 	DCAM_IOCTL_CFG_CAP,
 	DCAM_IOCTL_CFG_STATIS_BUF,
@@ -164,6 +185,7 @@ struct dcam_path_cfg_param {
 	uint32_t dcam_out_fmt;
 	uint32_t dcam_out_bits;
 	uint32_t is_4in1;
+	uint32_t is_pyr_rec;
 	uint32_t frm_deci;
 	uint32_t frm_skip;
 	uint32_t force_rds;

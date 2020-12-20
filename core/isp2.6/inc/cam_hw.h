@@ -27,6 +27,7 @@ extern struct cam_hw_info qogirl6_hw_info;
 extern struct cam_hw_info qogirn6pro_hw_info;
 
 typedef int (*hw_ioctl_fun)(void *handle, void *arg);
+typedef int (*isp_k_blk_func)(void *handle);
 
 /* The project id must keep same with the DT cfg
  * new added project should always added in the end
@@ -51,6 +52,14 @@ enum cam_block_type {
 	DCAM_BLOCK_TYPE,
 	ISP_BLOCK_TYPE,
 	MAX_BLOCK_TYPE
+};
+
+enum isp_k_blk_idx {
+	ISP_K_BLK_LTM,
+	ISP_K_BLK_PYR_REC_SHARE,
+	ISP_K_BLK_PYR_REC_FRAME,
+	ISP_K_BLK_PYR_REC_SLICE,
+	ISP_K_BLK_MAX
 };
 
 enum dcam_full_src_sel_type {
@@ -176,6 +185,7 @@ enum isp_hw_cfg_cmd {
 	ISP_HW_CFG_FETCH_FBD_SET,
 	ISP_HW_CFG_DEFAULT_PARA_SET,
 	ISP_HW_CFG_BLOCK_FUNC_GET,
+	ISP_HW_CFG_K_BLK_FUNC_GET,
 	ISP_HW_CFG_CFG_MAP_INFO_GET,
 	ISP_HW_CFG_FMCU_VALID_GET,
 	ISP_HW_CFG_BYPASS_DATA_GET,
@@ -395,9 +405,11 @@ struct isp_hw_path_store {
 };
 
 struct scaler_phase_info {
-    int32_t   scaler_init_phase[2];
-    int16_t   scaler_init_phase_int[2][2]; /*[hor/ver][luma/chroma]*/
-    uint16_t  scaler_init_phase_rmd[2][2]; /*[hor/ver][luma/chroma]*/
+	int32_t scaler_init_phase[2];
+	/* [hor/ver][luma/chroma] */
+	int16_t scaler_init_phase_int[2][2];
+	/* [hor/ver][luma/chroma] */
+	uint16_t scaler_init_phase_rmd[2][2];
 };
 
 struct isp_scaler_info {
@@ -683,8 +695,13 @@ struct isp_hw_default_param {
 };
 
 struct isp_hw_block_func {
-	struct isp_cfg_entry *isp_entry;
 	uint32_t index;
+	struct isp_cfg_entry *isp_entry;
+};
+
+struct isp_hw_k_blk_func {
+	enum isp_k_blk_idx index;
+	isp_k_blk_func k_blk_func;
 };
 
 struct dcam_hw_block_func_get {
@@ -1007,6 +1024,7 @@ struct cam_hw_ip_info {
 	unsigned long pdaf_type3_reg_addr;
 	uint32_t rds_en;
 	uint32_t dcam_raw_path_id;
+	uint32_t pyramid_support;
 
 	/* For isp support info */
 	uint32_t slm_cfg_support;
@@ -1014,6 +1032,8 @@ struct cam_hw_ip_info {
 	uint32_t *ctx_fmcu_support;
 	uint32_t rgb_ltm_support;
 	uint32_t yuv_ltm_support;
+	uint32_t pyr_rec_support;
+	uint32_t pyr_dec_support;
 };
 
 struct cam_hw_soc_info {

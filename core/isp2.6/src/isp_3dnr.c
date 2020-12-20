@@ -10,20 +10,13 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  */
-#include <linux/uaccess.h>
-#include <sprd_mm.h>
 
-#include "isp_hw.h"
-#include "cam_types.h"
-#include "cam_block.h"
-#include "isp_core.h"
 #include "isp_3dnr.h"
 
 #ifdef pr_fmt
 #undef pr_fmt
 #endif
-#define pr_fmt(fmt) "ISP_3DNR: %d %d %s : "\
-	fmt, current->pid, __LINE__, __func__
+#define pr_fmt(fmt) "ISP_3DNR: %d %d %s : "fmt, current->pid, __LINE__, __func__
 
 static int isp3dnr_store_config_gen(struct isp_3dnr_ctx_desc *ctx)
 {

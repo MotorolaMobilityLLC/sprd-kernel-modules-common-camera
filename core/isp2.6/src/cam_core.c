@@ -156,9 +156,10 @@ struct camera_uinfo {
 	uint32_t capture_skip;
 
 	uint32_t is_4in1;
-	uint32_t is_3dnr;
 	uint32_t is_rgb_ltm;
 	uint32_t is_yuv_ltm;
+	uint32_t is_pyr_rec;
+	uint32_t is_pyr_dec;
 	uint32_t is_dual;
 	uint32_t dcam_slice_mode;/*1: hw,  2:sw*/
 	uint32_t slice_num;
@@ -224,12 +225,14 @@ struct channel_context {
 	uint32_t mode_ltm;
 	uint32_t ltm_rgb;
 	uint32_t ltm_yuv;
+	uint32_t pyr_layer_num;
 	struct camera_frame *fdrl_zoom_buf;
 	struct camera_frame *fdrh_zoom_buf;
 	struct camera_frame *postproc_buf;
 	struct camera_frame *nr3_bufs[ISP_NR3_BUF_NUM];
 	struct camera_frame *ltm_bufs[LTM_MAX][ISP_LTM_BUF_NUM];
 	struct camera_frame *res_frame;
+	struct camera_frame *pyr_rec_buf;
 	int32_t reserved_buf_fd;
 
 	/* dcam/isp shared frame buffer for full path */
@@ -1227,14 +1230,12 @@ static int camcore_buffer_path_cfg(struct camera_module *module,
 			ret = module->dcam_dev_handle->dcam_pipe_ops->cfg_path(
 				&module->dcam_dev_handle->sw_ctx[module->cur_sw_ctx_id],
 				DCAM_PATH_CFG_OUTPUT_BUF,
-				ch->aux_dcam_path_id,
-				pframe);
+				ch->aux_dcam_path_id, pframe);
 		else
 			ret = module->dcam_dev_handle->dcam_pipe_ops->cfg_path(
 				&module->dcam_dev_handle->sw_ctx[module->cur_sw_ctx_id],
 				DCAM_PATH_CFG_OUTPUT_BUF,
-				ch->dcam_path_id,
-				pframe);
+				ch->dcam_path_id, pframe);
 		if (ret) {
 			pr_err("fail to config dcam output buffer. cur_sw_ctx_id:%d\n", module->cur_sw_ctx_id);
 			cam_queue_enqueue(&ch->share_buf_queue, &pframe->list);
@@ -1250,8 +1251,7 @@ static int camcore_buffer_path_cfg(struct camera_module *module,
 			continue;
 		ret = module->isp_dev_handle->isp_ops->cfg_path(module->isp_dev_handle,
 				ISP_PATH_CFG_3DNR_BUF,
-				isp_ctx_id, isp_path_id,
-				ch->nr3_bufs[j]);
+				isp_ctx_id, isp_path_id, ch->nr3_bufs[j]);
 		if (ret) {
 			pr_err("fail to config isp 3DNR buffer\n");
 			goto exit;
@@ -1263,10 +1263,22 @@ static int camcore_buffer_path_cfg(struct camera_module *module,
 			return 0;
 		ret = module->isp_dev_handle->isp_ops->cfg_path(module->isp_dev_handle,
 				ISP_PATH_CFG_POSTPROC_BUF,
-				isp_ctx_id, isp_path_id,
-				ch->postproc_buf);
+				isp_ctx_id, isp_path_id, ch->postproc_buf);
 		if (ret) {
 			pr_err("fail to config isp superzoom buffer sw %d,  path id %d\n",
+				isp_ctx_id, isp_path_id);
+			goto exit;
+		}
+	}
+
+	if (module->cam_uinfo.is_pyr_rec) {
+		if (ch->pyr_rec_buf == NULL)
+			return 0;
+		ret = module->isp_dev_handle->isp_ops->cfg_path(module->isp_dev_handle,
+				ISP_PATH_CFG_PYR_REC_BUF,
+				isp_ctx_id, isp_path_id, ch->pyr_rec_buf);
+		if (ret) {
+			pr_err("fail to config isp pyr_rec buffer sw %d,  path id %d\n",
 				isp_ctx_id, isp_path_id);
 			goto exit;
 		}
@@ -1343,21 +1355,52 @@ exit:
 	return ret;
 }
 
+static int camcore_buffers_alloc_num(struct channel_context *channel,
+		struct camera_module *module)
+{
+	int num = 5;
+
+	if (channel->ch_id == CAM_CH_CAP && module->cam_uinfo.is_dual)
+		num = 4;
+
+	/* 4in1 non-zsl capture for single frame */
+	if ((module->cam_uinfo.is_4in1 || module->cam_uinfo.dcam_slice_mode)
+		&& channel->ch_id == CAM_CH_CAP &&
+		module->channel[CAM_CH_PRE].enable == 0 &&
+		module->channel[CAM_CH_VID].enable == 0)
+		num = 1;
+
+	if (module->dump_thrd.thread_task)
+		num += 3;
+
+	/* extend buffer queue for slow motion */
+	if (channel->ch_uinfo.is_high_fps)
+		num = CAM_SHARED_BUF_NUM;
+
+	if (channel->ch_id == CAM_CH_PRE &&
+		module->grp->camsec_cfg.camsec_mode != SEC_UNABLE) {
+		num = 4;
+	}
+
+	return num;
+}
+
 static int camcore_buffers_alloc(void *param)
 {
 	int ret = 0;
+	int path_id = 0;
 	int i, count, total, iommu_enable;
 	uint32_t width = 0, height = 0, size = 0, pack_bits = 0, dcam_out_bits = 0, pitch = 0;
 	uint32_t postproc_w = 0, postproc_h = 0;
+	uint32_t is_super_size = 0;
+	uint32_t sec_mode = 0;
 	struct camera_module *module;
 	struct camera_frame *pframe;
 	struct channel_context *channel = NULL;
 	struct channel_context *channel_vid = NULL;
 	struct camera_debugger *debugger;
 	struct cam_hw_info *hw = NULL;
-	int path_id = 0;
 	struct camera_frame *alloc_buf = NULL;
-	uint32_t is_super_size = 0;
 	uint32_t is_pack = 0;
 	struct dcam_compress_info fbc_info;
 
@@ -1378,6 +1421,7 @@ static int camcore_buffers_alloc(void *param)
 	hw = module->grp->hw_info;
 	iommu_enable = module->iommu_enable;
 	channel_vid = &module->channel[CAM_CH_VID];
+	sec_mode = module->grp->camsec_cfg.camsec_mode;
 
 	if (channel->ch_id != CAM_CH_CAP &&
 		hw->ip_dcam[module->dcam_idx]->rds_en) {
@@ -1405,60 +1449,33 @@ static int camcore_buffers_alloc(void *param)
 		size = width * height * 3;
 	}
 
+	if (module->cam_uinfo.is_pyr_rec && channel->ch_id != CAM_CH_CAP)
+		size += dcam_if_cal_pyramid_size(width, height);
 	size = ALIGN(size, CAM_BUF_ALIGN_SIZE);
 
-	total = 5;
-	if (channel->ch_id == CAM_CH_CAP && module->cam_uinfo.is_dual)
-		total = 4;
-
-	/* 4in1 non-zsl capture for single frame */
-	if ((module->cam_uinfo.is_4in1 || module->cam_uinfo.dcam_slice_mode)
-		&& channel->ch_id == CAM_CH_CAP &&
-		module->channel[CAM_CH_PRE].enable == 0 &&
-		module->channel[CAM_CH_VID].enable == 0)
-		total = 1;
-
-	if (module->dump_thrd.thread_task)
-		total += 3;
-
-	/* extend buffer queue for slow motion */
-	if (channel->ch_uinfo.is_high_fps)
-		total = CAM_SHARED_BUF_NUM;
-
-	if (channel->ch_id == CAM_CH_PRE &&
-		module->grp->camsec_cfg.camsec_mode != SEC_UNABLE) {
-		total = 4;
-	}
-
+	total = camcore_buffers_alloc_num(channel, module);
 	pr_info("ch_id %d, camsec=%d, buffer size: %u (%u x %u), num %d\n",
-		channel->ch_id, module->grp->camsec_cfg.camsec_mode,
-		size, width, height,	total);
+		channel->ch_id, sec_mode, size, width, height, total);
 
 	for (i = 0, count = 0; i < total; i++) {
 		do {
 			pframe = cam_queue_empty_frame_get();
 			pframe->channel_id = channel->ch_id;
 			pframe->is_compressed = channel->compress_input;
-			pframe->compress_4bit_bypass =
-				channel->compress_4bit_bypass;
+			pframe->compress_4bit_bypass = channel->compress_4bit_bypass;
 			pframe->width = width;
 			pframe->height = height;
 			pframe->endian = ENDIAN_LITTLE;
 			pframe->pattern = module->cam_uinfo.sensor_if.img_ptn;
 			pframe->fbc_info = fbc_info;
-			if (channel->ch_id == CAM_CH_PRE &&
-				module->grp->camsec_cfg.camsec_mode != SEC_UNABLE) {
+			if (channel->ch_id == CAM_CH_PRE && sec_mode != SEC_UNABLE)
 				pframe->buf.buf_sec = 1;
-			} else {
-				pframe->buf.buf_sec = 0;
-			}
+			if (module->cam_uinfo.is_pyr_rec && channel->ch_id != CAM_CH_CAP)
+				pframe->need_pyr_rec = 1;
 
-			pr_info("camca: ch_id =%d, buf_sec=%d\n", channel->ch_id, pframe->buf.buf_sec);
-
-			ret = cam_buf_alloc(&pframe->buf, size, 0, iommu_enable);
+			ret = cam_buf_alloc(&pframe->buf, size, iommu_enable);
 			if (ret) {
-				pr_err("fail to alloc buf: %d ch %d\n",
-						i, channel->ch_id);
+				pr_err("fail to alloc buf: %d ch %d\n", i, channel->ch_id);
 				cam_queue_empty_frame_put(pframe);
 				atomic_inc(&channel->err_status);
 				goto exit;
@@ -1473,8 +1490,7 @@ static int camcore_buffers_alloc(void *param)
 			} else {
 				count++;
 				pr_debug("frame %p,idx %d,cnt %d,phy_addr %p\n",
-					pframe, i, count,
-					(void *)pframe->buf.addr_vir[0]);
+					pframe, i, count, (void *)pframe->buf.addr_vir[0]);
 				break;
 			}
 		} while (1);
@@ -1501,8 +1517,6 @@ static int camcore_buffers_alloc(void *param)
 	}
 
 	if (hw->ip_dcam[module->dcam_idx]->superzoom_support && !is_super_size) {
-		/*more than 8x zoom capture alloc buf*/
-
 		postproc_w = channel->ch_uinfo.dst_size.w / ISP_SCALER_UP_MAX;
 		postproc_h = channel->ch_uinfo.dst_size.h / ISP_SCALER_UP_MAX;
 		if (channel->ch_id != CAM_CH_CAP && channel_vid->enable) {
@@ -1522,14 +1536,10 @@ static int camcore_buffers_alloc(void *param)
 		}
 
 		pframe->channel_id = channel->ch_id;
-		if (module->grp->camsec_cfg.camsec_mode != SEC_UNABLE) {
+		if (sec_mode != SEC_UNABLE)
 			pframe->buf.buf_sec = 1;
-			pr_debug("superzoom camca: ch_id =%d, buf_sec=%d\n",
-				channel->ch_id,
-				pframe->buf.buf_sec);
-		}
 
-		ret = cam_buf_alloc(&pframe->buf, size, 0, 1);
+		ret = cam_buf_alloc(&pframe->buf, size, iommu_enable);
 		if (ret) {
 			pr_err("fail to alloc superzoom buf\n");
 			cam_queue_empty_frame_put(pframe);
@@ -1558,15 +1568,10 @@ static int camcore_buffers_alloc(void *param)
 		for (i = 0; i < ISP_NR3_BUF_NUM; i++) {
 			pframe = cam_queue_empty_frame_get();
 
-			if (channel->ch_id == CAM_CH_PRE &&
-				module->grp->camsec_cfg.camsec_mode != SEC_UNABLE) {
+			if (channel->ch_id == CAM_CH_PRE && sec_mode != SEC_UNABLE)
 				pframe->buf.buf_sec = 1;
-				pr_info("camca:  ch_id =%d, buf_sec=%d\n",
-					channel->ch_id,
-					pframe->buf.buf_sec);
-			}
 
-			ret = cam_buf_alloc(&pframe->buf, size, 0, iommu_enable);
+			ret = cam_buf_alloc(&pframe->buf, size, iommu_enable);
 			if (ret) {
 				pr_err("fail to alloc 3dnr buf: %d ch %d\n", i, channel->ch_id);
 				cam_queue_empty_frame_put(pframe);
@@ -1585,7 +1590,6 @@ static int camcore_buffers_alloc(void *param)
 		 * MAX tile num: 8 * 8
 		 */
 		size = 64 * 128 * 2;
-
 		size = ALIGN(size, CAM_BUF_ALIGN_SIZE);
 
 		pr_info("ch %d ltm buffer size: %u.\n", channel->ch_id, size);
@@ -1595,13 +1599,9 @@ static int camcore_buffers_alloc(void *param)
 					pframe = cam_queue_empty_frame_get();
 
 					if (channel->ch_id == CAM_CH_PRE
-						&& module->grp->camsec_cfg.camsec_mode == SEC_TIME_PRIORITY) {
+						&& sec_mode == SEC_TIME_PRIORITY)
 						pframe->buf.buf_sec = 1;
-						pr_info("camca: ch_id =%d, buf_sec=%d\n",
-							channel->ch_id,
-							pframe->buf.buf_sec);
-					}
-					ret = cam_buf_alloc(&pframe->buf, size, 0, iommu_enable);
+					ret = cam_buf_alloc(&pframe->buf, size, iommu_enable);
 					if (ret) {
 						pr_err("fail to alloc ltm buf: %d ch %d\n",
 							i, channel->ch_id);
@@ -1621,13 +1621,9 @@ static int camcore_buffers_alloc(void *param)
 					pframe = cam_queue_empty_frame_get();
 
 					if (channel->ch_id == CAM_CH_PRE
-						&& module->grp->camsec_cfg.camsec_mode == SEC_TIME_PRIORITY) {
+						&& sec_mode == SEC_TIME_PRIORITY)
 						pframe->buf.buf_sec = 1;
-						pr_info("camca: ch_id =%d, buf_sec=%d\n",
-							channel->ch_id,
-							pframe->buf.buf_sec);
-					}
-					ret = cam_buf_alloc(&pframe->buf, size, 0, iommu_enable);
+					ret = cam_buf_alloc(&pframe->buf, size, iommu_enable);
 					if (ret) {
 						pr_err("fail to alloc ltm buf: %d ch %d\n",
 							i, channel->ch_id);
@@ -1640,6 +1636,32 @@ static int camcore_buffers_alloc(void *param)
 				}
 			}
 		}
+	}
+
+	if (module->cam_uinfo.is_pyr_rec) {
+		width = channel->ch_uinfo.dst_size.w;
+		height = channel->ch_uinfo.dst_size.h;
+		width = isp_rec_layer0_width(width, channel->pyr_layer_num);
+		width = width / 2;
+		height = isp_rec_layer0_heigh(height, channel->pyr_layer_num);
+		height = height /2;
+		/* rec temp buf max size is equal to layer1 size: w/2 * h/2 */
+		size = width * height * 3 / 2;
+		pframe = cam_queue_empty_frame_get();
+		if (channel->ch_id == CAM_CH_PRE && sec_mode == SEC_TIME_PRIORITY)
+			pframe->buf.buf_sec = 1;
+		pframe->width = width;
+		pframe->height = height;
+		ret = cam_buf_alloc(&pframe->buf, size, iommu_enable);
+		if (ret) {
+			pr_err("fail to alloc superzoom buf\n");
+			cam_queue_empty_frame_put(pframe);
+			atomic_inc(&channel->err_status);
+			goto exit;
+		}
+		channel->pyr_rec_buf = pframe;
+		pr_debug("idx %d, pyr_rec w %d, h %d, buf %p\n",
+			module->dcam_idx, postproc_w, postproc_h, pframe);
 	}
 
 exit:
@@ -2352,7 +2374,7 @@ static int camcore_dcam_callback(enum dcam_cb_type type, void *param, void *priv
 				pframe->irq_type = (pframe->irq_property == CAM_FRAME_FDRL) ?
 						CAMERA_IRQ_FDRL : CAMERA_IRQ_FDRH;
 				module->fdr_done |= (1 << pframe->irq_type);
-				pr_info("fdr %d yuv buf %d done %x\n", pframe->irq_property,
+				pr_debug("fdr %d yuv buf %d done %x\n", pframe->irq_property,
 						pframe->buf.mfd[0], module->fdr_done);
 				if ((module->fdr_done & (1 << CAMERA_IRQ_FDRL)) &&
 					(module->fdr_done & (1 << CAMERA_IRQ_FDRH)))
@@ -3547,7 +3569,7 @@ static int camcore_channel_bigsize_config(
 			pframe->endian = ENDIAN_LITTLE;
 			pframe->pattern = module->cam_uinfo.sensor_if.img_ptn;
 			pframe->buf.buf_sec = 0;
-			ret = cam_buf_alloc(&pframe->buf, size, 0, iommu_enable);
+			ret = cam_buf_alloc(&pframe->buf, size, iommu_enable);
 			if (ret) {
 				pr_err("fail to alloc buf: %d ch %d\n",
 					i, channel->ch_id);
@@ -4053,6 +4075,8 @@ static int camcore_channel_init(struct camera_module *module,
 			ch_desc.is_raw = 1;
 		if ((channel->ch_id == CAM_CH_CAP) && module->cam_uinfo.dcam_slice_mode)
 			ch_desc.is_raw = 1;
+		if ((channel->ch_id != CAM_CH_CAP) && module->cam_uinfo.is_pyr_rec)
+			ch_desc.is_pyr_rec = 1;
 		ret = module->dcam_dev_handle->dcam_pipe_ops->cfg_path(&module->dcam_dev_handle->sw_ctx[module->cur_sw_ctx_id],
 			DCAM_PATH_CFG_BASE, channel->dcam_path_id, &ch_desc);
 		channel->dcam_out_fmt = ch_desc.dcam_out_fmt;
@@ -4150,6 +4174,18 @@ static int camcore_channel_init(struct camera_module *module,
 		} else {
 			channel->ltm_yuv = 0;
 			ctx_desc.ltm_yuv = 0;
+		}
+
+		if (module->cam_uinfo.is_pyr_rec) {
+			if (channel->ch_id == CAM_CH_CAP) {
+				channel->pyr_layer_num = ISP_PYR_DEC_LAYER_NUM;
+				ctx_desc.pyr_layer_num = ISP_PYR_DEC_LAYER_NUM;
+			} else if (channel->ch_id == CAM_CH_PRE) {
+				channel->pyr_layer_num = DCAM_PYR_DEC_LAYER_NUM;
+				ctx_desc.pyr_layer_num = DCAM_PYR_DEC_LAYER_NUM;
+			}
+		} else {
+			ctx_desc.pyr_layer_num = 0;
 		}
 
 		ret = module->isp_dev_handle->isp_ops->cfg_path(module->isp_dev_handle,
@@ -5407,7 +5443,7 @@ static int camcore_raw_post_proc(struct camera_module *module,
 		else
 			size = width * height * 3;
 		size = ALIGN(size, CAM_BUF_ALIGN_SIZE);
-		ret = cam_buf_alloc(&mid_frame->buf, (size_t)size, 0, module->iommu_enable);
+		ret = cam_buf_alloc(&mid_frame->buf, (size_t)size, module->iommu_enable);
 		if (ret)
 			goto mid_fail;
 	}

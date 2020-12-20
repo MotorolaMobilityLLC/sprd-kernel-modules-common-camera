@@ -21,11 +21,9 @@
 #ifdef pr_fmt
 #undef pr_fmt
 #endif
-#define pr_fmt(fmt) "LTM MAP: %d %d %s : "\
-	fmt, current->pid, __LINE__, __func__
+#define pr_fmt(fmt) "ISP_K_LTM: %d %d %s : " fmt, current->pid, __LINE__, __func__
 
-#define	ISP_LTM_HIST_BUF0		0
-#define	ISP_LTM_HIST_BUF1		1
+#define ISP_LTM_HIST_BUF0                0
 
 static void isp_ltm_config_hists(uint32_t idx,
 	enum isp_ltm_region ltm_id, struct isp_ltm_hists *hists)
@@ -154,16 +152,25 @@ static void isp_ltm_config_map(uint32_t idx,
 	ISP_REG_WR(idx, base + ISP_LTM_MAP_PARAM5, val);
 }
 
-
-int isp_ltm_config_param(struct isp_ltm_ctx_desc *ctx)
+int isp_ltm_config_param(void *handle)
 {
-	uint32_t idx = ctx->ctx_id;
-	struct isp_ltm_hists *hists = &ctx->hists;
-	struct isp_ltm_map *map = &ctx->map;
+	uint32_t idx = 0;
+	struct isp_ltm_ctx_desc *ctx = NULL;
+	struct isp_ltm_hists *hists = NULL;
+	struct isp_ltm_map *map = NULL;
 
+	if (!handle) {
+		pr_err("fail to get invalid in ptr\n");
+		return -EFAULT;
+	}
+
+	ctx = (struct isp_ltm_ctx_desc *)handle;
+	idx = ctx->ctx_id;
+	hists = &ctx->hists;
+	map = &ctx->map;
 	if (ctx->bypass) {
 		hists->bypass = 1;
-		map->bypass  = 1;
+		map->bypass = 1;
 	}
 
 	isp_ltm_config_hists(idx, ctx->ltm_id, hists);

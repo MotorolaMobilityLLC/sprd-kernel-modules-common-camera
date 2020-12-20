@@ -282,8 +282,7 @@ static struct cam_hw_soc_info dcam_soc_info;
 static struct cam_hw_soc_info isp_soc_info;
 static struct cam_hw_ip_info dcam[DCAM_ID_MAX] = {
 	[DCAM_ID_0] = {
-		.slm_path = BIT(DCAM_PATH_BIN) | BIT(DCAM_PATH_AEM)
-			| BIT(DCAM_PATH_HIST),
+		.slm_path = BIT(DCAM_PATH_BIN) | BIT(DCAM_PATH_AEM) | BIT(DCAM_PATH_HIST),
 		.lbuf_share_support = 1,
 		.offline_slice_support = 1,
 		.afl_gbuf_size = STATIS_AFL_GBUF_SIZE,
@@ -295,10 +294,10 @@ static struct cam_hw_ip_info dcam[DCAM_ID_MAX] = {
 		.pdaf_type3_reg_addr = DCAM_PPE_RIGHT_WADDR,
 		.rds_en = 0,
 		.dcam_raw_path_id = DCAM_PATH_FULL,
+		.pyramid_support = 0,
 	},
 	[DCAM_ID_1] = {
-		.slm_path = BIT(DCAM_PATH_BIN) | BIT(DCAM_PATH_AEM)
-			| BIT(DCAM_PATH_HIST),
+		.slm_path = BIT(DCAM_PATH_BIN) | BIT(DCAM_PATH_AEM) | BIT(DCAM_PATH_HIST),
 		.lbuf_share_support = 1,
 		.offline_slice_support = 1,
 		.afl_gbuf_size = STATIS_AFL_GBUF_SIZE,
@@ -310,10 +309,10 @@ static struct cam_hw_ip_info dcam[DCAM_ID_MAX] = {
 		.pdaf_type3_reg_addr = DCAM_PPE_RIGHT_WADDR,
 		.rds_en = 0,
 		.dcam_raw_path_id = DCAM_PATH_FULL,
+		.pyramid_support = 0,
 	},
 	[DCAM_ID_2] = {
-		.slm_path = BIT(DCAM_PATH_BIN) | BIT(DCAM_PATH_AEM)
-			| BIT(DCAM_PATH_HIST),
+		.slm_path = BIT(DCAM_PATH_BIN) | BIT(DCAM_PATH_AEM) | BIT(DCAM_PATH_HIST),
 		.lbuf_share_support = 0,
 		.offline_slice_support = 0,
 		.afl_gbuf_size = STATIS_AFL_GBUF_SIZE,
@@ -325,6 +324,7 @@ static struct cam_hw_ip_info dcam[DCAM_ID_MAX] = {
 		.pdaf_type3_reg_addr = DCAM_PPE_RIGHT_WADDR,
 		.rds_en = 0,
 		.dcam_raw_path_id = DCAM_PATH_FULL,
+		.pyramid_support = 0,
 	},
 };
 static struct cam_hw_ip_info isp = {
@@ -333,6 +333,8 @@ static struct cam_hw_ip_info isp = {
 	.ctx_fmcu_support = isp_ctx_fmcu_support,
 	.rgb_ltm_support = 1,
 	.yuv_ltm_support = 0,
+	.pyr_rec_support = 0,
+	.pyr_dec_support = 0,
 };
 
 struct cam_hw_info sharkl5pro_hw_info = {

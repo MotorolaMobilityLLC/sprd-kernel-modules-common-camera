@@ -29,6 +29,7 @@
 #define ISP_FBC_3DNR_PAD_HEIGHT         4
 #define ISP_FBC_STORE_TILE_WIDTH        32
 #define ISP_FBC_STORE_TILE_HEIGHT       8
+#define ISP_PYR_DEC_LAYER_NUM           5
 
 enum isp_context_id {
 	ISP_CONTEXT_P0,
@@ -67,6 +68,14 @@ enum isp_path_cfg_cmd {
 	ISP_PATH_CFG_YUV_LTM_BUF,
 	ISP_PATH_CFG_POSTPROC_BUF,
 	ISP_PATH_CFG_3DNR_MODE,
+	ISP_PATH_CFG_PYR_REC_BUF,
+	ISP_PATH_CFG_MAX,
+};
+
+enum isp_work_mode {
+	ISP_CFG_MODE,
+	ISP_AP_MODE,
+	ISP_WM_MAX
 };
 
 enum isp_3dnr_mode {
@@ -143,6 +152,7 @@ struct isp_ctx_base_desc {
 	uint32_t mode_ltm;
 	uint32_t ltm_rgb;
 	uint32_t ltm_yuv;
+	uint32_t pyr_layer_num;
 	uint32_t in_fmt;
 	uint32_t is_pack;
 	uint32_t data_in_bits;
@@ -217,6 +227,30 @@ isp_3dnr_cal_compressed_size(uint32_t width, uint32_t height)
 	tile_c = pixel_count >> 1;
 
 	return header_y + tile_y + header_c + tile_c;
+}
+
+static inline uint32_t isp_rec_layer0_width(uint32_t w, uint32_t layer_num)
+{
+	uint32_t width = 0, i = 0;
+	uint32_t w_align = PYR_DEC_WIDTH_ALIGN;
+
+	for (i = 0; i < layer_num; i++)
+		w_align *= 2;
+
+	width = ALIGN(w, w_align);
+	return width;
+}
+
+static inline uint32_t isp_rec_layer0_heigh(uint32_t h, uint32_t layer_num)
+{
+	uint32_t height = 0, i = 0;
+	uint32_t h_align = PYR_DEC_HEIGHT_ALIGN;
+
+	for (i = 0; i < layer_num; i++)
+		h_align *= 2;
+
+	height = ALIGN(h, h_align);
+	return height;
 }
 
 struct isp_offline_param {

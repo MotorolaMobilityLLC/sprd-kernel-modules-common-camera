@@ -296,30 +296,25 @@ static int camioctl_function_mode_set(struct camera_module *module,
 		unsigned long arg)
 {
 	int ret = 0;
-	/*struct sprd_img_sensor_if *dst;*/
 	struct sprd_img_function_mode __user *uparam;
+	struct cam_hw_info *hw = NULL;
 
 	uparam = (struct sprd_img_function_mode __user *)arg;
+	hw = module->grp->hw_info;
 	ret |= get_user(module->cam_uinfo.is_4in1, &uparam->need_4in1);
-	ret |= get_user(module->cam_uinfo.is_3dnr, &uparam->need_3dnr);
 	ret |= get_user(module->cam_uinfo.is_dual, &uparam->dual_cam);
 	ret |= get_user(module->cam_uinfo.is_afbc, &uparam->need_afbc);
-	module->cam_uinfo.is_rgb_ltm = 0;
-	module->cam_uinfo.is_yuv_ltm = 0;
 
-	module->cam_uinfo.is_rgb_ltm = module->grp->hw_info->ip_isp->rgb_ltm_support;
-	module->cam_uinfo.is_yuv_ltm = module->grp->hw_info->ip_isp->yuv_ltm_support;
+	module->cam_uinfo.is_rgb_ltm = hw->ip_isp->rgb_ltm_support;
+	module->cam_uinfo.is_yuv_ltm = hw->ip_isp->yuv_ltm_support;
+	module->cam_uinfo.is_pyr_rec = hw->ip_dcam[module->dcam_idx]->pyramid_support;
+	module->cam_uinfo.is_pyr_dec = hw->ip_isp->pyr_dec_support;
 
-	/* no use */
-	module->cam_uinfo.is_3dnr = 0;
-
-	pr_info("4in1:[%d], 3dnr[%d], rgb_ltm[%d], yuv_ltm[%d], dual[%d], afbc[%d]\n",
-		module->cam_uinfo.is_4in1,
-		module->cam_uinfo.is_3dnr,
-		module->cam_uinfo.is_rgb_ltm,
-		module->cam_uinfo.is_yuv_ltm,
-		module->cam_uinfo.is_dual,
-		module->cam_uinfo.is_afbc);
+	pr_info("4in1:[%d], rgb_ltm[%d], yuv_ltm[%d], dual[%d], afbc[%d] rec %d dec %d\n",
+		module->cam_uinfo.is_4in1,module->cam_uinfo.is_rgb_ltm,
+		module->cam_uinfo.is_yuv_ltm, module->cam_uinfo.is_dual,
+		module->cam_uinfo.is_afbc, module->cam_uinfo.is_pyr_rec,
+		module->cam_uinfo.is_pyr_dec);
 
 	if (unlikely(ret)) {
 		pr_err("fail to copy from user, ret %d\n", ret);
@@ -1456,7 +1451,13 @@ static int camioctl_stream_off(struct camera_module *module,
 				if (ch->postproc_buf) {
 					camcore_k_frame_put(ch->postproc_buf);
 					ch->postproc_buf = NULL;
-					pr_info("postproc put frame\n");
+				}
+			}
+
+			if (module->cam_uinfo.is_pyr_rec) {
+				if (ch->pyr_rec_buf) {
+					camcore_k_frame_put(ch->pyr_rec_buf);
+					ch->pyr_rec_buf = NULL;
 				}
 			}
 		}

@@ -297,11 +297,11 @@ struct isp_slice_desc {
 	struct slice_postcdn_info slice_postcdn;
 	struct slice_ynr_info slice_ynr;
 	struct slice_3dnr_memctrl_info slice_3dnr_memctrl;
-	struct slice_3dnr_store_info   slice_3dnr_store;
-	struct slice_3dnr_fbd_fetch_info   slice_3dnr_fbd_fetch;
-	struct slice_3dnr_fbc_store_info   slice_3dnr_fbc_store;
-	struct slice_3dnr_crop_info    slice_3dnr_crop;
-	struct slice_ltm_map_info      slice_ltm_map[LTM_MAX];
+	struct slice_3dnr_store_info slice_3dnr_store;
+	struct slice_3dnr_fbd_fetch_info slice_3dnr_fbd_fetch;
+	struct slice_3dnr_fbc_store_info slice_3dnr_fbc_store;
+	struct slice_3dnr_crop_info slice_3dnr_crop;
+	struct slice_ltm_map_info slice_ltm_map[LTM_MAX];
 	struct slice_noisefilter_info  noisefilter_info;
 	struct slice_noisefilter_mode_info slice_noisefilter_mode;
 };

@@ -1398,12 +1398,28 @@ static int isphw_block_func_get(void *handle, void *arg)
 
 	func_arg = (struct isp_hw_block_func *)arg;
 	if (func_arg->index < (ISP_BLOCK_TOTAL - ISP_BLOCK_BASE)) {
-		block_func = (struct dcam_cfg_entry *)&isp_hw_cfg_func_tab[func_arg->index];
+		block_func = (struct isp_cfg_entry *)&isp_hw_cfg_func_tab[func_arg->index];
 		func_arg->isp_entry = block_func;
 	}
 
 	if (block_func == NULL)
 		pr_err("fail to get valid block func %d\n", ISP_BLOCK_TYPE);
+
+	return 0;
+}
+
+static isp_k_blk_func isp_hw_k_blk_func_tab[ISP_K_BLK_MAX] = {
+	[ISP_K_BLK_LTM]     = isp_ltm_config_param,
+};
+
+static int isphw_k_blk_func_get(void *handle, void *arg)
+{
+	struct isp_hw_k_blk_func *func_arg = NULL;
+
+	func_arg = (struct isp_hw_k_blk_func *)arg;
+
+	if (func_arg->index < ISP_K_BLK_MAX)
+		func_arg->k_blk_func = isp_hw_k_blk_func_tab[func_arg->index];
 
 	return 0;
 }
@@ -2988,6 +3004,7 @@ static struct hw_io_ctrl_fun isp_ioctl_fun_tab[] = {
 	{ISP_HW_CFG_FETCH_FBD_SET,           isphw_fetch_fbd_set},
 	{ISP_HW_CFG_DEFAULT_PARA_SET,        isphw_default_param_set},
 	{ISP_HW_CFG_BLOCK_FUNC_GET,          isphw_block_func_get},
+	{ISP_HW_CFG_K_BLK_FUNC_GET,          isphw_k_blk_func_get},
 	{ISP_HW_CFG_CFG_MAP_INFO_GET,        isphw_cfg_map_info_get},
 	{ISP_HW_CFG_FMCU_VALID_GET,          isphw_fmcu_available},
 	{ISP_HW_CFG_BYPASS_DATA_GET,         cam_bypass_data_get},

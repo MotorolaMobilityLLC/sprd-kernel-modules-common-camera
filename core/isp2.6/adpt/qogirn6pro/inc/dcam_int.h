@@ -19,7 +19,6 @@
 
 #include "cam_types.h"
 
-/* interrupt bits for DCAM0 or DCAM1 */
 enum {
 	DCAM_IF_IRQ_INT0_SENSOR_SOF              = 0,
 	DCAM_IF_IRQ_INT0_SENSOR_EOF              = 1,
@@ -129,38 +128,22 @@ enum {
 	/* reserved */
 };
 
-/*
- * error bits
- * same in DCAM0/1/2
- */
 #define DCAMINT_INT0_ERROR \
 	(BIT(DCAM_IF_IRQ_INT0_DCAM_OVF) | \
 	BIT(DCAM_IF_IRQ_INT0_CAP_LINE_ERR) | \
 	BIT(DCAM_IF_IRQ_INT0_CAP_FRM_ERR) | \
 	BIT(DCAM_IF_IRQ_INT0_MMU_INT))
 
-/*
- * fatal error bits
- */
 #define DCAMINT_INT0_FATAL_ERROR \
 	(BIT(DCAM_IF_IRQ_INT0_DCAM_OVF) | \
 	BIT(DCAM_IF_IRQ_INT0_CAP_LINE_ERR) | \
 	BIT(DCAM_IF_IRQ_INT0_CAP_FRM_ERR))
 
-/*
- * SOF bits
- * some bits is reserved in DCAM2
- */
 #define DCAMINT_INT0_SOF \
 	(BIT(DCAM_IF_IRQ_INT0_SENSOR_SOF) | \
 	BIT(DCAM_IF_IRQ_INT0_CAP_SOF) | \
 	BIT(DCAM_IF_IRQ_INT0_PREIEW_SOF))
 
-/*
- * TX DONE bits
- * some bits is reserved in DCAM2
- * NOTE: BIT(24) is mmu_int in DCAM2
- */
 #define DCAMINT_INT0_TX_DONE \
 		(BIT(DCAM_IF_IRQ_INT0_CAPTURE_PATH_TX_DONE) | \
 		 BIT(DCAM_IF_IRQ_INT0_PREVIEW_PATH_TX_DONE) | \
@@ -179,20 +162,16 @@ enum {
 		 BIT(DCAM_IF_IRQ_INT0_NR3_TX_DONE) | \
 		 BIT(DCAM_IF_IRQ_INT0_GTM_DONE))
 
-/*
- * all currently useful bits on irq line
- */
 #define DCAMINT_IRQ_LINE_INT0_MASK \
 	(DCAMINT_INT0_ERROR | DCAMINT_INT0_TX_DONE | \
 	BIT(DCAM_IF_IRQ_INT0_CAP_SOF) | \
 	BIT(DCAM_IF_IRQ_INT0_PREIEW_SOF))
 
-/* enabled interrupt source in normal scene */
 #define DCAMINT_IRQ_LINE_EN0_NORMAL \
 	(DCAMINT_INT0_ERROR | DCAMINT_INT0_TX_DONE | \
 	BIT(DCAM_IF_IRQ_INT0_CAP_SOF))
 
-/* for dcam it test*/
+/* for dcam it test */
 #define DCAM_PREV_PATH_TX_DONE       DCAM_IF_IRQ_INT0_PREVIEW_PATH_TX_DONE
 #define DCAM_FULL_PATH_TX_DONE       DCAM_IF_IRQ_INT0_CAPTURE_PATH_TX_DONE
 #define DCAMINT_IRQ_LINE_MASK        DCAMINT_IRQ_LINE_INT0_MASK
@@ -227,16 +206,6 @@ enum {
 
 #define DCAMINT_IRQ_LINE_EN1_NORMAL  DCAMINT_IRQ_LINE_INT1_MASK
 
-/*
- * enabled interrupt source in slow motion scene
- *
- * Note: this one is deprecated as we have a design defect in current DCAM IP.
- * The address written into slow motion register in DCAM_PREVIEW_SOF cannot be
- * applied by hardware because DCAM will only shadow registers at the first one
- * of four frames in slow motion mode. In order to make DCAM_PREVIEW_SOF work,
- * software has to set auto copy at the last DCAM_CAP_SOF of four frames. So we
- * just use DCAM_CAP_SOF to do all the work.
- */
 #define DCAMINT_IRQ_LINE_EN0_SLM \
 	(DCAMINT_INT0_ERROR | DCAMINT_INT0_TX_DONE | \
 	BIT(DCAM_IF_IRQ_INT0_PREIEW_SOF))

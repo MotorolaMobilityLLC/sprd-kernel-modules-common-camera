@@ -289,8 +289,7 @@ int dcam_drv_dt_parse(struct platform_device *pdev,
 		}
 		ip_dcam->phy_base = (unsigned long) reg_res.start;
 
-		reg_base = ioremap(reg_res.start,
-					reg_res.end - reg_res.start + 1);
+		reg_base = ioremap(reg_res.start, reg_res.end - reg_res.start + 1);
 		if (!reg_base) {
 			pr_err("fail to map DCAM%d reg base\n", i);
 			goto err_iounmap;

@@ -26,7 +26,7 @@
 	fmt, current->pid, __LINE__, __func__
 
 static void isp_3dnr_config_mem_ctrl(uint32_t idx,
-		struct isp_3dnr_mem_ctrl *mem_ctrl, bool  nr3sec_eb)
+		struct isp_3dnr_mem_ctrl *mem_ctrl, bool nr3sec_eb)
 {
 	unsigned int val;
 

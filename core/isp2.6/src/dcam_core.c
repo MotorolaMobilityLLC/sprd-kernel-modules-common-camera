@@ -270,7 +270,7 @@ static struct camera_buf *dcamcore_reserved_buffer_get(struct dcam_sw_context *p
 		iommu_enable = 1;
 
 	size = DCAM_INTERNAL_RES_BUF_SIZE;
-	ret = cam_buf_alloc(ion_buf, size, 0, iommu_enable);
+	ret = cam_buf_alloc(ion_buf, size, iommu_enable);
 	if (ret) {
 		pr_err("fail to get dcam reserverd buffer\n");
 		goto ion_fail;
@@ -692,8 +692,7 @@ static int dcamcore_pmctx_init(
 	if (cam_buf_iommu_status_get(CAM_IOMMUDEV_DCAM) == 0)
 		iommu_enable = 1;
 
-	ret = cam_buf_alloc(&blk_pm_ctx->lsc.buf, DCAM_LSC_BUF_SIZE,
-		0, iommu_enable);
+	ret = cam_buf_alloc(&blk_pm_ctx->lsc.buf, DCAM_LSC_BUF_SIZE, iommu_enable);
 	if (ret)
 		goto alloc_fail;
 

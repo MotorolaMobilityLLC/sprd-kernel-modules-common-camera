@@ -281,7 +281,7 @@ int cam_buf_kunmap(struct camera_buf *buf_info)
 }
 
 int cam_buf_alloc(struct camera_buf *buf_info,
-		size_t size, size_t align, unsigned int iommu_enable)
+		size_t size, unsigned int iommu_enable)
 {
 	int ret = 0;
 	int heap_type;

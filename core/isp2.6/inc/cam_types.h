@@ -28,6 +28,8 @@
 #define ZOOM_RATIO_DEFAULT              1000
 #define CAM_BUF_ALIGN_SIZE              4
 #define ALIGN_OFFSET                    16
+#define PYR_DEC_WIDTH_ALIGN             4
+#define PYR_DEC_HEIGHT_ALIGN            2
 
 /*************** for global debug starts********************/
 

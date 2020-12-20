@@ -19,8 +19,6 @@ extern "C" {
 #endif
 
 #include "cam_queue.h"
-#include "dcam_interface.h"
-#include "isp_interface.h"
 
 #define LTM_HIST_TABLE_NUM              128
 #define LTM_MIN_TILE_WIDTH              128
@@ -200,6 +198,7 @@ struct isp_ltm_ctx_desc {
 
 	struct isp_ltm_sync *sync;
 	struct isp_ltm_ops ltm_ops;
+	struct cam_hw_info *hw;
 };
 
 struct isp_ltm_tilenum_minus1 {
@@ -237,10 +236,9 @@ struct isp_ltm_info {
 
 int isp_ltm_map_slice_config_gen(struct isp_ltm_ctx_desc *ctx,
 			struct isp_ltm_rtl_param *prtl, uint32_t *slice_info);
-int isp_ltm_config_param(struct isp_ltm_ctx_desc *ctx);
-void *isp_ltm_rgb_ctx_get(uint32_t idx, enum camera_id cam_id);
+void *isp_ltm_rgb_ctx_get(uint32_t idx, enum camera_id cam_id, void *hw);
 void isp_ltm_rgb_ctx_put(void *ltm_handle);
-void *isp_ltm_yuv_ctx_get(uint32_t idx, enum camera_id cam_id);
+void *isp_ltm_yuv_ctx_get(uint32_t idx, enum camera_id cam_id, void *hw);
 void isp_ltm_yuv_ctx_put(void *ltm_handle);
 void isp_ltm_sync_init(void);
 void isp_ltm_sync_deinit(void);

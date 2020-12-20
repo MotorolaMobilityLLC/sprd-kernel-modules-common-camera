@@ -204,8 +204,7 @@ static int dcamfmcu_ctx_init(struct dcam_fmcu_ctx_desc *fmcu_ctx)
 			pr_debug("dcam iommu disable\n");
 			iommu_enable = 0;
 		}
-		ret = cam_buf_alloc(ion_buf, fmcu_ctx->cmdq_size,
-			0, iommu_enable);
+		ret = cam_buf_alloc(ion_buf, fmcu_ctx->cmdq_size, iommu_enable);
 		if (ret) {
 			pr_err("fail to get fmcu buffer\n");
 			ret = -EFAULT;

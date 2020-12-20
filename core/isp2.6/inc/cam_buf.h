@@ -76,7 +76,7 @@ int cam_buf_kmap(struct camera_buf *buf_info);
 int cam_buf_kunmap(struct camera_buf *buf_info);
 
 int  cam_buf_alloc(struct camera_buf *buf_info, size_t size,
-	size_t align, unsigned int iommu_enable);
+		unsigned int iommu_enable);
 int cam_buf_free(struct camera_buf *buf_info);
 
 int cam_buf_mdbg_check(void);

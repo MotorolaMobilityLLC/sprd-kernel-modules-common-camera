@@ -108,6 +108,7 @@ int dcam_path_base_cfg(void *dcam_ctx_handle,
 		dcam_sw_ctx->slowmotion_count = ch_desc->slowmotion_count;
 		dcam_sw_ctx->is_3dnr |= ch_desc->enable_3dnr;
 		dcam_sw_ctx->raw_cap = ch_desc->raw_cap;
+		dcam_sw_ctx->is_pyr_rec = ch_desc->is_pyr_rec;
 		break;
 	case DCAM_PATH_RAW:
 		/* for n6pro*/

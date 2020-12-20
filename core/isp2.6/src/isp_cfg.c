@@ -182,7 +182,7 @@ static int ispcfg_cctx_buf_init(struct isp_cfg_ctx_desc *cfg_ctx)
 		iommu_enable = 0;
 	}
 	size = ISP_CFG_BUF_SIZE_HW_PADDING;
-	ret = cam_buf_alloc(ion_buf, size, 0, iommu_enable);
+	ret = cam_buf_alloc(ion_buf, size, iommu_enable);
 	if (ret) {
 		pr_err("fail to get cfg buffer\n");
 		ret = -EFAULT;
@@ -209,7 +209,7 @@ static int ispcfg_cctx_buf_init(struct isp_cfg_ctx_desc *cfg_ctx)
 	sprintf(ion_buf_cached->name, "isp_cfg_swctx");
 
 	size = ISP_CFG_BUF_SIZE_SW_ALL;
-	ret = cam_buf_alloc(ion_buf_cached, size, 0, iommu_enable);
+	ret = cam_buf_alloc(ion_buf_cached, size, iommu_enable);
 	if (ret) {
 		pr_err("fail to get cfg buffer\n");
 		ret = -EFAULT;

@@ -58,12 +58,6 @@
 #define ISP_DIV_ALIGN_W(_a, _b)    (((_a) / (_b)) & ~(ISP_PIXEL_ALIGN_WIDTH - 1))
 #define ISP_DIV_ALIGN_H(_a, _b)    (((_a) / (_b)) & ~(ISP_PIXEL_ALIGN_HEIGHT - 1))
 
-enum isp_work_mode {
-	ISP_CFG_MODE,
-	ISP_AP_MODE,
-	ISP_WM_MAX
-};
-
 enum isp_raw_format {
 	ISP_RAW_PACK10 = 0x00,
 	ISP_RAW_HALF10 = 0x01,
@@ -174,6 +168,7 @@ struct isp_uinfo {
 	uint32_t slowmotion_count;
 	uint32_t uframe_sync;
 	uint32_t scaler_coeff_ex;
+	uint32_t pyr_layer_num;
 
 	/* compression info from cam core */
 	/* 1: fetch_fbd; 0: fetch */
@@ -215,6 +210,7 @@ struct isp_sw_context {
 	void *nr3_handle;
 	void *rgb_ltm_handle;
 	void *yuv_ltm_handle;
+	void *rec_handle;
 	struct isp_k_block isp_k_param;
 
 	struct cam_thread_info thread;

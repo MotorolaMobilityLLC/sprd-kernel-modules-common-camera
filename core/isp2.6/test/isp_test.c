@@ -350,7 +350,7 @@ static int camt_isp_cfg_init(struct ispt_context *ctx, struct camt_info *info)
 		iommu_enable = 0;
 	}
 	size = CAMT_ISP_CFG_BUF_SIZE;
-	ret = cam_buf_alloc(ion_buf, size, 0, iommu_enable);
+	ret = cam_buf_alloc(ion_buf, size, iommu_enable);
 	if (ret) {
 		pr_err("fail to get cfg buffer\n");
 		ret = -EFAULT;

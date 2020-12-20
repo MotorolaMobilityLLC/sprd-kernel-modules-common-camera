@@ -10,19 +10,13 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  */
-#include <linux/uaccess.h>
-#include <sprd_mm.h>
-#include "isp_hw.h"
-#include <linux/mutex.h>
 
-#include "cam_block.h"
 #include "isp_ltm.h"
 
 #ifdef pr_fmt
 #undef pr_fmt
 #endif
-#define pr_fmt(fmt) "ISP_LTM: %d %d %s : "\
-	fmt, current->pid, __LINE__, __func__
+#define pr_fmt(fmt) "ISP_LTM: %d %d %s : "fmt, current->pid, __LINE__, __func__
 
 #define ISP_LTM_TIMEOUT         msecs_to_jiffies(100)
 
@@ -804,6 +798,7 @@ static int ispltm_pipe_proc(void *handle, void *param)
 	struct isp_ltm_ctx_desc *ctx = NULL;
 	struct isp_ltm_info *ltm_info = NULL;
 	struct isp_ltm_sync *sync = NULL;
+	struct isp_hw_k_blk_func ltm_cfg_func;
 	int pre_fid = 0;
 	long timeout = 0;
 
@@ -819,6 +814,11 @@ static int ispltm_pipe_proc(void *handle, void *param)
 	if (ctx->enable == 0)
 		return 0;
 
+	ltm_cfg_func.index = ISP_K_BLK_LTM;
+	ctx->hw->isp_ioctl(ctx->hw, ISP_HW_CFG_K_BLK_FUNC_GET, &ltm_cfg_func);
+	if (ltm_cfg_func.k_blk_func == NULL)
+		return 0;
+
 	pr_debug("type[%d], fid[%d], frame_width[%d], frame_height[%d] bypass %d\n",
 		ctx->mode, ctx->fid, ctx->frame_width, ctx->frame_height, ctx->bypass);
 	switch (ctx->mode) {
@@ -826,7 +826,7 @@ static int ispltm_pipe_proc(void *handle, void *param)
 		ltm_info->ltm_map.ltm_map_video_mode = 1;
 		ispltm_histo_config_gen(ctx, &ltm_info->ltm_stat);
 		ispltm_map_config_gen(ctx, &ltm_info->ltm_map, ISP_PRO_LTM_PRE_PARAM);
-		isp_ltm_config_param(ctx);
+		ltm_cfg_func.k_blk_func(ctx);
 		ispltm_sync_config_set(ctx, &ctx->hists);
 		break;
 	case MODE_LTM_CAP:
@@ -876,15 +876,15 @@ static int ispltm_pipe_proc(void *handle, void *param)
 		ltm_info->ltm_map.ltm_map_video_mode = 0;
 		ispltm_histo_config_gen(ctx, &ltm_info->ltm_stat);
 		ispltm_map_config_gen(ctx, &ltm_info->ltm_map, ISP_PRO_LTM_CAP_PARAM);
-		isp_ltm_config_param(ctx);
+		ltm_cfg_func.k_blk_func(ctx);
 		break;
 	case MODE_LTM_OFF:
 		ctx->bypass = 1;
-		isp_ltm_config_param(ctx);
+		ltm_cfg_func.k_blk_func(ctx);
 		break;
 	default:
 		ctx->bypass = 1;
-		isp_ltm_config_param(ctx);
+		ltm_cfg_func.k_blk_func(ctx);
 		break;
 	}
 
@@ -972,7 +972,7 @@ exit:
 	return ret;
 }
 
-static struct isp_ltm_ctx_desc *ispltm_ctx_init(uint32_t idx, uint32_t cam_id)
+static struct isp_ltm_ctx_desc *ispltm_ctx_init(uint32_t idx, uint32_t cam_id, void *hw)
 {
 	struct isp_ltm_ctx_desc *ltm_ctx = NULL;
 
@@ -984,6 +984,7 @@ static struct isp_ltm_ctx_desc *ispltm_ctx_init(uint32_t idx, uint32_t cam_id)
 
 	ltm_ctx->ctx_id = idx;
 	ltm_ctx->cam_id = cam_id;
+	ltm_ctx->hw = hw;
 	ltm_ctx->ltm_ops.core_ops.cfg_param = ispltm_cfg_param;
 	ltm_ctx->ltm_ops.core_ops.pipe_proc = ispltm_pipe_proc;
 	ltm_ctx->ltm_ops.sync_ops.set_status = ispltm_sync_status_set;
@@ -1113,11 +1114,11 @@ int isp_ltm_map_slice_config_gen(struct isp_ltm_ctx_desc *ctx,
 	return 0;
 }
 
-void *isp_ltm_rgb_ctx_get(uint32_t idx, enum camera_id cam_id)
+void *isp_ltm_rgb_ctx_get(uint32_t idx, enum camera_id cam_id, void *hw)
 {
 	struct isp_ltm_ctx_desc *ltm_ctx = NULL;
 
-	ltm_ctx = ispltm_ctx_init(idx, cam_id);
+	ltm_ctx = ispltm_ctx_init(idx, cam_id, hw);
 	if (!ltm_ctx) {
 		pr_err("fail to get invalid ltm_ctx\n");
 		return NULL;
@@ -1134,11 +1135,11 @@ void isp_ltm_rgb_ctx_put(void *ltm_handle)
 	ispltm_ctx_deinit(ltm_handle);
 }
 
-void *isp_ltm_yuv_ctx_get(uint32_t idx, enum camera_id cam_id)
+void *isp_ltm_yuv_ctx_get(uint32_t idx, enum camera_id cam_id, void *hw)
 {
 	struct isp_ltm_ctx_desc *ltm_ctx = NULL;
 
-	ltm_ctx = ispltm_ctx_init(idx, cam_id);
+	ltm_ctx = ispltm_ctx_init(idx, cam_id, hw);
 	if (!ltm_ctx) {
 		pr_err("fail to get invalid ltm_ctx\n");
 		return NULL;

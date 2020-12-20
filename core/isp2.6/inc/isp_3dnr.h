@@ -20,7 +20,6 @@ extern "C" {
 
 #include "cam_queue.h"
 #include "dcam_interface.h"
-#include "isp_interface.h"
 
 #define FBC_NR3_Y_PAD_WIDTH            256
 #define FBC_NR3_Y_PAD_HEIGHT           4

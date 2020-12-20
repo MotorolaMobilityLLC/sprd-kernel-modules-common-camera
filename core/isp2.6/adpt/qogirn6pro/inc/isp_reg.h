@@ -859,7 +859,6 @@ extern unsigned long s_isp_mmubase;
 #define ISP_CAP_SCALER_BWD_PARA                 (ISP_SCALER_PRE_CAP_BASE + 0x0054UL)
 #define ISP_CAP_SCALER_DBG_ESL                  (ISP_SCALER_PRE_CAP_BASE + 0x0058UL)
 
-/*1.1.31 MM_ISP_SCALER_RECORDING*/
 #define ISP_SCALER_VID_BASE                     (0x6000UL)
 #define ISP_RECORD_SCALER_CFG                   (ISP_SCALER_VID_BASE + 0x0010UL)
 #define ISP_RECORD_SCALER_SRC_SIZE              (ISP_SCALER_VID_BASE + 0x0014UL)
@@ -886,7 +885,6 @@ extern unsigned long s_isp_mmubase;
 #define ISP_RECORD_SCALER_BWD_PARA              (ISP_SCALER_VID_BASE + 0x0068UL)
 #define ISP_RECORD_SCALER_DBG_ESL               (ISP_SCALER_VID_BASE + 0x006CUL)
 
-/*1.1.38 MM_ISP_THUMBNAIL_SCALER*/
 #define ISP_SCALER_THUMB_BASE                   (0x7000UL)
 #define ISP_THMB_SCALER_CFG                     (ISP_SCALER_THUMB_BASE + 0x0010UL)
 #define ISP_THMB_SCALER_BEFORE_TRIM_SIZE        (ISP_SCALER_THUMB_BASE + 0x0014UL)
@@ -980,12 +978,10 @@ extern unsigned long s_isp_mmubase;
 #define ISP_YUV_NF_SEED_INIT                    (ISP_YUV_NF_BASE + 0x004CUL)
 #define ISP_YUV_NF_CV_T34                       (ISP_YUV_NF_BASE + 0x0050UL)
 
-/*sub block: pyr dec*/
-/*1.1.47 MM_ISP_DECOMPOSE_OFFLINE*/
 #define ISP_DECOMPOSE_OFFLINE_BASE              (0x8300UL)
 #define ISP_DEC_OFFLINE_PARAM                   (ISP_DECOMPOSE_OFFLINE_BASE + 0x0010UL)
 #define ISP_DEC_OFFLINE_PARAM1                  (ISP_DECOMPOSE_OFFLINE_BASE + 0x0014UL)
-/*1.1.49 MM_ISP_DCT_YNR*/
+
 #define ISP_DCT_YNR_BASE                        (0x8500UL)
 #define ISP_YNR_DCT_PARAM                       (ISP_DCT_YNR_BASE + 0x0010UL)
 #define ISP_YNR_DCT_PARAM1                      (ISP_DCT_YNR_BASE + 0x0014UL)
@@ -1004,8 +1000,6 @@ extern unsigned long s_isp_mmubase;
 #define ISP_YNR_DCT_PARAM14                     (ISP_DCT_YNR_BASE + 0x0048UL)
 #define ISP_YNR_DCT_PARAM15                     (ISP_DCT_YNR_BASE + 0x004CUL)
 
-/*sub block: pyr rec*/
-/*1.1.52 MM_ISP_YUV_RECONSTRUCT*/
 #define ISP_YUV_RECONSTRUCT_BASE                (0x9500UL)
 #define ISP_REC_PARAM                           (ISP_YUV_RECONSTRUCT_BASE + 0x0010UL)
 #define ISP_REC_PARAM1                          (ISP_YUV_RECONSTRUCT_BASE + 0x0014UL)
@@ -1018,7 +1012,6 @@ extern unsigned long s_isp_mmubase;
 #define ISP_REC_PARAM8                          (ISP_YUV_RECONSTRUCT_BASE + 0x0030UL)
 #define ISP_REC_PARAM9                          (ISP_YUV_RECONSTRUCT_BASE + 0x0034UL)
 
-/*1.1.54 MM_ISP_YUV_REC_CNR*/
 #define ISP_YUV_REC_CNR_BASE                    (0x9700UL)
 #define ISP_YUV_REC_CNR_CONTRL0                 (ISP_YUV_REC_CNR_BASE + 0x0010UL)
 #define ISP_YUV_REC_CNR_CONTRL1                 (ISP_YUV_REC_CNR_BASE + 0x0014UL)
@@ -1141,7 +1134,6 @@ extern unsigned long s_isp_mmubase;
 #define ISP_YUV_REC_CNR_UV_L2_WHT16             (ISP_YUV_REC_CNR_BASE + 0x01E8UL)
 #define ISP_YUV_REC_CNR_UV_L2_WHT17             (ISP_YUV_REC_CNR_BASE + 0x01ECUL)
 
-/*1.1.55 MM_ISP_YUV_REC_YNR*/
 #define ISP_YUV_REC_YNR_BASE                    (0x9A00UL)
 #define ISP_YUV_REC_YNR_CONTRL0                 (ISP_YUV_REC_YNR_BASE + 0x0010UL)
 #define ISP_YUV_REC_YNR_CFG0                    (ISP_YUV_REC_YNR_BASE + 0x0014UL)
@@ -1153,13 +1145,10 @@ extern unsigned long s_isp_mmubase;
 #define ISP_YUV_REC_YNR_L1_CFG4                 (ISP_YUV_REC_YNR_BASE + 0x002CUL)
 #define ISP_YUV_REC_YNR_L1_CFG5                 (ISP_YUV_REC_YNR_BASE + 0x0030UL)
 
-/*1.1.56 MM_ISP_YUV_REC_UVDELAY*/
 #define ISP_YUV_REC_UVDELAY_BASE                (0x9B00UL)
 #define ISP_REC_UVDELAY_PARAM                   (ISP_YUV_REC_UVDELAY_BASE + 0x0010UL)
 #define ISP_REC_UVDELAY_STEP                    (ISP_YUV_REC_UVDELAY_BASE + 0x0014UL)
 
-/*isp sub block: Dewarping*/
-/*1.1.70 MM_ISP_YUV_DEWARPING*/
 #define ISP_DEWARPING_BASE                      (0xa000UL)
 #define ISP_DEWARPING_PARA                      (ISP_DEWARPING_BASE + 0x0010UL)
 #define ISP_DEWARPING_DST_SIZE                  (ISP_DEWARPING_BASE + 0x0014UL)
@@ -1180,7 +1169,6 @@ extern unsigned long s_isp_mmubase;
 #define ISP_DEWARPING_GRID_Y_CH0                (0x3b180UL)
 #define ISP_DEWARPING_CORD_COEF_CH0             (0x3c300UL)
 #define ISP_DEWARPING_PXL_COEF_CH0              (0x3cc00UL)
-/*1.1.71 MM_ISP_YUV_DEWARPING_CACHE*/
 #define ISP_DEWARPING_CACHE_BASE                (0xa100UL)
 #define ISP_DEWARPING_CACHE_PARA                (ISP_DEWARPING_CACHE_BASE + 0x0010UL)
 #define ISP_DEWARPING_CACHE_FRAME_YADDR         (ISP_DEWARPING_CACHE_BASE + 0x0014UL)
@@ -1203,9 +1191,6 @@ extern unsigned long s_isp_mmubase;
 #define ISP_FBD_RAW_LOW_4BIT_PARAM0             (0x0C44UL)
 #define ISP_FBD_RAW_LOW_4BIT_PARAM1             (0x0C48UL)
 
-/*fetch fbd*/
-/*1.1.58 MM_ISP_YUV_AFBD_FETCH*/
-/*1.1.45 MM_ISP_YUV_DEC_AFBD_FETCH*/
 #define ISP_YUV_AFBD_FETCH_BASE                 (0x0200UL)
 #define ISP_YUV_DEC_AFBD_FETCH_BASE             (0x8100UL)
 
@@ -1260,47 +1245,22 @@ extern unsigned long s_isp_mmubase;
 #define ISP_MMU_INT_STS                         (0x00A8UL)
 #define ISP_MMU_INT_RAW                         (0x00ACUL)
 
-/******************************************************************************/
-
-
 #define ISP_BASE_ADDR(idx)                      (*(isp_cfg_poll_addr[idx]))
 #define ISP_GET_REG(reg)                        (ISP_PHYS_ADDR(0) + (reg))
 
 #define ISP_REG_WR(idx, reg, val)               (REG_WR(ISP_BASE_ADDR(idx) + (reg), (val)))
 #define ISP_REG_RD(idx, reg)                    (REG_RD(ISP_BASE_ADDR(idx) + (reg)))
+#define ISP_REG_MWR(idx, reg, msk, val)         (ISP_REG_WR((idx), (reg), ((val) & (msk)) |(ISP_REG_RD((idx), (reg)) & (~(msk)))))
+#define ISP_REG_OWR(idx, reg, val)              (ISP_REG_WR((idx), (reg), (ISP_REG_RD((idx), (reg)) | (val))))
 
-#define ISP_REG_MWR(idx, reg, msk, val)         (ISP_REG_WR((idx), (reg), \
-	((val) & (msk)) |                       \
-	(ISP_REG_RD((idx), (reg)) & (~(msk)))))
+#define ISP_HREG_WR(reg, val)                   (REG_WR(s_isp_regbase[0] + (reg), (val)))
+#define ISP_HREG_RD(reg)                        (REG_RD(s_isp_regbase[0] + (reg)))
+#define ISP_HREG_MWR(reg, msk, val)             (REG_WR(s_isp_regbase[0] + (reg), ((val) & (msk)) | (REG_RD(s_isp_regbase[0] + (reg)) & (~(msk)))))
+#define ISP_HREG_OWR(reg, val)                  (REG_WR(s_isp_regbase[0] + (reg), (REG_RD(s_isp_regbase[0] + (reg)) | (val))))
 
-#define ISP_REG_OWR(idx, reg, val)              \
-	(ISP_REG_WR((idx), (reg),               \
-	(ISP_REG_RD((idx), (reg)) | (val))))
-
-
-/* won't access CFG buffers */
-#define ISP_HREG_WR(reg, val)                   \
-	(REG_WR(s_isp_regbase[0] + (reg), (val)))
-
-#define ISP_HREG_RD(reg)                        \
-	(REG_RD(s_isp_regbase[0] + (reg)))
-
-#define ISP_HREG_MWR(reg, msk, val)             \
-	(REG_WR(s_isp_regbase[0] + (reg),       \
-	((val) & (msk)) |                       \
-	(REG_RD(s_isp_regbase[0] + (reg)) &     \
-	(~(msk)))))
-
-#define ISP_HREG_OWR(reg, val)                  \
-	(REG_WR(s_isp_regbase[0] + (reg),       \
-	(REG_RD(s_isp_regbase[0] + (reg)) | (val))))
-
-
-/* To access ISP IOMMU  Registers*/
 #define ISP_MMU_BASE s_isp_mmubase
 #define ISP_MMU_WR(reg, val)                    (REG_WR(ISP_MMU_BASE+(reg), (val)))
 #define ISP_MMU_RD(reg)                         (REG_RD(ISP_MMU_BASE+(reg)))
-#define ISP_MMU_MWR(reg, msk, val)              \
-	ISP_MMU_WR((reg), ((val) & (msk)) | (ISP_MMU_RD(reg) & (~(msk))))
+#define ISP_MMU_MWR(reg, msk, val)              ISP_MMU_WR((reg), ((val) & (msk)) | (ISP_MMU_RD(reg) & (~(msk))))
 
 #endif

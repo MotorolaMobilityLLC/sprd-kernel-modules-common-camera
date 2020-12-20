@@ -22,6 +22,7 @@
 #include "cam_scaler_ex.h"
 #include "isp_core.h"
 #include "isp_path.h"
+#include "isp_pyr_rec.h"
 
 #ifdef pr_fmt
 #undef pr_fmt
@@ -56,6 +57,7 @@ int isp_path_comn_uinfo_set(struct isp_sw_context *pctx, void *param)
 	struct isp_uinfo *uinfo = NULL;
 	struct isp_ltm_ctx_desc *rgb_ltm = NULL;
 	struct isp_ltm_ctx_desc *yuv_ltm = NULL;
+	struct isp_rec_ctx_desc *rec_ctx = NULL;
 
 	if (!pctx || !param) {
 		pr_err("fail to get valid input ptr, pctx %p, param %p\n",
@@ -67,6 +69,7 @@ int isp_path_comn_uinfo_set(struct isp_sw_context *pctx, void *param)
 	uinfo = &pctx->uinfo;
 	rgb_ltm = (struct isp_ltm_ctx_desc *)pctx->rgb_ltm_handle;
 	yuv_ltm = (struct isp_ltm_ctx_desc *)pctx->yuv_ltm_handle;
+	rec_ctx = (struct isp_rec_ctx_desc *)pctx->rec_handle;
 
 	if (uinfo->enable_slowmotion) {
 		uinfo->enable_slowmotion = cfg_in->enable_slowmotion;
@@ -82,6 +85,7 @@ int isp_path_comn_uinfo_set(struct isp_sw_context *pctx, void *param)
 	uinfo->mode_3dnr = cfg_in->mode_3dnr;
 	uinfo->is_pack = cfg_in->is_pack;
 	uinfo->data_in_bits = cfg_in->data_in_bits;
+	uinfo->pyr_layer_num = cfg_in->pyr_layer_num;
 	if (rgb_ltm) {
 		rgb_ltm->ltm_ops.core_ops.cfg_param(rgb_ltm, ISP_LTM_CFG_EB, &uinfo->ltm_rgb);
 		rgb_ltm->ltm_ops.core_ops.cfg_param(rgb_ltm, ISP_LTM_CFG_MODE, &uinfo->mode_ltm);
@@ -92,6 +96,8 @@ int isp_path_comn_uinfo_set(struct isp_sw_context *pctx, void *param)
 		yuv_ltm->ltm_ops.core_ops.cfg_param(yuv_ltm, ISP_LTM_CFG_MODE, &uinfo->mode_ltm);
 		yuv_ltm->ltm_ops.sync_ops.set_status(yuv_ltm, 1);
 	}
+	if (rec_ctx)
+		rec_ctx->ops.cfg_param(rec_ctx, ISP_REC_CFG_LAYER_NUM, &uinfo->pyr_layer_num);
 	pctx->ch_id = cfg_in->ch_id;
 
 	pr_debug("ctx%d, in_fmt 0x%x, %d %d mode_ltm %d ltm_eb %d slw_state %d 3dnr: %d\n", pctx->ctx_id,
@@ -592,8 +598,7 @@ int isp_path_store_frm_set(
 		yuv_addr[2] += store->slice_offset.addr_ch2;
 	}
 	pr_debug("path %d planes %d addr %lx %lx %lx\n",
-		path->spath_id, planes,
-		yuv_addr[0], yuv_addr[1], yuv_addr[2]);
+		path->spath_id, planes, yuv_addr[0], yuv_addr[1], yuv_addr[2]);
 
 	store->addr.addr_ch0 = yuv_addr[0];
 	store->addr.addr_ch1 = yuv_addr[1];

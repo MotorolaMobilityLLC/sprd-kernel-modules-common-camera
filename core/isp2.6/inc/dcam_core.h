@@ -258,12 +258,15 @@ struct dcam_sw_context {
 	uint32_t lowlux_4in1;/* 4in1 low lux mode capture */
 	uint32_t skip_4in1;/* need skip 1 frame then change full source */
 	uint32_t is_3dnr;
+	uint32_t is_pyr_rec;
 	uint32_t is_ebd;
 	uint32_t offline;/* flag: set 1 for 4in1 go through dcam1 bin */
 	uint32_t rps;/* raw_proc_scene 0:normal 1:hwsim*/
 	uint32_t dcam_slice_mode;
 	uint32_t slice_num;
 	uint32_t slice_count;
+	uint32_t dec_all_done;
+	uint32_t dec_layer0_done;
 	struct img_trim slice_trim;/* for sw slices */
 	struct img_trim hw_slices[DCAM_OFFLINE_SLC_MAX];/* for offline hw slices */
 	struct img_trim *cur_slice;
