@@ -49,7 +49,7 @@ static int isp_k_ygamma_block(struct isp_io_param *param,
 		return 0;
 
 	buf_sel = 0;
-	ybuf_addr = ISP_YGAMMA_BUF0;
+	ybuf_addr = ISP_YGAMMA_BUF0_CH0;
 	ISP_REG_MWR(idx, ISP_YGAMMA_PARAM, BIT_1, buf_sel << 1);
 
 	for (i = 0; i < ISP_YUV_GAMMA_NUM - 1; i++) {

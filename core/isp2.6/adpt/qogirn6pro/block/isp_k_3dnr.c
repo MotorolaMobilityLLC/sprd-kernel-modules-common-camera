@@ -45,10 +45,6 @@ static void isp_3dnr_config_mem_ctrl(uint32_t idx,
 		(mem_ctrl->bypass & 0x1);
 	ISP_REG_WR(idx, ISP_3DNR_MEM_CTRL_PARAM0, val);
 
-	val = ((mem_ctrl->last_line_mode & 0x1) << 1) |
-		((mem_ctrl->first_line_mode & 0x1));
-	ISP_REG_WR(idx, ISP_3DNR_MEM_CTRL_LINE_MODE, val);
-
 	val = ((mem_ctrl->start_col & 0x1FFF) << 16) |
 		(mem_ctrl->start_row & 0x1FFF);
 	ISP_REG_WR(idx, ISP_3DNR_MEM_CTRL_PARAM1, val);
@@ -291,16 +287,16 @@ static void isp_3dnr_config_store(uint32_t idx,
 
 	val = ((nr3_store->img_height & 0xFFFF) << 16) |
 		(nr3_store->img_width & 0xFFFF);
-	ISP_REG_WR(idx, ISP_3DNR_STORE_SIZE, val);
+	ISP_REG_WR(idx, ISP_3DNR_STORE_SLICE_SIZE, val);
 
 	val = nr3_store->st_luma_addr;
-	ISP_REG_WR(idx, ISP_3DNR_STORE_LUMA_ADDR, val);
+	ISP_REG_WR(idx, ISP_3DNR_STORE_SLICE_Y_ADDR, val);
 
 	val = nr3_store->st_chroma_addr;
-	ISP_REG_WR(idx, ISP_3DNR_STORE_CHROMA_ADDR, val);
+	ISP_REG_WR(idx, ISP_3DNR_STORE_SLICE_U_ADDR, val);
 
 	val = nr3_store->st_pitch & 0xFFFF;
-	ISP_REG_WR(idx, ISP_3DNR_STORE_PITCH, val);
+	ISP_REG_WR(idx, ISP_3DNR_STORE_Y_PITCH, val);
 
 	ISP_REG_MWR(idx, ISP_3DNR_STORE_SHADOW_CLR,
 		BIT_0, nr3_store->shadow_clr);
@@ -311,61 +307,23 @@ static void isp_3dnr_config_fbd_fetch(uint32_t idx,
 {
 	unsigned int val;
 
-	val = nr3_fbd_fetch->fbdc_cr_ch0123_val0;
-	ISP_REG_WR(idx, ISP_FBD_NR3_PARAM0, val);
+	val = nr3_fbd_fetch->bypass;
+	ISP_REG_WR(idx, ISP_FBD_3DNR_SEL , val);
 
-	val = nr3_fbd_fetch->fbdc_cr_ch0123_val1;
-	ISP_REG_WR(idx, ISP_FBD_NR3_PARAM1, val);
-
-	val = (nr3_fbd_fetch->fbdc_cr_uv_val1 & 0xFF) |
-		((nr3_fbd_fetch->fbdc_cr_uv_val0 & 0xFF)<<8)|
-		((nr3_fbd_fetch->fbdc_cr_y_val1 & 0xFF)<<16) |
-		((nr3_fbd_fetch->fbdc_cr_y_val0 & 0xFF)<<24);
-	ISP_REG_WR(idx, ISP_FBD_NR3_PARAM2, val);
-
-	val = (nr3_fbd_fetch->y_tiles_num_pitch & 0xFF) |
-		(nr3_fbd_fetch->y_tile_addr_init_x256 & 0xFFFFFF00);
-	ISP_REG_WR(idx, ISP_FBD_NR3_T_ADDR_Y, val);
+	val = (nr3_fbd_fetch->y_tiles_num_pitch & 0xFF);
+	ISP_REG_MWR(idx, ISP_FBD_3DNR_HBLANK_TILE_PITCH, 0X07FF0000, val << 16);
 
 	val = nr3_fbd_fetch->y_header_addr_init;
-	ISP_REG_WR(idx, ISP_FBD_NR3_H_ADDR_Y, val);
+	ISP_REG_WR(idx, ISP_FBD_3DNR_PARAM1, val);
 
-	val = (nr3_fbd_fetch->c_tiles_num_pitch & 0xFF) |
-		(nr3_fbd_fetch->c_tile_addr_init_x256 & 0xFFFFFF00);
-	ISP_REG_WR(idx, ISP_FBD_NR3_T_ADDR_C, val);
-
-	val = nr3_fbd_fetch->c_header_addr_init;
-	ISP_REG_WR(idx, ISP_FBD_NR3_H_ADDR_C, val);
-
-	val = (nr3_fbd_fetch->y_pixel_size_in_ver & 0x1FFF) |
-		((nr3_fbd_fetch->y_pixel_size_in_hor & 0x1FFF) << 16);
-	ISP_REG_WR(idx, ISP_FBD_NR3_SIZE_Y, val);
-
-	val = (nr3_fbd_fetch->c_pixel_size_in_ver & 0x1FFF) |
-		((nr3_fbd_fetch->c_pixel_size_in_hor & 0x1FFF) << 16);
-	ISP_REG_MWR(idx, ISP_FBD_NR3_SIZE_C, 0x1FFF1FFF, val);
+	val = (nr3_fbd_fetch->y_pixel_size_in_hor & 0xFFF) |
+		((nr3_fbd_fetch->y_pixel_size_in_ver & 0x3FFF) << 16);
+	ISP_REG_WR(idx, ISP_FBD_3DNR_SLICE_SIZE, val);
 
 	val = (nr3_fbd_fetch->y_pixel_start_in_ver & 1) |
 		((nr3_fbd_fetch->y_pixel_start_in_hor & 0xFF) << 16);
-	ISP_REG_MWR(idx, ISP_FBD_NR3_START_Y, 0xFF0001, val);
+	ISP_REG_MWR(idx, ISP_FBD_3DNR_PARAM0, 0xFF0001, val);
 
-	val = (nr3_fbd_fetch->c_pixel_start_in_ver & 1) |
-		((nr3_fbd_fetch->c_pixel_start_in_hor & 0xFF) << 16);
-	ISP_REG_MWR(idx, ISP_FBD_NR3_START_C, 0xFF0001, val);
-
-	val = (nr3_fbd_fetch->y_tiles_num_in_ver & 0x1FFF) |
-		((nr3_fbd_fetch->y_tiles_num_in_hor & 0x1F) << 16);
-	ISP_REG_MWR(idx, ISP_FBD_NR3_TILE_SIZE_Y, 0x1F1FFF, val);
-
-	val = (nr3_fbd_fetch->c_tiles_num_in_ver & 0x1FFF) |
-		((nr3_fbd_fetch->c_tiles_num_in_hor & 0x1F) << 16);
-	ISP_REG_MWR(idx, ISP_FBD_NR3_TILE_SIZE_C, 0x1F1FFF, val);
-
-	val = 0;
-	ISP_REG_MWR(idx, ISP_FBD_NR3_SLICE_TILE_PARAM, 0x10001, val);
-
-	val = 0xFF << 16;
-	ISP_REG_MWR(idx, ISP_FBD_NR3_READ_SPECIAL, 0xFF0000, val);
 }
 
 static void isp_3dnr_config_fbc_store(uint32_t idx,
@@ -378,41 +336,26 @@ static void isp_3dnr_config_fbc_store(uint32_t idx,
 
 	val = (nr3_fbc_store->bypass & 0x1) |
 		((nr3_fbc_store->slice_mode_en & 0x1) << 1);
-	ISP_REG_WR(idx, ISP_FBC_3DNR_STORE_PARAM, val);
+	ISP_REG_WR(idx, ISP_FBC_3DNR_PARAM, val);
 
 	if (nr3_fbc_store->bypass)
 		return;
 
 	val = (nr3_fbc_store->size_in_hor & 0x1FFF) |
 		((nr3_fbc_store->size_in_ver & 0x1FFF) << 16);
-	ISP_REG_WR(idx, ISP_FBC_3DNR_STORE_SLICE_SIZE, val);
+	ISP_REG_WR(idx, ISP_FBC_3DNR_SLICE_SIZE, val);
 
 	val = nr3_fbc_store->y_tile_addr_init_x256;
-	ISP_REG_WR(idx, ISP_FBC_3DNR_STORE_SLICE_YADDR, val);
-
-	val = nr3_fbc_store->c_tile_addr_init_x256;
-	ISP_REG_WR(idx, ISP_FBC_3DNR_STORE_SLICE_CADDR, val);
+	ISP_REG_WR(idx, ISP_FBC_3DNR_SLICE_PLOAD_BASE_ADDR, val);
 
 	val = nr3_fbc_store->tile_number_pitch & 0xFFFF;
-	ISP_REG_MWR(idx, ISP_FBC_3DNR_STORE_TILE_PITCH, 0xFFFF, val);
+	ISP_REG_MWR(idx, ISP_FBC_3DNR_TILE_PITCH, 0xFFFF, val);
 
 	val = nr3_fbc_store->y_header_addr_init;
-	ISP_REG_WR(idx, ISP_FBC_3DNR_STORE_SLICE_YHEADER, val);
-
-	val = nr3_fbc_store->c_header_addr_init;
-	ISP_REG_WR(idx, ISP_FBC_3DNR_STORE_SLICE_CHEADER, val);
-
-	val = nr3_fbc_store->fbc_constant_yuv;
-	ISP_REG_WR(idx, ISP_FBC_3DNR_STORE_CONSTANT, val);
-
-	val = nr3_fbc_store->later_bits & 0xFFFF;
-	ISP_REG_MWR(idx, ISP_FBC_3DNR_STORE_BITS, 0xFFFF, val);
-
-	val = nr3_fbc_store->tile_number & 0xFFFFF;
-	ISP_REG_MWR(idx, ISP_FBC_3DNR_STORE_TILE_NUM, 0xFFFFF, val);
+	ISP_REG_WR(idx, ISP_FBC_3DNR_SLICE_HEADER_BASE_ADDR, val);
 
 	val = 0x20002 & 0xFF00FF;
-	ISP_REG_MWR(idx, ISP_FBC_3DNR_STORE_NFULL_LEVEL, 0xFF00FF, val);
+	ISP_REG_MWR(idx, ISP_FBC_3DNR_NFULL_LEVEL, 0xFF00FF, val);
 }
 
 static void isp_3dnr_config_crop(uint32_t idx,
@@ -469,7 +412,7 @@ void isp_3dnr_bypass_config(uint32_t idx)
 	ISP_REG_MWR(idx, ISP_3DNR_MEM_CTRL_PARAM0, BIT_0, 1);
 	ISP_REG_MWR(idx, ISP_3DNR_BLEND_CONTROL0, BIT_0, 1);
 	ISP_REG_MWR(idx, ISP_3DNR_STORE_PARAM, BIT_0, 1);
-	ISP_REG_MWR(idx, ISP_FBC_3DNR_STORE_PARAM, BIT_0, 1);
+	ISP_REG_MWR(idx, ISP_FBC_3DNR_PARAM, BIT_0, 1);
 	ISP_REG_MWR(idx, ISP_3DNR_MEM_CTRL_PRE_PARAM0, BIT_0, 1);
 	ISP_REG_MWR(idx, ISP_COMMON_SCL_PATH_SEL, BIT_8, 0 << 8);
 }

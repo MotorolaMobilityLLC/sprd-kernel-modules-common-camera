@@ -110,7 +110,7 @@ static int isp_k_hsv_block(struct isp_io_param *param,
 	buf_sel = 0;
 	ISP_REG_MWR(idx, ISP_HSV_PARAM, BIT_1, buf_sel << 1);
 
-	reg_addr = ISP_HSV_BUF0_ADDR;
+	reg_addr = ISP_HSV_BUF0_CH0;
 	for (i = 0; i < ISP_HSV_BUF0_BYTE; i++) {
 		val = ((hsv_info->d.hs.sat[i] & 0x7FF) << 9 |
 				(hsv_info->d.hs.hue[i] & 0x1FF));

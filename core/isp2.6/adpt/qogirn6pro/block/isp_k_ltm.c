@@ -39,14 +39,8 @@ static void isp_ltm_config_hists(uint32_t idx,
 
 	switch (ltm_id) {
 	case LTM_RGB:
-		base = ISP_LTM_HIST_RGB_BASE;
+		base = ISP_LTM_HISTS_FRGB_BASE;
 		buf_addr_0 = ISP_LTM_RGB_HIST_BUF0_ADDR;
-		buf_addr_1 = ISP_LTM_RGB_HIST_BUF1_ADDR;
-		break;
-	case LTM_YUV:
-		base = ISP_LTM_HIST_YUV_BASE;
-		buf_addr_0 = ISP_LTM_YUV_HIST_BUF0_ADDR;
-		buf_addr_1 = ISP_LTM_YUV_HIST_BUF1_ADDR;
 		break;
 	default:
 		pr_err("fail to get cmd id:%d, not supported.\n", ltm_id);
@@ -56,7 +50,7 @@ static void isp_ltm_config_hists(uint32_t idx,
 	pr_debug("isp %d rgb ltm hist bypass %d\n", idx, hists->bypass);
 	if (g_isp_bypass[idx] & (1 << _EISP_LTM))
 		hists->bypass = 1;
-	ISP_REG_MWR(idx, base + ISP_LTM_HIST_PARAM, BIT_0, hists->bypass);
+	ISP_REG_MWR(idx, base + ISP_LTM_PARAMETERS, BIT_0, hists->bypass);
 	if (hists->bypass)
 		return;
 
@@ -66,7 +60,7 @@ static void isp_ltm_config_hists(uint32_t idx,
 		((hists->region_est_en & 0x1) << 2) |
 		((hists->binning_en    & 0x1) << 1) |
 		(hists->bypass        & 0x1);
-	ISP_REG_WR(idx, base + ISP_LTM_HIST_PARAM, val);
+	ISP_REG_WR(idx, base + ISP_LTM_PARAMETERS, val);
 
 	val = ((hists->roi_start_y & 0x1FFF) << 16) |
 		(hists->roi_start_x & 0x1FFF);
@@ -110,9 +104,6 @@ static void isp_ltm_config_map(uint32_t idx,
 	switch (ltm_id) {
 	case LTM_RGB:
 		base = ISP_LTM_MAP_RGB_BASE;
-		break;
-	case LTM_YUV:
-		base = ISP_LTM_MAP_YUV_BASE;
 		break;
 	default:
 		pr_err("fail to get cmd id:%d, not supported.\n", ltm_id);
