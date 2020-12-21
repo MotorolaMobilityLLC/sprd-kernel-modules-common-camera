@@ -315,26 +315,26 @@ static int ispcore_ltm_frame_process(struct isp_sw_context *pctx,
 	rgb_ltm = (struct isp_ltm_ctx_desc *)pctx->rgb_ltm_handle;
 	yuv_ltm = (struct isp_ltm_ctx_desc *)pctx->yuv_ltm_handle;
 
-	if (!rgb_ltm || !yuv_ltm)
-		return 0;
-
-	rgb_ltm->ltm_ops.core_ops.cfg_param(rgb_ltm, ISP_LTM_CFG_MODE, &pipe_src->mode_ltm);
-	yuv_ltm->ltm_ops.core_ops.cfg_param(yuv_ltm, ISP_LTM_CFG_MODE, &pipe_src->mode_ltm);
-	rgb_ltm->ltm_ops.core_ops.cfg_param(rgb_ltm, ISP_LTM_CFG_FRAME_ID, &pframe->fid);
-	rgb_ltm->ltm_ops.core_ops.cfg_param(rgb_ltm, ISP_LTM_CFG_SIZE_INFO, &pipe_src->crop);
-	yuv_ltm->ltm_ops.core_ops.cfg_param(yuv_ltm, ISP_LTM_CFG_FRAME_ID, &pframe->fid);
-	yuv_ltm->ltm_ops.core_ops.cfg_param(yuv_ltm, ISP_LTM_CFG_SIZE_INFO, &pipe_src->crop);
-
-	ret = rgb_ltm->ltm_ops.core_ops.pipe_proc(rgb_ltm, &pctx->isp_k_param.ltm_rgb_info);
-	if (ret == -1) {
-		pipe_src->mode_ltm = MODE_LTM_OFF;
-		pr_err("fail to rgb LTM cfg frame, DISABLE\n");
+	if (rgb_ltm){
+		rgb_ltm->ltm_ops.core_ops.cfg_param(rgb_ltm, ISP_LTM_CFG_MODE, &pipe_src->mode_ltm);
+		rgb_ltm->ltm_ops.core_ops.cfg_param(rgb_ltm, ISP_LTM_CFG_FRAME_ID, &pframe->fid);
+		rgb_ltm->ltm_ops.core_ops.cfg_param(rgb_ltm, ISP_LTM_CFG_SIZE_INFO, &pipe_src->crop);
+		ret = rgb_ltm->ltm_ops.core_ops.pipe_proc(rgb_ltm, &pctx->isp_k_param.ltm_rgb_info);
+		if (ret == -1) {
+			pipe_src->mode_ltm = MODE_LTM_OFF;
+			pr_err("fail to rgb LTM cfg frame, DISABLE\n");
+		}
 	}
 
-	ret = yuv_ltm->ltm_ops.core_ops.pipe_proc(yuv_ltm, &pctx->isp_k_param.ltm_yuv_info);
-	if (ret == -1) {
-		pipe_src->mode_ltm = MODE_LTM_OFF;
-		pr_err("fail to yuv LTM cfg frame, DISABLE\n");
+	if (yuv_ltm){
+		yuv_ltm->ltm_ops.core_ops.cfg_param(yuv_ltm, ISP_LTM_CFG_MODE, &pipe_src->mode_ltm);
+		yuv_ltm->ltm_ops.core_ops.cfg_param(yuv_ltm, ISP_LTM_CFG_FRAME_ID, &pframe->fid);
+		yuv_ltm->ltm_ops.core_ops.cfg_param(yuv_ltm, ISP_LTM_CFG_SIZE_INFO, &pipe_src->crop);
+		ret = yuv_ltm->ltm_ops.core_ops.pipe_proc(yuv_ltm, &pctx->isp_k_param.ltm_yuv_info);
+		if (ret == -1) {
+			pipe_src->mode_ltm = MODE_LTM_OFF;
+			pr_err("fail to yuv LTM cfg frame, DISABLE\n");
+		}
 	}
 
 	return ret;
