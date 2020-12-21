@@ -992,8 +992,28 @@ static int dcamhw_lbuf_share_set(void *handle, void *arg)
 		4160, 5184,
 		3648, 5664,
 	};
-
+	char buf[64]= { 0 };
 	struct cam_hw_lbuf_share *camarg = (struct cam_hw_lbuf_share *)arg;
+	cam_kproperty_get("auto/efuse",buf, "-1");
+	/*0: T606 1:T616*/
+	if(strncmp(buf, "T616", strlen("T616"))) {
+		if (camarg->width > DCAM_48M_WIDTH) {
+			pr_err("fail to check param, 48M unsupprot w %d\n", camarg->width);
+			return -EINVAL;
+		}
+	} else if (strncmp(buf, "T606", strlen("T606"))) {
+		if (camarg->width > DCAM_24M_WIDTH) {
+			pr_err("fail to check param, 24M unsupprot w %d\n", camarg->width);
+			return -EINVAL;
+		}
+	} else {
+	    pr_debug("product name %s, w %d\n", buf,camarg->width);
+	}
+
+	if (atomic_read(&s_dcam_working) > 0) {
+		pr_warn("dcam 0/1 already in working\n");
+		return 0;
+	}
 
 	switch (camarg->idx) {
 	case 0:
