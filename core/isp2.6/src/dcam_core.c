@@ -843,16 +843,11 @@ static int dcamcore_offline_slices_sw_start(void *param)
 
 	ret = wait_for_completion_interruptible_timeout(
 		&sw_pctx->slice_done, DCAM_OFFLINE_TIMEOUT);
-	if (ret == ERESTARTSYS) {
-		pr_err("interrupt when dcam wait\n");
-		ret = -EFAULT;
-		goto wait_err;
-	} else if (ret == 0) {
-		pr_err("error: dcam%d offline timeout.\n", sw_pctx->hw_ctx_id);
+	if (ret <= 0) {
+		pr_err("error: dcam%d offline timeout. ret: %d\n", sw_pctx->hw_ctx_id, ret);
 		ret = -EFAULT;
 		goto wait_err;
 	}
-	ret = 0;
 
 	loop = 0;
 	do {
@@ -998,17 +993,8 @@ static int dcamcore_offline_frame_start(void *param)
 	ret = wait_for_completion_interruptible_timeout(
 		&sw_pctx->frm_done,
 		DCAM_OFFLINE_TIMEOUT);
-	if (ret == ERESTARTSYS) {
-		pr_err("fail to wait as interrupted.\n");
-		ret = -EFAULT;
-		pframe = cam_queue_dequeue(&sw_pctx->in_queue, struct camera_frame, list);
-		if (pframe == NULL) {
-			pr_warn("no frame from in_q. dcam%d\n", sw_pctx->hw_ctx_id);
-			return 0;
-		}
-		goto wait_err;
-	} else if (ret == 0) {
-		pr_err("fail to wait as dcam%d offline timeout.\n", sw_pctx->hw_ctx_id);
+	if (ret <= 0) {
+		pr_err("fail to wait as dcam%d offline timeout. ret: %d\n", sw_pctx->hw_ctx_id, ret);
 		ret = -EFAULT;
 		pframe = cam_queue_dequeue(&sw_pctx->in_queue, struct camera_frame, list);
 		if (pframe == NULL) {
@@ -1217,12 +1203,8 @@ static int dcamcore_offline_frame_start(void *param)
 	for (i = 0; i < sw_pctx->slice_num; i++) {
 		ret = wait_for_completion_interruptible_timeout(
 			&sw_pctx->slice_done, DCAM_OFFLINE_TIMEOUT);
-		if (ret == ERESTARTSYS) {
-			pr_err("fail to wait as interrupted\n");
-			ret = -EFAULT;
-			goto dequeue;
-		} else if (ret == 0) {
-			pr_err("fail to wait as dcam%d offline timeout.\n", sw_pctx->hw_ctx_id);
+		if (ret <= 0) {
+			pr_err("fail to wait as dcam%d offline timeout. ret: %d\n", sw_pctx->hw_ctx_id, ret);
 			ret = -EFAULT;
 			goto dequeue;
 		}

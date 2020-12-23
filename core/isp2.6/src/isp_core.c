@@ -901,7 +901,7 @@ static int ispcore_slices_proc(struct isp_sw_context *pctx,
 		ret = wait_for_completion_interruptible_timeout(
 					&pctx->slice_done,
 					ISP_CONTEXT_TIMEOUT);
-		if (ret == ERESTARTSYS) {
+		if (ret == -ERESTARTSYS) {
 			pr_err("fail to interrupt, when isp wait\n");
 			ret = -EFAULT;
 			goto exit;
@@ -1554,7 +1554,7 @@ static int ispcore_offline_frame_start(void *ctx)
 
 	ret = wait_for_completion_interruptible_timeout(
 			&pctx->frm_done, ISP_CONTEXT_TIMEOUT);
-	if (ret == ERESTARTSYS) {
+	if (ret == -ERESTARTSYS) {
 		pr_err("fail to interrupt, when isp wait\n");
 		ret = -EFAULT;
 		goto dequeue;

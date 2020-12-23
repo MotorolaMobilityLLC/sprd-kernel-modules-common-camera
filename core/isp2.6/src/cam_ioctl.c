@@ -1705,6 +1705,8 @@ cfg_ch_done:
 			DCAM_PATH_FULL, &module->path_state);
 
 	ret = hw->dcam_ioctl(hw, DCAM_HW_CFG_RESET, &sw_ctx->hw_ctx_id);
+	if (ret)
+		pr_err("fail to reset dcam%d\n", sw_ctx->hw_ctx_id);
 
 	if(hw->csi_connect_type == DCAM_BIND_DYNAMIC && sw_ctx->csi_connect_stat != DCAM_CSI_RESUME) {
 		struct dcam_switch_param csi_switch;
@@ -1715,9 +1717,6 @@ cfg_ch_done:
 		hw->dcam_ioctl(hw, DCAM_HW_FORCE_EN_CSI, &csi_switch);
 		sw_ctx->csi_connect_stat = DCAM_CSI_RESUME;
 	}
-
-	if (ret)
-		pr_err("fail to reset dcam%d\n", sw_ctx->hw_ctx_id);
 
 	dev->dcam_pipe_ops->ioctl(sw_ctx, DCAM_IOCTL_RECFG_PARAM, NULL);
 
@@ -3035,8 +3034,6 @@ static int camioctl_csi_switch(struct camera_module *module, unsigned long arg)
 			}
 			pr_info("Disconnect csi_id = %d, dcam_id = %d, sw_ctx_id = %d\n",
 				csi_switch.csi_id, csi_switch.dcam_id, sw_ctx->sw_ctx_id);
-
-			usleep_range(1000 * 300, 1000 * 300);
 
 			/* reset */
 			hw->dcam_ioctl(hw, DCAM_HW_CFG_RESET, &sw_ctx->hw_ctx_id);
