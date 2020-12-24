@@ -315,7 +315,7 @@ static int ispcore_ltm_frame_process(struct isp_sw_context *pctx,
 	rgb_ltm = (struct isp_ltm_ctx_desc *)pctx->rgb_ltm_handle;
 	yuv_ltm = (struct isp_ltm_ctx_desc *)pctx->yuv_ltm_handle;
 
-	if (rgb_ltm){
+	if (rgb_ltm) {
 		rgb_ltm->ltm_ops.core_ops.cfg_param(rgb_ltm, ISP_LTM_CFG_MODE, &pipe_src->mode_ltm);
 		rgb_ltm->ltm_ops.core_ops.cfg_param(rgb_ltm, ISP_LTM_CFG_FRAME_ID, &pframe->fid);
 		rgb_ltm->ltm_ops.core_ops.cfg_param(rgb_ltm, ISP_LTM_CFG_SIZE_INFO, &pipe_src->crop);
@@ -326,7 +326,7 @@ static int ispcore_ltm_frame_process(struct isp_sw_context *pctx,
 		}
 	}
 
-	if (yuv_ltm){
+	if (yuv_ltm) {
 		yuv_ltm->ltm_ops.core_ops.cfg_param(yuv_ltm, ISP_LTM_CFG_MODE, &pipe_src->mode_ltm);
 		yuv_ltm->ltm_ops.core_ops.cfg_param(yuv_ltm, ISP_LTM_CFG_FRAME_ID, &pframe->fid);
 		yuv_ltm->ltm_ops.core_ops.cfg_param(yuv_ltm, ISP_LTM_CFG_SIZE_INFO, &pipe_src->crop);

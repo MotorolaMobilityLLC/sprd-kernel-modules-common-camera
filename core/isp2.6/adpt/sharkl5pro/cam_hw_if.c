@@ -330,7 +330,7 @@ static struct cam_hw_ip_info isp = {
 	.scaler_coeff_ex = 0,
 	.ctx_fmcu_support = isp_ctx_fmcu_support,
 	.rgb_ltm_support = 1,
-	.yuv_ltm_support = 1,
+	.yuv_ltm_support = 0,
 };
 
 struct cam_hw_info sharkl5pro_hw_info = {

@@ -307,10 +307,8 @@ static int camioctl_function_mode_set(struct camera_module *module,
 	module->cam_uinfo.is_rgb_ltm = 0;
 	module->cam_uinfo.is_yuv_ltm = 0;
 
-	if (module->grp->hw_info->prj_id == SHARKL5pro || module->grp->hw_info->prj_id == QOGIRL6) {
-		module->cam_uinfo.is_rgb_ltm = 1;
-		module->cam_uinfo.is_yuv_ltm = 0;
-	}
+	module->cam_uinfo.is_rgb_ltm = module->grp->hw_info->ip_isp->rgb_ltm_support;
+	module->cam_uinfo.is_yuv_ltm = module->grp->hw_info->ip_isp->yuv_ltm_support;
 
 	/* no use */
 	module->cam_uinfo.is_3dnr = 0;
