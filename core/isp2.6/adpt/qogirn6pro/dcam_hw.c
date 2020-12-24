@@ -1193,40 +1193,7 @@ static int dcamhw_lbuf_share_set(void *handle, void *arg)
 		3264, 5664,
 	};
 	struct cam_hw_lbuf_share *camarg = (struct cam_hw_lbuf_share *)arg;
-/*
-	char chip_type[64] = { 0 };
 
-	cam_kproperty_get("lwfq/type", chip_type, "-1");
-	//0: T618 1:T610
-	dcam_hw_linebuf_len[camarg->idx] = camarg->width;
-	pr_debug("dcam_hw_linebuf_len[0] = %d, [1] = %d %s\n",
-		dcam_hw_linebuf_len[0], dcam_hw_linebuf_len[1], chip_type);
-	if (!strncmp(chip_type, "1", strlen("1"))) {
-		if (dcam_hw_linebuf_len[0] > DCAM_16M_WIDTH && dcam_hw_linebuf_len[1] > 0) {
-				pr_err("fail to check param,unsupprot img width\n");
-				return -EINVAL;
-		}else if (dcam_hw_linebuf_len[0] <= DCAM_16M_WIDTH && dcam_hw_linebuf_len[0] > DCAM_13M_WIDTH) {
-			if (dcam_hw_linebuf_len[1] > DCAM_8M_WIDTH) {
-				pr_err("fail to check param,unsupprot img width\n");
-				return -EINVAL;
-			}
-		} else if (dcam_hw_linebuf_len[0] <= DCAM_13M_WIDTH && dcam_hw_linebuf_len[0] > DCAM_8M_WIDTH) {
-			if (dcam_hw_linebuf_len[1] > DCAM_13M_WIDTH) {
-				pr_err("fail to check param,unsupprot img width\n");
-				return -EINVAL;
-			}
-		} else if (0 < dcam_hw_linebuf_len[0] && dcam_hw_linebuf_len[0] <= DCAM_8M_WIDTH) {
-			if (dcam_hw_linebuf_len[1] > DCAM_16M_WIDTH) {
-				pr_err("fail to check param,unsupprot img width\n");
-				return -EINVAL;
-			}
-		}
-	}
-	if (atomic_read(&s_dcam_working) > 0) {
-		pr_warn("dcam 0/1 already in working\n");
-		return 0;
-	}
-*/
 	switch (camarg->idx) {
 	case 0:
 		if (camarg->width > tb_w[0]) {
@@ -1786,6 +1753,111 @@ static int dcamhw_set_store_addr(void *handle, void *arg)
 	return 0;
 }
 
+static int dcamhw_csi_disconnect(void *handle, void *arg)
+{
+	uint32_t idx = 0, csi_id = 0;
+	struct cam_hw_info *hw = NULL;
+	int time_out = DCAMX_STOP_TIMEOUT;
+	uint32_t val = 0xffffffff;
+	struct dcam_switch_param *csi_switch = NULL;
+	unsigned int status = 0;
+
+	csi_switch = (struct dcam_switch_param *)arg;
+	idx = csi_switch->dcam_id;
+	csi_id = csi_switch->csi_id;
+	hw = (struct cam_hw_info *)handle;
+
+	regmap_update_bits(hw->soc_dcam->cam_switch_gpr, idx * 4, BIT_5, BIT_5);
+	regmap_update_bits(hw->soc_dcam->cam_switch_gpr, idx * 4, BIT_31, BIT_31);
+	while (time_out) {
+		val = regmap_read(hw->soc_dcam->cam_switch_gpr, idx * 4, &status) & BIT_30;
+		if (val)
+			break;
+		udelay(1000);
+		time_out--;
+	}
+
+	if (time_out != 0)
+		pr_debug("disconnect dcam%d from csi%d\n", idx, csi_id);
+	else
+		pr_err("fail to disconnect DCAM%d\n", idx);
+
+	time_out = DCAMX_STOP_TIMEOUT;
+	while (time_out) {
+		val = DCAM_REG_RD(idx, DCAM_PATH_BUSY) & 0xFFF;
+		if (!val)
+			break;
+		udelay(1000);
+		time_out--;
+	}
+
+	if (time_out == 0)
+		pr_err("fail to stop:DCAM%d: stop timeout for 2s\n", idx);
+
+	return 0;
+}
+
+static int dcamhw_csi_connect(void *handle, void *arg)
+{
+	uint32_t idx = 0, csi_idx = 0;
+	struct cam_hw_info *hw = NULL;
+	struct dcam_switch_param *csi_switch = NULL;
+	int time_out = DCAMX_STOP_TIMEOUT;
+	unsigned int status = 0;
+	uint32_t val = 0xffffffff;
+
+	csi_switch = (struct dcam_switch_param *)arg;
+	hw = (struct cam_hw_info *)handle;
+	csi_idx = csi_switch->csi_id;
+	idx = csi_switch->dcam_id;
+
+	pr_debug("DCAM%d connect to csi%d\n", idx, csi_idx);
+
+	regmap_update_bits(hw->soc_dcam->cam_switch_gpr, idx * 4, 0x7 << 13, csi_idx << 13);
+	regmap_update_bits(hw->soc_dcam->cam_switch_gpr, idx * 4, BIT_31, ~BIT_31);
+	time_out = DCAMX_STOP_TIMEOUT;
+	while (time_out) {
+		val = regmap_read(hw->soc_dcam->cam_switch_gpr, idx * 4, &status) & BIT_30;
+		if (!val)
+			break;
+		udelay(1000);
+		time_out--;
+	}
+
+	return 0;
+}
+
+static int dcamhw_csi_force_enable(void *handle, void *arg)
+{
+	uint32_t idx = 0, csi_idx = 0;
+	struct cam_hw_info *hw = NULL;
+	struct dcam_switch_param *csi_switch = NULL;
+	int time_out = DCAMX_STOP_TIMEOUT;
+	unsigned int status = 0;
+	uint32_t val = 0xffffffff;
+
+	csi_switch = (struct dcam_switch_param *)arg;
+	hw = (struct cam_hw_info *)handle;
+	csi_idx = csi_switch->csi_id;
+	idx = csi_switch->dcam_id;
+
+	pr_debug("DCAM%d force to csi%d\n", idx, csi_idx);
+	regmap_update_bits(hw->soc_dcam->cam_switch_gpr, idx * 4, BIT_5, BIT_5);
+	regmap_update_bits(hw->soc_dcam->cam_switch_gpr, idx * 4, BIT_31, BIT_31);
+	regmap_update_bits(hw->soc_dcam->cam_switch_gpr, idx * 4, 0x7 << 13, csi_idx << 13);
+	regmap_update_bits(hw->soc_dcam->cam_switch_gpr, idx * 4, BIT_31, ~BIT_31);
+
+	while (time_out) {
+		val = regmap_read(hw->soc_dcam->cam_switch_gpr, idx * 4, &status) & BIT_30;
+		if (!val)
+			break;
+		udelay(1000);
+		time_out--;
+	}
+
+	return 0;
+}
+
 static struct hw_io_ctrl_fun dcam_ioctl_fun_tab[] = {
 	{DCAM_HW_CFG_ENABLE_CLK,            dcamhw_clk_eb},
 	{DCAM_HW_CFG_DISABLE_CLK,           dcamhw_clk_dis},
@@ -1828,6 +1900,9 @@ static struct hw_io_ctrl_fun dcam_ioctl_fun_tab[] = {
 	{DCAM_HW_CFG_BIN_PATH,              dcamhw_bin_path_cfg},
 	{DCAM_HW_CFG_HIST_ROI_UPDATE,       dcamhw_bayer_hist_roi_update},
 	{DCAM_HW_CFG_STORE_ADDR,            dcamhw_set_store_addr},
+	{DCAM_HW_DISCONECT_CSI,             dcamhw_csi_disconnect},
+	{DCAM_HW_CONECT_CSI,                dcamhw_csi_connect},
+	{DCAM_HW_FORCE_EN_CSI,              dcamhw_csi_force_enable}
 };
 
 static hw_ioctl_fun dcamhw_ioctl_fun_get(enum dcam_hw_cfg_cmd cmd)

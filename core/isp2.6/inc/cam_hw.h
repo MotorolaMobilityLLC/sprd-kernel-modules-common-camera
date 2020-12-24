@@ -953,6 +953,7 @@ struct cam_hw_soc_info {
 
 	struct regmap *cam_ahb_gpr;
 	struct regmap *aon_apb_gpr;
+	struct regmap *cam_switch_gpr;
 
 	struct clk *clk;
 	struct clk *clk_parent;
