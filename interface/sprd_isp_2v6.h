@@ -14,30 +14,38 @@
 #ifndef _SPRD_ISP_2V6_H_
 #define _SPRD_ISP_2V6_H_
 
+#define ISP_HSV_SAT_GRID        17
+#define ISP_HSV_HUE_GRID        25
+#define ISP_HSV_TABLE_A         117 /*9*13*/
+#define ISP_HSV_TABLE_B         104 /*8*13*/
+#define ISP_HSV_TABLE_C         108 /*9*12*/
+#define ISP_HSV_TABLE_D         96  /*8*128*/
+#define ISP_HSV_HUE3            3
+#define ISP_HSV_HUE2            2
 
-#define PDAF_PPI_NUM			64
-#define PDAF_PPI_GAIN_MAP_LEN 128
-#define ISP_HSV_TABLE_NUM 	360
-#define ISP_VST_IVST_NUM		1024
-#define ISP_VST_IVST_NUM2		1025
-#define ISP_FRGB_GAMMA_PT_NUM 257
-#define POSTERIZE_NUM			8
-#define POSTERIZE_NUM2			129
-#define ISP_YUV_GAMMA_NUM	129
-#define GTM_HIST_BIN_NUM       128
+#define PDAF_PPI_NUM            64
+#define PDAF_PPI_GAIN_MAP_LEN   128
+#define ISP_HSV_TABLE_NUM       360
+#define ISP_VST_IVST_NUM        1024
+#define ISP_VST_IVST_NUM2       1025
+#define ISP_FRGB_GAMMA_PT_NUM   257
+#define POSTERIZE_NUM           8
+#define POSTERIZE_NUM2          129
+#define ISP_YUV_GAMMA_NUM       129
+#define GTM_HIST_BIN_NUM        128
 
-#define MAX_WTAB_LEN 1024
-#define MAX_LSCTAB_LEN (16*1024)
+#define MAX_WTAB_LEN            1024
+#define MAX_LSCTAB_LEN          (16*1024)
 
-#define PARAM_BUF_NUM_MAX 32
-#define STATIS_BUF_NUM_MAX 8
+#define PARAM_BUF_NUM_MAX       32
+#define STATIS_BUF_NUM_MAX      8
 
-#define STATIS_AEM_HEADER_SIZE 512
+#define STATIS_AEM_HEADER_SIZE  512
 #define STATIS_HIST_HEADER_SIZE 128
 
 /* SharkL5/ROC1/SharkL5Pro */
 /* AFL: global 80 x 16 bytes for one frame, region 482 x 16 bytes one frame */
-#define STATIS_AFL_GBUF_SIZE   (80 * 16 * 3 + 64)
+#define STATIS_AFL_GBUF_SIZE    (80 * 16 * 3 + 64)
 
 /* SharkL3 */
 /* AFL: global 240 * 8 bytes for one frame, region 964 x 8 bytes one frame */
@@ -145,6 +153,7 @@ enum dcam_block {
 	ISP_BLOCK_3DNR,
 	ISP_BLOCK_RGB_LTM,
 	ISP_BLOCK_YUV_LTM,
+	ISP_BLOCK_RGB_GTM,
 	ISP_BLOCK_TOTAL,
 };
 
@@ -353,6 +362,12 @@ enum isp_yuv_ltm_property {
 	ISP_PRO_YUV_LTM_CAP_PARAM,
 };
 
+enum isp_rgb_gtm_property {
+	ISP_PRO_RGB_GTM_BLOCK,
+	ISP_PRO_RGB_GTM_PRE_PARAM,
+	ISP_PRO_RGB_GTM_CAP_PARAM,
+};
+
 enum dcam_gtm_property {
 	DCAM_PRO_RAW_GTM_BLOCK,
 	DCAM_PRO_RAW_GTM_SLICE,
@@ -459,6 +474,53 @@ struct dcam_dev_raw_gtm_block_info {
 	uint32_t tm_rgb2y_b_coeff;
 	uint16_t tm_hist_xpts[GTM_HIST_BIN_NUM];
 	struct dcam_dev_gtm_slice_info slice;
+	uint32_t gtm_map_video_mode;
+};
+
+struct isp_dev_gtm_slice_info {
+	uint32_t gtm_slice_main;
+	uint32_t gtm_slice_line_startpos;
+	uint32_t gtm_slice_line_endpos;
+	uint32_t slice_width;
+	uint32_t slice_height;
+};
+
+struct isp_dev_gtm_block_info {
+	uint32_t gtm_tm_out_bit_depth;
+	uint32_t gtm_tm_in_bit_depth;
+	uint32_t gtm_tm_luma_est_mode;
+	uint32_t gtm_cur_is_first_frame;
+	uint32_t gtm_tm_param_calc_by_hw;
+	uint32_t gtm_hist_stat_bypass;
+	uint32_t gtm_map_bypass;
+	uint32_t gtm_mod_en;
+	uint32_t gtm_imgkey_setting_value;
+	uint32_t gtm_imgkey_setting_mode;
+	uint32_t gtm_target_norm_coeff;
+	uint32_t gtm_target_norm;
+	uint32_t gtm_target_norm_setting_mode;
+	uint32_t gtm_ymin;
+	uint32_t gtm_yavg;
+	uint32_t gtm_ymax;
+	uint32_t gtm_log_min_int;
+	uint32_t gtm_lr_int;
+	uint32_t gtm_log_diff_int;
+	uint32_t gtm_log_max_int;
+	uint32_t gtm_hist_total;
+	uint32_t gtm_min_per;
+	uint32_t gtm_max_per;
+	uint32_t gtm_log_diff;
+	uint32_t gtm_pre_ymin_weight;
+	uint32_t gtm_cur_ymin_weight;
+	uint32_t gtm_ymax_diff_thr;
+	uint32_t gtm_yavg_diff_thr;
+	uint32_t tm_lumafilter_c[3][3];
+	uint32_t tm_lumafilter_shift;
+	uint32_t tm_rgb2y_g_coeff;
+	uint32_t tm_rgb2y_r_coeff;
+	uint32_t tm_rgb2y_b_coeff;
+	uint16_t tm_hist_xpts[GTM_HIST_BIN_NUM];
+	struct isp_dev_gtm_slice_info slice;
 	uint32_t gtm_map_video_mode;
 	uint32_t gtm_rgb2y_mode;
 	uint32_t gtm_tm_param_calc_by_sw;
@@ -1162,6 +1224,43 @@ struct isp_dev_hsv_info_v2 {
 	} d;
 };
 
+struct isp_dev_hsv_buf_info {
+	uint32_t hsv_buf_sel;
+	uint32_t hsv_table_a[ISP_HSV_TABLE_A];
+	uint32_t hsv_table_b[ISP_HSV_TABLE_B];
+	uint32_t hsv_table_c[ISP_HSV_TABLE_C];
+	uint32_t hsv_table_d[ISP_HSV_TABLE_D];
+};
+
+struct hsv_curve_param {
+	uint32_t start_a;
+	uint32_t end_a;
+	uint32_t start_b;
+	uint32_t end_b;
+};
+
+struct hsv_param {
+	struct hsv_curve_param hsv_curve_param;
+};
+
+struct hsv_buf_param{
+	uint32_t hsv_buf_sel;
+	uint32_t hsv_2d_hue_lut_reg[ISP_HSV_HUE_GRID][ISP_HSV_SAT_GRID];
+	uint32_t hsv_2d_sat_lut[ISP_HSV_HUE_GRID][ISP_HSV_SAT_GRID];
+
+};
+
+struct isp_dev_hsv_info_v3 {
+	uint32_t  hsv_bypass;
+	struct hsv_buf_param buf_param;
+	uint32_t  hsv_delta_value_en;
+	uint32_t  hsv_hue_thr[ISP_HSV_HUE3][ISP_HSV_HUE2];
+	struct hsv_param hsv_param[4];
+	uint32_t  y_blending_factor;
+	uint32_t  hsv_1d_sat_lut[ISP_HSV_SAT_GRID];
+	uint32_t  hsv_1d_hue_lut[ISP_HSV_HUE_GRID];
+};
+
 struct isp_dev_iircnr_info {
 	uint32_t bypass;
 	uint32_t mode;
@@ -1295,6 +1394,72 @@ struct isp_dev_nlm_imblance_v1 {
 	uint32_t nlm_imblance_faceBmax;
 	uint32_t nlm_imblance_faceGmin;
 	uint32_t nlm_imblance_faceGmax;
+};
+
+struct isp_dev_nlm_imblance_v2 {
+	uint32_t nlm_imblance_bypass;
+	uint32_t imblance_radial_1D_en;
+	uint32_t nlm_imblance_hv_edge_thr[3];
+	uint32_t nlm_imblance_slash_edge_thr[3];
+	uint32_t nlm_imblance_hv_flat_thr[3];
+	uint32_t nlm_imblance_slash_flat_thr[3];
+	uint32_t nlm_imblance_flag3_grid;
+	uint32_t nlm_imblance_flag3_lum;
+	uint32_t nlm_imblance_flag3_frez;
+	uint32_t nlm_imblance_S_baohedu[3][2];
+	uint32_t imblance_sat_lumth;
+	uint32_t radius_base;
+	uint32_t nlm_imblance_lumth1;
+	uint32_t nlm_imblance_lumth2;
+	uint32_t nlm_imblance_lum1_flag0_rs;
+	uint32_t nlm_imblance_lum1_flag0_r;
+	uint32_t nlm_imblance_lum1_flag1_r;
+	uint32_t nlm_imblance_lum1_flag2_r;
+	uint32_t nlm_imblance_lum1_flag3_r;
+	uint32_t nlm_imblance_lum1_flag4_r;
+	uint32_t nlm_imblance_lum2_flag0_rs;
+	uint32_t nlm_imblance_lum2_flag0_r;
+	uint32_t nlm_imblance_lum2_flag1_r;
+	uint32_t nlm_imblance_lum2_flag2_r;
+	uint32_t nlm_imblance_lum2_flag3_r;
+	uint32_t nlm_imblance_lum2_flag4_r;
+	uint32_t nlm_imblance_lum3_flag0_rs;
+	uint32_t nlm_imblance_lum3_flag0_r;
+	uint32_t nlm_imblance_lum3_flag1_r;
+	uint32_t nlm_imblance_lum3_flag2_r;
+	uint32_t nlm_imblance_lum3_flag3_r;
+	uint32_t nlm_imblance_lum3_flag4_r;
+	uint32_t nlm_imblance_flag12_frezthr;
+	uint32_t nlm_imblance_ff_wt0;
+	uint32_t nlm_imblance_ff_wt1;
+	uint32_t nlm_imblance_ff_wt2;
+	uint32_t nlm_imblance_ff_wt3;
+	uint32_t nlm_imblance_ff_wr0;
+	uint32_t nlm_imblance_ff_wr1;
+	uint32_t nlm_imblance_ff_wr2;
+	uint32_t nlm_imblance_ff_wr3;
+	uint32_t nlm_imblance_ff_wr4;
+	uint32_t nlm_imblance_diff[3];
+	uint32_t imblance_radial_1D_center_x;
+	uint32_t imblance_radial_1D_center_y;
+	uint32_t imblance_radial_1D_radius_thr;
+	uint32_t imblance_radial_1D_radius_thr_factor;
+	uint32_t imblance_radial_1D_protect_ratio_max;
+	uint32_t imblance_radial_1D_coef_r0;
+	uint32_t imblance_radial_1D_coef_r1;
+	uint32_t imblance_radial_1D_coef_r2;
+	uint32_t imblance_radial_1D_coef_r3;
+	uint32_t imblance_radial_1D_coef_r4;
+	uint32_t nlm_imblance_faceRmin;
+	uint32_t nlm_imblance_faceRmax;
+	uint32_t nlm_imblance_faceBmin;
+	uint32_t nlm_imblance_faceBmax;
+	uint32_t nlm_imblance_faceGmin;
+	uint32_t nlm_imblance_faceGmax;
+	uint32_t grgb_mode;
+	uint32_t med_diff[3];
+	uint32_t gr_ratio;
+	uint32_t gb_ratio;
 };
 
 struct lum_flat_param {
@@ -1992,6 +2157,19 @@ struct dcam_param_data_l5pro {
 	uint16_t lsc_tab[MAX_LSCTAB_LEN];
 };
 
+struct dcam_param_data_l6 {
+	struct dcam_dev_lsc_info lens_info;
+	struct dcam_dev_blc_info blc_info;
+	struct dcam_dev_rgb_gain_info gain_info;
+	struct dcam_dev_rgb_dither_info rgb_dither;
+	struct dcam_dev_awbc_info awbc_info;
+	struct dcam_dev_bpc_info bpc_info;
+	struct dcam_dev_3dnr_me nr3_me;
+	struct dcam_dev_raw_gtm_block_info gtm_info;
+	int16_t weight_tab[MAX_WTAB_LEN];
+	uint16_t lsc_tab[MAX_LSCTAB_LEN];
+};
+
 struct isp_param_data_l3 {
 	struct isp_dev_3dnr_info nr3d_info;
 	struct isp_dev_brightness_info brightness_info;
@@ -2064,6 +2242,34 @@ struct isp_param_data_l5pro {
 	struct isp_dev_yuv_ltm_info ltm_yuv_info;
 	struct isp_dev_nlm_info_v2 nlm_info;
 	struct isp_dev_nlm_imblance_v1 imblance_info;
+	struct isp_dev_posterize_info_v2 pstrz_info_v2;
+	struct isp_dev_uvd_info_v2 uvd_info_v2;
+	struct isp_dev_ygamma_info ygamma_info;
+	struct isp_dev_ynr_info_v2 ynr_info_v2;
+	struct isp_dev_yrandom_info yrandom_info;
+	struct isp_dev_noise_filter_info nf_info;
+	uint32_t vst_buf[ISP_VST_IVST_NUM2];
+	uint32_t ivst_buf[ISP_VST_IVST_NUM2];
+};
+
+struct isp_param_data_l6 {
+	struct isp_dev_grgb_info grgb_info;
+	struct isp_dev_3dnr_info nr3d_info;
+	struct isp_dev_bchs_info bchs_info;
+	struct isp_dev_cce_info cce_info;
+	struct isp_dev_pre_cdn_info pre_cdn_info;
+	struct isp_dev_cdn_info cdn_info;
+	struct isp_dev_post_cdn_info post_cdn_info;
+	struct isp_dev_cfa_info cfa_info;
+	struct isp_dev_cmc10_info cmc10_info;
+	struct isp_dev_edge_info_v2 edge_info;
+	struct isp_dev_gamma_info gamma_info;
+	struct isp_dev_iircnr_info iircnr_info;
+	struct isp_dev_rgb_ltm_info ltm_rgb_info;
+	struct isp_dev_yuv_ltm_info ltm_yuv_info;
+	struct isp_dev_nlm_info_v2 nlm_info;
+	struct isp_dev_hsv_info_v3 hsv_info3;
+	struct isp_dev_nlm_imblance_v2 imblance_info2;
 	struct isp_dev_posterize_info_v2 pstrz_info_v2;
 	struct isp_dev_uvd_info_v2 uvd_info_v2;
 	struct isp_dev_ygamma_info ygamma_info;
