@@ -29,17 +29,23 @@
 #define pr_fmt(fmt) "DCAM_INT: %d %d %s : "\
 	fmt, current->pid, __LINE__, __func__
 
+#ifdef CAM_ON_HAPS
+#define CAM_DEBUG_LOG pr_info
+#else
+#define CAM_DEBUG_LOG pr_debug
+#endif
+
 /*
  * track interrupt count for debug use
  */
 //#define DCAM_INT_RECORD 1
 #ifdef DCAM_INT_RECORD
 #define INT_RCD_SIZE 0x10000
-static uint32_t dcam_int_recorder[DCAM_HW_CONTEXT_MAX][DCAM_IRQ_NUMBER][INT_RCD_SIZE];
-static uint32_t int_index[DCAM_HW_CONTEXT_MAX][DCAM_IRQ_NUMBER];
+static uint32_t dcam_int_recorder[DCAM_HW_CONTEXT_MAX][DCAM_IF_IRQ_INT0_NUMBER][INT_RCD_SIZE];
+static uint32_t int_index[DCAM_HW_CONTEXT_MAX][DCAM_IF_IRQ_INT0_NUMBER];
 #endif
 
-static uint32_t dcam_int_tracker[DCAM_HW_CONTEXT_MAX][DCAM_IRQ_NUMBER];
+static uint32_t dcam_int_tracker[DCAM_HW_CONTEXT_MAX][DCAM_IF_IRQ_INT0_NUMBER];
 static char *dcam_dev_name[] = {"DCAM0",
 				"DCAM1",
 				"DCAM2"
@@ -49,7 +55,7 @@ static inline void dcamint_dcam_int_record(uint32_t idx, uint32_t status)
 {
 	uint32_t i;
 
-	for (i = 0; i < DCAM_IRQ_NUMBER; i++) {
+	for (i = 0; i < DCAM_IF_IRQ_INT0_NUMBER; i++) {
 		if (status & BIT(i))
 			dcam_int_tracker[idx][i]++;
 	}
@@ -63,7 +69,7 @@ static inline void dcamint_dcam_int_record(uint32_t idx, uint32_t status)
 		time = (uint32_t)(cur_ts.tv_sec & 0xffff);
 		time <<= 16;
 		time |= (uint32_t)((cur_ts.tv_nsec / (NSEC_PER_USEC * 100)) & 0xffff);
-		for (int_no = 0; int_no < DCAM_IRQ_NUMBER; int_no++) {
+		for (int_no = 0; int_no < DCAM_IF_IRQ_INT0_NUMBER; int_no++) {
 			if (status & BIT(int_no)) {
 				cnt = int_index[idx][int_no];
 				dcam_int_recorder[idx][int_no][cnt] = time;
@@ -273,7 +279,7 @@ static int dcamint_frame_check(struct dcam_hw_context *dcam_hw_ctx,
 	}
 
 	reg_addr = path->path_id == DCAM_PATH_BIN ?
-		DCAM_BIN_BASE_WADDR0 : DCAM_FULL_BASE_WADDR;
+		DCAM_STORE0_SLICE_Y_ADDR: DCAM_STORE4_SLICE_Y_ADDR;
 	reg_value = DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, reg_addr);
 
 	pr_debug("DCAM%u %s frame 0x%08x reg 0x%08x cnt %u\n",
@@ -369,7 +375,7 @@ static enum dcam_fix_result dcamint_fix_index_if_needed(struct dcam_hw_context *
 
 		if (vote) {
 			pr_info("DCAM%u more TX_DONE than SOF\n", dcam_hw_ctx->hw_ctx_id);
-			dcam_hw_ctx->handled_bits = DCAMINT_ALL_TX_DONE;
+			dcam_hw_ctx->handled_bits = DCAMINT_INT0_TX_DONE;
 		}
 
 		dev->index_to_set = dev->frame_index + 1;
@@ -409,7 +415,7 @@ static enum dcam_fix_result dcamint_fix_index_if_needed(struct dcam_hw_context *
 	cur_rd = rounddown(dev->frame_index, dev->slowmotion_count);
 	if (old_n != dev->slowmotion_count - 1) {
 		/* fix index for last 1~8 frames */
-		dcam_hw_ctx->handled_bits = DCAMINT_ALL_TX_DONE;
+		dcam_hw_ctx->handled_bits = DCAMINT_INT0_TX_DONE;
 		dcamint_index_fix(dcam_hw_ctx, cur_rd, 2);
 
 		return BUFFER_READY;
@@ -421,7 +427,7 @@ static enum dcam_fix_result dcamint_fix_index_if_needed(struct dcam_hw_context *
 			/*
 			 * ignore TX DONE if already handled in last interrupt
 			 */
-			dcam_hw_ctx->handled_bits = DCAMINT_ALL_TX_DONE;
+			dcam_hw_ctx->handled_bits = DCAMINT_INT0_TX_DONE;
 		}
 		dcamint_index_fix(dcam_hw_ctx, cur_rd, 1);
 
@@ -499,6 +505,7 @@ static void dcamint_cap_sof(void *param)
 		pr_debug("dcam%d offline\n", dcam_hw_ctx->hw_ctx_id);
 		return;
 	}
+	CAM_DEBUG_LOG("cap sof\n");
 
 	hw = sw_ctx->dev->hw;
 	fix_result = dcamint_fix_index_if_needed(dcam_hw_ctx);
@@ -657,7 +664,7 @@ static void dcamint_full_path_done(void *param)
 	struct dcam_path_desc *path = NULL;
 
 	path = &sw_ctx->path[DCAM_PATH_FULL];
-
+	CAM_DEBUG_LOG("capture path done\n");
 	if ((frame = dcamint_frame_prepare(dcam_hw_ctx, DCAM_PATH_FULL))) {
 		if (sw_ctx->is_4in1) {
 			if (sw_ctx->skip_4in1 > 0) {
@@ -693,6 +700,7 @@ static void dcamint_bin_path_done(void *param)
 	struct camera_frame *frame = NULL;
 	int i = 0, cnt = 0;
 
+	CAM_DEBUG_LOG("preview path done\n");
 	path = &sw_ctx->path[DCAM_PATH_BIN];
 	cnt = atomic_read(&path->set_frm_cnt);
 	if (cnt <= sw_ctx->slowmotion_count) {
@@ -868,9 +876,9 @@ static void dcamint_nr3_done(void *param)
 	struct dcam_frame_synchronizer *sync = NULL;
 	uint32_t p = 0, out0 = 0, out1 = 0;
 
-	p = DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, NR3_FAST_ME_PARAM);
-	out0 = DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, NR3_FAST_ME_OUT0);
-	out1 = DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, NR3_FAST_ME_OUT1);
+	p = DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, DCAM_NR3_FAST_ME_PARAM);
+	out0 = DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, DCAM_NR3_FAST_ME_OUT0);
+	out1 = DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, DCAM_NR3_FAST_ME_OUT1);
 
 	if ((frame = dcamint_frame_prepare(dcam_hw_ctx, DCAM_PATH_3DNR))) {
 		sync = (struct dcam_frame_synchronizer *)frame->sync_data;
@@ -924,7 +932,7 @@ void dcam_int_tracker_dump(uint32_t idx)
 	if (!is_dcam_id(idx))
 		return;
 
-	for (i = 0; i < DCAM_IRQ_NUMBER; i++) {
+	for (i = 0; i < DCAM_IF_IRQ_INT0_NUMBER; i++) {
 		if (dcam_int_tracker[idx][i])
 			pr_info("DCAM%u i=%d, int=%u\n", idx, i,
 				 dcam_int_tracker[idx][i]);
@@ -933,23 +941,23 @@ void dcam_int_tracker_dump(uint32_t idx)
 #ifdef DCAM_INT_RECORD
 	{
 		uint32_t cnt, j;
-		for (cnt = 0; cnt < (uint32_t)dcam_int_tracker[idx][DCAM_SENSOR_EOF]; cnt += 4) {
+		for (cnt = 0; cnt < (uint32_t)dcam_int_tracker[idx][DCAM_IF_IRQ_INT0_SENSOR_EOF]; cnt += 4) {
 			j = (cnt & (INT_RCD_SIZE - 1));
 			pr_info("DCAM%u j=%d, %03d.%04d, %03d.%04d, %03d.%04d, %03d.%04d, %03d.%04d, %03d.%04d, %03d.%04d\n",
-			idx, j, (uint32_t)dcam_int_recorder[idx][DCAM_SENSOR_EOF][j] >> 16,
-			(uint32_t)dcam_int_recorder[idx][DCAM_SENSOR_EOF][j] & 0xffff,
-			(uint32_t)dcam_int_recorder[idx][DCAM_CAP_SOF][j] >> 16,
-			(uint32_t)dcam_int_recorder[idx][DCAM_CAP_SOF][j] & 0xffff,
-			(uint32_t)dcam_int_recorder[idx][DCAM_FULL_PATH_TX_DONE][j] >> 16,
-			(uint32_t)dcam_int_recorder[idx][DCAM_FULL_PATH_TX_DONE][j] & 0xffff,
-			(uint32_t)dcam_int_recorder[idx][DCAM_PREV_PATH_TX_DONE][j] >> 16,
-			(uint32_t)dcam_int_recorder[idx][DCAM_PREV_PATH_TX_DONE][j] & 0xffff,
-			(uint32_t)dcam_int_recorder[idx][DCAM_AEM_TX_DONE][j] >> 16,
-			(uint32_t)dcam_int_recorder[idx][DCAM_AEM_TX_DONE][j] & 0xffff,
-			(uint32_t)dcam_int_recorder[idx][DCAM_AFM_INTREQ1][j] >> 16,
-			(uint32_t)dcam_int_recorder[idx][DCAM_AFM_INTREQ1][j] & 0xffff);
-			(uint32_t)dcam_int_recorder[idx][DCAM_LSCM_TX_DONE][j] >> 16,
-			(uint32_t)dcam_int_recorder[idx][DCAM_LSCM_TX_DONE][j] & 0xffff,
+			idx, j, (uint32_t)dcam_int_recorder[idx][DCAM_IF_IRQ_INT0_SENSOR_EOF][j] >> 16,
+			(uint32_t)dcam_int_recorder[idx][DCAM_IF_IRQ_INT0_SENSOR_EOF][j] & 0xffff,
+			(uint32_t)dcam_int_recorder[idx][DCAM_IF_IRQ_INT0_CAP_SOF][j] >> 16,
+			(uint32_t)dcam_int_recorder[idx][DCAM_IF_IRQ_INT0_CAP_SOF][j] & 0xffff,
+			(uint32_t)dcam_int_recorder[idx][DCAM_IF_IRQ_INT0_CAPTURE_PATH_TX_DONE][j] >> 16,
+			(uint32_t)dcam_int_recorder[idx][DCAM_IF_IRQ_INT0_CAPTURE_PATH_TX_DONE][j] & 0xffff,
+			(uint32_t)dcam_int_recorder[idx][DCAM_IF_IRQ_INT0_PREVIEW_PATH_TX_DONE][j] >> 16,
+			(uint32_t)dcam_int_recorder[idx][DCAM_IF_IRQ_INT0_PREVIEW_PATH_TX_DONE][j] & 0xffff,
+			(uint32_t)dcam_int_recorder[idx][DCAM_IF_IRQ_INT0_AEM_PATH_TX_DONE][j] >> 16,
+			(uint32_t)dcam_int_recorder[idx][DCAM_IF_IRQ_INT0_AEM_PATH_TX_DONE][j] & 0xffff,
+			(uint32_t)dcam_int_recorder[idx][DCAM_IF_IRQ_INT0_AFM_INTREQ1][j] >> 16,
+			(uint32_t)dcam_int_recorder[idx][DCAM_IF_IRQ_INT0_AFM_INTREQ1][j] & 0xffff);
+			(uint32_t)dcam_int_recorder[idx][DCAM_IF_IRQ_INT0_LSCM_TX_DONE][j] >> 16,
+			(uint32_t)dcam_int_recorder[idx][DCAM_IF_IRQ_INT0_LSCM_TX_DONE][j] & 0xffff,
 		}
 	}
 #endif
@@ -960,82 +968,82 @@ void dcam_int_tracker_dump(uint32_t idx)
  */
 typedef void (*dcam_isr_type)(void *param);
 static const dcam_isr_type _DCAM_ISRS[] = {
-	[DCAM_SENSOR_EOF] = dcamint_sensor_eof,
-	[DCAM_CAP_SOF] = dcamint_cap_sof,
-	[DCAM_PREVIEW_SOF] = dcamint_preview_sof,
-	[DCAM_FULL_PATH_TX_DONE] = dcamint_full_path_done,
-	[DCAM_PREV_PATH_TX_DONE] = dcamint_bin_path_done,
-	[DCAM_PDAF_PATH_TX_DONE] = dcamint_pdaf_path_done,
-	[DCAM_VCH2_PATH_TX_DONE] = dcamint_vch2_path_done,
-	[DCAM_VCH3_PATH_TX_DONE] = dcamint_vch3_path_done,
-	[DCAM_AEM_TX_DONE] = dcamint_aem_done,
-	[DCAM_HIST_TX_DONE] = dcamint_hist_done,
-	[DCAM_AFL_TX_DONE] = dcamint_afl_done,
-	[DCAM_AFM_INTREQ1] = dcamint_afm_done,
-	[DCAM_NR3_TX_DONE] = dcamint_nr3_done,
-	[DCAM_LSCM_TX_DONE] = dcamint_lscm_done,
+	[DCAM_IF_IRQ_INT0_SENSOR_SOF] = dcamint_sensor_eof,
+	[DCAM_IF_IRQ_INT0_CAP_SOF] = dcamint_cap_sof,
+	[DCAM_IF_IRQ_INT0_PREIEW_SOF] = dcamint_preview_sof,
+	[DCAM_IF_IRQ_INT0_CAPTURE_PATH_TX_DONE] = dcamint_full_path_done,
+	[DCAM_IF_IRQ_INT0_PREVIEW_PATH_TX_DONE] = dcamint_bin_path_done,
+	[DCAM_IF_IRQ_INT0_PDAF_PATH_TX_DONE] = dcamint_pdaf_path_done,
+	[DCAM_IF_IRQ_INT0_VCH2_PATH_TX_DONE] = dcamint_vch2_path_done,
+	[DCAM_IF_IRQ_INT0_VCH3_PATH_TX_DONE] = dcamint_vch3_path_done,
+	[DCAM_IF_IRQ_INT0_AEM_PATH_TX_DONE] = dcamint_aem_done,
+	[DCAM_IF_IRQ_INT0_BAYER_HIST_PATH_TX_DONE] = dcamint_hist_done,
+	[DCAM_IF_IRQ_INT0_AFL_TX_DONE] = dcamint_afl_done,
+	[DCAM_IF_IRQ_INT0_AFM_INTREQ1] = dcamint_afm_done,
+	[DCAM_IF_IRQ_INT0_NR3_TX_DONE] = dcamint_nr3_done,
+	[DCAM_IF_IRQ_INT0_LSCM_TX_DONE] = dcamint_lscm_done,
 };
 
 /*
  * interested interrupt bits in DCAM0
  */
 static const int _DCAM0_SEQUENCE[] = {
-	DCAM_CAP_SOF,/* must */
-	DCAM_PREVIEW_SOF,
-	DCAM_SENSOR_EOF,/* TODO: why for flash */
-	DCAM_NR3_TX_DONE,/* for 3dnr, before data path */
-	DCAM_PREV_PATH_TX_DONE,/* for bin path */
-	DCAM_FULL_PATH_TX_DONE,/* for full path */
-	DCAM_AEM_TX_DONE,/* for aem statis */
-	DCAM_HIST_TX_DONE,/* for hist statis */
+	DCAM_IF_IRQ_INT0_CAP_SOF,/* must */
+	DCAM_IF_IRQ_INT0_PREIEW_SOF,
+	DCAM_IF_IRQ_INT0_SENSOR_EOF,/* TODO: why for flash */
+	DCAM_IF_IRQ_INT0_NR3_TX_DONE,/* for 3dnr, before data path */
+	DCAM_IF_IRQ_INT0_PREVIEW_PATH_TX_DONE,/* for bin path */
+	DCAM_IF_IRQ_INT0_CAPTURE_PATH_TX_DONE,/* for full path */
+	DCAM_IF_IRQ_INT0_AEM_PATH_TX_DONE,/* for aem statis */
+	DCAM_IF_IRQ_INT0_BAYER_HIST_PATH_TX_DONE,/* for hist statis */
 	/* for afm statis, not sure 0 or 1 */
-	DCAM_AFM_INTREQ1,/* TODO: which afm interrupt to use */
-	DCAM_AFL_TX_DONE,/* for afl statis */
-	DCAM_PDAF_PATH_TX_DONE,/* for pdaf data */
-	DCAM_VCH2_PATH_TX_DONE,/* for vch2 data */
-	DCAM_VCH3_PATH_TX_DONE,/* for vch3 data */
-	DCAM_LSCM_TX_DONE,/* for lscm statis */
+	DCAM_IF_IRQ_INT0_AFM_INTREQ1,/* TODO: which afm interrupt to use */
+	DCAM_IF_IRQ_INT0_AFL_TX_DONE,/* for afl statis */
+	DCAM_IF_IRQ_INT0_PDAF_PATH_TX_DONE,/* for pdaf data */
+	DCAM_IF_IRQ_INT0_VCH2_PATH_TX_DONE,/* for vch2 data */
+	DCAM_IF_IRQ_INT0_VCH3_PATH_TX_DONE,/* for vch3 data */
+	DCAM_IF_IRQ_INT0_LSCM_TX_DONE,/* for lscm statis */
 };
 
 /*
  * interested interrupt bits in DCAM1
  */
 static const int _DCAM1_SEQUENCE[] = {
-	DCAM_CAP_SOF,/* must */
-	DCAM_SENSOR_EOF,/* TODO: why for flash */
-	DCAM_NR3_TX_DONE,/* for 3dnr, before data path */
-	DCAM_PREV_PATH_TX_DONE,/* for bin path */
-	DCAM_FULL_PATH_TX_DONE,/* for full path */
-	DCAM_AEM_TX_DONE,/* for aem statis */
-	DCAM_HIST_TX_DONE,/* for hist statis */
+	DCAM_IF_IRQ_INT0_CAP_SOF,/* must */
+	DCAM_IF_IRQ_INT0_SENSOR_EOF,/* TODO: why for flash */
+	DCAM_IF_IRQ_INT0_NR3_TX_DONE,/* for 3dnr, before data path */
+	DCAM_IF_IRQ_INT0_PREVIEW_PATH_TX_DONE,/* for bin path */
+	DCAM_IF_IRQ_INT0_CAPTURE_PATH_TX_DONE,/* for full path */
+	DCAM_IF_IRQ_INT0_AEM_PATH_TX_DONE,/* for aem statis */
+	DCAM_IF_IRQ_INT0_BAYER_HIST_PATH_TX_DONE,/* for hist statis */
 	/* for afm statis, not sure 0 or 1 */
-	DCAM_AFM_INTREQ1,/* TODO: which afm interrupt to use */
-	DCAM_AFL_TX_DONE,/* for afl statis */
-	DCAM_PDAF_PATH_TX_DONE,/* for pdaf data */
-	DCAM_VCH2_PATH_TX_DONE,/* for vch2 data */
-	DCAM_VCH3_PATH_TX_DONE,/* for vch3 data */
-	DCAM_LSCM_TX_DONE,/* for lscm statis */
+	DCAM_IF_IRQ_INT0_AFM_INTREQ1,/* TODO: which afm interrupt to use */
+	DCAM_IF_IRQ_INT0_AFL_TX_DONE,/* for afl statis */
+	DCAM_IF_IRQ_INT0_PDAF_PATH_TX_DONE,/* for pdaf data */
+	DCAM_IF_IRQ_INT0_VCH2_PATH_TX_DONE,/* for vch2 data */
+	DCAM_IF_IRQ_INT0_VCH3_PATH_TX_DONE,/* for vch3 data */
+	DCAM_IF_IRQ_INT0_LSCM_TX_DONE,/* for lscm statis */
 };
 
 /*
  * interested interrupt bits in DCAM2
  */
 static const int _DCAM2_SEQUENCE[] = {
-	DCAM_CAP_SOF,/* must */
-	DCAM_PREVIEW_SOF,
-	DCAM_SENSOR_EOF,/* TODO: why for flash */
-	DCAM_NR3_TX_DONE,/* for 3dnr, before data path */
-	DCAM_PREV_PATH_TX_DONE,/* for bin path */
-	DCAM_FULL_PATH_TX_DONE,/* for full path */
-	DCAM_AEM_TX_DONE,/* for aem statis */
-	DCAM_HIST_TX_DONE,/* for hist statis */
+	DCAM_IF_IRQ_INT0_CAP_SOF,/* must */
+	DCAM_IF_IRQ_INT0_PREIEW_SOF,
+	DCAM_IF_IRQ_INT0_SENSOR_EOF,/* TODO: why for flash */
+	DCAM_IF_IRQ_INT0_NR3_TX_DONE,/* for 3dnr, before data path */
+	DCAM_IF_IRQ_INT0_PREVIEW_PATH_TX_DONE,/* for bin path */
+	DCAM_IF_IRQ_INT0_CAPTURE_PATH_TX_DONE,/* for full path */
+	DCAM_IF_IRQ_INT0_AEM_PATH_TX_DONE,/* for aem statis */
+	DCAM_IF_IRQ_INT0_BAYER_HIST_PATH_TX_DONE,/* for hist statis */
 	/* for afm statis, not sure 0 or 1 */
-	DCAM_AFM_INTREQ1,/* TODO: which afm interrupt to use */
-	DCAM_AFL_TX_DONE,/* for afl statis */
-	DCAM_PDAF_PATH_TX_DONE,/* for pdaf data */
-	DCAM_VCH2_PATH_TX_DONE,/* for vch2 data */
-	DCAM_VCH3_PATH_TX_DONE,/* for vch3 data */
-	DCAM_LSCM_TX_DONE,/* for lscm statis */
+	DCAM_IF_IRQ_INT0_AFM_INTREQ1,/* TODO: which afm interrupt to use */
+	DCAM_IF_IRQ_INT0_AFL_TX_DONE,/* for afl statis */
+	DCAM_IF_IRQ_INT0_PDAF_PATH_TX_DONE,/* for pdaf data */
+	DCAM_IF_IRQ_INT0_VCH2_PATH_TX_DONE,/* for vch2 data */
+	DCAM_IF_IRQ_INT0_VCH3_PATH_TX_DONE,/* for vch3 data */
+	DCAM_IF_IRQ_INT0_LSCM_TX_DONE,/* for lscm statis */
 };
 
 /*
@@ -1078,28 +1086,27 @@ static void dcamint_iommu_regs_dump(struct dcam_hw_context *dcam_hw_ctx)
 					reg, val[0], val[1], val[2], val[3]);
 		}
 
-		pr_err("fbc %08x full %08x bin0 %08x bin1 %08x bin2 %08x "
-		"bin3 %08x\n", DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, DCAM_FBC_PAYLOAD_WADDR),
-				DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, DCAM_FULL_BASE_WADDR),
-				DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, DCAM_BIN_BASE_WADDR0),
-				DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, DCAM_BIN_BASE_WADDR1),
-				DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, DCAM_BIN_BASE_WADDR2),
-				DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, DCAM_BIN_BASE_WADDR3));
+		pr_err("fbc %08x full y %08x u %08x bin y %08x u %08x\n",
+				DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, DCAM_YUV_FBC_SCAL_SLICE_PLOAD_BASE_ADDR),
+				DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, DCAM_STORE4_SLICE_Y_ADDR),
+				DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, DCAM_STORE4_SLICE_U_ADDR),
+				DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, DCAM_STORE0_SLICE_Y_ADDR),
+				DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, DCAM_STORE0_SLICE_Y_ADDR));
 		pr_err("pdaf %08x vch2 %08x vch3 %08x lsc %08x aem %08x "
 		"hist %08x\n", DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, DCAM_PDAF_BASE_WADDR),
 				DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, DCAM_VCH2_BASE_WADDR),
 				DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, DCAM_VCH3_BASE_WADDR),
 				DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, DCAM_LENS_BASE_RADDR),
 				DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, DCAM_AEM_BASE_WADDR),
-				DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, DCAM_HIST_BASE_WADDR));
+				DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, DCAM_BAYER_HIST_BASE_WADDR));
 		pr_err("ppe %08x afl %08x %08x bpc %08x %08x afm %08x "
 		"nr3 %08x\n", DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, DCAM_PPE_RIGHT_WADDR),
-				DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, ISP_AFL_GLB_WADDR),
-				DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, ISP_AFL_REGION_WADDR),
-				DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, ISP_BPC_MAP_ADDR),
-				DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, ISP_BPC_OUT_ADDR),
-				DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, ISP_AFM_BASE_WADDR),
-				DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, ISP_NR3_WADDR));
+			DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, ISP_AFL_DDR_INIT_ADDR),
+			DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, ISP_AFL_REGION_WADDR),
+			DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, DCAM_BPC_MAP_ADDR),
+			DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, DCAM_BPC_OUT_ADDR),
+			DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, DCAM_AFM_LUM_FV_BASE_WADDR),
+			DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, DCAM_NR3_WADDR));
 		dcam_hw_ctx->sw_ctx->err_count -= 1;
 	}
 }
@@ -1114,12 +1121,12 @@ static irqreturn_t dcamint_error_handler(struct dcam_hw_context *dcam_hw_ctx,
 	struct dcam_sw_context *sw_ctx = dcam_hw_ctx->sw_ctx;
 
 	pr_err("fail to get normal status DCAM%u 0x%x%s%s%s%s\n", dcam_hw_ctx->hw_ctx_id, status,
-		tb_ovr[!!(status & BIT(DCAM_DCAM_OVF))],
-		tb_lne[!!(status & BIT(DCAM_CAP_LINE_ERR))],
-		tb_frm[!!(status & BIT(DCAM_CAP_FRM_ERR))],
-		tb_mmu[!!(status & BIT(DCAM_MMU_INT))]);
+		tb_ovr[!!(status & BIT(DCAM_IF_IRQ_INT0_DCAM_OVF))],
+		tb_lne[!!(status & BIT(DCAM_IF_IRQ_INT0_CAP_LINE_ERR))],
+		tb_frm[!!(status & BIT(DCAM_IF_IRQ_INT0_CAP_FRM_ERR))],
+		tb_mmu[!!(status & BIT(DCAM_IF_IRQ_INT0_MMU_INT))]);
 
-	if (status & BIT(DCAM_MMU_INT)) {
+	if (status & BIT(DCAM_IF_IRQ_INT0_MMU_INT)) {
 		uint32_t val = DCAM_MMU_RD(MMU_STS);
 
 		if (val != sw_ctx->iommu_status) {
@@ -1128,7 +1135,7 @@ static irqreturn_t dcamint_error_handler(struct dcam_hw_context *dcam_hw_ctx,
 		}
 	}
 
-	if ((status & DCAMINT_FATAL_ERROR)
+	if ((status & DCAMINT_INT0_FATAL_ERROR)
 		&& (atomic_read(&dcam_hw_ctx->sw_ctx->state) != STATE_ERROR)) {
 		atomic_set(&dcam_hw_ctx->sw_ctx->state, STATE_ERROR);
 		sw_ctx->dcam_cb_func(DCAM_CB_DEV_ERR, sw_ctx, sw_ctx->cb_priv_data);
@@ -1143,7 +1150,7 @@ static irqreturn_t dcamint_error_handler(struct dcam_hw_context *dcam_hw_ctx,
 static irqreturn_t dcamint_isr_root(int irq, void *priv)
 {
 	struct dcam_hw_context *dcam_hw_ctx = (struct dcam_hw_context *)priv;
-	uint32_t status = 0;
+	uint32_t status = 0, status1 = 0;
 	unsigned int i = 0;
 
 	if (unlikely(irq != dcam_hw_ctx->irq)) {
@@ -1154,24 +1161,28 @@ static irqreturn_t dcamint_isr_root(int irq, void *priv)
 	if (atomic_read(&dcam_hw_ctx->sw_ctx->state) != STATE_RUNNING) {
 		/* clear int */
 		pr_warn_ratelimited("DCAM%u ignore irq in NON-running, 0x%x\n",
-			dcam_hw_ctx->hw_ctx_id, DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, DCAM_INT_MASK));
-		DCAM_REG_WR(dcam_hw_ctx->hw_ctx_id, DCAM_INT_CLR, 0xFFFFFFFF);
+			dcam_hw_ctx->hw_ctx_id, DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, DCAM_INT0_MASK));
+		DCAM_REG_WR(dcam_hw_ctx->hw_ctx_id, DCAM_INT0_CLR, 0xFFFFFFFF);
 		return IRQ_NONE;
 	}
 
-	status = DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, DCAM_INT_MASK);
-	status &= DCAMINT_IRQ_LINE_MASK;
+	status = DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, DCAM_INT0_MASK);
+	status &= DCAMINT_IRQ_LINE_INT0_MASK;
+
+	status1 = DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, DCAM_INT1_MASK);
+	status1 &= DCAMINT_IRQ_LINE_INT1_MASK;
 
 	if (unlikely(!status))
 		return IRQ_NONE;
 
-	DCAM_REG_WR(dcam_hw_ctx->hw_ctx_id, DCAM_INT_CLR, status);
+	DCAM_REG_WR(dcam_hw_ctx->hw_ctx_id, DCAM_INT0_CLR, status);
+	DCAM_REG_WR(dcam_hw_ctx->hw_ctx_id, DCAM_INT1_CLR, status1);
 
 	dcamint_dcam_int_record(dcam_hw_ctx->hw_ctx_id, status);
 
-	if (unlikely(DCAMINT_ALL_ERROR & status)) {
+	if (unlikely(DCAMINT_INT0_ERROR & status)) {
 		dcamint_error_handler(dcam_hw_ctx, status);
-		status &= (~DCAMINT_ALL_ERROR);
+		status &= (~DCAMINT_INT0_ERROR);
 	}
 
 	pr_debug("DCAM%u status=0x%x\n", dcam_hw_ctx->hw_ctx_id, status);
@@ -1195,7 +1206,7 @@ static irqreturn_t dcamint_isr_root(int irq, void *priv)
 	}
 
 	/* TODO ignore DCAM_AFM_INTREQ0 now */
-	status &= ~BIT(DCAM_AFM_INTREQ0);
+	status &= ~BIT(DCAM_IF_IRQ_INT0_AFM_INTREQ0);
 
 	if (unlikely(status))
 		pr_warn("DCAM%u unhandled int 0x%x\n", dcam_hw_ctx->hw_ctx_id, status);

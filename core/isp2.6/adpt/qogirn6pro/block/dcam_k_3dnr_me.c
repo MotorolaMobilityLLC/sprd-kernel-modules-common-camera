@@ -62,7 +62,7 @@ int dcam_k_3dnr_convert_roi(struct isp_img_rect src, struct isp_img_size *dst,
 		} else {
 			if (src.w > DCAM1_3DNR_ME_WIDTH_MAX) {
 				lbuf = 1;
-				DCAM_REG_MWR(idx, NR3_FAST_ME_PARAM, BIT_0, BIT_0);
+				DCAM_REG_MWR(idx, DCAM_NR3_FAST_ME_PARAM, BIT_0, BIT_0);
 			} else if (src.w > DCAM1_3DNR_ME_WIDTH_MAX / 2) {
 				lbuf = 0;
 			}
@@ -78,7 +78,7 @@ int dcam_k_3dnr_convert_roi(struct isp_img_rect src, struct isp_img_size *dst,
 		} else {
 			lbuf = DCAM_AXIM_RD(idx, DCAM_LBUF_SHARE_MODE);
 			if (lbuf == 1) {
-				DCAM_REG_MWR(idx, NR3_FAST_ME_PARAM, BIT_0, BIT_0);
+				DCAM_REG_MWR(idx, DCAM_NR3_FAST_ME_PARAM, BIT_0, BIT_0);
 				return 0;
 			} else {
 				roi_width_max = src.w;
@@ -88,7 +88,7 @@ int dcam_k_3dnr_convert_roi(struct isp_img_rect src, struct isp_img_size *dst,
 		break;
 	}
 
-	DCAM_REG_MWR(idx, NR3_FAST_ME_PARAM, 0x30, (project_mode & 0x3) << 4);
+	DCAM_REG_MWR(idx, DCAM_NR3_FAST_ME_PARAM, 0x30, (project_mode & 0x3) << 4);
 
 	dst->width = roi_width_max;
 	dst->height = roi_height_max;
@@ -108,7 +108,7 @@ void dcam_k_3dnr_set_roi(struct isp_img_rect rect,
 	/* get max roi size
 	 * max roi size should be half of normal value if project_mode is off
 	 */
-	pmode = (DCAM_REG_RD(idx, NR3_FAST_ME_PARAM) >> 4) & 0x3;
+	pmode = (DCAM_REG_RD(idx, DCAM_NR3_FAST_ME_PARAM) >> 4) & 0x3;
 	if (pmode == 1)
 		project_mode = 1;
 
@@ -128,8 +128,8 @@ void dcam_k_3dnr_set_roi(struct isp_img_rect rect,
 	roi_h = max(roi_h, DCAM_3DNR_ROI_LINE_CUT) - DCAM_3DNR_ROI_LINE_CUT;
 
 	/* almost done! */
-	DCAM_REG_WR(idx, NR3_FAST_ME_ROI_PARAM0, roi_x << 16 | roi_y);
-	DCAM_REG_WR(idx, NR3_FAST_ME_ROI_PARAM1, roi_w << 16 | roi_h);
+	DCAM_REG_WR(idx, DCAM_NR3_FAST_ME_ROI_PARAM0, roi_x << 16 | roi_y);
+	DCAM_REG_WR(idx, DCAM_NR3_FAST_ME_ROI_PARAM1, roi_w << 16 | roi_h);
 
 	pr_debug("DCAM%u 3DNR ROI %u %u %u %u\n",
 		idx, roi_x, roi_y, roi_w, roi_h);
@@ -155,21 +155,21 @@ int dcam_k_3dnr_me(struct dcam_dev_param *param)
 		return 0;
 
 	p = &param->nr3.nr3_me;
-	DCAM_REG_MWR(idx, NR3_FAST_ME_PARAM,
+	DCAM_REG_MWR(idx, DCAM_NR3_FAST_ME_PARAM,
 			BIT(0), (p->bypass & 0x1));
 	if (p->bypass)
 		return 0;
 
-	DCAM_REG_MWR(idx, NR3_FAST_ME_PARAM,
+	DCAM_REG_MWR(idx, DCAM_NR3_FAST_ME_PARAM,
 		0x30, (p->nr3_project_mode & 0x3) << 4);
-	DCAM_REG_MWR(idx, NR3_FAST_ME_PARAM,
+	DCAM_REG_MWR(idx, DCAM_NR3_FAST_ME_PARAM,
 		0xC0, (p->nr3_channel_sel & 0x3) << 6);
 
 	/* nr3_mv_bypass:  0 - calc by hardware, 1 - not calc  */
-	DCAM_REG_MWR(idx, NR3_FAST_ME_PARAM, BIT(8), 0 << 8);
+	DCAM_REG_MWR(idx, DCAM_NR3_FAST_ME_PARAM, BIT(8), 0 << 8);
 
 	/*  output_en = 0 : project value not output to ddr.  */
-	DCAM_REG_MWR(idx, NR3_FAST_ME_PARAM, BIT(2), 0 << 2);
+	DCAM_REG_MWR(idx, DCAM_NR3_FAST_ME_PARAM, BIT(2), 0 << 2);
 
 	/* update ROI according to project_mode */
 	path = &dev->path[DCAM_PATH_3DNR];
@@ -182,7 +182,7 @@ int dcam_k_3dnr_me(struct dcam_dev_param *param)
 		dcam_k_3dnr_set_roi(rect, p->nr3_project_mode, idx);
 
 	/*  sub_me_bypass.  */
-	DCAM_REG_MWR(idx, NR3_FAST_ME_PARAM, BIT(3), 0 << 3);
+	DCAM_REG_MWR(idx, DCAM_NR3_FAST_ME_PARAM, BIT(3), 0 << 3);
 
 	return ret;
 }

@@ -37,32 +37,32 @@ int dcam_k_awbc_block(struct dcam_dev_param *param)
 
 	idx = param->idx;
 	p = &(param->awbc.awbc_info);
-	DCAM_REG_MWR(idx, ISP_AWBC_GAIN0, BIT_31,
+	DCAM_REG_MWR(idx, DCAM_AWBC_GAIN0, BIT_31,
 			((p->awbc_bypass & 1) << 31));
 	if (p->awbc_bypass)
 		return 0;
 
 	val = ((p->gain.b & 0x3FFF) << 16) |
 		(p->gain.r & 0x3FFF);
-	DCAM_REG_MWR(idx, ISP_AWBC_GAIN0,
+	DCAM_REG_MWR(idx, DCAM_AWBC_GAIN0,
 			(0x3FFF << 16 | 0x3FFF), val);
 
 	val = ((p->gain.gb & 0x3FFF) << 16) |
 		(p->gain.gr & 0x3FFF);
-	DCAM_REG_WR(idx, ISP_AWBC_GAIN1, val);
+	DCAM_REG_WR(idx, DCAM_AWBC_GAIN1, val);
 
 	val = ((p->thrd.b & 0x3FF) << 20) |
 		((p->thrd.gr & 0x3FF) << 10) |
 		(p->thrd.r & 0x3FF);
-	DCAM_REG_WR(idx, ISP_AWBC_THRD, val);
+	DCAM_REG_WR(idx, DCAM_AWBC_THRD0, val);
 
 	val = ((p->gain_offset.b & 0x7FF) << 16) |
 		(p->gain_offset.r & 0x7FF);
-	DCAM_REG_WR(idx, ISP_AWBC_OFFSET0, val);
+	DCAM_REG_WR(idx, DCAM_AWBC_OFFSET0, val);
 
 	val = ((p->gain_offset.gb & 0x7FF) << 16) |
 		(p->gain_offset.gr & 0x7FF);
-	DCAM_REG_WR(idx, ISP_AWBC_OFFSET1, val);
+	DCAM_REG_WR(idx, DCAM_AWBC_OFFSET1, val);
 
 	return ret;
 }
@@ -81,12 +81,12 @@ int dcam_k_awbc_gain(struct dcam_dev_param *param)
 	p = &(param->awbc.awbc_info.gain);
 	val = ((p->b & 0x3FFF) << 16) |
 		(p->r & 0x3FFF);
-	DCAM_REG_MWR(idx, ISP_AWBC_GAIN0,
+	DCAM_REG_MWR(idx, DCAM_AWBC_GAIN0,
 			(0x3FFF << 16 | 0x3FFF), val);
 
 	val = ((p->gb & 0x3FFF) << 16) |
 		(p->gr & 0x3FFF);
-	DCAM_REG_WR(idx, ISP_AWBC_GAIN1, val);
+	DCAM_REG_WR(idx, DCAM_AWBC_GAIN1, val);
 
 	return ret;
 }
@@ -99,7 +99,7 @@ int dcam_k_awbc_bypass(struct dcam_dev_param *param)
 
 	idx = param->idx;
 	bypass = param->awbc.awbc_info.awbc_bypass;
-	DCAM_REG_MWR(idx, ISP_AWBC_GAIN0, BIT_31, bypass << 31);
+	DCAM_REG_MWR(idx, DCAM_AWBC_GAIN0, BIT_31, bypass << 31);
 
 	return ret;
 }

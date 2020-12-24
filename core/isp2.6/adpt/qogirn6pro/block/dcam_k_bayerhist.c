@@ -40,7 +40,7 @@ int dcam_k_bayerhist_block(struct dcam_dev_param *param)
 
 	idx = param->idx;
 	p = &(param->hist.bayerHist_info);
-	DCAM_REG_MWR(idx, DCAM_HIST_FRM_CTRL0, BIT_0, p->hist_bypass);
+	DCAM_REG_MWR(idx, DCAM_BAYER_HIST_CTRL0, BIT_0, p->hist_bypass);
 	if (p->hist_bypass)
 		return 0;
 
@@ -55,7 +55,7 @@ int dcam_k_bayerhist_block(struct dcam_dev_param *param)
 		p->hist_skip_num = 0;
 	}
 
-	DCAM_REG_MWR(idx, DCAM_HIST_FRM_CTRL0, 0xfc,
+	DCAM_REG_MWR(idx, DCAM_BAYER_HIST_CTRL0, 0xfc,
 			((p->hist_skip_num & 0xf) << 4) |
 			(p->hist_mul_enable << 3) |
 			(p->hist_mode_sel << 2));
@@ -68,7 +68,7 @@ int dcam_k_bayerhist_block(struct dcam_dev_param *param)
 			((p->bayer_hist_endy & 0x1fff) << 16) |
 			(p->bayer_hist_endx & 0x1fff));
 
-	DCAM_REG_MWR(idx, DCAM_HIST_FRM_CTRL1, 0x7,
+	DCAM_REG_MWR(idx, DCAM_BAYER_HIST_CTRL1, 0x7,
 			(p->hist_initial_clear << 2) |
 			(p->hist_skip_num_clr << 1) |
 			(p->hist_sgl_start << 0));
@@ -90,7 +90,7 @@ int dcam_k_bayerhist_roi(struct dcam_dev_param *param)
 		return 0;
 	param->hist.update &= (~(_UPDATE_ROI));
 	p = &(param->hist.bayerHist_info);
-	DCAM_REG_MWR(idx, DCAM_HIST_FRM_CTRL0, BIT_0, p->hist_bypass);
+	DCAM_REG_MWR(idx, DCAM_BAYER_HIST_CTRL0, BIT_0, p->hist_bypass);
 	if (p->hist_bypass)
 		return 0;
 
@@ -116,7 +116,7 @@ int dcam_k_bayerhist_bypass(struct dcam_dev_param *p)
 	uint32_t bypass = 0;
 
 	bypass = p->hist.bayerHist_info.hist_bypass;
-	DCAM_REG_MWR(idx, DCAM_HIST_FRM_CTRL0, BIT_0, bypass);
+	DCAM_REG_MWR(idx, DCAM_BAYER_HIST_CTRL0, BIT_0, bypass);
 
 	return ret;
 }

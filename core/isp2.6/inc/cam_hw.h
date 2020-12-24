@@ -145,6 +145,7 @@ enum dcam_hw_cfg_cmd {
 	DCAM_HW_CONECT_CSI,
 	DCAM_HW_FORCE_EN_CSI,
 	DCAM_HW_CFG_HIST_ROI_UPDATE,
+	DCAM_HW_CFG_STORE_ADDR,
 	DCAM_HW_CFG_MAX
 };
 
@@ -523,6 +524,12 @@ struct dcam_hw_binning_4in1 {
 	uint32_t binning_4in1_en;
 };
 
+struct dcam_compress_info {
+	uint32_t is_compress;
+	uint32_t tile_col;
+	uint32_t tile_row;
+};
+
 struct dcam_hw_path_size {
 	uint32_t idx;
 	uint32_t auto_cpy_id;
@@ -537,10 +544,12 @@ struct dcam_hw_path_size {
 	uint32_t rds_init_phase_int0;
 	uint32_t rds_init_phase_rdm1;
 	uint32_t rds_init_phase_rdm0;
+	uint32_t out_pitch;
 	void *rds_coeff_buf;
 	struct img_size in_size;
 	struct img_trim in_trim;
 	struct img_size out_size;
+	struct dcam_compress_info compress_info;
 };
 
 struct dcam_hw_path_src_sel {
@@ -599,6 +608,9 @@ struct dcam_hw_path_start {
 	uint32_t pack_bits;
 	uint32_t src_sel;
 	uint32_t bayer_pattern;
+	uint32_t out_fmt;
+	uint32_t data_bits;
+	uint32_t is_pack;
 	struct img_trim in_trim;
 	struct dcam_mipi_info cap_info;
 	struct img_endian endian;
@@ -859,6 +871,13 @@ struct dcam_hw_cfg_bin_path {
 	uint32_t idx;
 	uint32_t start_x;
 	uint32_t fetch_pitch;
+};
+
+struct dcam_hw_cfg_store_addr {
+	uint32_t idx;
+	struct dcam_path_desc *path;
+	struct camera_frame *frame;
+	uint32_t reg_addr;
 };
 
 struct isp_hw_fmcu_cmd {

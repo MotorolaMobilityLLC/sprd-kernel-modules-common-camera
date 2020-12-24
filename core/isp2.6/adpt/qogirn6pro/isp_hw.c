@@ -55,16 +55,16 @@ static const struct bypass_tag dcam_bypass_tab[] = {
 	[_E_PDAF] = {"pdaf", DCAM_PPE_FRM_CTRL0,          1}, /* 0x120.b1 */
 	[_E_LSC]  = {"lsc",  DCAM_LENS_LOAD_ENABLE,       0}, /* 0x138.b0 */
 	[_E_AEM]  = {"aem",  DCAM_AEM_FRM_CTRL0,          0}, /* 0x150.b0 */
-	[_E_HIST] = {"hist", DCAM_HIST_FRM_CTRL0,         0}, /* 0x160.b0 */
-	[_E_AFL]  = {"afl",  ISP_AFL_FRM_CTRL0,           0}, /* 0x170.b0 */
-	[_E_AFM]  = {"afm",  ISP_AFM_FRM_CTRL,            0}, /* 0x1A0.b0 */
-	[_E_BPC]  = {"bpc",  ISP_BPC_PARAM,               0}, /* 0x200.b0 */
+	[_E_HIST] = {"hist", DCAM_BAYER_HIST_CTRL0,       0}, /* 0x160.b0 */
+	[_E_AFL]  = {"afl",  ISP_AFL_PARAM0,              0}, /* 0x170.b0 */
+	[_E_AFM]  = {"afm",  DCAM_AFM_FRM_CTRL,           0}, /* 0x1A0.b0 */
+	[_E_BPC]  = {"bpc",  DCAM_BPC_PARAM,              0}, /* 0x200.b0 */
 	[_E_BLC]  = {"blc",  DCAM_BLC_PARA_R_B,           31}, /* 0x268.b31 */
 	[_E_RGB]  = {"rgb",  ISP_RGBG_YRANDOM_PARAMETER0, 0}, /* 0x278.b0 rgb gain */
 	[_E_RAND] = {"rand", ISP_RGBG_YRANDOM_PARAMETER0, 1}, /* 0x278.b1 */
 	[_E_PPI]  = {"ppi",  ISP_PPI_PARAM,               0}, /* 0x284.b0 */
-	[_E_AWBC] = {"awbc", ISP_AWBC_GAIN0,              31}, /* 0x380.b31 */
-	[_E_NR3]  = {"nr3",  NR3_FAST_ME_PARAM,           0}, /* 0x3F0.b0 */
+	[_E_AWBC] = {"awbc", DCAM_AWBC_GAIN0,             31}, /* 0x380.b31 */
+	[_E_NR3]  = {"nr3",  DCAM_NR3_FAST_ME_PARAM,      0}, /* 0x3F0.b0 */
 };
 
 static const struct bypass_tag isp_hw_bypass_tab[] = {
@@ -194,32 +194,29 @@ static uint32_t cam_reg_trace_tab[] = {
 	DCAM_APB_SRAM_CTRL,
 	DCAM_MIPI_CAP_CFG,
 	DCAM_IMAGE_CONTROL,
-	DCAM_CAP_FRM_CLR,
-	DCAM_FULL_CFG,
-	DCAM_FULL_PATH_STATUS,
-	DCAM_CAM_BIN_CFG,
-	DCAM_BIN_PATH_STATUS,
 	DCAM_PDAF_CONTROL,
 	DCAM_LENS_LOAD_ENABLE,
-	ISP_BPC_PARAM,
+	DCAM_BPC_PARAM,
 	DCAM_AEM_FRM_CTRL0,
-	ISP_AFM_FRM_CTRL,
-	ISP_AFL_FRM_CTRL0,
-	DCAM_HIST_FRM_CTRL0,
-	NR3_FAST_ME_PARAM,
-	DCAM_FULL_BASE_WADDR,
-	DCAM_BIN_BASE_WADDR0,
+	DCAM_AFM_FRM_CTRL,
+	ISP_AFL_PARAM0,
+	DCAM_BAYER_HIST_CTRL0,
+	DCAM_NR3_FAST_ME_PARAM,
+	DCAM_STORE4_SLICE_Y_ADDR,
+	DCAM_STORE4_SLICE_U_ADDR,
+	DCAM_STORE0_SLICE_Y_ADDR,
+	DCAM_STORE0_SLICE_U_ADDR,
 	DCAM_PDAF_BASE_WADDR,
 	DCAM_VCH2_BASE_WADDR,
 	DCAM_VCH3_BASE_WADDR,
 	DCAM_AEM_BASE_WADDR,
-	DCAM_HIST_BASE_WADDR,
+	DCAM_BAYER_HIST_BASE_WADDR,
 	DCAM_PPE_RIGHT_WADDR,
-	ISP_AFL_GLB_WADDR,
+	ISP_AFL_DDR_INIT_ADDR,
 	ISP_AFL_REGION_WADDR,
-	ISP_BPC_OUT_ADDR,
-	ISP_AFM_BASE_WADDR,
-	ISP_NR3_WADDR,
+	DCAM_BPC_OUT_ADDR,
+	DCAM_AFM_LUM_FV_BASE_WADDR,
+	DCAM_NR3_WADDR,
 	DCAM_LSCM_BASE_WADDR,
 };
 
@@ -242,7 +239,7 @@ static int isphw_reg_trace(void *handle, void *arg)
 
 abnormal_reg_trace:
 	pr_info("DCAM%d: Register list\n", trace->idx);
-	for (addr = DCAM_IP_REVISION; addr <= DCAM_LSC_WEI_LAST1;
+	for (addr = DCAM_IP_REVISION; addr <= DCAM_GTM_STATUS0;
 		addr += 16) {
 		pr_info("0x%03lx: 0x%x 0x%x 0x%x 0x%x\n",
 			addr,

@@ -52,8 +52,8 @@ int dcam_k_bpc_block(struct dcam_dev_param *param)
 		((p->bpc_double_bypass & 0x1) << 1) |
 		((p->bpc_three_bypass & 0x1) << 2) |
 		((p->bpc_four_bypass & 0x1) << 3);
-	DCAM_REG_MWR(idx, ISP_BPC_PARAM, 0xF, val);
-	val = DCAM_REG_RD(idx, ISP_BPC_PARAM);
+	DCAM_REG_MWR(idx, DCAM_BPC_PARAM, 0xF, val);
+	val = DCAM_REG_RD(idx, DCAM_BPC_PARAM);
 	if (p->bpc_bypass)
 		return 0;
 
@@ -69,13 +69,13 @@ int dcam_k_bpc_block(struct dcam_dev_param *param)
 		((p->bpc_blk_mode & 0x1) << 20) |
 		((p->bpc_mod_en & 0x1) << 30) |
 		((p->bpc_cg_dis & 0x1) << 31);
-	DCAM_REG_MWR(idx, ISP_BPC_PARAM, 0xC01F0FF0, val);
+	DCAM_REG_MWR(idx, DCAM_BPC_PARAM, 0xC01F0FF0, val);
 
 	for (i = 0; i < 4; i++) {
 		val = (p->bpc_four_badpixel_th[i] & 0x3FF) |
 			((p->bpc_three_badpixel_th[i] & 0x3FF) << 10) |
 			((p->bpc_double_badpixel_th[i] & 0x3FF) << 20);
-		DCAM_REG_WR(idx, ISP_BPC_BAD_PIXEL_TH0 + i * 4, val);
+		DCAM_REG_WR(idx, DCAM_BPC_BAD_PIXEL_TH0 + i * 4, val);
 	}
 
 	val = (p->bpc_texture_th & 0x3FF) |
@@ -83,31 +83,31 @@ int dcam_k_bpc_block(struct dcam_dev_param *param)
 		((p->bpc_shift[2] & 0xF) << 20) |
 		((p->bpc_shift[1] & 0xF) << 24) |
 		((p->bpc_shift[0] & 0xF) << 28);
-	DCAM_REG_WR(idx, ISP_BPC_FLAT_TH, val);
+	DCAM_REG_WR(idx, DCAM_BPC_FLAT_TH, val);
 
 	val = (p->bpc_edgeratio_hv & 0x1FF) |
 		((p->bpc_edgeratio_rd & 0x1FF) << 16);
-	DCAM_REG_WR(idx, ISP_BPC_EDGE_RATIO, val);
+	DCAM_REG_WR(idx, DCAM_BPC_EDGE_RATIO0, val);
 
 	val = (p->bpc_highoffset & 0xFF) |
 		((p->bpc_lowoffset & 0xFF) << 8) |
 		((p->bpc_highcoeff & 0x7) << 16) |
 		((p->bpc_lowcoeff & 0x7) << 24);
-	DCAM_REG_WR(idx, ISP_BPC_BAD_PIXEL_PARAM, val);
+	DCAM_REG_WR(idx, DCAM_BPC_BAD_PIXEL_PARAM, val);
 
 	val = (p->bpc_mincoeff & 0x1F) |
 		((p->bpc_maxcoeff & 0x1F) << 16);
-	DCAM_REG_WR(idx, ISP_BPC_BAD_PIXEL_COEFF, val);
+	DCAM_REG_WR(idx, DCAM_BPC_GDIF_TH, val);
 
 	for (i = 0; i < 8; i++) {
 		val = ((p->bpc_lut_level[i] & 0x3FF) << 20) |
 			((p->bpc_slope_k[i] & 0x3FF) << 10) |
 			(p->bpc_intercept_b[i] & 0x3FF);
-		DCAM_REG_WR(idx, ISP_BPC_LUTWORD0 + i * 4, val);
+		DCAM_REG_WR(idx, DCAM_BPC_LUTWORD0 + i * 4, val);
 	}
 
 	val = p->bad_pixel_num;
-	DCAM_REG_WR(idx, ISP_BPC_MAP_CTRL, val);
+	DCAM_REG_WR(idx, DCAM_BPC_MAP_CTRL, val);
 
 	return ret;
 }

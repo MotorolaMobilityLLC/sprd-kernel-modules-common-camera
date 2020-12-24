@@ -43,17 +43,17 @@ int dcam_k_afm_block(struct dcam_dev_param *param)
 		((p->afm_lum_stat_chn_sel & 0x3) << 4) |
 		((p->afm_done_tile_num_y & 0xF) << 8) |
 		((p->afm_done_tile_num_x & 0x1F) << 12);
-	DCAM_REG_MWR(idx, ISP_AFM_PARAMETERS, 0x1FF35, val);
+	DCAM_REG_MWR(idx, DCAM_AFM_PARAMETERS, 0x1FF35, val);
 
 	/* IIR cfg */
 	val = ((p->afm_iir_g1 & 0xFFF) << 16) |
 		(p->afm_iir_g0 & 0xFFF);
-	DCAM_REG_WR(idx, ISP_AFM_IIR_FILTER0, val);
+	DCAM_REG_WR(idx, DCAM_AFM_IIR_FILTER0, val);
 
 	for (i = 0; i < 10; i += 2) {
 		val = ((p->afm_iir_c[i + 1] & 0xFFF) << 16) |
 			(p->afm_iir_c[i] & 0xFFF);
-		DCAM_REG_WR(idx, ISP_AFM_IIR_FILTER1 + 4 * (i >> 1), val);
+		DCAM_REG_WR(idx, DCAM_AFM_IIR_FILTER1 + 4 * (i >> 1), val);
 	}
 
 	/* enhance control cfg */
@@ -64,15 +64,15 @@ int dcam_k_afm_block(struct dcam_dev_param *param)
 		((p->afm_clip_en1 & 0x1) << 7) |
 		((p->afm_fv0_shift & 0x7) << 8) |
 		((p->afm_fv1_shift & 0x7) << 12);
-	DCAM_REG_WR(idx, ISP_AFM_ENHANCE_CTRL, val);
+	DCAM_REG_WR(idx, DCAM_AFM_ENHANCE_CTRL, val);
 
 	val = (p->afm_fv0_th.min & 0xFFF) |
 		((p->afm_fv0_th.max & 0xFFFFF) << 12);
-	DCAM_REG_WR(idx, ISP_AFM_ENHANCE_FV0_THD, val);
+	DCAM_REG_WR(idx, DCAM_AFM_ENHANCE_FV0_THD, val);
 
 	val = (p->afm_fv1_th.min & 0xFFF) |
 		((p->afm_fv1_th.max & 0xFFFFF) << 12);
-	DCAM_REG_WR(idx, ISP_AFM_ENHANCE_FV1_THD, val);
+	DCAM_REG_WR(idx, DCAM_AFM_ENHANCE_FV1_THD, val);
 
 	for (i = 0; i < 4; i++) {
 		val = ((p->afm_fv1_coeff[i][4] & 0x3F) << 24) |
@@ -80,13 +80,13 @@ int dcam_k_afm_block(struct dcam_dev_param *param)
 	((p->afm_fv1_coeff[i][2] & 0x3F) << 12) |
 	((p->afm_fv1_coeff[i][1] & 0x3F) << 6) |
 	(p->afm_fv1_coeff[i][0] & 0x3F);
-		DCAM_REG_WR(idx, ISP_AFM_ENHANCE_FV1_COEFF00 + 8 * i, val);
+		DCAM_REG_WR(idx, DCAM_AFM_ENHANCE_FV1_COEFF00 + 8 * i, val);
 
 		val = ((p->afm_fv1_coeff[i][8] & 0x3F) << 18) |
 	((p->afm_fv1_coeff[i][7] & 0x3F) << 12) |
 	((p->afm_fv1_coeff[i][6] & 0x3F) << 6) |
 	(p->afm_fv1_coeff[i][5] & 0x3F);
-		DCAM_REG_WR(idx, ISP_AFM_ENHANCE_FV1_COEFF01 + 8 * i, val);
+		DCAM_REG_WR(idx, DCAM_AFM_ENHANCE_FV1_COEFF01 + 8 * i, val);
 	}
 
 	return ret;
@@ -101,7 +101,7 @@ int dcam_k_afm_bypass(struct dcam_dev_param *param)
 		return -1;
 
 	idx = param->idx;
-	DCAM_REG_MWR(idx, ISP_AFM_FRM_CTRL, BIT_0, param->afm.bypass);
+	DCAM_REG_MWR(idx, DCAM_AFM_FRM_CTRL, BIT_0, param->afm.bypass);
 
 	return ret;
 }
@@ -117,10 +117,10 @@ int dcam_k_afm_win(struct dcam_dev_param *param)
 
 	idx = param->idx;
 	p = &(param->afm.win);
-	DCAM_REG_WR(idx, ISP_AFM_WIN_RANGE0S,
+	DCAM_REG_WR(idx, DCAM_AFM_WIN_RANGE0S,
 			(p->y & 0x1FFF) << 16 | (p->x & 0x1FFF));
 
-	DCAM_REG_WR(idx, ISP_AFM_WIN_RANGE0E,
+	DCAM_REG_WR(idx, DCAM_AFM_WIN_RANGE0E,
 			(p->h & 0x7FF) << 16 | (p->w & 0X7FF));
 
 	return ret;
@@ -138,7 +138,7 @@ int dcam_k_afm_win_num(struct dcam_dev_param *param)
 	idx = param->idx;
 	p = &(param->afm.win_num);
 
-	DCAM_REG_WR(idx, ISP_AFM_WIN_RANGE1S,
+	DCAM_REG_WR(idx, DCAM_AFM_WIN_RANGE1S,
 			(p->height & 0xF) << 16 | (p->width & 0x1F));
 
 	return ret;
@@ -155,15 +155,15 @@ int dcam_k_afm_mode(struct dcam_dev_param *param)
 
 	idx = param->idx;
 	mode = param->afm.mode;
-	DCAM_REG_MWR(idx, ISP_AFM_FRM_CTRL,
+	DCAM_REG_MWR(idx, DCAM_AFM_FRM_CTRL,
 		BIT_2, mode << 2);
 
 	/* 0 - single mode , trigger afm_sgl_start */
 	/* 1 - multi mode, trigger mul mode enable */
 	if (mode == 0)
-		DCAM_REG_MWR(idx, ISP_AFM_FRM_CTRL1, BIT_0, 1);
+		DCAM_REG_MWR(idx, DCAM_AFM_FRM_CTRL1, BIT_0, 1);
 	else
-		DCAM_REG_MWR(idx, ISP_AFM_FRM_CTRL, BIT_3, 1 << 3);
+		DCAM_REG_MWR(idx, DCAM_AFM_FRM_CTRL, BIT_3, 1 << 3);
 
 	return ret;
 }
@@ -180,10 +180,10 @@ int dcam_k_afm_skipnum(struct dcam_dev_param *param)
 	idx = param->idx;
 	skip_num = param->afm.skip_num;
 
-	DCAM_REG_MWR(idx, ISP_AFM_FRM_CTRL, 0xF0, (skip_num & 0xF) << 4);
+	DCAM_REG_MWR(idx, DCAM_AFM_FRM_CTRL, 0xF0, (skip_num & 0xF) << 4);
 
 	/* afm_skip_num_clr */
-	DCAM_REG_MWR(idx, ISP_AFM_FRM_CTRL1, BIT_1, 1 << 1);
+	DCAM_REG_MWR(idx, DCAM_AFM_FRM_CTRL1, BIT_1, 1 << 1);
 
 	dcam_path_skip_num_set(param->dev, DCAM_PATH_AFM, param->afm.skip_num);
 
@@ -201,7 +201,7 @@ int dcam_k_afm_crop_eb(struct dcam_dev_param *param)
 
 	idx = param->idx;
 	crop_eb = param->afm.crop_eb;
-	DCAM_REG_MWR(idx, ISP_AFM_PARAMETERS, BIT_1, crop_eb << 1);
+	DCAM_REG_MWR(idx, DCAM_AFM_PARAMETERS, BIT_1, crop_eb << 1);
 
 	return ret;
 }
@@ -283,10 +283,10 @@ int dcam_k_afm_crop_size(struct dcam_dev_param *param)
 	idx = param->idx;
 	crop_size = param->afm.crop_size;
 
-	DCAM_REG_WR(idx, ISP_AFM_CROP_START,
+	DCAM_REG_WR(idx, DCAM_CROP3_START,
 		(crop_size.y & 0x1FFF) << 16 |
 		(crop_size.x & 0X1FFF));
-	DCAM_REG_WR(idx, ISP_AFM_CROP_SIZE,
+	DCAM_REG_WR(idx, DCAM_CROP3_SIZE,
 		(crop_size.h & 0x1FFF) << 16 |
 		(crop_size.w & 0X1FFF));
 
@@ -312,7 +312,7 @@ int dcam_k_afm_done_tilenum(struct dcam_dev_param *param)
 
 	val = ((done_tile_num.width & 0x1F) << 12) |
 		((done_tile_num.height & 0x0F) << 8);
-	DCAM_REG_MWR(idx, ISP_AFM_PARAMETERS, 0x1FF00, val);
+	DCAM_REG_MWR(idx, DCAM_AFM_PARAMETERS, 0x1FF00, val);
 
 	return ret;
 }

@@ -79,6 +79,7 @@ enum dcam_sw_context_id {
 enum dcam_path_id {
 	DCAM_PATH_FULL = 0,
 	DCAM_PATH_BIN,
+	DCAM_PATH_RAW,
 	DCAM_PATH_PDAF,
 	DCAM_PATH_VCH2,
 	DCAM_PATH_VCH3,
@@ -230,6 +231,7 @@ struct dcam_path_cfg_param {
 	uint32_t frm_skip;
 	uint32_t force_rds;
 	uint32_t raw_cap;
+	uint32_t is_pack;
 	void *priv_size_data;
 	struct img_endian endian;
 	struct img_size input_size;

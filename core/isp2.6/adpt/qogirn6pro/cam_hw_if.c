@@ -69,6 +69,49 @@ static unsigned long coff_buf_addr[2][3][4] = {
 	},
 };
 
+#ifdef CAM_ON_HAPS
+unsigned int reg_rd(unsigned int addr)
+{
+	void __iomem *io_tmp = NULL;
+	unsigned int val;
+
+	io_tmp = ioremap_nocache(addr, 0x4);
+	val = __raw_readl(io_tmp);
+	iounmap(io_tmp);
+
+	return val;
+}
+
+void reg_awr(unsigned int addr, unsigned int val)
+{
+	void __iomem *io_tmp = NULL;
+	unsigned int tmp;
+
+	io_tmp = ioremap_nocache(addr, 0x4);
+	tmp = __raw_readl(io_tmp);
+	__raw_writel(tmp&val, io_tmp);
+	/* asm/barrier.h */
+	mb();
+	val = __raw_readl(io_tmp);
+	iounmap(io_tmp);
+}
+
+void reg_owr(unsigned int addr, unsigned int val)
+{
+	void __iomem *io_tmp = NULL;
+	unsigned int tmp;
+
+	io_tmp = ioremap_nocache(addr, 0x4);
+	tmp = *(volatile u32*)(io_tmp);
+	*(volatile u32*)(io_tmp) = tmp|val;
+	/* asm/barrier.h */
+	mb();
+	val = __raw_readl(io_tmp);
+	iounmap(io_tmp);
+}
+
+#endif
+
 #define CAM_HW_ADPT_LAYER
 
 #include "dcam_hw.c"
@@ -210,10 +253,10 @@ static hw_ioctl_fun camhw_ioctl_fun_get(enum cam_hw_cfg_cmd cmd)
 
 const unsigned long slowmotion_store_addr[3][4] = {
 	{
-		DCAM_BIN_BASE_WADDR0,
-		DCAM_BIN_BASE_WADDR0,
-		DCAM_BIN_BASE_WADDR0,
-		DCAM_BIN_BASE_WADDR0
+		DCAM_STORE0_SLICE_Y_ADDR,
+		DCAM_STORE0_SLICE_Y_ADDR,
+		DCAM_STORE0_SLICE_Y_ADDR,
+		DCAM_STORE0_SLICE_Y_ADDR
 	},
 	{
 		DCAM_AEM_BASE_WADDR,
@@ -222,10 +265,10 @@ const unsigned long slowmotion_store_addr[3][4] = {
 		DCAM_AEM_BASE_WADDR
 	},
 	{
-		DCAM_HIST_BASE_WADDR,
-		DCAM_HIST_BASE_WADDR,
-		DCAM_HIST_BASE_WADDR,
-		DCAM_HIST_BASE_WADDR
+		DCAM_BAYER_HIST_BASE_WADDR,
+		DCAM_BAYER_HIST_BASE_WADDR,
+		DCAM_BAYER_HIST_BASE_WADDR,
+		DCAM_BAYER_HIST_BASE_WADDR
 	}
 };
 
@@ -245,17 +288,18 @@ static uint32_t path_ctrl_id[DCAM_PATH_MAX] = {
 };
 
 static unsigned long dcam_store_addr[DCAM_PATH_MAX] = {
-	[DCAM_PATH_FULL] = DCAM_FULL_BASE_WADDR,
-	[DCAM_PATH_BIN] = DCAM_BIN_BASE_WADDR0,
+	[DCAM_PATH_FULL] = DCAM_STORE4_SLICE_Y_ADDR,
+	[DCAM_PATH_BIN] = DCAM_STORE0_SLICE_Y_ADDR,
+	[DCAM_PATH_RAW] = DCAM_RAW_PATH_BASE_WADDR,
 	[DCAM_PATH_PDAF] = DCAM_PDAF_BASE_WADDR,
 	[DCAM_PATH_VCH2] = DCAM_VCH2_BASE_WADDR,
 	[DCAM_PATH_VCH3] = DCAM_VCH3_BASE_WADDR,
 	[DCAM_PATH_AEM] = DCAM_AEM_BASE_WADDR,
-	[DCAM_PATH_AFM] = ISP_AFM_BASE_WADDR,
-	[DCAM_PATH_AFL] = ISP_AFL_GLB_WADDR,
-	[DCAM_PATH_HIST] = DCAM_HIST_BASE_WADDR,
-	[DCAM_PATH_3DNR] = ISP_NR3_WADDR,
-	[DCAM_PATH_BPC] = ISP_BPC_OUT_ADDR,
+	[DCAM_PATH_AFM] = DCAM_AFM_LUM_FV_BASE_WADDR,
+	[DCAM_PATH_AFL] = ISP_AFL_DDR_INIT_ADDR,
+	[DCAM_PATH_HIST] = DCAM_BAYER_HIST_BASE_WADDR,
+	[DCAM_PATH_3DNR] = DCAM_NR3_WADDR,
+	[DCAM_PATH_BPC] = DCAM_BPC_OUT_ADDR,
 	[DCAM_PATH_LSCM] = DCAM_LSCM_BASE_WADDR,
 };
 

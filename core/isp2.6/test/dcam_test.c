@@ -325,30 +325,16 @@ static const dcam_isr _DCAM_ISRS[] = {
  * interested interrupt bits in DCAM0
  */
 static const int _DCAM0_SEQUENCE[] = {
-	DCAM_CAP_SOF,/* must */
-	DCAM_SENSOR_EOF,/* TODO: why for flash */
 	DCAM_PREV_PATH_TX_DONE,/* for bin path */
 	DCAM_FULL_PATH_TX_DONE,/* for full path */
-	DCAM_AEM_TX_DONE,/* for aem statis */
-	DCAM_AFL_TX_DONE,/* for afl statis */
-	DCAM_PDAF_PATH_TX_DONE,/* for pdaf data */
-	DCAM_VCH2_PATH_TX_DONE,/* for vch2 data */
-	DCAM_VCH3_PATH_TX_DONE,/* for vch3 data */
 };
 
 /*
  * interested interrupt bits in DCAM1
  */
 static const int _DCAM1_SEQUENCE[] = {
-	DCAM_CAP_SOF,/* must */
-	DCAM_SENSOR_EOF,/* TODO: why for flash */
 	DCAM_PREV_PATH_TX_DONE,/* for bin path */
 	DCAM_FULL_PATH_TX_DONE,/* for full path */
-	DCAM_AEM_TX_DONE,/* for aem statis */
-	DCAM_AFL_TX_DONE,/* for afl statis */
-	DCAM_PDAF_PATH_TX_DONE,/* for pdaf data */
-	DCAM_VCH2_PATH_TX_DONE,/* for vch2 data */
-	DCAM_VCH3_PATH_TX_DONE,/* for vch3 data */
 };
 
 /*
@@ -385,7 +371,7 @@ static void print_reg(int idx)
 	unsigned long addr;
 
 	pr_info("DCAM%d: Register list\n", idx);
-	for (addr = DCAM_IP_REVISION; addr <= DCAM_RDS_DES_SIZE;
+	for (addr = DCAM_IP_REVISION; addr <= DCAM_CHECK_LASE_STATUS;
 		addr += 16) {
 		pr_info("0x%03lx: 0x%x 0x%x 0x%x 0x%x\n",
 			addr,

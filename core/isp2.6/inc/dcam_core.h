@@ -94,6 +94,16 @@ struct dcam_rds_slice_ctrl {
 	uint32_t rds_init_phase_rdm0;
 };
 
+enum dcam_store_format { /*order as spec*/
+	DCAM_STORE_FRGB = 0,
+	DCAM_STORE_YUV_BASE = 0x10,
+	DCAM_STORE_YUV422,
+	DCAM_STORE_YVU422,
+	DCAM_STORE_YUV420,
+	DCAM_STORE_YVU420,
+	DCAM_STORE_RAW_BASE = 0x20,
+};
+
 struct dcam_path_desc {
 	atomic_t user_cnt;
 	enum dcam_path_id path_id;
@@ -117,6 +127,8 @@ struct dcam_path_desc {
 	uint32_t data_bits;
 	uint32_t pack_bits;
 	uint32_t is_4in1;
+	uint32_t is_pack;
+	uint32_t out_pitch;
 
 	/* full path source sel */
 	uint32_t src_sel;

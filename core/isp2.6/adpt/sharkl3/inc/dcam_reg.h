@@ -392,27 +392,25 @@ extern const unsigned long slowmotion_store_addr[3][4];
  *
  */
 
-#define DCAM_BASE(idx)              (g_dcam_regbase[idx])
-#define DCAM_AXIM_BASE              (g_dcam_aximbase[0])
+#define DCAM_BASE(idx)                   (g_dcam_regbase[idx])
+#define DCAM_AXIM_BASE                   (g_dcam_aximbase[0])
 /* TODO: implement mmu */
-#define DCAM_MMU_BASE               (g_dcam_mmubase)
+#define DCAM_MMU_BASE                    (g_dcam_mmubase)
 
-#define DCAM_REG_WR(idx, reg, val)  (REG_WR(DCAM_BASE(idx)+(reg), (val)))
-#define DCAM_REG_RD(idx, reg)       (REG_RD(DCAM_BASE(idx)+(reg)))
-#define DCAM_REG_MWR(idx, reg, msk, val) \
-	DCAM_REG_WR((idx), (reg),      \
-	((val) & (msk)) | (DCAM_REG_RD(idx, reg) & (~(msk))))
+#define DCAM_REG_WR(idx, reg, val)       (REG_WR(DCAM_BASE(idx)+(reg), (val)))
+#define DCAM_REG_RD(idx, reg)            (REG_RD(DCAM_BASE(idx)+(reg)))
+#define DCAM_REG_MWR(idx, reg, msk, val) DCAM_REG_WR((idx), (reg), ((val) & (msk)) | (DCAM_REG_RD(idx, reg) & (~(msk))))
 
-#define DCAM_AXIM_WR(reg, val)      (REG_WR(DCAM_AXIM_BASE+(reg), (val)))
-#define DCAM_AXIM_RD(reg)            (REG_RD(DCAM_AXIM_BASE+(reg)))
-#define DCAM_AXIM_MWR(reg, msk, val) \
-	DCAM_AXIM_WR((reg), ((val) & (msk)) | (DCAM_AXIM_RD(reg) & (~(msk))))
+#define DCAM_AXIM_WR(reg, val)           (REG_WR(DCAM_AXIM_BASE+(reg), (val)))
+#define DCAM_AXIM_RD(reg)                (REG_RD(DCAM_AXIM_BASE+(reg)))
+#define DCAM_AXIM_MWR(reg, msk, val)     DCAM_AXIM_WR((reg), ((val) & (msk)) | (DCAM_AXIM_RD(reg) & (~(msk))))
 
-#define DCAM_MMU_WR(reg, val)      (REG_WR(DCAM_MMU_BASE+(reg), (val)))
-#define DCAM_MMU_RD(reg)            (REG_RD(DCAM_MMU_BASE+(reg)))
-#define DCAM_MMU_MWR(reg, msk, val) \
-	DCAM_MMU_WR((reg), ((val) & (msk)) | (DCAM_MMU_RD(reg) & (~(msk))))
+#define DCAM_MMU_WR(reg, val)            (REG_WR(DCAM_MMU_BASE+(reg), (val)))
+#define DCAM_MMU_RD(reg)                 (REG_RD(DCAM_MMU_BASE+(reg)))
+#define DCAM_MMU_MWR(reg, msk, val)      DCAM_MMU_WR((reg), ((val) & (msk)) | (DCAM_MMU_RD(reg) & (~(msk))))
 
+/*for dcam IT*/
+#define DCAM_CHECK_LASE_STATUS           DCAM_RDS_DES_SIZE
 /* TODO: add DCAM0/1 lsc grid table mapping */
 
 #endif/* _DCAM_REG_H_ */

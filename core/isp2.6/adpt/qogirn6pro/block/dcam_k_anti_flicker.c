@@ -93,31 +93,31 @@ int dcam_k_afl_block(struct dcam_dev_param *param)
 	pr_debug("cfg afl bypass %d, mode %d %d %d\n",
 		p->bypass, p->mode,
 		p->bayer2y_chanel, p->bayer2y_mode);
-	DCAM_REG_MWR(idx, ISP_AFL_FRM_CTRL0, BIT_0, p->bypass);
+	DCAM_REG_MWR(idx, ISP_AFL_PARAM0, BIT_0, p->bypass);
 	/* bayer2y, bypass should be same as afl bypass. */
-	DCAM_REG_MWR(idx, ISP_AFL_PARAM0, BIT_1, p->bypass << 1);
+	DCAM_REG_MWR(idx, ISP_AFL_PARAM0, BIT_8, p->bypass << 8);
 	if (p->bypass)
 		return 0;
 
-	val = ((p->bayer2y_chanel & 0x3) << 6) |
-		((p->bayer2y_mode & 0x3) << 4);
-	DCAM_REG_MWR(idx, ISP_AFL_PARAM0, 0xF0, val);
+	val = ((p->bayer2y_chanel & 0x3) << 11) |
+		((p->bayer2y_mode & 0x3) << 9);
+	DCAM_REG_MWR(idx, ISP_AFL_PARAM0, 0x1E00, val);
 
-	DCAM_REG_MWR(idx, ISP_AFL_FRM_CTRL0, BIT_2, p->mode << 2);
+	DCAM_REG_MWR(idx, ISP_AFL_PARAM0, BIT_1, p->mode << 1);
 	if (p->mode == AFL_MODE_SINGLE)
 		/* trigger next work frame for single mode */
-		DCAM_REG_MWR(idx, ISP_AFL_FRM_CTRL1, BIT_0, 1);
+		DCAM_REG_MWR(idx, ISP_AFL_PARAM0, BIT_0, 1);
 	else
 		/* set afl_mul_enable for multi mode */
-		DCAM_REG_MWR(idx, ISP_AFL_FRM_CTRL0, BIT_3, 1 << 3);
+		DCAM_REG_MWR(idx, ISP_AFL_PARAM0, BIT_3, 1 << 3);
 
-	DCAM_REG_MWR(idx, ISP_AFL_FRM_CTRL0, 0xF0,
-		(p->skip_frame_num & 0xF) << 4);
+	DCAM_REG_MWR(idx, ISP_AFL_PARAM1, 0xFF000000,
+		(p->skip_frame_num & 0xFF) << 24);
 	/* It is better to set afl_skip_num_clr when new skip_num is set. */
-	DCAM_REG_MWR(idx, ISP_AFL_FRM_CTRL1, BIT_1, 1 << 1);
+	DCAM_REG_MWR(idx, ISP_AFL_SKIP_NUM_CLR, BIT_0, 1 << 1);
 
-	val = ((p->frame_num & 0xFF) << 16);
-	DCAM_REG_MWR(idx, ISP_AFL_FRM_CTRL0, 0xFF0000, val);
+	val = ((p->frame_num & 0xFF) << 24);
+	DCAM_REG_MWR(idx, ISP_AFL_PARAM2, 0xFF000000, val);
 
 	DCAM_REG_WR(idx, ISP_AFL_PARAM1, (p->afl_stepx & 0xFFFFFF));
 	DCAM_REG_WR(idx, ISP_AFL_PARAM2, (p->afl_stepy & 0xFFFFFF));
@@ -157,23 +157,18 @@ int dcam_k_afl_bypass(struct dcam_dev_param *param)
 		return -1;
 
 	idx = param->idx;
-	mode = (DCAM_REG_RD(idx, ISP_AFL_FRM_CTRL0) >> 2) & 1;
+	mode = (DCAM_REG_RD(idx, ISP_AFL_PARAM0) >> 2) & 1;
 	pr_debug("afl bypass %d, mode %d\n", param->afl.afl_info.bypass, mode);
 
-	DCAM_REG_MWR(idx, ISP_AFL_FRM_CTRL0, BIT_0, param->afl.afl_info.bypass);
+	DCAM_REG_MWR(idx, ISP_AFL_PARAM0, BIT_0, param->afl.afl_info.bypass);
 	/* bayer2y, bypass should be same as afl bypass. */
-	DCAM_REG_MWR(idx, ISP_AFL_PARAM0, BIT_1, param->afl.afl_info.bypass << 1);
+	DCAM_REG_MWR(idx, ISP_AFL_PARAM0, BIT_8, param->afl.afl_info.bypass << 8);
 
 	if (param->afl.afl_info.bypass == 0) {
 		/* It is better to set afl_skip_num_clr
 		 * when module is re-enable.
 		 */
-		DCAM_REG_MWR(idx, ISP_AFL_FRM_CTRL1, BIT_1, 1 << 1);
-
-		if (mode == AFL_MODE_SINGLE) {
-			/* trigger next work frame for single mode */
-			DCAM_REG_MWR(idx, ISP_AFL_FRM_CTRL1, BIT_0, 1);
-		}
+		DCAM_REG_MWR(idx, ISP_AFL_SKIP_NUM_CLR, BIT_0, 1);
 	}
 	return ret;
 }

@@ -20,7 +20,7 @@ extern unsigned long g_dcam_regbase[];
 extern unsigned long g_dcam_aximbase[];
 extern unsigned long g_dcam_mmubase;
 
-#define DCAM_PATH_CROP_ALIGN 8
+#define DCAM_PATH_CROP_ALIGN            8
 
 /* DCAM0/DCAM1 module registers define */
 #define DCAM_CFG                        (0x0008UL)
@@ -75,10 +75,10 @@ extern unsigned long g_dcam_mmubase;
 #define DCAM_BAYER_INFO_CFG             (0x0180UL)
 #define DCAM_CROP0_START                (0x03C0UL)
 #define DCAM_CROP0_SIZE                 (0x03C4UL)
-//blc
+
 #define DCAM_BLC_PARA_R_B               (0x0184UL)
 #define DCAM_BLC_PARA_G                 (0x0188UL)
-//rgbgain
+
 #define ISP_RGBG_RB                     (0x01A0UL)
 #define ISP_RGBG_G                      (0x01A4UL)
 #define ISP_RGBG_YRANDOM_PARAMETER0     (0x01A8UL)
@@ -87,7 +87,7 @@ extern unsigned long g_dcam_mmubase;
 #define ISP_RGBG_YUV_YRANDOM_STATUS0    (0x01B4UL)
 #define ISP_RGBG_YUV_YRANDOM_STATUS1    (0x01B8UL)
 #define ISP_RGBG_YUV_YRANDOM_STATUS2    (0x01BCUL)
-//aem
+
 #define DCAM_AEM_BASE_WADDR             (0x00A0UL)
 #define DCAM_AEM_BASE_WADDR1            (0x00A4UL)
 #define DCAM_AEM_BASE_WADDR2            (0x00A8UL)
@@ -101,7 +101,7 @@ extern unsigned long g_dcam_mmubase;
 #define DCAM_AEM_BLUE_THR               (0x0318UL)
 #define DCAM_AEM_GREEN_THR              (0x031CUL)
 #define DCAM_AEM_STATUS                 (0x0320UL)
-//hist
+
 #define DCAM_HIST_BASE_WADDR            (0x00C0UL)
 #define DCAM_HIST_BASE_WADDR1           (0x00C4UL)
 #define DCAM_HIST_BASE_WADDR2           (0x00C8UL)
@@ -111,7 +111,7 @@ extern unsigned long g_dcam_mmubase;
 #define DCAM_BAYER_HIST_START           (0x0348UL)
 #define DCAM_BAYER_HIST_END             (0x034CUL)
 #define DCAM_HIST_STATUS                (0x0350UL)
-//awbc
+
 #define ISP_AWBC_GAIN0                  (0x03D0UL)
 #define ISP_AWBC_GAIN1                  (0x03d4UL)
 #define ISP_AWBC_THRD                   (0x03d8UL)
@@ -119,7 +119,7 @@ extern unsigned long g_dcam_mmubase;
 #define ISP_AWBC_OFFSET0                (0x03e0UL)
 #define ISP_AWBC_OFFSET1                (0x03e4UL)
 #define ISP_AWBC_STATUS                 (0x03E8UL)
-//afm
+
 #define ISP_AFM_BASE_WADDR              (0x00E0UL)
 #define ISP_AFM_FRM_CTRL                (0x0480UL)
 #define ISP_AFM_FRM_CTRL1               (0x0484UL)
@@ -150,7 +150,7 @@ extern unsigned long g_dcam_mmubase;
 #define ISP_AFM_CNT_OUT                 (0x04E8UL)
 #define ISP_AFM_STATUS0                 (0x04ECUL)
 #define ISP_AFM_STATUS1                 (0x04F0UL)
-//PDAF
+
 #define DCAM_PPE_RIGHT_WADDR            (0x008CUL)
 #define DCAM_PDAF_BASE_WADDR            (0x0080UL)
 #define DCAM_PDAF_CONTROL               (0x0200UL)
@@ -196,14 +196,14 @@ extern unsigned long g_dcam_mmubase;
 #define ISP_PPI_PATTERN30               (0x02ACUL)
 #define ISP_PPI_PATTERN31               (0x02B0UL)
 #define ISP_PPI_PATTERN32               (0x02B4UL)
-//vch2 && vch3
+
 #define DCAM_VCH2_BASE_WADDR            (0x0084UL)
 #define DCAM_VCH3_BASE_WADDR            (0x0088UL)
 #define DCAM_VC2_CONTROL                (0x0160UL)
 #define DCAM_VC3_CONTROL                (0x0170UL)
 #define DCAM_VCH2_PATH_STATUS           (0x0164UL)
 #define DCAM_VCH3_PATH_STATUS           (0x0174UL)
-//afl
+
 #define ISP_AFL_GLB_WADDR               (0x00D0UL)
 #define ISP_AFL_REGION_WADDR            (0x00D4UL)
 #define ISP_AFL_FRM_CTRL0               (0x0360UL)
@@ -225,7 +225,7 @@ extern unsigned long g_dcam_mmubase;
 #define ISP_AFL_SLICE3                  (0x03A0UL)
 #define ISP_AFL_SLICE4                  (0x03A4UL)
 #define ISP_AFL_ADDR_STATUS             (0x03A8UL)
-//lsc
+
 #define DCAM_LENS_BASE_RADDR            (0x0090UL)
 #define DCAM_LENS_GRID_NUMBER           (0x02E0UL)
 #define DCAM_LENS_GRID_SIZE             (0x02E4UL)
@@ -236,14 +236,14 @@ extern unsigned long g_dcam_mmubase;
 #define DCAM_LENS_STATUS                (0x02F8UL)
 #define DCAM_LSC_WEI_LAST0              (0x0D00UL)
 #define DCAM_LSC_WEI_LAST1              (0x0D04UL)
-//lscm
+
 #define DCAM_LSCM_BASE_WADDR            (0x0094UL)
 #define DCAM_LSCM_FRM_CTRL0             (0x02C0UL)
 #define DCAM_LSCM_FRM_CTRL1             (0x02C4UL)
 #define DCAM_LSCM_OFFSET                (0x02C8UL)
 #define DCAM_LSCM_BLK_NUM               (0x02CCUL)
 #define DCAM_LSCM_BLK_SIZE              (0x02D0UL)
-//bpc
+
 #define ISP_BPC_MAP_ADDR                (0x00D8UL)
 #define ISP_BPC_OUT_ADDR                (0x00DCUL)
 #define ISP_BPC_PARAM                   (0x0400UL)
@@ -272,7 +272,7 @@ extern unsigned long g_dcam_mmubase;
 #define ISP_BPC_LAST_ADDR               (0x045CUL)
 #define ISP_BPC_STATUS0                 (0x0460UL)
 #define ISP_BPC_STATUS1                 (0x0464UL)
-//NR3
+
 #define ISP_NR3_WADDR                   (0x00E4UL)
 #define NR3_FAST_ME_PARAM               (0x0500UL)
 #define NR3_FAST_ME_ROI_PARAM0          (0x0504UL)
@@ -280,7 +280,7 @@ extern unsigned long g_dcam_mmubase;
 #define NR3_FAST_ME_OUT0                (0x050CUL)
 #define NR3_FAST_ME_OUT1                (0x0510UL)
 #define NR3_FAST_ME_STATUS              (0x0514UL)
-//gtm
+
 #define DCAM_GTM_GLB_CTRL               (0x0520UL)
 #define GTM_HIST_CTRL0                  (0x0524UL)
 #define GTM_HIST_CTRL1                  (0x0528UL)
@@ -301,7 +301,7 @@ extern unsigned long g_dcam_mmubase;
 #define GTM_SLICE_LINE_STARTPOS         (0x0584UL)
 #define GTM_SLICE_LINE_ENDPOS           (0x0588UL)
 #define GTM_STATUS                      (0x0590UL)
-//path
+
 #define DCAM_PATH_STOP_MASK             (0x2DFFUL)
 #define DCAM_PATH_BUSY_MASK             (0x2FFFUL)
 
@@ -591,27 +591,25 @@ extern const unsigned long slowmotion_store_addr[3][4];
  *
  */
 
-#define DCAM_BASE(idx)                  (g_dcam_regbase[idx])
-#define DCAM_AXIM_BASE                  (g_dcam_aximbase[0])
+#define DCAM_BASE(idx)                    (g_dcam_regbase[idx])
+#define DCAM_AXIM_BASE                    (g_dcam_aximbase[0])
 /* TODO: implement mmu */
-#define DCAM_MMU_BASE                   (g_dcam_mmubase)
+#define DCAM_MMU_BASE                     (g_dcam_mmubase)
 
 #define DCAM_REG_WR(idx, reg, val)        (REG_WR(DCAM_BASE(idx)+(reg), (val)))
 #define DCAM_REG_RD(idx, reg)             (REG_RD(DCAM_BASE(idx)+(reg)))
-#define DCAM_REG_MWR(idx, reg, msk, val) \
-	DCAM_REG_WR((idx), (reg), \
-	((val) & (msk)) | (DCAM_REG_RD(idx, reg) & (~(msk))))
+#define DCAM_REG_MWR(idx, reg, msk, val)  DCAM_REG_WR((idx), (reg), ((val) & (msk)) | (DCAM_REG_RD(idx, reg) & (~(msk))))
 
 #define DCAM_AXIM_WR(reg, val)            (REG_WR(DCAM_AXIM_BASE+(reg), (val)))
 #define DCAM_AXIM_RD(reg)                 (REG_RD(DCAM_AXIM_BASE+(reg)))
-#define DCAM_AXIM_MWR(reg, msk, val) \
-	DCAM_AXIM_WR((reg), ((val) & (msk)) | (DCAM_AXIM_RD(reg) & (~(msk))))
+#define DCAM_AXIM_MWR(reg, msk, val)      DCAM_AXIM_WR((reg), ((val) & (msk)) | (DCAM_AXIM_RD(reg) & (~(msk))))
 
 #define DCAM_MMU_WR(reg, val)             (REG_WR(DCAM_MMU_BASE+(reg), (val)))
 #define DCAM_MMU_RD(reg)                  (REG_RD(DCAM_MMU_BASE+(reg)))
-#define DCAM_MMU_MWR(reg, msk, val) \
-	DCAM_MMU_WR((reg), ((val) & (msk)) | (DCAM_MMU_RD(reg) & (~(msk))))
+#define DCAM_MMU_MWR(reg, msk, val)       DCAM_MMU_WR((reg), ((val) & (msk)) | (DCAM_MMU_RD(reg) & (~(msk))))
 
+/*for dcam IT*/
+#define DCAM_CHECK_LASE_STATUS            DCAM_RDS_DES_SIZE
 /* TODO: add DCAM0/1 lsc grid table mapping */
 
 #endif /* _DCAM_REG_H_ */
