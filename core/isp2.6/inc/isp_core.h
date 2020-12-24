@@ -48,9 +48,6 @@
 #define AFBC_PADDING_H_YUV420      8
 #define AFBC_HEADER_SIZE           16
 #define AFBC_PAYLOAD_SIZE          84
-
-#define ISP_FBD_TILE_WIDTH         64
-#define ISP_FBD_TILE_HEIGHT        4
 #define ISP_FBD_BASE_ALIGN         256
 
 #define ISP_ALIGN_W(_a)            ((_a) & ~(ISP_PIXEL_ALIGN_WIDTH - 1))
@@ -130,6 +127,7 @@ struct isp_path_desc {
 struct isp_pipe_info {
 	struct isp_hw_fetch_info fetch;
 	struct isp_fbd_raw_info fetch_fbd;
+	struct isp_fbd_yuv_info fetch_fbd_yuv;
 	struct isp_hw_path_scaler scaler[ISP_SPATH_NUM];
 	struct isp_hw_thumbscaler_info thumb_scaler;
 	struct isp_hw_path_store store[ISP_SPATH_NUM];

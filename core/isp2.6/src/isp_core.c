@@ -1283,12 +1283,20 @@ static int ispcore_offline_param_set(struct isp_sw_context *pctx,
 	rgb_ltm = (struct isp_ltm_ctx_desc *)pctx->rgb_ltm_handle;
 	yuv_ltm = (struct isp_ltm_ctx_desc *)pctx->yuv_ltm_handle;
 	hw->isp_ioctl(hw, ISP_HW_CFG_FETCH_FRAME_ADDR, &pipe_in->fetch);
-	if (pipe_src->fetch_path_sel)
-		hw->isp_ioctl(hw, ISP_HW_CFG_FBD_ADDR_SET, &pipe_in->fetch_fbd);
+	if (pipe_src->fetch_path_sel) {
+		if (hw->ip_isp->fbd_raw_support)
+			hw->isp_ioctl(hw, ISP_HW_CFG_FBD_ADDR_SET, &pipe_in->fetch_fbd);
+		else if (hw->ip_isp->fbd_yuv_support)
+			hw->isp_ioctl(hw, ISP_HW_CFG_FBD_ADDR_SET, &pipe_in->fetch_fbd_yuv);
+	}
 	if (pctx->updated || pctx->sw_slice_num) {
 		hw->isp_ioctl(hw, ISP_HW_CFG_FETCH_SET, &pipe_in->fetch);
-		if (pipe_src->fetch_path_sel)
-			hw->isp_ioctl(hw, ISP_HW_CFG_FETCH_FBD_SET, &pipe_in->fetch_fbd);
+		if (pipe_src->fetch_path_sel) {
+			if (dev->isp_hw->ip_isp->fbd_raw_support)
+				hw->isp_ioctl(hw, ISP_HW_CFG_FETCH_FBD_SET, &pipe_in->fetch_fbd);
+			else if (dev->isp_hw->ip_isp->fbd_yuv_support)
+				hw->isp_ioctl(hw, ISP_HW_CFG_FETCH_FBD_SET, &pipe_in->fetch_fbd_yuv);
+		}
 		if (pipe_src->in_fmt == IMG_PIX_FMT_NV21)
 			hw->isp_ioctl(hw, ISP_HW_CFG_ISP_CFG_SUBBLOCK, &pipe_in->fetch);
 	}

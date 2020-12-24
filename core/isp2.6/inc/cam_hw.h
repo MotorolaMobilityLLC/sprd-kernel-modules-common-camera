@@ -331,6 +331,32 @@ struct isp_fbd_raw_info {
 	uint32_t low_4bit_addr_offset;
 };
 
+struct isp_fbd_yuv_info {
+	uint32_t ctx_id;
+	/*1.1.58.1 fdb fetch sel*/
+	uint32_t fetch_fbd_bypass;
+	uint32_t chk_sum_auto_clr;
+	uint32_t hblank_en;
+	uint32_t dout_req_signal_type;
+	uint32_t afbc_mode;
+	/*1.1.58.2 fdb fetch start*/
+	uint32_t start_isp_afbd;
+	/*1.1.58.3 fdb fetch hblank tile pitch*/
+	uint32_t hblank_num;
+	uint32_t tile_num_pitch;
+	/*1.1.58.4 fdb fetch slice size*/
+	struct img_size slice_size;
+	/*1.1.58.5 fdb fetch param0*/
+	uint32_t slice_start_pxl_xpt;
+	uint32_t slice_start_pxl_ypt;
+	/*1.1.58.6 fdb fetch param1*/
+	uint32_t frame_header_base_addr;
+	/*1.1.58.7 fdb fetch param2*/
+	uint32_t slice_start_header_addr;
+
+	struct compressed_addr hw_addr;
+};
+
 struct isp_hw_fetch_info {
 	uint32_t ctx_id;
 	uint32_t dispatch_color;
@@ -1034,6 +1060,8 @@ struct cam_hw_ip_info {
 	uint32_t yuv_ltm_support;
 	uint32_t pyr_rec_support;
 	uint32_t pyr_dec_support;
+	uint32_t fbd_raw_support;
+	uint32_t fbd_yuv_support;
 };
 
 struct cam_hw_soc_info {

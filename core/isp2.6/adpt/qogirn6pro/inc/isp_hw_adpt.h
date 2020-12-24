@@ -36,4 +36,7 @@
 
 #define ISP_SC_COEFF_BUF_SIZE           (24 << 12)
 
+#define ISP_FBD_TILE_WIDTH              32
+#define ISP_FBD_TILE_HEIGHT             8
+
 #endif

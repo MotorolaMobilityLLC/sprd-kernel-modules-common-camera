@@ -432,6 +432,50 @@ static int ispdrv_fbd_raw_get(void *cfg_in, void *cfg_out,
 	return 0;
 }
 
+static int ispdrv_fbd_yuv_get(void *cfg_in, void *cfg_out,
+		struct camera_frame *frame)
+{
+	int32_t tile_col = 0, tile_row = 0;
+	struct isp_fbd_yuv_info *fbd_yuv = NULL;
+	struct isp_uinfo *pipe_src = NULL;
+
+	if (!cfg_in || !cfg_out || !frame) {
+		pr_err("fail to get valid input ptr, %p, %p\n", cfg_in, cfg_out);
+		return -EFAULT;
+	}
+
+	fbd_yuv = (struct isp_fbd_yuv_info *)cfg_out;
+	pipe_src = (struct isp_uinfo *)cfg_in;
+
+	if (pipe_src->fetch_path_sel == 0)
+		return 0;
+
+	fbd_yuv->slice_size.w = pipe_src->src.w;
+	fbd_yuv->slice_size.h = pipe_src->src.h;
+	tile_col = (fbd_yuv->slice_size.w + ISP_FBD_TILE_WIDTH - 1) / ISP_FBD_TILE_WIDTH;
+	tile_col = (tile_col + 2 - 1) / 2 * 2;
+	tile_row =(fbd_yuv->slice_size.h + ISP_FBD_TILE_HEIGHT - 1) / ISP_FBD_TILE_HEIGHT;
+
+	fbd_yuv->tile_num_pitch = tile_col;
+	fbd_yuv->slice_start_pxl_xpt = 0;
+	fbd_yuv->slice_start_pxl_ypt = 0;
+
+	dcam_if_cal_compressed_addr(fbd_yuv->slice_size.w, fbd_yuv->slice_size.h,
+			&frame->fbc_info, frame->buf.iova[0], &fbd_yuv->hw_addr,
+			frame->compress_4bit_bypass);
+	/* store start address for slice use */
+	fbd_yuv->frame_header_base_addr = fbd_yuv->hw_addr.addr0;
+	fbd_yuv->slice_start_header_addr = fbd_yuv->frame_header_base_addr +
+			((fbd_yuv->slice_start_pxl_ypt / 8) * fbd_yuv->tile_num_pitch +
+			fbd_yuv->slice_start_pxl_xpt / 32) * 16;
+	pr_debug("iova:%d, fetch_fbd: %u 0x%x 0x%x, 0x%x, size %u %u\n",
+		 frame->buf.iova[0], frame->fid, fbd_yuv->hw_addr.addr0,
+		 fbd_yuv->hw_addr.addr1, fbd_yuv->hw_addr.addr2,
+		pipe_src->src.w, pipe_src->src.h);
+
+	return 0;
+}
+
 static enum isp_store_format ispdrv_store_format_get(uint32_t forcc)
 {
 	enum isp_store_format format = ISP_STORE_FORMAT_MAX;
@@ -801,7 +845,10 @@ int isp_drv_pipeinfo_get(void *arg, void *frame)
 	}
 
 	pipe_in->fetch_fbd.ctx_id = ctx->ctx_id;
-	ret = ispdrv_fbd_raw_get(pipe_src, &pipe_in->fetch_fbd, pframe);
+	if (ctx->dev->isp_hw->ip_isp->fbd_raw_support)
+		ret = ispdrv_fbd_raw_get(pipe_src, &pipe_in->fetch_fbd, pframe);
+	else if (ctx->dev->isp_hw->ip_isp->fbd_yuv_support)
+		ret = ispdrv_fbd_yuv_get(pipe_src, &pipe_in->fetch_fbd_yuv, pframe);
 	if (ret) {
 		pr_err("fail to get pipe fetch fbd info\n");
 		return -EFAULT;

@@ -2403,7 +2403,7 @@ static int camcore_dcam_callback(enum dcam_cb_type type, void *param, void *priv
 			return ret;
 		}
 		if (atomic_read(&module->state) != CAM_RUNNING || module->paused) {
-			pr_info("stream off or paused. put frame %px\n", pframe);
+			pr_info("stream off or paused. put frame %px, state:%d\n", pframe, module->state);
 			if (pframe->buf.type == CAM_BUF_KERNEL) {
 				cam_queue_enqueue(&channel->share_buf_queue, &pframe->list);
 			} else {

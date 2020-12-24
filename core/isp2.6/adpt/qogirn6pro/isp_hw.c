@@ -749,9 +749,7 @@ isp_hw_cfg_para:
 	ISP_REG_MWR(idx, ISP_YGAMMA_PARAM, BIT_0, 1);
 	ISP_REG_MWR(idx, ISP_YUV_CNR_CONTRL0, BIT_0, 1);
 	ISP_REG_MWR(idx, ISP_YRANDOM_PARAM1, BIT_0, 1);
-	ISP_REG_MWR(idx, ISP_YUV420toRGB_PARAM, BIT_0, 1);
 	ISP_REG_MWR(idx, ISP_CTM_PARAM, BIT_0, 1);
-	ISP_REG_MWR(idx, ISP_RGB2YUV420_PARAM, BIT_0, 1);
 
 	/* FBC bypass*/
 	ISP_REG_MWR(idx, ISP_CAP_FBC_STORE_BASE + ISP_FBC_STORE_PARAM, BIT_0, 1);
@@ -771,6 +769,7 @@ isp_hw_cfg_para:
 	ISP_REG_MWR(idx, ISP_DEWARPING_PARA, BIT_0, 1);
 	ISP_REG_MWR(idx, ISP_DEWARPING_CACHE_PARA, BIT_0, 1);
 	ISP_REG_MWR(idx, ISP_YUV_AFBD_FETCH_BASE + ISP_AFBD_FETCH_SEL, BIT_0, 1);
+	ISP_REG_MWR(idx, ISP_YUV_AFBD_FETCH_BASE + ISP_AFBD_FETCH_HBLANK_TILE_PITCH, 0xFFFF, 0x8000);
 
 	/* 3DNR bypass */
 	ISP_REG_MWR(idx, ISP_3DNR_MEM_CTRL_PARAM0, BIT_0, 1);
@@ -1517,7 +1516,7 @@ static int isphw_fetch_set(void *handle, void *arg)
 
 static int isphw_fetch_fbd_set(void *handle, void *arg)
 {
-	struct isp_fbd_raw_info *fbd_raw = NULL;
+	struct isp_fbd_yuv_info *fbd_yuv = NULL;
 	uint32_t idx = 0;
 
 	if (!arg) {
@@ -1525,23 +1524,21 @@ static int isphw_fetch_fbd_set(void *handle, void *arg)
 		return -EFAULT;
 	}
 
-	fbd_raw = (struct isp_fbd_raw_info *)arg;
-	idx = fbd_raw->ctx_id;
+	fbd_yuv = (struct isp_fbd_yuv_info *)arg;
+	idx = fbd_yuv->ctx_id;
 
-	ISP_REG_MWR(idx, ISP_FBD_RAW_SEL, BIT(0), fbd_raw->fetch_fbd_bypass);
-	ISP_REG_MWR(idx, ISP_FBD_RAW_SEL, BIT_16, fbd_raw->fetch_fbd_4bit_bypass << 16);
-	ISP_REG_MWR(idx, ISP_FBD_RAW_SEL, 0x00003f00, fbd_raw->pixel_start_in_hor << 8);
-	ISP_REG_MWR(idx, ISP_FBD_RAW_SEL, 0x00000030, fbd_raw->pixel_start_in_ver << 4);
-	ISP_REG_WR(idx, ISP_FBD_RAW_SLICE_SIZE, fbd_raw->width | (fbd_raw->height << 16));
-	ISP_REG_WR(idx, ISP_FBD_RAW_PARAM0,
-		fbd_raw->tiles_num_in_hor | (fbd_raw->tiles_num_in_ver << 16));
-	ISP_REG_WR(idx, ISP_FBD_RAW_PARAM1, 0xff << 16 |
-		(fbd_raw->tiles_start_odd & 0x1) << 8 | ((fbd_raw->tiles_num_pitch) & 0xff));
-	ISP_REG_WR(idx, ISP_FBD_RAW_LOW_PARAM1, fbd_raw->low_bit_pitch);
-	if (fbd_raw->fetch_fbd_4bit_bypass == 0)
-		ISP_REG_WR(idx, ISP_FBD_RAW_LOW_4BIT_PARAM1, fbd_raw->low_4bit_pitch);
-	ISP_REG_MWR(idx, ISP_FETCH_PARAM0, BIT_0, 0x1);
-	pr_debug("enable fbd: %d\n", !fbd_raw->fetch_fbd_bypass);
+	ISP_REG_MWR(idx, ISP_YUV_AFBD_FETCH_BASE + ISP_AFBD_FETCH_SEL,
+		    BIT(0), fbd_yuv->fetch_fbd_bypass);
+	ISP_REG_MWR(idx, ISP_YUV_AFBD_FETCH_BASE + ISP_AFBD_FETCH_SEL, BIT(1), 1 << 1);
+	ISP_REG_MWR(idx, ISP_YUV_AFBD_FETCH_BASE + ISP_AFBD_FETCH_SEL, BIT(3), 1 << 3);
+	ISP_REG_MWR(idx, ISP_YUV_AFBD_FETCH_BASE + ISP_AFBD_FETCH_SEL, 0x1F0, 7 << 4);
+	ISP_REG_WR(idx, ISP_YUV_AFBD_FETCH_BASE + ISP_AFBD_FETCH_SLICE_SIZE,
+		   fbd_yuv->slice_size.w | (fbd_yuv->slice_size.h << 16));
+	ISP_REG_MWR(idx, ISP_YUV_AFBD_FETCH_BASE + ISP_AFBD_FETCH_HBLANK_TILE_PITCH,
+		   0x7FF0000, fbd_yuv->tile_num_pitch << 16);
+	ISP_REG_WR(idx, ISP_YUV_AFBD_FETCH_BASE + ISP_AFBD_FETCH_PARAM0,
+		   fbd_yuv->slice_start_pxl_xpt | (fbd_yuv->slice_start_pxl_ypt << 16));
+	pr_debug("enable fbd: %d\n", !fbd_yuv->fetch_fbd_bypass);
 
 	return 0;
 }
@@ -1726,28 +1723,22 @@ static int isphw_fbd_slice_set(void *handle, void *arg)
 static int  isphw_fbd_addr_set(void *handle, void *arg)
 {
 	uint32_t addr = 0;
-	struct compressed_addr *fbd_addr = NULL;
-	struct isp_fbd_raw_info *fbd_raw = NULL;
+	uint32_t idx = 0;
+	struct isp_fbd_yuv_info *fbd_yuv = NULL;
 
 	if (!arg) {
 		pr_err("fail to get valid arg\n");
 		return -EFAULT;
 	}
+	fbd_yuv = (struct isp_fbd_yuv_info *)arg;
+	idx = fbd_yuv->ctx_id;
 
-	fbd_raw = (struct isp_fbd_raw_info *)arg;
-	fbd_addr = &fbd_raw->hw_addr;
+	addr = fbd_yuv->frame_header_base_addr;
+	ISP_REG_WR(idx, ISP_YUV_AFBD_FETCH_BASE + ISP_AFBD_FETCH_PARAM1, addr);
+	addr = fbd_yuv->slice_start_header_addr;
+	ISP_REG_WR(idx, ISP_YUV_AFBD_FETCH_BASE + ISP_AFBD_FETCH_PARAM2, addr);
 
-	addr = fbd_addr->addr1 - fbd_raw->header_addr_offset;
-	ISP_REG_WR(fbd_raw->ctx_id, ISP_FBD_RAW_PARAM2, addr);
-	addr = fbd_addr->addr1 + fbd_raw->tile_addr_offset_x256;
-	ISP_REG_WR(fbd_raw->ctx_id, ISP_FBD_RAW_PARAM3, addr);
-	addr = fbd_addr->addr2 + fbd_raw->low_bit_addr_offset;
-	ISP_REG_WR(fbd_raw->ctx_id, ISP_FBD_RAW_LOW_PARAM0, addr);
-
-	if (0 == fbd_raw->fetch_fbd_4bit_bypass) {
-		addr = fbd_addr->addr3 + fbd_raw->low_4bit_addr_offset;
-		ISP_REG_WR(fbd_raw->ctx_id, ISP_FBD_RAW_LOW_4BIT_PARAM0, addr);
-	}
+	pr_debug("addr0:%x, addr1:%x.\n", fbd_yuv->frame_header_base_addr, fbd_yuv->slice_start_header_addr);
 
 	return 0;
 }

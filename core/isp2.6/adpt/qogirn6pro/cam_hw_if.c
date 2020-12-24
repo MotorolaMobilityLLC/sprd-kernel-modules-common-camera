@@ -429,6 +429,8 @@ static struct cam_hw_ip_info isp = {
 	.yuv_ltm_support = 0,
 	.pyr_rec_support = 0,
 	.pyr_dec_support = 0,
+	.fbd_yuv_support = 1,
+	.fbd_raw_support = 0,
 };
 
 struct cam_hw_info qogirn6pro_hw_info = {

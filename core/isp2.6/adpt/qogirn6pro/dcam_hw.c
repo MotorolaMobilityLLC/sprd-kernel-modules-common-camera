@@ -1172,7 +1172,7 @@ static int dcamhw_path_size_update(void *handle, void *arg)
 		DCAM_REG_WR(idx, DCAM_STORE0_SLICE_SIZE, reg_val);
 		if (sizearg->compress_info.is_compress) {
 			DCAM_REG_WR(idx, DCAM_YUV_FBC_SCAL_SLICE_SIZE, reg_val);
-			DCAM_REG_WR(idx, DCAM_YUV_FBC_SCAL_TILE_PITCH, sizearg->compress_info.tile_row);
+			DCAM_REG_WR(idx, DCAM_YUV_FBC_SCAL_TILE_PITCH, sizearg->compress_info.tile_col);
 		}
 
 		DCAM_REG_WR(idx, DCAM_STORE0_Y_PITCH, sizearg->out_pitch);
