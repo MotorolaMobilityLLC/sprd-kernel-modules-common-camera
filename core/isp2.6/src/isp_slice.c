@@ -2364,6 +2364,58 @@ static int ispslice_ltm_info_cfg(struct isp_ltm_ctx_desc *ltm_ctx,
 	return ret;
 }
 
+static int ispslice_gtm_info_cfg(struct isp_gtm_ctx_desc *gtm_ctx,
+		struct isp_slice_context *slc_ctx)
+{
+	int i = 0;
+	uint32_t overlap_left = 0;
+	struct isp_slice_desc *cur_slc =NULL;
+
+	if (!gtm_ctx || !slc_ctx) {
+		pr_err("fail to get invalid in_ptr\n");
+		return -1;
+	}
+
+	if (gtm_ctx->mode == MODE_GTM_OFF
+		|| (slc_ctx->slice_num  < 2)) {
+		pr_debug("slice gtm off\n");
+		return 0;
+	}
+
+	for(; i < SLICE_NUM_MAX; i++) {
+		cur_slc = &slc_ctx->slices[i];
+		if (cur_slc->valid ==0)
+			continue;
+		if (i == 0) {
+			cur_slc->slice_gtm.first_slice = 1;
+			cur_slc->slice_gtm.last_slice = 0;
+		} else if (i == (slc_ctx->slice_num -1)) {
+			cur_slc->slice_gtm.first_slice = 0;
+			cur_slc->slice_gtm.last_slice = 1;
+		}
+
+		cur_slc->slice_gtm.gtm_stat_slice_en = 1;
+		cur_slc->slice_gtm.gtm_mode_en = gtm_ctx->gtm_mode_en;
+		cur_slc->slice_gtm.gtm_map_bypass = gtm_ctx->gtm_map_bypass;
+		cur_slc->slice_gtm.gtm_hist_stat_bypass = gtm_ctx->gtm_hist_stat_bypass;
+		if (gtm_ctx->gtm_hist_stat_bypass)
+			cur_slc->slice_gtm.gtm_tm_param_calc_by_hw = 0;
+		else
+			cur_slc->slice_gtm.gtm_tm_param_calc_by_hw = 1;
+
+		cur_slc->slice_gtm.gtm_cur_is_first_frame = gtm_ctx->gtm_cur_is_first_frame;
+		cur_slc->slice_gtm.gtm_tm_luma_est_mode = gtm_ctx->gtm_tm_luma_est_mode;
+		cur_slc->slice_gtm.gtm_tm_in_bit_depth = 14;
+		cur_slc->slice_gtm.gtm_tm_out_bit_depth = 14;
+
+		overlap_left = cur_slc->slice_overlap.overlap_left;
+		cur_slc->slice_gtm.line_startpos = overlap_left;
+		cur_slc->slice_gtm.line_endpos = overlap_left + cur_slc->slice_fetch.size.w;
+	}
+
+	return 0;
+}
+
 static int ispslice_noisefilter_info_cfg(void *cfg_in, struct isp_slice_context *slc_ctx)
 {
 	int ret = 0, rtn = 0;
@@ -2404,6 +2456,8 @@ int isp_slice_info_cfg(void *cfg_in, struct isp_slice_context *slc_ctx)
 		ispslice_ltm_info_cfg(in_ptr->rgb_ltm, slc_ctx, LTM_RGB);
 	if (in_ptr->ltm_yuv_eb)
 		ispslice_ltm_info_cfg(in_ptr->yuv_ltm, slc_ctx, LTM_YUV);
+	if (in_ptr->gtm_rgb_eb)
+		ispslice_gtm_info_cfg(in_ptr->rgb_gtm, slc_ctx);
 	ispslice_noisefilter_info_cfg(cfg_in, slc_ctx);
 
 	return 0;
@@ -2467,6 +2521,7 @@ int isp_slice_fmcu_cmds_set(void *fmcu_handle, void *ctx)
 	struct isp_hw_fbd_slice fbd_slice;
 	struct isp_hw_afbc_path_slice afbc_slice;
 	struct isp_hw_ltm_slice ltm;
+	struct isp_hw_gtm_slice gtm;
 	struct isp_hw_fmcu_cfg fmcu_cfg;
 	struct isp_hw_slices_fmcu_cmds parg;
 	struct isp_hw_slice_spath spath_sotre;
@@ -2475,6 +2530,7 @@ int isp_slice_fmcu_cmds_set(void *fmcu_handle, void *ctx)
 	struct isp_hw_slice_nofilter slicearg;
 	struct isp_hw_set_slice_fetch fetcharg;
 	struct isp_hw_set_slice_nr_info nrarg;
+	struct isp_hw_gtm_func gtm_func;
 
 	if (!fmcu_handle || !ctx) {
 		pr_err("fail to get valid input ptr, fmcu_handle %p, ctx %p\n",
@@ -2533,6 +2589,13 @@ int isp_slice_fmcu_cmds_set(void *fmcu_handle, void *ctx)
 			ltm.map = &cur_slc->slice_ltm_map[LTM_YUV];
 			ltm.ltm_id = LTM_YUV;
 			hw->isp_ioctl(hw, ISP_HW_CFG_LTM_SLICE_SET, &ltm);
+		}
+		if (pctx->pipe_src.gtm_rgb) {
+			gtm.fmcu_handle = fmcu;
+			gtm.slice_param = &cur_slc->slice_gtm;
+			gtm_func.index = ISP_K_GTM_SLICE_SET;
+			hw->isp_ioctl(hw, ISP_HW_CFG_GTM_FUNC_GET, &gtm_func);
+			gtm_func.k_blk_func(&gtm);
 		}
 		if (yrandom_mode == 1) {
 			slicearg.fmcu = fmcu;

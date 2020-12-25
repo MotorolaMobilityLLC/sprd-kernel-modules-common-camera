@@ -83,6 +83,13 @@ extern unsigned long s_isp_mmubase;
 #define ISP_BLOCK_MODE                          (0x073CUL)
 #define ISP_NLM_STATUS                          (0x0800UL)
 #define ISP_IIRCNR_STATUS                       (0x0A74UL)
+#define ISP_GTM_STATUS0                         (0x0A78UL)
+#define ISP_GTM_STATUS1                         (0x0A7CUL)
+#define ISP_GTM_STATUS2                         (0x0A80UL)
+#define ISP_GTM_STATUS3                         (0x0A84UL)
+#define ISP_GTM_STATUS4                         (0x0A88UL)
+#define ISP_GTM_STATUS5                         (0x0A8CUL)
+
 
 #define ISP_CORE_STATUS                         (0x8000UL)
 #define ISP_CORE_PMU_EN                         (0x8010UL)

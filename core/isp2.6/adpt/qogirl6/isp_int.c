@@ -44,7 +44,7 @@ static const uint32_t isp_irq_process[] = {
 	ISP_INT_NR3_SHADOW_DONE,
 	ISP_INT_STORE_DONE_THUMBNAIL,
 	ISP_INT_RGB_LTMHISTS_DONE,
-	ISP_INT_YUV_LTMHISTS_DONE,
+	ISP_INT_RGB_GTMHISTS_DONE,
 	ISP_INT_FMCU_LOAD_DONE,
 	ISP_INT_FMCU_SHADOW_DONE,
 	ISP_INT_HIST_CAL_DONE,
@@ -329,29 +329,40 @@ static void ispint_rgb_ltm_hists_done(enum isp_context_hw_id hw_idx, void *isp_h
 		completion = rgb_ltm->ltm_ops.sync_ops.do_completion(rgb_ltm);
 }
 
-static void ispint_yuv_ltm_hists_done(enum isp_context_hw_id hw_idx, void *isp_handle)
+static void ispint_rgb_gtm_hists_done(enum isp_context_hw_id hw_idx, void *isp_handle)
 {
+	int wait_fid = 0;
+	int idx = -1;
 	struct isp_sw_context *pctx;
 	struct isp_pipe_dev *dev;
-	struct isp_ltm_ctx_desc *yuv_ltm = NULL;
-	int completion = 0;
-	int idx = -1;
+	struct isp_gtm_ctx_desc *gtm_ctx = NULL;
 
 	dev = (struct isp_pipe_dev *)isp_handle;
 	idx = isp_core_sw_context_id_get(hw_idx, dev);
 	if (idx < 0) {
-		pr_err("fail to get sw_id for hw_idx=%d\n", hw_idx);
+		pr_err("fail to gtm get sw_id for hw_idx=%d\n", hw_idx);
 		return;
 	}
 
 	pctx = dev->sw_ctx[idx];
-	yuv_ltm = (struct isp_ltm_ctx_desc *)pctx->yuv_ltm_handle;
+	gtm_ctx = (struct isp_gtm_ctx_desc *)pctx->rgb_gtm_handle;
+	if (!gtm_ctx) {
+		pr_err("fail to gtm handle ptr\n");
+		return;
+	}
 
-	yuv_ltm->ltm_ops.sync_ops.set_frmidx(yuv_ltm);
-	completion = yuv_ltm->ltm_ops.sync_ops.get_completion(yuv_ltm);
-
-	if (completion && (yuv_ltm->fid >= completion))
-		completion = yuv_ltm->ltm_ops.sync_ops.do_completion(yuv_ltm);
+	gtm_ctx->gtm_ops.set_frmidx(gtm_ctx);
+	wait_fid = gtm_ctx->gtm_ops.sync_completion_get(gtm_ctx);
+	pr_debug("gtm_hists_done ctx_id %d, fid %d, wait_fid %d\n",
+		gtm_ctx->ctx_id, gtm_ctx->fid, wait_fid);
+	if (wait_fid == 0) {
+		gtm_ctx->gtm_ops.get_preview_hist_cal(gtm_ctx);
+	} else if (wait_fid && (gtm_ctx->fid >= wait_fid)) {
+		gtm_ctx->gtm_ops.get_preview_hist_cal(gtm_ctx);
+		gtm_ctx->gtm_ops.sync_completion_done(gtm_ctx);
+	} else {
+		pr_err("fail to get mapping ctx_id %d, fid %d\n", gtm_ctx->ctx_id, gtm_ctx->fid);
+	}
 }
 
 static struct camera_frame *ispint_hist2_frame_prepare(enum isp_context_id idx,
@@ -451,7 +462,7 @@ static isp_isr isp_isr_handler[32] = {
 	[ISP_INT_NR3_ALL_DONE] = ispint_3dnr_all_done,
 	[ISP_INT_NR3_SHADOW_DONE] = ispint_3dnr_shadow_done,
 	[ISP_INT_STORE_DONE_THUMBNAIL] = ispint_thumb_store_done,
-	[ISP_INT_YUV_LTMHISTS_DONE]  = ispint_yuv_ltm_hists_done,
+	[ISP_INT_RGB_GTMHISTS_DONE]  = ispint_rgb_gtm_hists_done,
 	[ISP_INT_FMCU_LOAD_DONE] = ispint_fmcu_load_done,
 	[ISP_INT_FMCU_SHADOW_DONE] = ispint_fmcu_shadow_done,
 	[ISP_INT_FMCU_STORE_DONE] = ispint_fmcu_store_done,

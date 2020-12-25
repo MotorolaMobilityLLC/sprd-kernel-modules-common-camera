@@ -278,6 +278,22 @@ struct slice_noisefilter_mode_info {
 	uint32_t yrandom_mode;
 };
 
+struct slice_gtm_info {
+	uint32_t gtm_mode_en;
+	uint32_t gtm_map_bypass;
+	uint32_t gtm_hist_stat_bypass;
+	uint32_t gtm_tm_param_calc_by_hw;
+	uint32_t gtm_cur_is_first_frame;
+	uint32_t gtm_tm_luma_est_mode;
+	uint32_t last_slice;
+	uint32_t first_slice;
+	uint32_t gtm_stat_slice_en;
+	uint32_t gtm_tm_in_bit_depth;
+	uint32_t gtm_tm_out_bit_depth;
+	uint32_t line_startpos;
+	uint32_t line_endpos;
+};
+
 struct isp_slice_desc {
 	uint32_t valid;
 	uint32_t x;
@@ -307,6 +323,7 @@ struct isp_slice_desc {
 	struct slice_ltm_map_info slice_ltm_map[LTM_MAX];
 	struct slice_noisefilter_info  noisefilter_info;
 	struct slice_noisefilter_mode_info slice_noisefilter_mode;
+	struct slice_gtm_info slice_gtm;
 };
 
 struct isp_slice_context {

@@ -98,6 +98,13 @@ enum isp_ltm_region {
 	LTM_MAX
 };
 
+enum isp_gtm_mode {
+	MODE_GTM_OFF,
+	MODE_GTM_PRE,
+	MODE_GTM_CAP,
+	MODE_GTM_MAX
+};
+
 enum isp_path_binding_type {
 	ISP_PATH_ALONE = 0,
 	ISP_PATH_MASTER,
@@ -153,6 +160,8 @@ struct isp_ctx_base_desc {
 	uint32_t ltm_rgb;
 	uint32_t ltm_yuv;
 	uint32_t pyr_layer_num;
+	uint32_t mode_gtm;
+	uint32_t gtm_rgb;
 	uint32_t in_fmt;
 	uint32_t is_pack;
 	uint32_t data_in_bits;

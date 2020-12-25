@@ -21,7 +21,6 @@
 
 extern atomic_t s_dcam_working;
 static uint32_t dcam_hw_linebuf_len[3] = {0, 0, 0};
-static uint32_t g_gtm_en = 0;
 static uint32_t g_ltm_bypass = 1;
 static atomic_t clk_users;
 
@@ -1271,87 +1270,6 @@ static int dcamhw_fbc_addr_set(void *handle, void *arg)
 	return 0;
 }
 
-static int dcamhw_gtm_status_get(void *handle, void *arg)
-{
-	int val = 0;
-	uint32_t idx;
-
-	idx = *(uint32_t *)arg;
-	if (idx >= DCAM_ID_MAX) {
-		pr_err("fail to get dcam_idx %d\n", idx);
-		return -EFAULT;
-	}
-
-	val = DCAM_REG_RD(idx, DCAM_GTM_GLB_CTRL) & BIT_0;
-	return val;
-}
-
-static int cam_gtm_ltm_eb(void *handle, void *arg)
-{
-	struct cam_hw_gtm_ltm_eb *eb = NULL;
-
-	eb = (struct cam_hw_gtm_ltm_eb *)arg;
-	if (eb->dcam_idx >= DCAM_ID_MAX || eb->isp_idx >= ISP_CONTEXT_SW_NUM) {
-		pr_err("fail to get dcam_idx %d isp_idx %d\n", eb->dcam_idx, eb->isp_idx);
-		return -EFAULT;
-	}
-
-	g_dcam_bypass[eb->dcam_idx] &= (~(1 << _E_GTM));
-	DCAM_REG_MWR(eb->dcam_idx, DCAM_GTM_GLB_CTRL, BIT_0, g_gtm_en);
-
-	g_isp_bypass[eb->isp_idx] &= (~(1 << _EISP_LTM));
-	ISP_REG_MWR(eb->isp_idx, ISP_LTM_MAP_RGB_BASE
-		+ ISP_LTM_MAP_PARAM0, BIT_0, g_ltm_bypass);
-	pr_debug("gtm %d ltm eb %d\n", g_gtm_en, g_ltm_bypass);
-
-	return 0;
-}
-
-static int cam_gtm_ltm_dis(void *handle, void *arg)
-{
-	struct cam_hw_gtm_ltm_dis *dis =NULL;
-
-	dis = (struct cam_hw_gtm_ltm_dis *)arg;
-	if (dis->dcam_idx >= DCAM_ID_MAX || dis->isp_idx >= ISP_CONTEXT_SW_NUM) {
-		pr_err("fail to get dcam_idx %d isp_idx %d\n", dis->dcam_idx, dis->isp_idx);
-		return -EFAULT;
-	}
-
-	g_dcam_bypass[dis->dcam_idx] |= (1 << _E_GTM);
-	g_gtm_en = DCAM_REG_RD(dis->dcam_idx, DCAM_GTM_GLB_CTRL) & BIT_0;
-	DCAM_REG_MWR(dis->dcam_idx, DCAM_GTM_GLB_CTRL, BIT_0, 0);
-
-	g_isp_bypass[dis->isp_idx] |= (1 << _EISP_LTM);
-	g_ltm_bypass = ISP_REG_RD(dis->isp_idx,
-		ISP_LTM_MAP_RGB_BASE + ISP_LTM_MAP_PARAM0) & BIT_0;
-	ISP_REG_MWR(dis->isp_idx,
-		ISP_LTM_MAP_RGB_BASE + ISP_LTM_MAP_PARAM0, BIT_0, 1);
-	pr_debug("gtm %d ltm dis %d\n", g_gtm_en, g_ltm_bypass);
-
-	return 0;
-}
-
-static int cam_gtm_update(void *handle, void *arg)
-{
-	int ret = 0;
-	struct cam_hw_gtm_update *gtmarg = NULL;
-	struct dcam_hw_auto_copy copyarg;
-
-	if (unlikely(!arg)) {
-		pr_err("fail to get valid arg\n");
-		return -EFAULT;
-	}
-
-	gtmarg = (struct cam_hw_gtm_update *)arg;
-	ret = dcam_k_raw_gtm_block(gtmarg->gtm_idx, gtmarg->blk_dcam_pm);
-	copyarg.id = DCAM_CTRL_COEF;
-	copyarg.idx = gtmarg->idx;
-	copyarg.glb_reg_lock = gtmarg->glb_reg_lock;
-	gtmarg->hw->dcam_ioctl(gtmarg->hw, DCAM_HW_CFG_AUTO_COPY, &copyarg);
-
-	return ret;
-}
-
 static struct dcam_cfg_entry dcam_hw_cfg_func_tab[DCAM_BLOCK_TOTAL] = {
 [DCAM_BLOCK_BLC - DCAM_BLOCK_BASE]         = {DCAM_BLOCK_BLC,         dcam_k_cfg_blc},
 [DCAM_BLOCK_AEM - DCAM_BLOCK_BASE]         = {DCAM_BLOCK_AEM,         dcam_k_cfg_aem},
@@ -1365,7 +1283,6 @@ static struct dcam_cfg_entry dcam_hw_cfg_func_tab[DCAM_BLOCK_TOTAL] = {
 [DCAM_BLOCK_PDAF - DCAM_BLOCK_BASE]        = {DCAM_BLOCK_PDAF,        dcam_k_cfg_pdaf},
 [DCAM_BLOCK_BAYERHIST - DCAM_BLOCK_BASE]   = {DCAM_BLOCK_BAYERHIST,   dcam_k_cfg_bayerhist},
 [DCAM_BLOCK_3DNR_ME - DCAM_BLOCK_BASE]     = {DCAM_BLOCK_3DNR_ME,     dcam_k_cfg_3dnr_me},
-[DCAM_BLOCK_RAW_GTM - DCAM_BLOCK_BASE]     = {DCAM_BLOCK_RAW_GTM,     dcam_k_cfg_raw_gtm},
 [DCAM_BLOCK_LSCM - DCAM_BLOCK_BASE]        = {DCAM_BLOCK_LSCM,        dcam_k_cfg_lscm},
 };
 
@@ -1401,7 +1318,6 @@ static int dcamhw_blocks_setall(void *handle, void *arg)
 	dcam_k_blc_block(p);
 	dcam_k_bpc_block(p);
 	dcam_k_rgb_gain_block(p);
-	dcam_k_raw_gtm_block(DCAM_GTM_PARAM_PRE, p);
 	/* simulator should set this block(random) carefully */
 	dcam_k_rgb_dither_random_block(p);
 	pr_info("dcam%d set all\n", idx);
@@ -1658,10 +1574,6 @@ static struct hw_io_ctrl_fun dcam_ioctl_fun_tab[] = {
 	{DCAM_HW_CFG_SLICE_FETCH_SET,       dcamhw_slice_fetch_set},
 	{DCAM_HW_CFG_FBC_CTRL,              dcamhw_fbc_ctrl},
 	{DCAM_HW_CFG_FBC_ADDR_SET,          dcamhw_fbc_addr_set},
-	{DCAM_HW_CFG_GTM_STATUS_GET,        dcamhw_gtm_status_get},
-	{DCAM_HW_CFG_GTM_LTM_EB,            cam_gtm_ltm_eb},
-	{DCAM_HW_CFG_GTM_LTM_DIS,           cam_gtm_ltm_dis},
-	{DCAM_HW_CFG_GTM_UPDATE,            cam_gtm_update},
 	{DCAM_HW_CFG_BLOCK_FUNC_GET,        dcamhw_block_func_get},
 	{DCAM_HW_CFG_BLOCKS_SETALL,         dcamhw_blocks_setall},
 	{DCAM_HW_CFG_BLOCKS_SETSTATIS,      dcamhw_blocks_setstatis},

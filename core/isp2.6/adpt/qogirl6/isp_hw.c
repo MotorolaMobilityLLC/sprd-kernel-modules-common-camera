@@ -1395,6 +1395,7 @@ static struct isp_cfg_entry isp_hw_cfg_func_tab[ISP_BLOCK_TOTAL - ISP_BLOCK_BASE
 [ISP_BLOCK_HIST2 - ISP_BLOCK_BASE]    = {ISP_BLOCK_HIST2,    isp_k_cfg_hist2},
 [ISP_BLOCK_RGB_LTM- ISP_BLOCK_BASE]   = {ISP_BLOCK_RGB_LTM,  isp_k_cfg_rgb_ltm},
 [ISP_BLOCK_YUV_LTM - ISP_BLOCK_BASE]  = {ISP_BLOCK_YUV_LTM,  isp_k_cfg_yuv_ltm},
+[ISP_BLOCK_RGB_GTM -ISP_BLOCK_BASE]   = {ISP_BLOCK_RGB_GTM,  isp_k_cfg_rgb_gtm},
 #if 0
 [ISP_BLOCK_HSV - ISP_BLOCK_BASE]      = {ISP_BLOCK_HSV,      isp_k_cfg_hsv},
 #endif
@@ -1882,6 +1883,57 @@ static int isphw_ltm_slice_set(void *handle, void *arg)
 	addr = ISP_GET_REG(base + ISP_LTM_MAP_PARAM4);
 	cmd = map->mem_addr;
 	FMCU_PUSH(fmcu, addr, cmd);
+
+	return 0;
+}
+
+int isphw_gtm_slice_set(void *handle)
+{
+	uint32_t addr = 0;
+	uint32_t cmd = 0;
+	struct isp_hw_gtm_slice *gtm = (struct isp_hw_gtm_slice *)handle;
+	struct isp_fmcu_ctx_desc *fmcu = gtm->fmcu_handle;
+	struct slice_gtm_info *gtm_slice = gtm->slice_param;
+
+	if (!gtm_slice) {
+		pr_err("fail to get input ptr\n");
+		return -1;
+	}
+
+	if (!gtm_slice->gtm_mode_en) {
+		pr_debug("capture gtm disadble\n");
+		return 0;
+	}
+
+	addr = ISP_GET_REG(ISP_GTM_GLB_CTRL);
+	cmd = (gtm_slice->gtm_mode_en & 0x1)
+		| ((gtm_slice->gtm_map_bypass & 0x1) << 1)
+		| ((gtm_slice->gtm_hist_stat_bypass & 0x1) << 2)
+		| ((gtm_slice->gtm_tm_param_calc_by_hw & 0x1) << 3)
+		| ((gtm_slice->gtm_cur_is_first_frame & 0x1) << 4)
+		| ((gtm_slice->gtm_tm_luma_est_mode & 0x3) << 5)
+		| ((gtm_slice->last_slice & 0x1) << 21)
+		| ((gtm_slice->first_slice & 0x1) << 22)
+		| ((gtm_slice->gtm_stat_slice_en & 0x1) << 23)
+		| ((gtm_slice->gtm_tm_in_bit_depth & 0xf) << 24)
+		| ((gtm_slice->gtm_tm_out_bit_depth & 0xf) << 28);
+	FMCU_PUSH(fmcu, addr, cmd);
+
+	addr = ISP_GET_REG(ISP_GTM_SLICE_LINE_STARTPOS);
+	cmd = gtm_slice->line_startpos;
+	FMCU_PUSH(fmcu, addr, cmd);
+
+	addr = ISP_GET_REG(ISP_GTM_SLICE_LINE_ENDPOS);
+	cmd = gtm_slice->line_endpos;
+	FMCU_PUSH(fmcu, addr, cmd);
+
+	pr_debug("mode_en %d, map_bypass %d, hist_stat_bypass %d, \n",
+		gtm_slice->gtm_mode_en, gtm_slice->gtm_map_bypass, gtm_slice->gtm_hist_stat_bypass);
+	pr_debug("luma_est_mode %d, last_slice %d, first_slice %d, \n",
+		gtm_slice->gtm_tm_luma_est_mode, gtm_slice->last_slice, gtm_slice->first_slice);
+	pr_debug("in_depth %d, out_depth %d, stat_slice_en %d, line pos %d, %d\n",
+		gtm_slice->gtm_tm_in_bit_depth, gtm_slice->gtm_tm_in_bit_depth,
+		gtm_slice->gtm_stat_slice_en, gtm_slice->line_startpos, gtm_slice->line_endpos);
 
 	return 0;
 }
@@ -3007,6 +3059,140 @@ BLOCK_BYPASS:
 	return ret;
 }
 
+static int isphw_gtm_status_get(void *handle)
+{
+	uint32_t val = 0;
+	uint32_t idx = 0;
+	uint32_t gtm_bypass = 0;
+
+	idx = *(uint32_t *)handle;
+	if (idx >= ISP_CONTEXT_SW_NUM) {
+		pr_err("fail to get isp_idx %d\n", idx);
+		return 0;
+	}
+
+	if (g_isp_bypass[idx] & (1 << _EISP_GTM))
+		gtm_bypass = 1;
+
+	val = ISP_REG_RD(idx, ISP_GTM_GLB_CTRL) & BIT_0;
+	if (val && !gtm_bypass)
+		val = 1;
+	else
+		val = 0;
+
+	return val;
+}
+
+static int isphw_gtm_ltm_eb(void *handle)
+{
+	uint32_t idx = 0;
+	uint32_t gtm_mod_en = 1;
+	uint32_t ltm_bypass = 0;
+	struct cam_hw_gtm_ltm_eb *eb = NULL;
+
+	eb = (struct cam_hw_gtm_ltm_eb *)handle;
+	idx = eb->isp_idx;
+
+	if (idx >= ISP_CONTEXT_SW_NUM) {
+		pr_err("fail to get isp_idx %d\n", idx);
+		return -EFAULT;
+	}
+	pr_debug("gtm_ltm_eb ctx_id %d\n", idx);
+
+	g_isp_bypass[idx] &= (~(1 << _EISP_GTM));
+	ISP_REG_MWR(idx, ISP_GTM_GLB_CTRL, BIT_0, (gtm_mod_en & 0x1));
+
+	g_isp_bypass[idx] &= (~(1 << _EISP_LTM));
+	ISP_REG_MWR(idx, ISP_LTM_MAP_RGB_BASE+ ISP_LTM_MAP_PARAM0, BIT_0, ltm_bypass);
+
+	return 0;
+}
+
+static int isphw_gtm_ltm_dis(void *handle)
+{
+	uint32_t idx = 0;
+	uint32_t gtm_mod_en = 0;
+	uint32_t ltm_bypass = 1;
+	struct cam_hw_gtm_ltm_dis *dis =NULL;
+
+	dis = (struct cam_hw_gtm_ltm_dis *)handle;
+	idx = dis->isp_idx;
+	if (idx >= ISP_CONTEXT_SW_NUM) {
+		pr_err("fail to get isp_idx %d\n", idx);
+		return -EFAULT;
+	}
+	pr_debug("gtm_ltm_dis ctx_id %d\n", idx);
+
+	g_isp_bypass[idx] |= (1 << _EISP_GTM);
+	ISP_REG_MWR(idx, ISP_GTM_GLB_CTRL, BIT_0, (gtm_mod_en & 0x1));
+
+	g_isp_bypass[idx] |= (1 << _EISP_LTM);
+	ISP_REG_MWR(idx, ISP_LTM_MAP_RGB_BASE + ISP_LTM_MAP_PARAM0, BIT_0, ltm_bypass);
+
+	return 0;
+}
+
+static int isphw_gtm_block_set(void *handle)
+{
+	struct isp_gtm_k_block *gtm_k_block = NULL;
+
+	if (!handle) {
+		pr_err("fail to get input ptr\n");
+		return -EFAULT;
+	}
+
+	gtm_k_block = (struct isp_gtm_k_block *)handle;
+
+	if (!gtm_k_block->ctx ||!gtm_k_block->tuning) {
+		pr_err("fail to get ptr ctx %p, tuning %p\n", gtm_k_block->ctx, gtm_k_block->tuning);
+		return -1;
+	}
+
+	return isp_k_gtm_block(gtm_k_block->ctx, gtm_k_block->tuning);
+}
+
+static int isphw_gtm_mapping_set(void *handle)
+{
+	if (!handle) {
+		pr_err("fail to get input ptr\n");
+		return -EFAULT;
+	}
+
+	return isp_k_gtm_mapping_set(handle);
+}
+
+static int isphw_gtm_mapping_get(void *handle)
+{
+	if (!handle) {
+		pr_err("fail to get input ptr\n");
+		return -EFAULT;
+	}
+
+	return isp_k_gtm_mapping_get(handle);
+}
+
+static isp_k_blk_func isp_hw_gtm_func_tab[ISP_K_GTM_MAX] = {
+	[ISP_K_GTM_LTM_EB] = isphw_gtm_ltm_eb,
+	[ISP_K_GTM_LTM_DIS] = isphw_gtm_ltm_dis,
+	[ISP_K_GTM_STATUS_GET] = isphw_gtm_status_get,
+	[ISP_K_GTM_BLOCK_SET] = isphw_gtm_block_set,
+	[ISP_K_GTM_MAPPING_GET] = isphw_gtm_mapping_get,
+	[ISP_K_GTM_MAPPING_SET] = isphw_gtm_mapping_set,
+	[ISP_K_GTM_SLICE_SET] = isphw_gtm_slice_set,
+};
+
+static int isphw_gtm_func_get(void *handle, void *arg)
+{
+	struct isp_hw_gtm_func *func_arg = NULL;
+
+	func_arg = (struct isp_hw_gtm_func *)arg;
+
+	if (func_arg->index < ISP_K_GTM_MAX)
+		func_arg->k_blk_func = isp_hw_gtm_func_tab[func_arg->index];
+
+	return 0;
+}
+
 static struct hw_io_ctrl_fun isp_ioctl_fun_tab[] = {
 	{ISP_HW_CFG_ENABLE_CLK,              isphw_clk_eb},
 	{ISP_HW_CFG_DISABLE_CLK,             isphw_clk_dis},
@@ -3066,6 +3252,7 @@ static struct hw_io_ctrl_fun isp_ioctl_fun_tab[] = {
 	{ISP_HW_CFG_FMCU_CMD,                isphw_fmcu_cmd_set},
 	{ISP_HW_CFG_FMCU_START,              isphw_fmcu_start},
 	{ISP_HW_CFG_YUV_BLOCK_CTRL_TYPE,     isphw_yuv_block_ctrl},
+	{ISP_HW_CFG_GTM_FUNC_GET,            isphw_gtm_func_get},
 };
 
 static hw_ioctl_fun isphw_ioctl_fun_get(enum isp_hw_cfg_cmd cmd)

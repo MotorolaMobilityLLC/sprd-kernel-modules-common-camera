@@ -377,6 +377,37 @@ static int ispcore_rec_frame_process(struct isp_sw_context *pctx,
 	return ret;
 }
 
+static int ispcore_gtm_frame_process(struct isp_sw_context *pctx,
+				struct camera_frame *pframe)
+{
+	int ret = 0;
+	struct isp_gtm_ctx_desc *rgb_gtm = NULL;
+	struct isp_dev_gtm_block_info *gtm_rgb_info = NULL;
+
+	if (!pctx || !pframe) {
+		pr_err("fail to get valid pctx %p pframe %p\n", pctx, pframe);
+		return -EINVAL;
+	}
+
+	rgb_gtm = (struct isp_gtm_ctx_desc *)pctx->rgb_gtm_handle;
+
+	if (!rgb_gtm)
+		return 0;/*not support GTM in isp*/
+
+	pr_debug("ctx_id %d, mode %d\n", rgb_gtm->ctx_id, rgb_gtm->mode);
+
+	rgb_gtm->gtm_ops.cfg_param(rgb_gtm, ISP_GTM_CFG_FRAME_ID, &pframe->fid);
+
+	gtm_rgb_info = &pctx->isp_k_param.gtm_rgb_info;
+	ret = rgb_gtm->gtm_ops.pipe_proc(rgb_gtm, gtm_rgb_info);
+	if (ret) {
+		pctx->pipe_src.mode_gtm = MODE_GTM_OFF;
+		pr_err("fail to rgb GTM process, GTM_OFF\n");
+	}
+
+	return ret;
+}
+
 static int ispcore_fmcu_slw_queue_set(
 		struct isp_fmcu_ctx_desc *fmcu,
 		struct isp_sw_context *pctx)
@@ -1432,6 +1463,7 @@ static int ispcore_offline_frame_start(void *ctx)
 	struct isp_ltm_ctx_desc *rgb_ltm = NULL;
 	struct isp_ltm_ctx_desc *yuv_ltm = NULL;
 	struct isp_hw_alldone_ctrl alldone_ctrl;
+	struct isp_gtm_ctx_desc *rgb_gtm = NULL;
 
 	pctx = (struct isp_sw_context *)ctx;
 	pr_debug("enter sw id %d, user_cnt=%d, ch_id=%d, cam_id=%d\n",
@@ -1448,6 +1480,7 @@ static int ispcore_offline_frame_start(void *ctx)
 	cfg_desc = (struct isp_cfg_ctx_desc *)dev->cfg_handle;
 	rgb_ltm = (struct isp_ltm_ctx_desc *)pctx->rgb_ltm_handle;
 	yuv_ltm = (struct isp_ltm_ctx_desc *)pctx->yuv_ltm_handle;
+	rgb_gtm = (struct isp_gtm_ctx_desc *)pctx->rgb_gtm_handle;
 
 	if (pctx->multi_slice | ispcore_slice_needed(pctx))
 		use_fmcu = FMCU_IS_NEED;
@@ -1557,6 +1590,7 @@ static int ispcore_offline_frame_start(void *ctx)
 	ispcore_3dnr_frame_process(pctx, pframe);
 	ispcore_ltm_frame_process(pctx, pframe);
 	ispcore_rec_frame_process(pctx, pctx_hw, pframe);
+	ispcore_gtm_frame_process(pctx, pframe);
 
 	if (tmp.multi_slice || pctx->uinfo.enable_slowmotion) {
 		struct slice_cfg_input slc_cfg;
@@ -1572,6 +1606,7 @@ static int ispcore_offline_frame_start(void *ctx)
 		}
 		slc_cfg.ltm_rgb_eb = pctx->pipe_src.ltm_rgb;
 		slc_cfg.ltm_yuv_eb = pctx->pipe_src.ltm_yuv;
+		slc_cfg.gtm_rgb_eb = pctx->pipe_src.gtm_rgb;
 		slc_cfg.frame_fetch = &pctx->pipe_info.fetch;
 		slc_cfg.frame_fbd_raw = &pctx->pipe_info.fetch_fbd;
 		slc_cfg.frame_in_size.w = pctx->pipe_src.crop.size_x;
@@ -1579,6 +1614,7 @@ static int ispcore_offline_frame_start(void *ctx)
 		slc_cfg.nr3_ctx = (struct isp_3dnr_ctx_desc *)pctx->nr3_handle;
 		slc_cfg.rgb_ltm = (struct isp_ltm_ctx_desc *)pctx->rgb_ltm_handle;
 		slc_cfg.yuv_ltm = (struct isp_ltm_ctx_desc *)pctx->yuv_ltm_handle;;
+		slc_cfg.rgb_gtm = (struct isp_gtm_ctx_desc *)pctx->rgb_gtm_handle;
 		slc_cfg.nofilter_ctx = &pctx->isp_k_param;
 		isp_slice_info_cfg(&slc_cfg, pctx->slice_ctx);
 
@@ -2999,6 +3035,14 @@ static int ispcore_context_get(void *isp_handle, void *param)
 			goto rec_err;
 		}
 	}
+	if (pctx->rgb_gtm_handle == NULL && hw->ip_isp->rgb_gtm_support) {
+		pctx->rgb_gtm_handle = ispgtm_rgb_ctx_get(pctx->ctx_id, pctx->attach_cam_id, hw);
+		if (!pctx->rgb_gtm_handle) {
+			pr_err("fail to get memory for gtm_rgb_ctx.\n");
+			ret = -ENOMEM;
+			goto rgb_gtm_err;
+		}
+	}
 
 	for (i = 0; i < ISP_SPATH_NUM; i++) {
 		path = &pctx->isp_path[i];
@@ -3042,6 +3086,11 @@ static int ispcore_context_get(void *isp_handle, void *param)
 	goto exit;
 
 thrd_err:
+	if (pctx->rgb_gtm_handle && hw->ip_isp->rgb_gtm_support) {
+		isp_gtm_rgb_ctx_put(pctx->rgb_gtm_handle);
+		pctx->rgb_gtm_handle = NULL;
+	}
+rgb_gtm_err:
 	if (pctx->rec_handle && hw->ip_isp->pyr_rec_support) {
 		isp_pyr_rec_ctx_put(pctx->rec_handle);
 		pctx->rec_handle = NULL;
@@ -3061,6 +3110,7 @@ rgb_ltm_err:
 		isp_3dnr_ctx_put(pctx->nr3_handle);
 		pctx->nr3_handle = NULL;
 	}
+
 nr3_err:
 	atomic_dec(&pctx->user_cnt); /* free context */
 	sel_ctx_id = -1;
@@ -3159,6 +3209,11 @@ static int ispcore_context_put(void *isp_handle, int ctx_id)
 			pctx->rec_handle = NULL;
 		}
 
+		if (pctx->rgb_gtm_handle && hw->ip_isp->rgb_gtm_support) {
+			isp_gtm_rgb_ctx_put(pctx->rgb_ltm_handle);
+			pctx->rgb_gtm_handle = NULL;
+		}
+
 		/* clear path queue. */
 		for (i = 0; i < ISP_SPATH_NUM; i++) {
 			path = &pctx->isp_path[i];
@@ -3241,7 +3296,7 @@ static int ispcore_context_init(struct isp_pipe_dev *dev)
 	}
 	dev->cfg_handle = cfg_desc;
 	isp_ltm_sync_init();
-
+	isp_gtm_sync_init();
 	pr_info("isp hw contexts init start!\n");
 	for (i = 0; i < ISP_CONTEXT_HW_NUM; i++) {
 		pctx_hw = &dev->hw_ctx[i];
@@ -3351,6 +3406,7 @@ static int ispcore_context_deinit(struct isp_pipe_dev *dev)
 	dev->cfg_handle = NULL;
 
 	isp_ltm_sync_deinit();
+	isp_gtm_sync_deinit();
 
 	pr_debug("done.\n");
 	return ret;

@@ -25,6 +25,7 @@
 #include "isp_interface.h"
 #include "isp_3dnr.h"
 #include "isp_ltm.h"
+#include "isp_gtm.h"
 
 #define ISP_LINE_BUFFER_W          ISP_MAX_LINE_WIDTH
 #define ISP_IN_Q_LEN               4
@@ -90,6 +91,7 @@ struct isp_cfg_entry {
 struct slice_cfg_input {
 	uint32_t ltm_rgb_eb;
 	uint32_t ltm_yuv_eb;
+	uint32_t gtm_rgb_eb;
 	struct img_size frame_in_size;
 	struct img_size *frame_out_size[ISP_SPATH_NUM];
 	struct isp_hw_fetch_info *frame_fetch;
@@ -107,6 +109,7 @@ struct slice_cfg_input {
 	struct isp_3dnr_ctx_desc *nr3_ctx;
 	struct isp_ltm_ctx_desc *rgb_ltm;
 	struct isp_ltm_ctx_desc *yuv_ltm;
+	struct isp_gtm_ctx_desc *rgb_gtm;
 	struct isp_k_block *nofilter_ctx;
 };
 
@@ -160,6 +163,8 @@ struct isp_uinfo {
 	uint32_t ltm_rgb;
 	uint32_t ltm_yuv;
 	uint32_t mode_ltm;
+	uint32_t gtm_rgb;
+	uint32_t mode_gtm;
 	uint32_t mode_3dnr;
 	uint32_t slw_state;
 	uint32_t enable_slowmotion;
@@ -209,6 +214,7 @@ struct isp_sw_context {
 	void *rgb_ltm_handle;
 	void *yuv_ltm_handle;
 	void *rec_handle;
+	void *rgb_gtm_handle;
 	struct isp_k_block isp_k_param;
 
 	struct cam_thread_info thread;

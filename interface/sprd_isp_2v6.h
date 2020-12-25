@@ -2415,7 +2415,6 @@ struct dcam_param_data_l6 {
 	struct dcam_dev_awbc_info awbc_info;
 	struct dcam_dev_bpc_info bpc_info;
 	struct dcam_dev_3dnr_me nr3_me;
-	struct dcam_dev_raw_gtm_block_info gtm_info;
 	int16_t weight_tab[MAX_WTAB_LEN];
 	uint16_t lsc_tab[MAX_LSCTAB_LEN];
 };
@@ -2526,6 +2525,7 @@ struct isp_param_data_l6 {
 	struct isp_dev_ynr_info_v2 ynr_info_v2;
 	struct isp_dev_yrandom_info yrandom_info;
 	struct isp_dev_noise_filter_info nf_info;
+	struct isp_dev_gtm_block_info gtm_info;
 	uint32_t vst_buf[ISP_VST_IVST_NUM2];
 	uint32_t ivst_buf[ISP_VST_IVST_NUM2];
 };

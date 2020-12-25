@@ -38,6 +38,7 @@ struct isp_k_block {
 	struct isp_dev_nlm_imblance_v1 imblance_info;
 	struct isp_dev_nlm_imblance_v2 imblance_info2;
 	struct isp_dev_hsv_info_v3 hsv_info3;
+	struct isp_dev_gtm_block_info gtm_rgb_info;
 	/* sharkl5/sharkl5pro diff blocks*/
 	struct isp_dev_posterize_info_v2 pstrz_info_v2;
 	struct isp_dev_uvd_info_v2 uvd_info_v2;
@@ -57,10 +58,8 @@ struct isp_k_block {
 	struct isp_dev_posterize_info pstrz_info;
 	struct isp_dev_uvd_info uvd_info;
 	struct isp_dev_ynr_info ynr_info;
-
 	/* qogirn6pro cfa blocks*/
 	struct isp_dev_cfa_info_v1 cfa_info_v1;
-
 	/* common */
 	struct isp_dev_3dnr_info nr3d_info;
 	struct isp_dev_cce_info cce_info;
@@ -189,6 +188,8 @@ int isp_k_cfg_rgb_ltm(struct isp_io_param *param,
 	struct isp_k_block *isp_k_param, uint32_t idx);
 int isp_k_cfg_yuv_ltm(struct isp_io_param *param,
 	struct isp_k_block *isp_k_param, uint32_t idx);
+int isp_k_cfg_rgb_gtm(struct isp_io_param *param,
+	struct isp_k_block *isp_k_param, uint32_t idx);
 int isp_k_cfg_post_cdn(struct isp_io_param *param,
 	struct isp_k_block *isp_k_param, uint32_t idx);
 int isp_k_cfg_pre_cdn(struct isp_io_param *param,
@@ -233,6 +234,10 @@ int isp_pyr_rec_share_config(void *handle);
 int isp_pyr_rec_slice_config(void *handle);
 int isp_dewarping_config_param(void *handle);
 int isp_dewarping_dewarp_cache_set(void *handle);
+
+int isp_k_gtm_block(void *pctx, void *param);
+int isp_k_gtm_mapping_set(void *param);
+int isp_k_gtm_mapping_get(void *param);
 
 /* for param debug */
 int dcam_k_dump_pm(void *pdst, void *psrc);
@@ -287,12 +292,12 @@ enum isp_bypass {
 	_EISP_HUE,
 	_EISP_YUVNF,
 	_EISP_DEWARP,
-
+	_EISP_GTM,
 	_EISP_TOTAL, /* total before this */
 	_EISP_CCE = 29,
 	_EISP_LTM = 30,
 	_EISP_NR3 = 31,
-	/* Attention up to 31 */
+	/*Attention up to 31*/
 };
 extern uint32_t g_isp_bypass[];
 

@@ -42,14 +42,6 @@ int init_dcam_pm(struct dcam_dev_param *blk_pm_ctx )
 	blk_pm_ctx->afm.bypass = 1;
 	blk_pm_ctx->lscm.bypass = 1;
 	blk_pm_ctx->pdaf.bypass = 1;
-	blk_pm_ctx->gtm[0].update_en = 1;
-	blk_pm_ctx->gtm[0].gtm_info.gtm_mod_en = 0;
-	blk_pm_ctx->gtm[0].gtm_info.gtm_map_bypass = 1;
-	blk_pm_ctx->gtm[0].gtm_info.gtm_hist_stat_bypass = 1;
-	blk_pm_ctx->gtm[1].update_en = 1;
-	blk_pm_ctx->gtm[1].gtm_info.gtm_mod_en = 0;
-	blk_pm_ctx->gtm[1].gtm_info.gtm_map_bypass = 1;
-	blk_pm_ctx->gtm[1].gtm_info.gtm_hist_stat_bypass = 1;
 
 	return 0;
 }
@@ -99,11 +91,7 @@ int dcam_k_dump_pm(void *pdst, void *psrc)
 		&blk_dcam_pm->nr3.nr3_me,
 		sizeof(struct dcam_dev_3dnr_me));
 
-	memcpy(&pm_data->gtm_info,
-		&blk_dcam_pm->gtm[1].gtm_info,
-		sizeof(struct dcam_dev_raw_gtm_block_info));
-
-	size = (int)sizeof(struct dcam_param_data_l5pro);
+	size = (int)sizeof(struct dcam_param_data_l6);
 	size = ((size + 15) & (~15));
 
 	return size;
@@ -246,10 +234,14 @@ int isp_k_dump_pm(void *pdst, void *psrc)
 		&isp_k_param->nf_info,
 		sizeof(struct isp_dev_noise_filter_info));
 
+	memcpy(&pm_data->gtm_info,
+		&isp_k_param->gtm_rgb_info,
+		sizeof(struct isp_dev_gtm_block_info));
+
 	memcpy(pm_data->vst_buf, isp_k_param->vst_buf, sizeof(pm_data->vst_buf));
 	memcpy(pm_data->ivst_buf, isp_k_param->ivst_buf, sizeof(pm_data->ivst_buf));
 
-	size = (int)sizeof(struct isp_param_data_l5pro);
+	size = (int)sizeof(struct isp_param_data_l6);
 	size = ((size + 15) & (~15));
 
 	return size;

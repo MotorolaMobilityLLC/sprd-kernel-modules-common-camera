@@ -58,6 +58,7 @@ int isp_path_comn_uinfo_set(struct isp_sw_context *pctx, void *param)
 	struct isp_ltm_ctx_desc *rgb_ltm = NULL;
 	struct isp_ltm_ctx_desc *yuv_ltm = NULL;
 	struct isp_rec_ctx_desc *rec_ctx = NULL;
+	struct isp_gtm_ctx_desc *rgb_gtm = NULL;
 
 	if (!pctx || !param) {
 		pr_err("fail to get valid input ptr, pctx %p, param %p\n",
@@ -70,6 +71,7 @@ int isp_path_comn_uinfo_set(struct isp_sw_context *pctx, void *param)
 	rgb_ltm = (struct isp_ltm_ctx_desc *)pctx->rgb_ltm_handle;
 	yuv_ltm = (struct isp_ltm_ctx_desc *)pctx->yuv_ltm_handle;
 	rec_ctx = (struct isp_rec_ctx_desc *)pctx->rec_handle;
+	rgb_gtm = (struct isp_gtm_ctx_desc *)pctx->rgb_gtm_handle;
 
 	if (uinfo->enable_slowmotion) {
 		uinfo->enable_slowmotion = cfg_in->enable_slowmotion;
@@ -82,6 +84,8 @@ int isp_path_comn_uinfo_set(struct isp_sw_context *pctx, void *param)
 	uinfo->ltm_yuv = cfg_in->ltm_yuv;
 	uinfo->slw_state = cfg_in->slw_state;
 	uinfo->mode_ltm = cfg_in->mode_ltm;
+	uinfo->gtm_rgb = cfg_in->gtm_rgb;
+	uinfo->mode_gtm = cfg_in->mode_gtm;
 	uinfo->mode_3dnr = cfg_in->mode_3dnr;
 	uinfo->is_pack = cfg_in->is_pack;
 	uinfo->data_in_bits = cfg_in->data_in_bits;
@@ -100,12 +104,17 @@ int isp_path_comn_uinfo_set(struct isp_sw_context *pctx, void *param)
 	}
 	if (rec_ctx)
 		rec_ctx->ops.cfg_param(rec_ctx, ISP_REC_CFG_LAYER_NUM, &uinfo->pyr_layer_num);
+
+	if (rgb_gtm) {
+		rgb_gtm->gtm_ops.cfg_param(rgb_gtm, ISP_GTM_CFG_EB, &uinfo->gtm_rgb);
+		rgb_gtm->gtm_ops.cfg_param(rgb_gtm, ISP_GTM_CFG_MODE, &uinfo->mode_gtm);
+	}
+
 	pctx->ch_id = cfg_in->ch_id;
 
-	pr_debug("ctx%d, in_fmt 0x%x, %d %d mode_ltm %d ltm_eb %d slw_state %d 3dnr: %d\n", pctx->ctx_id,
-		uinfo->in_fmt, uinfo->pack_bits, uinfo->bayer_pattern, uinfo->mode_ltm,
-		uinfo->ltm_rgb, uinfo->slw_state, uinfo->mode_3dnr);
-
+        pr_debug("ctx%d, in_fmt 0x%x, %d %d mode_ltm %d ltm_eb %d, mode_gtm %d gtm_eb %d,slw_state %d 3dnr: %d\n",
+		pctx->ctx_id, uinfo->in_fmt, uinfo->pack_bits, uinfo->bayer_pattern, uinfo->mode_ltm,
+		uinfo->ltm_rgb, uinfo->mode_gtm, uinfo->gtm_rgb, uinfo->slw_state, uinfo->mode_3dnr);
 	return ret;
 }
 

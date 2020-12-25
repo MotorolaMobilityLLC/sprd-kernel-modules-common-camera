@@ -340,6 +340,7 @@ static struct cam_hw_ip_info isp = {
 	.pyr_dec_support = 0,
 	.fbd_yuv_support = 0,
 	.fbd_raw_support = 1,
+	.rgb_gtm_support = 0,
 };
 
 struct cam_hw_info sharkl5_hw_info = {

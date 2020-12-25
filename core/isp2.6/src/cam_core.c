@@ -161,6 +161,7 @@ struct camera_uinfo {
 	uint32_t is_yuv_ltm;
 	uint32_t is_pyr_rec;
 	uint32_t is_pyr_dec;
+	uint32_t is_rgb_gtm;
 	uint32_t is_dual;
 	uint32_t is_dewarp;
 	uint32_t dcam_slice_mode;/*1: hw,  2:sw*/
@@ -228,6 +229,8 @@ struct channel_context {
 	uint32_t ltm_rgb;
 	uint32_t ltm_yuv;
 	uint32_t pyr_layer_num;
+	uint32_t mode_gtm;
+	uint32_t gtm_rgb;
 	struct camera_frame *fdrl_zoom_buf;
 	struct camera_frame *fdrh_zoom_buf;
 	struct camera_frame *postproc_buf;
@@ -2545,7 +2548,6 @@ static int camcore_dcam_callback(enum dcam_cb_type type, void *param, void *priv
 					dcam_core_dcam_if_release_sync(pframe->sync_data, pframe);
 			}
 		} else if (channel->ch_id == CAM_CH_CAP) {
-
 			if (pframe->irq_property != CAM_FRAME_COMMON) {
 				/* FDR frames should always be processed by ISP */
 				int32_t isp_ctx_id;
@@ -2597,7 +2599,6 @@ static int camcore_dcam_callback(enum dcam_cb_type type, void *param, void *priv
 
 			/* cap scene special process */
 			if (module->dcam_cap_status == DCAM_CAPTURE_START_WITH_TIMESTAMP) {
-
 				pframe = camcore_dual_frame_deal(module,
 						pframe, channel);
 
@@ -2616,7 +2617,6 @@ static int camcore_dcam_callback(enum dcam_cb_type type, void *param, void *priv
 				if (!pframe)
 					return 0;
 			} else if (module->dcam_cap_status == DCAM_CAPTURE_START_FROM_NEXT_SOF) {
-
 				/* FDR catpure should wait for RAW buffer except time condition */
 				if (module->capture_scene == CAPTURE_FDR) {
 					if (pframe->sync_data)
@@ -2646,13 +2646,11 @@ static int camcore_dcam_callback(enum dcam_cb_type type, void *param, void *priv
 				}
 
 				if (pframe->boot_sensor_time < module->capture_times) {
-
 					pr_info("cam%d cap skip frame type[%d] cap_time[%lld] sof_time[%lld]\n",
 						module->idx,
 						module->dcam_cap_status,
 						module->capture_times,
-						pframe->boot_sensor_time
-						);
+						pframe->boot_sensor_time);
 					if (pframe->sync_data)
 						dcam_core_dcam_if_release_sync(pframe->sync_data, pframe);
 					ret = module->dcam_dev_handle->dcam_pipe_ops->cfg_path(
@@ -2665,14 +2663,13 @@ static int camcore_dcam_callback(enum dcam_cb_type type, void *param, void *priv
 					cap_frame = atomic_read(&module->capture_frames_dcam);
 					skip_frame = atomic_read(&module->cap_skip_frames);
 					if (cap_frame > 0 && skip_frame == 0) {
-						module->dcam_dev_handle->dcam_pipe_ops->ioctl(&module->dcam_dev_handle->sw_ctx[module->cur_sw_ctx_id],
-							DCAM_IOCTL_CFG_GTM_UPDATE, &gtm_param_idx);
-						pr_info("cam%d cap type[%d] num[%d]\n", module->idx,
-							module->dcam_cap_status,
-							cap_frame);
+						if (hw->ip_isp->rgb_gtm_support == 0) {
+							module->dcam_dev_handle->dcam_pipe_ops->ioctl(&module->dcam_dev_handle->sw_ctx[module->cur_sw_ctx_id],
+								DCAM_IOCTL_CFG_GTM_UPDATE, &gtm_param_idx);
+							pr_info("cam%d cap type[%d] num[%d]\n",module->idx, module->dcam_cap_status, cap_frame);
+						}
 					} else {
-						pr_info("cam%d cap type[%d] num[%d]\n", module->idx,
-							module->dcam_cap_status, cap_frame);
+						pr_info("cam%d cap type[%d] num[%d]\n", module->idx, module->dcam_cap_status, cap_frame);
 						atomic_dec(&module->cap_skip_frames);
 						if (pframe->sync_data)
 							dcam_core_dcam_if_release_sync(pframe->sync_data, pframe);
@@ -4134,6 +4131,7 @@ static int camcore_channel_init(struct camera_module *module,
 		ctx_desc.pack_bits = module->cam_uinfo.sensor_if.if_spec.mipi.is_loose;
 		ctx_desc.bayer_pattern = module->cam_uinfo.sensor_if.img_ptn;
 		ctx_desc.mode_ltm = MODE_LTM_OFF;
+		ctx_desc.mode_gtm = MODE_GTM_OFF;
 		ctx_desc.mode_3dnr = MODE_3DNR_OFF;
 		ctx_desc.enable_slowmotion = ch_uinfo->is_high_fps;
 		ctx_desc.slowmotion_count = ch_uinfo->high_fps_skip_num;
@@ -4211,6 +4209,21 @@ static int camcore_channel_init(struct camera_module *module,
 			}
 		} else {
 			ctx_desc.pyr_layer_num = 0;
+		}
+
+		if (module->cam_uinfo.is_rgb_gtm) {
+			channel->gtm_rgb = 1;
+			ctx_desc.gtm_rgb = 1;
+			if (channel->ch_id == CAM_CH_CAP) {
+				channel->mode_gtm = MODE_GTM_CAP;
+				ctx_desc.mode_gtm = MODE_GTM_CAP;
+			} else if (channel->ch_id == CAM_CH_PRE) {
+				channel->mode_gtm = MODE_GTM_PRE;
+				ctx_desc.mode_gtm = MODE_GTM_PRE;
+			}
+		} else {
+			channel->gtm_rgb = 0;
+			ctx_desc.gtm_rgb = 0;
 		}
 
 		ret = module->isp_dev_handle->isp_ops->cfg_path(module->isp_dev_handle,
@@ -5300,6 +5313,7 @@ static int camcore_raw_pre_proc(
 	ctx_desc.in_fmt = proc_info->src_format;
 	ctx_desc.bayer_pattern = proc_info->src_pattern;
 	ctx_desc.mode_ltm = MODE_LTM_OFF;
+	ctx_desc.mode_gtm = MODE_GTM_OFF;
 	ctx_desc.mode_3dnr = MODE_3DNR_OFF;
 	ret = module->isp_dev_handle->isp_ops->cfg_path(module->isp_dev_handle,
 		ISP_PATH_CFG_CTX_BASE, ctx_id, 0, &ctx_desc);

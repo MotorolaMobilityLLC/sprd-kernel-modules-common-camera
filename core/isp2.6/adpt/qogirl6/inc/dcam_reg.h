@@ -281,27 +281,6 @@ extern unsigned long g_dcam_mmubase;
 #define NR3_FAST_ME_OUT1                (0x0510UL)
 #define NR3_FAST_ME_STATUS              (0x0514UL)
 
-#define DCAM_GTM_GLB_CTRL               (0x0520UL)
-#define GTM_HIST_CTRL0                  (0x0524UL)
-#define GTM_HIST_CTRL1                  (0x0528UL)
-#define GTM_HIST_YMIN                   (0x052CUL)
-#define GTM_HIST_CTRL2                  (0x0530UL)
-#define GTM_HIST_CTRL3                  (0x0534UL)
-#define GTM_HIST_CTRL4                  (0x0538UL)
-#define GTM_HIST_CTRL5                  (0x053CUL)
-#define GTM_HIST_CTRL6                  (0x0540UL)
-#define GTM_HIST_CTRL7                  (0x0544UL)
-#define GTM_LOG_DIFF                    (0x0548UL)
-#define GTM_TM_YMIN_SMOOTH              (0x054CUL)
-#define GTM_TM_LUMAFILTER0              (0x0550UL)
-#define GTM_TM_LUMAFILTER1              (0x0554UL)
-#define GTM_TM_LUMAFILTER2              (0x0558UL)
-#define GTM_TM_RGB2YCOEFF0              (0x055CUL)
-#define GTM_TM_RGB2YCOEFF1              (0x0560UL)
-#define GTM_SLICE_LINE_STARTPOS         (0x0584UL)
-#define GTM_SLICE_LINE_ENDPOS           (0x0588UL)
-#define GTM_STATUS                      (0x0590UL)
-
 #define DCAM_PATH_STOP_MASK             (0x2DFFUL)
 #define DCAM_PATH_BUSY_MASK             (0x2FFFUL)
 
@@ -535,8 +514,6 @@ extern const unsigned long slowmotion_store_addr[3][4];
 #define MMU_PPN_RANGE2_SHAD         (0x00A8UL)
 
 /* buffer addr map */
-#define GTM_HIST_XPTS               (0x0600UL)
-#define GTM_HIST_XPTS_CNT           (0x0100UL)
 
 #define LSC_WEI_TABLE_START         (0x0900UL)
 #define LSC_WEI_TABLE_SIZE          (0x0400UL)

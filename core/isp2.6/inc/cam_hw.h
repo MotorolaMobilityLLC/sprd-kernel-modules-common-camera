@@ -29,6 +29,7 @@ extern struct cam_hw_info qogirn6pro_hw_info;
 typedef int (*hw_ioctl_fun)(void *handle, void *arg);
 typedef int (*isp_k_blk_func)(void *handle);
 
+
 /* The project id must keep same with the DT cfg
  * new added project should always added in the end
  */
@@ -62,6 +63,17 @@ enum isp_k_blk_idx {
 	ISP_K_BLK_DEWARP_CACHE_CFG,
 	ISP_K_BLK_DEWARP_CFG,
 	ISP_K_BLK_MAX
+};
+
+enum isp_k_gtm_blk_idx {
+	ISP_K_GTM_LTM_EB,
+	ISP_K_GTM_LTM_DIS,
+	ISP_K_GTM_STATUS_GET,
+	ISP_K_GTM_BLOCK_SET,
+	ISP_K_GTM_MAPPING_GET,
+	ISP_K_GTM_MAPPING_SET,
+	ISP_K_GTM_SLICE_SET,
+	ISP_K_GTM_MAX
 };
 
 enum dcam_full_src_sel_type {
@@ -152,10 +164,6 @@ enum dcam_hw_cfg_cmd {
 	DCAM_HW_CFG_SLICE_FETCH_SET,
 	DCAM_HW_CFG_FBC_CTRL,
 	DCAM_HW_CFG_FBC_ADDR_SET,
-	DCAM_HW_CFG_GTM_STATUS_GET,
-	DCAM_HW_CFG_GTM_LTM_EB,
-	DCAM_HW_CFG_GTM_LTM_DIS,
-	DCAM_HW_CFG_GTM_UPDATE,
 	DCAM_HW_CFG_BLOCK_FUNC_GET,
 	DCAM_HW_CFG_BLOCKS_SETALL,
 	DCAM_HW_CFG_BLOCKS_SETSTATIS,
@@ -172,6 +180,10 @@ enum dcam_hw_cfg_cmd {
 	DCAM_HW_CFG_FMCU_START,
 	DCAM_HW_FMCU_EBABLE,
 	DCAM_HW_CFG_SLW_FMCU_CMDS,
+	DCAM_HW_CFG_GTM_STATUS_GET,
+	DCAM_HW_CFG_GTM_LTM_EB,
+	DCAM_HW_CFG_GTM_LTM_DIS,
+	DCAM_HW_CFG_GTM_UPDATE,
 	DCAM_HW_CFG_MAX
 };
 
@@ -239,6 +251,7 @@ enum isp_hw_cfg_cmd {
 	ISP_HW_CFG_YUV_BLOCK_CTRL_TYPE,
 	ISP_HW_CFG_FMCU_CMD_ALIGN,
 	ISP_HW_CFG_ALLDONE_CTRL,
+	ISP_HW_CFG_GTM_FUNC_GET,
 	ISP_HW_CFG_MAX
 };
 
@@ -781,6 +794,11 @@ struct isp_hw_k_blk_func {
 	isp_k_blk_func k_blk_func;
 };
 
+struct isp_hw_gtm_func {
+	enum isp_k_gtm_blk_idx index;
+	isp_k_blk_func k_blk_func;
+};
+
 struct dcam_hw_block_func_get {
 	struct dcam_cfg_entry *dcam_entry;
 	uint32_t index;
@@ -869,6 +887,11 @@ struct isp_hw_ltm_slice {
 	struct isp_fmcu_ctx_desc *fmcu_handle;
 	struct slice_ltm_map_info *map;
 	uint32_t ltm_id;
+};
+
+struct isp_hw_gtm_slice{
+	struct isp_fmcu_ctx_desc *fmcu_handle;
+	struct slice_gtm_info *slice_param;
 };
 
 struct isp_hw_afbc_path_slice {
@@ -1145,6 +1168,7 @@ struct cam_hw_ip_info {
 	uint32_t pyr_dec_support;
 	uint32_t fbd_raw_support;
 	uint32_t fbd_yuv_support;
+	uint32_t rgb_gtm_support;
 };
 
 struct cam_hw_soc_info {
