@@ -1237,6 +1237,40 @@ static int dcamhw_blocks_setstatis(void *handle, void *arg)
 	return 0;
 }
 
+static int dcamhw_set_store_addr(void *handle, void *arg)
+{
+	struct dcam_hw_cfg_store_addr *param = NULL;
+	uint32_t path_id = 0, addr = 0, idx = 0;
+
+	param = (struct dcam_hw_cfg_store_addr *)arg;
+	if (!param) {
+		pr_err("fail to get valid handle or arg\n");
+		return -1;
+	}
+
+	path_id = param->path_id;
+	addr = param->reg_addr;
+	idx = param->idx;
+
+	switch (path_id) {
+	case DCAM_PATH_FULL:
+		if (param->in_fmt == DCAM_CAP_MODE_YUV)
+			param->frame_addr[1] = param->frame_addr[0] + param->out_size.h * param->out_size.w;
+		DCAM_REG_WR(idx, DCAM_FULL_BASE_WADDR, param->frame_addr[0]);
+		DCAM_REG_WR(idx, DCAM_BIN_BASE_WADDR0, param->frame_addr[1]);
+		break;
+	case DCAM_PATH_AEM:
+		DCAM_REG_WR(idx, addr, param->frame_addr[0] + STATIS_AEM_HEADER_SIZE);
+		break;
+	case DCAM_PATH_HIST:
+		DCAM_REG_WR(idx, addr, param->frame_addr[0] + STATIS_HIST_HEADER_SIZE);
+		break;
+	default:
+		DCAM_REG_WR(idx, addr, param->frame_addr[0]);
+		break;
+	}
+	return 0;
+}
 
 static struct hw_io_ctrl_fun dcam_hw_ioctl_fun_tab[] = {
 	{DCAM_HW_CFG_ENABLE_CLK,            dcamhw_clk_eb},
@@ -1269,6 +1303,7 @@ static struct hw_io_ctrl_fun dcam_hw_ioctl_fun_tab[] = {
 	{DCAM_HW_CFG_START_FETCH,           dcamhw_fetch_start},
 	{DCAM_HW_CFG_BIN_MIPI,              dcamhw_bin_mipi_cfg},
 	{DCAM_HW_CFG_BIN_PATH,              dcamhw_bin_path_cfg},
+	{DCAM_HW_CFG_STORE_ADDR,            dcamhw_set_store_addr},
 };
 
 static hw_ioctl_fun dcamhw_ioctl_fun_get(

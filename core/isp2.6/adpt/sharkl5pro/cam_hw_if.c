@@ -294,6 +294,7 @@ static struct cam_hw_ip_info dcam[DCAM_ID_MAX] = {
 		.path_ctrl_id_tab = path_ctrl_id,
 		.pdaf_type3_reg_addr = DCAM_PPE_RIGHT_WADDR,
 		.rds_en = 0,
+		.dcam_raw_path_id = DCAM_PATH_FULL,
 	},
 	[DCAM_ID_1] = {
 		.slm_path = BIT(DCAM_PATH_BIN) | BIT(DCAM_PATH_AEM)
@@ -308,6 +309,7 @@ static struct cam_hw_ip_info dcam[DCAM_ID_MAX] = {
 		.path_ctrl_id_tab = path_ctrl_id,
 		.pdaf_type3_reg_addr = DCAM_PPE_RIGHT_WADDR,
 		.rds_en = 0,
+		.dcam_raw_path_id = DCAM_PATH_FULL,
 	},
 	[DCAM_ID_2] = {
 		.slm_path = BIT(DCAM_PATH_BIN) | BIT(DCAM_PATH_AEM)
@@ -322,6 +324,7 @@ static struct cam_hw_ip_info dcam[DCAM_ID_MAX] = {
 		.path_ctrl_id_tab = path_ctrl_id,
 		.pdaf_type3_reg_addr = DCAM_PPE_RIGHT_WADDR,
 		.rds_en = 0,
+		.dcam_raw_path_id = DCAM_PATH_FULL,
 	},
 };
 static struct cam_hw_ip_info isp = {

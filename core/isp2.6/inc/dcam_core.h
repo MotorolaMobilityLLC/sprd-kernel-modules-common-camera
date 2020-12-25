@@ -306,6 +306,7 @@ struct dcam_hw_context {
 	uint32_t sw_ctx_id;
 	uint32_t hw_ctx_id;
 	uint32_t handled_bits;
+	uint32_t handled_bits_on_int1;
 	struct dcam_sw_context *sw_ctx;
 };
 
@@ -331,6 +332,25 @@ struct dcam_switch_param {
 	uint32_t csi_id;
 	uint32_t dcam_id;
 };
+
+enum dcam_store_bit_width {
+	DCAM_STORE_8_BIT = 8,
+	DCAM_STORE_10_BIT = 10,
+	DCAM_STORE_12_BIT = 12,
+	DCAM_STORE_14_BIT = 14,
+};
+
+static inline uint32_t cal_sprd_yuv_pitch(uint32_t w, uint32_t dcam_out_bits, uint32_t is_pack)
+{
+	if (dcam_out_bits == DCAM_STORE_8_BIT)
+		return w;
+	else {
+		if (is_pack)
+			return w * 10 / 8;
+		else
+			return w * 2;
+	}
+}
 
 /*
  * Test if frame sync is enabled for path @path_id.

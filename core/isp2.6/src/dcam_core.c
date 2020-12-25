@@ -2301,6 +2301,10 @@ static int dcamcore_dev_start(void *dcam_handle, int online)
 		patharg.bayer_pattern = pctx->path[i].bayer_pattern;
 		patharg.in_trim = pctx->path[i].in_trim;
 		patharg.endian = pctx->path[i].endian;
+		patharg.out_fmt= pctx->path[i].out_fmt;
+		patharg.data_bits= pctx->path[i].data_bits;
+		patharg.is_pack= pctx->path[i].is_pack;
+		pr_debug("path %d, fmt %d, bits %d, is pack %d\n", i, patharg.out_fmt, patharg.data_bits, patharg.is_pack);
 		atomic_set(&path->set_frm_cnt, 0);
 
 		if (atomic_read(&path->user_cnt) < 1 || atomic_read(&path->is_shutoff) > 0)

@@ -55,6 +55,8 @@ enum cam_block_type {
 
 enum dcam_full_src_sel_type {
 	ORI_RAW_SRC_SEL,
+	LSC_RAW_SRC_SEL,
+	BPC_RAW_SRC_SEL,
 	PROCESS_RAW_SRC_SEL,
 	MAX_RAW_SRC_SEL
 };
@@ -528,6 +530,7 @@ struct dcam_compress_info {
 	uint32_t is_compress;
 	uint32_t tile_col;
 	uint32_t tile_row;
+	uint32_t tile_row_lowbit;
 };
 
 struct dcam_hw_path_size {
@@ -605,15 +608,17 @@ struct dcam_hw_path_start {
 	uint32_t idx;
 	uint32_t slowmotion_count;
 	uint32_t pdaf_path_eb;
+	/*out para*/
 	uint32_t pack_bits;
-	uint32_t src_sel;
-	uint32_t bayer_pattern;
 	uint32_t out_fmt;
 	uint32_t data_bits;
 	uint32_t is_pack;
+	struct img_endian endian;
+	/*in para*/
+	uint32_t src_sel;
+	uint32_t bayer_pattern;
 	struct img_trim in_trim;
 	struct dcam_mipi_info cap_info;
-	struct img_endian endian;
 };
 
 struct dcam_hw_fetch_set {
@@ -875,9 +880,13 @@ struct dcam_hw_cfg_bin_path {
 
 struct dcam_hw_cfg_store_addr {
 	uint32_t idx;
-	struct dcam_path_desc *path;
-	struct camera_frame *frame;
+	uint32_t path_id;
+	uint32_t frame_addr[3];
+	uint32_t out_fmt;
+	uint32_t in_fmt;
+	uint32_t out_pitch;
 	uint32_t reg_addr;
+	struct img_size out_size;
 };
 
 struct isp_hw_fmcu_cmd {
@@ -938,6 +947,7 @@ struct cam_hw_ip_info {
 	uint32_t afl_gbuf_size;
 	unsigned long pdaf_type3_reg_addr;
 	uint32_t rds_en;
+	uint32_t dcam_raw_path_id;
 
 	/* For isp support info */
 	uint32_t slm_cfg_support;

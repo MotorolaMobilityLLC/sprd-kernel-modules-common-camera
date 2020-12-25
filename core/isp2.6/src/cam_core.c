@@ -210,7 +210,7 @@ struct channel_context {
 	struct img_trim trim_isp;
 	struct img_size dst_dcam;
 	uint32_t rds_ratio;
-
+	uint32_t dcam_out_fmt;
 	/* to store isp offline param data if frame is discarded. */
 	void *isp_updata;
 
@@ -1314,7 +1314,7 @@ static int camcore_buffers_alloc(void *param)
 {
 	int ret = 0;
 	int i, count, total, iommu_enable;
-	uint32_t width = 0, height = 0, size = 0, pack_bits = 0;
+	uint32_t width = 0, height = 0, size = 0, pack_bits = 0, dcam_out_bits = 0, pitch = 0;
 	uint32_t postproc_w = 0, postproc_h = 0;
 	struct camera_module *module;
 	struct camera_frame *pframe;
@@ -1325,6 +1325,7 @@ static int camcore_buffers_alloc(void *param)
 	int path_id = 0;
 	struct camera_frame *alloc_buf = NULL;
 	uint32_t is_super_size = 0;
+	uint32_t is_pack = 0;
 
 	pr_info("enter.\n");
 
@@ -1353,6 +1354,8 @@ static int camcore_buffers_alloc(void *param)
 		height = channel->swap_size.h;
 	}
 	pack_bits = module->cam_uinfo.sensor_if.if_spec.mipi.is_loose;
+	dcam_out_bits = module->cam_uinfo.sensor_if.if_spec.mipi.bits_per_pxl;
+	is_pack = !pack_bits;
 
 	if (channel->compress_input) {
 		width = ALIGN(width, DCAM_FBC_TILE_WIDTH);
@@ -1360,11 +1363,16 @@ static int camcore_buffers_alloc(void *param)
 		pr_info("ch %d, FBC size (%d %d)\n", channel->ch_id, width, height);
 		size = dcam_if_cal_compressed_size(width, height,
 			channel->compress_4bit_bypass);
-	} else if (channel->ch_uinfo.sn_fmt == IMG_PIX_FMT_GREY) {
+	} else if (channel->dcam_out_fmt & DCAM_STORE_RAW_BASE) {
 		size = cal_sprd_raw_pitch(width, pack_bits) * height;
+	} else if ((channel->dcam_out_fmt == DCAM_STORE_YUV420) || (channel->dcam_out_fmt == DCAM_STORE_YVU420)) {
+		pitch = cal_sprd_yuv_pitch(width, dcam_out_bits, is_pack);
+		size = pitch * height * 3 / 2;
+		pr_info("ch%d, dcam yuv size %d\n", channel->ch_id, size);
 	} else {
 		size = width * height * 3;
 	}
+
 	size = ALIGN(size, CAM_BUF_ALIGN_SIZE);
 
 	total = 5;
@@ -2841,12 +2849,14 @@ static int camcore_channel_swapsize_cal(struct camera_module *module)
 	struct channel_context *ch_prev = NULL;
 	struct channel_context *ch_vid = NULL;
 	struct channel_context *ch_cap = NULL;
+	struct channel_context *ch_raw = NULL;
 	struct img_size max_bypass, max_bin, max_rds, temp;
 	struct img_size src_p, dst_p, dst_v, max;
 
 	ch_prev = &module->channel[CAM_CH_PRE];
 	ch_cap = &module->channel[CAM_CH_CAP];
 	ch_vid = &module->channel[CAM_CH_VID];
+	ch_raw = &module->channel[CAM_CH_RAW];
 
 	if (module->grp->hw_info->ip_dcam[module->dcam_idx]->rds_en) {
 		if (ch_prev->ch_uinfo.src_size.w <= PRE_RDS_OUT) {
@@ -2860,6 +2870,13 @@ static int camcore_channel_swapsize_cal(struct camera_module *module)
 		max.h = ch_cap->ch_uinfo.src_size.h;
 		ch_cap->swap_size = max;
 		pr_info("idx %d , cap swap size %d %d\n", module->idx, max.w, max.h);
+	}
+
+	if (ch_raw->enable) {
+		max.w = ch_raw->ch_uinfo.src_size.w;
+		max.h = ch_raw->ch_uinfo.src_size.h;
+		ch_raw->swap_size = max;
+		pr_info("idx %d , raw swap size %d %d\n", module->idx, max.w, max.h);
 	}
 
 	if (ch_prev->enable)
@@ -3543,7 +3560,7 @@ static int camcore_channel_size_config(
 	if (is_zoom && channel->ch_id == CAM_CH_CAP)
 		goto cfg_isp;
 
-	if (!is_zoom && (channel->swap_size.w > 0)) {
+	if (!is_zoom && (channel->swap_size.w > 0) && (channel->ch_id != CAM_CH_RAW)) {
 		cam_queue_init(&channel->share_buf_queue,
 			CAM_SHARED_BUF_NUM, camcore_k_frame_put);
 
@@ -3561,7 +3578,7 @@ static int camcore_channel_size_config(
 	memset(&ch_desc, 0, sizeof(ch_desc));
 	ch_desc.input_size.w = ch_uinfo->src_size.w;
 	ch_desc.input_size.h = ch_uinfo->src_size.h;
-	if (channel->ch_id == CAM_CH_CAP) {
+	if ((channel->ch_id == CAM_CH_CAP) || (channel->ch_id == CAM_CH_RAW)) {
 		/* no trim in dcam full path. */
 		ch_desc.output_size = ch_desc.input_size;
 		ch_desc.input_trim.start_x = 0;
@@ -3618,6 +3635,8 @@ static int camcore_channel_size_config(
 		}
 	} while (--loop_count);
 
+	if (channel->ch_id == CAM_CH_RAW)
+		return ret;
 	if (ret && ch_desc.priv_size_data) {
 		kfree(ch_desc.priv_size_data);
 		ch_desc.priv_size_data = NULL;
@@ -3876,7 +3895,7 @@ static int camcore_channel_init(struct camera_module *module,
 		if ( module->grp->hw_info->prj_id == SHARKL5pro && ch_uinfo->src_size.w >= 8192)
 			dcam_path_id = DCAM_PATH_VCH2;
 		else
-			dcam_path_id = DCAM_PATH_FULL;
+			dcam_path_id = hw->ip_dcam[module->dcam_idx]->dcam_raw_path_id;
 		new_dcam_path = 1;
 		break;
 
@@ -3927,6 +3946,19 @@ static int camcore_channel_init(struct camera_module *module,
 		ch_desc.input_trim.start_y = module->cam_uinfo.sn_rect.y;
 		ch_desc.input_trim.size_x = module->cam_uinfo.sn_rect.w;
 		ch_desc.input_trim.size_y = module->cam_uinfo.sn_rect.h;
+		/*
+		*   default dcam out bit: N6pro input raw10bit output YUV 10bit
+		*   other chip input raw10 output raw 10bit
+		*   YUV sensor input 8bit output 8bit
+		*/
+		ch_desc.dcam_out_bits = module->cam_uinfo.sensor_if.if_spec.mipi.bits_per_pxl;
+		if ((hw->prj_id == QOGIRN6pro) || (format == DCAM_CAP_MODE_YUV))
+			ch_desc.dcam_out_fmt = DCAM_STORE_YVU420;
+		else
+			ch_desc.dcam_out_fmt = DCAM_STORE_RAW_BASE;
+		if (channel->ch_id == CAM_CH_RAW)
+			ch_desc.dcam_out_fmt = DCAM_STORE_RAW_BASE;
+		pr_debug("channel dcam out format %d, bits %d, is pack %d\n", ch_desc.dcam_out_fmt, ch_desc.dcam_out_bits, !(ch_desc.pack_bits));
 		/* auto_3dnr:hw enable, channel->uinfo_3dnr == 1: hw enable */
 		ch_desc.enable_3dnr = (module->auto_3dnr | channel->uinfo_3dnr);
 		if (channel->ch_id == CAM_CH_RAW)
@@ -3937,6 +3969,7 @@ static int camcore_channel_init(struct camera_module *module,
 			ch_desc.is_raw = 1;
 		ret = module->dcam_dev_handle->dcam_pipe_ops->cfg_path(&module->dcam_dev_handle->sw_ctx[module->cur_sw_ctx_id],
 			DCAM_PATH_CFG_BASE, channel->dcam_path_id, &ch_desc);
+		channel->dcam_out_fmt = ch_desc.dcam_out_fmt;
 	}
 
 	if (new_isp_ctx) {

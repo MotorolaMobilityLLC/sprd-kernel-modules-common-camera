@@ -14,6 +14,7 @@
 #ifndef _DCAM_HW_ADPT_H_
 #define _DCAM_HW_ADPT_H_
 
+#define DCAM_64M_WIDTH                 9612
 #define DCAM_24M_WIDTH                 5664
 #define DCAM_16M_WIDTH                 4672
 #define DCAM_13M_WIDTH                 4160
@@ -31,10 +32,6 @@
 #define DCAM_HW_SLICE_WIDTH_MAX        8192
 #define CAM_FACEID_SEC
 
-/*
- *DCAM_CONTROL register bit map id
- * for force_cpy/auto_cpy control
- */
 enum dcam_ctrl_id {
 	DCAM_CTRL_CAP = (1 << 0),
 	DCAM_CTRL_COEF = (1 << 1),
@@ -61,10 +58,6 @@ enum dcam_hw_context_id {
 	DCAM_HW_CONTEXT_MAX,
 };
 
-/*
- * Supported dcam_if index. Number 0&1 for dcam_if and 2 for dcam_if_lite.
- */
-
 enum dcam_id {
 	DCAM_ID_0 = 0,
 	DCAM_ID_1,
@@ -82,4 +75,5 @@ static inline uint32_t cal_sprd_raw_pitch(uint32_t w, uint32_t pack_bits)
 
 	return w;
 }
+
 #endif

@@ -35,6 +35,7 @@
 static const char *_DCAM_PATH_NAMES[DCAM_PATH_MAX] = {
 	[DCAM_PATH_FULL] = "FULL",
 	[DCAM_PATH_BIN] = "BIN",
+	[DCAM_PATH_RAW] = "RAW",
 	[DCAM_PATH_PDAF] = "PDAF",
 	[DCAM_PATH_VCH2] = "VCH2",
 	[DCAM_PATH_VCH3] = "VCH3",
@@ -75,7 +76,8 @@ int dcam_path_base_cfg(void *dcam_ctx_handle,
 	switch (path->path_id) {
 	case DCAM_PATH_FULL:
 		spin_lock_irqsave(&path->size_lock, flags);
-		path->src_sel = ch_desc->is_raw ? 0 : 1;
+		/* for l3 & l5 & l5p & l6*/
+		path->src_sel = ch_desc->is_raw ? ORI_RAW_SRC_SEL : PROCESS_RAW_SRC_SEL;
 		path->frm_deci = ch_desc->frm_deci;
 		path->frm_skip = ch_desc->frm_skip;
 		path->pack_bits = ch_desc->pack_bits;
@@ -84,6 +86,7 @@ int dcam_path_base_cfg(void *dcam_ctx_handle,
 		path->bayer_pattern = ch_desc->bayer_pattern;
 		path->out_fmt = ch_desc->dcam_out_fmt;
 		path->data_bits = ch_desc->dcam_out_bits;
+		path->is_pack = !ch_desc->pack_bits;
 		path->base_update = 1;
 		spin_unlock_irqrestore(&path->size_lock, flags);
 		break;
@@ -97,7 +100,7 @@ int dcam_path_base_cfg(void *dcam_ctx_handle,
 		path->bayer_pattern = ch_desc->bayer_pattern;
 		path->out_fmt = ch_desc->dcam_out_fmt;
 		path->data_bits = ch_desc->dcam_out_bits;
-
+		path->is_pack = !ch_desc->pack_bits;
 		/*
 		 * TODO:
 		 * Better not binding dcam_if feature to BIN path, which is a
@@ -105,6 +108,20 @@ int dcam_path_base_cfg(void *dcam_ctx_handle,
 		 */
 		dcam_sw_ctx->slowmotion_count = ch_desc->slowmotion_count;
 		dcam_sw_ctx->is_3dnr |= ch_desc->enable_3dnr;
+		dcam_sw_ctx->raw_cap = ch_desc->raw_cap;
+		break;
+	case DCAM_PATH_RAW:
+		/* for n6pro*/
+		path->src_sel = ch_desc->is_raw ? ORI_RAW_SRC_SEL : PROCESS_RAW_SRC_SEL;
+		path->frm_deci = ch_desc->frm_deci;
+		path->frm_skip = ch_desc->frm_skip;
+		path->pack_bits = ch_desc->pack_bits;
+		path->endian = ch_desc->endian;
+		path->is_4in1 = ch_desc->is_4in1;
+		path->bayer_pattern = ch_desc->bayer_pattern;
+		path->out_fmt = ch_desc->dcam_out_fmt;
+		path->data_bits = ch_desc->dcam_out_bits;
+		path->is_pack = !ch_desc->pack_bits;
 		dcam_sw_ctx->raw_cap = ch_desc->raw_cap;
 		break;
 	case DCAM_PATH_VCH2:
@@ -147,6 +164,7 @@ int dcam_path_size_cfg(void *dcam_ctx_handle,
 	ch_desc = (struct dcam_path_cfg_param *)param;
 
 	switch (path->path_id) {
+	case DCAM_PATH_RAW:
 	case DCAM_PATH_FULL:
 		spin_lock_irqsave(&path->size_lock, flag);
 		if (path->size_update) {
@@ -180,13 +198,21 @@ int dcam_path_size_cfg(void *dcam_ctx_handle,
 			path->out_size.h = path->in_size.h;
 		}
 
+		if (path->out_fmt & DCAM_STORE_RAW_BASE)
+			path->out_pitch = cal_sprd_raw_pitch(path->out_size.w, path->pack_bits);
+		else if (path->out_fmt & DCAM_STORE_YUV_BASE)
+			path->out_pitch = cal_sprd_yuv_pitch(path->out_size.w, path->data_bits, path->is_pack);
+		else
+			path->out_pitch = path->out_size.w * 8;
+
 		path->priv_size_data = ch_desc->priv_size_data;
 		path->size_update = 1;
 		spin_unlock_irqrestore(&path->size_lock, flag);
 
-		pr_info("cfg full path done. size %d %d %d %d\n",
-			path->in_size.w, path->in_size.h,
+		pr_info("cfg %s path done. size %d %d %d %d\n",
+			path->path_id ? "raw" : "full", path->in_size.w, path->in_size.h,
 			path->out_size.w, path->out_size.h);
+
 		pr_info("sel %d. trim %d %d %d %d\n", path->src_sel,
 			path->in_trim.start_x, path->in_trim.start_y,
 			path->in_trim.size_x, path->in_trim.size_y);
@@ -288,6 +314,14 @@ int dcam_path_size_cfg(void *dcam_ctx_handle,
 				(uint16_t)dst_size.h,
 				(uint32_t *)path->rds_coeff_buf);
 		}
+
+		if (path->out_fmt & DCAM_STORE_RAW_BASE)
+			path->out_pitch = cal_sprd_raw_pitch(path->out_size.w, path->pack_bits);
+		else if (path->out_fmt & DCAM_STORE_YUV_BASE)
+			path->out_pitch = cal_sprd_yuv_pitch(path->out_size.w, path->data_bits, path->is_pack);
+		else
+			path->out_pitch = path->out_size.w * 8;
+
 		path->priv_size_data = ch_desc->priv_size_data;
 		path->size_update = 1;
 		/* if 3dnr path enable, need update when zoom */
@@ -433,10 +467,10 @@ int dcam_path_store_frm_set(void *dcam_ctx_handle,
 	struct dcam_hw_path_size path_size;
 	uint32_t idx = 0, path_id = 0;
 	unsigned long flags = 0, addr = 0;
-	unsigned long u_addr = 0;
 	const int _bin = 0, _aem = 1, _hist = 2;
 	int i = 0, ret = 0;
 	uint32_t slm_path = 0;
+	struct dcam_hw_cfg_store_addr store_arg;
 
 	if (unlikely(!dcam_ctx_handle || !path))
 		return -EINVAL;
@@ -503,21 +537,19 @@ int dcam_path_store_frm_set(void *dcam_ctx_handle,
 		fbcadr.addr = addr;
 		fbcadr.fbc_addr = &fbc_addr;
 		hw->dcam_ioctl(hw, DCAM_HW_CFG_FBC_ADDR_SET, &fbcadr);
-	} else if (path_id == DCAM_PATH_AEM) {
-		DCAM_REG_WR(idx, addr,
-			frame->buf.iova[0] + STATIS_AEM_HEADER_SIZE);
-	} else if (path_id == DCAM_PATH_HIST) {
-		DCAM_REG_WR(idx, addr,
-			frame->buf.iova[0] + STATIS_HIST_HEADER_SIZE);
 	} else {
-		DCAM_REG_WR(idx, addr, frame->buf.iova[0]);
-		if (dcam_sw_ctx->cap_info.format == DCAM_CAP_MODE_YUV) {
-			if (path_id == DCAM_PATH_FULL) {
-				u_addr = *(hw->ip_dcam[idx]->store_addr_tab + DCAM_PATH_BIN);
-				DCAM_REG_WR(idx, u_addr, frame->buf.iova[0]+frame->width * frame->height);
-				pr_debug("w %d,  h %d\n", frame->width, frame->height);
-			}
-		}
+		store_arg.idx = idx;
+		store_arg.frame_addr[0] = frame->buf.iova[0];
+		store_arg.frame_addr[1] = frame->buf.iova[1];
+		store_arg.frame_addr[2] = frame->buf.iova[2];
+		store_arg.path_id= path_id;
+		store_arg.reg_addr = addr;
+		store_arg.out_fmt = path->out_fmt;
+		store_arg.out_size.h = path->out_size.h;
+		store_arg.out_size.w = path->out_size.w;
+		store_arg.out_pitch = path->out_pitch;
+		store_arg.in_fmt = dcam_sw_ctx->cap_info.format;
+		hw->dcam_ioctl(hw, DCAM_HW_CFG_STORE_ADDR, &store_arg);
 	}
 	if (saved)
 		dcampath_frame_pointer_swap(&frame, &saved);
@@ -553,7 +585,7 @@ int dcam_path_store_frm_set(void *dcam_ctx_handle,
 	}
 
 	if ((path_id == DCAM_PATH_FULL) || (path_id == DCAM_PATH_BIN) ||
-		(path_id == DCAM_PATH_3DNR)) {
+		(path_id == DCAM_PATH_3DNR) || (path_id == DCAM_PATH_RAW)) {
 		/* use trylock here to avoid waiting if cfg_path_size
 		 * is already lock
 		 * because this function maybe called from irq handling.
@@ -578,6 +610,7 @@ int dcam_path_store_frm_set(void *dcam_ctx_handle,
 				path_size.in_size = path->in_size;
 				path_size.in_trim = path->in_trim;
 				path_size.out_size = path->out_size;
+				path_size.out_pitch= path->out_pitch;
 				path_size.rds_init_phase_int0 = path->gphase.rds_init_phase_int0;
 				path_size.rds_init_phase_int1 = path->gphase.rds_init_phase_int1;
 				path_size.rds_init_phase_rdm0 = path->gphase.rds_init_phase_rdm0;

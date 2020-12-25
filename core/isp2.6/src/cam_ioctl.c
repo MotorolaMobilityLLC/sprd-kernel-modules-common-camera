@@ -1545,7 +1545,7 @@ static int camioctl_stream_on(struct camera_module *module,
 	uint32_t uframe_sync, live_ch_count = 0, shutoff = 0;
 
 	struct channel_context *ch = NULL;
-	struct channel_context *ch_pre = NULL, *ch_vid = NULL;
+	struct channel_context *ch_pre = NULL, *ch_vid = NULL, *ch_raw = NULL;
 	struct cam_hw_info *hw = module->grp->hw_info;
 	struct dcam_pipe_dev *dev = (struct dcam_pipe_dev *)module->dcam_dev_handle;
 	struct dcam_sw_context *sw_ctx = &dev->sw_ctx[module->cur_sw_ctx_id];
@@ -1613,6 +1613,10 @@ static int camioctl_stream_on(struct camera_module *module,
 		if (module->cam_uinfo.dcam_slice_mode)
 			camcore_channel_bigsize_config(module, ch);
 	}
+
+	ch_raw = &module->channel[CAM_CH_RAW];
+	if (ch_raw->enable)
+		camcore_channel_size_config(module, ch_raw);
 cfg_ch_done:
 
 	/* line buffer share mode setting

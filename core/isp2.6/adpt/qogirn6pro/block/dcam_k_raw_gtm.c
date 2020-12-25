@@ -66,11 +66,9 @@ int dcam_k_raw_gtm_slice(uint32_t idx, struct dcam_dev_gtm_slice_info *gtm_slice
 	val =((gtm_slice->gtm_slice_main & 0x1) << 7);
 	DCAM_REG_MWR(idx, DCAM_GTM_GLB_CTRL, 0x80, val);
 
-	val = (gtm_slice->gtm_slice_line_startpos & 0x1FFF);
-	DCAM_REG_WR(idx, GTM_SLICE_LINE_STARTPOS, val);
-
-	val = (gtm_slice->gtm_slice_line_endpos & 0x1FFF);
-	DCAM_REG_WR(idx, GTM_SLICE_LINE_ENDPOS, val);
+	val = (gtm_slice->gtm_slice_line_startpos & 0x1FFF) |
+		((gtm_slice->gtm_slice_line_endpos & 0x1FFF) << 16);
+	DCAM_REG_WR(idx, GTM_SLICE_LINE_POS, val);
 
 	return ret;
 }
