@@ -14,6 +14,7 @@
 #ifndef _DCAM_HW_ADPT_H_
 #define _DCAM_HW_ADPT_H_
 
+#define DCAM_64M_WIDTH                          9612
 #define DCAM_24M_WIDTH                          5664
 #define DCAM_PATH_WMAX                          8048
 #define DCAM_PATH_HMAX                          6036

@@ -476,6 +476,12 @@ static int camioctl_sensor_trim_set(struct camera_module *module,
 		goto exit;
 	}
 
+	if (dst->w >= DCAM_64M_WIDTH) {
+		pr_debug("64M width , modify is_loose %d to zero\n",
+			module->cam_uinfo.sensor_if.if_spec.mipi.is_loose);
+		module->cam_uinfo.sensor_if.if_spec.mipi.is_loose= 0;
+	}
+
 exit:
 	return ret;
 }
