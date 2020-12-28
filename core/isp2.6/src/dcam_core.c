@@ -2617,6 +2617,7 @@ static int dcamcore_dev_close(void *dcam_handle)
 		mutex_destroy(&dev->path_mutex);
 		ret = dcamcore_context_deinit(dev);
 		ret = dcam_drv_hw_deinit(dev);
+		atomic_set(&s_dcam_working, 0);
 	}
 	atomic_dec(&s_dcam_axi_opened);
 	pr_info("dcam dev disable done\n");

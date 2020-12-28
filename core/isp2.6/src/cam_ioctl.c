@@ -1515,12 +1515,8 @@ static int camioctl_stream_off(struct camera_module *module,
 	camcore_param_buffer_uncfg(module);
 
 	if(hw->csi_connect_type == DCAM_BIND_DYNAMIC && sw_ctx->csi_connect_stat == DCAM_CSI_RESUME) {
-		struct dcam_switch_param csi_switch;
-		csi_switch.csi_id = module->dcam_idx;
-		csi_switch.dcam_id= sw_ctx->hw_ctx_id;
-		pr_info("csi_switch.csi_id = %d, csi_switch.dcam_id = %d\n", csi_switch.csi_id, csi_switch.dcam_id);
-		/* switch disconnect */
-		hw->dcam_ioctl(hw, DCAM_HW_DISCONECT_CSI, &csi_switch);
+		/* csi disconnect(DCAM_HW_DISCONECT_CSI) is already done in the function of
+		csi_controller_disable(csi_driver). No need to do again */
 		sw_ctx->csi_connect_stat = DCAM_CSI_IDLE;
 	}
 
@@ -2976,6 +2972,30 @@ static int camioctl_capability_get(struct camera_module *module,
 		ret = -EFAULT;
 		goto exit;
 	}
+
+exit:
+	return ret;
+}
+
+static int camioctl_scaler_capability_get(struct camera_module *module,
+		unsigned long arg)
+{
+	int ret = 0;
+	uint32_t isp_scaler_up_max = ISP_SCALER_UP_MAX;
+
+	if (!module) {
+		pr_err("fail to get valid param\n");
+		ret = -EINVAL;
+		goto exit;
+	}
+
+	ret = copy_to_user((void __user *)arg, &isp_scaler_up_max, sizeof(uint32_t));
+	if (unlikely(ret)) {
+		pr_err("fail to get SCALER capability, ret %d\n", ret);
+		ret = -EFAULT;
+		goto exit;
+	}
+	pr_debug("isp_scaler_up_max: %d\n", isp_scaler_up_max);
 
 exit:
 	return ret;

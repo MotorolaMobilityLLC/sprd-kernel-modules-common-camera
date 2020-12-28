@@ -852,134 +852,84 @@ struct sprd_img_path_rect {
 };
 #pragma pack(pop)
 
-#define SPRD_IMG_IO_MAGIC            'Z'
-#define SPRD_IMG_IO_SET_MODE          _IOW(SPRD_IMG_IO_MAGIC, 0, uint32_t)
-#define SPRD_IMG_IO_SET_CAP_SKIP_NUM  _IOW(SPRD_IMG_IO_MAGIC, 1, uint32_t)
-#define SPRD_IMG_IO_SET_SENSOR_SIZE   _IOW(SPRD_IMG_IO_MAGIC, 2,\
-					   struct sprd_img_size)
-#define SPRD_IMG_IO_SET_SENSOR_TRIM   _IOW(SPRD_IMG_IO_MAGIC, 3,\
-					   struct sprd_img_rect)
-#define SPRD_IMG_IO_SET_FRM_ID_BASE   _IOW(SPRD_IMG_IO_MAGIC, 4,\
-					   struct sprd_img_parm)
-#define SPRD_IMG_IO_SET_CROP          _IOW(SPRD_IMG_IO_MAGIC, 5,\
-					   struct sprd_img_parm)
-#define SPRD_IMG_IO_SET_FLASH         _IOW(SPRD_IMG_IO_MAGIC, 6,\
-					   struct sprd_img_set_flash)
-#define SPRD_IMG_IO_SET_OUTPUT_SIZE   _IOW(SPRD_IMG_IO_MAGIC, 7,\
-					   struct sprd_img_parm)
-#define SPRD_IMG_IO_SET_ZOOM_MODE     _IOW(SPRD_IMG_IO_MAGIC, 8, uint32_t)
-#define SPRD_IMG_IO_SET_SENSOR_IF     _IOW(SPRD_IMG_IO_MAGIC, 9,\
-					   struct sprd_img_sensor_if)
-#define SPRD_IMG_IO_SET_FRAME_ADDR    _IOW(SPRD_IMG_IO_MAGIC, 10,\
-					   struct sprd_img_parm)
-#define SPRD_IMG_IO_PATH_FRM_DECI     _IOW(SPRD_IMG_IO_MAGIC, 11,\
-					   struct sprd_img_parm)
-#define SPRD_IMG_IO_PATH_PAUSE        _IOW(SPRD_IMG_IO_MAGIC, 12,\
-					   struct sprd_img_parm)
-#define SPRD_IMG_IO_PATH_RESUME       _IOW(SPRD_IMG_IO_MAGIC, 13, uint32_t)
-#define SPRD_IMG_IO_STREAM_ON         _IOW(SPRD_IMG_IO_MAGIC, 14, uint32_t)
-#define SPRD_IMG_IO_STREAM_OFF        _IOW(SPRD_IMG_IO_MAGIC, 15, uint32_t)
-#define SPRD_IMG_IO_GET_FMT           _IOR(SPRD_IMG_IO_MAGIC, 16,\
-					   struct sprd_img_get_fmt)
-#define SPRD_IMG_IO_GET_CH_ID         _IOR(SPRD_IMG_IO_MAGIC, 17, uint32_t)
-#define SPRD_IMG_IO_GET_TIME          _IOR(SPRD_IMG_IO_MAGIC, 18,\
-					   struct sprd_img_time)
-#define SPRD_IMG_IO_CHECK_FMT         _IOWR(SPRD_IMG_IO_MAGIC, 19,\
-					    struct sprd_img_format)
-#define SPRD_IMG_IO_SET_SHRINK        _IOW(SPRD_IMG_IO_MAGIC, 20, uint32_t)
-#define SPRD_IMG_IO_SET_FREQ_FLAG     _IOW(SPRD_IMG_IO_MAGIC, 21, uint32_t)
-#define SPRD_IMG_IO_CFG_FLASH         _IOW(SPRD_IMG_IO_MAGIC, 22,\
-					   struct sprd_flash_cfg_param)
-#define SPRD_IMG_IO_PDAF_CONTROL      _IOW(SPRD_IMG_IO_MAGIC, 23,\
-					   struct sprd_pdaf_control)
-#define SPRD_IMG_IO_GET_IOMMU_STATUS    _IOR(SPRD_IMG_IO_MAGIC, 24, uint32_t)
-#define SPRD_IMG_IO_DISABLE_MODE      _IOW(SPRD_IMG_IO_MAGIC, 25, uint32_t)
-#define SPRD_IMG_IO_ENABLE_MODE       _IOW(SPRD_IMG_IO_MAGIC, 26, uint32_t)
-#define SPRD_IMG_IO_START_CAPTURE      _IOW(SPRD_IMG_IO_MAGIC, 27,\
-					    struct sprd_img_capture_param)
-#define SPRD_IMG_IO_STOP_CAPTURE       _IOW(SPRD_IMG_IO_MAGIC, 28,\
-						     uint32_t)
-#define SPRD_IMG_IO_SET_PATH_SKIP_NUM  _IOW(SPRD_IMG_IO_MAGIC, 29,\
-					   struct sprd_img_parm)
-#define SPRD_IMG_IO_SBS_MODE           _IOW(SPRD_IMG_IO_MAGIC, 30,\
-					    struct sprd_img_sbs_info)
-#define SPRD_IMG_IO_DCAM_PATH_SIZE	_IOW(SPRD_IMG_IO_MAGIC, 31,\
-						struct sprd_dcam_path_size)
-#define SPRD_IMG_IO_SET_SENSOR_MAX_SIZE	_IOW(SPRD_IMG_IO_MAGIC, 32,\
-							uint32_t)
-#define SPRD_ISP_IO_CAPABILITY    _IOR(SPRD_IMG_IO_MAGIC, 33,\
-	struct sprd_isp_capability)
-#define SPRD_ISP_IO_IRQ           _IOR(SPRD_IMG_IO_MAGIC, 34,\
-	struct sprd_isp_irq)
-#define SPRD_ISP_IO_READ          _IOR(SPRD_IMG_IO_MAGIC, 35,\
-	struct sprd_isp_reg_param)
-#define SPRD_ISP_IO_WRITE         _IOW(SPRD_IMG_IO_MAGIC, 36,\
-	struct sprd_isp_reg_param)
-#define SPRD_ISP_IO_RST    _IOW(SPRD_IMG_IO_MAGIC, 37, uint32_t)
-#define SPRD_ISP_IO_STOP          _IOW(SPRD_IMG_IO_MAGIC, 38, uint32_t)
-#define SPRD_ISP_IO_INT           _IOW(SPRD_IMG_IO_MAGIC, 39, uint32_t)
-#define SPRD_ISP_IO_SET_STATIS_BUF	_IOW(SPRD_IMG_IO_MAGIC, 40,\
-					     struct isp_statis_buf_input)
-#define SPRD_ISP_IO_CFG_PARAM     _IOWR(SPRD_IMG_IO_MAGIC, 41,\
-	struct isp_io_param)
-#define SPRD_ISP_REG_READ	_IOR(SPRD_IMG_IO_MAGIC, 42,\
-	struct sprd_isp_reg_bits)
-#define SPRD_ISP_IO_POST_3DNR       _IOW(SPRD_IMG_IO_MAGIC, 43,\
-	struct isp_3dnr_param)
-#define SPRD_STATIS_IO_CFG_PARAM       _IOW(SPRD_IMG_IO_MAGIC, 44,\
-	struct isp_io_param)
-#define SPRD_ISP_IO_RAW_CAP	_IOR(SPRD_IMG_IO_MAGIC, 45,\
-	struct isp_raw_proc_info)
-#define SPRD_IMG_IO_GET_DCAM_RES       _IOW(SPRD_IMG_IO_MAGIC, 46, uint32_t)
-#define SPRD_IMG_IO_PUT_DCAM_RES       _IOW(SPRD_IMG_IO_MAGIC, 47, uint32_t)
-#define SPRD_ISP_IO_SET_PULSE_LINE     _IOW(SPRD_IMG_IO_MAGIC, 48, uint32_t)
-#define SPRD_ISP_IO_CFG_START    _IOW(SPRD_IMG_IO_MAGIC, 49, uint32_t)
-#define SPRD_ISP_IO_POST_YNR       _IOW(SPRD_IMG_IO_MAGIC, 50,\
-	struct sprd_isp_ynr_param)
-#define SPRD_ISP_IO_SET_NEXT_VCM_POS   _IOW(SPRD_IMG_IO_MAGIC, 51,\
-	struct sprd_img_vcm_param)
-#define SPRD_ISP_IO_SET_VCM_LOG        _IOW(SPRD_IMG_IO_MAGIC, 52, uint32_t)
-
-#define SPRD_IMG_IO_SET_3DNR		 _IOW(SPRD_IMG_IO_MAGIC, 53, \
-	struct sprd_img_3dnr_param)
-#define SPRD_IMG_IO_SET_FUNCTION_MODE       _IOW(SPRD_IMG_IO_MAGIC, 54, \
-	struct sprd_img_function_mode)
-#define SPRD_ISP_IO_MASK_3A           _IOW(SPRD_IMG_IO_MAGIC, 55, uint32_t)
-
-#define SPRD_IMG_IO_GET_FLASH_INFO       _IOW(SPRD_IMG_IO_MAGIC, 56,\
-					   struct sprd_img_set_flash)
-#define SPRD_IMG_IO_MAP_IOVA       _IOW(SPRD_IMG_IO_MAGIC, 57,\
-					   struct sprd_img_iova)
-#define SPRD_IMG_IO_UNMAP_IOVA       _IOW(SPRD_IMG_IO_MAGIC, 58,\
-					   struct sprd_img_iova)
-#define SPRD_IMG_IO_GET_SG       _IOW(SPRD_IMG_IO_MAGIC, 59,\
-					   struct sprd_img_iova)
-#define SPRD_ISP_IO_UPDATE_PARAM_START    _IOW(SPRD_IMG_IO_MAGIC, 60, uint32_t)
-#define SPRD_ISP_IO_UPDATE_PARAM_END    _IOW(SPRD_IMG_IO_MAGIC, 61, uint32_t)
-#define SPRD_ISP_IO_REG_ISP_ISR _IOW(SPRD_IMG_IO_MAGIC, 62, uint32_t)
-#define SPRD_IMG_IO_EBD_CONTROL      _IOW(SPRD_IMG_IO_MAGIC, 63,\
-					   struct sprd_ebd_control)
-#define SPRD_IMG_IO_SET_4IN1_ADDR    _IOW(SPRD_IMG_IO_MAGIC, 64,\
-					   struct sprd_img_parm)
-#define SPRD_IMG_IO_4IN1_POST_PROC         _IOW(SPRD_IMG_IO_MAGIC, 65,\
-					   struct sprd_img_parm)
-#define SPRD_IMG_IO_SET_CAM_SECURITY         _IOW(SPRD_IMG_IO_MAGIC, 66,\
-					   struct sprd_cam_sec_cfg)
-#define SPRD_IMG_IO_GET_PATH_RECT          _IOW(SPRD_IMG_IO_MAGIC, 67,\
-					   struct sprd_img_path_rect)
-#define SPRD_IMG_IO_SET_3DNR_MODE       _IOW(SPRD_IMG_IO_MAGIC, 68, \
-					   struct sprd_img_function_mode)
-#define SPRD_IMG_IO_SET_AUTO_3DNR_MODE       _IOW(SPRD_IMG_IO_MAGIC, 69, \
-					   struct sprd_img_function_mode)
-#define SPRD_IMG_IO_CAPABILITY       _IOW(SPRD_IMG_IO_MAGIC, 70, \
-						   struct sprd_img_size)
-#define SPRD_IMG_IO_POST_FDR         _IOW(SPRD_IMG_IO_MAGIC, 71,\
-					   struct sprd_img_parm)
+#define SPRD_IMG_IO_MAGIC                'Z'
+#define SPRD_IMG_IO_SET_MODE             _IOW(SPRD_IMG_IO_MAGIC, 0, uint32_t)
+#define SPRD_IMG_IO_SET_CAP_SKIP_NUM     _IOW(SPRD_IMG_IO_MAGIC, 1, uint32_t)
+#define SPRD_IMG_IO_SET_SENSOR_SIZE      _IOW(SPRD_IMG_IO_MAGIC, 2, struct sprd_img_size)
+#define SPRD_IMG_IO_SET_SENSOR_TRIM      _IOW(SPRD_IMG_IO_MAGIC, 3, struct sprd_img_rect)
+#define SPRD_IMG_IO_SET_FRM_ID_BASE      _IOW(SPRD_IMG_IO_MAGIC, 4, struct sprd_img_parm)
+#define SPRD_IMG_IO_SET_CROP             _IOW(SPRD_IMG_IO_MAGIC, 5, struct sprd_img_parm)
+#define SPRD_IMG_IO_SET_FLASH            _IOW(SPRD_IMG_IO_MAGIC, 6, struct sprd_img_set_flash)
+#define SPRD_IMG_IO_SET_OUTPUT_SIZE      _IOW(SPRD_IMG_IO_MAGIC, 7, struct sprd_img_parm)
+#define SPRD_IMG_IO_SET_ZOOM_MODE        _IOW(SPRD_IMG_IO_MAGIC, 8, uint32_t)
+#define SPRD_IMG_IO_SET_SENSOR_IF        _IOW(SPRD_IMG_IO_MAGIC, 9, struct sprd_img_sensor_if)
+#define SPRD_IMG_IO_SET_FRAME_ADDR       _IOW(SPRD_IMG_IO_MAGIC, 10, struct sprd_img_parm)
+#define SPRD_IMG_IO_PATH_FRM_DECI        _IOW(SPRD_IMG_IO_MAGIC, 11, struct sprd_img_parm)
+#define SPRD_IMG_IO_PATH_PAUSE           _IOW(SPRD_IMG_IO_MAGIC, 12, struct sprd_img_parm)
+#define SPRD_IMG_IO_PATH_RESUME          _IOW(SPRD_IMG_IO_MAGIC, 13, uint32_t)
+#define SPRD_IMG_IO_STREAM_ON            _IOW(SPRD_IMG_IO_MAGIC, 14, uint32_t)
+#define SPRD_IMG_IO_STREAM_OFF           _IOW(SPRD_IMG_IO_MAGIC, 15, uint32_t)
+#define SPRD_IMG_IO_GET_FMT              _IOR(SPRD_IMG_IO_MAGIC, 16, struct sprd_img_get_fmt)
+#define SPRD_IMG_IO_GET_CH_ID            _IOR(SPRD_IMG_IO_MAGIC, 17, uint32_t)
+#define SPRD_IMG_IO_GET_TIME             _IOR(SPRD_IMG_IO_MAGIC, 18, struct sprd_img_time)
+#define SPRD_IMG_IO_CHECK_FMT            _IOWR(SPRD_IMG_IO_MAGIC, 19, struct sprd_img_format)
+#define SPRD_IMG_IO_SET_SHRINK           _IOW(SPRD_IMG_IO_MAGIC, 20, uint32_t)
+#define SPRD_IMG_IO_SET_FREQ_FLAG        _IOW(SPRD_IMG_IO_MAGIC, 21, uint32_t)
+#define SPRD_IMG_IO_CFG_FLASH            _IOW(SPRD_IMG_IO_MAGIC, 22, struct sprd_flash_cfg_param)
+#define SPRD_IMG_IO_PDAF_CONTROL         _IOW(SPRD_IMG_IO_MAGIC, 23, struct sprd_pdaf_control)
+#define SPRD_IMG_IO_GET_IOMMU_STATUS     _IOR(SPRD_IMG_IO_MAGIC, 24, uint32_t)
+#define SPRD_IMG_IO_DISABLE_MODE         _IOW(SPRD_IMG_IO_MAGIC, 25, uint32_t)
+#define SPRD_IMG_IO_ENABLE_MODE          _IOW(SPRD_IMG_IO_MAGIC, 26, uint32_t)
+#define SPRD_IMG_IO_START_CAPTURE        _IOW(SPRD_IMG_IO_MAGIC, 27, struct sprd_img_capture_param)
+#define SPRD_IMG_IO_STOP_CAPTURE         _IOW(SPRD_IMG_IO_MAGIC, 28, uint32_t)
+#define SPRD_IMG_IO_SET_PATH_SKIP_NUM    _IOW(SPRD_IMG_IO_MAGIC, 29, struct sprd_img_parm)
+#define SPRD_IMG_IO_SBS_MODE             _IOW(SPRD_IMG_IO_MAGIC, 30, struct sprd_img_sbs_info)
+#define SPRD_IMG_IO_DCAM_PATH_SIZE       _IOW(SPRD_IMG_IO_MAGIC, 31, struct sprd_dcam_path_size)
+#define SPRD_IMG_IO_SET_SENSOR_MAX_SIZE  _IOW(SPRD_IMG_IO_MAGIC, 32, uint32_t)
+#define SPRD_ISP_IO_CAPABILITY           _IOR(SPRD_IMG_IO_MAGIC, 33, struct sprd_isp_capability)
+#define SPRD_ISP_IO_IRQ                  _IOR(SPRD_IMG_IO_MAGIC, 34, struct sprd_isp_irq)
+#define SPRD_ISP_IO_READ                 _IOR(SPRD_IMG_IO_MAGIC, 35, struct sprd_isp_reg_param)
+#define SPRD_ISP_IO_WRITE                _IOW(SPRD_IMG_IO_MAGIC, 36, struct sprd_isp_reg_param)
+#define SPRD_ISP_IO_RST                  _IOW(SPRD_IMG_IO_MAGIC, 37, uint32_t)
+#define SPRD_ISP_IO_STOP                 _IOW(SPRD_IMG_IO_MAGIC, 38, uint32_t)
+#define SPRD_ISP_IO_INT                  _IOW(SPRD_IMG_IO_MAGIC, 39, uint32_t)
+#define SPRD_ISP_IO_SET_STATIS_BUF       _IOW(SPRD_IMG_IO_MAGIC, 40, struct isp_statis_buf_input)
+#define SPRD_ISP_IO_CFG_PARAM            _IOWR(SPRD_IMG_IO_MAGIC, 41, struct isp_io_param)
+#define SPRD_ISP_REG_READ                _IOR(SPRD_IMG_IO_MAGIC, 42, struct sprd_isp_reg_bits)
+#define SPRD_ISP_IO_POST_3DNR            _IOW(SPRD_IMG_IO_MAGIC, 43, struct isp_3dnr_param)
+#define SPRD_STATIS_IO_CFG_PARAM         _IOW(SPRD_IMG_IO_MAGIC, 44, struct isp_io_param)
+#define SPRD_ISP_IO_RAW_CAP              _IOR(SPRD_IMG_IO_MAGIC, 45, struct isp_raw_proc_info)
+#define SPRD_IMG_IO_GET_DCAM_RES         _IOW(SPRD_IMG_IO_MAGIC, 46, uint32_t)
+#define SPRD_IMG_IO_PUT_DCAM_RES         _IOW(SPRD_IMG_IO_MAGIC, 47, uint32_t)
+#define SPRD_ISP_IO_SET_PULSE_LINE       _IOW(SPRD_IMG_IO_MAGIC, 48, uint32_t)
+#define SPRD_ISP_IO_CFG_START            _IOW(SPRD_IMG_IO_MAGIC, 49, uint32_t)
+#define SPRD_ISP_IO_POST_YNR             _IOW(SPRD_IMG_IO_MAGIC, 50, struct sprd_isp_ynr_param)
+#define SPRD_ISP_IO_SET_NEXT_VCM_POS     _IOW(SPRD_IMG_IO_MAGIC, 51, struct sprd_img_vcm_param)
+#define SPRD_ISP_IO_SET_VCM_LOG          _IOW(SPRD_IMG_IO_MAGIC, 52, uint32_t)
+#define SPRD_IMG_IO_SET_3DNR             _IOW(SPRD_IMG_IO_MAGIC, 53, struct sprd_img_3dnr_param)
+#define SPRD_IMG_IO_SET_FUNCTION_MODE    _IOW(SPRD_IMG_IO_MAGIC, 54, struct sprd_img_function_mode)
+#define SPRD_ISP_IO_MASK_3A              _IOW(SPRD_IMG_IO_MAGIC, 55, uint32_t)
+#define SPRD_IMG_IO_GET_FLASH_INFO       _IOW(SPRD_IMG_IO_MAGIC, 56, struct sprd_img_set_flash)
+#define SPRD_IMG_IO_MAP_IOVA             _IOW(SPRD_IMG_IO_MAGIC, 57, struct sprd_img_iova)
+#define SPRD_IMG_IO_UNMAP_IOVA           _IOW(SPRD_IMG_IO_MAGIC, 58, struct sprd_img_iova)
+#define SPRD_IMG_IO_GET_SG               _IOW(SPRD_IMG_IO_MAGIC, 59, struct sprd_img_iova)
+#define SPRD_ISP_IO_UPDATE_PARAM_START   _IOW(SPRD_IMG_IO_MAGIC, 60, uint32_t)
+#define SPRD_ISP_IO_UPDATE_PARAM_END     _IOW(SPRD_IMG_IO_MAGIC, 61, uint32_t)
+#define SPRD_ISP_IO_REG_ISP_ISR          _IOW(SPRD_IMG_IO_MAGIC, 62, uint32_t)
+#define SPRD_IMG_IO_EBD_CONTROL          _IOW(SPRD_IMG_IO_MAGIC, 63, struct sprd_ebd_control)
+#define SPRD_IMG_IO_SET_4IN1_ADDR        _IOW(SPRD_IMG_IO_MAGIC, 64, struct sprd_img_parm)
+#define SPRD_IMG_IO_4IN1_POST_PROC       _IOW(SPRD_IMG_IO_MAGIC, 65, struct sprd_img_parm)
+#define SPRD_IMG_IO_SET_CAM_SECURITY     _IOW(SPRD_IMG_IO_MAGIC, 66, struct sprd_cam_sec_cfg)
+#define SPRD_IMG_IO_GET_PATH_RECT        _IOW(SPRD_IMG_IO_MAGIC, 67, struct sprd_img_path_rect)
+#define SPRD_IMG_IO_SET_3DNR_MODE        _IOW(SPRD_IMG_IO_MAGIC, 68, struct sprd_img_function_mode)
+#define SPRD_IMG_IO_SET_AUTO_3DNR_MODE   _IOW(SPRD_IMG_IO_MAGIC, 69, struct sprd_img_function_mode)
+#define SPRD_IMG_IO_CAPABILITY           _IOW(SPRD_IMG_IO_MAGIC, 70, struct sprd_img_size)
+#define SPRD_IMG_IO_POST_FDR             _IOW(SPRD_IMG_IO_MAGIC, 71, struct sprd_img_parm)
 #define SPRD_IMG_IO_STREAM_PAUSE         _IOW(SPRD_IMG_IO_MAGIC, 72, uint32_t)
 #define SPRD_IMG_IO_STREAM_RESUME        _IOW(SPRD_IMG_IO_MAGIC, 73, uint32_t)
-#define SPRD_IMG_IO_CAM_TEST        _IOW(SPRD_IMG_IO_MAGIC, 74, \
-						struct camt_info)
-#define SPRD_IMG_IO_DCAM_SWITCH        _IOW(SPRD_IMG_IO_MAGIC, 75, uint32_t)
+#define SPRD_IMG_IO_CAM_TEST             _IOW(SPRD_IMG_IO_MAGIC, 74, struct camt_info)
+#define SPRD_IMG_IO_DCAM_SWITCH          _IOW(SPRD_IMG_IO_MAGIC, 75, uint32_t)
+#define SPRD_IMG_IO_GET_SCALER_CAP       _IOR(SPRD_IMG_IO_MAGIC, 76, uint32_t)
 
 /*
  * Dump dcam register.

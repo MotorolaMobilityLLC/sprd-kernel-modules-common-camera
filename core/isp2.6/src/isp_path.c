@@ -30,8 +30,8 @@
 	fmt, current->pid, __LINE__, __func__
 
 #define ISP_PATH_DECI_FAC_MAX       4
-#define ISP_SC_COEFF_UP_MAX         4
-#define ISP_SC_COEFF_DOWN_MAX       4
+#define ISP_SC_COEFF_UP_MAX         ISP_SCALER_UP_MAX
+#define ISP_SC_COEFF_DOWN_MAX       ISP_SCALER_UP_MAX
 
 static uint32_t isppath_deci_factor_get(uint32_t src_size, uint32_t dst_size)
 {
@@ -117,7 +117,7 @@ int isp_path_scaler_param_calc(struct img_trim *in_trim,
 		in_trim->size_y > (out_size->h * d_max * (1 << f_max)) ||
 		in_trim->size_x < ISP_DIV_ALIGN_W(out_size->w, u_max) ||
 		in_trim->size_y < ISP_DIV_ALIGN_H(out_size->h, u_max)) {
-		pr_debug("fail to get in_trim %d %d. out _size %d %d, fmax %d, u_max %d\n",
+		pr_err("fail to get in_trim %d %d. out _size %d %d, fmax %d, u_max %d\n",
 				in_trim->size_x, in_trim->size_y,
 				out_size->w, out_size->h, f_max, d_max);
 		ret = -EINVAL;

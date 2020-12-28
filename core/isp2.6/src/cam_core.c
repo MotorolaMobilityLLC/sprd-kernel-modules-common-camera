@@ -403,9 +403,9 @@ static void camcore_diff_trim_get(struct sprd_img_rect *orig,
 {
 	trim1->start_x = camcore_scale_fix(orig->x - trim0->start_x, ratio16);
 	trim1->start_y = camcore_scale_fix(orig->y - trim0->start_y, ratio16);
-	trim1->size_x =  camcore_scale_fix(orig->w, ratio16);
+	trim1->size_x = camcore_scale_fix(orig->w, ratio16);
 	trim1->size_x = ALIGN(trim1->size_x, 2);
-	trim1->size_y =  camcore_scale_fix(orig->h, ratio16);
+	trim1->size_y = camcore_scale_fix(orig->h, ratio16);
 }
 
 static int camcore_cap_info_set(struct camera_module *module)
@@ -5835,6 +5835,7 @@ static struct cam_ioctl_cmd ioctl_cmds_table[] = {
 	[_IOC_NR(SPRD_IMG_IO_POST_FDR)]             = {SPRD_IMG_IO_POST_FDR,             camioctl_fdr_post},
 	[_IOC_NR(SPRD_IMG_IO_CAM_TEST)]             = {SPRD_IMG_IO_CAM_TEST,             camioctl_cam_test},
 	[_IOC_NR(SPRD_IMG_IO_DCAM_SWITCH)]          = {SPRD_IMG_IO_DCAM_SWITCH,          camioctl_csi_switch},
+	[_IOC_NR(SPRD_IMG_IO_GET_SCALER_CAP)]       = {SPRD_IMG_IO_GET_SCALER_CAP,       camioctl_scaler_capability_get},
 };
 
 static long camcore_ioctl(struct file *file, unsigned int cmd,

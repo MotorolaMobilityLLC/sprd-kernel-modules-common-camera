@@ -1957,8 +1957,7 @@ static int ispcore_stream_state_get(struct isp_sw_context *pctx)
 		}
 		stream->cur_cnt = i;
 		stream->max_cnt = normal_cnt + postproc_cnt - 1;
-		pr_debug("stream type %d cur_cnt %d max_cnt %d\n",
-			stream->buf_type, stream->cur_cnt, stream->max_cnt);
+		pr_debug("cur_cnt %d max_cnt %d\n", stream->cur_cnt, stream->max_cnt);
 		ret = cam_queue_enqueue(&pctx->stream_ctrl_in_q, &stream->list);
 		if (ret) {
 			pr_info("stream state overflow\n");

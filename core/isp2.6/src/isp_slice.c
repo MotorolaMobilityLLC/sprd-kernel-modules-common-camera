@@ -800,7 +800,7 @@ static int ispslice_slice_base_info_cfg(
 		*valid_slc_num = 0;
 
 	for (i = 0; i < SLICE_NUM_MAX; i++) {
-		pr_debug("slice %d valid %d. xy (%d %d)  %p\n",
+		pr_debug("slice %d valid %d. xy (%d %d)  %px\n",
 			i, slc_ctx->slices[i].valid,
 			slc_ctx->slices[i].x, slc_ctx->slices[i].y,
 			&slc_ctx->slices[i]);
