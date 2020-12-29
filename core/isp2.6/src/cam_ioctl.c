@@ -3043,12 +3043,10 @@ static int camioctl_csi_switch(struct camera_module *module, unsigned long arg)
 				csi_switch.csi_id, csi_switch.dcam_id, sw_ctx->sw_ctx_id);
 
 			/* reset */
+			hw->dcam_ioctl(hw, DCAM_HW_CFG_STOP, &sw_ctx->hw_ctx_id);
 			hw->dcam_ioctl(hw, DCAM_HW_CFG_RESET, &sw_ctx->hw_ctx_id);
 
-			/* unbind */
-			dcam_core_context_unbind(sw_ctx);
-
-			/* result q clear */
+			/* reset result q */
 			for (j = 0; j < DCAM_PATH_MAX; j++) {
 				path = &sw_ctx->path[j];
 				if (path == NULL)
@@ -3067,9 +3065,14 @@ static int camioctl_csi_switch(struct camera_module *module, unsigned long arg)
 				}
 			}
 
+			/* unbind */
+			dcam_core_context_unbind(sw_ctx);
+
 			atomic_set(&sw_ctx->state, STATE_IDLE);
+			atomic_dec(&s_dcam_working);
 			sw_ctx->csi_connect_stat = DCAM_CSI_PAUSE;
 			break;
+
 		case 1:
 			module->path_state = DCAM_PATH_RESUME;
 			/* bind */
@@ -3097,8 +3100,9 @@ static int camioctl_csi_switch(struct camera_module *module, unsigned long arg)
 			ret = module->dcam_dev_handle->dcam_pipe_ops->start(sw_ctx, 1);
 			if (ret < 0) {
 				pr_err("fail to start dcam dev, ret %d\n", ret);
-				return -1;
+				break;
 			}
+
 			sw_ctx->csi_connect_stat = DCAM_CSI_RESUME;
 			break;
 		default:

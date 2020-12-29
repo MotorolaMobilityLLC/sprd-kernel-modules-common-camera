@@ -356,4 +356,6 @@ int dcam_core_hw_context_id_get(struct dcam_sw_context *pctx);
 int dcam_core_ctx_switch(struct dcam_sw_context *ori_sw_ctx, struct dcam_sw_context *new_sw_ctx,
 						struct dcam_hw_context *hw_ctx);
 
+extern atomic_t s_dcam_working;
+
 #endif

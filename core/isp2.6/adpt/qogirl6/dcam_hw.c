@@ -994,6 +994,7 @@ static int dcamhw_lbuf_share_set(void *handle, void *arg)
 	};
 	char buf[64]= { 0 };
 	struct cam_hw_lbuf_share *camarg = (struct cam_hw_lbuf_share *)arg;
+
 	cam_kproperty_get("auto/efuse",buf, "-1");
 	/*0: T606 1:T616*/
 	if(strncmp(buf, "T616", strlen("T616"))) {
@@ -1007,11 +1008,11 @@ static int dcamhw_lbuf_share_set(void *handle, void *arg)
 			return -EINVAL;
 		}
 	} else {
-	    pr_debug("product name %s, w %d\n", buf,camarg->width);
+		pr_debug("product name %s, w %d\n", buf,camarg->width);
 	}
 
 	if (atomic_read(&s_dcam_working) > 0) {
-		pr_warn("dcam 0/1 already in working\n");
+		pr_warn("dcam 0/1 already in working. s_dcam_working: %d\n", atomic_read(&s_dcam_working));
 		return 0;
 	}
 
@@ -1021,7 +1022,7 @@ static int dcamhw_lbuf_share_set(void *handle, void *arg)
 			DCAM_AXIM_MWR(DCAM_LBUF_SHARE_MODE, 0x7, 2);
 			break;
 		}
-		for (i = 4; i >= 0; i--) {
+		for (i = 2; i >= 0; i--) {
 			if (camarg->width <= tb_w[i * 2]) {
 				DCAM_AXIM_MWR(DCAM_LBUF_SHARE_MODE, 0x7, i);
 				pr_info("alloc dcam%d linebuf %d %d\n", camarg->idx, tb_w[i*2], tb_w[i*2 + 1]);
@@ -1034,7 +1035,7 @@ static int dcamhw_lbuf_share_set(void *handle, void *arg)
 			DCAM_AXIM_MWR(DCAM_LBUF_SHARE_MODE, 0x7, 2);
 			break;
 		}
-		for (i = 0; i <= 4; i++) {
+		for (i = 2; i <= 4; i++) {
 			if (camarg->width <= tb_w[i * 2 + 1]) {
 				DCAM_AXIM_MWR(DCAM_LBUF_SHARE_MODE, 0x7, i);
 				pr_info("alloc dcam%d linebuf %d %d\n", camarg->idx, tb_w[i*2], tb_w[i*2 + 1]);
@@ -1044,7 +1045,8 @@ static int dcamhw_lbuf_share_set(void *handle, void *arg)
 		break;
 	default:
 		pr_err("fail to get valid dcam id %d\n", camarg->idx);
-		ret = 1;
+		ret = -EFAULT;
+		break;
 	}
 	DCAM_AXIM_MWR(DCAM_LBUF_SHARE_MODE, 0x3 << 8, 0 << 8);
 
