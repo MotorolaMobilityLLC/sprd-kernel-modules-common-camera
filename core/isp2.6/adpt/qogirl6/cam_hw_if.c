@@ -45,7 +45,7 @@ static int camhw_get_all_rst(void *handle, void *arg)
 {
 	int ret = 0;
 	struct cam_hw_info *hw = NULL;
-	uint32_t args[2];
+	uint32_t args[2] = {0};
 	struct device_node *dn = (struct device_node *)arg;
 	struct cam_hw_ip_info *dcam_info = NULL;
 
@@ -77,7 +77,7 @@ static int camhw_get_axi_base(void *handle, void *arg)
 	struct cam_hw_info *hw = NULL;
 	struct device_node *dn = (struct device_node *)arg;
 	int pos = 0;
-	uint32_t count;
+	uint32_t count = 0;
 	struct resource reg_res = {0};
 	void __iomem *reg_base = NULL;
 	struct cam_hw_soc_info *soc_dcam;
@@ -114,10 +114,9 @@ static int camhw_get_axi_base(void *handle, void *arg)
 	return 0;
 
 err_axi_iounmap:
-	g_dcam_aximbase[0] = 0;
-	g_dcam_aximbase[1] = 0;
-	g_dcam_aximbase[2] = 0;
-	g_dcam_aximbase[3] = 0;
+	for (i = 0; i < DCAM_ID_MAX; i++) {
+		g_dcam_aximbase[i] = 0;
+	}
 	return -1;
 }
 

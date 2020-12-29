@@ -146,10 +146,9 @@ static int camhw_get_axi_base(void *handle, void *arg)
 	return 0;
 
 err_axi_iounmap:
-	g_dcam_aximbase[0] = 0;
-	g_dcam_aximbase[1] = 0;
-	g_dcam_aximbase[2] = 0;
-	g_dcam_aximbase[3] = 0;
+	for (i = 0; i < DCAM_ID_MAX; i++) {
+		g_dcam_aximbase[i] = 0;
+	}
 	return -1;
 }
 
