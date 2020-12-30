@@ -2221,7 +2221,8 @@ static int ispcore_frame_proc(void *isp_handle, void *param, int ctx_id)
 		if (pctx->uinfo.enable_slowmotion &&
 			++slw_frm_cnt < pctx->uinfo.slowmotion_count)
 			return ret;
-		complete(&pctx->thread.thread_com);
+		if (atomic_read(&pctx->user_cnt) > 0)
+			complete(&pctx->thread.thread_com);
 		slw_frm_cnt = 0;
 	}
 
@@ -3020,10 +3021,10 @@ static int ispcore_context_put(void *isp_handle, int ctx_id)
 
 	mutex_lock(&dev->path_mutex);
 
-	if (atomic_read(&pctx->user_cnt) == 1)
+	if (atomic_dec_return(&pctx->user_cnt) == 0)
 		ispcore_offline_thread_stop(&pctx->thread);
 
-	if (atomic_dec_return(&pctx->user_cnt) == 0) {
+	if (atomic_read(&pctx->user_cnt) == 0) {
 		pctx->started = 0;
 		pr_info("free context %d without users.\n", pctx->ctx_id);
 
