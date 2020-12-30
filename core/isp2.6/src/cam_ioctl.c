@@ -453,6 +453,12 @@ static int camioctl_sensor_size_set(struct camera_module *module,
 		goto exit;
 	}
 
+	if (dst->w >= DCAM_64M_WIDTH) {
+		pr_info("64M width , modify is_loose %d to zero\n",
+			module->cam_uinfo.sensor_if.if_spec.mipi.is_loose);
+		module->cam_uinfo.sensor_if.if_spec.mipi.is_loose= 0;
+	}
+
 exit:
 	return ret;
 }
@@ -474,12 +480,6 @@ static int camioctl_sensor_trim_set(struct camera_module *module,
 		pr_err("fail to copy from user, ret %d\n", ret);
 		ret = -EFAULT;
 		goto exit;
-	}
-
-	if (dst->w >= DCAM_64M_WIDTH) {
-		pr_debug("64M width , modify is_loose %d to zero\n",
-			module->cam_uinfo.sensor_if.if_spec.mipi.is_loose);
-		module->cam_uinfo.sensor_if.if_spec.mipi.is_loose= 0;
 	}
 
 exit:
@@ -1625,6 +1625,7 @@ cfg_ch_done:
 	camarg.width = line_w;
 	if (hw->ip_dcam[sw_ctx->hw_ctx_id]->lbuf_share_support)
 		ret = hw->dcam_ioctl(hw, DCAM_HW_CFG_LBUF_SHARE_SET, &camarg);
+
 	if (ret) {
 		pr_err("fail to set line buf share\n");
 		ret = -EFAULT;
