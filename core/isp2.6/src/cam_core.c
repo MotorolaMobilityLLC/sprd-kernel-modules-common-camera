@@ -2257,6 +2257,8 @@ static int camcore_dcam_callback(enum dcam_cb_type type, void *param, void *priv
 	struct cam_hw_reg_trace trace;
 	int cap_frame = 0, skip_frame = 0;
 	uint32_t gtm_param_idx = DCAM_GTM_PARAM_PRE;
+	struct dcam_data_ctrl_info dcam_ctrl;
+	struct cam_data_ctrl_in ctrl_in;
 
 	if (!param || !priv_data) {
 		pr_err("fail to get valid param %px %px\n", param, priv_data);
@@ -2313,9 +2315,34 @@ static int camcore_dcam_callback(enum dcam_cb_type type, void *param, void *priv
 		}
 
 		if (channel->ch_id == CAM_CH_CAP && pframe->irq_property != CAM_FRAME_COMMON) {
-			/* FDR frames should always be processed by ISP */
 			int32_t isp_ctx_id;
+			ctrl_in.scene_type = (pframe->irq_property == CAM_FRAME_FDRL) ?
+				CAM_SCENE_CTRL_FDR_L : CAM_SCENE_CTRL_FDR_H;
+			module->dcam_dev_handle->dcam_pipe_ops->get_datactrl(
+				&module->dcam_dev_handle->sw_ctx[module->cur_aux_sw_ctx_id],
+				&ctrl_in, &dcam_ctrl);
+			if (dcam_ctrl.callback_ctrl == DCAM_CALLBACK_CTRL_USER) {
+				pframe->irq_type = (pframe->irq_property == CAM_FRAME_FDRL) ?
+						CAMERA_IRQ_FDRL : CAMERA_IRQ_FDRH;
+				module->fdr_done |= (1 << pframe->irq_type);
+				pr_info("fdr %d yuv buf %d done %x\n", pframe->irq_property,
+						pframe->buf.mfd[0], module->fdr_done);
+				if ((module->fdr_done & (1 << CAMERA_IRQ_FDRL)) &&
+					(module->fdr_done & (1 << CAMERA_IRQ_FDRH)))
+					complete(&module->cap_thrd.thread_com);
+				pframe->evt = IMG_TX_DONE;
 
+				ret = cam_queue_enqueue(&module->frm_queue, &pframe->list);
+				if (ret) {
+					cam_buf_ionbuf_put(&pframe->buf);
+					cam_queue_empty_frame_put(pframe);
+				} else {
+					complete(&module->frm_com);
+					pr_debug("ch %d get out frame: %p, evt %d mfd %x\n",
+						pframe->channel_id, pframe, pframe->evt, pframe->buf.mfd[0]);
+				}
+				return ret;
+			}
 			if (pframe->irq_property == CAM_FRAME_FDRL)
 				isp_ctx_id = channel->isp_fdrl_ctx;
 			else
@@ -4266,7 +4293,7 @@ static int camcore_aux_dcam_init(struct camera_module *module,
 			module->idx);
 		goto exit_close;
 	}else
-	   module->cur_aux_sw_ctx_id = ret;
+	module->cur_aux_sw_ctx_id = ret;
 	pr_info("New a aux_dcam_id:%d, cur_aux_sw_ctx_id: %d, module->dcam_idx:%d\n", module->aux_dcam_id, module->cur_aux_sw_ctx_id, module->dcam_idx);
 
 	if (dcam == NULL) {

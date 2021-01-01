@@ -2523,6 +2523,7 @@ static int camioctl_fdr_post(struct camera_module *module,
 	struct dcam_data_ctrl_info dcam_ctrl;
 	struct cam_data_ctrl_in ctrl_in;
 	struct isp_data_ctrl_cfg *fdr_ctrl = NULL;
+	struct dcam_path_cfg_param ch_desc;
 
 	ret = copy_from_user(&param, (void __user *)arg,
 				sizeof(struct sprd_img_parm));
@@ -2596,6 +2597,20 @@ static int camioctl_fdr_post(struct camera_module *module,
 
 	if (dcam_ctrl.start_ctrl == DCAM_START_CTRL_DIS)
 		goto isp_proc;
+	memset(&ch_desc, 0, sizeof(ch_desc));
+	ch_desc.bayer_pattern = module->cam_uinfo.sensor_if.img_ptn;
+	ch_desc.endian.y_endian = ENDIAN_LITTLE;
+	ch_desc.pack_bits = module->cam_uinfo.sensor_if.if_spec.mipi.is_loose;
+	ch_desc.is_4in1 = module->cam_uinfo.is_4in1;
+	ch_desc.dcam_out_fmt = dcam_ctrl.out_format;
+	ch_desc.dcam_out_bits = module->cam_uinfo.sensor_if.if_spec.mipi.bits_per_pxl;
+	ret = module->dcam_dev_handle->dcam_pipe_ops->cfg_path(&dcam->sw_ctx[module->cur_aux_sw_ctx_id],
+		DCAM_PATH_CFG_BASE, ch->aux_dcam_path_id, &ch_desc);
+	if (ret) {
+		pr_err("fail to cfg dcam base cfg.\n");
+		goto exit;
+	}
+
 	ret = module->dcam_dev_handle->dcam_pipe_ops->cfg_path(&dcam->sw_ctx[module->cur_aux_sw_ctx_id],
 			DCAM_PATH_CFG_OUTPUT_BUF, ch->aux_dcam_path_id, pfrm[1]);
 	if (ret) {

@@ -3469,7 +3469,7 @@ static int ispcore_scene_fdr_set(uint32_t prj_id,
 			if (i == 0) {
 				fdr_ctrl->start_ctrl = ISP_START_CTRL_DIS;
 			} else {
-				fdr_ctrl->in_format = IMG_PIX_FMT_FULL_RGB;
+				fdr_ctrl->in_format = IMG_PIX_FMT_NV21;
 				fdr_ctrl->out_format = IMG_PIX_FMT_NV21;
 				fdr_ctrl->src = in->src;
 				fdr_ctrl->crop = in->crop;

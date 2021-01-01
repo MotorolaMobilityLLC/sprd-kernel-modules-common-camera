@@ -1157,6 +1157,9 @@ static int dcamcore_offline_frame_start(void *param)
 			patharg.bayer_pattern = sw_pctx->path[i].bayer_pattern;
 			patharg.in_trim = sw_pctx->path[i].in_trim;
 			patharg.endian = sw_pctx->path[i].endian;
+			patharg.out_fmt = sw_pctx->path[i].out_fmt;
+			patharg.is_pack = sw_pctx->path[i].is_pack;
+			patharg.data_bits = sw_pctx->path[i].data_bits;
 			hw->dcam_ioctl(hw, DCAM_HW_CFG_PATH_START, &patharg);
 		} else {
 			pr_err("fail to set dcam%d path%d store frm\n",
@@ -2301,9 +2304,9 @@ static int dcamcore_dev_start(void *dcam_handle, int online)
 		patharg.bayer_pattern = pctx->path[i].bayer_pattern;
 		patharg.in_trim = pctx->path[i].in_trim;
 		patharg.endian = pctx->path[i].endian;
-		patharg.out_fmt= pctx->path[i].out_fmt;
-		patharg.data_bits= pctx->path[i].data_bits;
-		patharg.is_pack= pctx->path[i].is_pack;
+		patharg.out_fmt = pctx->path[i].out_fmt;
+		patharg.data_bits = pctx->path[i].data_bits;
+		patharg.is_pack = pctx->path[i].is_pack;
 		pr_debug("path %d, fmt %d, bits %d, is pack %d\n", i, patharg.out_fmt, patharg.data_bits, patharg.is_pack);
 		atomic_set(&path->set_frm_cnt, 0);
 
@@ -2770,6 +2773,8 @@ static int dcamcore_scene_fdrl_get(uint32_t prj_id,
 	case QOGIRN6pro:
 		out->start_ctrl = DCAM_START_CTRL_EN;
 		out->callback_ctrl = DCAM_CALLBACK_CTRL_USER;
+		out->in_format = IMG_PIX_FMT_GREY;
+		out->out_format = DCAM_STORE_FRGB;
 		break;
 	default:
 		pr_err("fail to support current project %d\n", prj_id);
@@ -2799,7 +2804,10 @@ static int dcamcore_scene_fdrh_get(uint32_t prj_id,
 		out->start_ctrl = DCAM_START_CTRL_DIS;
 		break;
 	case QOGIRN6pro:
-		out->start_ctrl = DCAM_START_CTRL_DIS;
+		out->start_ctrl = DCAM_START_CTRL_EN;
+		out->callback_ctrl = DCAM_CALLBACK_CTRL_ISP;
+		out->in_format = IMG_PIX_FMT_GREY;
+		out->out_format = DCAM_STORE_YUV420;
 		break;
 	default:
 		pr_err("fail to support current project %d\n", prj_id);
