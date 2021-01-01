@@ -77,6 +77,13 @@ enum isp_postproc_type {
 	POSTPROC_MAX,
 };
 
+enum isp_frame_bit_width {
+	ISP_FRAME_8_BIT = 8,
+	ISP_FRAME_10_BIT = 10,
+	ISP_FRAME_12_BIT = 12,
+	ISP_FRAME_14_BIT = 14,
+};
+
 typedef int (*func_isp_cfg_param)(
 	struct isp_io_param *param,
 	struct isp_k_block *isp_k_param, uint32_t idx);
@@ -141,6 +148,7 @@ struct isp_path_uinfo {
 	uint32_t out_fmt;
 	uint32_t bind_type;
 	uint32_t slave_path_id;
+	uint32_t data_in_bits;
 	uint32_t regular_mode;
 	uint32_t uframe_sync;
 	uint32_t scaler_coeff_ex;
@@ -153,6 +161,8 @@ struct isp_uinfo {
 	/* common info from cam core */
 	uint32_t in_fmt;
 	uint32_t pack_bits;
+	uint32_t is_pack;
+	uint32_t data_in_bits;
 	/* GR, R, B, Gb */
 	uint32_t bayer_pattern;
 	uint32_t ltm_rgb;

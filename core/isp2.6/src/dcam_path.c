@@ -93,7 +93,6 @@ int dcam_path_base_cfg(void *dcam_ctx_handle,
 	case DCAM_PATH_BIN:
 		path->frm_deci = ch_desc->frm_deci;
 		path->frm_skip = ch_desc->frm_skip;
-
 		path->pack_bits = ch_desc->pack_bits;
 		path->endian = ch_desc->endian;
 		path->is_4in1 = ch_desc->is_4in1;

@@ -326,6 +326,8 @@ struct isp_hw_fetch_info {
 	uint32_t dispatch_color;
 	uint32_t fetch_path_sel;
 	uint32_t pack_bits;
+	uint32_t is_pack;
+	uint32_t data_bits;
 	uint32_t bayer_pattern;
 	enum sprd_cam_sec_mode sec_mode;
 	enum isp_fetch_format fetch_fmt;
@@ -337,6 +339,8 @@ struct isp_hw_fetch_info {
 	struct img_pitch pitch;
 	uint32_t mipi_byte_rel_pos;
 	uint32_t mipi_word_num;
+	uint32_t mipi_byte_rel_pos_uv;
+	uint32_t mipi_word_num_uv;
 };
 
 struct store_border {
@@ -369,6 +373,7 @@ struct isp_store_info {
 	uint32_t bypass;
 	uint32_t endian;
 	uint32_t speed_2x;
+	uint32_t need_bwd;
 	uint32_t mirror_en;
 	uint32_t max_len_sel;
 	uint32_t shadow_clr;

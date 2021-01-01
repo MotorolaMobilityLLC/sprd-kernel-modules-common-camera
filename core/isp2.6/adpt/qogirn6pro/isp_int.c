@@ -479,8 +479,8 @@ static void ispint_iommu_regs_dump(void)
 	}
 
 	pr_err("fetch y %08x u %08x fbd_raw head %08x tile %08x low2 %08x\n",
-		ISP_HREG_RD(ISP_FETCH_SLICE_Y_ADDR),
-		ISP_HREG_RD(ISP_FETCH_SLICE_U_ADDR),
+		ISP_HREG_RD(ISP_FETCH_BASE + ISP_FETCH_SLICE_Y_ADDR),
+		ISP_HREG_RD(ISP_FETCH_BASE + ISP_FETCH_SLICE_U_ADDR),
 		ISP_HREG_RD(ISP_FBD_RAW_PARAM2),
 		ISP_HREG_RD(ISP_FBD_RAW_PARAM3),
 		ISP_HREG_RD(ISP_FBD_RAW_LOW_PARAM0));
@@ -511,7 +511,7 @@ static irqreturn_t ispint_isr_root(int irq, void *priv)
 	enum isp_context_hw_id c_id;
 	uint32_t sid, k;
 	uint32_t err_mask;
-	uint32_t irq_line = 0;
+	uint32_t irq_line = 0, irq_line1 = 0;
 	uint32_t irq_numbers = 0;
 	const uint32_t *irq_vect = NULL;
 	struct isp_pipe_dev *isp_handle = (struct isp_pipe_dev *)priv;
@@ -542,16 +542,17 @@ static irqreturn_t ispint_isr_root(int irq, void *priv)
 		irq_vect = isp_int_ctxs[c_id].irq_vect;
 
 		irq_line = ISP_HREG_RD(irq_offset + ISP_INT_INT0);
+		irq_line1 = ISP_HREG_RD(irq_offset + ISP_INT_INT1);
 		if (unlikely(irq_line == 0)) {
 			continue;
 		}
 
 		sw_ctx_id = isp_core_sw_context_id_get(c_id, isp_handle);
-		pr_debug("sw %d, hw %d, irq_line: %08x\n",
-			sw_ctx_id, c_id, irq_line);
+		pr_debug("sw %d, hw %d, irq_line: %08x\n", sw_ctx_id, c_id, irq_line);
 
 		if (sw_ctx_id < 0) {
 			ISP_HREG_WR(irq_offset + ISP_INT_CLR0, irq_line);
+			ISP_HREG_WR(irq_offset + ISP_INT_CLR1, irq_line1);
 			if (irq_line & ISP_INT_LINE_MASK)
 				pr_debug("get c_id, hw: %d has no sw_ctx_id, irq_line: %08x\n",
 					c_id, irq_line);
@@ -564,9 +565,8 @@ static irqreturn_t ispint_isr_root(int irq, void *priv)
 
 		/*clear the interrupt*/
 		ISP_HREG_WR(irq_offset + ISP_INT_CLR0, irq_line);
-
-		pr_debug("isp ctx %d irqno %d, INT: 0x%x\n",
-						c_id, irq, irq_line);
+ 		ISP_HREG_WR(irq_offset + ISP_INT_CLR1, irq_line1);
+		pr_debug("isp ctx %d irqno %d, INT: 0x%x\n", c_id, irq, irq_line);
 
 		if (atomic_read(&isp_handle->sw_ctx[sw_ctx_id]->user_cnt) < 1) {
 			pr_info("contex %d is stopped\n", sw_ctx_id);

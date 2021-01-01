@@ -179,7 +179,7 @@ struct channel_context {
 	uint32_t enable;
 	uint32_t frm_base_id;
 	uint32_t frm_cnt;
-	uint32_t pack_bits;;
+	uint32_t pack_bits;
 	atomic_t err_status;
 
 	uint32_t compress_input;
@@ -1453,9 +1453,7 @@ static int camcore_buffers_alloc(void *param)
 				pframe->buf.buf_sec = 0;
 			}
 
-			pr_info("camca: ch_id =%d, buf_sec=%d\n",
-				channel->ch_id,
-				pframe->buf.buf_sec);
+			pr_info("camca: ch_id =%d, buf_sec=%d\n", channel->ch_id, pframe->buf.buf_sec);
 
 			ret = cam_buf_alloc(&pframe->buf, size, 0, iommu_enable);
 			if (ret) {
@@ -1468,8 +1466,7 @@ static int camcore_buffers_alloc(void *param)
 
 			ret = cam_queue_enqueue(&channel->share_buf_queue, &pframe->list);
 			if (ret) {
-				pr_err("fail to enqueue shared buf: %d ch %d\n",
-					i, channel->ch_id);
+				pr_err("fail to enqueue shared buf: %d ch %d\n", i, channel->ch_id);
 				cam_buf_free(&pframe->buf);
 				cam_queue_empty_frame_put(pframe);
 				break;
@@ -1571,8 +1568,7 @@ static int camcore_buffers_alloc(void *param)
 
 			ret = cam_buf_alloc(&pframe->buf, size, 0, iommu_enable);
 			if (ret) {
-				pr_err("fail to alloc 3dnr buf: %d ch %d\n",
-					i, channel->ch_id);
+				pr_err("fail to alloc 3dnr buf: %d ch %d\n", i, channel->ch_id);
 				cam_queue_empty_frame_put(pframe);
 				atomic_inc(&channel->err_status);
 				goto exit;
@@ -1654,8 +1650,7 @@ exit:
 			pr_err("fail to cfg path buffer\n");
 	}
 	complete(&channel->alloc_com);
-	pr_info("ch %d done. status %d\n",
-		channel->ch_id, atomic_read(&channel->err_status));
+	pr_info("ch %d done. status %d\n", channel->ch_id, atomic_read(&channel->err_status));
 	return ret;
 }
 
@@ -2300,7 +2295,6 @@ static int camcore_dcam_callback(enum dcam_cb_type type, void *param, void *priv
 
 	module = (struct camera_module *)priv_data;
 	hw = module->grp->hw_info;
-
 	if (unlikely(type == DCAM_CB_GET_PMBUF)) {
 		struct camera_frame **pm_frame;
 		if (module->pmq_init == 0)
@@ -2386,7 +2380,6 @@ static int camcore_dcam_callback(enum dcam_cb_type type, void *param, void *priv
 				isp_ctx_id);
 			return ret;
 		}
-
 		if (atomic_read(&module->state) != CAM_RUNNING || module->paused) {
 			pr_info("stream off or paused. put frame %px\n", pframe);
 			if (pframe->buf.type == CAM_BUF_KERNEL) {
@@ -2524,7 +2517,6 @@ static int camcore_dcam_callback(enum dcam_cb_type type, void *param, void *priv
 					isp_ctx_id);
 				return ret;
 			}
-
 			if ((module->cap_status != CAM_CAPTURE_START) &&
 				(module->cap_status != CAM_CAPTURE_RAWPROC)) {
 				/*
@@ -2650,7 +2642,6 @@ static int camcore_dcam_callback(enum dcam_cb_type type, void *param, void *priv
 					}
 				}
 			}
-
 			/* to isp */
 			/* skip first frame for online capture (in case of non-zsl) because lsc abnormal */
 			if (!module->cam_uinfo.is_4in1 && !module->cam_uinfo.dcam_slice_mode
@@ -3861,6 +3852,36 @@ static int camcore_channels_size_init(struct camera_module *module)
 	return 0;
 }
 
+static uint32_t camcore_format_dcam_translate(enum dcam_store_format forcc)
+{
+	uint32_t dcam_format = 0;
+
+	switch (forcc) {
+	case DCAM_STORE_RAW_BASE:
+		dcam_format = IMG_PIX_FMT_GREY;
+		break;
+	case DCAM_STORE_YUV420:
+		dcam_format = IMG_PIX_FMT_NV12;
+		break;
+	case DCAM_STORE_YVU420:
+		dcam_format = IMG_PIX_FMT_NV21;
+		break;
+	case DCAM_STORE_YVU422:
+		dcam_format = IMG_PIX_FMT_YVYU;
+		break;
+	case DCAM_STORE_YUV422:
+		dcam_format = IMG_PIX_FMT_YUYV;
+		break;
+	case DCAM_STORE_FRGB:
+		dcam_format = IMG_PIX_FMT_RGB565;
+		break;
+	default:
+		pr_err("fail to get common format %d\n", dcam_format);
+	}
+
+	return dcam_format;
+}
+
 static int camcore_channel_init(struct camera_module *module,
 		struct channel_context *channel)
 {
@@ -3872,6 +3893,7 @@ static int camcore_channel_init(struct camera_module *module,
 	struct channel_context *channel_cap = NULL;
 	struct camera_uchannel *ch_uinfo;
 	struct isp_path_base_desc path_desc;
+	struct dcam_path_cfg_param ch_desc;
 	struct isp_init_param init_param;
 	struct cam_hw_info *hw = NULL;
 	uint32_t format = 0;
@@ -3980,8 +4002,6 @@ static int camcore_channel_init(struct camera_module *module,
 		isp_ctx_id, isp_path_id, dcam_path_id);
 
 	if (new_dcam_path) {
-		struct dcam_path_cfg_param ch_desc;
-
 		ret = module->dcam_dev_handle->dcam_pipe_ops->get_path(
 			&module->dcam_dev_handle->sw_ctx[module->cur_sw_ctx_id], dcam_path_id);
 		if (ret < 0) {
@@ -4024,6 +4044,7 @@ static int camcore_channel_init(struct camera_module *module,
 		if (channel->ch_id == CAM_CH_RAW)
 			ch_desc.dcam_out_fmt = DCAM_STORE_RAW_BASE;
 		pr_debug("channel dcam out format %d, bits %d, is pack %d\n", ch_desc.dcam_out_fmt, ch_desc.dcam_out_bits, !(ch_desc.pack_bits));
+
 		/* auto_3dnr:hw enable, channel->uinfo_3dnr == 1: hw enable */
 		ch_desc.enable_3dnr = (module->auto_3dnr | channel->uinfo_3dnr);
 		if (channel->ch_id == CAM_CH_RAW)
@@ -4040,7 +4061,6 @@ static int camcore_channel_init(struct camera_module *module,
 	if (new_isp_ctx) {
 		struct isp_ctx_base_desc ctx_desc;
 		uint32_t format = module->cam_uinfo.sensor_if.img_fmt;
-
 		memset(&ctx_desc, 0, sizeof(struct isp_ctx_base_desc));
 		init_param.is_high_fps = ch_uinfo->is_high_fps;
 		init_param.cam_id = module->idx;
@@ -4057,8 +4077,11 @@ static int camcore_channel_init(struct camera_module *module,
 		/* todo: cfg param to user setting. */
 		if (format == DCAM_CAP_MODE_YUV)
 			ctx_desc.in_fmt = ch_uinfo->dst_fmt;
-		else
-			ctx_desc.in_fmt = ch_uinfo->sn_fmt;
+		else {
+			ctx_desc.in_fmt = camcore_format_dcam_translate(ch_desc.dcam_out_fmt);
+			ctx_desc.is_pack= !ch_desc.pack_bits;
+			ctx_desc.data_in_bits = ch_desc.dcam_out_bits;
+		}
 		ctx_desc.pack_bits = module->cam_uinfo.sensor_if.if_spec.mipi.is_loose;
 		ctx_desc.bayer_pattern = module->cam_uinfo.sensor_if.img_ptn;
 		ctx_desc.mode_ltm = MODE_LTM_OFF;
@@ -4159,7 +4182,6 @@ static int camcore_channel_init(struct camera_module *module,
 		path_desc.output_size.w = ch_uinfo->dst_size.w;
 		path_desc.output_size.h = ch_uinfo->dst_size.h;
 		path_desc.regular_mode = ch_uinfo->regular_desc.regular_mode;
-
 		ret = module->isp_dev_handle->isp_ops->cfg_path(module->isp_dev_handle,
 			ISP_PATH_CFG_PATH_BASE, isp_ctx_id, isp_path_id, &path_desc);
 	}

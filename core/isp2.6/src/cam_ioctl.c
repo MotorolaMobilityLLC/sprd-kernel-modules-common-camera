@@ -604,6 +604,10 @@ static int camioctl_output_size_set(struct camera_module *module,
 	dst->dst_fmt = dst_fmt;
 	ret |= get_user(dst->is_high_fps, &uparam->is_high_fps);
 	ret |= get_user(dst->high_fps_skip_num, &uparam->high_fps_skip_num);
+
+	if (!dst->is_high_fps)
+		dst->high_fps_skip_num = 0;
+
 	if (dst->high_fps_skip_num == 1) {
 		pr_err("fail to get valid high fps %u\n", dst->high_fps_skip_num);
 		ret = -EINVAL;

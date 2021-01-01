@@ -144,6 +144,8 @@ struct isp_ctx_base_desc {
 	uint32_t ltm_rgb;
 	uint32_t ltm_yuv;
 	uint32_t in_fmt;
+	uint32_t is_pack;
+	uint32_t data_in_bits;
 	uint32_t pack_bits;
 	uint32_t bayer_pattern;
 	uint32_t enable_slowmotion;
@@ -168,6 +170,7 @@ struct isp_path_base_desc {
 	uint32_t slave_type;
 	uint32_t slave_path_id;
 	uint32_t regular_mode;
+	uint32_t data_bits;
 	struct img_endian endian;
 	struct img_size output_size;
 };

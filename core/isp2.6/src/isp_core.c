@@ -1235,8 +1235,7 @@ static int ispcore_offline_param_set(struct isp_sw_context *pctx,
 	struct isp_ltm_ctx_desc *yuv_ltm = NULL;
 
 	if (!pctx || !pframe || !tmp) {
-		pr_err("fail to get input ptr, pctx %p, pframe %p tmp %p\n",
-			pctx, pframe, tmp);
+		pr_err("fail to get input ptr, pctx %p, pframe %p tmp %p\n", pctx, pframe, tmp);
 		return -EFAULT;
 	}
 
@@ -1246,7 +1245,6 @@ static int ispcore_offline_param_set(struct isp_sw_context *pctx,
 	pipe_in = &pctx->pipe_info;
 	rgb_ltm = (struct isp_ltm_ctx_desc *)pctx->rgb_ltm_handle;
 	yuv_ltm = (struct isp_ltm_ctx_desc *)pctx->yuv_ltm_handle;
-
 	hw->isp_ioctl(hw, ISP_HW_CFG_FETCH_FRAME_ADDR, &pipe_in->fetch);
 	if (pipe_src->fetch_path_sel)
 		hw->isp_ioctl(hw, ISP_HW_CFG_FBD_ADDR_SET, &pipe_in->fetch_fbd);

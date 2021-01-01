@@ -22,7 +22,6 @@
 
 #define IMG_TYPE_RAW                   0x2B
 #define IMG_TYPE_YUV                   0x1E
-
 #define IS_DCAM_IF(idx)                ((idx) < 2)
 
 extern atomic_t s_dcam_working;
@@ -797,6 +796,7 @@ static int dcamhw_path_start(void *handle, void *arg)
 	}
 
 	patharg = (struct dcam_hw_path_start *)arg;
+
 #ifdef CAM_ON_HAPS
 	DCAM_REG_MWR(patharg->idx, DCAM_CFA_NEW_CFG0, BIT_0, 0);
 	DCAM_REG_WR(patharg->idx, DCAM_CCE_MATRIX0, 0x4b04d);
@@ -806,12 +806,14 @@ static int dcamhw_path_start(void *handle, void *arg)
 	DCAM_REG_WR(patharg->idx, DCAM_CCE_MATRIX4, 0x7eb);
 	DCAM_REG_MWR(patharg->idx, DCAM_CCE_PARAM, BIT_0, 0);
 #endif
+
 	switch (patharg->path_id) {
 	case  DCAM_PATH_FULL:
 		DCAM_REG_MWR(patharg->idx, DCAM_STORE4_PARAM, BIT_1, BIT_1);
 		DCAM_REG_MWR(patharg->idx, DCAM_STORE4_PARAM,
 			BIT_9 |  BIT_8, patharg->endian.y_endian << 8);
 		DCAM_REG_MWR(patharg->idx, DCAM_STORE4_PARAM, BIT_2, BIT_2);
+
 		if (patharg->out_fmt == DCAM_STORE_FRGB)
 			val = 0;
 		else if (patharg->out_fmt == DCAM_STORE_YUV422)
@@ -822,6 +824,7 @@ static int dcamhw_path_start(void *handle, void *arg)
 			val = 4;
 		else if (patharg->out_fmt == DCAM_STORE_YVU420)
 			val = 5;
+
 		pr_debug("path format %d\n", patharg->out_fmt);
 		DCAM_REG_MWR(patharg->idx, DCAM_STORE4_PARAM, 0x70, val << 4);
 		val = (patharg->data_bits > DCAM_STORE_8_BIT) ? 1 : 0;
@@ -843,6 +846,7 @@ static int dcamhw_path_start(void *handle, void *arg)
 		DCAM_REG_MWR(patharg->idx, DCAM_STORE0_PARAM,
 			BIT_9 |  BIT_8, patharg->endian.y_endian << 8);
 		DCAM_REG_MWR(patharg->idx, DCAM_STORE0_PARAM, BIT_2, BIT_2);
+
 		if (patharg->out_fmt == DCAM_STORE_FRGB)
 			val = 0;
 		else if (patharg->out_fmt == DCAM_STORE_YUV422)
@@ -853,6 +857,7 @@ static int dcamhw_path_start(void *handle, void *arg)
 			val = 4;
 		else if (patharg->out_fmt == DCAM_STORE_YVU420)
 			val = 5;
+
 		DCAM_REG_MWR(patharg->idx, DCAM_STORE0_PARAM, 0x70, val << 4);
 		val = (patharg->is_pack) ? 1 : 0;
 		DCAM_REG_MWR(patharg->idx, DCAM_STORE0_PARAM, BIT_7, (patharg->is_pack == 1) << 7);
@@ -1163,8 +1168,7 @@ static int dcamhw_path_size_update(void *handle, void *arg)
 		}
 
 		DCAM_REG_WR(idx, DCAM_YUV444TO420_IMAGE_WIDTH, sizearg->in_size.w);
-		reg_val = (sizearg->out_size.h<< 16) |
-					sizearg->out_size.w;
+		reg_val = (sizearg->out_size.h<< 16) | sizearg->out_size.w;
 		DCAM_REG_WR(idx, DCAM_STORE0_SLICE_SIZE, reg_val);
 		if (sizearg->compress_info.is_compress) {
 			DCAM_REG_WR(idx, DCAM_YUV_FBC_SCAL_SLICE_SIZE, reg_val);
@@ -1623,8 +1627,7 @@ static int dcamhw_gtm_ltm_eb(void *handle, void *arg)
 	DCAM_REG_MWR(eb->dcam_idx, DCAM_GTM_GLB_CTRL, BIT_0, g_gtm_bypass);
 
 	g_isp_bypass[eb->isp_idx] &= (~(1 << _EISP_LTM));
-	ISP_REG_MWR(eb->isp_idx, ISP_LTM_MAP_RGB_BASE
-		+ ISP_LTM_MAP_PARAM0, BIT_0, g_ltm_bypass);
+	ISP_REG_MWR(eb->isp_idx, ISP_LTM_MAP_RGB_BASE + ISP_LTM_MAP_PARAM0, BIT_0, g_ltm_bypass);
 	pr_debug("gtm dis %d ltm dis %d\n", g_ltm_bypass, g_ltm_bypass);
 
 	return 0;
@@ -1646,10 +1649,9 @@ static int dcamhw_gtm_ltm_dis(void *handle, void *arg)
 	DCAM_REG_MWR(dis->dcam_idx, DCAM_GTM_GLB_CTRL, BIT_0, 1);
 
 	g_isp_bypass[dis->isp_idx] |= (1 << _EISP_LTM);
-	g_ltm_bypass = ISP_REG_RD(dis->isp_idx,
-		ISP_LTM_MAP_RGB_BASE + ISP_LTM_MAP_PARAM0) & BIT_0;
-	ISP_REG_MWR(dis->isp_idx,
-		ISP_LTM_MAP_RGB_BASE + ISP_LTM_MAP_PARAM0, BIT_0, 1);
+	g_ltm_bypass = ISP_REG_RD(dis->isp_idx, ISP_LTM_MAP_RGB_BASE + ISP_LTM_MAP_PARAM0) & BIT_0;
+
+	ISP_REG_MWR(dis->isp_idx, ISP_LTM_MAP_RGB_BASE + ISP_LTM_MAP_PARAM0, BIT_0, 1);
 	pr_debug("gtm dis %d ltm dis %d\n", g_gtm_bypass, g_ltm_bypass);
 
 	return 0;
@@ -1859,7 +1861,6 @@ static int dcamhw_set_store_addr(void *handle, void *arg)
 		if ((param->frame_addr[1] == 0) && (param->out_fmt & DCAM_STORE_YUV_BASE))
 			param->frame_addr[1] = param->frame_addr[0] + param->out_pitch * param->out_size.h;
 		DCAM_REG_WR(idx, DCAM_STORE0_SLICE_U_ADDR, param->frame_addr[1]);
-		pr_debug("path out size %d x %d, pitch 0x%x\n", param->out_size.w, param->out_size.h, param->out_pitch);
 		break;
 	case DCAM_PATH_FULL:
 		DCAM_REG_MWR(idx, DCAM_PATH_SEL, BIT_8, 0);

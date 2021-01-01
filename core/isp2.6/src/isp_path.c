@@ -80,6 +80,8 @@ int isp_path_comn_uinfo_set(struct isp_sw_context *pctx, void *param)
 	uinfo->slw_state = cfg_in->slw_state;
 	uinfo->mode_ltm = cfg_in->mode_ltm;
 	uinfo->mode_3dnr = cfg_in->mode_3dnr;
+	uinfo->is_pack = cfg_in->is_pack;
+	uinfo->data_in_bits = cfg_in->data_in_bits;
 	if (rgb_ltm) {
 		rgb_ltm->ltm_ops.core_ops.cfg_param(rgb_ltm, ISP_LTM_CFG_EB, &uinfo->ltm_rgb);
 		rgb_ltm->ltm_ops.core_ops.cfg_param(rgb_ltm, ISP_LTM_CFG_MODE, &uinfo->mode_ltm);
@@ -92,9 +94,9 @@ int isp_path_comn_uinfo_set(struct isp_sw_context *pctx, void *param)
 	}
 	pctx->ch_id = cfg_in->ch_id;
 
-	pr_debug("ctx%d, in_fmt 0x%x, %d %d mode_ltm %d ltm_eb %d slw_state %d\n", pctx->ctx_id,
+	pr_debug("ctx%d, in_fmt 0x%x, %d %d mode_ltm %d ltm_eb %d slw_state %d 3dnr: %d\n", pctx->ctx_id,
 		uinfo->in_fmt, uinfo->pack_bits, uinfo->bayer_pattern, uinfo->mode_ltm,
-		uinfo->ltm_rgb, uinfo->slw_state);
+		uinfo->ltm_rgb, uinfo->slw_state, uinfo->mode_3dnr);
 
 	return ret;
 }
@@ -477,6 +479,7 @@ int isp_path_storecomn_uinfo_set(struct isp_path_uinfo *path, void *param)
 	path->regular_mode = cfg_in->regular_mode;
 	path->slave_path_id = cfg_in->slave_path_id;
 	path->dst = cfg_in->output_size;
+	path->data_in_bits = cfg_in->data_bits;
 	pr_debug("isp %d dst w %d h %d\n", path->dst.w, path->dst.h);
 
 	return ret;

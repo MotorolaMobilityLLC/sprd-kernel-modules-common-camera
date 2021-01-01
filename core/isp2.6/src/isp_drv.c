@@ -144,7 +144,10 @@ static int ispdrv_fetch_normal_get(void *cfg_in, void *cfg_out,
 	struct img_trim *intrim = NULL;
 	struct isp_hw_fetch_info *fetch = NULL;
 	struct isp_uinfo *pipe_src = NULL;
-
+	uint32_t mipi_word_num_start[16] = {
+		0, 1, 1, 1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 4, 5, 5};
+	uint32_t mipi_word_num_end[16] = {
+		0, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5};
 	if (!cfg_in || !cfg_out || !frame) {
 		pr_err("fail to get valid input ptr, %p, %p\n", cfg_in, cfg_out);
 		return -EFAULT;
@@ -158,6 +161,8 @@ static int ispdrv_fetch_normal_get(void *cfg_in, void *cfg_out,
 	fetch->src = *src;
 	fetch->in_trim = *intrim;
 	fetch->fetch_fmt = ispdrv_fetch_format_get(pipe_src->in_fmt, pipe_src->pack_bits);
+	fetch->is_pack = pipe_src->is_pack;
+	fetch->data_bits = pipe_src->data_in_bits;
 	fetch->bayer_pattern = pipe_src->bayer_pattern;
 	if (pipe_src->in_fmt == IMG_PIX_FMT_GREY)
 		fetch->dispatch_color = 0;
@@ -201,11 +206,25 @@ static int ispdrv_fetch_normal_get(void *cfg_in, void *cfg_out,
 		break;
 	case ISP_FETCH_YUV420_2FRAME:
 	case ISP_FETCH_YVU420_2FRAME:
-		fetch->pitch.pitch_ch0 = src->w;
-		fetch->pitch.pitch_ch1 = src->w;
-		trim_offset[0] = intrim->start_y * fetch->pitch.pitch_ch0 / 2 + intrim->start_x;
+		if (fetch->is_pack) {
+			fetch->pitch.pitch_ch0 = src->w * 10 / 8;
+			fetch->pitch.pitch_ch1 = src->w * 10 / 8 ;
+			fetch->mipi_byte_rel_pos = intrim->start_x;
+			fetch->mipi_word_num = ((intrim->size_x >> 4) * 5)
+				+ mipi_word_num_end[intrim->size_x & 0xF]
+				- (((intrim->start_x + 1) >> 4) * 5)
+				-mipi_word_num_start[(intrim->start_x + 1) & 0xF]
+				+ 1;
+			fetch->mipi_byte_rel_pos_uv = fetch->mipi_byte_rel_pos;
+			fetch->mipi_word_num_uv = fetch->mipi_word_num;
+		} else {
+			fetch->pitch.pitch_ch0 = src->w;
+			fetch->pitch.pitch_ch1 = src->w;
+		}
+		trim_offset[0] = intrim->start_y * fetch->pitch.pitch_ch0 + intrim->start_x;
 		trim_offset[1] = intrim->start_y * fetch->pitch.pitch_ch1 / 2 + intrim->start_x;
 		fetch->addr.addr_ch1 = fetch->addr.addr_ch0 + fetch->pitch.pitch_ch0 * fetch->src.h;
+		pr_debug("y_addr: %x, pitch:: %x\n", fetch->addr.addr_ch0, fetch->pitch.pitch_ch0);
 		break;
 	case ISP_FETCH_FULL_RGB10:
 		fetch->pitch.pitch_ch0 = src->w * 8;
@@ -218,11 +237,6 @@ static int ispdrv_fetch_normal_get(void *cfg_in, void *cfg_out,
 		uint32_t start_col = intrim->start_x;
 		uint32_t start_row = intrim->start_y;
 		uint32_t end_col =  intrim->start_x + intrim->size_x - 1;
-		uint32_t mipi_word_num_start[16] = {
-			0, 1, 1, 1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 4, 5, 5};
-		uint32_t mipi_word_num_end[16] = {
-			0, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5};
-
 		mipi_byte_info = start_col & 0xF;
 		mipi_word_info = ((end_col + 1) >> 4) * 5
 			+ mipi_word_num_end[(end_col + 1) & 0xF]
@@ -247,7 +261,7 @@ static int ispdrv_fetch_normal_get(void *cfg_in, void *cfg_out,
 	fetch->addr_hw.addr_ch0 = fetch->addr.addr_ch0 + trim_offset[0];
 	fetch->addr_hw.addr_ch1 = fetch->addr.addr_ch1 + trim_offset[1];
 	fetch->addr_hw.addr_ch2 = fetch->addr.addr_ch2 + trim_offset[2];
-
+	pr_debug("y_addr: %x, u_addr: %x\n", fetch->addr_hw.addr_ch0, fetch->addr_hw.addr_ch1);
 	return ret;
 }
 
@@ -521,13 +535,18 @@ static ispdrv_store_normal_get(struct isp_path_uinfo *in_ptr,
 		store->speed_2x = 0;
 	else
 		store->speed_2x = 1;
+
+	if (in_ptr->data_in_bits == ISP_FRAME_10_BIT)
+		store->need_bwd = 1;
+	else
+		store->need_bwd = 0;
+
 	store->mirror_en = 0;
 	store->max_len_sel = 0;
 	store->shadow_clr_sel = 1;
 	store->shadow_clr = 1;
 	store->store_res = 1;
 	store->rd_ctrl = 0;
-
 	store->size.w = in_ptr->dst.w;
 	store->size.h = in_ptr->dst.h;
 	switch (store->color_fmt) {
@@ -794,6 +813,7 @@ int isp_drv_pipeinfo_get(void *arg, void *frame)
 			continue;
 		pipe_in->store[i].ctx_id = ctx->ctx_id;
 		pipe_in->store[i].spath_id = i;
+		path_info->data_in_bits = pipe_src->data_in_bits;
 		ret = ispdrv_store_normal_get(path_info, &pipe_in->store[i]);
 		if (ret) {
 			pr_err("fail to get pipe store normal info\n");
