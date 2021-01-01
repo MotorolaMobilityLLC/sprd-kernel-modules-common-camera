@@ -148,6 +148,9 @@ enum dcam_hw_cfg_cmd {
 	DCAM_HW_FORCE_EN_CSI,
 	DCAM_HW_CFG_HIST_ROI_UPDATE,
 	DCAM_HW_CFG_STORE_ADDR,
+	DCAM_HW_CFG_FMCU_CMD,
+	DCAM_HW_CFG_FMCU_START,
+	DCAM_HW_FMCU_EBABLE,
 	DCAM_HW_CFG_MAX
 };
 
@@ -887,6 +890,30 @@ struct dcam_hw_cfg_store_addr {
 	uint32_t out_pitch;
 	uint32_t reg_addr;
 	struct img_size out_size;
+};
+
+struct dcam_hw_fmcu_cmd {
+	unsigned long base;
+	unsigned long hw_addr;
+	int cmd_num;
+	uint32_t idx;
+};
+
+struct dcam_hw_fmcu_start {
+	unsigned long base;
+	unsigned long hw_addr;
+	int cmd_num;
+	uint32_t idx;
+};
+
+struct dcam_hw_fmcu_sel {
+	uint32_t fmcu_id;
+	uint32_t hw_idx;
+};
+
+struct dcam_fmcu_enable {
+	uint32_t idx;
+	uint32_t enable;
 };
 
 struct isp_hw_fmcu_cmd {

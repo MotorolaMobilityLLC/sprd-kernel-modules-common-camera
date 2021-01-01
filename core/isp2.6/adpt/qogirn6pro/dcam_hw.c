@@ -1930,6 +1930,50 @@ static int dcamhw_csi_force_enable(void *handle, void *arg)
 	return 0;
 }
 
+static int dcamhw_fmcu_cmd_set(void *handle, void *arg)
+{
+	struct dcam_hw_fmcu_cmd *cmdarg = NULL;
+
+	cmdarg = (struct dcam_hw_fmcu_cmd *)arg;
+
+	DCAM_AXIM_WR(cmdarg->idx, DCAM_FMCU_BASE + DCAM_FMCU_DDR_ADR, cmdarg->hw_addr);
+	DCAM_AXIM_MWR(cmdarg->idx, DCAM_FMCU_BASE + DCAM_FMCU_CTRL, 0xFFFF0000, cmdarg->cmd_num << 16);
+	DCAM_AXIM_WR(cmdarg->idx, DCAM_FMCU_BASE + DCAM_FMCU_CMD_READY, 1);
+
+	return 0;
+}
+
+static int dcamhw_fmcu_start(void *handle, void *arg)
+{
+	struct dcam_hw_fmcu_start *startarg = NULL;
+
+	startarg = (struct dcam_hw_fmcu_start *)arg;
+
+	DCAM_AXIM_WR(startarg->idx, DCAM_FMCU_BASE + DCAM_FMCU_DDR_ADR, startarg->hw_addr);
+	DCAM_AXIM_MWR(startarg->idx, DCAM_FMCU_BASE + DCAM_FMCU_CTRL, 0xFFFF0000, startarg->cmd_num << 16);
+	DCAM_AXIM_WR(startarg->idx, DCAM_FMCU_BASE + DCAM_FMCU_ISP_REG_REGION, DCAM_OFFSET_RANGE);
+	DCAM_AXIM_WR(startarg->idx, DCAM_FMCU_BASE + DCAM_FMCU_START, 1);
+
+	return 0;
+}
+
+static int dcamm_fmcu_enable(void *handle, void *arg)
+{
+	struct dcam_fmcu_enable *param =  NULL;
+
+	if (!arg) {
+		pr_err("fail to get valid arg\n");
+		return -EINVAL;
+	}
+
+	param = (struct dcam_fmcu_enable *)arg;
+
+	DCAM_REG_MWR(param->idx, DCAM_PATH_SEL, BIT_31,
+		param->enable);
+
+	return 0;
+}
+
 static struct hw_io_ctrl_fun dcam_ioctl_fun_tab[] = {
 	{DCAM_HW_CFG_ENABLE_CLK,            dcamhw_clk_eb},
 	{DCAM_HW_CFG_DISABLE_CLK,           dcamhw_clk_dis},
@@ -1974,7 +2018,10 @@ static struct hw_io_ctrl_fun dcam_ioctl_fun_tab[] = {
 	{DCAM_HW_CFG_STORE_ADDR,            dcamhw_set_store_addr},
 	{DCAM_HW_DISCONECT_CSI,             dcamhw_csi_disconnect},
 	{DCAM_HW_CONECT_CSI,                dcamhw_csi_connect},
-	{DCAM_HW_FORCE_EN_CSI,              dcamhw_csi_force_enable}
+	{DCAM_HW_FORCE_EN_CSI,              dcamhw_csi_force_enable},
+	{DCAM_HW_CFG_FMCU_CMD,              dcamhw_fmcu_cmd_set},
+	{DCAM_HW_CFG_FMCU_START,            dcamhw_fmcu_start},
+	{DCAM_HW_FMCU_EBABLE,               dcamm_fmcu_enable}
 };
 
 static hw_ioctl_fun dcamhw_ioctl_fun_get(enum dcam_hw_cfg_cmd cmd)

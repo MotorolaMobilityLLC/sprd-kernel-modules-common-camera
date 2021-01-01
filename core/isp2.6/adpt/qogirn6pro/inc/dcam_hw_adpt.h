@@ -31,6 +31,7 @@
 #define DCAM_SW_SLICE_HEIGHT_MAX       8192
 #define DCAM_HW_SLICE_WIDTH_MAX        8192
 #define CAM_FACEID_SEC
+#define DCAM_OFFSET_RANGE              0x3E103E0
 
 enum dcam_ctrl_id {
 	DCAM_CTRL_CAP = (1 << 0),

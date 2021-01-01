@@ -693,6 +693,18 @@ extern unsigned long g_dcam_mmubase;
 #define DCAM_PATH_STOP_MASK                             (0x2DFFUL)
 #define DCAM_PATH_BUSY_MASK                             (0x2FFFUL)
 
+#define DCAM_FMCU_BASE                                  (0x38000UL)
+#define DCAM_FMCU_CTRL                                  (DCAM_FMCU_BASE + 0x0014UL)
+#define DCAM_FMCU_DDR_ADR                               (DCAM_FMCU_BASE + 0x0018UL)
+#define DCAM_FMCU_AHB_ARB                               (DCAM_FMCU_BASE + 0x001CUL)
+#define DCAM_FMCU_START                                 (DCAM_FMCU_BASE + 0x0020UL)
+#define DCAM_FMCU_TIME_OUT_THD                          (DCAM_FMCU_BASE + 0x0024UL)
+#define DCAM_FMCU_CMD_READY                             (DCAM_FMCU_BASE + 0x0028UL)
+#define DCAM_FMCU_ISP_REG_REGION                        (DCAM_FMCU_BASE + 0x002CUL)
+#define DCAM_FMCU_STOP                                  (DCAM_FMCU_BASE + 0x0034UL)
+#define DCAM_FMCU_RESERVED                              (DCAM_FMCU_BASE + 0x0038UL)
+#define DCAM_FMCU_SW_TRIGGER                            (DCAM_FMCU_BASE + 0x003CUL)
+
 struct dcam_control_field {
 	uint32_t cap_frc_copy: 1;
 	uint32_t cap_auto_copy: 1;
