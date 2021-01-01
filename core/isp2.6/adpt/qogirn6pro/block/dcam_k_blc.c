@@ -37,8 +37,8 @@ int dcam_k_blc_block(struct dcam_dev_param *param)
 
 	idx = param->idx;
 	p = &(param->blc.blc_info);
-	DCAM_REG_MWR(idx, DCAM_BLC_PARA_R_B, BIT_31,
-		(p->bypass) << 31);
+	DCAM_REG_MWR(idx, DCAM_BLC_PARA, BIT_0,
+		(p->bypass) & 1);
 	if (p->bypass)
 		return 0;
 

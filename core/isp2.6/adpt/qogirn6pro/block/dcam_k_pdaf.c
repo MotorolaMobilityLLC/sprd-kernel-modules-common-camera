@@ -310,7 +310,7 @@ static int isp_k_pdaf_type3_set_skip_num(
 	if (idx == DCAM_HW_CONTEXT_MAX)
 		return 0;
 
-	DCAM_REG_MWR(idx, DCAM_PPE_FRM_CTRL0, 0xF0,
+	DCAM_REG_MWR(idx, DCAM_PPE_FRM_CTRL0, 0xFF0,
 		skip_num << 4);
 	DCAM_REG_MWR(idx, DCAM_PPE_FRM_CTRL1, BIT_1, BIT_1);
 

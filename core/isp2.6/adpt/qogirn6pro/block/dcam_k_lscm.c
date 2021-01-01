@@ -59,8 +59,8 @@ int dcam_k_lscm_monitor(struct dcam_dev_param *param)
 		/* trigger multi frame works after skip_num */
 		DCAM_REG_MWR(idx, DCAM_LSCM_FRM_CTRL0, BIT_3, (0x1 << 3));
 
-	val = (param->lscm.skip_num & 0xF) << 4;
-	DCAM_REG_MWR(idx, DCAM_LSCM_FRM_CTRL0, 0xF0, val);
+	val = (param->lscm.skip_num & 0xFF) << 4;
+	DCAM_REG_MWR(idx, DCAM_LSCM_FRM_CTRL0, 0xFF0, val);
 
 	/* It is better to set lscm_skip_num_clr when new skip_num is set. */
 	DCAM_REG_MWR(idx, DCAM_LSCM_FRM_CTRL1, BIT_1, 1 << 1);

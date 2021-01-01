@@ -114,7 +114,7 @@ int dcam_k_afl_block(struct dcam_dev_param *param)
 	DCAM_REG_MWR(idx, ISP_AFL_PARAM1, 0xFF000000,
 		(p->skip_frame_num & 0xFF) << 24);
 	/* It is better to set afl_skip_num_clr when new skip_num is set. */
-	DCAM_REG_MWR(idx, ISP_AFL_SKIP_NUM_CLR, BIT_0, 1 << 1);
+	DCAM_REG_MWR(idx, ISP_AFL_SKIP_NUM_CLR, BIT_0, 1);
 
 	val = ((p->frame_num & 0xFF) << 24);
 	DCAM_REG_MWR(idx, ISP_AFL_PARAM2, 0xFF000000, val);

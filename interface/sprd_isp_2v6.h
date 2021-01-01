@@ -491,6 +491,8 @@ struct dcam_dev_lsc_info {
 	uint32_t weight_num;
 	uint64_t grid_tab_addr;
 	uint64_t weight_tab_addr;
+	uint32_t grid_width_x;
+	uint32_t grid_width_y;
 };
 
 struct dcam_dev_hist_info {
@@ -663,6 +665,7 @@ struct dcam_dev_bpc_info {
 	uint32_t bpc_double_badpixel_th[4];
 
 	uint32_t bpc_texture_th;
+
 	uint32_t bpc_flat_th;
 	uint32_t bpc_shift[3];
 
@@ -685,6 +688,14 @@ struct dcam_dev_bpc_info {
 	uint32_t bpc_map_addr;
 	uint32_t bpc_bad_pixel_pos_out_addr;
 	uint32_t bpc_last_waddr;
+
+	uint32_t bpc_bad_pixel_th[4];
+	uint32_t bpc_ig_th;
+	uint32_t bpc_edgeratio_g;
+	uint32_t bpc_edgeratio_dirc;
+	uint32_t bpc_difflimit;
+	uint32_t bpc_diffcoeff_limit;
+	uint32_t bpc_diffcoeff_detect;
 };
 
 struct dcam_dev_bpc_info_l3 {

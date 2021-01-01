@@ -55,10 +55,10 @@ int dcam_k_bayerhist_block(struct dcam_dev_param *param)
 		p->hist_skip_num = 0;
 	}
 
-	DCAM_REG_MWR(idx, DCAM_BAYER_HIST_CTRL0, 0xfc,
-			((p->hist_skip_num & 0xf) << 4) |
-			(p->hist_mul_enable << 3) |
-			(p->hist_mode_sel << 2));
+	DCAM_REG_MWR(idx, DCAM_BAYER_HIST_CTRL0, 0xff6,
+			((p->hist_skip_num & 0xff) << 4) |
+			(p->hist_mul_enable << 2) |
+			(p->hist_mode_sel << 1));
 
 	DCAM_REG_MWR(idx, DCAM_BAYER_HIST_START, 0xffffffff,
 			((p->bayer_hist_sty & 0x1fff) << 16) |
@@ -68,8 +68,7 @@ int dcam_k_bayerhist_block(struct dcam_dev_param *param)
 			((p->bayer_hist_endy & 0x1fff) << 16) |
 			(p->bayer_hist_endx & 0x1fff));
 
-	DCAM_REG_MWR(idx, DCAM_BAYER_HIST_CTRL1, 0x7,
-			(p->hist_initial_clear << 2) |
+	DCAM_REG_MWR(idx, DCAM_BAYER_HIST_CTRL1, 0x3,
 			(p->hist_skip_num_clr << 1) |
 			(p->hist_sgl_start << 0));
 	return ret;

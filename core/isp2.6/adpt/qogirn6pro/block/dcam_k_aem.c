@@ -60,7 +60,7 @@ int dcam_k_aem_mode(struct dcam_dev_param *param)
 	/* mode: 0 - single; 1 - multi mode */
 	if (mode == AEM_MODE_SINGLE)
 		/* trigger aem_sgl_start. */
-		DCAM_REG_MWR(idx, DCAM_AEM_FRM_CTRL1, BIT_0, 0x1);
+		DCAM_REG_MWR(idx, DCAM_AEM_FRM_CTRL2, BIT_0, 0x1);
 	else
 		/* trigger multi frame works after skip_num */
 		DCAM_REG_MWR(idx, DCAM_AEM_FRM_CTRL0, BIT_3, (0x1 << 3));
@@ -131,7 +131,7 @@ int dcam_k_aem_skip_num(struct dcam_dev_param *param)
 	DCAM_REG_MWR(idx, DCAM_AEM_FRM_CTRL0, 0xF0, val);
 
 	/* It is better to set aem_skip_num_clr when new skip_num is set. */
-	DCAM_REG_MWR(idx, DCAM_AEM_FRM_CTRL1, BIT_1, 1 << 1);
+	DCAM_REG_MWR(idx, DCAM_AEM_FRM_CTRL1, BIT_0, 1);
 	/* hw skip, no need software skip again
 	 * dcam_path_skip_num_set(param->dev,
 	 *	DCAM_PATH_AEM, param->aem.skip_num);

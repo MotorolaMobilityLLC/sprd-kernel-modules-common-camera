@@ -60,25 +60,15 @@ int dcam_k_bpc_block(struct dcam_dev_param *param)
 	val = ((p->bpc_mode & 0x3) << 4) |
 		((p->bpc_is_mono_sensor & 0x1) << 6) |
 		((p->bpc_ppi_en & 0x1) << 7) |
-		((p->bpc_edge_hv_mode & 0x3) << 8) |
-		((p->bpc_edge_rd_mode & 0x3) << 10) |
-		((p->bpc_pos_out_en & 0x1) << 16) |
-		((p->bpc_map_clr_en & 0x1) << 17) |
-		((p->bpc_rd_max_len_sel & 0x1) << 18) |
-		((p->bpc_wr_max_len_sel & 0x1) << 19) |
-		((p->bpc_blk_mode & 0x1) << 20) |
-		((p->bpc_mod_en & 0x1) << 30) |
-		((p->bpc_cg_dis & 0x1) << 31);
-	DCAM_REG_MWR(idx, DCAM_BPC_PARAM, 0xC01F0FF0, val);
+		((p->bpc_pos_out_en & 0x1) << 16) |;
+	DCAM_REG_MWR(idx, DCAM_BPC_PARAM, 0xC0100F0, val);
 
 	for (i = 0; i < 4; i++) {
-		val = (p->bpc_four_badpixel_th[i] & 0x3FF) |
-			((p->bpc_three_badpixel_th[i] & 0x3FF) << 10) |
-			((p->bpc_double_badpixel_th[i] & 0x3FF) << 20);
-		DCAM_REG_WR(idx, DCAM_BPC_BAD_PIXEL_TH0 + i * 4, val);
+		val = (p->bpc_bad_pixel_th[i] & 0x3FF);
+        DCAM_REG_WR(idx, DCAM_BPC_BAD_PIXEL_TH0 + i * 4, val);
 	}
 
-	val = (p->bpc_texture_th & 0x3FF) |
+	val = (p->bpc_ig_th & 0x3FF) |
 		((p->bpc_flat_th & 0x3FF) << 10) |
 		((p->bpc_shift[2] & 0xF) << 20) |
 		((p->bpc_shift[1] & 0xF) << 24) |
@@ -89,14 +79,17 @@ int dcam_k_bpc_block(struct dcam_dev_param *param)
 		((p->bpc_edgeratio_rd & 0x1FF) << 16);
 	DCAM_REG_WR(idx, DCAM_BPC_EDGE_RATIO0, val);
 
-	val = (p->bpc_highoffset & 0xFF) |
-		((p->bpc_lowoffset & 0xFF) << 8) |
-		((p->bpc_highcoeff & 0x7) << 16) |
-		((p->bpc_lowcoeff & 0x7) << 24);
+	val = (p->bpc_edgeratio_g & 0x1FF) |
+		((p->bpc_edgeratio_dirc & 0x1FF) << 16);
+	DCAM_REG_WR(idx, DCAM_BPC_EDGE_RATIO1, val);
+
+	val = (p->bpc_difflimit & 0x3FF) |
+		((p->bpc_diffcoeff_limit & 0x1F) << 16) |
+		((p->bpc_diffcoeff_detect & 0x1F) << 24);
 	DCAM_REG_WR(idx, DCAM_BPC_BAD_PIXEL_PARAM, val);
 
-	val = (p->bpc_mincoeff & 0x1F) |
-		((p->bpc_maxcoeff & 0x1F) << 16);
+	val = (p->bpc_mincoeff & 0x3F) |
+		((p->bpc_maxcoeff & 0x3F) << 16);
 	DCAM_REG_WR(idx, DCAM_BPC_GDIF_TH, val);
 
 	for (i = 0; i < 8; i++) {
