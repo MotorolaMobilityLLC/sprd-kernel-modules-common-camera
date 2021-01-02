@@ -30,6 +30,7 @@
 
 void dcam_k_raw_gtm_set_default(struct dcam_dev_raw_gtm_block_info *p)
 {
+#if 0
 	p->gtm_tm_out_bit_depth = 0xE;
 	p->gtm_tm_in_bit_depth = 0xE;
 	p->gtm_cur_is_first_frame = 0x0;
@@ -55,6 +56,7 @@ void dcam_k_raw_gtm_set_default(struct dcam_dev_raw_gtm_block_info *p)
 	p->slice.gtm_slice_line_startpos = 0x0;
 	p->slice.gtm_slice_line_endpos = 0x0;
 	p->slice.gtm_slice_main = 0x0;
+#endif
 }
 
 int dcam_k_raw_gtm_slice(uint32_t idx, struct dcam_dev_gtm_slice_info *gtm_slice)
@@ -63,8 +65,8 @@ int dcam_k_raw_gtm_slice(uint32_t idx, struct dcam_dev_gtm_slice_info *gtm_slice
 	unsigned int val = 0;
 
 	/* for slice */
-	val =((gtm_slice->gtm_slice_main & 0x1) << 7);
-	DCAM_REG_MWR(idx, DCAM_GTM_GLB_CTRL, 0x80, val);
+	val =((gtm_slice->gtm_slice_main & 0x1) << 6);
+	DCAM_REG_MWR(idx, DCAM_GTM_GLB_CTRL, 0x40, val);
 
 	val = (gtm_slice->gtm_slice_line_startpos & 0x1FFF) |
 		((gtm_slice->gtm_slice_line_endpos & 0x1FFF) << 16);
@@ -96,29 +98,29 @@ int dcam_k_raw_gtm_block(uint32_t gtm_param_idx,
 	if (g_dcam_bypass[idx] & (1 << _E_GTM))
 		p->gtm_mod_en = 0;
 	gtm_slice = &(p->slice);
-	DCAM_REG_MWR(idx, DCAM_GTM_GLB_CTRL, BIT_0, (p->gtm_mod_en & 0x1));
-	if (!p->gtm_mod_en)
+	if ((!p->gtm_mod_en) | (p->gtm_map_bypass && p->gtm_hist_stat_bypass)){
+		DCAM_REG_MWR(idx, DCAM_GTM_GLB_CTRL, 0x3, 0x3);
 		return 0;
+	}
 
 	if (atomic_read(&sw_ctx->state) != STATE_RUNNING)
 		p->gtm_cur_is_first_frame = 1;
 
-	val = ((p->gtm_map_bypass & 0x1) << 1) |
-		((p->gtm_hist_stat_bypass & 0x1) << 2) |
+	val = ((p->gtm_map_bypass & 0x1)) |
+		((p->gtm_hist_stat_bypass & 0x1) << 1) |
+		((p->gtm_tm_param_calc_by_sw & 0x1) << 2) |
 		((p->gtm_tm_param_calc_by_hw & 0x1) << 3) |
-		((p->gtm_cur_is_first_frame &0x1) << 4) |
-		((p->gtm_tm_luma_est_mode & 0x3) << 5) |
-		((p->gtm_tm_in_bit_depth & 0xF) << 24) |
-		((p->gtm_tm_out_bit_depth & 0xF) << 28);
-	DCAM_REG_MWR(idx, DCAM_GTM_GLB_CTRL, 0xFF00007E, val);
+		((p->gtm_cur_is_first_frame & 0x1) << 4) |
+		((p->gtm_rgb2y_mode & 0x1) << 5);
+	DCAM_REG_MWR(idx, DCAM_GTM_GLB_CTRL, 0x3F, val);
 
 	val = (p->gtm_imgkey_setting_mode & 0x1) | ((p->gtm_imgkey_setting_value & 0x7FFF) << 4);
 	DCAM_REG_MWR(idx, GTM_HIST_CTRL0, 0x7FFF1, val);
 
 	val = (p->gtm_target_norm_setting_mode & 0x1)
-		| ((p->gtm_target_norm & 0x3FFF) << 2)
+		| ((p->gtm_target_norm & 0xFFF) << 4)
 		| ((p->gtm_target_norm_coeff & 0x3FFF) << 16);
-	DCAM_REG_MWR(idx, GTM_HIST_CTRL1, 0x3FFFFFFD, val);
+	DCAM_REG_MWR(idx, GTM_HIST_CTRL1, 0x3FFFFFF1, val);
 
 	val = p->gtm_yavg_diff_thr & 0x3FFF;
 	DCAM_REG_WR(idx, GTM_HIST_CTRL2, val);
@@ -141,20 +143,35 @@ int dcam_k_raw_gtm_block(uint32_t gtm_param_idx,
 		| ((p->gtm_pre_ymin_weight & 0x1FF) << 23);
 	DCAM_REG_WR(idx, GTM_TM_YMIN_SMOOTH, val);
 
-	val = (p->tm_lumafilter_c[0][0] & 0xFF)
-		| ((p->tm_lumafilter_c[0][1] & 0xFF) << 8)
-		| ((p->tm_lumafilter_c[0][2] & 0xFF) << 16)
-		| ((p->tm_lumafilter_c[1][0] & 0xFF) << 24);
-	DCAM_REG_WR(idx, GTM_TM_LUMAFILTER0, val);
+	for (i = 0; i < 8; i++ ){
+		val = (p->tm_filter_dist_c[i * 6 + 0] & 0x1F)
+			| ((p->tm_filter_dist_c[i * 6 + 1] & 0x1F) << 5)
+			| ((p->tm_filter_dist_c[i * 6 + 2] & 0x1F) << 10)
+			| ((p->tm_filter_dist_c[i * 6 + 3] & 0x1F) << 15)
+			| ((p->tm_filter_dist_c[i * 6 + 4] & 0x1F) << 20)
+			| ((p->tm_filter_dist_c[i * 6 + 5] & 0x1F) << 25);
+		DCAM_REG_WR(idx, GTM_TM_FILTER_DIST0 + 4 * i, val);
+	}
 
-	val = (p->tm_lumafilter_c[1][1] & 0xFF)
-		| ((p->tm_lumafilter_c[1][2] & 0xFF) << 8)
-		| ((p->tm_lumafilter_c[2][0] & 0xFF) << 16)
-		| ((p->tm_lumafilter_c[2][1] & 0xFF) << 24);
-	DCAM_REG_WR(idx, GTM_TM_LUMAFILTER1, val);
+	DCAM_REG_WR(idx, GTM_TM_FILTER_DIST8 + 4 * i, 0x1F & p->tm_filter_dist_c[48]);
 
-	val = (p->tm_lumafilter_c[2][2] & 0xFF) | ((p->tm_lumafilter_shift & 0xF) << 28);
-	DCAM_REG_MWR(idx, GTM_TM_LUMAFILTER2, 0xF00000FF, val);
+	for (i = 0; i < 6; i++ ){
+		val = (p->tm_filter_distw_c[i * 3 + 0] & 0x1FF)
+			| ((p->tm_filter_distw_c[i * 3 + 1] & 0x1FF) << 9)
+			| ((p->tm_filter_distw_c[i * 3 + 2] & 0x1FF) << 18);
+		DCAM_REG_WR(idx, GTM_TM_FILTER_DISTW0 + 4 * i, val);
+	}
+
+	DCAM_REG_WR(idx, GTM_TM_FILTER_DISTW6, 0x1FF & p->tm_filter_distw_c[18]);
+
+	for (i = 0; i < 20; i++ ){
+		val = (p->tm_filter_rangw_c[i * 3 + 0] & 0x1FF)
+			| ((p->tm_filter_rangw_c[i * 3 + 1] & 0x1FF) << 9)
+			| ((p->tm_filter_rangw_c[i * 3 + 2] & 0x1FF) << 18);
+		DCAM_REG_WR(idx, GTM_TM_FILTER_RANGEW0 + 4 * i, val);
+	}
+
+	DCAM_REG_WR(idx, GTM_TM_FILTER_RANGEW20, 0x1FF & p->tm_filter_rangw_c[60]);
 
 	val = (p->tm_rgb2y_r_coeff & 0x7FF) | ((p->tm_rgb2y_g_coeff & 0x7FF) << 16);
 	DCAM_REG_MWR(idx, GTM_TM_RGB2YCOEFF0, 0x7FF07FF, val);
@@ -164,7 +181,7 @@ int dcam_k_raw_gtm_block(uint32_t gtm_param_idx,
 
 	for (i = 0; i < GTM_HIST_XPTS_CNT / 2; i += 2) {
 		val = ((p->tm_hist_xpts[i] & 0x3FFF) << 16) | (p->tm_hist_xpts[i + 1] & 0x3FFF);
-		DCAM_REG_WR(idx, GTM_HIST_XPTS + i * 2, val);
+		DCAM_REG_WR(idx, GTM_HIST_XPTS_0 + i * 4, val);
 	}
 
 	/* for slice */

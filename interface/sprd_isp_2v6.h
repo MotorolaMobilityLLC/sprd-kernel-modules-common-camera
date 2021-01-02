@@ -460,6 +460,11 @@ struct dcam_dev_raw_gtm_block_info {
 	uint16_t tm_hist_xpts[GTM_HIST_BIN_NUM];
 	struct dcam_dev_gtm_slice_info slice;
 	uint32_t gtm_map_video_mode;
+	uint32_t gtm_rgb2y_mode;
+	uint32_t gtm_tm_param_calc_by_sw;
+	uint32_t tm_filter_dist_c[49];
+	uint32_t tm_filter_distw_c[19];
+	uint32_t tm_filter_rangw_c[61];
 };
 
 struct dcam_dev_rgb_gain_info {
