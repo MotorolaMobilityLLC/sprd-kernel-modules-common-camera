@@ -872,14 +872,14 @@ static int camcore_param_buffer_uncfg(struct camera_module *module)
 
 static void camcore_compression_cal(struct camera_module *module)
 {
-	struct channel_context *ch_pre, *ch_cap, *ch_vid;
+	struct channel_context *ch_pre, *ch_cap, *ch_vid, *ch_raw;
 	struct cam_hw_info *dcam_hw;
 	struct compression_override *override;
 
 	ch_pre = &module->channel[CAM_CH_PRE];
 	ch_cap = &module->channel[CAM_CH_CAP];
 	ch_vid = &module->channel[CAM_CH_VID];
-
+	ch_raw = &module->channel[CAM_CH_RAW];
 	/*
 	 * Enable compression for DCAM path by default. Full path is prior to
 	 * bin path.
@@ -895,14 +895,26 @@ static void camcore_compression_cal(struct camera_module *module)
 		&& !module->cam_uinfo.is_4in1;
 	ch_vid->compress_input = ch_pre->compress_input;
 
+	dcam_hw = module->grp->hw_info;
+	if (dcam_hw->prj_id == SHARKL5pro)
+		ch_pre->compress_input = ch_pre->compress_input && (!ch_cap->compress_input);
+
+	ch_raw->compress_input = ch_raw->enable
+		&& ch_raw->ch_uinfo.sn_fmt == IMG_PIX_FMT_GREY
+		&& !ch_raw->ch_uinfo.is_high_fps
+		&& !module->cam_uinfo.is_4in1;
+	ch_raw->compress_input = ch_cap->compress_input ? 0 : ch_raw->compress_input;
+
 	/* Disable compression for 3DNR by default */
 	ch_cap->compress_3dnr = 0;
 	ch_pre->compress_3dnr = 0;
 	ch_vid->compress_3dnr = ch_pre->compress_3dnr;
+	ch_raw->compress_3dnr = 0;
 
 	/*
 	 * Enable compression for ISP store according to HAL setting. Normally
 	 * this only happens in slow motion and only for video path.
+	 * raw channel has no isp path
 	 */
 	ch_cap->compress_output =
 		ch_cap->enable && ch_cap->ch_uinfo.is_compressed;
@@ -910,30 +922,13 @@ static void camcore_compression_cal(struct camera_module *module)
 		ch_pre->enable && ch_pre->ch_uinfo.is_compressed;
 	ch_vid->compress_output =
 		ch_vid->enable && ch_vid->ch_uinfo.is_compressed;
-
-	/* disable all compression on SharkL5 */
-	dcam_hw = module->grp->hw_info;
-	if (dcam_hw->prj_id == SHARKL5) {
-		ch_cap->compress_input = ch_cap->compress_output =
-			ch_cap->compress_3dnr = 0;
-		ch_pre->compress_input = ch_pre->compress_output =
-			ch_pre->compress_3dnr = 0;
-		ch_vid->compress_input = ch_vid->compress_output =
-			ch_vid->compress_3dnr = 0;
-	}
-
-	/* TODO disable all fbc/fbd for bug 1040757 */
-	ch_cap->compress_input = ch_cap->compress_3dnr
-		= ch_cap->compress_output = 0;
-	ch_pre->compress_input = ch_pre->compress_3dnr
-		= ch_pre->compress_output = 0;
-	ch_vid->compress_input = ch_vid->compress_3dnr
-		= ch_vid->compress_output = 0;
+	ch_raw->compress_output = 0;
 
 	/* Bypass compression low_4bit by default */
 	ch_cap->compress_4bit_bypass = 1;
 	ch_pre->compress_4bit_bypass = 1;
 	ch_vid->compress_4bit_bypass = 1;
+	ch_raw->compress_4bit_bypass = 1;
 
 	/* open compression on SharkL5 pro */
 	if (dcam_hw->prj_id == SHARKL5pro) {
@@ -968,6 +963,7 @@ static void camcore_compression_cal(struct camera_module *module)
 	if (module->dcam_idx > DCAM_ID_1) {
 		ch_cap->compress_input = 0;
 		ch_pre->compress_input = 0;
+		ch_raw->compress_input = 0;
 	}
 
 	/* dcam not support fbc when dcam need fetch */
@@ -979,29 +975,33 @@ static void camcore_compression_cal(struct camera_module *module)
 	if (ch_pre->ch_uinfo.is_high_fps)
 		ch_pre->compress_input = 0;
 
-	pr_info("cam%d: cap %u %u %u, pre %u %u %u, vid %u %u %u\n",
+	pr_info("cam%d: cap %u %u %u, pre %u %u %u, vid %u %u %u raw %u\n",
 		module->idx,
 		ch_cap->compress_input, ch_cap->compress_3dnr,
 		ch_cap->compress_output,
 		ch_pre->compress_input, ch_pre->compress_3dnr,
 		ch_pre->compress_output,
 		ch_vid->compress_input, ch_vid->compress_3dnr,
-		ch_vid->compress_output);
+		ch_vid->compress_output,
+		ch_raw->compress_input);
 }
 
 static void camcore_compression_config(struct camera_module *module)
 {
-	struct channel_context *ch_pre, *ch_cap, *ch_vid;
+	struct channel_context *ch_pre, *ch_cap, *ch_vid, *ch_raw;
 	struct isp_ctx_compress_desc ctx_compression_desc;
 	struct isp_path_compression_desc path_compression_desc;
 	struct cam_hw_info *hw = NULL;
 	int fbc_mode = DCAM_FBC_DISABLE;
 	struct compression_override *override = NULL;
+	struct dcam_sw_context *sw_handle = NULL;
 
 	ch_pre = &module->channel[CAM_CH_PRE];
 	ch_cap = &module->channel[CAM_CH_CAP];
 	ch_vid = &module->channel[CAM_CH_VID];
+	ch_raw = &module->channel[CAM_CH_RAW];
 	hw = module->grp->hw_info;
+	sw_handle = module->dcam_dev_handle->sw_ctx;
 	override = &module->grp->debugger.compression[module->idx];
 
 	if (ch_cap->compress_input) {
@@ -1011,7 +1011,15 @@ static void camcore_compression_config(struct camera_module *module)
 			fbc_mode = override->override[CH_CAP][FBC_DCAM];
 		if (DCAM_FBC_FULL_14_BIT == fbc_mode)
 			ch_cap->compress_4bit_bypass = 0;
-	}
+	} else
+		fbc_mode = DCAM_FBC_DISABLE;
+	sw_handle[module->cur_sw_ctx_id].path[ch_cap->dcam_path_id].fbc_mode = fbc_mode;
+	if (!fbc_mode)
+		ch_cap->compress_input = 0;
+
+	module->dcam_dev_handle->dcam_pipe_ops->ioctl(&module->dcam_dev_handle->sw_ctx[module->cur_sw_ctx_id],
+			DCAM_IOCTL_CFG_FBC, &fbc_mode);
+	pr_debug("cap fbc = %d\n", fbc_mode);
 
 	if (ch_pre->compress_input) {
 		fbc_mode = hw->ip_dcam[module->dcam_idx]->dcam_bin_fbc_mode;
@@ -1020,11 +1028,33 @@ static void camcore_compression_config(struct camera_module *module)
 			fbc_mode = override->override[CH_PRE][FBC_DCAM];
 		if (DCAM_FBC_BIN_14_BIT == fbc_mode)
 			ch_pre->compress_4bit_bypass = 0;
-	}
+	} else
+		fbc_mode = DCAM_FBC_DISABLE;
+	sw_handle[module->cur_sw_ctx_id].path[ch_pre->dcam_path_id].fbc_mode = fbc_mode;
+	if (!fbc_mode)
+		ch_pre->compress_input = 0;
 
-	pr_debug("fbc = %d\n", fbc_mode);
 	ch_vid->compress_input = ch_pre->compress_input;
 	ch_vid->compress_4bit_bypass = ch_pre->compress_4bit_bypass;
+
+	module->dcam_dev_handle->dcam_pipe_ops->ioctl(&module->dcam_dev_handle->sw_ctx[module->cur_sw_ctx_id],
+			DCAM_IOCTL_CFG_FBC, &fbc_mode);
+	pr_debug("pre fbc = %d\n", fbc_mode);
+
+	if (ch_raw->compress_input) {
+			fbc_mode = hw->ip_dcam[module->dcam_idx]->dcam_raw_fbc_mode;
+			/* manually control compression policy here */
+			if (override->enable)
+				fbc_mode = override->override[CH_PRE][FBC_DCAM];
+			if (DCAM_FBC_RAW_14_BIT == fbc_mode)
+				ch_pre->compress_4bit_bypass = 0;
+	} else
+		fbc_mode = DCAM_FBC_DISABLE;
+	sw_handle[module->cur_sw_ctx_id].path[ch_raw->dcam_path_id].fbc_mode = fbc_mode;
+	if (!fbc_mode)
+		ch_raw->compress_input = 0;
+
+	pr_debug("raw fbc = %d\n", fbc_mode);
 
 	module->dcam_dev_handle->dcam_pipe_ops->ioctl(&module->dcam_dev_handle->sw_ctx[module->cur_sw_ctx_id],
 			DCAM_IOCTL_CFG_FBC, &fbc_mode);
@@ -1085,7 +1115,7 @@ static void camcore_compression_config(struct camera_module *module)
 }
 
 static void camcore_prepare_frame_from_file(struct camera_queue *queue,
-				char *filename,
+				char *filename, uint32_t data_bits, uint32_t fmt,
 				uint32_t width, uint32_t height, uint32_t pack_bits)
 {
 	struct camera_frame *frame, *f;
@@ -1106,8 +1136,8 @@ static void camcore_prepare_frame_from_file(struct camera_queue *queue,
 		return;
 
 	if (frame->is_compressed)
-		total = dcam_if_cal_compressed_size(width, height,
-			frame->compress_4bit_bypass);
+		total= dcam_if_cal_compressed_size (fmt, data_bits, width, height,
+							frame->compress_4bit_bypass, &frame->fbc_info);
 	else
 		total = cal_sprd_raw_pitch(width, pack_bits) * height;
 
@@ -1326,6 +1356,7 @@ static int camcore_buffers_alloc(void *param)
 	struct camera_frame *alloc_buf = NULL;
 	uint32_t is_super_size = 0;
 	uint32_t is_pack = 0;
+	struct dcam_compress_info fbc_info;
 
 	pr_info("enter.\n");
 
@@ -1358,11 +1389,9 @@ static int camcore_buffers_alloc(void *param)
 	is_pack = !pack_bits;
 
 	if (channel->compress_input) {
-		width = ALIGN(width, DCAM_FBC_TILE_WIDTH);
-		height = ALIGN(height, DCAM_FBC_TILE_HEIGHT);
-		pr_info("ch %d, FBC size (%d %d)\n", channel->ch_id, width, height);
-		size = dcam_if_cal_compressed_size(width, height,
-			channel->compress_4bit_bypass);
+		size = dcam_if_cal_compressed_size (channel->dcam_out_fmt, dcam_out_bits, width, height,
+									channel->compress_4bit_bypass, &fbc_info);
+		pr_info("dcam fbc buffer size %u\n", size);
 	} else if (channel->dcam_out_fmt & DCAM_STORE_RAW_BASE) {
 		size = cal_sprd_raw_pitch(width, pack_bits) * height;
 	} else if ((channel->dcam_out_fmt == DCAM_STORE_YUV420) || (channel->dcam_out_fmt == DCAM_STORE_YVU420)) {
@@ -1413,6 +1442,7 @@ static int camcore_buffers_alloc(void *param)
 			pframe->height = height;
 			pframe->endian = ENDIAN_LITTLE;
 			pframe->pattern = module->cam_uinfo.sensor_if.img_ptn;
+			pframe->fbc_info = fbc_info;
 			if (channel->ch_id == CAM_CH_PRE &&
 				module->grp->camsec_cfg.camsec_mode != SEC_UNABLE) {
 				pframe->buf.buf_sec = 1;
@@ -1460,7 +1490,7 @@ static int camcore_buffers_alloc(void *param)
 		replacer = &debugger->replacer[module->dcam_idx];
 		if (replacer->enabled[path_id]) {
 			camcore_prepare_frame_from_file(&channel->share_buf_queue,
-				replacer->filename[path_id],
+				replacer->filename[path_id], dcam_out_bits, channel->dcam_out_fmt,
 				width, height, pack_bits);
 			module->dcam_dev_handle->dcam_pipe_ops->ioctl(&module->dcam_dev_handle->sw_ctx[module->cur_sw_ctx_id],
 				DCAM_IOCTL_CFG_REPLACER, replacer);
@@ -2437,6 +2467,7 @@ static int camcore_dcam_callback(enum dcam_cb_type type, void *param, void *priv
 				channel->isp_updata = NULL;
 				pr_info("cur %p\n", pframe->param_data);
 			}
+
 			if ((module->flash_skip_fid == pframe->fid) && (module->flash_skip_fid != 0)) {
 				pr_debug("flash_skip_frame fd = %d\n", pframe->fid);
 				ret = module->dcam_dev_handle->dcam_pipe_ops->cfg_path(&module->dcam_dev_handle->sw_ctx[module->cur_sw_ctx_id],
@@ -3054,6 +3085,7 @@ static int camcore_channel_size_bininig_cal(
 	struct img_trim trim_c = {0};
 	struct img_trim *isp_trim;
 	struct img_size src_p, dst_p, dst_v, dcam_out;
+	struct cam_hw_info *hw = NULL;
 
 	ch_prev = &module->channel[CAM_CH_PRE];
 	ch_cap = &module->channel[CAM_CH_CAP];
@@ -3168,7 +3200,8 @@ static int camcore_channel_size_bininig_cal(
 		dcam_out.h = ALIGN_DOWN(dcam_out.h, 2);
 
 		/* avoid isp fetch fbd timeout when isp src width > 1856 */
-		if (dcam_out.w > 1856)
+		hw = module->dcam_dev_handle->hw;
+		if ((dcam_out.w > ISP_FBD_MAX_WIDTH) && (hw->prj_id == SHARKL5pro))
 			ch_prev->compress_input = 0;
 
 		if (ch_prev->compress_input) {
@@ -3248,6 +3281,7 @@ static int camcore_channel_size_rds_cal(struct camera_module *module)
 	struct img_trim trim_pv = {0};
 	struct img_trim trim_c = {0};
 	struct img_size src_p, dst_p, dst_v, dcam_out;
+	struct cam_hw_info *hw = NULL;
 
 	ch_prev = &module->channel[CAM_CH_PRE];
 	ch_cap = &module->channel[CAM_CH_CAP];
@@ -3341,7 +3375,8 @@ static int camcore_channel_size_rds_cal(struct camera_module *module)
 		dcam_out.h = camcore_ratio16_divide(trim_pv.size_y, ratio_min);
 
 		/* avoid isp fetch fbd timeout when isp src width > 1856 */
-		if (dcam_out.w > 1856)
+		hw = module->dcam_dev_handle->hw;
+		if ((dcam_out.w > ISP_FBD_MAX_WIDTH) && (hw->prj_id == SHARKL5pro))
 			ch_prev->compress_input = 0;
 
 		if (ch_prev->compress_input)
@@ -4628,6 +4663,8 @@ static int camcore_one_frame_dump(struct camera_module *module,
 	uint8_t tmp_str[20] = { '\0' };
 	uint32_t pack_bits = 0;
 	uint32_t width = 0;
+	uint32_t dcam_out_bits = 0;
+	struct dcam_compress_info fbc_info;
 
 	ch_id = pframe->channel_id;
 	channel = &module->channel[ch_id];
@@ -4663,20 +4700,22 @@ static int camcore_one_frame_dump(struct camera_module *module,
 	strcat(file_name, tmp_str);
 
 	pack_bits = module->cam_uinfo.sensor_if.if_spec.mipi.is_loose;
+	dcam_out_bits = module->cam_uinfo.sensor_if.if_spec.mipi.bits_per_pxl;
 	if (pframe->is_compressed) {
 		struct compressed_addr addr;
 
+		size = dcam_if_cal_compressed_size (channel->dcam_out_fmt, dcam_out_bits, pframe->width,
+									pframe->height, pframe->compress_4bit_bypass, &fbc_info);
 		dcam_if_cal_compressed_addr(pframe->width, pframe->height,
-			pframe->buf.iova[0], &addr,
+			&fbc_info, pframe->buf.iova[0], &addr,
 			pframe->compress_4bit_bypass);
+		pframe->fbc_info = fbc_info;
 		sprintf(tmp_str, "_tile%08lx",
 			addr.addr1 - pframe->buf.iova[0]);
 		strcat(file_name, tmp_str);
 		sprintf(tmp_str, "_low2tile%08x",
 			addr.addr2 - addr.addr1);
 		strcat(file_name, tmp_str);
-		size = dcam_if_cal_compressed_size(pframe->width,
-			pframe->height, pframe->compress_4bit_bypass);
 	} else {
 		size = cal_sprd_raw_pitch(width, pack_bits) * pframe->height;
 	}

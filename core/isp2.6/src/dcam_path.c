@@ -471,6 +471,7 @@ int dcam_path_store_frm_set(void *dcam_ctx_handle,
 	int i = 0, ret = 0;
 	uint32_t slm_path = 0;
 	struct dcam_hw_cfg_store_addr store_arg;
+	struct dcam_compress_info fbc_info = {0};
 
 	if (unlikely(!dcam_ctx_handle || !path))
 		return -EINVAL;
@@ -530,12 +531,15 @@ int dcam_path_store_frm_set(void *dcam_ctx_handle,
 		struct img_size *size = &path->out_size;
 
 		dcam_if_cal_compressed_addr(size->w, size->h,
-			frame->buf.iova[0],
+			&frame->fbc_info, frame->buf.iova[0],
 			&fbc_addr,
 			frame->compress_4bit_bypass);
+		fbc_info = frame->fbc_info;
 		fbcadr.idx = idx;
 		fbcadr.addr = addr;
 		fbcadr.fbc_addr = &fbc_addr;
+		fbcadr.path_id = path_id;
+		fbcadr.data_bits = path->data_bits;
 		hw->dcam_ioctl(hw, DCAM_HW_CFG_FBC_ADDR_SET, &fbcadr);
 	} else {
 		store_arg.idx = idx;
@@ -615,6 +619,7 @@ int dcam_path_store_frm_set(void *dcam_ctx_handle,
 				path_size.rds_init_phase_int1 = path->gphase.rds_init_phase_int1;
 				path_size.rds_init_phase_rdm0 = path->gphase.rds_init_phase_rdm0;
 				path_size.rds_init_phase_rdm1 = path->gphase.rds_init_phase_rdm1;
+				path_size.compress_info = fbc_info;
 				hw->dcam_ioctl(hw, DCAM_HW_CFG_PATH_SIZE_UPDATE, &path_size);
 				frame->param_data = path->priv_size_data;
 				path->size_update = 0;

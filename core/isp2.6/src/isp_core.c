@@ -3020,10 +3020,10 @@ static int ispcore_context_put(void *isp_handle, int ctx_id)
 
 	mutex_lock(&dev->path_mutex);
 
-	if (atomic_dec_return(&pctx->user_cnt) == 0)
+	if (atomic_read(&pctx->user_cnt) == 1)
 		ispcore_offline_thread_stop(&pctx->thread);
 
-	if (atomic_read(&pctx->user_cnt) == 0) {
+	if (atomic_dec_return(&pctx->user_cnt) == 0) {
 		pctx->started = 0;
 		pr_info("free context %d without users.\n", pctx->ctx_id);
 

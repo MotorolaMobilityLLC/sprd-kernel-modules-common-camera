@@ -268,7 +268,7 @@ static int dcamint_frame_check(struct dcam_hw_context *dcam_hw_ctx,
 		struct img_size *size = &path->out_size;
 
 		dcam_if_cal_compressed_addr(size->w, size->h,
-					    frame->buf.iova[0],
+					    &frame->fbc_info, frame->buf.iova[0],
 					    &compressed_addr,
 					    frame->compress_4bit_bypass);
 		frame_addr = compressed_addr.addr2;

@@ -805,6 +805,7 @@ static int dcamcore_offline_slices_sw_start(void *param)
 	struct cam_hw_info *hw = NULL;
 	struct dcam_hw_path_start patharg;
 	struct dcam_hw_slice_fetch slicearg;
+	struct dcam_hw_fbc_ctrl fbc_arg;
 	uint32_t slice_no;
 
 	sw_pctx = (struct dcam_sw_context *)param;
@@ -899,6 +900,15 @@ static int dcamcore_offline_slices_sw_start(void *param)
 			patharg.in_trim = sw_pctx->path[i].in_trim;
 			patharg.endian = sw_pctx->path[i].endian;
 			hw->dcam_ioctl(hw, DCAM_HW_CFG_PATH_START, &patharg);
+
+			if (sw_pctx->path[i].fbc_mode) {
+				fbc_arg.idx = sw_pctx->hw_ctx_id;
+				fbc_arg.path_id = i;
+				fbc_arg.fmt = sw_pctx->path[i].out_fmt;
+				fbc_arg.data_bits = sw_pctx->path[i].data_bits;
+				fbc_arg.fbc_mode = sw_pctx->path[i].fbc_mode;
+				hw->dcam_ioctl(hw, DCAM_HW_CFG_FBC_CTRL, &fbc_arg);
+			}
 		} else {
 			pr_err("fail to set dcam%d path%d store frm\n",
 				sw_pctx->hw_ctx_id, path->path_id);
@@ -982,6 +992,7 @@ static int dcamcore_offline_frame_start(void *param)
 	struct dcam_hw_slice_fetch slicearg;
 	struct dcam_pipe_context *pctx = NULL;
 	struct dcam_dev_param *pm;
+	struct dcam_hw_fbc_ctrl fbc_arg;
 
 	sw_pctx = (struct dcam_sw_context *)param;
 	sw_pctx->offline = 1;
@@ -1161,6 +1172,15 @@ static int dcamcore_offline_frame_start(void *param)
 			patharg.is_pack = sw_pctx->path[i].is_pack;
 			patharg.data_bits = sw_pctx->path[i].data_bits;
 			hw->dcam_ioctl(hw, DCAM_HW_CFG_PATH_START, &patharg);
+
+			if (sw_pctx->path[i].fbc_mode) {
+				fbc_arg.idx = sw_pctx->hw_ctx_id;
+				fbc_arg.path_id = i;
+				fbc_arg.fmt = sw_pctx->path[i].out_fmt;
+				fbc_arg.data_bits = sw_pctx->path[i].data_bits;
+				fbc_arg.fbc_mode = sw_pctx->path[i].fbc_mode;
+				hw->dcam_ioctl(hw, DCAM_HW_CFG_FBC_CTRL, &fbc_arg);
+			}
 		} else {
 			pr_err("fail to set dcam%d path%d store frm\n",
 				sw_pctx->hw_ctx_id, path->path_id);
@@ -1698,8 +1718,8 @@ static inline void dcamcore_frame_info_show(struct dcam_sw_context *pctx,
 
 	pack_bits = path->pack_bits;
 	if (frame->is_compressed)
-		size = dcam_if_cal_compressed_size(frame->width,
-			frame->height, frame->compress_4bit_bypass);
+		size = dcam_if_cal_compressed_size (path->out_fmt, path->data_bits, frame->width, frame->height,
+						frame->compress_4bit_bypass, &frame->fbc_info);
 	else
 		size = cal_sprd_raw_pitch(frame->width, pack_bits) * frame->height;
 
@@ -2097,13 +2117,21 @@ static int dcamcore_ioctrl(void *dcam_handle, enum dcam_ioctrl_cmd cmd, void *pa
 		else if (*fbc_mode == DCAM_FBC_BIN_14_BIT ||
 			*fbc_mode == DCAM_FBC_BIN_10_BIT)
 			path = &pctx->path[DCAM_PATH_BIN];
+		else if (*fbc_mode == DCAM_FBC_RAW_14_BIT ||
+			*fbc_mode == DCAM_FBC_RAW_10_BIT)
+			path = &pctx->path[DCAM_PATH_RAW];
+		else if (*fbc_mode == DCAM_FBC_DISABLE)
+			return 0;
+
 		if (!path) {
 			pr_info("Unsupport fbc mode %d\n", *fbc_mode);
 			return 0;
 		}
 		arg.idx = pctx->hw_ctx_id;
 		arg.fbc_mode = *fbc_mode;
-		hw->dcam_ioctl(hw, DCAM_HW_CFG_FBC_CTRL, &arg);
+		arg.data_bits = path->data_bits;
+		arg.fmt = path->out_fmt;
+		arg.path_id = path->path_id;
 
 		list_for_each_entry(frame, &path->reserved_buf_queue.head, list) {
 			if (!frame)
@@ -2111,7 +2139,8 @@ static int dcamcore_ioctrl(void *dcam_handle, enum dcam_ioctrl_cmd cmd, void *pa
 			else {
 				frame->is_compressed = 1;
 				if (*fbc_mode == DCAM_FBC_FULL_14_BIT ||
-					*fbc_mode == DCAM_FBC_BIN_14_BIT)
+					*fbc_mode == DCAM_FBC_BIN_14_BIT ||
+					*fbc_mode == DCAM_FBC_RAW_14_BIT)
 					frame->compress_4bit_bypass = 0;
 			}
 		}
@@ -2197,6 +2226,7 @@ static int dcamcore_dev_start(void *dcam_handle, int online)
 	struct dcam_hw_mipi_cap caparg;
 	struct dcam_hw_path_start patharg;
 	struct dcam_hw_sram_ctrl sramarg;
+	struct dcam_hw_fbc_ctrl fbc_arg;
 	unsigned long flag;
 
 	if (!dcam_handle) {
@@ -2334,8 +2364,17 @@ static int dcamcore_dev_start(void *dcam_handle, int online)
 			return ret;
 		}
 
-		if (atomic_read(&path->set_frm_cnt) > 0)
+		if (atomic_read(&path->set_frm_cnt) > 0) {
 			hw->dcam_ioctl(hw, DCAM_HW_CFG_PATH_START, &patharg);
+			if (pctx->path[i].fbc_mode) {
+				fbc_arg.idx = pctx->hw_ctx_id;
+				fbc_arg.path_id = i;
+				fbc_arg.fmt = pctx->path[i].out_fmt;
+				fbc_arg.data_bits = pctx->path[i].data_bits;
+				fbc_arg.fbc_mode = pctx->path[i].fbc_mode;
+				hw->dcam_ioctl(hw, DCAM_HW_CFG_FBC_CTRL, &fbc_arg);
+			}
+		}
 	}
 
 	if (pctx->is_4in1 == 0)
@@ -2894,6 +2933,7 @@ int dcam_core_ctx_switch(struct dcam_sw_context *ori_sw_ctx, struct dcam_sw_cont
 	uint32_t i = 0;
 	struct dcam_hw_force_copy copyarg;
 	struct cam_hw_reg_trace trace;
+	struct dcam_hw_fbc_ctrl fbc_arg;
 
 	dev = ori_sw_ctx->dev;
 	hw = ori_sw_ctx->dev->hw;
@@ -2925,6 +2965,15 @@ int dcam_core_ctx_switch(struct dcam_sw_context *ori_sw_ctx, struct dcam_sw_cont
 		ret = dcam_path_store_frm_set(new_sw_ctx, path, NULL);
 
 		hw->dcam_ioctl(hw, DCAM_HW_CFG_PATH_START, &patharg);
+
+		if (new_sw_ctx->path[i].fbc_mode) {
+			fbc_arg.idx = new_sw_ctx->hw_ctx_id;
+			fbc_arg.path_id = i;
+			fbc_arg.fmt = new_sw_ctx->path[i].out_fmt;
+			fbc_arg.data_bits = new_sw_ctx->path[i].data_bits;
+			fbc_arg.fbc_mode = new_sw_ctx->path[i].fbc_mode;
+			hw->dcam_ioctl(hw, DCAM_HW_CFG_FBC_CTRL, &fbc_arg);
+		}
 	}
 	pr_info("new_sw_ctx->hw_ctx_id = %d\n", new_sw_ctx->hw_ctx_id);
 	caparg.idx = new_sw_ctx->hw_ctx_id;

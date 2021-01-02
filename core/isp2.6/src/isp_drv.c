@@ -401,7 +401,7 @@ static int ispdrv_fbd_raw_get(void *cfg_in, void *cfg_out,
 	}
 
 	dcam_if_cal_compressed_addr(fbd_raw->width, fbd_raw->height,
-			frame->buf.iova[0], &fbd_raw->hw_addr,
+			&frame->fbc_info, frame->buf.iova[0], &fbd_raw->hw_addr,
 			frame->compress_4bit_bypass);
 	/* store start address for slice use */
 	fbd_raw->header_addr_init = fbd_raw->hw_addr.addr1;

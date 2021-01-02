@@ -96,7 +96,7 @@ int dcam_k_raw_gtm_block(uint32_t gtm_param_idx,
 	dcam_k_raw_gtm_set_default(p);
 
 	if (g_dcam_bypass[idx] & (1 << _E_GTM))
-		p->gtm_mod_en = 0;
+		p->gtm_mod_en = 1;
 	gtm_slice = &(p->slice);
 	if ((!p->gtm_mod_en) | (p->gtm_map_bypass && p->gtm_hist_stat_bypass)){
 		DCAM_REG_MWR(idx, DCAM_GTM_GLB_CTRL, 0x3, 0x3);

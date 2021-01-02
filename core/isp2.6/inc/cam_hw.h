@@ -79,6 +79,8 @@ enum dcam_fbc_mode_type {
 	DCAM_FBC_BIN_10_BIT = 0x3,
 	DCAM_FBC_FULL_14_BIT = 0x5,
 	DCAM_FBC_BIN_14_BIT = 0x7,
+	DCAM_FBC_RAW_10_BIT,
+	DCAM_FBC_RAW_14_BIT,
 };
 
 enum isp_yuv_block_ctrl_type {
@@ -99,6 +101,13 @@ enum isp_afbc_path {
 	AFBC_PATH_PRE = 0,
 	AFBC_PATH_VID,
 	AFBC_PATH_NUM,
+};
+
+enum dcam_fbc_path {
+	DCAM_FBC_PATH_BIN,
+	DCAM_FBC_PATH_FULL,
+	DCAM_FBC_PATH_RAW,
+	DCAM_FBC_PATH_NUM,
 };
 
 enum dcam_hw_cfg_cmd {
@@ -529,13 +538,6 @@ struct dcam_hw_binning_4in1 {
 	uint32_t binning_4in1_en;
 };
 
-struct dcam_compress_info {
-	uint32_t is_compress;
-	uint32_t tile_col;
-	uint32_t tile_row;
-	uint32_t tile_row_lowbit;
-};
-
 struct dcam_hw_path_size {
 	uint32_t idx;
 	uint32_t auto_cpy_id;
@@ -821,11 +823,16 @@ struct cam_hw_gtm_ltm_eb {
 struct dcam_hw_fbc_addr {
 	uint32_t idx;
 	unsigned long addr;
+	uint32_t path_id;
+	uint32_t data_bits;
 	struct compressed_addr *fbc_addr;
 };
 
 struct dcam_hw_fbc_ctrl {
 	uint32_t idx;
+	uint32_t path_id;
+	uint32_t fmt;
+	uint32_t data_bits;
 	int fbc_mode;
 };
 
@@ -939,6 +946,25 @@ struct isp_hw_yuv_block_ctrl {
 	struct isp_k_block *blk_param;
 };
 
+struct camhw_cal_fbc_size_para {
+	uint32_t fmt;
+	uint32_t data_bits;
+	uint32_t width;
+	uint32_t height;
+	uint32_t bypass_4bit;
+	struct dcam_compress_info fbc_info;
+};
+
+struct camhw_cal_fbc_addr_para {
+	uint32_t fmt;
+	uint32_t width;
+	uint32_t height;
+	uint32_t bypass_4bit;
+	unsigned long in;
+	struct compressed_addr *out;
+	struct dcam_compress_info fbc_info;
+};
+
 struct hw_io_ctrl_fun {
 	uint32_t cmd;
 	hw_ioctl_fun hw_ctrl;
@@ -969,6 +995,7 @@ struct cam_hw_ip_info {
 	uint32_t superzoom_support;
 	uint32_t dcam_full_fbc_mode;
 	uint32_t dcam_bin_fbc_mode;
+	uint32_t dcam_raw_fbc_mode;
 	unsigned long *store_addr_tab;
 	uint32_t *path_ctrl_id_tab;
 	uint32_t afl_gbuf_size;

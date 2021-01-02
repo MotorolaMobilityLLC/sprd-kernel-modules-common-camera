@@ -14,6 +14,8 @@
 #ifndef _DCAM_HW_ADPT_H_
 #define _DCAM_HW_ADPT_H_
 
+#include "cam_types.h"
+
 #define DCAM_64M_WIDTH                 9216
 #define DCAM_24M_WIDTH                 5664
 #define DCAM_16M_WIDTH                 4672
@@ -32,6 +34,26 @@
 #define DCAM_HW_SLICE_WIDTH_MAX        8192
 #define CAM_FACEID_SEC
 #define DCAM_OFFSET_RANGE              0x3E103E0
+
+/*
+ * dcam_if fbc capability limit
+ * modification to these values may cause some function in isp_slice.c not
+ * work, check @ispslice_slice_fbd_raw_cfg and all other symbol references for details
+ */
+
+#define DCAM_FBC_TILE_WIDTH            32
+#define DCAM_FBC_TILE_HEIGHT           8
+#define FBC_PAYLOAD_YUV10_BYTE_UNIT    512
+#define FBC_PAYLOAD_YUV8_BYTE_UNIT     384
+#define FBC_PAYLOAD_RAW10_BYTE_UNIT    640
+#define FBC_HEADER_BYTE_UNIT           16
+#define FBC_TILE_HEAD_SIZE_ALIGN       1024
+#define FBC_STORE_ADDR_ALIGN           16
+#define FBC_LOWBIT_PITCH_ALIGN         16
+
+#define FBC_HEADER_REDUNDANT           0
+#define FBC_TILE_ADDR_ALIGN            1
+#define ISP_FBD_MAX_WIDTH              0xFFFFFFFF
 
 enum dcam_ctrl_id {
 	DCAM_CTRL_CAP = (1 << 0),
@@ -75,6 +97,66 @@ static inline uint32_t cal_sprd_raw_pitch(uint32_t w, uint32_t pack_bits)
 		w = (w * 16 + 127) / 128 * 128 / 8;
 
 	return w;
+}
+
+static inline uint32_t dcam_if_cal_compressed_size(uint32_t fmt, uint32_t data_bits, uint32_t width,
+					uint32_t height, uint32_t bypass_4bit, struct dcam_compress_info *fbc_info)
+{
+	uint32_t payload_size = 0, lowbits_size = 0;
+	int32_t tile_col = 0, tile_row = 0, header_size = 0, payload_unit = 0;
+
+	if (fmt & DCAM_STORE_RAW_BASE)
+		payload_unit = FBC_PAYLOAD_RAW10_BYTE_UNIT;
+	else {
+		if (data_bits == DCAM_STORE_10_BIT)
+			payload_unit = FBC_PAYLOAD_YUV10_BYTE_UNIT;
+		else
+			payload_unit = FBC_PAYLOAD_YUV8_BYTE_UNIT;
+	}
+	tile_col = (width + DCAM_FBC_TILE_WIDTH - 1) / DCAM_FBC_TILE_WIDTH;
+	if (fmt & DCAM_STORE_RAW_BASE)
+		tile_row = (height + DCAM_FBC_TILE_HEIGHT * 2 - 1) / DCAM_FBC_TILE_HEIGHT / 2;
+	else
+		tile_row = (height + DCAM_FBC_TILE_HEIGHT - 1) / DCAM_FBC_TILE_HEIGHT;
+
+	/* header addr 16byte align, size 1024byte align*/
+	header_size = tile_col * tile_row * FBC_HEADER_BYTE_UNIT;
+	header_size = ALIGN(header_size, FBC_TILE_HEAD_SIZE_ALIGN);
+
+	/*payload/lowbit addr 16byte align, lowbit addr = payload addr + payload size, so payload size 16byte align*/
+	payload_size= tile_col * tile_row * payload_unit;
+	payload_size = ALIGN(payload_size, FBC_STORE_ADDR_ALIGN);
+
+	if ((!bypass_4bit) && (fmt & DCAM_STORE_RAW_BASE))
+		lowbits_size = payload_size >> 1;
+	if (fbc_info) {
+		fbc_info->tile_col = tile_col;
+		fbc_info->tile_row = tile_row;
+		fbc_info->is_compress = 1;
+		fbc_info->tile_row_lowbit = (width / 2 + FBC_LOWBIT_PITCH_ALIGN - 1) /
+						FBC_LOWBIT_PITCH_ALIGN * FBC_LOWBIT_PITCH_ALIGN;
+		fbc_info->header_size = header_size;
+		fbc_info->payload_size = payload_size;
+		fbc_info->lowbits_size = lowbits_size;
+		fbc_info->buffer_size = header_size + payload_size + lowbits_size;
+	}
+	return header_size + payload_size + lowbits_size;
+}
+
+static inline void dcam_if_cal_compressed_addr(uint32_t width, uint32_t height,
+						struct dcam_compress_info *fbc_info,
+						unsigned long in, struct compressed_addr *out,
+						uint32_t compress_4bit_bypass)
+{
+	if (unlikely(!out))
+		return;
+
+	out->addr0 = ALIGN(in, FBC_STORE_ADDR_ALIGN);
+	out->addr1 = ALIGN(out->addr0 + fbc_info->header_size, FBC_STORE_ADDR_ALIGN);
+
+	if (!compress_4bit_bypass) {
+		out->addr2 = ALIGN(out->addr1+ fbc_info->payload_size, FBC_STORE_ADDR_ALIGN);
+	}
 }
 
 #endif

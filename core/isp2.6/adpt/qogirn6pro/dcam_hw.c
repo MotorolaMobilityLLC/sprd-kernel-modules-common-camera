@@ -31,6 +31,13 @@ static uint32_t g_gtm_bypass = 1;
 static uint32_t g_ltm_bypass = 1;
 static atomic_t clk_users;
 
+static uint32_t dcam_fbc_store_base[DCAM_FBC_PATH_NUM] = {
+	DCAM_YUV_FBC_SCAL_BASE,
+	/* full path share fbc with raw path*/
+	DCAM_FBC_RAW_BASE,
+	DCAM_FBC_RAW_BASE,
+};
+
 static int dcamhw_clk_eb(void *handle, void *arg)
 {
 	int ret = 0;
@@ -1507,10 +1514,53 @@ static int dcamhw_sram_ctrl_set(void *handle, void *arg)
 static int dcamhw_fbc_ctrl(void *handle, void *arg)
 {
 	struct dcam_hw_fbc_ctrl *fbc_arg = NULL;
+	uint32_t addr = 0, val = 0, color_format = 0;
+	uint32_t afbc_mode = DCAM_FBC_DISABLE;
 
 	fbc_arg = (struct dcam_hw_fbc_ctrl *)arg;
 
-	DCAM_REG_MWR(fbc_arg->idx, DCAM_FBC_RAW_PARAM, 0x7, fbc_arg->fbc_mode);
+	if (fbc_arg->fbc_mode == DCAM_FBC_DISABLE)
+		return 0;
+	if (fbc_arg->fmt & DCAM_STORE_RAW_BASE) {
+		if (fbc_arg->data_bits == DCAM_STORE_8_BIT)
+			afbc_mode = 9;
+		else
+			afbc_mode = 0xC;
+	} else if ((fbc_arg->fmt == DCAM_STORE_YUV420) || (fbc_arg->fmt == DCAM_STORE_YVU420)) {
+		if (fbc_arg->data_bits == DCAM_STORE_8_BIT)
+			afbc_mode = 5;
+		else
+			afbc_mode = 7;
+	} else if ((fbc_arg->fmt == DCAM_STORE_YVU422) || (fbc_arg->fmt == DCAM_STORE_YUV422)) {
+		if (fbc_arg->data_bits == DCAM_STORE_8_BIT)
+			afbc_mode = 9;
+		else
+			afbc_mode = 0xC;
+	}
+
+	if (fbc_arg->fmt == DCAM_STORE_YUV420)
+		color_format = 4;
+	else
+		color_format = 5;
+
+	if (fbc_arg->path_id == DCAM_PATH_BIN) {
+		addr = DCAM_YUV_FBC_SCAL_PARAM;
+		DCAM_REG_MWR(fbc_arg->idx, addr, 0x1F << 10, afbc_mode << 10);
+		DCAM_REG_MWR(fbc_arg->idx, addr, 0xF0, color_format << 4);
+		DCAM_REG_MWR(fbc_arg->idx, addr, BIT_0, 0);
+		DCAM_REG_MWR(fbc_arg->idx, DCAM_PATH_SEL, BIT_6, BIT_6);
+	} else {
+		addr = DCAM_FBC_RAW_PARAM;
+		DCAM_REG_MWR(fbc_arg->idx, addr, 0x1F00, afbc_mode << 8);
+		val = (fbc_arg->data_bits - 8) >> 1;
+		DCAM_REG_MWR(fbc_arg->idx, addr, BIT_6|BIT_7, val << 6);
+		DCAM_REG_MWR(fbc_arg->idx, addr, 0xF << 16, color_format << 16);
+		DCAM_REG_MWR(fbc_arg->idx, addr, BIT_0, 0);
+		if (fbc_arg->path_id == DCAM_PATH_FULL)
+			DCAM_REG_MWR(fbc_arg->idx, DCAM_PATH_SEL, BIT_8, BIT_8);
+		else
+			DCAM_REG_MWR(fbc_arg->idx, DCAM_PATH_SEL, BIT_4, BIT_4);
+	}
 
 	return 0;
 }
@@ -1518,17 +1568,27 @@ static int dcamhw_fbc_ctrl(void *handle, void *arg)
 static int dcamhw_fbc_addr_set(void *handle, void *arg)
 {
 	struct dcam_hw_fbc_addr *fbcadr = NULL;
+	struct compressed_addr *out = NULL;
 
 	fbcadr = (struct dcam_hw_fbc_addr *)arg;
-
-	if (!arg) {
+	out = fbcadr->fbc_addr;
+	if (!arg || !out) {
 		pr_err("fail to get valid arg\n");
 		return -EFAULT;
 	}
 
-	DCAM_REG_WR(fbcadr->idx, DCAM_YUV_FBC_SCAL_SLICE_PLOAD_BASE_ADDR, fbcadr->fbc_addr->addr1);
-	DCAM_REG_WR(fbcadr->idx, DCAM_YUV_FBC_SCAL_SLICE_HEADER_BASE_ADDR, fbcadr->fbc_addr->addr2);
-	DCAM_REG_WR(fbcadr->idx, fbcadr->addr, fbcadr->fbc_addr->addr3);
+	if (fbcadr->path_id == DCAM_PATH_BIN) {
+		DCAM_REG_WR(fbcadr->idx, DCAM_YUV_FBC_SCAL_SLICE_HEADER_BASE_ADDR, out->addr0);
+		DCAM_REG_WR(fbcadr->idx, DCAM_YUV_FBC_SCAL_SLICE_PLOAD_BASE_ADDR, out->addr1);
+		DCAM_REG_WR(fbcadr->idx, DCAM_YUV_FBC_SCAL_SLICE_PLOAD_OFFSET_ADDR, out->addr1 - out->addr0);
+	} else {
+		DCAM_REG_WR(fbcadr->idx, DCAM_FBC_RAW_SLICE_Y_HEADER, out->addr0);
+		DCAM_REG_WR(fbcadr->idx, DCAM_FBC_RAW_SLICE_Y_ADDR, out->addr1);
+		DCAM_REG_WR(fbcadr->idx, DCAM_FBC_RAW_SLICE_OFFSET, out->addr1 - out->addr0);
+
+		if (fbcadr->path_id == DCAM_PATH_RAW && fbcadr->data_bits > 10)
+			DCAM_REG_WR(fbcadr->idx, DCAM_FBC_RAW_SLICE_Y_ADDR, out->addr2);
+	}
 
 	return 0;
 }
@@ -1656,11 +1716,12 @@ static int dcamhw_blocks_setall(void *handle, void *arg)
 	uint32_t idx;
 	struct dcam_dev_param *p;
 
-	if (arg == NULL) {
+	if (!arg) {
 		pr_err("fail to get ptr %p\n", arg);
 		return -EFAULT;
 	}
 	p = (struct dcam_dev_param *)arg;
+
 	idx = p->idx;
 	dcam_k_awbc_block(p);
 	dcam_k_blc_block(p);
@@ -1669,6 +1730,7 @@ static int dcamhw_blocks_setall(void *handle, void *arg)
 	dcam_k_raw_gtm_block(DCAM_GTM_PARAM_PRE, p);
 	/* simulator should set this block(random) carefully */
 	dcam_k_rgb_dither_random_block(p);
+
 	pr_info("dcam%d set all\n", idx);
 
 	return 0;

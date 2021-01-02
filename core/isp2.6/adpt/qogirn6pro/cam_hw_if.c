@@ -21,9 +21,9 @@
 
 #include "cam_trusty.h"
 #include "dcam_reg.h"
-#include "dcam_hw_adpt.h"
 #include "dcam_int.h"
 #include "dcam_path.h"
+#include "dcam_hw_adpt.h"
 
 #include "isp_reg.h"
 #include "isp_hw_adpt.h"
@@ -365,8 +365,9 @@ static struct cam_hw_ip_info dcam[DCAM_ID_MAX] = {
 		.offline_slice_support = 1,
 		.afl_gbuf_size = STATIS_AFL_GBUF_SIZE,
 		.superzoom_support = 1,
-		.dcam_full_fbc_mode = DCAM_FBC_FULL_14_BIT,
-		.dcam_bin_fbc_mode = DCAM_FBC_BIN_14_BIT,
+		.dcam_full_fbc_mode = DCAM_FBC_FULL_10_BIT,
+		.dcam_bin_fbc_mode = DCAM_FBC_BIN_10_BIT,
+		.dcam_raw_fbc_mode = DCAM_FBC_RAW_10_BIT,
 		.store_addr_tab = dcam_store_addr,
 		.path_ctrl_id_tab = path_ctrl_id,
 		.pdaf_type3_reg_addr = DCAM_PPE_RIGHT_WADDR,
@@ -380,8 +381,9 @@ static struct cam_hw_ip_info dcam[DCAM_ID_MAX] = {
 		.offline_slice_support = 1,
 		.afl_gbuf_size = STATIS_AFL_GBUF_SIZE,
 		.superzoom_support = 1,
-		.dcam_full_fbc_mode = DCAM_FBC_FULL_14_BIT,
-		.dcam_bin_fbc_mode = DCAM_FBC_BIN_14_BIT,
+		.dcam_full_fbc_mode = DCAM_FBC_FULL_10_BIT,
+		.dcam_bin_fbc_mode = DCAM_FBC_BIN_10_BIT,
+		.dcam_raw_fbc_mode = DCAM_FBC_RAW_10_BIT,
 		.store_addr_tab = dcam_store_addr,
 		.path_ctrl_id_tab = path_ctrl_id,
 		.pdaf_type3_reg_addr = DCAM_PPE_RIGHT_WADDR,

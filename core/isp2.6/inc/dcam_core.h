@@ -19,9 +19,9 @@
 
 #include "cam_types.h"
 #include "cam_queue.h"
-#include "dcam_interface.h"
 #include "cam_block.h"
 #include "cam_hw.h"
+#include "dcam_interface.h"
 
 #define DCAM_IN_Q_LEN                     2
 #define DCAM_PROC_Q_LEN                   12
@@ -94,16 +94,6 @@ struct dcam_rds_slice_ctrl {
 	uint32_t rds_init_phase_rdm0;
 };
 
-enum dcam_store_format { /*order as spec*/
-	DCAM_STORE_FRGB = 0,
-	DCAM_STORE_YUV_BASE = 0x10,
-	DCAM_STORE_YUV422,
-	DCAM_STORE_YVU422,
-	DCAM_STORE_YUV420,
-	DCAM_STORE_YVU420,
-	DCAM_STORE_RAW_BASE = 0x20,
-};
-
 struct dcam_path_desc {
 	atomic_t user_cnt;
 	enum dcam_path_id path_id;
@@ -120,6 +110,7 @@ struct dcam_path_desc {
 	struct img_size in_size;
 	struct img_trim in_trim;
 	struct img_size out_size;
+	uint32_t fbc_mode;
 
 	uint32_t base_update;
 	uint32_t bayer_pattern;
@@ -331,13 +322,6 @@ enum dcam_bind_mode {
 struct dcam_switch_param {
 	uint32_t csi_id;
 	uint32_t dcam_id;
-};
-
-enum dcam_store_bit_width {
-	DCAM_STORE_8_BIT = 8,
-	DCAM_STORE_10_BIT = 10,
-	DCAM_STORE_12_BIT = 12,
-	DCAM_STORE_14_BIT = 14,
 };
 
 static inline uint32_t cal_sprd_yuv_pitch(uint32_t w, uint32_t dcam_out_bits, uint32_t is_pack)

@@ -28,10 +28,6 @@
 #define ZOOM_RATIO_DEFAULT              1000
 #define CAM_BUF_ALIGN_SIZE              4
 #define ALIGN_OFFSET                    16
-#define FBC_TILE_WIDTH                  64
-#define FBC_TILE_HEIGHT                 4
-#define FBC_TILE_ADDR_ALIGN             256
-#define FBC_HEADER_REDUNDANT            64
 
 /*************** for global debug starts********************/
 
@@ -250,6 +246,34 @@ enum cam_scene_ctrl_type {
 	CAM_SCENE_CTRL_FDR_L,
 	CAM_SCENE_CTRL_FDR_H,
 	CAM_SCENE_CTRL_MAX,
+};
+
+enum dcam_store_bit_width {
+	DCAM_STORE_8_BIT = 8,
+	DCAM_STORE_10_BIT = 10,
+	DCAM_STORE_12_BIT = 12,
+	DCAM_STORE_14_BIT = 14,
+};
+
+struct dcam_compress_info {
+	uint32_t is_compress;
+	uint32_t tile_col;
+	uint32_t tile_row;
+	uint32_t tile_row_lowbit;
+	uint32_t header_size;
+	uint32_t payload_size;
+	uint32_t lowbits_size;
+	uint32_t buffer_size;
+};
+
+enum dcam_store_format {
+	DCAM_STORE_FRGB = 0,
+	DCAM_STORE_YUV_BASE = 0x10,
+	DCAM_STORE_YUV422,
+	DCAM_STORE_YVU422,
+	DCAM_STORE_YUV420,
+	DCAM_STORE_YVU420,
+	DCAM_STORE_RAW_BASE = 0x20,
 };
 
 struct cam_data_ctrl_in {
