@@ -529,7 +529,8 @@ int sprd_fd_drv_close(void *drv_handle)
 		if(hw_handle->fd_buf_info[i].mfd != 0 && (hw_handle->fd_buf_info[i].buf_info.mapping_state & CAM_BUF_MAPPING_DEV)) {
 			ret = cam_buf_iommu_unmap(&hw_handle->fd_buf_info[i].buf_info);
 			if (ret)
-				pr_err("fail to unmap FD_BUF_CFG_INDEX\n", i);
+				pr_err("fail to unmap FD_BUF_CFG_INDEX %d\n", i);
+
 			cam_buf_ionbuf_put(&hw_handle->fd_buf_info[i].buf_info);
 			hw_handle->fd_buf_info[i].mfd = 0;
 		}

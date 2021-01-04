@@ -1140,7 +1140,7 @@ static int dcamhw_slice_fetch_set(void *handle, void *arg)
 			/* cfg bin path */
 			DCAM_REG_MWR(idx, DCAM_CAM_BIN_CFG,
 				(0x3FF << 20) |(1 << 1), (fetch_pitch << 20) | (1 << 1));
-			DCAM_REG_WR(idx, DCAM_CAM_BIN_CROP_START, (0<< 16) | 0 & 0x1fff);
+			DCAM_REG_WR(idx, DCAM_CAM_BIN_CROP_START, (0<< 16) | (0 & 0x1fff));
 			DCAM_REG_WR(idx, DCAM_CAM_BIN_CROP_SIZE,
 				((cur_slice->size_y & 0x1fff) << 16) | (cur_slice->size_x & 0x1fff));
 		} else {
