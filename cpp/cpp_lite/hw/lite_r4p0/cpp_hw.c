@@ -17,8 +17,12 @@
 #include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/interrupt.h>
+#include <linux/version.h>
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 4, 0))
 #include <video/sprd_vsp_pw_domain.h>
+#endif
 
+#include "cam_porting.h"
 #include "cpp_drv.h"
 #include "cpp_reg.h"
 #include "cpp_block.h"
@@ -200,7 +204,9 @@ static int cpphw_clk_enable(void *cpp_soc_handle)
 	}
 	soc_cpp = (struct cpp_hw_soc_info *)cpp_soc_handle;
 
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 4, 0))
 	ret = vsp_pw_on(VSP_PW_DOMAIN_VSP_CPP);
+#endif
 	if (ret) {
 		ret = -EFAULT;
 		pr_err("fail to vsp power on\n");
@@ -272,7 +278,9 @@ static int cpphw_clk_disable(void *cpp_soc_handle)
 	clk_set_parent(soc_cpp->cpp_emc_clk, soc_cpp->cpp_emc_clk_default);
 	clk_disable_unprepare(soc_cpp->cpp_emc_clk);
 	clk_disable_unprepare(soc_cpp->clk_mm_vsp_eb);
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 4, 0))
 	ret = vsp_pw_off(VSP_PW_DOMAIN_VSP_CPP);
+#endif
 	if (ret) {
 		pr_err("fail to camera power off\n");
 		return ret;
@@ -438,13 +446,12 @@ int cpphw_probe(struct platform_device *pdev, struct cpp_hw_info * hw_info)
 	/* read global register */
 	for (i = 0; i < ARRAY_SIZE(syscon_name); i++) {
 		pname = syscon_name[i];
-		tregmap =  syscon_regmap_lookup_by_name(np, pname);
+		tregmap =  cam_syscon_regmap_lookup_by_name(np, pname);
 		if (IS_ERR_OR_NULL(tregmap)) {
 			pr_err("fail to read %s regmap\n", pname);
 			continue;
 		}
-		ret = syscon_get_args_by_name(np, pname, 2, args);
-		if (ret != 2) {
+		if (cam_syscon_get_args_by_name(np, pname, 2, args)) {
 			pr_err("fail to read %s args, ret %d\n",
 				pname, ret);
 			continue;

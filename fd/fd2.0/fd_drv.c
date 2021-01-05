@@ -36,7 +36,7 @@
 #include <sprd_mm.h>
 #include <sprd_fd.h>
 
-#include "cam_types.h"
+#include "cam_porting.h"
 #include "cam_buf.h"
 #include "fd_core.h"
 #include "fd_drv.h"
