@@ -32,7 +32,9 @@
 
 unsigned long g_dcam_regbase[DCAM_ID_MAX];
 unsigned long g_dcam_aximbase[DCAM_ID_MAX];
+unsigned long g_dcam_phys_base[DCAM_ID_MAX];
 unsigned long g_dcam_mmubase;
+unsigned long g_dcam_fmcubase;
 
 /*
  * Initialize dcam_if hardware, power/clk/int should be prepared after this call
@@ -288,7 +290,8 @@ int dcam_drv_dt_parse(struct platform_device *pdev,
 			goto err_iounmap;
 		}
 		ip_dcam->phy_base = (unsigned long) reg_res.start;
-
+		g_dcam_phys_base[i] = ip_dcam->phy_base;
+		pr_debug("dcam phys reg base is %lx\n", g_dcam_phys_base[0]);
 		reg_base = ioremap(reg_res.start, reg_res.end - reg_res.start + 1);
 		if (!reg_base) {
 			pr_err("fail to map DCAM%d reg base\n", i);

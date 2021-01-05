@@ -22,6 +22,7 @@
 #include "cam_block.h"
 #include "cam_hw.h"
 #include "dcam_interface.h"
+#include "dcam_fmcu.h"
 
 #define DCAM_IN_Q_LEN                     2
 #define DCAM_PROC_Q_LEN                   12
@@ -304,6 +305,7 @@ struct dcam_hw_context {
 	uint32_t handled_bits;
 	uint32_t handled_bits_on_int1;
 	struct dcam_sw_context *sw_ctx;
+	struct dcam_fmcu_ctx_desc *fmcu;
 };
 
 struct dcam_pipe_dev {

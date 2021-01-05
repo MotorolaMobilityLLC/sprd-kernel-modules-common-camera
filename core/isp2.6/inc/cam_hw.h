@@ -169,6 +169,7 @@ enum dcam_hw_cfg_cmd {
 	DCAM_HW_CFG_FMCU_CMD,
 	DCAM_HW_CFG_FMCU_START,
 	DCAM_HW_FMCU_EBABLE,
+	DCAM_HW_CFG_SLW_FMCU_CMDS,
 	DCAM_HW_CFG_MAX
 };
 
@@ -273,6 +274,42 @@ enum isp_fetch_format {
 	ISP_FETCH_YUV420_2FRAME,
 	ISP_FETCH_YVU420_2FRAME,
 	ISP_FETCH_FORMAT_MAX
+};
+
+/*
+ * Enumerating output paths in dcam_if device.
+ *
+ * @DCAM_PATH_FULL: with biggest line buffer, full path is often used as capture
+ *                  path. Crop function available on this path.
+ * @DCAM_PATH_BIN:  bin path is used as preview path. Crop and scale function
+ *                  available on this path.
+ * @DCAM_PATH_PDAF: this path is used to receive PDAF data
+ * @DCAM_PATH_VCH2: can receive data according to data_type or
+ *                  virtual_channel_id in a MIPI packet
+ * @DCAM_PATH_VCH3: receive all data left
+ * @DCAM_PATH_AEM:  output exposure by blocks
+ * @DCAM_PATH_AFM:  output focus related data
+ * @DCAM_PATH_AFL:  output anti-flicker data, including global data and region
+ *                  data
+ * @DCAM_PATH_HIST: output bayer histogram data in RGB channel
+ * @DCAM_PATH_3DNR: output noise reduction data
+ * @DCAM_PATH_BPC:  output bad pixel data
+ */
+enum dcam_path_id {
+	DCAM_PATH_FULL = 0,
+	DCAM_PATH_BIN,
+	DCAM_PATH_RAW,
+	DCAM_PATH_PDAF,
+	DCAM_PATH_VCH2,
+	DCAM_PATH_VCH3,
+	DCAM_PATH_AEM,
+	DCAM_PATH_AFM,
+	DCAM_PATH_AFL,
+	DCAM_PATH_HIST,
+	DCAM_PATH_3DNR,
+	DCAM_PATH_BPC,
+	DCAM_PATH_LSCM,
+	DCAM_PATH_MAX,
 };
 
 struct isp_fbd_raw_info {
@@ -773,6 +810,24 @@ struct cam_hw_reg_trace {
 	uint32_t idx;
 };
 
+struct dcam_store {
+	uint32_t color_fmt;
+	unsigned long  reg_addr;
+	struct img_addr store_addr;
+};
+
+struct dcam_hw_slw_fmcu_cmds {
+	uint32_t ctx_id;
+	struct dcam_fmcu_ctx_desc *fmcu_handle;
+	struct dcam_path_desc *dcam_path;
+	struct dcam_store store_info[DCAM_PATH_MAX];
+};
+
+struct dcam_hw_fmcu_cfg {
+	uint32_t ctx_id;
+	struct dcam_fmcu_ctx_desc *fmcu;
+};
+
 struct isp_hw_slice_store {
 	uint32_t path_en;
 	uint32_t ctx_id;
@@ -1068,6 +1123,7 @@ struct cam_hw_ip_info {
 struct cam_hw_soc_info {
 	struct platform_device *pdev;
 	unsigned long axi_reg_base[DCAM_ID_MAX];
+	unsigned long fmcu_reg_base;
 
 	struct regmap *cam_ahb_gpr;
 	struct regmap *aon_apb_gpr;

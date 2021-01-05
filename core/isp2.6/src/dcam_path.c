@@ -482,6 +482,91 @@ static inline void dcampath_frame_pointer_swap(struct camera_frame **frame1,
 	*frame2 = frame;
 }
 
+int dcam_path_fmcu_slw_store_buf_set(
+		struct dcam_path_desc *path,
+		struct dcam_sw_context *sw_ctx,
+		struct dcam_hw_slw_fmcu_cmds *slw)
+{
+	int ret = 0;
+	struct camera_frame *out_frame = NULL;
+	struct cam_hw_info *hw = NULL;
+
+	hw = sw_ctx->dev->hw;
+
+	if (!path || !sw_ctx || !hw) {
+		pr_err("fail to check param, path%px, sw_ctx %px, hw%px\n", path, sw_ctx, hw);
+		return -EINVAL;
+	}
+
+	if (atomic_read(&path->user_cnt) < 1)
+		return ret;
+
+	out_frame = dcam_path_frame_cycle(sw_ctx, path);
+	if (IS_ERR(out_frame))
+		return PTR_ERR(out_frame);
+	ret = cam_queue_enqueue(&path->result_queue, &out_frame->list);
+	if (ret) {
+		if (out_frame->is_reserved)
+			cam_queue_enqueue(&path->reserved_buf_queue, &out_frame->list);
+		else {
+			cam_buf_iommu_unmap(&out_frame->buf);
+			cam_queue_enqueue(&path->out_buf_queue, &out_frame->list);
+		}
+		return -EINVAL;
+	}
+	slw->store_info[path->path_id].reg_addr = *(hw->ip_dcam[sw_ctx->hw_ctx_id]->store_addr_tab + path->path_id);
+	slw->store_info[path->path_id].store_addr.addr_ch0 = out_frame->buf.iova[0];
+	slw->store_info[path->path_id].store_addr.addr_ch1 = out_frame->buf.iova[1];
+	slw->store_info[path->path_id].store_addr.addr_ch2 = out_frame->buf.iova[2];
+	pr_debug("fmcu slw queue done!\n");
+
+	return ret;
+}
+
+int dcam_path_fmcu_slw_queue_set(struct dcam_hw_context *hw_ctx)
+{
+	struct dcam_hw_context *dcam_hw_ctx = (struct dcam_hw_context *)hw_ctx;
+	struct dcam_sw_context *sw_ctx = dcam_hw_ctx->sw_ctx;
+	struct cam_hw_info *hw = NULL;
+	struct dcam_path_desc *path = NULL;
+	int i = 0, j = 0;
+	struct dcam_hw_slw_fmcu_cmds slw;
+	struct dcam_fmcu_ctx_desc *fmcu = NULL;
+	int ret = 0;
+
+	hw = sw_ctx->dev->hw;
+	if (!sw_ctx || !hw)
+		pr_err("fail to check param sw_ctx %px, hw %px\n", sw_ctx, hw);
+	for (j =0; j < sw_ctx->slowmotion_count; j++) {
+		for (i = 0; i < DCAM_PATH_MAX; i++) {
+			path = &sw_ctx->path[i];
+			if (atomic_read(&path->user_cnt) < 1 || atomic_read(&path->is_shutoff) > 0)
+				continue;
+			/* TODO: frm_deci and frm_skip in slow motion */
+			path->frm_cnt++;
+			if (path->frm_cnt <= path->frm_skip)
+				continue;
+
+			/* @frm_deci is the frame index of output frame */
+			if ((path->frm_deci_cnt++ >= path->frm_deci)
+				|| sw_ctx->slowmotion_count) {
+				path->frm_deci_cnt = 0;
+				dcam_path_fmcu_slw_store_buf_set(path, sw_ctx, &slw);
+			}
+		}
+		fmcu = dcam_hw_ctx->fmcu;
+		if (!fmcu)
+			pr_err("fail to check param fmcu%px\n", fmcu);
+		slw.fmcu_handle = fmcu;
+		slw.ctx_id = sw_ctx->hw_ctx_id;
+		ret = hw->dcam_ioctl(hw, DCAM_HW_CFG_SLW_FMCU_CMDS, &slw);
+		if (ret)
+			pr_err("fail to prepare %d slw cmd\n", dcam_path_name_get(i));
+	}
+
+	return ret;
+}
+
 int dcam_path_store_frm_set(void *dcam_ctx_handle,
 		struct dcam_path_desc *path,
 		struct dcam_sync_helper *helper)

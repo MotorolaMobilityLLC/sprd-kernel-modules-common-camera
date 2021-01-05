@@ -53,6 +53,26 @@ static int dcamfmcu_cmd_push(struct dcam_fmcu_ctx_desc *fmcu_ctx,
 	return ret;
 }
 
+static int dcam_fmcu_cmd_agined(struct dcam_fmcu_ctx_desc *fmcu_ctx)
+{
+	int cmd_num = 0;
+	uint32_t addr = 0, cmd = 0;
+
+	if (!fmcu_ctx) {
+	pr_err("fail to get fmcu_ctx pointer\n");
+	return -EFAULT;
+	}
+
+	cmd_num = (int)fmcu_ctx->cmdq_pos[fmcu_ctx->cur_buf_id] / 2;
+
+	if (cmd_num % 2) {
+		addr = DCAM_IP_REVISION;
+		cmd = 0;
+		dcamfmcu_cmd_push(fmcu_ctx, addr, cmd);
+	}
+
+	return 0;
+}
 static int dcamfmcu_cmd_ready(struct dcam_fmcu_ctx_desc *fmcu_ctx)
 {
 	int ret = 0;
@@ -90,6 +110,7 @@ static int dcamfmcu_cmd_ready(struct dcam_fmcu_ctx_desc *fmcu_ctx)
 		}
 	}
 #endif
+	dcam_fmcu_cmd_agined(fmcu_ctx);
 	cmdarg.hw_addr = fmcu_ctx->hw_addr[fmcu_ctx->cur_buf_id];
 	cmdarg.cmd_num = cmd_num;
 	fmcu_ctx->hw->dcam_ioctl(fmcu_ctx->hw, DCAM_HW_CFG_FMCU_CMD, &cmdarg);
@@ -99,6 +120,7 @@ static int dcamfmcu_cmd_ready(struct dcam_fmcu_ctx_desc *fmcu_ctx)
 		(uint32_t)fmcu_ctx->cmdq_pos[fmcu_ctx->cur_buf_id] * 4);
 
 	fmcu_ctx->cur_buf_id = !(fmcu_ctx->cur_buf_id);
+
 	return ret;
 }
 
@@ -145,6 +167,7 @@ static int dcamfmcu_start(struct dcam_fmcu_ctx_desc *fmcu_ctx)
  * fmcu_ctx->cmdq_pos[fmcu_ctx->cur_buf_id] * sizeof(uint32_t));
  */
 
+	dcam_fmcu_cmd_agined(fmcu_ctx);
 	startarg.hw_addr = fmcu_ctx->hw_addr[fmcu_ctx->cur_buf_id];
 	startarg.cmd_num = cmd_num;
 	fmcu_ctx->hw->dcam_ioctl(fmcu_ctx->hw, DCAM_HW_CFG_FMCU_START, &startarg);
@@ -154,6 +177,7 @@ static int dcamfmcu_start(struct dcam_fmcu_ctx_desc *fmcu_ctx)
 		(uint32_t)fmcu_ctx->cmdq_pos[fmcu_ctx->cur_buf_id] * 4);
 
 	fmcu_ctx->cur_buf_id = !(fmcu_ctx->cur_buf_id);
+
 	return ret;
 }
 
@@ -192,7 +216,7 @@ static int dcamfmcu_ctx_init(struct dcam_fmcu_ctx_desc *fmcu_ctx)
 	fmcu_ctx->lock = __SPIN_LOCK_UNLOCKED(&fmcu_ctx->lock);
 
 	/*alloc cmd queue buffer*/
-	for (i = 0; i < MAX_BUF; i++) {
+	for (i = 0; i < DCAM_FMCU_BUF_MAX; i++) {
 		ion_buf = &fmcu_ctx->ion_pool[i];
 		memset(ion_buf, 0, sizeof(fmcu_ctx->ion_pool[i]));
 		sprintf(ion_buf->name, "dcam_fmcu_ctx%d", i);
@@ -234,19 +258,19 @@ static int dcamfmcu_ctx_init(struct dcam_fmcu_ctx_desc *fmcu_ctx)
 	return 0;
 
 err_hwmap_fmcu:
-	for (i = 0; i < MAX_BUF; i++) {
+	for (i = 0; i < DCAM_FMCU_BUF_MAX; i++) {
 		ion_buf = &fmcu_ctx->ion_pool[i];
 		if (ion_buf)
 			cam_buf_iommu_unmap(ion_buf);
 	}
 err_kmap_fmcu:
-	for (i = 0; i < MAX_BUF; i++) {
+	for (i = 0; i < DCAM_FMCU_BUF_MAX; i++) {
 		ion_buf = &fmcu_ctx->ion_pool[i];
 		if (ion_buf)
 			cam_buf_kunmap(ion_buf);
 	}
 err_alloc_fmcu:
-	for (i = 0; i < MAX_BUF; i++) {
+	for (i = 0; i < DCAM_FMCU_BUF_MAX; i++) {
 		ion_buf = &fmcu_ctx->ion_pool[i];
 		if (ion_buf)
 			cam_buf_free(ion_buf);
@@ -267,7 +291,7 @@ static int dcamfmcu_ctx_deinit(struct dcam_fmcu_ctx_desc *fmcu_ctx)
 	}
 
 	pr_debug("Enter\n");
-	for (i = 0; i < MAX_BUF; i++) {
+	for (i = 0; i < DCAM_FMCU_BUF_MAX; i++) {
 		ion_buf = &fmcu_ctx->ion_pool[i];
 		cam_buf_iommu_unmap(ion_buf);
 		cam_buf_kunmap(ion_buf);
@@ -291,7 +315,7 @@ static struct dcam_fmcu_ctx_desc s_fmcu_desc[DCAM_FMCU_NUM] = {
 	{
 		.fid = DCAM_FMCU_0,
 		.ops = &fmcu_ops,
-		.cur_buf_id = PING,
+		.cur_buf_id = DCAM_FMCU_PING,
 	},
 };
 

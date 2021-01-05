@@ -49,42 +49,6 @@ enum dcam_sw_context_id {
 	DCAM_SW_CONTEXT_MAX,
 };
 
-/*
- * Enumerating output paths in dcam_if device.
- *
- * @DCAM_PATH_FULL: with biggest line buffer, full path is often used as capture
- *                  path. Crop function available on this path.
- * @DCAM_PATH_BIN:  bin path is used as preview path. Crop and scale function
- *                  available on this path.
- * @DCAM_PATH_PDAF: this path is used to receive PDAF data
- * @DCAM_PATH_VCH2: can receive data according to data_type or
- *                  virtual_channel_id in a MIPI packet
- * @DCAM_PATH_VCH3: receive all data left
- * @DCAM_PATH_AEM:  output exposure by blocks
- * @DCAM_PATH_AFM:  output focus related data
- * @DCAM_PATH_AFL:  output anti-flicker data, including global data and region
- *                  data
- * @DCAM_PATH_HIST: output bayer histogram data in RGB channel
- * @DCAM_PATH_3DNR: output noise reduction data
- * @DCAM_PATH_BPC:  output bad pixel data
- */
-enum dcam_path_id {
-	DCAM_PATH_FULL = 0,
-	DCAM_PATH_BIN,
-	DCAM_PATH_RAW,
-	DCAM_PATH_PDAF,
-	DCAM_PATH_VCH2,
-	DCAM_PATH_VCH3,
-	DCAM_PATH_AEM,
-	DCAM_PATH_AFM,
-	DCAM_PATH_AFL,
-	DCAM_PATH_HIST,
-	DCAM_PATH_3DNR,
-	DCAM_PATH_BPC,
-	DCAM_PATH_LSCM,
-	DCAM_PATH_MAX,
-};
-
 struct statis_path_buf_info {
 	enum dcam_path_id path_id;
 	size_t buf_size;

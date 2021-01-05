@@ -215,8 +215,25 @@ static int camhw_get_axi_base(void *handle, void *arg)
 	soc_dcam->axi_reg_base[2] = (unsigned long)reg_base;
 	g_dcam_aximbase[3] = (unsigned long)reg_base;
 	soc_dcam->axi_reg_base[3] = (unsigned long)reg_base;
-	return 0;
 
+	pos = count + 2;
+	if (of_address_to_resource(dn, pos, &reg_res)) {
+		pr_err("fail to get FMCU phy addr\n");
+		goto err_axi_iounmap;
+	}
+
+	reg_base = ioremap(reg_res.start, reg_res.end - reg_res.start + 1);
+	if (!reg_base) {
+		pr_err("fail to map FMCU reg base\n");
+		goto err_fmcu_iounmap;
+	}
+	g_dcam_fmcubase = (unsigned long)reg_base;
+
+	return 0;
+err_fmcu_iounmap:
+	g_dcam_fmcubase = 0;
+	if (pos == (count + 2))
+		iounmap((void __iomem *)g_dcam_fmcubase);
 err_axi_iounmap:
 	if (pos == (count + 1))
 		iounmap((void __iomem *)g_dcam_aximbase[0]);

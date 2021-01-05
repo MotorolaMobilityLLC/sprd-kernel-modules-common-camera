@@ -919,7 +919,27 @@ static void dcamint_fmcu_config_done(void *param)
 
 static void dcamint_fmcu_shadow_done(void *param)
 {
-	pr_debug("dcamint_fmcu_shadow_done\n");
+	struct dcam_hw_context *dcam_hw_ctx = (struct dcam_hw_context *)param;
+	struct dcam_sw_context *sw_ctx = NULL;
+	struct cam_hw_info *hw = NULL;
+	struct dcam_hw_auto_copy copyarg;
+
+	if (dcam_hw_ctx == NULL)
+		pr_err("fail to check param dcam_hw_ctx %px\n", dcam_hw_ctx);
+	dcam_path_fmcu_slw_queue_set(dcam_hw_ctx);
+	sw_ctx = dcam_hw_ctx->sw_ctx;
+	if (!sw_ctx) {
+		pr_err("fail to check param %px\n", sw_ctx);
+		return;
+	}
+
+	sw_ctx->auto_cpy_id = DCAM_CTRL_ALL;
+	copyarg.id = sw_ctx->auto_cpy_id;
+	copyarg.idx = dcam_hw_ctx->hw_ctx_id;
+	copyarg.glb_reg_lock = sw_ctx->glb_reg_lock;
+	hw->dcam_ioctl(hw, DCAM_HW_CFG_AUTO_COPY, &copyarg);
+	sw_ctx->auto_cpy_id = 0;
+	sw_ctx->frame_index++;
 }
 
 static void dcamint_dummy_done(void *param)

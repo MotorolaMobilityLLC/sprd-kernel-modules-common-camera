@@ -20,22 +20,23 @@
 
 #include "cam_buf.h"
 
-#define DCAM_FMCU_CMDQ_SIZE          0x1000
+#define DCAM_FMCU_CMDQ_SIZE              0x1000
+#define DCAM_FMCU_PUSH(fmcu, addr, cmd)  fmcu->ops->push_cmdq(fmcu, addr, cmd)
 
-enum fmcu_id {
+enum dcam_fmcu_id {
 	DCAM_FMCU_0,
 	DCAM_FMCU_NUM
 };
 
-enum fmcu_buf_id {
-	PING,
-	PANG,
-	MAX_BUF
+enum dcam_fmcu_buf_id {
+	DCAM_FMCU_PING,
+	DCAM_FMCU_PANG,
+	DCAM_FMCU_BUF_MAX
 };
 
 enum {
-	FMCU_IS_NEED = (1 << 0),
-	FMCU_IS_MUST = (1 << 1),
+	DCAM_FMCU_IS_NEED = (1 << 0),
+	DCAM_FMCU_IS_MUST = (1 << 1),
 };
 
 enum dcam_fmcu_cmd {
@@ -58,18 +59,19 @@ enum dcam_fmcu_cmd {
 
 struct dcam_fmcu_ops;
 struct dcam_fmcu_ctx_desc {
-	enum fmcu_id fid;
-	enum fmcu_buf_id cur_buf_id;
-	struct camera_buf ion_pool[MAX_BUF];
-	uint32_t *cmd_buf[MAX_BUF];
-	unsigned long hw_addr[MAX_BUF];
+	enum dcam_fmcu_id fid;
+	enum dcam_fmcu_buf_id cur_buf_id;
+	struct camera_buf ion_pool[DCAM_FMCU_BUF_MAX];
+	uint32_t *cmd_buf[DCAM_FMCU_BUF_MAX];
+	unsigned long hw_addr[DCAM_FMCU_BUF_MAX];
 	size_t cmdq_size;
-	size_t cmdq_pos[MAX_BUF];
+	size_t cmdq_pos[DCAM_FMCU_BUF_MAX];
 	spinlock_t lock;
 	atomic_t  user_cnt;
 	struct list_head list;
 	struct dcam_fmcu_ops *ops;
 	struct cam_hw_info *hw;
+	uint32_t hw_ctx_id;
 };
 
 struct dcam_fmcu_ops {
