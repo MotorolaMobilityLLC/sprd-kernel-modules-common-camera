@@ -477,6 +477,51 @@ struct dcam_dev_raw_gtm_block_info {
 	uint32_t gtm_map_video_mode;
 };
 
+struct dcam_dev_rgb_gtm_block_info {
+	uint32_t gtm_tm_out_bit_depth;
+	uint32_t gtm_tm_in_bit_depth;
+	uint32_t gtm_cur_is_first_frame;
+	uint32_t gtm_tm_param_calc_by_hw;
+	uint32_t gtm_hist_stat_bypass;
+	uint32_t gtm_map_bypass;
+	uint32_t gtm_mod_en;
+	uint32_t gtm_imgkey_setting_value;
+	uint32_t gtm_imgkey_setting_mode;
+	uint32_t gtm_target_norm_coeff;
+	uint32_t gtm_target_norm;
+	uint32_t gtm_target_norm_setting_mode;
+	uint32_t gtm_ymin;
+	uint32_t gtm_yavg;
+	uint32_t gtm_ymax;
+	uint32_t gtm_log_min_int;
+	uint32_t gtm_lr_int;
+	uint32_t gtm_log_diff_int;
+	uint32_t gtm_log_max_int;
+	uint32_t gtm_hist_total;
+	uint32_t gtm_min_per;
+	uint32_t gtm_max_per;
+	uint32_t gtm_log_diff;
+	uint32_t gtm_pre_ymin_weight;
+	uint32_t gtm_cur_ymin_weight;
+	uint32_t gtm_ymax_diff_thr;
+	uint32_t gtm_yavg_diff_thr;
+	uint32_t tm_lumafilter_c[3][3];
+	uint32_t tm_lumafilter_shift;
+	uint32_t gtm_rgb2y_mode;
+	uint32_t tm_rgb2y_g_coeff;
+	uint32_t tm_rgb2y_r_coeff;
+	uint32_t tm_rgb2y_b_coeff;
+	uint16_t tm_hist_xpts[GTM_HIST_BIN_NUM];
+	struct dcam_dev_gtm_slice_info slice;
+	uint32_t gtm_map_video_mode;
+	uint32_t gtm_map_bilateral_sigma_d;
+	uint32_t gtm_map_bilateral_sigma_r;
+	uint32_t gtm_tm_param_calc_by_sw;
+	uint32_t tm_filter_dist_c[49];
+	uint32_t tm_filter_distw_c[19];
+	uint32_t tm_filter_rangw_c[61];
+};
+
 struct isp_dev_gtm_slice_info {
 	uint32_t gtm_slice_main;
 	uint32_t gtm_slice_line_startpos;
