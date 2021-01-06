@@ -60,7 +60,7 @@ int dcam_k_bpc_block(struct dcam_dev_param *param)
 	val = ((p->bpc_mode & 0x3) << 4) |
 		((p->bpc_is_mono_sensor & 0x1) << 6) |
 		((p->bpc_ppi_en & 0x1) << 7) |
-		((p->bpc_pos_out_en & 0x1) << 16) |;
+		((p->bpc_pos_out_en & 0x1) << 16);
 	DCAM_REG_MWR(idx, DCAM_BPC_PARAM, 0xC0100F0, val);
 
 	for (i = 0; i < 4; i++) {

@@ -28,7 +28,7 @@
 #define pr_fmt(fmt) "GTM: %d %d %s : "\
 	fmt, current->pid, __LINE__, __func__
 
-void dcam_k_raw_gtm_set_default(struct dcam_dev_raw_gtm_block_info *p)
+void dcam_k_raw_gtm_set_default(struct dcam_dev_rgb_gtm_block_info *p)
 {
 #if 0
 	p->gtm_tm_out_bit_depth = 0xE;
@@ -82,17 +82,17 @@ int dcam_k_raw_gtm_block(uint32_t gtm_param_idx,
 	unsigned int i = 0;
 	uint32_t idx = param->idx;
 	unsigned int val = 0;
-	struct dcam_dev_raw_gtm_block_info *p;
+	struct dcam_dev_rgb_gtm_block_info *p;
 	struct dcam_dev_gtm_slice_info *gtm_slice;
 	struct dcam_sw_context *sw_ctx = NULL;
-	struct dcam_dev_gtm_param *gtm = NULL;
+	struct dcam_dev_rgb_gtm_param *gtm = NULL;
 
-	gtm = &param->gtm[gtm_param_idx];
+	gtm = &param->rgb_gtm[gtm_param_idx];
 	if (!gtm->update_en)
 		return 0;
 
 	sw_ctx = (struct dcam_sw_context *)param->dev;
-	p = &(gtm->gtm_info);
+	p = &(gtm->rgb_gtm_info);
 	dcam_k_raw_gtm_set_default(p);
 
 	if (g_dcam_bypass[idx] & (1 << _E_GTM))
@@ -122,8 +122,17 @@ int dcam_k_raw_gtm_block(uint32_t gtm_param_idx,
 		| ((p->gtm_target_norm_coeff & 0x3FFF) << 16);
 	DCAM_REG_MWR(idx, GTM_HIST_CTRL1, 0x3FFFFFF1, val);
 
+	val = p->gtm_ymin & 0x3FFF;
+	DCAM_REG_MWR(idx, GTM_HIST_YMIN, 0x3FFF, val);
+
 	val = p->gtm_yavg_diff_thr & 0x3FFF;
 	DCAM_REG_WR(idx, GTM_HIST_CTRL2, val);
+
+	val = (p->gtm_lr_int & 0xFFFF) | ((p->gtm_log_min_int & 0xFFFF) << 16);
+	DCAM_REG_WR(idx, GTM_HIST_CTRL3, val);
+
+	val = ((p->gtm_log_diff_int & 0xFFFF) << 16);
+	DCAM_REG_MWR(idx, GTM_HIST_CTRL4, 0xFFFF0000, val);
 
 	p->gtm_hist_total = sw_ctx->cap_info.cap_size.size_x * sw_ctx->cap_info.cap_size.size_y;
 	val = p->gtm_hist_total & 0x3FFFFFF;
@@ -193,21 +202,21 @@ int dcam_k_raw_gtm_block(uint32_t gtm_param_idx,
 int dcam_k_cfg_raw_gtm(struct isp_io_param *param, struct dcam_dev_param *p)
 {
 	int ret = 0;
-	struct dcam_dev_gtm_param *gtm = NULL;
+	struct dcam_dev_rgb_gtm_param *gtm = NULL;
 
 	switch (param->property) {
 	case DCAM_PRO_RAW_GTM_BLOCK:
 		if (param->scene_id == PM_SCENE_CAP)
-			gtm = &p->gtm[DCAM_GTM_PARAM_CAP];
+			gtm = &p->rgb_gtm[DCAM_GTM_PARAM_CAP];
 		else
-			gtm = &p->gtm[DCAM_GTM_PARAM_PRE];
+			gtm = &p->rgb_gtm[DCAM_GTM_PARAM_PRE];
 		/* online mode not need mutex, response faster
 		 * Offline need mutex to protect param
 		 */
 		if (p->offline == 0) {
-			ret = copy_from_user((void *)&(gtm->gtm_info),
+			ret = copy_from_user((void *)&(gtm->rgb_gtm_info),
 				param->property_param,
-				sizeof(gtm->gtm_info));
+				sizeof(gtm->rgb_gtm_info));
 			if (ret) {
 				pr_err("fail to copy, ret=0x%x\n", (unsigned int)ret);
 				return -EPERM;
@@ -216,9 +225,9 @@ int dcam_k_cfg_raw_gtm(struct isp_io_param *param, struct dcam_dev_param *p)
 				dcam_k_raw_gtm_block(DCAM_GTM_PARAM_PRE, p);
 		} else {
 			mutex_lock(&p->param_lock);
-			ret = copy_from_user((void *)&(gtm->gtm_info),
+			ret = copy_from_user((void *)&(gtm->rgb_gtm_info),
 				param->property_param,
-				sizeof(gtm->gtm_info));
+				sizeof(gtm->rgb_gtm_info));
 			if (ret) {
 				mutex_unlock(&p->param_lock);
 				pr_err("fail to copy, ret=0x%x\n", (unsigned int)ret);

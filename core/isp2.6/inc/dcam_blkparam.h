@@ -95,6 +95,11 @@ struct dcam_dev_gtm_param {
 	struct dcam_dev_raw_gtm_block_info gtm_info;
 };
 
+struct dcam_dev_rgb_gtm_param {
+	uint32_t update_en;
+	struct dcam_dev_rgb_gtm_block_info rgb_gtm_info;
+};
+
 struct dcam_dev_pdaf_param {
 	uint32_t bypass;
 	uint32_t mode;
@@ -126,6 +131,8 @@ struct dcam_dev_param {
 	struct dcam_dev_3dnr_param nr3;
 	struct dcam_dev_afm_param afm;
 	struct dcam_dev_gtm_param gtm[DCAM_GTM_PARAM_MAX];
+	/* qogirn6pro rgb_gtm blocks*/
+	struct dcam_dev_rgb_gtm_param rgb_gtm[DCAM_GTM_PARAM_MAX];
 	struct dcam_dev_lscm_param lscm;
 	struct dcam_dev_pdaf_param pdaf;
 };
