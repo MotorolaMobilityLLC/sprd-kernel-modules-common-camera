@@ -800,14 +800,6 @@ struct dcam_dev_bpc_info {
 	uint32_t bpc_map_addr;
 	uint32_t bpc_bad_pixel_pos_out_addr;
 	uint32_t bpc_last_waddr;
-
-	uint32_t bpc_bad_pixel_th[4];
-	uint32_t bpc_ig_th;
-	uint32_t bpc_edgeratio_g;
-	uint32_t bpc_edgeratio_dirc;
-	uint32_t bpc_difflimit;
-	uint32_t bpc_diffcoeff_limit;
-	uint32_t bpc_diffcoeff_detect;
 };
 
 struct dcam_dev_bpc_info_l3 {
@@ -849,6 +841,51 @@ struct dcam_dev_bpc_info_l3 {
 	uint32_t bad_map_hw_fifo_clr_en;
 	uint32_t bad_pixel_num;
 	uint32_t bad_pixel_pos_out_addr;
+};
+
+struct dcam_dev_bpc_info_v1 {
+	uint32_t bpc_bypass;
+	uint32_t bpc_mode;
+	uint32_t bpc_is_mono_sensor;
+	uint32_t bpc_double_bypass;
+	uint32_t bpc_three_bypass;
+	uint32_t bpc_four_bypass;
+	uint32_t bpc_intercept_b[8];
+	uint32_t bpc_slope_k[8];
+	uint32_t bpc_lut_level[8];
+
+	uint32_t bpc_ppi_en;
+	uint32_t bpc_hdr_en;
+	uint32_t bpc_pos_out_en;
+	uint32_t bpc_map_clr_en;
+	uint32_t bpc_rd_max_len_sel;
+	uint32_t bpc_wr_max_len_sel;
+	uint32_t bpc_blk_mode;
+	uint32_t bpc_mod_en;
+	uint32_t bpc_cg_dis;
+	uint32_t bpc_bad_pixel_th[4];
+
+	uint32_t bpc_ig_th;
+	uint32_t bpc_flat_th;
+	uint32_t bpc_shift[3];
+
+	uint32_t bpc_edgeratio_hv;
+	uint32_t bpc_edgeratio_rd;
+
+	uint32_t bpc_highoffset;
+	uint32_t bpc_lowoffset;
+	uint32_t bpc_highcoeff;
+	uint32_t bpc_lowcoeff;
+	uint32_t bpc_edgeratio_g;
+	uint32_t bpc_edgeratio_dirc;
+	uint32_t bpc_diffcoeff_limit;
+	uint32_t bpc_diffcoeff_detect;
+	uint32_t bpc_difflimit;
+
+	uint32_t bad_pixel_num;
+	uint32_t bpc_map_addr;
+	uint32_t bpc_bad_pixel_pos_out_addr;
+	uint32_t bpc_last_waddr;
 };
 
 struct dcam_dev_3dnr_me {
@@ -1125,6 +1162,25 @@ struct isp_dev_cfa_info {
 	uint32_t css_skin_u_down[2];
 	uint32_t css_skin_v_top[2];
 	uint32_t css_skin_v_down[2];
+};
+
+struct isp_dev_cfa_info_v1 {
+	uint32_t bypass;
+	uint32_t grid_thr;
+	uint32_t min_grid_new;
+	uint32_t grid_gain_new;
+	uint32_t strong_edge_thr;
+	uint32_t uni_dir_intplt_thr_new;
+	uint32_t cdcr_adj_factor;
+	uint32_t smooth_area_thr;
+	uint32_t readblue_high_sat_thr;
+	uint32_t weight_control_bypass;
+	uint32_t grid_dir_weight_t1;
+	uint32_t grid_dir_weight_t2;
+	uint32_t round_diff_03_thr;
+	uint32_t low_lux_03_thr;
+	uint32_t round_diff_12_thr;
+	uint32_t low_lux_12_thr;
 };
 
 struct cmc_matrix {
