@@ -1051,6 +1051,17 @@ struct isp_dev_3dnr_info {
 	struct isp_3dnr_blend_info blend;
 };
 
+struct isp_3dnr_fast_me_v1 {
+	uint32_t nr3_channel_sel;
+	uint32_t nr3_project_mode;
+	uint32_t nr3_project_shift_bypass;
+};
+
+struct isp_dev_3dnr_info_v1 {
+	struct isp_3dnr_fast_me_v1 fast_me;
+	struct isp_3dnr_blend_info blend;
+};
+
 struct isp_dev_brightness_info {
 	uint32_t bypass;
 	uint32_t factor;
@@ -1257,6 +1268,104 @@ struct isp_dev_edge_info_v2 {
 	uint32_t  ee_offset_clip_layer_curve_neg[3][3];
 	uint32_t  ee_offset_ratio_layer_lum_curve[3][3];
 	uint32_t  ee_offset_ratio_layer_freq_curve[3][3];
+};
+
+struct isp_dev_edge_info_v3 {
+	uint32_t bypass;
+
+	uint32_t ipd_enable; /*ipd_bypass in v1 */
+	uint32_t ipd_mask_mode;
+	uint32_t ee_ipd_1d_en;
+	uint32_t ee_ipd_orientation_filter_mode;
+	uint32_t ipd_smooth_en;
+	struct edge_pn_config ipd_less_thr;
+	struct edge_pn_config ipd_smooth_mode;
+	struct edge_pn_config ipd_flat_thr;
+	struct edge_pn_config ipd_eq_thr;
+	struct edge_pn_config ipd_more_thr;
+	struct edge_pn_config ipd_smooth_edge_thr;
+	struct edge_pn_config ipd_smooth_edge_diff;
+	uint32_t ee_ipd_direction_mode;
+	uint32_t ee_ipd_direction_freq_hop_control_en;
+	uint32_t direction_freq_hop_thresh;
+	uint32_t freq_hop_total_num_thresh;
+	uint32_t direction_thresh_diff;
+	uint32_t direction_thresh_min;
+	uint32_t direction_hop_thresh_diff;
+	uint32_t direction_hop_thresh_min;
+
+	uint32_t ee_ratio_hv_3;
+	uint32_t ee_ratio_hv_5;
+	uint32_t ee_ratio_diag_3;
+	uint32_t ee_weight_hv2diag;
+	uint32_t ee_gradient_computation_type;
+	uint32_t ee_weight_diag2hv;
+	uint32_t ee_gain_hv_t[2][4];
+	uint32_t ee_gain_hv_r[2][3];
+	uint32_t ee_ratio_diag_5;
+	uint32_t ee_gain_diag_t[2][4];
+	uint32_t ee_gain_diag_r[2][3];
+
+	uint32_t ee_lum_t[4];
+	uint32_t ee_lum_r[3];
+	uint32_t ee_freq_t[4];
+	uint32_t ee_freq_r[3];
+	uint32_t ee_pos_t[4];
+	uint32_t ee_pos_r[3];
+	uint32_t ee_pos_c[3];
+	uint32_t ee_neg_t[4];
+	uint32_t ee_neg_r[3];
+	uint32_t ee_neg_c[3];
+
+	/* new added below */
+	uint32_t ee_new_pyramid_en;
+	uint32_t ee_old_gradient_en;
+	uint32_t  ee_ratio_old_gradient;
+	uint32_t  ee_ratio_new_pyramid;
+	uint32_t  ee_offset_thr_layer_curve_pos[2][4];
+	uint32_t  ee_offset_ratio_layer_curve_pos[2][3];
+	uint32_t  ee_offset_clip_layer_curve_pos[2][3];
+	uint32_t  ee_offset_thr_layer_curve_neg[2][4];
+	uint32_t  ee_offset_ratio_layer_curve_neg[2][3];
+	uint32_t  ee_offset_clip_layer_curve_neg[2][3];
+	uint32_t  ee_offset_ratio_layer_lum_curve[2][3];
+	uint32_t  ee_offset_ratio_layer_freq_curve[2][3];
+
+	uint32_t ee_offset_ratio_layer0_computation_type;
+	uint32_t  ee_offset_layer0_thr_layer_curve_pos[4];
+	uint32_t  ee_offset_layer0_ratio_layer_curve_pos[3];
+	uint32_t  ee_offset_layer0_clip_layer_curve_pos[3];
+	uint32_t  ee_offset_layer0_thr_layer_curve_neg[4];
+	uint32_t  ee_offset_layer0_ratio_layer_curve_neg[3];
+	uint32_t  ee_offset_layer0_clip_layer_curve_neg[3];
+	uint32_t  ee_offset_layer0_ratio_layer_lum_curve[3];
+	uint32_t  ee_offset_layer0_ratio_layer_freq_curve[3];
+	uint32_t  ee_offset_layer0_gradient_curve_pos[4];
+	uint32_t  ee_offset_layer0_gradient_curve_neg[4];
+
+	uint32_t ee_cal_radius_en;
+	uint32_t ee_radial_1D_en;
+	uint32_t ee_radial_1D_old_gradient_ratio_en;
+	uint32_t ee_radial_1D_new_pyramid_ratio_en;
+	uint32_t ee_radial_1D_pyramid_layer_offset_en;
+	uint32_t center_x;
+	uint32_t center_y;
+	uint32_t radius_threshold;
+	uint32_t radius_threshold_factor;
+	uint32_t old_gradient_ratio_coef;
+	uint32_t new_pyramid_ratio_coef;
+	uint32_t layer_pyramid_offset_gain_max;
+	uint32_t layer_pyramid_offset_clip_ratio_max;
+	uint32_t layer_pyramid_offset_coef1;
+	uint32_t layer_pyramid_offset_coef2;
+	uint32_t layer_pyramid_offset_coef3;
+	uint32_t layer_pyramid_offset_gain_min1;
+	uint32_t layer_pyramid_offset_gain_min2;
+	uint32_t layer_pyramid_offset_gain_min3;
+	uint32_t old_gradient_ratio_gain_max;
+	uint32_t old_gradient_ratio_gain_min;
+	uint32_t new_pyramid_ratio_gain_max;
+	uint32_t new_pyramid_ratio_gain_min;
 };
 
 struct isp_dev_gamma_info {
@@ -1739,6 +1848,29 @@ struct isp_dev_uvd_info_v2 {
 	uint32_t y_th_l_len;
 	uint32_t y_th_h_len;
 	uint32_t uv_abs_th_len;
+};
+
+struct isp_dev_uvd_info_v1 {
+	uint32_t bypass;
+	uint32_t y_th_l_len;
+	uint32_t y_th_h_len;
+	uint32_t lum_th_h_len;
+	uint32_t lum_th_h;
+	uint32_t lum_th_l_len;
+	uint32_t lum_th_l;
+	struct uvd_th u_th;
+	struct uvd_th v_th;
+	uint32_t chroma_ratio;
+	uint32_t luma_ratio;
+	uint32_t ratio_y_min[2];
+	uint32_t ratio0;
+	uint32_t ratio1;
+	uint32_t chroma_max1_h;
+	uint32_t chroma_max1_m;
+	uint32_t chroma_max1_l;
+	uint32_t chroma_max2_h;
+	uint32_t chroma_max2_m;
+	uint32_t chroma_max2_l;
 };
 
 #pragma pack(push)
