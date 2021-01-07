@@ -997,12 +997,12 @@ static int dcamhw_lbuf_share_set(void *handle, void *arg)
 
 	cam_kproperty_get("auto/efuse",buf, "-1");
 	/*0: T606 1:T616*/
-	if(strncmp(buf, "T616", strlen("T616"))) {
+	if(strncmp(buf, "T616", strlen("T616")) == 0) {
 		if (camarg->width > DCAM_48M_WIDTH) {
 			pr_err("fail to check param, 48M unsupprot w %d\n", camarg->width);
 			return -EINVAL;
 		}
-	} else if (strncmp(buf, "T606", strlen("T606"))) {
+	} else if (strncmp(buf, "T606", strlen("T606")) == 0) {
 		if (camarg->width > DCAM_24M_WIDTH) {
 			pr_err("fail to check param, 24M unsupprot w %d\n", camarg->width);
 			return -EINVAL;
