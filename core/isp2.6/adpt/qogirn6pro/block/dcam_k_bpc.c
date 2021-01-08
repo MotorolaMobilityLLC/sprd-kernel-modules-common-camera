@@ -31,10 +31,10 @@ int dcam_k_bpc_block(struct dcam_dev_param *param)
 	uint32_t idx;
 	int i = 0;
 	uint32_t val = 0;
-	struct dcam_dev_bpc_info *p;
+	struct dcam_dev_bpc_info_v1 *p;
 
 	idx = param->idx;
-	p = &(param->bpc.bpc_param.bpc_info);
+	p = &(param->bpc_nl6.bpc_param_nl6.bpc_info);
 
 	/* debugfs bpc not bypass then write*/
 	if (g_dcam_bypass[idx] & (1 << _E_BPC))
@@ -65,7 +65,7 @@ int dcam_k_bpc_block(struct dcam_dev_param *param)
 
 	for (i = 0; i < 4; i++) {
 		val = (p->bpc_bad_pixel_th[i] & 0x3FF);
-        DCAM_REG_WR(idx, DCAM_BPC_BAD_PIXEL_TH0 + i * 4, val);
+		DCAM_REG_WR(idx, DCAM_BPC_BAD_PIXEL_TH0 + i * 4, val);
 	}
 
 	val = (p->bpc_ig_th & 0x3FF) |
@@ -88,8 +88,8 @@ int dcam_k_bpc_block(struct dcam_dev_param *param)
 		((p->bpc_diffcoeff_detect & 0x1F) << 24);
 	DCAM_REG_WR(idx, DCAM_BPC_BAD_PIXEL_PARAM, val);
 
-	val = (p->bpc_mincoeff & 0x3F) |
-		((p->bpc_maxcoeff & 0x3F) << 16);
+	val = (p->bpc_lowcoeff & 0x3F) |
+		((p->bpc_highcoeff & 0x3F) << 16);
 	DCAM_REG_WR(idx, DCAM_BPC_GDIF_TH, val);
 
 	for (i = 0; i < 8; i++) {
@@ -145,8 +145,8 @@ int dcam_k_cfg_bpc(struct isp_io_param *param, struct dcam_dev_param *p)
 	switch (param->property) {
 	case DCAM_PRO_BPC_BLOCK:
 	{
-		dst_ptr = (void *)&p->bpc.bpc_param.bpc_info;
-		dst_size = sizeof(struct dcam_dev_bpc_info);
+		dst_ptr = (void *)&p->bpc_nl6.bpc_param_nl6.bpc_info;
+		dst_size = sizeof(struct dcam_dev_bpc_info_v1);
 		sub_func = dcam_k_bpc_block;
 		break;
 	}

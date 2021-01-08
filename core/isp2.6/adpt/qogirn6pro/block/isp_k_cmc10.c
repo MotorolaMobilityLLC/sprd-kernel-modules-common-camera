@@ -16,6 +16,7 @@
 
 #include "isp_hw.h"
 #include "isp_reg.h"
+#include "dcam_reg.h"
 #include "cam_types.h"
 #include "cam_block.h"
 
@@ -43,28 +44,28 @@ static int isp_k_cmc10_block(struct isp_io_param *param,
 	}
 	if (g_isp_bypass[idx] & (1 << _EISP_CMC))
 		cmc10_info->bypass = 1;
-	ISP_REG_MWR(idx, ISP_CMC10_PARAM, BIT_0, cmc10_info->bypass);
+	DCAM_REG_MWR(idx, DCAM_CMC10_PARAM, BIT_0, cmc10_info->bypass);
 	if (cmc10_info->bypass)
 		return 0;
 
 	val = ((cmc10_info->matrix.val[1] & 0x3FFF) << 14) |
 		(cmc10_info->matrix.val[0] & 0x3FFF);
-	ISP_REG_WR(idx, ISP_CMC10_MATRIX0, val);
+	DCAM_REG_WR(idx, DCAM_CMC10_MATRIX0, val);
 
 	val = ((cmc10_info->matrix.val[3] & 0x3FFF) << 14) |
 		(cmc10_info->matrix.val[2] & 0x3FFF);
-	ISP_REG_WR(idx, (ISP_CMC10_MATRIX0 + 4), val);
+	DCAM_REG_WR(idx, (DCAM_CMC10_MATRIX0 + 4), val);
 
 	val = ((cmc10_info->matrix.val[5] & 0x3FFF) << 14) |
 		(cmc10_info->matrix.val[4] & 0x3FFF);
-	ISP_REG_WR(idx, (ISP_CMC10_MATRIX0 + 8), val);
+	DCAM_REG_WR(idx, (DCAM_CMC10_MATRIX0 + 8), val);
 
 	val = ((cmc10_info->matrix.val[7] & 0x3FFF) << 14) |
 		(cmc10_info->matrix.val[6] & 0x3FFF);
-	ISP_REG_WR(idx, (ISP_CMC10_MATRIX0 + 12), val);
+	DCAM_REG_WR(idx, (DCAM_CMC10_MATRIX0 + 12), val);
 
 	val = cmc10_info->matrix.val[8] & 0x3FFF;
-	ISP_REG_WR(idx, (ISP_CMC10_MATRIX0 + 16), val);
+	DCAM_REG_WR(idx, (DCAM_CMC10_MATRIX0 + 16), val);
 
 	return ret;
 }

@@ -16,6 +16,7 @@
 
 #include "isp_hw.h"
 #include "isp_reg.h"
+#include "dcam_reg.h"
 #include "cam_types.h"
 #include "cam_block.h"
 
@@ -49,27 +50,27 @@ static int isp_k_cce_block(struct isp_io_param *param,
 
 	val = ((cce_info->matrix[1] & 0x7FF) << 11) |
 		(cce_info->matrix[0] & 0x7FF);
-	ISP_REG_WR(idx, ISP_CCE_MATRIX0, val);
+	DCAM_REG_WR(idx, DCAM_CCE_MATRIX0, val);
 
 	val = ((cce_info->matrix[3] & 0x7FF) << 11) |
 		(cce_info->matrix[2] & 0x7FF);
-	ISP_REG_WR(idx, ISP_CCE_MATRIX1, val);
+	DCAM_REG_WR(idx, DCAM_CCE_MATRIX1, val);
 
 	val = ((cce_info->matrix[5] & 0x7FF) << 11) |
 		(cce_info->matrix[4] & 0x7FF);
-	ISP_REG_WR(idx, ISP_CCE_MATRIX2, val);
+	DCAM_REG_WR(idx, DCAM_CCE_MATRIX2, val);
 
 	val = ((cce_info->matrix[7] & 0x7FF) << 11) |
 		(cce_info->matrix[6] & 0x7FF);
-	ISP_REG_WR(idx, ISP_CCE_MATRIX3, val);
+	DCAM_REG_WR(idx, DCAM_CCE_MATRIX3, val);
 
-	val = cce_info->matrix[8] & 0x7FF;
-	ISP_REG_WR(idx, ISP_CCE_MATRIX4, val);
+	val = (cce_info->matrix[8] & 0x7FF)
+		| ((cce_info->v_offset & 0x7FF) << 16);
+	DCAM_REG_WR(idx, DCAM_CCE_MATRIX4, val);
 
-	val = (cce_info->y_offset & 0x1FF)
-		| ((cce_info->u_offset & 0x1FF) << 9)
-		| ((cce_info->v_offset & 0x1FF) << 18);
-	ISP_REG_WR(idx, ISP_CCE_SHIFT, (val & 0x7FFFFFF));
+	val = (cce_info->y_offset & 0x7FF)
+		| ((cce_info->u_offset & 0x7FF) << 16);
+	DCAM_REG_WR(idx, DCAM_CCE_SHIFT, (val & 0x7FF07FF));
 
 	return ret;
 }

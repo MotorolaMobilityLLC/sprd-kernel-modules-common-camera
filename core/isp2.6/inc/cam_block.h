@@ -52,6 +52,9 @@ struct isp_k_block {
 	struct isp_dev_uvd_info uvd_info;
 	struct isp_dev_ynr_info ynr_info;
 
+	/* qogirn6pro cfa blocks*/
+	struct isp_dev_cfa_info_v1 cfa_info_v1;
+
 	/* common */
 	struct isp_dev_3dnr_info nr3d_info;
 	struct isp_dev_cce_info cce_info;
