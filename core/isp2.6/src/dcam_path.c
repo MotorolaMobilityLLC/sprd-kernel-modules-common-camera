@@ -210,7 +210,7 @@ int dcam_path_size_cfg(void *dcam_ctx_handle,
 		spin_unlock_irqrestore(&path->size_lock, flag);
 
 		pr_info("cfg %s path done. size %d %d %d %d\n",
-			path->path_id ? "raw" : "full", path->in_size.w, path->in_size.h,
+			path->path_id == DCAM_PATH_RAW ? "raw" : "full", path->in_size.w, path->in_size.h,
 			path->out_size.w, path->out_size.h);
 
 		pr_info("sel %d. trim %d %d %d %d\n", path->src_sel,
