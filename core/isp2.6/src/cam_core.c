@@ -1013,6 +1013,7 @@ static void camcore_compression_config(struct camera_module *module)
 			ch_cap->compress_4bit_bypass = 0;
 	} else
 		fbc_mode = DCAM_FBC_DISABLE;
+
 	sw_handle[module->cur_sw_ctx_id].path[ch_cap->dcam_path_id].fbc_mode = fbc_mode;
 	if (!fbc_mode)
 		ch_cap->compress_input = 0;
@@ -1030,6 +1031,7 @@ static void camcore_compression_config(struct camera_module *module)
 			ch_pre->compress_4bit_bypass = 0;
 	} else
 		fbc_mode = DCAM_FBC_DISABLE;
+
 	sw_handle[module->cur_sw_ctx_id].path[ch_pre->dcam_path_id].fbc_mode = fbc_mode;
 	if (!fbc_mode)
 		ch_pre->compress_input = 0;
@@ -1042,14 +1044,15 @@ static void camcore_compression_config(struct camera_module *module)
 	pr_debug("pre fbc = %d\n", fbc_mode);
 
 	if (ch_raw->compress_input) {
-			fbc_mode = hw->ip_dcam[module->dcam_idx]->dcam_raw_fbc_mode;
-			/* manually control compression policy here */
-			if (override->enable)
-				fbc_mode = override->override[CH_PRE][FBC_DCAM];
-			if (DCAM_FBC_RAW_14_BIT == fbc_mode)
-				ch_pre->compress_4bit_bypass = 0;
+		fbc_mode = hw->ip_dcam[module->dcam_idx]->dcam_raw_fbc_mode;
+		/* manually control compression policy here */
+		if (override->enable)
+			fbc_mode = override->override[CH_PRE][FBC_DCAM];
+		if (DCAM_FBC_RAW_14_BIT == fbc_mode)
+			ch_pre->compress_4bit_bypass = 0;
 	} else
 		fbc_mode = DCAM_FBC_DISABLE;
+
 	sw_handle[module->cur_sw_ctx_id].path[ch_raw->dcam_path_id].fbc_mode = fbc_mode;
 	if (!fbc_mode)
 		ch_raw->compress_input = 0;
@@ -1390,7 +1393,7 @@ static int camcore_buffers_alloc(void *param)
 
 	if (channel->compress_input) {
 		size = dcam_if_cal_compressed_size (channel->dcam_out_fmt, dcam_out_bits, width, height,
-									channel->compress_4bit_bypass, &fbc_info);
+							channel->compress_4bit_bypass, &fbc_info);
 		pr_info("dcam fbc buffer size %u\n", size);
 	} else if (channel->dcam_out_fmt & DCAM_STORE_RAW_BASE) {
 		size = cal_sprd_raw_pitch(width, pack_bits) * height;
@@ -4705,7 +4708,7 @@ static int camcore_one_frame_dump(struct camera_module *module,
 		struct compressed_addr addr;
 
 		size = dcam_if_cal_compressed_size (channel->dcam_out_fmt, dcam_out_bits, pframe->width,
-									pframe->height, pframe->compress_4bit_bypass, &fbc_info);
+							pframe->height, pframe->compress_4bit_bypass, &fbc_info);
 		dcam_if_cal_compressed_addr(pframe->width, pframe->height,
 			&fbc_info, pframe->buf.iova[0], &addr,
 			pframe->compress_4bit_bypass);
