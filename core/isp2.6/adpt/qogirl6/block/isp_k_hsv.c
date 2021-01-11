@@ -55,12 +55,12 @@ static int isp_k_hsv_block(struct isp_io_param *param,
 		((hsv_info->buf_param.hsv_buf_sel & 0x1) << 2) |
 		(hsv_info->hsv_delta_value_en & 3);
 	ISP_REG_WR(idx, ISP_HSV_PARAM, val);
-	val = (hsv_info->hsv_hue_thr[1][0] & 0x1F) |
-		((hsv_info->hsv_hue_thr[1][1] & 0x1F) << 5) |
-		((hsv_info->hsv_hue_thr[2][0] & 0x1F) << 10) |
-		((hsv_info->hsv_hue_thr[2][1] & 0x1F) << 15) |
-		((hsv_info->hsv_hue_thr[3][0] & 0x1F) << 20) |
-		((hsv_info->hsv_hue_thr[3][1] & 0x1F) << 25);
+	val = (hsv_info->hsv_hue_thr[0][0] & 0x1F) |
+		((hsv_info->hsv_hue_thr[0][1] & 0x1F) << 5) |
+		((hsv_info->hsv_hue_thr[1][0] & 0x1F) << 10) |
+		((hsv_info->hsv_hue_thr[1][1] & 0x1F) << 15) |
+		((hsv_info->hsv_hue_thr[2][0] & 0x1F) << 20) |
+		((hsv_info->hsv_hue_thr[2][1] & 0x1F) << 25);
 	ISP_REG_WR(idx, ISP_HSV_CFG0, val);
 	val = (hsv_info->hsv_param[0].hsv_curve_param.start_a & 0x3FF) |
 		((hsv_info->hsv_param[0].hsv_curve_param.end_a & 0x3FF) << 10) |
