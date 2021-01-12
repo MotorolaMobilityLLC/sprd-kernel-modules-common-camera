@@ -14,34 +14,38 @@
 #ifndef _SPRD_ISP_2V6_H_
 #define _SPRD_ISP_2V6_H_
 
-#define ISP_HSV_SAT_GRID        17
-#define ISP_HSV_HUE_GRID        25
-#define ISP_HSV_TABLE_A         117 /*9*13*/
-#define ISP_HSV_TABLE_B         104 /*8*13*/
-#define ISP_HSV_TABLE_C         108 /*9*12*/
-#define ISP_HSV_TABLE_D         96  /*8*128*/
-#define ISP_HSV_HUE3            3
-#define ISP_HSV_HUE2            2
+#define ISP_HSV_SAT_GRID         17
+#define ISP_HSV_HUE_GRID         25
+#define ISP_HSV_TABLE_A          117 /*9*13*/
+#define ISP_HSV_TABLE_B          104 /*8*13*/
+#define ISP_HSV_TABLE_C          108 /*9*12*/
+#define ISP_HSV_TABLE_D          96  /*8*128*/
+#define ISP_HSV_HUE3             3
+#define ISP_HSV_HUE2             2
 
-#define PDAF_PPI_NUM            64
-#define PDAF_PPI_GAIN_MAP_LEN   128
-#define ISP_HSV_TABLE_NUM       360
-#define ISP_VST_IVST_NUM        1024
-#define ISP_VST_IVST_NUM2       1025
-#define ISP_FRGB_GAMMA_PT_NUM   257
-#define POSTERIZE_NUM           8
-#define POSTERIZE_NUM2          129
-#define ISP_YUV_GAMMA_NUM       129
-#define GTM_HIST_BIN_NUM        128
+#define PDAF_PPI_NUM             64
+#define PDAF_PPI_GAIN_MAP_LEN    128
+#define ISP_HSV_TABLE_NUM        360
+#define ISP_VST_IVST_NUM         1024
+#define ISP_VST_IVST_NUM2        1025
+#define ISP_FRGB_GAMMA_PT_NUM    257
+#define ISP_FRGB_GAMMA_PT_NUM_V1 1025
+#define POSTERIZE_NUM            8
+#define POSTERIZE_NUM2           129
+#define ISP_YUV_GAMMA_NUM        129
+#define ISP_YUV_GAMMA_NUM_V1     513
+#define GTM_HIST_BIN_NUM         128
 
-#define MAX_WTAB_LEN            1024
-#define MAX_LSCTAB_LEN          (16*1024)
+#define MAX_WTAB_LEN             1024
+#define MAX_LSCTAB_LEN           (16*1024)
 
-#define PARAM_BUF_NUM_MAX       32
-#define STATIS_BUF_NUM_MAX      8
+#define PARAM_BUF_NUM_MAX        32
+#define STATIS_BUF_NUM_MAX       8
 
-#define STATIS_AEM_HEADER_SIZE  512
-#define STATIS_HIST_HEADER_SIZE 128
+#define STATIS_AEM_HEADER_SIZE   512
+#define STATIS_HIST_HEADER_SIZE  128
+#define CNR_H_LAYER_NUM          5
+#define RGB_AFM_GAMMA_POINT_NUM  1025
 
 /* SharkL5/ROC1/SharkL5Pro */
 /* AFL: global 80 x 16 bytes for one frame, region 482 x 16 bytes one frame */
@@ -121,6 +125,7 @@ enum dcam_block {
 	DCAM_BLOCK_AFM,
 	DCAM_BLOCK_RAW_GTM,
 	DCAM_BLOCK_LSCM,
+	DCAM_BLOCK_RGB_GTM,
 	DCAM_BLOCK_TOTAL,
 
 	ISP_BLOCK_BASE = (1 << 8),
@@ -153,7 +158,12 @@ enum dcam_block {
 	ISP_BLOCK_3DNR,
 	ISP_BLOCK_RGB_LTM,
 	ISP_BLOCK_YUV_LTM,
+	ISP_BLOCK_PYRAMID_ONL,
+	ISP_BLOCK_PYRAMID_OFFL,
+	ISP_BLOCK_DCT,
 	ISP_BLOCK_RGB_GTM,
+	ISP_BLOCK_CNR_H,
+	ISP_BLOCK_POST_CNR_H,
 	ISP_BLOCK_TOTAL,
 };
 
@@ -291,6 +301,10 @@ enum isp_grgb_property {
 	ISP_PRO_GRGB_BLOCK,
 };
 
+enum isp_dct_property {
+	ISP_PRO_DCT_BLOCK,
+};
+
 enum isp_hist2_property {
 	ISP_PRO_HIST2_BLOCK,
 };
@@ -336,6 +350,14 @@ enum isp_ynr_property {
 	ISP_PRO_YNR_BLOCK,
 };
 
+enum isp_cnr_h_property {
+	ISP_PRO_CNR_H_BLOCK,
+};
+
+enum isp_post_cnr_h_property {
+	ISP_PRO_POST_CNR_H_BLOCK,
+};
+
 enum isp_yrandom_property {
 	ISP_PRO_YRANDOM_BLOCK,
 };
@@ -372,11 +394,23 @@ enum isp_rgb_gtm_property {
 	ISP_PRO_RGB_GTM_CAP_PARAM,
 };
 
+enum isp_pyramid_onl_property {
+	ISP_PRO_PYRAMID_ONL_BLOCK,
+};
+
+enum isp_pyramid_offl_property {
+	ISP_PRO_PYRAMID_OFFL_BLOCK,
+};
+
 enum dcam_gtm_property {
 	DCAM_PRO_RAW_GTM_BLOCK,
 	DCAM_PRO_RAW_GTM_SLICE,
 	DCAM_PRO_RAW_GTM_PRE_PARAM,
 	DCAM_PRO_RAW_GTM_CAP_PARAM,
+};
+
+enum dcam_rgb_gtm_property {
+	DCAM_PRO_RGB_GTM_BLOCK,
 };
 
 enum cam_pm_scene {
@@ -576,6 +610,54 @@ struct isp_dev_gtm_block_info {
 	uint32_t tm_filter_dist_c[49];
 	uint32_t tm_filter_distw_c[19];
 	uint32_t tm_filter_rangw_c[61];
+};
+
+struct isp_cnr_h_info {
+	uint32_t lowpass_filter_en;
+	uint32_t denoise_radial_en;
+	uint32_t filter_size;
+	uint32_t order_y[3];
+	uint32_t order_uv[3];
+	uint32_t imgCenterX;
+	uint32_t imgCenterY;
+	uint32_t baseRadius;
+	uint32_t minRatio;
+	uint32_t slope;
+	uint32_t luma_th[2];
+	uint32_t sigma_y[3];
+	uint32_t sigma_uv[3];
+	uint32_t weight_y[3][72];
+	uint32_t weight_uv[3][72];
+};
+
+struct isp_dev_cnr_h_info {
+	uint32_t bypass;
+	uint32_t baseRadius;
+	struct isp_cnr_h_info layer_cnr_h[CNR_H_LAYER_NUM];
+};
+
+struct isp_post_cnr_h {
+	uint32_t lowpass_filter_en;
+	uint32_t denoise_radial_en;
+	uint32_t filter_size;
+	uint32_t order_y[3];
+	uint32_t order_uv[3];
+	uint32_t imgCenterX;
+	uint32_t imgCenterY;
+	uint32_t baseRadius;
+	uint32_t minRatio;
+	uint32_t slope;
+	uint32_t luma_th[2];
+	uint32_t sigma_y[3];
+	uint32_t sigma_uv[3];
+	uint32_t weight_y[3][72];
+	uint32_t weight_uv[3][72];
+};
+
+struct isp_dev_post_cnr_h_info {
+	uint32_t bypass;
+	uint32_t baseRadius;
+	struct isp_post_cnr_h param_post_cnr_h;
 };
 
 struct dcam_dev_rgb_gain_info {
@@ -898,37 +980,49 @@ struct dcam_dev_3dnr_me {
 	uint32_t nr3_project_mode;
 };
 
+struct enhanced_lum {
+	uint32_t afm_gamma_en;
+	uint32_t afm_hist_en;
+	uint32_t afm_scale_en;
+	uint32_t afm_scale_hx;
+	uint32_t afm_scale_vx;
+	uint32_t afm_max_lum_num_th;
+	uint32_t afm_max_lum_th;
+	uint32_t afm_gamma_curve[RGB_AFM_GAMMA_POINT_NUM];
+};
+
 struct thrd_min_max {
 	uint32_t min;
 	uint32_t max;
 };
 
 struct dcam_dev_afm_info {
-	uint32_t  bypass;
-	uint32_t  afm_mode_sel;
-	uint32_t  afm_mul_enable;
-	uint32_t  afm_skip_num;
-	uint32_t  afm_skip_num_clr;
-	uint32_t  afm_sgl_start;
-	uint32_t  afm_done_tile_num_x;
-	uint32_t  afm_done_tile_num_y;
-	uint32_t  afm_lum_stat_chn_sel;
-	uint32_t  afm_iir_enable;
-	uint32_t  afm_cg_dis;
-	uint32_t  afm_fv1_shift;
-	uint32_t  afm_fv0_shift;
-	uint32_t  afm_clip_en1;
-	uint32_t  afm_clip_en0;
-	uint32_t  afm_center_weight;
-	uint32_t  afm_denoise_mode;
-	uint32_t  afm_channel_sel;
-	uint32_t  afm_crop_eb;
-	uint16_t  afm_iir_g0;
-	uint16_t  afm_iir_g1;
-	uint16_t  afm_iir_c[10];
+	uint32_t bypass;
+	uint32_t afm_mode_sel;
+	uint32_t afm_mul_enable;
+	uint32_t afm_skip_num;
+	uint32_t afm_skip_num_clr;
+	uint32_t afm_sgl_start;
+	uint32_t afm_done_tile_num_x;
+	uint32_t afm_done_tile_num_y;
+	uint32_t afm_lum_stat_chn_sel;
+	uint32_t afm_iir_enable;
+	uint32_t afm_cg_dis;
+	uint32_t afm_fv1_shift;
+	uint32_t afm_fv0_shift;
+	uint32_t afm_clip_en1;
+	uint32_t afm_clip_en0;
+	uint32_t afm_center_weight;
+	uint32_t afm_denoise_mode;
+	uint32_t afm_channel_sel;
+	uint32_t afm_crop_eb;
+	uint16_t afm_iir_g0;
+	uint16_t afm_iir_g1;
+	uint16_t afm_iir_c[10];
 	struct thrd_min_max afm_fv0_th;
 	struct thrd_min_max afm_fv1_th;
-	uint16_t  afm_fv1_coeff[4][9];
+	uint16_t afm_fv1_coeff[4][9];
+	struct enhanced_lum afm_enhanced_lum;
 };
 
 struct dcam_dev_vc2_control {
@@ -1379,6 +1473,13 @@ struct isp_dev_gamma_info {
 	uint8_t gain_b[ISP_FRGB_GAMMA_PT_NUM];
 };
 
+struct isp_dev_gamma_info_v1 {
+	uint32_t bypass;
+	uint32_t gain_r[ISP_FRGB_GAMMA_PT_NUM_V1];
+	uint32_t gain_g[ISP_FRGB_GAMMA_PT_NUM_V1];
+	uint32_t gain_b[ISP_FRGB_GAMMA_PT_NUM_V1];
+};
+
 struct grgb_param {
 	uint32_t curve_t[3][4];
 	uint32_t curve_r[3][3];
@@ -1508,6 +1609,62 @@ struct isp_dev_iircnr_info {
 	uint32_t pre_uv_th;
 	uint32_t css_lum_thr;
 	uint32_t uv_diff_thr;
+};
+
+struct isp_dev_dct_info {
+	uint32_t bypass;
+	uint32_t shrink_en;
+	uint32_t addback_en;
+	uint32_t addback_ratio;
+	uint32_t addback_clip;
+
+	uint32_t coef_thresh0;
+	uint32_t coef_thresh1;
+	uint32_t coef_thresh2;
+	uint32_t coef_thresh3;
+	uint32_t coef_ratio0;
+	uint32_t coef_ratio1;
+	uint32_t coef_ratio2;
+	uint32_t lnr_en;
+	uint32_t luma_thresh0;
+	uint32_t luma_thresh1;
+	uint32_t luma_ratio0;
+	uint32_t luma_ratio1;
+	uint32_t fnr_en;
+	uint32_t flat_th;
+	uint32_t fnr_ratio0;
+	uint32_t fnr_ratio1;
+	uint32_t fnr_thresh0;
+	uint32_t fnr_thresh1;
+
+	uint32_t rnr_en;
+	uint32_t rnr_ratio0;
+	uint32_t rnr_ratio1;
+	uint32_t rnr_radius;
+	uint32_t rnr_radius_factor;
+	uint32_t rnr_radius_base;
+	uint32_t rnr_imgCenterX;
+	uint32_t rnr_imgCenterY;
+	uint32_t rnr_step;
+
+	uint32_t blend_en;
+	uint32_t blend_radius;
+	uint32_t blend_weight;
+	uint32_t blend_epsilon;
+	uint32_t blend_thresh0;
+	uint32_t blend_thresh1;
+	uint32_t blend_ratio0;
+	uint32_t blend_ratio1;
+
+	uint32_t direction_smooth_en;
+	uint32_t direction_mode;
+	uint32_t direction_freq_hop_control_en;
+	uint32_t direction_freq_hop_thresh;
+	uint32_t direction_freq_hop_total_num_thresh;
+	uint32_t direction_thresh_diff;
+	uint32_t direction_thresh_min;
+	uint32_t direction_hop_thresh_diff;
+	uint32_t direction_hop_thresh_min;
 };
 
 struct isp_dev_nlm_imblance {
@@ -1883,6 +2040,11 @@ struct isp_dev_ygamma_info {
 	uint32_t bypass;
 	uint8_t gain[ISP_YUV_GAMMA_NUM];
 };
+
+struct isp_dev_ygamma_info_v1 {
+	uint32_t bypass;
+	uint32_t gain[ISP_YUV_GAMMA_NUM_V1];
+};
 #pragma pack(pop)
 
 struct isp_dev_ynr_info {
@@ -2076,6 +2238,80 @@ struct isp_dev_ynr_info_v2 {
 	uint32_t radius_base;
 };
 
+struct isp_dev_ynr_info_v3 {
+	uint32_t bypass;
+	uint32_t radius;
+	uint32_t radius_base;
+	uint32_t radius_factor;
+	uint32_t imgCenterX;
+	uint32_t imgCenterY;
+
+	uint32_t l1_layer_gf_enable;
+	uint32_t l1_layer_gf_radius;
+	uint32_t l1_layer_gf_rnr_offset;
+	uint32_t l1_layer_gf_rnr_ratio;
+	uint32_t l1_layer_gf_addback_enable;
+	uint32_t l1_layer_gf_addback_ratio;
+	uint32_t l1_layer_gf_addback_clip;
+	uint32_t l1_layer_lum_thresh1;
+	uint32_t l1_layer_lum_thresh2;
+	uint32_t l1_layer_epsilon_gf_epsilon_low;
+	uint32_t l1_layer_epsilon_gf_epsilon_mid;
+	uint32_t l1_layer_epsilon_gf_epsilon_high;
+
+	uint32_t l2_layer_gf_enable;
+	uint32_t l2_layer_gf_radius;
+	uint32_t l2_layer_gf_rnr_offset;
+	uint32_t l2_layer_gf_rnr_ratio;
+	uint32_t l2_layer_gf_addback_enable;
+	uint32_t l2_layer_gf_addback_ratio;
+	uint32_t l2_layer_gf_addback_clip;
+	uint32_t l2_layer_lum_thresh1;
+	uint32_t l2_layer_lum_thresh2;
+	uint32_t l2_layer_epsilon_gf_epsilon_low;
+	uint32_t l2_layer_epsilon_gf_epsilon_mid;
+	uint32_t l2_layer_epsilon_gf_epsilon_high;
+
+	uint32_t l3_layer_gf_enable;
+	uint32_t l3_layer_gf_radius;
+	uint32_t l3_layer_gf_rnr_offset;
+	uint32_t l3_layer_gf_rnr_ratio;
+	uint32_t l3_layer_gf_addback_enable;
+	uint32_t l3_layer_gf_addback_ratio;
+	uint32_t l3_layer_gf_addback_clip;
+	uint32_t l3_layer_lum_thresh1;
+	uint32_t l3_layer_lum_thresh2;
+	uint32_t l3_layer_epsilon_gf_epsilon_low;
+	uint32_t l3_layer_epsilon_gf_epsilon_mid;
+	uint32_t l3_layer_epsilon_gf_epsilon_high;
+
+	uint32_t l4_layer_gf_enable;
+	uint32_t l4_layer_gf_radius;
+	uint32_t l4_layer_gf_rnr_offset;
+	uint32_t l4_layer_gf_rnr_ratio;
+	uint32_t l4_layer_gf_addback_enable;
+	uint32_t l4_layer_gf_addback_ratio;
+	uint32_t l4_layer_gf_addback_clip;
+	uint32_t l4_layer_lum_thresh1;
+	uint32_t l4_layer_lum_thresh2;
+	uint32_t l4_layer_epsilon_gf_epsilon_low;
+	uint32_t l4_layer_epsilon_gf_epsilon_mid;
+	uint32_t l4_layer_epsilon_gf_epsilon_high;
+
+	uint32_t l5_layer_gf_enable;
+	uint32_t l5_layer_gf_radius;
+	uint32_t l5_layer_gf_rnr_offset;
+	uint32_t l5_layer_gf_rnr_ratio;
+	uint32_t l5_layer_gf_addback_enable;
+	uint32_t l5_layer_gf_addback_ratio;
+	uint32_t l5_layer_gf_addback_clip;
+	uint32_t l5_layer_lum_thresh1;
+	uint32_t l5_layer_lum_thresh2;
+	uint32_t l5_layer_epsilon_gf_epsilon_low;
+	uint32_t l5_layer_epsilon_gf_epsilon_mid;
+	uint32_t l5_layer_epsilon_gf_epsilon_high;
+};
+
 struct isp_dev_yrandom_info {
 	uint32_t bypass;
 	uint32_t mode;
@@ -2099,6 +2335,22 @@ struct isp_dev_noise_filter_info {
 	uint32_t cv_t[4];
 	uint32_t cv_r[3];
 	struct edge_pn_config  noise_clip;
+};
+
+struct isp_pyramid_onl_info {
+	uint32_t dec1_onine_bypass;
+	uint32_t store_dec1_bypass;
+	uint32_t store_dec2_bypass;
+	uint32_t store_dec3_bypass;
+	uint32_t store_dec4_bypass;
+	uint32_t reconstruction_byass;
+	uint32_t online_layer_num;
+};
+
+struct isp_pyramid_offl_info {
+	uint32_t dec_offline_bypass;
+	uint32_t reconstruction_byass;
+	uint32_t offline_layer_num;
 };
 
 struct isp_ltm_tile_num_minus1 {
