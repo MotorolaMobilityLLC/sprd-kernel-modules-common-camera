@@ -1149,7 +1149,10 @@ static irqreturn_t dcamint_isr_root(int irq, void *priv)
 		pr_err("fail to match DCAM%u irq %d %d\n", dcam_hw_ctx->hw_ctx_id, irq, dcam_hw_ctx->irq);
 		return IRQ_NONE;
 	}
-
+	if (!dcam_hw_ctx->sw_ctx) {
+		pr_err("fail to check param %px\n", dcam_hw_ctx->sw_ctx);
+		return IRQ_NONE;
+	}
 	if (atomic_read(&dcam_hw_ctx->sw_ctx->state) != STATE_RUNNING) {
 		/* clear int */
 		pr_warn_ratelimited("DCAM%u ignore irq in NON-running, 0x%x\n",
