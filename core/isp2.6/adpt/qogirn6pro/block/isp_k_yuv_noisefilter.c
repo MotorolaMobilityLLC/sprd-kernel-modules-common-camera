@@ -81,7 +81,7 @@ static int isp_k_noisefilter_block(struct isp_io_param *param,
 			(nf_info->r_offset & 0x7FF);
 	ISP_REG_WR(idx, ISP_YUV_NF_SF, val);
 
-	ISP_REG_MWR(idx, ISP_YUV_NF_THR, 0xFF, nf_info->filter_thr);
+	ISP_REG_MWR(idx, ISP_YUV_NF_THR, 0x3FF, nf_info->filter_thr);
 
 	val = ((nf_info->cv_t[1] & 0x3FF) << 16)
 		| (nf_info->cv_t[0] & 0x3FF);
@@ -92,8 +92,8 @@ static int isp_k_noisefilter_block(struct isp_io_param *param,
 		(nf_info->cv_r[0] & 0xFF);
 	ISP_REG_WR(idx, ISP_YUV_NF_CV_R, val);
 
-	val = ((nf_info->noise_clip.p & 0xFF) << 8)
-		| (nf_info->noise_clip.n & 0xFF);
+	val = ((nf_info->noise_clip.p & 0x3FF) << 16)
+		| (nf_info->noise_clip.n & 0x3FF);
 	ISP_REG_WR(idx, ISP_YUV_NF_CLIP, val);
 
 	val = ((nf_info->cv_t[3] & 0x3FF) << 16)

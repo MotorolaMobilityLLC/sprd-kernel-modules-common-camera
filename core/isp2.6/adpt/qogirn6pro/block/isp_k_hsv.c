@@ -32,89 +32,113 @@ static int isp_k_hsv_block(struct isp_io_param *param,
 {
 	int ret = 0;
 	int i = 0;
+	int j = 0;
 	uint32_t val = 0;
-	uint32_t buf_sel = 0;
 	unsigned long reg_addr = 0;
-	struct isp_dev_hsv_info_v2 *hsv_info;
+	struct isp_dev_hsv_info_v3 *hsv_info;
 
-	hsv_info = &isp_k_param->hsv_info;
+	hsv_info = &isp_k_param->hsv_info3;
 
 	ret = copy_from_user((void *)hsv_info,
 			param->property_param,
-			sizeof(struct isp_dev_hsv_info_v2));
+			sizeof(struct isp_dev_hsv_info_v3));
 	if (ret != 0) {
 		pr_err("fail to copy from user, ret = %d\n", ret);
 		return ret;
 	}
 	if (g_isp_bypass[idx] & (1 << _EISP_HSV))
-		hsv_info->bypass = 1;
-	ISP_REG_MWR(idx, ISP_HSV_PARAM, BIT_0, hsv_info->bypass);
-	if (hsv_info->bypass)
+		hsv_info->hsv_bypass = 1;
+	ISP_REG_MWR(idx, ISP_HSV_PARAM, BIT_0, hsv_info->hsv_bypass);
+	ISP_REG_MWR(idx, ISP_HSV_PARAM, BIT_1, hsv_info->hsv_delta_value_en << 1);
+	if (hsv_info->hsv_bypass)
 		return 0;
 
-	for (i = 0; i < 5; i++) {
-		val = ((hsv_info->curve_info.hrange_left[i] & 0x1FF) << 23) |
-			((hsv_info->curve_info.s_curve[i][1] & 0x7FF) << 11) |
-			(hsv_info->curve_info.s_curve[i][0] & 0x7FF);
-		ISP_REG_WR(idx, ISP_HSV_CFG0 + i * 12, val);
+	val = ((hsv_info->hsv_hue_thr[2][1] & 0x1F) << 25) |
+		((hsv_info->hsv_hue_thr[2][0] & 0x1F) << 20) |
+		((hsv_info->hsv_hue_thr[1][1] & 0x1F) << 15) |
+		((hsv_info->hsv_hue_thr[1][0] & 0x1F) << 10) |
+		((hsv_info->hsv_hue_thr[0][1] & 0x1F) << 5) |
+		(hsv_info->hsv_hue_thr[0][0] & 0x1F) ;
+	ISP_REG_WR(idx, ISP_HSV_CFG0, val);
 
-		val = ((hsv_info->curve_info.hrange_right[i] & 0x1FF) << 23) |
-			((hsv_info->curve_info.s_curve[i][3] & 0x7FF) << 11) |
-			(hsv_info->curve_info.s_curve[i][2] & 0x7FF);
-		ISP_REG_WR(idx, ISP_HSV_CFG1 + i * 12, val);
+	val = ((hsv_info->hsv_param[0].hsv_curve_param.start_b & 0x3FF) << 20) |
+		((hsv_info->hsv_param[0].hsv_curve_param.end_a & 0x3FF) << 10) |
+		(hsv_info->hsv_param[0].hsv_curve_param.start_a & 0x3FF);
+	ISP_REG_WR(idx, ISP_HSV_CFG1, val);
 
-		val = ((hsv_info->curve_info.v_curve[i][3] & 0xFF) << 24) |
-			((hsv_info->curve_info.v_curve[i][2] & 0xFF) << 16) |
-			((hsv_info->curve_info.v_curve[i][1] & 0xFF) << 8) |
-			(hsv_info->curve_info.v_curve[i][0] & 0xFF);
-		ISP_REG_WR(idx, ISP_HSV_CFG2 + i * 12, val);
+	val = ((hsv_info->hsv_param[1].hsv_curve_param.end_a & 0x3FF) << 20) |
+		((hsv_info->hsv_param[1].hsv_curve_param.start_a & 0x3FF) << 10) |
+		(hsv_info->hsv_param[0].hsv_curve_param.end_b & 0x3FF);
+	ISP_REG_WR(idx, ISP_HSV_CFG2, val);
+
+	val = ((hsv_info->hsv_param[2].hsv_curve_param.start_a & 0x3FF) << 20) |
+		((hsv_info->hsv_param[1].hsv_curve_param.end_b & 0x3FF) << 10) |
+		(hsv_info->hsv_param[1].hsv_curve_param.start_b & 0x3FF);
+	ISP_REG_WR(idx, ISP_HSV_CFG3, val);
+
+	val = ((hsv_info->hsv_param[2].hsv_curve_param.end_b & 0x3FF) << 20) |
+		((hsv_info->hsv_param[2].hsv_curve_param.start_b & 0x3FF) << 10) |
+		(hsv_info->hsv_param[2].hsv_curve_param.end_a & 0x3FF);
+	ISP_REG_WR(idx, ISP_HSV_CFG4, val);
+
+	val = ((hsv_info->hsv_param[3].hsv_curve_param.start_b & 0x3FF) << 20) |
+		((hsv_info->hsv_param[3].hsv_curve_param.end_a & 0x3FF) << 10) |
+		(hsv_info->hsv_param[3].hsv_curve_param.start_a & 0x3FF);
+	ISP_REG_WR(idx, ISP_HSV_CFG5, val);
+
+	val = ((hsv_info->y_blending_factor & 0x7FF) << 16) |
+		(hsv_info->hsv_param[3].hsv_curve_param.end_b & 0x3FF);
+	ISP_REG_WR(idx, ISP_HSV_CFG6, val);
+
+	for (i = 0; i < 12; i++) {
+			val = ((hsv_info->hsv_1d_sat_lut[i] & 0x1FFF) << 18) |
+				((hsv_info->hsv_1d_hue_lut[i * 2 + 1] & 0x1FF) << 9) |
+				(hsv_info->hsv_1d_hue_lut[i * 2] & 0x1FF);
+			ISP_REG_WR(idx, ISP_HSV_CFG7 + i * 4, val);
 	}
 
-	/* new added from CFG15 ~ CFG21 */
-	val = ((hsv_info->curve_info.r_s[1][0] << 20) |
-			(hsv_info->curve_info.r_s[0][0] << 9) |
-			(hsv_info->curve_info.r_v[0][0]));
-	ISP_REG_WR(idx, ISP_HSV_CFG15, val);
-
-	val = ((hsv_info->curve_info.r_s[3][0] << 20) |
-			(hsv_info->curve_info.r_s[2][0] << 9) |
-			(hsv_info->curve_info.r_v[1][0]));
-	ISP_REG_WR(idx, ISP_HSV_CFG16, val);
-
-	val = ((hsv_info->curve_info.r_v[3][0] << 20) |
-			(hsv_info->curve_info.r_s[4][0] << 9) |
-			(hsv_info->curve_info.r_v[2][0]));
-	ISP_REG_WR(idx, ISP_HSV_CFG17, val);
-
-	val = ((hsv_info->curve_info.r_s[1][1] << 20) |
-			(hsv_info->curve_info.r_s[0][1] << 9) |
-			(hsv_info->curve_info.r_v[0][1]));
-	ISP_REG_WR(idx, ISP_HSV_CFG18, val);
-
-	val = ((hsv_info->curve_info.r_s[3][1] << 20) |
-			(hsv_info->curve_info.r_s[2][1] << 9) |
-			(hsv_info->curve_info.r_v[1][1]));
+	val = ((hsv_info->hsv_1d_sat_lut[12] & 0x1FFF) << 16) |
+		(hsv_info->hsv_1d_hue_lut[24] & 0x1FF);
 	ISP_REG_WR(idx, ISP_HSV_CFG19, val);
 
-	val = ((hsv_info->curve_info.r_v[3][1] << 20) |
-			(hsv_info->curve_info.r_s[4][1] << 9) |
-			(hsv_info->curve_info.r_v[2][1]));
+	val = ((hsv_info->hsv_1d_sat_lut[14] & 0x1FFF) << 16) |
+		(hsv_info->hsv_1d_sat_lut[13] & 0x1FFF);
 	ISP_REG_WR(idx, ISP_HSV_CFG20, val);
 
-	val = ((hsv_info->curve_info.r_v[4][1] << 9) |
-			(hsv_info->curve_info.r_v[4][0]));
+	val = ((hsv_info->hsv_1d_sat_lut[16] & 0x1FFF) << 16) |
+		(hsv_info->hsv_1d_sat_lut[15] & 0x1FFF);
 	ISP_REG_WR(idx, ISP_HSV_CFG21, val);
 
-	/* only cfg mode will be supported for blocks. */
-	/* cfg mode doesn't need ping-pong buffer. */
-	buf_sel = 0;
-	ISP_REG_MWR(idx, ISP_HSV_PARAM, BIT_1, buf_sel << 1);
+	for (i = 0; i < 25; i++) {
+		for (j = 0; j < 17; j++) {
+			if (((i + 1) % 2 == 1) && ((j + 1) % 2 == 1)) {
+					reg_addr = ISP_HSV_TABLEA_BUF0_CH0;
+					val = ((hsv_info->buf_param.hsv_2d_sat_lut[i][j] & 0x1FFF) << 11) |
+						(hsv_info->buf_param.hsv_2d_hue_lut_reg[i][j] & 0x1FF);
+					ISP_REG_WR(idx, reg_addr, val);
+			}
+			else {
+				if (((i + 1) % 2 == 1) && ((j + 1) % 2 != 1)) {
+						reg_addr = ISP_HSV_TABLEB_BUF0_CH0;
+						val = ((hsv_info->buf_param.hsv_2d_sat_lut[i][j] & 0x1FFF) << 11) |
+							(hsv_info->buf_param.hsv_2d_hue_lut_reg[i][j] & 0x1FF);
+						ISP_REG_WR(idx, reg_addr, val);
+				}
+				if (((i + 1) % 2 != 1) && ((j + 1) % 2 == 1)) {
+						reg_addr = ISP_HSV_TABLEC_BUF0_CH0;
+						val = ((hsv_info->buf_param.hsv_2d_sat_lut[i][j] & 0x1FFF) << 11) |
+							(hsv_info->buf_param.hsv_2d_hue_lut_reg[i][j] & 0x1FF);
+						ISP_REG_WR(idx, reg_addr, val);
 
-	reg_addr = ISP_HSV_BUF0_CH0;
-	for (i = 0; i < ISP_HSV_BUF0_BYTE; i++) {
-		val = ((hsv_info->d.hs.sat[i] & 0x7FF) << 9 |
-				(hsv_info->d.hs.hue[i] & 0x1FF));
-		ISP_REG_WR(idx, reg_addr + i * 4, val);
+				}
+				if (((i + 1) % 2 != 1) && ((j + 1) % 2 != 1)) {
+						reg_addr = ISP_HSV_TABLED_BUF0_CH0;
+						val = ((hsv_info->buf_param.hsv_2d_sat_lut[i][j] & 0x1FFF) << 11) |
+							(hsv_info->buf_param.hsv_2d_hue_lut_reg[i][j] & 0x1FF);
+						ISP_REG_WR(idx, reg_addr, val);
+				}
+			}
+		}
 	}
 	return ret;
 }

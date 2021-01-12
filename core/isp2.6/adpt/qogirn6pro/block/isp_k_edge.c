@@ -30,13 +30,13 @@ static int isp_k_edge_block(struct isp_io_param *param,
 {
 	int ret = 0;
 	uint32_t i = 0, val = 0;
-	struct isp_dev_edge_info_v2 *edge_info;
+	struct isp_dev_edge_info_v3 *edge_info;
 
-	edge_info = &isp_k_param->edge_info;
+	edge_info = &isp_k_param->edge_info_v3;
 
 	ret = copy_from_user((void *)edge_info,
 			param->property_param,
-			sizeof(struct isp_dev_edge_info_v2));
+			sizeof(struct isp_dev_edge_info_v3));
 	if (ret != 0) {
 		pr_err("fail to copy from user, ret = %d\n", ret);
 		return ret;
@@ -46,50 +46,22 @@ static int isp_k_edge_block(struct isp_io_param *param,
 	if (edge_info->bypass)
 		return 0;
 
-	val = ((edge_info->ee_old_gradient_en & 0x1) << 2)|
-			((edge_info->ee_new_pyramid_en & 0x1) << 1)|
-			(edge_info->bypass & 0x1);
-	ISP_REG_MWR(idx, ISP_EE_PARAM, 0x7, val);
+	val = ((edge_info->ee_radial_1D_pyramid_layer_offset_en & 0x1) << 14) |
+		((edge_info->ee_cal_radius_en & 0x1) << 13) |
+		((edge_info->ee_radial_1D_en & 0x1) << 12) |
+		((edge_info->ee_radial_1D_old_gradient_ratio_en & 0x1) << 11) |
+		((edge_info->ee_radial_1D_new_pyramid_ratio_en & 0x1) << 10) |
+		((edge_info->ee_offset_ratio_layer0_computation_type & 0x1) << 9) |
+		((edge_info->ee_ipd_orientation_filter_mode & 0x1) << 8) |
+		((edge_info->ee_ipd_direction_mode & 0x7) << 5) |
+		((edge_info->ee_ipd_direction_freq_hop_control_en & 0x1) << 4) |
+		((edge_info->ee_ipd_1d_en & 0x1) << 3) |
+		((edge_info->ee_old_gradient_en & 0x1) << 2) |
+		((edge_info->ee_new_pyramid_en & 0x1) << 1) |
+		(edge_info->bypass & 0x1);
+	ISP_REG_MWR(idx, ISP_EE_PARAM, 0x7FFF, val);
 	if (edge_info->bypass)
 		return 0;
-
-	val = ((edge_info->mode & 0x1) << 28) |
-		((edge_info->ee_str_d.p & 0x7F) << 21) |
-		((edge_info->ee_str_d.n & 0x7F) << 14) |
-		((edge_info->edge_smooth_mode & 0x3) << 2) |
-		(edge_info->flat_smooth_mode & 0x3);
-	ISP_REG_WR(idx, ISP_EE_CFG0, val);
-
-	val = ((edge_info->ee_edge_thr_d.p & 0xFF) << 24) |
-		((edge_info->ee_edge_thr_d.n & 0xFF) << 16) |
-		((edge_info->ee_incr_d.p & 0xFF) << 8) |
-		(edge_info->ee_incr_d.n & 0xFF);
-	ISP_REG_WR(idx, ISP_EE_CFG1, val);
-
-	val = ((edge_info->ee_corner_cor & 0x1) << 28) |
-		((edge_info->ee_corner_th.p & 0x1F) << 23) |
-		((edge_info->ee_corner_th.n & 0x1F) << 18) |
-		((edge_info->ee_corner_gain.p & 0x7F) << 11) |
-		((edge_info->ee_corner_gain.n & 0x7F) << 4) |
-		((edge_info->ee_corner_sm.p & 0x3) << 2) |
-		(edge_info->ee_corner_sm.n & 0x3);
-	ISP_REG_WR(idx, ISP_EE_CFG2, val);
-
-	val = ((edge_info->ee_cv_t[2] & 0x3FF) << 20) |
-		((edge_info->ee_cv_t[1] & 0x3FF) << 10) |
-		(edge_info->ee_cv_t[0] & 0x3FF);
-	ISP_REG_WR(idx, ISP_EE_ADP_CFG0, val);
-
-	ISP_REG_WR(idx, ISP_EE_ADP_CFG1, val);
-	val = ((edge_info->ee_cv_clip.p & 0xFF) << 24) |
-			((edge_info->ee_cv_clip.n & 0xFF) << 16) |
-			(edge_info->ee_cv_t[3] & 0x3FF);
-	ISP_REG_WR(idx, ISP_EE_ADP_CFG1, val);
-
-	val = ((edge_info->ee_cv_r[2] & 0xFF) << 16) |
-		((edge_info->ee_cv_r[1] & 0xFF) << 8) |
-		(edge_info->ee_cv_r[0] & 0xFF);
-	ISP_REG_WR(idx, ISP_EE_ADP_CFG2, val);
 
 	val = ((edge_info->ipd_smooth_mode.n & 0x7) << 14) |
 		((edge_info->ipd_smooth_mode.p & 0x7) << 11) |
@@ -340,6 +312,69 @@ static int isp_k_edge_block(struct isp_io_param *param,
 		((edge_info->ee_offset_ratio_layer_freq_curve[2][1] & 0x3F) << 8) |
 		(edge_info->ee_offset_ratio_layer_freq_curve[2][0] & 0x3F);
 	ISP_REG_WR(idx, ISP_EE_OFFSET_RATIO_LAYER2_FREQ_CURVE, val);
+
+	val = ((edge_info->direction_thresh_min & 0x1FF) << 16) |
+		(edge_info->direction_thresh_diff & 0x1FF);
+	ISP_REG_WR(idx, ISP_EE_IPD_THR, val);
+
+	val = ((edge_info->direction_freq_hop_thresh & 0xFF) << 16) |
+		(edge_info->freq_hop_total_num_thresh & 0x7F);
+	ISP_REG_WR(idx, ISP_EE_HOP_CFG0, val);
+
+	val = ((edge_info->direction_hop_thresh_diff & 0x1FF) << 16) |
+		(edge_info->direction_hop_thresh_min & 0x1FF);
+	ISP_REG_WR(idx, ISP_EE_HOP_CFG1, val);
+
+	val = ((edge_info->ee_offset_layer0_gradient_curve_pos[0] & 0x3FF) << 16) |
+		(edge_info->ee_offset_layer0_gradient_curve_pos[1] & 0x3FF);
+	ISP_REG_WR(idx, ISP_EE_OFFSET_GRAD_CFG0, val);
+
+	val = ((edge_info->ee_offset_layer0_gradient_curve_pos[2] & 0x3FF) << 16) |
+		(edge_info->ee_offset_layer0_gradient_curve_pos[3] & 0x3FF);
+	ISP_REG_WR(idx, ISP_EE_OFFSET_GRAD_CFG1, val);
+
+	val = ((edge_info->ee_offset_layer0_gradient_curve_neg[0] & 0x3FF) << 16) |
+		(edge_info->ee_offset_layer0_gradient_curve_neg[1] & 0x3FF);
+	ISP_REG_WR(idx, ISP_EE_OFFSET_GRAD_CFG2, val);
+
+	val = ((edge_info->ee_offset_layer0_gradient_curve_neg[2] & 0x3FF) << 16) |
+		(edge_info->ee_offset_layer0_gradient_curve_neg[3] & 0x3FF);
+	ISP_REG_WR(idx, ISP_EE_OFFSET_GRAD_CFG3, val);
+
+	val = ((edge_info->old_gradient_ratio_gain_max & 0x7FF) << 16) |
+		(edge_info->old_gradient_ratio_gain_min & 0x7FF);
+	ISP_REG_WR(idx, ISP_EE_GRAD_RATIO_THR, val);
+
+	val = ((edge_info->new_pyramid_ratio_gain_max & 0x7FF) << 16) |
+		(edge_info->new_pyramid_ratio_gain_min & 0x7FF);
+	ISP_REG_WR(idx, ISP_EE_PYRAMID_RATIO_THR, val);
+
+	val = ((edge_info->center_x & 0x3FFF) << 16) |
+		(edge_info->center_y & 0x3FFF);
+	ISP_REG_WR(idx, ISP_EE_PIXEL_POSTION, val);
+
+	val = ((edge_info->radius_threshold & 0x7FF) << 16) |
+		(edge_info->layer_pyramid_offset_coef1 & 0x7FF);
+	ISP_REG_WR(idx, ISP_EE_PYRAMID_OFFSET_COEF0, val);
+
+	val = ((edge_info->layer_pyramid_offset_coef2 & 0x7FF) << 16) |
+		(edge_info->layer_pyramid_offset_coef3 & 0x7FF);
+	ISP_REG_WR(idx, ISP_EE_PYRAMID_OFFSET_COEF1, val);
+
+	val = ((edge_info->old_gradient_ratio_coef & 0x3FFF) << 16) |
+		(edge_info->new_pyramid_ratio_coef & 0x3FFF);
+	ISP_REG_WR(idx, ISP_EE_RATIO_COEF, val);
+
+	val = ((edge_info->layer_pyramid_offset_gain_max & 0x7FF) << 16) |
+		(edge_info->layer_pyramid_offset_clip_ratio_max & 0x7FF);
+	ISP_REG_WR(idx, ISP_EE_PYRAMID_OFFSET_THR, val);
+
+	val = ((edge_info->layer_pyramid_offset_gain_min1 & 0x7FF) << 16) |
+		(edge_info->layer_pyramid_offset_gain_min2 & 0x7FF);
+	ISP_REG_WR(idx, ISP_EE_PYRAMID_OFFSET_GAIN_MIN0, val);
+
+	val =(edge_info->layer_pyramid_offset_gain_min3 & 0x7FF);
+	ISP_REG_WR(idx, ISP_EE_PYRAMID_OFFSET_GAIN_MIN1, val);
 
 	return ret;
 }

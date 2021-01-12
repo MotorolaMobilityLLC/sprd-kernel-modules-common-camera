@@ -30,13 +30,13 @@ static int isp_k_uvd_block(struct isp_io_param *param,
 {
 	int ret = 0;
 	uint32_t val = 0;
-	struct isp_dev_uvd_info_v2 *uvd_info;
+	struct isp_dev_uvd_info_v1 *uvd_info;
 
-	uvd_info = &isp_k_param->uvd_info_v2;
+	uvd_info = &isp_k_param->uvd_info_v1;
 
 	ret = copy_from_user((void *)uvd_info,
 			param->property_param,
-			sizeof(struct isp_dev_uvd_info_v2));
+			sizeof(struct isp_dev_uvd_info_v1));
 	if (ret != 0) {
 		pr_err("fail to copy from user, ret = %d\n", ret);
 		return ret;
@@ -54,8 +54,9 @@ static int isp_k_uvd_block(struct isp_io_param *param,
 
 	/* new: update from min_h/min_l  to chroma_ratio  */
 	val = ((uvd_info->chroma_ratio & 0x7F)) |
-			((uvd_info->chroma_max_h & 0xFF) << 16) |
-			((uvd_info->chroma_max_l & 0xFF) << 24);
+			((uvd_info->chroma_max1_h & 0xFF) << 8) |
+			((uvd_info->chroma_max1_m & 0xFF) << 16) |
+			((uvd_info->chroma_max1_l & 0xFF) << 24);
 	ISP_REG_WR(idx, ISP_UVD_PARAM1, val);
 
 	val = (uvd_info->u_th.th_h[1] & 0xFF) |
@@ -71,7 +72,6 @@ static int isp_k_uvd_block(struct isp_io_param *param,
 	ISP_REG_WR(idx, ISP_UVD_PARAM3, val);
 
 	val = (uvd_info->luma_ratio & 0x7F) |
-		((uvd_info->ratio_uv_min & 0x7F) << 8) |
 		((uvd_info->ratio_y_min[0] & 0x7F) << 16) |
 		((uvd_info->ratio_y_min[1] & 0x7F) << 24);
 	ISP_REG_WR(idx, ISP_UVD_PARAM4, val);
@@ -79,9 +79,13 @@ static int isp_k_uvd_block(struct isp_io_param *param,
 	val = (uvd_info->ratio0 & 0x7F) |
 		((uvd_info->ratio1 & 0x7F) << 8) |
 		((uvd_info->y_th_l_len & 0x7) << 16) |
-		((uvd_info->y_th_h_len & 0x7) << 20) |
-		((uvd_info->uv_abs_th_len & 0x7) << 24);
+		((uvd_info->y_th_h_len & 0x7) << 20);
 	ISP_REG_WR(idx, ISP_UVD_PARAM5, val);
+
+	val = ((uvd_info->chroma_max2_h & 0xFF) << 8) |
+			((uvd_info->chroma_max2_m & 0xFF) << 16) |
+			((uvd_info->chroma_max2_l & 0xFF) << 24);
+	ISP_REG_WR(idx, ISP_UVD_PARAM6, val);
 
 	return ret;
 }

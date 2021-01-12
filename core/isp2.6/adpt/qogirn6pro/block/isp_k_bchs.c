@@ -155,7 +155,7 @@ static int isp_k_satuation_block(struct isp_io_param *param,
 		return 0;
 	}
 	ISP_REG_MWR(idx, ISP_BCHS_PARAM, BIT_0, bchs_bypass);
-	ISP_REG_MWR(idx, ISP_CNTA_FACTOR, 0xffff,
+	ISP_REG_MWR(idx, ISP_CSA_FACTOR, 0xffff,
 		(csa_info.csa_factor_u << 8) | csa_info.csa_factor_v);
 
 	isp_k_param->bchs_info.bchs_bypass = 0;

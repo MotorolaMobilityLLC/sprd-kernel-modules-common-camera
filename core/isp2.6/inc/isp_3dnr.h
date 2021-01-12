@@ -47,6 +47,8 @@ struct isp_3dnr_mem_ctrl {
 	uint32_t bypass;
 	uint32_t nr3_done_mode;
 	uint32_t nr3_ft_path_sel;
+	uint32_t yuv_8bits_flag;
+	uint32_t slice_info;
 	uint32_t back_toddr_en;
 	uint32_t chk_sum_clr_en;
 	uint32_t data_toyuv_en;
@@ -80,6 +82,7 @@ struct isp_3dnr_mem_ctrl {
 	uint32_t blend_uv_en_end_row;
 	uint32_t blend_uv_en_end_col;
 	uint32_t ft_hblank_num;
+	uint32_t empty_thrd;
 	uint32_t pipe_hblank_num;
 	uint32_t pipe_flush_line_num;
 	uint32_t pipe_nfull_num;
@@ -91,11 +94,30 @@ struct isp_3dnr_store {
 	uint32_t chk_sum_clr_en;
 	uint32_t shadow_clr_sel;
 	uint32_t st_max_len_sel;
+	uint32_t speed_2x;
+	uint32_t color_format;
+	uint32_t mirror_en;
+	uint32_t endian;
+	uint32_t mono_en;
+	uint32_t data_10b;
+	uint32_t flip_en;
+	uint32_t last_frm_en;
 	uint32_t st_bypass;
 	uint32_t img_width;
 	uint32_t img_height;
+	uint32_t right_border;
+	uint32_t left_border;
+	uint32_t down_border;
+	uint32_t up_border;
+	uint32_t y_pitch_mem;
+	uint32_t u_pitch_mem;
+	uint32_t v_pitch_mem;
+	uint32_t store_res;
+	uint32_t rd_ctrl;
 	unsigned long st_luma_addr;
 	unsigned long st_chroma_addr;
+	unsigned long y_addr_mem;
+	unsigned long u_addr_mem;
 	uint32_t st_pitch;
 	uint32_t shadow_clr;
 };
@@ -130,6 +152,20 @@ struct isp_3dnr_fbd_fetch {
 	uint32_t y_tiles_start_odd;
 	uint32_t y_rd_one_more_en;
 	uint32_t rd_time_out_th;
+
+	uint32_t chk_sum_auto_clr;
+	uint32_t hblank_en;
+	uint32_t dout_req_signal_type;
+	uint32_t afbc_mode;
+	uint32_t start_3dnr_afbd;
+	uint32_t hblank_num;
+	uint32_t tile_num_pitch;
+	uint32_t slice_width;
+	uint32_t slice_height;
+	uint32_t slice_start_pxl_xpt;
+	uint32_t slice_start_pxl_ypt;
+	unsigned long frame_header_base_addr;
+	unsigned long slice_start_header_addr;
 };
 
 struct isp_3dnr_fbc_store {
@@ -145,6 +181,17 @@ struct isp_3dnr_fbc_store {
 	uint32_t fbc_constant_yuv;
 	uint32_t later_bits;
 	uint32_t tile_number;
+	uint32_t mirror_en;
+	uint32_t color_format;
+	uint32_t endian;
+	uint32_t afbc_mode;
+	uint32_t left_border;
+	uint32_t up_border;
+	unsigned long slice_payload_offset_addr_init;
+	unsigned long slice_payload_base_addr;
+	unsigned long slice_header_base_addr;
+	uint32_t c_nearly_full_level;
+	uint32_t y_nearly_full_level;
 };
 
 struct isp_3dnr_crop {

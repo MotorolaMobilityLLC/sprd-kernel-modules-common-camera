@@ -35,6 +35,8 @@ static void isp_3dnr_config_mem_ctrl(uint32_t idx,
 
 	val = ((mem_ctrl->nr3_done_mode & 0x1) << 1) |
 		((mem_ctrl->nr3_ft_path_sel & 0x1) << 2) |
+		((mem_ctrl->yuv_8bits_flag & 0x1) << 3) |
+		((mem_ctrl->slice_info & 0x3) << 4) |
 		((mem_ctrl->back_toddr_en & 0x1) << 6) |
 		((mem_ctrl->chk_sum_clr_en & 0x1) << 9) |
 		((mem_ctrl->data_toyuv_en & 0x1) << 12) |
@@ -45,24 +47,24 @@ static void isp_3dnr_config_mem_ctrl(uint32_t idx,
 		(mem_ctrl->bypass & 0x1);
 	ISP_REG_WR(idx, ISP_3DNR_MEM_CTRL_PARAM0, val);
 
-	val = ((mem_ctrl->start_col & 0x1FFF) << 16) |
-		(mem_ctrl->start_row & 0x1FFF);
+	val = ((mem_ctrl->start_col & 0x3FFF) << 16) |
+		(mem_ctrl->start_row & 0x3FFF);
 	ISP_REG_WR(idx, ISP_3DNR_MEM_CTRL_PARAM1, val);
 
-	val = ((mem_ctrl->global_img_height & 0x1FFF) << 16) |
-		(mem_ctrl->global_img_width & 0x1FFF);
+	val = ((mem_ctrl->global_img_height & 0x3FFF) << 16) |
+		(mem_ctrl->global_img_width & 0x3FFF);
 	ISP_REG_WR(idx, ISP_3DNR_MEM_CTRL_PARAM2, val);
 
-	val = ((mem_ctrl->img_height & 0x1FFF) << 16) |
-		(mem_ctrl->img_width & 0x1FFF);
+	val = ((mem_ctrl->img_height & 0x3FFF) << 16) |
+		(mem_ctrl->img_width & 0x3FFF);
 	ISP_REG_WR(idx, ISP_3DNR_MEM_CTRL_PARAM3, val);
 
-	val = ((mem_ctrl->ft_y_height & 0x1FFF) << 16) |
-		(mem_ctrl->ft_y_width & 0x1FFF);
+	val = ((mem_ctrl->ft_y_height & 0x3FFF) << 16) |
+		(mem_ctrl->ft_y_width & 0x3FFF);
 	ISP_REG_WR(idx, ISP_3DNR_MEM_CTRL_PARAM4, val);
 
-	val = (mem_ctrl->ft_uv_width & 0x1FFF)
-		| ((mem_ctrl->ft_uv_height & 0x1FFF) << 16);
+	val = ((mem_ctrl->ft_uv_height & 0x3FFF) << 16) |
+		(mem_ctrl->ft_uv_width & 0x3FFF);
 	ISP_REG_WR(idx, ISP_3DNR_MEM_CTRL_PARAM5, val);
 
 	val = ((mem_ctrl->mv_x & 0xFF) << 8) |
@@ -87,23 +89,23 @@ static void isp_3dnr_config_mem_ctrl(uint32_t idx,
 			mem_ctrl->ft_luma_addr, val);
 	}
 
-	val = ((mem_ctrl->blend_y_en_start_col & 0x1FFF) << 16) |
-		(mem_ctrl->blend_y_en_start_row & 0x1FFF);
+	val = ((mem_ctrl->blend_y_en_start_col & 0x3FFF) << 16) |
+		(mem_ctrl->blend_y_en_start_row & 0x3FFF);
 	ISP_REG_WR(idx, ISP_3DNR_MEM_CTRL_PARAM8, val);
 
-	val = ((mem_ctrl->blend_y_en_end_col & 0x1FFF) << 16) |
-		(mem_ctrl->blend_y_en_end_row & 0x1FFF);
+	val = ((mem_ctrl->blend_y_en_end_col & 0x3FFF) << 16) |
+		(mem_ctrl->blend_y_en_end_row & 0x3FFF);
 	ISP_REG_WR(idx, ISP_3DNR_MEM_CTRL_PARAM9, val);
 
-	val = ((mem_ctrl->blend_uv_en_start_col & 0x1FFF) << 16) |
-		(mem_ctrl->blend_uv_en_start_row & 0x1FFF);
+	val = ((mem_ctrl->blend_uv_en_start_col & 0x3FFF) << 16) |
+		(mem_ctrl->blend_uv_en_start_row & 0x3FFF);
 	ISP_REG_WR(idx, ISP_3DNR_MEM_CTRL_PARAM10, val);
 
-	val = ((mem_ctrl->blend_uv_en_end_col & 0x1FFF) << 16) |
-		(mem_ctrl->blend_uv_en_end_row & 0x1FFF);
+	val = ((mem_ctrl->blend_uv_en_end_col & 0x3FFF) << 16) |
+		(mem_ctrl->blend_uv_en_end_row & 0x3FFF);
 	ISP_REG_WR(idx, ISP_3DNR_MEM_CTRL_PARAM11, val);
 
-	val = ((mem_ctrl->ft_hblank_num & 0xFFFF) << 16) |
+	val = ((mem_ctrl->empty_thrd & 0xFFF) << 16) |
 		((mem_ctrl->pipe_hblank_num & 0xFF) << 8) |
 		(mem_ctrl->pipe_flush_line_num & 0xFF);
 	ISP_REG_WR(idx, ISP_3DNR_MEM_CTRL_PARAM12, val);
@@ -264,11 +266,11 @@ static void isp_3dnr_config_blend(uint32_t idx,
 		((blend->v_divisor_factor1 & 0x7) << 24) |
 		((blend->v_divisor_factor2 & 0x7) << 20) |
 		((blend->v_divisor_factor3 & 0x7) << 16) |
-		(blend->r1_circle & 0xFFF);
+		(blend->r1_circle & 0x1FFF);
 	ISP_REG_WR(idx, ISP_3DNR_BLEND_CFG23, val);
 
-	val = ((blend->r2_circle & 0xFFF) << 16) |
-		(blend->r3_circle & 0xFFF);
+	val = ((blend->r2_circle & 0x1FFF) << 16) |
+		(blend->r3_circle & 0x1FFF);
 	ISP_REG_WR(idx, ISP_3DNR_BLEND_CFG24, val);
 }
 
@@ -279,8 +281,15 @@ static void isp_3dnr_config_store(uint32_t idx,
 
 	if (g_isp_bypass[idx] & (1 << _EISP_NR3))
 		nr3_store->st_bypass = 1;
-	val = ((nr3_store->chk_sum_clr_en & 0x1) << 4) |
-		((nr3_store->shadow_clr_sel & 0x1) << 3) |
+
+	val = ((nr3_store->last_frm_en & 0x3) << 13) |
+		((nr3_store->flip_en & 0x1) << 12) |
+		((nr3_store->data_10b & 0x1) << 11) |
+		((nr3_store->mono_en & 0x1) << 10) |
+		((nr3_store->endian & 0x3) << 8) |
+		((nr3_store->color_format & 0xF) << 4) |
+		((nr3_store->mirror_en & 0x1) << 3) |
+		((nr3_store->speed_2x & 0x1) << 2) |
 		((nr3_store->st_max_len_sel & 0x1) << 1) |
 		(nr3_store->st_bypass & 0x1);
 	ISP_REG_WR(idx, ISP_3DNR_STORE_PARAM, val);
@@ -289,14 +298,35 @@ static void isp_3dnr_config_store(uint32_t idx,
 		(nr3_store->img_width & 0xFFFF);
 	ISP_REG_WR(idx, ISP_3DNR_STORE_SLICE_SIZE, val);
 
-	val = nr3_store->st_luma_addr;
+	val = ((nr3_store->right_border & 0xFFFF) << 16) |
+		(nr3_store->left_border & 0xFFFF);
+	ISP_REG_WR(idx, ISP_3DNR_STORE_BORDER, val);
+
+	val = nr3_store->y_addr_mem;
 	ISP_REG_WR(idx, ISP_3DNR_STORE_SLICE_Y_ADDR, val);
 
-	val = nr3_store->st_chroma_addr;
+	val = nr3_store->y_pitch_mem & 0xFFFF;
+	ISP_REG_WR(idx, ISP_3DNR_STORE_Y_PITCH, val);
+
+	val = nr3_store->u_addr_mem;
 	ISP_REG_WR(idx, ISP_3DNR_STORE_SLICE_U_ADDR, val);
 
-	val = nr3_store->st_pitch & 0xFFFF;
-	ISP_REG_WR(idx, ISP_3DNR_STORE_Y_PITCH, val);
+	val = nr3_store->u_pitch_mem & 0xFFFF;
+	ISP_REG_WR(idx, ISP_3DNR_STORE_U_PITCH, val);
+
+	val = ((nr3_store->down_border & 0xFFFF) << 16) |
+		(nr3_store->up_border & 0xFFFF);
+	ISP_REG_WR(idx, ISP_3DNR_STORE_BORDER_1, val);
+
+	val = nr3_store->v_pitch_mem & 0xFFFF;
+	ISP_REG_WR(idx, ISP_3DNR_STORE_V_PITCH, val);
+
+	val = ((nr3_store->store_res & 0x3FFFFFFF) << 2) |
+		(nr3_store->rd_ctrl & 0x3);
+	ISP_REG_WR(idx, ISP_3DNR_STORE_READ_CTRL, val);
+
+	val = (nr3_store->shadow_clr_sel & 0x1) << 1;
+	ISP_REG_WR(idx, ISP_3DNR_STORE_SHADOW_CLR_SEL, val);
 
 	ISP_REG_MWR(idx, ISP_3DNR_STORE_SHADOW_CLR,
 		BIT_0, nr3_store->shadow_clr);
@@ -307,22 +337,33 @@ static void isp_3dnr_config_fbd_fetch(uint32_t idx,
 {
 	unsigned int val;
 
-	val = nr3_fbd_fetch->bypass;
-	ISP_REG_WR(idx, ISP_FBD_3DNR_SEL , val);
+	val = (nr3_fbd_fetch->bypass & 0x1) |
+		((nr3_fbd_fetch->chk_sum_auto_clr & 0x1) << 1) |
+		((nr3_fbd_fetch->hblank_en & 0x1) << 2) |
+		((nr3_fbd_fetch->dout_req_signal_type & 0x1) << 3) |
+		((nr3_fbd_fetch->afbc_mode & 0x1F) << 4);
+	ISP_REG_WR(idx, ISP_FBD_3DNR_SEL, val);
 
-	val = (nr3_fbd_fetch->y_tiles_num_pitch & 0xFF);
-	ISP_REG_MWR(idx, ISP_FBD_3DNR_HBLANK_TILE_PITCH, 0X07FF0000, val << 16);
+	val = nr3_fbd_fetch->start_3dnr_afbd & 0x1;
+	ISP_REG_WR(idx, ISP_FBD_3DNR_START, val);
 
-	val = nr3_fbd_fetch->y_header_addr_init;
-	ISP_REG_WR(idx, ISP_FBD_3DNR_PARAM1, val);
+	val = (nr3_fbd_fetch->hblank_num & 0xFFFF) |
+		((nr3_fbd_fetch->tile_num_pitch & 0x7FF) << 16);
+	ISP_REG_WR(idx, ISP_FBD_3DNR_HBLANK_TILE_PITCH, val);
 
-	val = (nr3_fbd_fetch->y_pixel_size_in_hor & 0xFFF) |
-		((nr3_fbd_fetch->y_pixel_size_in_ver & 0x3FFF) << 16);
+	val = (nr3_fbd_fetch->slice_width & 0xFFF) |
+		((nr3_fbd_fetch->slice_height & 0x3FFF) << 16);
 	ISP_REG_WR(idx, ISP_FBD_3DNR_SLICE_SIZE, val);
 
-	val = (nr3_fbd_fetch->y_pixel_start_in_ver & 1) |
-		((nr3_fbd_fetch->y_pixel_start_in_hor & 0xFF) << 16);
-	ISP_REG_MWR(idx, ISP_FBD_3DNR_PARAM0, 0xFF0001, val);
+	val = (nr3_fbd_fetch->slice_start_pxl_xpt & 0x3FFF) |
+			((nr3_fbd_fetch->slice_start_pxl_ypt & 0x3FFF) << 16);
+	ISP_REG_WR(idx, ISP_FBD_3DNR_PARAM0, val);
+
+	val = nr3_fbd_fetch->frame_header_base_addr;
+	ISP_REG_WR(idx, ISP_FBD_3DNR_PARAM1, val);
+
+	val = nr3_fbd_fetch->slice_start_header_addr;
+	ISP_REG_WR(idx, ISP_FBD_3DNR_PARAM2, val);
 
 }
 
@@ -335,7 +376,10 @@ static void isp_3dnr_config_fbc_store(uint32_t idx,
 		nr3_fbc_store->bypass = 1;
 
 	val = (nr3_fbc_store->bypass & 0x1) |
-		((nr3_fbc_store->slice_mode_en & 0x1) << 1);
+		((nr3_fbc_store->mirror_en & 0x1) << 3) |
+		((nr3_fbc_store->color_format & 0xF) << 4) |
+		((nr3_fbc_store->endian & 0x3) << 8) |
+		((nr3_fbc_store->afbc_mode & 0x1F) << 10) ;
 	ISP_REG_WR(idx, ISP_FBC_3DNR_PARAM, val);
 
 	if (nr3_fbc_store->bypass)
@@ -345,17 +389,26 @@ static void isp_3dnr_config_fbc_store(uint32_t idx,
 		((nr3_fbc_store->size_in_ver & 0x1FFF) << 16);
 	ISP_REG_WR(idx, ISP_FBC_3DNR_SLICE_SIZE, val);
 
-	val = nr3_fbc_store->y_tile_addr_init_x256;
+	val = (nr3_fbc_store->left_border & 0x3FFF) |
+		((nr3_fbc_store->up_border & 0x3FFF) << 16);
+	ISP_REG_WR(idx, ISP_FBC_3DNR_BORDER, val);
+
+	val = nr3_fbc_store->slice_payload_offset_addr_init;
+	ISP_REG_WR(idx, ISP_FBC_3DNR_SLICE_PLOAD_OFFSET_ADDR, val);
+
+	val = nr3_fbc_store->slice_payload_base_addr;
 	ISP_REG_WR(idx, ISP_FBC_3DNR_SLICE_PLOAD_BASE_ADDR, val);
 
-	val = nr3_fbc_store->tile_number_pitch & 0xFFFF;
-	ISP_REG_MWR(idx, ISP_FBC_3DNR_TILE_PITCH, 0xFFFF, val);
-
-	val = nr3_fbc_store->y_header_addr_init;
+	val = nr3_fbc_store->slice_header_base_addr;
 	ISP_REG_WR(idx, ISP_FBC_3DNR_SLICE_HEADER_BASE_ADDR, val);
 
-	val = 0x20002 & 0xFF00FF;
-	ISP_REG_MWR(idx, ISP_FBC_3DNR_NFULL_LEVEL, 0xFF00FF, val);
+	val = nr3_fbc_store->tile_number_pitch & 0x3FFF;
+	ISP_REG_MWR(idx, ISP_FBC_3DNR_TILE_PITCH, 0x3FFF, val);
+
+	val = (nr3_fbc_store->y_nearly_full_level & 0x3FF) |
+		((nr3_fbc_store->c_nearly_full_level & 0x3FF) << 16);
+	ISP_REG_WR(idx, ISP_FBC_3DNR_NFULL_LEVEL, val);
+
 }
 
 static void isp_3dnr_config_crop(uint32_t idx,
@@ -385,13 +438,13 @@ static int isp_k_3dnr_block(struct isp_io_param *param,
 	struct isp_k_block *isp_k_param, uint32_t idx)
 {
 	int ret = 0;
-	struct isp_dev_3dnr_info *pnr3;
+	struct isp_dev_3dnr_info_v1 *pnr3;
 
-	pnr3 = &isp_k_param->nr3_info_base;
+	pnr3 = &isp_k_param->nr3_info_base_v1;
 
 	ret = copy_from_user((void *)pnr3,
 			param->property_param,
-			sizeof(struct isp_dev_3dnr_info));
+			sizeof(struct isp_dev_3dnr_info_v1));
 	if (ret != 0) {
 		pr_err("fail to 3dnr copy from user, ret = %d\n", ret);
 		return -EPERM;
@@ -399,7 +452,7 @@ static int isp_k_3dnr_block(struct isp_io_param *param,
 
 	isp_3dnr_config_blend(idx, &pnr3->blend);
 
-	memcpy(&isp_k_param->nr3d_info, pnr3, sizeof(struct isp_dev_3dnr_info));
+	memcpy(&isp_k_param->nr3d_info_v1, pnr3, sizeof(struct isp_dev_3dnr_info_v1));
 
 	return ret;
 }
@@ -517,10 +570,10 @@ int isp_k_update_3dnr(uint32_t idx,
 	uint32_t r1_circle, r1_circle_limit;
 	uint32_t r2_circle, r2_circle_limit;
 	uint32_t r3_circle, r3_circle_limit;
-	struct isp_dev_3dnr_info *pnr3, *pdst;
+	struct isp_dev_3dnr_info_v1 *pnr3, *pdst;
 
-	pdst = &isp_k_param->nr3d_info;
-	pnr3 = &isp_k_param->nr3_info_base;
+	pdst = &isp_k_param->nr3d_info_v1;
+	pnr3 = &isp_k_param->nr3_info_base_v1;
 
 	r1_circle = pnr3->blend.r1_circle * new_width / old_width;
 	r1_circle_limit = (new_width / 2);
