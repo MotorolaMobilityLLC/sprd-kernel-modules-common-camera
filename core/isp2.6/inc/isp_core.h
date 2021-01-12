@@ -169,7 +169,7 @@ struct isp_uinfo {
 	uint32_t pyr_layer_num;
 
 	/* compression info from cam core */
-	/* 1: fetch_fbd; 0: fetch */
+	/*2:dewarp  1: fetch_fbd; 0: fetch */
 	uint32_t fetch_path_sel;
 	/* 0: 14bit; 1: 10bit */
 	uint32_t fetch_fbd_4bit_bypass;

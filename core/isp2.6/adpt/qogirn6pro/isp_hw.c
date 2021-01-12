@@ -771,6 +771,10 @@ isp_hw_cfg_para:
 	ISP_REG_MWR(idx, ISP_CAP_FBC_STORE_BASE + ISP_FBC_STORE_PARAM, BIT_0, 1);
 	ISP_REG_MWR(idx, ISP_VID_FBC_STORE_BASE + ISP_FBC_STORE_PARAM, BIT_0, 1);
 
+	/* Dewarping bypass*/
+	ISP_REG_MWR(idx, ISP_DEWARPING_PARA, BIT_0, 1);
+	ISP_REG_MWR(idx, ISP_DEWARPING_CACHE_PARA, BIT_0, 1);
+
 	/* dec/rec bypass*/
 	ISP_REG_MWR(idx, PYR_REC_CUR_FETCH_BASE + ISP_FETCH_PARAM0, BIT_0, 1);
 	ISP_REG_MWR(idx, PYR_DEC_FETCH_BASE + ISP_FETCH_PARAM0, BIT_0, 1);
@@ -783,8 +787,6 @@ isp_hw_cfg_para:
 
 	/*fetch*/
 	ISP_REG_MWR(idx, ISP_FETCH_BASE + ISP_FETCH_PARAM1, 0xA0A0, 0xA0A0);
-	ISP_REG_MWR(idx, ISP_DEWARPING_PARA, BIT_0, 1);
-	ISP_REG_MWR(idx, ISP_DEWARPING_CACHE_PARA, BIT_0, 1);
 	ISP_REG_MWR(idx, ISP_YUV_AFBD_FETCH_BASE + ISP_AFBD_FETCH_SEL, BIT_0, 1);
 	ISP_REG_MWR(idx, ISP_YUV_AFBD_FETCH_BASE + ISP_AFBD_FETCH_HBLANK_TILE_PITCH, 0xFFFF, 0x8000);
 
@@ -1452,6 +1454,7 @@ static struct isp_cfg_entry isp_hw_cfg_func_tab[ISP_BLOCK_TOTAL - ISP_BLOCK_BASE
 [ISP_BLOCK_POST_CDN - ISP_BLOCK_BASE] = {ISP_BLOCK_POST_CDN, isp_k_cfg_post_cdn},
 [ISP_BLOCK_PSTRZ - ISP_BLOCK_BASE]    = {ISP_BLOCK_PSTRZ,    isp_k_cfg_pstrz},
 [ISP_BLOCK_YRANDOM - ISP_BLOCK_BASE]  = {ISP_BLOCK_YRANDOM,  isp_k_cfg_yrandom},
+[ISP_BLOCK_DEWARP - ISP_BLOCK_BASE]   = {ISP_BLOCK_DEWARP,   isp_k_cfg_dewarping},
 };
 
 static int isphw_block_func_get(void *handle, void *arg)
@@ -1476,6 +1479,8 @@ static isp_k_blk_func isp_hw_k_blk_func_tab[ISP_K_BLK_MAX] = {
 	[ISP_K_BLK_LTM]              = isp_ltm_config_param,
 	[ISP_K_BLK_PYR_REC_SHARE]    = isp_pyr_rec_share_config,
 	[ISP_K_BLK_PYR_REC_SLICE]    = isp_pyr_rec_slice_config,
+	[ISP_K_BLK_DEWARP_CACHE_CFG] = isp_dewarping_dewarp_cache_set,
+	[ISP_K_BLK_DEWARP_CFG]       = isp_dewarping_config_param,
 };
 
 static int isphw_k_blk_func_get(void *handle, void *arg)
@@ -2892,6 +2897,13 @@ static int isphw_fetch_start(void *handle, void *arg)
 	return 0;
 }
 
+static int isphw_dewarp_fetch_start(void *handle, void *arg)
+{
+	ISP_HREG_WR(ISP_DEWARPING_FSTART, 1);
+
+	return 0;
+}
+
 static int isphw_fmcu_cmd_set(void *handle, void *arg)
 {
 	struct isp_hw_fmcu_cmd *cmdarg = NULL;
@@ -2962,6 +2974,8 @@ BLOCK_CFG:
 	ISP_REG_MWR(idx, ISP_UVD_PARAM, BIT_0, p->uvd_info_v2.bypass);
 	ISP_REG_MWR(idx, ISP_YGAMMA_PARAM, BIT_0, p->ygamma_info.bypass);
 	ISP_REG_MWR(idx, ISP_YRANDOM_PARAM1, BIT_0, p->yrandom_info.bypass);
+	ISP_REG_MWR(idx, ISP_DEWARPING_PARA, BIT_0, p->dewarp_info.dewarping_bypass);
+	ISP_REG_MWR(idx, ISP_DEWARPING_CACHE_PARA, BIT_0, p->dewarp_info.dewarping_bypass);
 	return ret;
 
 BLOCK_BYPASS:
@@ -2974,6 +2988,8 @@ BLOCK_BYPASS:
 	ISP_REG_MWR(idx, ISP_UVD_PARAM, BIT_0, 1);
 	ISP_REG_MWR(idx, ISP_YGAMMA_PARAM, BIT_0, 1);
 	ISP_REG_MWR(idx, ISP_YRANDOM_PARAM1, BIT_0, 1);
+	ISP_REG_MWR(idx, ISP_DEWARPING_PARA, BIT_0, 1);
+	ISP_REG_MWR(idx, ISP_DEWARPING_CACHE_PARA, BIT_0, 1);
 
 	return ret;
 }
@@ -3098,6 +3114,7 @@ static struct hw_io_ctrl_fun isp_ioctl_fun_tab[] = {
 	{ISP_HW_CFG_START_ISP,               isphw_isp_start_cfg},
 	{ISP_HW_CFG_UPDATE_HIST_ROI,         isphw_hist_roi_update},
 	{ISP_HW_CFG_FETCH_START,             isphw_fetch_start},
+	{ISP_HW_CFG_DEWARP_FETCH_START,      isphw_dewarp_fetch_start},
 	{ISP_HW_CFG_FMCU_CMD,                isphw_fmcu_cmd_set},
 	{ISP_HW_CFG_FMCU_START,              isphw_fmcu_start},
 	{ISP_HW_CFG_YUV_BLOCK_CTRL_TYPE,     isphw_yuv_block_ctrl},

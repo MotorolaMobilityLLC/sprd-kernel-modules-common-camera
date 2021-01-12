@@ -162,6 +162,7 @@ struct camera_uinfo {
 	uint32_t is_pyr_rec;
 	uint32_t is_pyr_dec;
 	uint32_t is_dual;
+	uint32_t is_dewarp;
 	uint32_t dcam_slice_mode;/*1: hw,  2:sw*/
 	uint32_t slice_num;
 	uint32_t slice_count;

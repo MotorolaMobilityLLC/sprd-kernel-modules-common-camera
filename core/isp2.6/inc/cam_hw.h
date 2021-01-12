@@ -59,6 +59,8 @@ enum isp_k_blk_idx {
 	ISP_K_BLK_PYR_REC_SHARE,
 	ISP_K_BLK_PYR_REC_FRAME,
 	ISP_K_BLK_PYR_REC_SLICE,
+	ISP_K_BLK_DEWARP_CACHE_CFG,
+	ISP_K_BLK_DEWARP_CFG,
 	ISP_K_BLK_MAX
 };
 
@@ -231,6 +233,7 @@ enum isp_hw_cfg_cmd {
 	ISP_HW_CFG_START_ISP,
 	ISP_HW_CFG_UPDATE_HIST_ROI,
 	ISP_HW_CFG_FETCH_START,
+	ISP_HW_CFG_DEWARP_FETCH_START,
 	ISP_HW_CFG_FMCU_CMD,
 	ISP_HW_CFG_FMCU_START,
 	ISP_HW_CFG_YUV_BLOCK_CTRL_TYPE,
@@ -312,6 +315,13 @@ enum dcam_path_id {
 	DCAM_PATH_BPC,
 	DCAM_PATH_LSCM,
 	DCAM_PATH_MAX,
+};
+
+enum isp_fetch_path_select {
+	ISP_FETCH_PATH_NORMAL = 0,
+	ISP_FETCH_PATH_FBD,
+	ISP_FETCH_PATH_DEWARP,
+	ISP_FETCH_PATH_MAX
 };
 
 struct isp_fbd_raw_info {
@@ -399,7 +409,7 @@ struct isp_fbd_yuv_info {
 struct isp_hw_fetch_info {
 	uint32_t ctx_id;
 	uint32_t dispatch_color;
-	uint32_t fetch_path_sel;
+	enum isp_fetch_path_select fetch_path_sel;
 	uint32_t pack_bits;
 	uint32_t is_pack;
 	uint32_t data_bits;

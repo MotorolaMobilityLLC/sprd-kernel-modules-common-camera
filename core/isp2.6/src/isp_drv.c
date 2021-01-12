@@ -315,12 +315,12 @@ static int ispdrv_fbd_raw_get(void *cfg_in, void *cfg_out,
 	fbd_raw = (struct isp_fbd_raw_info *)cfg_out;
 	img_width = pipe_src->src.w;
 
-	if (pipe_src->fetch_path_sel == 0)
+	if (pipe_src->fetch_path_sel == 0 || pipe_src->fetch_path_sel == 2)
 		return 0;
 
 	/*Bug 1024606 sw workaround
 	fetch fbd crop isp timeout when crop.start_y % 4 == 2 */
-	if(pipe_src->fetch_path_sel && (pipe_src->crop.start_y % 4 == 2)) {
+	if((pipe_src->fetch_path_sel == 1) && (pipe_src->crop.start_y % 4 == 2)) {
 		pipe_src->crop.start_y -= 2;
 		pipe_src->crop.size_y += 2;
 		pr_info("fbd start_y: %d, size_y: %d",

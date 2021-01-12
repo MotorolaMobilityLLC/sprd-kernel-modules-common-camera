@@ -27,7 +27,8 @@ struct isp_k_block {
 	struct isp_dev_3dnr_info nr3_info_base;
 	uint32_t seed0_for_mode1;
 	uint32_t yrandom_mode;
-
+	/* qogirn6pro only */
+	struct isp_dev_dewarping_info dewarp_info;
 	/* sharkl6 */
 	struct isp_dev_grgb_info grgb_info;
 	struct isp_dev_bchs_info bchs_info;
@@ -202,6 +203,8 @@ int isp_k_cfg_yrandom(struct isp_io_param *param,
 	struct isp_k_block *isp_k_param,  uint32_t idx);
 int isp_k_cfg_yuv_noisefilter(struct isp_io_param *param,
 	struct isp_k_block *isp_k_param, uint32_t idx);
+int isp_k_cfg_dewarping(struct isp_io_param *param,
+	struct isp_k_block *isp_k_param, uint32_t idx);
 void cam_block_noisefilter_seeds(uint32_t image_width,
 	uint32_t seed0, uint32_t *seed1, uint32_t *seed2, uint32_t *seed3);
 
@@ -228,6 +231,8 @@ int init_isp_pm(struct isp_k_block *isp_k_param);
 int isp_ltm_config_param(void *handle);
 int isp_pyr_rec_share_config(void *handle);
 int isp_pyr_rec_slice_config(void *handle);
+int isp_dewarping_config_param(void *handle);
+int isp_dewarping_dewarp_cache_set(void *handle);
 
 /* for param debug */
 int dcam_k_dump_pm(void *pdst, void *psrc);
@@ -281,6 +286,7 @@ enum isp_bypass {
 	_EISP_SATURATION,
 	_EISP_HUE,
 	_EISP_YUVNF,
+	_EISP_DEWARP,
 
 	_EISP_TOTAL, /* total before this */
 	_EISP_CCE = 29,
