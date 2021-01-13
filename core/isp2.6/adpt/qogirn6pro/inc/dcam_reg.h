@@ -590,6 +590,17 @@ extern unsigned long g_dcam_mmubase;
 #define DCAM_SCL0_RES                                   (DCAM_SCL0_BASE + 0x0050UL)
 #define DCAM_SCL0_BWD_PARA                              (DCAM_SCL0_BASE + 0x0054UL)
 
+#define DCAM_SCL0_HOR_COEF0_Y                           (0x4710UL)
+#define DCAM_SCL0_HOR_COEF0_UV                          (0x4790UL)
+#define DCAM_SCL0_HOR_COEF1_Y                           (0x4810UL)
+#define DCAM_SCL0_HOR_COEF1_UV                          (0x4890UL)
+#define DCAM_SCL0_HOR_COEF2_Y                           (0x4910UL)
+#define DCAM_SCL0_HOR_COEF2_UV                          (0x4990UL)
+#define DCAM_SCL0_HOR_COEF3_Y                           (0x4A10UL)
+#define DCAM_SCL0_HOR_COEF3_UV                          (0x4A90UL)
+#define DCAM_SCL0_VER_COEF_Y                            (0xE0F0UL)
+#define DCAM_SCL0_VER_COEF_UV                           (0xE5F0UL)
+
 #define DCAM_CROP2_BASE                                 (0x4300UL)
 #define DCAM_CROP2_CTRL                                 (DCAM_CROP2_BASE + 0x0010UL)
 #define DCAM_CROP2_START                                (DCAM_CROP2_BASE + 0x0014UL)

@@ -67,6 +67,7 @@ enum dcam_context_id {
 enum dcam_scaler_type {
 	DCAM_SCALER_BINNING = 0,
 	DCAM_SCALER_RAW_DOWNSISER,
+	DCAM_SCALER_BY_YUVSCALER,
 	DCAM_SCALER_BYPASS,
 	DCAM_SCALER_MAX,
 };
@@ -146,6 +147,7 @@ struct dcam_path_desc {
 	struct camera_queue alter_out_queue;
 	struct camera_queue result_queue;
 	struct dcam_rds_slice_ctrl gphase;
+	struct yuv_scaler_info scaler_info;
 };
 
 /*

@@ -29,7 +29,6 @@
 
 /* align size for full/bin crop, use 4 for zzhdr sensor, 2 for normal sensor */
 #define DCAM_CROP_SIZE_ALIGN            4
-#define DCAM_SCALE_DOWN_MAX             4
 
 /* dcam dec pyramid layer num */
 #define DCAM_PYR_DEC_LAYER_NUM          4

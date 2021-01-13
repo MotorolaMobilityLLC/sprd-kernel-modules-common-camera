@@ -108,7 +108,7 @@ int isp_path_comn_uinfo_set(struct isp_sw_context *pctx, void *param)
 }
 
 int isp_path_scaler_param_calc(struct img_trim *in_trim,
-	struct img_size *out_size, struct isp_scaler_info *scaler,
+	struct img_size *out_size, struct yuv_scaler_info *scaler,
 	struct img_deci_info *deci)
 {
 	int ret = 0;
@@ -179,98 +179,6 @@ int isp_path_scaler_param_calc(struct img_trim *in_trim,
 	}
 
 	return ret;
-}
-
-int isp_path_scaler_coeff_calc_ex(struct isp_scaler_info *scaler)
-{
-	uint32_t *tmp_buf = NULL;
-	uint32_t *h_coeff = NULL;
-	uint32_t *h_chroma_coeff = NULL;
-	uint32_t *v_coeff = NULL;
-	uint32_t *v_chroma_coeff = NULL;
-	uint8_t y_hor_tap = 0;
-	uint8_t uv_hor_tap = 0;
-	uint8_t y_ver_tap = 0;
-	uint8_t uv_ver_tap = 0;
-
-	tmp_buf = scaler->coeff_buf;
-	h_coeff = tmp_buf;
-	h_chroma_coeff = tmp_buf + (ISP_SC_COEFF_COEF_SIZE / 4);
-	v_coeff = tmp_buf + (ISP_SC_COEFF_COEF_SIZE * 2 / 4);
-	v_chroma_coeff = tmp_buf + (ISP_SC_COEFF_COEF_SIZE * 3 / 4);
-
-	pr_debug("factor_in, ver_factor_in, factor_out, ver_factor_out %d %d %d %d\n",
-		(short)scaler->scaler_factor_in, (short)scaler->scaler_ver_factor_in,
-		(short)scaler->scaler_factor_out, (short)scaler->scaler_ver_factor_out);
-	if (!(cam_scaler_isp_scale_coeff_gen_ex((short)scaler->scaler_factor_in,
-				(short)scaler->scaler_ver_factor_in,
-				(short)scaler->scaler_factor_out,
-				(short)scaler->scaler_ver_factor_out,
-				1,/*in format: 00:YUV422; 1:YUV420;*/
-				1,/*out format: 00:YUV422; 1:YUV420;*/
-				h_coeff,
-				h_chroma_coeff,
-				v_coeff,
-				v_chroma_coeff,
-				&y_hor_tap,
-				&uv_hor_tap,
-				&y_ver_tap,
-				&uv_ver_tap,
-				tmp_buf + (ISP_SC_COEFF_COEF_SIZE),
-				ISP_SC_COEFF_TMP_SIZE))) {
-		pr_err("fail to calc scale_coeff_gen_ex !\n");
-		return -EINVAL;
-	}
-
-	scaler->scaler_y_hor_tap = y_hor_tap;
-	scaler->scaler_uv_hor_tap = uv_hor_tap;
-	scaler->scaler_y_ver_tap = y_ver_tap;
-	scaler->scaler_uv_ver_tap = uv_ver_tap;
-
-	pr_debug("hor: y %d uv %d; ver: y %d uv %d\n",
-		scaler->scaler_y_hor_tap,
-		scaler->scaler_uv_hor_tap,
-		scaler->scaler_y_ver_tap,
-		scaler->scaler_uv_ver_tap);
-
-	return 0;
-}
-
-int isp_path_scaler_coeff_calc(struct isp_scaler_info *scaler,
-		uint32_t scale2yuv420)
-{
-	uint32_t *tmp_buf = NULL;
-	uint32_t *h_coeff = NULL;
-	uint32_t *v_coeff = NULL;
-	uint32_t *v_chroma_coeff = NULL;
-	uint8_t y_tap = 0;
-	uint8_t uv_tap = 0;
-
-	tmp_buf = scaler->coeff_buf;
-	h_coeff = tmp_buf;
-	v_coeff = tmp_buf + (ISP_SC_COEFF_COEF_SIZE / 4);
-	v_chroma_coeff = v_coeff + (ISP_SC_COEFF_COEF_SIZE / 4);
-
-	if (!(cam_scaler_isp_scale_coeff_gen((short)scaler->scaler_factor_in,
-				(short)scaler->scaler_ver_factor_in,
-				(short)scaler->scaler_factor_out,
-				(short)scaler->scaler_ver_factor_out,
-				h_coeff,
-				v_coeff,
-				v_chroma_coeff,
-				scale2yuv420,
-				&y_tap,
-				&uv_tap,
-				tmp_buf + (ISP_SC_COEFF_COEF_SIZE * 3 / 4),
-				ISP_SC_COEFF_TMP_SIZE))) {
-		pr_err("fail to call dcam_gen_scale_coeff\n");
-		return -EINVAL;
-	}
-
-	scaler->scaler_y_ver_tap = y_tap;
-	scaler->scaler_uv_ver_tap = uv_tap;
-
-	return 0;
 }
 
 int isp_path_fetchsize_update(struct isp_sw_context *pctx, void *param)

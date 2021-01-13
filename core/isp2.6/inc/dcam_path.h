@@ -36,4 +36,5 @@ int dcam_path_store_frm_set(
 			void *dcam_ctx_handle,
 			struct dcam_path_desc *path,
 			struct dcam_sync_helper *helper);
+
 #endif

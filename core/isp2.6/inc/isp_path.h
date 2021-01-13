@@ -41,9 +41,7 @@ int isp_path_store_frm_set(struct isp_path_desc *path, struct camera_frame *fram
 int isp_path_afbc_store_frm_set(struct isp_path_desc *path, struct camera_frame *frame);
 
 int isp_path_scaler_param_calc(struct img_trim *in_trim,
-		struct img_size *out_size, struct isp_scaler_info *scaler,
+		struct img_size *out_size, struct yuv_scaler_info *scaler,
 		struct img_deci_info *deci);
-int isp_path_scaler_coeff_calc(struct isp_scaler_info *scaler, uint32_t scale2yuv420);
-int isp_path_scaler_coeff_calc_ex(struct isp_scaler_info *scaler);
 
 #endif

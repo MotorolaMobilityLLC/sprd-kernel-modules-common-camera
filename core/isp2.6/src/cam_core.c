@@ -41,6 +41,7 @@
 #include "csi_api.h"
 #include "dcam_core.h"
 #include "isp_core.h"
+#include "cam_scaler_ex.h"
 
 #ifdef CONFIG_COMPAT
 #include "compat_cam_drv.h"
@@ -1017,7 +1018,8 @@ static void camcore_compression_config(struct camera_module *module)
 	} else
 		fbc_mode = DCAM_FBC_DISABLE;
 
-	sw_handle[module->cur_sw_ctx_id].path[ch_cap->dcam_path_id].fbc_mode = fbc_mode;
+	if (ch_cap->enable)
+		sw_handle[module->cur_sw_ctx_id].path[ch_cap->dcam_path_id].fbc_mode = fbc_mode;
 	if (!fbc_mode)
 		ch_cap->compress_input = 0;
 
@@ -1035,7 +1037,11 @@ static void camcore_compression_config(struct camera_module *module)
 	} else
 		fbc_mode = DCAM_FBC_DISABLE;
 
-	sw_handle[module->cur_sw_ctx_id].path[ch_pre->dcam_path_id].fbc_mode = fbc_mode;
+	if (ch_pre->enable)
+		sw_handle[module->cur_sw_ctx_id].path[ch_pre->dcam_path_id].fbc_mode = fbc_mode;
+	else if ((!ch_pre->enable) && ch_vid->enable)
+		sw_handle[module->cur_sw_ctx_id].path[ch_vid->dcam_path_id].fbc_mode = fbc_mode;
+
 	if (!fbc_mode)
 		ch_pre->compress_input = 0;
 
@@ -1056,7 +1062,8 @@ static void camcore_compression_config(struct camera_module *module)
 	} else
 		fbc_mode = DCAM_FBC_DISABLE;
 
-	sw_handle[module->cur_sw_ctx_id].path[ch_raw->dcam_path_id].fbc_mode = fbc_mode;
+	if (ch_raw->enable)
+		sw_handle[module->cur_sw_ctx_id].path[ch_raw->dcam_path_id].fbc_mode = fbc_mode;
 	if (!fbc_mode)
 		ch_raw->compress_input = 0;
 

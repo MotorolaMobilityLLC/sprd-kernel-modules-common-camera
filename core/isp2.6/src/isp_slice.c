@@ -255,7 +255,7 @@ static void ispslice_spath_deci_info_cfg(
 static void ispslice_spath_scaler_info_cfg(
 		struct isp_scaler_slice_tmp *slice,
 		struct img_trim *frm_trim0,
-		struct isp_scaler_info *in,
+		struct yuv_scaler_info *in,
 		struct slice_scaler_info *out)
 {
 	uint32_t scl_factor_in, scl_factor_out;
@@ -503,7 +503,7 @@ static void ispslice_spath_scaler_info_cfg(
 static void ispslice_spath_trim1_info_cfg(
 		struct isp_scaler_slice_tmp *slice,
 		struct img_trim *frm_trim0,
-		struct isp_scaler_info *in,
+		struct yuv_scaler_info *in,
 		struct slice_scaler_info *out)
 {
 	uint32_t trim_sum_x = slice->trim1_sum_x;
@@ -973,7 +973,7 @@ static int ispslice_slice_scaler_info_cfg(
 	int i, j;
 	uint32_t trim1_sum_x[ISP_SPATH_NUM][SLICE_W_NUM_MAX] = { { 0 }, { 0 } };
 	uint32_t trim1_sum_y[ISP_SPATH_NUM][SLICE_H_NUM_MAX] = { { 0 }, { 0 } };
-	struct isp_scaler_info  *frm_scaler;
+	struct yuv_scaler_info  *frm_scaler;
 	struct img_deci_info *frm_deci;
 	struct img_trim *frm_trim0;
 	struct img_trim *frm_trim1;

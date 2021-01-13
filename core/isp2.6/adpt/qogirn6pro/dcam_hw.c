@@ -22,6 +22,12 @@
 
 #define IMG_TYPE_RAW                   0x2B
 #define IMG_TYPE_YUV                   0x1E
+
+#define COEF_HOR_Y_SIZE                32
+#define COEF_HOR_UV_SIZE               16
+#define COEF_VOR_Y_SIZE                (32 * 8)
+#define COEF_VOR_UV_SIZE               (32 * 8)
+
 #define IS_DCAM_IF(idx)                ((idx) < 2)
 
 extern atomic_t s_dcam_working;
@@ -1098,6 +1104,63 @@ static int dcamhw_rds_phase_info_calc(void *handle, void *arg)
 	return rtn;
 }
 
+static void dcamhw_path_scaler_coeff_set(uint32_t idx,uint32_t *coeff_buf)
+{
+	int k = 0, c = 0;
+	uint32_t *tmp_h_coeff = NULL;
+	uint32_t *tmp_h_chroma_coeff = NULL;
+	struct coeff_arg arg;
+
+	arg.h_coeff = coeff_buf;
+	arg.h_chroma_coeff = coeff_buf + (ISP_SC_COEFF_COEF_SIZE / 4);
+	arg.v_coeff = coeff_buf + (ISP_SC_COEFF_COEF_SIZE * 2 / 4);
+	arg.v_chroma_coeff = coeff_buf + (ISP_SC_COEFF_COEF_SIZE * 3 / 4);
+	arg.v_coeff_addr = DCAM_SCL0_VER_COEF_Y;
+	arg.v_chroma_coeff_addr = DCAM_SCL0_VER_COEF_UV;
+
+	for (k = 0; k < 4; k++) {
+		if (k == 0) {
+			arg.h_coeff_addr = DCAM_SCL0_HOR_COEF0_Y;
+			arg.h_chroma_coeff_addr= DCAM_SCL0_HOR_COEF0_UV;
+		} else if (k == 1) {
+			arg.h_coeff_addr = DCAM_SCL0_HOR_COEF1_Y;
+			arg.h_chroma_coeff_addr= DCAM_SCL0_HOR_COEF1_UV;
+		} else if (k == 2) {
+			arg.h_coeff_addr = DCAM_SCL0_HOR_COEF2_Y;
+			arg.h_chroma_coeff_addr= DCAM_SCL0_HOR_COEF2_UV;
+		} else if (k == 3) {
+			arg.h_coeff_addr = DCAM_SCL0_HOR_COEF3_Y;
+			arg.h_chroma_coeff_addr= DCAM_SCL0_HOR_COEF3_UV;
+		}
+
+		/*h y*/
+		tmp_h_coeff = arg.h_coeff + k * COEF_HOR_Y_SIZE;
+		for (c = 0; c < COEF_HOR_Y_SIZE; c++) {
+			DCAM_REG_WR(idx, arg.h_coeff_addr + c * 4, *(tmp_h_coeff));
+			tmp_h_coeff++;
+		}
+		/*h uv*/
+		tmp_h_chroma_coeff = arg.h_chroma_coeff + k * COEF_HOR_UV_SIZE;
+		for (c = 0; c < COEF_HOR_UV_SIZE; c++) {
+			DCAM_REG_WR(idx, arg.h_chroma_coeff_addr + c * 4, *(tmp_h_chroma_coeff));
+			tmp_h_chroma_coeff++;
+		}
+	}
+
+	for (k = 0; k < COEF_VOR_Y_SIZE; k++) {
+		DCAM_REG_WR(idx, arg.v_coeff_addr, *arg.v_coeff);
+		arg.v_coeff_addr += 4;
+		arg.v_coeff++;
+	}
+
+	for (k = 0; k < COEF_VOR_UV_SIZE; k++) {
+		DCAM_REG_WR(idx, arg.v_chroma_coeff_addr, *arg.v_chroma_coeff);
+		arg.v_chroma_coeff_addr += 4;
+		arg.v_chroma_coeff++;
+	}
+
+}
+
 static int dcamhw_path_size_update(void *handle, void *arg)
 {
 	int ret = 0;
@@ -1141,40 +1204,95 @@ static int dcamhw_path_size_update(void *handle, void *arg)
 		DCAM_REG_WR(idx, DCAM_STORE4_U_PITCH, sizearg->out_pitch);
 		break;
 	case DCAM_PATH_BIN:
-		if ((sizearg->in_size.w > sizearg->in_trim.size_x) ||
-			(sizearg->in_size.h > sizearg->in_trim.size_y)) {
 
-			reg_val = (sizearg->in_size.h << 16) |
-						sizearg->in_size.w;
-			DCAM_REG_WR(idx, DCAM_SCL0_SRC_SIZE, reg_val);
+		/* scaler0 cfg */
+		reg_val = (sizearg->in_size.h << 16) |
+				sizearg->in_size.w;
+		DCAM_REG_WR(idx, DCAM_SCL0_SRC_SIZE, reg_val);
 
-			DCAM_REG_WR(idx, DCAM_SCL0_TRIM0_START, 0);
-			reg_val = (sizearg->in_size.h << 16) |
-						sizearg->in_size.w;
-			DCAM_REG_WR(idx, DCAM_SCL0_TRIM0_SIZE, reg_val);
+		reg_val = (sizearg->out_size.h << 16) |
+				sizearg->out_size.w;
+		DCAM_REG_WR(idx, DCAM_SCL0_DES_SIZE, reg_val);
 
-			reg_val = (sizearg->in_trim.start_y<< 16) |
-						sizearg->in_trim.start_x;
-			DCAM_REG_WR(idx, DCAM_SCL0_TRIM1_START, reg_val);
-			reg_val = (sizearg->in_trim.size_y << 16) |
-						sizearg->in_trim.size_x;
-			DCAM_REG_WR(idx, DCAM_SCL0_TRIM1_SIZE, reg_val);
-			/*TBD, bypass sclaer*/
+		reg_val = (sizearg->in_trim.start_y<< 16) |
+			sizearg->in_trim.start_x;
+		DCAM_REG_WR(idx, DCAM_SCL0_TRIM0_START, 0);
+		reg_val = (sizearg->in_trim.size_y << 16) |
+					sizearg->in_trim.size_x;
+		DCAM_REG_WR(idx, DCAM_SCL0_TRIM0_SIZE, reg_val);
+
+		if (sizearg->scaler_sel == DCAM_SCALER_BYPASS) {
+			DCAM_REG_MWR(idx, DCAM_SCL0_CFG, BIT_6, 0 << 6);
+			DCAM_REG_MWR(idx, DCAM_SCL0_CFG, BIT_9, 0 << 9);
 			DCAM_REG_MWR(idx, DCAM_SCL0_CFG, BIT_1, BIT_1);
+		} else if (sizearg->scaler_sel == DCAM_SCALER_BY_YUVSCALER) {
+			DCAM_REG_MWR(idx, DCAM_SCL0_CFG, BIT_6, 0 << 6);
+			DCAM_REG_MWR(idx, DCAM_SCL0_CFG, BIT_9, 0 << 9);
+			DCAM_REG_MWR(idx, DCAM_SCL0_CFG, BIT_1, 0 << 1);
 			DCAM_REG_MWR(idx, DCAM_SCL0_CFG, BIT_0, 0);
-		} else {
-			/* bypass trim */
-			DCAM_REG_MWR(idx, DCAM_SCL0_CFG, BIT_0, 1);
+
+			DCAM_REG_MWR(idx, DCAM_SCL0_CFG, 0x1f << 11, sizearg->scaler_info->scaler_uv_ver_tap << 11);
+			DCAM_REG_MWR(idx, DCAM_SCL0_CFG, 0xf << 16, sizearg->scaler_info->scaler_y_ver_tap << 16);
+
+			reg_val = ((sizearg->scaler_info->init_phase_info.scaler_init_phase_int[0][0] & 0x1F) << 16) |
+				(sizearg->scaler_info->init_phase_info.scaler_init_phase_rmd[0][0] & 0x3FFF);
+			DCAM_REG_WR(idx, DCAM_SCL0_IP, reg_val);
+
+			reg_val = ((sizearg->scaler_info->init_phase_info.scaler_init_phase_int[0][1] & 0x1F) << 16) |
+				(sizearg->scaler_info->init_phase_info.scaler_init_phase_rmd[0][1] & 0x3FFF);
+			DCAM_REG_WR(idx, DCAM_SCL0_CIP, reg_val);
+
+			reg_val = (sizearg->scaler_info->scaler_factor_in << 16) |
+				sizearg->scaler_info->scaler_factor_out;
+			DCAM_REG_WR(idx, DCAM_SCL0_FACTOR, reg_val);
+
+			reg_val = (sizearg->scaler_info->scaler_ver_factor_in << 16) |
+				sizearg->scaler_info->scaler_ver_factor_out;
+			DCAM_REG_WR(idx, DCAM_SCL0_VER_FACTOR, reg_val);
+
+			reg_val = ((sizearg->scaler_info->init_phase_info.scaler_init_phase_int[1][0] & 0x1F) << 16) |
+				(sizearg->scaler_info->init_phase_info.scaler_init_phase_rmd[1][0] & 0x3FFF);
+			DCAM_REG_WR(idx, DCAM_SCL0_VER_IP, reg_val);
+
+			reg_val = ((sizearg->scaler_info->init_phase_info.scaler_init_phase_int[1][1] & 0x1F) << 16) |
+				(sizearg->scaler_info->init_phase_info.scaler_init_phase_rmd[1][1] & 0x3FFF);
+			DCAM_REG_WR(idx, DCAM_SCL0_VER_CIP, reg_val);
+
+			dcamhw_path_scaler_coeff_set(idx, sizearg->scaler_info->coeff_buf);
+
+			/* PINGPONG BUF CONTROL  SW MODE*/
+			DCAM_REG_MWR(idx, DCAM_BUF_CTRL, BIT_3, BIT_3);
+			reg_val = DCAM_REG_RD(idx, DCAM_BUF_CTRL);
+			reg_val = reg_val & BIT_19;
+			DCAM_REG_MWR(idx, DCAM_BUF_CTRL, BIT_19, ~reg_val);
 		}
 
+		DCAM_REG_WR(idx, DCAM_SCL0_TRIM1_START, 0);
+		reg_val = (sizearg->out_size.h << 16) | sizearg->out_size.w;
+		DCAM_REG_WR(idx, DCAM_SCL0_TRIM1_SIZE, reg_val);
+
+		if ((sizearg->in_size.w == sizearg->in_trim.size_x) &&
+			(sizearg->in_size.h == sizearg->in_trim.size_y) &&
+			(sizearg->scaler_sel == DCAM_SCALER_BYPASS))
+			DCAM_REG_MWR(idx, DCAM_SCL0_CFG, BIT_0, 1);
+
+		DCAM_REG_MWR(idx, DCAM_SCL0_BWD_PARA, BIT_0, 1);
+
+		/* yuv444to420 cfg */
 		DCAM_REG_WR(idx, DCAM_YUV444TO420_IMAGE_WIDTH, sizearg->in_size.w);
+
+		/* store0 cfg */
 		reg_val = (sizearg->out_size.h<< 16) | sizearg->out_size.w;
 		DCAM_REG_WR(idx, DCAM_STORE0_SLICE_SIZE, reg_val);
+
+		/* fbc pitch */
 		if (sizearg->compress_info.is_compress) {
+			reg_val = (sizearg->out_size.h<< 16) | sizearg->out_size.w;
 			DCAM_REG_WR(idx, DCAM_YUV_FBC_SCAL_SLICE_SIZE, reg_val);
 			DCAM_REG_WR(idx, DCAM_YUV_FBC_SCAL_TILE_PITCH, sizearg->compress_info.tile_col);
 		}
 
+		/* store0 pitch */
 		DCAM_REG_WR(idx, DCAM_STORE0_Y_PITCH, sizearg->out_pitch);
 		DCAM_REG_WR(idx, DCAM_STORE0_U_PITCH, sizearg->out_pitch);
 

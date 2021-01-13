@@ -33,6 +33,8 @@
 #define DCAM_SW_SLICE_HEIGHT_MAX       8192
 #define DCAM_HW_SLICE_WIDTH_MAX        8192
 #define CAM_FACEID_SEC
+#define DCAM_SCALE_DOWN_MAX            4
+#define DCAM_SCALER_MAX_WIDTH          0xFFFFFFFF
 
 #define DCAM_FBC_TILE_WIDTH            64
 #define DCAM_FBC_TILE_HEIGHT           4

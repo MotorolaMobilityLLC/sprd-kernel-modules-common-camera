@@ -438,7 +438,7 @@ struct scaler_phase_info {
 	uint16_t scaler_init_phase_rmd[2][2];
 };
 
-struct isp_scaler_info {
+struct yuv_scaler_info {
 	uint32_t scaler_bypass;
 	uint32_t scaler_path_stop;
 	uint32_t odata_mode;
@@ -498,7 +498,7 @@ struct isp_hw_path_scaler {
 	struct img_trim in_trim;
 	struct img_trim out_trim;
 	struct img_size dst;
-	struct isp_scaler_info scaler;
+	struct yuv_scaler_info scaler;
 	struct isp_regular_info regular_info;
 };
 
@@ -601,6 +601,7 @@ struct dcam_hw_path_size {
 	struct img_trim in_trim;
 	struct img_size out_size;
 	struct dcam_compress_info compress_info;
+	struct yuv_scaler_info *scaler_info;
 };
 
 struct dcam_hw_path_src_sel {

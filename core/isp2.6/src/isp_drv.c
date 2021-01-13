@@ -24,6 +24,8 @@
 #include "isp_reg.h"
 #include "isp_int.h"
 #include "isp_core.h"
+#include "cam_scaler.h"
+#include "cam_scaler_ex.h"
 #include "isp_path.h"
 
 #ifdef pr_fmt
@@ -42,7 +44,7 @@ static int ispdrv_path_scaler_get(struct isp_path_uinfo *in_ptr,
 {
 	int ret = 0;
 	uint32_t is_yuv422 = 0, scale2yuv420 = 0;
-	struct isp_scaler_info *scaler = NULL;
+	struct yuv_scaler_info *scaler = NULL;
 
 	if (!in_ptr || !path) {
 		pr_err("fail to get valid input ptr %p, %p\n", in_ptr, path);
@@ -85,10 +87,10 @@ static int ispdrv_path_scaler_get(struct isp_path_uinfo *in_ptr,
 		if (in_ptr->scaler_coeff_ex) {
 			/*0:yuv422 to 422 ;1:yuv422 to 420 2:yuv420 to 420*/
 			scaler->work_mode = 2;
-			ret = isp_path_scaler_coeff_calc_ex(scaler);
+			ret = cam_scaler_coeff_calc_ex(scaler);
 		}  else {
 			scale2yuv420 = is_yuv422 ? 0 : 1;
-			ret = isp_path_scaler_coeff_calc(scaler, scale2yuv420);
+			ret = cam_scaler_coeff_calc(scaler, scale2yuv420);
 		}
 
 		if (ret) {

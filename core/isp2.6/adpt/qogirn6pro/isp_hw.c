@@ -211,6 +211,7 @@ static uint32_t cam_reg_trace_tab[] = {
 	DCAM_STORE0_PARAM,
 	DCAM_STORE0_SLICE_Y_ADDR,
 	DCAM_STORE0_SLICE_U_ADDR,
+	DCAM_SCL0_CFG,
 	DCAM_PDAF_BASE_WADDR,
 	DCAM_VCH2_BASE_WADDR,
 	DCAM_VCH3_BASE_WADDR,
@@ -1053,7 +1054,7 @@ static int isphw_path_scaler(void *handle, void *arg)
 {
 	uint32_t reg_val, idx;
 	struct isp_hw_path_scaler *path_scaler = NULL;
-	struct isp_scaler_info *scalerInfo = NULL;
+	struct yuv_scaler_info *scalerInfo = NULL;
 	struct img_deci_info *deciInfo = NULL;
 	unsigned long addr;
 	uint32_t path_mask[ISP_SPATH_NUM] = {

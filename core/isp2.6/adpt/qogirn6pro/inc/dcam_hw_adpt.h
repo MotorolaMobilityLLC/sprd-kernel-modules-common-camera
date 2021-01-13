@@ -35,6 +35,9 @@
 #define CAM_FACEID_SEC
 #define DCAM_OFFSET_RANGE              0x3E103E0
 
+#define DCAM_SCALE_DOWN_MAX            10
+#define DCAM_SCALER_MAX_WIDTH          3840
+
 /*
  * dcam_if fbc capability limit
  * modification to these values may cause some function in isp_slice.c not

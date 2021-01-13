@@ -33,7 +33,6 @@
 #define TRUE                            1
 #define FALSE                           0
 #define SCI_MEMSET                      memset
-#define MAX(_x, _y)                  (((_x) > (_y)) ? (_x) : (_y))
 
 #define SINCOS_BIT_31                   (1 << 31)
 #define SINCOS_BIT_30                   (1 << 30)
@@ -826,7 +825,7 @@ static void camscaler_ver_edge_coef_cal(short *coeff_ptr, short d, short i,
 /* Return:                                                                  */
 /* Note:                                                                    */
 /****************************************************************************/
-unsigned char cam_scaler_isp_scale_coeff_gen(short i_w, short i_h,
+static unsigned char cam_scaler_isp_scale_coeff_gen(short i_w, short i_h,
 				short o_w, short o_h,
 				unsigned int *coeff_h_ptr,
 				unsigned int *coeff_v_lum_ptr,
@@ -1249,3 +1248,41 @@ int cam_scaler_dcam_rds_coeff_gen(
 	return 0;
 }
 /* Raw DownSizer definition ends. */
+
+int cam_scaler_coeff_calc(struct yuv_scaler_info *scaler,
+		uint32_t scale2yuv420)
+{
+	uint32_t *tmp_buf = NULL;
+	uint32_t *h_coeff = NULL;
+	uint32_t *v_coeff = NULL;
+	uint32_t *v_chroma_coeff = NULL;
+	uint8_t y_tap = 0;
+	uint8_t uv_tap = 0;
+
+	tmp_buf = scaler->coeff_buf;
+	h_coeff = tmp_buf;
+	v_coeff = tmp_buf + (ISP_SC_COEFF_COEF_SIZE / 4);
+	v_chroma_coeff = v_coeff + (ISP_SC_COEFF_COEF_SIZE / 4);
+
+	if (!(cam_scaler_isp_scale_coeff_gen((short)scaler->scaler_factor_in,
+				(short)scaler->scaler_ver_factor_in,
+				(short)scaler->scaler_factor_out,
+				(short)scaler->scaler_ver_factor_out,
+				h_coeff,
+				v_coeff,
+				v_chroma_coeff,
+				scale2yuv420,
+				&y_tap,
+				&uv_tap,
+				tmp_buf + (ISP_SC_COEFF_COEF_SIZE * 3 / 4),
+				ISP_SC_COEFF_TMP_SIZE))) {
+		pr_err("fail to call dcam_gen_scale_coeff\n");
+		return -EINVAL;
+	}
+
+	scaler->scaler_y_ver_tap = y_tap;
+	scaler->scaler_uv_ver_tap = uv_tap;
+
+	return 0;
+}
+
