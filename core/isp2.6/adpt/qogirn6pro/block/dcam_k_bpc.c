@@ -61,7 +61,7 @@ int dcam_k_bpc_block(struct dcam_dev_param *param)
 		((p->bpc_is_mono_sensor & 0x1) << 6) |
 		((p->bpc_ppi_en & 0x1) << 7) |
 		((p->bpc_pos_out_en & 0x1) << 16);
-	DCAM_REG_MWR(idx, DCAM_BPC_PARAM, 0xC0100F0, val);
+	DCAM_REG_MWR(idx, DCAM_BPC_PARAM, 0x100F0, val);
 
 	for (i = 0; i < 4; i++) {
 		val = (p->bpc_bad_pixel_th[i] & 0x3FF);

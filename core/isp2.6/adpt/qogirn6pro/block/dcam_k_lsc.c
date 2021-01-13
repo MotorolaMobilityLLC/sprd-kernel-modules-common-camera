@@ -348,10 +348,14 @@ int dcam_update_lsc(void *in)
 	DCAM_REG_MWR(idx, DCAM_LENS_LOAD_ENABLE, BIT_0, 0);
 
 	if (update & _UPDATE_INFO) {
-		val = ((info->grid_width & 0x1ff) << 16) |
-				((info->grid_y_num & 0xff) << 8) |
+		val = ((info->grid_y_num & 0xff) << 8) |
 				(info->grid_x_num & 0xff);
 		DCAM_REG_WR(idx, DCAM_LENS_GRID_SIZE, val);
+
+		val = ((info->grid_width_y & 0x1ff) << 16) |
+				(info->grid_width_x & 0x1ff);
+		DCAM_REG_WR(idx, DCAM_LENS_GRID_WIDTH, val);
+
 		/* only for slice mode */
 		DCAM_REG_WR(idx, DCAM_LENS_SLICE_CTRL0, 0x0);
 		DCAM_REG_MWR(idx, DCAM_LENS_SLICE_CTRL1, 0xff, grid_x_num_slice);

@@ -38,12 +38,11 @@ int dcam_k_afm_block(struct dcam_dev_param *param)
 	idx = param->idx;
 	p = &(param->afm.af_param);
 
-	val = (p->afm_cg_dis & 0x1) |
-		((p->afm_iir_enable & 0x1) << 2) |
-		((p->afm_lum_stat_chn_sel & 0x3) << 4) |
+	val = (p->afm_iir_enable & 0x1) |
+		((p->afm_lum_stat_chn_sel & 0x3) << 1) |
 		((p->afm_done_tile_num_y & 0xF) << 8) |
 		((p->afm_done_tile_num_x & 0x1F) << 12);
-	DCAM_REG_MWR(idx, DCAM_AFM_PARAMETERS, 0x1FF35, val);
+	DCAM_REG_MWR(idx, DCAM_AFM_PARAMETERS, 0x1FF07, val);
 
 	/* IIR cfg */
 	val = ((p->afm_iir_g1 & 0xFFF) << 16) |
@@ -180,7 +179,7 @@ int dcam_k_afm_skipnum(struct dcam_dev_param *param)
 	idx = param->idx;
 	skip_num = param->afm.skip_num;
 
-	DCAM_REG_MWR(idx, DCAM_AFM_FRM_CTRL, 0xF0, (skip_num & 0xF) << 4);
+	DCAM_REG_MWR(idx, DCAM_AFM_FRM_CTRL, 0xFF0, (skip_num & 0xFF) << 4);
 
 	/* afm_skip_num_clr */
 	DCAM_REG_MWR(idx, DCAM_AFM_FRM_CTRL1, BIT_1, 1 << 1);
@@ -284,11 +283,11 @@ int dcam_k_afm_crop_size(struct dcam_dev_param *param)
 	crop_size = param->afm.crop_size;
 
 	DCAM_REG_WR(idx, DCAM_CROP3_START,
-		(crop_size.y & 0x1FFF) << 16 |
-		(crop_size.x & 0X1FFF));
+		(crop_size.y & 0xFFFF) << 16 |
+		(crop_size.x & 0XFFFF));
 	DCAM_REG_WR(idx, DCAM_CROP3_SIZE,
-		(crop_size.h & 0x1FFF) << 16 |
-		(crop_size.w & 0X1FFF));
+		(crop_size.h & 0xFFFF) << 16 |
+		(crop_size.w & 0XFFFF));
 
 	ret = dcam_afm_lbuf_share_mode(idx, crop_size.w);
 	if (ret)

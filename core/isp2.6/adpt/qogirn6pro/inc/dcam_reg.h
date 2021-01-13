@@ -918,7 +918,7 @@ extern const unsigned long slowmotion_store_addr[3][4];
 #define RDS_COEF_TABLE_START                            (0x0d40UL)
 #define RDS_COEF_TABLE_SIZE                             (0x00C0UL)
 
-#define PDAF_CORR_TABLE_START                           (0x0E00UL)
+#define PDAF_CORR_TABLE_START                           (0xDC00UL)
 #define PDAF_CORR_TABLE_SIZE                            (0x0200UL)
 
 #define LSC_GRID_BUF_START0                             (0x4000UL)

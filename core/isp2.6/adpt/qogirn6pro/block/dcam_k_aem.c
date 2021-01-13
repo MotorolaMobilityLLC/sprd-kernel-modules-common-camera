@@ -127,8 +127,8 @@ int dcam_k_aem_skip_num(struct dcam_dev_param *param)
 	}
 	pr_debug("dcam%d skip_num %d", idx, param->aem.skip_num);
 
-	val = (param->aem.skip_num & 0xF) << 4;
-	DCAM_REG_MWR(idx, DCAM_AEM_FRM_CTRL0, 0xF0, val);
+	val = (param->aem.skip_num & 0xFF) << 4;
+	DCAM_REG_MWR(idx, DCAM_AEM_FRM_CTRL0, 0xFF0, val);
 
 	/* It is better to set aem_skip_num_clr when new skip_num is set. */
 	DCAM_REG_MWR(idx, DCAM_AEM_FRM_CTRL1, BIT_0, 1);
