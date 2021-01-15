@@ -2358,8 +2358,9 @@ static int camcore_dcam_callback(enum dcam_cb_type type, void *param, void *priv
 	pframe->priv_data = NULL;
 	channel = &module->channel[pframe->channel_id];
 
-	pr_debug("module %px, cam%d ch %d.  cb cmd %d, frame %px\n",
-		module, module->idx, pframe->channel_id, type, pframe);
+	pr_debug("module %px, cam%d ch %d.  cb cmd %d, frame %px w:%d, h:%d\n",
+		module, module->idx, pframe->channel_id, type,
+		pframe, pframe->width, pframe->height);
 
 	switch (type) {
 	case DCAM_CB_DATA_DONE:
@@ -3630,6 +3631,7 @@ static int camcore_channel_size_config(
 	struct isp_ctx_size_desc ctx_size;
 	struct img_trim path_trim;
 	struct camera_frame *alloc_buf = NULL;
+	struct channel_context *ch_pre = NULL;
 
 	if (atomic_read(&module->state) == CAM_RUNNING) {
 		is_zoom = 1;
@@ -3641,6 +3643,7 @@ static int camcore_channel_size_config(
 
 	hw = module->grp->hw_info;
 	ch_uinfo = &channel->ch_uinfo;
+	ch_pre = &module->channel[CAM_CH_PRE];
 	/* DCAM full path not updating for zoom. */
 	if (is_zoom && channel->ch_id == CAM_CH_CAP)
 		goto cfg_isp;
@@ -3727,7 +3730,8 @@ static int camcore_channel_size_config(
 		ch_desc.priv_size_data = NULL;
 		isp_param = NULL;
 	}
-	if (!is_zoom && channel->ch_id == CAM_CH_PRE) {
+	if (!is_zoom && (channel->ch_id == CAM_CH_PRE ||
+		(!ch_pre->enable && channel->ch_id == CAM_CH_VID))) {
 		isp_ctx_id = channel->isp_ctx_id;
 		isp_path_id = channel->isp_path_id;
 		ctx_size.src.w = ch_uinfo->src_size.w;
@@ -4072,7 +4076,8 @@ static int camcore_channel_init(struct camera_module *module,
 			ch_desc.dcam_out_fmt = DCAM_STORE_RAW_BASE;
 		if (channel->ch_id == CAM_CH_RAW)
 			ch_desc.dcam_out_fmt = DCAM_STORE_RAW_BASE;
-		pr_debug("channel dcam out format %d, bits %d, is pack %d\n", ch_desc.dcam_out_fmt, ch_desc.dcam_out_bits, !(ch_desc.pack_bits));
+		pr_debug("channel dcam out format %d, bits %d, is pack %d\n", ch_desc.dcam_out_fmt,
+			ch_desc.dcam_out_bits, !(ch_desc.pack_bits));
 
 		/* auto_3dnr:hw enable, channel->uinfo_3dnr == 1: hw enable */
 		ch_desc.enable_3dnr = (module->auto_3dnr | channel->uinfo_3dnr);

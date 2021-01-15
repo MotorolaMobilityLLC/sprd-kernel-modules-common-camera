@@ -1867,7 +1867,7 @@ static int ispcore_stream_state_get(struct isp_sw_context *pctx)
 	normal_cnt = 1;
 	for (i = 0; i < ISP_SPATH_NUM; i++) {
 		path = &pctx->isp_path[i];
-		path_info = &uinfo->path_info[j];
+		path_info = &uinfo->path_info[i];
 		if (atomic_read(&path->user_cnt) < 1)
 			continue;
 		maxw = MAX(maxw, path_info->dst.w);
