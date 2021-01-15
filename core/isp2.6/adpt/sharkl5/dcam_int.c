@@ -87,11 +87,11 @@ static struct camera_frame *dcamint_frame_prepare(struct dcam_hw_context *dcam_h
 	struct dcam_frame_synchronizer *sync = NULL;
 	struct timespec *ts = NULL;
 	uint32_t dev_fid;
-	struct dcam_sw_context *sw_ctx = dcam_hw_ctx->sw_ctx;
-
-	if (unlikely(!dcam_hw_ctx || !is_path_id(path_id)))
+	struct dcam_sw_context *sw_ctx = NULL;
+	if (unlikely(!dcam_hw_ctx || !is_path_id(path_id)) || !dcam_hw_ctx->sw_ctx)
 		return NULL;
 
+	sw_ctx = dcam_hw_ctx->sw_ctx;
 	path = &sw_ctx->path[path_id];
 	if (atomic_read(&path->set_frm_cnt) <= 1) {
 		pr_warn_ratelimited("DCAM%u %s cnt %d, deci %u, out %u, result %u\n",
