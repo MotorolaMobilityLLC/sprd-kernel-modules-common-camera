@@ -79,7 +79,8 @@ static int ispdrv_path_scaler_get(struct isp_path_uinfo *in_ptr,
 
 	if (((scaler->scaler_ver_factor_in == scaler->scaler_ver_factor_out)
 		&& (scaler->scaler_factor_in == scaler->scaler_factor_out)
-		&& is_yuv422) || in_ptr->out_fmt == IMG_PIX_FMT_FULL_RGB) {
+		&& (is_yuv422 || in_ptr->scaler_coeff_ex))
+		|| in_ptr->out_fmt == IMG_PIX_FMT_FULL_RGB) {
 		scaler->scaler_bypass = 1;
 	} else {
 		scaler->scaler_bypass = 0;

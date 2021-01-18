@@ -23,7 +23,7 @@
 
 #define YUV_OVERLAP_UP                  46
 #define YUV_OVERLAP_DOWN                68
-#define YUV_OVERLAP_LEFT                106
+#define YUV_OVERLAP_LEFT                112
 #define YUV_OVERLAP_RIGHT               126
 
 #define YUVSCALER_OVERLAP_UP            32
@@ -149,6 +149,8 @@ struct slice_fetch_info {
 	struct img_addr addr;
 	uint32_t mipi_byte_rel_pos;
 	uint32_t mipi_word_num;
+	uint32_t mipi_byte_rel_pos_uv;
+	uint32_t mipi_word_num_uv;
 };
 
 struct slice_fbd_raw_info {

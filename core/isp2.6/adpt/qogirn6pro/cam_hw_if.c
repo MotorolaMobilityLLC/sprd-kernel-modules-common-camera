@@ -31,43 +31,13 @@
 #include "isp_slice.h"
 #include "isp_cfg.h"
 #include "isp_path.h"
+#include "isp_fmcu.h"
 
 #ifdef pr_fmt
 #undef pr_fmt
 #endif
 #define pr_fmt(fmt) "CAM_HW_IF_N6PRO: %d %d %s : "\
 	fmt, current->pid, __LINE__, __func__
-
-static unsigned long coff_buf_addr[2][3][4] = {
-	{
-		{
-			ISP_SCALER_PRE_LUMA_HCOEFF_BUF0,
-			ISP_SCALER_PRE_CHROMA_HCOEFF_BUF0,
-			ISP_SCALER_PRE_LUMA_VCOEFF_BUF0,
-			ISP_SCALER_PRE_CHROMA_VCOEFF_BUF0,
-		},
-		{
-			ISP_SCALER_VID_LUMA_HCOEFF_BUF0,
-			ISP_SCALER_VID_CHROMA_HCOEFF_BUF0,
-			ISP_SCALER_VID_LUMA_VCOEFF_BUF0,
-			ISP_SCALER_VID_CHROMA_VCOEFF_BUF0,
-		}
-	},
-	{
-		{
-			ISP_SCALER_PRE_LUMA_HCOEFF_BUF1,
-			ISP_SCALER_PRE_CHROMA_HCOEFF_BUF1,
-			ISP_SCALER_PRE_LUMA_VCOEFF_BUF1,
-			ISP_SCALER_PRE_CHROMA_VCOEFF_BUF1,
-		},
-		{
-			ISP_SCALER_VID_LUMA_HCOEFF_BUF1,
-			ISP_SCALER_VID_CHROMA_HCOEFF_BUF1,
-			ISP_SCALER_VID_LUMA_VCOEFF_BUF1,
-			ISP_SCALER_VID_CHROMA_VCOEFF_BUF1,
-		}
-	},
-};
 
 #ifdef CAM_ON_HAPS
 unsigned int reg_rd(unsigned int addr)
@@ -465,3 +435,4 @@ struct cam_hw_info qogirn6pro_hw_info = {
 	.cam_ioctl = camhwif_cam_ioctl,
 	.csi_connect_type = DCAM_BIND_FIXED,
 };
+

@@ -1139,8 +1139,27 @@ static void ispslice_slice_fetch_cfg(struct isp_hw_fetch_info *frm_fetch,
 
 	case ISP_FETCH_YUV420_2FRAME:
 	case ISP_FETCH_YVU420_2FRAME:
-		ch_offset[0] = start_row * pitch->pitch_ch0 + start_col;
-		ch_offset[1] = (start_row >> 1) * pitch->pitch_ch1 + start_col;
+		if (frm_fetch->is_pack) {
+			ch_offset[0] = start_row * pitch->pitch_ch0 + (start_col >> 2) * 5 + (start_col & 0x3);
+			ch_offset[1] = (start_row >> 1) * pitch->pitch_ch1 + (start_col >> 2) * 5 + (start_col & 0x3);
+			slc_fetch->mipi_byte_rel_pos = start_col & 0x0f;
+			slc_fetch->mipi_word_num =
+				((((end_col + 1) >> 4) * 5
+				+ mipi_word_num_end[(end_col + 1) & 0x0f])
+				-(((start_col + 1) >> 4) * 5
+				+ mipi_word_num_start[(start_col + 1)
+				& 0x0f]) + 1);
+			slc_fetch->mipi_byte_rel_pos_uv = slc_fetch->mipi_byte_rel_pos;
+			slc_fetch->mipi_word_num_uv = slc_fetch->mipi_word_num;
+		} else {
+			ch_offset[0] = start_row * pitch->pitch_ch0 + start_col;
+			ch_offset[1] = (start_row >> 1) * pitch->pitch_ch1 + start_col;
+		}
+		pr_debug("(%d %d %d %d), pitch %d %d, offset %d %d, mipi %d %d\n",
+			start_row, start_col, end_row, end_col,
+			pitch->pitch_ch0, pitch->pitch_ch1, ch_offset[0], ch_offset[1],
+			slc_fetch->mipi_byte_rel_pos, slc_fetch->mipi_word_num);
+
 		break;
 
 	case ISP_FETCH_CSI2_RAW10:
@@ -1381,12 +1400,23 @@ static int ispslice_store_info_cfg(
 				slc_store->border.down_border = overlap_down;
 				slc_store->border.left_border = overlap_left;
 				slc_store->border.right_border = overlap_right;
+
 				if (cur_slc->y == 0)
-					start_col_out[j][cur_slc->x] =
-						start_col + overlap_left;
+					slc_store->border.up_border = 0;
+				else if (cur_slc->y == (slc_ctx->slice_row_num - 1))
+					slc_store->border.down_border = 0;
+
 				if (cur_slc->x == 0)
+					slc_store->border.left_border =  0;
+				else if (cur_slc->x == (slc_ctx->slice_col_num - 1))
+					slc_store->border.right_border = 0;
+
+				if (cur_slc->x != 0)
+					start_col_out[j][cur_slc->x] =
+						start_col + slc_store->border.left_border;
+				if (cur_slc->y != 0)
 					start_row_out[j][cur_slc->y] =
-						start_row + overlap_up;
+						start_row + slc_store->border.up_border;
 
 				pr_debug("scaler bypass .  %d   %d",
 						start_row_out[j][cur_slc->y],
@@ -1429,6 +1459,7 @@ static int ispslice_store_info_cfg(
 				ch1_offset = start_col_out[j][cur_slc->x] +
 					start_row_out[j][cur_slc->y] *
 					frm_store->pitch.pitch_ch1 / 2;
+				pr_debug("offset %d %d\n", ch0_offset, ch1_offset);
 				break;
 			case ISP_STORE_YUV420_3FRAME:
 				ch0_offset = start_col_out[j][cur_slc->x] +
@@ -1606,17 +1637,6 @@ static int ispslice_3dnr_memctrl_info_cfg(
 
 	cur_slc = &slc_ctx->slices[0];
 
-	if (nr3_ctx->type == NR3_FUNC_OFF) {
-		for (idx = 0; idx < SLICE_NUM_MAX; idx++, cur_slc++) {
-			if (cur_slc->valid == 0)
-				continue;
-			slc_3dnr_memctrl = &cur_slc->slice_3dnr_memctrl;
-			slc_3dnr_memctrl->bypass = 1;
-		}
-
-		return 0;
-	}
-
 	for (idx = 0; idx < SLICE_NUM_MAX; idx++, cur_slc++) {
 		if (cur_slc->valid == 0)
 			continue;
@@ -1627,16 +1647,7 @@ static int ispslice_3dnr_memctrl_info_cfg(
 		end_col = cur_slc->slice_pos.end_col;
 		end_row = cur_slc->slice_pos.end_row;
 
-		/* YUV420_2FRAME */
-		ch0_offset = start_row * pitch_y + start_col;
-		ch1_offset = ((start_row * pitch_u + 1) >> 1) + start_col;
 
-		slc_3dnr_memctrl->addr.addr_ch0 = mem_ctrl->frame_addr.addr_ch0 +
-			ch0_offset;
-		slc_3dnr_memctrl->addr.addr_ch1 = mem_ctrl->frame_addr.addr_ch1 +
-			ch1_offset;
-
-		slc_3dnr_memctrl->bypass = mem_ctrl->bypass;
 		slc_3dnr_memctrl->first_line_mode = 0;
 		slc_3dnr_memctrl->last_line_mode = 0;
 		slc_3dnr_memctrl->start_row = start_row;
@@ -1647,6 +1658,21 @@ static int ispslice_3dnr_memctrl_info_cfg(
 		slc_3dnr_memctrl->ft_y.w = end_col - start_col + 1;
 		slc_3dnr_memctrl->ft_uv.h = (end_row - start_row + 1) >> 1;
 		slc_3dnr_memctrl->ft_uv.w = end_col - start_col + 1;
+
+		if (nr3_ctx->type == NR3_FUNC_OFF)
+			slc_3dnr_memctrl->bypass = 1;
+		else {
+			/* YUV420_2FRAME */
+			ch0_offset = start_row * pitch_y + start_col;
+			ch1_offset = ((start_row * pitch_u + 1) >> 1) + start_col;
+
+			slc_3dnr_memctrl->addr.addr_ch0 = mem_ctrl->ft_luma_addr +
+				ch0_offset;
+			slc_3dnr_memctrl->addr.addr_ch1 = mem_ctrl->ft_chroma_addr +
+				ch1_offset;
+
+			slc_3dnr_memctrl->bypass = mem_ctrl->bypass;
+		}
 
 		pr_debug("memctrl param w[%d], h[%d] bypass %d\n",
 			slc_3dnr_memctrl->src.w,
@@ -2484,12 +2510,12 @@ int isp_slice_fmcu_cmds_set(void *fmcu_handle, void *ctx)
 			fbd_slice.info = &cur_slc->slice_fbd_raw;
 			hw->isp_ioctl(hw, ISP_HW_CFG_FBD_SLICE_SET, &fbd_slice);
 		} else {
+			fetcharg.ctx_id = sw_ctx_id;
 			fetcharg.fmcu = fmcu;
 			fetcharg.fetch_info = &cur_slc->slice_fetch;
 			hw->isp_ioctl(fmcu, ISP_HW_CFG_SET_SLICE_FETCH, &fetcharg);
 		}
 
-		ispslice_3dnr_set(fmcu, cur_slc, hw, pctx);
 		if (pctx->pipe_src.ltm_rgb){
 			ltm.fmcu_handle = fmcu;
 			ltm.map = &cur_slc->slice_ltm_map[LTM_RGB];
@@ -2545,10 +2571,14 @@ int isp_slice_fmcu_cmds_set(void *fmcu_handle, void *ctx)
 			}
 		}
 
+		ispslice_3dnr_set(fmcu, cur_slc, hw, pctx);
+
 		parg.wmode = wmode;
 		parg.hw_ctx_id = hw_ctx_id;
 		parg.fmcu = fmcu;
 		hw->isp_ioctl(hw, ISP_HW_CFG_SLICE_FMCU_CMD, &parg);
+
+		hw->isp_ioctl(hw, ISP_HW_CFG_FMCU_CMD_ALIGN, fmcu);
 	}
 
 	return 0;

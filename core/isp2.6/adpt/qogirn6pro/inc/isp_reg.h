@@ -76,15 +76,18 @@ extern unsigned long s_isp_mmubase;
 #define ISP_COMMON_BASE                         (0x0700UL)
 #define ISP_COMMON_SPACE_SEL                    (ISP_COMMON_BASE + 0x0010UL)
 #define ISP_COMMON_SCL_PATH_SEL                 (ISP_COMMON_BASE + 0x0014UL)
+/* fmcu c*/
 #define ISP_COMMON_FMCU0_PATH_SEL               (ISP_COMMON_BASE + 0x0018UL)
 #define ISP_COMMON_GCLK_CTRL_0                  (ISP_COMMON_BASE + 0x001CUL)
 #define ISP_COMMON_GCLK_CTRL_1                  (ISP_COMMON_BASE + 0x0020UL)
 #define ISP_COMMON_GCLK_CTRL_2                  (ISP_COMMON_BASE + 0x0024UL)
 #define ISP_COMMON_GCLK_CTRL_3                  (ISP_COMMON_BASE + 0x0028UL)
+/* fmcu p0*/
 #define ISP_COMMON_FMCU1_PATH_SEL               (ISP_COMMON_BASE + 0x002CUL)
 #define ISP_COMMON_SHADOW_CTRL_CH0              (ISP_COMMON_BASE + 0x0030UL)
 #define ISP_COMMON_PMU_RAM_MASK                 (ISP_COMMON_BASE + 0x0034UL)
 #define ISP_COMMON_WORK_CTRL                    (ISP_COMMON_BASE + 0x0038UL)
+/* fmcu p1*/
 #define ISP_COMMON_FMCU2_PATH_SEL               (ISP_COMMON_BASE + 0x003CUL)
 #define ISP_COMMON_FMCU_P1_STATUS0              (ISP_COMMON_BASE + 0X004CUL)
 #define ISP_COMMON_YDELAY_STATUS4               (ISP_COMMON_BASE + 0X03FCUL)
@@ -787,11 +790,6 @@ extern unsigned long s_isp_mmubase;
 #define ISP_3DNR_CROP_PARAM2                    (ISP_3DNR_CROP_BASE + 0x0018UL)
 #define ISP_3DNR_CROP_PARAM3                    (ISP_3DNR_CROP_BASE + 0x001CUL)
 
-#define ISP_3DNR_MEM_CTRL_PRE_PARAM0            (0x9310UL)
-#define ISP_3DNR_MEM_CTRL_PRE_PARAM1            (0x9314UL)
-#define ISP_3DNR_MEM_CTRL_PRE_PARAM2            (0x9318UL)
-#define ISP_3DNR_MEM_CTRL_PRE_PARAM3            (0x931CUL)
-
 #define ISP_FBC_3DNR_BASE                       (0x2400UL)
 #define ISP_FBC_3DNR_PARAM                      (ISP_FBC_3DNR_BASE + 0x0010UL)
 #define ISP_FBC_3DNR_SLICE_SIZE                 (ISP_FBC_3DNR_BASE + 0x0014UL)
@@ -905,25 +903,24 @@ extern unsigned long s_isp_mmubase;
 #define ISP_THMB_SCALER_FRAME_CNT_CLR           (ISP_SCALER_THUMB_BASE + 0x0068UL)
 #define ISP_THMB_SCL_BWD_PARA                   (ISP_SCALER_THUMB_BASE + 0x006CUL)
 
-#define ISP_SCALER_PRE_LUMA_HCOEFF_BUF0         (0x39100UL)
-#define ISP_SCALER_PRE_CHROMA_HCOEFF_BUF0       (0x39300UL)
-#define ISP_SCALER_PRE_LUMA_VCOEFF_BUF0         (0x394F0UL)
-#define ISP_SCALER_PRE_CHROMA_VCOEFF_BUF0       (0x39AF0UL)
+#define ISP_YUV_CAP_SCL_COEF_ADDR1              (0x5100UL)
+#define ISP_YUV_CAP_SCL_COEF1_ADDR1             (0x5500UL)
+#define ISP_YUV_CAP_SCL_COEF2_ADDR1             (0x5600UL)
+#define ISP_YUV_CAP_SCL_COEF3_ADDR1             (0x5700UL)
 
-#define ISP_SCALER_VID_LUMA_HCOEFF_BUF0         (0x38100UL)
-#define ISP_SCALER_VID_CHROMA_HCOEFF_BUF0       (0x38300UL)
-#define ISP_SCALER_VID_LUMA_VCOEFF_BUF0         (0x384F0UL)
-#define ISP_SCALER_VID_CHROMA_VCOEFF_BUF0       (0x38AF0UL)
+#define ISP_CAP_PATH_VER_CORF_Y_BUF0_CH0        (0x1d8f0UL)
+#define ISP_CAP_PATH_VER_CORF_UV_BUF0_CH0       (0x1f000UL)
 
-#define ISP_SCALER_PRE_LUMA_HCOEFF_BUF1         (0x39200UL)
-#define ISP_SCALER_PRE_CHROMA_HCOEFF_BUF1       (0x39380UL)
-#define ISP_SCALER_PRE_LUMA_VCOEFF_BUF1         (0x397F0UL)
-#define ISP_SCALER_PRE_CHROMA_VCOEFF_BUF1       (0x39DF0UL)
+#define ISP_YUV_VID_SCL_COEF_ADDR2              (0x6100UL)
+#define ISP_YUV_VID_SCL_COEF1_ADDR2             (0x6500UL)
+#define ISP_YUV_VID_SCL_COEF2_ADDR2             (0x6600UL)
+#define ISP_YUV_VID_SCL_COEF3_ADDR2             (0x6700UL)
 
-#define ISP_SCALER_VID_LUMA_HCOEFF_BUF1         (0x38200UL)
-#define ISP_SCALER_VID_CHROMA_HCOEFF_BUF1       (0x38380UL)
-#define ISP_SCALER_VID_LUMA_VCOEFF_BUF1         (0x387F0UL)
-#define ISP_SCALER_VID_CHROMA_VCOEFF_BUF1       (0x38DF0UL)
+#define ISP_VID_PATH_VER_CORF_Y_BUF0_CH0        (0x21400UL)
+#define ISP_VID_PATH_VER_CORF_UV_BUF0_CH0       (0x21c00UL)
+
+#define ISP_SCL_PATH_HOR_CORF_Y                 (0x10UL)
+#define ISP_SCL_PATH_HOR_CORF_UV                (0x90UL)
 
 #define ISP_STORE_PRE_CAP_BASE                  (0x5200UL)
 #define ISP_STORE_VID_BASE                      (0x6200UL)

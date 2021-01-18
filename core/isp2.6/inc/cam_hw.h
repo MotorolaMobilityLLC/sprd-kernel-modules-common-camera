@@ -234,6 +234,8 @@ enum isp_hw_cfg_cmd {
 	ISP_HW_CFG_FMCU_CMD,
 	ISP_HW_CFG_FMCU_START,
 	ISP_HW_CFG_YUV_BLOCK_CTRL_TYPE,
+	ISP_HW_CFG_FMCU_CMD_ALIGN,
+	ISP_HW_CFG_ALLDONE_CTRL,
 	ISP_HW_CFG_MAX
 };
 
@@ -557,6 +559,7 @@ struct isp_hw_set_slice_nr_info {
 };
 
 struct isp_hw_set_slice_fetch {
+	uint32_t ctx_id;
 	struct isp_fmcu_ctx_desc *fmcu;
 	struct slice_fetch_info *fetch_info;
 };
@@ -1034,7 +1037,7 @@ struct isp_hw_fmcu_cmd {
 };
 
 struct isp_hw_fmcu_start {
-	unsigned long base;
+	uint32_t fid;
 	unsigned long hw_addr;
 	int cmd_num;
 };
@@ -1067,6 +1070,20 @@ struct camhw_cal_fbc_addr_para {
 	unsigned long in;
 	struct compressed_addr *out;
 	struct dcam_compress_info fbc_info;
+};
+
+enum isp_alldone_ctrl_int {
+	ISP_ALLDONE_WAIT_DISPATCH,
+	ISP_ALLDONE_WAIT_LTMHIST,
+	ISP_ALLDONE_WAIT_REC,
+	ISP_ALLDONE_WAIT_YUV_DONE,
+	ISP_ALLDONE_WAIT_STORE,
+};
+
+struct isp_hw_alldone_ctrl {
+	uint32_t hw_ctx_id;
+	bool wait;
+	enum isp_alldone_ctrl_int int_bit;
 };
 
 struct hw_io_ctrl_fun {

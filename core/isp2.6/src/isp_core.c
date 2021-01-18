@@ -923,17 +923,15 @@ static int ispcore_slices_proc(struct isp_sw_context *pctx,
 		if (first_slice) {
 			first_slice = 0;
 			ispcore_debug_dump_check(pctx, pframe);
-			ret = cfg_desc->ops->hw_cfg(
-				cfg_desc, pctx->ctx_id, hw_ctx_id, 0);
-		} else {
-			/* todo - update slice registers only */
-			ret = cfg_desc->ops->hw_cfg(
-				cfg_desc, pctx->ctx_id, hw_ctx_id, 0);
 		}
+		if (dev->wmode == ISP_CFG_MODE)
+			ret = cfg_desc->ops->hw_cfg(cfg_desc, pctx->ctx_id, hw_ctx_id, 0);
 		mutex_unlock(&pctx->blkpm_lock);
 
-		ret = cfg_desc->hw->isp_ioctl(cfg_desc->hw,
-					ISP_HW_CFG_START_ISP, &hw_ctx_id);
+		if (dev->wmode == ISP_CFG_MODE)
+			ret = cfg_desc->hw->isp_ioctl(cfg_desc->hw, ISP_HW_CFG_START_ISP, &hw_ctx_id);
+		else
+			hw->isp_ioctl(hw, ISP_HW_CFG_FETCH_START, NULL);
 
 		ret = wait_for_completion_interruptible_timeout(
 					&pctx->slice_done,
@@ -1422,6 +1420,7 @@ static int ispcore_offline_frame_start(void *ctx)
 	struct isp_hw_yuv_block_ctrl blk_ctrl;
 	struct isp_ltm_ctx_desc *rgb_ltm = NULL;
 	struct isp_ltm_ctx_desc *yuv_ltm = NULL;
+	struct isp_hw_alldone_ctrl alldone_ctrl;
 
 	pctx = (struct isp_sw_context *)ctx;
 	pr_debug("enter sw id %d, user_cnt=%d, ch_id=%d, cam_id=%d\n",
@@ -1625,6 +1624,18 @@ static int ispcore_offline_frame_start(void *ctx)
 		goto done;
 	}
 
+	if (kick_fmcu) {
+		alldone_ctrl.hw_ctx_id = hw_ctx_id;
+		alldone_ctrl.wait = 1;
+		alldone_ctrl.int_bit = ISP_ALLDONE_WAIT_DISPATCH;
+		hw->isp_ioctl(hw, ISP_HW_CFG_ALLDONE_CTRL, &alldone_ctrl);
+	} else {
+		alldone_ctrl.hw_ctx_id = hw_ctx_id;
+		alldone_ctrl.wait = 0;
+		alldone_ctrl.int_bit = ISP_ALLDONE_WAIT_DISPATCH;
+		hw->isp_ioctl(hw, ISP_HW_CFG_ALLDONE_CTRL, &alldone_ctrl);
+	}
+
 	/* start to prepare/kickoff cfg buffer. */
 	if (likely(dev->wmode == ISP_CFG_MODE)) {
 		pr_debug("cfg enter.");
@@ -1644,7 +1655,7 @@ static int ispcore_offline_frame_start(void *ctx)
 		mutex_unlock(&pctx->blkpm_lock);
 
 		if (kick_fmcu) {
-			pr_info("fmcu start.");
+			pr_info("fmcu start.\n");
 			if (pctx->pipe_src.slw_state == CAM_SLOWMOTION_ON) {
 				ret = fmcu->ops->cmd_ready(fmcu);
 			} else {
@@ -1658,10 +1669,10 @@ static int ispcore_offline_frame_start(void *ctx)
 		}
 	} else {
 		if (kick_fmcu) {
-			pr_info("fmcu start.");
+			pr_info("fmcu start.\n");
 			ret = fmcu->ops->hw_start(fmcu);
 		} else {
-			pr_debug("fetch start.");
+			pr_debug("fetch start.\n");
 			hw->isp_ioctl(hw, ISP_HW_CFG_FETCH_START, NULL);
 		}
 	}
@@ -3462,33 +3473,12 @@ static int ispcore_dev_reset(void *isp_handle, void *param)
 
 		fmcu = (struct isp_fmcu_ctx_desc *)pctx_hw->fmcu_handle;
 		if (fmcu) {
-			uint32_t val[2];
-			unsigned long reg_offset = 0;
-			uint32_t reg_bits[4] = { 0x00, 0x02, 0x01, 0x03};
+			struct isp_hw_fmcu_sel fmcu_sel = {0};
 
-			reg_offset = (fmcu->fid == 0) ?
-						ISP_COMMON_FMCU0_PATH_SEL :
-						ISP_COMMON_FMCU1_PATH_SEL;
-			if (reg_offset == 0) {
-				pr_info("no fmcu sel register\n");
-				continue;
-			}
+			fmcu_sel.fmcu_id = fmcu->fid;
+			fmcu_sel.hw_idx = i;
+			hw->isp_ioctl(hw, ISP_HW_CFG_FMCU_VALID_GET, &fmcu_sel);
 
-			ISP_HREG_MWR(reg_offset, BIT_1 | BIT_0, reg_bits[i]);
-			pr_debug("FMCU%d reg_bits %d for hw_ctx %d\n", fmcu->fid, reg_bits[i], i);
-
-			val[0] = ISP_HREG_RD(ISP_COMMON_FMCU0_PATH_SEL);
-			val[1] = ISP_HREG_RD(ISP_COMMON_FMCU1_PATH_SEL);
-
-			if ((val[0] & 3) == (val[1] & 3)) {
-				pr_warn("isp fmcus select same context %d\n", val[0] & 3);
-				if (fmcu->fid == 0) {
-					/* force to set different value */
-					reg_offset = ISP_COMMON_FMCU1_PATH_SEL;
-					ISP_HREG_MWR(reg_offset, BIT_1 | BIT_0, reg_bits[(i + 1) & 3]);
-					pr_debug("force FMCU1 regbits %d\n", reg_bits[(i + 1) & 3]);
-				}
-			}
 		}
 	}
 	sprd_iommu_restore(&hw->soc_isp->pdev->dev);

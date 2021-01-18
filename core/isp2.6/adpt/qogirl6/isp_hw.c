@@ -1146,6 +1146,15 @@ static int isphw_path_scaler(void *handle, void *arg)
 		scalerInfo->scaler_factor_out,
 		scalerInfo->scaler_ver_factor_out);
 
+	if ((path_scaler->in_trim.size_x == path_scaler->src.w) &&
+		(path_scaler->in_trim.size_y == path_scaler->src.h) &&
+		(path_scaler->in_trim.size_x == path_scaler->out_trim.size_x) &&
+		(path_scaler->in_trim.size_y == path_scaler->out_trim.size_y) &&
+		scalerInfo->scaler_bypass) {
+		ISP_REG_MWR(idx, addr + ISP_YUV_SCALER_CFG, BIT_0, 1);
+		pr_debug("scaler all bypass\n");
+	}
+
 	if (!scalerInfo->scaler_bypass)
 		isphw_path_scaler_coeff_set(idx,
 			addr, scalerInfo->coeff_buf, path_scaler->spath_id);
@@ -2920,13 +2929,18 @@ static int isphw_fmcu_cmd_set(void *handle, void *arg)
 static int isphw_fmcu_start(void *handle, void *arg)
 {
 	struct isp_hw_fmcu_start *startarg = NULL;
+	uint32_t base = 0;
 
 	startarg = (struct isp_hw_fmcu_start *)arg;
 
-	ISP_HREG_WR(startarg->base + ISP_FMCU_DDR_ADDR, startarg->hw_addr);
-	ISP_HREG_MWR(startarg->base + ISP_FMCU_CTRL, 0xFFFF0000, startarg->cmd_num << 16);
-	ISP_HREG_WR(startarg->base + ISP_FMCU_ISP_REG_REGION, ISP_OFFSET_RANGE);
-	ISP_HREG_WR(startarg->base + ISP_FMCU_START, 1);
+	if (startarg->fid == 0)
+		base = ISP_FMCU0_BASE;
+	else if (startarg->fid == 1)
+		base = ISP_FMCU1_BASE;
+	ISP_HREG_WR(base + ISP_FMCU_DDR_ADDR, startarg->hw_addr);
+	ISP_HREG_MWR(base + ISP_FMCU_CTRL, 0xFFFF0000, startarg->cmd_num << 16);
+	ISP_HREG_WR(base + ISP_FMCU_ISP_REG_REGION, ISP_OFFSET_RANGE);
+	ISP_HREG_WR(base + ISP_FMCU_START, 1);
 
 	return 0;
 }

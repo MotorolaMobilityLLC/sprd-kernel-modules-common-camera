@@ -113,7 +113,6 @@ static int ispfmcu_start(struct isp_fmcu_ctx_desc *fmcu_ctx)
 {
 	int ret = 0;
 	int cmd_num;
-	unsigned long base;
 	struct isp_hw_fmcu_start startarg;
 
 	if (!fmcu_ctx) {
@@ -121,11 +120,6 @@ static int ispfmcu_start(struct isp_fmcu_ctx_desc *fmcu_ctx)
 		return -EFAULT;
 	}
 	pr_debug("start fmcu%d\n", fmcu_ctx->fid);
-
-	if (fmcu_ctx->fid == 0)
-		base = ISP_FMCU0_BASE;
-	else
-		base = ISP_FMCU1_BASE;
 
 	if (fmcu_ctx->cmdq_pos[fmcu_ctx->cur_buf_id]
 		> (fmcu_ctx->cmdq_size / sizeof(uint32_t))) {
@@ -158,7 +152,7 @@ static int ispfmcu_start(struct isp_fmcu_ctx_desc *fmcu_ctx)
  * fmcu_ctx->cmdq_pos[fmcu_ctx->cur_buf_id] * sizeof(uint32_t));
  */
 
-	startarg.base = base;
+	startarg.fid = fmcu_ctx->fid;
 	startarg.hw_addr = fmcu_ctx->hw_addr[fmcu_ctx->cur_buf_id];
 	startarg.cmd_num = cmd_num;
 	fmcu_ctx->hw->isp_ioctl(fmcu_ctx->hw, ISP_HW_CFG_FMCU_START, &startarg);
@@ -301,7 +295,7 @@ struct isp_fmcu_ops fmcu_ops = {
 	.cmd_ready = ispfmcu_cmd_ready,
 };
 
-static struct isp_fmcu_ctx_desc s_fmcu_desc[ISP_FMCU_NUM] = {
+struct isp_fmcu_ctx_desc s_fmcu_desc[ISP_FMCU_NUM] = {
 	{
 		.fid = ISP_FMCU_0,
 		.ops = &fmcu_ops,
@@ -309,6 +303,16 @@ static struct isp_fmcu_ctx_desc s_fmcu_desc[ISP_FMCU_NUM] = {
 	},
 	{
 		.fid = ISP_FMCU_1,
+		.ops = &fmcu_ops,
+		.cur_buf_id = PING,
+	},
+	{
+		.fid = ISP_FMCU_REC,
+		.ops = &fmcu_ops,
+		.cur_buf_id = PING,
+	},
+	{
+		.fid = ISP_FMCU_DEC,
 		.ops = &fmcu_ops,
 		.cur_buf_id = PING,
 	},

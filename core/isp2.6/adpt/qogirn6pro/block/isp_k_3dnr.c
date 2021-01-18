@@ -418,20 +418,20 @@ static void isp_3dnr_config_crop(uint32_t idx,
 
 	if (g_isp_bypass[idx] & (1 << _EISP_NR3))
 		crop->crop_bypass = 1;
-	ISP_REG_MWR(idx, ISP_3DNR_MEM_CTRL_PRE_PARAM0,
+	ISP_REG_MWR(idx, ISP_3DNR_CROP_PARAM0,
 		BIT_0, crop->crop_bypass);
 
 	val = ((crop->src_height & 0xFFFF) << 16) |
 		(crop->src_width & 0xFFFF);
-	ISP_REG_WR(idx, ISP_3DNR_MEM_CTRL_PRE_PARAM1, val);
+	ISP_REG_WR(idx, ISP_3DNR_CROP_PARAM1, val);
 
 	val = ((crop->dst_height & 0xFFFF) << 16) |
 		(crop->dst_width & 0xFFFF);
-	ISP_REG_WR(idx, ISP_3DNR_MEM_CTRL_PRE_PARAM2, val);
+	ISP_REG_WR(idx, ISP_3DNR_CROP_PARAM2, val);
 
 	val = ((crop->start_x & 0xFFFF) << 16) |
 		(crop->start_y & 0xFFFF);
-	ISP_REG_WR(idx, ISP_3DNR_MEM_CTRL_PRE_PARAM3, val);
+	ISP_REG_WR(idx, ISP_3DNR_CROP_PARAM3, val);
 }
 
 static int isp_k_3dnr_block(struct isp_io_param *param,
@@ -466,7 +466,7 @@ void isp_3dnr_bypass_config(uint32_t idx)
 	ISP_REG_MWR(idx, ISP_3DNR_BLEND_CONTROL0, BIT_0, 1);
 	ISP_REG_MWR(idx, ISP_3DNR_STORE_PARAM, BIT_0, 1);
 	ISP_REG_MWR(idx, ISP_FBC_3DNR_PARAM, BIT_0, 1);
-	ISP_REG_MWR(idx, ISP_3DNR_MEM_CTRL_PRE_PARAM0, BIT_0, 1);
+	ISP_REG_MWR(idx, ISP_3DNR_CROP_PARAM0, BIT_0, 1);
 	ISP_REG_MWR(idx, ISP_COMMON_SCL_PATH_SEL, BIT_8, 0 << 8);
 }
 

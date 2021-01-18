@@ -2405,13 +2405,18 @@ static int isphw_fmcu_cmd_set(void *handle, void *arg)
 static int isphw_fmcu_start(void *handle, void *arg)
 {
 	struct isp_hw_fmcu_start *startarg = NULL;
+	uint32_t base = 0;
 
 	startarg = (struct isp_hw_fmcu_start *)arg;
 
-	ISP_HREG_WR(startarg->base + ISP_FMCU_DDR_ADDR, startarg->hw_addr);
-	ISP_HREG_MWR(startarg->base + ISP_FMCU_CTRL, 0xFFFF0000, startarg->cmd_num << 16);
-	ISP_HREG_WR(startarg->base + ISP_FMCU_ISP_REG_REGION, ISP_OFFSET_RANGE);
-	ISP_HREG_WR(startarg->base + ISP_FMCU_START, 1);
+	if (startarg->fid == 0)
+		base = ISP_FMCU0_BASE;
+	else if (startarg->fid == 1)
+		base = ISP_FMCU1_BASE;
+	ISP_HREG_WR(base + ISP_FMCU_DDR_ADDR, startarg->hw_addr);
+	ISP_HREG_MWR(base + ISP_FMCU_CTRL, 0xFFFF0000, startarg->cmd_num << 16);
+	ISP_HREG_WR(base + ISP_FMCU_ISP_REG_REGION, ISP_OFFSET_RANGE);
+	ISP_HREG_WR(base + ISP_FMCU_START, 1);
 
 	return 0;
 }

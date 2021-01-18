@@ -16,6 +16,11 @@
 #include <video/sprd_mmsys_pw_domain_qogirn6pro.h>
 
 #define ISP_AXI_STOP_TIMEOUT           1000
+#define COEF_HOR_Y_SIZE                32
+#define COEF_HOR_UV_SIZE               16
+#define COEF_VOR_Y_SIZE                (32 * 8)
+#define COEF_VOR_UV_SIZE               (32 * 8)
+
 spinlock_t isp_cfg_lock;
 
 static unsigned long irq_base[4] = {
@@ -91,26 +96,26 @@ static const struct bypass_tag isp_hw_bypass_tab[] = {
 [_EISP_BCHS]    = {"bchs",    ISP_BCHS_PARAM,          0, 1},
 [_EISP_YUVNF]   = {"yuvnf",   ISP_YUV_NF_CTRL,         0, 1},
 
-	{"ydelay",    ISP_YDELAY_PARAM, 0, 1},
-	{"cce",       ISP_CCE_PARAM, 0, 0},
-	{"fetch-fbd", ISP_FBD_RAW_SEL, 0, 1},
+	{"ydelay",    ISP_YDELAY_PARAM,                         0,  1},
+	{"cce",       ISP_CCE_PARAM,                            0,  0},
+	{"fetch-fbd", ISP_FBD_RAW_SEL,                          0,  1},
 	/* can't bypass when prev */
-	{"scale-pre", ISP_CAP_SCALER_CFG, 20, 0},
-	{"store-pre", ISP_STORE_PRE_CAP_BASE + ISP_STORE_PARAM, 0, 0},
-	{"scale-vid",  ISP_RECORD_SCALER_CFG, 20, 1},
-	{"store-vid",  ISP_STORE_VID_BASE + ISP_STORE_PARAM, 0, 1},
-	{"scale-thb", ISP_THMB_SCALER_CFG, 20, 1},
-	{"store-thb", ISP_STORE_THUMB_BASE + ISP_STORE_PARAM, 0, 1},
+	{"scale-pre", ISP_CAP_SCALER_CFG,                       20, 0},
+	{"store-pre", ISP_STORE_PRE_CAP_BASE + ISP_STORE_PARAM, 0,  0},
+	{"scale-vid", ISP_RECORD_SCALER_CFG,                    20, 1},
+	{"store-vid", ISP_STORE_VID_BASE + ISP_STORE_PARAM,     0,  1},
+	{"scale-thb", ISP_THMB_SCALER_CFG,                      20, 1},
+	{"store-thb", ISP_STORE_THUMB_BASE + ISP_STORE_PARAM,   0,  1},
 	/* ltm */
-	{"ltm-map",   ISP_LTM_MAP_PARAM0, 0, 1},
-	{"ltm-hist",  ISP_LTM_PARAMETERS, 0, 1},
+	{"ltm-map",   ISP_LTM_MAP_PARAM0,                       0,  1},
+	{"ltm-hist",  ISP_LTM_PARAMETERS,                       0,  1},
 	/* 3dnr/nr3 */
-	{"nr3-crop",  ISP_3DNR_MEM_CTRL_PRE_PARAM0, 0, 1},
-	{"nr3-store", ISP_3DNR_STORE_PARAM, 0, 1},
-	{"nr3-mem",   ISP_3DNR_MEM_CTRL_PARAM0, 0, 1},
+	{"nr3-crop",  ISP_3DNR_CROP_PARAM0,                     0,  1},
+	{"nr3-store", ISP_3DNR_STORE_PARAM,                     0,  1},
+	{"nr3-mem",   ISP_3DNR_MEM_CTRL_PARAM0,                 0,  1},
 
-	{"fetch",     ISP_FETCH_PARAM0, 0, 0},
-	{"cfg",       ISP_CFG_PAMATER, 0, 0},
+	{"fetch",     ISP_FETCH_PARAM0,                         0,  0},
+	{"cfg",       ISP_CFG_PAMATER,                          0,  0},
 };
 
 static uint32_t isphw_ap_fmcu_reg_get(struct isp_fmcu_ctx_desc *fmcu, uint32_t reg)
@@ -704,7 +709,7 @@ isp_hw_para:
 	ISP_HREG_MWR(ISP_AXI_ITI2AXIM_CTRL, BIT_26, 0);
 	/* to be defined. */
 	/* dispatch_done should be disable? */
-	ISP_HREG_MWR(ISP_INT_ALL_DONE_CTRL, 0x1F, 0x1C);
+	ISP_HREG_MWR(ISP_INT_ALL_DONE_CTRL, 0x1F, 0x18);
 	/* bypass config mode by default */
 	ISP_HREG_MWR(ISP_CFG_PAMATER, BIT_0, 1);
 	ISP_HREG_MWR(PYR_DEC_STORE_BASE + ISP_STORE_PARAM, BIT_0, 1);
@@ -722,17 +727,27 @@ isp_hw_cfg_para:
 	ISP_REG_MWR(idx, ISP_COMMON_GCLK_CTRL_2, 0xFFFF0000, 0xFFFF0000);
 	ISP_REG_MWR(idx, ISP_COMMON_GCLK_CTRL_3, 0xFF00, 0xFF00);
 
-	ISP_REG_WR(idx, ISP_COMMON_FMCU0_PATH_SEL, 2);
-	ISP_REG_WR(idx, ISP_COMMON_FMCU1_PATH_SEL, 0);
+	ISP_REG_MWR(idx, ISP_COMMON_SPACE_SEL, BIT_3 | BIT_2, 3 << 2);
+	ISP_REG_MWR(idx, ISP_COMMON_SPACE_SEL, 0x70, 5 << 4);
+
+	ISP_REG_WR(idx, ISP_COMMON_FMCU0_PATH_SEL, 0);
+	ISP_REG_WR(idx, ISP_COMMON_FMCU1_PATH_SEL, 2);
 	ISP_REG_WR(idx, ISP_COMMON_FMCU2_PATH_SEL, 1);
 	ISP_REG_MWR(idx, ISP_COMMON_SHADOW_CTRL_CH0, BIT_16, (1 << 16));
 	ISP_REG_MWR(idx, ISP_COMMON_SHADOW_CTRL_CH0, BIT_21, (1 << 21));
 	ISP_REG_MWR(idx, ISP_COMMON_PMU_RAM_MASK, BIT_0, 1);
 
+	ISP_REG_WR(idx, ISP_DISPATCH_BASE + ISP_DISPATCH_DLY, 0x20003C);
+	ISP_REG_WR(idx, ISP_DISPATCH_BASE + ISP_DISPATCH_LINE_DLY1, 0x100280);
+	ISP_REG_WR(idx, ISP_DISPATCH_BASE + ISP_DISPATCH_PIPE_BUF_CTRL_CH0, 0x280043c);
+
 	/* bypass all path scaler & store */
 	ISP_REG_MWR(idx, ISP_CAP_SCALER_CFG, BIT_0, bypass);
 	ISP_REG_MWR(idx, ISP_RECORD_SCALER_CFG, BIT_0, bypass);
 	ISP_REG_MWR(idx, ISP_THMB_SCALER_CFG, BIT_0, bypass);
+	ISP_REG_WR(idx, ISP_SCALER_PRE_CAP_BASE + ISP_SCALER_HBLANK, 0x4040);
+	ISP_REG_WR(idx, ISP_SCALER_PRE_CAP_BASE + ISP_SCALER_RES, 0xFF);
+	ISP_REG_WR(idx, ISP_SCALER_PRE_CAP_BASE + ISP_SCALER_DEBUG, 1);
 	ISP_REG_MWR(idx, ISP_STORE_PRE_CAP_BASE + ISP_STORE_PARAM, BIT_0, 1);
 	ISP_REG_MWR(idx, ISP_STORE_VID_BASE + ISP_STORE_PARAM, BIT_0, 1);
 	ISP_REG_MWR(idx, ISP_STORE_THUMB_BASE + ISP_STORE_PARAM, BIT_0, 1);
@@ -758,6 +773,7 @@ isp_hw_cfg_para:
 
 	/* dec/rec bypass*/
 	ISP_REG_MWR(idx, PYR_REC_CUR_FETCH_BASE + ISP_FETCH_PARAM0, BIT_0, 1);
+	ISP_REG_MWR(idx, PYR_DEC_FETCH_BASE + ISP_FETCH_PARAM0, BIT_0, 1);
 	ISP_REG_MWR(idx, ISP_DEC_OFFLINE_PARAM, BIT_0, 1);
 	ISP_REG_MWR(idx, ISP_YNR_DCT_PARAM, BIT_0, 1);
 	ISP_REG_MWR(idx, ISP_REC_PARAM, BIT_0, 1);
@@ -1000,53 +1016,84 @@ static int isphw_path_scaler_coeff_set(
 			uint32_t *coeff_buf,
 			uint32_t spath_id)
 {
-	int i = 0, rtn = 0;
-	uint32_t buf_sel;
+	int i = 0;
+	int k = 0;
+	int c = 0;
+	int rtn = 0;
+	uint32_t *tmp_h_coeff = NULL;
+	uint32_t *tmp_h_chroma_coeff = NULL;
 	struct coeff_arg arg;
 
-	/* ping pong buffer. */
-	buf_sel = ISP_REG_RD(idx, scaler_base + ISP_SCALER_CFG);
-	buf_sel = (~((buf_sel & BIT_30) >> 30)) & 1;
-
-	/* temp set: config mode always select buf 0 */
-	buf_sel = 0;
-
 	arg.h_coeff = coeff_buf;
-	arg.v_coeff = coeff_buf + (ISP_SC_COEFF_COEF_SIZE / 4);
-	arg.v_chroma_coeff = arg.v_coeff + (ISP_SC_COEFF_COEF_SIZE / 4);
-	arg.h_coeff_addr = coff_buf_addr[buf_sel][spath_id][0];
-	arg.h_chroma_coeff_addr = coff_buf_addr[buf_sel][spath_id][1];
-	arg.v_coeff_addr = coff_buf_addr[buf_sel][spath_id][2];
-	arg.v_chroma_coeff_addr = coff_buf_addr[buf_sel][spath_id][3];
+	arg.h_chroma_coeff = coeff_buf + (ISP_SC_COEFF_COEF_SIZE / 4);
+	arg.v_coeff = coeff_buf + (ISP_SC_COEFF_COEF_SIZE * 2 / 4);
+	arg.v_chroma_coeff = coeff_buf + (ISP_SC_COEFF_COEF_SIZE * 3 / 4);
 
-	for (i = 0; i < ISP_SC_COEFF_H_NUM; i++) {
-		ISP_REG_WR(idx, arg.h_coeff_addr, *arg.h_coeff);
-		arg.h_coeff_addr += 4;
-		arg.h_coeff++;
+	if (spath_id == ISP_SPATH_CP)  {
+		arg.v_coeff_addr = ISP_CAP_PATH_VER_CORF_Y_BUF0_CH0;
+		arg.v_chroma_coeff_addr = ISP_CAP_PATH_VER_CORF_UV_BUF0_CH0;
+	} else if (spath_id == ISP_SPATH_VID) {
+		arg.v_coeff_addr = ISP_VID_PATH_VER_CORF_Y_BUF0_CH0;
+		arg.v_chroma_coeff_addr = ISP_VID_PATH_VER_CORF_UV_BUF0_CH0;
 	}
 
-	for (i = 0; i < ISP_SC_COEFF_H_CHROMA_NUM; i++) {
-		ISP_REG_WR(idx, arg.h_chroma_coeff_addr, *arg.h_coeff);
-		arg.h_chroma_coeff_addr += 4;
-		arg.h_coeff++;
+	for (k = 0; k < 4; k++) {
+		if (spath_id == ISP_SPATH_CP)  {
+			if (k == 0) {
+				arg.h_coeff_addr = ISP_SCL_PATH_HOR_CORF_Y + ISP_YUV_CAP_SCL_COEF_ADDR1 ;
+				arg.h_chroma_coeff_addr =  ISP_SCL_PATH_HOR_CORF_UV + ISP_YUV_CAP_SCL_COEF_ADDR1;
+			} else if (k ==1) {
+				arg.h_coeff_addr = ISP_SCL_PATH_HOR_CORF_Y + ISP_YUV_CAP_SCL_COEF1_ADDR1;
+				arg.h_chroma_coeff_addr =  ISP_SCL_PATH_HOR_CORF_UV + ISP_YUV_CAP_SCL_COEF_ADDR1;
+			} else if (k == 2){
+				arg.h_coeff_addr = ISP_SCL_PATH_HOR_CORF_Y + ISP_YUV_CAP_SCL_COEF2_ADDR1;
+				arg.h_chroma_coeff_addr =  ISP_SCL_PATH_HOR_CORF_UV + ISP_YUV_CAP_SCL_COEF2_ADDR1;
+			} else {
+				arg.h_coeff_addr = ISP_SCL_PATH_HOR_CORF_Y + ISP_YUV_CAP_SCL_COEF3_ADDR1;
+				arg.h_chroma_coeff_addr =  ISP_SCL_PATH_HOR_CORF_UV + ISP_YUV_CAP_SCL_COEF3_ADDR1;
+			}
+		} else if (spath_id == ISP_SPATH_VID) {
+			if(k == 0) {
+				arg.h_coeff_addr = ISP_SCL_PATH_HOR_CORF_Y + ISP_YUV_VID_SCL_COEF_ADDR2;
+				arg.h_chroma_coeff_addr = ISP_SCL_PATH_HOR_CORF_UV + ISP_YUV_VID_SCL_COEF_ADDR2;
+			} else if(k ==1) {
+				arg.h_coeff_addr = ISP_SCL_PATH_HOR_CORF_Y + ISP_YUV_VID_SCL_COEF1_ADDR2;
+				arg.h_chroma_coeff_addr =  ISP_SCL_PATH_HOR_CORF_UV + ISP_YUV_VID_SCL_COEF1_ADDR2;
+			} else if(k == 2){
+				arg.h_coeff_addr = ISP_SCL_PATH_HOR_CORF_Y + ISP_YUV_VID_SCL_COEF2_ADDR2;
+				arg.h_chroma_coeff_addr =  ISP_SCL_PATH_HOR_CORF_UV + ISP_YUV_VID_SCL_COEF2_ADDR2;
+			} else {
+				arg.h_coeff_addr = ISP_SCL_PATH_HOR_CORF_Y + ISP_YUV_VID_SCL_COEF3_ADDR2;
+				arg.h_chroma_coeff_addr =  ISP_SCL_PATH_HOR_CORF_UV + ISP_YUV_VID_SCL_COEF3_ADDR2;
+			}
+		}
+
+		/*h y*/
+		tmp_h_coeff = arg.h_coeff + k * COEF_HOR_Y_SIZE;
+		for (c = 0; c < COEF_HOR_Y_SIZE; c++) {
+			ISP_REG_WR(idx, arg.h_coeff_addr + c * 4, *(tmp_h_coeff));
+			tmp_h_coeff++;
+		}
+		/*h uv*/
+		tmp_h_chroma_coeff = arg.h_chroma_coeff + k * COEF_HOR_UV_SIZE;
+		for (c = 0; c < COEF_HOR_UV_SIZE; c++) {
+			ISP_REG_WR(idx, arg.h_chroma_coeff_addr + c * 4, *(tmp_h_chroma_coeff));
+			tmp_h_chroma_coeff++;
+		}
 	}
 
-	for (i = 0; i < ISP_SC_COEFF_V_NUM; i++) {
+	for (i = 0; i < COEF_VOR_Y_SIZE; i++) {
 		ISP_REG_WR(idx, arg.v_coeff_addr, *arg.v_coeff);
 		arg.v_coeff_addr += 4;
 		arg.v_coeff++;
 	}
 
-	for (i = 0; i < ISP_SC_COEFF_V_CHROMA_NUM; i++) {
+	for (i = 0; i < COEF_VOR_UV_SIZE; i++) {
 		ISP_REG_WR(idx, arg.v_chroma_coeff_addr, *arg.v_chroma_coeff);
 		arg.v_chroma_coeff_addr += 4;
 		arg.v_chroma_coeff++;
 	}
 
-	ISP_REG_MWR(idx, scaler_base + ISP_SCALER_CFG,
-			BIT_30, buf_sel << 30);
-
-	pr_debug("end. buf_sel %d\n", buf_sel);
 	return rtn;
 }
 
@@ -1075,21 +1122,23 @@ static int isphw_path_scaler(void *handle, void *arg)
 		(0 << path_off[path_scaler->spath_id]));
 
 	/* set path_eb*/
-	ISP_REG_MWR(idx, addr + ISP_SCALER_CFG, BIT_31, 1 << 31);/* path enable */
-	ISP_REG_MWR(idx, addr + ISP_SCALER_CFG, BIT_30, 0 << 30);/* CLK_SWITCH*/
-	ISP_REG_MWR(idx, addr + ISP_SCALER_CFG, BIT_29, 0 << 29);/* sw_switch_en*/
-	ISP_REG_MWR(idx, addr + ISP_SCALER_CFG, BIT_9, 0 << 9);/* bypass all scaler */
-	ISP_REG_MWR(idx, addr + ISP_SCALER_CFG, BIT_8, 0 << 8);/* scaler path stop */
-	ISP_REG_MWR(idx, addr + ISP_SCALER_CFG, BIT_10, path_scaler->uv_sync_v << 10);
+	ISP_REG_MWR(idx, addr + ISP_SCALER_CFG, BIT_31, 1 << 31);
+	/* CLK_SWITCH*/
+	ISP_REG_MWR(idx, addr + ISP_SCALER_CFG, BIT_30, 0 << 30);
+	/* sw_switch_en*/
+	ISP_REG_MWR(idx, addr + ISP_SCALER_CFG, BIT_29, 0 << 29);
+	/* bypass all scaler */
+	ISP_REG_MWR(idx, addr + ISP_SCALER_CFG, BIT_0, 0);
+	/* scaler path stop */
+	ISP_REG_MWR(idx, addr + ISP_SCALER_CFG, BIT_2, 0);
 
-	ISP_REG_MWR(idx, addr + ISP_SCALER_CFG, (BIT_23 | BIT_24), (path_scaler->frm_deci & 3) << 23);
-	ISP_REG_MWR(idx, addr + ISP_SCALER_CFG, BIT_6 | BIT_7, scalerInfo->odata_mode << 6);
+	ISP_REG_MWR(idx, addr + ISP_SCALER_CFG, 0x1f << 20, (path_scaler->frm_deci & 0x1f) << 20);
 
 	/*set X/Y deci */
-	ISP_REG_MWR(idx, addr + ISP_SCALER_CFG, BIT_2, deciInfo->deci_x_eb << 2);
-	ISP_REG_MWR(idx, addr + ISP_SCALER_CFG, (BIT_0 | BIT_1), deciInfo->deci_x);
-	ISP_REG_MWR(idx, addr + ISP_SCALER_CFG, BIT_5, deciInfo->deci_y_eb << 5);
-	ISP_REG_MWR(idx, addr + ISP_SCALER_CFG, (BIT_3 | BIT_4), deciInfo->deci_y << 3);
+	ISP_REG_MWR(idx, addr + ISP_SCALER_CFG, BIT_6, deciInfo->deci_x_eb << 6);
+	ISP_REG_MWR(idx, addr + ISP_SCALER_CFG, (BIT_4 | BIT_5), deciInfo->deci_x << 4);
+	ISP_REG_MWR(idx, addr + ISP_SCALER_CFG, BIT_9, deciInfo->deci_y_eb << 9);
+	ISP_REG_MWR(idx, addr + ISP_SCALER_CFG, (BIT_7 | BIT_8), deciInfo->deci_y << 7);
 
 	/*src size*/
 	ISP_REG_WR(idx, addr + ISP_SCALER_SRC_SIZE,
@@ -1113,38 +1162,48 @@ static int isphw_path_scaler(void *handle, void *arg)
 	ISP_REG_WR(idx, addr + ISP_SCALER_DES_SIZE,
 				((path_scaler->dst.h & 0x3FFF) << 16) |
 					(path_scaler->dst.w & 0x3FFF));
+
 	pr_debug("sw %d, path src: %d %d; in_trim:%d %d %d %d, out_trim: %d %d %d %d, dst: %d %d \n",
 		idx, path_scaler->src.w, path_scaler->src.h, path_scaler->in_trim.start_x,
 		path_scaler->in_trim.start_y, path_scaler->in_trim.size_x, path_scaler->in_trim.size_y,
 		path_scaler->out_trim.start_x, path_scaler->out_trim.start_y, path_scaler->out_trim.size_x,
 		path_scaler->out_trim.size_y, path_scaler->dst.w, path_scaler->dst.h);
 
-	ISP_REG_MWR(idx, addr + ISP_SCALER_CFG, BIT_20,
-			scalerInfo->scaler_bypass << 20);
+	ISP_REG_MWR(idx, addr + ISP_SCALER_CFG, BIT_1,
+			scalerInfo->scaler_bypass << 1);
 	ISP_REG_MWR(idx, addr + ISP_SCALER_CFG, 0xF0000,
 			scalerInfo->scaler_y_ver_tap << 16);
 	ISP_REG_MWR(idx, addr + ISP_SCALER_CFG, 0xF800,
 			scalerInfo->scaler_uv_ver_tap << 11);
 
-	reg_val = ((scalerInfo->scaler_ip_int & 0xF) << 16) |
+	reg_val = ((scalerInfo->scaler_ip_int & 0x1F) << 16) |
 			(scalerInfo->scaler_ip_rmd & 0x3FFF);
 	ISP_REG_WR(idx, addr + ISP_SCALER_IP, reg_val);
-	reg_val = ((scalerInfo->scaler_cip_int & 0xF) << 16) |
+	reg_val = ((scalerInfo->scaler_cip_int & 0x1F) << 16) |
 			(scalerInfo->scaler_cip_rmd & 0x3FFF);
 	ISP_REG_WR(idx, addr + ISP_SCALER_CIP, reg_val);
 	reg_val = ((scalerInfo->scaler_factor_in & 0x3FFF) << 16) |
 			(scalerInfo->scaler_factor_out & 0x3FFF);
 	ISP_REG_WR(idx, addr + ISP_SCALER_FACTOR, reg_val);
 
-	reg_val = ((scalerInfo->scaler_ver_ip_int & 0xF) << 16) |
+	reg_val = ((scalerInfo->scaler_ver_ip_int & 0x1F) << 16) |
 				(scalerInfo->scaler_ver_ip_rmd & 0x3FFF);
 	ISP_REG_WR(idx, addr + ISP_SCALER_VER_IP, reg_val);
-	reg_val = ((scalerInfo->scaler_ver_cip_int & 0xF) << 16) |
+	reg_val = ((scalerInfo->scaler_ver_cip_int & 0x1F) << 16) |
 				(scalerInfo->scaler_ver_cip_rmd & 0x3FFF);
 	ISP_REG_WR(idx, addr + ISP_SCALER_VER_CIP, reg_val);
 	reg_val = ((scalerInfo->scaler_ver_factor_in & 0x3FFF) << 16) |
 				(scalerInfo->scaler_ver_factor_out & 0x3FFF);
 	ISP_REG_WR(idx, addr + ISP_SCALER_FACTOR_VER, reg_val);
+
+	if ((path_scaler->in_trim.size_x == path_scaler->src.w) &&
+		(path_scaler->in_trim.size_y == path_scaler->src.h) &&
+		(path_scaler->in_trim.size_x == path_scaler->out_trim.size_x) &&
+		(path_scaler->in_trim.size_y == path_scaler->out_trim.size_y) &&
+		scalerInfo->scaler_bypass) {
+		ISP_REG_MWR(idx, addr + ISP_SCALER_CFG, BIT_0, 1);
+		pr_debug("scaler all bypass\n");
+	}
 
 	pr_debug("set_scale_info in %d %d out %d %d\n",
 		scalerInfo->scaler_factor_in,
@@ -1262,7 +1321,7 @@ static int isphw_slice_scaler(void *handle, void *arg)
 
 	if (!update->path_en) {
 		addr = ISP_SCALER_CFG + base;
-		cmd = (0 << 31) | (1 << 8) | (1 << 9);
+		cmd = (0 << 31) | (1 << 2);
 		ISP_REG_WR(update->ctx_id, addr, cmd);
 		return 0;
 	}
@@ -1284,43 +1343,43 @@ static int isphw_slice_scaler(void *handle, void *arg)
 	ISP_REG_WR(update->ctx_id, addr, cmd);
 
 	addr = ISP_SCALER_TRIM0_START + base;
-	cmd = (update->slc_scaler->trim0_start_x & 0x1FFF) |
-			((update->slc_scaler->trim0_start_y & 0x1FFF) << 16);
+	cmd = (update->slc_scaler->trim0_start_x & 0x3FFF) |
+			((update->slc_scaler->trim0_start_y & 0x3FFF) << 16);
 	ISP_REG_WR(update->ctx_id, addr, cmd);
 
 	addr = ISP_SCALER_TRIM0_SIZE + base;
-	cmd = (update->slc_scaler->trim0_size_x & 0x1FFF) |
-			((update->slc_scaler->trim0_size_y & 0x1FFF) << 16);
+	cmd = (update->slc_scaler->trim0_size_x & 0x3FFF) |
+			((update->slc_scaler->trim0_size_y & 0x3FFF) << 16);
 	ISP_REG_WR(update->ctx_id, addr, cmd);
 
 	addr = ISP_SCALER_IP + base;
-	cmd = (update->slc_scaler->scaler_ip_rmd & 0x1FFF) |
-			((update->slc_scaler->scaler_ip_int & 0xF) << 16);
+	cmd = (update->slc_scaler->scaler_ip_rmd & 0x3FFF) |
+			((update->slc_scaler->scaler_ip_int & 0x1F) << 16);
 	ISP_REG_WR(update->ctx_id, addr, cmd);
 
 	addr = ISP_SCALER_CIP + base;
-	cmd = (update->slc_scaler->scaler_cip_rmd & 0x1FFF) |
-			((update->slc_scaler->scaler_cip_int & 0xF) << 16);
+	cmd = (update->slc_scaler->scaler_cip_rmd & 0x3FFF) |
+			((update->slc_scaler->scaler_cip_int & 0x1F) << 16);
 	ISP_REG_WR(update->ctx_id, addr, cmd);
 
 	addr = ISP_SCALER_TRIM1_START + base;
-	cmd = (update->slc_scaler->trim1_start_x & 0x1FFF) |
-			((update->slc_scaler->trim1_start_y & 0x1FFF) << 16);
+	cmd = (update->slc_scaler->trim1_start_x & 0x3FFF) |
+			((update->slc_scaler->trim1_start_y & 0x3FFF) << 16);
 	ISP_REG_WR(update->ctx_id, addr, cmd);
 
 	addr = ISP_SCALER_TRIM1_SIZE + base;
-	cmd = (update->slc_scaler->trim1_size_x & 0x1FFF) |
-			((update->slc_scaler->trim1_size_y & 0x1FFF) << 16);
+	cmd = (update->slc_scaler->trim1_size_x & 0x3FFF) |
+			((update->slc_scaler->trim1_size_y & 0x3FFF) << 16);
 	ISP_REG_WR(update->ctx_id, addr, cmd);
 
 	addr = ISP_SCALER_VER_IP + base;
-	cmd = (update->slc_scaler->scaler_ip_rmd_ver & 0x1FFF) |
-			((update->slc_scaler->scaler_ip_int_ver & 0xF) << 16);
+	cmd = (update->slc_scaler->scaler_ip_rmd_ver & 0x3FFF) |
+			((update->slc_scaler->scaler_ip_int_ver & 0x1F) << 16);
 	ISP_REG_WR(update->ctx_id, addr, cmd);
 
 	addr = ISP_SCALER_VER_CIP + base;
-	cmd = (update->slc_scaler->scaler_cip_rmd_ver & 0x1FFF) |
-			((update->slc_scaler->scaler_cip_int_ver & 0xF) << 16);
+	cmd = (update->slc_scaler->scaler_cip_rmd_ver & 0x3FFF) |
+			((update->slc_scaler->scaler_cip_int_ver & 0x1F) << 16);
 	ISP_REG_WR(update->ctx_id, addr, cmd);
 
 	return 0;
@@ -1352,10 +1411,13 @@ static int isphw_slice_store(void *handle, void *arg)
 	ISP_REG_WR(store->ctx_id, addr, cmd);
 
 	addr = ISP_STORE_BORDER + base;
-	cmd = (store->slc_store->border.up_border & 0xFF) |
-			((store->slc_store->border.down_border & 0xFF) << 8) |
-			((store->slc_store->border.left_border & 0xFF) << 16) |
-			((store->slc_store->border.right_border & 0xFF) << 24);
+	cmd = (store->slc_store->border.left_border & 0xFFFF) |
+			((store->slc_store->border.right_border & 0xFFFF) << 16);
+	ISP_REG_WR(store->ctx_id, addr, cmd);
+
+	addr = ISP_STORE_BORDER_1+ base;
+	cmd = (store->slc_store->border.up_border & 0xFFFF) |
+			((store->slc_store->border.down_border & 0xFFFF) << 16);
 	ISP_REG_WR(store->ctx_id, addr, cmd);
 
 	addr = ISP_STORE_SLICE_Y_ADDR + base;
@@ -1445,8 +1507,6 @@ static int isphw_fetch_set(void *handle, void *arg)
 			fetch->in_trim.size_x, fetch->in_trim.size_y, fetch->data_bits, fetch->is_pack);
 
 	ISP_REG_MWR(idx, ISP_COMMON_SPACE_SEL, BIT_1 | BIT_0, fetch->dispatch_color);
-	ISP_REG_MWR(idx, ISP_COMMON_SPACE_SEL, BIT_3 | BIT_2, 3 << 2);
-	ISP_REG_MWR(idx, ISP_COMMON_SPACE_SEL, 0x70, 5 << 4);
 	ISP_REG_MWR(idx, ISP_COMMON_SCL_PATH_SEL, BIT_10 | BIT_11, fetch->fetch_path_sel << 10);
 	ISP_REG_MWR(idx, ISP_COMMON_SCL_PATH_SEL, BIT_8, 0 << 8);
 	ISP_REG_MWR(idx, ISP_COMMON_SCL_PATH_SEL, BIT_5 | BIT_4, 3 << 4);
@@ -1470,16 +1530,10 @@ static int isphw_fetch_set(void *handle, void *arg)
 	ISP_REG_MWR(idx, ISP_FETCH_BASE + ISP_FETCH_PARAM0, 0x70, val << 4 );
 	ISP_REG_MWR(idx, ISP_FETCH_BASE + ISP_FETCH_MIPI_PARAM, BIT_20, fetch->is_pack << 20);
 
-	ISP_REG_WR(idx, ISP_DISPATCH_BASE + ISP_DISPATCH_DLY,  0x20003C);
-	ISP_REG_WR(idx, ISP_DISPATCH_BASE + ISP_DISPATCH_LINE_DLY1,  0x100280);
-	ISP_REG_WR(idx, ISP_DISPATCH_BASE + ISP_DISPATCH_PIPE_BUF_CTRL_CH0,  0x280043c);
 	ISP_REG_WR(idx, ISP_DISPATCH_BASE + ISP_DISPATCH_CH0_SIZE,
 		fetch->in_trim.size_x | (fetch->in_trim.size_y << 16));
 
 	ISP_REG_WR(idx, ISP_YDELAY_STEP, fetch->in_trim.size_y << 16);
-	ISP_REG_WR(idx, ISP_SCALER_PRE_CAP_BASE + ISP_SCALER_HBLANK, 0x4040);
-	ISP_REG_WR(idx, ISP_SCALER_PRE_CAP_BASE + ISP_SCALER_RES, 0xFF);
-	ISP_REG_WR(idx, ISP_SCALER_PRE_CAP_BASE + ISP_SCALER_DEBUG, 1);
 
 	pr_debug("camca, isp sec mode=%d , pack_bits=%d, pitch_ch0=0x%x, 0x%x, 0x%x\n",
 		fetch->sec_mode,
@@ -1554,7 +1608,8 @@ static int isphw_fmcu_available(void *handle, void *arg)
 			ISP_CONTEXT_HW_C0, ISP_CONTEXT_HW_C1};
 	uint32_t reg_offset[ISP_FMCU_NUM] = {
 			ISP_COMMON_FMCU0_PATH_SEL,
-			ISP_COMMON_FMCU1_PATH_SEL};
+			ISP_COMMON_FMCU1_PATH_SEL,
+			ISP_COMMON_FMCU2_PATH_SEL};
 
 	if (!arg) {
 		pr_err("fail to get valid arg\n");
@@ -1562,12 +1617,14 @@ static int isphw_fmcu_available(void *handle, void *arg)
 	}
 
 	fmcu_sel = (struct isp_hw_fmcu_sel *)arg;
-	fmcu_valid = (fmcu_sel->fmcu_id > 0) ? 0 : 1;
+	fmcu_valid = (fmcu_sel->fmcu_id > 2) ? 0 : 1;
 
 	if (fmcu_valid)
 		ISP_HREG_MWR(reg_offset[fmcu_sel->fmcu_id], BIT_1 | BIT_0,
 			reg_bits[fmcu_sel->hw_idx]);
-
+	pr_debug("fmcu C sel 0x%x\n", ISP_HREG_RD(ISP_COMMON_FMCU0_PATH_SEL));
+	pr_debug("fmcu P0 sel 0x%x\n", ISP_HREG_RD(ISP_COMMON_FMCU1_PATH_SEL));
+	pr_debug("fmcu P1 sel 0x%x\n", ISP_HREG_RD(ISP_COMMON_FMCU2_PATH_SEL));
 	return fmcu_valid;
 }
 
@@ -2042,11 +2099,11 @@ static int isphw_slw_fmcu_cmds(void *handle, void *arg)
 	cmd = 1;
 	FMCU_PUSH(fmcu, addr, cmd);
 
-	addr = ISP_GET_REG(base + ISP_FMCU_CMD);
+	addr = ISP_GET_REG(ISP_FMCU_CMD);
 	cmd = shadow_done_cmd[ctx_idx];
 	FMCU_PUSH(fmcu, addr, cmd);
 
-	addr = ISP_GET_REG(base + ISP_FMCU_CMD);
+	addr = ISP_GET_REG(ISP_FMCU_CMD);
 	cmd = all_done_cmd[ctx_idx];
 	FMCU_PUSH(fmcu, addr, cmd);
 
@@ -2057,7 +2114,6 @@ static int isphw_fmcu_cfg(void *handle, void *arg)
 {
 	uint32_t addr = 0, cmd = 0;
 	struct isp_hw_fmcu_cfg *cfg = NULL;
-	unsigned long base;
 	unsigned long reg_addr[ISP_CONTEXT_HW_NUM] = {
 		ISP_CFG_PRE0_START,
 		ISP_CFG_CAP0_START,
@@ -2074,11 +2130,8 @@ static int isphw_fmcu_cfg(void *handle, void *arg)
 	 * When setting CFG_TRIGGER_PULSE cmd, fmcu will wait
 	 * until CFG module configs isp registers done.
 	 */
-	if (cfg->fmcu->fid == 0)
-		base = ISP_FMCU0_BASE;
-	else
-		base = ISP_FMCU1_BASE;
-	addr = ISP_GET_REG(base + ISP_FMCU_CMD);
+
+	addr = ISP_GET_REG(ISP_FMCU_CMD);
 	cmd = CFG_TRIGGER_PULSE;
 	FMCU_PUSH(cfg->fmcu, addr, cmd);
 
@@ -2089,28 +2142,41 @@ static int isphw_slice_fetch(void *handle, void *arg)
 {
 	uint32_t addr = 0, cmd = 0;
 	struct isp_hw_slice_fetch *fetch = NULL;
+	uint32_t base = ISP_FETCH_BASE;
 
 	fetch = (struct isp_hw_slice_fetch *)arg;
-	addr = ISP_FETCH_MEM_SLICE_SIZE;
+	addr = base + ISP_FETCH_MEM_SLICE_SIZE;
 	cmd = ((fetch->fetch_info->size.h & 0xFFFF) << 16) | (fetch->fetch_info->size.w & 0xFFFF);
 	ISP_REG_WR(fetch->ctx_id, addr, cmd);
 
-	addr = ISP_FETCH_SLICE_Y_ADDR;
+	addr = base + ISP_FETCH_SLICE_Y_ADDR;
 	cmd = fetch->fetch_info->addr.addr_ch0;
 	ISP_REG_WR(fetch->ctx_id, addr, cmd);
 
-	addr = ISP_FETCH_SLICE_U_ADDR;
+	addr = base + ISP_FETCH_SLICE_U_ADDR;
 	cmd = fetch->fetch_info->addr.addr_ch1;
 	ISP_REG_WR(fetch->ctx_id, addr, cmd);
 
-	addr = ISP_FETCH_MIPI_PARAM;
+	addr = base + ISP_FETCH_MIPI_PARAM;
 	cmd = fetch->fetch_info->mipi_word_num | (fetch->fetch_info->mipi_byte_rel_pos << 16);
+	ISP_REG_MWR(fetch->ctx_id, addr, 0xFFFFF, cmd);
+
+	addr = base + ISP_FETCH_MIPI_PARAM_UV;
+	cmd = fetch->fetch_info->mipi_word_num |
+			(fetch->fetch_info->mipi_byte_rel_pos << 16);
 	ISP_REG_WR(fetch->ctx_id, addr, cmd);
 
 	/* dispatch size same as fetch size */
-	addr = ISP_DISPATCH_CH0_SIZE;
+	addr = ISP_DISPATCH_BASE + ISP_DISPATCH_CH0_SIZE;
 	cmd = ((fetch->fetch_info->size.h & 0xFFFF) << 16) | (fetch->fetch_info->size.w & 0xFFFF);
 	ISP_REG_WR(fetch->ctx_id, addr, cmd);
+
+	ISP_REG_WR(fetch->ctx_id, ISP_3DNR_MEM_CTRL_PARAM3,
+		fetch->fetch_info->size.w | (fetch->fetch_info->size.h << 16));
+	ISP_REG_WR(fetch->ctx_id, ISP_3DNR_MEM_CTRL_PARAM4,
+		fetch->fetch_info->size.w | (fetch->fetch_info->size.h << 16));
+	ISP_REG_WR(fetch->ctx_id, ISP_3DNR_MEM_CTRL_PARAM5,
+		fetch->fetch_info->size.w | (fetch->fetch_info->size.h << 15) & 0xffff0000);
 
 	return 0;
 }
@@ -2121,6 +2187,7 @@ static int isphw_slice_nr_info(void *handle, void *arg)
 	struct isp_hw_slice_nr_info *info = NULL;
 
 	info = (struct isp_hw_slice_nr_info *)arg;
+	return 0;
 
 	/* NLM */
 	addr = ISP_NLM_RADIAL_1D_DIST;
@@ -2164,8 +2231,10 @@ static int isphw_slices_fmcu_cmds(void *handle, void *arg)
 	parg = (struct isp_hw_slices_fmcu_cmds *)arg;
 	if (parg->fmcu->fid == 0)
 		base = ISP_FMCU0_BASE;
-	else
+	else if (parg->fmcu->fid == 1)
 		base = ISP_FMCU1_BASE;
+	else
+		base = ISP_FMCU_PRE1_BASE;
 
 	if (parg->wmode == ISP_CFG_MODE) {
 		reg_off = ISP_CFG_CAP_FMCU_RDY;
@@ -2175,11 +2244,11 @@ static int isphw_slices_fmcu_cmds(void *handle, void *arg)
 	cmd = 1;
 	FMCU_PUSH(parg->fmcu, addr, cmd);
 
-	addr = ISP_GET_REG(base + ISP_FMCU_CMD);
+	addr = ISP_GET_REG(ISP_FMCU_CMD);
 	cmd = shadow_done_cmd[parg->hw_ctx_id];
 	FMCU_PUSH(parg->fmcu, addr, cmd);
 
-	addr = ISP_GET_REG(base + ISP_FMCU_CMD);
+	addr = ISP_GET_REG(ISP_FMCU_CMD);
 	cmd = all_done_cmd[parg->hw_ctx_id];
 	FMCU_PUSH(parg->fmcu, addr, cmd);
 
@@ -2225,21 +2294,21 @@ static int isphw_slice_3dnr_crop(void *handle, void *arg)
 	if (croparg->crop->bypass)
 		return 0;
 
-	addr = ISP_GET_REG(ISP_3DNR_MEM_CTRL_PRE_PARAM0);
+	addr = ISP_GET_REG(ISP_3DNR_CROP_PARAM0);
 	cmd = croparg->crop->bypass & 0x1;
 	FMCU_PUSH(croparg->fmcu, addr, cmd);
 
-	addr = ISP_GET_REG(ISP_3DNR_MEM_CTRL_PRE_PARAM1);
+	addr = ISP_GET_REG(ISP_3DNR_CROP_PARAM1);
 	cmd = ((croparg->crop->src.h & 0xFFFF) << 16) |
 		(croparg->crop->src.w & 0xFFFF);
 	FMCU_PUSH(croparg->fmcu, addr, cmd);
 
-	addr = ISP_GET_REG(ISP_3DNR_MEM_CTRL_PRE_PARAM2);
+	addr = ISP_GET_REG(ISP_3DNR_CROP_PARAM2);
 	cmd = ((croparg->crop->dst.h & 0xFFFF) << 16) |
 		(croparg->crop->dst.w & 0xFFFF);
 	FMCU_PUSH(croparg->fmcu, addr, cmd);
 
-	addr = ISP_GET_REG(ISP_3DNR_MEM_CTRL_PRE_PARAM3);
+	addr = ISP_GET_REG(ISP_3DNR_CROP_PARAM3);
 	cmd = ((croparg->crop->start_x & 0xFFFF) << 16) |
 		(croparg->crop->start_y & 0xFFFF);
 	FMCU_PUSH(croparg->fmcu, addr, cmd);
@@ -2254,20 +2323,27 @@ static int isphw_slice_3dnr_store(void *handle, void *arg)
 
 	storearg = (struct isp_hw_slice_3dnr_store *)arg;
 
-	if (storearg->store->bypass)
-		return 0;
+	if (storearg->store->bypass) {
+		addr = ISP_GET_REG(ISP_3DNR_STORE_SHADOW_CLR);
+		cmd = 1;
+		FMCU_PUSH(storearg->fmcu, addr, cmd);
+	} else {
+		addr = ISP_GET_REG(ISP_3DNR_STORE_SLICE_SIZE);
+		cmd = ((storearg->store->size.h & 0xFFFF) << 16) | (storearg->store->size.w & 0xFFFF);
+		FMCU_PUSH(storearg->fmcu, addr, cmd);
 
-	addr = ISP_GET_REG(ISP_3DNR_STORE_SLICE_SIZE);
-	cmd = ((storearg->store->size.h & 0xFFFF) << 16) | (storearg->store->size.w & 0xFFFF);
-	FMCU_PUSH(storearg->fmcu, addr, cmd);
+		addr = ISP_GET_REG(ISP_3DNR_STORE_SLICE_Y_ADDR);
+		cmd = storearg->store->addr.addr_ch0;
+		FMCU_PUSH(storearg->fmcu, addr, cmd);
 
-	addr = ISP_GET_REG(ISP_3DNR_STORE_SLICE_Y_ADDR);
-	cmd = storearg->store->addr.addr_ch0;
-	FMCU_PUSH(storearg->fmcu, addr, cmd);
+		addr = ISP_GET_REG(ISP_3DNR_STORE_SLICE_U_ADDR);
+		cmd = storearg->store->addr.addr_ch1;
+		FMCU_PUSH(storearg->fmcu, addr, cmd);
 
-	addr = ISP_GET_REG(ISP_3DNR_STORE_SLICE_U_ADDR);
-	cmd = storearg->store->addr.addr_ch1;
-	FMCU_PUSH(storearg->fmcu, addr, cmd);
+		addr = ISP_GET_REG(ISP_3DNR_STORE_SHADOW_CLR);
+		cmd = 1;
+		FMCU_PUSH(storearg->fmcu, addr, cmd);
+	}
 
 	return 0;
 }
@@ -2279,13 +2355,6 @@ static int isphw_slice_3dnr_memctrl(void *handle, void *arg)
 
 	memarg = (struct isp_hw_slice_3dnr_memctrl *)arg;
 
-	if (memarg->mem_ctrl->bypass)
-		return 0;
-
-	addr = ISP_GET_REG(ISP_3DNR_MEM_CTRL_PARAM1);
-	cmd = ((memarg->mem_ctrl->start_col & 0x1FFF) << 16) |
-		(memarg->mem_ctrl->start_row & 0x1FFF);
-	FMCU_PUSH(memarg->fmcu, addr, cmd);
 
 	addr = ISP_GET_REG(ISP_3DNR_MEM_CTRL_PARAM3);
 	cmd = ((memarg->mem_ctrl->src.h & 0x1FFF) << 16) |
@@ -2300,6 +2369,13 @@ static int isphw_slice_3dnr_memctrl(void *handle, void *arg)
 	addr = ISP_GET_REG(ISP_3DNR_MEM_CTRL_PARAM5);
 	cmd = ((memarg->mem_ctrl->ft_uv.h & 0x1FFF) << 16) |
 		(memarg->mem_ctrl->ft_uv.w & 0x1FFF);
+	FMCU_PUSH(memarg->fmcu, addr, cmd);
+
+	if (memarg->mem_ctrl->bypass)
+		return 0;
+	addr = ISP_GET_REG(ISP_3DNR_MEM_CTRL_PARAM1);
+	cmd = ((memarg->mem_ctrl->start_col & 0x1FFF) << 16) |
+		(memarg->mem_ctrl->start_row & 0x1FFF);
 	FMCU_PUSH(memarg->fmcu, addr, cmd);
 
 	addr = ISP_GET_REG(ISP_3DNR_MEM_CTRL_FT_CUR_LUMA_ADDR);
@@ -2339,10 +2415,13 @@ static int isphw_slice_spath_store(void *handle, void *arg)
 	FMCU_PUSH(spath->fmcu, addr, cmd);
 
 	addr = ISP_GET_REG(ISP_STORE_BORDER) + base;
-	cmd = (spath->slc_store->border.up_border & 0xFF) |
-			((spath->slc_store->border.down_border & 0xFF) << 8) |
-			((spath->slc_store->border.left_border & 0xFF) << 16) |
-			((spath->slc_store->border.right_border & 0xFF) << 24);
+	cmd = (spath->slc_store->border.left_border & 0xFFFF) |
+			((spath->slc_store->border.right_border & 0xFFFF) << 16);
+	FMCU_PUSH(spath->fmcu, addr, cmd);
+
+	addr = ISP_GET_REG(ISP_STORE_BORDER_1)+ base;
+	cmd = (spath->slc_store->border.up_border & 0xFFFF) |
+			((spath->slc_store->border.down_border & 0xFFFF) << 16);
 	FMCU_PUSH(spath->fmcu, addr, cmd);
 
 	addr = ISP_GET_REG(ISP_STORE_SLICE_Y_ADDR) + base;
@@ -2371,7 +2450,7 @@ static int isphw_slice_spath_scaler(void *handle, void *arg)
 
 	if (!spath->path_en) {
 		addr = ISP_GET_REG(ISP_SCALER_CFG) + base;
-		cmd = (0 << 31) | (1 << 8) | (1 << 9);
+		cmd = (0 << 31) | (1 << 2);
 		FMCU_PUSH(spath->fmcu, addr, cmd);
 		return 0;
 	}
@@ -2393,43 +2472,43 @@ static int isphw_slice_spath_scaler(void *handle, void *arg)
 	FMCU_PUSH(spath->fmcu, addr, cmd);
 
 	addr = ISP_GET_REG(ISP_SCALER_TRIM0_START) + base;
-	cmd = (spath->slc_scaler->trim0_start_x & 0x1FFF) |
-			((spath->slc_scaler->trim0_start_y & 0x1FFF) << 16);
+	cmd = (spath->slc_scaler->trim0_start_x & 0x3FFF) |
+			((spath->slc_scaler->trim0_start_y & 0x3FFF) << 16);
 	FMCU_PUSH(spath->fmcu, addr, cmd);
 
 	addr = ISP_GET_REG(ISP_SCALER_TRIM0_SIZE) + base;
-	cmd = (spath->slc_scaler->trim0_size_x & 0x1FFF) |
-			((spath->slc_scaler->trim0_size_y & 0x1FFF) << 16);
+	cmd = (spath->slc_scaler->trim0_size_x & 0x3FFF) |
+			((spath->slc_scaler->trim0_size_y & 0x3FFF) << 16);
 	FMCU_PUSH(spath->fmcu, addr, cmd);
 
 	addr = ISP_GET_REG(ISP_SCALER_IP) + base;
-	cmd = (spath->slc_scaler->scaler_ip_rmd & 0x1FFF) |
-			((spath->slc_scaler->scaler_ip_int & 0xF) << 16);
+	cmd = (spath->slc_scaler->scaler_ip_rmd & 0x3FFF) |
+			((spath->slc_scaler->scaler_ip_int & 0x1F) << 16);
 	FMCU_PUSH(spath->fmcu, addr, cmd);
 
 	addr = ISP_GET_REG(ISP_SCALER_CIP) + base;
-	cmd = (spath->slc_scaler->scaler_cip_rmd & 0x1FFF) |
-			((spath->slc_scaler->scaler_cip_int & 0xF) << 16);
+	cmd = (spath->slc_scaler->scaler_cip_rmd & 0x3FFF) |
+			((spath->slc_scaler->scaler_cip_int & 0x1F) << 16);
 	FMCU_PUSH(spath->fmcu, addr, cmd);
 
 	addr = ISP_GET_REG(ISP_SCALER_TRIM1_START) + base;
-	cmd = (spath->slc_scaler->trim1_start_x & 0x1FFF) |
-			((spath->slc_scaler->trim1_start_y & 0x1FFF) << 16);
+	cmd = (spath->slc_scaler->trim1_start_x & 0x3FFF) |
+			((spath->slc_scaler->trim1_start_y & 0x3FFF) << 16);
 	FMCU_PUSH(spath->fmcu, addr, cmd);
 
 	addr = ISP_GET_REG(ISP_SCALER_TRIM1_SIZE) + base;
-	cmd = (spath->slc_scaler->trim1_size_x & 0x1FFF) |
-			((spath->slc_scaler->trim1_size_y & 0x1FFF) << 16);
+	cmd = (spath->slc_scaler->trim1_size_x & 0x3FFF) |
+			((spath->slc_scaler->trim1_size_y & 0x3FFF) << 16);
 	FMCU_PUSH(spath->fmcu, addr, cmd);
 
 	addr = ISP_GET_REG(ISP_SCALER_VER_IP) + base;
-	cmd = (spath->slc_scaler->scaler_ip_rmd_ver & 0x1FFF) |
-			((spath->slc_scaler->scaler_ip_int_ver & 0xF) << 16);
+	cmd = (spath->slc_scaler->scaler_ip_rmd_ver & 0x3FFF) |
+			((spath->slc_scaler->scaler_ip_int_ver & 0x1F) << 16);
 	FMCU_PUSH(spath->fmcu, addr, cmd);
 
 	addr = ISP_GET_REG(ISP_SCALER_VER_CIP) + base;
-	cmd = (spath->slc_scaler->scaler_cip_rmd_ver & 0x1FFF) |
-			((spath->slc_scaler->scaler_cip_int_ver & 0xF) << 16);
+	cmd = (spath->slc_scaler->scaler_cip_rmd_ver & 0x3FFF) |
+			((spath->slc_scaler->scaler_cip_int_ver & 0x1F) << 16);
 	FMCU_PUSH(spath->fmcu, addr, cmd);
 
 	return 0;
@@ -2508,29 +2587,39 @@ static int isphw_slice_fetch_set(void *handle, void *arg)
 {
 	uint32_t addr = 0, cmd = 0;
 	struct isp_hw_set_slice_fetch *fetcharg = NULL;
+	uint32_t base = ISP_FETCH_BASE;
+	uint32_t base_dispatch = ISP_DISPATCH_BASE;
+	uint32_t val = 0;
 
 	fetcharg = (struct isp_hw_set_slice_fetch *)arg;
 
-	addr = ISP_GET_REG(ISP_FETCH_MEM_SLICE_SIZE);
+	addr = ISP_GET_REG(base + ISP_FETCH_MEM_SLICE_SIZE);
 	cmd = ((fetcharg->fetch_info->size.h & 0xFFFF) << 16) |
 			(fetcharg->fetch_info->size.w & 0xFFFF);
 	FMCU_PUSH(fetcharg->fmcu, addr, cmd);
 
-	addr = ISP_GET_REG(ISP_FETCH_SLICE_Y_ADDR);
+	addr = ISP_GET_REG(base + ISP_FETCH_SLICE_Y_ADDR);
 	cmd = fetcharg->fetch_info->addr.addr_ch0;
 	FMCU_PUSH(fetcharg->fmcu, addr, cmd);
 
-	addr = ISP_GET_REG(ISP_FETCH_SLICE_U_ADDR);
+	addr = ISP_GET_REG(base + ISP_FETCH_SLICE_U_ADDR);
 	cmd = fetcharg->fetch_info->addr.addr_ch1;
 	FMCU_PUSH(fetcharg->fmcu, addr, cmd);
 
-	addr = ISP_GET_REG(ISP_FETCH_MIPI_PARAM);
+	addr = ISP_GET_REG(base + ISP_FETCH_MIPI_PARAM);
 	cmd = fetcharg->fetch_info->mipi_word_num |
 			(fetcharg->fetch_info->mipi_byte_rel_pos << 16);
+	val = ISP_REG_RD(fetcharg->ctx_id, base + ISP_FETCH_MIPI_PARAM);
+	cmd = (cmd & 0xfffff) | (val & BIT_20);
+	FMCU_PUSH(fetcharg->fmcu, addr, cmd);
+
+	addr = ISP_GET_REG(base + ISP_FETCH_MIPI_PARAM_UV);
+	cmd = fetcharg->fetch_info->mipi_word_num_uv |
+			(fetcharg->fetch_info->mipi_byte_rel_pos_uv << 16);
 	FMCU_PUSH(fetcharg->fmcu, addr, cmd);
 
 	/* dispatch size same as fetch size */
-	addr = ISP_GET_REG(ISP_DISPATCH_CH0_SIZE);
+	addr = ISP_GET_REG(base_dispatch + ISP_DISPATCH_CH0_SIZE);
 	cmd = ((fetcharg->fetch_info->size.h & 0xFFFF) << 16) |
 			(fetcharg->fetch_info->size.w & 0xFFFF);
 	FMCU_PUSH(fetcharg->fmcu, addr, cmd);
@@ -2543,6 +2632,7 @@ static int isphw_slice_nr_info_set(void *handle, void *arg)
 	uint32_t addr = 0, cmd = 0;
 	struct isp_hw_set_slice_nr_info *nrarg = NULL;
 
+	return 0;
 	nrarg = (struct isp_hw_set_slice_nr_info *)arg;
 	/* NLM */
 	addr = ISP_GET_REG(ISP_NLM_RADIAL_1D_DIST);
@@ -2590,7 +2680,7 @@ static int isphw_3dnr_param_set(void *handle, void *arg)
 	ISP_REG_MWR(parm->idx, ISP_3DNR_MEM_CTRL_PARAM0, BIT_0, parm->val);
 	ISP_REG_MWR(parm->idx, ISP_3DNR_BLEND_CONTROL0, BIT_0, parm->val);
 	ISP_REG_MWR(parm->idx, ISP_3DNR_STORE_PARAM, BIT_0, parm->val);
-	ISP_REG_MWR(parm->idx, ISP_3DNR_MEM_CTRL_PRE_PARAM0, BIT_0, parm->val);
+	ISP_REG_MWR(parm->idx, ISP_3DNR_CROP_PARAM0, BIT_0, parm->val);
 
 	return 0;
 }
@@ -2818,13 +2908,21 @@ static int isphw_fmcu_cmd_set(void *handle, void *arg)
 static int isphw_fmcu_start(void *handle, void *arg)
 {
 	struct isp_hw_fmcu_start *startarg = NULL;
+	uint32_t base = 0;
 
 	startarg = (struct isp_hw_fmcu_start *)arg;
 
-	ISP_HREG_WR(startarg->base + ISP_FMCU_DDR_ADDR, startarg->hw_addr);
-	ISP_HREG_MWR(startarg->base + ISP_FMCU_CTRL, 0xFFFF0000, startarg->cmd_num << 16);
-	ISP_HREG_WR(startarg->base + ISP_FMCU_ISP_REG_REGION, ISP_OFFSET_RANGE);
-	ISP_HREG_WR(startarg->base + ISP_FMCU_START, 1);
+	if (startarg->fid == 0)
+		base = ISP_FMCU0_BASE;
+	else if (startarg->fid == 1)
+		base = ISP_FMCU1_BASE;
+	else if (startarg->fid == 2)
+		base = ISP_FMCU_PRE1_BASE;
+	ISP_HREG_WR(base + ISP_FMCU_DDR_ADDR, startarg->hw_addr);
+	startarg->cmd_num = startarg->cmd_num / 2;
+	ISP_HREG_MWR(base + ISP_FMCU_CTRL, 0xFFFF0000, startarg->cmd_num << 16);
+	ISP_HREG_WR(base + ISP_FMCU_ISP_REG_REGION, ISP_OFFSET_RANGE);
+	ISP_HREG_WR(base + ISP_FMCU_START, 1);
 
 	return 0;
 }
@@ -2856,39 +2954,90 @@ static int isphw_yuv_block_ctrl(void *handle, void *arg)
 	}
 
 BLOCK_CFG:
-	ISP_REG_MWR(idx, ISP_CCE_PARAM, BIT_0, p->cce_info.bypass);
 	ISP_REG_MWR(idx, ISP_BCHS_PARAM, BIT_0, p->bchs_info.bchs_bypass);
 	ISP_REG_MWR(idx, ISP_CDN_PARAM, BIT_0, p->cdn_info.bypass);
 	ISP_REG_MWR(idx, ISP_EE_PARAM, BIT_0, p->edge_info.bypass);
 	ISP_REG_MWR(idx, ISP_YUV_CNR_CONTRL0, BIT_0, p->iircnr_info.bypass);
 	ISP_REG_MWR(idx, ISP_YUV_NF_CTRL, BIT_0, p->nf_info.yrandom_bypass);
-	ISP_REG_MWR(idx, ISP_POSTCDN_COMMON_CTRL, BIT_0, p->post_cdn_info.bypass);
-	ISP_REG_MWR(idx, ISP_PRECDN_PARAM, BIT_0, p->pre_cdn_info.bypass);
-	ISP_REG_MWR(idx, ISP_PSTRZ_PARAM, BIT_0, p->pstrz_info_v2.bypass);
 	ISP_REG_MWR(idx, ISP_UVD_PARAM, BIT_0, p->uvd_info_v2.bypass);
 	ISP_REG_MWR(idx, ISP_YGAMMA_PARAM, BIT_0, p->ygamma_info.bypass);
-	ISP_REG_MWR(idx, ISP_YNR_CONTRL0, BIT_0, p->ynr_info_v2.bypass);
 	ISP_REG_MWR(idx, ISP_YRANDOM_PARAM1, BIT_0, p->yrandom_info.bypass);
 	return ret;
 
 BLOCK_BYPASS:
-	ISP_REG_MWR(idx, ISP_CCE_PARAM, BIT_0, 1);
 	ISP_REG_MWR(idx, ISP_BCHS_PARAM, BIT_0, 1);
 	ISP_REG_MWR(idx, ISP_CDN_PARAM, BIT_0, 1);
 	ISP_REG_MWR(idx, ISP_EE_PARAM, BIT_0, 1);
-	ISP_REG_MWR(idx, ISP_HIST2_PARAM, BIT_0, 1);
 	ISP_REG_MWR(idx, ISP_YUV_CNR_CONTRL0, BIT_0, 1);
 	ISP_REG_MWR(idx, ISP_YUV_NF_CTRL, BIT_0, 1);
 	ISP_REG_MWR(idx, ISP_3DNR_MEM_CTRL_PARAM0, BIT_0, 1);
-	ISP_REG_MWR(idx, ISP_POSTCDN_COMMON_CTRL, BIT_0, 1);
-	ISP_REG_MWR(idx, ISP_PRECDN_PARAM, BIT_0, 1);
-	ISP_REG_MWR(idx, ISP_PSTRZ_PARAM, BIT_0, 1);
 	ISP_REG_MWR(idx, ISP_UVD_PARAM, BIT_0, 1);
 	ISP_REG_MWR(idx, ISP_YGAMMA_PARAM, BIT_0, 1);
-	ISP_REG_MWR(idx, ISP_YNR_CONTRL0, BIT_0, 1);
 	ISP_REG_MWR(idx, ISP_YRANDOM_PARAM1, BIT_0, 1);
 
 	return ret;
+}
+
+static int isphw_fmcu_cmd_align(void *handle, void *arg)
+{
+	struct isp_fmcu_ctx_desc * fmcu = (struct isp_fmcu_ctx_desc *)arg;
+	int byte_num = 0;
+	uint32_t addr = 0, cmd = 0;
+	if (!fmcu) {
+		pr_err("fail to get valid fmcu handle\n");
+		return -1;
+	}
+
+	byte_num = (int) fmcu->cmdq_pos[fmcu->cur_buf_id];
+	if (byte_num % 4 ==  2) {
+		addr = ISP_GET_REG(ISP_P0_INT_BASE + ISP_INT_CLR1);
+		cmd = 0;
+		FMCU_PUSH(fmcu, addr, cmd);
+	} else if ((byte_num % 4 ==  1) || (byte_num % 4 ==  3)) {
+		pr_err("fail to align fmcu cmd\n ");
+		return -1;
+	}
+	return 0;
+}
+
+static int isphw_cfg_alldone_ctrl(void *handle, void *arg)
+{
+	struct isp_hw_alldone_ctrl *para = (struct isp_hw_alldone_ctrl *)arg;
+	uint32_t ctx_id = 0;
+	uint32_t val = 0, bit = 0;
+
+	if (!arg) {
+		pr_err("fail to cfg alldone ctrl\n");
+		return -1;
+	}
+	ctx_id = para->hw_ctx_id;
+	val = ISP_HREG_RD(irq_base[ctx_id] + ISP_INT_ALL_DONE_CTRL);
+	switch (para->int_bit) {
+	case ISP_ALLDONE_WAIT_DISPATCH:
+		bit = 4;
+		break;
+	case ISP_ALLDONE_WAIT_LTMHIST:
+		bit = 3;
+		break;
+	case ISP_ALLDONE_WAIT_REC:
+		bit = 2;
+		break;
+	case ISP_ALLDONE_WAIT_YUV_DONE:
+		bit = 1;
+		break;
+	case ISP_ALLDONE_WAIT_STORE:
+		bit = 0;
+		break;
+	default:
+		pr_debug("all done ctrl not support %d\n", para->int_bit);
+	}
+	if (para->wait)
+		val &= ~(0x1UL << bit);
+	else
+		val |= (0x1UL << bit);
+	pr_debug("int %d wait %d, all done ctrl 0x%x\n", para->int_bit, para->wait, val);
+	ISP_HREG_WR(irq_base[ctx_id] + ISP_INT_ALL_DONE_CTRL, val);
+	return 0;
 }
 
 static struct hw_io_ctrl_fun isp_ioctl_fun_tab[] = {
@@ -2952,6 +3101,8 @@ static struct hw_io_ctrl_fun isp_ioctl_fun_tab[] = {
 	{ISP_HW_CFG_FMCU_CMD,                isphw_fmcu_cmd_set},
 	{ISP_HW_CFG_FMCU_START,              isphw_fmcu_start},
 	{ISP_HW_CFG_YUV_BLOCK_CTRL_TYPE,     isphw_yuv_block_ctrl},
+	{ISP_HW_CFG_FMCU_CMD_ALIGN,          isphw_fmcu_cmd_align},
+	{ISP_HW_CFG_ALLDONE_CTRL,            isphw_cfg_alldone_ctrl},
 };
 
 static hw_ioctl_fun isphw_ioctl_fun_get(enum isp_hw_cfg_cmd cmd)
