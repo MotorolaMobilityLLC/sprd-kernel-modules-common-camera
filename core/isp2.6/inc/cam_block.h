@@ -227,7 +227,9 @@ int init_isp_pm(struct isp_k_block *isp_k_param);
 
 int isp_ltm_config_param(void *handle);
 int isp_pyr_rec_share_config(void *handle);
+int isp_pyr_rec_frame_config(void *handle);
 int isp_pyr_rec_slice_config(void *handle);
+int isp_pyr_rec_slice_common_config(void *handle);
 int isp_dewarping_config_param(void *handle);
 int isp_dewarping_dewarp_cache_set(void *handle);
 

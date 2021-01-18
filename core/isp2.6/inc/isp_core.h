@@ -92,6 +92,7 @@ struct slice_cfg_input {
 	uint32_t ltm_rgb_eb;
 	uint32_t ltm_yuv_eb;
 	uint32_t gtm_rgb_eb;
+	uint32_t pyr_rec_eb;
 	struct img_size frame_in_size;
 	struct img_size *frame_out_size[ISP_SPATH_NUM];
 	struct isp_hw_fetch_info *frame_fetch;
@@ -172,6 +173,7 @@ struct isp_uinfo {
 	uint32_t uframe_sync;
 	uint32_t scaler_coeff_ex;
 	uint32_t pyr_layer_num;
+	uint32_t is_dewarping;
 
 	/* compression info from cam core */
 	/*2:dewarp  1: fetch_fbd; 0: fetch */

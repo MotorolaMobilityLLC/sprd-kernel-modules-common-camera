@@ -229,7 +229,7 @@ static void isppyrrec_cfg_store(uint32_t idx,
 	ISP_REG_MWR(idx, ISP_REC_UVDELAY_STEP, 0x1fff0000, val);
 }
 
-static int isppyrrec_fetch_slice_set(struct isp_rec_fetch_info *rec_fetch,
+static int isppyrrec_fetch_slice_set(struct slice_fetch_info *rec_fetch,
 	void *in_ptr, uint32_t fetch_block)
 {
 	uint32_t addr = 0, cmd = 0;
@@ -250,31 +250,21 @@ static int isppyrrec_fetch_slice_set(struct isp_rec_fetch_info *rec_fetch,
 		return -EFAULT;
 	}
 
-	/* pitch can treat as frame config */
-	addr = ISP_GET_REG(ISP_FETCH_SLICE_Y_PITCH) + base;
-	cmd = rec_fetch->pitch[0];
-	FMCU_PUSH(fmcu, addr, cmd);
-
-	addr = ISP_GET_REG(ISP_FETCH_SLICE_U_PITCH) + base;
-	cmd = rec_fetch->pitch[1];
-	FMCU_PUSH(fmcu, addr, cmd);
-
-	/* size, addr treat as slice config */
 	addr = ISP_GET_REG(ISP_FETCH_MEM_SLICE_SIZE) + base;
-	cmd = ((rec_fetch->height & 0xFFFF) << 16) | (rec_fetch->width & 0xFFFF);
+	cmd = ((rec_fetch->size.h & 0xFFFF) << 16) | (rec_fetch->size.w & 0xFFFF);
 	FMCU_PUSH(fmcu, addr, cmd);
 
 	addr = ISP_GET_REG(ISP_FETCH_SLICE_Y_ADDR) + base;
-	cmd = rec_fetch->addr[0];
+	cmd = rec_fetch->addr.addr_ch0;
 	FMCU_PUSH(fmcu, addr, cmd);
 
 	addr = ISP_GET_REG(ISP_FETCH_SLICE_U_ADDR) + base;
-	cmd = rec_fetch->addr[1];
+	cmd = rec_fetch->addr.addr_ch1;
 	FMCU_PUSH(fmcu, addr, cmd);
 
 	addr = ISP_GET_REG(ISP_FETCH_MIPI_PARAM) + base;
-	cmd = (rec_fetch->mipi_word & 0xFFFF) |
-		((rec_fetch->mipi_byte & 0xF) << 16) |
+	cmd = (rec_fetch->mipi_word_num & 0xFFFF) |
+		((rec_fetch->mipi_byte_rel_pos & 0xF) << 16) |
 		((rec_fetch->mipi10_en & 0x1) << 20);
 	FMCU_PUSH(fmcu, addr, cmd);
 
@@ -284,8 +274,8 @@ static int isppyrrec_fetch_slice_set(struct isp_rec_fetch_info *rec_fetch,
 	/* dispatch size same as ref fetch size */
 	if (base == ISP_FETCH_BASE) {
 		addr = ISP_GET_REG(ISP_DISPATCH_CH0_SIZE);
-		cmd = ((rec_fetch->height & 0xFFFF) << 16)
-			| (rec_fetch->width & 0xFFFF);
+		cmd = ((rec_fetch->size.h & 0xFFFF) << 16)
+			| (rec_fetch->size.w & 0xFFFF);
 		FMCU_PUSH(fmcu, addr, cmd);
 	}
 
@@ -304,26 +294,19 @@ static int isppyrrec_cnr_slice_set(struct isp_rec_cnr_info *pyr_cnr, void *in_pt
 	return 0;
 }
 
-static int isppyrrec_reconstruct_slice_set(struct isp_pyr_rec_info *pyr_rec, void *in_ptr)
+static int isppyrrec_reconstruct_slice_set(struct slice_pyr_rec_info *pyr_rec, void *in_ptr)
 {
 	uint32_t addr = 0, cmd = 0;
 	struct isp_fmcu_ctx_desc *fmcu = NULL;
 
 	fmcu = (struct isp_fmcu_ctx_desc *)in_ptr;
 
-	addr = ISP_GET_REG(ISP_REC_PARAM);
-	cmd = ((pyr_rec->reconstruct_bypass & 0x1) << 0) |
-		((pyr_rec->drop_en & 0x1) << 1) |
-		((pyr_rec->layer_num & 0xF) << 2);
-	FMCU_PUSH(fmcu, addr, cmd);
-
 	addr = ISP_GET_REG(ISP_REC_PARAM1);
-	cmd = (pyr_rec->out_width & 0xFFFF) | ((pyr_rec->out_height & 0xFFFF)<<16);
+	cmd = (pyr_rec->out.w & 0xFFFF) | ((pyr_rec->out.h & 0xFFFF)<<16);
 	FMCU_PUSH(fmcu, addr, cmd);
 
 	addr = ISP_GET_REG(ISP_REC_PARAM3);
-	cmd = (pyr_rec->pre_layer_width & 0xFFFF) |
-		((pyr_rec->pre_layer_height & 0xFFFF)<<16);
+	cmd = (pyr_rec->pre_layer.w & 0xFFFF) | ((pyr_rec->pre_layer.h & 0xFFFF)<<16);
 	FMCU_PUSH(fmcu, addr, cmd);
 
 	addr = ISP_GET_REG(ISP_REC_PARAM7);
@@ -334,14 +317,13 @@ static int isppyrrec_reconstruct_slice_set(struct isp_pyr_rec_info *pyr_rec, voi
 	FMCU_PUSH(fmcu, addr, cmd);
 
 	addr = ISP_GET_REG(ISP_REC_PARAM8);
-	cmd = (pyr_rec->cur_layer_width & 0xFFFF) |
-		((pyr_rec->cur_layer_height & 0xFFFF)<<16);
+	cmd = (pyr_rec->cur_layer.w & 0xFFFF) | ((pyr_rec->cur_layer.h & 0xFFFF)<<16);
 	FMCU_PUSH(fmcu, addr, cmd);
 
 	return 0;
 }
 
-static int isppyrrec_store_slice_set(struct isp_rec_store_info *rec_store, void *in_ptr)
+static int isppyrrec_store_slice_set(struct slice_store_info *rec_store, void *in_ptr)
 {
 	uint32_t addr = 0, cmd = 0;
 	unsigned int base = PYR_REC_STORE_BASE;
@@ -349,39 +331,31 @@ static int isppyrrec_store_slice_set(struct isp_rec_store_info *rec_store, void 
 
 	fmcu = (struct isp_fmcu_ctx_desc *)in_ptr;
 
-	/* pitch can treat as frame config */
-	addr = ISP_GET_REG(ISP_STORE_Y_PITCH) + base;
-	cmd = rec_store->pitch[0];
-	FMCU_PUSH(fmcu, addr, cmd);
-
-	addr = ISP_GET_REG(ISP_STORE_U_PITCH) + base;
-	cmd = rec_store->pitch[1];
-	FMCU_PUSH(fmcu, addr, cmd);
-
-	/* size, addr treat as slice config */
 	addr = ISP_GET_REG(ISP_STORE_SLICE_SIZE) + base;
-	cmd = ((rec_store->height & 0xFFFF) << 16) | (rec_store->width & 0xFFFF);
+	cmd = ((rec_store->size.h & 0xFFFF) << 16) | (rec_store->size.w & 0xFFFF);
 	FMCU_PUSH(fmcu, addr, cmd);
 
 	addr = ISP_GET_REG(ISP_STORE_BORDER) + base;
-	cmd =  (rec_store->border_left & 0xFFFF) | ((rec_store->border_right & 0xFFFF) << 16);
+	cmd =  (rec_store->border.left_border & 0xFFFF) |
+		((rec_store->border.right_border & 0xFFFF) << 16);
 	FMCU_PUSH(fmcu, addr, cmd);
 
 	addr = ISP_GET_REG(ISP_STORE_BORDER_1) + base;
-	cmd = (rec_store->border_up & 0xFFFF) | ((rec_store->border_down & 0xFFFF) << 16);
+	cmd = (rec_store->border.up_border & 0xFFFF) |
+		((rec_store->border.down_border & 0xFFFF) << 16);
 	FMCU_PUSH(fmcu, addr, cmd);
 
 	addr = ISP_GET_REG(ISP_STORE_SLICE_Y_ADDR) + base;
-	cmd = rec_store->addr[0];
+	cmd = rec_store->addr.addr_ch0;
 	FMCU_PUSH(fmcu, addr, cmd);
 
 	addr = ISP_GET_REG(ISP_STORE_SLICE_U_ADDR) + base;
-	cmd = rec_store->addr[1];
+	cmd = rec_store->addr.addr_ch1;
 	FMCU_PUSH(fmcu, addr, cmd);
 
 	/* uvdelay size must <= 2592 */
 	addr = ISP_GET_REG(ISP_REC_UVDELAY_STEP);
-	cmd = (rec_store->width & 0xFFFF) << 16;
+	cmd = (rec_store->size.w & 0xFFFF) << 16;
 	FMCU_PUSH(fmcu, addr, cmd);
 
 	return 0;
@@ -411,11 +385,12 @@ int isp_pyr_rec_share_config(void *handle)
 	return ret;
 }
 
-int isp_pyr_rec_slice_config(void *handle)
+int isp_pyr_rec_frame_config(void *handle)
 {
 	int ret = 0;
 	struct isp_rec_ctx_desc *ctx = NULL;
-	struct isp_hw_fmcu_cfg fmcu_cfg;
+	uint32_t addr = 0, cmd = 0;
+	struct isp_fmcu_ctx_desc *fmcu = NULL;
 
 	if (!handle) {
 		pr_err("fail to rec_config_reg parm NULL\n");
@@ -423,6 +398,77 @@ int isp_pyr_rec_slice_config(void *handle)
 	}
 
 	ctx = (struct isp_rec_ctx_desc *)handle;
+	fmcu = (struct isp_fmcu_ctx_desc *)ctx->fmcu_handle;
+
+	addr = ISP_GET_REG(ISP_FETCH_SLICE_Y_PITCH) + PYR_REC_CUR_FETCH_BASE;
+	cmd = ctx->cur_fetch.pitch[0];
+	FMCU_PUSH(fmcu, addr, cmd);
+	addr = ISP_GET_REG(ISP_FETCH_SLICE_U_PITCH) + PYR_REC_CUR_FETCH_BASE;
+	cmd = ctx->cur_fetch.pitch[1];
+	FMCU_PUSH(fmcu, addr, cmd);
+
+	addr = ISP_GET_REG(ISP_FETCH_SLICE_Y_PITCH) + ISP_FETCH_BASE;
+	cmd = ctx->ref_fetch.pitch[0];
+	FMCU_PUSH(fmcu, addr, cmd);
+	addr = ISP_GET_REG(ISP_FETCH_SLICE_U_PITCH) + ISP_FETCH_BASE;
+	cmd = ctx->ref_fetch.pitch[1];
+	FMCU_PUSH(fmcu, addr, cmd);
+
+	addr = ISP_GET_REG(ISP_REC_PARAM);
+	cmd = ((ctx->pyr_rec.reconstruct_bypass & 0x1) << 0) |
+		((ctx->pyr_rec.drop_en & 0x1) << 1) |
+		((ctx->pyr_rec.layer_num & 0xF) << 2);
+	FMCU_PUSH(fmcu, addr, cmd);
+
+	addr = ISP_GET_REG(ISP_STORE_Y_PITCH) + PYR_REC_STORE_BASE;
+	cmd = ctx->rec_store.pitch[0];
+	FMCU_PUSH(fmcu, addr, cmd);
+	addr = ISP_GET_REG(ISP_STORE_U_PITCH) + PYR_REC_STORE_BASE;
+	cmd = ctx->rec_store.pitch[1];
+	FMCU_PUSH(fmcu, addr, cmd);
+
+	return ret;
+}
+
+int isp_pyr_rec_slice_common_config(void *handle)
+{
+	int ret = 0;
+	struct isp_rec_ctx_desc *ctx = NULL;
+	struct isp_rec_slice_desc *cur_rec_slc = NULL;
+
+	if (!handle) {
+		pr_err("fail to rec_config_reg parm NULL\n");
+		return -EFAULT;
+	}
+
+	ctx = (struct isp_rec_ctx_desc *)handle;
+	cur_rec_slc = &ctx->slices[ctx->cur_slice_id];
+
+	isppyrrec_fetch_slice_set(&cur_rec_slc->slice_cur_fetch, ctx->fmcu_handle, ISP_PYR_REC_CUR);
+	isppyrrec_fetch_slice_set(&cur_rec_slc->slice_ref_fetch, ctx->fmcu_handle, ISP_PYR_REC_REF);
+	/* TBD */
+	isppyrrec_ynr_slice_set(NULL, ctx->fmcu_handle);
+	isppyrrec_cnr_slice_set(NULL, ctx->fmcu_handle);
+	isppyrrec_reconstruct_slice_set(&cur_rec_slc->slice_pyr_rec, ctx->fmcu_handle);
+
+	return ret;
+}
+
+int isp_pyr_rec_slice_config(void *handle)
+{
+	int ret = 0;
+	struct isp_rec_ctx_desc *ctx = NULL;
+	struct isp_rec_slice_desc *cur_rec_slc = NULL;
+	struct isp_hw_fmcu_cfg fmcu_cfg;
+	struct isp_hw_slices_fmcu_cmds parg;
+
+	if (!handle) {
+		pr_err("fail to rec_config_reg parm NULL\n");
+		return -EFAULT;
+	}
+
+	ctx = (struct isp_rec_ctx_desc *)handle;
+	cur_rec_slc = &ctx->slices[ctx->cur_slice_id];
 
 	if (ctx->wmode == ISP_CFG_MODE) {
 		fmcu_cfg.fmcu = ctx->fmcu_handle;
@@ -430,13 +476,13 @@ int isp_pyr_rec_slice_config(void *handle)
 		ctx->hw->isp_ioctl(ctx->hw, ISP_HW_CFG_FMCU_CFG, &fmcu_cfg);
 	}
 
-	isppyrrec_fetch_slice_set(&ctx->cur_fetch, ctx->fmcu_handle, ISP_PYR_REC_CUR);
-	isppyrrec_fetch_slice_set(&ctx->ref_fetch, ctx->fmcu_handle, ISP_PYR_REC_REF);
-	isppyrrec_ynr_slice_set(&ctx->rec_ynr, ctx->fmcu_handle);
-	isppyrrec_cnr_slice_set(&ctx->rec_cnr, ctx->fmcu_handle);
-	isppyrrec_reconstruct_slice_set(&ctx->pyr_rec, ctx->fmcu_handle);
-	isppyrrec_store_slice_set(&ctx->rec_store, ctx->fmcu_handle);
+	isp_pyr_rec_slice_common_config(handle);
+	isppyrrec_store_slice_set(&cur_rec_slc->slice_rec_store, ctx->fmcu_handle);
+
+	parg.wmode = ctx->wmode;
+	parg.hw_ctx_id = ctx->hw_ctx_id;
+	parg.fmcu = ctx->fmcu_handle;
+	ctx->hw->isp_ioctl(ctx->hw, ISP_HW_CFG_SLICE_FMCU_PYR_REC_CMD, &parg);
 
 	return ret;
 }
-

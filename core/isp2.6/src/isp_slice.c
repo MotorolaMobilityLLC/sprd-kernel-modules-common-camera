@@ -18,6 +18,7 @@
 #include "isp_reg.h"
 #include "isp_core.h"
 #include "isp_slice.h"
+#include "isp_pyr_rec.h"
 
 #ifdef pr_fmt
 #undef pr_fmt
@@ -1200,8 +1201,7 @@ static void ispslice_slice_fetch_cfg(struct isp_hw_fetch_info *frm_fetch,
 	slc_fetch->size.h = end_row - start_row + 1;
 	slc_fetch->size.w = end_col - start_col + 1;
 
-	pr_debug("slice fetch size %d, %d\n",
-		 slc_fetch->size.w, slc_fetch->size.h);
+	pr_debug("slice fetch size %d, %d\n", slc_fetch->size.w, slc_fetch->size.h);
 }
 
 static void ispslice_slice_fbd_raw_cfg(struct isp_fbd_raw_info *frame_fbd_raw,
@@ -2448,6 +2448,7 @@ int isp_slice_info_cfg(void *cfg_in, struct isp_slice_context *slc_ctx)
 	}
 
 	in_ptr = (struct slice_cfg_input *)cfg_in;
+	slc_ctx->pyr_rec_eb = in_ptr->pyr_rec_eb;
 	ispslice_fetch_info_cfg(cfg_in, slc_ctx);
 	ispslice_store_info_cfg(cfg_in, slc_ctx);
 	ispslice_afbc_store_info_cfg(cfg_in, slc_ctx);
@@ -2531,6 +2532,7 @@ int isp_slice_fmcu_cmds_set(void *fmcu_handle, void *ctx)
 	struct isp_hw_set_slice_fetch fetcharg;
 	struct isp_hw_set_slice_nr_info nrarg;
 	struct isp_hw_gtm_func gtm_func;
+	struct isp_hw_k_blk_func rec_slice_func;
 
 	if (!fmcu_handle || !ctx) {
 		pr_err("fail to get valid input ptr, fmcu_handle %p, ctx %p\n",
@@ -2576,6 +2578,13 @@ int isp_slice_fmcu_cmds_set(void *fmcu_handle, void *ctx)
 			fetcharg.fmcu = fmcu;
 			fetcharg.fetch_info = &cur_slc->slice_fetch;
 			hw->isp_ioctl(fmcu, ISP_HW_CFG_SET_SLICE_FETCH, &fetcharg);
+		}
+
+		if (slc_ctx->pyr_rec_eb) {
+			rec_slice_func.index = ISP_K_BLK_PYR_REC_SLICE_COMMON;
+			hw->isp_ioctl(hw, ISP_HW_CFG_K_BLK_FUNC_GET, &rec_slice_func);
+			if (rec_slice_func.k_blk_func)
+				rec_slice_func.k_blk_func(pctx->rec_handle);
 		}
 
 		if (pctx->pipe_src.ltm_rgb){

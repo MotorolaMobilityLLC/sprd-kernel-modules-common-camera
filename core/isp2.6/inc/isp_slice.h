@@ -148,6 +148,7 @@ struct slice_fetch_info {
 	uint32_t is_pack;
 	struct img_size size;
 	struct img_addr addr;
+	uint32_t mipi10_en;
 	uint32_t mipi_byte_rel_pos;
 	uint32_t mipi_word_num;
 	uint32_t mipi_byte_rel_pos_uv;
@@ -294,6 +295,16 @@ struct slice_gtm_info {
 	uint32_t line_endpos;
 };
 
+struct slice_pyr_rec_info {
+	struct img_size out;
+	struct img_size pre_layer;
+	struct img_size cur_layer;
+	uint32_t hor_padding_en;
+	uint32_t hor_padding_num;
+	uint32_t ver_padding_en;
+	uint32_t ver_padding_num;
+};
+
 struct isp_slice_desc {
 	uint32_t valid;
 	uint32_t x;
@@ -321,7 +332,7 @@ struct isp_slice_desc {
 	struct slice_3dnr_fbc_store_info slice_3dnr_fbc_store;
 	struct slice_3dnr_crop_info slice_3dnr_crop;
 	struct slice_ltm_map_info slice_ltm_map[LTM_MAX];
-	struct slice_noisefilter_info  noisefilter_info;
+	struct slice_noisefilter_info noisefilter_info;
 	struct slice_noisefilter_mode_info slice_noisefilter_mode;
 	struct slice_gtm_info slice_gtm;
 };
@@ -339,6 +350,7 @@ struct isp_slice_context {
 	uint32_t overlap_down;
 	uint32_t overlap_left;
 	uint32_t overlap_right;
+	uint32_t pyr_rec_eb;
 };
 
 int isp_slice_info_cfg(void *cfg_in, struct isp_slice_context *slc_ctx);

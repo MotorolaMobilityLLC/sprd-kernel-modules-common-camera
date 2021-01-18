@@ -488,6 +488,112 @@ static inline void dcampath_frame_pointer_swap(struct camera_frame **frame1,
 	*frame2 = frame;
 }
 
+static uint32_t dcampath_dec_align_width(uint32_t w, uint32_t layer_num)
+{
+	uint32_t width = 0, i = 0;
+	uint32_t w_align = PYR_DEC_WIDTH_ALIGN;
+
+	for (i = 0; i < layer_num; i++)
+		w_align *= 2;
+
+	width = ALIGN(w, w_align);
+	return width;
+}
+
+static uint32_t dcampath_dec_align_heigh(uint32_t h, uint32_t layer_num)
+{
+	uint32_t height = 0, i = 0;
+	uint32_t h_align = PYR_DEC_HEIGHT_ALIGN;
+
+	for (i = 0; i < layer_num; i++)
+		h_align *= 2;
+
+	height = ALIGN(h, h_align);
+	return height;
+}
+
+static int dcampath_pyr_dec_cfg(struct dcam_path_desc *path,
+		struct camera_frame *frame, struct cam_hw_info *hw, uint32_t idx)
+{
+	int ret = 0, i = 0;
+	uint32_t offset = 0, align = 1, size = 0;
+	uint32_t align_w = 0, align_h = 0;
+	struct dcam_hw_dec_store_cfg dec_store;
+	struct dcam_hw_dec_online_cfg dec_online;
+
+	if (!path || !frame || !hw) {
+		pr_err("fail to check param, path%px, frame%px\n", path, frame);
+		return -EINVAL;
+	}
+
+	memset(&dec_store, 0, sizeof(struct dcam_hw_dec_store_cfg));
+	memset(&dec_online, 0, sizeof(struct dcam_hw_dec_online_cfg));
+
+	align_w = dcampath_dec_align_width(path->out_size.w, DCAM_PYR_DEC_LAYER_NUM);
+	align_h = dcampath_dec_align_heigh(path->out_size.h, DCAM_PYR_DEC_LAYER_NUM);
+	size = path->out_pitch * path->out_size.h;
+
+	dec_online.idx = idx;
+	dec_online.layer_num = DCAM_PYR_DEC_LAYER_NUM;
+	dec_online.chksum_clr_mode = 0;
+	dec_online.chksum_work_mode = 0;
+	dec_online.path_sel = DACM_DEC_PATH_DEC;
+	dec_online.hor_padding_num = align_w - path->out_size.w;
+	dec_online.ver_padding_num = align_h - path->out_size.h;
+	if (dec_online.hor_padding_num)
+		dec_online.hor_padding_en = 1;
+	if (dec_online.ver_padding_num)
+		dec_online.ver_padding_en = 1;
+	hw->dcam_ioctl(hw, DCAM_HW_CFG_DEC_ONLINE, &dec_online);
+
+	dec_store.idx = idx;
+	dec_store.bypass = 0;
+	dec_store.endian = path->endian.y_endian;
+	if (path->out_fmt == DCAM_STORE_FRGB)
+		dec_store.color_format = 0;
+	else if (path->out_fmt == DCAM_STORE_YUV422)
+		dec_store.color_format = 1;
+	else if (path->out_fmt == DCAM_STORE_YVU422)
+		dec_store.color_format = 2;
+	else if (path->out_fmt == DCAM_STORE_YUV420)
+		dec_store.color_format = 4;
+	else if (path->out_fmt == DCAM_STORE_YVU420)
+		dec_store.color_format = 5;
+	dec_store.border_up = 0;
+	dec_store.border_down = 0;
+	dec_store.border_left = 0;
+	dec_store.border_right = 0;
+	dec_store.data_10b = (path->data_bits > DCAM_STORE_8_BIT) ? 1 : 0;
+	dec_store.flip_en = 0;
+	dec_store.last_frm_en = 1;
+	dec_store.mirror_en = 0;
+	dec_store.mono_en = 0;
+	dec_store.speed2x = 1;
+	dec_store.rd_ctrl = 0;
+	dec_store.store_res = 1;
+
+	for (i = 0; i < DCAM_PYR_DEC_LAYER_NUM; i++) {
+		align = align * 2;
+		offset += (size * 3 / 2);
+		dec_store.cur_layer = i;
+		dec_store.width = align_w / align;
+		dec_store.height = align_h / align;
+		dec_store.pitch[0] = cal_sprd_yuv_pitch(dec_store.width,
+			path->data_bits, path->is_pack);
+		dec_store.pitch[1] = dec_store.pitch[0];
+		size = dec_store.pitch[0] * dec_store.height;
+		dec_store.addr[0] = frame->buf.iova[0] + offset;
+		dec_store.addr[1] = dec_store.addr[0] + size;
+		hw->dcam_ioctl(hw, DCAM_HW_CFG_DEC_STORE_ADDR, &dec_store);
+		/* when zoom, if necessary size update may set with path size udapte
+		 thus, the dec_store need remember on path or ctx, and calc & reg set
+		 need separate too, now just */
+		hw->dcam_ioctl(hw, DCAM_HW_CFG_DEC_SIZE_UPDATE, &dec_store);
+	}
+
+	return ret;
+}
+
 int dcam_path_fmcu_slw_store_buf_set(
 		struct dcam_path_desc *path,
 		struct dcam_sw_context *sw_ctx,
@@ -680,6 +786,8 @@ int dcam_path_store_frm_set(void *dcam_ctx_handle,
 		store_arg.in_fmt = dcam_sw_ctx->cap_info.format;
 		hw->dcam_ioctl(hw, DCAM_HW_CFG_STORE_ADDR, &store_arg);
 	}
+	if (path_id == DCAM_PATH_BIN && frame->need_pyr_rec)
+		dcampath_pyr_dec_cfg(path, frame, hw, idx);
 	if (saved)
 		dcampath_frame_pointer_swap(&frame, &saved);
 

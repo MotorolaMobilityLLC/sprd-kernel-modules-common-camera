@@ -19,6 +19,7 @@ extern "C" {
 #endif
 
 #include "cam_queue.h"
+#include "isp_slice.h"
 
 #define PYR_REC_ADDR_NUM        ISP_PYR_DEC_LAYER_NUM + 1
 
@@ -154,6 +155,7 @@ enum isp_rec_cfg_cmd {
 	ISP_REC_CFG_WORK_MODE,
 	ISP_REC_CFG_HW_CTX_IDX,
 	ISP_REC_CFG_FMCU_HANDLE,
+	ISP_REC_CFG_DEWARPING_EB,
 	ISP_REC_CFG_MAX,
 };
 
@@ -163,12 +165,23 @@ struct isp_rec_ops {
 };
 
 struct isp_pyr_rec_in {
-	uint32_t in_w;
-	uint32_t in_h;
-	uint32_t in_pitch[3];
-	uint32_t in_addr[3];
-	struct isp_hw_fetch_info in_fetch;
-	struct isp_hw_path_store out_store;
+	uint32_t in_fmt;
+	struct img_size src;
+	struct img_trim in_trim;
+	struct img_addr in_addr;
+	struct img_addr out_addr;
+	uint32_t slice_num[ISP_PYR_DEC_LAYER_NUM];
+};
+
+struct isp_rec_slice_desc {
+	struct slice_pos_info slice_fetch0_pos;
+	struct slice_pos_info slice_fetch1_pos;
+	struct slice_pos_info slice_store_pos;
+	struct slice_overlap_info slice_overlap;
+	struct slice_fetch_info slice_ref_fetch;
+	struct slice_fetch_info slice_cur_fetch;
+	struct slice_pyr_rec_info slice_pyr_rec;
+	struct slice_store_info slice_rec_store;
 };
 
 struct isp_rec_ctx_desc {
@@ -177,6 +190,9 @@ struct isp_rec_ctx_desc {
 	uint32_t in_fmt;
 	uint32_t out_fmt;
 	uint32_t hw_ctx_id;
+	uint32_t slice_num;
+	uint32_t dewarp_eb;
+	uint32_t cur_slice_id;
 	enum isp_work_mode wmode;
 	struct img_addr fetch_addr[PYR_REC_ADDR_NUM];
 	struct img_addr store_addr[ISP_PYR_DEC_LAYER_NUM];
@@ -193,6 +209,8 @@ struct isp_rec_ctx_desc {
 	struct isp_rec_cnr_info rec_cnr;
 	struct isp_pyr_rec_info pyr_rec;
 	struct isp_rec_store_info rec_store;
+
+	struct isp_rec_slice_desc slices[SLICE_NUM_MAX];
 
 	struct isp_rec_ops ops;
 	struct cam_hw_info *hw;

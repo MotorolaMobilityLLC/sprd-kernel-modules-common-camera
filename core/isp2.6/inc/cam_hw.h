@@ -60,6 +60,7 @@ enum isp_k_blk_idx {
 	ISP_K_BLK_PYR_REC_SHARE,
 	ISP_K_BLK_PYR_REC_FRAME,
 	ISP_K_BLK_PYR_REC_SLICE,
+	ISP_K_BLK_PYR_REC_SLICE_COMMON,
 	ISP_K_BLK_DEWARP_CACHE_CFG,
 	ISP_K_BLK_DEWARP_CFG,
 	ISP_K_BLK_MAX
@@ -82,6 +83,13 @@ enum dcam_full_src_sel_type {
 	BPC_RAW_SRC_SEL,
 	PROCESS_RAW_SRC_SEL,
 	MAX_RAW_SRC_SEL
+};
+
+/* 0 for normal dec, 1 for receive 4 yuv sensor data */
+enum dcam_dec_path_sel {
+	DACM_DEC_PATH_DEC,
+	DCAM_DEC_PATH_YUV_DECI,
+	DCAM_DEC_PATH_MAX,
 };
 
 enum cam_reg_trace_type {
@@ -184,6 +192,9 @@ enum dcam_hw_cfg_cmd {
 	DCAM_HW_CFG_GTM_LTM_EB,
 	DCAM_HW_CFG_GTM_LTM_DIS,
 	DCAM_HW_CFG_GTM_UPDATE,
+	DCAM_HW_CFG_DEC_ONLINE,
+	DCAM_HW_CFG_DEC_STORE_ADDR,
+	DCAM_HW_CFG_DEC_SIZE_UPDATE,
 	DCAM_HW_CFG_MAX
 };
 
@@ -225,6 +236,7 @@ enum isp_hw_cfg_cmd {
 	ISP_HW_CFG_SLICE_FETCH,
 	ISP_HW_CFG_SLICE_NR_INFO,
 	ISP_HW_CFG_SLICE_FMCU_CMD,
+	ISP_HW_CFG_SLICE_FMCU_PYR_REC_CMD,
 	ISP_HW_CFG_SLICE_NOFILTER,
 	ISP_HW_CFG_SLICE_3DNR_CROP,
 	ISP_HW_CFG_SLICE_3DNR_STORE,
@@ -277,6 +289,10 @@ enum isp_store_format {
 	ISP_STORE_YVU420_2FRAME,
 	ISP_STORE_YUV420_3FRAME,
 	ISP_STORE_FULL_RGB,
+	ISP_STORE_YUV420_2FRAME_10,
+	ISP_STORE_YVU420_2FRAME_10,
+	ISP_STORE_YUV420_2FRAME_MIPI,
+	ISP_STORE_YVU420_2FRAME_MIPI,
 	ISP_STORE_FORMAT_MAX
 };
 
@@ -293,6 +309,10 @@ enum isp_fetch_format {
 	ISP_FETCH_FULL_RGB10,
 	ISP_FETCH_YUV420_2FRAME,
 	ISP_FETCH_YVU420_2FRAME,
+	ISP_FETCH_YUV420_2FRAME_10,
+	ISP_FETCH_YVU420_2FRAME_10,
+	ISP_FETCH_YUV420_2FRAME_MIPI,
+	ISP_FETCH_YVU420_2FRAME_MIPI,
 	ISP_FETCH_FORMAT_MAX
 };
 
@@ -1039,6 +1059,45 @@ struct dcam_hw_cfg_store_addr {
 	uint32_t out_pitch;
 	uint32_t reg_addr;
 	struct img_size out_size;
+};
+
+struct dcam_hw_dec_store_cfg {
+	uint32_t idx;
+	uint32_t cur_layer;
+	uint32_t bypass;
+	uint32_t endian;
+	uint32_t mono_en;
+	uint32_t color_format;
+	uint32_t burst_len;
+	uint32_t mirror_en;
+	uint32_t flip_en;
+	uint32_t data_10b;
+	uint32_t speed2x;
+	uint32_t shadow_clr_sel;
+	uint32_t pitch[3];
+	uint32_t addr[3];
+	uint32_t width;
+	uint32_t height;
+	uint32_t border_up;
+	uint32_t border_down;
+	uint32_t border_left;
+	uint32_t border_right;
+	uint32_t rd_ctrl;
+	uint32_t store_res;
+	uint32_t shadow_clr;
+	uint32_t last_frm_en;
+};
+
+struct dcam_hw_dec_online_cfg {
+	uint32_t idx;
+	uint32_t layer_num;
+	enum dcam_dec_path_sel path_sel;
+	uint32_t chksum_clr_mode;
+	uint32_t chksum_work_mode;
+	uint32_t hor_padding_en;
+	uint32_t hor_padding_num;
+	uint32_t ver_padding_en;
+	uint32_t ver_padding_num;
 };
 
 struct dcam_hw_fmcu_cmd {

@@ -239,6 +239,7 @@ struct channel_context {
 	struct camera_frame *ltm_bufs[LTM_MAX][ISP_LTM_BUF_NUM];
 	struct camera_frame *res_frame;
 	struct camera_frame *pyr_rec_buf;
+	struct camera_frame *pyr_dec_buf[ISP_PYR_DEC_BUF_NUM];
 	int32_t reserved_buf_fd;
 
 	/* dcam/isp shared frame buffer for full path */
@@ -1671,6 +1672,7 @@ static int camcore_buffers_alloc(void *param)
 		height = height /2;
 		/* rec temp buf max size is equal to layer1 size: w/2 * h/2 */
 		size = width * height * 3 / 2;
+		size = ALIGN(size, CAM_BUF_ALIGN_SIZE);
 		pframe = cam_queue_empty_frame_get();
 		if (channel->ch_id == CAM_CH_PRE && sec_mode == SEC_TIME_PRIORITY)
 			pframe->buf.buf_sec = 1;
@@ -1686,6 +1688,28 @@ static int camcore_buffers_alloc(void *param)
 		channel->pyr_rec_buf = pframe;
 		pr_debug("idx %d, pyr_rec w %d, h %d, buf %p\n",
 			module->dcam_idx, postproc_w, postproc_h, pframe);
+	}
+
+	if (module->cam_uinfo.is_pyr_dec) {
+		width = channel->swap_size.w;
+		height = channel->swap_size.h;
+		size = isp_cal_pyramid_dec_size(width, height);
+		size = ALIGN(size, CAM_BUF_ALIGN_SIZE);
+		for (i = 0; i < ISP_PYR_DEC_BUF_NUM; i++) {
+			pframe = cam_queue_empty_frame_get();
+			if (channel->ch_id == CAM_CH_PRE && sec_mode == SEC_TIME_PRIORITY)
+				pframe->buf.buf_sec = 1;
+			pframe->width = width;
+			pframe->height = height;
+			ret = cam_buf_alloc(&pframe->buf, size, iommu_enable);
+			if (ret) {
+				pr_err("fail to alloc superzoom buf\n");
+				cam_queue_empty_frame_put(pframe);
+				atomic_inc(&channel->err_status);
+				goto exit;
+			}
+			channel->pyr_dec_buf[i] = pframe;
+		}
 	}
 
 exit:

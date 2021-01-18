@@ -360,10 +360,11 @@ static int ispcore_rec_frame_process(struct isp_sw_context *pctx,
 	rec_ctx = (struct isp_rec_ctx_desc *)pctx->rec_handle;
 
 	if (pframe->need_pyr_rec) {
-		cfg_in.in_fetch.addr = pipe_in->fetch.addr;
-		cfg_in.in_fetch.in_trim = pipe_in->fetch.in_trim;
-		cfg_in.out_store.store.addr = pipe_in->store[ISP_SPATH_CP].store.addr;
-		cfg_in.out_store.store.size = pipe_in->store[ISP_SPATH_CP].store.size;
+		cfg_in.in_fmt = pipe_in->fetch.fetch_fmt;
+		cfg_in.src = pipe_in->fetch.src;
+		cfg_in.in_trim = pipe_in->fetch.in_trim;
+		cfg_in.in_addr = pipe_in->fetch.addr;
+		cfg_in.out_addr = pipe_in->store[ISP_SPATH_CP].store.addr;
 	}
 
 	if (rec_ctx) {
@@ -1641,6 +1642,9 @@ static int ispcore_offline_frame_start(void *ctx)
 			if ((i < AFBC_PATH_NUM) && pctx->pipe_src.path_info[i].store_fbc)
 				slc_cfg.frame_afbc_store[i] = &pctx->pipe_info.afbc[i].afbc_store;
 		}
+
+		/* if dewarp is eb rec layer0 proc in rec_frame_process */
+		slc_cfg.pyr_rec_eb = (pctx->pipe_src.is_dewarping == 0) ? pframe->need_pyr_rec : 0;
 		slc_cfg.ltm_rgb_eb = pctx->pipe_src.ltm_rgb;
 		slc_cfg.ltm_yuv_eb = pctx->pipe_src.ltm_yuv;
 		slc_cfg.gtm_rgb_eb = pctx->pipe_src.gtm_rgb;
@@ -1650,7 +1654,7 @@ static int ispcore_offline_frame_start(void *ctx)
 		slc_cfg.frame_in_size.h = pctx->pipe_src.crop.size_y;
 		slc_cfg.nr3_ctx = (struct isp_3dnr_ctx_desc *)pctx->nr3_handle;
 		slc_cfg.rgb_ltm = (struct isp_ltm_ctx_desc *)pctx->rgb_ltm_handle;
-		slc_cfg.yuv_ltm = (struct isp_ltm_ctx_desc *)pctx->yuv_ltm_handle;;
+		slc_cfg.yuv_ltm = (struct isp_ltm_ctx_desc *)pctx->yuv_ltm_handle;
 		slc_cfg.rgb_gtm = (struct isp_gtm_ctx_desc *)pctx->rgb_gtm_handle;
 		slc_cfg.nofilter_ctx = &pctx->isp_k_param;
 		isp_slice_info_cfg(&slc_cfg, pctx->slice_ctx);

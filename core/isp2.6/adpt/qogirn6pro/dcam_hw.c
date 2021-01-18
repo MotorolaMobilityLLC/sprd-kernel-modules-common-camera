@@ -2286,6 +2286,114 @@ static int dcamhw_slw_fmcu_cmds(void *handle, void *arg)
 	return 0;
 }
 
+static int dcamhw_dec_online(void *handle, void *arg)
+{
+	uint32_t idx = 0, val = 0;
+	struct dcam_hw_dec_online_cfg *param = NULL;
+
+	if (!handle || !arg) {
+		pr_err("fail to get valid handle or arg\n");
+		return -1;
+	}
+
+	param = (struct dcam_hw_dec_online_cfg *)arg;
+	idx = param->idx;
+
+	val = (param->layer_num & 0x7) | ((param->chksum_clr_mode & 0x1) << 3)
+		| ((param->chksum_work_mode & 0x1) << 4);
+	DCAM_REG_WR(idx, DCAM_DEC_ONLINE_PARAM, val);
+
+	if(param->path_sel == DACM_DEC_PATH_DEC)
+		DCAM_REG_MWR(idx, DCAM_PATH_SEL, BIT_20|BIT_21|BIT_22|BIT_23, 0);
+	else if (param->path_sel == DCAM_DEC_PATH_YUV_DECI)
+		DCAM_REG_MWR(idx, DCAM_PATH_SEL, BIT_20|BIT_21|BIT_22|BIT_23, 0xF << 20);
+	else {
+		pr_err("fail to support path_sel %d\n", param->path_sel);
+		return -1;
+	}
+
+	val = (param->hor_padding_en & 0x1) | ((param->hor_padding_num & 0xefff) << 1)
+		| ((param->ver_padding_en & 0x1) << 16) | ((param->ver_padding_num & 0x7f) << 17);
+	DCAM_REG_WR(idx, DCAM_DEC_ONLINE_PARAM1, val);
+
+	return 0;
+}
+
+static int dcamhw_dec_store_addr(void *handle, void *arg)
+{
+	uint32_t idx = 0, base = 0;
+	uint32_t reg_base[4] = {
+		DCAM_STORE_DEC_L1_BASE,
+		DCAM_STORE_DEC_L2_BASE,
+		DCAM_STORE_DEC_L3_BASE,
+		DCAM_STORE_DEC_L4_BASE
+	};
+	struct dcam_hw_dec_store_cfg *param = NULL;
+
+	if (!handle || !arg) {
+		pr_err("fail to get valid handle or arg\n");
+		return -1;
+	}
+
+	param = (struct dcam_hw_dec_store_cfg *)arg;
+	idx = param->idx;
+	base = reg_base[param->cur_layer];
+
+	DCAM_REG_WR(idx, base + DCAM_STORE_DEC_SLICE_Y_ADDR, param->addr[0]);
+	DCAM_REG_WR(idx, base + DCAM_STORE_DEC_SLICE_U_ADDR, param->addr[1]);
+	DCAM_REG_WR(idx, base + DCAM_STORE_DEC_SLICE_V_ADDR, param->addr[2]);
+
+	return 0;
+}
+
+static int dcamhw_dec_size_update(void *handle, void *arg)
+{
+	uint32_t idx = 0, base = 0, val = 0;
+	uint32_t reg_base[4] = {
+		DCAM_STORE_DEC_L1_BASE,
+		DCAM_STORE_DEC_L2_BASE,
+		DCAM_STORE_DEC_L3_BASE,
+		DCAM_STORE_DEC_L4_BASE
+	};
+	struct dcam_hw_dec_store_cfg *param = NULL;
+
+	if (!handle || !arg) {
+		pr_err("fail to get valid handle or arg\n");
+		return -1;
+	}
+
+	param = (struct dcam_hw_dec_store_cfg *)arg;
+	idx = param->idx;
+	base = reg_base[param->cur_layer];
+
+	DCAM_REG_MWR(idx, base + DCAM_STORE_DEC_PARAM, BIT_0, param->bypass);
+	if (param->bypass)
+		return 0;
+
+	val = ((param->burst_len & 1) << 1) | ((param->speed2x & 1) << 2) |
+		((param->mirror_en & 1) << 3) | ((param->color_format & 0xF) << 4) |
+		((param->endian & 3) << 8) | ((param->mono_en & 1) << 10)|
+		((param->data_10b & 1) << 11)| ((param->flip_en & 1) << 12) |
+		((param->last_frm_en & 3) << 13);
+	DCAM_REG_MWR(idx, base + DCAM_STORE_DEC_PARAM, 0x3FFE, val);
+
+	val = (param->width & 0xffff) | ((param->height & 0xffff) << 16);
+	DCAM_REG_WR(idx, base + DCAM_STORE_DEC_SLICE_SIZE, val);
+
+	val = (param->border_up & 0xff) | ((param->border_down & 0xff) << 8) |
+		((param->border_left & 0xff) << 16) | ((param->border_right & 0xff) << 24);
+	DCAM_REG_WR(idx, base + DCAM_STORE_DEC_BORDER, val);
+
+	DCAM_REG_WR(idx, base + DCAM_STORE_DEC_Y_PITCH, param->pitch[0]);
+	DCAM_REG_WR(idx, base + DCAM_STORE_DEC_U_PITCH, param->pitch[1]);
+	DCAM_REG_WR(idx, base + DCAM_STORE_DEC_V_PITCH, param->pitch[2]);
+
+	val = (param->rd_ctrl & 0x3) | ((param->store_res & 0x3fffffff) << 2);
+	DCAM_REG_WR(idx, base + DCAM_STORE_DEC_READ_CTRL, val);
+
+	return 0;
+}
+
 static struct hw_io_ctrl_fun dcam_ioctl_fun_tab[] = {
 	{DCAM_HW_CFG_ENABLE_CLK,            dcamhw_clk_eb},
 	{DCAM_HW_CFG_DISABLE_CLK,           dcamhw_clk_dis},
@@ -2335,6 +2443,9 @@ static struct hw_io_ctrl_fun dcam_ioctl_fun_tab[] = {
 	{DCAM_HW_CFG_FMCU_START,            dcamhw_fmcu_start},
 	{DCAM_HW_FMCU_EBABLE,               dcamm_fmcu_enable},
 	{DCAM_HW_CFG_SLW_FMCU_CMDS,         dcamhw_slw_fmcu_cmds},
+	{DCAM_HW_CFG_DEC_ONLINE,            dcamhw_dec_online},
+	{DCAM_HW_CFG_DEC_STORE_ADDR,        dcamhw_dec_store_addr},
+	{DCAM_HW_CFG_DEC_SIZE_UPDATE,       dcamhw_dec_size_update},
 
 };
 

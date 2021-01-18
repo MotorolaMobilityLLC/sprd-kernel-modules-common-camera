@@ -102,9 +102,10 @@ int isp_path_comn_uinfo_set(struct isp_sw_context *pctx, void *param)
 		yuv_ltm->ltm_ops.core_ops.cfg_param(yuv_ltm, ISP_LTM_CFG_MODE, &uinfo->mode_ltm);
 		yuv_ltm->ltm_ops.sync_ops.set_status(yuv_ltm, 1);
 	}
-	if (rec_ctx)
+	if (rec_ctx) {
 		rec_ctx->ops.cfg_param(rec_ctx, ISP_REC_CFG_LAYER_NUM, &uinfo->pyr_layer_num);
-
+		rec_ctx->ops.cfg_param(rec_ctx, ISP_REC_CFG_DEWARPING_EB, &uinfo->is_dewarping);
+	}
 	if (rgb_gtm) {
 		rgb_gtm->gtm_ops.cfg_param(rgb_gtm, ISP_GTM_CFG_EB, &uinfo->gtm_rgb);
 		rgb_gtm->gtm_ops.cfg_param(rgb_gtm, ISP_GTM_CFG_MODE, &uinfo->mode_gtm);
@@ -112,7 +113,7 @@ int isp_path_comn_uinfo_set(struct isp_sw_context *pctx, void *param)
 
 	pctx->ch_id = cfg_in->ch_id;
 
-        pr_debug("ctx%d, in_fmt 0x%x, %d %d mode_ltm %d ltm_eb %d, mode_gtm %d gtm_eb %d,slw_state %d 3dnr: %d\n",
+	pr_debug("ctx%d, in_fmt 0x%x, %d %d mode_ltm %d ltm_eb %d, mode_gtm %d gtm_eb %d,slw_state %d 3dnr: %d\n",
 		pctx->ctx_id, uinfo->in_fmt, uinfo->pack_bits, uinfo->bayer_pattern, uinfo->mode_ltm,
 		uinfo->ltm_rgb, uinfo->mode_gtm, uinfo->gtm_rgb, uinfo->slw_state, uinfo->mode_3dnr);
 	return ret;
