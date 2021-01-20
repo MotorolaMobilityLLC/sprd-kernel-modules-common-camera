@@ -85,6 +85,8 @@ int isp_path_comn_uinfo_set(struct isp_sw_context *pctx, void *param)
 	uinfo->mode_3dnr = cfg_in->mode_3dnr;
 	uinfo->is_pack = cfg_in->is_pack;
 	uinfo->data_in_bits = cfg_in->data_in_bits;
+	if (cfg_in->data_in_bits == DCAM_STORE_8_BIT)
+		uinfo->is_pack = 0;
 	uinfo->pyr_layer_num = cfg_in->pyr_layer_num;
 	if (rgb_ltm) {
 		rgb_ltm->ltm_ops.core_ops.cfg_param(rgb_ltm, ISP_LTM_CFG_EB, &uinfo->ltm_rgb);

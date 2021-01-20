@@ -91,17 +91,13 @@ static inline uint32_t cal_sprd_raw_pitch(uint32_t w, uint32_t pack_bits)
 	return w;
 }
 
-static inline uint32_t dcam_if_cal_compressed_size(uint32_t fmt, uint32_t data_bits, uint32_t width,
-					uint32_t height, uint32_t compress_4bit_bypass, struct dcam_compress_info *fbc_info)
+static inline uint32_t dcam_if_cal_compressed_size(struct dcam_compress_cal_para *para)
 {
 	pr_debug("qogirl6 not support fbc\n");
 	return 0;
 }
 
-static inline void dcam_if_cal_compressed_addr(uint32_t width, uint32_t height,
-						struct dcam_compress_info *fbc_info,
-						unsigned long in, struct compressed_addr *out,
-						uint32_t compress_4bit_bypass)
+static inline void dcam_if_cal_compressed_addr(struct dcam_compress_cal_para *para)
 {
 	pr_debug("qogirl6 not support fbc\n");
 }

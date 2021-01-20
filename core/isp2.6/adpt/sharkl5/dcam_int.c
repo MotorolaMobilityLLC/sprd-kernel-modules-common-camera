@@ -266,11 +266,18 @@ static int dcamint_frame_check(struct dcam_hw_context *dcam_hw_ctx,
 	if (frame->is_compressed) {
 		struct compressed_addr compressed_addr;
 		struct img_size *size = &path->out_size;
+		struct dcam_compress_cal_para cal_fbc;
 
-		dcam_if_cal_compressed_addr(size->w, size->h,
-					    &frame->fbc_info, frame->buf.iova[0],
-					    &compressed_addr,
-					    frame->compress_4bit_bypass);
+		cal_fbc.compress_4bit_bypass = frame->compress_4bit_bypass;
+		cal_fbc.data_bits = path->data_bits;
+		cal_fbc.fbc_info = &frame->fbc_info;
+		cal_fbc.in = frame->buf.iova[0];
+		cal_fbc.fmt = path->out_fmt;
+		cal_fbc.height = size->h;
+		cal_fbc.width = size->w;
+		cal_fbc.out = &compressed_addr;
+		dcam_if_cal_compressed_addr(&cal_fbc);
+
 		frame_addr = compressed_addr.addr2;
 	} else {
 		frame_addr = frame->buf.iova[0];

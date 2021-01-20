@@ -1714,12 +1714,18 @@ static inline void dcamcore_frame_info_show(struct dcam_sw_context *pctx,
 			struct camera_frame *frame)
 {
 	uint32_t size = 0, pack_bits = 0;
+	struct dcam_compress_cal_para cal_fbc = {0};
 
 	pack_bits = path->pack_bits;
-	if (frame->is_compressed)
-		size = dcam_if_cal_compressed_size (path->out_fmt, path->data_bits, frame->width, frame->height,
-						frame->compress_4bit_bypass, &frame->fbc_info);
-	else
+	if (frame->is_compressed) {
+		cal_fbc.compress_4bit_bypass = frame->compress_4bit_bypass;
+		cal_fbc.data_bits = path->data_bits;
+		cal_fbc.fbc_info = &frame->fbc_info;
+		cal_fbc.fmt = path->out_fmt;
+		cal_fbc.height = frame->height;
+		cal_fbc.width = frame->width;
+		size = dcam_if_cal_compressed_size (&cal_fbc);
+	} else
 		size = cal_sprd_raw_pitch(frame->width, pack_bits) * frame->height;
 
 	pr_debug("DCAM%u %s frame %u %u size %u %u buf %08lx %08x\n",

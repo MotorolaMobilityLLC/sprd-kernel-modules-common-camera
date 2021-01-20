@@ -145,6 +145,7 @@ struct slice_afbc_store_info {
 };
 
 struct slice_fetch_info {
+	uint32_t is_pack;
 	struct img_size size;
 	struct img_addr addr;
 	uint32_t mipi_byte_rel_pos;

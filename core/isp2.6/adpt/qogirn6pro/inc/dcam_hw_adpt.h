@@ -102,25 +102,24 @@ static inline uint32_t cal_sprd_raw_pitch(uint32_t w, uint32_t pack_bits)
 	return w;
 }
 
-static inline uint32_t dcam_if_cal_compressed_size(uint32_t fmt, uint32_t data_bits, uint32_t width,
-					uint32_t height, uint32_t bypass_4bit, struct dcam_compress_info *fbc_info)
+static inline uint32_t dcam_if_cal_compressed_size(struct dcam_compress_cal_para *para)
 {
 	uint32_t payload_size = 0, lowbits_size = 0;
 	int32_t tile_col = 0, tile_row = 0, header_size = 0, payload_unit = 0;
 
-	if (fmt & DCAM_STORE_RAW_BASE)
+	if (para->fmt & DCAM_STORE_RAW_BASE)
 		payload_unit = FBC_PAYLOAD_RAW10_BYTE_UNIT;
 	else {
-		if (data_bits == DCAM_STORE_10_BIT)
+		if (para->data_bits == DCAM_STORE_10_BIT)
 			payload_unit = FBC_PAYLOAD_YUV10_BYTE_UNIT;
 		else
 			payload_unit = FBC_PAYLOAD_YUV8_BYTE_UNIT;
 	}
-	tile_col = (width + DCAM_FBC_TILE_WIDTH - 1) / DCAM_FBC_TILE_WIDTH;
-	if (fmt & DCAM_STORE_RAW_BASE)
-		tile_row = (height + DCAM_FBC_TILE_HEIGHT * 2 - 1) / DCAM_FBC_TILE_HEIGHT / 2;
+	tile_col = (para->width + DCAM_FBC_TILE_WIDTH - 1) / DCAM_FBC_TILE_WIDTH;
+	if (para->fmt & DCAM_STORE_RAW_BASE)
+		tile_row = (para->height + DCAM_FBC_TILE_HEIGHT * 2 - 1) / DCAM_FBC_TILE_HEIGHT / 2;
 	else
-		tile_row = (height + DCAM_FBC_TILE_HEIGHT - 1) / DCAM_FBC_TILE_HEIGHT;
+		tile_row = (para->height + DCAM_FBC_TILE_HEIGHT - 1) / DCAM_FBC_TILE_HEIGHT;
 
 	/* header addr 16byte align, size 1024byte align*/
 	header_size = tile_col * tile_row * FBC_HEADER_BYTE_UNIT;
@@ -130,35 +129,63 @@ static inline uint32_t dcam_if_cal_compressed_size(uint32_t fmt, uint32_t data_b
 	payload_size= tile_col * tile_row * payload_unit;
 	payload_size = ALIGN(payload_size, FBC_STORE_ADDR_ALIGN);
 
-	if ((!bypass_4bit) && (fmt & DCAM_STORE_RAW_BASE))
+	if ((!para->compress_4bit_bypass) && (para->fmt & DCAM_STORE_RAW_BASE))
 		lowbits_size = payload_size >> 1;
+
+	return header_size + payload_size + lowbits_size;
+}
+
+static inline void dcam_if_cal_compressed_addr(struct dcam_compress_cal_para *para)
+{
+	uint32_t payload_size = 0, lowbits_size = 0;
+	int32_t tile_col = 0, tile_row = 0, header_size = 0, payload_unit = 0;
+	struct dcam_compress_info *fbc_info = para->fbc_info;
+
+	if (unlikely(!para|| !para->out))
+		return;
+
+	if (para->fmt & DCAM_STORE_RAW_BASE)
+		payload_unit = FBC_PAYLOAD_RAW10_BYTE_UNIT;
+	else {
+		if (para->data_bits == DCAM_STORE_10_BIT)
+			payload_unit = FBC_PAYLOAD_YUV10_BYTE_UNIT;
+		else
+			payload_unit = FBC_PAYLOAD_YUV8_BYTE_UNIT;
+	}
+	tile_col = (para->width + DCAM_FBC_TILE_WIDTH - 1) / DCAM_FBC_TILE_WIDTH;
+	if (para->fmt & DCAM_STORE_RAW_BASE)
+		tile_row = (para->height + DCAM_FBC_TILE_HEIGHT * 2 - 1) / DCAM_FBC_TILE_HEIGHT / 2;
+	else
+		tile_row = (para->height + DCAM_FBC_TILE_HEIGHT - 1) / DCAM_FBC_TILE_HEIGHT;
+
+	/* header addr 16byte align, size 1024byte align*/
+	header_size = tile_col * tile_row * FBC_HEADER_BYTE_UNIT;
+	header_size = ALIGN(header_size, FBC_TILE_HEAD_SIZE_ALIGN);
+
+	/*payload/lowbit addr 16byte align, lowbit addr = payload addr + payload size, so payload size 16byte align*/
+	payload_size= tile_col * tile_row * payload_unit;
+	payload_size = ALIGN(payload_size, FBC_STORE_ADDR_ALIGN);
+
+	if ((!para->compress_4bit_bypass) && (para->fmt & DCAM_STORE_RAW_BASE))
+		lowbits_size = payload_size >> 1;
+
+	para->out->addr0 = ALIGN(para->in, FBC_STORE_ADDR_ALIGN);
+	para->out->addr1 = ALIGN(para->out->addr0 + header_size, FBC_STORE_ADDR_ALIGN);
+
+	if (!para->compress_4bit_bypass) {
+		para->out->addr2 = ALIGN(para->out->addr1+ payload_size, FBC_STORE_ADDR_ALIGN);
+	}
+
 	if (fbc_info) {
 		fbc_info->tile_col = tile_col;
 		fbc_info->tile_row = tile_row;
 		fbc_info->is_compress = 1;
-		fbc_info->tile_row_lowbit = (width / 2 + FBC_LOWBIT_PITCH_ALIGN - 1) /
+		fbc_info->tile_row_lowbit = (para->width / 2 + FBC_LOWBIT_PITCH_ALIGN - 1) /
 						FBC_LOWBIT_PITCH_ALIGN * FBC_LOWBIT_PITCH_ALIGN;
 		fbc_info->header_size = header_size;
 		fbc_info->payload_size = payload_size;
 		fbc_info->lowbits_size = lowbits_size;
 		fbc_info->buffer_size = header_size + payload_size + lowbits_size;
-	}
-	return header_size + payload_size + lowbits_size;
-}
-
-static inline void dcam_if_cal_compressed_addr(uint32_t width, uint32_t height,
-						struct dcam_compress_info *fbc_info,
-						unsigned long in, struct compressed_addr *out,
-						uint32_t compress_4bit_bypass)
-{
-	if (unlikely(!out))
-		return;
-
-	out->addr0 = ALIGN(in, FBC_STORE_ADDR_ALIGN);
-	out->addr1 = ALIGN(out->addr0 + fbc_info->header_size, FBC_STORE_ADDR_ALIGN);
-
-	if (!compress_4bit_bypass) {
-		out->addr2 = ALIGN(out->addr1+ fbc_info->payload_size, FBC_STORE_ADDR_ALIGN);
 	}
 }
 

@@ -1143,16 +1143,22 @@ static void camcore_prepare_frame_from_file(struct camera_queue *queue,
 	const uint32_t per = 4096;
 	ktime_t start, stop;
 	int result = 0;
+	struct dcam_compress_cal_para cal_fbc = {0};
 
 	/* prepare 1st buffer */
 	frame = cam_queue_dequeue_tail(queue);
 	if (!frame)
 		return;
 
-	if (frame->is_compressed)
-		total= dcam_if_cal_compressed_size (fmt, data_bits, width, height,
-							frame->compress_4bit_bypass, &frame->fbc_info);
-	else
+	if (frame->is_compressed) {
+		cal_fbc.compress_4bit_bypass = frame->compress_4bit_bypass;
+		cal_fbc.data_bits = data_bits;
+		cal_fbc.fbc_info = &frame->fbc_info;
+		cal_fbc.fmt = fmt;
+		cal_fbc.height = height;
+		cal_fbc.width = width;
+		total= dcam_if_cal_compressed_size (&cal_fbc);
+	} else
 		total = cal_sprd_raw_pitch(width, pack_bits) * height;
 
 	strcpy(fullname, folder);
@@ -1411,6 +1417,7 @@ static int camcore_buffers_alloc(void *param)
 	struct camera_frame *alloc_buf = NULL;
 	uint32_t is_pack = 0;
 	struct dcam_compress_info fbc_info;
+	struct dcam_compress_cal_para cal_fbc = {0};
 
 	pr_info("enter.\n");
 
@@ -1444,8 +1451,13 @@ static int camcore_buffers_alloc(void *param)
 	is_pack = !pack_bits;
 
 	if (channel->compress_input) {
-		size = dcam_if_cal_compressed_size (channel->dcam_out_fmt, dcam_out_bits, width, height,
-							channel->compress_4bit_bypass, &fbc_info);
+		cal_fbc.compress_4bit_bypass = channel->compress_4bit_bypass;
+		cal_fbc.data_bits = dcam_out_bits;
+		cal_fbc.fbc_info = &fbc_info;
+		cal_fbc.fmt = channel->dcam_out_fmt;
+		cal_fbc.height = height;
+		cal_fbc.width = width;
+		size = dcam_if_cal_compressed_size (&cal_fbc);
 		pr_info("dcam fbc buffer size %u\n", size);
 	} else if (channel->dcam_out_fmt & DCAM_STORE_RAW_BASE) {
 		size = cal_sprd_raw_pitch(width, pack_bits) * height;
@@ -4777,12 +4789,20 @@ static int camcore_one_frame_dump(struct camera_module *module,
 	dcam_out_bits = module->cam_uinfo.sensor_if.if_spec.mipi.bits_per_pxl;
 	if (pframe->is_compressed) {
 		struct compressed_addr addr;
+		struct dcam_compress_cal_para cal_fbc;
 
-		size = dcam_if_cal_compressed_size (channel->dcam_out_fmt, dcam_out_bits, pframe->width,
-							pframe->height, pframe->compress_4bit_bypass, &fbc_info);
-		dcam_if_cal_compressed_addr(pframe->width, pframe->height,
-			&fbc_info, pframe->buf.iova[0], &addr,
-			pframe->compress_4bit_bypass);
+		cal_fbc.compress_4bit_bypass = pframe->compress_4bit_bypass;
+		cal_fbc.data_bits = dcam_out_bits;
+		cal_fbc.fbc_info = &fbc_info;
+		cal_fbc.in = pframe->buf.iova[0];
+		cal_fbc.fmt = channel->dcam_out_fmt;
+		cal_fbc.height = pframe->height;
+		cal_fbc.width = pframe->width;
+		cal_fbc.out = &addr;
+
+		size = dcam_if_cal_compressed_size (&cal_fbc);
+
+		dcam_if_cal_compressed_addr(&cal_fbc);
 		pframe->fbc_info = fbc_info;
 		sprintf(tmp_str, "_tile%08lx",
 			addr.addr1 - pframe->buf.iova[0]);

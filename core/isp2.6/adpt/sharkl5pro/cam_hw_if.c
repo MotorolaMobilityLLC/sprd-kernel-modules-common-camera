@@ -243,7 +243,7 @@ static int camhwif_dcam_ioctl(void *handle,
 	if (hw_ctrl != NULL)
 		ret = hw_ctrl(handle, arg);
 	else
-		pr_err("hw_core_ctrl_fun is null, cmd %d\n", cmd);
+		pr_debug("hw_core_ctrl_fun is null, cmd %d\n", cmd);
 
 	return ret;
 }
@@ -258,7 +258,7 @@ static int camhwif_isp_ioctl(void *handle,
 	if (hw_ctrl != NULL)
 		ret = hw_ctrl(handle, arg);
 	else
-		pr_err("hw_core_ctrl_fun is null, cmd %d\n", cmd);
+		pr_debug("hw_core_ctrl_fun is null, cmd %d\n", cmd);
 
 	return ret;
 }
@@ -273,7 +273,7 @@ static int camhwif_cam_ioctl(void *handle,
 	if (hw_ctrl != NULL)
 		ret = hw_ctrl(handle, arg);
 	else
-		pr_err("hw_core_ctrl_fun is null, cmd %d\n", cmd);
+		pr_debug("hw_core_ctrl_fun is null, cmd %d\n", cmd);
 
 	return ret;
 }

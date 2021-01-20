@@ -88,6 +88,8 @@ int dcam_path_base_cfg(void *dcam_ctx_handle,
 		path->out_fmt = ch_desc->dcam_out_fmt;
 		path->data_bits = ch_desc->dcam_out_bits;
 		path->is_pack = !ch_desc->pack_bits;
+		if (path->data_bits == DCAM_STORE_8_BIT)
+			path->is_pack = 0;
 		path->base_update = 1;
 		spin_unlock_irqrestore(&path->size_lock, flags);
 		break;
@@ -101,6 +103,8 @@ int dcam_path_base_cfg(void *dcam_ctx_handle,
 		path->out_fmt = ch_desc->dcam_out_fmt;
 		path->data_bits = ch_desc->dcam_out_bits;
 		path->is_pack = !ch_desc->pack_bits;
+		if (path->data_bits == DCAM_STORE_8_BIT)
+			path->is_pack = 0;
 		/*
 		 * TODO:
 		 * Better not binding dcam_if feature to BIN path, which is a
@@ -123,6 +127,8 @@ int dcam_path_base_cfg(void *dcam_ctx_handle,
 		path->out_fmt = ch_desc->dcam_out_fmt;
 		path->data_bits = ch_desc->dcam_out_bits;
 		path->is_pack = !ch_desc->pack_bits;
+		if (path->data_bits == DCAM_STORE_8_BIT)
+			path->is_pack = 0;
 		dcam_sw_ctx->raw_cap = ch_desc->raw_cap;
 		break;
 	case DCAM_PATH_VCH2:
@@ -641,11 +647,18 @@ int dcam_path_store_frm_set(void *dcam_ctx_handle,
 	if (frame->is_compressed) {
 		struct compressed_addr fbc_addr;
 		struct img_size *size = &path->out_size;
+		struct dcam_compress_cal_para cal_fbc;
 
-		dcam_if_cal_compressed_addr(size->w, size->h,
-			&frame->fbc_info, frame->buf.iova[0],
-			&fbc_addr,
-			frame->compress_4bit_bypass);
+		cal_fbc.compress_4bit_bypass = frame->compress_4bit_bypass;
+		cal_fbc.data_bits = path->data_bits;
+		cal_fbc.fbc_info = &frame->fbc_info;
+		cal_fbc.in = frame->buf.iova[0];
+		cal_fbc.fmt = path->out_fmt;
+		cal_fbc.height = size->h;
+		cal_fbc.width = size->w;
+		cal_fbc.out = &fbc_addr;
+		dcam_if_cal_compressed_addr(&cal_fbc);
+
 		fbc_info = frame->fbc_info;
 		fbcadr.idx = idx;
 		fbcadr.addr = addr;

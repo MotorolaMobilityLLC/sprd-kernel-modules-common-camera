@@ -1151,9 +1151,16 @@ static void ispslice_slice_fetch_cfg(struct isp_hw_fetch_info *frm_fetch,
 				& 0x0f]) + 1);
 			slc_fetch->mipi_byte_rel_pos_uv = slc_fetch->mipi_byte_rel_pos;
 			slc_fetch->mipi_word_num_uv = slc_fetch->mipi_word_num;
+			slc_fetch->is_pack = 1;
 		} else {
-			ch_offset[0] = start_row * pitch->pitch_ch0 + start_col;
-			ch_offset[1] = (start_row >> 1) * pitch->pitch_ch1 + start_col;
+			slc_fetch->is_pack = 0;
+			if (frm_fetch->data_bits == DCAM_STORE_8_BIT) {
+				ch_offset[0] = start_row * pitch->pitch_ch0 + start_col;
+				ch_offset[1] = (start_row >> 1) * pitch->pitch_ch1 + start_col;
+			} else {
+				ch_offset[0] = start_row * pitch->pitch_ch0 + start_col * 2;
+				ch_offset[1] = (start_row >> 1) * pitch->pitch_ch1 + start_col * 2;
+			}
 		}
 		pr_debug("(%d %d %d %d), pitch %d %d, offset %d %d, mipi %d %d\n",
 			start_row, start_col, end_row, end_col,
@@ -2510,7 +2517,6 @@ int isp_slice_fmcu_cmds_set(void *fmcu_handle, void *ctx)
 			fbd_slice.info = &cur_slc->slice_fbd_raw;
 			hw->isp_ioctl(hw, ISP_HW_CFG_FBD_SLICE_SET, &fbd_slice);
 		} else {
-			fetcharg.ctx_id = sw_ctx_id;
 			fetcharg.fmcu = fmcu;
 			fetcharg.fetch_info = &cur_slc->slice_fetch;
 			hw->isp_ioctl(fmcu, ISP_HW_CFG_SET_SLICE_FETCH, &fetcharg);

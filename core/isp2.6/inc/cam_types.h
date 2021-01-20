@@ -268,6 +268,24 @@ struct dcam_compress_info {
 	uint32_t buffer_size;
 };
 
+struct compressed_addr {
+	uint32_t addr0;
+	uint32_t addr1;
+	uint32_t addr2;
+	uint32_t addr3;
+};
+
+struct dcam_compress_cal_para {
+	uint32_t fmt;
+	uint32_t data_bits;
+	uint32_t width;
+	uint32_t height;
+	struct dcam_compress_info *fbc_info;
+	unsigned long in;
+	struct compressed_addr *out;
+	uint32_t compress_4bit_bypass;
+};
+
 enum dcam_store_format {
 	DCAM_STORE_FRGB = 0,
 	DCAM_STORE_YUV_BASE = 0x10,
@@ -291,12 +309,6 @@ struct cam_data_ctrl_in {
  * @addr1: tile address for raw, y tile address for yuv
  * @addr2: low 2 bit address for raw, uv tile address for yuv
  */
-struct compressed_addr {
-	uint32_t addr0;
-	uint32_t addr1;
-	uint32_t addr2;
-	uint32_t addr3;
-};
 
 extern struct camera_queue *g_empty_frm_q;
 extern struct camera_queue *g_empty_state_q;

@@ -220,12 +220,23 @@ static int ispdrv_fetch_normal_get(void *cfg_in, void *cfg_out,
 				+ 1;
 			fetch->mipi_byte_rel_pos_uv = fetch->mipi_byte_rel_pos;
 			fetch->mipi_word_num_uv = fetch->mipi_word_num;
+			trim_offset[0] = intrim->start_y * fetch->pitch.pitch_ch0 + (intrim->start_x >> 2) * 5 +
+				(intrim->start_x & 0x3);
+			trim_offset[1] = (intrim->start_y >> 1) * fetch->pitch.pitch_ch1 + (intrim->start_x >> 2) * 5 +
+				(intrim->start_x & 0x3);
 		} else {
-			fetch->pitch.pitch_ch0 = src->w;
-			fetch->pitch.pitch_ch1 = src->w;
+			if (fetch->data_bits == DCAM_STORE_8_BIT) {
+				fetch->pitch.pitch_ch0 = src->w;
+				fetch->pitch.pitch_ch1 = src->w;
+				trim_offset[0] = intrim->start_y * fetch->pitch.pitch_ch0 + intrim->start_x;
+				trim_offset[1] = intrim->start_y * fetch->pitch.pitch_ch1 / 2 + intrim->start_x;
+			} else {
+				fetch->pitch.pitch_ch0 = src->w * 2;
+				fetch->pitch.pitch_ch1 = src->w * 2;
+				trim_offset[0] = intrim->start_y * fetch->pitch.pitch_ch0 + intrim->start_x * 2;
+				trim_offset[1] = intrim->start_y * fetch->pitch.pitch_ch1 / 2 + intrim->start_x * 2;
+			}
 		}
-		trim_offset[0] = intrim->start_y * fetch->pitch.pitch_ch0 + intrim->start_x;
-		trim_offset[1] = intrim->start_y * fetch->pitch.pitch_ch1 / 2 + intrim->start_x;
 		fetch->addr.addr_ch1 = fetch->addr.addr_ch0 + fetch->pitch.pitch_ch0 * fetch->src.h;
 		pr_debug("y_addr: %x, pitch:: %x\n", fetch->addr.addr_ch0, fetch->pitch.pitch_ch0);
 		break;
@@ -305,6 +316,7 @@ static int ispdrv_fbd_raw_get(void *cfg_in, void *cfg_out,
 	int32_t tiles_num_pitch = 0;
 	struct isp_uinfo *pipe_src = NULL;
 	struct isp_fbd_raw_info *fbd_raw = NULL;
+	struct dcam_compress_cal_para cal_fbc;
 
 	if (!cfg_in || !cfg_out || !frame) {
 		pr_err("fail to get valid input ptr, %p, %p\n", cfg_in, cfg_out);
@@ -417,9 +429,16 @@ static int ispdrv_fbd_raw_get(void *cfg_in, void *cfg_out,
 			fbd_raw->low_4bit_addr_offset = 0;
 	}
 
-	dcam_if_cal_compressed_addr(fbd_raw->width, fbd_raw->height,
-			&frame->fbc_info, frame->buf.iova[0], &fbd_raw->hw_addr,
-			frame->compress_4bit_bypass);
+	cal_fbc.compress_4bit_bypass = frame->compress_4bit_bypass;
+	cal_fbc.data_bits = pipe_src->data_in_bits;
+	cal_fbc.fbc_info = &frame->fbc_info;
+	cal_fbc.in = frame->buf.iova[0];
+	cal_fbc.fmt = DCAM_STORE_RAW_BASE;
+	cal_fbc.height = fbd_raw->height;
+	cal_fbc.width = fbd_raw->width;
+	cal_fbc.out = &fbd_raw->hw_addr;
+
+	dcam_if_cal_compressed_addr(&cal_fbc);
 	/* store start address for slice use */
 	fbd_raw->header_addr_init = fbd_raw->hw_addr.addr1;
 	fbd_raw->tile_addr_init_x256 = fbd_raw->hw_addr.addr1;
@@ -441,6 +460,7 @@ static int ispdrv_fbd_yuv_get(void *cfg_in, void *cfg_out,
 	int32_t tile_col = 0, tile_row = 0;
 	struct isp_fbd_yuv_info *fbd_yuv = NULL;
 	struct isp_uinfo *pipe_src = NULL;
+	struct dcam_compress_cal_para cal_fbc;
 
 	if (!cfg_in || !cfg_out || !frame) {
 		pr_err("fail to get valid input ptr, %p, %p\n", cfg_in, cfg_out);
@@ -463,9 +483,19 @@ static int ispdrv_fbd_yuv_get(void *cfg_in, void *cfg_out,
 	fbd_yuv->slice_start_pxl_xpt = 0;
 	fbd_yuv->slice_start_pxl_ypt = 0;
 
-	dcam_if_cal_compressed_addr(fbd_yuv->slice_size.w, fbd_yuv->slice_size.h,
-			&frame->fbc_info, frame->buf.iova[0], &fbd_yuv->hw_addr,
-			frame->compress_4bit_bypass);
+	cal_fbc.compress_4bit_bypass = frame->compress_4bit_bypass;
+	cal_fbc.data_bits = pipe_src->data_in_bits;
+	cal_fbc.fbc_info = &frame->fbc_info;
+	cal_fbc.in = frame->buf.iova[0];
+	if (pipe_src->in_fmt == IMG_PIX_FMT_NV21)
+		cal_fbc.fmt = DCAM_STORE_YVU420;
+	else if (pipe_src->in_fmt == IMG_PIX_FMT_NV12)
+		cal_fbc.fmt = DCAM_STORE_YUV420;
+	cal_fbc.height = fbd_yuv->slice_size.h;
+	cal_fbc.width = fbd_yuv->slice_size.w;
+	cal_fbc.out = &fbd_yuv->hw_addr;
+
+	dcam_if_cal_compressed_addr(&cal_fbc);
 	/* store start address for slice use */
 	fbd_yuv->frame_header_base_addr = fbd_yuv->hw_addr.addr0;
 	fbd_yuv->slice_start_header_addr = fbd_yuv->frame_header_base_addr +

@@ -777,7 +777,6 @@ isp_hw_cfg_para:
 
 	/* dec/rec bypass*/
 	ISP_REG_MWR(idx, PYR_REC_CUR_FETCH_BASE + ISP_FETCH_PARAM0, BIT_0, 1);
-	ISP_REG_MWR(idx, PYR_DEC_FETCH_BASE + ISP_FETCH_PARAM0, BIT_0, 1);
 	ISP_REG_MWR(idx, ISP_DEC_OFFLINE_PARAM, BIT_0, 1);
 	ISP_REG_MWR(idx, ISP_YNR_DCT_PARAM, BIT_0, 1);
 	ISP_REG_MWR(idx, ISP_REC_PARAM, BIT_0, 1);
@@ -1046,7 +1045,7 @@ static int isphw_path_scaler_coeff_set(
 				arg.h_chroma_coeff_addr =  ISP_SCL_PATH_HOR_CORF_UV + ISP_YUV_CAP_SCL_COEF_ADDR1;
 			} else if (k ==1) {
 				arg.h_coeff_addr = ISP_SCL_PATH_HOR_CORF_Y + ISP_YUV_CAP_SCL_COEF1_ADDR1;
-				arg.h_chroma_coeff_addr =  ISP_SCL_PATH_HOR_CORF_UV + ISP_YUV_CAP_SCL_COEF_ADDR1;
+				arg.h_chroma_coeff_addr =  ISP_SCL_PATH_HOR_CORF_UV + ISP_YUV_CAP_SCL_COEF1_ADDR1;
 			} else if (k == 2){
 				arg.h_coeff_addr = ISP_SCL_PATH_HOR_CORF_Y + ISP_YUV_CAP_SCL_COEF2_ADDR1;
 				arg.h_chroma_coeff_addr =  ISP_SCL_PATH_HOR_CORF_UV + ISP_YUV_CAP_SCL_COEF2_ADDR1;
@@ -1587,6 +1586,9 @@ static int isphw_fetch_fbd_set(void *handle, void *arg)
 	fbd_yuv = (struct isp_fbd_yuv_info *)arg;
 	idx = fbd_yuv->ctx_id;
 
+	/* bypass normal fetch */
+	ISP_REG_MWR(idx, ISP_FETCH_BASE + ISP_FETCH_PARAM0,
+		    BIT(0), ~fbd_yuv->fetch_fbd_bypass);
 	ISP_REG_MWR(idx, ISP_YUV_AFBD_FETCH_BASE + ISP_AFBD_FETCH_SEL,
 		    BIT(0), fbd_yuv->fetch_fbd_bypass);
 	ISP_REG_MWR(idx, ISP_YUV_AFBD_FETCH_BASE + ISP_AFBD_FETCH_SEL, BIT(1), 1 << 1);
@@ -1603,7 +1605,6 @@ static int isphw_fetch_fbd_set(void *handle, void *arg)
 	return 0;
 }
 
-/* workaround: temp disable FMCU 1 for not working */
 static int isphw_fmcu_available(void *handle, void *arg)
 {
 	uint32_t fmcu_valid = 0;
@@ -2194,17 +2195,6 @@ static int isphw_slice_nr_info(void *handle, void *arg)
 	info = (struct isp_hw_slice_nr_info *)arg;
 	return 0;
 
-	/* NLM */
-	addr = ISP_NLM_RADIAL_1D_DIST;
-	cmd = ((info->cur_slc->slice_nlm.center_y_relative & 0x3FFF) << 16) |
-		(info->cur_slc->slice_nlm.center_x_relative & 0x3FFF);
-	ISP_REG_WR(info->ctx_id, addr, cmd);
-
-	/* Post CDN */
-	addr = ISP_POSTCDN_SLICE_CTRL;
-	cmd = info->cur_slc->slice_postcdn.start_row_mod4;
-	ISP_REG_WR(info->ctx_id, addr, cmd);
-
 	/* YNR */
 	addr = ISP_YNR_CFG31;
 	cmd = ((info->cur_slc->slice_ynr.center_offset_y & 0xFFFF) << 16) |
@@ -2328,11 +2318,11 @@ static int isphw_slice_3dnr_store(void *handle, void *arg)
 
 	storearg = (struct isp_hw_slice_3dnr_store *)arg;
 
-	if (storearg->store->bypass) {
-		addr = ISP_GET_REG(ISP_3DNR_STORE_SHADOW_CLR);
-		cmd = 1;
-		FMCU_PUSH(storearg->fmcu, addr, cmd);
-	} else {
+	addr = ISP_GET_REG(ISP_3DNR_STORE_SHADOW_CLR);
+	cmd = 1;
+	FMCU_PUSH(storearg->fmcu, addr, cmd);
+
+	if (!storearg->store->bypass) {
 		addr = ISP_GET_REG(ISP_3DNR_STORE_SLICE_SIZE);
 		cmd = ((storearg->store->size.h & 0xFFFF) << 16) | (storearg->store->size.w & 0xFFFF);
 		FMCU_PUSH(storearg->fmcu, addr, cmd);
@@ -2594,7 +2584,6 @@ static int isphw_slice_fetch_set(void *handle, void *arg)
 	struct isp_hw_set_slice_fetch *fetcharg = NULL;
 	uint32_t base = ISP_FETCH_BASE;
 	uint32_t base_dispatch = ISP_DISPATCH_BASE;
-	uint32_t val = 0;
 
 	fetcharg = (struct isp_hw_set_slice_fetch *)arg;
 
@@ -2613,9 +2602,8 @@ static int isphw_slice_fetch_set(void *handle, void *arg)
 
 	addr = ISP_GET_REG(base + ISP_FETCH_MIPI_PARAM);
 	cmd = fetcharg->fetch_info->mipi_word_num |
-			(fetcharg->fetch_info->mipi_byte_rel_pos << 16);
-	val = ISP_REG_RD(fetcharg->ctx_id, base + ISP_FETCH_MIPI_PARAM);
-	cmd = (cmd & 0xfffff) | (val & BIT_20);
+			(fetcharg->fetch_info->mipi_byte_rel_pos << 16) |
+			(fetcharg->fetch_info->is_pack << 20);
 	FMCU_PUSH(fetcharg->fmcu, addr, cmd);
 
 	addr = ISP_GET_REG(base + ISP_FETCH_MIPI_PARAM_UV);
