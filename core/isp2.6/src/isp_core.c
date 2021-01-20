@@ -1344,6 +1344,17 @@ static int ispcore_offline_param_set(struct isp_sw_context *pctx,
 			temp.buf.iova[1] = temp.buf.iova[2] = 0;
 			slave_path = &pctx->isp_path[path_info->slave_path_id];
 			isp_path_store_frm_set(slave_path, &temp);
+
+			hw->isp_ioctl(hw, ISP_HW_CFG_STORE_FRAME_ADDR, &pipe_in->store[path_info->slave_path_id]);
+			if (pctx->updated || pctx->sw_slice_num) {
+				if (path->spath_id == ISP_SPATH_FD)
+					hw->isp_ioctl(hw, ISP_HW_CFG_SET_PATH_THUMBSCALER,
+						&pipe_in->thumb_scaler);
+				else
+					hw->isp_ioctl(hw, ISP_HW_CFG_SET_PATH_SCALER,
+						&pipe_in->scaler[path_info->slave_path_id]);
+				hw->isp_ioctl(hw, ISP_HW_CFG_SET_PATH_STORE, &pipe_in->store[path_info->slave_path_id]);
+			}
 		}
 
 		hw->isp_ioctl(hw, ISP_HW_CFG_STORE_FRAME_ADDR, &pipe_in->store[i]);
