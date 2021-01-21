@@ -48,6 +48,7 @@ struct camera_frame {
 	uint32_t is_compressed;
 	uint32_t compress_4bit_bypass;
 	uint32_t need_pyr_rec;
+	uint32_t need_dewarp;
 	uint32_t user_fid;
 	uint32_t dcam_idx;
 	uint32_t zoom_ratio;

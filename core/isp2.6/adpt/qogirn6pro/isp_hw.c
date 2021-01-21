@@ -1467,7 +1467,6 @@ static struct isp_cfg_entry isp_hw_cfg_func_tab[ISP_BLOCK_TOTAL - ISP_BLOCK_BASE
 [ISP_BLOCK_POST_CDN - ISP_BLOCK_BASE] = {ISP_BLOCK_POST_CDN, isp_k_cfg_post_cdn},
 [ISP_BLOCK_PSTRZ - ISP_BLOCK_BASE]    = {ISP_BLOCK_PSTRZ,    isp_k_cfg_pstrz},
 [ISP_BLOCK_YRANDOM - ISP_BLOCK_BASE]  = {ISP_BLOCK_YRANDOM,  isp_k_cfg_yrandom},
-[ISP_BLOCK_DEWARP - ISP_BLOCK_BASE]   = {ISP_BLOCK_DEWARP,   isp_k_cfg_dewarping},
 };
 
 static int isphw_block_func_get(void *handle, void *arg)
@@ -2976,8 +2975,6 @@ BLOCK_CFG:
 	ISP_REG_MWR(idx, ISP_UVD_PARAM, BIT_0, p->uvd_info_v2.bypass);
 	ISP_REG_MWR(idx, ISP_YGAMMA_PARAM, BIT_0, p->ygamma_info.bypass);
 	ISP_REG_MWR(idx, ISP_YRANDOM_PARAM1, BIT_0, p->yrandom_info.bypass);
-	ISP_REG_MWR(idx, ISP_DEWARPING_PARA, BIT_0, p->dewarp_info.dewarping_bypass);
-	ISP_REG_MWR(idx, ISP_DEWARPING_CACHE_PARA, BIT_0, p->dewarp_info.dewarping_bypass);
 	return ret;
 
 BLOCK_BYPASS:
@@ -2990,8 +2987,6 @@ BLOCK_BYPASS:
 	ISP_REG_MWR(idx, ISP_UVD_PARAM, BIT_0, 1);
 	ISP_REG_MWR(idx, ISP_YGAMMA_PARAM, BIT_0, 1);
 	ISP_REG_MWR(idx, ISP_YRANDOM_PARAM1, BIT_0, 1);
-	ISP_REG_MWR(idx, ISP_DEWARPING_PARA, BIT_0, 1);
-	ISP_REG_MWR(idx, ISP_DEWARPING_CACHE_PARA, BIT_0, 1);
 
 	return ret;
 }

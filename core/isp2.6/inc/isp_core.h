@@ -215,6 +215,7 @@ struct isp_sw_context {
 	void *yuv_ltm_handle;
 	void *rec_handle;
 	void *rgb_gtm_handle;
+	void *dewarp_handle;
 	struct isp_k_block isp_k_param;
 
 	struct cam_thread_info thread;

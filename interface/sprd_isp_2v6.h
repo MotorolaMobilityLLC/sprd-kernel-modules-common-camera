@@ -154,7 +154,6 @@ enum dcam_block {
 	ISP_BLOCK_RGB_LTM,
 	ISP_BLOCK_YUV_LTM,
 	ISP_BLOCK_RGB_GTM,
-	ISP_BLOCK_DEWARP,
 	ISP_BLOCK_TOTAL,
 };
 
@@ -2210,18 +2209,6 @@ struct isp_dev_yuv_ltm_map_info {
 struct isp_dev_yuv_ltm_info {
 	struct isp_dev_yuv_ltm_stat_info ltm_stat;
 	struct isp_dev_yuv_ltm_map_info ltm_map;
-};
-
-struct isp_dev_dewarping_info {
-	uint32_t dewarping_bypass;
-	uint32_t dewarping_dst_image_width;
-	uint32_t dewarping_dst_image_height;
-	uint32_t isp_dewarping_grid_size;
-	uint32_t dewarping_crop_start_x;
-	uint32_t dewarping_crop_start_y;
-	uint32_t dewarping_crop_width;
-	uint32_t dewarping_crop_height;
-	uint32_t dewarping_grid_xy[1120][2];
 };
 
 /*********************************************/

@@ -41,6 +41,7 @@
 #include "isp_cfg.h"
 #include "dcam_core.h"
 #include "isp_pyr_rec.h"
+#include "isp_dewarping.h"
 
 #ifdef pr_fmt
 #undef pr_fmt
@@ -403,6 +404,41 @@ static int ispcore_gtm_frame_process(struct isp_sw_context *pctx,
 	if (ret) {
 		pctx->pipe_src.mode_gtm = MODE_GTM_OFF;
 		pr_err("fail to rgb GTM process, GTM_OFF\n");
+	}
+
+	return ret;
+}
+
+static int ispcore_dewarp_frame_process(struct isp_sw_context *pctx,
+	struct isp_hw_context *pctx_hw, struct camera_frame *pframe)
+{
+	int ret = 0;
+	struct isp_pipe_info *pipe_in = NULL;
+	struct isp_dewarp_ctx_desc *dewarp_ctx = NULL;
+	struct isp_dewarp_in dewarp_in;
+
+	if (!pctx || !pctx_hw || !pframe) {
+		pr_err("fail to get valid parameter pctx %p pframe %p\n",
+			pctx, pframe);
+		return -EINVAL;
+	}
+
+	pipe_in = &pctx->pipe_info;
+	dewarp_ctx = (struct isp_dewarp_ctx_desc *)pctx->dewarp_handle;
+
+	if (pframe->need_dewarp) {
+		dewarp_in.addr = pipe_in->fetch.addr;
+		dewarp_in.in_trim = pipe_in->fetch.in_trim;
+		dewarp_in.in_w = pipe_in->fetch.src.w;
+		dewarp_in.in_h= pipe_in->fetch.src.h;
+		/* to get dewarp_in.grid_size later*/
+	}
+
+	if (dewarp_ctx) {
+		dewarp_ctx->ops.cfg_param(dewarp_ctx, ISP_DEWARPING_CFG_SIZE, &pipe_in->fetch.src);
+		ret = dewarp_ctx->ops.pipe_proc(dewarp_ctx, &dewarp_in);
+		if (ret == -1)
+			pr_err("fail to proc dewarp frame\n");
 	}
 
 	return ret;
@@ -1591,6 +1627,7 @@ static int ispcore_offline_frame_start(void *ctx)
 	ispcore_ltm_frame_process(pctx, pframe);
 	ispcore_rec_frame_process(pctx, pctx_hw, pframe);
 	ispcore_gtm_frame_process(pctx, pframe);
+	ispcore_dewarp_frame_process(pctx, pctx_hw, pframe);
 
 	if (tmp.multi_slice || pctx->uinfo.enable_slowmotion) {
 		struct slice_cfg_input slc_cfg;
@@ -3044,6 +3081,15 @@ static int ispcore_context_get(void *isp_handle, void *param)
 		}
 	}
 
+	if (pctx->dewarp_handle == NULL && hw->ip_isp->dewarp_support) {
+		pctx->dewarp_handle = isp_dewarping_ctx_get(pctx->ctx_id, hw);
+		if (!pctx->dewarp_handle) {
+			pr_err("fail to get memory for dewarp_ctx.\n");
+			ret = -ENOMEM;
+			goto dewarp_err;
+		}
+	}
+
 	for (i = 0; i < ISP_SPATH_NUM; i++) {
 		path = &pctx->isp_path[i];
 		path->spath_id = i;
@@ -3086,6 +3132,11 @@ static int ispcore_context_get(void *isp_handle, void *param)
 	goto exit;
 
 thrd_err:
+	if (pctx->dewarp_handle && hw->ip_isp->dewarp_support) {
+		isp_dewarping_ctx_put(pctx->dewarp_handle);
+		pctx->dewarp_handle = NULL;
+	}
+dewarp_err:
 	if (pctx->rgb_gtm_handle && hw->ip_isp->rgb_gtm_support) {
 		isp_gtm_rgb_ctx_put(pctx->rgb_gtm_handle);
 		pctx->rgb_gtm_handle = NULL;
@@ -3212,6 +3263,11 @@ static int ispcore_context_put(void *isp_handle, int ctx_id)
 		if (pctx->rgb_gtm_handle && hw->ip_isp->rgb_gtm_support) {
 			isp_gtm_rgb_ctx_put(pctx->rgb_ltm_handle);
 			pctx->rgb_gtm_handle = NULL;
+		}
+
+		if (pctx->dewarp_handle && hw->ip_isp->dewarp_support) {
+			isp_dewarping_ctx_put(pctx->dewarp_handle);
+			pctx->rec_handle = NULL;
 		}
 
 		/* clear path queue. */

@@ -1171,6 +1171,7 @@ struct cam_hw_ip_info {
 	uint32_t fbd_raw_support;
 	uint32_t fbd_yuv_support;
 	uint32_t rgb_gtm_support;
+	uint32_t dewarp_support;
 };
 
 struct cam_hw_soc_info {

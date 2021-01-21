@@ -384,6 +384,7 @@ static struct cam_hw_ip_info isp = {
 	.fbd_yuv_support = 0,
 	.fbd_raw_support = 0,
 	.rgb_gtm_support = 1,
+	.dewarp_support = 0,
 };
 
 struct cam_hw_info qogirl6_hw_info = {

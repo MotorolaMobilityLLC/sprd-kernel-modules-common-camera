@@ -56,7 +56,7 @@ int isp_dewarping_dewarp_cache_set(void *handle)
 
 int isp_dewarping_config_param(void *handle)
 {
-	uint32_t val;
+	uint32_t val = 0;
 	uint32_t ret = 0;
 	uint32_t idx;
 	struct isp_dewarping_blk_info *dewarp_ctx;
@@ -67,6 +67,10 @@ int isp_dewarping_config_param(void *handle)
 	}
 	dewarp_ctx = (struct isp_dewarping_blk_info *)handle;
 	idx = dewarp_ctx->cxt_id;
+
+	val = ((dewarp_ctx->grid_size & 0x1ff) << 0);
+	ISP_REG_WR(idx, ISP_DEWARPING_GRID_SIZE, val);
+
 	val = ((dewarp_ctx->grid_num_x & 0x3f) << 16) |
 		((dewarp_ctx->grid_num_y & 0x3f) << 0);
 	ISP_REG_WR(idx, ISP_DEWARPING_GRID_NUM, val);
@@ -74,6 +78,10 @@ int isp_dewarping_config_param(void *handle)
 	val = ((dewarp_ctx->pos_x & 0x1fff) << 16) |
 		((dewarp_ctx->pos_y & 0x1fff) << 0);
 	ISP_REG_WR(idx, ISP_DEWARPING_POS, val);
+
+	val = ((dewarp_ctx->dst_width& 0x1fff) << 16) |
+		((dewarp_ctx->dst_height& 0x1fff) << 0);
+	ISP_REG_WR(idx, ISP_DEWARPING_DST_SIZE, val);
 
 	val = ((dewarp_ctx->src_width & 0x1fff) << 16) |
 		((dewarp_ctx->src_height & 0x1fff) << 0);
@@ -100,60 +108,14 @@ int isp_dewarping_config_param(void *handle)
 	val = ((dewarp_ctx->crop_start_x & 0xffff) << 16) |
 		((dewarp_ctx->crop_start_y & 0xffff) << 0);
 	ISP_REG_WR(idx, ISP_DEWARPING_CROP_PARA, val);
-	return ret;
-}
 
-static int isp_k_dewarping_block(struct isp_io_param *param,
-	struct isp_k_block *isp_k_param, uint32_t idx)
-{
-	int ret = 0;
-	uint32_t val =0, i = 0;
-	struct isp_dev_dewarping_info *dewarp_info;
+	/* wait otp and other coeff format */
 
-	dewarp_info = &isp_k_param->dewarp_info;
-	ret = copy_from_user((void *)dewarp_info,
-			param->property_param,
-			sizeof(struct isp_dev_dewarping_info));
-	if (ret != 0) {
-		pr_err("fail to copy from user, ret = %d\n", ret);
-		return ret;
-	}
-	if (g_isp_bypass[idx] & (1 << _EISP_DEWARP))
-		dewarp_info->dewarping_bypass = 1;
-
-	memcpy(&isp_k_param->dewarp_info, dewarp_info, sizeof(struct isp_dev_dewarping_info));
-	if (dewarp_info->dewarping_bypass)
-		return 0;
-
-	val = ((dewarp_info->dewarping_dst_image_width & 0x1fff) << 16) |
-		((dewarp_info->dewarping_dst_image_height & 0x1fff) << 0);
-	ISP_REG_WR(idx, ISP_DEWARPING_DST_SIZE, val);
-
-	val = ((dewarp_info->isp_dewarping_grid_size & 0x1ff) << 0);
-	ISP_REG_WR(idx, ISP_DEWARPING_GRID_SIZE, val);
-	for (i = 0; i < 1120; i++) {
-		val = dewarp_info->dewarping_grid_xy[i][0];
+	/*for (i = 0; i < dewarp_ctx->grid_data_size; i++) {
+		val = dewarp_ctx->grid_x_ch0_buf[i];
 		ISP_REG_WR(idx, ISP_DEWARPING_GRID_X_CH0 + i * 4, val);
-		val = dewarp_info->dewarping_grid_xy[i][1];
+		val = dewarp_ctx->grid_y_ch0_buf[i];
 		ISP_REG_WR(idx, ISP_DEWARPING_GRID_Y_CH0 + i * 4, val);
-	}
-	return ret;
-}
-
-int isp_k_cfg_dewarping(struct isp_io_param *param,
-		struct isp_k_block *isp_k_param, uint32_t idx)
-{
-	int ret = 0;
-
-	switch (param->property) {
-	case ISP_PRO_DEWARP_BLOCK:
-		ret = isp_k_dewarping_block(param, isp_k_param, idx);
-		break;
-	default:
-		pr_err("fail to support cmd id = %d\n",
-			param->property);
-		break;
-	}
-
+	}*/
 	return ret;
 }

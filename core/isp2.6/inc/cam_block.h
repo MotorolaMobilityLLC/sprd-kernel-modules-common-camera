@@ -27,8 +27,6 @@ struct isp_k_block {
 	struct isp_dev_3dnr_info nr3_info_base;
 	uint32_t seed0_for_mode1;
 	uint32_t yrandom_mode;
-	/* qogirn6pro only */
-	struct isp_dev_dewarping_info dewarp_info;
 	/* sharkl6 */
 	struct isp_dev_grgb_info grgb_info;
 	struct isp_dev_bchs_info bchs_info;
@@ -203,8 +201,6 @@ int isp_k_cfg_ygamma(struct isp_io_param *param,
 int isp_k_cfg_yrandom(struct isp_io_param *param,
 	struct isp_k_block *isp_k_param,  uint32_t idx);
 int isp_k_cfg_yuv_noisefilter(struct isp_io_param *param,
-	struct isp_k_block *isp_k_param, uint32_t idx);
-int isp_k_cfg_dewarping(struct isp_io_param *param,
 	struct isp_k_block *isp_k_param, uint32_t idx);
 void cam_block_noisefilter_seeds(uint32_t image_width,
 	uint32_t seed0, uint32_t *seed1, uint32_t *seed2, uint32_t *seed3);
