@@ -161,6 +161,7 @@ enum dcam_block {
 	ISP_BLOCK_PYRAMID_ONL,
 	ISP_BLOCK_PYRAMID_OFFL,
 	ISP_BLOCK_DCT,
+	ISP_BLOCK_3DLUT,
 	ISP_BLOCK_RGB_GTM,
 	ISP_BLOCK_CNR_H,
 	ISP_BLOCK_POST_CNR_H,
@@ -251,10 +252,6 @@ enum isp_bchs_property {
 	ISP_PRO_BCHS_CONTRAST,
 	ISP_PRO_BCHS_SATUATION,
 	ISP_PRO_BCHS_HUE,
-};
-
-enum isp_dewarping_property {
-	ISP_PRO_DEWARP_BLOCK,
 };
 
 enum isp_brightness_property {
@@ -411,6 +408,10 @@ enum dcam_gtm_property {
 
 enum dcam_rgb_gtm_property {
 	DCAM_PRO_RGB_GTM_BLOCK,
+};
+
+enum isp_3dlut_property {
+	ISP_PRO_3DLUT_BLOCK,
 };
 
 enum cam_pm_scene {
@@ -1578,6 +1579,11 @@ struct isp_dev_hsv_info_v3 {
 	uint32_t  y_blending_factor;
 	uint32_t  hsv_1d_sat_lut[ISP_HSV_SAT_GRID];
 	uint32_t  hsv_1d_hue_lut[ISP_HSV_HUE_GRID];
+};
+
+struct isp_dev_3dlut_info{
+	uint32_t rgb3dlut_bypass;
+	uint32_t rgb3dlut_ct_table[729][6];
 };
 
 struct isp_dev_iircnr_info {
