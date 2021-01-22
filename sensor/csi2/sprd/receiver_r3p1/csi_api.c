@@ -158,8 +158,10 @@ static void csi_mipi_clk_disable(int sensor_id)
 		MASK_AON_APB_CGM_CPHY_CFG_EN,
 		~MASK_AON_APB_CGM_CPHY_CFG_EN);
 	cnt--;
-	//clk_disable_unprepare(dt_info->mipi_csi_gate_eb);
-	//clk_disable_unprepare(dt_info->csi_eb_clk);
+	if(!cnt) {
+		clk_disable_unprepare(dt_info->mipi_csi_gate_eb);
+		clk_disable_unprepare(dt_info->csi_eb_clk);
+	}
 	if(!csi_pattern_enable)
 		clk_disable_unprepare(dt_info->csi_src_eb);//don't need enable in ipg mode
 
