@@ -411,13 +411,24 @@ static int isphw_clk_eb(void *handle, void *arg)
 		clk_disable_unprepare(soc->clk);
 		return ret;
 	}
-	ret = clk_prepare_enable(soc->axi_eb);
+
+	ret = clk_prepare_enable(soc->mtx_en);
 	if (ret) {
-		pr_err("fail to set isp axi eb, ret = %d\n", ret);
-		clk_disable_unprepare(soc->clk);
+		pr_err("fail to set isp mtx eb, ret = %d\n", ret);
 		clk_disable_unprepare(soc->core_eb);
 		return ret;
 	}
+
+	ret = clk_prepare_enable(soc->blk_cfg_en);
+	if (ret) {
+		pr_err("fail to set parent, ret = %d\n", ret);
+		clk_disable_unprepare(soc->mtx_en);
+		clk_disable_unprepare(soc->blk_cfg_en);
+		clk_disable_unprepare(soc->core_eb);
+		return ret;
+	}
+	ret = clk_prepare_enable(soc->tck_en);
+
 #else
 	regmap_update_bits(soc->cam_ahb_gpr, 0x4, BIT_0, BIT_0);
 	regmap_update_bits(soc->cam_ahb_gpr, 0x4, BIT_5, BIT_5);
@@ -448,7 +459,10 @@ static int isphw_clk_dis(void *handle, void *arg)
 
 	clk_set_parent(soc->clk, soc->clk_default);
 	clk_disable_unprepare(soc->clk);
-	clk_disable_unprepare(soc->axi_eb);
+
+	clk_disable_unprepare(soc->tck_en);
+	clk_disable_unprepare(soc->blk_cfg_en);
+	clk_disable_unprepare(soc->mtx_en);
 	clk_disable_unprepare(soc->core_eb);
 
 #else

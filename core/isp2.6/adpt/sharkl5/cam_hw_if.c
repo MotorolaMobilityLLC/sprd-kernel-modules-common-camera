@@ -72,6 +72,99 @@ static unsigned long coff_buf_addr[2][3][4] = {
 #include "dcam_hw.c"
 #include "isp_hw.c"
 
+static int camhw_get_isp_dts_clk(void *handle, void *arg)
+{
+	struct cam_hw_soc_info *soc_isp = NULL;
+	struct cam_hw_info *hw = NULL;
+	struct device_node *isp_node = (struct device_node *)arg;
+
+	hw = (struct cam_hw_info *)handle;
+	if (!handle) {
+		pr_err("fail to get invalid handle\n");
+		return -EINVAL;
+	}
+
+	soc_isp = hw->soc_isp;
+
+	soc_isp->core_eb = of_clk_get_by_name(isp_node, "isp_eb");
+	if (IS_ERR_OR_NULL(soc_isp->core_eb)) {
+		pr_err("fail to read dts isp eb\n");
+		return -EFAULT;
+	}
+	soc_isp->axi_eb = of_clk_get_by_name(isp_node, "isp_axi_eb");
+	if (IS_ERR_OR_NULL(soc_isp->axi_eb)) {
+		pr_err("fail to read dts isp axi eb\n");
+		return -EFAULT;
+	}
+	soc_isp->clk = of_clk_get_by_name(isp_node, "isp_clk");
+	if (IS_ERR_OR_NULL(soc_isp->clk)) {
+		pr_err("fail to read dts isp clk\n");
+		return -EFAULT;
+	}
+	soc_isp->clk_parent = of_clk_get_by_name(isp_node, "isp_clk_parent");
+	if (IS_ERR_OR_NULL(soc_isp->clk_parent)) {
+		pr_err("fail to read dts isp clk parent\n");
+		return -EFAULT;
+	}
+	soc_isp->clk_default = clk_get_parent(soc_isp->clk);
+	return 0;
+}
+
+static int camhw_get_dcam_dts_clk(void *handle, void *arg)
+{
+	int ret = 0;
+	struct cam_hw_info *hw = NULL;
+	struct device_node *dn = (struct device_node *)arg;
+	struct cam_hw_soc_info *soc_dcam;
+
+	hw = (struct cam_hw_info *)handle;
+	if (!handle) {
+		pr_err("fail to get invalid handle\n");
+		return -EINVAL;
+	}
+
+	soc_dcam = hw->soc_dcam;
+
+	soc_dcam->core_eb = of_clk_get_by_name(dn, "dcam_eb");
+	if (IS_ERR_OR_NULL(soc_dcam->core_eb)) {
+		pr_err("fail to read clk, dcam_eb\n");
+		ret = 1;
+	}
+
+	soc_dcam->axi_eb = of_clk_get_by_name(dn, "dcam_axi_eb");
+	if (IS_ERR_OR_NULL(soc_dcam->axi_eb)) {
+		pr_err("fail to read clk, dcam_axi_eb\n");
+		ret = 1;
+	}
+
+	soc_dcam->clk = of_clk_get_by_name(dn, "dcam_clk");
+	if (IS_ERR_OR_NULL(soc_dcam->clk)) {
+		pr_err("fail to read clk, dcam_clk\n");
+		ret = 1;
+	}
+
+	soc_dcam->clk_parent = of_clk_get_by_name(dn, "dcam_clk_parent");
+	if (IS_ERR_OR_NULL(soc_dcam->clk_parent)) {
+		pr_err("fail to read clk, dcam_clk_parent\n");
+		ret = 1;
+	}
+	soc_dcam->clk_default = clk_get_parent(soc_dcam->clk);
+
+	soc_dcam->axi_clk = of_clk_get_by_name(dn, "dcam_axi_clk");
+	if (IS_ERR_OR_NULL(soc_dcam->axi_clk)) {
+		pr_err("fail to read clk, axi_clk\n");
+		ret = 1;
+	}
+	soc_dcam->axi_clk_parent = of_clk_get_by_name(dn, "dcam_axi_clk_parent");
+	if (IS_ERR_OR_NULL(soc_dcam->axi_clk_parent)) {
+		pr_err("fail to read clk, axi_clk_parent\n");
+		ret = 1;
+	}
+	soc_dcam->axi_clk_default = clk_get_parent(soc_dcam->axi_clk);
+
+	return ret;
+}
+
 static int camhw_get_all_rst(void *handle, void *arg)
 {
 	int ret = 0;
@@ -154,6 +247,8 @@ err_axi_iounmap:
 static struct hw_io_ctrl_fun cam_ioctl_fun_tab[] = {
 	{CAM_HW_GET_ALL_RST,            camhw_get_all_rst},
 	{CAM_HW_GET_AXI_BASE,           camhw_get_axi_base},
+	{CAM_HW_GET_DCAM_DTS_CLK,       camhw_get_dcam_dts_clk},
+	{CAM_HW_GET_ISP_DTS_CLK,        camhw_get_isp_dts_clk},
 };
 
 static hw_ioctl_fun camhw_ioctl_fun_get(enum cam_hw_cfg_cmd cmd)

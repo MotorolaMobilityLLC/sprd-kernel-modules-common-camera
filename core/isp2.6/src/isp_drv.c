@@ -994,27 +994,10 @@ int isp_drv_dt_parse(struct device_node *dn,
 
 		/* read clk from dts */
 #ifndef CAM_ON_HAPS
-		soc_isp->core_eb = of_clk_get_by_name(isp_node, "isp_eb");
-		if (IS_ERR_OR_NULL(soc_isp->core_eb)) {
-			pr_err("fail to read dts isp eb\n");
+		if (hw_info->cam_ioctl(hw_info, CAM_HW_GET_ISP_DTS_CLK, isp_node)) {
+			pr_err("fail to get clk\n");
 			return -EFAULT;
 		}
-		soc_isp->axi_eb = of_clk_get_by_name(isp_node, "isp_axi_eb");
-		if (IS_ERR_OR_NULL(soc_isp->core_eb)) {
-			pr_err("fail to read dts isp axi eb\n");
-			return -EFAULT;
-		}
-		soc_isp->clk = of_clk_get_by_name(isp_node, "isp_clk");
-		if (IS_ERR_OR_NULL(soc_isp->core_eb)) {
-			pr_err("fail to read dts isp clk\n");
-			return -EFAULT;
-		}
-		soc_isp->clk_parent = of_clk_get_by_name(isp_node, "isp_clk_parent");
-		if (IS_ERR_OR_NULL(soc_isp->core_eb)) {
-			pr_err("fail to read dts isp clk parent\n");
-			return -EFAULT;
-		}
-		soc_isp->clk_default = clk_get_parent(soc_isp->clk);
 #endif
 		iommu_node = of_parse_phandle(isp_node, "iommus", 0);
 		if (iommu_node) {

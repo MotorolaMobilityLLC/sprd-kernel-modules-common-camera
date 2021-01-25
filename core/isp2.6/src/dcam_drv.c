@@ -207,65 +207,11 @@ int dcam_drv_dt_parse(struct platform_device *pdev,
 
 	/* read dcam clk */
 #ifndef CAM_ON_HAPS
-	soc_dcam->core_eb = of_clk_get_by_name(dn, "dcam_eb");
-	if (IS_ERR_OR_NULL(soc_dcam->core_eb)) {
-		pr_err("fail to read clk, dcam_eb\n");
-		goto err_iounmap;
-	}
 
-	if (hw_info->prj_id == SHARKL3
-		|| hw_info->prj_id == SHARKL5
-		|| hw_info->prj_id == ROC1
-		|| hw_info->prj_id == SHARKL5pro) {
-		soc_dcam->axi_eb = of_clk_get_by_name(dn, "dcam_axi_eb");
-		if (IS_ERR_OR_NULL(soc_dcam->axi_eb)) {
-			pr_err("fail to read clk, dcam_axi_eb\n");
-			goto err_iounmap;
-		}
-	}
-
-	soc_dcam->clk = of_clk_get_by_name(dn, "dcam_clk");
-	if (IS_ERR_OR_NULL(soc_dcam->clk)) {
-		pr_err("fail to read clk, dcam_clk\n");
+	ret = hw_info->cam_ioctl(hw_info, CAM_HW_GET_DCAM_DTS_CLK, dn);
+	if (ret)
 		goto err_iounmap;
-	}
-	soc_dcam->clk_parent = of_clk_get_by_name(dn, "dcam_clk_parent");
-	if (IS_ERR_OR_NULL(soc_dcam->clk_parent)) {
-		pr_err("fail to read clk, dcam_clk_parent\n");
-		goto err_iounmap;
-	}
-	soc_dcam->clk_default = clk_get_parent(soc_dcam->clk);
-	if (hw_info->prj_id == SHARKL3) {
-		soc_dcam->bpc_clk = of_clk_get_by_name(dn, "dcam_bpc_clk");
-		if (IS_ERR_OR_NULL(soc_dcam->bpc_clk)) {
-			pr_err("fail to get dcam_bpc_clk\n");
-			goto err_iounmap;
-		}
-		soc_dcam->bpc_clk_parent =
-			of_clk_get_by_name(dn, "dcam_bpc_clk_parent");
-		if (IS_ERR_OR_NULL(soc_dcam->bpc_clk_parent)) {
-			pr_err("fail to get dcam_bpc_clk_parent\n");
-			goto err_iounmap;
-		}
-		soc_dcam->bpc_clk_default = clk_get_parent(soc_dcam->bpc_clk);
-	}
 
-	if (hw_info->prj_id == SHARKL5
-		|| hw_info->prj_id == ROC1
-		|| hw_info->prj_id == SHARKL5pro) {
-		soc_dcam->axi_clk = of_clk_get_by_name(dn, "dcam_axi_clk");
-		if (IS_ERR_OR_NULL(soc_dcam->clk)) {
-			pr_err("fail to read clk, axi_clk\n");
-			goto err_iounmap;
-		}
-		soc_dcam->axi_clk_parent =
-			of_clk_get_by_name(dn, "dcam_axi_clk_parent");
-		if (IS_ERR_OR_NULL(soc_dcam->clk_parent)) {
-			pr_err("fail to read clk, axi_clk_parent\n");
-			goto err_iounmap;
-		}
-		soc_dcam->axi_clk_default = clk_get_parent(soc_dcam->axi_clk);
-	}
 #endif
 
 	for (i = 0; i < count; i++) {

@@ -258,6 +258,8 @@ enum isp_hw_cfg_cmd {
 enum cam_hw_cfg_cmd {
 	CAM_HW_GET_ALL_RST,
 	CAM_HW_GET_AXI_BASE,
+	CAM_HW_GET_DCAM_DTS_CLK,
+	CAM_HW_GET_ISP_DTS_CLK,
 };
 
 enum dcam_path_ctrl {
@@ -1180,17 +1182,34 @@ struct cam_hw_soc_info {
 	struct regmap *aon_apb_gpr;
 	struct regmap *cam_switch_gpr;
 
+	struct clk *core_eb;
+	struct clk *core_lite_eb;
+	struct clk *axi_eb;
+	struct clk *mtx_en;
+	struct clk *mtx_lite_en;
+	struct clk *blk_cfg_en;
+	struct clk *tck_en;
 	struct clk *clk;
 	struct clk *clk_parent;
 	struct clk *clk_default;
+	struct clk *lite_clk;
+	struct clk *lite_clk_parent;
+	struct clk *lite_clk_default;
 	struct clk *bpc_clk;
 	struct clk *bpc_clk_parent;
 	struct clk *bpc_clk_default;
-	struct clk *core_eb;
-	struct clk *axi_eb;
 	struct clk *axi_clk;
 	struct clk *axi_clk_parent;
 	struct clk *axi_clk_default;
+	struct clk *axi_lite_clk;
+	struct clk *axi_lite_clk_parent;
+	struct clk *axi_lite_clk_default;
+	struct clk *mtx_clk;
+	struct clk *mtx_clk_parent;
+	struct clk *mtx_clk_default;
+	struct clk *blk_cfg_clk;
+	struct clk *blk_cfg_clk_parent;
+	struct clk *blk_cfg_clk_default;
 
 	uint32_t arqos_high;
 	uint32_t arqos_low;

@@ -18,6 +18,10 @@
 #include "sprd_img.h"
 #include "cam_porting.h"
 
+#if defined(PROJ_QOGIRN6PRO)
+#define CAM_ON_HAPS
+#endif
+
 #ifndef MAX
 #define MAX(__a, __b) (((__a) > (__b)) ? (__a) : (__b))
 #endif

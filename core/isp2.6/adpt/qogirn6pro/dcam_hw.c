@@ -94,12 +94,86 @@ static int dcamhw_clk_eb(void *handle, void *arg)
 		clk_disable_unprepare(soc->clk);
 		return ret;
 	}
-	ret = clk_prepare_enable(soc->axi_eb);
+
+	ret = clk_set_parent(soc->lite_clk, soc->lite_clk_parent);
 	if (ret) {
-		pr_err("fail to set dcam axi clk\n");
-		clk_disable_unprepare(soc->clk);
-		clk_disable_unprepare(soc->core_eb);
+		pr_err("fail to set clk parent\n");
+		clk_set_parent(soc->lite_clk, soc->lite_clk_default);
+		return ret;
 	}
+	ret = clk_prepare_enable(soc->lite_clk);
+	if (ret) {
+		pr_err("fail to enable clk\n");
+		clk_set_parent(soc->lite_clk, soc->lite_clk_default);
+		return ret;
+	}
+	ret = clk_set_parent(soc->axi_lite_clk, soc->axi_lite_clk_parent);
+	if (ret) {
+		pr_err("fail to set axi_clk parent\n");
+		clk_set_parent(soc->axi_lite_clk, soc->axi_lite_clk_parent);
+		return ret;
+	}
+	ret = clk_prepare_enable(soc->axi_lite_clk);
+	if (ret) {
+		pr_err(" fail to enable axi_clk\n");
+		clk_set_parent(soc->axi_lite_clk, soc->axi_lite_clk_default);
+		return ret;
+	}
+	ret = clk_prepare_enable(soc->core_lite_eb);
+	if (ret) {
+		pr_err("fail to set eb\n");
+		clk_disable_unprepare(soc->lite_clk);
+		return ret;
+	}
+
+	ret = clk_set_parent(soc->mtx_clk, soc->mtx_clk_parent);
+	if (ret) {
+		pr_err("fail to set clk parent\n");
+		clk_set_parent(soc->mtx_clk, soc->mtx_clk_default);
+		return ret;
+	}
+	ret = clk_prepare_enable(soc->mtx_clk);
+	if (ret) {
+		pr_err("fail to enable clk\n");
+		clk_set_parent(soc->mtx_clk, soc->mtx_clk_default);
+		return ret;
+	}
+
+	ret = clk_set_parent(soc->blk_cfg_clk, soc->blk_cfg_clk_parent);
+	if (ret) {
+		pr_err("fail to set clk parent\n");
+		clk_set_parent(soc->blk_cfg_clk, soc->blk_cfg_clk_default);
+		return ret;
+	}
+	ret = clk_prepare_enable(soc->blk_cfg_clk);
+	if (ret) {
+		pr_err("fail to enable clk\n");
+		clk_set_parent(soc->blk_cfg_clk, soc->blk_cfg_clk_default);
+		return ret;
+	}
+
+	ret = clk_prepare_enable(soc->mtx_en);
+	if (ret) {
+		pr_err("fail to set eb\n");
+		clk_disable_unprepare(soc->mtx_clk);
+		return ret;
+	}
+
+	ret = clk_prepare_enable(soc->mtx_lite_en);
+	if (ret) {
+		pr_err("fail to set eb\n");
+		clk_disable_unprepare(soc->mtx_clk);
+		return ret;
+	}
+
+	ret = clk_prepare_enable(soc->blk_cfg_en);
+	if (ret) {
+		pr_err("fail to set eb\n");
+		clk_disable_unprepare(soc->blk_cfg_clk);
+		return ret;
+	}
+	ret = clk_prepare_enable(soc->tck_en);
+
 #else
 	regmap_update_bits(soc->cam_ahb_gpr, 0xC, BIT_0, BIT_0);
 	regmap_update_bits(soc->cam_ahb_gpr, 0xC, BIT_1, BIT_1);
@@ -138,9 +212,22 @@ static int dcamhw_clk_dis(void *handle, void *arg)
 #ifndef CAM_ON_HAPS
 	clk_set_parent(soc->axi_clk, soc->axi_clk_default);
 	clk_disable_unprepare(soc->axi_clk);
+	clk_set_parent(soc->axi_lite_clk, soc->axi_lite_clk_default);
+	clk_disable_unprepare(soc->axi_lite_clk);
 	clk_set_parent(soc->clk, soc->clk_default);
 	clk_disable_unprepare(soc->clk);
-	clk_disable_unprepare(soc->axi_eb);
+	clk_set_parent(soc->lite_clk, soc->lite_clk_default);
+	clk_disable_unprepare(soc->lite_clk);
+	clk_set_parent(soc->mtx_clk, soc->mtx_clk_default);
+	clk_disable_unprepare(soc->mtx_clk);
+	clk_set_parent(soc->blk_cfg_clk, soc->blk_cfg_clk_default);
+	clk_disable_unprepare(soc->blk_cfg_clk);
+
+	clk_disable_unprepare(soc->blk_cfg_en);
+	clk_disable_unprepare(soc->mtx_en);
+	clk_disable_unprepare(soc->mtx_lite_en);
+	clk_disable_unprepare(soc->tck_en);
+	clk_disable_unprepare(soc->core_lite_eb);
 	clk_disable_unprepare(soc->core_eb);
 #else
 	regmap_update_bits(soc->cam_ahb_gpr, 0xC, BIT_0, ~BIT_0);
