@@ -3101,6 +3101,7 @@ static int camioctl_csi_switch(struct camera_module *module, unsigned long arg)
 	struct camera_frame *frame = NULL;
 	uint32_t csi_connect = 0;
 	uint32_t loop = 0;
+	struct isp_offline_param *in_param = NULL;
 
 	ret = copy_from_user(&csi_connect, (void __user *)arg,  sizeof(uint32_t));
 	if (unlikely(ret)) {
@@ -3130,6 +3131,8 @@ static int camioctl_csi_switch(struct camera_module *module, unsigned long arg)
 			/* reset */
 			hw->dcam_ioctl(hw, DCAM_HW_CFG_STOP, &sw_ctx->hw_ctx_id);
 			hw->dcam_ioctl(hw, DCAM_HW_CFG_RESET, &sw_ctx->hw_ctx_id);
+			dcam_int_tracker_dump(sw_ctx->hw_ctx_id);
+			dcam_int_tracker_reset(sw_ctx->hw_ctx_id);
 
 			/* reset result q */
 			for (j = 0; j < DCAM_PATH_MAX; j++) {
@@ -3139,6 +3142,18 @@ static int camioctl_csi_switch(struct camera_module *module, unsigned long arg)
 				frame = cam_queue_dequeue(&path->result_queue, struct camera_frame, list);
 				while (frame) {
 					pr_debug("DCAM%u path%d fid %u\n", sw_ctx->sw_ctx_id, j, frame->fid);
+
+					in_param = (struct isp_offline_param *)frame->param_data;
+					if (in_param) {
+						struct isp_offline_param *prev = NULL;
+						while (in_param) {
+							prev = (struct isp_offline_param *)in_param->prev;
+							kfree(in_param);
+							in_param = prev;
+						}
+						frame->param_data = NULL;
+					}
+
 					if (frame->is_reserved)
 						cam_queue_enqueue(&path->reserved_buf_queue, &frame->list);
 					else
@@ -3172,12 +3187,6 @@ static int camioctl_csi_switch(struct camera_module *module, unsigned long arg)
 				usleep_range(600, 800);
 			} while (loop++ < 5000);
 
-			/* switch connect */
-			csi_switch.csi_id = module->dcam_idx;
-			csi_switch.dcam_id= sw_ctx->hw_ctx_id;
-			pr_info("Connect csi_id = %d, dcam_id = %d\n", csi_switch.csi_id, csi_switch.dcam_id);
-			hw->dcam_ioctl(hw, DCAM_HW_CONECT_CSI, &csi_switch);
-
 			/* reconfig*/
 			module->dcam_dev_handle->dcam_pipe_ops->ioctl(sw_ctx, DCAM_IOCTL_RECFG_PARAM, NULL);
 
@@ -3187,6 +3196,12 @@ static int camioctl_csi_switch(struct camera_module *module, unsigned long arg)
 				pr_err("fail to start dcam dev, ret %d\n", ret);
 				break;
 			}
+
+			/* switch connect */
+			csi_switch.csi_id = module->dcam_idx;
+			csi_switch.dcam_id= sw_ctx->hw_ctx_id;
+			pr_info("Connect csi_id = %d, dcam_id = %d\n", csi_switch.csi_id, csi_switch.dcam_id);
+			hw->dcam_ioctl(hw, DCAM_HW_CONECT_CSI, &csi_switch);
 
 			sw_ctx->csi_connect_stat = DCAM_CSI_RESUME;
 			break;

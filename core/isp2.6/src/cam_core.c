@@ -42,6 +42,7 @@
 #include "dcam_core.h"
 #include "isp_core.h"
 #include "cam_scaler_ex.h"
+#include "dcam_int.h"
 
 #ifdef CONFIG_COMPAT
 #include "compat_cam_drv.h"

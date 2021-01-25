@@ -535,6 +535,8 @@ static int dcamhw_mipi_cap_set(void *handle, void *arg)
 	DCAM_REG_WR(idx, DCAM_MIPI_CAP_END, reg_val);
 
 	/* frame skip before capture */
+	if (cap_info->frm_skip == 0)
+		cap_info->frm_skip = 1;
 	DCAM_REG_MWR(idx, DCAM_MIPI_CAP_CFG,
 			BIT_8 | BIT_9 | BIT_10 | BIT_11,
 				cap_info->frm_skip << 8);
@@ -1442,10 +1444,15 @@ static int dcamhw_csi_disconnect(void *handle, void *arg)
 		time_out--;
 	}
 
-	if (time_out != 0)
-		pr_info("disconnect dcam%d from csi%d\n", idx, csi_id);
-	else
-		pr_err("fail to disconnect DCAM%d\n", idx);
+	if (time_out != 0) {
+		pr_debug("disconnect dcam%d from csi%d\n", idx, csi_id);
+	} else {
+		regmap_read(hw->soc_dcam->cam_ahb_gpr, 0x0, &val);
+		if((val >> (6 - csi_id)) & BIT_0)
+			pr_err("fail to disconnect DCAM%d from csi%d, timeout\n", idx, csi_id);
+		else
+			pr_warn("csi%d is already disabled\n", csi_id);
+	}
 
 	time_out = DCAMX_STOP_TIMEOUT;
 	while (time_out) {
@@ -1496,6 +1503,7 @@ static int dcamhw_csi_force_enable(void *handle, void *arg)
 	pr_debug("DCAM%d force to csi%d\n", idx, csi_idx);
 
 	regmap_update_bits(hw->soc_dcam->cam_ahb_gpr, 0x48 + idx *4, BIT_9 | BIT_10, csi_idx << 9);/* select csi for dcam */
+	regmap_update_bits(hw->soc_dcam->cam_ahb_gpr, 0x48 + idx *4, BIT_11, BIT_11);
 	regmap_update_bits(hw->soc_dcam->cam_ahb_gpr, 0x48 + idx *4, BIT_8, BIT_8);
 	regmap_update_bits(hw->soc_dcam->cam_ahb_gpr, 0x48 + idx *4, BIT_8, ~BIT_8);
 

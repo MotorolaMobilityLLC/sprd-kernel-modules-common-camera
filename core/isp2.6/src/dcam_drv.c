@@ -153,7 +153,7 @@ int dcam_drv_dt_parse(struct platform_device *pdev,
 		return -EINVAL;
 	}
 
-	pr_info("dev: %s, full name: %s, cam_ahb_gpr: %p, count: %u, DCAM dcam_max.w.h %u %u\n",
+	pr_info("dev: %s, full name: %s, cam_ahb_gpr: %px, count: %u, DCAM dcam_max.w.h %u %u\n",
 		pdev->name, dn->full_name, ahb_map, count, dcam_max_w, dcam_max_h);
 
 	iommu_node = of_parse_phandle(dn, "iommus", 0);
