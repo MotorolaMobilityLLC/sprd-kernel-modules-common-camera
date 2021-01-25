@@ -16,6 +16,7 @@
 
 #include "isp_hw.h"
 #include "isp_reg.h"
+#include "dcam_reg.h"
 #include "cam_types.h"
 #include "cam_block.h"
 
@@ -29,8 +30,8 @@ static int isp_k_gamma_block(struct isp_io_param *param,
 	struct isp_k_block *isp_k_param, uint32_t idx)
 {
 	int ret = 0;
-	uint32_t i, buf_sel = 0;
-	uint32_t buf_addr, val;
+	uint32_t i, chn, buf_sel = 0;
+	uint32_t val;
 	struct isp_dev_gamma_info *gamma_info = NULL;
 
 	gamma_info = &isp_k_param->gamma_info;
@@ -44,33 +45,34 @@ static int isp_k_gamma_block(struct isp_io_param *param,
 	}
 	if (g_isp_bypass[idx] & (1 << _EISP_GAMC))
 		gamma_info->bypass = 1;
-	ISP_REG_MWR(idx, ISP_GAMMA_PARAM, BIT_0,
+	DCAM_REG_MWR(idx, DCAM_FGAMMA10_PARAM, BIT_0,
 			gamma_info->bypass);
 	if (gamma_info->bypass)
 		return 0;
 
 	/* only cfg mode and buf0 is selected. */
-	ISP_REG_MWR(idx, ISP_GAMMA_PARAM, BIT_1, buf_sel << 1);
+	DCAM_REG_MWR(idx, DCAM_FGAMMA10_PARAM, BIT_1, buf_sel << 1);
 
-	buf_addr = ISP_FGAMMA_R_BUF0;
-	for (i = 0; i < ISP_FRGB_GAMMA_PT_NUM - 1; i++) {
-		val = gamma_info->gain_r[i];
-		val = ((val << 8) | gamma_info->gain_r[i + 1]);
-		ISP_REG_WR(idx, buf_addr + i * 4, val);
-	}
-
-	buf_addr = ISP_FGAMMA_G_BUF0;
-	for (i = 0; i < ISP_FRGB_GAMMA_PT_NUM - 1; i++) {
-		val = gamma_info->gain_g[i];
-		val = ((val << 8) | gamma_info->gain_g[i + 1]);
-		ISP_REG_WR(idx, buf_addr + i * 4, val);
-	}
-
-	buf_addr = ISP_FGAMMA_B_BUF0;
-	for (i = 0; i < ISP_FRGB_GAMMA_PT_NUM - 1; i++) {
-		val = gamma_info->gain_b[i];
-		val = ((val << 8) | gamma_info->gain_b[i + 1]);
-		ISP_REG_WR(idx, buf_addr + i * 4, val);
+	/* wait for gamma new struct, need change */
+	for (chn = 0; chn < 3; chn++) {
+		val = (chn & 0x3) << 8;
+		DCAM_REG_MWR(idx, DCAM_BUF_CTRL, 0x300, val);
+		if (chn == 0) {
+			for (i = 0; i < ISP_FRGB_GAMMA_PT_NUM - 1; i++) {
+				val = gamma_info->gain_r[i];
+				DCAM_REG_WR(idx, DCAM_FGAMMA10_TABLE + i * 4, val);
+			}
+		} else if (chn == 1) {
+			for (i = 0; i < ISP_FRGB_GAMMA_PT_NUM - 1; i++) {
+				val = gamma_info->gain_g[i];
+				DCAM_REG_WR(idx, DCAM_FGAMMA10_TABLE + i * 4, val);
+			}
+		} else {
+			for (i = 0; i < ISP_FRGB_GAMMA_PT_NUM - 1; i++) {
+				val = gamma_info->gain_b[i];
+				DCAM_REG_WR(idx, DCAM_FGAMMA10_TABLE + i * 4, val);
+			}
+		}
 	}
 
 	return ret;

@@ -191,8 +191,8 @@ static int isp_k_nlm_block(struct isp_io_param *param,
 		((p->update_flat_thr_bypass & 0x1) << 3);
 	DCAM_REG_MWR(idx, DCAM_NLM_RADIAL_1D_PARAM, 0xF, val);
 
-	val = ((p->nlm_radial_1D_center_y & 0x3FFF) << 16) |
-			(p->nlm_radial_1D_center_x & 0x3FFF);
+	val = ((p->nlm_radial_1D_center_y & 0x7FFF) << 16) |
+			(p->nlm_radial_1D_center_x & 0x7FFF);
 	DCAM_REG_WR(idx, DCAM_NLM_RADIAL_1D_DIST, val);
 
 	val = p->nlm_radial_1D_radius_threshold & 0x7FFF;

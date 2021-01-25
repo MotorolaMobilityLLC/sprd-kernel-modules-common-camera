@@ -243,11 +243,11 @@ static int isp_k_pdaf_type3_set_ppi_info(
 	/* ppi block col&row start,end */
 	val = ppi_info->block.start_x
 		| ppi_info->block.end_x << 16;
-	DCAM_REG_MWR(idx, ISP_PPI_BLOCK_COL, 0x1fffffff, val);
+	DCAM_REG_MWR(idx, ISP_PPI_BLOCK_COL, 0x1fff1fff, val);
 	val = 0;
 	val = ppi_info->block.start_y
 		| ppi_info->block.end_y << 16;
-	DCAM_REG_MWR(idx, ISP_PPI_BLOCK_ROW, 0x1fffffff, val);
+	DCAM_REG_MWR(idx, ISP_PPI_BLOCK_ROW, 0x1fff1fff, val);
 
 	/* ppi block w*h */
 	val = 0;
@@ -400,11 +400,11 @@ int dcam_k_pdaf(struct dcam_dev_param *p)
 	/* ppi block col&row start,end */
 	val = ppi_info->block.start_x
 		| ppi_info->block.end_x << 16;
-	DCAM_REG_MWR(idx, ISP_PPI_BLOCK_COL, 0x1fffffff, val);
+	DCAM_REG_MWR(idx, ISP_PPI_BLOCK_COL, 0x1fff1fff, val);
 	val = 0;
 	val = ppi_info->block.start_y
 		| ppi_info->block.end_y << 16;
-	DCAM_REG_MWR(idx, ISP_PPI_BLOCK_ROW, 0x1fffffff, val);
+	DCAM_REG_MWR(idx, ISP_PPI_BLOCK_ROW, 0x1fff1fff, val);
 
 	/* ppi block w*h */
 	val = 0;

@@ -162,7 +162,7 @@ int dcam_k_raw_gtm_block(uint32_t gtm_param_idx,
 		DCAM_REG_WR(idx, GTM_TM_FILTER_DIST0 + 4 * i, val);
 	}
 
-	DCAM_REG_WR(idx, GTM_TM_FILTER_DIST8 + 4 * i, 0x1F & p->tm_filter_dist_c[48]);
+	DCAM_REG_WR(idx, GTM_TM_FILTER_DIST8, 0x1F & p->tm_filter_dist_c[48]);
 
 	for (i = 0; i < 6; i++ ){
 		val = (p->tm_filter_distw_c[i * 3 + 0] & 0x1FF)
