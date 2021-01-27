@@ -2257,8 +2257,6 @@ static int dcamcore_dev_start(void *dcam_handle, int online)
 			pr_err("fail to creat offline thread\n");
 			return ret;
 		}
-		if (pctx->hw_ctx_id <= DCAM_HW_CONTEXT_1)
-			atomic_dec(&s_dcam_working);
 		atomic_set(&pctx->state, STATE_RUNNING);
 		return ret;
 	}
@@ -2460,12 +2458,12 @@ static int dcamcore_dev_stop(void *dcam_handle, enum dcam_stop_cmd pause)
 		dcam_int_tracker_reset(pctx->hw_ctx_id);
 	}
 
-	if (pctx->hw_ctx_id <= DCAM_HW_CONTEXT_1)
+	if (pctx->hw_ctx_id <= DCAM_HW_CONTEXT_1 && (!pctx->offline))
 		atomic_dec(&s_dcam_working);
 	atomic_set(&pctx->state, STATE_IDLE);
 	for (i = DCAM_CXT_1; i < DCAM_CXT_NUM; i++) {
 		pctx->ctx[i].ctx_id = i;
-		if (atomic_read(&pctx->ctx[i].user_cnt)  > 0)
+		if (atomic_read(&pctx->ctx[i].user_cnt) > 0)
 			dcamcore_pmctx_deinit(&pctx->ctx[i]);
 	}
 
