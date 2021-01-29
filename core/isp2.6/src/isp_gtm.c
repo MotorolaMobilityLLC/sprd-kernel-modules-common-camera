@@ -247,13 +247,31 @@ static int ispgtm_pipe_proc(void *handle, void *param)
 		gtm_func.index = ISP_K_GTM_BLOCK_SET;
 		gtm_ctx->hw->isp_ioctl(gtm_ctx->hw, ISP_HW_CFG_GTM_FUNC_GET, &gtm_func);
 		gtm_func.k_blk_func(&gtm_k_block);
-		ret = ispgtm_capture_tunning_set(gtm_ctx->cam_id, param);
+		if (gtm_k_block.tuning->gtm_mod_en)
+			ret = ispgtm_capture_tunning_set(gtm_ctx->cam_id, param);
 		break;
 	 case MODE_GTM_CAP:
 		gtm_sync = gtm_ctx->sync;
 		if (!gtm_sync) {
-			pr_err("fail to get valid gtm_sync ptr NULL\n");
+			pr_err("fail to ctx_id %d get valid gtm_sync ptr NULL\n", gtm_ctx->ctx_id);
 			return -1;
+		}
+
+		ret = ispgtm_capture_tunning_get(gtm_ctx->cam_id, param);
+		if (ret) {
+			pr_err("fail to ctx_id %d get tuning param\n", gtm_ctx->ctx_id);
+			return -1;
+		}
+
+		gtm_k_block.ctx = gtm_ctx;
+		gtm_k_block.tuning = param;
+		/*capture: mapping enable, hist_stat disable*/
+		gtm_k_block.tuning->gtm_map_bypass = 0;
+		gtm_k_block.tuning->gtm_hist_stat_bypass = 1;
+
+		if (gtm_k_block.tuning->gtm_mod_en == 0) {
+			pr_debug("capture frame ctx_id %d, mod_en off\n", gtm_ctx->ctx_id);
+			goto exit;
 		}
 
 	 	prev_fid = atomic_read(&gtm_sync->prev_fid);
@@ -278,29 +296,26 @@ static int ispgtm_pipe_proc(void *handle, void *param)
 
 		mapping = &gtm_ctx->sync->mapping;
 		if (gtm_ctx->fid == mapping->fid) {
-			ret = ispgtm_capture_tunning_get(gtm_ctx->cam_id, param);
-			if (ret == 0) {
-				gtm_k_block.ctx = gtm_ctx;
-				gtm_k_block.tuning = param;
+			gtm_func.index = ISP_K_GTM_BLOCK_SET;
+			gtm_ctx->hw->isp_ioctl(gtm_ctx->hw, ISP_HW_CFG_GTM_FUNC_GET, &gtm_func);
+			gtm_func.k_blk_func(&gtm_k_block);
 
-				gtm_func.index = ISP_K_GTM_BLOCK_SET;
-				gtm_ctx->hw->isp_ioctl(gtm_ctx->hw, ISP_HW_CFG_GTM_FUNC_GET, &gtm_func);
-				gtm_func.k_blk_func(&gtm_k_block);
+			mapping->ctx_id = gtm_ctx->ctx_id;
+			gtm_func.index = ISP_K_GTM_MAPPING_SET;
+			gtm_ctx->hw->isp_ioctl(gtm_ctx->hw, ISP_HW_CFG_GTM_FUNC_GET, &gtm_func);
+			gtm_func.k_blk_func(mapping);
 
-				mapping->ctx_id = gtm_ctx->ctx_id;
-				gtm_func.index = ISP_K_GTM_MAPPING_SET;
-				gtm_ctx->hw->isp_ioctl(gtm_ctx->hw, ISP_HW_CFG_GTM_FUNC_GET, &gtm_func);
-				gtm_func.k_blk_func(mapping);
-
-				idx = gtm_ctx->ctx_id;
-				gtm_func.index = ISP_K_GTM_STATUS_GET;
-				gtm_ctx->hw->isp_ioctl(gtm_ctx->hw, ISP_HW_CFG_GTM_FUNC_GET, &gtm_func);
-				gtm_ctx->gtm_mode_en = gtm_func.k_blk_func(&idx) & gtm_k_block.tuning->gtm_mod_en;
-			}
+			idx = gtm_ctx->ctx_id;
+			gtm_func.index = ISP_K_GTM_STATUS_GET;
+			gtm_ctx->hw->isp_ioctl(gtm_ctx->hw, ISP_HW_CFG_GTM_FUNC_GET, &gtm_func);
+			gtm_ctx->gtm_mode_en = gtm_func.k_blk_func(&idx) & gtm_k_block.tuning->gtm_mod_en;
 		}
 		break;
+	case MODE_GTM_OFF:
+		pr_debug("ctx_id %d, GTM off\n", gtm_ctx->ctx_id);
+		break;
 	default:
-		pr_debug("waring , GTM need to check, mode %d\n", gtm_ctx->mode);
+		pr_debug("waring , ctx_id %d, GTM need to check, mode %d\n", gtm_ctx->ctx_id, gtm_ctx->mode);
 		break;
 	 }
 exit:
@@ -334,13 +349,19 @@ static struct isp_gtm_ctx_desc *ispgtm_ctx_init(uint32_t idx, uint32_t cam_id, v
 
 void isp_gtm_rgb_ctx_put(void *gtm_handle)
 {
-	struct isp_gtm_ctx_desc *gtm_ctx = (struct isp_gtm_ctx_desc *)gtm_handle;
+	struct isp_gtm_ctx_desc *gtm_ctx = NULL;
 
-	if (gtm_ctx) {
-		pr_debug("free gtm context  ctx_id =%d!\n", gtm_ctx->ctx_id);
-		vfree(gtm_ctx);
-		gtm_ctx = NULL;
+	if (!gtm_handle) {
+		pr_err("fail to get valid gtm_handle\n");
+		return;
 	}
+
+	gtm_ctx = (struct isp_gtm_ctx_desc *)gtm_handle;
+
+	if (gtm_ctx)
+		vfree(gtm_ctx);
+
+	gtm_ctx = NULL;
 }
 
 void *ispgtm_rgb_ctx_get(uint32_t idx, enum camera_id cam_id, void *hw)
