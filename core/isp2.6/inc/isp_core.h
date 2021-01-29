@@ -97,6 +97,7 @@ struct slice_cfg_input {
 	struct img_size *frame_out_size[ISP_SPATH_NUM];
 	struct isp_hw_fetch_info *frame_fetch;
 	struct isp_fbd_raw_info *frame_fbd_raw;
+	struct isp_fbd_yuv_info *frame_fbd_yuv;
 	struct isp_store_info *frame_store[ISP_SPATH_NUM];
 	struct isp_afbc_store_info *frame_afbc_store[AFBC_PATH_NUM];
 	struct yuv_scaler_info *frame_scaler[ISP_SPATH_NUM];

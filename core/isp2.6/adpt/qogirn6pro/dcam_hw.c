@@ -1226,7 +1226,7 @@ static int dcamhw_path_size_update(void *handle, void *arg)
 		DCAM_REG_WR(idx, DCAM_STORE4_SLICE_SIZE, reg_val);
 		if (sizearg->compress_info.is_compress) {
 			DCAM_REG_WR(idx, DCAM_FBC_RAW_SLICE_SIZE, reg_val);
-			DCAM_REG_WR(idx, DCAM_FBC_RAW_SLICE_TILE_PITCH, sizearg->compress_info.tile_row);
+			DCAM_REG_WR(idx, DCAM_FBC_RAW_SLICE_TILE_PITCH, sizearg->compress_info.tile_col);
 		}
 
 		DCAM_REG_WR(idx, DCAM_STORE4_Y_PITCH, sizearg->out_pitch);
@@ -1705,7 +1705,9 @@ static int dcamhw_fbc_ctrl(void *handle, void *arg)
 			afbc_mode = 0xC;
 	}
 
-	if (fbc_arg->fmt == DCAM_STORE_YUV420)
+	/*ISP FBD Only Support YUV, So Change DCAM FBC FORMAT
+	to ensure ISP output right image*/
+	if (fbc_arg->fmt == DCAM_STORE_YVU420)
 		color_format = 4;
 	else
 		color_format = 5;
@@ -1720,7 +1722,7 @@ static int dcamhw_fbc_ctrl(void *handle, void *arg)
 		addr = DCAM_FBC_RAW_PARAM;
 		DCAM_REG_MWR(fbc_arg->idx, addr, 0x1F00, afbc_mode << 8);
 		val = (fbc_arg->data_bits - 8) >> 1;
-		DCAM_REG_MWR(fbc_arg->idx, addr, BIT_6|BIT_7, val << 6);
+		DCAM_REG_MWR(fbc_arg->idx, addr, BIT_6 | BIT_7, val << 6);
 		DCAM_REG_MWR(fbc_arg->idx, addr, 0xF << 16, color_format << 16);
 		DCAM_REG_MWR(fbc_arg->idx, addr, BIT_0, 0);
 		if (fbc_arg->path_id == DCAM_PATH_FULL)

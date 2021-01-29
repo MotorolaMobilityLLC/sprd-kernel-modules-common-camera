@@ -195,6 +195,23 @@ struct slice_fbd_raw_info {
 	uint32_t low_4bit_pitch:16;
 };
 
+struct slice_fbd_yuv_info {
+	/*1.1.58.1 fdb fetch sel*/
+	uint32_t fetch_fbd_bypass;
+	uint32_t chk_sum_auto_clr;
+	uint32_t hblank_en;
+	uint32_t dout_req_signal_type;
+	uint32_t afbc_mode;
+	uint32_t start_isp_afbd;
+	uint32_t hblank_num;
+	uint32_t tile_num_pitch;
+	struct img_size slice_size;
+	uint32_t slice_start_pxl_xpt;
+	uint32_t slice_start_pxl_ypt;
+	uint32_t frame_header_base_addr;
+	uint32_t slice_start_header_addr;
+};
+
 struct slice_3dnr_memctrl_info {
 	uint32_t bypass;
 	uint32_t start_col;
@@ -342,6 +359,7 @@ struct isp_slice_desc {
 	struct slice_overlap_info slice_overlap;
 	struct slice_fetch_info slice_fetch;
 	struct slice_fbd_raw_info slice_fbd_raw;
+	struct slice_fbd_yuv_info slice_fbd_yuv;
 	struct slice_store_info slice_store[ISP_SPATH_NUM];
 	struct slice_afbc_store_info slice_afbc_store[AFBC_PATH_NUM];
 	struct slice_scaler_info slice_scaler[ISP_SPATH_NUM];

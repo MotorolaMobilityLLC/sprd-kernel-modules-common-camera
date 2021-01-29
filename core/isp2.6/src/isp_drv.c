@@ -492,8 +492,10 @@ static int ispdrv_fbd_yuv_get(void *cfg_in, void *cfg_out,
 	if (pipe_src->fetch_path_sel == 0)
 		return 0;
 
+	fbd_yuv->fetch_fbd_bypass = 0;
 	fbd_yuv->slice_size.w = pipe_src->src.w;
 	fbd_yuv->slice_size.h = pipe_src->src.h;
+	fbd_yuv->trim = pipe_src->crop;
 	tile_col = (fbd_yuv->slice_size.w + ISP_FBD_TILE_WIDTH - 1) / ISP_FBD_TILE_WIDTH;
 	tile_row =(fbd_yuv->slice_size.h + ISP_FBD_TILE_HEIGHT - 1) / ISP_FBD_TILE_HEIGHT;
 
@@ -517,12 +519,13 @@ static int ispdrv_fbd_yuv_get(void *cfg_in, void *cfg_out,
 	/* store start address for slice use */
 	fbd_yuv->frame_header_base_addr = fbd_yuv->hw_addr.addr0;
 	fbd_yuv->slice_start_header_addr = fbd_yuv->frame_header_base_addr +
-			((fbd_yuv->slice_start_pxl_ypt / 8) * fbd_yuv->tile_num_pitch +
-			fbd_yuv->slice_start_pxl_xpt / 32) * 16;
-	pr_debug("iova:%d, fetch_fbd: %u 0x%x 0x%x, 0x%x, size %u %u\n",
+			((fbd_yuv->slice_start_pxl_ypt / ISP_FBD_TILE_HEIGHT) * fbd_yuv->tile_num_pitch +
+			fbd_yuv->slice_start_pxl_xpt / ISP_FBD_TILE_WIDTH) * 16;
+	fbd_yuv->data_bits = cal_fbc.data_bits;
+	pr_debug("iova:%d, fetch_fbd: %u 0x%x 0x%x, 0x%x, size %u %u, channel_id:%d\n",
 		 frame->buf.iova[0], frame->fid, fbd_yuv->hw_addr.addr0,
 		 fbd_yuv->hw_addr.addr1, fbd_yuv->hw_addr.addr2,
-		pipe_src->src.w, pipe_src->src.h);
+		pipe_src->src.w, pipe_src->src.h, frame->channel_id);
 
 	return 0;
 }
@@ -908,10 +911,14 @@ int isp_drv_pipeinfo_get(void *arg, void *frame)
 	}
 
 	pipe_in->fetch_fbd.ctx_id = ctx->ctx_id;
-	if (ctx->dev->isp_hw->ip_isp->fbd_raw_support)
+	pipe_in->fetch_fbd_yuv.ctx_id = ctx->ctx_id;
+	if (ctx->dev->isp_hw->ip_isp->fbd_raw_support) {
 		ret = ispdrv_fbd_raw_get(pipe_src, &pipe_in->fetch_fbd, pframe);
-	else if (ctx->dev->isp_hw->ip_isp->fbd_yuv_support)
+		pipe_in->fetch_fbd_yuv.fetch_fbd_bypass = 1;
+	} else if (ctx->dev->isp_hw->ip_isp->fbd_yuv_support) {
 		ret = ispdrv_fbd_yuv_get(pipe_src, &pipe_in->fetch_fbd_yuv, pframe);
+		pipe_in->fetch_fbd.fetch_fbd_bypass = 1;
+	}
 	if (ret) {
 		pr_err("fail to get pipe fetch fbd info\n");
 		return -EFAULT;

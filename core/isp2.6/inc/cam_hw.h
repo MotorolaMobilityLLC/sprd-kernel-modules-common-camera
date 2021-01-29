@@ -432,6 +432,7 @@ struct isp_fbd_yuv_info {
 	uint32_t ctx_id;
 	/*1.1.58.1 fdb fetch sel*/
 	uint32_t fetch_fbd_bypass;
+	uint32_t data_bits;
 	uint32_t chk_sum_auto_clr;
 	uint32_t hblank_en;
 	uint32_t dout_req_signal_type;
@@ -451,6 +452,7 @@ struct isp_fbd_yuv_info {
 	/*1.1.58.7 fdb fetch param2*/
 	uint32_t slice_start_header_addr;
 
+	struct img_trim trim;
 	struct compressed_addr hw_addr;
 };
 
@@ -992,6 +994,7 @@ struct isp_hw_afbc_addr {
 struct isp_hw_fbd_slice {
 	struct isp_fmcu_ctx_desc *fmcu_handle;
 	struct slice_fbd_raw_info *info;
+	struct slice_fbd_yuv_info *yuv_info;
 };
 
 struct cam_hw_gtm_ltm_dis {

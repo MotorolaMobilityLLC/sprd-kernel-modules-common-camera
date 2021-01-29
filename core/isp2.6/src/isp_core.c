@@ -923,6 +923,7 @@ static int ispcore_slice_ctx_init(struct isp_sw_context *pctx, uint32_t *multi_s
 	slc_cfg_in.frame_in_size.h = pctx->pipe_src.crop.size_y;
 	slc_cfg_in.frame_fetch = &pctx->pipe_info.fetch;
 	slc_cfg_in.frame_fbd_raw = &pctx->pipe_info.fetch_fbd;
+	slc_cfg_in.frame_fbd_yuv = &pctx->pipe_info.fetch_fbd_yuv;
 	for (j = 0; j < ISP_SPATH_NUM; j++) {
 		path = &pctx->isp_path[j];
 		if (atomic_read(&path->user_cnt) <= 0)
@@ -1667,6 +1668,7 @@ static int ispcore_offline_frame_start(void *ctx)
 		slc_cfg.gtm_rgb_eb = pctx->pipe_src.gtm_rgb;
 		slc_cfg.frame_fetch = &pctx->pipe_info.fetch;
 		slc_cfg.frame_fbd_raw = &pctx->pipe_info.fetch_fbd;
+		slc_cfg.frame_fbd_yuv = &pctx->pipe_info.fetch_fbd_yuv;
 		slc_cfg.frame_in_size.w = pctx->pipe_src.crop.size_x;
 		slc_cfg.frame_in_size.h = pctx->pipe_src.crop.size_y;
 		slc_cfg.nr3_ctx = (struct isp_3dnr_ctx_desc *)pctx->nr3_handle;
@@ -1700,8 +1702,7 @@ static int ispcore_offline_frame_start(void *ctx)
 		}
 	}
 
-	ret = wait_for_completion_interruptible_timeout(
-			&pctx->frm_done, ISP_CONTEXT_TIMEOUT);
+	ret = wait_for_completion_interruptible_timeout(&pctx->frm_done, ISP_CONTEXT_TIMEOUT);
 	if (ret == -ERESTARTSYS) {
 		pr_err("fail to interrupt, when isp wait\n");
 		ret = -EFAULT;
@@ -3085,6 +3086,7 @@ static int ispcore_context_get(void *isp_handle, void *param)
 	init_isp_pm(&pctx->isp_k_param);
 	/* bypass fbd_raw by default */
 	pctx->pipe_info.fetch_fbd.fetch_fbd_bypass = 1;
+	pctx->pipe_info.fetch_fbd_yuv.fetch_fbd_bypass = 1;
 	pctx->multi_slice = 0;
 	pctx->started = 0;
 	pctx->attach_cam_id = init_param->cam_id;

@@ -464,8 +464,7 @@ static irqreturn_t ispint_isr_root(int irq, void *priv)
 			ISP_HREG_WR(irq_offset + ISP_INT_CLR0, irq_line);
 			ISP_HREG_WR(irq_offset + ISP_INT_CLR1, irq_line1);
 			if (irq_line & ISP_INT_LINE_MASK)
-				pr_debug("get c_id, hw: %d has no sw_ctx_id, irq_line: %08x\n",
-					c_id, irq_line);
+				pr_debug("get c_id, hw: %d has no sw_ctx_id, irq_line: %08x\n", c_id, irq_line);
 			continue;
 		}
 
