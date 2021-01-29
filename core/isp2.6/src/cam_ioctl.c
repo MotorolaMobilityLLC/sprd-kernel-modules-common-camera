@@ -2269,6 +2269,7 @@ static int camioctl_capture_start(struct camera_module *module,
 	}
 	hw = module->grp->hw_info;
 	start_time = ktime_get_boottime();
+	module->capture_times = start_time;
 	ch = &module->channel[CAM_CH_CAP];
 	if(ch) {
 		mutex_lock(&module->buf_lock[ch->ch_id]);
@@ -2368,6 +2369,7 @@ static int camioctl_capture_start(struct camera_module *module,
 		}
 		camcore_4in1_channel_size_config(module, module->lowlux_4in1);
 	} else if (param.type == DCAM_CAPTURE_START) {
+		module->capture_times = param.timestamp;
 		module->dcam_cap_status = DCAM_CAPTURE_START;
 		atomic_set(&module->capture_frames_dcam, CAP_NUM_COMMON);
 	} else {

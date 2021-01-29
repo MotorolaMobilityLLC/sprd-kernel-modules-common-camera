@@ -1887,9 +1887,11 @@ static int dcamcore_path_cfg(void *dcam_handle, enum dcam_path_cfg_cmd cfg_cmd,
 	switch (cfg_cmd) {
 	case DCAM_PATH_CFG_OUTPUT_BUF:
 		pframe = (struct camera_frame *)param;
-		ret = cam_buf_iommu_map(&pframe->buf, CAM_IOMMUDEV_DCAM);
-		if (ret)
-			goto exit;
+		if (path_id != DCAM_PATH_FULL) {
+			ret = cam_buf_iommu_map(&pframe->buf, CAM_IOMMUDEV_DCAM);
+			if (ret)
+				goto exit;
+		}
 
 		if (atomic_read(&pctx->state) != STATE_RUNNING)
 			dcamcore_frame_info_show(pctx, path, pframe);

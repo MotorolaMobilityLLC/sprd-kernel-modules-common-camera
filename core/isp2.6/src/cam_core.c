@@ -62,7 +62,7 @@
 
 #define CAM_COUNT                       CAM_ID_MAX
 /* TODO: extend this for slow motion dev */
-#define CAM_SHARED_BUF_NUM              16
+#define CAM_SHARED_BUF_NUM              25
 #define CAM_FRAME_Q_LEN                 48
 #define CAM_IRQ_Q_LEN                   16
 #define CAM_STATIS_Q_LEN                16
@@ -213,6 +213,9 @@ struct channel_context {
 	int32_t isp_fdrl_path;
 	int32_t isp_fdrh_ctx;
 	int32_t isp_fdrh_path;
+
+	uint32_t zsl_buffer_num;
+	uint32_t zsl_skip_num;
 
 	struct camera_uchannel ch_uinfo;
 	struct img_size swap_size;
@@ -1394,6 +1397,7 @@ static int camcore_buffers_alloc_num(struct channel_context *channel,
 		struct camera_module *module)
 {
 	int num = 5;
+	uint32_t zsl_num = 0, zsl_skip_num = 0;
 
 	if (channel->ch_id == CAM_CH_CAP && module->cam_uinfo.is_dual)
 		num = 4;
@@ -1417,6 +1421,18 @@ static int camcore_buffers_alloc_num(struct channel_context *channel,
 		num = 4;
 	}
 
+	zsl_num = CAM_ZSL_NUM;
+	zsl_skip_num = CAM_ZSL_SKIP_NUM;
+	channel->zsl_skip_num = zsl_skip_num;
+	if (channel->ch_id == CAM_CH_CAP) {
+		channel->zsl_buffer_num = zsl_num / (zsl_skip_num + 1);
+		num += channel->zsl_buffer_num;
+		if (zsl_num % (zsl_skip_num + 1) != 0) {
+			channel->zsl_buffer_num += 1;
+			num += 1;
+		}
+	}
+
 	return num;
 }
 
@@ -1427,8 +1443,7 @@ static int camcore_buffers_alloc(void *param)
 	int i, count, total, iommu_enable;
 	uint32_t width = 0, height = 0, size = 0, pack_bits = 0, dcam_out_bits = 0, pitch = 0;
 	uint32_t postproc_w = 0, postproc_h = 0;
-	uint32_t is_super_size = 0;
-	uint32_t sec_mode = 0;
+	uint32_t is_super_size = 0, sec_mode = 0, is_pack = 0;
 	struct camera_module *module;
 	struct camera_frame *pframe;
 	struct channel_context *channel = NULL;
@@ -1436,7 +1451,6 @@ static int camcore_buffers_alloc(void *param)
 	struct camera_debugger *debugger;
 	struct cam_hw_info *hw = NULL;
 	struct camera_frame *alloc_buf = NULL;
-	uint32_t is_pack = 0;
 	struct dcam_compress_info fbc_info;
 	struct dcam_compress_cal_para cal_fbc = {0};
 
@@ -1459,14 +1473,8 @@ static int camcore_buffers_alloc(void *param)
 	channel_vid = &module->channel[CAM_CH_VID];
 	sec_mode = module->grp->camsec_cfg.camsec_mode;
 
-	if (channel->ch_id != CAM_CH_CAP &&
-		hw->ip_dcam[module->dcam_idx]->rds_en) {
-		width = channel->dst_dcam.w;
-		height = channel->dst_dcam.h;
-	} else {
-		width = channel->swap_size.w;
-		height = channel->swap_size.h;
-	}
+	width = channel->swap_size.w;
+	height = channel->swap_size.h;
 	pack_bits = module->cam_uinfo.sensor_if.if_spec.mipi.is_loose;
 	dcam_out_bits = module->cam_uinfo.sensor_if.if_spec.mipi.bits_per_pxl;
 	is_pack = !pack_bits;
@@ -1495,8 +1503,9 @@ static int camcore_buffers_alloc(void *param)
 	size = ALIGN(size, CAM_BUF_ALIGN_SIZE);
 
 	total = camcore_buffers_alloc_num(channel, module);
-	pr_info("ch_id %d, camsec=%d, buffer size: %u (%u x %u), num %d\n",
-		channel->ch_id, sec_mode, size, width, height, total);
+	pr_info("idx %d, ch_id %d, camsec=%d, buffer size: %u (%u x %u), num %d\n",
+		module->dcam_idx, channel->ch_id, sec_mode,
+		size, width, height, total);
 
 	for (i = 0, count = 0; i < total; i++) {
 		do {
@@ -2677,10 +2686,29 @@ static int camcore_dcam_callback(enum dcam_cb_type type, void *param, void *priv
 					return ret;
 				}
 
-				if (module->cam_uinfo.is_dual)
+				if (module->cam_uinfo.is_dual) {
 					pframe = camcore_dual_fifo_queue(module,
 						pframe, channel);
+				} else if (channel->zsl_skip_num == CAM_ZSL_SKIP_NUM) {
+					if (channel->zsl_skip_num)
+						channel->zsl_skip_num --;
+					else
+						channel->zsl_skip_num = CAM_ZSL_SKIP_NUM;
+					ret = cam_queue_enqueue(&channel->share_buf_queue, &pframe->list);
+					if (channel->share_buf_queue.cnt > channel->zsl_buffer_num)
+						pframe = cam_queue_dequeue(&channel->share_buf_queue,
+							struct camera_frame, list);
+					else
+						return ret;
+				} else {
+					if (channel->zsl_skip_num)
+						channel->zsl_skip_num --;
+					else
+						channel->zsl_skip_num = CAM_ZSL_SKIP_NUM;
+				}
 
+				pr_debug("share buf queue cnt %d skip_cnt %d\n",
+					channel->share_buf_queue.cnt, channel->zsl_skip_num);
 				if (pframe) {
 					if (pframe->dcam_idx == DCAM_ID_1)
 						ret = module->dcam_dev_handle->dcam_pipe_ops->cfg_path( dcam_sw_aux_ctx,
@@ -2788,6 +2816,16 @@ static int camcore_dcam_callback(enum dcam_cb_type type, void *param, void *priv
 						DCAM_PATH_CFG_OUTPUT_BUF,
 						channel->dcam_path_id, pframe);
 			} else {
+				if ((channel->share_buf_queue.cnt > channel->zsl_buffer_num) &&
+					(module->cap_status != CAM_CAPTURE_RAWPROC) && channel->zsl_buffer_num) {
+					pframe = cam_queue_dequeue(&channel->share_buf_queue,
+						struct camera_frame, list);
+					if (pframe->sync_data)
+						dcam_core_dcam_if_release_sync(pframe->sync_data, pframe);
+					ret = module->dcam_dev_handle->dcam_pipe_ops->cfg_path(
+							dcam_sw_ctx, DCAM_PATH_CFG_OUTPUT_BUF,
+							channel->dcam_path_id, pframe);
+				}
 				if (atomic_read(&module->capture_frames_dcam) > 0)
 					atomic_dec(&module->capture_frames_dcam);
 				pr_debug("capture_frames_dcam = %d\n", atomic_read(&module->capture_frames_dcam));
@@ -5991,25 +6029,40 @@ static int camcore_capture_proc(void *param)
 	}
 	mutex_unlock(&module->fdr_lock);
 
+	dcam_sw_ctx = &module->dcam_dev_handle->sw_ctx[module->cur_sw_ctx_id];
+	dcam_sw_aux_ctx = &module->dcam_dev_handle->sw_ctx[module->cur_aux_sw_ctx_id];
 	channel = &module->channel[CAM_CH_CAP];
-	pframe = cam_queue_dequeue(&channel->share_buf_queue,
-			struct camera_frame, list);
-	if (!pframe)
-		return 0;
+	do {
+		pframe = cam_queue_dequeue(&channel->share_buf_queue,
+				struct camera_frame, list);
+		if (!pframe)
+			return 0;
+		if (module->dcam_cap_status != DCAM_CAPTURE_START_WITH_TIMESTAMP &&
+			pframe->boot_sensor_time < module->capture_times) {
+			pr_debug("cam%d cap skip frame type[%d] cap_time[%lld] sof_time[%lld]\n",
+				module->idx, module->dcam_cap_status,
+				module->capture_times, pframe->boot_sensor_time);
+			if (pframe->sync_data)
+				dcam_core_dcam_if_release_sync(pframe->sync_data, pframe);
+			ret = module->dcam_dev_handle->dcam_pipe_ops->cfg_path(
+				dcam_sw_ctx, DCAM_PATH_CFG_OUTPUT_BUF,
+				channel->dcam_path_id, pframe);
+		} else {
+			break;
+		}
+	} while (pframe);
 
 	ret = -1;
 	if (module->cap_status != CAM_CAPTURE_STOP) {
-		pr_info("capture frame cam id %d, fid[%d],  frame w %d, h %d\n",
-			module->idx, pframe->fid,
-			pframe->width, pframe->height);
+		pr_debug("capture frame cam id %d, fid[%d], frame w %d, h %d c_time %lld, s_time %lld\n",
+			module->idx, pframe->fid, pframe->width, pframe->height,
+			module->capture_times, pframe->boot_sensor_time);
 		ret = module->isp_dev_handle->isp_ops->proc_frame(module->isp_dev_handle, pframe,
 				channel->isp_ctx_id);
 	}
 
 	if (ret) {
 		pr_info("capture stop or isp queue overflow\n");
-		dcam_sw_ctx = &module->dcam_dev_handle->sw_ctx[module->cur_sw_ctx_id];
-		dcam_sw_aux_ctx = &module->dcam_dev_handle->sw_ctx[module->cur_aux_sw_ctx_id];
 		if (module->cam_uinfo.dcam_slice_mode && pframe->dcam_idx == DCAM_ID_1)
 			ret = module->dcam_dev_handle->dcam_pipe_ops->cfg_path(dcam_sw_aux_ctx,
 				DCAM_PATH_CFG_OUTPUT_BUF,

@@ -435,6 +435,13 @@ dcam_path_frame_cycle(struct dcam_sw_context *dcam_sw_ctx, struct dcam_path_desc
 	if (frame == NULL) {
 		frame = cam_queue_dequeue(&path->out_buf_queue, struct camera_frame, list);
 		src = 1;
+		if (frame != NULL && path->path_id == DCAM_PATH_FULL) {
+			if (cam_buf_iommu_map(&frame->buf, CAM_IOMMUDEV_DCAM)) {
+				pr_err("fail to mapping buffer\n");
+				cam_queue_enqueue(&path->out_buf_queue, &frame->list);
+				frame = NULL;
+			}
+		}
 	}
 
 	if (frame && (src == 0)) {

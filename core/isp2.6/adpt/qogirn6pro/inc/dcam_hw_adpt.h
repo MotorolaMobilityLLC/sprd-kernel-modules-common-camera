@@ -40,6 +40,14 @@
 #define DCAM_FRAME_TIMESTAMP_COUNT     0x100
 
 /*
+* zsl num means zsl cache num, but not the zsl cache buffer num.
+* skip num means interval num between two cache zsl frame.
+* zsl real cache buffer num can cal frome this two num.
+ */
+#define CAM_ZSL_NUM                    0
+#define CAM_ZSL_SKIP_NUM               0
+
+/*
  * dcam_if fbc capability limit
  * modification to these values may cause some function in isp_slice.c not
  * work, check @ispslice_slice_fbd_raw_cfg and all other symbol references for details
