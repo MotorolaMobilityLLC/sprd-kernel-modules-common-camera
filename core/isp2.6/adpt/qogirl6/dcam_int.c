@@ -725,6 +725,7 @@ static void dcamint_full_path_done(void *param)
 				sw_ctx->dcam_cb_func(DCAM_CB_RET_SRC_BUF, frame, sw_ctx->cb_priv_data);
 			}
 		}
+		dcam_core_context_unbind(sw_ctx);
 		complete(&sw_ctx->frm_done);
 	}
 }
@@ -905,7 +906,6 @@ static void dcamint_nr3_done(void *param)
 	p = DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, NR3_FAST_ME_PARAM);
 	out0 = DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, NR3_FAST_ME_OUT0);
 	out1 = DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, NR3_FAST_ME_OUT1);
-
 	if ((frame = dcamint_frame_prepare(dcam_hw_ctx, DCAM_PATH_3DNR))) {
 		sync = (struct dcam_frame_synchronizer *)frame->sync_data;
 		if (unlikely(!sync)) {

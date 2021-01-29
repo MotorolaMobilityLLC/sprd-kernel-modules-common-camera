@@ -57,6 +57,11 @@ enum dcam_sw_context_id {
 	DCAM_SW_CONTEXT_MAX,
 };
 
+enum dcam_sw_ctx_type {
+	DCAM_ONLINE_CTX = 0,
+	DCAM_OFFLINE_CTX,
+};
+
 struct statis_path_buf_info {
 	enum dcam_path_id path_id;
 	size_t buf_size;
@@ -73,8 +78,6 @@ enum dcam_path_cfg_cmd {
 	DCAM_PATH_CFG_CTX_BASE = 0,
 	DCAM_PATH_CFG_BASE = 0,
 	DCAM_PATH_CFG_OUTPUT_BUF,
-	DCAM_PATH_CFG_OUTPUT_ALTER_BUF,
-	DCAM_PATH_CLR_OUTPUT_ALTER_BUF,
 	DCAM_PATH_CFG_OUTPUT_RESERVED_BUF,
 	DCAM_PATH_CFG_SIZE,
 	DCAM_PATH_CFG_FULL_SOURCE,/* 4in1 select full path source */

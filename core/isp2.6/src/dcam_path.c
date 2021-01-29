@@ -289,6 +289,12 @@ int dcam_path_size_cfg(void *dcam_ctx_handle,
 			case DCAM_STORE_YVU422:
 			case DCAM_STORE_YUV420:
 			case DCAM_STORE_YVU420:
+				path->out_pitch = cal_sprd_yuv_pitch(path->out_size.w, path->data_bits, path->is_pack);
+
+				if ((crop_size.w == dst_size.w) && (crop_size.h == dst_size.h)) {
+					path->scaler_sel = DCAM_SCALER_BYPASS;
+					break;
+				}
 				if (dst_size.w > DCAM_SCALER_MAX_WIDTH || path->in_trim.size_x > (dst_size.w * DCAM_SCALE_DOWN_MAX)) {
 					pr_err("fail to support scaler, in width %d, out width %d\n",
 						path->in_trim.size_x, dst_size.w);
@@ -307,7 +313,6 @@ int dcam_path_size_cfg(void *dcam_ctx_handle,
 				if (ret)
 					pr_err("fail to calc scaler coeff\n");
 
-				path->out_pitch = cal_sprd_yuv_pitch(path->out_size.w, path->data_bits, path->is_pack);
 
 				break;
 			case DCAM_STORE_RAW_BASE:
@@ -433,34 +438,16 @@ int dcam_path_skip_num_set(void *dcam_ctx_handle,
 static inline struct camera_frame *
 dcam_path_frame_cycle(struct dcam_sw_context *dcam_sw_ctx, struct dcam_path_desc *path)
 {
-	uint32_t src;
 	struct camera_frame *frame = NULL;
 
-	if (path->path_id == DCAM_PATH_FULL && path->src_sel == 0) {
-		/* get raw buffer */
-		frame = cam_queue_dequeue(&path->alter_out_queue, struct camera_frame, list);
-		src = 0;
-	}
 	if (frame == NULL) {
 		frame = cam_queue_dequeue(&path->out_buf_queue, struct camera_frame, list);
-		src = 1;
 		if (frame != NULL && path->path_id == DCAM_PATH_FULL) {
 			if (cam_buf_iommu_map(&frame->buf, CAM_IOMMUDEV_DCAM)) {
 				pr_err("fail to mapping buffer\n");
 				cam_queue_enqueue(&path->out_buf_queue, &frame->list);
 				frame = NULL;
 			}
-		}
-	}
-
-	if (frame && (src == 0)) {
-		/* usr buffer for raw, mapping delay to here*/
-		if (cam_buf_iommu_map(&frame->buf, CAM_IOMMUDEV_DCAM)) {
-			pr_err("mapping failed\n");
-			cam_queue_enqueue(&path->alter_out_queue, &frame->list);
-			pr_debug("mapping raw buffer for ch %d, mfd %d\n",
-				frame->channel_id, frame->buf.mfd[0]);
-			frame = NULL;
 		}
 	}
 
@@ -476,13 +463,11 @@ dcam_path_frame_cycle(struct dcam_sw_context *dcam_sw_ctx, struct dcam_path_desc
 	if (cam_queue_enqueue(&path->result_queue, &frame->list) < 0) {
 		if (frame->is_reserved)
 			cam_queue_enqueue(&path->reserved_buf_queue, &frame->list);
-		else if (src == 1)
-			cam_queue_enqueue(&path->out_buf_queue, &frame->list);
 		else {
-			cam_buf_iommu_unmap(&frame->buf);
-			cam_queue_enqueue(&path->alter_out_queue, &frame->list);
+			cam_queue_enqueue(&path->out_buf_queue, &frame->list);
+			if (path->path_id == DCAM_PATH_FULL)
+				cam_buf_iommu_unmap(&frame->buf);
 		}
-
 		pr_err("fail to enqueue frame to result_queue, hw_ctx_id %u %s overflow\n",
 			dcam_sw_ctx->hw_ctx_id, dcam_path_name_get(path->path_id));
 		return ERR_PTR(-EPERM);

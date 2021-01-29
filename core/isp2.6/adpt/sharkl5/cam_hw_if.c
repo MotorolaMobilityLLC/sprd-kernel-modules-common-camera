@@ -445,6 +445,7 @@ static struct cam_hw_ip_info isp = {
 	.dewarp_support = 0,
 	.nr3_mv_alg_version = ALG_NR3_MV_VER_0,
 	.dyn_overlap_version = ALG_ISP_DYN_OVERLAP_NONE,
+	.fetch_raw_support = 1,
 };
 
 struct cam_hw_info sharkl5_hw_info = {

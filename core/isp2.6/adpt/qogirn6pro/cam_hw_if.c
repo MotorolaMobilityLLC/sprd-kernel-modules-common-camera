@@ -385,7 +385,7 @@ static struct cam_hw_soc_info dcam_lite_soc_info;
 static struct cam_hw_soc_info isp_soc_info;
 static struct cam_hw_ip_info dcam[DCAM_ID_MAX] = {
 	[DCAM_ID_0] = {
-		.aux_dcam_path = DCAM_PATH_FULL,
+		.aux_dcam_path = DCAM_PATH_BIN,
 		.slm_path = BIT(DCAM_PATH_BIN) | BIT(DCAM_PATH_AEM) | BIT(DCAM_PATH_HIST),
 		.lbuf_share_support = 1,
 		.offline_slice_support = 1,
@@ -403,7 +403,7 @@ static struct cam_hw_ip_info dcam[DCAM_ID_MAX] = {
 		.fmcu_support = 1,
 	},
 	[DCAM_ID_1] = {
-		.aux_dcam_path = DCAM_PATH_FULL,
+		.aux_dcam_path = DCAM_PATH_BIN,
 		.slm_path = BIT(DCAM_PATH_BIN) | BIT(DCAM_PATH_AEM) | BIT(DCAM_PATH_HIST),
 		.lbuf_share_support = 1,
 		.offline_slice_support = 1,
@@ -470,6 +470,7 @@ static struct cam_hw_ip_info isp = {
 	.frbg_hist_support = 0,
 	.nr3_mv_alg_version = ALG_NR3_MV_VER_1,
 	.dyn_overlap_version = ALG_ISP_DYN_OVERLAP_NONE,
+	.fetch_raw_support = 0,
 };
 
 struct cam_hw_info qogirn6pro_hw_info = {

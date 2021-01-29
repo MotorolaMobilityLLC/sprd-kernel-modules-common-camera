@@ -205,8 +205,12 @@ static uint32_t cam_reg_trace_tab[] = {
 	DCAM_STORE4_SLICE_U_ADDR,
 	DCAM_YUV_FBC_SCAL_PARAM,
 	DCAM_STORE0_PARAM,
+	DCAM_STORE0_SLICE_SIZE,
 	DCAM_STORE0_SLICE_Y_ADDR,
 	DCAM_STORE0_SLICE_U_ADDR,
+	DCAM_SCL0_CFG,
+	DCAM_RAW_PATH_CFG,
+	DCAM_RAW_PATH_BASE_WADDR,
 	DCAM_SCL0_CFG,
 	DCAM_PDAF_BASE_WADDR,
 	DCAM_VCH2_BASE_WADDR,
@@ -562,35 +566,15 @@ normal_reg_trace:
 			val[0], val[1], val[2], val[3], val[4], val[5], val[6], val[7]);
 	}
 
-	pr_info("FMCU: Register list\n");
-	for (addr = MM_DCAM_FMCU_BASE; addr <= DCAM_FMCU_SW_TRIGGER;
+	pr_info("AXIM: Register list\n");
+	for (addr = AXIM_STATUS0; addr <= DCAM_DUMMY_SLAVE_CFG;
 		addr += 16) {
 		pr_info("0x%03lx: 0x%x 0x%x 0x%x 0x%x\n",
 			addr,
-			DCAM_FMCU_RD(addr),
-			DCAM_FMCU_RD(addr + 4),
-			DCAM_FMCU_RD(addr + 8),
-			DCAM_FMCU_RD(addr + 12));
-	}
-
-	for (addr = DCAM_STORE0_PARAM; addr <= DCAM_STORE0_SHADOW_CLR;
-		addr += 16) {
-		pr_info("store0(pre):0x%03lx: 0x%x 0x%x 0x%x 0x%x\n",
-			addr,
-			DCAM_REG_RD(trace->idx, addr),
-			DCAM_REG_RD(trace->idx, addr + 4),
-			DCAM_REG_RD(trace->idx, addr + 8),
-			DCAM_REG_RD(trace->idx, addr + 12));
-	}
-
-	for (addr = DCAM_SCL0_BASE; addr <= DCAM_SCL0_BWD_PARA;
-		addr += 16) {
-		pr_info("store0(pre):0x%03lx: 0x%x 0x%x 0x%x 0x%x\n",
-			addr,
-			DCAM_REG_RD(trace->idx, addr),
-			DCAM_REG_RD(trace->idx, addr + 4),
-			DCAM_REG_RD(trace->idx, addr + 8),
-			DCAM_REG_RD(trace->idx, addr + 12));
+			DCAM_AXIM_RD(trace->idx, addr),
+			DCAM_AXIM_RD(trace->idx, addr + 4),
+			DCAM_AXIM_RD(trace->idx, addr + 8),
+			DCAM_AXIM_RD(trace->idx, addr + 12));
 	}
 
 	return 0;

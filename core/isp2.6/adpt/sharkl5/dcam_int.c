@@ -749,6 +749,7 @@ static void dcamint_bin_path_done(void *param)
 				sw_ctx->dcam_cb_func(DCAM_CB_RET_SRC_BUF, frame, sw_ctx->cb_priv_data);
 			}
 		}
+		dcam_core_context_unbind(sw_ctx);
 		complete(&sw_ctx->frm_done);
 	}
 }

@@ -143,7 +143,6 @@ struct dcam_path_desc {
 	struct camera_frame *cur_frame;
 	struct camera_queue reserved_buf_queue;
 	struct camera_queue out_buf_queue;
-	struct camera_queue alter_out_queue;
 	struct camera_queue result_queue;
 	struct dcam_rds_slice_ctrl gphase;
 	struct yuv_scaler_info scaler_info;
@@ -192,6 +191,10 @@ struct dcam_pipe_context {
 	struct dcam_dev_param blk_pm;
 };
 
+struct dcam_offline_slice_info {
+	uint32_t cur_slice;
+	struct img_trim slice_trim[DCAM_OFFLINE_SLC_MAX];
+};
 /*
  * A dcam_pipe_dev is a digital IP including one input for raw RGB or YUV
  * data, several outputs which usually be called paths. Input data can be
@@ -294,6 +297,8 @@ struct dcam_sw_context {
 	struct cam_thread_info thread;
 	struct dcam_pipe_dev *dev;
 	dcam_dev_callback dcam_cb_func;
+
+	struct dcam_offline_slice_info slice_info;
 };
 
 struct dcam_hw_context {
@@ -365,4 +370,11 @@ int dcam_core_context_unbind(struct dcam_sw_context *pctx);
 int dcam_core_hw_context_id_get(struct dcam_sw_context *pctx);
 void dcam_core_get_fmcu(struct dcam_sw_context *pctx);
 void dcam_core_put_fmcu(struct dcam_sw_context *pctx);
+int dcam_core_ctx_switch(struct dcam_sw_context *ori_sw_ctx, struct dcam_sw_context *new_sw_ctx,
+						struct dcam_hw_context *hw_ctx);
+int dcam_core_hw_slices_set(struct dcam_sw_context *pctx, struct camera_frame *pframe, uint32_t slice_wmax);
+void dcam_core_offline_debug_dump(struct dcam_sw_context *pctx, struct dcam_dev_param *pm, struct camera_frame *proc_frame);
+int dcam_core_slice_trim_get(uint32_t width, uint32_t heigth, uint32_t slice_num, uint32_t slice_no, struct img_trim *slice_trim);
+int dcam_core_offline_slices_sw_start(void *param);
+
 #endif

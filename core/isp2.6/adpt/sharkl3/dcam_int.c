@@ -709,8 +709,7 @@ static void dcamint_bin_path_done(void *param)
 			complete(&sw_ctx->frm_done);
 			pr_debug("raw fetch done\n");
 			cam_buf_iommu_unmap(&frame->buf);
-			if (sw_ctx->dev->dcam_pipe_ops->proc_frame(param, frame))
-				pr_err("fail to start dcam/isp for raw proc\n");
+			dcamint_frame_dispatch(dcam_hw_ctx, DCAM_PATH_BIN, frame, DCAM_CB_DATA_DONE);
 			return;
 		}
 		dcamint_frame_dispatch(dcam_hw_ctx, DCAM_PATH_BIN, frame, DCAM_CB_DATA_DONE);
@@ -733,6 +732,7 @@ static void dcamint_bin_path_done(void *param)
 				sw_ctx->dcam_cb_func(DCAM_CB_RET_SRC_BUF, frame, sw_ctx->cb_priv_data);
 			}
 		}
+		dcam_core_context_unbind(sw_ctx);
 		complete(&sw_ctx->frm_done);
 	}
 }

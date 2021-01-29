@@ -115,7 +115,7 @@ static struct camera_frame *dcamint_frame_prepare(struct dcam_hw_context *dcam_h
 
 	atomic_dec(&path->set_frm_cnt);
 	if (unlikely(frame->is_reserved)) {
-		pr_debug("DCAM%u %s use reserved buffer, out %u, result %u\n",
+		pr_info("DCAM%u %s use reserved buffer, out %u, result %u\n",
 			dcam_hw_ctx->hw_ctx_id, dcam_path_name_get(path_id),
 			cam_queue_cnt_get(&path->out_buf_queue),
 			cam_queue_cnt_get(&path->result_queue));
@@ -675,9 +675,11 @@ static void dcamint_raw_path_done(void *param)
 	CAM_DEBUG_LOG("raw path done\n");
 	path = &sw_ctx->path[DCAM_PATH_RAW];
 
-	if ((frame = dcamint_frame_prepare(dcam_hw_ctx, DCAM_PATH_RAW)))
-		dcamint_frame_dispatch(dcam_hw_ctx, DCAM_PATH_RAW, frame,
-				    DCAM_CB_DATA_DONE);
+	if ((frame = dcamint_frame_prepare(dcam_hw_ctx, DCAM_PATH_RAW))) {
+		if (sw_ctx->dcam_slice_mode)
+			frame->irq_type = CAMERA_IRQ_SUPERSIZE_DONE;
+		dcamint_frame_dispatch(dcam_hw_ctx, DCAM_PATH_RAW, frame, DCAM_CB_DATA_DONE);
+	}
 }
 
 static void dcamint_full_path_done(void *param)
@@ -706,8 +708,6 @@ static void dcamint_full_path_done(void *param)
 			else/* low lux, to isp as normal */
 				frame->irq_type = CAMERA_IRQ_IMG;
 		}
-		if (sw_ctx->dcam_slice_mode)
-			frame->irq_type = CAMERA_IRQ_SUPERSIZE_DONE;
 
 		dcamint_frame_dispatch(dcam_hw_ctx, DCAM_PATH_FULL, frame, DCAM_CB_DATA_DONE);
 	}

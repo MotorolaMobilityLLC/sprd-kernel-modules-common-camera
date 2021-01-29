@@ -278,12 +278,10 @@ struct camera_frame *cam_queue_empty_frame_get(void)
 int cam_queue_empty_frame_put(struct camera_frame *pframe)
 {
 	int ret = 0;
-
 	if (pframe == NULL) {
 		pr_err("fail to get valid param\n");
 		return -EINVAL;
 	}
-	pr_debug("put frame %p\n", pframe);
 
 	memset(pframe, 0, sizeof(struct camera_frame));
 	ret = cam_queue_enqueue(g_empty_frm_q, &pframe->list);
@@ -300,6 +298,7 @@ void cam_queue_empty_frame_free(void *param)
 	struct camera_frame *pframe;
 
 	pframe = (struct camera_frame *)param;
+
 	atomic_dec(&g_mem_dbg->empty_frm_cnt);
 	pr_debug("free frame %p, cnt %d\n", pframe,
 		atomic_read(&g_mem_dbg->empty_frm_cnt));

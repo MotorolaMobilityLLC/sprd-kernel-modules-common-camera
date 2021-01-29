@@ -384,6 +384,8 @@ static int dcamhw_reset(void *handle, void *arg)
 	eb = 0;
 	DCAM_REG_MWR(idx, DCAM_PDAF_CONTROL, BIT_1 | BIT_0, eb);
 	DCAM_REG_MWR(idx, DCAM_CROP0_START, BIT_31, eb << 31);
+	DCAM_REG_MWR(idx, DCAM_CAM_BIN_CFG, BIT_0, eb);
+	DCAM_REG_MWR(idx, DCAM_FULL_CFG, BIT_0, eb);
 
 	/* default bypass all blocks */
 	bypass = 1;
@@ -405,6 +407,7 @@ static int dcamhw_reset(void *handle, void *arg)
 	DCAM_REG_MWR(idx, ISP_BPC_PARAM, BIT_0, bypass);
 	DCAM_REG_MWR(idx, ISP_AFM_FRM_CTRL, BIT_0, bypass);
 	DCAM_REG_WR(idx, NR3_FAST_ME_PARAM, 0x109);
+
 	dcam_hw_linebuf_len[idx] = 0;
 	pr_info("DCAM%d: reset end\n", idx);
 
@@ -1322,6 +1325,7 @@ static int dcamhw_blocks_setall(void *handle, void *arg)
 	dcam_k_rgb_gain_block(p);
 	/* simulator should set this block(random) carefully */
 	dcam_k_rgb_dither_random_block(p);
+
 	pr_info("dcam%d set all\n", idx);
 
 	return 0;

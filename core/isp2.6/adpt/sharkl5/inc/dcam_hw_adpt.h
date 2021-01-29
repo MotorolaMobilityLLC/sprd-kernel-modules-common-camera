@@ -37,7 +37,7 @@
 #define DCAM_SCALE_DOWN_MAX                     4
 #define DCAM_SCALER_MAX_WIDTH                   0xFFFFFFFF
 #define DCAM_FRAME_TIMESTAMP_COUNT              0x40
-
+#define DCAM_OVERLAP                            0
 /*
 * zsl num means zsl cache num, but not the zsl cache buffer num.
 * skip num means interval num between two cache zsl frame.

@@ -35,7 +35,6 @@ static int load_vst_ivst_buf(struct dcam_dev_param *p)
 	uint32_t val;
 	uint32_t idx = 0;
 	unsigned int i = 0;
-	unsigned long utab_addr;
 	uint32_t *vst_ivst_buf = NULL;
 	struct isp_dev_nlm_info_v2 *nlm_info = NULL;
 
@@ -53,10 +52,6 @@ static int load_vst_ivst_buf(struct dcam_dev_param *p)
 			buf_len = nlm_info->vst_len;
 
 		vst_ivst_buf = p->vst_buf;
-		utab_addr = (unsigned long)nlm_info->vst_table_addr;
-		pr_debug("vst table addr 0x%lx\n", utab_addr);
-		ret = copy_from_user((void *)vst_ivst_buf,
-				(void __user *)utab_addr, buf_len);
 
 		/*recombine the vst/ivst table as requires of l5pro's vst/ivst module*/
 		for (i = 0; i < DCAM_VST_IVST_NUM; i++) {
@@ -68,6 +63,9 @@ static int load_vst_ivst_buf(struct dcam_dev_param *p)
 				DCAM_REG_WR(idx, DCAM_VST_TABLE + i * 4, val);
 			}
 		}
+
+		val = DCAM_REG_RD(idx, DCAM_BUF_CTRL);
+		DCAM_REG_MWR(idx, DCAM_BUF_CTRL, BIT_17, ~(val & 0x20000));
 
 	}
 	if (nlm_info->ivst_bypass == 0 && nlm_info->ivst_table_addr) {
@@ -76,10 +74,6 @@ static int load_vst_ivst_buf(struct dcam_dev_param *p)
 			buf_len = nlm_info->ivst_len;
 
 		vst_ivst_buf = p->ivst_buf;
-		utab_addr = (unsigned long)nlm_info->ivst_table_addr;
-		pr_debug("ivst table addr 0x%lx\n", utab_addr);
-		ret = copy_from_user((void *)vst_ivst_buf,
-				(void __user *)utab_addr, buf_len);
 
 		/*recombine the vst/ivst table as requires of l5pro's vst/ivst module*/
 		for (i = 0; i < DCAM_VST_IVST_NUM; i++) {
@@ -91,10 +85,11 @@ static int load_vst_ivst_buf(struct dcam_dev_param *p)
 				DCAM_REG_WR(idx, DCAM_IVST_TABLE + i * 4, val);
 			}
 		}
-	}
 
-	val = DCAM_REG_RD(idx, DCAM_BUF_CTRL);
-	DCAM_REG_MWR(idx, DCAM_BUF_CTRL, BIT_18 | BIT_17, ~(val & 0x60000));
+		val = DCAM_REG_RD(idx, DCAM_BUF_CTRL);
+		DCAM_REG_MWR(idx, DCAM_BUF_CTRL, BIT_18, ~(val & 0x40000));
+
+	}
 
 	return ret;
 }
@@ -219,6 +214,7 @@ int dcam_k_nlm_block(struct dcam_dev_param *p)
 	}
 
 	ret = load_vst_ivst_buf(p);
+
 	return ret;
 }
 
@@ -353,6 +349,42 @@ int dcam_k_nlm_imblance(struct dcam_dev_param *p)
 	return ret;
 }
 
+int dcam_k_save_vst_ivst(struct dcam_dev_param *p)
+{
+	int ret = 0;
+	uint32_t buf_len = 0;
+	unsigned long utab_addr = 0;
+	uint32_t *vst_ivst_buf = NULL;
+	struct isp_dev_nlm_info_v2 *nlm_info2 = NULL;
+
+	if (p == NULL)
+		return 0;
+
+	nlm_info2 = &p->nlm_info2;
+	if (nlm_info2->vst_bypass == 0 && nlm_info2->vst_table_addr) {
+		buf_len = ISP_VST_IVST_NUM2 * 4;
+		if (nlm_info2->vst_len < (ISP_VST_IVST_NUM2 * 4))
+			buf_len = nlm_info2->vst_len;
+
+		vst_ivst_buf = p->vst_buf;
+		utab_addr = (unsigned long)nlm_info2->vst_table_addr;
+		pr_debug("vst table addr 0x%lx\n", utab_addr);
+		ret = copy_from_user((void *)vst_ivst_buf, (void __user *)utab_addr, buf_len);
+	}
+
+	if (nlm_info2->ivst_bypass == 0 && nlm_info2->ivst_table_addr) {
+		buf_len = ISP_VST_IVST_NUM2 * 4;
+		if (nlm_info2->ivst_len < (ISP_VST_IVST_NUM2 * 4))
+			buf_len = nlm_info2->ivst_len;
+
+		vst_ivst_buf = p->ivst_buf;
+		utab_addr = (unsigned long)nlm_info2->ivst_table_addr;
+		pr_debug("vst table addr 0x%lx\n", utab_addr);
+		ret = copy_from_user((void *)vst_ivst_buf, (void __user *)utab_addr, buf_len);
+	}
+	return ret;
+}
+
 int dcam_k_cfg_nlm(struct isp_io_param *param, struct dcam_dev_param *p)
 {
 	int ret = 0;
@@ -382,6 +414,15 @@ int dcam_k_cfg_nlm(struct isp_io_param *param, struct dcam_dev_param *p)
 			pr_err("fail to copy from user ret=0x%x\n", (unsigned int)ret);
 			return -EPERM;
 		}
+
+		if (ISP_PRO_NLM_BLOCK == param->property) {
+			ret = dcam_k_save_vst_ivst(p);
+			if (ret) {
+				pr_err("fail to copy from user ret=0x%x\n", (unsigned int)ret);
+				return -EPERM;
+			}
+		}
+
 		if (p->idx == DCAM_HW_CONTEXT_MAX)
 			return 0;
 		ret = sub_func(p);
@@ -393,6 +434,14 @@ int dcam_k_cfg_nlm(struct isp_io_param *param, struct dcam_dev_param *p)
 			pr_err("fail to copy from user ret=0x%x\n", (unsigned int)ret);
 			return -EPERM;
 		}
+		if (ISP_PRO_NLM_BLOCK == param->property) {
+			ret = dcam_k_save_vst_ivst(p);
+			if (ret) {
+				pr_err("fail to copy from user ret=0x%x\n", (unsigned int)ret);
+				return -EPERM;
+			}
+		}
+
 		mutex_unlock(&p->param_lock);
 	}
 
