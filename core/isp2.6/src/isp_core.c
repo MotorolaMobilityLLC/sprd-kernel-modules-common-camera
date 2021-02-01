@@ -3271,7 +3271,7 @@ static int ispcore_context_put(void *isp_handle, int ctx_id)
 
 		if (pctx->dewarp_handle && hw->ip_isp->dewarp_support) {
 			isp_dewarping_ctx_put(pctx->dewarp_handle);
-			pctx->rec_handle = NULL;
+			pctx->dewarp_handle = NULL;
 		}
 
 		/* clear path queue. */
