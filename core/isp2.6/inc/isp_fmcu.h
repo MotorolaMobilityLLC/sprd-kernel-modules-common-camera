@@ -86,5 +86,6 @@ struct isp_fmcu_ops {
 
 struct isp_fmcu_ctx_desc *isp_fmcu_ctx_desc_get(void *arg, uint32_t index);
 int isp_fmcu_ctx_desc_put(struct isp_fmcu_ctx_desc *fmcu);
+struct isp_fmcu_ctx_desc *isp_fmcu_dec_ctx_get(void *arg);
 
 #endif/* _ISP_FMCU_H_ */

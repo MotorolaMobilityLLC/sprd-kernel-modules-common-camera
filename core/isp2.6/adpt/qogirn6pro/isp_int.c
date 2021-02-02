@@ -622,7 +622,6 @@ static irqreturn_t ispint_isr_root(int irq, void *priv)
 	return IRQ_HANDLED;
 }
 
-
 int isp_int_irq_request(struct device *p_dev,
 		uint32_t *irq_no, void *isp_handle)
 {
@@ -638,6 +637,8 @@ int isp_int_irq_request(struct device *p_dev,
 	ispdev = (struct isp_pipe_dev *)isp_handle;
 
 	for (id = 0; id < ISP_LOGICAL_COUNT; id++) {
+		if (id == (ISP_LOGICAL_COUNT - 1))
+			break;
 		ispdev->irq_no[id] = irq_no[id];
 		ret = devm_request_irq(p_dev,
 				ispdev->irq_no[id], ispint_isr_root,

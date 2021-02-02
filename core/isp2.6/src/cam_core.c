@@ -239,7 +239,7 @@ struct channel_context {
 	struct camera_frame *ltm_bufs[LTM_MAX][ISP_LTM_BUF_NUM];
 	struct camera_frame *res_frame;
 	struct camera_frame *pyr_rec_buf;
-	struct camera_frame *pyr_dec_buf[ISP_PYR_DEC_BUF_NUM];
+	struct camera_frame *pyr_dec_buf;
 	int32_t reserved_buf_fd;
 
 	/* dcam/isp shared frame buffer for full path */
@@ -1292,12 +1292,25 @@ static int camcore_buffer_path_cfg(struct camera_module *module,
 
 	if (module->cam_uinfo.is_pyr_rec) {
 		if (ch->pyr_rec_buf == NULL)
-			return 0;
+			goto exit;
 		ret = module->isp_dev_handle->isp_ops->cfg_path(module->isp_dev_handle,
 				ISP_PATH_CFG_PYR_REC_BUF,
 				isp_ctx_id, isp_path_id, ch->pyr_rec_buf);
 		if (ret) {
 			pr_err("fail to config isp pyr_rec buffer sw %d,  path id %d\n",
+				isp_ctx_id, isp_path_id);
+			goto exit;
+		}
+	}
+
+	if (module->cam_uinfo.is_pyr_dec) {
+		if (ch->pyr_dec_buf == NULL)
+			goto exit;
+		ret = module->isp_dev_handle->isp_ops->cfg_path(module->isp_dev_handle,
+				ISP_PATH_CFG_PYR_DEC_BUF,
+				isp_ctx_id, isp_path_id, ch->pyr_dec_buf);
+		if (ret) {
+			pr_err("fail to config isp pyr_dec buffer sw %d, path id %d\n",
 				isp_ctx_id, isp_path_id);
 			goto exit;
 		}
@@ -1497,6 +1510,8 @@ static int camcore_buffers_alloc(void *param)
 				pframe->buf.buf_sec = 1;
 			if (module->cam_uinfo.is_pyr_rec && channel->ch_id != CAM_CH_CAP)
 				pframe->need_pyr_rec = 1;
+			if (module->cam_uinfo.is_pyr_dec && channel->ch_id == CAM_CH_CAP)
+				pframe->need_pyr_dec = 1;
 
 			ret = cam_buf_alloc(&pframe->buf, size, iommu_enable);
 			if (ret) {
@@ -1678,6 +1693,7 @@ static int camcore_buffers_alloc(void *param)
 			pframe->buf.buf_sec = 1;
 		pframe->width = width;
 		pframe->height = height;
+		pframe->channel_id = channel->ch_id;
 		ret = cam_buf_alloc(&pframe->buf, size, iommu_enable);
 		if (ret) {
 			pr_err("fail to alloc superzoom buf\n");
@@ -1690,26 +1706,27 @@ static int camcore_buffers_alloc(void *param)
 			module->dcam_idx, postproc_w, postproc_h, pframe);
 	}
 
-	if (module->cam_uinfo.is_pyr_dec) {
+	if (module->cam_uinfo.is_pyr_dec && channel->ch_id == CAM_CH_CAP) {
 		width = channel->swap_size.w;
 		height = channel->swap_size.h;
 		size = isp_cal_pyramid_dec_size(width, height);
 		size = ALIGN(size, CAM_BUF_ALIGN_SIZE);
-		for (i = 0; i < ISP_PYR_DEC_BUF_NUM; i++) {
-			pframe = cam_queue_empty_frame_get();
-			if (channel->ch_id == CAM_CH_PRE && sec_mode == SEC_TIME_PRIORITY)
-				pframe->buf.buf_sec = 1;
-			pframe->width = width;
-			pframe->height = height;
-			ret = cam_buf_alloc(&pframe->buf, size, iommu_enable);
-			if (ret) {
-				pr_err("fail to alloc superzoom buf\n");
-				cam_queue_empty_frame_put(pframe);
-				atomic_inc(&channel->err_status);
-				goto exit;
-			}
-			channel->pyr_dec_buf[i] = pframe;
+		pframe = cam_queue_empty_frame_get();
+		if (channel->ch_id == CAM_CH_PRE && sec_mode == SEC_TIME_PRIORITY)
+			pframe->buf.buf_sec = 1;
+		pframe->width = width;
+		pframe->height = height;
+		pframe->channel_id = channel->ch_id;
+		ret = cam_buf_alloc(&pframe->buf, size, iommu_enable);
+		if (ret) {
+			pr_err("fail to alloc superzoom buf\n");
+			cam_queue_empty_frame_put(pframe);
+			atomic_inc(&channel->err_status);
+			goto exit;
 		}
+		channel->pyr_dec_buf = pframe;
+		pr_debug("idx %d, ch %d pyr_dec size %d, buf %p\n", module->dcam_idx,
+			channel->ch_id, size, pframe);
 	}
 
 exit:
@@ -2148,9 +2165,10 @@ static int camcore_isp_callback(enum isp_cb_type type, void *param, void *priv_d
 {
 	int ret = 0;
 	uint32_t ch_id;
-	struct camera_frame *pframe;
-	struct camera_module *module;
-	struct channel_context *channel;
+	struct camera_frame *pframe = NULL;
+	struct camera_module *module = NULL;
+	struct channel_context *channel = NULL;
+	struct isp_offline_param *cur = NULL;
 
 	if (!param || !priv_data) {
 		pr_err("fail to get valid param %p %p\n", param, priv_data);
@@ -2275,7 +2293,6 @@ static int camcore_isp_callback(enum isp_cb_type type, void *param, void *priv_d
 			}
 		}
 		break;
-
 	case ISP_CB_RET_DST_BUF:
 		if (atomic_read(&module->state) == CAM_RUNNING) {
 			if (module->cap_status == CAM_CAPTURE_RAWPROC) {
@@ -2318,7 +2335,25 @@ static int camcore_isp_callback(enum isp_cb_type type, void *param, void *priv_d
 			cam_queue_empty_frame_put(pframe);
 		}
 		break;
-
+	case ISP_CB_RET_PYR_DEC_BUF:
+		ret = module->isp_dev_handle->isp_ops->proc_frame(module->isp_dev_handle, pframe,
+					channel->isp_ctx_id);
+		if (ret) {
+			pr_warn_ratelimited("warning: isp proc frame failed.\n");
+			if (pframe->param_data) {
+				cur = (struct isp_offline_param *)pframe->param_data;
+				cur->prev = channel->isp_updata;
+				channel->isp_updata = (void *)cur;
+				pframe->param_data = NULL;
+				pr_info("store: cur %p prev %p\n", cur, cur->prev);
+			}
+			ret = module->dcam_dev_handle->dcam_pipe_ops->cfg_path(&module->dcam_dev_handle->sw_ctx[module->cur_sw_ctx_id],
+				DCAM_PATH_CFG_OUTPUT_BUF, channel->dcam_path_id, pframe);
+			/* release sync if ISP don't need it */
+			if (pframe->sync_data)
+				dcam_core_dcam_if_release_sync(pframe->sync_data, pframe);
+		}
+		break;
 	case ISP_CB_STATIS_DONE:
 		pframe->evt = IMG_TX_DONE;
 		pframe->irq_type = CAMERA_IRQ_STATIS;

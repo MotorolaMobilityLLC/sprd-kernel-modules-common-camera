@@ -15,7 +15,7 @@
 #define _ISP_REG_H_
 
 #define ISP_MAX_COUNT                           1
-#define ISP_LOGICAL_COUNT                       2
+#define ISP_LOGICAL_COUNT                       3
 #define ISP_CONTEXT_MAX                         4
 #define  ISP_CONTEXT_SW_MAX                     9
 

@@ -11,8 +11,8 @@
  * GNU General Public License for more details.
  */
 
-#ifndef _ISP_REC_H_
-#define _ISP_REC_H_
+#ifndef _ISP_PYR_REC_H_
+#define _ISP_PYR_REC_H_
 
 #ifdef __cplusplus
 extern "C" {

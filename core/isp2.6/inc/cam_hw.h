@@ -64,6 +64,8 @@ enum isp_k_blk_idx {
 	ISP_K_BLK_DEWARP_CACHE_CFG,
 	ISP_K_BLK_DEWARP_CFG,
 	ISP_K_BLK_DEWARP_SLICE,
+	ISP_K_BLK_PYR_DEC_IRQ_FUNC,
+	ISP_K_BLK_PYR_DEC_CFG,
 	ISP_K_BLK_MAX
 };
 
@@ -274,6 +276,7 @@ enum cam_hw_cfg_cmd {
 	CAM_HW_GET_AXI_BASE,
 	CAM_HW_GET_DCAM_DTS_CLK,
 	CAM_HW_GET_ISP_DTS_CLK,
+	CAM_HW_GET_MAX
 };
 
 enum dcam_path_ctrl {
@@ -1200,6 +1203,7 @@ struct glb_syscon {
 struct cam_hw_ip_info {
 	uint32_t idx;
 	uint32_t irq_no;
+	uint32_t dec_irq_no;
 	uint32_t max_height;
 	uint32_t max_width;
 	unsigned long phy_base;

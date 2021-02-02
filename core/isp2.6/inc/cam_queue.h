@@ -47,7 +47,11 @@ struct camera_frame {
 	uint32_t is_reserved;
 	uint32_t is_compressed;
 	uint32_t compress_4bit_bypass;
+	/* use for dcam dec & isp rec */
 	uint32_t need_pyr_rec;
+	/* use for isp dec */
+	uint32_t need_pyr_dec;
+	uint32_t dec_ctx_id;
 	uint32_t need_dewarp;
 	uint32_t user_fid;
 	uint32_t dcam_idx;

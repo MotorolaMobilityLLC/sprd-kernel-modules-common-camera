@@ -318,6 +318,23 @@ struct isp_fmcu_ctx_desc s_fmcu_desc[ISP_FMCU_NUM] = {
 	},
 };
 
+struct isp_fmcu_ctx_desc *isp_fmcu_dec_ctx_get(void *arg)
+{
+	struct isp_fmcu_ctx_desc *fmcu = NULL;
+	struct cam_hw_info *hw = NULL;
+
+	if (!arg) {
+		pr_err("fail to get valid arg\n");
+		return NULL;
+	}
+
+	hw = (struct cam_hw_info *)arg;
+	if (atomic_inc_return(&s_fmcu_desc[ISP_FMCU_DEC].user_cnt) == 1)
+		fmcu = &s_fmcu_desc[ISP_FMCU_DEC];
+
+	return fmcu;
+}
+
 struct isp_fmcu_ctx_desc *isp_fmcu_ctx_desc_get(void *arg, uint32_t hw_idx)
 {
 	int i;

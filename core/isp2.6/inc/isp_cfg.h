@@ -39,8 +39,6 @@ enum cfg_buf_id {
 
 #define ISP_CFG_MAP_MAX                  100
 
-#define ISP_CONTEXT_TIMEOUT              msecs_to_jiffies(2000)
-
 /* hw_addr for H/W; sw_addr for kernel */
 struct regfile_buf_info {
 	/*

@@ -1478,6 +1478,13 @@ static int camioctl_stream_off(struct camera_module *module,
 					ch->pyr_rec_buf = NULL;
 				}
 			}
+
+			if (module->cam_uinfo.is_pyr_dec) {
+				if (ch->pyr_dec_buf) {
+					camcore_k_frame_put(ch->pyr_dec_buf);
+					ch->pyr_dec_buf = NULL;
+				}
+			}
 		}
 	}
 

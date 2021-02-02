@@ -24,13 +24,14 @@
 #define ISP_MAX_LINE_WIDTH              2592
 #define ISP_NR3_BUF_NUM                 2
 #define ISP_LTM_BUF_NUM                 10
-#define ISP_PYR_DEC_BUF_NUM             2
 #define CAMERA_RESERVE_FRAME_NUM        0xffffffff
 #define ISP_FBC_3DNR_PAD_WIDTH          256
 #define ISP_FBC_3DNR_PAD_HEIGHT         4
 #define ISP_FBC_STORE_TILE_WIDTH        32
 #define ISP_FBC_STORE_TILE_HEIGHT       8
 #define ISP_PYR_DEC_LAYER_NUM           5
+#define ISP_PYRDEC_BUF_Q_LEN            2
+#define ISP_CONTEXT_TIMEOUT             msecs_to_jiffies(2000)
 
 enum isp_context_id {
 	ISP_CONTEXT_P0,
@@ -70,6 +71,7 @@ enum isp_path_cfg_cmd {
 	ISP_PATH_CFG_POSTPROC_BUF,
 	ISP_PATH_CFG_3DNR_MODE,
 	ISP_PATH_CFG_PYR_REC_BUF,
+	ISP_PATH_CFG_PYR_DEC_BUF,
 	ISP_PATH_CFG_MAX,
 };
 

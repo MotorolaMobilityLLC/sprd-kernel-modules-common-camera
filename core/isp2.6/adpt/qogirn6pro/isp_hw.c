@@ -1517,6 +1517,8 @@ static isp_k_blk_func isp_hw_k_blk_func_tab[ISP_K_BLK_MAX] = {
 	[ISP_K_BLK_DEWARP_CACHE_CFG]        = isp_dewarping_dewarp_cache_set,
 	[ISP_K_BLK_DEWARP_CFG]              = isp_dewarping_frame_config,
 	[ISP_K_BLK_DEWARP_SLICE]            = isp_k_dewarping_slice_config,
+	[ISP_K_BLK_PYR_DEC_IRQ_FUNC]        = isp_pyr_dec_irq_func,
+	[ISP_K_BLK_PYR_DEC_CFG]             = isp_pyr_dec_config,
 };
 
 static int isphw_k_blk_func_get(void *handle, void *arg)
@@ -3041,6 +3043,9 @@ static int isphw_fmcu_start(void *handle, void *arg)
 		base = ISP_FMCU1_BASE;
 	else if (startarg->fid == 2)
 		base = ISP_FMCU_PRE1_BASE;
+	else if (startarg->fid == ISP_FMCU_DEC)
+		base = ISP_FMCU_DEC_BASE;
+
 	ISP_HREG_WR(base + ISP_FMCU_DDR_ADDR, startarg->hw_addr);
 	startarg->cmd_num = startarg->cmd_num / 2;
 	ISP_HREG_MWR(base + ISP_FMCU_CTRL, 0xFFFF0000, startarg->cmd_num << 16);

@@ -41,6 +41,7 @@
 #include "isp_cfg.h"
 #include "dcam_core.h"
 #include "isp_pyr_rec.h"
+#include "isp_pyr_dec.h"
 #include "isp_dewarping.h"
 
 #ifdef pr_fmt
@@ -2222,6 +2223,8 @@ static int ispcore_postproc_irq(void *handle, uint32_t idx,
 			pr_info("isp %d post proc, do not need to return frame\n",
 				pctx->ctx_id);
 			cam_buf_iommu_unmap(&pframe->buf);
+		} else if (pframe->need_pyr_dec) {
+			cam_queue_enqueue(&pctx->pyrdec_buf_queue, &pframe->list);
 		} else {
 			/* return buffer to cam channel shared buffer queue. */
 			cam_buf_iommu_unmap(&pframe->buf);
@@ -2307,6 +2310,31 @@ static int ispcore_postproc_irq(void *handle, uint32_t idx,
 	return ret;
 }
 
+static int ispcore_dec_frame_proc(struct isp_sw_context *pctx,
+		struct isp_dec_pipe_dev *dec_dev, struct camera_frame *frame)
+{
+	int ret = 0;
+	struct camera_frame *pframe = NULL;
+
+	if (dec_dev) {
+		pr_err("fail to get valid input ptr\n");
+		return -EFAULT;
+	}
+
+	pframe = cam_queue_dequeue(&pctx->pyrdec_buf_queue, struct camera_frame, list);
+	if (!pframe) {
+		pr_err("fail to get valid pframe\n");
+		return -EFAULT;
+	}
+
+	dec_dev->ops.cfg_param(dec_dev, pctx->ctx_id, ISP_DEC_CFG_OUT_BUF, pframe);
+	/* May need add size & format info to pyr dec here */
+	frame->dec_ctx_id = pctx->ctx_id;
+	ret = dec_dev->ops.proc_frame(dec_dev, frame);
+
+	return ret;
+}
+
 /* offline process frame */
 static int ispcore_frame_proc(void *isp_handle, void *param, int ctx_id)
 {
@@ -2317,6 +2345,7 @@ static int ispcore_frame_proc(void *isp_handle, void *param, int ctx_id)
 	struct isp_pipe_dev *dev;
 	struct isp_stream_ctrl *stream = NULL;
 	struct isp_offline_param *in_param = NULL;
+	struct isp_dec_pipe_dev *dec_dev = NULL;
 
 	if (!isp_handle || !param) {
 		pr_err("fail to get valid input ptr, isp_handle %p, param %p\n",
@@ -2332,6 +2361,12 @@ static int ispcore_frame_proc(void *isp_handle, void *param, int ctx_id)
 	pctx = dev->sw_ctx[ctx_id];
 	pframe = (struct camera_frame *)param;
 	pframe->priv_data = pctx;
+	dec_dev = (struct isp_dec_pipe_dev *)dev->pyr_dec_handle;
+
+	if (pframe->need_pyr_dec && dec_dev) {
+		ret = ispcore_dec_frame_proc(pctx, dec_dev, pframe);
+		return ret;
+	}
 
 	stream = cam_queue_dequeue_peek(&pctx->stream_ctrl_in_q,
 		struct isp_stream_ctrl, list);
@@ -2593,6 +2628,14 @@ static int ispcore_path_cfg(void *isp_handle,
 		if (ret) {
 			pr_err("fail to enqueue output buffer, path %d.\n",
 				path_id);
+			goto exit;
+		}
+		break;
+	case ISP_PATH_CFG_PYR_DEC_BUF:
+		pframe = (struct camera_frame *)param;
+		ret = cam_queue_enqueue(&pctx->pyrdec_buf_queue, &pframe->list);
+		if (ret) {
+			pr_err("fail to enqueue isp %d pyrdec buffer\n", ctx_id);
 			goto exit;
 		}
 		break;
@@ -2953,7 +2996,8 @@ static int ispcore_callback_set(void *isp_handle, int ctx_id,
 {
 	int ret = 0;
 	struct isp_pipe_dev *dev = NULL;
-	struct isp_sw_context *pctx;
+	struct isp_sw_context *pctx = NULL;
+	struct isp_dec_pipe_dev *dec_dev = NULL;
 
 	if (!isp_handle || !cb || !priv_data) {
 		pr_err("fail to get valid input ptr, isp_handle %p, callback %p, priv_data %p\n",
@@ -2967,9 +3011,12 @@ static int ispcore_callback_set(void *isp_handle, int ctx_id,
 
 	dev = (struct isp_pipe_dev *)isp_handle;
 	pctx = dev->sw_ctx[ctx_id];
+	dec_dev = (struct isp_dec_pipe_dev *)dev->pyr_dec_handle;
 	if (pctx->isp_cb_func == NULL) {
 		pctx->isp_cb_func = cb;
 		pctx->cb_priv_data = priv_data;
+		if (dec_dev)
+			dec_dev->ops.set_callback(dec_dev, ctx_id, cb, priv_data);
 		pr_info("ctx: %d, cb %p, %p\n", ctx_id, cb, priv_data);
 	}
 
@@ -3104,8 +3151,7 @@ static int ispcore_context_get(void *isp_handle, void *param)
 
 	ret = ispcore_offline_thread_create(pctx);
 	if (unlikely(ret != 0)) {
-		pr_err("fail to create offline thread for isp cxt:%d\n",
-				pctx->ctx_id);
+		pr_err("fail to create offline thread for isp cxt:%d\n", pctx->ctx_id);
 		goto thrd_err;
 	}
 
@@ -3125,8 +3171,9 @@ static int ispcore_context_get(void *isp_handle, void *param)
 		ISP_STREAM_STATE_Q_LEN, cam_queue_empty_state_put);
 	cam_queue_init(&pctx->stream_ctrl_proc_q,
 		ISP_STREAM_STATE_Q_LEN, cam_queue_empty_state_put);
-	cam_queue_init(&pctx->hist2_result_queue, 16,
-		ispcore_statis_buf_destroy);
+	cam_queue_init(&pctx->hist2_result_queue, 16, ispcore_statis_buf_destroy);
+	cam_queue_init(&pctx->pyrdec_buf_queue, ISP_PYRDEC_BUF_Q_LEN,
+		ispcore_frame_unmap);
 	dfult_param.type = ISP_CFG_PARA;
 	dfult_param.index = pctx->ctx_id;
 	hw->isp_ioctl(hw, ISP_HW_CFG_DEFAULT_PARA_SET, &dfult_param);
@@ -3240,6 +3287,7 @@ static int ispcore_context_put(void *isp_handle, int ctx_id)
 			struct isp_stream_ctrl, list);
 		cam_queue_clear(&pctx->stream_ctrl_proc_q,
 			struct isp_stream_ctrl, list);
+		cam_queue_clear(&pctx->pyrdec_buf_queue, struct camera_frame, list);
 
 		if (pctx->nr3_handle) {
 			isp_3dnr_ctx_put(pctx->nr3_handle);
@@ -3518,11 +3566,22 @@ static int ispcore_dev_open(void *isp_handle, void *param)
 			ret = -EFAULT;
 			goto err_init;
 		}
+
+		if (dev->pyr_dec_handle == NULL && hw->ip_isp->pyr_dec_support) {
+			dev->pyr_dec_handle = isp_pyr_dec_dev_get(dev, hw);
+			if (!dev->pyr_dec_handle) {
+				pr_err("fail to get memory for dec_dev.\n");
+				ret = -ENOMEM;
+				goto dec_err;
+			}
+		}
 	}
 
 	pr_info("open isp pipe dev done!\n");
 	return 0;
 
+dec_err:
+	ispcore_context_deinit(dev);
 err_init:
 	hw->isp_ioctl(hw, ISP_HW_CFG_STOP, NULL);
 	isp_drv_hw_deinit(dev);
@@ -3546,6 +3605,10 @@ static int ispcore_dev_close(void *isp_handle)
 	hw = dev->isp_hw;
 	if (atomic_dec_return(&dev->enable) == 0) {
 
+		if (dev->pyr_dec_handle && hw->ip_isp->pyr_dec_support) {
+			isp_pyr_dec_dev_put(dev->pyr_dec_handle);
+			dev->pyr_dec_handle = NULL;
+		}
 		ret = hw->isp_ioctl(hw, ISP_HW_CFG_STOP, NULL);
 		ret = ispcore_context_deinit(dev);
 		mutex_destroy(&dev->path_mutex);

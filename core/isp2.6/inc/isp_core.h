@@ -232,6 +232,7 @@ struct isp_sw_context {
 	struct camera_queue proc_queue;
 	struct camera_queue stream_ctrl_in_q;
 	struct camera_queue stream_ctrl_proc_q;
+	struct camera_queue pyrdec_buf_queue;
 
 	struct camera_frame *postproc_buf;
 	struct camera_buf statis_buf_array[STATIS_BUF_NUM_MAX];
@@ -266,6 +267,7 @@ struct isp_pipe_dev {
 	enum isp_work_mode wmode;
 	enum sprd_cam_sec_mode sec_mode;
 	void *cfg_handle;
+	void *pyr_dec_handle;
 	struct camera_queue sw_ctx_q;
 	struct isp_sw_context *sw_ctx[ISP_SW_CONTEXT_NUM];
 	struct isp_hw_context hw_ctx[ISP_CONTEXT_HW_NUM];
