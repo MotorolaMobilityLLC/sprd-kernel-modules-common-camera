@@ -54,7 +54,51 @@ int isp_dewarping_dewarp_cache_set(void *handle)
 	return ret;
 }
 
-int isp_dewarping_config_param(void *handle)
+static int isp_dewarping_coef_config(void *handle)
+{
+	uint32_t val = 0;
+	uint32_t ret = 0;
+	uint32_t i = 0;
+	uint32_t idx;
+	struct isp_dewarping_blk_info *dewarp_ctx;
+
+	if (!handle) {
+		pr_err("fail to dewarping_config_reg parm NULL\n");
+		return -EFAULT;
+	}
+	dewarp_ctx = (struct isp_dewarping_blk_info *)handle;
+	idx = dewarp_ctx->cxt_id;
+
+	/* wait otp and other coeff format */
+	for (i = 0; i < dewarp_ctx->grid_data_size; i++) {
+		val =dewarp_ctx->grid_x_ch0_buf[i];
+		ISP_REG_WR(idx, ISP_DEWARPING_GRID_X_CH0 + i * 4, val);
+	}
+
+	for (i = 0; i < dewarp_ctx->grid_data_size; i++) {
+		val = dewarp_ctx->grid_y_ch0_buf[i];
+		ISP_REG_WR(idx, ISP_DEWARPING_GRID_Y_CH0 + i * 4, val);
+	}
+
+	for(i = 0; i < MAX_GRID_SIZE; i++) {
+		val = (dewarp_ctx->bicubic_coef_i[3 * i + 0] & 0xFFFF) | ((dewarp_ctx->bicubic_coef_i[3 * i + 1] & 0xFFFF) << 16);
+		ISP_REG_WR(idx, ISP_DEWARPING_CORD_COEF_CH0 + 2 *  i * 4, val);
+		val = dewarp_ctx->bicubic_coef_i[3 * i + 2] & 0xFFFF ;
+		ISP_REG_MWR(idx, ISP_DEWARPING_CORD_COEF_CH0 + (2 * i + 1) * 4, 0xFFFF, val);
+	}
+
+	for(i = 0; i < LXY_MULT; i++) {
+		val = (dewarp_ctx->pixel_interp_coef[3 * i + 0] & 0xFFFF) | ((dewarp_ctx->pixel_interp_coef[3 * i + 1] & 0xFFFF) << 16);
+		ISP_REG_WR(idx, ISP_DEWARPING_PXL_COEF_CH0 + 2 * i * 4, val);
+		val = dewarp_ctx->pixel_interp_coef[3 * i + 2] & 0xFFFF;
+		ISP_REG_MWR(idx, ISP_DEWARPING_PXL_COEF_CH0 + (2 * i + 1) * 4, 0xFFFF, val);
+	}
+
+	return ret;
+}
+
+
+int isp_dewarping_frame_config(void *handle)
 {
 	uint32_t val = 0;
 	uint32_t ret = 0;
@@ -109,13 +153,87 @@ int isp_dewarping_config_param(void *handle)
 		((dewarp_ctx->crop_start_y & 0xffff) << 0);
 	ISP_REG_WR(idx, ISP_DEWARPING_CROP_PARA, val);
 
-	/* wait otp and other coeff format */
+	isp_dewarping_coef_config(dewarp_ctx);
 
-	/*for (i = 0; i < dewarp_ctx->grid_data_size; i++) {
-		val = dewarp_ctx->grid_x_ch0_buf[i];
-		ISP_REG_WR(idx, ISP_DEWARPING_GRID_X_CH0 + i * 4, val);
-		val = dewarp_ctx->grid_y_ch0_buf[i];
-		ISP_REG_WR(idx, ISP_DEWARPING_GRID_Y_CH0 + i * 4, val);
-	}*/
+	return ret;
+}
+
+static int isp_k_dewarping_slice_param_set(void *handle)
+{
+	uint32_t addr = 0, cmd = 0;
+	struct isp_fmcu_ctx_desc *fmcu = NULL;
+	struct isp_dewarp_ctx_desc *ctx = NULL;
+	struct isp_dewarping_slice *dewarp_slc = NULL;
+
+	if (!handle) {
+		pr_err("fail to dewarp_config_reg parm NULL\n");
+		return -EFAULT;
+	}
+
+	ctx = (struct isp_dewarp_ctx_desc *)handle;
+	dewarp_slc = &ctx->slice_info[ctx->cur_slice_id];
+	fmcu = (struct isp_fmcu_ctx_desc *)ctx->fmcu_handle;
+
+	addr = ISP_GET_REG(ISP_DEWARPING_DST_SIZE);
+	cmd = ((dewarp_slc->dewarp_slice.dst_width & 0x1fff) << 16) |
+		((dewarp_slc->dewarp_slice.dst_height & 0x1fff) << 0);
+	FMCU_PUSH(fmcu, addr, cmd);
+
+	addr = ISP_GET_REG(ISP_DEWARPING_SRC_SIZE);
+	cmd = ((dewarp_slc->dewarp_slice.slice_width & 0x1fff) << 16) |
+		((dewarp_slc->dewarp_slice.slice_height & 0x1fff) << 0);
+	FMCU_PUSH(fmcu, addr, cmd);
+
+	addr = ISP_GET_REG(ISP_DEWARPING_SLICE_START);
+	cmd = ((dewarp_slc->dewarp_slice.start_mb_x & 0x3ff) << 0);
+	FMCU_PUSH(fmcu, addr, cmd);
+
+	addr = ISP_GET_REG(ISP_DEWARPING_MB_NUM);
+	cmd = ((dewarp_slc->dewarp_slice.mb_y_num & 0x3ff) << 16) |
+		((dewarp_slc->dewarp_slice.mb_x_num & 0x3ff) << 0);
+	FMCU_PUSH(fmcu, addr, cmd);
+
+	addr = ISP_GET_REG(ISP_DEWARPING_INIT_OFFSET);
+	cmd = ((dewarp_slc->dewarp_slice.init_start_row & 0x1fff) << 16) |
+		((dewarp_slc->dewarp_slice.init_start_col & 0x1fff) << 0);
+	FMCU_PUSH(fmcu, addr, cmd);
+
+	addr = ISP_GET_REG(ISP_DEWARPING_CROP_PARA);
+	cmd = ((dewarp_slc->dewarp_slice.crop_start_x & 0xffff) << 16) |
+		((dewarp_slc->dewarp_slice.crop_start_y & 0xffff) << 0);
+	FMCU_PUSH(fmcu, addr, cmd);
+
+	return 0;
+}
+
+int isp_k_dewarping_slice_config(void *handle)
+{
+	int ret = 0;
+	struct isp_dewarp_ctx_desc *ctx = NULL;
+	struct isp_dewarping_slice *dewarp_slc = NULL;
+	struct isp_hw_fmcu_cfg fmcu_cfg;
+	struct isp_hw_slices_fmcu_cmds parg;
+
+	if (!handle) {
+		pr_err("fail to dewarp_config_reg parm NULL\n");
+		return -EFAULT;
+	}
+
+	ctx = (struct isp_dewarp_ctx_desc *)handle;
+	dewarp_slc = &ctx->slice_info[ctx->cur_slice_id];
+
+	if (ctx->wmode == ISP_CFG_MODE) {
+		fmcu_cfg.fmcu = ctx->fmcu_handle;
+		fmcu_cfg.ctx_id = ctx->hw_ctx_id;
+		ctx->hw->isp_ioctl(ctx->hw, ISP_HW_CFG_FMCU_CFG, &fmcu_cfg);
+	}
+
+	isp_k_dewarping_slice_param_set(handle);
+
+	parg.wmode = ctx->wmode;
+	parg.hw_ctx_id = ctx->hw_ctx_id;
+	parg.fmcu = ctx->fmcu_handle;
+	ctx->hw->isp_ioctl(ctx->hw, ISP_HW_CFG_SLICE_FMCU_DEWARP_CMD, &parg);
+
 	return ret;
 }

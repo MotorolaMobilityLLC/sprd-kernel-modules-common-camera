@@ -440,7 +440,7 @@ static void get_xy_undistort(int64_t m_k_inv[3][3], int64_t m_k[3][3], int64_t d
 	*ys += ih * ((int64_t)1 << CAMERA_K_PREC) / 2;
 }
 
-void calc_grid_data_undistort(struct isp_dewarp_input_info input_info, struct isp_dewarp_calib_info *calib_info, int grid_size,
+static void calc_grid_data_undistort(struct isp_dewarp_input_info input_info, struct isp_dewarp_calib_info *calib_info, int grid_size,
                     int grid_x, int grid_y, int pos_x, int pos_y, int32_t *grid_data_x, int32_t *grid_data_y)
 {
 	int64_t r,c,x,y;
@@ -485,23 +485,17 @@ void calc_grid_data_undistort(struct isp_dewarp_input_info input_info, struct is
 	}
 }
 
-int calc_grid_num(int img_size, int grid_size)
+static int calc_grid_num(int img_size, int grid_size)
 {
 	return (img_size + grid_size - 1) / grid_size + 3;
 }
 
-void calc_bicubic_coef(uint32_t *bicubic_coef_ptr, uint32_t grid_size)
+static void calc_bicubic_coef(uint32_t *bicubic_coef_i, uint32_t grid_size)
 {
-	uint32_t bicubic_coef_i[MAX_GRID_SIZE][3];
 	int64_t bicubic_coef[4];
 	int64_t bicubic_coef_tmp;
 	int64_t u;
 	int64_t i, j;
-
-	for (i = 0; i < MAX_GRID_SIZE; i++) {
-		for (j = 0; j < 3; j++)
- 			bicubic_coef_i[i][j] = *(bicubic_coef_ptr + i * 8 + j);
- 	}
 
 	for (i = 0; i < grid_size; i++)
 	{
@@ -515,23 +509,17 @@ void calc_bicubic_coef(uint32_t *bicubic_coef_ptr, uint32_t grid_size)
 		{
 			bicubic_coef_tmp = (bicubic_coef[j] + (1 << 11)) >> 12;
 			bicubic_coef_tmp = WARP_CLIP2(bicubic_coef_tmp, -BICUBIC_COEF_MULT, BICUBIC_COEF_MULT);
-			bicubic_coef_i[i][j] = (int)bicubic_coef_tmp;
+			bicubic_coef_i[i + j] = (int)bicubic_coef_tmp;
 		}
 	}
 }
 
-void calc_pixel_bicubic_coef(int *pixel_interp_ptr)
+static void calc_pixel_bicubic_coef(int *pixel_interp_coef)
 {
-	int pixel_interp_coef[LXY_MULT][3];
 	int64_t pixel_bicubic_coef[4];
 	int64_t pixel_bicubic_coef_tmp;
 	int64_t u;
 	int64_t i, j;
-
-	for (i = 0; i < LXY_MULT; i++) {
-		for (j = 0; j < 3; j++)
- 			pixel_interp_coef[i][j] = *(pixel_interp_ptr + i * 8 + j);
-	}
 
 	for(i = 0; i < LXY_MULT; i++)
 	{
@@ -544,34 +532,96 @@ void calc_pixel_bicubic_coef(int *pixel_interp_ptr)
 		{
 			pixel_bicubic_coef_tmp = (pixel_bicubic_coef[j] + (1 << 13)) >> 14;
 			pixel_bicubic_coef_tmp = WARP_CLIP2(pixel_bicubic_coef_tmp, -PIXEL_INTERP_PREC_MULT, PIXEL_INTERP_PREC_MULT);
-			pixel_interp_coef[i][j] = (int)pixel_bicubic_coef_tmp;
+			pixel_interp_coef[i + j] = (int)pixel_bicubic_coef_tmp;
 		}
 	}
 
 }
 
-int dewarping_calc_slice_info(int s_col, int e_col, int s_row, int e_row, uint8_t dst_mblk_size, int *crop_info_w, int *crop_info_h,
-            int *crop_info_x, int *crop_info_y, uint16_t *mb_row_start, uint16_t *mb_col_start, uint16_t *width, uint16_t *height, uint16_t *init_start_col, uint16_t *init_start_row)
+static int ispdewarping_calc_slice_info(int s_col, int e_col, int s_row, int e_row,
+	    uint8_t dst_mblk_size, int *crop_info_w, int *crop_info_h,
+            int *crop_info_x, int *crop_info_y, uint16_t *mb_row_start,
+	    uint16_t *mb_col_start, uint16_t *width, uint16_t *height,
+	    uint16_t *init_start_col, uint16_t *init_start_row)
 {
 	int inter_slice_w_align = dst_mblk_size * 2;
 
 	*crop_info_w = (e_col - s_col + 1);
 	*crop_info_h = (e_row - s_row + 1);
 
-	*mb_row_start     = s_row / dst_mblk_size;
-	*mb_col_start     = s_col / dst_mblk_size;
+	*mb_row_start = s_row / dst_mblk_size;
+	*mb_col_start = s_col / dst_mblk_size;
+
 	*crop_info_y = s_row - (*mb_row_start) * dst_mblk_size;
 	*crop_info_x = s_col - (*mb_col_start) * dst_mblk_size;
+
 	*width  = *crop_info_w + *crop_info_x;
 	*height = *crop_info_h + *crop_info_y;
+
 	*height = (*height + dst_mblk_size - 1) / dst_mblk_size * dst_mblk_size;
-	*width  = (*width + inter_slice_w_align - 1) / inter_slice_w_align * inter_slice_w_align;
-	if((*width) % inter_slice_w_align == 0 && (*height) % dst_mblk_size == 0)
-		return -EFAULT;
 
 	*init_start_col = s_col;
 	*init_start_row = s_row;
+
+	*width  = (*width + inter_slice_w_align - 1)
+			/ inter_slice_w_align * inter_slice_w_align;
+
+	return 1;
+}
+
+static int ispdewarping_slice_calculate(struct slice_pos_info *pos,
+			      struct dewarping_slice_out *out)
+{
+	uint8_t dst_mblk_size = 8;
+	ispdewarping_calc_slice_info(pos->start_col, pos->end_col,
+	     pos->start_row, pos->end_row, dst_mblk_size,
+	     &out->crop_info_w, &out->crop_info_h,
+             &out->crop_info_x, &out->crop_info_y, &out->mb_row_start,
+	     &out->mb_col_start, &out->width, &out->height,
+	     &out->init_start_col, &out->init_start_row);
+
 	return 0;
+}
+
+static int ispdewarping_slice_param_get(struct isp_dewarp_ctx_desc *ctx)
+{
+	struct dewarping_slice_out dewarping_out = {0};
+	struct slice_pos_info dewarping_pos =  {0};
+	uint32_t slice_num = 0;
+	uint32_t slice_id = 0;
+	uint8_t dst_mblk_size = 8;
+	uint32_t mb_row, mb_col, init_st_col, init_st_row;
+
+	if (!ctx) {
+		pr_err("fail to get valid input ptr\n");
+		return -EFAULT;
+	}
+	slice_num = ctx->slice_num;
+	if (slice_num > 1)
+	{
+		for (slice_id = 0; slice_id < slice_num; slice_id++) {
+			dewarping_pos = ctx->slice_info[slice_id].slice_pos;
+			ispdewarping_slice_calculate(&dewarping_pos, &dewarping_out);
+			mb_row = ((dewarping_out.crop_info_w + 15) / 16 * 16) / dst_mblk_size;
+			mb_col = ((dewarping_out.crop_info_h + 7) / 8 * 8) / dst_mblk_size;
+			init_st_col = dewarping_out.init_start_col;
+			init_st_row = dewarping_out.init_start_row;
+			ctx->slice_info[slice_id].dewarp_slice.start_mb_x = dewarping_out.mb_col_start;
+			ctx->slice_info[slice_id].dewarp_slice.start_mb_y = dewarping_out.mb_row_start;
+			ctx->slice_info[slice_id].dewarp_slice.mb_x_num = mb_row;
+			ctx->slice_info[slice_id].dewarp_slice.mb_y_num = mb_col;
+			ctx->slice_info[slice_id].dewarp_slice.init_start_col = init_st_col;
+			ctx->slice_info[slice_id].dewarp_slice.init_start_row = init_st_row;
+			ctx->slice_info[slice_id].dewarp_slice.slice_width = dewarping_out.crop_info_w;
+			ctx->slice_info[slice_id].dewarp_slice.slice_height = dewarping_out.crop_info_h;
+			ctx->slice_info[slice_id].dewarp_slice.dst_height = dewarping_out.crop_info_h;
+			ctx->slice_info[slice_id].dewarp_slice.dst_width = dewarping_out.crop_info_w;
+			ctx->slice_info[slice_id].dewarp_slice.crop_start_x = dewarping_out.crop_info_x;
+			ctx->slice_info[slice_id].dewarp_slice.crop_start_y = dewarping_out.crop_info_y;
+		}
+	}
+
+	   return 0;
 }
 
 static int ispdewarping_dewarp_cache_get(struct isp_dewarp_ctx_desc *ctx)
@@ -610,6 +660,71 @@ static int ispdewarping_dewarp_cache_get(struct isp_dewarp_ctx_desc *ctx)
 	return ret;
 }
 
+static uint32_t ispdewarping_grid_size_cal(struct isp_dewarp_ctx_desc *ctx)
+{
+	uint32_t grid_size = 0;
+	uint32_t input_w = 0;
+
+	input_w = ctx->src_size.w;
+	if ((input_w > MIN_DEWARP_INPUT_WIDTH) || input_w < 640) {
+		grid_size = 16;
+	} else if (input_w < MAX_DEWARP_INPUT_WIDTH) {
+		grid_size = input_w * MAX_GRID_SIZE_COEF1 / MAX_DEWARP_INPUT_WIDTH;
+	} else {
+		pr_err("fail to get valid dewarp input size %d\n", input_w);
+		return grid_size;
+	}
+
+	return grid_size;
+}
+
+static int ispdewarping_dewarp_calib_parse(struct isp_dewarp_ctx_desc *ctx, struct isp_dewarp_otp_info *otp_info)
+{
+	int32_t rtn = 0;
+	int32_t i = 0;
+	struct isp_dewarp_calib_info *dewarping_calib_info = NULL;
+
+	if (ctx == NULL || otp_info == NULL) {
+		pr_err("fail to get valid input ptr\n");
+		return -EFAULT;
+	}
+	dewarping_calib_info = &ctx->dewarping_calib_info;
+	/* get camera_k[3][3] */
+	dewarping_calib_info->camera_k[0][0] = (int64_t)otp_info->fx;
+	dewarping_calib_info->camera_k[0][1] = (int64_t)otp_info->cx;
+	dewarping_calib_info->camera_k[0][2] = (int64_t)0;
+	dewarping_calib_info->camera_k[1][0] = (int64_t)0;
+	dewarping_calib_info->camera_k[1][1] = (int64_t)otp_info->fy;
+	dewarping_calib_info->camera_k[1][2] = (int64_t)otp_info->cy;
+	dewarping_calib_info->camera_k[2][0] = (int64_t)0;
+	dewarping_calib_info->camera_k[2][1] = (int64_t)0;
+	dewarping_calib_info->camera_k[2][2] = (int64_t)1;
+	/* get dist_coefs[14] */
+	for (i = 0; i < 5; i++)
+		dewarping_calib_info->dist_coefs[i] = (int64_t)otp_info->dist_org_coef[i];
+	for (i = 0; i < 9; i++)
+		dewarping_calib_info->dist_coefs[i + 5] = (int64_t)otp_info->dist_new_coef[i];
+	/* get calib size info */
+	dewarping_calib_info->calib_size.calib_width = (int64_t)otp_info->calib_width;
+	dewarping_calib_info->calib_size.calib_height = (int64_t)otp_info->calib_height;
+	dewarping_calib_info->calib_size.crop_start_x = (int64_t)otp_info->crop_start_x;
+	dewarping_calib_info->calib_size.crop_start_y = (int64_t)otp_info->crop_start_y;
+	dewarping_calib_info->calib_size.crop_height = (int64_t)otp_info->crop_h;
+	dewarping_calib_info->calib_size.crop_width = (int64_t)otp_info->crop_w;
+	dewarping_calib_info->calib_size.fov_scale = (int64_t)otp_info->fov_scale;
+
+	/* change precision: calib_w/2^19 calib_h/2^19; fov_scale*2^10; cx*2^29l cy*2^29 fx*2^29 fy*2^29 */
+	dewarping_calib_info->calib_size.calib_width = dewarping_calib_info->calib_size.calib_width >> 19;
+	dewarping_calib_info->calib_size.calib_height = dewarping_calib_info->calib_size.calib_width >> 19;
+	dewarping_calib_info->calib_size.fov_scale = dewarping_calib_info->calib_size.fov_scale << 10;
+	dewarping_calib_info->camera_k[0][0] = dewarping_calib_info->camera_k[0][0] << 29;
+	dewarping_calib_info->camera_k[0][1] = dewarping_calib_info->camera_k[0][1] << 29;
+	dewarping_calib_info->camera_k[1][1] = dewarping_calib_info->camera_k[1][1] << 29;
+	dewarping_calib_info->camera_k[1][2] = dewarping_calib_info->camera_k[1][2] << 29;
+
+	return rtn;
+}
+
 static int ispdewarping_dewarp_config_get(struct isp_dewarp_ctx_desc *ctx)
 {
 	int32_t rtn = 0;
@@ -623,7 +738,7 @@ static int ispdewarping_dewarp_config_get(struct isp_dewarp_ctx_desc *ctx)
 	struct isp_dewarp_calib_info *dewarping_calib_info  = NULL;
 	struct isp_dewarp_input_info dewarp_input_info = {0};
 
-	if (ctx == NULL){
+	if (ctx == NULL) {
 		pr_err("fail to get valid input ptr\n");
 		return -EFAULT;
 	}
@@ -633,7 +748,7 @@ static int ispdewarping_dewarp_config_get(struct isp_dewarp_ctx_desc *ctx)
 	dewarping_info->src_height = ctx->src_size.h;
 	dewarping_info->dst_width = ctx->dst_size.w;
 	dewarping_info->dst_height = ctx->dst_size.h;
-	grid_size =  ctx->grid_size;
+	grid_size = ispdewarping_grid_size_cal(ctx);
 	dewarping_info->grid_size = grid_size;
 	dewarping_info->pos_x = (dewarping_info->src_width - dewarping_info->dst_width) >> 1;
 	dewarping_info->pos_y = (dewarping_info->src_height - dewarping_info->dst_height) >> 1;
@@ -670,6 +785,7 @@ static int ispdewarping_dewarp_config_get(struct isp_dewarp_ctx_desc *ctx)
 	calc_grid_data_undistort(dewarp_input_info, dewarping_calib_info, grid_size, grid_x,
 					grid_y, dewarping_info->pos_x, dewarping_info->pos_y,
 					dewarping_info->grid_x_ch0_buf, dewarping_info->grid_y_ch0_buf);
+	ispdewarping_slice_param_get(ctx);
 	return rtn;
 }
 
@@ -678,7 +794,7 @@ static int ispdewarping_cfg_param(void *handle,
 {
 	int ret = 0;
 	struct isp_dewarp_ctx_desc *dewarping_ctx = NULL;
-	struct img_size *size = NULL;
+	struct isp_dewarp_otp_info *otp_info = NULL;
 
 	if (!handle || !param) {
 		pr_err("fail to get valid input ptr\n");
@@ -687,12 +803,11 @@ static int ispdewarping_cfg_param(void *handle,
 
 	dewarping_ctx = (struct isp_dewarp_ctx_desc *)handle;
 	switch (cmd) {
-	case ISP_DEWARPING_CFG_SIZE:
-		size = (struct img_size *)param;
+	case ISP_DEWARPING_CALIB_COEFF:
+		otp_info = (struct isp_dewarp_otp_info *)param;
+		ispdewarping_dewarp_calib_parse(dewarping_ctx, otp_info);
 		break;
-	case ISP_DEWARPING_CFG_COEFF:
-		break;
-	case ISP_DEWARPING_CFG_MODE:
+	case ISP_DEWARPING_MODE:
 		break;
 	default:
 		pr_err("fail to get known cmd: %d\n", cmd);
@@ -719,7 +834,6 @@ static int ispdewarping_proc(void *dewarp_handle, void *param)
 	dewarping_desc->dst_size.h = dewarp_in->in_h;
 	dewarping_desc->src_size.w = dewarping_desc->dst_size.w;
 	dewarping_desc->src_size.h= dewarping_desc->dst_size.h;
-	dewarping_desc->grid_size = dewarp_in->grid_size;
 	dewarping_desc->fetch_addr = dewarp_in->addr;
 	/* to be add dewarping_calib_info get */
 	rtn = ispdewarping_dewarp_config_get(dewarping_desc);

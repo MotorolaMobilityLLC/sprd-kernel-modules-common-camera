@@ -1494,7 +1494,8 @@ static isp_k_blk_func isp_hw_k_blk_func_tab[ISP_K_BLK_MAX] = {
 	[ISP_K_BLK_PYR_REC_SLICE]           = isp_pyr_rec_slice_config,
 	[ISP_K_BLK_PYR_REC_SLICE_COMMON]    = isp_pyr_rec_slice_common_config,
 	[ISP_K_BLK_DEWARP_CACHE_CFG]        = isp_dewarping_dewarp_cache_set,
-	[ISP_K_BLK_DEWARP_CFG]              = isp_dewarping_config_param,
+	[ISP_K_BLK_DEWARP_CFG]              = isp_dewarping_frame_config,
+	[ISP_K_BLK_DEWARP_SLICE]            = isp_k_dewarping_slice_config,
 };
 
 static int isphw_k_blk_func_get(void *handle, void *arg)
@@ -2305,6 +2306,47 @@ static int isphw_slices_pyr_rec_fmcu_cmds(void *handle, void *arg)
 
 	addr = ISP_GET_REG(base + ISP_FMCU_CMD);
 	cmd = rec_store_done_cmd[parg->hw_ctx_id];
+	FMCU_PUSH(parg->fmcu, addr, cmd);
+
+	return 0;
+}
+
+static int isphw_slices_dewarp_fmcu_cmds(void *handle, void *arg)
+{
+	uint32_t reg_off, addr = 0, cmd = 0;
+	unsigned long base = 0;
+	struct isp_hw_slices_fmcu_cmds *parg = NULL;
+	uint32_t shadow_done_cmd[ISP_CONTEXT_HW_NUM] = {
+		PRE0_SHADOW_DONE, CAP0_SHADOW_DONE,
+		PRE1_SHADOW_DONE, CAP1_SHADOW_DONE,
+	};
+	uint32_t all_done_cmd[ISP_CONTEXT_HW_NUM] = {
+		PRE0_ALL_DONE, CAP0_ALL_DONE,
+		PRE1_ALL_DONE, CAP1_ALL_DONE,
+	};
+
+	parg = (struct isp_hw_slices_fmcu_cmds *)arg;
+	if (parg->fmcu->fid == 0)
+		base = ISP_FMCU0_BASE;
+	else if (parg->fmcu->fid == 1)
+		base = ISP_FMCU1_BASE;
+	else
+		base = ISP_FMCU_PRE1_BASE;
+
+	if (parg->wmode == ISP_CFG_MODE) {
+		reg_off = ISP_CFG_CAP_FMCU_RDY;
+		addr = ISP_GET_REG(reg_off);
+	} else
+		addr = ISP_GET_REG(ISP_DEWARPING_FSTART);
+	cmd = 1;
+	FMCU_PUSH(parg->fmcu, addr, cmd);
+
+	addr = ISP_GET_REG(base + ISP_FMCU_CMD);
+	cmd = shadow_done_cmd[parg->hw_ctx_id];
+	FMCU_PUSH(parg->fmcu, addr, cmd);
+
+	addr = ISP_GET_REG(base + ISP_FMCU_CMD);
+	cmd = all_done_cmd[parg->hw_ctx_id];
 	FMCU_PUSH(parg->fmcu, addr, cmd);
 
 	return 0;
@@ -3139,6 +3181,7 @@ static struct hw_io_ctrl_fun isp_ioctl_fun_tab[] = {
 	{ISP_HW_CFG_SLICE_NR_INFO,           isphw_slice_nr_info},
 	{ISP_HW_CFG_SLICE_FMCU_CMD,          isphw_slices_fmcu_cmds},
 	{ISP_HW_CFG_SLICE_FMCU_PYR_REC_CMD,  isphw_slices_pyr_rec_fmcu_cmds},
+	{ISP_HW_CFG_SLICE_FMCU_DEWARP_CMD,   isphw_slices_dewarp_fmcu_cmds},
 	{ISP_HW_CFG_SLICE_NOFILTER,          isphw_slice_nofilter},
 	{ISP_HW_CFG_SLICE_3DNR_CROP,         isphw_slice_3dnr_crop},
 	{ISP_HW_CFG_SLICE_3DNR_STORE,        isphw_slice_3dnr_store},

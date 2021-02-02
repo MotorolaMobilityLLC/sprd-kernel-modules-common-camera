@@ -436,7 +436,6 @@ static int ispcore_dewarp_frame_process(struct isp_sw_context *pctx,
 	}
 
 	if (dewarp_ctx) {
-		dewarp_ctx->ops.cfg_param(dewarp_ctx, ISP_DEWARPING_CFG_SIZE, &pipe_in->fetch.src);
 		ret = dewarp_ctx->ops.pipe_proc(dewarp_ctx, &dewarp_in);
 		if (ret == -1)
 			pr_err("fail to proc dewarp frame\n");

@@ -21,13 +21,15 @@ extern "C" {
 #include "cam_queue.h"
 #include "dcam_interface.h"
 #include "isp_interface.h"
+#include "isp_slice.h"
 
 #define DEWARPING_DST_MBLK_SIZE       16
 #define DEWARPING_MAX_LINE_LENGTH     0x100
-#define DEWARPING_MAX_GRID_SIZE       (1 << 8)
-#define DEWARPING_LXY_SHIFT           (3 + 3)
-#define DEWARPING_LXY_MULT            (1 << DEWARPING_LXY_SHIFT)
 #define DEWARPING_GRID_BUF            (0x1180)
+#define DEWARPING_GRID_DATA_SIZE      (1120)
+#define MAX_GRID_SIZE_COEF1           192
+#define MAX_DEWARP_INPUT_WIDTH        5184
+#define MIN_DEWARP_INPUT_WIDTH        120
 
 #define MAX_XY_DELTA                  (11)
 #define MAX_GRID_SIZE                 (1 << 8)
@@ -78,10 +80,9 @@ enum isp_dewarp_mode{
 };
 
 enum isp_dewarp_cfg_cmd{
-	ISP_DEWARPING_CFG_SIZE,
-	ISP_DEWARPING_CFG_COEFF,
-	ISP_DEWARPING_CFG_MODE,
-	ISP_DEWARPING_CFG_MAX,
+	ISP_DEWARPING_CALIB_COEFF,
+	ISP_DEWARPING_MODE,
+	ISP_DEWARPING_MAX,
 };
 
 struct isp_dewarp_input_info
@@ -116,6 +117,7 @@ struct isp_dewarp_calib_info
 {
 	struct isp_dewarp_calib_size calib_size;
 	enum isp_dewarp_mode mode;
+	/* fx, cx, 0, 0, fy, cy, 0, 0, 1 */
 	int64_t camera_k[3][3];
 	/* k1, k2, p1, p2, k3, k4, k5, k6, s1, s2, s3, s4, tauX, tauY */
 	int64_t dist_coefs[14];
@@ -150,7 +152,6 @@ struct isp_dewarp_in {
 	uint32_t in_pitch[3];
 	struct img_addr addr;
 	struct img_trim in_trim;
-	uint32_t grid_size;
 	uint32_t yuv_format;
 };
 
@@ -182,19 +183,40 @@ struct isp_dewarping_blk_info{
 	enum isp_dewarp_mode dewarp_mode;
 	/* default 0 :grid table mode:0:matrix_file 1:grid_xy_file */
 	uint32_t grid_table_mode;
-	uint32_t grid_x_ch0_buf[DEWARPING_GRID_BUF];
-	uint32_t grid_y_ch0_buf[DEWARPING_GRID_BUF];
+	uint32_t grid_x_ch0_buf[DEWARPING_GRID_DATA_SIZE];
+	uint32_t grid_y_ch0_buf[DEWARPING_GRID_DATA_SIZE];
 	/* PXL_COEF_CH0[LXY_MULT][3] */
-	uint32_t *pixel_interp_coef;
+	uint32_t pixel_interp_coef[LXY_MULT * 3];
 	/* CORD_COEF_CH0[MAX_GRID_SIZE][3] */
-	uint32_t *bicubic_coef_i;
+	uint32_t bicubic_coef_i[MAX_GRID_SIZE * 3];
+};
+
+struct dewarping_slice_out {
+	uint8_t dst_mblk_size ;
+	uint32_t crop_info_w;
+	uint32_t crop_info_h;
+	uint32_t crop_info_x;
+	uint32_t crop_info_y;
+	uint16_t mb_row_start;
+	uint16_t mb_col_start;
+	uint16_t width;
+	uint16_t height;
+	uint16_t init_start_col;
+	uint16_t init_start_row;
+};
+
+struct isp_dewarping_slice {
+	struct slice_pos_info slice_pos;
+	struct slice_dewarping_info dewarp_slice;
 };
 
 struct isp_dewarp_ctx_desc {
 	uint32_t idx;
 	uint32_t in_fmt;
 	uint32_t hw_ctx_id;
-	uint32_t grid_size;
+	uint32_t slice_num;
+	uint32_t cur_slice_id;
+	enum isp_work_mode wmode;
 	enum isp_dewarp_mode mode;
 	struct img_addr fetch_addr;
 	struct img_size src_size;
@@ -204,7 +226,30 @@ struct isp_dewarp_ctx_desc {
 	struct isp_dewarp_cache_info  dewarp_cache_info;
 	struct isp_dewarping_blk_info dewarp_blk_info;
 	struct isp_dewarp_calib_info dewarping_calib_info;
+	struct isp_dewarping_slice slice_info[SLICE_NUM_MAX];
 	struct isp_dewarp_ops ops;
+	struct cam_hw_info *hw;
+};
+
+struct isp_dewarp_otp_info {
+	/* header */
+	uint32_t header[4];
+	/* camera[3][3] */
+	uint32_t cx;
+	uint32_t cy;
+	uint32_t fx;
+	uint32_t fy;
+	/* k1, k2, p1, p2, k3*/
+	uint32_t dist_org_coef[5];
+	uint32_t fov_scale;
+	uint32_t calib_width;
+	uint32_t calib_height;
+	uint32_t crop_start_x;
+	uint32_t crop_start_y;
+	uint32_t crop_w;
+	uint32_t crop_h;
+	/*k4, k5, k6, s1, s2, s3, s4, taux, tauy*/
+	uint32_t dist_new_coef[9];
 };
 
 void *isp_dewarping_ctx_get(uint32_t idx, void *hw);

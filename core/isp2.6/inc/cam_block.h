@@ -230,8 +230,9 @@ int isp_pyr_rec_share_config(void *handle);
 int isp_pyr_rec_frame_config(void *handle);
 int isp_pyr_rec_slice_config(void *handle);
 int isp_pyr_rec_slice_common_config(void *handle);
-int isp_dewarping_config_param(void *handle);
+int isp_dewarping_frame_config(void *handle);
 int isp_dewarping_dewarp_cache_set(void *handle);
+int isp_k_dewarping_slice_config(void *handle);
 
 int isp_k_gtm_block(void *pctx, void *param);
 int isp_k_gtm_mapping_set(void *param);

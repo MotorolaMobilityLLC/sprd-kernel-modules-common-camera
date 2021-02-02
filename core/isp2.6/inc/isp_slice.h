@@ -305,6 +305,21 @@ struct slice_pyr_rec_info {
 	uint32_t ver_padding_num;
 };
 
+struct slice_dewarping_info {
+	uint32_t mb_x_num;
+	uint32_t mb_y_num;
+	uint32_t init_start_col;
+	uint32_t init_start_row;
+	uint32_t start_mb_x;
+	uint32_t start_mb_y;
+	uint32_t slice_width;
+	uint32_t slice_height;
+	uint32_t dst_width;
+	uint32_t dst_height;
+	uint32_t crop_start_x;
+	uint32_t crop_start_y;
+};
+
 struct isp_slice_desc {
 	uint32_t valid;
 	uint32_t x;

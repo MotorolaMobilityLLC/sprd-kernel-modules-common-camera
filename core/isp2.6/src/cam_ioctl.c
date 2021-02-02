@@ -2997,6 +2997,20 @@ static int camioctl_auto_3dnr_mode_set(struct camera_module *module,
 	return ret;
 }
 
+static int camioctl_dewarp_otp_set(struct camera_module *module, unsigned long arg)
+{
+	int ret = 0;
+
+	if (!module) {
+		pr_err("fail to get valid param\n");
+		return -EINVAL;
+	}
+
+	/* wait dewarp sensor opt data format */
+	return ret;
+
+}
+
 static int camioctl_capability_get(struct camera_module *module,
 		unsigned long arg)
 {
@@ -3042,6 +3056,34 @@ static int camioctl_scaler_capability_get(struct camera_module *module,
 		goto exit;
 	}
 	pr_debug("isp_scaler_up_max: %d\n", isp_scaler_up_max);
+
+exit:
+	return ret;
+}
+
+static int camioctl_dewarp_hw_capability_get(struct camera_module *module,
+		unsigned long arg)
+{
+	int ret = 0;
+	struct camera_group *grp = NULL;
+	struct cam_hw_info *hw = NULL;
+	uint32_t isp_dewarp_hw_support = 0;
+
+	if (!module) {
+		pr_err("fail to get valid param\n");
+		ret = -EINVAL;
+		goto exit;
+	}
+	grp = module->grp;
+	hw = grp->hw_info;
+	isp_dewarp_hw_support = hw->ip_isp->dewarp_support;
+	ret = copy_to_user((void __user *)arg, &isp_dewarp_hw_support, sizeof(uint32_t));
+	if (unlikely(ret)) {
+		pr_err("fail to get dewarp hw capability, ret %d\n", ret);
+		ret = -EFAULT;
+		goto exit;
+	}
+	pr_debug("isp_dewarp_hw_support: %d\n", isp_dewarp_hw_support);
 
 exit:
 	return ret;

@@ -594,7 +594,6 @@ struct sprd_img_path_capability {
 	uint32_t reserved;
 };
 
-
 struct sprd_img_write_op {
 	uint32_t cmd;
 	uint32_t channel_id;
@@ -930,6 +929,8 @@ struct sprd_img_path_rect {
 #define SPRD_IMG_IO_CAM_TEST             _IOW(SPRD_IMG_IO_MAGIC, 74, struct camt_info)
 #define SPRD_IMG_IO_DCAM_SWITCH          _IOW(SPRD_IMG_IO_MAGIC, 75, uint32_t)
 #define SPRD_IMG_IO_GET_SCALER_CAP       _IOR(SPRD_IMG_IO_MAGIC, 76, uint32_t)
+#define SPRD_IMG_IO_GET_DWARP_HW_CAP     _IOR(SPRD_IMG_IO_MAGIC, 77, uint32_t)
+#define SPRD_IMG_IO_SET_DWARP_OTP        _IOR(SPRD_IMG_IO_MAGIC, 78, uint32_t)
 
 /*
  * Dump dcam register.
