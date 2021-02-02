@@ -256,7 +256,7 @@ static int camioctl_param_cfg(struct camera_module *module,
 	}
 
 	if ((param.sub_block & DCAM_ISP_BLOCK_MASK) == DCAM_BLOCK_BASE) {
-		if (dev->hw->ip_isp->rgb_gtm_support && (param.sub_block == DCAM_BLOCK_RAW_GTM)) {
+		if (dev && dev->hw->ip_isp->rgb_gtm_support && (param.sub_block == DCAM_BLOCK_RAW_GTM)) {
 			/*only for l6*/
 			if (param.scene_id == PM_SCENE_PRE)
 				channel = &module->channel[CAM_CH_PRE];
