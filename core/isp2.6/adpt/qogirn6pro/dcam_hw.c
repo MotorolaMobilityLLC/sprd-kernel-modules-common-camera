@@ -30,7 +30,6 @@
 
 #define IS_DCAM_IF(idx)                ((idx) < 2)
 
-extern atomic_t s_dcam_working;
 static uint32_t dcam_hw_linebuf_len[3] = {0, 0, 0};
 static uint32_t g_gtm_bypass = 1;
 static uint32_t g_ltm_bypass = 1;
@@ -1411,7 +1410,16 @@ static int dcamhw_lbuf_share_set(void *handle, void *arg)
 		3264, 5664,
 	};
 	struct cam_hw_lbuf_share *camarg = (struct cam_hw_lbuf_share *)arg;
+	uint32_t dcam0_mipi_en = 0, dcam1_mipi_en = 0;
 
+	dcam0_mipi_en = DCAM_REG_RD(0, DCAM_MIPI_CAP_CFG) & BIT_0;
+	dcam1_mipi_en = DCAM_REG_RD(1, DCAM_MIPI_CAP_CFG) & BIT_0;
+	pr_debug("dcam %d offline %d en0 %d en1 %d\n", camarg->idx, camarg->offline_flag,
+		dcam0_mipi_en, dcam1_mipi_en);
+	if (!camarg->offline_flag && (dcam0_mipi_en || dcam1_mipi_en)) {
+		pr_warn("dcam 0/1 already in working\n");
+		return 0;
+	}
 	switch (camarg->idx) {
 	case 0:
 		if (camarg->width > tb_w[0]) {

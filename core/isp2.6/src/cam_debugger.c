@@ -42,7 +42,6 @@ uint32_t g_isp_bypass[ISP_CONTEXT_SW_NUM] = { 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 int g_dbg_iommu_mode = IOMMU_AUTO;
 int g_dbg_set_iommu_mode = IOMMU_AUTO;
 
-extern atomic_t s_dcam_working;
 extern atomic_t s_dcam_axi_opened;
 extern atomic_t s_dcam_opened[DCAM_SW_CONTEXT_MAX];
 extern struct isp_pipe_dev *s_isp_dev;

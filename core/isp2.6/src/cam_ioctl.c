@@ -1646,6 +1646,7 @@ cfg_ch_done:
 		line_w /= 2;
 	camarg.idx = sw_ctx->hw_ctx_id;
 	camarg.width = line_w;
+	camarg.offline_flag = 0;
 	if (hw->ip_dcam[sw_ctx->hw_ctx_id]->lbuf_share_support)
 		ret = hw->dcam_ioctl(hw, DCAM_HW_CFG_LBUF_SHARE_SET, &camarg);
 
@@ -2911,6 +2912,7 @@ static int camioctl_4in1_post_proc(struct camera_module *module,
 	}
 	lbuf.idx = sw_ctx->hw_ctx_id;
 	lbuf.width = pframe->width;
+	lbuf.offline_flag = 1;
 	if (dev->hw->ip_dcam[sw_ctx->hw_ctx_id]->lbuf_share_support)
 		dev->hw->dcam_ioctl(dev->hw, DCAM_HW_CFG_LBUF_SHARE_SET, &lbuf);
 
@@ -3207,7 +3209,6 @@ static int camioctl_csi_switch(struct camera_module *module, unsigned long arg)
 			dcam_core_context_unbind(sw_ctx);
 
 			atomic_set(&sw_ctx->state, STATE_IDLE);
-			atomic_dec(&s_dcam_working);
 			sw_ctx->csi_connect_stat = DCAM_CSI_PAUSE;
 			break;
 

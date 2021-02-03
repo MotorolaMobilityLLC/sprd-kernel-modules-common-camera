@@ -1003,6 +1003,7 @@ struct dcam_hw_fbc_ctrl {
 struct cam_hw_lbuf_share {
 	enum dcam_id idx;
 	uint32_t width;
+	uint32_t offline_flag;
 };
 
 struct dcam_hw_calc_rds_phase {

@@ -5317,6 +5317,7 @@ static int camcore_raw_pre_proc(
 
 	camarg.idx = sw_ctx->hw_ctx_id;
 	camarg.width = proc_info->src_size.width;
+	camarg.offline_flag = 1;
 	if (hw->ip_dcam[sw_ctx->hw_ctx_id]->lbuf_share_support)
 		hw->dcam_ioctl(hw, DCAM_HW_CFG_LBUF_SHARE_SET, &camarg);
 

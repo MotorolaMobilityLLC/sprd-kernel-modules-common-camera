@@ -52,7 +52,6 @@ struct statis_path_buf_info s_statis_path_info_all[] = {
 	{DCAM_PATH_LSCM,    0,  0, STATIS_LSCM},
 };
 
-atomic_t s_dcam_working;
 atomic_t s_dcam_axi_opened;
 atomic_t s_dcam_opened[DCAM_SW_CONTEXT_MAX];
 static DEFINE_MUTEX(s_dcam_dev_mutex);
@@ -2257,8 +2256,6 @@ static int dcamcore_dev_start(void *dcam_handle, int online)
 			pr_err("fail to creat offline thread\n");
 			return ret;
 		}
-		if (pctx->hw_ctx_id <= DCAM_HW_CONTEXT_1)
-			atomic_dec(&s_dcam_working);
 		atomic_set(&pctx->state, STATE_RUNNING);
 		return ret;
 	}
@@ -2412,8 +2409,6 @@ static int dcamcore_dev_start(void *dcam_handle, int online)
 		hw->dcam_ioctl(hw, DCAM_HW_CFG_SRAM_CTRL_SET, &sramarg);
 	}
 
-	if (pctx->hw_ctx_id <= DCAM_HW_CONTEXT_1)
-		atomic_inc(&s_dcam_working);
 	atomic_set(&pctx->state, STATE_RUNNING);
 	trace.type = NORMAL_REG_TRACE;
 	trace.idx = pctx->hw_ctx_id;
@@ -2455,17 +2450,14 @@ static int dcamcore_dev_stop(void *dcam_handle, enum dcam_stop_cmd pause)
 	if (pctx->hw_ctx_id != DCAM_HW_CONTEXT_MAX) {
 		hw->dcam_ioctl(hw, DCAM_HW_CFG_STOP, &pctx->hw_ctx_id);
 		hw->dcam_ioctl(hw, DCAM_HW_CFG_RESET, &pctx->hw_ctx_id);
-
 		dcam_int_tracker_dump(pctx->hw_ctx_id);
 		dcam_int_tracker_reset(pctx->hw_ctx_id);
 	}
 
-	if (pctx->hw_ctx_id <= DCAM_HW_CONTEXT_1)
-		atomic_dec(&s_dcam_working);
 	atomic_set(&pctx->state, STATE_IDLE);
 	for (i = DCAM_CXT_1; i < DCAM_CXT_NUM; i++) {
 		pctx->ctx[i].ctx_id = i;
-		if (atomic_read(&pctx->ctx[i].user_cnt)  > 0)
+		if (atomic_read(&pctx->ctx[i].user_cnt) > 0)
 			dcamcore_pmctx_deinit(&pctx->ctx[i]);
 	}
 
@@ -2661,7 +2653,6 @@ static int dcamcore_dev_close(void *dcam_handle)
 		mutex_destroy(&dev->path_mutex);
 		ret = dcamcore_context_deinit(dev);
 		ret = dcam_drv_hw_deinit(dev);
-		atomic_set(&s_dcam_working, 0);
 	}
 	atomic_dec(&s_dcam_axi_opened);
 	pr_info("dcam dev disable done\n");

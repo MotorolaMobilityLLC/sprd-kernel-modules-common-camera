@@ -19,7 +19,6 @@
 #define IMG_TYPE_RAW                   0x2B
 #define IMG_TYPE_YUV                   0x1E
 
-extern atomic_t s_dcam_working;
 static uint32_t g_gtm_en = 0;
 static uint32_t g_ltm_bypass = 1;
 static atomic_t clk_users;
@@ -986,6 +985,7 @@ static int dcamhw_lbuf_share_set(void *handle, void *arg)
 	int i = 0;
 	int ret = 0;
 	struct cam_hw_lbuf_share *camarg = (struct cam_hw_lbuf_share *)arg;
+	uint32_t dcam0_mipi_en = 0, dcam1_mipi_en = 0;
 	uint32_t tb_w[] = {
 	/*     dcam0, dcam1 */
 		5664, 3264,
@@ -995,7 +995,11 @@ static int dcamhw_lbuf_share_set(void *handle, void *arg)
 		3264, 5664,
 	};
 
-	if (atomic_read(&s_dcam_working) > 0) {
+	dcam0_mipi_en = DCAM_REG_RD(0, DCAM_MIPI_CAP_CFG) & BIT_0;
+	dcam1_mipi_en = DCAM_REG_RD(1, DCAM_MIPI_CAP_CFG) & BIT_0;
+	pr_debug("dcam %d offline %d en0 %d en1 %d\n", camarg->idx, camarg->offline_flag,
+		dcam0_mipi_en, dcam1_mipi_en);
+	if (!camarg->offline_flag && (dcam0_mipi_en || dcam1_mipi_en)) {
 		pr_warn("dcam 0/1 already in working\n");
 		return 0;
 	}
