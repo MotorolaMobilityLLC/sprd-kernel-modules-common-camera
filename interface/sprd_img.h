@@ -512,6 +512,11 @@ struct sprd_img_auto_3dnr_mode {
 	uint32_t auto_3dnr_enable;
 };
 
+struct sprd_img_longexp_mode {
+	uint32_t need_longexp;
+	uint32_t reserved;
+};
+
 struct sprd_img_ccir_if {
 	uint32_t v_sync_pol;
 	uint32_t h_sync_pol;
@@ -931,6 +936,7 @@ struct sprd_img_path_rect {
 #define SPRD_IMG_IO_GET_SCALER_CAP       _IOR(SPRD_IMG_IO_MAGIC, 76, uint32_t)
 #define SPRD_IMG_IO_GET_DWARP_HW_CAP     _IOR(SPRD_IMG_IO_MAGIC, 77, uint32_t)
 #define SPRD_IMG_IO_SET_DWARP_OTP        _IOR(SPRD_IMG_IO_MAGIC, 78, uint32_t)
+#define SPRD_IMG_IO_SET_LONGEXP_CAP      _IOR(SPRD_IMG_IO_MAGIC, 79, uint32_t)
 
 /*
  * Dump dcam register.

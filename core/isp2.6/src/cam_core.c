@@ -56,6 +56,8 @@
 
 #define IMG_DEVICE_NAME                 "sprd_image"
 #define CAMERA_TIMEOUT                  5000
+#define CAMERA_LONGEXP_TIMEOUT          50000
+
 #define THREAD_STOP_TIMEOUT             3000
 
 #define CAM_COUNT                       CAM_ID_MAX
@@ -156,7 +158,7 @@ struct camera_uinfo {
 	struct sprd_img_rect sn_rect;
 	uint32_t capture_mode;
 	uint32_t capture_skip;
-
+	uint32_t is_longexp;
 	uint32_t is_4in1;
 	uint32_t is_rgb_ltm;
 	uint32_t is_yuv_ltm;
@@ -278,7 +280,6 @@ struct camera_module {
 
 	uint32_t simu_fid;
 	uint32_t simulator;
-
 	uint32_t is_smooth_zoom;
 	uint32_t zoom_solution;/* for dynamic zoom type swicth. */
 	uint32_t rds_limit;/* raw downsizer limit */
@@ -6103,6 +6104,7 @@ static struct cam_ioctl_cmd ioctl_cmds_table[] = {
 	[_IOC_NR(SPRD_IMG_IO_GET_SCALER_CAP)]       = {SPRD_IMG_IO_GET_SCALER_CAP,       camioctl_scaler_capability_get},
 	[_IOC_NR(SPRD_IMG_IO_GET_DWARP_HW_CAP)]     = {SPRD_IMG_IO_GET_DWARP_HW_CAP,     camioctl_dewarp_hw_capability_get},
 	[_IOC_NR(SPRD_IMG_IO_SET_DWARP_OTP)]        = {SPRD_IMG_IO_SET_DWARP_OTP,        camioctl_dewarp_otp_set},
+	[_IOC_NR(SPRD_IMG_IO_SET_LONGEXP_CAP)]      = {SPRD_IMG_IO_SET_LONGEXP_CAP,      camioctl_longexp_mode_set},
 };
 
 static long camcore_ioctl(struct file *file, unsigned int cmd,

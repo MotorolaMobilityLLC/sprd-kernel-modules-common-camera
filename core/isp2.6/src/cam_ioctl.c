@@ -1548,7 +1548,7 @@ static int camioctl_stream_on(struct camera_module *module,
 	uint32_t online = 1;
 	uint32_t i, line_w, isp_ctx_id, isp_path_id;
 	uint32_t uframe_sync, live_ch_count = 0, shutoff = 0;
-
+	uint32_t timer = 0;
 	struct channel_context *ch = NULL;
 	struct channel_context *ch_pre = NULL, *ch_vid = NULL, *ch_raw = NULL;
 	struct cam_hw_info *hw = module->grp->hw_info;
@@ -1763,7 +1763,12 @@ cfg_ch_done:
 	}
 
 	atomic_set(&module->timeout_flag, 1);
-	ret = camcore_timer_start(&module->cam_timer, CAMERA_TIMEOUT);
+
+	if (module->cam_uinfo.is_longexp)
+		timer = CAMERA_LONGEXP_TIMEOUT;
+	else
+		timer = CAMERA_TIMEOUT;
+	ret = camcore_timer_start(&module->cam_timer, timer);
 
 	atomic_set(&module->state, CAM_RUNNING);
 
@@ -3309,6 +3314,28 @@ static int camioctl_cam_test(struct camera_module *module, unsigned long arg)
 
 	hw = module->grp->hw_info;
 	ret = camt_test(hw, arg);
+
+	return ret;
+}
+
+static int camioctl_longexp_mode_set(struct camera_module *module, unsigned long arg)
+{
+	int ret = 0;
+	struct sprd_img_longexp_mode param = {0};
+
+	if (!module) {
+		pr_err("fail to get input ptr %p\n", module);
+		return -EINVAL;
+	}
+
+	ret = copy_from_user(&param, (void __user *)arg, sizeof(param));
+	if (ret) {
+		pr_err("fail to get longexp mode %d\n", ret);
+		return -EFAULT;
+	}
+
+	module->cam_uinfo.is_longexp = param.need_longexp;
+	pr_debug("is_longexp %d\n", param.need_longexp);
 
 	return ret;
 }
