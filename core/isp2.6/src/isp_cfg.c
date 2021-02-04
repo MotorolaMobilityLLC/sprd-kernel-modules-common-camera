@@ -526,23 +526,19 @@ int isp_cfg_ctx_reg_buf_debug_show(void *param)
 	cfg_map = s_cfg_settings.isp_cfg_map;
 	if (datap == 0UL) {
 		mutex_unlock(&buf_mutex);
-		seq_printf(s,
-			"----ctx %d cfg buf freed.---\n", ctx_id);
+		seq_printf(s, "----ctx %d cfg buf freed.---\n", ctx_id);
 		return 0;
 	}
 
-	seq_printf(s,
-		"dump regsigters buf of ISP context %d - kaddr: 0x%lx\n",
-		ctx_id, datap);
+	seq_printf(s, "dump regsigters buf of ISP context %d - kaddr: 0x%lx\n", ctx_id, datap);
 
 	for (i = 0; i < cfg_map_size; i++) {
 		seq_puts(s, "---------------\n");
 		item = cfg_map[i];
-		start = item & 0xffff;
-		count = (item >> 16) & 0xffff;
+		start = item & 0x3ffff;
+		count = (item >> 18) & 0x3ffff;
 		for (addr = start; addr < (start + count); addr += 4)
-			seq_printf(s, "%04x:  %08x\n",
-				addr, *(uint32_t *)(datap + addr));
+			seq_printf(s, "%04x:  %08x\n", addr, *(uint32_t *)(datap + addr));
 	}
 	mutex_unlock(&buf_mutex);
 	seq_puts(s, "------------------------\n");

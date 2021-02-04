@@ -274,8 +274,6 @@ extern unsigned long s_isp_mmubase;
 #define ISP_HSV_CFG19                           (0x3360UL)
 #define ISP_HSV_CFG20                           (0x3364UL)
 #define ISP_HSV_CFG21                           (0x3368UL)
-#define ISP_HSV_BUF0_ADDR                       (0x18000UL)
-#define ISP_HSV_BUF1_ADDR                       (0x21000UL)
 #define ISP_HSV_A_BUF0_CH0                      (0x18000UL)
 #define ISP_HSV_A_BUF1_CH0                      (0x21000UL)
 #define ISP_HSV_B_BUF0_CH0                      (0x18200UL)
