@@ -113,16 +113,16 @@ static void sc2703s_init(struct flash_driver_data *drv_data)
 			0x0B << SC2703_FLASH_TIMEOUT_SHIFT);
 
 	ret = regmap_write(drv_data->reg_map,
-			SC2703_FLASH_FD_CONFIG5, 0x04);
+			SC2703_FLASH_FD_CONFIG5, 0x00);
 
 	ret = regmap_write(drv_data->reg_map,
-			SC2703_FLASH_FD_CONFIG6, 0x02);
+			SC2703_FLASH_FD_CONFIG6, 0x00);
 
 	ret = regmap_write(drv_data->reg_map,
-			SC2703_FLASH_FD_CONFIG7, 0x04);
+			SC2703_FLASH_FD_CONFIG7, 0x00);
 
 	ret = regmap_write(drv_data->reg_map,
-			SC2703_FLASH_FD_CONFIG8, 0x02);
+			SC2703_FLASH_FD_CONFIG8, 0x00);
 
 }
 
