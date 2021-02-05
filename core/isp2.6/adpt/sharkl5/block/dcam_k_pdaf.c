@@ -216,6 +216,16 @@ static int isp_k_pdaf_type3_set_ppi_info(struct isp_io_param *param, struct dcam
 		pr_err("fail to copy from user, ret = %d\n", ret);
 		return -1;
 	}
+
+	pr_debug("idx %d, block area: (%d, %d) (%d, %d), block.w/h: %d, %d, ppi bypass %d\n", idx,
+		ppi_info->block.start_x,
+		ppi_info->block.start_y,
+		ppi_info->block.end_x,
+		ppi_info->block.end_y,
+		ppi_info->block_size.width,
+		ppi_info->block_size.height,
+		ppi_info->bypass);
+
 	if (idx == DCAM_HW_CONTEXT_MAX)
 		return 0;
 
@@ -225,14 +235,6 @@ static int isp_k_pdaf_type3_set_ppi_info(struct isp_io_param *param, struct dcam
 
 	write_pd_table(ppi_info, idx);
 
-	pr_debug("block area: (%d, %d) (%d, %d), block.w/h: %d, %d\n",
-		ppi_info->block.start_x,
-		ppi_info->block.start_y,
-		ppi_info->block.end_x,
-		ppi_info->block.end_y,
-		ppi_info->block_size.width,
-		ppi_info->block_size.height);
-
 	/* ppi block col&row start,end */
 	val = ppi_info->block.start_x
 		| ppi_info->block.end_x << 16;
@@ -241,6 +243,14 @@ static int isp_k_pdaf_type3_set_ppi_info(struct isp_io_param *param, struct dcam
 	val = ppi_info->block.start_y
 		| ppi_info->block.end_y << 16;
 	DCAM_REG_MWR(idx, ISP_PPI_BLOCK_ROW, 0xffffffff, val);
+
+	val = ppi_info->block.start_y
+		| ppi_info->block.end_y << 16;
+	DCAM_REG_WR(idx, ISP_ZZBPC_PPI_RANG, val);
+
+	val = ppi_info->block.start_x
+		| ppi_info->block.end_x << 16;
+	DCAM_REG_WR(idx, ISP_ZZBPC_PPI_RANG1, val);
 
 	/* ppi block w*h */
 	val = 0;
@@ -446,6 +456,14 @@ int dcam_k_pdaf(struct dcam_dev_param *p)
 	/* pdaf ppi */
 	write_pd_table(ppi_info, idx);
 
+	pr_debug("idx %d, block area: (%d, %d) (%d, %d), block.w/h: %d, %d\n", idx,
+		ppi_info->block.start_x,
+		ppi_info->block.start_y,
+		ppi_info->block.end_x,
+		ppi_info->block.end_y,
+		ppi_info->block_size.width,
+		ppi_info->block_size.height);
+
 	/* ppi block col&row start,end */
 	val = ppi_info->block.start_x
 		| ppi_info->block.end_x << 16;
@@ -454,6 +472,14 @@ int dcam_k_pdaf(struct dcam_dev_param *p)
 	val = ppi_info->block.start_y
 		| ppi_info->block.end_y << 16;
 	DCAM_REG_MWR(idx, ISP_PPI_BLOCK_ROW, 0xffffffff, val);
+
+	val = ppi_info->block.start_y
+		| ppi_info->block.end_y << 16;
+	DCAM_REG_WR(idx, ISP_ZZBPC_PPI_RANG, val);
+
+	val = ppi_info->block.start_x
+		| ppi_info->block.end_x << 16;
+	DCAM_REG_WR(idx, ISP_ZZBPC_PPI_RANG1, val);
 
 	/* ppi block w*h */
 	val = 0;
