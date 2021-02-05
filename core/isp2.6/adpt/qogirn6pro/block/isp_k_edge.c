@@ -187,130 +187,130 @@ static int isp_k_edge_block(struct isp_io_param *param,
 		(edge_info->ee_ratio_new_pyramid & 0x3F);
 	ISP_REG_WR(idx, ISP_EE_RATIO, val);
 
+	val = ((edge_info->ee_offset_layer0_thr_layer_curve_pos[3] & 0xFF) << 24) |
+		((edge_info->ee_offset_layer0_thr_layer_curve_pos[2] & 0xFF) << 16) |
+		((edge_info->ee_offset_layer0_thr_layer_curve_pos[1] & 0xFF) << 8) |
+		(edge_info->ee_offset_layer0_thr_layer_curve_pos[0] & 0xFF);
+	ISP_REG_WR(idx, ISP_EE_OFFSET_THR_LAYER0_POS, val);
+
+	val = ((edge_info->ee_offset_layer0_ratio_layer_curve_pos[2] & 0x7F) << 16) |
+		((edge_info->ee_offset_layer0_ratio_layer_curve_pos[1] & 0x7F) << 8) |
+		(edge_info->ee_offset_layer0_ratio_layer_curve_pos[0] & 0x7F);
+	ISP_REG_WR(idx, ISP_EE_OFFSET_RATIO_LAYER0_CURVE_POS, val);
+
+	val = ((edge_info->ee_offset_layer0_clip_layer_curve_pos[2] & 0x7F) << 16) |
+		((edge_info->ee_offset_layer0_clip_layer_curve_pos[1] & 0x7F) << 8) |
+		(edge_info->ee_offset_layer0_clip_layer_curve_pos[0] & 0x7F);
+	ISP_REG_WR(idx, ISP_EE_OFFSET_CLIP_LAYER0_POS, val);
+
+	val = ((edge_info->ee_offset_layer0_thr_layer_curve_neg[3] & 0xFF) << 24) |
+		((edge_info->ee_offset_layer0_thr_layer_curve_neg[2] & 0xFF) << 16) |
+		((edge_info->ee_offset_layer0_thr_layer_curve_neg[1] & 0xFF) << 8) |
+		(edge_info->ee_offset_layer0_thr_layer_curve_neg[0] & 0xFF);
+	ISP_REG_WR(idx, ISP_EE_OFFSET_THR_LAYER0_NEG, val);
+
+	val = ((edge_info->ee_offset_layer0_ratio_layer_curve_neg[2] & 0x7F) << 16) |
+		((edge_info->ee_offset_layer0_ratio_layer_curve_neg[1] & 0x7F) << 8) |
+		(edge_info->ee_offset_layer0_ratio_layer_curve_neg[0] & 0x7F);
+	ISP_REG_WR(idx, ISP_EE_OFFSET_RATIO_LAYER0_CURVE_NEG, val);
+
+	val = ((edge_info->ee_offset_layer0_clip_layer_curve_neg[2] & 0xFF) << 16) |
+		((edge_info->ee_offset_layer0_clip_layer_curve_neg[1] & 0xFF) << 8) |
+		(edge_info->ee_offset_layer0_clip_layer_curve_neg[0] & 0xFF);
+	ISP_REG_WR(idx, ISP_EE_OFFSET_CLIP_LAYER0_CURVE_NEG, val);
+
+	val = ((edge_info->ee_offset_layer0_ratio_layer_lum_curve[2] & 0x7F) << 16) |
+		((edge_info->ee_offset_layer0_ratio_layer_lum_curve[1] & 0x7F) << 8) |
+		(edge_info->ee_offset_layer0_ratio_layer_lum_curve[0] & 0x7F);
+	ISP_REG_WR(idx, ISP_EE_OFFSET_RATIO_LAYER0_LUM_CURVE, val);
+
+	val = ((edge_info->ee_offset_layer0_ratio_layer_freq_curve[2] & 0x3F) << 16) |
+		((edge_info->ee_offset_layer0_ratio_layer_freq_curve[1] & 0x3F) << 8) |
+		(edge_info->ee_offset_layer0_ratio_layer_freq_curve[0] & 0x3F);
+	ISP_REG_WR(idx, ISP_EE_OFFSET_RATIO_LAYER0_FREQ_CURVE, val);
+
 	val = ((edge_info->ee_offset_thr_layer_curve_pos[0][3] & 0xFF) << 24) |
 		((edge_info->ee_offset_thr_layer_curve_pos[0][2] & 0xFF) << 16) |
 		((edge_info->ee_offset_thr_layer_curve_pos[0][1] & 0xFF) << 8) |
 		(edge_info->ee_offset_thr_layer_curve_pos[0][0] & 0xFF);
-	ISP_REG_WR(idx, ISP_EE_OFFSET_THR_LAYER0_POS, val);
+	ISP_REG_WR(idx, ISP_EE_OFFSET_THR_LAYER1_POS, val);
 
 	val = ((edge_info->ee_offset_ratio_layer_curve_pos[0][2] & 0x7F) << 16) |
 		((edge_info->ee_offset_ratio_layer_curve_pos[0][1] & 0x7F) << 8) |
 		(edge_info->ee_offset_ratio_layer_curve_pos[0][0] & 0x7F);
-	ISP_REG_WR(idx, ISP_EE_OFFSET_RATIO_LAYER0_CURVE_POS, val);
+	ISP_REG_WR(idx, ISP_EE_OFFSET_RATIO_LAYER1_CURVE_POS, val);
 
 	val = ((edge_info->ee_offset_clip_layer_curve_pos[0][2] & 0x7F) << 16) |
 		((edge_info->ee_offset_clip_layer_curve_pos[0][1] & 0x7F) << 8) |
 		(edge_info->ee_offset_clip_layer_curve_pos[0][0] & 0x7F);
-	ISP_REG_WR(idx, ISP_EE_OFFSET_CLIP_LAYER0_POS, val);
+	ISP_REG_WR(idx, ISP_EE_OFFSET_CLIP_LAYER1_POS, val);
 
 	val = ((edge_info->ee_offset_thr_layer_curve_neg[0][3] & 0xFF) << 24) |
 		((edge_info->ee_offset_thr_layer_curve_neg[0][2] & 0xFF) << 16) |
 		((edge_info->ee_offset_thr_layer_curve_neg[0][1] & 0xFF) << 8) |
 		(edge_info->ee_offset_thr_layer_curve_neg[0][0] & 0xFF);
-	ISP_REG_WR(idx, ISP_EE_OFFSET_THR_LAYER0_NEG, val);
+	ISP_REG_WR(idx, ISP_EE_OFFSET_THR_LAYER1_NEG, val);
 
 	val = ((edge_info->ee_offset_ratio_layer_curve_neg[0][2] & 0x7F) << 16) |
 		((edge_info->ee_offset_ratio_layer_curve_neg[0][1] & 0x7F) << 8) |
 		(edge_info->ee_offset_ratio_layer_curve_neg[0][0] & 0x7F);
-	ISP_REG_WR(idx, ISP_EE_OFFSET_RATIO_LAYER0_CURVE_NEG, val);
+	ISP_REG_WR(idx, ISP_EE_OFFSET_RATIO_LAYER1_CURVE_NEG, val);
 
 	val = ((edge_info->ee_offset_clip_layer_curve_neg[0][2] & 0xFF) << 16) |
 		((edge_info->ee_offset_clip_layer_curve_neg[0][1] & 0xFF) << 8) |
 		(edge_info->ee_offset_clip_layer_curve_neg[0][0] & 0xFF);
-	ISP_REG_WR(idx, ISP_EE_OFFSET_CLIP_LAYER0_CURVE_NEG, val);
+	ISP_REG_WR(idx, ISP_EE_OFFSET_CLIP_LAYER1_CURVE_NEG, val);
 
 	val = ((edge_info->ee_offset_ratio_layer_lum_curve[0][2] & 0x7F) << 16) |
 		((edge_info->ee_offset_ratio_layer_lum_curve[0][1] & 0x7F) << 8) |
 		(edge_info->ee_offset_ratio_layer_lum_curve[0][0] & 0x7F);
-	ISP_REG_WR(idx, ISP_EE_OFFSET_RATIO_LAYER0_LUM_CURVE, val);
+	ISP_REG_WR(idx, ISP_EE_OFFSET_RATIO_LAYER1_LUM_CURVE, val);
 
 	val = ((edge_info->ee_offset_ratio_layer_freq_curve[0][2] & 0x3F) << 16) |
 		((edge_info->ee_offset_ratio_layer_freq_curve[0][1] & 0x3F) << 8) |
 		(edge_info->ee_offset_ratio_layer_freq_curve[0][0] & 0x3F);
-	ISP_REG_WR(idx, ISP_EE_OFFSET_RATIO_LAYER0_FREQ_CURVE, val);
+	ISP_REG_WR(idx, ISP_EE_OFFSET_RATIO_LAYER1_FREQ_CURVE, val);
 
 	val = ((edge_info->ee_offset_thr_layer_curve_pos[1][3] & 0xFF) << 24) |
 		((edge_info->ee_offset_thr_layer_curve_pos[1][2] & 0xFF) << 16) |
 		((edge_info->ee_offset_thr_layer_curve_pos[1][1] & 0xFF) << 8) |
 		(edge_info->ee_offset_thr_layer_curve_pos[1][0] & 0xFF);
-	ISP_REG_WR(idx, ISP_EE_OFFSET_THR_LAYER1_POS, val);
+	ISP_REG_WR(idx, ISP_EE_OFFSET_THR_LAYER2_POS, val);
 
 	val = ((edge_info->ee_offset_ratio_layer_curve_pos[1][2] & 0x7F) << 16) |
 		((edge_info->ee_offset_ratio_layer_curve_pos[1][1] & 0x7F) << 8) |
 		(edge_info->ee_offset_ratio_layer_curve_pos[1][0] & 0x7F);
-	ISP_REG_WR(idx, ISP_EE_OFFSET_RATIO_LAYER1_CURVE_POS, val);
+	ISP_REG_WR(idx, ISP_EE_OFFSET_RATIO_LAYER2_CURVE_POS, val);
 
 	val = ((edge_info->ee_offset_clip_layer_curve_pos[1][2] & 0x7F) << 16) |
 		((edge_info->ee_offset_clip_layer_curve_pos[1][1] & 0x7F) << 8) |
 		(edge_info->ee_offset_clip_layer_curve_pos[1][0] & 0x7F);
-	ISP_REG_WR(idx, ISP_EE_OFFSET_CLIP_LAYER1_POS, val);
+	ISP_REG_WR(idx, ISP_EE_OFFSET_CLIP_LAYER2_POS, val);
 
 	val = ((edge_info->ee_offset_thr_layer_curve_neg[1][3] & 0xFF) << 24) |
 		((edge_info->ee_offset_thr_layer_curve_neg[1][2] & 0xFF) << 16) |
 		((edge_info->ee_offset_thr_layer_curve_neg[1][1] & 0xFF) << 8) |
 		(edge_info->ee_offset_thr_layer_curve_neg[1][0] & 0xFF);
-	ISP_REG_WR(idx, ISP_EE_OFFSET_THR_LAYER1_NEG, val);
+	ISP_REG_WR(idx, ISP_EE_OFFSET_THR_LAYER2_NEG, val);
 
 	val = ((edge_info->ee_offset_ratio_layer_curve_neg[1][2] & 0x7F) << 16) |
 		((edge_info->ee_offset_ratio_layer_curve_neg[1][1] & 0x7F) << 8) |
 		(edge_info->ee_offset_ratio_layer_curve_neg[1][0] & 0x7F);
-	ISP_REG_WR(idx, ISP_EE_OFFSET_RATIO_LAYER1_CURVE_NEG, val);
+	ISP_REG_WR(idx, ISP_EE_OFFSET_RATIO_LAYER2_CURVE_NEG, val);
 
 	val = ((edge_info->ee_offset_clip_layer_curve_neg[1][2] & 0xFF) << 16) |
 		((edge_info->ee_offset_clip_layer_curve_neg[1][1] & 0xFF) << 8) |
 		(edge_info->ee_offset_clip_layer_curve_neg[1][0] & 0xFF);
-	ISP_REG_WR(idx, ISP_EE_OFFSET_CLIP_LAYER1_CURVE_NEG, val);
+	ISP_REG_WR(idx, ISP_EE_OFFSET_CLIP_LAYER2_CURVE_NEG, val);
 
 	val = ((edge_info->ee_offset_ratio_layer_lum_curve[1][2] & 0x7F) << 16) |
 		((edge_info->ee_offset_ratio_layer_lum_curve[1][1] & 0x7F) << 8) |
 		(edge_info->ee_offset_ratio_layer_lum_curve[1][0] & 0x7F);
-	ISP_REG_WR(idx, ISP_EE_OFFSET_RATIO_LAYER1_LUM_CURVE, val);
+	ISP_REG_WR(idx, ISP_EE_OFFSET_RATIO_LAYER2_LUM_CURVE, val);
 
 	val = ((edge_info->ee_offset_ratio_layer_freq_curve[1][2] & 0x3F) << 16) |
 		((edge_info->ee_offset_ratio_layer_freq_curve[1][1] & 0x3F) << 8) |
 		(edge_info->ee_offset_ratio_layer_freq_curve[1][0] & 0x3F);
-	ISP_REG_WR(idx, ISP_EE_OFFSET_RATIO_LAYER1_FREQ_CURVE, val);
-
-	val = ((edge_info->ee_offset_thr_layer_curve_pos[2][3] & 0xFF) << 24) |
-		((edge_info->ee_offset_thr_layer_curve_pos[2][2] & 0xFF) << 16) |
-		((edge_info->ee_offset_thr_layer_curve_pos[2][1] & 0xFF) << 8) |
-		(edge_info->ee_offset_thr_layer_curve_pos[2][0] & 0xFF);
-	ISP_REG_WR(idx, ISP_EE_OFFSET_THR_LAYER2_POS, val);
-
-	val = ((edge_info->ee_offset_ratio_layer_curve_pos[2][2] & 0x7F) << 16) |
-		((edge_info->ee_offset_ratio_layer_curve_pos[2][1] & 0x7F) << 8) |
-		(edge_info->ee_offset_ratio_layer_curve_pos[2][0] & 0x7F);
-	ISP_REG_WR(idx, ISP_EE_OFFSET_RATIO_LAYER2_CURVE_POS, val);
-
-	val = ((edge_info->ee_offset_clip_layer_curve_pos[2][2] & 0x7F) << 16) |
-		((edge_info->ee_offset_clip_layer_curve_pos[2][1] & 0x7F) << 8) |
-		(edge_info->ee_offset_clip_layer_curve_pos[2][0] & 0x7F);
-	ISP_REG_WR(idx, ISP_EE_OFFSET_CLIP_LAYER2_POS, val);
-
-	val = ((edge_info->ee_offset_thr_layer_curve_neg[2][3] & 0xFF) << 24) |
-		((edge_info->ee_offset_thr_layer_curve_neg[2][2] & 0xFF) << 16) |
-		((edge_info->ee_offset_thr_layer_curve_neg[2][1] & 0xFF) << 8) |
-		(edge_info->ee_offset_thr_layer_curve_neg[2][0] & 0xFF);
-	ISP_REG_WR(idx, ISP_EE_OFFSET_THR_LAYER2_NEG, val);
-
-	val = ((edge_info->ee_offset_ratio_layer_curve_neg[2][2] & 0x7F) << 16) |
-		((edge_info->ee_offset_ratio_layer_curve_neg[2][1] & 0x7F) << 8) |
-		(edge_info->ee_offset_ratio_layer_curve_neg[2][0] & 0x7F);
-	ISP_REG_WR(idx, ISP_EE_OFFSET_RATIO_LAYER2_CURVE_NEG, val);
-
-	val = ((edge_info->ee_offset_clip_layer_curve_neg[2][2] & 0xFF) << 16) |
-		((edge_info->ee_offset_clip_layer_curve_neg[2][1] & 0xFF) << 8) |
-		(edge_info->ee_offset_clip_layer_curve_neg[2][0] & 0xFF);
-	ISP_REG_WR(idx, ISP_EE_OFFSET_CLIP_LAYER2_CURVE_NEG, val);
-
-	val = ((edge_info->ee_offset_ratio_layer_lum_curve[2][2] & 0x7F) << 16) |
-		((edge_info->ee_offset_ratio_layer_lum_curve[2][1] & 0x7F) << 8) |
-		(edge_info->ee_offset_ratio_layer_lum_curve[2][0] & 0x7F);
-	ISP_REG_WR(idx, ISP_EE_OFFSET_RATIO_LAYER2_LUM_CURVE, val);
-
-	val = ((edge_info->ee_offset_ratio_layer_freq_curve[2][2] & 0x3F) << 16) |
-		((edge_info->ee_offset_ratio_layer_freq_curve[2][1] & 0x3F) << 8) |
-		(edge_info->ee_offset_ratio_layer_freq_curve[2][0] & 0x3F);
 	ISP_REG_WR(idx, ISP_EE_OFFSET_RATIO_LAYER2_FREQ_CURVE, val);
 
 	val = ((edge_info->direction_thresh_min & 0x1FF) << 16) |

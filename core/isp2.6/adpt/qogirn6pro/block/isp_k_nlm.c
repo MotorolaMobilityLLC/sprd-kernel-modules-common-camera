@@ -250,7 +250,7 @@ static int isp_k_nlm_imblance(struct isp_io_param *param,
 		return  ret;
 	}
 
-	memcpy(&isp_k_param->imblance_info, imblance_info, sizeof(struct isp_dev_nlm_imblance_v2));
+	memcpy(&isp_k_param->imblance_info2, imblance_info, sizeof(struct isp_dev_nlm_imblance_v2));
 
 	/* new added below */
 	DCAM_REG_MWR(idx, DCAM_NLM_IMBLANCE_CTRL, BIT_0,
