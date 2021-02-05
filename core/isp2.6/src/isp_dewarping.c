@@ -345,8 +345,8 @@ static void computeTiltProjectionMatrix(int32_t tauX, int32_t tauY, int64_t matT
 
 	int64_t matRotX[3][3] = {{(1 << 30), 0, 0}, {0, cTauX, sTauX}, {0, -sTauX, cTauX}};
 	int64_t matRotY[3][3] = {{cTauY, 0, -sTauY}, {0, (1 << 30), 0}, {sTauY , 0, cTauY}};
-	int64_t matRotXY[3][3];
-	int64_t matProjZ[3][3];
+	int64_t matRotXY[3][3] = {0};
+	int64_t matProjZ[3][3] = {0};
 
 	Matrix3x3_multiply(matRotY, matRotX, matRotXY);
 
@@ -372,8 +372,8 @@ static void get_xy_undistort(int64_t m_k_inv[3][3], int64_t m_k[3][3], int64_t d
 	int64_t k1, k2, k3, p1, p2, k4, k5, k6, s1, s2, s3, s4;
 	int32_t tauX, tauY;
 	int64_t x_t, y_t;
-	int64_t matTilt[3][3];
-	int64_t vec3_d[3];
+	int64_t matTilt[3][3] = {0};
+	int64_t vec3_d[3] = {0};
 	int64_t vecTilt[3];
 	int64_t invProj;
 
