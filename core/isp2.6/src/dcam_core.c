@@ -1038,7 +1038,7 @@ static int dcamcore_offline_frame_start(void *param)
 			if (!frame) {
 				goto wait_err;
 			} else {
-				path = &sw_pctx->path[DCAM_PATH_BIN];
+				path = &sw_pctx->path[hw->ip_dcam[DCAM_HW_CONTEXT_1]->supersize_dcam_path];
 				ret = cam_queue_enqueue(&path->out_buf_queue, &frame->list);
 				pframe->endian = frame->endian;
 				pframe->pattern = frame->pattern;

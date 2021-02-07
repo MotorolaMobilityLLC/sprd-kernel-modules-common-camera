@@ -2936,7 +2936,7 @@ static int camcore_bigsize_aux_init(struct camera_module *module,
 		goto exit_close;
 	}
 	/* todo: will update after dcam offline ctx done. */
-	dcam_path_id = DCAM_PATH_BIN;
+	dcam_path_id = dev->hw->ip_dcam[DCAM_HW_CONTEXT_1]->supersize_dcam_path;
 	ret = module->dcam_dev_handle->dcam_pipe_ops->get_path(&dev->sw_ctx[module->cur_aux_sw_ctx_id],
 		dcam_path_id);
 	if (ret < 0) {

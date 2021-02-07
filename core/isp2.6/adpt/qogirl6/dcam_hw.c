@@ -1095,6 +1095,7 @@ static int dcamhw_slice_fetch_set(void *handle, void *arg)
 {
 	int ret = 0;
 	uint32_t idx;
+	uint32_t reg_val = 0;
 	struct img_trim *cur_slice = NULL;
 	struct dcam_fetch_info *fetch = NULL;
 	struct dcam_hw_slice_fetch *slicearg = NULL;
@@ -1158,13 +1159,14 @@ static int dcamhw_slice_fetch_set(void *handle, void *arg)
 			DCAM_AXIM_WR(IMG_FETCH_SIZE,
 				(cur_slice->size_y << 16) | ((cur_slice->size_x + DCAM_OVERLAP)& 0xffff));
 			DCAM_AXIM_WR(IMG_FETCH_X, (fetch_pitch << 16) | (cur_slice->start_x & 0x1fff));
-
-			/* cfg bin path */
-			DCAM_REG_MWR(idx, DCAM_CAM_BIN_CFG,
-				(0x3FF << 20) |(1 << 1), (fetch_pitch << 20) | (1 << 1));
-			DCAM_REG_WR(idx, DCAM_CAM_BIN_CROP_START, 0);
-			DCAM_REG_WR(idx, DCAM_CAM_BIN_CROP_SIZE,
+			/* cfg full path */
+			DCAM_REG_MWR(idx, DCAM_FULL_CFG,
+				(0x7FF << 20) | (1 << 1), (fetch_pitch << 20) | (1 << 1));
+			DCAM_REG_WR(idx, DCAM_FULL_CROP_START, 0);
+			DCAM_REG_WR(idx, DCAM_FULL_CROP_SIZE,
 				((cur_slice->size_y & 0x1fff) << 16) | (cur_slice->size_x & 0x1fff));
+			reg_val = DCAM_REG_RD(idx, DCAM_FULL_BASE_WADDR);
+			DCAM_REG_WR(idx, DCAM_FULL_BASE_WADDR, reg_val + cur_slice->start_x * bfp / 4);
 		} else {
 			uint32_t reg_val = 0;
 
@@ -1172,20 +1174,18 @@ static int dcamhw_slice_fetch_set(void *handle, void *arg)
 			DCAM_AXIM_WR(IMG_FETCH_RADDR, fetch->addr.addr_ch0
 				+ (cur_slice->start_x - DCAM_OVERLAP) * bfp / 4);
 			DCAM_AXIM_WR(IMG_FETCH_SIZE,
-				(cur_slice->size_y  << 16) | ((cur_slice->size_x + DCAM_OVERLAP) & 0x1fff));
+				(cur_slice->size_y << 16) | ((cur_slice->size_x + DCAM_OVERLAP) & 0x1fff));
 			DCAM_AXIM_WR(IMG_FETCH_X, (fetch_pitch << 16) | (0 & 0x1fff));
-			DCAM_REG_MWR(idx, DCAM_CAM_BIN_CFG,
-				(0x3FF << 20) |(1 << 1), (fetch_pitch << 20) | (1 << 1));
-			DCAM_REG_WR(idx, DCAM_CAM_BIN_CROP_START,
-				(0 << 16) | (DCAM_OVERLAP & 0x1fff));
-			DCAM_REG_WR(idx, DCAM_CAM_BIN_CROP_SIZE,
+			/* cfg full path */
+			DCAM_REG_MWR(idx, DCAM_FULL_CFG,
+				(0x7FF << 20) | (1 << 1), (fetch_pitch << 20) | (1 << 1));
+			DCAM_REG_WR(idx, DCAM_FULL_CROP_START, 0);
+			DCAM_REG_WR(idx, DCAM_FULL_CROP_SIZE,
 				((cur_slice->size_y & 0x1fff) << 16) | (cur_slice->size_x & 0x1fff));
-
-			reg_val = DCAM_REG_RD(idx, DCAM_BIN_BASE_WADDR0);
-			DCAM_REG_WR(idx, DCAM_BIN_BASE_WADDR0, reg_val + cur_slice->start_x * bfp / 4);
+			reg_val = DCAM_REG_RD(idx, DCAM_FULL_BASE_WADDR);
+			DCAM_REG_WR(idx, DCAM_FULL_BASE_WADDR, reg_val + cur_slice->start_x * bfp / 4);
 		}
 	}
-
 	return ret;
 }
 
