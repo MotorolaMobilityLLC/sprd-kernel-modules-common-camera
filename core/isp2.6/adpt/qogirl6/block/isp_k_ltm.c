@@ -142,7 +142,7 @@ static void isp_ltm_config_map(uint32_t idx,
 	val = ((map->tile_right_flag & 0x1)   << 31) |
 		((map->tile_start_y    & 0xFFF) << 16) |
 		((map->tile_left_flag  & 0x1)   << 15) |
-		(map->tile_start_x    & 0x7FF);
+		(map->tile_start_x    & 0xFFF);
 	ISP_REG_WR(idx, base + ISP_LTM_MAP_PARAM3, val); /* slice */
 
 	val = map->mem_init_addr;
