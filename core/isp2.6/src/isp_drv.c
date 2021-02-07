@@ -460,7 +460,7 @@ static int ispdrv_fbd_yuv_get(void *cfg_in, void *cfg_out,
 	int32_t tile_col = 0, tile_row = 0;
 	struct isp_fbd_yuv_info *fbd_yuv = NULL;
 	struct isp_uinfo *pipe_src = NULL;
-	struct dcam_compress_cal_para cal_fbc;
+	struct dcam_compress_cal_para cal_fbc = {0};
 
 	if (!cfg_in || !cfg_out || !frame) {
 		pr_err("fail to get valid input ptr, %p, %p\n", cfg_in, cfg_out);
