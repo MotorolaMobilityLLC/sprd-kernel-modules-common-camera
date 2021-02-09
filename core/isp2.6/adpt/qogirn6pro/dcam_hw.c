@@ -451,7 +451,7 @@ static int dcamhw_auto_copy(void *handle, void *arg)
 	copyarg = (struct dcam_hw_auto_copy *)arg;
 	id = copyarg->id;
 	if (copyarg->idx < DCAM_ID_MAX) {
-		for (j = 0; j < 8; j++) {
+		for (j = 0; j < 7; j++) {
 			if (id & (1 << j))
 				mask |= bitmap[j];
 		}
@@ -488,7 +488,7 @@ static int dcamhw_force_copy(void *handle, void *arg)
 
 	forcpy = (struct dcam_hw_force_copy *)arg;
 	if (forcpy->idx < DCAM_ID_MAX) {
-		for (j = 0; j < 8; j++) {
+		for (j = 0; j < 7; j++) {
 			if (forcpy->id & (1 << j))
 				mask |= bitmap[j];
 		}
@@ -1779,10 +1779,14 @@ static int dcamhw_fbc_addr_set(void *handle, void *arg)
 	struct dcam_hw_fbc_addr *fbcadr = NULL;
 	struct compressed_addr *out = NULL;
 
+	if (!arg) {
+		pr_err("fail to get valid arg\n");
+		return -EFAULT;
+	}
 	fbcadr = (struct dcam_hw_fbc_addr *)arg;
 	out = fbcadr->fbc_addr;
-	if (!arg || !out) {
-		pr_err("fail to get valid arg\n");
+	if (!out) {
+		pr_err("fail to get valid addr\n");
 		return -EFAULT;
 	}
 
@@ -2246,7 +2250,7 @@ static int dcamhw_slw_fmcu_cmds(void *handle, void *arg)
 {
 	int i = 0;
 	uint32_t addr = 0, cmd = 0;
-	struct dcam_fmcu_ctx_desc *fmcu;
+	struct dcam_fmcu_ctx_desc *fmcu = NULL;
 	struct dcam_hw_slw_fmcu_cmds *slw = NULL;
 
 	slw = (struct dcam_hw_slw_fmcu_cmds *)arg;
@@ -2255,7 +2259,7 @@ static int dcamhw_slw_fmcu_cmds(void *handle, void *arg)
 		pr_err("fail to get valid input ptr, slw %p\n", slw);
 		return -EFAULT;
 	}
-
+	fmcu = slw->fmcu_handle;
 	for (i = 0; i < DCAM_PATH_MAX; i++) {
 		if (slw->store_info[i].store_addr.addr_ch0 == 0)
 			continue;

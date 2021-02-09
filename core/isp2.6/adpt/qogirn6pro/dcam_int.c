@@ -934,8 +934,10 @@ static void dcamint_fmcu_shadow_done(void *param)
 	struct cam_hw_info *hw = NULL;
 	struct dcam_hw_auto_copy copyarg;
 
-	if (dcam_hw_ctx == NULL)
+	if (dcam_hw_ctx == NULL) {
 		pr_err("fail to check param dcam_hw_ctx %px\n", dcam_hw_ctx);
+		return;
+	}
 	dcam_path_fmcu_slw_queue_set(dcam_hw_ctx);
 	sw_ctx = dcam_hw_ctx->sw_ctx;
 	if (!sw_ctx) {
@@ -943,6 +945,7 @@ static void dcamint_fmcu_shadow_done(void *param)
 		return;
 	}
 
+	hw = sw_ctx->dev->hw;
 	sw_ctx->auto_cpy_id = DCAM_CTRL_ALL;
 	copyarg.id = sw_ctx->auto_cpy_id;
 	copyarg.idx = dcam_hw_ctx->hw_ctx_id;
