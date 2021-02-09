@@ -34,7 +34,7 @@ static int img_opt_flash(void *param);
 static int sprd_cam_flash_ctrl(uint32_t dcam_idx,
 		struct sprd_img_set_flash *set_flash)
 {
-	int ret;
+	int ret = 0;
 
 #ifndef CAM_ON_HAPS
 	ret = sprd_flash_ctrl(set_flash);
