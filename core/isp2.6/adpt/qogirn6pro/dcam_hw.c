@@ -63,7 +63,7 @@ static int dcamhw_clk_eb(void *handle, void *arg)
 
 	hw = (struct cam_hw_info *)handle;
 	soc = hw->soc_dcam;
-#ifndef CAM_ON_HAPS
+
 	ret = clk_set_parent(soc->clk, soc->clk_parent);
 	if (ret) {
 		pr_err("fail to set clk parent\n");
@@ -174,18 +174,6 @@ static int dcamhw_clk_eb(void *handle, void *arg)
 	}
 	ret = clk_prepare_enable(soc->tck_en);
 
-#else
-	regmap_update_bits(soc->cam_ahb_gpr, 0xC, BIT_0, BIT_0);
-	regmap_update_bits(soc->cam_ahb_gpr, 0xC, BIT_1, BIT_1);
-	regmap_update_bits(soc->cam_ahb_gpr, 0xC, BIT_3, BIT_3);
-	regmap_update_bits(soc->cam_ahb_gpr, 0xC, BIT_4, BIT_4);
-	regmap_update_bits(soc->cam_ahb_gpr, 0xC, BIT_5, BIT_5);
-	regmap_update_bits(soc->cam_ahb_gpr, 0xC, BIT_11, BIT_11);
-	regmap_update_bits(soc->cam_ahb_gpr, 0xC, BIT_16, BIT_16);
-
-	regmap_update_bits(soc->cam_ahb_gpr, 0xC, BIT_12, BIT_12);
-	regmap_update_bits(soc->cam_ahb_gpr, 0xC, BIT_2, BIT_2);
-#endif
 	return ret;
 }
 
@@ -209,7 +197,7 @@ static int dcamhw_clk_dis(void *handle, void *arg)
 
 	hw = (struct cam_hw_info *)handle;
 	soc = hw->soc_dcam;
-#ifndef CAM_ON_HAPS
+
 	clk_set_parent(soc->axi_clk, soc->axi_clk_default);
 	clk_disable_unprepare(soc->axi_clk);
 	clk_set_parent(soc->axi_lite_clk, soc->axi_lite_clk_default);
@@ -229,19 +217,7 @@ static int dcamhw_clk_dis(void *handle, void *arg)
 	clk_disable_unprepare(soc->tck_en);
 	clk_disable_unprepare(soc->core_lite_eb);
 	clk_disable_unprepare(soc->core_eb);
-#else
-	regmap_update_bits(soc->cam_ahb_gpr, 0xC, BIT_0, ~BIT_0);
-	regmap_update_bits(soc->cam_ahb_gpr, 0xC, BIT_1, ~BIT_1);
-	regmap_update_bits(soc->cam_ahb_gpr, 0xC, BIT_3, ~BIT_3);
-	regmap_update_bits(soc->cam_ahb_gpr, 0xC, BIT_4, ~BIT_4);
-	regmap_update_bits(soc->cam_ahb_gpr, 0xC, BIT_5, ~BIT_5);
-	regmap_update_bits(soc->cam_ahb_gpr, 0xC, BIT_11, ~BIT_11);
-	regmap_update_bits(soc->cam_ahb_gpr, 0xC, BIT_16, ~BIT_16);
 
-	regmap_update_bits(soc->cam_ahb_gpr, 0xC, BIT_12, ~BIT_12);
-	regmap_update_bits(soc->cam_ahb_gpr, 0xC, BIT_2, ~BIT_2);
-
-#endif
 	return ret;
 }
 
@@ -698,58 +674,6 @@ static int dcamhw_fetch_set(void *handle, void *arg)
 	return ret;
 }
 
-#ifdef CAM_ON_HAPS
-void reg_set(uint32_t reg, uint32_t mask, uint32_t val)
-{
-	reg_owr(reg, val & mask);
-	reg_awr(reg, val | (~mask));
-	pr_info("write reg 0x%x = 0x%x", reg, reg_rd(reg));
-}
-
-#define CSI_MODE_CFG 0x3e200014
-#define CSI_IPG_RAW10_CFG0 0x3e200050
-#define CSI_IPG_RAW10_CFG1 0x3e200054
-#define CSI_IPG_RAW10_CFG2 0x3e200058
-#define CSI_IPG_RAW10_CFG3 0x3e20005C
-#define CSI_IPG_OTHER_CFG0 0x3e20006C
-
-void csi_ipg_set(struct dcam_mipi_info *cap_info)
-{
-	reg_awr(0x3e200008, 0);
-	reg_awr(0x3e20000C, 0);
-	reg_owr(0x3e200010, 1);
-	reg_owr(0x3e200028, 0x1ffffff);
-	reg_owr(0x3e20002c, 0xffffff);
-	reg_owr(0x3e20004c, 0x10000);
-	/*IPG*/
-	reg_set(CSI_MODE_CFG, 0x3FE00000, (cap_info->cap_size.size_y/8) << 21);
-	reg_set(CSI_MODE_CFG, 0x1FF0, (cap_info->cap_size.size_x/16) << 4);
-	reg_set(CSI_MODE_CFG, 0x1FE000, (cap_info->cap_size.size_x/24) << 13);
-	reg_owr(CSI_MODE_CFG, BIT_3);
-	/*hsync en*/
-	reg_owr(CSI_MODE_CFG, BIT_2);
-	/*0:vertical 1:hor*/
-	reg_owr(CSI_MODE_CFG, BIT_1);
-	/*raw*/
-	reg_set(CSI_IPG_RAW10_CFG0, 0x3FF, 0x3ff);
-	reg_set(CSI_IPG_RAW10_CFG0, 0xFFC00, 0<<10);
-	reg_set(CSI_IPG_RAW10_CFG0, 0x3FF00000, 0 << 20);
-	reg_set(CSI_IPG_RAW10_CFG1, 0x3FF, 0);
-	reg_set(CSI_IPG_RAW10_CFG1, 0xFFC00, 0x3ff << 10);
-	reg_set(CSI_IPG_RAW10_CFG1, 0x3FF00000, 0 << 20);
-	reg_set(CSI_IPG_RAW10_CFG2, 0x3FF, 0);
-	reg_set(CSI_IPG_RAW10_CFG2, 0xFFC00, 0 << 10);
-	reg_set(CSI_IPG_RAW10_CFG2, 0x3FF00000, 0x3ff << 20);
-	/*bayer mode*/
-	reg_set(CSI_IPG_RAW10_CFG3, 0x3, cap_info->pattern);
-
-	reg_set(CSI_IPG_OTHER_CFG0, 0x1FFF, 0x1FFF);
-	reg_set(CSI_IPG_OTHER_CFG0, 0x1FFE000, 0x1FFE000);
-	reg_owr(CSI_MODE_CFG, BIT_0);
-	pr_info("write reg 0x%x = 0x%x\n", CSI_MODE_CFG, reg_rd(CSI_MODE_CFG));
-}
-#endif
-
 static int dcamhw_mipi_cap_set(void *handle, void *arg)
 {
 	int ret = 0;
@@ -774,9 +698,6 @@ static int dcamhw_mipi_cap_set(void *handle, void *arg)
 		return -EINVAL;
 	}
 
-#ifdef CAM_ON_HAPS
-	csi_ipg_set(cap_info);
-#endif
 	/* data format */
 	if (cap_info->format == DCAM_CAP_MODE_RAWRGB) {
 		DCAM_REG_MWR(idx, DCAM_MIPI_CAP_CFG, BIT_1, 1 << 1);

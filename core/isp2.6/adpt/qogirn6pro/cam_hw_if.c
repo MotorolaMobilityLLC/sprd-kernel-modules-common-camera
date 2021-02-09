@@ -39,49 +39,6 @@
 #define pr_fmt(fmt) "CAM_HW_IF_N6PRO: %d %d %s : "\
 	fmt, current->pid, __LINE__, __func__
 
-#ifdef CAM_ON_HAPS
-unsigned int reg_rd(unsigned int addr)
-{
-	void __iomem *io_tmp = NULL;
-	unsigned int val;
-
-	io_tmp = ioremap_nocache(addr, 0x4);
-	val = __raw_readl(io_tmp);
-	iounmap(io_tmp);
-
-	return val;
-}
-
-void reg_awr(unsigned int addr, unsigned int val)
-{
-	void __iomem *io_tmp = NULL;
-	unsigned int tmp;
-
-	io_tmp = ioremap_nocache(addr, 0x4);
-	tmp = __raw_readl(io_tmp);
-	__raw_writel(tmp&val, io_tmp);
-	/* asm/barrier.h */
-	mb();
-	val = __raw_readl(io_tmp);
-	iounmap(io_tmp);
-}
-
-void reg_owr(unsigned int addr, unsigned int val)
-{
-	void __iomem *io_tmp = NULL;
-	unsigned int tmp;
-
-	io_tmp = ioremap_nocache(addr, 0x4);
-	tmp = *(volatile u32*)(io_tmp);
-	*(volatile u32*)(io_tmp) = tmp|val;
-	/* asm/barrier.h */
-	mb();
-	val = __raw_readl(io_tmp);
-	iounmap(io_tmp);
-}
-
-#endif
-
 #define CAM_HW_ADPT_LAYER
 
 #include "dcam_hw.c"

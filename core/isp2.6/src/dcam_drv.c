@@ -206,13 +206,9 @@ int dcam_drv_dt_parse(struct platform_device *pdev,
 	}
 
 	/* read dcam clk */
-#ifndef CAM_ON_HAPS
-
 	ret = hw_info->cam_ioctl(hw_info, CAM_HW_GET_DCAM_DTS_CLK, dn);
 	if (ret)
 		goto err_iounmap;
-
-#endif
 
 	for (i = 0; i < count; i++) {
 		ip_dcam = hw_info->ip_dcam[i];

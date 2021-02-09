@@ -2033,11 +2033,7 @@ static int camioctl_cam_res_get(struct camera_module *module,
 		}
 	} else if (res.sensor_id < SPRD_SENSOR_ID_MAX) {
 		/* get a preferred dcam dev */
-#ifndef CAM_ON_HAPS
 		dcam_idx = sprd_sensor_find_dcam_id(res.sensor_id);
-#else
-		dcam_idx = 0;
-#endif
 	}
 
 check:

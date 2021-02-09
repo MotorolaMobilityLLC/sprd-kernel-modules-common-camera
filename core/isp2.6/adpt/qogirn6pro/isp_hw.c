@@ -392,7 +392,7 @@ static int isphw_clk_eb(void *handle, void *arg)
 
 	hw = (struct cam_hw_info *)handle;
 	soc = hw->soc_isp;
-#ifndef CAM_ON_HAPS
+
 	ret = clk_set_parent(soc->clk, soc->clk_parent);
 	if (ret) {
 		pr_err("fail to set parent, ret = %d\n", ret);
@@ -429,15 +429,6 @@ static int isphw_clk_eb(void *handle, void *arg)
 	}
 	ret = clk_prepare_enable(soc->tck_en);
 
-#else
-	regmap_update_bits(soc->cam_ahb_gpr, 0x4, BIT_0, BIT_0);
-	regmap_update_bits(soc->cam_ahb_gpr, 0x4, BIT_5, BIT_5);
-	regmap_update_bits(soc->cam_ahb_gpr, 0x4, BIT_6, BIT_6);
-	regmap_update_bits(soc->cam_ahb_gpr, 0x4, BIT_7, BIT_7);
-	regmap_update_bits(soc->cam_ahb_gpr, 0x4, BIT_9, BIT_9);
-	regmap_update_bits(soc->cam_ahb_gpr, 0x4, BIT_10, BIT_10);
-
-#endif
 	return ret;
 }
 
@@ -455,7 +446,6 @@ static int isphw_clk_dis(void *handle, void *arg)
 
 	hw = (struct cam_hw_info *)handle;
 	soc = hw->soc_isp;
-#ifndef CAM_ON_HAPS
 
 	clk_set_parent(soc->clk, soc->clk_default);
 	clk_disable_unprepare(soc->clk);
@@ -465,16 +455,6 @@ static int isphw_clk_dis(void *handle, void *arg)
 	clk_disable_unprepare(soc->mtx_en);
 	clk_disable_unprepare(soc->core_eb);
 
-#else
-
-	regmap_update_bits(soc->cam_ahb_gpr, 0x4, BIT_0, ~BIT_0);
-	regmap_update_bits(soc->cam_ahb_gpr, 0x4, BIT_5, ~BIT_5);
-	regmap_update_bits(soc->cam_ahb_gpr, 0x4, BIT_6, ~BIT_6);
-	regmap_update_bits(soc->cam_ahb_gpr, 0x4, BIT_7, ~BIT_7);
-	regmap_update_bits(soc->cam_ahb_gpr, 0x4, BIT_9, ~BIT_9);
-	regmap_update_bits(soc->cam_ahb_gpr, 0x4, BIT_10, ~BIT_10);
-
-#endif
 	return ret;
 }
 

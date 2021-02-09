@@ -543,7 +543,7 @@ static irqreturn_t ispint_isr_root(int irq, void *priv)
 
 		irq_line = ISP_HREG_RD(irq_offset + ISP_INT_INT0);
 		irq_line1 = ISP_HREG_RD(irq_offset + ISP_INT_INT1);
-		if (unlikely(irq_line == 0)) {
+		if (unlikely((irq_line == 0) && (irq_line1 == 0))) {
 			continue;
 		}
 

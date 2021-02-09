@@ -993,12 +993,11 @@ int isp_drv_dt_parse(struct device_node *dn,
 		*isp_count = count;
 
 		/* read clk from dts */
-#ifndef CAM_ON_HAPS
 		if (hw_info->cam_ioctl(hw_info, CAM_HW_GET_ISP_DTS_CLK, isp_node)) {
 			pr_err("fail to get clk\n");
 			return -EFAULT;
 		}
-#endif
+
 		iommu_node = of_parse_phandle(isp_node, "iommus", 0);
 		if (iommu_node) {
 			reg_base = of_iomap(iommu_node, 0);
