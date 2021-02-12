@@ -4489,6 +4489,10 @@ static int camcore_aux_dcam_init(struct camera_module *module,
 		usleep_range(600, 800);
 	} while (loop++ < 5000);
 
+	ret = module->grp->hw_info->dcam_ioctl(module->grp->hw_info, DCAM_HW_CFG_RESET, &sw_ctx->hw_ctx_id);
+	if (ret)
+		pr_err("fail to reset dcam%d\n", sw_ctx->hw_ctx_id);
+
 get_path:
 	dcam_path_id = DCAM_PATH_BIN;
 	ret = module->dcam_dev_handle->dcam_pipe_ops->get_path(&dcam->sw_ctx[module->cur_aux_sw_ctx_id], dcam_path_id);
