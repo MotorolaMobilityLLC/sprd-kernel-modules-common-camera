@@ -837,13 +837,8 @@ static int camioctl_crop_set(struct camera_module *module,
 			pr_err("fail to zoom during 3DNR capture\n");
 			goto exit;
 		}
-		crop = kzalloc(sizeof(struct sprd_img_rect), GFP_KERNEL);
-		if (crop == NULL) {
-			ret = -ENOMEM;
-			goto exit;
-		}
 		zoom_param = cam_queue_empty_frame_get();
-		zoom_param->priv_data = (void *)crop;
+		crop = &zoom_param->zoom_crop;
 		zoom = 1;
 	} else {
 		crop = &ch->ch_uinfo.src_crop;
@@ -863,18 +858,8 @@ static int camioctl_crop_set(struct camera_module *module,
 	pr_info("4in1[%d],set ch%d crop %d %d %d %d.\n",
 		module->cam_uinfo.is_4in1, channel_id,
 		crop->x, crop->y, crop->w, crop->h);
-	/* 4in1 prev, enable 4in1 binning, size/2 */
-	if (module->cam_uinfo.is_4in1 &&
-		((channel_id == CAM_CH_PRE) || (channel_id == CAM_CH_VID))) {
-		crop->x >>= 1;
-		crop->y >>= 1;
-		crop->w >>= 1;
-		crop->h >>= 1;
-		max.w >>= 1;
-		max.h >>= 1;
-	}
-	/* > 24M, size/2 */
-	if (module->cam_uinfo.dcam_slice_mode &&
+	/* 4in1 prev, enable 4in1 binning OR size > 24M, size/2 */
+	if ((module->cam_uinfo.is_4in1 || module->cam_uinfo.dcam_slice_mode) &&
 		((channel_id == CAM_CH_PRE) || (channel_id == CAM_CH_VID))) {
 		crop->x >>= 1;
 		crop->y >>= 1;
@@ -905,7 +890,6 @@ static int camioctl_crop_set(struct camera_module *module,
 			first = cam_queue_dequeue(&ch->zoom_coeff_queue,
 				struct camera_frame, list);
 			if (first) {
-				kfree(first->priv_data);
 				cam_queue_empty_frame_put(first);
 			}
 			cam_queue_enqueue(&ch->zoom_coeff_queue, &zoom_param->list);
@@ -917,7 +901,6 @@ static int camioctl_crop_set(struct camera_module *module,
 	}
 exit:
 	if (zoom_param) {
-		kfree(zoom_param->priv_data);
 		cam_queue_empty_frame_put(zoom_param);
 	}
 	return ret;

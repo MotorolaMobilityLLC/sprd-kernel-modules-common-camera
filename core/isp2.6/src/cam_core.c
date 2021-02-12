@@ -5802,7 +5802,6 @@ static int camcore_zoom_proc(void *param)
 	struct camera_frame *pre_zoom_coeff = NULL;
 	struct camera_frame *vid_zoom_coeff = NULL;
 	struct camera_frame *cap_zoom_coeff = NULL;
-	struct sprd_img_rect *crop;
 
 	module = (struct camera_module *)param;
 	ch_prev = &module->channel[CAM_CH_PRE];
@@ -5816,9 +5815,7 @@ next:
 		pre_zoom_coeff = cam_queue_dequeue(&ch_prev->zoom_coeff_queue,
 			struct camera_frame, list);
 	if (pre_zoom_coeff) {
-		crop = (struct sprd_img_rect *)pre_zoom_coeff->priv_data;
-		ch_prev->ch_uinfo.src_crop = *crop;
-		kfree(crop);
+		ch_prev->ch_uinfo.src_crop = pre_zoom_coeff->zoom_crop;
 		cam_queue_empty_frame_put(pre_zoom_coeff);
 		update_pv |= 1;
 	}
@@ -5827,9 +5824,7 @@ next:
 		vid_zoom_coeff = cam_queue_dequeue(&ch_vid->zoom_coeff_queue,
 			struct camera_frame, list);
 	if (vid_zoom_coeff) {
-		crop = (struct sprd_img_rect *)vid_zoom_coeff->priv_data;
-		ch_vid->ch_uinfo.src_crop = *crop;
-		kfree(crop);
+		ch_vid->ch_uinfo.src_crop = vid_zoom_coeff->zoom_crop;
 		cam_queue_empty_frame_put(vid_zoom_coeff);
 		update_pv |= 1;
 	}
@@ -5838,9 +5833,7 @@ next:
 		cap_zoom_coeff = cam_queue_dequeue(&ch_cap->zoom_coeff_queue,
 			struct camera_frame, list);
 	if (cap_zoom_coeff) {
-		crop = (struct sprd_img_rect *)cap_zoom_coeff->priv_data;
-		ch_cap->ch_uinfo.src_crop = *crop;
-		kfree(crop);
+		ch_cap->ch_uinfo.src_crop = cap_zoom_coeff->zoom_crop;
 		cam_queue_empty_frame_put(cap_zoom_coeff);
 		update_c |= 1;
 	}
