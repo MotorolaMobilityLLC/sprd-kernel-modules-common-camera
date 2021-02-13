@@ -579,7 +579,7 @@ static int isphw_irq_clear(void *handle, void *arg)
 }
 
 static uint32_t ISP_CFG_MAP[] __aligned(8) = {
-		0x00300710, /*0x710   - 0x728  , 12 , COMMON*/
+		0x00300710, /*0x710   - 0x73C  , 12 , COMMON*/
 		0x00201110, /*0x1110  - 0x112C , 8   , UVD*/
 		0x00402010, /*0x2010  - 0x204C , 16  , mem_ctrl*/
 		0x00642110, /*0x2110  - 0x2170 , 25  , nr3_blend*/
@@ -601,6 +601,7 @@ static uint32_t ISP_CFG_MAP[] __aligned(8) = {
 		0x00044110, /*0x4110  - 0x4110 , 1   , YGAMMA*/
 		0x011C4210, /*0x4210  - 0x4328 , 71  , NEW_EE*/
 		0x00104410, /*0x4410  - 0x441C , 4   , YRANDOM*/
+		0x00144510, /*0x4510  - 0x4520 , 5   , BCHS */
 		0x00545010, /*0x5010  - 0x5060 , 21  , SCL_CAP*/
 		0x00C05110, /*0x5110  - 0x51CC , 48  , SCL_CAP_COEF*/
 		0x00C05510, /*0x5510  - 0x55CC , 48  , SCL_CAP_COEF1*/
@@ -710,7 +711,6 @@ isp_hw_para:
 	ISP_HREG_MWR(PYR_DCT_STORE_BASE + ISP_STORE_PARAM, BIT_0, 1);
 	ISP_HREG_MWR(PYR_REC_STORE_BASE + ISP_STORE_PARAM, BIT_0, 1);
 	ISP_HREG_MWR(PYR_DEC_FETCH_BASE + ISP_FETCH_PARAM0, BIT_0, 1);
-	ISP_HREG_MWR(ISP_BCHS_PARAM, BIT_0, 1);
 	pr_debug("end\n");
 	return 0;
 

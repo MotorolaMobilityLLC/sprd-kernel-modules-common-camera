@@ -3577,6 +3577,11 @@ static int ispcore_dev_reset(void *isp_handle, void *param)
 	dev = (struct isp_pipe_dev *)isp_handle;
 	hw = (struct cam_hw_info *)param;
 
+	if (hw->prj_id == QOGIRN6pro) {
+		/* Need to check isp reset issue */
+		return 0;
+	}
+
 	hw->isp_ioctl(hw, ISP_HW_CFG_RESET, NULL);
 	tmp_default.type = ISP_HW_PARA;
 	hw->isp_ioctl(hw, ISP_HW_CFG_DEFAULT_PARA_SET, &tmp_default);
