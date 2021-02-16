@@ -313,7 +313,7 @@ static enum dcam_fix_result dcamint_fix_index_if_needed(struct dcam_hw_context *
 	ktime_t delta_ns;
 	struct dcam_sw_context *dev = dcam_hw_ctx->sw_ctx;
 
-	frm_cnt = DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, DCAM_CAP_FRM_CLR) & 0x3f;
+	frm_cnt = DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, DCAM_CAP_FRM_CLR) & 0xFF;
 	cur_cnt = tsid(dev->frame_index + 1);
 
 	/* adjust frame index for current frame */

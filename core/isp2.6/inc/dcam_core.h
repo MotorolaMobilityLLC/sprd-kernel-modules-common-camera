@@ -40,8 +40,6 @@
 
 // TODO: how many helpers there should be?
 #define DCAM_SYNC_HELPER_COUNT            20
-/* DO NOT MODIFY!! */
-#define DCAM_FRAME_TIMESTAMP_COUNT        0x40
 /* get index of timestamp from frame index */
 #define tsid(x)                           ((x) & (DCAM_FRAME_TIMESTAMP_COUNT - 1))
 #define DCAM_FETCH_TWICE(p)               (p->raw_fetch_num > 1)

@@ -41,6 +41,7 @@
 #define FBC_TILE_ADDR_ALIGN            256
 #define FBC_HEADER_REDUNDANT           64
 #define ISP_FBD_MAX_WIDTH              1856
+#define DCAM_FRAME_TIMESTAMP_COUNT     0x100
 /*
  *DCAM_CONTROL register bit map id
  * for force_cpy/auto_cpy control

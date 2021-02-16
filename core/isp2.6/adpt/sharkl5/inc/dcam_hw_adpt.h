@@ -36,6 +36,7 @@
 #define ISP_FBD_MAX_WIDTH                       0xFFFFFFFF
 #define DCAM_SCALE_DOWN_MAX                     4
 #define DCAM_SCALER_MAX_WIDTH                   0xFFFFFFFF
+#define DCAM_FRAME_TIMESTAMP_COUNT              0x40
 /*
  *DCAM_CONTROL register bit map id
  * for force_cpy/auto_cpy control

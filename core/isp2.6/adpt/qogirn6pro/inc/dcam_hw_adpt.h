@@ -37,6 +37,7 @@
 
 #define DCAM_SCALE_DOWN_MAX            10
 #define DCAM_SCALER_MAX_WIDTH          3840
+#define DCAM_FRAME_TIMESTAMP_COUNT     0x100
 
 /*
  * dcam_if fbc capability limit
