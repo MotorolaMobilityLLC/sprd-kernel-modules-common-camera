@@ -23,7 +23,7 @@
 #include <linux/io.h>
 #include <linux/file.h>
 #include <linux/sched.h>
-#include <video/sprd_rot_k.h>
+#include "sprd_rot_k.h"
 #include <linux/slab.h>
 #include <linux/kthread.h>
 #include <linux/delay.h>

@@ -11,7 +11,7 @@
  * GNU General Public License for more details.
  */
 #include <linux/uaccess.h>
-#include <video/sprd_isp_r6p91.h>
+#include "sprd_isp_r6p91.h"
 #include "isp_reg.h"
 #include <sprd_mm.h>
 

@@ -18,7 +18,7 @@
 #include <linux/spinlock_types.h>
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
-#include <video/sprd_isp_r6p91.h>
+#include "sprd_isp_r6p91.h"
 #include "dcam_drv.h"
 #include "isp_reg.h"
 

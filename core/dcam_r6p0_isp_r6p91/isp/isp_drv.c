@@ -31,7 +31,7 @@
 #include <linux/regmap.h>
 /*#include <mach/hardware.h>*/
 #include <asm/cacheflush.h>
-#include <video/sprd_isp_r6p91.h>
+#include "sprd_isp_r6p91.h"
 /*#include "parse_hwinfo.h"*/
 /*#include "compat_isp_drv.h"*/
 #include "isp_drv.h"

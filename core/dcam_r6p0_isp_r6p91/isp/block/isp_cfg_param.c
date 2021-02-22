@@ -12,7 +12,7 @@
  */
 
 #include <linux/uaccess.h>
-#include <video/sprd_isp_r6p91.h>
+#include "sprd_isp_r6p91.h"
 #include "isp_block.h"
 
 typedef int32_t (*isp_cfg_fun_ptr)(struct isp_io_param *isp_param);

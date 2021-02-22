@@ -18,7 +18,7 @@
 #include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/uaccess.h>
-#include <video/sprd_scale_k.h>
+#include "sprd_scale_k.h"
 #include <linux/kthread.h>
 #include <linux/of.h>
 #include <linux/of_device.h>

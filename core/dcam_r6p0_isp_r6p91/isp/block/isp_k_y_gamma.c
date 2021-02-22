@@ -13,7 +13,7 @@
 
 #include <linux/uaccess.h>
 #include <sprd_mm.h>
-#include <video/sprd_isp_r6p91.h>
+#include "sprd_isp_r6p91.h"
 #include "isp_block.h"
 
 

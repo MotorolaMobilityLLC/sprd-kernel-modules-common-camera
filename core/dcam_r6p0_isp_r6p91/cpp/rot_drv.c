@@ -14,7 +14,7 @@
 #include <linux/kernel.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
-#include <video/sprd_rot_k.h>
+#include "sprd_rot_k.h"
 #ifndef CONFIG_64BIT
 /* #include <soc/sprd/hardware.h> */
 #endif

@@ -17,7 +17,7 @@
 #include <linux/of_device.h>
 
 #include <linux/types.h>
-#include <video/sprd_scale_k.h>
+#include "sprd_scale_k.h"
 #include "scale_reg.h"
 #include "cam_iommu.h"
 /*#define SCALE_DEBUG*/

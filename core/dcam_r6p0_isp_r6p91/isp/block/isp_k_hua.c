@@ -13,7 +13,7 @@
 
 #include <linux/uaccess.h>
 #include <sprd_mm.h>
-#include <video/sprd_isp_r6p91.h>
+#include "sprd_isp_r6p91.h"
 #include "isp_reg.h"
 
 static int32_t isp_k_hue_block(struct isp_io_param *param)

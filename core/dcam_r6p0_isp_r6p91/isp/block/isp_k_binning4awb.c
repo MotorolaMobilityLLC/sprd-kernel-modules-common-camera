@@ -12,7 +12,7 @@
  */
 
 #include <linux/uaccess.h>
-#include <video/sprd_isp_r6p91.h>
+#include "sprd_isp_r6p91.h"
 #include <asm/cacheflush.h>
 #include "isp_reg.h"
 #include "isp_block.h"
