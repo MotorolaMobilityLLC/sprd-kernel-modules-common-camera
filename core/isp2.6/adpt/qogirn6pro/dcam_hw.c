@@ -582,15 +582,11 @@ static int dcamhw_reset(void *handle, void *arg)
 			ip->syscon.rst, ip->syscon.rst_mask, ~(ip->syscon.rst_mask));
 	}
 
-	DCAM_REG_MWR(idx, DCAM_INT0_CLR,
-		DCAMINT_IRQ_LINE_INT0_MASK, DCAMINT_IRQ_LINE_INT0_MASK);
-	DCAM_REG_MWR(idx, DCAM_INT0_EN,
-		DCAMINT_IRQ_LINE_INT0_MASK, DCAMINT_IRQ_LINE_INT0_MASK);
+	DCAM_REG_MWR(idx, DCAM_INT0_CLR, 0xFFFFFFFF, 0xFFFFFFFF);
+	DCAM_REG_WR(idx, DCAM_INT0_EN, DCAMINT_IRQ_LINE_EN0_NORMAL);
 
-	DCAM_REG_MWR(idx, DCAM_INT1_CLR,
-		DCAMINT_IRQ_LINE_INT1_MASK, DCAMINT_IRQ_LINE_INT1_MASK);
-	DCAM_REG_MWR(idx, DCAM_INT0_EN,
-		DCAMINT_IRQ_LINE_INT1_MASK, DCAMINT_IRQ_LINE_INT1_MASK);
+	DCAM_REG_MWR(idx, DCAM_INT1_CLR, 0xFFFFFFFF, 0xFFFFFFFF);
+	DCAM_REG_WR(idx, DCAM_INT1_EN, DCAMINT_IRQ_LINE_INT1_MASK);
 
 	/* disable internal logic access sram */
 	DCAM_REG_MWR(idx, DCAM_APB_SRAM_CTRL, BIT_0, 0);
@@ -640,15 +636,11 @@ static int dcamhw_fetch_set(void *handle, void *arg)
 		fetch->fetch_info->trim.start_x, fetch_pitch, fetch->fetch_info->addr.addr_ch0);
 	/* (bitfile)unit 32b,(spec)64b */
 
-	DCAM_REG_MWR(fetch->idx, DCAM_INT0_CLR,
-		DCAMINT_IRQ_LINE_INT0_MASK, DCAMINT_IRQ_LINE_INT0_MASK);
-	DCAM_REG_MWR(fetch->idx, DCAM_INT0_EN,
-		DCAMINT_IRQ_LINE_INT0_MASK, DCAMINT_IRQ_LINE_INT0_MASK);
+	DCAM_REG_WR(fetch->idx, DCAM_INT0_CLR, 0xFFFFFFFF);
+	DCAM_REG_WR(fetch->idx, DCAM_INT0_EN, DCAMINT_IRQ_LINE_EN0_NORMAL);
 
-	DCAM_REG_MWR(fetch->idx, DCAM_INT1_CLR,
-		DCAMINT_IRQ_LINE_INT1_MASK, DCAMINT_IRQ_LINE_INT1_MASK);
-	DCAM_REG_MWR(fetch->idx, DCAM_INT1_EN,
-		DCAMINT_IRQ_LINE_INT1_MASK, DCAMINT_IRQ_LINE_INT1_MASK);
+	DCAM_REG_WR(fetch->idx, DCAM_INT1_CLR, 0xFFFFFFFF);
+	DCAM_REG_WR(fetch->idx, DCAM_INT1_EN, DCAMINT_IRQ_LINE_INT1_MASK);
 
 	DCAM_REG_MWR(fetch->idx,
 		DCAM_MIPI_CAP_CFG, BIT_12, 0x1 << 12);
@@ -1517,10 +1509,10 @@ static int dcamhw_slice_fetch_set(void *handle, void *arg)
 		prev_picth = (slicearg->slice_trim.size_x * 16 + 127) / 128;
 		bfp = 5;
 	}
-	DCAM_REG_MWR(idx, DCAM_INT0_CLR, DCAMINT_IRQ_LINE_INT0_MASK, DCAMINT_IRQ_LINE_INT0_MASK);
-	DCAM_REG_MWR(idx, DCAM_INT0_EN, DCAMINT_IRQ_LINE_INT0_MASK, DCAMINT_IRQ_LINE_INT0_MASK);
-	DCAM_REG_MWR(idx, DCAM_INT1_CLR, DCAMINT_IRQ_LINE_INT1_MASK, DCAMINT_IRQ_LINE_INT1_MASK);
-	DCAM_REG_MWR(idx, DCAM_INT1_EN, DCAMINT_IRQ_LINE_INT1_MASK, DCAMINT_IRQ_LINE_INT1_MASK);
+	DCAM_REG_WR(idx, DCAM_INT0_CLR, 0xFFFFFFFF);
+	DCAM_REG_WR(idx, DCAM_INT0_EN, DCAMINT_IRQ_LINE_EN0_NORMAL);
+	DCAM_REG_WR(idx, DCAM_INT1_CLR, 0xFFFFFFFF);
+	DCAM_REG_WR(idx, DCAM_INT1_EN, DCAMINT_IRQ_LINE_INT1_MASK);
 
 	if (slicearg->dcam_slice_mode == CAM_OFFLINE_SLICE_SW) {
 		DCAM_REG_MWR(idx, DCAM_MIPI_CAP_CFG, BIT_12, 0x1 << 12);
@@ -1856,6 +1848,8 @@ static int dcamhw_blocks_setall(void *handle, void *arg)
 	uint32_t idx;
 	struct dcam_dev_param *p;
 
+	return 0;
+
 	if (!arg) {
 		pr_err("fail to get ptr %p\n", arg);
 		return -EFAULT;
@@ -1881,6 +1875,7 @@ static int dcamhw_blocks_setstatis(void *handle, void *arg)
 	uint32_t idx;
 	struct dcam_dev_param *p;
 
+	return 0;
 	if (arg == NULL) {
 		pr_err("fail to get ptr %p\n", arg);
 		return -EFAULT;
@@ -2107,7 +2102,6 @@ static int dcamhw_csi_force_enable(void *handle, void *arg)
 	struct dcam_switch_param *csi_switch = NULL;
 	int time_out = DCAMX_STOP_TIMEOUT;
 	unsigned int status = 0;
-	uint32_t val = 0xffffffff;
 
 	csi_switch = (struct dcam_switch_param *)arg;
 	hw = (struct cam_hw_info *)handle;
@@ -2121,8 +2115,8 @@ static int dcamhw_csi_force_enable(void *handle, void *arg)
 	regmap_update_bits(hw->soc_dcam->cam_switch_gpr, idx * 4, BIT_31, ~BIT_31);
 
 	while (time_out) {
-		val = regmap_read(hw->soc_dcam->cam_switch_gpr, idx * 4, &status) & BIT_30;
-		if (!val)
+		regmap_read(hw->soc_dcam->cam_switch_gpr, idx * 4, &status);
+		if (!(status & BIT_30))
 			break;
 		udelay(1000);
 		time_out--;

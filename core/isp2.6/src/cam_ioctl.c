@@ -2035,6 +2035,7 @@ static int camioctl_cam_res_get(struct camera_module *module,
 	} else if (res.sensor_id < SPRD_SENSOR_ID_MAX) {
 		/* get a preferred dcam dev */
 		dcam_idx = sprd_sensor_find_dcam_id(res.sensor_id);
+		pr_info("get csi id %d\n", dcam_idx);
 	}
 
 check:
@@ -2075,6 +2076,19 @@ check:
 
 	module->dcam_dev_handle->dcam_pipe_ops->set_callback(module->dcam_dev_handle,
 		module->cur_sw_ctx_id, camcore_dcam_callback, module);
+
+#ifdef CAM_ON_HAPS
+	if (dcam_idx) {
+		struct cam_hw_info *hw = module->grp->hw_info;
+		struct dcam_switch_param csi_switch;
+		csi_switch.csi_id = module->dcam_idx;
+		csi_switch.dcam_id= 0;
+		module->dcam_idx = 0;
+		pr_info("csi_switch.csi_id = %d, csi_switch.dcam_id = %d\n", csi_switch.csi_id, csi_switch.dcam_id);
+		/* switch connect */
+		hw->dcam_ioctl(hw, DCAM_HW_FORCE_EN_CSI, &csi_switch);
+	}
+#endif
 
 	pr_info("camca get camera res camsec mode %d.\n",
 		module->grp->camsec_cfg.camsec_mode);

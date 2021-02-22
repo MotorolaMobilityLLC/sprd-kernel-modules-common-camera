@@ -501,7 +501,7 @@ static void dcamint_cap_sof(void *param)
 		pr_debug("dcam%d offline\n", dcam_hw_ctx->hw_ctx_id);
 		return;
 	}
-	CAM_DEBUG_LOG("cap sof\n");
+	pr_debug("cap sof\n");
 
 	hw = sw_ctx->dev->hw;
 
@@ -673,7 +673,7 @@ static void dcamint_full_path_done(void *param)
 	struct dcam_path_desc *path = NULL;
 
 	path = &sw_ctx->path[DCAM_PATH_FULL];
-	CAM_DEBUG_LOG("capture path done\n");
+	pr_debug("capture path done\n");
 	if ((frame = dcamint_frame_prepare(dcam_hw_ctx, DCAM_PATH_FULL))) {
 		if (sw_ctx->is_4in1) {
 			if (sw_ctx->skip_4in1 > 0) {
@@ -1262,16 +1262,16 @@ static irqreturn_t dcamint_isr_root(int irq, void *priv)
 	}
 
 	status = DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, DCAM_INT0_MASK);
-	status &= DCAMINT_IRQ_LINE_INT0_MASK;
-
 	status1 = DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, DCAM_INT1_MASK);
-	status1 &= DCAMINT_IRQ_LINE_INT1_MASK;
 
 	if (unlikely(!status && !status1))
 		return IRQ_NONE;
 
 	DCAM_REG_WR(dcam_hw_ctx->hw_ctx_id, DCAM_INT0_CLR, status);
 	DCAM_REG_WR(dcam_hw_ctx->hw_ctx_id, DCAM_INT1_CLR, status1);
+
+	status &= DCAMINT_IRQ_LINE_INT0_MASK;
+	status1 &= DCAMINT_IRQ_LINE_INT1_MASK;
 
 	dcamint_dcam_int_record(dcam_hw_ctx->hw_ctx_id, status);
 

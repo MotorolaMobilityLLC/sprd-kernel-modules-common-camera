@@ -259,6 +259,16 @@ abnormal_reg_trace:
 			DCAM_REG_RD(trace->idx, addr + 8),
 			DCAM_REG_RD(trace->idx, addr + 12));
 	}
+	for (addr = DCAM_MIPI_CAP_CFG; addr <= DCAM_CAP_RAW_SIZE;
+		addr += 16) {
+		pr_info("0x%03lx: 0x%x 0x%x 0x%x 0x%x\n",
+			addr,
+			DCAM_REG_RD(trace->idx, addr),
+			DCAM_REG_RD(trace->idx, addr + 4),
+			DCAM_REG_RD(trace->idx, addr + 8),
+			DCAM_REG_RD(trace->idx, addr + 12));
+	}
+
 	pr_info("AXIM: Register list\n");
 	for (addr = AXIM_CTRL; addr <= IMG_FETCH_RADDR;
 		addr += 16) {
@@ -282,17 +292,24 @@ abnormal_reg_trace:
 	}
 
 	pr_info("ISP fetch: register list\n");
-	for (addr = ISP_FETCH_PARAM0; addr <= ISP_FETCH_MIPI_PARAM_UV; addr += 16) {
+	for (addr = (ISP_FETCH_BASE + ISP_FETCH_PARAM0); addr <= (ISP_FETCH_BASE + ISP_FETCH_MIPI_PARAM_UV); addr += 16) {
 		pr_info("0x%lx: 0x%x 0x%x 0x%x 0x%x\n",
 			addr,
 			ISP_HREG_RD(addr),
 			ISP_HREG_RD(addr + 4),
 			ISP_HREG_RD(addr + 8),
 			ISP_HREG_RD(addr + 12));
+
+		pr_info("0x%lx: 0x%x 0x%x 0x%x 0x%x\n",
+			addr,
+			ISP_REG_RD(0, addr),
+			ISP_REG_RD(0, addr + 4),
+			ISP_REG_RD(0, addr + 8),
+			ISP_REG_RD(0, addr + 12));
 	}
 
 	pr_info("ISP dispatch: register list\n");
-	for (addr = ISP_DISPATCH_CH0_BAYER; addr <= ISP_DISPATCH_CHK_SUM;
+	for (addr = (ISP_DISPATCH_BASE + ISP_DISPATCH_CH0_BAYER); addr <= (ISP_DISPATCH_BASE + ISP_DISPATCH_CHK_SUM);
 		addr += 16) {
 		pr_info("0x%lx: 0x%x 0x%x 0x%x 0x%x\n",
 			addr,
@@ -300,20 +317,15 @@ abnormal_reg_trace:
 			ISP_HREG_RD(addr + 4),
 			ISP_HREG_RD(addr + 8),
 			ISP_HREG_RD(addr + 12));
-	}
-
-	for (addr = ISP_SCALER_CFG; addr <= ISP_SCALER_RES;
-			addr += 16) {
-	pr_info("0x%lx: 0x%x 0x%x 0x%x 0x%x\n",
+		pr_info("0x%lx: 0x%x 0x%x 0x%x 0x%x\n",
 			addr,
-			ISP_HREG_RD(addr),
-			ISP_HREG_RD(addr + 4),
-			ISP_HREG_RD(addr + 8),
-			ISP_HREG_RD(addr + 12));
+			ISP_REG_RD(0, addr),
+			ISP_REG_RD(0, addr + 4),
+			ISP_REG_RD(0, addr + 8),
+			ISP_REG_RD(0, addr + 12));
 	}
 
-	pr_info("ISP store: register list\n");
-	for (addr = ISP_STORE_PARAM; addr <= ISP_STORE_SHADOW_CLR;
+	for (addr = (ISP_SCALER_PRE_CAP_BASE + ISP_SCALER_CFG); addr <= (ISP_SCALER_PRE_CAP_BASE + ISP_SCALER_RES);
 			addr += 16) {
 		pr_info("0x%lx: 0x%x 0x%x 0x%x 0x%x\n",
 			addr,
@@ -321,6 +333,29 @@ abnormal_reg_trace:
 			ISP_HREG_RD(addr + 4),
 			ISP_HREG_RD(addr + 8),
 			ISP_HREG_RD(addr + 12));
+		pr_info("0x%lx: 0x%x 0x%x 0x%x 0x%x\n",
+			addr,
+			ISP_REG_RD(0, addr),
+			ISP_REG_RD(0, addr + 4),
+			ISP_REG_RD(0, addr + 8),
+			ISP_REG_RD(0, addr + 12));
+	}
+
+	pr_info("ISP store: register list\n");
+	for (addr = (ISP_STORE_PRE_CAP_BASE + ISP_STORE_PARAM); addr <= (ISP_STORE_PRE_CAP_BASE + ISP_STORE_SHADOW_CLR);
+			addr += 16) {
+		pr_info("0x%lx: 0x%x 0x%x 0x%x 0x%x\n",
+			addr,
+			ISP_HREG_RD(addr),
+			ISP_HREG_RD(addr + 4),
+			ISP_HREG_RD(addr + 8),
+			ISP_HREG_RD(addr + 12));
+		pr_info("0x%lx: 0x%x 0x%x 0x%x 0x%x\n",
+			addr,
+			ISP_REG_RD(0, addr),
+			ISP_REG_RD(0, addr + 4),
+			ISP_REG_RD(0, addr + 8),
+			ISP_REG_RD(0, addr + 12));
 	}
 
 	pr_info("ISP mmu: register list\n");
@@ -335,7 +370,7 @@ abnormal_reg_trace:
 	}
 
 	pr_info("ISP common status: register list\n");
-	for (addr = ISP_COMMON_FMCU_P1_STATUS0; addr <= ISP_COMMON_YDELAY_STATUS4;
+	for (addr = ISP_COMMON_BASE; addr <= ISP_COMMON_YDELAY_STATUS4;
 			addr += 16) {
 		pr_info("0x%lx: 0x%x 0x%x 0x%x 0x%x\n",
 			addr,
@@ -343,6 +378,12 @@ abnormal_reg_trace:
 			ISP_HREG_RD(addr + 4),
 			ISP_HREG_RD(addr + 8),
 			ISP_HREG_RD(addr + 12));
+		pr_info("0x%lx: 0x%x 0x%x 0x%x 0x%x\n",
+			addr,
+			ISP_REG_RD(0, addr),
+			ISP_REG_RD(0, addr + 4),
+			ISP_REG_RD(0, addr + 8),
+			ISP_REG_RD(0, addr + 12));
 	}
 
 normal_reg_trace:

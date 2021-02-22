@@ -327,10 +327,12 @@ void csi_reg_trace(unsigned int idx)
 		pr_info("phy 0x%lx: 0x%x 0x%x 0x%x 0x%x\n",
 			addr, tmp0, tmp1, tmp2, tmp3);
 	}
+	/*
 	reg_dump_rd(0x30000000, 0xff, "mm-ahb");
 	reg_dump_rd(0x30010000, 0xff, "mm-clk");
 	reg_dump_rd(0x645b0000, 0xff, "ana-g10");
 	reg_dump_rd(0x64000000, 0xff, "aon-apb");
+	*/
 	spin_unlock_irqrestore(&csi_dump_lock[idx], flag);
 }
 

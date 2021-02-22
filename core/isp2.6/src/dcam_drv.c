@@ -101,6 +101,7 @@ int dcam_drv_dt_parse(struct platform_device *pdev,
 	struct device_node *qos_node = NULL;
 	struct device_node *iommu_node = NULL;
 	struct regmap *ahb_map = NULL;
+	struct regmap *switch_map = NULL;
 	void __iomem *reg_base = NULL;
 	struct resource reg_res = {0}, irq_res = {0};
 	uint32_t count = 0, prj_id = 0;
@@ -127,6 +128,12 @@ int dcam_drv_dt_parse(struct platform_device *pdev,
 	if (IS_ERR_OR_NULL(ahb_map)) {
 		pr_err("fail to get sprd,cam-ahb-syscon\n");
 		return PTR_ERR(ahb_map);
+	}
+
+	if (hw_info->prj_id == QOGIRN6pro) {
+		switch_map = syscon_regmap_lookup_by_phandle(dn, "sprd,csi-switch");
+		if (IS_ERR_OR_NULL(switch_map))
+			pr_err("fail to get sprd,csi-switch\n");
 	}
 
 	if (of_property_read_u32(dn, "sprd,dcam-count", &count)) {
@@ -171,6 +178,7 @@ int dcam_drv_dt_parse(struct platform_device *pdev,
 	soc_dcam->pdev = pdev;
 	/* AHB bus register mapping */
 	soc_dcam->cam_ahb_gpr = ahb_map;
+	soc_dcam->cam_switch_gpr = switch_map;
 	/* qos dt parse */
 	qos_node = of_parse_phandle(dn, "dcam_qos", 0);
 	if (qos_node) {

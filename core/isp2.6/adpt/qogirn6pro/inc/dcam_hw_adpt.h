@@ -91,6 +91,8 @@ enum dcam_id {
 	DCAM_ID_1,
 	DCAM_ID_2,
 	DCAM_ID_3,
+	DCAM_ID_4,
+	DCAM_ID_5,
 	DCAM_ID_MAX,
 };
 
