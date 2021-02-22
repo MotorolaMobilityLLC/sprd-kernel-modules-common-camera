@@ -536,6 +536,7 @@ static int dcamhw_reset(void *handle, void *arg)
 	struct cam_hw_ip_info *ip = NULL;
 	uint32_t time_out = 0, flag = 0;
 	uint32_t dbg_sts_reg;
+	uint32_t mask = ~0;
 	uint32_t reset_bit[DCAM_ID_MAX] = {
 		BIT(5),
 		BIT(4),
@@ -582,10 +583,10 @@ static int dcamhw_reset(void *handle, void *arg)
 			ip->syscon.rst, ip->syscon.rst_mask, ~(ip->syscon.rst_mask));
 	}
 
-	DCAM_REG_MWR(idx, DCAM_INT0_CLR, 0xFFFFFFFF, 0xFFFFFFFF);
+	DCAM_REG_MWR(idx, DCAM_INT0_CLR, mask, mask);
 	DCAM_REG_WR(idx, DCAM_INT0_EN, DCAMINT_IRQ_LINE_EN0_NORMAL);
 
-	DCAM_REG_MWR(idx, DCAM_INT1_CLR, 0xFFFFFFFF, 0xFFFFFFFF);
+	DCAM_REG_MWR(idx, DCAM_INT1_CLR, mask, mask);
 	DCAM_REG_WR(idx, DCAM_INT1_EN, DCAMINT_IRQ_LINE_INT1_MASK);
 
 	/* disable internal logic access sram */
