@@ -403,7 +403,7 @@ static struct platform_driver scale_driver = {
 	}
 };
 
-int __init scale_k_init(void)
+int scale_k_init(void)
 {
 	if (platform_driver_register(&scale_driver) != 0) {
 		pr_err("platform scale device register Failed\n");

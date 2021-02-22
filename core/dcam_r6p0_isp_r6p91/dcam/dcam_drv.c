@@ -25,9 +25,14 @@
 #include <linux/vmalloc.h>
 #include <linux/videodev2.h>
 //#include <linux/wakelock.h>
+#include <linux/version.h>
 #include "dcam_drv.h"
 #include "gen_scale_coef.h"
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0))
+#include <linux/pm_runtime.h>
+#else
 #include <video/sprd_mmsys_pw_domain.h>
+#endif
 #include "csi_api.h"
 #include <linux/regmap.h>
 #include <linux/mfd/syscon.h>
@@ -213,7 +218,7 @@ static struct dcam_module      *s_p_dcam_mod;
 static dcam_isr_func            s_user_func[DCAM_IRQ_NUMBER];
 static void                     *s_user_data[DCAM_IRQ_NUMBER];
 static struct dcam_sc_array    *s_dcam_sc_array;
-static struct wakeup_source         dcam_wakelock;
+static struct wakeup_source         *dcam_wakelock;
 
 unsigned long            s_dcam_regbase;
 unsigned long            s_dcam_ahbbase;
@@ -3956,12 +3961,14 @@ int32_t    dcam_module_en(struct device_node *dn)
 /*TODO: Dcam PowerOn should be adjust and the wake_lock USAGE!
  */
 	if (atomic_inc_return(&s_dcam_users) == 1) {
+		dcam_wakelock = wakeup_source_create("Camera Sys Wakelock");
+		wakeup_source_add(dcam_wakelock);
 
-		wakeup_source_init(&dcam_wakelock, "Camera Sys Wakelock");
-
-		__pm_stay_awake(&dcam_wakelock);
+		__pm_stay_awake(dcam_wakelock);
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 4, 0))
 		sprd_cam_pw_on();
 		sprd_cam_domain_eb();
+#endif
 		ret = dcam_enable_clk();
 		if (ret) {
 			pr_err("enable clk fail\n");
@@ -4009,11 +4016,13 @@ int32_t dcam_module_dis(struct device_node *dn)
 	mutex_lock(&dcam_module_sema);
 	if (atomic_dec_return(&s_dcam_users) == 0) {
 		dcam_disable_clk();
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 4, 0))
 		sprd_cam_domain_disable();
 		sprd_cam_pw_off();
+#endif
 		free_irq(s_dcam_irq, (void *)&s_dcam_irq);
-		__pm_relax(&dcam_wakelock);
-		wakeup_source_trash(&dcam_wakelock);
+		__pm_relax(dcam_wakelock);
+		wakeup_source_destroy(dcam_wakelock);
 	}
 
 	DCAM_TRACE("dcam_module_dis, Out %d.\n", s_dcam_users.counter);

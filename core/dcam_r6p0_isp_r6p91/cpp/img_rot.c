@@ -387,7 +387,7 @@ static struct platform_driver rotation_driver = {
 		},
 };
 
-int __init rot_k_init(void)
+int rot_k_init(void)
 {
 	pr_info("rot_k_init called !\n");
 	if (platform_driver_register(&rotation_driver) != 0) {

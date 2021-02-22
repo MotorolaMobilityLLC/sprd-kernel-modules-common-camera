@@ -41,7 +41,12 @@
 #include <sprd_mm.h>
 #include <sprd_img.h>
 #include <linux/mfd/syscon.h>
+#include <linux/version.h>
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0))
+#include <linux/pm_runtime.h>
+#else
 #include <video/sprd_mmsys_pw_domain.h>
+#endif
 #include <dt-bindings/soc/sprd,pike2-mask.h>
 #include <dt-bindings/soc/sprd,pike2-regs.h>
 
@@ -467,6 +472,7 @@ int sprd_isp_dev_init(void **isp_pipe_dev_handle)
 	ret = isp_statis_queue_init(&dev->statis_module_info.hist_statis_queue);
 	atomic_set(&isp_k_param->lsc_updated, 0);
 	mutex_lock(&dev->isp_mutex);
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 4, 0))
 	ret = sprd_cam_pw_on();
 	if (ret != 0) {
 		pr_err("%s : sprd cam power on failed\n", __func__);
@@ -474,6 +480,7 @@ int sprd_isp_dev_init(void **isp_pipe_dev_handle)
 		goto irq_exit;
 	}
 	sprd_cam_domain_eb();
+#endif
 	isp_enable_clk();
 
 	ret = isp_irq_request(&s_isp_pdev->dev, s_isp_irq, dev);
@@ -515,8 +522,10 @@ int sprd_isp_dev_deinit(void *isp_pipe_dev_handle)
 	atomic_set(&isp_k_param->lsc_updated, 0);
 	mutex_lock(&dev->isp_mutex);
 	isp_disable_clk();
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 4, 0))
 	sprd_cam_domain_disable();
 	ret = sprd_cam_pw_off();
+#endif
 	if (unlikely(ret != 0)) {
 		ret = -1;
 		pr_info("isp_module_dis:isp_set_clk error.\n");

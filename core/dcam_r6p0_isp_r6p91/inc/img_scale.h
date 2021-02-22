@@ -40,7 +40,7 @@ struct scale_k_file {
 	struct device_node *dn;
 };
 
-int __init scale_k_init(void);
+int scale_k_init(void);
 void scale_k_exit(void);
 
 #endif

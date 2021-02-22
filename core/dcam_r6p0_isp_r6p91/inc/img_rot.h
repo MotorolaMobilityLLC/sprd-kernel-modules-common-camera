@@ -14,7 +14,7 @@
 #ifndef _IMG_ROT_H_
 #define _IMG_ROT_H_
 
-int __init rot_k_init(void);
+int rot_k_init(void);
 void rot_k_exit(void);
 
 #endif

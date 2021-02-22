@@ -12,10 +12,15 @@
  */
 
 #include <linux/interrupt.h>
+#include <linux/version.h>
 #include "isp_block.h"
 #include "isp_int.h"
 #include "isp_buf.h"
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0))
+#include <linux/ion.h>
+#else
 #include "ion.h"
+#endif
 
 #ifdef pr_fmt
 #undef pr_fmt

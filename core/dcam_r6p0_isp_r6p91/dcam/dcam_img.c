@@ -46,6 +46,10 @@
 #include <linux/delay.h>
 #include <linux/sprd_iommu.h>
 #include <linux/sprd_ion.h>
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0))
+#include <linux/pm_runtime.h>
+#include <linux/ion.h>
+#endif
 
 #ifdef pr_fmt
 #undef pr_fmt
@@ -2223,15 +2227,21 @@ static void sprd_img_print_reg(void)
 	return;
 }
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0))
+static void sprd_timer_callback(struct timer_list *t)
+{
+	struct dcam_dev        *dev = from_timer(dev, t, dcam_timer);
+#else
 static void sprd_timer_callback(unsigned long data)
 {
 	struct dcam_dev        *dev = (struct dcam_dev *)data;
+#endif
 	struct dcam_node         node;
 	int                      ret = 0;
 
 	DCAM_TRACE("sprd_timer_callback.\n");
 
-	if (data == 0 || atomic_read(&dev->stream_on) == 0) {
+	if (dev == 0 || atomic_read(&dev->stream_on) == 0) {
 		pr_err("timer cb error.\n");
 		return;
 	}
@@ -2250,7 +2260,11 @@ static void sprd_timer_callback(unsigned long data)
 
 static int sprd_init_timer(struct timer_list *dcam_timer, unsigned long data)
 {
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0))
+	timer_setup(dcam_timer, sprd_timer_callback, 0);
+#else
 	setup_timer(dcam_timer, sprd_timer_callback, data);
+#endif
 	return 0;
 }
 
@@ -2881,6 +2895,9 @@ static int sprd_img_k_open(struct inode *node, struct file *file)
 	struct miscdevice        *md = file->private_data;
 	int                      ret = 0;
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0))
+	ret = pm_runtime_get(md->this_device->platform_data);
+#endif
 	if (atomic_read(&s_dcam_cnt) >= 1)
 		return -EBADFD;
 	pr_info("%s start\n", __func__);
@@ -2988,7 +3005,9 @@ static int sprd_img_k_release(struct inode *node, struct file *file)
 	dev = NULL;
 	file->private_data = NULL;
 	atomic_dec(&s_dcam_cnt);
-
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0))
+	ret = pm_runtime_put_autosuspend(md->this_device->platform_data);
+#endif
 exit:
 	pr_info("%s end\n", __func__);
 	return ret;
@@ -4055,6 +4074,11 @@ static int sprd_img_probe(struct platform_device *pdev)
 	sprd_isp_drv_init();
 	scale_k_init();
 	rot_k_init();
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0))
+	image_dev.this_device->platform_data = &pdev->dev;
+	pm_runtime_set_active(&pdev->dev);
+	pm_runtime_enable(&pdev->dev);
+#endif
 	pr_info("sprd_img_probe Success.\n");
 	goto exit;
 parse_exit:
