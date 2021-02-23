@@ -561,13 +561,14 @@ int isp_slw_flags_init(void *isp_handle, struct isp_path_info *info)
 	if (info->is_slow_motion == ISP_NORMAL_VIDEO) {
 		dev->fmcu_slw.slw_flags = ISP_NORMAL_VIDEO;
 		dev->fmcu_slw.vid_num = 0;
-	} else if (info->is_slow_motion == ISP_SLW_VIDEO)
+	} else if (info->is_slow_motion == ISP_SLW_VIDEO) {
 		dev->fmcu_slw.slw_flags = ISP_SLW_VIDEO;
-	if (!info->fmcu_addr_vir) {
-		pr_err("fail to get fmcu_addr_vir\n");
-		return -EFAULT;
+		if (!info->fmcu_addr_vir) {
+			pr_err("fail to get fmcu_addr_vir\n");
+			return -EFAULT;
+		}
+		dev->fmcu_slw.fmcu_addr_vir = info->fmcu_addr_vir;
 	}
-	dev->fmcu_slw.fmcu_addr_vir = info->fmcu_addr_vir;
 
 	return ret;
 }

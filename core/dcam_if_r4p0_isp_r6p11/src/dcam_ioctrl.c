@@ -319,8 +319,8 @@ static int dcamio_set_output_size(struct camera_file *camerafile,
 	info->path_input_rect.h = parm.crop_rect.h;
 	info->scene_mode = parm.scene_mode;
 	info->is_slow_motion = parm.slowmotion;
-	pr_debug("SPRD_IMG_IO_SET_OUTPUT_SIZE, scene_mode %d\n",
-		 parm.scene_mode);
+	pr_debug("SPRD_IMG_IO_SET_OUTPUT_SIZE, scene_mode %d, slowmotion %d\n",
+		 parm.scene_mode, parm.slowmotion);
 
 	if (info->scene_mode == DCAM_SCENE_MODE_PREVIEW ||
 	    info->scene_mode == DCAM_SCENE_MODE_RECORDING ||
