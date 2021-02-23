@@ -1301,6 +1301,8 @@ static int ispcore_offline_param_cfg(struct isp_sw_context *pctx,
 			nr3_ctx->ops.cfg_param(nr3_ctx, ISP_3DNR_CFG_MODE, &nr3_mode);
 			nr3_ctx->ops.cfg_param(nr3_ctx, ISP_3DNR_CFG_BLEND_CNT, &blend_cnt);
 		}
+		if (stream->data_src == ISP_STREAM_SRC_ISP)
+			pctx->pipe_src.data_in_bits = DCAM_STORE_8_BIT;
 		pctx->updated = 1;
 	}
 

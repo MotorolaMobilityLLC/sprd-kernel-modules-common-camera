@@ -104,15 +104,13 @@ static int ispdrv_path_scaler_get(struct isp_path_uinfo *in_ptr,
 	return ret;
 }
 
-static enum isp_fetch_format ispdrv_fetch_format_get(uint32_t forcc,
-		uint32_t pack_bits)
+static enum isp_fetch_format ispdrv_fetch_format_get(struct isp_uinfo *pipe_src)
 {
 	enum isp_fetch_format format = ISP_FETCH_FORMAT_MAX;
-
-	switch (forcc) {
+	switch (pipe_src->in_fmt) {
 	case IMG_PIX_FMT_GREY:
 		format = ISP_FETCH_CSI2_RAW10;
-		if (pack_bits == ISP_RAW_HALF14 || pack_bits == ISP_RAW_HALF10)
+		if (pipe_src->pack_bits == ISP_RAW_HALF14 || pipe_src->pack_bits == ISP_RAW_HALF10)
 			format = ISP_FETCH_RAW10;
 		break;
 	case IMG_PIX_FMT_UYVY:
@@ -122,17 +120,33 @@ static enum isp_fetch_format ispdrv_fetch_format_get(uint32_t forcc,
 		format = ISP_FETCH_YUV422_3FRAME;
 		break;
 	case IMG_PIX_FMT_NV12:
-		format = ISP_FETCH_YUV420_2FRAME;
+		if (pipe_src->data_in_bits == DCAM_STORE_10_BIT) {
+			format = ISP_FETCH_YUV420_2FRAME_10;
+			if (pipe_src->is_pack)
+				format = ISP_FETCH_YUV420_2FRAME_MIPI;
+		}
+		else if (pipe_src->data_in_bits == DCAM_STORE_8_BIT)
+			format = ISP_FETCH_YUV420_2FRAME;
+		else
+			pr_err("fail to get support data_bits:%d\n", pipe_src->data_in_bits);
 		break;
 	case IMG_PIX_FMT_NV21:
-		format = ISP_FETCH_YVU420_2FRAME;
+		if (pipe_src->data_in_bits == DCAM_STORE_10_BIT) {
+			format = ISP_FETCH_YVU420_2FRAME_10;
+			if (pipe_src->is_pack)
+				format = ISP_FETCH_YVU420_2FRAME_MIPI;
+		}
+		else if (pipe_src->data_in_bits == DCAM_STORE_8_BIT)
+			format = ISP_FETCH_YVU420_2FRAME;
+		else
+			pr_err("fail to get support data_bits:%d\n", pipe_src->data_in_bits);
 		break;
 	case IMG_PIX_FMT_FULL_RGB:
 		format = ISP_FETCH_FULL_RGB10;
 		break;
 	default:
 		format = ISP_FETCH_FORMAT_MAX;
-		pr_err("fail to get support format 0x%x\n", forcc);
+		pr_err("fail to get support format 0x%x\n", pipe_src->in_fmt);
 		break;
 	}
 	return format;
@@ -163,7 +177,7 @@ static int ispdrv_fetch_normal_get(void *cfg_in, void *cfg_out,
 	intrim = &pipe_src->crop;
 	fetch->src = *src;
 	fetch->in_trim = *intrim;
-	fetch->fetch_fmt = ispdrv_fetch_format_get(pipe_src->in_fmt, pipe_src->pack_bits);
+	fetch->fetch_fmt = ispdrv_fetch_format_get(pipe_src);
 	fetch->is_pack = pipe_src->is_pack;
 	fetch->data_bits = pipe_src->data_in_bits;
 	fetch->bayer_pattern = pipe_src->bayer_pattern;
@@ -209,36 +223,37 @@ static int ispdrv_fetch_normal_get(void *cfg_in, void *cfg_out,
 		break;
 	case ISP_FETCH_YUV420_2FRAME:
 	case ISP_FETCH_YVU420_2FRAME:
-		if (fetch->is_pack) {
-			fetch->pitch.pitch_ch0 = src->w * 10 / 8;
-			fetch->pitch.pitch_ch1 = src->w * 10 / 8 ;
-			fetch->mipi_byte_rel_pos = intrim->start_x;
-			fetch->mipi_word_num = ((intrim->size_x >> 4) * 5)
-				+ mipi_word_num_end[intrim->size_x & 0xF]
-				- (((intrim->start_x + 1) >> 4) * 5)
-				-mipi_word_num_start[(intrim->start_x + 1) & 0xF]
-				+ 1;
-			fetch->mipi_byte_rel_pos_uv = fetch->mipi_byte_rel_pos;
-			fetch->mipi_word_num_uv = fetch->mipi_word_num;
-			trim_offset[0] = intrim->start_y * fetch->pitch.pitch_ch0 + (intrim->start_x >> 2) * 5 +
-				(intrim->start_x & 0x3);
-			trim_offset[1] = (intrim->start_y >> 1) * fetch->pitch.pitch_ch1 + (intrim->start_x >> 2) * 5 +
-				(intrim->start_x & 0x3);
-		} else {
-			if (fetch->data_bits == DCAM_STORE_8_BIT) {
-				fetch->pitch.pitch_ch0 = src->w;
-				fetch->pitch.pitch_ch1 = src->w;
-				trim_offset[0] = intrim->start_y * fetch->pitch.pitch_ch0 + intrim->start_x;
-				trim_offset[1] = intrim->start_y * fetch->pitch.pitch_ch1 / 2 + intrim->start_x;
-			} else {
-				fetch->pitch.pitch_ch0 = src->w * 2;
-				fetch->pitch.pitch_ch1 = src->w * 2;
-				trim_offset[0] = intrim->start_y * fetch->pitch.pitch_ch0 + intrim->start_x * 2;
-				trim_offset[1] = intrim->start_y * fetch->pitch.pitch_ch1 / 2 + intrim->start_x * 2;
-			}
-		}
+		fetch->pitch.pitch_ch0 = src->w;
+		fetch->pitch.pitch_ch1 = src->w;
+		trim_offset[0] = intrim->start_y * fetch->pitch.pitch_ch0 + intrim->start_x;
+		trim_offset[1] = intrim->start_y * fetch->pitch.pitch_ch1 / 2 + intrim->start_x;
 		fetch->addr.addr_ch1 = fetch->addr.addr_ch0 + fetch->pitch.pitch_ch0 * fetch->src.h;
 		pr_debug("y_addr: %x, pitch:: %x\n", fetch->addr.addr_ch0, fetch->pitch.pitch_ch0);
+		break;
+	case ISP_FETCH_YUV420_2FRAME_10:
+	case ISP_FETCH_YVU420_2FRAME_10:
+		fetch->pitch.pitch_ch0 = src->w * 2;
+		fetch->pitch.pitch_ch1 = src->w * 2;
+		trim_offset[0] = intrim->start_y * fetch->pitch.pitch_ch0 + intrim->start_x * 2;
+		trim_offset[1] = intrim->start_y * fetch->pitch.pitch_ch1 / 2 + intrim->start_x * 2;
+		break;
+	case ISP_FETCH_YUV420_2FRAME_MIPI:
+	case ISP_FETCH_YVU420_2FRAME_MIPI:
+		fetch->pitch.pitch_ch0 = src->w * 10 / 8;
+		fetch->pitch.pitch_ch1 = src->w * 10 / 8 ;
+		fetch->mipi_byte_rel_pos = intrim->start_x;
+		fetch->mipi_word_num = ((intrim->size_x >> 4) * 5)
+			+ mipi_word_num_end[intrim->size_x & 0xF]
+			- (((intrim->start_x + 1) >> 4) * 5)
+			-mipi_word_num_start[(intrim->start_x + 1) & 0xF]
+			+ 1;
+		fetch->mipi_byte_rel_pos_uv = fetch->mipi_byte_rel_pos;
+		fetch->mipi_word_num_uv = fetch->mipi_word_num;
+		trim_offset[0] = intrim->start_y * fetch->pitch.pitch_ch0 + (intrim->start_x >> 2) * 5 +
+			(intrim->start_x & 0x3);
+		trim_offset[1] = (intrim->start_y >> 1) * fetch->pitch.pitch_ch1 + (intrim->start_x >> 2) * 5 +
+			(intrim->start_x & 0x3);
+		fetch->addr.addr_ch1 = fetch->addr.addr_ch0 + fetch->pitch.pitch_ch0 * fetch->src.h;
 		break;
 	case ISP_FETCH_FULL_RGB10:
 		fetch->pitch.pitch_ch0 = src->w * 8;
@@ -641,6 +656,18 @@ static ispdrv_store_normal_get(struct isp_path_uinfo *in_ptr,
 	case ISP_STORE_YVU420_2FRAME:
 		store->pitch.pitch_ch0 = store->size.w;
 		store->pitch.pitch_ch1 = store->size.w;
+		store->total_size = store->size.w * store->size.h * 3 / 2;
+		break;
+	case ISP_STORE_YUV420_2FRAME_10:
+	case ISP_STORE_YVU420_2FRAME_10:
+		store->pitch.pitch_ch0 = store->size.w * 2;
+		store->pitch.pitch_ch1 = store->size.w * 2;
+		store->total_size = store->size.w * store->size.h * 3 / 2;
+		break;
+	case ISP_STORE_YUV420_2FRAME_MIPI:
+	case ISP_STORE_YVU420_2FRAME_MIPI:
+		store->pitch.pitch_ch0 = store->size.w * 10 / 8;
+		store->pitch.pitch_ch1 = store->size.w * 10 / 8 ;
 		store->total_size = store->size.w * store->size.h * 3 / 2;
 		break;
 	case ISP_STORE_YUV422_3FRAME:

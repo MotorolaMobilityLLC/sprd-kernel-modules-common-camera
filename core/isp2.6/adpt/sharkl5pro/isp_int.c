@@ -161,20 +161,15 @@ static void ispint_all_done(enum isp_context_hw_id hw_idx, void *isp_handle)
 
 	pctx = dev->sw_ctx[idx];
 	pctx_hw = &dev->hw_ctx[hw_idx];
-	if (pctx_hw->fmcu_used) {
-		pr_debug("fmcu started. skip all done.\n ");
+	if (pctx_hw->fmcu_used)
 		return;
-	}
 
-	pr_debug("cxt_id:%d all done.\n", idx);
 	if (pctx->multi_slice) {
-		pr_debug("slice done. last %d\n", pctx->is_last_slice);
 		if (!pctx->is_last_slice) {
 			complete(&pctx->slice_done);
 			return;
 		}
 		complete(&pctx->slice_done);
-		pr_debug("frame done.\n");
 	}
 
 	pctx->postproc_func(dev, idx, POSTPROC_FRAME_DONE);

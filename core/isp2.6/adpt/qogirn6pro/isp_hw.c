@@ -1557,18 +1557,28 @@ static int isphw_fetch_set(void *handle, void *arg)
 	ISP_REG_MWR(idx, ISP_COMMON_SCL_PATH_SEL, BIT_1 | BIT_0, 3);
 	ISP_REG_MWR(idx, ISP_YUV_AFBD_FETCH_BASE + ISP_AFBD_FETCH_SEL, BIT_0, 1);
 
-	if (fetch->fetch_fmt == ISP_FETCH_YVU420_2FRAME) {
-		if (fetch->data_bits == ISP_FRAME_10_BIT)
-			val = 1;
-		else
-			val = 3;
-	} else if (fetch->fetch_fmt == ISP_FETCH_YUV420_2FRAME) {
-		if (fetch->data_bits == ISP_FRAME_10_BIT)
-			val = 0;
-		else
-			val = 2;
-	} else if (fetch->fetch_fmt == ISP_FETCH_FULL_RGB10)
+	switch (fetch->fetch_fmt) {
+	case ISP_FETCH_YVU420_2FRAME_10:
+	case ISP_FETCH_YVU420_2FRAME_MIPI:
+		val = 1;
+		break;
+	case ISP_FETCH_YVU420_2FRAME:
+		val = 3;
+		break;
+	case ISP_FETCH_YUV420_2FRAME_10:
+	case ISP_FETCH_YUV420_2FRAME_MIPI:
+		val = 0;
+		break;
+	case ISP_FETCH_YUV420_2FRAME:
+		val = 2;
+		break;
+	case ISP_FETCH_FULL_RGB10:
 		val = 4;
+		break;
+	default:
+		pr_err("fail to get isp fetch format:%d, val:%d\n", fetch->fetch_fmt, val);
+		break;
+	}
 
 	ISP_REG_MWR(idx, ISP_FETCH_BASE + ISP_FETCH_PARAM0, 0x70, val << 4 );
 	ISP_REG_MWR(idx, ISP_FETCH_BASE + ISP_FETCH_MIPI_PARAM, BIT_20, fetch->is_pack << 20);
@@ -1599,9 +1609,9 @@ static int isphw_fetch_set(void *handle, void *arg)
 
 	if (fetch->is_pack) {
 		val = (fetch->mipi_byte_rel_pos << 16) | fetch->mipi_word_num;
-		ISP_REG_MWR(idx,ISP_FETCH_BASE + ISP_FETCH_MIPI_PARAM, 0xFFFFF, val);
+		ISP_REG_MWR(idx, ISP_FETCH_BASE + ISP_FETCH_MIPI_PARAM, 0xFFFFF, val);
 		val = (fetch->mipi_byte_rel_pos_uv << 16) | fetch->mipi_word_num_uv;
-		ISP_REG_MWR(idx,ISP_FETCH_BASE + ISP_FETCH_MIPI_PARAM_UV, 0xFFFFF, val);
+		ISP_REG_MWR(idx, ISP_FETCH_BASE + ISP_FETCH_MIPI_PARAM_UV, 0xFFFFF, val);
 	}
 
 	ISP_REG_WR(idx, ISP_3DNR_MEM_CTRL_PARAM2, fetch->in_trim.size_x | (fetch->in_trim.size_y << 16));

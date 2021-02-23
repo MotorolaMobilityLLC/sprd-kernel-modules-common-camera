@@ -1140,36 +1140,42 @@ static void ispslice_slice_fetch_cfg(struct isp_hw_fetch_info *frm_fetch,
 
 	case ISP_FETCH_YUV420_2FRAME:
 	case ISP_FETCH_YVU420_2FRAME:
-		if (frm_fetch->is_pack) {
-			ch_offset[0] = start_row * pitch->pitch_ch0 + (start_col >> 2) * 5 + (start_col & 0x3);
-			ch_offset[1] = (start_row >> 1) * pitch->pitch_ch1 + (start_col >> 2) * 5 + (start_col & 0x3);
-			slc_fetch->mipi_byte_rel_pos = start_col & 0x0f;
-			slc_fetch->mipi_word_num =
-				((((end_col + 1) >> 4) * 5
-				+ mipi_word_num_end[(end_col + 1) & 0x0f])
-				-(((start_col + 1) >> 4) * 5
-				+ mipi_word_num_start[(start_col + 1)
-				& 0x0f]) + 1);
-			slc_fetch->mipi_byte_rel_pos_uv = slc_fetch->mipi_byte_rel_pos;
-			slc_fetch->mipi_word_num_uv = slc_fetch->mipi_word_num;
-			slc_fetch->is_pack = 1;
-		} else {
-			slc_fetch->is_pack = 0;
-			if (frm_fetch->data_bits == DCAM_STORE_8_BIT) {
-				ch_offset[0] = start_row * pitch->pitch_ch0 + start_col;
-				ch_offset[1] = (start_row >> 1) * pitch->pitch_ch1 + start_col;
-			} else {
-				ch_offset[0] = start_row * pitch->pitch_ch0 + start_col * 2;
-				ch_offset[1] = (start_row >> 1) * pitch->pitch_ch1 + start_col * 2;
-			}
-		}
+		slc_fetch->is_pack = 0;
+		ch_offset[0] = start_row * pitch->pitch_ch0 + start_col;
+		ch_offset[1] = (start_row >> 1) * pitch->pitch_ch1 + start_col;
 		pr_debug("(%d %d %d %d), pitch %d %d, offset %d %d, mipi %d %d\n",
 			start_row, start_col, end_row, end_col,
 			pitch->pitch_ch0, pitch->pitch_ch1, ch_offset[0], ch_offset[1],
 			slc_fetch->mipi_byte_rel_pos, slc_fetch->mipi_word_num);
-
 		break;
-
+	case ISP_FETCH_YUV420_2FRAME_10:
+	case ISP_FETCH_YVU420_2FRAME_10:
+		ch_offset[0] = start_row * pitch->pitch_ch0 + start_col * 2;
+		ch_offset[1] = (start_row >> 1) * pitch->pitch_ch1 + start_col * 2;
+		pr_debug("(%d %d %d %d), pitch %d %d, offset %d %d, mipi %d %d\n",
+			start_row, start_col, end_row, end_col,
+			pitch->pitch_ch0, pitch->pitch_ch1, ch_offset[0], ch_offset[1],
+			slc_fetch->mipi_byte_rel_pos, slc_fetch->mipi_word_num);
+		break;
+	case ISP_FETCH_YUV420_2FRAME_MIPI:
+	case ISP_FETCH_YVU420_2FRAME_MIPI:
+		ch_offset[0] = start_row * pitch->pitch_ch0 + (start_col >> 2) * 5 + (start_col & 0x3);
+		ch_offset[1] = (start_row >> 1) * pitch->pitch_ch1 + (start_col >> 2) * 5 + (start_col & 0x3);
+		slc_fetch->mipi_byte_rel_pos = start_col & 0x0f;
+		slc_fetch->mipi_word_num =
+			((((end_col + 1) >> 4) * 5
+			+ mipi_word_num_end[(end_col + 1) & 0x0f])
+			-(((start_col + 1) >> 4) * 5
+			+ mipi_word_num_start[(start_col + 1)
+			& 0x0f]) + 1);
+		slc_fetch->mipi_byte_rel_pos_uv = slc_fetch->mipi_byte_rel_pos;
+		slc_fetch->mipi_word_num_uv = slc_fetch->mipi_word_num;
+		slc_fetch->is_pack = 1;
+		pr_debug("(%d %d %d %d), pitch %d %d, offset %d %d, mipi %d %d\n",
+			start_row, start_col, end_row, end_col,
+			pitch->pitch_ch0, pitch->pitch_ch1, ch_offset[0], ch_offset[1],
+			slc_fetch->mipi_byte_rel_pos, slc_fetch->mipi_word_num);
+		break;
 	case ISP_FETCH_CSI2_RAW10:
 		ch_offset[0] = start_row * pitch->pitch_ch0
 			+ (start_col >> 2) * 5 + (start_col & 0x3);
@@ -1460,6 +1466,10 @@ static int ispslice_store_info_cfg(
 				break;
 			case ISP_STORE_YUV420_2FRAME:
 			case ISP_STORE_YVU420_2FRAME:
+			case ISP_STORE_YUV420_2FRAME_10:
+			case ISP_STORE_YVU420_2FRAME_10:
+			case ISP_STORE_YUV420_2FRAME_MIPI:
+			case ISP_STORE_YVU420_2FRAME_MIPI:
 				ch0_offset = start_col_out[j][cur_slc->x] +
 					start_row_out[j][cur_slc->y] *
 					frm_store->pitch.pitch_ch0;

@@ -802,9 +802,9 @@ static int isphw_path_store(void *handle, void *arg)
 	store_info = &path_store->store;
 	addr = store_base[path_store->spath_id];
 
-	pr_debug("isp set store in.  bypass %d, path_id:%d, w:%d,h:%d\n",
+	pr_debug("isp set store in.  bypass %d, path_id:%d, w:%d,h:%d,fmt:%d\n",
 			store_info->bypass, path_store->spath_id,
-			store_info->size.w, store_info->size.h);
+			store_info->size.w, store_info->size.h, store_info->color_fmt);
 
 	ISP_REG_MWR(idx, addr + ISP_STORE_PARAM,
 		BIT_0, store_info->bypass);
@@ -1393,12 +1393,13 @@ static int isphw_fetch_set(void *handle, void *arg)
 	ISP_REG_WR(idx, ISP_SCALER_PRE_CAP_BASE + ISP_SCALER_RES, 0xFF);
 	ISP_REG_WR(idx, ISP_SCALER_PRE_CAP_BASE + ISP_SCALER_DEBUG, 1);
 
-	pr_debug("camca, isp sec mode=%d , pack_bits=%d, pitch_ch0=0x%x, 0x%x, 0x%x\n",
+	pr_debug("camca, isp sec mode=%d , pack_bits=%d, pitch_ch0=0x%x, 0x%x, 0x%x, format:%d\n",
 		fetch->sec_mode,
 		fetch->pack_bits,
 		fetch->pitch.pitch_ch0,
 		fetch->pitch.pitch_ch1,
-		fetch->pitch.pitch_ch2);
+		fetch->pitch.pitch_ch2,
+		fetch->fetch_fmt);
 
 	ISP_REG_MWR(idx, ISP_FETCH_PARAM, BIT_0, 0);
 	ISP_REG_MWR(idx, ISP_FETCH_PARAM, (0xF << 4), fetch->fetch_fmt << 4);
