@@ -13,7 +13,11 @@ $(error BSP_BOARD_CAMERA_MODULE_DVFS not provided!)
 endif
 
 DVFS_DEVICE := $(strip $(BSP_BOARD_CAMERA_MODULE_DVFS))
-
+ifeq ($(DVFS_DEVICE),qogirn6pro)
+ADAPT_DIR := r2p0
+else
+ADAPT_DIR := r1p0
+endif
 #
 # Source List
 #
@@ -22,19 +26,19 @@ KO_MODULE_PATH := $(src)
 KO_MODULE_SRC  :=
 
 KO_MODULE_SRC += \
-	$(shell find $(KO_MODULE_PATH)/r1p0/mm_dvfs_devfreq -name "*.c") \
-	$(shell find $(KO_MODULE_PATH)/r1p0/mmsys_comm -name "*.c") \
-	$(shell find $(KO_MODULE_PATH)/r1p0/dvfs_driver/dvfs_driver_common -name "*.c") \
-	$(shell find $(KO_MODULE_PATH)/r1p0/dvfs_driver/dvfs_reg_param/$(DVFS_DEVICE) -name "*.c")
+	$(shell find $(KO_MODULE_PATH)/$(ADAPT_DIR)/mm_dvfs_devfreq -name "*.c") \
+	$(shell find $(KO_MODULE_PATH)/$(ADAPT_DIR)/mmsys_comm -name "*.c") \
+	$(shell find $(KO_MODULE_PATH)/$(ADAPT_DIR)/dvfs_driver/dvfs_driver_common -name "*.c") \
+	$(shell find $(KO_MODULE_PATH)/$(ADAPT_DIR)/dvfs_driver/dvfs_reg_param/$(DVFS_DEVICE) -name "*.c")
 
 #
 # Build Options
 #
 # TODO: refine these includes
-ccflags-y += -I$(KO_MODULE_PATH)/r1p0/mm_dvfs_devfreq
-ccflags-y += -I$(KO_MODULE_PATH)/r1p0/mmsys_comm
-ccflags-y += -I$(KO_MODULE_PATH)/r1p0/dvfs_driver/dvfs_driver_common
-ccflags-y += -I$(KO_MODULE_PATH)/r1p0/dvfs_driver/dvfs_reg_param/$(DVFS_DEVICE)
+ccflags-y += -I$(KO_MODULE_PATH)/$(ADAPT_DIR)/mm_dvfs_devfreq
+ccflags-y += -I$(KO_MODULE_PATH)/$(ADAPT_DIR)/mmsys_comm
+ccflags-y += -I$(KO_MODULE_PATH)/$(ADAPT_DIR)/dvfs_driver/dvfs_driver_common
+ccflags-y += -I$(KO_MODULE_PATH)/$(ADAPT_DIR)/dvfs_driver/dvfs_reg_param/$(DVFS_DEVICE)
 ccflags-y += -I$(KO_MODULE_PATH)/../common/
 ccflags-y += -I$(srctree)/drivers/devfreq/
 
