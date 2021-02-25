@@ -230,10 +230,10 @@ static int camhw_get_axi_base(void *handle, void *arg)
 		goto err_axi_iounmap;
 	}
 
-	for (i = 0; i < count; i++) {
+	for (i = 0; i < count; i++)
 		g_dcam_aximbase[i] = (unsigned long)reg_base;
-		soc_dcam->axi_reg_base[i] = (unsigned long)reg_base;
-	}
+
+	soc_dcam->axi_reg_base = (unsigned long)reg_base;
 
 	return 0;
 
@@ -444,6 +444,7 @@ struct cam_hw_info sharkl5pro_hw_info = {
 	.pdev = NULL,
 	.soc_dcam = &dcam_soc_info,
 	.soc_isp = &isp_soc_info,
+	.soc_dcam_lite = NULL,
 	.ip_dcam[DCAM_ID_0] = &dcam[DCAM_ID_0],
 	.ip_dcam[DCAM_ID_1] = &dcam[DCAM_ID_1],
 	.ip_dcam[DCAM_ID_2] = &dcam[DCAM_ID_2],

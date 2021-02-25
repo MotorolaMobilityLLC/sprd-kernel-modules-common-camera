@@ -47,6 +47,7 @@ static int dcamhw_clk_eb(void *handle, void *arg)
 	int ret = 0;
 	struct cam_hw_info *hw = NULL;
 	struct cam_hw_soc_info *soc = NULL;
+	struct cam_hw_soc_info *soc_lite = NULL;
 
 	pr_debug(", E\n");
 	if (atomic_inc_return(&clk_users) != 1) {
@@ -62,6 +63,7 @@ static int dcamhw_clk_eb(void *handle, void *arg)
 
 	hw = (struct cam_hw_info *)handle;
 	soc = hw->soc_dcam;
+	soc_lite = hw->soc_dcam_lite;
 
 	ret = clk_set_parent(soc->clk, soc->clk_parent);
 	if (ret) {
@@ -94,34 +96,34 @@ static int dcamhw_clk_eb(void *handle, void *arg)
 		return ret;
 	}
 
-	ret = clk_set_parent(soc->lite_clk, soc->lite_clk_parent);
+	ret = clk_set_parent(soc_lite->clk, soc_lite->clk_parent);
 	if (ret) {
 		pr_err("fail to set clk parent\n");
-		clk_set_parent(soc->lite_clk, soc->lite_clk_default);
+		clk_set_parent(soc_lite->clk, soc_lite->clk_default);
 		return ret;
 	}
-	ret = clk_prepare_enable(soc->lite_clk);
+	ret = clk_prepare_enable(soc_lite->clk);
 	if (ret) {
 		pr_err("fail to enable clk\n");
-		clk_set_parent(soc->lite_clk, soc->lite_clk_default);
+		clk_set_parent(soc_lite->clk, soc_lite->clk_default);
 		return ret;
 	}
-	ret = clk_set_parent(soc->axi_lite_clk, soc->axi_lite_clk_parent);
+	ret = clk_set_parent(soc_lite->axi_clk, soc_lite->axi_clk_parent);
 	if (ret) {
 		pr_err("fail to set axi_clk parent\n");
-		clk_set_parent(soc->axi_lite_clk, soc->axi_lite_clk_parent);
+		clk_set_parent(soc_lite->axi_clk, soc_lite->axi_clk_parent);
 		return ret;
 	}
-	ret = clk_prepare_enable(soc->axi_lite_clk);
+	ret = clk_prepare_enable(soc_lite->axi_clk);
 	if (ret) {
 		pr_err(" fail to enable axi_clk\n");
-		clk_set_parent(soc->axi_lite_clk, soc->axi_lite_clk_default);
+		clk_set_parent(soc_lite->axi_clk, soc_lite->axi_clk_default);
 		return ret;
 	}
-	ret = clk_prepare_enable(soc->core_lite_eb);
+	ret = clk_prepare_enable(soc_lite->core_eb);
 	if (ret) {
 		pr_err("fail to set eb\n");
-		clk_disable_unprepare(soc->lite_clk);
+		clk_disable_unprepare(soc_lite->clk);
 		return ret;
 	}
 
@@ -158,7 +160,7 @@ static int dcamhw_clk_eb(void *handle, void *arg)
 		return ret;
 	}
 
-	ret = clk_prepare_enable(soc->mtx_lite_en);
+	ret = clk_prepare_enable(soc_lite->mtx_en);
 	if (ret) {
 		pr_err("fail to set eb\n");
 		clk_disable_unprepare(soc->mtx_clk);
@@ -181,6 +183,7 @@ static int dcamhw_clk_dis(void *handle, void *arg)
 	int ret = 0;
 	struct cam_hw_info *hw = NULL;
 	struct cam_hw_soc_info *soc = NULL;
+	struct cam_hw_soc_info *soc_lite = NULL;
 
 	pr_debug(", E\n");
 	if (atomic_dec_return(&clk_users) != 0) {
@@ -196,15 +199,16 @@ static int dcamhw_clk_dis(void *handle, void *arg)
 
 	hw = (struct cam_hw_info *)handle;
 	soc = hw->soc_dcam;
+	soc_lite = hw->soc_dcam_lite;
 
 	clk_set_parent(soc->axi_clk, soc->axi_clk_default);
 	clk_disable_unprepare(soc->axi_clk);
-	clk_set_parent(soc->axi_lite_clk, soc->axi_lite_clk_default);
-	clk_disable_unprepare(soc->axi_lite_clk);
+	clk_set_parent(soc_lite->axi_clk, soc_lite->axi_clk_default);
+	clk_disable_unprepare(soc_lite->axi_clk);
 	clk_set_parent(soc->clk, soc->clk_default);
 	clk_disable_unprepare(soc->clk);
-	clk_set_parent(soc->lite_clk, soc->lite_clk_default);
-	clk_disable_unprepare(soc->lite_clk);
+	clk_set_parent(soc_lite->clk, soc_lite->clk_default);
+	clk_disable_unprepare(soc_lite->clk);
 	clk_set_parent(soc->mtx_clk, soc->mtx_clk_default);
 	clk_disable_unprepare(soc->mtx_clk);
 	clk_set_parent(soc->blk_cfg_clk, soc->blk_cfg_clk_default);
@@ -212,9 +216,9 @@ static int dcamhw_clk_dis(void *handle, void *arg)
 
 	clk_disable_unprepare(soc->blk_cfg_en);
 	clk_disable_unprepare(soc->mtx_en);
-	clk_disable_unprepare(soc->mtx_lite_en);
+	clk_disable_unprepare(soc_lite->mtx_en);
 	clk_disable_unprepare(soc->tck_en);
-	clk_disable_unprepare(soc->core_lite_eb);
+	clk_disable_unprepare(soc_lite->core_eb);
 	clk_disable_unprepare(soc->core_eb);
 
 	return ret;
@@ -295,6 +299,7 @@ static int dcamhw_qos_set(void *handle, void *arg)
 	uint32_t reg_val = 0;
 	struct cam_hw_info *hw = NULL;
 	struct cam_hw_soc_info *soc = NULL;
+	struct cam_hw_soc_info *soc_lite = NULL;
 	uint32_t id = *(uint32_t *)arg;
 
 	if (!handle) {
@@ -304,15 +309,16 @@ static int dcamhw_qos_set(void *handle, void *arg)
 
 	hw = (struct cam_hw_info *)handle;
 	soc = hw->soc_dcam;
+	soc_lite = hw->soc_dcam_lite;
 
 	if (id <= DCAM_ID_1) {
 		reg_val = (0xF << 28) | (0x0 <<20) | ((soc->arqos_low & 0xF) << 12) | (0x8 << 8) |
 			((soc->awqos_high & 0xF) << 4) | (soc->awqos_low & 0xF);
-		REG_MWR(soc->axi_reg_base[id] + AXIM_CTRL, DCAM_AXIM_AQOS_MASK, reg_val);
+		REG_MWR(soc->axi_reg_base + AXIM_CTRL, DCAM_AXIM_AQOS_MASK, reg_val);
 	} else {
 		reg_val = (0x0 <<20) | ((soc->arqos_low & 0xF) << 12) | (0x8 << 8) |
 			((soc->awqos_high & 0xF) << 4) | (soc->awqos_low & 0xF);
-		REG_MWR(soc->axi_reg_base[id] + AXIM_CTRL, DCAM_LITE_AXIM_AQOS_MASK, reg_val);
+		REG_MWR(soc_lite->axi_reg_base + AXIM_CTRL, DCAM_LITE_AXIM_AQOS_MASK, reg_val);
 	}
 
 	return 0;

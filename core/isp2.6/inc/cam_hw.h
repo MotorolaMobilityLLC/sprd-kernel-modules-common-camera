@@ -1243,7 +1243,8 @@ struct cam_hw_ip_info {
 
 struct cam_hw_soc_info {
 	struct platform_device *pdev;
-	unsigned long axi_reg_base[DCAM_ID_MAX];
+	uint32_t count;
+	unsigned long axi_reg_base;
 	unsigned long fmcu_reg_base;
 
 	struct regmap *cam_ahb_gpr;
@@ -1251,27 +1252,19 @@ struct cam_hw_soc_info {
 	struct regmap *cam_switch_gpr;
 
 	struct clk *core_eb;
-	struct clk *core_lite_eb;
 	struct clk *axi_eb;
 	struct clk *mtx_en;
-	struct clk *mtx_lite_en;
 	struct clk *blk_cfg_en;
 	struct clk *tck_en;
 	struct clk *clk;
 	struct clk *clk_parent;
 	struct clk *clk_default;
-	struct clk *lite_clk;
-	struct clk *lite_clk_parent;
-	struct clk *lite_clk_default;
 	struct clk *bpc_clk;
 	struct clk *bpc_clk_parent;
 	struct clk *bpc_clk_default;
 	struct clk *axi_clk;
 	struct clk *axi_clk_parent;
 	struct clk *axi_clk_default;
-	struct clk *axi_lite_clk;
-	struct clk *axi_lite_clk_parent;
-	struct clk *axi_lite_clk_default;
 	struct clk *mtx_clk;
 	struct clk *mtx_clk_parent;
 	struct clk *mtx_clk_default;
@@ -1295,6 +1288,7 @@ struct cam_hw_info {
 	enum cam_prj_id prj_id;
 	struct platform_device *pdev;
 	struct cam_hw_soc_info *soc_dcam;
+	struct cam_hw_soc_info *soc_dcam_lite;
 	struct cam_hw_soc_info *soc_isp;
 	struct cam_hw_ip_info *ip_dcam[DCAM_ID_MAX];
 	struct cam_hw_ip_info *ip_isp;

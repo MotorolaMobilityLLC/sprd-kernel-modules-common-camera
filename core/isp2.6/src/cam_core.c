@@ -6494,6 +6494,12 @@ static int camcore_open(struct inode *node, struct file *file)
 			ret = cam_buf_iommudev_reg(
 				&grp->hw_info->soc_dcam->pdev->dev,
 				CAM_IOMMUDEV_DCAM);
+
+		if (grp->hw_info && grp->hw_info->soc_dcam_lite && grp->hw_info->soc_dcam_lite->pdev)
+			ret = cam_buf_iommudev_reg(
+				&grp->hw_info->soc_dcam_lite->pdev->dev,
+				CAM_IOMMUDEV_DCAM_LITE);
+
 		if (grp->hw_info && grp->hw_info->soc_isp->pdev)
 			ret = cam_buf_iommudev_reg(
 				&grp->hw_info->soc_isp->pdev->dev,
@@ -6627,6 +6633,7 @@ static int camcore_release(struct inode *node, struct file *file)
 	if (atomic_dec_return(&group->camera_opened) == 0) {
 
 		cam_buf_iommudev_unreg(CAM_IOMMUDEV_DCAM);
+		cam_buf_iommudev_unreg(CAM_IOMMUDEV_DCAM_LITE);
 		cam_buf_iommudev_unreg(CAM_IOMMUDEV_ISP);
 
 		pr_info("release %px\n", g_empty_frm_q);

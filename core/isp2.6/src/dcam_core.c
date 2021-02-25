@@ -52,7 +52,6 @@ struct statis_path_buf_info s_statis_path_info_all[] = {
 	{DCAM_PATH_LSCM,    0,  0, STATIS_LSCM},
 };
 
-atomic_t s_dcam_axi_opened;
 atomic_t s_dcam_opened[DCAM_SW_CONTEXT_MAX];
 static DEFINE_MUTEX(s_dcam_dev_mutex);
 static struct dcam_pipe_dev *s_dcam_dev;
@@ -2621,8 +2620,7 @@ static int dcamcore_dev_open(void *dcam_handle)
 			goto context_init_fail;
 		}
 
-		if (atomic_inc_return(&s_dcam_axi_opened) == 1)
-			dev->hw->dcam_ioctl(dev->hw, DCAM_HW_CFG_INIT_AXI, &hw_ctx_id);
+		dev->hw->dcam_ioctl(dev->hw, DCAM_HW_CFG_INIT_AXI, &hw_ctx_id);
 
 		mutex_init(&dev->path_mutex);
 		spin_lock_init(&dev->ctx_lock);
@@ -2654,7 +2652,6 @@ static int dcamcore_dev_close(void *dcam_handle)
 		ret = dcamcore_context_deinit(dev);
 		ret = dcam_drv_hw_deinit(dev);
 	}
-	atomic_dec(&s_dcam_axi_opened);
 	pr_info("dcam dev disable done\n");
 	return ret;
 
@@ -3122,11 +3119,6 @@ int dcam_core_context_unbind(struct dcam_sw_context *pctx)
 exit:
 	spin_unlock_irqrestore(&dev->ctx_lock, flag);
 	return 0;
-}
-
-uint32_t dcamcore_dcam_if_open_count_get(void)
-{
-	return atomic_read(&s_dcam_axi_opened);
 }
 
 void *dcam_core_pipe_dev_get(struct cam_hw_info *hw)

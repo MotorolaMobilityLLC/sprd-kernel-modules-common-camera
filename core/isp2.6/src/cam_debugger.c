@@ -42,7 +42,6 @@ uint32_t g_isp_bypass[ISP_CONTEXT_SW_NUM] = { 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 int g_dbg_iommu_mode = IOMMU_AUTO;
 int g_dbg_set_iommu_mode = IOMMU_AUTO;
 
-extern atomic_t s_dcam_axi_opened;
 extern atomic_t s_dcam_opened[DCAM_SW_CONTEXT_MAX];
 extern struct isp_pipe_dev *s_isp_dev;
 extern uint32_t s_dbg_linebuf_len;
@@ -221,11 +220,6 @@ static int camdebugger_dcam_reg_show(struct seq_file *s,
 
 	if (idx >= 3 && idx < 5) {
 		seq_printf(s, "-----dcam axi%d and fetch----\n", idx - 3);
-		if (atomic_read(&s_dcam_axi_opened) <= 0) {
-			seq_puts(s, "Hardware not enable\n");
-
-			return 0;
-		}
 
 		for (addr = 0; addr < addr_end[idx]; addr += 4)
 			seq_printf(s, "0x%04x: 0x%08x\n",

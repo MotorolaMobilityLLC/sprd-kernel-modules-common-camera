@@ -121,33 +121,14 @@ static int camhw_get_dcam_dts_clk(void *handle, void *arg)
 	ret |= IS_ERR_OR_NULL(soc_dcam->clk_parent);
 	soc_dcam->clk_default = clk_get_parent(soc_dcam->clk);
 
-	soc_dcam->core_lite_eb = of_clk_get_by_name(dn, "dcam_lite_eb");
-	ret |= IS_ERR_OR_NULL(soc_dcam->core_lite_eb);
-
 	soc_dcam->mtx_en = of_clk_get_by_name(dn, "dcam_mtx_en");
 	ret |= IS_ERR_OR_NULL(soc_dcam->mtx_en);
-
-	soc_dcam->mtx_lite_en = of_clk_get_by_name(dn, "dcam_lite_mtx_en");
-	ret |= IS_ERR_OR_NULL(soc_dcam->mtx_lite_en);
 
 	soc_dcam->tck_en = of_clk_get_by_name(dn, "dcam_tck_en");
 	ret |= IS_ERR_OR_NULL(soc_dcam->tck_en);
 
 	soc_dcam->blk_cfg_en = of_clk_get_by_name(dn, "dcam_blk_cfg_en");
 	ret |= IS_ERR_OR_NULL(soc_dcam->blk_cfg_en);
-
-	soc_dcam->lite_clk = of_clk_get_by_name(dn, "dcam_lite_clk");
-	ret |= IS_ERR_OR_NULL(soc_dcam->lite_clk);
-
-	soc_dcam->lite_clk_parent = of_clk_get_by_name(dn, "dcam_lite_clk_parent");
-	ret |= IS_ERR_OR_NULL(soc_dcam->lite_clk_parent);
-	soc_dcam->lite_clk_default = clk_get_parent(soc_dcam->lite_clk);
-
-	soc_dcam->axi_lite_clk = of_clk_get_by_name(dn, "dcam_lite_axi_clk");
-	ret |= IS_ERR_OR_NULL(soc_dcam->axi_lite_clk);
-	soc_dcam->axi_lite_clk_parent = of_clk_get_by_name(dn, "dcam_lite_axi_clk_parent");
-	ret |= IS_ERR_OR_NULL(soc_dcam->axi_lite_clk_parent);
-	soc_dcam->axi_lite_clk_default = clk_get_parent(soc_dcam->axi_lite_clk);
 
 	soc_dcam->axi_clk = of_clk_get_by_name(dn, "dcam_axi_clk");
 	ret |= IS_ERR_OR_NULL(soc_dcam->axi_clk);
@@ -200,19 +181,6 @@ static int camhw_get_all_rst(void *handle, void *arg)
 	dcam_info->syscon.all_rst = args[0];
 	dcam_info->syscon.all_rst_mask= args[1];
 
-	ret = cam_syscon_get_args_by_name(dn, "dcam23_all_reset", ARRAY_SIZE(args), args);
-	if (ret) {
-		pr_err("fail to get dcam all reset syscon\n");
-		return -EINVAL;
-	}
-
-	dcam_info = hw->ip_dcam[2];
-	dcam_info->syscon.all_rst = args[0];
-	dcam_info->syscon.all_rst_mask= args[1];
-	dcam_info = hw->ip_dcam[3];
-	dcam_info->syscon.all_rst = args[0];
-	dcam_info->syscon.all_rst_mask= args[1];
-
 	return ret;
 }
 
@@ -250,28 +218,10 @@ static int camhw_get_axi_base(void *handle, void *arg)
 	}
 
 	g_dcam_aximbase[0] = (unsigned long)reg_base;
-	soc_dcam->axi_reg_base[0] = (unsigned long)reg_base;
 	g_dcam_aximbase[1] = (unsigned long)reg_base;
-	soc_dcam->axi_reg_base[1] = (unsigned long)reg_base;
+	soc_dcam->axi_reg_base = (unsigned long)reg_base;
 
 	pos = count + 1;
-	if (of_address_to_resource(dn, pos, &reg_res)) {
-		pr_err("fail to get AXIM phy addr\n");
-		goto err_axi_iounmap;
-	}
-
-	reg_base = ioremap(reg_res.start, reg_res.end - reg_res.start + 1);
-	if (!reg_base) {
-		pr_err("fail to map AXIM reg base\n");
-		goto err_axi_iounmap;
-	}
-
-	g_dcam_aximbase[2] = (unsigned long)reg_base;
-	soc_dcam->axi_reg_base[2] = (unsigned long)reg_base;
-	g_dcam_aximbase[3] = (unsigned long)reg_base;
-	soc_dcam->axi_reg_base[3] = (unsigned long)reg_base;
-
-	pos = count + 2;
 	if (of_address_to_resource(dn, pos, &reg_res)) {
 		pr_err("fail to get FMCU phy addr\n");
 		goto err_axi_iounmap;
@@ -294,8 +244,6 @@ err_axi_iounmap:
 		iounmap((void __iomem *)g_dcam_aximbase[0]);
 	g_dcam_aximbase[0] = 0;
 	g_dcam_aximbase[1] = 0;
-	g_dcam_aximbase[2] = 0;
-	g_dcam_aximbase[3] = 0;
 	return -1;
 }
 
@@ -430,6 +378,7 @@ static int camhwif_cam_ioctl(void *handle,
 }
 
 static struct cam_hw_soc_info dcam_soc_info;
+static struct cam_hw_soc_info dcam_lite_soc_info;
 static struct cam_hw_soc_info isp_soc_info;
 static struct cam_hw_ip_info dcam[DCAM_ID_MAX] = {
 	[DCAM_ID_0] = {
@@ -513,6 +462,7 @@ struct cam_hw_info qogirn6pro_hw_info = {
 	.prj_id = QOGIRN6pro,
 	.pdev = NULL,
 	.soc_dcam = &dcam_soc_info,
+	.soc_dcam_lite = &dcam_lite_soc_info,
 	.soc_isp = &isp_soc_info,
 	.ip_dcam[DCAM_ID_0] = &dcam[DCAM_ID_0],
 	.ip_dcam[DCAM_ID_1] = &dcam[DCAM_ID_1],
