@@ -695,7 +695,7 @@ static void dcamint_full_path_done(void *param)
 				frame->irq_type = CAMERA_IRQ_IMG;
 		}
 		if (sw_ctx->dcam_slice_mode)
-			frame->irq_type = CAMERA_IRQ_BIGSIZE_DONE;
+			frame->irq_type = CAMERA_IRQ_SUPERSIZE_DONE;
 		if(sw_ctx->offline && sw_ctx->sw_ctx_id == DCAM_ID_1)
 			frame->irq_type = CAMERA_IRQ_IMG;
 		dcamint_frame_dispatch(dcam_hw_ctx, DCAM_PATH_FULL, frame, DCAM_CB_DATA_DONE);
@@ -839,7 +839,7 @@ static void dcamint_vch2_path_done(void *param)
 
 	if ((frame = dcamint_frame_prepare(dcam_hw_ctx, DCAM_PATH_VCH2))) {
 		if (dcam_hw_ctx->sw_ctx->dcam_slice_mode)
-			frame->irq_type = CAMERA_IRQ_BIGSIZE_DONE;
+			frame->irq_type = CAMERA_IRQ_SUPERSIZE_DONE;
 		dcamint_frame_dispatch(dcam_hw_ctx, DCAM_PATH_VCH2, frame, type);
 	}
 }

@@ -3314,7 +3314,7 @@ static int ispcore_context_put(void *isp_handle, int ctx_id)
 		}
 
 		if (pctx->rgb_gtm_handle && hw->ip_isp->rgb_gtm_support) {
-			isp_gtm_rgb_ctx_put(pctx->rgb_ltm_handle);
+			isp_gtm_rgb_ctx_put(pctx->rgb_gtm_handle);
 			pctx->rgb_gtm_handle = NULL;
 		}
 

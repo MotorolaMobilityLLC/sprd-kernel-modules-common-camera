@@ -1086,6 +1086,7 @@ static int camioctl_frame_addr_set(struct camera_module *module,
 	struct channel_context *ch = NULL;
 	struct channel_context *ch_prv = NULL;
 	struct camera_frame *pframe = NULL;
+	struct dcam_sw_context *dcam_sw_ctx = NULL;
 
 	if ((atomic_read(&module->state) != CAM_CFG_CH) &&
 		(atomic_read(&module->state) != CAM_RUNNING)) {
@@ -1186,7 +1187,9 @@ static int camioctl_frame_addr_set(struct camera_module *module,
 				cmd = DCAM_PATH_CFG_OUTPUT_ALTER_BUF;
 			}
 
-			ret = module->dcam_dev_handle->dcam_pipe_ops->cfg_path(&module->dcam_dev_handle->sw_ctx[module->cur_sw_ctx_id],
+			dcam_sw_ctx = &module->dcam_dev_handle->sw_ctx[module->cur_sw_ctx_id];
+
+			ret = module->dcam_dev_handle->dcam_pipe_ops->cfg_path(dcam_sw_ctx,
 				cmd, ch->dcam_path_id, pframe);
 			/* 4in1_raw_capture, maybe need two image once */
 			if (ch->second_path_enable) {
@@ -1196,7 +1199,7 @@ static int camioctl_frame_addr_set(struct camera_module *module,
 					ret = -EFAULT;
 					break;
 				}
-				ret = module->dcam_dev_handle->dcam_pipe_ops->cfg_path(&module->dcam_dev_handle->sw_ctx[module->cur_sw_ctx_id],
+				ret = module->dcam_dev_handle->dcam_pipe_ops->cfg_path(dcam_sw_ctx,
 					cmd, ch->second_path_id, pframe);
 			}
 		}
@@ -2756,6 +2759,7 @@ static int camioctl_4in1_raw_addr_set(struct camera_module *module,
 	struct sprd_img_parm param;
 	struct channel_context *ch;
 	struct camera_frame *pframe;
+	struct dcam_sw_context *dcam_sw_ctx = NULL;
 	int i, j;
 
 	ret = copy_from_user(&param, (void __user *)arg,
@@ -2778,6 +2782,8 @@ static int camioctl_4in1_raw_addr_set(struct camera_module *module,
 		param.buffer_count);
 
 	ch = &module->channel[param.channel_id];
+	dcam_sw_ctx = &module->dcam_dev_handle->sw_ctx[module->cur_sw_ctx_id];
+
 	for (i = 0; i < param.buffer_count; i++) {
 		pframe = cam_queue_empty_frame_get();
 		pframe->buf.type = CAM_BUF_USER;
@@ -2805,11 +2811,11 @@ static int camioctl_4in1_raw_addr_set(struct camera_module *module,
 			for (j = 0; j < 3; j++)
 				pframe->buf.size[j] = cal_sprd_raw_pitch(ch->ch_uinfo.src_size.w, module->cam_uinfo.sensor_if.if_spec.mipi.is_loose)
 					* ch->ch_uinfo.src_size.h;
-			ret = module->dcam_dev_handle->dcam_pipe_ops->cfg_path(&module->dcam_dev_handle->sw_ctx[module->cur_sw_ctx_id],
+			ret = module->dcam_dev_handle->dcam_pipe_ops->cfg_path(dcam_sw_ctx,
 				DCAM_PATH_CFG_OUTPUT_RESERVED_BUF,
 				ch->dcam_path_id, pframe);
 		} else {
-			ret = module->dcam_dev_handle->dcam_pipe_ops->cfg_path(&module->dcam_dev_handle->sw_ctx[module->cur_sw_ctx_id],
+			ret = module->dcam_dev_handle->dcam_pipe_ops->cfg_path(dcam_sw_ctx,
 				DCAM_PATH_CFG_OUTPUT_BUF,
 				ch->dcam_path_id, pframe);
 		}
