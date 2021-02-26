@@ -116,7 +116,6 @@ bool cam_trusty_connect(void)
 	struct cam_ca_ctrl *ca = &cam_ca;
 	int chan_conn_ret = 0;
 	bool ret = false;
-	uint32_t timeout_ret = 0;
 
 	pr_info("chanel_state =%d\n", ca->chanel_state);
 
@@ -151,10 +150,9 @@ bool cam_trusty_connect(void)
 		pr_info("cam connect channel done\n");
 	}
 
-	timeout_ret = msecs_to_jiffies(CA_CONN_TIMEOUT);
 	if (!wait_event_interruptible_timeout(ca->readq,
 			(ca->chanel_state == TIPC_CHANNEL_CONNECTED),
-			timeout_ret)) {
+			msecs_to_jiffies(CA_CONN_TIMEOUT))) {
 		pr_err("fail to wait read response, time out!\n");
 		ret = false;
 	}
@@ -229,16 +227,12 @@ ssize_t cam_ca_read(void *buf, size_t max_len)
 	struct tipc_msg_buf *mb;
 	ssize_t	len;
 	struct cam_ca_ctrl *ca = &cam_ca;
-	uint32_t timeout_ret = 0;
-	int list_empty_ret = 0;
 
 	pr_info("ca read enter");
 
-	timeout_ret = msecs_to_jiffies(CA_READ_TIMEOUT);
-	list_empty_ret = list_empty(&ca->rx_msg_queue);
 	if (!wait_event_interruptible_timeout(ca->readq,
-		!list_empty_ret,
-		timeout_ret)) {
+		!list_empty(&ca->rx_msg_queue),
+		msecs_to_jiffies(CA_READ_TIMEOUT))) {
 		pr_err("fail to wait read response, time out!\n");
 		return -ETIMEDOUT;
 	}
