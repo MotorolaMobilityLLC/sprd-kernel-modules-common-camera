@@ -901,20 +901,15 @@ static void camcore_compression_cal(struct camera_module *module)
 	ch_pre->compress_input = ch_pre->enable
 		&& ch_pre->ch_uinfo.sn_fmt == IMG_PIX_FMT_GREY
 		&& !ch_pre->ch_uinfo.is_high_fps
-		&& !ch_cap->compress_input
 		&& !module->cam_uinfo.is_4in1;
 	ch_vid->compress_input = ch_pre->compress_input;
-
-	dcam_hw = module->grp->hw_info;
-	if (dcam_hw->prj_id == SHARKL5pro)
-		ch_pre->compress_input = ch_pre->compress_input && (!ch_cap->compress_input);
-
 	ch_raw->compress_input = ch_raw->enable
 		&& ch_raw->ch_uinfo.sn_fmt == IMG_PIX_FMT_GREY
 		&& !ch_raw->ch_uinfo.is_high_fps
 		&& !module->cam_uinfo.is_4in1;
 	ch_raw->compress_input = ch_cap->compress_input ? 0 : ch_raw->compress_input;
 
+	dcam_hw = module->grp->hw_info;
 	/* Disable compression for 3DNR by default */
 	ch_cap->compress_3dnr = 0;
 	ch_pre->compress_3dnr = 0;
