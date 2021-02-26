@@ -368,7 +368,11 @@ int csi_api_open(int bps_per_lane, int phy_id, int lane_num, int sensor_id, int 
 		return -EINVAL;
 	}
 	if (is_cphy){
-		phy_id = (phy_id == 0) ? 8 : 9;
+		pr_info("orign phy_id: %d\n", phy_id);
+		if (sensor_id == 0)
+			phy_id = 8;
+		else if (sensor_id == 1)
+			phy_id = 9;
 		dt_info->phy.phy_id = phy_id;
 	}
 /*	phy_id = (phy_id == 2) ? 4 : phy_id;

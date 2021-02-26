@@ -118,7 +118,8 @@ static unsigned long csi_dump_regbase[CSI_MAX_COUNT];
 static spinlock_t csi_dump_lock[CSI_MAX_COUNT] = {
 	__SPIN_LOCK_UNLOCKED(csi_dump_lock),
 	__SPIN_LOCK_UNLOCKED(csi_dump_lock),
-	__SPIN_LOCK_UNLOCKED(csi_dump_lock)
+	__SPIN_LOCK_UNLOCKED(csi_dump_lock),
+	__SPIN_LOCK_UNLOCKED(csi_dump_lock),
 };
 #define ANALOG_G4_REG_BASE 0x64318000
 #define ANALOG_G4L_REG_BASE 0x6434C000
@@ -1198,6 +1199,7 @@ void csi_phy_init(struct csi_dt_node_info *dt_info, int32_t idx)
 {
 	struct csi_phy_info *phy = NULL;
 	struct regmap *anlg_phy_syscon;
+//	uint8_t tmp0 = 0;
 
 	if (!dt_info) {
 		pr_err("fail to get valid phy ptr\n");
@@ -1241,12 +1243,16 @@ void csi_phy_init(struct csi_dt_node_info *dt_info, int32_t idx)
 		/* phy: cphy phy */
 		CSI_REG_MWR(idx, PHY_SEL, BIT_0, 1);
 		CSI_REG_MWR(idx, PHY_TEST_CRTL0, PHY_REG_SEL, 1 << 2);
-		phy_write(idx, 0x3c, 0x1e, 0x1c);//0x1e);
-		phy_write(idx, 0x95, 0x1a, 0xff);
-		phy_write(idx, 0xb5, 0x1a, 0xff);
-		phy_write(idx, 0xd5, 0x1a, 0xff);
+//		phy_write(idx, 0x6b, 0x40, BIT_6 | BIT_5);//0x1e);
+//		phy_read(idx, 0x96, &tmp0);
+		phy_write(idx, 0x3c, 0x08, 0xff);//0x1e, 0x1c);//0x1e);
+		//phy_write(idx, 0x95, 0x1a, 0xff);
+		//phy_write(idx, 0xb5, 0x1a, 0xff);
+		//phy_write(idx, 0xd5, 0x1a, 0xff);
+		regmap_update_bits(anlg_phy_syscon,0x40, BIT_2, BIT_2);//enabel lane
 
 		cphy_cdr_init(dt_info, idx);
+		//phy_write(idx, 0x3b, BIT_3, BIT_3);//0x1e, 0x1c);//0x1e);
 		CSI_REG_MWR(idx, PHY_TEST_CRTL0, PHY_REG_SEL, ~(1 << 2));
 #if 0
 		/****just for sprd ov32a1q swap****/

@@ -17,7 +17,6 @@
 #include <linux/of.h>
 #include <linux/spinlock.h>
 
-#define CSI_MAX_COUNT			3
 
 
 #define CSI_BASE(idx)			(s_csi_regbase[idx])
@@ -46,7 +45,7 @@ enum csi_controller_t {
 	CSI_RX1,
 	CSI_RX2,
 	CSI_RX3,
-	CSI_RX_MAX,
+	CSI_MAX_COUNT,
 };
 
 enum csi_registers_t {
