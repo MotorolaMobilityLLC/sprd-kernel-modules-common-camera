@@ -1104,6 +1104,9 @@ struct dcam_hw_dec_online_cfg {
 	uint32_t hor_padding_num;
 	uint32_t ver_padding_en;
 	uint32_t ver_padding_num;
+	uint32_t flush_hblank_num;
+	uint32_t flush_line_num;
+	uint32_t flust_width;
 };
 
 struct dcam_hw_fmcu_cmd {

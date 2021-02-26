@@ -599,8 +599,7 @@ static void ispslice_slice_size_info_get(
 			slice_w = (max_w + slice_num - 1) / slice_num;
 		} while (slice_w >= slice_max_w);
 	}
-	pr_info("input_w %d, slice_num %d, slice_w %d\n",
-		max_w, slice_num, slice_w);
+	pr_debug("input_w %d, slice_num %d, slice_w %d\n", max_w, slice_num, slice_w);
 
 	/* based output */
 	max_w = 0;
@@ -702,7 +701,7 @@ static int ispslice_slice_base_info_cfg(
 	slc_ctx->slice_width = slice_width;
 	slc_ctx->img_height = img_height;
 	slc_ctx->img_width = img_width;
-	pr_info("img w %d, h %d, slice w %d, h %d, slice num %d\n",
+	pr_debug("img w %d, h %d, slice w %d, h %d, slice num %d\n",
 		img_width, img_height,
 		slice_width, slice_height, slice_num);
 	if (!frame_fbd_raw->fetch_fbd_bypass)
@@ -2529,6 +2528,7 @@ int isp_slice_fmcu_cmds_set(void *fmcu_handle, void *ctx)
 	struct isp_fmcu_ctx_desc *fmcu;
 	struct isp_sw_context *pctx = NULL;
 	struct cam_hw_info *hw = NULL;
+	struct isp_rec_ctx_desc *rec_ctx = NULL;
 	struct isp_hw_fbd_slice fbd_slice;
 	struct isp_hw_afbc_path_slice afbc_slice;
 	struct isp_hw_ltm_slice ltm;
@@ -2551,10 +2551,11 @@ int isp_slice_fmcu_cmds_set(void *fmcu_handle, void *ctx)
 	}
 
 	pctx = (struct isp_sw_context *)ctx;
+	rec_ctx = (struct isp_rec_ctx_desc *)pctx->rec_handle;
 	hw = pctx->hw;
 	sw_ctx_id = pctx->ctx_id;
 	hw_ctx_id = isp_core_hw_context_id_get(pctx);
-	pr_info("get hw context id=%d\n", hw_ctx_id);
+	pr_debug("get hw context id=%d\n", hw_ctx_id);
 	wmode = pctx->dev->wmode;
 	slc_ctx = (struct isp_slice_context *)pctx->slice_ctx;
 	if (slc_ctx->slice_num < 1) {
@@ -2568,7 +2569,7 @@ int isp_slice_fmcu_cmds_set(void *fmcu_handle, void *ctx)
 	for (i = 0; i < SLICE_NUM_MAX; i++, cur_slc++) {
 		if (cur_slc->valid == 0)
 			continue;
-		if (wmode == ISP_CFG_MODE) {
+		if (wmode == ISP_CFG_MODE && (!slc_ctx->pyr_rec_eb)) {
 			fmcu_cfg.fmcu = fmcu;
 			fmcu_cfg.ctx_id = hw_ctx_id;
 			hw->isp_ioctl(hw, ISP_HW_CFG_FMCU_CFG, &fmcu_cfg);
@@ -2593,6 +2594,7 @@ int isp_slice_fmcu_cmds_set(void *fmcu_handle, void *ctx)
 		if (slc_ctx->pyr_rec_eb) {
 			rec_slice_func.index = ISP_K_BLK_PYR_REC_SLICE_COMMON;
 			hw->isp_ioctl(hw, ISP_HW_CFG_K_BLK_FUNC_GET, &rec_slice_func);
+			rec_ctx->cur_slice_id = i;
 			if (rec_slice_func.k_blk_func)
 				rec_slice_func.k_blk_func(pctx->rec_handle);
 		}

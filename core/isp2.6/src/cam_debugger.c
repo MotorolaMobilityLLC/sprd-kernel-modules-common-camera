@@ -41,6 +41,7 @@ int s_dbg_work_mode = ISP_CFG_MODE;
 uint32_t g_isp_bypass[ISP_CONTEXT_SW_NUM] = { 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 int g_dbg_iommu_mode = IOMMU_AUTO;
 int g_dbg_set_iommu_mode = IOMMU_AUTO;
+uint32_t g_pyr_dec_online_bypass = 0;
 
 extern atomic_t s_dcam_opened[DCAM_SW_CONTEXT_MAX];
 extern struct isp_pipe_dev *s_isp_dev;
@@ -491,6 +492,41 @@ static const struct file_operations csi_switch_ops = {
 	.write = camdebugger_csi_switch_write,
 };
 
+static ssize_t camdebugger_pyr_dec_bypass(struct file *filp,
+	const char __user *buffer, size_t count, loff_t *ppos)
+{
+	int ret = 0;
+	char msg[8];
+	uint32_t val;
+
+	if (count > 2)
+		return -EINVAL;
+
+	ret = copy_from_user(msg, (void __user *)buffer, count);
+	if (ret) {
+		pr_err("fail to copy_from_user\n");
+		return -EFAULT;
+	}
+
+	msg[count] = '\0';
+	ret = kstrtouint(msg, 10, &val);
+	if (ret < 0) {
+		pr_err("fail to convert '%s', ret %d", msg, ret);
+		return ret;
+	}
+
+	g_pyr_dec_online_bypass = val;
+	pr_info("set pyr_dec_online_bypass %u\n", g_pyr_dec_online_bypass);
+
+	return count;
+}
+
+static const struct file_operations pyr_dec_online_ops = {
+	.owner = THIS_MODULE,
+	.open = simple_open,
+	.write = camdebugger_pyr_dec_bypass,
+};
+
 static int camdebugger_replace_image_read(struct seq_file *s,
 		void *unused)
 {
@@ -673,6 +709,9 @@ static int camdebugger_dcam_init(struct camera_debugger *debugger)
 	if (!debugfs_create_file("csi_switch", 0664,
 		pd, debugger, &csi_switch_ops))
 		ret |= BIT(11);
+	if (!debugfs_create_file("pyr_dec_bypass", 0664,
+		pd, debugger, &pyr_dec_online_ops))
+		ret |= BIT(12);
 	mutex_init(&g_dbg_dump.dump_lock);
 
 	entry = debugfs_create_file("replace_image", 0644, pd,

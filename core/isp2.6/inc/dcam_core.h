@@ -331,14 +331,14 @@ struct dcam_switch_param {
 
 static inline uint32_t cal_sprd_yuv_pitch(uint32_t w, uint32_t dcam_out_bits, uint32_t is_pack)
 {
-	if (dcam_out_bits == DCAM_STORE_8_BIT)
-		return w;
-	else {
-		if (is_pack)
-			return w * 10 / 8;
+	if (dcam_out_bits != DCAM_STORE_8_BIT) {
+		if(is_pack)
+			w = (w * 10 + 31) / 32 * 32 / 8;
 		else
-			return w * 2;
+			w = (w * 16 + 31) / 32 * 32 / 8;
 	}
+
+	return w;
 }
 
 /*

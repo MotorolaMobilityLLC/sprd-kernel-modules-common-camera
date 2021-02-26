@@ -29,7 +29,7 @@
 	fmt, current->pid, __LINE__, __func__
 
 #ifdef CAM_ON_HAPS
-#define CAM_DEBUG_LOG pr_info
+#define CAM_DEBUG_LOG pr_debug
 #else
 #define CAM_DEBUG_LOG pr_debug
 #endif
@@ -41,11 +41,9 @@ static uint32_t dcam_int_recorder[DCAM_HW_CONTEXT_MAX][DCAM_IF_IRQ_INT0_NUMBER][
 static uint32_t int_index[DCAM_HW_CONTEXT_MAX][DCAM_IF_IRQ_INT0_NUMBER];
 #endif
 
-static uint32_t dcam_int_tracker[DCAM_HW_CONTEXT_MAX][DCAM_IF_IRQ_INT0_NUMBER];
-static char *dcam_dev_name[] = {"DCAM0",
-				"DCAM1",
-				"DCAM2"
-				};
+static uint32_t dcam_int0_tracker[DCAM_HW_CONTEXT_MAX][DCAM_IF_IRQ_INT0_NUMBER];
+static uint32_t dcam_int1_tracker[DCAM_HW_CONTEXT_MAX][DCAM_IF_IRQ_INT1_NUMBER];
+static char *dcam_dev_name[] = {"DCAM0", "DCAM1", "DCAM2"};
 
 enum dcam_fix_result {
 	DEFER_TO_NEXT,
@@ -53,13 +51,15 @@ enum dcam_fix_result {
 	BUFFER_READY,
 };
 
-static inline void dcamint_dcam_int_record(uint32_t idx, uint32_t status)
+static inline void dcamint_dcam_int_record(uint32_t idx, uint32_t status, uint32_t status1)
 {
 	uint32_t i;
 
 	for (i = 0; i < DCAM_IF_IRQ_INT0_NUMBER; i++) {
 		if (status & BIT(i))
-			dcam_int_tracker[idx][i]++;
+			dcam_int0_tracker[idx][i]++;
+		if (status1 & BIT(i))
+			dcam_int1_tracker[idx][i]++;
 	}
 
 #ifdef DCAM_INT_RECORD
@@ -501,7 +501,6 @@ static void dcamint_cap_sof(void *param)
 		pr_debug("dcam%d offline\n", dcam_hw_ctx->hw_ctx_id);
 		return;
 	}
-	pr_debug("cap sof\n");
 
 	hw = sw_ctx->dev->hw;
 
@@ -977,8 +976,10 @@ static void dcamint_sensor_sof3(void *param)
 
 void dcam_int_tracker_reset(uint32_t idx)
 {
-	if (is_dcam_id(idx))
-		memset(dcam_int_tracker[idx], 0, sizeof(dcam_int_tracker[idx]));
+	if (is_dcam_id(idx)) {
+		memset(dcam_int0_tracker[idx], 0, sizeof(dcam_int0_tracker[idx]));
+		memset(dcam_int1_tracker[idx], 0, sizeof(dcam_int1_tracker[idx]));
+	}
 
 #ifdef DCAM_INT_RECORD
 	if (is_dcam_id(idx)) {
@@ -996,15 +997,18 @@ void dcam_int_tracker_dump(uint32_t idx)
 		return;
 
 	for (i = 0; i < DCAM_IF_IRQ_INT0_NUMBER; i++) {
-		if (dcam_int_tracker[idx][i])
-			pr_info("DCAM%u i=%d, int=%u\n", idx, i,
-				 dcam_int_tracker[idx][i]);
+		if (dcam_int0_tracker[idx][i])
+			pr_info("DCAM%u i=%d, int0=%u\n", idx, i,
+				 dcam_int0_tracker[idx][i]);
+		if (dcam_int1_tracker[idx][i])
+			pr_info("DCAM%u i=%d, int1=%u\n", idx, i,
+				 dcam_int1_tracker[idx][i]);
 	}
 
 #ifdef DCAM_INT_RECORD
 	{
 		uint32_t cnt, j;
-		for (cnt = 0; cnt < (uint32_t)dcam_int_tracker[idx][DCAM_IF_IRQ_INT0_SENSOR_EOF]; cnt += 4) {
+		for (cnt = 0; cnt < (uint32_t)dcam_int0_tracker[idx][DCAM_IF_IRQ_INT0_SENSOR_EOF]; cnt += 4) {
 			j = (cnt & (INT_RCD_SIZE - 1));
 			pr_info("DCAM%u j=%d, %03d.%04d, %03d.%04d, %03d.%04d, %03d.%04d, %03d.%04d, %03d.%04d, %03d.%04d\n",
 			idx, j, (uint32_t)dcam_int_recorder[idx][DCAM_IF_IRQ_INT0_SENSOR_EOF][j] >> 16,
@@ -1263,7 +1267,7 @@ static irqreturn_t dcamint_isr_root(int irq, void *priv)
 	status &= DCAMINT_IRQ_LINE_INT0_MASK;
 	status1 &= DCAMINT_IRQ_LINE_INT1_MASK;
 
-	dcamint_dcam_int_record(dcam_hw_ctx->hw_ctx_id, status);
+	dcamint_dcam_int_record(dcam_hw_ctx->hw_ctx_id, status, status1);
 
 	if (unlikely(DCAMINT_INT0_ERROR & status)) {
 		dcamint_error_handler(dcam_hw_ctx, status);

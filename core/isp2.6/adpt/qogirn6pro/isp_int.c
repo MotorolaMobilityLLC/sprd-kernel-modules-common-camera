@@ -46,7 +46,6 @@ static const uint32_t isp_irq_process[] = {
 	ISP_INT_RGB_LTMHISTS_DONE,
 	ISP_INT_FMCU_LOAD_DONE,
 	ISP_INT_FMCU_SHADOW_DONE,
-	ISP_INT_HIST_CAL_DONE,
 	ISP_INT_ISP_ALL_DONE,
 	ISP_INT_FMCU_STORE_DONE,
 };
@@ -328,94 +327,6 @@ static void ispint_rgb_ltm_hists_done(enum isp_context_hw_id hw_idx, void *isp_h
 		completion = rgb_ltm->ltm_ops.sync_ops.do_completion(rgb_ltm);
 }
 
-static struct camera_frame *ispint_hist2_frame_prepare(enum isp_context_id idx,
-						void *isp_handle)
-{
-	int i = 0;
-	int max_item = 256;
-	unsigned long HIST_BUF = ISP_HIST2_BUF0_ADDR;
-	struct camera_frame *frame = NULL;
-	struct isp_pipe_dev *dev;
-	struct isp_sw_context *pctx;
-
-	uint32_t *buf = NULL;
-
-	dev = (struct isp_pipe_dev *)isp_handle;
-	pctx = dev->sw_ctx[idx];
-
-	frame = cam_queue_dequeue(&pctx->hist2_result_queue, struct camera_frame, list);
-	if (!frame) {
-		pr_debug("isp ctx_id[%d] hist2_result_queue unavailable\n", idx);
-		return NULL;
-	}
-
-	buf = (uint32_t *)frame->buf.addr_k[0];
-
-	if (!frame->buf.addr_k[0]) {
-		pr_err("fail to get valid ptr\n");
-		if (cam_queue_enqueue(&pctx->hist2_result_queue, &frame->list) < 0)
-			pr_err("fail to enqueue\n");
-		return NULL;
-	}
-	for (i = 0; i < max_item; i++)
-		buf[i] = ISP_HREG_RD(HIST_BUF + i * 4);
-
-	frame->width = pctx->pipe_info.fetch.in_trim.size_x;
-	frame->height = pctx->pipe_info.fetch.in_trim.size_y;
-
-	return frame;
-}
-
-static void ispint_frame_dispatch(enum isp_context_id idx,
-				void *isp_handle,
-				struct camera_frame *frame,
-				enum isp_cb_type type)
-{
-	struct timespec cur_ts;
-	struct isp_pipe_dev *dev;
-	struct isp_sw_context *pctx;
-
-	dev = (struct isp_pipe_dev *)isp_handle;
-	pctx = dev->sw_ctx[idx];
-
-	if (unlikely(!dev || !frame))
-		return;
-
-	ktime_get_ts(&cur_ts);
-	frame->time.tv_sec = cur_ts.tv_sec;
-	frame->time.tv_usec = cur_ts.tv_nsec / NSEC_PER_USEC;
-	frame->boot_time = ktime_get_boottime();
-
-	pr_debug("isp ctx[%d]: time %06d.%06d\n", idx,
-		(int)frame->time.tv_sec, (int)frame->time.tv_usec);
-
-	pctx->isp_cb_func(type, frame, pctx->cb_priv_data);
-}
-
-static void ispint_hist_cal_done(enum isp_context_hw_id hw_idx, void *isp_handle)
-{
-	struct camera_frame *frame = NULL;
-	struct isp_pipe_dev *dev = NULL;
-	struct isp_sw_context *pctx;
-	int idx = -1;
-
-	dev = (struct isp_pipe_dev *)isp_handle;
-	idx = isp_core_sw_context_id_get(hw_idx, dev);
-	if (idx < 0) {
-		pr_err("fail to get sw_id for hw_idx=%d\n", hw_idx);
-		return;
-	}
-
-	pctx = dev->sw_ctx[idx];
-
-	/* only use isp hist in preview channel */
-	if (pctx->ch_id != CAM_CH_PRE)
-		return;
-
-	if ((frame = ispint_hist2_frame_prepare(idx, isp_handle)))
-		ispint_frame_dispatch(idx, isp_handle, frame, ISP_CB_STATIS_DONE);
-}
-
 static isp_isr isp_isr_handler[32] = {
 	[ISP_INT_ISP_ALL_DONE] = ispint_all_done,
 	[ISP_INT_SHADOW_DONE] = ispint_shadow_done,
@@ -428,7 +339,6 @@ static isp_isr isp_isr_handler[32] = {
 	[ISP_INT_FMCU_LOAD_DONE] = ispint_fmcu_load_done,
 	[ISP_INT_FMCU_SHADOW_DONE] = ispint_fmcu_shadow_done,
 	[ISP_INT_FMCU_STORE_DONE] = ispint_fmcu_store_done,
-	[ISP_INT_HIST_CAL_DONE] = ispint_hist_cal_done,
 	[ISP_INT_RGB_LTMHISTS_DONE]  = ispint_rgb_ltm_hists_done,
 };
 

@@ -52,6 +52,7 @@ enum cam_iommu_mode {
 };
 extern int g_dbg_iommu_mode;
 extern int g_dbg_set_iommu_mode;
+extern uint32_t g_pyr_dec_online_bypass;
 
 /* for global camera control */
 struct cam_global_ctrl {

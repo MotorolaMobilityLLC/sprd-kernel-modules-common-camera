@@ -544,6 +544,9 @@ static int dcampath_pyr_dec_cfg(struct dcam_path_desc *path,
 		dec_online.hor_padding_en = 1;
 	if (dec_online.ver_padding_num)
 		dec_online.ver_padding_en = 1;
+	dec_online.flust_width = path->out_size.w;
+	dec_online.flush_hblank_num = dec_online.hor_padding_num + 20;
+	dec_online.flush_line_num = dec_online.ver_padding_num + 20;
 	hw->dcam_ioctl(hw, DCAM_HW_CFG_DEC_ONLINE, &dec_online);
 
 	dec_store.idx = idx;
@@ -570,8 +573,12 @@ static int dcampath_pyr_dec_cfg(struct dcam_path_desc *path,
 	dec_store.mono_en = 0;
 	dec_store.speed2x = 1;
 	dec_store.rd_ctrl = 0;
-	dec_store.store_res = 1;
+	dec_store.store_res = 0;
+	dec_store.burst_len = 1;
 
+	pr_debug("dcam %d padding w %d h %d alignw %d h%d\n", idx,
+		dec_online.hor_padding_num, dec_online.ver_padding_num, align_w, align_h);
+	pr_debug("dcam %d out pitch %d addr %x\n", idx, path->out_pitch, frame->buf.iova[0]);
 	for (i = 0; i < DCAM_PYR_DEC_LAYER_NUM; i++) {
 		align = align * 2;
 		offset += (size * 3 / 2);
@@ -589,6 +596,8 @@ static int dcampath_pyr_dec_cfg(struct dcam_path_desc *path,
 		 thus, the dec_store need remember on path or ctx, and calc & reg set
 		 need separate too, now just */
 		hw->dcam_ioctl(hw, DCAM_HW_CFG_DEC_SIZE_UPDATE, &dec_store);
+		pr_debug("dcam %d dec_layer %d w %d h %d\n", idx, i, dec_store.width, dec_store.height);
+		pr_debug("dcam %d dec_layer %d w %x h %x\n", idx, i, dec_store.addr[0], dec_store.addr[1]);
 	}
 
 	return ret;

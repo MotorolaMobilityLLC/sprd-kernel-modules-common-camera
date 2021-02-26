@@ -130,11 +130,8 @@ static int ispfmcu_start(struct isp_fmcu_ctx_desc *fmcu_ctx)
 
 	{
 		unsigned int i = 0;
-		unsigned long addr =
-			(unsigned long)fmcu_ctx->cmd_buf[fmcu_ctx->cur_buf_id];
-		pr_debug("fmcu %d  cmd num %d\n",
-				(int)fmcu_ctx->fid,  cmd_num);
-
+		unsigned long addr = (unsigned long)fmcu_ctx->cmd_buf[fmcu_ctx->cur_buf_id];
+		pr_debug("fmcu %d cmd num %d\n", (int)fmcu_ctx->fid,  cmd_num);
 		for (i = 0; i <= cmd_num; i += 2) {
 			pr_debug("a:0x%08x c: 0x%08x | a:0x%08x c: 0x%08x\n",
 				*(uint32_t *)(addr + 4),

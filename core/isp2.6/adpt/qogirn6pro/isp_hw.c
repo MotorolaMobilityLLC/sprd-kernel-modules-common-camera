@@ -291,6 +291,50 @@ abnormal_reg_trace:
 			ISP_HREG_RD(addr + 12));
 	}
 
+	pr_info("ISP: Common Register list\n");
+	for (addr = 0x988; addr <= 0x998; addr += 16) {
+		pr_info("0x%lx: 0x%x 0x%x 0x%x 0x%x\n",
+			addr,
+			ISP_HREG_RD(addr),
+			ISP_HREG_RD(addr + 4),
+			ISP_HREG_RD(addr + 8),
+			ISP_HREG_RD(addr + 12));
+	}
+
+	pr_info("ISP: pyr_rec Register list\n");
+	for (addr = 0x9310; addr <= 0x9334; addr += 16) {
+		pr_info("0x%lx: 0x%x 0x%x 0x%x 0x%x\n",
+			addr,
+			ISP_HREG_RD(addr),
+			ISP_HREG_RD(addr + 4),
+			ISP_HREG_RD(addr + 8),
+			ISP_HREG_RD(addr + 12));
+	}
+	for (addr = 0x9510; addr <= 0x9534; addr += 16) {
+		pr_info("0x%lx: 0x%x 0x%x 0x%x 0x%x\n",
+			addr,
+			ISP_HREG_RD(addr),
+			ISP_HREG_RD(addr + 4),
+			ISP_HREG_RD(addr + 8),
+			ISP_HREG_RD(addr + 12));
+	}
+	for (addr = 0x9610; addr <= 0x963C; addr += 16) {
+		pr_info("0x%lx: 0x%x 0x%x 0x%x 0x%x\n",
+			addr,
+			ISP_HREG_RD(addr),
+			ISP_HREG_RD(addr + 4),
+			ISP_HREG_RD(addr + 8),
+			ISP_HREG_RD(addr + 12));
+	}
+	for (addr = 0x9B10; addr <= 0x9B14; addr += 16) {
+		pr_info("0x%lx: 0x%x 0x%x 0x%x 0x%x\n",
+			addr,
+			ISP_HREG_RD(addr),
+			ISP_HREG_RD(addr + 4),
+			ISP_HREG_RD(addr + 8),
+			ISP_HREG_RD(addr + 12));
+	}
+
 	pr_info("ISP fetch: register list\n");
 	for (addr = (ISP_FETCH_BASE + ISP_FETCH_PARAM0); addr <= (ISP_FETCH_BASE + ISP_FETCH_MIPI_PARAM_UV); addr += 16) {
 		pr_info("0x%lx: 0x%x 0x%x 0x%x 0x%x\n",
@@ -622,6 +666,8 @@ static int isphw_irq_clear(void *handle, void *arg)
 static uint32_t ISP_CFG_MAP[] __aligned(8) = {
 		0x00300710, /*0x710   - 0x73C  , 12 , COMMON*/
 		0x00201110, /*0x1110  - 0x112C , 8   , UVD*/
+		0x00081610, /*0x1610  - 0x1614 , 2   , YUVDELAY*/
+		0x01E01710, /*0x1710  - 0x18EC , 120 , CNR*/
 		0x00402010, /*0x2010  - 0x204C , 16  , mem_ctrl*/
 		0x00642110, /*0x2110  - 0x2170 , 25  , nr3_blend*/
 		0x00302210, /*0x2210  - 0x223C , 12  , 3dnr_store*/
@@ -629,9 +675,6 @@ static uint32_t ISP_CFG_MAP[] __aligned(8) = {
 		0x00202410, /*0x2410  - 0x242C , 8   , AFBC_3DNR*/
 		0x001C2510, /*0x2510  - 0x2528 , 7   , AFBD_3DNR*/
 		0x00042710, /*0x2710  - 0x2710 , 1   , BWD_3DNR*/
-		0x00102310, /*0x2310  - 0x231C , 4   , crop*/
-		0x00081610, /*0x1610  - 0x1614 , 2   , YUVDELAY*/
-		0x01E01710, /*0x1710  - 0x18EC , 120 , CNR*/
 		0x00203010, /*0x3010  - 0x302C , 8   , YUV420toRGB*/
 		0x001C3110, /*0x3110  - 0x3128 , 7   , frgb_LTM_hists*/
 		0x00183210, /*0x3210  - 0x3224 , 6   , frgb_LTM_map*/
@@ -644,24 +687,25 @@ static uint32_t ISP_CFG_MAP[] __aligned(8) = {
 		0x00104410, /*0x4410  - 0x441C , 4   , YRANDOM*/
 		0x00144510, /*0x4510  - 0x4520 , 5   , BCHS */
 		0x00545010, /*0x5010  - 0x5060 , 21  , SCL_CAP*/
+		0x00305210, /*0x5210  - 0x523C , 12  , SCL_CAP_store*/
+		0x00205310, /*0x5310  - 0x532C , 8   , scl_afbc_store_cap*/
 		0x00C05110, /*0x5110  - 0x51CC , 48  , SCL_CAP_COEF*/
+		0x00345410, /*0x5410  - 0x5440 , 13  , SCL_CAP_noisefilter_add_rdm*/
 		0x00C05510, /*0x5510  - 0x55CC , 48  , SCL_CAP_COEF1*/
 		0x00C05610, /*0x5610  - 0x56CC , 48  , SCL_CAP_COEF2*/
 		0x00C05710, /*0x5710  - 0x57CC , 48  , SCL_CAP_COEF3*/
-		0x00345410, /*0x5410  - 0x5440 , 13  , SCL_CAP_noisefilter_add_rdm*/
-		0x00205310, /*0x5310  - 0x532C , 8   , scl_afbc_store_cap*/
-		0x00305210, /*0x5210  - 0x523C , 12  , SCL_CAP_store*/
 		0x00686010, /*0x6010  - 0x6074 , 26  , SCL_VID*/
 		0x00C06110, /*0x6110  - 0x61CC , 48  , SCL_VID_COEF*/
+		0x00306210, /*0x6210  - 0x623C , 12  , SCL_VID_store*/
+		0x00206310, /*0x6310  - 0x632C , 8   , scl_afbc_store_vid*/
 		0x00C06510, /*0x6510  - 0x65CC , 48  , SCL_VID_COEF1*/
 		0x00C06610, /*0x6610  - 0x66CC , 48  , SCL_VID_COEF2*/
 		0x00C06710, /*0x6710  - 0x67CC , 48  , SCL_VID_COEF3*/
-		0x00206310, /*0x6310  - 0x632C , 8   , scl_afbc_store_vid*/
-		0x00306210, /*0x6210  - 0x623C , 12  , SCL_VID_store*/
 		0x00607010, /*0x7010  - 0x706C , 24  , SCL_THUMBNAIL*/
 		0x00307110, /*0x7110  - 0x713C , 12  , SCL_THUMBNAIL_store*/
 		0x00289310, /*0x9310  - 0x9334 , 10  , PYR_REC_FETCH1*/
 		0x00289510, /*0x9510  - 0x9534 , 10  , PYR_REC*/
+		0x00309610, /* 0x9610  - 0x963C , 12  , PYR_REC_STORE */
 		0x01E09710, /*0x9710  - 0x98EC , 120 , PYR_REC_CNR*/
 		0x00849A10, /*0x9A10  - 0x9A90 , 33  , PYR_REC_YNR*/
 		0x00089B10, /*0x9B10  - 0x9B14 , 2   , PYR_REC_UVDELAY*/
@@ -738,8 +782,10 @@ isp_hw_para:
 	ISP_HREG_MWR(ISP_AXI_ARBITER_RQOS, 0x1FF, rqos_val);
 	ISP_HREG_WR(ISP_CORE_PMU_EN, 0xFFFF0000);
 	ISP_HREG_MWR(ISP_AXI_ISOLATION, BIT_0, 0);
-	ISP_HREG_MWR(ISP_ARBITER_ENDIAN0, BIT_0, 0);
-	ISP_HREG_MWR(ISP_ARBITER_ENDIAN1, BIT(0) | BIT(1), 0);
+	ISP_HREG_MWR(ISP_ARBITER_ENDIAN0, BIT_0 | BIT_1, 0);
+	ISP_HREG_MWR(ISP_ARBITER_ENDIAN0, BIT_4 | BIT_5, 0);
+	ISP_HREG_MWR(ISP_ARBITER_ENDIAN0, BIT_8 | BIT_9, 0);
+	ISP_HREG_MWR(ISP_ARBITER_ENDIAN1, BIT_0 | BIT_1, 0);
 	ISP_HREG_WR(ISP_ARBITER_CHK_SUM_CLR, 0);
 	/* enable axim transfering */
 	ISP_HREG_MWR(ISP_AXI_ITI2AXIM_CTRL, BIT_26, 0);
@@ -772,9 +818,9 @@ isp_hw_cfg_para:
 	ISP_REG_MWR(idx, ISP_COMMON_SHADOW_CTRL_CH0, BIT_21, (1 << 21));
 	ISP_REG_MWR(idx, ISP_COMMON_PMU_RAM_MASK, BIT_0, 1);
 
-	ISP_REG_WR(idx, ISP_DISPATCH_BASE + ISP_DISPATCH_DLY, 0x20003C);
+	ISP_REG_WR(idx, ISP_DISPATCH_BASE + ISP_DISPATCH_DLY, 0x250050);
 	ISP_REG_WR(idx, ISP_DISPATCH_BASE + ISP_DISPATCH_LINE_DLY1, 0x100280);
-	ISP_REG_WR(idx, ISP_DISPATCH_BASE + ISP_DISPATCH_PIPE_BUF_CTRL_CH0, 0x280043c);
+	ISP_REG_WR(idx, ISP_DISPATCH_BASE + ISP_DISPATCH_PIPE_BUF_CTRL_CH0, 0x64043c);
 
 	/* bypass all path scaler & store */
 	ISP_REG_MWR(idx, ISP_CAP_SCALER_CFG, BIT_0, bypass);
@@ -1810,7 +1856,7 @@ static int isphw_fbd_slice_set(void *handle, void *arg)
 	FMCU_PUSH(fmcu, addr, cmd);
 
 	/* dispatch size same as fetch size */
-	addr = ISP_GET_REG(ISP_DISPATCH_CH0_SIZE);
+	addr = ISP_GET_REG(ISP_DISPATCH_BASE + ISP_DISPATCH_CH0_SIZE);
 	cmd = (fbd_raw_info->height << 16) | fbd_raw_info->width;
 	FMCU_PUSH(fmcu, addr, cmd);
 
@@ -2260,8 +2306,7 @@ static int isphw_slice_nr_info(void *handle, void *arg)
 
 static int isphw_slices_fmcu_cmds(void *handle, void *arg)
 {
-	uint32_t reg_off, addr = 0, cmd = 0;
-	unsigned long base = 0;
+	uint32_t addr = 0, cmd = 0;
 	struct isp_hw_slices_fmcu_cmds *parg = NULL;
 	uint32_t shadow_done_cmd[ISP_CONTEXT_HW_NUM] = {
 		PRE0_SHADOW_DONE, CAP0_SHADOW_DONE,
@@ -2273,18 +2318,10 @@ static int isphw_slices_fmcu_cmds(void *handle, void *arg)
 	};
 
 	parg = (struct isp_hw_slices_fmcu_cmds *)arg;
-	if (parg->fmcu->fid == 0)
-		base = ISP_FMCU0_BASE;
-	else if (parg->fmcu->fid == 1)
-		base = ISP_FMCU1_BASE;
+	if (parg->wmode == ISP_CFG_MODE)
+		addr = ISP_GET_REG(ISP_CFG_CAP_FMCU_RDY);
 	else
-		base = ISP_FMCU_PRE1_BASE;
-
-	if (parg->wmode == ISP_CFG_MODE) {
-		reg_off = ISP_CFG_CAP_FMCU_RDY;
-		addr = ISP_GET_REG(reg_off);
-	} else
-		addr = ISP_GET_REG(ISP_FETCH_START);
+		addr = ISP_GET_REG(ISP_FETCH_BASE + ISP_FETCH_START);
 	cmd = 1;
 	FMCU_PUSH(parg->fmcu, addr, cmd);
 
@@ -2301,8 +2338,7 @@ static int isphw_slices_fmcu_cmds(void *handle, void *arg)
 
 static int isphw_slices_pyr_rec_fmcu_cmds(void *handle, void *arg)
 {
-	uint32_t reg_off, addr = 0, cmd = 0;
-	unsigned long base = 0;
+	uint32_t addr = 0, cmd = 0;
 	struct isp_hw_slices_fmcu_cmds *parg = NULL;
 	uint32_t shadow_done_cmd[ISP_CONTEXT_HW_NUM] = {
 		PRE0_SHADOW_DONE, CAP0_SHADOW_DONE,
@@ -2314,30 +2350,18 @@ static int isphw_slices_pyr_rec_fmcu_cmds(void *handle, void *arg)
 	};
 
 	parg = (struct isp_hw_slices_fmcu_cmds *)arg;
-	if (parg->fmcu->fid == 0)
-		base = ISP_FMCU0_BASE;
-	else
-		base = ISP_FMCU1_BASE;
+	addr = ISP_GET_REG(ISP_FETCH_BASE + ISP_FETCH_START);
+	cmd = 1;
+	FMCU_PUSH(parg->fmcu, addr, cmd);
+	addr = ISP_GET_REG(PYR_REC_CUR_FETCH_BASE + ISP_FETCH_START);
+	cmd = 1;
+	FMCU_PUSH(parg->fmcu, addr, cmd);
 
-	if (parg->wmode == ISP_CFG_MODE) {
-		reg_off = ISP_CFG_CAP_FMCU_RDY;
-		addr = ISP_GET_REG(reg_off);
-		cmd = 1;
-		FMCU_PUSH(parg->fmcu, addr, cmd);
-	} else {
-		addr = ISP_GET_REG(ISP_FETCH_START);
-		cmd = 1;
-		FMCU_PUSH(parg->fmcu, addr, cmd);
-		addr = ISP_GET_REG(PYR_REC_CUR_FETCH_BASE + ISP_FETCH_START);
-		cmd = 1;
-		FMCU_PUSH(parg->fmcu, addr, cmd);
-	}
-
-	addr = ISP_GET_REG(base + ISP_FMCU_CMD);
+	addr = ISP_GET_REG(ISP_FMCU_CMD);
 	cmd = shadow_done_cmd[parg->hw_ctx_id];
 	FMCU_PUSH(parg->fmcu, addr, cmd);
 
-	addr = ISP_GET_REG(base + ISP_FMCU_CMD);
+	addr = ISP_GET_REG(ISP_FMCU_CMD);
 	cmd = rec_store_done_cmd[parg->hw_ctx_id];
 	FMCU_PUSH(parg->fmcu, addr, cmd);
 
@@ -2346,8 +2370,7 @@ static int isphw_slices_pyr_rec_fmcu_cmds(void *handle, void *arg)
 
 static int isphw_slices_dewarp_fmcu_cmds(void *handle, void *arg)
 {
-	uint32_t reg_off, addr = 0, cmd = 0;
-	unsigned long base = 0;
+	uint32_t addr = 0, cmd = 0;
 	struct isp_hw_slices_fmcu_cmds *parg = NULL;
 	uint32_t shadow_done_cmd[ISP_CONTEXT_HW_NUM] = {
 		PRE0_SHADOW_DONE, CAP0_SHADOW_DONE,
@@ -2359,26 +2382,18 @@ static int isphw_slices_dewarp_fmcu_cmds(void *handle, void *arg)
 	};
 
 	parg = (struct isp_hw_slices_fmcu_cmds *)arg;
-	if (parg->fmcu->fid == 0)
-		base = ISP_FMCU0_BASE;
-	else if (parg->fmcu->fid == 1)
-		base = ISP_FMCU1_BASE;
+	if (parg->wmode == ISP_CFG_MODE)
+		addr = ISP_GET_REG(ISP_CFG_CAP_FMCU_RDY);
 	else
-		base = ISP_FMCU_PRE1_BASE;
-
-	if (parg->wmode == ISP_CFG_MODE) {
-		reg_off = ISP_CFG_CAP_FMCU_RDY;
-		addr = ISP_GET_REG(reg_off);
-	} else
 		addr = ISP_GET_REG(ISP_DEWARPING_FSTART);
 	cmd = 1;
 	FMCU_PUSH(parg->fmcu, addr, cmd);
 
-	addr = ISP_GET_REG(base + ISP_FMCU_CMD);
+	addr = ISP_GET_REG(ISP_FMCU_CMD);
 	cmd = shadow_done_cmd[parg->hw_ctx_id];
 	FMCU_PUSH(parg->fmcu, addr, cmd);
 
-	addr = ISP_GET_REG(base + ISP_FMCU_CMD);
+	addr = ISP_GET_REG(ISP_FMCU_CMD);
 	cmd = all_done_cmd[parg->hw_ctx_id];
 	FMCU_PUSH(parg->fmcu, addr, cmd);
 

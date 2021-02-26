@@ -324,9 +324,12 @@ static int camioctl_function_mode_set(struct camera_module *module,
 
 	module->cam_uinfo.is_rgb_ltm = hw->ip_isp->rgb_ltm_support;
 	module->cam_uinfo.is_yuv_ltm = hw->ip_isp->yuv_ltm_support;
-	module->cam_uinfo.is_pyr_rec = hw->ip_dcam[module->dcam_idx]->pyramid_support;
 	module->cam_uinfo.is_pyr_dec = hw->ip_isp->pyr_dec_support;
 	module->cam_uinfo.is_rgb_gtm = hw->ip_isp->rgb_gtm_support;
+	if (g_pyr_dec_online_bypass)
+		module->cam_uinfo.is_pyr_rec = 0;
+	else
+		module->cam_uinfo.is_pyr_rec = hw->ip_dcam[module->dcam_idx]->pyramid_support;
 
 	pr_info("4in1:[%d], rgb_ltm[%d], yuv_ltm[%d], gtm[%d], dual[%d], afbc[%d] rec %d dec %d\n",
 		module->cam_uinfo.is_4in1,module->cam_uinfo.is_rgb_ltm,
@@ -1452,9 +1455,11 @@ static int camioctl_stream_off(struct camera_module *module,
 			}
 
 			if (module->cam_uinfo.is_pyr_rec) {
-				if (ch->pyr_rec_buf) {
-					camcore_k_frame_put(ch->pyr_rec_buf);
-					ch->pyr_rec_buf = NULL;
+				for (j = 0; j < ISP_PYR_REC_BUF_NUM; j++) {
+					if (ch->pyr_rec_buf[j]) {
+						camcore_k_frame_put(ch->pyr_rec_buf[j]);
+						ch->pyr_rec_buf[j] = NULL;
+					}
 				}
 			}
 

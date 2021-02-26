@@ -136,7 +136,6 @@ static const unsigned int isp_irq_process_c0[] = {
 	ISP_INT_NR3_SHADOW_DONE,
 	ISP_INT_FMCU_LOAD_DONE,
 	ISP_INT_FMCU_SHADOW_DONE,
-	ISP_INT_HIST_CAL_DONE,
 	ISP_INT_ISP_ALL_DONE,
 	ISP_INT_FMCU_STORE_DONE,
 };
@@ -148,7 +147,6 @@ static const unsigned int isp_irq_process[] = {
 	ISP_INT_STORE_DONE_VID,
 	ISP_INT_NR3_ALL_DONE,
 	ISP_INT_NR3_SHADOW_DONE,
-	ISP_INT_HIST_CAL_DONE,
 	ISP_INT_ISP_ALL_DONE,
 };
 

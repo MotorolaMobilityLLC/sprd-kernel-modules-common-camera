@@ -296,6 +296,7 @@ struct slice_gtm_info {
 };
 
 struct slice_pyr_rec_info {
+	uint32_t rec_path_sel;
 	struct img_size out;
 	struct img_size pre_layer;
 	struct img_size cur_layer;
@@ -303,6 +304,10 @@ struct slice_pyr_rec_info {
 	uint32_t hor_padding_num;
 	uint32_t ver_padding_en;
 	uint32_t ver_padding_num;
+	uint32_t reduce_flt_vblank;
+	uint32_t reduce_flt_hblank;
+	uint32_t dispatch_dly_height_num;
+	uint32_t dispatch_pipe_full_num;
 };
 
 struct slice_dewarping_info {

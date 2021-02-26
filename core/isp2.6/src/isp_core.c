@@ -358,18 +358,17 @@ static int ispcore_rec_frame_process(struct isp_sw_context *pctx,
 		return -EINVAL;
 	}
 
+	memset(&cfg_in, 0, sizeof(struct isp_pyr_rec_in));
 	pipe_in = &pctx->pipe_info;
 	rec_ctx = (struct isp_rec_ctx_desc *)pctx->rec_handle;
 
-	if (pframe->need_pyr_rec) {
-		cfg_in.in_fmt = pipe_in->fetch.fetch_fmt;
-		cfg_in.src = pipe_in->fetch.src;
-		cfg_in.in_trim = pipe_in->fetch.in_trim;
-		cfg_in.in_addr = pipe_in->fetch.addr;
-		cfg_in.out_addr = pipe_in->store[ISP_SPATH_CP].store.addr;
-	}
+	cfg_in.in_fmt = pipe_in->fetch.fetch_fmt;
+	cfg_in.src = pipe_in->fetch.src;
+	cfg_in.in_trim = pipe_in->fetch.in_trim;
+	cfg_in.in_addr = pipe_in->fetch.addr;
+	cfg_in.out_addr = pipe_in->store[ISP_SPATH_CP].store.addr;
 
-	if (rec_ctx) {
+	if (rec_ctx && pframe->need_pyr_rec) {
 		rec_ctx->ops.cfg_param(rec_ctx, ISP_REC_CFG_WORK_MODE, &pctx->dev->wmode);
 		rec_ctx->ops.cfg_param(rec_ctx, ISP_REC_CFG_HW_CTX_IDX, &pctx_hw->hw_ctx_id);
 		rec_ctx->ops.cfg_param(rec_ctx, ISP_REC_CFG_FMCU_HANDLE, pctx_hw->fmcu_handle);
@@ -896,7 +895,8 @@ static int ispcore_slice_ctx_init(struct isp_sw_context *pctx, uint32_t *multi_s
 
 	*multi_slice = 0;
 
-	if  ((ispcore_slice_needed(pctx) == 0) && (pctx->uinfo.enable_slowmotion == 0)) {
+	if  ((ispcore_slice_needed(pctx) == 0) && (pctx->uinfo.enable_slowmotion == 0)
+		&& (pctx->uinfo.pyr_layer_num == 0)) {
 		pr_debug("sw %d don't need to slice , slowmotion %d\n",
 			pctx->ctx_id, pctx->uinfo.enable_slowmotion);
 		return 0;
@@ -1315,7 +1315,7 @@ static int ispcore_offline_param_cfg(struct isp_sw_context *pctx,
 	/*update NR param for crop/scaling image */
 	ispcore_blkparam_adapt(pctx);
 	/* the context/path maybe init/updated after dev start. */
-	if (pctx->updated || pctx->sw_slice_num)
+	if (pctx->updated || pctx->sw_slice_num || pframe->need_pyr_rec)
 		ret = ispcore_slice_ctx_init(pctx, &tmp->multi_slice);
 	if (pctx->pipe_src.uframe_sync)
 		tmp->target_fid = ispcore_fid_across_context_get(pctx->dev,
@@ -1502,7 +1502,6 @@ static int ispcore_offline_frame_start(void *ctx)
 	struct isp_hw_yuv_block_ctrl blk_ctrl;
 	struct isp_ltm_ctx_desc *rgb_ltm = NULL;
 	struct isp_ltm_ctx_desc *yuv_ltm = NULL;
-	struct isp_hw_alldone_ctrl alldone_ctrl;
 	struct isp_gtm_ctx_desc *rgb_gtm = NULL;
 
 	pctx = (struct isp_sw_context *)ctx;
@@ -1525,11 +1524,13 @@ static int ispcore_offline_frame_start(void *ctx)
 	if (pctx->multi_slice | ispcore_slice_needed(pctx))
 		use_fmcu = FMCU_IS_NEED;
 	if (use_fmcu && (pctx->uinfo.mode_3dnr != MODE_3DNR_OFF))
-		use_fmcu |= FMCU_IS_MUST; /* force fmcu used*/
+		use_fmcu |= FMCU_IS_MUST;
 	if (pctx->uinfo.enable_slowmotion)
-		use_fmcu |= FMCU_IS_MUST; // force fmcu used
+		use_fmcu |= FMCU_IS_MUST;
 	if (pctx->sw_slice_num)
 		use_fmcu = FMCU_IS_NEED;
+	if (pctx->uinfo.pyr_layer_num != 0)
+		use_fmcu |= FMCU_IS_MUST;
 
 	loop = 0;
 	do {
@@ -1547,7 +1548,6 @@ static int ispcore_offline_frame_start(void *ctx)
 	} while (loop++ < 5000);
 
 	pframe = cam_queue_dequeue(&pctx->in_queue, struct camera_frame, list);
-
 	if (!pctx_hw || pframe == NULL) {
 		pr_err("fail to get hw(%p) or input frame (%p) for ctx %d\n",
 			pctx_hw, pframe, pctx->ctx_id);
@@ -1622,7 +1622,7 @@ static int ispcore_offline_frame_start(void *ctx)
 	use_fmcu = 0;
 	fmcu = (struct isp_fmcu_ctx_desc *)pctx_hw->fmcu_handle;
 	if (fmcu) {
-		use_fmcu = (tmp.multi_slice | pctx->uinfo.enable_slowmotion);
+		use_fmcu = (tmp.multi_slice | pctx->uinfo.enable_slowmotion | pframe->need_pyr_rec);
 		if (use_fmcu)
 			fmcu->ops->ctx_reset(fmcu);
 	}
@@ -1633,7 +1633,7 @@ static int ispcore_offline_frame_start(void *ctx)
 	ispcore_gtm_frame_process(pctx, pframe);
 	ispcore_dewarp_frame_process(pctx, pctx_hw, pframe);
 
-	if (tmp.multi_slice || pctx->uinfo.enable_slowmotion) {
+	if (use_fmcu) {
 		struct slice_cfg_input slc_cfg;
 
 		memset(&slc_cfg, 0, sizeof(slc_cfg));
@@ -1715,18 +1715,6 @@ static int ispcore_offline_frame_start(void *ctx)
 		goto done;
 	}
 
-	if (kick_fmcu) {
-		alldone_ctrl.hw_ctx_id = hw_ctx_id;
-		alldone_ctrl.wait = 1;
-		alldone_ctrl.int_bit = ISP_ALLDONE_WAIT_DISPATCH;
-		hw->isp_ioctl(hw, ISP_HW_CFG_ALLDONE_CTRL, &alldone_ctrl);
-	} else {
-		alldone_ctrl.hw_ctx_id = hw_ctx_id;
-		alldone_ctrl.wait = 0;
-		alldone_ctrl.int_bit = ISP_ALLDONE_WAIT_DISPATCH;
-		hw->isp_ioctl(hw, ISP_HW_CFG_ALLDONE_CTRL, &alldone_ctrl);
-	}
-
 	/* start to prepare/kickoff cfg buffer. */
 	if (likely(dev->wmode == ISP_CFG_MODE)) {
 		pr_debug("cfg enter.");
@@ -1746,7 +1734,7 @@ static int ispcore_offline_frame_start(void *ctx)
 		mutex_unlock(&pctx->blkpm_lock);
 
 		if (kick_fmcu) {
-			pr_info("fmcu start.\n");
+			pr_debug("fmcu start.\n");
 			if (pctx->pipe_src.slw_state == CAM_SLOWMOTION_ON) {
 				ret = fmcu->ops->cmd_ready(fmcu);
 			} else {

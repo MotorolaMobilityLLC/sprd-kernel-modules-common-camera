@@ -240,7 +240,7 @@ struct channel_context {
 	struct camera_frame *nr3_bufs[ISP_NR3_BUF_NUM];
 	struct camera_frame *ltm_bufs[LTM_MAX][ISP_LTM_BUF_NUM];
 	struct camera_frame *res_frame;
-	struct camera_frame *pyr_rec_buf;
+	struct camera_frame *pyr_rec_buf[ISP_PYR_REC_BUF_NUM];
 	struct camera_frame *pyr_dec_buf;
 	int32_t reserved_buf_fd;
 
@@ -1289,15 +1289,17 @@ static int camcore_buffer_path_cfg(struct camera_module *module,
 	}
 
 	if (module->cam_uinfo.is_pyr_rec) {
-		if (ch->pyr_rec_buf == NULL)
-			goto exit;
-		ret = module->isp_dev_handle->isp_ops->cfg_path(module->isp_dev_handle,
-				ISP_PATH_CFG_PYR_REC_BUF,
-				isp_ctx_id, isp_path_id, ch->pyr_rec_buf);
-		if (ret) {
-			pr_err("fail to config isp pyr_rec buffer sw %d,  path id %d\n",
-				isp_ctx_id, isp_path_id);
-			goto exit;
+		for (j = 0; j < ISP_PYR_REC_BUF_NUM; j++) {
+			if (ch->pyr_rec_buf[j] == NULL)
+				goto exit;
+			ret = module->isp_dev_handle->isp_ops->cfg_path(module->isp_dev_handle,
+					ISP_PATH_CFG_PYR_REC_BUF,
+					isp_ctx_id, isp_path_id, ch->pyr_rec_buf[j]);
+			if (ret) {
+				pr_err("fail to config isp pyr_rec buffer sw %d,  path id %d\n",
+					isp_ctx_id, isp_path_id);
+				goto exit;
+			}
 		}
 	}
 
@@ -1486,7 +1488,7 @@ static int camcore_buffers_alloc(void *param)
 	}
 
 	if (module->cam_uinfo.is_pyr_rec && channel->ch_id != CAM_CH_CAP)
-		size += dcam_if_cal_pyramid_size(width, height);
+		size += dcam_if_cal_pyramid_size(width, height, dcam_out_bits, is_pack);
 	size = ALIGN(size, CAM_BUF_ALIGN_SIZE);
 
 	total = camcore_buffers_alloc_num(channel, module);
@@ -1681,31 +1683,39 @@ static int camcore_buffers_alloc(void *param)
 	}
 
 	if (module->cam_uinfo.is_pyr_rec) {
-		width = channel->ch_uinfo.dst_size.w;
-		height = channel->ch_uinfo.dst_size.h;
+		width = channel->swap_size.w;
+		height = channel->swap_size.h;
 		width = isp_rec_layer0_width(width, channel->pyr_layer_num);
 		width = width / 2;
 		height = isp_rec_layer0_heigh(height, channel->pyr_layer_num);
 		height = height /2;
 		/* rec temp buf max size is equal to layer1 size: w/2 * h/2 */
-		size = width * height * 3 / 2;
-		size = ALIGN(size, CAM_BUF_ALIGN_SIZE);
-		pframe = cam_queue_empty_frame_get();
-		if (channel->ch_id == CAM_CH_PRE && sec_mode == SEC_TIME_PRIORITY)
-			pframe->buf.buf_sec = 1;
-		pframe->width = width;
-		pframe->height = height;
-		pframe->channel_id = channel->ch_id;
-		ret = cam_buf_alloc(&pframe->buf, size, iommu_enable);
-		if (ret) {
-			pr_err("fail to alloc superzoom buf\n");
-			cam_queue_empty_frame_put(pframe);
-			atomic_inc(&channel->err_status);
-			goto exit;
+		if (dcam_out_bits != DCAM_STORE_8_BIT) {
+			if (is_pack)
+				pitch = (width * 10 + 31) / 32 * 32 / 8;
+			else
+				pitch = (width * 16 + 31) / 32 * 32 / 8;
 		}
-		channel->pyr_rec_buf = pframe;
-		pr_debug("idx %d, pyr_rec w %d, h %d, buf %p\n",
-			module->dcam_idx, postproc_w, postproc_h, pframe);
+		size = pitch * height * 3 / 2;
+		size = ALIGN(size, CAM_BUF_ALIGN_SIZE);
+		for (i = 0; i < ISP_PYR_REC_BUF_NUM; i++) {
+			pframe = cam_queue_empty_frame_get();
+			if (channel->ch_id == CAM_CH_PRE && sec_mode == SEC_TIME_PRIORITY)
+				pframe->buf.buf_sec = 1;
+			pframe->width = width;
+			pframe->height = height;
+			pframe->channel_id = channel->ch_id;
+			ret = cam_buf_alloc(&pframe->buf, size, iommu_enable);
+			if (ret) {
+				pr_err("fail to alloc superzoom buf\n");
+				cam_queue_empty_frame_put(pframe);
+				atomic_inc(&channel->err_status);
+				goto exit;
+			}
+			channel->pyr_rec_buf[i] = pframe;
+			pr_debug("idx %d, pyr_rec w %d, h %d, buf %p\n",
+				module->dcam_idx, width, height, pframe);
+		}
 	}
 
 	if (module->cam_uinfo.is_pyr_dec && channel->ch_id == CAM_CH_CAP) {
@@ -1727,8 +1737,8 @@ static int camcore_buffers_alloc(void *param)
 			goto exit;
 		}
 		channel->pyr_dec_buf = pframe;
-		pr_debug("idx %d, ch %d pyr_dec size %d, buf %p\n", module->dcam_idx,
-			channel->ch_id, size, pframe);
+		pr_debug("idx %d, ch %d pyr_dec size %d, buf %p, w %d h %d\n",
+			module->dcam_idx, channel->ch_id, size, pframe, width, height);
 	}
 
 exit:
@@ -4971,6 +4981,94 @@ static inline int camcore_should_dump(int mode, int path)
 		|| (mode == DUMP_PATH_FULL && path == DCAM_PATH_FULL);
 }
 
+static int camcore_pyr_frame_dump(struct camera_module *module,
+		struct camera_frame *pframe)
+{
+	ssize_t size = 0;
+	struct channel_context *channel;
+	enum cam_ch_id ch_id;
+	uint8_t file_name[ISP_PYR_DEC_LAYER_NUM][256] = {{ '\0' }};
+	uint8_t file_name1[ISP_PYR_DEC_LAYER_NUM][256] = {{ '\0' }};
+	uint8_t tmp_str[20] = { '\0' };
+	uint32_t is_pack = 0, i = 0;
+	uint32_t dcam_out_bits = 0;
+	uint32_t align_w = 0, align_h = 0, offset = 0;
+	unsigned long addr = 0, addr1 = 0;
+
+	ch_id = pframe->channel_id;
+	channel = &module->channel[ch_id];
+
+	if (cam_buf_kmap(&pframe->buf)) {
+		pr_err("fail to kmap dump buf\n");
+		return -EFAULT;
+	}
+
+	align_w = isp_rec_layer0_width(pframe->width, channel->pyr_layer_num);
+	align_h = isp_rec_layer0_heigh(pframe->height, channel->pyr_layer_num);
+	is_pack = !module->cam_uinfo.sensor_if.if_spec.mipi.is_loose;
+	dcam_out_bits = module->cam_uinfo.sensor_if.if_spec.mipi.bits_per_pxl;
+	for (i = 0; i < channel->pyr_layer_num + 1; i++) {
+		strcat(file_name[i], CAMERA_DUMP_PATH);
+		strcat(file_name[i], "layer_");
+		sprintf(tmp_str, "%d.", i);
+		strcat(file_name[i], tmp_str);
+		sprintf(tmp_str, "%d.", (uint32_t)module->cur_dump_ts.tv_sec);
+		strcat(file_name[i], tmp_str);
+		sprintf(tmp_str, "%06d", (uint32_t)(module->cur_dump_ts.tv_nsec / NSEC_PER_USEC));
+		strcat(file_name[i], tmp_str);
+		if (i == 0) {
+			sprintf(tmp_str, "_w%d", pframe->width);
+			strcat(file_name[i], tmp_str);
+			sprintf(tmp_str, "_h%d", pframe->height);
+			strcat(file_name[i], tmp_str);
+			size = cal_sprd_yuv_pitch(pframe->width, dcam_out_bits, is_pack);
+			size = size * pframe->height;
+		} else {
+			align_w = align_w /2;
+			align_h = align_h /2;
+			sprintf(tmp_str, "_w%d", align_w);
+			strcat(file_name[i], tmp_str);
+			sprintf(tmp_str, "_h%d", align_h);
+			strcat(file_name[i], tmp_str);
+			size = cal_sprd_yuv_pitch(align_w, dcam_out_bits, is_pack);
+			size = size * align_h;
+		}
+		sprintf(tmp_str, "_No%d", pframe->fid);
+		strcat(file_name[i], tmp_str);
+
+		if (dcam_out_bits == DCAM_STORE_8_BIT) {
+			strcat(file_name[i], "_8bit");
+		} else {
+			strcat(file_name[i], "_10bit");
+			if (is_pack)
+				strcat(file_name[i], "_mipi");
+		}
+		strcat(file_name1[i], file_name[i]);
+		if (channel->dcam_out_fmt == DCAM_STORE_YUV420) {
+			strcat(file_name[i], "_yuv420.y");
+			strcat(file_name1[i], "_yuv420.uv");
+		} else {
+			strcat(file_name[i], "_yvu420.y");
+			strcat(file_name1[i], "_yvu420.uv");
+		}
+
+		addr = pframe->buf.addr_k[0] + offset;
+		addr1 = addr + size;
+		offset += (size * 3 / 2);
+		camcore_write_image_to_file((char *)addr, size, file_name[i]);
+		pr_debug("dump for ch %d, size %d, kaddr %p, file %s\n", ch_id,
+			(int)size, (void *)addr, file_name[i]);
+		size = size / 2;
+		camcore_write_image_to_file((char *)addr1, size, file_name1[i]);
+		pr_debug("dump for ch %d, size %d, kaddr %p, file %s\n", ch_id,
+			(int)size, (void *)addr1, file_name1[i]);
+	}
+
+	cam_buf_kunmap(&pframe->buf);
+
+	return 0;
+}
+
 static int camcore_dumpraw_proc(void *param)
 {
 	uint32_t idx, cnt = 0;
@@ -5016,7 +5114,10 @@ static int camcore_dumpraw_proc(void *param)
 
 			channel = &module->channel[pframe->channel_id];
 			if (camcore_should_dump(dbg->dump_en, channel->dcam_path_id)) {
-				camcore_one_frame_dump(module, pframe);
+				if (pframe->need_pyr_rec)
+					camcore_pyr_frame_dump(module, pframe);
+				else
+					camcore_one_frame_dump(module, pframe);
 				module->dump_count--;
 				cnt++;
 			}
@@ -5051,6 +5152,7 @@ static int camcore_dumpraw_proc(void *param)
 			break;
 		}
 	}
+
 	module->dump_count = 0;
 	module->in_dump = 0;
 	pr_info("end dump, real cnt %d\n", cnt);

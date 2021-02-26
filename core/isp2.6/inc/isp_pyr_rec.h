@@ -21,6 +21,12 @@ extern "C" {
 #include "cam_queue.h"
 #include "isp_slice.h"
 
+#ifdef ISP_PYR_DEBUG_ON
+#define ISP_PYR_DEBUG pr_info
+#else
+#define ISP_PYR_DEBUG pr_debug
+#endif
+
 #define PYR_REC_ADDR_NUM        ISP_PYR_DEC_LAYER_NUM + 1
 
 enum {
@@ -147,6 +153,7 @@ struct isp_pyr_rec_info {
 	uint32_t cur_layer_height;
 	uint32_t reduce_flt_vblank;
 	uint32_t reduce_flt_hblank;
+	uint32_t rec_path_sel;
 };
 
 enum isp_rec_cfg_cmd {
@@ -198,7 +205,7 @@ struct isp_rec_ctx_desc {
 	struct img_addr store_addr[ISP_PYR_DEC_LAYER_NUM];
 	struct img_size pyr_layer_size[PYR_REC_ADDR_NUM];
 	struct img_size pyr_padding_size;
-	struct camera_frame *buf_info;
+	struct camera_frame *buf_info[ISP_PYR_REC_BUF_NUM];
 	void *fmcu_handle;
 
 	/* cur frame fetch: big size use rec fetch */

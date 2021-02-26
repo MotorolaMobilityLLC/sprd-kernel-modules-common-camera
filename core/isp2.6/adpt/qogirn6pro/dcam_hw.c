@@ -2249,6 +2249,10 @@ static int dcamhw_dec_online(void *handle, void *arg)
 	val = (param->hor_padding_en & 0x1) | ((param->hor_padding_num & 0xefff) << 1)
 		| ((param->ver_padding_en & 0x1) << 16) | ((param->ver_padding_num & 0x7f) << 17);
 	DCAM_REG_WR(idx, DCAM_DEC_ONLINE_PARAM1, val);
+	val = (param->flust_width & 0xffff) | ((param->flush_hblank_num & 0xffff) << 16);
+	DCAM_REG_WR(idx, DCAM_IMG_SIZE, val);
+	val = (param->flush_line_num << 8) | 0x50 | (0x50 << 16);
+	DCAM_REG_WR(idx, DCAM_FLUSH_CTRL, val);
 
 	return 0;
 }
@@ -2310,6 +2314,7 @@ static int dcamhw_dec_size_update(void *handle, void *arg)
 		((param->data_10b & 1) << 11)| ((param->flip_en & 1) << 12) |
 		((param->last_frm_en & 3) << 13);
 	DCAM_REG_MWR(idx, base + DCAM_STORE_DEC_PARAM, 0x3FFE, val);
+	DCAM_REG_MWR(idx, base + DCAM_STORE_DEC_PARAM, BIT_7, 1 << 7);
 
 	val = (param->width & 0xffff) | ((param->height & 0xffff) << 16);
 	DCAM_REG_WR(idx, base + DCAM_STORE_DEC_SLICE_SIZE, val);
@@ -2324,6 +2329,8 @@ static int dcamhw_dec_size_update(void *handle, void *arg)
 
 	val = (param->rd_ctrl & 0x3) | ((param->store_res & 0x3fffffff) << 2);
 	DCAM_REG_WR(idx, base + DCAM_STORE_DEC_READ_CTRL, val);
+	DCAM_REG_MWR(idx, base + DCAM_STORE_DEC_SHADOW_CLR_SEL, BIT_1, 1 << 1);
+	DCAM_REG_MWR(idx, base + DCAM_STORE_DEC_SHADOW_CLR, BIT_0, 1);
 
 	return 0;
 }
