@@ -335,7 +335,7 @@ static int isppyrdec_store_dct_get(struct isp_dec_pipe_dev *dev, uint32_t idx)
 		case ISP_STORE_YUV420_2FRAME_MIPI:
 		case ISP_STORE_YVU420_2FRAME_MIPI:
 			ch_offset[0] = start_row_out * store_dct->pitch[0] + start_col_out * 5 /4;
-			ch_offset[0] = ((start_row_out * store_dct->pitch[1]) >> 1) + start_col_out * 5 /4;
+			ch_offset[1] = ((start_row_out * store_dct->pitch[1]) >> 1) + start_col_out * 5 /4;
 			break;
 		case ISP_STORE_YUV420_2FRAME_10:
 		case ISP_STORE_YVU420_2FRAME_10:
@@ -421,7 +421,7 @@ static int isppyrdec_store_dec_get(struct isp_dec_pipe_dev *dev, uint32_t idx)
 		case ISP_STORE_YUV420_2FRAME_MIPI:
 		case ISP_STORE_YVU420_2FRAME_MIPI:
 			ch_offset[0] = start_row_out * store_dec->pitch[0] + start_col_out * 5 /4;
-			ch_offset[0] = ((start_row_out * store_dec->pitch[1]) >> 1) + start_col_out * 5 /4;
+			ch_offset[1] = ((start_row_out * store_dec->pitch[1]) >> 1) + start_col_out * 5 /4;
 			break;
 		case ISP_STORE_YUV420_2FRAME_10:
 		case ISP_STORE_YVU420_2FRAME_10:

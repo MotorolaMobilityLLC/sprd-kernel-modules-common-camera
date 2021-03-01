@@ -323,7 +323,7 @@ static int isppyrrec_store_get(struct isp_rec_ctx_desc *ctx, uint32_t idx)
 		case ISP_STORE_YUV420_2FRAME_MIPI:
 		case ISP_STORE_YVU420_2FRAME_MIPI:
 			ch_offset[0] = start_row_out * rec_store->pitch[0] + start_col_out * 5 /4;
-			ch_offset[0] = ((start_row_out * rec_store->pitch[1]) >> 1) + start_col_out * 5 /4;
+			ch_offset[1] = ((start_row_out * rec_store->pitch[1]) >> 1) + start_col_out * 5 /4;
 			break;
 		case ISP_STORE_YUV420_2FRAME_10:
 		case ISP_STORE_YVU420_2FRAME_10:
