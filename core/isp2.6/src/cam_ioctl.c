@@ -652,7 +652,8 @@ static int camioctl_ch_id_get(struct camera_module *module,
 	int ret = 0;
 
 	if ((atomic_read(&module->state) != CAM_IDLE) &&
-		(atomic_read(&module->state) != CAM_CFG_CH)) {
+		(atomic_read(&module->state) != CAM_CFG_CH) &&
+		(atomic_read(&module->state) != CAM_STREAM_OFF)) {
 		pr_err("fail to get correct state, state %d\n",
 			atomic_read(&module->state));
 		return -EFAULT;
@@ -1548,7 +1549,6 @@ static int camioctl_stream_off(struct camera_module *module,
 
 	dcam_core_context_unbind(sw_ctx);
 
-	atomic_set(&module->state, CAM_IDLE);
 	if (raw_cap)
 		complete(&module->streamoff_com);
 
@@ -2204,7 +2204,8 @@ static int camioctl_cam_res_put(struct camera_module *module,
 
 	ret = camioctl_stream_off(module, arg);
 
-	if (atomic_read(&module->state) != CAM_IDLE) {
+	if ((atomic_read(&module->state) != CAM_IDLE)
+		&& (atomic_read(&module->state) != CAM_STREAM_OFF)) {
 		pr_info("cam%d error state: %d\n", module->idx,
 			atomic_read(&module->state));
 		return -EFAULT;
