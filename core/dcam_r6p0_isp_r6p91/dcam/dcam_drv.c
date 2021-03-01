@@ -4022,6 +4022,7 @@ int32_t dcam_module_dis(struct device_node *dn)
 #endif
 		free_irq(s_dcam_irq, (void *)&s_dcam_irq);
 		__pm_relax(dcam_wakelock);
+		wakeup_source_remove(dcam_wakelock);
 		wakeup_source_destroy(dcam_wakelock);
 	}
 
