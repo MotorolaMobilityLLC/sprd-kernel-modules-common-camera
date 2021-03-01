@@ -666,7 +666,7 @@ static uint32_t ispdewarping_grid_size_cal(struct isp_dewarp_ctx_desc *ctx)
 	uint32_t input_w = 0;
 
 	input_w = ctx->src_size.w;
-	if ((input_w > MIN_DEWARP_INPUT_WIDTH) || input_w < 640) {
+	if ((input_w > MIN_DEWARP_INPUT_WIDTH) && input_w < 640) {
 		grid_size = 16;
 	} else if (input_w < MAX_DEWARP_INPUT_WIDTH) {
 		grid_size = input_w * MAX_GRID_SIZE_COEF1 / MAX_DEWARP_INPUT_WIDTH;
