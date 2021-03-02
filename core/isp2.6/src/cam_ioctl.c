@@ -1346,9 +1346,9 @@ static int camioctl_stream_off(struct camera_module *module,
 	}
 
 	if (module->cam_uinfo.is_4in1)
-		camcore_4in1_slave_deinit(module);
+		camcore_4in1_aux_deinit(module);
 	if (module->cam_uinfo.dcam_slice_mode && module->aux_dcam_dev)
-		camcore_bigsize_slave_deinit(module);
+		camcore_bigsize_aux_deinit(module);
 
 	ch_prv = &module->channel[CAM_CH_PRE];
 	for (i = 0; i < CAM_CH_MAX; i++) {

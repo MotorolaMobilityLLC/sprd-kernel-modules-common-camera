@@ -694,7 +694,7 @@ static void dcamint_full_path_done(void *param)
 			else/* low lux, to isp as normal */
 				frame->irq_type = CAMERA_IRQ_IMG;
 		}
-		if (sw_ctx->dcam_slice_mode)
+		if (sw_ctx->dcam_slice_mode && sw_ctx->slice_num == 0)
 			frame->irq_type = CAMERA_IRQ_SUPERSIZE_DONE;
 		if(sw_ctx->offline && sw_ctx->sw_ctx_id == DCAM_ID_1)
 			frame->irq_type = CAMERA_IRQ_IMG;

@@ -328,7 +328,7 @@ static struct cam_hw_soc_info dcam_soc_info;
 static struct cam_hw_soc_info isp_soc_info;
 static struct cam_hw_ip_info dcam[DCAM_ID_MAX] = {
 	[DCAM_ID_0] = {
-		.supersize_dcam_path = DCAM_PATH_FULL,
+		.aux_dcam_path = DCAM_PATH_FULL,
 		.slm_path = BIT(DCAM_PATH_BIN) | BIT(DCAM_PATH_AEM) | BIT(DCAM_PATH_HIST),
 		.lbuf_share_support = 1,
 		.offline_slice_support = 1,
@@ -344,7 +344,7 @@ static struct cam_hw_ip_info dcam[DCAM_ID_MAX] = {
 		.pyramid_support = 0,
 	},
 	[DCAM_ID_1] = {
-		.supersize_dcam_path = DCAM_PATH_FULL,
+		.aux_dcam_path = DCAM_PATH_FULL,
 		.slm_path = BIT(DCAM_PATH_BIN) | BIT(DCAM_PATH_AEM) | BIT(DCAM_PATH_HIST),
 		.lbuf_share_support = 1,
 		.offline_slice_support = 1,
@@ -360,7 +360,7 @@ static struct cam_hw_ip_info dcam[DCAM_ID_MAX] = {
 		.pyramid_support = 0,
 	},
 	[DCAM_ID_2] = {
-		.supersize_dcam_path = DCAM_PATH_FULL,
+		.aux_dcam_path = DCAM_PATH_FULL,
 		.slm_path = BIT(DCAM_PATH_BIN) | BIT(DCAM_PATH_AEM) | BIT(DCAM_PATH_HIST),
 		.lbuf_share_support = 0,
 		.offline_slice_support = 0,

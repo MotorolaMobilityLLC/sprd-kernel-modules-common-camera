@@ -1211,7 +1211,7 @@ struct cam_hw_ip_info {
 	struct glb_syscon syscon;
 
 	/* For dcam support info */
-	uint32_t supersize_dcam_path;
+	uint32_t aux_dcam_path;
 	uint32_t slm_path;
 	uint32_t lbuf_share_support;
 	uint32_t offline_slice_support;
