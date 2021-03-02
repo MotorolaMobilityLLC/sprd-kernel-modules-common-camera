@@ -1152,16 +1152,6 @@ static const struct {
 			_DCAM1_SEQUENCE_INT1,
 		},
 	},
-	{
-		{
-			ARRAY_SIZE(_DCAM2_SEQUENCE),
-			_DCAM2_SEQUENCE,
-		},
-		{
-			0,
-			NULL,
-		},
-	},
 };
 
 static void dcamint_iommu_regs_dump(struct dcam_hw_context *dcam_hw_ctx)

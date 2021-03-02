@@ -81,8 +81,6 @@ enum raw_pitch_format {
 enum dcam_hw_context_id {
 	DCAM_HW_CONTEXT_0 = 0,
 	DCAM_HW_CONTEXT_1,
-	DCAM_HW_CONTEXT_2,
-	DCAM_HW_CONTEXT_3,
 	DCAM_HW_CONTEXT_MAX,
 };
 
