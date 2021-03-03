@@ -1179,7 +1179,7 @@ static int dcamhw_slice_fetch_set(void *handle, void *arg)
 			/* cfg full path */
 			DCAM_REG_MWR(idx, DCAM_FULL_CFG,
 				(0x7FF << 20) | (1 << 1), (fetch_pitch << 20) | (1 << 1));
-			DCAM_REG_WR(idx, DCAM_FULL_CROP_START, 0);
+			DCAM_REG_WR(idx, DCAM_FULL_CROP_START, (0 << 16) | (DCAM_OVERLAP & 0x1fff));
 			DCAM_REG_WR(idx, DCAM_FULL_CROP_SIZE,
 				((cur_slice->size_y & 0x1fff) << 16) | (cur_slice->size_x & 0x1fff));
 			reg_val = DCAM_REG_RD(idx, DCAM_FULL_BASE_WADDR);

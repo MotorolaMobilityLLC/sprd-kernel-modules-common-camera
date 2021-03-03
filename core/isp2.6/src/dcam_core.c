@@ -1081,7 +1081,7 @@ static int dcamcore_offline_frame_start(void *param)
 	pr_info("dcam%d frm %p, ch_id %d.  type %d, buf_fd %d\n",
 		sw_pctx->hw_ctx_id, pframe, pframe->channel_id,
 		pframe->irq_property, pframe->buf.mfd[0]);
-	pr_info("slice %d, size %d %d,  endian %d, pattern %d\n",
+	pr_info("slice mode %d, size %d %d,  endian %d, pattern %d\n",
 		sw_pctx->dcam_slice_mode, pframe->width, pframe->height,
 		pframe->endian, pframe->pattern);
 
