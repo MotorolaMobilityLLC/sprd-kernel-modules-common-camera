@@ -499,7 +499,7 @@ static void calc_bicubic_coef(uint32_t *bicubic_coef_i, uint32_t grid_size)
 
 	for (i = 0; i < grid_size; i++)
 	{
-		u = (i<<24)/grid_size;
+		u = div_s64((i<<24), grid_size);
 		bicubic_coef[0] = ((-u + ((2 * u * u) >> 24) - ((((u * u) >> 24) * u) >> 24)) << 23) >> 24;
 		bicubic_coef[1] = ((((int64_t)1 << 25) - ((5 * u * u)>>24) + ((((3 * u * u) >> 24) * u) >> 24)) << 23) >> 24;
 		bicubic_coef[2] = ((u + ((4 * u * u) >> 24) - ((((3 * u * u) >> 24) * u) >> 24)) << 23) >> 24;
