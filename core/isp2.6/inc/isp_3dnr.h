@@ -100,6 +100,7 @@ struct isp_3dnr_store {
 	uint32_t endian;
 	uint32_t mono_en;
 	uint32_t data_10b;
+	uint32_t mipi_en;
 	uint32_t flip_en;
 	uint32_t last_frm_en;
 	uint32_t st_bypass;
@@ -277,6 +278,7 @@ enum isp_3dnr_cfg_cmd {
 	ISP_3DNR_CFG_FBD_INFO,
 	ISP_3DNR_CFG_SIZE_INFO,
 	ISP_3DNR_CFG_BLEND_INFO,
+	ISP_3DNR_CFG_MEMCTL_STORE_INFO,
 	ISP_3DNR_CFG_MAX,
 };
 

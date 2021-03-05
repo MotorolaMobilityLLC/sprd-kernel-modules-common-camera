@@ -38,6 +38,12 @@ static int isp3dnr_store_config_gen(struct isp_3dnr_ctx_desc *ctx)
 	store->shadow_clr_sel = 1;
 	store->st_max_len_sel = 1;
 	store->shadow_clr = 1;
+	store->last_frm_en = 3;
+	store->flip_en = 0;
+	store->mono_en = 0;
+	store->endian = 0;
+	store->mirror_en = 0;
+	store->speed_2x = 1;
 
 	if (ctx->blending_cnt % 2 != 1) {
 		store->st_luma_addr = ctx->buf_info[0]->iova[0];
@@ -298,9 +304,6 @@ static int isp3dnr_memctrl_config_gen(struct isp_3dnr_ctx_desc *ctx)
 	mem_ctrl->ft_y_height = ctx->height;
 	mem_ctrl->ft_uv_width = ctx->width;
 	mem_ctrl->ft_uv_height = ctx->height / 2;
-
-	/* configuration ref frame pitch */
-	mem_ctrl->ft_pitch = ctx->width;
 
 	mem_ctrl->mv_x = ctx->mv.mv_x;
 	mem_ctrl->mv_y = ctx->mv.mv_y;
@@ -869,6 +872,7 @@ static int isp3dnr_cfg_param(void *handle,
 	struct isp_3dnr_ctx_desc *nr3_ctx = NULL;
 	struct camera_frame * pframe = NULL;
 	struct img_trim *crop = NULL;
+	struct isp_hw_fetch_info *fetch_info = NULL;
 
 	if (!handle || !param) {
 		pr_err("fail to get valid input ptr\n");
@@ -934,6 +938,15 @@ static int isp3dnr_cfg_param(void *handle,
 		break;
 	case ISP_3DNR_CFG_BLEND_INFO:
 		nr3_ctx->nr3_belnd = (struct isp_3dnr_blend_info *)param;
+		break;
+	case ISP_3DNR_CFG_MEMCTL_STORE_INFO:
+		fetch_info = (struct isp_hw_fetch_info *)param;
+		nr3_ctx->nr3_store.color_format = fetch_info->fetch_fmt;
+		nr3_ctx->nr3_store.mipi_en = fetch_info->is_pack;
+		nr3_ctx->nr3_store.data_10b = (fetch_info->data_bits == 8) ? 0 : 1;
+		nr3_ctx->nr3_store.y_pitch_mem =  fetch_info->pitch.pitch_ch0;
+		nr3_ctx->nr3_store.u_pitch_mem =  fetch_info->pitch.pitch_ch1;
+		nr3_ctx->mem_ctrl.ft_pitch =  fetch_info->pitch.pitch_ch0;
 		break;
 	default:
 		pr_err("fail to get known cmd: %d\n", cmd);

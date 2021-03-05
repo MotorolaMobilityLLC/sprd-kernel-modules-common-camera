@@ -1598,8 +1598,14 @@ static int camcore_buffers_alloc(void *param)
 		if (channel->compress_3dnr)
 			size = isp_3dnr_cal_compressed_size(width, height);
 		else {
-			size = ((width + 1) & (~1)) * height * 3 / 2;
-			size = ALIGN(size, CAM_BUF_ALIGN_SIZE);
+			if ((channel->dcam_out_fmt == DCAM_STORE_YUV420) || (channel->dcam_out_fmt == DCAM_STORE_YVU420)) {
+				pitch = cal_sprd_yuv_pitch(width, dcam_out_bits, is_pack);
+				size = pitch * height * 3 / 2;
+				size = ALIGN(size, CAM_BUF_ALIGN_SIZE);
+			} else {
+				size = ((width + 1) & (~1)) * height * 3 / 2;
+				size = ALIGN(size, CAM_BUF_ALIGN_SIZE);
+			}
 		}
 
 		pr_info("ch %d 3dnr buffer size: %u.\n", channel->ch_id, size);

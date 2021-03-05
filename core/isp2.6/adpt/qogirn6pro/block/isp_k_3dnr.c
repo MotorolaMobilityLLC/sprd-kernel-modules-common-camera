@@ -32,6 +32,8 @@ static void isp_3dnr_config_mem_ctrl(uint32_t idx,
 
 	if (g_isp_bypass[idx] & (1 << _EISP_NR3))
 		mem_ctrl->bypass = 1;
+	mem_ctrl->retain_num = 110;
+	mem_ctrl->ft_fifo_nfull_num = 1400;
 
 	val = ((mem_ctrl->nr3_done_mode & 0x1) << 1) |
 		((mem_ctrl->nr3_ft_path_sel & 0x1) << 2) |
@@ -46,6 +48,7 @@ static void isp_3dnr_config_mem_ctrl(uint32_t idx,
 		((mem_ctrl->ft_max_len_sel & 0x1) << 28) |
 		(mem_ctrl->bypass & 0x1);
 	ISP_REG_WR(idx, ISP_3DNR_MEM_CTRL_PARAM0, val);
+	ISP_REG_MWR(idx, ISP_FBD_3DNR_SEL, BIT_0, 1);
 
 	val = ((mem_ctrl->start_col & 0x3FFF) << 16) |
 		(mem_ctrl->start_row & 0x3FFF);
@@ -81,7 +84,7 @@ static void isp_3dnr_config_mem_ctrl(uint32_t idx,
 			ISP_3DNR_MEM_CTRL_FT_CUR_CHROMA_ADDR,
 			mem_ctrl->ft_chroma_addr);
 
-		val = mem_ctrl->img_width & 0xFFFF;
+		val = mem_ctrl->ft_pitch & 0xFFFF;
 		ISP_REG_WR(idx, ISP_3DNR_MEM_CTRL_FT_CTRL_PITCH, val);
 	} else {
 		val = mem_ctrl->img_width & 0xFFFF;
@@ -132,6 +135,7 @@ static void isp_3dnr_config_blend(uint32_t idx,
 		((blend->u_pixel_src_weight[0] & 0xFF) << 16) |
 		((blend->v_pixel_src_weight[0] & 0xFF) << 8) |
 		(blend->y_pixel_noise_threshold & 0xFF);
+
 	ISP_REG_WR(idx, ISP_3DNR_BLEND_CFG1, val);
 
 	val = ((blend->u_pixel_noise_threshold & 0xFF) << 24) |
@@ -291,6 +295,7 @@ static void isp_3dnr_config_store(uint32_t idx,
 		((nr3_store->mirror_en & 0x1) << 3) |
 		((nr3_store->speed_2x & 0x1) << 2) |
 		((nr3_store->st_max_len_sel & 0x1) << 1) |
+		(nr3_store->mipi_en << 7) |
 		(nr3_store->st_bypass & 0x1);
 	ISP_REG_WR(idx, ISP_3DNR_STORE_PARAM, val);
 
@@ -302,13 +307,13 @@ static void isp_3dnr_config_store(uint32_t idx,
 		(nr3_store->left_border & 0xFFFF);
 	ISP_REG_WR(idx, ISP_3DNR_STORE_BORDER, val);
 
-	val = nr3_store->y_addr_mem;
+	val = nr3_store->st_luma_addr;
 	ISP_REG_WR(idx, ISP_3DNR_STORE_SLICE_Y_ADDR, val);
 
 	val = nr3_store->y_pitch_mem & 0xFFFF;
 	ISP_REG_WR(idx, ISP_3DNR_STORE_Y_PITCH, val);
 
-	val = nr3_store->u_addr_mem;
+	val = nr3_store->st_chroma_addr;
 	ISP_REG_WR(idx, ISP_3DNR_STORE_SLICE_U_ADDR, val);
 
 	val = nr3_store->u_pitch_mem & 0xFFFF;
@@ -524,7 +529,6 @@ void isp_3dnr_config_param(struct isp_3dnr_ctx_desc *ctx)
 		((blend->v_pixel_src_weight[blend_cnt] & 0xFF) << 8) |
 		(blend->y_pixel_noise_threshold & 0xFF);
 	ISP_REG_WR(idx, ISP_3DNR_BLEND_CFG1, val);
-
 
 #ifdef _NR3_DATA_TO_YUV_
 	if (mem_ctrl->data_toyuv_en) {
