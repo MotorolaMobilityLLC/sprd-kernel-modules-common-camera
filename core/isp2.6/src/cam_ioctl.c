@@ -1309,7 +1309,7 @@ static int camioctl_stream_off(struct camera_module *module,
 			complete(&module->dump_com);
 		mutex_lock(&g_dbg_dump.dump_lock);
 		i = module->dcam_idx;
-		if (i < 2) {
+		if (i < DCAM_ID_MAX) {
 			g_dbg_dump.dump_start[i] = NULL;
 			g_dbg_dump.dump_count = 0;
 		}
@@ -1777,7 +1777,7 @@ cfg_ch_done:
 		init_completion(&module->dump_com);
 		mutex_lock(&g_dbg_dump.dump_lock);
 		i = module->dcam_idx;
-		if (i < 2) {
+		if (i < DCAM_ID_MAX) {
 			g_dbg_dump.dump_start[i] = &module->dump_thrd.thread_com;
 			g_dbg_dump.dump_count = 0;
 		}

@@ -4980,7 +4980,7 @@ static int camcore_dumpraw_proc(void *param)
 	pr_info("enter. %p\n", param);
 	module = (struct camera_module *)param;
 	idx = module->dcam_idx;
-	if (idx > DCAM_ID_1 || !module->dcam_dev_handle)
+	if (idx > DCAM_ID_MAX || !module->dcam_dev_handle)
 		return 0;
 
 	mutex_lock(&dbg->dump_lock);
@@ -5274,7 +5274,7 @@ static int camcore_raw_proc_done(struct camera_module *module)
 		}
 		mutex_lock(&g_dbg_dump.dump_lock);
 		i = module->dcam_idx;
-		if (i < 2) {
+		if (i < DCAM_ID_MAX) {
 			g_dbg_dump.dump_start[i] = NULL;
 		}
 		mutex_unlock(&g_dbg_dump.dump_lock);
@@ -5646,7 +5646,7 @@ static int camcore_raw_post_proc(struct camera_module *module,
 		init_completion(&module->dump_com);
 		mutex_lock(&g_dbg_dump.dump_lock);
 		i = module->dcam_idx;
-		if (i < 2) {
+		if (i < DCAM_ID_MAX) {
 			g_dbg_dump.dump_start[i] = &module->dump_thrd.thread_com;
 		}
 		g_dbg_dump.dump_count = 99;

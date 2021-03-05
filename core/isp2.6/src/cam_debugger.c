@@ -420,6 +420,7 @@ static ssize_t camdebugger_dump_count_write(struct file *filp,
 	char msg[8];
 	char *last;
 	int val;
+	int i = 0;
 	struct cam_dbg_dump *dbg = &g_dbg_dump;
 
 	if ((dbg->dump_en == 0) || count > 3)
@@ -445,11 +446,14 @@ static ssize_t camdebugger_dump_count_write(struct file *filp,
 		pr_err("fail to get dump_raw_count %d\n", val);
 	} else if (dbg->dump_ongoing == 0) {
 		dbg->dump_count = val;
-		if (dbg->dump_start[0])
-			complete(dbg->dump_start[0]);
-		if (dbg->dump_start[1])
-			complete(dbg->dump_start[1]);
-		pr_info("set dump_raw_count %d\n", dbg->dump_count);
+		while(i < DCAM_ID_MAX) {
+			if (dbg->dump_start[i]) {
+				complete(dbg->dump_start[i]);
+				pr_debug("set dump_raw_count %d\n", dbg->dump_count);
+				continue;
+			}
+			i++;
+		}
 	}
 	mutex_unlock(&dbg->dump_lock);
 

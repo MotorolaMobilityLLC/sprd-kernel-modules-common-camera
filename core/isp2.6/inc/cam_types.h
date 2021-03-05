@@ -87,7 +87,7 @@ struct cam_dbg_dump {
 	uint32_t dump_count;
 	uint32_t dump_ongoing;
 	struct mutex dump_lock;
-	struct completion *dump_start[3];
+	struct completion *dump_start[6];
 };
 extern struct cam_dbg_dump g_dbg_dump;
 
