@@ -3833,7 +3833,6 @@ exit:
 int isp_core_pipe_dev_put(void *isp_handle)
 {
 	int ret = 0;
-	int user_cnt, en_cnt;
 	struct isp_pipe_dev *dev = NULL;
 
 	if (!isp_handle) {
@@ -3853,12 +3852,6 @@ int isp_core_pipe_dev_put(void *isp_handle)
 					dev, s_isp_dev);
 		return -EINVAL;
 	}
-
-	user_cnt = atomic_read(&dev->user_cnt);
-	en_cnt = atomic_read(&dev->enable);
-	if (user_cnt != (en_cnt + 1))
-		pr_err("fail to match %d %d\n",
-				user_cnt, en_cnt);
 
 	if (atomic_dec_return(&dev->user_cnt) == 0) {
 		pr_info("free isp pipe dev %p\n", dev);
