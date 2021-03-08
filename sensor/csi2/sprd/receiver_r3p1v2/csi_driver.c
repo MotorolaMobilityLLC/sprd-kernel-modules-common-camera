@@ -447,8 +447,8 @@ void csi_reg_trace(unsigned int idx)
 				CSI_REG_MWR(idx, PHY_TEST_CRTL0, PHY_REG_SEL, ~(1 << 2));
 		}
 #endif
-		reg_dump_rd(ANALOG_G4_REG_BASE, 0xff, "ana-g4");
-		reg_dump_rd(ANALOG_G4L_REG_BASE, 0xff, "ana-g4l");
+	//	reg_dump_rd(ANALOG_G4_REG_BASE, 0xff, "ana-g4");
+	//	reg_dump_rd(ANALOG_G4L_REG_BASE, 0xff, "ana-g4l");
 //	}
 /*	if((REG_RD(regbase + 0x90) == 0) || REG_RD(regbase + 0x18) == 0){
 		reg_dump_rd(0x30000000, 0xdf, "mm-ahb");
@@ -457,7 +457,7 @@ void csi_reg_trace(unsigned int idx)
 		reg_dump_rd(0x64910100, 0x1ff, "aon-pm");
 	}*/
 //	reg_dump_rd(0x3e000000, 0xff, "dcam");
-	reg_dump_rd(0x3e000400, 0xff, "dcam-mipicap");
+//	reg_dump_rd(0x3e000400, 0xff, "dcam-mipicap");
 
 	spin_unlock_irqrestore(&csi_dump_lock[idx], flag);
 }
