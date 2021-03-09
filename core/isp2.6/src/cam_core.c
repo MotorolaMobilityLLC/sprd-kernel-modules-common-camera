@@ -1647,7 +1647,6 @@ static int camcore_buffers_alloc(void *param)
 						atomic_inc(&channel->err_status);
 						goto exit;
 					}
-					cam_buf_kmap(&pframe->buf);
 					channel->ltm_bufs[LTM_RGB][i] = pframe;
 				}
 			}
@@ -1669,7 +1668,6 @@ static int camcore_buffers_alloc(void *param)
 						atomic_inc(&channel->err_status);
 						goto exit;
 					}
-					cam_buf_kmap(&pframe->buf);
 					channel->ltm_bufs[LTM_YUV][i] = pframe;
 				}
 			}
