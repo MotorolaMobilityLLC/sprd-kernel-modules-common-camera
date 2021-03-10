@@ -558,7 +558,9 @@ int cam_buf_ionbuf_put(struct camera_buf *buf_info)
 		if (buf_info->mfd[i] <= 0)
 			continue;
 		if (!IS_ERR_OR_NULL(buf_info->dmabuf_p[i])) {
-			dma_buf_put(buf_info->dmabuf_p[i]);
+			if (!IS_ERR_OR_NULL(buf_info->dmabuf_p[i]->file) &&
+				virt_addr_valid(buf_info->dmabuf_p[i]->file))
+				dma_buf_put(buf_info->dmabuf_p[i]);
 			buf_info->dmabuf_p[i] = NULL;
 			if (g_mem_dbg)
 				atomic_dec(&g_mem_dbg->ion_dma_cnt);
