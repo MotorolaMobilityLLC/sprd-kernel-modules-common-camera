@@ -491,7 +491,6 @@ static int ispdrv_fbd_yuv_get(void *cfg_in, void *cfg_out,
 	fbd_yuv->slice_size.w = pipe_src->src.w;
 	fbd_yuv->slice_size.h = pipe_src->src.h;
 	tile_col = (fbd_yuv->slice_size.w + ISP_FBD_TILE_WIDTH - 1) / ISP_FBD_TILE_WIDTH;
-	tile_col = (tile_col + 2 - 1) / 2 * 2;
 	tile_row =(fbd_yuv->slice_size.h + ISP_FBD_TILE_HEIGHT - 1) / ISP_FBD_TILE_HEIGHT;
 
 	fbd_yuv->tile_num_pitch = tile_col;
