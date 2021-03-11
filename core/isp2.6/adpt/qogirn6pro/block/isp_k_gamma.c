@@ -32,13 +32,13 @@ static int isp_k_gamma_block(struct isp_io_param *param,
 	int ret = 0;
 	uint32_t i, chn, buf_sel = 0;
 	uint32_t val;
-	struct isp_dev_gamma_info *gamma_info = NULL;
+	struct isp_dev_gamma_info_v1 *gamma_info = NULL;
 
-	gamma_info = &isp_k_param->gamma_info;
+	gamma_info = &isp_k_param->gamma_info_v1;
 
 	ret = copy_from_user((void *)gamma_info,
 			param->property_param,
-			sizeof(struct isp_dev_gamma_info));
+			sizeof(struct isp_dev_gamma_info_v1));
 	if (ret != 0) {
 		pr_err("fail to copy from user, ret = %d\n", ret);
 		return  ret;
@@ -53,7 +53,6 @@ static int isp_k_gamma_block(struct isp_io_param *param,
 	/* only cfg mode and buf0 is selected. */
 	DCAM_REG_MWR(idx, DCAM_FGAMMA10_PARAM, BIT_1, buf_sel << 1);
 
-	/* wait for gamma new struct, need change */
 	for (chn = 0; chn < 3; chn++) {
 		val = (chn & 0x3) << 8;
 		DCAM_REG_MWR(idx, DCAM_BUF_CTRL, 0x300, val);

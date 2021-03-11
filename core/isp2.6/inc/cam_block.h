@@ -46,6 +46,7 @@ struct isp_k_block {
 	struct isp_dev_uvd_info_v1 uvd_info_v1;
 	struct isp_dev_3dnr_info_v1 nr3_info_base_v1;
 	struct isp_dev_3dnr_info_v1 nr3d_info_v1;
+	struct isp_dev_gamma_info_v1 gamma_info_v1;
 
 	/* sharkl3 only */
 	struct isp_dev_brightness_info brightness_info;
