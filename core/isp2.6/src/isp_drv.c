@@ -847,7 +847,7 @@ static int ispdrv_thumb_scaler_get(struct isp_path_uinfo *in_ptr,
 	scalerInfo->y_deci.deci_x = ispdrv_deci_factor_cal(scalerInfo->y_deci.deci_x);
 	scalerInfo->y_deci.deci_y = ispdrv_deci_factor_cal(scalerInfo->y_deci.deci_y);
 	scalerInfo->uv_deci.deci_x = ispdrv_deci_factor_cal(scalerInfo->uv_deci.deci_x);
-	scalerInfo->uv_deci.deci_x = ispdrv_deci_factor_cal(scalerInfo->uv_deci.deci_x);
+	scalerInfo->uv_deci.deci_y = ispdrv_deci_factor_cal(scalerInfo->uv_deci.deci_y);
 
 	pr_debug("deciY %d %d, Yfactor (%d %d) => (%d %d) ytrim (%d %d %d %d)\n",
 		scalerInfo->y_deci.deci_x, scalerInfo->y_deci.deci_y,
