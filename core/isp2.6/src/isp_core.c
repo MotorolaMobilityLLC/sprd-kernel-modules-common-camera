@@ -1734,7 +1734,8 @@ static int ispcore_offline_frame_start(void *ctx)
 		mutex_unlock(&pctx->blkpm_lock);
 
 		if (kick_fmcu) {
-			pr_debug("fmcu start.\n");
+			pr_debug("isp %d frame %d w %d h %d fmcu start\n", pctx->ctx_id,
+				frame_id, pctx->pipe_src.crop.size_x, pctx->pipe_src.crop.size_y);
 			if (pctx->pipe_src.slw_state == CAM_SLOWMOTION_ON) {
 				ret = fmcu->ops->cmd_ready(fmcu);
 			} else {

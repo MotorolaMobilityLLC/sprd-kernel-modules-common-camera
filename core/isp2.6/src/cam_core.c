@@ -79,6 +79,9 @@
 /* TODO: need to pass the num to driver by hal */
 #define CAP_NUM_COMMON                  1
 
+/* limit the w & h to 1080P *2: 1920 *2 && 1080 *2 */
+#define CAM_VIDEO_LIMIT_W               3840
+#define CAM_VIDEO_LIMIT_H               2160
 #define PRE_RDS_OUT                     3264
 
 enum camera_module_state {
@@ -3071,10 +3074,9 @@ static int camcore_channel_swapsize_cal(struct camera_module *module)
 	ch_raw = &module->channel[CAM_CH_RAW];
 
 	if (module->grp->hw_info->ip_dcam[module->dcam_idx]->rds_en) {
-		if (ch_prev->ch_uinfo.src_size.w <= PRE_RDS_OUT) {
-			module->zoom_solution = ZOOM_RDS;
-			module->rds_limit = 10;
-		}
+		if (ch_vid->enable && (ch_prev->ch_uinfo.src_size.w <= CAM_VIDEO_LIMIT_W
+			|| ch_prev->ch_uinfo.src_size.h <= CAM_VIDEO_LIMIT_H))
+			module->zoom_solution = ZOOM_DEFAULT;
 	}
 
 	if (ch_cap->enable) {
