@@ -662,7 +662,7 @@ static int ispdewarping_dewarp_cache_get(struct isp_dewarp_ctx_desc *ctx)
 
 static uint32_t ispdewarping_grid_size_cal(struct isp_dewarp_ctx_desc *ctx)
 {
-	uint32_t grid_size = 0;
+	uint32_t grid_size = 16;
 	uint32_t input_w = 0;
 
 	input_w = ctx->src_size.w;
