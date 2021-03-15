@@ -6306,7 +6306,9 @@ static long camcore_ioctl(struct file *file, unsigned int cmd,
 	/* There is race condition under several cases during stream/off
 	 * Take care of lock use
 	 */
-	if (atomic_read(&module->state) != CAM_RUNNING || cmd == SPRD_IMG_IO_STREAM_OFF) {
+	if (atomic_read(&module->state) != CAM_RUNNING
+		|| cmd == SPRD_IMG_IO_STREAM_OFF
+		|| cmd == SPRD_ISP_IO_CFG_PARAM) {
 		mutex_lock(&module->lock);
 		locked = 1;
 	}
