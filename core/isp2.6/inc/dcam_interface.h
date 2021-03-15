@@ -37,6 +37,7 @@
  * Quick function to check is @idx valid.
  */
 #define is_dcam_id(idx)                 ((idx) < DCAM_ID_MAX)
+#define is_csi_id(idx)                  ((idx) < CSI_ID_MAX)
 
 enum dcam_sw_context_id {
 	DCAM_SW_CONTEXT_0 = 0,

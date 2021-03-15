@@ -2359,7 +2359,7 @@ static int dcamcore_dev_start(void *dcam_handle, int online)
 			}
 			spin_unlock_irqrestore(&path->state_lock, flag);
 		}
-
+		path->size_update = 1;
 		ret = dcam_path_store_frm_set(pctx, path, helper);
 		if (ret < 0) {
 			pr_err("fail to set frame for DCAM%u %s , ret %d\n",
@@ -2915,85 +2915,6 @@ static struct dcam_pipe_ops s_dcam_pipe_ops = {
 	.put_context = dcamcore_context_put,
 	.get_datactrl = dcamcore_datactrl_get,
 };
-
-int dcam_core_ctx_switch(struct dcam_sw_context *ori_sw_ctx, struct dcam_sw_context *new_sw_ctx, struct dcam_hw_context *hw_ctx)
-{
-	int ret = 0;
-	struct cam_hw_info *hw = NULL;
-	struct dcam_pipe_dev *dev;
-	struct dcam_hw_path_start patharg;
-	struct dcam_path_desc *path = NULL;
-	struct dcam_hw_mipi_cap caparg;
-	struct dcam_hw_start parm;
-	uint32_t i = 0;
-	struct dcam_hw_force_copy copyarg;
-	struct cam_hw_reg_trace trace;
-	struct dcam_hw_fbc_ctrl fbc_arg;
-
-	dev = ori_sw_ctx->dev;
-	hw = ori_sw_ctx->dev->hw;
-	if (atomic_dec_return(&hw_ctx->user_cnt) == 0)
-		hw->dcam_ioctl(hw, DCAM_HW_DISCONECT_CSI, &hw_ctx->hw_ctx_id);
-	else {
-		pr_err("DCAM%d: fail to get valid user cnt %d\n", hw_ctx->hw_ctx_id, atomic_read(&hw_ctx->user_cnt));
-		return -1;
-	}
-	dcam_core_context_unbind(ori_sw_ctx);
-
-	hw_ctx->hw_ctx_id = 0;
-	ret = dcam_core_context_bind(new_sw_ctx, hw->csi_connect_type, hw_ctx->hw_ctx_id);
-	for (i = 0; i < DCAM_PATH_MAX; i++) {
-		path = &new_sw_ctx->path[i];
-		patharg.path_id = i;
-		patharg.idx = new_sw_ctx->hw_ctx_id;
-		patharg.slowmotion_count = new_sw_ctx->slowmotion_count;
-		patharg.cap_info = new_sw_ctx->cap_info;
-		patharg.pack_bits = new_sw_ctx->path[i].pack_bits;
-		patharg.src_sel = new_sw_ctx->path[i].src_sel;
-		patharg.bayer_pattern = new_sw_ctx->path[i].bayer_pattern;
-		patharg.in_trim = new_sw_ctx->path[i].in_trim;
-		patharg.endian = new_sw_ctx->path[i].endian;
-		atomic_set(&path->set_frm_cnt, 0);
-		if (atomic_read(&path->user_cnt) < 1 || atomic_read(&path->is_shutoff) > 0)
-			continue;
-
-		ret = dcam_path_store_frm_set(new_sw_ctx, path, NULL);
-
-		hw->dcam_ioctl(hw, DCAM_HW_CFG_PATH_START, &patharg);
-
-		if (new_sw_ctx->path[i].fbc_mode) {
-			fbc_arg.idx = new_sw_ctx->hw_ctx_id;
-			fbc_arg.path_id = i;
-			fbc_arg.fmt = new_sw_ctx->path[i].out_fmt;
-			fbc_arg.data_bits = new_sw_ctx->path[i].data_bits;
-			fbc_arg.fbc_mode = new_sw_ctx->path[i].fbc_mode;
-			hw->dcam_ioctl(hw, DCAM_HW_CFG_FBC_CTRL, &fbc_arg);
-		}
-	}
-	pr_info("new_sw_ctx->hw_ctx_id = %d\n", new_sw_ctx->hw_ctx_id);
-	caparg.idx = new_sw_ctx->hw_ctx_id;
-	caparg.cap_info = new_sw_ctx->cap_info;
-	ret = hw->dcam_ioctl(hw, DCAM_HW_CFG_MIPI_CAP_SET, &caparg);
-
-	ret = dev->dcam_pipe_ops->ioctl(new_sw_ctx, DCAM_IOCTL_RECFG_PARAM, NULL);
-
-	copyarg.id = DCAM_CTRL_ALL;
-	copyarg.idx = new_sw_ctx->hw_ctx_id;
-	copyarg.glb_reg_lock = new_sw_ctx->glb_reg_lock;
-	hw->dcam_ioctl(hw, DCAM_HW_CFG_FORCE_COPY, &copyarg);
-
-
-	trace.type = NORMAL_REG_TRACE;
-	trace.idx = new_sw_ctx->hw_ctx_id;
-	hw->isp_ioctl(hw, ISP_HW_CFG_REG_TRACE, &trace);
-
-	parm.idx = new_sw_ctx->hw_ctx_id;
-	parm.format = new_sw_ctx->cap_info.format;
-	hw->dcam_ioctl(hw, DCAM_HW_CFG_START, &parm);
-
-	hw->dcam_ioctl(hw, DCAM_HW_CONECT_CSI, hw_ctx);
-	return ret;
-}
 
 int dcam_core_hw_context_id_get(struct dcam_sw_context *pctx)
 {

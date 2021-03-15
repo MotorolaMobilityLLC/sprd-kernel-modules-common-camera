@@ -91,6 +91,13 @@ enum dcam_id {
 	DCAM_ID_MAX,
 };
 
+enum csi_id {
+	CSI_ID_0 = 0,
+	CSI_ID_1,
+	CSI_ID_2,
+	CSI_ID_MAX,
+};
+
 static inline uint32_t cal_sprd_raw_pitch(uint32_t w, uint32_t pack_bits)
 {
 	if(pack_bits == RAW_PACK10)

@@ -1229,28 +1229,6 @@ static int camioctl_frame_id_base_set(	struct camera_module *module,
 	return ret;
 }
 
-int camioctl_ctx_switch(struct camera_module *module, unsigned long arg)
-{
-	int ret = 0;
-	uint32_t idx = 0;
-	struct dcam_sw_context *ori_sw_ctx = NULL;
-	struct dcam_sw_context *new_sw_ctx = NULL;
-	struct dcam_hw_context *hw_ctx = NULL;
-	struct dcam_pipe_dev *dev = (struct dcam_pipe_dev *)module->dcam_dev_handle;
-
-	ori_sw_ctx = &dev->sw_ctx[idx];
-	if (!ori_sw_ctx) {
-		pr_err("fail to get working context %d %d\n", idx);
-		return -EFAULT;
-	}
-	hw_ctx = ori_sw_ctx->hw_ctx;
-	new_sw_ctx = ori_sw_ctx; /* &dev->sw_ctx[new_idx]; */
-
-	ret = dcam_core_ctx_switch(ori_sw_ctx, new_sw_ctx, hw_ctx);
-
-	return ret;
-}
-
 static int camioctl_stream_off(struct camera_module *module,
 		unsigned long arg)
 {
@@ -2028,7 +2006,7 @@ static int camioctl_cam_res_get(struct camera_module *module,
 	}
 
 check:
-	if (!is_dcam_id(dcam_idx) || (dcam_idx < 0)) {
+	if (!is_csi_id(dcam_idx) || (dcam_idx < 0)) {
 		pr_err("fail to get dcam id for sensor: %d\n", res.sensor_id);
 		return -EFAULT;
 	}
@@ -2065,19 +2043,6 @@ check:
 
 	module->dcam_dev_handle->dcam_pipe_ops->set_callback(module->dcam_dev_handle,
 		module->cur_sw_ctx_id, camcore_dcam_callback, module);
-
-#ifdef CAM_ON_HAPS
-	if (dcam_idx) {
-		struct cam_hw_info *hw = module->grp->hw_info;
-		struct dcam_switch_param csi_switch;
-		csi_switch.csi_id = module->dcam_idx;
-		csi_switch.dcam_id= 0;
-		module->dcam_idx = 0;
-		pr_info("csi_switch.csi_id = %d, csi_switch.dcam_id = %d\n", csi_switch.csi_id, csi_switch.dcam_id);
-		/* switch connect */
-		hw->dcam_ioctl(hw, DCAM_HW_FORCE_EN_CSI, &csi_switch);
-	}
-#endif
 
 	pr_info("camca get camera res camsec mode %d.\n",
 		module->grp->camsec_cfg.camsec_mode);
@@ -3151,7 +3116,7 @@ static int camioctl_csi_switch(struct camera_module *module, unsigned long arg)
 	uint32_t loop = 0;
 	struct isp_offline_param *in_param = NULL;
 
-	ret = copy_from_user(&csi_connect, (void __user *)arg,  sizeof(uint32_t));
+	ret = copy_from_user(&csi_connect, (void __user *)arg, sizeof(uint32_t));
 	if (unlikely(ret)) {
 		pr_err("fail to get capability, ret %d\n", ret);
 		return -EFAULT;

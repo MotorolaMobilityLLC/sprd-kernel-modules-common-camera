@@ -269,6 +269,118 @@ abnormal_reg_trace:
 			DCAM_REG_RD(trace->idx, addr + 12));
 	}
 
+	addr = DCAM_CROP0_PARAM0;
+	pr_info("CROP0:0x%03lx: 0x%x 0x%x 0x%x\n",
+		addr,
+		DCAM_REG_RD(trace->idx, addr),
+		DCAM_REG_RD(trace->idx, addr + 4),
+		DCAM_REG_RD(trace->idx, addr + 8));
+	addr = DCAM_CROP1_CTRL;
+	pr_info("CROP1(raw):0x%03lx: 0x%x 0x%x 0x%x\n",
+		addr,
+		DCAM_REG_RD(trace->idx, addr),
+		DCAM_REG_RD(trace->idx, addr + 4),
+		DCAM_REG_RD(trace->idx, addr + 8));
+	addr = DCAM_CROP2_CTRL;
+	pr_info("CROP2(cap):0x%03lx: 0x%x 0x%x 0x%x\n",
+		addr,
+		DCAM_REG_RD(trace->idx, addr),
+		DCAM_REG_RD(trace->idx, addr + 4),
+		DCAM_REG_RD(trace->idx, addr + 8));
+	addr = DCAM_CROP3_CTRL;
+	pr_info("CROP3(afm):0x%03lx: 0x%x 0x%x 0x%x\n",
+		addr,
+		DCAM_REG_RD(trace->idx, addr),
+		DCAM_REG_RD(trace->idx, addr + 4),
+		DCAM_REG_RD(trace->idx, addr + 8));
+
+	pr_info("VST:0x%03lx: 0x%x\n", DCAM_VST_PARA, DCAM_REG_RD(trace->idx, DCAM_VST_PARA));
+	pr_info("IVST:0x%03lx: 0x%x\n", DCAM_IVST_PARA, DCAM_REG_RD(trace->idx, DCAM_IVST_PARA));
+	for (addr = DCAM_NLM_PARA; addr <= DCAM_NLM_RADIAL_1D_ADDBACK23; addr += 16) {
+		pr_info("NLM:0x%03lx: 0x%x 0x%x 0x%x 0x%x\n",
+			addr,
+			DCAM_REG_RD(trace->idx, addr),
+			DCAM_REG_RD(trace->idx, addr + 4),
+			DCAM_REG_RD(trace->idx, addr + 8),
+			DCAM_REG_RD(trace->idx, addr + 12));
+	}
+
+	for (addr = DCAM_GTM_GLB_CTRL; addr <= GTM_HIST_XPTS_0;
+		addr += 16) {
+		pr_info("GTM:0x%03lx: 0x%x 0x%x 0x%x 0x%x\n",
+			addr,
+			DCAM_REG_RD(trace->idx, addr),
+			DCAM_REG_RD(trace->idx, addr + 4),
+			DCAM_REG_RD(trace->idx, addr + 8),
+			DCAM_REG_RD(trace->idx, addr + 12));
+	}
+
+	for (addr = DCAM_CFA_NEW_CFG0; addr <= DCAM_CFA_GBUF_CFG; addr += 16) {
+		pr_info("CFA:0x%03lx: 0x%x 0x%x 0x%x 0x%x\n",
+			addr,
+			DCAM_REG_RD(trace->idx, addr),
+			DCAM_REG_RD(trace->idx, addr + 4),
+			DCAM_REG_RD(trace->idx, addr + 8),
+			DCAM_REG_RD(trace->idx, addr + 12));
+	}
+	for (addr = DCAM_CMC10_PARAM; addr <= DCAM_CMC10_MATRIX4; addr += 16) {
+		pr_info("CMC10:0x%03lx: 0x%x 0x%x 0x%x 0x%x\n",
+			addr,
+			DCAM_REG_RD(trace->idx, addr),
+			DCAM_REG_RD(trace->idx, addr + 4),
+			DCAM_REG_RD(trace->idx, addr + 8),
+			DCAM_REG_RD(trace->idx, addr + 12));
+	}
+	pr_info("FGAMMA10:0x%03lx: 0x%x\n", DCAM_FGAMMA10_PARAM, DCAM_REG_RD(trace->idx, DCAM_FGAMMA10_PARAM));
+	for (addr = DCAM_HIST_ROI_CTRL0; addr <= DCAM_HIST_ROI_BASE_WADDR3; addr += 16) {
+		pr_info("HIST:0x%03lx: 0x%x 0x%x 0x%x 0x%x\n",
+			addr,
+			DCAM_REG_RD(trace->idx, addr),
+			DCAM_REG_RD(trace->idx, addr + 4),
+			DCAM_REG_RD(trace->idx, addr + 8),
+			DCAM_REG_RD(trace->idx, addr + 12));
+	}
+
+	for (addr = DCAM_CCE_PARAM; addr <= DCAM_CCE_SHIFT; addr += 16) {
+		pr_info("CCE:0x%03lx: 0x%x 0x%x 0x%x 0x%x\n",
+			addr,
+			DCAM_REG_RD(trace->idx, addr),
+			DCAM_REG_RD(trace->idx, addr + 4),
+			DCAM_REG_RD(trace->idx, addr + 8),
+			DCAM_REG_RD(trace->idx, addr + 12));
+	}
+	pr_info("YUV444TO420:0x%03lx: 0x%x, 0x%x\n", DCAM_YUV444TOYUV420_PARAM,
+		DCAM_REG_RD(trace->idx, DCAM_YUV444TOYUV420_PARAM),
+		DCAM_REG_RD(trace->idx, DCAM_YUV444TOYUV420_PARAM + 4));
+
+	for (addr = DCAM_SCL0_CFG; addr <= DCAM_SCL0_BWD_PARA; addr += 16) {
+		pr_info("SCL(pre):0x%03lx: 0x%x 0x%x 0x%x 0x%x\n",
+			addr,
+			DCAM_REG_RD(trace->idx, addr),
+			DCAM_REG_RD(trace->idx, addr + 4),
+			DCAM_REG_RD(trace->idx, addr + 8),
+			DCAM_REG_RD(trace->idx, addr + 12));
+	}
+
+	for (addr = DCAM_STORE0_PARAM; addr <= DCAM_STORE0_SHADOW_CLR;
+		addr += 16) {
+		pr_info("store0(pre):0x%03lx: 0x%x 0x%x 0x%x 0x%x\n",
+			addr,
+			DCAM_REG_RD(trace->idx, addr),
+			DCAM_REG_RD(trace->idx, addr + 4),
+			DCAM_REG_RD(trace->idx, addr + 8),
+			DCAM_REG_RD(trace->idx, addr + 12));
+	}
+	for (addr = DCAM_STORE4_PARAM; addr <= DCAM_STORE4_SHADOW_CLR;
+		addr += 16) {
+		pr_info("store4(pre):0x%03lx: 0x%x 0x%x 0x%x 0x%x\n",
+			addr,
+			DCAM_REG_RD(trace->idx, addr),
+			DCAM_REG_RD(trace->idx, addr + 4),
+			DCAM_REG_RD(trace->idx, addr + 8),
+			DCAM_REG_RD(trace->idx, addr + 12));
+	}
+
 	pr_info("AXIM: Register list\n");
 	for (addr = AXIM_CTRL; addr <= IMG_FETCH_RADDR;
 		addr += 16) {

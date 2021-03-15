@@ -476,6 +476,6 @@ struct cam_hw_info qogirn6pro_hw_info = {
 	.dcam_ioctl = camhwif_dcam_ioctl,
 	.isp_ioctl = camhwif_isp_ioctl,
 	.cam_ioctl = camhwif_cam_ioctl,
-	.csi_connect_type = DCAM_BIND_FIXED,
+	.csi_connect_type = DCAM_BIND_DYNAMIC,
 };
 

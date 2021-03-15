@@ -705,7 +705,7 @@ static void dcamint_bin_path_done(void *param)
 	struct camera_frame *frame = NULL;
 	int i = 0, cnt = 0;
 
-	CAM_DEBUG_LOG("preview path done\n");
+	CAM_DEBUG_LOG("preview path done hw id:%d\n", dcam_hw_ctx->hw_ctx_id);
 	path = &sw_ctx->path[DCAM_PATH_BIN];
 	cnt = atomic_read(&path->set_frm_cnt);
 	sw_ctx->dec_layer0_done = 1;

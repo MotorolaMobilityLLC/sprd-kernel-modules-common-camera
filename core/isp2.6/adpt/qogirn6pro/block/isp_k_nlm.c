@@ -487,11 +487,11 @@ int isp_k_update_imbalance(uint32_t idx,
 	uint32_t new_width, uint32_t old_width,
 	uint32_t new_height, uint32_t old_height)
 {
+#if 0
 	int ret = 0;
 	uint32_t val, center_x, center_y;
 	uint32_t radius, radius_limit;
 	struct isp_dev_nlm_imblance_v2 *imbalance_info, *pdst;
-
 	imbalance_info = &isp_k_param->imbalance_info_base2;
 	if (imbalance_info->nlm_imblance_bypass)
 		return 0;
@@ -523,4 +523,7 @@ int isp_k_update_imbalance(uint32_t idx,
 		imbalance_info->radius_base, radius_limit, radius);
 
 	return ret;
+#else
+	return 0;
+#endif
 }

@@ -363,8 +363,6 @@ struct camera_group {
 	struct cam_hw_info *hw_info;
 };
 
-struct cam_thread_info g_switch_thrd;
-
 struct cam_ioctl_cmd {
 	unsigned int cmd;
 	int (*cmd_proc)(struct camera_module *module, unsigned long arg);
@@ -1453,10 +1451,12 @@ static int camcore_buffers_alloc(void *param)
 	struct camera_frame *alloc_buf = NULL;
 	struct dcam_compress_info fbc_info;
 	struct dcam_compress_cal_para cal_fbc = {0};
+	struct dcam_sw_context *sw_ctx = NULL;
 
 	pr_info("enter.\n");
 
 	module = (struct camera_module *)param;
+	sw_ctx = &module->dcam_dev_handle->sw_ctx[module->cur_sw_ctx_id];
 	alloc_buf = cam_queue_dequeue(&module->alloc_queue,
 		struct camera_frame, list);
 
@@ -1555,7 +1555,7 @@ static int camcore_buffers_alloc(void *param)
 	if (path_id >= 0 && path_id < DCAM_IMAGE_REPLACER_PATH_MAX) {
 		struct dcam_image_replacer *replacer;
 
-		replacer = &debugger->replacer[module->dcam_idx];
+		replacer = &debugger->replacer[sw_ctx->hw_ctx_id];
 		if (replacer->enabled[path_id]) {
 			camcore_prepare_frame_from_file(&channel->share_buf_queue,
 				replacer->filename[path_id], dcam_out_bits, channel->dcam_out_fmt,
@@ -1568,7 +1568,7 @@ static int camcore_buffers_alloc(void *param)
 			DCAM_IOCTL_CFG_REPLACER, NULL);
 	}
 
-	if (hw->ip_dcam[module->dcam_idx]->superzoom_support && !is_super_size) {
+	if (hw->ip_dcam[sw_ctx->hw_ctx_id]->superzoom_support && !is_super_size) {
 		postproc_w = channel->ch_uinfo.dst_size.w / ISP_SCALER_UP_MAX;
 		postproc_h = channel->ch_uinfo.dst_size.h / ISP_SCALER_UP_MAX;
 		if (channel->ch_id != CAM_CH_CAP && channel_vid->enable) {
@@ -1600,8 +1600,8 @@ static int camcore_buffers_alloc(void *param)
 		}
 
 		channel->postproc_buf = pframe;
-		pr_info("idx %d, superzoom w %d, h %d, buf %p\n",
-			module->dcam_idx, postproc_w, postproc_h, pframe);
+		pr_info("hw_ctx_id %d, superzoom w %d, h %d, buf %p\n",
+			sw_ctx->hw_ctx_id, postproc_w, postproc_h, pframe);
 	}
 
 	pr_debug("channel->ch_id = %d, channel->type_3dnr = %d, channel->uinfo_3dnr = %d\n",
@@ -1725,8 +1725,8 @@ static int camcore_buffers_alloc(void *param)
 				goto exit;
 			}
 			channel->pyr_rec_buf[i] = pframe;
-			pr_debug("idx %d, pyr_rec w %d, h %d, buf %p\n",
-				module->dcam_idx, width, height, pframe);
+			pr_debug("hw_ctx_id %d, pyr_rec w %d, h %d, buf %p\n",
+				sw_ctx->hw_ctx_id, width, height, pframe);
 		}
 	}
 
@@ -1749,8 +1749,8 @@ static int camcore_buffers_alloc(void *param)
 			goto exit;
 		}
 		channel->pyr_dec_buf = pframe;
-		pr_debug("idx %d, ch %d pyr_dec size %d, buf %p, w %d h %d\n",
-			module->dcam_idx, channel->ch_id, size, pframe, width, height);
+		pr_debug("hw_ctx_id %d, ch %d pyr_dec size %d, buf %p, w %d h %d\n",
+			sw_ctx->hw_ctx_id, channel->ch_id, size, pframe, width, height);
 	}
 
 exit:
@@ -2981,7 +2981,8 @@ static int camcore_bigsize_aux_init(struct camera_module *module,
 			module->idx);
 		goto exit_close;
 	}else
-	   module->cur_aux_sw_ctx_id = ret;
+		module->cur_aux_sw_ctx_id = ret;
+
 	module->aux_dcam_id = DCAM_HW_CONTEXT_1;
 	dev->sw_ctx[module->cur_aux_sw_ctx_id].dcam_slice_mode = module->cam_uinfo.dcam_slice_mode;
 	dev->sw_ctx[module->cur_aux_sw_ctx_id].slice_num = module->cam_uinfo.slice_num;
@@ -6842,23 +6843,6 @@ static int camcore_release(struct inode *node, struct file *file)
 	return ret;
 }
 
-static int camcore_csi_switch_proc(void *param)
-{
-	struct camera_group *group = (struct camera_group *)param;
-	struct camera_module *module = NULL;
-	unsigned long arg = 0;
-	if(!group) {
-		pr_err("fail to get valid group ptr\n");
-		return -EFAULT;
-	}
-
-	module = group->module[CAM_ID_0];
-
-	pr_info("Get group:%px, module = %px\n", group, module);
-	camioctl_ctx_switch(module, arg);
-	return 0;
-}
-
 static const struct file_operations image_fops = {
 	.open = camcore_open,
 	.unlocked_ioctl = camcore_ioctl,
@@ -6941,12 +6925,6 @@ static int camcore_probe(struct platform_device *pdev)
 	 */
 	if (group->ca_conn)
 		pr_info("cam ca-ta unconnect\n");
-
-	/* create switch ctx thread */
-	sprintf(g_switch_thrd.thread_name, "csi_switch");
-	ret = camcore_thread_create(group, &g_switch_thrd, camcore_csi_switch_proc);
-	if (ret)
-		pr_err("fail to create switch thread\n");
 
 	group->debugger.hw = group->hw_info;
 	ret = cam_debugger_init(&group->debugger);

@@ -467,7 +467,6 @@ static const struct file_operations dump_count_ops = {
 	.write = camdebugger_dump_count_write,
 };
 
-extern struct cam_thread_info g_switch_thrd;
 static ssize_t camdebugger_csi_switch_write(struct file *filp,
 		const char __user *buffer, size_t count, loff_t *ppos)
 {
@@ -480,7 +479,6 @@ static ssize_t camdebugger_csi_switch_write(struct file *filp,
 		return -EFAULT;
 	}
 
-	complete(&g_switch_thrd.thread_com);
 	pr_info("msg : %s\n", msg);
 
 	return count;
