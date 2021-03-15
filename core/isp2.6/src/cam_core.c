@@ -6633,8 +6633,7 @@ static int camcore_release(struct inode *node, struct file *file)
 
 	camcore_module_deinit(module);
 
-	if ((atomic_read(&module->state) == CAM_IDLE)
-		|| (atomic_read(&module->state) == CAM_STREAM_OFF)) {
+	if (atomic_read(&module->state) == CAM_IDLE) {
 		module->attach_sensor_id = -1;
 
 		dcam_dev = module->dcam_dev_handle;
