@@ -402,6 +402,8 @@ static int ispcore_gtm_frame_process(struct isp_sw_context *pctx,
 	rgb_gtm->gtm_ops.cfg_param(rgb_gtm, ISP_GTM_CFG_FRAME_ID, &pframe->fid);
 
 	gtm_rgb_info = &pctx->isp_k_param.gtm_rgb_info;
+	rgb_gtm->src.w = pctx->pipe_src.crop.size_x;
+	rgb_gtm->src.h = pctx->pipe_src.crop.size_y;
 	ret = rgb_gtm->gtm_ops.pipe_proc(rgb_gtm, gtm_rgb_info);
 	if (ret) {
 		pctx->pipe_src.mode_gtm = MODE_GTM_OFF;

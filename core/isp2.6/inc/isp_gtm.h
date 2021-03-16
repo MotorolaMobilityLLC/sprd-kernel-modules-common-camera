@@ -93,6 +93,7 @@ struct isp_gtm_ctx_desc {
 	uint32_t gtm_hist_stat_bypass;
 	uint32_t gtm_cur_is_first_frame;
 	uint32_t gtm_tm_luma_est_mode;
+	struct img_size src;
 	struct cam_hw_info *hw;
 	struct isp_gtm_sync *sync;
 	struct isp_gtm_ops gtm_ops;

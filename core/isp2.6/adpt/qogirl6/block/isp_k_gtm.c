@@ -25,13 +25,39 @@
 #define pr_fmt(fmt) "GTM: %d %d %s : "\
 	fmt, current->pid, __LINE__, __func__
 
+static void isp_k_raw_gtm_set_default(struct isp_dev_gtm_block_info *p)
+{
+	p->gtm_tm_out_bit_depth = 0xE;
+	p->gtm_tm_in_bit_depth = 0xE;
+	p->gtm_cur_is_first_frame = 0x0;
+	p->gtm_log_diff = 0x0;
+	p->gtm_log_diff_int = 0x25C9;
+	p->gtm_log_max_int = 0x0;
+	p->gtm_log_min_int = 0x496B;
+	p->gtm_lr_int = 0x23F;
+	p->gtm_tm_param_calc_by_hw = 0x1;
+	p->tm_lumafilter_c[0][0] = 0x4;
+	p->tm_lumafilter_c[0][1] = 0x2;
+	p->tm_lumafilter_c[0][2] = 0x4;
+	p->tm_lumafilter_c[1][0] = 0x2;
+	p->tm_lumafilter_c[1][1] = 0x28;
+	p->tm_lumafilter_c[1][2] = 0x2;
+	p->tm_lumafilter_c[2][0] = 0x4;
+	p->tm_lumafilter_c[2][1] = 0x2;
+	p->tm_lumafilter_c[2][2] = 0x4;
+	p->tm_lumafilter_shift = 0x6;
+	p->slice.gtm_slice_line_startpos = 0x0;
+	p->slice.gtm_slice_line_endpos = 0x0;
+	p->slice.gtm_slice_main = 0x0;
+}
+
 int isp_k_gtm_mapping_get(void *param)
 {
 	uint32_t val = 0;
 	struct isp_gtm_mapping *mapping = NULL;
 
 	if (!param) {
-		pr_err("fail to input ptr \n");
+		pr_err("fail to input ptr NULL\n");
 		return -1;
 	}
 
@@ -39,11 +65,11 @@ int isp_k_gtm_mapping_get(void *param)
 
 	val = ISP_HREG_RD(ISP_GTM_STATUS0);
 	mapping->gtm_hw_ymin = val & 0xFF;
-	mapping->gtm_hw_ymax = (val >> 16) & 0xFF;
+	mapping->gtm_hw_ymax = (val >> 16) & 0x3FFF;
 
 	val = ISP_HREG_RD(ISP_GTM_STATUS1);
-	mapping->gtm_hw_yavg= val & 0x3FF;
-	mapping->gtm_hw_target_norm = (val >> 16) & 0xFF;
+	mapping->gtm_hw_yavg= val & 0x3FFF;
+	mapping->gtm_hw_target_norm = (val >> 16) & 0x3FFF;
 
 	val = ISP_HREG_RD(ISP_GTM_STATUS2);
 	mapping->gtm_img_key_value = val & 0x7FF;
@@ -56,17 +82,12 @@ int isp_k_gtm_mapping_get(void *param)
 	val = ISP_HREG_RD(ISP_GTM_STATUS4);
 	mapping->gtm_hw_log_diff = val & 0x1FFFFFFF;
 
-	val = ISP_HREG_RD(ISP_GTM_STATUS5);
-	mapping->gtm_blk_col_ocnt = val & 0x1FFF;
-	mapping->gtm_blk_row_ocnt = (val >> 13) & 0xFFF;
-	mapping->gtm_fsm_state = (val >> 26) & 0x3F;
-
-	pr_debug("mapping hw_ymin %d, hw_ymax %d, hw_yavg %d\n",
-		mapping->gtm_hw_ymin, mapping->gtm_hw_ymax, mapping->gtm_hw_yavg);
-	pr_debug("target_norm %d, img_key_value %d, hw_lr_int %d\n",
-		mapping->gtm_hw_target_norm, mapping->gtm_img_key_value, mapping->gtm_hw_lr_int);
-	pr_debug("log_min_int %d, log_diff_int %d, hw_log_diff %d\n",
-		mapping->gtm_hw_log_min_int, mapping->gtm_hw_log_diff_int, mapping->gtm_hw_log_diff);
+	pr_debug("mapping hw_ymin %d, hw_ymax %d, hw_yavg %d, target_norm %d\n",
+		mapping->gtm_hw_ymin, mapping->gtm_hw_ymax,
+		mapping->gtm_hw_yavg, mapping->gtm_hw_target_norm);
+	pr_debug("img_key_value %d, lr_int %d, log_min_int %d, log_diff_int %d, hw_log_diff %d\n",
+		mapping->gtm_img_key_value, mapping->gtm_hw_lr_int, mapping->gtm_hw_log_min_int,
+		mapping->gtm_hw_log_diff_int, mapping->gtm_hw_log_diff);
 
 	return 0;
 }
@@ -115,9 +136,9 @@ int isp_k_gtm_mapping_set(void *param)
 int isp_k_gtm_block(void *pctx, void *param)
 {
 	int ret = 0;
+	uint32_t idx = 0;
 	unsigned int i = 0;
 	unsigned int val = 0;
-	uint32_t idx = 0;
 	struct isp_gtm_ctx_desc *ctx = NULL;
 	struct isp_dev_gtm_block_info *p = NULL;
 	struct isp_dev_gtm_slice_info *gtm_slice = NULL;
@@ -138,6 +159,8 @@ int isp_k_gtm_block(void *pctx, void *param)
 		p->gtm_mod_en = 0;
 	}
 
+	isp_k_raw_gtm_set_default(p);
+
 	ISP_REG_MWR(idx, ISP_GTM_GLB_CTRL, BIT_0, (p->gtm_mod_en & 0x1));
 	if (p->gtm_mod_en == 0) {
 		pr_debug("ctx_id %d, GTM mod disable\n", idx);
@@ -154,30 +177,29 @@ int isp_k_gtm_block(void *pctx, void *param)
 		p->gtm_cur_is_first_frame = 0;
 	}
 
-	pr_debug("ctx_id %d, mod_en %d, map %d, hist_stat %d, calc_by_hw %d\n",
-		idx, p->gtm_mod_en, p->gtm_map_bypass,
-		p->gtm_hist_stat_bypass, p->gtm_tm_param_calc_by_hw);
+	pr_debug("ctx_id %d, mod_en %d, map %d, hist_stat %d\n",
+		idx, p->gtm_mod_en, p->gtm_map_bypass, p->gtm_hist_stat_bypass);
 
-	p->gtm_tm_param_calc_by_hw = 1;
-	val = ((p->gtm_map_bypass & 0x1) << 1) |
-		((p->gtm_hist_stat_bypass & 0x1) << 2) |
-		((p->gtm_tm_param_calc_by_hw & 0x1) << 3) |
-		((p->gtm_cur_is_first_frame &0x1) << 4) |
-		((p->gtm_tm_luma_est_mode & 0x3) << 5) |
-		((p->gtm_tm_in_bit_depth & 0xF) << 24) |
-		((p->gtm_tm_out_bit_depth & 0xF) << 28);
-	ISP_REG_MWR(idx, ISP_GTM_GLB_CTRL, 0xFF00007E, val);
+	val = ((p->gtm_map_bypass & 0x1) << 1)
+		| ((p->gtm_hist_stat_bypass & 0x1) << 2)
+		| ((p->gtm_tm_param_calc_by_hw & 0x1) << 3)
+		| ((p->gtm_cur_is_first_frame &0x1) << 4)
+		| ((p->gtm_tm_luma_est_mode & 0x3) << 5)
+		| ((0 & 0x1) << 21)/*last slice*/
+		| ((0 & 0x1) << 22)/*first slice*/
+		| ((0 & 0x1) << 23)/*stat slice en*/
+		| ((p->gtm_tm_in_bit_depth & 0xF) << 24)
+		| ((p->gtm_tm_out_bit_depth & 0xF) << 28);
+	ISP_REG_MWR(idx, ISP_GTM_GLB_CTRL, 0xFFE0007E, val);
 
-	val = (p->gtm_imgkey_setting_mode & 0x1) | ((p->gtm_imgkey_setting_value & 0x7FFF) << 4);
+	val = (p->gtm_imgkey_setting_mode & 0x1)
+		| ((p->gtm_imgkey_setting_value & 0x7FFF) << 4);
 	ISP_REG_MWR(idx, ISP_GTM_HIST_CTRL0, 0x7FFF1, val);
 
 	val = (p->gtm_target_norm_setting_mode & 0x1)
 		| ((p->gtm_target_norm & 0x3FFF) << 2)
 		| ((p->gtm_target_norm_coeff & 0x3FFF) << 16);
 	ISP_REG_MWR(idx, ISP_GTM_HIST_CTRL1, 0x3FFFFFFD, val);
-
-	val = ((p->gtm_ymin & 0xFF) << 0);
-	ISP_REG_MWR(idx, ISP_GTM_HIST_YMIN, 0xFF, val);
 
 	val = p->gtm_yavg_diff_thr & 0x3FFF;
 	ISP_REG_WR(idx, ISP_GTM_HIST_CTRL2, val);
@@ -189,13 +211,15 @@ int isp_k_gtm_block(void *pctx, void *param)
 	val = ((p->gtm_log_diff_int & 0xFFFF) << 16);
 	ISP_REG_MWR(idx,  ISP_GTM_HIST_CTRL4, 0xFFFFFFFF, val);
 
+	pr_debug("gtm_hist_total w %d, h %d\n", ctx->src.w, ctx->src.h);
+	p->gtm_hist_total = ctx->src.w * ctx->src.h;
 	val = ((p->gtm_hist_total & 0x3FFFFFF) << 0);
 	ISP_REG_WR(idx,  ISP_GTM_HIST_CTRL5, val);
 
-	val = ((p->gtm_min_per & 0xFFFFF) << 0);
+	val = ((p->gtm_min_per * p->gtm_hist_total) >> 16) & 0xFFFFF;
 	ISP_REG_WR(idx, ISP_GTM_HIST_CTRL6, val);
 
-	val = ((p->gtm_max_per & 0xFFFFF) << 0);
+	val = ((p->gtm_max_per * p->gtm_hist_total) >> 16) & 0xFFFFF;
 	ISP_REG_WR(idx, ISP_GTM_HIST_CTRL7, val);
 
 	val = ((p->gtm_log_diff & 0x1FFFFFFF) << 0);
@@ -218,7 +242,8 @@ int isp_k_gtm_block(void *pctx, void *param)
 		| ((p->tm_lumafilter_c[2][1] & 0xFF) << 24);
 	ISP_REG_WR(idx, ISP_GTM_TM_LUMAFILTER1, val);
 
-	val = (p->tm_lumafilter_c[2][2] & 0xFF) | ((p->tm_lumafilter_shift & 0xF) << 28);
+	val = (p->tm_lumafilter_c[2][2] & 0xFF)
+		| ((p->tm_lumafilter_shift & 0xF) << 28);
 	ISP_REG_MWR(idx, ISP_GTM_TM_LUMAFILTER2, 0xF00000FF, val);
 
 	val = ((p->tm_rgb2y_g_coeff & 0x7FF) << 16)|
@@ -232,12 +257,6 @@ int isp_k_gtm_block(void *pctx, void *param)
 		val = ((p->tm_hist_xpts[i] & 0x3FFF) << 16) | (p->tm_hist_xpts[i+1] & 0x3FFF);
 		ISP_REG_WR(idx, ISP_GTM_HIST_XPTS_0 + i*2, val);
 	}
-	/* for slice */
-	val = (gtm_slice->gtm_slice_line_startpos & 0x1FFF);
-	ISP_REG_WR(idx, ISP_GTM_SLICE_LINE_STARTPOS, val);
-
-	val = (gtm_slice->gtm_slice_line_endpos & 0x1FFF);
-	ISP_REG_WR(idx, ISP_GTM_SLICE_LINE_ENDPOS, val);
 
 	return ret;
 }
