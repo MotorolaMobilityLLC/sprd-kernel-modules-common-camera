@@ -174,6 +174,32 @@ int csi_set_dt_node_data(void *param, int sensor_id)
 	return 0;
 }
 
+int csi_api_get_dcam_id(struct device_node *phy_node, int sensor_id, unsigned int phy_id)
+{
+	unsigned int dcam_id = 255;
+
+	if (phy_id >= PHY_MAX) {
+		pr_err("%s:fail to parse dcam_id : dcam_id:%u\n", __func__, dcam_id);
+		return -1;
+	}else if (phy_id == 0 || phy_id == 8){
+	        dcam_id = 0;
+	}else if (phy_id == 1 || phy_id == 9){
+	        dcam_id = 1;
+	}else if (phy_id == 2 || phy_id == 4){
+	        dcam_id = 2;
+	}else if (phy_id == 3 || phy_id == 6){
+	        dcam_id = 4;
+	}else if (phy_id == 5){
+	        dcam_id = 3;
+	}else if (phy_id == 7)
+	        dcam_id = 5;
+
+	pr_info("sensor_id %d dcam_id:%u\n", sensor_id, dcam_id);
+
+	return dcam_id;
+}
+
+
 int csi_api_mipi_phy_cfg_init(struct device_node *phy_node, int sensor_id)
 {
 	unsigned int phy_id = 0;

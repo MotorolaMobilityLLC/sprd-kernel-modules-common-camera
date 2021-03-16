@@ -145,6 +145,7 @@ static int sprd_sensor_free_gpio(struct device *dev,
 	return ret;
 }
 
+#ifndef MCLK_NEW_PROCESS1
 
 static uint32_t parse_dcam_id(struct device_node *dn,
 			      struct sprd_sensor_dev_info_tag *sensor_info)
@@ -160,7 +161,7 @@ static uint32_t parse_dcam_id(struct device_node *dn,
 	sensor_info->attch_dcam_id = dcam_id;
 	return 0;
 }
-
+#endif
 static int sprd_sensor_parse_dt(struct device *dev,
 				struct sprd_sensor_dev_info_tag *sensor_info)
 {
@@ -218,12 +219,15 @@ static int sprd_sensor_config(struct device *dev,
 				     phy_id);
 	} else
 		pr_err("%s; csi sensor connection error\n", __func__);
-
+#ifdef MCLK_NEW_PROCESS1
+	sensor_info->attch_dcam_id = csi_api_get_dcam_id(sensor_info->dev_node,
+					   sensor_info->sensor_id, phy_id);
+#else
 	if (parse_dcam_id(csi_ep_node, sensor_info)) {
 		pr_err("%s :dcam id parsing error\n", __func__);
 		return -EINVAL;
 	}
-
+#endif
 exit:
 	return ret;
 }
@@ -1761,17 +1765,6 @@ int sprd_sensor_find_dcam_id(int sensor_id)
 			pr_debug("find sensor %d attached dcam id %d\n",
 				 sensor_id,
 				 s_sensor_dev_data[i]->attch_dcam_id);
-#ifdef MCLK_NEW_PROCESS1
-            if(i == 2)
-				return 4;//sharkl6pro dcam3_1
-            if(i == 3)
-				return 3;//sharkl6pro dcam2_2
-         //   if(i == 4)
-		//		return 2;//sharkl6pro dcam2_1
-            if(i == 5)
-				return 5;//sharkl6pro dcam3_2
-
-#endif
 			return s_sensor_dev_data[i]->attch_dcam_id;
 		}
 	}

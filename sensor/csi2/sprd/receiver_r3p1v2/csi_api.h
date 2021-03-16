@@ -41,6 +41,7 @@ struct csi_dt_node_info {
 
 int csi_set_dt_node_data(void *param, int sensor_id);
 int csi_api_mipi_phy_cfg(void);
+int csi_api_get_dcam_id(struct device_node *phy_node, int sensor_id, unsigned int phy_id);
 int csi_api_mipi_phy_cfg_init(struct device_node *phy_node, int sensor_id);
 int csi_api_dt_node_init(struct device *dev, struct device_node *dn,
 				int sensor_id, unsigned int phy_id);

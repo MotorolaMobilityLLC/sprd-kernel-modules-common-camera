@@ -27,10 +27,10 @@ struct dphy_lane_cfg {
 };
 
 enum csi_phy_t {
-	PHY_4LANE = 0,
-	PHY_4LANE1,
-	PHY_2P2,
-	PHY_2P2RO,
+	PHY_4LANE = 0,//phy_0
+	PHY_4LANE1,//phy_1
+	PHY_2P2,//phy_2
+	PHY_2P2RO,//phy_3
 	PHY_2P2_M,
 	PHY_2P2_S,
 	PHY_2P2RO_M,

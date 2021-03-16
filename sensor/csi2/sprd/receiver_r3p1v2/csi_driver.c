@@ -64,10 +64,10 @@
 
 
 #define IPG_IMAGE_H_REG			(((IPG_IMAGE_H)/8) << 21)
-#define IPG_IMAGE_H_HI_REG		((IPG_IMAGE_H/8) > 0x1ff)? ((IPG_IMAGE_H/8) >> 7) : (0 << 2)
+#define IPG_IMAGE_H_HI_REG		(((IPG_IMAGE_H/8) > 0x1ff)? ((IPG_IMAGE_H/8) >> 7) : (0 << 2))
 #define IPG_COLOR_BAR_W			(((IPG_IMAGE_W)/24) << 13)
 #define IPG_IMAGE_W_REG			(((IPG_IMAGE_W)/16) << 4)
-#define IPG_IMAGE_W_HI_REG		((IPG_IMAGE_W/16) > 0x1ff)? ((IPG_IMAGE_W/16) >> 9) : 0
+#define IPG_IMAGE_W_HI_REG		(((IPG_IMAGE_W/16) > 0x1ff)? ((IPG_IMAGE_W/16) >> 9) : 0)
 
 #define IPG_HSYNC_EN			(1 << 3)
 #define IPG_COLOR_BAR_MODE		(0 << 2)
