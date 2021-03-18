@@ -1098,11 +1098,6 @@ static int camioctl_frame_addr_set(struct camera_module *module,
 	pr_debug("ch %d, buffer_count %d\n", param.channel_id,
 		param.buffer_count);
 
-	if (param.channel_id == CAM_CH_CAP) {
-		pr_info("ch %d, buffer_count %d\n", param.channel_id,
-		param.buffer_count);
-	}
-
 	ch_prv = &module->channel[CAM_CH_PRE];
 	ch = &module->channel[param.channel_id];
 	for (i = 0; i < param.buffer_count; i++) {
@@ -1132,13 +1127,11 @@ static int camioctl_frame_addr_set(struct camera_module *module,
 			break;
 		}
 
-		if (param.channel_id == CAM_CH_CAP || param.is_reserved_buf) {
-			pr_debug("ch %d, mfd 0x%x, off 0x%x 0x%x 0x%x, size 0x%x, reserved %d\n",
+		if (param.channel_id == CAM_CH_CAP)
+			pr_info("ch %d, mfd 0x%x, off 0x%x 0x%x 0x%x, size 0x%x, reserved %d, buffer_cnt %d\n",
 				pframe->channel_id, pframe->buf.mfd[0],
-				pframe->buf.offset[0], pframe->buf.offset[1],
-				pframe->buf.offset[2], (uint32_t)pframe->buf.size[0],
-				param.is_reserved_buf);
-		}
+				pframe->buf.offset[0],pframe->buf.offset[1], pframe->buf.offset[2],
+				(uint32_t)pframe->buf.size[0], param.is_reserved_buf, param.buffer_count);
 
 		if (ch->isp_path_id >= 0 && param.pixel_fmt != IMG_PIX_FMT_GREY) {
 			cmd = ISP_PATH_CFG_OUTPUT_BUF;

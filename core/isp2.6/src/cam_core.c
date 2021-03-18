@@ -2291,8 +2291,7 @@ static int camcore_isp_callback(enum isp_cb_type type, void *param, void *priv_d
 			cam_queue_empty_frame_put(pframe);
 		} else {
 			/* return offline buffer to dcam available queue. */
-			pr_debug("isp reset dcam path out %d\n",
-				channel->dcam_path_id);
+			pr_debug("isp reset dcam path out %d\n", channel->dcam_path_id);
 
 			if (module->dump_thrd.thread_task && module->in_dump) {
 				ret = cam_queue_enqueue(&module->dump_queue, &pframe->list);
@@ -2302,8 +2301,8 @@ static int camcore_isp_callback(enum isp_cb_type type, void *param, void *priv_d
 				}
 			}
 
-			if ((module->cam_uinfo.is_4in1 || module->cam_uinfo.dcam_slice_mode) &&
-				channel->aux_dcam_path_id == DCAM_PATH_BIN) {
+			if ((channel->aux_dcam_path_id == DCAM_PATH_BIN)
+				&& (module->cam_uinfo.is_4in1 || module->cam_uinfo.dcam_slice_mode > 0)) {
 				if (pframe->buf.type == CAM_BUF_USER) {
 					/* 4in1, lowlux capture, use dcam0
 					 * full path output buffer, from
@@ -2314,18 +2313,16 @@ static int camcore_isp_callback(enum isp_cb_type type, void *param, void *priv_d
 						channel->dcam_path_id,
 						pframe);
 				} else {
-					/* 4in1, dcam1 bin path output buffer
-					 * alloced by kernel
-					 */
+					/* alloced by kernel, bin path output buffer*/
 					if (module->cam_uinfo.is_4in1)
-						ret = module->dcam_dev_handle->dcam_pipe_ops->cfg_path(dcam_sw_aux_ctx,
+						ret = module->dcam_dev_handle->dcam_pipe_ops->cfg_path(dcam_sw_ctx,
 							DCAM_PATH_CFG_OUTPUT_BUF,
-							channel->aux_dcam_path_id,
+							DCAM_PATH_BIN,
 							pframe);
 					else
 						ret = module->dcam_dev_handle->dcam_pipe_ops->cfg_path(dcam_sw_aux_ctx,
 							DCAM_PATH_CFG_OUTPUT_BUF,
-							channel->aux_dcam_path_id,
+							DCAM_PATH_BIN,
 							pframe);
 				}
 			} else {
@@ -4206,9 +4203,8 @@ static int camcore_channel_init(struct camera_module *module,
 		isp_path_id = channel->isp_path_id;
 	}
 
-	pr_info("ch %d, new: (%d %d %d)  path (%d %d %d)\n",
-		channel->ch_id, new_isp_ctx, new_isp_path, new_dcam_path,
-		isp_ctx_id, isp_path_id, dcam_path_id);
+	pr_info("ch %d dcam_path(new %d path_id %d) isp_path(new %d path_id %d) isp_ctx(new %d ctx_id %d)\n",
+		channel->ch_id, new_dcam_path, dcam_path_id, new_isp_path, isp_path_id, new_isp_ctx, isp_ctx_id);
 
 	dcam_sw_ctx = &module->dcam_dev_handle->sw_ctx[module->cur_sw_ctx_id];
 
@@ -4477,9 +4473,8 @@ static int camcore_channel_init(struct camera_module *module,
 	}
 
 exit:
-	pr_info("path_id:dcam = %d, aux dcam = %d, isp = 0x%x\n",
-		channel->dcam_path_id, channel->aux_dcam_path_id,
-		channel->isp_path_id);
+	pr_info("dcam(sw_ctx %d hw_ctx %d), path_id(dcam %d, aux dcam %d, isp %d)\n",
+		dcam_sw_ctx->sw_ctx_id, dcam_sw_ctx->hw_ctx_id, channel->dcam_path_id, channel->aux_dcam_path_id, channel->isp_path_id);
 	pr_debug("ch %d done. ret = %d\n", channel->ch_id, ret);
 	return ret;
 }
@@ -6405,14 +6400,13 @@ rewait:
 			read_op.evt = IMG_TX_STOP;
 		} else if (pframe->evt == IMG_TX_DONE) {
 			atomic_set(&module->timeout_flag, 0);
-			if ((pframe->irq_type == CAMERA_IRQ_4IN1_DONE) ||
-				(pframe->irq_type == CAMERA_IRQ_FDRL) ||
-				(pframe->irq_type == CAMERA_IRQ_FDRH) ||
-				(pframe->irq_type == CAMERA_IRQ_IMG)) {
+			if ((pframe->irq_type == CAMERA_IRQ_4IN1_DONE)
+				|| (pframe->irq_type == CAMERA_IRQ_FDRL)
+				|| (pframe->irq_type == CAMERA_IRQ_FDRH)
+				|| (pframe->irq_type == CAMERA_IRQ_IMG)) {
 				cam_buf_ionbuf_put(&pframe->buf);
 				pchannel = &module->channel[pframe->channel_id];
-				if (pframe->buf.mfd[0] ==
-					pchannel->reserved_buf_fd) {
+				if (pframe->buf.mfd[0] == pchannel->reserved_buf_fd) {
 					pr_info("get output buffer with reserved frame fd %d\n",
 						pchannel->reserved_buf_fd);
 					cam_queue_empty_frame_put(pframe);
@@ -6479,12 +6473,14 @@ rewait:
 			read_op.parm.frame.irq_property = pframe->irq_property;
 		}
 
-		pr_debug("read frame, evt 0x%x irq %d ch 0x%x index 0x%x mfd %d\n",
-			read_op.evt,
-			read_op.parm.frame.irq_type,
-			read_op.parm.frame.channel_id,
-			read_op.parm.frame.real_index,
-			read_op.parm.frame.mfd);
+		if (read_op.parm.frame.channel_id == CAM_CH_CAP)
+			pr_info("read frame, evt 0x%x irq %d ch 0x%x index 0x%x mfd 0x%x\n",
+				read_op.evt, read_op.parm.frame.irq_type, read_op.parm.frame.channel_id,
+				read_op.parm.frame.real_index, read_op.parm.frame.mfd);
+		else
+			pr_debug("read frame, evt 0x%x irq %d ch 0x%x index 0x%x mfd 0x%x\n",
+				read_op.evt, read_op.parm.frame.irq_type, read_op.parm.frame.channel_id,
+				read_op.parm.frame.real_index, read_op.parm.frame.mfd);
 
 		if (pframe) {
 			if (pframe->irq_type != CAMERA_IRQ_4IN1_DONE) {

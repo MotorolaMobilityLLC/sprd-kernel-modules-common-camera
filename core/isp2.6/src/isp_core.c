@@ -1383,26 +1383,34 @@ static int ispcore_offline_param_set(struct isp_sw_context *pctx,
 		if (path_info->bind_type == ISP_PATH_SLAVE)
 			continue;
 		out_frame = ispcore_path_out_frame_get(pctx, path, tmp);
-		if (out_frame) {
-			out_frame->fid = pframe->fid;
-			out_frame->sensor_time = pframe->sensor_time;
-			out_frame->boot_sensor_time = pframe->boot_sensor_time;
-		} else {
+		if (out_frame == NULL) {
+			pr_err("fail to get out_frame\n");
 			ret = -EINVAL;
 			goto exit;
 		}
 
+		out_frame->fid = pframe->fid;
+		out_frame->sensor_time = pframe->sensor_time;
+		out_frame->boot_sensor_time = pframe->boot_sensor_time;
+
+		if (pctx->ch_id == CAM_CH_CAP)
+			pr_info("isp_ctx %d is_reserved %d iova 0x%x, user_fid: %x mfd 0x%x\n",
+				pctx->ctx_id, out_frame->is_reserved,
+				(uint32_t)out_frame->buf.iova[0], out_frame->user_fid,
+				out_frame->buf.mfd[0]);
+		else
+			pr_debug("isp %d is_reserved %d iova 0x%x, user_fid: %x mfd 0x%x\n",
+				pctx->ctx_id, out_frame->is_reserved,
+				(uint32_t)out_frame->buf.iova[0], out_frame->user_fid,
+				out_frame->buf.mfd[0]);
 		/* config store buffer */
-		pr_debug("isp %d is_reserved %d iova 0x%x, user_fid: %x mfd 0x%x\n",
-			pctx->ctx_id, out_frame->is_reserved,
-			(uint32_t)out_frame->buf.iova[0], out_frame->user_fid,
-			out_frame->buf.mfd[0]);
 		ret = isp_path_store_frm_set(path, out_frame);
 		/* If some error comes then do not start ISP */
 		if (ret) {
 			cam_buf_iommu_unmap(&out_frame->buf);
 			cam_buf_ionbuf_put(&out_frame->buf);
 			cam_queue_empty_frame_put(out_frame);
+			pr_err("fail to set store buffer\n");
 			ret = -EINVAL;
 			goto exit;
 		}
