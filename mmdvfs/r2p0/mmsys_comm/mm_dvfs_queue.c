@@ -8,6 +8,12 @@
 
 #include <mm_dvfs_queue.h>
 
+#ifdef pr_fmt
+#undef pr_fmt
+#endif
+#define pr_fmt(fmt) "mmsys-dvfs: queue %d %s : "\
+        fmt, __LINE__, __func__
+
 void InitPQueue(PQueue pQueue) {
     if (pQueue == NULL)
         return;

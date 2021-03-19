@@ -13,6 +13,9 @@ extern struct ip_dvfs_map_cfg fd_dvfs_config_table[8];
 extern struct ip_dvfs_map_cfg isp_dvfs_config_table[8];
 extern struct ip_dvfs_map_cfg jpg_dvfs_config_table[8];
 extern struct ip_dvfs_map_cfg mtx_data_dvfs_config_table[8];
+extern struct ip_dvfs_map_cfg vdsp_dvfs_config_table[8];
+extern struct ip_dvfs_map_cfg vdma_dvfs_config_table[8];
+extern struct ip_dvfs_map_cfg vdsp_mtx_dvfs_config_table[8];
 extern struct mmsys_clk_para clk_vote_table[5];
 
 #endif

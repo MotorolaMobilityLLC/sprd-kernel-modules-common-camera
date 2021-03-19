@@ -53,6 +53,9 @@ typedef enum {
     DVFS_JPEG,
     DVFS_DCAM_MTX,
     DVFS_MTX_DATA,
+    DVFS_VDSP,
+    DVFS_VDMA,
+    DVFS_VDSP_MTX,
     DVFS_MODULE_MAX,
 } mmsys_module;
 
@@ -261,6 +264,10 @@ extern int mmsys_dvfs_pw_off(void);
 extern int set_mtx_data_work_freq(unsigned int index);
 extern int set_dcam01_axi_work_freq(unsigned int index);
 extern int set_dcam_mtx_work_freq(unsigned int index);
+extern int set_vdsp_mtx_work_freq(unsigned int index);
+extern struct ip_dvfs_ops *get_vdma_dvfs_ops(void);
+extern struct ip_dvfs_ops *get_vdsp_dvfs_ops(void);
+extern struct ip_dvfs_ops *get_vdsp_mtx_dvfs_ops(void);
 
 extern struct mutex mmsys_glob_reg_lock;
 extern struct mmreg_map g_mmreg_map;

@@ -23,6 +23,12 @@ DEFINE_MUTEX(mmsys_glob_reg_lock);
 
 struct mmreg_map g_mmreg_map;
 
+#ifdef pr_fmt
+#undef pr_fmt
+#endif
+#define pr_fmt(fmt) "mmsys-dvfs: comm %d %s : "\
+        fmt, __LINE__, __func__
+
 int mmsys_adjust_target_freq(mmsys_module md_type, unsigned long volt,
                              unsigned long freq, unsigned int enable_sysgov) {
 
@@ -147,7 +153,7 @@ err_out:
 struct ip_dvfs_ops *get_ip_dvfs_ops(const char *name) {
     struct ip_dvfs_ops *tmp_ip_ops;
 
-    pr_info("dvfs ops:  mmsys %s\n", __func__);
+    pr_info("dvfs ops:  mmsys %s\n", name);
 
     if (IS_ERR_OR_NULL(name)) {
         pr_err("DEVFREQ: %s: Invalid parameters\n", __func__);
@@ -159,11 +165,12 @@ struct ip_dvfs_ops *get_ip_dvfs_ops(const char *name) {
 
     list_for_each_entry(tmp_ip_ops, &ip_dvfs_ops_list, node) {
         if (!strncmp(tmp_ip_ops->name, name, DEVFREQ_NAME_LEN)) {
-            pr_err(" mmsys %s:  \n", __func__);
+            pr_info(" tmp_ip_ops->name %s: name:%s\n", tmp_ip_ops->name, name);
             mutex_unlock(&ip_dvfsops_list_lock);
             return tmp_ip_ops;
         }
     }
+
     mutex_unlock(&ip_dvfsops_list_lock);
 
     return ERR_PTR(-ENODEV);

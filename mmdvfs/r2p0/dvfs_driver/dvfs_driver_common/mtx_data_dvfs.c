@@ -4,6 +4,13 @@
 #include "mm_dvfs_coffe.h"
 #include "mm_dvfs_table.h"
 
+#ifdef pr_fmt
+#undef pr_fmt
+#endif
+#define pr_fmt(fmt) "mmsys-dvfs: mtx_date_dvfs %d %s : "\
+        fmt, __LINE__, __func__
+
+
 /* userspace  interface*/
 static int ip_hw_dvfs_en(struct devfreq *devfreq, unsigned int dvfs_eb) {
 

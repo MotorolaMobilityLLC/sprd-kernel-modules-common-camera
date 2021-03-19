@@ -57,7 +57,7 @@
 #define REG_MM_DVFS_AHB_VDMA_INDEX6_MAP    0x018CUL
 #define REG_MM_DVFS_AHB_VDMA_INDEX7_MAP    0x0190UL
 
-#define REG_MM_DVFS_AHB_VDSP_MTX_INDEX0_MAP    0x019CUL
+#define REG_MM_DVFS_AHB_VDSP_MTX_INDEX0_MAP    0x0194UL
 #define REG_MM_DVFS_AHB_VDSP_MTX_INDEX1_MAP    0x0198UL
 #define REG_MM_DVFS_AHB_VDSP_MTX_INDEX2_MAP    0x019CUL
 #define REG_MM_DVFS_AHB_VDSP_MTX_INDEX3_MAP    0x01A0UL
@@ -233,9 +233,9 @@
 #define BIT_REG_DEPTH_FREQ_UPD_EN_BYP       (BIT(5))
 #define BIT_REG_CPP_FREQ_UPD_EN_BYP         (BIT(4))
 #define BIT_REG_ISP_FREQ_UPD_EN_BYP         (BIT(3))
-#define BIT_VDSP_MTX_DATA_FREQ_UPD_EN_BYP   (BIT(2))
-#define BIT_VDMA_FREQ_UPD_EN_BYP            (BIT(1))
-#define BIT_VDSP_FREQ_UPD_EN_BYP            (BIT(0))
+#define BIT_REG_VDSP_MTX_DATA_FREQ_UPD_EN_BYP   (BIT(2))
+#define BIT_REG_VDMA_FREQ_UPD_EN_BYP            (BIT(1))
+#define BIT_REG_VDSP_FREQ_UPD_EN_BYP            (BIT(0))
 
 #define SHIFT_BIT_REG_JPG_FREQ_UPD_EN_BYP         (13)
 #define SHIFT_BIT_REG_MM_MTX_DATA_FREQ_UPD_EN_BYP (12)
@@ -490,35 +490,35 @@
 //VDSP_MTX_DATA
 /* bits definitions for register REG_MM_DVFS_AHB_VDMA_IMTX_DATA_INDEX0_MAP, 0x30014194 */
 #define BITS_VDSP_MTX_DATA_VOL_INDEX0(_X_) ((_X_) << 2  & (BIT(2)|BIT(3)|BIT(4)|BIT(5)))
-#define BITS_CGM_VDSP_MTX_DATA_SEL_INDEX0(_X_) ((_X_) << 0  & (BIT(0)|BIT(1))
+#define BITS_CGM_VDSP_MTX_DATA_SEL_INDEX0(_X_) ((_X_) << 0  & (BIT(0)|BIT(1)))
 
 /* bits definitions for register REG_MM_DVFS_AHB_VDMA_IMTX_DATA_INDEX1_MAP, 0x30014198 */
 #define BITS_VDSP_MTX_DATA_VOL_INDEX1(_X_) ((_X_) << 2  & (BIT(2)|BIT(3)|BIT(4)|BIT(5)))
-#define BITS_CGM_VDSP_MTX_DATA_SEL_INDEX1(_X_) ((_X_) << 0  & (BIT(0)|BIT(1))
+#define BITS_CGM_VDSP_MTX_DATA_SEL_INDEX1(_X_) ((_X_) << 0  & (BIT(0)|BIT(1)))
 
 /* bits definitions for register REG_MM_DVFS_AHB_VDMA_IMTX_DATA_INDEX2_MAP, 0x3001419C */
 #define BITS_VDSP_MTX_DATA_VOL_INDEX2(_X_) ((_X_) << 2  & (BIT(2)|BIT(3)|BIT(4)|BIT(5)))
-#define BITS_CGM_VDSP_MTX_DATA_SEL_INDEX2(_X_) ((_X_) << 0  & (BIT(0)|BIT(1))
+#define BITS_CGM_VDSP_MTX_DATA_SEL_INDEX2(_X_) ((_X_) << 0  & (BIT(0)|BIT(1)))
 
 /* bits definitions for register REG_MM_DVFS_AHB_VDMA_IMTX_DATA_INDEX3_MAP, 0x300141A0 */
 #define BITS_VDSP_MTX_DATA_VOL_INDEX3(_X_) ((_X_) << 2  & (BIT(2)|BIT(3)|BIT(4)|BIT(5)))
-#define BITS_CGM_VDSP_MTX_DATA_SEL_INDEX3(_X_) ((_X_) << 0  & (BIT(0)|BIT(1))
+#define BITS_CGM_VDSP_MTX_DATA_SEL_INDEX3(_X_) ((_X_) << 0  & (BIT(0)|BIT(1)))
 
 /* bits definitions for register REG_MM_DVFS_AHB_VDMA_IMTX_DATA_INDEX4_MAP, 0x300141A4 */
 #define BITS_VDSP_MTX_DATA_VOL_INDEX4(_X_) ((_X_) << 2  & (BIT(2)|BIT(3)|BIT(4)|BIT(5)))
-#define BITS_CGM_VDSP_MTX_DATA_SEL_INDEX4(_X_) ((_X_) << 0  & (BIT(0)|BIT(1))
+#define BITS_CGM_VDSP_MTX_DATA_SEL_INDEX4(_X_) ((_X_) << 0  & (BIT(0)|BIT(1)))
 
 /* bits definitions for register REG_MM_DVFS_AHB_VDMA_IMTX_DATA_INDEX5_MAP, 0x300141A8 */
 #define BITS_VDSP_MTX_DATA_VOL_INDEX5(_X_) ((_X_) << 2  & (BIT(2)|BIT(3)|BIT(4)|BIT(5)))
-#define BITS_CGM_VDSP_MTX_DATA_SEL_INDEX5(_X_) ((_X_) << 0  & (BIT(0)|BIT(1))
+#define BITS_CGM_VDSP_MTX_DATA_SEL_INDEX5(_X_) ((_X_) << 0  & (BIT(0)|BIT(1)))
 
 /* bits definitions for register REG_MM_DVFS_AHB_VDMA_IMTX_DATA_INDEX6_MAP, 0x300141AC */
 #define BITS_VDSP_MTX_DATA_VOL_INDEX6(_X_) ((_X_) << 2  & (BIT(2)|BIT(3)|BIT(4)|BIT(5)))
-#define BITS_CGM_VDSP_MTX_DATA_SEL_INDEX6(_X_) ((_X_) << 0  & (BIT(0)|BIT(1))
+#define BITS_CGM_VDSP_MTX_DATA_SEL_INDEX6(_X_) ((_X_) << 0  & (BIT(0)|BIT(1)))
 
 /* bits definitions for register REG_MM_DVFS_AHB_VDMA_IMTX_DATA_INDEX7_MAP, 0x300141B0 */
 #define BITS_VDSP_MTX_DATA_VOL_INDEX7(_X_) ((_X_) << 2  & (BIT(2)|BIT(3)|BIT(4)|BIT(5)))
-#define BITS_CGM_VDSP_MTX_DATA_SEL_INDEX7(_X_) ((_X_) << 0  & (BIT(0)|BIT(1))
+#define BITS_CGM_VDSP_MTX_DATA_SEL_INDEX7(_X_) ((_X_) << 0  & (BIT(0)|BIT(1)))
 
 
 // ISP

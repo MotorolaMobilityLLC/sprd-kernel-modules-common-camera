@@ -3,6 +3,13 @@
 #include "mmsys_dvfs.h"
 #include "mm_dvfs_table.h"
 
+#ifdef pr_fmt
+#undef pr_fmt
+#endif
+#define pr_fmt(fmt) "mmsys-dvfs: mmsys-dvfs %d %s : "\
+        fmt, __LINE__, __func__
+
+
 u8 mm_power_flag = 0;
 
 static int get_ip_status(struct devfreq *devfreq,

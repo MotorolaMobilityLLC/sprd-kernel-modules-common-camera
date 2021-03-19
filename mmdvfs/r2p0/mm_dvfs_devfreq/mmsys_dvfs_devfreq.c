@@ -16,6 +16,13 @@
 #include "mmsys_dvfs_comm.h"
 #include <video/sprd_mmsys_pw_domain.h>
 
+#ifdef pr_fmt
+#undef pr_fmt
+#endif
+#define pr_fmt(fmt) "mmsys-dvfs: devfreq %d %s : "\
+        fmt, __LINE__, __func__
+
+
 static int mmsys_dvfs_target(struct device *dev, unsigned long *freq,
                              u32 flags);
 static int mmsys_dvfs_get_dev_status(struct device *dev,
@@ -327,7 +334,7 @@ int __init mmsys_module_init(void) {
     int ret = MM_DVFS_SUCCESS;
 
     pr_err("enter mmsys_moudule_init \n");
-
+	pr_info("hww\n");
     ret = mmsys_dvfs_init();
     ret = cpp_dvfs_init();
     ret = fd_dvfs_init();
@@ -339,6 +346,9 @@ int __init mmsys_module_init(void) {
     ret = dcam0_1_axi_dvfs_init();
     ret = dcam2_3_dvfs_init();
     ret = dcam2_3_axi_dvfs_init();
+    ret = vdsp_dvfs_init();
+    ret = vdma_dvfs_init();
+    ret = vdsp_mtx_dvfs_init();
     ret = mtx_data_dvfs_init();
     pr_err("end mmsys_moudule_init \n");
 
@@ -348,6 +358,9 @@ int __init mmsys_module_init(void) {
 void __exit mmsys_module_exit(void) {
     pr_err("enter mmsys_moudule_exit \n");
     mtx_data_dvfs_exit();
+    vdsp_mtx_dvfs_exit();
+    vdma_dvfs_exit();
+    vdsp_dvfs_exit();
     dcam2_3_axi_dvfs_exit();
     dcam2_3_dvfs_exit();
     dcam0_1_axi_dvfs_exit();

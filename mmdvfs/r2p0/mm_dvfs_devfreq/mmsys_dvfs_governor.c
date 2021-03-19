@@ -13,6 +13,13 @@
 
 #include "mmsys_dvfs.h"
 
+#ifdef pr_fmt
+#undef pr_fmt
+#endif
+#define pr_fmt(fmt) "mmsys-dvfs: mmsys_gover %d %s : "\
+        fmt, __LINE__, __func__
+
+
 ssize_t get_mmsys_power_show(struct device *dev, struct device_attribute *attr,
                              char *buf) {
     struct devfreq *devfreq = to_devfreq(dev);

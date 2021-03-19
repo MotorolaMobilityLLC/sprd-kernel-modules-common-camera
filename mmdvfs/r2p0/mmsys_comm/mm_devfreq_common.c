@@ -13,6 +13,12 @@
 
 #include "mm_devfreq_common.h"
 
+#ifdef pr_fmt
+#undef pr_fmt
+#endif
+#define pr_fmt(fmt) "mmsys-dvfs: common %d %s : "\
+        fmt, __LINE__, __func__
+
  int dvfs_target(struct device *dev, unsigned long *freq, u32 flags) {
      struct module_dvfs *module = dev_get_drvdata(dev);
      struct dev_pm_opp *opp;
