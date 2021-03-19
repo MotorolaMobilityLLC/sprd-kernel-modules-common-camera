@@ -773,23 +773,22 @@ static void csi_2p2l_2lane_phy_testclr(struct csi_phy_info *phy)
 	}
 
 
-//	regmap_update_bits(anlg_phy_syscon, sel_reg_val,//anlg_phy_g10_syscon
-		//REG_ANLG_PHY_G10_ANALOG_MIPI_CSI_4LANE_CSI_4L_BIST_TEST
-		//REG_ANLG_PHY_G10_RF_ANALOG_MIPI_CSI_COMBO_CSI_4L_BIST_TEST,
-//		mask_sel, mask_sel);
-	regmap_update_bits(anlg_phy_syscon,testclr_reg_val,//anlg_phy_g10_syscon
-		//REG_ANLG_PHY_G10_ANALOG_MIPI_CSI_4LANE_CSI_4L_BIST_TEST
-		//REG_ANLG_PHY_G10_RF_ANALOG_MIPI_CSI_COMBO_CSI_4L_BIST_TEST,
+	regmap_update_bits(anlg_phy_syscon,testclr_reg_val,
 		mask_testclr, mask_testclr);
 	udelay(1);
-//	regmap_update_bits(anlg_phy_syscon,sel_reg_val,//anlg_phy_g10_syscon
-		//REG_ANLG_PHY_G10_ANALOG_MIPI_CSI_4LANE_CSI_4L_BIST_TEST
-		//REG_ANLG_PHY_G10_RF_ANALOG_MIPI_CSI_COMBO_CSI_4L_BIST_TEST,
-//		mask_sel, ~mask_sel);
-	regmap_update_bits(anlg_phy_syscon,testclr_reg_val,//anlg_phy_g10_syscon
-		//REG_ANLG_PHY_G10_ANALOG_MIPI_CSI_4LANE_CSI_4L_BIST_TEST
-		//REG_ANLG_PHY_G10_RF_ANALOG_MIPI_CSI_COMBO_CSI_4L_BIST_TEST,
+	regmap_update_bits(anlg_phy_syscon,testclr_reg_val,
 		mask_testclr, ~mask_testclr);
+	if (phy->phy_id == PHY_2P2 || phy->phy_id == PHY_2P2RO){
+		mask_testclr = BIT_16;
+		testclr_reg_val = 0x6c;
+		regmap_update_bits(anlg_phy_syscon,testclr_reg_val,//anlg_phy_g10_syscon
+			//REG_ANLG_PHY_G10_ANALOG_MIPI_CSI_4LANE_CSI_4L_BIST_TEST
+			//REG_ANLG_PHY_G10_RF_ANALOG_MIPI_CSI_COMBO_CSI_4L_BIST_TEST,
+			mask_testclr, mask_testclr);
+		udelay(1);
+		regmap_update_bits(anlg_phy_syscon,testclr_reg_val,
+			mask_testclr, ~mask_testclr);
+	}
 
 }
 
@@ -1235,8 +1234,22 @@ void csi_phy_init(struct csi_dt_node_info *dt_info, int32_t idx)
 				phy_write(idx, 0x61, 0x82, 0x82);
 				phy_write(idx, 0x60, BIT_7 | BIT_0, BIT_7 | BIT_0);
 				//phy_write(idx, 0x60, 0xf1, 0xff);
+				if(dt_info->lane_seq == 0xfffff){
+					pr_err("combo dphy pn swap\n");
+					//need swap for combo dphy0 using only for s5kgw1sp03/imx586
+					//pn swap: clk 0x01[0]	0x3d[7]  lane3: 0x7d[7] lane2: 0x6d[7]  lane1: 0x5d[7]  lane0: 0x4d[7]
+					//lane3-lane0 seq: 0xfe default: 0xe4=11100100
+					//lane3:0x7d[6:5]=11 lane2:0x6d[6:5]=10 lane1:0x5d[6:5]=01 lane0:0x4d[6:5]=00
+					phy_write(idx, 0x01, BIT_0, BIT_0);
+					phy_write(idx, 0x3d, BIT_7, BIT_7);
+					phy_write(idx, 0x4d, BIT_7, BIT_7);
+					phy_write(idx, 0x5d, BIT_7, BIT_7);
+					phy_write(idx, 0x6d, BIT_7, BIT_7);
+					phy_write(idx, 0x7d, BIT_7, BIT_7);
+
+				}
 				dphy_afe_cali(dt_info, idx);
-				CSI_REG_MWR(idx, PHY_TEST_CRTL0, PHY_REG_SEL, ~(1 << 2));//TODO: need swap for combo dphy
+				CSI_REG_MWR(idx, PHY_TEST_CRTL0, PHY_REG_SEL, ~(1 << 2));
 		break;
 	case PHY_CPHY1:
 	case PHY_CPHY:
@@ -1250,7 +1263,26 @@ void csi_phy_init(struct csi_dt_node_info *dt_info, int32_t idx)
 		//phy_write(idx, 0xb5, 0x1a, 0xff);
 		//phy_write(idx, 0xd5, 0x1a, 0xff);
 		regmap_update_bits(anlg_phy_syscon,0x40, BIT_2, BIT_2);//enabel lane
+		//TODO: need swap for combo cphy0 using imx586
+/*		A2D:
+		LANE0 base reg 8'h80  LANE1 base reg 8'ha0  LANE2 base reg 8'hc0
+		8'h8e/ae/ce  [1:0] for lane swap: 2'b00: lane swap lane0  2'b01: lane swap lane1	2'b10: lane swap lane2
+			              [3:2] for A swap: 2'b00: lane A swap A 2'b01: lane A swap B 2'b10: lane A swap C
+			              [5:4] for B swap: 2'b00: lane B swap A 2'b01: lane B swap B 2'b10: lane B swap C
+			              [7:6] for C swap: 2'b00: lane C swap A 2'b01: lane C swap B 2'b10: lane C swap C
+		D2A:
+		8'h41 [1:0] for lane0 swap: 00: lane0 swap lane0 01: lane0 swap lane1 10: lane0 swap lane2
+			  [3:2] for lane1 swap: 00: lane1 swap lane0 01: lane1 swap lane1 10: lane1 swap lane2
+			  [5:4] for lane2 swap: 00: lane2 swap lane0 	01: lane2 swap lane1 10: lane2 swap lane2
+        */
+		//eg: CPHY lane0 swap lane1:
+		//8'h8e[1:0]=2'b01   : A2D phy lane0 swap sensor lane1
+		//8'h41[1:0]=2'b01   : D2A phy lane0 swap sensor lane1
+		//8'h8e[3:2]=2'b10(A->C) 8'h8e[5:4]=2'b00(B->A) 8'h8e[7:6]=2'b01(C->B)////A B C swap
 
+		//8'hae[1:0]=2'b00   : A2D phy lane1 swap sensor lane0
+		//8'h41[3:2]=2'b00   : D2A phy lane1 swap sensor lane0
+		//8'hae[3:2]=2'b00 (A->A) 8'hae[5:4]=2'b01(B->B) 8'hae[7:6]=2'b10(C->C)
 		cphy_cdr_init(dt_info, idx);
 		//phy_write(idx, 0x3b, BIT_3, BIT_3);//0x1e, 0x1c);//0x1e);
 		CSI_REG_MWR(idx, PHY_TEST_CRTL0, PHY_REG_SEL, ~(1 << 2));
@@ -1271,9 +1303,13 @@ void csi_phy_init(struct csi_dt_node_info *dt_info, int32_t idx)
 		//break;
 	case PHY_2P2:
 		/* 2p2lane phy as a 4lane phy  */
+		CSI_REG_MWR(idx, 0x70, BIT_5, ~BIT_5);
+		CSI_REG_MWR(idx, PHY_PD_N, BIT_1, BIT_1);//BIT_1 | BIT_0, BIT_1 | BIT_0);
+		CSI_REG_MWR(idx, RST_DPHY_N, BIT_1, BIT_1);//BIT_1 | BIT_0, BIT_1 | BIT_0);
 		phy_csi_path_clr_cfg(dt_info, idx);
 		//phy_write(idx, 0x4d, 0x48, 0xff);
 		//phy_write(idx, 0x5d, 0x68, 0xff);
+		csi_2p2l_2lane_phy_testclr(phy);
 		phy_csi_path_cfg(dt_info, idx);
 		break;
 	case PHY_2P2RO_M:
@@ -1339,6 +1375,6 @@ void csi_event_enable(int32_t idx)
 void csi_close(int32_t idx)
 {
 	csi_shut_down_phy(1, idx);
-	csi_reset_controller(idx);
 	csi_reset_phy(idx);
+	csi_reset_controller(idx);
 }

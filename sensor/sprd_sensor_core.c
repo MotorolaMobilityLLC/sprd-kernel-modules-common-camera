@@ -144,8 +144,10 @@ static unsigned int sprd_sensor_get_voltage_value(unsigned int vdd_val)
 		volt_value = SPRD_SENSOR_VDD_1000MV_VAL;
 		break;
 	case SPRD_SENSOR_VDD_CLOSED:
-	default:
 		volt_value = 0;
+		break;
+	default:
+		volt_value = vdd_val * 1000;
 		break;
 	}
 
