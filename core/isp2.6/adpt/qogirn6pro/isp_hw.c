@@ -1652,7 +1652,7 @@ static int isphw_block_func_get(void *handle, void *arg)
 {
 	void *block_func = NULL;
 	struct isp_hw_block_func *func_arg = NULL;
-
+	return 0;
 	func_arg = (struct isp_hw_block_func *)arg;
 
 	if (func_arg->index < (ISP_BLOCK_TOTAL - ISP_BLOCK_BASE)) {

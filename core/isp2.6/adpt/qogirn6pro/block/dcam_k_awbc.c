@@ -51,10 +51,13 @@ int dcam_k_awbc_block(struct dcam_dev_param *param)
 		(p->gain.gr & 0x3FFF);
 	DCAM_REG_WR(idx, DCAM_AWBC_GAIN1, val);
 
+	p->thrd.b = 0x3FFF;
+	p->thrd.r = 0x3FFF;
 	val = ((p->thrd.b & 0x3FFF) << 16) |
 		(p->thrd.r & 0x3FFF);
 	DCAM_REG_WR(idx, DCAM_AWBC_THRD0, val);
 
+	p->thrd.gr = 0x3FFF;
 	val = (p->thrd.gr & 0x3FFF);
 	DCAM_REG_WR(idx, DCAM_AWBC_THRD1, val);
 

@@ -1860,8 +1860,6 @@ static int dcamhw_blocks_setall(void *handle, void *arg)
 	uint32_t idx;
 	struct dcam_dev_param *p;
 
-	return 0;
-
 	if (!arg) {
 		pr_err("fail to get ptr %p\n", arg);
 		return -EFAULT;
@@ -1887,7 +1885,6 @@ static int dcamhw_blocks_setstatis(void *handle, void *arg)
 	uint32_t idx;
 	struct dcam_dev_param *p;
 
-	return 0;
 	if (arg == NULL) {
 		pr_err("fail to get ptr %p\n", arg);
 		return -EFAULT;
@@ -1921,7 +1918,6 @@ static int dcamhw_blocks_setstatis(void *handle, void *arg)
 
 	dcam_k_pdaf(p);
 	dcam_k_3dnr_me(p);
-
 	pr_info("dcam%d set statis done\n", idx);
 	return 0;
 }
