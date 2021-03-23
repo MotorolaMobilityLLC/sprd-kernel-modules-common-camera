@@ -646,6 +646,21 @@ static void dcamint_preview_sof(void *param)
 	dcamint_sof_event_dispatch(sw_ctx);
 }
 
+static void dcamint_sensor_sof(void *param)
+{
+	struct dcam_hw_context *dcam_hw_ctx = (struct dcam_hw_context *)param;
+
+	pr_debug("dcamint_sensor_sof raw_callback = %d frame_index=%d\n",
+		dcam_hw_ctx->sw_ctx->raw_callback, dcam_hw_ctx->sw_ctx->frame_index);
+
+	if (dcam_hw_ctx->sw_ctx->raw_callback) {
+		if (dcam_hw_ctx->sw_ctx->frame_index == 0)
+			dcam_hw_ctx->sw_ctx->frame_index++;
+		else
+			dcamint_cap_sof(param);
+	}
+}
+
 /* for Flash */
 static void dcamint_sensor_eof(void *param)
 {
@@ -994,6 +1009,7 @@ void dcam_int_tracker_dump(uint32_t idx)
  */
 typedef void (*dcam_isr_type)(void *param);
 static const dcam_isr_type _DCAM_ISRS[] = {
+	[DCAM_SENSOR_SOF] = dcamint_sensor_sof,
 	[DCAM_SENSOR_EOF] = dcamint_sensor_eof,
 	[DCAM_CAP_SOF] = dcamint_cap_sof,
 	[DCAM_PREVIEW_SOF] = dcamint_preview_sof,
@@ -1015,6 +1031,7 @@ static const dcam_isr_type _DCAM_ISRS[] = {
  */
 static const int _DCAM0_SEQUENCE[] = {
 	DCAM_CAP_SOF,/* must */
+	DCAM_SENSOR_SOF,
 	DCAM_PREVIEW_SOF,
 	DCAM_SENSOR_EOF,/* TODO: why for flash */
 	DCAM_NR3_TX_DONE,/* for 3dnr, before data path */
@@ -1036,6 +1053,7 @@ static const int _DCAM0_SEQUENCE[] = {
  */
 static const int _DCAM1_SEQUENCE[] = {
 	DCAM_CAP_SOF,/* must */
+	DCAM_SENSOR_SOF,
 	DCAM_SENSOR_EOF,/* TODO: why for flash */
 	DCAM_NR3_TX_DONE,/* for 3dnr, before data path */
 	DCAM_PREV_PATH_TX_DONE,/* for bin path */
@@ -1056,6 +1074,7 @@ static const int _DCAM1_SEQUENCE[] = {
  */
 static const int _DCAM2_SEQUENCE[] = {
 	DCAM_CAP_SOF,/* must */
+	DCAM_SENSOR_SOF,
 	DCAM_PREVIEW_SOF,
 	DCAM_SENSOR_EOF,/* TODO: why for flash */
 	DCAM_NR3_TX_DONE,/* for 3dnr, before data path */

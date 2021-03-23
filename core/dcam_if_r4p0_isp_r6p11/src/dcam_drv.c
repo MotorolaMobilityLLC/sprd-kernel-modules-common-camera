@@ -640,10 +640,9 @@ static int dcam_raw_path_set_next_frm(enum dcam_id idx)
 
 	pr_debug("dev->cap_flag:%d\n", dev->cap_flag);
 
-	/* keep buffer until start_capture cmd */
-	if (dev->cap_flag != DCAM_CAPTURE_STOP &&
-	    dcam_buf_queue_read(p_buf_queue, &frame) == 0 &&
-	    frame.pfinfo.mfd[0] != 0) {
+	if ((dev->cap_flag != DCAM_CAPTURE_STOP || raw_path->valid == RAW_CALLBACK)
+		&& dcam_buf_queue_read(p_buf_queue, &frame) == 0 &&
+		frame.pfinfo.mfd[0] != 0) {
 		raw_path->output_frame_count--;
 		pr_debug("raw path set next frm\n");
 	} else {
@@ -657,10 +656,6 @@ static int dcam_raw_path_set_next_frm(enum dcam_id idx)
 		use_reserve_frame = 1;
 	}
 
-	DCAM_TRACE("DCAM%d: reserved %d y 0x%x mfd 0x%x raw path\n",
-		   idx, use_reserve_frame, frame.yaddr,
-		   frame.pfinfo.mfd[0]);
-
 	if (frame.pfinfo.dev == NULL)
 		pr_info("DCAM%d next dev NULL %p\n", idx, frame.pfinfo.dev);
 	rtn = pfiommu_get_addr(&frame.pfinfo);
@@ -672,6 +667,10 @@ static int dcam_raw_path_set_next_frm(enum dcam_id idx)
 
 	if (use_reserve_frame)
 		memcpy(reserved_frame, &frame, sizeof(struct camera_frame));
+
+	DCAM_TRACE("DCAM%d: reserved %d y 0x%x mfd 0x%x  iova[0]=0x%x raw path\n",
+		   idx, use_reserve_frame, frame.yaddr,
+		   frame.pfinfo.mfd[0], frame.pfinfo.iova[0]);
 
 	DCAM_REG_WR(idx, reg, addr);
 
@@ -1496,9 +1495,11 @@ static void dcam_raw_path_done(enum dcam_id idx)
 
 		if (frame.pfinfo.mfd[0] !=
 		    module->raw_reserved_frame.pfinfo.mfd[0]) {
+			/*
 			s_p_dcam_mod[idx]->dcam_raw_path.valid = NO_RAW_CAPTURE;
 			sprd_dcam_glb_reg_awr(idx, DCAM0_CFG, ~(1 << 0),
 					      DCAM_CFG_REG);
+			*/
 			frame.width = path->output_size.w;
 			frame.height = path->output_size.h;
 			frame.irq_type = CAMERA_IRQ_IMG;
@@ -1514,7 +1515,7 @@ static void dcam_raw_path_done(enum dcam_id idx)
 			if (user_func)
 				(*user_func) (&frame, data);
 		} else {
-			DCAM_TRACE("DCAM%d: use reserved path\n", idx);
+			DCAM_TRACE("DCAM%d: use reserved buffer mfd = 0x%x\n", idx, frame.pfinfo.mfd[0]);
 		}
 	}
 }

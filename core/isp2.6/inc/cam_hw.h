@@ -794,6 +794,7 @@ struct dcam_hw_force_copy {
 struct dcam_hw_start {
 	uint32_t idx;
 	uint32_t format;
+	uint32_t raw_callback;
 };
 
 struct reg_add_val_tag {

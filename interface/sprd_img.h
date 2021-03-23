@@ -120,6 +120,7 @@ enum dcam_cap_pattern {
 };
 
 enum dcam_cap_data_bits {
+	DCAM_CAP_14_BITS = 14,
 	DCAM_CAP_12_BITS = 12,
 	DCAM_CAP_10_BITS = 10,
 	DCAM_CAP_8_BITS = 8,
@@ -475,6 +476,7 @@ struct sprd_img_parm {
 	uint32_t		  buf_size;
 	uint32_t		  buf_property;
 	uint32_t                  is_statis_buf_reserved;
+	uint32_t                  raw_callback;
 	struct sprd_pdaf_control  pdaf_ctrl;
 	struct sprd_img_rect      crop_rect;
 	struct sprd_img_size      dst_size;
@@ -492,7 +494,6 @@ struct sprd_img_parm {
 	struct sprd_img_binding	  aux_img;
 	struct sprd_slave_info    slave_frame_info;
 	uint32_t                  reserved[4];
-	uint32_t                  raw_callback;
 };
 
 #pragma pack(push, 4)

@@ -1440,7 +1440,7 @@ static int dcamcore_path_cfg(void *dcam_handle, enum dcam_path_cfg_cmd cfg_cmd,
 			cam_buf_iommu_unmap(&pframe->buf);
 			goto exit;
 		}
-		pr_debug("config dcam output buffer.\n");
+		pr_debug("config dcam%d path %d output buffer.\n", pctx->hw_ctx_id,  path_id);
 		break;
 	case DCAM_PATH_CFG_OUTPUT_RESERVED_BUF:
 		pframe = (struct camera_frame *)param;
@@ -1461,7 +1461,7 @@ static int dcamcore_path_cfg(void *dcam_handle, enum dcam_path_cfg_cmd cfg_cmd,
 			goto exit;
 		}
 
-		pr_info("config dcam output reserverd buffer.\n");
+		pr_info("config dcam path%d output reserverd buffer.\n", path_id);
 
 		i = 1;
 		while (i < DCAM_RESERVE_BUF_Q_LEN) {
@@ -1783,28 +1783,38 @@ static int dcamcore_dev_start(void *dcam_handle, int online)
 		return ret;
 	}
 
-	/* enable statistic paths  */
-	if (pm->aem.bypass == 0)
-		atomic_set(&pctx->path[DCAM_PATH_AEM].user_cnt, 1);
-	if (pm->lscm.bypass == 0)
-		atomic_set(&pctx->path[DCAM_PATH_LSCM].user_cnt, 1);
-	if (pm->afm.bypass == 0)
-		atomic_set(&pctx->path[DCAM_PATH_AFM].user_cnt, 1);
-	if (pm->afl.afl_info.bypass == 0)
-		atomic_set(&pctx->path[DCAM_PATH_AFL].user_cnt, 1);
-	if (pm->hist.bayerHist_info.hist_bypass == 0)
-		atomic_set(&pctx->path[DCAM_PATH_HIST].user_cnt, 1);
+	if (pctx->raw_callback) {
+                atomic_set(&pctx->path[DCAM_PATH_AEM].user_cnt, 0);
+                atomic_set(&pctx->path[DCAM_PATH_PDAF].user_cnt, 0);
+                atomic_set(&pctx->path[DCAM_PATH_AFM].user_cnt, 0);
+                atomic_set(&pctx->path[DCAM_PATH_AFL].user_cnt, 0);
+                atomic_set(&pctx->path[DCAM_PATH_HIST].user_cnt, 0);
+                atomic_set(&pctx->path[DCAM_PATH_LSCM].user_cnt, 0);
+                atomic_set(&pctx->path[DCAM_PATH_3DNR].user_cnt, 0);
+        } else {
+		/* enable statistic paths  */
+		if (pm->aem.bypass == 0)
+			atomic_set(&pctx->path[DCAM_PATH_AEM].user_cnt, 1);
+		if (pm->lscm.bypass == 0)
+			atomic_set(&pctx->path[DCAM_PATH_LSCM].user_cnt, 1);
+		if (pm->afm.bypass == 0)
+			atomic_set(&pctx->path[DCAM_PATH_AFM].user_cnt, 1);
+		if (pm->afl.afl_info.bypass == 0)
+			atomic_set(&pctx->path[DCAM_PATH_AFL].user_cnt, 1);
+		if (pm->hist.bayerHist_info.hist_bypass == 0)
+			atomic_set(&pctx->path[DCAM_PATH_HIST].user_cnt, 1);
 
-	if (hw->ip_isp->frbg_hist_support == 0 && pm->hist_roi.hist_roi_info.bypass == 0)
-		atomic_set(&pctx->path[DCAM_PATH_FRGB_HIST].user_cnt, 1);
+		if (hw->ip_isp->frbg_hist_support == 0 && pm->hist_roi.hist_roi_info.bypass == 0)
+			atomic_set(&pctx->path[DCAM_PATH_FRGB_HIST].user_cnt, 1);
 
-	if (pm->pdaf.bypass == 0)
-		atomic_set(&pctx->path[DCAM_PATH_PDAF].user_cnt, 1);
-	if (pctx->is_3dnr)
-		atomic_set(&pctx->path[DCAM_PATH_3DNR].user_cnt, 1);
+		if (pm->pdaf.bypass == 0)
+			atomic_set(&pctx->path[DCAM_PATH_PDAF].user_cnt, 1);
+		if (pctx->is_3dnr)
+			atomic_set(&pctx->path[DCAM_PATH_3DNR].user_cnt, 1);
 
-	if (pctx->is_ebd)
-		atomic_set(&pctx->path[DCAM_PATH_VCH2].user_cnt, 1);
+		if (pctx->is_ebd)
+			atomic_set(&pctx->path[DCAM_PATH_VCH2].user_cnt, 1);
+	}
 
 	pctx->base_fid = pm->frm_idx;
 	pctx->frame_index = 0;
@@ -1852,7 +1862,7 @@ static int dcamcore_dev_start(void *dcam_handle, int online)
 		patharg.out_fmt = pctx->path[i].out_fmt;
 		patharg.data_bits = pctx->path[i].data_bits;
 		patharg.is_pack = pctx->path[i].is_pack;
-		pr_debug("path %d, fmt %d, bits %d, is pack %d\n", i, patharg.out_fmt, patharg.data_bits, patharg.is_pack);
+		pr_debug("path %d, fmt %d, bits %d, is pack %d src_sel %d pack_bits %d\n", i, patharg.out_fmt, patharg.data_bits, patharg.is_pack, patharg.src_sel, patharg.pack_bits);
 		atomic_set(&path->set_frm_cnt, 0);
 
 		if (atomic_read(&path->user_cnt) < 1 || atomic_read(&path->is_shutoff) > 0)
@@ -1923,8 +1933,11 @@ static int dcamcore_dev_start(void *dcam_handle, int online)
 	} else {
 		parm.idx = pctx->hw_ctx_id;
 		parm.format = pctx->cap_info.format;
+		parm.raw_callback = pctx->raw_callback;
+		pr_debug("idx %d  format %d raw_callback %d\n", parm.idx, parm.format, parm.raw_callback);
 		hw->dcam_ioctl(hw, DCAM_HW_CFG_START, &parm);
 	}
+
 	if (pctx->is_4in1 == 0) {
 		sramarg.sram_ctrl_en = 1;
 		sramarg.idx = pctx->hw_ctx_id;

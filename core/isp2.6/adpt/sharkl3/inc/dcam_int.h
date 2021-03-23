@@ -154,6 +154,7 @@ enum {
 #define DCAMINT_IRQ_LINE_MASK                     \
 	(DCAMINT_ALL_ERROR | DCAMINT_ALL_TX_DONE |\
 	BIT(DCAM_CAP_SOF) |                       \
+	BIT(DCAM_SENSOR_SOF) |                    \
 	BIT(DCAM_SENSOR_EOF) |                    \
 	BIT(DCAM_PREVIEW_SOF))
 

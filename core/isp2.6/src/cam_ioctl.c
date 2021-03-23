@@ -613,9 +613,17 @@ static int camioctl_output_size_set(struct camera_module *module,
 		pr_err("fail to copy from user, ret %d\n", ret);
 		goto exit;
 	}
+
+	if (dst_fmt == IMG_PIX_FMT_GREY && cap_type != CAM_CAP_RAW_FULL)
+		module->raw_callback = 1;
+	else
+		module->raw_callback = 0;
+	pr_debug("raw_callback=%d\n", module->raw_callback);
+
 	if(scene_mode == DCAM_SCENE_MODE_HARDWARE_SIMULATION)
 		module->simulator = 1;
 	pr_info("cam%d, simulator=%d\n", module->idx, module->simulator);
+
 	if ((scene_mode == DCAM_SCENE_MODE_HARDWARE_SIMULATION) &&
 		(module->channel[CAM_CH_CAP].enable == 0)) {
 		channel = &module->channel[CAM_CH_CAP];
@@ -1777,6 +1785,7 @@ cfg_ch_done:
 	dev->dcam_pipe_ops->ioctl(sw_ctx, DCAM_IOCTL_RECFG_PARAM, NULL);
 	dcam_core_get_fmcu(sw_ctx);
 
+	sw_ctx->raw_callback = module->raw_callback;
 	ret = dev->dcam_pipe_ops->start(sw_ctx, online);
 	if (ret < 0) {
 		pr_err("fail to start dcam dev, ret %d\n", ret);

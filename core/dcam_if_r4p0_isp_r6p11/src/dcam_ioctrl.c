@@ -322,6 +322,11 @@ static int dcamio_set_output_size(struct camera_file *camerafile,
 	pr_debug("SPRD_IMG_IO_SET_OUTPUT_SIZE, scene_mode %d, slowmotion %d\n",
 		 parm.scene_mode, parm.slowmotion);
 
+	if (info->pxl_fmt == IMG_PIX_FMT_GREY && info->need_isp_tool != 1)
+		info->raw_callback = 1;
+	else
+		info->raw_callback = 0;
+
 	if (info->scene_mode == DCAM_SCENE_MODE_PREVIEW ||
 	    info->scene_mode == DCAM_SCENE_MODE_RECORDING ||
 	    info->scene_mode == DCAM_SCENE_MODE_CAPTURE_CALLBACK) {

@@ -260,6 +260,7 @@ struct dcam_sw_context {
 	uint32_t err_count;/* iommu register dump count in dcam_err */
 	uint32_t pack_bits;
 	uint32_t is_4in1;
+	uint32_t raw_callback;
 	uint32_t lowlux_4in1;/* 4in1 low lux mode capture */
 	uint32_t skip_4in1;/* need skip 1 frame then change full source */
 	uint32_t is_3dnr;

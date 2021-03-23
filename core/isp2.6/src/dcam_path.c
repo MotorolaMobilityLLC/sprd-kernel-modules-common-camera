@@ -451,8 +451,10 @@ dcam_path_frame_cycle(struct dcam_sw_context *dcam_sw_ctx, struct dcam_path_desc
 		}
 	}
 
-	if (frame == NULL)
+	if (frame == NULL) {
 		frame = cam_queue_dequeue(&path->reserved_buf_queue, struct camera_frame, list);
+		pr_debug("use reserved buffer for path %d\n", path->path_id);
+	}
 
 	if (frame == NULL) {
 		pr_debug("DCAM%u %s buffer unavailable\n",

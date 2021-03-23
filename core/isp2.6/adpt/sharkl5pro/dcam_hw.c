@@ -16,7 +16,8 @@
 #define DCAMX_STOP_TIMEOUT             2000
 #define DCAM_AXI_STOP_TIMEOUT          2000
 #define DCAM_AXIM_AQOS_MASK            (0x30FFFF)
-#define IMG_TYPE_RAW                   0x2B
+#define IMG_TYPE_RAW10                 0x2B
+#define IMG_TYPE_RAW8                  0x2A
 #define IMG_TYPE_YUV                   0x1E
 
 static uint32_t g_gtm_en = 0;
@@ -186,7 +187,7 @@ static int dcamhw_start(void *handle, void *arg)
 	struct dcam_hw_start *parm = NULL;
 	uint32_t reg_val = 0;
 	uint32_t image_vc = 0;
-	uint32_t image_data_type = IMG_TYPE_RAW;
+	uint32_t image_data_type = IMG_TYPE_RAW10;
 	uint32_t image_mode = 1;
 
 	if (!arg) {
@@ -195,13 +196,19 @@ static int dcamhw_start(void *handle, void *arg)
 	}
 
 	parm = (struct dcam_hw_start *)arg;
+	if (parm->format == DCAM_CAP_MODE_YUV)
+		image_data_type = IMG_TYPE_YUV;
+	if (parm->format == DCAM_CAP_8_BITS)
+		image_data_type = IMG_TYPE_RAW8;
+	if (parm->raw_callback == 1)
+		image_data_type = 0;
 
 	DCAM_REG_WR(parm->idx, DCAM_INT_CLR, 0xFFFFFFFF);
 	/* see DCAM_PREVIEW_SOF in dcam_int.h for details */
-	DCAM_REG_WR(parm->idx, DCAM_INT_EN, DCAMINT_IRQ_LINE_EN_NORMAL);
-
-	if (parm->format == DCAM_CAP_MODE_YUV)
-		image_data_type = IMG_TYPE_YUV;
+	if (parm->raw_callback == 1)
+		DCAM_REG_WR(parm->idx, DCAM_INT_EN, DCAMINT_IRQ_LINE_EN_NORMAL | BIT(DCAM_SENSOR_SOF));
+	else
+		DCAM_REG_WR(parm->idx, DCAM_INT_EN, DCAMINT_IRQ_LINE_EN_NORMAL);
 
 	reg_val = ((image_vc & 0x3) << 16) |
 		((image_data_type & 0x3F) << 8) | (image_mode & 0x3);
@@ -401,7 +408,7 @@ static int dcamhw_reset(void *handle, void *arg)
 	DCAM_REG_MWR(idx, DCAM_APB_SRAM_CTRL, BIT_0, 0);
 
 	DCAM_REG_WR(idx, DCAM_MIPI_CAP_CFG, 0); /* disable all path */
-	DCAM_REG_WR(idx, DCAM_IMAGE_CONTROL, 0x2b << 8 | 0x01);
+	DCAM_REG_WR(idx, DCAM_IMAGE_CONTROL, IMG_TYPE_RAW10 << 8 | 0x01);
 
 	eb = 0;
 	DCAM_REG_MWR(idx, DCAM_PDAF_CONTROL, BIT_1 | BIT_0, eb);
@@ -600,6 +607,7 @@ static int dcamhw_path_start(void *handle, void *arg)
 	int ret = 0;
 	struct isp_img_rect rect;
 	struct dcam_hw_path_start *patharg = NULL;
+	uint32_t image_data_type = IMG_TYPE_RAW10;
 
 	pr_debug("enter.");
 
@@ -609,6 +617,8 @@ static int dcamhw_path_start(void *handle, void *arg)
 	}
 
 	patharg = (struct dcam_hw_path_start *)arg;
+	if (patharg->data_bits == DCAM_CAP_8_BITS)
+		image_data_type = IMG_TYPE_RAW8;
 
 	switch (patharg->path_id) {
 	case  DCAM_PATH_FULL:
@@ -652,7 +662,7 @@ static int dcamhw_path_start(void *handle, void *arg)
 	case DCAM_PATH_VCH2:
 		/* data type for raw picture */
 		if (patharg->src_sel)
-			DCAM_REG_WR(patharg->idx, DCAM_VC2_CONTROL, 0x2b << 8 | 0x01 << 4);
+			DCAM_REG_WR(patharg->idx, DCAM_VC2_CONTROL, image_data_type << 8 | 0x01 << 4);
 
 		DCAM_REG_MWR(patharg->idx, DCAM_PATH_ENDIAN,
 			BIT_23 |  BIT_22, patharg->endian.y_endian << 22);

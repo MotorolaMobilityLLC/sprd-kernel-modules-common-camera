@@ -343,6 +343,7 @@ struct camera_module {
 	struct camera_buf pmbuf_array[PARAM_BUF_NUM_MAX];
 	struct camera_queue param_queue;
 	int pmq_init;
+	uint32_t raw_callback;
 };
 
 struct camera_group {
@@ -2613,6 +2614,8 @@ static int camcore_dcam_callback(enum dcam_cb_type type, void *param, void *priv
 						capture = 1;
 					}
 				}
+				if (module->raw_callback == 1)
+					capture = 1;
 				pr_info("capture %d, fid %d, start %d  type %d\n", capture,
 					pframe->fid, module->cap_status, module->dcam_cap_status);
 				pr_info("cap time %lld, frame time %lld\n",
@@ -4277,7 +4280,8 @@ static int camcore_channel_init(struct camera_module *module,
 		break;
 
 	case CAM_CH_RAW:
-		if ( module->grp->hw_info->prj_id == SHARKL5pro && ch_uinfo->src_size.w >= 8192)
+		if (( module->grp->hw_info->prj_id == SHARKL5pro && ch_uinfo->src_size.w >= 8192)
+			|| module->raw_callback)
 			dcam_path_id = DCAM_PATH_VCH2;
 		else
 			dcam_path_id = hw->ip_dcam[module->dcam_idx]->dcam_raw_path_id;
