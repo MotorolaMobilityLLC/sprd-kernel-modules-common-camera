@@ -2363,7 +2363,10 @@ static int camioctl_capture_start(struct camera_module *module,
 			atomic_set(&module->cap_skip_frames, cap_skip_num);
 		}
 		atomic_set(&module->capture_frames_dcam, param.cap_cnt);
-		module->capture_times = start_time;
+		if (module->capture_scene == CAPTURE_SW3DNR && (param.timestamp != 0))
+			module->capture_times = param.timestamp;
+		else
+			module->capture_times = start_time;
 	} else if (param.type == DCAM_CAPTURE_START_WITH_TIMESTAMP) {
 		module->dcam_cap_status = DCAM_CAPTURE_START_WITH_TIMESTAMP;
 		/* dual camera need 1 frame */
