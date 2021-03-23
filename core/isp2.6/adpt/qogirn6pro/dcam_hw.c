@@ -1841,7 +1841,7 @@ static struct dcam_cfg_entry dcam_hw_cfg_func_tab[DCAM_BLOCK_TOTAL] = {
 [DCAM_BLOCK_PDAF - DCAM_BLOCK_BASE]        = {DCAM_BLOCK_PDAF,        dcam_k_cfg_pdaf},
 [DCAM_BLOCK_BAYERHIST - DCAM_BLOCK_BASE]   = {DCAM_BLOCK_BAYERHIST,   dcam_k_cfg_bayerhist},
 [DCAM_BLOCK_3DNR_ME - DCAM_BLOCK_BASE]     = {DCAM_BLOCK_3DNR_ME,     dcam_k_cfg_3dnr_me},
-[DCAM_BLOCK_RAW_GTM - DCAM_BLOCK_BASE]     = {DCAM_BLOCK_RAW_GTM,     dcam_k_cfg_raw_gtm},
+[DCAM_BLOCK_RGB_GTM - DCAM_BLOCK_BASE]     = {DCAM_BLOCK_RGB_GTM,     dcam_k_cfg_raw_gtm},
 [DCAM_BLOCK_LSCM - DCAM_BLOCK_BASE]        = {DCAM_BLOCK_LSCM,        dcam_k_cfg_lscm},
 };
 

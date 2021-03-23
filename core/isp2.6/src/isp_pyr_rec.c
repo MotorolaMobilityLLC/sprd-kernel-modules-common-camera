@@ -16,7 +16,7 @@
 #ifdef pr_fmt
 #undef pr_fmt
 #endif
-#define pr_fmt(fmt) "ISP_REC: %d %d %s : "fmt, current->pid, __LINE__, __func__
+#define pr_fmt(fmt) "ISP_PYR_REC: %d %d %s : "fmt, current->pid, __LINE__, __func__
 
 static int isppyrrec_pitch_get(uint32_t format, uint32_t w)
 {
@@ -289,12 +289,13 @@ static int isppyrrec_reconstruct_get(struct isp_rec_ctx_desc *ctx, uint32_t idx)
 		slc_pyr_rec->ver_padding_en = rec_cfg->ver_padding_en;
 		slc_pyr_rec->reduce_flt_hblank = rec_cfg->hor_padding_num + 20;
 		slc_pyr_rec->reduce_flt_vblank = rec_cfg->ver_padding_num + 20;
-		slc_pyr_rec->pre_layer.h = end_row - start_row + 1;;
+		slc_pyr_rec->pre_layer.h = end_row - start_row + 1;
 		slc_pyr_rec->pre_layer.w = end_col - start_col + 1;
 		slc_pyr_rec->cur_layer.h= slc_pyr_rec->pre_layer.h * 2;
 		slc_pyr_rec->cur_layer.w = slc_pyr_rec->pre_layer.w * 2;
 		slc_pyr_rec->out.h = slc_pyr_rec->cur_layer.h - slc_pyr_rec->ver_padding_num;
 		slc_pyr_rec->out.w = slc_pyr_rec->cur_layer.w - slc_pyr_rec->hor_padding_num;
+		slc_pyr_rec->dispatch_dly_width_num = 60;
 		slc_pyr_rec->dispatch_dly_height_num = 37;
 		slc_pyr_rec->dispatch_pipe_full_num = 100;
 		if (slc_pyr_rec->pre_layer.w <= 40 && slc_pyr_rec->pre_layer.w <= 32)

@@ -31,6 +31,8 @@
 #define YUVSCALER_OVERLAP_LEFT          48
 #define YUVSCALER_OVERLAP_RIGHT         68
 
+#define ISP_SLICE_ALIGN_SIZE            2
+#define ISP_ALIGNED(size)               ((size) & ~(ISP_SLICE_ALIGN_SIZE - 1))
 #define FMCU_PUSH(fmcu, addr, cmd) \
 		fmcu->ops->push_cmdq(fmcu, addr, cmd)
 
@@ -306,6 +308,7 @@ struct slice_pyr_rec_info {
 	uint32_t ver_padding_num;
 	uint32_t reduce_flt_vblank;
 	uint32_t reduce_flt_hblank;
+	uint32_t dispatch_dly_width_num;
 	uint32_t dispatch_dly_height_num;
 	uint32_t dispatch_pipe_full_num;
 };

@@ -32,6 +32,7 @@
 #include "isp_cfg.h"
 #include "isp_path.h"
 #include "isp_fmcu.h"
+#include "isp_dec_int.h"
 
 #ifdef pr_fmt
 #undef pr_fmt

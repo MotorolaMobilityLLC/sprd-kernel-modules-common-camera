@@ -63,12 +63,6 @@ enum isp_dec_irq_id {
 	(1 << ISP_INT_DEC_FBD_PAYLOAD_ERR))
 
 #define ISP_DEC_INT_LINE_MASK                    \
-	((1 << ISP_INT_DEC_ALL_DONE) |       \
-	(1 << ISP_INT_DEC_STORE_DONE) |         \
-	(1 << ISP_INT_DCT_STORE_DONE) |       \
-	(1 << ISP_INT_DEC_SHADOW_DONE) |      \
-	(1 << ISP_INT_DCT_SHADOW_DONE) |      \
-	(1 << ISP_INT_DEC_DISPATCH_DONE) |      \
-	(1 << ISP_INT_DEC_FMCU_CONFIG_DONE) | ISP_DEC_INT_LINE_MASK_ERR)
+	((1 << ISP_INT_DEC_FMCU_CONFIG_DONE) | ISP_DEC_INT_LINE_MASK_ERR)
 
 #endif

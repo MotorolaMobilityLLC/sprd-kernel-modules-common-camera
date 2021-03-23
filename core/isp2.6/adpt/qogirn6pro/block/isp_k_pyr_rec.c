@@ -380,7 +380,8 @@ static int isppyrrec_reconstruct_slice_set(struct slice_pyr_rec_info *pyr_rec, v
 	FMCU_PUSH(fmcu, addr, cmd);
 
 	addr = ISP_GET_REG(ISP_DISPATCH_BASE + ISP_DISPATCH_DLY);
-	cmd = ((pyr_rec->dispatch_dly_height_num & 0xFFFF) << 16) | (0x3c & 0xFFFF);
+	cmd = ((pyr_rec->dispatch_dly_height_num & 0xFFFF) << 16)
+		| (pyr_rec->dispatch_dly_width_num & 0xFFFF);
 	FMCU_PUSH(fmcu, addr, cmd);
 
 	addr = ISP_GET_REG(ISP_DISPATCH_BASE + ISP_DISPATCH_PIPE_BUF_CTRL_CH0);

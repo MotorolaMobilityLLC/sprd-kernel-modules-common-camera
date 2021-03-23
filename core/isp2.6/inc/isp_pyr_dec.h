@@ -109,15 +109,44 @@ struct isp_dec_offline_info {
 	uint32_t hor_padding_num;
 	uint32_t ver_padding_en;
 	uint32_t ver_padding_num;
+	uint32_t dispatch_dbg_mode_ch0;
+	uint32_t dispatch_done_cfg_mode;
+	uint32_t dispatch_width_dly_num_flash;
+	uint32_t dispatch_pipe_nfull_num;
+	uint32_t dispatch_pipe_flush_num;
+	uint32_t dispatch_pipe_hblank_num;
+	uint32_t dispatch_yuv_start_order;
+	uint32_t dispatch_yuv_start_row_num;
+	uint32_t dispatch_width_flash_mode;
+};
+
+struct slice_pyr_dec_info {
+	uint32_t hor_padding_en;
+	uint32_t hor_padding_num;
+	uint32_t ver_padding_en;
+	uint32_t ver_padding_num;
+	uint32_t dispatch_dly_width_num;
+	uint32_t dispatch_dly_height_num;
 };
 
 struct isp_dec_slice_desc {
 	struct slice_pos_info slice_fetch_pos;
-	struct slice_pos_info slice_store_pos;
-	struct slice_overlap_info slice_overlap;
+	struct slice_pos_info slice_store_dct_pos;
+	struct slice_pos_info slice_store_dec_pos;
+	struct slice_overlap_info slice_dct_overlap;
+	struct slice_overlap_info slice_dec_overlap;
 	struct slice_fetch_info slice_fetch;
 	struct slice_store_info slice_dec_store;
 	struct slice_store_info slice_dct_store;
+	struct slice_pyr_dec_info slice_pyr_dec;
+};
+
+struct isp_dec_overlap_info {
+	uint32_t slice_num;
+	struct slice_pos_info slice_fetch_region[SLICE_NUM_MAX];
+	struct slice_pos_info slice_store_region[SLICE_NUM_MAX];
+	struct slice_overlap_info slice_fetch_overlap[SLICE_NUM_MAX];
+	struct slice_overlap_info slice_store_overlap[SLICE_NUM_MAX];
 };
 
 struct isp_dec_pipe_dev {
@@ -146,6 +175,8 @@ struct isp_dec_pipe_dev {
 	struct img_size dec_layer_size[PYR_DEC_ADDR_NUM];
 	struct img_addr fetch_addr[ISP_PYR_DEC_LAYER_NUM];
 	struct img_addr store_addr[PYR_DEC_ADDR_NUM];
+	struct isp_dec_overlap_info overlap_dec_info[MAX_PYR_DEC_LAYER_NUM];
+
 	struct isp_dec_fetch_info fetch_dec_info;
 	struct isp_dec_offline_info offline_dec_info;
 	struct isp_dec_store_info store_dec_info;

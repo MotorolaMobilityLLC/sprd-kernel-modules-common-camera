@@ -683,7 +683,7 @@ static int isphw_reset(void *handle, void *arg)
 	/* then wait for AHB busy cleared */
 	while (++time_out < ISP_AXI_STOP_TIMEOUT) {
 		/* bit3: 1 - axi idle;  0 - axi busy */
-		if  (ISP_HREG_RD(ISP_INT_STATUS) & BIT_3)
+		if (ISP_HREG_RD(ISP_INT_STATUS) & BIT_3)
 			break;
 		udelay(1000);
 	}
@@ -733,6 +733,7 @@ static int isphw_irq_enable(void *handle, void *arg)
 
 	ISP_HREG_MWR(irq_base[ctx_id] + ISP_INT_EN0, mask, mask);
 	ISP_HREG_MWR(irq_base[ctx_id] + ISP_INT_EN1, mask, mask);
+	ISP_HREG_WR(ISP_DEC_INT_BASE + ISP_INT_EN0, ISP_DEC_INT_LINE_MASK);
 
 	return 0;
 }
@@ -754,6 +755,7 @@ static int isphw_irq_disable(void *handle, void *arg)
 
 	ISP_HREG_WR(irq_base[ctx_id] + ISP_INT_EN0, 0);
 	ISP_HREG_WR(irq_base[ctx_id] + ISP_INT_EN1, 0);
+	ISP_HREG_WR(ISP_DEC_INT_BASE + ISP_INT_EN0, 0);
 
 	return 0;
 }
@@ -914,6 +916,7 @@ isp_hw_para:
 	ISP_HREG_MWR(PYR_DCT_STORE_BASE + ISP_STORE_PARAM, BIT_0, 1);
 	ISP_HREG_MWR(PYR_REC_STORE_BASE + ISP_STORE_PARAM, BIT_0, 1);
 	ISP_HREG_MWR(PYR_DEC_FETCH_BASE + ISP_FETCH_PARAM0, BIT_0, 1);
+	ISP_HREG_MWR(PYR_DEC_DISPATCH_BASE + ISP_DISPATCH_LINE_DLY1, BIT_16, BIT_16);
 	pr_debug("end\n");
 	return 0;
 
@@ -3258,7 +3261,7 @@ static int isphw_fmcu_cmd_align(void *handle, void *arg)
 	}
 
 	byte_num = (int) fmcu->cmdq_pos[fmcu->cur_buf_id];
-	if (byte_num % 4 ==  2) {
+	if (byte_num % 4 == 2) {
 		addr = ISP_GET_REG(ISP_P0_INT_BASE + ISP_INT_CLR1);
 		cmd = 0;
 		FMCU_PUSH(fmcu, addr, cmd);

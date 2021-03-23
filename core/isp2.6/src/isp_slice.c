@@ -26,9 +26,6 @@
 #define pr_fmt(fmt) "ISP_SLICE: %d %d %s : "\
 	fmt, current->pid, __LINE__, __func__
 
-#define ISP_SLICE_ALIGN_SIZE           2
-#define ISP_ALIGNED(size)              ((size) & ~(ISP_SLICE_ALIGN_SIZE - 1))
-
 struct isp_scaler_slice_tmp {
 	uint32_t slice_row_num;
 	uint32_t slice_col_num;

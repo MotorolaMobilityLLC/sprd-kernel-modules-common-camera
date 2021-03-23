@@ -31,6 +31,7 @@
 #define ISP_FBC_STORE_TILE_WIDTH        32
 #define ISP_FBC_STORE_TILE_HEIGHT       8
 #define ISP_PYR_DEC_LAYER_NUM           5
+#define MAX_PYR_DEC_LAYER_NUM           (ISP_PYR_DEC_LAYER_NUM + 1)
 #define ISP_PYRDEC_BUF_Q_LEN            2
 #define ISP_CONTEXT_TIMEOUT             msecs_to_jiffies(2000)
 
@@ -343,13 +344,4 @@ struct isp_pipe_ops {
 	int (*set_datactrl)(void *handle, void *in, void *out);
 };
 
-void *isp_core_pipe_dev_get(void);
-int isp_core_pipe_dev_put(void *isp_handle);
-
-int isp_drv_hw_init(void *arg);
-int isp_drv_hw_deinit(void *arg);
-int isp_drv_pipeinfo_get(void *arg, void *frame);
-int isp_drv_dt_parse(struct device_node *dn,
-		struct cam_hw_info *hw_info,
-		uint32_t *isp_count);
 #endif

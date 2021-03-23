@@ -39,6 +39,7 @@
 #include "isp_path.h"
 #include "isp_slice.h"
 #include "isp_cfg.h"
+#include "isp_drv.h"
 #include "dcam_core.h"
 #include "isp_pyr_rec.h"
 #include "isp_pyr_dec.h"
@@ -1859,9 +1860,7 @@ static int ispcore_offline_thread_loop(void *arg)
 
 			if (thrd->proc_func(pctx)) {
 				pr_err("fail to start isp pipe to proc. exit thread\n");
-				pctx->isp_cb_func(
-					ISP_CB_DEV_ERR, dev,
-					pctx->cb_priv_data);
+				pctx->isp_cb_func(ISP_CB_DEV_ERR, dev, pctx->cb_priv_data);
 				break;
 			}
 		} else {
@@ -2316,22 +2315,28 @@ static int ispcore_dec_frame_proc(struct isp_sw_context *pctx,
 		struct isp_dec_pipe_dev *dec_dev, struct camera_frame *frame)
 {
 	int ret = 0;
+	uint32_t format = 0;
 	struct camera_frame *pframe = NULL;
+	struct isp_uinfo *uinfo = NULL;
 
-	if (dec_dev) {
+	if (!dec_dev) {
 		pr_err("fail to get valid input ptr\n");
 		return -EFAULT;
 	}
 
+	uinfo = &pctx->uinfo;
 	pframe = cam_queue_dequeue(&pctx->pyrdec_buf_queue, struct camera_frame, list);
 	if (!pframe) {
 		pr_err("fail to get valid pframe\n");
 		return -EFAULT;
 	}
 
+	format = isp_drv_fetch_format_get(uinfo);
 	dec_dev->ops.cfg_param(dec_dev, pctx->ctx_id, ISP_DEC_CFG_OUT_BUF, pframe);
-	/* May need add size & format info to pyr dec here */
+	dec_dev->ops.cfg_param(dec_dev, pctx->ctx_id, ISP_DEC_CFG_IN_FORMAT, &format);
+	dec_dev->ops.cfg_param(dec_dev, pctx->ctx_id, ISP_DEC_CFG_PROC_SIZE, &uinfo->src);
 	frame->dec_ctx_id = pctx->ctx_id;
+
 	ret = dec_dev->ops.proc_frame(dec_dev, frame);
 
 	return ret;

@@ -41,6 +41,7 @@
 #include "csi_api.h"
 #include "dcam_core.h"
 #include "isp_core.h"
+#include "isp_drv.h"
 #include "cam_scaler_ex.h"
 #include "dcam_int.h"
 

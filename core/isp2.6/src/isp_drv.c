@@ -104,7 +104,7 @@ static int ispdrv_path_scaler_get(struct isp_path_uinfo *in_ptr,
 	return ret;
 }
 
-static enum isp_fetch_format ispdrv_fetch_format_get(struct isp_uinfo *pipe_src)
+enum isp_fetch_format isp_drv_fetch_format_get(struct isp_uinfo *pipe_src)
 {
 	enum isp_fetch_format format = ISP_FETCH_FORMAT_MAX;
 	switch (pipe_src->in_fmt) {
@@ -177,7 +177,7 @@ static int ispdrv_fetch_normal_get(void *cfg_in, void *cfg_out,
 	intrim = &pipe_src->crop;
 	fetch->src = *src;
 	fetch->in_trim = *intrim;
-	fetch->fetch_fmt = ispdrv_fetch_format_get(pipe_src);
+	fetch->fetch_fmt = isp_drv_fetch_format_get(pipe_src);
 	fetch->is_pack = pipe_src->is_pack;
 	fetch->data_bits = pipe_src->data_in_bits;
 	fetch->bayer_pattern = pipe_src->bayer_pattern;

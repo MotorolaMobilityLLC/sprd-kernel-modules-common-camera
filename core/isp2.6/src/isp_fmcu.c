@@ -131,7 +131,7 @@ static int ispfmcu_start(struct isp_fmcu_ctx_desc *fmcu_ctx)
 	{
 		unsigned int i = 0;
 		unsigned long addr = (unsigned long)fmcu_ctx->cmd_buf[fmcu_ctx->cur_buf_id];
-		pr_debug("fmcu %d cmd num %d\n", (int)fmcu_ctx->fid,  cmd_num);
+		pr_debug("fmcu %d cmd num %d\n", (int)fmcu_ctx->fid, cmd_num);
 		for (i = 0; i <= cmd_num; i += 2) {
 			pr_debug("a:0x%08x c: 0x%08x | a:0x%08x c: 0x%08x\n",
 				*(uint32_t *)(addr + 4),
@@ -142,20 +142,12 @@ static int ispfmcu_start(struct isp_fmcu_ctx_desc *fmcu_ctx)
 		}
 	}
 
-/*
- * FLUSH_DCACHE(fmcu_ctx->cmd_buf[fmcu_ctx->cur_buf_id],
- * fmcu_ctx->cmdq_pos[fmcu_ctx->cur_buf_id] * sizeof(uint32_t));
- * sprd_ion_flush_dcache_area_wrapper(fmcu_ctx->cmd_buf[fmcu_ctx->cur_buf_id],
- * fmcu_ctx->cmdq_pos[fmcu_ctx->cur_buf_id] * sizeof(uint32_t));
- */
-
 	startarg.fid = fmcu_ctx->fid;
 	startarg.hw_addr = fmcu_ctx->hw_addr[fmcu_ctx->cur_buf_id];
 	startarg.cmd_num = cmd_num;
 	fmcu_ctx->hw->isp_ioctl(fmcu_ctx->hw, ISP_HW_CFG_FMCU_START, &startarg);
 
-	pr_debug("fmcu%d start done, cmdq len %d\n",
-		fmcu_ctx->fid,
+	pr_debug("fmcu%d start done, cmdq len %d\n", fmcu_ctx->fid,
 		(uint32_t)fmcu_ctx->cmdq_pos[fmcu_ctx->cur_buf_id] * 4);
 
 	fmcu_ctx->cur_buf_id = !(fmcu_ctx->cur_buf_id);

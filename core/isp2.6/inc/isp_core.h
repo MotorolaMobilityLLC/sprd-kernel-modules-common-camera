@@ -281,9 +281,12 @@ struct isp_statis_buf_size_info {
 	size_t buf_cnt;
 };
 
+void *isp_core_pipe_dev_get(void);
+int isp_core_pipe_dev_put(void *isp_handle);
+
 int isp_core_hw_context_id_get(struct isp_sw_context *pctx);
 int isp_core_sw_context_id_get(enum isp_context_hw_id hw_ctx_id, struct isp_pipe_dev *dev);
-int isp_core_context_bind(struct isp_sw_context *pctx,  int fmcu_need);
+int isp_core_context_bind(struct isp_sw_context *pctx, int fmcu_need);
 int isp_core_context_unbind(struct isp_sw_context *pctx);
 
 #endif
