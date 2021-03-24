@@ -1643,7 +1643,7 @@ static int ispcore_offline_frame_start(void *ctx)
 	ispcore_gtm_frame_process(pctx, pframe);
 	ispcore_dewarp_frame_process(pctx, pctx_hw, pframe);
 
-	if (use_fmcu) {
+	if (tmp.multi_slice || pctx->uinfo.enable_slowmotion || pframe->need_pyr_rec) {
 		struct slice_cfg_input slc_cfg;
 
 		memset(&slc_cfg, 0, sizeof(slc_cfg));
