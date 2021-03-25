@@ -622,6 +622,7 @@ static int dcamhw_fetch_set(void *handle, void *arg)
 {
 	int ret = 0;
 	uint32_t fetch_pitch;
+	uint32_t bwu_shift;
 	struct dcam_hw_fetch_set *fetch = NULL;
 
 	pr_debug("enter.\n");
@@ -637,6 +638,11 @@ static int dcamhw_fetch_set(void *handle, void *arg)
 		fetch_pitch = (fetch->fetch_info->size.w * 16 + 127) / 128;
 	else
 		fetch_pitch = (fetch->fetch_info->size.w * 10 + 127) / 128;
+
+	if (fetch->fetch_info->pack_bits == 0 || fetch->fetch_info->pack_bits == 1)
+		bwu_shift = 0x4;
+	else
+		bwu_shift = 0;
 
 	pr_info("size [%d %d], start %d, pitch %d, 0x%x\n",
 		fetch->fetch_info->trim.size_x, fetch->fetch_info->trim.size_y,
@@ -658,6 +664,7 @@ static int dcamhw_fetch_set(void *handle, void *arg)
 		BIT_1 | BIT_0, fetch->fetch_info->pack_bits);
 	DCAM_AXIM_MWR(0, IMG_FETCH_CTRL,
 		BIT_3 | BIT_2, fetch->fetch_info->endian << 2);
+	DCAM_AXIM_MWR(0, IMG_FETCH_CTRL, BIT_18 | BIT_17 | BIT_16, bwu_shift << 16);
 	DCAM_AXIM_WR(0, IMG_FETCH_SIZE,
 		(fetch->fetch_info->trim.size_y << 16) | (fetch->fetch_info->trim.size_x & 0xffff));
 	DCAM_AXIM_WR(0, IMG_FETCH_X,
@@ -1465,11 +1472,14 @@ static int dcamhw_lbuf_share_get(void *handle, void *arg)
 	struct cam_hw_lbuf_share *camarg = (struct cam_hw_lbuf_share *)arg;
 	uint32_t tb_w[] = {
 	/*     dcam0, dcam1 */
-		5664, 3264,
-		5184, 4160,
-		4672, 4672,
-		4160, 5184,
-		3264, 5664,
+		6528, 3840,
+		6016, 4352,
+		5696, 4672,
+		5184, 5184,
+		3840, 6528,
+		4352, 6016,
+		4672, 5696,
+		5184, 5184,
 	};
 
 	if (!arg)
@@ -1482,6 +1492,7 @@ static int dcamhw_lbuf_share_get(void *handle, void *arg)
 		goto exit;
 
 	i = DCAM_AXIM_RD(0, DCAM_LBUF_SHARE_MODE) & 7;
+
 	if (i < 5)
 		camarg->width = tb_w[i * 2 + idx];
 

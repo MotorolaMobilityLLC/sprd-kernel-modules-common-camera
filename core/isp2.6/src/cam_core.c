@@ -5538,6 +5538,10 @@ static int camcore_raw_pre_proc(
 	ch_desc.is_4in1 = module->cam_uinfo.is_4in1;
 	ch_desc.raw_cap = 1;
 	ch_desc.endian.y_endian = ENDIAN_LITTLE;
+	if (hw->prj_id == QOGIRN6pro) {
+		ch_desc.dcam_out_bits = module->cam_uinfo.sensor_if.if_spec.mipi.bits_per_pxl;
+		ch_desc.dcam_out_fmt = DCAM_STORE_YVU420;
+	}
 	ret = module->dcam_dev_handle->dcam_pipe_ops->cfg_path(sw_ctx,
 		DCAM_PATH_CFG_BASE, ch->dcam_path_id, &ch_desc);
 
@@ -5574,6 +5578,11 @@ static int camcore_raw_pre_proc(
 	memset(&ctx_desc, 0, sizeof(ctx_desc));
 	ctx_desc.pack_bits = module->cam_uinfo.sensor_if.if_spec.mipi.is_loose;
 	ctx_desc.in_fmt = proc_info->src_format;
+	if (hw->prj_id == QOGIRN6pro) {
+		ctx_desc.in_fmt = camcore_format_dcam_translate(ch_desc.dcam_out_fmt);
+		ctx_desc.is_pack = !ch_desc.pack_bits;
+		ctx_desc.data_in_bits = ch_desc.dcam_out_bits;
+	}
 	ctx_desc.bayer_pattern = proc_info->src_pattern;
 	ctx_desc.mode_ltm = MODE_LTM_OFF;
 	ctx_desc.mode_gtm = MODE_GTM_OFF;
