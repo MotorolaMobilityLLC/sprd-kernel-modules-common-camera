@@ -645,12 +645,13 @@ static int sprd_sensor_file_open(struct inode *node, struct file *file)
 			goto exit;
 		}
 		sprd_cam_domain_eb();
+		__pm_stay_awake(p_mod->ws);
 #else
 		ret = pm_runtime_get(md->this_device);
 //		ret = sprd_cam_pw_on(NULL);
 #endif
 /*		wake_lock(&p_mod->wakelock);*/
-		__pm_stay_awake(p_mod->ws);
+
 	}
 	p_file->md = md;
 	file->private_data = p_file;
@@ -705,12 +706,13 @@ static int sprd_sensor_file_release(struct inode *node, struct file *file)
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 4, 0))
 		sprd_cam_domain_disable();
 		sprd_cam_pw_off();
+		__pm_relax(p_mod->ws);
 #else
 		pm_runtime_put(p_file->md->this_device);
 //		ret = sprd_cam_pw_off(NULL);
 #endif
 /*		wake_unlock(&p_mod->wakelock);*/
-		__pm_relax(p_mod->ws);
+
 	}
 	kfree(p_file);
 	p_file = NULL;
