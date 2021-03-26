@@ -228,25 +228,16 @@ static int cppcore_open(struct inode *node, struct file *file)
 	ret = cpp_int_irq_request(cppif);
 	if (ret < 0) {
 		pr_err("fail to install IRQ %d\n", ret);
-		goto vzalloc_fail;
+		goto int_fail;
 	}
 
 	CPP_TRACE("open sprd_cpp success\n");
 
 	return ret;
 
-vzalloc_fail:
-	cppcore_module_disable(dev);
+int_fail:
 enable_fail:
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 4, 0))
-	sprd_cam_domain_disable();
-	ret = sprd_cam_pw_off();
-#else
-	ret = pm_runtime_put(&dev->pdev->dev);
-#endif
-	if (ret) {
-		pr_err("%s: failed to camera power off\n", __func__);
-	}
+	cppcore_module_disable(dev);
 fail:
 	if (atomic_dec_return(&dev->users) != 0)
 		CPP_TRACE("others is using cpp device\n");
