@@ -1130,6 +1130,7 @@ int isp_drv_dt_parse(struct device_node *dn,
 int isp_drv_hw_init(void *arg)
 {
 	int ret = 0;
+	uint32_t reset_flag = 0;
 	struct isp_pipe_dev *dev = NULL;
 	struct cam_hw_info *hw = NULL;
 	struct isp_hw_default_param default_para;
@@ -1162,7 +1163,8 @@ int isp_drv_hw_init(void *arg)
 	if (ret)
 		goto clk_fail;
 
-	ret = hw->isp_ioctl(hw, ISP_HW_CFG_RESET, NULL);
+	reset_flag = ISP_RESET_AFTER_POWER_ON;
+	ret = hw->isp_ioctl(hw, ISP_HW_CFG_RESET, &reset_flag);
 	if (ret)
 		goto reset_fail;
 
@@ -1192,6 +1194,7 @@ exit:
 int isp_drv_hw_deinit(void *arg)
 {
 	int ret = 0;
+	uint32_t reset_flag = 0;
 	struct isp_pipe_dev *dev = NULL;
 	struct cam_hw_info *hw = NULL;
 
@@ -1203,7 +1206,8 @@ int isp_drv_hw_deinit(void *arg)
 	dev = (struct isp_pipe_dev *)arg;
 	hw = dev->isp_hw;
 
-	ret = hw->isp_ioctl(hw, ISP_HW_CFG_RESET, NULL);
+	reset_flag = ISP_RESET_BEFORE_POWER_OFF;
+	ret = hw->isp_ioctl(hw, ISP_HW_CFG_RESET, &reset_flag);
 	if (ret)
 		pr_err("fail to reset isp\n");
 	ret = isp_int_irq_free(&hw->pdev->dev, arg);

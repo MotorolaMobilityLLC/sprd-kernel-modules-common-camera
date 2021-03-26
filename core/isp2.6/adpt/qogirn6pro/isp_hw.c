@@ -661,6 +661,7 @@ static int isphw_reset(void *handle, void *arg)
 	uint32_t cid;
 	uint32_t time_out = 0;
 	uint32_t flag = 0;
+	uint32_t reset_flag = 0;
 	struct cam_hw_soc_info *soc = NULL;
 	struct cam_hw_ip_info *ip = NULL;
 	struct cam_hw_info *hw = NULL;
@@ -673,6 +674,7 @@ static int isphw_reset(void *handle, void *arg)
 	hw = (struct cam_hw_info *)handle;
 	soc = hw->soc_isp;
 	ip = hw->ip_isp;
+	reset_flag = *(uint32_t *)arg;
 	pr_info("ISP%d: reset\n", ip->idx);
 
 	/* firstly stop axim transfering */
@@ -686,25 +688,27 @@ static int isphw_reset(void *handle, void *arg)
 		udelay(1000);
 	}
 
-	if (time_out >= ISP_AXI_STOP_TIMEOUT) {
-		pr_info("ISP reset timeout %d\n", time_out);
-	} else {
-		flag = ip->syscon.rst_mask
-			| ip->syscon.rst_ahb_mask
-			| ip->syscon.rst_vau_mask;
-		regmap_update_bits(soc->cam_ahb_gpr,
-			ip->syscon.rst, flag, flag);
-		udelay(10);
-		regmap_update_bits(soc->cam_ahb_gpr,
-			ip->syscon.rst, flag, ~flag);
+	if (reset_flag == ISP_RESET_AFTER_POWER_ON) {
+		if (time_out >= ISP_AXI_STOP_TIMEOUT) {
+			pr_info("ISP reset timeout %d\n", time_out);
+		} else {
+			flag = ip->syscon.rst_mask
+				| ip->syscon.rst_ahb_mask
+				| ip->syscon.rst_vau_mask;
+			regmap_update_bits(soc->cam_ahb_gpr,
+				ip->syscon.rst, flag, flag);
+			udelay(10);
+			regmap_update_bits(soc->cam_ahb_gpr,
+				ip->syscon.rst, flag, ~flag);
+		}
 	}
 
 	/* enable axim transfering */
 	ISP_HREG_MWR(ISP_AXI_ITI2AXIM_CTRL, BIT_26, 0);
 
 	for (cid = 0; cid < 4; cid++) {
-		hw->isp_ioctl(hw, ISP_HW_CFG_CLEAR_IRQ, &cid);
 		hw->isp_ioctl(hw, ISP_HW_CFG_DISABLE_IRQ, &cid);
+		hw->isp_ioctl(hw, ISP_HW_CFG_CLEAR_IRQ, &cid);
 	}
 
 	pr_info("ISP%d: reset end\n", ip->idx);

@@ -3624,12 +3624,12 @@ static int ispcore_dev_close(void *isp_handle)
 
 static int ispcore_dev_reset(void *isp_handle, void *param)
 {
-	int ret = 0;
+	int ret = 0, i;
+	uint32_t reset_flag = 0;
 	struct isp_pipe_dev *dev = NULL;
 	struct cam_hw_info *hw = NULL;
 	struct isp_cfg_ctx_desc *cfg_desc = NULL;
 	struct isp_fmcu_ctx_desc *fmcu = NULL;
-	int i = 0;
 	struct isp_hw_context *pctx_hw = NULL;
 	struct isp_hw_default_param tmp_default;
 
@@ -3647,7 +3647,8 @@ static int ispcore_dev_reset(void *isp_handle, void *param)
 		return 0;
 	}
 
-	hw->isp_ioctl(hw, ISP_HW_CFG_RESET, NULL);
+	reset_flag = ISP_RESET_BEFORE_POWER_OFF;
+	hw->isp_ioctl(hw, ISP_HW_CFG_RESET, &reset_flag);
 	tmp_default.type = ISP_HW_PARA;
 	hw->isp_ioctl(hw, ISP_HW_CFG_DEFAULT_PARA_SET, &tmp_default);
 

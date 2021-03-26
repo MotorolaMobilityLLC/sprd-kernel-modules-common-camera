@@ -522,8 +522,8 @@ static int isphw_reset(void *handle, void *arg)
 	ISP_HREG_MWR(ISP_AXI_ITI2AXIM_CTRL, BIT_26, 0);
 
 	for (cid = 0; cid < 4; cid++) {
-		hw->isp_ioctl(hw, ISP_HW_CFG_CLEAR_IRQ, &cid);
 		hw->isp_ioctl(hw, ISP_HW_CFG_DISABLE_IRQ, &cid);
+		hw->isp_ioctl(hw, ISP_HW_CFG_CLEAR_IRQ, &cid);
 	}
 
 	pr_info("ISP%d: reset end\n", ip->idx);

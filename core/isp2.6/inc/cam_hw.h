@@ -144,6 +144,13 @@ enum dcam_fbc_path {
 	DCAM_FBC_PATH_NUM,
 };
 
+/* only temp for N6pro, after isp reset eco, need delete*/
+enum isp_reset_flag {
+	ISP_RESET_AFTER_POWER_ON,
+	ISP_RESET_BEFORE_POWER_OFF,
+	ISP_RESET_FLAG_MAX,
+};
+
 enum dcam_hw_cfg_cmd {
 	DCAM_HW_CFG_ENABLE_CLK,
 	DCAM_HW_CFG_DISABLE_CLK,

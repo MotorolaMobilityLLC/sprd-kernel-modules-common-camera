@@ -516,14 +516,14 @@ void dcamhw_bypass_all(enum dcam_id idx)
 	DCAM_REG_MWR(idx, DCAM_AFM_FRM_CTRL, BIT_0, 1);
 	DCAM_REG_MWR(idx, DCAM_CFA_NEW_CFG0, BIT_0, 1);
 	DCAM_REG_MWR(idx, DCAM_CMC10_PARAM, BIT_0, 1);
-	DCAM_REG_MWR(idx, DCAM_GTM_GLB_CTRL, BIT_0|BIT_1, 3);
+	DCAM_REG_MWR(idx, DCAM_GTM_GLB_CTRL, BIT_0 | BIT_1, 3);
 	DCAM_REG_MWR(idx, DCAM_FGAMMA10_PARAM, BIT_0, 1);
 	DCAM_REG_MWR(idx, DCAM_HIST_ROI_CTRL0, BIT_0, 1);
 	DCAM_REG_MWR(idx, DCAM_CCE_PARAM, BIT_0, 1);
 	DCAM_REG_MWR(idx, DCAM_YUV444TOYUV420_PARAM, BIT_0, 1);
 	DCAM_REG_MWR(idx, DCAM_SCL0_CFG, BIT_0, 1);
 	DCAM_REG_MWR(idx, DCAM_CROP2_CTRL, BIT_0, 1);
-	DCAM_REG_MWR(idx, DCAM_DEC_ONLINE_PARAM, BIT_0|BIT_1|BIT_2, 0);
+	DCAM_REG_MWR(idx, DCAM_DEC_ONLINE_PARAM, BIT_0 | BIT_1 | BIT_2, 0);
 	DCAM_REG_MWR(idx, DCAM_STORE0_PARAM, BIT_0, 1);
 	DCAM_REG_MWR(idx, DCAM_STORE4_PARAM, BIT_0, 1);
 	DCAM_REG_MWR(idx, DCAM_VC1_CONTROL, BIT_0, 0);
@@ -649,12 +649,9 @@ static int dcamhw_fetch_set(void *handle, void *arg)
 	DCAM_REG_WR(fetch->idx, DCAM_INT1_CLR, 0xFFFFFFFF);
 	DCAM_REG_WR(fetch->idx, DCAM_INT1_EN, DCAMINT_IRQ_LINE_INT1_MASK);
 
-	DCAM_REG_MWR(fetch->idx,
-		DCAM_MIPI_CAP_CFG, BIT_12, 0x1 << 12);
-	DCAM_REG_MWR(fetch->idx,
-		DCAM_MIPI_CAP_CFG, BIT_1, 0x1 << 1);
-	DCAM_REG_MWR(fetch->idx,
-		DCAM_MIPI_CAP_CFG, BIT_3, 0x0 << 3);
+	DCAM_REG_MWR(fetch->idx, DCAM_MIPI_CAP_CFG, BIT_12, 0x1 << 12);
+	DCAM_REG_MWR(fetch->idx, DCAM_MIPI_CAP_CFG, BIT_1, 0x1 << 1);
+	DCAM_REG_MWR(fetch->idx, DCAM_MIPI_CAP_CFG, BIT_3, 0x0 << 3);
 	DCAM_REG_MWR(fetch->idx, DCAM_MIPI_CAP_CFG,
 		BIT_5 | BIT_4, (fetch->fetch_info->pattern & 3) << 4);
 	DCAM_AXIM_MWR(0, IMG_FETCH_CTRL,
@@ -934,7 +931,7 @@ static int dcamhw_path_start(void *handle, void *arg)
 		break;
 	case DCAM_PATH_VCH3:
 		DCAM_REG_MWR(patharg->idx, DCAM_VCH3_CONTROL,
-			BIT_21 |  BIT_20, patharg->endian.y_endian << 20);
+			BIT_21 | BIT_20, patharg->endian.y_endian << 20);
 		/*vch3 path en */
 		DCAM_REG_MWR(patharg->idx, DCAM_VCH3_CONTROL, BIT_0, 1);
 		break;
@@ -1295,7 +1292,7 @@ static int dcamhw_path_size_update(void *handle, void *arg)
 
 		/* fbc pitch */
 		if (sizearg->compress_info.is_compress) {
-			reg_val = (sizearg->out_size.h<< 16) | sizearg->out_size.w;
+			reg_val = (sizearg->out_size.h << 16) | sizearg->out_size.w;
 			DCAM_REG_WR(idx, DCAM_YUV_FBC_SCAL_SLICE_SIZE, reg_val);
 			DCAM_REG_WR(idx, DCAM_YUV_FBC_SCAL_TILE_PITCH, sizearg->compress_info.tile_col);
 		}
