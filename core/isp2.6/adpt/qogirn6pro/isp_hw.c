@@ -239,7 +239,8 @@ static int isphw_reg_trace(void *handle, void *arg)
 
 abnormal_reg_trace:
 	pr_info("DCAM%d: Register list\n", trace->idx);
-	for (addr = DCAM_IP_REVISION; addr <= DCAM_GTM_STATUS0;
+
+	for (addr = DCAM_IP_REVISION; addr <= DCAM_CAP_FBC_STATUS3;
 		addr += 16) {
 		pr_info("0x%03lx: 0x%x 0x%x 0x%x 0x%x\n",
 			addr,
@@ -371,7 +372,7 @@ abnormal_reg_trace:
 	}
 
 	pr_info("AXIM: Register list\n");
-	for (addr = AXIM_CTRL; addr <= IMG_FETCH_RADDR;
+	for (addr = AXIM_STATUS0; addr <= DCAM_DUMMY_SLAVE_CFG;
 		addr += 16) {
 		pr_info("0x%03lx: 0x%x 0x%x 0x%x 0x%x\n",
 			addr,

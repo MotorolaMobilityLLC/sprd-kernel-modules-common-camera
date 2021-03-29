@@ -41,8 +41,8 @@ static uint32_t dcam_int_recorder[DCAM_HW_CONTEXT_MAX][DCAM_IF_IRQ_INT0_NUMBER][
 static uint32_t int_index[DCAM_HW_CONTEXT_MAX][DCAM_IF_IRQ_INT0_NUMBER];
 #endif
 
-static uint32_t dcam_int0_tracker[DCAM_HW_CONTEXT_MAX][DCAM_IF_IRQ_INT0_NUMBER];
-static uint32_t dcam_int1_tracker[DCAM_HW_CONTEXT_MAX][DCAM_IF_IRQ_INT1_NUMBER];
+static uint32_t dcam_int0_tracker[DCAM_HW_CONTEXT_MAX][DCAM_IF_IRQ_INT0_NUMBER] = {0};
+static uint32_t dcam_int1_tracker[DCAM_HW_CONTEXT_MAX][DCAM_IF_IRQ_INT1_NUMBER] = {0};
 static char *dcam_dev_name[] = {"DCAM0", "DCAM1", "DCAM2"};
 
 enum dcam_fix_result {

@@ -857,8 +857,8 @@ static int camioctl_crop_set(struct camera_module *module,
 	max.w = module->cam_uinfo.sn_rect.w;
 	max.h = module->cam_uinfo.sn_rect.h;
 
-	pr_info("4in1[%d],set ch%d crop %d %d %d %d.\n",
-		module->cam_uinfo.is_4in1, channel_id,
+	pr_info("cam%d 4in1[%d],set ch%d crop %d %d %d %d.\n",
+		module->idx, module->cam_uinfo.is_4in1, channel_id,
 		crop->x, crop->y, crop->w, crop->h);
 	/* 4in1 prev, enable 4in1 binning OR size > 24M, size/2 */
 	if ((module->cam_uinfo.is_4in1 || module->cam_uinfo.dcam_slice_mode) &&
@@ -3141,8 +3141,6 @@ static int camioctl_csi_switch(struct camera_module *module, unsigned long arg)
 				csi_switch.csi_id, csi_switch.dcam_id, sw_ctx->sw_ctx_id);
 
 			/* reset */
-			hw->dcam_ioctl(hw, DCAM_HW_CFG_STOP, &sw_ctx->hw_ctx_id);
-			hw->dcam_ioctl(hw, DCAM_HW_CFG_RESET, &sw_ctx->hw_ctx_id);
 			dcam_int_tracker_dump(sw_ctx->hw_ctx_id);
 			dcam_int_tracker_reset(sw_ctx->hw_ctx_id);
 

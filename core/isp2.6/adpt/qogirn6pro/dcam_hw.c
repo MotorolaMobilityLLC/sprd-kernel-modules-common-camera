@@ -374,7 +374,7 @@ static int dcamhw_stop(void *handle, void *arg)
 
 	/* reset  cap_en*/
 	DCAM_REG_MWR(idx, DCAM_MIPI_CAP_CFG, BIT_0, 0);
-	DCAM_REG_WR(idx, DCAM_PATH_STOP, 0x2DFF);
+	DCAM_REG_WR(idx, DCAM_PATH_STOP, 0x7FFFF);
 
 	DCAM_REG_WR(idx, DCAM_INT0_EN, 0);
 	DCAM_REG_WR(idx, DCAM_INT0_CLR, 0xFFFFFFFF);
@@ -383,7 +383,7 @@ static int dcamhw_stop(void *handle, void *arg)
 
 	/* wait for AHB path busy cleared */
 	while (time_out) {
-		ret = DCAM_REG_RD(idx, DCAM_PATH_BUSY) & 0x2FFF;
+		ret = DCAM_REG_RD(idx, DCAM_PATH_BUSY) & 0x7FFF;
 		if (!ret)
 			break;
 		udelay(1000);
@@ -597,14 +597,11 @@ static int dcamhw_reset(void *handle, void *arg)
 
 	/* disable internal logic access sram */
 	DCAM_REG_MWR(idx, DCAM_APB_SRAM_CTRL, BIT_0, 0);
-
 	DCAM_REG_WR(idx, DCAM_MIPI_CAP_CFG, 0); /* disable all path */
 	DCAM_REG_WR(idx, DCAM_IMAGE_CONTROL, 0x2b << 8 | 0x01);
 
+
 	if (IS_DCAM_IF(idx)) {
-		DCAM_REG_MWR(idx, DCAM_APB_SRAM_CTRL, BIT_0, 0);
-		DCAM_REG_WR(idx, DCAM_IMAGE_CONTROL, 0x2b << 8 | 0x01);
-		DCAM_REG_MWR(idx, DCAM_MIPI_CAP_CFG, BIT_0, 0);
 		/* default bypass all blocks */
 		dcamhw_bypass_all(idx);
 	} else {
@@ -2076,6 +2073,27 @@ static int dcamhw_csi_disconnect(void *handle, void *arg)
 	if (time_out == 0)
 		pr_err("fail to stop:DCAM%d: stop timeout for 2s\n", idx);
 
+
+	DCAM_REG_MWR(idx, DCAM_INT0_CLR, 0xffffffff, 0xffffffff);
+	DCAM_REG_WR(idx, DCAM_INT0_EN, DCAMINT_IRQ_LINE_EN0_NORMAL);
+
+	DCAM_REG_MWR(idx, DCAM_INT1_CLR, 0xffffffff, 0xffffffff);
+	DCAM_REG_WR(idx, DCAM_INT1_EN, DCAMINT_IRQ_LINE_INT1_MASK);
+
+
+	/* disable internal logic access sram */
+	DCAM_REG_MWR(idx, DCAM_APB_SRAM_CTRL, BIT_0, 0);
+	DCAM_REG_WR(idx, DCAM_MIPI_CAP_CFG, 0); /* disable all path */
+	DCAM_REG_WR(idx, DCAM_IMAGE_CONTROL, 0x2b << 8 | 0x01);
+
+	if (IS_DCAM_IF(idx)) {
+		/* default bypass all blocks */
+		dcamhw_bypass_all(idx);
+	} else {
+		DCAM_REG_WR(idx, DCAM_LITE_IMAGE_DT_VC_CONTROL, 0x2b << 8 | 0x01);
+		DCAM_REG_MWR(idx, DCAM_LITE_MIPI_CAP_CFG, BIT_0, 0);
+	}
+
 	return 0;
 }
 
@@ -2116,7 +2134,7 @@ static int dcamhw_csi_force_enable(void *handle, void *arg)
 	struct cam_hw_info *hw = NULL;
 	struct dcam_switch_param *csi_switch = NULL;
 	int time_out = DCAMX_STOP_TIMEOUT;
-	uint32_t val = 0xffffffff;
+	uint32_t val = 0;
 
 	csi_switch = (struct dcam_switch_param *)arg;
 	hw = (struct cam_hw_info *)handle;
@@ -2124,9 +2142,25 @@ static int dcamhw_csi_force_enable(void *handle, void *arg)
 	idx = csi_switch->dcam_id;
 
 	regmap_update_bits(hw->soc_dcam->cam_switch_gpr, idx * 4, BIT_5, BIT_5);
-	regmap_update_bits(hw->soc_dcam->cam_switch_gpr, idx * 4, BIT_31, BIT_31);
 	regmap_update_bits(hw->soc_dcam->cam_switch_gpr, idx * 4, 0x7 << 13, csi_id << 13);
+	regmap_update_bits(hw->soc_dcam->cam_switch_gpr, idx * 4, BIT_31, BIT_31);
+
+	while (time_out) {
+		regmap_read(hw->soc_dcam->cam_switch_gpr, idx * 4, &val);
+		if (val & BIT_30)
+			break;
+		udelay(1000);
+		time_out--;
+	}
+
+	if (time_out != 0)
+		pr_debug("force disable dcam%d to csi%d, cam_switch_gpr:0x%x\n", idx, csi_id, val);
+	else
+		pr_err("fail to disable DCAM%d csi%d\n", idx, csi_id);
+
 	regmap_update_bits(hw->soc_dcam->cam_switch_gpr, idx * 4, BIT_31, ~BIT_31);
+
+	time_out = DCAMX_STOP_TIMEOUT;
 	while (time_out) {
 		regmap_read(hw->soc_dcam->cam_switch_gpr, idx * 4, &val);
 		if (!(val & BIT_30))

@@ -1466,6 +1466,10 @@ static int dcamhw_csi_disconnect(void *handle, void *arg)
 	if (time_out == 0)
 		pr_err("fail to stop:DCAM%d: stop timeout for 2s\n", idx);
 
+	/* reset */
+	hw->dcam_ioctl(hw, DCAM_HW_CFG_STOP, &idx);
+	hw->dcam_ioctl(hw, DCAM_HW_CFG_RESET, &idx);
+
 	return 0;
 }
 
