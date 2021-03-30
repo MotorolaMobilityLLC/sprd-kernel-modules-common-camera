@@ -1,4 +1,5 @@
 /*
+
  * Copyright (C) 2020-2021 UNISOC Communications Inc.
  *
  * This software is licensed under the terms of the GNU General Public
@@ -36,9 +37,9 @@ static int sprd_cam_flash_ctrl(uint32_t dcam_idx,
 {
 	int ret = 0;
 
-#ifndef CAM_ON_HAPS
+//#ifndef CAM_ON_HAPS
 	ret = sprd_flash_ctrl(set_flash);
-#endif
+//#endif
 	pr_info("%d set flash\n", dcam_idx);
 	return ret;
 }
@@ -61,9 +62,9 @@ static int sprd_cam_flash_cfg(struct cam_flash_task_info *flash_ctx, void *cfg_p
 		pr_err("fail to get flash handle\n");
 		goto exit;
 	}
-#ifndef CAM_ON_HAPS
+//#ifndef CAM_ON_HAPS
 	ret = sprd_flash_cfg((struct sprd_flash_cfg_param *) cfg_parm);
-#endif
+//#endif
 	if (ret)
 		pr_err("fail to sprd_flash_cfg\n");
 
@@ -101,10 +102,10 @@ exit:
 
 static int sprd_cam_flash_info_get(struct cam_flash_task_info *flash_ctx, void *arg)
 {
-#ifndef CAM_ON_HAPS
+//#ifndef CAM_ON_HAPS
 	sprd_flash_get_info(flash_ctx->set_flash.flash_index,
 		SPRD_FLASH_LED_ALL, (struct sprd_flash_capacity *)arg);
-#endif
+//#endif
 	return 0;
 }
 
