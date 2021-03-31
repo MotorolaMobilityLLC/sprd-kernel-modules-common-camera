@@ -88,11 +88,23 @@ struct isp_cfg_entry {
 	func_isp_cfg_param cfg_func;
 };
 
+struct slice_dyn_calc_param{
+	uint32_t verison;
+	struct img_size src;
+	struct img_trim crop;
+	struct isp_hw_path_scaler *path_scaler[ISP_SPATH_NUM];
+	struct isp_store_info *store[ISP_SPATH_NUM];
+};
+
 struct slice_cfg_input {
 	uint32_t ltm_rgb_eb;
 	uint32_t ltm_yuv_eb;
 	uint32_t gtm_rgb_eb;
 	uint32_t pyr_rec_eb;
+	uint32_t nlm_center_x;
+	uint32_t nlm_center_y;
+	uint32_t ynr_center_x;
+	uint32_t ynr_center_y;
 	struct img_size frame_in_size;
 	struct img_size *frame_out_size[ISP_SPATH_NUM];
 	struct isp_hw_fetch_info *frame_fetch;
@@ -104,15 +116,12 @@ struct slice_cfg_input {
 	struct img_deci_info *frame_deci[ISP_SPATH_NUM];
 	struct img_trim *frame_trim0[ISP_SPATH_NUM];
 	struct img_trim *frame_trim1[ISP_SPATH_NUM];
-	uint32_t nlm_center_x;
-	uint32_t nlm_center_y;
-	uint32_t ynr_center_x;
-	uint32_t ynr_center_y;
 	struct isp_3dnr_ctx_desc *nr3_ctx;
 	struct isp_ltm_ctx_desc *rgb_ltm;
 	struct isp_ltm_ctx_desc *yuv_ltm;
 	struct isp_gtm_ctx_desc *rgb_gtm;
 	struct isp_k_block *nofilter_ctx;
+	struct slice_dyn_calc_param calc_dyn_ov;
 };
 
 struct isp_path_desc {

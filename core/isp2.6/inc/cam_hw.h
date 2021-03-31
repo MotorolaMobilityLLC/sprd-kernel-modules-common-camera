@@ -1265,6 +1265,7 @@ struct cam_hw_ip_info {
 	uint32_t rgb_gtm_support;
 	uint32_t dewarp_support;
 	uint32_t nr3_mv_alg_version;
+	uint32_t dyn_overlap_version;
 };
 
 struct cam_hw_soc_info {

@@ -898,6 +898,7 @@ static int ispcore_slice_ctx_init(struct isp_sw_context *pctx, uint32_t *multi_s
 	struct isp_path_desc *path;
 	struct slice_cfg_input slc_cfg_in;
 	struct isp_hw_nlm_ynr radius_adapt;
+	struct cam_hw_info *hw_info = NULL;
 
 	*multi_slice = 0;
 
@@ -906,6 +907,12 @@ static int ispcore_slice_ctx_init(struct isp_sw_context *pctx, uint32_t *multi_s
 		pr_debug("sw %d don't need to slice , slowmotion %d\n",
 			pctx->ctx_id, pctx->uinfo.enable_slowmotion);
 		return 0;
+	}
+
+	hw_info = (struct cam_hw_info *)pctx->hw;
+	if (!hw_info) {
+		pr_err("fail to get hw info NULL\n");
+		goto exit;
 	}
 
 	if (pctx->slice_ctx == NULL) {
@@ -919,6 +926,7 @@ static int ispcore_slice_ctx_init(struct isp_sw_context *pctx, uint32_t *multi_s
 	}
 
 	memset(&slc_cfg_in, 0, sizeof(struct slice_cfg_input));
+
 	slc_cfg_in.frame_in_size.w = pctx->pipe_src.crop.size_x;
 	slc_cfg_in.frame_in_size.h = pctx->pipe_src.crop.size_y;
 	slc_cfg_in.frame_fetch = &pctx->pipe_info.fetch;
@@ -938,11 +946,25 @@ static int ispcore_slice_ctx_init(struct isp_sw_context *pctx, uint32_t *multi_s
 			slc_cfg_in.frame_afbc_store[j] = &pctx->pipe_info.afbc[j].afbc_store;
 	}
 
+	slc_cfg_in.calc_dyn_ov.verison = hw_info->ip_isp->dyn_overlap_version;
+	slc_cfg_in.calc_dyn_ov.src.w = pctx->pipe_src.src.w;
+	slc_cfg_in.calc_dyn_ov.src.h = pctx->pipe_src.src.h;
+	slc_cfg_in.calc_dyn_ov.crop.start_x = pctx->pipe_src.crop.start_x;
+	slc_cfg_in.calc_dyn_ov.crop.start_y = pctx->pipe_src.crop.start_y;
+	slc_cfg_in.calc_dyn_ov.crop.size_x = pctx->pipe_src.crop.size_x;
+	slc_cfg_in.calc_dyn_ov.crop.size_y = pctx->pipe_src.crop.size_y;
+	slc_cfg_in.nofilter_ctx = &pctx->isp_k_param;
+	slc_cfg_in.calc_dyn_ov.path_scaler[ISP_SPATH_CP] = &pctx->pipe_info.scaler[ISP_SPATH_CP];
+	slc_cfg_in.calc_dyn_ov.path_scaler[ISP_SPATH_VID] = &pctx->pipe_info.scaler[ISP_SPATH_VID];
+	slc_cfg_in.calc_dyn_ov.store[ISP_SPATH_CP] = &pctx->pipe_info.store[ISP_SPATH_CP].store;
+	slc_cfg_in.calc_dyn_ov.store[ISP_SPATH_VID] = &pctx->pipe_info.store[ISP_SPATH_VID].store;
+
+	isp_slice_base_cfg(&slc_cfg_in, pctx->slice_ctx, &pctx->valid_slc_num);
+
 	radius_adapt.val = val;
 	radius_adapt.ctx_id = pctx->ctx_id;
 	radius_adapt.slc_cfg_in = &slc_cfg_in;
 	path->hw->isp_ioctl(path->hw, ISP_HW_CFG_GET_NLM_YNR, &radius_adapt);
-	isp_slice_base_cfg(&slc_cfg_in, pctx->slice_ctx, &pctx->valid_slc_num);
 
 	pr_debug("sw %d valid_slc_num %d\n", pctx->ctx_id, pctx->valid_slc_num);
 	if (pctx->valid_slc_num > 1)
@@ -1676,6 +1698,7 @@ static int ispcore_offline_frame_start(void *ctx)
 		slc_cfg.yuv_ltm = (struct isp_ltm_ctx_desc *)pctx->yuv_ltm_handle;
 		slc_cfg.rgb_gtm = (struct isp_gtm_ctx_desc *)pctx->rgb_gtm_handle;
 		slc_cfg.nofilter_ctx = &pctx->isp_k_param;
+		slc_cfg.calc_dyn_ov.verison = hw->ip_isp->dyn_overlap_version;
 		isp_slice_info_cfg(&slc_cfg, pctx->slice_ctx);
 
 		if (!use_fmcu) {

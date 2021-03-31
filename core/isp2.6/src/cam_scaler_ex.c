@@ -798,7 +798,7 @@ static int camscaler_sin_core(int arc_q33, int sign)
  /* Note:                                                                    */
  /****************************************************************************/
 
-static unsigned char cam_scaler_isp_scale_coeff_gen_ex(short i_w, short i_h,
+unsigned char cam_scaler_isp_scale_coeff_gen_ex(short i_w, short i_h,
  				short o_w, short o_h,
  				unsigned char i_pixfmt,
  				unsigned char o_pixfmt,
