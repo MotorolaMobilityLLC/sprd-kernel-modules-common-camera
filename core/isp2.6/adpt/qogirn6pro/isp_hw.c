@@ -73,17 +73,7 @@ static const struct bypass_tag dcam_bypass_tab[] = {
 };
 
 static const struct bypass_tag isp_hw_bypass_tab[] = {
-[_EISP_GC]      = {"grgb",    ISP_GRGB_CTRL,           0, 1}, /* GrGb correction */
-[_EISP_NLM]     = {"nlm",     ISP_NLM_PARA,            0, 1},
-[_EISP_VST]     = {"vst",     ISP_VST_PARA,            0, 1},
-[_EISP_IVST]    = {"ivst",    ISP_IVST_PARA,           0, 1},
-[_EISP_CFA]     = {"cfa",     ISP_CFAE_NEW_CFG0,       0, 1},
-[_EISP_CMC]     = {"cmc",     ISP_CMC10_PARAM,         0, 1},
-[_EISP_GAMC]    = {"gamma-c", ISP_GAMMA_PARAM,         0, 1}, /* Gamma correction */
 [_EISP_HSV]     = {"hsv",     ISP_HSV_PARAM,           0, 1},
-[_EISP_HIST]    = {"hist",    ISP_HIST_PARAM,          0, 1},
-[_EISP_HIST2]   = {"hist2",   ISP_HIST2_PARAM,         0, 1},
-[_EISP_PSTRZ]   = {"pstrz",   ISP_PSTRZ_PARAM,         0, 1},
 [_EISP_PRECDN]  = {"precdn",  ISP_PRECDN_PARAM,        0, 1},
 [_EISP_YNR]     = {"ynr",     ISP_YNR_CONTRL0,         0, 1},
 [_EISP_EE]      = {"ee",      ISP_EE_PARAM,            0, 1},
@@ -97,7 +87,6 @@ static const struct bypass_tag isp_hw_bypass_tab[] = {
 [_EISP_YUVNF]   = {"yuvnf",   ISP_YUV_NF_CTRL,         0, 1},
 
 	{"ydelay",    ISP_YDELAY_PARAM,                         0,  1},
-	{"cce",       ISP_CCE_PARAM,                            0,  0},
 	{"fetch-fbd", ISP_FBD_RAW_SEL,                          0,  1},
 	/* can't bypass when prev */
 	{"scale-pre", ISP_CAP_SCALER_CFG,                       20, 0},
@@ -1635,23 +1624,15 @@ static int isphw_slice_store(void *handle, void *arg)
 static struct isp_cfg_entry isp_hw_cfg_func_tab[ISP_BLOCK_TOTAL - ISP_BLOCK_BASE] = {
 [ISP_BLOCK_BCHS - ISP_BLOCK_BASE]     = {ISP_BLOCK_BCHS,     isp_k_cfg_bchs},
 [ISP_BLOCK_YGAMMA - ISP_BLOCK_BASE]   = {ISP_BLOCK_YGAMMA,   isp_k_cfg_ygamma},
-[ISP_BLOCK_GAMMA - ISP_BLOCK_BASE]    = {ISP_BLOCK_GAMMA,    isp_k_cfg_gamma},
-[ISP_BLOCK_NLM - ISP_BLOCK_BASE]      = {ISP_BLOCK_NLM,      isp_k_cfg_nlm},
 [ISP_BLOCK_YNR - ISP_BLOCK_BASE]      = {ISP_BLOCK_YNR,      isp_k_cfg_ynr},
 [ISP_BLOCK_RGB_LTM - ISP_BLOCK_BASE]  = {ISP_BLOCK_RGB_LTM,  isp_k_cfg_rgb_ltm},
-[ISP_BLOCK_CCE - ISP_BLOCK_BASE]      = {ISP_BLOCK_CCE,      isp_k_cfg_cce},
 [ISP_BLOCK_UVD - ISP_BLOCK_BASE]      = {ISP_BLOCK_UVD,      isp_k_cfg_uvd},
-[ISP_BLOCK_CFA - ISP_BLOCK_BASE]      = {ISP_BLOCK_CFA,      isp_k_cfg_cfa},
-[ISP_BLOCK_CMC - ISP_BLOCK_BASE]      = {ISP_BLOCK_CMC,      isp_k_cfg_cmc10},
 [ISP_BLOCK_CDN - ISP_BLOCK_BASE]      = {ISP_BLOCK_CDN,      isp_k_cfg_cdn},
 [ISP_BLOCK_HSV - ISP_BLOCK_BASE]      = {ISP_BLOCK_HSV,      isp_k_cfg_hsv},
-[ISP_BLOCK_GRGB - ISP_BLOCK_BASE]     = {ISP_BLOCK_GRGB,     isp_k_cfg_grgb},
 [ISP_BLOCK_EDGE - ISP_BLOCK_BASE]     = {ISP_BLOCK_EDGE,     isp_k_cfg_edge},
-[ISP_BLOCK_HIST2 - ISP_BLOCK_BASE]    = {ISP_BLOCK_HIST2,    isp_k_cfg_hist2},
 [ISP_BLOCK_IIRCNR - ISP_BLOCK_BASE]   = {ISP_BLOCK_IIRCNR,   isp_k_cfg_iircnr},
 [ISP_BLOCK_PRE_CDN - ISP_BLOCK_BASE]  = {ISP_BLOCK_PRE_CDN,  isp_k_cfg_pre_cdn},
 [ISP_BLOCK_POST_CDN - ISP_BLOCK_BASE] = {ISP_BLOCK_POST_CDN, isp_k_cfg_post_cdn},
-[ISP_BLOCK_PSTRZ - ISP_BLOCK_BASE]    = {ISP_BLOCK_PSTRZ,    isp_k_cfg_pstrz},
 [ISP_BLOCK_YRANDOM - ISP_BLOCK_BASE]  = {ISP_BLOCK_YRANDOM,  isp_k_cfg_yrandom},
 };
 
@@ -1659,7 +1640,7 @@ static int isphw_block_func_get(void *handle, void *arg)
 {
 	void *block_func = NULL;
 	struct isp_hw_block_func *func_arg = NULL;
-	return 0;
+
 	func_arg = (struct isp_hw_block_func *)arg;
 
 	if (func_arg->index < (ISP_BLOCK_TOTAL - ISP_BLOCK_BASE)) {
@@ -2896,12 +2877,6 @@ static int isphw_slice_nr_info_set(void *handle, void *arg)
 
 	return 0;
 	nrarg = (struct isp_hw_set_slice_nr_info *)arg;
-	/* NLM */
-	addr = ISP_GET_REG(ISP_NLM_RADIAL_1D_DIST);
-	cmd = ((nrarg->slice_nlm->center_y_relative & 0x3FFF) << 16) |
-		(nrarg->slice_nlm->center_x_relative & 0x3FFF);
-	FMCU_PUSH(nrarg->fmcu, addr, cmd);
-
 	/* Post CDN */
 	addr = ISP_GET_REG(ISP_POSTCDN_SLICE_CTRL);
 	cmd = nrarg->start_row_mod4;
@@ -2952,10 +2927,6 @@ static int isphw_radius_parm_adpt(void *handle, void *arg)
 	struct isp_hw_nlm_ynr *parm = NULL;
 
 	parm = (struct isp_hw_nlm_ynr *)arg;
-
-	parm->val = ISP_REG_RD(parm->ctx_id, ISP_NLM_RADIAL_1D_DIST);
-	parm->slc_cfg_in->nlm_center_x = parm->val & 0x3FFF;
-	parm->slc_cfg_in->nlm_center_y = (parm->val >> 16) & 0x3FFF;
 
 	parm->val = ISP_REG_RD(parm->ctx_id, ISP_YNR_CFG31);
 	parm->slc_cfg_in->ynr_center_x = parm->val & 0xFFFF;
@@ -3128,22 +3099,6 @@ static int isphw_isp_start_cfg(void *handle, void *arg)
 		ISP_HREG_RD(ISP_CFG_PRE0_CMD_ADDR));
 
 	ISP_HREG_WR(reg_addr[ctx_id], 1);
-	return 0;
-}
-
-static int isphw_hist_roi_update(void *handle, void *arg)
-{
-	uint32_t val = 0;
-	struct isp_hw_hist_roi *hist_arg = NULL;
-
-	hist_arg = (struct isp_hw_hist_roi *)arg;
-
-	val = (hist_arg->hist_roi->start_y & 0xFFFF) | ((hist_arg->hist_roi->start_x & 0xFFFF) << 16);
-	ISP_REG_WR(hist_arg->ctx_id, ISP_HIST2_ROI_S0, val);
-
-	val = (hist_arg->hist_roi->end_y & 0xFFFF) | ((hist_arg->hist_roi->end_x & 0xFFFF) << 16);
-	ISP_REG_WR(hist_arg->ctx_id, ISP_HIST2_ROI_E0, val);
-
 	return 0;
 }
 
@@ -3370,7 +3325,6 @@ static struct hw_io_ctrl_fun isp_ioctl_fun_tab[] = {
 	{ISP_HW_CFG_MAP_INIT,                isphw_map_init_cfg},
 	{ISP_HW_CFG_CMD_READY,               isphw_cfg_cmd_ready},
 	{ISP_HW_CFG_START_ISP,               isphw_isp_start_cfg},
-	{ISP_HW_CFG_UPDATE_HIST_ROI,         isphw_hist_roi_update},
 	{ISP_HW_CFG_FETCH_START,             isphw_fetch_start},
 	{ISP_HW_CFG_DEWARP_FETCH_START,      isphw_dewarp_fetch_start},
 	{ISP_HW_CFG_FMCU_CMD,                isphw_fmcu_cmd_set},
