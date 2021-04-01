@@ -1447,7 +1447,7 @@ static int dcamhw_lbuf_share_set(void *handle, void *arg)
 			DCAM_AXIM_MWR(camarg->idx, DCAM_LBUF_SHARE_MODE, 0x7, 3);
 			break;
 		}
-		for (i = 7; i <= 4; i++) {
+		for (i = 7; i >= 4; i--) {
 			if (camarg->width <= tb_w[i * 2 + 1]) {
 				DCAM_AXIM_MWR(camarg->idx, DCAM_LBUF_SHARE_MODE, 0x7, i);
 				pr_debug("alloc dcam%d linebuf %d %d\n", camarg->idx, tb_w[i*2], tb_w[i*2 + 1]);
