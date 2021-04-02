@@ -5521,6 +5521,10 @@ static int camcore_raw_pre_proc(
 	}
 
 	/* specify dcam path */
+	if (proc_info->scene == RAW_PROC_SCENE_HWSIM) {
+	   module->dcam_dev_handle->dcam_pipe_ops->put_path(
+	   	&module->dcam_dev_handle->sw_ctx[module->cur_sw_ctx_id], DCAM_PATH_FULL);
+	}
 	dcam_path_id = module->dcam_dev_handle->hw->ip_dcam[DCAM_HW_CONTEXT_0]->aux_dcam_path;
 	ret = module->dcam_dev_handle->dcam_pipe_ops->get_path(
 		&module->dcam_dev_handle->sw_ctx[module->cur_sw_ctx_id], dcam_path_id);
