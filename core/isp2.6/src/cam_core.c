@@ -4209,7 +4209,7 @@ static int camcore_channel_init(struct camera_module *module,
 		channel->ch_id, new_dcam_path, dcam_path_id, new_isp_path, isp_path_id, new_isp_ctx, isp_ctx_id);
 
 	dcam_sw_ctx = &module->dcam_dev_handle->sw_ctx[module->cur_sw_ctx_id];
-
+	pr_info("cam%d, simulator=%d\n", module->idx, module->simulator);
 	if (new_dcam_path) {
 		ret = module->dcam_dev_handle->dcam_pipe_ops->get_path(dcam_sw_ctx, dcam_path_id);
 		if (ret < 0) {
@@ -5481,11 +5481,12 @@ static int camcore_raw_pre_proc(
 	}
 	/* not care 4in1 */
 	ch = &module->channel[CAM_CH_CAP];
-	ch->dcam_path_id = -1;
-	ch->isp_ctx_id = -1;
-	ch->isp_path_id = -1;
-	ch->aux_dcam_path_id = -1;
-
+	if (proc_info->scene != RAW_PROC_SCENE_HWSIM) {
+		ch->dcam_path_id = -1;
+		ch->isp_ctx_id = -1;
+		ch->isp_path_id = -1;
+		ch->aux_dcam_path_id = -1;
+	}
 	dev = (struct dcam_pipe_dev *)module->dcam_dev_handle;
 	sw_ctx = &dev->sw_ctx[module->cur_sw_ctx_id];
 
@@ -5522,19 +5523,16 @@ static int camcore_raw_pre_proc(
 	}
 
 	/* specify dcam path */
-	if (proc_info->scene == RAW_PROC_SCENE_HWSIM) {
-	   module->dcam_dev_handle->dcam_pipe_ops->put_path(
-	   	&module->dcam_dev_handle->sw_ctx[module->cur_sw_ctx_id], DCAM_PATH_FULL);
+	if (proc_info->scene != RAW_PROC_SCENE_HWSIM) {
+		dcam_path_id = module->dcam_dev_handle->hw->ip_dcam[DCAM_HW_CONTEXT_0]->aux_dcam_path;
+		ret = module->dcam_dev_handle->dcam_pipe_ops->get_path(
+			&module->dcam_dev_handle->sw_ctx[module->cur_sw_ctx_id], dcam_path_id);
+		if (ret < 0) {
+			pr_err("fail to get dcam path %d\n", dcam_path_id);
+			return -EFAULT;
+		}
+		ch->dcam_path_id = dcam_path_id;
 	}
-	dcam_path_id = module->dcam_dev_handle->hw->ip_dcam[DCAM_HW_CONTEXT_0]->aux_dcam_path;
-	ret = module->dcam_dev_handle->dcam_pipe_ops->get_path(
-		&module->dcam_dev_handle->sw_ctx[module->cur_sw_ctx_id], dcam_path_id);
-	if (ret < 0) {
-		pr_err("fail to get dcam path %d\n", dcam_path_id);
-		return -EFAULT;
-	}
-	ch->dcam_path_id = dcam_path_id;
-
 	/* config dcam path  */
 	memset(&ch_desc, 0, sizeof(ch_desc));
 	if(ch->dcam_path_id == 0 && module->cam_uinfo.is_4in1 == 1)

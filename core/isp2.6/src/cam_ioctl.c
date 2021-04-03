@@ -564,8 +564,14 @@ static int camioctl_output_size_set(struct camera_module *module,
 		pr_err("fail to copy from user, ret %d\n", ret);
 		goto exit;
 	}
-
-	if (((cap_type == CAM_CAP_RAW_FULL) || (dst_fmt == sn_fmt)) &&
+	if(scene_mode == DCAM_SCENE_MODE_HARDWARE_SIMULATION)
+		module->simulator = 1;
+	pr_info("cam%d, simulator=%d\n", module->idx, module->simulator);
+	if ((scene_mode == DCAM_SCENE_MODE_HARDWARE_SIMULATION) &&
+		(module->channel[CAM_CH_CAP].enable == 0)) {
+		channel = &module->channel[CAM_CH_CAP];
+		channel->enable = 1;
+	} else if (((cap_type == CAM_CAP_RAW_FULL) || (dst_fmt == sn_fmt)) &&
 		(module->channel[CAM_CH_RAW].enable == 0)) {
 		channel = &module->channel[CAM_CH_RAW];
 		channel->enable = 1;
