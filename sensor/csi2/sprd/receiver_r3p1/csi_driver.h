@@ -28,9 +28,9 @@ struct dphy_lane_cfg {
 };
 
 enum csi_phy_t {
-	PHY_4LANE = 0,
-	PHY_2P2,
-	PHY_2P2RO,
+	PHY_4LANE = 0,//phy_0
+	PHY_2P2,//phy_1
+	PHY_2P2RO,//phy_2
 	PHY_2P2_M,
 	PHY_2P2_S,
 	PHY_2P2RO_M,
@@ -39,9 +39,9 @@ enum csi_phy_t {
 };
 
 enum csi_controller_t {
-	CSI_RX0 = 0,
-	CSI_RX1,
-	CSI_RX2,
+	CSI_RX0 = 0,//csi 4l(csi 1)
+	CSI_RX1,//csi m/s(csi 2)
+	CSI_RX2,//csi ro m/s (csi 0)
 	CSI_RX_MAX,
 };
 

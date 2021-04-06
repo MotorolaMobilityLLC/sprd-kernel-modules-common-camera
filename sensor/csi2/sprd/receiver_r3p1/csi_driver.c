@@ -442,6 +442,8 @@ void csi_phy_testclr(int sensor_id, struct csi_phy_info *phy)
 		CSI_REG_MWR(sensor_id, PHY_TEST_CRTL0, PHY_TESTCLR, 1);//TODO clr 2p2 ro/m/s
 		CSI_REG_MWR(sensor_id, PHY_TEST_CRTL0, PHY_TESTCLR, 0);
 		break;
+	case PHY_2P2RO_M:
+	case PHY_2P2RO_S:
 	case PHY_2P2:
 	case PHY_2P2_M:
 	case PHY_2P2_S:
@@ -898,12 +900,14 @@ void csi_phy_init(struct csi_dt_node_info *dt_info, int32_t idx)
 		//phy_write(idx, 0x5d, 0x68, 0xff);
 		phy_csi_path_cfg(dt_info, idx);
 		break;
+	case PHY_2P2RO_M:
+	case PHY_2P2RO_S:
 	case PHY_2P2_M:
 		/* 2p2lane phy as a 2lane M phy  */
-		phy_csi_path_clr_cfg(dt_info, idx);
-		csi_2p2l_2lane_phy_testclr(phy);
-		phy_csi_path_cfg(dt_info, idx);
-		break;
+		//phy_csi_path_clr_cfg(dt_info, idx);
+		//csi_2p2l_2lane_phy_testclr(phy);
+		//phy_csi_path_cfg(dt_info, idx);
+		//break;
 	case PHY_2P2_S:
 		/* 2p2lane phy as a 2lane S phy  */
 		phy_csi_path_clr_cfg(dt_info, idx);
