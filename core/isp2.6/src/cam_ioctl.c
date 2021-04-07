@@ -3124,7 +3124,6 @@ static int camioctl_csi_switch(struct camera_module *module, unsigned long arg)
 
 	switch (csi_connect) {
 		case 0:
-			module->path_state = DCAM_PATH_PAUSE;
 			if (sw_ctx->hw_ctx_id == DCAM_HW_CONTEXT_MAX)
 				return 0;
 
@@ -3186,7 +3185,6 @@ static int camioctl_csi_switch(struct camera_module *module, unsigned long arg)
 			break;
 
 		case 1:
-			module->path_state = DCAM_PATH_RESUME;
 			/* bind */
 			do {
 				ret = dcam_core_context_bind(sw_ctx, hw->csi_connect_type, module->dcam_idx);
