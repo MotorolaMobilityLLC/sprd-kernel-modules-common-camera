@@ -28,9 +28,9 @@
 #define DCAM_PROC_Q_LEN                   12
 
 /* TODO: extend these for slow motion dev */
-#define DCAM_RESULT_Q_LEN                 12
+#define DCAM_RESULT_Q_LEN                 25
 #define DCAM_OUT_BUF_Q_LEN                25
-#define DCAM_RESERVE_BUF_Q_LEN            12
+#define DCAM_RESERVE_BUF_Q_LEN            25
 
 #define DCAM_INTERNAL_RES_BUF_SIZE        0xC0000
 #define DCAM_LSC_BUF_SIZE                 0x3000
@@ -235,6 +235,7 @@ struct dcam_sw_context {
 	uint32_t hw_ctx_id;
 	struct dcam_hw_context *hw_ctx;
 	uint32_t csi_connect_stat;
+	struct dcam_fmcu_ctx_desc *fmcu;
 
 	uint32_t auto_cpy_id;
 	uint32_t base_fid;

@@ -4262,8 +4262,9 @@ static int camcore_channel_init(struct camera_module *module,
 			ch_desc.is_raw = 1;
 		if ((channel->ch_id == CAM_CH_CAP) && module->cam_uinfo.dcam_slice_mode)
 			ch_desc.is_raw = 1;
-		if ((channel->ch_id != CAM_CH_CAP) && module->cam_uinfo.is_pyr_rec)
+		if ((channel->ch_id != CAM_CH_CAP) && module->cam_uinfo.is_pyr_rec && (!ch_uinfo->is_high_fps))
 			ch_desc.is_pyr_rec = 1;
+
 		ret = module->dcam_dev_handle->dcam_pipe_ops->cfg_path(dcam_sw_ctx,
 				DCAM_PATH_CFG_BASE, channel->dcam_path_id, &ch_desc);
 		channel->dcam_out_fmt = ch_desc.dcam_out_fmt;

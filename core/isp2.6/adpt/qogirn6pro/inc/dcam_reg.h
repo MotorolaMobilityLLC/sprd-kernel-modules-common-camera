@@ -765,7 +765,7 @@ extern unsigned long g_dcam_phys_base[];
 #define DCAM_PATH_STOP_MASK                             (0x2DFFUL)
 #define DCAM_PATH_BUSY_MASK                             (0x2FFFUL)
 
-#define MM_DCAM_FMCU_BASE                               (0x38000UL)
+#define MM_DCAM_FMCU_BASE                               (0x0000UL)
 #define DCAM_FMCU_CTRL                                  (MM_DCAM_FMCU_BASE + 0x0014UL)
 #define DCAM_FMCU_DDR_ADR                               (MM_DCAM_FMCU_BASE + 0x0018UL)
 #define DCAM_FMCU_AHB_ARB                               (MM_DCAM_FMCU_BASE + 0x001CUL)
@@ -773,10 +773,10 @@ extern unsigned long g_dcam_phys_base[];
 #define DCAM_FMCU_TIME_OUT_THD                          (MM_DCAM_FMCU_BASE + 0x0024UL)
 #define DCAM_FMCU_CMD_READY                             (MM_DCAM_FMCU_BASE + 0x0028UL)
 #define DCAM_FMCU_ISP_REG_REGION                        (MM_DCAM_FMCU_BASE + 0x002CUL)
-#define DCAM_FMCU_CMD                                   (MM_DCAM_FMCU_BASE + 0x0030UL)
 #define DCAM_FMCU_STOP                                  (MM_DCAM_FMCU_BASE + 0x0034UL)
 #define DCAM_FMCU_RESERVED                              (MM_DCAM_FMCU_BASE + 0x0038UL)
 #define DCAM_FMCU_SW_TRIGGER                            (MM_DCAM_FMCU_BASE + 0x003CUL)
+#define DCAM_FMCU_CMD                                   (0xF030UL)
 
 struct dcam_control_field {
 	uint32_t cap_frc_copy: 1;

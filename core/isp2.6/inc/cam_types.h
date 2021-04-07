@@ -200,6 +200,13 @@ struct img_size {
 	uint32_t h;
 };
 
+struct img_border {
+	uint32_t border_up;
+	uint32_t border_down;
+	uint32_t border_left;
+	uint32_t border_right;
+};
+
 struct img_trim {
 	uint32_t start_x;
 	uint32_t start_y;

@@ -31,9 +31,9 @@
 #define ISP_IN_Q_LEN               4
 #define ISP_PROC_Q_LEN             2
 #define ISP_RESULT_Q_LEN           2
-#define ISP_SLW_IN_Q_LEN           12
-#define ISP_SLW_PROC_Q_LEN         12
-#define ISP_SLW_RESULT_Q_LEN       12
+#define ISP_SLW_IN_Q_LEN           24
+#define ISP_SLW_PROC_Q_LEN         24
+#define ISP_SLW_RESULT_Q_LEN       24
 #define ISP_OUT_BUF_Q_LEN          32
 #define ISP_RESERVE_BUF_Q_LEN      12
 #define ISP_STREAM_STATE_Q_LEN     12

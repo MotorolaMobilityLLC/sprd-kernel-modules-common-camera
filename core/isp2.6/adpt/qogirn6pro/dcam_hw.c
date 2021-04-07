@@ -783,6 +783,25 @@ static int dcamhw_mipi_cap_set(void *handle, void *arg)
 	DCAM_REG_MWR(idx, DCAM_YUV444TOYUV420_PARAM, BIT_0, 0);
 
 	DCAM_REG_MWR(idx, DCAM_BWU1_PARAM, 0xF0, (14 - cap_info->data_bits) << 4);
+
+	if (caparg->slowmotion_count) {
+		/*slow motion enable*/
+		DCAM_REG_MWR(idx, DCAM_PATH_SEL, BIT_29, BIT_29);
+		/*preview done mode*/
+		DCAM_REG_MWR(idx, DCAM_PATH_SEL, BIT_28, 0);
+
+		DCAM_REG_MWR(idx, DCAM_BUF_CTRL, 0x3F << 10, caparg->slowmotion_count << 10);
+
+		pr_info("slowmotion mode, count %d\n", caparg->slowmotion_count);
+	} else {
+		/*slow motion enable*/
+		DCAM_REG_MWR(idx, DCAM_PATH_SEL, BIT_29, 0);
+		/*preview done mode*/
+		DCAM_REG_MWR(idx, DCAM_PATH_SEL, BIT_28, BIT_28);
+
+		DCAM_REG_MWR(idx, DCAM_BUF_CTRL, 0x3F << 10, 0);
+	}
+
 	pr_debug("cap size : %d %d %d %d\n",
 		cap_info->cap_size.start_x, cap_info->cap_size.start_y,
 		cap_info->cap_size.size_x, cap_info->cap_size.size_y);
@@ -874,6 +893,7 @@ static int dcamhw_path_start(void *handle, void *arg)
 			val = 5;
 
 		DCAM_REG_MWR(patharg->idx, DCAM_STORE0_PARAM, 0x70, val << 4);
+
 		val = (patharg->is_pack) ? 1 : 0;
 		DCAM_REG_MWR(patharg->idx, DCAM_STORE0_PARAM, BIT_7, (patharg->is_pack == 1) << 7);
 		val = (patharg->data_bits > DCAM_STORE_8_BIT) ? 1 : 0;
@@ -887,7 +907,6 @@ static int dcamhw_path_start(void *handle, void *arg)
 			DCAM_REG_MWR(patharg->idx, DCAM_BWD0_PARAM, BIT_0, 1);
 
 		DCAM_REG_MWR(patharg->idx, DCAM_STORE0_PARAM, BIT_0, 0);
-
 		break;
 	case DCAM_PATH_RAW:
 		/*max len sel: default 1*/
@@ -2180,11 +2199,13 @@ static int dcamhw_csi_force_enable(void *handle, void *arg)
 static int dcamhw_fmcu_cmd_set(void *handle, void *arg)
 {
 	struct dcam_hw_fmcu_cmd *cmdarg = NULL;
+	uint32_t cmd_num = 0;
 
 	cmdarg = (struct dcam_hw_fmcu_cmd *)arg;
+	cmd_num = cmdarg->cmd_num / 2;
 
 	DCAM_FMCU_WR(DCAM_FMCU_DDR_ADR, cmdarg->hw_addr);
-	DCAM_FMCU_MWR(DCAM_FMCU_CTRL, 0xFFFF0000, cmdarg->cmd_num << 16);
+	DCAM_FMCU_MWR(DCAM_FMCU_CTRL, 0xFFFF0000, cmd_num << 16);
 	DCAM_FMCU_WR(DCAM_FMCU_CMD_READY, 1);
 
 	return 0;
@@ -2193,18 +2214,25 @@ static int dcamhw_fmcu_cmd_set(void *handle, void *arg)
 static int dcamhw_fmcu_start(void *handle, void *arg)
 {
 	struct dcam_hw_fmcu_start *startarg = NULL;
+	uint32_t cmd_num = 0;
 
 	startarg = (struct dcam_hw_fmcu_start *)arg;
+	cmd_num = startarg->cmd_num / 2;
+
+	DCAM_REG_WR(startarg->idx, DCAM_INT0_CLR, 0xFFFFFFFF);
+	DCAM_REG_WR(startarg->idx, DCAM_INT1_CLR, 0xFFFFFFFF);
+	DCAM_REG_WR(startarg->idx, DCAM_INT0_EN, DCAMINT_IRQ_LINE_EN0_NORMAL);
+	DCAM_REG_WR(startarg->idx, DCAM_INT1_EN, DCAMINT_IRQ_LINE_EN1_NORMAL);
 
 	DCAM_FMCU_WR(DCAM_FMCU_DDR_ADR, startarg->hw_addr);
-	DCAM_FMCU_MWR(DCAM_FMCU_CTRL, 0xFFFF0000, startarg->cmd_num << 16);
+	DCAM_FMCU_MWR(DCAM_FMCU_CTRL, 0xFFFF0000, cmd_num << 16);
 	DCAM_FMCU_WR(DCAM_FMCU_ISP_REG_REGION, DCAM_OFFSET_RANGE);
 	DCAM_FMCU_WR(DCAM_FMCU_START, 1);
 
 	return 0;
 }
 
-static int dcamm_fmcu_enable(void *handle, void *arg)
+static int dcamhw_fmcu_enable(void *handle, void *arg)
 {
 	struct dcam_fmcu_enable *param =  NULL;
 
@@ -2215,9 +2243,14 @@ static int dcamm_fmcu_enable(void *handle, void *arg)
 
 	param = (struct dcam_fmcu_enable *)arg;
 
-	DCAM_FMCU_MWR(DCAM_PATH_SEL, BIT_31,
-		param->enable);
-
+	pr_info("dcam%d enable fmcu\n", param->idx);
+	DCAM_REG_MWR(param->idx, DCAM_PATH_SEL, BIT_31, param->enable << 31);
+	if (param->enable) {
+		if (param->idx == 0)
+			DCAM_REG_MWR(DCAM_ID_1, DCAM_PATH_SEL, BIT_31, 0);
+		else
+			DCAM_REG_MWR(DCAM_ID_0, DCAM_PATH_SEL, BIT_31, 0);
+	}
 	return 0;
 }
 
@@ -2227,7 +2260,6 @@ static int dcamhw_slw_fmcu_cmds(void *handle, void *arg)
 	uint32_t addr = 0, cmd = 0;
 	struct dcam_fmcu_ctx_desc *fmcu = NULL;
 	struct dcam_hw_slw_fmcu_cmds *slw = NULL;
-
 	slw = (struct dcam_hw_slw_fmcu_cmds *)arg;
 
 	if (!slw) {
@@ -2246,11 +2278,27 @@ static int dcamhw_slw_fmcu_cmds(void *handle, void *arg)
 			cmd = slw->store_info[i].store_addr.addr_ch1;
 			DCAM_FMCU_PUSH(fmcu, addr, cmd);
 		} else if(i == DCAM_PATH_FULL) {
-			addr = DCAM_GET_REG(fmcu->hw_ctx_id, DCAM_STORE0_SLICE_Y_ADDR);
+			addr = DCAM_GET_REG(fmcu->hw_ctx_id, DCAM_STORE4_SLICE_Y_ADDR);
 			cmd = slw->store_info[i].store_addr.addr_ch0;
 			DCAM_FMCU_PUSH(fmcu, addr, cmd);
-			addr = DCAM_GET_REG(fmcu->hw_ctx_id, DCAM_STORE0_SLICE_U_ADDR);
+			addr = DCAM_GET_REG(fmcu->hw_ctx_id, DCAM_STORE4_SLICE_U_ADDR);
 			cmd = slw->store_info[i].store_addr.addr_ch1;
+			DCAM_FMCU_PUSH(fmcu, addr, cmd);
+		} else if (i == DCAM_PATH_AFL) {
+			addr = DCAM_GET_REG(fmcu->hw_ctx_id, ISP_AFL_DDR_INIT_ADDR);
+			cmd = slw->store_info[i].store_addr.addr_ch0;
+			DCAM_FMCU_PUSH(fmcu, addr, cmd);
+
+			addr = DCAM_GET_REG(fmcu->hw_ctx_id, ISP_AFL_REGION_WADDR);
+			cmd = slw->store_info[i].store_addr.addr_ch1;
+			DCAM_FMCU_PUSH(fmcu, addr, cmd);
+		} else if (i == DCAM_PATH_AEM) {
+			addr = DCAM_GET_REG(fmcu->hw_ctx_id, DCAM_AEM_BASE_WADDR);
+			cmd = slw->store_info[i].store_addr.addr_ch0 + STATIS_AEM_HEADER_SIZE;
+			DCAM_FMCU_PUSH(fmcu, addr, cmd);
+		} else if (i == DCAM_PATH_HIST) {
+			addr = DCAM_GET_REG(fmcu->hw_ctx_id, DCAM_HIST_ROI_BASE_WADDR);
+			cmd = slw->store_info[i].store_addr.addr_ch0 + STATIS_HIST_HEADER_SIZE;
 			DCAM_FMCU_PUSH(fmcu, addr, cmd);
 		} else {
 			addr = DCAM_GET_REG(fmcu->hw_ctx_id, slw->store_info[i].reg_addr);
@@ -2259,10 +2307,30 @@ static int dcamhw_slw_fmcu_cmds(void *handle, void *arg)
 		}
 
 	}
+
 	addr = DCAM_GET_REG(fmcu->hw_ctx_id, DCAM_CONTROL);
-	cmd = DCAM_CTRL_BIN;
+	if (slw->is_first_cycle)
+		/*force copy*/
+		cmd = 0x55555555;
+	else
+		/*auto copy*/
+		cmd = 0xaaaaaaaa;
 	DCAM_FMCU_PUSH(fmcu, addr, cmd);
+
+	if (slw->is_first_cycle) {
+		uint32_t val;
+		val = DCAM_REG_RD(fmcu->hw_ctx_id, DCAM_MIPI_CAP_CFG);
+		addr = DCAM_GET_REG(fmcu->hw_ctx_id, DCAM_MIPI_CAP_CFG);
+		cmd = val | BIT_0;
+		DCAM_FMCU_PUSH(fmcu, addr, cmd);
+	}
+
+	addr = DCAM_GET_REG(fmcu->hw_ctx_id, DCAM_FMCU_CMD);
+	cmd = DCAM0_POF3_DISPATCH;
+	DCAM_FMCU_PUSH(fmcu, addr, cmd);
+
 	return 0;
+
 }
 
 static int dcamhw_dec_online(void *handle, void *arg)
@@ -2427,7 +2495,7 @@ static struct hw_io_ctrl_fun dcam_ioctl_fun_tab[] = {
 	{DCAM_HW_FORCE_EN_CSI,              dcamhw_csi_force_enable},
 	{DCAM_HW_CFG_FMCU_CMD,              dcamhw_fmcu_cmd_set},
 	{DCAM_HW_CFG_FMCU_START,            dcamhw_fmcu_start},
-	{DCAM_HW_FMCU_EBABLE,               dcamm_fmcu_enable},
+	{DCAM_HW_FMCU_EBABLE,               dcamhw_fmcu_enable},
 	{DCAM_HW_CFG_SLW_FMCU_CMDS,         dcamhw_slw_fmcu_cmds},
 	{DCAM_HW_CFG_DEC_ONLINE,            dcamhw_dec_online},
 	{DCAM_HW_CFG_DEC_STORE_ADDR,        dcamhw_dec_store_addr},

@@ -748,6 +748,7 @@ struct dcam_mipi_info {
 struct dcam_hw_mipi_cap {
 	uint32_t idx;
 	struct dcam_mipi_info cap_info;
+	uint32_t slowmotion_count;
 };
 
 struct dcam_hw_path_start {
@@ -882,8 +883,16 @@ struct dcam_store {
 	struct img_addr store_addr;
 };
 
+struct dcam_dec_store {
+	uint32_t pitch;
+	struct img_addr addr;
+	struct img_size size;
+	struct img_border border;
+};
+
 struct dcam_hw_slw_fmcu_cmds {
 	uint32_t ctx_id;
+	uint32_t is_first_cycle;
 	struct dcam_fmcu_ctx_desc *fmcu_handle;
 	struct dcam_path_desc *dcam_path;
 	struct dcam_store store_info[DCAM_PATH_MAX];
@@ -1237,6 +1246,7 @@ struct cam_hw_ip_info {
 	uint32_t rds_en;
 	uint32_t dcam_raw_path_id;
 	uint32_t pyramid_support;
+	uint32_t fmcu_support;
 
 	/* For isp support info */
 	uint32_t slm_cfg_support;

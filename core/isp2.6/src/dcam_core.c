@@ -2316,8 +2316,25 @@ static int dcamcore_dev_start(void *dcam_handle, int online)
 		helper = dcam_core_sync_helper_get(pctx);
 	}
 
+	if (pctx->slowmotion_count && hw->ip_dcam[pctx->hw_ctx_id]->fmcu_support) {
+		struct dcam_fmcu_ctx_desc *fmcu_info;
+		fmcu_info = dcam_fmcu_ctx_desc_get(hw, pctx->hw_ctx_id);
+		if (fmcu_info && fmcu_info->ops) {
+			fmcu_info->hw = hw;
+			ret = fmcu_info->ops->ctx_init(fmcu_info);
+			if (ret) {
+				pr_err("fail to init fmcu ctx\n");
+				dcam_fmcu_ctx_desc_put(fmcu_info);
+			} else {
+				pctx->fmcu = fmcu_info;
+				pctx->hw_ctx->fmcu = fmcu_info;
+			}
+		}
+	}
+
 	caparg.idx = pctx->hw_ctx_id;
 	caparg.cap_info = pctx->cap_info;
+	caparg.slowmotion_count = pctx->slowmotion_count;
 	ret = hw->dcam_ioctl(hw, DCAM_HW_CFG_MIPI_CAP_SET, &caparg);
 
 	if (ret < 0) {
@@ -2360,14 +2377,16 @@ static int dcamcore_dev_start(void *dcam_handle, int online)
 			spin_unlock_irqrestore(&path->state_lock, flag);
 		}
 		path->size_update = 1;
-		ret = dcam_path_store_frm_set(pctx, path, helper);
+
+		if (!pctx->fmcu)
+			ret = dcam_path_store_frm_set(pctx, path, helper);
 		if (ret < 0) {
 			pr_err("fail to set frame for DCAM%u %s , ret %d\n",
 				pctx->hw_ctx_id, dcam_path_name_get(path->path_id), ret);
 			return ret;
 		}
 
-		if (atomic_read(&path->set_frm_cnt) > 0) {
+		if ((atomic_read(&path->set_frm_cnt) > 0) || pctx->fmcu) {
 			hw->dcam_ioctl(hw, DCAM_HW_CFG_PATH_START, &patharg);
 			if (pctx->path[i].fbc_mode) {
 				fbc_arg.idx = pctx->hw_ctx_id;
@@ -2382,6 +2401,9 @@ static int dcamcore_dev_start(void *dcam_handle, int online)
 
 	if (pctx->is_4in1 == 0)
 		dcam_init_lsc(pm, 1);
+
+	if (pctx->slowmotion_count && pctx->fmcu)
+		ret = dcam_path_fmcu_slw_queue_set(pctx);
 
 	/* DCAM_CTRL_COEF will always set in dcam_init_lsc() */
 	copyarg.id = force_ids;
@@ -2400,10 +2422,13 @@ static int dcamcore_dev_start(void *dcam_handle, int online)
 	atomic_set(&pctx->path[DCAM_PATH_AFL].user_cnt, 0);
 
 	dcam_int_tracker_reset(pctx->hw_ctx_id);
-	parm.idx = pctx->hw_ctx_id;
-	parm.format = pctx->cap_info.format;
-	hw->dcam_ioctl(hw, DCAM_HW_CFG_START, &parm);
-
+	if (pctx->slowmotion_count && pctx->fmcu) {
+		pctx->fmcu->ops->hw_start(pctx->fmcu);
+	} else {
+		parm.idx = pctx->hw_ctx_id;
+		parm.format = pctx->cap_info.format;
+		hw->dcam_ioctl(hw, DCAM_HW_CFG_START, &parm);
+	}
 	if (pctx->is_4in1 == 0) {
 		sramarg.sram_ctrl_en = 1;
 		sramarg.idx = pctx->hw_ctx_id;
@@ -2428,6 +2453,7 @@ static int dcamcore_dev_stop(void *dcam_handle, enum dcam_stop_cmd pause)
 	struct dcam_dev_param *pm;
 	struct dcam_path_desc *path = NULL;
 	struct cam_hw_info *hw = NULL;
+	unsigned long flag = 0;
 
 	if (!dcam_handle) {
 		pr_err("fail to get valid input ptr\n");
@@ -2448,8 +2474,15 @@ static int dcamcore_dev_stop(void *dcam_handle, enum dcam_stop_cmd pause)
 		pr_warn("DCAM%d not started yet\n", pctx->hw_ctx_id);
 		return -EINVAL;
 	}
+
 	if (pctx->hw_ctx_id != DCAM_HW_CONTEXT_MAX) {
 		hw->dcam_ioctl(hw, DCAM_HW_CFG_STOP, &pctx->hw_ctx_id);
+		if (pctx->fmcu) {
+			spin_lock_irqsave(&pctx->fmcu->lock, flag);
+			pctx->fmcu->ops->ctx_deinit(pctx->fmcu);
+			dcam_fmcu_ctx_desc_put(pctx->fmcu);
+			spin_unlock_irqrestore(&pctx->fmcu->lock, flag);
+		}
 		hw->dcam_ioctl(hw, DCAM_HW_CFG_RESET, &pctx->hw_ctx_id);
 		dcam_int_tracker_dump(pctx->hw_ctx_id);
 		dcam_int_tracker_reset(pctx->hw_ctx_id);

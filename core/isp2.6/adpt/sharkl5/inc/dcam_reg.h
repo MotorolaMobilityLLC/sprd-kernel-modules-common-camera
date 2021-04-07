@@ -19,6 +19,7 @@
 extern unsigned long g_dcam_regbase[];
 extern unsigned long g_dcam_aximbase[];
 extern unsigned long g_dcam_mmubase;
+extern unsigned long g_dcam_phys_base[];
 
 #define DCAM_PATH_CROP_ALIGN                   4
 
@@ -531,6 +532,8 @@ extern const unsigned long slowmotion_store_addr[3][4];
 #define DCAM_AXIM_BASE                         (g_dcam_aximbase[0])
 /* TODO: implement mmu */
 #define DCAM_MMU_BASE                          (g_dcam_mmubase)
+#define DCAM_PHYS_ADDR(idx)                    (g_dcam_phys_base[idx])
+#define DCAM_GET_REG(idx, reg)                 (DCAM_PHYS_ADDR(idx) + (reg))
 
 #define DCAM_REG_WR(idx, reg, val)             (REG_WR(DCAM_BASE(idx)+(reg), (val)))
 #define DCAM_REG_RD(idx, reg)                  (REG_RD(DCAM_BASE(idx)+(reg)))

@@ -115,7 +115,7 @@ static struct camera_frame *dcamint_frame_prepare(struct dcam_hw_context *dcam_h
 
 	atomic_dec(&path->set_frm_cnt);
 	if (unlikely(frame->is_reserved)) {
-		pr_info_ratelimited("DCAM%u %s use reserved buffer, out %u, result %u\n",
+		pr_debug("DCAM%u %s use reserved buffer, out %u, result %u\n",
 			dcam_hw_ctx->hw_ctx_id, dcam_path_name_get(path_id),
 			cam_queue_cnt_get(&path->out_buf_queue),
 			cam_queue_cnt_get(&path->result_queue));
@@ -503,15 +503,14 @@ static void dcamint_cap_sof(void *param)
 	}
 
 	hw = sw_ctx->dev->hw;
-
+	pr_debug("enter\n");
 	/* Fix potential index error issued by interrupt delay. */
 	fix_result = dcamint_fix_index_if_needed(dcam_hw_ctx);
 	if (fix_result == DEFER_TO_NEXT)
 		return;
 
-	if (sw_ctx->slowmotion_count) {
+	if (sw_ctx->slowmotion_count && (!sw_ctx->fmcu)) {
 		uint32_t n = sw_ctx->frame_index % sw_ctx->slowmotion_count;
-
 		/* auto copy at last frame of a group of slow motion frames */
 		if (n == sw_ctx->slowmotion_count - 1) {
 			/* This register write is time critical,do not modify
@@ -568,7 +567,9 @@ static void dcamint_cap_sof(void *param)
 				}
 				spin_unlock_irqrestore(&path->state_lock, flag);
 			}
-			dcam_path_store_frm_set(sw_ctx, path, helper);
+
+			if ((!sw_ctx->fmcu) || (sw_ctx->slowmotion_count == 0))
+				dcam_path_store_frm_set(sw_ctx, path, helper);
 		}
 	}
 
@@ -705,17 +706,10 @@ static void dcamint_bin_path_done(void *param)
 	struct camera_frame *frame = NULL;
 	int i = 0, cnt = 0;
 
-	CAM_DEBUG_LOG("preview path done hw id:%d\n", dcam_hw_ctx->hw_ctx_id);
+	pr_debug("preview path done hw id:%d\n", dcam_hw_ctx->hw_ctx_id);
 	path = &sw_ctx->path[DCAM_PATH_BIN];
 	cnt = atomic_read(&path->set_frm_cnt);
 	sw_ctx->dec_layer0_done = 1;
-	if (cnt <= sw_ctx->slowmotion_count) {
-		pr_warn("DCAM%u BIN cnt %d, deci %u, out %u, result %u\n",
-			dcam_hw_ctx->hw_ctx_id, cnt, path->frm_deci,
-			cam_queue_cnt_get(&path->out_buf_queue),
-			cam_queue_cnt_get(&path->result_queue));
-		return;
-	}
 
 	if (sw_ctx->offline) {
 		if (sw_ctx->dcam_slice_mode != CAM_OFFLINE_SLICE_SW) {
@@ -873,7 +867,7 @@ static void dcamint_nr3_done(void *param)
 	if ((frame = dcamint_frame_prepare(dcam_hw_ctx, DCAM_PATH_3DNR))) {
 		sync = (struct dcam_frame_synchronizer *)frame->sync_data;
 		if (unlikely(!sync)) {
-			pr_warn("DCAM%u 3DNR sync not found\n", dcam_hw_ctx->hw_ctx_id);
+			pr_warn_ratelimited("DCAM%u 3DNR sync not found\n", dcam_hw_ctx->hw_ctx_id);
 		} else {
 			sync->nr3_me.sub_me_bypass = (p >> 8) & 0x1;
 			sync->nr3_me.project_mode = (p >> 4) & 0x1;
@@ -930,28 +924,25 @@ static void dcamint_fmcu_shadow_done(void *param)
 {
 	struct dcam_hw_context *dcam_hw_ctx = (struct dcam_hw_context *)param;
 	struct dcam_sw_context *sw_ctx = NULL;
-	struct cam_hw_info *hw = NULL;
-	struct dcam_hw_auto_copy copyarg;
 
+	pr_debug("enter\n");
 	if (dcam_hw_ctx == NULL) {
 		pr_err("fail to check param dcam_hw_ctx %px\n", dcam_hw_ctx);
 		return;
 	}
-	dcam_path_fmcu_slw_queue_set(dcam_hw_ctx);
 	sw_ctx = dcam_hw_ctx->sw_ctx;
 	if (!sw_ctx) {
 		pr_err("fail to check param %px\n", sw_ctx);
 		return;
 	}
 
-	hw = sw_ctx->dev->hw;
-	sw_ctx->auto_cpy_id = DCAM_CTRL_ALL;
-	copyarg.id = sw_ctx->auto_cpy_id;
-	copyarg.idx = dcam_hw_ctx->hw_ctx_id;
-	copyarg.glb_reg_lock = sw_ctx->glb_reg_lock;
-	hw->dcam_ioctl(hw, DCAM_HW_CFG_AUTO_COPY, &copyarg);
-	sw_ctx->auto_cpy_id = 0;
-	sw_ctx->frame_index++;
+	if (sw_ctx->fmcu) {
+		sw_ctx->index_to_set = sw_ctx->index_to_set + sw_ctx->slowmotion_count;
+		sw_ctx->fmcu->ops->ctx_reset(sw_ctx->fmcu);
+		dcam_path_fmcu_slw_queue_set(sw_ctx);
+		sw_ctx->fmcu->ops->cmd_ready(sw_ctx->fmcu);
+	} else
+		pr_err("fail to get fmcu handle\n");
 }
 
 static void dcamint_dummy_done(void *param)

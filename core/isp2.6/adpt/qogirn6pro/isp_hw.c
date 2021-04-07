@@ -187,8 +187,10 @@ static int isphw_bypass_data_get(void *handle, void *arg)
 static uint32_t cam_reg_trace_tab[] = {
 	DCAM_APB_SRAM_CTRL,
 	DCAM_MIPI_CAP_CFG,
+	DCAM_MIPI_CAP_END,
 	DCAM_IMAGE_CONTROL,
 	DCAM_PATH_SEL,
+	DCAM_BUF_CTRL,
 	DCAM_PDAF_CONTROL,
 	DCAM_LENS_LOAD_ENABLE,
 	DCAM_BPC_PARAM,
@@ -257,6 +259,17 @@ abnormal_reg_trace:
 			DCAM_REG_RD(trace->idx, addr + 4),
 			DCAM_REG_RD(trace->idx, addr + 8),
 			DCAM_REG_RD(trace->idx, addr + 12));
+	}
+
+	pr_info("FMCU: Register list\n");
+	for (addr = MM_DCAM_FMCU_BASE; addr <= DCAM_FMCU_SW_TRIGGER;
+		addr += 16) {
+		pr_info("0x%03lx: 0x%x 0x%x 0x%x 0x%x\n",
+			addr,
+			DCAM_FMCU_RD(addr),
+			DCAM_FMCU_RD(addr + 4),
+			DCAM_FMCU_RD(addr + 8),
+			DCAM_FMCU_RD(addr + 12));
 	}
 
 	addr = DCAM_CROP0_PARAM0;
@@ -548,6 +561,38 @@ normal_reg_trace:
 		pr_info("n=%d, %08x %08x %08x %08x %08x %08x %08x %08x\n", n,
 			val[0], val[1], val[2], val[3], val[4], val[5], val[6], val[7]);
 	}
+
+	pr_info("FMCU: Register list\n");
+	for (addr = MM_DCAM_FMCU_BASE; addr <= DCAM_FMCU_SW_TRIGGER;
+		addr += 16) {
+		pr_info("0x%03lx: 0x%x 0x%x 0x%x 0x%x\n",
+			addr,
+			DCAM_FMCU_RD(addr),
+			DCAM_FMCU_RD(addr + 4),
+			DCAM_FMCU_RD(addr + 8),
+			DCAM_FMCU_RD(addr + 12));
+	}
+
+	for (addr = DCAM_STORE0_PARAM; addr <= DCAM_STORE0_SHADOW_CLR;
+		addr += 16) {
+		pr_info("store0(pre):0x%03lx: 0x%x 0x%x 0x%x 0x%x\n",
+			addr,
+			DCAM_REG_RD(trace->idx, addr),
+			DCAM_REG_RD(trace->idx, addr + 4),
+			DCAM_REG_RD(trace->idx, addr + 8),
+			DCAM_REG_RD(trace->idx, addr + 12));
+	}
+
+	for (addr = DCAM_SCL0_BASE; addr <= DCAM_SCL0_BWD_PARA;
+		addr += 16) {
+		pr_info("store0(pre):0x%03lx: 0x%x 0x%x 0x%x 0x%x\n",
+			addr,
+			DCAM_REG_RD(trace->idx, addr),
+			DCAM_REG_RD(trace->idx, addr + 4),
+			DCAM_REG_RD(trace->idx, addr + 8),
+			DCAM_REG_RD(trace->idx, addr + 12));
+	}
+
 	return 0;
 }
 
