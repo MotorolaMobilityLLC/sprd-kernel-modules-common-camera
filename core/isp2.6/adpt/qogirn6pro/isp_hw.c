@@ -943,7 +943,7 @@ isp_hw_cfg_para:
 
 	/* default bypass all blocks */
 	/* frgb domain bypass*/
-	ISP_REG_MWR(idx, ISP_COMMON_SCL_PATH_SEL, BIT_6, BIT_6);
+	ISP_REG_MWR(idx, ISP_COMMON_SCL_PATH_SEL, BIT_6, 0);
 	ISP_REG_MWR(idx, ISP_HSV_PARAM, BIT_0, bypass);
 	ISP_REG_MWR(idx, ISP_UVD_PARAM, BIT_0, 1);
 	ISP_REG_MWR(idx, ISP_EE_PARAM, BIT_0, 1);
@@ -987,7 +987,7 @@ isp_hw_cfg_para:
 	ISP_REG_MWR(idx, ISP_3DNR_BWD_PARA, BIT_0, 1);
 	ISP_REG_MWR(idx, ISP_3DNR_CROP_PARAM0, BIT_0, 1);
 	/*3DNR mem_ctrl data_toyuv_en must enable*/
-	ISP_REG_MWR(idx, ISP_3DNR_MEM_CTRL_PARAM0, BIT_12, 1<<12);
+	ISP_REG_MWR(idx, ISP_3DNR_MEM_CTRL_PARAM0, BIT_12, 1 << 12);
 
 	/*FRGB IN PIPELINE*/
 	/*YUV2RGB*/
@@ -2600,7 +2600,6 @@ static int isphw_slice_3dnr_memctrl(void *handle, void *arg)
 
 	memarg = (struct isp_hw_slice_3dnr_memctrl *)arg;
 
-
 	addr = ISP_GET_REG(ISP_3DNR_MEM_CTRL_PARAM3);
 	cmd = ((memarg->mem_ctrl->src.h & 0x1FFF) << 16) |
 		(memarg->mem_ctrl->src.w & 0x1FFF);
@@ -3170,17 +3169,9 @@ static int isphw_yuv_block_ctrl(void *handle, void *arg)
 	blk_ctrl = (struct isp_hw_yuv_block_ctrl *)arg;
 	type = blk_ctrl->type;
 	idx = blk_ctrl->idx;
+	p = blk_ctrl->blk_param;
 
-	if (type == ISP_YUV_BLOCK_CFG) {
-		p = blk_ctrl->blk_param;
-		goto BLOCK_CFG;
-	} else if (type == ISP_YUV_BLOCK_DISABLE) {
-		goto BLOCK_BYPASS;
-	} else {
-		pr_err("fail to support type %d\n", type);
-	}
-
-BLOCK_CFG:
+	/* TBD: need update if isp process more than once */
 	ISP_REG_MWR(idx, ISP_BCHS_PARAM, BIT_0, p->bchs_info.bchs_bypass);
 	ISP_REG_MWR(idx, ISP_CDN_PARAM, BIT_0, p->cdn_info.bypass);
 	ISP_REG_MWR(idx, ISP_EE_PARAM, BIT_0, p->edge_info.bypass);
@@ -3189,18 +3180,6 @@ BLOCK_CFG:
 	ISP_REG_MWR(idx, ISP_UVD_PARAM, BIT_0, p->uvd_info_v2.bypass);
 	ISP_REG_MWR(idx, ISP_YGAMMA_PARAM, BIT_0, p->ygamma_info.bypass);
 	ISP_REG_MWR(idx, ISP_YRANDOM_PARAM1, BIT_0, p->yrandom_info.bypass);
-	return ret;
-
-BLOCK_BYPASS:
-	ISP_REG_MWR(idx, ISP_BCHS_PARAM, BIT_0, 1);
-	ISP_REG_MWR(idx, ISP_CDN_PARAM, BIT_0, 1);
-	ISP_REG_MWR(idx, ISP_EE_PARAM, BIT_0, 1);
-	ISP_REG_MWR(idx, ISP_YUV_CNR_CONTRL0, BIT_0, 1);
-	ISP_REG_MWR(idx, ISP_YUV_NF_CTRL, BIT_0, 1);
-	ISP_REG_MWR(idx, ISP_3DNR_MEM_CTRL_PARAM0, BIT_0, 1);
-	ISP_REG_MWR(idx, ISP_UVD_PARAM, BIT_0, 1);
-	ISP_REG_MWR(idx, ISP_YGAMMA_PARAM, BIT_0, 1);
-	ISP_REG_MWR(idx, ISP_YRANDOM_PARAM1, BIT_0, 1);
 
 	return ret;
 }

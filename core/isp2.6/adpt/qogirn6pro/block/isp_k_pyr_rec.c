@@ -203,7 +203,7 @@ static void isppyrrec_cfg_reconstruct(uint32_t idx,
 		((pyr_rec->reduce_flt_vblank & 0xFFFF)<<16);
 	ISP_REG_WR(idx, ISP_REC_PARAM9, val);
 
-	ISP_REG_WR(idx, ISP_COMMON_SCL_PATH_SEL, BIT_13);
+	ISP_REG_MWR(idx, ISP_COMMON_SCL_PATH_SEL, BIT_13, BIT_13);
 	ISP_REG_WR(idx, ISP_DISPATCH_BASE + ISP_DISPATCH_LINE_DLY1, 0x40400280);
 }
 
@@ -533,8 +533,8 @@ int isp_pyr_rec_slice_common_config(void *handle)
 	isppyrrec_reconstruct_slice_set(&cur_rec_slc->slice_pyr_rec, ctx->fmcu_handle);
 
 	addr = ISP_GET_REG(ISP_COMMON_SCL_PATH_SEL);
-	cmd = ISP_REG_RD(ctx->ctx_id, ISP_COMMON_SCL_PATH_SEL) | BIT_13;
-	cmd = cmd | ((cur_rec_slc->slice_pyr_rec.rec_path_sel & 1) << 7);
+	cmd = ISP_REG_RD(ctx->ctx_id, ISP_COMMON_SCL_PATH_SEL);
+	cmd = cmd | ((cur_rec_slc->slice_pyr_rec.rec_path_sel & 1) << 7) | BIT_13;
 	FMCU_PUSH(fmcu, addr, cmd);
 
 	addr = ISP_GET_REG(PYR_REC_STORE_BASE + ISP_STORE_PARAM);

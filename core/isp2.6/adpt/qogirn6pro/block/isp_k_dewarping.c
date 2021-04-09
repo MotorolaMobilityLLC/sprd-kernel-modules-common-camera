@@ -43,7 +43,7 @@ int isp_dewarping_dewarp_cache_set(void *handle)
 			dewarp_cache->frame_pitch, dewarp_cache->dewarp_cache_mipi);
 
 	ISP_REG_MWR(idx, ISP_DEWARPING_CACHE_PARA, BIT_0, dewarp_cache->dewarp_cache_bypass);
-	ISP_REG_MWR(idx, ISP_COMMON_SCL_PATH_SEL, BIT_10 |BIT_11 , dewarp_cache->fetch_path_sel << 10);
+	ISP_REG_MWR(idx, ISP_COMMON_SCL_PATH_SEL, BIT_10 | BIT_11 , dewarp_cache->fetch_path_sel << 10);
 
 	val = ((dewarp_cache->dewarp_cache_endian & 0x3) << 1) | ((dewarp_cache->dewarp_cache_prefetch_len & 0x7) << 3) |
 		((dewarp_cache->dewarp_cache_mipi & 0x1) << 6) | ((dewarp_cache->yuv_format & 0x1) << 7);

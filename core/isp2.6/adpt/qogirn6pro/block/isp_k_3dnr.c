@@ -286,6 +286,7 @@ static void isp_3dnr_config_store(uint32_t idx,
 	if (g_isp_bypass[idx] & (1 << _EISP_NR3))
 		nr3_store->st_bypass = 1;
 
+	nr3_store->st_max_len_sel = 0;
 	val = ((nr3_store->last_frm_en & 0x3) << 13) |
 		((nr3_store->flip_en & 0x1) << 12) |
 		((nr3_store->data_10b & 0x1) << 11) |
@@ -332,9 +333,6 @@ static void isp_3dnr_config_store(uint32_t idx,
 
 	val = (nr3_store->shadow_clr_sel & 0x1) << 1;
 	ISP_REG_WR(idx, ISP_3DNR_STORE_SHADOW_CLR_SEL, val);
-
-	ISP_REG_MWR(idx, ISP_3DNR_STORE_SHADOW_CLR,
-		BIT_0, nr3_store->shadow_clr);
 }
 
 static void isp_3dnr_config_fbd_fetch(uint32_t idx,

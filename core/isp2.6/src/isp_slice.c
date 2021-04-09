@@ -1631,25 +1631,19 @@ static int ispslice_3dnr_memctrl_info_cfg(
 		void *cfg_in, struct isp_slice_context *slc_ctx)
 {
 	int ret = 0, idx = 0;
-
+	uint32_t start_col = 0, end_col = 0;
+	uint32_t start_row = 0, end_row = 0;
+	uint32_t pitch_y = 0, pitch_u = 0;
+	uint32_t ch0_offset = 0, ch1_offset = 0;
 	struct slice_cfg_input *in_ptr = (struct slice_cfg_input *)cfg_in;
 	struct isp_3dnr_ctx_desc *nr3_ctx = in_ptr->nr3_ctx;
 	struct isp_3dnr_mem_ctrl *mem_ctrl = &nr3_ctx->mem_ctrl;
 	struct isp_slice_desc *cur_slc;
-
 	struct slice_3dnr_memctrl_info *slc_3dnr_memctrl;
 
-	uint32_t start_col = 0, end_col = 0;
-	uint32_t start_row = 0, end_row = 0;
-
-	uint32_t pitch_y = 0, pitch_u = 0;
-	uint32_t ch0_offset = 0, ch1_offset = 0;
-
-	pitch_y  = in_ptr->frame_in_size.w;
-	pitch_u  = in_ptr->frame_in_size.w;
-
+	pitch_y = in_ptr->frame_in_size.w;
+	pitch_u = in_ptr->frame_in_size.w;
 	cur_slc = &slc_ctx->slices[0];
-
 	for (idx = 0; idx < SLICE_NUM_MAX; idx++, cur_slc++) {
 		if (cur_slc->valid == 0)
 			continue;
@@ -1659,7 +1653,6 @@ static int ispslice_3dnr_memctrl_info_cfg(
 		start_row = cur_slc->slice_pos.start_row;
 		end_col = cur_slc->slice_pos.end_col;
 		end_row = cur_slc->slice_pos.end_row;
-
 
 		slc_3dnr_memctrl->first_line_mode = 0;
 		slc_3dnr_memctrl->last_line_mode = 0;
@@ -2166,15 +2159,15 @@ static int ispslice_3dnr_memctrl_update_info_cfg(
 		nr3_fw_in.end_col = cur_slc->slice_pos.end_col;
 		nr3_fw_in.end_row = cur_slc->slice_pos.end_row;
 		nr3_fw_out.first_line_mode = slc_3dnr_memctrl->first_line_mode;
-		nr3_fw_out.last_line_mode  = slc_3dnr_memctrl->last_line_mode;
-		nr3_fw_out.src_lum_addr    = slc_3dnr_memctrl->addr.addr_ch0;
-		nr3_fw_out.src_chr_addr    = slc_3dnr_memctrl->addr.addr_ch1;
-		nr3_fw_out.ft_y_width      = slc_3dnr_memctrl->ft_y.w;
-		nr3_fw_out.ft_y_height     = slc_3dnr_memctrl->ft_y.h;
-		nr3_fw_out.ft_uv_width     = slc_3dnr_memctrl->ft_uv.w;
-		nr3_fw_out.ft_uv_height    = slc_3dnr_memctrl->ft_uv.h;
-		nr3_fw_out.start_col       = slc_3dnr_memctrl->start_col;
-		nr3_fw_out.start_row       = slc_3dnr_memctrl->start_row;
+		nr3_fw_out.last_line_mode = slc_3dnr_memctrl->last_line_mode;
+		nr3_fw_out.src_lum_addr = slc_3dnr_memctrl->addr.addr_ch0;
+		nr3_fw_out.src_chr_addr = slc_3dnr_memctrl->addr.addr_ch1;
+		nr3_fw_out.ft_y_width = slc_3dnr_memctrl->ft_y.w;
+		nr3_fw_out.ft_y_height = slc_3dnr_memctrl->ft_y.h;
+		nr3_fw_out.ft_uv_width = slc_3dnr_memctrl->ft_uv.w;
+		nr3_fw_out.ft_uv_height = slc_3dnr_memctrl->ft_uv.h;
+		nr3_fw_out.start_col = slc_3dnr_memctrl->start_col;
+		nr3_fw_out.start_row = slc_3dnr_memctrl->start_row;
 
 		pr_debug("slice_num[%d], frame_width[%d], frame_height[%d]",
 			nr3_fw_in.slice_num, nr3_fw_in.cur_frame_width,

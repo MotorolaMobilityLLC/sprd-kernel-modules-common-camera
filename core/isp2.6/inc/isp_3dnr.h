@@ -210,20 +210,6 @@ struct  fast_mv {
 	int mv_y;
 };
 
-struct mv_conversion {
-	uint32_t nr3_channel_sel;
-	uint32_t project_mode;
-	uint32_t sub_me_bypass;
-	int roi_start_x;
-	int roi_start_y;
-	uint32_t roi_width;
-	uint32_t roi_height;
-	uint32_t input_width;
-	uint32_t input_height;
-	uint32_t output_width;
-	uint32_t output_height;
-};
-
 struct frame_size {
 	uint32_t width;
 	uint32_t height;
@@ -279,6 +265,7 @@ enum isp_3dnr_cfg_cmd {
 	ISP_3DNR_CFG_SIZE_INFO,
 	ISP_3DNR_CFG_BLEND_INFO,
 	ISP_3DNR_CFG_MEMCTL_STORE_INFO,
+	ISP_3DNR_CFG_MV_VERSION,
 	ISP_3DNR_CFG_MAX,
 };
 
@@ -294,6 +281,7 @@ struct isp_3dnr_ctx_desc {
 	uint32_t mode;
 	uint32_t width;
 	uint32_t height;
+	uint32_t nr3_mv_version;
 	enum sprd_cam_sec_mode nr3_sec_mode;
 	struct fast_mv mv;
 	struct nr3_me_data *mvinfo;

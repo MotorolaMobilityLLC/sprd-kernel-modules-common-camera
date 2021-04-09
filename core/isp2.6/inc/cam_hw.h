@@ -19,6 +19,7 @@
 #include <linux/platform_device.h>
 #include "cam_types.h"
 #include "isp_hw.h"
+#include "alg_nr3_calc.h"
 
 extern struct cam_hw_info sharkl3_hw_info;
 extern struct cam_hw_info sharkl5_hw_info;
@@ -1249,6 +1250,7 @@ struct cam_hw_ip_info {
 	uint32_t fbd_yuv_support;
 	uint32_t rgb_gtm_support;
 	uint32_t dewarp_support;
+	uint32_t nr3_mv_alg_version;
 };
 
 struct cam_hw_soc_info {

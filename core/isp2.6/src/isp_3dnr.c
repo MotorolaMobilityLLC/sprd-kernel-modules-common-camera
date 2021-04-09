@@ -12,6 +12,7 @@
  */
 
 #include "isp_3dnr.h"
+#include "alg_nr3_calc.h"
 
 #ifdef pr_fmt
 #undef pr_fmt
@@ -30,7 +31,7 @@ static int isp3dnr_store_config_gen(struct isp_3dnr_ctx_desc *ctx)
 
 	store = &ctx->nr3_store;
 
-	store->img_width  = ctx->width;
+	store->img_width = ctx->width;
 	store->img_height = ctx->height;
 	store->st_pitch = ctx->width;
 
@@ -86,97 +87,18 @@ static int isp3dnr_crop_config_gen(struct isp_3dnr_ctx_desc *ctx)
 	return ret;
 }
 
-/*
- * INPUT:
- *   mv_x		: input mv_x (3DNR GME output)
- *   mv_y		: input mv_y (3DNR GME output)
- *   mode_projection	: mode projection in 3DNR GME
- *			: 1 - interlaced mode
- *			: 0 - step mode
- *   sub_me_bypass	: 1 - sub pixel motion estimation bypass
- *			: 0 - do sub pixel motion estimation
- *   input_width	:  input image width for binning and bayer scaler
- *   output_width	: output image width for binning and bayer scaler
- *   input_height	:  input image width for binning and bayer scaler
- *   output_height	: output image width for binning and bayer scaler
- *
- * OUTPUT:
- *   out_mv_x
- *   out_mv_y
- */
-static int isp3dnr_mv_conversion_base_on_resolution(
-		int mv_x, int mv_y,
-		uint32_t mode_projection,
-		uint32_t sub_me_bypass,
-		int iw, int ow,
-		int ih, int oh,
-		int *o_mv_x, int *o_mv_y)
-{
-	if (sub_me_bypass == 1) {
-		if (mode_projection == 1) {
-			if (mv_x > 0)
-				*o_mv_x = (mv_x * 2 * ow + (iw >> 1)) / iw;
-			else
-				*o_mv_x = (mv_x * 2 * ow - (iw >> 1)) / iw;
-
-			if (mv_y > 0)
-				*o_mv_y = (mv_y * 2 * oh + (ih >> 1)) / ih;
-			else
-				*o_mv_y = (mv_y * 2 * oh - (ih >> 1)) / ih;
-		} else {
-			if (mv_x > 0)
-				*o_mv_x = (mv_x * ow + (iw >> 1)) / iw;
-			else
-				*o_mv_x = (mv_x * ow - (iw >> 1)) / iw;
-
-			if (mv_y > 0)
-				*o_mv_y = (mv_y * oh + (ih >> 1)) / ih;
-			else
-				*o_mv_y = (mv_y * oh - (ih >> 1)) / ih;
-		}
-	} else {
-		if (mode_projection == 1) {
-			if (mv_x > 0)
-				*o_mv_x = (mv_x * ow + (iw >> 1)) / iw;
-			else
-				*o_mv_x = (mv_x * ow - (iw >> 1)) / iw;
-
-			if (mv_y > 0)
-				*o_mv_y = (mv_y * oh + (ih >> 1)) / ih;
-			else
-				*o_mv_y = (mv_y * oh - (ih >> 1)) / ih;
-		} else {
-			if (mv_x > 0)
-				*o_mv_x = (mv_x * ow + iw) / (iw * 2);
-			else
-				*o_mv_x = (mv_x * ow - iw) / (iw * 2);
-
-			if (mv_y > 0)
-				*o_mv_y = (mv_y * oh + ih) / (ih * 2);
-			else
-				*o_mv_y = (mv_y * oh - ih) / (ih * 2);
-		}
-	}
-
-	return 0;
-}
-
 static int isp3dnr_memctrl_base_on_mv_update(struct isp_3dnr_ctx_desc *ctx)
 {
 	struct isp_3dnr_mem_ctrl *mem_ctrl = &ctx->mem_ctrl;
 
 	if (ctx->mv.mv_x < 0) {
 		if (ctx->mv.mv_x & 0x1) {
-			mem_ctrl->ft_y_width =
-				ctx->width + ctx->mv.mv_x + 1;
-			mem_ctrl->ft_uv_width =
-				ctx->width + ctx->mv.mv_x - 1;
+			mem_ctrl->ft_y_width = ctx->width + ctx->mv.mv_x + 1;
+			mem_ctrl->ft_uv_width = ctx->width + ctx->mv.mv_x - 1;
 			mem_ctrl->ft_chroma_addr = mem_ctrl->ft_chroma_addr + 2;
 		} else {
-			mem_ctrl->ft_y_width =
-				ctx->width + ctx->mv.mv_x;
-			mem_ctrl->ft_uv_width =
-				ctx->width + ctx->mv.mv_x;
+			mem_ctrl->ft_y_width = ctx->width + ctx->mv.mv_x;
+			mem_ctrl->ft_uv_width = ctx->width + ctx->mv.mv_x;
 		}
 	} else if (ctx->mv.mv_x > 0) {
 		if (ctx->mv.mv_x & 0x1) {
@@ -189,10 +111,8 @@ static int isp3dnr_memctrl_base_on_mv_update(struct isp_3dnr_ctx_desc *ctx)
 			mem_ctrl->ft_chroma_addr =
 				mem_ctrl->ft_chroma_addr + ctx->mv.mv_x - 1;
 		} else {
-			mem_ctrl->ft_y_width =
-				ctx->width - ctx->mv.mv_x;
-			mem_ctrl->ft_uv_width =
-				ctx->width - ctx->mv.mv_x;
+			mem_ctrl->ft_y_width = ctx->width - ctx->mv.mv_x;
+			mem_ctrl->ft_uv_width = ctx->width - ctx->mv.mv_x;
 			mem_ctrl->ft_luma_addr =
 				mem_ctrl->ft_luma_addr + ctx->mv.mv_x;
 			mem_ctrl->ft_chroma_addr =
@@ -202,42 +122,31 @@ static int isp3dnr_memctrl_base_on_mv_update(struct isp_3dnr_ctx_desc *ctx)
 	if (ctx->mv.mv_y < 0) {
 		if (ctx->mv.mv_y & 0x1) {
 			mem_ctrl->last_line_mode = 0;
-			mem_ctrl->ft_uv_height =
-				ctx->height / 2 + ctx->mv.mv_y / 2;
+			mem_ctrl->ft_uv_height = ctx->height / 2 + ctx->mv.mv_y / 2;
 		} else {
 			mem_ctrl->last_line_mode = 1;
-			mem_ctrl->ft_uv_height =
-				ctx->height / 2 + ctx->mv.mv_y / 2 + 1;
+			mem_ctrl->ft_uv_height = ctx->height / 2 + ctx->mv.mv_y / 2 + 1;
 		}
 		mem_ctrl->first_line_mode = 0;
-		mem_ctrl->ft_y_height =
-			ctx->height + ctx->mv.mv_y;
+		mem_ctrl->ft_y_height = ctx->height + ctx->mv.mv_y;
 	} else if (ctx->mv.mv_y > 0) {
 		if ((ctx->mv.mv_y) & 0x1) {
 			/*temp modify first_line_mode =0*/
 			mem_ctrl->first_line_mode = 0;
 			mem_ctrl->last_line_mode = 0;
-			mem_ctrl->ft_y_height =
-				ctx->height - ctx->mv.mv_y;
-			mem_ctrl->ft_uv_height =
-				ctx->height / 2 - (ctx->mv.mv_y / 2);
+			mem_ctrl->ft_y_height = ctx->height - ctx->mv.mv_y;
+			mem_ctrl->ft_uv_height = ctx->height / 2 - (ctx->mv.mv_y / 2);
 
-			mem_ctrl->ft_luma_addr =
-				mem_ctrl->ft_luma_addr
+			mem_ctrl->ft_luma_addr = mem_ctrl->ft_luma_addr
 				+ mem_ctrl->ft_pitch * ctx->mv.mv_y;
-			mem_ctrl->ft_chroma_addr =
-				mem_ctrl->ft_chroma_addr
+			mem_ctrl->ft_chroma_addr = mem_ctrl->ft_chroma_addr
 				+ mem_ctrl->ft_pitch * (ctx->mv.mv_y / 2);
 		} else {
-			mem_ctrl->ft_y_height =
-				ctx->height - ctx->mv.mv_y;
-			mem_ctrl->ft_uv_height =
-				ctx->height / 2 - (ctx->mv.mv_y / 2);
-			mem_ctrl->ft_luma_addr =
-				mem_ctrl->ft_luma_addr
+			mem_ctrl->ft_y_height = ctx->height - ctx->mv.mv_y;
+			mem_ctrl->ft_uv_height = ctx->height / 2 - (ctx->mv.mv_y / 2);
+			mem_ctrl->ft_luma_addr = mem_ctrl->ft_luma_addr
 				+ mem_ctrl->ft_pitch * ctx->mv.mv_y;
-			mem_ctrl->ft_chroma_addr =
-				mem_ctrl->ft_chroma_addr
+			mem_ctrl->ft_chroma_addr = mem_ctrl->ft_chroma_addr
 				+ mem_ctrl->ft_pitch * (ctx->mv.mv_y / 2);
 		}
 	}
@@ -296,8 +205,7 @@ static int isp3dnr_memctrl_config_gen(struct isp_3dnr_ctx_desc *ctx)
 	mem_ctrl->img_width = ctx->width;
 	mem_ctrl->img_height = ctx->height;
 	pr_debug("3DNR img_width=%d, img_height=%d\n",
-		mem_ctrl->img_width,
-		mem_ctrl->img_height);
+		mem_ctrl->img_width, mem_ctrl->img_height);
 
 	/* configuration param4/5 */
 	mem_ctrl->ft_y_width = ctx->width;
@@ -753,36 +661,25 @@ int isp_3dnr_memctrl_slice_info_update(struct nr3_slice *in,
 static int isp3dnr_conversion_mv(struct isp_3dnr_ctx_desc *nr3_ctx)
 {
 	int ret = 0;
-	int output_x = 0;
-	int output_y = 0;
-	int input_width = 0;
-	int input_height = 0;
-	int output_width = 0;
-	int output_height = 0;
+	struct alg_nr3_mv_cfg cfg_in = {0};
 
 	if (!nr3_ctx) {
 		pr_err("fail to get valid nr3_ctx\n");
 		return -EINVAL;
 	}
 
-	input_width = nr3_ctx->mvinfo->src_width;
-	input_height = nr3_ctx->mvinfo->src_height;
-	output_width = nr3_ctx->width;
-	output_height = nr3_ctx->height;
-	ret = isp3dnr_mv_conversion_base_on_resolution(
-		nr3_ctx->mvinfo->mv_x,
-		nr3_ctx->mvinfo->mv_y,
-		nr3_ctx->mvinfo->project_mode,
-		nr3_ctx->mvinfo->sub_me_bypass,
-		input_width,
-		output_width,
-		input_height,
-		output_height,
-		&output_x,
-		&output_y);
-
-	nr3_ctx->mv.mv_x = output_x;
-	nr3_ctx->mv.mv_y = output_y;
+	cfg_in.mv_version = nr3_ctx->nr3_mv_version;
+	cfg_in.mv_x = nr3_ctx->mvinfo->mv_x;
+	cfg_in.mv_y = nr3_ctx->mvinfo->mv_y;
+	cfg_in.mode_projection = nr3_ctx->mvinfo->project_mode;
+	cfg_in.sub_me_bypass = nr3_ctx->mvinfo->sub_me_bypass;
+	cfg_in.iw = nr3_ctx->mvinfo->src_width;
+	cfg_in.ow = nr3_ctx->width;
+	cfg_in.ih = nr3_ctx->mvinfo->src_height;
+	cfg_in.oh = nr3_ctx->height;
+	alg_nr3_calc_mv(&cfg_in);
+	nr3_ctx->mv.mv_x = cfg_in.o_mv_x;
+	nr3_ctx->mv.mv_y = cfg_in.o_mv_y;
 
 	pr_debug("3DNR conv_mv in_x =%d, in_y =%d, out_x=%d, out_y=%d\n",
 		nr3_ctx->mvinfo->mv_x, nr3_ctx->mvinfo->mv_y,
@@ -941,12 +838,15 @@ static int isp3dnr_cfg_param(void *handle,
 		break;
 	case ISP_3DNR_CFG_MEMCTL_STORE_INFO:
 		fetch_info = (struct isp_hw_fetch_info *)param;
-		nr3_ctx->nr3_store.color_format = fetch_info->fetch_fmt;
-		nr3_ctx->nr3_store.mipi_en = fetch_info->is_pack;
+		nr3_ctx->nr3_store.color_format = ISP_STORE_YVU420_2FRAME;
+		nr3_ctx->nr3_store.mipi_en = 0;
 		nr3_ctx->nr3_store.data_10b = (fetch_info->data_bits == 8) ? 0 : 1;
-		nr3_ctx->nr3_store.y_pitch_mem =  fetch_info->pitch.pitch_ch0;
-		nr3_ctx->nr3_store.u_pitch_mem =  fetch_info->pitch.pitch_ch1;
-		nr3_ctx->mem_ctrl.ft_pitch =  fetch_info->pitch.pitch_ch0;
+		nr3_ctx->nr3_store.y_pitch_mem = nr3_ctx->width * 2;
+		nr3_ctx->nr3_store.u_pitch_mem = nr3_ctx->width * 2;
+		nr3_ctx->mem_ctrl.ft_pitch = nr3_ctx->width * 2;
+		break;
+	case ISP_3DNR_CFG_MV_VERSION:
+		nr3_ctx->nr3_mv_version = *(uint32_t *)param;
 		break;
 	default:
 		pr_err("fail to get known cmd: %d\n", cmd);
