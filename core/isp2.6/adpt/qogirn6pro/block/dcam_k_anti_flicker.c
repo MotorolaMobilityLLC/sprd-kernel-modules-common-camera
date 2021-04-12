@@ -113,8 +113,8 @@ int dcam_k_afl_block(struct dcam_dev_param *param)
 	val = ((p->frame_num & 0xFF) << 24);
 	DCAM_REG_MWR(idx, ISP_AFL_PARAM2, 0xFF000000, val);
 
-	DCAM_REG_WR(idx, ISP_AFL_PARAM1, (p->afl_stepx & 0xFFFFFF));
-	DCAM_REG_WR(idx, ISP_AFL_PARAM2, (p->afl_stepy & 0xFFFFFF));
+	DCAM_REG_MWR(idx, ISP_AFL_PARAM1, 0xFFFFFF, (p->afl_stepx & 0xFFFFFF));
+	DCAM_REG_MWR(idx, ISP_AFL_PARAM2, 0xFFFFFF, (p->afl_stepy & 0xFFFFFF));
 
 	val = (p->start_col & 0x1FFF) |
 		((p->end_col & 0x1FFF) << 16);

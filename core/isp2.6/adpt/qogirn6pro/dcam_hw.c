@@ -2159,7 +2159,6 @@ static int dcamhw_csi_force_enable(void *handle, void *arg)
 	idx = csi_switch->dcam_id;
 
 	regmap_update_bits(hw->soc_dcam->cam_switch_gpr, idx * 4, BIT_5, BIT_5);
-	regmap_update_bits(hw->soc_dcam->cam_switch_gpr, idx * 4, 0x7 << 13, csi_id << 13);
 	regmap_update_bits(hw->soc_dcam->cam_switch_gpr, idx * 4, BIT_31, BIT_31);
 
 	while (time_out) {
@@ -2173,8 +2172,9 @@ static int dcamhw_csi_force_enable(void *handle, void *arg)
 	if (time_out != 0)
 		pr_debug("force disable dcam%d to csi%d, cam_switch_gpr:0x%x\n", idx, csi_id, val);
 	else
-		pr_err("fail to disable DCAM%d csi%d\n", idx, csi_id);
+		pr_err("fail to disable DCAM%d csi%d, cam_switch_gpr:0x%x\n", idx, csi_id, val);
 
+	regmap_update_bits(hw->soc_dcam->cam_switch_gpr, idx * 4, 0x7 << 13, csi_id << 13);
 	regmap_update_bits(hw->soc_dcam->cam_switch_gpr, idx * 4, BIT_31, ~BIT_31);
 
 	time_out = DCAMX_STOP_TIMEOUT;
@@ -2189,7 +2189,7 @@ static int dcamhw_csi_force_enable(void *handle, void *arg)
 	if (time_out != 0)
 		pr_debug("force enable dcam%d to csi%d, cam_switch_gpr:0x%x\n", idx, csi_id, val);
 	else
-		pr_err("fail to enable DCAM%d csi%d\n", idx, csi_id);
+		pr_err("fail to enable DCAM%d csi%d, cam_switch_gpr:0x%x\n", idx, csi_id, val);
 
 	return 0;
 }
