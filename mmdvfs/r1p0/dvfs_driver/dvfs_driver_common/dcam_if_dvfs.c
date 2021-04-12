@@ -318,6 +318,14 @@ static void power_on_nb(struct devfreq *devfreq) {
     pr_info("pr_debug ops:dcam_if %s\n", __func__);
 }
 
+static void power_off_nb(struct devfreq *devfreq) {
+    struct module_dvfs *dcam;
+    dcam = dev_get_drvdata(devfreq->dev.parent);
+    if (dcam != NULL) {
+        pr_info("dcam dvfs power off\n");
+        dcam->dvfs_enable = 0;
+    }
+}
 static int top_current_volt(struct devfreq *devfreq, unsigned int *top_volt) {
     unsigned int ret;
 
@@ -364,6 +372,7 @@ struct ip_dvfs_ops dcam_if_dvfs_ops = {
     .set_fix_dvfs_value = set_fix_dvfs_value,
     .updata_target_freq = updata_target_freq,
     .power_on_nb = power_on_nb,
+    .power_off_nb = power_off_nb,
     .top_current_volt = top_current_volt,
     .mm_current_volt = mm_current_volt,
     .event_handler = NULL,
