@@ -870,14 +870,17 @@ static int camioctl_crop_set(struct camera_module *module,
 		max.w >>= 1;
 		max.h >>= 1;
 	}
-	crop->x &= ~1;
-	crop->y &= ~1;
 
 	/* Sharkl5pro crop align need to do research*/
 	crop->w = ((crop->w + DCAM_PATH_CROP_ALIGN - 1)
 		& ~(DCAM_PATH_CROP_ALIGN - 1));
 	crop->h = ((crop->h + DCAM_PATH_CROP_ALIGN - 1)
 		& ~(DCAM_PATH_CROP_ALIGN - 1));
+	crop->x = (max.w - crop->w) / 2;
+	crop->y = (max.h - crop->h) / 2;
+	crop->x &= ~1;
+	crop->y &= ~1;
+
 	if ((crop->x + crop->w) > max.w)
 		crop->w -= DCAM_PATH_CROP_ALIGN;
 	if ((crop->y + crop->h) > max.h)
