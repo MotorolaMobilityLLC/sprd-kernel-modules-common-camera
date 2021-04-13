@@ -791,8 +791,6 @@ static int dcamhw_mipi_cap_set(void *handle, void *arg)
 		DCAM_REG_MWR(idx, DCAM_PATH_SEL, BIT_28, 0);
 
 		DCAM_REG_MWR(idx, DCAM_BUF_CTRL, 0x3F << 10, caparg->slowmotion_count << 10);
-
-		pr_info("slowmotion mode, count %d\n", caparg->slowmotion_count);
 	} else {
 		/*slow motion enable*/
 		DCAM_REG_MWR(idx, DCAM_PATH_SEL, BIT_29, 0);
@@ -808,9 +806,9 @@ static int dcamhw_mipi_cap_set(void *handle, void *arg)
 	pr_debug("cap: frm %d, mode %d, bits %d, pattern %d, href %d\n",
 		cap_info->format, cap_info->mode, cap_info->data_bits,
 		cap_info->pattern, cap_info->href);
-	pr_debug("cap: deci %d, skip %d, x %d, y %d, 4in1 %d\n",
+	pr_debug("cap: deci %d, skip %d, x %d, y %d, 4in1 %d, slowmotion count %d\n",
 		cap_info->frm_deci, cap_info->frm_skip, cap_info->x_factor,
-		cap_info->y_factor, cap_info->is_4in1);
+		cap_info->y_factor, cap_info->is_4in1, caparg->slowmotion_count);
 
 	return ret;
 }
@@ -2243,7 +2241,7 @@ static int dcamhw_fmcu_enable(void *handle, void *arg)
 
 	param = (struct dcam_fmcu_enable *)arg;
 
-	pr_info("dcam%d enable fmcu\n", param->idx);
+	pr_debug("dcam%d enable fmcu\n", param->idx);
 	DCAM_REG_MWR(param->idx, DCAM_PATH_SEL, BIT_31, param->enable << 31);
 	if (param->enable) {
 		if (param->idx == 0)

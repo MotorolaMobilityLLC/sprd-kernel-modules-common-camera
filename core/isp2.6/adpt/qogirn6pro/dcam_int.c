@@ -503,7 +503,6 @@ static void dcamint_cap_sof(void *param)
 	}
 
 	hw = sw_ctx->dev->hw;
-	pr_debug("enter\n");
 	/* Fix potential index error issued by interrupt delay. */
 	fix_result = dcamint_fix_index_if_needed(dcam_hw_ctx);
 	if (fix_result == DEFER_TO_NEXT)
@@ -925,7 +924,6 @@ static void dcamint_fmcu_shadow_done(void *param)
 	struct dcam_hw_context *dcam_hw_ctx = (struct dcam_hw_context *)param;
 	struct dcam_sw_context *sw_ctx = NULL;
 
-	pr_debug("enter\n");
 	if (dcam_hw_ctx == NULL) {
 		pr_err("fail to check param dcam_hw_ctx %px\n", dcam_hw_ctx);
 		return;

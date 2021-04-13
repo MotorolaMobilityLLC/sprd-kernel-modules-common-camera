@@ -760,7 +760,7 @@ int dcam_path_fmcu_slw_store_buf_set(
 		out_frame = cam_queue_dequeue(&path->reserved_buf_queue, struct camera_frame, list);
 
 		if (out_frame == NULL) {
-			pr_info("fail to get reserve buffer\n");
+			pr_err("fail to get reserve buffer\n");
 			return -1;
 		}
 		ret = cam_queue_enqueue(&path->result_queue, &out_frame->list);
