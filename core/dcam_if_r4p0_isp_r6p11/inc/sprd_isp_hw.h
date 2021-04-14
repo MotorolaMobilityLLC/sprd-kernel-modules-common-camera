@@ -14,6 +14,6 @@
 #ifndef _SPRD_ISP_HW_H_
 #define _SPRD_ISP_HW_H_
 
-#include <video/sprd_isp_r6p11.h>
+#include "sprd_isp_r6p11.h"
 
 #endif
