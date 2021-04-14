@@ -1306,7 +1306,7 @@ static int camioctl_stream_off(struct camera_module *module,
 	if (running) {
 		ret = module->dcam_dev_handle->dcam_pipe_ops->stop(sw_ctx, DCAM_STOP);
 		if (ret != 0)
-			pr_err("fail to stop dcam %d\n", ret);
+			pr_err("fail to stop dcam%d ret:%d\n", sw_ctx->hw_ctx_id, ret);
 		camcore_timer_stop(&module->cam_timer);
 	}
 

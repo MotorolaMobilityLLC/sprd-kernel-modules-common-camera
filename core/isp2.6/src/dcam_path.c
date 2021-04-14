@@ -282,78 +282,86 @@ int dcam_path_size_cfg(void *dcam_ctx_handle,
 		crop_size.h = path->in_trim.size_y;
 		dst_size = path->out_size;
 
-		if ((crop_size.w == dst_size.w) &&
-			(crop_size.h == dst_size.h))
-			path->scaler_sel = DCAM_SCALER_BYPASS;
-		else if ((dst_size.w * 2 == crop_size.w) &&
-			(dst_size.h * 2 == crop_size.h)) {
-			pr_debug("1/2 binning used. src %d %d, dst %d %d\n",
-				crop_size.w, crop_size.h, dst_size.w,
-				dst_size.h);
-			path->scaler_sel = DCAM_SCALER_BINNING;
-			path->bin_ratio = 0;
-		} else if ((dst_size.w * 4 == crop_size.w) &&
-			(dst_size.h * 4 == crop_size.h)) {
-			pr_debug("1/4 binning used. src %d %d, dst %d %d\n",
-				crop_size.w, crop_size.h, dst_size.w,
-				dst_size.h);
-			path->scaler_sel = DCAM_SCALER_BINNING;
-			path->bin_ratio = 1;
-		} else {
-			pr_debug("RDS used. in %d %d, out %d %d\n",
-				crop_size.w, crop_size.h, dst_size.w,
-				dst_size.h);
-
-			if (path->out_fmt & DCAM_STORE_RAW_BASE) {
-				path->scaler_sel = DCAM_SCALER_RAW_DOWNSISER;
-				path->gphase.rds_input_h_global = path->in_trim.size_y;
-				path->gphase.rds_input_w_global = path->in_trim.size_x;
-				path->gphase.rds_output_w_global = path->out_size.w;
-				path->gphase.rds_output_h_global = path->out_size.h;
-				arg.gphase = &path->gphase;
-				arg.slice_id = 0;
-				arg.slice_end0 = 0;
-				arg.slice_end1 = 0;
-				ret = hw->dcam_ioctl(hw, DCAM_HW_CFG_CALC_RDS_PHASE_INFO, &arg);
+		switch (path->out_fmt) {
+			case DCAM_STORE_YUV_BASE:
+			case DCAM_STORE_YUV422:
+			case DCAM_STORE_YVU422:
+			case DCAM_STORE_YUV420:
+			case DCAM_STORE_YVU420:
+				if (dst_size.w > DCAM_SCALER_MAX_WIDTH || path->in_trim.size_x > (dst_size.w * DCAM_SCALE_DOWN_MAX)) {
+					pr_err("fail to support scaler, in width %d, out width %d\n",
+						path->in_trim.size_x, dst_size.w);
+					ret = -1;
+				}
+				path->scaler_sel = DCAM_SCALER_BY_YUVSCALER;
+				path->scaler_info.scaler_factor_in = path->in_trim.size_x;
+				path->scaler_info.scaler_factor_out = dst_size.w;
+				path->scaler_info.scaler_ver_factor_in = path->in_trim.size_y;
+				path->scaler_info.scaler_ver_factor_out = dst_size.h;
+				path->scaler_info.scaler_out_width = dst_size.w;
+				path->scaler_info.scaler_out_height = dst_size.h;
+				path->scaler_info.work_mode = 2;
+				path->scaler_info.scaler_bypass = 0;
+				ret = cam_scaler_coeff_calc_ex(&path->scaler_info);
 				if (ret)
-					pr_err("fail to calc rds phase info\n");
-				cam_scaler_dcam_rds_coeff_gen((uint16_t)crop_size.w,
-					(uint16_t)crop_size.h,
-					(uint16_t)dst_size.w,
-					(uint16_t)dst_size.h,
-					(uint32_t *)path->rds_coeff_buf);
-			}
+					pr_err("fail to calc scaler coeff\n");
+
+				path->out_pitch = cal_sprd_yuv_pitch(path->out_size.w, path->data_bits, path->is_pack);
+
+				break;
+			case DCAM_STORE_RAW_BASE:
+			case DCAM_STORE_FRGB:
+				if ((crop_size.w == dst_size.w) &&
+					(crop_size.h == dst_size.h))
+					path->scaler_sel = DCAM_SCALER_BYPASS;
+				else if ((dst_size.w * 2 == crop_size.w) &&
+					(dst_size.h * 2 == crop_size.h)) {
+					pr_debug("1/2 binning used. src %d %d, dst %d %d\n",
+						crop_size.w, crop_size.h, dst_size.w,
+						dst_size.h);
+					path->scaler_sel = DCAM_SCALER_BINNING;
+					path->bin_ratio = 0;
+				} else if ((dst_size.w * 4 == crop_size.w) &&
+					(dst_size.h * 4 == crop_size.h)) {
+					pr_debug("1/4 binning used. src %d %d, dst %d %d\n",
+						crop_size.w, crop_size.h, dst_size.w,
+						dst_size.h);
+					path->scaler_sel = DCAM_SCALER_BINNING;
+					path->bin_ratio = 1;
+				} else {
+					pr_debug("RDS used. in %d %d, out %d %d\n",
+						crop_size.w, crop_size.h, dst_size.w,
+						dst_size.h);
+					if (path->out_fmt & DCAM_STORE_RAW_BASE) {
+						path->scaler_sel = DCAM_SCALER_RAW_DOWNSISER;
+						path->gphase.rds_input_h_global = path->in_trim.size_y;
+						path->gphase.rds_input_w_global = path->in_trim.size_x;
+						path->gphase.rds_output_w_global = path->out_size.w;
+						path->gphase.rds_output_h_global = path->out_size.h;
+						arg.gphase = &path->gphase;
+						arg.slice_id = 0;
+						arg.slice_end0 = 0;
+						arg.slice_end1 = 0;
+						ret = hw->dcam_ioctl(hw, DCAM_HW_CFG_CALC_RDS_PHASE_INFO, &arg);
+						if (ret)
+							pr_err("fail to calc rds phase info\n");
+						cam_scaler_dcam_rds_coeff_gen((uint16_t)crop_size.w,
+							(uint16_t)crop_size.h,
+							(uint16_t)dst_size.w,
+							(uint16_t)dst_size.h,
+							(uint32_t *)path->rds_coeff_buf);
+					}
+				}
+
+				if (path->out_fmt & DCAM_STORE_RAW_BASE)
+					path->out_pitch = cal_sprd_raw_pitch(path->out_size.w, path->pack_bits);
+				else if (path->out_fmt & DCAM_STORE_FRGB)
+					path->out_pitch = path->out_size.w * 8;
+				break;
+			default:
+				pr_err("fail to get path->out_fmt :%d\n", path->out_fmt);
+				break;
 		}
-
-		if ((path->out_fmt & DCAM_STORE_YUV_BASE) &&
-			((crop_size.w != dst_size.w) || (crop_size.h != dst_size.h))) {
-
-			if (dst_size.w > DCAM_SCALER_MAX_WIDTH ||
-				path->in_trim.size_x > (dst_size.w * DCAM_SCALE_DOWN_MAX)) {
-				pr_err("fail to support scaler, in width %d, out width %d\n",
-					path->in_trim.size_x, dst_size.w);
-				ret = -1;
-			}
-			path->scaler_sel = DCAM_SCALER_BY_YUVSCALER;
-			path->scaler_info.scaler_factor_in = path->in_trim.size_x;
-			path->scaler_info.scaler_factor_out = dst_size.w;
-			path->scaler_info.scaler_ver_factor_in = path->in_trim.size_y;
-			path->scaler_info.scaler_ver_factor_out = dst_size.h;
-			path->scaler_info.scaler_out_width = dst_size.w;
-			path->scaler_info.scaler_out_height = dst_size.h;
-			path->scaler_info.work_mode = 2;
-			path->scaler_info.scaler_bypass = 0;
-			ret = cam_scaler_coeff_calc_ex(&path->scaler_info);
-			if (ret)
-				pr_err("fail to calc scaler coeff\n");
-		}
-
-		if (path->out_fmt & DCAM_STORE_RAW_BASE)
-			path->out_pitch = cal_sprd_raw_pitch(path->out_size.w, path->pack_bits);
-		else if (path->out_fmt & DCAM_STORE_YUV_BASE)
-			path->out_pitch = cal_sprd_yuv_pitch(path->out_size.w, path->data_bits, path->is_pack);
-		else
-			path->out_pitch = path->out_size.w * 8;
 
 		path->priv_size_data = ch_desc->priv_size_data;
 		path->size_update = 1;
