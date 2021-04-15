@@ -371,7 +371,6 @@ int dcam_fmcu_ctx_desc_put(struct dcam_fmcu_ctx_desc *fmcu)
 			hw->dcam_ioctl(hw, DCAM_HW_FMCU_EBABLE, &fmcu_enable);
 			fmcu->hw_ctx_id = DCAM_HW_CONTEXT_MAX;
 			fmcu->hw = NULL;
-			fmcu = NULL;
 			break;
 		}
 	}

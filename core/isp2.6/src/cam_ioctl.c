@@ -1310,6 +1310,8 @@ static int camioctl_stream_off(struct camera_module *module,
 		camcore_timer_stop(&module->cam_timer);
 	}
 
+	dcam_core_put_fmcu(sw_ctx);
+
 	if (module->cam_uinfo.is_4in1)
 		camcore_4in1_aux_deinit(module);
 	if (module->cam_uinfo.dcam_slice_mode && module->aux_dcam_dev)
@@ -1721,6 +1723,7 @@ cfg_ch_done:
 	}
 
 	dev->dcam_pipe_ops->ioctl(sw_ctx, DCAM_IOCTL_RECFG_PARAM, NULL);
+	dcam_core_get_fmcu(sw_ctx);
 
 	ret = dev->dcam_pipe_ops->start(sw_ctx, online);
 	if (ret < 0) {

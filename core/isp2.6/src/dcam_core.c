@@ -2316,22 +2316,6 @@ static int dcamcore_dev_start(void *dcam_handle, int online)
 		helper = dcam_core_sync_helper_get(pctx);
 	}
 
-	if (pctx->slowmotion_count && hw->ip_dcam[pctx->hw_ctx_id]->fmcu_support) {
-		struct dcam_fmcu_ctx_desc *fmcu_info;
-		fmcu_info = dcam_fmcu_ctx_desc_get(hw, pctx->hw_ctx_id);
-		if (fmcu_info && fmcu_info->ops) {
-			fmcu_info->hw = hw;
-			ret = fmcu_info->ops->ctx_init(fmcu_info);
-			if (ret) {
-				pr_err("fail to init fmcu ctx\n");
-				dcam_fmcu_ctx_desc_put(fmcu_info);
-			} else {
-				pctx->fmcu = fmcu_info;
-				pctx->hw_ctx->fmcu = fmcu_info;
-			}
-		}
-	}
-
 	caparg.idx = pctx->hw_ctx_id;
 	caparg.cap_info = pctx->cap_info;
 	caparg.slowmotion_count = pctx->slowmotion_count;
@@ -2453,7 +2437,6 @@ static int dcamcore_dev_stop(void *dcam_handle, enum dcam_stop_cmd pause)
 	struct dcam_dev_param *pm;
 	struct dcam_path_desc *path = NULL;
 	struct cam_hw_info *hw = NULL;
-	unsigned long flag = 0;
 
 	if (!dcam_handle) {
 		pr_err("fail to get valid input ptr\n");
@@ -2477,12 +2460,6 @@ static int dcamcore_dev_stop(void *dcam_handle, enum dcam_stop_cmd pause)
 
 	if (pctx->hw_ctx_id != DCAM_HW_CONTEXT_MAX) {
 		hw->dcam_ioctl(hw, DCAM_HW_CFG_STOP, &pctx->hw_ctx_id);
-		if (pctx->fmcu) {
-			spin_lock_irqsave(&pctx->fmcu->lock, flag);
-			pctx->fmcu->ops->ctx_deinit(pctx->fmcu);
-			dcam_fmcu_ctx_desc_put(pctx->fmcu);
-			spin_unlock_irqrestore(&pctx->fmcu->lock, flag);
-		}
 		hw->dcam_ioctl(hw, DCAM_HW_CFG_RESET, &pctx->hw_ctx_id);
 		dcam_int_tracker_dump(pctx->hw_ctx_id);
 		dcam_int_tracker_reset(pctx->hw_ctx_id);
@@ -2948,6 +2925,45 @@ static struct dcam_pipe_ops s_dcam_pipe_ops = {
 	.put_context = dcamcore_context_put,
 	.get_datactrl = dcamcore_datactrl_get,
 };
+
+void dcam_core_get_fmcu(struct dcam_sw_context *pctx)
+{
+	int ret = 0;
+	struct cam_hw_info *hw = NULL;
+
+	hw = pctx->dev->hw;
+	if (pctx->slowmotion_count && hw->ip_dcam[pctx->hw_ctx_id]->fmcu_support) {
+		struct dcam_fmcu_ctx_desc *fmcu_info;
+		fmcu_info = dcam_fmcu_ctx_desc_get(hw, pctx->hw_ctx_id);
+		if (fmcu_info && fmcu_info->ops) {
+			fmcu_info->hw = hw;
+			ret = fmcu_info->ops->ctx_init(fmcu_info);
+			if (ret) {
+				pr_err("fail to init fmcu ctx\n");
+				dcam_fmcu_ctx_desc_put(fmcu_info);
+				pctx->fmcu = NULL;
+			} else {
+				pctx->fmcu = fmcu_info;
+				pctx->hw_ctx->fmcu = fmcu_info;
+			}
+		}
+	}
+}
+
+void dcam_core_put_fmcu(struct dcam_sw_context *pctx)
+{
+	unsigned long flag = 0;
+	spinlock_t *lock = NULL;
+
+	if (pctx->fmcu) {
+		lock = &pctx->fmcu->lock;
+		spin_lock_irqsave(lock, flag);
+		pctx->fmcu->ops->ctx_deinit(pctx->fmcu);
+		dcam_fmcu_ctx_desc_put(pctx->fmcu);
+		pctx->fmcu = NULL;
+		spin_unlock_irqrestore(lock, flag);
+	}
+}
 
 int dcam_core_hw_context_id_get(struct dcam_sw_context *pctx)
 {
