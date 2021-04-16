@@ -426,9 +426,6 @@ static int mmsys_init(struct devfreq *devfreq) {
 	/* sys clk enable */
 	mmsys->mmsys_dvfs_para.sys_sw_cgb_enable = 1;
 	mmsys_sw_cgb_enable(mmsys->mmsys_dvfs_para.sys_sw_cgb_enable);
-	/* mm hw dvfs */
-	mmdcdc_sw_dvfs_onoff(TOP_SW_DVFS_ENABLE);
-	mm_sw_dvfs_onoff(MM_SW_DVFS_ENABLE);
 	mm_dvfs_force_en(1);
 //  mm_sw_dvfs_onoff(mmsys->mmsys_dvfs_para.sys_sw_dvfs_en);
 //  mm_dvfs_force_en(mmsys->mmsys_dvfs_para.sys_dvfs_force_en);

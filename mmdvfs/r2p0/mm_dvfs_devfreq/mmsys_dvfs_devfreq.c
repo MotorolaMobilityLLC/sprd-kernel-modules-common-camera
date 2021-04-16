@@ -145,15 +145,6 @@ static int mmsys_dvfs_probe(struct platform_device *pdev) {
     }
     g_mmreg_map.mmdvfs_ahb_regbase = (unsigned long)reg_base;
 
-    reg_res.start = REGS_MM_TOP_DVFS_START;
-    reg_res.end = REGS_MM_TOP_DVFS_END;
-    reg_base = ioremap(reg_res.start, reg_res.end - reg_res.start + 1);
-    if (!reg_base) {
-        pr_err("fail to map mmsys dvfs top reg base\n");
-        goto err_iounmap;
-    }
-    g_mmreg_map.mmdvfs_top_regbase = (unsigned long)reg_base;
-
     reg_res.start = REGS_MM_AHB_REG_START;
     reg_res.end = REGS_MM_AHB_REG_END;
     reg_base = ioremap(reg_res.start, reg_res.end - reg_res.start + 1);
