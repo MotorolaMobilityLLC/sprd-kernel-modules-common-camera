@@ -156,7 +156,7 @@ static int ispdrv_fetch_normal_get(void *cfg_in, void *cfg_out,
 		struct camera_frame *frame)
 {
 	int ret = 0;
-	unsigned long trim_offset[3] = { 0 };
+	uint32_t trim_offset[3] = { 0 };
 	struct img_size *src = NULL;
 	struct img_trim *intrim = NULL;
 	struct isp_hw_fetch_info *fetch = NULL;
