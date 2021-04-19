@@ -6690,6 +6690,7 @@ static int camcore_open(struct inode *node, struct file *file)
 
 	if (atomic_read(&grp->camera_opened) == 1) {
 		/* should check all needed interface here. */
+		spin_lock_irqsave(&grp->module_lock, flag);
 
 		if (grp->hw_info && grp->hw_info->soc_dcam->pdev)
 			ret = cam_buf_iommudev_reg(
@@ -6712,6 +6713,7 @@ static int camcore_open(struct inode *node, struct file *file)
 		g_empty_state_q = &grp->empty_state_q;
 		cam_queue_init(g_empty_state_q, CAM_EMP_Q_LEN_MAX,
 			cam_queue_empty_state_free);
+		spin_unlock_irqrestore(&grp->module_lock, flag);
 
 		pr_info("init frm_q %px state_q %px\n", g_empty_frm_q, g_empty_state_q);
 	}
@@ -6832,6 +6834,7 @@ static int camcore_release(struct inode *node, struct file *file)
 	file->private_data = NULL;
 
 	if (atomic_dec_return(&group->camera_opened) == 0) {
+		spin_lock_irqsave(&group->module_lock, flag);
 
 		cam_buf_iommudev_unreg(CAM_IOMMUDEV_DCAM);
 		cam_buf_iommudev_unreg(CAM_IOMMUDEV_DCAM_LITE);
@@ -6848,10 +6851,11 @@ static int camcore_release(struct inode *node, struct file *file)
 
 		ret = cam_buf_mdbg_check();
 		atomic_set(&group->runner_nr, 0);
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0))
-		ret = pm_runtime_put_autosuspend(&group->hw_info->pdev->dev);
-#endif
+		spin_unlock_irqrestore(&group->module_lock, flag);
 	}
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0))
+	ret = pm_runtime_put_autosuspend(&group->hw_info->pdev->dev);
+#endif
 
 	pr_info("sprd_img: cam %d release end.\n", idx);
 
