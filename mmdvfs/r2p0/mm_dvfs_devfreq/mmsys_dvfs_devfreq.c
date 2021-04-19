@@ -98,6 +98,22 @@ static int mmsys_dvfs_notify_callback(struct notifier_block *nb,
     return NOTIFY_OK;
 }
 
+static int mmsys_hw_dvfs_enable(struct regmap *regmap){
+	int ret;
+	u32 val;
+
+	ret = regmap_read(regmap, REG_TOP_DVFS_APB_SUBSYS_SW_DVFS_EN_CFG, &val);
+	if (ret)
+		return ret;
+
+	val &= (~BIT_MM_SYS_SW_DVFS_EN);
+	ret = regmap_write(regmap, REG_TOP_DVFS_APB_SUBSYS_SW_DVFS_EN_CFG, val);
+	if (ret)
+		return ret;
+
+	return MM_DVFS_SUCCESS;
+}
+
 static int mmsys_dvfs_probe(struct platform_device *pdev) {
     struct device *dev = &pdev->dev;
     struct device_node *np = pdev->dev.of_node;
@@ -120,7 +136,7 @@ static int mmsys_dvfs_probe(struct platform_device *pdev) {
     mmsys->clk_mmsys_core = devm_clk_get(dev, "clk_mmsys_core");
     if (IS_ERR(mmsys->clk_mmsys_core)) {
         dev_err(dev, "Cannot get the clk_mmsys_core clk\n");
-    };
+    }
 #endif
 
     if (of_property_read_u32(np, "sprd,dvfs-sys-sw-dvfs-en",
@@ -143,6 +159,9 @@ static int mmsys_dvfs_probe(struct platform_device *pdev) {
                          &mmsys->mmsys_dvfs_para.sys_dvfs_min_volt)){
         pr_err("np: the value of the of_property_read_u32\n");
     }
+
+    mmsys->top_apb = syscon_regmap_lookup_by_phandle(np, "sprd,syscon-topapb");
+
     reg_res.start = REGS_MM_DVFS_AHB_START;
     reg_res.end = REGS_MM_DVFS_AHB_END;
     reg_base = ioremap(reg_res.start, reg_res.end - reg_res.start + 1);
@@ -192,6 +211,8 @@ static int mmsys_dvfs_probe(struct platform_device *pdev) {
     mmsys->pw_nb.notifier_call = mmsys_dvfs_notify_callback;
     ret = mmsys_register_notifier(&mmsys->pw_nb);
 
+    //hw dvfs en for mmsys
+    ret = mmsys_hw_dvfs_enable(mmsys->top_apb);
     return MM_DVFS_SUCCESS;
 
 err_iounmap:
