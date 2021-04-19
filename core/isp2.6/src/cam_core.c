@@ -5441,7 +5441,7 @@ static int camcore_raw_pre_proc(
 		struct isp_raw_proc_info *proc_info)
 {
 	int ret = 0;
-	int ctx_id, dcam_path_id, isp_path_id;
+	int ctx_id = 0, dcam_path_id = 0, isp_path_id = 0;
 	uint32_t loop = 0;
 	unsigned long flag = 0;
 	struct camera_group *grp = module->grp;
@@ -5637,7 +5637,7 @@ static int camcore_raw_pre_proc(
 	atomic_set(&module->state, CAM_CFG_CH);
 
 	pr_info("done, dcam path %d, isp_path 0x%x\n",
-		dcam_path_id, ch->isp_path_id);
+		ch->dcam_path_id, ch->isp_path_id);
 	return 0;
 
 fail_isppath:
