@@ -448,10 +448,6 @@ struct isp_coord {
 	unsigned int end_x;
 	unsigned int end_y;
 };
-struct img_offset {
-	unsigned int x;
-	unsigned int y;
-};
 
 struct awbc_param {
 	unsigned int r;
@@ -469,7 +465,7 @@ struct awbc_rgb {
 struct isp_dev_raw_aem_info {
 	unsigned int bypass;
 	unsigned int skip_num;
-	struct img_offset offset;
+	struct isp_img_offset offset;
 	struct isp_img_size blk_size;
 	struct isp_img_size slice_size;
 	unsigned ddr_wr_num;
@@ -1318,8 +1314,8 @@ struct isp_dev_ynr_info {
 	unsigned int l1_txt_th1;
 	unsigned int wlt_th[24];
 	unsigned int freq_ratio[24];
-	struct img_offset start_pos;
-	struct img_offset center;
+	struct isp_img_offset start_pos;
+	struct isp_img_offset center;
 	unsigned int radius;
 	unsigned int dist_interval;
 	unsigned char sal_nr_str[8];
@@ -1497,11 +1493,11 @@ struct isp_dev_radial_lsc_info {
 	unsigned int bypass;
 	unsigned int radius_step;
 	unsigned int buf_sel;
-	struct img_offset center_r0c0_pos;
-	struct img_offset center_r0c1_pos;
-	struct img_offset center_r1c0_pos;
-	struct img_offset center_r1c1_pos;
-	struct img_offset start_pos;
+	struct isp_img_offset center_r0c0_pos;
+	struct isp_img_offset center_r0c1_pos;
+	struct isp_img_offset center_r1c0_pos;
+	struct isp_img_offset center_r1c1_pos;
+	struct isp_img_offset start_pos;
 	struct rlsc_init_node r_cfg;
 	struct rlsc_init_node r2_cfg;
 	struct rlsc_init_node dr2_cfg;
@@ -1918,7 +1914,7 @@ struct isp_dev_csc_info {
 	unsigned int blue_p2_param;
 	unsigned int max_gain_thr;
 	struct isp_img_size img_size;
-	struct img_offset start_pos;
+	struct isp_img_offset start_pos;
 };
 
 struct isp_dev_css_info {
