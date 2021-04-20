@@ -2091,10 +2091,10 @@ static int dcamhw_csi_disconnect(void *handle, void *arg)
 		pr_err("fail to stop:DCAM%d: stop timeout for 2s\n", idx);
 
 
-	DCAM_REG_MWR(idx, DCAM_INT0_CLR, 0xffffffff, 0xffffffff);
+	DCAM_REG_WR(idx, DCAM_INT0_CLR, 0xffffffff);
 	DCAM_REG_WR(idx, DCAM_INT0_EN, DCAMINT_IRQ_LINE_EN0_NORMAL);
 
-	DCAM_REG_MWR(idx, DCAM_INT1_CLR, 0xffffffff, 0xffffffff);
+	DCAM_REG_WR(idx, DCAM_INT1_CLR, 0xffffffff);
 	DCAM_REG_WR(idx, DCAM_INT1_EN, DCAMINT_IRQ_LINE_INT1_MASK);
 
 

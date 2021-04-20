@@ -355,7 +355,7 @@ int dcam_path_size_cfg(void *dcam_ctx_handle,
 
 				if (path->out_fmt & DCAM_STORE_RAW_BASE)
 					path->out_pitch = cal_sprd_raw_pitch(path->out_size.w, path->pack_bits);
-				else if (path->out_fmt & DCAM_STORE_FRGB)
+				else if (path->out_fmt == DCAM_STORE_FRGB)
 					path->out_pitch = path->out_size.w * 8;
 				break;
 			default:
@@ -749,13 +749,13 @@ int dcam_path_fmcu_slw_store_buf_set(
 	struct cam_hw_info *hw = NULL;
 	int path_id = 0;
 
-	hw = sw_ctx->dev->hw;
-	path_id = path->path_id;
-
-	if (!path || !sw_ctx || !hw) {
-		pr_err("fail to check param, path%px, sw_ctx %px, hw%px\n", path, sw_ctx, hw);
+	if (!path || !sw_ctx) {
+		pr_err("fail to check param, path%px, sw_ctx %px\n", path, sw_ctx);
 		return -EINVAL;
 	}
+
+	hw = sw_ctx->dev->hw;
+	path_id = path->path_id;
 
 	if (atomic_read(&path->user_cnt) < 1)
 		return ret;
