@@ -42,7 +42,47 @@ static uint32_t s_map_sec_cnt;
 static struct isp_cfg_map_sector s_map_sectors[ISP_CFG_MAP_MAX];
 unsigned long isp_cfg_ctx_addr[ISP_CONTEXT_SW_NUM] = { 0 };
 
-static void ispcfg_cctx_page_buf_addr_init(
+static void ispcfg_cctx_page_buf_aligned(struct isp_cfg_ctx_desc *cfg_ctx,
+		void **sw_addr, unsigned long *hw_addr)
+{
+	void *kaddr;
+	unsigned long ofst_align = 0;
+	unsigned long iova, aligned_iova;
+	struct camera_buf *ion_buf = &cfg_ctx->ion_pool;
+
+	kaddr = (void *)ion_buf->addr_k[0];
+	iova = ion_buf->iova[0];
+
+	if (!IS_ERR_OR_NULL(kaddr) && iova) {
+		if (IS_ALIGNED(iova, ALIGN_PADDING_SIZE)) {
+			*hw_addr = iova;
+			*sw_addr = kaddr;
+		} else {
+			aligned_iova = ALIGN(iova, ALIGN_PADDING_SIZE);
+			ofst_align = aligned_iova - iova;
+			*sw_addr = kaddr + ofst_align;
+			*hw_addr = aligned_iova;
+		}
+		pr_debug("aligned sw: %p, hw: 0x%lx, ofs: 0x%lx",
+			*sw_addr, *hw_addr, ofst_align);
+	}
+}
+
+static void ispcfg_cctx_page_buf_addr_deinit(struct isp_cfg_ctx_desc *cfg_ctx)
+{
+	struct isp_cfg_buf *cfg_buf;
+	int c_id, bid;
+
+	for (c_id = 0; c_id < ISP_CONTEXT_SW_NUM; c_id++) {
+		cfg_buf = &cfg_ctx->cfg_buf[c_id];
+		for (bid = 0; bid < CFG_BUF_NUM; bid++) {
+			cfg_buf->reg_buf[bid].sw_addr = NULL;
+			cfg_buf->reg_buf[bid].hw_addr = 0UL;
+		}
+	}
+}
+
+static void ispcfg_cctx_page_hw_buf_addr_init(
 				struct isp_cfg_ctx_desc *cfg_ctx,
 				void *sw_addr,
 				unsigned long hw_addr)
@@ -63,7 +103,7 @@ static void ispcfg_cctx_page_buf_addr_init(
 	}
 }
 
-static void ispcfg_cctx_sw_page_buf_addr_init(
+static void ispcfg_cctx_page_sw_buf_addr_init(
 		struct isp_cfg_ctx_desc *cfg_ctx,
 		void *sw_addr)
 {
@@ -80,20 +120,6 @@ static void ispcfg_cctx_sw_page_buf_addr_init(
 		pr_debug("isp ctx %d  buf %d: sw=%p, hw:0x%lx\n",
 			c_id, bid, cfg_buf->reg_buf[bid].sw_addr,
 			cfg_buf->reg_buf[bid].hw_addr);
-	}
-}
-
-static void ispcfg_cctx_page_buf_addr_deinit(struct isp_cfg_ctx_desc *cfg_ctx)
-{
-	struct isp_cfg_buf *cfg_buf;
-	int c_id, bid;
-
-	for (c_id = 0; c_id < ISP_CONTEXT_SW_NUM; c_id++) {
-		cfg_buf = &cfg_ctx->cfg_buf[c_id];
-		for (bid = 0; bid < CFG_BUF_NUM; bid++) {
-			cfg_buf->reg_buf[bid].sw_addr = NULL;
-			cfg_buf->reg_buf[bid].hw_addr = 0UL;
-		}
 	}
 }
 
@@ -131,32 +157,6 @@ static void ispcfg_cctx_regbuf_addr_deinit(struct isp_cfg_ctx_desc *cfg_ctx)
 	for (c_id = 0; c_id < ISP_CONTEXT_SW_NUM; c_id++)
 		isp_cfg_ctx_addr[c_id] = 0UL;
 	mutex_unlock(&buf_mutex);
-}
-
-static void ispcfg_cctx_page_buf_aligned(struct isp_cfg_ctx_desc *cfg_ctx,
-		void **sw_addr, unsigned long *hw_addr)
-{
-	void *kaddr;
-	unsigned long ofst_align = 0;
-	unsigned long iova, aligned_iova;
-	struct camera_buf *ion_buf = &cfg_ctx->ion_pool;
-
-	kaddr = (void *)ion_buf->addr_k[0];
-	iova = ion_buf->iova[0];
-
-	if (!IS_ERR_OR_NULL(kaddr) && iova) {
-		if (IS_ALIGNED(iova, ALIGN_PADDING_SIZE)) {
-			*hw_addr = iova;
-			*sw_addr = kaddr;
-		} else {
-			aligned_iova = ALIGN(iova, ALIGN_PADDING_SIZE);
-			ofst_align = aligned_iova - iova;
-			*sw_addr = kaddr + ofst_align;
-			*hw_addr = aligned_iova;
-		}
-		pr_debug("aligned sw: %p, hw: 0x%lx, ofs: 0x%lx",
-			*sw_addr, *hw_addr, ofst_align);
-	}
 }
 
 static int ispcfg_cctx_buf_init(struct isp_cfg_ctx_desc *cfg_ctx)
@@ -224,8 +224,8 @@ static int ispcfg_cctx_buf_init(struct isp_cfg_ctx_desc *cfg_ctx)
 	}
 
 	ispcfg_cctx_page_buf_aligned(cfg_ctx, &sw_addr, &hw_addr);
-	ispcfg_cctx_page_buf_addr_init(cfg_ctx, sw_addr, hw_addr);
-	ispcfg_cctx_sw_page_buf_addr_init(cfg_ctx, (void *)ion_buf_cached->addr_k[0]);
+	ispcfg_cctx_page_hw_buf_addr_init(cfg_ctx, sw_addr, hw_addr);
+	ispcfg_cctx_page_sw_buf_addr_init(cfg_ctx, (void *)ion_buf_cached->addr_k[0]);
 	ispcfg_cctx_regbuf_addr_init(cfg_ctx);
 
 	pr_debug("cmd sw: %p, hw: 0x%lx, size:0x%x\n",
