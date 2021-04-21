@@ -1203,6 +1203,9 @@ static int dcamhw_path_size_update(void *handle, void *arg)
 
 	sizearg = (struct dcam_hw_path_size *)arg;
 	idx = sizearg->idx;
+	pr_debug("sizearg->path_id:%d in_size:%d %d, out_size:%d %d in_trim:%d %d %d %d\n", sizearg->path_id,
+		sizearg->in_size.w, sizearg->in_size.h, sizearg->out_size.w, sizearg->out_size.h,
+		sizearg->in_trim.start_x, sizearg->in_trim.start_y, sizearg->in_trim.size_x, sizearg->in_trim.size_y);
 
 	switch (sizearg->path_id) {
 	case DCAM_PATH_FULL:
@@ -1240,9 +1243,9 @@ static int dcamhw_path_size_update(void *handle, void *arg)
 				sizearg->out_size.w;
 		DCAM_REG_WR(idx, DCAM_SCL0_DES_SIZE, reg_val);
 
-		reg_val = (sizearg->in_trim.start_y<< 16) |
+		reg_val = (sizearg->in_trim.start_y << 16) |
 			sizearg->in_trim.start_x;
-		DCAM_REG_WR(idx, DCAM_SCL0_TRIM0_START, 0);
+		DCAM_REG_WR(idx, DCAM_SCL0_TRIM0_START, reg_val);
 		reg_val = (sizearg->in_trim.size_y << 16) |
 					sizearg->in_trim.size_x;
 		DCAM_REG_WR(idx, DCAM_SCL0_TRIM0_SIZE, reg_val);
