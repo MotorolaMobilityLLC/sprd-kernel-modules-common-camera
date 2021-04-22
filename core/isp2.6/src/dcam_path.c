@@ -995,7 +995,7 @@ int dcam_path_store_frm_set(void *dcam_ctx_handle,
 			frame->buf.iova[0] + hw->ip_dcam[idx]->afl_gbuf_size);
 
 	if (!blk_dcam_pm->pdaf.bypass &&
-		blk_dcam_pm->pdaf.pdaf_type == 3 && path_id == DCAM_PATH_PDAF) {
+		blk_dcam_pm->pdaf.pdaf_type == DCAM_PDAF_TYPE3 && path_id == DCAM_PATH_PDAF) {
 		/* PDAF type3, half buffer for right PD, TBD */
 		addr = hw->ip_dcam[idx]->pdaf_type3_reg_addr;
 		DCAM_REG_WR(idx, addr,

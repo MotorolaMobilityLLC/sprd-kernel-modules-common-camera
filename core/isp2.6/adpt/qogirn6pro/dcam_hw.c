@@ -936,8 +936,12 @@ static int dcamhw_path_start(void *handle, void *arg)
 		break;
 	case DCAM_PATH_PDAF:
 		/* pdaf path en */
-		if (patharg->pdaf_path_eb)
-			DCAM_REG_MWR(patharg->idx, DCAM_PPE_FRM_CTRL0, BIT_0, 1);
+		if (patharg->pdaf_path_eb) {
+			if (patharg->pdaf_type == DCAM_PDAF_TYPE3)
+				DCAM_REG_MWR(patharg->idx, DCAM_PPE_FRM_CTRL0, BIT_0, 1);
+			else
+				DCAM_REG_MWR(patharg->idx, DCAM_VC1_CONTROL, BIT_0, 1);
+		}
 		break;
 	case DCAM_PATH_VCH2:
 		/* data type for raw picture */

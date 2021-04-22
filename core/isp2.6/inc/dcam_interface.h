@@ -39,6 +39,13 @@
 #define is_dcam_id(idx)                 ((idx) < DCAM_ID_MAX)
 #define is_csi_id(idx)                  ((idx) < CSI_ID_MAX)
 
+enum dcam_pdaf_type {
+	DCAM_PDAF_DUAL = 0,
+	DCAM_PDAF_TYPE1 = 1,
+	DCAM_PDAF_TYPE2 = 2,
+	DCAM_PDAF_TYPE3 = 3,
+};
+
 enum dcam_sw_context_id {
 	DCAM_SW_CONTEXT_0 = 0,
 	DCAM_SW_CONTEXT_1,

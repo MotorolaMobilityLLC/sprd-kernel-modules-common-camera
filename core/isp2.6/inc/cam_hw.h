@@ -767,6 +767,7 @@ struct dcam_hw_path_start {
 	/*in para*/
 	uint32_t src_sel;
 	uint32_t bayer_pattern;
+	uint32_t pdaf_type;
 	struct img_trim in_trim;
 	struct dcam_mipi_info cap_info;
 };

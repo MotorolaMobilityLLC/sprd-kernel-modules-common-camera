@@ -66,7 +66,7 @@ static int isp_k_pdaf_type1_block(
 		pr_err("fail to copy from user, ret = %d\n", ret);
 		return -1;
 	}
-	p->pdaf.pdaf_type = 1;
+	p->pdaf.pdaf_type = DCAM_PDAF_TYPE1;
 	if (idx == DCAM_HW_CONTEXT_MAX)
 		return 0;
 
@@ -92,7 +92,7 @@ static int isp_k_pdaf_type2_block(
 		pr_err("fail to copy from user, ret = %d\n", ret);
 		return -1;
 	}
-	p->pdaf.pdaf_type = 2;
+	p->pdaf.pdaf_type = DCAM_PDAF_TYPE2;
 	if (idx == DCAM_HW_CONTEXT_MAX)
 		return 0;
 
@@ -120,7 +120,7 @@ static int isp_k_pdaf_type3_block(
 	}
 
 	idx = p->idx;
-	p->pdaf.pdaf_type = 3;
+	p->pdaf.pdaf_type = DCAM_PDAF_TYPE3;
 	if (idx == DCAM_HW_CONTEXT_MAX)
 		return 0;
 
@@ -147,7 +147,7 @@ static int isp_k_dual_pdaf_block(
 		pr_err("fail to copy from user, ret = %d\n", ret);
 		return -1;
 	}
-	p->pdaf.pdaf_type = 0;
+	p->pdaf.pdaf_type = DCAM_PDAF_DUAL;
 	if (idx == DCAM_HW_CONTEXT_MAX)
 		return 0;
 
@@ -365,79 +365,91 @@ int dcam_k_pdaf(struct dcam_dev_param *p)
 	struct pdaf_ppi_info *ppi_info = &p->pdaf.ppi_info;
 	struct pdaf_roi_info *roi_info = &p->pdaf.roi_info;
 
-	DCAM_REG_MWR(p->idx, ISP_PPI_PARAM, BIT_0, bypass);
+	if (p->pdaf.pdaf_type == DCAM_PDAF_TYPE3)
+		DCAM_REG_MWR(p->idx, ISP_PPI_PARAM, BIT_0, bypass);
+	else
+		DCAM_REG_MWR(p->idx, DCAM_VC1_CONTROL, BIT_0, bypass);
 	if (bypass) {
 		pr_debug("dcam%d pdaf bypass\n", idx);
 		return 0;
 	}
 	pr_info("dcam%d reconfigure pdaf param, type %d\n", idx, p->pdaf.pdaf_type);
 
-	/* mode */
-	DCAM_REG_MWR(idx, DCAM_PPE_FRM_CTRL0, BIT_2, mode << 2);
-	DCAM_REG_MWR(idx, DCAM_PPE_FRM_CTRL0, BIT_3, mode << 3);
+	if (p->pdaf.pdaf_type == DCAM_PDAF_TYPE3) {
+		/* mode */
+		DCAM_REG_MWR(idx, DCAM_PPE_FRM_CTRL0, BIT_2, mode << 2);
+		DCAM_REG_MWR(idx, DCAM_PPE_FRM_CTRL0, BIT_3, mode << 3);
 
-	/* skip num */
-	DCAM_REG_MWR(idx, DCAM_PPE_FRM_CTRL0, 0xFF0,
-		skip_num << 4);
-	DCAM_REG_MWR(idx, DCAM_PPE_FRM_CTRL1, BIT_1, BIT_1);
+		/* skip num */
+		DCAM_REG_MWR(idx, DCAM_PPE_FRM_CTRL0, 0xFF0,
+			skip_num << 4);
+		DCAM_REG_MWR(idx, DCAM_PPE_FRM_CTRL1, BIT_1, BIT_1);
 
-	/* phase map corr en */
-	val = p->pdaf.pdaf_info.phase_map_corr_en;
-	DCAM_REG_MWR(idx, ISP_PPI_PARAM, BIT_3, val << 3);
+		/* phase map corr en */
+		val = p->pdaf.pdaf_info.phase_map_corr_en;
+		DCAM_REG_MWR(idx, ISP_PPI_PARAM, BIT_3, val << 3);
 
-	/* ppi grid mode */
-	val = p->pdaf.pdaf_info.grid_mode;
-	DCAM_REG_MWR(idx, ISP_PPI_PARAM, BIT_8, val << 8);
+		/* ppi grid mode */
+		val = p->pdaf.pdaf_info.grid_mode;
+		DCAM_REG_MWR(idx, ISP_PPI_PARAM, BIT_8, val << 8);
 
-	/* pdaf type */
-	DCAM_REG_WR(idx, DCAM_PDAF_CONTROL,
-		(vch2_info->vch2_vc & 0x03) << 16
-		|(vch2_info->vch2_data_type & 0x3f) << 8
-		|(vch2_info->vch2_mode & 0x03));
+		/* pdaf type */
+		DCAM_REG_WR(idx, DCAM_PDAF_CONTROL,
+			(vch2_info->vch2_vc & 0x03) << 16
+			|(vch2_info->vch2_data_type & 0x3f) << 8
+			|(vch2_info->vch2_mode & 0x03));
 
-	/* pdaf roi */
-	val = ((roi_info->win.start_y & 0x1FFF) << 16) |
-		(roi_info->win.start_x & 0x1FFF);
-	DCAM_REG_WR(idx, ISP_PPI_AF_WIN_START, val);
+		/* pdaf roi */
+		val = ((roi_info->win.start_y & 0x1FFF) << 16) |
+			(roi_info->win.start_x & 0x1FFF);
+		DCAM_REG_WR(idx, ISP_PPI_AF_WIN_START, val);
 
-	val = ((roi_info->win.end_y & 0x1FFF) << 16) |
-		(roi_info->win.end_x & 0x1FFF);
-	DCAM_REG_WR(idx, ISP_PPI_AF_WIN_END, val);
+		val = ((roi_info->win.end_y & 0x1FFF) << 16) |
+			(roi_info->win.end_x & 0x1FFF);
+		DCAM_REG_WR(idx, ISP_PPI_AF_WIN_END, val);
 
-	/* pdaf ppi */
-	write_pd_table(ppi_info, idx);
+		/* pdaf ppi */
+		write_pd_table(ppi_info, idx);
 
-	pr_debug("idx %d, block area: (%d, %d) (%d, %d), block.w/h: %d, %d, ppi bypass %d\n", idx,
-		ppi_info->block.start_x,
-		ppi_info->block.start_y,
-		ppi_info->block.end_x,
-		ppi_info->block.end_y,
-		ppi_info->block_size.width,
-		ppi_info->block_size.height,
-		ppi_info->bypass);
+		pr_debug("idx %d, block area: (%d, %d) (%d, %d), block.w/h: %d, %d, ppi bypass %d\n", idx,
+			ppi_info->block.start_x,
+			ppi_info->block.start_y,
+			ppi_info->block.end_x,
+			ppi_info->block.end_y,
+			ppi_info->block_size.width,
+			ppi_info->block_size.height,
+			ppi_info->bypass);
 
-	/* ppi block col&row start,end */
-	val = ppi_info->block.start_x
-		| ppi_info->block.end_x << 16;
-	DCAM_REG_MWR(idx, ISP_PPI_BLOCK_COL, 0x1fff1fff, val);
-	val = 0;
-	val = ppi_info->block.start_y
-		| ppi_info->block.end_y << 16;
-	DCAM_REG_MWR(idx, ISP_PPI_BLOCK_ROW, 0x1fff1fff, val);
+		/* ppi block col&row start,end */
+		val = ppi_info->block.start_x
+			| ppi_info->block.end_x << 16;
+		DCAM_REG_MWR(idx, ISP_PPI_BLOCK_COL, 0x1fff1fff, val);
 
-	val = ppi_info->block.start_y
-		| ppi_info->block.end_y << 16;
-	DCAM_REG_WR(idx, DCAM_BPC_PPI_RANG, val);
+		val = ppi_info->block.start_y
+			| ppi_info->block.end_y << 16;
+		DCAM_REG_MWR(idx, ISP_PPI_BLOCK_ROW, 0x1fff1fff, val);
 
-	val = ppi_info->block.start_x
-		| ppi_info->block.end_x << 16;
-	DCAM_REG_WR(idx, DCAM_BPC_PPI_RANG1, val);
+		val = ppi_info->block.start_y
+			| ppi_info->block.end_y << 16;
+		DCAM_REG_WR(idx, DCAM_BPC_PPI_RANG, val);
 
-	/* ppi block w*h */
-	val = 0;
-	val = (ppi_info->block_size.width<<4)
-		| (ppi_info->block_size.height << 6);
-	DCAM_REG_MWR(idx, ISP_PPI_PARAM, 0x000000f0, val);
+		val = ppi_info->block.start_x
+			| ppi_info->block.end_x << 16;
+		DCAM_REG_WR(idx, DCAM_BPC_PPI_RANG1, val);
+
+		/* ppi block w*h */
+		val = 0;
+		val = (ppi_info->block_size.width<<4)
+			| (ppi_info->block_size.height << 6);
+		DCAM_REG_MWR(idx, ISP_PPI_PARAM, 0x000000f0, val);
+	} else {
+		DCAM_REG_MWR(idx, DCAM_MIPI_CAP_CFG1, BIT_0, BIT_0);
+
+		DCAM_REG_MWR(idx, DCAM_VC1_CONTROL, 0x33f30,
+			(vch2_info->vch2_vc & 0x03) << 16
+			|(vch2_info->vch2_data_type & 0x3f) << 8
+			|(vch2_info->vch2_mode & 0x03) << 4);
+	}
 
 	return 0;
 }

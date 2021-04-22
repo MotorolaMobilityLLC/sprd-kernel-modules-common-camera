@@ -66,7 +66,7 @@ static int isp_k_pdaf_type1_block(
 		pr_err("fail to copy from user, ret = %d\n", ret);
 		return -1;
 	}
-	p->pdaf.pdaf_type = 1;
+	p->pdaf.pdaf_type = DCAM_PDAF_TYPE1;
 	if (idx == DCAM_HW_CONTEXT_MAX)
 		return 0;
 
@@ -92,7 +92,7 @@ static int isp_k_pdaf_type2_block(
 		pr_err("fail to copy from user, ret = %d\n", ret);
 		return -1;
 	}
-	p->pdaf.pdaf_type = 2;
+	p->pdaf.pdaf_type = DCAM_PDAF_TYPE2;
 	if (idx == DCAM_HW_CONTEXT_MAX)
 		return 0;
 
@@ -120,7 +120,7 @@ static int isp_k_pdaf_type3_block(
 	}
 
 	idx = p->idx;
-	p->pdaf.pdaf_type = 3;
+	p->pdaf.pdaf_type = DCAM_PDAF_TYPE3;
 	if (idx == DCAM_HW_CONTEXT_MAX)
 		return 0;
 
@@ -147,7 +147,7 @@ static int isp_k_dual_pdaf_block(
 		pr_err("fail to copy from user, ret = %d\n", ret);
 		return -1;
 	}
-	p->pdaf.pdaf_type = 0;
+	p->pdaf.pdaf_type = DCAM_PDAF_DUAL;
 	if (idx == DCAM_HW_CONTEXT_MAX)
 		return 0;
 

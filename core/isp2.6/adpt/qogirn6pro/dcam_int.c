@@ -791,6 +791,7 @@ static void dcamint_pdaf_path_done(void *param)
 	struct dcam_hw_context *dcam_hw_ctx = (struct dcam_hw_context *)param;
 	struct camera_frame *frame = NULL;
 
+	pr_debug("dcam%d enter\n", dcam_hw_ctx->hw_ctx_id);
 	if ((frame = dcamint_frame_prepare(dcam_hw_ctx, DCAM_PATH_PDAF)))
 		dcamint_frame_dispatch(dcam_hw_ctx, DCAM_PATH_PDAF, frame, DCAM_CB_STATIS_DONE);
 }

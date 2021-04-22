@@ -378,19 +378,19 @@ int dcam_k_cfg_pdaf(struct isp_io_param *param, struct dcam_dev_param *p)
 		ret = isp_k_pdaf_type3_set_ppi_info(param, p);
 		break;
 	case DCAM_PDAF_TYPE1_BLOCK:
-		p->pdaf.pdaf_type = 1;
+		p->pdaf.pdaf_type = DCAM_PDAF_TYPE1;
 		ret = isp_k_pdaf_type1_block(param, p);
 		break;
 	case DCAM_PDAF_TYPE2_BLOCK:
-		p->pdaf.pdaf_type = 2;
+		p->pdaf.pdaf_type = DCAM_PDAF_TYPE2;
 		ret = isp_k_pdaf_type2_block(param, p);
 		break;
 	case DCAM_PDAF_TYPE3_BLOCK:
-		p->pdaf.pdaf_type = 3;
+		p->pdaf.pdaf_type = DCAM_PDAF_TYPE3;
 		ret = isp_k_pdaf_type3_block(param, p);
 		break;
 	case DCAM_DUAL_PDAF_BLOCK:
-		p->pdaf.pdaf_type = 0;
+		p->pdaf.pdaf_type = DCAM_PDAF_DUAL;
 		ret = isp_k_dual_pdaf_block(param, p);
 		break;
 	default:

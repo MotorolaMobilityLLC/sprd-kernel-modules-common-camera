@@ -2332,6 +2332,7 @@ static int dcamcore_dev_start(void *dcam_handle, int online)
 		patharg.idx = pctx->hw_ctx_id;
 		patharg.slowmotion_count = pctx->slowmotion_count;
 		patharg.pdaf_path_eb = (pm->pdaf.bypass == 0) ? 1 : 0;
+		patharg.pdaf_type = pm->pdaf.pdaf_type;
 		patharg.cap_info = pctx->cap_info;
 		patharg.pack_bits = pctx->path[i].pack_bits;
 		patharg.src_sel = pctx->path[i].src_sel;
