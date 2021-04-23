@@ -73,6 +73,7 @@ struct isp_k_block {
 	struct isp_dev_iircnr_info iircnr_info;
 	struct isp_dev_nlm_info_v2 nlm_info;
 	struct isp_dev_ygamma_info ygamma_info;
+	struct isp_dev_ygamma_info_v1 ygamma_info_v1;
 	struct isp_dev_yrandom_info yrandom_info;
 	struct isp_dev_noise_filter_info nf_info;
 	uint32_t vst_buf[ISP_VST_IVST_NUM2];
@@ -87,13 +88,14 @@ int dcam_k_cfg_raw_gtm(struct isp_io_param *param, struct dcam_dev_param *p);
 int dcam_k_raw_gtm_block(uint32_t gtm_param_idx, struct dcam_dev_param *p);
 int dcam_k_raw_gtm_slice(uint32_t idx, struct dcam_dev_gtm_slice_info *gtm_slice);
 int dcam_k_cfg_rgb_gain(struct isp_io_param *param, struct dcam_dev_param *p);
-int dcam_k_cfg_rgb_dither(struct isp_io_param *param,
-	struct dcam_dev_param *p);
+int dcam_k_cfg_rgb_dither(struct isp_io_param *param, struct dcam_dev_param *p);
 int dcam_k_cfg_pdaf(struct isp_io_param *param,	struct dcam_dev_param *p);
 int dcam_k_cfg_lsc(struct isp_io_param *param, struct dcam_dev_param *p);
-int dcam_k_cfg_bayerhist(struct isp_io_param *param,
-	struct dcam_dev_param *p);
+int dcam_k_cfg_bayerhist(struct isp_io_param *param, struct dcam_dev_param *p);
 int dcam_k_cfg_aem(struct isp_io_param *param, struct dcam_dev_param *p);
+int dcam_k_cfg_gamma(struct isp_io_param *param, struct dcam_dev_param *p);
+int dcam_k_cfg_cmc10(struct isp_io_param *param, struct dcam_dev_param *p);
+int dcam_k_cfg_cfa(struct isp_io_param *param, struct dcam_dev_param *p);
 int dcam_k_cfg_lscm(struct isp_io_param *param, struct dcam_dev_param *p);
 int dcam_k_cfg_afl(struct isp_io_param *param, struct dcam_dev_param *p);
 int dcam_k_cfg_awbc(struct isp_io_param *param, struct dcam_dev_param *p);
@@ -101,11 +103,13 @@ int dcam_k_cfg_bpc(struct isp_io_param *param, struct dcam_dev_param *p);
 int dcam_k_cfg_grgb(struct isp_io_param *param, struct dcam_dev_param *p);
 int dcam_k_cfg_3dnr_me(struct isp_io_param *param, struct dcam_dev_param *p);
 int dcam_k_cfg_afm(struct isp_io_param *param, struct dcam_dev_param *p);
-void dcam_k_3dnr_set_roi(struct isp_img_rect rect,
-			uint32_t project_mode, uint32_t idx);
+void dcam_k_3dnr_set_roi(struct isp_img_rect rect, uint32_t project_mode, uint32_t idx);
 
 /* for dcam driver internal */
 int dcam_k_blc_block(struct dcam_dev_param *param);
+int dcam_k_gamma_block(struct dcam_dev_param *param);
+int dcam_k_cmc10_block(struct dcam_dev_param *param);
+int dcam_k_cfa_block(struct dcam_dev_param *param);
 int dcam_k_rgb_gain_block(struct dcam_dev_param *param);
 int dcam_k_rgb_dither_random_block(struct dcam_dev_param *param);
 int dcam_k_lsc_block(struct dcam_dev_param *param);

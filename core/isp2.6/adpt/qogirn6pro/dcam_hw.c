@@ -27,6 +27,7 @@
 #define COEF_HOR_UV_SIZE               16
 #define COEF_VOR_Y_SIZE                (32 * 8)
 #define COEF_VOR_UV_SIZE               (32 * 8)
+#define DCAM_BLOCK_SUM                 270
 
 #define IS_DCAM_IF(idx)                ((idx) < 2)
 
@@ -1851,7 +1852,7 @@ static int dcamhw_gtm_update(void *handle, void *arg)
 	return ret;
 }
 
-static struct dcam_cfg_entry dcam_hw_cfg_func_tab[DCAM_BLOCK_TOTAL] = {
+static struct dcam_cfg_entry dcam_hw_cfg_func_tab[DCAM_BLOCK_SUM] = {
 [DCAM_BLOCK_BLC - DCAM_BLOCK_BASE]         = {DCAM_BLOCK_BLC,         dcam_k_cfg_blc},
 [DCAM_BLOCK_AEM - DCAM_BLOCK_BASE]         = {DCAM_BLOCK_AEM,         dcam_k_cfg_aem},
 [DCAM_BLOCK_AWBC - DCAM_BLOCK_BASE]        = {DCAM_BLOCK_AWBC,        dcam_k_cfg_awbc},
@@ -1866,6 +1867,9 @@ static struct dcam_cfg_entry dcam_hw_cfg_func_tab[DCAM_BLOCK_TOTAL] = {
 [DCAM_BLOCK_3DNR_ME - DCAM_BLOCK_BASE]     = {DCAM_BLOCK_3DNR_ME,     dcam_k_cfg_3dnr_me},
 [DCAM_BLOCK_RGB_GTM - DCAM_BLOCK_BASE]     = {DCAM_BLOCK_RGB_GTM,     dcam_k_cfg_raw_gtm},
 [DCAM_BLOCK_LSCM - DCAM_BLOCK_BASE]        = {DCAM_BLOCK_LSCM,        dcam_k_cfg_lscm},
+[ISP_BLOCK_GAMMA - DCAM_BLOCK_BASE]        = {ISP_BLOCK_GAMMA,        dcam_k_cfg_gamma},
+[ISP_BLOCK_CMC - DCAM_BLOCK_BASE]          = {ISP_BLOCK_CMC,          dcam_k_cfg_cmc10},
+[ISP_BLOCK_CFA - DCAM_BLOCK_BASE]          = {ISP_BLOCK_CFA,          dcam_k_cfg_cfa},
 };
 
 static int dcamhw_block_func_get(void *handle, void *arg)
@@ -1875,7 +1879,7 @@ static int dcamhw_block_func_get(void *handle, void *arg)
 
 	fucarg = (struct dcam_hw_block_func_get *)arg;
 
-	if (fucarg->index < DCAM_BLOCK_TOTAL) {
+	if (fucarg->index < DCAM_BLOCK_SUM) {
 		block_func = (struct dcam_cfg_entry *)&dcam_hw_cfg_func_tab[fucarg->index];
 		fucarg->dcam_entry = block_func;
 	}
@@ -1905,6 +1909,9 @@ static int dcamhw_blocks_setall(void *handle, void *arg)
 	dcam_k_raw_gtm_block(DCAM_GTM_PARAM_PRE, p);
 	/* simulator should set this block(random) carefully */
 	dcam_k_rgb_dither_random_block(p);
+	dcam_k_cmc10_block(p);
+	dcam_k_cfa_block(p);
+	dcam_k_gamma_block(p);
 
 	pr_info("dcam%d set all\n", idx);
 
@@ -1939,9 +1946,7 @@ static int dcamhw_blocks_setstatis(void *handle, void *arg)
 	dcam_k_afm_crop_size(p);
 	dcam_k_afm_done_tilenum(p);
 	dcam_k_afm_bypass(p);
-
 	dcam_k_afl_block(p);
-
 	dcam_k_bayerhist_block(p);
 
 	dcam_k_lscm_monitor(p);

@@ -26,25 +26,18 @@
 #define pr_fmt(fmt) "CFA: %d %d %s : "\
 	fmt, current->pid, __LINE__, __func__
 
-static int isp_k_cfa_block(struct isp_io_param *param,
-	struct isp_k_block *isp_k_param, uint32_t idx)
+int dcam_k_cfa_block(struct dcam_dev_param *p)
 {
 	int ret = 0;
 	uint32_t val = 0;
-	struct isp_dev_cfa_info_v1 *cfa_info;
+	uint32_t idx = 0;
+	struct isp_dev_cfa_info_v1 *cfa_info = NULL;
 
-	cfa_info = &isp_k_param->cfa_info_v1;
+	if (p == NULL)
+		return 0;
 
-	ret = copy_from_user((void *)cfa_info,
-			param->property_param,
-			sizeof(struct isp_dev_cfa_info_v1));
-	if (ret != 0) {
-		pr_err("fail to copy from user, ret = %d\n", ret);
-		return ret;
-	}
-
-	if (g_isp_bypass[idx] & (1 << _EISP_CFA))
-		cfa_info->bypass = 1;
+	idx = p->idx;
+	cfa_info = &p->cfa_info_v1;
 
 	DCAM_REG_MWR(idx, DCAM_CFA_NEW_CFG0, BIT_0, cfa_info->bypass);
 	if (cfa_info->bypass)
@@ -78,18 +71,37 @@ static int isp_k_cfa_block(struct isp_io_param *param,
 	return ret;
 }
 
-int isp_k_cfg_cfa(struct isp_io_param *param,
-	struct isp_k_block *isp_k_param, uint32_t idx)
+int dcam_k_cfg_cfa(struct isp_io_param *param, struct dcam_dev_param *p)
 {
 	int ret = 0;
 
 	switch (param->property) {
 	case ISP_PRO_CFA_BLOCK:
-		ret = isp_k_cfa_block(param, isp_k_param, idx);
+		if (p->offline == 0) {
+			ret = copy_from_user((void *)&(p->cfa_info_v1),
+				param->property_param,
+				sizeof(p->cfa_info_v1));
+			if (ret) {
+				pr_err("fail to copy from user ret=0x%x\n", (unsigned int)ret);
+				return -EPERM;
+			}
+			if (p->idx == DCAM_HW_CONTEXT_MAX)
+				return 0;
+			ret = dcam_k_cfa_block(p);
+		} else {
+			mutex_lock(&p->param_lock);
+			ret = copy_from_user((void *)&(p->cfa_info_v1),
+				param->property_param, sizeof(p->cfa_info_v1));
+			if (ret) {
+				mutex_unlock(&p->param_lock);
+				pr_err("fail to copy from user ret=0x%x\n", (unsigned int)ret);
+				return -EPERM;
+			}
+			mutex_unlock(&p->param_lock);
+		}
 		break;
 	default:
-		pr_err("fail to support cmd id = %d\n",
-			param->property);
+		pr_err("fail to support cmd id = %d\n", param->property);
 		break;
 	}
 

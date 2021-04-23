@@ -300,8 +300,14 @@ static int camioctl_param_cfg(struct camera_module *module,
 				isp_ctx_id = channel->isp_fdrl_ctx;
 			else if (param.scene_id == PM_SCENE_FDRH)
 				isp_ctx_id = channel->isp_fdrh_ctx;
-			ret = module->isp_dev_handle->isp_ops->cfg_blk_param(module->isp_dev_handle,
-				isp_ctx_id, &param);
+			if (module->grp->hw_info->prj_id == QOGIRN6pro &&
+				(param.sub_block == ISP_BLOCK_GAMMA || param.sub_block == ISP_BLOCK_CMC ||
+				param.sub_block == ISP_BLOCK_CFA)) {
+				ret = module->dcam_dev_handle->dcam_pipe_ops->cfg_blk_param(
+					&module->dcam_dev_handle->sw_ctx[module->cur_sw_ctx_id], &param);
+			} else
+				ret = module->isp_dev_handle->isp_ops->cfg_blk_param(module->isp_dev_handle,
+					isp_ctx_id, &param);
 		}
 	}
 

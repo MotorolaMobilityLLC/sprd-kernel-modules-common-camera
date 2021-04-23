@@ -30,30 +30,30 @@ static int isp_k_ygamma_block(struct isp_io_param *param,
 	struct isp_k_block *isp_k_param, uint32_t idx)
 {
 	int ret = 0;
-	uint32_t i, val;
-	uint32_t buf_sel, ybuf_addr;
-	struct isp_dev_ygamma_info *ygamma_info;
+	uint32_t i = 0, val = 0;
+	uint32_t buf_sel = 0, ybuf_addr = 0;
+	struct isp_dev_ygamma_info_v1 *ygamma_info;
 
-	ygamma_info = &isp_k_param->ygamma_info;
+	ygamma_info = &isp_k_param->ygamma_info_v1;
 
 	ret = copy_from_user((void *)ygamma_info,
 			param->property_param,
-			sizeof(struct isp_dev_ygamma_info));
+			sizeof(struct isp_dev_ygamma_info_v1));
 	if (ret != 0) {
 		pr_err("fail to copy from user, ret = %d\n", ret);
 		return ret;
 	}
 	if (g_isp_bypass[idx] & (1 << _EISP_GAMY))
 		ygamma_info->bypass = 1;
+
 	if (ygamma_info->bypass)
 		return 0;
 
-	buf_sel = 0;
 	ybuf_addr = ISP_YGAMMA_BUF0_CH0;
 	ISP_REG_MWR(idx, ISP_YGAMMA_PARAM, BIT_1, buf_sel << 1);
 
-	for (i = 0; i < ISP_YUV_GAMMA_NUM - 1; i++) {
-		val = ygamma_info->gain[i] | ((ygamma_info->gain[i+1] & 0xFF) << 8);
+	for (i = 0; i < ISP_YUV_GAMMA_NUM_V1 - 1; i++) {
+		val = ygamma_info->gain[i] | ((ygamma_info->gain[i+1] & 0x3FF) << 8);
 		ISP_REG_WR(idx, ybuf_addr + i * 4, val);
 	}
 

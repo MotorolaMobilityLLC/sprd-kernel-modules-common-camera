@@ -126,6 +126,7 @@ struct dcam_dev_param {
 	uint32_t dcam_slice_mode;
 	uint32_t offline;
 	uint32_t frm_idx;
+	uint32_t buf_sel;
 
 	struct dcam_dev_lsc_param lsc;
 	struct dcam_dev_blc_param blc;
@@ -138,6 +139,9 @@ struct dcam_dev_param {
 	struct dcam_dev_grgb_param grgb;
 	struct dcam_dev_3dnr_param nr3;
 	struct dcam_dev_afm_param afm;
+	struct isp_dev_gamma_info_v1 gamma_info_v1;
+	struct isp_dev_cmc10_info cmc10_info;
+	struct isp_dev_cfa_info_v1 cfa_info_v1;
 	struct dcam_dev_gtm_param gtm[DCAM_GTM_PARAM_MAX];
 	/* qogirn6pro rgb_gtm blocks*/
 	struct dcam_dev_rgb_gtm_param rgb_gtm[DCAM_GTM_PARAM_MAX];
