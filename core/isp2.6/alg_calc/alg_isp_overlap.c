@@ -2501,10 +2501,10 @@ static int isp_init_param_for_overlap(struct slice_cfg_input *slice_input, struc
 	overlapParam->scaler2.bypass = slice_input->calc_dyn_ov.path_scaler[ISP_SPATH_VID]->scaler.scaler_bypass;
 	overlapParam->scaler2.FBC_enable = 0;
 	overlapParam->scaler2.trim_eb = 1;
-	overlapParam->scaler2.trim_start_x = slice_input->calc_dyn_ov.path_scaler[ISP_SPATH_VID]->out_trim.start_x;
-	overlapParam->scaler2.trim_start_y = slice_input->calc_dyn_ov.path_scaler[ISP_SPATH_VID]->out_trim.start_y;
-	overlapParam->scaler2.trim_size_x = slice_input->calc_dyn_ov.path_scaler[ISP_SPATH_VID]->out_trim.size_x;
-	overlapParam->scaler2.trim_size_y = slice_input->calc_dyn_ov.path_scaler[ISP_SPATH_VID]->out_trim.size_y;
+	overlapParam->scaler2.trim_start_x = slice_input->calc_dyn_ov.path_scaler[ISP_SPATH_VID]->in_trim.start_x;
+	overlapParam->scaler2.trim_start_y = slice_input->calc_dyn_ov.path_scaler[ISP_SPATH_VID]->in_trim.start_y;
+	overlapParam->scaler2.trim_size_x = slice_input->calc_dyn_ov.path_scaler[ISP_SPATH_VID]->in_trim.size_x;
+	overlapParam->scaler2.trim_size_y = slice_input->calc_dyn_ov.path_scaler[ISP_SPATH_VID]->in_trim.size_y;
 	overlapParam->scaler2.deci_x_eb = slice_input->calc_dyn_ov.path_scaler[ISP_SPATH_VID]->deci.deci_x_eb;
 	overlapParam->scaler2.deci_y_eb = slice_input->calc_dyn_ov.path_scaler[ISP_SPATH_VID]->deci.deci_y_eb;
 	overlapParam->scaler2.deci_x = slice_input->calc_dyn_ov.path_scaler[ISP_SPATH_VID]->deci.deci_x;
@@ -2554,6 +2554,7 @@ static int isp_init_param_for_overlap(struct slice_cfg_input *slice_input, struc
 	pr_debug("crop_info: en %d, mode %d, sx %d, sy %d, w %d, h %d\n",
 		overlapParam->crop_en, overlapParam->crop_mode,
 		overlapParam->crop_sx, overlapParam->crop_sy, overlapParam->crop_w,overlapParam->crop_h);
+
 	pr_debug("scaler1_info: bypass %d, output_align_hor %d\n",
 		overlapParam->scaler1.bypass, overlapParam->scaler1.output_align_hor);
 	pr_debug("scaler1_info: trim_info: en %d, start_x %d, start_y %d, size_x %d, size_y %d\n",
@@ -2568,6 +2569,21 @@ static int isp_init_param_for_overlap(struct slice_cfg_input *slice_input, struc
 	pr_debug("scaler1_info: scaler_en %d, in_width %d, in_height %d, out_width %d, out_height %d\n",
 		overlapParam->scaler1.scaler_en, scaler1_in_width, scaler1_in_height,
 		overlapParam->scaler1.des_size_x, overlapParam->scaler1.des_size_y);
+
+	pr_debug("scaler2_info: bypass %d, output_align_hor %d\n",
+		overlapParam->scaler2.bypass, overlapParam->scaler2.output_align_hor);
+	pr_debug("scaler2_info: trim_info: en %d, start_x %d, start_y %d, size_x %d, size_y %d\n",
+		overlapParam->scaler2.trim_eb,
+		overlapParam->scaler2.trim_start_x, overlapParam->scaler2.trim_start_y,
+		overlapParam->scaler2.trim_size_x, overlapParam->scaler2.trim_size_y);
+	pr_debug("scaler2_info: deci_info: x_eb %d, y_eb %d, deci_x %d, deci_y %d\n",
+		overlapParam->scaler2.deci_x_eb, overlapParam->scaler2.deci_y_eb,
+		overlapParam->scaler2.deci_x, overlapParam->scaler2.deci_y);
+	pr_debug("scaler2_info: scl_init_phase_hor %d, scl_init_phase_ver %d\n",
+		overlapParam->scaler2.scl_init_phase_hor, overlapParam->scaler2.scl_init_phase_ver);
+	pr_debug("scaler2_info: scaler_en %d, in_width %d, in_height %d, out_width %d, out_height %d\n",
+		overlapParam->scaler2.scaler_en, scaler2_in_width, scaler2_in_height,
+		overlapParam->scaler2.des_size_x, overlapParam->scaler2.des_size_y);
 
 	/*calc overlap*/
 	slice_drv_calculate_overlap(overlapParam);
