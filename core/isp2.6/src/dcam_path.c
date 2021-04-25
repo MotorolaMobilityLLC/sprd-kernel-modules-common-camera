@@ -982,6 +982,7 @@ int dcam_path_store_frm_set(void *dcam_ctx_handle,
 		store_arg.out_size.w = path->out_size.w;
 		store_arg.out_pitch = path->out_pitch;
 		store_arg.in_fmt = dcam_sw_ctx->cap_info.format;
+		store_arg.blk_param = blk_dcam_pm;
 		hw->dcam_ioctl(hw, DCAM_HW_CFG_STORE_ADDR, &store_arg);
 	}
 	if (path_id == DCAM_PATH_BIN && frame->need_pyr_rec)

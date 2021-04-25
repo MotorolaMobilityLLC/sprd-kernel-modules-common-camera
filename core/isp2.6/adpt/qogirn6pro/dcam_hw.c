@@ -2020,6 +2020,7 @@ static int dcamhw_set_store_addr(void *handle, void *arg)
 	struct dcam_hw_cfg_store_addr *param = NULL;
 	uint32_t path_id = 0, addr = 0, idx = 0;
 	struct cam_hw_info *hw = NULL;
+	uint32_t blk_x = 0, blk_y = 0;
 
 	hw = (struct cam_hw_info *)handle;
 	param = (struct dcam_hw_cfg_store_addr *)arg;
@@ -2057,6 +2058,14 @@ static int dcamhw_set_store_addr(void *handle, void *arg)
 	case DCAM_PATH_HIST:
 		DCAM_REG_WR(idx, DCAM_HIST_ROI_BASE_WADDR,
 			param->frame_addr[0] + STATIS_HIST_HEADER_SIZE);
+		break;
+	case DCAM_PATH_AFM:
+		DCAM_REG_WR(idx, DCAM_AFM_LUM_FV_BASE_WADDR, param->frame_addr[0]);
+		if (param->blk_param && param->blk_param->afm.af_param.afm_enhanced_lum.afm_hist_en) {
+			blk_x = param->blk_param->afm.win_num.width;
+			blk_y = param->blk_param->afm.win_num.height;
+			DCAM_REG_WR(idx, DCAM_AFM_HIST_BASE_WADDR, param->frame_addr[0] + blk_x * blk_y * 16);
+		}
 		break;
 	default:
 		DCAM_REG_WR(idx, addr, param->frame_addr[0]);

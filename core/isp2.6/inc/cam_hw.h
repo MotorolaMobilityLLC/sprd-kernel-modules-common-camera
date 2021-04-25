@@ -1085,6 +1085,7 @@ struct dcam_hw_cfg_store_addr {
 	uint32_t in_fmt;
 	uint32_t out_pitch;
 	uint32_t reg_addr;
+	struct dcam_dev_param *blk_param;
 	struct img_size out_size;
 };
 
