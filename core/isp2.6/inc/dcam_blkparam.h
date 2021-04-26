@@ -25,7 +25,11 @@ struct dcam_dev_lsc_param {
 	uint32_t update;
 	uint32_t load_trigger;
 	uint32_t weight_tab_size;
+	uint32_t weight_tab_size_x;
+	uint32_t weight_tab_size_y;
 	void *weight_tab;
+	void *weight_tab_x;
+	void *weight_tab_y;
 	struct mutex lsc_lock;
 	struct camera_buf buf;
 	struct dcam_dev_lsc_info lens_info;

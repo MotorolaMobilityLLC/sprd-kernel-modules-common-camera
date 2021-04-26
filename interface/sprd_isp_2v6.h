@@ -687,8 +687,12 @@ struct dcam_dev_lsc_info {
 	uint32_t grid_num_t;
 	uint32_t gridtab_len;
 	uint32_t weight_num;
+	uint32_t weight_num_x;
+	uint32_t weight_num_y;
 	uint64_t grid_tab_addr;
 	uint64_t weight_tab_addr;
+	uint64_t weight_tab_addr_x;
+	uint64_t weight_tab_addr_y;
 	uint32_t grid_width_x;
 	uint32_t grid_width_y;
 };

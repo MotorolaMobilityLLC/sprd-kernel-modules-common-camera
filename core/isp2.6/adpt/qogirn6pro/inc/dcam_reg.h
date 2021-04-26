@@ -948,6 +948,9 @@ extern const unsigned long slowmotion_store_addr[3][4];
 #define LSC_WEI_TABLE_START                             (0x0900UL)
 #define LSC_WEI_TABLE_SIZE                              (0x0400UL)
 
+#define LSC_WEI_X_TABLE                                 (0xd200UL)
+#define LSC_WEI_Y_TABLE                                 (0xd700UL)
+
 #define RDS_COEF_TABLE_START                            (0x0d40UL)
 #define RDS_COEF_TABLE_SIZE                             (0x00C0UL)
 

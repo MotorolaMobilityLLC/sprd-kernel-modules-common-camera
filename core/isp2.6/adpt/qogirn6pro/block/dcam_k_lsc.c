@@ -42,13 +42,13 @@ int dcam_init_lsc_slice(void *in, uint32_t online)
 	uint32_t idx, val = 0;
 	uint32_t start_roi = 0;
 	uint32_t grid_x_num_slice = 0;
-	struct lsc_slice slice;
+	struct lsc_slice slice = {0};
 	struct dcam_dev_lsc_info *info = NULL;
 	struct dcam_dev_lsc_param *param = NULL;
 	struct dcam_sw_context *dcam_sw_ctx = NULL;
-	struct dcam_dev_param *blk_dcam_pm;
+	struct dcam_dev_param *blk_dcam_pm = NULL;
 	struct cam_hw_info *hw = NULL;
-	struct dcam_hw_force_copy copyarg;
+	struct dcam_hw_force_copy copyarg = {0};
 
 	blk_dcam_pm = (struct dcam_dev_param *)in;
 	dcam_sw_ctx = (struct dcam_sw_context *)blk_dcam_pm->dev;
@@ -60,12 +60,12 @@ int dcam_init_lsc_slice(void *in, uint32_t online)
 	/* need update grid_x_num and more when offline slice*/
 	if (online == 0 && dcam_sw_ctx->dcam_slice_mode == CAM_OFFLINE_SLICE_HW) {
 		start_roi = dcam_sw_ctx->cur_slice ->start_x - DCAM_OVERLAP;
-		grid_x_num_slice = ((dcam_sw_ctx->cur_slice->size_x + DCAM_OVERLAP) / 2 + info->grid_width - 1) / info->grid_width + 3;
+		grid_x_num_slice = ((dcam_sw_ctx->cur_slice->size_x + DCAM_OVERLAP) / 2 + info->grid_width_x - 1) / info->grid_width_x + 3;
 	} else
 		grid_x_num_slice = info->grid_x_num;
 
-	slice.current_x = (start_roi / 2) / info->grid_width;
-	slice.relative_x = (start_roi / 2) % info->grid_width;
+	slice.current_x = (start_roi / 2) / info->grid_width_x;
+	slice.relative_x = (start_roi / 2) % info->grid_width_x;
 
 	/* only for slice mode */
 	val = ((slice.relative_x & 0xff) << 16) |
@@ -79,8 +79,8 @@ int dcam_init_lsc_slice(void *in, uint32_t online)
 	copyarg.glb_reg_lock = dcam_sw_ctx->glb_reg_lock;
 	hw->dcam_ioctl(hw, DCAM_HW_CFG_FORCE_COPY, &copyarg);
 
-	pr_info("w %d, grid len %d grid %d  num_t %d (%d, %d)\n",
-		info->weight_num, info->gridtab_len, info->grid_width,
+	pr_debug("w_x %d, w_y %d, grid len %d grid_width_x %d  num_t %d (%d, %d)\n",
+		info->weight_num_x, info->weight_num_y, info->gridtab_len, info->grid_width_x,
 		info->grid_num_t, info->grid_x_num, info->grid_y_num);
 	return 0;
 }
@@ -88,20 +88,20 @@ int dcam_init_lsc_slice(void *in, uint32_t online)
 int dcam_init_lsc(void *in, uint32_t online)
 {
 	int ret = 0;
-	uint32_t idx, i = 0;
-	uint32_t dst_w_num = 0;
-	uint32_t val, lens_load_flag;
-	uint32_t buf_sel, offset, hw_addr;
+	uint32_t idx = 0, i = 0;
+	uint32_t dst_w_num_x = 0, dst_w_num_y = 0;
+	uint32_t val = 0, lens_load_flag = 0;
+	uint32_t buf_sel = 0, hw_addr = 0, buf_addr_x = 0, buf_addr_y = 0;
 	uint32_t start_roi = 0;
-	uint16_t *w_buff = NULL, *gain_tab = NULL;
+	uint16_t *w_buff_x = NULL, *w_buff_y = NULL, *gain_tab = NULL;
 	uint32_t grid_x_num_slice = 0;
-	struct lsc_slice slice;
-	struct dcam_dev_lsc_info *info;
-	struct dcam_dev_lsc_param *param;
+	struct lsc_slice slice = {0};
+	struct dcam_dev_lsc_info *info = NULL;
+	struct dcam_dev_lsc_param *param = NULL;
 	struct dcam_sw_context *dcam_sw_ctx = NULL;
-	struct dcam_dev_param *blk_dcam_pm;
+	struct dcam_dev_param *blk_dcam_pm = NULL;
 	struct cam_hw_info *hw = NULL;
-	struct dcam_hw_force_copy copyarg;
+	struct dcam_hw_force_copy copyarg = {0};
 
 	blk_dcam_pm = (struct dcam_dev_param *)in;
 	dcam_sw_ctx = (struct dcam_sw_context *)blk_dcam_pm->dev;
@@ -128,34 +128,47 @@ int dcam_init_lsc(void *in, uint32_t online)
 	/* need update grid_x_num and more when offline slice*/
 	if (online == 0 && dcam_sw_ctx->dcam_slice_mode == CAM_OFFLINE_SLICE_HW) {
 		start_roi = 0;
-		grid_x_num_slice = ((dcam_sw_ctx->cur_slice->size_x + DCAM_OVERLAP) / 2 + info->grid_width - 1) / info->grid_width + 3;
+		grid_x_num_slice = ((dcam_sw_ctx->cur_slice->size_x + DCAM_OVERLAP) / 2 + info->grid_width_x - 1) / info->grid_width_x + 3;
 	} else {
 		grid_x_num_slice = info->grid_x_num;
 	}
 
-	slice.current_x = (start_roi / 2) / info->grid_width;
-	slice.relative_x = (start_roi / 2) % info->grid_width;
+	slice.current_x = (start_roi / 2) / info->grid_width_x;
+	slice.relative_x = (start_roi / 2) % info->grid_width_x;
 
-	w_buff = (uint16_t *)param->weight_tab;
+	w_buff_x = (uint16_t *)param->weight_tab_x;
+	w_buff_y = (uint16_t *)param->weight_tab_y;
 	gain_tab = (uint16_t *)param->buf.addr_k[0];
 	hw_addr = (uint32_t)param->buf.iova[0];
-	if (!w_buff || !gain_tab || !hw_addr) {
-		pr_err("fail to get buf %p %p %x\n", w_buff, gain_tab, hw_addr);
+	if (!w_buff_x || !w_buff_y || !gain_tab || !hw_addr) {
+		pr_err("fail to get buf %px %px %px %x\n", w_buff_x, w_buff_y, gain_tab, hw_addr);
 		ret = -EPERM;
 		goto exit;
 	}
 
 	/* step1:  load weight tab */
-	dst_w_num = (info->grid_width >> 1) + 1;
-	offset = LSC_WEI_TABLE_START;
-	for (i = 0; i < dst_w_num; i++) {
-		val = (((uint32_t)w_buff[i * 3 + 0]) & 0xFFFF) |
-			((((uint32_t)w_buff[i * 3 + 1]) & 0xFFFF) << 16);
-		DCAM_REG_WR(idx, offset, val);
-		offset += 4;
-		val = (((uint32_t)w_buff[i * 3 + 2]) & 0xFFFF);
-		DCAM_REG_WR(idx, offset, val);
-		offset += 4;
+	dst_w_num_x = (info->grid_width_x >> 1) + 1;
+	buf_addr_x = LSC_WEI_X_TABLE;
+	for (i = 0; i < dst_w_num_x; i++) {
+		val = (((uint32_t)w_buff_x[i * 3 + 0]) & 0xFFFF) |
+			((((uint32_t)w_buff_x[i * 3 + 1]) & 0xFFFF) << 16);
+		DCAM_REG_WR(idx, buf_addr_x, val);
+		buf_addr_x += 4;
+		val = (((uint32_t)w_buff_x[i * 3 + 2]) & 0xFFFF);
+		DCAM_REG_WR(idx, buf_addr_x, val);
+		buf_addr_x += 4;
+	}
+
+	dst_w_num_y = (info->grid_width_y >> 1) + 1;
+	buf_addr_y = LSC_WEI_Y_TABLE;
+	for (i = 0; i < dst_w_num_y; i++) {
+		val = (((uint32_t)w_buff_y[i * 3 + 0]) & 0xFFFF) |
+			((((uint32_t)w_buff_y[i * 3 + 1]) & 0xFFFF) << 16);
+		DCAM_REG_WR(idx, buf_addr_y, val);
+		buf_addr_y += 4;
+		val = (((uint32_t)w_buff_y[i * 3 + 2]) & 0xFFFF);
+		DCAM_REG_WR(idx, buf_addr_y, val);
+		buf_addr_y += 4;
 	}
 	pr_debug("write weight tab done\n");
 
@@ -195,9 +208,10 @@ int dcam_init_lsc(void *in, uint32_t online)
 	DCAM_REG_MWR(idx, DCAM_LENS_SLICE_CTRL1, 0xff, grid_x_num_slice);
 
 	/* lens_load_buf_sel toggle */
-	val = DCAM_REG_RD(idx, DCAM_LENS_LOAD_ENABLE);
-	buf_sel = !((val & BIT_1) >> 1);
-	DCAM_REG_MWR(idx, DCAM_LENS_LOAD_ENABLE, BIT_1, buf_sel << 1);
+	val = DCAM_REG_RD(idx, DCAM_BUF_CTRL);
+	buf_sel = !(val & BIT_16);
+	DCAM_REG_MWR(idx, DCAM_BUF_CTRL, BIT_0, BIT_0);
+	DCAM_REG_MWR(idx, DCAM_BUF_CTRL, BIT_16, buf_sel << 16);
 	pr_debug("buf_sel %d\n", buf_sel);
 
 	/* step 4: if initialized config, polling lens_load_flag done. */
@@ -236,8 +250,8 @@ int dcam_init_lsc(void *in, uint32_t online)
 		param->load_trigger = 1;
 	}
 
-	pr_info("w %d,  grid len %d grid %d  num_t %d (%d, %d)\n",
-		info->weight_num, info->gridtab_len, info->grid_width,
+	pr_debug("w_x %d, w_y %d, grid len %d grid_width_x %d  num_t %d (%d, %d)\n",
+		info->weight_num_x, info->weight_num_y, info->gridtab_len, info->grid_width_x,
 		info->grid_num_t, info->grid_x_num, info->grid_y_num);
 	return 0;
 
@@ -251,19 +265,19 @@ exit:
 int dcam_update_lsc(void *in)
 {
 	int ret = 0;
-	uint32_t idx, i = 0;
-	uint32_t update;
-	uint32_t dst_w_num = 0;
-	uint32_t val, lens_load_flag;
-	uint32_t buf_sel, offset, hw_addr;
-	uint16_t *w_buff = NULL, *gain_tab = NULL;
+	uint32_t idx = 0, i = 0;
+	uint32_t dst_w_num_x = 0, dst_w_num_y = 0;
+	uint32_t update = 0;
+	uint32_t val = 0, lens_load_flag = 0;
+	uint32_t buf_sel = 0, hw_addr = 0, buf_addr_x = 0, buf_addr_y = 0;
+	uint16_t *w_buff_x = NULL, *w_buff_y = NULL, *gain_tab = NULL;
 	uint32_t grid_x_num_slice = 0;
 	struct dcam_dev_lsc_info *info = NULL;
 	struct dcam_dev_lsc_param *param = NULL;
 	struct dcam_sw_context *dcam_sw_ctx = NULL;
-	struct dcam_dev_param *blk_dcam_pm;
+	struct dcam_dev_param *blk_dcam_pm = NULL;
 	struct cam_hw_info *hw = NULL;
-	struct dcam_hw_auto_copy copyarg;
+	struct dcam_hw_auto_copy copyarg = {0};
 
 	blk_dcam_pm = (struct dcam_dev_param *)in;
 	dcam_sw_ctx = (struct dcam_sw_context *)blk_dcam_pm->dev;
@@ -290,11 +304,12 @@ int dcam_update_lsc(void *in)
 	else
 		grid_x_num_slice = info->grid_x_num;
 
-	w_buff = (uint16_t *)param->weight_tab;
+	w_buff_x = (uint16_t *)param->weight_tab_x;
+	w_buff_y = (uint16_t *)param->weight_tab_y;
 	gain_tab = (uint16_t *)param->buf.addr_k[0];
 	hw_addr = (uint32_t)param->buf.iova[0];
-	if (!w_buff || !gain_tab || !hw_addr) {
-		pr_err("fail to get buf %px %px %x\n", w_buff, gain_tab, hw_addr);
+	if (!w_buff_x || !w_buff_y || !gain_tab || !hw_addr) {
+		pr_err("fail to get buf %px %px %px %x\n", w_buff_x, w_buff_y, gain_tab, hw_addr);
 		ret = -EPERM;
 		goto exit;
 	}
@@ -320,16 +335,27 @@ int dcam_update_lsc(void *in)
 
 	/* step1:  load weight tab */
 	if (update & _UPDATE_INFO) {
-		dst_w_num = (info->grid_width >> 1) + 1;
-		offset = LSC_WEI_TABLE_START;
-		for (i = 0; i < dst_w_num; i++) {
-			val = (((uint32_t)w_buff[i * 3 + 0]) & 0xFFFF) |
-				((((uint32_t)w_buff[i * 3 + 1]) & 0xFFFF) << 16);
-			DCAM_REG_WR(idx, offset, val);
-			offset += 4;
-			val = (((uint32_t)w_buff[i * 3 + 2]) & 0xFFFF);
-			DCAM_REG_WR(idx, offset, val);
-			offset += 4;
+		dst_w_num_x = (info->grid_width_x >> 1) + 1;
+		buf_addr_x = LSC_WEI_X_TABLE;
+		for (i = 0; i < dst_w_num_x; i++) {
+			val = (((uint32_t)w_buff_x[i * 3 + 0]) & 0xFFFF) |
+				((((uint32_t)w_buff_x[i * 3 + 1]) & 0xFFFF) << 16);
+			DCAM_REG_WR(idx, buf_addr_x, val);
+			buf_addr_x += 4;
+			val = (((uint32_t)w_buff_x[i * 3 + 2]) & 0xFFFF);
+			DCAM_REG_WR(idx, buf_addr_x, val);
+			buf_addr_x += 4;
+		}
+		dst_w_num_y = (info->grid_width_y >> 1) + 1;
+		buf_addr_y = LSC_WEI_Y_TABLE;
+		for (i = 0; i < dst_w_num_y; i++) {
+			val = (((uint32_t)w_buff_y[i * 3 + 0]) & 0xFFFF) |
+				((((uint32_t)w_buff_y[i * 3 + 1]) & 0xFFFF) << 16);
+			DCAM_REG_WR(idx, buf_addr_y, val);
+			buf_addr_y += 4;
+			val = (((uint32_t)w_buff_y[i * 3 + 2]) & 0xFFFF);
+			DCAM_REG_WR(idx, buf_addr_y, val);
+			buf_addr_y += 4;
 		}
 		pr_debug("update weight tab done\n");
 	}
@@ -359,14 +385,15 @@ int dcam_update_lsc(void *in)
 		/* only for slice mode */
 		DCAM_REG_WR(idx, DCAM_LENS_SLICE_CTRL0, 0x0);
 		DCAM_REG_MWR(idx, DCAM_LENS_SLICE_CTRL1, 0xff, grid_x_num_slice);
-		pr_debug("update grid %d x %d y %d\n", info->grid_width,
+		pr_debug("update grid_width_x %d x %d y %d\n", info->grid_width_x,
 				info->grid_x_num, info->grid_y_num);
 	}
 
 	/* lens_load_buf_sel toggle */
-	val = DCAM_REG_RD(idx, DCAM_LENS_LOAD_ENABLE);
-	buf_sel = !((val & BIT_1) >> 1);
-	DCAM_REG_MWR(idx, DCAM_LENS_LOAD_ENABLE, BIT_1, buf_sel << 1);
+	val = DCAM_REG_RD(idx, DCAM_BUF_CTRL);
+	buf_sel = !(val & BIT_16);
+	DCAM_REG_MWR(idx, DCAM_BUF_CTRL, BIT_0, BIT_0);
+	DCAM_REG_MWR(idx, DCAM_BUF_CTRL, BIT_16, buf_sel << 16);
 
 	pr_debug("sof %d, buf_sel %d\n", dcam_sw_ctx->frame_index, buf_sel);
 
@@ -388,33 +415,57 @@ exit:
 int dcam_k_lsc_block(struct dcam_dev_param *p)
 {
 	int ret = 0;
-	uint16_t *w_buff = NULL, *gain_tab = NULL;
-	struct dcam_dev_lsc_info *info;
-	struct dcam_dev_lsc_param *param;
-	unsigned long wtab_uaddr, gtab_uaddr;
+	uint16_t *w_buff_x = NULL, *w_buff_y = NULL, *gain_tab = NULL;
+	struct dcam_dev_lsc_info *info = NULL;
+	struct dcam_dev_lsc_param *param = NULL;
+	unsigned long wtab_uaddr_x = 0, wtab_uaddr_y = 0, gtab_uaddr = 0;
 
 	param = &p->lsc;
 	info = &param->lens_info;
-	if (param->weight_tab_size < info->weight_num) {
-		if (param->weight_tab) {
-			kfree(param->weight_tab);
-			param->weight_tab = NULL;
-			param->weight_tab_size = 0;
+	if (param->weight_tab_size_x < info->weight_num_x) {
+		if (param->weight_tab_x) {
+			kfree(param->weight_tab_x);
+			param->weight_tab_x = NULL;
+			param->weight_tab_size_x = 0;
 		}
-		w_buff = kzalloc(info->weight_num, GFP_ATOMIC);
-		if (w_buff == NULL) {
+		w_buff_x = kzalloc(info->weight_num_x, GFP_ATOMIC);
+		if (w_buff_x == NULL) {
 			ret = -ENOMEM;
 			goto exit;
 		}
-		param->weight_tab = w_buff;
-		param->weight_tab_size = info->weight_num;
+		param->weight_tab_x = w_buff_x;
+		param->weight_tab_size_x = info->weight_num_x;
+	}
+
+	if (param->weight_tab_size_y < info->weight_num_y) {
+		if (param->weight_tab_y) {
+			kfree(param->weight_tab_y);
+			param->weight_tab_y = NULL;
+			param->weight_tab_size_y = 0;
+		}
+		w_buff_y = kzalloc(info->weight_num_y, GFP_ATOMIC);
+		if (w_buff_y == NULL) {
+			ret = -ENOMEM;
+			goto exit;
+		}
+		param->weight_tab_y = w_buff_y;
+		param->weight_tab_size_y = info->weight_num_y;
 	}
 
 	if (param->update & _UPDATE_INFO) {
-		w_buff = (uint16_t *)param->weight_tab;
-		wtab_uaddr = (unsigned long)info->weight_tab_addr;
-		ret = copy_from_user((void *)w_buff,
-				(void __user *)wtab_uaddr, info->weight_num);
+		w_buff_x = (uint16_t *)param->weight_tab_x;
+		wtab_uaddr_x = (unsigned long)info->weight_tab_addr_x;
+		ret = copy_from_user((void *)w_buff_x,
+				(void __user *)wtab_uaddr_x, info->weight_num_x);
+		if (ret != 0) {
+			pr_err("fail to copy from user, ret = %d\n", ret);
+			ret = -EPERM;
+			goto exit;
+		}
+		w_buff_y = (uint16_t *)param->weight_tab_y;
+		wtab_uaddr_y = (unsigned long)info->weight_tab_addr_y;
+		ret = copy_from_user((void *)w_buff_y,
+				(void __user *)wtab_uaddr_y, info->weight_num_y);
 		if (ret != 0) {
 			pr_err("fail to copy from user, ret = %d\n", ret);
 			ret = -EPERM;
@@ -446,7 +497,7 @@ int dcam_k_cfg_lsc(struct isp_io_param *param, struct dcam_dev_param *p)
 {
 	int ret = 0;
 	uint32_t bit_update = _UPDATE_GAIN;
-	struct dcam_dev_lsc_info __user *p_ulsc;
+	struct dcam_dev_lsc_info __user *p_ulsc = NULL;
 
 	switch (param->property) {
 	case DCAM_PRO_LSC_BLOCK:
