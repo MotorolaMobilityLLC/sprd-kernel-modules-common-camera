@@ -34,12 +34,11 @@ int dcam_k_gamma_block(struct dcam_dev_param *param)
 	uint32_t i = 0, chn = 0;
 	struct isp_dev_gamma_info_v1 *p;
 
-	param->buf_sel = !param->buf_sel;
 	if (param == NULL)
 		return -EPERM;
 
 	idx = param->idx;
-	p = &(param->gamma_info_v1);
+	p = &(param->gamma_info_v1.gamma_info);
 
 	if (idx >= DCAM_HW_CONTEXT_MAX)
 		return 0;
@@ -49,8 +48,7 @@ int dcam_k_gamma_block(struct dcam_dev_param *param)
 		return 0;
 
 	/* only cfg mode and buf0 is selected. */
-	DCAM_REG_MWR(idx, DCAM_FGAMMA10_PARAM, BIT_1, param->buf_sel << 1);
-	DCAM_REG_MWR(idx, DCAM_BUF_CTRL, 0x100000, param->buf_sel << 20);
+	DCAM_REG_MWR(idx, DCAM_BUF_CTRL, 0x100000, param->gamma_info_v1.buf_sel << 20);
 	DCAM_REG_MWR(idx, DCAM_BUF_CTRL, BIT_4, BIT_4);
 	for (chn = 0; chn < 3; chn++) {
 		val = (chn & 0x3) << 8;
@@ -73,6 +71,7 @@ int dcam_k_gamma_block(struct dcam_dev_param *param)
 		}
 	}
 
+	DCAM_REG_MWR(idx, DCAM_BUF_CTRL, 0x100000, (!param->gamma_info_v1.buf_sel) << 20);
 	return ret;
 }
 
@@ -86,9 +85,9 @@ int dcam_k_cfg_gamma(struct isp_io_param *param, struct dcam_dev_param *p)
 		 * Offline need mutex to protect param
 		 */
 		if (p->offline == 0) {
-			ret = copy_from_user((void *)&(p->gamma_info_v1),
+			ret = copy_from_user((void *)&(p->gamma_info_v1.gamma_info),
 				param->property_param,
-				sizeof(p->gamma_info_v1));
+				sizeof(p->gamma_info_v1.gamma_info));
 			if (ret) {
 				pr_err("fail to copy from user ret=0x%x\n", (unsigned int)ret);
 				return -EPERM;
@@ -98,9 +97,9 @@ int dcam_k_cfg_gamma(struct isp_io_param *param, struct dcam_dev_param *p)
 			ret = dcam_k_gamma_block(p);
 		} else {
 			mutex_lock(&p->param_lock);
-			ret = copy_from_user((void *)&(p->gamma_info_v1),
+			ret = copy_from_user((void *)&(p->gamma_info_v1.gamma_info),
 				param->property_param,
-				sizeof(p->gamma_info_v1));
+				sizeof(p->gamma_info_v1.gamma_info));
 			if (ret) {
 				mutex_unlock(&p->param_lock);
 				pr_err("fail to copy from user ret=0x%x\n", (unsigned int)ret);

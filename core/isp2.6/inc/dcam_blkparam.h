@@ -31,6 +31,11 @@ struct dcam_dev_lsc_param {
 	struct dcam_dev_lsc_info lens_info;
 };
 
+struct dcam_dev_gamma_param_v1 {
+	uint32_t buf_sel;
+	struct isp_dev_gamma_info_v1 gamma_info;
+};
+
 struct dcam_dev_blc_param {
 	struct dcam_dev_blc_info blc_info;
 };
@@ -126,7 +131,6 @@ struct dcam_dev_param {
 	uint32_t dcam_slice_mode;
 	uint32_t offline;
 	uint32_t frm_idx;
-	uint32_t buf_sel;
 
 	struct dcam_dev_lsc_param lsc;
 	struct dcam_dev_blc_param blc;
@@ -139,9 +143,12 @@ struct dcam_dev_param {
 	struct dcam_dev_grgb_param grgb;
 	struct dcam_dev_3dnr_param nr3;
 	struct dcam_dev_afm_param afm;
-	struct isp_dev_gamma_info_v1 gamma_info_v1;
+	struct dcam_dev_gamma_param_v1 gamma_info_v1;
+	struct isp_dev_nlm_imblance_v2 nlm_imblance2;
+	struct isp_dev_nlm_info_v2 nlm_info2;
 	struct isp_dev_cmc10_info cmc10_info;
 	struct isp_dev_cfa_info_v1 cfa_info_v1;
+	struct isp_dev_cce_info cce_info;
 	struct dcam_dev_gtm_param gtm[DCAM_GTM_PARAM_MAX];
 	/* qogirn6pro rgb_gtm blocks*/
 	struct dcam_dev_rgb_gtm_param rgb_gtm[DCAM_GTM_PARAM_MAX];
@@ -149,6 +156,9 @@ struct dcam_dev_param {
 	struct dcam_dev_nl6_bpc_param bpc_nl6;
 	struct dcam_dev_lscm_param lscm;
 	struct dcam_dev_pdaf_param pdaf;
+
+	uint32_t vst_buf[ISP_VST_IVST_NUM2];
+	uint32_t ivst_buf[ISP_VST_IVST_NUM2];
 };
 
 typedef int (*FUNC_DCAM_PARAM)(struct dcam_dev_param *param);

@@ -51,18 +51,18 @@ int dcam_k_cmc10_block(struct dcam_dev_param *param)
 
 	val = ((cmc10_info->matrix.val[3] & 0x3FFF) << 14) |
 		(cmc10_info->matrix.val[2] & 0x3FFF);
-	DCAM_REG_WR(idx, (DCAM_CMC10_MATRIX0 + 4), val);
+	DCAM_REG_WR(idx, (DCAM_CMC10_MATRIX1), val);
 
 	val = ((cmc10_info->matrix.val[5] & 0x3FFF) << 14) |
 		(cmc10_info->matrix.val[4] & 0x3FFF);
-	DCAM_REG_WR(idx, (DCAM_CMC10_MATRIX0 + 8), val);
+	DCAM_REG_WR(idx, (DCAM_CMC10_MATRIX2), val);
 
 	val = ((cmc10_info->matrix.val[7] & 0x3FFF) << 14) |
 		(cmc10_info->matrix.val[6] & 0x3FFF);
-	DCAM_REG_WR(idx, (DCAM_CMC10_MATRIX0 + 12), val);
+	DCAM_REG_WR(idx, (DCAM_CMC10_MATRIX3), val);
 
 	val = cmc10_info->matrix.val[8] & 0x3FFF;
-	DCAM_REG_WR(idx, (DCAM_CMC10_MATRIX0 + 16), val);
+	DCAM_REG_WR(idx, (DCAM_CMC10_MATRIX4), val);
 
 	return ret;
 }

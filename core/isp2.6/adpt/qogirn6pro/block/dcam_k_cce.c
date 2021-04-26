@@ -26,25 +26,20 @@
 #define pr_fmt(fmt) "CCE: %d %d %s : "\
 	fmt, current->pid, __LINE__, __func__
 
-static int isp_k_cce_block(struct isp_io_param *param,
-	struct isp_k_block *isp_k_param, uint32_t idx)
+int dcam_k_cce_block(struct dcam_dev_param *p)
 {
 	int ret = 0;
 	uint32_t val = 0;
-	struct isp_dev_cce_info *cce_info;
+	uint32_t idx = 0;
+	struct isp_dev_cce_info *cce_info = NULL;
 
-	cce_info = &isp_k_param->cce_info;
+	if (p == NULL)
+		return 0;
 
-	ret = copy_from_user((void *)cce_info,
-			param->property_param,
-			sizeof(struct isp_dev_cce_info));
-	if (ret != 0) {
-		pr_err("fail to copy from user, ret = %d\n", ret);
-		return ret;
-	}
+	cce_info = &p->cce_info;
+	idx = p->idx;
 
-	if (g_isp_bypass[idx] & (1 << _EISP_CCE))
-		cce_info->bypass = 1;
+	DCAM_REG_WR(idx, DCAM_CCE_PARAM, cce_info->bypass);
 	if (cce_info->bypass)
 		return 0;
 
@@ -75,14 +70,33 @@ static int isp_k_cce_block(struct isp_io_param *param,
 	return ret;
 }
 
-int isp_k_cfg_cce(struct isp_io_param *param,
-	struct isp_k_block *isp_k_param, uint32_t idx)
+int dcam_k_cfg_cce(struct isp_io_param *param, struct dcam_dev_param *p)
 {
 	int ret = 0;
 
 	switch (param->property) {
 	case ISP_PRO_CCE_BLOCK:
-		ret = isp_k_cce_block(param, isp_k_param, idx);
+		if (p->offline == 0) {
+			ret = copy_from_user((void *)&(p->cce_info),
+				param->property_param, sizeof(p->cce_info));
+			if (ret) {
+				pr_err("fail to copy from user ret=0x%x\n", (unsigned int)ret);
+				return -EPERM;
+			}
+			if (p->idx == DCAM_HW_CONTEXT_MAX)
+				return 0;
+			ret = dcam_k_cce_block(p);
+		} else {
+			mutex_lock(&p->param_lock);
+			ret = copy_from_user((void *)&(p->cce_info),
+				param->property_param, sizeof(p->cce_info));
+			if (ret) {
+				mutex_unlock(&p->param_lock);
+				pr_err("fail to copy from user ret=0x%x\n", (unsigned int)ret);
+				return -EPERM;
+			}
+			mutex_unlock(&p->param_lock);
+		}
 		break;
 	default:
 		pr_err("fail to support cmd id = %d\n",

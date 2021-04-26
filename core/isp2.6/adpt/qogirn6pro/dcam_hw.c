@@ -830,16 +830,6 @@ static int dcamhw_path_start(void *handle, void *arg)
 
 	patharg = (struct dcam_hw_path_start *)arg;
 
-#ifdef CAM_ON_HAPS
-	DCAM_REG_MWR(patharg->idx, DCAM_CFA_NEW_CFG0, BIT_0, 0);
-	DCAM_REG_WR(patharg->idx, DCAM_CCE_MATRIX0, 0x4b04d);
-	DCAM_REG_WR(patharg->idx, DCAM_CCE_MATRIX1, 0x3ea81d);
-	DCAM_REG_WR(patharg->idx, DCAM_CCE_MATRIX2, 0x407ab);
-	DCAM_REG_WR(patharg->idx, DCAM_CCE_MATRIX3, 0x3ca880);
-	DCAM_REG_WR(patharg->idx, DCAM_CCE_MATRIX4, 0x7eb);
-	DCAM_REG_MWR(patharg->idx, DCAM_CCE_PARAM, BIT_0, 0);
-#endif
-
 	switch (patharg->path_id) {
 	case  DCAM_PATH_FULL:
 		DCAM_REG_MWR(patharg->idx, DCAM_STORE4_PARAM, BIT_1, BIT_1);
@@ -1870,6 +1860,8 @@ static struct dcam_cfg_entry dcam_hw_cfg_func_tab[DCAM_BLOCK_SUM] = {
 [ISP_BLOCK_GAMMA - DCAM_BLOCK_BASE]        = {ISP_BLOCK_GAMMA,        dcam_k_cfg_gamma},
 [ISP_BLOCK_CMC - DCAM_BLOCK_BASE]          = {ISP_BLOCK_CMC,          dcam_k_cfg_cmc10},
 [ISP_BLOCK_CFA - DCAM_BLOCK_BASE]          = {ISP_BLOCK_CFA,          dcam_k_cfg_cfa},
+[ISP_BLOCK_NLM - DCAM_BLOCK_BASE]          = {ISP_BLOCK_NLM,          dcam_k_cfg_nlm},
+[ISP_BLOCK_CCE - DCAM_BLOCK_BASE]          = {ISP_BLOCK_CCE,          dcam_k_cfg_cce},
 };
 
 static int dcamhw_block_func_get(void *handle, void *arg)

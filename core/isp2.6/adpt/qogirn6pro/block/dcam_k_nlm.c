@@ -28,17 +28,23 @@
 	fmt, current->pid, __LINE__, __func__
 #define DCAM_VST_IVST_NUM        513
 
-static int load_vst_ivst_buf(
-	struct isp_dev_nlm_info_v2 *nlm_info,
-	struct isp_k_block *isp_k_param, uint32_t idx)
+static int load_vst_ivst_buf(struct dcam_dev_param *p)
 {
 	int ret = 0;
 	uint32_t buf_len;
 	uint32_t buf_sel;
 	uint32_t val;
+	uint32_t idx = 0;
 	unsigned int i = 0;
 	unsigned long utab_addr;
-	uint32_t *vst_ivst_buf;
+	uint32_t *vst_ivst_buf = NULL;
+	struct isp_dev_nlm_info_v2 *nlm_info = NULL;
+
+	if (p == NULL)
+		return 0;
+
+	idx = p->idx;
+	nlm_info = &p->nlm_info2;
 
 	buf_sel = 0;
 	DCAM_REG_MWR(idx, DCAM_VST_PARA, BIT_1, buf_sel << 1);
@@ -49,7 +55,7 @@ static int load_vst_ivst_buf(
 		if (nlm_info->vst_len < (ISP_VST_IVST_NUM2 * 4))
 			buf_len = nlm_info->vst_len;
 
-		vst_ivst_buf = isp_k_param->vst_buf;
+		vst_ivst_buf = p->vst_buf;
 		utab_addr = (unsigned long)nlm_info->vst_table_addr;
 		pr_debug("vst table addr 0x%lx\n", utab_addr);
 		ret = copy_from_user((void *)vst_ivst_buf,
@@ -72,7 +78,7 @@ static int load_vst_ivst_buf(
 		if (nlm_info->ivst_len < (ISP_VST_IVST_NUM2 * 4))
 			buf_len = nlm_info->ivst_len;
 
-		vst_ivst_buf = isp_k_param->ivst_buf;
+		vst_ivst_buf = p->ivst_buf;
 		utab_addr = (unsigned long)nlm_info->ivst_table_addr;
 		pr_debug("ivst table addr 0x%lx\n", utab_addr);
 		ret = copy_from_user((void *)vst_ivst_buf,
@@ -92,165 +98,140 @@ static int load_vst_ivst_buf(
 	return ret;
 }
 
-static int isp_k_nlm_block(struct isp_io_param *param,
-		struct isp_k_block *isp_k_param, uint32_t idx)
+int dcam_k_nlm_block(struct dcam_dev_param *p)
 {
 	int ret = 0;
-	uint32_t i, j, val = 0;
-	struct isp_dev_nlm_info_v2 *p;
+	uint32_t i = 0, j = 0, val = 0, idx = 0;
+	struct isp_dev_nlm_info_v2 *nlm_info2 = NULL;
 
-	p = &isp_k_param->nlm_info_base;
-	ret = copy_from_user((void *)p,
-			(void __user *)param->property_param,
-			sizeof(struct isp_dev_nlm_info_v2));
-	if (ret != 0) {
-		pr_err("fail to copy from user, ret = %d\n", ret);
-		return  ret;
-	}
-	if (g_isp_bypass[idx] & (1 << _EISP_NLM))
-		p->bypass = 1;
-	if (g_isp_bypass[idx] & (1 << _EISP_VST))
-		p->vst_bypass = 1;
-	if (g_isp_bypass[idx] & (1 << _EISP_IVST))
-		p->ivst_bypass = 1;
-
-	memcpy(&isp_k_param->nlm_info, p, sizeof(struct isp_dev_nlm_info_v2));
-
-	DCAM_REG_MWR(idx, DCAM_NLM_PARA, BIT_0, p->bypass);
-	DCAM_REG_MWR(idx, DCAM_VST_PARA, BIT_0, p->vst_bypass);
-	DCAM_REG_MWR(idx, DCAM_IVST_PARA, BIT_0, p->ivst_bypass);
-	if (p->bypass)
+	if (p == NULL)
 		return 0;
 
-	val = ((p->imp_opt_bypass & 0x1) << 1) |
-		((p->flat_opt_bypass & 0x1) << 2) |
-		((p->direction_mode_bypass & 0x1) << 4) |
-		((p->first_lum_byapss & 0x1) << 5) |
-		((p->simple_bpc_bypass & 0x1) << 6);
+	nlm_info2 = &p->nlm_info2;
+
+	DCAM_REG_MWR(idx, DCAM_NLM_PARA, BIT_0, nlm_info2->bypass);
+	DCAM_REG_MWR(idx, DCAM_VST_PARA, BIT_0, nlm_info2->vst_bypass);
+	DCAM_REG_MWR(idx, DCAM_IVST_PARA, BIT_0, nlm_info2->ivst_bypass);
+	if (nlm_info2->bypass)
+		return 0;
+
+	val = ((nlm_info2->imp_opt_bypass & 0x1) << 1) |
+		((nlm_info2->flat_opt_bypass & 0x1) << 2) |
+		((nlm_info2->direction_mode_bypass & 0x1) << 4) |
+		((nlm_info2->first_lum_byapss & 0x1) << 5) |
+		((nlm_info2->simple_bpc_bypass & 0x1) << 6);
 	DCAM_REG_MWR(idx, DCAM_NLM_PARA, 0x76, val);
 
-	val = ((p->direction_cnt_th & 0x3) << 24) |
-		((p->w_shift[2] & 0x3) << 20) |
-		((p->w_shift[1] & 0x3) << 18) |
-		((p->w_shift[0] & 0x3) << 16) |
-		(p->dist_mode & 0x3);
+	val = ((nlm_info2->direction_cnt_th & 0x3) << 24) |
+		((nlm_info2->w_shift[2] & 0x3) << 20) |
+		((nlm_info2->w_shift[1] & 0x3) << 18) |
+		((nlm_info2->w_shift[0] & 0x3) << 16) |
+		(nlm_info2->dist_mode & 0x3);
 	DCAM_REG_WR(idx, DCAM_NLM_MODE_CNT, val);
 
-	val = ((p->simple_bpc_th & 0xFF) << 16) |
-		(p->simple_bpc_lum_th & 0x3FF);
+	val = ((nlm_info2->simple_bpc_th & 0xFF) << 16) |
+		(nlm_info2->simple_bpc_lum_th & 0x3FF);
 	DCAM_REG_WR(idx, DCAM_NLM_SIMPLE_BPC, val);
 
-	val = ((p->lum_th1 & 0x3FF) << 16) |
-		(p->lum_th0 & 0x3FF);
+	val = ((nlm_info2->lum_th1 & 0x3FF) << 16) |
+		(nlm_info2->lum_th0 & 0x3FF);
 	DCAM_REG_WR(idx, DCAM_NLM_LUM_THRESHOLD, val);
 
-	val = ((p->tdist_min_th & 0xFFFF)  << 16) |
-		(p->diff_th & 0xFFFF);
+	val = ((nlm_info2->tdist_min_th & 0xFFFF)  << 16) |
+		(nlm_info2->diff_th & 0xFFFF);
 	DCAM_REG_WR(idx, DCAM_NLM_DIRECTION_TH, val);
 
 	for (i = 0; i < 24; i++) {
-		val = (p->lut_w[i * 3 + 0] & 0x3FF) |
-			((p->lut_w[i * 3 + 1] & 0x3FF) << 10) |
-			((p->lut_w[i * 3 + 2] & 0x3FF) << 20);
+		val = (nlm_info2->lut_w[i * 3 + 0] & 0x3FF) |
+			((nlm_info2->lut_w[i * 3 + 1] & 0x3FF) << 10) |
+			((nlm_info2->lut_w[i * 3 + 2] & 0x3FF) << 20);
 		DCAM_REG_WR(idx, DCAM_NLM_LUT_W_0 + i * 4, val);
 	}
 
 	for (i = 0; i < 3; i++) {
 		for (j = 0; j < 3; j++) {
-			val = ((p->lum_flat[i][j].thresh & 0x3FFF) << 16) |
-				((p->lum_flat[i][j].match_count & 0x1F) << 8) |
-				(p->lum_flat[i][j].inc_strength & 0xFF);
-			DCAM_REG_WR(idx,
-				DCAM_NLM_LUM0_FLAT0_PARAM + (i * 4 + j) * 8,
-				val);
+			val = ((nlm_info2->lum_flat[i][j].thresh & 0x3FFF) << 16) |
+				((nlm_info2->lum_flat[i][j].match_count & 0x1F) << 8) |
+				(nlm_info2->lum_flat[i][j].inc_strength & 0xFF);
+			DCAM_REG_WR(idx, DCAM_NLM_LUM0_FLAT0_PARAM + (i * 4 + j) * 8, val);
 		}
 	}
 
 	for (i = 0; i < 3; i++) {
 		for (j = 0; j < 4; j++) {
-			val = ((p->lum_flat_addback_min[i][j] & 0x7FF) << 20) |
-				((p->lum_flat_addback_max[i][j] & 0x3FF) << 8) |
-				(p->lum_flat_addback0[i][j] & 0x7F);
-			DCAM_REG_WR(idx,
-				DCAM_NLM_LUM0_FLAT0_ADDBACK + (i * 4 + j) * 8,
-					val);
+			val = ((nlm_info2->lum_flat_addback_min[i][j] & 0x7FF) << 20) |
+				((nlm_info2->lum_flat_addback_max[i][j] & 0x3FF) << 8) |
+				(nlm_info2->lum_flat_addback0[i][j] & 0x7F);
+			DCAM_REG_WR(idx, DCAM_NLM_LUM0_FLAT0_ADDBACK + (i * 4 + j) * 8, val);
 		}
 	}
 
 	for (i = 0; i < 3; i++) {
-		val = ((p->lum_flat_addback1[i][0] & 0x7F) << 22) |
-			((p->lum_flat_addback1[i][1] & 0x7F) << 15) |
-			((p->lum_flat_addback1[i][2] & 0x7F) << 8) |
-			(p->lum_flat_dec_strenth[i] & 0xFF);
+		val = ((nlm_info2->lum_flat_addback1[i][0] & 0x7F) << 22) |
+			((nlm_info2->lum_flat_addback1[i][1] & 0x7F) << 15) |
+			((nlm_info2->lum_flat_addback1[i][2] & 0x7F) << 8) |
+			(nlm_info2->lum_flat_dec_strenth[i] & 0xFF);
 		DCAM_REG_WR(idx, DCAM_NLM_LUM0_FLAT3_PARAM + i * 32, val);
 	}
 
-	val = (p->radius_bypass & 0x1) |
-		((p->nlm_radial_1D_bypass & 0x1) << 1) |
-		((p->nlm_direction_addback_mode_bypass & 0x1) << 2) |
-		((p->update_flat_thr_bypass & 0x1) << 3);
+	val = ((nlm_info2->lum_flat_addback1[2][3] & 0x7F) << 14) |
+		((nlm_info2->lum_flat_addback1[1][3] & 0x7F) << 7) |
+		(nlm_info2->lum_flat_addback1[0][3] & 0x7F);
+	DCAM_REG_WR(idx, DCAM_NLM_ADDBACK3, val);
+
+	val = (nlm_info2->radius_bypass & 0x1) |
+		((nlm_info2->nlm_radial_1D_bypass & 0x1) << 1) |
+		((nlm_info2->nlm_direction_addback_mode_bypass & 0x1) << 2) |
+		((nlm_info2->update_flat_thr_bypass & 0x1) << 3);
 	DCAM_REG_MWR(idx, DCAM_NLM_RADIAL_1D_PARAM, 0xF, val);
 
-	val = ((p->nlm_radial_1D_center_y & 0x7FFF) << 16) |
-			(p->nlm_radial_1D_center_x & 0x7FFF);
+	val = ((nlm_info2->nlm_radial_1D_center_y & 0x7FFF) << 16) |
+		(nlm_info2->nlm_radial_1D_center_x & 0x7FFF);
 	DCAM_REG_WR(idx, DCAM_NLM_RADIAL_1D_DIST, val);
 
-	val = p->nlm_radial_1D_radius_threshold & 0x7FFF;
+	val = nlm_info2->nlm_radial_1D_radius_threshold & 0x7FFF;
 	DCAM_REG_MWR(idx, DCAM_NLM_RADIAL_1D_THRESHOLD, 0x7FFF, val);
-	val = p->nlm_radial_1D_protect_gain_max & 0x1FFF;
+	val = nlm_info2->nlm_radial_1D_protect_gain_max & 0x1FFF;
 	DCAM_REG_MWR(idx, DCAM_NLM_RADIAL_1D_GAIN_MAX, 0x1FFF, val);
 
 	for (i = 0; i < 3; i++) {
 		for (j = 0; j < 3; j++) {
-			val = (p->nlm_first_lum_flat_thresh_coef[i][j] &
-				0x7FFF) |
-				((p->nlm_first_lum_flat_thresh_max[i][j] &
-				0x3FFF) << 16);
-			DCAM_REG_WR(idx,
-				DCAM_NLM_RADIAL_1D_THR0 + i * 12 + j * 4, val);
+			val = (nlm_info2->nlm_first_lum_flat_thresh_coef[i][j] & 0x7FFF) |
+				((nlm_info2->nlm_first_lum_flat_thresh_max[i][j] & 0x3FFF) << 16);
+			DCAM_REG_WR(idx, DCAM_NLM_RADIAL_1D_THR0 + i * 12 + j * 4, val);
 		}
 	}
 
 	for (i = 0; i < 3; i++) {
 		uint32_t *pclip, *pratio;
 
-		pclip = p->nlm_first_lum_direction_addback_noise_clip[i];
-		pratio = p->nlm_radial_1D_radius_threshold_filter_ratio[i];
+		pclip = nlm_info2->nlm_first_lum_direction_addback_noise_clip[i];
+		pratio = nlm_info2->nlm_radial_1D_radius_threshold_filter_ratio[i];
 		for (j = 0; j < 4; j++) {
-			val = (p->nlm_radial_1D_protect_gain_min[i][j] &
-				0x1FFF) | ((p->nlm_radial_1D_coef2[i][j] &
-				0x3FFF) << 16);
-			DCAM_REG_WR(idx, DCAM_NLM_RADIAL_1D_RATIO + i * 16 +
-				j * 4, val);
-			val = (pclip[j] & 0x3FF) |
-				((p->nlm_first_lum_direction_addback[i][j] &
-				0x7F) << 10) | ((pratio[j] & 0x7FFF) << 17);
-			DCAM_REG_WR(idx, DCAM_NLM_RADIAL_1D_ADDBACK00 + i * 16 +
-				j * 4, val);
+			val = (nlm_info2->nlm_radial_1D_protect_gain_min[i][j] & 0x1FFF) |
+				((nlm_info2->nlm_radial_1D_coef2[i][j] & 0x3FFF) << 16);
+			DCAM_REG_WR(idx, DCAM_NLM_RADIAL_1D_RATIO + i * 16 + j * 4, val);
+			val = (pclip[j] & 0x3FF) | ((pratio[j] & 0x7FFF) << 17) |
+				((nlm_info2->nlm_first_lum_direction_addback[i][j] & 0x7F) << 10);
+			DCAM_REG_WR(idx, DCAM_NLM_RADIAL_1D_ADDBACK00 + i * 16 + j * 4, val);
 		}
 	}
 
-	ret = load_vst_ivst_buf(p, isp_k_param, idx);
+	ret = load_vst_ivst_buf(p);
 	return ret;
 }
 
-static int isp_k_nlm_imblance(struct isp_io_param *param,
-	struct isp_k_block *isp_k_param, uint32_t idx)
+int dcam_k_nlm_imblance(struct dcam_dev_param *p)
 {
 	int ret = 0;
-	struct isp_dev_nlm_imblance_v2 *imblance_info;
+	uint32_t idx = 0;
+	struct isp_dev_nlm_imblance_v2 *imblance_info = NULL;
 
-	imblance_info = &isp_k_param->imbalance_info_base2;
+	if (p == NULL)
+		return 0;
 
-	ret = copy_from_user((void *)imblance_info,
-			(void __user *)param->property_param,
-			sizeof(struct isp_dev_nlm_imblance_v2));
-	if (ret != 0) {
-		pr_err("fail to copy from user, ret = %d\n", ret);
-		return  ret;
-	}
-
-	memcpy(&isp_k_param->imblance_info2, imblance_info, sizeof(struct isp_dev_nlm_imblance_v2));
+	imblance_info = &p->nlm_imblance2;
+	idx = p->idx;
 
 	/* new added below */
 	DCAM_REG_MWR(idx, DCAM_NLM_IMBLANCE_CTRL, BIT_0,
@@ -371,22 +352,47 @@ static int isp_k_nlm_imblance(struct isp_io_param *param,
 	return ret;
 }
 
-int isp_k_cfg_nlm(struct isp_io_param *param,
-		struct isp_k_block *isp_k_param, uint32_t idx)
+int dcam_k_cfg_nlm(struct isp_io_param *param, struct dcam_dev_param *p)
 {
 	int ret = 0;
+	uint32_t size = 0;
+	void *pcpy;
+	FUNC_DCAM_PARAM sub_func = NULL;
 
 	switch (param->property) {
 	case ISP_PRO_NLM_BLOCK:
-		ret = isp_k_nlm_block(param, isp_k_param, idx);
+		pcpy = &p->nlm_info2;
+		size = sizeof(struct isp_dev_nlm_info_v2);
+		sub_func = dcam_k_nlm_block;
 		break;
 	case ISP_PRO_NLM_IMBLANCE:
-		ret = isp_k_nlm_imblance(param, isp_k_param, idx);
+		pcpy = &p->nlm_imblance2;
+		size = sizeof(struct isp_dev_nlm_imblance_v2);
+		sub_func = dcam_k_nlm_imblance;
 		break;
 	default:
-		pr_err("fail to support cmd id = %d\n",
-			param->property);
+		pr_err("fail to support cmd id = %d\n", param->property);
 		break;
+	}
+
+	if (p->offline == 0) {
+		ret = copy_from_user(pcpy, param->property_param, size);
+		if (ret) {
+			pr_err("fail to copy from user ret=0x%x\n", (unsigned int)ret);
+			return -EPERM;
+		}
+		if (p->idx == DCAM_HW_CONTEXT_MAX)
+			return 0;
+		ret = sub_func(p);
+	} else {
+		mutex_lock(&p->param_lock);
+		ret = copy_from_user(pcpy, param->property_param, size);
+		if (ret) {
+			mutex_unlock(&p->param_lock);
+			pr_err("fail to copy from user ret=0x%x\n", (unsigned int)ret);
+			return -EPERM;
+		}
+		mutex_unlock(&p->param_lock);
 	}
 
 	return ret;
@@ -397,6 +403,7 @@ int isp_k_update_nlm(uint32_t idx,
 	uint32_t new_width, uint32_t old_width,
 	uint32_t new_height, uint32_t old_height)
 {
+#if 0
 	int ret = 0;
 	int i, j, loop;
 	uint32_t val;
@@ -480,6 +487,9 @@ int isp_k_update_nlm(uint32_t idx,
 	}
 
 	return ret;
+#else
+	return 0;
+#endif
 }
 
 int isp_k_update_imbalance(uint32_t idx,

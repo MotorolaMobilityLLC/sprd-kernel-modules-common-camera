@@ -302,7 +302,8 @@ static int camioctl_param_cfg(struct camera_module *module,
 				isp_ctx_id = channel->isp_fdrh_ctx;
 			if (module->grp->hw_info->prj_id == QOGIRN6pro &&
 				(param.sub_block == ISP_BLOCK_GAMMA || param.sub_block == ISP_BLOCK_CMC ||
-				param.sub_block == ISP_BLOCK_CFA)) {
+				param.sub_block == ISP_BLOCK_CFA || param.sub_block == ISP_BLOCK_NLM ||
+				param.sub_block == ISP_BLOCK_CCE)) {
 				ret = module->dcam_dev_handle->dcam_pipe_ops->cfg_blk_param(
 					&module->dcam_dev_handle->sw_ctx[module->cur_sw_ctx_id], &param);
 			} else
