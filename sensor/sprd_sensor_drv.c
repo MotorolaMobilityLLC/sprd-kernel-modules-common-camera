@@ -96,6 +96,8 @@ static int sprd_sensor_parse_clk_dt(struct device *dev,
 
 	sensor_info->sensor_eb =
 		of_clk_get_by_name(dev->of_node, "sensor_eb");
+	sensor_info->mclk_count = 0;
+	sensor_info->mclk_freq = 0;
 	if (IS_ERR_OR_NULL(sensor_info->sensor_eb)) {
 		pr_err("sensor eb clk config err\n");
 		return -EINVAL;
@@ -650,18 +652,8 @@ int sprd_sensor_set_mclk(unsigned int *saved_clk, unsigned int set_mclk,
 	}
     pr_info("set_mclk %d\n", set_mclk);
 
-	if (set_mclk == 0) {
+	if (set_mclk == 0  && p_dev->mclk_count) {
 		if (p_dev->mclk_freq) {
-#if 0//def MCLK_NEW_PROCESS
-		if (p_dev->sensor_clk) {
-				clk_disable_unprepare(p_dev->sensor_clk);
-			}
-
-				if (p_dev->sensor_eb)
-					clk_disable_unprepare(p_dev->sensor_eb);
-				else if (p_dev->ccir_eb)
-					clk_disable_unprepare(p_dev->ccir_eb);
-#else
 #ifndef MCLK_NEW_PROCESS
 			if (p_dev->sensor_eb)
 				clk_disable_unprepare(p_dev->sensor_eb);
@@ -690,9 +682,9 @@ int sprd_sensor_set_mclk(unsigned int *saved_clk, unsigned int set_mclk,
 			else if (p_dev->ccir_eb)
 				clk_disable_unprepare(p_dev->ccir_eb);
 #endif
-#endif
+			p_dev->mclk_count--;
 		}
-	} else if (p_dev->mclk_freq != set_mclk) {
+	} else if (!p_dev->mclk_count && set_mclk) {
 		if (set_mclk > SPRD_SENSOR_MAX_MCLK)
 			set_mclk = SPRD_SENSOR_MAX_MCLK;
 
@@ -736,6 +728,37 @@ int sprd_sensor_set_mclk(unsigned int *saved_clk, unsigned int set_mclk,
 		}
 
 		clk_prepare_enable(p_dev->sensor_clk);
+		p_dev->mclk_count++;
+	} else if (p_dev->mclk_count && set_mclk != p_dev->mclk_freq) {
+			ret = select_sensor_mclk(set_mclk, &clk_src_name,
+						 &clk_div);
+			pr_debug("clk_src_name %s\n", clk_src_name);
+			if (ret != 0) {
+				pr_err("select sensor mclk error\n");
+				goto exit;
+			}
+
+			clk_parent =
+			of_clk_get_by_name(p_dev->dev_node, clk_src_name);
+			if (!clk_parent) {
+				pr_err("get clk parent error\n");
+				return -EINVAL;
+			}
+			pr_debug("set_mclk %d sensor_id %d\n",
+				set_mclk, sensor_id);
+
+			ret = clk_set_parent(p_dev->sensor_clk, clk_parent);
+			if (ret) {
+				pr_err("set parent failed\n");
+				goto exit;
+			}
+			ret = clk_set_rate(p_dev->sensor_clk,
+				     (set_mclk * SPRD_SENSOR_MCLK_VALUE));
+			if (ret) {
+				pr_err("set rate failed\n");
+				goto exit;
+			}
+			pr_debug("set rate mclk count %d \n", p_dev->mclk_count);
 	}
 	p_dev->mclk_freq = set_mclk;
 exit:

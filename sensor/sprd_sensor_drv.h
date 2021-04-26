@@ -71,6 +71,7 @@ struct sprd_sensor_dev_info_tag {
 	int sensor_id;
 	int attch_dcam_id;
 	int mclk_freq;
+	int mclk_count;
 	struct device_node *dev_node;
 };
 
