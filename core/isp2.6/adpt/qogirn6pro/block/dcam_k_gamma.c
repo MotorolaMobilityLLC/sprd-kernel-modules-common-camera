@@ -31,7 +31,7 @@ int dcam_k_gamma_block(struct dcam_dev_param *param)
 	int ret = 0;
 	uint32_t idx = 0;
 	uint32_t val = 0;
-	uint32_t i = 0, chn = 0;
+	uint32_t i = 0;
 	struct isp_dev_gamma_info_v1 *p;
 
 	if (param == NULL)
@@ -48,30 +48,30 @@ int dcam_k_gamma_block(struct dcam_dev_param *param)
 		return 0;
 
 	/* only cfg mode and buf0 is selected. */
-	DCAM_REG_MWR(idx, DCAM_BUF_CTRL, 0x100000, param->gamma_info_v1.buf_sel << 20);
 	DCAM_REG_MWR(idx, DCAM_BUF_CTRL, BIT_4, BIT_4);
-	for (chn = 0; chn < 3; chn++) {
-		val = (chn & 0x3) << 8;
-		DCAM_REG_MWR(idx, DCAM_BUF_CTRL, 0x300, val);
-		if (chn == 0) {
-			for (i = 0; i < ISP_FRGB_GAMMA_PT_NUM_V1 - 1; i++) {
-				val = p->gain_r[i];
-				DCAM_REG_WR(idx, DCAM_FGAMMA10_TABLE + i * 4, val);
-			}
-		} else if (chn == 1) {
-			for (i = 0; i < ISP_FRGB_GAMMA_PT_NUM_V1 - 1; i++) {
-				val = p->gain_g[i];;
-				DCAM_REG_WR(idx, DCAM_FGAMMA10_TABLE + i * 4, val);
-			}
-		} else {
-			for (i = 0; i < ISP_FRGB_GAMMA_PT_NUM_V1 - 1; i++) {
-				val = p->gain_b[i];;
-				DCAM_REG_WR(idx, DCAM_FGAMMA10_TABLE + i * 4, val);
-			}
-		}
+
+	DCAM_REG_MWR(idx, DCAM_BUF_CTRL, 0x300, 0 << 8);
+	for (i = 0; i < ISP_FRGB_GAMMA_PT_NUM_V1 - 1; i++) {
+		val = ((p->gain_r[i] & 0x3FF) << 10) | (p->gain_r[i + 1] & 0x3FF);
+		DCAM_REG_WR(idx, DCAM_FGAMMA10_TABLE + i * 4, val);
 	}
 
-	DCAM_REG_MWR(idx, DCAM_BUF_CTRL, 0x100000, (!param->gamma_info_v1.buf_sel) << 20);
+	DCAM_REG_MWR(idx, DCAM_BUF_CTRL, 0x300, 1 << 8);
+	for (i = 0; i < ISP_FRGB_GAMMA_PT_NUM_V1 - 1; i++) {
+		val = ((p->gain_g[i] & 0x3FF) << 10) | (p->gain_g[i + 1] & 0x3FF);
+		DCAM_REG_WR(idx, DCAM_FGAMMA10_TABLE + i * 4, val);
+	}
+
+	DCAM_REG_MWR(idx, DCAM_BUF_CTRL, 0x300, 2 << 8);
+	for (i = 0; i < ISP_FRGB_GAMMA_PT_NUM_V1 - 1; i++) {
+		val = ((p->gain_b[i] & 0x3FF) << 10) | (p->gain_b[i + 1] & 0x3FF);
+		DCAM_REG_WR(idx, DCAM_FGAMMA10_TABLE + i * 4, val);
+	}
+
+	val = DCAM_REG_RD(idx, DCAM_BUF_CTRL);
+	val = val & BIT_20;
+	DCAM_REG_MWR(idx, DCAM_BUF_CTRL, BIT_20, ~val);
+
 	return ret;
 }
 

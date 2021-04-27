@@ -63,6 +63,9 @@ int dcam_k_bpc_block(struct dcam_dev_param *param)
 		((p->bpc_pos_out_en & 0x1) << 16);
 	DCAM_REG_MWR(idx, DCAM_BPC_PARAM, 0x100F0, val);
 
+	val = p->bad_pixel_num;
+	DCAM_REG_WR(idx, DCAM_BPC_MAP_CTRL, val);
+
 	for (i = 0; i < 4; i++) {
 		val = (p->bpc_bad_pixel_th[i] & 0x3FF);
 		DCAM_REG_WR(idx, DCAM_BPC_BAD_PIXEL_TH0 + i * 4, val);
@@ -89,7 +92,9 @@ int dcam_k_bpc_block(struct dcam_dev_param *param)
 	DCAM_REG_WR(idx, DCAM_BPC_BAD_PIXEL_PARAM, val);
 
 	val = (p->bpc_lowcoeff & 0x3F) |
-		((p->bpc_highcoeff & 0x3F) << 16);
+		((p->bpc_lowoffset & 0xFF) << 8) |
+		((p->bpc_highcoeff & 0x3F) << 16) |
+		((p->bpc_highoffset & 0xFF) << 24);
 	DCAM_REG_WR(idx, DCAM_BPC_GDIF_TH, val);
 
 	for (i = 0; i < 8; i++) {
@@ -99,8 +104,11 @@ int dcam_k_bpc_block(struct dcam_dev_param *param)
 		DCAM_REG_WR(idx, DCAM_BPC_LUTWORD0 + i * 4, val);
 	}
 
-	val = p->bad_pixel_num;
-	DCAM_REG_WR(idx, DCAM_BPC_MAP_CTRL, val);
+	val = p->bpc_map_addr & 0xFFFFFFF0;
+	DCAM_REG_WR(idx, DCAM_BPC_MAP_ADDR, val);
+
+	val = p->bpc_bad_pixel_pos_out_addr & 0xFFFFFFF0;
+	DCAM_REG_WR(idx, DCAM_BPC_OUT_ADDR, val);
 
 	return ret;
 }

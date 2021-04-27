@@ -1902,6 +1902,9 @@ static int dcamhw_blocks_setall(void *handle, void *arg)
 	/* simulator should set this block(random) carefully */
 	dcam_k_rgb_dither_random_block(p);
 	dcam_k_cmc10_block(p);
+	dcam_k_nlm_block(p);
+	dcam_k_nlm_imblance(p);
+	dcam_k_cce_block(p);
 	dcam_k_cfa_block(p);
 	dcam_k_gamma_block(p);
 	dcam_k_nlm_block(p);
