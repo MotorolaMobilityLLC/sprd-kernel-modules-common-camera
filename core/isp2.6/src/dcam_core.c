@@ -730,6 +730,18 @@ static int dcamcore_pmctx_deinit(struct dcam_pipe_context *pctx)
 		cam_buf_iommu_unmap(&blk_pm_ctx->lsc.buf);
 	cam_buf_kunmap(&blk_pm_ctx->lsc.buf);
 	cam_buf_free(&blk_pm_ctx->lsc.buf);
+	if(blk_pm_ctx->lsc.weight_tab) {
+		kfree(blk_pm_ctx->lsc.weight_tab);
+		blk_pm_ctx->lsc.weight_tab = NULL;
+	}
+	if(blk_pm_ctx->lsc.weight_tab_x) {
+		kfree(blk_pm_ctx->lsc.weight_tab_x);
+		blk_pm_ctx->lsc.weight_tab_x = NULL;
+	}
+	if(blk_pm_ctx->lsc.weight_tab_y) {
+		kfree(blk_pm_ctx->lsc.weight_tab_y);
+		blk_pm_ctx->lsc.weight_tab_y = NULL;
+	}
 	atomic_set(&pctx->user_cnt, 0);
 
 	pr_info("sw_ctx_id:%d ctx[%d] done\n", sw_pctx->sw_ctx_id, pctx->ctx_id);
