@@ -1521,7 +1521,6 @@ struct isp_dev_hist2_info {
 	uint32_t skip_num_clr;
 };
 
-
 struct isp_dev_hsv_curve_info {
 	uint16_t  s_curve[5][4];
 	uint16_t  v_curve[5][4];

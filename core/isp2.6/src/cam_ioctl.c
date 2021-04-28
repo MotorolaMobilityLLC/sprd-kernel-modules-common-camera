@@ -130,6 +130,7 @@ static int camioctl_statis_buf_set(struct camera_module *module,
 	int ret = 0;
 	struct channel_context *ch = NULL;
 	struct isp_statis_buf_input statis_buf;
+	struct cam_hw_info *hw = module->dcam_dev_handle->hw;
 
 	ret = copy_from_user((void *)&statis_buf,
 		(void *)arg, sizeof(struct isp_statis_buf_input));
@@ -156,33 +157,67 @@ static int camioctl_statis_buf_set(struct camera_module *module,
 		goto exit;
 	}
 
-	if (module->paused && statis_buf.type >= STATIS_AEM && statis_buf.type <= STATIS_LSCM) {
-		pr_info("cam%d paused, type %d ignored\n", module->idx, statis_buf.type);
-		goto exit;
-	}
+	switch (statis_buf.type) {
+		case STATIS_INIT:
+			ret = module->dcam_dev_handle->dcam_pipe_ops->ioctl(&module->dcam_dev_handle->sw_ctx[module->cur_sw_ctx_id],
+				DCAM_IOCTL_CFG_STATIS_BUF,
+				&statis_buf);
 
-	if (statis_buf.type < STATIS_HIST2) {
-		ret = module->dcam_dev_handle->dcam_pipe_ops->ioctl(&module->dcam_dev_handle->sw_ctx[module->cur_sw_ctx_id],
-			DCAM_IOCTL_CFG_STATIS_BUF,
-			&statis_buf);
-	}
+			if (hw->ip_isp->frbg_hist_support) {
+				ch = &module->channel[CAM_CH_PRE];
+				if (!ch->enable && module->simulator)
+					ch = &module->channel[CAM_CH_CAP];
 
-	if ((statis_buf.type == STATIS_INIT) ||
-		(statis_buf.type == STATIS_HIST2)) {
-		ch = &module->channel[CAM_CH_PRE];
-		if (!ch->enable && module->simulator)
-			ch = &module->channel[CAM_CH_CAP];
-		if (ch->enable) {
-			ret = module->isp_dev_handle->isp_ops->ioctl(module->isp_dev_handle,
-			ch->isp_ctx_id,
-			ISP_IOCTL_CFG_STATIS_BUF,
-			&statis_buf);
-		}
-	}
+				if (ch->enable) {
+					ret = module->isp_dev_handle->isp_ops->ioctl(module->isp_dev_handle,
+					ch->isp_ctx_id,
+					ISP_IOCTL_CFG_STATIS_BUF,
+					&statis_buf);
+				}
+			}
+			break;
+		case STATIS_AEM:
+		case STATIS_AFM:
+		case STATIS_AFL:
+		case STATIS_HIST:
+		case STATIS_PDAF:
+		case STATIS_EBD:
+		case STATIS_3DNR:
+		case STATIS_LSCM:
+			if (module->paused) {
+				pr_info("cam%d paused, type %d ignored\n", module->idx, statis_buf.type);
+				goto exit;
+			}
+			ret = module->dcam_dev_handle->dcam_pipe_ops->ioctl(&module->dcam_dev_handle->sw_ctx[module->cur_sw_ctx_id],
+				DCAM_IOCTL_CFG_STATIS_BUF,
+				&statis_buf);
+			break;
 
-	if ((statis_buf.type == STATIS_DBG_INIT) ||
-		(statis_buf.type == STATIS_PARAM)) {
-		ret = camcore_param_buffer_cfg(module, &statis_buf);
+		case STATIS_HIST2:
+			if (hw->ip_isp->frbg_hist_support) {
+				ch = &module->channel[CAM_CH_PRE];
+				if (!ch->enable && module->simulator)
+					ch = &module->channel[CAM_CH_CAP];
+
+				if (ch->enable) {
+					ret = module->isp_dev_handle->isp_ops->ioctl(module->isp_dev_handle,
+					ch->isp_ctx_id,
+					ISP_IOCTL_CFG_STATIS_BUF,
+					&statis_buf);
+				}
+			} else {
+				ret = module->dcam_dev_handle->dcam_pipe_ops->ioctl(&module->dcam_dev_handle->sw_ctx[module->cur_sw_ctx_id],
+					DCAM_IOCTL_CFG_STATIS_BUF,
+					&statis_buf);
+			}
+			break;
+
+		case STATIS_DBG_INIT:
+		case STATIS_PARAM:
+			ret = camcore_param_buffer_cfg(module, &statis_buf);
+			break;
+		default:
+			break;
 	}
 
 exit:
@@ -303,7 +338,7 @@ static int camioctl_param_cfg(struct camera_module *module,
 			if (module->grp->hw_info->prj_id == QOGIRN6pro &&
 				(param.sub_block == ISP_BLOCK_GAMMA || param.sub_block == ISP_BLOCK_CMC ||
 				param.sub_block == ISP_BLOCK_CFA || param.sub_block == ISP_BLOCK_NLM ||
-				param.sub_block == ISP_BLOCK_CCE)) {
+				param.sub_block == ISP_BLOCK_CCE || param.sub_block == ISP_BLOCK_HIST2)) {
 				ret = module->dcam_dev_handle->dcam_pipe_ops->cfg_blk_param(
 					&module->dcam_dev_handle->sw_ctx[module->cur_sw_ctx_id], &param);
 			} else

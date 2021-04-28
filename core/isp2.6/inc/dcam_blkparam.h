@@ -54,6 +54,11 @@ struct dcam_dev_hist_param {
 	struct dcam_dev_hist_info bayerHist_info;
 };
 
+struct dcam_dev_hist_roi_param {
+	uint32_t update;
+	struct isp_dev_hist2_info hist_roi_info;
+};
+
 struct dcam_dev_aem_param {
 	uint32_t mode;
 	uint32_t bypass;
@@ -140,6 +145,7 @@ struct dcam_dev_param {
 	struct dcam_dev_blc_param blc;
 	struct dcam_dev_rgb_param rgb;
 	struct dcam_dev_hist_param hist;
+	struct dcam_dev_hist_roi_param hist_roi;
 	struct dcam_dev_aem_param aem;
 	struct dcam_dev_afl_param afl;
 	struct dcam_dev_awbc_param awbc;

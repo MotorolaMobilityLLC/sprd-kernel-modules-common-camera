@@ -907,7 +907,25 @@ static void dcamint_nr3_done(void *param)
 
 static void dcamint_frgb_hist_done(void *param)
 {
-	pr_debug("dcamint_frgb_hist_done\n");
+	struct dcam_hw_context *dcam_hw_ctx = (struct dcam_hw_context *)param;
+	struct dcam_sw_context *sw_ctx = dcam_hw_ctx->sw_ctx;
+	struct camera_frame *frame = NULL;
+	struct isp_dev_hist2_info *p = NULL;
+
+	if (!sw_ctx) {
+		pr_err("fail to get vaild ptr 0x%px\n", sw_ctx);
+		return;
+	}
+	pr_debug("dcamint_frgb_hist_done dcam%d\n", dcam_hw_ctx->hw_ctx_id);
+
+	if ((frame = dcamint_frame_prepare(dcam_hw_ctx, DCAM_PATH_FRGB_HIST))) {
+		p = &sw_ctx->ctx[DCAM_CXT_0].blk_pm.hist_roi.hist_roi_info;
+		frame->width = p->hist_roi.end_x & ~1;
+		frame->height = p->hist_roi.end_y & ~1;
+
+		pr_debug("dcam%d w %d, h %d\n", dcam_hw_ctx->hw_ctx_id, frame->width, frame->height);
+		dcamint_frame_dispatch(dcam_hw_ctx, DCAM_PATH_FRGB_HIST, frame, DCAM_CB_STATIS_DONE);
+	}
 }
 
 static void dcamint_dec_done(void *param)

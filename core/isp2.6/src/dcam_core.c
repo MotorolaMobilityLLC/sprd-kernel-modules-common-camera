@@ -48,6 +48,7 @@ struct statis_path_buf_info s_statis_path_info_all[] = {
 	{DCAM_PATH_AFM,     0,  0, STATIS_AFM},
 	{DCAM_PATH_AFL,     0,  0, STATIS_AFL},
 	{DCAM_PATH_HIST,    0,  0, STATIS_HIST},
+	{DCAM_PATH_FRGB_HIST,0, 0, STATIS_HIST2},
 	{DCAM_PATH_3DNR,    0,  0, STATIS_3DNR},
 	{DCAM_PATH_LSCM,    0,  0, STATIS_LSCM},
 };
@@ -375,6 +376,8 @@ static enum dcam_path_id dcamcore_statis_type_to_path_id(enum isp_statis_buf_typ
 		return DCAM_PATH_AFL;
 	case STATIS_HIST:
 		return DCAM_PATH_HIST;
+	case STATIS_HIST2:
+		return DCAM_PATH_FRGB_HIST;
 	case STATIS_PDAF:
 		return DCAM_PATH_PDAF;
 	case STATIS_EBD:
@@ -2300,6 +2303,9 @@ static int dcamcore_dev_start(void *dcam_handle, int online)
 	if (pm->hist.bayerHist_info.hist_bypass == 0)
 		atomic_set(&pctx->path[DCAM_PATH_HIST].user_cnt, 1);
 
+	if (pm->hist_roi.hist_roi_info.bypass == 0)
+		atomic_set(&pctx->path[DCAM_PATH_FRGB_HIST].user_cnt, 1);
+
 	if (pm->pdaf.bypass == 0)
 		atomic_set(&pctx->path[DCAM_PATH_PDAF].user_cnt, 1);
 	if (pctx->is_3dnr)
@@ -2491,6 +2497,7 @@ static int dcamcore_dev_stop(void *dcam_handle, enum dcam_stop_cmd pause)
 		pm->afm.bypass = 1;
 		pm->afl.afl_info.bypass = 1;
 		pm->hist.bayerHist_info.hist_bypass = 1;
+		pm->hist_roi.hist_roi_info.bypass = 1;
 		pm->lscm.bypass = 1;
 		pm->pdaf.bypass = 1;
 		pm->gtm[DCAM_GTM_PARAM_PRE].update_en = 1;

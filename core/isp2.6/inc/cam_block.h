@@ -92,6 +92,7 @@ int dcam_k_cfg_rgb_dither(struct isp_io_param *param, struct dcam_dev_param *p);
 int dcam_k_cfg_pdaf(struct isp_io_param *param,	struct dcam_dev_param *p);
 int dcam_k_cfg_lsc(struct isp_io_param *param, struct dcam_dev_param *p);
 int dcam_k_cfg_bayerhist(struct isp_io_param *param, struct dcam_dev_param *p);
+int dcam_k_cfg_frgbhist(struct isp_io_param *param, struct dcam_dev_param *p);
 int dcam_k_cfg_aem(struct isp_io_param *param, struct dcam_dev_param *p);
 int dcam_k_cfg_gamma(struct isp_io_param *param, struct dcam_dev_param *p);
 int dcam_k_cfg_cmc10(struct isp_io_param *param, struct dcam_dev_param *p);
@@ -120,6 +121,8 @@ int dcam_k_rgb_dither_random_block(struct dcam_dev_param *param);
 int dcam_k_lsc_block(struct dcam_dev_param *param);
 int dcam_k_bayerhist_block(struct dcam_dev_param *param);
 int dcam_k_bayerhist_roi(struct dcam_dev_param *param);
+int dcam_k_frgbhist_block(struct dcam_dev_param *param);
+int dcam_k_frgbhist_roi(struct dcam_dev_param *param);
 
 int dcam_k_aem_bypass(struct dcam_dev_param *param);
 int dcam_k_aem_mode(struct dcam_dev_param *param);

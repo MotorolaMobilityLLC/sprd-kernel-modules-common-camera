@@ -1862,6 +1862,7 @@ static struct dcam_cfg_entry dcam_hw_cfg_func_tab[DCAM_BLOCK_SUM] = {
 [ISP_BLOCK_CFA - DCAM_BLOCK_BASE]          = {ISP_BLOCK_CFA,          dcam_k_cfg_cfa},
 [ISP_BLOCK_NLM - DCAM_BLOCK_BASE]          = {ISP_BLOCK_NLM,          dcam_k_cfg_nlm},
 [ISP_BLOCK_CCE - DCAM_BLOCK_BASE]          = {ISP_BLOCK_CCE,          dcam_k_cfg_cce},
+[ISP_BLOCK_HIST2 - DCAM_BLOCK_BASE]        = {ISP_BLOCK_HIST2,        dcam_k_cfg_frgbhist},
 };
 
 static int dcamhw_block_func_get(void *handle, void *arg)
@@ -1943,6 +1944,7 @@ static int dcamhw_blocks_setstatis(void *handle, void *arg)
 	dcam_k_afm_bypass(p);
 	dcam_k_afl_block(p);
 	dcam_k_bayerhist_block(p);
+	dcam_k_frgbhist_block(p);
 
 	dcam_k_lscm_monitor(p);
 	dcam_k_lscm_bypass(p);

@@ -30,6 +30,7 @@ int init_dcam_pm(struct dcam_dev_param *blk_pm_ctx)
 	blk_pm_ctx->rgb.gain_info.bypass = 1;
 	blk_pm_ctx->rgb.rgb_dither.random_bypass = 1;
 	blk_pm_ctx->hist.bayerHist_info.hist_bypass = 1;
+	blk_pm_ctx->hist_roi.hist_roi_info.bypass = 1;
 	blk_pm_ctx->aem.bypass = 1;
 	blk_pm_ctx->afl.afl_info.bypass = 1;
 	blk_pm_ctx->awbc.awbc_info.awbc_bypass = 1;

@@ -345,6 +345,7 @@ enum isp_fetch_format {
  * @DCAM_PATH_AFL:  output anti-flicker data, including global data and region
  *                  data
  * @DCAM_PATH_HIST: output bayer histogram data in RGB channel
+ * @DCAM_PATH_FRGB_HIST: n6pro only
  * @DCAM_PATH_3DNR: output noise reduction data
  * @DCAM_PATH_BPC:  output bad pixel data
  */
@@ -359,6 +360,7 @@ enum dcam_path_id {
 	DCAM_PATH_AFM,
 	DCAM_PATH_AFL,
 	DCAM_PATH_HIST,
+	DCAM_PATH_FRGB_HIST,
 	DCAM_PATH_3DNR,
 	DCAM_PATH_BPC,
 	DCAM_PATH_LSCM,
@@ -1265,6 +1267,7 @@ struct cam_hw_ip_info {
 	uint32_t fbd_yuv_support;
 	uint32_t rgb_gtm_support;
 	uint32_t dewarp_support;
+	uint32_t frbg_hist_support;
 	uint32_t nr3_mv_alg_version;
 	uint32_t dyn_overlap_version;
 };
