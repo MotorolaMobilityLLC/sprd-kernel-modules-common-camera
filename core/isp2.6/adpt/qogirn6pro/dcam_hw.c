@@ -1904,6 +1904,9 @@ static int dcamhw_blocks_setall(void *handle, void *arg)
 	dcam_k_cmc10_block(p);
 	dcam_k_cfa_block(p);
 	dcam_k_gamma_block(p);
+	dcam_k_nlm_block(p);
+	dcam_k_nlm_imblance(p);
+	dcam_k_cce_block(p);
 
 	pr_info("dcam%d set all\n", idx);
 
@@ -2048,7 +2051,7 @@ static int dcamhw_set_store_addr(void *handle, void *arg)
 			param->frame_addr[0] + STATIS_AEM_HEADER_SIZE);
 		break;
 	case DCAM_PATH_HIST:
-		DCAM_REG_WR(idx, DCAM_HIST_ROI_BASE_WADDR,
+		DCAM_REG_WR(idx, DCAM_BAYER_HIST_BASE_WADDR,
 			param->frame_addr[0] + STATIS_HIST_HEADER_SIZE);
 		break;
 	case DCAM_PATH_AFM:
