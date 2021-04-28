@@ -42,12 +42,12 @@ static uint32_t s_map_sec_cnt;
 static struct isp_cfg_map_sector s_map_sectors[ISP_CFG_MAP_MAX];
 unsigned long isp_cfg_ctx_addr[ISP_CONTEXT_SW_NUM] = { 0 };
 
-static void ispcfg_cctx_page_buf_aligned(struct isp_cfg_ctx_desc *cfg_ctx,
+static void ispcfg_cctx_page_hw_buf_aligned(struct isp_cfg_ctx_desc *cfg_ctx,
 		void **sw_addr, unsigned long *hw_addr)
 {
-	void *kaddr;
+	void *kaddr = NULL;
 	unsigned long ofst_align = 0;
-	unsigned long iova, aligned_iova;
+	unsigned long iova = 0, aligned_iova = 0;
 	struct camera_buf *ion_buf = &cfg_ctx->ion_pool;
 
 	kaddr = (void *)ion_buf->addr_k[0];
@@ -59,9 +59,10 @@ static void ispcfg_cctx_page_buf_aligned(struct isp_cfg_ctx_desc *cfg_ctx,
 			*sw_addr = kaddr;
 		} else {
 			aligned_iova = ALIGN(iova, ALIGN_PADDING_SIZE);
+			*hw_addr = aligned_iova;
+
 			ofst_align = aligned_iova - iova;
 			*sw_addr = kaddr + ofst_align;
-			*hw_addr = aligned_iova;
 		}
 		pr_debug("aligned sw: %p, hw: 0x%lx, ofs: 0x%lx",
 			*sw_addr, *hw_addr, ofst_align);
@@ -70,8 +71,8 @@ static void ispcfg_cctx_page_buf_aligned(struct isp_cfg_ctx_desc *cfg_ctx,
 
 static void ispcfg_cctx_page_buf_addr_deinit(struct isp_cfg_ctx_desc *cfg_ctx)
 {
-	struct isp_cfg_buf *cfg_buf;
-	int c_id, bid;
+	struct isp_cfg_buf *cfg_buf = NULL;
+	int c_id = 0, bid = 0;
 
 	for (c_id = 0; c_id < ISP_CONTEXT_SW_NUM; c_id++) {
 		cfg_buf = &cfg_ctx->cfg_buf[c_id];
@@ -83,52 +84,47 @@ static void ispcfg_cctx_page_buf_addr_deinit(struct isp_cfg_ctx_desc *cfg_ctx)
 }
 
 static void ispcfg_cctx_page_hw_buf_addr_init(
-				struct isp_cfg_ctx_desc *cfg_ctx,
-				void *sw_addr,
-				unsigned long hw_addr)
+		struct isp_cfg_ctx_desc *cfg_ctx,
+		void *sw_addr, unsigned long hw_addr)
 {
-	unsigned long offset;
-	struct isp_cfg_buf *cfg_buf;
-	int  c_id, bid;
+	unsigned long offset = 0;
+	struct isp_cfg_buf *cfg_buf = NULL;
+	int c_id = 0;
 
 	for (c_id = 0; c_id < ISP_CONTEXT_HW_NUM; c_id++) {
 		offset = c_id * ISP_CFG_BUF_SIZE;
 		cfg_buf = &cfg_ctx->cfg_buf[c_id];
-		bid = CFG_BUF_HW;
-		cfg_buf->reg_buf[bid].sw_addr = sw_addr + offset;
-		cfg_buf->reg_buf[bid].hw_addr = hw_addr + offset;
-		pr_debug("isp ctx %d  buf %d: sw=%p, hw:0x%lx\n",
-			c_id, bid, cfg_buf->reg_buf[bid].sw_addr,
-			cfg_buf->reg_buf[bid].hw_addr);
+		cfg_buf->reg_buf[CFG_BUF_HW].sw_addr = sw_addr + offset;
+		cfg_buf->reg_buf[CFG_BUF_HW].hw_addr = hw_addr + offset;
+		pr_debug("isp ctx_hw %d: sw=%p, hw:0x%lx\n",
+			c_id, cfg_buf->reg_buf[CFG_BUF_HW].sw_addr,
+			cfg_buf->reg_buf[CFG_BUF_HW].hw_addr);
 	}
 }
 
 static void ispcfg_cctx_page_sw_buf_addr_init(
-		struct isp_cfg_ctx_desc *cfg_ctx,
-		void *sw_addr)
+		struct isp_cfg_ctx_desc *cfg_ctx, void *sw_addr)
 {
-	unsigned long offset;
-	struct isp_cfg_buf *cfg_buf;
-	int c_id, bid;
+	unsigned long offset = 0;
+	struct isp_cfg_buf *cfg_buf = NULL;
+	int c_id = 0;
 
 	for (c_id = 0; c_id < ISP_CONTEXT_SW_NUM; c_id++) {
 		offset = c_id * ISP_CFG_BUF_SIZE;
 		cfg_buf = &cfg_ctx->cfg_buf[c_id];
-		bid = CFG_BUF_SW;
-		cfg_buf->reg_buf[bid].sw_addr = sw_addr + offset;
-		cfg_buf->reg_buf[bid].hw_addr = 0UL;
-		pr_debug("isp ctx %d  buf %d: sw=%p, hw:0x%lx\n",
-			c_id, bid, cfg_buf->reg_buf[bid].sw_addr,
-			cfg_buf->reg_buf[bid].hw_addr);
+		cfg_buf->reg_buf[CFG_BUF_SW].sw_addr = sw_addr + offset;
+		cfg_buf->reg_buf[CFG_BUF_SW].hw_addr = 0UL;
+		pr_debug("isp ctx_sw %d: sw=%p, hw:0x%lx\n",
+			c_id, cfg_buf->reg_buf[CFG_BUF_SW].sw_addr,
+			cfg_buf->reg_buf[CFG_BUF_SW].hw_addr);
 	}
 }
 
 static void ispcfg_cctx_regbuf_addr_init(struct isp_cfg_ctx_desc *cfg_ctx)
 {
-	struct isp_cfg_buf *cfg_buf;
-	struct regfile_buf_info *cur_regbuf_p;
-	enum cfg_buf_id cur_regbuf_id;
-	int c_id;
+	struct isp_cfg_buf *cfg_buf = NULL;
+	struct regfile_buf_info *cur_regbuf_p = NULL;
+	int c_id = 0;
 
 	/*
 	 * Init context reg buf for each isp context.
@@ -138,10 +134,9 @@ static void ispcfg_cctx_regbuf_addr_init(struct isp_cfg_ctx_desc *cfg_ctx)
 	 */
 	for (c_id = 0; c_id < ISP_CONTEXT_SW_NUM; c_id++) {
 		cfg_buf = &cfg_ctx->cfg_buf[c_id];
-		cfg_buf->cur_buf_id = cur_regbuf_id = CFG_BUF_SW;
-		cur_regbuf_p = &cfg_buf->reg_buf[cur_regbuf_id];
-		isp_cfg_ctx_addr[c_id] =
-			(unsigned long)cur_regbuf_p->sw_addr;
+		cfg_buf->cur_buf_id = CFG_BUF_SW;
+		cur_regbuf_p = &cfg_buf->reg_buf[CFG_BUF_SW];
+		isp_cfg_ctx_addr[c_id] = (unsigned long)cur_regbuf_p->sw_addr;
 		pr_debug("init cctx_buf[%d] sw=%p, hw=0x%lx\n",
 			c_id, cur_regbuf_p->sw_addr,
 			cur_regbuf_p->hw_addr);
@@ -151,7 +146,7 @@ static void ispcfg_cctx_regbuf_addr_init(struct isp_cfg_ctx_desc *cfg_ctx)
 
 static void ispcfg_cctx_regbuf_addr_deinit(struct isp_cfg_ctx_desc *cfg_ctx)
 {
-	int c_id;
+	int c_id = 0;
 
 	mutex_lock(&buf_mutex);
 	for (c_id = 0; c_id < ISP_CONTEXT_SW_NUM; c_id++)
@@ -163,7 +158,7 @@ static int ispcfg_cctx_buf_init(struct isp_cfg_ctx_desc *cfg_ctx)
 {
 	int ret = 0;
 	unsigned int iommu_enable = 0;
-	size_t size;
+	size_t size = 0;
 	void *sw_addr = NULL;
 	unsigned long hw_addr = 0;
 	struct camera_buf *ion_buf = NULL;
@@ -223,7 +218,7 @@ static int ispcfg_cctx_buf_init(struct isp_cfg_ctx_desc *cfg_ctx)
 		goto err_kmap_cfg1;
 	}
 
-	ispcfg_cctx_page_buf_aligned(cfg_ctx, &sw_addr, &hw_addr);
+	ispcfg_cctx_page_hw_buf_aligned(cfg_ctx, &sw_addr, &hw_addr);
 	ispcfg_cctx_page_hw_buf_addr_init(cfg_ctx, sw_addr, hw_addr);
 	ispcfg_cctx_page_sw_buf_addr_init(cfg_ctx, (void *)ion_buf_cached->addr_k[0]);
 	ispcfg_cctx_regbuf_addr_init(cfg_ctx);
@@ -288,26 +283,22 @@ static int ispcfg_map_init(struct isp_cfg_ctx_desc *cfg_ctx)
 
 	/* only config once after system running */
 	if (s_map_sec_cnt == 0) {
-		uint32_t item;
-		uint32_t addr, count;
+		uint32_t item = 0;
 		struct isp_cfg_map_sector *cur = &s_map_sectors[0];
 
-		count = cfg_map_size;
-		if (count > ISP_CFG_MAP_MAX) {
-			pr_warn("cfg map array is too large %d\n", count);
+		if (cfg_map_size > ISP_CFG_MAP_MAX) {
+			pr_warn("cfg map array is too large %d\n", cfg_map_size);
 			s_map_sec_cnt = 0;
 			goto setting;
 		}
 
-		pr_debug("map sections %d\n", count);
-		s_map_sec_cnt = count;
-		for (i = 0; i < s_map_sec_cnt; i++) {
+		pr_debug("map sections %d\n", cfg_map_size);
+		s_map_sec_cnt = cfg_map_size;
+		for (i = 0; i < cfg_map_size; i++) {
 			item = cfg_map[i];
-			addr = item & 0x3ffff;
-			count = (item >> 18) & 0x3fff;
-			cur->offset = addr;
-			cur->size = count * 4;
-			pr_debug("No.%d. (0x%08x, %d)\n", i, addr, count);
+			cur->offset = item & 0x3ffff;
+			cur->size = ((item >> 18) & 0x3fff) * 4;
+			pr_debug("No.%d. (0x%08x, %d)\n", i, cur->offset, cur->size);
 			cur++;
 		}
 	}
@@ -331,8 +322,7 @@ static int ispcfg_block_config(
 	void *shadow_buf_vaddr = NULL;
 	void *work_buf_vaddr = NULL;
 	unsigned long hw_addr = 0;
-	enum cfg_buf_id buf_id;
-	struct isp_cfg_buf *cfg_buf_p;
+	struct isp_cfg_buf *cfg_buf_p = NULL;
 	struct isp_hw_cfg_info cfg_info = { 0 };
 
 	if (!cfg_ctx) {
@@ -345,9 +335,8 @@ static int ispcfg_block_config(
 
 	if (hw_ctx_id < ISP_CONTEXT_HW_NUM) {
 		cfg_buf_p = &cfg_ctx->cfg_buf[hw_ctx_id];
-		buf_id = CFG_BUF_HW;
-		hw_addr = (unsigned long)cfg_buf_p->reg_buf[buf_id].hw_addr;
-		work_buf_vaddr = cfg_buf_p->reg_buf[buf_id].sw_addr;
+		hw_addr = cfg_buf_p->reg_buf[CFG_BUF_HW].hw_addr;
+		work_buf_vaddr = cfg_buf_p->reg_buf[CFG_BUF_HW].sw_addr;
 
 		pr_debug("ctx %d cmd buf %p, %p\n",
 			hw_ctx_id, work_buf_vaddr, shadow_buf_vaddr);
@@ -392,8 +381,7 @@ copy_sec:
 
 static int ispcfg_ctx_init(struct isp_cfg_ctx_desc *cfg_ctx)
 {
-	int ret = 0;
-	int i;
+	int i = 0, ret = 0;
 
 	if (!cfg_ctx) {
 		pr_err("fail to get cfg_ctx pointer\n");
