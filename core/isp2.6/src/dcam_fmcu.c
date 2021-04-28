@@ -361,6 +361,11 @@ int dcam_fmcu_ctx_desc_put(struct dcam_fmcu_ctx_desc *fmcu)
 	struct dcam_fmcu_enable fmcu_enable =  {0};
 	struct cam_hw_info *hw = NULL;
 
+	if (!fmcu) {
+		pr_warn("fmcu already put\n");
+		return 0;
+	}
+
 	pr_info("fmcu %d. %p\n", fmcu->fid, fmcu);
 	for (i = 0; i < DCAM_FMCU_NUM; i++) {
 		if (fmcu == &s_fmcu_desc[i]) {
