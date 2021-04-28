@@ -47,7 +47,7 @@ struct isp_k_block {
 	struct isp_dev_3dnr_info_v1 nr3_info_base_v1;
 	struct isp_dev_3dnr_info_v1 nr3d_info_v1;
 	struct isp_dev_gamma_info_v1 gamma_info_v1;
-
+	struct isp_dev_3dlut_info lut3d_info;
 	/* sharkl3 only */
 	struct isp_dev_brightness_info brightness_info;
 	struct isp_dev_contrast_info contrast_info;
@@ -214,7 +214,8 @@ int isp_k_cfg_yuv_noisefilter(struct isp_io_param *param,
 	struct isp_k_block *isp_k_param, uint32_t idx);
 void cam_block_noisefilter_seeds(uint32_t image_width,
 	uint32_t seed0, uint32_t *seed1, uint32_t *seed2, uint32_t *seed3);
-
+int isp_k_cfg_3dlut(struct isp_io_param *param,
+	struct isp_k_block *isp_k_param, uint32_t idx);
 int isp_k_update_nlm(uint32_t idx,
 	struct isp_k_block *isp_k_param,
 	uint32_t new_width, uint32_t old_width,
