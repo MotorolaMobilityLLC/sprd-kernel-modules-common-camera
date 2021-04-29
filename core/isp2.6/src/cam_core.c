@@ -5497,6 +5497,7 @@ static int camcore_raw_pre_proc(
 	struct cam_hw_lbuf_share camarg;
 	struct dcam_pipe_dev *dev = NULL;
 	struct dcam_sw_context *sw_ctx = NULL;
+	struct camera_frame *pframe = NULL;
 
 	pr_info("cam%d in. module:%px,  grp %px, %px\n",
 		module->idx, module, grp, &grp->rawproc_in);
@@ -5530,6 +5531,15 @@ static int camcore_raw_pre_proc(
 	}
 	dev = (struct dcam_pipe_dev *)module->dcam_dev_handle;
 	sw_ctx = &dev->sw_ctx[module->offline_cxt_id];
+	if (proc_info->scene == RAW_PROC_SCENE_HWSIM) {
+		while (cam_queue_cnt_get(&sw_ctx->proc_queue)) {
+			pframe = cam_queue_dequeue_tail(&sw_ctx->proc_queue);
+			cam_buf_iommu_unmap(&pframe->buf);
+		}
+		while (cam_queue_cnt_get(&sw_ctx->in_queue)) {
+			pframe = cam_queue_dequeue_tail(&sw_ctx->in_queue);
+		}
+	}
 
 	dev = module->aux_dcam_dev;
 	if (dev == NULL) {
