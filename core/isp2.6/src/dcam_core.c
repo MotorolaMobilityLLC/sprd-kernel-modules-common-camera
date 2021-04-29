@@ -1336,6 +1336,8 @@ static int dcamcore_path_get(
 		dcamcore_out_frame_ret);
 	cam_queue_init(&path->out_buf_queue, DCAM_OUT_BUF_Q_LEN,
 		dcamcore_out_frame_ret);
+	cam_queue_init(&path->alter_out_queue, DCAM_OUT_BUF_Q_LEN,
+		dcamcore_out_frame_ret);
 	cam_queue_init(&path->reserved_buf_queue, DCAM_RESERVE_BUF_Q_LEN,
 		dcamcore_reserved_buf_destroy);
 
@@ -1375,6 +1377,7 @@ static int dcamcore_path_put(void *dcam_handle, int path_id)
 
 	cam_queue_clear(&path->result_queue, struct camera_frame, list);
 	cam_queue_clear(&path->out_buf_queue, struct camera_frame, list);
+	cam_queue_clear(&path->alter_out_queue, struct camera_frame, list);
 	cam_queue_clear(&path->reserved_buf_queue, struct camera_frame, list);
 
 	pr_info("put dcam%d path %d done\n", pctx->hw_ctx_id, path_id);
@@ -1440,6 +1443,50 @@ static int dcamcore_path_cfg(void *dcam_handle, enum dcam_path_cfg_cmd cfg_cmd,
 			goto exit;
 		}
 		pr_debug("config dcam%d path %d output buffer.\n", pctx->hw_ctx_id,  path_id);
+		break;
+	case DCAM_PATH_CLR_OUTPUT_SHARE_BUF:
+		do {
+			pframe = cam_queue_dequeue(&path->out_buf_queue,
+				struct camera_frame, list);
+			if (pframe == NULL)
+				break;
+			pctx->buf_get_cb(SHARE_BUF_SET_CB, pframe, pctx->buf_cb_data);
+
+		} while (1);
+		do {
+			pframe = cam_queue_dequeue(&path->result_queue,
+				struct camera_frame, list);
+			if (pframe == NULL)
+				break;
+			pctx->buf_get_cb(SHARE_BUF_SET_CB, pframe, pctx->buf_cb_data);
+
+		} while (1);
+		break;
+	case DCAM_PATH_CFG_OUTPUT_ALTER_BUF:
+		pframe = (struct camera_frame *)param;
+		pframe->is_reserved = 0;
+		pframe->priv_data = pctx;
+		ret = cam_queue_enqueue(&path->alter_out_queue, &pframe->list);
+		if (ret) {
+			pr_err("fail to enqueue frame of dcam path %d\n",
+				path_id);
+			goto exit;
+		}
+		pr_debug("config dcam alter output buffer %d\n", pframe->buf.mfd[0]);
+		break;
+
+	case DCAM_PATH_CLR_OUTPUT_ALTER_BUF:
+		do {
+			pframe = cam_queue_dequeue(&path->alter_out_queue,
+				struct camera_frame, list);
+			if (pframe == NULL)
+				break;
+			pr_debug("clr fdr raw buf fd %d, type %d, mapping %x\n",
+				pframe->buf.mfd[0], pframe->buf.type, pframe->buf.mapping_state);
+			cam_buf_ionbuf_put(&pframe->buf);
+			cam_queue_empty_frame_put(pframe);
+
+		} while (1);
 		break;
 	case DCAM_PATH_CFG_OUTPUT_RESERVED_BUF:
 		pframe = (struct camera_frame *)param;
@@ -1726,6 +1773,29 @@ static int dcamcore_cb_set(void *dcam_handle, int ctx_id,
 	return ret;
 }
 
+static int dcamcore_share_buf_cb_set(void *dcam_handle, int ctx_id,
+		share_buf_get_cb cb, void *priv_data)
+{
+	int ret = 0;
+	struct dcam_pipe_dev *dev = NULL;
+	struct dcam_sw_context *pctx = NULL;
+
+	if (!dcam_handle || !cb || !priv_data) {
+		pr_err("fail to get valid param, dcam_handle=%p, cb=%p, priv_data=%p\n",
+			dcam_handle, cb, priv_data);
+		return -EFAULT;
+	}
+
+	dev = (struct dcam_pipe_dev *)dcam_handle;
+	pctx = &dev->sw_ctx[ctx_id];
+	if (pctx->buf_get_cb == NULL) {
+		pctx->buf_get_cb = cb;
+		pctx->buf_cb_data = priv_data;
+	}
+
+	return ret;
+}
+
 static int dcamcore_dev_start(void *dcam_handle, int online)
 {
 	int ret = 0;
@@ -1787,14 +1857,14 @@ static int dcamcore_dev_start(void *dcam_handle, int online)
 	}
 
 	if (pctx->raw_callback) {
-                atomic_set(&pctx->path[DCAM_PATH_AEM].user_cnt, 0);
-                atomic_set(&pctx->path[DCAM_PATH_PDAF].user_cnt, 0);
-                atomic_set(&pctx->path[DCAM_PATH_AFM].user_cnt, 0);
-                atomic_set(&pctx->path[DCAM_PATH_AFL].user_cnt, 0);
-                atomic_set(&pctx->path[DCAM_PATH_HIST].user_cnt, 0);
-                atomic_set(&pctx->path[DCAM_PATH_LSCM].user_cnt, 0);
-                atomic_set(&pctx->path[DCAM_PATH_3DNR].user_cnt, 0);
-        } else {
+		atomic_set(&pctx->path[DCAM_PATH_AEM].user_cnt, 0);
+		atomic_set(&pctx->path[DCAM_PATH_PDAF].user_cnt, 0);
+		atomic_set(&pctx->path[DCAM_PATH_AFM].user_cnt, 0);
+		atomic_set(&pctx->path[DCAM_PATH_AFL].user_cnt, 0);
+		atomic_set(&pctx->path[DCAM_PATH_HIST].user_cnt, 0);
+		atomic_set(&pctx->path[DCAM_PATH_LSCM].user_cnt, 0);
+		atomic_set(&pctx->path[DCAM_PATH_3DNR].user_cnt, 0);
+	} else {
 		/* enable statistic paths  */
 		if (pm->aem.bypass == 0)
 			atomic_set(&pctx->path[DCAM_PATH_AEM].user_cnt, 1);
@@ -2451,6 +2521,7 @@ static struct dcam_pipe_ops s_dcam_pipe_ops = {
 	.get_context = dcamcore_context_get,
 	.put_context = dcamcore_context_put,
 	.get_datactrl = dcamcore_datactrl_get,
+	.share_buf_set_cb = dcamcore_share_buf_cb_set,
 };
 
 void dcam_core_get_fmcu(struct dcam_sw_context *pctx)
@@ -2579,7 +2650,7 @@ int dcam_core_context_unbind(struct dcam_sw_context *pctx)
 {
 	int i, cnt;
 	struct dcam_pipe_dev *dev = pctx->dev;
-	struct dcam_hw_context *pctx_hw;
+	struct dcam_hw_context *pctx_hw = NULL;
 	unsigned long flag = 0;
 
 	if (dcam_core_hw_context_id_get(pctx) < 0) {
@@ -2588,7 +2659,6 @@ int dcam_core_context_unbind(struct dcam_sw_context *pctx)
 	}
 
 	spin_lock_irqsave(&dev->ctx_lock, flag);
-
 	for (i = 0; i < DCAM_HW_CONTEXT_MAX; i++) {
 		pctx_hw = &dev->hw_ctx[i];
 		if ((pctx->sw_ctx_id != pctx_hw->sw_ctx_id) ||

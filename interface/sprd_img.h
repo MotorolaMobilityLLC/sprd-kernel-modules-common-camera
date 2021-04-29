@@ -239,7 +239,6 @@ enum dcam_capture_status {
 	DCAM_CAPTURE_MAX
 };
 
-
 enum capture_scene {
 	CAPTURE_COMMON = 0,
 	CAPTURE_HDR,
@@ -778,48 +777,6 @@ struct isp_3dnr_param {
 	int blending_no;
 };
 
-struct sprd_isp_post_ynr_param {
-	unsigned int ydenoise_lowlux_bypass;
-	unsigned int ydenoise_flat[7];
-	unsigned int ydenoise_lut_thresh[7];
-	unsigned int ydenoise_subthresh[9];
-	unsigned int ydenoise_addback[9];
-	unsigned int ydenoise_sedgethresh;
-	unsigned int ydenoise_txtthresh;
-	unsigned int ydenoise_l1_txt_thresh1;
-	unsigned int ydenoise_l1_txt_thresh0;
-	unsigned int ydenoise_l0_lut_thresh1;
-	unsigned int ydenoise_l0_lut_thresh0;
-	unsigned int ydenoise_l1_eurodist[3];
-	unsigned int ydenoise_l3_wfindex;
-	unsigned int ydenoise_l2_wfindex;
-	unsigned int ydenoise_l1_wfindex;
-	unsigned int ydenoise_l2_eurodist[3];
-	unsigned int ydenoise_l3_eurodist[3];
-	unsigned int ydenoise_wv_nr_enable;
-	unsigned int ydenoise_l1_blf_enable;
-	unsigned int ydenoise_l2_blf_enable;
-	unsigned int ydenoise_l3_blf_enable;
-	unsigned int wltt[24];
-	unsigned int freqratio[24];
-	unsigned int dist_interval;
-	unsigned int ydenoise_radius;
-	unsigned int ydenoise_imgcenterx;
-	unsigned int ydenoise_imgcentery;
-	unsigned int ydenoise_sal_nr_str[8];
-	unsigned int ydenoise_sal_offset[8];
-};
-
-struct sprd_isp_ynr_param {
-	unsigned int src_img_w;
-	unsigned int src_img_h;
-	unsigned int dst_img_w;
-	unsigned int dst_img_h;
-	unsigned int src_buf_fd;
-	unsigned int dst_buf_fd;
-	struct sprd_isp_post_ynr_param ynr_param;
-};
-
 struct sprd_img_3dnr_param {
 	unsigned int w;
 	unsigned int h;
@@ -904,8 +861,6 @@ struct sprd_dcam_raw_fmt {
 #define SPRD_IMG_IO_CFG_FLASH            _IOW(SPRD_IMG_IO_MAGIC, 22, struct sprd_flash_cfg_param)
 #define SPRD_IMG_IO_PDAF_CONTROL         _IOW(SPRD_IMG_IO_MAGIC, 23, struct sprd_pdaf_control)
 #define SPRD_IMG_IO_GET_IOMMU_STATUS     _IOR(SPRD_IMG_IO_MAGIC, 24, uint32_t)
-#define SPRD_IMG_IO_DISABLE_MODE         _IOW(SPRD_IMG_IO_MAGIC, 25, uint32_t)
-#define SPRD_IMG_IO_ENABLE_MODE          _IOW(SPRD_IMG_IO_MAGIC, 26, uint32_t)
 #define SPRD_IMG_IO_START_CAPTURE        _IOW(SPRD_IMG_IO_MAGIC, 27, struct sprd_img_capture_param)
 #define SPRD_IMG_IO_STOP_CAPTURE         _IOW(SPRD_IMG_IO_MAGIC, 28, uint32_t)
 #define SPRD_IMG_IO_SET_PATH_SKIP_NUM    _IOW(SPRD_IMG_IO_MAGIC, 29, struct sprd_img_parm)

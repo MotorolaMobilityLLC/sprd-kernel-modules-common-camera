@@ -535,6 +535,7 @@ static int camioctl_sensor_size_set(struct camera_module *module,
 		ret = -EFAULT;
 		goto exit;
 	}
+
 exit:
 	return ret;
 }
@@ -1251,6 +1252,7 @@ static int camioctl_frame_addr_set(struct camera_module *module,
 			} else if ((ch->ch_id == CAM_CH_CAP) &&
 					param.pixel_fmt == IMG_PIX_FMT_GREY) {
 				pframe->img_fmt = param.pixel_fmt;
+				cmd = DCAM_PATH_CFG_OUTPUT_ALTER_BUF;
 			}
 
 			dcam_sw_ctx = &module->dcam_dev_handle->sw_ctx[module->cur_sw_ctx_id];
@@ -1467,8 +1469,18 @@ static int camioctl_stream_off(struct camera_module *module,
 					cur = prev;
 				}
 			}
-			cam_queue_clear(&ch->share_buf_queue,
-				struct camera_frame, list);
+			if (ch->ch_id == CAM_CH_CAP && module->grp->is_mul_buf_share) {
+				struct camera_frame *pframe = NULL;
+				do {
+					pframe = cam_queue_dequeue(&ch->share_buf_queue,
+						struct camera_frame, list);
+					if (pframe == NULL)
+						break;
+					camcore_share_buf_cfg(SHARE_BUF_SET_CB, pframe, module);
+				} while (pframe);
+			} else {
+				cam_queue_clear(&ch->share_buf_queue, struct camera_frame, list);
+			}
 
 			for (j = 0; j < ISP_NR3_BUF_NUM; j++) {
 				if (ch->nr3_bufs[j]) {
@@ -2127,6 +2139,8 @@ check:
 
 	module->dcam_dev_handle->dcam_pipe_ops->set_callback(module->dcam_dev_handle,
 		module->cur_sw_ctx_id, camcore_dcam_callback, module);
+	module->dcam_dev_handle->dcam_pipe_ops->share_buf_set_cb(module->dcam_dev_handle,
+		module->cur_sw_ctx_id, camcore_share_buf_cfg, module);
 
 	/*offline context*/
 	ret = module->dcam_dev_handle->dcam_pipe_ops->get_context(module->dcam_dev_handle);
@@ -2507,6 +2521,9 @@ static int camioctl_capture_stop(struct camera_module *module,
 		ch_desc.bayer_pattern = module->cam_uinfo.sensor_if.img_ptn;
 		module->dcam_dev_handle->dcam_pipe_ops->cfg_path(sw_ctx,
 				DCAM_PATH_CFG_BASE,
+				module->channel[CAM_CH_CAP].dcam_path_id, &ch_desc);
+		module->dcam_dev_handle->dcam_pipe_ops->cfg_path(sw_ctx,
+				DCAM_PATH_CLR_OUTPUT_ALTER_BUF,
 				module->channel[CAM_CH_CAP].dcam_path_id, &ch_desc);
 	}
 
@@ -3193,6 +3210,7 @@ static int camioctl_csi_switch(struct camera_module *module, unsigned long arg)
 	uint32_t csi_connect = 0;
 	uint32_t loop = 0;
 	struct isp_offline_param *in_param = NULL;
+	struct camera_frame *pframe = NULL;
 
 	ret = copy_from_user(&csi_connect, (void __user *)arg, sizeof(uint32_t));
 	if (unlikely(ret)) {
@@ -3260,7 +3278,18 @@ static int camioctl_csi_switch(struct camera_module *module, unsigned long arg)
 
 			/* unbind */
 			dcam_core_context_unbind(sw_ctx);
-
+			module->dcam_dev_handle->dcam_pipe_ops->cfg_path(sw_ctx,
+				DCAM_PATH_CLR_OUTPUT_SHARE_BUF,
+				DCAM_PATH_FULL, sw_ctx);
+			if (module->channel[CAM_CH_CAP].enable) {
+				do {
+					pframe = cam_queue_dequeue(&module->channel[CAM_CH_CAP].share_buf_queue,
+						struct camera_frame, list);
+					if (pframe == NULL)
+						break;
+					camcore_share_buf_cfg(SHARE_BUF_SET_CB, pframe, module);
+				} while (pframe);
+			}
 			atomic_set(&sw_ctx->state, STATE_IDLE);
 			sw_ctx->csi_connect_stat = DCAM_CSI_PAUSE;
 			break;
@@ -3314,6 +3343,7 @@ static int camioctl_path_pause(struct camera_module *module,
 {
 	int ret = 0;
 	uint32_t dcam_path_state = DCAM_PATH_PAUSE;
+	struct camera_frame *pframe = NULL;
 	struct dcam_sw_context *sw_ctx = &module->dcam_dev_handle->sw_ctx[module->cur_sw_ctx_id];
 
 	pr_debug("pause cam%d with csi_id %d ,sw_ctx_id = %d\n",
@@ -3323,9 +3353,20 @@ static int camioctl_path_pause(struct camera_module *module,
 
 	if (atomic_read(&module->state) == CAM_RUNNING) {
 		mutex_lock(&module->lock);
-		if (module->channel[CAM_CH_CAP].enable)
+		if (module->channel[CAM_CH_CAP].enable) {
 			module->dcam_dev_handle->dcam_pipe_ops->cfg_path(sw_ctx,
 				DCAM_PATH_CFG_STATE, DCAM_PATH_FULL, &dcam_path_state);
+			module->dcam_dev_handle->dcam_pipe_ops->cfg_path(sw_ctx,
+				DCAM_PATH_CLR_OUTPUT_SHARE_BUF,
+				DCAM_PATH_FULL, &dcam_path_state);
+			do {
+				pframe = cam_queue_dequeue(&module->channel[CAM_CH_CAP].share_buf_queue,
+					struct camera_frame, list);
+				if (pframe == NULL)
+					break;
+				camcore_share_buf_cfg(SHARE_BUF_SET_CB, pframe, module);
+			} while (pframe);
+		}
 		mutex_unlock(&module->lock);
 	}
 
@@ -3423,6 +3464,7 @@ static int camioctl_cap_zsl_info_set(struct camera_module *module,
 		ret = -EFAULT;
 		goto exit;
 	}
+
 	pr_debug("zsl num %d zsl skip num %d is share buf %d\n", param.zsl_num,
 		param.zsk_skip_num, param.need_share_buf);
 

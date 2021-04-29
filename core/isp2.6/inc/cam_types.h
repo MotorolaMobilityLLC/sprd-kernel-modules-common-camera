@@ -261,6 +261,12 @@ enum dcam_cb_type {
 	DCAM_CB_MMU_ERR,
 };
 
+enum share_buf_cb_type {
+	SHARE_BUF_GET_CB,
+	SHARE_BUF_SET_CB,
+	SHARE_BUF_MAX_CB,
+};
+
 enum cam_scene_ctrl_type {
 	CAM_SCENE_CTRL_FDR_L,
 	CAM_SCENE_CTRL_FDR_H,
@@ -336,5 +342,7 @@ typedef int(*dcam_dev_callback)(enum dcam_cb_type type, void *param,
 				void *priv_data);
 typedef int (*proc_func)(void *param);
 typedef int (*pyr_dec_buf_cb)(void *param, void *priv_data);
+typedef int(*share_buf_get_cb)(enum share_buf_cb_type type, void *param,
+				void *priv_data);
 
 #endif/* _CAM_TYPES_H_ */

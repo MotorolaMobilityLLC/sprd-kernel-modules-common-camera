@@ -375,6 +375,10 @@ struct camera_group {
 	struct camera_debugger debugger;
 	struct cam_hw_info *hw_info;
 	struct sprd_img_size mul_sn_max_size;
+	atomic_t mul_buf_alloced;
+	uint32_t is_mul_buf_share;
+	/* mul camera shared frame buffer for full path */
+	struct camera_queue mul_share_buf_q;
 };
 
 struct cam_ioctl_cmd {
@@ -1264,6 +1268,9 @@ static int camcore_buffer_path_cfg(struct camera_module *module,
 		goto exit;
 	}
 
+	if (index == CAM_CH_CAP && module->grp->is_mul_buf_share)
+		goto mul_share_buf_done;
+
 	/* set shared frame for dcam output */
 	while (1) {
 		struct camera_frame *pframe = NULL;
@@ -1291,9 +1298,10 @@ static int camcore_buffer_path_cfg(struct camera_module *module,
 			goto exit;
 		}
 	}
+
+mul_share_buf_done:
 	isp_ctx_id = ch->isp_ctx_id;
 	isp_path_id = ch->isp_path_id;
-
 	for (j = 0; j < ISP_NR3_BUF_NUM; j++) {
 		if (ch->nr3_bufs[j] == NULL)
 			continue;
@@ -1473,10 +1481,13 @@ static int camcore_buffers_alloc(void *param)
 	struct dcam_compress_info fbc_info;
 	struct dcam_compress_cal_para cal_fbc = {0};
 	struct dcam_sw_context *sw_ctx = NULL;
+	struct camera_group *grp = NULL;
+	struct camera_queue *cap_buf_q = NULL;
 
 	pr_info("enter.\n");
 
 	module = (struct camera_module *)param;
+	grp = module->grp;
 	sw_ctx = &module->dcam_dev_handle->sw_ctx[module->cur_sw_ctx_id];
 	alloc_buf = cam_queue_dequeue(&module->alloc_queue,
 		struct camera_frame, list);
@@ -1494,8 +1505,20 @@ static int camcore_buffers_alloc(void *param)
 	channel_vid = &module->channel[CAM_CH_VID];
 	sec_mode = module->grp->camsec_cfg.camsec_mode;
 
-	width = channel->swap_size.w;
-	height = channel->swap_size.h;
+	total = camcore_buffers_alloc_num(channel, module);
+	if (channel->ch_id == CAM_CH_CAP && module->cam_uinfo.need_share_buf &&
+		!module->cam_uinfo.dcam_slice_mode && !module->cam_uinfo.is_4in1) {
+		cap_buf_q = &grp->mul_share_buf_q;
+		width = grp->mul_sn_max_size.w;
+		height = grp->mul_sn_max_size.h;
+		grp->is_mul_buf_share = 1;
+	} else {
+		cap_buf_q = &channel->share_buf_queue;
+		width = channel->swap_size.w;
+		height = channel->swap_size.h;
+		grp->is_mul_buf_share = 0;
+	}
+
 	dcam_out_bits = module->cam_uinfo.sensor_if.if_spec.mipi.bits_per_pxl;
 	if (channel->aux_dcam_path_id >= 0)
 		pack_bits = channel->ch_uinfo.sensor_raw_fmt;
@@ -1531,11 +1554,13 @@ static int camcore_buffers_alloc(void *param)
 	if (module->cam_uinfo.is_pyr_rec && channel->ch_id != CAM_CH_CAP)
 		size += dcam_if_cal_pyramid_size(width, height, dcam_out_bits, is_pack);
 	size = ALIGN(size, CAM_BUF_ALIGN_SIZE);
-
-	total = camcore_buffers_alloc_num(channel, module);
 	pr_info("idx %d, ch_id %d, camsec=%d, buffer size: %u (%u x %u), num %d\n",
 		module->dcam_idx, channel->ch_id, sec_mode,
 		size, width, height, total);
+
+	if (channel->ch_id == CAM_CH_CAP && grp->is_mul_buf_share
+		&& atomic_inc_return(&grp->mul_buf_alloced) > 1)
+		goto mul_alloc_end;
 
 	for (i = 0, count = 0; i < total; i++) {
 		do {
@@ -1563,7 +1588,7 @@ static int camcore_buffers_alloc(void *param)
 				goto exit;
 			}
 
-			ret = cam_queue_enqueue(&channel->share_buf_queue, &pframe->list);
+			ret = cam_queue_enqueue(cap_buf_q, &pframe->list);
 			if (ret) {
 				pr_err("fail to enqueue shared buf: %d ch %d\n", i, channel->ch_id);
 				cam_buf_free(&pframe->buf);
@@ -1578,6 +1603,7 @@ static int camcore_buffers_alloc(void *param)
 		} while (1);
 	}
 
+mul_alloc_end:
 	debugger = &module->grp->debugger;
 	path_id = channel->dcam_path_id;
 	is_super_size = (module->cam_uinfo.dcam_slice_mode == CAM_OFFLINE_SLICE_HW
@@ -2339,6 +2365,51 @@ static struct camera_frame *camcore_supersize_frame_deal(struct camera_module *m
 	}
 }
 
+static int camcore_share_buf_cfg(enum share_buf_cb_type type,
+		void *param, void *priv_data)
+{
+	int ret = 0;
+	struct camera_frame *pframe = NULL;
+	struct camera_frame **frame = NULL;
+	struct camera_group *grp = NULL;
+	struct camera_module *module = NULL;
+
+	if (!priv_data) {
+		pr_err("fail to get valid param %p\n", priv_data);
+		return -EFAULT;
+	}
+
+	module = (struct camera_module *)priv_data;
+	grp = module->grp;
+
+	switch (type) {
+		case SHARE_BUF_GET_CB:
+			frame = (struct camera_frame **)param;
+			if (!module->cam_uinfo.dcam_slice_mode) {
+				*frame = cam_queue_dequeue(&grp->mul_share_buf_q,
+						struct camera_frame, list);
+				pr_debug("cam %d dcam %d get share buf cnt %d frame %p\n", module->idx,
+					module->dcam_idx, grp->mul_share_buf_q.cnt, *frame);
+			} else {
+				*frame = NULL;
+			}
+			break;
+		case SHARE_BUF_SET_CB:
+			pframe = (struct camera_frame *)param;
+			if (pframe->buf.mapping_state & CAM_BUF_MAPPING_DEV)
+				cam_buf_iommu_unmap(&pframe->buf);
+			ret = cam_queue_enqueue(&grp->mul_share_buf_q, &pframe->list);
+			pr_debug("cam %d dcam %d set share buf cnt %d frame id %d\n", module->idx,
+					module->dcam_idx, grp->mul_share_buf_q.cnt, pframe->fid);
+			break;
+		default:
+			pr_err("fail to get invalid %d\n", type);
+			break;
+	}
+
+	return ret;
+}
+
 static int camcore_isp_callback(enum isp_cb_type type, void *param, void *priv_data)
 {
 	int ret = 0;
@@ -2881,8 +2952,12 @@ static int camcore_dcam_callback(enum dcam_cb_type type, void *param, void *priv
 					if ((pframe->boot_sensor_time < module->capture_times) ||
 						(pframe->img_fmt != IMG_PIX_FMT_GREY) ||
 						(atomic_read(&module->capture_frames_dcam) < 1)) {
+						uint32_t cmd;
 						pr_info("discard fdr frame: fd %d\n", pframe->buf.mfd[0]);
-						ret = module->dcam_dev_handle->dcam_pipe_ops->cfg_path(dcam_sw_ctx, DCAM_PATH_CFG_OUTPUT_BUF,
+						cmd = (pframe->img_fmt == IMG_PIX_FMT_GREY) ?
+							DCAM_PATH_CFG_OUTPUT_ALTER_BUF :
+							DCAM_PATH_CFG_OUTPUT_BUF;
+						ret = module->dcam_dev_handle->dcam_pipe_ops->cfg_path(dcam_sw_ctx, cmd,
 							channel->dcam_path_id, pframe);
 						return ret;
 					}
@@ -6787,40 +6862,19 @@ static struct cam_ioctl_cmd ioctl_cmds_table[] = {
 	[_IOC_NR(SPRD_IMG_IO_GET_TIME)]             = {SPRD_IMG_IO_GET_TIME,             camioctl_time_get},
 	[_IOC_NR(SPRD_IMG_IO_CHECK_FMT)]            = {SPRD_IMG_IO_CHECK_FMT,            camioctl_fmt_check},
 	[_IOC_NR(SPRD_IMG_IO_SET_SHRINK)]           = {SPRD_IMG_IO_SET_SHRINK,           camioctl_shrink_set},
-	[_IOC_NR(SPRD_IMG_IO_SET_FREQ_FLAG)]        = {SPRD_IMG_IO_SET_FREQ_FLAG,        NULL},
 	[_IOC_NR(SPRD_IMG_IO_CFG_FLASH)]            = {SPRD_IMG_IO_CFG_FLASH,            camioctl_flash_cfg},
-	[_IOC_NR(SPRD_IMG_IO_PDAF_CONTROL)]         = {SPRD_IMG_IO_PDAF_CONTROL,         NULL},
 	[_IOC_NR(SPRD_IMG_IO_GET_IOMMU_STATUS)]     = {SPRD_IMG_IO_GET_IOMMU_STATUS,     camioctl_iommu_status_get},
-	[_IOC_NR(SPRD_IMG_IO_DISABLE_MODE)]         = {SPRD_IMG_IO_DISABLE_MODE,         NULL},
-	[_IOC_NR(SPRD_IMG_IO_ENABLE_MODE)]          = {SPRD_IMG_IO_ENABLE_MODE,          NULL},
 	[_IOC_NR(SPRD_IMG_IO_START_CAPTURE)]        = {SPRD_IMG_IO_START_CAPTURE,        camioctl_capture_start},
 	[_IOC_NR(SPRD_IMG_IO_STOP_CAPTURE)]         = {SPRD_IMG_IO_STOP_CAPTURE,         camioctl_capture_stop},
-	[_IOC_NR(SPRD_IMG_IO_SET_PATH_SKIP_NUM)]    = {SPRD_IMG_IO_SET_PATH_SKIP_NUM,    NULL},
-	[_IOC_NR(SPRD_IMG_IO_SBS_MODE)]             = {SPRD_IMG_IO_SBS_MODE,             NULL},
 	[_IOC_NR(SPRD_IMG_IO_DCAM_PATH_SIZE)]       = {SPRD_IMG_IO_DCAM_PATH_SIZE,       camioctl_dcam_path_size},
 	[_IOC_NR(SPRD_IMG_IO_SET_SENSOR_MAX_SIZE)]  = {SPRD_IMG_IO_SET_SENSOR_MAX_SIZE,  camioctl_sensor_max_size_set},
-	[_IOC_NR(SPRD_ISP_IO_IRQ)]                  = {SPRD_ISP_IO_IRQ,                  NULL},
-	[_IOC_NR(SPRD_ISP_IO_READ)]                 = {SPRD_ISP_IO_READ,                 NULL},
-	[_IOC_NR(SPRD_ISP_IO_WRITE)]                = {SPRD_ISP_IO_WRITE,                NULL},
-	[_IOC_NR(SPRD_ISP_IO_RST)]                  = {SPRD_ISP_IO_RST,                  NULL},
-	[_IOC_NR(SPRD_ISP_IO_STOP)]                 = {SPRD_ISP_IO_STOP,                 NULL},
-	[_IOC_NR(SPRD_ISP_IO_INT)]                  = {SPRD_ISP_IO_INT,                  NULL},
 	[_IOC_NR(SPRD_ISP_IO_SET_STATIS_BUF)]       = {SPRD_ISP_IO_SET_STATIS_BUF,       camioctl_statis_buf_set},
 	[_IOC_NR(SPRD_ISP_IO_CFG_PARAM)]            = {SPRD_ISP_IO_CFG_PARAM,            camioctl_param_cfg},
-	[_IOC_NR(SPRD_ISP_REG_READ)]                = {SPRD_ISP_REG_READ,                NULL},
-	[_IOC_NR(SPRD_ISP_IO_POST_3DNR)]            = {SPRD_ISP_IO_POST_3DNR,            NULL},
-	[_IOC_NR(SPRD_STATIS_IO_CFG_PARAM)]         = {SPRD_STATIS_IO_CFG_PARAM,         NULL},
 	[_IOC_NR(SPRD_ISP_IO_RAW_CAP)]              = {SPRD_ISP_IO_RAW_CAP,              camioctl_raw_proc},
 	[_IOC_NR(SPRD_IMG_IO_GET_DCAM_RES)]         = {SPRD_IMG_IO_GET_DCAM_RES,         camioctl_cam_res_get},
 	[_IOC_NR(SPRD_IMG_IO_PUT_DCAM_RES)]         = {SPRD_IMG_IO_PUT_DCAM_RES,         camioctl_cam_res_put},
-	[_IOC_NR(SPRD_ISP_IO_SET_PULSE_LINE)]       = {SPRD_ISP_IO_SET_PULSE_LINE,       NULL},
-	[_IOC_NR(SPRD_ISP_IO_CFG_START)]            = {SPRD_ISP_IO_CFG_START,            NULL},
-	[_IOC_NR(SPRD_ISP_IO_SET_NEXT_VCM_POS)]     = {SPRD_ISP_IO_SET_NEXT_VCM_POS,     NULL},
-	[_IOC_NR(SPRD_ISP_IO_SET_VCM_LOG)]          = {SPRD_ISP_IO_SET_VCM_LOG,          NULL},
-	[_IOC_NR(SPRD_IMG_IO_SET_3DNR)]             = {SPRD_IMG_IO_SET_3DNR,             NULL},
 	[_IOC_NR(SPRD_IMG_IO_SET_FUNCTION_MODE)]    = {SPRD_IMG_IO_SET_FUNCTION_MODE,    camioctl_function_mode_set},
 	[_IOC_NR(SPRD_IMG_IO_GET_FLASH_INFO)]       = {SPRD_IMG_IO_GET_FLASH_INFO,       camioctl_flash_get},
-	[_IOC_NR(SPRD_ISP_IO_MASK_3A)]              = {SPRD_ISP_IO_MASK_3A,              NULL},
 	[_IOC_NR(SPRD_IMG_IO_EBD_CONTROL)]          = {SPRD_IMG_IO_EBD_CONTROL,          camioctl_ebd_control},
 	[_IOC_NR(SPRD_IMG_IO_SET_4IN1_ADDR)]        = {SPRD_IMG_IO_SET_4IN1_ADDR,        camioctl_4in1_raw_addr_set},
 	[_IOC_NR(SPRD_IMG_IO_4IN1_POST_PROC)]       = {SPRD_IMG_IO_4IN1_POST_PROC,       camioctl_4in1_post_proc},
@@ -7275,8 +7329,10 @@ static int camcore_open(struct inode *node, struct file *file)
 		cam_queue_init(g_empty_frm_q, CAM_EMP_Q_LEN_MAX,
 			cam_queue_empty_frame_free);
 		g_empty_state_q = &grp->empty_state_q;
-		cam_queue_init(g_empty_state_q, CAM_EMP_Q_LEN_MAX,
+		cam_queue_init(g_empty_state_q, CAM_EMP_Q_LEN_MAX / 4,
 			cam_queue_empty_state_free);
+		cam_queue_init(&grp->mul_share_buf_q,
+			CAM_SHARED_BUF_NUM, camcore_k_frame_put);
 		spin_unlock_irqrestore(&grp->module_lock, flag);
 
 		pr_info("init frm_q %px state_q %px\n", g_empty_frm_q, g_empty_state_q);
@@ -7408,6 +7464,7 @@ static int camcore_release(struct inode *node, struct file *file)
 
 		/* g_leak_debug_cnt should be 0 after clr, or else memory leak.
 		 */
+		cam_queue_clear(&group->mul_share_buf_q, struct camera_frame, list);
 		cam_queue_clear(g_empty_frm_q, struct camera_frame, list);
 
 		g_empty_frm_q = NULL;
@@ -7416,6 +7473,8 @@ static int camcore_release(struct inode *node, struct file *file)
 
 		ret = cam_buf_mdbg_check();
 		atomic_set(&group->runner_nr, 0);
+		atomic_set(&group->mul_buf_alloced, 0);
+		group->is_mul_buf_share = 0;
 		spin_unlock_irqrestore(&group->module_lock, flag);
 	}
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0))

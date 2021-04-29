@@ -78,11 +78,14 @@ enum dcam_path_cfg_cmd {
 	DCAM_PATH_CFG_CTX_BASE = 0,
 	DCAM_PATH_CFG_BASE = 0,
 	DCAM_PATH_CFG_OUTPUT_BUF,
+	DCAM_PATH_CFG_OUTPUT_ALTER_BUF,
+	DCAM_PATH_CLR_OUTPUT_ALTER_BUF,
 	DCAM_PATH_CFG_OUTPUT_RESERVED_BUF,
 	DCAM_PATH_CFG_SIZE,
 	DCAM_PATH_CFG_FULL_SOURCE,/* 4in1 select full path source */
 	DCAM_PATH_CFG_SHUTOFF,
 	DCAM_PATH_CFG_STATE,
+	DCAM_PATH_CLR_OUTPUT_SHARE_BUF,
 };
 
 /* Just cal multilayer pyr_dec size but not include layer0 size */
@@ -236,6 +239,7 @@ struct dcam_pipe_ops {
 	int (*get_context)(void *dcam_handle);
 	int (*put_context)(void *dcam_handle, int ctx_id);
 	int (*get_datactrl)(void *handle, void *in, void *out);
+	int (*share_buf_set_cb)(void *handle, int ctx_id, share_buf_get_cb cb, void *priv_data);
 };
 
 /*

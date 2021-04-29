@@ -143,6 +143,7 @@ struct dcam_path_desc {
 	struct camera_frame *cur_frame;
 	struct camera_queue reserved_buf_queue;
 	struct camera_queue out_buf_queue;
+	struct camera_queue alter_out_queue;
 	struct camera_queue result_queue;
 	struct dcam_rds_slice_ctrl gphase;
 	struct yuv_scaler_info scaler_info;
@@ -299,8 +300,9 @@ struct dcam_sw_context {
 	struct cam_thread_info thread;
 	struct dcam_pipe_dev *dev;
 	dcam_dev_callback dcam_cb_func;
-
 	struct dcam_offline_slice_info slice_info;
+	share_buf_get_cb buf_get_cb;
+	void *buf_cb_data;
 };
 
 struct dcam_hw_context {
