@@ -1907,9 +1907,6 @@ static int dcamhw_blocks_setall(void *handle, void *arg)
 	dcam_k_cce_block(p);
 	dcam_k_cfa_block(p);
 	dcam_k_gamma_block(p);
-	dcam_k_nlm_block(p);
-	dcam_k_nlm_imblance(p);
-	dcam_k_cce_block(p);
 
 	pr_info("dcam%d set all\n", idx);
 

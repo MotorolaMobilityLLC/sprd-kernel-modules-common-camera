@@ -41,6 +41,14 @@ int init_dcam_pm(struct dcam_dev_param *blk_pm_ctx)
 	blk_pm_ctx->afm.bypass = 1;
 	blk_pm_ctx->lscm.bypass = 1;
 	blk_pm_ctx->pdaf.bypass = 1;
+	blk_pm_ctx->gamma_info_v1.gamma_info.bypass = 1;
+	blk_pm_ctx->cce_info.bypass = 1;
+	blk_pm_ctx->cmc10_info.bypass = 1;
+	blk_pm_ctx->cfa_info_v1.bypass = 1;
+	blk_pm_ctx->nlm_info2.ivst_bypass = 1;
+	blk_pm_ctx->nlm_info2.vst_bypass = 1;
+	blk_pm_ctx->nlm_info2.bypass = 1;
+	blk_pm_ctx->nlm_imblance2.nlm_imblance_bypass = 1;
 	blk_pm_ctx->gtm[0].update_en = 1;
 	blk_pm_ctx->gtm[0].gtm_info.gtm_mod_en = 1;
 	blk_pm_ctx->gtm[0].gtm_info.gtm_map_bypass = 1;
@@ -110,9 +118,6 @@ int dcam_k_dump_pm(void *pdst, void *psrc)
 
 int init_isp_pm(struct isp_k_block *isp_k_param)
 {
-
-	isp_k_param->nlm_info_base.bypass = 1;
-	isp_k_param->imbalance_info_base.nlm_imblance_bypass = 1;
 	isp_k_param->ynr_info_v2_base.bypass = 1;
 	isp_k_param->nr3_info_base.blend.bypass = 1;
 
@@ -123,7 +128,7 @@ int init_isp_pm(struct isp_k_block *isp_k_param)
 	isp_k_param->ltm_rgb_info.ltm_map.bypass = 1;
 	isp_k_param->ltm_yuv_info.ltm_stat.bypass = 1;
 	isp_k_param->ltm_yuv_info.ltm_map.bypass = 1;
-	isp_k_param->imblance_info.nlm_imblance_bypass = 1;
+
 	/* sharkl5pro diff */
 	isp_k_param->pstrz_info_v2.bypass = 1;
 	isp_k_param->uvd_info_v2.bypass = 1;
@@ -131,17 +136,12 @@ int init_isp_pm(struct isp_k_block *isp_k_param)
 
 	/* common */
 	isp_k_param->nr3d_info.blend.bypass = 1;
-	isp_k_param->cce_info.bypass = 1;
 	isp_k_param->pre_cdn_info.bypass = 1;
 	isp_k_param->cdn_info.bypass = 1;
 	isp_k_param->post_cdn_info.bypass = 1;
-	isp_k_param->cfa_info.bypass = 1;
-	isp_k_param->cmc10_info.bypass = 1;
 	isp_k_param->edge_info.bypass = 1;
-	isp_k_param->gamma_info.bypass = 1;
 	isp_k_param->hsv_info.bypass = 1;
 	isp_k_param->iircnr_info.bypass = 1;
-	isp_k_param->nlm_info.bypass = 1;
 	isp_k_param->ygamma_info.bypass = 1;
 	isp_k_param->yrandom_info.bypass = 1;
 	isp_k_param->nf_info.yrandom_bypass = 1;

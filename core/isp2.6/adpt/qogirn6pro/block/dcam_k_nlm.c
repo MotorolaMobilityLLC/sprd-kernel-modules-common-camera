@@ -32,7 +32,6 @@ static int load_vst_ivst_buf(struct dcam_dev_param *p)
 {
 	int ret = 0;
 	uint32_t buf_len;
-	uint32_t buf_sel;
 	uint32_t val;
 	uint32_t idx = 0;
 	unsigned int i = 0;
@@ -46,9 +45,7 @@ static int load_vst_ivst_buf(struct dcam_dev_param *p)
 	idx = p->idx;
 	nlm_info = &p->nlm_info2;
 
-	buf_sel = 0;
-	DCAM_REG_MWR(idx, DCAM_VST_PARA, BIT_1, buf_sel << 1);
-	DCAM_REG_MWR(idx, DCAM_IVST_PARA, BIT_1, buf_sel << 1);
+	DCAM_REG_MWR(idx, DCAM_BUF_CTRL, BIT_2 | BIT_1, 3 << 1);
 
 	if (nlm_info->vst_bypass == 0 && nlm_info->vst_table_addr) {
 		buf_len = ISP_VST_IVST_NUM2 * 4;
@@ -95,6 +92,10 @@ static int load_vst_ivst_buf(struct dcam_dev_param *p)
 			}
 		}
 	}
+
+	val = DCAM_REG_RD(idx, DCAM_BUF_CTRL);
+	DCAM_REG_MWR(idx, DCAM_BUF_CTRL, BIT_18 | BIT_17, ~(val & 0x60000));
+
 	return ret;
 }
 
@@ -240,12 +241,12 @@ int dcam_k_nlm_imblance(struct dcam_dev_param *p)
 		return 0;
 
 	DCAM_REG_MWR(idx, DCAM_NLM_IMBLANCE_CTRL, BIT_1,
-			imblance_info->imblance_radial_1D_en);
+			imblance_info->imblance_radial_1D_en << 1);
 	DCAM_REG_WR(idx, DCAM_NLM_IMBLANCE_PARA1,
 		(imblance_info->nlm_imblance_slash_edge_thr[0] & 0xff) |
 		((imblance_info->nlm_imblance_hv_edge_thr[0] & 0xff) << 8) |
-		((imblance_info->nlm_imblance_S_baohedu[0][0] & 0xff) << 16) |
-		((imblance_info->nlm_imblance_S_baohedu[0][1] & 0xff) << 24));
+		((imblance_info->nlm_imblance_S_baohedu[0][1] & 0xff) << 16) |
+		((imblance_info->nlm_imblance_S_baohedu[0][0] & 0xff) << 24));
 	DCAM_REG_WR(idx, DCAM_NLM_IMBLANCE_PARA2,
 		(imblance_info->nlm_imblance_slash_flat_thr[0] & 0x3ff) |
 		((imblance_info->nlm_imblance_hv_flat_thr[0] & 0x3ff) << 10));
