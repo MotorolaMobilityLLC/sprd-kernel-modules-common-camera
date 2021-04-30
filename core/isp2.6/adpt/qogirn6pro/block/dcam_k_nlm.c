@@ -98,12 +98,22 @@ int dcam_k_nlm_block(struct dcam_dev_param *p)
 {
 	int ret = 0;
 	uint32_t i = 0, j = 0, val = 0, idx = 0;
+	uint32_t center_x = 0, center_y = 0, radius_threshold = 0;
+	uint32_t radius_limit = 0, r_factor = 0, r_base = 0;
+	uint32_t filter_ratio = 0, coef2 = 0, flat_thresh_coef = 0;
+	uint32_t in_width = 0, re_width = 0;
+	uint32_t in_height = 0, re_height = 0;
 	struct isp_dev_nlm_info_v2 *nlm_info2 = NULL;
 
 	if (p == NULL)
 		return 0;
 
 	nlm_info2 = &p->nlm_info2;
+	idx = p->idx;
+	in_height = p->in_size.size_x;
+	in_height = p->in_size.size_y;
+	re_width = nlm_info2->nlm_radial_1D_center_x << 1;
+	re_height = nlm_info2->nlm_radial_1D_center_y << 1;
 
 	DCAM_REG_MWR(idx, DCAM_NLM_PARA, BIT_0, nlm_info2->bypass);
 	DCAM_REG_MWR(idx, DCAM_VST_PARA, BIT_0, nlm_info2->vst_bypass);
@@ -181,35 +191,57 @@ int dcam_k_nlm_block(struct dcam_dev_param *p)
 		((nlm_info2->update_flat_thr_bypass & 0x1) << 3);
 	DCAM_REG_MWR(idx, DCAM_NLM_RADIAL_1D_PARAM, 0xF, val);
 
-	val = ((nlm_info2->nlm_radial_1D_center_y & 0x7FFF) << 16) |
-		(nlm_info2->nlm_radial_1D_center_x & 0x7FFF);
+	center_x = p->in_size.size_x >> 1;
+	center_y = p->in_size.size_y >> 1;
+	val = ((center_y & 0x7FFF) << 16) | (center_x & 0x7FFF);
 	DCAM_REG_WR(idx, DCAM_NLM_RADIAL_1D_DIST, val);
 
-	val = nlm_info2->nlm_radial_1D_radius_threshold & 0x7FFF;
-	DCAM_REG_MWR(idx, DCAM_NLM_RADIAL_1D_THRESHOLD, 0x7FFF, val);
+	r_base = nlm_info2->radius_base;
+	r_factor = nlm_info2->nlm_radial_1D_radius_threshold_factor;
+	radius_threshold = nlm_info2->nlm_radial_1D_radius_threshold;
+	radius_threshold *= in_width;
+	radius_threshold = (radius_threshold + (re_width / 2)) / re_width;
+	radius_limit = (in_width + in_height) * r_factor / r_base;
+	radius_threshold = (radius_threshold < radius_limit) ? radius_threshold : radius_limit;
+	DCAM_REG_MWR(idx, DCAM_NLM_RADIAL_1D_THRESHOLD, 0x7FFF, radius_threshold);
+
 	val = nlm_info2->nlm_radial_1D_protect_gain_max & 0x1FFF;
 	DCAM_REG_MWR(idx, DCAM_NLM_RADIAL_1D_GAIN_MAX, 0x1FFF, val);
 
 	for (i = 0; i < 3; i++) {
 		for (j = 0; j < 3; j++) {
-			val = (nlm_info2->nlm_first_lum_flat_thresh_coef[i][j] & 0x7FFF) |
-				((nlm_info2->nlm_first_lum_flat_thresh_max[i][j] & 0x3FFF) << 16);
+			flat_thresh_coef = nlm_info2->nlm_first_lum_flat_thresh_coef[i][j];
+			flat_thresh_coef *= re_width;
+			flat_thresh_coef += (in_width / 2);
+			flat_thresh_coef /= in_width;
+			val = ((nlm_info2->nlm_first_lum_flat_thresh_max[i][j] & 0x3FFF) << 16) |
+				(flat_thresh_coef & 0x7FFF);
 			DCAM_REG_WR(idx, DCAM_NLM_RADIAL_1D_THR0 + i * 12 + j * 4, val);
 		}
 	}
 
 	for (i = 0; i < 3; i++) {
 		uint32_t *pclip, *pratio;
-
 		pclip = nlm_info2->nlm_first_lum_direction_addback_noise_clip[i];
 		pratio = nlm_info2->nlm_radial_1D_radius_threshold_filter_ratio[i];
 		for (j = 0; j < 4; j++) {
-			val = (nlm_info2->nlm_radial_1D_protect_gain_min[i][j] & 0x1FFF) |
-				((nlm_info2->nlm_radial_1D_coef2[i][j] & 0x3FFF) << 16);
-			DCAM_REG_WR(idx, DCAM_NLM_RADIAL_1D_RATIO + i * 16 + j * 4, val);
-			val = (pclip[j] & 0x3FF) | ((pratio[j] & 0x7FFF) << 17) |
+			filter_ratio = pratio[j];
+			filter_ratio *= in_width;
+			filter_ratio += (re_width / 2);
+			filter_ratio /= re_width;
+			r_factor = pratio[j];
+			radius_limit = (in_width + in_height) * r_factor / r_base;
+			filter_ratio = (filter_ratio < radius_limit) ? filter_ratio : radius_limit;
+			val = (pclip[j] & 0x3FF) | ((filter_ratio & 0x7FFF) << 17) |
 				((nlm_info2->nlm_first_lum_direction_addback[i][j] & 0x7F) << 10);
 			DCAM_REG_WR(idx, DCAM_NLM_RADIAL_1D_ADDBACK00 + i * 16 + j * 4, val);
+
+			coef2 = nlm_info2->nlm_radial_1D_coef2[i][j];
+			coef2 *= re_width;
+			coef2 = (coef2 + (in_width / 2)) / in_width;
+			val = (nlm_info2->nlm_radial_1D_protect_gain_min[i][j] & 0x1FFF) |
+				((coef2 & 0x3FFF) << 16);
+			DCAM_REG_WR(idx, DCAM_NLM_RADIAL_1D_RATIO + i * 16 + j * 4, val);
 		}
 	}
 
@@ -220,8 +252,11 @@ int dcam_k_nlm_block(struct dcam_dev_param *p)
 
 int dcam_k_nlm_imblance(struct dcam_dev_param *p)
 {
-	int ret = 0;
-	uint32_t idx = 0;
+	int ret = 0, idx = 0;
+	uint32_t center_x = 0, center_y = 0;
+	uint32_t radius = 0, radius_limit = 0;
+	uint32_t in_width = 0, in_height = 0;
+	uint32_t re_width = 0, re_height = 0;
 	struct isp_dev_nlm_imblance_v2 *imblance_info = NULL;
 
 	if (p == NULL)
@@ -229,6 +264,10 @@ int dcam_k_nlm_imblance(struct dcam_dev_param *p)
 
 	imblance_info = &p->nlm_imblance2;
 	idx = p->idx;
+	in_width = p->in_size.size_x;
+	in_height = p->in_size.size_y;
+	re_height = imblance_info->imblance_radial_1D_center_y << 1;
+	re_width = imblance_info->imblance_radial_1D_center_x << 1;
 
 	/* new added below */
 	DCAM_REG_MWR(idx, DCAM_NLM_IMBLANCE_CTRL, BIT_0,
@@ -332,11 +371,20 @@ int dcam_k_nlm_imblance(struct dcam_dev_param *p)
 		(imblance_info->imblance_radial_1D_coef_r3 & 0xff) |
 		((imblance_info->imblance_radial_1D_coef_r4 & 0xff) << 8) |
 		((imblance_info->imblance_radial_1D_protect_ratio_max & 0x7ff) << 16));
+
+	center_x = in_width >> 1;
+	center_y = in_height >> 1;
 	DCAM_REG_WR(idx, DCAM_NLM_IMBLANCE_PARA28,
-		((imblance_info->imblance_radial_1D_center_x & 0xffff) << 16) |
-		(imblance_info->imblance_radial_1D_center_y & 0xffff));
-	DCAM_REG_WR(idx, DCAM_NLM_IMBLANCE_PARA29,
-		(imblance_info->imblance_radial_1D_radius_thr & 0xffff));
+		((center_x & 0xffff) << 16) | (center_y & 0xffff));
+
+	radius = (imblance_info->imblance_radial_1D_radius_thr
+		* in_width + (re_width / 2)) / re_width;
+	radius_limit = (in_height + in_width)
+		* imblance_info->imblance_radial_1D_radius_thr_factor
+		/ imblance_info->radius_base;
+	radius = (radius < radius_limit) ? radius : radius_limit;
+	DCAM_REG_WR(idx, DCAM_NLM_IMBLANCE_PARA29, (radius & 0xffff));
+
 	DCAM_REG_WR(idx, DCAM_NLM_IMBLANCE_PARA31,
 		(imblance_info->med_diff[0] & 0x3ff ) |
 		((imblance_info->med_diff[1] & 0x3ff) << 10) |
@@ -446,144 +494,5 @@ int dcam_k_cfg_nlm(struct isp_io_param *param, struct dcam_dev_param *p)
 	}
 
 	return ret;
-}
 
-int isp_k_update_nlm(uint32_t idx,
-	struct isp_k_block *isp_k_param,
-	uint32_t new_width, uint32_t old_width,
-	uint32_t new_height, uint32_t old_height)
-{
-#if 0
-	int ret = 0;
-	int i, j, loop;
-	uint32_t val;
-	uint32_t center_x, center_y, radius_threshold;
-	uint32_t radius_limit, r_factor, r_base;
-	uint32_t filter_ratio, coef2, flat_thresh_coef;
-	struct isp_dev_nlm_info_v2 *p, *pdst;
-
-	pdst = &isp_k_param->nlm_info;
-	p = &isp_k_param->nlm_info_base;
-	if (p->bypass)
-		return 0;
-
-	center_x = new_width >> 1;
-	center_y = new_height >> 1;
-	val = ((center_y & 0x7FFF) << 16) | (center_x & 0x7FFF);
-	DCAM_REG_WR(idx, DCAM_NLM_RADIAL_1D_DIST, val);
-
-	r_base = p->radius_base;
-	r_factor = p->nlm_radial_1D_radius_threshold_factor;
-	radius_threshold = p->nlm_radial_1D_radius_threshold;
-	radius_threshold *= new_width;
-	radius_threshold = (radius_threshold + (old_width / 2)) / old_width;
-	radius_limit = (new_width + new_height) * r_factor / r_base;
-	radius_threshold = (radius_threshold < radius_limit) ? radius_threshold : radius_limit;
-	DCAM_REG_MWR(idx, DCAM_NLM_RADIAL_1D_THRESHOLD, 0x7FFF, radius_threshold);
-
-	pdst->nlm_radial_1D_radius_threshold = radius_threshold;
-
-	pr_debug("center (%d %d)  raius %d  (%d %d), new %d\n",
-		center_x, center_y, p->nlm_radial_1D_radius_threshold,
-		r_factor, r_base, radius_threshold);
-
-	for (loop = 0; loop < 12; loop++) {
-		i = loop >> 2;
-		j = loop & 0x3;
-		filter_ratio =
-			p->nlm_radial_1D_radius_threshold_filter_ratio[i][j];
-		filter_ratio *= new_width;
-		filter_ratio += (old_width / 2);
-		filter_ratio /= old_width;
-
-		r_factor = p->nlm_radial_1D_radius_threshold_filter_ratio_factor[i][j];
-		radius_limit = (new_width + new_height) * r_factor / r_base;
-		filter_ratio = (filter_ratio < radius_limit) ? filter_ratio : radius_limit;
-		pr_debug("%d, factor %d , new %d\n",
-			p->nlm_radial_1D_radius_threshold_filter_ratio[i][j],
-			r_factor, filter_ratio);
-
-		coef2 = p->nlm_radial_1D_coef2[i][j];
-		coef2 *= old_width;
-		coef2 = (coef2 + (new_width / 2)) / new_width;
-		DCAM_REG_MWR(idx,
-			DCAM_NLM_RADIAL_1D_ADDBACK00 + i * 16 + j * 4,
-			0xFFFE0000, (filter_ratio << 17));
-		DCAM_REG_MWR(idx,
-			DCAM_NLM_RADIAL_1D_RATIO + i * 16 + j * 4,
-			0x3FFF0000, (coef2 << 16));
-
-		pdst->nlm_radial_1D_radius_threshold_filter_ratio[i][j] = filter_ratio;
-		pdst->nlm_radial_1D_coef2[i][j] = coef2;
-
-		if (j < 3) {
-			flat_thresh_coef =
-				p->nlm_first_lum_flat_thresh_coef[i][j];
-			flat_thresh_coef *= old_width;
-			flat_thresh_coef += (new_width / 2);
-			flat_thresh_coef /= new_width;
-			DCAM_REG_MWR(idx,
-				DCAM_NLM_RADIAL_1D_THR0 + i * 12 + j * 4,
-				0x7FFF, flat_thresh_coef);
-
-			pdst->nlm_first_lum_flat_thresh_coef[i][j] = flat_thresh_coef;
-		}
-		if (loop == 0)
-			pr_debug("filter coef2 flat (%d %d %d) (%d %d %d)\n",
-			p->nlm_radial_1D_radius_threshold_filter_ratio[i][j],
-			p->nlm_radial_1D_coef2[i][j],
-			p->nlm_first_lum_flat_thresh_coef[i][j],
-			filter_ratio, coef2, flat_thresh_coef);
-	}
-
-	return ret;
-#else
-	return 0;
-#endif
-}
-
-int isp_k_update_imbalance(uint32_t idx,
-	struct isp_k_block *isp_k_param,
-	uint32_t new_width, uint32_t old_width,
-	uint32_t new_height, uint32_t old_height)
-{
-#if 0
-	int ret = 0;
-	uint32_t val, center_x, center_y;
-	uint32_t radius, radius_limit;
-	struct isp_dev_nlm_imblance_v2 *imbalance_info, *pdst;
-	imbalance_info = &isp_k_param->imbalance_info_base2;
-	if (imbalance_info->nlm_imblance_bypass)
-		return 0;
-
-	pdst = &isp_k_param->imblance_info2;
-
-	center_x = new_width >> 1;
-	center_y = new_height >> 1;
-	val = (center_x << 16) | center_y;
-	DCAM_REG_WR(idx, DCAM_NLM_IMBLANCE_PARA28, val);
-
-	radius = (imbalance_info->imblance_radial_1D_radius_thr
-		* new_width + (old_width / 2)) / old_width;
-	radius_limit = (new_height + new_width)
-		* imbalance_info->imblance_radial_1D_radius_thr_factor
-		/ imbalance_info->radius_base;
-	radius = (radius < radius_limit) ? radius : radius_limit;
-
-	val = radius;
-	DCAM_REG_WR(idx, DCAM_NLM_IMBLANCE_PARA29, val);
-
-	pdst->imblance_radial_1D_center_x = center_x;
-	pdst->imblance_radial_1D_center_y = center_y;
-	pdst->imblance_radial_1D_radius_thr = radius;
-
-	pr_debug("center %d %d,  orig radius %d %d, base %d, new %d %d\n",
-		center_x, center_y, imbalance_info->imblance_radial_1D_radius_thr,
-		imbalance_info->imblance_radial_1D_radius_thr_factor,
-		imbalance_info->radius_base, radius_limit, radius);
-
-	return ret;
-#else
-	return 0;
-#endif
 }

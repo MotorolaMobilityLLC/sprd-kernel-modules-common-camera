@@ -1267,6 +1267,7 @@ static int dcamcore_param_reconfig(
 	pctx = &sw_pctx->ctx[sw_pctx->cur_ctx_id];
 	pm = &pctx->blk_pm;
 	hw = sw_pctx->dev->hw;
+	pm->in_size = sw_pctx->cap_info.cap_size;
 
 	if (atomic_read(&pctx->user_cnt) <= 0) {
 		pr_err("context%d is not in use\n", cxt_id);

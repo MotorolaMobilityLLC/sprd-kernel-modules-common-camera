@@ -1686,16 +1686,17 @@ static int isphw_block_func_get(void *handle, void *arg)
 }
 
 static isp_k_blk_func isp_hw_k_blk_func_tab[ISP_K_BLK_MAX] = {
-	[ISP_K_BLK_LTM]                     = isp_ltm_config_param,
-	[ISP_K_BLK_PYR_REC_SHARE]           = isp_pyr_rec_share_config,
-	[ISP_K_BLK_PYR_REC_FRAME]           = isp_pyr_rec_frame_config,
-	[ISP_K_BLK_PYR_REC_SLICE]           = isp_pyr_rec_slice_config,
-	[ISP_K_BLK_PYR_REC_SLICE_COMMON]    = isp_pyr_rec_slice_common_config,
-	[ISP_K_BLK_DEWARP_CACHE_CFG]        = isp_dewarping_dewarp_cache_set,
-	[ISP_K_BLK_DEWARP_CFG]              = isp_dewarping_frame_config,
-	[ISP_K_BLK_DEWARP_SLICE]            = isp_k_dewarping_slice_config,
-	[ISP_K_BLK_PYR_DEC_IRQ_FUNC]        = isp_pyr_dec_irq_func,
-	[ISP_K_BLK_PYR_DEC_CFG]             = isp_pyr_dec_config,
+	[ISP_K_BLK_LTM] = isp_ltm_config_param,
+	[ISP_K_BLK_PYR_REC_SHARE] = isp_pyr_rec_share_config,
+	[ISP_K_BLK_PYR_REC_FRAME] = isp_pyr_rec_frame_config,
+	[ISP_K_BLK_PYR_REC_SLICE] = isp_pyr_rec_slice_config,
+	[ISP_K_BLK_PYR_REC_SLICE_COMMON] = isp_pyr_rec_slice_common_config,
+	[ISP_K_BLK_DEWARP_CACHE_CFG] = isp_dewarping_dewarp_cache_set,
+	[ISP_K_BLK_DEWARP_CFG] = isp_dewarping_frame_config,
+	[ISP_K_BLK_DEWARP_SLICE] = isp_k_dewarping_slice_config,
+	[ISP_K_BLK_PYR_DEC_IRQ_FUNC] = isp_pyr_dec_irq_func,
+	[ISP_K_BLK_PYR_DEC_CFG] = isp_pyr_dec_config,
+	[ISP_K_BLK_YNR_UPDATE] = isp_k_update_ynr,
 };
 
 static int isphw_k_blk_func_get(void *handle, void *arg)

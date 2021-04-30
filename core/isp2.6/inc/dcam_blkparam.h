@@ -135,6 +135,7 @@ struct dcam_dev_pdaf_param {
 
 struct dcam_dev_param {
 	struct mutex param_lock;
+	struct img_trim in_size;
 	uint32_t idx;/* dcam dev idx */
 	void *dev;/* dcam_sw_ctx */
 	uint32_t dcam_slice_mode;

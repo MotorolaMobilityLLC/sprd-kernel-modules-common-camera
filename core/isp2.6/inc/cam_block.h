@@ -16,6 +16,13 @@
 #include "cam_buf.h"
 #include "dcam_blkparam.h"
 
+struct isp_blkparam_adapt {
+	uint32_t new_width;
+	uint32_t new_height;
+	uint32_t old_width;
+	uint32_t old_height;
+};
+
 struct isp_k_block {
 	uint32_t src_w;
 	uint32_t src_h;
@@ -60,6 +67,7 @@ struct isp_k_block {
 	/* qogirn6pro cfa blocks*/
 	struct isp_dev_cfa_info_v1 cfa_info_v1;
 	/* common */
+	struct isp_blkparam_adapt blkparam_info;
 	struct isp_dev_3dnr_info nr3d_info;
 	struct isp_dev_cce_info cce_info;
 	struct isp_dev_pre_cdn_info pre_cdn_info;
@@ -219,22 +227,13 @@ void cam_block_noisefilter_seeds(uint32_t image_width,
 	uint32_t seed0, uint32_t *seed1, uint32_t *seed2, uint32_t *seed3);
 int isp_k_cfg_3dlut(struct isp_io_param *param,
 	struct isp_k_block *isp_k_param, uint32_t idx);
-int isp_k_update_nlm(uint32_t idx,
-	struct isp_k_block *isp_k_param,
-	uint32_t new_width, uint32_t old_width,
-	uint32_t new_height, uint32_t old_height);
-int isp_k_update_ynr(uint32_t idx,
-	struct isp_k_block *isp_k_param,
-	uint32_t new_width, uint32_t old_width,
-	uint32_t new_height, uint32_t old_height);
+int isp_k_update_nlm(void *handle);
+int isp_k_update_ynr(void *handle);
 int isp_k_update_3dnr(uint32_t idx,
 	struct isp_k_block *isp_k_param,
 	uint32_t new_width, uint32_t old_width,
 	uint32_t new_height, uint32_t old_height);
-int isp_k_update_imbalance(uint32_t idx,
-	struct isp_k_block *isp_k_param,
-	uint32_t new_width, uint32_t old_width,
-	uint32_t new_height, uint32_t old_height);
+int isp_k_update_imbalance(void *handle);
 
 int init_dcam_pm(struct dcam_dev_param *blk_pm_ctx);
 int init_isp_pm(struct isp_k_block *isp_k_param);

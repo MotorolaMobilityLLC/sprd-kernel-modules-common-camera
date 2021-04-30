@@ -180,13 +180,3 @@ int isp_k_cfg_ynr(struct isp_io_param *param,
 
 	return ret;
 }
-
-int isp_k_update_ynr(uint32_t idx,
-	struct isp_k_block *isp_k_param,
-	uint32_t new_width, uint32_t old_width,
-	uint32_t new_height, uint32_t old_height)
-{
-	int ret = 0;
-
-	return ret;
-}

@@ -879,6 +879,22 @@ static int isphw_block_func_get(void *handle, void *arg)
 	return 0;
 }
 
+static isp_k_blk_func isp_hw_k_blk_func_tab[ISP_K_BLK_MAX] = {
+	[ISP_K_BLK_NLM_UPDATE] = isp_k_update_nlm,
+};
+
+static int isphw_k_blk_func_get(void *handle, void *arg)
+{
+	struct isp_hw_k_blk_func *func_arg = NULL;
+
+	func_arg = (struct isp_hw_k_blk_func *)arg;
+
+	if (func_arg->index < ISP_K_BLK_MAX)
+		func_arg->k_blk_func = isp_hw_k_blk_func_tab[func_arg->index];
+
+	return 0;
+}
+
 static int isphw_fetch_set(void *handle, void *arg)
 {
 	uint32_t idx = 0;
@@ -2184,6 +2200,7 @@ static struct hw_io_ctrl_fun isp_hw_ioctl_fun_tab[] = {
 	{ISP_HW_CFG_SLICE_STORE,             isphw_slice_store},
 	{ISP_HW_CFG_SLW_FMCU_CMDS,           isphw_slw_fmcu_cmds},
 	{ISP_HW_CFG_FMCU_CFG,                isphw_fmcu_cfg},
+	{ISP_HW_CFG_K_BLK_FUNC_GET,          isphw_k_blk_func_get},
 	{ISP_HW_CFG_SLICE_FETCH,             isphw_slice_fetch},
 	{ISP_HW_CFG_SLICE_NR_INFO,           isphw_slice_nr_info},
 	{ISP_HW_CFG_SLICE_FMCU_CMD,          isphw_slices_fmcu_cmds},

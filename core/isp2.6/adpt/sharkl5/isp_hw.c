@@ -1284,7 +1284,9 @@ static int isphw_block_func_get(void *handle, void *arg)
 }
 
 static isp_k_blk_func isp_hw_k_blk_func_tab[ISP_K_BLK_MAX] = {
-	[ISP_K_BLK_LTM]     = isp_ltm_config_param,
+	[ISP_K_BLK_LTM] = isp_ltm_config_param,
+	[ISP_K_BLK_NLM_UPDATE] = isp_k_update_nlm,
+	[ISP_K_BLK_YNR_UPDATE] = isp_k_update_ynr,
 };
 
 static int isphw_k_blk_func_get(void *handle, void *arg)

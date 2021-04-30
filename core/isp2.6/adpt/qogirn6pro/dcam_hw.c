@@ -2001,8 +2001,7 @@ static int dcamhw_bin_mipi_cfg(void *handle, void *arg)
 	DCAM_REG_WR(parm->idx, DCAM_STORE0_SLICE_Y_ADDR, reg_val + parm->fetch_pitch*128/8/2);
 	DCAM_AXIM_WR(parm->idx, IMG_FETCH_X,
 		(parm->fetch_pitch << 16) | ((parm->start_x + parm->size_x/2) & 0x1fff));
-	DCAM_REG_MWR(parm->idx,
-		DCAM_MIPI_CAP_CFG, BIT_30, 0x0 << 30);
+	DCAM_REG_MWR(parm->idx, DCAM_MIPI_CAP_CFG, BIT_30, 0x0 << 30);
 
 	return 0;
 }

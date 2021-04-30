@@ -208,6 +208,7 @@ static int ispcore_blkparam_adapt(struct isp_sw_context *pctx)
 	uint32_t new_height, old_height;
 	uint32_t crop_start_x, crop_start_y;
 	uint32_t crop_end_x, crop_end_y;
+	struct isp_hw_k_blk_func sub_blk_func;
 	struct img_trim *src_trim;
 	struct img_size *dst = &pctx->uinfo.original.dst_size;
 
@@ -225,6 +226,11 @@ static int ispcore_blkparam_adapt(struct isp_sw_context *pctx)
 		new_width = old_width;
 		new_height = old_height;
 	}
+
+	pctx->isp_k_param.blkparam_info.new_height = new_height;
+	pctx->isp_k_param.blkparam_info.new_width= new_width;
+	pctx->isp_k_param.blkparam_info.old_height= old_height;
+	pctx->isp_k_param.blkparam_info.old_width= old_width;
 	crop_start_x = src_trim->start_x;
 	crop_start_y = src_trim->start_y;
 	crop_end_x = src_trim->start_x + src_trim->size_x - 1;
@@ -234,12 +240,20 @@ static int ispcore_blkparam_adapt(struct isp_sw_context *pctx)
 		crop_start_x, crop_start_y, crop_end_x, crop_end_y,
 		old_width, old_height, new_width, new_height);
 
-	isp_k_update_nlm(pctx->ctx_id, &pctx->isp_k_param,
-		new_width, old_width, new_height, old_height);
-	isp_k_update_ynr(pctx->ctx_id, &pctx->isp_k_param,
-		new_width, old_width, new_height, old_height);
-	isp_k_update_imbalance(pctx->ctx_id, &pctx->isp_k_param,
-		new_width, old_width, new_height, old_height);
+	sub_blk_func.index =  ISP_K_BLK_NLM_UPDATE;
+	pctx->hw->isp_ioctl(pctx->hw, ISP_HW_CFG_K_BLK_FUNC_GET, &sub_blk_func);
+	if (sub_blk_func.k_blk_func)
+		sub_blk_func.k_blk_func(pctx);
+
+	sub_blk_func.index =  ISP_K_BLK_IMBLANCE_UPDATE;
+	pctx->hw->isp_ioctl(pctx->hw, ISP_HW_CFG_K_BLK_FUNC_GET, &sub_blk_func);
+	if (sub_blk_func.k_blk_func)
+		sub_blk_func.k_blk_func(pctx);
+
+	sub_blk_func.index =  ISP_K_BLK_YNR_UPDATE;
+	pctx->hw->isp_ioctl(pctx->hw, ISP_HW_CFG_K_BLK_FUNC_GET, &sub_blk_func);
+	if (sub_blk_func.k_blk_func)
+		sub_blk_func.k_blk_func(pctx);
 
 	if (pctx->uinfo.mode_3dnr != MODE_3DNR_OFF)
 		isp_k_update_3dnr(pctx->ctx_id, &pctx->isp_k_param,

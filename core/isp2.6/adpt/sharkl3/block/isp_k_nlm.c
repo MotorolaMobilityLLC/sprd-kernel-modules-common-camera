@@ -19,6 +19,7 @@
 #include "isp_reg.h"
 #include "cam_types.h"
 #include "cam_block.h"
+#include "isp_core.h"
 
 #ifdef pr_fmt
 #undef pr_fmt
@@ -239,23 +240,32 @@ int isp_k_cfg_nlm(struct isp_io_param *param,
 	return ret;
 }
 
-int isp_k_update_nlm(uint32_t idx,
-	struct isp_k_block *isp_k_param,
-	uint32_t new_width, uint32_t old_width,
-	uint32_t new_height, uint32_t old_height)
+int isp_k_update_nlm(void *handle)
 {
 	int ret = 0;
-	int i, j, loop;
-	uint32_t val;
-	uint32_t center_x, center_y, radius_threshold;
-	uint32_t radius_limit, r_factor, r_base;
-	uint32_t filter_ratio, coef2, flat_thresh_coef;
-	struct isp_dev_nlm_info_v2 *p, *pdst;
+	int i = 0, j = 0, loop = 0;
+	uint32_t val = 0;
+	uint32_t center_x = 0, center_y = 0, radius_threshold = 0;
+	uint32_t radius_limit = 0, r_factor = 0, r_base = 0;
+	uint32_t filter_ratio = 0, coef2 = 0, flat_thresh_coef = 0;
+	uint32_t idx = 0, new_width = 0, old_width = 0;
+	uint32_t new_height = 0, old_height = 0;
+	struct isp_sw_context *pctx = NULL;
+	struct isp_dev_nlm_info_v2 *p = NULL, *pdst = NULL;
 
-	pdst = &isp_k_param->nlm_info;
-	p = &isp_k_param->nlm_info_base;
-	if (p->bypass)
-		return 0;
+	if (!handle) {
+		pr_err("fail to get invalid in ptr\n");
+		return -EFAULT;
+	}
+
+	pctx = (struct isp_sw_context *)handle;
+	idx = pctx->ctx_id;
+	pdst = &pctx->isp_k_param.nlm_info;
+	p = &pctx->isp_k_param.nlm_info_base;
+	new_width = pctx->isp_k_param.blkparam_info.new_width;
+	new_height = pctx->isp_k_param.blkparam_info.new_height;
+	old_width = pctx->isp_k_param.blkparam_info.old_width;
+	old_height = pctx->isp_k_param.blkparam_info.old_height;
 
 	center_x = new_width >> 1;
 	center_y = new_height >> 1;
@@ -325,16 +335,6 @@ int isp_k_update_nlm(uint32_t idx,
 			p->nlm_first_lum_flat_thresh_coef[i][j],
 			filter_ratio, coef2, flat_thresh_coef);
 	}
-
-	return ret;
-}
-
-int isp_k_update_imbalance(uint32_t idx,
-	struct isp_k_block *isp_k_param,
-	uint32_t new_width, uint32_t old_width,
-	uint32_t new_height, uint32_t old_height)
-{
-	int ret = 0;
 
 	return ret;
 }
