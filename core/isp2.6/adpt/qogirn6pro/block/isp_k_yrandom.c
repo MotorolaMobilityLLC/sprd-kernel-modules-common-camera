@@ -37,17 +37,20 @@ static int isp_k_yrandom_block(struct isp_io_param *param,
 	ret = copy_from_user((void *)yrandom_info,
 			param->property_param,
 			sizeof(struct isp_dev_yrandom_info));
+
 	if (ret != 0) {
 		pr_err("fail to copy from user, ret = %d\n", ret);
 		return ret;
 	}
+
 	if (g_isp_bypass[idx] & (1 << _EISP_YRAND))
 		yrandom_info->bypass = 1;
+
 	if (yrandom_info->bypass)
 		return 0;
 
-	val = (yrandom_info->seed << 8) |
-		((yrandom_info->mode & 1) << 1);
+	val = ((yrandom_info->seed & 0xFFFFFF) << 8) |
+		((yrandom_info->mode & 0x1) << 1);
 	ISP_REG_MWR(idx, ISP_YRANDOM_PARAM1, 0xFFFFFF02, val);
 
 	if (yrandom_info->mode == 0)

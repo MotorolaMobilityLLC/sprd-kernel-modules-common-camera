@@ -131,8 +131,7 @@ void dcam_k_3dnr_set_roi(struct isp_img_rect rect,
 	DCAM_REG_WR(idx, DCAM_NR3_FAST_ME_ROI_PARAM0, roi_x << 16 | roi_y);
 	DCAM_REG_WR(idx, DCAM_NR3_FAST_ME_ROI_PARAM1, roi_w << 16 | roi_h);
 
-	pr_debug("DCAM%u 3DNR ROI %u %u %u %u\n",
-		idx, roi_x, roi_y, roi_w, roi_h);
+	pr_debug("DCAM%u 3DNR ROI %u %u %u %u\n", idx, roi_x, roi_y, roi_w, roi_h);
 }
 
 int dcam_k_3dnr_me(struct dcam_dev_param *param)

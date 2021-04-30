@@ -3009,8 +3009,7 @@ static int ispcore_blkparam_cfg(
 			cfg_fun_ptr = fucarg.isp_entry->cfg_func;
 
 		if (cfg_fun_ptr == NULL) {
-			pr_debug("isp block 0x%x is not supported.\n",
-				io_param->sub_block);
+			pr_debug("isp block 0x%x is not supported.\n", io_param->sub_block);
 			mutex_unlock(&pctx->blkpm_lock);
 			mutex_unlock(&dev->path_mutex);
 			return 0;

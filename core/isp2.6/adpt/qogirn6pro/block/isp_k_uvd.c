@@ -37,12 +37,15 @@ static int isp_k_uvd_block(struct isp_io_param *param,
 	ret = copy_from_user((void *)uvd_info,
 			param->property_param,
 			sizeof(struct isp_dev_uvd_info_v1));
+
 	if (ret != 0) {
 		pr_err("fail to copy from user, ret = %d\n", ret);
 		return ret;
 	}
+
 	if (g_isp_bypass[idx] & (1 << _EISP_UVD))
 		uvd_info->bypass = 1;
+
 	if (uvd_info->bypass)
 		return 0;
 
