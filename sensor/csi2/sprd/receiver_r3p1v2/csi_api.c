@@ -11,8 +11,8 @@
  * GNU General Public License for more details.
  */
 
-#include <dt-bindings/soc/sprd,qogirl6-regs.h>
-#include <dt-bindings/soc/sprd,qogirl6-mask.h>
+#include <dt-bindings/soc/sprd,qogirn6pro-regs.h>
+#include <dt-bindings/soc/sprd,qogirn6pro-mask.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/io.h>
