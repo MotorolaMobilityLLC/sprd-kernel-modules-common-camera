@@ -889,8 +889,10 @@ static int camioctl_crop_set(struct camera_module *module,
 		& ~(DCAM_PATH_CROP_ALIGN - 1));
 	crop->h = ((crop->h + DCAM_PATH_CROP_ALIGN - 1)
 		& ~(DCAM_PATH_CROP_ALIGN - 1));
-	crop->x = (max.w - crop->w) / 2;
-	crop->y = (max.h - crop->h) / 2;
+	if (max.w > crop->w)
+		crop->x = (max.w - crop->w) / 2;
+	if (max.h > crop->h)
+		crop->y = (max.h - crop->h) / 2;
 	crop->x &= ~1;
 	crop->y &= ~1;
 
