@@ -817,6 +817,12 @@ struct sprd_img_3dnr_param {
 	unsigned int is_3dnr;
 };
 
+struct sprd_cap_zsl_param {
+	unsigned int zsl_num;
+	unsigned int zsk_skip_num;
+	unsigned int need_share_buf;
+};
+
 #pragma pack(push, 4)
 struct sprd_img_capture_param {
 	uint32_t type;
@@ -908,7 +914,7 @@ struct sprd_img_path_rect {
 #define SPRD_IMG_IO_PUT_DCAM_RES         _IOW(SPRD_IMG_IO_MAGIC, 47, uint32_t)
 #define SPRD_ISP_IO_SET_PULSE_LINE       _IOW(SPRD_IMG_IO_MAGIC, 48, uint32_t)
 #define SPRD_ISP_IO_CFG_START            _IOW(SPRD_IMG_IO_MAGIC, 49, uint32_t)
-#define SPRD_ISP_IO_POST_YNR             _IOW(SPRD_IMG_IO_MAGIC, 50, struct sprd_isp_ynr_param)
+#define SPRD_IMG_IO_SET_CAP_ZSL_INFO     _IOW(SPRD_IMG_IO_MAGIC, 50, struct sprd_cap_zsl_param)
 #define SPRD_ISP_IO_SET_NEXT_VCM_POS     _IOW(SPRD_IMG_IO_MAGIC, 51, struct sprd_img_vcm_param)
 #define SPRD_ISP_IO_SET_VCM_LOG          _IOW(SPRD_IMG_IO_MAGIC, 52, uint32_t)
 #define SPRD_IMG_IO_SET_3DNR             _IOW(SPRD_IMG_IO_MAGIC, 53, struct sprd_img_3dnr_param)
@@ -938,6 +944,7 @@ struct sprd_img_path_rect {
 #define SPRD_IMG_IO_GET_DWARP_HW_CAP     _IOR(SPRD_IMG_IO_MAGIC, 77, uint32_t)
 #define SPRD_IMG_IO_SET_DWARP_OTP        _IOR(SPRD_IMG_IO_MAGIC, 78, uint32_t)
 #define SPRD_IMG_IO_SET_LONGEXP_CAP      _IOR(SPRD_IMG_IO_MAGIC, 79, uint32_t)
+#define SPRD_IMG_IO_SET_MUL_MAX_SN_SIZE  _IOW(SPRD_IMG_IO_MAGIC, 80, struct sprd_img_size)
 
 /*
  * Dump dcam register.

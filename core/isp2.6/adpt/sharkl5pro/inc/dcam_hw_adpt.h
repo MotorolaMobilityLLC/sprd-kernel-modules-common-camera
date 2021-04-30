@@ -44,13 +44,6 @@
 #define DCAM_FRAME_TIMESTAMP_COUNT     0x100
 
 /*
-* zsl num means zsl cache num, but not the zsl cache buffer num.
-* skip num means interval num between two cache zsl frame.
-* zsl real cache buffer num can cal frome this two num.
- */
-#define CAM_ZSL_NUM                    0
-#define CAM_ZSL_SKIP_NUM               0
-/*
  *DCAM_CONTROL register bit map id
  * for force_cpy/auto_cpy control
  */

@@ -512,9 +512,7 @@ static int camioctl_sensor_size_set(struct camera_module *module,
 
 	dst = &module->cam_uinfo.sn_size;
 
-	ret = copy_from_user(dst,
-		(void __user *)arg,
-		sizeof(struct sprd_img_size));
+	ret = copy_from_user(dst, (void __user *)arg, sizeof(struct sprd_img_size));
 
 	pr_info("sensor_size %d %d\n", dst->w, dst->h);
 	module->cam_uinfo.dcam_slice_mode = dst->w > DCAM_24M_WIDTH ? CAM_OFFLINE_SLICE_HW : 0;
@@ -3340,6 +3338,52 @@ static int camioctl_longexp_mode_set(struct camera_module *module, unsigned long
 	module->cam_uinfo.is_longexp = param.need_longexp;
 	pr_debug("is_longexp %d\n", param.need_longexp);
 
+	return ret;
+}
+
+static int camioctl_mul_max_sensor_size_set(struct camera_module *module,
+		unsigned long arg)
+{
+	int ret = 0;
+	struct sprd_img_size *dst = NULL;
+	struct camera_group *grp = NULL;
+
+	grp = module->grp;
+	dst = &grp->mul_sn_max_size;
+
+	ret = copy_from_user(dst, (void __user *)arg, sizeof(struct sprd_img_size));
+
+	pr_debug("mul sensor_size %d %d\n", dst->w, dst->h);
+	if (unlikely(ret)) {
+		pr_err("fail to copy from user, ret %d\n", ret);
+		ret = -EFAULT;
+		goto exit;
+	}
+
+exit:
+	return ret;
+}
+
+static int camioctl_cap_zsl_info_set(struct camera_module *module,
+		unsigned long arg)
+{
+	int ret = 0;
+	struct sprd_cap_zsl_param param = {0};
+
+	ret = copy_from_user(&param, (void __user *)arg, sizeof(struct sprd_cap_zsl_param));
+	if (unlikely(ret)) {
+		pr_err("fail to copy from user, ret %d\n", ret);
+		ret = -EFAULT;
+		goto exit;
+	}
+	pr_debug("zsl num %d zsl skip num %d is share buf %d\n", param.zsl_num,
+		param.zsk_skip_num, param.need_share_buf);
+
+	module->cam_uinfo.zsl_num = param.zsl_num;
+	module->cam_uinfo.zsk_skip_num = param.zsk_skip_num;
+	module->cam_uinfo.need_share_buf = param.need_share_buf;
+
+exit:
 	return ret;
 }
 

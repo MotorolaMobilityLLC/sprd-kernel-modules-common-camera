@@ -176,6 +176,9 @@ struct camera_uinfo {
 	uint32_t slice_num;
 	uint32_t slice_count;
 	uint32_t is_afbc;
+	uint32_t zsl_num;
+	uint32_t zsk_skip_num;
+	uint32_t need_share_buf;
 };
 
 struct sprd_img_flash_info {
@@ -365,6 +368,7 @@ struct camera_group {
 	struct sprd_cam_sec_cfg camsec_cfg;
 	struct camera_debugger debugger;
 	struct cam_hw_info *hw_info;
+	struct sprd_img_size mul_sn_max_size;
 };
 
 struct cam_ioctl_cmd {
@@ -1400,7 +1404,12 @@ static int camcore_buffers_alloc_num(struct channel_context *channel,
 		struct camera_module *module)
 {
 	int num = 5;
-	uint32_t zsl_num = 0, zsl_skip_num = 0;
+
+	if (channel->ch_id == CAM_CH_CAP) {
+		channel->zsl_skip_num = module->cam_uinfo.zsk_skip_num;
+		channel->zsl_buffer_num = module->cam_uinfo.zsl_num;
+		num += channel->zsl_buffer_num;
+	}
 
 	if (channel->ch_id == CAM_CH_CAP && module->cam_uinfo.is_dual)
 		num = 4;
@@ -1422,18 +1431,6 @@ static int camcore_buffers_alloc_num(struct channel_context *channel,
 	if (channel->ch_id == CAM_CH_PRE &&
 		module->grp->camsec_cfg.camsec_mode != SEC_UNABLE) {
 		num = 4;
-	}
-
-	zsl_num = CAM_ZSL_NUM;
-	zsl_skip_num = CAM_ZSL_SKIP_NUM;
-	channel->zsl_skip_num = zsl_skip_num;
-	if (channel->ch_id == CAM_CH_CAP) {
-		channel->zsl_buffer_num = zsl_num / (zsl_skip_num + 1);
-		num += channel->zsl_buffer_num;
-		if (zsl_num % (zsl_skip_num + 1) != 0) {
-			channel->zsl_buffer_num += 1;
-			num += 1;
-		}
 	}
 
 	return num;
@@ -2750,11 +2747,11 @@ static int camcore_dcam_callback(enum dcam_cb_type type, void *param, void *priv
 				if (module->cam_uinfo.is_dual) {
 					pframe = camcore_dual_fifo_queue(module,
 						pframe, channel);
-				} else if (channel->zsl_skip_num == CAM_ZSL_SKIP_NUM) {
+				} else if (channel->zsl_skip_num == module->cam_uinfo.zsk_skip_num) {
 					if (channel->zsl_skip_num)
 						channel->zsl_skip_num --;
 					else
-						channel->zsl_skip_num = CAM_ZSL_SKIP_NUM;
+						channel->zsl_skip_num = module->cam_uinfo.zsk_skip_num;
 					ret = cam_queue_enqueue(&channel->share_buf_queue, &pframe->list);
 					if (channel->share_buf_queue.cnt > channel->zsl_buffer_num)
 						pframe = cam_queue_dequeue(&channel->share_buf_queue,
@@ -2765,7 +2762,7 @@ static int camcore_dcam_callback(enum dcam_cb_type type, void *param, void *priv
 					if (channel->zsl_skip_num)
 						channel->zsl_skip_num --;
 					else
-						channel->zsl_skip_num = CAM_ZSL_SKIP_NUM;
+						channel->zsl_skip_num = module->cam_uinfo.zsk_skip_num;
 				}
 
 				pr_debug("share buf queue cnt %d skip_cnt %d\n",
@@ -6486,7 +6483,6 @@ static struct cam_ioctl_cmd ioctl_cmds_table[] = {
 	[_IOC_NR(SPRD_IMG_IO_PUT_DCAM_RES)]         = {SPRD_IMG_IO_PUT_DCAM_RES,         camioctl_cam_res_put},
 	[_IOC_NR(SPRD_ISP_IO_SET_PULSE_LINE)]       = {SPRD_ISP_IO_SET_PULSE_LINE,       NULL},
 	[_IOC_NR(SPRD_ISP_IO_CFG_START)]            = {SPRD_ISP_IO_CFG_START,            NULL},
-	[_IOC_NR(SPRD_ISP_IO_POST_YNR)]             = {SPRD_ISP_IO_POST_YNR,             NULL},
 	[_IOC_NR(SPRD_ISP_IO_SET_NEXT_VCM_POS)]     = {SPRD_ISP_IO_SET_NEXT_VCM_POS,     NULL},
 	[_IOC_NR(SPRD_ISP_IO_SET_VCM_LOG)]          = {SPRD_ISP_IO_SET_VCM_LOG,          NULL},
 	[_IOC_NR(SPRD_IMG_IO_SET_3DNR)]             = {SPRD_IMG_IO_SET_3DNR,             NULL},
@@ -6508,6 +6504,8 @@ static struct cam_ioctl_cmd ioctl_cmds_table[] = {
 	[_IOC_NR(SPRD_IMG_IO_GET_DWARP_HW_CAP)]     = {SPRD_IMG_IO_GET_DWARP_HW_CAP,     camioctl_dewarp_hw_capability_get},
 	[_IOC_NR(SPRD_IMG_IO_SET_DWARP_OTP)]        = {SPRD_IMG_IO_SET_DWARP_OTP,        camioctl_dewarp_otp_set},
 	[_IOC_NR(SPRD_IMG_IO_SET_LONGEXP_CAP)]      = {SPRD_IMG_IO_SET_LONGEXP_CAP,      camioctl_longexp_mode_set},
+	[_IOC_NR(SPRD_IMG_IO_SET_MUL_MAX_SN_SIZE)]  = {SPRD_IMG_IO_SET_MUL_MAX_SN_SIZE,  camioctl_mul_max_sensor_size_set},
+	[_IOC_NR(SPRD_IMG_IO_SET_CAP_ZSL_INFO)]     = {SPRD_IMG_IO_SET_CAP_ZSL_INFO,     camioctl_cap_zsl_info_set},
 };
 
 static long camcore_ioctl(struct file *file, unsigned int cmd,
