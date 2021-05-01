@@ -19,13 +19,11 @@ extern "C" {
 #endif
 
 #include "cam_types.h"
+#include "alg_common_calc.h"
 
 #define SCL_UP_MAX                      10
 #define SCL_DOWN_MAX                    10
-#define YUV422                          0
-#define YUV420                          1
 #define PIPE_MAX_SLICE_NUM              4
-#define PHASE_1                         32
 #define ISP_DRV_REGIONS_NUM             16
 #define FBC_PADDING_W_BAYER             128
 #define FBC_PADDING_H_BAYER             4
@@ -36,7 +34,8 @@ extern "C" {
 
 enum alg_isp_overlap_version {
 	ALG_ISP_DYN_OVERLAP_NONE,
-	ALG_ISP_OVERLAP_VER_1, /*qogirl6*/
+	ALG_ISP_OVERLAP_VER_1, /* qogirl6 */
+	ALG_ISP_OVERLAP_VER_2, /* qogirN6pro */
 	ALG_ISP_OVERLAP_VER_MAX,
 };
 
@@ -88,31 +87,6 @@ enum SCALER_ID {
 	SCALER_VID,
 	SCALER_NUM,
 };
-
-typedef struct
-{
-	int slice_id;
-	int slice_width;
-	int slice_height;
-
-	int sliceRows;
-	int sliceCols;
-	int sliceRowNo;
-	int sliceColNo;
-
-	int start_col;
-	int start_row;
-	int end_col;
-	int end_row;
-
-	int overlap_left;
-	int overlap_right;
-	int overlap_up;
-	int overlap_down;
-
-	int init_phase_hor;
-	int init_phase_ver;
-} scaler_slice_t;
 
 typedef struct _tag_ltm_rgb_stat_param_t
 {
@@ -263,71 +237,6 @@ typedef struct _tag_slice_drv_overlap_info
 	int ov_down;
 }slice_drv_overlap_info;
 
-typedef struct
-{
-	int32_t   scaler_init_phase[2]     ;
-	int16_t   scaler_init_phase_int[2][2] ; /*[hor/ver][luma/chroma]*/
-	uint16_t  scaler_init_phase_rmd[2][2] ;
-} scaler_phase_info_t;
-
-typedef struct
-{
-	int16_t     y_hor_coef[PHASE_1][8]; /* Luma horizontal coefficients table */
-	int16_t     c_hor_coef[PHASE_1][8]; /* Chroma horizontal coefficients table */
-	int16_t     y_ver_coef[PHASE_1][16]; /* Luma vertical down coefficients table */
-	int16_t     c_ver_coef[PHASE_1][16]; /* Chroma veritical down coefficients table */
-} scaler_coef_info_t;
-
-typedef struct
-{
-	uint8_t   scaler_en; /*0: disable; 1:enable*/
-
-	uint8_t   input_pixfmt; /*input yuv format: 0=yuv422 or 1=yuv420;*/
-	uint8_t   output_pixfmt;
-
-	uint16_t  scaler_in_width;
-	uint16_t  scaler_in_height;
-	uint16_t  scaler_out_width;
-	uint16_t  scaler_out_height;
-
-	uint16_t  scaler_factor_in_hor;
-	uint16_t  scaler_factor_out_hor;
-	uint16_t  scaler_factor_in_ver;
-	uint16_t  scaler_factor_out_ver;
-
-	int32_t   scaler_init_phase_hor;
-	int32_t   scaler_init_phase_ver;
-
-	uint8_t   scaler_y_hor_tap;
-	uint8_t   scaler_y_ver_tap; /*Y Vertical tap of scaling*/
-	uint8_t   scaler_uv_hor_tap;
-	uint8_t   scaler_uv_ver_tap;
-
-	scaler_phase_info_t init_phase_info;
-	scaler_coef_info_t  scaler_coef_info;
-} scaler_info_t;
-
-typedef struct
-{
-	uint8_t   trim_en;
-	uint16_t  trim_start_x;
-	uint16_t  trim_start_y;
-	uint16_t  trim_size_x;
-	uint16_t  trim_size_y;
-} trim_info_t;
-
-typedef struct
-{
-	uint8_t   deci_x_en; /*0: disable; 1:enable*/
-	uint8_t   deci_y_en; /* 0: disable; 1:enable*/
-	uint8_t   deci_x; /*deci factor:1,2,4,8,16*/
-	uint8_t   deci_y; /*deci factor:1,2,4,8,16*/
-	uint8_t   deciPhase_X; /*deci phase:0,1,3,7*/
-	uint8_t   deciPhase_Y; /*deci phase:0,1,3,7*/
-	uint8_t   deci_cut_first_y;
-	uint8_t   deci_option; /*0:direct deci; 1:average deci; 2:only average for luma*/
-} deci_info_t;
-
 typedef struct _tag_slice_drv_scaler_phase_info
 {
 	int init_phase_hor;
@@ -341,28 +250,6 @@ typedef struct _tag_slice_drv_region_info
 	int sy;
 	int ey;
 }slice_drv_region_info;
-
-typedef struct
-{
-	uint8_t           bypass;
-
-	uint8_t           input_pixfmt; /*00:YUV422; 1:YUV420*/
-	uint8_t           output_pixfmt;  /*00:YUV422; 1:YUV420*/
-	uint8_t           output_align_hor;
-	uint8_t           output_align_ver;
-
-	uint16_t          src_size_x;
-	uint16_t          src_size_y;
-	uint16_t          dst_start_x;
-	uint16_t          dst_start_y;
-	uint16_t          dst_size_x;
-	uint16_t          dst_size_y;
-
-	trim_info_t     trim0_info;
-	deci_info_t     deci_info;
-	scaler_info_t   scaler_info;
-	trim_info_t     trim1_info;
-} yuvscaler_param_t;
 
 typedef struct _tag_slice_drv_overlap_scaler_param
 {
@@ -468,5 +355,10 @@ typedef struct _tag_slice_drv_overlap_param_t
 
 int alg_isp_get_dynamic_overlap(void *cfg_slice_in, void*slc_ctx);
 int alg_isp_init_yuvscaler_slice(void *slc_cfg_input, void *slc_ctx, isp_fw_scaler_slice (*slice_param)[4]);
+
+void core_drv_nr3d_init_block(isp_block_drv_t *block_ptr);
+void core_drv_ltmsta_init_block(isp_block_drv_t *block_ptr);
+void core_drv_ee_init_block(isp_block_drv_t *block_ptr);
+void core_drv_cnrnew_init_block(isp_block_drv_t *block_ptr);
 
 #endif

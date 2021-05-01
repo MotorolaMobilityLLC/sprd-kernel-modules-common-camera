@@ -17,6 +17,7 @@
 #include "isp_fmcu.h"
 #include "isp_core.h"
 #include "alg_isp_overlap.h"
+#include "alg_slice_calc.h"
 
 #define SLICE_NUM_MAX                   4
 #define SLICE_W_NUM_MAX                 4
@@ -398,6 +399,7 @@ struct isp_slice_context {
 	struct isp_slice_desc slices[SLICE_NUM_MAX];
 	struct _tag_slice_drv_overlap_param_t overlapParam;
 	yuvscaler_param_t yuvscaler_slice_param;
+	struct alg_slice_drv_overlap slice_overlap;
 	uint32_t slice_row_num;
 	uint32_t slice_col_num;
 	uint32_t slice_num;

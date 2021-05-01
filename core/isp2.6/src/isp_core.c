@@ -953,7 +953,7 @@ static int ispcore_slice_ctx_init(struct isp_sw_context *pctx, uint32_t *multi_s
 
 	*multi_slice = 0;
 
-	if  ((ispcore_slice_needed(pctx) == 0) && (pctx->uinfo.enable_slowmotion == 0)
+	if ((ispcore_slice_needed(pctx) == 0) && (pctx->uinfo.enable_slowmotion == 0)
 		&& (pctx->uinfo.pyr_layer_num == 0)) {
 		pr_debug("sw %d don't need to slice , slowmotion %d\n",
 			pctx->ctx_id, pctx->uinfo.enable_slowmotion);
@@ -1000,6 +1000,10 @@ static int ispcore_slice_ctx_init(struct isp_sw_context *pctx, uint32_t *multi_s
 
 	slc_cfg_in.nofilter_ctx = &pctx->isp_k_param;
 	slc_cfg_in.calc_dyn_ov.verison = hw_info->ip_isp->dyn_overlap_version;
+
+	/* Temp change for rec preview not use dynamic overlap */
+	if (slc_cfg_in.calc_dyn_ov.verison == ALG_ISP_OVERLAP_VER_2 && pctx->uinfo.pyr_layer_num)
+		slc_cfg_in.calc_dyn_ov.verison = ALG_ISP_DYN_OVERLAP_NONE;
 
 	if (slc_cfg_in.calc_dyn_ov.verison != ALG_ISP_DYN_OVERLAP_NONE)
 		ispcore_init_dyn_ov_param(&slc_cfg_in, pctx);

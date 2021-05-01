@@ -21,6 +21,7 @@
 #include "alg_isp_overlap.h"
 #include "isp_slice.h"
 #include "cam_scaler_ex.h"
+#include "alg_slice_calc.h"
 
 #ifdef pr_fmt
 #undef pr_fmt
@@ -444,7 +445,7 @@ void isp_drv_regions_reset(isp_drv_regions_t *r)
 	memset(r,0,sizeof(isp_drv_regions_t));
 }
 
-void isp_drv_region_set(const isp_drv_region_t *r, isp_drv_region_t *r_out)
+static void isp_drv_region_set(const isp_drv_region_t *r, isp_drv_region_t *r_out)
 {
 	r_out->sx = r->sx;
 	r_out->ex = r->ex;
@@ -452,7 +453,7 @@ void isp_drv_region_set(const isp_drv_region_t *r, isp_drv_region_t *r_out)
 	r_out->ey = r->ey;
 }
 
-void isp_drv_region_max(const isp_drv_region_t *r1, const isp_drv_region_t *r2, isp_drv_region_t *r_out)
+static void isp_drv_region_max(const isp_drv_region_t *r1, const isp_drv_region_t *r2, isp_drv_region_t *r_out)
 {
 	isp_drv_region_set(r1,r_out);
 
@@ -469,7 +470,7 @@ void isp_drv_region_max(const isp_drv_region_t *r1, const isp_drv_region_t *r2, 
 		r_out->ey = r2->ey;
 }
 
-void isp_drv_regions_set(const isp_drv_regions_t *r, isp_drv_regions_t *r_out)
+static void isp_drv_regions_set(const isp_drv_regions_t *r, isp_drv_regions_t *r_out)
 {
 	int i,j,index;
 	int rows = r->rows;
@@ -538,96 +539,6 @@ void isp_drv_regions_3dnr(const isp_drv_regions_t *r_ref, isp_drv_regions_t *r_o
 			}
 		}
 	}
-}
-
-void est_scaler_output_slice_info(int trim_start, int trim_size, int deci, int scl_en, int scl_factor_in, int scl_factor_out, int scl_tap, int init_phase,
-    int input_slice_start, int input_slice_size, int output_pixel_align, int *output_slice_end)
-{
-	int epixel;
-	int input_slice_end = input_slice_start + input_slice_size;
-	int trim_end = trim_start + trim_size;
-
-	/*trim*/
-	input_slice_end = input_slice_end > trim_end ? trim_end : input_slice_end;
-	input_slice_end = input_slice_end - trim_start;
-
-	/*deci*/
-	input_slice_end = input_slice_end/deci;
-
-	/*scale*/
-	epixel = (input_slice_end*scl_factor_out - 1 - init_phase)/scl_factor_in + 1;
-
-	/*align*/
-	epixel = ((epixel + output_pixel_align/2)/output_pixel_align)*output_pixel_align;
-
-	if(epixel < 0)
-		epixel = 0;
-
-	/*output*/
-	*output_slice_end = epixel;
-}
-
-void est_scaler_output_slice_info_v2(int trim_start, int trim_size, int deci, int scl_en, int scl_factor_in, int scl_factor_out, int scl_tap, int init_phase,
-    int input_slice_start, int input_slice_size, int output_pixel_align, int *output_slice_end)
-{
-	int epixel;
-	int deci_size = trim_size/deci;
-	int input_slice_end = input_slice_start + input_slice_size;
-	int trim_end = trim_start + trim_size;
-
-	/*trim*/
-	input_slice_end = input_slice_end > trim_end ? trim_end : input_slice_end;
-	input_slice_end = input_slice_end - trim_start;
-
-	/*deci*/
-	input_slice_end = input_slice_end/deci;
-	if (input_slice_end != deci_size)
-		input_slice_end -= scl_tap/2;
-
-	/*scale*/
-	epixel = (input_slice_end*scl_factor_out - 1 - init_phase)/scl_factor_in + 1;
-
-	/*align*/
-	epixel = (epixel/output_pixel_align)*output_pixel_align;
-
-	if(epixel < 0)
-		epixel = 0;
-
-	/*output*/
-	*output_slice_end = epixel;
-}
-
-void calc_scaler_input_slice_info(int trim_start, int trim_size, int deci, int scl_en, int scl_factor_in, int scl_factor_out, int scl_tap, int init_phase,
-	int output_slice_start, int output_slice_size, int input_pixel_align,
-	int *input_slice_start, int *input_slice_size, int *input_slice_phase)
-{
-	int sphase, ephase;
-	int spixel, epixel;
-	int deci_size = trim_size/deci;
-
-	sphase = init_phase + output_slice_start*scl_factor_in; /*start phase*/
-	ephase = sphase + (output_slice_size-1)*scl_factor_in; /*end phase (interior)*/
-
-	spixel = sphase/scl_factor_out - scl_tap/2 + 1; /*start pixel index*/
-	epixel = ephase/scl_factor_out + scl_tap/2; /*end pixel index (interior)*/
-
-	/*adjust the input slice position for alignment*/
-	spixel = (spixel/input_pixel_align)*input_pixel_align; /*start pixel (aligned)*/
-	epixel = (epixel/input_pixel_align+1)*input_pixel_align;
-
-	spixel = spixel < 0 ? 0 : spixel;
-	epixel = epixel > deci_size ? deci_size : epixel;
-
-	/*calculate the initial phase of current slice (local phase)*/
-	sphase -= spixel*scl_factor_out;
-
-	/*calculate the input slice position of deci*/
-	spixel *= deci;
-	epixel *= deci;
-
-	*input_slice_start = spixel + trim_start;
-	*input_slice_size = epixel - spixel;
-	*input_slice_phase = sphase;
 }
 
 static void scaler_calculate_region(
@@ -853,14 +764,14 @@ static void scaler_calculate_region(
 	r_out->cols = cols;
 }
 
-int isp_drv_regions_empty(const isp_drv_regions_t *r)
+static int isp_drv_regions_empty(const isp_drv_regions_t *r)
 {
 	if(0 == r->rows * r->cols)
 		return 1;
 	return 0;
 }
 
-void isp_drv_regions_max(const isp_drv_regions_t *r1, const isp_drv_regions_t *r2, isp_drv_regions_t *r_out)
+static void isp_drv_regions_max(const isp_drv_regions_t *r1, const isp_drv_regions_t *r2, isp_drv_regions_t *r_out)
 {
 	int i,j,index;
 	int rows = r1->rows;
@@ -882,7 +793,7 @@ void isp_drv_regions_max(const isp_drv_regions_t *r1, const isp_drv_regions_t *r
 	}
 }
 
-void isp_drv_regions_arr_max(isp_drv_regions_t* arr[],int num,isp_drv_regions_t *r_out)
+static void isp_drv_regions_arr_max(isp_drv_regions_t* arr[],int num,isp_drv_regions_t *r_out)
 {
 	int i;
 
@@ -953,181 +864,6 @@ void slice_drv_calculate_overlap_init(slice_drv_overlap_param_t *param_ptr)
 
 	param_ptr->scaler1.frameParam = &param_ptr->scaler1.frameParamObj;
 	param_ptr->scaler2.frameParam = &param_ptr->scaler2.frameParamObj;
-}
-
-void calc_scaler_phase(int32_t phase, uint16_t factor, int16_t *phase_int, uint16_t *phase_rmd)
-{
-	phase_int[0] = (uint32_t)(phase / factor);
-	phase_rmd[0] = (uint32_t)(phase - factor * phase_int[0]);
-}
-
-void yuv_scaler_init_slice_info_v3(
-	yuvscaler_param_t    *frame_scaler,
-	yuvscaler_param_t    *slice_scaler,
-	scaler_slice_t       *slice_info,
-	const scaler_slice_t *input_slice_info,
-	const scaler_slice_t *output_slice_info)
-{
-	int trim_start, trim_size;
-	int deci;
-	int scl_en, scl_factor_in, scl_factor_out, scl_tap, init_phase;
-	int input_slice_start, input_slice_size, input_pixel_align;
-	int output_slice_start, output_slice_size, output_pixel_align;
-	int overlap_head, overlap_tail;
-	int start_col_org, start_row_org;
-
-	memcpy(slice_scaler, frame_scaler, sizeof(yuvscaler_param_t));
-
-	/*hor*/
-	trim_start = frame_scaler->trim0_info.trim_start_x;
-	trim_size = frame_scaler->trim0_info.trim_size_x;
-	deci = frame_scaler->deci_info.deci_x;
-	scl_en = frame_scaler->scaler_info.scaler_en;
-	scl_factor_in = frame_scaler->scaler_info.scaler_factor_in_hor;
-	scl_factor_out = frame_scaler->scaler_info.scaler_factor_out_hor;
-	scl_tap = frame_scaler->scaler_info.scaler_y_hor_tap;
-	init_phase = frame_scaler->scaler_info.init_phase_info.scaler_init_phase[0];
-
-	slice_scaler->src_size_x = slice_info->slice_width;
-
-	overlap_head = input_slice_info->start_col - slice_info->start_col;
-	overlap_tail = slice_info->end_col - input_slice_info->end_col;
-
-	start_col_org = slice_info->start_col;
-
-	slice_info->start_col += overlap_head;
-	slice_info->end_col   -= overlap_tail;
-	slice_info->slice_width = slice_info->end_col - slice_info->start_col + 1;
-
-	input_slice_start  = slice_info->start_col;
-	input_slice_size   = slice_info->slice_width;
-	input_pixel_align  = 2; /*YUV420*/
-	output_pixel_align = 2; /*YUV420*/
-	if(slice_info->sliceColNo != slice_info->sliceCols-1)
-	{
-		output_pixel_align = frame_scaler->output_align_hor;
-	}
-
-	output_slice_start = output_slice_info->start_col;
-	output_slice_size  = output_slice_info->end_col - output_slice_info->start_col + 1;
-
-	if(output_slice_size == 0)
-	{
-	    slice_scaler->trim0_info.trim_start_x = 0;
-	    slice_scaler->trim0_info.trim_size_x = 0;
-	}
-	else
-	{
-		input_slice_start = input_slice_info->start_col;
-		input_slice_size  = input_slice_info->end_col - input_slice_info->start_col + 1;
-		init_phase = slice_info->init_phase_hor;
-
-		slice_scaler->trim0_info.trim_start_x = input_slice_start - start_col_org;
-		slice_scaler->trim0_info.trim_size_x  = input_slice_size;
-
-		slice_scaler->scaler_info.scaler_in_width  = input_slice_size/deci;
-		slice_scaler->scaler_info.scaler_out_width = output_slice_size;
-
-		slice_scaler->scaler_info.init_phase_info.scaler_init_phase[0] = init_phase;
-		calc_scaler_phase(init_phase, scl_factor_out, &slice_scaler->scaler_info.init_phase_info.scaler_init_phase_int[0][0],
-			&slice_scaler->scaler_info.init_phase_info.scaler_init_phase_rmd[0][0]);
-		calc_scaler_phase(init_phase/4, scl_factor_out/2, &slice_scaler->scaler_info.init_phase_info.scaler_init_phase_int[0][1],
-			&slice_scaler->scaler_info.init_phase_info.scaler_init_phase_rmd[0][1]);
-	}
-	slice_scaler->dst_start_x = output_slice_start;
-	slice_scaler->dst_size_x  = output_slice_size;
-	slice_scaler->trim1_info.trim_start_x = 0;
-	slice_scaler->trim1_info.trim_size_x  = output_slice_size;
-
-	/*ver*/
-	trim_start = frame_scaler->trim0_info.trim_start_y;
-	trim_size = frame_scaler->trim0_info.trim_size_y;
-	deci = frame_scaler->deci_info.deci_y;
-	scl_en = frame_scaler->scaler_info.scaler_en;
-	scl_factor_in = frame_scaler->scaler_info.scaler_factor_in_ver;
-	scl_factor_out = frame_scaler->scaler_info.scaler_factor_out_ver;
-	/*FIXME: 420 input*/
-	if(frame_scaler->input_pixfmt == YUV422)
-		scl_tap = MAX(frame_scaler->scaler_info.scaler_y_ver_tap, frame_scaler->scaler_info.scaler_uv_ver_tap)   + 2;
-	else if(frame_scaler->input_pixfmt == YUV420)
-		scl_tap = MAX(frame_scaler->scaler_info.scaler_y_ver_tap, frame_scaler->scaler_info.scaler_uv_ver_tap*2) + 2;
-	init_phase = frame_scaler->scaler_info.init_phase_info.scaler_init_phase[1];
-
-	slice_scaler->src_size_y = slice_info->slice_height;
-
-	overlap_head = input_slice_info->start_row - slice_info->start_row;
-	overlap_tail = slice_info->end_row - input_slice_info->end_row;
-
-	start_row_org = slice_info->start_row; /*copy for trim0*/
-
-	slice_info->start_row += overlap_head;
-	slice_info->end_row  -= overlap_tail;
-	slice_info->slice_height = slice_info->end_row - slice_info->start_row + 1;
-
-	input_slice_start = slice_info->start_row;
-	input_slice_size = slice_info->slice_height;
-	input_pixel_align = 2; /*YUV420*/
-	if (frame_scaler->output_pixfmt == YUV422)
-		output_pixel_align = 2;
-	else if (frame_scaler->output_pixfmt == YUV420)
-	{
-		output_pixel_align = 2;
-		if(slice_info->sliceRowNo != slice_info->sliceRows-1)
-		{
-			output_pixel_align = frame_scaler->output_align_ver;
-		}
-	}
-	else
-		;
-
-	output_slice_start = output_slice_info->start_row;
-	output_slice_size  = output_slice_info->end_row - output_slice_info->start_row + 1;
-
-	if(output_slice_size == 0)
-	{
-		slice_scaler->trim0_info.trim_start_y = 0;
-		slice_scaler->trim0_info.trim_size_y = 0;
-	}
-	else
-	{
-		input_slice_start = input_slice_info->start_row;
-		input_slice_size = input_slice_info->end_row - input_slice_info->start_row + 1;
-		init_phase = slice_info->init_phase_ver;
-
-		slice_scaler->trim0_info.trim_start_y = input_slice_start - start_row_org;
-		slice_scaler->trim0_info.trim_size_y  = input_slice_size;
-
-		slice_scaler->scaler_info.scaler_in_height  = input_slice_size/deci;
-		slice_scaler->scaler_info.scaler_out_height = output_slice_size;
-		slice_scaler->scaler_info.init_phase_info.scaler_init_phase[1] = init_phase;
-		/*FIXME: need refer to input_pixfmt*/
-		/*luma*/
-		calc_scaler_phase(init_phase, scl_factor_out, &slice_scaler->scaler_info.init_phase_info.scaler_init_phase_int[1][0],
-			&slice_scaler->scaler_info.init_phase_info.scaler_init_phase_rmd[1][0]);
-		/*chroma*/
-		if(slice_scaler->scaler_info.input_pixfmt == YUV422)
-		{
-			if(slice_scaler->scaler_info.output_pixfmt == YUV420)
-			calc_scaler_phase(init_phase/2, scl_factor_out/2, &slice_scaler->scaler_info.init_phase_info.scaler_init_phase_int[1][1],
-				&slice_scaler->scaler_info.init_phase_info.scaler_init_phase_rmd[1][1]);
-			else if(slice_scaler->scaler_info.output_pixfmt == YUV422)
-			calc_scaler_phase(init_phase,   scl_factor_out,   &slice_scaler->scaler_info.init_phase_info.scaler_init_phase_int[1][1],
-				&slice_scaler->scaler_info.init_phase_info.scaler_init_phase_rmd[1][1]);
-		}
-		else if(slice_scaler->scaler_info.input_pixfmt == YUV420)
-		{
-			if(slice_scaler->scaler_info.output_pixfmt == YUV420)
-			calc_scaler_phase(init_phase/4, scl_factor_out/2, &slice_scaler->scaler_info.init_phase_info.scaler_init_phase_int[1][1],
-				&slice_scaler->scaler_info.init_phase_info.scaler_init_phase_rmd[1][1]);
-			else if(slice_scaler->scaler_info.output_pixfmt == YUV422)
-			calc_scaler_phase(init_phase/2, scl_factor_out,   &slice_scaler->scaler_info.init_phase_info.scaler_init_phase_int[1][1],
-				&slice_scaler->scaler_info.init_phase_info.scaler_init_phase_rmd[1][1]);
-		}
-	}
-	slice_scaler->dst_start_y = output_slice_start;
-	slice_scaler->dst_size_y  = output_slice_size;
-	slice_scaler->trim1_info.trim_start_y = 0;
-	slice_scaler->trim1_info.trim_size_y  = output_slice_size;
 }
 
 static void scaler_slice_init(
@@ -1446,7 +1182,6 @@ void yuv_scaler_init_frame_info(yuvscaler_param_t *pYuvScaler)
 				pScalerInfo->scaler_y_ver_tap = y_ver_tap;
 				pScalerInfo->scaler_uv_ver_tap = uv_ver_tap;
 			}
-
 		}
 		else
 		{
@@ -2338,7 +2073,8 @@ static int isp_init_param_for_yuvscaler_slice(void *slc_cfg_input, void *slc_ctx
 	return 0;
 }
 
-static int isp_init_param_for_overlap(struct slice_cfg_input *slice_input, struct isp_slice_context *slice_ctx)
+static int isp_init_param_for_overlap_v1(
+		struct slice_cfg_input *slice_input, struct isp_slice_context *slice_ctx)
 {
 	int i = 0;
 	uint32_t config_output_align_hor = 2;
@@ -2475,9 +2211,9 @@ static int isp_init_param_for_overlap(struct slice_cfg_input *slice_input, struc
 
 	if ((scaler1_in_width == overlapParam->scaler1.des_size_x)
 		&& (scaler1_in_height == overlapParam->scaler1.des_size_y))
-		 overlapParam->scaler1.scaler_en = 0;
+		overlapParam->scaler1.scaler_en = 0;
 	else
-		 overlapParam->scaler1.scaler_en = 1;
+		overlapParam->scaler1.scaler_en = 1;
 	overlapParam->scaler1.yuv_output_format = 1; /*0: 422 1: 420*/
 
 	yuvFormat = slice_input->calc_dyn_ov.store[ISP_SPATH_CP]->color_fmt;
@@ -2611,6 +2347,285 @@ static int isp_init_param_for_overlap(struct slice_cfg_input *slice_input, struc
 	return 0;
 }
 
+int isp_init_param_for_overlap_v2(
+		struct slice_cfg_input *slice_input, struct isp_slice_context *slice_ctx)
+{
+	int i = 0, j = 0;
+	uint32_t config_output_align_hor = 2;
+	uint32_t yuvFormat = 0;
+	uint32_t crop_region_w = 0;
+	uint32_t crop_region_h = 0;
+	uint32_t scaler1_in_width = 0;
+	uint32_t scaler1_in_height = 0;
+	uint32_t scaler2_in_width = 0;
+	uint32_t scaler2_in_height = 0;
+	uint32_t layer_num = 0;
+	ltm_rgb_stat_param_t ltm_param;
+	struct isp_slice_context *slc_ctx = NULL;
+	struct alg_slice_drv_overlap *slice_overlap = NULL;
+
+	if (!slice_input || !slice_ctx) {
+		pr_err("fail to get input prt NULL");
+		return -1;
+	}
+
+	slc_ctx = slice_ctx;
+	slice_overlap = &slice_ctx->slice_overlap;
+	scaler_path = -1;
+	memset(slice_overlap,0,sizeof(struct alg_slice_drv_overlap));
+	slice_overlap->scaler1.frameParam = &slice_overlap->scaler1.frameParamObj;
+	slice_overlap->scaler2.frameParam = &slice_overlap->scaler2.frameParamObj;
+
+	/************************************************************************/
+	/* img_type:  */
+	/* 0:bayer 1:rgb 2:yuv444 3:yuv422 4:yuv420 5:yuv400  */
+	/* 6:FBC bayer 7:FBC yuv420   */
+	/************************************************************************/
+	layer_num = slice_input->calc_dyn_ov.pyr_layer_num;
+	slice_overlap->img_type = core_drv_get_fetch_fmt(slice_input->frame_fetch->fetch_fmt);
+	if (slice_overlap->img_type < 0)
+		return -1;
+	slice_overlap->scaler_input_format = 4;/*3:422 4:420*/
+	slice_overlap->img_w = slc_ctx->img_width;
+	slice_overlap->img_h = slc_ctx->img_height;
+
+	if (layer_num != 0) {
+		slice_overlap->input_layer_w = isp_rec_small_layer_w(slice_overlap->img_w, layer_num);
+		slice_overlap->input_layer_h = isp_rec_small_layer_h(slice_overlap->img_h, layer_num);
+	} else {
+		slice_overlap->input_layer_w = slice_overlap->img_w;
+		slice_overlap->input_layer_h = slice_overlap->img_h;
+	}
+
+	slice_overlap->input_layer_id = slice_input->calc_dyn_ov.pyr_layer_num - 1;
+	slice_overlap->img_src_w = slice_overlap->img_w;
+	slice_overlap->img_src_h = slice_overlap->img_h;
+	slice_overlap->uw_sensor = slice_input->calc_dyn_ov.need_dewarping;
+
+	crop_region_w = slice_input->calc_dyn_ov.crop.start_x + slice_input->calc_dyn_ov.crop.size_x;
+	crop_region_h = slice_input->calc_dyn_ov.crop.start_x + slice_input->calc_dyn_ov.crop.size_y;
+	if ((crop_region_w == slice_input->calc_dyn_ov.src.w) && (crop_region_h == slice_input->calc_dyn_ov.src.h))
+		slice_overlap->crop_en = 0;
+	else
+		slice_overlap->crop_en = 1;
+
+	slice_overlap->crop_mode = 0;
+	slice_overlap->crop_sx = slice_input->calc_dyn_ov.crop.start_x;
+	slice_overlap->crop_sy = slice_input->calc_dyn_ov.crop.start_y;
+	slice_overlap->crop_w = slice_input->calc_dyn_ov.crop.size_x;
+	slice_overlap->crop_h = slice_input->calc_dyn_ov.crop.size_y;
+
+	slice_overlap->slice_w = slc_ctx->slice_width;
+	pr_debug("slice w %d\n", slice_overlap->slice_w);
+	slice_overlap->slice_h = slc_ctx->slice_height;
+	slice_overlap->offline_slice_mode = 1;
+
+	slice_overlap->nr3d_bd_bypass = 1;
+	slice_overlap->nr3d_bd_FBC_en = 0;
+	slice_overlap->yuv420_to_rgb10_bypass = 0;
+	slice_overlap->ltmsta_rgb_bypass = slice_input->nofilter_ctx->ltm_rgb_info.ltm_stat.bypass;
+	slice_overlap->ynr_bypass = slice_input->nofilter_ctx->ynr_info_v3.bypass;
+	slice_overlap->ee_bypass = slice_input->nofilter_ctx->edge_info_v3.bypass;
+	slice_overlap->cnr_new_bypass = slice_input->nofilter_ctx->cdn_info.bypass;
+	slice_overlap->post_cnr_bypass = slice_input->nofilter_ctx->post_cnr_h_info.bypass;
+	slice_overlap->cnr_bypass = slice_input->nofilter_ctx->cnr_info.bypass;
+
+	if (0 == slice_input->nofilter_ctx->ltm_rgb_info.ltm_stat.bypass) {
+		uint32_t frame_width = slc_ctx->img_width;
+		uint32_t frame_height = slc_ctx->img_height;
+		ltm_rgb_stat_param_t *param_stat = &ltm_param;
+
+		param_stat->strength = slice_input->nofilter_ctx->ltm_rgb_info.ltm_stat.strength;
+		param_stat->region_est_en = slice_input->nofilter_ctx->ltm_rgb_info.ltm_stat.region_est_en;
+		param_stat->text_point_thres = slice_input->nofilter_ctx->ltm_rgb_info.ltm_stat.text_point_thres;
+		param_stat->text_proportion = slice_input->nofilter_ctx->ltm_rgb_info.ltm_stat.ltm_text.textture_proporion;
+		param_stat->tile_num_auto = slice_input->nofilter_ctx->ltm_rgb_info.ltm_stat.tile_num_auto;
+		param_stat->tile_num_col = slice_input->nofilter_ctx->ltm_rgb_info.ltm_stat.tile_num.tile_num_x;
+		param_stat->tile_num_row = slice_input->nofilter_ctx->ltm_rgb_info.ltm_stat.tile_num.tile_num_y;
+		pr_debug("tile_num_col %d, tile_num_row %d", param_stat->tile_num_col, param_stat->tile_num_row);
+
+		ltm_rgb_stat_param_init(frame_width, frame_height, param_stat);
+		slice_overlap->ltmsta_rgb_binning_en = param_stat->binning_en;
+	} else {
+		slice_overlap->ltmsta_rgb_binning_en = 0;
+	}
+
+	/*yuv rec*/
+	slice_overlap->pyramid_rec_bypass = !slice_input->calc_dyn_ov.pyr_layer_num;
+	slice_overlap->layerNum = slice_input->calc_dyn_ov.pyr_layer_num;
+	pr_debug("isp pyr rec bypass %d layer num %d\n", slice_overlap->pyramid_rec_bypass,
+		slice_overlap->layerNum);
+	/*yuv*/
+	slice_overlap->dewarping_bypass = !slice_input->calc_dyn_ov.need_dewarping;
+	if (slice_overlap->pyramid_rec_bypass) {
+		slice_overlap->dewarping_width = slice_overlap->img_w;
+		slice_overlap->dewarping_height = slice_overlap->img_h;
+		slice_overlap->ynr_bypass = 1;
+		slice_overlap->cnr_bypass = 1;
+	} else {
+		slice_overlap->dewarping_width = slice_overlap->img_src_w;
+		slice_overlap->dewarping_height = slice_overlap->img_src_h;
+	}
+
+	pr_debug("ynr %d ee %d cnr %d dewarp %d cnr_new %d post-cnr %d",
+		slice_overlap->ynr_bypass, slice_overlap->ee_bypass, slice_overlap->cnr_bypass,
+		slice_overlap->dewarping_bypass, slice_overlap->cnr_new_bypass, slice_overlap->post_cnr_bypass);
+	/* TBD: 3dnr fbc just temp close */
+	slice_overlap->nr3d_bd_FBC_en = 0;
+
+	/* scaler1 */
+	slice_overlap->scaler1.bypass = slice_input->calc_dyn_ov.path_scaler[ISP_SPATH_CP]->scaler.scaler_bypass;
+	slice_overlap->scaler1.scaler_id = 1;
+	slice_overlap->scaler1.FBC_enable = 0;
+	slice_overlap->scaler1.trim_eb = 1;
+	slice_overlap->scaler1.trim_start_x = slice_input->calc_dyn_ov.path_scaler[ISP_SPATH_CP]->in_trim.start_x;
+	slice_overlap->scaler1.trim_start_y = slice_input->calc_dyn_ov.path_scaler[ISP_SPATH_CP]->in_trim.start_y;
+	slice_overlap->scaler1.trim_size_x = slice_input->calc_dyn_ov.path_scaler[ISP_SPATH_CP]->in_trim.size_x;
+	slice_overlap->scaler1.trim_size_y = slice_input->calc_dyn_ov.path_scaler[ISP_SPATH_CP]->in_trim.size_y;
+	slice_overlap->scaler1.deci_x_eb = slice_input->calc_dyn_ov.path_scaler[ISP_SPATH_CP]->deci.deci_x_eb;
+	slice_overlap->scaler1.deci_y_eb = slice_input->calc_dyn_ov.path_scaler[ISP_SPATH_CP]->deci.deci_y_eb;
+	slice_overlap->scaler1.deci_x = slice_input->calc_dyn_ov.path_scaler[ISP_SPATH_CP]->deci.deci_x;
+	slice_overlap->scaler1.deci_y = slice_input->calc_dyn_ov.path_scaler[ISP_SPATH_CP]->deci.deci_y;
+	slice_overlap->scaler1.scl_init_phase_hor =
+		slice_input->calc_dyn_ov.path_scaler[ISP_SPATH_CP]->scaler.init_phase_info.scaler_init_phase[0];
+	slice_overlap->scaler1.scl_init_phase_ver =
+		slice_input->calc_dyn_ov.path_scaler[ISP_SPATH_CP]->scaler.init_phase_info.scaler_init_phase[1];
+	slice_overlap->scaler1.des_size_x = slice_input->calc_dyn_ov.path_scaler[ISP_SPATH_CP]->dst.w;
+	slice_overlap->scaler1.des_size_y = slice_input->calc_dyn_ov.path_scaler[ISP_SPATH_CP]->dst.h;
+	if (slice_overlap->scaler1.deci_x_eb)
+		scaler1_in_width = slice_overlap->scaler1.trim_size_x /slice_overlap->scaler1.deci_x;
+	else
+		scaler1_in_width = slice_overlap->scaler1.trim_size_x;
+	if (slice_overlap->scaler1.deci_y_eb)
+		scaler1_in_height = slice_overlap->scaler1.trim_size_y /slice_overlap->scaler1.deci_y;
+	else
+		scaler1_in_height = slice_overlap->scaler1.trim_size_y;
+
+	if ((scaler1_in_width == slice_overlap->scaler1.des_size_x)
+		&& (scaler1_in_height == slice_overlap->scaler1.des_size_y))
+		slice_overlap->scaler1.scaler_en = 0;
+	else
+		slice_overlap->scaler1.scaler_en = 1;
+	yuvFormat = slice_input->calc_dyn_ov.store[ISP_SPATH_CP]->color_fmt;
+	if (YUV_OUT_UYVY_422 == yuvFormat) {
+		config_output_align_hor = 2;
+	} else if ((YUV_OUT_Y_UV_422 == yuvFormat)
+			|| (YUV_OUT_Y_VU_422 == yuvFormat)
+			|| (YUV_OUT_Y_UV_420 == yuvFormat)
+			|| (YUV_OUT_Y_VU_420 == yuvFormat)) {
+		config_output_align_hor = 4;
+	} else if ((YUV_OUT_Y_U_V_422 == yuvFormat)
+			||(YUV_OUT_Y_U_V_420 == yuvFormat)) {
+		config_output_align_hor = 8;
+	}
+	slice_overlap->scaler1.yuv_output_format = 1; /*0: 422 1: 420*/
+	slice_overlap->scaler1.output_align_hor = config_output_align_hor;
+
+	/* scaler2 */
+	slice_overlap->scaler2.bypass = slice_input->calc_dyn_ov.path_scaler[ISP_SPATH_VID]->scaler.scaler_bypass;
+	slice_overlap->scaler2.scaler_id = 2;
+	slice_overlap->scaler2.FBC_enable = 0;
+	slice_overlap->scaler2.trim_eb = 1;
+	slice_overlap->scaler2.trim_start_x = slice_input->calc_dyn_ov.path_scaler[ISP_SPATH_VID]->in_trim.start_x;
+	slice_overlap->scaler2.trim_start_y = slice_input->calc_dyn_ov.path_scaler[ISP_SPATH_VID]->in_trim.start_y;
+	slice_overlap->scaler2.trim_size_x = slice_input->calc_dyn_ov.path_scaler[ISP_SPATH_VID]->in_trim.size_x;
+	slice_overlap->scaler2.trim_size_y = slice_input->calc_dyn_ov.path_scaler[ISP_SPATH_VID]->in_trim.size_y;
+	slice_overlap->scaler2.deci_x_eb = slice_input->calc_dyn_ov.path_scaler[ISP_SPATH_VID]->deci.deci_x_eb;
+	slice_overlap->scaler2.deci_y_eb = slice_input->calc_dyn_ov.path_scaler[ISP_SPATH_VID]->deci.deci_y_eb;
+	slice_overlap->scaler2.deci_x = slice_input->calc_dyn_ov.path_scaler[ISP_SPATH_VID]->deci.deci_x;
+	slice_overlap->scaler2.deci_y = slice_input->calc_dyn_ov.path_scaler[ISP_SPATH_VID]->deci.deci_y;
+	slice_overlap->scaler2.scl_init_phase_hor =
+		slice_input->calc_dyn_ov.path_scaler[ISP_SPATH_VID]->scaler.init_phase_info.scaler_init_phase[0];
+	slice_overlap->scaler2.scl_init_phase_ver =
+		slice_input->calc_dyn_ov.path_scaler[ISP_SPATH_VID]->scaler.init_phase_info.scaler_init_phase[1];
+	slice_overlap->scaler2.des_size_x = slice_input->calc_dyn_ov.path_scaler[ISP_SPATH_VID]->dst.w;
+	slice_overlap->scaler2.des_size_y = slice_input->calc_dyn_ov.path_scaler[ISP_SPATH_VID]->dst.h;
+	if (slice_overlap->scaler2.deci_x_eb)
+		scaler2_in_width = slice_overlap->scaler2.trim_size_x /slice_overlap->scaler2.deci_x;
+	else
+		scaler2_in_width = slice_overlap->scaler2.trim_size_x;
+	if (slice_overlap->scaler2.deci_y_eb)
+		scaler2_in_height = slice_overlap->scaler2.trim_size_y /slice_overlap->scaler2.deci_y;
+	else
+		scaler2_in_height = slice_overlap->scaler2.trim_size_y;
+
+	if ((scaler2_in_width == slice_overlap->scaler2.des_size_x)
+		&& (scaler2_in_height == slice_overlap->scaler2.des_size_y))
+		slice_overlap->scaler2.scaler_en = 0;
+	else
+		slice_overlap->scaler2.scaler_en = 1;
+	slice_overlap->scaler2.yuv_output_format = 1; /*0: 422 1: 420*/
+
+	config_output_align_hor = 2;
+	yuvFormat = slice_input->calc_dyn_ov.store[ISP_SPATH_VID]->color_fmt;
+	if (YUV_OUT_UYVY_422 == yuvFormat) {
+		config_output_align_hor = 2;
+	} else if ((YUV_OUT_Y_UV_422 == yuvFormat)
+			|| (YUV_OUT_Y_VU_422 == yuvFormat)
+			|| (YUV_OUT_Y_UV_420 == yuvFormat)
+			|| (YUV_OUT_Y_VU_420 == yuvFormat)) {
+		config_output_align_hor = 4;
+	} else if ((YUV_OUT_Y_U_V_422 == yuvFormat)
+			||(YUV_OUT_Y_U_V_420 == yuvFormat)) {
+		config_output_align_hor = 8;
+	}
+	slice_overlap->scaler2.output_align_hor = config_output_align_hor;
+
+	/* TBD: thumbnail scaler need to debug */
+	slice_overlap->thumbnailscaler.bypass = slice_input->calc_dyn_ov.thumb_scaler->scaler_bypass;
+	slice_overlap->thumbnailscaler.trim0_en = 1;
+	slice_overlap->thumbnailscaler.trim0_start_x = slice_input->calc_dyn_ov.thumb_scaler->y_trim.start_x;
+	slice_overlap->thumbnailscaler.trim0_start_y = slice_input->calc_dyn_ov.thumb_scaler->y_trim.start_y;
+	slice_overlap->thumbnailscaler.trim0_size_x = slice_input->calc_dyn_ov.thumb_scaler->y_trim.size_x;
+	slice_overlap->thumbnailscaler.trim0_size_y = slice_input->calc_dyn_ov.thumb_scaler->y_trim.size_y;
+	slice_overlap->thumbnailscaler.phase_x = slice_input->calc_dyn_ov.thumb_scaler->y_init_phase.w;
+	slice_overlap->thumbnailscaler.phase_y = slice_input->calc_dyn_ov.thumb_scaler->y_init_phase.h;
+	slice_overlap->thumbnailscaler.base_align = 4; /* TBD: just set temp 4 */
+	slice_overlap->thumbnailscaler.out_w = slice_input->calc_dyn_ov.thumb_scaler->y_src_after_deci.w;
+	slice_overlap->thumbnailscaler.out_h = slice_input->calc_dyn_ov.thumb_scaler->y_src_after_deci.h;
+	slice_overlap->thumbnailscaler.out_format = 1;
+
+	/* user define ovlap only for debug use */
+	slice_overlap->offlineCfgOverlap_en = 0;
+	slice_overlap->offlineCfgOverlap_left = 0;
+	slice_overlap->offlineCfgOverlap_right = 0;
+	slice_overlap->offlineCfgOverlap_up = 0;
+	slice_overlap->offlineCfgOverlap_down = 0;
+
+	/*calc overlap*/
+	alg_slice_calc_drv_overlap(slice_overlap);
+
+	for (i = 0 ; i < slc_ctx->slice_num; i++) {
+		pr_debug("get calc result: slice id %d, region (%d, %d, %d, %d)\n",
+			i, slice_overlap->slice_region[i].sx, slice_overlap->slice_region[i].sy,
+			slice_overlap->slice_region[i].ex, slice_overlap->slice_region[i].ey);
+		pr_debug("get calc result: slice id %d, overlap (left %d, right %d )\n",
+			i, slice_overlap->slice_overlap[i].ov_left, slice_overlap->slice_overlap[i].ov_right);
+	}
+	for (j = 0; j < slice_input->calc_dyn_ov.pyr_layer_num + 1; j++) {
+		pr_debug("cur pyr layer %d slice_num %d\n", j, slice_overlap->slice_number[j]);
+		for (i = 0; i < slice_overlap->slice_number[j]; i++) {
+			pr_debug("get calc result: slice id %d, fetch0 region (%d, %d, %d, %d)\n",
+				i, slice_overlap->fecth0_slice_region[j][i].sx, slice_overlap->fecth0_slice_region[j][i].sy,
+				slice_overlap->fecth0_slice_region[j][i].ex, slice_overlap->fecth0_slice_region[j][i].ey);
+			pr_debug("get calc result: slice id %d, fetch1 region (%d, %d, %d, %d)\n",
+				i, slice_overlap->fecth1_slice_region[j][i].sx, slice_overlap->fecth1_slice_region[j][i].sy,
+				slice_overlap->fecth1_slice_region[j][i].ex, slice_overlap->fecth1_slice_region[j][i].ey);
+			pr_debug("get calc result: slice id %d, fetch0 overlap (left %d, right %d)\n",
+				i, slice_overlap->fecth0_slice_overlap[j][i].ov_left, slice_overlap->fecth0_slice_overlap[j][i].ov_right);
+			pr_debug("get calc result: slice id %d, store region (%d, %d, %d, %d)\n",
+				i, slice_overlap->store_rec_slice_region[j][i].sx, slice_overlap->store_rec_slice_region[j][i].sy,
+				slice_overlap->store_rec_slice_region[j][i].ex, slice_overlap->store_rec_slice_region[j][i].ey);
+			pr_debug("get calc result: slice id %d, store rec overlap (left %d, right %d)\n",
+				i, slice_overlap->store_rec_slice_overlap[j][i].ov_left, slice_overlap->store_rec_slice_overlap[j][i].ov_right);
+			pr_debug("get calc result: slice id %d, store_crop overlap (left %d, right %d )\n",
+				i, slice_overlap->store_rec_slice_crop_overlap[j][i].ov_left, slice_overlap->store_rec_slice_crop_overlap[j][i].ov_right);
+		}
+	}
+
+	return 0;
+}
+
 int alg_isp_init_yuvscaler_slice(void *slc_cfg_input, void *slc_ctx, isp_fw_scaler_slice (*slice_param)[4])
 {
 	int ret = 0;
@@ -2658,10 +2673,12 @@ int alg_isp_get_dynamic_overlap(void *cfg_slice_in, void*slc_ctx)
 	slice_ctx = (struct isp_slice_context *)slc_ctx;
 
 	dyn_ov_version = slice_input->calc_dyn_ov.verison;
-
 	switch (dyn_ov_version) {
 		case ALG_ISP_OVERLAP_VER_1:
-			ret = isp_init_param_for_overlap(slice_input, slice_ctx);
+			ret = isp_init_param_for_overlap_v1(slice_input, slice_ctx);
+			break;
+		case ALG_ISP_OVERLAP_VER_2:
+			ret = isp_init_param_for_overlap_v2(slice_input, slice_ctx);
 			break;
 		default:
 			pr_err("fail to get dyn_ov version %d\n", dyn_ov_version);

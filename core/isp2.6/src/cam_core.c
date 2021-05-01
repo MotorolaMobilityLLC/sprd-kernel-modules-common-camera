@@ -3860,14 +3860,14 @@ static int camcore_pyr_info_config(
 	module->dcam_dev_handle->dcam_pipe_ops->ioctl(dcam_sw_ctx,
 		DCAM_IOCTL_CFG_PYR_DEC_EN, &is_pyr_rec);
 
-	if (module->cam_uinfo.is_pyr_rec) {
-		if (channel->ch_id == CAM_CH_CAP) {
-			channel->pyr_layer_num = ISP_PYR_DEC_LAYER_NUM;
-			pyr_layer_num = ISP_PYR_DEC_LAYER_NUM;
-		} else if (channel->ch_id == CAM_CH_PRE) {
-			channel->pyr_layer_num = DCAM_PYR_DEC_LAYER_NUM;
-			pyr_layer_num = DCAM_PYR_DEC_LAYER_NUM;
-		}
+	if (module->cam_uinfo.is_pyr_rec && channel->ch_id == CAM_CH_PRE) {
+		channel->pyr_layer_num = DCAM_PYR_DEC_LAYER_NUM;
+		pyr_layer_num = DCAM_PYR_DEC_LAYER_NUM;
+	}
+
+	if (module->cam_uinfo.is_pyr_dec && channel->ch_id == CAM_CH_CAP) {
+		channel->pyr_layer_num = ISP_PYR_DEC_LAYER_NUM;
+		pyr_layer_num = ISP_PYR_DEC_LAYER_NUM;
 	}
 
 	module->isp_dev_handle->isp_ops->ioctl(module->isp_dev_handle,

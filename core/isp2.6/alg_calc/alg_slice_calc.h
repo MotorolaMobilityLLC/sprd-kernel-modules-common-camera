@@ -15,10 +15,26 @@
 #define _ALG_SLICE_CALC_H
 
 #include "isp_interface.h"
+#include "alg_isp_overlap.h"
 
-#define PIPE_MAX_SLICE_NUM 4
-#define ALG_REGIONS_NUM 4
-#define DEC_OVERLAP 4
+#define PIPE_MAX_SLICE_NUM            4
+#define ALG_REGIONS_NUM               4
+#define DEC_OVERLAP                   4
+#define REC_OVERLAP                   2
+#define AFBC_PADDING_W_YUV420_scaler  32
+#define AFBC_PADDING_H_YUV420_scaler  8
+#define AFBC_PADDING_W_YUV420_3dnr    32
+#define AFBC_PADDING_H_YUV420_3dnr    8
+#define AFBC_PADDING_W_BAYER          32
+#define AFBC_PADDING_H_BAYER          8
+
+enum {
+	SCALER_BASE = -1,
+	SCALER_DCAM_PRV = 0,
+	SCALER_ISP_PRV_CAP = 1,
+	SCALER_ISP_VID = 2,
+	SCALER_DCAM_CAP = 3
+};
 
 struct alg_block_calc {
 	uint32_t left;
@@ -69,6 +85,321 @@ struct alg_fetch_region_context {
 	uint32_t overlap_down;
 };
 
+typedef struct {
+	uint16_t overlap_up;
+	uint16_t overlap_down;
+	uint16_t overlap_left;
+	uint16_t overlap_right;
+} scaler_overlap_t;
+
+struct alg_slice_scaler_overlap {
+	int bypass;
+	int trim_eb;
+	int trim_start_x;
+	int trim_start_y;
+	int trim_size_x;
+	int trim_size_y;
+	int deci_x_eb;
+	int deci_y_eb;
+	int deci_x;
+	int deci_y;
+	int scaler_en;
+	int32_t scl_init_phase_hor;
+	int32_t scl_init_phase_ver;
+	int des_size_x;
+	int des_size_y;
+	int yuv_output_format;
+	int FBC_enable;
+	int output_align_hor;
+	int8_t scaler_id;
+
+	int slice_overlap_after_sclaer;
+	uint16_t slice_overlapleft_after_sclaer;
+	uint16_t slice_overlapright_after_sclaer;
+	int flag;
+
+	int dec_online_bypass;
+	int layerNum;
+
+	scaler_overlap_t input_scaler_overlap;
+	scaler_overlap_t output_scaler_overlap[PIPE_MAX_SLICE_NUM];
+	slice_drv_scaler_phase_info phase[PIPE_MAX_SLICE_NUM];
+	struct alg_region_info region_input[PIPE_MAX_SLICE_NUM];
+	struct alg_region_info region_output[PIPE_MAX_SLICE_NUM];
+	yuvscaler_param_t *frameParam;
+	yuvscaler_param_t frameParamObj;
+	yuvscaler_param_t sliceParam[PIPE_MAX_SLICE_NUM];
+};
+
+typedef struct thumbsliceinfo {
+	uint16_t totalcol;
+	uint16_t totalrow;
+	uint16_t cur_col;
+	uint16_t cur_row;
+	uint16_t slicewidth;
+	uint16_t sliceheight;
+
+	uint16_t trimx;
+	uint16_t trimy;
+	uint16_t deci_factor_x;
+	uint16_t deci_factor_y;
+
+	uint16_t scalerswitch;
+
+	uint16_t trim0startrow;
+	uint16_t trim0startcol;
+	uint16_t trim0endrow;
+	uint16_t trim0endcol;
+
+	uint16_t trim0slice_col;
+	uint16_t trim0slice_row;
+	uint16_t trim0realiw;
+	uint16_t trim0realih;
+	uint16_t realih;
+	uint16_t realiw;
+	uint16_t realoh;
+	uint16_t realow;
+} THUMBSLICEINFO_T ;
+
+typedef struct thumbinfo {
+	THUMBSLICEINFO_T thumbsliceinfo[PIPE_MAX_SLICE_NUM];
+} THUMBINFO_T;
+
+typedef struct configinfo {
+	uint16_t iw,ih,ow,oh,outformat;
+	uint8_t thumbnailscaler_pipeline_pos;
+	uint16_t thumbnailscaler_phaseX,thumbnailscaler_phaseY;
+
+	uint16_t thumbnailscaler_base_align;
+
+	uint8_t thumbnailscaler_trim0_en;
+	uint16_t thumbnailscaler_trimstartrow;
+	uint16_t thumbnailscaler_trimstartcol;
+	uint16_t thumbnailscaler_trimsizeX;
+	uint16_t thumbnailscaler_trimsizeY;
+	uint8_t scaler_frame_deci;
+
+	uint16_t thumbnailscaler_trimendrow;
+	uint16_t thumbnailscaler_trimendcol;
+	uint16_t trim0slice_totalcol;
+	uint16_t trim0slice_totalrow;
+} CONFIGINFO_T;
+
+typedef struct {
+	uint16_t phaseup;
+	uint16_t phasedown;
+	uint16_t phaseleft;
+	uint16_t phaseright;
+	int16_t numup;
+	int16_t numdown;
+	int16_t numleft;
+	int16_t numright;
+} thumbinfo_phasenum_y;
+
+typedef struct {
+	uint16_t phaseup;
+	uint16_t phasedown;
+	uint16_t phaseleft;
+	uint16_t phaseright;
+	int16_t numup;
+	int16_t numdown;
+	int16_t numleft;
+	int16_t numright;
+} thumbinfo_phasenum_uv;
+
+typedef struct {
+	uint16_t trim_s_col;
+	uint16_t trim_e_col;
+	uint16_t trim_width;
+	uint16_t trim_s_row;
+	uint16_t trim_e_row ;
+	uint16_t trim_height;
+} thumbinfo_trimcoordinate_uv;
+
+typedef struct {
+	uint16_t trim_s_col;
+	uint16_t trim_e_col;
+	uint16_t trim_width;
+	uint16_t trim_s_row;
+	uint16_t trim_e_row ;
+	uint16_t trim_height;
+} thumbinfo_trimcoordinate_y;
+
+typedef struct {
+	thumbinfo_phasenum_y thumbinfo_phasenum_yid[PIPE_MAX_SLICE_NUM];
+	thumbinfo_phasenum_uv thumbinfo_phasenum_uvid[PIPE_MAX_SLICE_NUM];
+	thumbinfo_trimcoordinate_y thumbinfo_trimcoordinate_yid[PIPE_MAX_SLICE_NUM];
+	thumbinfo_trimcoordinate_uv thumbinfo_trimcoordinate_uvid[PIPE_MAX_SLICE_NUM];
+} TH_infophasenum;
+
+typedef struct _tag_thumbnailscaler_param_t {
+	THUMBINFO_T thumbinfo;
+	CONFIGINFO_T configinfo;
+	TH_infophasenum th_infophasenum;
+} thumbnailscaler_param_t;
+
+typedef struct _tag_thumbnailscaler_context {
+	int src_width;
+	int src_height;
+	int offlineSliceWidth;
+	int offlineSliceHeight;
+} thumbnailscaler_context;
+
+typedef struct _tag_slice_drv_overlap_thumbnail_scaler_param {
+	int bypass;
+	int trim0_en;
+	int trim0_start_x;
+	int trim0_start_y;
+	int trim0_size_x;
+	int trim0_size_y;
+	int phase_x;
+	int phase_y;
+	int base_align;
+	int out_w;
+	int out_h;
+	int out_format;
+} slice_drv_overlap_thumbnail_scaler_param;
+
+typedef struct THUMB_SLICE_PARAM {
+	int id;
+	int width;
+	int height;
+
+	int start_col;
+	int start_row;
+	int end_col;
+	int end_row;
+
+	int overlap_left;
+	int overlap_right;
+	int overlap_up;
+	int overlap_down;
+} THUMB_SLICE_PARAM_T;
+
+typedef struct {
+	int s_row;
+	int e_row;
+	int s_col;
+	int e_col;
+	int overlap_left;
+	int overlap_right;
+	int overlap_up;
+	int overlap_down;
+} SliceWndinfo;
+
+typedef struct {
+	int rows;
+	int cols;
+	SliceWndinfo slices[16];
+	int offlineSliceWidth;
+	int offlineSliceHeight;
+} Sliceinfo;
+
+typedef struct {
+	THUMBINFO_T  thumbinfo;
+	CONFIGINFO_T configinfo;
+	TH_infophasenum th_infophasenum;
+	Sliceinfo inputSliceList;
+	Sliceinfo inputSliceList_overlap;
+	int sumslice;
+} thumbscaler_this;
+
+struct alg_slice_drv_overlap {
+	/************************************************************************/
+	/* img_type:                                                            */
+	/* 0:bayer 1:rgb 2:yuv444 3:yuv422 4:yuv420 5:yuv400                    */
+	/* 6:FBC bayer 7:FBC yuv420                                             */
+	/************************************************************************/
+	int img_w;
+	int img_h;
+	int img_type;
+
+	int input_layer_w;
+	int input_layer_h;
+	int input_layer_id;
+	int img_src_w;
+	int img_src_h;
+	int uw_sensor;
+
+	/************************************************************************/
+	/* 如果有crop行为，则输入pipeline的图像大小为crop_w,crop_h              */
+	/************************************************************************/
+	int crop_en;
+	int crop_mode;
+	int crop_sx;
+	int crop_sy;
+	int crop_w;
+	int crop_h;
+
+	/************************************************************************/
+	/* on whaleK slice_h >= img_h or slice_h >= crop_h                      */
+	/************************************************************************/
+	int slice_w;
+	int slice_h;
+
+	int offline_slice_mode;
+	/************************************************************************/
+	/* user define overlap                                                  */
+	/************************************************************************/
+	int offlineCfgOverlap_en;
+	int offlineCfgOverlap_left;
+	int offlineCfgOverlap_right;
+	int offlineCfgOverlap_up;
+	int offlineCfgOverlap_down;
+
+	//rgb
+	int ltmsta_rgb_bypass;
+	int ltmsta_rgb_binning_en;
+
+	//yuv rec
+	int ynr_bypass;
+	int cnr_bypass;
+	int pyramid_rec_bypass;
+	int layerNum;
+
+	//yuv
+	int dewarping_bypass;
+	int dewarping_width;
+	int dewarping_height;
+	int post_cnr_bypass;
+	int nr3d_bd_bypass;
+	int nr3d_bd_FBC_en;
+	int yuv420_to_rgb10_bypass;
+	int ee_bypass;
+	int cnr_new_bypass;
+
+	//scaler
+	int scaler_input_format;//3:422 4:420
+	struct alg_slice_scaler_overlap scaler1;
+	struct alg_slice_scaler_overlap scaler2;
+	slice_drv_overlap_thumbnail_scaler_param thumbnailscaler;
+
+	/************************************************************************/
+	/*  output                                                              */
+	/************************************************************************/
+	int slice_rows;
+	int slice_cols;
+	struct alg_region_info slice_region[PIPE_MAX_SLICE_NUM];
+	struct alg_overlap_info slice_overlap[PIPE_MAX_SLICE_NUM];
+
+	//fetch0, add overlap
+	struct alg_region_info fecth0_slice_region[MAX_PYR_DEC_LAYER_NUM][PIPE_MAX_SLICE_NUM];
+	struct alg_overlap_info fecth0_slice_overlap[MAX_PYR_DEC_LAYER_NUM][PIPE_MAX_SLICE_NUM];
+
+	//fetch1, add overlap
+	struct alg_region_info fecth1_slice_region[ISP_PYR_DEC_LAYER_NUM][PIPE_MAX_SLICE_NUM];
+
+	//store rec, add overlap
+	struct alg_region_info store_rec_slice_region[ISP_PYR_DEC_LAYER_NUM][PIPE_MAX_SLICE_NUM];
+	struct alg_overlap_info store_rec_slice_overlap[ISP_PYR_DEC_LAYER_NUM][PIPE_MAX_SLICE_NUM];
+
+	//store rec, crop overlap
+	struct alg_overlap_info store_rec_slice_crop_overlap[ISP_PYR_DEC_LAYER_NUM][PIPE_MAX_SLICE_NUM];
+
+	//slice number
+	int slice_number[MAX_PYR_DEC_LAYER_NUM];
+};
+
 /*
 * img_type: 0:bayer 1:rgb 2:yuv444 3:yuv422 4:yuv420 5:yuv400 6:FBC bayer 7:FBC yuv420
 */
@@ -101,6 +432,7 @@ struct alg_dec_offline_overlap {
 	struct alg_overlap_info store_dec_overlap[MAX_PYR_DEC_LAYER_NUM][PIPE_MAX_SLICE_NUM];
 };
 
+void alg_slice_calc_drv_overlap(struct alg_slice_drv_overlap *param_ptr);
 void alg_slice_calc_dec_offline_overlap(struct alg_dec_offline_overlap *param_ptr);
 
 #endif
