@@ -2326,7 +2326,7 @@ static int isp_init_param_for_yuvscaler_slice(void *slc_cfg_input, void *slc_ctx
 				}
 			}
 		} else {
-			for (; slice_id < slice_num; slice_id++) {
+			for (slice_id = 0; slice_id < slice_num; slice_id++) {
 				slice_param[id][slice_id].trim1_size_x = slice_pos_array[slice_id].end_col - slice_pos_array[slice_id].start_col + 1;
 				slice_param[id][slice_id].trim1_size_y = slice_pos_array[slice_id].end_row - slice_pos_array[slice_id].start_row + 1;
 				pr_debug("path %d, slice_id %d, trim1_size_x %d, trim1_size_y %d\n",
@@ -2547,6 +2547,18 @@ static int isp_init_param_for_overlap(struct slice_cfg_input *slice_input, struc
 	overlapParam->scaler2.output_align_hor = config_output_align_hor;
 	memcpy(scaler2_coeff_buf,
 		slice_input->calc_dyn_ov.path_scaler[ISP_SPATH_VID]->scaler.coeff_buf, sizeof(uint32_t) *ISP_SC_COEFF_BUF_SIZE);
+
+	pr_debug("raw : nlm %d, imbalance %d, gtm stat %d, gtm map %d, cfa %d\n",
+			overlapParam->nlm_bypass, overlapParam->imbalance_bypass,
+			overlapParam->raw_gtm_stat_bypass, overlapParam->raw_gtm_map_bypass, overlapParam->cfa_bypass);
+
+	pr_debug("rgb : ltmsta %d\n",
+			overlapParam->ltmsta_rgb_bypass);
+
+	pr_debug("yuv : nr3d_bd %d, ee %d, ynr %d, pre_cnr %d, cnr_new %d, post_cnr %d, iir_cnr %d\n",
+			overlapParam->nr3d_bd_bypass, overlapParam->ee_bypass, overlapParam->ynr_bypass,
+			overlapParam->pre_cnr_bypass, overlapParam->cnr_new_bypass,
+			overlapParam->post_cnr_bypass, overlapParam->iir_cnr_bypass);
 
 	pr_debug("img_type %d, img_w %d, img_h %d, slice_w %d, slice_h %d\n",
 		overlapParam->img_type, overlapParam->img_w, overlapParam->img_h,

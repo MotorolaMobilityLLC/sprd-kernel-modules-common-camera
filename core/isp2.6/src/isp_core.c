@@ -889,6 +889,39 @@ static uint32_t ispcore_slice_needed(struct isp_sw_context *pctx)
 	}
 	return 0;
 }
+static int ispcore_init_dyn_ov_param(struct slice_cfg_input *slc_cfg_in, struct isp_sw_context *pctx)
+{
+	int i = 0;
+	struct isp_path_desc *path;
+
+	if (!slc_cfg_in || !pctx) {
+		pr_err("fail to get input ptr slc_cfg_in %p, pctx %p\n", slc_cfg_in, pctx);
+		return -1;
+	}
+
+	for (i = 0; i < ISP_SPATH_NUM; i++) {
+		path = &pctx->isp_path[i];
+		if (atomic_read(&path->user_cnt) <= 0)
+			slc_cfg_in->calc_dyn_ov.path_en[i] = 0;
+		else
+			slc_cfg_in->calc_dyn_ov.path_en[i] = 1;
+		pr_debug("path id %d, en %d, user_cnt %d\n",
+			i, slc_cfg_in->calc_dyn_ov.path_en[i], atomic_read(&path->user_cnt));
+	}
+
+	slc_cfg_in->calc_dyn_ov.src.w = pctx->pipe_src.src.w;
+	slc_cfg_in->calc_dyn_ov.src.h = pctx->pipe_src.src.h;
+	slc_cfg_in->calc_dyn_ov.crop.start_x = pctx->pipe_src.crop.start_x;
+	slc_cfg_in->calc_dyn_ov.crop.start_y = pctx->pipe_src.crop.start_y;
+	slc_cfg_in->calc_dyn_ov.crop.size_x = pctx->pipe_src.crop.size_x;
+	slc_cfg_in->calc_dyn_ov.crop.size_y = pctx->pipe_src.crop.size_y;
+	slc_cfg_in->calc_dyn_ov.path_scaler[ISP_SPATH_CP] = &pctx->pipe_info.scaler[ISP_SPATH_CP];
+	slc_cfg_in->calc_dyn_ov.path_scaler[ISP_SPATH_VID] = &pctx->pipe_info.scaler[ISP_SPATH_VID];
+	slc_cfg_in->calc_dyn_ov.store[ISP_SPATH_CP] = &pctx->pipe_info.store[ISP_SPATH_CP].store;
+	slc_cfg_in->calc_dyn_ov.store[ISP_SPATH_VID] = &pctx->pipe_info.store[ISP_SPATH_VID].store;
+
+	return 0;
+}
 
 static int ispcore_slice_ctx_init(struct isp_sw_context *pctx, uint32_t *multi_slice)
 {
@@ -946,18 +979,11 @@ static int ispcore_slice_ctx_init(struct isp_sw_context *pctx, uint32_t *multi_s
 			slc_cfg_in.frame_afbc_store[j] = &pctx->pipe_info.afbc[j].afbc_store;
 	}
 
-	slc_cfg_in.calc_dyn_ov.verison = hw_info->ip_isp->dyn_overlap_version;
-	slc_cfg_in.calc_dyn_ov.src.w = pctx->pipe_src.src.w;
-	slc_cfg_in.calc_dyn_ov.src.h = pctx->pipe_src.src.h;
-	slc_cfg_in.calc_dyn_ov.crop.start_x = pctx->pipe_src.crop.start_x;
-	slc_cfg_in.calc_dyn_ov.crop.start_y = pctx->pipe_src.crop.start_y;
-	slc_cfg_in.calc_dyn_ov.crop.size_x = pctx->pipe_src.crop.size_x;
-	slc_cfg_in.calc_dyn_ov.crop.size_y = pctx->pipe_src.crop.size_y;
 	slc_cfg_in.nofilter_ctx = &pctx->isp_k_param;
-	slc_cfg_in.calc_dyn_ov.path_scaler[ISP_SPATH_CP] = &pctx->pipe_info.scaler[ISP_SPATH_CP];
-	slc_cfg_in.calc_dyn_ov.path_scaler[ISP_SPATH_VID] = &pctx->pipe_info.scaler[ISP_SPATH_VID];
-	slc_cfg_in.calc_dyn_ov.store[ISP_SPATH_CP] = &pctx->pipe_info.store[ISP_SPATH_CP].store;
-	slc_cfg_in.calc_dyn_ov.store[ISP_SPATH_VID] = &pctx->pipe_info.store[ISP_SPATH_VID].store;
+	slc_cfg_in.calc_dyn_ov.verison = hw_info->ip_isp->dyn_overlap_version;
+
+	if (slc_cfg_in.calc_dyn_ov.verison != ALG_ISP_DYN_OVERLAP_NONE)
+		ispcore_init_dyn_ov_param(&slc_cfg_in, pctx);
 
 	isp_slice_base_cfg(&slc_cfg_in, pctx->slice_ctx, &pctx->valid_slc_num);
 
@@ -1082,8 +1108,7 @@ static void ispcore_sw_slice_prepare(struct isp_sw_context *pctx,
 
 	fetch->mipi_byte_rel_pos = 0;
 	fetch->mipi_word_num = mipi_word_info;
-	fetch->pitch.pitch_ch0 = cal_sprd_raw_pitch(pframe->slice_trim.size_x,
-		pctx->pipe_src.pack_bits);
+	fetch->pitch.pitch_ch0 = cal_sprd_raw_pitch(pframe->slice_trim.size_x, pctx->pipe_src.pack_bits);
 	fetch->pitch.pitch_ch1 = 0;
 	fetch->pitch.pitch_ch2 = 0;
 

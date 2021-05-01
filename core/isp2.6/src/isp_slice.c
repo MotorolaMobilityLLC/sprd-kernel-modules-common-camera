@@ -886,52 +886,57 @@ static int ispslice_slice_scaler_info_cfg_ex(struct slice_cfg_input *slc_cfg_inp
 		return -1;
 	}
 
-	for (j = 0; j <=ISP_SPATH_VID; j++) {
-		for (i = 0; i < slice_ctx->slice_num ; i++) {
-			if (slc_cfg_input->calc_dyn_ov.path_scaler[j]->scaler.scaler_bypass) {
+	for (j = 0; j < ISP_SPATH_FD; j++) {
+		if (slc_cfg_input->calc_dyn_ov.path_en[j] == 0) {
+			for (i = 0; i < slice_ctx->slice_num ; i++)
+				slice_ctx->slices[i].path_en[j] = 0;
+		} else {
+			for (i = 0; i < slice_ctx->slice_num ; i++) {
 				slice_ctx->slices[i].path_en[j] = 1;
-				slice_ctx->slices[i].slice_scaler[j].trim1_size_x = slice_param[j][i].trim1_size_x;
-				slice_ctx->slices[i].slice_scaler[j].trim1_size_y = slice_param[j][i].trim1_size_y;
-				pr_debug("scaler_bypass: path %d, slice_id %d, trim1 size_x %d, size_y %d\n",
-					j, i, slice_param[j][i].trim1_size_x, slice_param[j][i].trim1_size_y);
-			} else {
-				slice_ctx->slices[i].path_en[j] = 1;
-				slice_ctx->slices[i].slice_scaler[j].trim0_start_x = slice_param[j][i].trim0_start_x;
-				slice_ctx->slices[i].slice_scaler[j].trim0_start_y = slice_param[j][i].trim0_start_y;
-				slice_ctx->slices[i].slice_scaler[j].trim0_size_x = slice_param[j][i].trim0_size_x;
-				slice_ctx->slices[i].slice_scaler[j].trim0_size_y = slice_param[j][i].trim0_size_y;
-				slice_ctx->slices[i].slice_scaler[j].trim1_start_x = slice_param[j][i].trim1_start_x;
-				slice_ctx->slices[i].slice_scaler[j].trim1_start_y = slice_param[j][i].trim1_start_y;
-				slice_ctx->slices[i].slice_scaler[j].trim1_size_x = slice_param[j][i].trim1_size_x;
-				slice_ctx->slices[i].slice_scaler[j].trim1_size_y = slice_param[j][i].trim1_size_y;
-				slice_ctx->slices[i].slice_scaler[j].scaler_ip_int = slice_param[j][i].scaler_ip_int;
-				slice_ctx->slices[i].slice_scaler[j].scaler_ip_rmd = slice_param[j][i].scaler_ip_rmd;
-				slice_ctx->slices[i].slice_scaler[j].scaler_cip_int = slice_param[j][i].scaler_cip_int;
-				slice_ctx->slices[i].slice_scaler[j].scaler_cip_rmd = slice_param[j][i].scaler_cip_rmd;
-				slice_ctx->slices[i].slice_scaler[j].scaler_ip_int_ver = slice_param[j][i].scaler_ip_int_ver;
-				slice_ctx->slices[i].slice_scaler[j].scaler_ip_rmd_ver = slice_param[j][i].scaler_ip_rmd_ver;
-				slice_ctx->slices[i].slice_scaler[j].scaler_cip_int_ver = slice_param[j][i].scaler_cip_int_ver;
-				slice_ctx->slices[i].slice_scaler[j].scaler_cip_rmd_ver = slice_param[j][i].scaler_cip_rmd_ver;
-				slice_ctx->slices[i].slice_scaler[j].scaler_factor_in = slice_param[j][i].scaler_factor_in;
-				slice_ctx->slices[i].slice_scaler[j].scaler_factor_out = slice_param[j][i].scaler_factor_out;
-				slice_ctx->slices[i].slice_scaler[j].scaler_factor_in_ver = slice_param[j][i].scaler_factor_in_ver;
-				slice_ctx->slices[i].slice_scaler[j].scaler_factor_out_ver = slice_param[j][i].scaler_factor_out_ver;
-				slice_ctx->slices[i].slice_scaler[j].src_size_x = slice_param[j][i].src_size_x;
-				slice_ctx->slices[i].slice_scaler[j].src_size_y = slice_param[j][i].src_size_y;
-				slice_ctx->slices[i].slice_scaler[j].dst_size_x = slice_param[j][i].dst_size_x;
-				slice_ctx->slices[i].slice_scaler[j].dst_size_y = slice_param[j][i].dst_size_y;
+				if (slc_cfg_input->calc_dyn_ov.path_scaler[j]->scaler.scaler_bypass) {
+					slice_ctx->slices[i].slice_scaler[j].trim1_size_x = slice_param[j][i].trim1_size_x;
+					slice_ctx->slices[i].slice_scaler[j].trim1_size_y = slice_param[j][i].trim1_size_y;
 
-				pr_debug("path %d, slice_id %d, trim0( %d, %d, %d, %d), trim1( %d, %d, %d, %d)\n",
-					j, i, slice_param[j][i].trim0_start_x, slice_param[j][i].trim0_start_y, slice_param[j][i].trim0_size_x, slice_param[j][i].trim0_size_y,
-					slice_param[j][i].trim1_start_x, slice_param[j][i].trim1_start_y, slice_param[j][i].trim1_size_x, slice_param[j][i].trim1_size_y);
-				pr_debug("path %d, slice_id %d, hor(ip_int %d, ip_rmd %d, cip_int %d, cip_rmd %d), ver(ip_int %d, ip_rmd %d, cip_int %d, cip_rmd %d),\n",
-					j, i, slice_param[j][i].scaler_ip_int, slice_param[j][i].scaler_ip_rmd, slice_param[j][i].scaler_cip_int, slice_param[j][i].scaler_cip_rmd,
-					 slice_param[j][i].scaler_ip_int_ver, slice_param[j][i].scaler_ip_rmd_ver, slice_param[j][i].scaler_cip_int_ver, slice_param[j][i].scaler_cip_rmd_ver);
-				pr_debug("path %d, slice_id %d, hor(factor: in %d, out %d), ver(factor: in %d, out %d)\n",
-					j, i, slice_param[j][i].scaler_factor_in , slice_param[j][i].scaler_factor_out,
-					slice_param[j][i].scaler_factor_in_ver, slice_param[j][i].scaler_factor_out_ver);
-				pr_debug("path %d, slice_id %d, src(size_x %d, size_y %d), dst(size_x %d, size_y %d)\n",
-					j, i, slice_param[j][i].src_size_x, slice_param[j][i].src_size_y, slice_param[j][i].dst_size_x, slice_param[j][i].dst_size_y);
+					pr_debug("scaler_bypass: path %d, slice_id %d, trim1 size_x %d, size_y %d\n",
+						j, i, slice_param[j][i].trim1_size_x, slice_param[j][i].trim1_size_y);
+				} else {
+					slice_ctx->slices[i].slice_scaler[j].trim0_start_x = slice_param[j][i].trim0_start_x;
+					slice_ctx->slices[i].slice_scaler[j].trim0_start_y = slice_param[j][i].trim0_start_y;
+					slice_ctx->slices[i].slice_scaler[j].trim0_size_x = slice_param[j][i].trim0_size_x;
+					slice_ctx->slices[i].slice_scaler[j].trim0_size_y = slice_param[j][i].trim0_size_y;
+					slice_ctx->slices[i].slice_scaler[j].trim1_start_x = slice_param[j][i].trim1_start_x;
+					slice_ctx->slices[i].slice_scaler[j].trim1_start_y = slice_param[j][i].trim1_start_y;
+					slice_ctx->slices[i].slice_scaler[j].trim1_size_x = slice_param[j][i].trim1_size_x;
+					slice_ctx->slices[i].slice_scaler[j].trim1_size_y = slice_param[j][i].trim1_size_y;
+					slice_ctx->slices[i].slice_scaler[j].scaler_ip_int = slice_param[j][i].scaler_ip_int;
+					slice_ctx->slices[i].slice_scaler[j].scaler_ip_rmd = slice_param[j][i].scaler_ip_rmd;
+					slice_ctx->slices[i].slice_scaler[j].scaler_cip_int = slice_param[j][i].scaler_cip_int;
+					slice_ctx->slices[i].slice_scaler[j].scaler_cip_rmd = slice_param[j][i].scaler_cip_rmd;
+					slice_ctx->slices[i].slice_scaler[j].scaler_ip_int_ver = slice_param[j][i].scaler_ip_int_ver;
+					slice_ctx->slices[i].slice_scaler[j].scaler_ip_rmd_ver = slice_param[j][i].scaler_ip_rmd_ver;
+					slice_ctx->slices[i].slice_scaler[j].scaler_cip_int_ver = slice_param[j][i].scaler_cip_int_ver;
+					slice_ctx->slices[i].slice_scaler[j].scaler_cip_rmd_ver = slice_param[j][i].scaler_cip_rmd_ver;
+					slice_ctx->slices[i].slice_scaler[j].scaler_factor_in = slice_param[j][i].scaler_factor_in;
+					slice_ctx->slices[i].slice_scaler[j].scaler_factor_out = slice_param[j][i].scaler_factor_out;
+					slice_ctx->slices[i].slice_scaler[j].scaler_factor_in_ver = slice_param[j][i].scaler_factor_in_ver;
+					slice_ctx->slices[i].slice_scaler[j].scaler_factor_out_ver = slice_param[j][i].scaler_factor_out_ver;
+					slice_ctx->slices[i].slice_scaler[j].src_size_x = slice_param[j][i].src_size_x;
+					slice_ctx->slices[i].slice_scaler[j].src_size_y = slice_param[j][i].src_size_y;
+					slice_ctx->slices[i].slice_scaler[j].dst_size_x = slice_param[j][i].dst_size_x;
+					slice_ctx->slices[i].slice_scaler[j].dst_size_y = slice_param[j][i].dst_size_y;
+
+					pr_debug("path %d, slice_id %d, trim0( %d, %d, %d, %d), trim1( %d, %d, %d, %d)\n",
+						j, i, slice_param[j][i].trim0_start_x, slice_param[j][i].trim0_start_y, slice_param[j][i].trim0_size_x, slice_param[j][i].trim0_size_y,
+						slice_param[j][i].trim1_start_x, slice_param[j][i].trim1_start_y, slice_param[j][i].trim1_size_x, slice_param[j][i].trim1_size_y);
+					pr_debug("path %d, slice_id %d, hor(ip_int %d, ip_rmd %d, cip_int %d, cip_rmd %d), ver(ip_int %d, ip_rmd %d, cip_int %d, cip_rmd %d),\n",
+						j, i, slice_param[j][i].scaler_ip_int, slice_param[j][i].scaler_ip_rmd, slice_param[j][i].scaler_cip_int, slice_param[j][i].scaler_cip_rmd,
+						 slice_param[j][i].scaler_ip_int_ver, slice_param[j][i].scaler_ip_rmd_ver, slice_param[j][i].scaler_cip_int_ver, slice_param[j][i].scaler_cip_rmd_ver);
+					pr_debug("path %d, slice_id %d, hor(factor: in %d, out %d), ver(factor: in %d, out %d)\n",
+						j, i, slice_param[j][i].scaler_factor_in , slice_param[j][i].scaler_factor_out,
+						slice_param[j][i].scaler_factor_in_ver, slice_param[j][i].scaler_factor_out_ver);
+					pr_debug("path %d, slice_id %d, src(size_x %d, size_y %d), dst(size_x %d, size_y %d)\n",
+						j, i, slice_param[j][i].src_size_x, slice_param[j][i].src_size_y, slice_param[j][i].dst_size_x, slice_param[j][i].dst_size_y);
+				}
 			}
 		}
 	}
@@ -1169,26 +1174,26 @@ static int ispslice_slice_base_info_cfg_ex(struct slice_cfg_input *in_ptr,
 			cur_slc->slice_pos_fetch.end_col = cur_slc->slice_pos.end_col + fetch_start_x;
 			cur_slc->slice_pos_fetch.end_row = cur_slc->slice_pos.end_row + fetch_start_y;
 
-			pr_debug("slice %d %d pos_orig [%d %d %d %d]\n", i, j,
-				cur_slc->slice_pos_orig.start_row,
+			pr_debug("slice %d %d pos_orig [start x %d y %d end x %d y %d]\n", i, j,
 				cur_slc->slice_pos_orig.start_col,
-				cur_slc->slice_pos_orig.end_row,
-				cur_slc->slice_pos_orig.end_col);
-			pr_debug("slice %d %d pos [%d %d %d %d]\n", i, j,
-				cur_slc->slice_pos.start_row,
+				cur_slc->slice_pos_orig.start_row,
+				cur_slc->slice_pos_orig.end_col,
+				cur_slc->slice_pos_orig.end_row);
+			pr_debug("slice %d %d pos+ov [start x %d y %d end x %d y %d]\n", i, j,
 				cur_slc->slice_pos.start_col,
-				cur_slc->slice_pos.end_row,
-				cur_slc->slice_pos.end_col);
-			pr_debug("slice %d %d pos_fetch [%d %d %d %d]\n", i, j,
-				cur_slc->slice_pos_fetch.start_row,
+				cur_slc->slice_pos.start_row,
+				cur_slc->slice_pos.end_col,
+				cur_slc->slice_pos.end_row);
+			pr_debug("slice %d %d pos_fetch [start x %d y %d end x %d y %d]\n", i, j,
 				cur_slc->slice_pos_fetch.start_col,
-				cur_slc->slice_pos_fetch.end_row,
-				cur_slc->slice_pos_fetch.end_col);
-			pr_debug("slice %d %d overlap [%d %d %d %d]\n", i, j,
-				cur_slc->slice_overlap.overlap_up,
-				cur_slc->slice_overlap.overlap_down,
+				cur_slc->slice_pos_fetch.start_row,
+				cur_slc->slice_pos_fetch.end_col,
+				cur_slc->slice_pos_fetch.end_row);
+			pr_debug("slice %d %d overlap [left %d right %d up %d down %d]\n", i, j,
 				cur_slc->slice_overlap.overlap_left,
-				cur_slc->slice_overlap.overlap_right);
+				cur_slc->slice_overlap.overlap_right,
+				cur_slc->slice_overlap.overlap_up,
+				cur_slc->slice_overlap.overlap_down);
 
 			cur_slc->slice_fbd_raw.fetch_fbd_bypass = frame_fbd_raw->fetch_fbd_bypass;
 			cur_slc->slice_fbd_yuv.fetch_fbd_bypass = frame_fbd_yuv->fetch_fbd_bypass;
@@ -1535,8 +1540,8 @@ static int ispslice_store_info_cfg(
 				if ((cur_slc->y == 0) && ((cur_slc->x + 1) < SLICE_W_NUM_MAX))
 					start_col_out[j][cur_slc->x + 1] = slc_store->size.w + start_col_out[j][cur_slc->x];
 
-				pr_debug("slice %d. size(w %d, h %d), overlap: (%d %d %d %d), cur_slc(x %d, y %d)  start_col_out[j][cur_slc->x] %d\n",
-					i, slc_store->size.w, slc_store->size.h,
+				pr_debug("slice %d, path %d,  size(w %d, h %d), overlap: (%d %d %d %d), cur_slc(x %d, y %d)  start_col_out[j][cur_slc->x] %d\n",
+					i, j, slc_store->size.w, slc_store->size.h,
 					overlap_up, overlap_down, overlap_left, overlap_right,
 					cur_slc->x, cur_slc->y, start_col_out[j][cur_slc->x]);
 			} else {
@@ -2769,6 +2774,7 @@ int isp_slice_fmcu_cmds_set(void *fmcu_handle, void *ctx)
 				spath_scaler.ctx_idx = sw_ctx_id;
 				spath_scaler.spath_id = j;
 				spath_scaler.slc_scaler = slc_scaler;
+
 				hw->isp_ioctl(hw, ISP_HW_CFG_SLICE_SPATH_SCALER, &spath_scaler);
 			}
 			spath_sotre.fmcu = fmcu;

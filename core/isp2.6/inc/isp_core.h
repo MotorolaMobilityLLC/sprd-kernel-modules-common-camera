@@ -90,6 +90,7 @@ struct isp_cfg_entry {
 
 struct slice_dyn_calc_param{
 	uint32_t verison;
+	uint32_t path_en[ISP_SPATH_NUM];
 	struct img_size src;
 	struct img_trim crop;
 	struct isp_hw_path_scaler *path_scaler[ISP_SPATH_NUM];
