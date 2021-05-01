@@ -47,8 +47,6 @@
 #define CNR_H_LAYER_NUM          5
 #define RGB_AFM_GAMMA_POINT_NUM  1025
 
-#define ISP_LUT3D_NUM            729
-
 /* SharkL5/ROC1/SharkL5Pro */
 /* AFL: global 80 x 16 bytes for one frame, region 482 x 16 bytes one frame */
 #define STATIS_AFL_GBUF_SIZE    (80 * 16 * 3 + 64)
