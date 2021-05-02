@@ -31,8 +31,12 @@
 int dcam_k_lscm_bypass(struct dcam_dev_param *param)
 {
 	int ret = 0;
-	uint32_t idx = param->idx;
+	uint32_t idx = 0;
 
+	if (param == NULL)
+		return -1;
+
+	idx = param->idx;
 	DCAM_REG_MWR(idx, DCAM_LSCM_FRM_CTRL0, BIT_0,
 		param->lscm.bypass & BIT_0);
 
@@ -42,10 +46,14 @@ int dcam_k_lscm_bypass(struct dcam_dev_param *param)
 int dcam_k_lscm_monitor(struct dcam_dev_param *param)
 {
 	int ret = 0;
-	uint32_t idx = param->idx;
+	uint32_t idx = 0;
 	uint32_t mode = 0;
 	uint32_t val = 0;
 
+	if (param == NULL)
+		return -1;
+
+	idx = param->idx;
 	DCAM_REG_MWR(idx, DCAM_LSCM_FRM_CTRL0, BIT_0, 0);
 
 	mode = param->lscm.mode;
