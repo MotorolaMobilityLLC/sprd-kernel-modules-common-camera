@@ -151,7 +151,7 @@ int dcam_k_afl_bypass(struct dcam_dev_param *param)
 		return -1;
 
 	idx = param->idx;
-	mode = (DCAM_REG_RD(idx, ISP_AFL_PARAM0) >> 2) & 1;
+	mode = (DCAM_REG_RD(idx, ISP_AFL_PARAM0) >> 1) & 1;
 	pr_debug("afl bypass %d, mode %d\n", param->afl.afl_info.bypass, mode);
 
 	DCAM_REG_MWR(idx, ISP_AFL_PARAM0, BIT_0, param->afl.afl_info.bypass);
