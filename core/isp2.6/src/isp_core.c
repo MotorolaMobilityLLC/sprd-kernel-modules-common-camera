@@ -965,6 +965,7 @@ static int ispcore_slice_ctx_init(struct isp_sw_context *pctx, uint32_t *multi_s
 	slc_cfg_in.frame_fetch = &pctx->pipe_info.fetch;
 	slc_cfg_in.frame_fbd_raw = &pctx->pipe_info.fetch_fbd;
 	slc_cfg_in.frame_fbd_yuv = &pctx->pipe_info.fetch_fbd_yuv;
+	slc_cfg_in.thumb_scaler = &pctx->pipe_info.thumb_scaler;
 	for (j = 0; j < ISP_SPATH_NUM; j++) {
 		path = &pctx->isp_path[j];
 		if (atomic_read(&path->user_cnt) <= 0)
@@ -1049,11 +1050,11 @@ static int ispcore_slices_proc(struct isp_sw_context *pctx,
 			ispcore_debug_dump_check(pctx, pframe);
 		}
 		if (dev->wmode == ISP_CFG_MODE)
-			ret = cfg_desc->ops->hw_cfg(cfg_desc, pctx->ctx_id, hw_ctx_id, 0);
+			cfg_desc->ops->hw_cfg(cfg_desc, pctx->ctx_id, hw_ctx_id, 0);
 		mutex_unlock(&pctx->blkpm_lock);
 
 		if (dev->wmode == ISP_CFG_MODE)
-			ret = cfg_desc->hw->isp_ioctl(cfg_desc->hw, ISP_HW_CFG_START_ISP, &hw_ctx_id);
+			cfg_desc->hw->isp_ioctl(cfg_desc->hw, ISP_HW_CFG_START_ISP, &hw_ctx_id);
 		else
 			hw->isp_ioctl(hw, ISP_HW_CFG_FETCH_START, NULL);
 

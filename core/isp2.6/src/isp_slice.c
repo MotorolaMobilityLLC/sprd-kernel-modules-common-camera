@@ -790,6 +790,15 @@ static int ispslice_slice_thumbscaler_cfg(
 	}
 	deci_w = scalerFrame->y_deci.deci_x;
 	deci_h = scalerFrame->y_deci.deci_y;
+	if (scalerFrame->y_deci.deci_x_eb)
+		deci_w = 1 << (deci_w + 1);
+	else
+		deci_w = 1;
+
+	if (scalerFrame->y_deci.deci_y_eb)
+		deci_h = 1 << (deci_h + 1);
+	else
+		deci_h = 1;
 
 	src.w = cur_slc->slice_pos.end_col - cur_slc->slice_pos.start_col + 1;
 	src.h = cur_slc->slice_pos.end_row - cur_slc->slice_pos.start_row + 1;
@@ -888,10 +897,10 @@ static int ispslice_slice_scaler_info_cfg_ex(struct slice_cfg_input *slc_cfg_inp
 
 	for (j = 0; j < ISP_SPATH_FD; j++) {
 		if (slc_cfg_input->calc_dyn_ov.path_en[j] == 0) {
-			for (i = 0; i < slice_ctx->slice_num ; i++)
+			for (i = 0; i < slice_ctx->slice_num; i++)
 				slice_ctx->slices[i].path_en[j] = 0;
 		} else {
-			for (i = 0; i < slice_ctx->slice_num ; i++) {
+			for (i = 0; i < slice_ctx->slice_num; i++) {
 				slice_ctx->slices[i].path_en[j] = 1;
 				if (slc_cfg_input->calc_dyn_ov.path_scaler[j]->scaler.scaler_bypass) {
 					slice_ctx->slices[i].slice_scaler[j].trim1_size_x = slice_param[j][i].trim1_size_x;
@@ -994,7 +1003,7 @@ static int ispslice_slice_scaler_info_cfg(
 			if (j == ISP_SPATH_FD) {
 				ispslice_slice_thumbscaler_cfg(cur_slc,
 					in_ptr->frame_trim0[j],
-					(struct isp_hw_thumbscaler_info *) in_ptr->frame_scaler[j],
+					in_ptr->thumb_scaler,
 					&cur_slc->slice_thumbscaler);
 				continue;
 			}
@@ -1069,9 +1078,9 @@ static int ispslice_slice_base_info_cfg_ex(struct slice_cfg_input *in_ptr,
 	uint32_t fetch_start_x, fetch_start_y;
 	uint32_t fetch_end_x, fetch_end_y;
 	struct isp_slice_desc *cur_slc = NULL;
-	struct isp_hw_fetch_info *frame_fetch = in_ptr->frame_fetch;
-	struct isp_fbd_raw_info *frame_fbd_raw = in_ptr->frame_fbd_raw;
-	struct isp_fbd_yuv_info *frame_fbd_yuv = in_ptr->frame_fbd_yuv;
+	struct isp_hw_fetch_info *frame_fetch = NULL;
+	struct isp_fbd_raw_info *frame_fbd_raw = NULL;
+	struct isp_fbd_yuv_info *frame_fbd_yuv = NULL;
 	struct isp_slice_context *slc_ctx = slice_ctx;
 
 	if (!in_ptr || !slice_ctx) {
@@ -1079,6 +1088,9 @@ static int ispslice_slice_base_info_cfg_ex(struct slice_cfg_input *in_ptr,
 		return -1;
 	}
 
+	frame_fetch = in_ptr->frame_fetch;
+	frame_fbd_raw = in_ptr->frame_fbd_raw;
+	frame_fbd_yuv = in_ptr->frame_fbd_yuv;
 	ispslice_slice_size_info_get(in_ptr, &slice_width, &slice_height);
 	if (slice_width == 0 || slice_height == 0) {
 		pr_err("fail to get slice info w %d, h%\n", slice_width, slice_height);
@@ -1483,10 +1495,10 @@ static int ispslice_store_info_cfg(
 	struct slice_scaler_info *slc_scaler;
 	struct slice_thumbscaler_info *slc_thumbscaler;
 
-	uint32_t overlap_left, overlap_up;
-	uint32_t overlap_right, overlap_down;
+	uint32_t overlap_left = 0, overlap_up = 0;
+	uint32_t overlap_right = 0, overlap_down = 0;
 
-	uint32_t start_col, end_col, start_row, end_row;
+	uint32_t start_col = 0, end_col = 0, start_row = 0, end_row = 0;
 	uint32_t start_row_out[ISP_SPATH_NUM][SLICE_W_NUM_MAX] = { { 0 }, { 0 } };
 	uint32_t start_col_out[ISP_SPATH_NUM][SLICE_W_NUM_MAX] = { { 0 }, { 0 } };
 	uint32_t ch0_offset = 0;
