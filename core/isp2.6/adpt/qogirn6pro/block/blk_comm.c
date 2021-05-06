@@ -120,6 +120,7 @@ int init_isp_pm(struct isp_k_block *isp_k_param)
 {
 	isp_k_param->ynr_info_v2_base.bypass = 1;
 	isp_k_param->nr3_info_base.blend.bypass = 1;
+	isp_k_param->lut3d_info.rgb3dlut_bypass = 1;
 
 	/* sharkl5pro only */
 	isp_k_param->grgb_info.bypass = 1;
