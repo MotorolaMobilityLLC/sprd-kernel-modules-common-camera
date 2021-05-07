@@ -66,6 +66,7 @@ extern struct cam_global_ctrl g_camctrl;
 /* for memory leak debug */
 struct cam_mem_dbg_info {
 	atomic_t ion_alloc_cnt;
+	atomic_t ion_alloc_size;
 	atomic_t ion_kmap_cnt;
 	atomic_t ion_dma_cnt;
 	atomic_t iommu_map_cnt[6];

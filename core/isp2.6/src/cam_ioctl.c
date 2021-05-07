@@ -1818,6 +1818,7 @@ cfg_ch_done:
 	atomic_inc(&module->grp->runner_nr);
 
 	pr_info("stream on done module->dcam_idx = %d.\n", module->dcam_idx);
+	cam_buf_mdbg_check();
 	return 0;
 
 exit:

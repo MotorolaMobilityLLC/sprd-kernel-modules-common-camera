@@ -79,7 +79,7 @@ static struct iommudev_info *cambuf_iommu_dev_get(
 /*************** some externel interface only for camera driver ****************/
 int cam_buf_mdbg_check(void)
 {
-	int val[10];
+	int val[11];
 
 	val[0] = atomic_read(&g_mem_dbg->ion_alloc_cnt);
 	val[1] = atomic_read(&g_mem_dbg->ion_kmap_cnt);
@@ -91,9 +91,10 @@ int cam_buf_mdbg_check(void)
 	val[7] = atomic_read(&g_mem_dbg->iommu_map_cnt[3]);
 	val[8] = atomic_read(&g_mem_dbg->empty_state_cnt);
 	val[9] = atomic_read(&g_mem_dbg->isp_sw_context_cnt);
+	val[10] = atomic_read(&g_mem_dbg->ion_alloc_size);
 
-	pr_info("mdbg info: %d, %d, %d, %d, %d, %d, %d, %d %d %d\n",
-		val[0], val[1], val[2], val[3], val[4], val[5], val[6], val[7], val[8], val[9]);
+	pr_info("mdbg info: %d, %d, %d, %d, %d, %d, %d, %d %d %d, total_size: %d Bytes\n",
+		val[0], val[1], val[2], val[3], val[4], val[5], val[6], val[7], val[8], val[9], val[10]);
 	return 0;
 }
 
@@ -335,9 +336,10 @@ int cam_buf_alloc(struct camera_buf *buf_info,
 		buf_info->ionbuf[0], (int)buf_info->size[0], heap_type);
 
 	buf_info->type = CAM_BUF_KERNEL;
-	if (g_mem_dbg)
+	if (g_mem_dbg) {
 		atomic_inc(&g_mem_dbg->ion_alloc_cnt);
-
+		atomic_add((int)buf_info->size[0], &g_mem_dbg->ion_alloc_size);
+	}
 	pr_debug("alloc done. %p\n", buf_info);
 	return 0;
 
@@ -352,6 +354,7 @@ failed:
 int cam_buf_free(struct camera_buf *buf_info)
 {
 	int rtn = 0;
+	int size;
 	struct dma_buf *dmabuf = NULL;
 
 	if (!buf_info) {
@@ -372,12 +375,15 @@ int cam_buf_free(struct camera_buf *buf_info)
 	dmabuf = buf_info->dmabuf_p[0];
 	if (dmabuf) {
 		cam_ion_free(dmabuf);
+		size = (int)buf_info->size[0];
 		buf_info->dmabuf_p[0] = NULL;
 		buf_info->mfd[0] = 0;
 		buf_info->size[0] = 0;
 		buf_info->ionbuf[0] = NULL;
-		if (g_mem_dbg)
+		if (g_mem_dbg) {
 			atomic_dec(&g_mem_dbg->ion_alloc_cnt);
+			atomic_sub(size, &g_mem_dbg->ion_alloc_size);
+		}
 	}
 
 	pr_debug("free done: %p, dmabuf[%p]\n", buf_info, dmabuf);

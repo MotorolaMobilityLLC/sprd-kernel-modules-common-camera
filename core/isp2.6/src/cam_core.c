@@ -1763,6 +1763,7 @@ exit:
 	}
 	complete(&channel->alloc_com);
 	pr_info("ch %d done. status %d\n", channel->ch_id, atomic_read(&channel->err_status));
+	ret = cam_buf_mdbg_check();
 	return ret;
 }
 
