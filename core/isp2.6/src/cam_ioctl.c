@@ -76,6 +76,7 @@ static int camioctl_flash_cfg(struct camera_module *module, unsigned long arg)
 		ret = -EFAULT;
 		goto exit;
 	}
+
 	ret = module->flash_core_handle->flash_core_ops->cfg_flash(module->flash_core_handle,
 		(void *)&cfg_parm);
 

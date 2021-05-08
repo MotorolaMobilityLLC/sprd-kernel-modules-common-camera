@@ -57,14 +57,19 @@ static int sprd_cam_flash_close(struct cam_flash_task_info *flash_ctx)
 static int sprd_cam_flash_cfg(struct cam_flash_task_info *flash_ctx, void *cfg_parm)
 {
 	int ret = 0;
+	struct sprd_flash_cfg_param *cfg_p = (struct sprd_flash_cfg_param *)cfg_parm;
 
-	if (!flash_ctx) {
+	if (!flash_ctx || !cfg_p) {
 		pr_err("fail to get flash handle\n");
 		goto exit;
 	}
-//#ifndef CAM_ON_HAPS
-	ret = sprd_flash_cfg((struct sprd_flash_cfg_param *) cfg_parm);
-//#endif
+
+	if (cfg_p->io_id >= FLASH_IOID_MAX || cfg_p->flash_idx >= SPRD_FLASH_MAX) {
+		pr_err("fail to get vaild cfg_param io_id :%d flash_idx :%d\n", cfg_p->io_id, cfg_p->flash_idx);
+		goto exit;
+	}
+
+	ret = sprd_flash_cfg(cfg_p);
 	if (ret)
 		pr_err("fail to sprd_flash_cfg\n");
 
