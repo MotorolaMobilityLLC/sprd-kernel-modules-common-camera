@@ -2508,7 +2508,7 @@ struct isp_dev_pdaf_info {
 	uint32_t pattern_pixel_col[PDAF_PPI_NUM];
 	uint32_t gain_ori_left[2];
 	uint32_t gain_ori_right[2];
-	uint32_t extractor_en;
+	uint32_t extractor_bypass;
 	uint32_t mode_sel;
 	uint32_t skip_num;
 	uint32_t phase_data_dword_num;

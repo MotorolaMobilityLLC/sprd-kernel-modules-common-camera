@@ -836,8 +836,8 @@ extern unsigned long s_isp_mmubase;
 #define ISP_YUV_NF_CV_T12                       (ISP_YUV_NF_BASE + 0x0030UL)
 #define ISP_YUV_NF_CV_R                         (ISP_YUV_NF_BASE + 0x0034UL)
 #define ISP_YUV_NF_CLIP                         (ISP_YUV_NF_BASE + 0x0038UL)
-#define ISP_YUV_NF_SEED_INIT                    (ISP_YUV_NF_BASE + 0x004CUL)
-#define ISP_YUV_NF_CV_T34                       (ISP_YUV_NF_BASE + 0x0050UL)
+#define ISP_YUV_NF_SEED_INIT                    (ISP_YUV_NF_BASE + 0x003CUL)
+#define ISP_YUV_NF_CV_T34                       (ISP_YUV_NF_BASE + 0x0040UL)
 
 #define ISP_DECOMPOSE_OFFLINE_BASE              (0x8300UL)
 #define ISP_DEC_OFFLINE_PARAM                   (ISP_DECOMPOSE_OFFLINE_BASE + 0x0010UL)

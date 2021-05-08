@@ -384,7 +384,7 @@ int dcam_k_pdaf(struct dcam_dev_param *p)
 		DCAM_REG_MWR(idx, DCAM_PPE_FRM_CTRL1, BIT_1, BIT_1);
 
 		/* phase extrac en */
-		val = p->pdaf.pdaf_info.extractor_en;
+		val = !bypass;
 		DCAM_REG_MWR(idx, ISP_PPI_PARAM, BIT_2, val << 2);
 
 		/* phase map corr en */

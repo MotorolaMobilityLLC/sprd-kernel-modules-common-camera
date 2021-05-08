@@ -124,8 +124,8 @@ int dcam_k_bpc_ppe_param(struct dcam_dev_param *param)
 
 	p = &(param->bpc.ppi_info);
 
-	val = ((p->ppi_phase_map_corr_en & 1) << 3) | (p->ppi_bypass & 1);
-	DCAM_REG_MWR(idx, ISP_PPI_PARAM, BIT_3 | BIT_0, val);
+	val = (p->ppi_phase_map_corr_en & 1) << 3;
+	DCAM_REG_MWR(idx, ISP_PPI_PARAM, BIT_3, val);
 
 	if (!p->ppi_phase_map_corr_en)
 		return 0;
