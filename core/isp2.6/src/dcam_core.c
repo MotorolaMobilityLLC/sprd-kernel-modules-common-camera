@@ -2303,7 +2303,7 @@ static int dcamcore_dev_start(void *dcam_handle, int online)
 	if (pm->hist.bayerHist_info.hist_bypass == 0)
 		atomic_set(&pctx->path[DCAM_PATH_HIST].user_cnt, 1);
 
-	if (pm->hist_roi.hist_roi_info.bypass == 0)
+	if (hw->ip_isp->frbg_hist_support == 0 && pm->hist_roi.hist_roi_info.bypass == 0)
 		atomic_set(&pctx->path[DCAM_PATH_FRGB_HIST].user_cnt, 1);
 
 	if (pm->pdaf.bypass == 0)
