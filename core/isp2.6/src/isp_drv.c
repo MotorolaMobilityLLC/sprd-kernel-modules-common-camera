@@ -759,9 +759,10 @@ static int ispdrv_thumb_scaler_get(struct isp_path_uinfo *in_ptr,
 	int ret = 0;
 	uint32_t deci_w = 0;
 	uint32_t deci_h = 0;
-	uint32_t trim_w, trim_h;
+	uint32_t trim_w, trim_h, temp_w, temp_h;
 	uint32_t offset, shift, is_yuv422 = 0;
 	struct img_size src, dst;
+	uint32_t align_size = 0;
 
 	if (!in_ptr || !scalerInfo) {
 		pr_err("fail to get valid input ptr %p\n", in_ptr, scalerInfo);
@@ -774,8 +775,8 @@ static int ispdrv_thumb_scaler_get(struct isp_path_uinfo *in_ptr,
 	src.w = in_ptr->in_trim.size_x;
 	src.h = in_ptr->in_trim.size_y;
 	dst = in_ptr->dst;
-	ret = ispdrv_trim_deci_info_cal(src.w, dst.w, &trim_w, &deci_w);
-	ret |= ispdrv_trim_deci_info_cal(src.h, dst.h, &trim_h, &deci_h);
+	ret = ispdrv_trim_deci_info_cal(src.w, dst.w, &temp_w, &deci_w);
+	ret |= ispdrv_trim_deci_info_cal(src.h, dst.h, &temp_h, &deci_h);
 	if (deci_w == 0 || deci_h == 0)
 		return -EINVAL;
 	if (ret) {
@@ -794,6 +795,10 @@ static int ispdrv_thumb_scaler_get(struct isp_path_uinfo *in_ptr,
 		scalerInfo->y_deci.deci_y_eb = 1;
 	else
 		scalerInfo->y_deci.deci_y_eb = 0;
+	align_size = deci_w * ISP_PIXEL_ALIGN_WIDTH;
+	trim_w = (temp_w) & ~(align_size - 1);
+	align_size = deci_h * ISP_PIXEL_ALIGN_HEIGHT;
+	trim_h = (temp_h) & ~(align_size - 1);
 	scalerInfo->y_factor_in.w = trim_w / deci_w;
 	scalerInfo->y_factor_in.h = trim_h / deci_h;
 	scalerInfo->y_factor_out = in_ptr->dst;
