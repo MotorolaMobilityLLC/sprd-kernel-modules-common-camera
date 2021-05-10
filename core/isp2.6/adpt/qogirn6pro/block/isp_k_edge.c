@@ -58,11 +58,10 @@ static int isp_k_edge_block(struct isp_io_param *param,
 		((edge_info->ee_ipd_direction_freq_hop_control_en & 0x1) << 4) |
 		((edge_info->ee_ipd_1d_en & 0x1) << 3) |
 		((edge_info->ee_old_gradient_en & 0x1) << 2) |
-		((edge_info->ee_new_pyramid_en & 0x1) << 1) |
-		(edge_info->bypass & 0x1);
-	ISP_REG_MWR(idx, ISP_EE_PARAM, 0x7FFF, val);
-	if (edge_info->bypass)
-		return 0;
+		((edge_info->ee_new_pyramid_en & 0x1) << 1);
+	ISP_REG_MWR(idx, ISP_EE_PARAM, 0x7FFE, val);
+
+	ISP_REG_MWR(idx, ISP_EE_CFG0, BIT_28, BIT_28);
 
 	val = ((edge_info->ipd_smooth_mode.n & 0x7) << 14) |
 		((edge_info->ipd_smooth_mode.p & 0x7) << 11) |

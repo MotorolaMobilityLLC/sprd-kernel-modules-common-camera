@@ -141,7 +141,7 @@ int init_isp_pm(struct isp_k_block *isp_k_param)
 	isp_k_param->pre_cdn_info.bypass = 1;
 	isp_k_param->cdn_info.bypass = 1;
 	isp_k_param->post_cdn_info.bypass = 1;
-	isp_k_param->edge_info.bypass = 1;
+	isp_k_param->edge_info_v3.bypass = 1;
 	isp_k_param->hsv_info.bypass = 1;
 	isp_k_param->iircnr_info.bypass = 1;
 	isp_k_param->ygamma_info.bypass = 1;

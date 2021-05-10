@@ -307,6 +307,7 @@ extern unsigned long s_isp_mmubase;
 
 #define ISP_EE_BASE                             (0x4200UL)
 #define ISP_EE_PARAM                            (ISP_EE_BASE + 0x0010UL)
+#define ISP_EE_CFG0                             (ISP_EE_BASE + 0x0014UL)
 #define ISP_EE_IPD_CFG0                         (ISP_EE_BASE + 0x002CUL)
 #define ISP_EE_IPD_CFG1                         (ISP_EE_BASE + 0x0030UL)
 #define ISP_EE_IPD_CFG2                         (ISP_EE_BASE + 0x0034UL)

@@ -3154,7 +3154,6 @@ static int isphw_yuv_block_ctrl(void *handle, void *arg)
 	uint32_t type = 0;
 	struct isp_k_block *p = NULL;
 	struct isp_hw_yuv_block_ctrl *blk_ctrl = NULL;
-
 	if (!arg) {
 		pr_err("fail to get valid input arg\n");
 		return -EFAULT;
@@ -3168,7 +3167,7 @@ static int isphw_yuv_block_ctrl(void *handle, void *arg)
 	/* TBD: need update if isp process more than once */
 	ISP_REG_MWR(idx, ISP_BCHS_PARAM, BIT_0, p->bchs_info.bchs_bypass);
 	ISP_REG_MWR(idx, ISP_CDN_PARAM, BIT_0, p->cdn_info.bypass);
-	ISP_REG_MWR(idx, ISP_EE_PARAM, BIT_0, p->edge_info.bypass);
+	ISP_REG_MWR(idx, ISP_EE_PARAM, BIT_0, p->edge_info_v3.bypass);
 	ISP_REG_MWR(idx, ISP_YUV_CNR_CONTRL0, BIT_0, p->iircnr_info.bypass);
 	ISP_REG_MWR(idx, ISP_YUV_NF_CTRL, BIT_0, p->nf_info.yrandom_bypass);
 	ISP_REG_MWR(idx, ISP_UVD_PARAM, BIT_0, p->uvd_info_v1.bypass);
