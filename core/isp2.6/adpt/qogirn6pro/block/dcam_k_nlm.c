@@ -394,18 +394,18 @@ int dcam_k_cfg_nlm(struct isp_io_param *param, struct dcam_dev_param *p)
 
 	switch (param->property) {
 	case ISP_PRO_NLM_BLOCK:
-		pcpy = &p->nlm_info2;
+		pcpy = (void *)&p->nlm_info2;
 		size = sizeof(struct isp_dev_nlm_info_v2);
 		sub_func = dcam_k_nlm_block;
 		break;
 	case ISP_PRO_NLM_IMBLANCE:
-		pcpy = &p->nlm_imblance2;
+		pcpy = (void *)&p->nlm_imblance2;
 		size = sizeof(struct isp_dev_nlm_imblance_v2);
 		sub_func = dcam_k_nlm_imblance;
 		break;
 	default:
-		pr_err("fail to support cmd id = %d\n", param->property);
-		break;
+		pr_err("fail to support property %d\n", param->property);
+		return -EINVAL;
 	}
 
 	if (p->offline == 0) {
