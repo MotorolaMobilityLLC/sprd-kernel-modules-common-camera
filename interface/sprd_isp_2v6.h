@@ -1404,7 +1404,6 @@ struct isp_dev_edge_info_v3 {
 	uint32_t ee_ratio_diag_3;
 	uint32_t ee_weight_hv2diag;
 	uint32_t ee_gradient_computation_type;
-	uint32_t ee_weight_diag2hv;
 	uint32_t ee_gain_hv_t[2][4];
 	uint32_t ee_gain_hv_r[2][3];
 	uint32_t ee_ratio_diag_5;
