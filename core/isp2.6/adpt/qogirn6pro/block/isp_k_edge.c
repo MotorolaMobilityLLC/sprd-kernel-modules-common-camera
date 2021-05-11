@@ -29,7 +29,7 @@ static int isp_k_edge_block(struct isp_io_param *param,
 	struct isp_k_block *isp_k_param, uint32_t idx)
 {
 	int ret = 0;
-	uint32_t i = 0, val = 0;
+	uint32_t i = 0, val = 0, ee_weight_diag2hv = 0;
 	struct isp_dev_edge_info_v3 *edge_info;
 
 	edge_info = &isp_k_param->edge_info_v3;
@@ -86,7 +86,8 @@ static int isp_k_edge_block(struct isp_io_param *param,
 		(edge_info->ipd_smooth_edge_thr.p & 0xFF);
 	ISP_REG_WR(idx, ISP_EE_IPD_CFG2, val);
 
-	val = ((edge_info->ee_weight_diag2hv & 0x1F) << 27) |
+	ee_weight_diag2hv = 16 - edge_info->ee_weight_hv2diag;
+	val = ((ee_weight_diag2hv & 0x1F) << 27) |
 		((edge_info->ee_gradient_computation_type & 0x1) << 26) |
 		((edge_info->ee_weight_hv2diag & 0x1F) << 21) |
 		((edge_info->ee_ratio_diag_3 & 0x7F) << 14) |
