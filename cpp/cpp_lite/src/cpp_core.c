@@ -117,7 +117,7 @@ static void cppcore_module_disable(struct cpp_device *dev)
 	sprd_cam_domain_disable();
 	sprd_cam_pw_off();
 #else
-	pm_runtime_put(&dev->pdev->dev);
+	pm_runtime_put_sync(&dev->pdev->dev);
 #endif
 fail:
 	mutex_unlock(&dev->lock);
@@ -197,7 +197,7 @@ static int cppcore_open(struct inode *node, struct file *file)
 	}
 	sprd_cam_domain_eb();
 #else
-	ret = pm_runtime_get(&dev->pdev->dev);
+	ret = pm_runtime_get_sync(&dev->pdev->dev);
 	if (ret) {
 		pr_err("%s fail to power on cpp\n", __func__);
 		goto fail;
