@@ -4957,23 +4957,45 @@ static int camcore_one_frame_dump(struct camera_module *module,
 		struct camera_frame *pframe)
 {
 	ssize_t size = 0;
-	struct channel_context *channel;
-	enum cam_ch_id ch_id;
 	uint8_t file_name[256] = { '\0' };
+	uint8_t file_name1[256] = { '\0' };
 	uint8_t tmp_str[20] = { '\0' };
 	uint32_t pack_bits = 0;
-	uint32_t width = 0;
 	uint32_t dcam_out_bits = 0;
-	struct dcam_compress_info fbc_info;
+	uint32_t width = 0, is_pack = 0, offset = 0;
+	unsigned long  addr = 0, addr1 = 0;
+	enum cam_ch_id ch_id = 0;
+	struct channel_context *channel = NULL;
+	struct dcam_compress_info fbc_info = {0};
+
+	if (module == NULL || pframe == NULL)
+		return 0;
 
 	ch_id = pframe->channel_id;
 	channel = &module->channel[ch_id];
+	is_pack = !module->cam_uinfo.sensor_if.if_spec.mipi.is_loose;
+
+	if (cam_buf_kmap(&pframe->buf)) {
+		pr_err("fail to kmap dump buf\n");
+		return -EFAULT;
+	}
 
 	strcat(file_name, CAMERA_DUMP_PATH);
-	if (ch_id == CAM_CH_PRE)
-		strcat(file_name, "prevraw_");
-	else
-		strcat(file_name, "capraw_");
+	if (ch_id == CAM_CH_PRE) {
+		if (channel->dcam_out_fmt == DCAM_STORE_RAW_BASE)
+			strcat(file_name, "prevraw_");
+		else if (channel->dcam_out_fmt == DCAM_STORE_FRGB)
+			strcat(file_name, "prevrgb_");
+		else
+			strcat(file_name, "prevyuv_");
+	} else {
+		if (channel->dcam_out_fmt == DCAM_STORE_RAW_BASE)
+			strcat(file_name, "capraw_");
+		else if (channel->dcam_out_fmt == DCAM_STORE_FRGB)
+			strcat(file_name, "caprgb_");
+		else
+			strcat(file_name, "capyuv_");
+	}
 
 	sprintf(tmp_str, "%d.", (uint32_t)module->cur_dump_ts.tv_sec);
 	strcat(file_name, tmp_str);
@@ -5018,25 +5040,55 @@ static int camcore_one_frame_dump(struct camera_module *module,
 
 		dcam_if_cal_compressed_addr(&cal_fbc);
 		pframe->fbc_info = fbc_info;
-		sprintf(tmp_str, "_tile%08lx",
-			addr.addr1 - pframe->buf.iova[0]);
+		sprintf(tmp_str, "_tile%08lx", addr.addr1 - pframe->buf.iova[0]);
 		strcat(file_name, tmp_str);
-		sprintf(tmp_str, "_low2tile%08x",
-			addr.addr2 - addr.addr1);
+		sprintf(tmp_str, "_low2tile%08x", addr.addr2 - addr.addr1);
 		strcat(file_name, tmp_str);
+		if (pack_bits == CAM_RAW_HALF14 || pack_bits == CAM_RAW_HALF10)
+			strcat(file_name, ".raw");
+		else
+			strcat(file_name, ".mipi_raw");
+		camcore_write_image_to_file((char *)pframe->buf.addr_k[0], size, file_name);
 	} else {
-		size = cal_sprd_raw_pitch(width, pack_bits) * pframe->height;
-	}
-	if (pack_bits == CAM_RAW_HALF14 || pack_bits == CAM_RAW_HALF10)
-		strcat(file_name, ".raw");
-	else
-		strcat(file_name, ".mipi_raw");
+		if (channel->dcam_out_fmt == DCAM_STORE_RAW_BASE) {
+			size = cal_sprd_raw_pitch(width, pack_bits) * pframe->height;
+			if (pack_bits == CAM_RAW_HALF14 || pack_bits == CAM_RAW_HALF10)
+				strcat(file_name, ".raw");
+			else
+				strcat(file_name, ".mipi_raw");
+			camcore_write_image_to_file((char *)pframe->buf.addr_k[0], size, file_name);
+		} else if (channel->dcam_out_fmt == DCAM_STORE_FRGB) {
+			size = pframe->height * pframe->width;
+			strcat(file_name, ".rgb");
+			camcore_write_image_to_file((char *)pframe->buf.addr_k[0], size, file_name);
+		} else {
+			if (dcam_out_bits == DCAM_STORE_8_BIT) {
+				strcat(file_name, "_8bit");
+			} else {
+				strcat(file_name, "_10bit");
+				if (is_pack)
+					strcat(file_name, "_mipi");
+			}
+			strcat(file_name1, file_name);
 
-	if (cam_buf_kmap(&pframe->buf)) {
-		pr_err("fail to kmap dump buf\n");
-		return -EFAULT;
+			if (channel->dcam_out_fmt == DCAM_STORE_YUV420) {
+				strcat(file_name, "_yuv420.y");
+				strcat(file_name1, "_yuv420.uv");
+			} else {
+				strcat(file_name, "_yvu420.y");
+				strcat(file_name1, "_yvu420.uv");
+			}
+
+			size = cal_sprd_yuv_pitch(pframe->width, dcam_out_bits, is_pack) * pframe->height;
+			addr = pframe->buf.addr_k[0] + offset;
+			addr1 = addr + size;
+			offset += (size * 3 / 2);
+			camcore_write_image_to_file((char *)addr, size, file_name);
+			size = size / 2;
+			camcore_write_image_to_file((char *)addr1, size, file_name1);
+		}
 	}
-	camcore_write_image_to_file((char *)pframe->buf.addr_k[0], size, file_name);
+
 	cam_buf_kunmap(&pframe->buf);
 	pr_debug("dump for ch %d, size %d, kaddr %p, file %s\n", ch_id,
 		(int)size, (void *)pframe->buf.addr_k[0], file_name);
@@ -5056,7 +5108,7 @@ static int camcore_pyr_frame_dump(struct camera_module *module,
 {
 	ssize_t size = 0;
 	struct channel_context *channel;
-	enum cam_ch_id ch_id;
+	enum cam_ch_id ch_id = 0;
 	uint8_t file_name[ISP_PYR_DEC_LAYER_NUM][256] = {{ '\0' }};
 	uint8_t file_name1[ISP_PYR_DEC_LAYER_NUM][256] = {{ '\0' }};
 	uint8_t tmp_str[20] = { '\0' };
@@ -5064,6 +5116,9 @@ static int camcore_pyr_frame_dump(struct camera_module *module,
 	uint32_t dcam_out_bits = 0;
 	uint32_t align_w = 0, align_h = 0, offset = 0;
 	unsigned long addr = 0, addr1 = 0;
+
+	if (module == NULL || pframe == NULL)
+		return 0;
 
 	ch_id = pframe->channel_id;
 	channel = &module->channel[ch_id];
@@ -5141,9 +5196,9 @@ static int camcore_pyr_frame_dump(struct camera_module *module,
 
 static int camcore_dumpraw_proc(void *param)
 {
-	uint32_t idx, cnt = 0;
-	struct camera_module *module;
-	struct channel_context *channel;
+	uint32_t idx = 0, cnt = 0;
+	struct camera_module *module = NULL;
+	struct channel_context *channel = NULL;
 	struct camera_frame *pframe = NULL;
 	struct cam_dbg_dump *dbg = &g_dbg_dump;
 	struct dcam_sw_context *dcam_sw_ctx = NULL;
