@@ -1236,15 +1236,14 @@ static int dcamcore_param_cfg(void *dcam_handle, void *param)
 	pm->dcam_slice_mode = sw_pctx->dcam_slice_mode;
 	ret = cfg_fun_ptr(io_param, pm);
 
-	if (io_param->sub_block == DCAM_BLOCK_LSC)
-		mutex_unlock(&pm->lsc.lsc_lock);
-
 	if ((io_param->sub_block == DCAM_BLOCK_LSC) &&
 		(sw_pctx->offline == 0) &&
 		(atomic_read(&sw_pctx->state) == STATE_RUNNING)) {
 		dcam_update_lsc(pm);
 	}
 
+	if (io_param->sub_block == DCAM_BLOCK_LSC)
+		mutex_unlock(&pm->lsc.lsc_lock);
 exit:
 	return ret;
 }
@@ -1305,45 +1304,6 @@ static inline void dcamcore_frame_info_show(struct dcam_sw_context *pctx,
 		frame->is_reserved, frame->is_compressed,
 		frame->width, frame->height,
 		frame->buf.iova[0], size);
-}
-
-/* offline process frame */
-static int dcamcore_frame_proc(
-		void *dcam_handle, void *param)
-{
-	int ret = 0;
-	struct dcam_sw_context *pctx = NULL;
-	struct camera_frame *pframe;
-
-	if (!dcam_handle || !param) {
-		pr_err("fail to get a valid param, dcam_handle=%p, param=%p\n", dcam_handle, param);
-		return -EFAULT;
-	}
-	pctx = (struct dcam_sw_context *)dcam_handle;
-
-	pr_debug("dcam%d swid:%d offline proc frame!slice_count:%d, dcam_slice_mode:%x\n", pctx->hw_ctx_id, pctx->sw_ctx_id, pctx->slice_count, pctx->dcam_slice_mode);
-	/* if enable, 4in1 capture once more then dcam1 can't run
-	 * if (atomic_read(&dev->state) == STATE_RUNNING) {
-	 *	pr_err("DCAM%u started for online\n", dev->idx);
-	 *	return -EFAULT;
-	 * }
-	 */
-	pframe = (struct camera_frame *)param;
-	pframe->priv_data = pctx;
-
-	if (pctx->slice_count != 0 &&
-		pctx->dcam_slice_mode == CAM_OFFLINE_SLICE_SW) {
-		complete(&pctx->thread.thread_com);
-		return ret;
-	}
-
-	ret = cam_queue_enqueue(&pctx->in_queue, &pframe->list);
-	if (ret == 0)
-		complete(&pctx->thread.thread_com);
-	else
-		pr_err("fail to enqueue frame to dev->in_queue, ret = %d\n", ret);
-
-	return ret;
 }
 
 static int dcamcore_path_get(
@@ -2462,7 +2422,6 @@ static struct dcam_pipe_ops s_dcam_pipe_ops = {
 	.cfg_path = dcamcore_path_cfg,
 	.ioctl = dcamcore_ioctrl,
 	.cfg_blk_param = dcamcore_param_cfg,
-	.proc_frame = dcamcore_frame_proc,
 	.set_callback = dcamcore_cb_set,
 	.get_context = dcamcore_context_get,
 	.put_context = dcamcore_context_put,

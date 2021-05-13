@@ -671,11 +671,38 @@ static void dcamint_raw_path_done(void *param)
 	struct dcam_sw_context *sw_ctx = dcam_hw_ctx->sw_ctx;
 	struct camera_frame *frame = NULL;
 	struct dcam_path_desc *path = NULL;
+	struct dcam_path_desc *path_bin = NULL;
 
-	CAM_DEBUG_LOG("raw path done\n");
 	path = &sw_ctx->path[DCAM_PATH_RAW];
+	path_bin = &sw_ctx->path[DCAM_PATH_BIN];
+
+	if (sw_ctx->offline) {
+		pr_debug("raw slice %d done\n", sw_ctx->slice_num- sw_ctx->slice_count);
+		if (sw_ctx->slice_count - 1)
+			return;
+	}
 
 	if ((frame = dcamint_frame_prepare(dcam_hw_ctx, DCAM_PATH_RAW))) {
+		/* isp can't fetch raw, online sensor raw send to user
+			offline dcam raw saved in the same large buffer with isp yuv,
+			so dcam raw can put directly, and send isp yuv to user
+			meanwhile, dcam yuv dispatch to dcam_callback and to be processed in isp
+		*/
+		if (sw_ctx->offline) {
+			pr_debug("dcam raw done, src %d, mfd 0x%x, frame %px\n",path->src_sel, frame->buf.mfd[0], frame);
+			cam_buf_iommu_unmap(&frame->buf);
+			cam_buf_ionbuf_put(&frame->buf);
+			cam_queue_empty_frame_put(frame);
+
+			if (atomic_read(&path_bin->set_frm_cnt) == 0) {
+				frame = cam_queue_dequeue(&sw_ctx->proc_queue, struct camera_frame, list);
+				if (frame) {
+					cam_buf_iommu_unmap(&frame->buf);
+					sw_ctx->dcam_cb_func(DCAM_CB_RET_SRC_BUF, frame, sw_ctx->cb_priv_data);
+				}
+			}
+			return;
+		}
 		if (sw_ctx->dcam_slice_mode)
 			frame->irq_type = CAMERA_IRQ_SUPERSIZE_DONE;
 		dcamint_frame_dispatch(dcam_hw_ctx, DCAM_PATH_RAW, frame, DCAM_CB_DATA_DONE);
@@ -718,11 +745,13 @@ static void dcamint_bin_path_done(void *param)
 	struct dcam_hw_context *dcam_hw_ctx = (struct dcam_hw_context *)param;
 	struct dcam_sw_context *sw_ctx = dcam_hw_ctx->sw_ctx;
 	struct dcam_path_desc *path = NULL;
+	struct dcam_path_desc *path_raw = NULL;
 	struct camera_frame *frame = NULL;
 	int i = 0, cnt = 0;
 
 	pr_debug("preview path done hw id:%d\n", dcam_hw_ctx->hw_ctx_id);
 	path = &sw_ctx->path[DCAM_PATH_BIN];
+	path_raw = &sw_ctx->path[DCAM_PATH_RAW];
 	cnt = atomic_read(&path->set_frm_cnt);
 	sw_ctx->dec_layer0_done = 1;
 
@@ -769,8 +798,7 @@ static void dcamint_bin_path_done(void *param)
 				DCAM_CB_DATA_DONE);
 
 	if (sw_ctx->offline) {
-		if ((sw_ctx->dcam_slice_mode == CAM_OFFLINE_SLICE_SW && sw_ctx->slice_count == 0)
-			|| sw_ctx->dcam_slice_mode != CAM_OFFLINE_SLICE_SW) {
+		if ((sw_ctx->dcam_slice_mode != CAM_OFFLINE_SLICE_SW) && (atomic_read(&path_raw->set_frm_cnt) == 0)) {
 			/* there is source buffer for offline process */
 			frame = cam_queue_dequeue(&sw_ctx->proc_queue, struct camera_frame, list);
 			if (frame) {

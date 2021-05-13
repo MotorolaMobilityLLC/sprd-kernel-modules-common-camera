@@ -301,26 +301,7 @@ abnormal_reg_trace:
 		DCAM_REG_RD(trace->idx, addr + 4),
 		DCAM_REG_RD(trace->idx, addr + 8));
 
-	pr_info("VST:0x%03lx: 0x%x\n", DCAM_VST_PARA, DCAM_REG_RD(trace->idx, DCAM_VST_PARA));
-	pr_info("IVST:0x%03lx: 0x%x\n", DCAM_IVST_PARA, DCAM_REG_RD(trace->idx, DCAM_IVST_PARA));
-	for (addr = DCAM_NLM_PARA; addr <= DCAM_NLM_RADIAL_1D_ADDBACK23; addr += 16) {
-		pr_info("NLM:0x%03lx: 0x%x 0x%x 0x%x 0x%x\n",
-			addr,
-			DCAM_REG_RD(trace->idx, addr),
-			DCAM_REG_RD(trace->idx, addr + 4),
-			DCAM_REG_RD(trace->idx, addr + 8),
-			DCAM_REG_RD(trace->idx, addr + 12));
-	}
 
-	for (addr = DCAM_GTM_GLB_CTRL; addr <= GTM_HIST_XPTS_0;
-		addr += 16) {
-		pr_info("GTM:0x%03lx: 0x%x 0x%x 0x%x 0x%x\n",
-			addr,
-			DCAM_REG_RD(trace->idx, addr),
-			DCAM_REG_RD(trace->idx, addr + 4),
-			DCAM_REG_RD(trace->idx, addr + 8),
-			DCAM_REG_RD(trace->idx, addr + 12));
-	}
 
 	for (addr = DCAM_CFA_NEW_CFG0; addr <= DCAM_CFA_GBUF_CFG; addr += 16) {
 		pr_info("CFA:0x%03lx: 0x%x 0x%x 0x%x 0x%x\n",
@@ -332,15 +313,6 @@ abnormal_reg_trace:
 	}
 	for (addr = DCAM_CMC10_PARAM; addr <= DCAM_CMC10_MATRIX4; addr += 16) {
 		pr_info("CMC10:0x%03lx: 0x%x 0x%x 0x%x 0x%x\n",
-			addr,
-			DCAM_REG_RD(trace->idx, addr),
-			DCAM_REG_RD(trace->idx, addr + 4),
-			DCAM_REG_RD(trace->idx, addr + 8),
-			DCAM_REG_RD(trace->idx, addr + 12));
-	}
-	pr_info("FGAMMA10:0x%03lx: 0x%x\n", DCAM_FGAMMA10_PARAM, DCAM_REG_RD(trace->idx, DCAM_FGAMMA10_PARAM));
-	for (addr = DCAM_HIST_ROI_CTRL0; addr <= DCAM_HIST_ROI_BASE_WADDR3; addr += 16) {
-		pr_info("HIST:0x%03lx: 0x%x 0x%x 0x%x 0x%x\n",
 			addr,
 			DCAM_REG_RD(trace->idx, addr),
 			DCAM_REG_RD(trace->idx, addr + 4),
@@ -380,7 +352,17 @@ abnormal_reg_trace:
 	}
 	for (addr = DCAM_STORE4_PARAM; addr <= DCAM_STORE4_SHADOW_CLR;
 		addr += 16) {
-		pr_info("store4(pre):0x%03lx: 0x%x 0x%x 0x%x 0x%x\n",
+		pr_info("store4(cap):0x%03lx: 0x%x 0x%x 0x%x 0x%x\n",
+			addr,
+			DCAM_REG_RD(trace->idx, addr),
+			DCAM_REG_RD(trace->idx, addr + 4),
+			DCAM_REG_RD(trace->idx, addr + 8),
+			DCAM_REG_RD(trace->idx, addr + 12));
+	}
+
+	for (addr = DCAM_RAW_PATH_CFG; addr <= DCAM_RAW_PATH_BASE_WADDR;
+		addr += 16) {
+		pr_info("raw:0x%03lx: 0x%x 0x%x 0x%x 0x%x\n",
 			addr,
 			DCAM_REG_RD(trace->idx, addr),
 			DCAM_REG_RD(trace->idx, addr + 4),

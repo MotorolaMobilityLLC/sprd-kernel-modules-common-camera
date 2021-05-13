@@ -118,7 +118,7 @@ int dcam_path_base_cfg(void *dcam_ctx_handle,
 		break;
 	case DCAM_PATH_RAW:
 		/* for n6pro*/
-		path->src_sel = ch_desc->is_raw ? ORI_RAW_SRC_SEL : PROCESS_RAW_SRC_SEL;
+		path->src_sel = ch_desc->is_raw ? ORI_RAW_SRC_SEL : ch_desc->raw_src;
 		path->frm_deci = ch_desc->frm_deci;
 		path->frm_skip = ch_desc->frm_skip;
 		path->pack_bits = ch_desc->pack_bits;
@@ -131,6 +131,7 @@ int dcam_path_base_cfg(void *dcam_ctx_handle,
 		if (path->data_bits == DCAM_STORE_8_BIT)
 			path->is_pack = 0;
 		dcam_sw_ctx->raw_cap = ch_desc->raw_cap;
+		pr_info("raw path src %d, pack bits %d\n", path->src_sel, path->pack_bits);
 		break;
 	case DCAM_PATH_VCH2:
 		path->endian = ch_desc->endian;

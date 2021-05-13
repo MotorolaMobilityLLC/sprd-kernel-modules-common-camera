@@ -86,9 +86,10 @@ enum isp_k_gtm_blk_idx {
 
 enum dcam_full_src_sel_type {
 	ORI_RAW_SRC_SEL,
+	PROCESS_RAW_SRC_SEL,
 	LSC_RAW_SRC_SEL,
 	BPC_RAW_SRC_SEL,
-	PROCESS_RAW_SRC_SEL,
+	NLM_RAW_SRC_SEL,
 	MAX_RAW_SRC_SEL
 };
 

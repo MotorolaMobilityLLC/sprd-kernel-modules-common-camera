@@ -164,6 +164,7 @@ struct dcam_path_cfg_param {
 	uint32_t slowmotion_count;
 	uint32_t enable_3dnr;
 	uint32_t is_raw;
+	uint32_t raw_src;
 	uint32_t pack_bits;
 	uint32_t bayer_pattern;
 	uint32_t dcam_out_fmt;
@@ -229,7 +230,6 @@ struct dcam_pipe_ops {
 	int (*cfg_path)(void *dcam_handle, enum dcam_path_cfg_cmd cfg_cmd, int path_id, void *param);
 	int (*ioctl)(void *handle, enum dcam_ioctrl_cmd cmd, void *arg);
 	int (*cfg_blk_param)(void *handle, void *param);
-	int (*proc_frame)(void *handle, void *param);
 	int (*set_callback)(void *handle, int ctx_id, dcam_dev_callback cb, void *priv_data);
 	int (*update_clk)(void *handle, void *arg);
 	int (*get_context)(void *dcam_handle);
