@@ -2787,8 +2787,8 @@ struct debug_base_info {
 	int32_t isp_cid;
 	int32_t scene_id;
 	int32_t frame_id;
-	unsigned long sec;
-	unsigned long usec;
+	int32_t sec;
+	int32_t usec;
 	int32_t size;
 	int32_t res_data0[8];
 	uint32_t awbc_r;
