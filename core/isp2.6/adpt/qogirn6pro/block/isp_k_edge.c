@@ -354,12 +354,12 @@ static int isp_k_edge_block(struct isp_io_param *param,
 		(edge_info->center_y & 0x3FFF);
 	ISP_REG_WR(idx, ISP_EE_PIXEL_POSTION, val);
 
-	val = ((edge_info->radius_threshold & 0x7FF) << 16) |
-		(edge_info->layer_pyramid_offset_coef1 & 0x7FF);
+	val = ((edge_info->radius_threshold & 0x7FFF) << 16) |
+		(edge_info->layer_pyramid_offset_coef1 & 0x3FFF);
 	ISP_REG_WR(idx, ISP_EE_PYRAMID_OFFSET_COEF0, val);
 
-	val = ((edge_info->layer_pyramid_offset_coef2 & 0x7FF) << 16) |
-		(edge_info->layer_pyramid_offset_coef3 & 0x7FF);
+	val = ((edge_info->layer_pyramid_offset_coef2 & 0x3FFF) << 16) |
+		(edge_info->layer_pyramid_offset_coef3 & 0x3FFF);
 	ISP_REG_WR(idx, ISP_EE_PYRAMID_OFFSET_COEF1, val);
 
 	val = ((edge_info->old_gradient_ratio_coef & 0x3FFF) << 16) |
