@@ -538,8 +538,8 @@ static void ispslice_slice_size_info_get(
 	*w = (slice_w < slice_w_out) ? slice_w : slice_w_out;
 	*h = input->h / SLICE_H_NUM_MAX;
 
-	*w = ISP_ALIGNED(*w);
-	*h = ISP_ALIGNED(*h);
+	*w = (*w + ISP_SLICE_ALIGN_SIZE -1) & ~(ISP_SLICE_ALIGN_SIZE -1);
+	*h = (*h + ISP_SLICE_ALIGN_SIZE -1) & ~(ISP_SLICE_ALIGN_SIZE -1);
 }
 
 static int ispslice_slice_overlap_info_get(
