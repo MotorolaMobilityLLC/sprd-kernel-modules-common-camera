@@ -84,12 +84,12 @@ struct dcam_dev_bpc_param {
 	} bpc_param;
 };
 
-struct dcam_dev_nl6_bpc_param {
+struct dcam_dev_n6pro_bpc_param {
 	struct dcam_bpc_ppi_info ppi_info;
 	union {
 		struct dcam_dev_bpc_info_v1 bpc_info;
 		struct dcam_dev_bpc_info_l3 bpc_info_l3;
-	} bpc_param_nl6;
+	} bpc_param_n6pro;
 };
 
 struct dcam_dev_grgb_param {
@@ -164,7 +164,7 @@ struct dcam_dev_param {
 	/* qogirn6pro rgb_gtm blocks*/
 	struct dcam_dev_rgb_gtm_param rgb_gtm[DCAM_GTM_PARAM_MAX];
 	/* qogirn6pro bpc blocks*/
-	struct dcam_dev_nl6_bpc_param bpc_nl6;
+	struct dcam_dev_n6pro_bpc_param bpc_n6pro;
 	struct dcam_dev_lscm_param lscm;
 	struct dcam_dev_pdaf_param pdaf;
 

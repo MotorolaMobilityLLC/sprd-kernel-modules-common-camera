@@ -34,7 +34,7 @@ int dcam_k_bpc_block(struct dcam_dev_param *param)
 	struct dcam_dev_bpc_info_v1 *p;
 
 	idx = param->idx;
-	p = &(param->bpc_nl6.bpc_param_nl6.bpc_info);
+	p = &(param->bpc_n6pro.bpc_param_n6pro.bpc_info);
 
 	/* debugfs bpc not bypass then write*/
 	if (g_dcam_bypass[idx] & (1 << _E_BPC))
@@ -153,7 +153,7 @@ int dcam_k_cfg_bpc(struct isp_io_param *param, struct dcam_dev_param *p)
 	switch (param->property) {
 	case DCAM_PRO_BPC_BLOCK:
 	{
-		dst_ptr = (void *)&p->bpc_nl6.bpc_param_nl6.bpc_info;
+		dst_ptr = (void *)&p->bpc_n6pro.bpc_param_n6pro.bpc_info;
 		dst_size = sizeof(struct dcam_dev_bpc_info_v1);
 		sub_func = dcam_k_bpc_block;
 		break;
