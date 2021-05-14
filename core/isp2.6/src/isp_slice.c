@@ -749,6 +749,14 @@ static int ispslice_slice_nr_info_cfg(
 		cur_slc->slice_ynr.slice_width = end_col - start_col + 1;
 		cur_slc->slice_ynr.slice_height = end_row - start_row + 1;
 
+		/* Post CNR */
+		cur_slc->slice_postcnr.st_x = start_col;
+		cur_slc->slice_postcnr.st_y = start_row;
+
+		/* EE */
+		cur_slc->slice_edge.radial_1D_global_start_x = start_col;
+		cur_slc->slice_edge.radial_1D_global_start_y = start_row;
+
 		pr_debug("slice %d,  (%d %d %d %d),  ynr_off %d %d, size %d %d\n",
 			i, start_row, start_col, end_row, end_col,
 			cur_slc->slice_ynr.center_offset_x,
@@ -2720,6 +2728,8 @@ int isp_slice_fmcu_cmds_set(void *fmcu_handle, void *ctx)
 		nrarg.slice_ynr = &cur_slc->slice_ynr;
 		nrarg.slice_nlm = &cur_slc->slice_nlm;
 		nrarg.start_row_mod4 = cur_slc->slice_postcdn.start_row_mod4;
+		nrarg.slice_postcnr_info = &cur_slc->slice_postcnr;
+		nrarg.slice_edge = &cur_slc->slice_edge;
 		hw->isp_ioctl(hw, ISP_HW_CFG_SET_SLICE_NR_INFO, &nrarg);
 
 		if (!cur_slc->slice_fbd_raw.fetch_fbd_bypass) {

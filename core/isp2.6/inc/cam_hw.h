@@ -622,6 +622,8 @@ struct isp_hw_set_slice_nr_info {
 	struct slice_nlm_info *slice_nlm;
 	struct slice_ynr_info *slice_ynr;
 	struct isp_fmcu_ctx_desc *fmcu;
+	struct slice_postcnr_info *slice_postcnr_info;
+	struct slice_edge_info *slice_edge;
 };
 
 struct isp_hw_set_slice_fetch {

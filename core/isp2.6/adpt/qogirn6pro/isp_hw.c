@@ -1634,19 +1634,20 @@ static int isphw_slice_store(void *handle, void *arg)
 }
 
 static struct isp_cfg_entry isp_hw_cfg_func_tab[ISP_BLOCK_TOTAL - ISP_BLOCK_BASE] = {
-[ISP_BLOCK_BCHS - ISP_BLOCK_BASE]     = {ISP_BLOCK_BCHS,     isp_k_cfg_bchs},
-[ISP_BLOCK_YGAMMA - ISP_BLOCK_BASE]   = {ISP_BLOCK_YGAMMA,   isp_k_cfg_ygamma},
-[ISP_BLOCK_YNR - ISP_BLOCK_BASE]      = {ISP_BLOCK_YNR,      isp_k_cfg_ynr},
-[ISP_BLOCK_RGB_LTM - ISP_BLOCK_BASE]  = {ISP_BLOCK_RGB_LTM,  isp_k_cfg_rgb_ltm},
-[ISP_BLOCK_UVD - ISP_BLOCK_BASE]      = {ISP_BLOCK_UVD,      isp_k_cfg_uvd},
-[ISP_BLOCK_CDN - ISP_BLOCK_BASE]      = {ISP_BLOCK_CDN,      isp_k_cfg_cdn},
-[ISP_BLOCK_HSV - ISP_BLOCK_BASE]      = {ISP_BLOCK_HSV,      isp_k_cfg_hsv},
-[ISP_BLOCK_EDGE - ISP_BLOCK_BASE]     = {ISP_BLOCK_EDGE,     isp_k_cfg_edge},
-[ISP_BLOCK_IIRCNR - ISP_BLOCK_BASE]   = {ISP_BLOCK_IIRCNR,   isp_k_cfg_iircnr},
-[ISP_BLOCK_PRE_CDN - ISP_BLOCK_BASE]  = {ISP_BLOCK_PRE_CDN,  isp_k_cfg_pre_cdn},
-[ISP_BLOCK_POST_CDN - ISP_BLOCK_BASE] = {ISP_BLOCK_POST_CDN, isp_k_cfg_post_cdn},
-[ISP_BLOCK_YRANDOM - ISP_BLOCK_BASE]  = {ISP_BLOCK_YRANDOM,  isp_k_cfg_yrandom},
-[ISP_BLOCK_3DLUT - ISP_BLOCK_BASE]    = {ISP_BLOCK_3DLUT,    isp_k_cfg_3dlut},
+[ISP_BLOCK_BCHS - ISP_BLOCK_BASE]       = {ISP_BLOCK_BCHS,       isp_k_cfg_bchs},
+[ISP_BLOCK_YGAMMA - ISP_BLOCK_BASE]     = {ISP_BLOCK_YGAMMA,     isp_k_cfg_ygamma},
+[ISP_BLOCK_YNR - ISP_BLOCK_BASE]        = {ISP_BLOCK_YNR,        isp_k_cfg_ynr},
+[ISP_BLOCK_RGB_LTM - ISP_BLOCK_BASE]    = {ISP_BLOCK_RGB_LTM,    isp_k_cfg_rgb_ltm},
+[ISP_BLOCK_UVD - ISP_BLOCK_BASE]        = {ISP_BLOCK_UVD,        isp_k_cfg_uvd},
+[ISP_BLOCK_CDN - ISP_BLOCK_BASE]        = {ISP_BLOCK_CDN,        isp_k_cfg_cdn},
+[ISP_BLOCK_HSV - ISP_BLOCK_BASE]        = {ISP_BLOCK_HSV,        isp_k_cfg_hsv},
+[ISP_BLOCK_EDGE - ISP_BLOCK_BASE]       = {ISP_BLOCK_EDGE,       isp_k_cfg_edge},
+[ISP_BLOCK_IIRCNR - ISP_BLOCK_BASE]     = {ISP_BLOCK_IIRCNR,     isp_k_cfg_iircnr},
+[ISP_BLOCK_PRE_CDN - ISP_BLOCK_BASE]    = {ISP_BLOCK_PRE_CDN,    isp_k_cfg_pre_cdn},
+[ISP_BLOCK_POST_CDN - ISP_BLOCK_BASE]   = {ISP_BLOCK_POST_CDN,   isp_k_cfg_post_cdn},
+[ISP_BLOCK_YRANDOM - ISP_BLOCK_BASE]    = {ISP_BLOCK_YRANDOM,    isp_k_cfg_yrandom},
+[ISP_BLOCK_3DLUT - ISP_BLOCK_BASE]      = {ISP_BLOCK_3DLUT,      isp_k_cfg_3dlut},
+[ISP_BLOCK_POST_CNR_H - ISP_BLOCK_BASE] = {ISP_BLOCK_POST_CNR_H, isp_k_cfg_post_cnr_h},
 };
 
 static int isphw_block_func_get(void *handle, void *arg)
@@ -2868,6 +2869,18 @@ static int isphw_slice_nr_info_set(void *handle, void *arg)
 		(nrarg->slice_ynr->slice_width & 0xFFFF);
 	FMCU_PUSH(nrarg->fmcu, addr, cmd);
 
+	/* Post CNR */
+	addr = ISP_GET_REG(ISP_YUV_CNR_CONTRL1);
+	cmd = ((nrarg->slice_postcnr_info->st_y & 0xFFFF) << 16) |
+		(nrarg->slice_postcnr_info->st_x & 0xFFFF);
+	FMCU_PUSH(nrarg->fmcu, addr, cmd);
+
+	/* EE */
+	addr = ISP_GET_REG(ISP_EE_GLOBAL_POSTION);
+	cmd = ((nrarg->slice_edge->radial_1D_global_start_x & 0x3FFF) << 16) |
+		(nrarg->slice_edge->radial_1D_global_start_y & 0x3FFF);
+	FMCU_PUSH(nrarg->fmcu, addr, cmd);
+
 	return 0;
 }
 
@@ -3156,6 +3169,7 @@ static int isphw_yuv_block_ctrl(void *handle, void *arg)
 	ISP_REG_MWR(idx, ISP_YGAMMA_PARAM, BIT_0, p->ygamma_info.bypass);
 	ISP_REG_MWR(idx, ISP_YRANDOM_PARAM1, BIT_0, p->yrandom_info.bypass);
 	ISP_REG_MWR(idx, ISP_CTM_PARAM, BIT_0, p->lut3d_info.rgb3dlut_bypass);
+	ISP_REG_MWR(idx, ISP_YUV_CNR_CONTRL0, BIT_0, p->post_cnr_h_info.bypass);
 
 	return ret;
 }

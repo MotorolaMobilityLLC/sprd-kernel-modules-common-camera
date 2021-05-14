@@ -318,6 +318,16 @@ struct slice_gtm_info {
 	uint32_t line_endpos;
 };
 
+struct slice_postcnr_info {
+	uint32_t st_x;
+	uint32_t st_y;
+};
+
+struct slice_edge_info {
+	uint32_t radial_1D_global_start_x;
+	uint32_t radial_1D_global_start_y;
+};
+
 struct slice_pyr_rec_info {
 	uint32_t rec_path_sel;
 	struct img_size out;
@@ -380,6 +390,8 @@ struct isp_slice_desc {
 	struct slice_noisefilter_info noisefilter_info;
 	struct slice_noisefilter_mode_info slice_noisefilter_mode;
 	struct slice_gtm_info slice_gtm;
+	struct slice_postcnr_info slice_postcnr;
+	struct slice_edge_info slice_edge;
 };
 
 struct isp_slice_context {
