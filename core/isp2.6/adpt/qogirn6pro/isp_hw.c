@@ -2340,8 +2340,7 @@ static int isphw_slice_fetch(void *handle, void *arg)
 	ISP_REG_MWR(fetch->ctx_id, addr, 0xFFFFF, cmd);
 
 	addr = base + ISP_FETCH_MIPI_PARAM_UV;
-	cmd = fetch->fetch_info->mipi_word_num |
-			(fetch->fetch_info->mipi_byte_rel_pos << 16);
+	cmd = fetch->fetch_info->mipi_word_num_uv | (fetch->fetch_info->mipi_byte_rel_pos_uv << 16);
 	ISP_REG_WR(fetch->ctx_id, addr, cmd);
 
 	/* dispatch size same as fetch size */

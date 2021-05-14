@@ -1496,11 +1496,9 @@ static int ispcore_offline_param_set(struct isp_sw_context *pctx,
 			hw->isp_ioctl(hw, ISP_HW_CFG_STORE_FRAME_ADDR, &pipe_in->store[path_info->slave_path_id]);
 			if (pctx->updated || pctx->sw_slice_num) {
 				if (path->spath_id == ISP_SPATH_FD)
-					hw->isp_ioctl(hw, ISP_HW_CFG_SET_PATH_THUMBSCALER,
-						&pipe_in->thumb_scaler);
+					hw->isp_ioctl(hw, ISP_HW_CFG_SET_PATH_THUMBSCALER, &pipe_in->thumb_scaler);
 				else
-					hw->isp_ioctl(hw, ISP_HW_CFG_SET_PATH_SCALER,
-						&pipe_in->scaler[path_info->slave_path_id]);
+					hw->isp_ioctl(hw, ISP_HW_CFG_SET_PATH_SCALER, &pipe_in->scaler[path_info->slave_path_id]);
 				hw->isp_ioctl(hw, ISP_HW_CFG_SET_PATH_STORE, &pipe_in->store[path_info->slave_path_id]);
 			}
 		}

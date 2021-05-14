@@ -295,6 +295,7 @@ static int ispdrv_fetch_normal_get(void *cfg_in, void *cfg_out,
 	fetch->addr_hw.addr_ch1 = fetch->addr.addr_ch1 + trim_offset[1];
 	fetch->addr_hw.addr_ch2 = fetch->addr.addr_ch2 + trim_offset[2];
 	pr_debug("fetch fmt %d, y_addr: %x, u_addr: %x\n", fetch->fetch_fmt, fetch->addr_hw.addr_ch0, fetch->addr_hw.addr_ch1);
+
 	return ret;
 }
 

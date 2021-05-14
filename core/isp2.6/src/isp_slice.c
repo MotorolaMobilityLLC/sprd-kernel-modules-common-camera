@@ -1275,13 +1275,11 @@ static void ispslice_slice_fetch_cfg(struct isp_hw_fetch_info *frm_fetch,
 	case ISP_FETCH_YVU420_2FRAME_MIPI:
 		ch_offset[0] = start_row * pitch->pitch_ch0 + (start_col >> 2) * 5 + (start_col & 0x3);
 		ch_offset[1] = (start_row >> 1) * pitch->pitch_ch1 + (start_col >> 2) * 5 + (start_col & 0x3);
-		slc_fetch->mipi_byte_rel_pos = start_col & 0x0f;
-		slc_fetch->mipi_word_num =
-			((((end_col + 1) >> 4) * 5
-			+ mipi_word_num_end[(end_col + 1) & 0x0f])
-			-(((start_col + 1) >> 4) * 5
-			+ mipi_word_num_start[(start_col + 1)
-			& 0x0f]) + 1);
+		slc_fetch->mipi_byte_rel_pos = start_col & 0xF;
+		slc_fetch->mipi_word_num = ((end_col + 1) >> 4) * 5
+			+ mipi_word_num_end[(end_col + 1) & 0xF]
+			- ((start_col + 1) >> 4) * 5
+			- mipi_word_num_start[(start_col + 1) & 0xF] + 1;
 		slc_fetch->mipi_byte_rel_pos_uv = slc_fetch->mipi_byte_rel_pos;
 		slc_fetch->mipi_word_num_uv = slc_fetch->mipi_word_num;
 		slc_fetch->is_pack = 1;
@@ -2822,10 +2820,7 @@ int isp_slice_fmcu_cmds_set(void *fmcu_handle, void *ctx)
 	return 0;
 }
 
-int isp_slice_update(
-		void *pctx_handle,
-		uint32_t ctx_id,
-		uint32_t slice_id)
+int isp_slice_update(void *pctx_handle, uint32_t ctx_id, uint32_t slice_id)
 {
 	int j;
 	struct isp_slice_desc *cur_slc;
