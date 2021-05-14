@@ -61,6 +61,31 @@ struct alg_nr3_mv_cfg {
 	int o_mv_y;
 };
 
-void alg_nr3_calc_mv(struct alg_nr3_mv_cfg *param_ptr);
+struct ImageRegion_Info {
+	uint32_t region_start_col;
+	uint32_t region_start_row;
+	uint32_t region_end_col;
+	uint32_t region_end_row;
+	uint32_t region_width;
+	uint32_t region_height;
+	int mv_x;
+	int mv_y;
+	uint32_t yuv_mode;
+	//RefImage position in full size image
+	int Y_start_x;
+	int Y_end_x;
+	int Y_start_y;
+	int Y_end_y;
+	int UV_start_x;
+	int UV_end_x;
+	int UV_start_y;
+	int UV_end_y;
+	uint32_t skip_flag;
+};
+
+
+void nr3_mv_convert_ver(struct alg_nr3_mv_cfg *param_ptr);
+int nr3d_fetch_ref_image_position(struct ImageRegion_Info* image_region_info,
+	uint32_t frame_width, uint32_t frame_height);
 
 #endif

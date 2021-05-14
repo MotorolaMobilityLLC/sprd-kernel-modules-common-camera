@@ -2619,25 +2619,25 @@ static int isphw_slice_3dnr_memctrl(void *handle, void *arg)
 	memarg = (struct isp_hw_slice_3dnr_memctrl *)arg;
 
 	addr = ISP_GET_REG(ISP_3DNR_MEM_CTRL_PARAM3);
-	cmd = ((memarg->mem_ctrl->src.h & 0x1FFF) << 16) |
-		(memarg->mem_ctrl->src.w & 0x1FFF);
+	cmd = ((memarg->mem_ctrl->src.h & 0x3FFF) << 16) |
+		(memarg->mem_ctrl->src.w & 0x3FFF);
 	FMCU_PUSH(memarg->fmcu, addr, cmd);
 
 	addr = ISP_GET_REG(ISP_3DNR_MEM_CTRL_PARAM4);
-	cmd = ((memarg->mem_ctrl->ft_y.h & 0x1FFF) << 16) |
-		(memarg->mem_ctrl->ft_y.w & 0x1FFF);
+	cmd = ((memarg->mem_ctrl->ft_y.h & 0x3FFF) << 16) |
+		(memarg->mem_ctrl->ft_y.w & 0x3FFF);
 	FMCU_PUSH(memarg->fmcu, addr, cmd);
 
 	addr = ISP_GET_REG(ISP_3DNR_MEM_CTRL_PARAM5);
-	cmd = ((memarg->mem_ctrl->ft_uv.h & 0x1FFF) << 16) |
-		(memarg->mem_ctrl->ft_uv.w & 0x1FFF);
+	cmd = ((memarg->mem_ctrl->ft_uv.h & 0x3FFF) << 16) |
+		(memarg->mem_ctrl->ft_uv.w & 0x3FFF);
 	FMCU_PUSH(memarg->fmcu, addr, cmd);
 
 	if (memarg->mem_ctrl->bypass)
 		return 0;
 	addr = ISP_GET_REG(ISP_3DNR_MEM_CTRL_PARAM1);
-	cmd = ((memarg->mem_ctrl->start_col & 0x1FFF) << 16) |
-		(memarg->mem_ctrl->start_row & 0x1FFF);
+	cmd = ((memarg->mem_ctrl->start_col & 0x3FFF) << 16) |
+		(memarg->mem_ctrl->start_row & 0x3FFF);
 	FMCU_PUSH(memarg->fmcu, addr, cmd);
 
 	addr = ISP_GET_REG(ISP_3DNR_MEM_CTRL_FT_CUR_LUMA_ADDR);
@@ -2646,6 +2646,20 @@ static int isphw_slice_3dnr_memctrl(void *handle, void *arg)
 
 	addr = ISP_GET_REG(ISP_3DNR_MEM_CTRL_FT_CUR_CHROMA_ADDR);
 	cmd = memarg->mem_ctrl->addr.addr_ch1;
+	FMCU_PUSH(memarg->fmcu, addr, cmd);
+
+	addr = ISP_GET_REG(ISP_3DNR_MEM_CTRL_PARAM0);
+	cmd = ((memarg->mem_ctrl->nr3_done_mode & 0x1) << 1) |
+		((memarg->mem_ctrl->nr3_ft_path_sel & 0x1) << 2) |
+		((memarg->mem_ctrl->yuv_8bits_flag & 0x1) << 3) |
+		((memarg->mem_ctrl->slice_info & 0x3) << 4) |
+		((memarg->mem_ctrl->back_toddr_en & 0x1) << 6) |
+		((memarg->mem_ctrl->chk_sum_clr_en & 0x1) << 9) |
+		((memarg->mem_ctrl->data_toyuv_en & 0x1) << 12) |
+		((memarg->mem_ctrl->roi_mode & 0x1) << 14) |
+		((memarg->mem_ctrl->retain_num & 0x7E) << 16) |
+		((memarg->mem_ctrl->ref_pic_flag & 0x1) << 23) |
+		((memarg->mem_ctrl->ft_max_len_sel & 0x1) << 28);
 	FMCU_PUSH(memarg->fmcu, addr, cmd);
 
 	return 0;

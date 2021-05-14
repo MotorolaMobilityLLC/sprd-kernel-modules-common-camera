@@ -221,6 +221,17 @@ struct slice_3dnr_memctrl_info {
 	uint32_t start_row;
 	uint32_t first_line_mode;
 	uint32_t last_line_mode;
+	uint32_t slice_info;
+	uint32_t chk_sum_clr_en;
+	uint32_t roi_mode;
+	uint32_t retain_num;
+	uint32_t ft_max_len_sel;
+	uint32_t ref_pic_flag;
+	uint32_t data_toyuv_en;
+	uint32_t nr3_done_mode;
+	uint32_t nr3_ft_path_sel;
+	uint32_t yuv_8bits_flag;
+	uint32_t back_toddr_en;
 	struct img_size src;
 	struct img_size ft_y;
 	struct img_size ft_uv;

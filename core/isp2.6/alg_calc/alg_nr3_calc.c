@@ -18,7 +18,7 @@
 #endif
 #define pr_fmt(fmt) "ALG_NR3_CALC: %d %d %s : "fmt, current->pid, __LINE__, __func__
 
-static void nr3_mv_convert_ver0(struct alg_nr3_mv_cfg *param_ptr)
+void nr3_mv_convert_ver(struct alg_nr3_mv_cfg *param_ptr)
 {
 	int mv_x = 0, mv_y = 0;
 	uint32_t mode_projection = 0;
@@ -86,24 +86,80 @@ static void nr3_mv_convert_ver0(struct alg_nr3_mv_cfg *param_ptr)
 	param_ptr->o_mv_y = o_mv_y;
 }
 
-void alg_nr3_calc_mv(struct alg_nr3_mv_cfg *param_ptr)
+int nr3d_fetch_ref_image_position(struct ImageRegion_Info* image_region_info,
+	uint32_t frame_width, uint32_t frame_height)
 {
-	if (!param_ptr) {
-		pr_err("fail to get valid in ptr\n");
-		return;
+	uint32_t slice_flag = 0;//0: one slice; 1:top slice; 2:bottom slice; 3:middle slice
+	uint32_t mv_flag = 0;//0: positive even; 1:positive odd; 2: negative even; 3:negative odd;
+	int mv_y_adjust_start = 0, mv_y_adjust_end = 0;
+	int x_start =0, x_end = 0, y_start = 0, y_end = 0;
+	int x_start_uv = 0, x_end_uv = 0, y_start_uv = 0, y_end_uv = 0;
+	int mv_x = 0, mv_y = 0;
+	int mv_loc_adjust[16][3] = {
+	{0, 0, 0}, {0, 0, 1}, {0, 1, 0}, {0, 0, 0},
+	{0, 1, 0}, {0, 1, 1}, {0, 1, 0}, {0, 0, 0},
+	{0, 0, 0}, {0, 0, 1}, {0, 1, 0}, {-1, 0, 1},
+	{0, 1, 0}, {0, 1, 1}, {0, 1, 0}, {-1, 0, 1}
+	};
+
+	if (!image_region_info) {
+		pr_err("fail to get valid image_region_info.\n");
+		return -EINVAL;
 	}
 
-	switch (param_ptr->mv_version) {
-		case ALG_NR3_MV_VER_0:
-			nr3_mv_convert_ver0(param_ptr);
-			break;
-		case ALG_NR3_MV_VER_1:
-			/*TBD: Just for N6pro temp*/
-			param_ptr->o_mv_x = 0;
-			param_ptr->o_mv_y = 0;
-			break;
-		default:
-			pr_err("fail to get invalid version %d\n", param_ptr->mv_version);
-			break;
+	mv_x = image_region_info->mv_x;
+	mv_y = image_region_info->mv_y;
+
+	slice_flag = ((image_region_info->region_start_row == 0 ? 0 : 1) << 1) + \
+		(image_region_info->region_end_row == (frame_height - 1) ? 0 : 1);
+	mv_flag = mv_y >= 0 ? (mv_y % 2 == 0 ? 0 : 1) : (mv_y % 2 == 0 ? 2 : 3);
+	image_region_info->skip_flag = 0; //indicator whether skip one row.
+
+	if (mv_y != 0) {
+		mv_y_adjust_start = mv_loc_adjust[slice_flag * 4 + mv_flag][0];
+		mv_y_adjust_end = mv_loc_adjust[slice_flag * 4 + mv_flag][1];
+		image_region_info->skip_flag = mv_loc_adjust[slice_flag * 4 + mv_flag][2];
 	}
+
+	//calculate the locations of the region in the image using MV information
+	x_start = image_region_info->region_start_col + mv_x;
+	x_end = image_region_info->region_width - 1 + x_start;
+	y_start = image_region_info->region_start_row + mv_y;
+	y_end = image_region_info->region_height - 1 + y_start;
+
+	if (x_start < 0)
+		x_start = 0;
+	if (x_end > (frame_width - 1))
+		x_end = frame_width - 1;
+	if (y_start < 0)
+		y_start = 0;
+	if (y_end > (frame_height - 1))
+		y_end = frame_height - 1;
+
+	x_start_uv = image_region_info->region_start_col / 2 + mv_x / 2;
+	x_end_uv = image_region_info->region_width / 2 - 1 + x_start_uv;
+	y_start_uv = image_region_info->region_start_row / 2 + mv_y / 2;
+	y_end_uv = image_region_info->region_height / 2 - 1 + y_start_uv;
+
+	if (x_start_uv < 0)
+		x_start_uv = 0;
+	if (x_end_uv > (frame_width / 2 - 1))
+		x_end_uv = frame_width / 2 - 1;
+	if (y_start_uv < 0)
+		y_start_uv = 0;
+	if (y_end_uv > (frame_height / 2 - 1))
+		y_end_uv = frame_height / 2 - 1;
+
+	//ROI location in full size image.
+	image_region_info->Y_start_x = x_start;
+	image_region_info->Y_end_x = x_end;
+	image_region_info->Y_start_y = y_start;
+	image_region_info->Y_end_y = y_end;
+
+	image_region_info->UV_start_x = x_start_uv;
+	image_region_info->UV_end_x = x_end_uv;
+	image_region_info->UV_start_y = y_start_uv;
+	image_region_info->UV_end_y = y_end_uv;
+
+	return 0;
 }

@@ -467,7 +467,6 @@ static void ispint_3dnr_all_done(enum isp_context_hw_id hw_idx, void *isp_handle
 	pctx = dev->sw_ctx[idx];
 
 	pr_debug("3dnr all done. cxt_id:%d\n", idx);
-
 }
 
 static void ispint_3dnr_shadow_done(enum isp_context_hw_id hw_idx, void *isp_handle)

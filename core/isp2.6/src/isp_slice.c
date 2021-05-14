@@ -20,6 +20,7 @@
 #include "isp_core.h"
 #include "isp_slice.h"
 #include "isp_pyr_rec.h"
+#include "alg_nr3_calc.h"
 
 #ifdef pr_fmt
 #undef pr_fmt
@@ -1998,8 +1999,9 @@ static int ispslice_3dnr_memctrl_info_cfg(
 	struct slice_cfg_input *in_ptr = (struct slice_cfg_input *)cfg_in;
 	struct isp_3dnr_ctx_desc *nr3_ctx = in_ptr->nr3_ctx;
 	struct isp_3dnr_mem_ctrl *mem_ctrl = &nr3_ctx->mem_ctrl;
-	struct isp_slice_desc *cur_slc;
-	struct slice_3dnr_memctrl_info *slc_3dnr_memctrl;
+	struct isp_slice_desc *cur_slc = NULL;
+	struct slice_3dnr_memctrl_info *slc_3dnr_memctrl = NULL;
+	struct slice_3dnr_store_info *slc_3dnr_store = NULL;
 
 	pitch_y = in_ptr->frame_in_size.w;
 	pitch_u = in_ptr->frame_in_size.w;
@@ -2008,6 +2010,7 @@ static int ispslice_3dnr_memctrl_info_cfg(
 		if (cur_slc->valid == 0)
 			continue;
 		slc_3dnr_memctrl = &cur_slc->slice_3dnr_memctrl;
+		slc_3dnr_store = &cur_slc->slice_3dnr_store;
 
 		start_col = cur_slc->slice_pos.start_col;
 		start_row = cur_slc->slice_pos.start_row;
@@ -2016,6 +2019,28 @@ static int ispslice_3dnr_memctrl_info_cfg(
 
 		slc_3dnr_memctrl->first_line_mode = 0;
 		slc_3dnr_memctrl->last_line_mode = 0;
+
+		if (slc_ctx->slice_num > 1) {
+			if (idx == 0)
+				slc_3dnr_memctrl->slice_info = 1;
+			else if (idx == slc_ctx->slice_num - 1)
+				slc_3dnr_memctrl->slice_info = 2;
+			else
+				slc_3dnr_memctrl->slice_info = 3;
+		}
+
+		slc_3dnr_memctrl->chk_sum_clr_en = 1;
+		slc_3dnr_memctrl->roi_mode = 0;
+		slc_3dnr_memctrl->retain_num = 110;
+		slc_3dnr_memctrl->ft_max_len_sel = 1;
+		slc_3dnr_memctrl->data_toyuv_en = 1;
+		slc_3dnr_memctrl->back_toddr_en = 1;
+
+		if (!nr3_ctx->blending_cnt)
+			slc_3dnr_memctrl->ref_pic_flag = 0;
+		else
+			slc_3dnr_memctrl->ref_pic_flag = 1;
+
 		slc_3dnr_memctrl->start_row = start_row;
 		slc_3dnr_memctrl->start_col = start_col;
 		slc_3dnr_memctrl->src.h = end_row - start_row + 1;
@@ -2031,12 +2056,15 @@ static int ispslice_3dnr_memctrl_info_cfg(
 			/* YUV420_2FRAME */
 			ch0_offset = start_row * pitch_y + start_col;
 			ch1_offset = ((start_row * pitch_u + 1) >> 1) + start_col;
-
-			slc_3dnr_memctrl->addr.addr_ch0 = mem_ctrl->ft_luma_addr +
-				ch0_offset;
-			slc_3dnr_memctrl->addr.addr_ch1 = mem_ctrl->ft_chroma_addr +
-				ch1_offset;
-
+			if (nr3_ctx->nr3_mv_version == ALG_NR3_MV_VER_0) {
+				slc_3dnr_memctrl->addr.addr_ch0 = mem_ctrl->ft_luma_addr + ch0_offset;
+				slc_3dnr_memctrl->addr.addr_ch1 = mem_ctrl->ft_chroma_addr + ch1_offset;
+			} else {
+				slc_3dnr_memctrl->addr.addr_ch0 = mem_ctrl->frame_addr.addr_ch0;
+				slc_3dnr_memctrl->addr.addr_ch1 = mem_ctrl->frame_addr.addr_ch1;
+				slc_3dnr_store->addr.addr_ch0 = nr3_ctx->nr3_store.st_luma_addr;
+				slc_3dnr_store->addr.addr_ch1 = nr3_ctx->nr3_store.st_chroma_addr;
+			}
 			slc_3dnr_memctrl->bypass = mem_ctrl->bypass;
 		}
 
@@ -2275,9 +2303,9 @@ static int ispslice_3dnr_store_info_cfg(
 	struct slice_cfg_input *in_ptr = (struct slice_cfg_input *)cfg_in;
 	struct isp_3dnr_ctx_desc *nr3_ctx = in_ptr->nr3_ctx;
 	struct isp_3dnr_store *nr3_store = &nr3_ctx->nr3_store;
-	struct isp_slice_desc *cur_slc;
+	struct isp_slice_desc *cur_slc = NULL;
 
-	struct slice_3dnr_store_info *slc_3dnr_store;
+	struct slice_3dnr_store_info *slc_3dnr_store = NULL;
 
 	pitch_y = in_ptr->frame_in_size.w;
 	pitch_u = in_ptr->frame_in_size.w;
@@ -2314,19 +2342,20 @@ static int ispslice_3dnr_store_info_cfg(
 		overlap_right = cur_slc->slice_overlap.overlap_right;
 		overlap_down = cur_slc->slice_overlap.overlap_down;
 
-		/* YUV420_2FRAME */
-		ch0_offset = orig_s_row * pitch_y + orig_s_col;
-		ch1_offset = ((orig_s_row * pitch_u + 1) >> 1) + orig_s_col;
-
 		slc_3dnr_store->bypass = nr3_store->st_bypass;
-		slc_3dnr_store->addr.addr_ch0 = nr3_store->st_luma_addr +
-			ch0_offset;
-		slc_3dnr_store->addr.addr_ch1 = nr3_store->st_chroma_addr +
-			ch1_offset;
+		if (nr3_ctx->nr3_mv_version == ALG_NR3_MV_VER_0) {
+			/* YUV420_2FRAME */
+			ch0_offset = orig_s_row * pitch_y + orig_s_col;
+			ch1_offset = ((orig_s_row * pitch_u + 1) >> 1) + orig_s_col;
 
-		slc_3dnr_store->size.w = orig_e_col - orig_s_col + 1;
-		slc_3dnr_store->size.h = orig_e_row - orig_s_row + 1;
+			slc_3dnr_store->addr.addr_ch0 = nr3_store->st_luma_addr +
+				ch0_offset;
+			slc_3dnr_store->addr.addr_ch1 = nr3_store->st_chroma_addr +
+				ch1_offset;
 
+			slc_3dnr_store->size.w = orig_e_col - orig_s_col + 1;
+			slc_3dnr_store->size.h = orig_e_row - orig_s_row + 1;
+		}
 		pr_debug("store w[%d], h[%d] bypass %d\n", slc_3dnr_store->size.w,
 			slc_3dnr_store->size.h, slc_3dnr_store->bypass);
 	}
@@ -2428,11 +2457,11 @@ static int ispslice_3dnr_crop_info_cfg(
 	uint32_t overlap_right = 0;
 	uint32_t overlap_down  = 0;
 
-	struct isp_slice_desc *cur_slc;
+	struct isp_slice_desc *cur_slc = NULL;
 
-	struct slice_3dnr_memctrl_info *slc_3dnr_memctrl;
-	struct slice_3dnr_store_info *slc_3dnr_store;
-	struct slice_3dnr_crop_info *slc_3dnr_crop;
+	struct slice_3dnr_memctrl_info *slc_3dnr_memctrl = NULL;
+	struct slice_3dnr_store_info *slc_3dnr_store = NULL;
+	struct slice_3dnr_crop_info *slc_3dnr_crop = NULL;
 
 	cur_slc = &slc_ctx->slices[0];
 
@@ -2459,17 +2488,19 @@ static int ispslice_3dnr_crop_info_cfg(
 		overlap_right = cur_slc->slice_overlap.overlap_right;
 		overlap_down = cur_slc->slice_overlap.overlap_down;
 
-		slc_3dnr_crop->bypass = !(overlap_left || overlap_up ||
-			overlap_right || overlap_down);
-
 		slc_3dnr_crop->src.w = slc_3dnr_memctrl->src.w;
 		slc_3dnr_crop->src.h = slc_3dnr_memctrl->src.h;
 		slc_3dnr_crop->dst.w = slc_3dnr_store->size.w;
 		slc_3dnr_crop->dst.h = slc_3dnr_store->size.h;
-		slc_3dnr_crop->start_x = overlap_left;
-		slc_3dnr_crop->start_y = overlap_up;
 
-		pr_debug("crop src.w[%d], src.h[%d], des.w[%d], des.h[%d]",
+		if (nr3_ctx->nr3_mv_version == ALG_NR3_MV_VER_0) {
+			slc_3dnr_crop->bypass = !(overlap_left || overlap_up ||
+				overlap_right || overlap_down);
+			slc_3dnr_crop->start_x = overlap_left;
+			slc_3dnr_crop->start_y = overlap_up;
+		}
+
+		pr_debug("src.w[%d], src.h[%d], des.w[%d], des.h[%d]",
 			slc_3dnr_crop->src.w, slc_3dnr_crop->src.h,
 			slc_3dnr_crop->dst.w, slc_3dnr_crop->dst.h);
 		pr_debug("ovx[%d], ovx[%d] bypass %d\n",
@@ -2480,19 +2511,333 @@ static int ispslice_3dnr_crop_info_cfg(
 	return ret;
 }
 
+int alg_nr3_memctrl_slice_info_update_ver0(struct nr3_slice *in,
+		struct nr3_slice_for_blending *out)
+{
+	uint32_t end_row = 0, end_col = 0, ft_pitch = 0;
+	int mv_x = 0, mv_y = 0;
+	uint32_t global_img_width = 0, global_img_height = 0;
+
+	if (!in || !out) {
+		pr_err("fail to get valid input ptr in %p, out %p\n", in, out);
+		return -EFAULT;
+	}
+
+	end_row = in->end_row;
+	end_col = in->end_col;
+	ft_pitch = in->cur_frame_width;
+	mv_x = in->mv_x;
+	mv_y = in->mv_y;
+	global_img_width = in->cur_frame_width;
+	global_img_height = in->cur_frame_height;
+
+	if (in->slice_num == 1) {
+		if (mv_x < 0) {
+			if ((mv_x) & 0x1) {
+				out->ft_y_width = global_img_width + mv_x + 1;
+				out->ft_uv_width = global_img_width + mv_x - 1;
+				out->src_chr_addr += 2;
+			} else {
+				out->ft_y_width = global_img_width + mv_x;
+				out->ft_uv_width = global_img_width + mv_x;
+			}
+		} else if (mv_x > 0) {
+			if ((mv_x) & 0x1) {
+				out->ft_y_width = global_img_width - mv_x + 1;
+				out->ft_uv_width = global_img_width - mv_x + 1;
+				out->src_lum_addr += mv_x;
+				out->src_chr_addr += mv_x - 1;
+			} else {
+				out->ft_y_width = global_img_width - mv_x;
+				out->ft_uv_width = global_img_width - mv_x;
+				out->src_lum_addr += mv_x;
+				out->src_chr_addr += mv_x;
+			}
+		}
+	} else { /* slice > 1 */
+		if (out->start_col == 0) {
+			if (mv_x < 0) {
+				if ((mv_x) & 0x1) {
+					out->src_chr_addr =
+						out->src_chr_addr + 2;
+				}
+			} else if (mv_x > 0) {
+				if ((mv_x) & 0x1) {
+					out->src_lum_addr = out->src_lum_addr +
+						mv_x;
+					out->src_chr_addr = out->src_chr_addr +
+						mv_x - 1;
+				} else {
+					out->src_lum_addr = out->src_lum_addr +
+						mv_x;
+					out->src_chr_addr = out->src_chr_addr +
+						mv_x;
+				}
+			}
+		} else {
+			if ((mv_x < 0) && ((mv_x) & 0x1)) {
+				out->src_lum_addr = out->src_lum_addr + mv_x;
+				out->src_chr_addr = out->src_chr_addr + (
+					mv_x / 2) * 2;
+			} else if ((mv_x > 0) && ((mv_x) & 0x1)) {
+				out->src_lum_addr = out->src_lum_addr + mv_x;
+				out->src_chr_addr = out->src_chr_addr + mv_x -
+					1;
+			} else {
+				out->src_lum_addr = out->src_lum_addr + mv_x;
+				out->src_chr_addr = out->src_chr_addr + mv_x;
+			}
+		}
+		if (out->start_col == 0) {
+			if (mv_x < 0) {
+				if ((mv_x) & 0x1) {
+					out->ft_y_width = out->ft_y_width + mv_x
+						+ 1;
+					out->ft_uv_width = out->ft_uv_width +
+						mv_x - 1;
+				} else {
+					out->ft_y_width = out->ft_y_width +
+						mv_x;
+					out->ft_uv_width = out->ft_uv_width +
+						mv_x;
+				}
+			}
+		}
+		if ((global_img_width - 1) == end_col) {
+			if (mv_x > 0) {
+				if ((mv_x) & 0x1) {
+					out->ft_y_width = out->ft_y_width -
+							mv_x + 1;
+					out->ft_uv_width = out->ft_uv_width -
+						mv_x + 1;
+				} else {
+					out->ft_y_width = out->ft_y_width -
+						mv_x;
+					out->ft_uv_width = out->ft_uv_width -
+						mv_x;
+				}
+			}
+		}
+	} /* slice_num > 1 */
+
+	if (mv_y < 0) {
+		if ((mv_y) & 0x1) {
+			out->last_line_mode = 0;
+			out->ft_uv_height = global_img_height / 2 + mv_y / 2;
+		} else{
+			out->last_line_mode = 1;
+			out->ft_uv_height = global_img_height / 2 +
+				mv_y / 2 + 1;
+		}
+		out->first_line_mode = 0;
+		out->ft_y_height = global_img_height + mv_y;
+	} else if (mv_y > 0) {
+		if ((mv_y) & 0x1) {
+			out->first_line_mode = 1;
+			out->last_line_mode = 0;
+			out->ft_y_height = global_img_height - mv_y;
+			out->ft_uv_height = global_img_height / 2 - (mv_y / 2);
+			out->src_lum_addr += ft_pitch * mv_y;
+			out->src_chr_addr += ft_pitch * (mv_y / 2);
+		} else {
+			out->ft_y_height = global_img_height - mv_y;
+			out->ft_uv_height = global_img_height / 2 - (mv_y / 2);
+			out->src_lum_addr += ft_pitch * mv_y;
+			out->src_chr_addr += ft_pitch * (mv_y / 2);
+		}
+	}
+
+	return 0;
+}
+
+int alg_nr3_memctrl_slice_info_update_ver1(struct nr3_slice *in,
+	struct nr3_slice_for_blending *out)
+{
+	uint32_t global_img_width = 0, global_img_height = 0, ft_pitch = 0;
+	struct ImageRegion_Info *image_region_info = NULL;
+
+	if (!in || !out) {
+		pr_err("fail to get valid input ptr in %p, out %p\n", in, out);
+		return -EFAULT;
+	}
+
+	out->start_col = in->start_col;
+	out->start_row = in->start_row;
+	out->src_width = in->end_col -  in->start_col + 1;
+	out->src_height = in->end_row - in->start_row + 1;
+
+	image_region_info = in->image_region_info;
+	image_region_info->mv_x = in->mv_x;
+	image_region_info->mv_y = in->mv_y;
+	image_region_info->region_start_row = in->start_row;
+	image_region_info->region_end_row = in->end_row;
+	image_region_info->region_start_col = in->start_col;
+	image_region_info->region_end_col = in->end_col;
+	image_region_info->region_width = image_region_info->region_end_col -
+		image_region_info->region_start_col + 1;
+	image_region_info->region_height= image_region_info->region_end_row -
+		image_region_info->region_start_row + 1;
+
+	global_img_width = in->cur_frame_width;
+	global_img_height = in->cur_frame_height;
+	ft_pitch = in->ft_pitch;
+
+	nr3d_fetch_ref_image_position(image_region_info, global_img_width,
+		global_img_height);//fetch position in full size image according to MV.
+
+	out->Y_start_x = image_region_info->Y_start_x;
+	out->Y_end_x = image_region_info->Y_end_x;
+	out->Y_start_y = image_region_info->Y_start_y;
+	out->Y_end_y = image_region_info->Y_end_y;
+
+	if (in->slice_num > 1 && image_region_info->mv_x > 0 && image_region_info->mv_x % 2 != 0) {
+		if (in->slice_num == 2 && in->slice_id == 0) {
+			out->Y_start_x = image_region_info->Y_start_x - 1;
+			out->Y_end_x = image_region_info->Y_end_x + 1;
+		} else if (in->slice_num == 2 && in->slice_id == 1) {
+			out->Y_start_x = image_region_info->Y_start_x - 1;
+			out->Y_end_x = image_region_info->Y_end_x;
+		} else if (in->slice_num > 2 && in->slice_id == in->slice_num - 1) {
+			out->Y_start_x = image_region_info->Y_start_x - 1;
+			out->Y_end_x = image_region_info->Y_end_x;
+		} else {
+			out->Y_start_x = image_region_info->Y_start_x - 1;
+			out->Y_end_x = image_region_info->Y_end_x + 1;
+		}
+	} else if (in->slice_num > 1 && image_region_info->mv_x < 0 && image_region_info->mv_x % 2 != 0) {
+		if (in->slice_num == 2 && in->slice_id == 0) {
+			out->Y_start_x = image_region_info->Y_start_x;
+			out->Y_end_x = image_region_info->Y_end_x + 1;
+		} else if (in->slice_num == 2 && in->slice_id == 1) {
+			out->Y_start_x = image_region_info->Y_start_x - 1;
+			out->Y_end_x = image_region_info->Y_end_x + 1;
+		} else if (in->slice_num > 2 && in->slice_id == 0) {
+			out->Y_start_x = image_region_info->Y_start_x;
+			out->Y_end_x = image_region_info->Y_end_x + 1;
+		} else {
+			out->Y_start_x = image_region_info->Y_start_x - 1;
+			out->Y_end_x = image_region_info->Y_end_x + 1;
+		}
+	} else {
+		out->Y_start_x = in->image_region_info->Y_start_x;
+		out->Y_end_x = in->image_region_info->Y_end_x;
+		out->Y_start_y = in->image_region_info->Y_start_y;
+		out->Y_end_y = in->image_region_info->Y_end_y;
+	}
+
+	if (in->slice_num == 1) {
+		if (image_region_info->mv_x < 0) {
+			out->UV_start_x = 0;
+		} else if (image_region_info->mv_x % 2 == 0) {
+			out->UV_start_x = image_region_info->mv_x >> 1;
+		} else {
+			out->UV_start_x = image_region_info->mv_x >> 1;
+		}
+		out->UV_end_x = image_region_info->UV_end_x;
+
+		if (image_region_info->mv_y < 0 && image_region_info->mv_y % 2 != 0) {
+			out->UV_start_y = 1;
+		} else if(image_region_info->mv_y < 0 && image_region_info->mv_y % 2 == 0) {
+			out->UV_start_y = 0;
+		} else {
+			out->UV_start_y = image_region_info->mv_y >> 1;
+		}
+		out->UV_end_y = image_region_info->UV_end_y;
+	} else if (in->slice_num > 1) {
+		if (image_region_info->mv_y < 0 && image_region_info->mv_y % 2 != 0) {
+			out->UV_start_x = image_region_info->UV_start_x;
+			out->UV_end_x = image_region_info->UV_end_x;
+			out->UV_start_y = image_region_info->UV_start_y + 1;
+			out->UV_end_y = image_region_info->UV_end_y;
+		} else {
+			out->UV_start_x = image_region_info->UV_start_x;
+			out->UV_end_x = image_region_info->UV_end_x;
+			out->UV_start_y = image_region_info->UV_start_y;
+			out->UV_end_y = image_region_info->UV_end_y;
+		}
+	}
+
+	if (image_region_info->mv_x < 0 && image_region_info->mv_x % 2 != 0 &&
+		in->slice_id == 0)
+		out->UV_start_x = image_region_info->UV_start_x + 1;
+
+	if (in->slice_num == 1 && image_region_info->mv_x > 0 && image_region_info->mv_x & 0x1)
+		out->Y_start_x -=1;
+
+	out->ft_y_height = out->Y_end_y - out->Y_start_y + 1;
+	out->ft_uv_height = out->UV_end_y - out->UV_start_y + 1;
+	out->ft_y_width = (out->Y_end_x - out->Y_start_x + 2) / 2 * 2;
+	out->ft_uv_width = (out->UV_end_x - out->UV_start_x + 1) * 2;
+
+	if (in->yuv_8bits_flag == 0) {
+		out->src_lum_addr += out->Y_start_y * ft_pitch +
+			out->Y_start_x * 2;
+		out->src_chr_addr += (out->UV_start_y * ft_pitch) +
+			out->UV_start_x * 2 * 2;
+		out->dst_lum_addr += (in->start_row + in->overlap_up) *
+			ft_pitch + (in->start_col + in->overlap_left) * 2;
+		out->dst_chr_addr += (((in->start_row + in->overlap_up) * ft_pitch) >> 1) +
+			(in->start_col + in->overlap_left) * 2;
+	} else {
+		out->src_lum_addr += out->Y_start_y * ft_pitch +
+			out->Y_start_x;
+		out->src_chr_addr += (out->UV_start_y * ft_pitch) +
+			out->UV_start_x * 2;
+		out->dst_lum_addr += (in->start_row + in->overlap_up) * ft_pitch +
+			(in->start_col + in->overlap_left) ;
+		out->dst_chr_addr += (((in->start_row + in->overlap_up) * ft_pitch) >> 1) +
+			(in->start_col + in->overlap_left) ;
+	}
+
+	out->dst_width = in->end_col - in->start_col +1 - in->overlap_left - in->overlap_right;
+	out->dst_height = in->end_row - in->start_row + 1 - in->overlap_up - in->overlap_down;
+	out->offset_start_x = in->overlap_left;
+	out->offset_start_y = in->overlap_up;
+
+	if ((in->overlap_left == 0) && (in->overlap_right == 0) &&
+		(in->overlap_up == 0) && (in->overlap_down == 0))
+		out->crop_bypass = 1;
+	else
+		out->crop_bypass = 0;
+
+	return 0;
+}
+
+static int alg_nr3_memctrl_slice_info_update(struct nr3_slice *nr3_fw_in,
+	struct nr3_slice_for_blending *nr3_fw_out, uint32_t nr3_mv_version)
+{
+	if (!nr3_fw_in || !nr3_fw_out) {
+		pr_err("fail to get valid in ptr\n");
+		return 0;
+	}
+
+	switch (nr3_mv_version) {
+		case ALG_NR3_MV_VER_0:
+			alg_nr3_memctrl_slice_info_update_ver0(nr3_fw_in, nr3_fw_out);
+			break;
+		case ALG_NR3_MV_VER_1:
+			alg_nr3_memctrl_slice_info_update_ver1(nr3_fw_in, nr3_fw_out);
+			break;
+		default:
+			pr_err("fail to get invalid version %d\n", nr3_mv_version);
+			break;
+	}
+	return 0;
+}
+
 static int ispslice_3dnr_memctrl_update_info_cfg(
 		void *cfg_in, struct isp_slice_context *slc_ctx)
 {
 	int ret = 0, idx = 0;
-
+	struct nr3_slice nr3_fw_in = {0};
+	struct nr3_slice_for_blending nr3_fw_out = {0};
+	struct slice_3dnr_memctrl_info *slc_3dnr_memctrl = NULL;
+	struct slice_3dnr_store_info *slc_3dnr_store = NULL;
+	struct slice_3dnr_crop_info *slc_3dnr_crop = NULL;
+	struct isp_slice_desc *cur_slc = NULL;
 	struct slice_cfg_input *in_ptr = (struct slice_cfg_input *)cfg_in;
 	struct isp_3dnr_ctx_desc *nr3_ctx = in_ptr->nr3_ctx;
-	struct isp_slice_desc *cur_slc;
-
-	struct nr3_slice nr3_fw_in;
-	struct nr3_slice_for_blending nr3_fw_out;
-
-	struct slice_3dnr_memctrl_info *slc_3dnr_memctrl;
+	uint32_t nr3_mv_version = nr3_ctx->nr3_mv_version;
 
 	memset((void *)&nr3_fw_in, 0, sizeof(nr3_fw_in));
 	memset((void *)&nr3_fw_out, 0, sizeof(nr3_fw_out));
@@ -2501,6 +2846,8 @@ static int ispslice_3dnr_memctrl_update_info_cfg(
 	nr3_fw_in.cur_frame_height = in_ptr->frame_in_size.h;
 	nr3_fw_in.mv_x = nr3_ctx->mv.mv_x;
 	nr3_fw_in.mv_y = nr3_ctx->mv.mv_y;
+	nr3_fw_in.ft_pitch = nr3_ctx->mem_ctrl.ft_pitch;
+	nr3_fw_in.yuv_8bits_flag = nr3_ctx->mem_ctrl.yuv_8bits_flag;
 
 	/* slice_num != 1, just pass current slice info */
 	nr3_fw_in.slice_num = slc_ctx->slice_num;
@@ -2515,9 +2862,18 @@ static int ispslice_3dnr_memctrl_update_info_cfg(
 			continue;
 
 		slc_3dnr_memctrl = &cur_slc->slice_3dnr_memctrl;
+		slc_3dnr_store = &cur_slc->slice_3dnr_store;
+		slc_3dnr_crop = &cur_slc->slice_3dnr_crop;
 
+		nr3_fw_in.slice_id = idx;
 		nr3_fw_in.end_col = cur_slc->slice_pos.end_col;
 		nr3_fw_in.end_row = cur_slc->slice_pos.end_row;
+		nr3_fw_in.start_row = cur_slc->slice_pos.start_row;
+		nr3_fw_in.start_col = cur_slc->slice_pos.start_col;
+		nr3_fw_in.overlap_up = cur_slc->slice_overlap.overlap_up;
+		nr3_fw_in.overlap_left = cur_slc->slice_overlap.overlap_left;
+		nr3_fw_in.overlap_down = cur_slc->slice_overlap.overlap_down;
+		nr3_fw_in.overlap_right = cur_slc->slice_overlap.overlap_right;
 		nr3_fw_out.first_line_mode = slc_3dnr_memctrl->first_line_mode;
 		nr3_fw_out.last_line_mode = slc_3dnr_memctrl->last_line_mode;
 		nr3_fw_out.src_lum_addr = slc_3dnr_memctrl->addr.addr_ch0;
@@ -2536,6 +2892,8 @@ static int ispslice_3dnr_memctrl_update_info_cfg(
 			nr3_fw_out.start_col, nr3_fw_out.start_row);
 		pr_debug("src_lum_addr[0x%x], src_chr_addr[0x%x]\n",
 			nr3_fw_out.src_lum_addr, nr3_fw_out.src_chr_addr);
+		pr_debug("dst_lum_addr[0x%x], dst_chr_addr[0x%x]\n",
+			nr3_fw_out.dst_lum_addr, nr3_fw_out.dst_chr_addr);
 		pr_debug("ft_y_width[%d], ft_y_height[%d], ft_uv_width[%d]",
 			nr3_fw_out.ft_y_width, nr3_fw_out.ft_y_height,
 			nr3_fw_out.ft_uv_width);
@@ -2543,7 +2901,7 @@ static int ispslice_3dnr_memctrl_update_info_cfg(
 			nr3_fw_out.ft_uv_height, nr3_fw_out.last_line_mode);
 		pr_debug("first_line_mode[%d]\n", nr3_fw_out.first_line_mode);
 
-		isp_3dnr_memctrl_slice_info_update(&nr3_fw_in, &nr3_fw_out);
+		alg_nr3_memctrl_slice_info_update(&nr3_fw_in, &nr3_fw_out, nr3_mv_version);
 
 		slc_3dnr_memctrl->first_line_mode = nr3_fw_out.first_line_mode;
 		slc_3dnr_memctrl->last_line_mode = nr3_fw_out.last_line_mode;
@@ -2554,6 +2912,16 @@ static int ispslice_3dnr_memctrl_update_info_cfg(
 		slc_3dnr_memctrl->ft_uv.w = nr3_fw_out.ft_uv_width;
 		slc_3dnr_memctrl->ft_uv.h = nr3_fw_out.ft_uv_height;
 
+		if (nr3_ctx->nr3_mv_version == ALG_NR3_MV_VER_1) {
+			slc_3dnr_store->addr.addr_ch0 = nr3_fw_out.dst_lum_addr;
+			slc_3dnr_store->addr.addr_ch1 = nr3_fw_out.dst_chr_addr;
+			slc_3dnr_store->size.w = nr3_fw_out.dst_width;
+			slc_3dnr_store->size.h = nr3_fw_out.dst_height;
+			slc_3dnr_crop->start_x = nr3_fw_out.offset_start_x;
+			slc_3dnr_crop->start_y = nr3_fw_out.offset_start_y;
+			slc_3dnr_crop->bypass = nr3_fw_out.crop_bypass;
+		}
+
 		pr_debug("slice_num[%d], frame_width[%d], frame_height[%d]\n",
 			nr3_fw_in.slice_num, nr3_fw_in.cur_frame_width,
 			nr3_fw_in.cur_frame_height);
@@ -2561,6 +2929,8 @@ static int ispslice_3dnr_memctrl_update_info_cfg(
 			nr3_fw_out.start_col, nr3_fw_out.start_row);
 		pr_debug("src_lum_addr[0x%x], src_chr_addr[0x%x]\n",
 			nr3_fw_out.src_lum_addr, nr3_fw_out.src_chr_addr);
+		pr_debug("dst_lum_addr[0x%x], dst_chr_addr[0x%x]\n",
+			nr3_fw_out.dst_lum_addr, nr3_fw_out.dst_chr_addr);
 		pr_debug("ft_y_width[%d], ft_y_height[%d], ft_uv_width[%d]\n",
 			nr3_fw_out.ft_y_width, nr3_fw_out.ft_y_height,
 			nr3_fw_out.ft_uv_width);

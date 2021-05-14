@@ -32,8 +32,8 @@ extern "C" {
 #define FBD_NR3_Y_HEIGHT               2
 #define FBD_NR3_BASE_ALIGN             256
 #define FBD_BAYER_HEIGHT               4
-
 #define NR3_BLEND_CNT                  5
+#define MAX_SLICE_NUM                  16
 
 enum nr3_func_type {
 	NR3_FUNC_OFF,
@@ -226,16 +226,27 @@ struct nr3_slice {
 	uint32_t overlap_up;
 	uint32_t overlap_down;
 	uint32_t slice_num;
+	uint32_t slice_id;
 	uint32_t cur_frame_width;
 	uint32_t cur_frame_height;
 	uint32_t src_lum_addr;
 	uint32_t src_chr_addr;
-	uint32_t img_id;
+	uint32_t yuv_8bits_flag;
+	uint32_t ft_pitch;
 	int mv_x;
 	int mv_y;
+	struct ImageRegion_Info image_region_info[MAX_SLICE_NUM];
 };
 
 struct nr3_slice_for_blending {
+	int Y_start_x;
+	int Y_end_x;
+	int Y_start_y;
+	int Y_end_y;
+	int UV_start_x;
+	int UV_end_x;
+	int UV_start_y;
+	int UV_end_y;
 	uint32_t start_col;
 	uint32_t start_row;
 	uint32_t src_width;
@@ -294,10 +305,9 @@ struct isp_3dnr_ctx_desc {
 	struct camera_buf *buf_info[ISP_NR3_BUF_NUM];
 	struct isp_k_block *isp_block;
 	struct isp_3dnr_ops ops;
+	struct ImageRegion_Info image_region_info[MAX_SLICE_NUM];
 };
 
-int isp_3dnr_memctrl_slice_info_update(struct nr3_slice *in,
-	struct nr3_slice_for_blending *out);
 void isp_3dnr_config_param(struct isp_3dnr_ctx_desc *ctx);
 void isp_3dnr_bypass_config(uint32_t idx);
 void *isp_3dnr_ctx_get(uint32_t idx);
