@@ -110,7 +110,7 @@ int dcam_k_nlm_block(struct dcam_dev_param *p)
 
 	nlm_info2 = &p->nlm_info2;
 	idx = p->idx;
-	in_height = p->in_size.size_x;
+	in_width = p->in_size.size_x;
 	in_height = p->in_size.size_y;
 	re_width = nlm_info2->nlm_radial_1D_center_x << 1;
 	re_height = nlm_info2->nlm_radial_1D_center_y << 1;
