@@ -141,6 +141,7 @@ struct dcam_dev_param {
 	uint32_t dcam_slice_mode;
 	uint32_t offline;
 	uint32_t frm_idx;
+	uint32_t is_high_fps;
 
 	struct dcam_dev_lsc_param lsc;
 	struct dcam_dev_blc_param blc;

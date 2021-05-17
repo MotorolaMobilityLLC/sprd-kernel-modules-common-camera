@@ -755,7 +755,7 @@ int dcam_path_fmcu_slw_store_buf_set(
 		out_frame = cam_queue_dequeue(&path->reserved_buf_queue, struct camera_frame, list);
 
 		if (out_frame == NULL) {
-			pr_err("fail to get reserve buffer\n");
+			pr_err("fail to get reserve buffer, path %d\n", path_id);
 			return -1;
 		}
 		ret = cam_queue_enqueue(&path->result_queue, &out_frame->list);
@@ -779,6 +779,7 @@ int dcam_path_fmcu_slw_store_buf_set(
 	out_frame->need_pyr_dec = 0;
 	out_frame->need_pyr_rec = 0;
 
+	slw->store_info[path_id].reg_addr = *(hw->ip_dcam[0]->store_addr_tab + path_id);
 	if (out_frame->is_compressed) {
 		struct compressed_addr fbc_addr;
 		struct img_size *size = &path->out_size;

@@ -106,7 +106,6 @@ int dcam_k_aem_win(struct dcam_dev_param *param)
 
 int dcam_k_aem_skip_num(struct dcam_dev_param *param)
 {
-	struct dcam_sw_context *sw_ctx = NULL;
 	int ret = 0;
 	uint32_t idx = 0;
 	uint32_t val = 0;
@@ -119,13 +118,10 @@ int dcam_k_aem_skip_num(struct dcam_dev_param *param)
 	 * TODO: handle skip_num not equal to slowmotion_count - 1
 	 */
 	idx = param->idx;
-	sw_ctx = param->dev;
-	if (sw_ctx->slowmotion_count) {
-		pr_info("DCAM%u AEM ignore skip_num %u, slowmotion_count %u\n",
-			sw_ctx->hw_ctx_id, param->aem.skip_num, sw_ctx->slowmotion_count);
-		return 0;
-	}
-	pr_debug("dcam%d skip_num %d", idx, param->aem.skip_num);
+	pr_debug("dcam%d skip_num %d, is high fps %d\n", idx, param->aem.skip_num, param->is_high_fps);
+
+	if (param->is_high_fps)
+		param->aem.skip_num = 0;
 
 	val = (param->aem.skip_num & 0xFF) << 4;
 	DCAM_REG_MWR(idx, DCAM_AEM_FRM_CTRL0, 0xFF0, val);

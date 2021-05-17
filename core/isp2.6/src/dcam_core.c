@@ -1268,6 +1268,10 @@ static int dcamcore_param_reconfig(
 	hw = sw_pctx->dev->hw;
 	pm->in_size = sw_pctx->cap_info.cap_size;
 
+	if (sw_pctx->slowmotion_count)
+		pm->is_high_fps = 1;
+	else
+		pm->is_high_fps = 0;
 	if (atomic_read(&pctx->user_cnt) <= 0) {
 		pr_err("context%d is not in use\n", cxt_id);
 		return -1;

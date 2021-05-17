@@ -198,6 +198,8 @@ int dcam_k_afm_skipnum(struct dcam_dev_param *param)
 		return -1;
 
 	idx = param->idx;
+	if (param->is_high_fps)
+		param->afm.skip_num = 0;
 	skip_num = param->afm.skip_num;
 
 	DCAM_REG_MWR(idx, DCAM_AFM_FRM_CTRL, 0xFF0, (skip_num & 0xFF) << 4);
