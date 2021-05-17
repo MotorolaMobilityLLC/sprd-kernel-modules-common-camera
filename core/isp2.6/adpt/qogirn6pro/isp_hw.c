@@ -14,6 +14,7 @@
 #ifdef CAM_HW_ADPT_LAYER
 
 #include <video/sprd_mmsys_pw_domain_qogirn6pro.h>
+#include <qos_struct_def.h>
 
 #define ISP_AXI_STOP_TIMEOUT           1000
 #define COEF_HOR_Y_SIZE                32
@@ -105,6 +106,49 @@ static const struct bypass_tag isp_hw_bypass_tab[] = {
 
 	{"fetch",     ISP_FETCH_PARAM0,                         0,  0},
 	{"cfg",       ISP_CFG_PAMATER,                          0,  0},
+};
+
+static struct qos_reg nic400_isp_blk_mtx_qos_list[] = {
+	//nic400_isp_blk_mtx_m0_qos_list
+	{"REGU_OT_CTRL_EN",     0x30040000, 0x00000001, 0x00000001},
+	{"REGU_OT_CTRL_AW_CFG", 0x30040004, 0xffffffff, 0x08080402},
+	{"REGU_OT_CTRL_AR_CFG", 0x30040008, 0x3f3f3f3f, 0x10101010},
+	{"REGU_OT_CTRL_Ax_CFG", 0x3004000C, 0x3f3fffff, 0x10100808},
+	{"REGU_AXQOS_GEN_EN",   0x30040060, 0x80000003, 0x00000003},
+	{"REGU_AXQOS_GEN_CFG",  0x30040064, 0x3fff3fff, 0x01110666},
+	{"REGU_URG_CNT_CFG",    0x30040068, 0x00000701, 0x00000001},
+	//nic400_isp_blk_mtx_m1_qos_list
+	{"REGU_OT_CTRL_EN",     0x30040080, 0x00000001, 0x00000001},
+	{"REGU_OT_CTRL_AW_CFG", 0x30040084, 0xffffffff, 0x02889090},
+	{"REGU_OT_CTRL_AR_CFG", 0x30040088, 0x3f3f3f3f, 0x10060402},
+	{"REGU_OT_CTRL_Ax_CFG", 0x3004008C, 0x3f3fffff, 0x10100202},
+	{"REGU_BW_NRT_W_CFG_0", 0x300400C4, 0xffffffff, 0x00cc00aa},
+	{"REGU_BW_NRT_W_CFG_1", 0x300400C8, 0x073fffff, 0x04010800},
+	{"REGU_BW_NRT_R_CFG_0", 0x300400CC, 0xffffffff, 0x01500124},
+	{"REGU_BW_NRT_R_CFG_1", 0x300400D0, 0x073fffff, 0x04080800},
+	{"REGU_AXQOS_GEN_EN",   0x300400E0, 0x80000003, 0x00000003},
+	{"REGU_AXQOS_GEN_CFG",  0x300400E4, 0x3fff3fff, 0x0a880a88},
+	{"REGU_URG_CNT_CFG",    0x300400E8, 0x00000701, 0x00000001},
+	//nic400_isp_blk_mtx_m2_qos_list
+	{"REGU_AXQOS_GEN_EN",   0x30040160, 0x80000003, 0x00000003},
+	{"REGU_AXQOS_GEN_CFG",  0x30040164, 0x3fff3fff, 0x01110666},
+	{"REGU_URG_CNT_CFG",    0x30040168, 0x00000701, 0x00000001},
+	//nic400_isp_blk_mtx_m3_qos_list
+	{"REGU_AXQOS_GEN_EN",   0x300401E0, 0x80000003, 0x00000003},
+	{"REGU_AXQOS_GEN_CFG",  0x300401E4, 0x3fff3fff, 0x01110666},
+	{"REGU_URG_CNT_CFG",    0x300401E8, 0x00000701, 0x00000001},
+};
+
+static struct qos_reg glb_rf_isp_qos_list[] = {
+
+	{"MM_ISP_BLK_M0_LPC_CTRL", 0x3000005C, 0x00010000, 0x00000000},
+	{"MM_ISP_BLK_M0_LPC_CTRL", 0x3000005C, 0x00010000, 0x00010000},
+	{"MM_ISP_BLK_M1_LPC_CTRL", 0x30000060, 0x00010000, 0x00000000},
+	{"MM_ISP_BLK_M1_LPC_CTRL", 0x30000060, 0x00010000, 0x00010000},
+	{"MM_ISP_BLK_M2_LPC_CTRL", 0x30000064, 0x00010000, 0x00000000},
+	{"MM_ISP_BLK_M2_LPC_CTRL", 0x30000064, 0x00010000, 0x00010000},
+	{"MM_ISP_BLK_M3_LPC_CTRL", 0x30000068, 0x00010000, 0x00000000},
+	{"MM_ISP_BLK_M3_LPC_CTRL", 0x30000068, 0x00010000, 0x00010000},
 };
 
 static uint32_t isphw_ap_fmcu_reg_get(struct isp_fmcu_ctx_desc *fmcu, uint32_t reg)
@@ -867,12 +911,40 @@ static int isphw_cfg_map_info_get(void *handle, void *arg)
 	return 0;
 }
 
+void isphw_qos_set(void)
+{
+	int i, length_mtx,length_list;
+	void __iomem *addr;
+	uint32_t reg_val, temp;
+
+	length_mtx = sizeof(nic400_isp_blk_mtx_qos_list) /
+		sizeof(nic400_isp_blk_mtx_qos_list[0]);
+	length_list = sizeof(glb_rf_isp_qos_list) /
+		sizeof(glb_rf_isp_qos_list[0]);
+
+	for(i = 0; i < length_mtx; i++) {
+		addr = ioremap(nic400_isp_blk_mtx_qos_list[i].base_addr, 4);
+		temp = readl_relaxed(addr);
+		reg_val = (temp & (~nic400_isp_blk_mtx_qos_list[i].mask_value))
+			| nic400_isp_blk_mtx_qos_list[i].set_value;
+		writel_relaxed(reg_val, addr);
+		iounmap(addr);
+	}
+
+	for(i = 0; i < length_list; i++) {
+		addr = ioremap(glb_rf_isp_qos_list[i].base_addr, 4);
+		temp = readl_relaxed(addr);
+		reg_val = (temp & (~glb_rf_isp_qos_list[i].mask_value))
+			| glb_rf_isp_qos_list[i].set_value;
+		writel_relaxed(reg_val, addr);
+		iounmap(addr);
+	}
+}
+
 static int isphw_default_param_set(void *handle, void *arg)
 {
 	uint32_t idx = 0;
 	uint32_t bypass = 1;
-	uint32_t wqos_val = 0;
-	uint32_t rqos_val = 0;
 	uint32_t val = 0;
 	struct isp_hw_default_param *param = NULL;
 	struct cam_hw_info *hw = NULL;
@@ -891,6 +963,7 @@ static int isphw_default_param_set(void *handle, void *arg)
 	}
 
 isp_hw_para:
+/*
 	wqos_val = (0x1 << 13) | (0x0 << 12) | (0x4 << 8) |
 			((hw->soc_isp->awqos_high & 0xF) << 4) |
 			(hw->soc_isp->awqos_low & 0xF);
@@ -899,6 +972,8 @@ isp_hw_para:
 			(hw->soc_isp->arqos_low & 0xF);
 	ISP_HREG_MWR(ISP_AXI_ARBITER_WQOS, 0x37FF, wqos_val);
 	ISP_HREG_MWR(ISP_AXI_ARBITER_RQOS, 0x1FF, rqos_val);
+*/
+	isphw_qos_set();
 	ISP_HREG_WR(ISP_CORE_PMU_EN, 0xFFFF0000);
 	ISP_HREG_MWR(ISP_AXI_ISOLATION, BIT_0, 0);
 	ISP_HREG_MWR(ISP_ARBITER_ENDIAN0, BIT_0 | BIT_1, 0);

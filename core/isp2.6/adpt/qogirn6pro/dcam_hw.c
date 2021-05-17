@@ -14,6 +14,7 @@
 #ifdef CAM_HW_ADPT_LAYER
 
 #include <video/sprd_mmsys_pw_domain_qogirn6pro.h>
+#include <qos_struct_def.h>
 
 #define DCAMX_STOP_TIMEOUT             2000
 #define DCAM_AXI_STOP_TIMEOUT          2000
@@ -42,6 +43,29 @@ static uint32_t dcam_fbc_store_base[DCAM_FBC_PATH_NUM] = {
 	DCAM_FBC_RAW_BASE,
 	DCAM_FBC_RAW_BASE,
 };
+
+static struct qos_reg nic400_dcam_blk_mtx_qos_list[] = {
+	//nic400_dcam_blk_mtx_m0_qos_list
+	{"REGU_OT_CTRL_AW_CFG", 0x30060004, 0xffffffff, 0x08010101},
+	{"REGU_OT_CTRL_AR_CFG", 0x30060008, 0x3f3f3f3f, 0x08080808},
+	{"REGU_OT_CTRL_Ax_CFG", 0x3006000C, 0x3f3fffff, 0x10100808},
+	{"REGU_AXQOS_GEN_CFG",	0x30060064, 0x3fff3fff, 0x0dda0aaa},
+	{"REGU_URG_CNT_CFG",	0x30060068, 0x00000701, 0x00000001},
+	//nic400_dcam_blk_mtx_m1_qos_list
+	{"REGU_OT_CTRL_AW_CFG", 0x30060084, 0xffffffff, 0x08010101},
+	{"REGU_OT_CTRL_AR_CFG", 0x30060088, 0x3f3f3f3f, 0x08080808},
+	{"REGU_OT_CTRL_Ax_CFG", 0x3006008C, 0x3f3fffff, 0x10100808},
+	{"REGU_AXQOS_GEN_CFG",	0x300600E4, 0x3fff3fff, 0x0dda0aaa},
+	{"REGU_URG_CNT_CFG",	0x300600E8, 0x00000701, 0x00000001},
+	};
+
+static struct qos_reg glb_rf_dcam_qos_list[] = {
+
+	{"MM_DCAM_BLK_M0_LPC_CTRL", 0x30060074, 0x00010000, 0x00000000},
+	{"MM_DCAM_BLK_M0_LPC_CTRL", 0x30060074, 0x00010000, 0x00010000},
+	{"MM_DCAM_BLK_M1_LPC_CTRL", 0x30060078, 0x00010000, 0x00000000},
+	{"MM_DCAM_BLK_M1_LPC_CTRL", 0x30060078, 0x00010000, 0x00010000},
+	};
 
 static int dcamhw_clk_eb(void *handle, void *arg)
 {
@@ -297,6 +321,40 @@ static int dcamhw_axi_init(void *handle, void *arg)
 
 static int dcamhw_qos_set(void *handle, void *arg)
 {
+	int i, length_mtx,length_list;
+	void __iomem *addr;
+	uint32_t reg_val, temp;
+
+	if (!handle) {
+		pr_err("fail to get invalid handle\n");
+		return -EFAULT;
+	}
+
+	length_mtx = sizeof(nic400_dcam_blk_mtx_qos_list) /
+		sizeof(nic400_dcam_blk_mtx_qos_list[0]);
+	length_list = sizeof(glb_rf_dcam_qos_list) /
+		sizeof(glb_rf_dcam_qos_list[0]);
+
+	for(i = 0; i < length_mtx; i++) {
+		addr = ioremap(nic400_dcam_blk_mtx_qos_list[i].base_addr, 4);
+		temp = readl_relaxed(addr);
+		reg_val = (temp & (~nic400_dcam_blk_mtx_qos_list[i].mask_value))
+			| nic400_dcam_blk_mtx_qos_list[i].set_value;
+		writel_relaxed(reg_val, addr);
+		iounmap(addr);
+	}
+
+	for(i = 0; i < length_list; i++) {
+		addr = ioremap(glb_rf_dcam_qos_list[i].base_addr, 4);
+		temp = readl_relaxed(addr);
+		reg_val = (temp & (~glb_rf_dcam_qos_list[i].mask_value))
+			| glb_rf_dcam_qos_list[i].set_value;
+		writel_relaxed(reg_val, addr);
+		iounmap(addr);
+	}
+	return 0;
+}
+/*
 	uint32_t reg_val = 0;
 	struct cam_hw_info *hw = NULL;
 	struct cam_hw_soc_info *soc = NULL;
@@ -324,7 +382,7 @@ static int dcamhw_qos_set(void *handle, void *arg)
 
 	return 0;
 }
-
+*/
 static int dcamhw_start(void *handle, void *arg)
 {
 	int ret = 0;
