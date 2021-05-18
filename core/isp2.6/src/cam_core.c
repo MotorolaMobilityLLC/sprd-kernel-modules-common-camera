@@ -656,21 +656,26 @@ static int camcore_resframe_set(struct camera_module *module)
 	struct camera_frame *pframe = NULL;
 	struct camera_frame *pframe1;
 	struct dcam_sw_context *dcam_sw_ctx = NULL;
+	struct sprd_img_mipi_if *mipi = NULL;
 
+	mipi = &module->cam_uinfo.sensor_if.if_spec.mipi;
 	for (i = 0; i < CAM_CH_MAX; i++) {
 		ch = &module->channel[i];
 		if (ch->enable) {
 			if (ch->ch_uinfo.dst_fmt != IMG_PIX_FMT_GREY)
 				out_size = ch->ch_uinfo.dst_size.w *ch->ch_uinfo.dst_size.h * 3 / 2;
 			else
-				out_size = cal_sprd_raw_pitch(ch->ch_uinfo.dst_size.w, module->cam_uinfo.sensor_if.if_spec.mipi.is_loose)
+				out_size = cal_sprd_raw_pitch(ch->ch_uinfo.dst_size.w, mipi->is_loose)
 					* ch->ch_uinfo.dst_size.h;
 
 			if (ch->ch_uinfo.sn_fmt != IMG_PIX_FMT_GREY)
 				in_size = ch->ch_uinfo.src_size.w *ch->ch_uinfo.src_size.h * 3 / 2;
-			else
-				in_size = cal_sprd_raw_pitch(ch->ch_uinfo.src_size.w, module->cam_uinfo.sensor_if.if_spec.mipi.is_loose)
+			else if (ch->dcam_out_fmt == DCAM_STORE_RAW_BASE)
+				in_size = cal_sprd_raw_pitch(ch->ch_uinfo.src_size.w, mipi->is_loose)
 					* ch->ch_uinfo.src_size.h;
+			else if ((ch->dcam_out_fmt == DCAM_STORE_YUV420) || (ch->dcam_out_fmt == DCAM_STORE_YVU420))
+				in_size = cal_sprd_yuv_pitch(ch->ch_uinfo.src_size.w, mipi->bits_per_pxl, !mipi->is_loose)
+					* ch->ch_uinfo.src_size.h * 3 / 2;
 
 			max_size = max3(max_size, out_size, in_size);
 			pr_debug("cam%d, ch %d, max_size = %d, %d, %d\n", module->idx, i, max_size, in_size, out_size);
