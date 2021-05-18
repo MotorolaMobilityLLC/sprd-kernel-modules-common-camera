@@ -1492,6 +1492,8 @@ static int isphw_fetch_set(void *handle, void *arg)
 
 	ISP_REG_MWR(idx, ISP_FETCH_PARAM, BIT_0, 0);
 	ISP_REG_MWR(idx, ISP_FETCH_PARAM, (0xF << 4), fetch->fetch_fmt << 4);
+	if (fetch->fetch_fmt == ISP_FETCH_FULL_RGB10)
+		ISP_REG_MWR(idx, ISP_DISPATCH_LINE_DLY1, BIT_30, 1 << 30);
 	ISP_REG_WR(idx, ISP_FETCH_MEM_SLICE_SIZE,
 			fetch->in_trim.size_x | (fetch->in_trim.size_y << 16));
 	if (fetch->sec_mode == SEC_SPACE_PRIORITY) {
@@ -2083,6 +2085,8 @@ static int isphw_subblock_cfg(void *handle, void *arg)
 
 	ISP_REG_WR(idx, ISP_DISPATCH_DLY,  0x253C);
 	ISP_REG_WR(idx, ISP_DISPATCH_LINE_DLY1,  0x8280001C);
+	if (fetch->fetch_fmt == ISP_FETCH_FULL_RGB10)
+		ISP_REG_MWR(idx, ISP_DISPATCH_LINE_DLY1, BIT_30, 1 << 30);
 	ISP_REG_WR(idx, ISP_DISPATCH_PIPE_BUF_CTRL_CH0,  0x64043C);
 	ISP_REG_WR(idx, ISP_DISPATCH_CH0_SIZE,
 				fetch->in_trim.size_x | (fetch->in_trim.size_y << 16));
