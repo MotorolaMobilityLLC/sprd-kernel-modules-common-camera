@@ -42,6 +42,7 @@ uint32_t g_isp_bypass[ISP_CONTEXT_SW_NUM] = { 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 int g_dbg_iommu_mode = IOMMU_AUTO;
 int g_dbg_set_iommu_mode = IOMMU_AUTO;
 uint32_t g_pyr_dec_online_bypass = 0;
+uint32_t g_dcam_raw_src = PROCESS_RAW_SRC_SEL;
 
 extern atomic_t s_dcam_opened[DCAM_SW_CONTEXT_MAX];
 extern struct isp_pipe_dev *s_isp_dev;
@@ -525,6 +526,70 @@ static const struct file_operations pyr_dec_online_ops = {
 	.write = camdebugger_pyr_dec_bypass,
 };
 
+static ssize_t camdebugger_dcam_raw_src_read(struct file *filp,
+	char __user *buffer, size_t count, loff_t *ppos)
+{
+	char buf[16] = {0};
+
+	if (g_dcam_raw_src == ORI_RAW_SRC_SEL)
+		snprintf(buf, sizeof(buf), "%s\n", "sensor");
+	else if (g_dcam_raw_src == PROCESS_RAW_SRC_SEL)
+		snprintf(buf, sizeof(buf), "%s\n", "rrgb");
+	else if (g_dcam_raw_src == LSC_RAW_SRC_SEL)
+		snprintf(buf, sizeof(buf), "%s\n", "lsc");
+	else if (g_dcam_raw_src == BPC_RAW_SRC_SEL)
+		snprintf(buf, sizeof(buf), "%s\n", "bpc");
+	else if (g_dcam_raw_src == NLM_RAW_SRC_SEL)
+		snprintf(buf, sizeof(buf), "%s\n", "nlm");
+	else
+		snprintf(buf, sizeof(buf), "%s\n", "wrong");
+
+	return simple_read_from_buffer(buffer, count, ppos, buf, strlen(buf));
+}
+
+static ssize_t camdebugger_dcam_raw_src_set(struct file *filp,
+	const char __user *buffer, size_t count, loff_t *ppos)
+{
+	int ret = 0;
+	char msg[8] = {0};
+	uint32_t val = 0;
+
+	if (count > 7)
+		return -EINVAL;
+
+	ret = copy_from_user(msg, (void __user *)buffer, count);
+	if (ret) {
+		pr_err("fail to copy_from_user\n");
+		return -EFAULT;
+	}
+
+	msg[count - 1] = '\0';
+	if (strcmp(msg, "sensor") == 0)
+		val = ORI_RAW_SRC_SEL;
+	else if (strcmp(msg, "rrgb") == 0)
+		val = PROCESS_RAW_SRC_SEL;
+	else if (strcmp(msg, "lsc") == 0)
+		val = LSC_RAW_SRC_SEL;
+	else if (strcmp(msg, "bpc") == 0)
+		val = BPC_RAW_SRC_SEL;
+	else if (strcmp(msg, "nlm") == 0)
+		val = NLM_RAW_SRC_SEL;
+	else
+		val = PROCESS_RAW_SRC_SEL;
+
+	g_dcam_raw_src = val;
+	pr_info("set dcam raw src %u\n", g_dcam_raw_src);
+
+	return count;
+}
+
+static const struct file_operations dcam_raw_src_ops = {
+	.owner = THIS_MODULE,
+	.open = simple_open,
+	.read = camdebugger_dcam_raw_src_read,
+	.write = camdebugger_dcam_raw_src_set,
+};
+
 static int camdebugger_replace_image_read(struct seq_file *s,
 		void *unused)
 {
@@ -710,6 +775,9 @@ static int camdebugger_dcam_init(struct camera_debugger *debugger)
 	if (!debugfs_create_file("pyr_dec_bypass", 0664,
 		pd, debugger, &pyr_dec_online_ops))
 		ret |= BIT(12);
+	if (!debugfs_create_file("dcam_raw_src", 0664,
+		pd, debugger, &dcam_raw_src_ops))
+		ret |= BIT(13);
 	mutex_init(&g_dbg_dump.dump_lock);
 
 	entry = debugfs_create_file("replace_image", 0644, pd,

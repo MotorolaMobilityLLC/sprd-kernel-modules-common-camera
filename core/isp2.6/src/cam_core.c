@@ -5693,7 +5693,10 @@ static int camcore_raw_pre_proc(
 		memcpy(&ch_raw_path_desc, &ch_desc, sizeof(struct dcam_path_cfg_param));
 		ch_raw_path_desc.dcam_out_fmt = DCAM_STORE_RAW_BASE;
 		ch_raw_path_desc.is_raw = 0;
-		ch_raw_path_desc.raw_src = BPC_RAW_SRC_SEL;
+		if ((g_dcam_raw_src >= ORI_RAW_SRC_SEL) && (g_dcam_raw_src < MAX_RAW_SRC_SEL))
+			ch_raw_path_desc.raw_src = g_dcam_raw_src;
+		else
+			ch_raw_path_desc.raw_src = PROCESS_RAW_SRC_SEL;
 		ret = module->dcam_dev_handle->dcam_pipe_ops->cfg_path(sw_ctx,
 			DCAM_PATH_CFG_BASE, DCAM_PATH_RAW, &ch_raw_path_desc);
 		ret = module->dcam_dev_handle->dcam_pipe_ops->cfg_path(sw_ctx,
