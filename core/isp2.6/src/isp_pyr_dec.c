@@ -500,7 +500,10 @@ static int isppyrdec_offline_get(struct isp_dec_pipe_dev *dev, uint32_t idx)
 			slc_pyr_dec->hor_padding_num = 0;
 		}
 		slc_pyr_dec->dispatch_dly_width_num = 80;
-		slc_pyr_dec->dispatch_dly_height_num = 20;
+		slc_pyr_dec->dispatch_dly_height_num = 80;
+		if (cur_slc->slice_fetch.size.w <= 40 || cur_slc->slice_fetch.size.h <= 32)
+			slc_pyr_dec->dispatch_dly_height_num = 256;
+
 		if (idx == 0) {
 			slc_pyr_dec->dispatch_dly_width_num = slc_pyr_dec->hor_padding_num + 20;
 			slc_pyr_dec->dispatch_dly_height_num = slc_pyr_dec->ver_padding_num + 20;

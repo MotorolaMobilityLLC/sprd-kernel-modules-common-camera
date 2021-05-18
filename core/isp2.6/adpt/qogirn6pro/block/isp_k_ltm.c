@@ -94,7 +94,8 @@ static void isp_ltm_config_hists(uint32_t idx,
 static void isp_ltm_config_map(uint32_t idx,
 	enum isp_ltm_region ltm_id, struct isp_ltm_map *map)
 {
-	unsigned int val;
+	unsigned int val = 0;
+	unsigned int fetch_wait_line = 0, fetch_wait_en = 0;
 
 	switch (ltm_id) {
 	case LTM_RGB:
@@ -111,8 +112,11 @@ static void isp_ltm_config_map(uint32_t idx,
 	if (map->bypass)
 		return;
 
-	val = ((map->fetch_wait_line & 0x1) << 4) |
-		((map->fetch_wait_en & 0x1) << 3) |
+	fetch_wait_line = 1;
+	fetch_wait_en = 1;
+
+	val = ((fetch_wait_line & 0x1) << 4) |
+		((fetch_wait_en & 0x1) << 3) |
 		((map->hist_error_en & 0x1) << 2) |
 		((map->burst8_en & 0x1) << 1) |
 		(map->bypass & 0x1);
