@@ -579,62 +579,65 @@ static int cppdrv_scale_addr_set(
 			return -1;
 		}
 	}
-	memcpy(p->iommu_src.mfd, cfg_parm->input_addr.mfd,
-		sizeof(cfg_parm->input_addr.mfd));
-	memcpy(p->iommu_dst.mfd, cfg_parm->output_addr.mfd,
-		sizeof(cfg_parm->output_addr.mfd));
-	if (1 == bp_support){
-		if (p->bp_en == 1)
-			memcpy(p->iommu_dst_bp.mfd, cfg_parm->bp_output_addr.mfd,
-				sizeof(cfg_parm->bp_output_addr.mfd));
-	}
-	ret = cppdrv_get_sg_table(&p->iommu_src);
-	if (ret) {
-		pr_err("fail to get cpp src sg table\n");
-		return -1;
-	}
-	p->iommu_src.offset[0] = cfg_parm->input_addr.y;
-	p->iommu_src.offset[1] = cfg_parm->input_addr.u;
-	p->iommu_src.offset[2] = cfg_parm->input_addr.v;
-	ret = cppdrv_get_addr(&p->iommu_src);
-	if (ret) {
-		pr_err("fail to get cpp src addr\n");
-		return -1;
-	}
 
-	ret = cppdrv_get_sg_table(&p->iommu_dst);
-	if (ret) {
-		pr_err("fail to get cpp dst sg table\n");
-		cppdrv_free_addr(&p->iommu_src);
-		return ret;
-	}
-	p->iommu_dst.offset[0] = cfg_parm->output_addr.y;
-	p->iommu_dst.offset[1] = cfg_parm->output_addr.u;
-	p->iommu_dst.offset[2] = cfg_parm->output_addr.v;
-	ret = cppdrv_get_addr(&p->iommu_dst);
-	if (ret) {
-		pr_err("fail to get cpp dst addr\n");
-		cppdrv_free_addr(&p->iommu_src);
-		return ret;
-	}
-	if (1 == bp_support){
-		if (p->bp_en == 1) {
-			ret = cppdrv_get_sg_table(&p->iommu_dst_bp);
-			if (ret) {
-				pr_err("fail to get cpp dst sg table\n");
-				cppdrv_free_addr(&p->iommu_src);
-				cppdrv_free_addr(&p->iommu_dst);
-				return ret;
-			}
-			p->iommu_dst_bp.offset[0] = cfg_parm->bp_output_addr.y;
-			p->iommu_dst_bp.offset[1] = cfg_parm->bp_output_addr.u;
-			p->iommu_dst_bp.offset[2] = cfg_parm->bp_output_addr.v;
-			ret = cppdrv_get_addr(&p->iommu_dst_bp);
-			if (ret) {
-				pr_err("fail to get cpp dst addr\n");
-				cppdrv_free_addr(&p->iommu_src);
-				cppdrv_free_addr(&p->iommu_dst);
-				return ret;
+	if (cfg_parm->slice_param.output.slice_count == cfg_parm->slice_param_1.output.slice_count) {
+		memcpy(p->iommu_src.mfd, cfg_parm->input_addr.mfd,
+			sizeof(cfg_parm->input_addr.mfd));
+		memcpy(p->iommu_dst.mfd, cfg_parm->output_addr.mfd,
+			sizeof(cfg_parm->output_addr.mfd));
+		if (1 == bp_support){
+			if (p->bp_en == 1)
+				memcpy(p->iommu_dst_bp.mfd, cfg_parm->bp_output_addr.mfd,
+					sizeof(cfg_parm->bp_output_addr.mfd));
+		}
+		ret = cppdrv_get_sg_table(&p->iommu_src);
+		if (ret) {
+			pr_err("fail to get cpp src sg table\n");
+			return -1;
+		}
+		p->iommu_src.offset[0] = cfg_parm->input_addr.y;
+		p->iommu_src.offset[1] = cfg_parm->input_addr.u;
+		p->iommu_src.offset[2] = cfg_parm->input_addr.v;
+		ret = cppdrv_get_addr(&p->iommu_src);
+		if (ret) {
+			pr_err("fail to get cpp src addr\n");
+			return -1;
+		}
+
+		ret = cppdrv_get_sg_table(&p->iommu_dst);
+		if (ret) {
+			pr_err("fail to get cpp dst sg table\n");
+			cppdrv_free_addr(&p->iommu_src);
+			return ret;
+		}
+		p->iommu_dst.offset[0] = cfg_parm->output_addr.y;
+		p->iommu_dst.offset[1] = cfg_parm->output_addr.u;
+		p->iommu_dst.offset[2] = cfg_parm->output_addr.v;
+		ret = cppdrv_get_addr(&p->iommu_dst);
+		if (ret) {
+			pr_err("fail to get cpp dst addr\n");
+			cppdrv_free_addr(&p->iommu_src);
+			return ret;
+		}
+		if (1 == bp_support){
+			if (p->bp_en == 1) {
+				ret = cppdrv_get_sg_table(&p->iommu_dst_bp);
+				if (ret) {
+					pr_err("fail to get cpp dst sg table\n");
+					cppdrv_free_addr(&p->iommu_src);
+					cppdrv_free_addr(&p->iommu_dst);
+					return ret;
+				}
+				p->iommu_dst_bp.offset[0] = cfg_parm->bp_output_addr.y;
+				p->iommu_dst_bp.offset[1] = cfg_parm->bp_output_addr.u;
+				p->iommu_dst_bp.offset[2] = cfg_parm->bp_output_addr.v;
+				ret = cppdrv_get_addr(&p->iommu_dst_bp);
+				if (ret) {
+					pr_err("fail to get cpp dst addr\n");
+					cppdrv_free_addr(&p->iommu_src);
+					cppdrv_free_addr(&p->iommu_dst);
+					return ret;
+				}
 			}
 		}
 	}

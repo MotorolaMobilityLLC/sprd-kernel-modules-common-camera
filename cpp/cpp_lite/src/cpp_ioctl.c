@@ -456,6 +456,7 @@ static int cppcore_ioctl_start_scale(struct cpp_device *dev,
 		ret = -EFAULT;
 		goto start_scal_exit;
 	}
+	sc_parm->slice_param.output.slice_count = sc_parm->slice_param_1.output.slice_count;
 	do {
 		if (cppif->hw_info->ip_cpp->slice_support==1) {
 			ret =cppif->cppdrv_ops->ioctl(CPP_DRV_SCL_CFG_PARAM_SET, cppif, sc_parm);
