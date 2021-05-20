@@ -715,6 +715,7 @@ static int camcore_resframe_set(struct camera_module *module)
 				for (j = 0; j < 3; j++)
 					pframe1->buf.size[j] = max_size;
 				ret = module->dcam_dev_handle->dcam_pipe_ops->cfg_path(dcam_sw_ctx, cmd, ch->dcam_path_id, pframe1);
+
 				if (ret) {
 					pr_err("fail to cfg path on cam%d, ch %d\n", module->idx, i);
 					cam_buf_ionbuf_put(&pframe1->buf);
@@ -2367,7 +2368,7 @@ static int camcore_isp_callback(enum isp_cb_type type, void *param, void *priv_d
 				}
 			}
 
-			if ((channel->aux_dcam_path_id == DCAM_PATH_BIN)
+			if (((channel->aux_dcam_path_id == DCAM_PATH_BIN) || (channel->aux_dcam_path_id == DCAM_PATH_FULL))
 				&& (module->cam_uinfo.is_4in1 || module->cam_uinfo.dcam_slice_mode > 0)) {
 				if (pframe->buf.type == CAM_BUF_USER) {
 					/* 4in1, lowlux capture, use dcam0
@@ -2380,15 +2381,9 @@ static int camcore_isp_callback(enum isp_cb_type type, void *param, void *priv_d
 						pframe);
 				} else {
 					/* alloced by kernel, bin path output buffer*/
-					if (module->cam_uinfo.is_4in1)
-						ret = module->dcam_dev_handle->dcam_pipe_ops->cfg_path(dcam_sw_ctx,
+					ret = module->dcam_dev_handle->dcam_pipe_ops->cfg_path(dcam_sw_aux_ctx,
 							DCAM_PATH_CFG_OUTPUT_BUF,
-							DCAM_PATH_BIN,
-							pframe);
-					else
-						ret = module->dcam_dev_handle->dcam_pipe_ops->cfg_path(dcam_sw_aux_ctx,
-							DCAM_PATH_CFG_OUTPUT_BUF,
-							DCAM_PATH_BIN,
+							channel->aux_dcam_path_id,
 							pframe);
 				}
 			} else {
@@ -6440,6 +6435,7 @@ static int camcore_offline_proc(void *param)
 	return ret;
 
 return_buf:
+	pframe = cam_queue_dequeue(&pctx->proc_queue, struct camera_frame, list);
 	cam_buf_iommu_unmap(&pframe->buf);
 	pctx->dcam_cb_func(DCAM_CB_RET_SRC_BUF, pframe, pctx->cb_priv_data);
 input_err:
