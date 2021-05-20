@@ -1321,15 +1321,17 @@ static int dcamhw_path_size_update(void *handle, void *arg)
 					sizearg->in_trim.size_x;
 		DCAM_REG_WR(idx, DCAM_SCL0_TRIM0_SIZE, reg_val);
 
+		DCAM_REG_MWR(idx, DCAM_SCL0_CFG, BIT_6, 0 << 6);
+		DCAM_REG_MWR(idx, DCAM_SCL0_CFG, BIT_9, 0 << 9);
+		DCAM_REG_MWR(idx, DCAM_SCL0_CFG, BIT_0, 0);
+
+		pr_debug("scaler_sel %d\n", sizearg->scaler_sel);
 		if (sizearg->scaler_sel == DCAM_SCALER_BYPASS) {
-			DCAM_REG_MWR(idx, DCAM_SCL0_CFG, BIT_6, 0 << 6);
-			DCAM_REG_MWR(idx, DCAM_SCL0_CFG, BIT_9, 0 << 9);
 			DCAM_REG_MWR(idx, DCAM_SCL0_CFG, BIT_1, BIT_1);
+			if ((sizearg->in_size.w == sizearg->out_size.w) && (sizearg->in_size.h == sizearg->out_size.h))
+				DCAM_REG_MWR(idx, DCAM_SCL0_CFG, BIT_0, 1);
 		} else if (sizearg->scaler_sel == DCAM_SCALER_BY_YUVSCALER) {
-			DCAM_REG_MWR(idx, DCAM_SCL0_CFG, BIT_6, 0 << 6);
-			DCAM_REG_MWR(idx, DCAM_SCL0_CFG, BIT_9, 0 << 9);
 			DCAM_REG_MWR(idx, DCAM_SCL0_CFG, BIT_1, 0 << 1);
-			DCAM_REG_MWR(idx, DCAM_SCL0_CFG, BIT_0, 0);
 
 			DCAM_REG_MWR(idx, DCAM_SCL0_CFG, 0x1f << 11, sizearg->scaler_info->scaler_uv_ver_tap << 11);
 			DCAM_REG_MWR(idx, DCAM_SCL0_CFG, 0xf << 16, sizearg->scaler_info->scaler_y_ver_tap << 16);
@@ -1370,11 +1372,6 @@ static int dcamhw_path_size_update(void *handle, void *arg)
 		DCAM_REG_WR(idx, DCAM_SCL0_TRIM1_START, 0);
 		reg_val = (sizearg->out_size.h << 16) | sizearg->out_size.w;
 		DCAM_REG_WR(idx, DCAM_SCL0_TRIM1_SIZE, reg_val);
-
-		if ((sizearg->in_size.w == sizearg->out_size.w) &&
-			(sizearg->in_size.h == sizearg->out_size.h) &&
-			(sizearg->scaler_sel == DCAM_SCALER_BYPASS))
-			DCAM_REG_MWR(idx, DCAM_SCL0_CFG, BIT_0, 1);
 
 		DCAM_REG_MWR(idx, DCAM_SCL0_BWD_PARA, BIT_0, 1);
 
