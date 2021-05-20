@@ -1329,7 +1329,7 @@ static int dcamcore_path_get(
 	path = &pctx->path[path_id];
 	if (atomic_inc_return(&path->user_cnt) > 1) {
 		atomic_dec(&path->user_cnt);
-		pr_err("fail to get a valid param, dcam%d path %d in use.\n", pctx->hw_ctx_id, path_id);
+		pr_err("fail to get a valid param, dcam%d path %d in use.\n", pctx->sw_ctx_id, path_id);
 		return -EFAULT;
 	}
 
@@ -1949,6 +1949,7 @@ static int dcamcore_dev_stop(void *dcam_handle, enum dcam_stop_cmd pause)
 	struct dcam_dev_param *pm;
 	struct dcam_path_desc *path = NULL;
 	struct cam_hw_info *hw = NULL;
+	uint32_t hw_ctx_id = DCAM_HW_CONTEXT_MAX;
 
 	if (!dcam_handle) {
 		pr_err("fail to get valid input ptr\n");
@@ -1956,6 +1957,7 @@ static int dcamcore_dev_stop(void *dcam_handle, enum dcam_stop_cmd pause)
 	}
 	pctx = (struct dcam_sw_context *)dcam_handle;
 
+	hw_ctx_id = pctx->hw_ctx_id;
 	hw = pctx->dev->hw;
 	state = atomic_read(&pctx->state);
 	if ((unlikely(state == STATE_INIT) || unlikely(state == STATE_IDLE)) &&
@@ -1964,11 +1966,11 @@ static int dcamcore_dev_stop(void *dcam_handle, enum dcam_stop_cmd pause)
 		return -EINVAL;
 	}
 
-	if (pctx->hw_ctx_id != DCAM_HW_CONTEXT_MAX) {
-		hw->dcam_ioctl(hw, DCAM_HW_CFG_STOP, &pctx->hw_ctx_id);
-		hw->dcam_ioctl(hw, DCAM_HW_CFG_RESET, &pctx->hw_ctx_id);
-		dcam_int_tracker_dump(pctx->hw_ctx_id);
-		dcam_int_tracker_reset(pctx->hw_ctx_id);
+	if (hw_ctx_id != DCAM_HW_CONTEXT_MAX) {
+		hw->dcam_ioctl(hw, DCAM_HW_CFG_STOP, &hw_ctx_id);
+		hw->dcam_ioctl(hw, DCAM_HW_CFG_RESET, &hw_ctx_id);
+		dcam_int_tracker_dump(hw_ctx_id);
+		dcam_int_tracker_reset(hw_ctx_id);
 	}
 
 	atomic_set(&pctx->state, STATE_IDLE);
@@ -1995,7 +1997,7 @@ static int dcamcore_dev_stop(void *dcam_handle, enum dcam_stop_cmd pause)
 		pctx->is_3dnr = pctx->is_4in1 = 0;
 	} else if (pause == DCAM_PAUSE_ONLINE) {
 		pm->frm_idx = pctx->base_fid + pctx->frame_index;
-		pr_info("dcam%d online pause fram id %d %d, base_fid %d, new %d\n", pctx->hw_ctx_id,
+		pr_info("dcam%d online pause fram id %d %d, base_fid %d, new %d\n", hw_ctx_id,
 			pctx->frame_index, pctx->index_to_set, pctx->base_fid, pm->frm_idx);
 	} else {
 		pr_info("offline stopped %d\n", pause);
@@ -2010,7 +2012,7 @@ static int dcamcore_dev_stop(void *dcam_handle, enum dcam_stop_cmd pause)
 		path = &pctx->path[i];
 		atomic_set(&path->is_shutoff, 0);
 	}
-	pr_info("stop dcam pipe dev[%d] state = %d!\n", pctx->hw_ctx_id, atomic_read(&pctx->state));
+	pr_info("stop dcam pipe dev[%d] state = %d!\n", hw_ctx_id, atomic_read(&pctx->state));
 	return ret;
 }
 

@@ -42,6 +42,8 @@ static int load_vst_ivst_buf(struct dcam_dev_param *p)
 		return 0;
 
 	idx = p->idx;
+	if (idx >= DCAM_HW_CONTEXT_MAX)
+		return 0;
 	nlm_info = &p->nlm_info2;
 
 	DCAM_REG_MWR(idx, DCAM_BUF_CTRL, BIT_2 | BIT_1, 3 << 1);
@@ -110,6 +112,8 @@ int dcam_k_nlm_block(struct dcam_dev_param *p)
 
 	nlm_info2 = &p->nlm_info2;
 	idx = p->idx;
+	if (idx >= DCAM_HW_CONTEXT_MAX)
+		return 0;
 	in_width = p->in_size.size_x;
 	in_height = p->in_size.size_y;
 	re_width = nlm_info2->nlm_radial_1D_center_x << 1;
@@ -264,6 +268,8 @@ int dcam_k_nlm_imblance(struct dcam_dev_param *p)
 
 	imblance_info = &p->nlm_imblance2;
 	idx = p->idx;
+	if (idx >= DCAM_HW_CONTEXT_MAX)
+		return 0;
 	in_width = p->in_size.size_x;
 	in_height = p->in_size.size_y;
 	re_height = imblance_info->imblance_radial_1D_center_y << 1;

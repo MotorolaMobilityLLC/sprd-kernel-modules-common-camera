@@ -1274,6 +1274,8 @@ static int dcamhw_path_size_update(void *handle, void *arg)
 
 	sizearg = (struct dcam_hw_path_size *)arg;
 	idx = sizearg->idx;
+	if (idx >= DCAM_HW_CONTEXT_MAX)
+		return 0;
 	pr_debug("sizearg->path_id:%d in_size:%d %d, out_size:%d %d in_trim:%d %d %d %d\n", sizearg->path_id,
 		sizearg->in_size.w, sizearg->in_size.h, sizearg->out_size.w, sizearg->out_size.h,
 		sizearg->in_trim.start_x, sizearg->in_trim.start_y, sizearg->in_trim.size_x, sizearg->in_trim.size_y);
@@ -2126,6 +2128,9 @@ static int dcamhw_set_store_addr(void *handle, void *arg)
 
 	path_id = param->path_id;
 	idx = param->idx;
+	if (idx >= DCAM_HW_CONTEXT_MAX)
+		return 0;
+
 	addr = *(hw->ip_dcam[idx]->store_addr_tab + path_id);
 	switch (path_id) {
 	case DCAM_PATH_BIN:
@@ -2477,6 +2482,9 @@ static int dcamhw_dec_store_addr(void *handle, void *arg)
 
 	param = (struct dcam_hw_dec_store_cfg *)arg;
 	idx = param->idx;
+	if (idx >= DCAM_HW_CONTEXT_MAX)
+		return 0;
+
 	base = reg_base[param->cur_layer];
 
 	DCAM_REG_WR(idx, base + DCAM_STORE_DEC_SLICE_Y_ADDR, param->addr[0]);
@@ -2504,6 +2512,9 @@ static int dcamhw_dec_size_update(void *handle, void *arg)
 
 	param = (struct dcam_hw_dec_store_cfg *)arg;
 	idx = param->idx;
+	if (idx >= DCAM_HW_CONTEXT_MAX)
+		return 0;
+
 	base = reg_base[param->cur_layer];
 
 	DCAM_REG_MWR(idx, base + DCAM_STORE_DEC_PARAM, BIT_0, param->bypass);

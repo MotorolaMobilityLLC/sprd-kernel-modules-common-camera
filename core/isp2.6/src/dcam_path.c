@@ -892,6 +892,9 @@ int dcam_path_store_frm_set(void *dcam_ctx_handle,
 	path_id = path->path_id;
 	dcam_sw_ctx->auto_cpy_id |= *(hw->ip_dcam[idx]->path_ctrl_id_tab + path_id);
 
+	if (idx >= DCAM_HW_CONTEXT_MAX)
+		return 0;
+
 	if (dcam_sw_ctx->cap_info.format == DCAM_CAP_MODE_YUV)
 		dcam_sw_ctx->auto_cpy_id |= *(hw->ip_dcam[idx]->path_ctrl_id_tab + DCAM_PATH_BIN);
 

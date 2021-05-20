@@ -163,7 +163,7 @@ static void dcamint_frame_dispatch(struct dcam_hw_context *dcam_hw_ctx,
 {
 	struct timespec cur_ts;
 	struct dcam_sw_context *sw_ctx = NULL;
-	if (unlikely(!dcam_hw_ctx || !frame || !is_path_id(path_id)))
+	if (unlikely(!dcam_hw_ctx || !frame || !is_path_id(path_id) || !dcam_hw_ctx->sw_ctx))
 		return;
 	sw_ctx = dcam_hw_ctx->sw_ctx;
 	ktime_get_ts(&cur_ts);
@@ -650,6 +650,11 @@ static void dcamint_sensor_eof(void *param)
 	struct dcam_hw_context *dcam_hw_ctx = (struct dcam_hw_context *)param;
 	struct dcam_sw_context *sw_ctx = dcam_hw_ctx->sw_ctx;
 
+	if (!sw_ctx) {
+		pr_err("fail to get valid input sw_ctx\n");
+		return;
+	}
+
 	if (sw_ctx->offline) {
 		pr_debug("dcam%d offline\n", dcam_hw_ctx->hw_ctx_id);
 		return;
@@ -673,6 +678,11 @@ static void dcamint_raw_path_done(void *param)
 	struct camera_frame *frame = NULL;
 	struct dcam_path_desc *path = NULL;
 	struct dcam_path_desc *path_bin = NULL;
+
+	if (!sw_ctx) {
+		pr_err("fail to get valid input sw_ctx\n");
+		return;
+	}
 
 	path = &sw_ctx->path[DCAM_PATH_RAW];
 	path_bin = &sw_ctx->path[DCAM_PATH_BIN];
@@ -717,6 +727,11 @@ static void dcamint_full_path_done(void *param)
 	struct camera_frame *frame = NULL;
 	struct dcam_path_desc *path = NULL;
 
+	if (!sw_ctx) {
+		pr_err("fail to get valid input sw_ctx\n");
+		return;
+	}
+
 	path = &sw_ctx->path[DCAM_PATH_FULL];
 	pr_debug("capture path done\n");
 	if ((frame = dcamint_frame_prepare(dcam_hw_ctx, DCAM_PATH_FULL))) {
@@ -751,6 +766,11 @@ static void dcamint_bin_path_done(void *param)
 	int i = 0, cnt = 0;
 
 	pr_debug("preview path done hw id:%d\n", dcam_hw_ctx->hw_ctx_id);
+
+	if (!sw_ctx) {
+		pr_warn("hw ctx %d already unbind\n", dcam_hw_ctx->hw_ctx_id);
+		return;
+	}
 	path = &sw_ctx->path[DCAM_PATH_BIN];
 	path_raw = &sw_ctx->path[DCAM_PATH_RAW];
 	cnt = atomic_read(&path->set_frm_cnt);
@@ -964,6 +984,11 @@ static void dcamint_dec_done(void *param)
 	struct camera_frame *frame = NULL;
 
 	pr_debug("dcamint_dec_done\n");
+	if (!sw_ctx) {
+		pr_err("fail to get valid input sw_ctx\n");
+		return;
+	}
+
 	sw_ctx->dec_all_done = 1;
 	if (sw_ctx->dec_layer0_done) {
 		if ((frame = dcamint_frame_prepare(dcam_hw_ctx, DCAM_PATH_BIN)))
