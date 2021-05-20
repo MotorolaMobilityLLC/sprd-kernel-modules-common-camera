@@ -126,6 +126,8 @@ enum isp_offline_param_valid {
 enum isp_ioctrl_cmd {
 	ISP_IOCTL_CFG_STATIS_BUF,
 	ISP_IOCTL_CFG_SEC,
+	ISP_IOCTL_CFG_PYR_REC_NUM,
+	ISP_IOCTL_CFG_MAX,
 };
 
 enum isp_stream_state {
@@ -164,7 +166,6 @@ struct isp_ctx_base_desc {
 	uint32_t mode_ltm;
 	uint32_t ltm_rgb;
 	uint32_t ltm_yuv;
-	uint32_t pyr_layer_num;
 	uint32_t mode_gtm;
 	uint32_t gtm_rgb;
 	uint32_t in_fmt;
@@ -286,6 +287,36 @@ static inline uint32_t isp_cal_pyramid_dec_size(uint32_t w, uint32_t h)
 	total_h = total_h+ h / 2 + h / 4 + h / 8 + h / 16 + h / 32;
 
 	return total_w * total_h * 3;
+}
+
+static inline uint32_t isp_rec_small_layer_w(uint32_t w, uint32_t layer_num)
+{
+	uint32_t width = 0, i = 0;
+	uint32_t w_align = PYR_DEC_HEIGHT_ALIGN;
+
+	for (i = 0; i < layer_num; i++)
+		w_align *= 2;
+
+	width = ALIGN(w, w_align);
+	for (i = 0; i < layer_num; i++)
+		width = width / 2;
+
+	return width;
+}
+
+static inline uint32_t isp_rec_small_layer_h(uint32_t h, uint32_t layer_num)
+{
+	uint32_t height = 0, i = 0;
+	uint32_t h_align = PYR_DEC_WIDTH_ALIGN;
+
+	for (i = 0; i < layer_num; i++)
+		h_align *= 2;
+
+	height = ALIGN(h, h_align);
+	for (i = 0; i < layer_num; i++)
+		height = height / 2;
+
+	return height;
 }
 
 struct isp_offline_param {

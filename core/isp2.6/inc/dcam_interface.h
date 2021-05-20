@@ -130,6 +130,8 @@ enum dcam_ioctrl_cmd {
 	DCAM_IOCTL_GET_PATH_RECT,
 	DCAM_IOCTL_CFG_STATIS_BUF_SKIP,
 	DCAM_IOCTL_CFG_GTM_UPDATE,
+	DCAM_IOCTL_CFG_PYR_DEC_EN,
+	DCAM_IOCTL_CFG_MAX,
 };
 
 /*
@@ -170,7 +172,6 @@ struct dcam_path_cfg_param {
 	uint32_t dcam_out_fmt;
 	uint32_t dcam_out_bits;
 	uint32_t is_4in1;
-	uint32_t is_pyr_rec;
 	uint32_t frm_deci;
 	uint32_t frm_skip;
 	uint32_t force_rds;

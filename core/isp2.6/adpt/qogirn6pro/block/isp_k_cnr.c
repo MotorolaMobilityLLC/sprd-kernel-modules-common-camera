@@ -23,48 +23,38 @@
 #ifdef pr_fmt
 #undef pr_fmt
 #endif
-#define pr_fmt(fmt) "YNR: %d %d %s : "\
-	fmt, current->pid, __LINE__, __func__
+#define pr_fmt(fmt) "CNR: %d %d %s : "fmt, current->pid, __LINE__, __func__
 
-static int isp_k_ynr_block(struct isp_io_param *param,
+static int isp_k_cnr_block(struct isp_io_param *param,
 	struct isp_k_block *isp_k_param, uint32_t idx)
 {
 	int ret = 0;
-	struct isp_dev_ynr_info_v3 *ynr = NULL;
+	struct isp_dev_cnr_h_info *cnr = NULL;
 
-	ynr = &isp_k_param->ynr_info_v3;
-	ret = copy_from_user((void *)ynr,
-			param->property_param,
-			sizeof(struct isp_dev_ynr_info_v3));
+	cnr = &isp_k_param->cnr_info;
+	ret = copy_from_user((void *)cnr, param->property_param,
+			sizeof(struct isp_dev_cnr_h_info));
 	if (ret != 0) {
 		pr_err("fail to copy from user, ret = %d\n", ret);
 		return ret;
 	}
-	if (g_isp_bypass[idx] & (1 << _EISP_YNR))
-		ynr->bypass = 1;
 
 	return ret;
 }
 
-int isp_k_cfg_ynr(struct isp_io_param *param,
+int isp_k_cfg_cnr(struct isp_io_param *param,
 	struct isp_k_block *isp_k_param, uint32_t idx)
 {
 	int ret = 0;
 
 	switch (param->property) {
-	case ISP_PRO_YNR_BLOCK:
-		ret = isp_k_ynr_block(param, isp_k_param, idx);
+	case ISP_PRO_CNR_H_BLOCK:
+		ret = isp_k_cnr_block(param, isp_k_param, idx);
 		break;
 	default:
-		pr_err("fail to support cmd id = %d\n",
-			param->property);
+		pr_err("fail to support cmd id = %d\n", param->property);
 		break;
 	}
 
 	return ret;
-}
-
-int isp_k_update_ynr(void *handle)
-{
-	return 0;
 }

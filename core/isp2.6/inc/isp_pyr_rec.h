@@ -79,6 +79,7 @@ struct isp_rec_ynr_info {
 	struct img_size img;
 	struct img_size start;
 	struct rec_ynr_layer_cfg ynr_cfg_layer[5];
+	struct isp_dev_ynr_info_v3 *pyr_ynr;
 };
 
 struct isp_rec_cnr_info {
@@ -100,6 +101,7 @@ struct isp_rec_cnr_info {
 	uint32_t uv_l0_weight[72];
 	uint32_t uv_l1_weight[72];
 	uint32_t uv_l2_weight[72];
+	struct isp_dev_cnr_h_info *pyr_cnr;
 };
 
 struct isp_rec_store_info {
@@ -178,6 +180,8 @@ struct isp_pyr_rec_in {
 	struct img_addr in_addr;
 	struct img_addr out_addr;
 	uint32_t slice_num[ISP_PYR_DEC_LAYER_NUM];
+	struct isp_dev_ynr_info_v3 *pyr_ynr;
+	struct isp_dev_cnr_h_info *pyr_cnr;
 };
 
 struct isp_rec_slice_desc {
@@ -200,6 +204,7 @@ struct isp_rec_ctx_desc {
 	uint32_t slice_num;
 	uint32_t dewarp_eb;
 	uint32_t cur_slice_id;
+	uint32_t cur_layer;
 	enum isp_work_mode wmode;
 	struct img_addr fetch_addr[PYR_REC_ADDR_NUM];
 	struct img_addr store_addr[ISP_PYR_DEC_LAYER_NUM];

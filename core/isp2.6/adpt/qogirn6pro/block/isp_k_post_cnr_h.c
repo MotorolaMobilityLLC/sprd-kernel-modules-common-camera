@@ -79,36 +79,31 @@ static int isp_k_post_cnr_block(struct isp_io_param *param,
 			((param_post_cnr_h->weight_y[0][4 * i + 1] & 0xFF) << 8) |
 			(param_post_cnr_h->weight_y[0][4 * i] & 0xFF);
 		ISP_REG_WR(idx, ISP_YUV_CNR_Y_L0_WHT0 + 4 * i, val);
-	}
-	for (i = 0; i < 18; i++) {
+
 		val = ((param_post_cnr_h->weight_y[1][4 * i + 3] & 0xFF) << 24) |
 			((param_post_cnr_h->weight_y[1][4 * i + 2] & 0xFF) << 16) |
 			((param_post_cnr_h->weight_y[1][4 * i + 1] & 0xFF) << 8) |
 			(param_post_cnr_h->weight_y[1][4 * i] & 0xFF);
 		ISP_REG_WR(idx, ISP_YUV_CNR_Y_L1_WHT0 + 4*i, val);
-	}
-	for (i = 0; i < 18; i++) {
+
 		val = ((param_post_cnr_h->weight_y[2][4 * i + 3] & 0xFF) << 24) |
 			((param_post_cnr_h->weight_y[2][4 * i + 2] & 0xFF) << 16) |
 			((param_post_cnr_h->weight_y[2][4 * i + 1] & 0xFF) << 8) |
 			(param_post_cnr_h->weight_y[2][4 * i] & 0xFF);
 		ISP_REG_WR(idx, ISP_YUV_CNR_Y_L2_WHT0 + 4 * i, val);
-	}
-	for (i = 0; i < 18; i++) {
+
 		val = ((param_post_cnr_h->weight_uv[0][4 * i + 3] & 0xFF) << 24) |
 			((param_post_cnr_h->weight_uv[0][4 * i + 2] & 0xFF) << 16) |
 			((param_post_cnr_h->weight_uv[0][4 * i + 1] & 0xFF) << 8) |
 			(param_post_cnr_h->weight_uv[0][4 * i] & 0xFF);
 		ISP_REG_WR(idx, ISP_YUV_CNR_UV_L0_WHT0 + 4 * i, val);
-	}
-	for (i = 0; i < 18; i++) {
+
 		val = ((param_post_cnr_h->weight_uv[1][4 * i + 3] & 0xFF) << 24) |
 			((param_post_cnr_h->weight_uv[1][4 * i + 2] & 0xFF) << 16) |
 			((param_post_cnr_h->weight_uv[1][4 * i + 1] & 0xFF) << 8) |
 			(param_post_cnr_h->weight_uv[1][4 * i] & 0xFF);
 		ISP_REG_WR(idx, ISP_YUV_CNR_UV_L1_WHT0 + 4 * i, val);
-	}
-	for (i = 0; i < 18; i++) {
+
 		val = ((param_post_cnr_h->weight_uv[2][4 * i + 3] & 0xFF) << 24) |
 			((param_post_cnr_h->weight_uv[2][4 * i + 2] & 0xFF) << 16) |
 			((param_post_cnr_h->weight_uv[2][4 * i + 1] & 0xFF) << 8) |

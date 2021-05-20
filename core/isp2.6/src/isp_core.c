@@ -385,6 +385,8 @@ static int ispcore_rec_frame_process(struct isp_sw_context *pctx,
 	cfg_in.in_trim = pipe_in->fetch.in_trim;
 	cfg_in.in_addr = pipe_in->fetch.addr;
 	cfg_in.out_addr = pipe_in->store[ISP_SPATH_CP].store.addr;
+	cfg_in.pyr_ynr = &pctx->isp_k_param.ynr_info_v3;
+	cfg_in.pyr_cnr = &pctx->isp_k_param.cnr_info;
 
 	if (rec_ctx && pframe->need_pyr_rec) {
 		rec_ctx->ops.cfg_param(rec_ctx, ISP_REC_CFG_WORK_MODE, &pctx->dev->wmode);
@@ -923,6 +925,8 @@ static int ispcore_init_dyn_ov_param(struct slice_cfg_input *slc_cfg_in, struct 
 			i, slc_cfg_in->calc_dyn_ov.path_en[i], atomic_read(&path->user_cnt));
 	}
 
+	slc_cfg_in->calc_dyn_ov.pyr_layer_num = pctx->pipe_src.pyr_layer_num;
+	slc_cfg_in->calc_dyn_ov.need_dewarping = pctx->pipe_src.is_dewarping;
 	slc_cfg_in->calc_dyn_ov.src.w = pctx->pipe_src.src.w;
 	slc_cfg_in->calc_dyn_ov.src.h = pctx->pipe_src.src.h;
 	slc_cfg_in->calc_dyn_ov.crop.start_x = pctx->pipe_src.crop.start_x;
@@ -931,6 +935,7 @@ static int ispcore_init_dyn_ov_param(struct slice_cfg_input *slc_cfg_in, struct 
 	slc_cfg_in->calc_dyn_ov.crop.size_y = pctx->pipe_src.crop.size_y;
 	slc_cfg_in->calc_dyn_ov.path_scaler[ISP_SPATH_CP] = &pctx->pipe_info.scaler[ISP_SPATH_CP];
 	slc_cfg_in->calc_dyn_ov.path_scaler[ISP_SPATH_VID] = &pctx->pipe_info.scaler[ISP_SPATH_VID];
+	slc_cfg_in->calc_dyn_ov.thumb_scaler = &pctx->pipe_info.thumb_scaler;
 	slc_cfg_in->calc_dyn_ov.store[ISP_SPATH_CP] = &pctx->pipe_info.store[ISP_SPATH_CP].store;
 	slc_cfg_in->calc_dyn_ov.store[ISP_SPATH_VID] = &pctx->pipe_info.store[ISP_SPATH_VID].store;
 
@@ -1702,6 +1707,9 @@ static int ispcore_offline_frame_start(void *ctx)
 			fmcu->ops->ctx_reset(fmcu);
 	}
 
+	/* temp change for pyr rec open, when rec slice proc ok, need to delete */
+	if (tmp.multi_slice)
+		pframe->need_pyr_rec = 0;
 	ispcore_3dnr_frame_process(pctx, pframe);
 	ispcore_ltm_frame_process(pctx, pframe);
 	ispcore_rec_frame_process(pctx, pctx_hw, pframe);
@@ -2868,9 +2876,9 @@ static int ispcore_statis_buffer_cfg(
 	int32_t mfd;
 	uint32_t offset;
 	struct isp_pipe_dev *dev = NULL;
-	struct isp_sw_context *pctx;
+	struct isp_sw_context *pctx = NULL;
 	struct camera_buf *ion_buf = NULL;
-	struct camera_frame *pframe;
+	struct camera_frame *pframe = NULL;
 
 	if (!isp_handle || ctx_id < 0 || ctx_id >= ISP_CONTEXT_SW_NUM) {
 		pr_info("isp_handle=%p, cxt_id=%d\n", isp_handle, ctx_id);
@@ -2973,12 +2981,16 @@ static int ispcore_ioctl(void *isp_handle, int ctx_id,
 {
 	int ret = 0;
 	struct isp_pipe_dev *dev = NULL;
+	struct isp_sw_context *pctx = NULL;
+	struct isp_rec_ctx_desc *rec_ctx = NULL;
 
 	if (!isp_handle) {
 		pr_err("fail to get valid input ptr\n");
 		return -EFAULT;
 	}
 	dev = (struct isp_pipe_dev *)isp_handle;
+	pctx = dev->sw_ctx[ctx_id];
+	rec_ctx = (struct isp_rec_ctx_desc *)pctx->rec_handle;
 
 	switch (cmd) {
 	case ISP_IOCTL_CFG_STATIS_BUF:
@@ -2986,6 +2998,12 @@ static int ispcore_ioctl(void *isp_handle, int ctx_id,
 		break;
 	case ISP_IOCTL_CFG_SEC:
 		ret = ispcore_sec_cfg(dev, param);
+		break;
+	case ISP_IOCTL_CFG_PYR_REC_NUM:
+		pctx->uinfo.pyr_layer_num = *(uint32_t *)param;
+		if (rec_ctx)
+			rec_ctx->ops.cfg_param(rec_ctx, ISP_REC_CFG_LAYER_NUM,
+				&pctx->uinfo.pyr_layer_num);
 		break;
 	default:
 		pr_err("fail to get known cmd: %d\n", cmd);

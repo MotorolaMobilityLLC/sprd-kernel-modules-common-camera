@@ -91,7 +91,6 @@ int isp_path_comn_uinfo_set(struct isp_sw_context *pctx, void *param)
 	uinfo->data_in_bits = cfg_in->data_in_bits;
 	if (cfg_in->data_in_bits == DCAM_STORE_8_BIT)
 		uinfo->is_pack = 0;
-	uinfo->pyr_layer_num = cfg_in->pyr_layer_num;
 	if (rgb_ltm) {
 		rgb_ltm->ltm_ops.core_ops.cfg_param(rgb_ltm, ISP_LTM_CFG_EB, &uinfo->ltm_rgb);
 		rgb_ltm->ltm_ops.core_ops.cfg_param(rgb_ltm, ISP_LTM_CFG_MODE, &uinfo->mode_ltm);
@@ -102,10 +101,8 @@ int isp_path_comn_uinfo_set(struct isp_sw_context *pctx, void *param)
 		yuv_ltm->ltm_ops.core_ops.cfg_param(yuv_ltm, ISP_LTM_CFG_MODE, &uinfo->mode_ltm);
 		yuv_ltm->ltm_ops.sync_ops.set_status(yuv_ltm, 1);
 	}
-	if (rec_ctx) {
-		rec_ctx->ops.cfg_param(rec_ctx, ISP_REC_CFG_LAYER_NUM, &uinfo->pyr_layer_num);
+	if (rec_ctx)
 		rec_ctx->ops.cfg_param(rec_ctx, ISP_REC_CFG_DEWARPING_EB, &uinfo->is_dewarping);
-	}
 	if (rgb_gtm) {
 		rgb_gtm->gtm_ops.cfg_param(rgb_gtm, ISP_GTM_CFG_EB, &uinfo->gtm_rgb);
 		rgb_gtm->gtm_ops.cfg_param(rgb_gtm, ISP_GTM_CFG_MODE, &uinfo->mode_gtm);

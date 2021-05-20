@@ -119,34 +119,21 @@ int dcam_k_dump_pm(void *pdst, void *psrc)
 
 int init_isp_pm(struct isp_k_block *isp_k_param)
 {
-	isp_k_param->ynr_info_v2_base.bypass = 1;
-	isp_k_param->nr3_info_base.blend.bypass = 1;
-	isp_k_param->lut3d_info.rgb3dlut_bypass = 1;
+	isp_k_param->ynr_info_v3.bypass = 1;
+	isp_k_param->cnr_info.bypass = 1;
 	isp_k_param->post_cnr_h_info.bypass = 1;
-
-	/* sharkl5pro only */
-	isp_k_param->grgb_info.bypass = 1;
-	isp_k_param->bchs_info.bchs_bypass = 1;
+	isp_k_param->uvd_info_v1.bypass = 1;
+	isp_k_param->nr3_info_base_v1.blend.bypass = 1;
+	isp_k_param->nr3d_info_v1.blend.bypass = 1;
 	isp_k_param->ltm_rgb_info.ltm_stat.bypass = 1;
 	isp_k_param->ltm_rgb_info.ltm_map.bypass = 1;
-	isp_k_param->ltm_yuv_info.ltm_stat.bypass = 1;
-	isp_k_param->ltm_yuv_info.ltm_map.bypass = 1;
-
-	/* sharkl5pro diff */
-	isp_k_param->pstrz_info_v2.bypass = 1;
-	isp_k_param->uvd_info_v2.bypass = 1;
-	isp_k_param->ynr_info_v2.bypass = 1;
-
-	/* common */
-	isp_k_param->nr3d_info.blend.bypass = 1;
-	isp_k_param->pre_cdn_info.bypass = 1;
-	isp_k_param->cdn_info.bypass = 1;
-	isp_k_param->post_cdn_info.bypass = 1;
-	isp_k_param->edge_info_v3.bypass = 1;
-	isp_k_param->hsv_info.bypass = 1;
-	isp_k_param->iircnr_info.bypass = 1;
+	isp_k_param->hsv_info3.hsv_bypass = 1;
+	isp_k_param->lut3d_info.rgb3dlut_bypass = 1;
 	isp_k_param->ygamma_info.bypass = 1;
+	isp_k_param->edge_info_v3.bypass = 1;
+	isp_k_param->cdn_info.bypass = 1;
 	isp_k_param->yrandom_info.bypass = 1;
+	isp_k_param->bchs_info.bchs_bypass = 1;
 	isp_k_param->nf_info.yrandom_bypass = 1;
 
 	return 0;

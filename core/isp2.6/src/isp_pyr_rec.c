@@ -531,6 +531,8 @@ static int isppyrrec_pipe_proc(void *handle, void *param)
 	/* calc multi layer pyramid dec input addr & size */
 	pitch = isppyrrec_pitch_get(in_ptr->in_fmt, in_ptr->src.w);
 	size = pitch * in_ptr->src.h;
+	rec_ctx->rec_ynr.pyr_ynr = in_ptr->pyr_ynr;
+	rec_ctx->rec_cnr.pyr_cnr = in_ptr->pyr_cnr;
 	rec_ctx->in_fmt = in_ptr->in_fmt;
 	rec_ctx->out_fmt = in_ptr->in_fmt;
 	rec_ctx->fetch_addr[0] = in_ptr->in_addr;
@@ -588,8 +590,8 @@ static int isppyrrec_pipe_proc(void *handle, void *param)
 	rec_ctx->hw->isp_ioctl(rec_ctx->hw, ISP_HW_CFG_K_BLK_FUNC_GET, &rec_slice_func);
 	for (i = layer_num; i > 0; i--) {
 		/* pyrrec layers frame should proc as one slice */
-		if (in_ptr->slice_num[i] == 0) {
-			in_ptr->slice_num[i] = 1;
+		if (in_ptr->slice_num[i - 1] == 0) {
+			in_ptr->slice_num[i - 1] = 1;
 			cur_slc->slice_fetch0_pos.start_row = 0;
 			cur_slc->slice_fetch0_pos.start_col = 0;
 			cur_slc->slice_fetch0_pos.end_row = rec_ctx->pyr_layer_size[i].h - 1;
@@ -600,7 +602,7 @@ static int isppyrrec_pipe_proc(void *handle, void *param)
 			cur_slc->slice_fetch1_pos.end_col = rec_ctx->pyr_layer_size[i - 1].w - 1;
 			cur_slc->slice_store_pos = cur_slc->slice_fetch1_pos;
 		}
-		rec_ctx->slice_num = in_ptr->slice_num[i];
+		rec_ctx->slice_num = in_ptr->slice_num[i - 1];
 		ret = isppyrrec_block_cfg_get(rec_ctx, i);
 		if (ret) {
 			pr_err("fail to get isp pyr_rec block_cfg\n");
@@ -610,6 +612,7 @@ static int isppyrrec_pipe_proc(void *handle, void *param)
 		if (i == layer_num && rec_share_func.k_blk_func)
 			rec_share_func.k_blk_func(rec_ctx);
 
+		rec_ctx->cur_layer = i - 1;
 		if (rec_frame_func.k_blk_func)
 			rec_frame_func.k_blk_func(rec_ctx);
 		if (i != 1) {

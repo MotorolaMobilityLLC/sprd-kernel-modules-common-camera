@@ -381,16 +381,12 @@ static int camioctl_function_mode_set(struct camera_module *module,
 	module->cam_uinfo.is_yuv_ltm = hw->ip_isp->yuv_ltm_support;
 	module->cam_uinfo.is_pyr_dec = hw->ip_isp->pyr_dec_support;
 	module->cam_uinfo.is_rgb_gtm = hw->ip_isp->rgb_gtm_support;
-	if (g_pyr_dec_online_bypass)
-		module->cam_uinfo.is_pyr_rec = 0;
-	else
-		module->cam_uinfo.is_pyr_rec = hw->ip_dcam[module->dcam_idx]->pyramid_support;
 
-	pr_info("4in1:[%d], rgb_ltm[%d], yuv_ltm[%d], gtm[%d], dual[%d], afbc[%d] rec %d dec %d\n",
+	pr_info("4in1:[%d], rgb_ltm[%d], yuv_ltm[%d], gtm[%d], dual[%d], afbc[%d] dec %d\n",
 		module->cam_uinfo.is_4in1,module->cam_uinfo.is_rgb_ltm,
 		module->cam_uinfo.is_yuv_ltm, module->cam_uinfo.is_rgb_gtm,
 		module->cam_uinfo.is_dual,module->cam_uinfo.is_afbc,
-		module->cam_uinfo.is_pyr_rec, module->cam_uinfo.is_pyr_dec);
+		module->cam_uinfo.is_pyr_dec);
 
 	if (unlikely(ret)) {
 		pr_err("fail to copy from user, ret %d\n", ret);
@@ -1633,6 +1629,12 @@ static int camioctl_stream_on(struct camera_module *module,
 
 	/* settle down compression policy here */
 	camcore_compression_cal(module);
+	if (g_pyr_dec_online_bypass)
+		module->cam_uinfo.is_pyr_rec = 0;
+	else
+		module->cam_uinfo.is_pyr_rec = hw->ip_dcam[sw_ctx->hw_ctx_id]->pyramid_support;
+	pr_debug("cam%d sw_id %d is_pyr_rec %d\n", module->idx,
+			sw_ctx->sw_ctx_id, module->cam_uinfo.is_pyr_rec);
 
 	ret = camcore_channels_size_init(module);
 	if (module->zoom_solution == ZOOM_DEFAULT)

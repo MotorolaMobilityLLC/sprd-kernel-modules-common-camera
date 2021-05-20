@@ -53,9 +53,10 @@ struct isp_k_block {
 	struct isp_dev_uvd_info_v1 uvd_info_v1;
 	struct isp_dev_3dnr_info_v1 nr3_info_base_v1;
 	struct isp_dev_3dnr_info_v1 nr3d_info_v1;
-	struct isp_dev_gamma_info_v1 gamma_info_v1;
 	struct isp_dev_3dlut_info lut3d_info;
 	struct isp_dev_post_cnr_h_info post_cnr_h_info;
+	struct isp_dev_ynr_info_v3 ynr_info_v3;
+	struct isp_dev_cnr_h_info cnr_info;
 	/* sharkl3 only */
 	struct isp_dev_brightness_info brightness_info;
 	struct isp_dev_contrast_info contrast_info;
@@ -65,8 +66,6 @@ struct isp_k_block {
 	struct isp_dev_posterize_info pstrz_info;
 	struct isp_dev_uvd_info uvd_info;
 	struct isp_dev_ynr_info ynr_info;
-	/* qogirn6pro cfa blocks*/
-	struct isp_dev_cfa_info_v1 cfa_info_v1;
 	/* common */
 	struct isp_blkparam_adapt blkparam_info;
 	struct isp_dev_3dnr_info nr3d_info;
@@ -229,6 +228,8 @@ void cam_block_noisefilter_seeds(uint32_t image_width,
 int isp_k_cfg_3dlut(struct isp_io_param *param,
 	struct isp_k_block *isp_k_param, uint32_t idx);
 int isp_k_cfg_post_cnr_h(struct isp_io_param *param,
+	struct isp_k_block *isp_k_param, uint32_t idx);
+int isp_k_cfg_cnr(struct isp_io_param *param,
 	struct isp_k_block *isp_k_param, uint32_t idx);
 int isp_k_update_nlm(void *handle);
 int isp_k_update_ynr(void *handle);

@@ -2442,6 +2442,7 @@ static int camcore_isp_callback(enum isp_cb_type type, void *param, void *priv_d
 		}
 		break;
 	case ISP_CB_RET_PYR_DEC_BUF:
+		pr_debug("isp%d pyr dec done need rec %d\n", channel->isp_ctx_id, pframe->need_pyr_rec);
 		ret = module->isp_dev_handle->isp_ops->proc_frame(module->isp_dev_handle, pframe,
 					channel->isp_ctx_id);
 		if (ret) {
@@ -3844,6 +3845,40 @@ static int camcore_channel_bigsize_config(
 	return ret;
 }
 
+static int camcore_pyr_info_config(
+	struct camera_module *module,
+	struct channel_context *channel)
+{
+	int ret = 0;
+	uint32_t is_pyr_rec = 0;
+	uint32_t pyr_layer_num = 0;
+	struct dcam_sw_context *dcam_sw_ctx = NULL;
+
+	dcam_sw_ctx = &module->dcam_dev_handle->sw_ctx[module->cur_sw_ctx_id];
+	if (module->cam_uinfo.is_pyr_rec && (!channel->ch_uinfo.is_high_fps))
+		is_pyr_rec = 1;
+	else
+		is_pyr_rec = 0;
+	module->dcam_dev_handle->dcam_pipe_ops->ioctl(dcam_sw_ctx,
+		DCAM_IOCTL_CFG_PYR_DEC_EN, &is_pyr_rec);
+
+	if (module->cam_uinfo.is_pyr_rec) {
+		if (channel->ch_id == CAM_CH_CAP) {
+			channel->pyr_layer_num = ISP_PYR_DEC_LAYER_NUM;
+			pyr_layer_num = ISP_PYR_DEC_LAYER_NUM;
+		} else if (channel->ch_id == CAM_CH_PRE) {
+			channel->pyr_layer_num = DCAM_PYR_DEC_LAYER_NUM;
+			pyr_layer_num = DCAM_PYR_DEC_LAYER_NUM;
+		}
+	}
+
+	module->isp_dev_handle->isp_ops->ioctl(module->isp_dev_handle,
+			channel->isp_ctx_id, ISP_IOCTL_CFG_PYR_REC_NUM,
+			&pyr_layer_num);
+
+	return ret;
+}
+
 static int camcore_channel_size_config(
 	struct camera_module *module,
 	struct channel_context *channel)
@@ -3873,7 +3908,10 @@ static int camcore_channel_size_config(
 	hw = module->grp->hw_info;
 	ch_uinfo = &channel->ch_uinfo;
 	ch_pre = &module->channel[CAM_CH_PRE];
+	dcam_sw_ctx = &module->dcam_dev_handle->sw_ctx[module->cur_sw_ctx_id];
 
+	if (!is_zoom && (channel->ch_id != CAM_CH_RAW))
+		camcore_pyr_info_config(module, channel);
 	/* DCAM full path not updating for zoom. */
 	if (is_zoom && channel->ch_id == CAM_CH_CAP)
 		goto cfg_isp;
@@ -3937,7 +3975,6 @@ static int camcore_channel_size_config(
 	}
 
 	do {
-		dcam_sw_ctx = &module->dcam_dev_handle->sw_ctx[module->cur_sw_ctx_id];
 		ret = module->dcam_dev_handle->dcam_pipe_ops->cfg_path(dcam_sw_ctx,
 				DCAM_PATH_CFG_SIZE, channel->dcam_path_id, &ch_desc);
 		if (ret) {
@@ -4332,8 +4369,6 @@ static int camcore_channel_init(struct camera_module *module,
 			ch_desc.is_raw = 1;
 		if ((channel->ch_id == CAM_CH_CAP) && module->cam_uinfo.dcam_slice_mode)
 			ch_desc.is_raw = 1;
-		if ((channel->ch_id != CAM_CH_CAP) && module->cam_uinfo.is_pyr_rec && (!ch_uinfo->is_high_fps))
-			ch_desc.is_pyr_rec = 1;
 
 		ret = module->dcam_dev_handle->dcam_pipe_ops->cfg_path(dcam_sw_ctx,
 				DCAM_PATH_CFG_BASE, channel->dcam_path_id, &ch_desc);
@@ -4436,18 +4471,6 @@ static int camcore_channel_init(struct camera_module *module,
 		} else {
 			channel->ltm_yuv = 0;
 			ctx_desc.ltm_yuv = 0;
-		}
-
-		if (module->cam_uinfo.is_pyr_rec) {
-			if (channel->ch_id == CAM_CH_CAP) {
-				channel->pyr_layer_num = ISP_PYR_DEC_LAYER_NUM;
-				ctx_desc.pyr_layer_num = ISP_PYR_DEC_LAYER_NUM;
-			} else if (channel->ch_id == CAM_CH_PRE) {
-				channel->pyr_layer_num = DCAM_PYR_DEC_LAYER_NUM;
-				ctx_desc.pyr_layer_num = DCAM_PYR_DEC_LAYER_NUM;
-			}
-		} else {
-			ctx_desc.pyr_layer_num = 0;
 		}
 
 		if (module->cam_uinfo.is_rgb_gtm) {

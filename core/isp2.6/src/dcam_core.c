@@ -1683,6 +1683,9 @@ static int dcamcore_ioctrl(void *dcam_handle, enum dcam_ioctrl_cmd cmd, void *pa
 		gtmarg.glb_reg_lock = pctx->glb_reg_lock;
 		hw->dcam_ioctl(hw, DCAM_HW_CFG_GTM_UPDATE, &gtmarg);
 		break;
+	case DCAM_IOCTL_CFG_PYR_DEC_EN:
+		pctx->is_pyr_rec = *(uint32_t *)param;
+		break;
 	default:
 		pr_err("fail to get a known cmd: %d\n", cmd);
 		ret = -EFAULT;
