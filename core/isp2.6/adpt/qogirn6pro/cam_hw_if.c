@@ -71,12 +71,6 @@ static int camhw_get_isp_dts_clk(void *handle, void *arg)
 		return -EFAULT;
 	}
 
-	soc_isp->blk_cfg_en = of_clk_get_by_name(isp_node, "isp_blk_cfg_en");
-	if (IS_ERR_OR_NULL(soc_isp->blk_cfg_en)) {
-		pr_err("fail to read dts isp blk_cfg_en\n");
-		return -EFAULT;
-	}
-
 	soc_isp->tck_en = of_clk_get_by_name(isp_node, "isp_tck_en");
 	if (IS_ERR_OR_NULL(soc_isp->tck_en)) {
 		pr_err("fail to read dts isp tck_en\n");

@@ -656,11 +656,10 @@ static int isphw_clk_eb(void *handle, void *arg)
 		return ret;
 	}
 
-	ret = clk_prepare_enable(soc->blk_cfg_en);
+	ret = sprd_isp_blk_cfg_en();
 	if (ret) {
-		pr_err("fail to set parent, ret = %d\n", ret);
+		pr_err("fail to set cfg isp, ret = %d\n", ret);
 		clk_disable_unprepare(soc->mtx_en);
-		clk_disable_unprepare(soc->blk_cfg_en);
 		clk_disable_unprepare(soc->core_eb);
 		return ret;
 	}
