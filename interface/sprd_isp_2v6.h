@@ -2248,6 +2248,20 @@ struct isp_dev_ynr_info_v2 {
 	uint32_t radius_base;
 };
 
+struct isp_ynr_layer{
+	uint32_t gf_enable;
+	uint32_t gf_radius;
+	uint32_t gf_rnr_offset;
+	uint32_t gf_rnr_ratio;
+	uint32_t gf_addback_enable;
+	uint32_t gf_addback_ratio;
+	uint32_t gf_addback_clip;
+	uint32_t gf_epsilon_low;
+	uint32_t gf_epsilon_mid;
+	uint32_t gf_epsilon_high;
+	uint32_t lum_thresh[2];
+};
+
 struct isp_dev_ynr_info_v3 {
 	uint32_t bypass;
 	uint32_t radius;
@@ -2255,71 +2269,7 @@ struct isp_dev_ynr_info_v3 {
 	uint32_t radius_factor;
 	uint32_t imgCenterX;
 	uint32_t imgCenterY;
-
-	uint32_t l1_layer_gf_enable;
-	uint32_t l1_layer_gf_radius;
-	uint32_t l1_layer_gf_rnr_offset;
-	uint32_t l1_layer_gf_rnr_ratio;
-	uint32_t l1_layer_gf_addback_enable;
-	uint32_t l1_layer_gf_addback_ratio;
-	uint32_t l1_layer_gf_addback_clip;
-	uint32_t l1_layer_lum_thresh1;
-	uint32_t l1_layer_lum_thresh2;
-	uint32_t l1_layer_epsilon_gf_epsilon_low;
-	uint32_t l1_layer_epsilon_gf_epsilon_mid;
-	uint32_t l1_layer_epsilon_gf_epsilon_high;
-
-	uint32_t l2_layer_gf_enable;
-	uint32_t l2_layer_gf_radius;
-	uint32_t l2_layer_gf_rnr_offset;
-	uint32_t l2_layer_gf_rnr_ratio;
-	uint32_t l2_layer_gf_addback_enable;
-	uint32_t l2_layer_gf_addback_ratio;
-	uint32_t l2_layer_gf_addback_clip;
-	uint32_t l2_layer_lum_thresh1;
-	uint32_t l2_layer_lum_thresh2;
-	uint32_t l2_layer_epsilon_gf_epsilon_low;
-	uint32_t l2_layer_epsilon_gf_epsilon_mid;
-	uint32_t l2_layer_epsilon_gf_epsilon_high;
-
-	uint32_t l3_layer_gf_enable;
-	uint32_t l3_layer_gf_radius;
-	uint32_t l3_layer_gf_rnr_offset;
-	uint32_t l3_layer_gf_rnr_ratio;
-	uint32_t l3_layer_gf_addback_enable;
-	uint32_t l3_layer_gf_addback_ratio;
-	uint32_t l3_layer_gf_addback_clip;
-	uint32_t l3_layer_lum_thresh1;
-	uint32_t l3_layer_lum_thresh2;
-	uint32_t l3_layer_epsilon_gf_epsilon_low;
-	uint32_t l3_layer_epsilon_gf_epsilon_mid;
-	uint32_t l3_layer_epsilon_gf_epsilon_high;
-
-	uint32_t l4_layer_gf_enable;
-	uint32_t l4_layer_gf_radius;
-	uint32_t l4_layer_gf_rnr_offset;
-	uint32_t l4_layer_gf_rnr_ratio;
-	uint32_t l4_layer_gf_addback_enable;
-	uint32_t l4_layer_gf_addback_ratio;
-	uint32_t l4_layer_gf_addback_clip;
-	uint32_t l4_layer_lum_thresh1;
-	uint32_t l4_layer_lum_thresh2;
-	uint32_t l4_layer_epsilon_gf_epsilon_low;
-	uint32_t l4_layer_epsilon_gf_epsilon_mid;
-	uint32_t l4_layer_epsilon_gf_epsilon_high;
-
-	uint32_t l5_layer_gf_enable;
-	uint32_t l5_layer_gf_radius;
-	uint32_t l5_layer_gf_rnr_offset;
-	uint32_t l5_layer_gf_rnr_ratio;
-	uint32_t l5_layer_gf_addback_enable;
-	uint32_t l5_layer_gf_addback_ratio;
-	uint32_t l5_layer_gf_addback_clip;
-	uint32_t l5_layer_lum_thresh1;
-	uint32_t l5_layer_lum_thresh2;
-	uint32_t l5_layer_epsilon_gf_epsilon_low;
-	uint32_t l5_layer_epsilon_gf_epsilon_mid;
-	uint32_t l5_layer_epsilon_gf_epsilon_high;
+	struct isp_ynr_layer ynr_layer[5];
 };
 
 struct isp_dev_yrandom_info {
