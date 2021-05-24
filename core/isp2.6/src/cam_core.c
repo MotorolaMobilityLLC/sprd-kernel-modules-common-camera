@@ -2344,7 +2344,7 @@ static int camcore_isp_callback(enum isp_cb_type type, void *param, void *priv_d
 				if (module->cam_uinfo.slice_count >= module->cam_uinfo.slice_num)
 					module->cam_uinfo.slice_count = 0;
 				else
-					camcore_frame_start_proc(module, pframe);
+					ret = camcore_frame_start_proc(module, pframe);
 				return ret;
 			}
 			/* for case raw capture post-proccessing
