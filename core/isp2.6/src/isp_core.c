@@ -3648,6 +3648,7 @@ static int ispcore_dev_open(void *isp_handle, void *param)
 		dev->isp_hw = hw;
 		mutex_init(&dev->path_mutex);
 		spin_lock_init(&dev->ctx_lock);
+		spin_lock_init(&hw->isp_cfg_lock);
 
 		ret = isp_drv_hw_init(dev);
 		ret = ispcore_context_init(dev);

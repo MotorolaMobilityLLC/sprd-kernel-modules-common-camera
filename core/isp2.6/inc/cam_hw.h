@@ -1324,6 +1324,8 @@ struct isp_hw_cfg_info {
 
 struct cam_hw_info {
 	enum cam_prj_id prj_id;
+	uint32_t csi_connect_type;
+	spinlock_t isp_cfg_lock;
 	struct platform_device *pdev;
 	struct cam_hw_soc_info *soc_dcam;
 	struct cam_hw_soc_info *soc_dcam_lite;
@@ -1333,7 +1335,6 @@ struct cam_hw_info {
 	int (*dcam_ioctl)(void *,enum dcam_hw_cfg_cmd, void *);
 	int (*isp_ioctl)(void *,enum isp_hw_cfg_cmd, void *);
 	int (*cam_ioctl)(void *,enum cam_hw_cfg_cmd, void *);
-	uint32_t csi_connect_type;
 };
 
 #endif

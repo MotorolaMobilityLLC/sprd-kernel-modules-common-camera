@@ -14,7 +14,6 @@
 #ifdef CAM_HW_ADPT_LAYER
 
 #define ISP_AXI_STOP_TIMEOUT			1000
-spinlock_t isp_cfg_lock;
 
 static unsigned long irq_base[4] = {
 	ISP_P0_INT_BASE,
@@ -589,7 +588,6 @@ static int isphw_default_param_set(void *handle, void *arg)
 
 	param = (struct isp_hw_default_param *)arg;
 	hw = (struct cam_hw_info *)handle;
-	spin_lock_init(&isp_cfg_lock);
 
 	if (param->type == ISP_HW_PARA) {
 		goto isp_hw_para;
@@ -2320,6 +2318,7 @@ static int isphw_map_init_cfg(void *handle, void *arg)
 static int isphw_cfg_cmd_ready(void *handle, void *arg)
 {
 	struct isp_hw_cfg_info *cfg_info = (struct isp_hw_cfg_info *)arg;
+	struct cam_hw_info *hw = NULL;
 	uint32_t val = 0;
 	uint32_t hw_ctx_id = cfg_info->hw_ctx_id;
 	uint32_t ready_mode[ISP_CONTEXT_HW_NUM] = {
@@ -2329,14 +2328,15 @@ static int isphw_cfg_cmd_ready(void *handle, void *arg)
 		BIT_25/* cap1_cmd_ready_mode */
 	};
 
+	hw = (struct cam_hw_info *)handle;
 	if (cfg_info->fmcu_enable)
 		val = ready_mode[hw_ctx_id];
 	else
 		val = 0;
 
-	spin_lock(&isp_cfg_lock);
+	spin_lock(&hw->isp_cfg_lock);
 	ISP_HREG_MWR(ISP_CFG_PAMATER, ready_mode[hw_ctx_id], val);
-	spin_unlock(&isp_cfg_lock);
+	spin_unlock(&hw->isp_cfg_lock);
 
 	ISP_HREG_WR(cfg_cmd_addr_reg[hw_ctx_id], cfg_info->hw_addr);
 	pr_debug("ctx %d,  reg %08x  %08x, hw_addr %lx, val %08x\n",
