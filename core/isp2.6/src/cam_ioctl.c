@@ -160,6 +160,10 @@ static int camioctl_statis_buf_set(struct camera_module *module,
 
 	switch (statis_buf.type) {
 		case STATIS_INIT:
+			if (module->aux_dcam_dev && module->dcam_dev_handle->sw_ctx[module->offline_cxt_id].rps)
+				ret = module->dcam_dev_handle->dcam_pipe_ops->ioctl(&module->dcam_dev_handle->sw_ctx[module->offline_cxt_id],
+				DCAM_IOCTL_CFG_STATIS_BUF,&statis_buf);
+			else
 			ret = module->dcam_dev_handle->dcam_pipe_ops->ioctl(&module->dcam_dev_handle->sw_ctx[module->cur_sw_ctx_id],
 				DCAM_IOCTL_CFG_STATIS_BUF,
 				&statis_buf);
@@ -234,6 +238,7 @@ static int camioctl_param_cfg(struct camera_module *module,
 	struct channel_context *channel;
 	struct isp_io_param param;
 	struct dcam_pipe_dev *dev = NULL;
+	uint32_t is_rps= 0;
 
 	ret = copy_from_user((void *)&param,
 		(void *)arg, sizeof(struct isp_io_param));
@@ -254,6 +259,8 @@ static int camioctl_param_cfg(struct camera_module *module,
 		pr_warn("raw fetch in progress!\n");
 		return 0;
 	}
+	if (module->aux_dcam_dev && module->dcam_dev_handle->sw_ctx[module->offline_cxt_id].rps)
+		is_rps= 1;
 
 	if ((param.scene_id == PM_SCENE_FDRL) ||
 		(param.scene_id == PM_SCENE_FDRH))
@@ -313,7 +320,7 @@ static int camioctl_param_cfg(struct camera_module *module,
 		if (for_capture && (module->aux_dcam_dev == NULL))
 			pr_debug("Config DCAM param for capture. Maybe raw proc\n");
 
-		if (for_capture && (module->aux_dcam_dev != NULL)) {
+		if ((for_capture && (module->aux_dcam_dev != NULL)) || is_rps) {
 			ret = module->dcam_dev_handle->dcam_pipe_ops->cfg_blk_param(
 				&module->dcam_dev_handle->sw_ctx[module->offline_cxt_id], &param);
 		} else {
@@ -340,7 +347,7 @@ static int camioctl_param_cfg(struct camera_module *module,
 				(param.sub_block == ISP_BLOCK_GAMMA || param.sub_block == ISP_BLOCK_CMC ||
 				param.sub_block == ISP_BLOCK_CFA || param.sub_block == ISP_BLOCK_NLM ||
 				param.sub_block == ISP_BLOCK_CCE || param.sub_block == ISP_BLOCK_HIST2)) {
-				if (for_capture && (module->aux_dcam_dev != NULL)) {
+				if ((for_capture && (module->aux_dcam_dev != NULL)) || is_rps) {
 					ret = module->dcam_dev_handle->dcam_pipe_ops->cfg_blk_param(
 						&module->dcam_dev_handle->sw_ctx[module->offline_cxt_id], &param);
 				} else {
@@ -625,8 +632,8 @@ static int camioctl_output_size_set(struct camera_module *module,
 	pr_info("cam%d, simulator=%d\n", module->idx, module->simulator);
 
 	if ((scene_mode == DCAM_SCENE_MODE_HARDWARE_SIMULATION) &&
-		(module->channel[CAM_CH_CAP].enable == 0)) {
-		channel = &module->channel[CAM_CH_CAP];
+		(module->channel[CAM_CH_RAW].enable == 0)) {
+		channel = &module->channel[CAM_CH_RAW];
 		channel->enable = 1;
 	} else if (((cap_type == CAM_CAP_RAW_FULL) || (dst_fmt == sn_fmt)) &&
 		(module->channel[CAM_CH_RAW].enable == 0)) {
@@ -2547,7 +2554,7 @@ static int camioctl_raw_proc(struct camera_module *module,
 	if (proc_info.scene == RAW_PROC_SCENE_HWSIM) {
 		rps_info = 1;
 		pr_info("hwsim\n");
-		ret = module->dcam_dev_handle->dcam_pipe_ops->ioctl(&module->dcam_dev_handle->sw_ctx[module->cur_sw_ctx_id],
+		ret = module->dcam_dev_handle->dcam_pipe_ops->ioctl(&module->dcam_dev_handle->sw_ctx[module->offline_cxt_id],
 			DCAM_IOCTL_CFG_RPS, &rps_info);
 		if (ret != 0) {
 			pr_err("fail to config rps %d\n", ret);
@@ -2592,6 +2599,7 @@ static int camioctl_raw_proc(struct camera_module *module,
 		pr_err("fail to get correct cmd %d\n", proc_info.cmd);
 		ret = -EINVAL;
 	}
+
 	return ret;
 }
 

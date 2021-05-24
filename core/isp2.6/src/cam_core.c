@@ -5476,7 +5476,7 @@ static int camcore_raw_proc_done(struct camera_module *module)
 	ch_raw = &module->channel[CAM_CH_RAW];
 	if (ch_raw->enable !=0) {
 
-		module->dcam_dev_handle->dcam_pipe_ops->put_path(&module->dcam_dev_handle->sw_ctx[module->offline_cxt_id],
+		module->dcam_dev_handle->dcam_pipe_ops->put_path(&module->dcam_dev_handle->sw_ctx[module->cur_sw_ctx_id],
 			ch_raw->dcam_path_id);
 
 		isp_ctx_id = ch_raw->isp_ctx_id;
@@ -5609,12 +5609,10 @@ static int camcore_raw_pre_proc(
 	}
 	/* not care 4in1 */
 	ch = &module->channel[CAM_CH_CAP];
-	if (proc_info->scene != RAW_PROC_SCENE_HWSIM) {
 		ch->dcam_path_id = -1;
 		ch->isp_ctx_id = -1;
 		ch->isp_path_id = -1;
 		ch->aux_dcam_path_id = -1;
-	}
 	dev = (struct dcam_pipe_dev *)module->dcam_dev_handle;
 	sw_ctx = &dev->sw_ctx[module->offline_cxt_id];
 	if (proc_info->scene == RAW_PROC_SCENE_HWSIM) {
@@ -5666,17 +5664,15 @@ static int camcore_raw_pre_proc(
 	}
 
 	/* specify dcam path */
-	if (proc_info->scene != RAW_PROC_SCENE_HWSIM) {
-		dcam_path_id = module->dcam_dev_handle->hw->ip_dcam[DCAM_HW_CONTEXT_0]->aux_dcam_path;
-		ret = module->dcam_dev_handle->dcam_pipe_ops->get_path(
-			&module->dcam_dev_handle->sw_ctx[module->offline_cxt_id], dcam_path_id);
-		if (ret < 0) {
-			pr_err("fail to get dcam path %d\n", dcam_path_id);
-			ret = -EFAULT;
-			goto get_dcam_path_fail;
-		}
-		ch->dcam_path_id = dcam_path_id;
+	dcam_path_id = module->dcam_dev_handle->hw->ip_dcam[DCAM_HW_CONTEXT_0]->aux_dcam_path;
+	ret = module->dcam_dev_handle->dcam_pipe_ops->get_path(
+		&module->dcam_dev_handle->sw_ctx[module->offline_cxt_id], dcam_path_id);
+	if (ret < 0) {
+		pr_err("fail to get dcam path %d\n", dcam_path_id);
+		ret = -EFAULT;
+		goto get_dcam_path_fail;
 	}
+		ch->dcam_path_id = dcam_path_id;
 	/* config dcam path  */
 	memset(&ch_desc, 0, sizeof(ch_desc));
 	if(ch->dcam_path_id == 0 && module->cam_uinfo.is_4in1 == 1)
