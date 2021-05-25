@@ -291,7 +291,7 @@ struct isp_3dnr_ctx_desc {
 	struct isp_3dnr_fbc_store nr3_fbc_store;
 	struct isp_3dnr_crop crop;
 	struct camera_buf *buf_info[ISP_NR3_BUF_NUM];
-	struct isp_3dnr_blend_info *nr3_belnd;
+	struct isp_k_block *isp_block;
 	struct isp_3dnr_ops ops;
 };
 

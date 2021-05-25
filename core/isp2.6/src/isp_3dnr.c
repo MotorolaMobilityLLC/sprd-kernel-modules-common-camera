@@ -834,7 +834,7 @@ static int isp3dnr_cfg_param(void *handle,
 		nr3_ctx->height = crop->size_y;
 		break;
 	case ISP_3DNR_CFG_BLEND_INFO:
-		nr3_ctx->nr3_belnd = (struct isp_3dnr_blend_info *)param;
+		nr3_ctx->isp_block = (struct isp_k_block *)param;
 		break;
 	case ISP_3DNR_CFG_MEMCTL_STORE_INFO:
 		fetch_info = (struct isp_hw_fetch_info *)param;

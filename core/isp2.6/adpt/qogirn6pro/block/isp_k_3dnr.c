@@ -499,7 +499,7 @@ void isp_3dnr_config_param(struct isp_3dnr_ctx_desc *ctx)
 	}
 
 	idx = ctx->ctx_id;
-	blend = ctx->nr3_belnd;
+	blend = &ctx->isp_block->nr3_info_base_v1.blend;
 	mem_ctrl = &ctx->mem_ctrl;
 	isp_3dnr_config_mem_ctrl(idx, mem_ctrl, ctx->nr3_sec_mode);
 

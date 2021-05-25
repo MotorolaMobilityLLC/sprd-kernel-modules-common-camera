@@ -309,8 +309,7 @@ static int ispcore_3dnr_frame_process(struct isp_sw_context *pctx,
 	nr3_handle->ops.cfg_param(nr3_handle, ISP_3DNR_CFG_FBD_INFO, &pipe_src->nr3_fbc_fbd);
 	nr3_handle->ops.cfg_param(nr3_handle, ISP_3DNR_CFG_SIZE_INFO, &pipe_src->crop);
 	nr3_handle->ops.cfg_param(nr3_handle, ISP_3DNR_CFG_MEMCTL_STORE_INFO, &pctx->pipe_info.fetch);
-	nr3_handle->ops.cfg_param(nr3_handle, ISP_3DNR_CFG_BLEND_INFO,
-			&pctx->isp_k_param.nr3_info_base.blend);
+	nr3_handle->ops.cfg_param(nr3_handle, ISP_3DNR_CFG_BLEND_INFO, &pctx->isp_k_param);
 	nr3_handle->ops.pipe_proc(nr3_handle, fsync, pctx->uinfo.mode_3dnr);
 
 	if (fsync)
