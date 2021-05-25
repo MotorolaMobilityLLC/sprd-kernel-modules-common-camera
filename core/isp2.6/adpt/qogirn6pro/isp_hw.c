@@ -687,7 +687,9 @@ static int isphw_clk_dis(void *handle, void *arg)
 	clk_disable_unprepare(soc->clk);
 
 	clk_disable_unprepare(soc->tck_en);
-	clk_disable_unprepare(soc->blk_cfg_en);
+	ret = sprd_isp_blk_dis();
+	if (ret)
+		pr_err("fail to set isp dis, ret = %d\n", ret);
 	clk_disable_unprepare(soc->mtx_en);
 	clk_disable_unprepare(soc->core_eb);
 
