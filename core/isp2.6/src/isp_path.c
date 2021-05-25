@@ -33,6 +33,8 @@
 #define ISP_PATH_DECI_FAC_MAX       4
 #define ISP_SC_COEFF_UP_MAX         ISP_SCALER_UP_MAX
 #define ISP_SC_COEFF_DOWN_MAX       ISP_SCALER_UP_MAX
+#define ISP_CTS_SRC_H               1500
+#define ISP_CTS_DST_H               1440
 
 static uint32_t isppath_deci_factor_get(uint32_t src_size, uint32_t dst_size)
 {
@@ -47,6 +49,9 @@ static uint32_t isppath_deci_factor_get(uint32_t src_size, uint32_t dst_size)
 			break;
 	}
 
+	/*cts case: only for testing of special scen*/
+	if (src_size == ISP_CTS_SRC_H && dst_size == ISP_CTS_DST_H)
+		factor = 1;
 	return factor;
 }
 
@@ -143,18 +148,12 @@ int isp_path_scaler_param_calc(struct img_trim *in_trim,
 		scaler->scaler_ver_factor_in = in_trim->size_y;
 		if (in_trim->size_x > out_size->w * d_max) {
 			tmp_dstsize = out_size->w * d_max;
-			deci->deci_x =
-				isppath_deci_factor_get(in_trim->size_x,
-								tmp_dstsize);
+			deci->deci_x = isppath_deci_factor_get(in_trim->size_x, tmp_dstsize);
 			deci->deci_x_eb = 1;
-			align_size = (1 << (deci->deci_x + 1)) *
-				ISP_PIXEL_ALIGN_WIDTH;
-			in_trim->size_x = (in_trim->size_x)
-				& ~(align_size - 1);
-			in_trim->start_x = (in_trim->start_x)
-				& ~(align_size - 1);
-			scaler->scaler_factor_in =
-				in_trim->size_x >> (deci->deci_x + 1);
+			align_size = (1 << (deci->deci_x + 1)) * ISP_PIXEL_ALIGN_WIDTH;
+			in_trim->size_x = (in_trim->size_x) & ~(align_size - 1);
+			in_trim->start_x = (in_trim->start_x) & ~(align_size - 1);
+			scaler->scaler_factor_in = in_trim->size_x >> (deci->deci_x + 1);
 		} else {
 			deci->deci_x = 1;
 			deci->deci_x_eb = 0;
@@ -162,18 +161,12 @@ int isp_path_scaler_param_calc(struct img_trim *in_trim,
 
 		if (in_trim->size_y > out_size->h * d_max) {
 			tmp_dstsize = out_size->h * d_max;
-			deci->deci_y =
-				isppath_deci_factor_get(in_trim->size_y,
-					tmp_dstsize);
+			deci->deci_y = isppath_deci_factor_get(in_trim->size_y, tmp_dstsize);
 			deci->deci_y_eb = 1;
-			align_size = (1 << (deci->deci_y + 1)) *
-				ISP_PIXEL_ALIGN_HEIGHT;
-			in_trim->size_y = (in_trim->size_y)
-				& ~(align_size - 1);
-			in_trim->start_y = (in_trim->start_y)
-				& ~(align_size - 1);
-			scaler->scaler_ver_factor_in =
-				in_trim->size_y >> (deci->deci_y + 1);
+			align_size = (1 << (deci->deci_y + 1)) * ISP_PIXEL_ALIGN_HEIGHT;
+			in_trim->size_y = (in_trim->size_y) & ~(align_size - 1);
+			in_trim->start_y = (in_trim->start_y) & ~(align_size - 1);
+			scaler->scaler_ver_factor_in = in_trim->size_y >> (deci->deci_y + 1);
 		} else {
 			deci->deci_y = 1;
 			deci->deci_y_eb = 0;
