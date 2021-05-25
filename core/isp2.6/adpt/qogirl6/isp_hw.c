@@ -1507,6 +1507,9 @@ static int isphw_fetch_set(void *handle, void *arg)
 	ISP_REG_WR(idx, ISP_FETCH_MIPI_INFO,
 		fetch->mipi_word_num | (fetch->mipi_byte_rel_pos << 16));
 
+	if (fetch->fetch_fmt == ISP_FETCH_FULL_RGB10)
+		ISP_REG_MWR(idx, ISP_CMC10_PARAM, BIT_0, 1);
+
 	pr_debug("end\n");
 	return 0;
 }
