@@ -236,7 +236,7 @@ static int ispcore_blkparam_adapt(struct isp_sw_context *pctx)
 	crop_end_x = src_trim->start_x + src_trim->size_x - 1;
 	crop_end_y = src_trim->start_y + src_trim->size_y - 1;
 
-	pr_debug("crop %d %d %d %d, size(%d %d) => (%d %d)\n",
+	pr_debug("ch_id: %d ctx_id:%d crop %d %d %d %d, size(%d %d) => (%d %d)\n", pctx->ch_id, pctx->ctx_id,
 		crop_start_x, crop_start_y, crop_end_x, crop_end_y,
 		old_width, old_height, new_width, new_height);
 
@@ -1004,12 +1004,12 @@ static int ispcore_slice_ctx_init(struct isp_sw_context *pctx, uint32_t *multi_s
 	if (slc_cfg_in.calc_dyn_ov.verison != ALG_ISP_DYN_OVERLAP_NONE)
 		ispcore_init_dyn_ov_param(&slc_cfg_in, pctx);
 
-	isp_slice_base_cfg(&slc_cfg_in, pctx->slice_ctx, &pctx->valid_slc_num);
-
 	radius_adapt.val = val;
 	radius_adapt.ctx_id = pctx->ctx_id;
 	radius_adapt.slc_cfg_in = &slc_cfg_in;
 	path->hw->isp_ioctl(path->hw, ISP_HW_CFG_GET_NLM_YNR, &radius_adapt);
+
+	isp_slice_base_cfg(&slc_cfg_in, pctx->slice_ctx, &pctx->valid_slc_num);
 
 	pr_debug("sw %d valid_slc_num %d\n", pctx->ctx_id, pctx->valid_slc_num);
 	if (pctx->valid_slc_num > 1)
