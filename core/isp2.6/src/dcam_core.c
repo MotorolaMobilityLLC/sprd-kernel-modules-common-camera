@@ -474,7 +474,7 @@ static int dcamcore_statis_bufferq_init(struct dcam_sw_context *pctx)
 			}
 
 			pframe = cam_queue_empty_frame_get();
-			pframe->channel_id = path_id;
+			pframe->channel_id = 0;
 			pframe->irq_property = stats_type;
 			pframe->buf = *ion_buf;
 
