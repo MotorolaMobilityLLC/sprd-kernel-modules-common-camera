@@ -18,6 +18,75 @@
 #endif
 #define pr_fmt(fmt) "ISP_PYR_REC: %d %d %s : "fmt, current->pid, __LINE__, __func__
 
+#define CLIP(x, maxv, minv) \
+	do { \
+		if (x > maxv) \
+			x = maxv; \
+		else if (x < minv) \
+			x = minv; \
+	} while (0)
+
+struct pyr_ynr_alg_cal {
+	uint16_t Radius[6];
+	uint16_t imgCenterX[6];
+	uint16_t imgCenterY[6];
+	uint16_t max_dist[5];
+};
+
+static void cal_radius_distance_octagon_func(uint16_t *dis_radius,
+		uint16_t global_row, uint16_t global_col, uint16_t imgCenterX, uint16_t imgCenterY)
+{
+	uint16_t dist_vertical = abs(global_row - imgCenterY);
+	uint16_t dist_horizontal = abs(global_col - imgCenterX);
+	uint16_t dist_v_thr = (uint16_t)(((uint32_t)(dist_horizontal) * 53 + 64) >> 7);
+	uint16_t dist_h_thr = (uint16_t)(((uint32_t)(dist_vertical) * 53 + 64) >> 7);
+
+	if (dist_vertical > dist_v_thr && dist_horizontal > dist_h_thr)
+		*dis_radius = dist_vertical + dist_horizontal;
+	else
+		*dis_radius = (uint16_t)(((uint32_t)(MAX(dist_vertical, dist_horizontal)) * 181 + 64) >> 7);
+}
+
+static void cal_max_dist(struct pyr_ynr_alg_cal *ynr_param, int layer_id,
+	int layer0_frame_W, int layer0_frame_H)
+{
+	int i = 0, x_cor = 0, y_cor = 0;
+	uint16_t radius = 0, centerX = 0, centerY = 0;
+	uint16_t CenterX = ynr_param->imgCenterX[0];
+	uint16_t CenterY = ynr_param->imgCenterY[0];
+	uint16_t Radius = ynr_param->Radius[0];
+
+	for(i = 1; i <= layer_id; i++) {
+		int layer_frame_W = layer0_frame_W >> i;
+		int layer_frame_H = layer0_frame_H >> i;
+
+		radius = (Radius + (1 << (i - 1)) -1) >> i;
+		centerX = (CenterX + (1 << (i - 1)) - 1) >> i;
+		centerY = (CenterY + (1 << (i - 1)) - 1) >> i;
+		CLIP(centerX, layer_frame_W, 0);
+		CLIP(centerY, layer_frame_H, 0);
+		CLIP(radius, layer_frame_H, 0);
+		ynr_param->imgCenterX[i] = centerX ;
+		ynr_param->imgCenterY[i]= centerY;
+
+		if(centerX > layer_frame_W / 2)
+			x_cor = 0;
+		else
+			x_cor = layer_frame_W;
+
+		if(centerY > layer_frame_H / 2)
+			y_cor = 0;
+		else
+			y_cor = layer_frame_H;
+
+		cal_radius_distance_octagon_func(&ynr_param->max_dist[i - 1], y_cor, x_cor, centerX, centerY);
+
+		if(radius > ynr_param->max_dist[i - 1])
+			radius = ynr_param->max_dist[i - 1];
+		ynr_param->Radius[i] = radius;
+	}
+}
+
 static int isppyrrec_pitch_get(uint32_t format, uint32_t w)
 {
 	uint32_t pitch = 0;
@@ -312,6 +381,76 @@ static int isppyrrec_reconstruct_get(struct isp_rec_ctx_desc *ctx, uint32_t idx)
 	return ret;
 }
 
+static int isppyrrec_ynr_get(struct isp_rec_ctx_desc *ctx, uint32_t idx)
+{
+	int ret = 0, i = 0;
+	uint32_t layer_num_ynr = 0;
+	struct isp_rec_ynr_info *ynr_info = NULL;
+	struct isp_dev_ynr_info_v3 *pyr_ynr = NULL;
+	struct pyr_ynr_alg_cal ynr_alg_cal = {0};
+
+	if (!ctx) {
+		pr_err("fail to get valid input ctx %p\n", ctx);
+		return -EFAULT;
+	}
+
+	ynr_info = &ctx->rec_ynr;
+	pyr_ynr = ynr_info->pyr_ynr;
+	ynr_info->rec_ynr_bypass = pyr_ynr->bypass;
+	ynr_info->layer_num = ctx->cur_layer + 1;
+	ynr_info->start.w = 0;
+	ynr_info->start.h = 0;
+	ynr_info->img.w = ctx->pyr_layer_size[ynr_info->layer_num].w;
+	ynr_info->img.h = ctx->pyr_layer_size[ynr_info->layer_num].h;
+
+	ynr_alg_cal.imgCenterX[0] = ctx->pyr_layer_size[0].w / 2;
+	ynr_alg_cal.imgCenterY[0] = ctx->pyr_layer_size[0].h / 2;
+	ynr_alg_cal.Radius[0] = pyr_ynr->radius;
+	layer_num_ynr = ctx->layer_num - 1;
+	for (i = 0; i < 5; i++) {
+		/* some ynr param only need cfg once */
+		if (ynr_info->layer_num == ctx->layer_num) {
+			ynr_info->ynr_cfg_layer[i].gf_addback_clip = pyr_ynr->ynr_layer[i].gf_addback_clip;
+			ynr_info->ynr_cfg_layer[i].gf_addback_en = pyr_ynr->ynr_layer[i].gf_addback_enable;
+			ynr_info->ynr_cfg_layer[i].gf_addback_ratio = pyr_ynr->ynr_layer[i].gf_addback_ratio;
+			ynr_info->ynr_cfg_layer[i].gf_enable = pyr_ynr->ynr_layer[i].gf_enable;
+			ynr_info->ynr_cfg_layer[i].gf_epsilon_high = pyr_ynr->ynr_layer[i].gf_epsilon_high;
+			ynr_info->ynr_cfg_layer[i].gf_epsilon_low = pyr_ynr->ynr_layer[i].gf_epsilon_low;
+			ynr_info->ynr_cfg_layer[i].gf_epsilon_mid = pyr_ynr->ynr_layer[i].gf_epsilon_mid;
+			ynr_info->ynr_cfg_layer[i].gf_radius = pyr_ynr->ynr_layer[i].gf_radius;
+			ynr_info->ynr_cfg_layer[i].gf_rnr_offset = pyr_ynr->ynr_layer[i].gf_rnr_offset;
+			ynr_info->ynr_cfg_layer[i].gf_rnr_ratio = pyr_ynr->ynr_layer[i].gf_rnr_ratio;
+			ynr_info->ynr_cfg_layer[i].lum_thresh0 = pyr_ynr->ynr_layer[i].lum_thresh[0];
+			ynr_info->ynr_cfg_layer[i].lum_thresh1 = pyr_ynr->ynr_layer[i].lum_thresh[1];
+		}
+		cal_max_dist(&ynr_alg_cal, layer_num_ynr, ctx->pyr_layer_size[0].w, ctx->pyr_layer_size[0].h);
+		ynr_info->ynr_cfg_layer[i].imgcenter.w = ynr_alg_cal.imgCenterX[i + 1];
+		ynr_info->ynr_cfg_layer[i].imgcenter.h = ynr_alg_cal.imgCenterY[i + 1];
+		ynr_info->ynr_cfg_layer[i].ynr_radius = ynr_alg_cal.Radius[i + 1];
+		ynr_info->ynr_cfg_layer[i].max_dist = ynr_alg_cal.max_dist[i];
+	}
+
+	return ret;
+}
+
+static int isppyrrec_cnr_get(struct isp_rec_ctx_desc *ctx, uint32_t idx)
+{
+	int ret = 0;
+	struct isp_rec_cnr_info *cnr_info = NULL;
+
+	if (!ctx) {
+		pr_err("fail to get valid input ctx %p\n", ctx);
+		return -EFAULT;
+	}
+
+	cnr_info = &ctx->rec_cnr;
+	cnr_info->layer_num = ctx->cur_layer + 1;
+	cnr_info->rec_cnr_bypass = cnr_info->pyr_cnr->bypass;
+
+	return ret;
+}
+
+
 static int isppyrrec_store_get(struct isp_rec_ctx_desc *ctx, uint32_t idx)
 {
 	int ret = 0, i = 0;
@@ -428,7 +567,17 @@ static int isppyrrec_block_cfg_get(struct isp_rec_ctx_desc *ctx, uint32_t idx)
 		return ret;
 	}
 
-	/* TBD dispatch/common/YNR/CNR/uvdelay */
+	ret = isppyrrec_ynr_get(ctx, idx);
+	if (ret) {
+		pr_err("fail to get isp pyr_rec ynr\n");
+		return ret;
+	}
+
+	ret = isppyrrec_cnr_get(ctx, idx);
+	if (ret) {
+		pr_err("fail to get isp pyr_rec cnr\n");
+		return ret;
+	}
 
 	ret = isppyrrec_store_get(ctx, idx);
 	if (ret) {

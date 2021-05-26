@@ -114,13 +114,7 @@ static void isppyrrec_cfg_ynr(uint32_t idx, struct isp_rec_ynr_info *rec_ynr)
 	if (pyr_ynr->bypass)
 		return;
 
-	val = (rec_ynr->layer_num & 0x7) << 1;
-	ISP_REG_MWR(idx, ISP_YUV_REC_YNR_CONTRL0, 0xE, val);
-	val = ((rec_ynr->img.h & 0xffff) << 16) | (rec_ynr->img.w & 0xffff);
-	ISP_REG_WR(idx, ISP_YUV_REC_YNR_CFG0, val);
-	val = ((rec_ynr->start.h & 0xffff) << 16) | (rec_ynr->start.w & 0xffff);
-	ISP_REG_WR(idx, ISP_YUV_REC_YNR_CFG1, val);
-
+	ISP_REG_MWR(idx, ISP_YUV_REC_YNR_CONTRL0, BIT_0, rec_ynr->rec_ynr_bypass);
 	for(i = 0; i < 5; i ++) {
 		val = ((rec_ynr->ynr_cfg_layer[i].gf_rnr_offset & 0x3ff) << 8) |
 			((rec_ynr->ynr_cfg_layer[i].gf_radius & 0x3) << 1) |
@@ -160,8 +154,6 @@ static void isppyrrec_cfg_cnr(uint32_t idx, struct isp_rec_cnr_info *rec_cnr)
 	ISP_REG_MWR(idx, ISP_YUV_REC_CNR_CONTRL0, BIT_0, pyr_cnr->bypass);
 	if (pyr_cnr->bypass)
 		return;
-
-	/* TBD */
 }
 
 static void isppyrrec_cfg_reconstruct(uint32_t idx,
@@ -335,15 +327,31 @@ static int isppyrrec_fetch_slice_set(struct slice_fetch_info *rec_fetch,
 	return 0;
 }
 
-static int isppyrrec_ynr_slice_set(struct isp_rec_ynr_info *pyr_ynr, void *in_ptr)
+static int isppyrrec_ynr_slice_set(struct slice_pos_info *pyr_ynr, void *in_ptr)
 {
-	/* TBD */
+	uint32_t addr = 0, cmd = 0;
+	struct isp_fmcu_ctx_desc *fmcu = NULL;
+
+	fmcu = (struct isp_fmcu_ctx_desc *)in_ptr;
+
+	addr = ISP_GET_REG(ISP_YUV_REC_YNR_CFG1);
+	cmd = ((pyr_ynr->start_row & 0xffff) << 16) | (pyr_ynr->start_col & 0xffff);
+	FMCU_PUSH(fmcu, addr, cmd);
+
 	return 0;
 }
 
-static int isppyrrec_cnr_slice_set(struct isp_rec_cnr_info *pyr_cnr, void *in_ptr)
+static int isppyrrec_cnr_slice_set(struct slice_pos_info *pyr_cnr, void *in_ptr)
 {
-	/* TBD */
+	uint32_t addr = 0, cmd = 0;
+	struct isp_fmcu_ctx_desc *fmcu = NULL;
+
+	fmcu = (struct isp_fmcu_ctx_desc *)in_ptr;
+
+	addr = ISP_GET_REG(ISP_YUV_REC_CNR_CFG1);
+	cmd = ((pyr_cnr->start_row & 0xFFFF) << 16) | (pyr_cnr->start_col & 0xFFFF);
+	FMCU_PUSH(fmcu, addr, cmd);
+
 	return 0;
 }
 
@@ -467,6 +475,7 @@ int isp_pyr_rec_frame_config(void *handle)
 	struct isp_fmcu_ctx_desc *fmcu = NULL;
 	struct isp_dev_cnr_h_info *pyr_cnr = NULL;
 	struct isp_cnr_h_info *layer_cnr_h = NULL;
+	struct isp_rec_ynr_info *ynr_info = NULL;
 
 	if (!handle) {
 		pr_err("fail to rec_config_reg parm NULL\n");
@@ -477,6 +486,7 @@ int isp_pyr_rec_frame_config(void *handle)
 	fmcu = (struct isp_fmcu_ctx_desc *)ctx->fmcu_handle;
 	pyr_cnr = ctx->rec_cnr.pyr_cnr;
 	layer_cnr_h = &pyr_cnr->layer_cnr_h[ctx->cur_layer];
+	ynr_info = &ctx->rec_ynr;
 
 	addr = ISP_GET_REG(ISP_FETCH_SLICE_Y_PITCH) + PYR_REC_CUR_FETCH_BASE;
 	cmd = ctx->cur_fetch.pitch[0];
@@ -505,9 +515,25 @@ int isp_pyr_rec_frame_config(void *handle)
 	cmd = ctx->rec_store.pitch[1];
 	FMCU_PUSH(fmcu, addr, cmd);
 
-	/* Just bypass ynr & cnr first here */
+	/* ynr frame param cfg */
+	addr = ISP_GET_REG(ISP_YUV_REC_YNR_CONTRL0);
+	cmd = ((ynr_info->layer_num & 0x7) << 1) | ynr_info->rec_ynr_bypass;
+	FMCU_PUSH(fmcu, addr, cmd);
+
+	addr = ISP_GET_REG(ISP_YUV_REC_YNR_CFG0);
+	cmd = ((ynr_info->img.h & 0xffff) << 16) | (ynr_info->img.w & 0xffff);
+	FMCU_PUSH(fmcu, addr, cmd);
+
+	addr = ISP_GET_REG(ISP_YUV_REC_YNR_CFG1);
+	cmd = ((ynr_info->start.h & 0xffff) << 16) | (ynr_info->start.w & 0xffff);
+	FMCU_PUSH(fmcu, addr, cmd);
+
+	/* cnr frame param cfg */
 	addr = ISP_GET_REG(ISP_YUV_REC_CNR_CONTRL0);
-	cmd = ((ctx->pyr_rec.layer_num & 0x7) << 1) | BIT_0;
+	/* open cnr image error, just temp bypass it
+	 * cmd = ((ctx->rec_cnr.layer_num & 0x7) << 1) | ctx->rec_cnr.rec_cnr_bypass;
+	*/
+	cmd = ((ctx->rec_cnr.layer_num & 0x7) << 1) | BIT_0;
 	FMCU_PUSH(fmcu, addr, cmd);
 
 	addr = ISP_GET_REG(ISP_YUV_REC_CNR_CFG0);
@@ -595,9 +621,8 @@ int isp_pyr_rec_slice_common_config(void *handle)
 
 	isppyrrec_fetch_slice_set(&cur_rec_slc->slice_cur_fetch, ctx->fmcu_handle, ISP_PYR_REC_CUR);
 	isppyrrec_fetch_slice_set(&cur_rec_slc->slice_ref_fetch, ctx->fmcu_handle, ISP_PYR_REC_REF);
-	/* TBD */
-	isppyrrec_ynr_slice_set(NULL, ctx->fmcu_handle);
-	isppyrrec_cnr_slice_set(NULL, ctx->fmcu_handle);
+	isppyrrec_ynr_slice_set(&cur_rec_slc->slice_fetch1_pos, ctx->fmcu_handle);
+	isppyrrec_cnr_slice_set(&cur_rec_slc->slice_fetch1_pos, ctx->fmcu_handle);
 	isppyrrec_reconstruct_slice_set(&cur_rec_slc->slice_pyr_rec, ctx->fmcu_handle);
 
 	addr = ISP_GET_REG(ISP_COMMON_SCL_PATH_SEL);

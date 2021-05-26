@@ -1705,7 +1705,7 @@ static int isphw_slice_store(void *handle, void *arg)
 
 static struct isp_cfg_entry isp_hw_cfg_func_tab[ISP_BLOCK_TOTAL - ISP_BLOCK_BASE] = {
 [ISP_BLOCK_YNR - ISP_BLOCK_BASE]        = {ISP_BLOCK_YNR,        isp_k_cfg_ynr},
-[ISP_BLOCK_CNR_H - ISP_BLOCK_BASE]      = {ISP_BLOCK_BASE,       isp_k_cfg_cnr},
+[ISP_BLOCK_CNR_H - ISP_BLOCK_BASE]      = {ISP_BLOCK_CNR_H,      isp_k_cfg_cnr},
 [ISP_BLOCK_POST_CNR_H - ISP_BLOCK_BASE] = {ISP_BLOCK_POST_CNR_H, isp_k_cfg_post_cnr_h},
 [ISP_BLOCK_UVD - ISP_BLOCK_BASE]        = {ISP_BLOCK_UVD,        isp_k_cfg_uvd},
 [ISP_BLOCK_RGB_LTM - ISP_BLOCK_BASE]    = {ISP_BLOCK_RGB_LTM,    isp_k_cfg_rgb_ltm},

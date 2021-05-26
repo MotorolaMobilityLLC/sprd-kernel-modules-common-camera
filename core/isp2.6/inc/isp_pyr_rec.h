@@ -86,21 +86,6 @@ struct isp_rec_cnr_info {
 	uint32_t rec_cnr_bypass;
 	uint32_t layer_num;
 	struct img_size start;
-	uint32_t ifreq_filter_en;
-	uint32_t denoise_radial_en;
-	uint32_t min_ratio;
-	uint32_t base_radius;
-	struct img_size imgcenter;
-	uint32_t luma_th0;
-	uint32_t luma_th1;
-	uint32_t slope;
-	uint32_t filter_size;
-	uint32_t y_l0_weight[72];
-	uint32_t y_l1_weight[72];
-	uint32_t y_l2_weight[72];
-	uint32_t uv_l0_weight[72];
-	uint32_t uv_l1_weight[72];
-	uint32_t uv_l2_weight[72];
 	struct isp_dev_cnr_h_info *pyr_cnr;
 };
 
