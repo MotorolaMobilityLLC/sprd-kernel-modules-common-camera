@@ -141,6 +141,7 @@ static int csi_mipi_clk_enable(int sensor_id)
 static void csi_mipi_clk_disable(int sensor_id)
 {
 	struct csi_dt_node_info *dt_info = csi_get_dt_node_data(sensor_id);
+	void __iomem *reg_base = NULL;
 
 	if (!dt_info) {
 		pr_err("fail to get valid dt_info ptr\n");
@@ -159,9 +160,16 @@ static void csi_mipi_clk_disable(int sensor_id)
 		~MASK_AON_APB_CGM_CPHY_CFG_EN);
 	cnt--;
 	if(!cnt) {
-		clk_disable_unprepare(dt_info->mipi_csi_gate_eb);
-		clk_disable_unprepare(dt_info->csi_eb_clk);
+		reg_base = ioremap_nocache(0x30000008, 1);
+		if (!reg_base) {
+			pr_info("0x%x: ioremap failed\n", 0x30000008);
+		}
+		REG_MWR(reg_base, BIT_5 | BIT_4 | BIT_3, 0);
+		iounmap(reg_base);
 	}
+
+	clk_disable_unprepare(dt_info->mipi_csi_gate_eb);
+	clk_disable_unprepare(dt_info->csi_eb_clk);
 	if(!csi_pattern_enable)
 		clk_disable_unprepare(dt_info->csi_src_eb);//don't need enable in ipg mode
 
