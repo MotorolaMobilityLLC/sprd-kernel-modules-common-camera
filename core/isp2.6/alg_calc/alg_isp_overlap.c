@@ -1231,7 +1231,7 @@ void ltm_rgb_stat_param_init(uint16_t frame_width, uint16_t frame_height, ltm_rg
 		binning_factor = 1;
 		pow_factor = 2;
 	} else {
-		pr_err("fail to frame w %d, h %d, size %d, min_tile_num %d, tile_num %d\n",
+		pr_debug("warning!frame w %d, h %d, size %d, min_tile_num %d, tile_num %d\n",
 			frame_width, frame_height, frame_size, min_tile_num, tile_num);
 	}
 
@@ -2426,7 +2426,6 @@ static int isp_init_param_for_overlap(struct slice_cfg_input *slice_input, struc
 		param_stat->tile_num_auto = slice_input->nofilter_ctx->ltm_rgb_info.ltm_stat.tile_num_auto;
 		param_stat->tile_num_col = slice_input->nofilter_ctx->ltm_rgb_info.ltm_stat.tile_num.tile_num_x;
 		param_stat->tile_num_row = slice_input->nofilter_ctx->ltm_rgb_info.ltm_stat.tile_num.tile_num_y;
-		pr_info("tile_num_col %d, tile_num_row %d", param_stat->tile_num_col, param_stat->tile_num_row);
 
 		ltm_rgb_stat_param_init(frame_width,frame_height, param_stat);
 		overlapParam->ltmsta_rgb_binning_en = param_stat->binning_en;

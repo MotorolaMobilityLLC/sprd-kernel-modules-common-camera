@@ -323,8 +323,19 @@ abnormal_reg_trace:
 			ISP_HREG_RD(addr + 12));
 	}
 
-	pr_info("ISP scaler: register list\n");
-	for (addr = ISP_YUV_SCALER_CFG; addr <= ISP_YUV_SCALER_REGULAR_CFG;
+	pr_info("ISP scaler: pre_cap register list\n");
+	for (addr = ISP_YUV_SCALER_PRE_CAP_BASE + ISP_YUV_SCALER_CFG; addr <= ISP_YUV_SCALER_PRE_CAP_BASE + ISP_YUV_SCALER_REGULAR_CFG;
+			addr += 16) {
+		pr_info("0x%lx: 0x%x 0x%x 0x%x 0x%x\n",
+			addr,
+			ISP_HREG_RD(addr),
+			ISP_HREG_RD(addr + 4),
+			ISP_HREG_RD(addr + 8),
+			ISP_HREG_RD(addr + 12));
+	}
+
+	pr_info("ISP scaler: vid register list\n");
+	for (addr = ISP_YUV_SCALER_VID_BASE + ISP_YUV_SCALER_CFG; addr <= ISP_YUV_SCALER_VID_BASE + ISP_YUV_SCALER_REGULAR_CFG;
 			addr += 16) {
 		pr_info("0x%lx: 0x%x 0x%x 0x%x 0x%x\n",
 			addr,
@@ -335,7 +346,7 @@ abnormal_reg_trace:
 	}
 
 	pr_info("ISP store: register list\n");
-	for (addr = ISP_STORE_PARAM; addr <= ISP_STORE_SHADOW_CLR;
+	for (addr = ISP_STORE_PRE_CAP_BASE + ISP_STORE_PARAM; addr <= ISP_STORE_PRE_CAP_BASE + ISP_STORE_SHADOW_CLR;
 			addr += 16) {
 		pr_info("0x%lx: 0x%x 0x%x 0x%x 0x%x\n",
 			addr,
