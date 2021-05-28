@@ -738,6 +738,7 @@ static int isppyrrec_pipe_proc(void *handle, void *param)
 	rec_slice_func.index = ISP_K_BLK_PYR_REC_SLICE;
 	rec_ctx->hw->isp_ioctl(rec_ctx->hw, ISP_HW_CFG_K_BLK_FUNC_GET, &rec_slice_func);
 	for (i = layer_num; i > 0; i--) {
+		rec_ctx->cur_layer = i - 1;
 		/* pyrrec layers frame should proc as one slice */
 		if (in_ptr->slice_num[i - 1] == 0) {
 			in_ptr->slice_num[i - 1] = 1;
@@ -761,7 +762,6 @@ static int isppyrrec_pipe_proc(void *handle, void *param)
 		if (i == layer_num && rec_share_func.k_blk_func)
 			rec_share_func.k_blk_func(rec_ctx);
 
-		rec_ctx->cur_layer = i - 1;
 		if (rec_frame_func.k_blk_func)
 			rec_frame_func.k_blk_func(rec_ctx);
 		if (i != 1) {

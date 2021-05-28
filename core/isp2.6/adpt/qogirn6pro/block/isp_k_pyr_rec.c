@@ -530,10 +530,7 @@ int isp_pyr_rec_frame_config(void *handle)
 
 	/* cnr frame param cfg */
 	addr = ISP_GET_REG(ISP_YUV_REC_CNR_CONTRL0);
-	/* open cnr image error, just temp bypass it
-	 * cmd = ((ctx->rec_cnr.layer_num & 0x7) << 1) | ctx->rec_cnr.rec_cnr_bypass;
-	*/
-	cmd = ((ctx->rec_cnr.layer_num & 0x7) << 1) | BIT_0;
+	cmd = ((ctx->rec_cnr.layer_num & 0x7) << 1) | ctx->rec_cnr.rec_cnr_bypass;
 	FMCU_PUSH(fmcu, addr, cmd);
 
 	addr = ISP_GET_REG(ISP_YUV_REC_CNR_CFG0);
@@ -556,42 +553,42 @@ int isp_pyr_rec_frame_config(void *handle)
 	FMCU_PUSH(fmcu, addr, cmd);
 
 	for (i = 0; i < 18; i++) {
-		addr = ISP_GET_REG(ISP_YUV_REC_CNR_Y_L0_WHT0);
+		addr = ISP_GET_REG(ISP_YUV_REC_CNR_Y_L0_WHT0 + 4 * i);
 		cmd = ((layer_cnr_h->weight_y[0][4 * i + 3] & 0xFF) << 24) |
 			((layer_cnr_h->weight_y[0][4 * i + 2] & 0xFF) << 16) |
 			((layer_cnr_h->weight_y[0][4 * i + 1] & 0xFF) << 8) |
 			(layer_cnr_h->weight_y[0][4 * i] & 0xFF);
 		FMCU_PUSH(fmcu, addr, cmd);
 
-		addr = ISP_GET_REG(ISP_YUV_REC_CNR_Y_L1_WHT0);
+		addr = ISP_GET_REG(ISP_YUV_REC_CNR_Y_L1_WHT0 + 4 * i);
 		cmd = ((layer_cnr_h->weight_y[1][4 * i + 3] & 0xFF) << 24) |
 			((layer_cnr_h->weight_y[1][4 * i + 2] & 0xFF) << 16) |
 			((layer_cnr_h->weight_y[1][4 * i + 1] & 0xFF) << 8) |
 			(layer_cnr_h->weight_y[1][4 * i] & 0xFF);
 		FMCU_PUSH(fmcu, addr, cmd);
 
-		addr = ISP_GET_REG(ISP_YUV_REC_CNR_Y_L2_WHT0);
+		addr = ISP_GET_REG(ISP_YUV_REC_CNR_Y_L2_WHT0 + 4 * i);
 		cmd = ((layer_cnr_h->weight_y[2][4 * i + 3] & 0xFF) << 24) |
 			((layer_cnr_h->weight_y[2][4 * i + 2] & 0xFF) << 16) |
 			((layer_cnr_h->weight_y[2][4 * i + 1] & 0xFF) << 8) |
 			(layer_cnr_h->weight_y[2][4 * i] & 0xFF);
 		FMCU_PUSH(fmcu, addr, cmd);
 
-		addr = ISP_GET_REG(ISP_YUV_REC_CNR_UV_L0_WHT0);
+		addr = ISP_GET_REG(ISP_YUV_REC_CNR_UV_L0_WHT0 + 4 * i);
 		cmd = ((layer_cnr_h->weight_uv[0][4 * i + 3] & 0xFF) << 24) |
 			((layer_cnr_h->weight_uv[0][4 * i + 2] & 0xFF) << 16) |
 			((layer_cnr_h->weight_uv[0][4 * i + 1] & 0xFF) << 8) |
 			(layer_cnr_h->weight_uv[0][4 * i] & 0xFF);
 		FMCU_PUSH(fmcu, addr, cmd);
 
-		addr = ISP_GET_REG(ISP_YUV_REC_CNR_UV_L1_WHT0);
+		addr = ISP_GET_REG(ISP_YUV_REC_CNR_UV_L1_WHT0 + 4 * i);
 		cmd = ((layer_cnr_h->weight_uv[1][4 * i + 3] & 0xFF) << 24) |
 			((layer_cnr_h->weight_uv[1][4 * i + 2] & 0xFF) << 16) |
 			((layer_cnr_h->weight_uv[1][4 * i + 1] & 0xFF) << 8) |
 			(layer_cnr_h->weight_uv[1][4 * i] & 0xFF);
 		FMCU_PUSH(fmcu, addr, cmd);
 
-		addr = ISP_GET_REG(ISP_YUV_REC_CNR_UV_L2_WHT0);
+		addr = ISP_GET_REG(ISP_YUV_REC_CNR_UV_L2_WHT0 + 4 * i);
 		cmd = ((layer_cnr_h->weight_uv[2][4 * i + 3] & 0xFF) << 24) |
 			((layer_cnr_h->weight_uv[2][4 * i + 2] & 0xFF) << 16) |
 			((layer_cnr_h->weight_uv[2][4 * i + 1] & 0xFF) << 8) |
