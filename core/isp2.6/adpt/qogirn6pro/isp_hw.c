@@ -1716,6 +1716,7 @@ static struct isp_cfg_entry isp_hw_cfg_func_tab[ISP_BLOCK_TOTAL - ISP_BLOCK_BASE
 [ISP_BLOCK_CDN - ISP_BLOCK_BASE]        = {ISP_BLOCK_CDN,        isp_k_cfg_cdn},
 [ISP_BLOCK_YRANDOM - ISP_BLOCK_BASE]    = {ISP_BLOCK_YRANDOM,    isp_k_cfg_yrandom},
 [ISP_BLOCK_BCHS - ISP_BLOCK_BASE]       = {ISP_BLOCK_BCHS,       isp_k_cfg_bchs},
+[ISP_BLOCK_DCT - ISP_BLOCK_BASE]        = {ISP_BLOCK_DCT,        isp_k_cfg_dct},
 };
 
 static int isphw_block_func_get(void *handle, void *arg)

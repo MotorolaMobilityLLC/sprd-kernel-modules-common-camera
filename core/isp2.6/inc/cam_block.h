@@ -57,6 +57,7 @@ struct isp_k_block {
 	struct isp_dev_post_cnr_h_info post_cnr_h_info;
 	struct isp_dev_ynr_info_v3 ynr_info_v3;
 	struct isp_dev_cnr_h_info cnr_info;
+	struct isp_dev_dct_info dct_info;
 	/* sharkl3 only */
 	struct isp_dev_brightness_info brightness_info;
 	struct isp_dev_contrast_info contrast_info;
@@ -176,6 +177,8 @@ int isp_k_cfg_bchs(struct isp_io_param *param,
 int isp_k_cfg_cce(struct isp_io_param *param,
 	struct isp_k_block *isp_k_param, uint32_t idx);
 int isp_k_cfg_cdn(struct isp_io_param *param,
+	struct isp_k_block *isp_k_param, uint32_t idx);
+int isp_k_cfg_dct(struct isp_io_param *param,
 	struct isp_k_block *isp_k_param, uint32_t idx);
 int isp_k_cfg_cfa(struct isp_io_param *param,
 	struct isp_k_block *isp_k_param, uint32_t idx);
