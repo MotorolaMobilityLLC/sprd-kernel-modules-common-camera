@@ -446,6 +446,8 @@ static int isppyrrec_cnr_get(struct isp_rec_ctx_desc *ctx, uint32_t idx)
 	cnr_info = &ctx->rec_cnr;
 	cnr_info->layer_num = ctx->cur_layer + 1;
 	cnr_info->rec_cnr_bypass = cnr_info->pyr_cnr->bypass;
+	cnr_info->img_center.w = ctx->pyr_layer_size[cnr_info->layer_num].w / 4;
+	cnr_info->img_center.h = ctx->pyr_layer_size[cnr_info->layer_num].h / 4;
 
 	return ret;
 }

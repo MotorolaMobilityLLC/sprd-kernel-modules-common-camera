@@ -348,7 +348,7 @@ static int isppyrrec_cnr_slice_set(struct slice_pos_info *pyr_cnr, void *in_ptr)
 
 	fmcu = (struct isp_fmcu_ctx_desc *)in_ptr;
 
-	addr = ISP_GET_REG(ISP_YUV_REC_CNR_CFG1);
+	addr = ISP_GET_REG(ISP_YUV_REC_CNR_CONTRL1);
 	cmd = ((pyr_cnr->start_row & 0xFFFF) << 16) | (pyr_cnr->start_col & 0xFFFF);
 	FMCU_PUSH(fmcu, addr, cmd);
 
@@ -541,8 +541,8 @@ int isp_pyr_rec_frame_config(void *handle)
 	FMCU_PUSH(fmcu, addr, cmd);
 
 	addr = ISP_GET_REG(ISP_YUV_REC_CNR_CFG1);
-	cmd = ((layer_cnr_h->imgCenterY & 0xFFFF) << 16) |
-		(layer_cnr_h->imgCenterX & 0xFFFF);
+	cmd = ((ctx->rec_cnr.img_center.h & 0xFFFF) << 16) |
+		(ctx->rec_cnr.img_center.w & 0xFFFF);
 	FMCU_PUSH(fmcu, addr, cmd);
 
 	addr = ISP_GET_REG(ISP_YUV_REC_CNR_CFG2);

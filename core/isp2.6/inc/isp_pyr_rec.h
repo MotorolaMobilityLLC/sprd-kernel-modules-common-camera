@@ -85,7 +85,7 @@ struct isp_rec_ynr_info {
 struct isp_rec_cnr_info {
 	uint32_t rec_cnr_bypass;
 	uint32_t layer_num;
-	struct img_size start;
+	struct img_size img_center;
 	struct isp_dev_cnr_h_info *pyr_cnr;
 };
 
