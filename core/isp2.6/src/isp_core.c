@@ -212,7 +212,7 @@ static int ispcore_blkparam_adapt(struct isp_sw_context *pctx)
 	struct img_trim *src_trim;
 	struct img_size *dst = &pctx->uinfo.original.dst_size;
 
-	if (pctx->uinfo.original.src_size.w > 0) {
+	if (pctx->uinfo.original.src_size.w > 0 && pctx->ch_id != CAM_CH_CAP) {
 		/* for input scaled image */
 		src_trim = &pctx->uinfo.original.src_trim;
 		new_width = dst->w;

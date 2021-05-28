@@ -203,6 +203,11 @@ static int isp_k_nlm_block(struct isp_io_param *param,
 		ISP_REG_WR(idx, ISP_NLM_LUM0_FLAT3_PARAM + i * 32, val);
 	}
 
+	val = ((p->lum_flat_addback1[2][3] & 0x7F) << 14) |
+		((p->lum_flat_addback1[1][3] & 0x7F) << 7) |
+		(p->lum_flat_addback1[0][3] & 0x7F);
+	ISP_REG_WR(idx, ISP_NLM_ADDBACK3, val);
+
 	val = (p->radius_bypass & 0x1) |
 		((p->nlm_radial_1D_bypass & 0x1) << 1) |
 		((p->nlm_direction_addback_mode_bypass & 0x1) << 2) |
