@@ -1431,17 +1431,6 @@ static int camioctl_stream_off(struct camera_module *module,
 			module->dcam_dev_handle->dcam_pipe_ops->put_path(sw_ctx,
 					ch->dcam_path_id);
 		}
-		if (ch->isp_path_id >= 0) {
-			isp_ctx_id[i] = ch->isp_ctx_id;
-			module->isp_dev_handle->isp_ops->put_path(module->isp_dev_handle,
-				isp_ctx_id[i],
-				ch->isp_path_id);
-		}
-		if (ch->slave_isp_path_id >= 0) {
-			module->isp_dev_handle->isp_ops->put_path(module->isp_dev_handle,
-				isp_ctx_id[i],
-				ch->slave_isp_path_id);
-		}
 	}
 
 	for (i = 0; i < CAM_CH_MAX; i++) {
@@ -1457,6 +1446,7 @@ static int camioctl_stream_off(struct camera_module *module,
 			struct camera_frame, list);
 
 		if ((ch->ch_id == CAM_CH_PRE) || (ch->ch_id == CAM_CH_CAP)) {
+			isp_ctx_id[i] = ch->isp_ctx_id;
 			if (isp_ctx_id[i] != -1)
 				module->isp_dev_handle->isp_ops->put_context(module->isp_dev_handle,
 					isp_ctx_id[i]);

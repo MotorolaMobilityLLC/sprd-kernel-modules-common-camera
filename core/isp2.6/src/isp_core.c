@@ -3417,9 +3417,13 @@ static int ispcore_context_put(void *isp_handle, int ctx_id)
 		/* clear path queue. */
 		for (i = 0; i < ISP_SPATH_NUM; i++) {
 			path = &pctx->isp_path[i];
+			if (atomic_read(&path->user_cnt) > 1)
+				pr_warn("isp cxt %d, path %d has multi users.\n", ctx_id, i);
+
+			atomic_set(&path->user_cnt, 0);
+
 			if (path->q_init == 0)
 				continue;
-
 			/* reserved buffer queue should be cleared at last. */
 			cam_queue_clear(&path->result_queue,
 				struct camera_frame, list);
