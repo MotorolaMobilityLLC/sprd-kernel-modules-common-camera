@@ -6852,14 +6852,9 @@ rewait:
 			read_op.parm.frame.irq_property = pframe->irq_property;
 		}
 
-		if (read_op.parm.frame.channel_id == CAM_CH_CAP)
-			pr_debug("read frame, evt 0x%x irq %d ch 0x%x index 0x%x mfd 0x%x\n",
-				read_op.evt, read_op.parm.frame.irq_type, read_op.parm.frame.channel_id,
-				read_op.parm.frame.real_index, read_op.parm.frame.mfd);
-		else
-			pr_debug("read frame, evt 0x%x irq %d ch 0x%x index 0x%x mfd 0x%x\n",
-				read_op.evt, read_op.parm.frame.irq_type, read_op.parm.frame.channel_id,
-				read_op.parm.frame.real_index, read_op.parm.frame.mfd);
+		pr_debug("read frame, evt 0x%x irq %d ch 0x%x index 0x%x mfd 0x%x\n",
+			read_op.evt, read_op.parm.frame.irq_type, read_op.parm.frame.channel_id,
+			read_op.parm.frame.real_index, read_op.parm.frame.mfd);
 
 		if (pframe) {
 			if (pframe->irq_type != CAMERA_IRQ_4IN1_DONE) {

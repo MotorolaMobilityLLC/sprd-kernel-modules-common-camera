@@ -3661,6 +3661,8 @@ static int ispcore_dev_open(void *isp_handle, void *param)
 			goto err_init;
 		}
 
+		atomic_set(&dev->pd_clk_rdy, 1);
+
 		if (dev->pyr_dec_handle == NULL && hw->ip_isp->pyr_dec_support) {
 			dev->pyr_dec_handle = isp_pyr_dec_dev_get(dev, hw);
 			if (!dev->pyr_dec_handle) {
@@ -3707,6 +3709,7 @@ static int ispcore_dev_close(void *isp_handle)
 		ret = ispcore_context_deinit(dev);
 		mutex_destroy(&dev->path_mutex);
 		ret = isp_drv_hw_deinit(dev);
+		atomic_set(&dev->pd_clk_rdy, 0);
 	}
 
 	pr_info("isp dev disable done\n");

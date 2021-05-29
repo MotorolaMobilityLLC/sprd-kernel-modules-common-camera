@@ -276,6 +276,7 @@ struct isp_hw_context {
 struct isp_pipe_dev {
 	uint32_t irq_no[2];
 	atomic_t user_cnt;
+	atomic_t pd_clk_rdy;
 	atomic_t enable;
 	struct mutex path_mutex;
 	spinlock_t ctx_lock;

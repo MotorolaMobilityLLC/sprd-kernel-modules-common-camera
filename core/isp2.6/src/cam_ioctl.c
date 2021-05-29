@@ -429,7 +429,10 @@ static int camioctl_cam_security_set(struct camera_module *module,
 		unsigned long arg)
 {
 	int ret = 0;
+	int loop = 0;
 	bool sec_ret = 0;
+	bool iommu_en = 0;
+	bool ca_conn = 0;
 	struct sprd_cam_sec_cfg uparam;
 
 	ret = copy_from_user(&uparam,
@@ -447,35 +450,47 @@ static int camioctl_cam_security_set(struct camera_module *module,
 		module->grp->camsec_cfg.camsec_mode,
 		uparam.camsec_mode, uparam.work_mode);
 
-	if (uparam.camsec_mode != SEC_UNABLE) {
-		if (!module->grp->ca_conn)
-			module->grp->ca_conn = cam_trusty_connect();
-
+	if (uparam.camsec_mode == SEC_UNABLE) {
+		iommu_en = false;
+	}  else {
 		if (!module->grp->ca_conn) {
-			pr_err("fail to init cam_trusty_connect\n");
-			ret = -EFAULT;
-			goto exit;
+			ca_conn = cam_trusty_connect();
+			if (!ca_conn) {
+				pr_err("fail to init cam_trusty_connect\n");
+				ret = -EFAULT;
+				goto exit;
+			}
+			module->grp->ca_conn = ca_conn;
 		}
 
 		sec_ret = cam_trusty_security_set(&uparam, CAM_TRUSTY_ENTER);
-
 		if (!sec_ret) {
 			ret = -EFAULT;
 			pr_err("fail to init cam security set\n");
 			goto exit;
 		}
-
-		module->grp->camsec_cfg.work_mode = uparam.work_mode;
-		module->grp->camsec_cfg.camsec_mode = uparam.camsec_mode;
-
-		ret = sprd_iommu_set_cam_bypass(true);
-
-	}  else {
-		module->grp->camsec_cfg.work_mode = uparam.work_mode;
-		module->grp->camsec_cfg.camsec_mode = uparam.camsec_mode;
-
-		ret = sprd_iommu_set_cam_bypass(false);
+		iommu_en = true;
 	}
+
+	ret = -EFAULT;
+	do {
+		if (atomic_read(&module->isp_dev_handle->pd_clk_rdy) > 0) {
+			ret = 0;
+			break;
+		}
+		pr_info_ratelimited("loop %d\n", loop);
+		usleep_range(600, 800);
+	} while(loop++ < 1000);
+
+	if (ret) {
+		pr_err("fail to get isp domain & clk, timeout.\n");
+		goto exit;
+	}
+
+	module->grp->camsec_cfg.work_mode = uparam.work_mode;
+	module->grp->camsec_cfg.camsec_mode = uparam.camsec_mode;
+
+	ret = sprd_iommu_set_cam_bypass(iommu_en);
 
 exit:
 	return ret;
