@@ -406,7 +406,7 @@ static int isppyrrec_ynr_get(struct isp_rec_ctx_desc *ctx, uint32_t idx)
 	ynr_alg_cal.imgCenterX[0] = ctx->pyr_layer_size[0].w / 2;
 	ynr_alg_cal.imgCenterY[0] = ctx->pyr_layer_size[0].h / 2;
 	ynr_alg_cal.Radius[0] = pyr_ynr->radius;
-	layer_num_ynr = ctx->layer_num - 1;
+	layer_num_ynr = ctx->layer_num;
 	for (i = 0; i < 5; i++) {
 		/* some ynr param only need cfg once */
 		if (ynr_info->layer_num == ctx->layer_num) {
