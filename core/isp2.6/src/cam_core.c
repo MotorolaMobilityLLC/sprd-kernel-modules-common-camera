@@ -5519,7 +5519,8 @@ static int camcore_raw_proc_done(struct camera_module *module)
 	dev->sw_ctx[module->offline_cxt_id].raw_fetch_num = 0;
 	dev->sw_ctx[module->offline_cxt_id].raw_fetch_count = 0;
 	atomic_set(&module->state, CAM_IDLE);
-
+	if (dev->sw_ctx[module->offline_cxt_id].rps == 1)
+		dcam_core_context_unbind(&dev->sw_ctx[module->offline_cxt_id]);
 	pr_info("camera%d rawproc done.\n", module->idx);
 
 	spin_lock_irqsave(&grp->rawproc_lock, flag);
@@ -5720,7 +5721,12 @@ static int camcore_raw_pre_proc(
 		ret = module->dcam_dev_handle->dcam_pipe_ops->cfg_path(sw_ctx,
 			DCAM_PATH_CFG_SIZE, DCAM_PATH_RAW, &ch_raw_path_desc);
 	}
+	if (sw_ctx->rps == 1){
+		ret = dcam_core_context_bind(sw_ctx, hw->csi_connect_type, module->aux_dcam_id);
+		if (ret)
+			pr_err("fail to get hw_ctx_id\n");
 
+	}
 	/* specify isp context & path */
 	init_param.is_high_fps = 0;/* raw capture + slow motion ?? */
 	init_param.cam_id = module->idx;
@@ -5791,7 +5797,6 @@ static int camcore_raw_pre_proc(
 	ch->enable = 1;
 	ch->ch_uinfo.dst_fmt = isp_path_desc.out_fmt;
 	atomic_set(&module->state, CAM_CFG_CH);
-
 	pr_info("done, dcam path %d, isp_path 0x%x\n",
 		ch->dcam_path_id, ch->isp_path_id);
 	return 0;

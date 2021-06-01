@@ -705,12 +705,15 @@ static void dcamint_raw_path_done(void *param)
 			cam_buf_ionbuf_put(&frame->buf);
 			cam_queue_empty_frame_put(frame);
 
-			if (atomic_read(&path_bin->set_frm_cnt) == 0) {
+			if (atomic_read(&path_bin->set_frm_cnt) == atomic_read(&path->set_frm_cnt)) {
 				frame = cam_queue_dequeue(&sw_ctx->proc_queue, struct camera_frame, list);
 				if (frame) {
 					cam_buf_iommu_unmap(&frame->buf);
 					sw_ctx->dcam_cb_func(DCAM_CB_RET_SRC_BUF, frame, sw_ctx->cb_priv_data);
 				}
+				if (sw_ctx->rps == 0)
+					dcam_core_context_unbind(sw_ctx);
+				complete(&sw_ctx->frm_done);
 			}
 			return;
 		}
@@ -819,7 +822,7 @@ static void dcamint_bin_path_done(void *param)
 				DCAM_CB_DATA_DONE);
 
 	if (sw_ctx->offline) {
-		if ((sw_ctx->dcam_slice_mode != CAM_OFFLINE_SLICE_SW) && (atomic_read(&path_raw->set_frm_cnt) == 0)) {
+		if ((sw_ctx->dcam_slice_mode != CAM_OFFLINE_SLICE_SW) && (atomic_read(&path_raw->set_frm_cnt) == (atomic_read(&path->set_frm_cnt)))) {
 			/* there is source buffer for offline process */
 			frame = cam_queue_dequeue(&sw_ctx->proc_queue, struct camera_frame, list);
 			if (frame) {
@@ -827,8 +830,10 @@ static void dcamint_bin_path_done(void *param)
 				sw_ctx->dcam_cb_func(DCAM_CB_RET_SRC_BUF, frame,
 						  sw_ctx->cb_priv_data);
 			}
+			if (sw_ctx->rps == 0)
+				dcam_core_context_unbind(sw_ctx);
+			complete(&sw_ctx->frm_done);
 		}
-		complete(&sw_ctx->frm_done);
 	}
 }
 
