@@ -3234,8 +3234,11 @@ static int camioctl_csi_switch(struct camera_module *module, unsigned long arg)
 
 					if (frame->is_reserved)
 						cam_queue_enqueue(&path->reserved_buf_queue, &frame->list);
-					else
+					else {
 						cam_queue_enqueue(&path->out_buf_queue, &frame->list);
+						if (path->path_id == DCAM_PATH_FULL)
+							cam_buf_iommu_unmap(&frame->buf);
+					}
 					if (frame->sync_data)
 						dcam_core_dcam_if_release_sync(frame->sync_data, frame);
 
