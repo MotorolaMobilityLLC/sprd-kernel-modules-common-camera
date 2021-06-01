@@ -618,8 +618,7 @@ static int dcamcore_statis_buffer_cfg(
 		}
 		pr_info("done\n");
 
-	} else if (atomic_read(&pctx->state) == STATE_RUNNING) {
-
+	} else {
 		path_id = dcamcore_statis_type_to_path_id(input->type);
 		if (path_id == DCAM_PATH_MAX) {
 			pr_err("fail to get a valid statis type: %d\n", input->type);
