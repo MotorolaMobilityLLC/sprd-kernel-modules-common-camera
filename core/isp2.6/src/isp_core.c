@@ -306,7 +306,8 @@ static int ispcore_3dnr_frame_process(struct isp_sw_context *pctx,
 	mv_version = pctx->hw->ip_isp->nr3_mv_alg_version;
 
 	nr3_handle->ops.cfg_param(nr3_handle, ISP_3DNR_CFG_MV_VERSION, &mv_version);
-	nr3_handle->ops.cfg_param(nr3_handle, ISP_3DNR_CFG_FBD_INFO, &pipe_src->nr3_fbc_fbd);
+	nr3_handle->ops.cfg_param(nr3_handle, ISP_3DNR_CFG_FBC_INFO, &pipe_src->nr3_fbc_fbd);
+	nr3_handle->ops.cfg_param(nr3_handle, ISP_3DNR_CFG_FBD_INFO, &pipe_src->fetch_path_sel);
 	nr3_handle->ops.cfg_param(nr3_handle, ISP_3DNR_CFG_SIZE_INFO, &pipe_src->crop);
 	nr3_handle->ops.cfg_param(nr3_handle, ISP_3DNR_CFG_MEMCTL_STORE_INFO, &pctx->pipe_info.fetch);
 	nr3_handle->ops.cfg_param(nr3_handle, ISP_3DNR_CFG_BLEND_INFO, &pctx->isp_k_param);

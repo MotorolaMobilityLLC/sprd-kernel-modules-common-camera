@@ -19,6 +19,27 @@
 #endif
 #define pr_fmt(fmt) "ISP_3DNR: %d %d %s : "fmt, current->pid, __LINE__, __func__
 
+
+static int isp3dnr_calc_img_pitch(enum isp_fetch_format fmt, uint32_t w)
+{
+	int pitch = 0;
+
+	switch (fmt) {
+	case ISP_FETCH_RAW10:
+		pitch = w;
+		break;
+	case ISP_FETCH_YUV420_2FRAME_MIPI:
+	case ISP_FETCH_YVU420_2FRAME_MIPI:
+		pitch = w * 2;
+		break;
+	default:
+		pr_err("fail to get isp fetch format:%d, pitch:%d\n", fmt, pitch);
+	}
+
+	return pitch;
+}
+
+
 static int isp3dnr_store_config_gen(struct isp_3dnr_ctx_desc *ctx)
 {
 	int ret = 0;
@@ -33,7 +54,6 @@ static int isp3dnr_store_config_gen(struct isp_3dnr_ctx_desc *ctx)
 
 	store->img_width = ctx->width;
 	store->img_height = ctx->height;
-	store->st_pitch = ctx->width;
 
 	store->chk_sum_clr_en = 1;
 	store->shadow_clr_sel = 1;
@@ -45,15 +65,16 @@ static int isp3dnr_store_config_gen(struct isp_3dnr_ctx_desc *ctx)
 	store->endian = 0;
 	store->mirror_en = 0;
 	store->speed_2x = 1;
+	store->store_res = 1;
 
 	if (ctx->blending_cnt % 2 != 1) {
 		store->st_luma_addr = ctx->buf_info[0]->iova[0];
 		store->st_chroma_addr = ctx->buf_info[0]->iova[0] +
-			(ctx->width * ctx->height);
+			(store->st_pitch * ctx->height);
 	} else {
 		store->st_luma_addr = ctx->buf_info[1]->iova[0];
 		store->st_chroma_addr = ctx->buf_info[1]->iova[0] +
-			(ctx->width * ctx->height);
+			(store->st_pitch * ctx->height);
 	}
 
 	pr_debug("3DNR nr3store st_luma=0x%lx, st_chroma=0x%lx\n",
@@ -204,8 +225,8 @@ static int isp3dnr_memctrl_config_gen(struct isp_3dnr_ctx_desc *ctx)
 	/* configuration param3 */
 	mem_ctrl->img_width = ctx->width;
 	mem_ctrl->img_height = ctx->height;
-	pr_debug("3DNR img_width=%d, img_height=%d\n",
-		mem_ctrl->img_width, mem_ctrl->img_height);
+	pr_debug("3DNR img_width=%d, img_height=%d, ft_pitch:%d\n",
+		mem_ctrl->img_width, mem_ctrl->img_height, mem_ctrl->ft_pitch);
 
 	/* configuration param4/5 */
 	mem_ctrl->ft_y_width = ctx->width;
@@ -219,11 +240,11 @@ static int isp3dnr_memctrl_config_gen(struct isp_3dnr_ctx_desc *ctx)
 	if (ctx->blending_cnt % 2 == 1) {
 		mem_ctrl->ft_luma_addr = ctx->buf_info[0]->iova[0];
 		mem_ctrl->ft_chroma_addr = ctx->buf_info[0]->iova[0] +
-			(ctx->width * ctx->height);
+			(mem_ctrl->ft_pitch * ctx->height);
 	} else {
 		mem_ctrl->ft_luma_addr = ctx->buf_info[1]->iova[0];
 		mem_ctrl->ft_chroma_addr = ctx->buf_info[1]->iova[0] +
-			(ctx->width * ctx->height);
+			(mem_ctrl->ft_pitch * ctx->height);
 	}
 	mem_ctrl->frame_addr.addr_ch0 = mem_ctrl->ft_luma_addr;
 	mem_ctrl->frame_addr.addr_ch1 = mem_ctrl->ft_chroma_addr;
@@ -765,7 +786,7 @@ static int isp3dnr_cfg_param(void *handle,
 {
 	int ret = 0;
 	uint32_t i = 0;
-	uint32_t nr3_compress_eb = 0;
+	uint32_t nr3_compress_eb = 0, fetch_path_sel = 0;
 	struct isp_3dnr_ctx_desc *nr3_ctx = NULL;
 	struct camera_frame * pframe = NULL;
 	struct img_trim *crop = NULL;
@@ -811,17 +832,24 @@ static int isp3dnr_cfg_param(void *handle,
 		nr3_ctx->blending_cnt = *(uint32_t *)param;
 		pr_debug("3DNR blending cnt %d\n", nr3_ctx->blending_cnt);
 		break;
-	case ISP_3DNR_CFG_FBD_INFO:
+	case ISP_3DNR_CFG_FBC_INFO:
 		nr3_compress_eb = *(uint32_t *)param;
 		if (nr3_compress_eb) {
 			nr3_ctx->nr3_store.st_bypass = 1;
 			nr3_ctx->nr3_fbc_store.bypass = 0;
-			nr3_ctx->mem_ctrl.nr3_ft_path_sel = 1;
 		} else {
 			nr3_ctx->nr3_store.st_bypass = 0;
 			nr3_ctx->nr3_fbc_store.bypass = 1;
-			nr3_ctx->mem_ctrl.nr3_ft_path_sel = 0;
 		}
+		break;
+	case ISP_3DNR_CFG_FBD_INFO:
+		fetch_path_sel = *(uint32_t *)param;
+		if (fetch_path_sel == 1)
+			nr3_ctx->nr3_fbd_fetch.bypass = 0;
+		else if (fetch_path_sel == 0)
+			nr3_ctx->nr3_fbd_fetch.bypass = 1;
+		else
+			pr_debug("dewarp !!!.\n");
 		break;
 	case ISP_3DNR_CFG_SIZE_INFO:
 		crop = (struct img_trim *)param;
@@ -838,12 +866,16 @@ static int isp3dnr_cfg_param(void *handle,
 		break;
 	case ISP_3DNR_CFG_MEMCTL_STORE_INFO:
 		fetch_info = (struct isp_hw_fetch_info *)param;
-		nr3_ctx->nr3_store.color_format = ISP_STORE_YVU420_2FRAME;
+		nr3_ctx->mem_ctrl.yuv_8bits_flag = (fetch_info->data_bits == 8) ? 1 : 0;
+		nr3_ctx->mem_ctrl.nr3_ft_path_sel = fetch_info->fetch_path_sel;
+		nr3_ctx->nr3_sec_mode = fetch_info->sec_mode;
+		nr3_ctx->mem_ctrl.ft_pitch = isp3dnr_calc_img_pitch(fetch_info->fetch_fmt, nr3_ctx->width);
+		nr3_ctx->nr3_store.st_pitch = nr3_ctx->mem_ctrl.ft_pitch;
+		nr3_ctx->nr3_store.y_pitch_mem = nr3_ctx->mem_ctrl.ft_pitch;
+		nr3_ctx->nr3_store.u_pitch_mem = nr3_ctx->mem_ctrl.ft_pitch;
+		nr3_ctx->nr3_store.color_format = fetch_info->fetch_fmt;
 		nr3_ctx->nr3_store.mipi_en = 0;
 		nr3_ctx->nr3_store.data_10b = (fetch_info->data_bits == 8) ? 0 : 1;
-		nr3_ctx->nr3_store.y_pitch_mem = nr3_ctx->width * 2;
-		nr3_ctx->nr3_store.u_pitch_mem = nr3_ctx->width * 2;
-		nr3_ctx->mem_ctrl.ft_pitch = nr3_ctx->width * 2;
 		break;
 	case ISP_3DNR_CFG_MV_VERSION:
 		nr3_ctx->nr3_mv_version = *(uint32_t *)param;
