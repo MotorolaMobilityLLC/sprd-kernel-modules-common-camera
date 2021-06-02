@@ -44,11 +44,16 @@ struct tipc_msg_buf *cam_ca_handle_msg(void *data,
 	if (ca->chanel_state == TIPC_CHANNEL_CONNECTED) {
 		/* get new buffer */
 		newbuf = tipc_chan_get_rxbuf(ca->chan);
-		if (newbuf) {
+		if (!IS_ERR(newbuf)) {
+			unsigned long flag = 0;
+
 			pr_info("received new data, rxbuf %p, newbuf %p\n",
 				rxbuf, newbuf);
 			/* queue an old buffer and return a new one */
+			spin_lock_irqsave(&ca->queue_lock, flag);
 			list_add_tail(&rxbuf->node, &ca->rx_msg_queue);
+			spin_unlock_irqrestore(&ca->queue_lock, flag);
+
 			wake_up_interruptible(&ca->readq);
 		} else {
 			/*
@@ -136,6 +141,7 @@ bool cam_trusty_connect(void)
 		mutex_init(&ca->rlock);
 		mutex_init(&ca->wlock);
 		init_waitqueue_head(&ca->readq);
+		spin_lock_init(&ca->queue_lock);
 		INIT_LIST_HEAD(&ca->rx_msg_queue);
 		ca->con_init = true;
 	}
@@ -165,10 +171,13 @@ bool cam_trusty_connect(void)
 void cam_trusty_disconnect(void)
 {
 	struct cam_ca_ctrl *ca = &cam_ca;
+	unsigned long flag = 0;
 
 	wake_up_interruptible_all(&ca->readq);
 
+	spin_lock_irqsave(&ca->queue_lock, flag);
 	cam_ca_free_msg_buf_list(&ca->rx_msg_queue);
+	spin_unlock_irqrestore(&ca->queue_lock, flag);
 	ca->con_init = false;
 
 	/* todo for Stability test
@@ -227,16 +236,21 @@ ssize_t cam_ca_read(void *buf, size_t max_len)
 	struct tipc_msg_buf *mb;
 	ssize_t	len;
 	struct cam_ca_ctrl *ca = &cam_ca;
+	unsigned long flag = 0;
+	int ret = 0;
 
 	pr_info("ca read enter");
 
-	if (!wait_event_interruptible_timeout(ca->readq,
-		!list_empty(&ca->rx_msg_queue),
-		msecs_to_jiffies(CA_READ_TIMEOUT))) {
-		pr_err("fail to wait read response, time out!\n");
+	if (ca->chanel_state != TIPC_CHANNEL_CONNECTED)
+		return false;
+
+	ret = wait_event_interruptible_timeout(ca->readq, !list_empty(&ca->rx_msg_queue), msecs_to_jiffies(CA_READ_TIMEOUT));
+	if (ret <= 0) {
+		pr_err("fail to wait read response, time out! ret = %d\n", ret);
 		return -ETIMEDOUT;
 	}
 
+	spin_lock_irqsave(&ca->queue_lock, flag);
 	mb = list_first_entry(&ca->rx_msg_queue, struct tipc_msg_buf, node);
 
 	len = mb_avail_data(mb);
@@ -246,6 +260,7 @@ ssize_t cam_ca_read(void *buf, size_t max_len)
 	memcpy(buf, mb_get_data(mb, len), len);
 
 	list_del(&mb->node);
+	spin_unlock_irqrestore(&ca->queue_lock, flag);
 	tipc_chan_put_rxbuf(ca->chan, mb);
 
 	return len;

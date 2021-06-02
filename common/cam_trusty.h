@@ -119,6 +119,7 @@ struct cam_ca_ctrl {
 	struct mutex rlock;
 	struct tipc_chan *chan;
 	wait_queue_head_t readq;
+	spinlock_t queue_lock;
 	struct list_head rx_msg_queue;
 };
 
