@@ -1866,6 +1866,7 @@ static int dcamhw_gtm_status_get(void *handle, void *arg)
 {
 	int val = 0;
 	uint32_t idx;
+	int ret;
 
 	idx = *(uint32_t *)arg;
 	if (idx >= DCAM_ID_MAX) {
@@ -1873,8 +1874,13 @@ static int dcamhw_gtm_status_get(void *handle, void *arg)
 		return -EFAULT;
 	}
 
-	val = DCAM_REG_RD(idx, DCAM_GTM_GLB_CTRL) & BIT_0;
-	return val;
+	val = DCAM_REG_RD(idx, DCAM_GTM_GLB_CTRL) & BIT_1;
+
+	if (val)
+		ret = 1;
+	else
+		ret = 0;
+	return ret;
 }
 
 static int dcamhw_gtm_ltm_eb(void *handle, void *arg)
@@ -1964,7 +1970,6 @@ static struct dcam_cfg_entry dcam_hw_cfg_func_tab[DCAM_BLOCK_SUM] = {
 [ISP_BLOCK_NLM - DCAM_BLOCK_BASE]          = {ISP_BLOCK_NLM,          dcam_k_cfg_nlm},
 [ISP_BLOCK_CCE - DCAM_BLOCK_BASE]          = {ISP_BLOCK_CCE,          dcam_k_cfg_cce},
 [ISP_BLOCK_HIST2 - DCAM_BLOCK_BASE]        = {ISP_BLOCK_HIST2,        dcam_k_cfg_frgbhist},
-[DCAM_BLOCK_RAW_GTM - DCAM_BLOCK_BASE]     = {DCAM_BLOCK_RAW_GTM,     dcam_k_cfg_raw_gtm},
 };
 
 static int dcamhw_block_func_get(void *handle, void *arg)

@@ -30,11 +30,10 @@
 
 void dcam_k_raw_gtm_set_default(struct dcam_dev_rgb_gtm_block_info *p)
 {
-#if 0
 	p->gtm_tm_out_bit_depth = 0xE;
 	p->gtm_tm_in_bit_depth = 0xE;
 	p->gtm_cur_is_first_frame = 0x0;
-	p->gtm_log_diff = 0x0;
+	p->gtm_log_diff = 0xd8ce;
 	p->gtm_log_diff_int = 0x25C9;
 	p->gtm_log_max_int = 0x0;
 	p->gtm_log_min_int = 0x496B;
@@ -43,20 +42,10 @@ void dcam_k_raw_gtm_set_default(struct dcam_dev_rgb_gtm_block_info *p)
 	p->gtm_yavg = 0x0;
 	p->gtm_ymax = 0x0;
 	p->gtm_ymin = 0x4;
-	p->tm_lumafilter_c[0][0] = 0x4;
-	p->tm_lumafilter_c[0][1] = 0x2;
-	p->tm_lumafilter_c[0][2] = 0x4;
-	p->tm_lumafilter_c[1][0] = 0x2;
-	p->tm_lumafilter_c[1][1] = 0x28;
-	p->tm_lumafilter_c[1][2] = 0x2;
-	p->tm_lumafilter_c[2][0] = 0x4;
-	p->tm_lumafilter_c[2][1] = 0x2;
-	p->tm_lumafilter_c[2][2] = 0x4;
 	p->tm_lumafilter_shift = 0x6;
 	p->slice.gtm_slice_line_startpos = 0x0;
 	p->slice.gtm_slice_line_endpos = 0x0;
 	p->slice.gtm_slice_main = 0x0;
-#endif
 }
 
 int dcam_k_raw_gtm_slice(uint32_t idx, struct dcam_dev_gtm_slice_info *gtm_slice)
@@ -83,25 +72,32 @@ int dcam_k_raw_gtm_block(uint32_t gtm_param_idx,
 	uint32_t idx = param->idx;
 	unsigned int val = 0;
 	struct dcam_dev_rgb_gtm_block_info *p;
-	struct dcam_dev_gtm_slice_info *gtm_slice;
 	struct dcam_sw_context *sw_ctx = NULL;
 	struct dcam_dev_rgb_gtm_param *gtm = NULL;
 
-	gtm = &param->rgb_gtm[gtm_param_idx];
-	if (!gtm->update_en)
-		return 0;
-
+	gtm = &param->rgb_gtm[DCAM_GTM_PARAM_PRE];
 	sw_ctx = (struct dcam_sw_context *)param->dev;
 	p = &(gtm->rgb_gtm_info);
-	dcam_k_raw_gtm_set_default(p);
 
-	if (g_dcam_bypass[idx] & (1 << _E_GTM))
-		p->gtm_mod_en = 1;
-	gtm_slice = &(p->slice);
-	if ((!p->gtm_mod_en) | (p->gtm_map_bypass && p->gtm_hist_stat_bypass)){
+	pr_debug("dcam%d gtm_param_idx %d update_en %d map_bypass %d stat_bypass %d\n",
+		idx, gtm_param_idx, gtm->update_en, p->gtm_map_bypass, p->gtm_hist_stat_bypass);
+
+	if (!gtm->update_en)
+		p->gtm_map_bypass = 0;
+	else
+		p->gtm_map_bypass = 1;
+
+	if (g_dcam_bypass[idx] & (1 << _E_GTM)) {
+		p->gtm_map_bypass = 1;
+		p->gtm_hist_stat_bypass = 1;
+	}
+
+	if (p->gtm_map_bypass && p->gtm_hist_stat_bypass) {
 		DCAM_REG_MWR(idx, DCAM_GTM_GLB_CTRL, 0x3, 0x3);
 		return 0;
 	}
+
+	dcam_k_raw_gtm_set_default(p);
 
 	if (atomic_read(&sw_ctx->state) != STATE_RUNNING)
 		p->gtm_cur_is_first_frame = 1;
@@ -152,7 +148,7 @@ int dcam_k_raw_gtm_block(uint32_t gtm_param_idx,
 		| ((p->gtm_pre_ymin_weight & 0x1FF) << 23);
 	DCAM_REG_WR(idx, GTM_TM_YMIN_SMOOTH, val);
 
-	for (i = 0; i < 8; i++ ){
+	for (i = 0; i < 8; i++ ) {
 		val = (p->tm_filter_dist_c[i * 6 + 0] & 0x1F)
 			| ((p->tm_filter_dist_c[i * 6 + 1] & 0x1F) << 5)
 			| ((p->tm_filter_dist_c[i * 6 + 2] & 0x1F) << 10)
@@ -164,7 +160,7 @@ int dcam_k_raw_gtm_block(uint32_t gtm_param_idx,
 
 	DCAM_REG_WR(idx, GTM_TM_FILTER_DIST8, 0x1F & p->tm_filter_dist_c[48]);
 
-	for (i = 0; i < 6; i++ ){
+	for (i = 0; i < 6; i++ ) {
 		val = (p->tm_filter_distw_c[i * 3 + 0] & 0x1FF)
 			| ((p->tm_filter_distw_c[i * 3 + 1] & 0x1FF) << 9)
 			| ((p->tm_filter_distw_c[i * 3 + 2] & 0x1FF) << 18);
@@ -173,7 +169,7 @@ int dcam_k_raw_gtm_block(uint32_t gtm_param_idx,
 
 	DCAM_REG_WR(idx, GTM_TM_FILTER_DISTW6, 0x1FF & p->tm_filter_distw_c[18]);
 
-	for (i = 0; i < 20; i++ ){
+	for (i = 0; i < 20; i++ ) {
 		val = (p->tm_filter_rangw_c[i * 3 + 0] & 0x1FF)
 			| ((p->tm_filter_rangw_c[i * 3 + 1] & 0x1FF) << 9)
 			| ((p->tm_filter_rangw_c[i * 3 + 2] & 0x1FF) << 18);
@@ -194,7 +190,7 @@ int dcam_k_raw_gtm_block(uint32_t gtm_param_idx,
 	}
 
 	/* for slice */
-	dcam_k_raw_gtm_slice(idx, gtm_slice);
+	dcam_k_raw_gtm_slice(idx, &p->slice);
 
 	return ret;
 }
@@ -204,15 +200,11 @@ int dcam_k_cfg_raw_gtm(struct isp_io_param *param, struct dcam_dev_param *p)
 	int ret = 0;
 	struct dcam_dev_rgb_gtm_param *gtm = NULL;
 
+	pr_debug("dcam%d scene_id %d\n", p->idx, param->scene_id);
 	switch (param->property) {
 	case DCAM_PRO_RAW_GTM_BLOCK:
-		if (param->scene_id == PM_SCENE_CAP)
-			gtm = &p->rgb_gtm[DCAM_GTM_PARAM_CAP];
-		else
-			gtm = &p->rgb_gtm[DCAM_GTM_PARAM_PRE];
-		/* online mode not need mutex, response faster
-		 * Offline need mutex to protect param
-		 */
+		gtm = &p->rgb_gtm[DCAM_GTM_PARAM_PRE];
+
 		if (p->offline == 0) {
 			ret = copy_from_user((void *)&(gtm->rgb_gtm_info),
 				param->property_param,
@@ -221,6 +213,10 @@ int dcam_k_cfg_raw_gtm(struct isp_io_param *param, struct dcam_dev_param *p)
 				pr_err("fail to copy, ret=0x%x\n", (unsigned int)ret);
 				return -EPERM;
 			}
+
+			if (p->idx == DCAM_HW_CONTEXT_MAX)
+				return 0;
+
 			if (param->scene_id != PM_SCENE_CAP)
 				dcam_k_raw_gtm_block(DCAM_GTM_PARAM_PRE, p);
 		} else {

@@ -2445,8 +2445,8 @@ static int camioctl_capture_start(struct camera_module *module,
 		}
 	}
 
-	pr_info("cam %d start capture type %d, cnt %d, time %lld\n",
-		module->idx, param.type, param.cap_cnt, module->capture_times);
+	pr_info("cam %d start capture type %d, scene %d, cnt %d, time %lld\n",
+		module->idx, param.type, module->capture_scene, param.cap_cnt, module->capture_times);
 	return ret;
 }
 

@@ -50,14 +50,14 @@ int init_dcam_pm(struct dcam_dev_param *blk_pm_ctx)
 	blk_pm_ctx->nlm_info2.vst_bypass = 1;
 	blk_pm_ctx->nlm_info2.bypass = 1;
 	blk_pm_ctx->nlm_imblance2.nlm_imblance_bypass = 1;
-	blk_pm_ctx->gtm[0].update_en = 1;
-	blk_pm_ctx->gtm[0].gtm_info.gtm_mod_en = 1;
-	blk_pm_ctx->gtm[0].gtm_info.gtm_map_bypass = 1;
-	blk_pm_ctx->gtm[0].gtm_info.gtm_hist_stat_bypass = 1;
-	blk_pm_ctx->gtm[1].update_en = 1;
-	blk_pm_ctx->gtm[1].gtm_info.gtm_mod_en = 1;
-	blk_pm_ctx->gtm[1].gtm_info.gtm_map_bypass = 1;
-	blk_pm_ctx->gtm[1].gtm_info.gtm_hist_stat_bypass = 1;
+	blk_pm_ctx->rgb_gtm[0].update_en = 1;
+	blk_pm_ctx->rgb_gtm[0].rgb_gtm_info.gtm_mod_en = 1;
+	blk_pm_ctx->rgb_gtm[0].rgb_gtm_info.gtm_map_bypass = 1;
+	blk_pm_ctx->rgb_gtm[0].rgb_gtm_info.gtm_hist_stat_bypass = 1;
+	blk_pm_ctx->rgb_gtm[1].update_en = 1;
+	blk_pm_ctx->rgb_gtm[1].rgb_gtm_info.gtm_mod_en = 1;
+	blk_pm_ctx->rgb_gtm[1].rgb_gtm_info.gtm_map_bypass = 1;
+	blk_pm_ctx->rgb_gtm[1].rgb_gtm_info.gtm_hist_stat_bypass = 1;
 
 	return 0;
 }

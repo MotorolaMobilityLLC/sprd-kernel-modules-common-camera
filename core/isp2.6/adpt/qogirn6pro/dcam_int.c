@@ -737,6 +737,7 @@ static void dcamint_full_path_done(void *param)
 
 	path = &sw_ctx->path[DCAM_PATH_FULL];
 	pr_debug("capture path done\n");
+
 	if ((frame = dcamint_frame_prepare(dcam_hw_ctx, DCAM_PATH_FULL))) {
 		if (sw_ctx->is_4in1) {
 			if (sw_ctx->skip_4in1 > 0) {

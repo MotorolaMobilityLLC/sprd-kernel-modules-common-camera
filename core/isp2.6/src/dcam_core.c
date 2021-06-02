@@ -1670,11 +1670,15 @@ static int dcamcore_ioctrl(void *dcam_handle, enum dcam_ioctrl_cmd cmd, void *pa
 	case DCAM_IOCTL_CFG_GTM_UPDATE:
 		pm = &pctx->ctx[DCAM_CXT_0].blk_pm;
 		gtm_param_idx = *(uint32_t *)param;
-		if (gtm_param_idx == DCAM_GTM_PARAM_CAP)
+
+		if (gtm_param_idx == DCAM_GTM_PARAM_CAP) {
 			pm->gtm[DCAM_GTM_PARAM_PRE].update_en = 0;
-		else
+			pm->rgb_gtm[DCAM_GTM_PARAM_PRE].update_en = 0;
+		} else {
 			pm->gtm[DCAM_GTM_PARAM_PRE].update_en = 1;
-		//pm->gtm[DCAM_GTM_PARAM_PRE].update |= BIT(0);
+			pm->rgb_gtm[DCAM_GTM_PARAM_PRE].update_en = 1;
+		}
+		pr_debug("DCAM_IOCTL_CFG_GTM_UPDATE gtm_param_idx %d\n", gtm_param_idx);
 		gtmarg.gtm_idx = gtm_param_idx;
 		gtmarg.idx = pctx->hw_ctx_id;
 		gtmarg.hw = hw;
