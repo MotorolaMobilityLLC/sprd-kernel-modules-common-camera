@@ -535,6 +535,10 @@
     unsigned int top_volt = 0, mm_volt = 0;
 
     module = dev_get_drvdata(devfreq->dev.parent);
+    if (!module->dvfs_enable) {
+        pr_info("dvfs not enable.\n");
+        return -EINVAL;
+    }
 
     mutex_lock(&devfreq->lock);
     if (module->dvfs_ops != NULL && module->dvfs_ops->get_ip_status != NULL) {
