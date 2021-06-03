@@ -92,10 +92,6 @@
  int dvfs_notify_callback(struct notifier_block *nb,
                                      unsigned long type, void *data) {
      struct module_dvfs *module = container_of(nb, struct module_dvfs, pw_nb);
-     if (!module->dvfs_enable) {
-         pr_info("dvfs power off\n");
-         return -EINVAL;
-     }
 
      switch (type) {
 
