@@ -363,7 +363,7 @@ static int ip_dvfs_init(struct devfreq *devfreq)
 	set_ip_dvfs_work_index(devfreq, VDMA_WORK_INDEX_DEF);
 	set_ip_dvfs_idle_index(devfreq, VDMA_IDLE_INDEX_DEF);
 	//ip_hw_dvfs_en(devfreq, VDMA_DFS_EN);
-	//vdma->dvfs_enable = VDMA_DFS_EN;
+	vdma->dvfs_enable = VDMA_DFS_EN;
 	vdma->freq = vdma_dvfs_config_table[VDMA_WORK_INDEX_DEF].clk_freq;
 	pr_info("vdma dvfs init param: HDSK_EN %d WORK_INDEX_DEF %d IDLE_INDEX_DEF %d\n",
 		VDMA_FREQ_UPD_HDSK_EN, VDMA_WORK_INDEX_DEF, VDMA_IDLE_INDEX_DEF);
@@ -396,6 +396,17 @@ static void power_on_nb(struct devfreq *devfreq)
 	ip_dvfs_init(devfreq);
 	pr_info("dvfs ops: vdma %s\n", __func__);
 }
+
+static void power_off_nb(struct devfreq *devfreq)
+{
+	struct module_dvfs *vdma;
+	vdma = dev_get_drvdata(devfreq->dev.parent);
+	if (vdma != NULL) {
+		pr_info("vdsp_dvfs power off \n");
+		vdma->dvfs_enable = 0;
+	}
+}
+
 
 static int top_current_volt(struct devfreq *devfreq, unsigned int *top_volt)
 {
@@ -445,6 +456,7 @@ static struct ip_dvfs_ops vdma_dvfs_ops = {
 	.set_fix_dvfs_value = set_fix_dvfs_value,
 	.updata_target_freq = updata_target_freq,
 	.power_on_nb = power_on_nb,
+	.power_off_nb = power_off_nb,
 	.top_current_volt = top_current_volt,
 	.mm_current_volt = mm_current_volt,
 	.event_handler = NULL
