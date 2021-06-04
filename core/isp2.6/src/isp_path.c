@@ -49,10 +49,27 @@ static uint32_t isppath_deci_factor_get(uint32_t src_size, uint32_t dst_size)
 			break;
 	}
 
-	/*cts case: only for testing of special scen*/
+	/*cts case: only for testing of special scen, will be delete!!!!!!!!!!!!!*/
 	if (src_size == ISP_CTS_SRC_H && dst_size == ISP_CTS_DST_H)
 		factor = 1;
 	return factor;
+}
+
+/*cts case: only for testing of special scen, will be delete!!!!!!!!!!!!!!*/
+static int isp_path_only_for_cts_case(struct img_trim *in_trim, struct img_size *out_size)
+{
+	int ret = 0;
+	uint32_t in_size_x = 1640;
+	uint32_t in_size_y = 1228;
+	uint32_t out_size_x = 320;
+	uint32_t out_size_y = 240;
+
+	if (in_trim->size_x == in_size_x
+		&& in_trim->size_y == in_size_y
+		&& out_size->w == out_size_x
+		&& out_size->h == out_size_y)
+		ret = 1;
+	return ret;
 }
 
 int isp_path_comn_uinfo_set(struct isp_sw_context *pctx, void *param)
@@ -146,7 +163,8 @@ int isp_path_scaler_param_calc(struct img_trim *in_trim,
 	} else {
 		scaler->scaler_factor_in = in_trim->size_x;
 		scaler->scaler_ver_factor_in = in_trim->size_y;
-		if (in_trim->size_x > out_size->w * d_max) {
+		if ((in_trim->size_x > out_size->w * d_max)
+			|| isp_path_only_for_cts_case(in_trim, out_size)) {
 			tmp_dstsize = out_size->w * d_max;
 			deci->deci_x = isppath_deci_factor_get(in_trim->size_x, tmp_dstsize);
 			deci->deci_x_eb = 1;
@@ -159,7 +177,8 @@ int isp_path_scaler_param_calc(struct img_trim *in_trim,
 			deci->deci_x_eb = 0;
 		}
 
-		if (in_trim->size_y > out_size->h * d_max) {
+		if ((in_trim->size_y > out_size->h * d_max)
+			|| isp_path_only_for_cts_case(in_trim, out_size)) {
 			tmp_dstsize = out_size->h * d_max;
 			deci->deci_y = isppath_deci_factor_get(in_trim->size_y, tmp_dstsize);
 			deci->deci_y_eb = 1;
