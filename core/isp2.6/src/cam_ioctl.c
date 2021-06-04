@@ -1506,7 +1506,8 @@ static int camioctl_stream_off(struct camera_module *module,
 				}
 			}
 
-			if (module->cam_uinfo.is_pyr_rec) {
+			if ((module->cam_uinfo.is_pyr_rec && ch->ch_id != CAM_CH_CAP)
+				|| (module->cam_uinfo.is_pyr_dec && ch->ch_id == CAM_CH_CAP)) {
 				for (j = 0; j < ISP_PYR_REC_BUF_NUM; j++) {
 					if (ch->pyr_rec_buf[j]) {
 						camcore_k_frame_put(ch->pyr_rec_buf[j]);
@@ -1515,7 +1516,7 @@ static int camioctl_stream_off(struct camera_module *module,
 				}
 			}
 
-			if (module->cam_uinfo.is_pyr_dec) {
+			if (module->cam_uinfo.is_pyr_dec && ch->ch_id == CAM_CH_CAP) {
 				if (ch->pyr_dec_buf) {
 					camcore_k_frame_put(ch->pyr_dec_buf);
 					ch->pyr_dec_buf = NULL;

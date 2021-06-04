@@ -741,6 +741,7 @@ static int isppyrdec_offline_frame_start(void *handle)
 		goto map_err;
 	}
 
+	fmcu->ops->ctx_reset(fmcu);
 	dec_cfg_func.index = ISP_K_BLK_PYR_DEC_CFG;
 	dec_dev->hw->isp_ioctl(dec_dev->hw, ISP_HW_CFG_K_BLK_FUNC_GET, &dec_cfg_func);
 	for (i = 0; i < layer_num; i++) {
@@ -931,6 +932,9 @@ static int isppyrdec_irq_proc(void *handle)
 	pframe = cam_queue_dequeue(&dec_dev->proc_queue, struct camera_frame, list);
 	if (pframe) {
 		/* return buffer to cam channel shared buffer queue. */
+		pctx->buf_out->fid = pframe->fid;
+		pctx->buf_out->sensor_time = pframe->sensor_time;
+		pctx->buf_out->boot_sensor_time = pframe->boot_sensor_time;
 		cam_buf_iommu_unmap(&pframe->buf);
 		pctx->cb_func(ISP_CB_RET_SRC_BUF, pframe, pctx->cb_priv_data);
 	} else {

@@ -185,8 +185,8 @@ static int isppyrrec_ref_fetch_get(struct isp_rec_ctx_desc *ctx, uint32_t idx)
 			slc_fetch->mipi_byte_rel_pos_uv = slc_fetch->mipi_byte_rel_pos;
 			slc_fetch->mipi_word_num_uv = slc_fetch->mipi_word_num;
 			slc_fetch->mipi10_en = 1;
-			ISP_PYR_DEBUG("(%d %d %d %d), pitch %d, offset %d, mipi %d %d\n",
-				start_row, start_col, end_row, end_col,
+			ISP_PYR_DEBUG("fetch0 (%d %d %d %d), pitch %d, offset %d, mipi %d %d\n",
+				start_col, start_row, end_col, end_row,
 				ref_fetch->pitch[0], ch_offset[0],
 				slc_fetch->mipi_byte_rel_pos, slc_fetch->mipi_word_num);
 			break;
@@ -200,7 +200,7 @@ static int isppyrrec_ref_fetch_get(struct isp_rec_ctx_desc *ctx, uint32_t idx)
 		slc_fetch->size.h = end_row - start_row + 1;
 		slc_fetch->size.w = end_col - start_col + 1;
 
-		ISP_PYR_DEBUG("slice fetch size %d, %d\n", slc_fetch->size.w, slc_fetch->size.h);
+		ISP_PYR_DEBUG("ref slice fetch0 size %d, %d\n", slc_fetch->size.w, slc_fetch->size.h);
 	}
 
 	return ret;
@@ -269,8 +269,8 @@ static int isppyrrec_cur_fetch_get(struct isp_rec_ctx_desc *ctx, uint32_t idx)
 			slc_fetch->mipi_byte_rel_pos_uv = slc_fetch->mipi_byte_rel_pos;
 			slc_fetch->mipi_word_num_uv = slc_fetch->mipi_word_num;
 			slc_fetch->mipi10_en = 1;
-			ISP_PYR_DEBUG("(%d %d %d %d), pitch %d, offset %d, mipi %d %d\n",
-				start_row, start_col, end_row, end_col,
+			ISP_PYR_DEBUG("fetch1 (%d %d %d %d), pitch %d, offset %d, mipi %d %d\n",
+				start_col, start_row, end_col, end_row,
 				cur_fetch->pitch[0], ch_offset[0],
 				slc_fetch->mipi_byte_rel_pos, slc_fetch->mipi_word_num);
 			break;
@@ -284,7 +284,7 @@ static int isppyrrec_cur_fetch_get(struct isp_rec_ctx_desc *ctx, uint32_t idx)
 		slc_fetch->size.h = end_row - start_row + 1;
 		slc_fetch->size.w = end_col - start_col + 1;
 
-		ISP_PYR_DEBUG("slice fetch size %d, %d\n", slc_fetch->size.w, slc_fetch->size.h);
+		ISP_PYR_DEBUG("cur slice fetch1 size %d, %d\n", slc_fetch->size.w, slc_fetch->size.h);
 	}
 
 	return ret;
@@ -350,24 +350,33 @@ static int isppyrrec_reconstruct_get(struct isp_rec_ctx_desc *ctx, uint32_t idx)
 		start_row = cur_slc->slice_fetch0_pos.start_row;
 		end_col = cur_slc->slice_fetch0_pos.end_col;
 		end_row = cur_slc->slice_fetch0_pos.end_row;
-
-		slc_pyr_rec->rec_path_sel = rec_cfg->rec_path_sel;
-		slc_pyr_rec->hor_padding_num = rec_cfg->hor_padding_num;
-		slc_pyr_rec->ver_padding_num = rec_cfg->ver_padding_num;
-		slc_pyr_rec->hor_padding_en = rec_cfg->hor_padding_en;
-		slc_pyr_rec->ver_padding_en = rec_cfg->ver_padding_en;
-		slc_pyr_rec->reduce_flt_hblank = rec_cfg->hor_padding_num + 20;
-		slc_pyr_rec->reduce_flt_vblank = rec_cfg->ver_padding_num + 20;
 		slc_pyr_rec->pre_layer.h = end_row - start_row + 1;
 		slc_pyr_rec->pre_layer.w = end_col - start_col + 1;
-		slc_pyr_rec->cur_layer.h= slc_pyr_rec->pre_layer.h * 2;
-		slc_pyr_rec->cur_layer.w = slc_pyr_rec->pre_layer.w * 2;
-		slc_pyr_rec->out.h = slc_pyr_rec->cur_layer.h - slc_pyr_rec->ver_padding_num;
-		slc_pyr_rec->out.w = slc_pyr_rec->cur_layer.w - slc_pyr_rec->hor_padding_num;
+
+		start_col = cur_slc->slice_fetch1_pos.start_col;
+		start_row = cur_slc->slice_fetch1_pos.start_row;
+		end_col = cur_slc->slice_fetch1_pos.end_col;
+		end_row = cur_slc->slice_fetch1_pos.end_row;
+		slc_pyr_rec->out.h = end_row - start_row + 1;
+		slc_pyr_rec->out.w = end_col - start_col + 1;
+
+		slc_pyr_rec->rec_path_sel = rec_cfg->rec_path_sel;
+		slc_pyr_rec->ver_padding_en = rec_cfg->ver_padding_en;
+		slc_pyr_rec->ver_padding_num = rec_cfg->ver_padding_num;
+		slc_pyr_rec->reduce_flt_vblank = rec_cfg->ver_padding_num + 20;
+		slc_pyr_rec->cur_layer.h = slc_pyr_rec->out.h + slc_pyr_rec->ver_padding_num;
+		slc_pyr_rec->cur_layer.w = slc_pyr_rec->out.w;
+		if (i == (ctx->slice_num - 1)) {
+			slc_pyr_rec->hor_padding_en = rec_cfg->hor_padding_en;
+			slc_pyr_rec->hor_padding_num = rec_cfg->hor_padding_num;
+			slc_pyr_rec->cur_layer.w = slc_pyr_rec->out.w + slc_pyr_rec->hor_padding_num;
+			slc_pyr_rec->reduce_flt_hblank = rec_cfg->hor_padding_num + 20;
+		}
+
 		slc_pyr_rec->dispatch_dly_width_num = 60;
 		slc_pyr_rec->dispatch_dly_height_num = 37;
 		slc_pyr_rec->dispatch_pipe_full_num = 100;
-		if (slc_pyr_rec->pre_layer.w <= 40 && slc_pyr_rec->pre_layer.w <= 32)
+		if (slc_pyr_rec->pre_layer.w <= 40 && slc_pyr_rec->pre_layer.h <= 32)
 			slc_pyr_rec->dispatch_dly_height_num = 256;
 		if (rec_cfg->layer_num == 0)
 			slc_pyr_rec->dispatch_pipe_full_num = (4096 - slc_pyr_rec->out.w - 200) / 2;
@@ -536,7 +545,7 @@ static int isppyrrec_store_get(struct isp_rec_ctx_desc *ctx, uint32_t idx)
 		slc_rec_store->border.left_border = overlap_left;
 		slc_rec_store->border.right_border = overlap_right;
 
-		ISP_PYR_DEBUG("slice fetch size %d, %d\n", slc_rec_store->size.w, slc_rec_store->size.h);
+		ISP_PYR_DEBUG("slice store size %d, %d\n", slc_rec_store->size.w, slc_rec_store->size.h);
 	}
 
 	return ret;
@@ -667,6 +676,7 @@ static int isppyrrec_pipe_proc(void *handle, void *param)
 	struct isp_rec_ctx_desc *rec_ctx = NULL;
 	struct isp_pyr_rec_in *in_ptr = NULL;
 	struct isp_rec_slice_desc *cur_slc = NULL;
+	struct alg_slice_drv_overlap *slice_overlap = NULL;
 	struct isp_hw_k_blk_func rec_share_func, rec_frame_func, rec_slice_func;
 
 	if (!handle || !param) {
@@ -676,8 +686,8 @@ static int isppyrrec_pipe_proc(void *handle, void *param)
 
 	in_ptr = (struct isp_pyr_rec_in *)param;
 	rec_ctx = (struct isp_rec_ctx_desc *)handle;
-	cur_slc = &rec_ctx->slices[0];
 	layer_num = rec_ctx->layer_num;
+	slice_overlap = in_ptr->slice_overlap;
 
 	/* calc multi layer pyramid dec input addr & size */
 	pitch = isppyrrec_pitch_get(in_ptr->in_fmt, in_ptr->src.w);
@@ -741,20 +751,27 @@ static int isppyrrec_pipe_proc(void *handle, void *param)
 	rec_ctx->hw->isp_ioctl(rec_ctx->hw, ISP_HW_CFG_K_BLK_FUNC_GET, &rec_slice_func);
 	for (i = layer_num; i > 0; i--) {
 		rec_ctx->cur_layer = i - 1;
-		/* pyrrec layers frame should proc as one slice */
-		if (in_ptr->slice_num[i - 1] == 0) {
-			in_ptr->slice_num[i - 1] = 1;
-			cur_slc->slice_fetch0_pos.start_row = 0;
-			cur_slc->slice_fetch0_pos.start_col = 0;
-			cur_slc->slice_fetch0_pos.end_row = rec_ctx->pyr_layer_size[i].h - 1;
-			cur_slc->slice_fetch0_pos.end_col = rec_ctx->pyr_layer_size[i].w - 1;
-			cur_slc->slice_fetch1_pos.start_row = 0;
-			cur_slc->slice_fetch1_pos.start_col = 0;
-			cur_slc->slice_fetch1_pos.end_row = rec_ctx->pyr_layer_size[i - 1].h - 1;
-			cur_slc->slice_fetch1_pos.end_col = rec_ctx->pyr_layer_size[i - 1].w - 1;
-			cur_slc->slice_store_pos = cur_slc->slice_fetch1_pos;
+		rec_ctx->slice_num = slice_overlap->slice_number[i];
+		ISP_PYR_DEBUG("layer %d slice num %d\n", i, rec_ctx->slice_num);
+		cur_slc = &rec_ctx->slices[0];
+		for (j = 0; j < rec_ctx->slice_num; j++, cur_slc++) {
+			cur_slc->slice_fetch0_pos.start_row = slice_overlap->fecth0_slice_region[i][j].sy;
+			cur_slc->slice_fetch0_pos.start_col = slice_overlap->fecth0_slice_region[i][j].sx;
+			cur_slc->slice_fetch0_pos.end_row = slice_overlap->fecth0_slice_region[i][j].ey;
+			cur_slc->slice_fetch0_pos.end_col = slice_overlap->fecth0_slice_region[i][j].ex;
+			cur_slc->slice_fetch1_pos.start_row = slice_overlap->fecth1_slice_region[i - 1][j].sy;
+			cur_slc->slice_fetch1_pos.start_col = slice_overlap->fecth1_slice_region[i - 1][j].sx;
+			cur_slc->slice_fetch1_pos.end_row = slice_overlap->fecth1_slice_region[i - 1][j].ey;
+			cur_slc->slice_fetch1_pos.end_col = slice_overlap->fecth1_slice_region[i - 1][j].ex;
+			cur_slc->slice_store_pos.start_row = slice_overlap->store_rec_slice_region[i - 1][j].sy;
+			cur_slc->slice_store_pos.start_col = slice_overlap->store_rec_slice_region[i - 1][j].sx;
+			cur_slc->slice_store_pos.end_row = slice_overlap->store_rec_slice_region[i - 1][j].ey;
+			cur_slc->slice_store_pos.end_col = slice_overlap->store_rec_slice_region[i - 1][j].ex;
+			cur_slc->slice_overlap.overlap_up = slice_overlap->store_rec_slice_overlap[i - 1][j].ov_up;
+			cur_slc->slice_overlap.overlap_down = slice_overlap->store_rec_slice_overlap[i - 1][j].ov_down;
+			cur_slc->slice_overlap.overlap_left = slice_overlap->store_rec_slice_overlap[i - 1][j].ov_left;
+			cur_slc->slice_overlap.overlap_right = slice_overlap->store_rec_slice_overlap[i - 1][j].ov_right;
 		}
-		rec_ctx->slice_num = in_ptr->slice_num[i - 1];
 		ret = isppyrrec_block_cfg_get(rec_ctx, i);
 		if (ret) {
 			pr_err("fail to get isp pyr_rec block_cfg\n");

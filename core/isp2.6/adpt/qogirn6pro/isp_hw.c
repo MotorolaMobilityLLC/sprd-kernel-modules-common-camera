@@ -959,16 +959,7 @@ static int isphw_default_param_set(void *handle, void *arg)
 	}
 
 isp_hw_para:
-/*
-	wqos_val = (0x1 << 13) | (0x0 << 12) | (0x4 << 8) |
-			((hw->soc_isp->awqos_high & 0xF) << 4) |
-			(hw->soc_isp->awqos_low & 0xF);
-	rqos_val = (0x0 << 8) |
-			((hw->soc_isp->arqos_high & 0xF) << 4) |
-			(hw->soc_isp->arqos_low & 0xF);
-	ISP_HREG_MWR(ISP_AXI_ARBITER_WQOS, 0x37FF, wqos_val);
-	ISP_HREG_MWR(ISP_AXI_ARBITER_RQOS, 0x1FF, rqos_val);
-*/
+
 	isphw_qos_set();
 	ISP_HREG_WR(ISP_CORE_PMU_EN, 0xFFFF0000);
 	ISP_HREG_MWR(ISP_AXI_ISOLATION, BIT_0, 0);
@@ -979,6 +970,8 @@ isp_hw_para:
 	ISP_HREG_WR(ISP_ARBITER_CHK_SUM_CLR, 0);
 	/* enable axim transfering */
 	ISP_HREG_MWR(ISP_AXI_ITI2AXIM_CTRL, BIT_26, 0);
+	/* enable iommu int mask */
+	ISP_HREG_WR(0xFF0A0, 0xFFFFFFFF);
 	/* to be defined. */
 	/* dispatch_done should be disable? */
 	ISP_HREG_MWR(ISP_INT_ALL_DONE_CTRL, 0x1F, 0x18);

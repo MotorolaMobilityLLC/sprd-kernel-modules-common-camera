@@ -167,6 +167,7 @@ struct isp_pyr_rec_in {
 	uint32_t slice_num[ISP_PYR_DEC_LAYER_NUM];
 	struct isp_dev_ynr_info_v3 *pyr_ynr;
 	struct isp_dev_cnr_h_info *pyr_cnr;
+	struct alg_slice_drv_overlap *slice_overlap;
 };
 
 struct isp_rec_slice_desc {

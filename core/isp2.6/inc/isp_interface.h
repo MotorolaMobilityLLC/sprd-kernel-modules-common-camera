@@ -292,7 +292,7 @@ static inline uint32_t isp_cal_pyramid_dec_size(uint32_t w, uint32_t h)
 static inline uint32_t isp_rec_small_layer_w(uint32_t w, uint32_t layer_num)
 {
 	uint32_t width = 0, i = 0;
-	uint32_t w_align = PYR_DEC_HEIGHT_ALIGN;
+	uint32_t w_align = PYR_DEC_WIDTH_ALIGN;
 
 	for (i = 0; i < layer_num; i++)
 		w_align *= 2;
@@ -307,7 +307,7 @@ static inline uint32_t isp_rec_small_layer_w(uint32_t w, uint32_t layer_num)
 static inline uint32_t isp_rec_small_layer_h(uint32_t h, uint32_t layer_num)
 {
 	uint32_t height = 0, i = 0;
-	uint32_t h_align = PYR_DEC_WIDTH_ALIGN;
+	uint32_t h_align = PYR_DEC_HEIGHT_ALIGN;
 
 	for (i = 0; i < layer_num; i++)
 		h_align *= 2;

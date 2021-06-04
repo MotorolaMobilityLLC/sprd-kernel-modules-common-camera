@@ -472,6 +472,7 @@ int isp_pyr_rec_frame_config(void *handle)
 	int ret = 0, i = 0;
 	struct isp_rec_ctx_desc *ctx = NULL;
 	uint32_t addr = 0, cmd = 0;
+	uint32_t idx = 0;
 	struct isp_fmcu_ctx_desc *fmcu = NULL;
 	struct isp_dev_cnr_h_info *pyr_cnr = NULL;
 	struct isp_cnr_h_info *layer_cnr_h = NULL;
@@ -487,26 +488,32 @@ int isp_pyr_rec_frame_config(void *handle)
 	pyr_cnr = ctx->rec_cnr.pyr_cnr;
 	layer_cnr_h = &pyr_cnr->layer_cnr_h[ctx->cur_layer];
 	ynr_info = &ctx->rec_ynr;
+	idx = ctx->ctx_id;
 
 	addr = ISP_GET_REG(ISP_FETCH_SLICE_Y_PITCH) + PYR_REC_CUR_FETCH_BASE;
 	cmd = ctx->cur_fetch.pitch[0];
 	FMCU_PUSH(fmcu, addr, cmd);
+	ISP_REG_WR(idx, PYR_REC_CUR_FETCH_BASE + ISP_FETCH_SLICE_Y_PITCH, cmd);
 	addr = ISP_GET_REG(ISP_FETCH_SLICE_U_PITCH) + PYR_REC_CUR_FETCH_BASE;
 	cmd = ctx->cur_fetch.pitch[1];
 	FMCU_PUSH(fmcu, addr, cmd);
+	ISP_REG_WR(idx, PYR_REC_CUR_FETCH_BASE + ISP_FETCH_SLICE_U_PITCH, cmd);
 
 	addr = ISP_GET_REG(ISP_FETCH_SLICE_Y_PITCH) + ISP_FETCH_BASE;
 	cmd = ctx->ref_fetch.pitch[0];
 	FMCU_PUSH(fmcu, addr, cmd);
+	ISP_REG_WR(idx, ISP_FETCH_BASE + ISP_FETCH_SLICE_Y_PITCH, cmd);
 	addr = ISP_GET_REG(ISP_FETCH_SLICE_U_PITCH) + ISP_FETCH_BASE;
 	cmd = ctx->ref_fetch.pitch[1];
 	FMCU_PUSH(fmcu, addr, cmd);
+	ISP_REG_WR(idx, ISP_FETCH_BASE + ISP_FETCH_SLICE_U_PITCH, cmd);
 
 	addr = ISP_GET_REG(ISP_REC_PARAM);
 	cmd = ((ctx->pyr_rec.reconstruct_bypass & 0x1) << 0) |
 		((ctx->pyr_rec.drop_en & 0x1) << 1) |
 		((ctx->pyr_rec.layer_num & 0xF) << 2);
 	FMCU_PUSH(fmcu, addr, cmd);
+	ISP_REG_WR(idx, ISP_REC_PARAM, cmd);
 
 	addr = ISP_GET_REG(ISP_STORE_Y_PITCH) + PYR_REC_STORE_BASE;
 	cmd = ctx->rec_store.pitch[0];

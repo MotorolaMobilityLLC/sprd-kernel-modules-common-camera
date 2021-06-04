@@ -1000,6 +1000,12 @@ static void camcore_compression_cal(struct camera_module *module)
 	if (ch_pre->ch_uinfo.is_high_fps)
 		ch_pre->compress_input = 0;
 
+	/* TBD: just bypass all compress first */
+	ch_pre->compress_input = 0;
+	ch_vid->compress_input = 0;
+	ch_cap->compress_input = 0;
+	ch_raw->compress_input = 0;
+
 	pr_info("cam%d: cap %u %u %u, pre %u %u %u, vid %u %u %u raw %u\n",
 		module->idx,
 		ch_cap->compress_input, ch_cap->compress_3dnr,
@@ -1308,7 +1314,8 @@ static int camcore_buffer_path_cfg(struct camera_module *module,
 		}
 	}
 
-	if (module->cam_uinfo.is_pyr_rec) {
+	if ((module->cam_uinfo.is_pyr_rec && ch->ch_id != CAM_CH_CAP)
+		|| (module->cam_uinfo.is_pyr_dec && ch->ch_id == CAM_CH_CAP)) {
 		for (j = 0; j < ISP_PYR_REC_BUF_NUM; j++) {
 			if (ch->pyr_rec_buf[j] == NULL)
 				goto exit;
@@ -1323,7 +1330,7 @@ static int camcore_buffer_path_cfg(struct camera_module *module,
 		}
 	}
 
-	if (module->cam_uinfo.is_pyr_dec) {
+	if (module->cam_uinfo.is_pyr_dec && ch->ch_id == CAM_CH_CAP) {
 		if (ch->pyr_dec_buf == NULL)
 			goto exit;
 		ret = module->isp_dev_handle->isp_ops->cfg_path(module->isp_dev_handle,
@@ -1703,7 +1710,8 @@ static int camcore_buffers_alloc(void *param)
 		}
 	}
 
-	if (module->cam_uinfo.is_pyr_rec) {
+	if ((module->cam_uinfo.is_pyr_rec && channel->ch_id != CAM_CH_CAP)
+		|| (module->cam_uinfo.is_pyr_dec && channel->ch_id == CAM_CH_CAP)) {
 		width = channel->swap_size.w;
 		height = channel->swap_size.h;
 		width = isp_rec_layer0_width(width, channel->pyr_layer_num);
@@ -1728,7 +1736,7 @@ static int camcore_buffers_alloc(void *param)
 			pframe->channel_id = channel->ch_id;
 			ret = cam_buf_alloc(&pframe->buf, size, iommu_enable);
 			if (ret) {
-				pr_err("fail to alloc superzoom buf\n");
+				pr_err("fail to alloc rec buf\n");
 				cam_queue_empty_frame_put(pframe);
 				atomic_inc(&channel->err_status);
 				goto exit;
@@ -1750,9 +1758,10 @@ static int camcore_buffers_alloc(void *param)
 		pframe->width = width;
 		pframe->height = height;
 		pframe->channel_id = channel->ch_id;
+		pframe->data_src_dec = 1;
 		ret = cam_buf_alloc(&pframe->buf, size, iommu_enable);
 		if (ret) {
-			pr_err("fail to alloc superzoom buf\n");
+			pr_err("fail to alloc dec buf\n");
 			cam_queue_empty_frame_put(pframe);
 			atomic_inc(&channel->err_status);
 			goto exit;
@@ -3327,7 +3336,6 @@ static int camcore_channel_size_bininig_cal(
 	struct img_trim trim_c = {0};
 	struct img_trim *isp_trim;
 	struct img_size src_p, dst_p, dst_v, dcam_out;
-	struct cam_hw_info *hw = NULL;
 
 	ch_prev = &module->channel[CAM_CH_PRE];
 	ch_cap = &module->channel[CAM_CH_CAP];
@@ -3440,11 +3448,6 @@ static int camcore_channel_size_bininig_cal(
 		dcam_out.w = ALIGN_DOWN(dcam_out.w, 2);
 		dcam_out.h = (trim_pv.size_y >> shift);
 		dcam_out.h = ALIGN_DOWN(dcam_out.h, 2);
-
-		/* avoid isp fetch fbd timeout when isp src width > 1856 */
-		hw = module->dcam_dev_handle->hw;
-		if ((dcam_out.w > ISP_FBD_MAX_WIDTH) && (hw->prj_id == SHARKL5pro))
-			ch_prev->compress_input = 0;
 
 		if (ch_prev->compress_input) {
 			dcam_out.h = ALIGN_DOWN(dcam_out.h, DCAM_FBC_TILE_HEIGHT);

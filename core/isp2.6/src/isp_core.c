@@ -367,6 +367,7 @@ static int ispcore_rec_frame_process(struct isp_sw_context *pctx,
 	int ret = 0;
 	struct isp_pipe_info *pipe_in = NULL;
 	struct isp_rec_ctx_desc *rec_ctx = NULL;
+	struct isp_slice_context *slc_ctx = NULL;
 	struct isp_pyr_rec_in cfg_in;
 
 	if (!pctx || !pctx_hw || !pframe) {
@@ -378,6 +379,7 @@ static int ispcore_rec_frame_process(struct isp_sw_context *pctx,
 	memset(&cfg_in, 0, sizeof(struct isp_pyr_rec_in));
 	pipe_in = &pctx->pipe_info;
 	rec_ctx = (struct isp_rec_ctx_desc *)pctx->rec_handle;
+	slc_ctx = (struct isp_slice_context *)pctx->slice_ctx;
 
 	cfg_in.in_fmt = pipe_in->fetch.fetch_fmt;
 	cfg_in.src = pipe_in->fetch.src;
@@ -386,6 +388,7 @@ static int ispcore_rec_frame_process(struct isp_sw_context *pctx,
 	cfg_in.out_addr = pipe_in->store[ISP_SPATH_CP].store.addr;
 	cfg_in.pyr_ynr = &pctx->isp_k_param.ynr_info_v3;
 	cfg_in.pyr_cnr = &pctx->isp_k_param.cnr_info;
+	cfg_in.slice_overlap = &slc_ctx->slice_overlap;
 
 	if (rec_ctx && pframe->need_pyr_rec) {
 		rec_ctx->ops.cfg_param(rec_ctx, ISP_REC_CFG_WORK_MODE, &pctx->dev->wmode);
@@ -1000,10 +1003,6 @@ static int ispcore_slice_ctx_init(struct isp_sw_context *pctx, uint32_t *multi_s
 
 	slc_cfg_in.nofilter_ctx = &pctx->isp_k_param;
 	slc_cfg_in.calc_dyn_ov.verison = hw_info->ip_isp->dyn_overlap_version;
-
-	/* Temp change for rec preview not use dynamic overlap */
-	if (slc_cfg_in.calc_dyn_ov.verison == ALG_ISP_OVERLAP_VER_2 && pctx->uinfo.pyr_layer_num)
-		slc_cfg_in.calc_dyn_ov.verison = ALG_ISP_DYN_OVERLAP_NONE;
 
 	if (slc_cfg_in.calc_dyn_ov.verison != ALG_ISP_DYN_OVERLAP_NONE)
 		ispcore_init_dyn_ov_param(&slc_cfg_in, pctx);
@@ -2300,7 +2299,8 @@ static int ispcore_postproc_irq(void *handle, uint32_t idx,
 			pr_info("isp %d post proc, do not need to return frame\n",
 				pctx->ctx_id);
 			cam_buf_iommu_unmap(&pframe->buf);
-		} else if (pframe->need_pyr_dec) {
+		} else if (pframe->data_src_dec) {
+			pr_debug("isp %d dec done\n", pctx->ctx_id);
 			cam_queue_enqueue(&pctx->pyrdec_buf_queue, &pframe->list);
 		} else {
 			/* return buffer to cam channel shared buffer queue. */
@@ -2376,8 +2376,7 @@ static int ispcore_postproc_irq(void *handle, uint32_t idx,
 				}
 			}
 			cam_buf_iommu_unmap(&pframe->buf);
-			pctx->isp_cb_func(ISP_CB_RET_DST_BUF,
-				pframe, pctx->cb_priv_data);
+			pctx->isp_cb_func(ISP_CB_RET_DST_BUF, pframe, pctx->cb_priv_data);
 		}
 	}
 

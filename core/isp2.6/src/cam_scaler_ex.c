@@ -1036,14 +1036,14 @@ int cam_scaler_coeff_calc_ex(struct yuv_scaler_info *scaler)
 				 ISP_SC_COEFF_TMP_SIZE))) {
 		 pr_err("fail to calc scale_coeff_gen_ex !\n");
 		 return -EINVAL;
-	 }
+	}
 
-	 scaler->scaler_y_hor_tap = y_hor_tap;
-	 scaler->scaler_uv_hor_tap = uv_hor_tap;
-	 scaler->scaler_y_ver_tap = y_ver_tap;
-	 scaler->scaler_uv_ver_tap = uv_ver_tap;
+	scaler->scaler_y_hor_tap = y_hor_tap;
+	scaler->scaler_uv_hor_tap = uv_hor_tap;
+	scaler->scaler_y_ver_tap = y_ver_tap;
+	scaler->scaler_uv_ver_tap = uv_ver_tap;
 
-	 pr_debug("hor: y %d uv %d; ver: y %d uv %d\n",
+	pr_debug("hor: y %d uv %d; ver: y %d uv %d\n",
 		 scaler->scaler_y_hor_tap,
 		 scaler->scaler_uv_hor_tap,
 		 scaler->scaler_y_ver_tap,

@@ -970,15 +970,15 @@ static int ispslice_base_info_calc_cfg(struct slice_cfg_input *in_ptr,
 			cur_slc->slice_pos_orig.end_col = end_col;
 			cur_slc->slice_pos_orig.end_row = end_row;
 
-			cur_slc->slice_overlap.overlap_left = slc_ctx->slice_overlap.slice_overlap[j].ov_left;
-			cur_slc->slice_overlap.overlap_right = slc_ctx->slice_overlap.slice_overlap[j].ov_right;
-			cur_slc->slice_overlap.overlap_up = slc_ctx->slice_overlap.slice_overlap[j].ov_up;
-			cur_slc->slice_overlap.overlap_down = slc_ctx->slice_overlap.slice_overlap[j].ov_down;
+			cur_slc->slice_overlap.overlap_left = slc_ctx->slice_overlap.fecth0_slice_overlap[0][j].ov_left;
+			cur_slc->slice_overlap.overlap_right = slc_ctx->slice_overlap.fecth0_slice_overlap[0][j].ov_right;
+			cur_slc->slice_overlap.overlap_up = slc_ctx->slice_overlap.fecth0_slice_overlap[0][j].ov_up;
+			cur_slc->slice_overlap.overlap_down = slc_ctx->slice_overlap.fecth0_slice_overlap[0][j].ov_down;
 
-			cur_slc->slice_pos.start_col = start_col - cur_slc->slice_overlap.overlap_left;
-			cur_slc->slice_pos.start_row = start_row - cur_slc->slice_overlap.overlap_up;
-			cur_slc->slice_pos.end_col = end_col + cur_slc->slice_overlap.overlap_right;
-			cur_slc->slice_pos.end_row = end_row + cur_slc->slice_overlap.overlap_down;
+			cur_slc->slice_pos.start_col = slc_ctx->slice_overlap.fecth0_slice_region[0][j].sx;
+			cur_slc->slice_pos.start_row = slc_ctx->slice_overlap.fecth0_slice_region[0][j].sy;
+			cur_slc->slice_pos.end_col = slc_ctx->slice_overlap.fecth0_slice_region[0][j].ex;
+			cur_slc->slice_pos.end_row = slc_ctx->slice_overlap.fecth0_slice_region[0][j].ey;
 
 			cur_slc->slice_pos_fetch.start_col = cur_slc->slice_pos.start_col + fetch_start_x;
 			cur_slc->slice_pos_fetch.start_row = cur_slc->slice_pos.start_row + fetch_start_y;
@@ -2943,7 +2943,9 @@ int isp_slice_fmcu_cmds_set(void *fmcu_handle, void *ctx)
 	for (i = 0; i < SLICE_NUM_MAX; i++, cur_slc++) {
 		if (cur_slc->valid == 0)
 			continue;
-		if (wmode == ISP_CFG_MODE && (!slc_ctx->pyr_rec_eb)) {
+		if (wmode != ISP_CFG_MODE || (slc_ctx->pyr_rec_eb && i == 0)) {
+			pr_debug("no need to cfg\n");
+		} else {
 			fmcu_cfg.fmcu = fmcu;
 			fmcu_cfg.ctx_id = hw_ctx_id;
 			hw->isp_ioctl(hw, ISP_HW_CFG_FMCU_CFG, &fmcu_cfg);

@@ -308,7 +308,7 @@ int cam_buf_alloc(struct camera_buf *buf_info,
 #endif
 
 	if (buf_info->buf_sec)
-		heap_type  = ION_HEAP_ID_MASK_CAM;
+		heap_type = ION_HEAP_ID_MASK_CAM;
 	else {
 		heap_type = iommu_enable ?
 				ION_HEAP_ID_MASK_SYSTEM :

@@ -125,8 +125,6 @@ struct slice_overlap_info {
 	uint32_t overlap_right;
 };
 
-
-
 struct slice_border_info {
 	uint32_t up_border;
 	uint32_t down_border;
