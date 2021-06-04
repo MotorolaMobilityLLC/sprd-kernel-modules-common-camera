@@ -2403,7 +2403,7 @@ int isp_init_param_for_overlap_v2(
 	slice_overlap->uw_sensor = slice_input->calc_dyn_ov.need_dewarping;
 
 	crop_region_w = slice_input->calc_dyn_ov.crop.start_x + slice_input->calc_dyn_ov.crop.size_x;
-	crop_region_h = slice_input->calc_dyn_ov.crop.start_x + slice_input->calc_dyn_ov.crop.size_y;
+	crop_region_h = slice_input->calc_dyn_ov.crop.start_y + slice_input->calc_dyn_ov.crop.size_y;
 	if ((crop_region_w == slice_input->calc_dyn_ov.src.w) && (crop_region_h == slice_input->calc_dyn_ov.src.h))
 		slice_overlap->crop_en = 0;
 	else
