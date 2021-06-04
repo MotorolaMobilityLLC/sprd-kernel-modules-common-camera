@@ -2010,7 +2010,7 @@ static int dcamcore_dev_stop(void *dcam_handle, enum dcam_stop_cmd pause)
 		pm->frm_idx = 0;
 		pr_info("stop all\n");
 
-		pctx->is_3dnr = pctx->is_4in1 = 0;
+		pctx->is_3dnr = pctx->is_4in1 = pctx->is_fdr = 0;
 	} else if (pause == DCAM_PAUSE_ONLINE) {
 		pm->frm_idx = pctx->base_fid + pctx->frame_index;
 		pr_info("dcam%d online pause fram id %d %d, base_fid %d, new %d\n", hw_ctx_id,

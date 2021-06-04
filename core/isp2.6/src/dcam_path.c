@@ -440,14 +440,22 @@ dcam_path_frame_cycle(struct dcam_sw_context *dcam_sw_ctx, struct dcam_path_desc
 {
 	struct camera_frame *frame = NULL;
 
-	if (frame == NULL) {
-		frame = cam_queue_dequeue(&path->out_buf_queue, struct camera_frame, list);
-		if (frame != NULL && path->path_id == DCAM_PATH_FULL) {
-			if (cam_buf_iommu_map(&frame->buf, CAM_IOMMUDEV_DCAM)) {
-				pr_err("fail to mapping buffer\n");
+	if (path->path_id == DCAM_PATH_FULL && dcam_sw_ctx->is_fdr == 1) {
+		do {
+			frame = cam_queue_dequeue(&path->out_buf_queue, struct camera_frame, list);
+			if (frame != NULL && frame->img_fmt != IMG_PIX_FMT_GREY) {
 				cam_queue_enqueue(&path->out_buf_queue, &frame->list);
 				frame = NULL;
-			}
+			} else
+				break;
+		} while (frame);
+	} else
+		frame = cam_queue_dequeue(&path->out_buf_queue, struct camera_frame, list);
+	if (frame != NULL && path->path_id == DCAM_PATH_FULL) {
+		if (cam_buf_iommu_map(&frame->buf, CAM_IOMMUDEV_DCAM)) {
+			pr_err("fail to mapping buffer\n");
+			cam_queue_enqueue(&path->out_buf_queue, &frame->list);
+			frame = NULL;
 		}
 	}
 

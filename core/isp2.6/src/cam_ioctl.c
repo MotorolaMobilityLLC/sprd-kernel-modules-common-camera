@@ -2362,6 +2362,7 @@ static int camioctl_capture_start(struct camera_module *module,
 		ch_desc.pack_bits = 2;
 		ch_desc.is_raw = 1;
 		ch_desc.endian.y_endian = ENDIAN_LITTLE;
+		sw_ctx->is_fdr = 1;
 		ch_desc.bayer_pattern = module->cam_uinfo.sensor_if.img_ptn;
 		ret = module->dcam_dev_handle->dcam_pipe_ops->cfg_path(sw_ctx,
 			DCAM_PATH_CFG_BASE,
@@ -2637,6 +2638,7 @@ static int camioctl_fdr_post(struct camera_module *module,
 		pr_debug("deinit_fdr_context may be called for stream off\n");
 		return 0;
 	}
+	module->dcam_dev_handle->sw_ctx[module->cur_sw_ctx_id].is_fdr = 0;
 
 	ch = &module->channel[CAM_CH_CAP];
 	for (i = 0; i < 3; i++) {
@@ -2678,7 +2680,6 @@ static int camioctl_fdr_post(struct camera_module *module,
 		}
 		pfrm[i] = pframe;
 	}
-
 	dcam = module->aux_dcam_dev;
 	if (dcam == NULL) {
 		cam_buf_ionbuf_put(&pfrm[0]->buf);
