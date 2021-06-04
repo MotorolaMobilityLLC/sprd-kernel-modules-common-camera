@@ -2115,7 +2115,7 @@ static int isp_init_param_for_overlap_v1(
 	/* if has crop,  pipleine input size = crop.w, crop.h */
 	/************************************************************************/
 	crop_region_w = slice_input->calc_dyn_ov.crop.start_x + slice_input->calc_dyn_ov.crop.size_x;
-	crop_region_h = slice_input->calc_dyn_ov.crop.start_x + slice_input->calc_dyn_ov.crop.size_y;
+	crop_region_h = slice_input->calc_dyn_ov.crop.start_y + slice_input->calc_dyn_ov.crop.size_y;
 	if ((crop_region_w == slice_input->calc_dyn_ov.src.w) && (crop_region_h == slice_input->calc_dyn_ov.src.h))
 		overlapParam->crop_en = 0;
 	else
