@@ -2992,8 +2992,6 @@ static int ispcore_ioctl(void *isp_handle, int ctx_id,
 		return -EFAULT;
 	}
 	dev = (struct isp_pipe_dev *)isp_handle;
-	pctx = dev->sw_ctx[ctx_id];
-	rec_ctx = (struct isp_rec_ctx_desc *)pctx->rec_handle;
 
 	switch (cmd) {
 	case ISP_IOCTL_CFG_STATIS_BUF:
@@ -3003,10 +3001,15 @@ static int ispcore_ioctl(void *isp_handle, int ctx_id,
 		ret = ispcore_sec_cfg(dev, param);
 		break;
 	case ISP_IOCTL_CFG_PYR_REC_NUM:
+		pctx = dev->sw_ctx[ctx_id];
+		if (!pctx) {
+			pr_err("fail to get pctx, ctx_id%d\n", ctx_id);
+			return -EFAULT;
+		}
 		pctx->uinfo.pyr_layer_num = *(uint32_t *)param;
+		rec_ctx = (struct isp_rec_ctx_desc *)pctx->rec_handle;
 		if (rec_ctx)
-			rec_ctx->ops.cfg_param(rec_ctx, ISP_REC_CFG_LAYER_NUM,
-				&pctx->uinfo.pyr_layer_num);
+			rec_ctx->ops.cfg_param(rec_ctx, ISP_REC_CFG_LAYER_NUM, &pctx->uinfo.pyr_layer_num);
 		break;
 	default:
 		pr_err("fail to get known cmd: %d\n", cmd);
