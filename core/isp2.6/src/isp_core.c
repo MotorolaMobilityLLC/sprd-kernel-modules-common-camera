@@ -2408,6 +2408,7 @@ static int ispcore_dec_frame_proc(struct isp_sw_context *pctx,
 	}
 
 	format = isp_drv_fetch_format_get(uinfo);
+	dec_dev->dct_ynr_info.dct = &pctx->isp_k_param.dct_info;
 	dec_dev->ops.cfg_param(dec_dev, pctx->ctx_id, ISP_DEC_CFG_OUT_BUF, pframe);
 	dec_dev->ops.cfg_param(dec_dev, pctx->ctx_id, ISP_DEC_CFG_IN_FORMAT, &format);
 	dec_dev->ops.cfg_param(dec_dev, pctx->ctx_id, ISP_DEC_CFG_PROC_SIZE, &uinfo->src);
@@ -2447,6 +2448,13 @@ static int ispcore_frame_proc(void *isp_handle, void *param, int ctx_id)
 	dec_dev = (struct isp_dec_pipe_dev *)dev->pyr_dec_handle;
 
 	if (pframe->need_pyr_dec && dec_dev) {
+		pctx->uinfo.src.w = pframe->width;
+		pctx->uinfo.src.h = pframe->height;
+		pctx->uinfo.crop.start_x = 0;
+		pctx->uinfo.crop.start_y = 0;
+		pctx->uinfo.crop.size_x = pctx->uinfo.src.w;
+		pctx->uinfo.crop.size_y = pctx->uinfo.src.h;
+		pr_debug("src %d %d\n", pframe->width, pframe->height);
 		ret = ispcore_dec_frame_proc(pctx, dec_dev, pframe);
 		return ret;
 	}

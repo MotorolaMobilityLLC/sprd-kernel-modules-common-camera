@@ -351,6 +351,102 @@ static int isppyrdec_cfg_offline(struct isp_dec_pipe_dev *ctx)
 	return ret;
 }
 
+static int isppyrdec_cfg_dct_ynr(struct isp_dec_pipe_dev *ctx)
+{
+	int ret = 0;
+	uint32_t addr = 0, cmd = 0, bypass = 0;
+	struct isp_fmcu_ctx_desc *fmcu = NULL;
+	struct isp_dec_dct_ynr_info *dct_ynr = NULL;
+	struct isp_dev_dct_info *dct = NULL;
+
+	fmcu = (struct isp_fmcu_ctx_desc *)ctx->fmcu_handle;
+	dct_ynr = &ctx->dct_ynr_info;
+	dct = dct_ynr->dct;
+
+	/* Only layer0 need open dct ynr */
+	if (ctx->cur_layer_id == 0)
+		bypass = dct->bypass;
+	else
+		bypass = 1;
+
+	addr = ISP_GET_REG(ISP_YNR_DCT_PARAM);
+	cmd = (dct->shrink_en << 1) | (dct->lnr_en << 2) |
+		(dct->fnr_en << 3) | (dct->rnr_en << 4) |
+		(dct->blend_en << 5) | (dct->direction_smooth_en << 6) |
+		(dct->addback_en << 7) | bypass;
+	FMCU_PUSH(fmcu, addr, cmd);
+
+	if (ctx->cur_layer_id == 0) {
+		addr = ISP_GET_REG(ISP_YNR_DCT_PARAM1);
+		cmd = (dct->coef_thresh0 & 0x1F) | ((dct->coef_thresh1& 0x1F) << 8) |
+			((dct->coef_thresh2 & 0x1F) << 16) | ((dct->coef_thresh3 & 0x1F) << 24);
+		FMCU_PUSH(fmcu, addr, cmd);
+
+		addr = ISP_GET_REG(ISP_YNR_DCT_PARAM2);
+		cmd = (dct->coef_ratio0 & 0xFF) | ((dct->coef_ratio1 & 0xFF) << 8) |
+			((dct->coef_ratio2 & 0xFF) << 16);
+		FMCU_PUSH(fmcu, addr, cmd);
+
+		addr = ISP_GET_REG(ISP_YNR_DCT_PARAM3);
+		cmd = (dct->luma_thresh0 & 0x1F) | ((dct->luma_thresh1 & 0x1F) << 8) |
+			((dct->luma_ratio0 & 0xFF) << 16) | ((dct->luma_ratio1 & 0xFF) << 24);
+		FMCU_PUSH(fmcu, addr, cmd);
+
+		addr = ISP_GET_REG(ISP_YNR_DCT_PARAM4);
+		cmd = (dct->flat_th & 0xFFF) | ((dct->fnr_thresh0 & 0xFF) << 12) |
+			((dct->fnr_thresh1 & 0xFF) << 20);
+		FMCU_PUSH(fmcu, addr, cmd);
+
+		addr = ISP_GET_REG(ISP_YNR_DCT_PARAM5);
+		cmd = (dct->fnr_ratio0 & 0xFF) | ((dct->fnr_ratio1 & 0xFF) << 8) |
+			((dct->rnr_radius & 0xFFFF) << 16);
+		FMCU_PUSH(fmcu, addr, cmd);
+
+		addr = ISP_GET_REG(ISP_YNR_DCT_PARAM6);
+		cmd = (dct->rnr_imgCenterX & 0xFFFF) | ((dct->rnr_imgCenterY & 0xFFFF) << 16);
+		FMCU_PUSH(fmcu, addr, cmd);
+
+		addr = ISP_GET_REG(ISP_YNR_DCT_PARAM7);
+		cmd = (dct->rnr_step & 0xFF) | ((dct->rnr_ratio0 & 0xFF) << 8) |
+			((dct->rnr_ratio1 & 0xFF) << 16) | ((dct->blend_weight & 0xFF) << 24);
+		FMCU_PUSH(fmcu, addr, cmd);
+
+		addr = ISP_GET_REG(ISP_YNR_DCT_PARAM8);
+		cmd = (dct->blend_radius & 0x3) | ((dct->blend_epsilon & 0x3FFF) << 2) |
+			((dct->blend_thresh0 & 0x1F) << 16) | ((dct->blend_thresh1 & 0x1F) << 21);
+		FMCU_PUSH(fmcu, addr, cmd);
+
+		addr = ISP_GET_REG(ISP_YNR_DCT_PARAM9);
+		cmd = (dct->blend_ratio0 & 0xFF) | ((dct->blend_ratio1 & 0xFF) << 8) |
+			((dct->direction_mode & 0x7) << 16) | ((dct->direction_thresh_diff & 0x1FF) << 19);
+		FMCU_PUSH(fmcu, addr, cmd);
+
+		addr = ISP_GET_REG(ISP_YNR_DCT_PARAM10);
+		cmd = (dct->direction_thresh_min & 0x1FF) | ((dct->direction_freq_hop_total_num_thresh & 0x7F) << 9) |
+			((dct->direction_freq_hop_thresh & 0xFF) << 16) | ((dct->direction_freq_hop_control_en & 0x1) << 24);
+		FMCU_PUSH(fmcu, addr, cmd);
+
+		addr = ISP_GET_REG(ISP_YNR_DCT_PARAM11);
+		cmd = (dct->direction_hop_thresh_diff & 0x1FF) | ((dct->direction_hop_thresh_min & 0x1FF) << 16);
+		FMCU_PUSH(fmcu, addr, cmd);
+
+		addr = ISP_GET_REG(ISP_YNR_DCT_PARAM12);
+		cmd = (dct->addback_ratio & 0xFF) | ((dct->addback_clip & 0xFF) << 8);
+		FMCU_PUSH(fmcu, addr, cmd);
+
+		addr = ISP_GET_REG(ISP_YNR_DCT_PARAM13);
+		cmd = (dct_ynr->start[ctx->cur_slice_id].w & 0xFFFF) |
+			((dct_ynr->start[ctx->cur_slice_id].h & 0xFFFF) << 16);
+		FMCU_PUSH(fmcu, addr, cmd);
+
+		addr = ISP_GET_REG(ISP_YNR_DCT_PARAM14);
+		cmd = (dct_ynr->img.w & 0xFFFF) | ((dct_ynr->img.h & 0xFFFF) << 16);
+		FMCU_PUSH(fmcu, addr, cmd);
+	}
+
+	return ret;
+}
+
 int isp_pyr_dec_config(void *handle)
 {
 	int ret = 0;
@@ -366,6 +462,7 @@ int isp_pyr_dec_config(void *handle)
 	isppyrdec_cfg_fetch(ctx);
 	isppyrdec_cfg_store(ctx, ISP_PYR_DEC_STORE_DCT);
 	isppyrdec_cfg_store(ctx, ISP_PYR_DEC_STORE_DEC);
+	isppyrdec_cfg_dct_ynr(ctx);
 	isppyrdec_cfg_offline(ctx);
 
 	return ret;

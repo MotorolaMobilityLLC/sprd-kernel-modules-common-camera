@@ -2377,7 +2377,6 @@ static int camcore_isp_callback(enum isp_cb_type type, void *param, void *priv_d
 					return 0;
 				}
 			}
-
 			if (((channel->aux_dcam_path_id == DCAM_PATH_BIN) || (channel->aux_dcam_path_id == DCAM_PATH_FULL))
 				&& (module->cam_uinfo.is_4in1 || module->cam_uinfo.dcam_slice_mode > 0)) {
 				if (pframe->buf.type == CAM_BUF_USER) {
@@ -2447,7 +2446,16 @@ static int camcore_isp_callback(enum isp_cb_type type, void *param, void *priv_d
 		}
 		break;
 	case ISP_CB_RET_PYR_DEC_BUF:
-		pr_debug("isp%d pyr dec done need rec %d\n", channel->isp_ctx_id, pframe->need_pyr_rec);
+		pr_info("isp%d pyr dec done need rec %d\n", channel->isp_ctx_id, pframe->need_pyr_rec);
+		/* alway trigger dump for capture */
+		if (module->dump_thrd.thread_task && module->in_dump) {
+			ret = cam_queue_enqueue(&module->dump_queue, &pframe->list);
+			if (ret == 0) {
+				complete(&module->dump_com);
+				pr_info("trigger dump image\n");
+				return 0;
+			}
+		}
 		ret = module->isp_dev_handle->isp_ops->proc_frame(module->isp_dev_handle, pframe,
 					channel->isp_ctx_id);
 		if (ret) {
@@ -3914,7 +3922,7 @@ static int camcore_channel_size_config(
 	if (!is_zoom && (channel->ch_id != CAM_CH_RAW))
 		camcore_pyr_info_config(module, channel);
 	/* DCAM full path not updating for zoom. */
-	if (is_zoom && channel->ch_id == CAM_CH_CAP)
+	if (is_zoom && channel->ch_id == CAM_CH_CAP && !module->cam_uinfo.is_pyr_dec)
 		goto cfg_isp;
 
 	if (!is_zoom && (channel->swap_size.w > 0) && (channel->ch_id != CAM_CH_RAW)) {
@@ -3936,12 +3944,18 @@ static int camcore_channel_size_config(
 	ch_desc.input_size.w = ch_uinfo->src_size.w;
 	ch_desc.input_size.h = ch_uinfo->src_size.h;
 	if ((channel->ch_id == CAM_CH_CAP) || (channel->ch_id == CAM_CH_RAW)) {
-		/* no trim in dcam full path. */
-		ch_desc.output_size = ch_desc.input_size;
-		ch_desc.input_trim.start_x = 0;
-		ch_desc.input_trim.start_y = 0;
-		ch_desc.input_trim.size_x = ch_desc.input_size.w;
-		ch_desc.input_trim.size_y = ch_desc.input_size.h;
+		/* PYR_DEC: crop by dcam; Normal:no trim in dcam full path. */
+		if (module->cam_uinfo.is_pyr_dec) {
+			ch_desc.input_trim = channel->trim_dcam;
+			ch_desc.output_size.w = channel->trim_dcam.size_x;
+			ch_desc.output_size.h = channel->trim_dcam.size_y;
+		} else {
+			ch_desc.output_size = ch_desc.input_size;
+			ch_desc.input_trim.start_x = 0;
+			ch_desc.input_trim.start_y = 0;
+			ch_desc.input_trim.size_x = ch_desc.input_size.w;
+			ch_desc.input_trim.size_y = ch_desc.input_size.h;
+		}
 	} else {
 		if (channel->rds_ratio & ((1 << RATIO_SHIFT) - 1))
 			ch_desc.force_rds = 1;
@@ -4035,9 +4049,18 @@ cfg_isp:
 	isp_path_id = channel->isp_path_id;
 
 	if (channel->ch_id == CAM_CH_CAP) {
-		ctx_size.src.w = ch_uinfo->src_size.w;
-		ctx_size.src.h = ch_uinfo->src_size.h;
-		ctx_size.crop = channel->trim_dcam;
+		if (module->cam_uinfo.is_pyr_dec) {
+			ctx_size.src.w = channel->trim_dcam.size_x;
+			ctx_size.src.h = channel->trim_dcam.size_y;
+			ctx_size.crop.start_x = 0;
+			ctx_size.crop.start_y = 0;
+			ctx_size.crop.size_x = ctx_size.src.w;
+			ctx_size.crop.size_y = ctx_size.src.h;
+		} else {
+			ctx_size.src.w = ch_uinfo->src_size.w;
+			ctx_size.src.h = ch_uinfo->src_size.h;
+			ctx_size.crop = channel->trim_dcam;
+		}
 		pr_debug("cfg isp sw %d size src w %d, h %d, crop %d %d %d %d\n",
 			isp_ctx_id, ctx_size.src.w, ctx_size.src.h,
 			ctx_size.crop.start_x, ctx_size.crop.start_y, ctx_size.crop.size_x, ctx_size.crop.size_y);
@@ -4052,8 +4075,7 @@ cfg_path:
 	pr_info("cfg isp ctx sw %d path %d size, path trim %d %d %d %d\n",
 		isp_ctx_id, isp_path_id, path_trim.start_x, path_trim.start_y, path_trim.size_x, path_trim.size_y);
 	ret = module->isp_dev_handle->isp_ops->cfg_path(module->isp_dev_handle,
-		ISP_PATH_CFG_PATH_SIZE,
-		isp_ctx_id, isp_path_id,  &path_trim);
+		ISP_PATH_CFG_PATH_SIZE, isp_ctx_id, isp_path_id, &path_trim);
 	if (ret != 0)
 		goto exit;
 	if (channel->ch_id == CAM_CH_CAP && is_zoom) {
@@ -5293,7 +5315,6 @@ static int camcore_dumpraw_proc(void *param)
 					camcore_frame_start_proc(module, pframe);
 				continue;
 			}
-
 			/* return it to dcam output queue */
 			if (module->cam_uinfo.is_4in1 && channel->aux_dcam_path_id == DCAM_PATH_BIN && pframe->buf.type == CAM_BUF_KERNEL)
 				module->dcam_dev_handle->dcam_pipe_ops->cfg_path(dcam_sw_aux_ctx,
@@ -5303,7 +5324,6 @@ static int camcore_dumpraw_proc(void *param)
 				module->dcam_dev_handle->dcam_pipe_ops->cfg_path(dcam_sw_ctx,
 					DCAM_PATH_CFG_OUTPUT_BUF,
 					channel->dcam_path_id, pframe);
-
 		} else {
 			pr_info("dump raw proc exit.");
 			break;

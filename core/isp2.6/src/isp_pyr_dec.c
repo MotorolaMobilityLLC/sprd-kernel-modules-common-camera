@@ -245,6 +245,8 @@ static int isppyrdec_fetch_get(struct isp_dec_pipe_dev *dev, uint32_t idx)
 		case ISP_FETCH_YVU420_2FRAME_MIPI:
 			ch_offset[0] = start_row * fetch->pitch[0]
 				+ (start_col >> 2) * 5 + (start_col & 0x3);
+			ch_offset[1] = (start_row >> 1) * fetch->pitch[1]
+				+ (start_col >> 2) * 5 + (start_col & 0x3);
 			slc_fetch->mipi_byte_rel_pos = start_col & 0x0f;
 			slc_fetch->mipi_word_num = ((((end_col + 1) >> 4) * 5
 				+ mipi_word_num_end[(end_col + 1) & 0x0f])
@@ -253,9 +255,9 @@ static int isppyrdec_fetch_get(struct isp_dec_pipe_dev *dev, uint32_t idx)
 			slc_fetch->mipi_byte_rel_pos_uv = slc_fetch->mipi_byte_rel_pos;
 			slc_fetch->mipi_word_num_uv = slc_fetch->mipi_word_num;
 			slc_fetch->mipi10_en = 1;
-			pr_debug("(%d %d %d %d), pitch %d, offset %d, mipi %d %d\n",
+			ISP_DEC_DEBUG("(%d %d %d %d), pitch %d, offset0 %x offset1 %x, mipi %d %d\n",
 				start_row, start_col, end_row, end_col,
-				fetch->pitch[0], ch_offset[0],
+				fetch->pitch[0], ch_offset[0], ch_offset[1],
 				slc_fetch->mipi_byte_rel_pos, slc_fetch->mipi_word_num);
 			break;
 		default:
@@ -268,7 +270,7 @@ static int isppyrdec_fetch_get(struct isp_dec_pipe_dev *dev, uint32_t idx)
 		slc_fetch->size.h = end_row - start_row + 1;
 		slc_fetch->size.w = end_col - start_col + 1;
 
-		pr_debug("slice fetch size %d, %d\n", slc_fetch->size.w, slc_fetch->size.h);
+		ISP_DEC_DEBUG("slice fetch size %d, %d\n", slc_fetch->size.w, slc_fetch->size.h);
 	}
 
 	return ret;
@@ -281,7 +283,6 @@ static int isppyrdec_store_dct_get(struct isp_dec_pipe_dev *dev, uint32_t idx)
 	uint32_t end_col = 0, end_row = 0;
 	uint32_t overlap_left = 0, overlap_up = 0;
 	uint32_t overlap_right = 0, overlap_down = 0;
-	uint32_t start_row_out = 0, start_col_out = 0;
 	uint32_t ch_offset[3] = { 0 };
 	struct isp_dec_slice_desc *cur_slc = NULL;
 	struct slice_store_info *slc_dct_store = NULL;
@@ -329,23 +330,21 @@ static int isppyrdec_store_dct_get(struct isp_dec_pipe_dev *dev, uint32_t idx)
 		overlap_down = cur_slc->slice_dct_overlap.overlap_down;
 		overlap_left = cur_slc->slice_dct_overlap.overlap_left;
 		overlap_right = cur_slc->slice_dct_overlap.overlap_right;
-		start_row_out = start_row + overlap_up;
-		start_col_out = start_col + overlap_left;
 
 		switch (store_dct->color_format) {
-		case ISP_STORE_YUV420_2FRAME_MIPI:
-		case ISP_STORE_YVU420_2FRAME_MIPI:
-			ch_offset[0] = start_row_out * store_dct->pitch[0] + start_col_out * 5 /4;
-			ch_offset[1] = ((start_row_out * store_dct->pitch[1]) >> 1) + start_col_out * 5 /4;
+		case ISP_FETCH_YVU420_2FRAME_MIPI:
+		case ISP_FETCH_YUV420_2FRAME_MIPI:
+			ch_offset[0] = start_row * store_dct->pitch[0] + start_col * 5 /4 + (start_col & 0x3);
+			ch_offset[1] = ((start_row * store_dct->pitch[1]) >> 1) + start_col * 5 /4 + (start_col & 0x3);
 			break;
-		case ISP_STORE_YUV420_2FRAME_10:
-		case ISP_STORE_YVU420_2FRAME_10:
-			ch_offset[0] = start_row_out * store_dct->pitch[0] + (start_col_out << 1);
-			ch_offset[1] = ((start_row_out * store_dct->pitch[1]) >> 1) + (start_col_out << 1);
+		case ISP_FETCH_YVU420_2FRAME_10:
+		case ISP_FETCH_YUV420_2FRAME_10:
+			ch_offset[0] = start_row * store_dct->pitch[0] + (start_col << 1);
+			ch_offset[1] = ((start_row * store_dct->pitch[1]) >> 1) + (start_col << 1);
 			break;
 		default:
-			ch_offset[0] = start_row_out * store_dct->pitch[0] + start_col_out;
-			ch_offset[1] = ((start_row_out * store_dct->pitch[1]) >> 1) + start_col_out;
+			ch_offset[0] = start_row * store_dct->pitch[0] + start_col;
+			ch_offset[1] = ((start_row * store_dct->pitch[1]) >> 1) + start_col;
 			break;
 		}
 
@@ -358,7 +357,8 @@ static int isppyrdec_store_dct_get(struct isp_dec_pipe_dev *dev, uint32_t idx)
 		slc_dct_store->border.left_border = overlap_left;
 		slc_dct_store->border.right_border = overlap_right;
 
-		pr_debug("slice store size %d, %d\n", slc_dct_store->size.w, slc_dct_store->size.h);
+		ISP_DEC_DEBUG("slice store size %d, %d offset %x %x\n",
+			slc_dct_store->size.w, slc_dct_store->size.h, ch_offset[0], ch_offset[1]);
 	}
 
 	return ret;
@@ -371,7 +371,6 @@ static int isppyrdec_store_dec_get(struct isp_dec_pipe_dev *dev, uint32_t idx)
 	uint32_t end_col = 0, end_row = 0;
 	uint32_t overlap_left = 0, overlap_up = 0;
 	uint32_t overlap_right = 0, overlap_down = 0;
-	uint32_t start_row_out = 0, start_col_out = 0;
 	uint32_t ch_offset[3] = { 0 };
 	struct isp_dec_slice_desc *cur_slc = NULL;
 	struct slice_store_info *slc_dec_store = NULL;
@@ -386,8 +385,8 @@ static int isppyrdec_store_dec_get(struct isp_dec_pipe_dev *dev, uint32_t idx)
 	idx = idx +1;
 	store_dec->bypass = 0;
 	store_dec->color_format = dev->out_fmt;
-	store_dec->addr[0] = dev->fetch_addr[idx].addr_ch0;
-	store_dec->addr[1] = dev->fetch_addr[idx].addr_ch1;
+	store_dec->addr[0] = dev->store_addr[idx].addr_ch0;
+	store_dec->addr[1] = dev->store_addr[idx].addr_ch1;
 	store_dec->width = dev->dec_layer_size[idx].w;
 	store_dec->height = dev->dec_layer_size[idx].h;
 	store_dec->pitch[0] = isppyrdec_cal_pitch(store_dec->width, store_dec->color_format);
@@ -415,23 +414,21 @@ static int isppyrdec_store_dec_get(struct isp_dec_pipe_dev *dev, uint32_t idx)
 		overlap_down = cur_slc->slice_dec_overlap.overlap_down;
 		overlap_left = cur_slc->slice_dec_overlap.overlap_left;
 		overlap_right = cur_slc->slice_dec_overlap.overlap_right;
-		start_row_out = start_row + overlap_up;
-		start_col_out = start_col + overlap_left;
 
 		switch (store_dec->color_format) {
-		case ISP_STORE_YUV420_2FRAME_MIPI:
-		case ISP_STORE_YVU420_2FRAME_MIPI:
-			ch_offset[0] = start_row_out * store_dec->pitch[0] + start_col_out * 5 /4;
-			ch_offset[1] = ((start_row_out * store_dec->pitch[1]) >> 1) + start_col_out * 5 /4;
+		case ISP_FETCH_YVU420_2FRAME_MIPI:
+		case ISP_FETCH_YUV420_2FRAME_MIPI:
+			ch_offset[0] = start_row * store_dec->pitch[0] + start_col * 5 /4 + (start_col & 0x3);
+			ch_offset[1] = ((start_row * store_dec->pitch[1]) >> 1) + start_col * 5 /4 + (start_col & 0x3);
 			break;
-		case ISP_STORE_YUV420_2FRAME_10:
-		case ISP_STORE_YVU420_2FRAME_10:
-			ch_offset[0] = start_row_out * store_dec->pitch[0] + (start_col_out << 1);
-			ch_offset[1] = ((start_row_out * store_dec->pitch[1]) >> 1) + (start_col_out << 1);
+		case ISP_FETCH_YVU420_2FRAME_10:
+		case ISP_FETCH_YUV420_2FRAME_10:
+			ch_offset[0] = start_row * store_dec->pitch[0] + (start_col << 1);
+			ch_offset[1] = ((start_row * store_dec->pitch[1]) >> 1) + (start_col << 1);
 			break;
 		default:
-			ch_offset[0] = start_row_out * store_dec->pitch[0] + start_col_out;
-			ch_offset[1] = ((start_row_out * store_dec->pitch[1]) >> 1) + start_col_out;
+			ch_offset[0] = start_row * store_dec->pitch[0] + start_col;
+			ch_offset[1] = ((start_row * store_dec->pitch[1]) >> 1) + start_col;
 			break;
 		}
 
@@ -444,7 +441,8 @@ static int isppyrdec_store_dec_get(struct isp_dec_pipe_dev *dev, uint32_t idx)
 		slc_dec_store->border.left_border = overlap_left;
 		slc_dec_store->border.right_border = overlap_right;
 
-		pr_debug("slice store size %d, %d\n", slc_dec_store->size.w, slc_dec_store->size.h);
+		ISP_DEC_DEBUG("slice store size %d, %d offset %x %x\n",
+			slc_dec_store->size.w, slc_dec_store->size.h, ch_offset[0], ch_offset[1]);
 	}
 
 	return ret;
@@ -513,6 +511,30 @@ static int isppyrdec_offline_get(struct isp_dec_pipe_dev *dev, uint32_t idx)
 	return ret;
 }
 
+static int isppyrdec_dct_ynr_get(struct isp_dec_pipe_dev *dev, uint32_t idx)
+{
+	int ret = 0, i = 0;
+	struct isp_dec_slice_desc *cur_slc = NULL;
+	struct isp_dec_dct_ynr_info *dct_ynr = NULL;
+
+	if (!dev) {
+		pr_err("fail to get valid input dev\n", dev);
+		return -EFAULT;
+	}
+
+	dct_ynr = &dev->dct_ynr_info;
+	cur_slc = &dev->slices[0];
+	dct_ynr->img.w = dev->dec_layer_size[0].w;
+	dct_ynr->img.h = dev->dec_layer_size[0].h;
+
+	for (i = 0; i < dev->slice_num; i++, cur_slc++) {
+		dct_ynr->start[i].w = cur_slc->slice_fetch_pos.start_col;
+		dct_ynr->start[i].h = cur_slc->slice_fetch_pos.start_row;
+	}
+
+	return ret;
+}
+
 static int isppyrdec_calc_base_info(struct isp_dec_pipe_dev *dev)
 {
 	int ret = 0, i = 0, j = 0;
@@ -573,13 +595,13 @@ static int isppyrdec_calc_base_info(struct isp_dec_pipe_dev *dev)
 		slice_rows = (img_h + slice_h - 1) / slice_h;
 		cur_ovlap->slice_num = slice_cols * slice_rows;
 		dec_slice_num[i] = cur_ovlap->slice_num;
-		pr_debug("layer %d num %d\n", i, cur_ovlap->slice_num);
+		ISP_DEC_DEBUG("layer %d num %d\n", i, cur_ovlap->slice_num);
 		for (j = 0; j < cur_ovlap->slice_num; j++) {
 			cur_ovlap->slice_fetch_region[j].start_col = dec_ovlap.fecth_dec_region[i][j].sx;
 			cur_ovlap->slice_fetch_region[j].start_row = dec_ovlap.fecth_dec_region[i][j].sy;
 			cur_ovlap->slice_fetch_region[j].end_col = dec_ovlap.fecth_dec_region[i][j].ex;
 			cur_ovlap->slice_fetch_region[j].end_row = dec_ovlap.fecth_dec_region[i][j].ey;
-			pr_debug("fetch sx %d sy %d ex %d ey %d\n", cur_ovlap->slice_fetch_region[j].start_col,
+			ISP_DEC_DEBUG("fetch sx %d sy %d ex %d ey %d\n", cur_ovlap->slice_fetch_region[j].start_col,
 				cur_ovlap->slice_fetch_region[j].start_row, cur_ovlap->slice_fetch_region[j].end_col,
 				cur_ovlap->slice_fetch_region[j].end_row);
 		}
@@ -593,14 +615,14 @@ static int isppyrdec_calc_base_info(struct isp_dec_pipe_dev *dev)
 			cur_ovlap->slice_store_region[j].start_row = dec_ovlap.store_dec_region[i][j].sy;
 			cur_ovlap->slice_store_region[j].end_col = dec_ovlap.store_dec_region[i][j].ex;
 			cur_ovlap->slice_store_region[j].end_row = dec_ovlap.store_dec_region[i][j].ey;
-			pr_debug("store sx %d sy %d ex %d ey %d\n", cur_ovlap->slice_store_region[j].start_col,
+			ISP_DEC_DEBUG("store sx %d sy %d ex %d ey %d\n", cur_ovlap->slice_store_region[j].start_col,
 				cur_ovlap->slice_store_region[j].start_row, cur_ovlap->slice_store_region[j].end_col,
 				cur_ovlap->slice_store_region[j].end_row);
 			cur_ovlap->slice_store_overlap[j].overlap_up = dec_ovlap.store_dec_overlap[i][j].ov_up;
 			cur_ovlap->slice_store_overlap[j].overlap_down = dec_ovlap.store_dec_overlap[i][j].ov_down;
 			cur_ovlap->slice_store_overlap[j].overlap_left = dec_ovlap.store_dec_overlap[i][j].ov_left;
 			cur_ovlap->slice_store_overlap[j].overlap_right = dec_ovlap.store_dec_overlap[i][j].ov_right;
-			pr_debug("store up %d down %d left %d right %d\n", cur_ovlap->slice_store_overlap[j].overlap_up,
+			ISP_DEC_DEBUG("store up %d down %d left %d right %d\n", cur_ovlap->slice_store_overlap[j].overlap_up,
 				cur_ovlap->slice_store_overlap[j].overlap_down, cur_ovlap->slice_store_overlap[j].overlap_left,
 				cur_ovlap->slice_store_overlap[j].overlap_right);
 		}
@@ -642,6 +664,12 @@ static int isppyrdec_param_cfg(struct isp_dec_pipe_dev *dev, uint32_t index)
 		return ret;
 	}
 
+	ret = isppyrdec_dct_ynr_get(dev, index);
+	if (ret) {
+		pr_err("fail to get isp dct_ynr\n");
+		return ret;
+	}
+
 	return ret;
 }
 
@@ -650,7 +678,7 @@ static int isppyrdec_offline_frame_start(void *handle)
 	int ret = 0;
 	uint32_t ctx_id = 0, loop = 0;
 	uint32_t layer_num = 0, i = 0, j = 0, pitch = 0;
-	uint32_t offset = 0, align = 1, size = 0;
+	uint32_t offset = 0, size = 0;
 	struct isp_dec_pipe_dev *dec_dev = NULL;
 	struct isp_dec_sw_ctx *pctx = NULL;
 	struct camera_frame *pframe = NULL;
@@ -702,32 +730,34 @@ static int isppyrdec_offline_frame_start(void *handle)
 	dec_dev->fetch_addr[0].addr_ch0 = pframe->buf.iova[0];
 	dec_dev->fetch_addr[0].addr_ch1 = pframe->buf.iova[0] + size;
 	dec_dev->store_addr[0].addr_ch0 = pctx->buf_out->buf.iova[0];
-	dec_dev->store_addr[0].addr_ch1 = dec_dev->store_addr[i].addr_ch0 + size;
+	dec_dev->store_addr[0].addr_ch1 = dec_dev->store_addr[0].addr_ch0 + size;
 	dec_dev->dec_layer_size[0].w = isp_rec_layer0_width(dec_dev->src.w, layer_num);
 	dec_dev->dec_layer_size[0].h = isp_rec_layer0_heigh(dec_dev->src.h, layer_num);
 	dec_dev->dec_padding_size.w = dec_dev->dec_layer_size[0].w - dec_dev->src.w;
 	dec_dev->dec_padding_size.h = dec_dev->dec_layer_size[0].h - dec_dev->src.h;
-	pr_debug("isp %d layer0 size %d %d padding size %d %d\n", ctx_id,
+	ISP_DEC_DEBUG("isp %d layer0 size %d %d padding size %d %d\n", ctx_id,
 		dec_dev->dec_layer_size[0].w, dec_dev->dec_layer_size[0].h,
 		dec_dev->dec_padding_size.w, dec_dev->dec_padding_size.h);
+	ISP_DEC_DEBUG("layer0 fetch addr %x %x store addr %x %x\n",
+		dec_dev->fetch_addr[0].addr_ch0, dec_dev->fetch_addr[0].addr_ch1,
+		dec_dev->store_addr[0].addr_ch0, dec_dev->store_addr[0].addr_ch1);
 	for (i = 1; i < layer_num + 1; i++) {
-		align = align * 2;
 		offset += (size * 3 / 2);
-		pitch = pitch / 2;
 		dec_dev->dec_layer_size[i].w = dec_dev->dec_layer_size[i - 1].w / 2;
 		dec_dev->dec_layer_size[i].h = dec_dev->dec_layer_size[i - 1].h / 2;
+		pitch = isppyrdec_cal_pitch(dec_dev->dec_layer_size[i].w, dec_dev->in_fmt);
 		size = pitch * dec_dev->dec_layer_size[i].h;
 		dec_dev->store_addr[i].addr_ch0 = pctx->buf_out->buf.iova[0] + offset;
 		dec_dev->store_addr[i].addr_ch1 = dec_dev->store_addr[i].addr_ch0 + size;
 		if (i < layer_num) {
-			dec_dev->fetch_addr[i].addr_ch0 = dec_dev->store_addr[i - 1].addr_ch0;
-			dec_dev->fetch_addr[i].addr_ch1 = dec_dev->store_addr[i - 1].addr_ch1;
+			dec_dev->fetch_addr[i].addr_ch0 = dec_dev->store_addr[i].addr_ch0;
+			dec_dev->fetch_addr[i].addr_ch1 = dec_dev->store_addr[i].addr_ch1;
 		}
-		pr_debug("isp %d layer%d size %d %d\n", ctx_id, i,
+		ISP_DEC_DEBUG("isp %d layer%d size %d %d\n", ctx_id, i,
 			dec_dev->dec_layer_size[i].w, dec_dev->dec_layer_size[i].h);
-		pr_debug("layer %d fetch addr %x %x\n", i,
+		ISP_DEC_DEBUG("layer %d fetch addr %x %x\n", i,
 			dec_dev->fetch_addr[i].addr_ch0, dec_dev->fetch_addr[i].addr_ch1);
-		pr_debug("layer %d store addr %x %x\n", i,
+		ISP_DEC_DEBUG("layer %d store addr %x %x\n", i,
 			dec_dev->store_addr[i].addr_ch0, dec_dev->store_addr[i].addr_ch1);
 	}
 	/* layer 0 fetch & store size is real size not include padding size */
@@ -748,6 +778,7 @@ static int isppyrdec_offline_frame_start(void *handle)
 		cur_ovlap = &dec_dev->overlap_dec_info[i];
 		cur_slc = &dec_dev->slices[0];
 		dec_dev->slice_num = cur_ovlap->slice_num;
+		dec_dev->cur_layer_id = i;
 		for (j = 0; j < dec_dev->slice_num; j++, cur_slc++) {
 			cur_slc->slice_fetch_pos = cur_ovlap->slice_fetch_region[j];
 			cur_slc->slice_store_dct_pos = cur_ovlap->slice_store_region[j];
@@ -779,7 +810,7 @@ static int isppyrdec_offline_frame_start(void *handle)
 
 	dec_dev->cur_ctx_id = ctx_id;
 	/* start pyr dec fmcu */
-	pr_debug("isp pyr dec fmcu start\n");
+	ISP_DEC_DEBUG("isp pyr dec fmcu start\n");
 	fmcu->ops->hw_start(fmcu);
 
 	return 0;
@@ -844,16 +875,16 @@ static int isppyrdec_cfg_param(void *handle, int ctx_id,
 			goto exit;
 		}
 		pctx->buf_out = pframe;
-		pr_debug("DEC buf[0x%p] = 0x%lx\n", pframe, pctx->buf_out->buf.iova[0]);
+		ISP_DEC_DEBUG("DEC buf[0x%p] = 0x%lx\n", pframe, pctx->buf_out->buf.iova[0]);
 		break;
 	case ISP_DEC_CFG_PROC_SIZE:
 		dec_dev->src = *(struct img_size *)param;
-		pr_debug("DEC size w %d h %d\n", dec_dev->src.w, dec_dev->src.h);
+		ISP_DEC_DEBUG("DEC size w %d h %d\n", dec_dev->src.w, dec_dev->src.h);
 		break;
 	case ISP_DEC_CFG_IN_FORMAT:
 		dec_dev->in_fmt = *(uint32_t *)param;
 		dec_dev->out_fmt = dec_dev->in_fmt;
-		pr_debug("DEC proc format %d\n", dec_dev->in_fmt);
+		ISP_DEC_DEBUG("DEC proc format %d\n", dec_dev->in_fmt);
 		break;
 	default:
 		pr_err("fail to get known cmd: %d\n", cmd);

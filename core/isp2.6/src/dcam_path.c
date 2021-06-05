@@ -730,6 +730,10 @@ void dcampath_update_size(struct dcam_sw_context *ctx, struct dcam_path_desc *pa
 		hw->dcam_ioctl(hw, DCAM_HW_CFG_PATH_SRC_SEL, &patharg);
 	}
 	path->base_update = 0;
+	if (path_id == DCAM_PATH_FULL) {
+		frame->width = path->out_size.w;
+		frame->height = path->out_size.h;
+	}
 	spin_unlock_irqrestore(&path->size_lock, flags);
 	frame->zoom_ratio = ctx->zoom_ratio;
 
@@ -1019,7 +1023,6 @@ int dcam_path_store_frm_set(void *dcam_ctx_handle,
 		helper->sync.frames[path_id] = frame;
 		frame->sync_data = &helper->sync;
 	}
-
 
 	dcampath_update_size(dcam_sw_ctx, path, frame, NULL);
 	dcampath_update_statis_head(dcam_sw_ctx, path, frame);

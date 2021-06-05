@@ -21,6 +21,12 @@ extern "C" {
 #include "cam_queue.h"
 #include "isp_slice.h"
 
+#ifdef ISP_PYR_DEC_DEBUG_ON
+#define ISP_DEC_DEBUG pr_info
+#else
+#define ISP_DEC_DEBUG pr_debug
+#endif
+
 #define PYR_DEC_ADDR_NUM        ISP_PYR_DEC_LAYER_NUM + 1
 
 typedef int(*isppyrdec_irq_proc_func)(void *handle);
@@ -149,9 +155,16 @@ struct isp_dec_overlap_info {
 	struct slice_overlap_info slice_store_overlap[SLICE_NUM_MAX];
 };
 
+struct isp_dec_dct_ynr_info {
+	struct img_size img;
+	struct img_size start[SLICE_NUM_MAX];
+	struct isp_dev_dct_info *dct;
+};
+
 struct isp_dec_pipe_dev {
 	uint32_t layer_num;
 	uint32_t slice_num;
+	uint32_t cur_layer_id;
 	uint32_t cur_slice_id;
 	uint32_t cur_ctx_id;
 	uint32_t irq_no;
@@ -181,6 +194,7 @@ struct isp_dec_pipe_dev {
 	struct isp_dec_offline_info offline_dec_info;
 	struct isp_dec_store_info store_dec_info;
 	struct isp_dec_store_info store_dct_info;
+	struct isp_dec_dct_ynr_info dct_ynr_info;
 	struct isp_dec_slice_desc slices[SLICE_NUM_MAX];
 };
 
