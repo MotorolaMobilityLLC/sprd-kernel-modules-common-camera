@@ -1159,7 +1159,6 @@ static int isphw_path_store(void *handle, void *arg)
 	ISP_REG_WR(idx, addr + ISP_STORE_U_PITCH, store_info->pitch.pitch_ch1);
 	ISP_REG_WR(idx, addr + ISP_STORE_V_PITCH, store_info->pitch.pitch_ch2);
 
-	pr_debug("set_store size %d %d\n", store_info->size.w, store_info->size.h);
 	ISP_REG_MWR(idx, addr + ISP_STORE_READ_CTRL, 0x3, store_info->rd_ctrl);
 	ISP_REG_MWR(idx, addr + ISP_STORE_READ_CTRL, 0xFFFFFFFC, store_info->store_res << 2);
 	ISP_REG_MWR(idx, addr + ISP_STORE_SHADOW_CLR_SEL, BIT_1, store_info->shadow_clr_sel << 1);
@@ -2298,11 +2297,11 @@ static int isphw_slw_fmcu_cmds(void *handle, void *arg)
 
 	hw->isp_ioctl(hw, ISP_HW_CFG_FMCU_CFG, &cfg);
 
-	addr = ISP_GET_REG(ISP_FETCH_SLICE_Y_ADDR);
+	addr = ISP_GET_REG(ISP_FETCH_BASE + ISP_FETCH_SLICE_Y_ADDR);
 	cmd = fetch_addr->addr_ch0;
 	FMCU_PUSH(fmcu, addr, cmd);
 
-	addr = ISP_GET_REG(ISP_FETCH_SLICE_U_ADDR);
+	addr = ISP_GET_REG(ISP_FETCH_BASE + ISP_FETCH_SLICE_U_ADDR);
 	cmd = fetch_addr->addr_ch1;
 	FMCU_PUSH(fmcu, addr, cmd);
 

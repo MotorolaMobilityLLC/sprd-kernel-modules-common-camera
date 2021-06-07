@@ -312,8 +312,6 @@ int dcam_path_size_cfg(void *dcam_ctx_handle,
 				ret = cam_scaler_coeff_calc_ex(&path->scaler_info);
 				if (ret)
 					pr_err("fail to calc scaler coeff\n");
-
-
 				break;
 			case DCAM_STORE_RAW_BASE:
 			case DCAM_STORE_FRGB:
@@ -824,10 +822,10 @@ int dcam_path_fmcu_slw_store_buf_set(
 	} else {
 		slw->store_info[path_id].store_addr.addr_ch0 = out_frame->buf.iova[0];
 
-		if ((out_frame->buf.iova[1] == 0) && (path->out_fmt & DCAM_STORE_YUV_BASE))
+		if (path->out_fmt & DCAM_STORE_YUV_BASE)
 			out_frame->buf.iova[1] = out_frame->buf.iova[0] + path->out_pitch * path->out_size.h;
 
-		if ((out_frame->buf.iova[1] == 0) && (path_id == DCAM_PATH_AFL))
+		if (path_id == DCAM_PATH_AFL)
 			out_frame->buf.iova[1] = out_frame->buf.iova[0] + hw->ip_dcam[sw_ctx->hw_ctx_id]->afl_gbuf_size;
 
 		slw->store_info[path_id].store_addr.addr_ch1 = out_frame->buf.iova[1];
@@ -837,7 +835,7 @@ int dcam_path_fmcu_slw_store_buf_set(
 	dcampath_update_size(sw_ctx, path, out_frame, slw);
 	dcampath_update_statis_head(sw_ctx, path, out_frame);
 
-	pr_debug("path%d set no.%d buffer done!\n", path_id, slw_idx);
+	pr_debug("path%d set no.%d buffer done!pitch:%d.\n", path_id, slw_idx, path->out_pitch);
 
 	return ret;
 }

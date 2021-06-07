@@ -2399,7 +2399,7 @@ static int dcamhw_slw_fmcu_cmds(void *handle, void *arg)
 			cmd = slw->store_info[i].store_addr.addr_ch0 + STATIS_AEM_HEADER_SIZE;
 			DCAM_FMCU_PUSH(fmcu, addr, cmd);
 		} else if (i == DCAM_PATH_HIST) {
-			addr = DCAM_GET_REG(fmcu->hw_ctx_id, DCAM_HIST_ROI_BASE_WADDR);
+			addr = DCAM_GET_REG(fmcu->hw_ctx_id, DCAM_BAYER_HIST_BASE_WADDR);
 			cmd = slw->store_info[i].store_addr.addr_ch0 + STATIS_HIST_HEADER_SIZE;
 			DCAM_FMCU_PUSH(fmcu, addr, cmd);
 		} else {

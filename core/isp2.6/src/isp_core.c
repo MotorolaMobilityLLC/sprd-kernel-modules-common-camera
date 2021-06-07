@@ -551,12 +551,10 @@ static int ispcore_fmcu_slw_queue_set(
 		ret = cam_queue_enqueue(&path->result_queue, &out_frame->list);
 		if (ret) {
 			if (out_frame->is_reserved)
-				cam_queue_enqueue(&path->reserved_buf_queue,
-						&out_frame->list);
+				cam_queue_enqueue(&path->reserved_buf_queue, &out_frame->list);
 			else {
 				cam_buf_iommu_unmap(&out_frame->buf);
-				cam_queue_enqueue(&path->out_buf_queue,
-						&out_frame->list);
+				cam_queue_enqueue(&path->out_buf_queue, &out_frame->list);
 			}
 			return -EINVAL;
 		}
@@ -1818,8 +1816,7 @@ static int ispcore_offline_frame_start(void *ctx)
 		else
 			blk_ctrl.type = ISP_YUV_BLOCK_CFG;
 		hw->isp_ioctl(hw, ISP_HW_CFG_YUV_BLOCK_CTRL_TYPE, &blk_ctrl);
-		ret = cfg_desc->ops->hw_cfg(cfg_desc,
-					pctx->ctx_id, hw_ctx_id, kick_fmcu);
+		ret = cfg_desc->ops->hw_cfg(cfg_desc, pctx->ctx_id, hw_ctx_id, kick_fmcu);
 		mutex_unlock(&pctx->blkpm_lock);
 
 		if (kick_fmcu) {

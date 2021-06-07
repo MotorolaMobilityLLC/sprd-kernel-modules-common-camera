@@ -345,7 +345,9 @@ int isp_path_fetch_frm_set(struct isp_sw_context *pctx,
 	else if ((fetch->fetch_fmt == ISP_FETCH_YUV422_2FRAME)
 			|| (fetch->fetch_fmt == ISP_FETCH_YVU422_2FRAME)
 			|| (fetch->fetch_fmt == ISP_FETCH_YUV420_2FRAME)
-			|| (fetch->fetch_fmt == ISP_FETCH_YVU420_2FRAME))
+			|| (fetch->fetch_fmt == ISP_FETCH_YVU420_2FRAME)
+			|| (fetch->fetch_fmt == ISP_FETCH_YVU420_2FRAME_MIPI)
+			|| (fetch->fetch_fmt == ISP_FETCH_YUV420_2FRAME_MIPI))
 		planes = 2;
 	else
 		planes = 1;
@@ -354,12 +356,12 @@ int isp_path_fetch_frm_set(struct isp_sw_context *pctx,
 	yuv_addr[1] = frame->buf.iova[1];
 	yuv_addr[2] = frame->buf.iova[2];
 
-	if ((planes > 1) && yuv_addr[1] == 0) {
+	if (planes > 1) {
 		offset_u = fetch->pitch.pitch_ch0 * fetch->src.h;
 		yuv_addr[1] = yuv_addr[0] + offset_u;
 	}
 
-	if ((planes > 2) && yuv_addr[2] == 0) {
+	if ((planes > 2)) {
 		offset_v = fetch->pitch.pitch_ch1 * fetch->src.h;
 		yuv_addr[2] = yuv_addr[1] + offset_v;
 	}
@@ -506,9 +508,9 @@ int isp_path_store_frm_set(
 	yuv_addr[1] = frame->buf.iova[1];
 	yuv_addr[2] = frame->buf.iova[2];
 
-	pr_debug("sw %d , fmt %d, planes %d addr %lx %lx %lx\n",
+	pr_debug("sw %d , fmt %d, planes %d addr %lx %lx %lx, pitch:%d\n",
 		pctx->ctx_id, store->color_fmt, planes,
-		yuv_addr[0], yuv_addr[1], yuv_addr[2]);
+		yuv_addr[0], yuv_addr[1], yuv_addr[2], store->pitch.pitch_ch0);
 
 	if ((planes > 1) && yuv_addr[1] == 0) {
 		if (!pctx->sw_slice_num) {

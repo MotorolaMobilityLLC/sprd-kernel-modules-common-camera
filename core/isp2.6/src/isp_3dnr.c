@@ -26,6 +26,7 @@ static int isp3dnr_calc_img_pitch(enum isp_fetch_format fmt, uint32_t w)
 
 	switch (fmt) {
 	case ISP_FETCH_RAW10:
+	case ISP_FETCH_CSI2_RAW10:
 		pitch = w;
 		break;
 	case ISP_FETCH_YUV420_2FRAME_MIPI:
