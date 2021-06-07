@@ -999,6 +999,8 @@ static int dcamhw_path_start(void *handle, void *arg)
 		DCAM_REG_MWR(patharg->idx, DCAM_BWD1_PARAM, 0xE, val << 1);
 		/*bwd for RAW 10bit*/
 		DCAM_REG_MWR(patharg->idx, DCAM_BWD1_PARAM, BIT_0, 0);
+                if (patharg->cap_info.format ==  DCAM_CAP_MODE_YUV)
+			DCAM_REG_MWR(patharg->idx, DCAM_RAW_PATH_CFG, BIT_12, 1 << 12);
 		DCAM_REG_MWR(patharg->idx, DCAM_RAW_PATH_CFG, BIT_0, 0);
 		break;
 	case DCAM_PATH_PDAF:

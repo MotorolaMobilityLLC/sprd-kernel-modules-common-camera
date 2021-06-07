@@ -4382,6 +4382,8 @@ static int camcore_channel_init(struct camera_module *module,
 			ch_desc.dcam_out_fmt = DCAM_STORE_RAW_BASE;
 		if (channel->ch_id == CAM_CH_RAW || dcam_path_id == DCAM_PATH_RAW)
 			ch_desc.dcam_out_fmt = DCAM_STORE_RAW_BASE;
+		if ((dcam_path_id == DCAM_PATH_RAW) && (format == DCAM_CAP_MODE_YUV))
+			ch_desc.dcam_out_fmt = DCAM_STORE_YUV422;
 		pr_debug("channel dcam out format %d, bits %d, is pack %d\n", ch_desc.dcam_out_fmt,
 			ch_desc.dcam_out_bits, !(ch_desc.pack_bits));
 
@@ -4423,9 +4425,9 @@ static int camcore_channel_init(struct camera_module *module,
 				ctx_desc.in_fmt = camcore_format_dcam_translate(DCAM_STORE_YVU420);
 			else
 				ctx_desc.in_fmt = camcore_format_dcam_translate(ch_desc.dcam_out_fmt);
-			ctx_desc.is_pack= !ch_desc.pack_bits;
-			ctx_desc.data_in_bits = ch_desc.dcam_out_bits;
 		}
+                ctx_desc.is_pack= !ch_desc.pack_bits;
+                ctx_desc.data_in_bits = ch_desc.dcam_out_bits;
 		ctx_desc.pack_bits = module->cam_uinfo.sensor_if.if_spec.mipi.is_loose;
 		ctx_desc.bayer_pattern = module->cam_uinfo.sensor_if.img_ptn;
 		ctx_desc.mode_ltm = MODE_LTM_OFF;
