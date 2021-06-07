@@ -1912,13 +1912,6 @@ static void scaler_init(yuvscaler_param_t *core_param, struct alg_slice_scaler_o
 	yuv_scaler_init_frame_info(core_param);
 	core_param->scaler_info.input_pixfmt = core_param->input_pixfmt;
 	core_param->scaler_info.output_pixfmt = core_param->output_pixfmt;
-	/* driver add for scaler tap */
-	if (!core_param->bypass && core_param->scaler_info.scaler_en) {
-		core_param->scaler_info.scaler_y_hor_tap = in_param_ptr->scaler_y_hor_tap;
-		core_param->scaler_info.scaler_uv_hor_tap = in_param_ptr->scaler_uv_hor_tap;
-		core_param->scaler_info.scaler_y_ver_tap = in_param_ptr->scaler_y_ver_tap;
-		core_param->scaler_info.scaler_uv_ver_tap = in_param_ptr->scaler_uv_ver_tap;
-	}
 }
 
 static void scaler_calculate_region(const struct alg_slice_regions *r_ref,
@@ -2141,12 +2134,7 @@ static void scaler_calculate_region(const struct alg_slice_regions *r_ref,
 
                 if(core_param->output_pixfmt == YUV420 && i == rows - 1)
                 {
-                    output_pixel_align = 4;
-                }
-
-                if ((i == rows - 1) && (core_param->output_pixfmt == YUV420))
-                {
-                    output_pixel_align = 4;
+                    output_pixel_align = 2;
                 }
 
                 if(v_flag == 0)
@@ -2334,6 +2322,61 @@ static void isp_drv_regions_arr_max(struct alg_slice_regions* arr[],int num,stru
 	}
 }
 
+static slice_drv_overlap_info ltm_rgb_sta_getOverlap(const struct alg_slice_regions *refSliceList,
+	ltm_rgb_stat_param_t *tm_stat_param)
+{
+	int start_x;
+	int start_y;
+	int end_x;
+	int end_y;
+	int index;
+	int i, j;
+	uint16_t tile_num_y_t, tile_num_x_t;
+
+	int rows = refSliceList->rows;
+	int cols = refSliceList->cols;
+
+	uint8_t frame_cropUp = tm_stat_param->cropUp_stat << tm_stat_param->binning_en;
+	uint8_t frame_cropDown = tm_stat_param->cropDown_stat << tm_stat_param->binning_en;
+	uint8_t frame_cropLeft = tm_stat_param->cropLeft_stat << tm_stat_param->binning_en;
+	uint8_t frame_cropRight = tm_stat_param->cropRight_stat << tm_stat_param->binning_en;
+	uint16_t frame_tile_width = tm_stat_param->tile_width_stat << tm_stat_param->binning_en;
+	uint16_t frame_tile_height = tm_stat_param->tile_height_stat << tm_stat_param->binning_en;
+	int frame_img_w = tm_stat_param->frame_width_stat << tm_stat_param->binning_en;
+	int frame_img_h = tm_stat_param->frame_height_stat << tm_stat_param->binning_en;
+
+	slice_drv_overlap_info overlap;
+	memset(&overlap, 0 , sizeof(slice_drv_overlap_info));
+	if (cols > 2 || rows != 1)
+		pr_err("fail to get valid col %d row %d\n", cols, rows);
+
+	for (i = 0; i < rows; i++) {
+		for (j = 0; j < cols; j++) {
+			index = i * cols + j;
+
+			start_x = refSliceList->regions[index].sx;
+			start_y= refSliceList->regions[index].sy;
+			end_x = refSliceList->regions[index].ex;
+			end_y = refSliceList->regions[index].ey;
+
+			start_y = MAX(start_y, frame_cropUp);
+			start_x = MAX(start_x, frame_cropLeft);
+			end_y = MIN(end_y, frame_img_h - frame_cropDown - 1);
+			end_x = MIN(end_x, frame_img_w - frame_cropRight - 1);
+
+			tile_num_y_t = (end_y - start_y + 1) % frame_tile_height;
+			tile_num_x_t = (end_x - start_x + 1) % frame_tile_width;
+			if (index == 0) {
+				overlap.ov_right = (tile_num_x_t >= frame_tile_width / 2 ? frame_tile_width - tile_num_x_t : 0);
+			} else if (index == 1) {
+				overlap.ov_left = (tile_num_x_t >= frame_tile_width / 2 ? frame_tile_width - tile_num_x_t : 0);
+			}
+		}
+	}
+
+	return overlap;
+}
+
 void alg_slice_calc_drv_overlap(struct alg_slice_drv_overlap *param_ptr)
 {
 	int image_w;
@@ -2352,6 +2395,8 @@ void alg_slice_calc_drv_overlap(struct alg_slice_drv_overlap *param_ptr)
 	yuvscaler_param_t *scaler1_frame_p = (yuvscaler_param_t*)(param_ptr->scaler1.frameParam);
 	yuvscaler_param_t *scaler2_frame_p = (yuvscaler_param_t*)(param_ptr->scaler2.frameParam);
 
+	ltm_rgb_stat_param_t *ltm_sta_p = &param_ptr->ltm_sat;
+
 	struct alg_overlap_info ov_pipe;
 	struct alg_overlap_info ov_Y = {0};
 	struct alg_overlap_info ov_UV = {0};
@@ -2359,7 +2404,6 @@ void alg_slice_calc_drv_overlap(struct alg_slice_drv_overlap *param_ptr)
 	struct alg_overlap_info overlap_rec = {0};
 	struct alg_overlap_info overlap_rec_mode1 = {0};
 
-	isp_block_drv_t ltmsta_rgb_param;
 	isp_block_drv_t ynr_param;
 	isp_block_drv_t cnr_param;
 	isp_block_drv_t pyramid_rec_param;
@@ -2466,8 +2510,27 @@ void alg_slice_calc_drv_overlap(struct alg_slice_drv_overlap *param_ptr)
 	core_drv_yuv420_to_rgb10_init_block(&yuv420_to_rgb10_param);
 	CAL_OVERLAP(param_ptr->yuv420_to_rgb10_bypass,yuv420_to_rgb10_param);
 
-	core_drv_ltmsta_init_block(&ltmsta_rgb_param);
-	CAL_OVERLAP(param_ptr->ltmsta_rgb_bypass,ltmsta_rgb_param);
+	slice_in.image_w = image_w;
+	slice_in.image_h = image_h;
+	slice_in.slice_w = param_ptr->slice_w;
+	slice_in.slice_h = param_ptr->slice_h;
+	slice_in.overlap_left = 0;
+	slice_in.overlap_right = 0;
+	slice_in.overlap_up = 0;
+	slice_in.overlap_down = 0;
+
+	if (-1 == isp_drv_regions_fetch(&slice_in, &slice_out))
+		return;
+
+	if (!ltm_sta_p->bypass) {
+		slice_drv_overlap_info ltm_sta_overlap;
+		memset(&ltm_sta_overlap, 0, sizeof(slice_drv_overlap_info));
+		ltm_sta_overlap = ltm_rgb_sta_getOverlap(&slice_out, ltm_sta_p);
+		ov_pipe.ov_left += ltm_sta_overlap.ov_left;
+		ov_pipe.ov_right += ltm_sta_overlap.ov_right;
+		ov_pipe.ov_up += ltm_sta_overlap.ov_up;
+		ov_pipe.ov_down += ltm_sta_overlap.ov_down;
+	}
 
 	// Y domain
 	{
@@ -2536,18 +2599,6 @@ void alg_slice_calc_drv_overlap(struct alg_slice_drv_overlap *param_ptr)
 	thumbnailscaler_param.configinfo.ow = param_ptr->thumbnailscaler.out_w;
 	thumbnailscaler_param.configinfo.oh = param_ptr->thumbnailscaler.out_h;
 	thumbnailscaler_param.configinfo.outformat = param_ptr->thumbnailscaler.out_format;
-
-	slice_in.image_w = image_w;
-	slice_in.image_h = image_h;
-	slice_in.slice_w = param_ptr->slice_w;
-	slice_in.slice_h = param_ptr->slice_h;
-	slice_in.overlap_left = 0;
-	slice_in.overlap_right = 0;
-	slice_in.overlap_up = 0;
-	slice_in.overlap_down = 0;
-
-	if (-1 == isp_drv_regions_fetch(&slice_in, &slice_out))
-		return;
 
 	isp_drv_regions_set(&slice_out, &maxRegion);
 	isp_drv_regions_set(&slice_out, &orgRegion);

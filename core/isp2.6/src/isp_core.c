@@ -147,7 +147,8 @@ static void ispcore_src_frame_ret(void *param)
 	frame->param_data = NULL;
 	if (frame->buf.mapping_state & CAM_BUF_MAPPING_DEV)
 		cam_buf_iommu_unmap(&frame->buf);
-	pctx->isp_cb_func(ISP_CB_RET_SRC_BUF, frame, pctx->cb_priv_data);
+	if (!frame->data_src_dec)
+		pctx->isp_cb_func(ISP_CB_RET_SRC_BUF, frame, pctx->cb_priv_data);
 }
 
 static void ispcore_reserved_buf_destroy(void *param)
@@ -395,6 +396,7 @@ static int ispcore_rec_frame_process(struct isp_sw_context *pctx,
 		rec_ctx->ops.cfg_param(rec_ctx, ISP_REC_CFG_WORK_MODE, &pctx->dev->wmode);
 		rec_ctx->ops.cfg_param(rec_ctx, ISP_REC_CFG_HW_CTX_IDX, &pctx_hw->hw_ctx_id);
 		rec_ctx->ops.cfg_param(rec_ctx, ISP_REC_CFG_FMCU_HANDLE, pctx_hw->fmcu_handle);
+		rec_ctx->ops.cfg_param(rec_ctx, ISP_REC_CFG_LAYER_NUM, &pctx->uinfo.pyr_layer_num);
 		ret = rec_ctx->ops.pipe_proc(rec_ctx, &cfg_in);
 		if (ret == -1)
 			pr_err("fail to proc rec frame\n");
@@ -2392,7 +2394,6 @@ static int ispcore_dec_frame_proc(struct isp_sw_context *pctx,
 {
 	int ret = 0;
 	uint32_t format = 0;
-	struct camera_frame *pframe = NULL;
 	struct isp_uinfo *uinfo = NULL;
 
 	if (!dec_dev) {
@@ -2401,15 +2402,9 @@ static int ispcore_dec_frame_proc(struct isp_sw_context *pctx,
 	}
 
 	uinfo = &pctx->uinfo;
-	pframe = cam_queue_dequeue(&pctx->pyrdec_buf_queue, struct camera_frame, list);
-	if (!pframe) {
-		pr_err("fail to get valid pframe\n");
-		return -EFAULT;
-	}
 
 	format = isp_drv_fetch_format_get(uinfo);
 	dec_dev->dct_ynr_info.dct = &pctx->isp_k_param.dct_info;
-	dec_dev->ops.cfg_param(dec_dev, pctx->ctx_id, ISP_DEC_CFG_OUT_BUF, pframe);
 	dec_dev->ops.cfg_param(dec_dev, pctx->ctx_id, ISP_DEC_CFG_IN_FORMAT, &format);
 	dec_dev->ops.cfg_param(dec_dev, pctx->ctx_id, ISP_DEC_CFG_PROC_SIZE, &uinfo->src);
 	frame->dec_ctx_id = pctx->ctx_id;
@@ -3094,6 +3089,25 @@ static int ispcore_blkparam_cfg(
 	return ret;
 }
 
+static int ispcore_pyrdec_outbuf_get(void *param, void *priv_data)
+{
+	int ret = 0;
+	struct camera_frame **frame = NULL;
+	struct isp_sw_context *pctx = NULL;
+
+	if (!priv_data) {
+		pr_err("fail to get valid param %p\n", priv_data);
+		return -EFAULT;
+	}
+
+	pctx = (struct isp_sw_context *)priv_data;
+
+	frame = (struct camera_frame **)param;
+	*frame = cam_queue_dequeue(&pctx->pyrdec_buf_queue, struct camera_frame, list);
+
+	return ret;
+}
+
 static int ispcore_callback_set(void *isp_handle, int ctx_id,
 		isp_dev_callback cb, void *priv_data)
 {
@@ -3118,8 +3132,10 @@ static int ispcore_callback_set(void *isp_handle, int ctx_id,
 	if (pctx->isp_cb_func == NULL) {
 		pctx->isp_cb_func = cb;
 		pctx->cb_priv_data = priv_data;
-		if (dec_dev)
+		if (dec_dev) {
 			dec_dev->ops.set_callback(dec_dev, ctx_id, cb, priv_data);
+			dec_dev->ops.get_out_buf_cb(dec_dev, ctx_id, ispcore_pyrdec_outbuf_get, pctx);
+		}
 		pr_info("ctx: %d, cb %p, %p\n", ctx_id, cb, priv_data);
 	}
 

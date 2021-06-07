@@ -689,6 +689,14 @@ static int isppyrrec_pipe_proc(void *handle, void *param)
 	layer_num = rec_ctx->layer_num;
 	slice_overlap = in_ptr->slice_overlap;
 
+	/* update layer num based on img size */
+	while (isp_rec_small_layer_w(in_ptr->src.w, layer_num) < MIN_PYR_WIDTH ||
+		isp_rec_small_layer_h(in_ptr->src.h, layer_num) < MIN_PYR_HEIGHT) {
+		pr_debug("layer num need decrease based on small input %d %d\n",
+			in_ptr->src.w, in_ptr->src.h);
+		layer_num--;
+	}
+	rec_ctx->layer_num = layer_num;
 	/* calc multi layer pyramid dec input addr & size */
 	pitch = isppyrrec_pitch_get(in_ptr->in_fmt, in_ptr->src.w);
 	size = pitch * in_ptr->src.h;

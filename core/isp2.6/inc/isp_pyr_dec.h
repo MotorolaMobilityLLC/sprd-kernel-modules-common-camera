@@ -38,7 +38,6 @@ enum {
 };
 
 enum isp_dec_cfg_cmd {
-	ISP_DEC_CFG_OUT_BUF,
 	ISP_DEC_CFG_PROC_SIZE,
 	ISP_DEC_CFG_IN_FORMAT,
 	ISP_DEC_CFG_MAX,
@@ -48,12 +47,15 @@ struct isp_dec_ops {
 	int (*cfg_param)(void *dec_handle, int ctx_id, enum isp_dec_cfg_cmd cmd, void *param);
 	int (*proc_frame)(void *dec_handle, void *param);
 	int (*set_callback)(void *dec_handle, int ctx_id, isp_dev_callback cb, void *priv_data);
+	int (*get_out_buf_cb)(void *dec_handle, int ctx_id, pyr_dec_buf_cb cb, void *priv_data);
 };
 
 struct isp_dec_sw_ctx {
 	struct camera_frame *buf_out;
 	isp_dev_callback cb_func;
 	void *cb_priv_data;
+	pyr_dec_buf_cb buf_cb_func;
+	void *buf_cb_priv_data;
 };
 
 struct isp_dec_fetch_info {

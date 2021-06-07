@@ -117,26 +117,214 @@ static int ispint_err_pre_proc(enum isp_context_hw_id hw_idx, void *isp_handle)
 	pctx = dev->sw_ctx[idx];
 
 	pr_info("isp sw %d hw %d\n", idx, hw_idx);
-	pr_info("ISP: sw cfg Register list\n");
-	/* TBD: should add necessary cfg register print */
-	for (addr = 0xc010; addr <= 0xc150; addr += 16) {
-		pr_info("0x%lx: 0x%x 0x%x 0x%x 0x%x\n",
-			addr,
-			ISP_REG_RD(idx, addr),
-			ISP_REG_RD(idx, addr + 4),
-			ISP_REG_RD(idx, addr + 8),
-			ISP_REG_RD(idx, addr + 12));
-	}
-
-	pr_info("ISP: hw Register list\n");
-	/* TBD: should add necessary hw register print */
-	for (addr = 0xc010; addr <= 0xc150; addr += 16) {
+	pr_info("ISP: INT Register list\n");
+	for (addr = 0x0; addr <= 0x3C; addr += 16) {
 		pr_info("0x%lx: 0x%x 0x%x 0x%x 0x%x\n",
 			addr,
 			ISP_HREG_RD(addr),
 			ISP_HREG_RD(addr + 4),
 			ISP_HREG_RD(addr + 8),
 			ISP_HREG_RD(addr + 12));
+	}
+	pr_info("ISP: Common Register list\n");
+	for (addr = 0x700; addr <= 0x998; addr += 16) {
+		pr_info("0x%lx: 0x%x 0x%x 0x%x 0x%x\n",
+			addr,
+			ISP_HREG_RD(addr),
+			ISP_HREG_RD(addr + 4),
+			ISP_HREG_RD(addr + 8),
+			ISP_HREG_RD(addr + 12));
+	}
+	pr_info("ISP: pyr_rec Register list\n");
+	for (addr = 0x9310; addr <= 0x9334; addr += 16) {
+		pr_info("0x%lx: 0x%x 0x%x 0x%x 0x%x\n",
+			addr,
+			ISP_HREG_RD(addr),
+			ISP_HREG_RD(addr + 4),
+			ISP_HREG_RD(addr + 8),
+			ISP_HREG_RD(addr + 12));
+	}
+	for (addr = 0x9510; addr <= 0x9534; addr += 16) {
+		pr_info("0x%lx: 0x%x 0x%x 0x%x 0x%x\n",
+			addr,
+			ISP_HREG_RD(addr),
+			ISP_HREG_RD(addr + 4),
+			ISP_HREG_RD(addr + 8),
+			ISP_HREG_RD(addr + 12));
+	}
+	for (addr = 0x9610; addr <= 0x963C; addr += 16) {
+		pr_info("0x%lx: 0x%x 0x%x 0x%x 0x%x\n",
+			addr,
+			ISP_HREG_RD(addr),
+			ISP_HREG_RD(addr + 4),
+			ISP_HREG_RD(addr + 8),
+			ISP_HREG_RD(addr + 12));
+	}
+	for (addr = 0x9B10; addr <= 0x9B14; addr += 16) {
+		pr_info("0x%lx: 0x%x 0x%x 0x%x 0x%x\n",
+			addr,
+			ISP_HREG_RD(addr),
+			ISP_HREG_RD(addr + 4),
+			ISP_HREG_RD(addr + 8),
+			ISP_HREG_RD(addr + 12));
+	}
+
+	pr_info("ISP fetch: register list\n");
+	for (addr = (ISP_FETCH_BASE + ISP_FETCH_PARAM0); addr <= (ISP_FETCH_BASE + ISP_FETCH_MIPI_PARAM_UV); addr += 16) {
+		pr_info("0x%lx: 0x%x 0x%x 0x%x 0x%x\n",
+			addr,
+			ISP_HREG_RD(addr),
+			ISP_HREG_RD(addr + 4),
+			ISP_HREG_RD(addr + 8),
+			ISP_HREG_RD(addr + 12));
+
+		pr_info("0x%lx: 0x%x 0x%x 0x%x 0x%x\n",
+			addr,
+			ISP_REG_RD(0, addr),
+			ISP_REG_RD(0, addr + 4),
+			ISP_REG_RD(0, addr + 8),
+			ISP_REG_RD(0, addr + 12));
+	}
+
+	pr_info("ISP dispatch: register list\n");
+	for (addr = (ISP_DISPATCH_BASE + ISP_DISPATCH_CH0_BAYER); addr <= (ISP_DISPATCH_BASE + ISP_DISPATCH_CHK_SUM);
+		addr += 16) {
+		pr_info("0x%lx: 0x%x 0x%x 0x%x 0x%x\n",
+			addr,
+			ISP_HREG_RD(addr),
+			ISP_HREG_RD(addr + 4),
+			ISP_HREG_RD(addr + 8),
+			ISP_HREG_RD(addr + 12));
+		pr_info("0x%lx: 0x%x 0x%x 0x%x 0x%x\n",
+			addr,
+			ISP_REG_RD(0, addr),
+			ISP_REG_RD(0, addr + 4),
+			ISP_REG_RD(0, addr + 8),
+			ISP_REG_RD(0, addr + 12));
+	}
+
+	pr_info("ISP axi: register list\n");
+	for (addr = 0x510; addr <= 0x55C; addr += 16) {
+		pr_info("0x%lx: 0x%x 0x%x 0x%x 0x%x\n",
+			addr,
+			ISP_HREG_RD(addr),
+			ISP_HREG_RD(addr + 4),
+			ISP_HREG_RD(addr + 8),
+			ISP_HREG_RD(addr + 12));
+	}
+
+	for (addr = (ISP_SCALER_PRE_CAP_BASE + ISP_SCALER_CFG); addr <= (ISP_SCALER_PRE_CAP_BASE + ISP_SCALER_RES);
+			addr += 16) {
+		pr_info("0x%lx: 0x%x 0x%x 0x%x 0x%x\n",
+			addr,
+			ISP_HREG_RD(addr),
+			ISP_HREG_RD(addr + 4),
+			ISP_HREG_RD(addr + 8),
+			ISP_HREG_RD(addr + 12));
+		pr_info("0x%lx: 0x%x 0x%x 0x%x 0x%x\n",
+			addr,
+			ISP_REG_RD(0, addr),
+			ISP_REG_RD(0, addr + 4),
+			ISP_REG_RD(0, addr + 8),
+			ISP_REG_RD(0, addr + 12));
+	}
+
+	for (addr = (ISP_SCALER_VID_BASE + ISP_SCALER_CFG); addr <= (ISP_SCALER_VID_BASE + ISP_SCALER_RES);
+		addr += 16) {
+		pr_info("0x%lx: 0x%x 0x%x 0x%x 0x%x\n",
+			addr,
+			ISP_HREG_RD(addr),
+			ISP_HREG_RD(addr + 4),
+			ISP_HREG_RD(addr + 8),
+			ISP_HREG_RD(addr + 12));
+		pr_info("0x%lx: 0x%x 0x%x 0x%x 0x%x\n",
+			addr,
+			ISP_REG_RD(0, addr),
+			ISP_REG_RD(0, addr + 4),
+			ISP_REG_RD(0, addr + 8),
+			ISP_REG_RD(0, addr + 12));
+	}
+
+	pr_info("ISP store: register list\n");
+	for (addr = (ISP_STORE_PRE_CAP_BASE + ISP_STORE_PARAM); addr <= (ISP_STORE_PRE_CAP_BASE + ISP_STORE_SHADOW_CLR);
+			addr += 16) {
+		pr_info("0x%lx: 0x%x 0x%x 0x%x 0x%x\n",
+			addr,
+			ISP_HREG_RD(addr),
+			ISP_HREG_RD(addr + 4),
+			ISP_HREG_RD(addr + 8),
+			ISP_HREG_RD(addr + 12));
+		pr_info("0x%lx: 0x%x 0x%x 0x%x 0x%x\n",
+			addr,
+			ISP_REG_RD(0, addr),
+			ISP_REG_RD(0, addr + 4),
+			ISP_REG_RD(0, addr + 8),
+			ISP_REG_RD(0, addr + 12));
+	}
+
+	pr_info("ISP store: register list\n");
+	for (addr = (ISP_STORE_VID_BASE + ISP_STORE_PARAM); addr <= (ISP_STORE_VID_BASE + ISP_STORE_SHADOW_CLR);
+			addr += 16) {
+		pr_info("0x%lx: 0x%x 0x%x 0x%x 0x%x\n",
+			addr,
+			ISP_HREG_RD(addr),
+			ISP_HREG_RD(addr + 4),
+			ISP_HREG_RD(addr + 8),
+			ISP_HREG_RD(addr + 12));
+		pr_info("0x%lx: 0x%x 0x%x 0x%x 0x%x\n",
+			addr,
+			ISP_REG_RD(0, addr),
+			ISP_REG_RD(0, addr + 4),
+			ISP_REG_RD(0, addr + 8),
+			ISP_REG_RD(0, addr + 12));
+	}
+
+	pr_info("ISP 3dnr: register list\n");
+	for (addr = 0x2010; addr <= 0x204C; addr += 16) {
+		pr_info("0x%lx: 0x%x 0x%x 0x%x 0x%x\n",
+			addr,
+			ISP_HREG_RD(addr),
+			ISP_HREG_RD(addr + 4),
+			ISP_HREG_RD(addr + 8),
+			ISP_HREG_RD(addr + 12));
+		pr_info("0x%lx: 0x%x 0x%x 0x%x 0x%x\n",
+			addr,
+			ISP_REG_RD(0, addr),
+			ISP_REG_RD(0, addr + 4),
+			ISP_REG_RD(0, addr + 8),
+			ISP_REG_RD(0, addr + 12));
+	}
+
+	pr_info("ISP 3dnr store: register list\n");
+	for (addr = 0x2210; addr <= 0x223C; addr += 16) {
+		pr_info("0x%lx: 0x%x 0x%x 0x%x 0x%x\n",
+			addr,
+			ISP_HREG_RD(addr),
+			ISP_HREG_RD(addr + 4),
+			ISP_HREG_RD(addr + 8),
+			ISP_HREG_RD(addr + 12));
+		pr_info("0x%lx: 0x%x 0x%x 0x%x 0x%x\n",
+			addr,
+			ISP_REG_RD(0, addr),
+			ISP_REG_RD(0, addr + 4),
+			ISP_REG_RD(0, addr + 8),
+			ISP_REG_RD(0, addr + 12));
+	}
+
+	pr_info("ISP 3dnr crop: register list\n");
+	for (addr = 0x2310; addr <= 0x221C; addr += 16) {
+		pr_info("0x%lx: 0x%x 0x%x 0x%x 0x%x\n",
+			addr,
+			ISP_HREG_RD(addr),
+			ISP_HREG_RD(addr + 4),
+			ISP_HREG_RD(addr + 8),
+			ISP_HREG_RD(addr + 12));
+		pr_info("0x%lx: 0x%x 0x%x 0x%x 0x%x\n",
+			addr,
+			ISP_REG_RD(0, addr),
+			ISP_REG_RD(0, addr + 4),
+			ISP_REG_RD(0, addr + 8),
+			ISP_REG_RD(0, addr + 12));
 	}
 	pctx->isp_cb_func(ISP_CB_DEV_ERR, dev, pctx->cb_priv_data);
 

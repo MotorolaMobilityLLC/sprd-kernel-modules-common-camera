@@ -529,6 +529,7 @@ static int dcampath_pyr_dec_cfg(struct dcam_path_desc *path,
 	int ret = 0, i = 0;
 	uint32_t offset = 0, align = 1, size = 0;
 	uint32_t align_w = 0, align_h = 0;
+	uint32_t layer_num = 0;
 	struct dcam_hw_dec_store_cfg dec_store;
 	struct dcam_hw_dec_online_cfg dec_online;
 
@@ -540,12 +541,21 @@ static int dcampath_pyr_dec_cfg(struct dcam_path_desc *path,
 	memset(&dec_store, 0, sizeof(struct dcam_hw_dec_store_cfg));
 	memset(&dec_online, 0, sizeof(struct dcam_hw_dec_online_cfg));
 
-	align_w = dcampath_dec_align_width(path->out_size.w, DCAM_PYR_DEC_LAYER_NUM);
-	align_h = dcampath_dec_align_heigh(path->out_size.h, DCAM_PYR_DEC_LAYER_NUM);
+	layer_num = DCAM_PYR_DEC_LAYER_NUM;
+	/* update layer num based on img size */
+	while (isp_rec_small_layer_w(path->out_size.w, layer_num) < MIN_PYR_WIDTH ||
+		isp_rec_small_layer_h(path->out_size.h, layer_num) < MIN_PYR_HEIGHT) {
+		pr_debug("layer num need decrease based on small input %d %d\n",
+			path->out_size.w, path->out_size.h);
+		layer_num--;
+	}
+
+	align_w = dcampath_dec_align_width(path->out_size.w, layer_num);
+	align_h = dcampath_dec_align_heigh(path->out_size.h, layer_num);
 	size = path->out_pitch * path->out_size.h;
 
 	dec_online.idx = idx;
-	dec_online.layer_num = DCAM_PYR_DEC_LAYER_NUM;
+	dec_online.layer_num = layer_num;
 	dec_online.chksum_clr_mode = 0;
 	dec_online.chksum_work_mode = 0;
 	dec_online.path_sel = DACM_DEC_PATH_DEC;
@@ -561,7 +571,7 @@ static int dcampath_pyr_dec_cfg(struct dcam_path_desc *path,
 	hw->dcam_ioctl(hw, DCAM_HW_CFG_DEC_ONLINE, &dec_online);
 
 	dec_store.idx = idx;
-	dec_store.bypass = 0;
+	dec_store.bypass = 1;
 	dec_store.endian = path->endian.y_endian;
 	if (path->out_fmt == DCAM_STORE_FRGB)
 		dec_store.color_format = 0;
@@ -590,7 +600,8 @@ static int dcampath_pyr_dec_cfg(struct dcam_path_desc *path,
 	pr_debug("dcam %d padding w %d h %d alignw %d h%d\n", idx,
 		dec_online.hor_padding_num, dec_online.ver_padding_num, align_w, align_h);
 	pr_debug("dcam %d out pitch %d addr %x\n", idx, path->out_pitch, frame->buf.iova[0]);
-	for (i = 0; i < DCAM_PYR_DEC_LAYER_NUM; i++) {
+	for (i = 0; i < layer_num; i++) {
+		dec_store.bypass = 0;
 		align = align * 2;
 		offset += (size * 3 / 2);
 		dec_store.cur_layer = i;

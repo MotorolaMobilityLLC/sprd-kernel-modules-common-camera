@@ -233,6 +233,11 @@ int isp_path_fetchsize_update(struct isp_sw_context *pctx, void *param)
 	pctx->pipe_src.src = cfg_in->src;
 	pctx->pipe_src.crop = cfg_in->crop;
 
+	pr_debug("isp %d src %d %d crop %d %d %d %d\n",
+		pctx->ctx_id, pctx->pipe_src.src.w, pctx->pipe_src.src.h,
+		pctx->pipe_src.crop.start_x, pctx->pipe_src.crop.start_y,
+		pctx->pipe_src.crop.size_x, pctx->pipe_src.crop.size_y);
+
 	return ret;
 }
 

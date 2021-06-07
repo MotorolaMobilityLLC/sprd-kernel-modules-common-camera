@@ -34,6 +34,8 @@
 #define ALIGN_OFFSET                    16
 #define PYR_DEC_WIDTH_ALIGN             4
 #define PYR_DEC_HEIGHT_ALIGN            2
+#define MIN_PYR_WIDTH                   20
+#define MIN_PYR_HEIGHT                  16
 
 /*************** for global debug starts********************/
 
@@ -333,5 +335,6 @@ typedef int(*isp_dev_callback)(enum isp_cb_type type, void *param,
 typedef int(*dcam_dev_callback)(enum dcam_cb_type type, void *param,
 				void *priv_data);
 typedef int (*proc_func)(void *param);
+typedef int (*pyr_dec_buf_cb)(void *param, void *priv_data);
 
 #endif/* _CAM_TYPES_H_ */

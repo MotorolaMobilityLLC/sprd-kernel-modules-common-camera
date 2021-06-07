@@ -2446,16 +2446,7 @@ static int camcore_isp_callback(enum isp_cb_type type, void *param, void *priv_d
 		}
 		break;
 	case ISP_CB_RET_PYR_DEC_BUF:
-		pr_info("isp%d pyr dec done need rec %d\n", channel->isp_ctx_id, pframe->need_pyr_rec);
-		/* alway trigger dump for capture */
-		if (module->dump_thrd.thread_task && module->in_dump) {
-			ret = cam_queue_enqueue(&module->dump_queue, &pframe->list);
-			if (ret == 0) {
-				complete(&module->dump_com);
-				pr_info("trigger dump image\n");
-				return 0;
-			}
-		}
+		pr_debug("isp%d pyr dec done need rec %d\n", channel->isp_ctx_id, pframe->need_pyr_rec);
 		ret = module->isp_dev_handle->isp_ops->proc_frame(module->isp_dev_handle, pframe,
 					channel->isp_ctx_id);
 		if (ret) {

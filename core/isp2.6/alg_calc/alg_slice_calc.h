@@ -17,7 +17,6 @@
 #include "isp_interface.h"
 #include "alg_isp_overlap.h"
 
-#define PIPE_MAX_SLICE_NUM            4
 #define ALG_REGIONS_NUM               4
 #define DEC_OVERLAP                   4
 #define REC_OVERLAP                   2
@@ -120,12 +119,6 @@ struct alg_slice_scaler_overlap {
 
 	int dec_online_bypass;
 	int layerNum;
-
-	/* driver add for scaler tap */
-	uint8_t scaler_y_hor_tap;
-	uint8_t scaler_y_ver_tap; /*Y Vertical tap of scaling*/
-	uint8_t scaler_uv_hor_tap;
-	uint8_t scaler_uv_ver_tap;
 
 	scaler_overlap_t input_scaler_overlap;
 	scaler_overlap_t output_scaler_overlap[PIPE_MAX_SLICE_NUM];
@@ -354,8 +347,7 @@ struct alg_slice_drv_overlap {
 	int offlineCfgOverlap_down;
 
 	//rgb
-	int ltmsta_rgb_bypass;
-	int ltmsta_rgb_binning_en;
+	ltm_rgb_stat_param_t ltm_sat;
 
 	//yuv rec
 	int ynr_bypass;

@@ -2362,7 +2362,6 @@ int isp_init_param_for_overlap_v2(
 	uint32_t scaler2_in_height = 0;
 	uint32_t layer_num = 0;
 	uint32_t slice_align_size = 0;
-	ltm_rgb_stat_param_t ltm_param;
 	struct isp_slice_context *slc_ctx = NULL;
 	struct alg_slice_drv_overlap *slice_overlap = NULL;
 
@@ -2391,6 +2390,16 @@ int isp_init_param_for_overlap_v2(
 	slice_overlap->img_w = slc_ctx->img_width;
 	slice_overlap->img_h = slc_ctx->img_height;
 
+	pr_debug("src %d %d layer num %d\n", slice_overlap->img_w, slice_overlap->img_h, layer_num);
+	/* update layer num based on img size */
+	while (isp_rec_small_layer_w(slice_overlap->img_w, layer_num) < MIN_PYR_WIDTH ||
+		isp_rec_small_layer_h(slice_overlap->img_h, layer_num) < MIN_PYR_HEIGHT) {
+		pr_debug("layer num need decrease based on small input %d %d\n",
+				slice_overlap->img_w, slice_overlap->img_h);
+		layer_num--;
+	}
+	slice_input->calc_dyn_ov.pyr_layer_num = layer_num;
+
 	if (layer_num != 0) {
 		slice_overlap->input_layer_w = isp_rec_small_layer_w(slice_overlap->img_w, layer_num);
 		slice_overlap->input_layer_h = isp_rec_small_layer_h(slice_overlap->img_h, layer_num);
@@ -2401,7 +2410,7 @@ int isp_init_param_for_overlap_v2(
 
 	pr_debug("layer w %d h %d\n", slice_overlap->input_layer_w, slice_overlap->input_layer_h);
 	pr_debug("image w %d h %d\n", slice_overlap->img_w, slice_overlap->img_h);
-	slice_overlap->input_layer_id = slice_input->calc_dyn_ov.pyr_layer_num;
+	slice_overlap->input_layer_id = layer_num;
 	slice_overlap->img_src_w = slice_overlap->img_w;
 	slice_overlap->img_src_h = slice_overlap->img_h;
 	slice_overlap->uw_sensor = slice_input->calc_dyn_ov.need_dewarping;
@@ -2428,36 +2437,34 @@ int isp_init_param_for_overlap_v2(
 	slice_overlap->nr3d_bd_bypass = 1;
 	slice_overlap->nr3d_bd_FBC_en = 0;
 	slice_overlap->yuv420_to_rgb10_bypass = 0;
-	slice_overlap->ltmsta_rgb_bypass = slice_input->nofilter_ctx->ltm_rgb_info.ltm_stat.bypass;
+	slice_overlap->ltm_sat.bypass = slice_input->nofilter_ctx->ltm_rgb_info.ltm_stat.bypass;
 	slice_overlap->ynr_bypass = slice_input->nofilter_ctx->ynr_info_v3.bypass;
 	slice_overlap->ee_bypass = slice_input->nofilter_ctx->edge_info_v3.bypass;
 	slice_overlap->cnr_new_bypass = slice_input->nofilter_ctx->cdn_info.bypass;
 	slice_overlap->post_cnr_bypass = slice_input->nofilter_ctx->post_cnr_h_info.bypass;
 	slice_overlap->cnr_bypass = slice_input->nofilter_ctx->cnr_info.bypass;
 
-	if (0 == slice_input->nofilter_ctx->ltm_rgb_info.ltm_stat.bypass) {
+	/* current close ltm, after ltm param normal, open it again */
+	slice_overlap->ltm_sat.bypass = 1;
+	if (0 == slice_overlap->ltm_sat.bypass) {
 		uint32_t frame_width = slc_ctx->img_width;
 		uint32_t frame_height = slc_ctx->img_height;
-		ltm_rgb_stat_param_t *param_stat = &ltm_param;
 
-		param_stat->strength = slice_input->nofilter_ctx->ltm_rgb_info.ltm_stat.strength;
-		param_stat->region_est_en = slice_input->nofilter_ctx->ltm_rgb_info.ltm_stat.region_est_en;
-		param_stat->text_point_thres = slice_input->nofilter_ctx->ltm_rgb_info.ltm_stat.text_point_thres;
-		param_stat->text_proportion = slice_input->nofilter_ctx->ltm_rgb_info.ltm_stat.ltm_text.textture_proporion;
-		param_stat->tile_num_auto = slice_input->nofilter_ctx->ltm_rgb_info.ltm_stat.tile_num_auto;
-		param_stat->tile_num_col = slice_input->nofilter_ctx->ltm_rgb_info.ltm_stat.tile_num.tile_num_x;
-		param_stat->tile_num_row = slice_input->nofilter_ctx->ltm_rgb_info.ltm_stat.tile_num.tile_num_y;
-		pr_debug("tile_num_col %d, tile_num_row %d", param_stat->tile_num_col, param_stat->tile_num_row);
+		slice_overlap->ltm_sat.strength = slice_input->nofilter_ctx->ltm_rgb_info.ltm_stat.strength;
+		slice_overlap->ltm_sat.region_est_en = slice_input->nofilter_ctx->ltm_rgb_info.ltm_stat.region_est_en;
+		slice_overlap->ltm_sat.text_point_thres = slice_input->nofilter_ctx->ltm_rgb_info.ltm_stat.text_point_thres;
+		slice_overlap->ltm_sat.text_proportion = slice_input->nofilter_ctx->ltm_rgb_info.ltm_stat.ltm_text.textture_proporion;
+		slice_overlap->ltm_sat.tile_num_auto = slice_input->nofilter_ctx->ltm_rgb_info.ltm_stat.tile_num_auto;
+		slice_overlap->ltm_sat.tile_num_col = slice_input->nofilter_ctx->ltm_rgb_info.ltm_stat.tile_num.tile_num_x;
+		slice_overlap->ltm_sat.tile_num_row = slice_input->nofilter_ctx->ltm_rgb_info.ltm_stat.tile_num.tile_num_y;
+		pr_debug("tile_num_col %d, tile_num_row %d", slice_overlap->ltm_sat.tile_num_col, slice_overlap->ltm_sat.tile_num_row);
 
-		ltm_rgb_stat_param_init(frame_width, frame_height, param_stat);
-		slice_overlap->ltmsta_rgb_binning_en = param_stat->binning_en;
-	} else {
-		slice_overlap->ltmsta_rgb_binning_en = 0;
+		ltm_rgb_stat_param_init(frame_width, frame_height, &slice_overlap->ltm_sat);
 	}
 
 	/*yuv rec*/
-	slice_overlap->pyramid_rec_bypass = !slice_input->calc_dyn_ov.pyr_layer_num;
-	slice_overlap->layerNum = slice_input->calc_dyn_ov.pyr_layer_num + 1;
+	slice_overlap->pyramid_rec_bypass = !layer_num;
+	slice_overlap->layerNum = layer_num + 1;
 	pr_debug("isp pyr rec bypass %d layer num %d\n", slice_overlap->pyramid_rec_bypass,
 		slice_overlap->layerNum);
 	/*yuv*/
@@ -2536,11 +2543,6 @@ int isp_init_param_for_overlap_v2(
 		slice_overlap->scaler1.scaler_en, slice_overlap->scaler1.yuv_output_format,
 		slice_overlap->scaler1.output_align_hor);
 
-	slice_overlap->scaler1.scaler_y_hor_tap = slice_input->calc_dyn_ov.path_scaler[ISP_SPATH_CP]->scaler.scaler_y_hor_tap;
-	slice_overlap->scaler1.scaler_uv_hor_tap = slice_input->calc_dyn_ov.path_scaler[ISP_SPATH_CP]->scaler.scaler_uv_hor_tap;
-	slice_overlap->scaler1.scaler_y_ver_tap = slice_input->calc_dyn_ov.path_scaler[ISP_SPATH_CP]->scaler.scaler_y_ver_tap;
-	slice_overlap->scaler1.scaler_uv_ver_tap = slice_input->calc_dyn_ov.path_scaler[ISP_SPATH_CP]->scaler.scaler_uv_ver_tap;
-
 	/* scaler2 */
 	slice_overlap->scaler2.bypass = slice_input->calc_dyn_ov.path_scaler[ISP_SPATH_VID]->scaler.scaler_bypass;
 	slice_overlap->scaler2.scaler_id = 2;
@@ -2590,10 +2592,6 @@ int isp_init_param_for_overlap_v2(
 		config_output_align_hor = 8;
 	}
 	slice_overlap->scaler2.output_align_hor = config_output_align_hor;
-	slice_overlap->scaler2.scaler_y_hor_tap = slice_input->calc_dyn_ov.path_scaler[ISP_SPATH_VID]->scaler.scaler_y_hor_tap;
-	slice_overlap->scaler2.scaler_uv_hor_tap = slice_input->calc_dyn_ov.path_scaler[ISP_SPATH_VID]->scaler.scaler_uv_hor_tap;
-	slice_overlap->scaler2.scaler_y_ver_tap = slice_input->calc_dyn_ov.path_scaler[ISP_SPATH_VID]->scaler.scaler_y_ver_tap;
-	slice_overlap->scaler2.scaler_uv_ver_tap = slice_input->calc_dyn_ov.path_scaler[ISP_SPATH_VID]->scaler.scaler_uv_ver_tap;
 
 	/* TBD: thumbnail scaler need to debug */
 	slice_overlap->thumbnailscaler.bypass = slice_input->calc_dyn_ov.thumb_scaler->scaler_bypass;
@@ -2626,7 +2624,7 @@ int isp_init_param_for_overlap_v2(
 		pr_debug("get calc result: slice id %d, overlap (left %d, right %d )\n",
 			i, slice_overlap->slice_overlap[i].ov_left, slice_overlap->slice_overlap[i].ov_right);
 	}
-	for (j = 0; j < slice_input->calc_dyn_ov.pyr_layer_num + 1; j++) {
+	for (j = 0; j < layer_num + 1; j++) {
 		pr_debug("cur pyr layer %d slice_num %d\n", j, slice_overlap->slice_number[j]);
 		for (i = 0; i < slice_overlap->slice_number[j]; i++) {
 			pr_debug("get calc result: slice id %d, fetch0 region (%d, %d, %d, %d)\n",

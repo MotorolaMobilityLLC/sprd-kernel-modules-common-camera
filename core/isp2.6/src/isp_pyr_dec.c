@@ -48,8 +48,8 @@ static uint32_t isppyrdec_cal_pitch(uint32_t w, uint32_t format)
 static void isppyrdec_src_frame_ret(void *param)
 {
 	struct camera_frame *frame = NULL;
+	struct isp_dec_pipe_dev *dec_dev = NULL;
 	struct isp_dec_sw_ctx *pctx = NULL;
-	struct isp_offline_param *cur, *prev;
 
 	if (!param) {
 		pr_err("fail to get input ptr.\n");
@@ -57,20 +57,13 @@ static void isppyrdec_src_frame_ret(void *param)
 	}
 
 	frame = (struct camera_frame *)param;
-	pctx = (struct isp_dec_sw_ctx *)frame->priv_data;
+	dec_dev = (struct isp_dec_pipe_dev *)frame->priv_data;
+	pctx = &dec_dev->sw_ctx[frame->dec_ctx_id];
 	if (!pctx) {
 		pr_err("fail to get src_frame pctx.\n");
 		return;
 	}
 
-	cur = (struct isp_offline_param *)(frame->param_data);
-	while (cur) {
-		prev = (struct isp_offline_param *)cur->prev;
-		pr_info("free %p\n", cur);
-		kfree(cur);
-		cur = prev;
-	}
-	frame->param_data = NULL;
 	if (frame->buf.mapping_state & CAM_BUF_MAPPING_DEV)
 		cam_buf_iommu_unmap(&frame->buf);
 	pctx->cb_func(ISP_CB_RET_SRC_BUF, frame, pctx->cb_priv_data);
@@ -682,6 +675,7 @@ static int isppyrdec_offline_frame_start(void *handle)
 	struct isp_dec_pipe_dev *dec_dev = NULL;
 	struct isp_dec_sw_ctx *pctx = NULL;
 	struct camera_frame *pframe = NULL;
+	struct camera_frame *out_frame = NULL;
 	struct isp_fmcu_ctx_desc *fmcu = NULL;
 	struct isp_dec_slice_desc *cur_slc = NULL;
 	struct isp_dec_overlap_info *cur_ovlap = NULL, *temp_ovlap = NULL;
@@ -701,7 +695,7 @@ static int isppyrdec_offline_frame_start(void *handle)
 	}
 	ctx_id = pframe->dec_ctx_id;
 	pctx = &dec_dev->sw_ctx[ctx_id];
-	layer_num = dec_dev->layer_num;
+	layer_num = ISP_PYR_DEC_LAYER_NUM;
 
 	ret = cam_buf_iommu_map(&pframe->buf, CAM_IOMMUDEV_ISP);
 	if (ret) {
@@ -725,6 +719,31 @@ static int isppyrdec_offline_frame_start(void *handle)
 		goto map_err;
 	}
 
+	loop = 0;
+	do {
+		pctx->buf_cb_func((void *)&out_frame, pctx->buf_cb_priv_data);
+		if (out_frame)
+			break;
+		pr_info_ratelimited("wait for out buf. loop %d\n", loop);
+		usleep_range(600, 2000);
+	} while (loop++ < 500);
+
+	pctx->buf_out = out_frame;
+	ret = cam_buf_iommu_map(&pctx->buf_out->buf, CAM_IOMMUDEV_ISP);
+	if (ret) {
+		pr_err("fail to map buf to ISP iommu. cxt %d\n", ctx_id);
+		ret = -EINVAL;
+		goto exit;
+	}
+
+	/* update layer num based on img size */
+	while (isp_rec_small_layer_w(dec_dev->src.w, layer_num) < MIN_PYR_WIDTH ||
+		isp_rec_small_layer_h(dec_dev->src.h, layer_num) < MIN_PYR_HEIGHT) {
+		pr_debug("layer num need decrease based on small input %d %d\n",
+			dec_dev->src.w, dec_dev->src.h);
+		layer_num--;
+	}
+	dec_dev->layer_num = layer_num;
 	pitch = isppyrdec_cal_pitch(dec_dev->src.w, dec_dev->in_fmt);
 	size = pitch * dec_dev->src.h;
 	dec_dev->fetch_addr[0].addr_ch0 = pframe->buf.iova[0];
@@ -855,7 +874,6 @@ static int isppyrdec_cfg_param(void *handle, int ctx_id,
 {
 	int ret = 0;
 	struct isp_dec_pipe_dev *dec_dev = NULL;
-	struct camera_frame * pframe = NULL;
 	struct isp_dec_sw_ctx *pctx = NULL;
 
 	if (!handle || !param) {
@@ -866,17 +884,6 @@ static int isppyrdec_cfg_param(void *handle, int ctx_id,
 	dec_dev = (struct isp_dec_pipe_dev *)handle;
 	pctx = &dec_dev->sw_ctx[ctx_id];
 	switch (cmd) {
-	case ISP_DEC_CFG_OUT_BUF:
-		pframe = (struct camera_frame *)param;
-		ret = cam_buf_iommu_map(&pframe->buf, CAM_IOMMUDEV_ISP);
-		if (ret) {
-			pr_err("fail to map buf to ISP iommu. cxt %d\n", ctx_id);
-			ret = -EINVAL;
-			goto exit;
-		}
-		pctx->buf_out = pframe;
-		ISP_DEC_DEBUG("DEC buf[0x%p] = 0x%lx\n", pframe, pctx->buf_out->buf.iova[0]);
-		break;
 	case ISP_DEC_CFG_PROC_SIZE:
 		dec_dev->src = *(struct img_size *)param;
 		ISP_DEC_DEBUG("DEC size w %d h %d\n", dec_dev->src.w, dec_dev->src.h);
@@ -892,7 +899,6 @@ static int isppyrdec_cfg_param(void *handle, int ctx_id,
 		break;
 	}
 
-exit:
 	return ret;
 }
 
@@ -909,6 +915,7 @@ static int isppyrdec_proc_frame(void *handle, void *param)
 
 	dec_dev = (struct isp_dec_pipe_dev *)handle;
 	pframe = (struct camera_frame *)param;
+	pframe->priv_data = dec_dev;
 
 	ret = cam_queue_enqueue(&dec_dev->in_queue, &pframe->list);
 	if (ret == 0)
@@ -941,6 +948,31 @@ static int isppyrdec_callback_set(void *handle, int ctx_id, isp_dev_callback cb,
 	return ret;
 }
 
+static int isppyrdec_outbuf_callback_get(void *handle, int ctx_id, pyr_dec_buf_cb cb,
+		void *priv_data)
+{
+	int ret = 0;
+	struct isp_dec_pipe_dev *dec_dev = NULL;
+	struct isp_dec_sw_ctx *pctx = NULL;
+
+	if (!handle || !cb || !priv_data) {
+		pr_err("fail to get valid input ptr, dec_handle %p, callback %p, priv_data %p\n",
+			handle, cb, priv_data);
+		return -EFAULT;
+	}
+
+	dec_dev = (struct isp_dec_pipe_dev *)handle;
+	pctx = &dec_dev->sw_ctx[ctx_id];
+	if (pctx->buf_cb_func == NULL) {
+		pctx->buf_cb_func = cb;
+		pctx->buf_cb_priv_data = priv_data;
+		pr_debug("ctx %d cb %p, %p\n", ctx_id, cb, priv_data);
+	}
+
+	return ret;
+}
+
+
 static int isppyrdec_irq_proc(void *handle)
 {
 	int ret = 0;
@@ -969,7 +1001,7 @@ static int isppyrdec_irq_proc(void *handle)
 		cam_buf_iommu_unmap(&pframe->buf);
 		pctx->cb_func(ISP_CB_RET_SRC_BUF, pframe, pctx->cb_priv_data);
 	} else {
-		pr_err("fail to get src frame sw_idx=%d  proc_queue.cnt:%d\n",
+		pr_err("fail to get src frame sw_idx=%d proc_queue.cnt:%d\n",
 			cur_ctx_id, dec_dev->proc_queue.cnt);
 	}
 
@@ -1024,6 +1056,7 @@ void *isp_pyr_dec_dev_get(void *isp_handle, void *hw)
 	dec_dev->ops.cfg_param = isppyrdec_cfg_param;
 	dec_dev->ops.proc_frame = isppyrdec_proc_frame;
 	dec_dev->ops.set_callback = isppyrdec_callback_set;
+	dec_dev->ops.get_out_buf_cb = isppyrdec_outbuf_callback_get;
 
 	cam_queue_init(&dec_dev->in_queue, ISP_PYRDEC_BUF_Q_LEN, isppyrdec_src_frame_ret);
 	cam_queue_init(&dec_dev->proc_queue, ISP_PYRDEC_BUF_Q_LEN, isppyrdec_src_frame_ret);
