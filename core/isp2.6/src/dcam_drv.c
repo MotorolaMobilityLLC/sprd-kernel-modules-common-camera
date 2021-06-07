@@ -61,6 +61,7 @@ int dcam_drv_hw_init(void *arg)
 	/* prepare clk */
 	hw->dcam_ioctl(hw, DCAM_HW_CFG_PW_ON, NULL);
 	hw->dcam_ioctl(hw, DCAM_HW_CFG_ENABLE_CLK, NULL);
+	sprd_iommu_restore(&hw->soc_dcam->pdev->dev);
 	return ret;
 }
 
