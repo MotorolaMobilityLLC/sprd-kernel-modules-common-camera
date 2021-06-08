@@ -161,13 +161,21 @@ enum dcam_fmt {
 	DCAM_FTM_MAX
 };
 
+enum {
+	DCAM_RAW_PACK_10 = 0,
+	DCAM_RAW_HALFWORD_10,
+	DCAM_RAW_14,
+	DCAM_RAW_8,
+	DCAM_RAW_MAX
+};
 
 enum {
 	SPRD_IMG_GET_SCALE_CAP = 0,
 	SPRD_IMG_GET_FRM_BUFFER,
 	SPRD_IMG_STOP_DCAM,
 	SPRD_IMG_FREE_FRAME,
-	SPRD_IMG_GET_PATH_CAP
+	SPRD_IMG_GET_PATH_CAP,
+	SPRD_IMG_GET_DCAM_RAW_CAP
 };
 
 enum sprd_flash_type {
@@ -864,6 +872,12 @@ struct sprd_img_path_rect {
 };
 #pragma pack(pop)
 
+struct sprd_dcam_raw_fmt {
+	uint32_t ch_id;
+	uint32_t sensor_raw_fmt;
+	uint32_t dcam_raw_fmt;
+};
+
 #define SPRD_IMG_IO_MAGIC                'Z'
 #define SPRD_IMG_IO_SET_MODE             _IOW(SPRD_IMG_IO_MAGIC, 0, uint32_t)
 #define SPRD_IMG_IO_SET_CAP_SKIP_NUM     _IOW(SPRD_IMG_IO_MAGIC, 1, uint32_t)
@@ -946,6 +960,7 @@ struct sprd_img_path_rect {
 #define SPRD_IMG_IO_SET_DWARP_OTP        _IOR(SPRD_IMG_IO_MAGIC, 78, uint32_t)
 #define SPRD_IMG_IO_SET_LONGEXP_CAP      _IOR(SPRD_IMG_IO_MAGIC, 79, uint32_t)
 #define SPRD_IMG_IO_SET_MUL_MAX_SN_SIZE  _IOW(SPRD_IMG_IO_MAGIC, 80, struct sprd_img_size)
+#define SPRD_IMG_IO_SET_DCAM_RAW_FMT     _IOW(SPRD_IMG_IO_MAGIC, 81, struct sprd_dcam_raw_fmt)
 
 /*
  * Dump dcam register.

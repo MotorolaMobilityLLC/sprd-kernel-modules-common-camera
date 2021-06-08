@@ -63,6 +63,7 @@ enum raw_pitch_format {
 	RAW_PACK10 = 0x00,
 	RAW_HALF10 = 0x01,
 	RAW_HALF14 = 0x02,
+	RAW_8 = 0x03,
 	RAW_FORMAT_MAX
 };
 
@@ -89,7 +90,7 @@ enum csi_id {
 
 static inline uint32_t cal_sprd_raw_pitch(uint32_t w, uint32_t pack_bits)
 {
-	if(pack_bits == RAW_PACK10)
+	if(pack_bits == DCAM_RAW_PACK_10)
 		w = (w * 10 + 127) / 128 * 128 / 8;
 	else
 		w = (w * 16 + 127) / 128 * 128 / 8;

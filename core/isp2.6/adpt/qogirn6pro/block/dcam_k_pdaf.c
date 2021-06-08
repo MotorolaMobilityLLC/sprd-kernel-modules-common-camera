@@ -368,10 +368,11 @@ int dcam_k_pdaf(struct dcam_dev_param *p)
 
 	if (idx >= DCAM_HW_CONTEXT_MAX)
 		return 0;
-	if (p->pdaf.pdaf_type == DCAM_PDAF_TYPE3)
+	if (p->pdaf.pdaf_type == DCAM_PDAF_TYPE3) {
 		DCAM_REG_MWR(p->idx, ISP_PPI_PARAM, BIT_0, bypass);
-	else
-		DCAM_REG_MWR(p->idx, DCAM_VC1_CONTROL, BIT_0, bypass);
+		DCAM_REG_MWR(p->idx, DCAM_VC1_CONTROL, BIT_0, !bypass);
+	} else
+		DCAM_REG_MWR(p->idx, DCAM_VC1_CONTROL, BIT_0, !bypass);
 	if (bypass) {
 		pr_debug("dcam%d pdaf bypass\n", idx);
 		return 0;

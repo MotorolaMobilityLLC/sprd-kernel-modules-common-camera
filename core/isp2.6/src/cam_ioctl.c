@@ -694,6 +694,8 @@ static int camioctl_output_size_set(struct camera_module *module,
 	channel->slave_isp_path_id = -1;
 
 	dst = &channel->ch_uinfo;
+	dst->dcam_raw_fmt = -1;
+	dst->sensor_raw_fmt = -1;
 	dst->sn_fmt = sn_fmt;
 	dst->dst_fmt = dst_fmt;
 	ret |= get_user(dst->is_high_fps, &uparam->is_high_fps);
@@ -1261,7 +1263,7 @@ static int camioctl_frame_addr_set(struct camera_module *module,
 				cmd, ch->dcam_path_id, pframe);
 			/* 4in1_raw_capture, maybe need two image once */
 			if (ch->second_path_enable) {
-				ch->pack_bits = module->cam_uinfo.sensor_if.if_spec.mipi.is_loose;
+				ch->pack_bits = ch->ch_uinfo.dcam_raw_fmt;
 				pframe = camcore_secondary_buf_get(&param, ch, i);
 				if (!pframe) {
 					ret = -EFAULT;
@@ -1542,6 +1544,8 @@ static int camioctl_stream_off(struct camera_module *module,
 		ch->aux_dcam_path_id = -1;
 		ch->isp_path_id = -1;
 		ch->isp_ctx_id = -1;
+		ch->ch_uinfo.dcam_raw_fmt = -1;
+		ch->ch_uinfo.sensor_raw_fmt = -1;
 		init_completion(&ch->alloc_com);
 	}
 
@@ -2359,7 +2363,7 @@ static int camioctl_capture_start(struct camera_module *module,
 
 		/* reconfig full path to raw */
 		memset(&ch_desc, 0, sizeof(ch_desc));
-		ch_desc.pack_bits = 2;
+		ch_desc.raw_fmt= DCAM_RAW_14;
 		ch_desc.is_raw = 1;
 		ch_desc.endian.y_endian = ENDIAN_LITTLE;
 		sw_ctx->is_fdr = 1;
@@ -2495,7 +2499,7 @@ static int camioctl_capture_stop(struct camera_module *module,
 
 		pr_info("STOP FDR capture\n");
 		memset(&ch_desc, 0, sizeof(ch_desc));
-		ch_desc.pack_bits = module->cam_uinfo.sensor_if.if_spec.mipi.is_loose;
+		ch_desc.raw_fmt= module->channel[CAM_CH_CAP].ch_uinfo.dcam_raw_fmt;
 		ch_desc.is_raw = 0;
 		ch_desc.endian.y_endian = ENDIAN_LITTLE;
 		ch_desc.bayer_pattern = module->cam_uinfo.sensor_if.img_ptn;
@@ -2697,10 +2701,12 @@ static int camioctl_fdr_post(struct camera_module *module,
 
 	if (dcam_ctrl.start_ctrl == DCAM_START_CTRL_DIS)
 		goto isp_proc;
+	dcam->sw_ctx[module->offline_cxt_id].pack_bits = DCAM_RAW_14;
+	dcam->sw_ctx[module->offline_cxt_id].fetch.fmt = DCAM_STORE_RAW_BASE;
 	memset(&ch_desc, 0, sizeof(ch_desc));
 	ch_desc.bayer_pattern = module->cam_uinfo.sensor_if.img_ptn;
 	ch_desc.endian.y_endian = ENDIAN_LITTLE;
-	ch_desc.pack_bits = module->cam_uinfo.sensor_if.if_spec.mipi.is_loose;
+	ch_desc.raw_fmt= DCAM_RAW_14;
 	ch_desc.is_4in1 = module->cam_uinfo.is_4in1;
 	ch_desc.dcam_out_fmt = dcam_ctrl.out_format;
 	ch_desc.dcam_out_bits = module->cam_uinfo.sensor_if.if_spec.mipi.bits_per_pxl;
@@ -2855,7 +2861,7 @@ static int camioctl_4in1_raw_addr_set(struct camera_module *module,
 			pframe->is_reserved = 1;
 			ch->res_frame = pframe;
 			for (j = 0; j < 3; j++)
-				pframe->buf.size[j] = cal_sprd_raw_pitch(ch->ch_uinfo.src_size.w, module->cam_uinfo.sensor_if.if_spec.mipi.is_loose)
+				pframe->buf.size[j] = cal_sprd_raw_pitch(ch->ch_uinfo.src_size.w, ch->ch_uinfo.dcam_raw_fmt)
 					* ch->ch_uinfo.src_size.h;
 			ret = module->dcam_dev_handle->dcam_pipe_ops->cfg_path(dcam_sw_ctx,
 				DCAM_PATH_CFG_OUTPUT_RESERVED_BUF,
@@ -3419,4 +3425,66 @@ exit:
 	return ret;
 }
 
+static int camioctl_dcam_raw_fmt_set(struct camera_module *module,unsigned long arg)
+{
+	int ret = 0;
+	struct sprd_dcam_raw_fmt param;
+	struct cam_hw_info *hw = NULL;
+	struct channel_context *channel = NULL;
+	uint32_t dcam_raw_update = 0, sensor_raw_update = 0;
+	uint32_t i = 0;
+
+	ret = copy_from_user(&param, (void __user *)arg, sizeof(struct sprd_dcam_raw_fmt));
+	if (unlikely(ret)) {
+		pr_err("fail to copy from user, ret %d\n", ret);
+		return -EFAULT;
+	}
+
+	hw = module->grp->hw_info;
+	if (param.ch_id > CAM_CH_CAP) {
+		pr_err("fail to check param, ch%d\n", param.ch_id);
+		return -EFAULT;
+	}
+	if ((param.dcam_raw_fmt >= DCAM_RAW_MAX) && (param.sensor_raw_fmt >= DCAM_RAW_MAX)) {
+		pr_err("fail to check param, sensor raw fmt %d, dcam raw fmt %d, ch%d\n",
+			param.sensor_raw_fmt, param.dcam_raw_fmt, param.ch_id);
+		return -EFAULT;
+	}
+
+	channel = &module->channel[param.ch_id];
+	if (channel->enable == 0) {
+		pr_err("ch%d not enable\n", param.ch_id);
+		return -EFAULT;
+	}
+
+	for (i = 0; i < DCAM_RAW_MAX; i++) {
+		if (hw->ip_dcam[0]->raw_fmt_support[i] == DCAM_RAW_MAX)
+			break;
+		if (param.dcam_raw_fmt == hw->ip_dcam[0]->raw_fmt_support[i]) {
+			channel->ch_uinfo.dcam_raw_fmt = param.dcam_raw_fmt;
+			dcam_raw_update = 1;
+		}
+	}
+
+	for (i = 0; i < DCAM_RAW_MAX; i++) {
+		if (hw->ip_dcam[0]->raw_fmt_support[i] == DCAM_RAW_MAX)
+			break;
+		if (param.sensor_raw_fmt == hw->ip_dcam[0]->raw_fmt_support[i]) {
+			channel->ch_uinfo.sensor_raw_fmt = param.sensor_raw_fmt;
+			sensor_raw_update = 1;
+		}
+	}
+
+	if (dcam_raw_update)
+		pr_info("cam%d, ch%d set dcam raw fmt %d\n", module->idx, param.ch_id, channel->ch_uinfo.dcam_raw_fmt);
+	if (sensor_raw_update)
+		pr_info("cam%d, ch%d set sensor raw fmt %d\n", module->idx, param.ch_id, channel->ch_uinfo.sensor_raw_fmt);
+
+ 	if ((!dcam_raw_update) && (!sensor_raw_update)) {
+		pr_err("fail to support raw fmt, not support, %d %d\n", param.sensor_raw_fmt, param.dcam_raw_fmt);
+		return -EFAULT;
+	} else
+		return 0;
+
+}
 #endif

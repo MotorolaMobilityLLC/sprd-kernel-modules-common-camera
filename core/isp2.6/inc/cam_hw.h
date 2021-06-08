@@ -731,6 +731,7 @@ struct dcam_hw_path_stop {
 
 struct dcam_fetch_info {
 	uint32_t pack_bits;
+	uint32_t fmt;
 	uint32_t endian;
 	uint32_t pattern;
 	struct img_size size;
@@ -1261,6 +1262,9 @@ struct cam_hw_ip_info {
 	uint32_t dcam_raw_path_id;
 	uint32_t pyramid_support;
 	uint32_t fmcu_support;
+	uint32_t sensor_raw_fmt;
+	uint32_t save_band_for_bigsize;
+	uint32_t raw_fmt_support[DCAM_RAW_MAX];
 
 	/* For isp support info */
 	uint32_t slm_cfg_support;

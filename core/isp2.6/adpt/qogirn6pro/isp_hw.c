@@ -250,8 +250,10 @@ static uint32_t cam_reg_trace_tab[] = {
 	DCAM_STORE0_SLICE_U_ADDR,
 	DCAM_SCL0_CFG,
 	DCAM_RAW_PATH_CFG,
+	DCAM_BWD1_PARAM,
 	DCAM_RAW_PATH_BASE_WADDR,
 	DCAM_SCL0_CFG,
+	DCAM_VC1_CONTROL,
 	DCAM_PDAF_BASE_WADDR,
 	DCAM_VCH2_BASE_WADDR,
 	DCAM_VCH3_BASE_WADDR,
@@ -340,8 +342,6 @@ abnormal_reg_trace:
 		DCAM_REG_RD(trace->idx, addr),
 		DCAM_REG_RD(trace->idx, addr + 4),
 		DCAM_REG_RD(trace->idx, addr + 8));
-
-
 
 	for (addr = DCAM_CFA_NEW_CFG0; addr <= DCAM_CFA_GBUF_CFG; addr += 16) {
 		pr_info("CFA:0x%03lx: 0x%x 0x%x 0x%x 0x%x\n",
@@ -487,10 +487,10 @@ abnormal_reg_trace:
 
 		pr_info("0x%lx: 0x%x 0x%x 0x%x 0x%x\n",
 			addr,
-			ISP_REG_RD(0, addr),
-			ISP_REG_RD(0, addr + 4),
-			ISP_REG_RD(0, addr + 8),
-			ISP_REG_RD(0, addr + 12));
+			ISP_REG_RD(trace->idx, addr),
+			ISP_REG_RD(trace->idx, addr + 4),
+			ISP_REG_RD(trace->idx, addr + 8),
+			ISP_REG_RD(trace->idx, addr + 12));
 	}
 
 	pr_info("ISP dispatch: register list\n");
@@ -504,10 +504,10 @@ abnormal_reg_trace:
 			ISP_HREG_RD(addr + 12));
 		pr_info("0x%lx: 0x%x 0x%x 0x%x 0x%x\n",
 			addr,
-			ISP_REG_RD(0, addr),
-			ISP_REG_RD(0, addr + 4),
-			ISP_REG_RD(0, addr + 8),
-			ISP_REG_RD(0, addr + 12));
+			ISP_REG_RD(trace->idx, addr),
+			ISP_REG_RD(trace->idx, addr + 4),
+			ISP_REG_RD(trace->idx, addr + 8),
+			ISP_REG_RD(trace->idx, addr + 12));
 	}
 
 	for (addr = (ISP_SCALER_PRE_CAP_BASE + ISP_SCALER_CFG); addr <= (ISP_SCALER_PRE_CAP_BASE + ISP_SCALER_RES);
@@ -520,10 +520,10 @@ abnormal_reg_trace:
 			ISP_HREG_RD(addr + 12));
 		pr_info("0x%lx: 0x%x 0x%x 0x%x 0x%x\n",
 			addr,
-			ISP_REG_RD(0, addr),
-			ISP_REG_RD(0, addr + 4),
-			ISP_REG_RD(0, addr + 8),
-			ISP_REG_RD(0, addr + 12));
+			ISP_REG_RD(trace->idx, addr),
+			ISP_REG_RD(trace->idx, addr + 4),
+			ISP_REG_RD(trace->idx, addr + 8),
+			ISP_REG_RD(trace->idx, addr + 12));
 	}
 
 	pr_info("ISP store: register list\n");
@@ -537,10 +537,10 @@ abnormal_reg_trace:
 			ISP_HREG_RD(addr + 12));
 		pr_info("0x%lx: 0x%x 0x%x 0x%x 0x%x\n",
 			addr,
-			ISP_REG_RD(0, addr),
-			ISP_REG_RD(0, addr + 4),
-			ISP_REG_RD(0, addr + 8),
-			ISP_REG_RD(0, addr + 12));
+			ISP_REG_RD(trace->idx, addr),
+			ISP_REG_RD(trace->idx, addr + 4),
+			ISP_REG_RD(trace->idx, addr + 8),
+			ISP_REG_RD(trace->idx, addr + 12));
 	}
 
 	pr_info("ISP mmu: register list\n");
@@ -565,10 +565,10 @@ abnormal_reg_trace:
 			ISP_HREG_RD(addr + 12));
 		pr_info("0x%lx: 0x%x 0x%x 0x%x 0x%x\n",
 			addr,
-			ISP_REG_RD(0, addr),
-			ISP_REG_RD(0, addr + 4),
-			ISP_REG_RD(0, addr + 8),
-			ISP_REG_RD(0, addr + 12));
+			ISP_REG_RD(trace->idx, addr),
+			ISP_REG_RD(trace->idx, addr + 4),
+			ISP_REG_RD(trace->idx, addr + 8),
+			ISP_REG_RD(trace->idx, addr + 12));
 	}
 
 normal_reg_trace:

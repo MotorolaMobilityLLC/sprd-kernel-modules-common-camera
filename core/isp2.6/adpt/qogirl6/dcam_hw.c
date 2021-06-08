@@ -976,8 +976,10 @@ static int dcamhw_full_path_src_sel(void *handle, void *arg)
 	DCAM_REG_MWR(patharg->idx, DCAM_FULL_CFG, BIT_2 | BIT_3, patharg->pack_bits << 2);
 	/* input pack_bit is 14bit must same with DCAM_BAYER_INFO_CFG Bit8~10 */
 	DCAM_REG_MWR(patharg->idx, DCAM_BAYER_INFO_CFG, 0x7 << 18, 4 << 18);
+
 	switch (patharg->pack_bits) {
 	case 0:
+	case 1:
 		DCAM_REG_MWR(patharg->idx, DCAM_BAYER_INFO_CFG, 0x3 << 16, 1 << 16);
 		break;
 	case 2:
@@ -985,7 +987,7 @@ static int dcamhw_full_path_src_sel(void *handle, void *arg)
 		break;
 	default:
 		/* other case 1 & 3, TBD */
-		pr_err("fail to support src_sel %d\n", patharg->pack_bits);
+		pr_err("fail to support pack_bits %d\n", patharg->pack_bits);
 		ret = -EINVAL;
 		break;
 	}

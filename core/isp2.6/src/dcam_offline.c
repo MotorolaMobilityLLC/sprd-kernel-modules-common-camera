@@ -133,16 +133,16 @@ int dcamoffline_fetch_info_get(struct dcam_sw_context *pctx, struct camera_frame
 			continue;
 		if (i == DCAM_PATH_FULL || i == DCAM_PATH_BIN) {
 			if (pctx->rps == 1)
-				loose_val = (loose_val | (pctx->pack_bits) | (path->pack_bits));
+				loose_val = (loose_val | (path->pack_bits));
 			else
-				loose_val = ((pctx->pack_bits) | (path->pack_bits));
+				loose_val = path->pack_bits;
 		}
 		path->pack_bits = loose_val;
 		val_4in1 = ((pctx->is_4in1) | (path->is_4in1));
 	}
 
 	fetch = &pctx->fetch;
-	fetch->pack_bits = loose_val;
+	fetch->pack_bits = pctx->pack_bits;
 	if (val_4in1 == 1) {
 		if (pctx->rps == 1)
 			fetch->pack_bits = loose_val;

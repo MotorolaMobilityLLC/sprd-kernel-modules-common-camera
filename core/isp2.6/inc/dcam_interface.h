@@ -167,7 +167,7 @@ struct dcam_path_cfg_param {
 	uint32_t enable_3dnr;
 	uint32_t is_raw;
 	uint32_t raw_src;
-	uint32_t pack_bits;
+	uint32_t raw_fmt;
 	uint32_t bayer_pattern;
 	uint32_t dcam_out_fmt;
 	uint32_t dcam_out_bits;

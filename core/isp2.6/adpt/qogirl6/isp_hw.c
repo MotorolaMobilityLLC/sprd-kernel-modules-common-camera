@@ -251,6 +251,7 @@ static uint32_t cam_reg_trace_tab[] = {
 	ISP_AFM_BASE_WADDR,
 	ISP_NR3_WADDR,
 	DCAM_LSCM_BASE_WADDR,
+	DCAM_BAYER_INFO_CFG,
 };
 
 static int cam_reg_trace(void *handle, void *arg)
@@ -361,10 +362,10 @@ abnormal_reg_trace:
 			addr += 16) {
 		pr_info("0x%lx: 0x%x 0x%x 0x%x 0x%x\n",
 			addr,
-			ISP_HREG_RD(addr),
-			ISP_HREG_RD(addr + 4),
-			ISP_HREG_RD(addr + 8),
-			ISP_HREG_RD(addr + 12));
+			ISP_MMU_RD(addr),
+			ISP_MMU_RD(addr + 4),
+			ISP_MMU_RD(addr + 8),
+			ISP_MMU_RD(addr + 12));
 	}
 
 	pr_info("ISP common status: register list\n");
@@ -394,6 +395,18 @@ normal_reg_trace:
 		pr_info("n=%d, %08x %08x %08x %08x %08x %08x %08x %08x\n", n,
 			val[0], val[1], val[2], val[3], val[4], val[5], val[6], val[7]);
 	}
+
+	pr_info("dcam axim\n");
+	for (addr = AXIM_CTRL; addr <= DCAM_PORT_CFG;
+			addr += 16) {
+		pr_info("0x%lx: 0x%x 0x%x 0x%x 0x%x\n",
+			addr,
+			DCAM_AXIM_RD(addr),
+			DCAM_AXIM_RD(addr + 4),
+			DCAM_AXIM_RD(addr + 8),
+			DCAM_AXIM_RD(addr + 12));
+	}
+
 	return 0;
 }
 

@@ -677,6 +677,7 @@ static int dcamhw_reset(void *handle, void *arg)
 static int dcamhw_fetch_set(void *handle, void *arg)
 {
 	int ret = 0;
+	uint32_t val = 0;
 	uint32_t fetch_pitch;
 	uint32_t bwu_shift;
 	struct dcam_hw_fetch_set *fetch = NULL;
@@ -716,8 +717,18 @@ static int dcamhw_fetch_set(void *handle, void *arg)
 	DCAM_REG_MWR(fetch->idx, DCAM_MIPI_CAP_CFG, BIT_3, 0x0 << 3);
 	DCAM_REG_MWR(fetch->idx, DCAM_MIPI_CAP_CFG,
 		BIT_5 | BIT_4, (fetch->fetch_info->pattern & 3) << 4);
-	DCAM_AXIM_MWR(0, IMG_FETCH_CTRL,
-		BIT_1 | BIT_0, fetch->fetch_info->pack_bits);
+
+	if (fetch->fetch_info->fmt == DCAM_STORE_RAW_BASE) {
+		if (fetch->fetch_info->pack_bits == DCAM_RAW_PACK_10)
+			val = 0;
+		else
+			val = 1;
+	} else if (fetch->fetch_info->fmt == DCAM_STORE_FRGB)
+		val = 2;
+	else
+		pr_err("fail to get valid fmt ,not support\n");
+
+	DCAM_AXIM_MWR(0, IMG_FETCH_CTRL, BIT_1 | BIT_0, val);
 	DCAM_AXIM_MWR(0, IMG_FETCH_CTRL,
 		BIT_3 | BIT_2, fetch->fetch_info->endian << 2);
 	DCAM_AXIM_MWR(0, IMG_FETCH_CTRL, BIT_18 | BIT_17 | BIT_16, bwu_shift << 16);
@@ -994,8 +1005,11 @@ static int dcamhw_path_start(void *handle, void *arg)
 
 		val = (patharg->data_bits - DCAM_STORE_8_BIT) >> 1;
 		DCAM_REG_MWR(patharg->idx, DCAM_BWD1_PARAM, BIT_4 | BIT_5, val << 4);
-		/*default 14bit down to 10bit*/
-		val = 14 - 10;
+		if (patharg->src_sel == ORI_RAW_SRC_SEL)
+			val = 0;
+		else
+			/*default 14bit down to 10bit*/
+			val = 14 - 10;
 		DCAM_REG_MWR(patharg->idx, DCAM_BWD1_PARAM, 0xE, val << 1);
 		/*bwd for RAW 10bit*/
 		DCAM_REG_MWR(patharg->idx, DCAM_BWD1_PARAM, BIT_0, 0);
@@ -1597,7 +1611,7 @@ static int dcamhw_slice_fetch_set(void *handle, void *arg)
 	struct img_trim *cur_slice = NULL;
 	struct dcam_fetch_info *fetch = NULL;
 	struct dcam_hw_slice_fetch *slicearg = NULL;
-	uint32_t fetch_pitch = 0, prev_picth = 0, bwu_shift = 0, bfp = 0;
+	uint32_t fetch_pitch = 0, prev_picth = 0, bwu_shift = 0, bfp = 0, fetch_fmt = 0;
 
 	if (!arg) {
 		pr_err("fail to check param");
@@ -1623,6 +1637,17 @@ static int dcamhw_slice_fetch_set(void *handle, void *arg)
 		prev_picth = (slicearg->slice_trim.size_x * 16 + 127) / 128;
 		bfp = 5;
 	}
+
+	if (fetch->fmt == DCAM_STORE_RAW_BASE) {
+		if (fetch->pack_bits == DCAM_RAW_PACK_10)
+			fetch_fmt = 0;
+		else
+			fetch_fmt = 1;
+	} else if (fetch->fmt == DCAM_STORE_FRGB)
+		fetch_fmt = 2;
+	else
+		pr_err("fail to get valid fmt ,not support\n");
+
 	DCAM_REG_WR(idx, DCAM_INT0_CLR, 0xFFFFFFFF);
 	DCAM_REG_WR(idx, DCAM_INT0_EN, DCAMINT_IRQ_LINE_EN0_NORMAL & (~BIT_2));
 	DCAM_REG_WR(idx, DCAM_INT1_CLR, 0xFFFFFFFF);
@@ -1649,7 +1674,7 @@ static int dcamhw_slice_fetch_set(void *handle, void *arg)
 		if (slicearg->slice_count == 2) {
 			DCAM_REG_MWR(idx, DCAM_MIPI_CAP_CFG,
 				BIT_5 | BIT_4, (fetch->pattern & 3) << 4);
-			DCAM_AXIM_MWR(idx, IMG_FETCH_CTRL, BIT_1 | BIT_0, fetch->pack_bits);
+			DCAM_AXIM_MWR(idx, IMG_FETCH_CTRL, BIT_1 | BIT_0, fetch_fmt);
 			DCAM_AXIM_MWR(idx, IMG_FETCH_CTRL, BIT_3 | BIT_2, fetch->endian << 2);
 			DCAM_AXIM_MWR(idx, IMG_FETCH_CTRL, BIT_18 | BIT_17 | BIT_16, bwu_shift << 16);
 			/* cfg mipicap */

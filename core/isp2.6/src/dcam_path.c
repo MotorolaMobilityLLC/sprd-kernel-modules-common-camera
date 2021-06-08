@@ -21,6 +21,7 @@
 #include "dcam_reg.h"
 #include "dcam_int.h"
 #include "cam_scaler_ex.h"
+#include "dcam_hw_adpt.h"
 #include "dcam_path.h"
 
 /* Macro Definitions */
@@ -82,30 +83,54 @@ int dcam_path_base_cfg(void *dcam_ctx_handle,
 		path->src_sel = ch_desc->is_raw ? ORI_RAW_SRC_SEL : PROCESS_RAW_SRC_SEL;
 		path->frm_deci = ch_desc->frm_deci;
 		path->frm_skip = ch_desc->frm_skip;
-		path->pack_bits = ch_desc->pack_bits;
+		if (ch_desc->raw_fmt == DCAM_RAW_8)
+			path->pack_bits = RAW_8;
+		else if (ch_desc->raw_fmt == DCAM_RAW_HALFWORD_10)
+			path->pack_bits = RAW_HALF10;
+		else if (ch_desc->raw_fmt == DCAM_RAW_PACK_10)
+			path->pack_bits = RAW_PACK10;
+		else if (ch_desc->raw_fmt == DCAM_RAW_14)
+			path->pack_bits = RAW_HALF14;
+
 		path->endian = ch_desc->endian;
 		path->is_4in1 = ch_desc->is_4in1;
 		path->bayer_pattern = ch_desc->bayer_pattern;
 		path->out_fmt = ch_desc->dcam_out_fmt;
 		path->data_bits = ch_desc->dcam_out_bits;
-		path->is_pack = !ch_desc->pack_bits;
-		if (path->data_bits == DCAM_STORE_8_BIT)
-			path->is_pack = 0;
+
+		path->is_pack = 0;
+		if ((path->out_fmt & DCAM_STORE_YUV_BASE) && (path->data_bits == DCAM_STORE_10_BIT))
+			path->is_pack = 1;
+		if ((path->out_fmt & DCAM_STORE_RAW_BASE) && (path->pack_bits == RAW_PACK10))
+			path->is_pack = 1;
+
 		path->base_update = 1;
 		spin_unlock_irqrestore(&path->size_lock, flags);
 		break;
 	case DCAM_PATH_BIN:
 		path->frm_deci = ch_desc->frm_deci;
 		path->frm_skip = ch_desc->frm_skip;
-		path->pack_bits = ch_desc->pack_bits;
+		if (ch_desc->raw_fmt == DCAM_RAW_8)
+			path->pack_bits = RAW_8;
+		else if (ch_desc->raw_fmt == DCAM_RAW_HALFWORD_10)
+			path->pack_bits = RAW_HALF10;
+		else if (ch_desc->raw_fmt == DCAM_RAW_PACK_10)
+			path->pack_bits = RAW_PACK10;
+		else if (ch_desc->raw_fmt == DCAM_RAW_14)
+			path->pack_bits = RAW_HALF14;
+
 		path->endian = ch_desc->endian;
 		path->is_4in1 = ch_desc->is_4in1;
 		path->bayer_pattern = ch_desc->bayer_pattern;
 		path->out_fmt = ch_desc->dcam_out_fmt;
 		path->data_bits = ch_desc->dcam_out_bits;
-		path->is_pack = !ch_desc->pack_bits;
-		if (path->data_bits == DCAM_STORE_8_BIT)
-			path->is_pack = 0;
+
+		path->is_pack = 0;
+		if ((path->out_fmt & DCAM_STORE_YUV_BASE) && (path->data_bits == DCAM_STORE_10_BIT))
+			path->is_pack = 1;
+		if ((path->out_fmt & DCAM_STORE_RAW_BASE) && (path->pack_bits == RAW_PACK10))
+			path->is_pack = 1;
+
 		/*
 		 * TODO:
 		 * Better not binding dcam_if feature to BIN path, which is a
@@ -120,15 +145,27 @@ int dcam_path_base_cfg(void *dcam_ctx_handle,
 		path->src_sel = ch_desc->is_raw ? ORI_RAW_SRC_SEL : ch_desc->raw_src;
 		path->frm_deci = ch_desc->frm_deci;
 		path->frm_skip = ch_desc->frm_skip;
-		path->pack_bits = ch_desc->pack_bits;
+		if (ch_desc->raw_fmt == DCAM_RAW_8) {
+			path->pack_bits = RAW_8;
+			path->data_bits = DCAM_STORE_8_BIT;
+			path->is_pack = 0;
+		} else if (ch_desc->raw_fmt == DCAM_RAW_HALFWORD_10) {
+			path->pack_bits = RAW_HALF10;
+			path->data_bits = DCAM_STORE_10_BIT;
+			path->is_pack = 0;
+		} else if (ch_desc->raw_fmt == DCAM_RAW_PACK_10) {
+			path->pack_bits = RAW_PACK10;
+			path->data_bits = DCAM_STORE_10_BIT;
+			path->is_pack = 1;
+		} else if (ch_desc->raw_fmt == DCAM_RAW_14) {
+			path->pack_bits = RAW_HALF14;
+			path->data_bits = DCAM_STORE_14_BIT;
+			path->is_pack = 0;
+		}
 		path->endian = ch_desc->endian;
 		path->is_4in1 = ch_desc->is_4in1;
 		path->bayer_pattern = ch_desc->bayer_pattern;
 		path->out_fmt = ch_desc->dcam_out_fmt;
-		path->data_bits = ch_desc->dcam_out_bits;
-		path->is_pack = !ch_desc->pack_bits;
-		if (path->data_bits == DCAM_STORE_8_BIT)
-			path->is_pack = 0;
 		dcam_sw_ctx->raw_cap = ch_desc->raw_cap;
 		pr_info("raw path src %d, pack bits %d\n", path->src_sel, path->pack_bits);
 		break;

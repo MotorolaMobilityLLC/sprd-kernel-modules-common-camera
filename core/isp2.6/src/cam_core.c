@@ -142,6 +142,10 @@ struct camera_uchannel {
 	uint32_t high_fps_skip_num;/* for DCAM slow motion feature */
 	uint32_t is_compressed;/* for ISP output fbc format */
 
+	int32_t sensor_raw_fmt;
+	int32_t dcam_raw_fmt;
+	uint32_t dcam_out_pack;
+
 	struct sprd_img_size src_size;
 	struct sprd_img_rect src_crop;
 	struct sprd_img_size dst_size;
@@ -666,16 +670,16 @@ static int camcore_resframe_set(struct camera_module *module)
 			if (ch->ch_uinfo.dst_fmt != IMG_PIX_FMT_GREY)
 				out_size = ch->ch_uinfo.dst_size.w *ch->ch_uinfo.dst_size.h * 3 / 2;
 			else
-				out_size = cal_sprd_raw_pitch(ch->ch_uinfo.dst_size.w, mipi->is_loose)
+				out_size = cal_sprd_raw_pitch(ch->ch_uinfo.dst_size.w, ch->ch_uinfo.dcam_raw_fmt)
 					* ch->ch_uinfo.dst_size.h;
 
 			if (ch->ch_uinfo.sn_fmt != IMG_PIX_FMT_GREY)
 				in_size = ch->ch_uinfo.src_size.w *ch->ch_uinfo.src_size.h * 3 / 2;
 			else if (ch->dcam_out_fmt == DCAM_STORE_RAW_BASE)
-				in_size = cal_sprd_raw_pitch(ch->ch_uinfo.src_size.w, mipi->is_loose)
+				in_size = cal_sprd_raw_pitch(ch->ch_uinfo.src_size.w, ch->ch_uinfo.dcam_raw_fmt)
 					* ch->ch_uinfo.src_size.h;
 			else if ((ch->dcam_out_fmt == DCAM_STORE_YUV420) || (ch->dcam_out_fmt == DCAM_STORE_YVU420))
-				in_size = cal_sprd_yuv_pitch(ch->ch_uinfo.src_size.w, mipi->bits_per_pxl, !mipi->is_loose)
+				in_size = cal_sprd_yuv_pitch(ch->ch_uinfo.src_size.w, mipi->bits_per_pxl, ch->ch_uinfo.dcam_out_pack)
 					* ch->ch_uinfo.src_size.h * 3 / 2;
 
 			max_size = max3(max_size, out_size, in_size);
@@ -1491,9 +1495,16 @@ static int camcore_buffers_alloc(void *param)
 
 	width = channel->swap_size.w;
 	height = channel->swap_size.h;
-	pack_bits = module->cam_uinfo.sensor_if.if_spec.mipi.is_loose;
 	dcam_out_bits = module->cam_uinfo.sensor_if.if_spec.mipi.bits_per_pxl;
-	is_pack = !pack_bits;
+	if (channel->aux_dcam_path_id >= 0)
+		pack_bits = channel->ch_uinfo.sensor_raw_fmt;
+	else
+		pack_bits = channel->ch_uinfo.dcam_raw_fmt;
+	is_pack = 0;
+	if ((channel->dcam_out_fmt & DCAM_STORE_RAW_BASE) && (pack_bits == DCAM_RAW_PACK_10))
+		is_pack = 1;
+	if ((channel->dcam_out_fmt & DCAM_STORE_YUV_BASE) && (dcam_out_bits == DCAM_STORE_10_BIT))
+		is_pack = 1;
 
 	if (channel->compress_input) {
 		cal_fbc.compress_4bit_bypass = channel->compress_4bit_bypass;
@@ -2061,7 +2072,7 @@ static int camcore_4in1_aux_init(struct camera_module *module,
 	ch_desc.input_trim.size_y = channel->ch_uinfo.src_size.h;
 	ch_desc.output_size.w = ch_desc.input_trim.size_x;
 	ch_desc.output_size.h = ch_desc.input_trim.size_y;
-	ch_desc.pack_bits = module->cam_uinfo.sensor_if.if_spec.mipi.is_loose;
+	ch_desc.raw_fmt = channel->ch_uinfo.dcam_raw_fmt;
 	ch_desc.is_4in1 = module->cam_uinfo.is_4in1;
 
 	ret = module->dcam_dev_handle->dcam_pipe_ops->cfg_path(dcam_sw_ctx, DCAM_PATH_CFG_BASE, channel->aux_dcam_path_id, &ch_desc);
@@ -2143,7 +2154,7 @@ static int camcore_4in1_secondary_path_init(
 
 	/* todo: cfg param to user setting. */
 	memset(&ch_desc, 0, sizeof(ch_desc));
-	ch_desc.pack_bits = module->cam_uinfo.sensor_if.if_spec.mipi.is_loose;
+	ch_desc.raw_fmt = ch->ch_uinfo.dcam_raw_fmt;
 	ch_desc.is_4in1 = module->cam_uinfo.is_4in1;
 	/*
 	 * Configure slow motion for BIN path. HAL must set @is_high_fps
@@ -3075,8 +3086,19 @@ static int camcore_bigsize_aux_init(struct camera_module *module,
 	/* cfg dcam1 bin path */
 	memset(&ch_desc, 0, sizeof(ch_desc));
 	ch_desc.endian.y_endian = ENDIAN_LITTLE;
-	ch_desc.pack_bits = module->cam_uinfo.sensor_if.if_spec.mipi.is_loose;
+
+	if (channel->ch_uinfo.dcam_raw_fmt >= DCAM_RAW_PACK_10 && channel->ch_uinfo.dcam_raw_fmt < DCAM_RAW_MAX)
+		ch_desc.raw_fmt = channel->ch_uinfo.dcam_raw_fmt;
+	else {
+		ch_desc.raw_fmt = dev->hw->ip_dcam[0]->raw_fmt_support[0];
+		if (dev->hw->ip_dcam[0]->save_band_for_bigsize)
+			ch_desc.raw_fmt = DCAM_RAW_PACK_10;
+		channel->ch_uinfo.dcam_raw_fmt = ch_desc.raw_fmt;
+	}
+
 	ch_desc.is_4in1 = module->cam_uinfo.is_4in1;
+	dev->sw_ctx[module->offline_cxt_id].fetch.fmt= DCAM_STORE_RAW_BASE;
+	dev->sw_ctx[module->offline_cxt_id].pack_bits = channel->ch_uinfo.sensor_raw_fmt;
 
 	if (module->dcam_dev_handle->hw->ip_isp->fetch_raw_support == 0)
 		ch_desc.dcam_out_fmt = DCAM_STORE_YVU420;
@@ -3084,6 +3106,10 @@ static int camcore_bigsize_aux_init(struct camera_module *module,
 		ch_desc.dcam_out_fmt = DCAM_STORE_RAW_BASE;
 	ch_desc.dcam_out_bits = module->cam_uinfo.sensor_if.if_spec.mipi.bits_per_pxl;
 
+	pr_debug("fetch packbit %d, out fmt %d, packbit %d\n",
+		dev->sw_ctx[module->offline_cxt_id].pack_bits,
+		ch_desc.dcam_out_fmt,
+		ch_desc.raw_fmt);
 	ret = module->dcam_dev_handle->dcam_pipe_ops->cfg_path(&dev->sw_ctx[module->offline_cxt_id],
 		DCAM_PATH_CFG_BASE, channel->aux_dcam_path_id, &ch_desc);
 
@@ -3773,11 +3799,12 @@ static int camcore_channel_bigsize_config(
 	iommu_enable = module->iommu_enable;
 	width = channel->swap_size.w;
 	height = channel->swap_size.h;
-	pack_bits = module->cam_uinfo.sensor_if.if_spec.mipi.is_loose;
+
+	pack_bits = channel->ch_uinfo.dcam_raw_fmt;
 	dcam_sw_aux_ctx = &module->dcam_dev_handle->sw_ctx[module->offline_cxt_id];
 	path = &dcam_sw_aux_ctx->path[channel->aux_dcam_path_id];
 	dcam_out_bits = module->cam_uinfo.sensor_if.if_spec.mipi.bits_per_pxl;
-	is_pack = !pack_bits;
+	is_pack = channel->ch_uinfo.dcam_out_pack;
 
 	if (path->out_fmt & DCAM_STORE_RAW_BASE)
 		size = cal_sprd_raw_pitch(width, pack_bits) * height;
@@ -3836,11 +3863,11 @@ static int camcore_channel_bigsize_config(
 	ch_desc.input_trim.start_y = 0;
 	ch_desc.input_trim.size_x = ch_desc.input_size.w;
 	ch_desc.input_trim.size_y = ch_desc.input_size.h;
-	ch_desc.pack_bits = module->cam_uinfo.sensor_if.if_spec.mipi.is_loose;
+	ch_desc.raw_fmt= pack_bits;
 	ch_desc.is_4in1 = module->cam_uinfo.is_4in1;
 
-	pr_info("update dcam path %d size for channel %d is_loose %d 4in1 %d\n",
-		channel->aux_dcam_path_id, channel->ch_id, ch_desc.pack_bits, ch_desc.is_4in1);
+	pr_info("update dcam path %d size for channel %d packbit %d 4in1 %d\n",
+		channel->aux_dcam_path_id, channel->ch_id, ch_desc.raw_fmt, ch_desc.is_4in1);
 
 	ret = module->dcam_dev_handle->dcam_pipe_ops->cfg_path(dcam_sw_aux_ctx,
 			DCAM_PATH_CFG_SIZE, channel->aux_dcam_path_id, &ch_desc);
@@ -4325,6 +4352,7 @@ static int camcore_channel_init(struct camera_module *module,
 	dcam_sw_ctx = &module->dcam_dev_handle->sw_ctx[module->cur_sw_ctx_id];
 	pr_info("cam%d, simulator=%d\n", module->idx, module->simulator);
 	if (new_dcam_path) {
+		memset(&ch_desc, 0, sizeof(ch_desc));
 		ch_desc.is_raw = 0;
 		ch_desc.raw_src = PROCESS_RAW_SRC_SEL;
 		if (channel->ch_id == CAM_CH_RAW)
@@ -4346,11 +4374,26 @@ static int camcore_channel_init(struct camera_module *module,
 		pr_debug("get dcam path : %d\n", channel->dcam_path_id);
 
 		/* todo: cfg param to user setting. */
-		memset(&ch_desc, 0, sizeof(ch_desc));
-		if (dcam_path_id == 0 && module->cam_uinfo.is_4in1 == 1)
-			ch_desc.pack_bits = 0;
-		else
-			ch_desc.pack_bits = module->cam_uinfo.sensor_if.if_spec.mipi.is_loose;
+		if (!ch_desc.is_raw) {
+			if ((channel->ch_uinfo.dcam_raw_fmt >= DCAM_RAW_PACK_10) && (channel->ch_uinfo.dcam_raw_fmt < DCAM_RAW_MAX))
+				ch_desc.raw_fmt = channel->ch_uinfo.dcam_raw_fmt;
+			else
+				ch_desc.raw_fmt = hw->ip_dcam[0]->raw_fmt_support[0];
+			channel->ch_uinfo.dcam_raw_fmt = ch_desc.raw_fmt;
+		} else {
+			if ((channel->ch_uinfo.sensor_raw_fmt >= DCAM_RAW_PACK_10) && (channel->ch_uinfo.sensor_raw_fmt < DCAM_RAW_MAX))
+				ch_desc.raw_fmt = channel->ch_uinfo.sensor_raw_fmt;
+			else {
+				ch_desc.raw_fmt = hw->ip_dcam[0]->sensor_raw_fmt;
+				if (module->cam_uinfo.dcam_slice_mode && hw->ip_dcam[0]->save_band_for_bigsize)
+					/* for save data band, ultra res not need sensor raw of raw14*/
+					ch_desc.raw_fmt = DCAM_RAW_PACK_10;
+				if (dcam_path_id == 0 && module->cam_uinfo.is_4in1 == 1)
+					ch_desc.raw_fmt = DCAM_RAW_PACK_10;
+			}
+			channel->ch_uinfo.sensor_raw_fmt = ch_desc.raw_fmt;
+		}
+
 		ch_desc.is_4in1 = module->cam_uinfo.is_4in1;
 		/*
 		 * Configure slow motion for BIN path. HAL must set @is_high_fps
@@ -4375,21 +4418,19 @@ static int camcore_channel_init(struct camera_module *module,
 			ch_desc.dcam_out_fmt = DCAM_STORE_YVU420;
 		else
 			ch_desc.dcam_out_fmt = DCAM_STORE_RAW_BASE;
-		if (channel->ch_id == CAM_CH_RAW || dcam_path_id == DCAM_PATH_RAW)
+		if (channel->ch_id == CAM_CH_RAW)
 			ch_desc.dcam_out_fmt = DCAM_STORE_RAW_BASE;
 		if ((dcam_path_id == DCAM_PATH_RAW) && (format == DCAM_CAP_MODE_YUV))
 			ch_desc.dcam_out_fmt = DCAM_STORE_YUV422;
-		pr_debug("channel dcam out format %d, bits %d, is pack %d\n", ch_desc.dcam_out_fmt,
-			ch_desc.dcam_out_bits, !(ch_desc.pack_bits));
+
+		pr_debug("ch%d, dcam path%d, cap fmt%d, is raw %d, slice mode %d, dcam out format %d, bits %d, raw fmt %d"
+			", sensor raw fmt %d, dcam raw fmt %d\n",
+			channel->ch_id, dcam_path_id, format, ch_desc.is_raw, module->cam_uinfo.dcam_slice_mode,
+			ch_desc.dcam_out_fmt, ch_desc.dcam_out_bits, ch_desc.raw_fmt,
+			channel->ch_uinfo.sensor_raw_fmt, channel->ch_uinfo.dcam_raw_fmt);
 
 		/* auto_3dnr:hw enable, channel->uinfo_3dnr == 1: hw enable */
 		ch_desc.enable_3dnr = (module->auto_3dnr | channel->uinfo_3dnr);
-		if (channel->ch_id == CAM_CH_RAW)
-			ch_desc.is_raw = 1;
-		if ((channel->ch_id == CAM_CH_CAP) && module->cam_uinfo.is_4in1)
-			ch_desc.is_raw = 1;
-		if ((channel->ch_id == CAM_CH_CAP) && module->cam_uinfo.dcam_slice_mode)
-			ch_desc.is_raw = 1;
 
 		ret = module->dcam_dev_handle->dcam_pipe_ops->cfg_path(dcam_sw_ctx,
 				DCAM_PATH_CFG_BASE, channel->dcam_path_id, &ch_desc);
@@ -4413,6 +4454,7 @@ static int camcore_channel_init(struct camera_module *module,
 			isp_ctx_id, camcore_isp_callback, module);
 
 		/* todo: cfg param to user setting. */
+		/* cfg in fmt */
 		if (format == DCAM_CAP_MODE_YUV)
 			ctx_desc.in_fmt = ch_uinfo->dst_fmt;
 		else {
@@ -4421,9 +4463,33 @@ static int camcore_channel_init(struct camera_module *module,
 			else
 				ctx_desc.in_fmt = camcore_format_dcam_translate(ch_desc.dcam_out_fmt);
 		}
-		ctx_desc.is_pack= !ch_desc.pack_bits;
-		ctx_desc.data_in_bits = ch_desc.dcam_out_bits;
-		ctx_desc.pack_bits = module->cam_uinfo.sensor_if.if_spec.mipi.is_loose;
+
+                ctx_desc.data_in_bits = ch_desc.dcam_out_bits;
+		/* cfg pack bit */
+		if (channel->ch_uinfo.dcam_raw_fmt >= DCAM_RAW_PACK_10 && channel->ch_uinfo.dcam_raw_fmt < DCAM_RAW_MAX)
+			ctx_desc.pack_bits = channel->ch_uinfo.dcam_raw_fmt;
+		else {
+			ctx_desc.pack_bits = hw->ip_dcam[0]->raw_fmt_support[0];
+			if (hw->ip_dcam[0]->save_band_for_bigsize)
+				ctx_desc.pack_bits = DCAM_RAW_PACK_10;
+		}
+
+		/* cfg is pack*/
+		if ((hw->ip_isp->fetch_raw_support == 0) || (format == DCAM_CAP_MODE_YUV)) {
+			if (ctx_desc.data_in_bits == DCAM_STORE_10_BIT)
+				channel->ch_uinfo.dcam_out_pack = 1;
+			else
+				channel->ch_uinfo.dcam_out_pack = 0;
+		} else {
+			if (ctx_desc.pack_bits == DCAM_RAW_PACK_10)
+				channel->ch_uinfo.dcam_out_pack = 1;
+			else
+				channel->ch_uinfo.dcam_out_pack = 0;
+		}
+		ctx_desc.is_pack = channel->ch_uinfo.dcam_out_pack;
+		pr_debug("dcam_out_fmt %d, raw_fmt %d, data_in_bits %d, is pack %d, dcam_path_id %d\n",
+			ch_desc.dcam_out_fmt, ch_desc.raw_fmt, ctx_desc.data_in_bits, ctx_desc.is_pack, dcam_path_id);
+
 		ctx_desc.bayer_pattern = module->cam_uinfo.sensor_if.img_ptn;
 		ctx_desc.mode_ltm = MODE_LTM_OFF;
 		ctx_desc.mode_gtm = MODE_GTM_OFF;
@@ -4728,11 +4794,14 @@ get_path:
 	channel->aux_dcam_path_id = dcam_path_id;
 	pr_info("get aux dcam path %d\n", dcam_path_id);
 
+	dcam->sw_ctx[module->offline_cxt_id].pack_bits = DCAM_RAW_14;
+	dcam->sw_ctx[module->offline_cxt_id].fetch.fmt = DCAM_STORE_RAW_BASE;
+
 	/* cfg dcam_aux bin path */
 	memset(&ch_desc, 0, sizeof(ch_desc));
 	ch_desc.bayer_pattern = module->cam_uinfo.sensor_if.img_ptn;
 	ch_desc.endian.y_endian = ENDIAN_LITTLE;
-	ch_desc.pack_bits = module->cam_uinfo.sensor_if.if_spec.mipi.is_loose;
+	ch_desc.raw_fmt = DCAM_RAW_14;
 	ch_desc.is_4in1 = module->cam_uinfo.is_4in1;
 	ret = module->dcam_dev_handle->dcam_pipe_ops->cfg_path(&dcam->sw_ctx[module->offline_cxt_id],
 		DCAM_PATH_CFG_BASE, channel->aux_dcam_path_id, &ch_desc);
@@ -4876,7 +4945,7 @@ init_isp:
 
 		memset(&ctx_desc, 0, sizeof(struct isp_ctx_base_desc));
 		ctx_desc.in_fmt = fdrl_ctrl->in_format;
-		ctx_desc.pack_bits = module->cam_uinfo.sensor_if.if_spec.mipi.is_loose;
+		ctx_desc.pack_bits= ch_uinfo->dcam_raw_fmt;
 		ctx_desc.bayer_pattern = module->cam_uinfo.sensor_if.img_ptn;
 		ctx_desc.ch_id = ch->ch_id;
 		ret = module->isp_dev_handle->isp_ops->cfg_path(module->isp_dev_handle,
@@ -5023,7 +5092,7 @@ static int camcore_one_frame_dump(struct camera_module *module,
 
 	ch_id = pframe->channel_id;
 	channel = &module->channel[ch_id];
-	is_pack = !module->cam_uinfo.sensor_if.if_spec.mipi.is_loose;
+	is_pack = channel->ch_uinfo.dcam_out_pack;
 
 	if (cam_buf_kmap(&pframe->buf)) {
 		pr_err("fail to kmap dump buf\n");
@@ -5071,7 +5140,7 @@ static int camcore_one_frame_dump(struct camera_module *module,
 	sprintf(tmp_str, "_No%d", pframe->fid);
 	strcat(file_name, tmp_str);
 
-	pack_bits = module->cam_uinfo.sensor_if.if_spec.mipi.is_loose;
+	pack_bits = channel->ch_uinfo.dcam_raw_fmt;
 	dcam_out_bits = module->cam_uinfo.sensor_if.if_spec.mipi.bits_per_pxl;
 	if (pframe->is_compressed) {
 		struct compressed_addr addr;
@@ -5180,7 +5249,7 @@ static int camcore_pyr_frame_dump(struct camera_module *module,
 
 	align_w = isp_rec_layer0_width(pframe->width, channel->pyr_layer_num);
 	align_h = isp_rec_layer0_heigh(pframe->height, channel->pyr_layer_num);
-	is_pack = !module->cam_uinfo.sensor_if.if_spec.mipi.is_loose;
+	is_pack = channel->ch_uinfo.dcam_out_pack;
 	dcam_out_bits = module->cam_uinfo.sensor_if.if_spec.mipi.bits_per_pxl;
 	for (i = 0; i < channel->pyr_layer_num + 1; i++) {
 		strcat(file_name[i], CAMERA_DUMP_PATH);
@@ -5510,6 +5579,8 @@ static int camcore_raw_proc_done(struct camera_module *module)
 		ch_raw->isp_ctx_id = -1;
 		ch_raw->isp_path_id = -1;
 		ch_raw->aux_dcam_path_id = -1;
+		ch_raw->ch_uinfo.dcam_raw_fmt = -1;
+		ch_raw->ch_uinfo.sensor_raw_fmt = -1;
 	}
 
 	ch = &module->channel[CAM_CH_CAP];
@@ -5530,6 +5601,9 @@ static int camcore_raw_proc_done(struct camera_module *module)
 	ch->dcam_path_id = -1;
 	ch->isp_path_id = -1;
 	ch->aux_dcam_path_id = -1;
+	ch->ch_uinfo.dcam_raw_fmt = -1;
+	ch->ch_uinfo.sensor_raw_fmt = -1;
+
 	cam_queue_clear(&ch->share_buf_queue, struct camera_frame, list);
 	module->cam_uinfo.dcam_slice_mode = CAM_SLICE_NONE;
 	module->cam_uinfo.slice_num = 0;
@@ -5629,10 +5703,12 @@ static int camcore_raw_pre_proc(
 	}
 	/* not care 4in1 */
 	ch = &module->channel[CAM_CH_CAP];
-		ch->dcam_path_id = -1;
-		ch->isp_ctx_id = -1;
-		ch->isp_path_id = -1;
-		ch->aux_dcam_path_id = -1;
+	ch->dcam_path_id = -1;
+	ch->isp_ctx_id = -1;
+	ch->isp_path_id = -1;
+	ch->aux_dcam_path_id = -1;
+	ch->ch_uinfo.dcam_raw_fmt = -1;
+	ch->ch_uinfo.sensor_raw_fmt = -1;
 	dev = (struct dcam_pipe_dev *)module->dcam_dev_handle;
 	sw_ctx = &dev->sw_ctx[module->offline_cxt_id];
 	if (proc_info->scene == RAW_PROC_SCENE_HWSIM) {
@@ -5693,21 +5769,48 @@ static int camcore_raw_pre_proc(
 		goto get_dcam_path_fail;
 	}
 		ch->dcam_path_id = dcam_path_id;
+
+	dev->sw_ctx[module->offline_cxt_id].fetch.fmt= DCAM_STORE_RAW_BASE;
+
+	if ((ch->ch_uinfo.sensor_raw_fmt >= DCAM_RAW_PACK_10) && (ch->ch_uinfo.sensor_raw_fmt < DCAM_RAW_MAX))
+		dev->sw_ctx[module->offline_cxt_id].pack_bits = ch->ch_uinfo.sensor_raw_fmt;
+	else {
+		dev->sw_ctx[module->offline_cxt_id].pack_bits = hw->ip_dcam[0]->sensor_raw_fmt;
+		if (module->cam_uinfo.dcam_slice_mode && hw->ip_dcam[0]->save_band_for_bigsize)
+			/* for save data band, ultra res not need sensor raw of raw14*/
+			dev->sw_ctx[module->offline_cxt_id].pack_bits = DCAM_RAW_PACK_10;
+		if (dcam_path_id == 0 && module->cam_uinfo.is_4in1 == 1)
+			dev->sw_ctx[module->offline_cxt_id].pack_bits = DCAM_RAW_PACK_10;
+	}
+	ch->ch_uinfo.sensor_raw_fmt = dev->sw_ctx[module->offline_cxt_id].pack_bits;
+
 	/* config dcam path  */
 	memset(&ch_desc, 0, sizeof(ch_desc));
+
 	if(ch->dcam_path_id == 0 && module->cam_uinfo.is_4in1 == 1)
-		ch_desc.pack_bits = 0;
-	else
-		ch_desc.pack_bits = module->cam_uinfo.sensor_if.if_spec.mipi.is_loose;
+		ch_desc.raw_fmt = DCAM_RAW_PACK_10;
+ 	else if ((ch->ch_uinfo.dcam_raw_fmt >= DCAM_RAW_PACK_10) && (ch->ch_uinfo.dcam_raw_fmt < DCAM_RAW_MAX))
+		ch_desc.raw_fmt = ch->ch_uinfo.dcam_raw_fmt;
+	else {
+		ch_desc.raw_fmt = dev->hw->ip_dcam[0]->raw_fmt_support[0];
+		if (dev->sw_ctx[module->cur_sw_ctx_id].dcam_slice_mode && dev->hw->ip_dcam[0]->save_band_for_bigsize)
+			ch_desc.raw_fmt = DCAM_RAW_PACK_10;
+		ch->ch_uinfo.dcam_raw_fmt = ch_desc.raw_fmt;
+	}
 	ch_desc.is_4in1 = module->cam_uinfo.is_4in1;
 	ch_desc.raw_cap = 1;
 	ch_desc.endian.y_endian = ENDIAN_LITTLE;
 	if (hw->prj_id == QOGIRN6pro) {
 		ch_desc.dcam_out_bits = module->cam_uinfo.sensor_if.if_spec.mipi.bits_per_pxl;
 		ch_desc.dcam_out_fmt = DCAM_STORE_YVU420;
-	}
+	} else
+		ch_desc.dcam_out_fmt = DCAM_STORE_RAW_BASE;
+
 	ret = module->dcam_dev_handle->dcam_pipe_ops->cfg_path(sw_ctx,
 		DCAM_PATH_CFG_BASE, ch->dcam_path_id, &ch_desc);
+	pr_debug("dcam fetch packbit %d path%d raw fmt %d, default raw fmt %d\n",
+		dev->sw_ctx[module->offline_cxt_id].pack_bits, ch->dcam_path_id, ch->ch_uinfo.dcam_raw_fmt,
+		 dev->hw->ip_dcam[0]->raw_fmt_support[0]);
 
 	ch_desc.input_size.w = proc_info->src_size.width;
 	ch_desc.input_size.h = proc_info->src_size.height;
@@ -5729,6 +5832,11 @@ static int camcore_raw_pre_proc(
 			goto get_dcam_path_fail;
 		}
 		memcpy(&ch_raw_path_desc, &ch_desc, sizeof(struct dcam_path_cfg_param));
+
+		if (dev->sw_ctx[module->cur_sw_ctx_id].dcam_slice_mode && dev->hw->ip_dcam[0]->save_band_for_bigsize)
+			ch_raw_path_desc.raw_fmt = DCAM_RAW_PACK_10;
+		ch->ch_uinfo.dcam_raw_fmt = ch_raw_path_desc.raw_fmt;
+
 		ch_raw_path_desc.dcam_out_fmt = DCAM_STORE_RAW_BASE;
 		ch_raw_path_desc.is_raw = 0;
 		if ((g_dcam_raw_src >= ORI_RAW_SRC_SEL) && (g_dcam_raw_src < MAX_RAW_SRC_SEL))
@@ -5760,13 +5868,19 @@ static int camcore_raw_pre_proc(
 
 	/* config isp context base */
 	memset(&ctx_desc, 0, sizeof(ctx_desc));
-	ctx_desc.pack_bits = module->cam_uinfo.sensor_if.if_spec.mipi.is_loose;
+	ctx_desc.pack_bits = ch->ch_uinfo.dcam_raw_fmt;
 	ctx_desc.in_fmt = proc_info->src_format;
 	if (hw->prj_id == QOGIRN6pro) {
 		ctx_desc.in_fmt = camcore_format_dcam_translate(ch_desc.dcam_out_fmt);
-		ctx_desc.is_pack = !ch_desc.pack_bits;
 		ctx_desc.data_in_bits = ch_desc.dcam_out_bits;
 	}
+	ch->ch_uinfo.dcam_out_pack= 0;
+	if ((ch_desc.dcam_out_fmt == DCAM_STORE_RAW_BASE) && (ctx_desc.pack_bits == DCAM_RAW_PACK_10))
+		ch->ch_uinfo.dcam_out_pack = 1;
+	if ((ch_desc.dcam_out_fmt & DCAM_STORE_YUV_BASE) && (ch_desc.dcam_out_bits == DCAM_STORE_10_BIT))
+		ch->ch_uinfo.dcam_out_pack = 1;
+
+	ctx_desc.is_pack = ch->ch_uinfo.dcam_out_pack;
 	ctx_desc.bayer_pattern = proc_info->src_pattern;
 	ctx_desc.mode_ltm = MODE_LTM_OFF;
 	ctx_desc.mode_gtm = MODE_GTM_OFF;
@@ -5927,9 +6041,10 @@ static int camcore_raw_post_proc(struct camera_module *module,
 	 * or else we will allocate one for it.
 	 */
 	if(ch->dcam_path_id == 0 && module->cam_uinfo.is_4in1 == 1)
-		pack_bits = 0;
+		pack_bits = DCAM_RAW_PACK_10;
 	else
-		pack_bits = module->cam_uinfo.sensor_if.if_spec.mipi.is_loose;
+		pack_bits = ch->ch_uinfo.dcam_raw_fmt;
+
 	pr_info("day raw_proc_post pack_bits %d", pack_bits);
 	if (proc_info->fd_dst0 > 0) {
 		mid_frame->buf.type = CAM_BUF_USER;
@@ -6111,7 +6226,8 @@ static int camcore_raw_post_proc_new(
 
 	mid_frame = cam_queue_empty_frame_get();
 	mid_frame->channel_id = ch->ch_id;
-	pack_bits = module->cam_uinfo.sensor_if.if_spec.mipi.is_loose;
+	pack_bits = ch->ch_uinfo.dcam_raw_fmt;
+
 	pr_info("day raw_proc_post pack_bits %d", pack_bits);
 	if (proc_info->fd_dst0 > 0) {
 		mid_frame->buf.type = CAM_BUF_USER;
@@ -6661,6 +6777,7 @@ static struct cam_ioctl_cmd ioctl_cmds_table[] = {
 	[_IOC_NR(SPRD_IMG_IO_SET_LONGEXP_CAP)]      = {SPRD_IMG_IO_SET_LONGEXP_CAP,      camioctl_longexp_mode_set},
 	[_IOC_NR(SPRD_IMG_IO_SET_MUL_MAX_SN_SIZE)]  = {SPRD_IMG_IO_SET_MUL_MAX_SN_SIZE,  camioctl_mul_max_sensor_size_set},
 	[_IOC_NR(SPRD_IMG_IO_SET_CAP_ZSL_INFO)]     = {SPRD_IMG_IO_SET_CAP_ZSL_INFO,     camioctl_cap_zsl_info_set},
+	[_IOC_NR(SPRD_IMG_IO_SET_DCAM_RAW_FMT)]     = {SPRD_IMG_IO_SET_DCAM_RAW_FMT,     camioctl_dcam_raw_fmt_set},
 };
 
 static long camcore_ioctl(struct file *file, unsigned int cmd,
@@ -6934,7 +7051,11 @@ rewait:
 		cap->path_info[CAM_CH_VID].support_trim = 1;
 		cap->path_info[CAM_CH_VID].is_scaleing_path = 0;
 		break;
-
+	case SPRD_IMG_GET_DCAM_RAW_CAP:
+		hw = module->grp->hw_info;
+		for (i = 0; i < DCAM_RAW_MAX; i++)
+			read_op.parm.reserved[i] = hw->ip_dcam[0]->raw_fmt_support[i];
+		break;
 	default:
 		pr_err("fail to get valid cmd\n");
 		return -EINVAL;
