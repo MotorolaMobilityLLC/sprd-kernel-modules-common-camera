@@ -45,7 +45,7 @@ void dcam_k_raw_gtm_set_default(struct dcam_dev_rgb_gtm_block_info *p)
 	p->tm_lumafilter_shift = 0x6;
 	p->slice.gtm_slice_line_startpos = 0x0;
 	p->slice.gtm_slice_line_endpos = 0x0;
-	p->slice.gtm_slice_main = 0x0;
+	p->slice.gtm_slice_main = 0x1;
 }
 
 int dcam_k_raw_gtm_slice(uint32_t idx, struct dcam_dev_gtm_slice_info *gtm_slice)
@@ -186,7 +186,7 @@ int dcam_k_raw_gtm_block(uint32_t gtm_param_idx,
 
 	for (i = 0; i < GTM_HIST_XPTS_CNT / 2; i += 2) {
 		val = ((p->tm_hist_xpts[i] & 0x3FFF) << 16) | (p->tm_hist_xpts[i + 1] & 0x3FFF);
-		DCAM_REG_WR(idx, GTM_HIST_XPTS_0 + i * 4, val);
+		DCAM_REG_WR(idx, GTM_HIST_XPTS_0 + i * 2, val);
 	}
 
 	/* for slice */
