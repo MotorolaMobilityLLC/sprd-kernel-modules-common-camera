@@ -2979,7 +2979,6 @@ static int camcore_dcam_callback(enum dcam_cb_type type, void *param, void *priv
 		break;
 
 	case DCAM_CB_RET_SRC_BUF:
-
 		if (pframe->irq_property != CAM_FRAME_COMMON) {
 			pr_info("fdr %d src return, mfd %d\n",
 				pframe->irq_property, pframe->buf.mfd[0]);
@@ -4700,10 +4699,6 @@ static int camcore_aux_dcam_init(struct camera_module *module,
 
 	pr_info("New a aux_dcam, cur_aux_sw_ctx_id: %d, module->dcam_idx:%d\n", module->offline_cxt_id, module->dcam_dev_handle->sw_ctx[module->cur_sw_ctx_id].hw_ctx_id);
 
-	if (dcam == NULL) {
-		pr_err("fail to get aux dcam\n");
-		return -EFAULT;
-	}
 	newdcam = 1;
 
 	ret = module->dcam_dev_handle->dcam_pipe_ops->open(dcam);
@@ -4715,7 +4710,10 @@ static int camcore_aux_dcam_init(struct camera_module *module,
 	opened = 1;
 
 get_path:
-	dcam_path_id = DCAM_PATH_BIN;
+	if (grp->hw_info->prj_id == QOGIRL6)
+		dcam_path_id = DCAM_PATH_FULL;
+	else
+		dcam_path_id = DCAM_PATH_BIN;
 	ret = module->dcam_dev_handle->dcam_pipe_ops->get_path(&dcam->sw_ctx[module->offline_cxt_id], dcam_path_id);
 	if (ret < 0) {
 		pr_err("fail to get dcam path %d\n", dcam_path_id);
