@@ -1650,7 +1650,7 @@ static int camioctl_stream_on(struct camera_module *module,
 
 	/* settle down compression policy here */
 	camcore_compression_cal(module);
-	if (g_pyr_dec_online_bypass || (sw_ctx->cap_info.format == DCAM_CAP_MODE_YUV))
+	if (g_pyr_dec_online_bypass || (module->cam_uinfo.sensor_if.img_fmt == DCAM_CAP_MODE_YUV))
 		module->cam_uinfo.is_pyr_rec = 0;
 	else
 		module->cam_uinfo.is_pyr_rec = hw->ip_dcam[sw_ctx->hw_ctx_id]->pyramid_support;
