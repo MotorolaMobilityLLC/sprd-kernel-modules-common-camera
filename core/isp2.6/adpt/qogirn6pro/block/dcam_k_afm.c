@@ -36,6 +36,8 @@ int dcam_k_afm_block(struct dcam_dev_param *param)
 		return -1;
 
 	idx = param->idx;
+	if (idx >= DCAM_HW_CONTEXT_MAX)
+		return 0;
 	p = &(param->afm.af_param);
 
 	val = (p->afm_iir_enable & 0x1) |
@@ -121,6 +123,8 @@ int dcam_k_afm_bypass(struct dcam_dev_param *param)
 		return -1;
 
 	idx = param->idx;
+	if (idx >= DCAM_HW_CONTEXT_MAX)
+		return 0;
 	DCAM_REG_MWR(idx, DCAM_AFM_FRM_CTRL, BIT_0, param->afm.bypass);
 
 	return ret;
@@ -136,6 +140,8 @@ int dcam_k_afm_win(struct dcam_dev_param *param)
 		return -1;
 
 	idx = param->idx;
+	if (idx >= DCAM_HW_CONTEXT_MAX)
+		return 0;
 	p = &(param->afm.win);
 	DCAM_REG_WR(idx, DCAM_AFM_WIN_RANGE0S,
 			(p->y & 0x1FFF) << 16 | (p->x & 0x1FFF));
@@ -156,6 +162,8 @@ int dcam_k_afm_win_num(struct dcam_dev_param *param)
 		return -1;
 
 	idx = param->idx;
+	if (idx >= DCAM_HW_CONTEXT_MAX)
+		return 0;
 	p = &(param->afm.win_num);
 
 	DCAM_REG_WR(idx, DCAM_AFM_WIN_RANGE1S,
@@ -174,6 +182,8 @@ int dcam_k_afm_mode(struct dcam_dev_param *param)
 		return -1;
 
 	idx = param->idx;
+	if (idx >= DCAM_HW_CONTEXT_MAX)
+		return 0;
 	mode = param->afm.mode;
 	DCAM_REG_MWR(idx, DCAM_AFM_FRM_CTRL,
 		BIT_2, mode << 2);
@@ -198,6 +208,8 @@ int dcam_k_afm_skipnum(struct dcam_dev_param *param)
 		return -1;
 
 	idx = param->idx;
+	if (idx >= DCAM_HW_CONTEXT_MAX)
+		return 0;
 	if (param->is_high_fps)
 		param->afm.skip_num = 0;
 	skip_num = param->afm.skip_num;
@@ -222,6 +234,8 @@ int dcam_k_afm_crop_eb(struct dcam_dev_param *param)
 		return -1;
 
 	idx = param->idx;
+	if (idx >= DCAM_HW_CONTEXT_MAX)
+		return 0;
 	crop_eb = param->afm.crop_eb;
 	DCAM_REG_MWR(idx, DCAM_CROP3_CTRL, BIT_0, !crop_eb);
 
@@ -238,6 +252,8 @@ int dcam_k_afm_crop_size(struct dcam_dev_param *param)
 		return -1;
 
 	idx = param->idx;
+	if (idx >= DCAM_HW_CONTEXT_MAX)
+		return 0;
 	crop_size = param->afm.crop_size;
 
 	DCAM_REG_WR(idx, DCAM_CROP3_START,
@@ -261,6 +277,8 @@ int dcam_k_afm_done_tilenum(struct dcam_dev_param *param)
 		return -1;
 
 	idx = param->idx;
+	if (idx >= DCAM_HW_CONTEXT_MAX)
+		return 0;
 	done_tile_num = param->afm.done_tile_num;
 
 	val = ((done_tile_num.width & 0x1F) << 12) |

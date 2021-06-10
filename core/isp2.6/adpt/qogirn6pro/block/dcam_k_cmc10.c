@@ -37,6 +37,8 @@ int dcam_k_cmc10_block(struct dcam_dev_param *param)
 		return 0;
 
 	idx = param->idx;
+	if (idx >= DCAM_HW_CONTEXT_MAX)
+		return 0;
 	cmc10_info = &param->cmc10_info;
 	if (idx >= DCAM_HW_CONTEXT_MAX)
 		return 0;

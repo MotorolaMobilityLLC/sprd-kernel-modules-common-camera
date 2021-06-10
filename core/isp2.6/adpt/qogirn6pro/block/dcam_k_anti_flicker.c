@@ -88,6 +88,8 @@ int dcam_k_afl_block(struct dcam_dev_param *param)
 		return -1;
 
 	idx = param->idx;
+	if (idx >= DCAM_HW_CONTEXT_MAX)
+		return 0;
 	p = &(param->afl.afl_info);
 
 	pr_debug("cfg afl bypass %d, mode %d %d %d\n",
@@ -151,6 +153,8 @@ int dcam_k_afl_bypass(struct dcam_dev_param *param)
 		return -1;
 
 	idx = param->idx;
+	if (idx >= DCAM_HW_CONTEXT_MAX)
+		return 0;
 	mode = (DCAM_REG_RD(idx, ISP_AFL_PARAM0) >> 1) & 1;
 	pr_debug("afl bypass %d, mode %d\n", param->afl.afl_info.bypass, mode);
 

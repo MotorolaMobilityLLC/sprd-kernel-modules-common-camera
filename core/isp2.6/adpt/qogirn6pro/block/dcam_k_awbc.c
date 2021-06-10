@@ -36,6 +36,8 @@ int dcam_k_awbc_block(struct dcam_dev_param *param)
 		return -EPERM;
 
 	idx = param->idx;
+	if (idx >= DCAM_HW_CONTEXT_MAX)
+		return 0;
 	p = &(param->awbc.awbc_info);
 	DCAM_REG_MWR(idx, DCAM_AWBC_GAIN0, BIT_31,
 			((p->awbc_bypass & 1) << 31));
@@ -83,6 +85,8 @@ int dcam_k_awbc_gain(struct dcam_dev_param *param)
 		return -EPERM;
 
 	idx = param->idx;
+	if (idx >= DCAM_HW_CONTEXT_MAX)
+		return 0;
 	p = &(param->awbc.awbc_info.gain);
 	val = ((p->b & 0x3FFF) << 16) |
 		(p->r & 0x3FFF);
@@ -103,6 +107,8 @@ int dcam_k_awbc_bypass(struct dcam_dev_param *param)
 	uint32_t bypass = 0;
 
 	idx = param->idx;
+	if (idx >= DCAM_HW_CONTEXT_MAX)
+		return 0;
 	bypass = param->awbc.awbc_info.awbc_bypass;
 	DCAM_REG_MWR(idx, DCAM_AWBC_GAIN0, BIT_31, bypass << 31);
 

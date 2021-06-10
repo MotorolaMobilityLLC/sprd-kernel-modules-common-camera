@@ -34,6 +34,8 @@ int dcam_k_bpc_block(struct dcam_dev_param *param)
 	struct dcam_dev_bpc_info_v1 *p;
 
 	idx = param->idx;
+	if (idx >= DCAM_HW_CONTEXT_MAX)
+		return 0;
 	p = &(param->bpc_n6pro.bpc_param_n6pro.bpc_info);
 
 	/* debugfs bpc not bypass then write*/
@@ -122,6 +124,8 @@ int dcam_k_bpc_ppe_param(struct dcam_dev_param *param)
 	uint32_t val = 0;
 	struct dcam_bpc_ppi_info *p;
 
+	if (idx >= DCAM_HW_CONTEXT_MAX)
+		return 0;
 	p = &(param->bpc.ppi_info);
 
 	val = (p->ppi_phase_map_corr_en & 1) << 3;

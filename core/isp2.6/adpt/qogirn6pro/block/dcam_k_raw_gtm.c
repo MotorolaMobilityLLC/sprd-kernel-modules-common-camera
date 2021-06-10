@@ -78,6 +78,8 @@ int dcam_k_raw_gtm_block(uint32_t gtm_param_idx,
 	gtm = &param->rgb_gtm[DCAM_GTM_PARAM_PRE];
 	sw_ctx = (struct dcam_sw_context *)param->dev;
 	p = &(gtm->rgb_gtm_info);
+	if (idx >= DCAM_HW_CONTEXT_MAX)
+		return 0;
 
 	pr_debug("dcam%d gtm_param_idx %d update_en %d map_bypass %d stat_bypass %d\n",
 		idx, gtm_param_idx, gtm->update_en, p->gtm_map_bypass, p->gtm_hist_stat_bypass);

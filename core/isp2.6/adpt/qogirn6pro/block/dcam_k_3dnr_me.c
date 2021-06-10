@@ -147,6 +147,8 @@ int dcam_k_3dnr_me(struct dcam_dev_param *param)
 		return -EPERM;
 
 	idx = param->idx;
+	if (idx >= DCAM_HW_CONTEXT_MAX)
+		return 0;
 	dev = (struct dcam_sw_context *)param->dev;
 
 	/* debugfs bypass nr3 */

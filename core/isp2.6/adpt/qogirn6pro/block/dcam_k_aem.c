@@ -38,6 +38,8 @@ int dcam_k_aem_bypass(struct dcam_dev_param *param)
 		return -EPERM;
 
 	idx = param->idx;
+	if (idx >= DCAM_HW_CONTEXT_MAX)
+		return 0;
 	DCAM_REG_MWR(idx, DCAM_AEM_FRM_CTRL0, BIT_0,
 		param->aem.bypass & BIT_0);
 
@@ -54,6 +56,8 @@ int dcam_k_aem_mode(struct dcam_dev_param *param)
 		return -1;
 
 	idx = param->idx;
+	if (idx >= DCAM_HW_CONTEXT_MAX)
+		return 0;
 	mode = param->aem.mode;
 	DCAM_REG_MWR(idx, DCAM_AEM_FRM_CTRL0, BIT_2, mode << 2);
 
@@ -84,6 +88,8 @@ int dcam_k_aem_win(struct dcam_dev_param *param)
 	param->aem.update &= (~(_UPDATE_WIN));
 
 	idx = param->idx;
+	if (idx >= DCAM_HW_CONTEXT_MAX)
+		return 0;
 	p = &(param->aem.win_info);
 
 	val = ((p->offset_y & 0x1FFF) << 16) |
@@ -118,6 +124,8 @@ int dcam_k_aem_skip_num(struct dcam_dev_param *param)
 	 * TODO: handle skip_num not equal to slowmotion_count - 1
 	 */
 	idx = param->idx;
+	if (idx >= DCAM_HW_CONTEXT_MAX)
+		return 0;
 	pr_debug("dcam%d skip_num %d, is high fps %d\n", idx, param->aem.skip_num, param->is_high_fps);
 
 	if (param->is_high_fps)
@@ -147,6 +155,8 @@ int dcam_k_aem_rgb_thr(struct dcam_dev_param *param)
 		return -1;
 
 	idx = param->idx;
+	if (idx >= DCAM_HW_CONTEXT_MAX)
+		return 0;
 	p = &(param->aem.aem_info);
 	val = ((p->aem_r_thr.low_thr & 0x3FF) << 16) |
 		(p->aem_r_thr.high_thr & 0x3FF);

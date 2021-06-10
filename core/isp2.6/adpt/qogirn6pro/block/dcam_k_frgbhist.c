@@ -40,6 +40,8 @@ int dcam_k_frgbhist_block(struct dcam_dev_param *param)
 		return -1;
 
 	idx = param->idx;
+	if (idx >= DCAM_HW_CONTEXT_MAX)
+		return 0;
 	p = &(param->hist_roi.hist_roi_info);
 
 	pr_debug("dcam%d, frgb hist roi bypass:%d (%d %d %d %d)\n", idx,
@@ -90,6 +92,8 @@ int dcam_k_frgbhist_roi(struct dcam_dev_param *param)
 	if (param == NULL)
 		return -1;
 	idx = param->idx;
+	if (idx >= DCAM_HW_CONTEXT_MAX)
+		return 0;
 
 	/* update ? */
 	if (!(param->hist_roi.update & _UPDATE_ROI))

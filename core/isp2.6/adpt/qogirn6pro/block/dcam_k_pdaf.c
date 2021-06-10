@@ -120,6 +120,8 @@ static int isp_k_pdaf_type3_block(
 	}
 
 	idx = p->idx;
+	if (idx >= DCAM_HW_CONTEXT_MAX)
+		return 0;
 	p->pdaf.pdaf_type = DCAM_PDAF_TYPE3;
 	if (idx == DCAM_HW_CONTEXT_MAX)
 		return 0;
@@ -364,6 +366,8 @@ int dcam_k_pdaf(struct dcam_dev_param *p)
 	struct pdaf_ppi_info *ppi_info = &p->pdaf.ppi_info;
 	struct pdaf_roi_info *roi_info = &p->pdaf.roi_info;
 
+	if (idx >= DCAM_HW_CONTEXT_MAX)
+		return 0;
 	if (p->pdaf.pdaf_type == DCAM_PDAF_TYPE3)
 		DCAM_REG_MWR(p->idx, ISP_PPI_PARAM, BIT_0, bypass);
 	else

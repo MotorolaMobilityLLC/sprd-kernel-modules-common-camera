@@ -37,6 +37,8 @@ int dcam_k_lscm_bypass(struct dcam_dev_param *param)
 		return -1;
 
 	idx = param->idx;
+	if (idx >= DCAM_HW_CONTEXT_MAX)
+		return 0;
 	DCAM_REG_MWR(idx, DCAM_LSCM_FRM_CTRL0, BIT_0,
 		param->lscm.bypass & BIT_0);
 
@@ -54,6 +56,8 @@ int dcam_k_lscm_monitor(struct dcam_dev_param *param)
 		return -1;
 
 	idx = param->idx;
+	if (idx >= DCAM_HW_CONTEXT_MAX)
+		return 0;
 	DCAM_REG_MWR(idx, DCAM_LSCM_FRM_CTRL0, BIT_0, 0);
 
 	mode = param->lscm.mode;

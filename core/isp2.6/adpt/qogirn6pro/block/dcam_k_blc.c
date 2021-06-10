@@ -36,6 +36,8 @@ int dcam_k_blc_block(struct dcam_dev_param *param)
 		return -EPERM;
 
 	idx = param->idx;
+	if (idx >= DCAM_HW_CONTEXT_MAX)
+		return 0;
 	p = &(param->blc.blc_info);
 	DCAM_REG_MWR(idx, DCAM_BLC_PARA, BIT_0, (p->bypass) & 1);
 	if (p->bypass)

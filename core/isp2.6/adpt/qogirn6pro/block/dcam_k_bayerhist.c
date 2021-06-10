@@ -39,6 +39,8 @@ int dcam_k_bayerhist_block(struct dcam_dev_param *param)
 		return -1;
 
 	idx = param->idx;
+	if (idx >= DCAM_HW_CONTEXT_MAX)
+		return 0;
 	p = &(param->hist.bayerHist_info);
 	DCAM_REG_MWR(idx, DCAM_BAYER_HIST_CTRL0, BIT_0, p->hist_bypass);
 	if (p->hist_bypass)
@@ -83,6 +85,8 @@ int dcam_k_bayerhist_roi(struct dcam_dev_param *param)
 	if (param == NULL)
 		return -1;
 	idx = param->idx;
+	if (idx >= DCAM_HW_CONTEXT_MAX)
+		return 0;
 
 	/* update ? */
 	if (!(param->hist.update & _UPDATE_ROI))
@@ -114,6 +118,8 @@ int dcam_k_bayerhist_bypass(struct dcam_dev_param *p)
 	uint32_t idx = p->idx;
 	uint32_t bypass = 0;
 
+	if (idx >= DCAM_HW_CONTEXT_MAX)
+		return 0;
 	bypass = p->hist.bayerHist_info.hist_bypass;
 	DCAM_REG_MWR(idx, DCAM_BAYER_HIST_CTRL0, BIT_0, bypass);
 
