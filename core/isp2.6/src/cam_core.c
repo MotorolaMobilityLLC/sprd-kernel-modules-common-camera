@@ -5715,7 +5715,7 @@ static int camcore_raw_pre_proc(
 	ret = module->dcam_dev_handle->dcam_pipe_ops->cfg_path(sw_ctx,
 		DCAM_PATH_CFG_SIZE, ch->dcam_path_id, &ch_desc);
 
-	if ((hw->ip_dcam[0]->dcam_raw_path_id == DCAM_PATH_RAW) && (proc_info->scene != RAW_PROC_SCENE_HWSIM)) {
+	if (hw->ip_dcam[0]->dcam_raw_path_id == DCAM_PATH_RAW){
 		ret = module->dcam_dev_handle->dcam_pipe_ops->get_path(
 			&module->dcam_dev_handle->sw_ctx[module->offline_cxt_id], DCAM_PATH_RAW);
 		if (ret) {
