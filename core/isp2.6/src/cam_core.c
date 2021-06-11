@@ -2325,7 +2325,7 @@ static int camcore_isp_callback(enum isp_cb_type type, void *param, void *priv_d
 
 	if ((pframe->fid & 0x3F) == 0)
 		pr_debug("cam %d, module %p, frame %p, ch %d\n",
-		module->idx, module, pframe, pframe->channel_id);
+			module->idx, module, pframe, pframe->channel_id);
 
 	switch (type) {
 	case ISP_CB_RET_SRC_BUF:
@@ -3935,7 +3935,7 @@ static int camcore_channel_size_config(
 	ch_desc.input_size.h = ch_uinfo->src_size.h;
 	if ((channel->ch_id == CAM_CH_CAP) || (channel->ch_id == CAM_CH_RAW)) {
 		/* PYR_DEC: crop by dcam; Normal:no trim in dcam full path. */
-		if (module->cam_uinfo.is_pyr_dec) {
+		if (module->cam_uinfo.is_pyr_dec && channel->ch_id == CAM_CH_CAP) {
 			ch_desc.input_trim = channel->trim_dcam;
 			ch_desc.output_size.w = channel->trim_dcam.size_x;
 			ch_desc.output_size.h = channel->trim_dcam.size_y;
@@ -4416,8 +4416,8 @@ static int camcore_channel_init(struct camera_module *module,
 			else
 				ctx_desc.in_fmt = camcore_format_dcam_translate(ch_desc.dcam_out_fmt);
 		}
-                ctx_desc.is_pack= !ch_desc.pack_bits;
-                ctx_desc.data_in_bits = ch_desc.dcam_out_bits;
+		ctx_desc.is_pack= !ch_desc.pack_bits;
+		ctx_desc.data_in_bits = ch_desc.dcam_out_bits;
 		ctx_desc.pack_bits = module->cam_uinfo.sensor_if.if_spec.mipi.is_loose;
 		ctx_desc.bayer_pattern = module->cam_uinfo.sensor_if.img_ptn;
 		ctx_desc.mode_ltm = MODE_LTM_OFF;

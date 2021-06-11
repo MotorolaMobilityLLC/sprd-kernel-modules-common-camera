@@ -1879,7 +1879,7 @@ static void scaler_init(yuvscaler_param_t *core_param, struct alg_slice_scaler_o
 		core_param->output_align_ver = 2;
 	} else if (core_param->output_pixfmt == YUV420) {
 		core_param->output_align_hor = in_param_ptr->output_align_hor;
-		core_param->output_align_ver = 4;
+		core_param->output_align_ver = 2;
 		if (in_param_ptr->scaler_id == SCALER_DCAM_PRV) {
 			if (in_param_ptr->FBC_enable && in_param_ptr->dec_online_bypass) {
 				core_param->output_align_hor = AFBC_PADDING_W_YUV420_scaler;
@@ -1912,6 +1912,13 @@ static void scaler_init(yuvscaler_param_t *core_param, struct alg_slice_scaler_o
 	yuv_scaler_init_frame_info(core_param);
 	core_param->scaler_info.input_pixfmt = core_param->input_pixfmt;
 	core_param->scaler_info.output_pixfmt = core_param->output_pixfmt;
+	/* driver add for scaler tap */
+	if (!core_param->bypass && core_param->scaler_info.scaler_en) {
+		core_param->scaler_info.scaler_y_hor_tap = in_param_ptr->scaler_y_hor_tap;
+		core_param->scaler_info.scaler_uv_hor_tap = in_param_ptr->scaler_uv_hor_tap;
+		core_param->scaler_info.scaler_y_ver_tap = in_param_ptr->scaler_y_ver_tap;
+		core_param->scaler_info.scaler_uv_ver_tap = in_param_ptr->scaler_uv_ver_tap;
+	}
 }
 
 static void scaler_calculate_region(const struct alg_slice_regions *r_ref,

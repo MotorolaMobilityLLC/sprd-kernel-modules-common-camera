@@ -2542,6 +2542,12 @@ int isp_init_param_for_overlap_v2(
 		slice_overlap->scaler1.des_size_x, slice_overlap->scaler1.des_size_y,
 		slice_overlap->scaler1.scaler_en, slice_overlap->scaler1.yuv_output_format,
 		slice_overlap->scaler1.output_align_hor);
+	slice_overlap->scaler1.scaler_y_hor_tap = slice_input->calc_dyn_ov.path_scaler[ISP_SPATH_CP]->scaler.scaler_y_hor_tap;
+	slice_overlap->scaler1.scaler_uv_hor_tap = slice_input->calc_dyn_ov.path_scaler[ISP_SPATH_CP]->scaler.scaler_uv_hor_tap;
+	slice_overlap->scaler1.scaler_y_ver_tap = slice_input->calc_dyn_ov.path_scaler[ISP_SPATH_CP]->scaler.scaler_y_ver_tap;
+	slice_overlap->scaler1.scaler_uv_ver_tap = slice_input->calc_dyn_ov.path_scaler[ISP_SPATH_CP]->scaler.scaler_uv_ver_tap;
+	pr_debug("scaler tap %d %d %d %d\n", slice_overlap->scaler1.scaler_y_hor_tap, slice_overlap->scaler1.scaler_uv_hor_tap,
+		slice_overlap->scaler1.scaler_y_ver_tap, slice_overlap->scaler1.scaler_uv_ver_tap);
 
 	/* scaler2 */
 	slice_overlap->scaler2.bypass = slice_input->calc_dyn_ov.path_scaler[ISP_SPATH_VID]->scaler.scaler_bypass;
@@ -2592,6 +2598,10 @@ int isp_init_param_for_overlap_v2(
 		config_output_align_hor = 8;
 	}
 	slice_overlap->scaler2.output_align_hor = config_output_align_hor;
+	slice_overlap->scaler2.scaler_y_hor_tap = slice_input->calc_dyn_ov.path_scaler[ISP_SPATH_VID]->scaler.scaler_y_hor_tap;
+	slice_overlap->scaler2.scaler_uv_hor_tap = slice_input->calc_dyn_ov.path_scaler[ISP_SPATH_VID]->scaler.scaler_uv_hor_tap;
+	slice_overlap->scaler2.scaler_y_ver_tap = slice_input->calc_dyn_ov.path_scaler[ISP_SPATH_VID]->scaler.scaler_y_ver_tap;
+	slice_overlap->scaler2.scaler_uv_ver_tap = slice_input->calc_dyn_ov.path_scaler[ISP_SPATH_VID]->scaler.scaler_uv_ver_tap;
 
 	/* TBD: thumbnail scaler need to debug */
 	slice_overlap->thumbnailscaler.bypass = slice_input->calc_dyn_ov.thumb_scaler->scaler_bypass;

@@ -1401,7 +1401,7 @@ static int ispslice_scaler_info_calc_cfg(
 				slice_ctx->slices[i].slice_scaler[j].trim1_size_x = sliceParam->trim1_info.trim_size_x;
 				slice_ctx->slices[i].slice_scaler[j].trim1_size_y = sliceParam->trim1_info.trim_size_y;
 
-				pr_info("scaler_bypass: path %d, slice_id %d, trim1 size_x %d, size_y %d\n",
+				pr_debug("scaler_bypass: path %d, slice_id %d, trim1 size_x %d, size_y %d\n",
 					j, i, sliceParam->trim1_info.trim_size_x, sliceParam->trim1_info.trim_size_y);
 			} else {
 				slice_ctx->slices[i].slice_scaler[j].trim0_start_x = sliceParam->trim0_info.trim_start_x;

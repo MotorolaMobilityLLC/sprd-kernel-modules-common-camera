@@ -2553,7 +2553,7 @@ static int camioctl_raw_proc(struct camera_module *module,
 		pr_err("fail to init hw resource.\n");
 		return -EFAULT;
 	}
-	if (proc_info.scene  == RAW_PROC_SCENE_HWSIM_NEW) {
+	if (proc_info.scene == RAW_PROC_SCENE_HWSIM_NEW) {
 		ret = camcore_raw_post_proc_new(module, &proc_info);
 		return ret;
 	}

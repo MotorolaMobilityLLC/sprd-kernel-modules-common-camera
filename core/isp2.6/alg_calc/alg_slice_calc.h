@@ -120,6 +120,12 @@ struct alg_slice_scaler_overlap {
 	int dec_online_bypass;
 	int layerNum;
 
+	/* driver add for scaler tap */
+	uint8_t scaler_y_hor_tap;
+	uint8_t scaler_y_ver_tap; /*Y Vertical tap of scaling*/
+	uint8_t scaler_uv_hor_tap;
+	uint8_t scaler_uv_ver_tap;
+
 	scaler_overlap_t input_scaler_overlap;
 	scaler_overlap_t output_scaler_overlap[PIPE_MAX_SLICE_NUM];
 	slice_drv_scaler_phase_info phase[PIPE_MAX_SLICE_NUM];
