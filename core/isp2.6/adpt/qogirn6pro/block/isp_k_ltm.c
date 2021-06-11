@@ -43,7 +43,6 @@ static void isp_ltm_config_hists(uint32_t idx,
 		return;
 	}
 
-	pr_debug("isp %d rgb ltm hist bypass %d\n", idx, hists->bypass);
 	if (g_isp_bypass[idx] & (1 << _EISP_LTM))
 		hists->bypass = 1;
 	ISP_REG_MWR(idx, ISP_LTM_PARAMETERS, BIT_0, hists->bypass);
@@ -105,7 +104,6 @@ static void isp_ltm_config_map(uint32_t idx,
 		return;
 	}
 
-	pr_debug("isp %d rgb ltm map bypass %d\n", idx, map->bypass);
 	if (g_isp_bypass[idx] & (1 << _EISP_LTM))
 		map->bypass = 1;
 	ISP_REG_MWR(idx, ISP_LTM_MAP_PARAM0, BIT_0, map->bypass);
@@ -142,6 +140,7 @@ static void isp_ltm_config_map(uint32_t idx,
 
 	val = (map->hist_pitch & 0x7) << 24;
 	ISP_REG_WR(idx, ISP_LTM_MAP_PARAM5, val);
+
 }
 
 int isp_ltm_config_param(void *handle)
@@ -165,6 +164,8 @@ int isp_ltm_config_param(void *handle)
 		map->bypass = 1;
 	}
 
+	pr_debug("isp ctx_id %d hist bypass %d map bypass %d\n", idx, hists->bypass, map->bypass);
+
 	isp_ltm_config_hists(idx, ctx->ltm_id, hists);
 	isp_ltm_config_map(idx, ctx->ltm_id, map);
 
@@ -187,8 +188,7 @@ int isp_k_ltm_rgb_block(struct isp_io_param *param,
 		return -EPERM;
 	}
 
-	pr_debug("isp %d ltm hist %d map %d\n",
-		idx, p->ltm_stat.bypass, p->ltm_map.bypass);
+	pr_debug("isp %d ltm hist %d map %d\n", idx, p->ltm_stat.bypass, p->ltm_map.bypass);
 
 	return ret;
 }
@@ -197,7 +197,6 @@ int isp_k_cfg_rgb_ltm(struct isp_io_param *param,
 		struct isp_k_block *isp_k_param, uint32_t idx)
 {
 	int ret = 0;
-
 	switch (param->property) {
 	case ISP_PRO_RGB_LTM_BLOCK:
 		ret = isp_k_ltm_rgb_block(param, isp_k_param, idx);

@@ -1900,7 +1900,7 @@ static int dcamhw_gtm_ltm_eb(void *handle, void *arg)
 	DCAM_REG_MWR(eb->dcam_idx, DCAM_GTM_GLB_CTRL, BIT_0, g_gtm_bypass);
 
 	g_isp_bypass[eb->isp_idx] &= (~(1 << _EISP_LTM));
-	ISP_REG_MWR(eb->isp_idx, ISP_LTM_MAP_RGB_BASE + ISP_LTM_MAP_PARAM0, BIT_0, g_ltm_bypass);
+	ISP_REG_MWR(eb->isp_idx, ISP_LTM_MAP_PARAM0, BIT_0, g_ltm_bypass);
 	pr_debug("gtm dis %d ltm dis %d\n", g_ltm_bypass, g_ltm_bypass);
 
 	return 0;
@@ -1922,9 +1922,9 @@ static int dcamhw_gtm_ltm_dis(void *handle, void *arg)
 	DCAM_REG_MWR(dis->dcam_idx, DCAM_GTM_GLB_CTRL, BIT_0, 1);
 
 	g_isp_bypass[dis->isp_idx] |= (1 << _EISP_LTM);
-	g_ltm_bypass = ISP_REG_RD(dis->isp_idx, ISP_LTM_MAP_RGB_BASE + ISP_LTM_MAP_PARAM0) & BIT_0;
+	g_ltm_bypass = ISP_REG_RD(dis->isp_idx, ISP_LTM_MAP_PARAM0) & BIT_0;
 
-	ISP_REG_MWR(dis->isp_idx, ISP_LTM_MAP_RGB_BASE + ISP_LTM_MAP_PARAM0, BIT_0, 1);
+	ISP_REG_MWR(dis->isp_idx, ISP_LTM_MAP_PARAM0, BIT_0, 1);
 	pr_debug("gtm dis %d ltm dis %d\n", g_gtm_bypass, g_ltm_bypass);
 
 	return 0;

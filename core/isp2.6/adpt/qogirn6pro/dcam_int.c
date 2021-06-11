@@ -1381,7 +1381,7 @@ static irqreturn_t dcamint_isr_root(int irq, void *priv)
 	}
 
 	/* TODO ignore DCAM_AFM_INTREQ0 now */
-	status &= ~BIT(DCAM_IF_IRQ_INT0_AFM_INTREQ0);
+	status &= ~(BIT(DCAM_IF_IRQ_INT0_AFM_INTREQ0) | BIT(DCAM_IF_IRQ_INT0_GTM_DONE));
 
 	if (unlikely(status))
 		pr_warn("DCAM%u unhandled int0 bit0x%x\n", dcam_hw_ctx->hw_ctx_id, status);

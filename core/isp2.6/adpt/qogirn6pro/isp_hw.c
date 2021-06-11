@@ -2158,21 +2158,21 @@ static int isphw_ltm_slice_set(void *handle, void *arg)
 		return -1;
 	}
 
-	addr = ISP_GET_REG(base + ISP_LTM_MAP_PARAM1);
+	addr = ISP_GET_REG(ISP_LTM_MAP_PARAM1);
 	cmd = ((map->tile_num_y & 0x7) << 28) |
 		((map->tile_num_x & 0x7) << 24) |
-		((map->tile_height & 0x3FF) << 12) |
-		(map->tile_width & 0x3FF);
+		((map->tile_height & 0x7FF) << 12) |
+		(map->tile_width & 0x7FF);
 	FMCU_PUSH(fmcu, addr, cmd);
 
-	addr = ISP_GET_REG(base + ISP_LTM_MAP_PARAM3);
-	cmd = ((map->tile_right_flag & 0x1) << 23) |
-		((map->tile_start_y & 0x7FF) << 12) |
-		((map->tile_left_flag & 0x1) << 11) |
-		(map->tile_start_x & 0x7FF);
+	addr = ISP_GET_REG(ISP_LTM_MAP_PARAM3);
+	cmd = ((map->tile_right_flag & 0x1) << 31) |
+		((map->tile_start_y & 0xFFF) << 16) |
+		((map->tile_left_flag & 0x1) << 15) |
+		(map->tile_start_x & 0xFFF);
 	FMCU_PUSH(fmcu, addr, cmd);
 
-	addr = ISP_GET_REG(base + ISP_LTM_MAP_PARAM4);
+	addr = ISP_GET_REG(ISP_LTM_MAP_PARAM4);
 	cmd = map->mem_addr;
 	FMCU_PUSH(fmcu, addr, cmd);
 

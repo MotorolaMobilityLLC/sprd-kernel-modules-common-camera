@@ -460,15 +460,8 @@ static void ispltm_rgb_map_dump_data_rtl(ltm_param_t *param_map,
 	param_map_rtl->tile_right_flag_rtl = tile_right_flag;
 }
 
-static int ispltm_histo_param_calc(ltm_param_t *param_histo)
+static int ispltm_histo_param_calc(ltm_param_t *param_histo, uint32_t alignment)
 {
-#if 0
-	uint8 min_tile_num, binning_factor, max_tile_col, min_tile_row,	tile_num_x, tile_num_y;
-	uint8 cropRows, cropCols, cropUp, cropLeft, cropRight;
-	uint16 min_tile_width, max_tile_height, tile_width, tile_height;
-	uint16 clipLimit_min, clipLimit;
-	uint8 strength = param_histo->strength;
-#else
 	uint32_t max_tile_col, min_tile_row;
 	uint32_t tile_num_x, tile_num_y;
 	uint32_t cropRows, cropCols, cropUp, cropLeft, cropRight, cropDown;
@@ -477,7 +470,7 @@ static int ispltm_histo_param_calc(ltm_param_t *param_histo)
 	uint32_t strength = param_histo->strength;
 	uint32_t frame_width = param_histo->frame_width;
 	uint32_t frame_height = param_histo->frame_height;
-#endif
+
 	ispltm_binning_factor_calc(param_histo);
 
 	frame_width = param_histo->frame_width;
@@ -489,7 +482,7 @@ static int ispltm_histo_param_calc(ltm_param_t *param_histo)
 
 		max_tile_col = MAX(MIN(frame_width / (TILE_WIDTH_MIN * 2) * 2,
 				TILE_NUM_MAX), TILE_NUM_MIN);
-		min_tile_width = frame_width / (max_tile_col * 2) * 2;
+		min_tile_width = frame_width / (max_tile_col * alignment) * alignment;
 		max_tile_height = TILE_MAX_SIZE / (min_tile_width * 2) * 2;
 		/*
 		 * min_tile_row = (uint8)MAX(MIN(ceil((float)frame_height /
@@ -502,7 +495,7 @@ static int ispltm_histo_param_calc(ltm_param_t *param_histo)
 		tile_num_x = MIN(MAX(((tile_num_y * frame_width / frame_height) / 2) * 2,
 				TILE_NUM_MIN), max_tile_col);
 
-		tile_width = frame_width / (2 * tile_num_x) * 2;
+		tile_width = frame_width / (alignment * tile_num_x) * alignment;
 		tile_height = frame_height / (2 * tile_num_y) * 2;
 
 		while (tile_width * tile_height >= TILE_MAX_SIZE) {
@@ -510,13 +503,13 @@ static int ispltm_histo_param_calc(ltm_param_t *param_histo)
 			tmp = ((tile_num_y * frame_width / frame_height) / 2) * 2;
 			tile_num_x = MIN(MAX(tmp, TILE_NUM_MIN), max_tile_col);
 
-			tile_width = frame_width / (2 * tile_num_x) * 2;
+			tile_width = frame_width / (alignment * tile_num_x) * alignment;
 			tile_height = frame_height / (2 * tile_num_y) * 2;
 		}
 	} else {
 		tile_num_x = param_histo->tile_num_x;
 		tile_num_y = param_histo->tile_num_y;
-		tile_width = frame_width / (2 * tile_num_x) * 2;
+		tile_width = frame_width / (alignment * tile_num_x) * alignment;
 		tile_height = frame_height / (2 * tile_num_y) * 2;
 	}
 
@@ -543,7 +536,6 @@ static int ispltm_histo_param_calc(ltm_param_t *param_histo)
 	param_histo->frame_height = frame_height;
 	param_histo->clipLimit = clipLimit;
 	param_histo->clipLimit_min = clipLimit_min;
-	/* param_histo->binning_en = binning_factor; */
 	param_histo->tile_num_x = tile_num_x;
 	param_histo->tile_num_y = tile_num_y;
 	param_histo->tile_size = tile_width * tile_height;
@@ -586,7 +578,10 @@ static int ispltm_histo_config_gen(struct isp_ltm_ctx_desc *ctx,
 	param->frame_height = ctx->frame_height;
 	param->frame_width = ctx->frame_width;
 
-	ispltm_histo_param_calc(param);
+	if (ctx->hw->prj_id == QOGIRN6pro)
+		ispltm_histo_param_calc(param, 4);
+	else
+		ispltm_histo_param_calc(param, 2);
 	hists->bypass = param->bypass;
 	hists->channel_sel = param->channel_sel;
 	hists->binning_en = param->binning_en;
@@ -627,10 +622,11 @@ static int ispltm_histo_config_gen(struct isp_ltm_ctx_desc *ctx,
 	ctx->frame_height_stat = param->frame_height;
 
 	pr_debug("ltm hist idx[%d], hist addr[0x%lx] bypass %d\n", ctx->fid, hists->addr, hists->bypass);
-	pr_debug("binning_en[%d], tile_num_x_minus[%d], tile_num_y_minus[%d]\n",
+	pr_debug("binning_en[%d], tile_num_x_minus[%d], tile_num_y_minus[%d], tile_num_auto[%d]\n",
 		hists->binning_en,
 		hists->tile_num_x_minus,
-		hists->tile_num_y_minus);
+		hists->tile_num_y_minus,
+		tuning->tile_num_auto);
 	pr_debug("tile_height[%d], tile_width[%d], clip_limit_min[%d], clip_limit[%d]\n",
 		hists->tile_height, hists->tile_width,
 		hists->clip_limit_min, hists->clip_limit);
@@ -664,6 +660,8 @@ static int ispltm_map_config_gen(struct isp_ltm_ctx_desc *ctx,
 	uint32_t frame_width_map,  frame_height_map;
 
 	uint32_t ratio = 0;
+	uint32_t ratio_w = 0;
+	uint32_t ratio_h = 0;
 	uint32_t crop_cols_curr, crop_rows_curr;
 	uint32_t crop_up_curr,   crop_down_curr;
 	uint32_t crop_left_curr, crop_right_curr;
@@ -708,11 +706,21 @@ static int ispltm_map_config_gen(struct isp_ltm_ctx_desc *ctx,
 	 * frame_width_map/frame_width_stat should be
 	 * equal to frame_height_map/frame_height_stat
 	 */
-	if (frame_width_stat != 0)
-		ratio = (frame_width_map << 7) / frame_width_stat;
+	if (ctx->hw->prj_id == QOGIRN6pro) {
+		if (frame_width_stat != 0 && frame_height_stat != 0) {
+			ratio_w = ((frame_width_map << 8) + (frame_width_stat / 2)) / frame_width_stat;
+			ratio_h = ((frame_width_map << 8) + (frame_height_stat / 2)) / frame_height_stat;
+		}
 
-	tm.tile_width = (ratio * ts.tile_width  + 128) >> 8 << 1;
-	tm.tile_height = (ratio * ts.tile_height + 128) >> 8 << 1;
+		tm.tile_width = (ratio_w * ts.tile_width) >> 10 << 2;
+		tm.tile_height = (ratio_h * ts.tile_height) >> 9 << 1;
+	} else {
+		if (frame_width_stat != 0)
+			ratio = (frame_width_map << 7) / frame_width_stat;
+
+		tm.tile_width = (ratio * ts.tile_width  + 128) >> 8 << 1;
+		tm.tile_height = (ratio * ts.tile_height + 128) >> 8 << 1;
+	}
 
 	crop_cols_curr = frame_width_map - tm.tile_width * mnum.tile_num_x;
 	crop_rows_curr = frame_height_map - tm.tile_height * mnum.tile_num_y;
@@ -878,10 +886,8 @@ static int ispltm_pipe_proc(void *handle, void *param)
 		ispltm_map_config_gen(ctx, &ltm_info->ltm_map, ISP_PRO_LTM_CAP_PARAM);
 		ltm_cfg_func.k_blk_func(ctx);
 		break;
+
 	case MODE_LTM_OFF:
-		ctx->bypass = 1;
-		ltm_cfg_func.k_blk_func(ctx);
-		break;
 	default:
 		ctx->bypass = 1;
 		ltm_cfg_func.k_blk_func(ctx);
@@ -1054,6 +1060,8 @@ int isp_ltm_map_slice_config_gen(struct isp_ltm_ctx_desc *ctx,
 	uint32_t frame_width_map, frame_height_map;
 
 	uint32_t ratio = 0;
+	uint32_t ratio_w = 0;
+	uint32_t ratio_h = 0;
 	uint32_t crop_cols_curr, crop_rows_curr;
 	uint32_t crop_up_curr, crop_down_curr;
 	uint32_t crop_left_curr, crop_right_curr;
@@ -1081,10 +1089,21 @@ int isp_ltm_map_slice_config_gen(struct isp_ltm_ctx_desc *ctx,
 	 * frame_width_map/frame_width_stat should be
 	 * equal to frame_height_map/frame_height_stat
 	 */
-	ratio = (frame_width_map << 7) / frame_width_stat;
+	if (ctx->hw->prj_id == QOGIRN6pro) {
+		if (frame_width_stat != 0 && frame_height_stat != 0) {
+			ratio_w = ((frame_width_map << 8) + (frame_width_stat / 2)) / frame_width_stat;
+			ratio_h = ((frame_width_map << 8) + (frame_height_stat / 2)) / frame_height_stat;
+		}
 
-	tm.tile_width = (ratio * ts.tile_width  + 128) >> 8 << 1;
-	tm.tile_height = (ratio * ts.tile_height + 128) >> 8 << 1;
+		tm.tile_width = (ratio_w * ts.tile_width) >> 10 << 2;
+		tm.tile_height = (ratio_h * ts.tile_height) >> 9 << 1;
+	} else {
+		if (frame_width_stat != 0)
+			ratio = (frame_width_map << 7) / frame_width_stat;
+
+		tm.tile_width = (ratio * ts.tile_width  + 128) >> 8 << 1;
+		tm.tile_height = (ratio * ts.tile_height + 128) >> 8 << 1;
+	}
 
 	crop_cols_curr = frame_width_map - tm.tile_width * mnum.tile_num_x;
 	crop_rows_curr = frame_height_map - tm.tile_height * mnum.tile_num_y;
