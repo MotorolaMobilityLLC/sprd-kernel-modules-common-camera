@@ -85,7 +85,7 @@ struct ImageRegion_Info {
 
 
 void nr3_mv_convert_ver(struct alg_nr3_mv_cfg *param_ptr);
-int nr3d_fetch_ref_image_position(struct ImageRegion_Info* image_region_info,
+int nr3d_fetch_ref_image_position(struct ImageRegion_Info *image_region_info,
 	uint32_t frame_width, uint32_t frame_height);
 
 #endif

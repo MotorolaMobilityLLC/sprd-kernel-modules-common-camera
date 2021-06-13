@@ -2878,6 +2878,8 @@ static int ispslice_3dnr_memctrl_update_info_cfg(
 		nr3_fw_out.last_line_mode = slc_3dnr_memctrl->last_line_mode;
 		nr3_fw_out.src_lum_addr = slc_3dnr_memctrl->addr.addr_ch0;
 		nr3_fw_out.src_chr_addr = slc_3dnr_memctrl->addr.addr_ch1;
+		nr3_fw_out.dst_lum_addr = slc_3dnr_store->addr.addr_ch0;
+		nr3_fw_out.dst_chr_addr = slc_3dnr_store->addr.addr_ch1;
 		nr3_fw_out.ft_y_width = slc_3dnr_memctrl->ft_y.w;
 		nr3_fw_out.ft_y_height = slc_3dnr_memctrl->ft_y.h;
 		nr3_fw_out.ft_uv_width = slc_3dnr_memctrl->ft_uv.w;
