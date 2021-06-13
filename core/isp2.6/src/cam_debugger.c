@@ -222,6 +222,10 @@ static int camdebugger_dcam_reg_show(struct seq_file *s,
 
 	if (idx >= 3 && idx < 5) {
 		seq_printf(s, "-----dcam axi%d and fetch----\n", idx - 3);
+		if (atomic_read(&s_dcam_opened[idx]) <= 0) {
+			seq_puts(s, "Hardware not enable\n");
+			return 0;
+		}
 
 		for (addr = 0; addr < addr_end[idx]; addr += 4)
 			seq_printf(s, "0x%04x: 0x%08x\n",
