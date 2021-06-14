@@ -76,8 +76,8 @@ static unsigned long coff_buf_addr[2][3][4] = {
 		{
 			ISP_YUV_SCALER_VID_LUMA_HCOEF_BUF1,
 			ISP_YUV_SCALER_VID_CHROMA_HCOEF_BUF1,
-			ISP_YUV_SCALER_VID_LUMA_VCOEF_BUF0,
-			ISP_YUV_SCALER_VID_CHROMA_VCOEF_BUF0,
+			ISP_YUV_SCALER_VID_LUMA_VCOEF_BUF1,
+			ISP_YUV_SCALER_VID_CHROMA_VCOEF_BUF1,
 		}
 	},
 };
@@ -643,12 +643,12 @@ static uint32_t ISP_CFG_MAP[] __aligned(8) = {
 	0x0030C310, /*0xC310  - 0xC33C , 12  , SCL_CAP_fbc_store*/
 	0x0060E010, /*0xE010  - 0xE06C , 24  , SCL_THUMBNAIL*/
 	0x0030E110, /*0xE110  - 0xE13C , 12  , SCL_THUMBNAIL_store*/
-	0x03FF94F0, /*0x394F0 - 0x398E8, 255 , ISP_CAP_PATH_VER_CORF_Y_BUF0_CH0*/
-	0x03FF98F0, /*0x398F0 - 0x39CE8, 255 , ISP_CAP_PATH_VER_CORF_UV_BUF0_CH0*/
+	0x040394f0, /*0x394F0 - 0x398EC, 256 , ISP_CAP_PATH_VER_CORF_Y_BUF0_CH0*/
+	0x040398F0, /*0x398F0 - 0x39CEC, 256 , ISP_CAP_PATH_VER_CORF_UV_BUF0_CH0*/
 	0x007F8100, /*0x38100 - 0x38178, 31  , ISP_VID_PATH_HOR_CORF_Y_BUF0_CH0*/
 	0x003F8300, /*0x38300 - 0x38338, 15  , ISP_VID_PATH_HOR_CORF_UV_BUF0_CH0*/
-	0x03FF84F0, /*0x384F0 - 0x388E8, 255 , ISP_VID_PATH_VER_CORF_Y_BUF0_CH0*/
-	0x03FF88F0, /*0x388F0 - 0x38CE8, 255 , ISP_VID_PATH_VER_CORF_UV_BUF0_CH0*/
+	0x040384F0, /*0x384F0 - 0x388EC, 256 , ISP_VID_PATH_VER_CORF_Y_BUF0_CH0*/
+	0x040388F0, /*0x388F0 - 0x38CEC, 256 , ISP_VID_PATH_VER_CORF_UV_BUF0_CH0*/
 };
 
 static int isphw_cfg_map_info_get(void *handle, void *arg)
@@ -1022,13 +1022,13 @@ static int isphw_path_scaler_coeff_set(
 		}
 	}
 
-	for (i = 0; i < COEF_VOR_Y_SIZE; i++) {
+	for (i = 0; i <= COEF_VOR_Y_SIZE; i++) {
 		ISP_REG_WR(idx, arg.v_coeff_addr, *arg.v_coeff);
 		arg.v_coeff_addr += 4;
 		arg.v_coeff++;
 	}
 
-	for (i = 0; i < COEF_VOR_UV_SIZE; i++) {
+	for (i = 0; i <= COEF_VOR_UV_SIZE; i++) {
 		ISP_REG_WR(idx, arg.v_chroma_coeff_addr, *arg.v_chroma_coeff);
 		arg.v_chroma_coeff_addr += 4;
 		arg.v_chroma_coeff++;
