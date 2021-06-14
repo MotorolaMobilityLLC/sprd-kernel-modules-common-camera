@@ -27,9 +27,9 @@ void calc_scaler_phase(int32_t phase, uint16_t factor,
 }
 
 void yuv_scaler_init_slice_info_v3(
-	yuvscaler_param_t *frame_scaler, yuvscaler_param_t *slice_scaler,
-	scaler_slice_t *slice_info, const scaler_slice_t *input_slice_info,
-	const scaler_slice_t *output_slice_info)
+	struct yuvscaler_param_t *frame_scaler, struct yuvscaler_param_t *slice_scaler,
+	struct scaler_slice_t *slice_info, const struct scaler_slice_t *input_slice_info,
+	const struct scaler_slice_t *output_slice_info)
 {
 	int trim_start, trim_size;
 	int deci;
@@ -39,9 +39,9 @@ void yuv_scaler_init_slice_info_v3(
 	int overlap_head, overlap_tail;
 	int start_col_org, start_row_org;
 
-	memcpy(slice_scaler, frame_scaler, sizeof(yuvscaler_param_t));
+	memcpy(slice_scaler, frame_scaler, sizeof(struct yuvscaler_param_t));
 
-	/*hor*/
+	/* hor */
 	trim_start = frame_scaler->trim0_info.trim_start_x;
 	trim_size = frame_scaler->trim0_info.trim_size_x;
 	deci = frame_scaler->deci_info.deci_x;
@@ -64,15 +64,15 @@ void yuv_scaler_init_slice_info_v3(
 
 	input_slice_start = slice_info->start_col;
 	input_slice_size = slice_info->slice_width;
-	input_pixel_align = 2; /*YUV420*/
-	output_pixel_align = 2; /*YUV420*/
-	if(slice_info->sliceColNo != slice_info->sliceCols-1)
+	input_pixel_align = 2;/* YUV420 */
+	output_pixel_align = 2;/* YUV420 */
+	if (slice_info->sliceColNo != slice_info->sliceCols - 1)
 		output_pixel_align = frame_scaler->output_align_hor;
 
 	output_slice_start = output_slice_info->start_col;
-	output_slice_size  = output_slice_info->end_col - output_slice_info->start_col + 1;
+	output_slice_size = output_slice_info->end_col - output_slice_info->start_col + 1;
 
-	if(output_slice_size == 0) {
+	if (output_slice_size == 0) {
 		slice_scaler->trim0_info.trim_start_x = 0;
 		slice_scaler->trim0_info.trim_size_x = 0;
 	} else {
@@ -83,32 +83,32 @@ void yuv_scaler_init_slice_info_v3(
 		slice_scaler->trim0_info.trim_start_x = input_slice_start - start_col_org;
 		slice_scaler->trim0_info.trim_size_x  = input_slice_size;
 
-		slice_scaler->scaler_info.scaler_in_width  = input_slice_size/deci;
+		slice_scaler->scaler_info.scaler_in_width = input_slice_size/deci;
 		slice_scaler->scaler_info.scaler_out_width = output_slice_size;
 
 		slice_scaler->scaler_info.init_phase_info.scaler_init_phase[0] = init_phase;
 		calc_scaler_phase(init_phase, scl_factor_out, &slice_scaler->scaler_info.init_phase_info.scaler_init_phase_int[0][0],
 			&slice_scaler->scaler_info.init_phase_info.scaler_init_phase_rmd[0][0]);
-		calc_scaler_phase(init_phase/4, scl_factor_out/2, &slice_scaler->scaler_info.init_phase_info.scaler_init_phase_int[0][1],
+		calc_scaler_phase(init_phase / 4, scl_factor_out / 2, &slice_scaler->scaler_info.init_phase_info.scaler_init_phase_int[0][1],
 			&slice_scaler->scaler_info.init_phase_info.scaler_init_phase_rmd[0][1]);
 	}
 	slice_scaler->dst_start_x = output_slice_start;
-	slice_scaler->dst_size_x  = output_slice_size;
+	slice_scaler->dst_size_x = output_slice_size;
 	slice_scaler->trim1_info.trim_start_x = 0;
-	slice_scaler->trim1_info.trim_size_x  = output_slice_size;
+	slice_scaler->trim1_info.trim_size_x = output_slice_size;
 
-	/*ver*/
+	/* ver */
 	trim_start = frame_scaler->trim0_info.trim_start_y;
 	trim_size = frame_scaler->trim0_info.trim_size_y;
 	deci = frame_scaler->deci_info.deci_y;
 	scl_en = frame_scaler->scaler_info.scaler_en;
 	scl_factor_in = frame_scaler->scaler_info.scaler_factor_in_ver;
 	scl_factor_out = frame_scaler->scaler_info.scaler_factor_out_ver;
-	/*FIXME: 420 input*/
+	/* FIXME: 420 input */
 	if (frame_scaler->input_pixfmt == YUV422)
 		scl_tap = MAX(frame_scaler->scaler_info.scaler_y_ver_tap, frame_scaler->scaler_info.scaler_uv_ver_tap) + 2;
 	else if (frame_scaler->input_pixfmt == YUV420)
-		scl_tap = MAX(frame_scaler->scaler_info.scaler_y_ver_tap, frame_scaler->scaler_info.scaler_uv_ver_tap*2) + 2;
+		scl_tap = MAX(frame_scaler->scaler_info.scaler_y_ver_tap, frame_scaler->scaler_info.scaler_uv_ver_tap * 2) + 2;
 	init_phase = frame_scaler->scaler_info.init_phase_info.scaler_init_phase[1];
 
 	slice_scaler->src_size_y = slice_info->slice_height;
@@ -116,7 +116,7 @@ void yuv_scaler_init_slice_info_v3(
 	overlap_head = input_slice_info->start_row - slice_info->start_row;
 	overlap_tail = slice_info->end_row - input_slice_info->end_row;
 
-	start_row_org = slice_info->start_row; /*copy for trim0*/
+	start_row_org = slice_info->start_row;/* copy for trim0 */
 
 	slice_info->start_row += overlap_head;
 	slice_info->end_row -= overlap_tail;
@@ -124,20 +124,20 @@ void yuv_scaler_init_slice_info_v3(
 
 	input_slice_start = slice_info->start_row;
 	input_slice_size = slice_info->slice_height;
-	input_pixel_align = 2; /*YUV420*/
+	input_pixel_align = 2;/* YUV420 */
 	if (frame_scaler->output_pixfmt == YUV422)
 		output_pixel_align = 2;
 	else if (frame_scaler->output_pixfmt == YUV420) {
 		output_pixel_align = 2;
-		if(slice_info->sliceRowNo != slice_info->sliceRows-1)
+		if (slice_info->sliceRowNo != slice_info->sliceRows-1)
 			output_pixel_align = frame_scaler->output_align_ver;
 	} else
 		pr_err("fail to get invalid fmt %d\n", frame_scaler->output_pixfmt);
 
 	output_slice_start = output_slice_info->start_row;
-	output_slice_size  = output_slice_info->end_row - output_slice_info->start_row + 1;
+	output_slice_size = output_slice_info->end_row - output_slice_info->start_row + 1;
 
-	if(output_slice_size == 0) {
+	if (output_slice_size == 0) {
 		slice_scaler->trim0_info.trim_start_y = 0;
 		slice_scaler->trim0_info.trim_size_y = 0;
 	} else {
@@ -148,27 +148,27 @@ void yuv_scaler_init_slice_info_v3(
 		slice_scaler->trim0_info.trim_start_y = input_slice_start - start_row_org;
 		slice_scaler->trim0_info.trim_size_y = input_slice_size;
 
-		slice_scaler->scaler_info.scaler_in_height  = input_slice_size/deci;
+		slice_scaler->scaler_info.scaler_in_height = input_slice_size / deci;
 		slice_scaler->scaler_info.scaler_out_height = output_slice_size;
 		slice_scaler->scaler_info.init_phase_info.scaler_init_phase[1] = init_phase;
-		/*FIXME: need refer to input_pixfmt*/
-		/*luma*/
+		/* FIXME: need refer to input_pixfmt */
+		/* luma */
 		calc_scaler_phase(init_phase, scl_factor_out, &slice_scaler->scaler_info.init_phase_info.scaler_init_phase_int[1][0],
 			&slice_scaler->scaler_info.init_phase_info.scaler_init_phase_rmd[1][0]);
-		/*chroma*/
+		/* chroma */
 		if (slice_scaler->scaler_info.input_pixfmt == YUV422) {
 			if (slice_scaler->scaler_info.output_pixfmt == YUV420)
-				calc_scaler_phase(init_phase/2, scl_factor_out/2, &slice_scaler->scaler_info.init_phase_info.scaler_init_phase_int[1][1],
+				calc_scaler_phase(init_phase / 2, scl_factor_out / 2, &slice_scaler->scaler_info.init_phase_info.scaler_init_phase_int[1][1],
 					&slice_scaler->scaler_info.init_phase_info.scaler_init_phase_rmd[1][1]);
 			else if (slice_scaler->scaler_info.output_pixfmt == YUV422)
-				calc_scaler_phase(init_phase, scl_factor_out,   &slice_scaler->scaler_info.init_phase_info.scaler_init_phase_int[1][1],
+				calc_scaler_phase(init_phase, scl_factor_out, &slice_scaler->scaler_info.init_phase_info.scaler_init_phase_int[1][1],
 					&slice_scaler->scaler_info.init_phase_info.scaler_init_phase_rmd[1][1]);
 		} else if (slice_scaler->scaler_info.input_pixfmt == YUV420) {
-			if(slice_scaler->scaler_info.output_pixfmt == YUV420)
-				calc_scaler_phase(init_phase/4, scl_factor_out/2, &slice_scaler->scaler_info.init_phase_info.scaler_init_phase_int[1][1],
+			if (slice_scaler->scaler_info.output_pixfmt == YUV420)
+				calc_scaler_phase(init_phase / 4, scl_factor_out / 2, &slice_scaler->scaler_info.init_phase_info.scaler_init_phase_int[1][1],
 					&slice_scaler->scaler_info.init_phase_info.scaler_init_phase_rmd[1][1]);
-			else if(slice_scaler->scaler_info.output_pixfmt == YUV422)
-				calc_scaler_phase(init_phase/2, scl_factor_out,   &slice_scaler->scaler_info.init_phase_info.scaler_init_phase_int[1][1],
+			else if (slice_scaler->scaler_info.output_pixfmt == YUV422)
+				calc_scaler_phase(init_phase / 2, scl_factor_out, &slice_scaler->scaler_info.init_phase_info.scaler_init_phase_int[1][1],
 					&slice_scaler->scaler_info.init_phase_info.scaler_init_phase_rmd[1][1]);
 		}
 	}
@@ -190,23 +190,23 @@ void est_scaler_output_slice_info(int trim_start, int trim_size, int deci,
 		pr_err("fail to get valid scl_tap %d\n", scl_tap);
 	if (trim_size % deci != 0)
 		pr_err("fail to get valid trim size %d\n", trim_size);
-	/*trim*/
+	/* trim */
 	input_slice_end = input_slice_end > trim_end ? trim_end : input_slice_end;
 	input_slice_end = input_slice_end - trim_start;
 
-	/*deci*/
-	input_slice_end = input_slice_end/deci;
+	/* deci */
+	input_slice_end = input_slice_end / deci;
 
-	/*scale*/
+	/* scale */
 	epixel = (input_slice_end * scl_factor_out - 1 - init_phase) / scl_factor_in + 1;
 
-	/*align*/
-	epixel = ((epixel + output_pixel_align / 2)/output_pixel_align) * output_pixel_align;
+	/* align */
+	epixel = ((epixel + output_pixel_align / 2) / output_pixel_align) * output_pixel_align;
 
-	if(epixel < 0)
+	if (epixel < 0)
 		epixel = 0;
 
-	/*output*/
+	/* output */
 	*output_slice_end = epixel;
 }
 
@@ -215,7 +215,7 @@ void est_scaler_output_slice_info_v2(int trim_start, int trim_size, int deci,
 	int input_slice_start, int input_slice_size, int output_pixel_align, int *output_slice_end)
 {
 	int epixel;
-	int deci_size = trim_size/deci;
+	int deci_size = trim_size / deci;
 	int input_slice_end = input_slice_start + input_slice_size;
 	int trim_end = trim_start + trim_size;
 
@@ -223,25 +223,25 @@ void est_scaler_output_slice_info_v2(int trim_start, int trim_size, int deci,
 		pr_err("fail to get valid scl_tap %d\n", scl_tap);
 	if (trim_size % deci != 0)
 		pr_err("fail to get valid trim size %d\n", trim_size);
-	/*trim*/
+	/* trim */
 	input_slice_end = input_slice_end > trim_end ? trim_end : input_slice_end;
 	input_slice_end = input_slice_end - trim_start;
 
-	/*deci*/
+	/* deci */
 	input_slice_end = input_slice_end / deci;
 	if (input_slice_end != deci_size)
 		input_slice_end -= scl_tap / 2;
 
-	/*scale*/
+	/* scale */
 	epixel = (input_slice_end * scl_factor_out - 1 - init_phase) / scl_factor_in + 1;
 
-	/*align*/
+	/* align */
 	epixel = (epixel / output_pixel_align) * output_pixel_align;
 
 	if(epixel < 0)
 		epixel = 0;
 
-	/*output*/
+	/* output */
 	*output_slice_end = epixel;
 }
 
@@ -252,7 +252,7 @@ void calc_scaler_input_slice_info(int trim_start, int trim_size, int deci,
 {
 	int sphase, ephase;
 	int spixel, epixel;
-	int deci_size = trim_size/deci;
+	int deci_size = trim_size / deci;
 
 	if (scl_tap % 2 != 0)
 		pr_err("fail to get valid scl_tap %d\n", scl_tap);
@@ -263,14 +263,14 @@ void calc_scaler_input_slice_info(int trim_start, int trim_size, int deci,
 	if (deci_size % input_pixel_align != 0)
 		pr_err("fail to get valid deci size %d\n", deci_size);
 
-	sphase = init_phase + output_slice_start * scl_factor_in; /*start phase*/
-	ephase = sphase + (output_slice_size - 1) * scl_factor_in; /*end phase (interior)*/
+	sphase = init_phase + output_slice_start * scl_factor_in;/* start phase */
+	ephase = sphase + (output_slice_size - 1) * scl_factor_in;/* end phase (interior) */
 
-	spixel = sphase / scl_factor_out - scl_tap / 2 + 1; /*start pixel index*/
-	epixel = ephase / scl_factor_out + scl_tap / 2; /*end pixel index (interior)*/
+	spixel = sphase / scl_factor_out - scl_tap / 2 + 1;/* start pixel index */
+	epixel = ephase / scl_factor_out + scl_tap / 2;/* end pixel index (interior) */
 
 	/* adjust the input slice position for alignment */
-	spixel = (spixel / input_pixel_align) * input_pixel_align; /*start pixel (aligned)*/
+	spixel = (spixel / input_pixel_align) * input_pixel_align;/* start pixel (aligned) */
 	epixel = (epixel / input_pixel_align + 1) * input_pixel_align;
 
 	spixel = spixel < 0 ? 0 : spixel;

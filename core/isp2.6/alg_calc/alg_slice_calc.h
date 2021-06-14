@@ -84,12 +84,12 @@ struct alg_fetch_region_context {
 	uint32_t overlap_down;
 };
 
-typedef struct {
+struct scaler_overlap_t {
 	uint16_t overlap_up;
 	uint16_t overlap_down;
 	uint16_t overlap_left;
 	uint16_t overlap_right;
-} scaler_overlap_t;
+};
 
 struct alg_slice_scaler_overlap {
 	int bypass;
@@ -126,17 +126,18 @@ struct alg_slice_scaler_overlap {
 	uint8_t scaler_uv_hor_tap;
 	uint8_t scaler_uv_ver_tap;
 
-	scaler_overlap_t input_scaler_overlap;
-	scaler_overlap_t output_scaler_overlap[PIPE_MAX_SLICE_NUM];
-	slice_drv_scaler_phase_info phase[PIPE_MAX_SLICE_NUM];
+	struct scaler_overlap_t input_scaler_overlap;
+	struct scaler_overlap_t output_scaler_overlap[PIPE_MAX_SLICE_NUM];
+	struct slice_drv_scaler_phase_info phase[PIPE_MAX_SLICE_NUM];
+
 	struct alg_region_info region_input[PIPE_MAX_SLICE_NUM];
 	struct alg_region_info region_output[PIPE_MAX_SLICE_NUM];
-	yuvscaler_param_t *frameParam;
-	yuvscaler_param_t frameParamObj;
-	yuvscaler_param_t sliceParam[PIPE_MAX_SLICE_NUM];
+	struct yuvscaler_param_t *frameParam;
+	struct yuvscaler_param_t frameParamObj;
+	struct yuvscaler_param_t sliceParam[PIPE_MAX_SLICE_NUM];
 };
 
-typedef struct thumbsliceinfo {
+struct THUMBSLICEINFO_T {
 	uint16_t totalcol;
 	uint16_t totalrow;
 	uint16_t cur_col;
@@ -164,13 +165,13 @@ typedef struct thumbsliceinfo {
 	uint16_t realiw;
 	uint16_t realoh;
 	uint16_t realow;
-} THUMBSLICEINFO_T ;
+};
 
-typedef struct thumbinfo {
-	THUMBSLICEINFO_T thumbsliceinfo[PIPE_MAX_SLICE_NUM];
-} THUMBINFO_T;
+struct THUMBINFO_T {
+	struct THUMBSLICEINFO_T thumbsliceinfo[PIPE_MAX_SLICE_NUM];
+};
 
-typedef struct configinfo {
+struct CONFIGINFO_T {
 	uint16_t iw,ih,ow,oh,outformat;
 	uint8_t thumbnailscaler_pipeline_pos;
 	uint16_t thumbnailscaler_phaseX,thumbnailscaler_phaseY;
@@ -188,9 +189,9 @@ typedef struct configinfo {
 	uint16_t thumbnailscaler_trimendcol;
 	uint16_t trim0slice_totalcol;
 	uint16_t trim0slice_totalrow;
-} CONFIGINFO_T;
+};
 
-typedef struct {
+struct thumbinfo_phasenum_y {
 	uint16_t phaseup;
 	uint16_t phasedown;
 	uint16_t phaseleft;
@@ -199,9 +200,9 @@ typedef struct {
 	int16_t numdown;
 	int16_t numleft;
 	int16_t numright;
-} thumbinfo_phasenum_y;
+};
 
-typedef struct {
+struct thumbinfo_phasenum_uv {
 	uint16_t phaseup;
 	uint16_t phasedown;
 	uint16_t phaseleft;
@@ -210,47 +211,47 @@ typedef struct {
 	int16_t numdown;
 	int16_t numleft;
 	int16_t numright;
-} thumbinfo_phasenum_uv;
+};
 
-typedef struct {
+struct thumbinfo_trimcoordinate_uv {
 	uint16_t trim_s_col;
 	uint16_t trim_e_col;
 	uint16_t trim_width;
 	uint16_t trim_s_row;
 	uint16_t trim_e_row ;
 	uint16_t trim_height;
-} thumbinfo_trimcoordinate_uv;
+};
 
-typedef struct {
+struct thumbinfo_trimcoordinate_y {
 	uint16_t trim_s_col;
 	uint16_t trim_e_col;
 	uint16_t trim_width;
 	uint16_t trim_s_row;
 	uint16_t trim_e_row ;
 	uint16_t trim_height;
-} thumbinfo_trimcoordinate_y;
+};
 
-typedef struct {
-	thumbinfo_phasenum_y thumbinfo_phasenum_yid[PIPE_MAX_SLICE_NUM];
-	thumbinfo_phasenum_uv thumbinfo_phasenum_uvid[PIPE_MAX_SLICE_NUM];
-	thumbinfo_trimcoordinate_y thumbinfo_trimcoordinate_yid[PIPE_MAX_SLICE_NUM];
-	thumbinfo_trimcoordinate_uv thumbinfo_trimcoordinate_uvid[PIPE_MAX_SLICE_NUM];
-} TH_infophasenum;
+struct TH_infophasenum {
+	struct thumbinfo_phasenum_y thumbinfo_phasenum_yid[PIPE_MAX_SLICE_NUM];
+	struct thumbinfo_phasenum_uv thumbinfo_phasenum_uvid[PIPE_MAX_SLICE_NUM];
+	struct thumbinfo_trimcoordinate_y thumbinfo_trimcoordinate_yid[PIPE_MAX_SLICE_NUM];
+	struct thumbinfo_trimcoordinate_uv thumbinfo_trimcoordinate_uvid[PIPE_MAX_SLICE_NUM];
+};
 
-typedef struct _tag_thumbnailscaler_param_t {
-	THUMBINFO_T thumbinfo;
-	CONFIGINFO_T configinfo;
-	TH_infophasenum th_infophasenum;
-} thumbnailscaler_param_t;
+struct thumbnailscaler_param_t {
+	struct THUMBINFO_T thumbinfo;
+	struct CONFIGINFO_T configinfo;
+	struct TH_infophasenum th_infophasenum;
+};
 
-typedef struct _tag_thumbnailscaler_context {
+struct thumbnailscaler_context {
 	int src_width;
 	int src_height;
 	int offlineSliceWidth;
 	int offlineSliceHeight;
-} thumbnailscaler_context;
+};
 
-typedef struct _tag_slice_drv_overlap_thumbnail_scaler_param {
+struct slice_drv_overlap_thumbnail_scaler_param {
 	int bypass;
 	int trim0_en;
 	int trim0_start_x;
@@ -263,9 +264,9 @@ typedef struct _tag_slice_drv_overlap_thumbnail_scaler_param {
 	int out_w;
 	int out_h;
 	int out_format;
-} slice_drv_overlap_thumbnail_scaler_param;
+};
 
-typedef struct THUMB_SLICE_PARAM {
+struct THUMB_SLICE_PARAM_T {
 	int id;
 	int width;
 	int height;
@@ -279,9 +280,9 @@ typedef struct THUMB_SLICE_PARAM {
 	int overlap_right;
 	int overlap_up;
 	int overlap_down;
-} THUMB_SLICE_PARAM_T;
+};
 
-typedef struct {
+struct SliceWndinfo {
 	int s_row;
 	int e_row;
 	int s_col;
@@ -290,24 +291,24 @@ typedef struct {
 	int overlap_right;
 	int overlap_up;
 	int overlap_down;
-} SliceWndinfo;
+};
 
-typedef struct {
+struct Sliceinfo {
 	int rows;
 	int cols;
-	SliceWndinfo slices[16];
+	struct SliceWndinfo slices[16];
 	int offlineSliceWidth;
 	int offlineSliceHeight;
-} Sliceinfo;
+};
 
-typedef struct {
-	THUMBINFO_T  thumbinfo;
-	CONFIGINFO_T configinfo;
-	TH_infophasenum th_infophasenum;
-	Sliceinfo inputSliceList;
-	Sliceinfo inputSliceList_overlap;
+struct thumbscaler_this {
+	struct THUMBINFO_T  thumbinfo;
+	struct CONFIGINFO_T configinfo;
+	struct TH_infophasenum th_infophasenum;
+	struct Sliceinfo inputSliceList;
+	struct Sliceinfo inputSliceList_overlap;
 	int sumslice;
-} thumbscaler_this;
+};
 
 struct alg_slice_drv_overlap {
 	/************************************************************************/
@@ -353,7 +354,7 @@ struct alg_slice_drv_overlap {
 	int offlineCfgOverlap_down;
 
 	//rgb
-	ltm_rgb_stat_param_t ltm_sat;
+	struct ltm_rgb_stat_param_t ltm_sat;
 
 	//yuv rec
 	int ynr_bypass;
@@ -376,7 +377,7 @@ struct alg_slice_drv_overlap {
 	int scaler_input_format;//3:422 4:420
 	struct alg_slice_scaler_overlap scaler1;
 	struct alg_slice_scaler_overlap scaler2;
-	slice_drv_overlap_thumbnail_scaler_param thumbnailscaler;
+	struct slice_drv_overlap_thumbnail_scaler_param thumbnailscaler;
 
 	/************************************************************************/
 	/*  output                                                              */

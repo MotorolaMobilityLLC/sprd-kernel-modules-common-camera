@@ -45,21 +45,21 @@ enum alg_isp_overlap_version {
 	ALG_ISP_OVERLAP_VER_MAX,
 };
 
-typedef struct _slice_pos {
+struct isp_fw_slice_pos {
 	uint32_t start_col;
 	uint32_t start_row;
 	uint32_t end_col;
 	uint32_t end_row;
-} isp_fw_slice_pos;
+};
 
-typedef struct _slice_overlap {
+struct isp_fw_slice_overlap {
 	uint32_t overlap_up;
 	uint32_t overlap_down;
 	uint32_t overlap_left;
 	uint32_t overlap_right;
-} isp_fw_slice_overlap;
+};
 
-typedef struct _scaler_slice {
+struct isp_fw_scaler_slice {
 	uint32_t bypass;
 	uint32_t trim0_size_x;
 	uint32_t trim0_size_y;
@@ -86,7 +86,7 @@ typedef struct _scaler_slice {
 	uint32_t dst_size_x;
 	uint32_t dst_size_y;
 	uint32_t chk_sum_clr;
-} isp_fw_scaler_slice;
+};
 
 enum SCALER_ID {
 	SCALER_CAP_PRE,
@@ -94,8 +94,7 @@ enum SCALER_ID {
 	SCALER_NUM,
 };
 
-typedef struct _tag_ltm_rgb_stat_param_t
-{
+struct ltm_rgb_stat_param_t {
 	uint8_t bypass;
 
 	uint8_t strength;
@@ -134,7 +133,7 @@ typedef struct _tag_ltm_rgb_stat_param_t
 	uint8_t frame_flag;
 	char *stat_file_out;
 	char *tile_file_out;
-} ltm_rgb_stat_param_t;
+};
 
 enum STORE_OUTPUT_FORMAT
 {
@@ -150,16 +149,14 @@ enum STORE_OUTPUT_FORMAT
 	FULL_RGB8,
 };
 
-typedef struct _tag_pipe_overlap_info
-{
+struct pipe_overlap_info {
 	int ov_left;
 	int ov_right;
 	int ov_up;
 	int ov_down;
-}pipe_overlap_info;
+};
 
-typedef struct _tag_slice_drv_scaler_slice_init_context
-{
+struct slice_drv_scaler_slice_init_context {
 	int slice_index;
 	int rows;
 	int cols;
@@ -167,10 +164,9 @@ typedef struct _tag_slice_drv_scaler_slice_init_context
 	int slice_col_no;
 	int slice_w;
 	int slice_h;
-} slice_drv_scaler_slice_init_context;
+};
 
-typedef struct _tagSliceWnd
-{
+struct SliceWnd {
 	int s_row;
 	int e_row;
 	int s_col;
@@ -179,10 +175,9 @@ typedef struct _tagSliceWnd
 	int overlap_right;
 	int overlap_up;
 	int overlap_down;
-} SliceWnd;
+};
 
-typedef struct _tag_isp_drv_region_fetch_context
-{
+struct isp_drv_region_fetch_context {
 	int s_row;
 	int e_row;
 	int s_col;
@@ -191,10 +186,9 @@ typedef struct _tag_isp_drv_region_fetch_context
 	int overlap_right;
 	int overlap_up;
 	int overlap_down;
-} isp_drv_region_fetch_context;
+};
 
-typedef struct _tag_isp_drv_region_fetch_t
-{
+struct isp_drv_region_fetch_t {
 	int image_w;
 	int image_h;
 	int slice_w;
@@ -203,62 +197,54 @@ typedef struct _tag_isp_drv_region_fetch_t
 	int overlap_right;
 	int overlap_up;
 	int overlap_down;
-} isp_drv_region_fetch_t;
+};
 
-typedef struct _tag_isp_block_drv_t
-{
+struct isp_block_drv_t {
 	int left;
 	int right;
 	int up;
 	int down;
-} isp_block_drv_t;
+};
 
-typedef struct _tag_isp_drv_region_t
-{
+struct isp_drv_region_t {
 	int sx;
 	int ex;
 	int sy;
 	int ey;
-} isp_drv_region_t;
+};
 
-typedef struct _tag_isp_drv_regions_t
-{
+struct isp_drv_regions_t {
 	int rows;
 	int cols;
-	isp_drv_region_t regions[ISP_DRV_REGIONS_NUM];
-} isp_drv_regions_t;
+	struct isp_drv_region_t regions[ISP_DRV_REGIONS_NUM];
+};
 
-typedef struct _tag_pipe_overlap_context
-{
+struct pipe_overlap_context {
 	int frameWidth;
 	int frameHeight;
 	int pixelFormat;
-}pipe_overlap_context;
+};
 
-typedef struct _tag_slice_drv_overlap_info
-{
+struct slice_drv_overlap_info {
 	int ov_left;
 	int ov_right;
 	int ov_up;
 	int ov_down;
-}slice_drv_overlap_info;
+};
 
-typedef struct _tag_slice_drv_scaler_phase_info
-{
+struct slice_drv_scaler_phase_info {
 	int init_phase_hor;
 	int init_phase_ver;
-} slice_drv_scaler_phase_info;
+};
 
-typedef struct _tag_slice_drv_region_info
-{
+struct slice_drv_region_info {
 	int sx;
 	int ex;
 	int sy;
 	int ey;
-}slice_drv_region_info;
+};
 
-typedef struct _tag_slice_drv_overlap_scaler_param
-{
+struct slice_drv_overlap_scaler_param {
 	/*in*/
 	int bypass;
 	int trim_eb;
@@ -280,16 +266,15 @@ typedef struct _tag_slice_drv_overlap_scaler_param
 	int output_align_hor;
 
 	/*out*/
-	slice_drv_scaler_phase_info phase[PIPE_MAX_SLICE_NUM];
-	slice_drv_region_info region_input[PIPE_MAX_SLICE_NUM];
-	slice_drv_region_info region_output[PIPE_MAX_SLICE_NUM];
-	yuvscaler_param_t *frameParam;
-	yuvscaler_param_t frameParamObj;
-	yuvscaler_param_t sliceParam[PIPE_MAX_SLICE_NUM];
-}slice_drv_overlap_scaler_param;
+	struct slice_drv_scaler_phase_info phase[PIPE_MAX_SLICE_NUM];
+	struct slice_drv_region_info region_input[PIPE_MAX_SLICE_NUM];
+	struct slice_drv_region_info region_output[PIPE_MAX_SLICE_NUM];
+	struct yuvscaler_param_t *frameParam;
+	struct yuvscaler_param_t frameParamObj;
+	struct yuvscaler_param_t sliceParam[PIPE_MAX_SLICE_NUM];
+};
 
-typedef struct _tag_slice_drv_overlap_param_t
-{
+struct slice_drv_overlap_param_t {
 	/************************************************************************/
 	/* img_type:                                                            */
 	/* 0:bayer 1:rgb 2:yuv444 3:yuv422 4:yuv420 5:yuv400                    */
@@ -347,24 +332,24 @@ typedef struct _tag_slice_drv_overlap_param_t
 
 	/*scaler*/
 	int scaler_input_format; /*3:422 4:420*/
-	slice_drv_overlap_scaler_param scaler1;
-	slice_drv_overlap_scaler_param scaler2;
+	struct slice_drv_overlap_scaler_param scaler1;
+	struct slice_drv_overlap_scaler_param scaler2;
 
 	/************************************************************************/
 	/*  output                                                              */
 	/************************************************************************/
 	int slice_rows;
 	int slice_cols;
-	slice_drv_region_info  slice_region[PIPE_MAX_SLICE_NUM];
-	slice_drv_overlap_info slice_overlap[PIPE_MAX_SLICE_NUM];
-}slice_drv_overlap_param_t;
+	struct slice_drv_region_info slice_region[PIPE_MAX_SLICE_NUM];
+	struct slice_drv_overlap_info slice_overlap[PIPE_MAX_SLICE_NUM];
+};
 
 int alg_isp_get_dynamic_overlap(void *cfg_slice_in, void*slc_ctx);
-int alg_isp_init_yuvscaler_slice(void *slc_cfg_input, void *slc_ctx, isp_fw_scaler_slice (*slice_param)[4]);
+int alg_isp_init_yuvscaler_slice(void *slc_cfg_input, void *slc_ctx, struct isp_fw_scaler_slice (*slice_param)[4]);
 
-void core_drv_nr3d_init_block(isp_block_drv_t *block_ptr);
-void core_drv_ltmsta_init_block(isp_block_drv_t *block_ptr);
-void core_drv_ee_init_block(isp_block_drv_t *block_ptr);
-void core_drv_cnrnew_init_block(isp_block_drv_t *block_ptr);
+void core_drv_nr3d_init_block(struct isp_block_drv_t *block_ptr);
+void core_drv_ltmsta_init_block(struct isp_block_drv_t *block_ptr);
+void core_drv_ee_init_block(struct isp_block_drv_t *block_ptr);
+void core_drv_cnrnew_init_block(struct isp_block_drv_t *block_ptr);
 
 #endif

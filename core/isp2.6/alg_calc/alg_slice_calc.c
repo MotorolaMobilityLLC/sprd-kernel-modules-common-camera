@@ -20,40 +20,34 @@
 #endif
 #define pr_fmt(fmt) "ALG_SLICE_CALC: %d %d %s : "fmt, current->pid, __LINE__, __func__
 
-#define FBC_SUPPORT         0
+#define FBC_SUPPORT                   0
 #define AFBC_PADDING_W_YUV420_3dnr    32
 #define AFBC_PADDING_H_YUV420_3dnr    8
-#define YUV422  0
-#define YUV420  1
+#define YUV422                        0
+#define YUV420                        1
 
 static uint8_t SCALER_YUV_DECI_MAP[]={2,4,8,16};
 static uint8_t SCALER_YUV_DECI_OFFSET_MAP[]={0,1,3,7};
 
-#define CAL_OVERLAP(ctrl_bypass, module_param)          \
-    do                                                 \
-{                                                      \
-    if(!(ctrl_bypass))                                 \
-{                                                      \
-    ov_pipe.ov_left  += module_param.left;      \
-    ov_pipe.ov_right += module_param.right;     \
-    ov_pipe.ov_up    += module_param.up;        \
-    ov_pipe.ov_down  += module_param.down;      \
-}                                                      \
-}                                                      \
-    while(0)
+#define CAL_OVERLAP(ctrl_bypass, module_param) \
+		do { \
+			if (!(ctrl_bypass)) { \
+				ov_pipe.ov_left += module_param.left; \
+				ov_pipe.ov_right += module_param.right; \
+				ov_pipe.ov_up += module_param.up; \
+				ov_pipe.ov_down += module_param.down; \
+			} \
+		} while (0)
 
-    #define CAL_REC_OVERLAP(ctrl_bypass,module_param)          \
-    do                                                 \
-{                                                      \
-    if(!(ctrl_bypass))                                 \
-{                                                      \
-    overlap_rec.ov_left  += module_param.left;      \
-    overlap_rec.ov_right += module_param.right;     \
-    overlap_rec.ov_up    += module_param.up;        \
-    overlap_rec.ov_down  += module_param.down;      \
-}                                                      \
-}                                                      \
-    while(0)
+#define CAL_REC_OVERLAP(ctrl_bypass,module_param) \
+		do { \
+			if (!(ctrl_bypass)) { \
+				overlap_rec.ov_left  += module_param.left; \
+				overlap_rec.ov_right += module_param.right; \
+				overlap_rec.ov_up    += module_param.up; \
+				overlap_rec.ov_down  += module_param.down; \
+			} \
+		} while (0)
 
 static int check_image_resolution(uint32_t length, uint32_t layer_num)
 {
@@ -142,43 +136,43 @@ uint32_t isp_drv_regions_fetch_ref(const struct alg_fetch_region *fetch_param,
 				context.s_col = 0;
 			}
 			/* r-top */
-			if ((0 == i) && (col_num-1 == j)) {
+			if ((0 == i) && (col_num - 1 == j)) {
 				context.overlap_right = 0;
 				context.overlap_up = 0;
 				context.s_row = 0;
-				context.e_col = (imgW -1);
+				context.e_col = (imgW - 1);
 			}
 			/* l-bottom */
 			if ((row_num-1 == i) && (0 == j)) {
 				context.overlap_left = 0;
 				context.overlap_down = 0;
-				context.s_col= 0;
-				context.e_row= (imgH - 1);
+				context.s_col = 0;
+				context.e_row = (imgH - 1);
 			}
 			/* r-bottom */
-			if ((row_num-1 == i) && (col_num-1 == j)) {
-				context.overlap_right= 0;
+			if ((row_num - 1 == i) && (col_num - 1 == j)) {
+				context.overlap_right = 0;
 				context.overlap_down = 0;
-				context.e_row = (imgH -1);
-				context.e_col = (imgW -1);
+				context.e_row = (imgH - 1);
+				context.e_col = (imgW - 1);
 			}
 			/* up */
-			if ((0 == i) && (0<j && j<col_num-1)) {
+			if ((0 == i) && (0 < j && j < col_num - 1)) {
 				context.overlap_up = 0;
 				context.s_row = 0;
 			}
 			/* down */
-			if ((row_num-1 == i) && (0<j && j<col_num-1)) {
+			if ((row_num - 1 == i) && (0 < j && j < col_num-1)) {
 				context.overlap_down = 0;
 				context.e_row = (imgH - 1);
 			}
 			/* left */
-			if ((0 == j) && (0<i && i<row_num-1)) {
+			if ((0 == j) && (0 < i && i < row_num - 1)) {
 				context.overlap_left = 0;
 				context.s_col = 0;
 			}
 			/* right */
-			if ((col_num-1 == j) && (0<i && i<row_num-1)) {
+			if ((col_num - 1 == j) && (0 < i && i < row_num - 1)) {
 				context.overlap_right = 0;
 				context.e_col = (imgW - 1);
 			}
@@ -242,11 +236,11 @@ uint32_t isp_drv_regions_alignfetch_ref(const struct alg_fetch_region *fetch_par
 				context.s_col = 0;
 			}
 			/* r-top */
-			if ((0 == i) && (col_num-1 == j)) {
+			if ((0 == i) && (col_num - 1 == j)) {
 				context.overlap_right = 0;
 				context.overlap_up = 0;
 				context.s_row = 0;
-				context.e_col = (imgW -1);
+				context.e_col = (imgW - 1);
 			}
 			/* l-bottom */
 			if ((row_num - 1 == i) && (0 == j)) {
@@ -256,29 +250,29 @@ uint32_t isp_drv_regions_alignfetch_ref(const struct alg_fetch_region *fetch_par
 				context.e_row= (imgH - 1);
 			}
 			/* r-bottom */
-			if ((row_num-1 == i) && (col_num-1 == j)) {
+			if ((row_num - 1 == i) && (col_num - 1 == j)) {
 				context.overlap_right= 0;
 				context.overlap_down = 0;
-				context.e_row = (imgH -1);
-				context.e_col = (imgW -1);
+				context.e_row = (imgH - 1);
+				context.e_col = (imgW - 1);
 			}
 			/* up */
-			if ((0 == i) && (0<j && j<col_num - 1)) {
+			if ((0 == i) && (0<j && j < col_num - 1)) {
 				context.overlap_up = 0;
 				context.s_row = 0;
 			}
 			/* down */
-			if ((row_num-1 == i) && (0<j && j<col_num-1)) {
+			if ((row_num - 1 == i) && (0 < j && j < col_num-1)) {
 				context.overlap_down = 0;
 				context.e_row = (imgH - 1);
 			}
 			/* left */
-			if ((0 == j) && (0<i && i<row_num-1)) {
+			if ((0 == j) && (0 < i && i < row_num - 1)) {
 				context.overlap_left = 0;
 				context.s_col = 0;
 			}
 			/* right */
-			if ((col_num-1 == j) && (0<i && i<row_num-1)) {
+			if ((col_num - 1 == j) && (0 < i && i < row_num - 1)) {
 				context.overlap_right = 0;
 				context.e_col = (imgW - 1);
 			}
@@ -383,10 +377,8 @@ static void isp_drv_regions_set(const struct alg_slice_regions *r, struct alg_sl
 	r_out->rows = rows;
 	r_out->cols = cols;
 
-	for (i = 0; i < rows; i++)
-	{
-		for(j = 0; j < cols; j++)
-		{
+	for (i = 0; i < rows; i++) {
+		for (j = 0; j < cols; j++) {
 			index = i*cols + j;
 			isp_drv_region_set(&r->regions[index],&r_out->regions[index]);
 		}
@@ -404,42 +396,36 @@ static void isp_drv_regions_3dnr(const struct alg_slice_regions *r_ref, struct a
 	const struct alg_region_info *src_region;
 	struct alg_region_info *dst_region;
 
-	for (row = 0; row < rows; row++)
-	{
-		for (col = 0; col < cols; col++)
-		{
+	for (row = 0; row < rows; row++) {
+		for (col = 0; col < cols; col++) {
 			index = row*cols + col;
 
 			src_region = &r_ref->regions[index];
 			dst_region = &r_out->regions[index];
 
-			move_size_x = (src_region->ex - dst_region->ex)/ALIGN_W_V*ALIGN_W_V;
-			if(0 == v_flag)
-			{
+			move_size_x = (src_region->ex - dst_region->ex) / ALIGN_W_V*ALIGN_W_V;
+			if (0 == v_flag) {
 				int old_w = dst_region->ex + 1;
-				int new_w = (old_w + ALIGN_W_V/2)/ALIGN_W_V*ALIGN_W_V;
+				int new_w = (old_w + ALIGN_W_V / 2) / ALIGN_W_V*ALIGN_W_V;
 				move_size_x = new_w - old_w;
 			}
 
-			if(col != cols - 1)
-			{
+			if(col != cols - 1) {
 				dst_region->ex += move_size_x;
-				next_index = row*cols + (col + 1);
+				next_index = row * cols + (col + 1);
 				r_out->regions[next_index].sx += move_size_x;
 			}
 
-			move_size_y = (dst_region->ey - dst_region->ey)/ALIGN_H_V*ALIGN_H_V;
-			if(0 == v_flag)
-			{
+			move_size_y = (dst_region->ey - dst_region->ey) / ALIGN_H_V*ALIGN_H_V;
+			if(0 == v_flag) {
 				int old_h = dst_region->ey + 1;
-				int new_h = (old_h + ALIGN_H_V/2)/ALIGN_H_V*ALIGN_H_V;
+				int new_h = (old_h + ALIGN_H_V / 2) / ALIGN_H_V*ALIGN_H_V;
 				move_size_y = new_h - old_h;
 			}
 
-			if(row != rows - 1)
-			{
+			if(row != rows - 1) {
 				dst_region->ey += move_size_y;
-				next_index = (row + 1)*cols + col;
+				next_index = (row + 1) * cols + col;
 				r_out->regions[next_index].sy += move_size_y;
 			}
 		}
@@ -520,7 +506,7 @@ void alg_slice_calc_dec_offline_overlap(struct alg_dec_offline_overlap *param_pt
 	}
 
 	/* if image width is too small, no slice */
-	if(param_ptr->slice_mode) {
+	if (param_ptr->slice_mode) {
 		for (layer_id = 0; layer_id < param_ptr->layerNum - 1; layer_id++) {
 			const uint32_t max_slice_w = param_ptr->MaxSliceWidth;
 			if (layer_id == 0) {
@@ -635,7 +621,7 @@ void alg_slice_calc_dec_offline_overlap(struct alg_dec_offline_overlap *param_pt
 		dec_slice_in.image_w = src_width;
 		dec_slice_in.image_h = src_height;
 		if (param_ptr->slice_mode && slice_flag[0]) {
-			dec_slice_in.slice_w  = cur_layer_width[0];
+			dec_slice_in.slice_w = cur_layer_width[0];
 			dec_slice_in.slice_h = cur_layer_height[0];
 		} else {
 			dec_slice_in.slice_w = layer_slice_width[0];
@@ -749,7 +735,7 @@ void alg_slice_calc_dec_offline_overlap(struct alg_dec_offline_overlap *param_pt
 }
 }
 
-void core_drv_dewarping_init_block(isp_block_drv_t *block_ptr)
+void core_drv_dewarping_init_block(struct isp_block_drv_t *block_ptr)
 {
 	block_ptr->left = 160;
 	block_ptr->right = 160;
@@ -757,7 +743,7 @@ void core_drv_dewarping_init_block(isp_block_drv_t *block_ptr)
 	block_ptr->down = 160;
 }
 
-void core_drv_pyd_rec_init_block(isp_block_drv_t *block_ptr)
+void core_drv_pyd_rec_init_block(struct isp_block_drv_t *block_ptr)
 {
 	block_ptr->left = REC_OVERLAP;
 	block_ptr->right = REC_OVERLAP;
@@ -765,7 +751,7 @@ void core_drv_pyd_rec_init_block(isp_block_drv_t *block_ptr)
 	block_ptr->down = REC_OVERLAP;
 }
 
-void core_drv_cnr_init_block(isp_block_drv_t *block_ptr)
+void core_drv_cnr_init_block(struct isp_block_drv_t *block_ptr)
 {
 	block_ptr->left = 3;
 	block_ptr->right = 3;
@@ -773,7 +759,7 @@ void core_drv_cnr_init_block(isp_block_drv_t *block_ptr)
 	block_ptr->down = 3;
 }
 
-static void core_drv_ynr_init_block(isp_block_drv_t *block_ptr)
+static void core_drv_ynr_init_block(struct isp_block_drv_t *block_ptr)
 {
 	block_ptr->left = 3;
 	block_ptr->right = 3;
@@ -781,7 +767,7 @@ static void core_drv_ynr_init_block(isp_block_drv_t *block_ptr)
 	block_ptr->down = 3;
 }
 
-void core_drv_yuv420_to_rgb10_init_block(isp_block_drv_t *block_ptr)
+void core_drv_yuv420_to_rgb10_init_block(struct isp_block_drv_t *block_ptr)
 {
 	block_ptr->left = 2;
 	block_ptr->right = 2;
@@ -820,7 +806,7 @@ static void cal_trim_deci_info(uint16_t iw, uint16_t ow, uint16_t outformat, uin
 		*trimx = iw;
 		*deci_factor_x = tmp;
 	} else {
-		*trimx = (iw/(2*tmp)*(2*tmp));
+		*trimx = (iw / (2 * tmp) * (2 * tmp));
 		tmp = cal_ratio(*trimx, ow, outformat);
 		*deci_factor_x = tmp;
 	}
@@ -836,13 +822,13 @@ static uint16_t cal_rect(uint16_t Bstartcol,uint16_t Bstartrow,uint16_t Bendcol,
 	*second = 0;
 	*third = 0;
 	*fourth = 0;
-	if(Astartcol>= Bstartcol && Astartcol<= Bendcol)
+	if(Astartcol >= Bstartcol && Astartcol <= Bendcol)
 		flag1 = 1;
-	if(Aendcol>= Bstartcol && Aendcol<= Bendcol)
+	if(Aendcol >= Bstartcol && Aendcol <= Bendcol)
 		flag2 = 1;
-	if(Astartrow>= Bstartrow && Astartrow<= Bendrow)
+	if(Astartrow >= Bstartrow && Astartrow <= Bendrow)
 		flag3 = 1;
-	if(Aendrow>= Bstartrow && Aendrow<= Bendrow)
+	if(Aendrow >= Bstartrow && Aendrow <= Bendrow)
 		flag4 = 1;
 
 	*first = (uint16_t)(flag1&flag3);
@@ -853,8 +839,8 @@ static uint16_t cal_rect(uint16_t Bstartcol,uint16_t Bstartrow,uint16_t Bendcol,
 	return num;
 }
 
-void thumbInitSliceInfo_forhw(thumbscaler_this* thumbnail_info, int col, int row,
-	int totalcol, int totalrow, THUMB_SLICE_PARAM_T *thumbframeInfo)
+void thumbInitSliceInfo_forhw(struct thumbscaler_this* thumbnail_info, int col, int row,
+	int totalcol, int totalrow, struct THUMB_SLICE_PARAM_T *thumbframeInfo)
 {
 	int id = thumbframeInfo->id;
 	uint16_t deci_factor_x,deci_factor_y;
@@ -892,10 +878,10 @@ void thumbInitSliceInfo_forhw(thumbscaler_this* thumbnail_info, int col, int row
 	cal_trim_deci_info(thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0realih,
 		thumbnail_info->configinfo.oh,  thumbnail_info->configinfo.outformat, &trimy, &deci_factor_y);
 
-	if (thumbframeInfo->start_col >  thumbnail_info->configinfo.thumbnailscaler_trimendcol-1 ||
-		thumbframeInfo->start_row >  thumbnail_info->configinfo.thumbnailscaler_trimendrow-1 ||
-		thumbframeInfo->end_col <    thumbnail_info->configinfo.thumbnailscaler_trimstartcol ||
-		thumbframeInfo->end_row <    thumbnail_info->configinfo.thumbnailscaler_trimstartrow) {
+	if (thumbframeInfo->start_col > thumbnail_info->configinfo.thumbnailscaler_trimendcol - 1 ||
+		thumbframeInfo->start_row > thumbnail_info->configinfo.thumbnailscaler_trimendrow-1 ||
+		thumbframeInfo->end_col < thumbnail_info->configinfo.thumbnailscaler_trimstartcol ||
+		thumbframeInfo->end_row < thumbnail_info->configinfo.thumbnailscaler_trimstartrow) {
 		thumbnail_info->thumbinfo.thumbsliceinfo[id].scalerswitch = 0;
 	} else {
 		thumbnail_info->thumbinfo.thumbsliceinfo[id].scalerswitch = 1;
@@ -923,187 +909,137 @@ void thumbInitSliceInfo_forhw(thumbscaler_this* thumbnail_info, int col, int row
 			thumbframeInfo->end_row,
 			&first2,&second2,&third2,&fourth2);
 
-	if (num1==0 && num2 ==0)//1
-	{
-	    thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0startcol = MAX(thumbframeInfo->start_col,thumbnail_info->configinfo.thumbnailscaler_trimstartcol);
-	    thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0startrow = MAX(thumbframeInfo->start_row,thumbnail_info->configinfo.thumbnailscaler_trimstartrow);
-	    thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0endcol   = MIN(thumbframeInfo->end_col,thumbnail_info->configinfo.thumbnailscaler_trimendcol-1);
-	    thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0endrow   = MIN(thumbframeInfo->end_row,thumbnail_info->configinfo.thumbnailscaler_trimendrow-1);
-	}
-	else if (num1 ==4 && num2 ==4)//2
-	{
-	    thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0startcol = thumbnail_info->configinfo.thumbnailscaler_trimstartcol;//hong
-	    thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0startrow = thumbnail_info->configinfo.thumbnailscaler_trimstartrow;
-	    thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0endcol   = thumbnail_info->configinfo.thumbnailscaler_trimendcol-1;
-	    thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0endrow   = thumbnail_info->configinfo.thumbnailscaler_trimendrow-1;
-	}
-	else if (num1 == 4 &&(num2 ==0|| num2==1||num2 ==2))//3
-	{
-	    thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0startcol = thumbnail_info->configinfo.thumbnailscaler_trimstartcol;//hong
-	    thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0startrow = thumbnail_info->configinfo.thumbnailscaler_trimstartrow;
-	    thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0endcol   = thumbnail_info->configinfo.thumbnailscaler_trimendcol-1;
-	    thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0endrow   = thumbnail_info->configinfo.thumbnailscaler_trimendrow-1;
-	}
-	else if ((num1 == 0|| num1==1||num1 == 2) && num2 ==4)//4
-	{
-	    thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0startcol = thumbframeInfo->start_col;//hei
-	    thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0startrow = thumbframeInfo->start_row;
-	    thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0endcol   = thumbframeInfo->end_col;
-	    thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0endrow   = thumbframeInfo->end_row;
-	}
-	else if ((num1 == 0 || num1 ==1) && num2 == 2)//5
-	{
+		if (num1== 0 && num2 == 0) {
+			thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0startcol = MAX(thumbframeInfo->start_col,thumbnail_info->configinfo.thumbnailscaler_trimstartcol);
+			thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0startrow = MAX(thumbframeInfo->start_row,thumbnail_info->configinfo.thumbnailscaler_trimstartrow);
+			thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0endcol = MIN(thumbframeInfo->end_col,thumbnail_info->configinfo.thumbnailscaler_trimendcol-1);
+			thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0endrow = MIN(thumbframeInfo->end_row,thumbnail_info->configinfo.thumbnailscaler_trimendrow-1);
+		} else if (num1 == 4 && num2 == 4) {
+			thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0startcol = thumbnail_info->configinfo.thumbnailscaler_trimstartcol;//hong
+			thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0startrow = thumbnail_info->configinfo.thumbnailscaler_trimstartrow;
+			thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0endcol = thumbnail_info->configinfo.thumbnailscaler_trimendcol-1;
+			thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0endrow = thumbnail_info->configinfo.thumbnailscaler_trimendrow-1;
+		} else if (num1 == 4 &&(num2 ==0 || num2== 1||num2 == 2)) {
+			thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0startcol = thumbnail_info->configinfo.thumbnailscaler_trimstartcol;//hong
+			thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0startrow = thumbnail_info->configinfo.thumbnailscaler_trimstartrow;
+			thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0endcol = thumbnail_info->configinfo.thumbnailscaler_trimendcol-1;
+			thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0endrow = thumbnail_info->configinfo.thumbnailscaler_trimendrow-1;
+		} else if ((num1 == 0 || num1== 1||num1 == 2) && num2 == 4) {
+			thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0startcol = thumbframeInfo->start_col;//hei
+			thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0startrow = thumbframeInfo->start_row;
+			thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0endcol = thumbframeInfo->end_col;
+			thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0endrow = thumbframeInfo->end_row;
+		} else if ((num1 == 0 || num1 ==1) && num2 == 2) {
 
-	    flagsum = a[0]*first2 +a[1]*second2 + a[2]*third2 + a[3]*fourth2;
-	    if (flagsum == 6)
-	    {
-	        thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0startcol = thumbnail_info->configinfo.thumbnailscaler_trimstartcol;
-	        thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0startrow = thumbframeInfo->start_row;
-	        thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0endcol   = thumbframeInfo->end_col;
-	        thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0endrow   = thumbframeInfo->end_row;
-	    }
-	    else if (flagsum == 7)
-	    {
-	        thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0startcol = thumbframeInfo->start_col;
-	        thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0startrow = thumbnail_info->configinfo.thumbnailscaler_trimstartrow;
-	        thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0endcol   = thumbframeInfo->end_col;
-	        thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0endrow   = thumbframeInfo->end_row;
-	    }
-	    else if (flagsum == 4)
-	    {
-	        thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0startcol = thumbframeInfo->start_col;
-	        thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0startrow = thumbframeInfo->start_row;
-	        thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0endcol   = thumbnail_info->configinfo.thumbnailscaler_trimendcol-1;
-	        thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0endrow   = thumbframeInfo->end_row;
-	    }
-	    else if (flagsum == 3)
-	    {
-	        thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0startcol = thumbframeInfo->start_col;
-	        thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0startrow = thumbframeInfo->start_row;
-	        thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0endcol   = thumbframeInfo->end_col;
-	        thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0endrow   = thumbnail_info->configinfo.thumbnailscaler_trimendrow-1;
-	    }
-	}
+			flagsum = a[0] * first2 +a[1] * second2 + a[2] * third2 + a[3] * fourth2;
+			if (flagsum == 6) {
+				thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0startcol = thumbnail_info->configinfo.thumbnailscaler_trimstartcol;
+				thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0startrow = thumbframeInfo->start_row;
+				thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0endcol = thumbframeInfo->end_col;
+				thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0endrow = thumbframeInfo->end_row;
+			} else if (flagsum == 7) {
+				thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0startcol = thumbframeInfo->start_col;
+				thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0startrow = thumbnail_info->configinfo.thumbnailscaler_trimstartrow;
+				thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0endcol = thumbframeInfo->end_col;
+				thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0endrow = thumbframeInfo->end_row;
+			} else if (flagsum == 4) {
+				thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0startcol = thumbframeInfo->start_col;
+				thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0startrow = thumbframeInfo->start_row;
+				thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0endcol = thumbnail_info->configinfo.thumbnailscaler_trimendcol-1;
+				thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0endrow = thumbframeInfo->end_row;
+			} else if (flagsum == 3) {
+				thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0startcol = thumbframeInfo->start_col;
+				thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0startrow = thumbframeInfo->start_row;
+				thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0endcol = thumbframeInfo->end_col;
+				thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0endrow = thumbnail_info->configinfo.thumbnailscaler_trimendrow-1;
+			}
+		} else if (num1 == 2 && (num2 == 0 || num2 == 1)) {
 
-	else if (num1 == 2 && (num2 == 0 || num2 == 1))
-	{
+			int flagsum = a[0] * first1 + a[1] * second1 + a[2] * third1 + a[3] * fourth1;
+			if (flagsum == 6) {
+				thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0startcol = thumbframeInfo->start_col;
+				thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0startrow = thumbnail_info->configinfo.thumbnailscaler_trimstartrow;
+				thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0endcol = thumbnail_info->configinfo.thumbnailscaler_trimendcol-1;
+				thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0endrow = thumbnail_info->configinfo.thumbnailscaler_trimendrow-1;
+			} else if (flagsum == 7) {
+				thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0startcol = thumbnail_info->configinfo.thumbnailscaler_trimstartcol;
+				thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0startrow = thumbframeInfo->start_row;
+				thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0endcol = thumbnail_info->configinfo.thumbnailscaler_trimendcol-1;
+				thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0endrow = thumbnail_info->configinfo.thumbnailscaler_trimendrow-1;
+			} else if (flagsum == 4) {
+				thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0startcol = thumbnail_info->configinfo.thumbnailscaler_trimstartcol;
+				thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0startrow = thumbnail_info->configinfo.thumbnailscaler_trimstartrow;
+				thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0endcol = thumbframeInfo->end_col;
+				thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0endrow = thumbnail_info->configinfo.thumbnailscaler_trimendrow-1;
+			} else if (flagsum == 3) {
+				thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0startcol = thumbnail_info->configinfo.thumbnailscaler_trimstartcol;
+				thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0startrow = thumbnail_info->configinfo.thumbnailscaler_trimstartrow;
+				thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0endcol = thumbnail_info->configinfo.thumbnailscaler_trimendcol-1;
+				thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0endrow = thumbframeInfo->end_row;
+			}
+		}else if (num1 ==1 && num2 ==1) {
+			if (first1==1) {
+				thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0startcol = thumbnail_info->configinfo.thumbnailscaler_trimstartcol;
+				thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0startrow = thumbnail_info->configinfo.thumbnailscaler_trimstartrow;
+				thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0endcol = thumbframeInfo->end_col;
+				thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0endrow = thumbframeInfo->end_row;
+			} else if (second1 ==1) {
+				thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0startcol = thumbframeInfo->start_col;
+				thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0startrow = thumbnail_info->configinfo.thumbnailscaler_trimstartrow;
+				thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0endcol = thumbnail_info->configinfo.thumbnailscaler_trimendcol-1;
+				thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0endrow = thumbframeInfo->end_row;
+			} else if (third1 == 1) {
+				thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0startcol = thumbnail_info->configinfo.thumbnailscaler_trimstartcol;
+				thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0startrow = thumbframeInfo->start_row;
+				thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0endcol = thumbframeInfo->end_col;
+				thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0endrow = thumbnail_info->configinfo.thumbnailscaler_trimendrow-1;
+			} else if (fourth1 == 1) {
+				thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0startcol = thumbframeInfo->start_col;
+				thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0startrow = thumbframeInfo->start_row;
+				thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0endcol = thumbnail_info->configinfo.thumbnailscaler_trimendcol-1;
+				thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0endrow = thumbnail_info->configinfo.thumbnailscaler_trimendrow-1;
+			}
+		}else if (num1 ==2 && num2 == 2) {
 
-	    int flagsum = a[0]*first1 +a[1]*second1 + a[2]*third1 + a[3]*fourth1;
-	    if (flagsum == 6)
-	    {
-	        thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0startcol = thumbframeInfo->start_col;
-	        thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0startrow = thumbnail_info->configinfo.thumbnailscaler_trimstartrow;
-	        thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0endcol   = thumbnail_info->configinfo.thumbnailscaler_trimendcol-1;
-	        thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0endrow   = thumbnail_info->configinfo.thumbnailscaler_trimendrow-1;
-	    }
-	    else if (flagsum == 7)
-	    {
-	        thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0startcol = thumbnail_info->configinfo.thumbnailscaler_trimstartcol;
-	        thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0startrow = thumbframeInfo->start_row;
-	        thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0endcol   = thumbnail_info->configinfo.thumbnailscaler_trimendcol-1;
-	        thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0endrow   = thumbnail_info->configinfo.thumbnailscaler_trimendrow-1;
-	    }
-	    else if (flagsum == 4)
-	    {
-	        thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0startcol = thumbnail_info->configinfo.thumbnailscaler_trimstartcol;
-	        thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0startrow = thumbnail_info->configinfo.thumbnailscaler_trimstartrow;
-	        thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0endcol   = thumbframeInfo->end_col;
-	        thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0endrow   = thumbnail_info->configinfo.thumbnailscaler_trimendrow-1;
-	    }
-	    else if (flagsum == 3)
-	    {
-	        thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0startcol = thumbnail_info->configinfo.thumbnailscaler_trimstartcol;
-	        thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0startrow = thumbnail_info->configinfo.thumbnailscaler_trimstartrow;
-	        thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0endcol   = thumbnail_info->configinfo.thumbnailscaler_trimendcol-1;
-	        thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0endrow   = thumbframeInfo->end_row;
-	    }
-	}
-	else if (num1 ==1 && num2 ==1)  //使用trim0在slice里的点的个数来计算//7
-	{
-	    if (first1==1)
-	    {
-	        thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0startcol = thumbnail_info->configinfo.thumbnailscaler_trimstartcol;
-	        thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0startrow = thumbnail_info->configinfo.thumbnailscaler_trimstartrow;
-	        thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0endcol   = thumbframeInfo->end_col;
-	        thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0endrow   = thumbframeInfo->end_row;
-	    }
-	    else if (second1 ==1)
-	    {
-	        thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0startcol = thumbframeInfo->start_col;
-	        thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0startrow = thumbnail_info->configinfo.thumbnailscaler_trimstartrow;
-	        thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0endcol   = thumbnail_info->configinfo.thumbnailscaler_trimendcol-1;
-	        thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0endrow   = thumbframeInfo->end_row;
-	    }
-	    else if (third1 == 1)
-	    {
-	        thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0startcol = thumbnail_info->configinfo.thumbnailscaler_trimstartcol;
-	        thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0startrow = thumbframeInfo->start_row;
-	        thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0endcol   = thumbframeInfo->end_col;
-	        thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0endrow   = thumbnail_info->configinfo.thumbnailscaler_trimendrow-1;
-	    }
-	    else if (fourth1 == 1)
-	    {
-	        thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0startcol = thumbframeInfo->start_col;
-	        thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0startrow = thumbframeInfo->start_row;
-	        thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0endcol   = thumbnail_info->configinfo.thumbnailscaler_trimendcol-1;
-	        thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0endrow   = thumbnail_info->configinfo.thumbnailscaler_trimendrow-1;
-	    }
-	}
-	else if (num1 ==2 && num2 ==2)
-	{
-
-	    flagsum = a[0]*first1 +a[1]*second1 + a[2]*third1 + a[3]*fourth1;
-	    if (flagsum==4)
-	    {
-	        thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0startcol = thumbnail_info->configinfo.thumbnailscaler_trimstartcol;
-	        thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0startrow = thumbnail_info->configinfo.thumbnailscaler_trimstartrow;
-	        thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0endcol   = thumbframeInfo->end_col;
-	        thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0endrow   = thumbnail_info->configinfo.thumbnailscaler_trimendrow-1;
-	    }
-	    else if (flagsum == 7)
-	    {
-	        thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0startcol = thumbnail_info->configinfo.thumbnailscaler_trimstartcol;
-	        thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0startrow = thumbframeInfo->start_row;
-	        thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0endcol   = thumbnail_info->configinfo.thumbnailscaler_trimendcol-1;
-	        thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0endrow   = thumbnail_info->configinfo.thumbnailscaler_trimendrow-1;
-	    }
-	    else if (flagsum == 6)
-	    {
-	        thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0startcol = thumbframeInfo->start_col;
-	        thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0startrow = thumbnail_info->configinfo.thumbnailscaler_trimstartrow;
-	        thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0endcol   = thumbnail_info->configinfo.thumbnailscaler_trimendcol-1;
-	        thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0endrow   = thumbnail_info->configinfo.thumbnailscaler_trimendrow-1;
-	    }
-	    else if (flagsum == 3)
-	    {
-	        thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0startcol = thumbnail_info->configinfo.thumbnailscaler_trimstartcol;
-	        thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0startrow = thumbnail_info->configinfo.thumbnailscaler_trimstartrow;
-	        thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0endcol   = thumbnail_info->configinfo.thumbnailscaler_trimendcol-1;
-	        thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0endrow   = thumbframeInfo->end_row;
-	    }
-	}
-
-		for ( i = 0;i<totalcol;i++)
-		{
+			flagsum = a[0]*first1 +a[1]*second1 + a[2]*third1 + a[3]*fourth1;
+			if (flagsum == 4) {
+				thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0startcol = thumbnail_info->configinfo.thumbnailscaler_trimstartcol;
+				thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0startrow = thumbnail_info->configinfo.thumbnailscaler_trimstartrow;
+				thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0endcol = thumbframeInfo->end_col;
+				thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0endrow = thumbnail_info->configinfo.thumbnailscaler_trimendrow-1;
+			} else if (flagsum == 7) {
+				thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0startcol = thumbnail_info->configinfo.thumbnailscaler_trimstartcol;
+				thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0startrow = thumbframeInfo->start_row;
+				thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0endcol = thumbnail_info->configinfo.thumbnailscaler_trimendcol-1;
+				thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0endrow = thumbnail_info->configinfo.thumbnailscaler_trimendrow-1;
+			} else if (flagsum == 6) {
+				thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0startcol = thumbframeInfo->start_col;
+				thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0startrow = thumbnail_info->configinfo.thumbnailscaler_trimstartrow;
+				thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0endcol = thumbnail_info->configinfo.thumbnailscaler_trimendcol-1;
+				thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0endrow = thumbnail_info->configinfo.thumbnailscaler_trimendrow-1;
+			} else if (flagsum == 3) {
+				thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0startcol = thumbnail_info->configinfo.thumbnailscaler_trimstartcol;
+				thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0startrow = thumbnail_info->configinfo.thumbnailscaler_trimstartrow;
+				thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0endcol = thumbnail_info->configinfo.thumbnailscaler_trimendcol-1;
+				thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0endrow = thumbframeInfo->end_row;
+			}
+		} for ( i = 0;i < totalcol; i++) {
 			if ((i + 1) * thumbframeInfo->width <= thumbnail_info->configinfo.iw)
 				aa[i] = (i + 1) * thumbframeInfo->width - 1;
 			else
 				aa[i] = thumbnail_info->configinfo.iw - 1;
 
-			if (aa[i]>= thumbnail_info->configinfo.thumbnailscaler_trimstartcol
+			if (aa[i] >= thumbnail_info->configinfo.thumbnailscaler_trimstartcol
 				&& aa[i]<thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0endcol)
 				coltemp = coltemp + 1;
-		}
-
-		for ( i = 0;i<totalrow;i++)
-		{
+		} for ( i = 0;i < totalrow;i++) {
 			if ((i + 1) * thumbframeInfo->height <= thumbnail_info->configinfo.ih)
 				aa[i] = (i + 1) * thumbframeInfo->height - 1;
 			else
 				aa[i] = thumbnail_info->configinfo.ih - 1;
 
-			if (aa[i]>= thumbnail_info->configinfo.thumbnailscaler_trimstartrow &&
-				aa[i]<thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0endrow)
+			if (aa[i] >= thumbnail_info->configinfo.thumbnailscaler_trimstartrow &&
+				aa[i] < thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0endrow)
 				rowtemp = rowtemp + 1;
 		}
 		thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0slice_col = coltemp;
@@ -1138,32 +1074,32 @@ int16_t cal_phase_4(uint16_t trimy,uint16_t oh,uint16_t deci_factor_y, uint16_t 
 	int sumphase = thumbnail_phase;
 
 	int i;
-	int deci_y = trimy/deci_factor_y;
+	int deci_y = trimy / deci_factor_y;
 	if (real_startrow == 0) {
 		*realnumup = realnum;
 		*phasey = thumbnail_phase;
 		return num;
 	} else {
-		for(i =0; i<deci_y;i++) {
-			if (sumphase<deci_y) {
-				sumphase = sumphase +oh;
+		for(i = 0; i < deci_y; i++) {
+			if (sumphase < deci_y) {
+				sumphase = sumphase + oh;
 				count++;
 
-				if (i == deci_y-1)
+				if (i == deci_y - 1)
 					realnum++;
 			} else {
 				realnum++;
-				if ((count*deci_factor_y) >= real_startrow) {
-					if (realnum%thumbnailscaler_base_align == 0)
+				if ((count * deci_factor_y) >= real_startrow) {
+					if (realnum % thumbnailscaler_base_align == 0)
 						break;
 				}
 				sumphase = sumphase -deci_y + oh;
 				count++;
-				if (i == deci_y-1)
+				if (i == deci_y - 1)
 					realnum++;
 			}
 		}
-		phase = sumphase -deci_y;
+		phase = sumphase - deci_y;
 		*realnumup = realnum;
 		*phasey = phase;
 		return num = count * deci_factor_y - real_startrow;
@@ -1179,61 +1115,47 @@ int16_t cal_phase_1uv(uint16_t trimy,uint16_t oh,uint16_t deci_factor_y, uint16_
 	int sumphase = thumbnailscaler_phase;
 
 	int i;
-	int deci_y = trimy/deci_factor_y;
+	int deci_y = trimy / deci_factor_y;
 
-    if(real_startrow == 0)
+	if (real_startrow == 0) {
+		*realnumup = realnum;
+		*phasey = thumbnailscaler_phase;
+		return num;
+	} else {
+		for ( i = 0; i < deci_y; i++) {
+			if (sumphase < deci_y) {
+				sumphase = sumphase +oh;
+				count++;
 
-    {
-        *realnumup = realnum;
-        *phasey = thumbnailscaler_phase;
-        return num;
-    }
-    else
-    {
-        for( i =0; i<deci_y;i++)
-        {
+				if (i == deci_y - 1)
+					realnum++;
+			} else {
+			realnum++;
 
-            if(sumphase<deci_y)
-            {
-                sumphase = sumphase +oh;
-                count++;
+			if (realnum * 2 == yrealnumup)
+				break;
+			if ((count * deci_factor_y) >= real_startrow) {
+				if (realnum % 1 == 0 && realnum * 2 == yrealnumup) {
+					break;
+				}
+			}
+			sumphase = sumphase -deci_y + oh;
+			count++;
+			if (i == deci_y - 1)
+				realnum++;
+			}
+		}
+		phase = sumphase - deci_y;
+		*realnumup = realnum;
+		*phasey = phase;
 
-                if(i == deci_y-1)
-                    realnum++;
-            }
-            else
-            {
-                realnum++;
-
-                if (realnum*2 == yrealnumup)
-                {
-                    break;
-                }
-                if((count*deci_factor_y) >= real_startrow)
-                {
-
-                    if( realnum%1 == 0 && realnum*2 == yrealnumup)
-                    {
-                        break;
-                    }
-                }
-                sumphase = sumphase -deci_y + oh;
-                count++;
-                if(i == deci_y-1)
-                    realnum++;
-            }
-        }
-        phase = sumphase -deci_y;
-        *realnumup = realnum;
-        *phasey = phase;
-
-        return num = count*deci_factor_y - real_startrow;
-    }
+		return num = count * deci_factor_y - real_startrow;
+	}
 
 }
 
-void cal_TH_infophasenum_v2(TH_infophasenum* th_infophasenum,CONFIGINFO_T* configinfo,THUMBINFO_T*  thumbinfo,int slicecols,int slicerows,
-    THUMB_SLICE_PARAM_T *sliceInfo)
+void cal_TH_infophasenum_v2(struct TH_infophasenum* th_infophasenum, struct CONFIGINFO_T* configinfo,
+		struct THUMBINFO_T* thumbinfo,int slicecols,int slicerows, struct THUMB_SLICE_PARAM_T *sliceInfo)
 {
 	uint16_t needup_v = 0;
 	uint16_t needdown_v = 0;
@@ -1276,327 +1198,307 @@ void cal_TH_infophasenum_v2(TH_infophasenum* th_infophasenum,CONFIGINFO_T* confi
 	int16_t uvnumup,uvnumdown,uvnumleft,uvnumright;
 	uint16_t uvrealnumup ,uvrealnumdown ,uvrealnumleft ,uvrealnumright ;
 
-	id =0;
-    for(ii=0; ii<slicerows; ii++)
-    {
-        for(jj=0; jj<slicecols; jj++,id++)
-        {
-            needup_v    = 0;
-            needdown_v  = 0;
-            needleft_v  = 0;
-            needright_v = 0;
+	id = 0;
+	for (ii = 0; ii < slicerows; ii++) {
+		for (jj = 0; jj < slicecols; jj++,id++) {
+			needup_v = 0;
+			needdown_v = 0;
+			needleft_v = 0;
+			needright_v = 0;
 
-            if (thumbinfo->thumbsliceinfo[id].scalerswitch == 0)
-            {
-                thumbinfo->thumbsliceinfo[id].realih = 0 ;//jueduichangdu//所有变量都应该是2×factor的倍数
-                thumbinfo->thumbsliceinfo[id].realiw  = 0;
-                thumbinfo->thumbsliceinfo[id].realoh = 0;//算出输出的长度
-                thumbinfo->thumbsliceinfo[id].realow = 0;
-                continue;
-            }
+			if (thumbinfo->thumbsliceinfo[id].scalerswitch == 0) {
+				thumbinfo->thumbsliceinfo[id].realih = 0 ;
+				thumbinfo->thumbsliceinfo[id].realiw = 0;
+				thumbinfo->thumbsliceinfo[id].realoh = 0;
+				thumbinfo->thumbsliceinfo[id].realow = 0;
+				continue;
+			}
 
 
-            thumbnailscaler_trimstartrow = configinfo->thumbnailscaler_trimstartrow;
-            thumbnailscaler_trimstartcol  = configinfo->thumbnailscaler_trimstartcol;
-            thumbnailscaler_trimendrow   = configinfo->thumbnailscaler_trimendrow-1;
-            thumbnailscaler_trimendcol    = configinfo->thumbnailscaler_trimendcol-1;
+			thumbnailscaler_trimstartrow = configinfo->thumbnailscaler_trimstartrow;
+			thumbnailscaler_trimstartcol = configinfo->thumbnailscaler_trimstartcol;
+			thumbnailscaler_trimendrow = configinfo->thumbnailscaler_trimendrow-1;
+			thumbnailscaler_trimendcol = configinfo->thumbnailscaler_trimendcol-1;
 
-            trim0slice_totalcol = configinfo->trim0slice_totalcol;
-            trim0slice_totalrow = configinfo->trim0slice_totalrow;
-            trim0slice_col = thumbinfo->thumbsliceinfo[id].trim0slice_col;
-            trim0slice_row = thumbinfo->thumbsliceinfo[id].trim0slice_row;
+			trim0slice_totalcol = configinfo->trim0slice_totalcol;
+			trim0slice_totalrow = configinfo->trim0slice_totalrow;
+			trim0slice_col = thumbinfo->thumbsliceinfo[id].trim0slice_col;
+			trim0slice_row = thumbinfo->thumbsliceinfo[id].trim0slice_row;
 
-            trim0startrow = thumbinfo->thumbsliceinfo[id].trim0startrow;
-            trim0startcol = thumbinfo->thumbsliceinfo[id].trim0startcol;
-            trim0endrow = thumbinfo->thumbsliceinfo[id].trim0endrow;
-            trim0endcol = thumbinfo->thumbsliceinfo[id].trim0endcol;
+			trim0startrow = thumbinfo->thumbsliceinfo[id].trim0startrow;
+			trim0startcol = thumbinfo->thumbsliceinfo[id].trim0startcol;
+			trim0endrow = thumbinfo->thumbsliceinfo[id].trim0endrow;
+			trim0endcol = thumbinfo->thumbsliceinfo[id].trim0endcol;
 
-            trim0realiw =  thumbinfo->thumbsliceinfo[id].trim0realiw;
-            trim0realih =  thumbinfo->thumbsliceinfo[id].trim0realih;
+			trim0realiw = thumbinfo->thumbsliceinfo[id].trim0realiw;
+			trim0realih = thumbinfo->thumbsliceinfo[id].trim0realih;
 
-            inrealstartrow = trim0startrow - thumbnailscaler_trimstartrow;
-            inrealstartcol = trim0startcol - thumbnailscaler_trimstartcol;
-            inrealendrow = trim0endrow - thumbnailscaler_trimstartrow;
-            inrealendcol = trim0endcol - thumbnailscaler_trimstartcol;
+			inrealstartrow = trim0startrow - thumbnailscaler_trimstartrow;
+			inrealstartcol = trim0startcol - thumbnailscaler_trimstartcol;
+			inrealendrow = trim0endrow - thumbnailscaler_trimstartrow;
+			inrealendcol = trim0endcol - thumbnailscaler_trimstartcol;
 
-            deci_factor_x = thumbinfo->thumbsliceinfo[id].deci_factor_x;
-            deci_factor_y = thumbinfo->thumbsliceinfo[id].deci_factor_y;
-            trimx = thumbinfo->thumbsliceinfo[id].trimx;
-            trimy = thumbinfo->thumbsliceinfo[id].trimy;
-            cur_col = thumbinfo->thumbsliceinfo[id].cur_col;
-            cur_row = thumbinfo->thumbsliceinfo[id].cur_row;
-            totalcol = thumbinfo->thumbsliceinfo[id].totalcol;
-            totalrow = thumbinfo->thumbsliceinfo[id].totalrow;
+			deci_factor_x = thumbinfo->thumbsliceinfo[id].deci_factor_x;
+			deci_factor_y = thumbinfo->thumbsliceinfo[id].deci_factor_y;
+			trimx = thumbinfo->thumbsliceinfo[id].trimx;
+			trimy = thumbinfo->thumbsliceinfo[id].trimy;
+			cur_col = thumbinfo->thumbsliceinfo[id].cur_col;
+			cur_row = thumbinfo->thumbsliceinfo[id].cur_row;
+			totalcol = thumbinfo->thumbsliceinfo[id].totalcol;
+			totalrow = thumbinfo->thumbsliceinfo[id].totalrow;
 
-            if((trim0slice_row == trim0slice_totalrow-1) &&(trim0slice_col == trim0slice_totalcol-1))
-            {
+			if ((trim0slice_row == trim0slice_totalrow - 1) && (trim0slice_col == trim0slice_totalcol - 1)) {
 
-                inrealendcol = inrealendcol - (trim0realiw - trimx);
-                inrealendrow = inrealendrow - (trim0realih - trimy);
-            }
-            else if(trim0slice_col == trim0slice_totalcol-1)
-            {
-                inrealendcol = inrealendcol - (trim0realiw - trimx);
+				inrealendcol = inrealendcol - (trim0realiw - trimx);
+				inrealendrow = inrealendrow - (trim0realih - trimy);
+			}
+			else if (trim0slice_col == trim0slice_totalcol - 1) {
+				inrealendcol = inrealendcol - (trim0realiw - trimx);
+			}
+			else if (trim0slice_row == trim0slice_totalrow - 1) {
+				inrealendrow = inrealendrow - (trim0realih - trimy);
+			}
 
-            }
-            else if(trim0slice_row == trim0slice_totalrow-1)
-            {
-                inrealendrow = inrealendrow - (trim0realih - trimy);
-            }
+			phaseup = 0, phasedown = 0, phaseleft = 0, phaseright = 0;
+			numup= 0, numdown= 0, numleft= 0, numright= 0;
+			realnumup = 0, realnumdown = 0, realnumleft = 0, realnumright = 0;
 
-            phaseup = 0,phasedown = 0,phaseleft = 0,phaseright = 0;
-            numup=0,numdown=0,numleft=0,numright=0;
-            realnumup =0,realnumdown =0,realnumleft =0,realnumright =0;
+			numup = cal_phase_4(trimy, configinfo->oh, deci_factor_y, inrealstartrow, &phaseup, &realnumup, configinfo->thumbnailscaler_phaseY, configinfo->thumbnailscaler_base_align);//jueduichangdu//num是deci前的多余数，算出的phase是在全frame尺寸下的值，这个是deci后iw与ow
 
-            numup = cal_phase_4(trimy,configinfo->oh,deci_factor_y,inrealstartrow,&phaseup,&realnumup,configinfo->thumbnailscaler_phaseY,configinfo->thumbnailscaler_base_align);//jueduichangdu//num是deci前的多余数，算出的phase是在全frame尺寸下的值，这个是deci后iw与ow
+			numdown = cal_phase_4(trimy, configinfo->oh, deci_factor_y, inrealendrow + 1, &phasedown, &realnumdown, configinfo->thumbnailscaler_phaseY, configinfo->thumbnailscaler_base_align);//
 
-            numdown = cal_phase_4(trimy,configinfo->oh,deci_factor_y,inrealendrow+1, &phasedown, &realnumdown,configinfo->thumbnailscaler_phaseY,configinfo->thumbnailscaler_base_align);//
+			numleft = cal_phase_4(trimx,configinfo->ow,deci_factor_x,inrealstartcol, &phaseleft, &realnumleft,configinfo->thumbnailscaler_phaseX,configinfo->thumbnailscaler_base_align);
 
-            numleft = cal_phase_4(trimx,configinfo->ow,deci_factor_x,inrealstartcol, &phaseleft, &realnumleft,configinfo->thumbnailscaler_phaseX,configinfo->thumbnailscaler_base_align);
-
-            numright = cal_phase_4(trimx,configinfo->ow,deci_factor_x,inrealendcol+1, &phaseright, &realnumright,configinfo->thumbnailscaler_phaseX,configinfo->thumbnailscaler_base_align);
+			numright = cal_phase_4(trimx, configinfo->ow, deci_factor_x, inrealendcol + 1, &phaseright, &realnumright, configinfo->thumbnailscaler_phaseX, configinfo->thumbnailscaler_base_align);
 
 
-            uvphaseup = 0,uvphasedown = 0,uvphaseleft = 0,uvphaseright = 0;
-            uvnumup=0,uvnumdown=0,uvnumleft=0,uvnumright=0;
-            uvrealnumup =0,uvrealnumdown =0,uvrealnumleft =0,uvrealnumright =0;
+			uvphaseup = 0, uvphasedown = 0, uvphaseleft = 0, uvphaseright = 0;
+			uvnumup= 0, uvnumdown= 0, uvnumleft= 0, uvnumright = 0;
+			uvrealnumup = 0, uvrealnumdown = 0, uvrealnumleft = 0, uvrealnumright = 0;
 
-            uvnumup = cal_phase_1uv(trimy/2,configinfo->oh/2,deci_factor_y,inrealstartrow/2,&uvphaseup,&uvrealnumup,realnumup,configinfo->thumbnailscaler_phaseY/2);
-            uvnumdown = cal_phase_1uv(trimy/2,configinfo->oh/2,deci_factor_y,(inrealendrow-1)/2+1, &uvphasedown, &uvrealnumdown,realnumdown,configinfo->thumbnailscaler_phaseY/2);
-            uvnumleft = cal_phase_1uv(trimx/2,configinfo->ow/2,deci_factor_x,inrealstartcol/2, &uvphaseleft, &uvrealnumleft,realnumleft,configinfo->thumbnailscaler_phaseX/2);
-            uvnumright = cal_phase_1uv(trimx/2,configinfo->ow/2,deci_factor_x,(inrealendcol-1)/2+1, &uvphaseright, &uvrealnumright,realnumright,configinfo->thumbnailscaler_phaseX/2);
+			uvnumup = cal_phase_1uv(trimy / 2, configinfo->oh / 2, deci_factor_y, inrealstartrow / 2, &uvphaseup, &uvrealnumup, realnumup, configinfo->thumbnailscaler_phaseY / 2);
+			uvnumdown = cal_phase_1uv(trimy / 2, configinfo->oh / 2, deci_factor_y, (inrealendrow - 1) / 2 + 1, &uvphasedown, &uvrealnumdown, realnumdown, configinfo->thumbnailscaler_phaseY / 2);
+			uvnumleft = cal_phase_1uv(trimx / 2, configinfo->ow / 2, deci_factor_x, inrealstartcol / 2, &uvphaseleft, &uvrealnumleft, realnumleft, configinfo->thumbnailscaler_phaseX / 2);
+			uvnumright = cal_phase_1uv(trimx / 2, configinfo->ow / 2, deci_factor_x, (inrealendcol - 1) / 2 + 1, &uvphaseright, &uvrealnumright, realnumright, configinfo->thumbnailscaler_phaseX / 2);
 
 
-            th_infophasenum->thumbinfo_phasenum_yid[id].numup = numup;
-            th_infophasenum->thumbinfo_phasenum_yid[id].numdown = numdown;
-            th_infophasenum->thumbinfo_phasenum_yid[id].numleft = numleft;
-            th_infophasenum->thumbinfo_phasenum_yid[id].numright = numright;
-            th_infophasenum->thumbinfo_phasenum_yid[id].phaseup = phaseup;
-            th_infophasenum->thumbinfo_phasenum_yid[id].phasedown = phasedown;
-            th_infophasenum->thumbinfo_phasenum_yid[id].phaseleft = phaseleft;
-            th_infophasenum->thumbinfo_phasenum_yid[id].phaseright = phaseright;
+			th_infophasenum->thumbinfo_phasenum_yid[id].numup = numup;
+			th_infophasenum->thumbinfo_phasenum_yid[id].numdown = numdown;
+			th_infophasenum->thumbinfo_phasenum_yid[id].numleft = numleft;
+			th_infophasenum->thumbinfo_phasenum_yid[id].numright = numright;
+			th_infophasenum->thumbinfo_phasenum_yid[id].phaseup = phaseup;
+			th_infophasenum->thumbinfo_phasenum_yid[id].phasedown = phasedown;
+			th_infophasenum->thumbinfo_phasenum_yid[id].phaseleft = phaseleft;
+			th_infophasenum->thumbinfo_phasenum_yid[id].phaseright = phaseright;
 
-            th_infophasenum->thumbinfo_phasenum_uvid[id].numup = uvnumup;
-            th_infophasenum->thumbinfo_phasenum_uvid[id].numdown = uvnumdown;
-            th_infophasenum->thumbinfo_phasenum_uvid[id].numleft = uvnumleft;
-            th_infophasenum->thumbinfo_phasenum_uvid[id].numright = uvnumright;
-            th_infophasenum->thumbinfo_phasenum_uvid[id].phaseup = uvphaseup;
-            th_infophasenum->thumbinfo_phasenum_uvid[id].phasedown = uvphasedown;
-            th_infophasenum->thumbinfo_phasenum_uvid[id].phaseleft = uvphaseleft;
-            th_infophasenum->thumbinfo_phasenum_uvid[id].phaseright = uvphaseright;
+			th_infophasenum->thumbinfo_phasenum_uvid[id].numup = uvnumup;
+			th_infophasenum->thumbinfo_phasenum_uvid[id].numdown = uvnumdown;
+			th_infophasenum->thumbinfo_phasenum_uvid[id].numleft = uvnumleft;
+			th_infophasenum->thumbinfo_phasenum_uvid[id].numright = uvnumright;
+			th_infophasenum->thumbinfo_phasenum_uvid[id].phaseup = uvphaseup;
+			th_infophasenum->thumbinfo_phasenum_uvid[id].phasedown = uvphasedown;
+			th_infophasenum->thumbinfo_phasenum_uvid[id].phaseleft = uvphaseleft;
+			th_infophasenum->thumbinfo_phasenum_uvid[id].phaseright = uvphaseright;
 
-            if (abs(numup)>*needup)
-            {
-                *needup = abs(numup);
-            }
-            if (abs(numdown)>*needdown)
-            {
-                *needdown = abs(numdown);
-            }
-            if (abs(numleft)>*needleft)
-            {
-                *needleft = abs(numleft);
-            }
-            if (abs(numright)>*needright)
-            {
-                *needright = abs(numright);
-            }
+			if (abs(numup) > *needup) {
+				*needup = abs(numup);
+			}
+			if (abs(numdown) > *needdown) {
+				*needdown = abs(numdown);
+			}
+			if (abs(numleft) > *needleft) {
+				*needleft = abs(numleft);
+			}
+			if (abs(numright) > *needright) {
+				*needright = abs(numright);
+			}
 
-            if (abs(uvnumup*2)>*needup)
-            {
-                *needup = abs(uvnumup*2);
-            }
-            if (abs(uvnumdown*2)>*needdown)
-            {
-                *needdown = abs(uvnumdown*2);
-            }
+			if (abs(uvnumup * 2) > *needup) {
+				*needup = abs(uvnumup * 2);
+			}
+			if (abs(uvnumdown * 2) > *needdown) {
+				*needdown = abs(uvnumdown * 2);
+			}
 
-            if (abs(uvnumleft*2)>*needleft)
-            {
-                *needleft = abs(uvnumleft*2);
-            }
-            if (abs(uvnumright*2)>*needright)
-            {
-                *needright = abs(uvnumright*2);
-            }
+			if (abs(uvnumleft * 2) > *needleft) {
+				*needleft = abs(uvnumleft * 2);
+			}
+			if (abs(uvnumright * 2) > *needright) {
+				*needright = abs(uvnumright * 2);
+			}
 
-            sliceInfo[id].overlap_up = needup_v;
-            sliceInfo[id].overlap_down = needdown_v;
-            sliceInfo[id].overlap_left  = needleft_v;
-            sliceInfo[id].overlap_right = needright_v;
+			sliceInfo[id].overlap_up = needup_v;
+			sliceInfo[id].overlap_down = needdown_v;
+			sliceInfo[id].overlap_left = needleft_v;
+			sliceInfo[id].overlap_right = needright_v;
 
-            sliceInfo[id].overlap_up = (sliceInfo[id].overlap_up + 1)>>1<<1;
-            sliceInfo[id].overlap_down = (sliceInfo[id].overlap_down + 1)>>1<<1;
-            sliceInfo[id].overlap_left = (sliceInfo[id].overlap_left + 1)>>1<<1;
-            sliceInfo[id].overlap_right = (sliceInfo[id].overlap_right + 1)>>1<<1;
+			sliceInfo[id].overlap_up = (sliceInfo[id].overlap_up + 1)>>1<<1;
+			sliceInfo[id].overlap_down = (sliceInfo[id].overlap_down + 1)>>1<<1;
+			sliceInfo[id].overlap_left = (sliceInfo[id].overlap_left + 1)>>1<<1;
+			sliceInfo[id].overlap_right = (sliceInfo[id].overlap_right + 1)>>1<<1;
 
-            thumbinfo->thumbsliceinfo[id].realih = inrealendrow - inrealstartrow +1 - numup + numdown;
-            thumbinfo->thumbsliceinfo[id].realiw  = inrealendcol - inrealstartcol + 1 - numleft + numright;
-            thumbinfo->thumbsliceinfo[id].realoh = realnumdown - realnumup;
-            thumbinfo->thumbsliceinfo[id].realow = realnumright - realnumleft;
-        }
-    }
+			thumbinfo->thumbsliceinfo[id].realih = inrealendrow - inrealstartrow +1 - numup + numdown;
+			thumbinfo->thumbsliceinfo[id].realiw  = inrealendcol - inrealstartcol + 1 - numleft + numright;
+			thumbinfo->thumbsliceinfo[id].realoh = realnumdown - realnumup;
+			thumbinfo->thumbsliceinfo[id].realow = realnumright - realnumleft;
+		}
+	}
 }
 
 void thumbnailscaler_calculate_region(
-    const struct alg_slice_regions *r_ref,
-    struct alg_slice_regions *r_out,
-    thumbnailscaler_param_t *thumbnailscaler_param_ptr,
-    thumbnailscaler_context *pipe_context_ptr,
-    int v_flag)
+	const struct alg_slice_regions *r_ref,
+	struct alg_slice_regions *r_out,
+	struct thumbnailscaler_param_t *thumbnailscaler_param_ptr,
+	struct thumbnailscaler_context *pipe_context_ptr,
+	int v_flag)
 {
 	int ii,jj,rows,cols;
 	int frameW = pipe_context_ptr->src_width;
 	int FrameH = pipe_context_ptr->src_height;
 	int slicecols = r_ref->cols;
 	int slicerows = r_ref->rows;
-	THUMB_SLICE_PARAM_T thumbslice_param_obj;
-	THUMB_SLICE_PARAM_T *thumbslice_param;
+	struct THUMB_SLICE_PARAM_T thumbslice_param_obj;
+	struct THUMB_SLICE_PARAM_T *thumbslice_param;
 	int id =0;
-	thumbscaler_this thumbscaler_param_temp = {0};
-	THUMB_SLICE_PARAM_T *sliceInfo = (THUMB_SLICE_PARAM_T *)vzalloc(sizeof(THUMB_SLICE_PARAM_T)*slicerows*slicecols);
+	struct thumbscaler_this thumbscaler_param_temp = {0};
+	struct THUMB_SLICE_PARAM_T *sliceInfo = (struct THUMB_SLICE_PARAM_T *)vzalloc(sizeof(struct THUMB_SLICE_PARAM_T) * slicerows * slicecols);
 
 	isp_drv_regions_set(r_ref,r_out);
 
-	memset(&thumbslice_param_obj,0,sizeof(THUMB_SLICE_PARAM_T));
+	memset(&thumbslice_param_obj,0,sizeof(struct THUMB_SLICE_PARAM_T));
 	thumbslice_param = &thumbslice_param_obj;
 	rows = slicerows;
 	cols = slicecols;
 	thumbnailscaler_param_ptr->configinfo.iw = frameW;
 	thumbnailscaler_param_ptr->configinfo.ih = FrameH;
 
-    //set input
-    memcpy(&thumbscaler_param_temp.configinfo, &thumbnailscaler_param_ptr->configinfo, sizeof(CONFIGINFO_T));
+	//set input
+	memcpy(&thumbscaler_param_temp.configinfo, &thumbnailscaler_param_ptr->configinfo, sizeof(struct CONFIGINFO_T));
 
-    for(ii=0; ii<rows; ii++)
-    {
-        for( jj=0; jj<cols; jj++,id++)
-        {
-            thumbslice_param->id = id;
-            thumbslice_param->width         = pipe_context_ptr->offlineSliceWidth;
-            thumbslice_param->height        = pipe_context_ptr->offlineSliceHeight;
-            thumbslice_param->start_col     = r_ref->regions[id].sx;
-            thumbslice_param->end_col       = r_ref->regions[id].ex;
-            thumbslice_param->start_row     = r_ref->regions[id].sy;
-            thumbslice_param->end_row       = r_ref->regions[id].ey;
-            thumbslice_param->overlap_left  = 0;
-            thumbslice_param->overlap_right = 0;
-            thumbslice_param->overlap_up    = 0;
-            thumbslice_param->overlap_down  = 0;
+	for (ii = 0; ii < rows; ii++) {
+		for ( jj = 0; jj < cols; jj++, id++) {
+			thumbslice_param->id = id;
+			thumbslice_param->width = pipe_context_ptr->offlineSliceWidth;
+			thumbslice_param->height = pipe_context_ptr->offlineSliceHeight;
+			thumbslice_param->start_col = r_ref->regions[id].sx;
+			thumbslice_param->end_col = r_ref->regions[id].ex;
+			thumbslice_param->start_row = r_ref->regions[id].sy;
+			thumbslice_param->end_row = r_ref->regions[id].ey;
+			thumbslice_param->overlap_left = 0;
+			thumbslice_param->overlap_right = 0;
+			thumbslice_param->overlap_up = 0;
+			thumbslice_param->overlap_down = 0;
 
-            //thumbInitSliceInfo(thumbnailscaler_param_ptr,jj,ii,cols,rows,thumbslice_param);  //计算trim0和当前slice的交集的坐标
-            thumbInitSliceInfo_forhw(&thumbscaler_param_temp,jj,ii,cols,rows,thumbslice_param);
-        }
-    }
+			/* thumbInitSliceInfo(thumbnailscaler_param_ptr,jj,ii,cols,rows,thumbslice_param); */
+			thumbInitSliceInfo_forhw(&thumbscaler_param_temp, jj, ii, cols, rows, thumbslice_param);
+		}
+	}
 
-    //get output
-    //memcpy(&thumbnailscaler_param_ptr->th_infophasenum, &thumbscaler_param_temp.th_infophasenum, sizeof(TH_infophasenum));
-    memcpy(&thumbnailscaler_param_ptr->configinfo, &thumbscaler_param_temp.configinfo, sizeof(CONFIGINFO_T));
-    memcpy(&thumbnailscaler_param_ptr->thumbinfo, &thumbscaler_param_temp.thumbinfo, sizeof(THUMBINFO_T));
+	/* get output */
+	/* memcpy(&thumbnailscaler_param_ptr->th_infophasenum, &thumbscaler_param_temp.th_infophasenum, sizeof(TH_infophasenum)); */
+	memcpy(&thumbnailscaler_param_ptr->configinfo, &thumbscaler_param_temp.configinfo, sizeof(struct CONFIGINFO_T));
+	memcpy(&thumbnailscaler_param_ptr->thumbinfo, &thumbscaler_param_temp.thumbinfo, sizeof(struct THUMBINFO_T));
 
-    cal_TH_infophasenum_v2(
-        &thumbnailscaler_param_ptr->th_infophasenum,
-        &thumbnailscaler_param_ptr->configinfo,
-        &thumbnailscaler_param_ptr->thumbinfo,
-        slicecols ,
-        slicerows,
-        sliceInfo);
+	cal_TH_infophasenum_v2(
+		&thumbnailscaler_param_ptr->th_infophasenum,
+		&thumbnailscaler_param_ptr->configinfo,
+		&thumbnailscaler_param_ptr->thumbinfo,
+		slicecols,
+		slicerows,
+		sliceInfo);
 
-    id =0;
-    for( ii=0; ii<rows; ii++)
-    {
-        for( jj=0; jj<cols; jj++,id++)
-        {
-            r_out->regions[id].sy -= sliceInfo[id].overlap_up;
-            r_out->regions[id].ey += sliceInfo[id].overlap_down;
-            r_out->regions[id].sx -= sliceInfo[id].overlap_left;
-            r_out->regions[id].ex += sliceInfo[id].overlap_right;
+	id = 0;
+	for ( ii = 0; ii < rows; ii++) {
+		for ( jj = 0; jj < cols; jj++,id++) {
+			r_out->regions[id].sy -= sliceInfo[id].overlap_up;
+			r_out->regions[id].ey += sliceInfo[id].overlap_down;
+			r_out->regions[id].sx -= sliceInfo[id].overlap_left;
+			r_out->regions[id].ex += sliceInfo[id].overlap_right;
 
-            if(r_out->regions[id].sy < 0)
-                r_out->regions[id].sy  = 0;
+			if (r_out->regions[id].sy < 0)
+				r_out->regions[id].sy = 0;
 
-            if(r_out->regions[id].ey > FrameH-1)
-                r_out->regions[id].ey = FrameH-1;
+			if (r_out->regions[id].ey > FrameH-1)
+				r_out->regions[id].ey = FrameH-1;
 
-            if(r_out->regions[id].sx < 0)
-                r_out->regions[id].sx = 0;
+			if (r_out->regions[id].sx < 0)
+				r_out->regions[id].sx = 0;
 
-            if(r_out->regions[id].ex > frameW-1)
-                r_out->regions[id].ex = frameW-1;
-        }
-    }
+			if (r_out->regions[id].ex > frameW-1)
+				r_out->regions[id].ex = frameW-1;
+		}
+	}
 
-    //
-    r_out->rows = rows;
-    r_out->cols = cols;
-    //
-    vfree(sliceInfo);
+	r_out->rows = rows;
+	r_out->cols = cols;
+
+	vfree(sliceInfo);
 }
 
-static void scaler_slice_init(const struct alg_region_info *input_slice_region,
-	slice_drv_scaler_slice_init_context *context, struct alg_slice_scaler_overlap *scaler_param_ptr)
+static void scaler_slice_init(const struct alg_region_info *input_slice_region, struct slice_drv_scaler_slice_init_context *context,
+		struct alg_slice_scaler_overlap *scaler_param_ptr)
 {
-    scaler_slice_t scaler_slice;
-    scaler_slice_t input_slice_info  = {0};
-    scaler_slice_t output_slice_info = {0};
-    int slice_index  = context->slice_index;
-    int rows         = context->rows;
-    int cols         = context->cols;
-    int slice_row_no = context->slice_row_no;
-    int slice_col_no = context->slice_col_no;
-    yuvscaler_param_t *frame_param;
-    yuvscaler_param_t *slice_param;
+	struct scaler_slice_t scaler_slice;
+	struct scaler_slice_t input_slice_info  = {0};
+	struct scaler_slice_t output_slice_info = {0};
+	int slice_index = context->slice_index;
+	int rows = context->rows;
+	int cols = context->cols;
+	int slice_row_no = context->slice_row_no;
+	int slice_col_no = context->slice_col_no;
+	struct yuvscaler_param_t *frame_param;
+	struct yuvscaler_param_t *slice_param;
 
-    frame_param = (yuvscaler_param_t*)scaler_param_ptr->frameParam;
-    slice_param = (yuvscaler_param_t *)scaler_param_ptr->sliceParam + slice_index;
+	frame_param = (struct yuvscaler_param_t*)scaler_param_ptr->frameParam;
+	slice_param = (struct yuvscaler_param_t *)scaler_param_ptr->sliceParam + slice_index;
 
-    scaler_slice.slice_id      = slice_index;
-    scaler_slice.start_col     = input_slice_region->sx;
-    scaler_slice.start_row     = input_slice_region->sy;
-    scaler_slice.end_col       = input_slice_region->ex;
-    scaler_slice.end_row       = input_slice_region->ey;
-    scaler_slice.sliceRows     = rows;
-    scaler_slice.sliceCols     = cols;
-    scaler_slice.sliceRowNo    = slice_row_no;
-    scaler_slice.sliceColNo    = slice_col_no;
-    scaler_slice.slice_width   = context->slice_w;
-    scaler_slice.slice_height  = context->slice_h;
-    scaler_slice.overlap_left  = 0;
-    scaler_slice.overlap_right = 0;
-    scaler_slice.overlap_up    = 0;
-    scaler_slice.overlap_down  = 0;
+	scaler_slice.slice_id = slice_index;
+	scaler_slice.start_col = input_slice_region->sx;
+	scaler_slice.start_row = input_slice_region->sy;
+	scaler_slice.end_col = input_slice_region->ex;
+	scaler_slice.end_row = input_slice_region->ey;
+	scaler_slice.sliceRows = rows;
+	scaler_slice.sliceCols = cols;
+	scaler_slice.sliceRowNo = slice_row_no;
+	scaler_slice.sliceColNo = slice_col_no;
+	scaler_slice.slice_width = context->slice_w;
+	scaler_slice.slice_height = context->slice_h;
+	scaler_slice.overlap_left = 0;
+	scaler_slice.overlap_right = 0;
+	scaler_slice.overlap_up = 0;
+	scaler_slice.overlap_down = 0;
 
-    scaler_slice.init_phase_hor = scaler_param_ptr->phase[slice_index].init_phase_hor;
-    scaler_slice.init_phase_ver = scaler_param_ptr->phase[slice_index].init_phase_ver;
+	scaler_slice.init_phase_hor = scaler_param_ptr->phase[slice_index].init_phase_hor;
+	scaler_slice.init_phase_ver = scaler_param_ptr->phase[slice_index].init_phase_ver;
 
-    input_slice_info.start_col = scaler_param_ptr->region_input[slice_index].sx;
-    input_slice_info.end_col   = scaler_param_ptr->region_input[slice_index].ex;
-    input_slice_info.start_row = scaler_param_ptr->region_input[slice_index].sy;
-    input_slice_info.end_row   = scaler_param_ptr->region_input[slice_index].ey;
+	input_slice_info.start_col = scaler_param_ptr->region_input[slice_index].sx;
+	input_slice_info.end_col = scaler_param_ptr->region_input[slice_index].ex;
+	input_slice_info.start_row = scaler_param_ptr->region_input[slice_index].sy;
+	input_slice_info.end_row = scaler_param_ptr->region_input[slice_index].ey;
 
-    output_slice_info.start_col = scaler_param_ptr->region_output[slice_index].sx;
-    output_slice_info.end_col   = scaler_param_ptr->region_output[slice_index].ex;
-    output_slice_info.start_row = scaler_param_ptr->region_output[slice_index].sy;
-    output_slice_info.end_row   = scaler_param_ptr->region_output[slice_index].ey;
+	output_slice_info.start_col = scaler_param_ptr->region_output[slice_index].sx;
+	output_slice_info.end_col = scaler_param_ptr->region_output[slice_index].ex;
+	output_slice_info.start_row = scaler_param_ptr->region_output[slice_index].sy;
+	output_slice_info.end_row = scaler_param_ptr->region_output[slice_index].ey;
 
-    yuv_scaler_init_slice_info_v3(
-        frame_param,
-        slice_param,
-        &scaler_slice,
-        &input_slice_info,
-        &output_slice_info);
+	yuv_scaler_init_slice_info_v3(
+		frame_param,
+		slice_param,
+		&scaler_slice,
+		&input_slice_info,
+		&output_slice_info);
 }
 
 //input:    输入图像(frame)的pixel_alignment, trim_start, trim_size, decimation, scaler setting;
 //          输入图像中的slice位置, 输出图像的pixel对齐要求
 //output:   输出图像中的slice位置(如果输入图像slice位置与trim窗口没有重叠区域，则没有对应的输出，此时返回的output_slice_size = 0)
 void calc_scaler_output_slice_info(int trim_start, int trim_size, int deci,
-int scl_en, int scl_factor_in, int scl_factor_out, int scl_tap, int init_phase,
-    int input_slice_start, int input_slice_size, int output_pixel_align,
-    int *output_slice_start, int *output_slice_size)
+	int scl_en, int scl_factor_in, int scl_factor_out, int scl_tap, int init_phase,
+	int input_slice_start, int input_slice_size, int output_pixel_align,
+	int *output_slice_start, int *output_slice_size)
 {
 	int spixel, epixel;
-	int deci_size = trim_size/deci;
+	int deci_size = trim_size / deci;
 	int input_slice_end = input_slice_start + input_slice_size;
 	int trim_end = trim_start + trim_size;
 
@@ -1610,7 +1512,7 @@ int scl_en, int scl_factor_in, int scl_factor_out, int scl_tap, int init_phase,
 	input_slice_start = input_slice_start - trim_start;
 
 	//deci
-	input_slice_start = (input_slice_start + deci - 1)/deci;
+	input_slice_start = (input_slice_start + deci - 1) / deci;
 	if (input_slice_start != 0)
 	input_slice_start += scl_tap/2 - 1;
 
@@ -1619,17 +1521,17 @@ int scl_en, int scl_factor_in, int scl_factor_out, int scl_tap, int init_phase,
 	input_slice_end = input_slice_end - trim_start;
 
 	//deci
-	input_slice_end = input_slice_end/deci;
+	input_slice_end = input_slice_end / deci;
 	if (input_slice_end != deci_size)
-	input_slice_end -= scl_tap/2;
+	input_slice_end -= scl_tap / 2;
 
 	//scale
-	spixel = (input_slice_start*scl_factor_out - init_phase + scl_factor_in - 1)/scl_factor_in;
-	epixel = (input_slice_end*scl_factor_out - 1 - init_phase)/scl_factor_in + 1;
+	spixel = (input_slice_start * scl_factor_out - init_phase + scl_factor_in - 1) / scl_factor_in;
+	epixel = (input_slice_end * scl_factor_out - 1 - init_phase) / scl_factor_in + 1;
 
 	//align
-	spixel = ((spixel + output_pixel_align - 1)/output_pixel_align)*output_pixel_align;
-	epixel = (epixel/output_pixel_align)*output_pixel_align;
+	spixel = ((spixel + output_pixel_align - 1) / output_pixel_align) * output_pixel_align;
+	epixel = (epixel / output_pixel_align) * output_pixel_align;
 
 	//output
 	*output_slice_start = spixel;
@@ -1655,23 +1557,23 @@ void calc_scaler_output_slice_info_v2(int trim_start, int trim_size, int deci,
 	input_slice_start = input_slice_start - trim_start;
 
 	//deci
-	input_slice_start = (input_slice_start + deci - 1)/deci;
+	input_slice_start = (input_slice_start + deci - 1) / deci;
 
 	//trim
 	input_slice_end = input_slice_end > trim_end ? trim_end : input_slice_end;
 	input_slice_end = input_slice_end - trim_start;
 
 	//deci
-	input_slice_end = input_slice_end/deci;
+	input_slice_end = input_slice_end / deci;
 
 	//scale
-	spixel = (input_slice_start*scl_factor_out - init_phase)/scl_factor_in;
+	spixel = (input_slice_start * scl_factor_out - init_phase) / scl_factor_in;
 	//epixel = ((input_slice_end - 1)*scl_factor_out - init_phase)/scl_factor_in + 1;
-	epixel = (input_slice_end*scl_factor_out - 1 - init_phase)/scl_factor_in + 1;
+	epixel = (input_slice_end * scl_factor_out - 1 - init_phase) / scl_factor_in + 1;
 
 	//align
-	spixel = ((spixel + output_pixel_align - 1)/output_pixel_align)*output_pixel_align;
-	epixel = ((epixel + output_pixel_align - 1)/output_pixel_align)*output_pixel_align;
+	spixel = ((spixel + output_pixel_align - 1) / output_pixel_align) * output_pixel_align;
+	epixel = ((epixel + output_pixel_align - 1) / output_pixel_align) * output_pixel_align;
 
 	//output
 	*output_slice_start = spixel;
@@ -1687,8 +1589,7 @@ static int trim0_resize(uint8_t deci_factor, uint16_t trim_start,
 	trim_size_temp = trim_size;
 	align_rmd = trim_size_temp % (deci_factor * trim0_align);
 
-	if (align_rmd != 0)
-	{
+	if (align_rmd != 0) {
 		trim_size += deci_factor * trim0_align - align_rmd;
 
 		if ((trim_start + trim_size) > src_size)
@@ -1703,9 +1604,9 @@ static int trim0_resize(uint8_t deci_factor, uint16_t trim_start,
 }
 
 
-static void yuv_scaler_init_frame_info(yuvscaler_param_t *pYuvScaler)
+static void yuv_scaler_init_frame_info(struct yuvscaler_param_t *pYuvScaler)
 {
-	scaler_info_t *pScalerInfo = NULL;
+	struct scaler_info_t *pScalerInfo = NULL;
 	uint16_t new_width = pYuvScaler->src_size_x;
 	uint16_t new_height = pYuvScaler->src_size_y;
 	int adj_hor = 1;
@@ -1724,8 +1625,8 @@ static void yuv_scaler_init_frame_info(yuvscaler_param_t *pYuvScaler)
 			pYuvScaler->deci_info.deciPhase_Y = 0;
 		}
 
-		////////////////////////////////// trim0 align ////////////////////////////////////////
-		trim0_align = 2; //algorithm requirement, scaler needs 2 aligned input size
+		/* //////////////////////////////// trim0 align ////////////////////////////////////// */
+		trim0_align = 2;/*algorithm requirement, scaler needs 2 aligned input size */
 		if (pYuvScaler->trim0_info.trim_start_x % 2 != 0)
 			pr_err("fail to align trim start x%d\n", pYuvScaler->trim0_info.trim_start_x);
 		if (pYuvScaler->trim0_info.trim_start_y % 2 != 0)
@@ -1739,12 +1640,12 @@ static void yuv_scaler_init_frame_info(yuvscaler_param_t *pYuvScaler)
 			trim0_align, pYuvScaler->src_size_y);
 
 		if (pYuvScaler->deci_info.deci_x_en)
-			new_width = pYuvScaler->trim0_info.trim_size_x/pYuvScaler->deci_info.deci_x;
+			new_width = pYuvScaler->trim0_info.trim_size_x / pYuvScaler->deci_info.deci_x;
 		else
 			new_width = pYuvScaler->trim0_info.trim_size_x;
 
 		if (pYuvScaler->deci_info.deci_y_en)
-			new_height = pYuvScaler->trim0_info.trim_size_y/pYuvScaler->deci_info.deci_y;
+			new_height = pYuvScaler->trim0_info.trim_size_y / pYuvScaler->deci_info.deci_y;
 		else
 			new_height = pYuvScaler->trim0_info.trim_size_y;
 
@@ -1768,10 +1669,10 @@ static void yuv_scaler_init_frame_info(yuvscaler_param_t *pYuvScaler)
 			if (i_h % 2 != 0 || o_h % 2 != 0 || i_h > o_h * SCL_DOWN_MAX || o_h > i_h * SCL_UP_MAX)
 				pr_err("fail to get vaild iw %d ow %d\n", i_h, o_h);
 
-			scl_factor_in_hor = (uint16_t)(i_w*adj_hor);
-			scl_factor_out_hor = (uint16_t)(o_w*adj_hor);
-			scl_factor_in_ver = (uint16_t)(i_h*adj_ver);
-			scl_factor_out_ver = (uint16_t)(o_h*adj_ver);
+			scl_factor_in_hor = (uint16_t)(i_w * adj_hor);
+			scl_factor_out_hor = (uint16_t)(o_w * adj_hor);
+			scl_factor_in_ver = (uint16_t)(i_h * adj_ver);
+			scl_factor_out_ver = (uint16_t)(o_h * adj_ver);
 
 			pScalerInfo->scaler_factor_in_hor = scl_factor_in_hor;
 			pScalerInfo->scaler_factor_out_hor = scl_factor_out_hor;
@@ -1805,7 +1706,7 @@ static void yuv_scaler_init_frame_info(yuvscaler_param_t *pYuvScaler)
 						&pScalerInfo->init_phase_info.scaler_init_phase_rmd[1][1]);
 			} else if (pYuvScaler->input_pixfmt == YUV420) {
 				if (pYuvScaler->output_pixfmt == YUV422)
-					calc_scaler_phase(scl_init_phase_ver/2, scl_factor_out_ver,
+					calc_scaler_phase(scl_init_phase_ver / 2, scl_factor_out_ver,
 						&pScalerInfo->init_phase_info.scaler_init_phase_int[1][1],
 						&pScalerInfo->init_phase_info.scaler_init_phase_rmd[1][1]);
 				else if (pYuvScaler->output_pixfmt == YUV420)
@@ -1844,7 +1745,7 @@ static void yuv_scaler_init_frame_info(yuvscaler_param_t *pYuvScaler)
 	pYuvScaler->dst_size_y = new_height;
 }
 
-static void scaler_init(yuvscaler_param_t *core_param, struct alg_slice_scaler_overlap *in_param_ptr, pipe_overlap_context *context)
+static void scaler_init(struct yuvscaler_param_t *core_param, struct alg_slice_scaler_overlap *in_param_ptr, struct pipe_overlap_context *context)
 {
 	core_param->bypass = in_param_ptr->bypass;
 	core_param->trim0_info.trim_en = in_param_ptr->trim_eb;
@@ -1886,14 +1787,14 @@ static void scaler_init(yuvscaler_param_t *core_param, struct alg_slice_scaler_o
 				core_param->output_align_ver = AFBC_PADDING_H_YUV420_scaler;
 			} else if (!in_param_ptr->FBC_enable &&!in_param_ptr->dec_online_bypass) {
 				core_param->output_align_hor = (core_param->output_align_hor >
-					(1<<(in_param_ptr->layerNum+1))) ? core_param->output_align_hor : (1<<(in_param_ptr->layerNum+1));
+					(1<<(in_param_ptr->layerNum + 1))) ? core_param->output_align_hor : (1<<(in_param_ptr->layerNum + 1));
 				core_param->output_align_ver = (core_param->output_align_ver >
 					(1<<in_param_ptr->layerNum)) ? core_param->output_align_ver : (1<<in_param_ptr->layerNum);
 			} else if (in_param_ptr->FBC_enable && !in_param_ptr->dec_online_bypass) {
 				core_param->output_align_hor = (AFBC_PADDING_W_YUV420_scaler >
-					(1<<(in_param_ptr->layerNum+1)) ) ? AFBC_PADDING_W_YUV420_scaler : (1<<(in_param_ptr->layerNum+1));
+					(1<<(in_param_ptr->layerNum + 1)) ) ? AFBC_PADDING_W_YUV420_scaler : (1<<(in_param_ptr->layerNum + 1));
 				core_param->output_align_ver = (AFBC_PADDING_H_YUV420_scaler >
-					(1<<in_param_ptr->layerNum    ) ) ? AFBC_PADDING_H_YUV420_scaler : (1<<in_param_ptr->layerNum);
+					(1<<in_param_ptr->layerNum ) ) ? AFBC_PADDING_H_YUV420_scaler : (1<<in_param_ptr->layerNum);
 			}
 		} else {
 			if (in_param_ptr->FBC_enable) {
@@ -1902,9 +1803,9 @@ static void scaler_init(yuvscaler_param_t *core_param, struct alg_slice_scaler_o
 			}
 		}
 	}
-	if(context->pixelFormat == 3/*PIX_FMT_YUV422*/)
+	if(context->pixelFormat == 3)/* PIX_FMT_YUV422 */
 		core_param->input_pixfmt = YUV422;
-	else if (context->pixelFormat == 4/*PIX_FMT_YUV420*/)
+	else if (context->pixelFormat == 4)/* PIX_FMT_YUV420 */
 		core_param->input_pixfmt = YUV420;
 
 	core_param->src_size_x = context->frameWidth;
@@ -1922,350 +1823,307 @@ static void scaler_init(yuvscaler_param_t *core_param, struct alg_slice_scaler_o
 }
 
 static void scaler_calculate_region(const struct alg_slice_regions *r_ref,
-    struct alg_slice_regions *r_out, yuvscaler_param_t *core_param,
-    int v_flag, struct alg_slice_scaler_overlap *scaler_param_ptr, int slice_w)
+	struct alg_slice_regions *r_out, struct yuvscaler_param_t *core_param,
+	int v_flag, struct alg_slice_scaler_overlap *scaler_param_ptr, int slice_w)
 {
-    int i,j,index;
-    int output_slice_end;
-    uint16_t prev_row_end, prev_col_end;
-    int rows = r_ref->rows;
-    int cols = r_ref->cols;
-    SliceWnd wndInTemp;
-    SliceWnd wndOutTemp;
-    slice_drv_scaler_phase_info phaseTemp;
+	int i,j,index;
+	int output_slice_end;
+	uint16_t prev_row_end, prev_col_end;
+	int rows = r_ref->rows;
+	int cols = r_ref->cols;
+	struct SliceWnd wndInTemp;
+	struct SliceWnd wndOutTemp;
+	struct slice_drv_scaler_phase_info phaseTemp;
 
-    static struct alg_slice_regions r_old;
+	static struct alg_slice_regions r_old;
 
-    phaseTemp.init_phase_hor = 0;
-    phaseTemp.init_phase_ver = 0;
+	phaseTemp.init_phase_hor = 0;
+	phaseTemp.init_phase_ver = 0;
 
-    prev_row_end = 0;
-    for ( i = 0;i<rows; i++)
-    {
-        prev_col_end = 0;
-        for ( j = 0;j<cols;j++)
-        {
-            index = i*cols + j;
-            if (v_flag == 0)
-            {
-                isp_drv_regions_set(r_ref, &r_old);
-            }
-            //hor
-            {
-                int trim_start = core_param->trim0_info.trim_start_x;
-                int trim_size = core_param->trim0_info.trim_size_x;
-                int deci = core_param->deci_info.deci_x;
-                int scl_en = core_param->scaler_info.scaler_en;
-                int scl_factor_in = core_param->scaler_info.scaler_factor_in_hor;
-                int scl_factor_out = core_param->scaler_info.scaler_factor_out_hor;
-                int scl_tap = core_param->scaler_info.scaler_y_hor_tap;
-                int init_phase = core_param->scaler_info.init_phase_info.scaler_init_phase[0];
-                int input_slice_start  = r_ref->regions[index].sx;
-                int input_slice_size = r_ref->regions[index].ex - r_ref->regions[index].sx + 1;
-                int output_pixel_align = core_param->output_align_hor;
+	prev_row_end = 0;
+	for (i = 0;i < rows; i++) {
+		prev_col_end = 0;
+		for (j = 0;j < cols;j++) {
+			index = i * cols + j;
+			if (v_flag == 0)
+				isp_drv_regions_set(r_ref, &r_old);
+			//hor
+			{
+				int trim_start = core_param->trim0_info.trim_start_x;
+				int trim_size = core_param->trim0_info.trim_size_x;
+				int deci = core_param->deci_info.deci_x;
+				int scl_en = core_param->scaler_info.scaler_en;
+				int scl_factor_in = core_param->scaler_info.scaler_factor_in_hor;
+				int scl_factor_out = core_param->scaler_info.scaler_factor_out_hor;
+				int scl_tap = core_param->scaler_info.scaler_y_hor_tap;
+				int init_phase = core_param->scaler_info.init_phase_info.scaler_init_phase[0];
+				int input_slice_start = r_ref->regions[index].sx;
+				int input_slice_size = r_ref->regions[index].ex - r_ref->regions[index].sx + 1;
+				int output_pixel_align = core_param->output_align_hor;
 
-                int output_slice_start = 0;
-                int output_slice_size = 0;
+				int output_slice_start = 0;
+				int output_slice_size = 0;
 
-                int trim_end = trim_start + trim_size;
-                int last_trim_slice_id;
-                last_trim_slice_id = (trim_end+slice_w-1)/slice_w - 1;
+				int trim_end = trim_start + trim_size;
+				int last_trim_slice_id;
+				last_trim_slice_id = (trim_end + slice_w - 1)/slice_w - 1;
 
-                //if(j == cols - 1)
-                if(j >= last_trim_slice_id)
-                {
-                    output_pixel_align = 2;
-                }
+				//if(j == cols - 1)
+				if(j >= last_trim_slice_id)
+					output_pixel_align = 2;
 
-                if(v_flag == 0)
-                {
-                    est_scaler_output_slice_info(
-                        trim_start,
-                        trim_size,
-                        deci,
-                        scl_en,
-                        scl_factor_in,
-                        scl_factor_out,
-                        scl_tap,
-                        init_phase,
-                        input_slice_start,
-                        input_slice_size,
-                        output_pixel_align,
-                        &output_slice_end);
-                }
-                else
-                {
-                    est_scaler_output_slice_info_v2(
-                        trim_start,
-                        trim_size,
-                        deci,
-                        scl_en,
-                        scl_factor_in,
-                        scl_factor_out,
-                        scl_tap,
-                        init_phase,
-                        input_slice_start,
-                        input_slice_size,
-                        output_pixel_align,
-                        &output_slice_end);
-                }
+				if(v_flag == 0) {
+					est_scaler_output_slice_info(
+						trim_start,
+						trim_size,
+						deci,
+						scl_en,
+						scl_factor_in,
+						scl_factor_out,
+						scl_tap,
+						init_phase,
+						input_slice_start,
+						input_slice_size,
+						output_pixel_align,
+						&output_slice_end);
+				} else {
+					est_scaler_output_slice_info_v2(
+						trim_start,
+						trim_size,
+						deci,
+						scl_en,
+						scl_factor_in,
+						scl_factor_out,
+						scl_tap,
+						init_phase,
+						input_slice_start,
+						input_slice_size,
+						output_pixel_align,
+						&output_slice_end);
+				}
 
-                if(j >= last_trim_slice_id)
-                {
-                    if(output_slice_end > core_param->scaler_info.scaler_out_width || output_slice_end < core_param->scaler_info.scaler_out_width)
-                        output_slice_end = core_param->scaler_info.scaler_out_width;
-                }
+				if (j >= last_trim_slice_id) {
+					if(output_slice_end > core_param->scaler_info.scaler_out_width || output_slice_end < core_param->scaler_info.scaler_out_width)
+						output_slice_end = core_param->scaler_info.scaler_out_width;
+				}
 
-                if((scaler_param_ptr->scaler_id == SCALER_DCAM_PRV) && (rows*cols > 1) && (v_flag == 1))
-                {
-                    if (index > 1)
-		pr_err("fail to get vaild index %d\n", index);
-                    if(0 == index)
-                    {
-                        if(output_slice_end > 0)
-                            output_slice_end = output_slice_end + scaler_param_ptr->slice_overlap_after_sclaer;
-                        else
-                            scaler_param_ptr->flag = 2;
-                        if(output_slice_end > scl_factor_out)
-                        {
-                            output_slice_end = scl_factor_out;
-                            scaler_param_ptr->slice_overlapright_after_sclaer = 0;
-                            scaler_param_ptr->slice_overlapleft_after_sclaer = 0;
-                            scaler_param_ptr->flag = 1;
-                        }
-                        else if(scaler_param_ptr->flag == 2)
-                        {
-                            scaler_param_ptr->slice_overlapright_after_sclaer = 0;
-                            scaler_param_ptr->slice_overlapleft_after_sclaer = 0;
-                        }
-                        else
-                        {
-                            scaler_param_ptr->slice_overlapright_after_sclaer = scaler_param_ptr->slice_overlap_after_sclaer;
-                            scaler_param_ptr->slice_overlapleft_after_sclaer = scaler_param_ptr->slice_overlap_after_sclaer;
-                        }
-                        output_slice_start = prev_col_end;
-                        output_slice_size = output_slice_end - output_slice_start;
-                    }
-                    else if(1 == index)
-                    {
-                        output_slice_start = prev_col_end - scaler_param_ptr->slice_overlapleft_after_sclaer;
-                        output_slice_size = output_slice_end - output_slice_start;
-                        if(output_slice_size > scl_factor_out)
-                        {
-                            output_slice_start = 0;
-                            output_slice_size = scl_factor_out;
-                            output_slice_end = scl_factor_out;
-                            scaler_param_ptr->slice_overlapleft_after_sclaer = 0;
-                        }
-                        else
-                        {
-                            if(scaler_param_ptr->flag == 0)
-                                scaler_param_ptr->slice_overlapleft_after_sclaer = scaler_param_ptr->slice_overlap_after_sclaer;
-                        }
-                    }
-                }
-                else
-                {
-                    output_slice_start = prev_col_end;
-                    output_slice_size = output_slice_end - output_slice_start;
-                }
+				if ((scaler_param_ptr->scaler_id == SCALER_DCAM_PRV) && (rows * cols > 1) && (v_flag == 1))
+				{
+					if (index > 1)
+					pr_err("fail to get vaild index %d\n", index);
+					if (0 == index) {
+						if (output_slice_end > 0)
+							output_slice_end = output_slice_end + scaler_param_ptr->slice_overlap_after_sclaer;
+						else
+							scaler_param_ptr->flag = 2;
+						if (output_slice_end > scl_factor_out) {
+							output_slice_end = scl_factor_out;
+							scaler_param_ptr->slice_overlapright_after_sclaer = 0;
+							scaler_param_ptr->slice_overlapleft_after_sclaer = 0;
+							scaler_param_ptr->flag = 1;
+						} else if(scaler_param_ptr->flag == 2) {
+							scaler_param_ptr->slice_overlapright_after_sclaer = 0;
+							scaler_param_ptr->slice_overlapleft_after_sclaer = 0;
+						} else {
+							scaler_param_ptr->slice_overlapright_after_sclaer = scaler_param_ptr->slice_overlap_after_sclaer;
+							scaler_param_ptr->slice_overlapleft_after_sclaer = scaler_param_ptr->slice_overlap_after_sclaer;
+						}
+							output_slice_start = prev_col_end;
+							output_slice_size = output_slice_end - output_slice_start;
+					} else if (1 == index) {
+						output_slice_start = prev_col_end - scaler_param_ptr->slice_overlapleft_after_sclaer;
+						output_slice_size = output_slice_end - output_slice_start;
+						if (output_slice_size > scl_factor_out) {
+							output_slice_start = 0;
+							output_slice_size = scl_factor_out;
+							output_slice_end = scl_factor_out;
+							scaler_param_ptr->slice_overlapleft_after_sclaer = 0;
+						} else {
+							if (scaler_param_ptr->flag == 0)
+								scaler_param_ptr->slice_overlapleft_after_sclaer = scaler_param_ptr->slice_overlap_after_sclaer;
+						}
+					}
+				} else {
+					output_slice_start = prev_col_end;
+					output_slice_size = output_slice_end - output_slice_start;
+				}
 
-                wndOutTemp.s_col = output_slice_start;
-                wndOutTemp.e_col = output_slice_end - 1;
+				wndOutTemp.s_col = output_slice_start;
+				wndOutTemp.e_col = output_slice_end - 1;
 
-                if(output_slice_size > 0)
-                {
-                    int input_pixel_align = 2;
-		    pr_debug("start %d size %d deci %d en %d fac_in %d out %d tap %d phase %d start %d slice %d align %d\n",
-		    	trim_start, trim_size, deci, scl_en, scl_factor_in, scl_factor_out, scl_tap, init_phase, output_slice_start, output_slice_size,
-		    	input_pixel_align);
-                    calc_scaler_input_slice_info(trim_start, trim_size, deci, scl_en, scl_factor_in, scl_factor_out, scl_tap, init_phase,
-                        output_slice_start, output_slice_size, input_pixel_align, &input_slice_start, &input_slice_size, &init_phase);
+				if (output_slice_size > 0) {
+					int input_pixel_align = 2;
+					pr_debug("start %d size %d deci %d en %d fac_in %d out %d tap %d phase %d start %d slice %d align %d\n",
+					trim_start, trim_size, deci, scl_en, scl_factor_in, scl_factor_out, scl_tap, init_phase, output_slice_start,
+					output_slice_size, input_pixel_align);
+					calc_scaler_input_slice_info(trim_start, trim_size, deci, scl_en, scl_factor_in, scl_factor_out, scl_tap, init_phase,
+					output_slice_start, output_slice_size, input_pixel_align, &input_slice_start, &input_slice_size, &init_phase);
 
-                    phaseTemp.init_phase_hor = init_phase;
+					phaseTemp.init_phase_hor = init_phase;
 
-                    wndInTemp.s_col = input_slice_start;
-                    wndInTemp.e_col = wndInTemp.s_col + input_slice_size - 1;
-                }
-                else
-                {
-                    wndInTemp.s_col = r_ref->regions[index].sx;
-                    wndInTemp.e_col = r_ref->regions[index].ex;
-                }
+					wndInTemp.s_col = input_slice_start;
+					wndInTemp.e_col = wndInTemp.s_col + input_slice_size - 1;
+				} else {
+					wndInTemp.s_col = r_ref->regions[index].sx;
+					wndInTemp.e_col = r_ref->regions[index].ex;
+				}
 
-                ///////////// dcam scaler0 only two slice, out slice must be more overlap for next module(dec1)
-                if((scaler_param_ptr->scaler_id == SCALER_DCAM_PRV) && (rows*cols > 1) && (v_flag == 1))
-                {
-                    if(0 == index)
-                    {
-                        prev_col_end = output_slice_end - scaler_param_ptr->slice_overlapright_after_sclaer;
-                    }
-                    if(1 == index)
-                    {
-                        prev_col_end = output_slice_end;
-                    }
-                }
-                else
-                {
-                    prev_col_end = output_slice_end;
-                }
+				/* dcam scaler0 only two slice, out slice must be more overlap for next module(dec1) */
+				if((scaler_param_ptr->scaler_id == SCALER_DCAM_PRV) && (rows*cols > 1) && (v_flag == 1)) {
+					if(0 == index)
+						prev_col_end = output_slice_end - scaler_param_ptr->slice_overlapright_after_sclaer;
+					if(1 == index)
+						prev_col_end = output_slice_end;
+				} else {
+						prev_col_end = output_slice_end;
+				}
 
-                //prev_col_end = output_slice_end;
-            }
+				//prev_col_end = output_slice_end;
+			}
 
-            //ver
-            {
-                int scl_tap = 0;
-                int trim_start         = core_param->trim0_info.trim_start_y;
-                int trim_size          = core_param->trim0_info.trim_size_y;
-                int deci               = core_param->deci_info.deci_y;
-                int scl_en             = core_param->scaler_info.scaler_en;
-                int scl_factor_in      = core_param->scaler_info.scaler_factor_in_ver;
-                int scl_factor_out     = core_param->scaler_info.scaler_factor_out_ver;
+			//ver
+			{
+				int scl_tap = 0;
+				int trim_start = core_param->trim0_info.trim_start_y;
+				int trim_size = core_param->trim0_info.trim_size_y;
+				int deci = core_param->deci_info.deci_y;
+				int scl_en = core_param->scaler_info.scaler_en;
+				int scl_factor_in = core_param->scaler_info.scaler_factor_in_ver;
+				int scl_factor_out = core_param->scaler_info.scaler_factor_out_ver;
 
-                int init_phase         = core_param->scaler_info.init_phase_info.scaler_init_phase[1];
-                int input_slice_start  = r_ref->regions[index].sy;
-                int input_slice_size   = r_ref->regions[index].ey - r_ref->regions[index].sy + 1;
-                int output_pixel_align = core_param->output_align_ver;
+				int init_phase = core_param->scaler_info.init_phase_info.scaler_init_phase[1];
+				int input_slice_start = r_ref->regions[index].sy;
+				int input_slice_size = r_ref->regions[index].ey - r_ref->regions[index].sy + 1;
+				int output_pixel_align = core_param->output_align_ver;
 
-                int output_slice_start;
-                int output_slice_size;
+				int output_slice_start;
+				int output_slice_size;
 
-                if(scl_en)
-                {
-                    if(core_param->input_pixfmt == YUV422)
-                        scl_tap = MAX(core_param->scaler_info.scaler_y_ver_tap, core_param->scaler_info.scaler_uv_ver_tap)   + 2;
-                    else if(core_param->input_pixfmt == YUV420)
-                        scl_tap = MAX(core_param->scaler_info.scaler_y_ver_tap, core_param->scaler_info.scaler_uv_ver_tap*2) + 2;
-                }
+				if (scl_en) {
+					if(core_param->input_pixfmt == YUV422)
+						scl_tap = MAX(core_param->scaler_info.scaler_y_ver_tap, core_param->scaler_info.scaler_uv_ver_tap) + 2;
+					else if(core_param->input_pixfmt == YUV420)
+						scl_tap = MAX(core_param->scaler_info.scaler_y_ver_tap, core_param->scaler_info.scaler_uv_ver_tap * 2) + 2;
+				}
 
-                if(core_param->output_pixfmt == YUV420 && i == rows - 1)
-                {
-                    output_pixel_align = 2;
-                }
+				if (core_param->output_pixfmt == YUV420 && i == rows - 1)
+					output_pixel_align = 4;
 
-                if(v_flag == 0)
-                {
-                    est_scaler_output_slice_info(
-                        trim_start,
-                        trim_size,
-                        deci,
-                        scl_en,
-                        scl_factor_in,
-                        scl_factor_out,
-                        scl_tap,
-                        init_phase,input_slice_start,
-                        input_slice_size,
-                        output_pixel_align,
-                        &output_slice_end);
-                }
-                else
-                {
-                    est_scaler_output_slice_info_v2(
-                        trim_start,
-                        trim_size,
-                        deci,
-                        scl_en,
-                        scl_factor_in,
-                        scl_factor_out,
-                        scl_tap,
-                        init_phase,input_slice_start,
-                        input_slice_size,
-                        output_pixel_align,
-                        &output_slice_end);
+				if ((i == rows - 1) && (core_param->output_pixfmt == YUV420))
+					output_pixel_align = 4;
 
-                    if (i == rows - 1)
-                    {
-                        if (output_slice_end > core_param->scaler_info.scaler_out_height || output_slice_end < core_param->scaler_info.scaler_out_height)
-                            output_slice_end = core_param->scaler_info.scaler_out_height;
-                    }
-                }
+				if (v_flag == 0) {
+					est_scaler_output_slice_info(
+						trim_start,
+						trim_size,
+						deci,
+						scl_en,
+						scl_factor_in,
+						scl_factor_out,
+						scl_tap,
+						init_phase,input_slice_start,
+						input_slice_size,
+						output_pixel_align,
+						&output_slice_end);
+				} else {
+					est_scaler_output_slice_info_v2(
+						trim_start,
+						trim_size,
+						deci,
+						scl_en,
+						scl_factor_in,
+						scl_factor_out,
+						scl_tap,
+						init_phase,input_slice_start,
+						input_slice_size,
+						output_pixel_align,
+						&output_slice_end);
 
-                output_slice_start = prev_row_end;
-                output_slice_size  = output_slice_end - output_slice_start;
+					if (i == rows - 1) {
+						if (output_slice_end > core_param->scaler_info.scaler_out_height || output_slice_end < core_param->scaler_info.scaler_out_height)
+							output_slice_end = core_param->scaler_info.scaler_out_height;
+					}
+				}
 
-                wndOutTemp.s_row = output_slice_start;
-                wndOutTemp.e_row = output_slice_end - 1;
+				output_slice_start = prev_row_end;
+				output_slice_size = output_slice_end - output_slice_start;
 
-                if(output_slice_size > 0)
-                {
-                    int input_pixel_align = 2;
-                    calc_scaler_input_slice_info(trim_start, trim_size, deci, scl_en, scl_factor_in, scl_factor_out, scl_tap, init_phase,
-                        output_slice_start, output_slice_size, input_pixel_align, &input_slice_start, &input_slice_size, &init_phase);
+				wndOutTemp.s_row = output_slice_start;
+				wndOutTemp.e_row = output_slice_end - 1;
 
-                    phaseTemp.init_phase_ver = init_phase;
+				if (output_slice_size > 0) {
+					int input_pixel_align = 2;
+					calc_scaler_input_slice_info(trim_start, trim_size, deci, scl_en, scl_factor_in, scl_factor_out, scl_tap, init_phase,
+						output_slice_start, output_slice_size, input_pixel_align, &input_slice_start, &input_slice_size, &init_phase);
 
-                    wndInTemp.s_row = input_slice_start;
-                    wndInTemp.e_row = wndInTemp.s_row + input_slice_size - 1;
-                }
-                else
-                {
-                    wndInTemp.s_row = r_ref->regions[index].sy;
-                    wndInTemp.e_row = r_ref->regions[index].ey;
-                }
-            }
+					phaseTemp.init_phase_ver = init_phase;
 
-            //
-            r_out->regions[index].sx = wndInTemp.s_col;
-            r_out->regions[index].ex = wndInTemp.e_col;
-            r_out->regions[index].sy = wndInTemp.s_row;
-            r_out->regions[index].ey = wndInTemp.e_row;
-            //
-            scaler_param_ptr->phase[index].init_phase_hor = phaseTemp.init_phase_hor;
-            scaler_param_ptr->phase[index].init_phase_ver = phaseTemp.init_phase_ver;
-            //
-            scaler_param_ptr->region_input[index].sx = wndInTemp.s_col;
-            scaler_param_ptr->region_input[index].ex = wndInTemp.e_col;
-            scaler_param_ptr->region_input[index].sy = wndInTemp.s_row;
-            scaler_param_ptr->region_input[index].ey = wndInTemp.e_row;
-            //
-            scaler_param_ptr->region_output[index].sx = wndOutTemp.s_col;
-            scaler_param_ptr->region_output[index].ex = wndOutTemp.e_col;
-            scaler_param_ptr->region_output[index].sy = wndOutTemp.s_row;
-            scaler_param_ptr->region_output[index].ey = wndOutTemp.e_row;
-        }
-        prev_row_end = wndOutTemp.e_row + 1;
-    }
+					wndInTemp.s_row = input_slice_start;
+					wndInTemp.e_row = wndInTemp.s_row + input_slice_size - 1;
+				} else {
+					wndInTemp.s_row = r_ref->regions[index].sy;
+					wndInTemp.e_row = r_ref->regions[index].ey;
+				}
+			}
 
-    r_out->rows = rows;
-    r_out->cols = cols;
+			//
+			r_out->regions[index].sx = wndInTemp.s_col;
+			r_out->regions[index].ex = wndInTemp.e_col;
+			r_out->regions[index].sy = wndInTemp.s_row;
+			r_out->regions[index].ey = wndInTemp.e_row;
+			//
+			scaler_param_ptr->phase[index].init_phase_hor = phaseTemp.init_phase_hor;
+			scaler_param_ptr->phase[index].init_phase_ver = phaseTemp.init_phase_ver;
+			//
+			scaler_param_ptr->region_input[index].sx = wndInTemp.s_col;
+			scaler_param_ptr->region_input[index].ex = wndInTemp.e_col;
+			scaler_param_ptr->region_input[index].sy = wndInTemp.s_row;
+			scaler_param_ptr->region_input[index].ey = wndInTemp.e_row;
+			//
+			scaler_param_ptr->region_output[index].sx = wndOutTemp.s_col;
+			scaler_param_ptr->region_output[index].ex = wndOutTemp.e_col;
+			scaler_param_ptr->region_output[index].sy = wndOutTemp.s_row;
+			scaler_param_ptr->region_output[index].ey = wndOutTemp.e_row;
+		}
+		prev_row_end = wndOutTemp.e_row + 1;
+	}
 
-    if (v_flag == 1 && (scaler_param_ptr->scaler_id == SCALER_DCAM_PRV || scaler_param_ptr->scaler_id == SCALER_DCAM_CAP))
-    {
-        int overlap_left_max = 0;
-        int overlap_right_max = 0;
-        int overlap_up_max = 0;
-        int overlap_down_max = 0;
+	r_out->rows = rows;
+	r_out->cols = cols;
 
-        for (i=0; i<rows; ++i)
-        {
-            for (j=0; j<cols; ++j)
-            {
-                int index = i * cols + j;
-                int overlap_left_temp  = r_old.regions[index].sx - scaler_param_ptr->region_input[index].sx;
-                int overlap_right_temp = scaler_param_ptr->region_input[index].ex - r_old.regions[index].ex;
-                int overlap_up_temp    = r_old.regions[index].sy - scaler_param_ptr->region_input[index].sy;
-                int overlap_down_temp  = scaler_param_ptr->region_input[index].ey - r_old.regions[index].ey;
+	if (v_flag == 1 && (scaler_param_ptr->scaler_id == SCALER_DCAM_PRV || scaler_param_ptr->scaler_id == SCALER_DCAM_CAP)) {
+		int overlap_left_max = 0;
+		int overlap_right_max = 0;
+		int overlap_up_max = 0;
+		int overlap_down_max = 0;
 
-                if (overlap_left_temp > overlap_left_max)
-                    overlap_left_max = overlap_left_temp;
+		for (i=0; i < rows; ++i) {
+			for (j=0; j < cols; ++j) {
+				int index = i * cols + j;
+				int overlap_left_temp = r_old.regions[index].sx - scaler_param_ptr->region_input[index].sx;
+				int overlap_right_temp = scaler_param_ptr->region_input[index].ex - r_old.regions[index].ex;
+				int overlap_up_temp = r_old.regions[index].sy - scaler_param_ptr->region_input[index].sy;
+				int overlap_down_temp = scaler_param_ptr->region_input[index].ey - r_old.regions[index].ey;
 
-                if (overlap_right_temp > overlap_right_max)
-                    overlap_right_max = overlap_right_temp;
+				if (overlap_left_temp > overlap_left_max)
+					overlap_left_max = overlap_left_temp;
 
-                if (overlap_up_temp > overlap_up_max)
-                    overlap_up_max = overlap_up_temp;
+				if (overlap_right_temp > overlap_right_max)
+					overlap_right_max = overlap_right_temp;
 
-                if (overlap_down_temp > overlap_down_max)
-                    overlap_down_max = overlap_down_temp;
-            }
-        }
+				if (overlap_up_temp > overlap_up_max)
+					overlap_up_max = overlap_up_temp;
 
-        scaler_param_ptr->input_scaler_overlap.overlap_left  = overlap_left_max;
-        scaler_param_ptr->input_scaler_overlap.overlap_right = overlap_right_max;
-        scaler_param_ptr->input_scaler_overlap.overlap_up    = overlap_up_max;
-        scaler_param_ptr->input_scaler_overlap.overlap_down  = overlap_down_max;
-    }
+				if (overlap_down_temp > overlap_down_max)
+					overlap_down_max = overlap_down_temp;
+			}
+		}
+
+		scaler_param_ptr->input_scaler_overlap.overlap_left = overlap_left_max;
+		scaler_param_ptr->input_scaler_overlap.overlap_right = overlap_right_max;
+		scaler_param_ptr->input_scaler_overlap.overlap_up = overlap_up_max;
+		scaler_param_ptr->input_scaler_overlap.overlap_down = overlap_down_max;
+	}
 }
 
 static void isp_drv_region_max(const struct alg_region_info *r1,
@@ -2290,7 +2148,7 @@ static void isp_drv_regions_max(const struct alg_slice_regions *r1,
 	int rows = r1->rows;
 	int cols = r1->cols;
 
-	if (0 == rows*cols)
+	if (0 == rows * cols)
 		return;
 
 	r_out->rows = rows;
@@ -2298,7 +2156,7 @@ static void isp_drv_regions_max(const struct alg_slice_regions *r1,
 
 	for (i = 0; i < rows; i++) {
 		for (j = 0; j < cols; j++) {
-			index = i*cols + j;
+			index = i * cols + j;
 			isp_drv_region_max(&r1->regions[index], &r2->regions[index], &r_out->regions[index]);
 		}
 	}
@@ -2329,8 +2187,8 @@ static void isp_drv_regions_arr_max(struct alg_slice_regions* arr[],int num,stru
 	}
 }
 
-static slice_drv_overlap_info ltm_rgb_sta_getOverlap(const struct alg_slice_regions *refSliceList,
-	ltm_rgb_stat_param_t *tm_stat_param)
+static struct slice_drv_overlap_info ltm_rgb_sta_getOverlap(const struct alg_slice_regions *refSliceList,
+	struct ltm_rgb_stat_param_t *tm_stat_param)
 {
 	int start_x;
 	int start_y;
@@ -2352,8 +2210,8 @@ static slice_drv_overlap_info ltm_rgb_sta_getOverlap(const struct alg_slice_regi
 	int frame_img_w = tm_stat_param->frame_width_stat << tm_stat_param->binning_en;
 	int frame_img_h = tm_stat_param->frame_height_stat << tm_stat_param->binning_en;
 
-	slice_drv_overlap_info overlap;
-	memset(&overlap, 0 , sizeof(slice_drv_overlap_info));
+	struct slice_drv_overlap_info overlap;
+	memset(&overlap, 0 , sizeof(struct slice_drv_overlap_info));
 	if (cols > 2 || rows != 1)
 		pr_err("fail to get valid col %d row %d\n", cols, rows);
 
@@ -2396,13 +2254,13 @@ void alg_slice_calc_drv_overlap(struct alg_slice_drv_overlap *param_ptr)
 	int SLICE_W_ALIGN_V;
 	int layer_num;
 
-	pipe_overlap_context contextScaler;
-	thumbnailscaler_context contextThumbnailScaler;
-	thumbnailscaler_param_t thumbnailscaler_param;
-	yuvscaler_param_t *scaler1_frame_p = (yuvscaler_param_t*)(param_ptr->scaler1.frameParam);
-	yuvscaler_param_t *scaler2_frame_p = (yuvscaler_param_t*)(param_ptr->scaler2.frameParam);
+	struct pipe_overlap_context contextScaler;
+	struct thumbnailscaler_context contextThumbnailScaler;
+	struct thumbnailscaler_param_t thumbnailscaler_param;
+	struct yuvscaler_param_t *scaler1_frame_p = (struct yuvscaler_param_t*)(param_ptr->scaler1.frameParam);
+	struct yuvscaler_param_t *scaler2_frame_p = (struct yuvscaler_param_t*)(param_ptr->scaler2.frameParam);
 
-	ltm_rgb_stat_param_t *ltm_sta_p = &param_ptr->ltm_sat;
+	struct ltm_rgb_stat_param_t *ltm_sta_p = &param_ptr->ltm_sat;
 
 	struct alg_overlap_info ov_pipe;
 	struct alg_overlap_info ov_Y = {0};
@@ -2411,15 +2269,15 @@ void alg_slice_calc_drv_overlap(struct alg_slice_drv_overlap *param_ptr)
 	struct alg_overlap_info overlap_rec = {0};
 	struct alg_overlap_info overlap_rec_mode1 = {0};
 
-	isp_block_drv_t ynr_param;
-	isp_block_drv_t cnr_param;
-	isp_block_drv_t pyramid_rec_param;
-	isp_block_drv_t dewarping_param;
-	isp_block_drv_t post_cnr_param;
-	isp_block_drv_t nr3d_param;
-	isp_block_drv_t yuv420_to_rgb10_param;
-	isp_block_drv_t ee_param;
-	isp_block_drv_t cnr_new_param;
+	struct isp_block_drv_t ynr_param;
+	struct isp_block_drv_t cnr_param;
+	struct isp_block_drv_t pyramid_rec_param;
+	struct isp_block_drv_t dewarping_param;
+	struct isp_block_drv_t post_cnr_param;
+	struct isp_block_drv_t nr3d_param;
+	struct isp_block_drv_t yuv420_to_rgb10_param;
+	struct isp_block_drv_t ee_param;
+	struct isp_block_drv_t cnr_new_param;
 
 	struct alg_slice_regions orgRegion;
 	struct alg_slice_regions maxRegion;
@@ -2456,10 +2314,10 @@ void alg_slice_calc_drv_overlap(struct alg_slice_drv_overlap *param_ptr)
 	SLICE_W_ALIGN_V = 4;
 
 	for(layer_id = 0; layer_id < MAX_PYR_DEC_LAYER_NUM; layer_id++) {
-		memset(&rec_slice_out[layer_id],0,sizeof(struct alg_slice_regions));
-		memset(&org_rec_slice_out[layer_id],0,sizeof(struct alg_slice_regions));
-		memset(&add_rec_slice_out[layer_id],0,sizeof(struct alg_slice_regions));
-		memset(&org_add_rec_slice_out[layer_id],0,sizeof(struct alg_slice_regions));
+		memset(&rec_slice_out[layer_id],0, sizeof(struct alg_slice_regions));
+		memset(&org_rec_slice_out[layer_id], 0, sizeof(struct alg_slice_regions));
+		memset(&add_rec_slice_out[layer_id], 0, sizeof(struct alg_slice_regions));
+		memset(&org_add_rec_slice_out[layer_id], 0, sizeof(struct alg_slice_regions));
 	}
 
 	if (!param_ptr->pyramid_rec_bypass) {
@@ -2506,16 +2364,16 @@ void alg_slice_calc_drv_overlap(struct alg_slice_drv_overlap *param_ptr)
 	}
 
 	core_drv_cnr_init_block(&post_cnr_param);//post_cnr
-	CAL_OVERLAP(param_ptr->post_cnr_bypass,post_cnr_param);
+	CAL_OVERLAP(param_ptr->post_cnr_bypass, post_cnr_param);
 
 	core_drv_cnr_init_block(&post_cnr_param);//post_cnr
-	CAL_OVERLAP(param_ptr->post_cnr_bypass,post_cnr_param);
+	CAL_OVERLAP(param_ptr->post_cnr_bypass, post_cnr_param);
 
 	core_drv_nr3d_init_block(&nr3d_param);
-	CAL_OVERLAP(param_ptr->nr3d_bd_bypass,nr3d_param);
+	CAL_OVERLAP(param_ptr->nr3d_bd_bypass, nr3d_param);
 
 	core_drv_yuv420_to_rgb10_init_block(&yuv420_to_rgb10_param);
-	CAL_OVERLAP(param_ptr->yuv420_to_rgb10_bypass,yuv420_to_rgb10_param);
+	CAL_OVERLAP(param_ptr->yuv420_to_rgb10_bypass, yuv420_to_rgb10_param);
 
 	slice_in.image_w = image_w;
 	slice_in.image_h = image_h;
@@ -2530,8 +2388,8 @@ void alg_slice_calc_drv_overlap(struct alg_slice_drv_overlap *param_ptr)
 		return;
 
 	if (!ltm_sta_p->bypass) {
-		slice_drv_overlap_info ltm_sta_overlap;
-		memset(&ltm_sta_overlap, 0, sizeof(slice_drv_overlap_info));
+		struct slice_drv_overlap_info ltm_sta_overlap;
+		memset(&ltm_sta_overlap, 0, sizeof(struct slice_drv_overlap_info));
 		ltm_sta_overlap = ltm_rgb_sta_getOverlap(&slice_out, ltm_sta_p);
 		ov_pipe.ov_left += ltm_sta_overlap.ov_left;
 		ov_pipe.ov_right += ltm_sta_overlap.ov_right;
@@ -2620,12 +2478,12 @@ void alg_slice_calc_drv_overlap(struct alg_slice_drv_overlap *param_ptr)
 		struct alg_slice_regions maxRegionTemp;
 		struct alg_slice_regions* regions_arr[4];
 
-		memset(&refRegion,0,sizeof(struct alg_slice_regions));
-		memset(&nr3d_slice_region_out,0,sizeof(struct alg_slice_regions));
-		memset(&scaler1_slice_region_out,0,sizeof(struct alg_slice_regions));
-		memset(&scaler2_slice_region_out,0,sizeof(struct alg_slice_regions));
-		memset(&scaler3_slice_region_out,0,sizeof(struct alg_slice_regions));
-		memset(&maxRegionTemp,0,sizeof(struct alg_slice_regions));
+		memset(&refRegion, 0, sizeof(struct alg_slice_regions));
+		memset(&nr3d_slice_region_out, 0, sizeof(struct alg_slice_regions));
+		memset(&scaler1_slice_region_out, 0, sizeof(struct alg_slice_regions));
+		memset(&scaler2_slice_region_out, 0, sizeof(struct alg_slice_regions));
+		memset(&scaler3_slice_region_out, 0, sizeof(struct alg_slice_regions));
+		memset(&maxRegionTemp, 0, sizeof(struct alg_slice_regions));
 
 		regions_arr[0] = &nr3d_slice_region_out;
 		regions_arr[1] = &scaler1_slice_region_out;
@@ -2671,9 +2529,9 @@ void alg_slice_calc_drv_overlap(struct alg_slice_drv_overlap *param_ptr)
 			thumbnailscaler_calculate_region(&refRegion,&scaler3_slice_region_out,&thumbnailscaler_param,&contextThumbnailScaler,0);
 
 		//get max
-		isp_drv_regions_arr_max(regions_arr,4,&maxRegionTemp);
+		isp_drv_regions_arr_max(regions_arr, 4, &maxRegionTemp);
 		if (!isp_drv_regions_empty(&maxRegionTemp))
-			isp_drv_regions_set(&maxRegionTemp,&maxRegion);
+			isp_drv_regions_set(&maxRegionTemp, &maxRegion);
 	} while (0);
 
 	//step2
@@ -2686,12 +2544,12 @@ void alg_slice_calc_drv_overlap(struct alg_slice_drv_overlap *param_ptr)
 		struct alg_slice_regions maxRegionTemp;
 		struct alg_slice_regions* regions_arr[4];
 
-		memset(&refRegion,0,sizeof(struct alg_slice_regions));
-		memset(&nr3d_slice_region_out,0,sizeof(struct alg_slice_regions));
-		memset(&scaler1_slice_region_out,0,sizeof(struct alg_slice_regions));
-		memset(&scaler2_slice_region_out,0,sizeof(struct alg_slice_regions));
-		memset(&scaler3_slice_region_out,0,sizeof(struct alg_slice_regions));
-		memset(&maxRegionTemp,0,sizeof(struct alg_slice_regions));
+		memset(&refRegion, 0, sizeof(struct alg_slice_regions));
+		memset(&nr3d_slice_region_out, 0, sizeof(struct alg_slice_regions));
+		memset(&scaler1_slice_region_out, 0, sizeof(struct alg_slice_regions));
+		memset(&scaler2_slice_region_out, 0, sizeof(struct alg_slice_regions));
+		memset(&scaler3_slice_region_out, 0, sizeof(struct alg_slice_regions));
+		memset(&maxRegionTemp, 0, sizeof(struct alg_slice_regions));
 
 		regions_arr[0] = &nr3d_slice_region_out;
 		regions_arr[1] = &scaler1_slice_region_out;
@@ -2725,13 +2583,13 @@ void alg_slice_calc_drv_overlap(struct alg_slice_drv_overlap *param_ptr)
 		if (!param_ptr->thumbnailscaler.bypass)
 			isp_drv_regions_set(&refRegion, &scaler3_slice_region_out);
 		//get max
-		isp_drv_regions_arr_max(regions_arr,4,&maxRegionTemp);
+		isp_drv_regions_arr_max(regions_arr, 4, &maxRegionTemp);
 		if (!isp_drv_regions_empty(&maxRegionTemp))
-			isp_drv_regions_set(&maxRegionTemp,&maxRegion);
+			isp_drv_regions_set(&maxRegionTemp, &maxRegion);
 	} while (0);
 	//////////////////////////////////////////////////////////////////////////
 
-	isp_drv_regions_max(&maxRegion,&orgRegion,&maxRegion);
+	isp_drv_regions_max(&maxRegion, &orgRegion, &maxRegion);
 	slice_in.image_w = image_w;
 	slice_in.image_h = image_h;
 	slice_in.slice_w = param_ptr->slice_w;
@@ -2741,7 +2599,7 @@ void alg_slice_calc_drv_overlap(struct alg_slice_drv_overlap *param_ptr)
 	slice_in.overlap_up = ov_pipe.ov_up;
 	slice_in.overlap_down = ov_pipe.ov_down;
 
-	if(-1 == isp_drv_regions_fetch_ref(&slice_in,&maxRegion,&final_slice_regions))
+	if (-1 == isp_drv_regions_fetch_ref(&slice_in, &maxRegion, &final_slice_regions))
 		return;
 
 	param_ptr->slice_rows = final_slice_regions.rows;
@@ -2752,8 +2610,8 @@ void alg_slice_calc_drv_overlap(struct alg_slice_drv_overlap *param_ptr)
 		rows = param_ptr->slice_rows;
 		cols = param_ptr->slice_cols;
 
-		for (i=0; i<rows; i++) {
-			for (j=0; j<cols; j++) {
+		for (i = 0; i < rows; i++) {
+			for (j = 0; j < cols; j++) {
 				index = i * cols + j;
 				param_ptr->slice_region[index].sx = final_slice_regions.regions[index].sx;
 				param_ptr->slice_region[index].ex = final_slice_regions.regions[index].ex;
@@ -2847,14 +2705,14 @@ void alg_slice_calc_drv_overlap(struct alg_slice_drv_overlap *param_ptr)
 	//////////////////////////////////////////////////////////////////////////
 	//rec overlap
 	core_drv_ynr_init_block(&ynr_param);
-	CAL_REC_OVERLAP(param_ptr->ynr_bypass,ynr_param);
+	CAL_REC_OVERLAP(param_ptr->ynr_bypass, ynr_param);
 
 	core_drv_cnr_init_block(&cnr_param);
-	CAL_REC_OVERLAP(param_ptr->cnr_bypass,cnr_param);
-	CAL_REC_OVERLAP(param_ptr->cnr_bypass,cnr_param);
+	CAL_REC_OVERLAP(param_ptr->cnr_bypass, cnr_param);
+	CAL_REC_OVERLAP(param_ptr->cnr_bypass, cnr_param);
 
 	core_drv_pyd_rec_init_block(&pyramid_rec_param);
-	CAL_REC_OVERLAP(param_ptr->pyramid_rec_bypass,pyramid_rec_param);
+	CAL_REC_OVERLAP(param_ptr->pyramid_rec_bypass, pyramid_rec_param);
 
 	if (param_ptr->offline_slice_mode == 1) {
 		overlap_rec_mode1.ov_left = overlap_rec.ov_left;
@@ -2892,43 +2750,38 @@ void alg_slice_calc_drv_overlap(struct alg_slice_drv_overlap *param_ptr)
 	/////////////////////////////////////////////////////初始化每层的slice个数
 	for(layer_id = 0; layer_id < param_ptr->layerNum; layer_id++)
 		param_ptr->slice_number[layer_id] = slice_num;
-    // rec region
-    do
-    {
-        int i, j, index, rows, cols;
-        rows = param_ptr->slice_rows;
-        cols = param_ptr->slice_cols;
-        for(layer_id = 0; layer_id < layer_num; layer_id++)
-        {
-            ov_layer_rec[layer_id].ov_left = overlap_rec.ov_left ;
-            ov_layer_rec[layer_id].ov_right = overlap_rec.ov_right;
-            ov_layer_rec[layer_id].ov_up = overlap_rec.ov_up;
-            ov_layer_rec[layer_id].ov_down = overlap_rec.ov_down ;
-            if (!param_ptr->uw_sensor && layer_id == 0)
-            {
-                ov_layer_rec[layer_id].ov_left = overlap_rec.ov_left << 1;
-                ov_layer_rec[layer_id].ov_right = overlap_rec.ov_right << 1;
-                ov_layer_rec[layer_id].ov_up = overlap_rec.ov_up << 1;
-                ov_layer_rec[layer_id].ov_down = overlap_rec.ov_down << 1;
-            }
+	// rec region
+	do {
+		int i, j, index, rows, cols;
+		rows = param_ptr->slice_rows;
+		cols = param_ptr->slice_cols;
+		for (layer_id = 0; layer_id < layer_num; layer_id++) {
+			ov_layer_rec[layer_id].ov_left = overlap_rec.ov_left ;
+			ov_layer_rec[layer_id].ov_right = overlap_rec.ov_right;
+			ov_layer_rec[layer_id].ov_up = overlap_rec.ov_up;
+			ov_layer_rec[layer_id].ov_down = overlap_rec.ov_down ;
+			if (!param_ptr->uw_sensor && layer_id == 0) {
+				ov_layer_rec[layer_id].ov_left = overlap_rec.ov_left << 1;
+				ov_layer_rec[layer_id].ov_right = overlap_rec.ov_right << 1;
+				ov_layer_rec[layer_id].ov_up = overlap_rec.ov_up << 1;
+				ov_layer_rec[layer_id].ov_down = overlap_rec.ov_down << 1;
+			}
 
-            rec_slice_in.image_w = layer_id ? (layer0_padding_width >>layer_id) : (param_ptr->img_src_w);
-            rec_slice_in.image_h = layer_id ? (layer0_padding_height >>layer_id) : (param_ptr->img_src_h);
-            rec_slice_in.slice_w = (slice_num == 1) ? rec_slice_in.image_w : param_ptr->slice_w>>layer_id;
-            rec_slice_in.slice_h = layer0_padding_height>>layer_id;
-            rec_slice_in.overlap_left = ov_layer_rec[layer_id].ov_left;
-            rec_slice_in.overlap_right = ov_layer_rec[layer_id].ov_right;
-            rec_slice_in.overlap_up = ov_layer_rec[layer_id].ov_up;
-            rec_slice_in.overlap_down  = ov_layer_rec[layer_id].ov_down;
+			rec_slice_in.image_w = layer_id ? (layer0_padding_width >>layer_id) : (param_ptr->img_src_w);
+			rec_slice_in.image_h = layer_id ? (layer0_padding_height >>layer_id) : (param_ptr->img_src_h);
+			rec_slice_in.slice_w = (slice_num == 1) ? rec_slice_in.image_w : param_ptr->slice_w>>layer_id;
+			rec_slice_in.slice_h = layer0_padding_height>>layer_id;
+			rec_slice_in.overlap_left = ov_layer_rec[layer_id].ov_left;
+			rec_slice_in.overlap_right = ov_layer_rec[layer_id].ov_right;
+			rec_slice_in.overlap_up = ov_layer_rec[layer_id].ov_up;
+			rec_slice_in.overlap_down = ov_layer_rec[layer_id].ov_down;
 
 	pr_debug("img w%d h%d slice w%d h%d ov L%d R %d\n", rec_slice_in.image_w, rec_slice_in.image_h,
 			rec_slice_in.slice_w, rec_slice_in.slice_h, rec_slice_in.overlap_left, rec_slice_in.overlap_right);
-            //get slice region
-            if (-1 == isp_drv_regions_fetch(&rec_slice_in, &rec_slice_out[layer_id]))
-            {
-                return;
-            }
-        }
+			//get slice region
+			if (-1 == isp_drv_regions_fetch(&rec_slice_in, &rec_slice_out[layer_id]))
+				return;
+		}
 
 	pr_debug("lay num %d input laynum %d\n", layer_num, param_ptr->layerNum);
 	for (layer_id = 0; layer_id < layer_num; layer_id++) {
@@ -2944,33 +2797,29 @@ void alg_slice_calc_drv_overlap(struct alg_slice_drv_overlap *param_ptr)
 		pr_debug("img w%d h%d slice w%d h%d ov L%d R %d\n", org_rec_slice_in.image_w, org_rec_slice_in.image_h,
 			org_rec_slice_in.slice_w, org_rec_slice_in.slice_h, org_rec_slice_in.overlap_left, org_rec_slice_in.overlap_right);
 		//get slice region
-		if(-1 == isp_drv_regions_fetch(&org_rec_slice_in, &org_rec_slice_out[layer_id]))
-		{
-		return;
+		if(-1 == isp_drv_regions_fetch(&org_rec_slice_in, &org_rec_slice_out[layer_id])) {
+			return;
 		}
 	}
 
-        //get rec overlap
-        //fetch
-        for(layer_id = 0; layer_id < layer_num; layer_id++)
-        {
-            for ( i=0; i<rows; i++)
-            {
-                for ( j=0; j<cols; j++)
-                {
-                    index = i*cols + j;
-                    //
-                    rec_slice_overlap[layer_id][index].ov_left  = org_rec_slice_out[layer_id].regions[index].sx - rec_slice_out[layer_id].regions[index].sx;
-                    rec_slice_overlap[layer_id][index].ov_right = rec_slice_out[layer_id].regions[index].ex - org_rec_slice_out[layer_id].regions[index].ex;
-                    rec_slice_overlap[layer_id][index].ov_up    = org_rec_slice_out[layer_id].regions[index].sy - rec_slice_out[layer_id].regions[index].sy;
-                    rec_slice_overlap[layer_id][index].ov_down  = rec_slice_out[layer_id].regions[index].ey - org_rec_slice_out[layer_id].regions[index].ey;
-                }
-            }
-        }
-    }while(0);
+		//get rec overlap
+		//fetch
+		for (layer_id = 0; layer_id < layer_num; layer_id++) {
+			for (i=0; i < rows; i++) {
+				for (j=0; j < cols; j++) {
+					index = i * cols + j;
+					//
+					rec_slice_overlap[layer_id][index].ov_left = org_rec_slice_out[layer_id].regions[index].sx - rec_slice_out[layer_id].regions[index].sx;
+					rec_slice_overlap[layer_id][index].ov_right = rec_slice_out[layer_id].regions[index].ex - org_rec_slice_out[layer_id].regions[index].ex;
+					rec_slice_overlap[layer_id][index].ov_up = org_rec_slice_out[layer_id].regions[index].sy - rec_slice_out[layer_id].regions[index].sy;
+					rec_slice_overlap[layer_id][index].ov_down = rec_slice_out[layer_id].regions[index].ey - org_rec_slice_out[layer_id].regions[index].ey;
+				}
+			}
+		}
+	}while(0);
 
 	//////////////////////////////////////////////////////////////////////////
-	//(ISP_overlap >> layer_id) + rec_overlap
+	/* (ISP_overlap >> layer_id) + rec_overlap */
 	for (layer_id = 0; layer_id < layer_num; layer_id++) {
 		ov_layer[layer_id].ov_left = (ov_pipe_layer0.ov_left >> layer_id) + ov_layer_rec[layer_id].ov_left;
 		ov_layer[layer_id].ov_right = (ov_pipe_layer0.ov_right >> layer_id) + ov_layer_rec[layer_id].ov_right;
@@ -2996,7 +2845,7 @@ void alg_slice_calc_drv_overlap(struct alg_slice_drv_overlap *param_ptr)
 		org_add_rec_slice_in.image_w = layer_id ? (layer0_padding_width  >>layer_id) : (param_ptr->img_src_w);
 		org_add_rec_slice_in.image_h = layer_id ? (layer0_padding_height >>layer_id) : (param_ptr->img_src_h);
 		org_add_rec_slice_in.slice_w = (slice_num == 1) ? org_add_rec_slice_in.image_w : param_ptr->slice_w >> layer_id;
-		org_add_rec_slice_in.slice_h = layer0_padding_height>>layer_id;
+		org_add_rec_slice_in.slice_h = layer0_padding_height >> layer_id;
 		org_add_rec_slice_in.overlap_left = 0;
 		org_add_rec_slice_in.overlap_right = 0;
 		org_add_rec_slice_in.overlap_up = 0;
@@ -3010,90 +2859,90 @@ void alg_slice_calc_drv_overlap(struct alg_slice_drv_overlap *param_ptr)
 	//////////////////////////////////////////////////////////////////////////
 	param_ptr->slice_rows = add_rec_slice_out[0].rows;
 	param_ptr->slice_cols = add_rec_slice_out[0].cols;
-do {
-        int i,j,index,rows,cols;
-        rows = param_ptr->slice_rows;
-        cols = param_ptr->slice_cols;
-        //fetch0
-        for(layer_id = 0; layer_id < layer_num; layer_id++) {
-            for ( i=0; i<rows; i++) {
-                for ( j=0; j<cols; j++) {
-                    index = i * cols + j;
-                    //
-                    param_ptr->fecth0_slice_region[layer_id][index].sx = add_rec_slice_out[layer_id].regions[index].sx;
-                    param_ptr->fecth0_slice_region[layer_id][index].ex = add_rec_slice_out[layer_id].regions[index].ex;
-                    param_ptr->fecth0_slice_region[layer_id][index].sy = add_rec_slice_out[layer_id].regions[index].sy;
-                    param_ptr->fecth0_slice_region[layer_id][index].ey = add_rec_slice_out[layer_id].regions[index].ey;
-	pr_debug("layer %d slice %d fetch 0 sx%d sy%d ex%d ey%d\n", layer_id, index, param_ptr->fecth0_slice_region[layer_id][index].sx, param_ptr->fecth0_slice_region[layer_id][index].sy,
-			param_ptr->fecth0_slice_region[layer_id][index].ex, param_ptr->fecth0_slice_region[layer_id][index].ey);
-                    //
-                    param_ptr->fecth0_slice_overlap[layer_id][index].ov_left = org_add_rec_slice_out[layer_id].regions[index].sx - add_rec_slice_out[layer_id].regions[index].sx;
-                    param_ptr->fecth0_slice_overlap[layer_id][index].ov_right = add_rec_slice_out[layer_id].regions[index].ex - org_add_rec_slice_out[layer_id].regions[index].ex;
-                    param_ptr->fecth0_slice_overlap[layer_id][index].ov_up = org_add_rec_slice_out[layer_id].regions[index].sy - add_rec_slice_out[layer_id].regions[index].sy;
-                    param_ptr->fecth0_slice_overlap[layer_id][index].ov_down = add_rec_slice_out[layer_id].regions[index].ey - org_add_rec_slice_out[layer_id].regions[index].ey;
-                }
-            }
-        }
+	do {
+		int i,j,index,rows,cols;
+		rows = param_ptr->slice_rows;
+		cols = param_ptr->slice_cols;
+		//fetch0
+		for (layer_id = 0; layer_id < layer_num; layer_id++) {
+			for ( i=0; i < rows; i++) {
+				for ( j=0; j < cols; j++) {
+					index = i * cols + j;
+					//
+					param_ptr->fecth0_slice_region[layer_id][index].sx = add_rec_slice_out[layer_id].regions[index].sx;
+					param_ptr->fecth0_slice_region[layer_id][index].ex = add_rec_slice_out[layer_id].regions[index].ex;
+					param_ptr->fecth0_slice_region[layer_id][index].sy = add_rec_slice_out[layer_id].regions[index].sy;
+					param_ptr->fecth0_slice_region[layer_id][index].ey = add_rec_slice_out[layer_id].regions[index].ey;
+					pr_debug("layer %d slice %d fetch 0 sx%d sy%d ex%d ey%d\n", layer_id, index, param_ptr->fecth0_slice_region[layer_id][index].sx, param_ptr->fecth0_slice_region[layer_id][index].sy,
+						param_ptr->fecth0_slice_region[layer_id][index].ex, param_ptr->fecth0_slice_region[layer_id][index].ey);
+					//
+					param_ptr->fecth0_slice_overlap[layer_id][index].ov_left = org_add_rec_slice_out[layer_id].regions[index].sx - add_rec_slice_out[layer_id].regions[index].sx;
+					param_ptr->fecth0_slice_overlap[layer_id][index].ov_right = add_rec_slice_out[layer_id].regions[index].ex - org_add_rec_slice_out[layer_id].regions[index].ex;
+					param_ptr->fecth0_slice_overlap[layer_id][index].ov_up = org_add_rec_slice_out[layer_id].regions[index].sy - add_rec_slice_out[layer_id].regions[index].sy;
+					param_ptr->fecth0_slice_overlap[layer_id][index].ov_down = add_rec_slice_out[layer_id].regions[index].ey - org_add_rec_slice_out[layer_id].regions[index].ey;
+				}
+			}
+		}
 
-        for(layer_id = 0; layer_id < layer_num - 1; layer_id++) {
-            for (i=0; i < rows; i++) {
-                for (j=0; j < cols; j++) {
-                    index = i * cols + j;
+		for(layer_id = 0; layer_id < layer_num - 1; layer_id++) {
+			for (i=0; i < rows; i++) {
+				for (j=0; j < cols; j++) {
+					index = i * cols + j;
 
-                    //fetch1
-                    param_ptr->fecth1_slice_region[layer_id][index].sx = param_ptr->fecth0_slice_region[layer_id + 1][index].sx << 1;
-                    param_ptr->fecth1_slice_region[layer_id][index].ex = ((param_ptr->fecth0_slice_region[layer_id + 1][index].ex + 1) << 1) - 1;
-                    param_ptr->fecth1_slice_region[layer_id][index].sy = param_ptr->fecth0_slice_region[layer_id + 1][index].sy << 1;
-                    param_ptr->fecth1_slice_region[layer_id][index].ey = ((param_ptr->fecth0_slice_region[layer_id + 1][index].ey + 1) << 1) - 1;
-                    if (layer_id == 0) {
-                        param_ptr->fecth1_slice_region[layer_id][index].ex = MIN(param_ptr->fecth1_slice_region[layer_id][index].ex, param_ptr->img_src_w - 1);
-                        param_ptr->fecth1_slice_region[layer_id][index].ey = MIN(param_ptr->fecth1_slice_region[layer_id][index].ey, param_ptr->img_src_h - 1);
-                    } else {
-                        param_ptr->fecth1_slice_region[layer_id][index].ex = MIN(param_ptr->fecth1_slice_region[layer_id][index].ex, (layer0_padding_width >> layer_id) - 1);
-                        param_ptr->fecth1_slice_region[layer_id][index].ey = MIN(param_ptr->fecth1_slice_region[layer_id][index].ey, (layer0_padding_height >> layer_id) - 1);
-                    }
-		pr_debug("layer %d slice %d fetch 0 sx%d sy%d ex%d ey%d\n", layer_id, index, param_ptr->fecth0_slice_region[layer_id][index].sx, param_ptr->fecth0_slice_region[layer_id][index].sy,
-			param_ptr->fecth0_slice_region[layer_id][index].ex, param_ptr->fecth0_slice_region[layer_id][index].ey);
-		pr_debug("layer %d slice %d fetch 1 sx%d sy%d ex%d ey%d\n", layer_id, index, param_ptr->fecth1_slice_region[layer_id][index].sx, param_ptr->fecth1_slice_region[layer_id][index].sy,
-			param_ptr->fecth1_slice_region[layer_id][index].ex, param_ptr->fecth1_slice_region[layer_id][index].ey);
-                    //store rec
-                    if (layer_id == 0) {
-                        param_ptr->store_rec_slice_region[layer_id][index].sx = param_ptr->fecth0_slice_region[layer_id][index].sx;
-                        param_ptr->store_rec_slice_region[layer_id][index].ex = param_ptr->fecth0_slice_region[layer_id][index].ex;
-                        param_ptr->store_rec_slice_region[layer_id][index].sy = param_ptr->fecth0_slice_region[layer_id][index].sy;
-                        param_ptr->store_rec_slice_region[layer_id][index].ey = param_ptr->fecth0_slice_region[layer_id][index].ey;
+					//fetch1
+					param_ptr->fecth1_slice_region[layer_id][index].sx = param_ptr->fecth0_slice_region[layer_id + 1][index].sx << 1;
+					param_ptr->fecth1_slice_region[layer_id][index].ex = ((param_ptr->fecth0_slice_region[layer_id + 1][index].ex + 1) << 1) - 1;
+					param_ptr->fecth1_slice_region[layer_id][index].sy = param_ptr->fecth0_slice_region[layer_id + 1][index].sy << 1;
+					param_ptr->fecth1_slice_region[layer_id][index].ey = ((param_ptr->fecth0_slice_region[layer_id + 1][index].ey + 1) << 1) - 1;
+					if (layer_id == 0) {
+						param_ptr->fecth1_slice_region[layer_id][index].ex = MIN(param_ptr->fecth1_slice_region[layer_id][index].ex, param_ptr->img_src_w - 1);
+						param_ptr->fecth1_slice_region[layer_id][index].ey = MIN(param_ptr->fecth1_slice_region[layer_id][index].ey, param_ptr->img_src_h - 1);
+					} else {
+						param_ptr->fecth1_slice_region[layer_id][index].ex = MIN(param_ptr->fecth1_slice_region[layer_id][index].ex, (layer0_padding_width >> layer_id) - 1);
+						param_ptr->fecth1_slice_region[layer_id][index].ey = MIN(param_ptr->fecth1_slice_region[layer_id][index].ey, (layer0_padding_height >> layer_id) - 1);
+					}
+					pr_debug("layer %d slice %d fetch 0 sx%d sy%d ex%d ey%d\n", layer_id, index, param_ptr->fecth0_slice_region[layer_id][index].sx, param_ptr->fecth0_slice_region[layer_id][index].sy,
+						param_ptr->fecth0_slice_region[layer_id][index].ex, param_ptr->fecth0_slice_region[layer_id][index].ey);
+					pr_debug("layer %d slice %d fetch 1 sx%d sy%d ex%d ey%d\n", layer_id, index, param_ptr->fecth1_slice_region[layer_id][index].sx, param_ptr->fecth1_slice_region[layer_id][index].sy,
+						param_ptr->fecth1_slice_region[layer_id][index].ex, param_ptr->fecth1_slice_region[layer_id][index].ey);
+					//store rec
+					if (layer_id == 0) {
+						param_ptr->store_rec_slice_region[layer_id][index].sx = param_ptr->fecth0_slice_region[layer_id][index].sx;
+						param_ptr->store_rec_slice_region[layer_id][index].ex = param_ptr->fecth0_slice_region[layer_id][index].ex;
+						param_ptr->store_rec_slice_region[layer_id][index].sy = param_ptr->fecth0_slice_region[layer_id][index].sy;
+						param_ptr->store_rec_slice_region[layer_id][index].ey = param_ptr->fecth0_slice_region[layer_id][index].ey;
 
-                        param_ptr->store_rec_slice_overlap[layer_id][index].ov_left = param_ptr->fecth0_slice_overlap[layer_id][index].ov_left ;
-                        param_ptr->store_rec_slice_overlap[layer_id][index].ov_right = param_ptr->fecth0_slice_overlap[layer_id][index].ov_right;
-                        param_ptr->store_rec_slice_overlap[layer_id][index].ov_up = param_ptr->fecth0_slice_overlap[layer_id][index].ov_up   ;
-                        param_ptr->store_rec_slice_overlap[layer_id][index].ov_down = param_ptr->fecth0_slice_overlap[layer_id][index].ov_down ;
+						param_ptr->store_rec_slice_overlap[layer_id][index].ov_left = param_ptr->fecth0_slice_overlap[layer_id][index].ov_left ;
+						param_ptr->store_rec_slice_overlap[layer_id][index].ov_right = param_ptr->fecth0_slice_overlap[layer_id][index].ov_right;
+						param_ptr->store_rec_slice_overlap[layer_id][index].ov_up = param_ptr->fecth0_slice_overlap[layer_id][index].ov_up   ;
+						param_ptr->store_rec_slice_overlap[layer_id][index].ov_down = param_ptr->fecth0_slice_overlap[layer_id][index].ov_down ;
 
-                        if (!param_ptr->uw_sensor) {
-                            param_ptr->store_rec_slice_crop_overlap[layer_id][index].ov_left = 0;
-                            param_ptr->store_rec_slice_crop_overlap[layer_id][index].ov_right = 0;
-                            param_ptr->store_rec_slice_crop_overlap[layer_id][index].ov_up = 0;
-                            param_ptr->store_rec_slice_crop_overlap[layer_id][index].ov_down = 0;
-                        } else {
-                            param_ptr->store_rec_slice_crop_overlap[layer_id][index].ov_left = rec_slice_overlap[layer_id][index].ov_left;
-                            param_ptr->store_rec_slice_crop_overlap[layer_id][index].ov_right = rec_slice_overlap[layer_id][index].ov_right;
-                            param_ptr->store_rec_slice_crop_overlap[layer_id][index].ov_up = rec_slice_overlap[layer_id][index].ov_up;
-                            param_ptr->store_rec_slice_crop_overlap[layer_id][index].ov_down = rec_slice_overlap[layer_id][index].ov_down;
-                        }
-                    } else {
-                        param_ptr->store_rec_slice_crop_overlap[layer_id][index].ov_left  = rec_slice_overlap[layer_id][index].ov_left;
-                        param_ptr->store_rec_slice_crop_overlap[layer_id][index].ov_right = rec_slice_overlap[layer_id][index].ov_right;
-                        param_ptr->store_rec_slice_crop_overlap[layer_id][index].ov_up    = rec_slice_overlap[layer_id][index].ov_up;
-                        param_ptr->store_rec_slice_crop_overlap[layer_id][index].ov_down  = rec_slice_overlap[layer_id][index].ov_down;
+						if (!param_ptr->uw_sensor) {
+							param_ptr->store_rec_slice_crop_overlap[layer_id][index].ov_left = 0;
+							param_ptr->store_rec_slice_crop_overlap[layer_id][index].ov_right = 0;
+							param_ptr->store_rec_slice_crop_overlap[layer_id][index].ov_up = 0;
+							param_ptr->store_rec_slice_crop_overlap[layer_id][index].ov_down = 0;
+					} else {
+							param_ptr->store_rec_slice_crop_overlap[layer_id][index].ov_left = rec_slice_overlap[layer_id][index].ov_left;
+							param_ptr->store_rec_slice_crop_overlap[layer_id][index].ov_right = rec_slice_overlap[layer_id][index].ov_right;
+							param_ptr->store_rec_slice_crop_overlap[layer_id][index].ov_up = rec_slice_overlap[layer_id][index].ov_up;
+							param_ptr->store_rec_slice_crop_overlap[layer_id][index].ov_down = rec_slice_overlap[layer_id][index].ov_down;
+						}
+					} else {
+						param_ptr->store_rec_slice_crop_overlap[layer_id][index].ov_left = rec_slice_overlap[layer_id][index].ov_left;
+						param_ptr->store_rec_slice_crop_overlap[layer_id][index].ov_right = rec_slice_overlap[layer_id][index].ov_right;
+						param_ptr->store_rec_slice_crop_overlap[layer_id][index].ov_up = rec_slice_overlap[layer_id][index].ov_up;
+						param_ptr->store_rec_slice_crop_overlap[layer_id][index].ov_down = rec_slice_overlap[layer_id][index].ov_down;
 
-                        param_ptr->store_rec_slice_overlap[layer_id][index].ov_left  = (param_ptr->fecth0_slice_overlap[layer_id+1][index].ov_left <<1) - rec_slice_overlap[layer_id][index].ov_left ;
-                        param_ptr->store_rec_slice_overlap[layer_id][index].ov_right = (param_ptr->fecth0_slice_overlap[layer_id+1][index].ov_right<<1) - rec_slice_overlap[layer_id][index].ov_right;
-                        param_ptr->store_rec_slice_overlap[layer_id][index].ov_up    = (param_ptr->fecth0_slice_overlap[layer_id+1][index].ov_up   <<1) - rec_slice_overlap[layer_id][index].ov_up   ;
-                        param_ptr->store_rec_slice_overlap[layer_id][index].ov_down  = (param_ptr->fecth0_slice_overlap[layer_id+1][index].ov_down <<1) - rec_slice_overlap[layer_id][index].ov_down ;
+						param_ptr->store_rec_slice_overlap[layer_id][index].ov_left = (param_ptr->fecth0_slice_overlap[layer_id+1][index].ov_left << 1) - rec_slice_overlap[layer_id][index].ov_left ;
+                        param_ptr->store_rec_slice_overlap[layer_id][index].ov_right = (param_ptr->fecth0_slice_overlap[layer_id+1][index].ov_right<< 1) - rec_slice_overlap[layer_id][index].ov_right;
+                        param_ptr->store_rec_slice_overlap[layer_id][index].ov_up = (param_ptr->fecth0_slice_overlap[layer_id+1][index].ov_up << 1) - rec_slice_overlap[layer_id][index].ov_up;
+                        param_ptr->store_rec_slice_overlap[layer_id][index].ov_down = (param_ptr->fecth0_slice_overlap[layer_id+1][index].ov_down <<1) - rec_slice_overlap[layer_id][index].ov_down ;
 
-                        param_ptr->store_rec_slice_region[layer_id][index].sx = (param_ptr->fecth0_slice_region[layer_id+1][index].sx<<1        ) + rec_slice_overlap[layer_id][index].ov_left ;
-                        param_ptr->store_rec_slice_region[layer_id][index].ex = (((param_ptr->fecth0_slice_region[layer_id+1][index].ex+1)<<1)-1) - rec_slice_overlap[layer_id][index].ov_right;
-                        param_ptr->store_rec_slice_region[layer_id][index].sy = (param_ptr->fecth0_slice_region[layer_id+1][index].sy<<1        ) + rec_slice_overlap[layer_id][index].ov_up   ;
-                        param_ptr->store_rec_slice_region[layer_id][index].ey = (((param_ptr->fecth0_slice_region[layer_id+1][index].ey+1)<<1)-1) - rec_slice_overlap[layer_id][index].ov_down ;
+                        param_ptr->store_rec_slice_region[layer_id][index].sx = (param_ptr->fecth0_slice_region[layer_id + 1][index].sx << 1) + rec_slice_overlap[layer_id][index].ov_left ;
+                        param_ptr->store_rec_slice_region[layer_id][index].ex = (((param_ptr->fecth0_slice_region[layer_id + 1][index].ex + 1) << 1) - 1) - rec_slice_overlap[layer_id][index].ov_right;
+                        param_ptr->store_rec_slice_region[layer_id][index].sy = (param_ptr->fecth0_slice_region[layer_id + 1][index].sy << 1) + rec_slice_overlap[layer_id][index].ov_up;
+                        param_ptr->store_rec_slice_region[layer_id][index].ey = (((param_ptr->fecth0_slice_region[layer_id + 1][index].ey + 1) << 1) - 1) - rec_slice_overlap[layer_id][index].ov_down ;
                     }
                 }
             }
@@ -3101,7 +2950,7 @@ do {
 
     }while(0);
 
-	/////////////offline_slice_mode = 1,update layer5～layer2：auto slice
+	/* offline_slice_mode = 1,update layer5～layer2：auto slice */
 	if (param_ptr->offline_slice_mode == 1 && param_ptr->layerNum >= 3) {
 		for (layer_id = 2; layer_id < param_ptr->layerNum; layer_id++) {
 			for (i = 0; i < slice_num; i++) {
@@ -3197,7 +3046,7 @@ do {
 
 		//fetch1 layer1~layer4
 		for (layer_id = 1; layer_id < param_ptr->layerNum - 1; layer_id++) {
-			for (i=0; i<param_ptr->slice_number[layer_id + 1]; i++) {
+			for (i=0; i < param_ptr->slice_number[layer_id + 1]; i++) {
 				index = i;
 
 				//fetch1
@@ -3207,7 +3056,7 @@ do {
 				param_ptr->fecth1_slice_region[layer_id][index].ey = ((param_ptr->fecth0_slice_region[layer_id + 1][index].ey + 1) << 1) - 1;
 
 				//store rec
-				param_ptr->store_rec_slice_crop_overlap[layer_id][index].ov_left = (param_ptr->fecth0_slice_overlap[layer_id + 1][index].ov_left <<1);
+				param_ptr->store_rec_slice_crop_overlap[layer_id][index].ov_left = (param_ptr->fecth0_slice_overlap[layer_id + 1][index].ov_left << 1);
 				param_ptr->store_rec_slice_crop_overlap[layer_id][index].ov_right = (param_ptr->fecth0_slice_overlap[layer_id + 1][index].ov_right << 1);
 				param_ptr->store_rec_slice_crop_overlap[layer_id][index].ov_up = (param_ptr->fecth0_slice_overlap[layer_id + 1][index].ov_up << 1);
 				param_ptr->store_rec_slice_crop_overlap[layer_id][index].ov_down = (param_ptr->fecth0_slice_overlap[layer_id + 1][index].ov_down << 1);
@@ -3217,7 +3066,7 @@ do {
 				param_ptr->store_rec_slice_overlap[layer_id][index].ov_up = 0;
 				param_ptr->store_rec_slice_overlap[layer_id][index].ov_down = 0;
 
-				param_ptr->store_rec_slice_region[layer_id][index].sx = (param_ptr->fecth0_slice_region[layer_id + 1][index].sx << 1) + (rec_slice_overlap[layer_id + 1][index].ov_left <<1);
+				param_ptr->store_rec_slice_region[layer_id][index].sx = (param_ptr->fecth0_slice_region[layer_id + 1][index].sx << 1) + (rec_slice_overlap[layer_id + 1][index].ov_left << 1);
 				param_ptr->store_rec_slice_region[layer_id][index].ex = (((param_ptr->fecth0_slice_region[layer_id + 1][index].ex + 1) << 1) - 1) - (rec_slice_overlap[layer_id + 1][index].ov_right << 1);
 				param_ptr->store_rec_slice_region[layer_id][index].sy = (param_ptr->fecth0_slice_region[layer_id + 1][index].sy << 1) + (rec_slice_overlap[layer_id + 1][index].ov_up << 1);
 				param_ptr->store_rec_slice_region[layer_id][index].ey = (((param_ptr->fecth0_slice_region[layer_id + 1][index].ey + 1) << 1) - 1) - (rec_slice_overlap[layer_id + 1][index].ov_down << 1);
@@ -3226,10 +3075,9 @@ do {
 	}
 
 	//calculation scaler slice param
-	do
-	{
+	do {
 		int i, j, index, rows, cols;
-		slice_drv_scaler_slice_init_context slice_context;
+		struct slice_drv_scaler_slice_init_context slice_context;
 		rows = param_ptr->slice_rows;
 		cols = param_ptr->slice_cols;
 

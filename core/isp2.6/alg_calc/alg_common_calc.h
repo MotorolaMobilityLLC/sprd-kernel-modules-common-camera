@@ -20,42 +20,42 @@
 #define YUV422                          0
 #define YUV420                          1
 
-typedef struct {
+struct trim_info_t {
 	uint8_t trim_en;
 	uint16_t trim_start_x;
 	uint16_t trim_start_y;
 	uint16_t trim_size_x;
 	uint16_t trim_size_y;
-} trim_info_t;
+};
 
-typedef struct {
-	uint8_t deci_x_en; /*0: disable; 1:enable*/
-	uint8_t deci_y_en; /* 0: disable; 1:enable*/
-	uint8_t deci_x; /*deci factor:1,2,4,8,16*/
-	uint8_t deci_y; /*deci factor:1,2,4,8,16*/
-	uint8_t deciPhase_X; /*deci phase:0,1,3,7*/
-	uint8_t deciPhase_Y; /*deci phase:0,1,3,7*/
+struct deci_info_t {
+	uint8_t deci_x_en;/* 0: disable; 1:enable */
+	uint8_t deci_y_en;/* 0: disable; 1:enable */
+	uint8_t deci_x;/* deci factor:1,2,4,8,16 */
+	uint8_t deci_y;/* deci factor:1,2,4,8,16 */
+	uint8_t deciPhase_X;/* deci phase:0,1,3,7 */
+	uint8_t deciPhase_Y;/* deci phase:0,1,3,7 */
 	uint8_t deci_cut_first_y;
-	uint8_t deci_option; /*0:direct deci; 1:average deci; 2:only average for luma*/
-} deci_info_t;
+	uint8_t deci_option;/* 0:direct deci; 1:average deci; 2:only average for luma */
+};
 
-typedef struct {
+struct scaler_phase_info_t {
 	int32_t scaler_init_phase[2];
-	int16_t scaler_init_phase_int[2][2]; /*[hor/ver][luma/chroma]*/
+	int16_t scaler_init_phase_int[2][2];/* [hor/ver][luma/chroma] */
 	uint16_t scaler_init_phase_rmd[2][2];
-} scaler_phase_info_t;
+};
 
-typedef struct {
-	int16_t y_hor_coef[PHASE_1][8]; /* Luma horizontal coefficients table */
-	int16_t c_hor_coef[PHASE_1][8]; /* Chroma horizontal coefficients table */
-	int16_t y_ver_coef[PHASE_1][16]; /* Luma vertical down coefficients table */
-	int16_t c_ver_coef[PHASE_1][16]; /* Chroma veritical down coefficients table */
-} scaler_coef_info_t;
+struct scaler_coef_info_t {
+	int16_t y_hor_coef[PHASE_1][8];/* Luma horizontal coefficients table */
+	int16_t c_hor_coef[PHASE_1][8];/* Chroma horizontal coefficients table */
+	int16_t y_ver_coef[PHASE_1][16];/* Luma vertical down coefficients table */
+	int16_t c_ver_coef[PHASE_1][16];/* Chroma veritical down coefficients table */
+};
 
-typedef struct {
-	uint8_t scaler_en; /*0: disable; 1:enable*/
+struct scaler_info_t {
+	uint8_t scaler_en;/* 0: disable; 1:enable */
 
-	uint8_t input_pixfmt; /*input yuv format: 0=yuv422 or 1=yuv420;*/
+	uint8_t input_pixfmt;/* input yuv format: 0=yuv422 or 1=yuv420; */
 	uint8_t output_pixfmt;
 
 	uint16_t scaler_in_width;
@@ -72,19 +72,19 @@ typedef struct {
 	int32_t scaler_init_phase_ver;
 
 	uint8_t scaler_y_hor_tap;
-	uint8_t scaler_y_ver_tap; /*Y Vertical tap of scaling*/
+	uint8_t scaler_y_ver_tap;/* Y Vertical tap of scaling */
 	uint8_t scaler_uv_hor_tap;
 	uint8_t scaler_uv_ver_tap;
 
-	scaler_phase_info_t init_phase_info;
-	scaler_coef_info_t scaler_coef_info;
-} scaler_info_t;
+	struct scaler_phase_info_t init_phase_info;
+	struct scaler_coef_info_t scaler_coef_info;
+};
 
-typedef struct {
+struct yuvscaler_param_t {
 	uint8_t bypass;
 
-	uint8_t input_pixfmt; /*00:YUV422; 1:YUV420*/
-	uint8_t output_pixfmt;  /*00:YUV422; 1:YUV420*/
+	uint8_t input_pixfmt;/* 00:YUV422; 1:YUV420 */
+	uint8_t output_pixfmt;/* 00:YUV422; 1:YUV420 */
 	uint8_t output_align_hor;
 	uint8_t output_align_ver;
 
@@ -95,13 +95,13 @@ typedef struct {
 	uint16_t dst_size_x;
 	uint16_t dst_size_y;
 
-	trim_info_t trim0_info;
-	deci_info_t deci_info;
-	scaler_info_t scaler_info;
-	trim_info_t trim1_info;
-} yuvscaler_param_t;
+	struct trim_info_t trim0_info;
+	struct deci_info_t deci_info;
+	struct scaler_info_t scaler_info;
+	struct trim_info_t trim1_info;
+};
 
-typedef struct {
+struct scaler_slice_t {
 	int slice_id;
 	int slice_width;
 	int slice_height;
@@ -123,14 +123,14 @@ typedef struct {
 
 	int init_phase_hor;
 	int init_phase_ver;
-} scaler_slice_t;
+};
 
 void calc_scaler_phase(int32_t phase, uint16_t factor,
 	int16_t *phase_int, uint16_t *phase_rmd);
 void yuv_scaler_init_slice_info_v3(
-	yuvscaler_param_t *frame_scaler, yuvscaler_param_t *slice_scaler,
-	scaler_slice_t *slice_info, const scaler_slice_t *input_slice_info,
-	const scaler_slice_t *output_slice_info);
+	struct yuvscaler_param_t *frame_scaler, struct yuvscaler_param_t *slice_scaler,
+	struct scaler_slice_t *slice_info, const struct scaler_slice_t *input_slice_info,
+	const struct scaler_slice_t *output_slice_info);
 void est_scaler_output_slice_info(int trim_start, int trim_size, int deci,
 	int scl_en, int scl_factor_in, int scl_factor_out, int scl_tap, int init_phase,
 	int input_slice_start, int input_slice_size, int output_pixel_align, int *output_slice_end);

@@ -1304,7 +1304,7 @@ static int ispslice_slice_scaler_info_cfg_ex(
 	int i = 0;
 	int j = 0;
 	int ret = 0;
-	isp_fw_scaler_slice slice_param[2][SLICE_NUM_MAX] = {0};
+	struct isp_fw_scaler_slice slice_param[2][SLICE_NUM_MAX] = {0};
 
 	if (!slc_cfg_input || !slice_ctx) {
 		pr_err("fail to get input ptr NULL\n");
@@ -1381,7 +1381,7 @@ static int ispslice_scaler_info_calc_cfg(
 	int i = 0, j = 0;
 	int ret = 0;
 	struct alg_slice_drv_overlap *slice_info = NULL;
-	yuvscaler_param_t *sliceParam = NULL;
+	struct yuvscaler_param_t *sliceParam = NULL;
 
 	if (!slc_cfg_input || !slice_ctx) {
 		pr_err("fail to get input ptr NULL\n");
