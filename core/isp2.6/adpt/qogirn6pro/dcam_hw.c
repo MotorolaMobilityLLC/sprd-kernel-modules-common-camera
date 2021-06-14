@@ -1816,6 +1816,7 @@ static int dcamhw_fbc_ctrl(void *handle, void *arg)
 		DCAM_REG_MWR(fbc_arg->idx, addr, 0xF0, color_format << 4);
 		DCAM_REG_MWR(fbc_arg->idx, addr, BIT_0, 0);
 		DCAM_REG_MWR(fbc_arg->idx, DCAM_PATH_SEL, BIT_6, BIT_6);
+		DCAM_REG_MWR(fbc_arg->idx, DCAM_STORE0_PARAM, BIT_0, 1);
 	} else {
 		addr = DCAM_FBC_RAW_PARAM;
 		DCAM_REG_MWR(fbc_arg->idx, addr, 0x1F00, afbc_mode << 8);
@@ -1823,8 +1824,10 @@ static int dcamhw_fbc_ctrl(void *handle, void *arg)
 		DCAM_REG_MWR(fbc_arg->idx, addr, BIT_6 | BIT_7, val << 6);
 		DCAM_REG_MWR(fbc_arg->idx, addr, 0xF << 16, color_format << 16);
 		DCAM_REG_MWR(fbc_arg->idx, addr, BIT_0, 0);
-		if (fbc_arg->path_id == DCAM_PATH_FULL)
+		if (fbc_arg->path_id == DCAM_PATH_FULL) {
 			DCAM_REG_MWR(fbc_arg->idx, DCAM_PATH_SEL, BIT_8, BIT_8);
+			DCAM_REG_MWR(fbc_arg->idx, DCAM_STORE4_PARAM, BIT_0, 1);
+		}
 		else
 			DCAM_REG_MWR(fbc_arg->idx, DCAM_PATH_SEL, BIT_4, BIT_4);
 	}

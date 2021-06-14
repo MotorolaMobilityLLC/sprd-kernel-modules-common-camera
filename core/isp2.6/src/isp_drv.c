@@ -515,8 +515,8 @@ static int ispdrv_fbd_yuv_get(void *cfg_in, void *cfg_out,
 	cal_fbc.height = fbd_yuv->slice_size.h;
 	cal_fbc.width = fbd_yuv->slice_size.w;
 	cal_fbc.out = &fbd_yuv->hw_addr;
-
 	dcam_if_cal_compressed_addr(&cal_fbc);
+
 	/* store start address for slice use */
 	fbd_yuv->frame_header_base_addr = fbd_yuv->hw_addr.addr0;
 	fbd_yuv->slice_start_header_addr = fbd_yuv->frame_header_base_addr +

@@ -20,6 +20,7 @@ extern "C" {
 
 #include "cam_queue.h"
 #include "dcam_interface.h"
+#include "cam_types.h"
 
 #define FBC_NR3_Y_PAD_WIDTH            256
 #define FBC_NR3_Y_PAD_HEIGHT           4
@@ -154,19 +155,23 @@ struct isp_3dnr_fbd_fetch {
 	uint32_t y_rd_one_more_en;
 	uint32_t rd_time_out_th;
 
-	uint32_t chk_sum_auto_clr;
+	/*This is for N6pro*/
+	uint32_t data_bits;
+	uint32_t color_fmt;
 	uint32_t hblank_en;
-	uint32_t dout_req_signal_type;
 	uint32_t afbc_mode;
-	uint32_t start_3dnr_afbd;
-	uint32_t hblank_num;
-	uint32_t tile_num_pitch;
 	uint32_t slice_width;
 	uint32_t slice_height;
+	uint32_t hblank_num;
+	uint32_t tile_num_pitch;
+	uint32_t start_3dnr_afbd;
+	uint32_t chk_sum_auto_clr;
 	uint32_t slice_start_pxl_xpt;
 	uint32_t slice_start_pxl_ypt;
-	unsigned long frame_header_base_addr;
+	uint32_t dout_req_signal_type;
 	unsigned long slice_start_header_addr;
+	unsigned long frame_header_base_addr;
+	struct compressed_addr hw_addr;
 };
 
 struct isp_3dnr_fbc_store {
@@ -193,6 +198,8 @@ struct isp_3dnr_fbc_store {
 	unsigned long slice_header_base_addr;
 	uint32_t c_nearly_full_level;
 	uint32_t y_nearly_full_level;
+
+	struct compressed_addr hw_addr;
 };
 
 struct isp_3dnr_crop {
@@ -287,25 +294,28 @@ struct isp_3dnr_ops {
 };
 
 struct isp_3dnr_ctx_desc {
-	uint32_t ctx_id;
 	uint32_t type;
-	uint32_t blending_cnt;
 	uint32_t mode;
 	uint32_t width;
+	uint32_t ctx_id;
 	uint32_t height;
+	uint32_t blending_cnt;
 	uint32_t nr3_mv_version;
-	enum sprd_cam_sec_mode nr3_sec_mode;
+
 	struct fast_mv mv;
-	struct nr3_me_data *mvinfo;
-	struct isp_3dnr_mem_ctrl mem_ctrl;
-	struct isp_3dnr_store nr3_store;
-	struct isp_3dnr_fbd_fetch nr3_fbd_fetch;
-	struct isp_3dnr_fbc_store nr3_fbc_store;
-	struct isp_3dnr_crop crop;
-	struct camera_buf *buf_info[ISP_NR3_BUF_NUM];
-	struct isp_k_block *isp_block;
 	struct isp_3dnr_ops ops;
+	struct isp_3dnr_crop crop;
+	struct nr3_me_data *mvinfo;
+	struct isp_k_block *isp_block;
+	struct isp_3dnr_store nr3_store;
+	struct isp_3dnr_mem_ctrl mem_ctrl;
+	struct dcam_compress_info fbc_info;
+	struct isp_3dnr_fbc_store nr3_fbc_store;
+	struct isp_3dnr_fbd_fetch nr3_fbd_fetch;
+	struct camera_buf *buf_info[ISP_NR3_BUF_NUM];
 	struct ImageRegion_Info image_region_info[MAX_SLICE_NUM];
+
+	enum sprd_cam_sec_mode nr3_sec_mode;
 };
 
 void isp_3dnr_config_param(struct isp_3dnr_ctx_desc *ctx);

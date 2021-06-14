@@ -289,10 +289,16 @@ static int ispcore_hist_roi_update(struct isp_sw_context *pctx)
 static int ispcore_3dnr_frame_process(struct isp_sw_context *pctx,
 		struct camera_frame *pframe)
 {
+	uint32_t mv_version = 0;
+	struct isp_uinfo *pipe_src = NULL;
+	struct isp_pipe_info *pipe_info = NULL;
 	struct isp_3dnr_ctx_desc *nr3_handle = NULL;
 	struct dcam_frame_synchronizer *fsync = NULL;
-	struct isp_uinfo *pipe_src = NULL;
-	uint32_t mv_version = 0;
+
+	if (pctx == NULL || pframe == NULL) {
+		pr_err("fail to get valid parameter pctx %p pframe %p\n", pctx, pframe);
+		return 0;
+	}
 
 	fsync = (struct dcam_frame_synchronizer *)pframe->sync_data;
 	if (fsync) {
@@ -302,13 +308,14 @@ static int ispcore_3dnr_frame_process(struct isp_sw_context *pctx,
 			 fsync->nr3_me.src_width, fsync->nr3_me.src_height);
 	}
 
-	nr3_handle = (struct isp_3dnr_ctx_desc *)pctx->nr3_handle;
 	pipe_src = &pctx->pipe_src;
+	pipe_info = &pctx->pipe_info;
 	mv_version = pctx->hw->ip_isp->nr3_mv_alg_version;
+	nr3_handle = (struct isp_3dnr_ctx_desc *)pctx->nr3_handle;
 
 	nr3_handle->ops.cfg_param(nr3_handle, ISP_3DNR_CFG_MV_VERSION, &mv_version);
 	nr3_handle->ops.cfg_param(nr3_handle, ISP_3DNR_CFG_FBC_INFO, &pipe_src->nr3_fbc_fbd);
-	nr3_handle->ops.cfg_param(nr3_handle, ISP_3DNR_CFG_FBD_INFO, &pipe_src->fetch_path_sel);
+	nr3_handle->ops.cfg_param(nr3_handle, ISP_3DNR_CFG_FBD_INFO, pipe_info);
 	nr3_handle->ops.cfg_param(nr3_handle, ISP_3DNR_CFG_SIZE_INFO, &pipe_src->crop);
 	nr3_handle->ops.cfg_param(nr3_handle, ISP_3DNR_CFG_MEMCTL_STORE_INFO, &pctx->pipe_info.fetch);
 	nr3_handle->ops.cfg_param(nr3_handle, ISP_3DNR_CFG_BLEND_INFO, &pctx->isp_k_param);
