@@ -52,7 +52,7 @@
 #define EFUSE_CSI_2L_RCTL(x)		(((x) & 0x3c000000) >> 26)
 #define CSI_2P2L_EFUSE_BLOCK_ID		7
 #define CSI_2L_EFUSE_BLOCK_ID		9
-
+static int csi_reg_dump_flag = 0;
 static int csi_pattern_enable = 0;
 #define IPG_CLK_CFG_MSK			0x3
 #define IPG_CLK_48M			0
@@ -433,6 +433,7 @@ int csi_api_open(int bps_per_lane, int phy_id, int lane_num, int sensor_id, int 
 
 	if (csi_pattern_enable)
 		csi_ipg_mode_cfg(dt_info->controller_id, 1);
+	csi_reg_dump_flag = 0;
 
 	return ret;
 
@@ -452,7 +453,8 @@ int csi_api_close(uint32_t phy_id, int sensor_id)
 		pr_err("fail to get valid phy ptr\n");
 		return -EINVAL;
 	}
-	//csi_api_reg_trace();
+	if(csi_reg_dump_flag)
+		csi_reg_trace(dt_info->controller_id);
 
 	if (csi_pattern_enable)
 		csi_ipg_mode_cfg(dt_info->controller_id, 0);
@@ -467,10 +469,7 @@ int csi_api_close(uint32_t phy_id, int sensor_id)
 
 void csi_api_reg_trace(void)
 {
-	int i = 0;
-
-	for (i = 0; i < CSI_MAX_COUNT; i++)
-		csi_reg_trace(i);
+	csi_reg_dump_flag = 1;
 }
 EXPORT_SYMBOL(csi_api_reg_trace);
 

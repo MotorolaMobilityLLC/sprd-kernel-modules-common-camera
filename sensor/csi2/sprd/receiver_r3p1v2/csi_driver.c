@@ -391,12 +391,12 @@ void csi_reg_trace(unsigned int idx)
 
 	pr_info("CSI %d reg list\n", idx);
 	for (addr = IP_REVISION; addr <= 0xff; addr += 16) {
+		uint32_t tmp0 = REG_RD(regbase + addr);
+		uint32_t tmp1 = REG_RD(regbase + addr + 4);
+		uint32_t tmp2 = REG_RD(regbase + addr + 8);
+		uint32_t tmp3 = REG_RD(regbase + addr + 12);
 		pr_info("0x%lx: 0x%x 0x%x 0x%x 0x%x\n",
-			addr,
-			REG_RD(regbase + addr),
-			REG_RD(regbase + addr + 4),
-			REG_RD(regbase + addr + 8),
-			REG_RD(regbase + addr + 12));
+			addr, tmp0, tmp1, tmp2, tmp3);
 	}
 #ifdef DEBUG_DPHY_2P2S
 	if(idx > 1 && idx < 8){
