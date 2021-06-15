@@ -39,4 +39,6 @@
 #define ISP_FBD_TILE_WIDTH              32
 #define ISP_FBD_TILE_HEIGHT             8
 
+#define ISP_LTM_ALIGNMENT               4
+
 #endif

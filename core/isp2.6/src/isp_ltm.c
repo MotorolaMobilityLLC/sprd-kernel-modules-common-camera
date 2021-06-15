@@ -578,10 +578,8 @@ static int ispltm_histo_config_gen(struct isp_ltm_ctx_desc *ctx,
 	param->frame_height = ctx->frame_height;
 	param->frame_width = ctx->frame_width;
 
-	if (ctx->hw->prj_id == QOGIRN6pro)
-		ispltm_histo_param_calc(param, 4);
-	else
-		ispltm_histo_param_calc(param, 2);
+	ispltm_histo_param_calc(param, ISP_LTM_ALIGNMENT);
+
 	hists->bypass = param->bypass;
 	hists->channel_sel = param->channel_sel;
 	hists->binning_en = param->binning_en;
@@ -695,22 +693,21 @@ static int ispltm_map_config_gen(struct isp_ltm_ctx_desc *ctx,
 	if (ctx->mode == MODE_LTM_CAP) {
 		pr_debug("tile_num_x[%d], tile_num_y[%d], tile_width[%d], tile_height[%d], \
 			frame_width_stat[%d], frame_height_stat[%d], \
-			frame_width_map[%d], frame_height_map[%d]\n",
+			frame_width_map[%d], frame_height_map[%d] ALIGNMENT[%d]\n",
 			mnum.tile_num_x, mnum.tile_num_y,
 			ts.tile_width, ts.tile_height,
 			frame_width_stat, frame_height_stat,
-			frame_width_map, frame_height_map);
+			frame_width_map, frame_height_map,
+			ISP_LTM_ALIGNMENT);
 	}
 
 	/*
 	 * frame_width_map/frame_width_stat should be
 	 * equal to frame_height_map/frame_height_stat
 	 */
-	if (ctx->hw->prj_id == QOGIRN6pro) {
-		if (frame_width_stat != 0 && frame_height_stat != 0) {
-			ratio_w = ((frame_width_map << 8) + (frame_width_stat / 2)) / frame_width_stat;
-			ratio_h = ((frame_width_map << 8) + (frame_height_stat / 2)) / frame_height_stat;
-		}
+	if (ISP_LTM_ALIGNMENT == 4) {
+		ratio_w = ((frame_width_map << 8) + (frame_width_stat / 2)) / frame_width_stat;
+		ratio_h = ((frame_width_map << 8) + (frame_height_stat / 2)) / frame_height_stat;
 
 		tm.tile_width = (ratio_w * ts.tile_width) >> 10 << 2;
 		tm.tile_height = (ratio_h * ts.tile_height) >> 9 << 1;
@@ -1089,11 +1086,9 @@ int isp_ltm_map_slice_config_gen(struct isp_ltm_ctx_desc *ctx,
 	 * frame_width_map/frame_width_stat should be
 	 * equal to frame_height_map/frame_height_stat
 	 */
-	if (ctx->hw->prj_id == QOGIRN6pro) {
-		if (frame_width_stat != 0 && frame_height_stat != 0) {
-			ratio_w = ((frame_width_map << 8) + (frame_width_stat / 2)) / frame_width_stat;
-			ratio_h = ((frame_width_map << 8) + (frame_height_stat / 2)) / frame_height_stat;
-		}
+	if (ISP_LTM_ALIGNMENT == 4) {
+		ratio_w = ((frame_width_map << 8) + (frame_width_stat / 2)) / frame_width_stat;
+		ratio_h = ((frame_width_map << 8) + (frame_height_stat / 2)) / frame_height_stat;
 
 		tm.tile_width = (ratio_w * ts.tile_width) >> 10 << 2;
 		tm.tile_height = (ratio_h * ts.tile_height) >> 9 << 1;
