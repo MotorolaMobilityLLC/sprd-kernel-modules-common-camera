@@ -2429,7 +2429,7 @@ int isp_init_param_for_overlap_v2(
 	slice_overlap->crop_h = slice_input->calc_dyn_ov.crop.size_y;
 
 	slice_align_size = PYR_DEC_WIDTH_ALIGN << layer_num;
-	slice_overlap->slice_w = (slc_ctx->slice_width + slice_align_size) & ~( slice_align_size - 1);
+	slice_overlap->slice_w = (slc_ctx->slice_width + slice_align_size - 1) & ~( slice_align_size - 1);
 	pr_debug("slice w %d\n", slice_overlap->slice_w);
 	slice_overlap->slice_h = slc_ctx->slice_height;
 	slice_overlap->offline_slice_mode = 1;
