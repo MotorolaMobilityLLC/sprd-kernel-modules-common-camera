@@ -36,7 +36,12 @@ extern struct cpp_hw_info lite_r3p0_cpp_hw_info;
 #define BP_TRIM_SIZE_MAX               8192
 #define SCALE_WIDTH_MIN                64
 #define SCALE_HEIGHT_MIN               32
+#if defined (PROJ_CPP_N6PRO)
+#define SCALE_SLICE_OUT_WIDTH_MAX      3360
+#else
 #define SCALE_SLICE_OUT_WIDTH_MAX      2400
+#endif
+
 #define SCALE_FRAME_OUT_WIDTH_MAX      768
 #define SCALE_SC_COEFF_MAX             4
 #define SCALE_SC_COEFF_MID             4
