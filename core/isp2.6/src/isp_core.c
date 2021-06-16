@@ -1717,9 +1717,6 @@ static int ispcore_offline_frame_start(void *ctx)
 			fmcu->ops->ctx_reset(fmcu);
 	}
 
-	/* temp change for pyr rec open quanjing image error issue */
-	if (pframe->channel_id != CAM_CH_CAP && tmp.multi_slice)
-		pframe->need_pyr_rec = 0;
 	ispcore_3dnr_frame_process(pctx, pframe);
 	ispcore_ltm_frame_process(pctx, pframe);
 	ispcore_rec_frame_process(pctx, pctx_hw, pframe);

@@ -859,7 +859,7 @@ static int isp3dnr_cfg_param(void *handle,
 		break;
 	case ISP_3DNR_CFG_FBC_INFO:
 		nr3_compress_eb = *(uint32_t *)param;
-		pr_info("nr3_compress_rb:%d.\n", nr3_compress_eb);
+		pr_debug("nr3_compress_rb:%d.\n", nr3_compress_eb);
 		if (nr3_compress_eb) {
 			nr3_ctx->nr3_store.st_bypass = 1;
 			nr3_ctx->nr3_fbc_store.bypass = 0;

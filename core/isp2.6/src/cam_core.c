@@ -3452,6 +3452,11 @@ static int camcore_channel_size_bininig_cal(
 			trim_pv.size_y = (dcam_out.h << shift);
 		}
 
+		if (dcam_out.w > DCAM_SCALER_MAX_WIDTH) {
+			dcam_out.h = dcam_out.h * DCAM_SCALER_MAX_WIDTH / dcam_out.w;
+			dcam_out.h = ALIGN_DOWN(dcam_out.h, 2);
+			dcam_out.w = DCAM_SCALER_MAX_WIDTH;
+		}
 		pr_info("shift %d, dst_p %u %u, dst_v %u %u, dcam_out %u %u\n",
 			shift, dst_p.w, dst_p.h, dst_v.w, dst_v.h, dcam_out.w, dcam_out.h);
 
