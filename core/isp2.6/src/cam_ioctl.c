@@ -1647,6 +1647,11 @@ static int camioctl_stream_on(struct camera_module *module,
 		usleep_range(600, 800);
 	} while (loop++ < 5000);
 
+	if (sw_ctx->hw_ctx_id == DCAM_HW_CONTEXT_MAX) {
+		pr_err("fail to connect. dcam %d sw_ctx_id %d\n", sw_ctx->hw_ctx_id, sw_ctx->sw_ctx_id);
+		return -1;
+	}
+
 	online = !!online;
 	pr_info("cam%d stream on online %d, sw_ctx_id = %d\n", module->idx, online, sw_ctx->sw_ctx_id);
 	if (!online)
@@ -3200,8 +3205,10 @@ static int camioctl_csi_switch(struct camera_module *module, unsigned long arg)
 
 	switch (csi_connect) {
 		case 0:
-			if (sw_ctx->hw_ctx_id == DCAM_HW_CONTEXT_MAX)
-				return 0;
+			if (sw_ctx->hw_ctx_id == DCAM_HW_CONTEXT_MAX) {
+				pr_err("fail to disconnect. sw_ctx already unbind\n");
+				return -1;
+			}
 
 			/* switch disconnect */
 			csi_switch.csi_id = module->dcam_idx;
@@ -3273,6 +3280,11 @@ static int camioctl_csi_switch(struct camera_module *module, unsigned long arg)
 				pr_info_ratelimited("hw_ctx_id %d wait for hw. loop %d\n", sw_ctx->hw_ctx_id, loop);
 				usleep_range(600, 800);
 			} while (loop++ < 5000);
+
+			if (sw_ctx->hw_ctx_id == DCAM_HW_CONTEXT_MAX) {
+				pr_err("fail to connect. csi %d dcam %d sw_ctx_id %d\n", module->dcam_idx, sw_ctx->hw_ctx_id, sw_ctx->sw_ctx_id);
+				return -1;
+			}
 
 			/* reconfig*/
 			module->dcam_dev_handle->dcam_pipe_ops->ioctl(sw_ctx, DCAM_IOCTL_RECFG_PARAM, NULL);
