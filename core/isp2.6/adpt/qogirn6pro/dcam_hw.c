@@ -1115,6 +1115,10 @@ static int dcamhw_path_stop(void *handle, void *arg)
 		DCAM_REG_MWR(idx, DCAM_PATH_STOP, BIT_4, 1 << 4);
 		DCAM_REG_MWR(idx, DCAM_VCH3_CONTROL, BIT_0, 0);
 		break;
+	case DCAM_PATH_RAW:
+		DCAM_REG_MWR(idx, DCAM_PATH_STOP, BIT_2, 1 << 2);
+		DCAM_REG_MWR(idx,DCAM_RAW_PATH_CFG, BIT_0, 1);
+		break;
 	default:
 		break;
 	}

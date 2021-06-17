@@ -1202,7 +1202,9 @@ static irqreturn_t dcamint_isr_root(int irq, void *priv)
 		return IRQ_NONE;
 	}
 	if (!dcam_hw_ctx->sw_ctx) {
-		pr_err("fail to check param %px\n", dcam_hw_ctx->sw_ctx);
+		status = DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, DCAM_INT_MASK);
+		DCAM_REG_WR(dcam_hw_ctx->hw_ctx_id, DCAM_INT_CLR, status);
+		pr_err("fail to check param %px, status %x\n", dcam_hw_ctx->sw_ctx, status);
 		return IRQ_NONE;
 	}
 	if (atomic_read(&dcam_hw_ctx->sw_ctx->state) != STATE_RUNNING) {

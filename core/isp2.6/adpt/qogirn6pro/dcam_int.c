@@ -1328,6 +1328,8 @@ static irqreturn_t dcamint_isr_root(int irq, void *priv)
 	if (!dcam_hw_ctx->sw_ctx) {
 		status = DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, DCAM_INT0_MASK);
 		status1 = DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, DCAM_INT1_MASK);
+		DCAM_REG_WR(dcam_hw_ctx->hw_ctx_id, DCAM_INT0_CLR, status);
+		DCAM_REG_WR(dcam_hw_ctx->hw_ctx_id, DCAM_INT1_CLR, status1);
 		pr_err("fail to check param %px, 0x%x 0x%x\n", dcam_hw_ctx->sw_ctx, status, status1);
 		return IRQ_NONE;
 	}

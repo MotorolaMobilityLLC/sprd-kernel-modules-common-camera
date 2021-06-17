@@ -1500,6 +1500,8 @@ static int camcore_buffers_alloc(void *param)
 		pack_bits = channel->ch_uinfo.sensor_raw_fmt;
 	else
 		pack_bits = channel->ch_uinfo.dcam_raw_fmt;
+	if ((channel->ch_id == CAM_CH_CAP) && module->cam_uinfo.is_4in1)
+		pack_bits = channel->ch_uinfo.dcam_raw_fmt;
 	is_pack = 0;
 	if ((channel->dcam_out_fmt & DCAM_STORE_RAW_BASE) && (pack_bits == DCAM_RAW_PACK_10))
 		is_pack = 1;
@@ -2061,9 +2063,20 @@ static int camcore_4in1_aux_init(struct camera_module *module,
 
 	channel->aux_dcam_path_id = dcam_path_id;
 	pr_info("get aux dcam path %d\n", dcam_path_id);
+	dcam_sw_ctx->fetch.fmt = DCAM_STORE_RAW_BASE;
+	dcam_sw_ctx->pack_bits = DCAM_RAW_14;
 
 	/* cfg dcam1 bin path */
 	memset(&ch_desc, 0, sizeof(ch_desc));
+	if (channel->ch_uinfo.dcam_raw_fmt >= DCAM_RAW_PACK_10 && channel->ch_uinfo.dcam_raw_fmt < DCAM_RAW_MAX)
+		ch_desc.raw_fmt = channel->ch_uinfo.dcam_raw_fmt;
+	else {
+		ch_desc.raw_fmt = dcam->hw->ip_dcam[0]->raw_fmt_support[0];
+		if (dcam->hw->ip_dcam[0]->save_band_for_bigsize)
+			ch_desc.raw_fmt = DCAM_RAW_PACK_10;
+		channel->ch_uinfo.dcam_raw_fmt = ch_desc.raw_fmt;
+	}
+
 	ch_desc.endian.y_endian = ENDIAN_LITTLE;
 	ch_desc.input_size.w = channel->ch_uinfo.src_size.w;
 	ch_desc.input_size.h = channel->ch_uinfo.src_size.h;
@@ -2072,7 +2085,6 @@ static int camcore_4in1_aux_init(struct camera_module *module,
 	ch_desc.input_trim.size_y = channel->ch_uinfo.src_size.h;
 	ch_desc.output_size.w = ch_desc.input_trim.size_x;
 	ch_desc.output_size.h = ch_desc.input_trim.size_y;
-	ch_desc.raw_fmt = channel->ch_uinfo.dcam_raw_fmt;
 	ch_desc.is_4in1 = module->cam_uinfo.is_4in1;
 
 	ret = module->dcam_dev_handle->dcam_pipe_ops->cfg_path(dcam_sw_ctx, DCAM_PATH_CFG_BASE, channel->aux_dcam_path_id, &ch_desc);
@@ -2151,10 +2163,20 @@ static int camcore_4in1_secondary_path_init(
 		return -EFAULT;
 	}
 	ch->second_path_id = second_path_id;
+	dcam_sw_ctx->fetch.fmt = DCAM_STORE_RAW_BASE;
+	dcam_sw_ctx->pack_bits = DCAM_RAW_PACK_10;
 
 	/* todo: cfg param to user setting. */
 	memset(&ch_desc, 0, sizeof(ch_desc));
-	ch_desc.raw_fmt = ch->ch_uinfo.dcam_raw_fmt;
+	if (ch->ch_uinfo.dcam_raw_fmt >= DCAM_RAW_PACK_10 && ch->ch_uinfo.dcam_raw_fmt < DCAM_RAW_MAX)
+		ch_desc.raw_fmt = ch->ch_uinfo.dcam_raw_fmt;
+	else {
+		ch_desc.raw_fmt = module->dcam_dev_handle->hw->ip_dcam[0]->raw_fmt_support[0];
+		if (module->dcam_dev_handle->hw->ip_dcam[0]->save_band_for_bigsize)
+			ch_desc.raw_fmt = DCAM_RAW_PACK_10;
+		ch->ch_uinfo.dcam_raw_fmt = ch_desc.raw_fmt;
+	}
+
 	ch_desc.is_4in1 = module->cam_uinfo.is_4in1;
 	/*
 	 * Configure slow motion for BIN path. HAL must set @is_high_fps
@@ -2253,10 +2275,14 @@ static struct camera_frame *camcore_supersize_frame_deal(struct camera_module *m
 		if (module->dcam_cap_status == DCAM_CAPTURE_START_FROM_NEXT_SOF
 			&& (module->capture_times < pframe->boot_sensor_time)
 			&& atomic_read(&module->capture_frames_dcam) > 0) {
+			if (module->cam_uinfo.is_pyr_dec)
+				pframe->width = module->channel[CAM_CH_CAP].ch_uinfo.src_crop.w;
 			ret = camcore_frame_start_proc(module, pframe);
 			if (ret == 0)
 				return NULL;
 		} else if (module->dcam_cap_status != DCAM_CAPTURE_START_FROM_NEXT_SOF) {
+			if (module->cam_uinfo.is_pyr_dec)
+				pframe->width = module->channel[CAM_CH_CAP].ch_uinfo.src_crop.w;
 			ret = camcore_frame_start_proc(module, pframe);
 			if (ret == 0)
 				return NULL;
@@ -3865,6 +3891,16 @@ static int camcore_channel_bigsize_config(
 	ch_desc.input_trim.size_y = ch_desc.input_size.h;
 	ch_desc.raw_fmt= pack_bits;
 	ch_desc.is_4in1 = module->cam_uinfo.is_4in1;
+	if (module->cam_uinfo.is_pyr_dec) {
+			ch_desc.input_size.w = ch_uinfo->src_crop.w;
+			ch_desc.input_size.h = ch_uinfo->src_crop.h;
+			ch_desc.input_trim.start_x= 0;
+			ch_desc.input_trim.start_y= 0;
+			ch_desc.input_trim.size_x= ch_uinfo->src_crop.w;
+			ch_desc.input_trim.size_y= ch_uinfo->src_crop.h;
+			ch_desc.output_size.w = ch_uinfo->src_crop.w;
+			ch_desc.output_size.h = ch_uinfo->src_crop.h;
+	}
 
 	pr_info("update dcam path %d size for channel %d packbit %d 4in1 %d\n",
 		channel->aux_dcam_path_id, channel->ch_id, ch_desc.raw_fmt, ch_desc.is_4in1);
