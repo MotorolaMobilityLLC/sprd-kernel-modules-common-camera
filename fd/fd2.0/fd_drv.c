@@ -1002,6 +1002,12 @@ int fd_drv_reg_read_handler(void *handle, unsigned long arg)
 	ret = copy_from_user(&cfg_param,
 			(struct sprd_fd_cfg_param *__user)arg,
 			sizeof(struct sprd_fd_cfg_param));
+
+	if (cfg_param.reg_param > SPRD_FD_REG_PARAM_MAX) {
+		pr_err("fail to read_param outpace\n");
+		return -EINVAL;
+	}
+
 	reg_info  =  &fd_reg_info_table[cfg_param.reg_param];
 
 	drv_handle = (struct fd_drv *)handle;
