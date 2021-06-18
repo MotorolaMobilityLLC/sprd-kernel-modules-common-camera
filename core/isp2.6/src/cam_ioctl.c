@@ -1648,6 +1648,7 @@ static int camioctl_stream_on(struct camera_module *module,
 	} while (loop++ < 5000);
 
 	if (sw_ctx->hw_ctx_id == DCAM_HW_CONTEXT_MAX) {
+		atomic_set(&module->state, CAM_CFG_CH);
 		pr_err("fail to connect. dcam %d sw_ctx_id %d\n", sw_ctx->hw_ctx_id, sw_ctx->sw_ctx_id);
 		return -1;
 	}

@@ -116,7 +116,7 @@ static struct camera_frame *dcamint_frame_prepare(struct dcam_hw_context *dcam_h
 	atomic_dec(&path->set_frm_cnt);
 	if (unlikely(frame->is_reserved)) {
 		if (!sw_ctx->slowmotion_count)
-			pr_info("DCAM%u %s use reserved buffer, out %u, result %u\n",
+			pr_info_ratelimited("DCAM%u %s use reserved buffer, out %u, result %u\n",
 				dcam_hw_ctx->hw_ctx_id, dcam_path_name_get(path_id),
 				cam_queue_cnt_get(&path->out_buf_queue),
 				cam_queue_cnt_get(&path->result_queue));
