@@ -407,11 +407,9 @@ static int dcamhw_start(void *handle, void *arg)
 
 	if (parm->format == DCAM_CAP_MODE_YUV)
 		image_data_type = IMG_TYPE_YUV;
-
 	reg_val = ((image_vc & 0x3) << 16) |
 		((image_data_type & 0x3F) << 8) | (image_mode & 0x3);
-	DCAM_REG_WR(parm->idx, DCAM_IMAGE_CONTROL, reg_val);
-
+	 DCAM_REG_MWR(parm->idx, DCAM_IMAGE_CONTROL, 0x33f03, reg_val);
 	/* trigger cap_en*/
 	DCAM_REG_MWR(parm->idx, DCAM_MIPI_CAP_CFG, BIT_0, 1);
 
@@ -854,7 +852,6 @@ static int dcamhw_mipi_cap_set(void *handle, void *arg)
 
 	DCAM_REG_WR(idx, DCAM_YUV444TO420_IMAGE_WIDTH, cap_info->cap_size.size_x);
 	DCAM_REG_MWR(idx, DCAM_YUV444TOYUV420_PARAM, BIT_0, 0);
-
 	DCAM_REG_MWR(idx, DCAM_BWU1_PARAM, 0xF0, (14 - cap_info->data_bits) << 4);
 
 	if (caparg->slowmotion_count) {
@@ -1002,11 +999,12 @@ static int dcamhw_path_start(void *handle, void *arg)
 		if (patharg->data_bits == DCAM_STORE_8_BIT)
 			val = 3;
 		DCAM_REG_MWR(patharg->idx, DCAM_RAW_PATH_CFG, BIT_2 | BIT_3, val << 2);
-
 		val = (patharg->data_bits - DCAM_STORE_8_BIT) >> 1;
 		DCAM_REG_MWR(patharg->idx, DCAM_BWD1_PARAM, BIT_4 | BIT_5, val << 4);
-		if (patharg->src_sel == ORI_RAW_SRC_SEL)
-			val = 0;
+		if (patharg->src_sel == ORI_RAW_SRC_SEL) {
+			val = patharg->data_bits - 10;
+			DCAM_REG_MWR(patharg->idx, DCAM_IMAGE_CONTROL, 0x70, val << 4);
+		}
 		else
 			/*default 14bit down to 10bit*/
 			val = 14 - 10;

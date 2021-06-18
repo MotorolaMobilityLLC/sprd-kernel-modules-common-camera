@@ -266,6 +266,7 @@ static uint32_t cam_reg_trace_tab[] = {
 	DCAM_AFM_LUM_FV_BASE_WADDR,
 	DCAM_NR3_WADDR,
 	DCAM_LSCM_BASE_WADDR,
+	DCAM_BWU1_PARAM,
 };
 
 static int isphw_reg_trace(void *handle, void *arg)
