@@ -1035,13 +1035,13 @@ static int isphw_path_scaler_coeff_set(
 		}
 	}
 
-	for (i = 0; i <= COEF_VOR_Y_SIZE; i++) {
+	for (i = 0; i < COEF_VOR_Y_SIZE; i++) {
 		ISP_REG_WR(idx, arg.v_coeff_addr, *arg.v_coeff);
 		arg.v_coeff_addr += 4;
 		arg.v_coeff++;
 	}
 
-	for (i = 0; i <= COEF_VOR_UV_SIZE; i++) {
+	for (i = 0; i < COEF_VOR_UV_SIZE; i++) {
 		ISP_REG_WR(idx, arg.v_chroma_coeff_addr, *arg.v_chroma_coeff);
 		arg.v_chroma_coeff_addr += 4;
 		arg.v_chroma_coeff++;

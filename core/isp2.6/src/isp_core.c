@@ -429,7 +429,7 @@ static int ispcore_gtm_frame_process(struct isp_sw_context *pctx,
 	if (!rgb_gtm)
 		return 0;/*not support GTM in isp*/
 
-	pr_debug("ctx_id %d, mode %d\n", rgb_gtm->ctx_id, rgb_gtm->mode);
+	pr_debug("ctx_id %d, mode %d, fid %d\n", rgb_gtm->ctx_id, rgb_gtm->mode, pframe->fid);
 
 	rgb_gtm->gtm_ops.cfg_param(rgb_gtm, ISP_GTM_CFG_FRAME_ID, &pframe->fid);
 

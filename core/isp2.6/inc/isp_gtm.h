@@ -42,7 +42,6 @@ enum isp_gtm_cfg_cmd {
 struct isp_gtm_ops {
 	int (*cfg_param)(void *handle, enum isp_gtm_cfg_cmd cmd, void *param);
 	int (*pipe_proc)(void *handle, void *param);
-	void (*set_frmidx)(void *handle);
 	int (*get_preview_hist_cal)(void *handle);
 	int (*sync_completion_get)(void *handle);
 	int (*sync_completion_done)(void *handle);

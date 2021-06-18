@@ -122,29 +122,6 @@ static int ispgtm_sync_completion_set(struct isp_gtm_sync *gtm_sync, int fid)
 	return 0;
 }
 
-static void ispgtm_sync_fid_set(void *handle)
-{
-	struct isp_gtm_ctx_desc *gtm_ctx = NULL;
-	struct isp_gtm_sync *sync = NULL;
-
-	if (!handle) {
-		pr_err("fail to get invalid ptr\n");
-		return;
-	}
-
-	gtm_ctx = (struct isp_gtm_ctx_desc *)handle;
-	sync = gtm_ctx->sync;
-	if (!sync) {
-		pr_err("fail to get sync invalid ptr\n");
-		return;
-	}
-
-	pr_debug("ctx_id %d, fid %d\n", gtm_ctx->ctx_id, gtm_ctx->fid);
-	mutex_lock(&sync->share_mutex);
-	atomic_set(&sync->prev_fid, gtm_ctx->fid);
-	mutex_unlock(&sync->share_mutex);
-}
-
 static int ispgtm_get_preview_hist_cal(void *handle)
 {
 	struct isp_gtm_ctx_desc *gtm_ctx = NULL;
@@ -164,7 +141,7 @@ static int ispgtm_get_preview_hist_cal(void *handle)
 	gtm_func.k_blk_func(mapping);
 
 	mapping->fid = gtm_ctx->fid;
-	pr_debug("ctx_id %d, mapping fid %d\n", gtm_ctx->ctx_id, gtm_ctx->fid);
+	pr_debug("gtm ctx_id %d, mapping fid %d\n", gtm_ctx->ctx_id, gtm_ctx->fid);
 
 	return 0;
 }
@@ -225,7 +202,6 @@ static int ispgtm_pipe_proc(void *handle, void *param)
 {
 	int ret = 0;
 	uint32_t idx = 0;
-	int prev_fid = 0;
 	int timeout = 0;
  	struct isp_gtm_ctx_desc *gtm_ctx = NULL;
 	struct isp_gtm_sync *gtm_sync = NULL;
@@ -244,9 +220,25 @@ static int ispgtm_pipe_proc(void *handle, void *param)
 	case MODE_GTM_PRE:
 		gtm_k_block.ctx = gtm_ctx;
 		gtm_k_block.tuning = param;
+
+		if (gtm_k_block.tuning->gtm_mod_en == 0) {
+			pr_debug("ctx %d, fid %d\n", gtm_ctx->ctx_id, gtm_ctx->fid);
+			goto exit;
+		}
+
 		gtm_func.index = ISP_K_GTM_BLOCK_SET;
 		gtm_ctx->hw->isp_ioctl(gtm_ctx->hw, ISP_HW_CFG_GTM_FUNC_GET, &gtm_func);
 		gtm_func.k_blk_func(&gtm_k_block);
+
+		if (atomic_read(&gtm_ctx->cnt) > 1) {
+			pr_debug("ctx %d, fid %d, do preview mapping\n", gtm_ctx->ctx_id, gtm_ctx->fid);
+			mapping = &gtm_ctx->sync->mapping;
+			mapping->ctx_id = gtm_ctx->ctx_id;
+			gtm_func.index = ISP_K_GTM_MAPPING_SET;
+			gtm_ctx->hw->isp_ioctl(gtm_ctx->hw, ISP_HW_CFG_GTM_FUNC_GET, &gtm_func);
+			gtm_func.k_blk_func(&gtm_ctx->sync->mapping);
+		}
+
 		if (gtm_k_block.tuning->gtm_mod_en)
 			ret = ispgtm_capture_tunning_set(gtm_ctx->cam_id, param);
 		break;
@@ -274,42 +266,32 @@ static int ispgtm_pipe_proc(void *handle, void *param)
 			goto exit;
 		}
 
-	 	prev_fid = atomic_read(&gtm_sync->prev_fid);
-		pr_debug("GTM ctx_id %d, capture fid [%d], preview fid [%d]\n", gtm_ctx->ctx_id, gtm_ctx->fid, prev_fid);
-		if (gtm_ctx->fid > prev_fid) {
-			ispgtm_sync_completion_set(gtm_sync, gtm_ctx->fid);
-			timeout = wait_for_completion_interruptible_timeout(&gtm_sync->share_comp,
-						ISP_GM_TIMEOUT);
-			if (timeout <= 0) {
-				pr_err("fail to wait gtm completion [%ld]\n", timeout);
-				gtm_ctx->mode = MODE_GTM_OFF;
-				gtm_ctx->bypass = 1;
-				ret = -1;
-				goto exit;
-			}
-		} else if (gtm_ctx->fid == prev_fid) {
-			;
-		} else {
-			pr_debug("capture frame fid %d gtm discard\n", gtm_ctx->fid);
+		ispgtm_sync_completion_set(gtm_sync, 1);
+		timeout = wait_for_completion_interruptible_timeout(&gtm_sync->share_comp, ISP_GM_TIMEOUT);
+		if (timeout <= 0) {
+			pr_err("fail to wait gtm completion [%ld]\n", timeout);
+			gtm_ctx->mode = MODE_GTM_OFF;
+			gtm_ctx->bypass = 1;
+			ret = -1;
 			goto exit;
 		}
 
+		pr_debug("gtm capture: ctx_id %d, capture fid %d\n", gtm_ctx->ctx_id, gtm_ctx->fid);
 		mapping = &gtm_ctx->sync->mapping;
-		if (gtm_ctx->fid == mapping->fid) {
-			gtm_func.index = ISP_K_GTM_BLOCK_SET;
-			gtm_ctx->hw->isp_ioctl(gtm_ctx->hw, ISP_HW_CFG_GTM_FUNC_GET, &gtm_func);
-			gtm_func.k_blk_func(&gtm_k_block);
+		gtm_func.index = ISP_K_GTM_BLOCK_SET;
+		gtm_ctx->hw->isp_ioctl(gtm_ctx->hw, ISP_HW_CFG_GTM_FUNC_GET, &gtm_func);
+		gtm_func.k_blk_func(&gtm_k_block);
 
-			mapping->ctx_id = gtm_ctx->ctx_id;
-			gtm_func.index = ISP_K_GTM_MAPPING_SET;
-			gtm_ctx->hw->isp_ioctl(gtm_ctx->hw, ISP_HW_CFG_GTM_FUNC_GET, &gtm_func);
-			gtm_func.k_blk_func(mapping);
+		mapping->ctx_id = gtm_ctx->ctx_id;
+		gtm_func.index = ISP_K_GTM_MAPPING_SET;
+		gtm_ctx->hw->isp_ioctl(gtm_ctx->hw, ISP_HW_CFG_GTM_FUNC_GET, &gtm_func);
+		gtm_func.k_blk_func(mapping);
 
-			idx = gtm_ctx->ctx_id;
-			gtm_func.index = ISP_K_GTM_STATUS_GET;
-			gtm_ctx->hw->isp_ioctl(gtm_ctx->hw, ISP_HW_CFG_GTM_FUNC_GET, &gtm_func);
-			gtm_ctx->gtm_mode_en = gtm_func.k_blk_func(&idx) & gtm_k_block.tuning->gtm_mod_en;
-		}
+		idx = gtm_ctx->ctx_id;
+		gtm_func.index = ISP_K_GTM_STATUS_GET;
+		gtm_ctx->hw->isp_ioctl(gtm_ctx->hw, ISP_HW_CFG_GTM_FUNC_GET, &gtm_func);
+		gtm_ctx->gtm_mode_en = gtm_func.k_blk_func(&idx) & gtm_k_block.tuning->gtm_mod_en;
+
 		break;
 	case MODE_GTM_OFF:
 		pr_debug("ctx_id %d, GTM off\n", gtm_ctx->ctx_id);
@@ -338,7 +320,6 @@ static struct isp_gtm_ctx_desc *ispgtm_ctx_init(uint32_t idx, uint32_t cam_id, v
 	atomic_set(&gtm_ctx->cnt, 0);
 	gtm_ctx->gtm_ops.cfg_param = ispgtm_cfg_param;
 	gtm_ctx->gtm_ops.pipe_proc = ispgtm_pipe_proc;
-	gtm_ctx->gtm_ops.set_frmidx = ispgtm_sync_fid_set;
 	gtm_ctx->gtm_ops.sync_completion_get = ispgtm_sync_completion_get;
 	gtm_ctx->gtm_ops.sync_completion_done = ispgtm_sync_completion_done;
 	gtm_ctx->gtm_ops.get_preview_hist_cal = ispgtm_get_preview_hist_cal;

@@ -351,18 +351,12 @@ static void ispint_rgb_gtm_hists_done(enum isp_context_hw_id hw_idx, void *isp_h
 		return;
 	}
 
-	gtm_ctx->gtm_ops.set_frmidx(gtm_ctx);
+	gtm_ctx->gtm_ops.get_preview_hist_cal(gtm_ctx);
+	/*for capture*/
 	wait_fid = gtm_ctx->gtm_ops.sync_completion_get(gtm_ctx);
-	pr_debug("gtm_hists_done ctx_id %d, fid %d, wait_fid %d\n",
-		gtm_ctx->ctx_id, gtm_ctx->fid, wait_fid);
-	if (wait_fid == 0) {
-		gtm_ctx->gtm_ops.get_preview_hist_cal(gtm_ctx);
-	} else if (wait_fid && (gtm_ctx->fid >= wait_fid)) {
-		gtm_ctx->gtm_ops.get_preview_hist_cal(gtm_ctx);
+	pr_debug("gtm_hists_done ctx_id %d, fid %d, wait_fid %d\n", gtm_ctx->ctx_id, gtm_ctx->fid, wait_fid);
+	if (wait_fid)
 		gtm_ctx->gtm_ops.sync_completion_done(gtm_ctx);
-	} else {
-		pr_err("fail to get mapping ctx_id %d, fid %d\n", gtm_ctx->ctx_id, gtm_ctx->fid);
-	}
 }
 
 static struct camera_frame *ispint_hist2_frame_prepare(enum isp_context_id idx,

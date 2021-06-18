@@ -82,11 +82,11 @@ int isp_k_gtm_mapping_get(void *param)
 	val = ISP_HREG_RD(ISP_GTM_STATUS4);
 	mapping->gtm_hw_log_diff = val & 0x1FFFFFFF;
 
-	pr_debug("mapping hw_ymin %d, hw_ymax %d, hw_yavg %d, target_norm %d\n",
-		mapping->gtm_hw_ymin, mapping->gtm_hw_ymax,
+	pr_debug("ctx %d,gtm mapping hw_ymin %d, hw_ymax %d, hw_yavg %d, target_norm %d\n",
+		mapping->ctx_id, mapping->gtm_hw_ymin, mapping->gtm_hw_ymax,
 		mapping->gtm_hw_yavg, mapping->gtm_hw_target_norm);
-	pr_debug("img_key_value %d, lr_int %d, log_min_int %d, log_diff_int %d, hw_log_diff %d\n",
-		mapping->gtm_img_key_value, mapping->gtm_hw_lr_int, mapping->gtm_hw_log_min_int,
+	pr_debug("ctx %d, gtm img_key_value %d, lr_int %d, log_min_int %d, log_diff_int %d, hw_log_diff %d\n",
+		mapping->ctx_id, mapping->gtm_img_key_value, mapping->gtm_hw_lr_int, mapping->gtm_hw_log_min_int,
 		mapping->gtm_hw_log_diff_int, mapping->gtm_hw_log_diff);
 
 	return 0;
@@ -125,10 +125,12 @@ int isp_k_gtm_mapping_set(void *param)
 	val = ((mapping->gtm_hw_log_diff & 0x1FFFFFFF) << 0);
 	ISP_REG_WR(idx, ISP_GTM_LOG_DIFF, val);
 
-	pr_debug("hw_ymin %d, target_norm %d, lr_int %d\n",
-		mapping->gtm_hw_ymin, mapping->gtm_hw_target_norm, mapping->gtm_hw_lr_int);
-	pr_debug("log_min_int %d, log_diff_int %d, log_diff %d\n",
-		mapping->gtm_hw_log_min_int, mapping->gtm_hw_log_diff_int, mapping->gtm_hw_log_diff);
+	ISP_REG_MWR(idx, ISP_GTM_GLB_CTRL, BIT_1, 0);
+
+	pr_debug("ctx %d, gtm hw_ymin %d, target_norm %d, lr_int %d\n",
+		idx, mapping->gtm_hw_ymin, mapping->gtm_hw_target_norm, mapping->gtm_hw_lr_int);
+	pr_debug("ctx %d, gtm log_min_int %d, log_diff_int %d, log_diff %d\n",
+		idx, mapping->gtm_hw_log_min_int, mapping->gtm_hw_log_diff_int, mapping->gtm_hw_log_diff);
 
 	return 0;
 }
@@ -211,7 +213,7 @@ int isp_k_gtm_block(void *pctx, void *param)
 	val = ((p->gtm_log_diff_int & 0xFFFF) << 16);
 	ISP_REG_MWR(idx,  ISP_GTM_HIST_CTRL4, 0xFFFFFFFF, val);
 
-	pr_debug("gtm_hist_total w %d, h %d\n", ctx->src.w, ctx->src.h);
+	pr_debug("ctx_id %d, gtm_hist_total w %d, h %d\n", idx, ctx->src.w, ctx->src.h);
 	p->gtm_hist_total = ctx->src.w * ctx->src.h;
 	val = ((p->gtm_hist_total & 0x3FFFFFF) << 0);
 	ISP_REG_WR(idx,  ISP_GTM_HIST_CTRL5, val);
