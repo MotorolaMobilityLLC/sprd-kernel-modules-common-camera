@@ -1690,7 +1690,7 @@ static int camioctl_stream_on(struct camera_module *module,
 	if (ch->enable) {
 		camcore_channel_size_config(module, ch);
 		/* alloc dcam1 memory and cfg out buf */
-		if (module->cam_uinfo.dcam_slice_mode)
+		if (module->cam_uinfo.dcam_slice_mode && !module->cam_uinfo.is_4in1)
 			camcore_channel_bigsize_config(module, ch);
 	}
 

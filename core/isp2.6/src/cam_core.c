@@ -2032,6 +2032,7 @@ static int camcore_4in1_aux_init(struct camera_module *module,
 	/* todo: will update after dcam offline ctx done. */
 	dcam_path_id = module->dcam_dev_handle->hw->ip_dcam[DCAM_HW_CONTEXT_1]->aux_dcam_path;
 	dcam_sw_ctx = &module->dcam_dev_handle->sw_ctx[module->offline_cxt_id];
+	dcam_sw_ctx->dcam_slice_mode = module->cam_uinfo.dcam_slice_mode;
 
 	dcam = dcam_core_pipe_dev_get(grp->hw_info);
 	if (IS_ERR_OR_NULL(dcam)) {
@@ -2157,6 +2158,7 @@ static int camcore_4in1_secondary_path_init(
 
 	ch->second_path_enable = 0;
 	dcam_sw_ctx = &module->dcam_dev_handle->sw_ctx[module->cur_sw_ctx_id];
+	dcam_sw_ctx->dcam_slice_mode = module->cam_uinfo.dcam_slice_mode;
 	ret = module->dcam_dev_handle->dcam_pipe_ops->get_path(dcam_sw_ctx, second_path_id);
 	if (ret < 0) {
 		pr_err("fail to get dcam path %d\n", second_path_id);
@@ -4363,7 +4365,7 @@ static int camcore_channel_init(struct camera_module *module,
 		break;
 
 	case CAM_CH_RAW:
-		if (( module->grp->hw_info->prj_id == SHARKL5pro && ch_uinfo->src_size.w >= 8192)
+		if (( module->grp->hw_info->prj_id == SHARKL5pro && ch_uinfo->src_size.w >= DCAM_HW_SLICE_WIDTH_MAX)
 			|| module->raw_callback)
 			dcam_path_id = DCAM_PATH_VCH2;
 		else
@@ -4686,7 +4688,7 @@ static int camcore_channel_init(struct camera_module *module,
 			pr_err("fail to init 4in1 raw capture for bin sum\n");
 	}
 	/* bigsize setting */
-	if (channel->ch_id == CAM_CH_CAP && module->cam_uinfo.dcam_slice_mode) {
+	if (channel->ch_id == CAM_CH_CAP && module->cam_uinfo.dcam_slice_mode && !module->cam_uinfo.is_4in1) {
 		ret = camcore_bigsize_aux_init(module, channel);
 		if (ret < 0) {
 			pr_err("fail to init dcam for 4in1, ret = %d\n", ret);

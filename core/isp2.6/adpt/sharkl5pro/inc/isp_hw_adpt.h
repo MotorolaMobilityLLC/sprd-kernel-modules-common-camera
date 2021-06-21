@@ -17,7 +17,7 @@
 /* configure fmcu with isp register offset, range is 0x620-0x630 */
 #define ISP_OFFSET_RANGE                0x6300620
 
-#define ISP_WIDTH_MAX                   9248
+#define ISP_WIDTH_MAX                   9280
 #define ISP_HEIGHT_MAX                  6944
 #define ISP_SCALER_UP_MAX               4
 

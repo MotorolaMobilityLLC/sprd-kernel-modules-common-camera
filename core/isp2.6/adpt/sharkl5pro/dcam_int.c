@@ -822,6 +822,7 @@ static void dcamint_pdaf_path_done(void *param)
 static void dcamint_vch2_path_done(void *param)
 {
 	struct dcam_hw_context *dcam_hw_ctx = (struct dcam_hw_context *)param;
+	struct dcam_sw_context *sw_ctx = dcam_hw_ctx->sw_ctx;
 	struct dcam_path_desc *path = &dcam_hw_ctx->sw_ctx->path[DCAM_PATH_VCH2];
 	struct camera_frame *frame = NULL;
 	enum dcam_cb_type type;
@@ -829,7 +830,19 @@ static void dcamint_vch2_path_done(void *param)
 	type = path->src_sel ? DCAM_CB_DATA_DONE : DCAM_CB_STATIS_DONE;
 
 	if ((frame = dcamint_frame_prepare(dcam_hw_ctx, DCAM_PATH_VCH2))) {
-		if (dcam_hw_ctx->sw_ctx->dcam_slice_mode)
+		if (sw_ctx->is_4in1) {
+			if (sw_ctx->skip_4in1 > 0) {
+				sw_ctx->skip_4in1--;
+				cam_buf_iommu_unmap(&frame->buf);
+				sw_ctx->dcam_cb_func(DCAM_CB_RET_SRC_BUF, frame,
+					sw_ctx->cb_priv_data);
+				return;
+			}
+			if (!sw_ctx->lowlux_4in1)/* 4in1,send to hal for remosaic */
+				frame->irq_type = CAMERA_IRQ_4IN1_DONE;
+			else/* low lux, to isp as normal */
+				frame->irq_type = CAMERA_IRQ_IMG;
+		} else if (sw_ctx->dcam_slice_mode)
 			frame->irq_type = CAMERA_IRQ_SUPERSIZE_DONE;
 		dcamint_frame_dispatch(dcam_hw_ctx, DCAM_PATH_VCH2, frame, type);
 	}
