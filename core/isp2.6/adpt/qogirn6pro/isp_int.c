@@ -312,7 +312,7 @@ static int ispint_err_pre_proc(enum isp_context_hw_id hw_idx, void *isp_handle)
 	}
 
 	pr_info("ISP 3dnr crop: register list\n");
-	for (addr = 0x2310; addr <= 0x221C; addr += 16) {
+	for (addr = 0x2310; addr <= 0x231C; addr += 16) {
 		pr_info("0x%lx: 0x%x 0x%x 0x%x 0x%x\n",
 			addr,
 			ISP_HREG_RD(addr),
