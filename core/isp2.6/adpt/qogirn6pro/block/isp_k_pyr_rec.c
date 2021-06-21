@@ -349,7 +349,7 @@ static int isppyrrec_cnr_slice_set(struct slice_pos_info *pyr_cnr, void *in_ptr)
 	fmcu = (struct isp_fmcu_ctx_desc *)in_ptr;
 
 	addr = ISP_GET_REG(ISP_YUV_REC_CNR_CONTRL1);
-	cmd = ((pyr_cnr->start_row & 0xFFFF) << 16) | (pyr_cnr->start_col & 0xFFFF);
+	cmd = (((pyr_cnr->start_row / 2) & 0xFFFF) << 16) | ((pyr_cnr->start_col / 2) & 0xFFFF);
 	FMCU_PUSH(fmcu, addr, cmd);
 
 	return 0;
@@ -526,19 +526,23 @@ int isp_pyr_rec_frame_config(void *handle)
 	addr = ISP_GET_REG(ISP_YUV_REC_YNR_CONTRL0);
 	cmd = ((ynr_info->layer_num & 0x7) << 1) | ynr_info->rec_ynr_bypass;
 	FMCU_PUSH(fmcu, addr, cmd);
+	ISP_REG_WR(idx, ISP_YUV_REC_YNR_CONTRL0, cmd);
 
 	addr = ISP_GET_REG(ISP_YUV_REC_YNR_CFG0);
 	cmd = ((ynr_info->img.h & 0xffff) << 16) | (ynr_info->img.w & 0xffff);
 	FMCU_PUSH(fmcu, addr, cmd);
+	ISP_REG_WR(idx, ISP_YUV_REC_YNR_CFG0, cmd);
 
 	addr = ISP_GET_REG(ISP_YUV_REC_YNR_CFG1);
 	cmd = ((ynr_info->start.h & 0xffff) << 16) | (ynr_info->start.w & 0xffff);
 	FMCU_PUSH(fmcu, addr, cmd);
+	ISP_REG_WR(idx, ISP_YUV_REC_YNR_CFG1, cmd);
 
 	/* cnr frame param cfg */
 	addr = ISP_GET_REG(ISP_YUV_REC_CNR_CONTRL0);
 	cmd = ((ctx->rec_cnr.layer_num & 0x7) << 1) | ctx->rec_cnr.rec_cnr_bypass;
 	FMCU_PUSH(fmcu, addr, cmd);
+	ISP_REG_WR(idx, ISP_YUV_REC_CNR_CONTRL0, cmd);
 
 	addr = ISP_GET_REG(ISP_YUV_REC_CNR_CFG0);
 	cmd = ((pyr_cnr->baseRadius & 0xFFFF) << 16) |
@@ -546,11 +550,13 @@ int isp_pyr_rec_frame_config(void *handle)
 		((layer_cnr_h->denoise_radial_en & 0x1) << 1) |
 		(layer_cnr_h->lowpass_filter_en & 0x1);
 	FMCU_PUSH(fmcu, addr, cmd);
+	ISP_REG_WR(idx, ISP_YUV_REC_CNR_CFG0, cmd);
 
 	addr = ISP_GET_REG(ISP_YUV_REC_CNR_CFG1);
 	cmd = ((ctx->rec_cnr.img_center.h & 0xFFFF) << 16) |
 		(ctx->rec_cnr.img_center.w & 0xFFFF);
 	FMCU_PUSH(fmcu, addr, cmd);
+	ISP_REG_WR(idx, ISP_YUV_REC_CNR_CFG1, cmd);
 
 	addr = ISP_GET_REG(ISP_YUV_REC_CNR_CFG2);
 	cmd = ((layer_cnr_h->filter_size & 0x3) << 28) |
@@ -558,6 +564,7 @@ int isp_pyr_rec_frame_config(void *handle)
 		((layer_cnr_h->luma_th[1] & 0xFF) << 8) |
 		(layer_cnr_h->luma_th[0] & 0xFF);
 	FMCU_PUSH(fmcu, addr, cmd);
+	ISP_REG_WR(idx, ISP_YUV_REC_CNR_CFG2, cmd);
 
 	for (i = 0; i < 18; i++) {
 		addr = ISP_GET_REG(ISP_YUV_REC_CNR_Y_L0_WHT0 + 4 * i);
@@ -566,6 +573,7 @@ int isp_pyr_rec_frame_config(void *handle)
 			((layer_cnr_h->weight_y[0][4 * i + 1] & 0xFF) << 8) |
 			(layer_cnr_h->weight_y[0][4 * i] & 0xFF);
 		FMCU_PUSH(fmcu, addr, cmd);
+		ISP_REG_WR(idx, ISP_YUV_REC_CNR_Y_L0_WHT0 + 4 * i, cmd);
 
 		addr = ISP_GET_REG(ISP_YUV_REC_CNR_Y_L1_WHT0 + 4 * i);
 		cmd = ((layer_cnr_h->weight_y[1][4 * i + 3] & 0xFF) << 24) |
@@ -573,6 +581,7 @@ int isp_pyr_rec_frame_config(void *handle)
 			((layer_cnr_h->weight_y[1][4 * i + 1] & 0xFF) << 8) |
 			(layer_cnr_h->weight_y[1][4 * i] & 0xFF);
 		FMCU_PUSH(fmcu, addr, cmd);
+		ISP_REG_WR(idx, ISP_YUV_REC_CNR_Y_L1_WHT0 + 4 * i, cmd);
 
 		addr = ISP_GET_REG(ISP_YUV_REC_CNR_Y_L2_WHT0 + 4 * i);
 		cmd = ((layer_cnr_h->weight_y[2][4 * i + 3] & 0xFF) << 24) |
@@ -580,6 +589,7 @@ int isp_pyr_rec_frame_config(void *handle)
 			((layer_cnr_h->weight_y[2][4 * i + 1] & 0xFF) << 8) |
 			(layer_cnr_h->weight_y[2][4 * i] & 0xFF);
 		FMCU_PUSH(fmcu, addr, cmd);
+		ISP_REG_WR(idx, ISP_YUV_REC_CNR_Y_L2_WHT0 + 4 * i, cmd);
 
 		addr = ISP_GET_REG(ISP_YUV_REC_CNR_UV_L0_WHT0 + 4 * i);
 		cmd = ((layer_cnr_h->weight_uv[0][4 * i + 3] & 0xFF) << 24) |
@@ -587,6 +597,7 @@ int isp_pyr_rec_frame_config(void *handle)
 			((layer_cnr_h->weight_uv[0][4 * i + 1] & 0xFF) << 8) |
 			(layer_cnr_h->weight_uv[0][4 * i] & 0xFF);
 		FMCU_PUSH(fmcu, addr, cmd);
+		ISP_REG_WR(idx, ISP_YUV_REC_CNR_UV_L0_WHT0 + 4 * i, cmd);
 
 		addr = ISP_GET_REG(ISP_YUV_REC_CNR_UV_L1_WHT0 + 4 * i);
 		cmd = ((layer_cnr_h->weight_uv[1][4 * i + 3] & 0xFF) << 24) |
@@ -594,6 +605,7 @@ int isp_pyr_rec_frame_config(void *handle)
 			((layer_cnr_h->weight_uv[1][4 * i + 1] & 0xFF) << 8) |
 			(layer_cnr_h->weight_uv[1][4 * i] & 0xFF);
 		FMCU_PUSH(fmcu, addr, cmd);
+		ISP_REG_WR(idx, ISP_YUV_REC_CNR_UV_L1_WHT0 + 4 * i, cmd);
 
 		addr = ISP_GET_REG(ISP_YUV_REC_CNR_UV_L2_WHT0 + 4 * i);
 		cmd = ((layer_cnr_h->weight_uv[2][4 * i + 3] & 0xFF) << 24) |
@@ -601,6 +613,7 @@ int isp_pyr_rec_frame_config(void *handle)
 			((layer_cnr_h->weight_uv[2][4 * i + 1] & 0xFF) << 8) |
 			(layer_cnr_h->weight_uv[2][4 * i] & 0xFF);
 		FMCU_PUSH(fmcu, addr, cmd);
+		ISP_REG_WR(idx, ISP_YUV_REC_CNR_UV_L2_WHT0 + 4 * i, cmd);
 	}
 
 	return ret;
@@ -625,8 +638,8 @@ int isp_pyr_rec_slice_common_config(void *handle)
 
 	isppyrrec_fetch_slice_set(&cur_rec_slc->slice_cur_fetch, ctx->fmcu_handle, ISP_PYR_REC_CUR);
 	isppyrrec_fetch_slice_set(&cur_rec_slc->slice_ref_fetch, ctx->fmcu_handle, ISP_PYR_REC_REF);
-	isppyrrec_ynr_slice_set(&cur_rec_slc->slice_fetch1_pos, ctx->fmcu_handle);
-	isppyrrec_cnr_slice_set(&cur_rec_slc->slice_fetch1_pos, ctx->fmcu_handle);
+	isppyrrec_ynr_slice_set(&cur_rec_slc->slice_fetch0_pos, ctx->fmcu_handle);
+	isppyrrec_cnr_slice_set(&cur_rec_slc->slice_fetch0_pos, ctx->fmcu_handle);
 	isppyrrec_reconstruct_slice_set(&cur_rec_slc->slice_pyr_rec, ctx->fmcu_handle);
 
 	addr = ISP_GET_REG(ISP_COMMON_SCL_PATH_SEL);
