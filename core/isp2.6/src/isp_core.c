@@ -3687,30 +3687,32 @@ static int ispcore_dev_open(void *isp_handle, void *param)
 		spin_lock_init(&hw->isp_cfg_lock);
 
 		ret = isp_drv_hw_init(dev);
-		ret = ispcore_context_init(dev);
-		if (ret) {
-			pr_err("fail to init isp context.\n");
-			ret = -EFAULT;
-			goto err_init;
-		}
-
-		atomic_set(&dev->pd_clk_rdy, 1);
-
 		if (dev->pyr_dec_handle == NULL && hw->ip_isp->pyr_dec_support) {
 			dev->pyr_dec_handle = isp_pyr_dec_dev_get(dev, hw);
 			if (!dev->pyr_dec_handle) {
 				pr_err("fail to get memory for dec_dev.\n");
 				ret = -ENOMEM;
-				goto dec_err;
+				goto err_init;
 			}
 		}
+		ret = ispcore_context_init(dev);
+		if (ret) {
+			pr_err("fail to init isp context.\n");
+			ret = -EFAULT;
+			goto dec_err;
+		}
+
+		atomic_set(&dev->pd_clk_rdy, 1);
 	}
 
 	pr_info("open isp pipe dev done!\n");
 	return 0;
 
 dec_err:
-	ispcore_context_deinit(dev);
+	if (dev->pyr_dec_handle && hw->ip_isp->pyr_dec_support) {
+		isp_pyr_dec_dev_put(dev->pyr_dec_handle);
+		dev->pyr_dec_handle = NULL;
+	}
 err_init:
 	hw->isp_ioctl(hw, ISP_HW_CFG_STOP, NULL);
 	isp_drv_hw_deinit(dev);
@@ -3733,14 +3735,13 @@ static int ispcore_dev_close(void *isp_handle)
 	dev = (struct isp_pipe_dev *)isp_handle;
 	hw = dev->isp_hw;
 	if (atomic_dec_return(&dev->enable) == 0) {
-
+		ret = hw->isp_ioctl(hw, ISP_HW_CFG_STOP, NULL);
+		ret = ispcore_context_deinit(dev);
+		mutex_destroy(&dev->path_mutex);
 		if (dev->pyr_dec_handle && hw->ip_isp->pyr_dec_support) {
 			isp_pyr_dec_dev_put(dev->pyr_dec_handle);
 			dev->pyr_dec_handle = NULL;
 		}
-		ret = hw->isp_ioctl(hw, ISP_HW_CFG_STOP, NULL);
-		ret = ispcore_context_deinit(dev);
-		mutex_destroy(&dev->path_mutex);
 		ret = isp_drv_hw_deinit(dev);
 		atomic_set(&dev->pd_clk_rdy, 0);
 	}

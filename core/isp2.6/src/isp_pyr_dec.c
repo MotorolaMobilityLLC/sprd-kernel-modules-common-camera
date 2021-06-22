@@ -88,7 +88,6 @@ static int isppyrdec_irq_request(struct isp_dec_pipe_dev *ctx)
 {
 	int ret = 0;
 	struct cam_hw_info *hw = NULL;
-	char pyrdec_name[32] = { 0 };
 
 	if (!ctx) {
 		pr_err("fail to get valid input ptr ctx %p\n");
@@ -97,14 +96,13 @@ static int isppyrdec_irq_request(struct isp_dec_pipe_dev *ctx)
 
 	hw = ctx->hw;
 	ctx->irq_no = hw->ip_isp->dec_irq_no;
-	sprintf(pyrdec_name, "isp_pyr_dec");
 	if (!ctx->isr_func) {
 		pr_err("fail to get isp dec irq call back func\n");
 		return -EFAULT;
 	}
 
 	ret = devm_request_irq(&hw->pdev->dev, ctx->irq_no, ctx->isr_func,
-			IRQF_SHARED, pyrdec_name, (void *)ctx);
+			IRQF_SHARED, "isp_pyr_dec", (void *)ctx);
 	if (ret) {
 		pr_err("fail to install isp pyr dec irq_no %d\n", ctx->irq_no);
 		return -EFAULT;
@@ -1032,6 +1030,16 @@ void *isp_pyr_dec_dev_get(void *isp_handle, void *hw)
 	dec_dev->isp_handle = isp_handle;
 	dec_dev->hw = hw;
 	dec_dev->layer_num = ISP_PYR_DEC_LAYER_NUM;
+	/* get isp dec irq call back function */
+	irq_func.index = ISP_K_BLK_PYR_DEC_IRQ_FUNC;
+	dec_dev->hw->isp_ioctl(hw, ISP_HW_CFG_K_BLK_FUNC_GET, &irq_func);
+	if (irq_func.k_blk_func)
+		irq_func.k_blk_func(dec_dev);
+	ret = isppyrdec_irq_request(dec_dev);
+	if (unlikely(ret != 0)) {
+		pr_err("fail to request irq for isp pyr dec\n");
+		goto irq_err;
+	}
 	init_completion(&dec_dev->frm_done);
 	complete(&dec_dev->frm_done);
 	fmcu = isp_fmcu_dec_ctx_get(hw);
@@ -1047,11 +1055,6 @@ void *isp_pyr_dec_dev_get(void *isp_handle, void *hw)
 	} else {
 		pr_info("no more fmcu or ops\n");
 	}
-	/* get isp dec irq call back function */
-	irq_func.index = ISP_K_BLK_PYR_DEC_IRQ_FUNC;
-	dec_dev->hw->isp_ioctl(hw, ISP_HW_CFG_K_BLK_FUNC_GET, &irq_func);
-	if (irq_func.k_blk_func)
-		irq_func.k_blk_func(dec_dev);
 	dec_dev->irq_proc_func = isppyrdec_irq_proc;
 	dec_dev->ops.cfg_param = isppyrdec_cfg_param;
 	dec_dev->ops.proc_frame = isppyrdec_proc_frame;
@@ -1061,11 +1064,6 @@ void *isp_pyr_dec_dev_get(void *isp_handle, void *hw)
 	cam_queue_init(&dec_dev->in_queue, ISP_PYRDEC_BUF_Q_LEN, isppyrdec_src_frame_ret);
 	cam_queue_init(&dec_dev->proc_queue, ISP_PYRDEC_BUF_Q_LEN, isppyrdec_src_frame_ret);
 
-	ret = isppyrdec_irq_request(dec_dev);
-	if (unlikely(ret != 0)) {
-		pr_err("fail to request irq for isp pyr dec\n");
-		goto irq_err;
-	}
 	ret = isppyrdec_offline_thread_create(dec_dev);
 	if (unlikely(ret != 0)) {
 		pr_err("fail to create offline thread for isp pyr dec\n");
@@ -1098,7 +1096,6 @@ void isp_pyr_dec_dev_put(void *dec_handle)
 	dec_dev = (struct isp_dec_pipe_dev *)dec_handle;
 	/* irq disable */
 	isppyrdec_offline_thread_stop(&dec_dev->thread);
-	isppyrrec_irq_free(dec_dev);
 	cam_queue_clear(&dec_dev->in_queue, struct camera_frame, list);
 	cam_queue_clear(&dec_dev->proc_queue, struct camera_frame, list);
 	fmcu = (struct isp_fmcu_ctx_desc *)dec_dev->fmcu_handle;
@@ -1107,6 +1104,7 @@ void isp_pyr_dec_dev_put(void *dec_handle)
 		isp_fmcu_ctx_desc_put(fmcu);
 	}
 	dec_dev->fmcu_handle = NULL;
+	isppyrrec_irq_free(dec_dev);
 	if (dec_dev)
 		vfree(dec_dev);
 	dec_dev = NULL;

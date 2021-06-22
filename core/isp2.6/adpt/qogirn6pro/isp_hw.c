@@ -819,6 +819,7 @@ static int isphw_irq_clear(void *handle, void *arg)
 
 	ISP_HREG_WR(irq_base[ctx_id] + ISP_INT_CLR0, 0xFFFFFFFF);
 	ISP_HREG_WR(irq_base[ctx_id] + ISP_INT_CLR1, 0xFFFFFFFF);
+	ISP_HREG_WR(ISP_DEC_INT_BASE + ISP_INT_CLR0, 0xFFFFFFFF);
 
 	return 0;
 }
