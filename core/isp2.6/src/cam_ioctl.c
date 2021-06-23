@@ -130,8 +130,9 @@ static int camioctl_statis_buf_set(struct camera_module *module,
 {
 	int ret = 0;
 	struct channel_context *ch = NULL;
-	struct isp_statis_buf_input statis_buf;
+	struct isp_statis_buf_input statis_buf = {0};
 	struct cam_hw_info *hw = module->dcam_dev_handle->hw;
+	struct dcam_sw_context *dcam_sw_ctx = NULL;
 
 	ret = copy_from_user((void *)&statis_buf,
 		(void *)arg, sizeof(struct isp_statis_buf_input));
@@ -158,15 +159,15 @@ static int camioctl_statis_buf_set(struct camera_module *module,
 		goto exit;
 	}
 
+	if (module->aux_dcam_dev && module->dcam_dev_handle->sw_ctx[module->offline_cxt_id].rps)
+		dcam_sw_ctx = &module->dcam_dev_handle->sw_ctx[module->offline_cxt_id];
+	else
+		dcam_sw_ctx = &module->dcam_dev_handle->sw_ctx[module->cur_sw_ctx_id];
+
 	switch (statis_buf.type) {
 		case STATIS_INIT:
-			if (module->aux_dcam_dev && module->dcam_dev_handle->sw_ctx[module->offline_cxt_id].rps)
-				ret = module->dcam_dev_handle->dcam_pipe_ops->ioctl(&module->dcam_dev_handle->sw_ctx[module->offline_cxt_id],
-				DCAM_IOCTL_CFG_STATIS_BUF,&statis_buf);
-			else
-			ret = module->dcam_dev_handle->dcam_pipe_ops->ioctl(&module->dcam_dev_handle->sw_ctx[module->cur_sw_ctx_id],
-				DCAM_IOCTL_CFG_STATIS_BUF,
-				&statis_buf);
+			ret = module->dcam_dev_handle->dcam_pipe_ops->ioctl(dcam_sw_ctx, DCAM_IOCTL_CFG_STATIS_BUF,
+					&statis_buf);
 
 			if (hw->ip_isp->frbg_hist_support) {
 				ch = &module->channel[CAM_CH_PRE];
@@ -193,11 +194,9 @@ static int camioctl_statis_buf_set(struct camera_module *module,
 				pr_info("cam%d paused, type %d ignored\n", module->idx, statis_buf.type);
 				goto exit;
 			}
-			ret = module->dcam_dev_handle->dcam_pipe_ops->ioctl(&module->dcam_dev_handle->sw_ctx[module->cur_sw_ctx_id],
-				DCAM_IOCTL_CFG_STATIS_BUF,
-				&statis_buf);
+			ret = module->dcam_dev_handle->dcam_pipe_ops->ioctl(dcam_sw_ctx, DCAM_IOCTL_CFG_STATIS_BUF,
+					&statis_buf);
 			break;
-
 		case STATIS_HIST2:
 			if (hw->ip_isp->frbg_hist_support) {
 				ch = &module->channel[CAM_CH_PRE];
@@ -210,13 +209,10 @@ static int camioctl_statis_buf_set(struct camera_module *module,
 					ISP_IOCTL_CFG_STATIS_BUF,
 					&statis_buf);
 				}
-			} else {
-				ret = module->dcam_dev_handle->dcam_pipe_ops->ioctl(&module->dcam_dev_handle->sw_ctx[module->cur_sw_ctx_id],
-					DCAM_IOCTL_CFG_STATIS_BUF,
-					&statis_buf);
-			}
+			} else
+				ret = module->dcam_dev_handle->dcam_pipe_ops->ioctl(dcam_sw_ctx, DCAM_IOCTL_CFG_STATIS_BUF,
+						&statis_buf);
 			break;
-
 		case STATIS_DBG_INIT:
 		case STATIS_PARAM:
 			ret = camcore_param_buffer_cfg(module, &statis_buf);
