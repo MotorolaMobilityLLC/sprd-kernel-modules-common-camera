@@ -123,8 +123,6 @@ static int isp_k_pdaf_type3_block(
 	if (idx >= DCAM_HW_CONTEXT_MAX)
 		return 0;
 	p->pdaf.pdaf_type = DCAM_PDAF_TYPE3;
-	if (idx == DCAM_HW_CONTEXT_MAX)
-		return 0;
 
 	pr_debug("pdaf_info.vch2_mode = %d\n", vch2_info->vch2_mode);
 	DCAM_REG_WR(idx, DCAM_PDAF_CONTROL,

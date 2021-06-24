@@ -40,8 +40,6 @@ int dcam_k_cmc10_block(struct dcam_dev_param *param)
 	if (idx >= DCAM_HW_CONTEXT_MAX)
 		return 0;
 	cmc10_info = &param->cmc10_info;
-	if (idx >= DCAM_HW_CONTEXT_MAX)
-		return 0;
 
 	DCAM_REG_MWR(idx, DCAM_CMC10_PARAM, BIT_0, cmc10_info->bypass);
 	if (cmc10_info->bypass)
