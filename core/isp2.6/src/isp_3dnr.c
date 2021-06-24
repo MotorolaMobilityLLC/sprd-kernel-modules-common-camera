@@ -446,8 +446,8 @@ static int isp3dnr_fbd_fetch_config_gen(struct isp_3dnr_ctx_desc *ctx)
 		dcam_if_cal_compressed_addr(&cal_fbc);
 		fbd_fetch->frame_header_base_addr = fbd_fetch->hw_addr.addr0;
 		fbd_fetch->slice_start_header_addr = fbd_fetch->frame_header_base_addr +
-			((fbd_fetch->slice_start_pxl_ypt / ISP_FBD_TILE_HEIGHT) * fbd_fetch->tile_num_pitch +
-			fbd_fetch->slice_start_pxl_xpt / ISP_FBD_TILE_WIDTH) * 16;
+			(((unsigned long)fbd_fetch->slice_start_pxl_ypt / ISP_FBD_TILE_HEIGHT) * fbd_fetch->tile_num_pitch +
+			(unsigned long)fbd_fetch->slice_start_pxl_xpt / ISP_FBD_TILE_WIDTH) * 16;
 	} else {
 		isp_3dnr_cal_compressed_addr(cur_width, cur_height,
 			ctx->buf_info[1]->iova[0], &out_addr);
@@ -461,8 +461,8 @@ static int isp3dnr_fbd_fetch_config_gen(struct isp_3dnr_ctx_desc *ctx)
 		dcam_if_cal_compressed_addr(&cal_fbc);
 		fbd_fetch->frame_header_base_addr = fbd_fetch->hw_addr.addr0;
 		fbd_fetch->slice_start_header_addr = fbd_fetch->frame_header_base_addr +
-			((fbd_fetch->slice_start_pxl_ypt / ISP_FBD_TILE_HEIGHT) * fbd_fetch->tile_num_pitch +
-			fbd_fetch->slice_start_pxl_xpt / ISP_FBD_TILE_WIDTH) * 16;
+			(((unsigned long)fbd_fetch->slice_start_pxl_ypt / ISP_FBD_TILE_HEIGHT) * fbd_fetch->tile_num_pitch +
+			(unsigned long)fbd_fetch->slice_start_pxl_xpt / ISP_FBD_TILE_WIDTH) * 16;
 	}
 
 	fbd_fetch->y_tiles_num_pitch = pad_width / FBD_NR3_Y_WIDTH;

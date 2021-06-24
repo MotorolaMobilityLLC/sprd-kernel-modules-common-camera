@@ -479,7 +479,7 @@ dcam_path_frame_cycle(struct dcam_sw_context *dcam_sw_ctx, struct dcam_path_desc
 		i = cam_queue_cnt_get(&path->out_buf_queue);
 		while(i){
 			frame = cam_queue_dequeue(&path->out_buf_queue, struct camera_frame, list);
-			if (frame->img_fmt == IMG_PIX_FMT_GREY)
+			if (frame != NULL && frame->img_fmt == IMG_PIX_FMT_GREY)
 				break;
 			i--;
 			if (i != 0 && frame != NULL)
