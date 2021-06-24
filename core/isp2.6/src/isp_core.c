@@ -3161,6 +3161,7 @@ static int ispcore_context_get(void *isp_handle, void *param)
 	struct isp_cfg_ctx_desc *cfg_desc;
 	struct isp_init_param *init_param;
 	struct isp_hw_default_param dfult_param;
+	struct isp_dec_pipe_dev *dec_dev = NULL;
 
 	if (!isp_handle || !param) {
 		pr_err("fail to get valid input ptr, isp_handle %p, param %p\n",
@@ -3172,6 +3173,7 @@ static int ispcore_context_get(void *isp_handle, void *param)
 	dev = (struct isp_pipe_dev *)isp_handle;
 	hw = dev->isp_hw;
 	init_param = (struct isp_init_param *)param;
+	dec_dev = (struct isp_dec_pipe_dev *)dev->pyr_dec_handle;
 
 	mutex_lock(&dev->path_mutex);
 	sel_ctx_id = ispcore_sw_context_get(dev);
@@ -3262,6 +3264,15 @@ static int ispcore_context_get(void *isp_handle, void *param)
 		}
 	}
 
+	if (dec_dev != NULL && hw->ip_isp->pyr_dec_support) {
+		ret = dec_dev->ops.proc_init(dec_dev);
+		if (unlikely(ret != 0)) {
+			pr_err("fail to init dec proc.\n");
+			ret = -EFAULT;
+			goto dec_err;
+		}
+	}
+
 	for (i = 0; i < ISP_SPATH_NUM; i++) {
 		path = &pctx->isp_path[i];
 		path->spath_id = i;
@@ -3304,6 +3315,9 @@ static int ispcore_context_get(void *isp_handle, void *param)
 	goto exit;
 
 thrd_err:
+	if (dec_dev != NULL && hw->ip_isp->pyr_dec_support)
+		dec_dev->ops.proc_deinit(dec_dev);
+dec_err:
 	if (pctx->dewarp_handle && hw->ip_isp->dewarp_support) {
 		isp_dewarping_ctx_put(pctx->dewarp_handle);
 		pctx->dewarp_handle = NULL;
@@ -3366,6 +3380,7 @@ static int ispcore_context_put(void *isp_handle, int ctx_id)
 	struct cam_hw_info *hw = NULL;
 	struct isp_ltm_ctx_desc *rgb_ltm = NULL;
 	struct isp_ltm_ctx_desc *yuv_ltm = NULL;
+	struct isp_dec_pipe_dev *dec_dev = NULL;
 
 	if (!isp_handle) {
 		pr_err("fail to get valid input ptr\n");
@@ -3381,6 +3396,7 @@ static int ispcore_context_put(void *isp_handle, int ctx_id)
 	hw = dev->isp_hw;
 	rgb_ltm = (struct isp_ltm_ctx_desc *)pctx->rgb_ltm_handle;
 	yuv_ltm = (struct isp_ltm_ctx_desc *)pctx->yuv_ltm_handle;
+	dec_dev = (struct isp_dec_pipe_dev *)dev->pyr_dec_handle;
 
 	mutex_lock(&dev->path_mutex);
 
@@ -3409,7 +3425,6 @@ static int ispcore_context_put(void *isp_handle, int ctx_id)
 			struct isp_stream_ctrl, list);
 		cam_queue_clear(&pctx->stream_ctrl_proc_q,
 			struct isp_stream_ctrl, list);
-		cam_queue_clear(&pctx->pyrdec_buf_queue, struct camera_frame, list);
 
 		if (pctx->nr3_handle) {
 			isp_3dnr_ctx_put(pctx->nr3_handle);
@@ -3442,6 +3457,10 @@ static int ispcore_context_put(void *isp_handle, int ctx_id)
 			isp_dewarping_ctx_put(pctx->dewarp_handle);
 			pctx->dewarp_handle = NULL;
 		}
+
+		if (dec_dev != NULL && hw->ip_isp->pyr_dec_support)
+			dec_dev->ops.proc_deinit(dec_dev);
+		cam_queue_clear(&pctx->pyrdec_buf_queue, struct camera_frame, list);
 
 		/* clear path queue. */
 		for (i = 0; i < ISP_SPATH_NUM; i++) {

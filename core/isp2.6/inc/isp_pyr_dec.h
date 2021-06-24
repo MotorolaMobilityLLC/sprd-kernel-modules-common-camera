@@ -48,6 +48,8 @@ struct isp_dec_ops {
 	int (*proc_frame)(void *dec_handle, void *param);
 	int (*set_callback)(void *dec_handle, int ctx_id, isp_dev_callback cb, void *priv_data);
 	int (*get_out_buf_cb)(void *dec_handle, int ctx_id, pyr_dec_buf_cb cb, void *priv_data);
+	int (*proc_init)(void *dec_handle);
+	int (*proc_deinit)(void *dec_handle);
 };
 
 struct isp_dec_sw_ctx {
@@ -170,6 +172,7 @@ struct isp_dec_pipe_dev {
 	uint32_t cur_slice_id;
 	uint32_t cur_ctx_id;
 	uint32_t irq_no;
+	atomic_t proc_eb;
 	irq_handler_t isr_func;
 	isppyrdec_irq_proc_func irq_proc_func;
 	void *isp_handle;

@@ -58,6 +58,11 @@ static void isppyrdec_src_frame_ret(void *param)
 
 	frame = (struct camera_frame *)param;
 	dec_dev = (struct isp_dec_pipe_dev *)frame->priv_data;
+	if (!dec_dev) {
+		pr_err("fail to get input ptr.\n");
+		return;
+	}
+
 	pctx = &dec_dev->sw_ctx[frame->dec_ctx_id];
 	if (!pctx) {
 		pr_err("fail to get src_frame pctx.\n");
@@ -170,7 +175,6 @@ static int isppyrdec_offline_thread_loop(void *arg)
 
 			if (thrd->proc_func(pctx)) {
 				pr_err("fail to start isp pyr dec proc. exit thread\n");
-				//pctx->isp_cb_func(ISP_CB_DEV_ERR, dev, pctx->cb_priv_data);
 				break;
 			}
 		} else {
@@ -707,7 +711,7 @@ static int isppyrdec_offline_frame_start(void *handle)
 		ret = cam_queue_enqueue(&dec_dev->proc_queue, &pframe->list);
 		if (ret == 0)
 			break;
-		pr_info_ratelimited("wait for proc queue. loop %d\n", loop);
+		pr_debug("wait for proc queue. loop %d\n", loop);
 		usleep_range(600, 2000);
 	} while (loop++ < 500);
 
@@ -722,7 +726,7 @@ static int isppyrdec_offline_frame_start(void *handle)
 		pctx->buf_cb_func((void *)&out_frame, pctx->buf_cb_priv_data);
 		if (out_frame)
 			break;
-		pr_info_ratelimited("wait for out buf. loop %d\n", loop);
+		pr_debug("wait for out buf. loop %d\n", loop);
 		usleep_range(600, 2000);
 	} while (loop++ < 500);
 
@@ -1016,6 +1020,55 @@ static int isppyrdec_irq_proc(void *handle)
 	return ret;
 }
 
+static int isppyrdec_proc_init(void *handle)
+{
+	int ret = 0;
+	struct isp_dec_pipe_dev *dec_dev = NULL;
+
+	if (!handle) {
+		pr_err("fail to get valid input ptr");
+		return -EFAULT;
+	}
+
+	dec_dev = (struct isp_dec_pipe_dev *)handle;
+	if (atomic_read(&dec_dev->proc_eb) == 0) {
+		cam_queue_init(&dec_dev->in_queue, ISP_PYRDEC_BUF_Q_LEN,
+			isppyrdec_src_frame_ret);
+		cam_queue_init(&dec_dev->proc_queue, ISP_PYRDEC_BUF_Q_LEN,
+			isppyrdec_src_frame_ret);
+
+		ret = isppyrdec_offline_thread_create(dec_dev);
+		if (unlikely(ret != 0)) {
+			pr_err("fail to create offline thread for isp pyr dec\n");
+			return -EFAULT;
+		}
+		atomic_set(&dec_dev->proc_eb, 1);
+	}
+
+	return ret;
+}
+
+static int isppyrdec_proc_deinit(void *handle)
+{
+	int ret = 0;
+	struct isp_dec_pipe_dev *dec_dev = NULL;
+
+	if (!handle) {
+		pr_err("fail to get valid input ptr");
+		return -EFAULT;
+	}
+
+	dec_dev = (struct isp_dec_pipe_dev *)handle;
+	if (atomic_read(&dec_dev->proc_eb) == 1) {
+		isppyrdec_offline_thread_stop(&dec_dev->thread);
+		cam_queue_clear(&dec_dev->in_queue, struct camera_frame, list);
+		cam_queue_clear(&dec_dev->proc_queue, struct camera_frame, list);
+		atomic_set(&dec_dev->proc_eb, 0);
+	}
+
+	return ret;
+}
+
 void *isp_pyr_dec_dev_get(void *isp_handle, void *hw)
 {
 	int ret = 0;
@@ -1042,6 +1095,7 @@ void *isp_pyr_dec_dev_get(void *isp_handle, void *hw)
 	}
 	init_completion(&dec_dev->frm_done);
 	complete(&dec_dev->frm_done);
+	atomic_set(&dec_dev->proc_eb, 0);
 	fmcu = isp_fmcu_dec_ctx_get(hw);
 	if (fmcu && fmcu->ops) {
 		fmcu->hw = hw;
@@ -1060,20 +1114,11 @@ void *isp_pyr_dec_dev_get(void *isp_handle, void *hw)
 	dec_dev->ops.proc_frame = isppyrdec_proc_frame;
 	dec_dev->ops.set_callback = isppyrdec_callback_set;
 	dec_dev->ops.get_out_buf_cb = isppyrdec_outbuf_callback_get;
-
-	cam_queue_init(&dec_dev->in_queue, ISP_PYRDEC_BUF_Q_LEN, isppyrdec_src_frame_ret);
-	cam_queue_init(&dec_dev->proc_queue, ISP_PYRDEC_BUF_Q_LEN, isppyrdec_src_frame_ret);
-
-	ret = isppyrdec_offline_thread_create(dec_dev);
-	if (unlikely(ret != 0)) {
-		pr_err("fail to create offline thread for isp pyr dec\n");
-		goto thrd_err;
-	}
+	dec_dev->ops.proc_init = isppyrdec_proc_init;
+	dec_dev->ops.proc_deinit = isppyrdec_proc_deinit;
 
 	return dec_dev;
 
-thrd_err:
-	isppyrrec_irq_free(dec_dev);
 irq_err:
 	if (dec_dev) {
 		vfree(dec_dev);
@@ -1095,16 +1140,14 @@ void isp_pyr_dec_dev_put(void *dec_handle)
 
 	dec_dev = (struct isp_dec_pipe_dev *)dec_handle;
 	/* irq disable */
-	isppyrdec_offline_thread_stop(&dec_dev->thread);
-	cam_queue_clear(&dec_dev->in_queue, struct camera_frame, list);
-	cam_queue_clear(&dec_dev->proc_queue, struct camera_frame, list);
+	isppyrrec_irq_free(dec_dev);
+	atomic_set(&dec_dev->proc_eb, 0);
 	fmcu = (struct isp_fmcu_ctx_desc *)dec_dev->fmcu_handle;
 	if (fmcu) {
 		fmcu->ops->ctx_deinit(fmcu);
 		isp_fmcu_ctx_desc_put(fmcu);
 	}
 	dec_dev->fmcu_handle = NULL;
-	isppyrrec_irq_free(dec_dev);
 	if (dec_dev)
 		vfree(dec_dev);
 	dec_dev = NULL;
