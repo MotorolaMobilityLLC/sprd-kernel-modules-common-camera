@@ -190,6 +190,7 @@ static int camioctl_statis_buf_set(struct camera_module *module,
 		case STATIS_EBD:
 		case STATIS_3DNR:
 		case STATIS_LSCM:
+			pr_debug("cam%d type %d mfd %d\n", module->idx, statis_buf.type, statis_buf.mfd);
 			if (module->paused) {
 				pr_info("cam%d paused, type %d ignored\n", module->idx, statis_buf.type);
 				goto exit;

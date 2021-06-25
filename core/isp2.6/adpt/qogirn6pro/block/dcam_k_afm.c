@@ -212,6 +212,7 @@ int dcam_k_afm_skipnum(struct dcam_dev_param *param)
 		return 0;
 	if (param->is_high_fps)
 		param->afm.skip_num = 0;
+
 	skip_num = param->afm.skip_num;
 
 	DCAM_REG_MWR(idx, DCAM_AFM_FRM_CTRL, 0xFF0, (skip_num & 0xFF) << 4);
@@ -220,6 +221,8 @@ int dcam_k_afm_skipnum(struct dcam_dev_param *param)
 	DCAM_REG_MWR(idx, DCAM_AFM_FRM_CTRL1, BIT_1, 1 << 1);
 
 	dcam_path_skip_num_set(param->dev, DCAM_PATH_AFM, param->afm.skip_num);
+
+	pr_debug("skip num %d\n", param->afm.skip_num);
 
 	return ret;
 }

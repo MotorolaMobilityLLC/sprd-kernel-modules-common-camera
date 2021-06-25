@@ -130,7 +130,6 @@ int dcam_k_aem_skip_num(struct dcam_dev_param *param)
 
 	if (param->is_high_fps)
 		param->aem.skip_num = 0;
-
 	val = (param->aem.skip_num & 0xFF) << 4;
 	DCAM_REG_MWR(idx, DCAM_AEM_FRM_CTRL0, 0xFF0, val);
 
@@ -140,6 +139,9 @@ int dcam_k_aem_skip_num(struct dcam_dev_param *param)
 	 * dcam_path_skip_num_set(param->dev,
 	 *	DCAM_PATH_AEM, param->aem.skip_num);
 	 */
+	dcam_path_skip_num_set(param->dev, DCAM_PATH_AEM, param->aem.skip_num);
+
+	pr_debug("skip num %d\n", param->aem.skip_num);
 
 	return ret;
 }
@@ -248,6 +250,8 @@ int dcam_k_cfg_aem(struct isp_io_param *param, struct dcam_dev_param *p)
 				(unsigned int)ret);
 			return -EPERM;
 		}
+		if (param->property == DCAM_PRO_AEM_SKIPNUM)
+			pr_info("dcam%d skip_num %d\n", p->idx, p->aem.skip_num);
 		if (p->idx == DCAM_HW_CONTEXT_MAX)
 			return 0;
 		ret = sub_func(p);

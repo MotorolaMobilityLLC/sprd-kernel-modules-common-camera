@@ -74,6 +74,9 @@ int dcam_k_lscm_monitor(struct dcam_dev_param *param)
 	val = (param->lscm.skip_num & 0xFF) << 4;
 	DCAM_REG_MWR(idx, DCAM_LSCM_FRM_CTRL0, 0xFF0, val);
 
+	dcam_path_skip_num_set(param->dev, DCAM_PATH_LSCM, param->lscm.skip_num);
+	pr_debug("skip num %d\n", param->lscm.skip_num);
+
 	/* It is better to set lscm_skip_num_clr when new skip_num is set. */
 	DCAM_REG_MWR(idx, DCAM_LSCM_FRM_CTRL1, BIT_1, 1 << 1);
 

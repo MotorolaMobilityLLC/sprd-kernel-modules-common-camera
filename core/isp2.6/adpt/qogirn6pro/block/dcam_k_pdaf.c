@@ -17,6 +17,7 @@
 #include "isp_hw.h"
 #include "dcam_core.h"
 #include "dcam_reg.h"
+#include "dcam_path.h"
 
 #ifdef pr_fmt
 #undef pr_fmt
@@ -322,6 +323,9 @@ static int isp_k_pdaf_type3_set_skip_num(
 
 	DCAM_REG_MWR(idx, DCAM_PPE_FRM_CTRL0, 0xFF0, skip_num << 4);
 	DCAM_REG_MWR(idx, DCAM_PPE_FRM_CTRL1, BIT_1, BIT_1);
+
+	dcam_path_skip_num_set(p->dev, DCAM_PATH_PDAF, p->pdaf.skip_num);
+	pr_debug("skip num %d\n", p->pdaf.skip_num);
 
 	return ret;
 }

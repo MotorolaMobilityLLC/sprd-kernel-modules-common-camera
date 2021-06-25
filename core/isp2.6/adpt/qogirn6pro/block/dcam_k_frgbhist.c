@@ -17,6 +17,7 @@
 
 #include "dcam_reg.h"
 #include "dcam_core.h"
+#include "dcam_path.h"
 
 #ifdef pr_fmt
 #undef pr_fmt
@@ -68,6 +69,10 @@ int dcam_k_frgbhist_block(struct dcam_dev_param *param)
 	DCAM_REG_MWR(idx, DCAM_HIST_ROI_CTRL0, 0x1ffe, val);
 
 	DCAM_REG_MWR(idx, DCAM_HIST_ROI_CTRL1, BIT_1, 1);
+
+	dcam_path_skip_num_set(param->dev, DCAM_PATH_FRGB_HIST, p->skip_num);
+	pr_debug("skip num %d\n", p->skip_num);
+
 	DCAM_REG_MWR(idx, DCAM_HIST_ROI_START, 0x1fff1fff,
 			((p->hist_roi.start_y & 0x1fff) << 16) |
 			(p->hist_roi.start_x & 0x1fff));

@@ -17,6 +17,7 @@
 
 #include "dcam_reg.h"
 #include "dcam_core.h"
+#include "dcam_path.h"
 
 #ifdef pr_fmt
 #undef pr_fmt
@@ -61,6 +62,9 @@ int dcam_k_bayerhist_block(struct dcam_dev_param *param)
 			((p->hist_skip_num & 0xff) << 4) |
 			(p->hist_mul_enable << 2) |
 			(p->hist_mode_sel << 1));
+
+	dcam_path_skip_num_set(param->dev, DCAM_PATH_HIST, p->hist_skip_num);
+	pr_debug("skip num %d\n", p->hist_skip_num);
 
 	DCAM_REG_MWR(idx, DCAM_BAYER_HIST_START, 0xffffffff,
 			((p->bayer_hist_sty & 0x1fff) << 16) |
