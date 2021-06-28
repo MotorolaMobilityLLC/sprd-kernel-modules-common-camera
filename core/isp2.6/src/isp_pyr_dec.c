@@ -974,7 +974,6 @@ static int isppyrdec_outbuf_callback_get(void *handle, int ctx_id, pyr_dec_buf_c
 	return ret;
 }
 
-
 static int isppyrdec_irq_proc(void *handle)
 {
 	int ret = 0;
@@ -982,6 +981,7 @@ static int isppyrdec_irq_proc(void *handle)
 	struct isp_dec_pipe_dev *dec_dev = NULL;
 	struct isp_dec_sw_ctx *pctx = NULL;
 	struct camera_frame *pframe = NULL;
+	struct dcam_frame_synchronizer *sync = NULL;
 
 	if (!handle) {
 		pr_err("fail to get invalid ptr\n");
@@ -1000,6 +1000,10 @@ static int isppyrdec_irq_proc(void *handle)
 		pctx->buf_out->fid = pframe->fid;
 		pctx->buf_out->sensor_time = pframe->sensor_time;
 		pctx->buf_out->boot_sensor_time = pframe->boot_sensor_time;
+		sync = (struct dcam_frame_synchronizer *)pframe->sync_data;
+		pctx->buf_out->sync_data = sync;
+		if (sync)
+			sync->frames[DCAM_PATH_FULL] = pctx->buf_out;
 		cam_buf_iommu_unmap(&pframe->buf);
 		pctx->cb_func(ISP_CB_RET_SRC_BUF, pframe, pctx->cb_priv_data);
 	} else {

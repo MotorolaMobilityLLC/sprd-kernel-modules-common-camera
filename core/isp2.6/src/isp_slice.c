@@ -2036,7 +2036,8 @@ static int ispslice_3dnr_memctrl_info_cfg(
 		slc_3dnr_memctrl->data_toyuv_en = 1;
 		slc_3dnr_memctrl->back_toddr_en = 1;
 
-		if (!nr3_ctx->blending_cnt)
+		/* blending cnt reset 0 than ++ by nr3 frame cfg */
+		if (nr3_ctx->blending_cnt == 1)
 			slc_3dnr_memctrl->ref_pic_flag = 0;
 		else
 			slc_3dnr_memctrl->ref_pic_flag = 1;
