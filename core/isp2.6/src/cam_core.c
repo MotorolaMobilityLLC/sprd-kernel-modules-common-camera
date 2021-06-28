@@ -2240,7 +2240,6 @@ static uint32_t camcore_frame_start_proc(struct camera_module *module, struct ca
 	int ret = 0;
 
 	pctx = &module->dcam_dev_handle->sw_ctx[module->offline_cxt_id];
-
 	pframe->priv_data = pctx;
 	ret = cam_queue_enqueue(&pctx->in_queue, &pframe->list);
 	if (ret == 0)
@@ -2257,6 +2256,7 @@ static struct camera_frame *camcore_supersize_frame_deal(struct camera_module *m
 	int ret;
 	struct dcam_sw_context *dcam_sw_ctx = NULL;
 	struct dcam_sw_context *dcam_sw_aux_ctx = NULL;
+	struct dcam_pipe_dev *dev = (struct dcam_pipe_dev *)module->aux_dcam_dev;
 
 	/* full path release sync */
 	if (pframe->sync_data)
@@ -2264,6 +2264,7 @@ static struct camera_frame *camcore_supersize_frame_deal(struct camera_module *m
 	/* 1: aux dcam bin tx done, set frame to isp
 	 * 2: lowlux capture, dcam0 full path done, set frame to isp
 	 */
+	dcam_sw_ctx = &module->dcam_dev_handle->sw_ctx[module->cur_sw_ctx_id];
 	if (pframe->irq_type == CAMERA_IRQ_SUPERSIZE_DONE) {
 		/* dcam0 full tx done, frame send to dcam1 or drop */
 		pr_debug("raw frame[%d] fd %d, size[%d %d], addr_vir[0]:0x%x, channel_id %d, catpure_cnt = %d, time %lld\n",
@@ -2279,12 +2280,32 @@ static struct camera_frame *camcore_supersize_frame_deal(struct camera_module *m
 			&& atomic_read(&module->capture_frames_dcam) > 0) {
 			if (module->cam_uinfo.is_pyr_dec)
 				pframe->width = module->channel[CAM_CH_CAP].ch_uinfo.src_crop.w;
+
+			if (dev->hw->ip_dcam[0]->save_band_for_bigsize) {
+				uint32_t shutoff = 1;
+				struct dcam_hw_path_stop patharg;
+				patharg.path_id = channel->dcam_path_id;
+				patharg.idx = module->dcam_dev_handle->sw_ctx[module->cur_sw_ctx_id].hw_ctx_id;
+				dev->hw->dcam_ioctl(dev->hw, DCAM_HW_CFG_PATH_STOP, &patharg);
+				module->dcam_dev_handle->dcam_pipe_ops->cfg_path(dcam_sw_ctx, DCAM_PATH_CFG_SHUTOFF, channel->dcam_path_id, &shutoff);
+			}
+
 			ret = camcore_frame_start_proc(module, pframe);
 			if (ret == 0)
 				return NULL;
 		} else if (module->dcam_cap_status != DCAM_CAPTURE_START_FROM_NEXT_SOF) {
 			if (module->cam_uinfo.is_pyr_dec)
 				pframe->width = module->channel[CAM_CH_CAP].ch_uinfo.src_crop.w;
+
+			if (dev->hw->ip_dcam[0]->save_band_for_bigsize) {
+				uint32_t shutoff = 1;
+				struct dcam_hw_path_stop patharg;
+				patharg.path_id = channel->dcam_path_id;
+				patharg.idx = module->dcam_dev_handle->sw_ctx[module->cur_sw_ctx_id].hw_ctx_id;
+				dev->hw->dcam_ioctl(dev->hw, DCAM_HW_CFG_PATH_STOP, &patharg);
+				module->dcam_dev_handle->dcam_pipe_ops->cfg_path(dcam_sw_ctx, DCAM_PATH_CFG_SHUTOFF, channel->dcam_path_id, &shutoff);
+			}
+
 			ret = camcore_frame_start_proc(module, pframe);
 			if (ret == 0)
 				return NULL;
@@ -2293,7 +2314,7 @@ static struct camera_frame *camcore_supersize_frame_deal(struct camera_module *m
 		/* set buffer back to dcam0 full path, to out_buf_queue */
 		pr_debug("drop frame[%d]\n", pframe->fid);
 		channel = &module->channel[pframe->channel_id];
-		dcam_sw_ctx = &module->dcam_dev_handle->sw_ctx[module->cur_sw_ctx_id];
+
 		ret = module->dcam_dev_handle->dcam_pipe_ops->cfg_path( dcam_sw_ctx, DCAM_PATH_CFG_OUTPUT_BUF, channel->dcam_path_id, pframe);
 		if (unlikely(ret))
 			pr_err("fail to set output buffer, ret %d\n", ret);
@@ -3894,14 +3915,14 @@ static int camcore_channel_bigsize_config(
 	ch_desc.raw_fmt= pack_bits;
 	ch_desc.is_4in1 = module->cam_uinfo.is_4in1;
 	if (module->cam_uinfo.is_pyr_dec) {
-			ch_desc.input_size.w = ch_uinfo->src_crop.w;
-			ch_desc.input_size.h = ch_uinfo->src_crop.h;
-			ch_desc.input_trim.start_x= 0;
-			ch_desc.input_trim.start_y= 0;
-			ch_desc.input_trim.size_x= ch_uinfo->src_crop.w;
-			ch_desc.input_trim.size_y= ch_uinfo->src_crop.h;
-			ch_desc.output_size.w = ch_uinfo->src_crop.w;
-			ch_desc.output_size.h = ch_uinfo->src_crop.h;
+		ch_desc.input_size.w = ch_uinfo->src_crop.w;
+		ch_desc.input_size.h = ch_uinfo->src_crop.h;
+		ch_desc.input_trim.start_x= 0;
+		ch_desc.input_trim.start_y= 0;
+		ch_desc.input_trim.size_x= ch_uinfo->src_crop.w;
+		ch_desc.input_trim.size_y= ch_uinfo->src_crop.h;
+		ch_desc.output_size.w = ch_uinfo->src_crop.w;
+		ch_desc.output_size.h = ch_uinfo->src_crop.h;
 	}
 
 	pr_info("update dcam path %d size for channel %d packbit %d 4in1 %d\n",

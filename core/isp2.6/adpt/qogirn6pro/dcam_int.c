@@ -823,8 +823,11 @@ static void dcamint_bin_path_done(void *param)
 				DCAM_CB_DATA_DONE);
 
 	if (sw_ctx->offline) {
-		if ((sw_ctx->dcam_slice_mode != CAM_OFFLINE_SLICE_SW) && (atomic_read(&path_raw->set_frm_cnt) == (atomic_read(&path->set_frm_cnt)))) {
+		if (sw_ctx->dcam_slice_mode != CAM_OFFLINE_SLICE_SW) {
 			/* there is source buffer for offline process */
+			if ((atomic_read(&path_raw->user_cnt) > 0) &&
+				(atomic_read(&path_raw->set_frm_cnt) != (atomic_read(&path->set_frm_cnt))))
+				return;
 			frame = cam_queue_dequeue(&sw_ctx->proc_queue, struct camera_frame, list);
 			if (frame) {
 				cam_buf_iommu_unmap(&frame->buf);
