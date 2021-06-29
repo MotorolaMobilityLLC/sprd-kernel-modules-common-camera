@@ -1040,7 +1040,7 @@ static int isppyrdec_proc_init(void *handle)
 			isppyrdec_src_frame_ret);
 		cam_queue_init(&dec_dev->proc_queue, ISP_PYRDEC_BUF_Q_LEN,
 			isppyrdec_src_frame_ret);
-
+		complete(&dec_dev->frm_done);
 		ret = isppyrdec_offline_thread_create(dec_dev);
 		if (unlikely(ret != 0)) {
 			pr_err("fail to create offline thread for isp pyr dec\n");
@@ -1098,7 +1098,6 @@ void *isp_pyr_dec_dev_get(void *isp_handle, void *hw)
 		goto irq_err;
 	}
 	init_completion(&dec_dev->frm_done);
-	complete(&dec_dev->frm_done);
 	atomic_set(&dec_dev->proc_eb, 0);
 	fmcu = isp_fmcu_dec_ctx_get(hw);
 	if (fmcu && fmcu->ops) {

@@ -1251,7 +1251,7 @@ static void dcamint_iommu_regs_dump(struct dcam_hw_context *dcam_hw_ctx)
 	uint32_t val[4];
 
 	if (dcam_hw_ctx->sw_ctx->err_count) {
-		for (reg = 0; reg <= MMU_STS; reg += 16) {
+		for (reg = 0; reg <= MMU_PPN_RANGE2_SHAD; reg += 16) {
 			val[0] = DCAM_MMU_RD(reg);
 			val[1] = DCAM_MMU_RD(reg + 4);
 			val[2] = DCAM_MMU_RD(reg + 8);
