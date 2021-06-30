@@ -6723,10 +6723,8 @@ input_err:
 
 static int camcore_module_init(struct camera_module *module)
 {
-	int ret = 0;
 	int ch;
 	struct channel_context *channel;
-	struct cam_thread_info *thrd;
 
 	pr_info("sprd_img: camera dev %d init start!\n", module->idx);
 
@@ -6750,43 +6748,6 @@ static int camcore_module_init(struct camera_module *module)
 		init_completion(&channel->alloc_com);
 	}
 
-	/* create capture thread */
-	thrd = &module->cap_thrd;
-	sprintf(thrd->thread_name, "cam%d_capture", module->idx);
-	ret = camcore_thread_create(module, thrd, camcore_capture_proc);
-	if (ret)
-		goto exit;
-
-	/* create zoom thread */
-	thrd = &module->zoom_thrd;
-	sprintf(thrd->thread_name, "cam%d_zoom", module->idx);
-	ret = camcore_thread_create(module, thrd, camcore_zoom_proc);
-	if (ret)
-		goto exit;
-
-	/* create buf thread */
-	thrd = &module->buf_thrd;
-	sprintf(thrd->thread_name, "cam%d_alloc_buf", module->idx);
-	ret = camcore_thread_create(module, thrd, camcore_buffers_alloc);
-	if (ret)
-		goto exit;
-
-	/* create dcam offline thread */
-	thrd = &module->dcam_offline_proc_thrd;
-	sprintf(thrd->thread_name, "cam%d_offline_proc", module->idx);
-	ret = camcore_thread_create(module, thrd, camcore_offline_proc);
-	if (ret)
-		goto exit;
-
-	if (g_dbg_dump.dump_en) {
-		/* create dump thread */
-		thrd = &module->dump_thrd;
-		sprintf(thrd->thread_name, "cam%d_dumpraw", module->idx);
-		ret = camcore_thread_create(module, thrd, camcore_dumpraw_proc);
-		if (ret)
-			goto exit;
-	}
-
 	module->flash_core_handle = get_cam_flash_handle(module->idx);
 
 	camcore_timer_init(&module->cam_timer, (unsigned long)module);
@@ -6802,12 +6763,6 @@ static int camcore_module_init(struct camera_module *module)
 		CAM_ALLOC_Q_LEN, camcore_empty_frame_put);
 	pr_info("module[%d] init OK %px!\n", module->idx, module);
 	return 0;
-exit:
-	camcore_thread_stop(&module->cap_thrd);
-	camcore_thread_stop(&module->zoom_thrd);
-	camcore_thread_stop(&module->buf_thrd);
-	camcore_thread_stop(&module->dump_thrd);
-	return ret;
 }
 
 static int camcore_module_deinit(struct camera_module *module)
@@ -6820,11 +6775,6 @@ static int camcore_module_deinit(struct camera_module *module)
 	cam_queue_clear(&module->irq_queue, struct camera_frame, list);
 	cam_queue_clear(&module->statis_queue, struct camera_frame, list);
 	cam_queue_clear(&module->alloc_queue, struct camera_frame, list);
-	camcore_thread_stop(&module->dcam_offline_proc_thrd);
-	camcore_thread_stop(&module->cap_thrd);
-	camcore_thread_stop(&module->zoom_thrd);
-	camcore_thread_stop(&module->buf_thrd);
-	camcore_thread_stop(&module->dump_thrd);
 	for (ch = 0; ch < CAM_CH_MAX; ch++) {
 		channel = &module->channel[ch];
 		mutex_destroy(&module->buf_lock[channel->ch_id]);
@@ -7380,8 +7330,6 @@ static int camcore_release(struct inode *node, struct file *file)
 	unsigned long flag;
 	struct camera_group *group = NULL;
 	struct camera_module *module;
-	struct dcam_pipe_dev *dcam_dev = NULL;
-	struct isp_pipe_dev *isp_dev = NULL;
 
 	pr_info("sprd_img: cam release start.\n");
 
@@ -7423,27 +7371,6 @@ static int camcore_release(struct inode *node, struct file *file)
 	ret = camioctl_stream_off(module, 0L);
 
 	camcore_module_deinit(module);
-
-	if (atomic_read(&module->state) == CAM_IDLE) {
-		module->attach_sensor_id = -1;
-
-		dcam_dev = module->dcam_dev_handle;
-		isp_dev = module->isp_dev_handle;
-
-		if (dcam_dev) {
-			pr_info("force close dcam %px\n", dcam_dev);
-			module->dcam_dev_handle->dcam_pipe_ops->close(dcam_dev);
-			dcam_core_pipe_dev_put(dcam_dev);
-			module->dcam_dev_handle = NULL;
-		}
-
-		if (isp_dev) {
-			pr_info("force close isp %px\n", isp_dev);
-			module->isp_dev_handle->isp_ops->close(isp_dev);
-			isp_core_pipe_dev_put(isp_dev);
-			module->isp_dev_handle = NULL;
-		}
-	}
 
 	spin_lock_irqsave(&group->module_lock, flag);
 	group->module_used &= ~(1 << idx);

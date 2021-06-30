@@ -2067,6 +2067,7 @@ static int camioctl_cam_res_get(struct camera_module *module,
 	struct camera_group *grp = module->grp;
 	void *dcam = NULL;
 	void *isp = NULL;
+	struct cam_thread_info *thrd = NULL;
 
 	ret = copy_from_user(&res, (void __user *)arg,
 		sizeof(struct sprd_img_res));
@@ -2080,6 +2081,44 @@ static int camioctl_cam_res_get(struct camera_module *module,
 			module->idx, atomic_read(&module->state));
 		return -EFAULT;
 	}
+
+	/* create capture thread */
+	thrd = &module->cap_thrd;
+	sprintf(thrd->thread_name, "cam%d_capture", module->idx);
+	ret = camcore_thread_create(module, thrd, camcore_capture_proc);
+	if (ret)
+		goto stop_thrd;
+
+	/* create zoom thread */
+	thrd = &module->zoom_thrd;
+	sprintf(thrd->thread_name, "cam%d_zoom", module->idx);
+	ret = camcore_thread_create(module, thrd, camcore_zoom_proc);
+	if (ret)
+		goto stop_thrd;
+
+	/* create buf thread */
+	thrd = &module->buf_thrd;
+	sprintf(thrd->thread_name, "cam%d_alloc_buf", module->idx);
+	ret = camcore_thread_create(module, thrd, camcore_buffers_alloc);
+	if (ret)
+		goto stop_thrd;
+
+	/* create dcam offline thread */
+	thrd = &module->dcam_offline_proc_thrd;
+	sprintf(thrd->thread_name, "cam%d_offline_proc", module->idx);
+	ret = camcore_thread_create(module, thrd, camcore_offline_proc);
+	if (ret)
+		goto stop_thrd;
+
+	if (g_dbg_dump.dump_en) {
+		/* create dump thread */
+		thrd = &module->dump_thrd;
+		sprintf(thrd->thread_name, "cam%d_dumpraw", module->idx);
+		ret = camcore_thread_create(module, thrd, camcore_dumpraw_proc);
+		if (ret)
+			goto stop_thrd;
+	}
+
 	pr_info("cam%d get res, flag %d, sensor %d\n",
 		module->idx, res.flag, res.sensor_id);
 
@@ -2243,6 +2282,12 @@ dcam_fail:
 no_dcam:
 	pr_err("fail to get camera res for sensor: %d\n", res.sensor_id);
 
+stop_thrd:
+	camcore_thread_stop(&module->cap_thrd);
+	camcore_thread_stop(&module->zoom_thrd);
+	camcore_thread_stop(&module->buf_thrd);
+	camcore_thread_stop(&module->dump_thrd);
+
 	return ret;
 }
 
@@ -2281,6 +2326,12 @@ static int camioctl_cam_res_put(struct camera_module *module,
 	}
 
 	module->attach_sensor_id = -1;
+
+	camcore_thread_stop(&module->dcam_offline_proc_thrd);
+	camcore_thread_stop(&module->cap_thrd);
+	camcore_thread_stop(&module->zoom_thrd);
+	camcore_thread_stop(&module->buf_thrd);
+	camcore_thread_stop(&module->dump_thrd);
 
 	if (module->dcam_dev_handle) {
 		module->dcam_dev_handle->dcam_pipe_ops->close(module->dcam_dev_handle);
