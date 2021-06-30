@@ -2349,6 +2349,8 @@ static int isphw_slw_fmcu_cmds(void *handle, void *arg)
 	cmd = all_done_cmd[ctx_idx];
 	FMCU_PUSH(fmcu, addr, cmd);
 
+	hw->isp_ioctl(hw, ISP_HW_CFG_FMCU_CMD_ALIGN, fmcu);
+
 	return 0;
 }
 
