@@ -37,9 +37,7 @@ static int sprd_cam_flash_ctrl(uint32_t dcam_idx,
 {
 	int ret = 0;
 
-//#ifndef CAM_ON_HAPS
 	ret = sprd_flash_ctrl(set_flash);
-//#endif
 	pr_info("%d set flash\n", dcam_idx);
 	return ret;
 }
@@ -77,64 +75,36 @@ exit:
 	return ret;
 }
 
-static int sprd_cam_flash_set(struct cam_flash_task_info *flash_ctx, void *arg)
-{
-	int ret = 0;
-	unsigned int led0_ctrl;
-	unsigned int led1_ctrl;
-	unsigned int led0_status;
-	unsigned int led1_status;
-	struct sprd_img_set_flash *set_flash;
-
-	if (!flash_ctx) {
-		pr_err("fail to get flash handle\n");
-		goto exit;
-	}
-
-	set_flash = (struct sprd_img_set_flash *)arg;
-
-	memcpy((void *)&flash_ctx->set_flash, arg,
-		sizeof(struct sprd_img_set_flash));
-
-	led0_ctrl = flash_ctx->set_flash.led0_ctrl;
-	led1_ctrl = flash_ctx->set_flash.led1_ctrl;
-	led0_status = flash_ctx->set_flash.led0_status;
-	led1_status = flash_ctx->set_flash.led1_status;
-
-exit:
-	return ret;
-}
-
 static int sprd_cam_flash_info_get(struct cam_flash_task_info *flash_ctx, void *arg)
 {
-//#ifndef CAM_ON_HAPS
 	sprd_flash_get_info(flash_ctx->set_flash.flash_index,
 		SPRD_FLASH_LED_ALL, (struct sprd_flash_capacity *)arg);
-//#endif
+
 	return 0;
 }
 
-static int sprd_cam_flash_start(struct cam_flash_task_info *flash_ctx)
+static int sprd_cam_flash_start(struct cam_flash_task_info *flash_ctx, void *arg)
 {
 	int ret = 0;
 	uint32_t need_light = 1;
-	uint32_t led0_ctrl;
-	uint32_t led1_ctrl;
-	uint32_t led0_status;
-	uint32_t led1_status;
+	struct sprd_img_set_flash *set_flash = NULL;
 
 	if (flash_ctx == NULL) {
 		pr_err("fail to get valid input ptr\n");
 		return -EINVAL;
 	}
 
-	led0_ctrl = flash_ctx->set_flash.led0_ctrl;
-	led1_ctrl = flash_ctx->set_flash.led1_ctrl;
-	led0_status = flash_ctx->set_flash.led0_status;
-	led1_status = flash_ctx->set_flash.led1_status;
+	set_flash = (struct sprd_img_set_flash *)arg;
+	flash_ctx->set_flash.led0_ctrl = set_flash->led0_ctrl;
+	flash_ctx->set_flash.led1_ctrl = set_flash->led1_ctrl;
+	flash_ctx->set_flash.led0_status = set_flash->led0_status;
+	flash_ctx->set_flash.led1_status = set_flash->led1_status;
 
-	if ((led0_ctrl && led0_status < FLASH_STATUS_MAX) ||
-		(led1_ctrl && led1_status < FLASH_STATUS_MAX)) {
+	pr_debug("led_ctrl %d %d status %d %d\n", flash_ctx->set_flash.led0_ctrl,
+		flash_ctx->set_flash.led1_ctrl, flash_ctx->set_flash.led0_status,
+		flash_ctx->set_flash.led1_status);
+	if ((set_flash->led0_ctrl && set_flash->led0_status < FLASH_STATUS_MAX) ||
+		(set_flash->led1_ctrl && set_flash->led1_status < FLASH_STATUS_MAX)) {
 
 			flash_ctx->frame_skipped++;
 			if (flash_ctx->frame_skipped >=
@@ -182,10 +152,9 @@ static int img_opt_flash(void *param)
 	led0_status = flash_ctx->set_flash.led0_status;
 	led1_status = flash_ctx->set_flash.led1_status;
 
+	pr_debug("led_ctrl %d %d status %d %d\n", led0_ctrl, led1_ctrl, led0_status, led1_status);
 	if ((led0_ctrl && led0_status < FLASH_STATUS_MAX) ||
 		(led1_ctrl && led1_status < FLASH_STATUS_MAX)) {
-		pr_debug("led0_status %d led1_status %d\n",
-			led0_status, led1_status);
 		if (led0_status == FLASH_CLOSE_AFTER_AUTOFOCUS ||
 			led1_status == FLASH_CLOSE_AFTER_AUTOFOCUS) {
 			/*cam_get_timestamp(&falsh_task->timestamp);*/
@@ -248,7 +217,6 @@ static struct cam_flash_ops flash_core_ops = {
 	.open = sprd_cam_flash_open,
 	.close = sprd_cam_flash_close,
 	.cfg_flash = sprd_cam_flash_cfg,
-	.set_flash = sprd_cam_flash_set,
 	.get_flash = sprd_cam_flash_info_get,
 	.start_flash = sprd_cam_flash_start,
 	.set_frame_skip = sprd_cam_flash_set_frame_skip,

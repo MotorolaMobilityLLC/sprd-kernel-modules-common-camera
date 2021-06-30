@@ -191,6 +191,7 @@ struct sprd_img_flash_info {
 	uint32_t led0_status;
 	uint32_t led1_status;
 	uint32_t flash_last_status;
+	struct sprd_img_set_flash set_param;
 };
 
 struct channel_context {
@@ -3008,7 +3009,8 @@ static int camcore_dcam_callback(enum dcam_cb_type type, void *param, void *priv
 		if (pframe->irq_property == IRQ_DCAM_SOF) {
 			if ((module->flash_info.led0_ctrl && module->flash_info.led0_status < FLASH_STATUS_MAX) ||
 				(module->flash_info.led1_ctrl && module->flash_info.led1_status < FLASH_STATUS_MAX)) {
-				module->flash_core_handle->flash_core_ops->start_flash(module->flash_core_handle);
+				module->flash_core_handle->flash_core_ops->start_flash(module->flash_core_handle,
+					&module->flash_info.set_param);
 				if (module->flash_info.flash_last_status != module->flash_info.led0_status)
 					module->flash_skip_fid = pframe->fid;
 				else

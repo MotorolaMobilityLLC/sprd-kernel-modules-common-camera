@@ -55,10 +55,10 @@ static int camioctl_flash_set(struct camera_module *module,
 	module->flash_info.led1_ctrl = set_param.led1_ctrl;
 	module->flash_info.led0_status = set_param.led0_status;
 	module->flash_info.led1_status = set_param.led1_status;
-	pr_info("led0_ctrl=%d,led1_ctrl=%d\n", set_param.led0_ctrl, set_param.led1_ctrl);
+	module->flash_info.set_param = set_param;
+	pr_info("led_ctrl %d %d led_status %d %d\n", set_param.led0_ctrl, set_param.led1_ctrl,
+		set_param.led0_status, set_param.led1_status);
 
-	ret = module->flash_core_handle->flash_core_ops->set_flash(module->flash_core_handle,
-		(void *)&set_param);
 exit:
 	return ret;
 }

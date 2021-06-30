@@ -20,9 +20,8 @@ struct cam_flash_ops {
 	int (*open)(struct cam_flash_task_info *flash_ctx, void *arg);
 	int (*close)(struct cam_flash_task_info *flash_ctx);
 	int (*cfg_flash)(struct cam_flash_task_info *flash_ctx, void *arg);
-	int (*set_flash)(struct cam_flash_task_info *flash_ctx, void *arg);
 	int (*get_flash)(struct cam_flash_task_info *flash_ctx, void *arg);
-	int (*start_flash)(struct cam_flash_task_info *flash_ctx);
+	int (*start_flash)(struct cam_flash_task_info *flash_ctx, void *arg);
 	void (*set_frame_skip)(struct cam_flash_task_info *flash_ctx, int skip_frame);
 };
 
