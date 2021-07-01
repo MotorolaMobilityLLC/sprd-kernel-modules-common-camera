@@ -126,10 +126,7 @@ static int ispltm_sync_completion_get(void *handle)
 	ltm_ctx = (struct isp_ltm_ctx_desc *)handle;
 	sync = ltm_ctx->sync;
 
-	mutex_lock(&sync->share_mutex);
 	idx = atomic_read(&sync->wait_completion);
-	mutex_unlock(&sync->share_mutex);
-
 	return idx;
 }
 
@@ -147,13 +144,11 @@ static int ispltm_sync_completion_done(void *handle)
 	ltm_ctx = (struct isp_ltm_ctx_desc *)handle;
 	sync = ltm_ctx->sync;
 
-	mutex_lock(&sync->share_mutex);
 	idx = atomic_read(&sync->wait_completion);
 	if (idx) {
 		atomic_set(&sync->wait_completion, 0);
 		complete(&sync->share_comp);
 	}
-	mutex_unlock(&sync->share_mutex);
 
 	return idx;
 }
@@ -170,9 +165,7 @@ static void ispltm_sync_fid_set(void *handle)
 
 	ltm_ctx = (struct isp_ltm_ctx_desc *)handle;
 	sync = ltm_ctx->sync;
-	mutex_lock(&sync->share_mutex);
 	atomic_set(&sync->pre_fid, ltm_ctx->fid);
-	mutex_unlock(&sync->share_mutex);
 }
 
 static int ispltm_sync_config_set(struct isp_ltm_ctx_desc *ctx,

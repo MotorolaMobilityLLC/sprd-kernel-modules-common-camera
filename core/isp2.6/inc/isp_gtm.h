@@ -69,7 +69,6 @@ struct isp_gtm_sync {
 	atomic_t prev_fid;
 	atomic_t wait_completion_fid;
 	struct completion share_comp;
-	struct mutex share_mutex;
 	struct isp_dev_gtm_block_info tuning;
 	struct isp_gtm_mapping mapping;
 };

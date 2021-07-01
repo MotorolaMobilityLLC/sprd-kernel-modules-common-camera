@@ -78,13 +78,11 @@ static int ispgtm_sync_completion_done(void *handle)
 		return -1;
 	}
 
-	mutex_lock(&sync->share_mutex);
 	fid = atomic_read(&sync->wait_completion_fid);
 	if (fid) {
 		atomic_set(&sync->wait_completion_fid, 0);
 		complete(&sync->share_comp);
 	}
-	mutex_unlock(&sync->share_mutex);
 
 	return fid;
 }
@@ -103,9 +101,7 @@ static int ispgtm_sync_completion_get(void *handle)
 	gtm_ctx = (struct isp_gtm_ctx_desc *)handle;
 	sync = gtm_ctx->sync;
 
-	mutex_lock(&sync->share_mutex);
 	fid = atomic_read(&sync->wait_completion_fid);
-	mutex_unlock(&sync->share_mutex);
 
 	return fid;
 }
@@ -369,7 +365,6 @@ void isp_gtm_sync_init(void)
 		atomic_set(&sync->user_cnt, 0);
 		atomic_set(&sync->wait_completion_fid, 0);
 		init_completion(&sync->share_comp);
-		mutex_init(&sync->share_mutex);
 	}
 }
 
