@@ -153,8 +153,9 @@ static int isppyrdec_offline_thread_stop(void *param)
 
 static int isppyrdec_offline_thread_loop(void *arg)
 {
-	struct isp_dec_pipe_dev *pctx = NULL;
+	struct isp_dec_pipe_dev *dev = NULL;
 	struct cam_thread_info *thrd = NULL;
+	struct isp_dec_sw_ctx *pctx = NULL;
 
 	if (!arg) {
 		pr_err("fail to get valid input ptr\n");
@@ -162,7 +163,7 @@ static int isppyrdec_offline_thread_loop(void *arg)
 	}
 
 	thrd = (struct cam_thread_info *)arg;
-	pctx = (struct isp_dec_pipe_dev *)thrd->ctx_handle;
+	dev = (struct isp_dec_pipe_dev *)thrd->ctx_handle;
 
 	while (1) {
 		if (wait_for_completion_interruptible(
@@ -173,7 +174,9 @@ static int isppyrdec_offline_thread_loop(void *arg)
 			}
 			pr_debug("thread com done.\n");
 
-			if (thrd->proc_func(pctx)) {
+			if (thrd->proc_func(dev)) {
+				pctx = &dev->sw_ctx[dev->cur_ctx_id];
+				pctx->cb_func(ISP_CB_DEV_ERR, dev, pctx->cb_priv_data);
 				pr_err("fail to start isp pyr dec proc. exit thread\n");
 				break;
 			}
@@ -837,8 +840,11 @@ static int isppyrdec_offline_frame_start(void *handle)
 	return 0;
 
 map_err:
-	if (pframe)
+	dec_dev->cur_ctx_id = ctx_id;
+	if (pframe) {
+		pframe = cam_queue_dequeue_tail(&dec_dev->proc_queue);
 		isppyrdec_src_frame_ret(pframe);
+	}
 exit:
 	return ret;
 }

@@ -4600,7 +4600,7 @@ static int camcore_channel_init(struct camera_module *module,
 				ctx_desc.in_fmt = camcore_format_dcam_translate(ch_desc.dcam_out_fmt);
 		}
 
-                ctx_desc.data_in_bits = ch_desc.dcam_out_bits;
+		ctx_desc.data_in_bits = ch_desc.dcam_out_bits;
 		/* cfg pack bit */
 		if (channel->ch_uinfo.dcam_raw_fmt >= DCAM_RAW_PACK_10 && channel->ch_uinfo.dcam_raw_fmt < DCAM_RAW_MAX)
 			ctx_desc.pack_bits = channel->ch_uinfo.dcam_raw_fmt;
