@@ -32,6 +32,12 @@ extern "C" {
 #define FBC_PADDING_W_YUV420_3dnr       256
 #define FBC_PADDING_H_YUV420_3dnr       4
 
+#ifdef ISP_OVERLAP_DEBUG_ON
+#define ISP_OVERLAP_DEBUG pr_info
+#else
+#define ISP_OVERLAP_DEBUG pr_debug
+#endif
+
 enum alg_isp_overlap_version {
 	ALG_ISP_DYN_OVERLAP_NONE,
 	ALG_ISP_OVERLAP_VER_1, /* qogirl6 */

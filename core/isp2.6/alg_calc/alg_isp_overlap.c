@@ -2390,11 +2390,11 @@ int isp_init_param_for_overlap_v2(
 	slice_overlap->img_w = slc_ctx->img_width;
 	slice_overlap->img_h = slc_ctx->img_height;
 
-	pr_debug("src %d %d layer num %d\n", slice_overlap->img_w, slice_overlap->img_h, layer_num);
+	ISP_OVERLAP_DEBUG("src %d %d layer num %d\n", slice_overlap->img_w, slice_overlap->img_h, layer_num);
 	/* update layer num based on img size */
 	while (isp_rec_small_layer_w(slice_overlap->img_w, layer_num) < MIN_PYR_WIDTH ||
 		isp_rec_small_layer_h(slice_overlap->img_h, layer_num) < MIN_PYR_HEIGHT) {
-		pr_debug("layer num need decrease based on small input %d %d\n",
+		ISP_OVERLAP_DEBUG("layer num need decrease based on small input %d %d\n",
 				slice_overlap->img_w, slice_overlap->img_h);
 		layer_num--;
 	}
@@ -2408,8 +2408,8 @@ int isp_init_param_for_overlap_v2(
 		slice_overlap->input_layer_h = slice_overlap->img_h;
 	}
 
-	pr_debug("layer w %d h %d\n", slice_overlap->input_layer_w, slice_overlap->input_layer_h);
-	pr_debug("image w %d h %d\n", slice_overlap->img_w, slice_overlap->img_h);
+	ISP_OVERLAP_DEBUG("layer w %d h %d\n", slice_overlap->input_layer_w, slice_overlap->input_layer_h);
+	ISP_OVERLAP_DEBUG("image w %d h %d\n", slice_overlap->img_w, slice_overlap->img_h);
 	slice_overlap->input_layer_id = layer_num;
 	slice_overlap->img_src_w = slice_overlap->img_w;
 	slice_overlap->img_src_h = slice_overlap->img_h;
@@ -2430,7 +2430,7 @@ int isp_init_param_for_overlap_v2(
 
 	slice_align_size = PYR_DEC_WIDTH_ALIGN << layer_num;
 	slice_overlap->slice_w = (slc_ctx->slice_width + slice_align_size - 1) & ~( slice_align_size - 1);
-	pr_debug("slice w %d\n", slice_overlap->slice_w);
+	ISP_OVERLAP_DEBUG("slice w %d\n", slice_overlap->slice_w);
 	slice_overlap->slice_h = slc_ctx->slice_height;
 	slice_overlap->offline_slice_mode = 1;
 
@@ -2457,7 +2457,7 @@ int isp_init_param_for_overlap_v2(
 		slice_overlap->ltm_sat.tile_num_auto = slice_input->nofilter_ctx->ltm_rgb_info.ltm_stat.tile_num_auto;
 		slice_overlap->ltm_sat.tile_num_col = slice_input->nofilter_ctx->ltm_rgb_info.ltm_stat.tile_num.tile_num_x;
 		slice_overlap->ltm_sat.tile_num_row = slice_input->nofilter_ctx->ltm_rgb_info.ltm_stat.tile_num.tile_num_y;
-		pr_debug("tile_num_col %d, tile_num_row %d", slice_overlap->ltm_sat.tile_num_col, slice_overlap->ltm_sat.tile_num_row);
+		ISP_OVERLAP_DEBUG("tile_num_col %d, tile_num_row %d", slice_overlap->ltm_sat.tile_num_col, slice_overlap->ltm_sat.tile_num_row);
 
 		ltm_rgb_stat_param_init(frame_width, frame_height, &slice_overlap->ltm_sat);
 	}
@@ -2465,7 +2465,7 @@ int isp_init_param_for_overlap_v2(
 	/*yuv rec*/
 	slice_overlap->pyramid_rec_bypass = !layer_num;
 	slice_overlap->layerNum = layer_num + 1;
-	pr_debug("isp pyr rec bypass %d layer num %d\n", slice_overlap->pyramid_rec_bypass,
+	ISP_OVERLAP_DEBUG("isp pyr rec bypass %d layer num %d\n", slice_overlap->pyramid_rec_bypass,
 		slice_overlap->layerNum);
 	/*yuv*/
 	slice_overlap->dewarping_bypass = !slice_input->calc_dyn_ov.need_dewarping;
@@ -2479,7 +2479,7 @@ int isp_init_param_for_overlap_v2(
 		slice_overlap->dewarping_height = slice_overlap->img_src_h;
 	}
 
-	pr_debug("ynr %d ee %d cnr %d dewarp %d cnr_new %d post-cnr %d",
+	ISP_OVERLAP_DEBUG("ynr %d ee %d cnr %d dewarp %d cnr_new %d post-cnr %d",
 		slice_overlap->ynr_bypass, slice_overlap->ee_bypass, slice_overlap->cnr_bypass,
 		slice_overlap->dewarping_bypass, slice_overlap->cnr_new_bypass, slice_overlap->post_cnr_bypass);
 	/* TBD: 3dnr fbc just temp close */
@@ -2499,7 +2499,7 @@ int isp_init_param_for_overlap_v2(
 	slice_overlap->scaler1.deci_x = slice_input->calc_dyn_ov.path_scaler[ISP_SPATH_CP]->deci.deci_x;
 	slice_overlap->scaler1.deci_y = slice_input->calc_dyn_ov.path_scaler[ISP_SPATH_CP]->deci.deci_y;
 
-	pr_debug("trim start x%d y%d size_x %d size_y %d deci_x %d deci_y %d deci_x_eb %d y_eb %d\n",
+	ISP_OVERLAP_DEBUG("trim start x%d y%d size_x %d size_y %d deci_x %d deci_y %d deci_x_eb %d y_eb %d\n",
 		slice_overlap->scaler1.trim_start_x, slice_overlap->scaler1.trim_start_y, slice_overlap->scaler1.trim_size_x,
 		slice_overlap->scaler1.trim_size_y, slice_overlap->scaler1.deci_x, slice_overlap->scaler1.deci_y,
 		slice_overlap->scaler1.deci_x_eb, slice_overlap->scaler1.deci_y_eb);
@@ -2537,7 +2537,7 @@ int isp_init_param_for_overlap_v2(
 	}
 	slice_overlap->scaler1.yuv_output_format = 1; /*0: 422 1: 420*/
 	slice_overlap->scaler1.output_align_hor = config_output_align_hor;
-	pr_debug("phase_hor %d ver %d dstw %d dsth %d scaler_eb %d format %d align %d\n",
+	ISP_OVERLAP_DEBUG("phase_hor %d ver %d dstw %d dsth %d scaler_eb %d format %d align %d\n",
 		slice_overlap->scaler1.scl_init_phase_hor, slice_overlap->scaler1.scl_init_phase_ver,
 		slice_overlap->scaler1.des_size_x, slice_overlap->scaler1.des_size_y,
 		slice_overlap->scaler1.scaler_en, slice_overlap->scaler1.yuv_output_format,
@@ -2546,7 +2546,7 @@ int isp_init_param_for_overlap_v2(
 	slice_overlap->scaler1.scaler_uv_hor_tap = slice_input->calc_dyn_ov.path_scaler[ISP_SPATH_CP]->scaler.scaler_uv_hor_tap;
 	slice_overlap->scaler1.scaler_y_ver_tap = slice_input->calc_dyn_ov.path_scaler[ISP_SPATH_CP]->scaler.scaler_y_ver_tap;
 	slice_overlap->scaler1.scaler_uv_ver_tap = slice_input->calc_dyn_ov.path_scaler[ISP_SPATH_CP]->scaler.scaler_uv_ver_tap;
-	pr_debug("scaler tap %d %d %d %d\n", slice_overlap->scaler1.scaler_y_hor_tap, slice_overlap->scaler1.scaler_uv_hor_tap,
+	ISP_OVERLAP_DEBUG("scaler tap %d %d %d %d\n", slice_overlap->scaler1.scaler_y_hor_tap, slice_overlap->scaler1.scaler_uv_hor_tap,
 		slice_overlap->scaler1.scaler_y_ver_tap, slice_overlap->scaler1.scaler_uv_ver_tap);
 
 	/* scaler2 */
@@ -2632,10 +2632,15 @@ int isp_init_param_for_overlap_v2(
 			if (slice_overlap->slice_number[j] > 1 && j == 0) {
 				slice_overlap->fecth0_slice_region[j][i].sx =
 					slice_overlap->fecth0_slice_region[j][i].sx & ~(16 - 1);
-				slice_overlap->fecth0_slice_overlap[j][i].ov_left =
-					slice_overlap->slice_w * i - slice_overlap->fecth0_slice_region[j][i].sx;
+				slice_align_size = slice_overlap->slice_w * i - slice_overlap->fecth0_slice_region[j][i].sx
+					- slice_overlap->fecth0_slice_overlap[j][i].ov_left;
+				slice_overlap->fecth0_slice_overlap[j][i].ov_left += slice_align_size;
 				slice_overlap->fecth1_slice_region[j][i].sx = slice_overlap->fecth0_slice_region[j][i].sx;
 				slice_overlap->store_rec_slice_region[j][i].sx = slice_overlap->fecth0_slice_region[j][i].sx;
+				slice_overlap->store_rec_slice_overlap[j][i].ov_left = slice_overlap->fecth0_slice_overlap[j][i].ov_left;
+				slice_overlap->scaler1.sliceParam[i].src_size_x += slice_align_size;
+				slice_overlap->scaler2.sliceParam[i].src_size_x += slice_align_size;
+				slice_overlap->scaler1.sliceParam[i].trim0_info.trim_start_x += slice_align_size;
 			}
 
 			if (slice_overlap->slice_number[j] > 1 && j != 0) {
@@ -2648,29 +2653,29 @@ int isp_init_param_for_overlap_v2(
 	}
 
 	for (i = 0 ; i < slc_ctx->slice_num; i++) {
-		pr_debug("get calc result: slice id %d, region (%d, %d, %d, %d)\n",
+		ISP_OVERLAP_DEBUG("get calc result: slice id %d, region (%d, %d, %d, %d)\n",
 			i, slice_overlap->slice_region[i].sx, slice_overlap->slice_region[i].sy,
 			slice_overlap->slice_region[i].ex, slice_overlap->slice_region[i].ey);
-		pr_debug("get calc result: slice id %d, overlap (left %d, right %d )\n",
+		ISP_OVERLAP_DEBUG("get calc result: slice id %d, overlap (left %d, right %d )\n",
 			i, slice_overlap->slice_overlap[i].ov_left, slice_overlap->slice_overlap[i].ov_right);
 	}
 	for (j = 0; j < layer_num + 1; j++) {
-		pr_debug("cur pyr layer %d slice_num %d\n", j, slice_overlap->slice_number[j]);
+		ISP_OVERLAP_DEBUG("cur pyr layer %d slice_num %d\n", j, slice_overlap->slice_number[j]);
 		for (i = 0; i < slice_overlap->slice_number[j]; i++) {
-			pr_debug("get calc result: slice id %d, fetch0 region (%d, %d, %d, %d)\n",
+			ISP_OVERLAP_DEBUG("get calc result: slice id %d, fetch0 region (%d, %d, %d, %d)\n",
 				i, slice_overlap->fecth0_slice_region[j][i].sx, slice_overlap->fecth0_slice_region[j][i].sy,
 				slice_overlap->fecth0_slice_region[j][i].ex, slice_overlap->fecth0_slice_region[j][i].ey);
-			pr_debug("get calc result: slice id %d, fetch1 region (%d, %d, %d, %d)\n",
+			ISP_OVERLAP_DEBUG("get calc result: slice id %d, fetch1 region (%d, %d, %d, %d)\n",
 				i, slice_overlap->fecth1_slice_region[j][i].sx, slice_overlap->fecth1_slice_region[j][i].sy,
 				slice_overlap->fecth1_slice_region[j][i].ex, slice_overlap->fecth1_slice_region[j][i].ey);
-			pr_debug("get calc result: slice id %d, fetch0 overlap (left %d, right %d)\n",
+			ISP_OVERLAP_DEBUG("get calc result: slice id %d, fetch0 overlap (left %d, right %d)\n",
 				i, slice_overlap->fecth0_slice_overlap[j][i].ov_left, slice_overlap->fecth0_slice_overlap[j][i].ov_right);
-			pr_debug("get calc result: slice id %d, store region (%d, %d, %d, %d)\n",
+			ISP_OVERLAP_DEBUG("get calc result: slice id %d, store region (%d, %d, %d, %d)\n",
 				i, slice_overlap->store_rec_slice_region[j][i].sx, slice_overlap->store_rec_slice_region[j][i].sy,
 				slice_overlap->store_rec_slice_region[j][i].ex, slice_overlap->store_rec_slice_region[j][i].ey);
-			pr_debug("get calc result: slice id %d, store rec overlap (left %d, right %d)\n",
+			ISP_OVERLAP_DEBUG("get calc result: slice id %d, store rec overlap (left %d, right %d)\n",
 				i, slice_overlap->store_rec_slice_overlap[j][i].ov_left, slice_overlap->store_rec_slice_overlap[j][i].ov_right);
-			pr_debug("get calc result: slice id %d, store_crop overlap (left %d, right %d )\n",
+			ISP_OVERLAP_DEBUG("get calc result: slice id %d, store_crop overlap (left %d, right %d )\n",
 				i, slice_overlap->store_rec_slice_crop_overlap[j][i].ov_left, slice_overlap->store_rec_slice_crop_overlap[j][i].ov_right);
 		}
 	}

@@ -1728,7 +1728,7 @@ cfg_ch_done:
 	ret = dev->dcam_pipe_ops->ioctl(sw_ctx, DCAM_IOCTL_INIT_STATIS_Q, NULL);
 
 	camcore_resframe_set(module);
-	for (i = 0;  i < CAM_CH_MAX; i++) {
+	for (i = 0; i < CAM_CH_MAX; i++) {
 		ch = &module->channel[i];
 		if (!ch->enable || (ch->ch_id == CAM_CH_RAW))
 			continue;
