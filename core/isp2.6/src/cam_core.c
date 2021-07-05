@@ -7372,6 +7372,34 @@ static int camcore_release(struct inode *node, struct file *file)
 
 	camcore_module_deinit(module);
 
+	if (atomic_read(&module->state) == CAM_IDLE) {
+	/* function "camioctl_cam_res_put" couldn't be called, when HAL sever is killed.
+	* cause camera device did not close completely.
+	* So. we need clear camera device resoures when HAL process exited abnormally.
+	*/
+		module->attach_sensor_id = -1;
+
+		camcore_thread_stop(&module->dcam_offline_proc_thrd);
+		camcore_thread_stop(&module->cap_thrd);
+		camcore_thread_stop(&module->zoom_thrd);
+		camcore_thread_stop(&module->buf_thrd);
+		camcore_thread_stop(&module->dump_thrd);
+
+		if (module->dcam_dev_handle) {
+			pr_info("force close dcam %px\n", module->dcam_dev_handle);
+			module->dcam_dev_handle->dcam_pipe_ops->close(module->dcam_dev_handle);
+			dcam_core_pipe_dev_put(module->dcam_dev_handle);
+			module->dcam_dev_handle = NULL;
+		}
+
+		if (module->isp_dev_handle) {
+			pr_info("force close isp %px\n", module->isp_dev_handle);
+			module->isp_dev_handle->isp_ops->close(module->isp_dev_handle);
+			isp_core_pipe_dev_put(module->isp_dev_handle);
+			module->isp_dev_handle = NULL;
+		}
+	}
+
 	spin_lock_irqsave(&group->module_lock, flag);
 	group->module_used &= ~(1 << idx);
 	group->module[idx] = NULL;

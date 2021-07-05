@@ -250,8 +250,6 @@ int dcam_k_cfg_aem(struct isp_io_param *param, struct dcam_dev_param *p)
 				(unsigned int)ret);
 			return -EPERM;
 		}
-		if (param->property == DCAM_PRO_AEM_SKIPNUM)
-			pr_info("dcam%d skip_num %d\n", p->idx, p->aem.skip_num);
 		if (p->idx == DCAM_HW_CONTEXT_MAX)
 			return 0;
 		ret = sub_func(p);
