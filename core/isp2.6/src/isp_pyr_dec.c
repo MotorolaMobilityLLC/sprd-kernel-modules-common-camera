@@ -706,7 +706,7 @@ static int isppyrdec_offline_frame_start(void *handle)
 	if (ret) {
 		pr_err("fail to map buf to ISP iommu. cxt %d\n", ctx_id);
 		ret = -EINVAL;
-		goto map_err;
+		goto exit;
 	}
 
 	loop = 0;
@@ -721,7 +721,7 @@ static int isppyrdec_offline_frame_start(void *handle)
 	if (ret) {
 		pr_err("fail to input frame queue, timeout.\n");
 		ret = -EINVAL;
-		goto map_err;
+		goto inq_overflow;
 	}
 
 	loop = 0;
@@ -733,12 +733,18 @@ static int isppyrdec_offline_frame_start(void *handle)
 		usleep_range(600, 2000);
 	} while (loop++ < 500);
 
+	if (!out_frame) {
+		pr_err("fail to get outframe loop cnt %d cxt %d\n", loop, ctx_id);
+		ret = -EINVAL;
+		goto out_err;
+	}
+
 	pctx->buf_out = out_frame;
 	ret = cam_buf_iommu_map(&pctx->buf_out->buf, CAM_IOMMUDEV_ISP);
 	if (ret) {
 		pr_err("fail to map buf to ISP iommu. cxt %d\n", ctx_id);
 		ret = -EINVAL;
-		goto exit;
+		goto map_err;
 	}
 
 	/* update layer num based on img size */
@@ -792,7 +798,7 @@ static int isppyrdec_offline_frame_start(void *handle)
 	if (ret) {
 		pr_err("fail to cal dec base info\n");
 		ret = -EINVAL;
-		goto map_err;
+		goto calc_err;
 	}
 
 	fmcu->ops->ctx_reset(fmcu);
@@ -825,11 +831,11 @@ static int isppyrdec_offline_frame_start(void *handle)
 	if (ret == -ERESTARTSYS) {
 		pr_err("fail to interrupt, when isp dec wait\n");
 		ret = -EFAULT;
-		goto map_err;
+		goto calc_err;
 	} else if (ret == 0) {
 		pr_err("fail to wait isp dec context %d, timeout.\n", ctx_id);
 		ret = -EFAULT;
-		goto map_err;
+		goto calc_err;
 	}
 
 	dec_dev->cur_ctx_id = ctx_id;
@@ -839,12 +845,16 @@ static int isppyrdec_offline_frame_start(void *handle)
 
 	return 0;
 
-map_err:
+calc_err:
 	dec_dev->cur_ctx_id = ctx_id;
-	if (pframe) {
-		pframe = cam_queue_dequeue_tail(&dec_dev->proc_queue);
+	if (pctx->buf_out)
+		ret = cam_buf_iommu_unmap(&pctx->buf_out->buf);
+out_err:
+map_err:
+	pframe = cam_queue_dequeue_tail(&dec_dev->proc_queue);
+inq_overflow:
+	if (pframe)
 		isppyrdec_src_frame_ret(pframe);
-	}
 exit:
 	return ret;
 }
