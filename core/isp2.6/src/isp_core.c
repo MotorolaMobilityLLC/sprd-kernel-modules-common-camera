@@ -106,7 +106,7 @@ static void ispcore_out_frame_ret(void *param)
 
 	frame = (struct camera_frame *)param;
 	path = (struct isp_path_desc *)frame->priv_data;
-	if (!path) {
+	if (!path || !path->attach_ctx) {
 		pr_err("fail to get out_frame path.\n");
 		return;
 	}
@@ -1883,10 +1883,13 @@ input_err:
 		if (pframe->sync_data)
 			dcam_core_dcam_if_release_sync(pframe->sync_data, pframe);
 		/* return buffer to cam channel shared buffer queue. */
-		if (tmp.stream && tmp.stream->data_src == ISP_STREAM_SRC_ISP)
+		if (tmp.stream && tmp.stream->data_src == ISP_STREAM_SRC_ISP) {
 			pr_debug("isp postproc no need return\n");
-		else
+		} else if (pframe->data_src_dec) {
+			cam_queue_enqueue(&pctx->pyrdec_buf_queue, &pframe->list);
+		} else {
 			pctx->isp_cb_func(ISP_CB_RET_SRC_BUF, pframe, pctx->cb_priv_data);
+		}
 	}
 
 	if (tmp.stream)

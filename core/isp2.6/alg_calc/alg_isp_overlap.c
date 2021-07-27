@@ -2511,31 +2511,6 @@ int isp_init_param_for_overlap_v2(
 	/* calc overlap */
 	alg_slice_calc_drv_overlap(slice_overlap);
 
-	for (j = 0; j < layer_num + 1; j++) {
-		for (i = 0; i < slice_overlap->slice_number[j]; i++) {
-			if (slice_overlap->slice_number[j] > 1 && j == 0) {
-				slice_overlap->fecth0_slice_region[j][i].sx =
-					slice_overlap->fecth0_slice_region[j][i].sx & ~(16 - 1);
-				slice_align_size = slice_overlap->slice_w * i - slice_overlap->fecth0_slice_region[j][i].sx
-					- slice_overlap->fecth0_slice_overlap[j][i].ov_left;
-				slice_overlap->fecth0_slice_overlap[j][i].ov_left += slice_align_size;
-				slice_overlap->fecth1_slice_region[j][i].sx = slice_overlap->fecth0_slice_region[j][i].sx;
-				slice_overlap->store_rec_slice_region[j][i].sx = slice_overlap->fecth0_slice_region[j][i].sx;
-				slice_overlap->store_rec_slice_overlap[j][i].ov_left = slice_overlap->fecth0_slice_overlap[j][i].ov_left;
-				slice_overlap->scaler1.sliceParam[i].src_size_x += slice_align_size;
-				slice_overlap->scaler2.sliceParam[i].src_size_x += slice_align_size;
-				slice_overlap->scaler1.sliceParam[i].trim0_info.trim_start_x += slice_align_size;
-			}
-
-			if (slice_overlap->slice_number[j] > 1 && j != 0) {
-				slice_overlap->fecth0_slice_region[j][i].sx =
-					slice_overlap->fecth0_slice_region[j - 1][i].sx >> 1;
-				slice_overlap->fecth0_slice_overlap[j][i].ov_left =
-					slice_overlap->fecth0_slice_overlap[j - 1][i].ov_left >> 1;
-			}
-		}
-	}
-
 	for (i = 0 ; i < slc_ctx->slice_num; i++) {
 		ISP_OVERLAP_DEBUG("get calc result: slice id %d, region (%d, %d, %d, %d)\n",
 			i, slice_overlap->slice_region[i].sx, slice_overlap->slice_region[i].sy,

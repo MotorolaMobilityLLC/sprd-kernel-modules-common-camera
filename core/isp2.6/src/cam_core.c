@@ -1554,8 +1554,8 @@ static int camcore_buffers_alloc(void *param)
 	if (module->cam_uinfo.is_pyr_rec && channel->ch_id != CAM_CH_CAP)
 		size += dcam_if_cal_pyramid_size(width, height, dcam_out_bits, is_pack);
 	size = ALIGN(size, CAM_BUF_ALIGN_SIZE);
-	pr_info("idx %d, ch_id %d, camsec=%d, buffer size: %u (%u x %u), num %d\n",
-		module->dcam_idx, channel->ch_id, sec_mode,
+	pr_info("cam%d, ch_id %d, camsec=%d, buffer size: %u (%u x %u), num %d\n",
+		module->idx, channel->ch_id, sec_mode,
 		size, width, height, total);
 
 	if (channel->ch_id == CAM_CH_CAP && grp->is_mul_buf_share
@@ -2385,22 +2385,23 @@ static int camcore_share_buf_cfg(enum share_buf_cb_type type,
 	switch (type) {
 		case SHARE_BUF_GET_CB:
 			frame = (struct camera_frame **)param;
-			if (!module->cam_uinfo.dcam_slice_mode) {
-				*frame = cam_queue_dequeue(&grp->mul_share_buf_q,
+			if (!module->cam_uinfo.dcam_slice_mode && module->cam_uinfo.need_share_buf) {
+					*frame = cam_queue_dequeue(&grp->mul_share_buf_q,
 						struct camera_frame, list);
-				pr_debug("cam %d dcam %d get share buf cnt %d frame %p\n", module->idx,
-					module->dcam_idx, grp->mul_share_buf_q.cnt, *frame);
-			} else {
+					pr_debug("cam %d dcam %d get share buf cnt %d frame %p\n", module->idx,
+						module->dcam_idx, grp->mul_share_buf_q.cnt, *frame);
+			} else
 				*frame = NULL;
-			}
 			break;
 		case SHARE_BUF_SET_CB:
 			pframe = (struct camera_frame *)param;
 			if (pframe->buf.mapping_state & CAM_BUF_MAPPING_DEV)
 				cam_buf_iommu_unmap(&pframe->buf);
-			ret = cam_queue_enqueue(&grp->mul_share_buf_q, &pframe->list);
-			pr_debug("cam %d dcam %d set share buf cnt %d frame id %d\n", module->idx,
+			if (module->cam_uinfo.need_share_buf) {
+				ret = cam_queue_enqueue(&grp->mul_share_buf_q, &pframe->list);
+				pr_debug("cam %d dcam %d set share buf cnt %d frame id %d\n", module->idx,
 					module->dcam_idx, grp->mul_share_buf_q.cnt, pframe->fid);
+			}
 			break;
 		default:
 			pr_err("fail to get invalid %d\n", type);
@@ -2908,12 +2909,11 @@ static int camcore_dcam_callback(enum dcam_cb_type type, void *param, void *priv
 					else
 						channel->zsl_skip_num = module->cam_uinfo.zsk_skip_num;
 				}
-
 				pr_debug("share buf queue cnt %d skip_cnt %d\n",
 					channel->share_buf_queue.cnt, channel->zsl_skip_num);
 				if (pframe) {
 					if (pframe->dcam_idx == DCAM_ID_1)
-						ret = module->dcam_dev_handle->dcam_pipe_ops->cfg_path( dcam_sw_aux_ctx,
+						ret = module->dcam_dev_handle->dcam_pipe_ops->cfg_path(dcam_sw_aux_ctx,
 								DCAM_PATH_CFG_OUTPUT_BUF, channel->aux_dcam_path_id, pframe);
 					else
 						ret = module->dcam_dev_handle->dcam_pipe_ops->cfg_path(dcam_sw_ctx,
@@ -3034,7 +3034,8 @@ static int camcore_dcam_callback(enum dcam_cb_type type, void *param, void *priv
 				}
 				if (atomic_read(&module->capture_frames_dcam) > 0)
 					atomic_dec(&module->capture_frames_dcam);
-				pr_debug("capture_frames_dcam = %d\n", atomic_read(&module->capture_frames_dcam));
+				pr_debug("capture_frames_dcam = %d, share frame cnt %d, zsl num %d\n", atomic_read(&module->capture_frames_dcam),
+					channel->share_buf_queue.cnt, channel->zsl_buffer_num);
 				complete(&module->cap_thrd.thread_com);
 			}
 		} else {
@@ -4214,26 +4215,33 @@ cfg_isp:
 			ctx_size.crop.start_y = 0;
 			ctx_size.crop.size_x = ctx_size.src.w;
 			ctx_size.crop.size_y = ctx_size.src.h;
+			if (module->cam_uinfo.dcam_slice_mode) {
+				ret = module->isp_dev_handle->isp_ops->cfg_path(module->isp_dev_handle,
+					ISP_PATH_CFG_CTX_SIZE, isp_ctx_id, 0, &ctx_size);
+				if (ret != 0)
+					goto exit;
+			}
 		} else {
 			ctx_size.src.w = ch_uinfo->src_size.w;
 			ctx_size.src.h = ch_uinfo->src_size.h;
 			ctx_size.crop = channel->trim_dcam;
+			ret = module->isp_dev_handle->isp_ops->cfg_path(module->isp_dev_handle,
+				ISP_PATH_CFG_CTX_SIZE, isp_ctx_id, 0, &ctx_size);
+			if (ret != 0)
+				goto exit;
 		}
 		pr_debug("cfg isp sw %d size src w %d, h %d, crop %d %d %d %d\n",
 			isp_ctx_id, ctx_size.src.w, ctx_size.src.h,
 			ctx_size.crop.start_x, ctx_size.crop.start_y, ctx_size.crop.size_x, ctx_size.crop.size_y);
-		ret = module->isp_dev_handle->isp_ops->cfg_path(module->isp_dev_handle,
-			ISP_PATH_CFG_CTX_SIZE, isp_ctx_id, 0, &ctx_size);
-		if (ret != 0)
-			goto exit;
 	}
 	path_trim = channel->trim_isp;
 
 cfg_path:
 	pr_info("cfg isp ctx sw %d path %d size, path trim %d %d %d %d\n",
 		isp_ctx_id, isp_path_id, path_trim.start_x, path_trim.start_y, path_trim.size_x, path_trim.size_y);
-	ret = module->isp_dev_handle->isp_ops->cfg_path(module->isp_dev_handle,
-		ISP_PATH_CFG_PATH_SIZE, isp_ctx_id, isp_path_id, &path_trim);
+	if (!module->cam_uinfo.is_pyr_dec || module->cam_uinfo.dcam_slice_mode)
+		ret = module->isp_dev_handle->isp_ops->cfg_path(module->isp_dev_handle,
+			ISP_PATH_CFG_PATH_SIZE, isp_ctx_id, isp_path_id, &path_trim);
 	if (ret != 0)
 		goto exit;
 	if (channel->ch_id == CAM_CH_CAP && is_zoom) {
@@ -4498,7 +4506,8 @@ static int camcore_channel_init(struct camera_module *module,
 		if ((channel->ch_id == CAM_CH_CAP) && module->cam_uinfo.dcam_slice_mode)
 			ch_desc.is_raw = 1;
 
-		if (ch_desc.is_raw && module->grp->hw_info->ip_dcam[0]->dcam_raw_path_id == DCAM_PATH_RAW)
+		if (ch_desc.is_raw && module->grp->hw_info->ip_dcam[0]->dcam_raw_path_id == DCAM_PATH_RAW
+			&& !module->raw_callback)
 			dcam_path_id = DCAM_PATH_RAW;
 
 		ret = module->dcam_dev_handle->dcam_pipe_ops->get_path(dcam_sw_ctx, dcam_path_id);

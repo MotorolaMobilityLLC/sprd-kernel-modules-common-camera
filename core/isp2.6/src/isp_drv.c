@@ -62,7 +62,6 @@ static int ispdrv_path_scaler_get(struct isp_path_uinfo *in_ptr,
 		path->path_sel = 0;
 	path->frm_deci = 0;
 	path->dst = in_ptr->dst;
-	path->in_trim = in_ptr->in_trim;
 	path->out_trim.start_x = 0;
 	path->out_trim.start_y = 0;
 	path->out_trim.size_x = in_ptr->dst.w;
@@ -959,6 +958,12 @@ int isp_drv_pipeinfo_get(void *arg, void *frame)
 			pipe_in->scaler[i].spath_id = i;
 			pipe_in->scaler[i].src.w = pipe_src->crop.size_x;
 			pipe_in->scaler[i].src.h = pipe_src->crop.size_y;
+			if (pframe->need_pyr_rec) {
+				pipe_in->scaler[i].in_trim.size_x = pipe_src->crop.size_x;
+				pipe_in->scaler[i].in_trim.size_y = pipe_src->crop.size_y;
+			} else {
+				pipe_in->scaler[i].in_trim = path_info->in_trim;
+			}
 			path_info->scaler_coeff_ex = ctx->hw->ip_isp->scaler_coeff_ex;
 			ret = ispdrv_path_scaler_get(path_info, &pipe_in->scaler[i]);
 			if (ret) {

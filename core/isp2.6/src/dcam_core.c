@@ -1416,8 +1416,8 @@ static int dcamcore_path_cfg(void *dcam_handle, enum dcam_path_cfg_cmd cfg_cmd,
 	path = &pctx->path[path_id];
 
 	if (atomic_read(&path->user_cnt) == 0) {
-		pr_err("fail to get a valid user_cnt, dcam%d, path %d is not in use.\n",
-			pctx->hw_ctx_id, path_id);
+		pr_err("fail to get a valid user_cnt, dcam%d, path %d is not in use.%d\n",
+			pctx->hw_ctx_id, path_id, cfg_cmd);
 		return -EFAULT;
 	}
 
@@ -2122,6 +2122,8 @@ static int dcamcore_context_init(struct dcam_pipe_dev *dev)
 		pctx_sw->dev = dev;
 		pctx_sw->hw_ctx = NULL;
 		atomic_set(&pctx_sw->user_cnt, 0);
+		atomic_set(&pctx_sw->shadow_done_cnt, 0);
+		atomic_set(&pctx_sw->shadow_config_cnt, 0);
 		pr_info("dcam context %d init done!\n", i);
 
 		for (j = 0; j < DCAM_CXT_NUM; j++) {
@@ -2192,6 +2194,8 @@ static int dcamcore_context_deinit(struct dcam_pipe_dev *dev)
 			dev->dcam_pipe_ops->put_context(dev, pctx_sw->sw_ctx_id);
 			memset(pctx_sw, 0, sizeof(struct dcam_sw_context));
 			atomic_set(&pctx_sw->user_cnt, 0);
+			atomic_set(&pctx_sw->shadow_done_cnt, 0);
+			atomic_set(&pctx_sw->shadow_config_cnt, 0);
 		}
 	}
 	for (i = 0; i < DCAM_HW_CONTEXT_MAX; i++) {

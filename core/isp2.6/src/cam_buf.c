@@ -618,8 +618,9 @@ int cam_buf_iommu_map(struct camera_buf *buf_info,
 				atomic_inc(&g_mem_dbg->iommu_map_cnt[type]);
 			buf_info->iova[i] = iommu_data.iova_addr;
 			buf_info->iova[i] += buf_info->offset[i];
-			pr_debug("mfd %d, kaddr %p, iova: 0x%08x, off 0x%x, size 0x%x\n",
+			pr_debug("mfd %d, dmap %px, addr_k %px, iova: 0x%08x, off 0x%x, size 0x%x\n",
 					buf_info->mfd[i],
+					(void *)buf_info->dmabuf_p[i],
 					(void *)buf_info->addr_k[i],
 					(uint32_t)buf_info->iova[i],
 					(uint32_t)buf_info->offset[i],

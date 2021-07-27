@@ -217,16 +217,11 @@ static int ispgtm_pipe_proc(void *handle, void *param)
 		gtm_k_block.ctx = gtm_ctx;
 		gtm_k_block.tuning = param;
 
-		if (gtm_k_block.tuning->gtm_mod_en == 0) {
-			pr_debug("ctx %d, fid %d\n", gtm_ctx->ctx_id, gtm_ctx->fid);
-			goto exit;
-		}
-
 		gtm_func.index = ISP_K_GTM_BLOCK_SET;
 		gtm_ctx->hw->isp_ioctl(gtm_ctx->hw, ISP_HW_CFG_GTM_FUNC_GET, &gtm_func);
 		gtm_func.k_blk_func(&gtm_k_block);
 
-		if (atomic_read(&gtm_ctx->cnt) > 1) {
+		if (gtm_k_block.tuning->gtm_mod_en && atomic_read(&gtm_ctx->cnt) > 1) {
 			pr_debug("ctx %d, fid %d, do preview mapping\n", gtm_ctx->ctx_id, gtm_ctx->fid);
 			mapping = &gtm_ctx->sync->mapping;
 			mapping->ctx_id = gtm_ctx->ctx_id;

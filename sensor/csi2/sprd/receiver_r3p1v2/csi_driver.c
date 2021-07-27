@@ -115,12 +115,12 @@
 
 static unsigned long s_csi_regbase[SPRD_SENSOR_ID_MAX];
 static unsigned long csi_dump_regbase[CSI_MAX_COUNT];
-/*static spinlock_t csi_dump_lock[CSI_MAX_COUNT] = {
+static spinlock_t csi_dump_lock[CSI_MAX_COUNT] = {
 	__SPIN_LOCK_UNLOCKED(csi_dump_lock),
 	__SPIN_LOCK_UNLOCKED(csi_dump_lock),
 	__SPIN_LOCK_UNLOCKED(csi_dump_lock),
 	__SPIN_LOCK_UNLOCKED(csi_dump_lock),
-};*/
+};
 #define ANALOG_G4_REG_BASE 0x64318000
 #define ANALOG_G4L_REG_BASE 0x6434C000
 #define MM_AHB_REG_BASE 0x30000000
@@ -378,14 +378,14 @@ int reg_dump_rd(unsigned long reg, int len, char *reg_name)
 void csi_reg_trace(unsigned int idx)
 {
 	unsigned long addr = 0;
-//	unsigned long flag = 0;
+	unsigned long flag = 0;
 	unsigned long regbase = 0;
 
-	//spin_lock_irqsave(&csi_dump_lock[idx], flag);
+	spin_lock_irqsave(&csi_dump_lock[idx], flag);
 	regbase = csi_dump_regbase[idx];
 	if (regbase == 0) {
 		pr_info("CSI %d not used no need to dump\n", idx);
-		//spin_unlock_irqrestore(&csi_dump_lock[idx], flag);
+		spin_unlock_irqrestore(&csi_dump_lock[idx], flag);
 		return;
 	}
 
@@ -462,7 +462,7 @@ void csi_reg_trace(unsigned int idx)
 	reg_dump_rd(0x3e000000, 0xff, "dcam");
 	reg_dump_rd(0x3e000400, 0xff, "dcam-mipicap");
 #endif
-	//spin_unlock_irqrestore(&csi_dump_lock[idx], flag);
+	spin_unlock_irqrestore(&csi_dump_lock[idx], flag);
 }
 #ifdef DEBUG_2P2S_DPHY
 
@@ -1032,34 +1032,33 @@ void phy_csi_path_clr_cfg(struct csi_dt_node_info *dt_info, int sensor_id)
 
 }
 
+//t_win:  0.5f * 2048 * n_win_set0/(26 * 1000 * 1000);
+//t_osc_cal :  t_win / (n_count_result0 * 67 * 4 * 4);
+//ui: 1.0 / (bps_per_lane * 1000 * 1000) ;
+//n_loop :	0.5f * ui / t_osc_cal - 19;
 void cphy_osc_result_cal(int32_t idx, int bps_per_lane)
 {
 	uint8_t n_count_tmp0 = 0;
 	uint8_t n_count_tmp1 = 0;
 	uint16_t n_count_result0 = 0;
 	uint8_t n_win_set0 = 0;
-	double t_win = 0.0;
-	double t_osc_cal = 0.0;
 	uint16_t n_loop = 0;
-	double ui = 1.0 / (bps_per_lane * 1000 * 1000) ;
 	phy_read(idx, 0x3b, &n_win_set0);
 	n_win_set0 = ((n_win_set0 & (BIT_7 | BIT_6)) >> 6) + 1;
 	if(n_win_set0 == 3)
 		n_win_set0 = 4;
 	else if (n_win_set0 == 4)
 		n_win_set0 = 8;
-	t_win= 0.5 * 2048 * n_win_set0/(26 * 1000 * 1000);
+	pr_info("n_win_set0 %d bps_per_lane %d\n", n_win_set0, bps_per_lane);
 	phy_read(idx, 0x48, &n_count_tmp0);
 	phy_read(idx, 0x49, &n_count_tmp1);
-	n_count_result0 = ((uint16_t)n_count_tmp0) |
-		(((uint16_t)n_count_tmp1) << 8);
-	t_osc_cal = t_win / (n_count_result0 * 67 * 4 * 4);
-	n_loop = 0.5 * ui / t_osc_cal - 19;
+	n_count_result0 = n_count_tmp0 | (n_count_tmp1 << 8);
+
+	n_loop = (n_count_result0 * 67 * 4 * 4)*26 / (bps_per_lane  * 2048 * n_win_set0) - 19;
 	phy_write(idx, 0x96, n_loop & 0x7f, 0x7f);
 	phy_write(idx, 0xb6, n_loop & 0x7f, 0x7f);
 	phy_write(idx, 0xd6, n_loop & 0x7f, 0x7f);
-	pr_info("t_osc_cal %d n_loop %d %d %d\n", t_osc_cal, n_loop, n_count_tmp0, n_count_tmp1);
-
+	pr_info("n_loop %d %d %d %d\n", n_loop, n_count_tmp0, n_count_tmp1, n_count_result0);
 
 }
 
@@ -1072,6 +1071,7 @@ void cphy_cdr_init(struct csi_dt_node_info *dt_info, int32_t idx)
 	phy_write(idx, 0x3b, BIT_0, BIT_0);
 	phy_write(idx, 0x62, BIT_0, BIT_0);
 	phy_write(idx, 0x60, 0xf1, 0xff);
+	phy_write(idx, 0x3c, BIT_3 | ~BIT_2, BIT_3 | BIT_2);
 	phy_write(idx, 0x50, BIT_6, BIT_6);
 	phy_write(idx, 0x50, BIT_2, BIT_2);
 //	phy_write(idx, 0x3b, 0x2, BIT_6 | BIT_7);

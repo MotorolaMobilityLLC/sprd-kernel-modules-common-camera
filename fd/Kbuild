@@ -28,6 +28,10 @@ ccflags-y += -I$(KO_MODULE_PATH)/../common
 ccflags-y += -I$(KO_MODULE_PATH)/../interface
 ccflags-y += -I$(srctree)/drivers/staging/android/ion
 
+ifeq ($(ADAPT_DIR), qogirn6pro)
+ccflags-y += -DPROJ_FD_N6PRO
+endif
+
 #
 # Final Objects
 #

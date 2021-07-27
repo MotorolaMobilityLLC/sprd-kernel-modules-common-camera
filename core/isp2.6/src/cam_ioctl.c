@@ -442,6 +442,18 @@ static int camioctl_cam_security_set(struct camera_module *module,
 		goto exit;
 	}
 
+	if (!module->isp_dev_handle) {
+		pr_err("fail to isp dev_hanlde is NULL\n");
+		ret = -EFAULT;
+		goto exit;
+	}
+
+	if (atomic_read(&module->state) == CAM_INIT) {
+		pr_err("cam%d error state: %d\n", module->idx,
+			atomic_read(&module->state));
+		return -EFAULT;
+	}
+
 	pr_info("camca : conn = %d, security mode %d,  u camsec_mode=%d, u work_mode=%d\n",
 		module->grp->ca_conn,
 		module->grp->camsec_cfg.camsec_mode,
@@ -454,7 +466,7 @@ static int camioctl_cam_security_set(struct camera_module *module,
 			ca_conn = cam_trusty_connect();
 			if (!ca_conn) {
 				pr_err("fail to init cam_trusty_connect\n");
-				ret = -EFAULT;
+				ret = -EINVAL;
 				goto exit;
 			}
 			module->grp->ca_conn = ca_conn;
@@ -462,14 +474,14 @@ static int camioctl_cam_security_set(struct camera_module *module,
 
 		sec_ret = cam_trusty_security_set(&uparam, CAM_TRUSTY_ENTER);
 		if (!sec_ret) {
-			ret = -EFAULT;
+			ret = -EINVAL;
 			pr_err("fail to init cam security set\n");
 			goto exit;
 		}
 		iommu_en = true;
 	}
 
-	ret = -EFAULT;
+	ret = -EINVAL;
 	do {
 		if (atomic_read(&module->isp_dev_handle->pd_clk_rdy) > 0) {
 			ret = 0;
@@ -529,7 +541,7 @@ static int camioctl_sensor_size_set(struct camera_module *module,
 
 	ret = copy_from_user(dst, (void __user *)arg, sizeof(struct sprd_img_size));
 
-	pr_info("sensor_size %d %d\n", dst->w, dst->h);
+	pr_info("cam%d, sensor_size %d %d\n", module->idx, dst->w, dst->h);
 	module->cam_uinfo.dcam_slice_mode = dst->w > DCAM_24M_WIDTH ? CAM_OFFLINE_SLICE_HW : 0;
 	if (unlikely(ret)) {
 		pr_err("fail to copy from user, ret %d\n", ret);
@@ -905,9 +917,15 @@ static int camioctl_crop_set(struct camera_module *module,
 	uparam = (struct sprd_img_parm __user *)arg;
 
 	ret = get_user(channel_id, &uparam->channel_id);
+	if (ret || (channel_id >= CAM_CH_MAX)) {
+		pr_err("fail to set crop, ret %d, ch %d\n", ret, channel_id);
+		ret = -EINVAL;
+		goto exit;
+	}
+
 	ch = &module->channel[channel_id];
 	ch_vid = &module->channel[CAM_CH_VID];
-	if (ret || (channel_id >= CAM_CH_MAX) || !ch->enable) {
+	if (!ch->enable) {
 		pr_err("fail to set crop, ret %d, ch %d\n", ret, channel_id);
 		ret = -EINVAL;
 		goto exit;
@@ -2970,6 +2988,12 @@ static int camioctl_4in1_post_proc(struct camera_module *module,
 	int i;
 	ktime_t sensor_time;
 
+	if ((atomic_read(&module->state) != CAM_RUNNING)) {
+		pr_info("cam%d state: %d\n", module->idx,
+				atomic_read(&module->state));
+		return -EFAULT;
+	}
+
 	ret = copy_from_user(&param, (void __user *)arg,
 		sizeof(struct sprd_img_parm));
 	if (ret) {
@@ -3287,8 +3311,8 @@ static int camioctl_csi_switch(struct camera_module *module, unsigned long arg)
 				pr_err("fail to get DCAM%d valid user cnt %d\n", hw_ctx->hw_ctx_id, atomic_read(&hw_ctx->user_cnt));
 				return -1;
 			}
-			pr_info("Disconnect csi_id = %d, dcam_id = %d, sw_ctx_id = %d\n",
-				csi_switch.csi_id, csi_switch.dcam_id, sw_ctx->sw_ctx_id);
+			pr_info("Disconnect csi_id = %d, dcam_id = %d, sw_ctx_id = %d module idx %d\n",
+				csi_switch.csi_id, csi_switch.dcam_id, sw_ctx->sw_ctx_id, module->idx);
 
 			/* reset */
 			dcam_int_tracker_dump(sw_ctx->hw_ctx_id);
@@ -3330,17 +3354,29 @@ static int camioctl_csi_switch(struct camera_module *module, unsigned long arg)
 
 			/* unbind */
 			dcam_core_context_unbind(sw_ctx);
-			module->dcam_dev_handle->dcam_pipe_ops->cfg_path(sw_ctx,
-				DCAM_PATH_CLR_OUTPUT_SHARE_BUF,
-				DCAM_PATH_FULL, sw_ctx);
 			if (module->channel[CAM_CH_CAP].enable) {
-				do {
-					pframe = cam_queue_dequeue(&module->channel[CAM_CH_CAP].share_buf_queue,
-						struct camera_frame, list);
-					if (pframe == NULL)
-						break;
-					camcore_share_buf_cfg(SHARE_BUF_SET_CB, pframe, module);
-				} while (pframe);
+				if (module->cam_uinfo.need_share_buf) {
+					module->dcam_dev_handle->dcam_pipe_ops->cfg_path(sw_ctx,
+						DCAM_PATH_CLR_OUTPUT_SHARE_BUF,
+						DCAM_PATH_FULL, sw_ctx);
+					do {
+						pframe = cam_queue_dequeue(&module->channel[CAM_CH_CAP].share_buf_queue,
+							struct camera_frame, list);
+						if (pframe == NULL)
+							break;
+						camcore_share_buf_cfg(SHARE_BUF_SET_CB, pframe, module);
+					} while (pframe);
+				} else {
+					path = &sw_ctx->path[module->channel[CAM_CH_CAP].dcam_path_id];
+					do {
+						pframe = cam_queue_dequeue(&module->channel[CAM_CH_CAP].share_buf_queue,
+							struct camera_frame, list);
+						if (pframe == NULL)
+							break;
+						module->dcam_dev_handle->dcam_pipe_ops->cfg_path(sw_ctx,
+							DCAM_PATH_CFG_OUTPUT_BUF, path->path_id, pframe);
+					} while (pframe);
+				}
 			}
 			atomic_set(&sw_ctx->state, STATE_IDLE);
 			sw_ctx->csi_connect_stat = DCAM_CSI_PAUSE;
@@ -3377,7 +3413,7 @@ static int camioctl_csi_switch(struct camera_module *module, unsigned long arg)
 			/* switch connect */
 			csi_switch.csi_id = module->dcam_idx;
 			csi_switch.dcam_id= sw_ctx->hw_ctx_id;
-			pr_info("Connect csi_id = %d, dcam_id = %d\n", csi_switch.csi_id, csi_switch.dcam_id);
+			pr_info("Connect csi_id = %d, dcam_id = %d module idx %d\n", csi_switch.csi_id, csi_switch.dcam_id, module->idx);
 			hw->dcam_ioctl(hw, DCAM_HW_CONECT_CSI, &csi_switch);
 
 			sw_ctx->csi_connect_stat = DCAM_CSI_RESUME;
@@ -3397,6 +3433,7 @@ static int camioctl_path_pause(struct camera_module *module,
 	uint32_t dcam_path_state = DCAM_PATH_PAUSE;
 	struct camera_frame *pframe = NULL;
 	struct dcam_sw_context *sw_ctx = &module->dcam_dev_handle->sw_ctx[module->cur_sw_ctx_id];
+	struct dcam_path_desc *path = NULL;
 
 	pr_debug("pause cam%d with csi_id %d ,sw_ctx_id = %d\n",
 			module->idx, module->dcam_idx, sw_ctx->sw_ctx_id);
@@ -3406,18 +3443,30 @@ static int camioctl_path_pause(struct camera_module *module,
 	if (atomic_read(&module->state) == CAM_RUNNING) {
 		mutex_lock(&module->lock);
 		if (module->channel[CAM_CH_CAP].enable) {
-			module->dcam_dev_handle->dcam_pipe_ops->cfg_path(sw_ctx,
-				DCAM_PATH_CFG_STATE, DCAM_PATH_FULL, &dcam_path_state);
-			module->dcam_dev_handle->dcam_pipe_ops->cfg_path(sw_ctx,
-				DCAM_PATH_CLR_OUTPUT_SHARE_BUF,
-				DCAM_PATH_FULL, &dcam_path_state);
-			do {
-				pframe = cam_queue_dequeue(&module->channel[CAM_CH_CAP].share_buf_queue,
-					struct camera_frame, list);
-				if (pframe == NULL)
-					break;
-				camcore_share_buf_cfg(SHARE_BUF_SET_CB, pframe, module);
-			} while (pframe);
+			if (module->cam_uinfo.need_share_buf) {
+				module->dcam_dev_handle->dcam_pipe_ops->cfg_path(sw_ctx,
+					DCAM_PATH_CFG_STATE, DCAM_PATH_FULL, &dcam_path_state);
+				module->dcam_dev_handle->dcam_pipe_ops->cfg_path(sw_ctx,
+					DCAM_PATH_CLR_OUTPUT_SHARE_BUF,
+					DCAM_PATH_FULL, &dcam_path_state);
+				do {
+					pframe = cam_queue_dequeue(&module->channel[CAM_CH_CAP].share_buf_queue,
+						struct camera_frame, list);
+					if (pframe == NULL)
+						break;
+					camcore_share_buf_cfg(SHARE_BUF_SET_CB, pframe, module);
+				} while (pframe);
+			} else {
+				path = &sw_ctx->path[module->channel[CAM_CH_CAP].dcam_path_id];
+				do {
+					pframe = cam_queue_dequeue(&module->channel[CAM_CH_CAP].share_buf_queue,
+						struct camera_frame, list);
+					if (pframe == NULL)
+						break;
+					module->dcam_dev_handle->dcam_pipe_ops->cfg_path(sw_ctx,
+						DCAM_PATH_CFG_OUTPUT_BUF, path->path_id, pframe);
+				} while (pframe);
+			}
 		}
 		mutex_unlock(&module->lock);
 	}
@@ -3517,7 +3566,7 @@ static int camioctl_cap_zsl_info_set(struct camera_module *module,
 		goto exit;
 	}
 
-	pr_debug("zsl num %d zsl skip num %d is share buf %d\n", param.zsl_num,
+	pr_debug("cam %d, zsl num %d zsl skip num %d is share buf %d\n", module->idx, param.zsl_num,
 		param.zsk_skip_num, param.need_share_buf);
 
 	module->cam_uinfo.zsl_num = param.zsl_num;

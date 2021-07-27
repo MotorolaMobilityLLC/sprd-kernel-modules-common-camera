@@ -909,6 +909,8 @@ struct dcam_hw_slw_fmcu_cmds {
 	struct dcam_fmcu_ctx_desc *fmcu_handle;
 	struct dcam_path_desc *dcam_path;
 	struct dcam_store store_info[DCAM_PATH_MAX];
+	uint32_t slw_id;
+	uint32_t slw_cnt;
 };
 
 struct dcam_hw_fmcu_cfg {

@@ -21,7 +21,8 @@
 #define DCAM_AXIM_AQOS_MASK            (0xF030FFFF)
 #define DCAM_LITE_AXIM_AQOS_MASK       (0x30FFFF)
 
-#define IMG_TYPE_RAW                   0x2B
+#define IMG_TYPE_RAW10                 0x2B
+#define IMG_TYPE_RAW8                  0x2A
 #define IMG_TYPE_YUV                   0x1E
 
 #define COEF_HOR_Y_SIZE                32
@@ -389,7 +390,7 @@ static int dcamhw_start(void *handle, void *arg)
 	struct dcam_hw_start *parm = NULL;
 	uint32_t reg_val = 0;
 	uint32_t image_vc = 0;
-	uint32_t image_data_type = IMG_TYPE_RAW;
+	uint32_t image_data_type = IMG_TYPE_RAW10;
 	uint32_t image_mode = 1;
 
 	if (!arg) {
@@ -402,7 +403,12 @@ static int dcamhw_start(void *handle, void *arg)
 	DCAM_REG_WR(parm->idx, DCAM_INT0_CLR, 0xFFFFFFFF);
 	DCAM_REG_WR(parm->idx, DCAM_INT1_CLR, 0xFFFFFFFF);
 	/* see DCAM_PREVIEW_SOF in dcam_int.h for details */
-	DCAM_REG_WR(parm->idx, DCAM_INT0_EN, DCAMINT_IRQ_LINE_EN0_NORMAL);
+	if (parm->raw_callback == 1) {
+		image_data_type = 0;
+		DCAM_REG_WR(parm->idx, DCAM_INT_EN, DCAMINT_IRQ_LINE_EN0_NORMAL | BIT(DCAM_IF_IRQ_INT0_SENSOR_SOF));
+	} else {
+		DCAM_REG_WR(parm->idx, DCAM_INT0_EN, DCAMINT_IRQ_LINE_EN0_NORMAL);
+	}
 	DCAM_REG_WR(parm->idx, DCAM_INT1_EN, DCAMINT_IRQ_LINE_EN1_NORMAL);
 
 	if (parm->format == DCAM_CAP_MODE_YUV)
@@ -655,7 +661,7 @@ static int dcamhw_reset(void *handle, void *arg)
 	/* disable internal logic access sram */
 	DCAM_REG_MWR(idx, DCAM_APB_SRAM_CTRL, BIT_0, 0);
 	DCAM_REG_WR(idx, DCAM_MIPI_CAP_CFG, 0); /* disable all path */
-	DCAM_REG_WR(idx, DCAM_IMAGE_CONTROL, 0x2b << 8 | 0x01);
+	DCAM_REG_WR(idx, DCAM_IMAGE_CONTROL, IMG_TYPE_RAW10 << 8 | 0x01);
 
 
 	if (IS_DCAM_IF(idx)) {
@@ -888,6 +894,7 @@ static int dcamhw_path_start(void *handle, void *arg)
 	int ret = 0;
 	struct isp_img_rect rect;
 	struct dcam_hw_path_start *patharg = NULL;
+	uint32_t image_data_type = IMG_TYPE_RAW10;
 	uint32_t val = 0;
 
 	pr_debug("enter.");
@@ -898,6 +905,8 @@ static int dcamhw_path_start(void *handle, void *arg)
 	}
 
 	patharg = (struct dcam_hw_path_start *)arg;
+	if (patharg->data_bits == DCAM_CAP_8_BITS)
+		image_data_type = IMG_TYPE_RAW8;
 
 	switch (patharg->path_id) {
 	case  DCAM_PATH_FULL:
@@ -1027,10 +1036,13 @@ static int dcamhw_path_start(void *handle, void *arg)
 	case DCAM_PATH_VCH2:
 		/* data type for raw picture */
 		if (patharg->src_sel)
-			DCAM_REG_WR(patharg->idx, DCAM_VCH2_CONTROL, 0x2b << 8 | 0x01 << 4);
+			DCAM_REG_WR(patharg->idx, DCAM_VCH2_CONTROL, image_data_type << 8 | 0x01 << 4);
 
 		DCAM_REG_MWR(patharg->idx, DCAM_VCH2_CONTROL,
 			BIT_21 |  BIT_20, patharg->endian.y_endian << 20);
+
+		DCAM_REG_MWR(patharg->idx, DCAM_MIPI_CAP_CFG1, BIT_0, BIT_0);
+		DCAM_REG_MWR(patharg->idx, DCAM_BUF_CTRL, BIT_6 | BIT_7, 0);
 
 		/*vch2 path en */
 		DCAM_REG_MWR(patharg->idx, DCAM_VCH2_CONTROL, BIT_0, 1);
@@ -1906,12 +1918,12 @@ static int dcamhw_gtm_status_get(void *handle, void *arg)
 		return -EFAULT;
 	}
 
-	val = DCAM_REG_RD(idx, DCAM_GTM_GLB_CTRL) & BIT_1;
+	val = DCAM_REG_RD(idx, DCAM_GTM_GLB_CTRL) & BIT_0;
 
 	if (val)
-		ret = 1;
-	else
 		ret = 0;
+	else
+		ret = 1;
 	return ret;
 }
 
@@ -2263,6 +2275,7 @@ static int dcamhw_csi_disconnect(void *handle, void *arg)
 	DCAM_REG_MWR(idx, DCAM_APB_SRAM_CTRL, BIT_0, 0);
 	DCAM_REG_WR(idx, DCAM_MIPI_CAP_CFG, 0); /* disable all path */
 	DCAM_REG_WR(idx, DCAM_IMAGE_CONTROL, 0x2b << 8 | 0x01);
+	DCAM_REG_MWR(idx, DCAM_CAP_FRM_CLR, BIT_8, BIT_8);
 
 	if (IS_DCAM_IF(idx)) {
 		/* default bypass all blocks */
@@ -2354,7 +2367,9 @@ static int dcamhw_fmcu_start(void *handle, void *arg)
 	DCAM_REG_WR(startarg->idx, DCAM_INT0_CLR, 0xFFFFFFFF);
 	DCAM_REG_WR(startarg->idx, DCAM_INT1_CLR, 0xFFFFFFFF);
 	DCAM_REG_WR(startarg->idx, DCAM_INT0_EN, DCAMINT_IRQ_LINE_EN0_NORMAL);
+	DCAM_REG_MWR(startarg->idx, DCAM_INT0_EN, BIT_17 | BIT_21 | BIT_22 | BIT_23 | BIT_26 | BIT_27 | BIT_29 , 0);
 	DCAM_REG_WR(startarg->idx, DCAM_INT1_EN, DCAMINT_IRQ_LINE_EN1_NORMAL);
+	DCAM_REG_MWR(startarg->idx, DCAM_INT1_EN, BIT_0 , 0);
 
 	DCAM_FMCU_WR(DCAM_FMCU_DDR_ADR, startarg->hw_addr);
 	DCAM_FMCU_MWR(DCAM_FMCU_CTRL, 0xFFFF0000, cmd_num << 16);
@@ -2458,7 +2473,10 @@ static int dcamhw_slw_fmcu_cmds(void *handle, void *arg)
 	}
 
 	addr = DCAM_GET_REG(fmcu->hw_ctx_id, DCAM_FMCU_CMD);
-	cmd = DCAM0_POF3_DISPATCH;
+	if (slw->slw_id == slw->slw_cnt - 1)
+		cmd = DCAM0_PREVIEW_DONE;
+	else
+		cmd = DCAM0_POF3_DISPATCH;
 	DCAM_FMCU_PUSH(fmcu, addr, cmd);
 
 	return 0;

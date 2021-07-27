@@ -292,8 +292,6 @@ static void isp_3dnr_config_store(uint32_t idx,
 	case ISP_FETCH_YVU420_2FRAME_10:
 	case ISP_FETCH_YVU420_2FRAME_MIPI:
 	case ISP_FETCH_YVU420_2FRAME:
-		fmt_val = 5;
-		break;
 	case ISP_FETCH_YUV420_2FRAME_10:
 	case ISP_FETCH_YUV420_2FRAME_MIPI:
 	case ISP_FETCH_YUV420_2FRAME:

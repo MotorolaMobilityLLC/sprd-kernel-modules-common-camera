@@ -643,6 +643,18 @@ static void dcamint_preview_sof(void *param)
 	dcamint_sof_event_dispatch(sw_ctx);
 }
 
+static void dcamint_sensor_sof(void *param)
+{
+	struct dcam_hw_context *dcam_hw_ctx = (struct dcam_hw_context *)param;
+
+	if (dcam_hw_ctx->sw_ctx->raw_callback) {
+		if (dcam_hw_ctx->sw_ctx->frame_index == 0)
+			dcam_hw_ctx->sw_ctx->frame_index++;
+		else
+			dcamint_cap_sof(param);
+	}
+}
+
 /* for Flash */
 static void dcamint_sensor_eof(void *param)
 {
@@ -767,7 +779,7 @@ static void dcamint_bin_path_done(void *param)
 	struct dcam_path_desc *path = NULL;
 	struct dcam_path_desc *path_raw = NULL;
 	struct camera_frame *frame = NULL;
-	int i = 0, cnt = 0;
+	int cnt = 0;
 
 	pr_debug("preview path done hw id:%d\n", dcam_hw_ctx->hw_ctx_id);
 
@@ -815,12 +827,6 @@ static void dcamint_bin_path_done(void *param)
 		sw_ctx->dec_all_done = 0;
 		sw_ctx->dec_layer0_done = 0;
 	}
-
-	i = 0;
-	while (++i < sw_ctx->slowmotion_count)
-		dcamint_frame_dispatch(dcam_hw_ctx, DCAM_PATH_BIN,
-				dcamint_frame_prepare(dcam_hw_ctx, DCAM_PATH_BIN),
-				DCAM_CB_DATA_DONE);
 
 	if (sw_ctx->offline) {
 		if (sw_ctx->dcam_slice_mode != CAM_OFFLINE_SLICE_SW) {
@@ -1014,6 +1020,39 @@ static void dcamint_dummy_start(void *param)
 
 static void dcamint_fmcu_config_done(void *param)
 {
+	struct dcam_hw_context *dcam_hw_ctx = (struct dcam_hw_context *)param;
+	struct dcam_sw_context *sw_ctx = dcam_hw_ctx->sw_ctx;
+	struct dcam_path_desc *path = NULL;
+	int i = 0;
+	int path_id = 0;
+	if (!sw_ctx) {
+		pr_warn("hw ctx %d already unbind\n", dcam_hw_ctx->hw_ctx_id);
+		return;
+	}
+	atomic_inc(&sw_ctx->shadow_config_cnt);
+
+	while (i++ < sw_ctx->slowmotion_count) {
+		for (path_id = 0; path_id < DCAM_PATH_MAX; path_id++) {
+			path = &sw_ctx->path[path_id];
+			if (atomic_read(&path->user_cnt) < 1 || atomic_read(&path->is_shutoff) > 0)
+				continue;
+			if (path_id <= DCAM_PATH_RAW)
+				dcamint_frame_dispatch(dcam_hw_ctx, path_id,dcamint_frame_prepare(dcam_hw_ctx, path_id),DCAM_CB_DATA_DONE);
+			else
+				dcamint_frame_dispatch(dcam_hw_ctx, path_id,dcamint_frame_prepare(dcam_hw_ctx, path_id),DCAM_CB_STATIS_DONE);
+		}
+	}
+	if (atomic_read(&sw_ctx->shadow_config_cnt) == atomic_read(&sw_ctx->shadow_done_cnt)) {
+		atomic_inc(&sw_ctx->shadow_done_cnt);
+		atomic_inc(&sw_ctx->shadow_config_cnt);
+		if (sw_ctx->fmcu) {
+			sw_ctx->index_to_set = sw_ctx->index_to_set + sw_ctx->slowmotion_count;
+			sw_ctx->fmcu->ops->ctx_reset(sw_ctx->fmcu);
+			dcam_path_fmcu_slw_queue_set(sw_ctx);
+			sw_ctx->fmcu->ops->cmd_ready(sw_ctx->fmcu);
+		} else
+			pr_err("fail to get fmcu handle\n");
+	}
 	pr_debug("dcamint_fmcu_config_done\n");
 }
 
@@ -1031,6 +1070,7 @@ static void dcamint_fmcu_shadow_done(void *param)
 		pr_err("fail to check param %px\n", sw_ctx);
 		return;
 	}
+	atomic_inc(&sw_ctx->shadow_done_cnt);
 
 	if (sw_ctx->fmcu) {
 		sw_ctx->index_to_set = sw_ctx->index_to_set + sw_ctx->slowmotion_count;
@@ -1119,6 +1159,7 @@ void dcam_int_tracker_dump(uint32_t idx)
 
 typedef void (*dcam_isr_type)(void *param);
 static const dcam_isr_type _DCAM_ISRS[] = {
+	[DCAM_IF_IRQ_INT0_SENSOR_SOF] = dcamint_sensor_sof,
 	[DCAM_IF_IRQ_INT0_SENSOR_EOF] = dcamint_sensor_eof,
 	[DCAM_IF_IRQ_INT0_CAP_SOF] = dcamint_cap_sof,
 	[DCAM_IF_IRQ_INT0_RAW_PATH_TX_DONE] = dcamint_raw_path_done,
@@ -1149,6 +1190,7 @@ static const dcam_isr_type _DCAM_ISRS1[] = {
 };
 
 static const int _DCAM0_SEQUENCE[] = {
+	DCAM_IF_IRQ_INT0_SENSOR_SOF,
 	DCAM_IF_IRQ_INT0_CAP_SOF,/* must */
 	DCAM_IF_IRQ_INT0_PREIEW_SOF,
 	DCAM_IF_IRQ_INT0_SENSOR_EOF,/* TODO: why for flash */
@@ -1180,6 +1222,7 @@ static const int _DCAM0_SEQUENCE_INT1[] = {
 };
 
 static const int _DCAM1_SEQUENCE[] = {
+	DCAM_IF_IRQ_INT0_SENSOR_SOF,
 	DCAM_IF_IRQ_INT0_CAP_SOF,/* must */
 	DCAM_IF_IRQ_INT0_SENSOR_EOF,/* TODO: why for flash */
 	DCAM_IF_IRQ_INT0_NR3_TX_DONE,/* for 3dnr, before data path */
@@ -1210,6 +1253,7 @@ static const int _DCAM1_SEQUENCE_INT1[] = {
 };
 
 static const int _DCAM2_SEQUENCE[] = {
+	DCAM_IF_IRQ_INT0_SENSOR_SOF,
 	DCAM_IF_IRQ_INT0_CAP_SOF,/* must */
 	DCAM_IF_IRQ_INT0_SENSOR_EOF,/* TODO: why for flash */
 	DCAM_IF_IRQ_INT0_PREVIEW_PATH_TX_DONE,/* for bin path */
@@ -1249,6 +1293,11 @@ static void dcamint_iommu_regs_dump(struct dcam_hw_context *dcam_hw_ctx)
 {
 	uint32_t reg = 0;
 	uint32_t val[4];
+
+	if (!dcam_hw_ctx || !dcam_hw_ctx->sw_ctx) {
+		pr_err("fail to get valid input hw_ctx or sw_ctx\n");
+		return;
+	}
 
 	if (dcam_hw_ctx->sw_ctx->err_count) {
 		for (reg = 0; reg <= MMU_PPN_RANGE2_SHAD; reg += 16) {
@@ -1307,6 +1356,16 @@ static irqreturn_t dcamint_error_handler(struct dcam_hw_context *dcam_hw_ctx,
 			dcamint_iommu_regs_dump(dcam_hw_ctx);
 			sw_ctx->iommu_status = val;
 		}
+	}
+
+	/*
+	 * When reset dcam appears on cap mipi overflow, clear the first frame.
+	 * Need to be removed in AB chip
+	 */
+	if ((status & BIT(DCAM_IF_IRQ_INT0_DCAM_OVF)) && DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, DCAM_CAP_FRM_CLR) == 0){
+		pr_warn("warning to clean first frame DCAM%u 0x%x%s\n", dcam_hw_ctx->hw_ctx_id, status,
+		tb_ovr[!!(status & BIT(DCAM_IF_IRQ_INT0_DCAM_OVF))]);
+		return IRQ_HANDLED;
 	}
 
 	if ((status & DCAMINT_INT0_FATAL_ERROR)

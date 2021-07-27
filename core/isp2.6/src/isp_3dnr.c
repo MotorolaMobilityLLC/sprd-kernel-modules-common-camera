@@ -741,7 +741,7 @@ static int isp3dnr_pipe_proc(void *handle, void *param, uint32_t mode)
 	struct dcam_frame_synchronizer *fsync = NULL;
 
 	if (!handle || !param) {
-		pr_err("fail to get valid input ptr\n");
+		pr_debug("fail to get valid input ptr\n");
 		return -EFAULT;
 	}
 

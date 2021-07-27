@@ -41,6 +41,8 @@
 #include "fd_core.h"
 #include "fd_drv.h"
 #include "fd_reg.h"
+#include <video/sprd_mmsys_pw_domain_qogirn6pro.h>
+
 
 #ifdef pr_fmt
 #undef pr_fmt
@@ -463,6 +465,18 @@ int sprd_fd_drv_open(void *drv_handle)
 			return ret;
 		}
 		ret = sprd_cam_domain_eb();
+#if defined (PROJ_FD_N6PRO)
+		ret = sprd_isp_pw_on();
+		if (ret) {
+			pr_err("%s fail to power on FD\n", __func__);
+			return ret;
+		}
+		ret = sprd_isp_blk_cfg_en();
+		if (ret) {
+			pr_err("%s fail to enable FD\n", __func__);
+			return ret;
+		}
+#endif
 #else
 		ret = pm_runtime_get(&hw_handle->pdev->dev);
 		if (ret != 0) {
@@ -562,6 +576,16 @@ int sprd_fd_drv_close(void *drv_handle)
 		fd_regmap_off(hw_handle, FD_SYSCON_ENABLE);
 		fd_disable_clk(hw_handle);
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 4, 0))
+#if defined (PROJ_FD_N6PRO)
+		ret = sprd_isp_blk_dis();
+		if (ret) {
+			pr_err("%s fail to disable FD\n", __func__);
+		}
+		ret = sprd_isp_pw_off();
+		if (ret) {
+			pr_err("%s fail to power off FD\n", __func__);
+		}
+#endif
 		sprd_cam_domain_disable();
 		ret = sprd_cam_pw_off();
 #else
@@ -942,6 +966,11 @@ int fd_drv_reg_write_handler(void *handle,
 				cfg_param->reg_param);
 		return -EINVAL;
 	}
+	if (cfg_param->reg_param >= SPRD_FD_REG_PARAM_MAX) {
+		pr_err("fail to write_param outpace\n");
+		return -EINVAL;
+	}
+
 	ret = reg_info->reg_write(drv_handle,
 			reg_info->reg_addr,
 			cfg_param->reg_val);

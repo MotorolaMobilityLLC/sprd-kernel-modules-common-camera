@@ -507,7 +507,7 @@ dcam_path_frame_cycle(struct dcam_sw_context *dcam_sw_ctx, struct dcam_path_desc
 	if (path->path_id == DCAM_PATH_FULL && frame == NULL) {
 		if (dcam_sw_ctx->buf_get_cb)
 			dcam_sw_ctx->buf_get_cb(SHARE_BUF_GET_CB, (void *)&frame, dcam_sw_ctx->buf_cb_data);
-		if (frame != NULL && path->path_id == DCAM_PATH_FULL) {
+		if (frame != NULL) {
 			frame->is_reserved = 0;
 			frame->priv_data = dcam_sw_ctx;
 			if (cam_buf_iommu_map(&frame->buf, CAM_IOMMUDEV_DCAM)) {
@@ -918,7 +918,7 @@ int dcam_path_fmcu_slw_queue_set(struct dcam_sw_context *sw_ctx)
 		pr_err("fail to check param sw_ctx %px, hw %px\n", sw_ctx, hw);
 
 	memset(&slw, 0, sizeof(struct dcam_hw_slw_fmcu_cmds));
-	for (j =0; j < sw_ctx->slowmotion_count; j++) {
+	for (j = 0; j < sw_ctx->slowmotion_count; j++) {
 		for (i = 0; i < DCAM_PATH_MAX; i++) {
 			path = &sw_ctx->path[i];
 			if (atomic_read(&path->user_cnt) < 1 || atomic_read(&path->is_shutoff) > 0)
@@ -940,6 +940,8 @@ int dcam_path_fmcu_slw_queue_set(struct dcam_sw_context *sw_ctx)
 			pr_err("fail to check param fmcu%px\n", fmcu);
 		slw.fmcu_handle = fmcu;
 		slw.ctx_id = sw_ctx->hw_ctx_id;
+		slw.slw_id = j;
+		slw.slw_cnt = sw_ctx->slowmotion_count;
 		if ((sw_ctx->index_to_set == 0) && (j == 0))
 			slw.is_first_cycle = 1;
 		else

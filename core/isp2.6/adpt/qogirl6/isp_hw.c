@@ -252,6 +252,7 @@ static uint32_t cam_reg_trace_tab[] = {
 	ISP_NR3_WADDR,
 	DCAM_LSCM_BASE_WADDR,
 	DCAM_BAYER_INFO_CFG,
+	DCAM_MIPI_CAP_END,
 };
 
 static int cam_reg_trace(void *handle, void *arg)

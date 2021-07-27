@@ -377,10 +377,6 @@ int csi_api_open(int bps_per_lane, int phy_id, int lane_num, int sensor_id, int 
 		pr_err("fail to get valid phy ptr\n");
 		return -EINVAL;
 	}
-	if (is_cphy){
-		phy_id = 5;
-		dt_info->phy.phy_id = 5;
-	}
 	dt_info->lane_seq = lane_seq;
 	ret = csi_ahb_reset(&dt_info->phy, dt_info->controller_id);
 	if (unlikely(ret))
@@ -403,6 +399,7 @@ int csi_api_open(int bps_per_lane, int phy_id, int lane_num, int sensor_id, int 
 
 	if (csi_pattern_enable)
 		csi_ipg_mode_cfg(dt_info->controller_id, 1);
+	//csi_api_reg_trace();
 
 	return ret;
 

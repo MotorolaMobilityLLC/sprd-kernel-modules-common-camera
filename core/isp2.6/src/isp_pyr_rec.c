@@ -261,6 +261,8 @@ static int isppyrrec_cur_fetch_get(struct isp_rec_ctx_desc *ctx, uint32_t idx)
 		case ISP_FETCH_YVU420_2FRAME_MIPI:
 			ch_offset[0] = start_row * cur_fetch->pitch[0]
 				+ (start_col >> 2) * 5 + (start_col & 0x3);
+			ch_offset[1] = (start_row >> 1) * cur_fetch->pitch[1]
+				+ (start_col >> 2) * 5 + (start_col & 0x3);
 			slc_fetch->mipi_byte_rel_pos = start_col & 0x0f;
 			slc_fetch->mipi_word_num = ((((end_col + 1) >> 4) * 5
 				+ mipi_word_num_end[(end_col + 1) & 0x0f])
@@ -743,6 +745,10 @@ static int isppyrrec_pipe_proc(void *handle, void *param)
 		.* Then the frame before should be temp. Thus, only one tmp
 		.* buffer is enough for all the isp pyramid rec process */
 		j = i % 2;
+		if (!rec_ctx->buf_info[j]) {
+			pr_err("fail to get valid rec out buf %d %d\n", i, j);
+			return -EFAULT;
+		}
 		pitch = isppyrrec_pitch_get(in_ptr->in_fmt, rec_ctx->buf_info[j]->width);
 		rec_ctx->store_addr[i].addr_ch0 = rec_ctx->buf_info[j]->buf.iova[0];
 		rec_ctx->store_addr[i].addr_ch1 = rec_ctx->store_addr[i].addr_ch0

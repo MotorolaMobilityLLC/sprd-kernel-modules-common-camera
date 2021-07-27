@@ -303,6 +303,8 @@ struct dcam_sw_context {
 	struct dcam_offline_slice_info slice_info;
 	share_buf_get_cb buf_get_cb;
 	void *buf_cb_data;
+	atomic_t shadow_done_cnt;
+	atomic_t shadow_config_cnt;
 };
 
 struct dcam_hw_context {

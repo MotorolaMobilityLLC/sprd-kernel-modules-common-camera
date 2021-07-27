@@ -165,7 +165,8 @@ int isp_k_gtm_block(void *pctx, void *param)
 
 	ISP_REG_MWR(idx, ISP_GTM_GLB_CTRL, BIT_0, (p->gtm_mod_en & 0x1));
 	if (p->gtm_mod_en == 0) {
-		pr_debug("ctx_id %d, GTM mod disable\n", idx);
+		pr_debug("ctx_id %d, gtm mod_en disable\n", idx);
+		ISP_REG_MWR(idx, ISP_GTM_GLB_CTRL, BIT_2 | BIT_1, 3 << 1);
 		return 0;
 	}
 

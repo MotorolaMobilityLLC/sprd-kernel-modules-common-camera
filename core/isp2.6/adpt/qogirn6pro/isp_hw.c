@@ -289,6 +289,10 @@ static int isphw_reg_trace(void *handle, void *arg)
 abnormal_reg_trace:
 	pr_info("DCAM%d: Register list\n", trace->idx);
 
+	if (trace->idx >= DCAM_HW_CONTEXT_MAX) {
+		pr_err("fail to get vaild dcam hw idx %d\n", trace->idx);
+		return 0;
+	}
 	for (addr = DCAM_IP_REVISION; addr <= DCAM_CAP_FBC_STATUS3;
 		addr += 16) {
 		pr_info("0x%03lx: 0x%x 0x%x 0x%x 0x%x\n",
@@ -969,6 +973,8 @@ isp_hw_para:
 	ISP_HREG_MWR(ISP_ARBITER_ENDIAN0, BIT_4 | BIT_5, 0);
 	ISP_HREG_MWR(ISP_ARBITER_ENDIAN0, BIT_8 | BIT_9, 0);
 	ISP_HREG_MWR(ISP_ARBITER_ENDIAN1, BIT_0 | BIT_1, 0);
+	/*Set isp timeout limit time 10.24ms*/
+	ISP_HREG_MWR(ISP_AXI_TIMEOUT_PARAM, 0xFFFF, 0x1400);
 	ISP_HREG_WR(ISP_ARBITER_CHK_SUM_CLR, 0);
 	/* enable axim transfering */
 	ISP_HREG_MWR(ISP_AXI_ITI2AXIM_CTRL, BIT_26, 0);

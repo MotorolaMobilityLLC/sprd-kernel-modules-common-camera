@@ -64,10 +64,10 @@
 
 
 #define IPG_IMAGE_H_REG			(((IPG_IMAGE_H)/8) << 21)
-#define IPG_IMAGE_H_HI_REG		((IPG_IMAGE_H/8) > 0x1ff)? ((IPG_IMAGE_H/8) >> 7) : (0 << 2)
+#define IPG_IMAGE_H_HI_REG		(((IPG_IMAGE_H/8) > 0x1ff)? ((IPG_IMAGE_H/8) >> 7) : (0 << 2))
 #define IPG_COLOR_BAR_W			(((IPG_IMAGE_W)/24) << 13)
 #define IPG_IMAGE_W_REG			(((IPG_IMAGE_W)/16) << 4)
-#define IPG_IMAGE_W_HI_REG		((IPG_IMAGE_W/16) > 0x1ff)? ((IPG_IMAGE_W/16) >> 9) : 0
+#define IPG_IMAGE_W_HI_REG		(((IPG_IMAGE_W/16) > 0x1ff)? ((IPG_IMAGE_W/16) >> 9) : 0)
 
 #define IPG_HSYNC_EN			(1 << 3)
 #define IPG_COLOR_BAR_MODE		(0 << 2)
@@ -120,6 +120,7 @@ static spinlock_t csi_dump_lock[CSI_MAX_COUNT] = {
 	__SPIN_LOCK_UNLOCKED(csi_dump_lock),
 	__SPIN_LOCK_UNLOCKED(csi_dump_lock)
 };
+void phy_csi_path_clr_cfg(struct csi_dt_node_info *dt_info, int sensor_id);
 
 static const struct dphy_lane_cfg dphy_lane_setting[PHY_LANE_CFG_COUNTER] = {
 	/* lane_seq:data lane connect sequence (default 0x0123)
@@ -243,6 +244,57 @@ void csi_ipg_mode_cfg(uint32_t idx, int enable)
 	pr_info("CSI IPG enable %d\n", enable);
 }
 
+void phy_reg_trace(unsigned int idx, unsigned int code_in,
+	uint8_t *test_out){
+	unsigned long regbase = 0;
+	unsigned int temp = 0xffffff00;
+	regbase = csi_dump_regbase[idx];
+	if (regbase == 0) {
+		pr_info("CSI %d not used no need to dump\n", idx);
+		return;
+	}
+
+	REG_MWR(regbase + PHY_TEST_CRTL1, PHY_TESTEN, 1 << 16);
+	udelay(1);
+	REG_MWR(regbase + PHY_TEST_CRTL0, PHY_TESTCLK, 1 << 1);
+	udelay(1);
+	REG_MWR(regbase + PHY_TEST_CRTL1, PHY_TESTDIN, code_in);
+	udelay(1);
+	REG_MWR(regbase + PHY_TEST_CRTL0, PHY_TESTCLK, 0 << 1);
+	udelay(1);
+	REG_MWR(regbase + PHY_TEST_CRTL1, PHY_TESTEN, 0 << 16);
+	udelay(1);
+	temp = (REG_RD(regbase + PHY_TEST_CRTL1) & PHY_TESTDOUT) >> 8;
+	udelay(1);
+	*test_out = (uint8_t)temp;
+	pr_debug("PHY Read addr %x value = 0x%x.\r\n", code_in, temp);
+
+}
+
+int reg_dump_rd(unsigned long reg, int len, char *reg_name)
+{
+	void __iomem *reg_base = NULL;
+	unsigned long addr = 0;
+
+	reg_base = ioremap_nocache(reg, len);
+	if (!reg_base) {
+		pr_info("0x%x: ioremap failed\n", reg);
+		return -1;
+	}else
+		pr_info("0x%x: dump reg\n", reg);
+
+	for (addr = 0; addr <= len; addr += 16) {
+		pr_info("%s 0x%lx: 0x%x 0x%x 0x%x 0x%x\n",
+			reg_name, addr,
+			REG_RD(reg_base + addr),
+			REG_RD(reg_base + addr + 4),
+			REG_RD(reg_base + addr + 8),
+			REG_RD(reg_base + addr + 12));
+	}
+	iounmap(reg_base);
+	return 0;
+}
+
 void csi_reg_trace(unsigned int idx)
 {
 	unsigned long addr = 0;
@@ -266,6 +318,29 @@ void csi_reg_trace(unsigned int idx)
 			REG_RD(regbase + addr + 8),
 			REG_RD(regbase + addr + 12));
 	}
+#ifdef DEBUG_DPHY
+	for (addr = 0; addr <= 0xff; addr += 4) {
+			uint8_t tmp0 = 0;
+			uint8_t tmp1 = 0;
+			uint8_t tmp2 = 0;
+			uint8_t tmp3 = 0;
+			phy_reg_trace(idx, addr, &tmp0);
+			phy_reg_trace(idx, addr + 1, &tmp1);
+			phy_reg_trace(idx, addr + 2, &tmp2);
+			phy_reg_trace(idx, addr + 3, &tmp3);
+
+			pr_info("phy 0x%lx: 0x%x 0x%x 0x%x 0x%x\n",
+				addr, tmp0, tmp1, tmp2, tmp3);
+		}
+#endif
+
+#ifdef DEBUG_CHIP_TOP
+		reg_dump_rd(0x645b0000, 0xff, "ana-g10");
+		reg_dump_rd(0x30000000, 0xdf, "mm-ahb");
+		reg_dump_rd(0x30010000, 0x100, "mm-clk");
+		//reg_dump_rd(0x64900000, 0xff, "aon-apb");
+		//reg_dump_rd(0x64910100, 0x1ff, "aon-pm");
+#endif
 	spin_unlock_irqrestore(&csi_dump_lock[idx], flag);
 }
 #if 0
@@ -296,7 +371,7 @@ static void phy_write(int32_t idx, unsigned int code_in,
 	udelay(1);
 	temp = (CSI_REG_RD(idx, PHY_TEST_CRTL1) & PHY_TESTDOUT) >> 8;
 	udelay(1);
-	pr_debug("PHY Read addr %x value = 0x%x.\r\n", code_in, temp);
+	pr_debug("PHY write addr %x value = 0x%x.\r\n", code_in, temp);
 }
 
 /* used to read testcode or testdata to cphy */
@@ -675,6 +750,7 @@ void csi_controller_disable(struct csi_dt_node_info *dt_info, int32_t idx)
 
 	pr_info("%s csi, id %d phy %d\n", __func__, dt_info->controller_id,
 		phy->phy_id);
+	phy_csi_path_clr_cfg(dt_info, idx);
 
 	switch (dt_info->controller_id) {
 	case CSI_RX0: {
@@ -717,6 +793,7 @@ void phy_csi_path_cfg(struct csi_dt_node_info *dt_info, int sensor_id)
 	struct csi_phy_info *phy = NULL;
 	uint32_t phy_sel_mask;
 	uint32_t phy_sel_val;
+	uint32_t val = 0;
 
 	if (!dt_info) {
 		pr_err("fail to get valid dt_info ptr\n");
@@ -760,6 +837,10 @@ void phy_csi_path_cfg(struct csi_dt_node_info *dt_info, int sensor_id)
 		phy_sel_mask = 0x03 << 6;
 		phy_sel_val += ((dt_info->controller_id + 1) & 0x03) << 8;
 		phy_sel_mask += 0x03 << 8;
+	/*	if(dt_info->controller_id == 0){
+			phy_sel_val += 0x00 << 4;
+			phy_sel_mask += 0x03 << 4;
+		}*/
 		break;
 	}
 	case PHY_2P2RO_M: {
@@ -777,6 +858,9 @@ void phy_csi_path_cfg(struct csi_dt_node_info *dt_info, int sensor_id)
 		return;
 	}
 	regmap_update_bits(phy->cam_ahb_syscon,	0x30, phy_sel_mask, phy_sel_val);
+	regmap_read(phy->cam_ahb_syscon, 0x30, &val);
+	pr_info("%s csi, id %d phy %d reg val 0x%x\n", __func__, dt_info->controller_id,
+		phy->phy_id, val);
 
 
 }
@@ -874,47 +958,16 @@ void csi_phy_init(struct csi_dt_node_info *dt_info, int32_t idx)
 
 	switch (phy->phy_id) {
 	case PHY_4LANE:
-#if 0
-		/* phy: 4lane phy */
-		CSI_REG_MWR(idx, PHY_TEST_CRTL0, PHY_REG_SEL, 1 << 2);
-		//phy_write(idx, 0x60, 0x81, 0xff);
-		//phy_write(idx, 0x62, 0x81, 0xff);
-		CSI_REG_MWR(idx, PHY_TEST_CRTL0, PHY_REG_SEL, ~(1 << 2));
-		//REG_WR(0x30010040,0x4);//set mipi cap clk
-		phy_write(idx, 0x01, BIT_0 | BIT_1 | BIT_3, BIT_0 | BIT_1 | BIT_3);
-		phy_write(idx, 0x3d, BIT_7, BIT_7);
-		phy_write(idx, 0x4d, BIT_7, BIT_7);
-		phy_write(idx, 0x6d, BIT_7, BIT_7);
-		phy_write(idx, 0xf1, 0xe4, 0xff);
-#endif
-		break;
-
 	case PHY_2P2RO:
-		/* phy: 2lane phy ro */
-		CSI_REG_MWR(idx, PHY_TEST_CRTL0, PHY_REG_SEL, ~(1 << 2));
-		break;
 	case PHY_2P2:
-		/* 2p2lane phy as a 4lane phy  */
-		phy_csi_path_clr_cfg(dt_info, idx);
-		//phy_write(idx, 0x4d, 0x48, 0xff);
-		//phy_write(idx, 0x5d, 0x68, 0xff);
 		phy_csi_path_cfg(dt_info, idx);
 		break;
 	case PHY_2P2RO_M:
 	case PHY_2P2RO_S:
 	case PHY_2P2_M:
-		/* 2p2lane phy as a 2lane M phy  */
-		//phy_csi_path_clr_cfg(dt_info, idx);
-		//csi_2p2l_2lane_phy_testclr(phy);
-		//phy_csi_path_cfg(dt_info, idx);
-		//break;
 	case PHY_2P2_S:
-		/* 2p2lane phy as a 2lane S phy  */
-		phy_csi_path_clr_cfg(dt_info, idx);
 		csi_2p2l_2lane_phy_testclr(phy);
 		phy_csi_path_cfg(dt_info, idx);
-		//phy_write(idx, 0x4d, 0x48, 0xff);
-		//phy_write(idx, 0x5d, 0x68, 0xff);
 		break;
 	default:
 		pr_err("fail to get valid phy id %d\n", phy->phy_id);

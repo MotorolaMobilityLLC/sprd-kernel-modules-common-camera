@@ -694,6 +694,11 @@ static void dcamint_full_path_done(void *param)
 	struct camera_frame *frame = NULL;
 	struct dcam_path_desc *path = NULL;
 
+	if (!sw_ctx) {
+		pr_err("fail to get valid input sw_ctx\n");
+		return;
+	}
+
 	path = &sw_ctx->path[DCAM_PATH_FULL];
 	if (sw_ctx->offline) {
 		if (sw_ctx->dcam_slice_mode == CAM_OFFLINE_SLICE_HW) {
@@ -757,6 +762,13 @@ static void dcamint_bin_path_done(void *param)
 	struct dcam_path_desc *path = NULL;
 	struct camera_frame *frame = NULL;
 	int i = 0, cnt = 0;
+
+	pr_debug("preview path done hw id:%d\n", dcam_hw_ctx->hw_ctx_id);
+
+	if (!sw_ctx) {
+		pr_warn("hw ctx %d already unbind\n", dcam_hw_ctx->hw_ctx_id);
+		return;
+	}
 
 	pr_debug("bin_path_done\n");
 	path = &sw_ctx->path[DCAM_PATH_BIN];

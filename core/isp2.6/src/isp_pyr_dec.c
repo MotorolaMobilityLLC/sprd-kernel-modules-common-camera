@@ -177,7 +177,7 @@ static int isppyrdec_offline_thread_loop(void *arg)
 			if (thrd->proc_func(dev)) {
 				pctx = &dev->sw_ctx[dev->cur_ctx_id];
 				pctx->cb_func(ISP_CB_DEV_ERR, dev, pctx->cb_priv_data);
-				pr_err("fail to start isp pyr dec proc. exit thread\n");
+				pr_err("fail to start isp %d pyr dec proc. exit thread\n", dev->cur_ctx_id);
 				break;
 			}
 		} else {
@@ -735,7 +735,6 @@ static int isppyrdec_offline_frame_start(void *handle)
 
 	if (!out_frame) {
 		pr_err("fail to get outframe loop cnt %d cxt %d\n", loop, ctx_id);
-		ret = -EINVAL;
 		goto out_err;
 	}
 
@@ -743,7 +742,6 @@ static int isppyrdec_offline_frame_start(void *handle)
 	ret = cam_buf_iommu_map(&pctx->buf_out->buf, CAM_IOMMUDEV_ISP);
 	if (ret) {
 		pr_err("fail to map buf to ISP iommu. cxt %d\n", ctx_id);
-		ret = -EINVAL;
 		goto map_err;
 	}
 
@@ -846,13 +844,13 @@ static int isppyrdec_offline_frame_start(void *handle)
 	return 0;
 
 calc_err:
-	dec_dev->cur_ctx_id = ctx_id;
 	if (pctx->buf_out)
 		ret = cam_buf_iommu_unmap(&pctx->buf_out->buf);
 out_err:
 map_err:
 	pframe = cam_queue_dequeue_tail(&dec_dev->proc_queue);
 inq_overflow:
+	dec_dev->cur_ctx_id = ctx_id;
 	if (pframe)
 		isppyrdec_src_frame_ret(pframe);
 exit:
