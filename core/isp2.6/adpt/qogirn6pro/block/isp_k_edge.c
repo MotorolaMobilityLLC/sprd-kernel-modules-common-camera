@@ -18,6 +18,7 @@
 #include "isp_reg.h"
 #include "cam_types.h"
 #include "cam_block.h"
+#include "isp_core.h"
 
 #ifdef pr_fmt
 #undef pr_fmt
@@ -395,6 +396,62 @@ int isp_k_cfg_edge(struct isp_io_param *param,
 			param->property);
 		break;
 	}
+
+	return ret;
+}
+
+int isp_k_update_edge(void *handle)
+{
+	int ret = 0;
+	uint32_t val = 0, center_x = 0, center_y = 0;
+	uint32_t radius = 0, radius_limit = 0;
+	uint32_t idx = 0, new_width = 0, old_width = 0, sensor_width = 0;
+	uint32_t new_height = 0, old_height = 0, sensor_height = 0;
+	struct isp_dev_edge_info_v3 *edge_info = NULL;
+	struct isp_sw_context *pctx = NULL;
+
+	if (!handle) {
+		pr_err("fail to get invalid in ptr\n");
+		return -EFAULT;
+	}
+
+	pctx = (struct isp_sw_context *)handle;
+	idx = pctx->ctx_id;
+	new_width = pctx->isp_k_param.blkparam_info.new_width;
+	new_height = pctx->isp_k_param.blkparam_info.new_height;
+	old_width = pctx->isp_k_param.blkparam_info.old_width;
+	old_height = pctx->isp_k_param.blkparam_info.old_height;
+	sensor_width = pctx->uinfo.original.src_size.w;
+	sensor_height = pctx->uinfo.original.src_size.h;
+
+	edge_info = &pctx->isp_k_param.edge_info_v3;
+
+	if (edge_info->bypass)
+		return 0;
+
+	center_x = new_width >> 1;
+	center_y = new_height >> 1;
+	val = (center_y << 16) | center_x;
+	ISP_REG_WR(idx, ISP_EE_PIXEL_POSTION, val);
+
+	edge_info->center_x = center_x;
+	edge_info->center_x = center_y;
+
+	if (edge_info->radius_base == 0)
+		edge_info->radius_base = 1024;
+
+	radius = (sensor_width + sensor_height ) * edge_info->radius_threshold_factor / edge_info->radius_base;
+	radius_limit = new_width+new_height;
+	radius = (radius < radius_limit) ? radius : radius_limit;
+	if (old_width / new_width != 1)
+		radius = radius / 2;
+
+	edge_info->radius = radius;
+	val = ((edge_info->radius & 0x7FFF) << 16) |
+		(edge_info->layer_pyramid_offset_coef1 & 0x3FFF);
+	ISP_REG_WR(idx, ISP_EE_PYRAMID_OFFSET_COEF0, val);
+	pr_debug("cen %d %d, base %d, factor %d, new radius %d\n",
+		center_x, center_y, edge_info->radius_base, edge_info->radius_threshold_factor, radius);
 
 	return ret;
 }

@@ -525,6 +525,12 @@ static int isppyrdec_dct_ynr_get(struct isp_dec_pipe_dev *dev, uint32_t idx)
 	dct_ynr->img.w = dev->dec_layer_size[0].w;
 	dct_ynr->img.h = dev->dec_layer_size[0].h;
 
+	dct_ynr->dct->rnr_radius = dct_ynr->dct_radius;
+	dct_ynr->dct->rnr_imgCenterX = dev->dec_layer_size[0].w >> 1;
+	dct_ynr->dct->rnr_imgCenterY = dev->dec_layer_size[0].h >> 1;
+	pr_debug("radius %d, Center x %d, y %d, img  w %d, h %d\n", dct_ynr->dct->rnr_radius, dct_ynr->dct->rnr_imgCenterX,
+		dct_ynr->dct->rnr_imgCenterY, dct_ynr->img.w, dct_ynr->img.h);
+
 	for (i = 0; i < dev->slice_num; i++, cur_slc++) {
 		dct_ynr->start[i].w = cur_slc->slice_fetch_pos.start_col;
 		dct_ynr->start[i].h = cur_slc->slice_fetch_pos.start_row;

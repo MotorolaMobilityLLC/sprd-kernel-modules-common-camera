@@ -626,7 +626,9 @@ struct isp_cnr_h_info {
 	uint32_t order_uv[3];
 	uint32_t imgCenterX;
 	uint32_t imgCenterY;
-	uint32_t baseRadius;
+	uint32_t radius;
+	uint32_t base_radius;
+	uint32_t base_radius_factor;
 	uint32_t minRatio;
 	uint32_t slope;
 	uint32_t luma_th[2];
@@ -638,7 +640,7 @@ struct isp_cnr_h_info {
 
 struct isp_dev_cnr_h_info {
 	uint32_t bypass;
-	uint32_t baseRadius;
+	uint32_t radius_base;
 	struct isp_cnr_h_info layer_cnr_h[CNR_H_LAYER_NUM];
 };
 
@@ -650,7 +652,9 @@ struct isp_post_cnr_h {
 	uint32_t order_uv[3];
 	uint32_t imgCenterX;
 	uint32_t imgCenterY;
-	uint32_t baseRadius;
+	uint32_t radius;
+	uint32_t base_radius;
+	uint32_t base_radius_factor;
 	uint32_t minRatio;
 	uint32_t slope;
 	uint32_t luma_th[2];
@@ -662,7 +666,7 @@ struct isp_post_cnr_h {
 
 struct isp_dev_post_cnr_h_info {
 	uint32_t bypass;
-	uint32_t baseRadius;
+	uint32_t radius_base;
 	struct isp_post_cnr_h param_post_cnr_h;
 };
 
@@ -1146,6 +1150,7 @@ struct isp_3dnr_blend_info {
 	uint32_t r1_circle_factor;
 	uint32_t r2_circle_factor;
 	uint32_t r3_circle_factor;
+	uint32_t radius;
 	uint32_t r_circle_base;
 };
 
@@ -1380,6 +1385,7 @@ struct isp_dev_edge_info_v2 {
 
 struct isp_dev_edge_info_v3 {
 	uint32_t bypass;
+	uint32_t radius_base;
 
 	uint32_t ipd_enable; /*ipd_bypass in v1 */
 	uint32_t ipd_mask_mode;
@@ -1457,6 +1463,7 @@ struct isp_dev_edge_info_v3 {
 	uint32_t ee_radial_1D_pyramid_layer_offset_en;
 	uint32_t center_x;
 	uint32_t center_y;
+	uint32_t radius;
 	uint32_t radius_threshold;
 	uint32_t radius_threshold_factor;
 	uint32_t old_gradient_ratio_coef;
@@ -1826,6 +1833,7 @@ struct isp_dev_nlm_imblance_v2 {
 	uint32_t nlm_imblance_diff[3];
 	uint32_t imblance_radial_1D_center_x;
 	uint32_t imblance_radial_1D_center_y;
+	uint32_t radius;
 	uint32_t imblance_radial_1D_radius_thr;
 	uint32_t imblance_radial_1D_radius_thr_factor;
 	uint32_t imblance_radial_1D_protect_ratio_max;
@@ -1892,6 +1900,7 @@ struct isp_dev_nlm_info_v2 {
 	uint32_t nlm_radial_1D_coef2[3][4];
 	uint32_t nlm_radial_1D_protect_gain_min[3][4];
 
+	uint32_t radius;
 	uint32_t nlm_radial_1D_radius_threshold_factor;
 	uint32_t nlm_radial_1D_radius_threshold_filter_ratio_factor[3][4];
 	uint32_t radius_base;

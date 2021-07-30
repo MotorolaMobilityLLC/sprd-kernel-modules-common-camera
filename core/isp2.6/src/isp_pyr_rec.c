@@ -416,7 +416,7 @@ static int isppyrrec_ynr_get(struct isp_rec_ctx_desc *ctx, uint32_t idx)
 
 	ynr_alg_cal.imgCenterX[0] = ctx->pyr_layer_size[0].w / 2;
 	ynr_alg_cal.imgCenterY[0] = ctx->pyr_layer_size[0].h / 2;
-	ynr_alg_cal.Radius[0] = pyr_ynr->radius;
+	ynr_alg_cal.Radius[0] = ctx->rec_ynr_radius;
 	layer_num_ynr = ctx->layer_num;
 	for (i = 0; i < 5; i++) {
 		/* some ynr param only need cfg once */
@@ -448,6 +448,7 @@ static int isppyrrec_cnr_get(struct isp_rec_ctx_desc *ctx, uint32_t idx)
 {
 	int ret = 0;
 	struct isp_rec_cnr_info *cnr_info = NULL;
+	uint32_t radius = 0, cnr_radius = 0;
 
 	if (!ctx) {
 		pr_err("fail to get valid input ctx %p\n", ctx);
@@ -459,6 +460,12 @@ static int isppyrrec_cnr_get(struct isp_rec_ctx_desc *ctx, uint32_t idx)
 	cnr_info->rec_cnr_bypass = cnr_info->pyr_cnr->bypass;
 	cnr_info->img_center.w = ctx->pyr_layer_size[cnr_info->layer_num].w / 4;
 	cnr_info->img_center.h = ctx->pyr_layer_size[cnr_info->layer_num].h / 4;
+
+	cnr_radius = ctx->rec_cnr_radius;
+	radius = cnr_radius >> ctx->cur_layer;
+	cnr_info->pyr_cnr->layer_cnr_h[ctx->cur_layer].radius = radius;
+	pr_debug("cur_layer %d, layer_num %d, img_center w %d, h %d, radius %d\n", ctx->cur_layer, cnr_info->layer_num,
+		cnr_info->img_center.w, cnr_info->img_center.h, radius);
 
 	return ret;
 }
@@ -704,6 +711,8 @@ static int isppyrrec_pipe_proc(void *handle, void *param)
 	size = pitch * in_ptr->src.h;
 	rec_ctx->rec_ynr.pyr_ynr = in_ptr->pyr_ynr;
 	rec_ctx->rec_cnr.pyr_cnr = in_ptr->pyr_cnr;
+	rec_ctx->rec_ynr_radius = in_ptr->pyr_ynr_radius;
+	rec_ctx->rec_cnr_radius = in_ptr->pyr_cnr_radius;
 	rec_ctx->in_fmt = in_ptr->in_fmt;
 	rec_ctx->out_fmt = in_ptr->in_fmt;
 	rec_ctx->fetch_addr[0] = in_ptr->in_addr;

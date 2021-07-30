@@ -160,6 +160,8 @@ struct isp_rec_ops {
 
 struct isp_pyr_rec_in {
 	uint32_t in_fmt;
+	uint32_t pyr_ynr_radius;
+	uint32_t pyr_cnr_radius;
 	struct img_size src;
 	struct img_trim in_trim;
 	struct img_addr in_addr;
@@ -191,6 +193,8 @@ struct isp_rec_ctx_desc {
 	uint32_t layer_num;
 	uint32_t dewarp_eb;
 	uint32_t cur_slice_id;
+	uint32_t rec_ynr_radius;
+	uint32_t rec_cnr_radius;
 	uint32_t fbcd_buffer_size;
 	enum isp_fetch_path_select fetch_path_sel;
 	enum isp_work_mode wmode;

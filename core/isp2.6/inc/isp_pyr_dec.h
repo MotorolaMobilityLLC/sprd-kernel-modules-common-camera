@@ -159,6 +159,7 @@ struct isp_dec_overlap_info {
 };
 
 struct isp_dec_dct_ynr_info {
+	uint32_t dct_radius;
 	struct img_size img;
 	struct img_size start[SLICE_NUM_MAX];
 	struct isp_dev_dct_info *dct;

@@ -243,17 +243,37 @@ static int ispcore_blkparam_adapt(struct isp_sw_context *pctx)
 		crop_start_x, crop_start_y, crop_end_x, crop_end_y,
 		old_width, old_height, new_width, new_height);
 
-	sub_blk_func.index =  ISP_K_BLK_NLM_UPDATE;
+	sub_blk_func.index = ISP_K_BLK_NLM_UPDATE;
 	pctx->hw->isp_ioctl(pctx->hw, ISP_HW_CFG_K_BLK_FUNC_GET, &sub_blk_func);
 	if (sub_blk_func.k_blk_func)
 		sub_blk_func.k_blk_func(pctx);
 
-	sub_blk_func.index =  ISP_K_BLK_IMBLANCE_UPDATE;
+	sub_blk_func.index = ISP_K_BLK_IMBLANCE_UPDATE;
 	pctx->hw->isp_ioctl(pctx->hw, ISP_HW_CFG_K_BLK_FUNC_GET, &sub_blk_func);
 	if (sub_blk_func.k_blk_func)
 		sub_blk_func.k_blk_func(pctx);
 
-	sub_blk_func.index =  ISP_K_BLK_YNR_UPDATE;
+	sub_blk_func.index = ISP_K_BLK_YNR_UPDATE;
+	pctx->hw->isp_ioctl(pctx->hw, ISP_HW_CFG_K_BLK_FUNC_GET, &sub_blk_func);
+	if (sub_blk_func.k_blk_func)
+		sub_blk_func.k_blk_func(pctx);
+
+	sub_blk_func.index = ISP_K_BLK_CNR_UPDATE;
+	pctx->hw->isp_ioctl(pctx->hw, ISP_HW_CFG_K_BLK_FUNC_GET, &sub_blk_func);
+	if (sub_blk_func.k_blk_func)
+		sub_blk_func.k_blk_func(pctx);
+
+	sub_blk_func.index = ISP_K_BLK_POST_CNR_UPDATE;
+	pctx->hw->isp_ioctl(pctx->hw, ISP_HW_CFG_K_BLK_FUNC_GET, &sub_blk_func);
+	if (sub_blk_func.k_blk_func)
+		sub_blk_func.k_blk_func(pctx);
+
+	sub_blk_func.index = ISP_K_BLK_EDGE_UPDATE;
+	pctx->hw->isp_ioctl(pctx->hw, ISP_HW_CFG_K_BLK_FUNC_GET, &sub_blk_func);
+	if (sub_blk_func.k_blk_func)
+		sub_blk_func.k_blk_func(pctx);
+
+	sub_blk_func.index = ISP_K_BLK_DCT_UPDATE;
 	pctx->hw->isp_ioctl(pctx->hw, ISP_HW_CFG_K_BLK_FUNC_GET, &sub_blk_func);
 	if (sub_blk_func.k_blk_func)
 		sub_blk_func.k_blk_func(pctx);
@@ -396,6 +416,8 @@ static int ispcore_rec_frame_process(struct isp_sw_context *pctx,
 	cfg_in.in_addr = pipe_in->fetch.addr;
 	cfg_in.in_trim = pipe_in->fetch.in_trim;
 	cfg_in.in_fmt = pipe_in->fetch.fetch_fmt;
+	cfg_in.pyr_ynr_radius = pctx->isp_k_param.ynr_radius;
+	cfg_in.pyr_cnr_radius = pctx->isp_k_param.cnr_radius;
 	cfg_in.slice_overlap = &slc_ctx->slice_overlap;
 	cfg_in.pyr_cnr = &pctx->isp_k_param.cnr_info;
 	cfg_in.pyr_ynr = &pctx->isp_k_param.ynr_info_v3;
@@ -2431,6 +2453,7 @@ static int ispcore_dec_frame_proc(struct isp_sw_context *pctx,
 
 	format = isp_drv_fetch_format_get(uinfo);
 	dec_dev->dct_ynr_info.dct = &pctx->isp_k_param.dct_info;
+	dec_dev->dct_ynr_info.dct_radius = pctx->isp_k_param.dct_radius;
 	dec_dev->ops.cfg_param(dec_dev, pctx->ctx_id, ISP_DEC_CFG_IN_FORMAT, &format);
 	frame->dec_ctx_id = pctx->ctx_id;
 

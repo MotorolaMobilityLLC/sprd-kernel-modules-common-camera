@@ -18,6 +18,7 @@
 #include "isp_reg.h"
 #include "cam_types.h"
 #include "cam_block.h"
+#include "isp_core.h"
 
 #ifdef pr_fmt
 #undef pr_fmt
@@ -57,7 +58,7 @@ static int isp_k_post_cnr_block(struct isp_io_param *param,
 		return 0;
 	}
 
-	val = ((post_cnr_h_info->baseRadius & 0xFFFF) << 16) |
+	val = ((param_post_cnr_h->radius & 0xFFFF) << 16) |
 		((param_post_cnr_h->minRatio & 0x3FF) << 2) |
 		((param_post_cnr_h->denoise_radial_en & 0x1) << 1) |
 		(param_post_cnr_h->lowpass_filter_en & 0x1);
@@ -127,6 +128,66 @@ int isp_k_cfg_post_cnr_h(struct isp_io_param *param,
 		pr_err("fail to idx %d, support cmd id = %d\n", idx, param->property);
 		break;
 	}
+
+	return ret;
+}
+
+int isp_k_update_post_cnr(void *handle)
+{
+	int ret = 0;
+	uint32_t val = 0, center_x = 0, center_y = 0;
+	uint32_t radius = 0, radius_limit = 0;
+	uint32_t idx = 0, new_width = 0, old_width = 0, sensor_width = 0;
+	uint32_t new_height = 0, old_height = 0, sensor_height = 0;
+	struct isp_dev_post_cnr_h_info *post_cnr_info = NULL;
+	struct isp_post_cnr_h *param_post_cnr_info = NULL;
+	struct isp_sw_context *pctx = NULL;
+
+	if (!handle) {
+		pr_err("fail to get invalid in ptr\n");
+		return -EFAULT;
+	}
+
+	pctx = (struct isp_sw_context *)handle;
+	idx = pctx->ctx_id;
+	new_width = pctx->isp_k_param.blkparam_info.new_width;
+	new_height = pctx->isp_k_param.blkparam_info.new_height;
+	old_width = pctx->isp_k_param.blkparam_info.old_width;
+	old_height = pctx->isp_k_param.blkparam_info.old_height;
+	sensor_width = pctx->uinfo.original.src_size.w;
+	sensor_height = pctx->uinfo.original.src_size.h;
+
+	post_cnr_info = &pctx->isp_k_param.post_cnr_h_info;
+	param_post_cnr_info = &post_cnr_info->param_post_cnr_h;
+
+	if (post_cnr_info->bypass)
+		return 0;
+
+	center_x = new_width >> 1;
+	center_y = new_height >> 1;
+	val = (center_y << 16) | center_x;
+	ISP_REG_WR(idx, ISP_YUV_CNR_CFG1, val);
+
+	param_post_cnr_info->imgCenterX = center_x;
+	param_post_cnr_info->imgCenterY = center_y;
+
+	if (post_cnr_info->radius_base == 0)
+		post_cnr_info->radius_base = 1024;
+
+	radius = ((sensor_width+sensor_height) / 2) * param_post_cnr_info->base_radius_factor / post_cnr_info->radius_base;
+	radius_limit = (new_width+new_height ) / 2;
+	radius = (radius < radius_limit) ? radius : radius_limit;
+	if (old_width / new_width != 1)
+		radius = radius / 2;
+
+	param_post_cnr_info->radius = radius;
+	val = ((param_post_cnr_info->radius & 0xFFFF) << 16) |
+		((param_post_cnr_info->minRatio & 0x3FF) << 2) |
+		((param_post_cnr_info->denoise_radial_en & 0x1) << 1) |
+		(param_post_cnr_info->lowpass_filter_en & 0x1);
+	ISP_REG_WR(idx, ISP_YUV_CNR_CFG0, val);
+	pr_debug("cen %d %d, base %d, factor %d, radius %d\n",
+		center_x, center_y, post_cnr_info->radius_base, param_post_cnr_info->base_radius_factor, radius);
 
 	return ret;
 }

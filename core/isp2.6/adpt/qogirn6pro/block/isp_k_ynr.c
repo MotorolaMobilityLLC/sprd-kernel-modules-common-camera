@@ -66,5 +66,42 @@ int isp_k_cfg_ynr(struct isp_io_param *param,
 
 int isp_k_update_ynr(void *handle)
 {
-	return 0;
+	int ret = 0;
+	uint32_t radius = 0, radius_limit = 0;
+	uint32_t idx = 0, new_width = 0, old_width = 0, sensor_width = 0;
+	uint32_t new_height = 0, old_height = 0, sensor_height = 0;
+	struct isp_dev_ynr_info_v3 *ynr_info = NULL;
+	struct isp_sw_context *pctx = NULL;
+
+	if (!handle) {
+		pr_err("fail to get invalid in ptr\n");
+		return -EFAULT;
+	}
+
+	pctx = (struct isp_sw_context *)handle;
+	idx = pctx->ctx_id;
+	new_width = pctx->isp_k_param.blkparam_info.new_width;
+	new_height = pctx->isp_k_param.blkparam_info.new_height;
+	old_width = pctx->isp_k_param.blkparam_info.old_width;
+	old_height = pctx->isp_k_param.blkparam_info.old_height;
+	sensor_width = pctx->uinfo.original.src_size.w;
+	sensor_height = pctx->uinfo.original.src_size.h;
+
+	ynr_info = &pctx->isp_k_param.ynr_info_v3;
+	if (ynr_info->bypass)
+		return 0;
+
+	if (ynr_info->radius_base == 0)
+		ynr_info->radius_base = 1024;
+
+	radius = sensor_height * ynr_info->radius_factor / ynr_info->radius_base;
+	radius_limit = new_height;
+	radius = (radius < radius_limit) ? radius : radius_limit;
+	if (old_width / new_width != 1)
+		radius = radius / 2;
+
+	pctx->isp_k_param.ynr_radius = radius;
+	pr_debug("base %d, factor %d, radius %d\n", ynr_info->radius_base, ynr_info->radius_factor, radius);
+
+	return ret;
 }

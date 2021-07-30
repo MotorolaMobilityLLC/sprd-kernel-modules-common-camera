@@ -202,11 +202,9 @@ int dcam_k_nlm_block(struct dcam_dev_param *p)
 
 	r_base = nlm_info2->radius_base;
 	r_factor = nlm_info2->nlm_radial_1D_radius_threshold_factor;
-	radius_threshold = nlm_info2->nlm_radial_1D_radius_threshold;
-	radius_threshold *= in_width;
-	radius_threshold = (radius_threshold + (re_width / 2)) / re_width;
-	radius_limit = (in_width + in_height) * r_factor / r_base;
-	radius_threshold = (radius_threshold < radius_limit) ? radius_threshold : radius_limit;
+	if (r_base == 0)
+		r_base = 1024;
+	radius_threshold = (in_width + in_height) * r_factor / r_base;
 	DCAM_REG_MWR(idx, DCAM_NLM_RADIAL_1D_THRESHOLD, 0x7FFF, radius_threshold);
 
 	val = nlm_info2->nlm_radial_1D_protect_gain_max & 0x1FFF;
@@ -258,7 +256,7 @@ int dcam_k_nlm_imblance(struct dcam_dev_param *p)
 {
 	int ret = 0, idx = 0;
 	uint32_t center_x = 0, center_y = 0;
-	uint32_t radius = 0, radius_limit = 0;
+	uint32_t radius = 0;
 	uint32_t in_width = 0, in_height = 0;
 	uint32_t re_width = 0, re_height = 0;
 	struct isp_dev_nlm_imblance_v2 *imblance_info = NULL;
@@ -383,12 +381,11 @@ int dcam_k_nlm_imblance(struct dcam_dev_param *p)
 	DCAM_REG_WR(idx, DCAM_NLM_IMBLANCE_PARA28,
 		((center_x & 0xffff) << 16) | (center_y & 0xffff));
 
-	radius = (imblance_info->imblance_radial_1D_radius_thr
-		* in_width + (re_width / 2)) / re_width;
-	radius_limit = (in_height + in_width)
+	if (imblance_info->radius_base == 0)
+		imblance_info->radius_base = 1024;
+	radius = (in_height + in_width)
 		* imblance_info->imblance_radial_1D_radius_thr_factor
 		/ imblance_info->radius_base;
-	radius = (radius < radius_limit) ? radius : radius_limit;
 	DCAM_REG_WR(idx, DCAM_NLM_IMBLANCE_PARA29, (radius & 0xffff));
 
 	DCAM_REG_WR(idx, DCAM_NLM_IMBLANCE_PARA31,

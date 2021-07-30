@@ -1768,6 +1768,10 @@ static isp_k_blk_func isp_hw_k_blk_func_tab[ISP_K_BLK_MAX] = {
 	[ISP_K_BLK_PYR_DEC_IRQ_FUNC] = isp_pyr_dec_irq_func,
 	[ISP_K_BLK_PYR_DEC_CFG] = isp_pyr_dec_config,
 	[ISP_K_BLK_YNR_UPDATE] = isp_k_update_ynr,
+	[ISP_K_BLK_CNR_UPDATE] = isp_k_update_cnr,
+	[ISP_K_BLK_POST_CNR_UPDATE] = isp_k_update_post_cnr,
+	[ISP_K_BLK_EDGE_UPDATE] = isp_k_update_edge,
+	[ISP_K_BLK_DCT_UPDATE] = isp_k_update_dct,
 };
 
 static int isphw_k_blk_func_get(void *handle, void *arg)

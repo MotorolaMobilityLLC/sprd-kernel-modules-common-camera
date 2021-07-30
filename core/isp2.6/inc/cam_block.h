@@ -58,6 +58,9 @@ struct isp_k_block {
 	struct isp_dev_ynr_info_v3 ynr_info_v3;
 	struct isp_dev_cnr_h_info cnr_info;
 	struct isp_dev_dct_info dct_info;
+	uint32_t ynr_radius;
+	uint32_t cnr_radius;
+	uint32_t dct_radius;
 	/* sharkl3 only */
 	struct isp_dev_brightness_info brightness_info;
 	struct isp_dev_contrast_info contrast_info;
@@ -236,6 +239,10 @@ int isp_k_cfg_cnr(struct isp_io_param *param,
 	struct isp_k_block *isp_k_param, uint32_t idx);
 int isp_k_update_nlm(void *handle);
 int isp_k_update_ynr(void *handle);
+int isp_k_update_cnr(void *handle);
+int isp_k_update_post_cnr(void *handle);
+int isp_k_update_edge(void *handle);
+int isp_k_update_dct(void *handle);
 int isp_k_update_3dnr(uint32_t idx,
 	struct isp_k_block *isp_k_param,
 	uint32_t new_width, uint32_t old_width,

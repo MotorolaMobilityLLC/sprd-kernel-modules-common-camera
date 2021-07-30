@@ -588,7 +588,7 @@ int isp_pyr_rec_frame_config(void *handle)
 	ISP_REG_WR(idx, ISP_YUV_REC_CNR_CONTRL0, cmd);
 
 	addr = ISP_GET_REG(ISP_YUV_REC_CNR_CFG0);
-	cmd = ((pyr_cnr->baseRadius & 0xFFFF) << 16) |
+	cmd = ((layer_cnr_h->radius & 0xFFFF) << 16) |
 		((layer_cnr_h->minRatio & 0x3FF) << 2) |
 		((layer_cnr_h->denoise_radial_en & 0x1) << 1) |
 		(layer_cnr_h->lowpass_filter_en & 0x1);

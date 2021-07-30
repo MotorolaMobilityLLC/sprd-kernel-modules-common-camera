@@ -58,3 +58,48 @@ int isp_k_cfg_cnr(struct isp_io_param *param,
 
 	return ret;
 }
+
+int isp_k_update_cnr(void *handle)
+{
+	int ret = 0;
+	uint32_t radius = 0, radius_limit = 0;
+	uint32_t idx = 0, new_width = 0, old_width = 0, sensor_width = 0;
+	uint32_t new_height = 0, old_height = 0, sensor_height = 0;
+	struct isp_dev_cnr_h_info *cnr_info_h = NULL;
+	struct isp_cnr_h_info *param_cnr_info = NULL;
+	struct isp_sw_context *pctx = NULL;
+
+	if (!handle) {
+		pr_err("fail to get invalid in ptr\n");
+		return -EFAULT;
+	}
+
+	pctx = (struct isp_sw_context *)handle;
+	idx = pctx->ctx_id;
+	new_width = pctx->isp_k_param.blkparam_info.new_width;
+	new_height = pctx->isp_k_param.blkparam_info.new_height;
+	old_width = pctx->isp_k_param.blkparam_info.old_width;
+	old_height = pctx->isp_k_param.blkparam_info.old_height;
+	sensor_width = pctx->uinfo.original.src_size.w;
+	sensor_height = pctx->uinfo.original.src_size.h;
+
+	cnr_info_h = &pctx->isp_k_param.cnr_info;
+	param_cnr_info = &cnr_info_h->layer_cnr_h[0];
+
+	if (cnr_info_h->bypass)
+		return 0;
+
+	if (cnr_info_h->radius_base == 0)
+		cnr_info_h->radius_base = 1024;
+
+	radius = ((sensor_width + sensor_height) / 4) * param_cnr_info->base_radius_factor / cnr_info_h->radius_base;
+	radius_limit = (new_height + new_width) / 4;
+	radius = (radius < radius_limit) ? radius : radius_limit;
+	if (old_width / new_width != 1)
+		radius = radius / 2;
+
+	pctx->isp_k_param.cnr_radius = radius;
+	pr_debug("base %d, factor %d, radius %d\n", cnr_info_h->radius_base, param_cnr_info->base_radius_factor, radius);
+
+	return ret;
+}
