@@ -2411,7 +2411,6 @@ static int ispcore_dec_frame_proc(struct isp_sw_context *pctx,
 	format = isp_drv_fetch_format_get(uinfo);
 	dec_dev->dct_ynr_info.dct = &pctx->isp_k_param.dct_info;
 	dec_dev->ops.cfg_param(dec_dev, pctx->ctx_id, ISP_DEC_CFG_IN_FORMAT, &format);
-	dec_dev->ops.cfg_param(dec_dev, pctx->ctx_id, ISP_DEC_CFG_PROC_SIZE, &uinfo->src);
 	frame->dec_ctx_id = pctx->ctx_id;
 
 	ret = dec_dev->ops.proc_frame(dec_dev, frame);

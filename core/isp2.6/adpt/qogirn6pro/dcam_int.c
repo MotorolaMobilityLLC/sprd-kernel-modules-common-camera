@@ -1314,22 +1314,32 @@ static void dcamint_iommu_regs_dump(struct dcam_hw_context *dcam_hw_ctx)
 				DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, DCAM_STORE4_SLICE_Y_ADDR),
 				DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, DCAM_STORE4_SLICE_U_ADDR),
 				DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, DCAM_STORE0_SLICE_Y_ADDR),
-				DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, DCAM_STORE0_SLICE_Y_ADDR));
-		pr_err("pdaf %08x vch2 %08x vch3 %08x lsc %08x aem %08x "
-		"hist %08x\n", DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, DCAM_PDAF_BASE_WADDR),
+				DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, DCAM_STORE0_SLICE_U_ADDR));
+		pr_err("dec layer1 y %08x u %08x layer2 y %08x u %08x\n",
+				DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, DCAM_STORE_DEC_L1_BASE + DCAM_STORE_DEC_SLICE_Y_ADDR),
+				DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, DCAM_STORE_DEC_L1_BASE + DCAM_STORE_DEC_SLICE_U_ADDR),
+				DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, DCAM_STORE_DEC_L2_BASE + DCAM_STORE_DEC_SLICE_Y_ADDR),
+				DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, DCAM_STORE_DEC_L2_BASE + DCAM_STORE_DEC_SLICE_U_ADDR));
+		pr_err("dec layer3 y %08x u %08x layer4 y %08x u %08x\n",
+				DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, DCAM_STORE_DEC_L3_BASE + DCAM_STORE_DEC_SLICE_Y_ADDR),
+				DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, DCAM_STORE_DEC_L3_BASE + DCAM_STORE_DEC_SLICE_U_ADDR),
+				DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, DCAM_STORE_DEC_L4_BASE + DCAM_STORE_DEC_SLICE_Y_ADDR),
+				DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, DCAM_STORE_DEC_L4_BASE + DCAM_STORE_DEC_SLICE_U_ADDR));
+		pr_err("pdaf %08x vch2 %08x vch3 %08x lsc %08x aem %08x hist %08x\n",
+				DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, DCAM_PDAF_BASE_WADDR),
 				DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, DCAM_VCH2_BASE_WADDR),
 				DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, DCAM_VCH3_BASE_WADDR),
 				DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, DCAM_LENS_BASE_RADDR),
 				DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, DCAM_AEM_BASE_WADDR),
 				DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, DCAM_BAYER_HIST_BASE_WADDR));
-		pr_err("ppe %08x afl %08x %08x bpc %08x %08x afm %08x "
-		"nr3 %08x\n", DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, DCAM_PPE_RIGHT_WADDR),
-			DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, ISP_AFL_DDR_INIT_ADDR),
-			DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, ISP_AFL_REGION_WADDR),
-			DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, DCAM_BPC_MAP_ADDR),
-			DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, DCAM_BPC_OUT_ADDR),
-			DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, DCAM_AFM_LUM_FV_BASE_WADDR),
-			DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, DCAM_NR3_WADDR));
+		pr_err("ppe %08x afl %08x %08x bpc %08x %08x afm %08x nr3 %08x\n",
+				DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, DCAM_PPE_RIGHT_WADDR),
+				DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, ISP_AFL_DDR_INIT_ADDR),
+				DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, ISP_AFL_REGION_WADDR),
+				DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, DCAM_BPC_MAP_ADDR),
+				DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, DCAM_BPC_OUT_ADDR),
+				DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, DCAM_AFM_LUM_FV_BASE_WADDR),
+				DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, DCAM_NR3_WADDR));
 		dcam_hw_ctx->sw_ctx->err_count -= 1;
 	}
 }

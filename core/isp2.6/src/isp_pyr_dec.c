@@ -745,6 +745,8 @@ static int isppyrdec_offline_frame_start(void *handle)
 		goto map_err;
 	}
 
+	dec_dev->src.w = pframe->width;
+	dec_dev->src.h = pframe->height;
 	/* update layer num based on img size */
 	while (isp_rec_small_layer_w(dec_dev->src.w, layer_num) < MIN_PYR_WIDTH ||
 		isp_rec_small_layer_h(dec_dev->src.h, layer_num) < MIN_PYR_HEIGHT) {
@@ -900,10 +902,6 @@ static int isppyrdec_cfg_param(void *handle, int ctx_id,
 	dec_dev = (struct isp_dec_pipe_dev *)handle;
 	pctx = &dec_dev->sw_ctx[ctx_id];
 	switch (cmd) {
-	case ISP_DEC_CFG_PROC_SIZE:
-		dec_dev->src = *(struct img_size *)param;
-		ISP_DEC_DEBUG("DEC size w %d h %d\n", dec_dev->src.w, dec_dev->src.h);
-		break;
 	case ISP_DEC_CFG_IN_FORMAT:
 		dec_dev->in_fmt = *(uint32_t *)param;
 		dec_dev->out_fmt = dec_dev->in_fmt;

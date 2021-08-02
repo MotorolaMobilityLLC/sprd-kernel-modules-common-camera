@@ -253,11 +253,10 @@ static void dcamcore_reserved_buf_destroy(void *param)
 	cam_queue_empty_frame_put(frame);
 }
 
-static struct camera_buf *dcamcore_reserved_buffer_get(struct dcam_sw_context *pctx)
+static struct camera_buf *dcamcore_reserved_buffer_get(struct dcam_sw_context *pctx, size_t size)
 {
 	int ret = 0;
 	int iommu_enable = 0; /* todo: get from dev dts config value */
-	size_t size;
 	struct camera_buf *ion_buf = NULL;
 
 	ion_buf = kzalloc(sizeof(*ion_buf), GFP_KERNEL);
@@ -266,17 +265,21 @@ static struct camera_buf *dcamcore_reserved_buffer_get(struct dcam_sw_context *p
 		goto nomem;
 	}
 
+	if (size == 0) {
+		pr_err("fail to get valid res buffer size\n");
+		goto ion_fail;
+	}
+
 	if (cam_buf_iommu_status_get(CAM_IOMMUDEV_DCAM) == 0)
 		iommu_enable = 1;
 
-	size = DCAM_INTERNAL_RES_BUF_SIZE;
 	ret = cam_buf_alloc(ion_buf, size, iommu_enable);
 	if (ret) {
 		pr_err("fail to get dcam reserverd buffer\n");
 		goto ion_fail;
 	}
 
-	pr_info("sw_ctx_id %d done. ion %px\n", pctx->sw_ctx_id, ion_buf);
+	pr_info("sw_ctx_id %d done. ion %px, size %d\n", pctx->sw_ctx_id, ion_buf, (uint32_t)size);
 	return ion_buf;
 
 ion_fail:
@@ -305,7 +308,7 @@ static int dcamcore_reserved_buffer_put(struct dcam_sw_context *pctx)
 	return 0;
 }
 
-static void dcamcore_reserved_statis_bufferq_init(struct dcam_sw_context *pctx)
+static void dcamcore_reserved_statis_bufferq_init(struct dcam_sw_context *pctx, size_t size)
 {
 	int ret = 0;
 	int i, j;
@@ -318,7 +321,7 @@ static void dcamcore_reserved_statis_bufferq_init(struct dcam_sw_context *pctx)
 	pr_info("enter\n");
 
 	if (pctx->internal_reserved_buf == NULL) {
-		ion_buf = dcamcore_reserved_buffer_get(pctx);
+		ion_buf = dcamcore_reserved_buffer_get(pctx, size);
 		if (IS_ERR_OR_NULL(ion_buf))
 			return;
 
@@ -414,6 +417,7 @@ static int dcamcore_statis_bufferq_init(struct dcam_sw_context *pctx)
 	struct camera_buf *ion_buf;
 	struct camera_frame *pframe;
 	struct dcam_path_desc *path;
+	size_t res_buf_size = 0;
 
 	pr_debug("enter\n");
 
@@ -435,8 +439,6 @@ static int dcamcore_statis_bufferq_init(struct dcam_sw_context *pctx)
 			DCAM_RESERVE_BUF_Q_LEN,
 			dcamcore_statis_buf_destroy);
 	}
-
-	dcamcore_reserved_statis_bufferq_init(pctx);
 
 	for (i = 0; i < ARRAY_SIZE(s_statis_path_info_all); i++) {
 
@@ -487,8 +489,13 @@ static int dcamcore_statis_bufferq_init(struct dcam_sw_context *pctx)
 			pr_debug("dcam%d statis %d buf %d kaddr 0x%lx iova 0x%08x\n",
 				pctx->hw_ctx_id, stats_type, ion_buf->mfd[0],
 				ion_buf->addr_k[0], (uint32_t)ion_buf->iova[0]);
+
+			if (ion_buf->size[0] > res_buf_size)
+				res_buf_size = ion_buf->size[0];
 		}
 	}
+
+	dcamcore_reserved_statis_bufferq_init(pctx, res_buf_size);
 
 	pr_info("done.\n");
 	return ret;
@@ -1349,6 +1356,7 @@ static int dcamcore_path_put(void *dcam_handle, int path_id)
 	int ret = 0;
 	struct dcam_sw_context *pctx;
 	struct dcam_path_desc *path = NULL;
+	unsigned long flag = 0;
 
 	if (!dcam_handle) {
 		pr_err("fail to get a valid param,  dcam_handle=%p\n",
@@ -1374,7 +1382,9 @@ static int dcamcore_path_put(void *dcam_handle, int path_id)
 			pctx->hw_ctx_id, path_id);
 		atomic_set(&path->user_cnt, 0);
 	}
-
+	spin_lock_irqsave(&path->size_lock, flag);
+	path->size_update = 0;
+	spin_unlock_irqrestore(&path->size_lock, flag);
 	cam_queue_clear(&path->result_queue, struct camera_frame, list);
 	cam_queue_clear(&path->out_buf_queue, struct camera_frame, list);
 	cam_queue_clear(&path->alter_out_queue, struct camera_frame, list);
@@ -2652,7 +2662,7 @@ exit:
 
 int dcam_core_context_unbind(struct dcam_sw_context *pctx)
 {
-	int i, cnt;
+	int i, j, cnt;
 	struct dcam_pipe_dev *dev = pctx->dev;
 	struct dcam_hw_context *pctx_hw = NULL;
 	unsigned long flag = 0;
@@ -2676,7 +2686,8 @@ int dcam_core_context_unbind(struct dcam_sw_context *pctx)
 			pctx_hw->sw_ctx_id = DCAM_SW_CONTEXT_MAX;
 			pctx->hw_ctx_id = DCAM_HW_CONTEXT_MAX;
 			pctx->hw_ctx = NULL;
-			pctx->ctx[pctx_hw->hw_ctx_id].blk_pm.idx = DCAM_HW_CONTEXT_MAX;
+			for (j = DCAM_CXT_0; j < DCAM_CXT_NUM; j++)
+				pctx->ctx[j].blk_pm.idx = DCAM_HW_CONTEXT_MAX;
 			goto exit;
 		}
 

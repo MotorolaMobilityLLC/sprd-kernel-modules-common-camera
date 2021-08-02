@@ -663,6 +663,7 @@ static int camcore_resframe_set(struct camera_module *module)
 	struct channel_context *ch = NULL, *ch_prv = NULL;
 	uint32_t i = 0, j = 0, cmd = ISP_PATH_CFG_OUTPUT_RESERVED_BUF;
 	uint32_t max_size = 0, out_size = 0, in_size = 0;
+	uint32_t src_w = 0, src_h = 0;
 	struct camera_frame *pframe = NULL;
 	struct camera_frame *pframe1;
 	struct dcam_sw_context *dcam_sw_ctx = NULL;
@@ -672,6 +673,8 @@ static int camcore_resframe_set(struct camera_module *module)
 	for (i = 0; i < CAM_CH_MAX; i++) {
 		ch = &module->channel[i];
 		if (ch->enable) {
+			src_w = ch->ch_uinfo.src_size.w;
+			src_h = ch->ch_uinfo.src_size.h;
 			if (ch->ch_uinfo.dst_fmt != IMG_PIX_FMT_GREY)
 				out_size = ch->ch_uinfo.dst_size.w *ch->ch_uinfo.dst_size.h * 3 / 2;
 			else
@@ -679,13 +682,16 @@ static int camcore_resframe_set(struct camera_module *module)
 					* ch->ch_uinfo.dst_size.h;
 
 			if (ch->ch_uinfo.sn_fmt != IMG_PIX_FMT_GREY)
-				in_size = ch->ch_uinfo.src_size.w *ch->ch_uinfo.src_size.h * 3 / 2;
+				in_size = src_w * src_h * 3 / 2;
 			else if (ch->dcam_out_fmt == DCAM_STORE_RAW_BASE)
-				in_size = cal_sprd_raw_pitch(ch->ch_uinfo.src_size.w, ch->ch_uinfo.dcam_raw_fmt)
-					* ch->ch_uinfo.src_size.h;
+				in_size = cal_sprd_raw_pitch(src_w, ch->ch_uinfo.dcam_raw_fmt) * src_h;
 			else if ((ch->dcam_out_fmt == DCAM_STORE_YUV420) || (ch->dcam_out_fmt == DCAM_STORE_YVU420))
-				in_size = cal_sprd_yuv_pitch(ch->ch_uinfo.src_size.w, mipi->bits_per_pxl, ch->ch_uinfo.dcam_out_pack)
-					* ch->ch_uinfo.src_size.h * 3 / 2;
+				in_size = cal_sprd_yuv_pitch(src_w, mipi->bits_per_pxl, ch->ch_uinfo.dcam_out_pack)
+					* src_h * 3 / 2;
+
+			if (module->cam_uinfo.is_pyr_rec && ch->ch_id != CAM_CH_CAP)
+				in_size += dcam_if_cal_pyramid_size(src_w, src_h, mipi->bits_per_pxl, ch->ch_uinfo.dcam_out_pack);
+			in_size = ALIGN(in_size, CAM_BUF_ALIGN_SIZE);
 
 			max_size = max3(max_size, out_size, in_size);
 			pr_debug("cam%d, ch %d, max_size = %d, %d, %d\n", module->idx, i, max_size, in_size, out_size);
@@ -713,6 +719,8 @@ static int camcore_resframe_set(struct camera_module *module)
 				pframe1->buf.offset[1] = pframe->buf.offset[1];
 				pframe1->buf.offset[2] = pframe->buf.offset[2];
 				pframe1->channel_id = ch->ch_id;
+				if (module->cam_uinfo.is_pyr_rec && ch->ch_id != CAM_CH_CAP)
+					pframe1->need_pyr_rec = 1;
 
 				ret = cam_buf_ionbuf_get(&pframe1->buf);
 				if (ret) {

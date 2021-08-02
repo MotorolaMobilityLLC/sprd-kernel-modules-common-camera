@@ -32,7 +32,6 @@
 #define DCAM_OUT_BUF_Q_LEN                25
 #define DCAM_RESERVE_BUF_Q_LEN            25
 
-#define DCAM_INTERNAL_RES_BUF_SIZE        0xC0000
 #define DCAM_LSC_BUF_SIZE                 0x3000
 
 #define DCAM_OFFLINE_TIMEOUT              msecs_to_jiffies(2000)

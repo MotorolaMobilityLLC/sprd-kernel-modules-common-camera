@@ -38,7 +38,6 @@ enum {
 };
 
 enum isp_dec_cfg_cmd {
-	ISP_DEC_CFG_PROC_SIZE,
 	ISP_DEC_CFG_IN_FORMAT,
 	ISP_DEC_CFG_MAX,
 };

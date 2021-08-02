@@ -501,7 +501,7 @@ static int isppyrrec_store_get(struct isp_rec_ctx_desc *ctx, uint32_t idx)
 	rec_store->last_frm_en = 1;
 	rec_store->mono_en = 0;
 	rec_store->mirror_en = 0;
-	rec_store->burst_len = 1;
+	rec_store->burst_len = 0;
 	rec_store->speed2x = 1;
 	rec_store->shadow_clr_sel = 1;
 	rec_store->shadow_clr = 1;
