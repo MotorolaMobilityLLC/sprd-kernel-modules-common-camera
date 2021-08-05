@@ -1453,7 +1453,7 @@ static int cppdrv_scale_capability_get(void *arg1, void *arg2)
 	}
 
 	zoom_up_support = cppdrv_get_zoomup_support(cppif);
-	if (1 == zoom_up_support){
+	if (0 == zoom_up_support){
 		if (scale_param->dst_size.w > scale_param->src_size.w ||
 			scale_param->dst_size.h > scale_param->src_size.h) {
 			pr_err("fail to upscale src.w:%d h:%d dst w:%d h:%d\n",
