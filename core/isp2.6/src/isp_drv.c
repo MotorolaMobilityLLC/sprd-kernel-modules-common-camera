@@ -66,6 +66,7 @@ static int ispdrv_path_scaler_get(struct isp_path_uinfo *in_ptr,
 	path->out_trim.start_y = 0;
 	path->out_trim.size_x = in_ptr->dst.w;
 	path->out_trim.size_y = in_ptr->dst.h;
+	path->regular_info.regular_mode = in_ptr->regular_mode;
 	ret = isp_path_scaler_param_calc(&path->in_trim, &path->dst,
 		&path->scaler, &path->deci);
 	if (ret) {
