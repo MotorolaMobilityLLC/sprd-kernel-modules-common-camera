@@ -184,6 +184,7 @@ struct dcam_path_cfg_param {
 	struct img_endian endian;
 	struct img_size input_size;
 	struct img_trim input_trim;
+	struct img_trim total_input_trim;
 	struct img_size output_size;
 };
 

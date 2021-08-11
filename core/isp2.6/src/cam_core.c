@@ -148,6 +148,7 @@ struct camera_uchannel {
 
 	struct sprd_img_size src_size;
 	struct sprd_img_rect src_crop;
+	struct sprd_img_rect total_src_crop;
 	struct sprd_img_size dst_size;
 	uint32_t scene;
 
@@ -231,6 +232,7 @@ struct channel_context {
 	struct camera_uchannel ch_uinfo;
 	struct img_size swap_size;
 	struct img_trim trim_dcam;
+	struct img_trim total_trim_dcam;
 	struct img_trim trim_isp;
 	struct img_size dst_dcam;
 	uint32_t rds_ratio;
@@ -3525,7 +3527,7 @@ static int camcore_channel_swapsize_cal(struct camera_module *module)
 	return 0;
 }
 
-static int camcore_channel_size_bininig_cal(
+static int camcore_channel_size_binning_cal(
 	struct camera_module *module, uint32_t bypass_always)
 {
 	uint32_t shift = 0, factor = 0, align_size = 0;
@@ -3534,7 +3536,10 @@ static int camcore_channel_size_bininig_cal(
 	struct channel_context *ch_vid;
 	struct channel_context *ch_cap;
 	struct sprd_img_rect *crop_p, *crop_v, *crop_c;
+	struct sprd_img_rect *total_crop_p;
 	struct sprd_img_rect crop_dst;
+	struct sprd_img_rect total_crop_dst;
+	struct img_trim total_trim_pv = {0};
 	struct img_trim trim_pv = {0};
 	struct img_trim trim_c = {0};
 	struct img_trim *isp_trim;
@@ -3554,6 +3559,7 @@ static int camcore_channel_size_bininig_cal(
 		src_p.w = ch_prev->ch_uinfo.src_size.w;
 		src_p.h = ch_prev->ch_uinfo.src_size.h;
 		crop_p = &ch_prev->ch_uinfo.src_crop;
+		total_crop_p = &ch_prev->ch_uinfo.total_src_crop;
 		dst_p.w = ch_prev->ch_uinfo.dst_size.w;
 		dst_p.h = ch_prev->ch_uinfo.dst_size.h;
 		if ((src_p.w * 2) <= module->cam_uinfo.sn_max_size.w)
@@ -3668,6 +3674,12 @@ static int camcore_channel_size_bininig_cal(
 		/* applied latest rect for aem */
 		module->zoom_ratio = src_p.w * ZOOM_RATIO_DEFAULT / crop_p->w;
 		ch_prev->trim_dcam = trim_pv;
+
+		total_crop_dst = *total_crop_p;
+		total_trim_pv.size_x = total_crop_dst.w;
+		total_trim_pv.size_y = total_crop_dst.h;
+		ch_prev->total_trim_dcam = total_trim_pv;
+
 		ch_prev->rds_ratio = ((1 << shift) << RATIO_SHIFT);
 		ch_prev->dst_dcam = dcam_out;
 
@@ -4173,6 +4185,7 @@ static int camcore_channel_size_config(
 		else
 			ch_desc.force_rds = 0;
 		ch_desc.input_trim = channel->trim_dcam;
+		ch_desc.total_input_trim = channel->total_trim_dcam;
 		ch_desc.output_size = channel->dst_dcam;
 	}
 
@@ -4881,10 +4894,10 @@ static int camcore_channels_set(struct camera_module *module,
 
 	ret = camcore_channels_size_init(module);
 	if (module->zoom_solution == ZOOM_DEFAULT)
-		camcore_channel_size_bininig_cal(module, 1);
+		camcore_channel_size_binning_cal(module, 1);
 	else if (module->zoom_solution == ZOOM_BINNING2 ||
 		module->zoom_solution == ZOOM_BINNING4)
-		camcore_channel_size_bininig_cal(module, 0);
+		camcore_channel_size_binning_cal(module, 0);
 	else
 		camcore_channel_size_rds_cal(module);
 
@@ -6591,6 +6604,7 @@ next:
 			struct camera_frame, list);
 	if (pre_zoom_coeff) {
 		ch_prev->ch_uinfo.src_crop = pre_zoom_coeff->zoom_crop;
+		ch_prev->ch_uinfo.total_src_crop = pre_zoom_coeff->total_zoom_crop;
 		cam_queue_empty_frame_put(pre_zoom_coeff);
 		update_pv |= 1;
 	}
@@ -6618,10 +6632,10 @@ next:
 			update_always = 1;
 
 		if (module->zoom_solution == ZOOM_DEFAULT)
-			camcore_channel_size_bininig_cal(module, 1);
+			camcore_channel_size_binning_cal(module, 1);
 		else if (module->zoom_solution == ZOOM_BINNING2 ||
 			module->zoom_solution == ZOOM_BINNING4)
-			camcore_channel_size_bininig_cal(module, 0);
+			camcore_channel_size_binning_cal(module, 0);
 		else
 			camcore_channel_size_rds_cal(module);
 
@@ -7186,10 +7200,9 @@ rewait:
 			}
 			/* for statis buffer address below. */
 			read_op.parm.frame.addr_offset = pframe->buf.offset[0];
-			if (pframe->irq_type == CAMERA_IRQ_STATIS)
-				read_op.parm.frame.zoom_ratio = pframe->zoom_ratio;
-			else
-				read_op.parm.frame.zoom_ratio = module->zoom_ratio;
+
+			read_op.parm.frame.zoom_ratio = pframe->zoom_ratio;
+			read_op.parm.frame.total_zoom = pframe->total_zoom;
 		} else {
 			struct cam_hw_info *hw = module->grp->hw_info;
 

@@ -108,6 +108,7 @@ struct dcam_path_desc {
 	struct img_endian endian;
 	struct img_size in_size;
 	struct img_trim in_trim;
+	struct img_trim total_in_trim;
 	struct img_size out_size;
 	uint32_t fbc_mode;
 
@@ -284,6 +285,7 @@ struct dcam_sw_context {
 	struct completion frm_done;
 	struct completion offline_complete;
 	uint32_t zoom_ratio;
+	uint32_t total_zoom;
 	struct img_trim next_roi;
 	uint32_t iommu_enable;
 	struct dcam_mipi_info cap_info;

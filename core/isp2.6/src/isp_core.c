@@ -2297,6 +2297,8 @@ static int ispcore_postproc_irq(void *handle, uint32_t idx,
 	struct isp_path_desc *path;
 	struct timespec cur_ts;
 	ktime_t boot_time;
+	uint32_t zoom_ratio = 0;
+	uint32_t total_zoom = 0;
 
 	memset(&cur_ts, 0, sizeof(struct timespec));
 	if (!handle || type >= POSTPROC_MAX) {
@@ -2321,6 +2323,8 @@ static int ispcore_postproc_irq(void *handle, uint32_t idx,
 	pframe = cam_queue_dequeue(&pctx->proc_queue, struct camera_frame, list);
 
 	if (pframe) {
+		zoom_ratio = pframe->zoom_ratio;
+		total_zoom = pframe->total_zoom;
 		if (stream && stream->data_src == ISP_STREAM_SRC_ISP) {
 			pr_info("isp %d post proc, do not need to return frame\n", pctx->ctx_id);
 			cam_buf_iommu_unmap(&pframe->buf);
@@ -2375,6 +2379,8 @@ static int ispcore_postproc_irq(void *handle, uint32_t idx,
 		pframe->boot_time = boot_time;
 		pframe->time.tv_sec = cur_ts.tv_sec;
 		pframe->time.tv_usec = cur_ts.tv_nsec / NSEC_PER_USEC;
+		pframe->zoom_ratio = zoom_ratio;
+		pframe->total_zoom = total_zoom;
 
 		pr_debug("ctx %d path %d, ch_id %d, fid %d, mfd 0x%x, queue cnt:%d, is_reserved %d\n",
 			pctx->ctx_id, path->spath_id, pframe->channel_id, pframe->fid, pframe->buf.mfd[0],

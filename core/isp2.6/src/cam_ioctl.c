@@ -905,6 +905,7 @@ static int camioctl_crop_set(struct camera_module *module,
 	struct img_size max;
 	struct channel_context *ch, *ch_vid;
 	struct sprd_img_rect *crop;
+	struct sprd_img_rect *total_crop;
 	struct camera_frame *first = NULL;
 	struct camera_frame *zoom_param = NULL;
 	struct sprd_img_parm __user *uparam;
@@ -945,13 +946,23 @@ static int camioctl_crop_set(struct camera_module *module,
 		}
 		zoom_param = cam_queue_empty_frame_get();
 		crop = &zoom_param->zoom_crop;
+		total_crop = &zoom_param->total_zoom_crop;
 		zoom = 1;
 	} else {
 		crop = &ch->ch_uinfo.src_crop;
+		total_crop = &ch->ch_uinfo.total_src_crop;
 	}
 
 	ret = copy_from_user(crop,
 		(void __user *)&uparam->crop_rect,
+		sizeof(struct sprd_img_rect));
+	if (unlikely(ret)) {
+		pr_err("fail to copy from user, ret %d\n", ret);
+		goto exit;
+	}
+
+	ret = copy_from_user(total_crop,
+		(void __user *)&uparam->total_rect,
 		sizeof(struct sprd_img_rect));
 	if (unlikely(ret)) {
 		pr_err("fail to copy from user, ret %d\n", ret);
@@ -1704,10 +1715,10 @@ static int camioctl_stream_on(struct camera_module *module,
 
 	ret = camcore_channels_size_init(module);
 	if (module->zoom_solution == ZOOM_DEFAULT)
-		camcore_channel_size_bininig_cal(module, 1);
+		camcore_channel_size_binning_cal(module, 1);
 	else if (module->zoom_solution == ZOOM_BINNING2 ||
 		module->zoom_solution == ZOOM_BINNING4)
-		camcore_channel_size_bininig_cal(module, 0);
+		camcore_channel_size_binning_cal(module, 0);
 	else
 		camcore_channel_size_rds_cal(module);
 
@@ -2014,10 +2025,10 @@ static int camioctl_stream_resume(struct camera_module *module,
 	}
 
 	if (module->zoom_solution == ZOOM_DEFAULT)
-		camcore_channel_size_bininig_cal(module, 1);
+		camcore_channel_size_binning_cal(module, 1);
 	else if (module->zoom_solution == ZOOM_BINNING2 ||
 		module->zoom_solution == ZOOM_BINNING4)
-		camcore_channel_size_bininig_cal(module, 0);
+		camcore_channel_size_binning_cal(module, 0);
 	else
 		camcore_channel_size_rds_cal(module);
 

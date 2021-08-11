@@ -58,11 +58,13 @@ struct camera_frame {
 	uint32_t user_fid;
 	uint32_t dcam_idx;
 	uint32_t zoom_ratio;
+	uint32_t total_zoom;
 	uint32_t sw_slice_num;
 	uint32_t sw_slice_no;
 	struct img_trim slice_trim;
 	struct dcam_compress_info fbc_info;
 	struct sprd_img_rect zoom_crop;
+	struct sprd_img_rect total_zoom_crop;
 	void *priv_data;
 	/* for more param extend especially in offline process */
 	void *param_data;

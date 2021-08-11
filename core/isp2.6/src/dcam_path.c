@@ -287,6 +287,7 @@ int dcam_path_size_cfg(void *dcam_ctx_handle,
 
 		path->in_size = ch_desc->input_size;
 		path->in_trim = ch_desc->input_trim;
+		path->total_in_trim = ch_desc->total_input_trim;
 		path->out_size = ch_desc->output_size;
 
 		invalid = 0;
@@ -792,6 +793,7 @@ void dcampath_update_size(struct dcam_sw_context *ctx, struct dcam_path_desc *pa
 				if (path_id == DCAM_PATH_BIN) {
 					ctx->next_roi = path->in_trim;
 					ctx->zoom_ratio = ZOOM_RATIO_DEFAULT * path->in_size.w / path->in_trim.size_x;
+					ctx->total_zoom = ZOOM_RATIO_DEFAULT *path->in_size.w / path->total_in_trim.size_x;
 				}
 			}
 			spin_unlock_irqrestore(&path->size_lock, flags);
@@ -812,6 +814,7 @@ void dcampath_update_size(struct dcam_sw_context *ctx, struct dcam_path_desc *pa
 	}
 	spin_unlock_irqrestore(&path->size_lock, flags);
 	frame->zoom_ratio = ctx->zoom_ratio;
+	frame->total_zoom = ctx->total_zoom;
 
 }
 

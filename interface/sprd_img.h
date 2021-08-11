@@ -486,6 +486,7 @@ struct sprd_img_parm {
 	uint32_t                  raw_callback;
 	struct sprd_pdaf_control  pdaf_ctrl;
 	struct sprd_img_rect      crop_rect;
+	struct sprd_img_rect      total_rect;
 	struct sprd_img_size      dst_size;
 	struct sprd_img_frm_addr  frame_addr;
 	struct sprd_img_frm_addr  frame_addr_vir;
@@ -586,6 +587,7 @@ struct sprd_img_frm_info {
 	int64_t  monoboottime;
 	uint32_t mfd;
 	uint32_t zoom_ratio;
+	uint32_t total_zoom;
 	struct sprd_img_vcm_dac_info dac_info;
 	uint32_t reserved[4];
 };
