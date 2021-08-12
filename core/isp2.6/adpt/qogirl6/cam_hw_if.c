@@ -413,6 +413,7 @@ static struct cam_hw_ip_info isp = {
 	.dyn_overlap_version = ALG_ISP_OVERLAP_VER_1,
 	.fetch_raw_support = 1,
 	.nr3_compress_support = 0,
+	.capture_thumb_support = 1,
 };
 
 struct cam_hw_info qogirl6_hw_info = {

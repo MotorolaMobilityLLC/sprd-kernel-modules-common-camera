@@ -678,6 +678,11 @@ static int camioctl_output_size_set(struct camera_module *module,
 		(module->channel[CAM_CH_CAP].enable == 0)) {
 		channel = &module->channel[CAM_CH_CAP];
 		channel->enable = 1;
+	} else if ((scene_mode == DCAM_SCENE_MODE_CAPTURE_THUMB) &&
+		(module->channel[CAM_CH_CAP_THM].enable == 0)) {
+		channel = &module->channel[CAM_CH_CAP_THM];
+		channel->enable = 1;
+
 	} else if (module->channel[CAM_CH_PRE].enable == 0) {
 		channel = &module->channel[CAM_CH_PRE];
 		channel->enable = 1;
@@ -727,6 +732,7 @@ static int camioctl_output_size_set(struct camera_module *module,
 	ret |= get_user(dst->slave_img_fmt, &uparam->aux_img.pixel_fmt);
 	ret |= copy_from_user(&dst->slave_img_size,
 		&uparam->aux_img.dst_size, sizeof(struct sprd_img_size));
+	ret |= get_user(dst->frame_sync_close, &uparam->reserved[3]);
 
 	// TODO get this from HAL
 	dst->is_compressed = 0;
@@ -1743,6 +1749,10 @@ static int camioctl_stream_on(struct camera_module *module,
 	ch_raw = &module->channel[CAM_CH_RAW];
 	if (ch_raw->enable)
 		camcore_channel_size_config(module, ch_raw);
+
+	ch = &module->channel[CAM_CH_CAP_THM];
+	if (ch->enable)
+		camcore_channel_size_config(module, ch);
 cfg_ch_done:
 
 	/* line buffer share mode setting
@@ -1777,6 +1787,8 @@ cfg_ch_done:
 		live_ch_count++;
 
 		uframe_sync = ch->ch_id != CAM_CH_CAP;
+		if (ch->ch_uinfo.frame_sync_close)
+			uframe_sync = 0;
 		ret = module->isp_dev_handle->isp_ops->cfg_path(module->isp_dev_handle,
 			ISP_PATH_CFG_PATH_UFRAME_SYNC,
 			ch->isp_ctx_id,

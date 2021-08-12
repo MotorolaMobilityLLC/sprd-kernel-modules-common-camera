@@ -157,6 +157,9 @@ struct camera_uchannel {
 	uint32_t slave_img_fmt;
 	struct sprd_img_size slave_img_size;
 
+	/* for close callback stream frame sync */
+	uint32_t frame_sync_close;
+
 	struct dcam_regular_desc regular_desc;
 };
 
@@ -3373,6 +3376,9 @@ static int camcore_channel_swapsize_cal(struct camera_module *module)
 	ch_vid = &module->channel[CAM_CH_VID];
 	ch_raw = &module->channel[CAM_CH_RAW];
 
+	if (module->channel[CAM_CH_CAP_THM].enable || module->grp->camsec_cfg.camsec_mode != SEC_UNABLE)
+		module->grp->hw_info->ip_dcam[module->dcam_idx]->rds_en = 0;
+
 	if (module->grp->hw_info->ip_dcam[module->dcam_idx]->rds_en) {
 		if (ch_vid->enable && (ch_prev->ch_uinfo.src_size.w <= CAM_VIDEO_LIMIT_W
 			|| ch_prev->ch_uinfo.src_size.h <= CAM_VIDEO_LIMIT_H))
@@ -3535,6 +3541,7 @@ static int camcore_channel_size_binning_cal(
 	struct channel_context *ch_prev;
 	struct channel_context *ch_vid;
 	struct channel_context *ch_cap;
+	struct channel_context *ch_cap_thm;
 	struct sprd_img_rect *crop_p, *crop_v, *crop_c;
 	struct sprd_img_rect *total_crop_p;
 	struct sprd_img_rect crop_dst;
@@ -3548,6 +3555,7 @@ static int camcore_channel_size_binning_cal(
 	ch_prev = &module->channel[CAM_CH_PRE];
 	ch_cap = &module->channel[CAM_CH_CAP];
 	ch_vid = &module->channel[CAM_CH_VID];
+	ch_cap_thm = &module->channel[CAM_CH_CAP_THM];
 	if (!ch_prev->enable && !ch_cap->enable && !ch_vid->enable)
 		return 0;
 
@@ -3725,6 +3733,10 @@ static int camcore_channel_size_binning_cal(
 		pr_info("trim isp, cap %d %d %d %d\n",
 			ch_cap->trim_isp.start_x, ch_cap->trim_isp.start_y,
 			ch_cap->trim_isp.size_x, ch_cap->trim_isp.size_y);
+		if (ch_cap_thm->enable) {
+			ch_cap_thm->trim_dcam = ch_cap->trim_dcam;
+			ch_cap_thm->trim_isp = ch_cap->trim_isp;
+		}
 	}
 
 	pr_info("done\n");
@@ -4531,7 +4543,10 @@ static int camcore_channel_init(struct camera_module *module,
 		}
 		channel->dcam_path_id = channel_cap->dcam_path_id;
 		isp_ctx_id = channel_cap->isp_ctx_id;
-		isp_path_id = ISP_SPATH_FD;
+		if (module->isp_dev_handle->isp_hw->ip_isp->capture_thumb_support)
+			isp_path_id = ISP_SPATH_FD;
+		else
+			isp_path_id = ISP_SPATH_VID;
 		new_isp_path = 1;
 		break;
 
@@ -7251,7 +7266,7 @@ rewait:
 		memset(cap, 0, sizeof(struct sprd_img_path_capability));
 		cap->support_3dnr_mode = 1;
 		cap->support_4in1 = 1;
-		cap->count = 4;
+		cap->count = 6;
 		cap->path_info[CAM_CH_RAW].support_yuv = 0;
 		cap->path_info[CAM_CH_RAW].support_raw = 1;
 		cap->path_info[CAM_CH_RAW].support_jpeg = 0;
@@ -7279,6 +7294,20 @@ rewait:
 		cap->path_info[CAM_CH_VID].support_scaling = 1;
 		cap->path_info[CAM_CH_VID].support_trim = 1;
 		cap->path_info[CAM_CH_VID].is_scaleing_path = 0;
+		cap->path_info[CAM_CH_PRE_THM].line_buf = ISP_WIDTH_MAX;
+		cap->path_info[CAM_CH_PRE_THM].support_yuv = 1;
+		cap->path_info[CAM_CH_PRE_THM].support_raw = 0;
+		cap->path_info[CAM_CH_PRE_THM].support_jpeg = 0;
+		cap->path_info[CAM_CH_PRE_THM].support_scaling = 1;
+		cap->path_info[CAM_CH_PRE_THM].support_trim = 1;
+		cap->path_info[CAM_CH_PRE_THM].is_scaleing_path = 0;
+		cap->path_info[CAM_CH_CAP_THM].line_buf = ISP_WIDTH_MAX;
+		cap->path_info[CAM_CH_CAP_THM].support_yuv = 1;
+		cap->path_info[CAM_CH_CAP_THM].support_raw = 0;
+		cap->path_info[CAM_CH_CAP_THM].support_jpeg = 0;
+		cap->path_info[CAM_CH_CAP_THM].support_scaling = 1;
+		cap->path_info[CAM_CH_CAP_THM].support_trim = 1;
+		cap->path_info[CAM_CH_CAP_THM].is_scaleing_path = 0;
 		break;
 	case SPRD_IMG_GET_DCAM_RAW_CAP:
 		hw = module->grp->hw_info;

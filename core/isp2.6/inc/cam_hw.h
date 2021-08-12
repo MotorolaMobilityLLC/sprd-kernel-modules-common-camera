@@ -1287,6 +1287,7 @@ struct cam_hw_ip_info {
 	uint32_t dyn_overlap_version;
 	uint32_t fetch_raw_support;
 	uint32_t nr3_compress_support;
+	uint32_t capture_thumb_support;
 };
 
 struct cam_hw_soc_info {
