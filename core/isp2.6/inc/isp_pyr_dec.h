@@ -170,6 +170,7 @@ struct isp_dec_pipe_dev {
 	uint32_t slice_num;
 	uint32_t cur_layer_id;
 	uint32_t cur_slice_id;
+	uint32_t fetch_path_sel;
 	uint32_t cur_ctx_id;
 	uint32_t irq_no;
 	atomic_t proc_eb;
@@ -194,7 +195,7 @@ struct isp_dec_pipe_dev {
 	struct img_addr fetch_addr[ISP_PYR_DEC_LAYER_NUM];
 	struct img_addr store_addr[PYR_DEC_ADDR_NUM];
 	struct isp_dec_overlap_info overlap_dec_info[MAX_PYR_DEC_LAYER_NUM];
-
+	struct isp_fbd_yuv_info yuv_afbd_info;
 	struct isp_dec_fetch_info fetch_dec_info;
 	struct isp_dec_offline_info offline_dec_info;
 	struct isp_dec_store_info store_dec_info;

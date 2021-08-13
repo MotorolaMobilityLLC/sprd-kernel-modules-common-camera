@@ -1760,6 +1760,7 @@ static int camioctl_stream_on(struct camera_module *module,
 
 	/* settle down compression policy here */
 	camcore_compression_cal(module);
+	camcore_compression_config(module);
 
 	if (g_pyr_dec_online_bypass || (module->cam_uinfo.sensor_if.img_fmt == DCAM_CAP_MODE_YUV))
 		module->cam_uinfo.is_pyr_rec = 0;
@@ -1778,8 +1779,6 @@ static int camioctl_stream_on(struct camera_module *module,
 		camcore_channel_size_binning_cal(module, ZOOM_SCALER);
 	else
 		camcore_channel_size_rds_cal(module);
-
-	camcore_compression_config(module);
 
 	ch_pre = &module->channel[CAM_CH_PRE];
 	if (ch_pre->enable)

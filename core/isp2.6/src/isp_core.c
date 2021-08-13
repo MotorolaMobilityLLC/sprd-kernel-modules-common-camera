@@ -2443,7 +2443,7 @@ static int ispcore_dec_frame_proc(struct isp_sw_context *pctx,
 	dec_dev->dct_ynr_info.dct_radius = pctx->isp_k_param.dct_radius;
 	dec_dev->ops.cfg_param(dec_dev, pctx->ctx_id, ISP_DEC_CFG_IN_FORMAT, &format);
 	frame->dec_ctx_id = pctx->ctx_id;
-
+	frame->data_bits = uinfo->data_in_bits;
 	ret = dec_dev->ops.proc_frame(dec_dev, frame);
 
 	return ret;
@@ -2488,6 +2488,9 @@ static int ispcore_frame_proc(void *isp_handle, void *param, int ctx_id)
 		ret = ispcore_dec_frame_proc(pctx, dec_dev, pframe);
 		return ret;
 	}
+
+	if (pframe->data_src_dec)
+		pctx->uinfo.fetch_path_sel = 0;
 
 	stream = cam_queue_dequeue_peek(&pctx->stream_ctrl_in_q,
 		struct isp_stream_ctrl, list);

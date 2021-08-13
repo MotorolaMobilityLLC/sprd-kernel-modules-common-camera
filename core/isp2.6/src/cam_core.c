@@ -1024,20 +1024,14 @@ static void camcore_compression_cal(struct camera_module *module)
 
 	/* dcam not support fbc when dcam need fetch */
 	if (module->cam_uinfo.dcam_slice_mode ||
-		module->cam_uinfo.is_4in1)
+		module->cam_uinfo.is_4in1 || module->cam_uinfo.is_fdr) {
 		ch_cap->compress_input = 0;
+		ch_raw->compress_input = 0;
+	}
 
 	/* dcam not support fbc when open slowmotion */
 	if (ch_pre->ch_uinfo.is_high_fps)
 		ch_pre->compress_input = 0;
-
-	/* Ensure to close l3 l5 l5pro l6 fbc, it will be deleted in fbc cap code */
-	if (module->grp->hw_info->prj_id != QOGIRN6pro)
-		ch_pre->compress_input = 0;
-
-	/* TBD: just bypass cap/raw compress first */
-	ch_cap->compress_input = 0;
-	ch_raw->compress_input = 0;
 
 	pr_info("cam%d: cap %u %u %u, pre %u %u %u, vid %u %u %u raw %u.\n",
 		module->idx,
@@ -1837,6 +1831,7 @@ mul_alloc_end:
 		pframe->height = height;
 		pframe->channel_id = channel->ch_id;
 		pframe->data_src_dec = 1;
+		pframe->is_compressed = 0;
 		ret = cam_buf_alloc(&pframe->buf, size, iommu_enable);
 		if (ret) {
 			pr_err("fail to alloc dec buf\n");

@@ -17,6 +17,7 @@
 #include "isp_pyr_dec.h"
 #include "isp_fmcu.h"
 #include "alg_slice_calc.h"
+#include "isp_drv.h"
 
 #ifdef pr_fmt
 #undef pr_fmt
@@ -253,6 +254,15 @@ static int isppyrdec_fetch_get(struct isp_dec_pipe_dev *dev, uint32_t idx)
 			slc_fetch->mipi_byte_rel_pos_uv = slc_fetch->mipi_byte_rel_pos;
 			slc_fetch->mipi_word_num_uv = slc_fetch->mipi_word_num;
 			slc_fetch->mipi10_en = 1;
+			if (dev->fetch_path_sel) {
+				slc_fetch->fetch_fbd.slice_size.w = end_col - start_col + 1;
+				slc_fetch->fetch_fbd.slice_size.h = end_row - start_row + 1;
+				slc_fetch->fetch_fbd.slice_start_pxl_xpt = start_col;
+				slc_fetch->fetch_fbd.slice_start_pxl_ypt = start_row;
+				slc_fetch->fetch_fbd.slice_start_header_addr = dev->yuv_afbd_info.slice_start_header_addr
+					+ ((start_row / ISP_FBD_TILE_HEIGHT) * dev->yuv_afbd_info.tile_num_pitch +
+					start_col / ISP_FBD_TILE_WIDTH) * 16;
+			}
 			ISP_DEC_DEBUG("(%d %d %d %d), pitch %d, offset0 %x offset1 %x, mipi %d %d\n",
 				start_row, start_col, end_row, end_col,
 				fetch->pitch[0], ch_offset[0], ch_offset[1],
@@ -677,6 +687,62 @@ static int isppyrdec_param_cfg(struct isp_dec_pipe_dev *dev, uint32_t index)
 	return ret;
 }
 
+static int isppyrdec_afbd_get(uint32_t fmt, void *cfg_out, struct camera_frame *frame)
+{
+
+	int32_t tile_col = 0, tile_row = 0;
+	struct isp_fbd_yuv_info *fbd_yuv = NULL;
+	struct dcam_compress_cal_para cal_fbc = {0};
+
+	if (!cfg_out || !frame) {
+		pr_err("fail to get valid input ptr %p\n", cfg_out);
+		return -EFAULT;
+	}
+
+	fbd_yuv = (struct isp_fbd_yuv_info *)cfg_out;
+
+	if (frame->is_compressed == 0)
+		return 0;
+
+	fbd_yuv->fetch_fbd_bypass = 0;
+	fbd_yuv->slice_size.w = frame->width;
+	fbd_yuv->slice_size.h = frame->height;
+	tile_col = (fbd_yuv->slice_size.w + ISP_FBD_TILE_WIDTH - 1) / ISP_FBD_TILE_WIDTH;
+	tile_row =(fbd_yuv->slice_size.h + ISP_FBD_TILE_HEIGHT - 1) / ISP_FBD_TILE_HEIGHT;
+
+	fbd_yuv->tile_num_pitch = tile_col;
+	fbd_yuv->slice_start_pxl_xpt = 0;
+	fbd_yuv->slice_start_pxl_ypt = 0;
+
+	cal_fbc.compress_4bit_bypass = frame->compress_4bit_bypass;
+	cal_fbc.data_bits = frame->data_bits;
+	cal_fbc.fbc_info = &frame->fbc_info;
+	cal_fbc.in = frame->buf.iova[0];
+	if (fmt == ISP_FETCH_YUV420_2FRAME_10 || fmt == ISP_FETCH_YUV420_2FRAME_MIPI)
+		cal_fbc.fmt = DCAM_STORE_YUV420;
+	else if (fmt == ISP_FETCH_YVU420_2FRAME_10 || fmt == ISP_FETCH_YVU420_2FRAME_MIPI)
+		cal_fbc.fmt = DCAM_STORE_YVU420;
+	cal_fbc.height = fbd_yuv->slice_size.h;
+	cal_fbc.width = fbd_yuv->slice_size.w;
+	cal_fbc.out = &fbd_yuv->hw_addr;
+	dcam_if_cal_compressed_addr(&cal_fbc);
+	fbd_yuv->buffer_size = cal_fbc.fbc_info->buffer_size;
+
+	/* store start address for slice use */
+	fbd_yuv->frame_header_base_addr = fbd_yuv->hw_addr.addr0;
+	fbd_yuv->slice_start_header_addr = fbd_yuv->frame_header_base_addr +
+		((fbd_yuv->slice_start_pxl_ypt / ISP_FBD_TILE_HEIGHT) * fbd_yuv->tile_num_pitch +
+		fbd_yuv->slice_start_pxl_xpt / ISP_FBD_TILE_WIDTH) * 16;
+	fbd_yuv->data_bits = cal_fbc.data_bits;
+
+	pr_debug("iova:%x, fetch_fbd: %u 0x%x 0x%x, 0x%x, size %u %u, channel_id:%d, tile_col:%d\n",
+		 frame->buf.iova[0], frame->fid, fbd_yuv->hw_addr.addr0,
+		 fbd_yuv->hw_addr.addr1, fbd_yuv->hw_addr.addr2,
+		frame->width, frame->height, frame->channel_id, fbd_yuv->tile_num_pitch);
+
+	return 0;
+}
+
 static int isppyrdec_offline_frame_start(void *handle)
 {
 	int ret = 0;
@@ -751,6 +817,9 @@ static int isppyrdec_offline_frame_start(void *handle)
 		goto map_err;
 	}
 
+	if (pframe->is_compressed)
+		ret = isppyrdec_afbd_get(dec_dev->in_fmt, &dec_dev->yuv_afbd_info, pframe);
+
 	dec_dev->src.w = pframe->width;
 	dec_dev->src.h = pframe->height;
 	out_frame->width = pframe->width;
@@ -765,10 +834,13 @@ static int isppyrdec_offline_frame_start(void *handle)
 	dec_dev->layer_num = layer_num;
 	pitch = isppyrdec_cal_pitch(dec_dev->src.w, dec_dev->in_fmt);
 	size = pitch * dec_dev->src.h;
+	dec_dev->fetch_path_sel = pframe->is_compressed;
 	dec_dev->fetch_addr[0].addr_ch0 = pframe->buf.iova[0];
 	dec_dev->fetch_addr[0].addr_ch1 = pframe->buf.iova[0] + size;
 	dec_dev->store_addr[0].addr_ch0 = pctx->buf_out->buf.iova[0];
 	dec_dev->store_addr[0].addr_ch1 = dec_dev->store_addr[0].addr_ch0 + size;
+	dec_dev->yuv_afbd_info.frame_header_base_addr = pframe->buf.iova[0];
+	dec_dev->yuv_afbd_info.slice_start_header_addr = pframe->buf.iova[0];
 	dec_dev->dec_layer_size[0].w = isp_rec_layer0_width(dec_dev->src.w, layer_num);
 	dec_dev->dec_layer_size[0].h = isp_rec_layer0_heigh(dec_dev->src.h, layer_num);
 	dec_dev->dec_padding_size.w = dec_dev->dec_layer_size[0].w - dec_dev->src.w;

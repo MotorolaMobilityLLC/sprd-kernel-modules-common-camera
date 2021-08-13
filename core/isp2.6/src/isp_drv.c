@@ -524,7 +524,8 @@ static int ispdrv_fbd_yuv_get(void *cfg_in, void *cfg_out,
 			((fbd_yuv->slice_start_pxl_ypt / ISP_FBD_TILE_HEIGHT) * fbd_yuv->tile_num_pitch +
 			fbd_yuv->slice_start_pxl_xpt / ISP_FBD_TILE_WIDTH) * 16;
 	fbd_yuv->data_bits = cal_fbc.data_bits;
-	pr_debug("iova:%d, fetch_fbd: %u 0x%x 0x%x, 0x%x, size %u %u, channel_id:%d, tile_col:%d\n",
+
+	pr_debug("iova:%x, fetch_fbd: %u 0x%x 0x%x, 0x%x, size %u %u, channel_id:%d, tile_col:%d\n",
 		 frame->buf.iova[0], frame->fid, fbd_yuv->hw_addr.addr0,
 		 fbd_yuv->hw_addr.addr1, fbd_yuv->hw_addr.addr2,
 		pipe_src->src.w, pipe_src->src.h, frame->channel_id, fbd_yuv->tile_num_pitch);
@@ -941,6 +942,7 @@ int isp_drv_pipeinfo_get(void *arg, void *frame)
 
 	pipe_in->fetch.ctx_id = ctx->ctx_id;
 	pipe_in->fetch.sec_mode = ctx->dev->sec_mode;
+	pipe_src->fetch_path_sel = pframe->is_compressed;
 	ret = ispdrv_fetch_normal_get(pipe_src, &pipe_in->fetch, pframe);
 	if (ret) {
 		pr_err("fail to get pipe fetch info\n");

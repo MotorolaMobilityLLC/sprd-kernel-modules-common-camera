@@ -56,6 +56,11 @@
 #define ISP_DIV_ALIGN_W(_a, _b)    (((_a) / (_b)) & ~(ISP_PIXEL_ALIGN_WIDTH - 1))
 #define ISP_DIV_ALIGN_H(_a, _b)    (((_a) / (_b)) & ~(ISP_PIXEL_ALIGN_HEIGHT - 1))
 
+enum isp_afbd_data_bits {
+	AFBD_FETCH_8BITS = 5,
+	AFBD_FETCH_10BITS = 7,
+};
+
 enum isp_raw_format {
 	ISP_RAW_PACK10 = 0x00,
 	ISP_RAW_HALF10 = 0x01,

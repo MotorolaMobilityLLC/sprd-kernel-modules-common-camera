@@ -702,7 +702,8 @@ int isp_pyr_rec_slice_common_config(void *handle)
 	} else {
 		addr = ISP_GET_REG(ISP_COMMON_SCL_PATH_SEL);
 		cmd = ISP_REG_RD(ctx->ctx_id, ISP_COMMON_SCL_PATH_SEL);
-		cmd = (cmd | BIT_12 | BIT_7 | BIT_13) & 0xFFFFF3FF;
+		cmd = ((cur_rec_slc->slice_cur_fetch.fetch_path_sel << 12) |
+			cmd | BIT_7 | BIT_13) & 0xFFFFF3FF;
 		FMCU_PUSH(fmcu, addr, cmd);
 	}
 

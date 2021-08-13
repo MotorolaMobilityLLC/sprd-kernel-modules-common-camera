@@ -1949,9 +1949,9 @@ static int isphw_fetch_fbd_set(void *handle, void *arg)
 	ISP_REG_MWR(idx, ISP_YUV_AFBD_FETCH_BASE + ISP_AFBD_FETCH_SEL, BIT_3, 1 << 3);
 
 	if (fbd_yuv->data_bits == DCAM_STORE_8_BIT)
-		fbd_yuv->afbc_mode = 5;
+		fbd_yuv->afbc_mode = AFBD_FETCH_8BITS;
 	else if (fbd_yuv->data_bits == DCAM_STORE_10_BIT)
-		fbd_yuv->afbc_mode = 7;
+		fbd_yuv->afbc_mode = AFBD_FETCH_10BITS;
 	else
 		pr_debug("No use afbc mode.\n");
 	ISP_REG_MWR(idx, ISP_YUV_AFBD_FETCH_BASE + ISP_AFBD_FETCH_SEL, 0x1F0, fbd_yuv->afbc_mode << 4);

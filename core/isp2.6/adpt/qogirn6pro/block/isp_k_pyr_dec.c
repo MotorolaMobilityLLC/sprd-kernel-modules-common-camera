@@ -70,7 +70,7 @@ static irqreturn_t isppyrdec_isr_root(int irq, void *priv)
 	irq_line = ISP_HREG_RD(ISP_DEC_INT_BASE + ISP_INT_INT0);
 	ISP_HREG_WR(ISP_DEC_INT_BASE + ISP_INT_CLR0, irq_line);
 
-	pr_debug("isp pyr dec irq status %d\n", irq_line);
+	pr_debug("isp pyr dec irq status:%d\n", irq_line);
 	if (unlikely(err_mask & irq_line)) {
 		pr_err("fail to get normal isp dec status 0x%x\n", irq_line);
 		/* print isp dec reg info here */
@@ -115,10 +115,17 @@ static int isppyrdec_cfg_fetch(struct isp_dec_pipe_dev *ctx)
 	uint32_t addr = 0, cmd = 0, base = 0, color_format = 0;
 	struct isp_fmcu_ctx_desc *fmcu = NULL;
 	struct isp_dec_fetch_info *dec_fetch = NULL;
+	struct isp_fbd_yuv_info *dec_afbd_fetch = NULL;
 	struct slice_fetch_info *fetch_slc = NULL;
 
-	fmcu = (struct isp_fmcu_ctx_desc *)ctx->fmcu_handle;
+	if (ctx == NULL) {
+		pr_err("fail to get isp dec ctx.\n");
+		return -EFAULT;
+	}
+
 	dec_fetch = &ctx->fetch_dec_info;
+	dec_afbd_fetch = &ctx->yuv_afbd_info;
+	fmcu = (struct isp_fmcu_ctx_desc *)ctx->fmcu_handle;
 	fetch_slc = &ctx->slices[ctx->cur_slice_id].slice_fetch;
 
 	switch (dec_fetch->color_format) {
@@ -144,50 +151,110 @@ static int isppyrdec_cfg_fetch(struct isp_dec_pipe_dev *ctx)
 		break;
 	}
 
-	base = PYR_DEC_FETCH_BASE;
-	addr = ISP_GET_REG(ISP_FETCH_PARAM0) + base;
-	cmd =((dec_fetch->chk_sum_clr_en & 0x1) << 11) |
-		((dec_fetch->ft1_axi_reorder_en & 0x1) << 9) |
-		((dec_fetch->ft0_axi_reorder_en & 0x1) << 8) |
-		((color_format & 0x7) << 4) |
-		((dec_fetch->substract & 0x1) << 1) |
-		((dec_fetch->bypass & 0x1) << 0);
-	FMCU_PUSH(fmcu, addr, cmd);
+	if (ctx->cur_layer_id == 0 && ctx->fetch_path_sel) {
+		base = ISP_YUV_DEC_AFBD_FETCH_BASE;
 
-	addr = ISP_GET_REG(ISP_FETCH_MEM_SLICE_SIZE) + base;
-	cmd = ((fetch_slc->size.h & 0xFFFF) << 16) | (fetch_slc->size.w & 0xFFFF);
-	FMCU_PUSH(fmcu, addr, cmd);
+		if (ctx->yuv_afbd_info.data_bits == DCAM_STORE_8_BIT)
+			ctx->yuv_afbd_info.afbc_mode = AFBD_FETCH_8BITS;
+		else if (ctx->yuv_afbd_info.data_bits == DCAM_STORE_10_BIT)
+			ctx->yuv_afbd_info.afbc_mode = AFBD_FETCH_10BITS;
+		else
+			pr_debug("No use afbc mode.\n");
 
-	addr = ISP_GET_REG(ISP_FETCH_SLICE_Y_PITCH) + base;
-	cmd = dec_fetch->pitch[0];
-	FMCU_PUSH(fmcu, addr, cmd);
+		addr = ISP_GET_REG(ISP_COMMON_SCL_PATH_SEL);
+		cmd = ISP_REG_RD(ctx->cur_ctx_id, ISP_COMMON_SCL_PATH_SEL);
+		cmd = cmd | (1 << 14);
+		FMCU_PUSH(fmcu, addr, cmd);
 
-	addr = ISP_GET_REG(ISP_FETCH_SLICE_Y_ADDR) + base;
-	cmd = fetch_slc->addr.addr_ch0;
-	FMCU_PUSH(fmcu, addr, cmd);
+		addr = ISP_GET_REG(ISP_FETCH_PARAM0) + PYR_DEC_FETCH_BASE;
+		cmd = 0x1;
+		FMCU_PUSH(fmcu, addr, cmd);
 
-	addr = ISP_GET_REG(ISP_FETCH_SLICE_U_PITCH) + base;
-	cmd = dec_fetch->pitch[1];
-	FMCU_PUSH(fmcu, addr, cmd);
+		addr = ISP_GET_REG(ISP_AFBD_FETCH_SEL) + base;
+		cmd = (ctx->yuv_afbd_info.fetch_fbd_bypass & 0x1) |
+			(0x1 << 1) | (0x1 << 3) | ((ctx->yuv_afbd_info.afbc_mode & 0x1F) << 4);
+		FMCU_PUSH(fmcu, addr, cmd);
 
-	addr = ISP_GET_REG(ISP_FETCH_SLICE_U_ADDR) + base;
-	cmd = fetch_slc->addr.addr_ch1;
-	FMCU_PUSH(fmcu, addr, cmd);
+		addr = ISP_GET_REG(ISP_AFBD_FETCH_HBLANK_TILE_PITCH ) + base;
+		cmd = ((ctx->yuv_afbd_info.tile_num_pitch & 0x7FF) << 16) | (0x8000);
+		FMCU_PUSH(fmcu, addr, cmd);
 
-	addr = ISP_GET_REG(ISP_FETCH_MIPI_PARAM) + base;
-	cmd = (fetch_slc->mipi_word_num & 0xFFFF) |
-		((fetch_slc->mipi_byte_rel_pos & 0xF) << 16) |
-		((fetch_slc->mipi10_en & 0x1) << 20);
-	FMCU_PUSH(fmcu, addr, cmd);
+		addr = ISP_GET_REG(ISP_AFBD_FETCH_SLICE_SIZE) + base;
+		cmd = ((fetch_slc->fetch_fbd.slice_size.h & 0xFFFF) << 16) |
+			(fetch_slc->fetch_fbd.slice_size.w & 0xFFFF);
+		FMCU_PUSH(fmcu, addr, cmd);
 
-	addr = ISP_GET_REG(ISP_FETCH_MIPI_PARAM_UV) + base;
-	FMCU_PUSH(fmcu, addr, cmd);
+		addr = ISP_GET_REG(ISP_AFBD_FETCH_PARAM0) + base;
+		cmd = fetch_slc->fetch_fbd.slice_start_pxl_xpt |
+			fetch_slc->fetch_fbd.slice_start_pxl_ypt << 16;
+		FMCU_PUSH(fmcu, addr, cmd);
 
-	addr = ISP_GET_REG(ISP_DISPATCH_CH0_SIZE) + PYR_DEC_DISPATCH_BASE;
-	cmd = ((fetch_slc->size.h & 0xFFFF) << 16)
-		| (fetch_slc->size.w & 0xFFFF);
-	FMCU_PUSH(fmcu, addr, cmd);
+		addr = ISP_GET_REG(ISP_AFBD_FETCH_PARAM1) + base;
+		cmd = ctx->yuv_afbd_info.frame_header_base_addr;
+		FMCU_PUSH(fmcu, addr, cmd);
 
+		addr = ISP_GET_REG(ISP_AFBD_FETCH_PARAM2) + base;
+		cmd = fetch_slc->fetch_fbd.slice_start_header_addr;
+		FMCU_PUSH(fmcu, addr, cmd);
+
+		addr = ISP_GET_REG(ISP_DISPATCH_CH0_SIZE) + PYR_DEC_DISPATCH_BASE;
+		cmd = ((fetch_slc->fetch_fbd.slice_size.h & 0xFFFF) << 16) |
+			(fetch_slc->fetch_fbd.slice_size.w & 0xFFFF);
+		FMCU_PUSH(fmcu, addr, cmd);
+	} else {
+		addr = ISP_GET_REG(ISP_COMMON_SCL_PATH_SEL);
+		cmd = ISP_REG_RD(ctx->cur_ctx_id, ISP_COMMON_SCL_PATH_SEL);
+		cmd = cmd & 0xFFFF3FFF;
+		FMCU_PUSH(fmcu, addr, cmd);
+
+		addr = ISP_GET_REG(ISP_AFBD_FETCH_SEL) + ISP_YUV_DEC_AFBD_FETCH_BASE;
+		cmd = 0x1;
+		FMCU_PUSH(fmcu, addr, cmd);
+
+		base = PYR_DEC_FETCH_BASE;
+		addr = ISP_GET_REG(ISP_FETCH_PARAM0) + base;
+		cmd =((dec_fetch->chk_sum_clr_en & 0x1) << 11) |
+			((dec_fetch->ft1_axi_reorder_en & 0x1) << 9) |
+			((dec_fetch->ft0_axi_reorder_en & 0x1) << 8) |
+			((color_format & 0x7) << 4) |
+			((dec_fetch->substract & 0x1) << 1) |
+			((dec_fetch->bypass & 0x1) << 0);
+		FMCU_PUSH(fmcu, addr, cmd);
+
+		addr = ISP_GET_REG(ISP_FETCH_MEM_SLICE_SIZE) + base;
+		cmd = ((fetch_slc->size.h & 0xFFFF) << 16) | (fetch_slc->size.w & 0xFFFF);
+		FMCU_PUSH(fmcu, addr, cmd);
+
+		addr = ISP_GET_REG(ISP_FETCH_SLICE_Y_PITCH) + base;
+		cmd = dec_fetch->pitch[0];
+		FMCU_PUSH(fmcu, addr, cmd);
+
+		addr = ISP_GET_REG(ISP_FETCH_SLICE_Y_ADDR) + base;
+		cmd = fetch_slc->addr.addr_ch0;
+		FMCU_PUSH(fmcu, addr, cmd);
+
+		addr = ISP_GET_REG(ISP_FETCH_SLICE_U_PITCH) + base;
+		cmd = dec_fetch->pitch[1];
+		FMCU_PUSH(fmcu, addr, cmd);
+
+		addr = ISP_GET_REG(ISP_FETCH_SLICE_U_ADDR) + base;
+		cmd = fetch_slc->addr.addr_ch1;
+		FMCU_PUSH(fmcu, addr, cmd);
+
+		addr = ISP_GET_REG(ISP_FETCH_MIPI_PARAM) + base;
+		cmd = (fetch_slc->mipi_word_num & 0xFFFF) |
+			((fetch_slc->mipi_byte_rel_pos & 0xF) << 16) |
+			((fetch_slc->mipi10_en & 0x1) << 20);
+		FMCU_PUSH(fmcu, addr, cmd);
+
+		addr = ISP_GET_REG(ISP_FETCH_MIPI_PARAM_UV) + base;
+		FMCU_PUSH(fmcu, addr, cmd);
+
+		addr = ISP_GET_REG(ISP_DISPATCH_CH0_SIZE) + PYR_DEC_DISPATCH_BASE;
+		cmd = ((fetch_slc->size.h & 0xFFFF) << 16)
+			| (fetch_slc->size.w & 0xFFFF);
+		FMCU_PUSH(fmcu, addr, cmd);
+	}
 	return ret;
 }
 
@@ -307,13 +374,23 @@ static int isppyrdec_cfg_offline(struct isp_dec_pipe_dev *ctx)
 	pyr_dec_slc = &ctx->slices[ctx->cur_slice_id].slice_pyr_dec;
 	hw = ctx->hw;
 
-	addr = ISP_GET_REG(ISP_DEC_OFFLINE_PARAM);
-	cmd = ((dec_off_info->fmcu_path_sel & 0x1) << 7) |
-		((dec_off_info->fetch_path_sel & 0x1) << 6) |
-		((dec_off_info->vector_channel_idx & 0x7) << 3) |
-		((dec_off_info->chksum_wrk_mode & 0x1) << 2) |
-		((dec_off_info->chksum_clr_mode & 0x1) << 1);
-	FMCU_PUSH(fmcu, addr, cmd);
+	if (ctx->cur_layer_id == 0 && ctx->fetch_path_sel) {
+		addr = ISP_GET_REG(ISP_DEC_OFFLINE_PARAM);
+		cmd = ((dec_off_info->fmcu_path_sel & 0x1) << 7) |
+			((1 & 0x1) << 6) |
+			((dec_off_info->vector_channel_idx & 0x7) << 3) |
+			((dec_off_info->chksum_wrk_mode & 0x1) << 2) |
+			((dec_off_info->chksum_clr_mode & 0x1) << 1);
+		FMCU_PUSH(fmcu, addr, cmd);
+	} else {
+		addr = ISP_GET_REG(ISP_DEC_OFFLINE_PARAM);
+		cmd = ((dec_off_info->fmcu_path_sel & 0x1) << 7) |
+			((dec_off_info->fetch_path_sel & 0x1) << 6) |
+			((dec_off_info->vector_channel_idx & 0x7) << 3) |
+			((dec_off_info->chksum_wrk_mode & 0x1) << 2) |
+			((dec_off_info->chksum_clr_mode & 0x1) << 1);
+		FMCU_PUSH(fmcu, addr, cmd);
+	}
 
 	addr = ISP_GET_REG(ISP_DEC_OFFLINE_PARAM1);
 	cmd = (pyr_dec_slc->hor_padding_en & 0x1) |
@@ -342,10 +419,16 @@ static int isppyrdec_cfg_offline(struct isp_dec_pipe_dev *ctx)
 		| ((dec_off_info->dispatch_pipe_nfull_num & 0x7FF) << 16);
 	FMCU_PUSH(fmcu, addr, cmd);
 
-	/* for normal fetch if use fbd need update fetch start & common sel */
-	addr = ISP_GET_REG(ISP_FETCH_START) + PYR_DEC_FETCH_BASE;
-	cmd = 1;
-	FMCU_PUSH(fmcu, addr, cmd);
+	if (ctx->fetch_path_sel && ctx->cur_layer_id == 0) {
+		addr = ISP_GET_REG(ISP_AFBD_FETCH_START) + ISP_YUV_DEC_AFBD_FETCH_BASE;
+		cmd = 1;
+		FMCU_PUSH(fmcu, addr, cmd);
+	} else {
+		/* for normal fetch if use fbd need update fetch start & common sel */
+		addr = ISP_GET_REG(ISP_FETCH_START) + PYR_DEC_FETCH_BASE;
+		cmd = 1;
+		FMCU_PUSH(fmcu, addr, cmd);
+	}
 
 	addr = ISP_GET_REG(ISP_FMCU_CMD);
 	cmd = PRE0_ALL_DONE;
