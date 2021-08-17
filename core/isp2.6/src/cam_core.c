@@ -2416,6 +2416,7 @@ static int camcore_share_buf_cfg(enum share_buf_cb_type type,
 			break;
 		case SHARE_BUF_SET_CB:
 			pframe = (struct camera_frame *)param;
+			pframe->not_use_isp_reserved_buf = 0;
 			if (pframe->buf.mapping_state & CAM_BUF_MAPPING_DEV)
 				cam_buf_iommu_unmap(&pframe->buf);
 			if (module->cam_uinfo.need_share_buf) {
@@ -2495,6 +2496,7 @@ static int camcore_isp_callback(enum isp_cb_type type, void *param, void *priv_d
 			module->paused || (channel->dcam_path_id < 0)) {
 			/* stream off or test_isp_only */
 			pr_info("isp ret src frame %p\n", pframe);
+			pframe->not_use_isp_reserved_buf = 0;
 			cam_queue_enqueue(&channel->share_buf_queue, &pframe->list);
 		} else if (module->cap_status == CAM_CAPTURE_RAWPROC) {
 			if (module->cam_uinfo.dcam_slice_mode == CAM_OFFLINE_SLICE_SW) {
@@ -3043,6 +3045,7 @@ static int camcore_dcam_callback(enum dcam_cb_type type, void *param, void *priv
 								DCAM_IOCTL_CFG_GTM_UPDATE, &gtm_param_idx);
 							pr_info("cam%d cap type[%d] num[%d]\n",module->idx, module->dcam_cap_status, cap_frame);
 						}
+						pframe->not_use_isp_reserved_buf = 1;
 					} else {
 						pr_info("cam%d cap type[%d] num[%d]\n", module->idx, module->dcam_cap_status, cap_frame);
 						atomic_dec(&module->cap_skip_frames);

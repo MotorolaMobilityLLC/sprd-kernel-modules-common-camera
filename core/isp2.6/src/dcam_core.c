@@ -1444,6 +1444,7 @@ static int dcamcore_path_cfg(void *dcam_handle, enum dcam_path_cfg_cmd cfg_cmd,
 			dcamcore_frame_info_show(pctx, path, pframe);
 
 		pframe->is_reserved = 0;
+		pframe->not_use_isp_reserved_buf = 0;
 		pframe->priv_data = pctx;
 		ret = cam_queue_enqueue(&path->out_buf_queue, &pframe->list);
 		if (ret) {

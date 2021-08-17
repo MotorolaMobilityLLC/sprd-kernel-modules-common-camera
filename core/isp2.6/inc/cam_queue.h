@@ -54,6 +54,7 @@ struct camera_frame {
 	uint32_t data_src_dec;
 	uint32_t dec_ctx_id;
 	uint32_t need_dewarp;
+	uint32_t not_use_isp_reserved_buf;
 	uint32_t user_fid;
 	uint32_t dcam_idx;
 	uint32_t zoom_ratio;

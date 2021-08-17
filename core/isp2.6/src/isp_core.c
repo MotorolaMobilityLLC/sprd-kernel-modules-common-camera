@@ -58,12 +58,14 @@ static DEFINE_MUTEX(isp_pipe_dev_mutex);
 struct isp_pipe_dev *s_isp_dev;
 uint32_t s_dbg_linebuf_len = ISP_LINE_BUFFER_W;
 extern int s_dbg_work_mode;
+#define TIMEOUT_WAIT_FOR_VALID_BUFFER 60
 
 struct offline_tmp_param {
 	int valid_out_frame;
 	int hw_ctx_id;
 	uint32_t multi_slice;
 	uint32_t target_fid;
+	uint32_t not_use_reserved_buf;
 	struct isp_stream_ctrl *stream;
 };
 
@@ -1237,17 +1239,28 @@ static struct camera_frame *ispcore_path_out_frame_get(
 	}
 
 normal_out_put:
+
 	if (pctx->sw_slice_num && pctx->sw_slice_no != 0) {
 		out_frame = cam_queue_dequeue(&path->result_queue,
 					struct camera_frame, list);
 	} else {
-		if (pctx->uinfo.path_info[path->spath_id].uframe_sync
-			&& tmp->target_fid != CAMERA_RESERVE_FRAME_NUM)
-			out_frame = cam_queue_dequeue_if(&path->out_buf_queue,
-				ispcore_fid_check, (void *)&tmp->target_fid);
-		else
-			out_frame = cam_queue_dequeue(&path->out_buf_queue,
-				struct camera_frame, list);
+		int cnt = 0;
+		uint32_t not_use_reserved_buf = (pctx->ch_id == CAM_CH_CAP) && (tmp->not_use_reserved_buf);
+		do {
+			if (pctx->uinfo.path_info[path->spath_id].uframe_sync
+				&& tmp->target_fid != CAMERA_RESERVE_FRAME_NUM)
+				out_frame = cam_queue_dequeue_if(&path->out_buf_queue,
+					ispcore_fid_check, (void *)&tmp->target_fid);
+			else
+				out_frame = cam_queue_dequeue(&path->out_buf_queue,
+					struct camera_frame, list);
+			if (!out_frame && not_use_reserved_buf) {
+				pr_warn_ratelimited("wait for frame %d\n", cnt++);
+				usleep_range(1000, 1500);
+			}
+		} while ((!out_frame) && not_use_reserved_buf && (cnt < TIMEOUT_WAIT_FOR_VALID_BUFFER));
+		if (cnt == TIMEOUT_WAIT_FOR_VALID_BUFFER)
+			pr_err("fail to wait valid buffer in next_sof_cap\n");
 	}
 
 	if (out_frame)
@@ -1691,6 +1704,7 @@ static int ispcore_offline_frame_start(void *ctx)
 	tmp.target_fid = CAMERA_RESERVE_FRAME_NUM;
 	tmp.hw_ctx_id = hw_ctx_id;
 	tmp.stream = NULL;
+	tmp.not_use_reserved_buf = pframe->not_use_isp_reserved_buf;
 	ret = ispcore_offline_param_cfg(pctx, pframe, &tmp);
 	if (ret) {
 		pr_err("fail to cfg offline param.\n");
