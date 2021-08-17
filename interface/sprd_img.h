@@ -55,7 +55,7 @@
 
 #define SPRD_FLASH_MAX_CELL  40
 
-#define IMG_PATH_BUFFER_COUNT 24
+#define IMG_PATH_BUFFER_COUNT 40
 
 
 enum {
@@ -509,6 +509,7 @@ struct sprd_img_function_mode {
 	uint32_t need_3dnr; /* l5, not use,moved to sprd_img_3dnr_mode */
 	uint32_t dual_cam;
 	uint32_t need_afbc;
+	uint32_t need_fdr;
 };
 #pragma pack(pop)
 

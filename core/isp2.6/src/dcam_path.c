@@ -476,7 +476,7 @@ dcam_path_frame_cycle(struct dcam_sw_context *dcam_sw_ctx, struct dcam_path_desc
 	uint32_t src = 0;
 	struct camera_frame *frame = NULL;
 
-	if (path->path_id == DCAM_PATH_FULL && dcam_sw_ctx->is_fdr == 1) {
+	if ((path->path_id == DCAM_PATH_FULL || path->path_id == DCAM_PATH_RAW) && dcam_sw_ctx->is_fdr == 1) {
 		frame = cam_queue_dequeue(&path->alter_out_queue, struct camera_frame, list);
 		src = 0;
 	}
@@ -520,7 +520,7 @@ dcam_path_frame_cycle(struct dcam_sw_context *dcam_sw_ctx, struct dcam_path_desc
 
 	if (frame == NULL) {
 		frame = cam_queue_dequeue(&path->reserved_buf_queue, struct camera_frame, list);
-		pr_debug("use reserved buffer for path %d\n", path->path_id);
+		pr_debug("use reserved buffer for path %d, DCAM %d\n", path->path_id, dcam_sw_ctx->hw_ctx_id);
 	}
 
 	if (frame == NULL) {
@@ -665,7 +665,10 @@ static int dcampath_pyr_dec_cfg(struct dcam_path_desc *path,
 	for (i = 0; i < layer_num; i++) {
 		dec_store.bypass = 0;
 		align = align * 2;
-		offset += (size * 3 / 2);
+		if (i == 0 && frame->is_compressed)
+			offset += frame->fbc_info.buffer_size;
+		else
+			offset += (size * 3 / 2);
 		dec_store.cur_layer = i;
 		dec_store.width = align_w / align;
 		dec_store.height = align_h / align;
@@ -759,7 +762,7 @@ void dcampath_update_size(struct dcam_sw_context *ctx, struct dcam_path_desc *pa
 		 * or else size may mismatch with frame.
 		 */
 		if (spin_trylock_irqsave(&path->size_lock, flags)) {
-			if (path->size_update && !frame->is_reserved) {
+			if (path->size_update) {
 				path_size.idx = ctx->hw_ctx_id;
 				path_size.auto_cpy_id = ctx->auto_cpy_id;
 				path_size.size_x = ctx->cap_info.cap_size.size_x;

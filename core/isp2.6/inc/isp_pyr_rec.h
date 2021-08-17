@@ -183,14 +183,16 @@ struct isp_rec_slice_desc {
 
 struct isp_rec_ctx_desc {
 	uint32_t ctx_id;
-	uint32_t layer_num;
 	uint32_t in_fmt;
 	uint32_t out_fmt;
-	uint32_t hw_ctx_id;
+	uint32_t cur_layer;
 	uint32_t slice_num;
+	uint32_t hw_ctx_id;
+	uint32_t layer_num;
 	uint32_t dewarp_eb;
 	uint32_t cur_slice_id;
-	uint32_t cur_layer;
+	uint32_t fbcd_buffer_size;
+	enum isp_fetch_path_select fetch_path_sel;
 	enum isp_work_mode wmode;
 	struct img_addr fetch_addr[PYR_REC_ADDR_NUM];
 	struct img_addr store_addr[ISP_PYR_DEC_LAYER_NUM];
@@ -203,6 +205,7 @@ struct isp_rec_ctx_desc {
 	struct isp_rec_fetch_info cur_fetch;
 	/* ref frame fetch: little size use normal fetch */
 	struct isp_rec_fetch_info ref_fetch;
+	struct isp_fbd_yuv_info fetch_fbd;
 	struct isp_rec_ynr_info rec_ynr;
 	struct isp_rec_cnr_info rec_cnr;
 	struct isp_pyr_rec_info pyr_rec;

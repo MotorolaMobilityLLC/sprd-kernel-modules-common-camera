@@ -28,9 +28,9 @@
 #define DCAM_PROC_Q_LEN                   12
 
 /* TODO: extend these for slow motion dev */
-#define DCAM_RESULT_Q_LEN                 25
-#define DCAM_OUT_BUF_Q_LEN                25
-#define DCAM_RESERVE_BUF_Q_LEN            25
+#define DCAM_RESULT_Q_LEN                 50
+#define DCAM_OUT_BUF_Q_LEN                50
+#define DCAM_RESERVE_BUF_Q_LEN            50
 
 #define DCAM_LSC_BUF_SIZE                 0x3000
 

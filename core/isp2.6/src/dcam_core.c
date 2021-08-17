@@ -2422,15 +2422,17 @@ static int dcamcore_scene_fdrl_get(uint32_t prj_id,
 	case SHARKL5pro:
 		out->start_ctrl = DCAM_START_CTRL_EN;
 		out->callback_ctrl = DCAM_CALLBACK_CTRL_ISP;
+		out->in_format = DCAM_STORE_RAW_BASE;
 		break;
 	case QOGIRL6:
 		out->start_ctrl = DCAM_START_CTRL_EN;
 		out->callback_ctrl = DCAM_CALLBACK_CTRL_ISP;
+		out->in_format = DCAM_STORE_RAW_BASE;
 		break;
 	case QOGIRN6pro:
 		out->start_ctrl = DCAM_START_CTRL_EN;
 		out->callback_ctrl = DCAM_CALLBACK_CTRL_USER;
-		out->in_format = IMG_PIX_FMT_GREY;
+		out->in_format = DCAM_STORE_RAW_BASE;
 		out->out_format = DCAM_STORE_FRGB;
 		break;
 	default:
@@ -2456,6 +2458,7 @@ static int dcamcore_scene_fdrh_get(uint32_t prj_id,
 	case SHARKL5pro:
 		out->start_ctrl = DCAM_START_CTRL_EN;
 		out->callback_ctrl = DCAM_CALLBACK_CTRL_ISP;
+		out->in_format = DCAM_STORE_RAW_BASE;
 		break;
 	case QOGIRL6:
 		out->start_ctrl = DCAM_START_CTRL_DIS;
@@ -2463,7 +2466,7 @@ static int dcamcore_scene_fdrh_get(uint32_t prj_id,
 	case QOGIRN6pro:
 		out->start_ctrl = DCAM_START_CTRL_EN;
 		out->callback_ctrl = DCAM_CALLBACK_CTRL_ISP;
-		out->in_format = IMG_PIX_FMT_GREY;
+		out->in_format = DCAM_STORE_FRGB;
 		out->out_format = DCAM_STORE_YUV420;
 		break;
 	default:

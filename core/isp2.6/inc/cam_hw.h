@@ -172,6 +172,7 @@ enum dcam_hw_cfg_cmd {
 	DCAM_HW_CFG_FORCE_COPY,
 	DCAM_HW_CFG_PATH_START,
 	DCAM_HW_CFG_PATH_STOP,
+	DCAM_HW_CFG_PATH_RESTART,
 	DCAM_HW_CFG_PATH_CTRL,
 	DCAM_HW_CFG_PATH_SRC_SEL,
 	DCAM_HW_CFG_PATH_SIZE_UPDATE,
@@ -436,29 +437,22 @@ struct isp_fbd_raw_info {
 
 struct isp_fbd_yuv_info {
 	uint32_t ctx_id;
-	/*1.1.58.1 fdb fetch sel*/
-	uint32_t fetch_fbd_bypass;
 	uint32_t data_bits;
-	uint32_t chk_sum_auto_clr;
 	uint32_t hblank_en;
-	uint32_t dout_req_signal_type;
 	uint32_t afbc_mode;
-	/*1.1.58.2 fdb fetch start*/
-	uint32_t start_isp_afbd;
-	/*1.1.58.3 fdb fetch hblank tile pitch*/
+	uint32_t buffer_size;
 	uint32_t hblank_num;
+	uint32_t start_isp_afbd;
 	uint32_t tile_num_pitch;
-	/*1.1.58.4 fdb fetch slice size*/
-	struct img_size slice_size;
-	/*1.1.58.5 fdb fetch param0*/
+	uint32_t fetch_fbd_bypass;
+	uint32_t chk_sum_auto_clr;
 	uint32_t slice_start_pxl_xpt;
 	uint32_t slice_start_pxl_ypt;
-	/*1.1.58.6 fdb fetch param1*/
-	uint32_t frame_header_base_addr;
-	/*1.1.58.7 fdb fetch param2*/
+	uint32_t dout_req_signal_type;
 	uint32_t slice_start_header_addr;
-
+	uint32_t frame_header_base_addr;
 	struct img_trim trim;
+	struct img_size slice_size;
 	struct compressed_addr hw_addr;
 };
 
@@ -729,6 +723,11 @@ struct dcam_hw_path_stop {
 	uint32_t path_id;
 };
 
+struct dcam_hw_path_restart {
+	uint32_t idx;
+	uint32_t path_id;
+};
+
 struct dcam_fetch_info {
 	uint32_t pack_bits;
 	uint32_t fmt;
@@ -935,6 +934,7 @@ struct isp_hw_slice_scaler {
 struct isp_hw_nr3_fbd_slice {
 	struct isp_fmcu_ctx_desc *fmcu_handle;
 	struct slice_3dnr_fbd_fetch_info *fbd_fetch;
+	struct slice_3dnr_memctrl_info *mem_ctrl;
 };
 
 struct isp_hw_nr3_fbc_slice {
@@ -1040,6 +1040,7 @@ struct cam_hw_lbuf_share {
 	enum dcam_id idx;
 	uint32_t width;
 	uint32_t offline_flag;
+	uint32_t pdaf_share_flag;
 };
 
 struct dcam_hw_calc_rds_phase {
@@ -1284,6 +1285,7 @@ struct cam_hw_ip_info {
 	uint32_t nr3_mv_alg_version;
 	uint32_t dyn_overlap_version;
 	uint32_t fetch_raw_support;
+	uint32_t nr3_compress_support;
 };
 
 struct cam_hw_soc_info {

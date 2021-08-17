@@ -320,6 +320,8 @@ static int isp3dnr_memctrl_config_gen(struct isp_3dnr_ctx_desc *ctx)
 	mem_ctrl->nr3_done_mode = 0;
 	mem_ctrl->start_col = 0;
 	mem_ctrl->start_row = 0;
+	if (mem_ctrl->bypass)
+		mem_ctrl->nr3_ft_path_sel = 1;
 
 	/* configuration param2 */
 	mem_ctrl->global_img_width = ctx->width;
@@ -402,12 +404,16 @@ static int isp3dnr_fbd_fetch_config_gen(struct isp_3dnr_ctx_desc *ctx)
 	/*This is for N6pro*/
 	fbd_fetch->hblank_en = 0;
 	fbd_fetch->start_3dnr_afbd = 1;
-	fbd_fetch->chk_sum_auto_clr = 1;
-	fbd_fetch->dout_req_signal_type = 1;
+	fbd_fetch->slice_start_pxl_xpt = 0;
+	fbd_fetch->slice_start_pxl_ypt = 0;
 	fbd_fetch->hblank_num = 0x8000;
+	fbd_fetch->chk_sum_auto_clr = 1;
 	fbd_fetch->slice_width= cur_width;
 	fbd_fetch->slice_height = cur_height;
+	fbd_fetch->dout_req_signal_type = 1;
+	fbd_fetch->data_bits = ctx->mem_ctrl.yuv_8bits_flag ? 8 : 10;
 	fbd_fetch->tile_num_pitch = (cur_width + ISP_FBD_TILE_WIDTH - 1) / ISP_FBD_TILE_WIDTH;
+
 	if (fbd_fetch->data_bits == 10)
 		fbd_fetch->afbc_mode = 7;
 	else
@@ -442,7 +448,6 @@ static int isp3dnr_fbd_fetch_config_gen(struct isp_3dnr_ctx_desc *ctx)
 		fbd_fetch->c_tile_addr_init_x256 = out_addr.addr2;
 		/*This is for N6pro*/
 		cal_fbc.in = ctx->buf_info[0]->iova[0];
-		pr_info("iova:%x.\n", ctx->buf_info[0]->iova[0]);
 		dcam_if_cal_compressed_addr(&cal_fbc);
 		fbd_fetch->frame_header_base_addr = fbd_fetch->hw_addr.addr0;
 		fbd_fetch->slice_start_header_addr = fbd_fetch->frame_header_base_addr +
@@ -457,7 +462,6 @@ static int isp3dnr_fbd_fetch_config_gen(struct isp_3dnr_ctx_desc *ctx)
 		fbd_fetch->c_tile_addr_init_x256 = out_addr.addr2;
 		/*This is for N6pro*/
 		cal_fbc.in = ctx->buf_info[1]->iova[0];
-		pr_info("iova:%x.\n", ctx->buf_info[0]->iova[0]);
 		dcam_if_cal_compressed_addr(&cal_fbc);
 		fbd_fetch->frame_header_base_addr = fbd_fetch->hw_addr.addr0;
 		fbd_fetch->slice_start_header_addr = fbd_fetch->frame_header_base_addr +
@@ -583,7 +587,7 @@ static int isp3dnr_fbc_store_config_gen(struct isp_3dnr_ctx_desc *ctx)
 	fbc_store = &ctx->nr3_fbc_store;
 	fbc_store->size_in_hor = cur_width;
 	fbc_store->size_in_ver = cur_height;
-	fbc_store->color_format = 5;
+	fbc_store->color_format = 4;
 	pad_width = cur_width;
 	pad_height = cur_height;
 
@@ -595,8 +599,8 @@ static int isp3dnr_fbc_store_config_gen(struct isp_3dnr_ctx_desc *ctx)
 	cal_fbc.out = &fbc_store->hw_addr;
 	fbc_store->c_nearly_full_level = 0x2;
 	fbc_store->y_nearly_full_level = 0x2;
-	cal_fbc.data_bits = ctx->nr3_fbd_fetch.data_bits;
-	fbc_store->afbc_mode = ctx->nr3_fbd_fetch.afbc_mode;
+	cal_fbc.data_bits = ctx->mem_ctrl.yuv_8bits_flag ? 8 : 10;
+
 	if (cal_fbc.data_bits == 10)
 		fbc_store->afbc_mode = 7;
 	else
@@ -630,6 +634,7 @@ static int isp3dnr_fbc_store_config_gen(struct isp_3dnr_ctx_desc *ctx)
 		/*This is for N6pro*/
 		cal_fbc.in = ctx->buf_info[0]->iova[0];
 		dcam_if_cal_compressed_addr(&cal_fbc);
+		fbc_store->tile_number_pitch = cal_fbc.fbc_info->tile_col;
 		fbc_store->slice_header_base_addr = fbc_store->hw_addr.addr0;
 		fbc_store->slice_payload_base_addr = fbc_store->hw_addr.addr1;
 		fbc_store->slice_payload_offset_addr_init = fbc_store->hw_addr.addr1 - fbc_store->hw_addr.addr0;
@@ -643,6 +648,7 @@ static int isp3dnr_fbc_store_config_gen(struct isp_3dnr_ctx_desc *ctx)
 		/*This is for N6pro*/
 		cal_fbc.in = ctx->buf_info[1]->iova[0];
 		dcam_if_cal_compressed_addr(&cal_fbc);
+		fbc_store->tile_number_pitch = cal_fbc.fbc_info->tile_col;
 		fbc_store->slice_header_base_addr = fbc_store->hw_addr.addr0;
 		fbc_store->slice_payload_base_addr = fbc_store->hw_addr.addr1;
 		fbc_store->slice_payload_offset_addr_init = fbc_store->hw_addr.addr1 - fbc_store->hw_addr.addr0;
@@ -813,7 +819,6 @@ static int isp3dnr_cfg_param(void *handle,
 	uint32_t nr3_compress_eb = 0;
 	struct img_trim *crop = NULL;
 	struct camera_frame *pframe = NULL;
-	struct isp_pipe_info *pipe_info = NULL;
 	struct isp_3dnr_ctx_desc *nr3_ctx = NULL;
 	struct isp_hw_fetch_info *fetch_info = NULL;
 
@@ -857,27 +862,18 @@ static int isp3dnr_cfg_param(void *handle,
 		nr3_ctx->blending_cnt = *(uint32_t *)param;
 		pr_debug("3DNR blending cnt %d\n", nr3_ctx->blending_cnt);
 		break;
-	case ISP_3DNR_CFG_FBC_INFO:
+	case ISP_3DNR_CFG_FBC_FBD_INFO:
 		nr3_compress_eb = *(uint32_t *)param;
-		pr_debug("nr3_compress_rb:%d.\n", nr3_compress_eb);
 		if (nr3_compress_eb) {
+			nr3_ctx->mem_ctrl.bypass = 1;
 			nr3_ctx->nr3_store.st_bypass = 1;
+			nr3_ctx->nr3_fbd_fetch.bypass = 0;
 			nr3_ctx->nr3_fbc_store.bypass = 0;
 		} else {
+			nr3_ctx->mem_ctrl.bypass = 0;
 			nr3_ctx->nr3_store.st_bypass = 0;
 			nr3_ctx->nr3_fbc_store.bypass = 1;
-		}
-		break;
-	case ISP_3DNR_CFG_FBD_INFO:
-		pipe_info = (struct isp_pipe_info *)param;
-		if (pipe_info->fetch_fbd.fetch_fbd_bypass && pipe_info->fetch_fbd_yuv.fetch_fbd_bypass) {
 			nr3_ctx->nr3_fbd_fetch.bypass = 1;
-		} else {
-			nr3_ctx->mem_ctrl.bypass = 1;
-			nr3_ctx->nr3_fbd_fetch.bypass = 0;
-			nr3_ctx->nr3_fbd_fetch.data_bits = pipe_info->fetch_fbd_yuv.data_bits;
-			nr3_ctx->nr3_fbd_fetch.slice_start_pxl_xpt = pipe_info->fetch_fbd_yuv.slice_start_pxl_xpt;
-			nr3_ctx->nr3_fbd_fetch.slice_start_pxl_ypt = pipe_info->fetch_fbd_yuv.slice_start_pxl_ypt;
 		}
 		break;
 	case ISP_3DNR_CFG_SIZE_INFO:
@@ -896,7 +892,6 @@ static int isp3dnr_cfg_param(void *handle,
 	case ISP_3DNR_CFG_MEMCTL_STORE_INFO:
 		fetch_info = (struct isp_hw_fetch_info *)param;
 		nr3_ctx->mem_ctrl.yuv_8bits_flag = (fetch_info->data_bits == 8) ? 1 : 0;
-		nr3_ctx->mem_ctrl.nr3_ft_path_sel = fetch_info->fetch_path_sel;
 		nr3_ctx->nr3_sec_mode = fetch_info->sec_mode;
 		nr3_ctx->mem_ctrl.ft_pitch = isp3dnr_calc_img_pitch(fetch_info->fetch_fmt, nr3_ctx->width);
 		nr3_ctx->nr3_store.st_pitch = nr3_ctx->mem_ctrl.ft_pitch;

@@ -291,7 +291,6 @@ static int ispcore_3dnr_frame_process(struct isp_sw_context *pctx,
 {
 	uint32_t mv_version = 0;
 	struct isp_uinfo *pipe_src = NULL;
-	struct isp_pipe_info *pipe_info = NULL;
 	struct isp_3dnr_ctx_desc *nr3_handle = NULL;
 	struct dcam_frame_synchronizer *fsync = NULL;
 
@@ -309,13 +308,12 @@ static int ispcore_3dnr_frame_process(struct isp_sw_context *pctx,
 	}
 
 	pipe_src = &pctx->pipe_src;
-	pipe_info = &pctx->pipe_info;
 	mv_version = pctx->hw->ip_isp->nr3_mv_alg_version;
 	nr3_handle = (struct isp_3dnr_ctx_desc *)pctx->nr3_handle;
+	nr3_handle->pyr_rec_eb = pframe->need_pyr_rec;
 
 	nr3_handle->ops.cfg_param(nr3_handle, ISP_3DNR_CFG_MV_VERSION, &mv_version);
-	nr3_handle->ops.cfg_param(nr3_handle, ISP_3DNR_CFG_FBC_INFO, &pipe_src->nr3_fbc_fbd);
-	nr3_handle->ops.cfg_param(nr3_handle, ISP_3DNR_CFG_FBD_INFO, pipe_info);
+	nr3_handle->ops.cfg_param(nr3_handle, ISP_3DNR_CFG_FBC_FBD_INFO, &pipe_src->nr3_fbc_fbd);
 	nr3_handle->ops.cfg_param(nr3_handle, ISP_3DNR_CFG_SIZE_INFO, &pipe_src->crop);
 	nr3_handle->ops.cfg_param(nr3_handle, ISP_3DNR_CFG_MEMCTL_STORE_INFO, &pctx->pipe_info.fetch);
 	nr3_handle->ops.cfg_param(nr3_handle, ISP_3DNR_CFG_BLEND_INFO, &pctx->isp_k_param);
@@ -374,10 +372,11 @@ static int ispcore_rec_frame_process(struct isp_sw_context *pctx,
 	struct isp_hw_context *pctx_hw, struct camera_frame *pframe)
 {
 	int ret = 0;
+	struct isp_uinfo *pipe_src = NULL;
+	struct isp_pyr_rec_in cfg_in = {0};
 	struct isp_pipe_info *pipe_in = NULL;
 	struct isp_rec_ctx_desc *rec_ctx = NULL;
 	struct isp_slice_context *slc_ctx = NULL;
-	struct isp_pyr_rec_in cfg_in;
 
 	if (!pctx || !pctx_hw || !pframe) {
 		pr_err("fail to get valid parameter pctx %p pframe %p\n",
@@ -387,17 +386,24 @@ static int ispcore_rec_frame_process(struct isp_sw_context *pctx,
 
 	memset(&cfg_in, 0, sizeof(struct isp_pyr_rec_in));
 	pipe_in = &pctx->pipe_info;
-	rec_ctx = (struct isp_rec_ctx_desc *)pctx->rec_handle;
+	pipe_src = &pctx->pipe_src;
 	slc_ctx = (struct isp_slice_context *)pctx->slice_ctx;
+	rec_ctx = (struct isp_rec_ctx_desc *)pctx->rec_handle;
 
-	cfg_in.in_fmt = pipe_in->fetch.fetch_fmt;
 	cfg_in.src = pipe_in->fetch.src;
-	cfg_in.in_trim = pipe_in->fetch.in_trim;
 	cfg_in.in_addr = pipe_in->fetch.addr;
-	cfg_in.out_addr = pipe_in->store[ISP_SPATH_CP].store.addr;
-	cfg_in.pyr_ynr = &pctx->isp_k_param.ynr_info_v3;
-	cfg_in.pyr_cnr = &pctx->isp_k_param.cnr_info;
+	cfg_in.in_trim = pipe_in->fetch.in_trim;
+	cfg_in.in_fmt = pipe_in->fetch.fetch_fmt;
 	cfg_in.slice_overlap = &slc_ctx->slice_overlap;
+	cfg_in.pyr_cnr = &pctx->isp_k_param.cnr_info;
+	cfg_in.pyr_ynr = &pctx->isp_k_param.ynr_info_v3;
+	cfg_in.out_addr = pipe_in->store[ISP_SPATH_CP].store.addr;
+
+	if (rec_ctx && pipe_src->fetch_path_sel == 1) {
+		rec_ctx->fetch_path_sel = pipe_src->fetch_path_sel;
+		rec_ctx->fetch_fbd = pipe_in->fetch_fbd_yuv;
+		rec_ctx->fbcd_buffer_size = pipe_in->fetch_fbd_yuv.buffer_size;
+	}
 
 	if (rec_ctx && pframe->need_pyr_rec) {
 		rec_ctx->ops.cfg_param(rec_ctx, ISP_REC_CFG_WORK_MODE, &pctx->dev->wmode);
@@ -1722,7 +1728,6 @@ static int ispcore_offline_frame_start(void *ctx)
 	ispcore_rec_frame_process(pctx, pctx_hw, pframe);
 	ispcore_gtm_frame_process(pctx, pframe);
 	ispcore_dewarp_frame_process(pctx, pctx_hw, pframe);
-
 	if (tmp.multi_slice || pctx->uinfo.enable_slowmotion || pframe->need_pyr_rec) {
 		struct slice_cfg_input slc_cfg;
 
@@ -2303,8 +2308,7 @@ static int ispcore_postproc_irq(void *handle, uint32_t idx,
 
 	if (pframe) {
 		if (stream && stream->data_src == ISP_STREAM_SRC_ISP) {
-			pr_info("isp %d post proc, do not need to return frame\n",
-				pctx->ctx_id);
+			pr_info("isp %d post proc, do not need to return frame\n", pctx->ctx_id);
 			cam_buf_iommu_unmap(&pframe->buf);
 		} else if (pframe->data_src_dec) {
 			pr_debug("isp %d dec done\n", pctx->ctx_id);
@@ -2313,8 +2317,7 @@ static int ispcore_postproc_irq(void *handle, uint32_t idx,
 		} else {
 			/* return buffer to cam channel shared buffer queue. */
 			cam_buf_iommu_unmap(&pframe->buf);
-			pctx->isp_cb_func(ISP_CB_RET_SRC_BUF, pframe,
-				pctx->cb_priv_data);
+			pctx->isp_cb_func(ISP_CB_RET_SRC_BUF, pframe, pctx->cb_priv_data);
 			pr_debug("sw %d, ch_id %d, fid:%d, shard buffer cnt:%d\n",
 				pctx->ctx_id, pframe->channel_id, pframe->fid,
 				pctx->proc_queue.cnt);
@@ -3879,7 +3882,7 @@ static int ispcore_scene_fdr_set(uint32_t prj_id,
 				fdr_ctrl->start_ctrl = ISP_START_CTRL_DIS;
 			} else {
 				fdr_ctrl->in_format = IMG_PIX_FMT_NV21;
-				fdr_ctrl->out_format = IMG_PIX_FMT_NV21;
+				fdr_ctrl->out_format = IMG_PIX_FMT_NV12;
 				fdr_ctrl->src = in->src;
 				fdr_ctrl->crop = in->crop;
 				fdr_ctrl->dst = in->dst;

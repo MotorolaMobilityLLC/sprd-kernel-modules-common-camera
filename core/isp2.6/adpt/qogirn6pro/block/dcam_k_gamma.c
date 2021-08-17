@@ -92,7 +92,7 @@ int dcam_k_cfg_gamma(struct isp_io_param *param, struct dcam_dev_param *p)
 				pr_err("fail to copy from user ret=0x%x\n", (unsigned int)ret);
 				return -EPERM;
 			}
-			if (p->idx == DCAM_HW_CONTEXT_MAX)
+			if (p->idx == DCAM_HW_CONTEXT_MAX || param->scene_id == PM_SCENE_CAP)
 				return 0;
 			ret = dcam_k_gamma_block(p);
 		} else {

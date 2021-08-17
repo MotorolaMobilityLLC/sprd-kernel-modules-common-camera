@@ -386,7 +386,7 @@ static struct cam_hw_ip_info dcam[DCAM_ID_MAX] = {
 		.dcam_raw_path_id = DCAM_PATH_FULL,
 		.pyramid_support = 0,
 		.fmcu_support = 0,
-		.sensor_raw_fmt = DCAM_RAW_HALFWORD_10,
+		.sensor_raw_fmt = DCAM_RAW_PACK_10,
 		.save_band_for_bigsize = 0,
 		.raw_fmt_support[0] = DCAM_RAW_PACK_10,
 		.raw_fmt_support[1] = DCAM_RAW_HALFWORD_10,
@@ -408,7 +408,7 @@ static struct cam_hw_ip_info dcam[DCAM_ID_MAX] = {
 		.dcam_raw_path_id = DCAM_PATH_FULL,
 		.pyramid_support = 0,
 		.fmcu_support = 0,
-		.sensor_raw_fmt = DCAM_RAW_HALFWORD_10,
+		.sensor_raw_fmt = DCAM_RAW_PACK_10,
 		.save_band_for_bigsize = 0,
 		.raw_fmt_support[0] = DCAM_RAW_PACK_10,
 		.raw_fmt_support[1] = DCAM_RAW_HALFWORD_10,
@@ -454,6 +454,7 @@ static struct cam_hw_ip_info isp = {
 	.nr3_mv_alg_version = ALG_NR3_MV_VER_0,
 	.dyn_overlap_version = ALG_ISP_DYN_OVERLAP_NONE,
 	.fetch_raw_support = 1,
+	.nr3_compress_support = 0,
 };
 
 struct cam_hw_info sharkl3_hw_info = {

@@ -139,7 +139,7 @@ static struct camera_frame *dcamint_frame_prepare(struct dcam_hw_context *dcam_h
 	}
 
 	pr_debug("DCAM%u %s: TX DONE, fid %u, sync 0x%p\n",
-		 dcam_hw_ctx->hw_ctx_id, dcam_path_name_get(path_id), frame->fid, frame->sync_data);
+		dcam_hw_ctx->hw_ctx_id, dcam_path_name_get(path_id), frame->fid, frame->sync_data);
 
 	if (!sw_ctx->rps && !frame->boot_sensor_time) {
 		pr_info("DCAM%u %s fid %u invalid 0 timestamp\n",
@@ -746,6 +746,9 @@ static void dcamint_full_path_done(void *param)
 		pr_err("fail to get valid input sw_ctx\n");
 		return;
 	}
+	/*need set default val for preview after dcam offline fetch frgb format*/
+	if (sw_ctx->offline)
+		DCAM_AXIM_MWR(0, IMG_FETCH_CTRL, BIT_1 | BIT_0, 0x1);
 
 	path = &sw_ctx->path[DCAM_PATH_FULL];
 	pr_debug("capture path done\n");
@@ -769,6 +772,20 @@ static void dcamint_full_path_done(void *param)
 		}
 
 		dcamint_frame_dispatch(dcam_hw_ctx, DCAM_PATH_FULL, frame, DCAM_CB_DATA_DONE);
+	}
+
+	if (sw_ctx->offline) {
+		if (sw_ctx->dcam_slice_mode != CAM_OFFLINE_SLICE_SW) {
+			if (sw_ctx->slice_num > 0) {
+				pr_debug("dcam%d offline slice%d done.\n",
+					dcam_hw_ctx->hw_ctx_id, (sw_ctx->slice_num - sw_ctx->slice_count));
+				complete(&sw_ctx->slice_done);
+				sw_ctx->slice_count--;
+				if (sw_ctx->slice_count > 0)
+					return;
+			}
+			complete(&sw_ctx->frm_done);
+		}
 	}
 }
 

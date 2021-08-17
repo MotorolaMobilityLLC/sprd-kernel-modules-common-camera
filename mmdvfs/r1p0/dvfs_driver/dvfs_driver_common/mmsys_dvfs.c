@@ -10,13 +10,18 @@ static int get_ip_status(struct devfreq *devfreq,
     u32 volt_reg = 0, ip_clk = 0;
     u32 clk_reg = 0, ip_volt = 0;
     u32 i = 0;
+    int ret = 0;
     pr_info("mm_power_flag %d", mm_power_flag);
     if (mm_power_flag != 1)
         return -1;
     volt_reg = DVFS_REG_RD(REG_MM_DVFS_AHB_MM_DVFS_VOLTAGE_DBG);
     clk_reg = DVFS_REG_RD(REG_MM_DVFS_AHB_MM_DVFS_CGM_CFG_DBG);
     // top
-    regmap_read(g_mmreg_map.mmdvfs_top_regmap, REG_TOP_DVFS_APB_DCDC_MM_DVFS_STATE_DBG, &ip_volt);
+    ret = regmap_read(g_mmreg_map.mmdvfs_top_regmap, REG_TOP_DVFS_APB_DCDC_MM_DVFS_STATE_DBG, &ip_volt);
+    if (ret != 0) {
+        pr_err("%s, regmap_read fail!\n", __func__);
+        return 0;
+    }
     ip_volt = (ip_volt >> 20) & 0x07;
 
     for (i = 0; i < 8; i++) {

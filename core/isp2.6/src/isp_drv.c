@@ -515,6 +515,7 @@ static int ispdrv_fbd_yuv_get(void *cfg_in, void *cfg_out,
 	cal_fbc.width = fbd_yuv->slice_size.w;
 	cal_fbc.out = &fbd_yuv->hw_addr;
 	dcam_if_cal_compressed_addr(&cal_fbc);
+	fbd_yuv->buffer_size = cal_fbc.fbc_info->buffer_size;
 
 	/* store start address for slice use */
 	fbd_yuv->frame_header_base_addr = fbd_yuv->hw_addr.addr0;
@@ -522,10 +523,10 @@ static int ispdrv_fbd_yuv_get(void *cfg_in, void *cfg_out,
 			((fbd_yuv->slice_start_pxl_ypt / ISP_FBD_TILE_HEIGHT) * fbd_yuv->tile_num_pitch +
 			fbd_yuv->slice_start_pxl_xpt / ISP_FBD_TILE_WIDTH) * 16;
 	fbd_yuv->data_bits = cal_fbc.data_bits;
-	pr_debug("iova:%d, fetch_fbd: %u 0x%x 0x%x, 0x%x, size %u %u, channel_id:%d\n",
+	pr_debug("iova:%d, fetch_fbd: %u 0x%x 0x%x, 0x%x, size %u %u, channel_id:%d, tile_col:%d\n",
 		 frame->buf.iova[0], frame->fid, fbd_yuv->hw_addr.addr0,
 		 fbd_yuv->hw_addr.addr1, fbd_yuv->hw_addr.addr2,
-		pipe_src->src.w, pipe_src->src.h, frame->channel_id);
+		pipe_src->src.w, pipe_src->src.h, frame->channel_id, fbd_yuv->tile_num_pitch);
 
 	return 0;
 }
@@ -917,6 +918,7 @@ int isp_drv_pipeinfo_get(void *arg, void *frame)
 
 	pipe_in->fetch_fbd.ctx_id = ctx->ctx_id;
 	pipe_in->fetch_fbd_yuv.ctx_id = ctx->ctx_id;
+
 	if (ctx->dev->isp_hw->ip_isp->fbd_raw_support) {
 		ret = ispdrv_fbd_raw_get(pipe_src, &pipe_in->fetch_fbd, pframe);
 		pipe_in->fetch_fbd_yuv.fetch_fbd_bypass = 1;
@@ -958,7 +960,7 @@ int isp_drv_pipeinfo_get(void *arg, void *frame)
 			pipe_in->scaler[i].spath_id = i;
 			pipe_in->scaler[i].src.w = pipe_src->crop.size_x;
 			pipe_in->scaler[i].src.h = pipe_src->crop.size_y;
-			if (pframe->need_pyr_rec) {
+			if (pframe->data_src_dec) {
 				pipe_in->scaler[i].in_trim.size_x = pipe_src->crop.size_x;
 				pipe_in->scaler[i].in_trim.size_y = pipe_src->crop.size_y;
 			} else {

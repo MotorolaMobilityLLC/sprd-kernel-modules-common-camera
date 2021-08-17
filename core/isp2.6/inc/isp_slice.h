@@ -150,6 +150,7 @@ struct slice_afbc_store_info {
 };
 
 struct slice_fetch_info {
+	uint32_t cur_layer;
 	uint32_t is_pack;
 	struct img_size size;
 	struct img_addr addr;
@@ -158,6 +159,8 @@ struct slice_fetch_info {
 	uint32_t mipi_word_num;
 	uint32_t mipi_byte_rel_pos_uv;
 	uint32_t mipi_word_num_uv;
+	struct isp_fbd_yuv_info fetch_fbd;
+	enum isp_fetch_path_select fetch_path_sel;
 };
 
 struct slice_fbd_raw_info {
@@ -254,6 +257,20 @@ struct slice_3dnr_fbc_store_info {
 	uint32_t fbc_c_tile_addr_init_x256;
 	uint32_t fbc_y_header_addr_init;
 	uint32_t fbc_c_header_addr_init;
+	/*This is for N6pro*/
+	uint32_t ctx_id;
+	uint32_t endian;
+	uint32_t mirror_en;
+	uint32_t up_border;
+	uint32_t afbc_mode;
+	uint32_t left_border;
+	uint32_t color_format;
+	uint32_t tile_num_pitch;
+	uint32_t c_nearly_full_level;
+	uint32_t y_nearly_full_level;
+	unsigned long slice_header_base_addr;
+	unsigned long slice_payload_base_addr;
+	unsigned long slice_payload_offset_addr_init;
 };
 
 struct slice_3dnr_fbd_fetch_info {
@@ -276,6 +293,26 @@ struct slice_3dnr_fbd_fetch_info {
 	uint32_t fbd_c_tiles_num_in_ver;
 	uint32_t fbd_c_header_addr_init;
 	uint32_t fbd_c_tile_addr_init_x256;
+
+	/*This is for N6pro*/
+	uint32_t ctx_id;
+	uint32_t bypass;
+	uint32_t data_bits;
+	uint32_t color_fmt;
+	uint32_t hblank_en;
+	uint32_t afbc_mode;
+	uint32_t slice_width;
+	uint32_t slice_height;
+	uint32_t hblank_num;
+	uint32_t tile_num_pitch;
+	uint32_t start_3dnr_afbd;
+	uint32_t chk_sum_auto_clr;
+	uint32_t slice_start_pxl_xpt;
+	uint32_t slice_start_pxl_ypt;
+	uint32_t dout_req_signal_type;
+	unsigned long slice_start_header_addr;
+	unsigned long frame_header_base_addr;
+	struct compressed_addr hw_addr;
 };
 
 struct slice_3dnr_crop_info {

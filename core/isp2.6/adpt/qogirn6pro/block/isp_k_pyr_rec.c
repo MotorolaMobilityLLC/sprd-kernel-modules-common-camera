@@ -327,6 +327,49 @@ static int isppyrrec_fetch_slice_set(struct slice_fetch_info *rec_fetch,
 	return 0;
 }
 
+static int isppyrrec_fbd_fetch_slice_set(struct slice_fetch_info *rec_fetch, void *in_ptr)
+{
+	uint32_t addr = 0, cmd = 0;
+	unsigned int base = 0;
+	struct isp_fmcu_ctx_desc *fmcu = NULL;
+
+	if (rec_fetch == NULL || in_ptr == NULL) {
+		pr_info("fail to get param pointer.\n");
+		return 0;
+	}
+	fmcu = (struct isp_fmcu_ctx_desc *)in_ptr;
+	base = ISP_YUV_AFBD_FETCH_BASE;
+
+	addr = ISP_GET_REG(ISP_AFBD_FETCH_SEL) + base;
+	cmd = (rec_fetch->fetch_fbd.fetch_fbd_bypass & 0x1) |
+		(0x1 << 1) | (0x1 << 3) | ((rec_fetch->fetch_fbd.afbc_mode & 0x1F) << 4);
+	FMCU_PUSH(fmcu, addr, cmd);
+
+	addr = ISP_GET_REG(ISP_AFBD_FETCH_HBLANK_TILE_PITCH ) + base;
+	cmd = ((rec_fetch->fetch_fbd.tile_num_pitch & 0x7FF) << 16) | (0x8000);
+	FMCU_PUSH(fmcu, addr, cmd);
+
+	addr = ISP_GET_REG(ISP_AFBD_FETCH_SLICE_SIZE) + base;
+	cmd = ((rec_fetch->fetch_fbd.slice_size.h & 0xFFFF) << 16) |
+		(rec_fetch->fetch_fbd.slice_size.w & 0xFFFF);
+	FMCU_PUSH(fmcu, addr, cmd);
+
+	addr = ISP_GET_REG(ISP_AFBD_FETCH_PARAM0) + base;
+	cmd = rec_fetch->fetch_fbd.slice_start_pxl_xpt |
+		rec_fetch->fetch_fbd.slice_start_pxl_ypt << 16;
+	FMCU_PUSH(fmcu, addr, cmd);
+
+	addr = ISP_GET_REG(ISP_AFBD_FETCH_PARAM1) + base;
+	cmd = rec_fetch->fetch_fbd.frame_header_base_addr;
+	FMCU_PUSH(fmcu, addr, cmd);
+
+	addr = ISP_GET_REG(ISP_AFBD_FETCH_PARAM2) + base;
+	cmd = rec_fetch->fetch_fbd.slice_start_header_addr;
+	FMCU_PUSH(fmcu, addr, cmd);
+
+	return 0;
+}
+
 static int isppyrrec_ynr_slice_set(struct slice_pos_info *pyr_ynr, void *in_ptr)
 {
 	uint32_t addr = 0, cmd = 0;
@@ -635,17 +678,30 @@ int isp_pyr_rec_slice_common_config(void *handle)
 	ctx = (struct isp_rec_ctx_desc *)handle;
 	cur_rec_slc = &ctx->slices[ctx->cur_slice_id];
 	fmcu = (struct isp_fmcu_ctx_desc *)ctx->fmcu_handle;
-
-	isppyrrec_fetch_slice_set(&cur_rec_slc->slice_cur_fetch, ctx->fmcu_handle, ISP_PYR_REC_CUR);
+	cur_rec_slc->slice_cur_fetch.cur_layer = ctx->cur_layer;
+	cur_rec_slc->slice_cur_fetch.fetch_path_sel = ctx->fetch_path_sel;
+	memcpy(&cur_rec_slc->slice_cur_fetch.fetch_fbd, &ctx->fetch_fbd, sizeof(struct isp_fbd_yuv_info));
+	if ((cur_rec_slc->slice_cur_fetch.cur_layer == 0) && (cur_rec_slc->slice_cur_fetch.fetch_path_sel == 1))
+		isppyrrec_fbd_fetch_slice_set(&cur_rec_slc->slice_cur_fetch, ctx->fmcu_handle);
+	else
+		isppyrrec_fetch_slice_set(&cur_rec_slc->slice_cur_fetch, ctx->fmcu_handle, ISP_PYR_REC_CUR);
 	isppyrrec_fetch_slice_set(&cur_rec_slc->slice_ref_fetch, ctx->fmcu_handle, ISP_PYR_REC_REF);
 	isppyrrec_ynr_slice_set(&cur_rec_slc->slice_fetch0_pos, ctx->fmcu_handle);
 	isppyrrec_cnr_slice_set(&cur_rec_slc->slice_fetch0_pos, ctx->fmcu_handle);
 	isppyrrec_reconstruct_slice_set(&cur_rec_slc->slice_pyr_rec, ctx->fmcu_handle);
 
-	addr = ISP_GET_REG(ISP_COMMON_SCL_PATH_SEL);
-	cmd = ISP_REG_RD(ctx->ctx_id, ISP_COMMON_SCL_PATH_SEL);
-	cmd = cmd | ((cur_rec_slc->slice_pyr_rec.rec_path_sel & 1) << 7) | BIT_13;
-	FMCU_PUSH(fmcu, addr, cmd);
+	if ((ctx->cur_layer != 0) || (ctx->fetch_path_sel != 1)) {
+		addr = ISP_GET_REG(ISP_COMMON_SCL_PATH_SEL);
+		cmd = ISP_REG_RD(ctx->ctx_id, ISP_COMMON_SCL_PATH_SEL);
+		cmd = cmd & 0xFFFFF3FF;
+		cmd = cmd | ((cur_rec_slc->slice_pyr_rec.rec_path_sel & 1) << 7) | BIT_13;
+		FMCU_PUSH(fmcu, addr, cmd);
+	} else {
+		addr = ISP_GET_REG(ISP_COMMON_SCL_PATH_SEL);
+		cmd = ISP_REG_RD(ctx->ctx_id, ISP_COMMON_SCL_PATH_SEL);
+		cmd = (cmd | BIT_12 | BIT_7 | BIT_13) & 0xFFFFF3FF;
+		FMCU_PUSH(fmcu, addr, cmd);
+	}
 
 	addr = ISP_GET_REG(PYR_REC_STORE_BASE + ISP_STORE_PARAM);
 	cmd = ISP_REG_RD(ctx->ctx_id, PYR_REC_STORE_BASE + ISP_STORE_PARAM);

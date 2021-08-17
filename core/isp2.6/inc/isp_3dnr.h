@@ -279,8 +279,7 @@ enum isp_3dnr_cfg_cmd {
 	ISP_3DNR_CFG_BUF,
 	ISP_3DNR_CFG_MODE,
 	ISP_3DNR_CFG_BLEND_CNT,
-	ISP_3DNR_CFG_FBC_INFO,
-	ISP_3DNR_CFG_FBD_INFO,
+	ISP_3DNR_CFG_FBC_FBD_INFO,
 	ISP_3DNR_CFG_SIZE_INFO,
 	ISP_3DNR_CFG_BLEND_INFO,
 	ISP_3DNR_CFG_MEMCTL_STORE_INFO,
@@ -301,6 +300,7 @@ struct isp_3dnr_ctx_desc {
 	uint32_t height;
 	uint32_t blending_cnt;
 	uint32_t nr3_mv_version;
+	uint32_t pyr_rec_eb;
 
 	struct fast_mv mv;
 	struct isp_3dnr_ops ops;

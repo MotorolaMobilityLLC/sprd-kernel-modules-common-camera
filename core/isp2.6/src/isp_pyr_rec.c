@@ -721,6 +721,8 @@ static int isppyrrec_pipe_proc(void *handle, void *param)
 	for (i = 1; i < layer_num + 1; i++) {
 		align = align * 2;
 		offset += (size * 3 / 2);
+		if ((rec_ctx->fetch_path_sel == ISP_FETCH_PATH_FBD) && (i == 1))
+			offset = rec_ctx->fbcd_buffer_size;
 		rec_ctx->pyr_layer_size[i].w = rec_ctx->pyr_layer_size[0].w /align;
 		rec_ctx->pyr_layer_size[i].h = rec_ctx->pyr_layer_size[0].h /align;
 		pitch = isppyrrec_pitch_get(in_ptr->in_fmt, rec_ctx->pyr_layer_size[i].w);

@@ -231,9 +231,9 @@ static int sprd_flash_sgm37891_cfg(uint8_t idx, int gpio_id, uint16_t level)
 		goto exit;
 	udelay(45);
 
-	/* for level > 5, output current should be same as that of level 0 */
-	if (level > 5)
-		level = 0;
+	/* SGM37892A max level = 7 */
+	if (level > 7)
+		level = 7;
 
 	for (i = 0; i < level; i++) {
 		ret = gpio_direction_output(gpio_id, SPRD_FLASH_ON);
@@ -265,7 +265,6 @@ static int sprd_flash_sgm37891_cfg_value_torch(void *drvd, uint8_t idx,
 
 	idx = drv_data->torch_led_index;
 	ret = sprd_flash_sgm37891_init(drv_data);
-	element->index = 5;
 	if (SPRD_FLASH_LED0 & idx) {
 		gpio_id = drv_data->gpio_tab[GPIO_FLASH_1W];
 		if (gpio_is_valid(gpio_id))

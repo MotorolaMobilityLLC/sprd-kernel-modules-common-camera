@@ -487,6 +487,7 @@ static struct cam_hw_ip_info isp = {
 	.nr3_mv_alg_version = ALG_NR3_MV_VER_1,
 	.dyn_overlap_version = ALG_ISP_OVERLAP_VER_2,
 	.fetch_raw_support = 0,
+	.nr3_compress_support = 0,
 };
 
 struct cam_hw_info qogirn6pro_hw_info = {

@@ -777,17 +777,17 @@ void core_drv_yuv420_to_rgb10_init_block(struct isp_block_drv_t *block_ptr)
 
 static uint16_t cal_ratio(uint16_t iw, uint16_t ow, uint16_t outformat)
 {
-	uint16_t ratio =0;
+	uint16_t ratio = 0;
 
-	if(ow > iw * 2) {
+	if(ow * 2 > iw) {
 		ratio = 1;
-	} else if ((ow <= iw * 2) && (ow >= iw * 8)) {
+	} else if ((ow * 2 <= iw) && (ow * 8 >= iw)) {
 		ratio = 2;
-	} else if ((ow < iw * 8) && (ow >= iw * 16)) {
+	} else if ((ow * 8 < iw) && (ow * 16 >= iw)) {
 		ratio = 4;
-	} else if ((ow < iw * 16) && (ow >= iw * 32)) {
+	} else if ((ow * 16 < iw) && (ow * 32 >= iw)) {
 		ratio = 8;
-	} else if(ow < iw * 16) {
+	} else if(ow * 16 < iw) {
 		ratio = 16;
 	} else {
 		ratio = 1;

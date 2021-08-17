@@ -32,11 +32,13 @@ static void isp_3dnr_config_mem_ctrl(uint32_t idx,
 
 	if (g_isp_bypass[idx] & (1 << _EISP_NR3))
 		mem_ctrl->bypass = 1;
+
 	mem_ctrl->retain_num = 110;
 	mem_ctrl->ft_hblank_num = 50;
 	mem_ctrl->ft_fifo_nfull_num = 1400;
 
-	val = ((mem_ctrl->nr3_done_mode & 0x1) << 1) |
+	val = (mem_ctrl->bypass & 0x1) |
+		((mem_ctrl->nr3_done_mode & 0x1) << 1) |
 		((mem_ctrl->nr3_ft_path_sel & 0x1) << 2) |
 		((mem_ctrl->yuv_8bits_flag & 0x1) << 3) |
 		((mem_ctrl->slice_info & 0x3) << 4) |
@@ -46,9 +48,12 @@ static void isp_3dnr_config_mem_ctrl(uint32_t idx,
 		((mem_ctrl->roi_mode & 0x1) << 14) |
 		((mem_ctrl->retain_num & 0x7F) << 16) |
 		((mem_ctrl->ref_pic_flag & 0x1) << 23) |
-		((mem_ctrl->ft_max_len_sel & 0x1) << 28) |
-		(mem_ctrl->bypass & 0x1);
+		((mem_ctrl->ft_max_len_sel & 0x1) << 28);
 	ISP_REG_WR(idx, ISP_3DNR_MEM_CTRL_PARAM0, val);
+
+	if (mem_ctrl->bypass)
+		return;
+
 	ISP_REG_MWR(idx, ISP_FBD_3DNR_SEL, BIT_0, 1);
 
 	val = ((mem_ctrl->start_col & 0x3FFF) << 16) |
@@ -74,7 +79,6 @@ static void isp_3dnr_config_mem_ctrl(uint32_t idx,
 	val = ((mem_ctrl->mv_x & 0xFF) << 8) |
 		(mem_ctrl->mv_y & 0xFF);
 	ISP_REG_WR(idx, ISP_3DNR_MEM_CTRL_PARAM7, val);
-
 
 	if (!nr3sec_eb) {
 		ISP_REG_WR(idx,
@@ -286,6 +290,12 @@ static void isp_3dnr_config_store(uint32_t idx,
 	if (g_isp_bypass[idx] & (1 << _EISP_NR3))
 		nr3_store->st_bypass = 1;
 
+	val = nr3_store->st_bypass;
+	ISP_REG_WR(idx, ISP_3DNR_STORE_PARAM, val);
+
+	if (nr3_store->st_bypass)
+		return;
+
 	nr3_store->st_max_len_sel = 0;
 
 	switch (nr3_store->color_format) {
@@ -311,9 +321,8 @@ static void isp_3dnr_config_store(uint32_t idx,
 		((fmt_val & 0x7) << 4) |
 		((nr3_store->mirror_en & 0x1) << 3) |
 		((nr3_store->speed_2x & 0x1) << 2) |
-		((nr3_store->st_max_len_sel & 0x1) << 1) |
-		(nr3_store->st_bypass & 0x1);
-	ISP_REG_WR(idx, ISP_3DNR_STORE_PARAM, val);
+		((nr3_store->st_max_len_sel & 0x1) << 1);
+	ISP_REG_MWR(idx, ISP_3DNR_STORE_PARAM, 0xFFFFFFFE, val);
 
 	val = ((nr3_store->img_height & 0xFFFF) << 16) |
 		(nr3_store->img_width & 0xFFFF);

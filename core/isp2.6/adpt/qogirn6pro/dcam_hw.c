@@ -388,10 +388,6 @@ static int dcamhw_start(void *handle, void *arg)
 {
 	int ret = 0;
 	struct dcam_hw_start *parm = NULL;
-	uint32_t reg_val = 0;
-	uint32_t image_vc = 0;
-	uint32_t image_data_type = IMG_TYPE_RAW10;
-	uint32_t image_mode = 1;
 
 	if (!arg) {
 		pr_err("fail to get valid arg\n");
@@ -404,18 +400,12 @@ static int dcamhw_start(void *handle, void *arg)
 	DCAM_REG_WR(parm->idx, DCAM_INT1_CLR, 0xFFFFFFFF);
 	/* see DCAM_PREVIEW_SOF in dcam_int.h for details */
 	if (parm->raw_callback == 1) {
-		image_data_type = 0;
 		DCAM_REG_WR(parm->idx, DCAM_INT_EN, DCAMINT_IRQ_LINE_EN0_NORMAL | BIT(DCAM_IF_IRQ_INT0_SENSOR_SOF));
 	} else {
 		DCAM_REG_WR(parm->idx, DCAM_INT0_EN, DCAMINT_IRQ_LINE_EN0_NORMAL);
 	}
 	DCAM_REG_WR(parm->idx, DCAM_INT1_EN, DCAMINT_IRQ_LINE_EN1_NORMAL);
 
-	if (parm->format == DCAM_CAP_MODE_YUV)
-		image_data_type = IMG_TYPE_YUV;
-	reg_val = ((image_vc & 0x3) << 16) |
-		((image_data_type & 0x3F) << 8) | (image_mode & 0x3);
-	 DCAM_REG_MWR(parm->idx, DCAM_IMAGE_CONTROL, 0x33f03, reg_val);
 	/* trigger cap_en*/
 	DCAM_REG_MWR(parm->idx, DCAM_MIPI_CAP_CFG, BIT_0, 1);
 
@@ -558,7 +548,7 @@ void dcamhw_bypass_all(enum dcam_id idx)
 	DCAM_REG_MWR(idx, DCAM_BIN_4IN1_CTRL0, BIT_0, 1);
 	DCAM_REG_MWR(idx, DCAM_BLC_PARA, BIT_0, 1);
 	DCAM_REG_MWR(idx, DCAM_RGBG_YRANDOM_PARAMETER0, BIT_0, 1);
-	DCAM_REG_MWR(idx, ISP_PPI_PARAM, BIT_0, 1);
+	DCAM_REG_MWR(idx, ISP_PPI_PARAM, 0xF, 0x3);
 	DCAM_REG_MWR(idx, DCAM_LSCM_FRM_CTRL0, BIT_0, 1);
 	DCAM_REG_MWR(idx, DCAM_LENS_LOAD_ENABLE, BIT_0, 1);
 	DCAM_REG_MWR(idx, ISP_AFL_PARAM0, BIT_0, 1);
@@ -694,16 +684,21 @@ static int dcamhw_fetch_set(void *handle, void *arg)
 	}
 
 	fetch = (struct dcam_hw_fetch_set *)arg;
-	/* !0 is loose */
-	if (fetch->fetch_info->pack_bits != 0)
-		fetch_pitch = (fetch->fetch_info->size.w * 16 + 127) / 128;
-	else
-		fetch_pitch = (fetch->fetch_info->size.w * 10 + 127) / 128;
+	if (fetch->fetch_info->fmt == DCAM_STORE_RAW_BASE) {
+		/* !0 is loose */
+		if (fetch->fetch_info->pack_bits != 0)
+			fetch_pitch = (fetch->fetch_info->size.w * 16 + 127) / 128;
+		else
+			fetch_pitch = (fetch->fetch_info->size.w * 10 + 127) / 128;
 
-	if (fetch->fetch_info->pack_bits == 0 || fetch->fetch_info->pack_bits == 1)
-		bwu_shift = 0x4;
-	else
+		if (fetch->fetch_info->pack_bits == 0 || fetch->fetch_info->pack_bits == 1)
+			bwu_shift = 0x4;
+		else
+			bwu_shift = 0;
+	} else if (fetch->fetch_info->fmt == DCAM_STORE_FRGB) {
+		fetch_pitch = fetch->fetch_info->size.w * 8 * 8 / 128;
 		bwu_shift = 0;
+	}
 
 	pr_info("size [%d %d], start %d, pitch %d, 0x%x\n",
 		fetch->fetch_info->trim.size_x, fetch->fetch_info->trim.size_y,
@@ -745,18 +740,22 @@ static int dcamhw_fetch_set(void *handle, void *arg)
 	DCAM_REG_WR(fetch->idx, DCAM_YUV444TO420_IMAGE_WIDTH, fetch->fetch_info->trim.size_x);
 	DCAM_REG_MWR(fetch->idx, DCAM_YUV444TOYUV420_PARAM, BIT_0, 0);
 
-	pr_info("done.\n");
+	if (fetch->fetch_info->fmt == DCAM_STORE_FRGB)
+		DCAM_REG_MWR(fetch->idx, DCAM_PATH_SEL, BIT_1, 1 << 1);
 
+	pr_info("done.\n");
 	return ret;
 }
 
 static int dcamhw_mipi_cap_set(void *handle, void *arg)
 {
 	int ret = 0;
-	uint32_t idx = 0;
-	uint32_t reg_val;
+	uint32_t idx = 0, reg_val = 0;
 	struct dcam_mipi_info *cap_info = NULL;
 	struct dcam_hw_mipi_cap *caparg = NULL;
+	uint32_t image_vc = 0, image_mode = 1;
+	uint32_t image_data_type = IMG_TYPE_RAW10;
+	uint32_t bwu_shift = 4;
 
 	if (!arg) {
 		pr_err("fail to get valid arg\n");
@@ -800,6 +799,8 @@ static int dcamhw_mipi_cap_set(void *handle, void *arg)
 				(cap_info->y_factor << 18)
 				| (cap_info->x_factor << 16));
 		DCAM_REG_MWR(idx, DCAM_PATH_SEL, BIT_2 | BIT_3, BIT_2 | BIT_3);
+
+		image_data_type = IMG_TYPE_YUV;
 	} else {
 		pr_err("fail to support capture format: %d\n",
 			cap_info->format);
@@ -858,7 +859,6 @@ static int dcamhw_mipi_cap_set(void *handle, void *arg)
 
 	DCAM_REG_WR(idx, DCAM_YUV444TO420_IMAGE_WIDTH, cap_info->cap_size.size_x);
 	DCAM_REG_MWR(idx, DCAM_YUV444TOYUV420_PARAM, BIT_0, 0);
-	DCAM_REG_MWR(idx, DCAM_BWU1_PARAM, 0xF0, (14 - cap_info->data_bits) << 4);
 
 	if (caparg->slowmotion_count) {
 		/*slow motion enable*/
@@ -875,6 +875,11 @@ static int dcamhw_mipi_cap_set(void *handle, void *arg)
 
 		DCAM_REG_MWR(idx, DCAM_BUF_CTRL, 0x3F << 10, 0);
 	}
+
+	reg_val = ((image_vc & 0x3) << 16) |
+		((image_data_type & 0x3F) << 8) |
+		((bwu_shift & 0x7) << 4) | (image_mode & 0x3);
+	DCAM_REG_MWR(idx, DCAM_IMAGE_CONTROL, 0x33ff3, reg_val);
 
 	pr_debug("cap size : %d %d %d %d\n",
 		cap_info->cap_size.start_x, cap_info->cap_size.start_y,
@@ -938,7 +943,6 @@ static int dcamhw_path_start(void *handle, void *arg)
 			DCAM_REG_MWR(patharg->idx, DCAM_BWD2_PARAM, BIT_0, 0);
 		} else
 			DCAM_REG_MWR(patharg->idx, DCAM_BWD2_PARAM, BIT_0, 1);
-
 		DCAM_REG_MWR(patharg->idx, DCAM_STORE4_PARAM, BIT_0, 0);
 		break;
 	case  DCAM_PATH_BIN:
@@ -1128,6 +1132,40 @@ static int dcamhw_path_stop(void *handle, void *arg)
 	case DCAM_PATH_RAW:
 		DCAM_REG_MWR(idx, DCAM_PATH_STOP, BIT_2, 1 << 2);
 		DCAM_REG_MWR(idx,DCAM_RAW_PATH_CFG, BIT_0, 1);
+		break;
+	default:
+		break;
+	}
+
+	pr_debug("done\n");
+	return ret;
+}
+
+static int dcamhw_path_restart(void *handle, void *arg)
+{
+	int ret = 0;
+	uint32_t idx = 0;
+	struct dcam_hw_path_restart *patharg = NULL;
+
+	pr_debug("enter.");
+
+	if (!arg) {
+		pr_err("fail to get valid handle\n");
+		return -EFAULT;
+	}
+
+	patharg = (struct dcam_hw_path_restart *)arg;
+	idx = patharg->idx;
+
+	switch (patharg->path_id) {
+	case  DCAM_PATH_BIN:
+		DCAM_REG_MWR(idx, DCAM_PATH_STOP, BIT_3, 0 << 3);
+		DCAM_REG_MWR(idx, DCAM_STORE0_PARAM, BIT_0, 0);
+		DCAM_REG_MWR(idx, DCAM_MIPI_CAP_CFG, BIT_0, 1);
+		break;
+	case DCAM_PATH_RAW:
+		DCAM_REG_MWR(idx, DCAM_PATH_STOP, BIT_2, 0 << 2);
+		DCAM_REG_MWR(idx, DCAM_RAW_PATH_CFG, BIT_0, 0);
 		break;
 	default:
 		break;
@@ -1540,8 +1578,12 @@ static int dcamhw_lbuf_share_set(void *handle, void *arg)
 
 	dcam0_mipi_en = DCAM_REG_RD(0, DCAM_MIPI_CAP_CFG) & BIT_0;
 	dcam1_mipi_en = DCAM_REG_RD(1, DCAM_MIPI_CAP_CFG) & BIT_0;
-	pr_debug("dcam %d offline %d en0 %d en1 %d\n", camarg->idx, camarg->offline_flag,
-		dcam0_mipi_en, dcam1_mipi_en);
+	pr_debug("dcam %d offline %d en0 %d en1 %d pdaf share %d\n", camarg->idx, camarg->offline_flag,
+		dcam0_mipi_en, dcam1_mipi_en,camarg->pdaf_share_flag);
+	if (camarg->pdaf_share_flag && camarg->idx == 0)
+		DCAM_AXIM_MWR(camarg->idx, DCAM_LBUF_SHARE_MODE, BIT_12 | BIT_13, 1 << 12);
+	if (camarg->pdaf_share_flag && camarg->idx == 1)
+		DCAM_AXIM_MWR(camarg->idx, DCAM_LBUF_SHARE_MODE, BIT_12 | BIT_13, 2 << 12);
 	if (!camarg->offline_flag && (dcam0_mipi_en || dcam1_mipi_en)) {
 		pr_warn("dcam 0/1 already in working\n");
 		return 0;
@@ -1587,6 +1629,7 @@ static int dcamhw_lbuf_share_get(void *handle, void *arg)
 	int i = 0;
 	int ret = 0;
 	int idx = 0;
+	uint32_t num = 0;
 	struct cam_hw_lbuf_share *camarg = (struct cam_hw_lbuf_share *)arg;
 	uint32_t tb_w[] = {
 	/*     dcam0, dcam1 */
@@ -1609,8 +1652,9 @@ static int dcamhw_lbuf_share_get(void *handle, void *arg)
 	if (idx > DCAM_ID_1)
 		goto exit;
 
-	i = DCAM_AXIM_RD(DCAM_ID_0, DCAM_LBUF_SHARE_MODE) & 7;
-	if (i < 5)
+	i = DCAM_AXIM_RD(idx, DCAM_LBUF_SHARE_MODE) & 7;
+	num = sizeof(tb_w) / sizeof(tb_w[0]);
+	if (i < num / 2)
 		camarg->width = tb_w[i * 2 + idx];
 
 exit:
@@ -2414,6 +2458,12 @@ static int dcamhw_slw_fmcu_cmds(void *handle, void *arg)
 		return -EFAULT;
 	}
 	fmcu = slw->fmcu_handle;
+
+	if (!fmcu) {
+		pr_err("fail to get valid input ptr, fmcu %p\n", fmcu);
+		return -EFAULT;
+	}
+
 	for (i = 0; i < DCAM_PATH_MAX; i++) {
 		if (slw->store_info[i].store_addr.addr_ch0 == 0)
 			continue;
@@ -2473,11 +2523,14 @@ static int dcamhw_slw_fmcu_cmds(void *handle, void *arg)
 	}
 
 	addr = DCAM_GET_REG(fmcu->hw_ctx_id, DCAM_FMCU_CMD);
-	if (slw->slw_id == slw->slw_cnt - 1)
-		cmd = DCAM0_PREVIEW_DONE;
-	else
-		cmd = DCAM0_POF3_DISPATCH;
+	cmd = DCAM0_POF3_DISPATCH;
 	DCAM_FMCU_PUSH(fmcu, addr, cmd);
+
+	if (slw->slw_id == slw->slw_cnt - 1) {
+		addr = DCAM_GET_REG(fmcu->hw_ctx_id, DCAM_FMCU_CMD);
+		cmd = DCAM0_PREVIEW_DONE;
+		DCAM_FMCU_PUSH(fmcu, addr, cmd);
+	}
 
 	return 0;
 
@@ -2620,6 +2673,7 @@ static struct hw_io_ctrl_fun dcam_ioctl_fun_tab[] = {
 	{DCAM_HW_CFG_FORCE_COPY,            dcamhw_force_copy},
 	{DCAM_HW_CFG_PATH_START,            dcamhw_path_start},
 	{DCAM_HW_CFG_PATH_STOP,             dcamhw_path_stop},
+	{DCAM_HW_CFG_PATH_RESTART,          dcamhw_path_restart},
 	{DCAM_HW_CFG_PATH_CTRL,             dcamhw_path_ctrl},
 	{DCAM_HW_CFG_PATH_SRC_SEL,          dcamhw_raw_path_src_sel},
 	{DCAM_HW_CFG_PATH_SIZE_UPDATE,      dcamhw_path_size_update},
