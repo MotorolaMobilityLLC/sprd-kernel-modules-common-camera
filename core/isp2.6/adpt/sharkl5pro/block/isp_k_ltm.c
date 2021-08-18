@@ -51,9 +51,11 @@ static void isp_ltm_config_hists(uint32_t idx,
 		return;
 	}
 
-	pr_debug("isp %d rgb ltm hist bypass %d\n", idx, hists->bypass);
-	if (g_isp_bypass[idx] & (1 << _EISP_LTM))
+	if (g_isp_bypass[idx] & (1 << _EISP_LTM)) {
+		pr_debug("ltm hist g_isp_bypass\n");
 		hists->bypass = 1;
+	}
+	pr_debug("isp %d rgb ltm hist bypass %d\n", idx, hists->bypass);
 	ISP_REG_MWR(idx, base + ISP_LTM_HIST_PARAM, BIT_0, hists->bypass);
 	if (hists->bypass)
 		return;
@@ -117,9 +119,13 @@ static void isp_ltm_config_map(uint32_t idx,
 		return;
 	}
 
-	pr_debug("isp %d rgb ltm map bypass %d\n", idx, map->bypass);
-	if (g_isp_bypass[idx] & (1 << _EISP_LTM))
+	if (g_isp_bypass[idx] & (1 << _EISP_LTM)) {
+		pr_debug("ltm map g_isp_bypass\n");
 		map->bypass = 1;
+	}
+
+	pr_debug("isp %d rgb ltm map bypass %d\n", idx, map->bypass);
+
 	ISP_REG_MWR(idx, base + ISP_LTM_MAP_PARAM0, BIT_0, map->bypass);
 	if (map->bypass)
 		return;
@@ -173,6 +179,8 @@ int isp_ltm_config_param(void *handle)
 		hists->bypass = 1;
 		map->bypass = 1;
 	}
+
+	pr_debug("isp %d ltm ctx bypass %d, hist %d map %d\n", idx, ctx->bypass, hists->bypass, map->bypass);
 
 	isp_ltm_config_hists(idx, ctx->ltm_id, hists);
 	isp_ltm_config_map(idx, ctx->ltm_id, map);

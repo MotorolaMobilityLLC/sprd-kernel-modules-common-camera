@@ -367,6 +367,8 @@ static int ispcore_ltm_frame_process(struct isp_sw_context *pctx,
 	yuv_ltm = (struct isp_ltm_ctx_desc *)pctx->yuv_ltm_handle;
 
 	if (rgb_ltm) {
+		rgb_ltm->ltm_ops.core_ops.cfg_param(rgb_ltm, ISP_LTM_CFG_HIST_BYPASS, &pframe->need_ltm_hist);
+		rgb_ltm->ltm_ops.core_ops.cfg_param(rgb_ltm, ISP_LTM_CFG_MAP_BYPASS, &pframe->need_ltm_map);
 		rgb_ltm->ltm_ops.core_ops.cfg_param(rgb_ltm, ISP_LTM_CFG_MODE, &pipe_src->mode_ltm);
 		rgb_ltm->ltm_ops.core_ops.cfg_param(rgb_ltm, ISP_LTM_CFG_FRAME_ID, &pframe->fid);
 		rgb_ltm->ltm_ops.core_ops.cfg_param(rgb_ltm, ISP_LTM_CFG_SIZE_INFO, &pipe_src->crop);
@@ -448,7 +450,7 @@ static int ispcore_gtm_frame_process(struct isp_sw_context *pctx,
 {
 	int ret = 0;
 	struct isp_gtm_ctx_desc *rgb_gtm = NULL;
-	struct isp_dev_gtm_block_info *gtm_rgb_info = NULL;
+	struct dcam_dev_raw_gtm_block_info *gtm_rgb_info = NULL;
 
 	if (!pctx || !pframe) {
 		pr_err("fail to get valid pctx %p pframe %p\n", pctx, pframe);
@@ -463,11 +465,14 @@ static int ispcore_gtm_frame_process(struct isp_sw_context *pctx,
 	pr_debug("ctx_id %d, mode %d, fid %d\n", rgb_gtm->ctx_id, rgb_gtm->mode, pframe->fid);
 
 	rgb_gtm->gtm_ops.cfg_param(rgb_gtm, ISP_GTM_CFG_FRAME_ID, &pframe->fid);
-
+	rgb_gtm->gtm_ops.cfg_param(rgb_gtm, ISP_GTM_CFG_HIST_BYPASS, &pframe->need_gtm_hist);
+	rgb_gtm->gtm_ops.cfg_param(rgb_gtm, ISP_GTM_CFG_MAP_BYPASS, &pframe->need_gtm_map);
+	rgb_gtm->gtm_ops.cfg_param(rgb_gtm, ISP_GTM_CFG_MOD_EN, &pframe->gtm_mod_en);
+	rgb_gtm->gtm_ops.cfg_param(rgb_gtm, ISP_GTM_CFG_MOD_EN, &pctx->isp_k_param.gtm_calc_mode);
 	gtm_rgb_info = &pctx->isp_k_param.gtm_rgb_info;
 	rgb_gtm->src.w = pctx->pipe_src.crop.size_x;
 	rgb_gtm->src.h = pctx->pipe_src.crop.size_y;
-	ret = rgb_gtm->gtm_ops.pipe_proc(rgb_gtm, gtm_rgb_info);
+	ret = rgb_gtm->gtm_ops.pipe_proc(rgb_gtm, gtm_rgb_info, &pctx->isp_k_param.gtm_sw_map_info);
 	if (ret) {
 		pctx->pipe_src.mode_gtm = MODE_GTM_OFF;
 		pr_err("fail to rgb GTM process, GTM_OFF\n");
@@ -2560,6 +2565,11 @@ static int ispcore_frame_proc(void *isp_handle, void *param, int ctx_id)
 		ispcore_offline_pararm_free(in_param);
 		pframe->param_data = NULL;
 	}
+	/* close ltm map when zoom > 1x*/
+	pr_debug("isp%d, conflict %d, ori size %dx%d, now size %dx%d\n", pctx->ctx_id, pctx->zoom_conflict_with_ltm, pctx->uinfo.ori_src.w, pctx->uinfo.ori_src.h, pctx->uinfo.src.w, pctx->uinfo.src.h);
+	if (pctx->zoom_conflict_with_ltm && ((pctx->uinfo.src.w != pctx->uinfo.ori_src.w) || (pctx->uinfo.src.h != pctx->uinfo.ori_src.h))) {
+		pframe->need_ltm_map = 0;
+	}
 
 	is_superzoom = ispcore_is_superzoom(pctx);
 	proc_cnt = cam_queue_cnt_get(&pctx->proc_queue);
@@ -2751,8 +2761,7 @@ static int ispcore_path_cfg(void *isp_handle,
 	struct isp_rec_ctx_desc *rec_ctx = NULL;
 
 	if (!isp_handle || !param) {
-		pr_err("fail to get valid input ptr, isp_handle %p, param %p\n",
-			isp_handle, param);
+		pr_err("fail to get valid input ptr, isp_handle %p, param %p\n", isp_handle, param);
 		return -EFAULT;
 	}
 
@@ -2941,54 +2950,65 @@ static int ispcore_statis_q_init(void *isp_handle, int ctx_id,
 		struct isp_statis_buf_input *input)
 {
 	int ret = 0;
-	int j;
+	int j = 0;
 	int32_t mfd;
 	enum isp_statis_buf_type stats_type;
 	struct isp_pipe_dev *dev = NULL;
-	struct isp_sw_context *pctx;
-	struct camera_buf *ion_buf;
-	struct camera_frame *pframe;
+	struct isp_sw_context *pctx = NULL;
+	struct camera_buf *ion_buf = NULL;
+	struct camera_frame *pframe = NULL;
+	struct camera_queue *statis_q = NULL;
 
 	dev = (struct isp_pipe_dev *)isp_handle;
 	pctx = dev->sw_ctx[ctx_id];
 
-	memset(&pctx->statis_buf_array[0], 0, sizeof(pctx->statis_buf_array));
-	stats_type = STATIS_HIST2;
+	memset(&pctx->statis_buf_array[0][0], 0, sizeof(pctx->statis_buf_array));
 
-	for (j = 0; j < STATIS_BUF_NUM_MAX; j++) {
-		mfd = input->mfd_array[stats_type][j];
-		if (mfd <= 0)
+	for (stats_type = STATIS_HIST2; stats_type <= STATIS_GTMHIST; stats_type++) {
+		if ((stats_type == STATIS_GTMHIST) && (pctx->dev->isp_hw->ip_isp->rgb_gtm_support == 0))
 			continue;
-		ion_buf = &pctx->statis_buf_array[j];
-		ion_buf->mfd[0] = mfd;
-		ion_buf->offset[0] = input->offset_array[stats_type][j];
-		ion_buf->type = CAM_BUF_USER;
-		ret = cam_buf_ionbuf_get(ion_buf);
-		if (ret) {
-			memset(ion_buf, 0, sizeof(struct camera_buf));
+		if (stats_type == STATIS_HIST2)
+			statis_q = &pctx->hist2_result_queue;
+		else if (stats_type == STATIS_GTMHIST)
+			statis_q = &pctx->gtmhist_result_queue;
+		else
 			continue;
-		}
+		for (j = 0; j < STATIS_BUF_NUM_MAX; j++) {
+			mfd = input->mfd_array[stats_type][j];
+			if (mfd <= 0)
+				continue;
+			ion_buf = &pctx->statis_buf_array[stats_type][j];
+			ion_buf->mfd[0] = mfd;
+			ion_buf->offset[0] = input->offset_array[stats_type][j];
+			ion_buf->type = CAM_BUF_USER;
+			ret = cam_buf_ionbuf_get(ion_buf);
+			if (ret) {
+				memset(ion_buf, 0, sizeof(struct camera_buf));
+				continue;
+			}
 
-		ret = cam_buf_kmap(ion_buf);
-		if (ret) {
-			cam_buf_ionbuf_put(ion_buf);
-			memset(ion_buf, 0, sizeof(struct camera_buf));
-			continue;
-		}
+			ret = cam_buf_kmap(ion_buf);
+			if (ret) {
+				cam_buf_ionbuf_put(ion_buf);
+				memset(ion_buf, 0, sizeof(struct camera_buf));
+				continue;
+			}
 
-		pframe = cam_queue_empty_frame_get();
-		pframe->channel_id = pctx->ch_id;
-		pframe->irq_property = stats_type;
-		pframe->buf = *ion_buf;
+			pframe = cam_queue_empty_frame_get();
+			pframe->channel_id = pctx->ch_id;
+			pframe->irq_property = stats_type;
+			pframe->buf = *ion_buf;
 
-		ret = cam_queue_enqueue(&pctx->hist2_result_queue, &pframe->list);
-		if (ret) {
-			pr_info("statis %d overflow\n", stats_type);
-			cam_queue_empty_frame_put(pframe);
+			ret = cam_queue_enqueue(statis_q, &pframe->list);
+			if (ret) {
+				pr_info("statis %d overflow\n", stats_type);
+				cam_queue_empty_frame_put(pframe);
+			}
+
+			pr_debug("buf_num %d, buf %d, off %d, kaddr 0x%lx iova 0x%08x\n",
+				j, ion_buf->mfd[0], ion_buf->offset[0],
+				ion_buf->addr_k[0], (uint32_t)ion_buf->iova[0]);
 		}
-		pr_debug("buf_num %d, buf %d, off %d, kaddr 0x%lx iova 0x%08x\n",
-			j, ion_buf->mfd[0], ion_buf->offset[0],
-			ion_buf->addr_k[0], (uint32_t)ion_buf->iova[0]);
 	}
 
 	return ret;
@@ -3006,8 +3026,9 @@ static int ispcore_statis_buffer_cfg(
 	struct isp_sw_context *pctx = NULL;
 	struct camera_buf *ion_buf = NULL;
 	struct camera_frame *pframe = NULL;
+	struct camera_queue *statis_q = NULL;
 
-	if (!isp_handle || ctx_id < 0 || ctx_id >= ISP_CONTEXT_SW_NUM) {
+	if (!isp_handle || ctx_id < 0 || ctx_id >= ISP_CONTEXT_SW_NUM || !input) {
 		pr_info("isp_handle=%p, cxt_id=%d\n", isp_handle, ctx_id);
 		return 0;
 	}
@@ -3025,13 +3046,24 @@ static int ispcore_statis_buffer_cfg(
 		pr_debug("init done\n");
 		return 0;
 	}
+	if ((input->type == STATIS_GTMHIST) && (pctx->dev->isp_hw->ip_isp->rgb_gtm_support == 0))
+		return 0;
+
+	if (input->type == STATIS_HIST2)
+		statis_q = &pctx->hist2_result_queue;
+	else if (input->type == STATIS_GTMHIST)
+		statis_q = &pctx->gtmhist_result_queue;
+	else {
+		pr_warn("statis type %d not support\n");
+		return 0;
+	}
 
 	for (j = 0; j < STATIS_BUF_NUM_MAX; j++) {
-		mfd = pctx->statis_buf_array[j].mfd[0];
-		offset = pctx->statis_buf_array[j].offset[0];
+		mfd = pctx->statis_buf_array[input->type][j].mfd[0];
+		offset = pctx->statis_buf_array[input->type][j].offset[0];
 		if ((mfd > 0) && (mfd == input->mfd)
 			&& (offset == input->offset)) {
-			ion_buf = &pctx->statis_buf_array[j];
+			ion_buf = &pctx->statis_buf_array[input->type][j];
 			break;
 		}
 	}
@@ -3045,9 +3077,9 @@ static int ispcore_statis_buffer_cfg(
 
 	pframe = cam_queue_empty_frame_get();
 	pframe->channel_id = pctx->ch_id;
-	pframe->irq_property = STATIS_HIST2;
+	pframe->irq_property = input->type;
 	pframe->buf = *ion_buf;
-	ret = cam_queue_enqueue(&pctx->hist2_result_queue, &pframe->list);
+	ret = cam_queue_enqueue(statis_q, &pframe->list);
 	if (ret) {
 		pr_info("statis %d overflow\n", input->type);
 		cam_queue_empty_frame_put(pframe);
@@ -3065,28 +3097,32 @@ static int ispcore_statis_buffer_unmap(void *isp_handle, int ctx_id)
 	struct isp_pipe_dev *dev = NULL;
 	struct isp_sw_context *pctx;
 	struct camera_buf *ion_buf;
+	enum isp_statis_buf_type stats_type;
 
 	dev = (struct isp_pipe_dev *)isp_handle;
 	pctx = dev->sw_ctx[ctx_id];
 
 	pr_debug("enter\n");
 
-	for (j = 0; j < STATIS_BUF_NUM_MAX; j++) {
-		ion_buf = &pctx->statis_buf_array[j];
-		if (ion_buf->mfd[0] <= 0) {
-			memset(ion_buf, 0, sizeof(struct camera_buf));
+	for (stats_type = STATIS_HIST2; stats_type <= STATIS_GTMHIST; stats_type++) {
+		if ((stats_type == STATIS_GTMHIST) && (pctx->dev->isp_hw->ip_isp->rgb_gtm_support == 0))
 			continue;
+		for (j = 0; j < STATIS_BUF_NUM_MAX; j++) {
+			ion_buf = &pctx->statis_buf_array[stats_type][j];
+			if (ion_buf->mfd[0] <= 0) {
+				memset(ion_buf, 0, sizeof(struct camera_buf));
+				continue;
+			}
+
+			pr_info("ctx %d free buf %d, off %d, kaddr 0x%lx iova 0x%08x\n",
+				ctx_id, ion_buf->mfd[0], ion_buf->offset[0],
+				ion_buf->addr_k[0], (uint32_t)ion_buf->iova[0]);
+
+			cam_buf_kunmap(ion_buf);
+			cam_buf_ionbuf_put(ion_buf);
+			memset(ion_buf, 0, sizeof(struct camera_buf));
 		}
-
-		pr_info("ctx %d free buf %d, off %d, kaddr 0x%lx iova 0x%08x\n",
-			ctx_id, ion_buf->mfd[0], ion_buf->offset[0],
-			ion_buf->addr_k[0], (uint32_t)ion_buf->iova[0]);
-
-		cam_buf_kunmap(ion_buf);
-		cam_buf_ionbuf_put(ion_buf);
-		memset(ion_buf, 0, sizeof(struct camera_buf));
 	}
-
 	pr_debug("done.\n");
 	return ret;
 }
@@ -3094,8 +3130,13 @@ static int ispcore_statis_buffer_unmap(void *isp_handle, int ctx_id)
 static int ispcore_sec_cfg(struct isp_pipe_dev *dev, void *param)
 {
 
-	enum sprd_cam_sec_mode *sec_mode = (enum sprd_cam_sec_mode *)param;
+	enum sprd_cam_sec_mode *sec_mode = NULL;
 
+	if (!param || !dev) {
+		pr_err("fail to get valid pointer!\n");
+		return 0;
+	}
+	sec_mode = param;
 	dev->sec_mode = *sec_mode;
 
 	pr_debug("camca: isp sec_mode=%d\n", dev->sec_mode);
@@ -3444,7 +3485,8 @@ static int ispcore_context_get(void *isp_handle, void *param)
 		ISP_STREAM_STATE_Q_LEN, cam_queue_empty_state_put);
 	cam_queue_init(&pctx->stream_ctrl_proc_q,
 		ISP_STREAM_STATE_Q_LEN, cam_queue_empty_state_put);
-	cam_queue_init(&pctx->hist2_result_queue, 16, ispcore_statis_buf_destroy);
+	cam_queue_init(&pctx->hist2_result_queue, ISP_HIST2_BUF_Q_LEN, ispcore_statis_buf_destroy);
+	cam_queue_init(&pctx->gtmhist_result_queue, ISP_GTMHIST_BUF_Q_LEN, ispcore_statis_buf_destroy);
 	cam_queue_init(&pctx->pyrdec_buf_queue, ISP_PYRDEC_BUF_Q_LEN,
 		ispcore_frame_unmap);
 	dfult_param.type = ISP_CFG_PARA;
@@ -3560,12 +3602,10 @@ static int ispcore_context_put(void *isp_handle, int ctx_id)
 		cam_queue_clear(&pctx->in_queue, struct camera_frame, list);
 		cam_queue_clear(&pctx->proc_queue, struct camera_frame, list);
 		cam_queue_clear(&pctx->post_proc_queue, struct camera_frame, list);
-		cam_queue_clear(&pctx->hist2_result_queue,
-			struct camera_frame, list);
-		cam_queue_clear(&pctx->stream_ctrl_in_q,
-			struct isp_stream_ctrl, list);
-		cam_queue_clear(&pctx->stream_ctrl_proc_q,
-			struct isp_stream_ctrl, list);
+		cam_queue_clear(&pctx->hist2_result_queue, struct camera_frame, list);
+		cam_queue_clear(&pctx->gtmhist_result_queue, struct camera_frame, list);
+		cam_queue_clear(&pctx->stream_ctrl_in_q, struct isp_stream_ctrl, list);
+		cam_queue_clear(&pctx->stream_ctrl_proc_q, struct isp_stream_ctrl, list);
 
 		if (pctx->nr3_handle) {
 			isp_3dnr_ctx_put(pctx->nr3_handle);

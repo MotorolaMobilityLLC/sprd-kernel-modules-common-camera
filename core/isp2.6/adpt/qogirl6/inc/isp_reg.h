@@ -349,6 +349,8 @@ extern unsigned long s_isp_mmubase;
 #define ISP_GTM_SLICE_LINE_STARTPOS             (0x1674UL)
 #define ISP_GTM_SLICE_LINE_ENDPOS               (0x1678UL)
 #define ISP_GTM_HIST_XPTS_0                     (0x1680UL)
+#define ISP_GTM_HIST_BUF0_CH0                   (0x15000UL)
+
 #define ISP_LTM_HIST_RGB_BASE                   (0x3800UL)
 #define ISP_LTM_HIST_YUV_BASE                   (0x5500UL)
 

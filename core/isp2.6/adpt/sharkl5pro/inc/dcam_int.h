@@ -152,7 +152,8 @@ enum {
 	BIT(DCAM_AFM_INTREQ0) |                   \
 	BIT(DCAM_AFM_INTREQ1) |                   \
 	BIT(DCAM_LSCM_TX_DONE) |                  \
-	BIT(DCAM_NR3_TX_DONE))
+	BIT(DCAM_NR3_TX_DONE) |                   \
+	BIT(DCAM_GTM_TX_DONE))
 
 /*
  * all currently useful bits on irq line

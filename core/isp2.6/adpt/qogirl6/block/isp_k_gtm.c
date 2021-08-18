@@ -25,7 +25,7 @@
 #define pr_fmt(fmt) "GTM: %d %d %s : "\
 	fmt, current->pid, __LINE__, __func__
 
-static void isp_k_raw_gtm_set_default(struct isp_dev_gtm_block_info *p)
+static void isp_k_raw_gtm_set_default(struct dcam_dev_raw_gtm_block_info *p)
 {
 	p->gtm_tm_out_bit_depth = 0xE;
 	p->gtm_tm_in_bit_depth = 0xE;
@@ -109,6 +109,13 @@ int isp_k_gtm_mapping_set(void *param)
 	if (g_isp_bypass[idx] & (1 << _EISP_GTM))
 		return 0;
 
+	if ((!mapping->gtm_hw_ymin) && (!mapping->gtm_hw_target_norm) && (!mapping->gtm_hw_lr_int)
+		&& (!mapping->gtm_hw_log_min_int) && (!mapping->gtm_hw_log_diff_int) && (!mapping->gtm_hw_log_diff)) {
+		pr_err("fail to get normal gtm mapping param\n");
+		ISP_REG_MWR(idx, ISP_GTM_GLB_CTRL, BIT_1, BIT_1);
+		return -1;
+	}
+
 	val = ((mapping->gtm_hw_ymin & 0xFF) << 0);
 	ISP_REG_MWR(idx, ISP_GTM_HIST_YMIN, 0xFF, val);
 
@@ -126,6 +133,10 @@ int isp_k_gtm_mapping_set(void *param)
 	ISP_REG_WR(idx, ISP_GTM_LOG_DIFF, val);
 
 	ISP_REG_MWR(idx, ISP_GTM_GLB_CTRL, BIT_1, 0);
+	if (mapping->sw_mode)
+		ISP_REG_MWR(idx, ISP_GTM_GLB_CTRL, BIT_3, 0);
+	else
+		ISP_REG_MWR(idx, ISP_GTM_GLB_CTRL, BIT_3, BIT_3);
 
 	pr_debug("ctx %d, gtm hw_ymin %d, target_norm %d, lr_int %d\n",
 		idx, mapping->gtm_hw_ymin, mapping->gtm_hw_target_norm, mapping->gtm_hw_lr_int);
@@ -142,15 +153,15 @@ int isp_k_gtm_block(void *pctx, void *param)
 	unsigned int i = 0;
 	unsigned int val = 0;
 	struct isp_gtm_ctx_desc *ctx = NULL;
-	struct isp_dev_gtm_block_info *p = NULL;
-	struct isp_dev_gtm_slice_info *gtm_slice = NULL;
+	struct dcam_dev_raw_gtm_block_info *p = NULL;
+	struct dcam_dev_gtm_slice_info *gtm_slice = NULL;
 
 	if (!pctx || !param) {
 		pr_err("fail to get input ptr ctx %p, param %p\n", pctx,  param);
 		return -1;
 	}
 
-	p = (struct isp_dev_gtm_block_info *)param;
+	p = (struct dcam_dev_raw_gtm_block_info *)param;
 	gtm_slice = &p->slice;
 
 	ctx = (struct isp_gtm_ctx_desc *)pctx;
@@ -158,13 +169,13 @@ int isp_k_gtm_block(void *pctx, void *param)
 
 	if (g_isp_bypass[idx] & (1 << _EISP_GTM)) {
 		pr_debug("ctx_id %d, g_isp_bypass GTM\n", idx);
-		p->gtm_mod_en = 0;
+		p->bypass_info.gtm_mod_en = 0;
 	}
 
 	isp_k_raw_gtm_set_default(p);
 
-	ISP_REG_MWR(idx, ISP_GTM_GLB_CTRL, BIT_0, (p->gtm_mod_en & 0x1));
-	if (p->gtm_mod_en == 0) {
+	ISP_REG_MWR(idx, ISP_GTM_GLB_CTRL, BIT_0, (p->bypass_info.gtm_mod_en & 0x1));
+	if (p->bypass_info.gtm_mod_en == 0) {
 		pr_debug("ctx_id %d, gtm mod_en disable\n", idx);
 		ISP_REG_MWR(idx, ISP_GTM_GLB_CTRL, BIT_2 | BIT_1, 3 << 1);
 		return 0;
@@ -180,11 +191,11 @@ int isp_k_gtm_block(void *pctx, void *param)
 		p->gtm_cur_is_first_frame = 0;
 	}
 
-	pr_debug("ctx_id %d, mod_en %d, map %d, hist_stat %d\n",
-		idx, p->gtm_mod_en, p->gtm_map_bypass, p->gtm_hist_stat_bypass);
+	pr_debug("ctx_id %d, mod_en %d, map %d, hist_stat %d, calc mode %d\n",
+		idx, p->bypass_info.gtm_mod_en, p->bypass_info.gtm_map_bypass, p->bypass_info.gtm_hist_stat_bypass, p->gtm_tm_param_calc_by_hw);
 
-	val = ((p->gtm_map_bypass & 0x1) << 1)
-		| ((p->gtm_hist_stat_bypass & 0x1) << 2)
+	val = ((p->bypass_info.gtm_map_bypass & 0x1) << 1)
+		| ((p->bypass_info.gtm_hist_stat_bypass & 0x1) << 2)
 		| ((p->gtm_tm_param_calc_by_hw & 0x1) << 3)
 		| ((p->gtm_cur_is_first_frame &0x1) << 4)
 		| ((p->gtm_tm_luma_est_mode & 0x3) << 5)
@@ -264,26 +275,69 @@ int isp_k_gtm_block(void *pctx, void *param)
 	return ret;
 }
 
+int isp_k_rgb_gtm_bypass(void *param)
+{
+	uint32_t val = 0;
+	struct isp_gtm_bypass_param *p = (struct isp_gtm_bypass_param *)param;
+
+	if (!param) {
+		pr_err("fail to input ptr NULL\n");
+		return -1;
+	}
+
+	if (g_isp_bypass[p->ctx_id] & (1 << _E_GTM)) {
+		pr_debug("gtm mapping disable, idx %d\n", p->ctx_id);
+		return 0;
+	}
+
+	val = ((p->hist_bypass & 1) << 2) | ((p->map_bypass & 1) << 1) | (p->mod_en & 1);
+	ISP_REG_MWR(p->ctx_id, ISP_GTM_GLB_CTRL, 0x7, val);
+	pr_debug("isp%d mod en %d, hitst bypass %d, map bypass %d\n",
+		p->ctx_id, p->mod_en, p->hist_bypass, p->map_bypass);
+	return 0;
+}
+
 int isp_k_cfg_rgb_gtm(struct isp_io_param *param,
 		struct isp_k_block *isp_k_param, uint32_t idx)
 {
 	int ret = 0;
-	struct isp_dev_gtm_block_info *gtm = NULL;
+	uint32_t *calc_mode = NULL;
+	struct dcam_dev_raw_gtm_block_info *gtm = NULL;
+	struct cam_gtm_mapping *gtm_alg_calc = NULL;
 
 	switch (param->property) {
-	case ISP_PRO_RGB_GTM_BLOCK:
-		if (param->scene_id == PM_SCENE_PRE) {
-			gtm = &isp_k_param->gtm_rgb_info;
-			ret = copy_from_user((void *)gtm, param->property_param,
-					sizeof(struct isp_dev_gtm_block_info));
-			if (ret) {
-				pr_err("fail to copy, ret=0x%x\n", (unsigned int)ret);
-				return -EPERM;
-			}
-
-			pr_debug("ctx_id %d , mod_en %d, map %d, hist_stat %d\n",
-				idx, gtm->gtm_mod_en, gtm->gtm_map_bypass, gtm->gtm_hist_stat_bypass);
+	case DCAM_PRO_GTM_BLOCK:
+		gtm = &isp_k_param->gtm_rgb_info;
+		ret = copy_from_user((void *)gtm, param->property_param,
+				sizeof(struct dcam_dev_raw_gtm_block_info));
+		if (ret) {
+			pr_err("fail to copy, ret=0x%x\n", (unsigned int)ret);
+			return -EPERM;
 		}
+		if (param->scene_id == PM_SCENE_CAP)
+			gtm->bypass_info.gtm_hist_stat_bypass = 1;
+		pr_debug("ctx_id %d , mod_en %d, map %d, hist_stat %d\n",
+			idx, gtm->bypass_info.gtm_mod_en, gtm->bypass_info.gtm_map_bypass, gtm->bypass_info.gtm_hist_stat_bypass);
+		break;
+	case DCAM_PRO_GTM_MAPPING:
+		gtm_alg_calc = &isp_k_param->gtm_sw_map_info;
+		ret = copy_from_user((void *)gtm_alg_calc, param->property_param, sizeof(struct cam_gtm_mapping));
+		if (ret) {
+			pr_err("fail to copy alg_calc ret %d\n", ret);
+			return -EPERM;
+		}
+
+		pr_debug("ctx_id %d, get gtm alg_calc info\n", idx);
+		break;
+	case DCAM_PRO_GTM_CALC_MODE:
+		calc_mode = &isp_k_param->gtm_calc_mode;
+
+		ret = copy_from_user((void *)calc_mode, param->property_param, sizeof(uint32_t));
+		if (ret) {
+			pr_err("fail to copy, ret=0x%x\n", (unsigned int)ret);
+			return -EPERM;
+		}
+		pr_debug("gtm calc mode %d\n", isp_k_param->gtm_calc_mode);
 		break;
 	default:
 		pr_err("fail cmd id:%d, not supported.\n",

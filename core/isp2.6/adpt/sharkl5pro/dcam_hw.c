@@ -20,7 +20,6 @@
 #define IMG_TYPE_RAW8                  0x2A
 #define IMG_TYPE_YUV                   0x1E
 
-static uint32_t g_gtm_en = 0;
 static uint32_t g_ltm_bypass = 1;
 static atomic_t clk_users;
 
@@ -1290,22 +1289,22 @@ static int dcamhw_gtm_status_get(void *handle, void *arg)
 static int dcamhw_gtm_ltm_eb(void *handle, void *arg)
 {
 	struct cam_hw_gtm_ltm_eb *eb = NULL;
+	struct dcam_dev_param *p = NULL;
 
 	eb = (struct cam_hw_gtm_ltm_eb *)arg;
-
 	if (eb->dcam_idx >= DCAM_ID_MAX || eb->isp_idx >= ISP_CONTEXT_SW_NUM) {
 		pr_err("fail to get dcam_idx %d isp_idx %d\n", eb->dcam_idx, eb->isp_idx);
 		return -EFAULT;
 	}
 
 	g_dcam_bypass[eb->dcam_idx] &= (~(1 << _E_GTM));
-	DCAM_REG_MWR(eb->dcam_idx, DCAM_GTM_GLB_CTRL, BIT_0, g_gtm_en);
-
 	g_isp_bypass[eb->isp_idx] &= (~(1 << _EISP_LTM));
-	ISP_REG_MWR(eb->isp_idx, ISP_LTM_MAP_RGB_BASE
-		+ ISP_LTM_MAP_PARAM0, BIT_0, g_ltm_bypass);
-	pr_debug("gtm %d ltm eb %d\n", g_gtm_en, g_ltm_bypass);
-
+	p = (struct dcam_dev_param *)(eb->dcam_param);
+	if (p)
+		dcam_k_gtm_bypass(p, &p->gtm[DCAM_GTM_PARAM_PRE].gtm_info.bypass_info);
+	else
+		pr_err("fail to get gtm param\n");
+	pr_debug("gtm&ltm enable, dcam hw ctx %d, isp sw ctx %d\n", eb->dcam_idx, eb->isp_idx);
 	return 0;
 }
 
@@ -1321,16 +1320,12 @@ static int dcamhw_gtm_ltm_dis(void *handle, void *arg)
 	}
 
 	g_dcam_bypass[dis->dcam_idx] |= (1 << _E_GTM);
-	g_gtm_en = DCAM_REG_RD(dis->dcam_idx, DCAM_GTM_GLB_CTRL) & BIT_0;
 	DCAM_REG_MWR(dis->dcam_idx, DCAM_GTM_GLB_CTRL, BIT_0, 0);
 
 	g_isp_bypass[dis->isp_idx] |= (1 << _EISP_LTM);
-	g_ltm_bypass = ISP_REG_RD(dis->isp_idx,
-		ISP_LTM_MAP_RGB_BASE + ISP_LTM_MAP_PARAM0) & BIT_0;
-	ISP_REG_MWR(dis->isp_idx,
-		ISP_LTM_MAP_RGB_BASE + ISP_LTM_MAP_PARAM0, BIT_0, 1);
-	pr_debug("gtm %d ltm dis %d\n", g_gtm_en, g_ltm_bypass);
+	ISP_REG_MWR(dis->isp_idx, ISP_LTM_MAP_RGB_BASE + ISP_LTM_MAP_PARAM0, BIT_0, 1);
 
+	pr_debug("gtm &ltm disable, dcam hw ctx %d, isp sw ctx %d\n", dis->dcam_idx, dis->isp_idx);
 	return 0;
 }
 
@@ -1368,7 +1363,7 @@ static struct dcam_cfg_entry dcam_hw_cfg_func_tab[DCAM_BLOCK_TOTAL] = {
 [DCAM_BLOCK_PDAF - DCAM_BLOCK_BASE]        = {DCAM_BLOCK_PDAF,        dcam_k_cfg_pdaf},
 [DCAM_BLOCK_BAYERHIST - DCAM_BLOCK_BASE]   = {DCAM_BLOCK_BAYERHIST,   dcam_k_cfg_bayerhist},
 [DCAM_BLOCK_3DNR_ME - DCAM_BLOCK_BASE]     = {DCAM_BLOCK_3DNR_ME,     dcam_k_cfg_3dnr_me},
-[DCAM_BLOCK_RAW_GTM - DCAM_BLOCK_BASE]     = {DCAM_BLOCK_RAW_GTM,     dcam_k_cfg_raw_gtm},
+[DCAM_BLOCK_GTM - DCAM_BLOCK_BASE]         = {DCAM_BLOCK_GTM,         dcam_k_cfg_raw_gtm},
 [DCAM_BLOCK_LSCM - DCAM_BLOCK_BASE]        = {DCAM_BLOCK_LSCM,        dcam_k_cfg_lscm},
 };
 
@@ -1405,7 +1400,11 @@ static int dcamhw_blocks_setall(void *handle, void *arg)
 	dcam_k_blc_block(p);
 	dcam_k_bpc_block(p);
 	dcam_k_rgb_gain_block(p);
-	dcam_k_raw_gtm_block(DCAM_GTM_PARAM_PRE, p);
+	if (p->non_zsl_cap)
+		dcam_k_raw_gtm_block(DCAM_GTM_PARAM_CAP, p);
+	else
+		dcam_k_raw_gtm_block(DCAM_GTM_PARAM_PRE, p);
+
 	/* simulator should set this block(random) carefully */
 	dcam_k_rgb_dither_random_block(p);
 	pr_info("dcam%d set all\n", idx);
@@ -1548,6 +1547,25 @@ static int dcamhw_set_store_addr(void *handle, void *arg)
 	return 0;
 }
 
+static int dcamhw_get_gtm_hist(void *handle, void *arg)
+{
+	struct dcam_hw_gtm_hist *param = NULL;
+	uint32_t idx = 0;
+	uint32_t hist_index = 0;
+
+	if (!arg) {
+		pr_err("fail to get gtm hist\n");
+		return -1;
+	}
+
+	param = (struct dcam_hw_gtm_hist *)arg;
+	idx = param->idx;
+	hist_index = param->hist_index;
+
+	param->value = DCAM_REG_RD(idx, GTM_HIST_CNT + hist_index * 4);
+	return 0;
+}
+
 static struct hw_io_ctrl_fun dcam_ioctl_fun_tab[] = {
 	{DCAM_HW_CFG_ENABLE_CLK,            dcamhw_clk_eb},
 	{DCAM_HW_CFG_DISABLE_CLK,           dcamhw_clk_dis},
@@ -1588,6 +1606,7 @@ static struct hw_io_ctrl_fun dcam_ioctl_fun_tab[] = {
 	{DCAM_HW_CFG_BIN_PATH,              dcamhw_bin_path_cfg},
 	{DCAM_HW_CFG_HIST_ROI_UPDATE,       dcamhw_bayer_hist_roi_update},
 	{DCAM_HW_CFG_STORE_ADDR,            dcamhw_set_store_addr},
+	{DCAM_HW_CFG_GTM_HIST_GET,          dcamhw_get_gtm_hist},
 };
 
 static hw_ioctl_fun dcamhw_ioctl_fun_get(enum dcam_hw_cfg_cmd cmd)

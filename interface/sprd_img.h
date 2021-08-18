@@ -529,6 +529,7 @@ struct sprd_img_function_mode {
 	uint32_t need_fdr;
 	uint32_t fdr_version;
 	uint32_t fdr_preview_captured_num;
+	uint32_t zoom_conflict_with_ltm;
 };
 #pragma pack(pop)
 

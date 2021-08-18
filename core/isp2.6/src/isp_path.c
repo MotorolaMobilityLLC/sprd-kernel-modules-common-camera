@@ -109,6 +109,7 @@ int isp_path_comn_uinfo_set(struct isp_sw_context *pctx, void *param)
 	}
 
 	pctx->ch_id = cfg_in->ch_id;
+	pctx->uinfo.sn_size = cfg_in->sn_size;
 
 	pr_debug("ctx%d, in_fmt 0x%x, %d %d mode_ltm %d ltm_eb %d, mode_gtm %d gtm_eb %d,slw_state %d 3dnr: %d\n",
 		pctx->ctx_id, uinfo->in_fmt, uinfo->pack_bits, uinfo->bayer_pattern, uinfo->mode_ltm,
@@ -249,8 +250,10 @@ int isp_path_fetch_uinfo_set(struct isp_sw_context *pctx, void *param)
 
 	uinfo->src = *src;
 	uinfo->crop = *crop;
+	uinfo->ori_src = *src;
 	pctx->isp_k_param.src_w = uinfo->src.w;
 	pctx->isp_k_param.src_h = uinfo->src.h;
+	pctx->zoom_conflict_with_ltm = cfg_in->zoom_conflict_with_ltm;
 
 	pr_debug("isp %d src %d %d crop %d %d %d %d\n",
 		pctx->ctx_id, uinfo->src.w, uinfo->src.h,

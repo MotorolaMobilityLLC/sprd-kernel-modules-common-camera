@@ -537,6 +537,7 @@ extern const unsigned long slowmotion_store_addr[3][4];
 /* buffer addr map */
 #define GTM_HIST_XPTS                         (0x0600UL)
 #define GTM_HIST_XPTS_CNT                     (0x0100UL)
+#define GTM_HIST_CNT                          (0x0700UL)
 
 #define LSC_WEI_TABLE_START                   (0x0900UL)
 #define LSC_WEI_TABLE_SIZE                    (0x0400UL)

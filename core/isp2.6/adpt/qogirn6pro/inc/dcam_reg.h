@@ -761,6 +761,7 @@ extern unsigned long g_dcam_phys_base[];
 #define GTM_TM_RGB2YCOEFF1                              (DCAM_GTM_BASE + 0x00DCUL)
 #define GTM_STATUS                                      (DCAM_GTM_BASE + 0x0060UL)
 #define GTM_HIST_XPTS_0                                 (DCAM_GTM_BASE + 0x00E0UL)
+#define GTM_HIST_CNT                                    (0xD000)
 
 #define DCAM_PATH_STOP_MASK                             (0x2DFFUL)
 #define DCAM_PATH_BUSY_MASK                             (0x2FFFUL)

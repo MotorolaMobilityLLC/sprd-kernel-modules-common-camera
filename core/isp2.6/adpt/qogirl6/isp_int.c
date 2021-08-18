@@ -59,6 +59,7 @@ static uint32_t isp_int_recorder[ISP_CONTEXT_HW_NUM][32][INT_RCD_SIZE];
 static uint32_t int_index[ISP_CONTEXT_HW_NUM][32];
 #endif
 
+#define GTM_HIST_ITEM_NUM 128
 static uint32_t irq_done[ISP_CONTEXT_HW_NUM][32];
 static uint32_t irq_done_sw[ISP_CONTEXT_SW_NUM][32];
 
@@ -329,6 +330,33 @@ static void ispint_rgb_ltm_hists_done(enum isp_context_hw_id hw_idx, void *isp_h
 		completion = rgb_ltm->ltm_ops.sync_ops.do_completion(rgb_ltm);
 }
 
+static void ispint_frame_dispatch(enum isp_context_id idx,
+				void *isp_handle,
+				struct camera_frame *frame,
+				enum isp_cb_type type)
+{
+	struct timespec cur_ts;
+	struct isp_pipe_dev *dev = (struct isp_pipe_dev *)isp_handle;
+	struct isp_sw_context *pctx;
+
+	if (unlikely(!dev || !frame)) {
+		pr_err("fail to get valid param %px %px\n", dev, frame);
+		return;
+	}
+
+	pctx = dev->sw_ctx[idx];
+
+	ktime_get_ts(&cur_ts);
+	frame->time.tv_sec = cur_ts.tv_sec;
+	frame->time.tv_usec = cur_ts.tv_nsec / NSEC_PER_USEC;
+	frame->boot_time = ktime_get_boottime();
+
+	pr_debug("isp ctx[%d]: time %06d.%06d\n", idx,
+		(int)frame->time.tv_sec, (int)frame->time.tv_usec);
+
+	pctx->isp_cb_func(type, frame, pctx->cb_priv_data);
+}
+
 static void ispint_rgb_gtm_hists_done(enum isp_context_hw_id hw_idx, void *isp_handle)
 {
 	int wait_fid = 0;
@@ -336,6 +364,11 @@ static void ispint_rgb_gtm_hists_done(enum isp_context_hw_id hw_idx, void *isp_h
 	struct isp_sw_context *pctx;
 	struct isp_pipe_dev *dev;
 	struct isp_gtm_ctx_desc *gtm_ctx = NULL;
+	struct camera_frame *frame = NULL;
+	uint32_t *buf = NULL;
+	int i = 0;
+	int max_item = GTM_HIST_ITEM_NUM;
+	uint32_t hist_total = 0;
 
 	dev = (struct isp_pipe_dev *)isp_handle;
 	idx = isp_core_sw_context_id_get(hw_idx, dev);
@@ -345,18 +378,43 @@ static void ispint_rgb_gtm_hists_done(enum isp_context_hw_id hw_idx, void *isp_h
 	}
 
 	pctx = dev->sw_ctx[idx];
+	if ((pctx->ch_id != CAM_CH_PRE) && (pctx->ch_id != CAM_CH_VID))
+		return;
+
 	gtm_ctx = (struct isp_gtm_ctx_desc *)pctx->rgb_gtm_handle;
 	if (!gtm_ctx) {
 		pr_err("fail to gtm handle ptr\n");
 		return;
 	}
 
-	gtm_ctx->gtm_ops.get_preview_hist_cal(gtm_ctx);
-	/*for capture*/
-	wait_fid = gtm_ctx->gtm_ops.sync_completion_get(gtm_ctx);
+	if (gtm_ctx->calc_mode == GTM_SW_CALC) {
+		frame  = cam_queue_dequeue(&pctx->gtmhist_result_queue, struct camera_frame, list);
+		if (!frame) {
+			pr_warn("isp ctx_id[%d] gtmhist_result_queue buffer \n", idx);
+			return;
+		} else {
+			buf = (uint32_t *)frame->buf.addr_k[0];
+			if (!buf) {
+				cam_queue_enqueue(&pctx->gtmhist_result_queue, &frame->list);
+				return;
+			} else {
+				for (i = 0; i < max_item; i++)
+					buf[i] = ISP_HREG_RD(ISP_GTM_HIST_BUF0_CH0 + i * 4);
+				hist_total= gtm_ctx->src.w * gtm_ctx->src.h;
+				buf[i++] = hist_total;
+				buf[i] = gtm_ctx->fid;
+				ispint_frame_dispatch(idx, isp_handle, frame, ISP_CB_STATIS_DONE);
+			}
+		}
+
+	} else {
+		gtm_ctx->gtm_ops.get_preview_hist_cal(gtm_ctx);
+		/*for capture*/
+		wait_fid = gtm_ctx->gtm_ops.sync_completion_get(gtm_ctx);
+		if (wait_fid)
+			gtm_ctx->gtm_ops.sync_completion_done(gtm_ctx);
+	}
 	pr_debug("gtm_hists_done ctx_id %d, fid %d, wait_fid %d\n", gtm_ctx->ctx_id, gtm_ctx->fid, wait_fid);
-	if (wait_fid)
-		gtm_ctx->gtm_ops.sync_completion_done(gtm_ctx);
 }
 
 static struct camera_frame *ispint_hist2_frame_prepare(enum isp_context_id idx,
@@ -395,32 +453,6 @@ static struct camera_frame *ispint_hist2_frame_prepare(enum isp_context_id idx,
 	frame->height = pctx->pipe_info.fetch.in_trim.size_y;
 
 	return frame;
-}
-
-static void ispint_frame_dispatch(enum isp_context_id idx,
-				void *isp_handle,
-				struct camera_frame *frame,
-				enum isp_cb_type type)
-{
-	struct timespec cur_ts;
-	struct isp_pipe_dev *dev;
-	struct isp_sw_context *pctx;
-
-	dev = (struct isp_pipe_dev *)isp_handle;
-	pctx = dev->sw_ctx[idx];
-
-	if (unlikely(!dev || !frame))
-		return;
-
-	ktime_get_ts(&cur_ts);
-	frame->time.tv_sec = cur_ts.tv_sec;
-	frame->time.tv_usec = cur_ts.tv_nsec / NSEC_PER_USEC;
-	frame->boot_time = ktime_get_boottime();
-
-	pr_debug("isp ctx[%d]: time %06d.%06d\n", idx,
-		(int)frame->time.tv_sec, (int)frame->time.tv_usec);
-
-	pctx->isp_cb_func(type, frame, pctx->cb_priv_data);
 }
 
 static void ispint_hist_cal_done(enum isp_context_hw_id hw_idx, void *isp_handle)

@@ -51,6 +51,22 @@ static int ispgtm_cfg_param(void *handle,
 		gtm_ctx->fid = *(uint32_t *)param;
 		pr_debug("GTM ctx_id %d, frame id %d\n", gtm_ctx->ctx_id, gtm_ctx->fid);
 		break;
+	case ISP_GTM_CFG_HIST_BYPASS:
+		gtm_ctx->gtm_hist_stat_bypass = !(*(uint32_t *)param);
+		pr_debug("GTM ctx_id %d, frame id %d, hist bypass %d\n", gtm_ctx->ctx_id, gtm_ctx->fid, gtm_ctx->gtm_hist_stat_bypass);
+		break;
+	case ISP_GTM_CFG_MAP_BYPASS:
+		gtm_ctx->gtm_map_bypass = !(*(uint32_t *)param);
+		pr_debug("GTM ctx_id %d, frame id %d, map bypass %d\n", gtm_ctx->ctx_id, gtm_ctx->fid, gtm_ctx->gtm_map_bypass);
+		break;
+	case ISP_GTM_CFG_MOD_EN:
+		gtm_ctx->gtm_mode_en= *(uint32_t *)param;
+		pr_debug("GTM ctx_id %d, frame id %d, mod_en %d\n", gtm_ctx->ctx_id, gtm_ctx->fid, gtm_ctx->gtm_mode_en);
+		break;
+	case ISP_GTM_CFG_CALC_MODE:
+		gtm_ctx->calc_mode = *(uint32_t *)param;
+		pr_debug("GTM ctx_id %d, calc mode %d\n", gtm_ctx->calc_mode);
+		break;
 	 default:
 		 pr_debug("fail to get known cmd: %d\n", cmd);
 		 ret = -EFAULT;
@@ -143,7 +159,7 @@ static int ispgtm_get_preview_hist_cal(void *handle)
 }
 
 static int ispgtm_capture_tunning_set(int cam_id,
-	struct isp_dev_gtm_block_info *tunning)
+	struct dcam_dev_raw_gtm_block_info *tunning)
 {
 	int i = 0;
 
@@ -163,13 +179,13 @@ static int ispgtm_capture_tunning_set(int cam_id,
 		return -1;
 	}
 
-	memcpy(&s_rgb_gtm_sync[i].tuning, tunning, sizeof(struct isp_dev_gtm_block_info));
-	pr_debug("cam_id %d, mod_en %d\n", cam_id, s_rgb_gtm_sync[i].tuning.gtm_mod_en);
+	memcpy(&s_rgb_gtm_sync[i].tuning, tunning, sizeof(struct dcam_dev_raw_gtm_block_info));
+	pr_debug("cam_id %d, mod_en %d\n", cam_id, s_rgb_gtm_sync[i].tuning.bypass_info.gtm_mod_en);
 	return 0;
 }
 
 static int ispgtm_capture_tunning_get(int cam_id,
-	struct isp_dev_gtm_block_info *tunning)
+	struct dcam_dev_raw_gtm_block_info *tunning)
 {
 	int i = 0;
 
@@ -189,12 +205,12 @@ static int ispgtm_capture_tunning_get(int cam_id,
 		return -1;
 	}
 
-	memcpy(tunning, &s_rgb_gtm_sync[i].tuning, sizeof(struct isp_dev_gtm_block_info));
-	pr_debug("cam_id %d, mod_en %d\n", cam_id, s_rgb_gtm_sync[i].tuning.gtm_mod_en);
+	memcpy(tunning, &s_rgb_gtm_sync[i].tuning, sizeof(struct dcam_dev_raw_gtm_block_info));
+	pr_debug("cam_id %d, mod_en %d\n", cam_id, s_rgb_gtm_sync[i].tuning.bypass_info.gtm_mod_en);
 	return 0;
 }
 
-static int ispgtm_pipe_proc(void *handle, void *param)
+static int ispgtm_pipe_proc(void *handle, void *param, void *param2)
 {
 	int ret = 0;
 	uint32_t idx = 0;
@@ -204,6 +220,7 @@ static int ispgtm_pipe_proc(void *handle, void *param)
 	struct isp_gtm_mapping *mapping = NULL;
 	struct isp_gtm_k_block gtm_k_block ={0};
 	struct isp_hw_gtm_func gtm_func;
+	struct isp_gtm_bypass_param gtm_bypass = {0};
 
 	if (!handle || !param) {
 		 pr_err("fail to get valid input ptr NULL\n");
@@ -215,20 +232,45 @@ static int ispgtm_pipe_proc(void *handle, void *param)
 	switch (gtm_ctx->mode) {
 	case MODE_GTM_PRE:
 		gtm_k_block.ctx = gtm_ctx;
-		gtm_k_block.tuning = param;
+		gtm_k_block.tuning = (struct dcam_dev_raw_gtm_block_info *)param;
+		gtm_k_block.map= (struct cam_gtm_mapping *)param2;
 
 		gtm_func.index = ISP_K_GTM_BLOCK_SET;
 		gtm_ctx->hw->isp_ioctl(gtm_ctx->hw, ISP_HW_CFG_GTM_FUNC_GET, &gtm_func);
 		gtm_func.k_blk_func(&gtm_k_block);
 
-		if (gtm_k_block.tuning->gtm_mod_en && atomic_read(&gtm_ctx->cnt) > 1) {
+		if (gtm_k_block.tuning->bypass_info.gtm_mod_en) {
 			pr_debug("ctx %d, fid %d, do preview mapping\n", gtm_ctx->ctx_id, gtm_ctx->fid);
-			mapping = &gtm_ctx->sync->mapping;
-			mapping->ctx_id = gtm_ctx->ctx_id;
 			gtm_func.index = ISP_K_GTM_MAPPING_SET;
 			gtm_ctx->hw->isp_ioctl(gtm_ctx->hw, ISP_HW_CFG_GTM_FUNC_GET, &gtm_func);
-			gtm_func.k_blk_func(&gtm_ctx->sync->mapping);
+			if (gtm_ctx->calc_mode == GTM_SW_CALC) {
+				struct isp_gtm_mapping map = {0};
+				map.ctx_id= gtm_ctx->ctx_id;
+				map.sw_mode = 1;
+				map.gtm_hw_ymin = gtm_k_block.map->ymin;
+				map.gtm_hw_ymax = gtm_k_block.map->ymax;
+				map.gtm_hw_yavg = gtm_k_block.map->yavg;
+				map.gtm_hw_target_norm = gtm_k_block.map->target;
+				map.gtm_hw_lr_int = gtm_k_block.map->lr_int;
+				map.gtm_hw_log_diff_int = gtm_k_block.map->log_diff_int;
+				map.gtm_hw_log_min_int = gtm_k_block.map->log_min_int;
+				map.gtm_hw_log_diff = gtm_k_block.map->diff;
+				gtm_func.k_blk_func(&map);
+			} else if (atomic_read(&gtm_ctx->cnt) > 1) {
+				mapping = &gtm_ctx->sync->mapping;
+				mapping->ctx_id = gtm_ctx->ctx_id;
+				mapping->sw_mode = 1;
+				gtm_func.k_blk_func(&gtm_ctx->sync->mapping);
+			}
 		}
+
+		gtm_bypass.ctx_id = gtm_ctx->ctx_id;
+		gtm_bypass.hist_bypass = gtm_ctx->gtm_hist_stat_bypass || gtm_k_block.tuning->bypass_info.gtm_hist_stat_bypass;
+		gtm_bypass.map_bypass = gtm_ctx->gtm_map_bypass || gtm_k_block.tuning->bypass_info.gtm_map_bypass;
+		gtm_bypass.mod_en = gtm_ctx->gtm_mode_en && gtm_k_block.tuning->bypass_info.gtm_mod_en;
+		gtm_func.index = ISP_K_GTM_BYPASS_SET;
+		gtm_ctx->hw->isp_ioctl(gtm_ctx->hw, ISP_HW_CFG_GTM_FUNC_GET, &gtm_func);
+		gtm_func.k_blk_func(&gtm_bypass);
 
 		ret = ispgtm_capture_tunning_set(gtm_ctx->cam_id, param);
 		if (ret) {
@@ -251,41 +293,71 @@ static int ispgtm_pipe_proc(void *handle, void *param)
 
 		gtm_k_block.ctx = gtm_ctx;
 		gtm_k_block.tuning = param;
-		/*capture: mapping enable, hist_stat disable*/
-		gtm_k_block.tuning->gtm_map_bypass = 0;
-		gtm_k_block.tuning->gtm_hist_stat_bypass = 1;
+		gtm_k_block.map= (struct cam_gtm_mapping *)param2;
+		gtm_k_block.tuning->bypass_info.gtm_hist_stat_bypass = 1;
 
-		if (gtm_k_block.tuning->gtm_mod_en == 0) {
+		if (gtm_k_block.tuning->bypass_info.gtm_mod_en == 0) {
 			pr_debug("capture frame ctx_id %d, mod_en off\n", gtm_ctx->ctx_id);
 			goto exit;
 		}
+		if (gtm_ctx->calc_mode == GTM_SW_CALC) {
+			struct isp_gtm_mapping map = {0};
 
-		ispgtm_sync_completion_set(gtm_sync, 1);
-		timeout = wait_for_completion_interruptible_timeout(&gtm_sync->share_comp, ISP_GM_TIMEOUT);
-		if (timeout <= 0) {
-			pr_err("fail to wait gtm completion [%ld]\n", timeout);
-			gtm_ctx->mode = MODE_GTM_OFF;
-			gtm_ctx->bypass = 1;
-			ret = -1;
-			goto exit;
+			gtm_func.index = ISP_K_GTM_BLOCK_SET;
+			gtm_ctx->hw->isp_ioctl(gtm_ctx->hw, ISP_HW_CFG_GTM_FUNC_GET, &gtm_func);
+			gtm_func.k_blk_func(&gtm_k_block);
+
+			map.ctx_id= gtm_ctx->ctx_id;
+			map.sw_mode = 1;
+			map.gtm_hw_ymin = gtm_k_block.map->ymin;
+			map.gtm_hw_ymax = gtm_k_block.map->ymax;
+			map.gtm_hw_yavg = gtm_k_block.map->yavg;
+			map.gtm_hw_target_norm = gtm_k_block.map->target;
+			map.gtm_hw_lr_int = gtm_k_block.map->lr_int;
+			map.gtm_hw_log_diff_int = gtm_k_block.map->log_diff_int;
+			map.gtm_hw_log_min_int = gtm_k_block.map->log_min_int;
+			map.gtm_hw_log_diff = gtm_k_block.map->diff;
+			gtm_func.index = ISP_K_GTM_MAPPING_SET;
+			gtm_ctx->hw->isp_ioctl(gtm_ctx->hw, ISP_HW_CFG_GTM_FUNC_GET, &gtm_func);
+			gtm_func.k_blk_func(&map);
+		} else {
+			ispgtm_sync_completion_set(gtm_sync, 1);
+			timeout = wait_for_completion_interruptible_timeout(&gtm_sync->share_comp, ISP_GM_TIMEOUT);
+			if (timeout <= 0) {
+				pr_err("fail to wait gtm completion [%ld]\n", timeout);
+				gtm_ctx->mode = MODE_GTM_OFF;
+				gtm_ctx->bypass = 1;
+				ret = -1;
+				goto exit;
+			}
+
+			pr_debug("gtm capture: ctx_id %d, capture fid %d\n", gtm_ctx->ctx_id, gtm_ctx->fid);
+			mapping = &gtm_ctx->sync->mapping;
+			gtm_func.index = ISP_K_GTM_BLOCK_SET;
+			gtm_ctx->hw->isp_ioctl(gtm_ctx->hw, ISP_HW_CFG_GTM_FUNC_GET, &gtm_func);
+			gtm_func.k_blk_func(&gtm_k_block);
+
+			mapping->ctx_id = gtm_ctx->ctx_id;
+			mapping->sw_mode = 1;
+			gtm_func.index = ISP_K_GTM_MAPPING_SET;
+			gtm_ctx->hw->isp_ioctl(gtm_ctx->hw, ISP_HW_CFG_GTM_FUNC_GET, &gtm_func);
+			gtm_func.k_blk_func(mapping);
 		}
 
-		pr_debug("gtm capture: ctx_id %d, capture fid %d\n", gtm_ctx->ctx_id, gtm_ctx->fid);
-		mapping = &gtm_ctx->sync->mapping;
-		gtm_func.index = ISP_K_GTM_BLOCK_SET;
+		gtm_bypass.ctx_id = gtm_ctx->ctx_id;
+		gtm_bypass.hist_bypass = gtm_ctx->gtm_hist_stat_bypass || gtm_k_block.tuning->bypass_info.gtm_hist_stat_bypass;
+		gtm_bypass.map_bypass = gtm_ctx->gtm_map_bypass || gtm_k_block.tuning->bypass_info.gtm_map_bypass;
+		gtm_bypass.mod_en = gtm_ctx->gtm_mode_en && gtm_k_block.tuning->bypass_info.gtm_mod_en;
+		gtm_func.index = ISP_K_GTM_BYPASS_SET;
 		gtm_ctx->hw->isp_ioctl(gtm_ctx->hw, ISP_HW_CFG_GTM_FUNC_GET, &gtm_func);
-		gtm_func.k_blk_func(&gtm_k_block);
-
-		mapping->ctx_id = gtm_ctx->ctx_id;
-		gtm_func.index = ISP_K_GTM_MAPPING_SET;
-		gtm_ctx->hw->isp_ioctl(gtm_ctx->hw, ISP_HW_CFG_GTM_FUNC_GET, &gtm_func);
-		gtm_func.k_blk_func(mapping);
+		gtm_func.k_blk_func(&gtm_bypass);
 
 		idx = gtm_ctx->ctx_id;
 		gtm_func.index = ISP_K_GTM_STATUS_GET;
 		gtm_ctx->hw->isp_ioctl(gtm_ctx->hw, ISP_HW_CFG_GTM_FUNC_GET, &gtm_func);
-		gtm_ctx->gtm_mode_en = gtm_func.k_blk_func(&idx) & gtm_k_block.tuning->gtm_mod_en;
-
+		gtm_ctx->gtm_mode_en = gtm_func.k_blk_func(&idx) & gtm_k_block.tuning->bypass_info.gtm_mod_en;
+		pr_debug("gtm%d sw mode %d, mod en %d, hist bypass %d, map bypass %d\n",
+			idx, gtm_ctx->calc_mode, gtm_bypass.mod_en, gtm_bypass.hist_bypass, gtm_bypass.map_bypass);
 		break;
 	case MODE_GTM_OFF:
 		pr_debug("ctx_id %d, GTM off\n", gtm_ctx->ctx_id);

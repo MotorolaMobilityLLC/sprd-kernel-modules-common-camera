@@ -38,7 +38,7 @@
 static uint32_t dcam_int_recorder[DCAM_HW_CONTEXT_MAX][DCAM_IRQ_NUMBER][INT_RCD_SIZE];
 static uint32_t int_index[DCAM_HW_CONTEXT_MAX][DCAM_IRQ_NUMBER];
 #endif
-
+#define GTM_HIST_ITEM_NUM 128
 static uint32_t dcam_int_tracker[DCAM_HW_CONTEXT_MAX][DCAM_IRQ_NUMBER];
 static char *dcam_dev_name[] = {"DCAM0",
 				"DCAM1",
@@ -822,6 +822,63 @@ static void dcamint_lscm_done(void *param, struct dcam_sw_context *sw_ctx)
 
 }
 
+static void dcamint_gtm_done(void *param, struct dcam_sw_context *sw_ctx)
+{
+	int i = 0;
+	uint32_t w = 0;
+	uint32_t h = 0;
+	uint32_t *buf = NULL;
+	struct dcam_hw_gtm_hist gtm_hist = {0};
+	struct cam_hw_info *hw = NULL;
+	struct camera_frame *frame = NULL;
+	struct dcam_pipe_dev *dcam_dev = NULL;
+	struct dcam_hw_context *dcam_hw_ctx = (struct dcam_hw_context *)param;
+
+	if (!sw_ctx) {
+		pr_err("fail to get sw ctx, hw ctx id%d\n", dcam_hw_ctx->hw_ctx_id);
+		return;
+	}
+
+	frame = dcamint_frame_prepare(dcam_hw_ctx, sw_ctx, DCAM_PATH_GTM_HIST);
+	if (!frame)
+		return;
+
+	pr_debug("dcam hw ctx id %d, frame mfd %d\n", dcam_hw_ctx->hw_ctx_id, frame->buf.mfd[0]);
+
+	buf = (uint32_t *)frame->buf.addr_k[0];
+	if (!buf) {
+		pr_err("fail to get frame buf\n");
+		return;
+	}
+
+	dcam_dev = sw_ctx->dev;
+	if (!dcam_dev) {
+		pr_err("fail to get dev, sw ctx id, hw ctx id%d\n", sw_ctx->sw_ctx_id, dcam_hw_ctx->hw_ctx_id);
+		return;
+	}
+
+	hw = dcam_dev->hw;
+	if (!hw) {
+		pr_err("fail to get hw_info, sw ctx id, hw ctx id%d\n", sw_ctx->sw_ctx_id, dcam_hw_ctx->hw_ctx_id);
+		return;
+	}
+
+	gtm_hist.idx = dcam_hw_ctx->hw_ctx_id;
+
+	for (i = 0; i < GTM_HIST_ITEM_NUM; i++) {
+		gtm_hist.hist_index = i;
+		hw->dcam_ioctl(hw, DCAM_HW_CFG_GTM_HIST_GET, &gtm_hist);
+		buf[i] = gtm_hist.value;
+	}
+
+	w = sw_ctx->cap_info.cap_size.size_x;
+	h = sw_ctx->cap_info.cap_size.size_y;
+	buf[i++] =  w * h;
+	buf[i] = frame->fid;
+	dcamint_frame_dispatch(dcam_hw_ctx, sw_ctx, DCAM_PATH_GTM_HIST, frame, DCAM_CB_STATIS_DONE);
+	pr_debug("success get frame w %d, h %d, user_fid %d, mfd %d, fid %d\n", w, h, frame->user_fid, frame->buf.mfd[0], frame->fid);
+}
+
 /*
  * cycling frames through AEM path
  */
@@ -1041,6 +1098,7 @@ static const dcam_isr_type _DCAM_ISRS[] = {
 	[DCAM_AFM_INTREQ1] = dcamint_afm_done,
 	[DCAM_NR3_TX_DONE] = dcamint_nr3_done,
 	[DCAM_LSCM_TX_DONE] = dcamint_lscm_done,
+	[DCAM_GTM_TX_DONE] = dcamint_gtm_done,
 };
 
 /*
@@ -1063,6 +1121,7 @@ static const int _DCAM0_SEQUENCE[] = {
 	DCAM_VCH2_PATH_TX_DONE,/* for vch2 data */
 	DCAM_VCH3_PATH_TX_DONE,/* for vch3 data */
 	DCAM_LSCM_TX_DONE,/* for lscm statis */
+	DCAM_GTM_TX_DONE,/* for gtm hist statis */
 };
 
 /*
@@ -1084,6 +1143,7 @@ static const int _DCAM1_SEQUENCE[] = {
 	DCAM_VCH2_PATH_TX_DONE,/* for vch2 data */
 	DCAM_VCH3_PATH_TX_DONE,/* for vch3 data */
 	DCAM_LSCM_TX_DONE,/* for lscm statis */
+	DCAM_GTM_TX_DONE,/* for gtm hist statis */
 };
 
 /*
@@ -1106,6 +1166,7 @@ static const int _DCAM2_SEQUENCE[] = {
 	DCAM_VCH2_PATH_TX_DONE,/* for vch2 data */
 	DCAM_VCH3_PATH_TX_DONE,/* for vch3 data */
 	DCAM_LSCM_TX_DONE,/* for lscm statis */
+	DCAM_GTM_TX_DONE,/* for gtm hist statis */
 };
 
 /*

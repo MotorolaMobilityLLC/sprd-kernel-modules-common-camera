@@ -236,7 +236,7 @@ int isp_k_dump_pm(void *pdst, void *psrc)
 
 	memcpy(&pm_data->gtm_info,
 		&isp_k_param->gtm_rgb_info,
-		sizeof(struct isp_dev_gtm_block_info));
+		sizeof(struct dcam_dev_raw_gtm_block_info));
 
 	memcpy(pm_data->vst_buf, isp_k_param->vst_buf, sizeof(pm_data->vst_buf));
 	memcpy(pm_data->ivst_buf, isp_k_param->ivst_buf, sizeof(pm_data->ivst_buf));

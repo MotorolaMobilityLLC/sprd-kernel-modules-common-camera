@@ -215,7 +215,9 @@ struct isp_uinfo {
 	uint32_t nr3_fbc_fbd;
 
 	/* input info from cam core */
+	struct sprd_img_size sn_size;/* sensor size */
 	struct img_size src;
+	struct img_size ori_src;
 	struct img_trim crop;
 	struct img_scaler_info original;
 
@@ -270,14 +272,17 @@ struct isp_sw_context {
 	struct camera_queue post_proc_queue;
 
 	struct camera_frame *postproc_buf;
-	struct camera_buf statis_buf_array[STATIS_BUF_NUM_MAX];
+	struct camera_buf statis_buf_array[STATIS_TYPE_MAX][STATIS_BUF_NUM_MAX];
 	struct camera_queue hist2_result_queue;
+	struct camera_queue gtmhist_result_queue;
 
 	uint32_t multi_slice;
 	uint32_t is_last_slice;
 	uint32_t valid_slc_num;
 	uint32_t sw_slice_num;
 	uint32_t sw_slice_no;
+
+	uint32_t zoom_conflict_with_ltm;
 
 	isp_irq_postproc postproc_func;
 	isp_dev_callback isp_cb_func;

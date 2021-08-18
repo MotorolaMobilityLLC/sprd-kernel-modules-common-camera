@@ -52,6 +52,12 @@ struct camera_frame {
 	uint32_t need_pyr_rec;
 	/* use for isp dec */
 	uint32_t need_pyr_dec;
+	/*use for isp ltm ctrl*/
+	uint32_t need_ltm_hist;
+	uint32_t need_ltm_map;
+	uint32_t need_gtm_hist;
+	uint32_t need_gtm_map;
+	uint32_t gtm_mod_en;
 	uint32_t data_src_dec;
 	uint32_t dec_ctx_id;
 	uint32_t need_dewarp;
@@ -172,6 +178,24 @@ struct camera_queue {
 		INIT_LIST_HEAD(&__q->head);                                  \
 		spin_unlock_irqrestore(&__q->lock, __flags);                 \
 	}                                                                    \
+})
+
+#define cam_queue_del_tail(queue, type, member) ({                           \
+	unsigned long __flags;                                               \
+	struct camera_queue *__q = (queue);                                  \
+	type *__node = NULL;                                                 \
+	if (__q != NULL) {                                                   \
+		spin_lock_irqsave(&__q->lock, __flags);                      \
+		if ((!list_empty(&__q->head)) && (__q->cnt)                  \
+			&& (__q->state != CAM_Q_CLEAR)) {                    \
+			__node = list_last_entry(&__q->head, type, member);  \
+			if (__node)                                          \
+				list_del(&__node->member);                   \
+			__q->cnt--;                                          \
+		}                                                            \
+		spin_unlock_irqrestore(&__q->lock, __flags);                 \
+	}                                                                    \
+	__node;                                                              \
 })
 
 int cam_queue_enqueue(struct camera_queue *q, struct list_head *list);

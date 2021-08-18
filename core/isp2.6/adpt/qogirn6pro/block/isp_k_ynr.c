@@ -84,8 +84,8 @@ int isp_k_update_ynr(void *handle)
 	new_height = pctx->isp_k_param.blkparam_info.new_height;
 	old_width = pctx->isp_k_param.blkparam_info.old_width;
 	old_height = pctx->isp_k_param.blkparam_info.old_height;
-	sensor_width = pctx->uinfo.original.src_size.w;
-	sensor_height = pctx->uinfo.original.src_size.h;
+	sensor_width = pctx->uinfo.sn_size.w;
+	sensor_height = pctx->uinfo.sn_size.h;
 
 	ynr_info = &pctx->isp_k_param.ynr_info_v3;
 	if (ynr_info->bypass)
@@ -97,8 +97,7 @@ int isp_k_update_ynr(void *handle)
 	radius = sensor_height * ynr_info->radius_factor / ynr_info->radius_base;
 	radius_limit = new_height;
 	radius = (radius < radius_limit) ? radius : radius_limit;
-	if (old_width / new_width != 1)
-		radius = radius / 2;
+	radius = new_height * radius / old_height;
 
 	pctx->isp_k_param.ynr_radius = radius;
 	pr_debug("base %d, factor %d, radius %d\n", ynr_info->radius_base, ynr_info->radius_factor, radius);

@@ -81,9 +81,8 @@ int isp_k_update_dct(void *handle)
 	new_height = pctx->isp_k_param.blkparam_info.new_height;
 	old_width = pctx->isp_k_param.blkparam_info.old_width;
 	old_height = pctx->isp_k_param.blkparam_info.old_height;
-	sensor_width = pctx->uinfo.original.src_size.w;
-	sensor_height = pctx->uinfo.original.src_size.h;
-
+	sensor_width = pctx->uinfo.sn_size.w;
+	sensor_height = pctx->uinfo.sn_size.h;
 
 	dct_info = &pctx->isp_k_param.dct_info;
 	if (dct_info->bypass)
@@ -95,8 +94,7 @@ int isp_k_update_dct(void *handle)
 	radius = sensor_height * dct_info->rnr_radius_factor / dct_info->rnr_radius_base;
 	radius_limit = new_height;
 	radius = (radius < radius_limit) ? radius : radius_limit;
-	if (old_width / new_width != 1)
-		radius = radius / 2;
+	radius = new_height * radius / old_height;
 
 	pctx->isp_k_param.dct_radius = radius;
 	pr_debug("base %d, factor %d, radius %d\n", dct_info->rnr_radius_base, dct_info->rnr_radius_factor, radius);

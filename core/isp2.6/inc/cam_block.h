@@ -34,6 +34,7 @@ struct isp_k_block {
 	struct isp_dev_3dnr_info nr3_info_base;
 	uint32_t seed0_for_mode1;
 	uint32_t yrandom_mode;
+	uint32_t gtm_calc_mode;
 	/* sharkl6 */
 	struct isp_dev_grgb_info grgb_info;
 	struct isp_dev_bchs_info bchs_info;
@@ -43,7 +44,8 @@ struct isp_k_block {
 	struct isp_dev_nlm_imblance_v1 imblance_info;
 	struct isp_dev_nlm_imblance_v2 imblance_info2;
 	struct isp_dev_hsv_info_v3 hsv_info3;
-	struct isp_dev_gtm_block_info gtm_rgb_info;
+	struct dcam_dev_raw_gtm_block_info gtm_rgb_info;
+	struct cam_gtm_mapping gtm_sw_map_info;
 	/* sharkl5/sharkl5pro diff blocks*/
 	struct isp_dev_posterize_info_v2 pstrz_info_v2;
 	struct isp_dev_uvd_info_v2 uvd_info_v2;
@@ -99,6 +101,7 @@ int dcam_k_cfg_blc(struct isp_io_param *param,	struct dcam_dev_param *p);
 int dcam_k_cfg_raw_gtm(struct isp_io_param *param, struct dcam_dev_param *p);
 int dcam_k_raw_gtm_block(uint32_t gtm_param_idx, struct dcam_dev_param *p);
 int dcam_k_raw_gtm_slice(uint32_t idx, struct dcam_dev_gtm_slice_info *gtm_slice);
+int dcam_k_gtm_bypass(struct dcam_dev_param *param, struct dcam_dev_raw_gtm_bypass *bypass_info);
 int dcam_k_cfg_rgb_gain(struct isp_io_param *param, struct dcam_dev_param *p);
 int dcam_k_cfg_rgb_dither(struct isp_io_param *param, struct dcam_dev_param *p);
 int dcam_k_cfg_pdaf(struct isp_io_param *param,	struct dcam_dev_param *p);
@@ -266,6 +269,8 @@ int isp_pyr_dec_config(void *handle);
 int isp_k_gtm_block(void *pctx, void *param);
 int isp_k_gtm_mapping_set(void *param);
 int isp_k_gtm_mapping_get(void *param);
+int isp_k_gtm_sw_map_set(void *param);
+int isp_k_rgb_gtm_bypass(void *param);
 
 /* for param debug */
 int dcam_k_dump_pm(void *pdst, void *psrc);

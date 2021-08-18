@@ -85,6 +85,7 @@ enum isp_k_gtm_blk_idx {
 	ISP_K_GTM_MAPPING_GET,
 	ISP_K_GTM_MAPPING_SET,
 	ISP_K_GTM_SLICE_SET,
+	ISP_K_GTM_BYPASS_SET,
 	ISP_K_GTM_MAX
 };
 
@@ -215,6 +216,7 @@ enum dcam_hw_cfg_cmd {
 	DCAM_HW_CFG_DEC_ONLINE,
 	DCAM_HW_CFG_DEC_STORE_ADDR,
 	DCAM_HW_CFG_DEC_SIZE_UPDATE,
+	DCAM_HW_CFG_GTM_HIST_GET,
 	DCAM_HW_CFG_MAX
 };
 
@@ -373,6 +375,7 @@ enum dcam_path_id {
 	DCAM_PATH_3DNR,
 	DCAM_PATH_BPC,
 	DCAM_PATH_LSCM,
+	DCAM_PATH_GTM_HIST,
 	DCAM_PATH_MAX,
 };
 
@@ -666,6 +669,12 @@ struct cam_hw_gtm_update {
 	spinlock_t glb_reg_lock;
 	struct dcam_dev_param *blk_dcam_pm;
 	struct cam_hw_info *hw;
+};
+
+struct dcam_hw_gtm_hist {
+	uint32_t idx;
+	uint32_t hist_index;
+	uint32_t value;
 };
 
 struct dcam_hw_slice_fetch {
@@ -1026,6 +1035,7 @@ struct cam_hw_gtm_ltm_dis {
 struct cam_hw_gtm_ltm_eb {
 	uint32_t dcam_idx;
 	uint32_t isp_idx;
+	struct dcam_dev_param *dcam_param;
 };
 
 struct dcam_hw_fbc_addr {

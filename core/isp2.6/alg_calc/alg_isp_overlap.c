@@ -2038,8 +2038,8 @@ static int isp_init_param_for_overlap_v1(
 	/* bayer */
 	overlapParam->nlm_bypass = slice_input->nofilter_ctx->nlm_info_base.bypass;
 	overlapParam->imbalance_bypass = slice_input->nofilter_ctx->imbalance_info_base.nlm_imblance_bypass;
-	overlapParam->raw_gtm_stat_bypass = slice_input->nofilter_ctx->gtm_rgb_info.gtm_hist_stat_bypass;
-	overlapParam->raw_gtm_map_bypass = slice_input->nofilter_ctx->gtm_rgb_info.gtm_map_bypass;
+	overlapParam->raw_gtm_stat_bypass = slice_input->nofilter_ctx->gtm_rgb_info.bypass_info.gtm_hist_stat_bypass;
+	overlapParam->raw_gtm_map_bypass = slice_input->nofilter_ctx->gtm_rgb_info.bypass_info.gtm_map_bypass;
 	overlapParam->cfa_bypass = slice_input->nofilter_ctx->cfa_info.bypass;
 
 	/* rgb */

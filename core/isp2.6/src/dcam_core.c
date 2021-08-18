@@ -51,6 +51,7 @@ struct statis_path_buf_info s_statis_path_info_all[] = {
 	{DCAM_PATH_FRGB_HIST,0, 0, STATIS_HIST2},
 	{DCAM_PATH_3DNR,    0,  0, STATIS_3DNR},
 	{DCAM_PATH_LSCM,    0,  0, STATIS_LSCM},
+	{DCAM_PATH_GTM_HIST,0,  0, STATIS_GTMHIST},
 };
 
 atomic_t s_dcam_opened[DCAM_SW_CONTEXT_MAX];
@@ -390,6 +391,8 @@ static enum dcam_path_id dcamcore_statis_type_to_path_id(enum isp_statis_buf_typ
 		return DCAM_PATH_3DNR;
 	case STATIS_LSCM:
 		return DCAM_PATH_LSCM;
+	case STATIS_GTMHIST:
+		return DCAM_PATH_GTM_HIST;
 	default:
 		return DCAM_PATH_MAX;
 	}
@@ -426,6 +429,8 @@ static int dcamcore_statis_bufferq_init(struct dcam_sw_context *pctx)
 		stats_type = s_statis_path_info_all[i].buf_type;
 		if (!stats_type)
 			continue;
+		if ((stats_type == STATIS_GTMHIST) && pctx->dev->hw->ip_isp->rgb_gtm_support)
+			continue;
 
 		path = &pctx->path[path_id];
 		if (path_id == DCAM_PATH_VCH2 && path->src_sel)
@@ -449,6 +454,8 @@ static int dcamcore_statis_bufferq_init(struct dcam_sw_context *pctx)
 
 		path = &pctx->path[path_id];
 		if (path_id == DCAM_PATH_VCH2 && path->src_sel)
+			continue;
+		if ((stats_type == STATIS_GTMHIST) && pctx->dev->hw->ip_isp->rgb_gtm_support)
 			continue;
 
 		for (j = 0; j < STATIS_BUF_NUM_MAX; j++) {
@@ -516,6 +523,8 @@ static int dcamcore_statis_bufferq_deinit(struct dcam_sw_context *pctx)
 
 		if (path_id == DCAM_PATH_VCH2 && path->src_sel)
 			continue;
+		if ((path_id == DCAM_PATH_GTM_HIST) && pctx->dev->hw->ip_isp->rgb_gtm_support)
+			continue;
 
 		pr_debug("path_id[%d] i[%d]\n", path_id, i);
 		if (path_id == DCAM_PATH_MAX)
@@ -548,6 +557,8 @@ static int dcamcore_statis_buffer_unmap(struct dcam_sw_context *pctx)
 		if (!stats_type)
 			continue;
 		if (path_id == DCAM_PATH_VCH2 && path->src_sel)
+			continue;
+		if ((path_id == DCAM_PATH_GTM_HIST) && pctx->dev->hw->ip_isp->rgb_gtm_support)
 			continue;
 
 		for (j = 0; j < STATIS_BUF_NUM_MAX; j++) {
@@ -602,14 +613,14 @@ static int dcamcore_statis_buffer_cfg(
 			if (!stats_type)
 				continue;
 			path = &pctx->path[path_id];
-			if (path_id == DCAM_PATH_VCH2 && path->src_sel)
+			if (((path_id == DCAM_PATH_VCH2) && path->src_sel) ||
+				((path_id == DCAM_PATH_GTM_HIST) && pctx->dev->hw->ip_isp->rgb_gtm_support))
 				continue;
 
 			for (j = 0; j < STATIS_BUF_NUM_MAX; j++) {
 				mfd = input->mfd_array[stats_type][j];
 
-				pr_debug("i %d, type %d, mfd %d, offset %d\n",
-					i, stats_type, mfd, input->offset_array[stats_type][j]);
+				pr_debug("i %d, type %d, mfd %d, offset %d\n", i, stats_type, mfd, input->offset_array[stats_type][j]);
 
 				if (mfd <= 0)
 					continue;
@@ -618,12 +629,10 @@ static int dcamcore_statis_buffer_cfg(
 				ion_buf->mfd[0] = mfd;
 				ion_buf->offset[0] = input->offset_array[stats_type][j];
 				ion_buf->type = CAM_BUF_USER;
-
-				pr_debug("stats %d, mfd %d, off %d\n",
-					stats_type, mfd, ion_buf->offset[0]);
+				pr_debug("stats %d, mfd %d, off %d\n", stats_type, mfd, ion_buf->offset[0]);
 			}
 		}
-		pr_info("done\n");
+		pr_info("statis init done\n");
 
 	} else {
 		path_id = dcamcore_statis_type_to_path_id(input->type);
@@ -640,16 +649,14 @@ static int dcamcore_statis_buffer_cfg(
 		for (j = 0; j < STATIS_BUF_NUM_MAX; j++) {
 			mfd = pctx->statis_buf_array[input->type][j].mfd[0];
 			offset = pctx->statis_buf_array[input->type][j].offset[0];
-			if ((mfd > 0) && (mfd == input->mfd)
-				&& (offset == input->offset)) {
+			if ((mfd > 0) && (mfd == input->mfd) && (offset == input->offset)) {
 				ion_buf = &pctx->statis_buf_array[input->type][j];
 				break;
 			}
 		}
 
 		if (ion_buf == NULL) {
-			pr_err("fail to get statis buf %d, type %d\n",
-					input->type, input->mfd);
+			pr_err("fail to get statis buf %d, type %d\n", input->type, input->mfd);
 			ret = -EINVAL;
 			goto exit;
 		}
@@ -659,12 +666,13 @@ static int dcamcore_statis_buffer_cfg(
 		pframe->buf = *ion_buf;
 		path = &pctx->path[path_id];
 		ret = cam_queue_enqueue(&path->out_buf_queue, &pframe->list);
-		pr_debug("statis %d, mfd %d, off %d, iova 0x%08x,  kaddr 0x%lx\n",
-			input->type, mfd, offset,
-			(uint32_t)pframe->buf.iova[0], pframe->buf.addr_k[0]);
+		pr_debug("dcam sw %d, statis %d, mfd %d, off %d, iova 0x%08x,  kaddr 0x%lx\n",
+			pctx->sw_ctx_id, input->type, mfd, offset, (uint32_t)pframe->buf.iova[0], pframe->buf.addr_k[0]);
 
-		if (ret)
+		if (ret) {
+			pr_err("fail to statis_type %d, enqueue out_buf_queue, cnt %d\n", input->type, cam_queue_cnt_get(&path->out_buf_queue));
 			cam_queue_empty_frame_put(pframe);
+		}
 	}
 exit:
 	return ret;
@@ -1183,6 +1191,51 @@ void dcam_core_sync_helper_put(void *dev,
 	spin_unlock_irqrestore(&pctx->helper_lock, flags);
 }
 
+static int dcamcore_gtm_ltm_bypass_cfg(struct dcam_sw_context *sw_pctx, struct isp_io_param *io_param)
+{
+	int ret = 0;
+	struct dcam_path_desc *path = NULL;
+	struct isp_dev_ltm_bypass ltm_bypass_info;
+	struct dcam_dev_raw_gtm_bypass gtm_bypass_info;
+	struct camera_frame *frame = NULL;
+	uint32_t for_capture = 0, for_fdr = 0;
+	if ((io_param->scene_id == PM_SCENE_FDRL) ||
+		(io_param->scene_id == PM_SCENE_FDRH) ||
+		(io_param->scene_id == PM_SCENE_FDR_PRE) ||
+		(io_param->scene_id == PM_SCENE_FDR_DRC))
+		for_fdr = 1;
+	for_capture = (io_param->scene_id == PM_SCENE_CAP ? 1 : 0) | for_fdr;
+	if (io_param->sub_block == ISP_BLOCK_RGB_LTM)
+		ret = copy_from_user((void *)(&ltm_bypass_info), io_param->property_param, sizeof(struct isp_dev_ltm_bypass));
+	else
+		ret = copy_from_user((void *)(&gtm_bypass_info), io_param->property_param, sizeof(struct dcam_dev_raw_gtm_bypass));
+	if (ret) {
+		pr_err("fail to copy, ret=0x%x\n", (unsigned int)ret);
+		return -EPERM;
+	}
+	if (for_capture)
+		path = &sw_pctx->path[DCAM_PATH_FULL];
+	else
+		path = &sw_pctx->path[DCAM_PATH_BIN];
+	frame = cam_queue_dequeue_peek(&path->result_queue, struct camera_frame, list);
+	if (frame) {
+		if (io_param->sub_block == ISP_BLOCK_RGB_LTM) {
+			frame->need_ltm_hist = !ltm_bypass_info.ltm_hist_stat_bypass;
+			frame->need_ltm_map = !ltm_bypass_info.ltm_map_bypass;
+			pr_debug("dcam ctx%d,path%d fid %d , ltm hist bypass %d, map bypass %d\n",
+				sw_pctx->sw_ctx_id, path->path_id, frame->fid, ltm_bypass_info.ltm_hist_stat_bypass, ltm_bypass_info.ltm_map_bypass);
+		} else {
+			frame->need_gtm_hist = !gtm_bypass_info.gtm_hist_stat_bypass;
+			frame->need_gtm_map = !gtm_bypass_info.gtm_map_bypass;
+			frame->gtm_mod_en = gtm_bypass_info.gtm_mod_en;
+			pr_debug("dcam ctx%d,path%d fid %d , gtm enalbe %d hist bypass %d, map bypass %d\n",
+				sw_pctx->sw_ctx_id, path->path_id, frame->fid, gtm_bypass_info.gtm_mod_en, gtm_bypass_info.gtm_hist_stat_bypass, gtm_bypass_info.gtm_map_bypass);
+		}
+	} else
+		pr_warn("dcam ctx%d,path%d dont have buffer\n", sw_pctx->cur_ctx_id, path->path_id);
+	return ret;
+}
+
 static int dcamcore_param_cfg(void *dcam_handle, void *param)
 {
 	int ret = 0;
@@ -1212,6 +1265,12 @@ static int dcamcore_param_cfg(void *dcam_handle, void *param)
 		io_param->scene_id == PM_SCENE_FDR_MERGE)
 		pctx = &sw_pctx->ctx[DCAM_CXT_2];
 	pm = &pctx->blk_pm;
+
+	if (((io_param->sub_block == ISP_BLOCK_RGB_LTM) && (io_param->property == ISP_PRO_RGB_LTM_BYPASS)) ||
+		((io_param->sub_block == ISP_BLOCK_RGB_GTM) && ((io_param->property == DCAM_PRO_GTM_BYPASS)))) {
+		ret = dcamcore_gtm_ltm_bypass_cfg(sw_pctx, io_param);
+		return ret;
+	}
 
 	if (atomic_read(&pctx->user_cnt) == 0) {
 		pr_info("init hw_ctx_id:%d sw_ctx_id:%d ctx[%d]\n", sw_pctx->hw_ctx_id, sw_pctx->sw_ctx_id, pctx->ctx_id);
@@ -1257,7 +1316,7 @@ exit:
 }
 
 static int dcamcore_param_reconfig(
-	struct dcam_sw_context *sw_pctx, uint32_t cxt_id)
+	struct dcam_sw_context *sw_pctx, uint32_t cxt_id, void *param)
 {
 	int ret = 0;
 	struct cam_hw_info *hw = NULL;
@@ -1275,6 +1334,8 @@ static int dcamcore_param_reconfig(
 	pm = &pctx->blk_pm;
 	hw = sw_pctx->dev->hw;
 	pm->in_size = sw_pctx->cap_info.cap_size;
+	if (param)
+		pm->non_zsl_cap = *((uint32_t *)param);
 
 	if (sw_pctx->slowmotion_count)
 		pm->is_high_fps = 1;
@@ -1672,7 +1733,7 @@ static int dcamcore_ioctrl(void *dcam_handle, enum dcam_ioctrl_cmd cmd, void *pa
 		break;
 	case DCAM_IOCTL_RECFG_PARAM:
 		/* online context id is always 0 */
-		ret = dcamcore_param_reconfig(pctx, DCAM_CXT_0);
+		ret = dcamcore_param_reconfig(pctx, DCAM_CXT_0, param);
 		break;
 	case DCAM_IOCTL_CFG_EBD:
 		pctx->is_ebd = 1;
@@ -1882,6 +1943,7 @@ static int dcamcore_dev_start(void *dcam_handle, int online)
 		atomic_set(&pctx->path[DCAM_PATH_HIST].user_cnt, 0);
 		atomic_set(&pctx->path[DCAM_PATH_LSCM].user_cnt, 0);
 		atomic_set(&pctx->path[DCAM_PATH_3DNR].user_cnt, 0);
+		atomic_set(&pctx->path[DCAM_PATH_GTM_HIST].user_cnt, 0);
 	} else {
 		/* enable statistic paths  */
 		if (pm->aem.bypass == 0)
@@ -1905,6 +1967,13 @@ static int dcamcore_dev_start(void *dcam_handle, int online)
 
 		if (pctx->is_ebd)
 			atomic_set(&pctx->path[DCAM_PATH_VCH2].user_cnt, 1);
+
+		if ((pm->gtm[DCAM_GTM_PARAM_PRE].gtm_info.bypass_info.gtm_mod_en || pm->gtm[DCAM_GTM_PARAM_CAP].gtm_info.bypass_info.gtm_mod_en)
+			&& (pm->gtm[DCAM_GTM_PARAM_PRE].gtm_calc_mode == GTM_SW_CALC))
+			atomic_set(&pctx->path[DCAM_PATH_GTM_HIST].user_cnt, 1);
+		if ((pm->rgb_gtm[DCAM_GTM_PARAM_PRE].rgb_gtm_info.bypass_info.gtm_mod_en || pm->rgb_gtm[DCAM_GTM_PARAM_CAP].rgb_gtm_info.bypass_info.gtm_mod_en)
+			&& (pm->rgb_gtm[DCAM_GTM_PARAM_PRE].gtm_calc_mode == GTM_SW_CALC))
+			atomic_set(&pctx->path[DCAM_PATH_GTM_HIST].user_cnt, 1);
 	}
 
 	pctx->base_fid = pm->frm_idx;
@@ -2725,8 +2794,10 @@ int dcam_core_context_unbind(struct dcam_sw_context *pctx)
 			pctx_hw->sw_ctx_id = DCAM_SW_CONTEXT_MAX;
 			pctx->hw_ctx_id = DCAM_HW_CONTEXT_MAX;
 			pctx->hw_ctx = NULL;
-			for (j = DCAM_CXT_0; j < DCAM_CXT_NUM; j++)
+			for (j = DCAM_CXT_0; j < DCAM_CXT_NUM; j++) {
 				pctx->ctx[j].blk_pm.idx = DCAM_HW_CONTEXT_MAX;
+				pctx->ctx[j].blk_pm.non_zsl_cap = 0;
+			}
 			goto exit;
 		}
 

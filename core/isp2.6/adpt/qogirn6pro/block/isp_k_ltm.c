@@ -46,6 +46,7 @@ static void isp_ltm_config_hists(uint32_t idx,
 	if (g_isp_bypass[idx] & (1 << _EISP_LTM))
 		hists->bypass = 1;
 	ISP_REG_MWR(idx, ISP_LTM_PARAMETERS, BIT_0, hists->bypass);
+	pr_debug("isp %d rgb ltm hist bypass %d\n", idx, hists->bypass);
 	if (hists->bypass)
 		return;
 
@@ -107,6 +108,7 @@ static void isp_ltm_config_map(uint32_t idx,
 	if (g_isp_bypass[idx] & (1 << _EISP_LTM))
 		map->bypass = 1;
 	ISP_REG_MWR(idx, ISP_LTM_MAP_PARAM0, BIT_0, map->bypass);
+	pr_debug("isp %d rgb ltm map bypass %d\n", idx, map->bypass);
 	if (map->bypass)
 		return;
 

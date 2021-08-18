@@ -134,19 +134,17 @@ static int camioctl_statis_buf_set(struct camera_module *module,
 	struct cam_hw_info *hw = module->dcam_dev_handle->hw;
 	struct dcam_sw_context *dcam_sw_ctx = NULL;
 
-	ret = copy_from_user((void *)&statis_buf,
-		(void *)arg, sizeof(struct isp_statis_buf_input));
+	ret = copy_from_user((void *)&statis_buf, (void *)arg, sizeof(struct isp_statis_buf_input));
 	if (unlikely(ret)) {
 		pr_err("fail to copy from user, ret %d\n", ret);
 		ret = -EFAULT;
 		goto exit;
 	}
 
-	if ((statis_buf.type == STATIS_INIT) &&
-		(atomic_read(&module->state) != CAM_IDLE) &&
-		(atomic_read(&module->state) != CAM_CFG_CH)) {
-		pr_err("fail to get init statis buf state: %d\n",
-			atomic_read(&module->state));
+	if ((statis_buf.type == STATIS_INIT)
+		&& (atomic_read(&module->state) != CAM_IDLE)
+		&& (atomic_read(&module->state) != CAM_CFG_CH)) {
+		pr_err("fail to get init statis buf state: %d\n", atomic_read(&module->state));
 		ret = -EFAULT;
 		goto exit;
 	}
@@ -166,19 +164,18 @@ static int camioctl_statis_buf_set(struct camera_module *module,
 
 	switch (statis_buf.type) {
 		case STATIS_INIT:
-			ret = module->dcam_dev_handle->dcam_pipe_ops->ioctl(dcam_sw_ctx, DCAM_IOCTL_CFG_STATIS_BUF,
-					&statis_buf);
+			ret = module->dcam_dev_handle->dcam_pipe_ops->ioctl(dcam_sw_ctx, DCAM_IOCTL_CFG_STATIS_BUF, &statis_buf);
 
-			if (hw->ip_isp->frbg_hist_support) {
+			if (hw->ip_isp->frbg_hist_support || hw->ip_isp->rgb_gtm_support) {
 				ch = &module->channel[CAM_CH_PRE];
 				if (!ch->enable && module->simulator)
 					ch = &module->channel[CAM_CH_CAP];
 
 				if (ch->enable) {
 					ret = module->isp_dev_handle->isp_ops->ioctl(module->isp_dev_handle,
-					ch->isp_ctx_id,
-					ISP_IOCTL_CFG_STATIS_BUF,
-					&statis_buf);
+						ch->isp_ctx_id,
+						ISP_IOCTL_CFG_STATIS_BUF,
+						&statis_buf);
 				}
 			}
 			break;
@@ -195,8 +192,29 @@ static int camioctl_statis_buf_set(struct camera_module *module,
 				pr_info("cam%d paused, type %d ignored\n", module->idx, statis_buf.type);
 				goto exit;
 			}
-			ret = module->dcam_dev_handle->dcam_pipe_ops->ioctl(dcam_sw_ctx, DCAM_IOCTL_CFG_STATIS_BUF,
-					&statis_buf);
+			ret = module->dcam_dev_handle->dcam_pipe_ops->ioctl(dcam_sw_ctx, DCAM_IOCTL_CFG_STATIS_BUF, &statis_buf);
+			break;
+		case STATIS_GTMHIST:
+			if (module->paused) {
+				pr_debug("cam%d paused, type %d ignored\n", module->idx, statis_buf.type);
+				goto exit;
+			}
+
+			if (hw->ip_isp->rgb_gtm_support > 0) {
+				/*gtm in isp*/
+				ch = &module->channel[CAM_CH_PRE];
+				if (!ch->enable) {
+					pr_debug("prev channel disable, can not set gtm buf\n");
+					break;
+				}
+
+				ret = module->isp_dev_handle->isp_ops->ioctl(module->isp_dev_handle,
+					ch->isp_ctx_id, ISP_IOCTL_CFG_STATIS_BUF, &statis_buf);
+			} else {
+				/*gtm in dcam*/
+				pr_debug("dcam gtm statis buf cfg\n");
+				ret = module->dcam_dev_handle->dcam_pipe_ops->ioctl(dcam_sw_ctx, DCAM_IOCTL_CFG_STATIS_BUF, &statis_buf);
+			}
 			break;
 		case STATIS_HIST2:
 			if (hw->ip_isp->frbg_hist_support) {
@@ -211,8 +229,7 @@ static int camioctl_statis_buf_set(struct camera_module *module,
 					&statis_buf);
 				}
 			} else
-				ret = module->dcam_dev_handle->dcam_pipe_ops->ioctl(dcam_sw_ctx, DCAM_IOCTL_CFG_STATIS_BUF,
-						&statis_buf);
+				ret = module->dcam_dev_handle->dcam_pipe_ops->ioctl(dcam_sw_ctx, DCAM_IOCTL_CFG_STATIS_BUF, &statis_buf);
 			break;
 		case STATIS_DBG_INIT:
 		case STATIS_PARAM:
@@ -300,7 +317,7 @@ static int camioctl_param_cfg(struct camera_module *module,
 	}
 
 	if ((param.sub_block & DCAM_ISP_BLOCK_MASK) == DCAM_BLOCK_BASE) {
-		if (dev && dev->hw->ip_isp->rgb_gtm_support && (param.sub_block == DCAM_BLOCK_RAW_GTM)) {
+		if (dev && dev->hw->ip_isp->rgb_gtm_support && (param.sub_block == DCAM_BLOCK_GTM)) {
 			/*only for l6*/
 			if (param.scene_id == PM_SCENE_PRE)
 				channel = &module->channel[CAM_CH_PRE];
@@ -308,12 +325,23 @@ static int camioctl_param_cfg(struct camera_module *module,
 				channel = &module->channel[CAM_CH_CAP];
 
 			param.sub_block = ISP_BLOCK_RGB_GTM;
-			param.property = ISP_PRO_RGB_GTM_BLOCK;
+
 			pr_debug("Config gtm block chn en%d, ctx_id %d\n", channel->enable, channel->isp_ctx_id);
-			if (channel->enable && channel->isp_ctx_id >= 0) {
-				isp_ctx_id = channel->isp_ctx_id;
-				ret = module->isp_dev_handle->isp_ops->cfg_blk_param(module->isp_dev_handle,
-					isp_ctx_id, &param);
+			if (channel->enable && (channel->isp_ctx_id >= 0)) {
+				if (param.property == DCAM_PRO_GTM_BYPASS) {
+					/* gtm bypass sync with frm in dcam ctx */
+					if ((for_capture && (module->aux_dcam_dev != NULL)) || is_rps)
+						pr_warn("not support offline ctx now\n");
+					else
+						ret = module->dcam_dev_handle->dcam_pipe_ops->cfg_blk_param(
+							&module->dcam_dev_handle->sw_ctx[module->cur_sw_ctx_id], &param);
+				} else {
+					isp_ctx_id = channel->isp_ctx_id;
+					ret = module->isp_dev_handle->isp_ops->cfg_blk_param(module->isp_dev_handle,
+						isp_ctx_id, &param);
+				}
+				if (ret)
+					pr_err("fail to set block %d, property %d\n", param.sub_block, param.property);
 			}
 			goto exit;
 		}
@@ -343,10 +371,11 @@ static int camioctl_param_cfg(struct camera_module *module,
 				isp_ctx_id = channel->isp_fdrl_ctx;
 			else if (param.scene_id == PM_SCENE_FDRH || param.scene_id == PM_SCENE_FDR_DRC)
 				isp_ctx_id = channel->isp_fdrh_ctx;
-			if (module->grp->hw_info->prj_id == QOGIRN6pro &&
+			if ((module->grp->hw_info->prj_id == QOGIRN6pro &&
 				(param.sub_block == ISP_BLOCK_GAMMA || param.sub_block == ISP_BLOCK_CMC ||
 				param.sub_block == ISP_BLOCK_CFA || param.sub_block == ISP_BLOCK_NLM ||
-				param.sub_block == ISP_BLOCK_CCE || param.sub_block == ISP_BLOCK_HIST2)) {
+				param.sub_block == ISP_BLOCK_CCE || param.sub_block == ISP_BLOCK_HIST2)) ||
+				(param.sub_block == ISP_BLOCK_RGB_LTM && param.property == ISP_PRO_RGB_LTM_BYPASS)) {
 				if ((for_capture && (module->aux_dcam_dev != NULL)) || is_rps) {
 					ret = module->dcam_dev_handle->dcam_pipe_ops->cfg_blk_param(
 						&module->dcam_dev_handle->sw_ctx[module->offline_cxt_id], &param);
@@ -385,6 +414,7 @@ static int camioctl_function_mode_set(struct camera_module *module,
 	ret |= get_user(module->cam_uinfo.is_fdr, &uparam->need_fdr);
 	ret |= get_user(module->cam_uinfo.fdr_cap_pre_num, &uparam->fdr_preview_captured_num);
 	ret |= get_user(module->cam_uinfo.fdr_version, &uparam->fdr_version);
+	ret |= get_user(module->cam_uinfo.zoom_conflict_with_ltm, &uparam->zoom_conflict_with_ltm);
 
 	module->cam_uinfo.is_rgb_ltm = hw->ip_isp->rgb_ltm_support;
 	module->cam_uinfo.is_yuv_ltm = hw->ip_isp->yuv_ltm_support;
@@ -394,12 +424,13 @@ static int camioctl_function_mode_set(struct camera_module *module,
 	else
 		module->cam_uinfo.is_pyr_dec = hw->ip_isp->pyr_dec_support;
 
-	pr_info("4in1:[%d], rgb_ltm[%d], yuv_ltm[%d], gtm[%d], dual[%d], dec %d, fdr_version:%d, is_fdr:%d, pre_num:%d\n",
+	pr_info("4in1:[%d], rgb_ltm[%d], yuv_ltm[%d], gtm[%d], dual[%d], dec %d, fdr_version:%d, is_fdr:%d, pre_num:%d, zoom_conflict_with_ltm %d\n",
 		module->cam_uinfo.is_4in1,module->cam_uinfo.is_rgb_ltm,
 		module->cam_uinfo.is_yuv_ltm, module->cam_uinfo.is_rgb_gtm,
 		module->cam_uinfo.is_dual, module->cam_uinfo.is_pyr_dec,
 		module->cam_uinfo.fdr_version, module->cam_uinfo.is_fdr,
-		module->cam_uinfo.fdr_cap_pre_num);
+		module->cam_uinfo.fdr_cap_pre_num,
+		module->cam_uinfo.zoom_conflict_with_ltm);
 
 	if (unlikely(ret)) {
 		pr_err("fail to copy from user, ret %d\n", ret);
@@ -1710,7 +1741,7 @@ static int camioctl_stream_on(struct camera_module *module,
 	int ret = 0, loop = 0;
 	uint32_t online = 1;
 	uint32_t i = 0, line_w = 0, isp_ctx_id = 0, isp_path_id = 0;
-	uint32_t uframe_sync = 0, live_ch_count = 0;
+	uint32_t uframe_sync = 0, live_ch_count = 0, non_zsl_cap = 0;
 	uint32_t timer = 0;
 	struct channel_context *ch = NULL;
 	struct channel_context *ch_pre = NULL, *ch_vid = NULL, *ch_raw = NULL;
@@ -1914,7 +1945,10 @@ cfg_ch_done:
 		sw_ctx->csi_connect_stat = DCAM_CSI_RESUME;
 	}
 
-	dev->dcam_pipe_ops->ioctl(sw_ctx, DCAM_IOCTL_RECFG_PARAM, NULL);
+	if ((module->channel[CAM_CH_PRE].enable == 0) && (module->channel[CAM_CH_CAP].enable == 1))
+		non_zsl_cap = 1;
+	dev->dcam_pipe_ops->ioctl(sw_ctx, DCAM_IOCTL_RECFG_PARAM, &non_zsl_cap);
+
 	dcam_core_get_fmcu(sw_ctx);
 
 	sw_ctx->raw_callback = module->raw_callback;
@@ -2461,14 +2495,10 @@ static int camioctl_capture_start(struct camera_module *module,
 	struct cam_hw_info *hw = NULL;
 	struct cam_hw_gtm_ltm_dis dis;
 	ktime_t start_time = 0;
-	uint32_t idx;
 	uint32_t isp_idx = 0;
-	uint32_t cap_skip_num = 0;
-	uint32_t gtm_param_idx = DCAM_GTM_PARAM_CAP;
 	struct channel_context *ch = NULL;
 	struct dcam_sw_context *sw_ctx = NULL;
 	struct dcam_sw_context *sw_aux_ctx = NULL;
-	struct isp_hw_gtm_func gtm_func;
 	struct dcam_hw_path_restart re_patharg;
 	uint32_t is_post_multi = 0;
 
@@ -2506,28 +2536,17 @@ static int camioctl_capture_start(struct camera_module *module,
 	isp_idx = module->channel[CAM_CH_CAP].isp_ctx_id;
 	module->isp_dev_handle->isp_ops->ioctl(module->isp_dev_handle, ch->isp_ctx_id,
 		ISP_IOCTL_CFG_POST_CNT, &param.cap_cnt);
-	if (module->capture_scene == CAPTURE_HDR
-		|| module->capture_scene == CAPTURE_FDR
-		|| module->capture_scene == CAPTURE_SW3DNR
+	if (module->capture_scene == CAPTURE_FDR
 		|| module->capture_scene == CAPTURE_HW3DNR
-		|| module->capture_scene == CAPTURE_FLASH
-		|| module->capture_scene == CAPTURE_MFSR) {
+		|| module->capture_scene == CAPTURE_FLASH) {
 		dis.dcam_idx = sw_ctx->hw_ctx_id;
 		dis.isp_idx = isp_idx;
-		if (hw->ip_isp->rgb_gtm_support) {
-			gtm_func.index = ISP_K_GTM_LTM_DIS;
-			hw->isp_ioctl(hw, ISP_HW_CFG_GTM_FUNC_GET, &gtm_func);
-			gtm_func.k_blk_func(&dis);
-		} else {
+		if (!hw->ip_isp->rgb_gtm_support) {
 			hw->dcam_ioctl(hw, DCAM_HW_CFG_GTM_LTM_DIS, &dis);
 		}
 		if (module->capture_scene == CAPTURE_FDR &&
 			module->cam_uinfo.fdr_version)
 			module->dcam_dev_handle->sw_ctx[module->offline_cxt_id].is_fdr = 1;
-	} else if (param.type == DCAM_CAPTURE_START_FROM_NEXT_SOF) {
-		if (hw->ip_isp->rgb_gtm_support == 0)
-			module->dcam_dev_handle->dcam_pipe_ops->ioctl(sw_ctx,
-				DCAM_IOCTL_CFG_GTM_UPDATE, &gtm_param_idx);
 	}
 
 	if (module->capture_scene == CAPTURE_FDR && !module->cam_uinfo.fdr_version) {
@@ -2554,7 +2573,6 @@ static int camioctl_capture_start(struct camera_module *module,
 				DCAM_PATH_RAW, &shutoff);
 		}
 	}
-	atomic_set(&module->cap_skip_frames, -1);
 
 	/* recognize the capture scene */
 	if (param.type == DCAM_CAPTURE_START_FROM_NEXT_SOF) {
@@ -2562,17 +2580,6 @@ static int camioctl_capture_start(struct camera_module *module,
 		module->isp_dev_handle->isp_ops->ioctl(module->isp_dev_handle, ch->isp_ctx_id,
 			ISP_IOCTL_CFG_POST_MULTI_SCENE, &is_post_multi);
 		module->dcam_cap_status = DCAM_CAPTURE_START_FROM_NEXT_SOF;
-		if (hw->ip_isp->rgb_gtm_support) {
-			idx = module->channel[CAM_CH_CAP].isp_ctx_id;
-			gtm_func.index = ISP_K_GTM_STATUS_GET;
-			hw->isp_ioctl(hw, ISP_HW_CFG_GTM_FUNC_GET, &gtm_func);
-			cap_skip_num = gtm_func.k_blk_func(&idx);
-			atomic_set(&module->cap_skip_frames, cap_skip_num);
-		} else {
-			idx = sw_ctx->hw_ctx_id;
-			cap_skip_num = hw->dcam_ioctl(hw, DCAM_HW_CFG_GTM_STATUS_GET, &idx);
-			atomic_set(&module->cap_skip_frames, cap_skip_num);
-		}
 		atomic_set(&module->capture_frames_dcam, param.cap_cnt);
 		atomic_set(&module->cap_total_frames, param.cap_cnt);
 		if (module->capture_scene == CAPTURE_SW3DNR && (param.timestamp != 0))
@@ -2623,7 +2630,6 @@ static int camioctl_capture_start(struct camera_module *module,
 	if (module->dump_thrd.thread_task && module->dcam_dev_handle)
 		camdump_start(&module->dump_thrd, &module->dump_base, module->dcam_idx);
 
-
 	pr_info("cam %d start capture type %d, scene %d, cnt %d, time %lld, capture num:%d\n",
 		module->idx, param.type, module->capture_scene, param.cap_cnt,
 		module->capture_times, module->capture_frames_dcam);
@@ -2639,7 +2645,6 @@ static int camioctl_capture_stop(struct camera_module *module,
 	uint32_t isp_idx = 0;
 	struct dcam_sw_context *sw_ctx = NULL;
 	struct dcam_sw_context *sw_aux_ctx = NULL;
-	struct isp_hw_gtm_func gtm_func;
 	uint32_t is_post_multi = 0;
 
 	if (module->cap_status == CAM_CAPTURE_STOP) {
@@ -2658,20 +2663,14 @@ static int camioctl_capture_stop(struct camera_module *module,
 	isp_idx = module->channel[CAM_CH_CAP].isp_ctx_id;
 	module->isp_dev_handle->isp_ops->ioctl(module->isp_dev_handle, module->channel[CAM_CH_CAP].isp_ctx_id,
 		ISP_IOCTL_CFG_POST_MULTI_SCENE, &is_post_multi);
-	if (module->capture_scene == CAPTURE_HDR
-		|| module->capture_scene == CAPTURE_FDR
-		|| module->capture_scene == CAPTURE_SW3DNR
+	if (module->capture_scene == CAPTURE_FDR
 		|| module->capture_scene == CAPTURE_HW3DNR
 		|| module->capture_scene == CAPTURE_FLASH) {
 		eb.dcam_idx = sw_ctx->hw_ctx_id;
 		eb.isp_idx = isp_idx;
-		if (hw->ip_isp->rgb_gtm_support) {
-			gtm_func.index = ISP_K_GTM_LTM_EB;
-			hw->isp_ioctl(hw, ISP_HW_CFG_GTM_FUNC_GET, &gtm_func);
-			gtm_func.k_blk_func(&eb);
-		} else {
-			hw->dcam_ioctl(hw, DCAM_HW_CFG_GTM_LTM_EB, &eb);
-		}
+		eb.dcam_param = &sw_ctx->ctx[DCAM_CXT_0].blk_pm;
+		if (!hw->ip_isp->rgb_gtm_support)
+			module->dcam_dev_handle->hw->dcam_ioctl(hw, DCAM_HW_CFG_GTM_LTM_EB, &eb);
 	}
 
 	if (module->capture_scene == CAPTURE_FDR) {

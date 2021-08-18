@@ -99,6 +99,7 @@ enum isp_statis_buf_type {
 	STATIS_3DNR,
 	STATIS_LSCM,
 	STATIS_HIST2,
+	STATIS_GTMHIST,
 	STATIS_TYPE_MAX,
 	STATIS_DBG_INIT,
 	STATIS_PARAM,
@@ -125,9 +126,8 @@ enum dcam_block {
 	DCAM_BLOCK_GRGB,
 	DCAM_BLOCK_3DNR_ME,
 	DCAM_BLOCK_AFM,
-	DCAM_BLOCK_RAW_GTM,
+	DCAM_BLOCK_GTM,
 	DCAM_BLOCK_LSCM,
-	DCAM_BLOCK_RGB_GTM,
 	DCAM_BLOCK_TOTAL,
 
 	ISP_BLOCK_BASE = (1 << 8),
@@ -379,6 +379,7 @@ enum isp_rgb_ltm_property {
 	ISP_PRO_RGB_LTM_BLOCK,
 	ISP_PRO_RGB_LTM_PRE_PARAM,
 	ISP_PRO_RGB_LTM_CAP_PARAM,
+	ISP_PRO_RGB_LTM_BYPASS,
 };
 
 enum isp_yuv_ltm_property {
@@ -391,6 +392,8 @@ enum isp_rgb_gtm_property {
 	ISP_PRO_RGB_GTM_BLOCK,
 	ISP_PRO_RGB_GTM_PRE_PARAM,
 	ISP_PRO_RGB_GTM_CAP_PARAM,
+	ISP_PRO_RGB_GTM_SW_MAP_SET,
+	ISP_PRO_RGB_GTM_BYPASS,
 };
 
 enum isp_pyramid_onl_property {
@@ -401,15 +404,19 @@ enum isp_pyramid_offl_property {
 	ISP_PRO_PYRAMID_OFFL_BLOCK,
 };
 
-enum dcam_gtm_property {
-	DCAM_PRO_RAW_GTM_BLOCK,
-	DCAM_PRO_RAW_GTM_SLICE,
-	DCAM_PRO_RAW_GTM_PRE_PARAM,
-	DCAM_PRO_RAW_GTM_CAP_PARAM,
+enum cam_gtm_calc_mode {
+	GTM_SW_CALC = 1,
+	GTM_HW_CALC,
 };
 
-enum dcam_rgb_gtm_property {
-	DCAM_PRO_RGB_GTM_BLOCK,
+enum dcam_gtm_property {
+	DCAM_PRO_GTM_BLOCK,
+	DCAM_PRO_GTM_SLICE,
+	DCAM_PRO_GTM_PRE_PARAM,
+	DCAM_PRO_GTM_CAP_PARAM,
+	DCAM_PRO_GTM_MAPPING,
+	DCAM_PRO_GTM_CALC_MODE,
+	DCAM_PRO_GTM_BYPASS,
 };
 
 enum isp_3dlut_property {
@@ -482,15 +489,32 @@ struct dcam_dev_gtm_slice_info {
 	uint32_t slice_height;
 };
 
+struct cam_gtm_mapping {
+	uint32_t idx;
+	uint32_t ymin;
+	uint32_t ymax;
+	uint32_t yavg;
+	uint32_t target;
+	uint32_t lr_int;
+	uint32_t log_min_int;
+	uint32_t log_diff_int;
+	uint32_t diff;
+	uint32_t ltm_strength;
+};
+
+struct dcam_dev_raw_gtm_bypass {
+	uint32_t gtm_hist_stat_bypass;
+	uint32_t gtm_map_bypass;
+	uint32_t gtm_mod_en;
+};
+
 struct dcam_dev_raw_gtm_block_info {
 	uint32_t gtm_tm_out_bit_depth;
 	uint32_t gtm_tm_in_bit_depth;
 	uint32_t gtm_tm_luma_est_mode;
 	uint32_t gtm_cur_is_first_frame;
 	uint32_t gtm_tm_param_calc_by_hw;
-	uint32_t gtm_hist_stat_bypass;
-	uint32_t gtm_map_bypass;
-	uint32_t gtm_mod_en;
+	struct dcam_dev_raw_gtm_bypass bypass_info;
 	uint32_t gtm_imgkey_setting_value;
 	uint32_t gtm_imgkey_setting_mode;
 	uint32_t gtm_target_norm_coeff;
@@ -526,9 +550,7 @@ struct dcam_dev_rgb_gtm_block_info {
 	uint32_t gtm_tm_in_bit_depth;
 	uint32_t gtm_cur_is_first_frame;
 	uint32_t gtm_tm_param_calc_by_hw;
-	uint32_t gtm_hist_stat_bypass;
-	uint32_t gtm_map_bypass;
-	uint32_t gtm_mod_en;
+	struct dcam_dev_raw_gtm_bypass bypass_info;
 	uint32_t gtm_imgkey_setting_value;
 	uint32_t gtm_imgkey_setting_mode;
 	uint32_t gtm_target_norm_coeff;
@@ -560,58 +582,6 @@ struct dcam_dev_rgb_gtm_block_info {
 	uint32_t gtm_map_video_mode;
 	uint32_t gtm_map_bilateral_sigma_d;
 	uint32_t gtm_map_bilateral_sigma_r;
-	uint32_t gtm_tm_param_calc_by_sw;
-	uint32_t tm_filter_dist_c[49];
-	uint32_t tm_filter_distw_c[19];
-	uint32_t tm_filter_rangw_c[61];
-};
-
-struct isp_dev_gtm_slice_info {
-	uint32_t gtm_slice_main;
-	uint32_t gtm_slice_line_startpos;
-	uint32_t gtm_slice_line_endpos;
-	uint32_t slice_width;
-	uint32_t slice_height;
-};
-
-struct isp_dev_gtm_block_info {
-	uint32_t gtm_tm_out_bit_depth;
-	uint32_t gtm_tm_in_bit_depth;
-	uint32_t gtm_tm_luma_est_mode;
-	uint32_t gtm_cur_is_first_frame;
-	uint32_t gtm_tm_param_calc_by_hw;
-	uint32_t gtm_hist_stat_bypass;
-	uint32_t gtm_map_bypass;
-	uint32_t gtm_mod_en;
-	uint32_t gtm_imgkey_setting_value;
-	uint32_t gtm_imgkey_setting_mode;
-	uint32_t gtm_target_norm_coeff;
-	uint32_t gtm_target_norm;
-	uint32_t gtm_target_norm_setting_mode;
-	uint32_t gtm_ymin;
-	uint32_t gtm_yavg;
-	uint32_t gtm_ymax;
-	uint32_t gtm_log_min_int;
-	uint32_t gtm_lr_int;
-	uint32_t gtm_log_diff_int;
-	uint32_t gtm_log_max_int;
-	uint32_t gtm_hist_total;
-	uint32_t gtm_min_per;
-	uint32_t gtm_max_per;
-	uint32_t gtm_log_diff;
-	uint32_t gtm_pre_ymin_weight;
-	uint32_t gtm_cur_ymin_weight;
-	uint32_t gtm_ymax_diff_thr;
-	uint32_t gtm_yavg_diff_thr;
-	uint32_t tm_lumafilter_c[3][3];
-	uint32_t tm_lumafilter_shift;
-	uint32_t tm_rgb2y_g_coeff;
-	uint32_t tm_rgb2y_r_coeff;
-	uint32_t tm_rgb2y_b_coeff;
-	uint16_t tm_hist_xpts[GTM_HIST_BIN_NUM];
-	struct isp_dev_gtm_slice_info slice;
-	uint32_t gtm_map_video_mode;
-	uint32_t gtm_rgb2y_mode;
 	uint32_t gtm_tm_param_calc_by_sw;
 	uint32_t tm_filter_dist_c[49];
 	uint32_t tm_filter_distw_c[19];
@@ -2325,6 +2295,11 @@ struct isp_pyramid_offl_info {
 	uint32_t offline_layer_num;
 };
 
+struct isp_dev_ltm_bypass {
+	uint32_t ltm_hist_stat_bypass;
+	uint32_t ltm_map_bypass;
+};
+
 struct isp_ltm_tile_num_minus1 {
 	uint32_t tile_num_x;
 	uint32_t tile_num_y;
@@ -2701,7 +2676,7 @@ struct isp_param_data_l6 {
 	struct isp_dev_ynr_info_v2 ynr_info_v2;
 	struct isp_dev_yrandom_info yrandom_info;
 	struct isp_dev_noise_filter_info nf_info;
-	struct isp_dev_gtm_block_info gtm_info;
+	struct dcam_dev_raw_gtm_block_info gtm_info;
 	uint32_t vst_buf[ISP_VST_IVST_NUM2];
 	uint32_t ivst_buf[ISP_VST_IVST_NUM2];
 };

@@ -36,12 +36,16 @@ enum isp_gtm_cfg_cmd {
 	ISP_GTM_CFG_EB,
 	ISP_GTM_CFG_MODE,
 	ISP_GTM_CFG_FRAME_ID,
+	ISP_GTM_CFG_HIST_BYPASS,
+	ISP_GTM_CFG_MAP_BYPASS,
+	ISP_GTM_CFG_MOD_EN,
+	ISP_GTM_CFG_CALC_MODE,
 	ISP_GTM_CFG_MAX,
 };
 
 struct isp_gtm_ops {
 	int (*cfg_param)(void *handle, enum isp_gtm_cfg_cmd cmd, void *param);
-	int (*pipe_proc)(void *handle, void *param);
+	int (*pipe_proc)(void *handle, void *param, void *param2);
 	int (*get_preview_hist_cal)(void *handle);
 	int (*sync_completion_get)(void *handle);
 	int (*sync_completion_done)(void *handle);
@@ -50,6 +54,7 @@ struct isp_gtm_ops {
 struct isp_gtm_mapping {
 	uint32_t ctx_id;
 	uint32_t fid;
+	uint32_t sw_mode;
 	uint32_t gtm_hw_ymax;
 	uint32_t gtm_hw_ymin;
 	uint32_t gtm_hw_target_norm;
@@ -64,18 +69,26 @@ struct isp_gtm_mapping {
 	uint32_t gtm_blk_col_ocnt;
 };
 
+struct isp_gtm_bypass_param {
+	uint32_t ctx_id;
+	uint32_t mod_en;
+	uint32_t hist_bypass;
+	uint32_t map_bypass;
+};
+
 struct isp_gtm_sync {
 	atomic_t user_cnt;
 	atomic_t prev_fid;
 	atomic_t wait_completion_fid;
 	struct completion share_comp;
-	struct isp_dev_gtm_block_info tuning;
+	struct dcam_dev_raw_gtm_block_info tuning;
 	struct isp_gtm_mapping mapping;
 };
 
 struct isp_gtm_k_block{
 	struct isp_gtm_ctx_desc *ctx;
-	struct isp_dev_gtm_block_info *tuning;
+	struct dcam_dev_raw_gtm_block_info *tuning;
+	struct cam_gtm_mapping *map;
 };
 
 struct isp_gtm_ctx_desc {
@@ -86,6 +99,7 @@ struct isp_gtm_ctx_desc {
 	uint32_t cam_id;
 	uint32_t fid;
 	atomic_t cnt;
+	uint32_t calc_mode;
 	uint32_t gtm_mode_en;
 	uint32_t gtm_map_bypass;
 	uint32_t gtm_hist_stat_bypass;

@@ -154,8 +154,8 @@ int isp_k_update_post_cnr(void *handle)
 	new_height = pctx->isp_k_param.blkparam_info.new_height;
 	old_width = pctx->isp_k_param.blkparam_info.old_width;
 	old_height = pctx->isp_k_param.blkparam_info.old_height;
-	sensor_width = pctx->uinfo.original.src_size.w;
-	sensor_height = pctx->uinfo.original.src_size.h;
+	sensor_width = pctx->uinfo.sn_size.w;
+	sensor_height = pctx->uinfo.sn_size.h;
 
 	post_cnr_info = &pctx->isp_k_param.post_cnr_h_info;
 	param_post_cnr_info = &post_cnr_info->param_post_cnr_h;
@@ -177,8 +177,7 @@ int isp_k_update_post_cnr(void *handle)
 	radius = ((sensor_width+sensor_height) / 2) * param_post_cnr_info->base_radius_factor / post_cnr_info->radius_base;
 	radius_limit = (new_width+new_height ) / 2;
 	radius = (radius < radius_limit) ? radius : radius_limit;
-	if (old_width / new_width != 1)
-		radius = radius / 2;
+	radius = new_height * radius / old_height;
 
 	param_post_cnr_info->radius = radius;
 	val = ((param_post_cnr_info->radius & 0xFFFF) << 16) |

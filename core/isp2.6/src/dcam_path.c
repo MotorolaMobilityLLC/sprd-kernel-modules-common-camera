@@ -49,6 +49,7 @@ static const char *_DCAM_PATH_NAMES[DCAM_PATH_MAX] = {
 	[DCAM_PATH_3DNR] = "3DNR",
 	[DCAM_PATH_BPC] = "BPC",
 	[DCAM_PATH_LSCM] = "LSCM",
+	[DCAM_PATH_GTM_HIST] = "GTM_HIST",
 };
 
 /*
@@ -995,6 +996,34 @@ int dcam_path_fmcu_slw_queue_set(struct dcam_sw_context *sw_ctx)
 	return ret;
 }
 
+void dcampath_check_path_status(struct dcam_sw_context *dcam_sw_ctx, struct dcam_path_desc *path)
+{
+	struct dcam_dev_param *blk_dcam_pm = NULL;
+	struct camera_frame *frame = NULL;
+	int ret = 0, recycle = 0;
+
+	if (unlikely(!dcam_sw_ctx || !path))
+		return;
+
+	blk_dcam_pm = &dcam_sw_ctx->ctx[dcam_sw_ctx->cur_ctx_id].blk_pm;
+
+	if (blk_dcam_pm->gtm[DCAM_GTM_PARAM_PRE].gtm_info.bypass_info.gtm_hist_stat_bypass
+		&& (blk_dcam_pm->gtm[DCAM_GTM_PARAM_PRE].gtm_info.bypass_info.gtm_mod_en == 0))
+		recycle = 1;
+	if (blk_dcam_pm->rgb_gtm[DCAM_GTM_PARAM_PRE].rgb_gtm_info.bypass_info.gtm_hist_stat_bypass
+		&& (blk_dcam_pm->rgb_gtm[DCAM_GTM_PARAM_PRE].rgb_gtm_info.bypass_info.gtm_mod_en == 0))
+		recycle = 1;
+	if (recycle) {
+		pr_debug("dcam sw%d gtm bypass, no need buf\n", dcam_sw_ctx->sw_ctx_id);
+		frame = cam_queue_del_tail(&path->result_queue, struct camera_frame, list);
+		if (frame) {
+			ret = cam_queue_enqueue(&path->out_buf_queue, &frame->list);
+			if (ret)
+				pr_err("fail to enqueue gtm\n");
+		}
+	}
+}
+
 int dcam_path_store_frm_set(void *dcam_ctx_handle,
 		struct dcam_path_desc *path,
 		struct dcam_sync_helper *helper)
@@ -1030,9 +1059,17 @@ int dcam_path_store_frm_set(void *dcam_ctx_handle,
 
 	pr_debug("DCAM%u %s enter\n", idx, dcam_path_name_get(path_id));
 
+	if (path_id == DCAM_PATH_GTM_HIST)
+		dcampath_check_path_status(dcam_sw_ctx, path);
+
 	frame = dcam_path_frame_cycle(dcam_sw_ctx, path);
 	if (IS_ERR(frame))
 		return PTR_ERR(frame);
+
+	if (path_id == DCAM_PATH_GTM_HIST) {
+		atomic_inc(&path->set_frm_cnt);
+		return 0;
+	}
 
 	/* assign last buffer for AEM and HIST in slow motion */
 	i = dcam_sw_ctx->slowmotion_count - 1;
@@ -1151,8 +1188,7 @@ int dcam_path_store_frm_set(void *dcam_ctx_handle,
 		frame = cam_queue_dequeue(&path->reserved_buf_queue,
 			struct camera_frame, list);
 		if (!frame) {
-			pr_debug("DCAM%u %s buffer unavailable\n",
-				idx, dcam_path_name_get(path_id));
+			pr_debug("DCAM%u %s buffer unavailable\n", idx, dcam_path_name_get(path_id));
 			return -ENOMEM;
 		}
 
@@ -1196,8 +1232,7 @@ int dcam_path_store_frm_set(void *dcam_ctx_handle,
 			frame->fid = dcam_sw_ctx->base_fid + dcam_sw_ctx->index_to_set + i;
 
 			pr_debug("DCAM%u BIN set frame: fid %u, count %d\n",
-				idx, frame->fid,
-				atomic_read(&path->set_frm_cnt));
+				idx, frame->fid, atomic_read(&path->set_frm_cnt));
 			i++;
 		}
 

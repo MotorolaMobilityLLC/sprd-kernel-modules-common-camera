@@ -33,6 +33,8 @@
 #define ISP_PYR_DEC_LAYER_NUM           5
 #define MAX_PYR_DEC_LAYER_NUM           (ISP_PYR_DEC_LAYER_NUM + 1)
 #define ISP_PYRDEC_BUF_Q_LEN            4
+#define ISP_GTMHIST_BUF_Q_LEN           16
+#define ISP_HIST2_BUF_Q_LEN             16
 #define ISP_CONTEXT_TIMEOUT             msecs_to_jiffies(2000)
 
 enum isp_context_id {
@@ -180,11 +182,13 @@ struct isp_ctx_base_desc {
 	uint32_t slowmotion_count;
 	uint32_t slw_state;
 	enum cam_ch_id ch_id;
+	struct sprd_img_size sn_size;
 };
 
 struct isp_ctx_size_desc {
 	struct img_size src;
 	struct img_trim crop;
+	uint32_t zoom_conflict_with_ltm;
 };
 
 struct isp_ctx_compress_desc {
