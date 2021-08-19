@@ -163,6 +163,17 @@ static int camhw_get_all_rst(void *handle, void *arg)
 
 	hw = (struct cam_hw_info *)handle;
 
+	ret = cam_syscon_get_args_by_name(dn, "dcam01_axi_reset", ARRAY_SIZE(args), args);
+	if (ret) {
+		pr_err("fail to get dcam axi reset syscon\n");
+		return -EINVAL;
+	}
+
+	dcam_info = hw->ip_dcam[0];
+	dcam_info->syscon.axi_rst_mask= args[1];
+	dcam_info = hw->ip_dcam[1];
+	dcam_info->syscon.axi_rst_mask= args[1];
+
 	ret = cam_syscon_get_args_by_name(dn, "dcam01_all_reset", ARRAY_SIZE(args), args);
 	if (ret) {
 		pr_err("fail to get dcam all reset syscon\n");

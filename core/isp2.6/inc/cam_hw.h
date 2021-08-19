@@ -1236,6 +1236,7 @@ struct glb_syscon {
 	uint32_t rst_vau_mask;
 	uint32_t all_rst;
 	uint32_t all_rst_mask;
+	uint32_t axi_rst_mask;
 };
 
 struct cam_hw_ip_info {

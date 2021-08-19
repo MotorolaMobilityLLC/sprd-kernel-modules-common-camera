@@ -1386,6 +1386,7 @@ static irqreturn_t dcamint_error_handler(struct dcam_hw_context *dcam_hw_ctx,
 	}
 
 	/*
+	 *bug 1651427
 	 * When reset dcam appears on cap mipi overflow, clear the first frame.
 	 * Need to be removed in AB chip
 	 */

@@ -230,8 +230,11 @@ static int ispgtm_pipe_proc(void *handle, void *param)
 			gtm_func.k_blk_func(&gtm_ctx->sync->mapping);
 		}
 
-		if (gtm_k_block.tuning->gtm_mod_en)
-			ret = ispgtm_capture_tunning_set(gtm_ctx->cam_id, param);
+		ret = ispgtm_capture_tunning_set(gtm_ctx->cam_id, param);
+		if (ret) {
+			pr_err("fail to ctx_id %d cam_id %d set tuning param\n", gtm_ctx->ctx_id, gtm_ctx->cam_id);
+			return -1;
+		}
 		break;
 	 case MODE_GTM_CAP:
 		gtm_sync = gtm_ctx->sync;

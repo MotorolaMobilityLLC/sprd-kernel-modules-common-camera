@@ -197,6 +197,9 @@ int dcam_k_cfg_raw_gtm(struct isp_io_param *param, struct dcam_dev_param *p)
 				pr_err("fail to copy, ret=0x%x\n", (unsigned int)ret);
 				return -EPERM;
 			}
+			if (p->idx == DCAM_HW_CONTEXT_MAX)
+				return 0;
+
 			if (param->scene_id != PM_SCENE_CAP)
 				dcam_k_raw_gtm_block(DCAM_GTM_PARAM_PRE, p);
 		} else {

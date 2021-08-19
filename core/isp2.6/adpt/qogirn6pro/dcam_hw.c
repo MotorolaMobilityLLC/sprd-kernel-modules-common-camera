@@ -268,6 +268,7 @@ static int dcamhw_axi_init(void *handle, void *arg)
 {
 	uint32_t time_out = 0;
 	uint32_t idx = 0;
+	uint32_t flag = 0;
 	struct cam_hw_info *hw = NULL;
 	struct cam_hw_soc_info *soc = NULL;
 	struct cam_hw_ip_info *ip = NULL;
@@ -304,13 +305,16 @@ static int dcamhw_axi_init(void *handle, void *arg)
 		pr_info("dcam axim timeout status 0x%x\n",
 			DCAM_AXIM_RD(idx, dbg_reg));
 	} else {
+		flag = ip->syscon.all_rst_mask
+			|ip->syscon.axi_rst_mask;
 		/* reset dcam all (0/1/2/bus) */
 		regmap_update_bits(soc->cam_ahb_gpr, ip->syscon.all_rst,
-			ip->syscon.all_rst_mask, ip->syscon.all_rst_mask);
+			flag, flag);
 		udelay(10);
 		regmap_update_bits(soc->cam_ahb_gpr, ip->syscon.all_rst,
-			ip->syscon.all_rst_mask, ~(ip->syscon.all_rst_mask));
+			flag, ~flag);
 	}
+
 
 	hw->dcam_ioctl(hw, DCAM_HW_CFG_SET_QOS, arg);
 
@@ -2411,7 +2415,7 @@ static int dcamhw_fmcu_start(void *handle, void *arg)
 	DCAM_REG_WR(startarg->idx, DCAM_INT0_CLR, 0xFFFFFFFF);
 	DCAM_REG_WR(startarg->idx, DCAM_INT1_CLR, 0xFFFFFFFF);
 	DCAM_REG_WR(startarg->idx, DCAM_INT0_EN, DCAMINT_IRQ_LINE_EN0_NORMAL);
-	DCAM_REG_MWR(startarg->idx, DCAM_INT0_EN, BIT_17 | BIT_21 | BIT_22 | BIT_23 | BIT_26 | BIT_27 | BIT_29 , 0);
+	DCAM_REG_MWR(startarg->idx, DCAM_INT0_EN, BIT_17 | BIT_18 | BIT_21 | BIT_22 | BIT_23 | BIT_26 | BIT_27 | BIT_29 , 0);
 	DCAM_REG_WR(startarg->idx, DCAM_INT1_EN, DCAMINT_IRQ_LINE_EN1_NORMAL);
 	DCAM_REG_MWR(startarg->idx, DCAM_INT1_EN, BIT_0 , 0);
 

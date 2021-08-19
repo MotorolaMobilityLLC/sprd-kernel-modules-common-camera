@@ -1410,6 +1410,12 @@ static int camioctl_stream_off(struct camera_module *module,
 		camcore_timer_stop(&module->cam_timer);
 	}
 
+	if (sw_ctx->fmcu) {
+		ret = hw->dcam_ioctl(hw, DCAM_HW_CFG_INIT_AXI, &sw_ctx->hw_ctx_id);
+		if (ret)
+			pr_err("fail to reset fmcu dcam%d ret:%d\n", sw_ctx->hw_ctx_id, ret);
+	}
+
 	dcam_core_put_fmcu(sw_ctx);
 
 	if (module->cam_uinfo.is_4in1)
