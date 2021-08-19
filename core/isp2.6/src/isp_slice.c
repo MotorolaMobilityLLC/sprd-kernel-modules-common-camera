@@ -893,7 +893,7 @@ static int ispslice_base_info_calc_cfg(struct slice_cfg_input *in_ptr,
 	frame_fbd_yuv = in_ptr->frame_fbd_yuv;
 	ispslice_slice_size_info_get(in_ptr, &slice_width, &slice_height);
 	if (slice_width == 0 || slice_height == 0) {
-		pr_err("fail to get slice info w %d, h%\n", slice_width, slice_height);
+		pr_err("fail to get slice info w %d, h %d\n", slice_width, slice_height);
 		return -EINVAL;
 	}
 

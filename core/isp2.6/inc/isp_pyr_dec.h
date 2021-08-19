@@ -48,7 +48,7 @@ struct isp_dec_ops {
 	int (*set_callback)(void *dec_handle, int ctx_id, isp_dev_callback cb, void *priv_data);
 	int (*get_out_buf_cb)(void *dec_handle, int ctx_id, pyr_dec_buf_cb cb, void *priv_data);
 	int (*proc_init)(void *dec_handle);
-	int (*proc_deinit)(void *dec_handle);
+	int (*proc_deinit)(void *dec_handle, int ctx_id);
 };
 
 struct isp_dec_sw_ctx {

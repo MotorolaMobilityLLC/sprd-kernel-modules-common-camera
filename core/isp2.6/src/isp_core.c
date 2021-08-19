@@ -732,7 +732,7 @@ static int ispcore_sw_context_get(struct isp_pipe_dev *dev)
 		atomic_inc(&g_mem_dbg->isp_sw_context_cnt);
 		if (q->cnt >= q->max) {
 			pr_warn("q full, cnt %d, max %d\n", q->cnt, q->max);
-			goto queue_full;;
+			goto queue_full;
 		}
 		atomic_set(&ctx->user_cnt, 1);
 		ctx->ctx_id = q->cnt;
@@ -3321,7 +3321,7 @@ static int ispcore_context_get(void *isp_handle, void *param)
 
 thrd_err:
 	if (dec_dev != NULL && hw->ip_isp->pyr_dec_support)
-		dec_dev->ops.proc_deinit(dec_dev);
+		dec_dev->ops.proc_deinit(dec_dev, pctx->ctx_id);
 dec_err:
 	if (pctx->dewarp_handle && hw->ip_isp->dewarp_support) {
 		isp_dewarping_ctx_put(pctx->dewarp_handle);
@@ -3464,7 +3464,7 @@ static int ispcore_context_put(void *isp_handle, int ctx_id)
 		}
 
 		if (dec_dev != NULL && hw->ip_isp->pyr_dec_support)
-			dec_dev->ops.proc_deinit(dec_dev);
+			dec_dev->ops.proc_deinit(dec_dev, pctx->ctx_id);
 		cam_queue_clear(&pctx->pyrdec_buf_queue, struct camera_frame, list);
 
 		/* clear path queue. */

@@ -1064,10 +1064,11 @@ static int isppyrdec_proc_init(void *handle)
 	return ret;
 }
 
-static int isppyrdec_proc_deinit(void *handle)
+static int isppyrdec_proc_deinit(void *handle, int ctx_id)
 {
 	int ret = 0;
 	struct isp_dec_pipe_dev *dec_dev = NULL;
+	struct isp_dec_sw_ctx *pctx = NULL;
 
 	if (!handle) {
 		pr_err("fail to get valid input ptr");
@@ -1075,6 +1076,11 @@ static int isppyrdec_proc_deinit(void *handle)
 	}
 
 	dec_dev = (struct isp_dec_pipe_dev *)handle;
+	pctx = &dec_dev->sw_ctx[ctx_id];
+	pctx->cb_func = NULL;
+	pctx->cb_priv_data = NULL;
+	pctx->buf_cb_func = NULL;
+	pctx->buf_cb_priv_data = NULL;
 	if (atomic_read(&dec_dev->proc_eb) == 1) {
 		isppyrdec_offline_thread_stop(&dec_dev->thread);
 		cam_queue_clear(&dec_dev->in_queue, struct camera_frame, list);
