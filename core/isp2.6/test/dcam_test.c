@@ -451,9 +451,9 @@ static int camt_dcam_hw_init(struct dcamt_context *cxt)
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 4, 0))
 	ret = sprd_cam_pw_on();
 	ret |= sprd_cam_domain_eb();
-#endif
 	if (ret)
 		return -EFAULT;
+#endif
 
 	hw->dcam_ioctl(hw, DCAM_HW_CFG_ENABLE_CLK, NULL);
 	cxt->dcam_irq = hw->ip_dcam[cxt->dcam_idx]->irq_no;
