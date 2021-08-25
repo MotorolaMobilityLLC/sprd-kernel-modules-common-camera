@@ -701,7 +701,7 @@ static int ispltm_map_config_gen(struct isp_ltm_ctx_desc *ctx,
 	if (ISP_LTM_ALIGNMENT == 4) {
 		if (frame_width_stat != 0 && frame_height_stat != 0) {
 			ratio_w = ((frame_width_map << 8) + (frame_width_stat / 2)) / frame_width_stat;
-			ratio_h = ((frame_width_map << 8) + (frame_height_stat / 2)) / frame_height_stat;
+			ratio_h = ((frame_height_map << 8) + (frame_height_stat / 2)) / frame_height_stat;
 		}
 		tm.tile_width = (ratio_w * ts.tile_width) >> 10 << 2;
 		tm.tile_height = (ratio_h * ts.tile_height) >> 9 << 1;
@@ -1083,7 +1083,7 @@ int isp_ltm_map_slice_config_gen(struct isp_ltm_ctx_desc *ctx,
 	if (ISP_LTM_ALIGNMENT == 4) {
 		if (frame_width_stat != 0 && frame_height_stat != 0) {
 			ratio_w = ((frame_width_map << 8) + (frame_width_stat / 2)) / frame_width_stat;
-			ratio_h = ((frame_width_map << 8) + (frame_height_stat / 2)) / frame_height_stat;
+			ratio_h = ((frame_height_map << 8) + (frame_height_stat / 2)) / frame_height_stat;
 		}
 
 		tm.tile_width = (ratio_w * ts.tile_width) >> 10 << 2;
