@@ -5304,7 +5304,7 @@ static void camcore_write_image_to_file(uint8_t *buffer,
 	pr_debug("write image done, total=%d\n", (uint32_t)total);
 }
 
-static int camcore_one_frame_dump(struct camera_module *module,
+int camcore_one_frame_dump(struct camera_module *module,
 		struct camera_frame *pframe)
 {
 	ssize_t size = 0;
@@ -5454,7 +5454,7 @@ static inline int camcore_should_dump(int mode, int path)
 		|| (mode == DUMP_PATH_FULL && path == DCAM_PATH_FULL);
 }
 
-static int camcore_pyr_frame_dump(struct camera_module *module,
+int camcore_pyr_frame_dump(struct camera_module *module,
 		struct camera_frame *pframe)
 {
 	ssize_t size = 0;

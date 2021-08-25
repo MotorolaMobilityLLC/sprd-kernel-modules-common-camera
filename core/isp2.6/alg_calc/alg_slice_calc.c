@@ -49,6 +49,27 @@ static uint8_t SCALER_YUV_DECI_OFFSET_MAP[]={0,1,3,7};
 			} \
 		} while (0)
 
+struct alg_scaler_ovlap_temp {
+	int image_w;
+	int image_h;
+	struct alg_slice_drv_overlap *param_ptr;
+	struct alg_slice_regions *maxRegion;
+	struct alg_slice_regions *orgRegion;
+};
+
+struct alg_pyramid_ovlap_temp {
+	int layer_id;
+	int layer_num;
+	int slice_num;
+	int layer0_padding_width;
+	int layer0_padding_height;
+	struct alg_overlap_info *overlap_rec;
+	struct alg_overlap_info *ov_pipe_layer0;
+	struct alg_overlap_info *overlap_rec_mode1;
+	struct alg_slice_drv_overlap *param_ptr;
+	struct alg_slice_regions add_rec_slice_out[MAX_PYR_DEC_LAYER_NUM];
+};
+
 static int check_image_resolution(uint32_t length, uint32_t layer_num)
 {
 	uint32_t outData = 0;
@@ -2242,26 +2263,553 @@ static struct slice_drv_overlap_info ltm_rgb_sta_getOverlap(const struct alg_sli
 	return overlap;
 }
 
+void alg_slice_scaler_overlap_temp(struct alg_scaler_ovlap_temp *in_ptr)
+{
+	struct alg_slice_drv_overlap *param_ptr =NULL;
+	struct yuvscaler_param_t *scaler1_frame_p = NULL;
+	struct yuvscaler_param_t *scaler2_frame_p = NULL;
+	struct alg_slice_regions *maxRegion = NULL;
+	struct alg_slice_regions *orgRegion = NULL;
+	struct thumbnailscaler_context contextThumbnailScaler;
+	struct thumbnailscaler_param_t thumbnailscaler_param;
+	struct pipe_overlap_context contextScaler;
+
+	if (!in_ptr) {
+		pr_err("fail to get invalid ptr\n");
+		return;
+	}
+
+	param_ptr = in_ptr->param_ptr;
+	scaler1_frame_p = (struct yuvscaler_param_t*)(param_ptr->scaler1.frameParam);
+	scaler2_frame_p = (struct yuvscaler_param_t*)(param_ptr->scaler2.frameParam);
+	maxRegion = in_ptr->maxRegion;
+	orgRegion = in_ptr->orgRegion;
+
+	//set scaler context
+	contextScaler.frameWidth = in_ptr->image_w;
+	contextScaler.frameHeight = in_ptr->image_h;
+	contextScaler.pixelFormat = param_ptr->scaler_input_format;
+
+	//set thumbnail context
+	contextThumbnailScaler.src_width = in_ptr->image_w;
+	contextThumbnailScaler.src_height = in_ptr->image_h;
+	contextThumbnailScaler.offlineSliceWidth = param_ptr->slice_w;
+	contextThumbnailScaler.offlineSliceHeight = param_ptr->slice_h;
+
+	//set thumbnail scaler param
+	thumbnailscaler_param.configinfo.thumbnailscaler_trim0_en = param_ptr->thumbnailscaler.trim0_en;
+	thumbnailscaler_param.configinfo.thumbnailscaler_trimstartcol = param_ptr->thumbnailscaler.trim0_start_x;
+	thumbnailscaler_param.configinfo.thumbnailscaler_trimstartrow = param_ptr->thumbnailscaler.trim0_start_y;
+	thumbnailscaler_param.configinfo.thumbnailscaler_trimsizeX = param_ptr->thumbnailscaler.trim0_size_x;
+	thumbnailscaler_param.configinfo.thumbnailscaler_trimsizeY = param_ptr->thumbnailscaler.trim0_size_y;
+	thumbnailscaler_param.configinfo.thumbnailscaler_phaseX = param_ptr->thumbnailscaler.phase_x;
+	thumbnailscaler_param.configinfo.thumbnailscaler_phaseY = param_ptr->thumbnailscaler.phase_y;
+	thumbnailscaler_param.configinfo.thumbnailscaler_base_align = param_ptr->thumbnailscaler.base_align;
+	thumbnailscaler_param.configinfo.ow = param_ptr->thumbnailscaler.out_w;
+	thumbnailscaler_param.configinfo.oh = param_ptr->thumbnailscaler.out_h;
+	thumbnailscaler_param.configinfo.outformat = param_ptr->thumbnailscaler.out_format;
+
+	//step1
+	do {
+		struct alg_slice_regions refRegion;
+		struct alg_slice_regions nr3d_slice_region_out;
+		struct alg_slice_regions scaler1_slice_region_out;
+		struct alg_slice_regions scaler2_slice_region_out;
+		struct alg_slice_regions scaler3_slice_region_out;
+		struct alg_slice_regions maxRegionTemp;
+		struct alg_slice_regions* regions_arr[4];
+
+		memset(&refRegion, 0, sizeof(struct alg_slice_regions));
+		memset(&nr3d_slice_region_out, 0, sizeof(struct alg_slice_regions));
+		memset(&scaler1_slice_region_out, 0, sizeof(struct alg_slice_regions));
+		memset(&scaler2_slice_region_out, 0, sizeof(struct alg_slice_regions));
+		memset(&scaler3_slice_region_out, 0, sizeof(struct alg_slice_regions));
+		memset(&maxRegionTemp, 0, sizeof(struct alg_slice_regions));
+
+		regions_arr[0] = &nr3d_slice_region_out;
+		regions_arr[1] = &scaler1_slice_region_out;
+		regions_arr[2] = &scaler2_slice_region_out;
+		regions_arr[3] = &scaler3_slice_region_out;
+
+		isp_drv_regions_set(maxRegion, &refRegion);
+
+		if(!param_ptr->nr3d_bd_bypass && param_ptr->nr3d_bd_FBC_en) {
+			isp_drv_regions_set(orgRegion, &nr3d_slice_region_out);
+			isp_drv_regions_3dnr(&refRegion, &nr3d_slice_region_out,
+				AFBC_PADDING_W_YUV420_3dnr, AFBC_PADDING_H_YUV420_3dnr,0);
+			isp_drv_regions_set(&nr3d_slice_region_out, orgRegion);
+		}
+
+		if (!param_ptr->scaler1.bypass) {
+			param_ptr->scaler1.slice_overlap_after_sclaer = 0;
+			param_ptr->scaler1.slice_overlapleft_after_sclaer = 0;
+			param_ptr->scaler1.slice_overlapright_after_sclaer = 0;
+			param_ptr->scaler1.flag = 0;
+
+			scaler_init(scaler1_frame_p, &param_ptr->scaler1, &contextScaler);
+			pr_debug("regin sx %d ex %d sy %d ey %d\n", param_ptr->scaler1.region_input[0].sx,
+				param_ptr->scaler1.region_input[0].ex, param_ptr->scaler1.region_input[0].sy,
+				param_ptr->scaler1.region_input[0].ey);
+			pr_debug("ref regin sx %d ex %d sy %d ey %d\n", refRegion.regions[0].sx,
+				refRegion.regions[0].ex, refRegion.regions[0].sy,
+				refRegion.regions[0].ey);
+			scaler_calculate_region(&refRegion, &scaler1_slice_region_out, scaler1_frame_p, 0, &param_ptr->scaler1, param_ptr->slice_w);
+		}
+
+		if (!param_ptr->scaler2.bypass) {
+			param_ptr->scaler1.slice_overlap_after_sclaer = 0;
+			param_ptr->scaler1.slice_overlapleft_after_sclaer = 0;
+			param_ptr->scaler1.slice_overlapright_after_sclaer = 0;
+			param_ptr->scaler1.flag = 0;
+
+			scaler_init(scaler2_frame_p, &param_ptr->scaler2, &contextScaler);
+			scaler_calculate_region(&refRegion, &scaler2_slice_region_out, scaler2_frame_p, 0, &param_ptr->scaler2, param_ptr->slice_w);
+		}
+
+		if (!param_ptr->thumbnailscaler.bypass)
+			thumbnailscaler_calculate_region(&refRegion,&scaler3_slice_region_out,&thumbnailscaler_param,&contextThumbnailScaler,0);
+
+		//get max
+		isp_drv_regions_arr_max(regions_arr, 4, &maxRegionTemp);
+		if (!isp_drv_regions_empty(&maxRegionTemp))
+			isp_drv_regions_set(&maxRegionTemp, maxRegion);
+	} while (0);
+
+	//step2
+	do {
+		struct alg_slice_regions refRegion;
+		struct alg_slice_regions nr3d_slice_region_out;
+		struct alg_slice_regions scaler1_slice_region_out;
+		struct alg_slice_regions scaler2_slice_region_out;
+		struct alg_slice_regions scaler3_slice_region_out;
+		struct alg_slice_regions maxRegionTemp;
+		struct alg_slice_regions* regions_arr[4];
+
+		memset(&refRegion, 0, sizeof(struct alg_slice_regions));
+		memset(&nr3d_slice_region_out, 0, sizeof(struct alg_slice_regions));
+		memset(&scaler1_slice_region_out, 0, sizeof(struct alg_slice_regions));
+		memset(&scaler2_slice_region_out, 0, sizeof(struct alg_slice_regions));
+		memset(&scaler3_slice_region_out, 0, sizeof(struct alg_slice_regions));
+		memset(&maxRegionTemp, 0, sizeof(struct alg_slice_regions));
+
+		regions_arr[0] = &nr3d_slice_region_out;
+		regions_arr[1] = &scaler1_slice_region_out;
+		regions_arr[2] = &scaler2_slice_region_out;
+		regions_arr[3] = &scaler3_slice_region_out;
+
+		isp_drv_regions_set(maxRegion, &refRegion);
+
+		if (!param_ptr->nr3d_bd_bypass && param_ptr->nr3d_bd_FBC_en) {
+			isp_drv_regions_set(orgRegion, &nr3d_slice_region_out);
+			isp_drv_regions_3dnr(&refRegion, &nr3d_slice_region_out, AFBC_PADDING_W_YUV420_3dnr,AFBC_PADDING_H_YUV420_3dnr, 1);
+			isp_drv_regions_set(&nr3d_slice_region_out, orgRegion);
+		}
+
+		if (!param_ptr->scaler1.bypass) {
+			param_ptr->scaler1.slice_overlap_after_sclaer = 0;
+			param_ptr->scaler1.slice_overlapleft_after_sclaer = 0;
+			param_ptr->scaler1.slice_overlapright_after_sclaer = 0;
+			param_ptr->scaler1.flag = 0;
+			scaler_calculate_region(&refRegion, &scaler1_slice_region_out, scaler1_frame_p, 1, &param_ptr->scaler1, param_ptr->slice_w);
+		}
+
+		if (!param_ptr->scaler2.bypass) {
+			param_ptr->scaler2.slice_overlap_after_sclaer = 0;
+			param_ptr->scaler2.slice_overlapleft_after_sclaer = 0;
+			param_ptr->scaler2.slice_overlapright_after_sclaer = 0;
+			param_ptr->scaler2.flag = 0;
+			scaler_calculate_region(&refRegion, &scaler2_slice_region_out, scaler2_frame_p, 1, &param_ptr->scaler2, param_ptr->slice_w);
+		}
+
+		if (!param_ptr->thumbnailscaler.bypass)
+			isp_drv_regions_set(&refRegion, &scaler3_slice_region_out);
+		//get max
+		isp_drv_regions_arr_max(regions_arr, 4, &maxRegionTemp);
+		if (!isp_drv_regions_empty(&maxRegionTemp))
+			isp_drv_regions_set(&maxRegionTemp, maxRegion);
+	} while (0);
+}
+
+void alg_slice_pyramid_ovlap_temp(struct alg_pyramid_ovlap_temp *in_ptr)
+{
+	int i = 0, layer_slice_num = 0, index = 0;
+	int layer_slice_width = 0, layer_slice_height = 0;
+	int layer_id = 0;
+	int layer_num = 0;
+	int slice_num = 0;
+	int layer0_padding_width = 0;
+	int layer0_padding_height = 0;
+	int next_layer_width= 0;
+	int SLICE_W_ALIGN_V = 4;
+	uint32_t slice_flag = 1;
+	struct alg_slice_drv_overlap *param_ptr =NULL;
+	struct alg_overlap_info *overlap_rec = NULL;
+	struct alg_overlap_info *ov_pipe_layer0 = NULL;
+	struct alg_overlap_info *overlap_rec_mode1 = NULL;
+	struct alg_slice_regions rec_slice_out[MAX_PYR_DEC_LAYER_NUM];
+	struct alg_slice_regions org_rec_slice_out[MAX_PYR_DEC_LAYER_NUM];
+	struct alg_slice_regions org_add_rec_slice_out[MAX_PYR_DEC_LAYER_NUM];
+	struct alg_overlap_info ov_layer_rec[MAX_PYR_DEC_LAYER_NUM] = {0};
+	struct alg_fetch_region rec_slice_in;
+	struct alg_fetch_region org_rec_slice_in;
+	struct alg_overlap_info rec_slice_overlap[MAX_PYR_DEC_LAYER_NUM][PIPE_MAX_SLICE_NUM] = {{0}};
+	struct alg_overlap_info ov_layer[MAX_PYR_DEC_LAYER_NUM] = {0};
+	struct alg_fetch_region add_rec_slice_in;
+	struct alg_fetch_region org_add_rec_slice_in;
+
+	if (!in_ptr) {
+		pr_err("fail to get invalid ptr\n");
+		return;
+	}
+
+	for (layer_id = 0; layer_id < MAX_PYR_DEC_LAYER_NUM; layer_id++) {
+		memset(&rec_slice_out[layer_id],0, sizeof(struct alg_slice_regions));
+		memset(&org_rec_slice_out[layer_id], 0, sizeof(struct alg_slice_regions));
+		memset(&org_add_rec_slice_out[layer_id], 0, sizeof(struct alg_slice_regions));
+	}
+
+	param_ptr = in_ptr->param_ptr;
+	layer_id = in_ptr->layer_id;
+	layer_num = in_ptr->layer_num;
+	slice_num = in_ptr->slice_num;
+	layer0_padding_width = in_ptr->layer0_padding_width;
+	layer0_padding_height = in_ptr->layer0_padding_height;
+	overlap_rec = in_ptr->overlap_rec;
+	ov_pipe_layer0 = in_ptr->ov_pipe_layer0;
+	overlap_rec_mode1 = in_ptr->overlap_rec_mode1;
+
+	// rec region
+	do {
+		int i, j, index, rows, cols;
+		rows = param_ptr->slice_rows;
+		cols = param_ptr->slice_cols;
+		for (layer_id = 0; layer_id < layer_num; layer_id++) {
+			ov_layer_rec[layer_id].ov_left = overlap_rec->ov_left ;
+			ov_layer_rec[layer_id].ov_right = overlap_rec->ov_right;
+			ov_layer_rec[layer_id].ov_up = overlap_rec->ov_up;
+			ov_layer_rec[layer_id].ov_down = overlap_rec->ov_down ;
+			if (!param_ptr->uw_sensor && layer_id == 0) {
+				ov_layer_rec[layer_id].ov_left = overlap_rec->ov_left << 1;
+				ov_layer_rec[layer_id].ov_right = overlap_rec->ov_right << 1;
+				ov_layer_rec[layer_id].ov_up = overlap_rec->ov_up << 1;
+				ov_layer_rec[layer_id].ov_down = overlap_rec->ov_down << 1;
+			}
+
+			rec_slice_in.image_w = layer_id ? (layer0_padding_width >>layer_id) : (param_ptr->img_src_w);
+			rec_slice_in.image_h = layer_id ? (layer0_padding_height >>layer_id) : (param_ptr->img_src_h);
+			rec_slice_in.slice_w = (slice_num == 1) ? rec_slice_in.image_w : param_ptr->slice_w >> layer_id;
+			rec_slice_in.slice_h = layer0_padding_height >> layer_id;
+			rec_slice_in.overlap_left = ov_layer_rec[layer_id].ov_left;
+			rec_slice_in.overlap_right = ov_layer_rec[layer_id].ov_right;
+			rec_slice_in.overlap_up = ov_layer_rec[layer_id].ov_up;
+			rec_slice_in.overlap_down = ov_layer_rec[layer_id].ov_down;
+
+			pr_debug("img w%d h%d slice w%d h%d ov L%d R %d\n", rec_slice_in.image_w, rec_slice_in.image_h,
+				rec_slice_in.slice_w, rec_slice_in.slice_h, rec_slice_in.overlap_left, rec_slice_in.overlap_right);
+			//get slice region
+			if (-1 == isp_drv_regions_fetch(&rec_slice_in, &rec_slice_out[layer_id]))
+				return;
+		}
+
+	pr_debug("lay num %d input laynum %d\n", layer_num, param_ptr->layerNum);
+	for (layer_id = 0; layer_id < layer_num; layer_id++) {
+		org_rec_slice_in.image_w = layer_id ? (layer0_padding_width  >>layer_id) : (param_ptr->img_src_w);
+		org_rec_slice_in.image_h = layer_id ? (layer0_padding_height >>layer_id) : (param_ptr->img_src_h);
+		org_rec_slice_in.slice_w = (slice_num == 1) ? org_rec_slice_in.image_w : param_ptr->slice_w>>layer_id;
+		org_rec_slice_in.slice_h = layer0_padding_height>>layer_id;
+		org_rec_slice_in.overlap_left  = 0;
+		org_rec_slice_in.overlap_right = 0;
+		org_rec_slice_in.overlap_up = 0;
+		org_rec_slice_in.overlap_down = 0;
+
+		pr_debug("img w%d h%d slice w%d h%d ov L%d R %d\n", org_rec_slice_in.image_w, org_rec_slice_in.image_h,
+			org_rec_slice_in.slice_w, org_rec_slice_in.slice_h, org_rec_slice_in.overlap_left, org_rec_slice_in.overlap_right);
+		//get slice region
+		if(-1 == isp_drv_regions_fetch(&org_rec_slice_in, &org_rec_slice_out[layer_id])) {
+			return;
+		}
+	}
+
+		//get rec overlap
+		//fetch
+		for (layer_id = 0; layer_id < layer_num; layer_id++) {
+			for (i=0; i < rows; i++) {
+				for (j=0; j < cols; j++) {
+					index = i * cols + j;
+					//
+					rec_slice_overlap[layer_id][index].ov_left = org_rec_slice_out[layer_id].regions[index].sx - rec_slice_out[layer_id].regions[index].sx;
+					rec_slice_overlap[layer_id][index].ov_right = rec_slice_out[layer_id].regions[index].ex - org_rec_slice_out[layer_id].regions[index].ex;
+					rec_slice_overlap[layer_id][index].ov_up = org_rec_slice_out[layer_id].regions[index].sy - rec_slice_out[layer_id].regions[index].sy;
+					rec_slice_overlap[layer_id][index].ov_down = rec_slice_out[layer_id].regions[index].ey - org_rec_slice_out[layer_id].regions[index].ey;
+				}
+			}
+		}
+	}while(0);
+
+	//////////////////////////////////////////////////////////////////////////
+	/* (ISP_overlap >> layer_id) + rec_overlap */
+	for (layer_id = 0; layer_id < layer_num; layer_id++) {
+		ov_layer[layer_id].ov_left = (ov_pipe_layer0->ov_left >> layer_id) + ov_layer_rec[layer_id].ov_left;
+		ov_layer[layer_id].ov_right = (ov_pipe_layer0->ov_right >> layer_id) + ov_layer_rec[layer_id].ov_right;
+		ov_layer[layer_id].ov_up = (ov_pipe_layer0->ov_up >> layer_id) + ov_layer_rec[layer_id].ov_up;
+		ov_layer[layer_id].ov_down = (ov_pipe_layer0->ov_down >>layer_id) + ov_layer_rec[layer_id].ov_down;
+
+		add_rec_slice_in.image_w = layer_id ? (layer0_padding_width >>layer_id) : (param_ptr->img_src_w);
+		add_rec_slice_in.image_h = layer_id ? (layer0_padding_height >>layer_id) : (param_ptr->img_src_h);
+		add_rec_slice_in.slice_w = (slice_num == 1) ? add_rec_slice_in.image_w : param_ptr->slice_w >> layer_id;
+		add_rec_slice_in.slice_h = layer0_padding_height >> layer_id;
+		add_rec_slice_in.overlap_left = ov_layer[layer_id].ov_left;
+		add_rec_slice_in.overlap_right = ov_layer[layer_id].ov_right;
+		add_rec_slice_in.overlap_up = ov_layer[layer_id].ov_up;
+		add_rec_slice_in.overlap_down = ov_layer[layer_id].ov_down;
+		pr_debug("img w%d h%d slice w%d h%d ov L%d R %d\n", add_rec_slice_in.image_w, add_rec_slice_in.image_h,
+			add_rec_slice_in.slice_w, add_rec_slice_in.slice_h, add_rec_slice_in.overlap_left, add_rec_slice_in.overlap_right);
+		//get slice region
+		if (-1 == isp_drv_regions_fetch(&add_rec_slice_in, &in_ptr->add_rec_slice_out[layer_id]))
+			return;
+	}
+
+	for(layer_id = 0; layer_id < layer_num; layer_id++) {
+		org_add_rec_slice_in.image_w = layer_id ? (layer0_padding_width  >>layer_id) : (param_ptr->img_src_w);
+		org_add_rec_slice_in.image_h = layer_id ? (layer0_padding_height >>layer_id) : (param_ptr->img_src_h);
+		org_add_rec_slice_in.slice_w = (slice_num == 1) ? org_add_rec_slice_in.image_w : param_ptr->slice_w >> layer_id;
+		org_add_rec_slice_in.slice_h = layer0_padding_height >> layer_id;
+		org_add_rec_slice_in.overlap_left = 0;
+		org_add_rec_slice_in.overlap_right = 0;
+		org_add_rec_slice_in.overlap_up = 0;
+		org_add_rec_slice_in.overlap_down = 0;
+
+		//get slice region
+		if(-1 == isp_drv_regions_fetch(&org_add_rec_slice_in, &org_add_rec_slice_out[layer_id]))
+			return;
+	}
+
+	//////////////////////////////////////////////////////////////////////////
+	param_ptr->slice_rows = in_ptr->add_rec_slice_out[0].rows;
+	param_ptr->slice_cols = in_ptr->add_rec_slice_out[0].cols;
+	do {
+		int i,j,index,rows,cols;
+		rows = param_ptr->slice_rows;
+		cols = param_ptr->slice_cols;
+		//fetch0
+		for (layer_id = 0; layer_id < layer_num; layer_id++) {
+			for (i=0; i < rows; i++) {
+				for (j=0; j < cols; j++) {
+					index = i * cols + j;
+					//
+					param_ptr->fecth0_slice_region[layer_id][index].sx = in_ptr->add_rec_slice_out[layer_id].regions[index].sx;
+					param_ptr->fecth0_slice_region[layer_id][index].ex = in_ptr->add_rec_slice_out[layer_id].regions[index].ex;
+					param_ptr->fecth0_slice_region[layer_id][index].sy = in_ptr->add_rec_slice_out[layer_id].regions[index].sy;
+					param_ptr->fecth0_slice_region[layer_id][index].ey = in_ptr->add_rec_slice_out[layer_id].regions[index].ey;
+					pr_debug("layer %d slice %d fetch 0 sx%d sy%d ex%d ey%d\n", layer_id, index, param_ptr->fecth0_slice_region[layer_id][index].sx, param_ptr->fecth0_slice_region[layer_id][index].sy,
+						param_ptr->fecth0_slice_region[layer_id][index].ex, param_ptr->fecth0_slice_region[layer_id][index].ey);
+					//
+					param_ptr->fecth0_slice_overlap[layer_id][index].ov_left = org_add_rec_slice_out[layer_id].regions[index].sx - in_ptr->add_rec_slice_out[layer_id].regions[index].sx;
+					param_ptr->fecth0_slice_overlap[layer_id][index].ov_right = in_ptr->add_rec_slice_out[layer_id].regions[index].ex - org_add_rec_slice_out[layer_id].regions[index].ex;
+					param_ptr->fecth0_slice_overlap[layer_id][index].ov_up = org_add_rec_slice_out[layer_id].regions[index].sy - in_ptr->add_rec_slice_out[layer_id].regions[index].sy;
+					param_ptr->fecth0_slice_overlap[layer_id][index].ov_down = in_ptr->add_rec_slice_out[layer_id].regions[index].ey - org_add_rec_slice_out[layer_id].regions[index].ey;
+				}
+			}
+		}
+
+		for (layer_id = 0; layer_id < layer_num - 1; layer_id++) {
+			for (i=0; i < rows; i++) {
+				for (j=0; j < cols; j++) {
+					index = i * cols + j;
+
+					//fetch1
+					param_ptr->fecth1_slice_region[layer_id][index].sx = param_ptr->fecth0_slice_region[layer_id + 1][index].sx << 1;
+					param_ptr->fecth1_slice_region[layer_id][index].ex = ((param_ptr->fecth0_slice_region[layer_id + 1][index].ex + 1) << 1) - 1;
+					param_ptr->fecth1_slice_region[layer_id][index].sy = param_ptr->fecth0_slice_region[layer_id + 1][index].sy << 1;
+					param_ptr->fecth1_slice_region[layer_id][index].ey = ((param_ptr->fecth0_slice_region[layer_id + 1][index].ey + 1) << 1) - 1;
+					if (layer_id == 0) {
+						param_ptr->fecth1_slice_region[layer_id][index].ex = MIN(param_ptr->fecth1_slice_region[layer_id][index].ex, param_ptr->img_src_w - 1);
+						param_ptr->fecth1_slice_region[layer_id][index].ey = MIN(param_ptr->fecth1_slice_region[layer_id][index].ey, param_ptr->img_src_h - 1);
+					} else {
+						param_ptr->fecth1_slice_region[layer_id][index].ex = MIN(param_ptr->fecth1_slice_region[layer_id][index].ex, (layer0_padding_width >> layer_id) - 1);
+						param_ptr->fecth1_slice_region[layer_id][index].ey = MIN(param_ptr->fecth1_slice_region[layer_id][index].ey, (layer0_padding_height >> layer_id) - 1);
+					}
+					pr_debug("layer %d slice %d fetch 0 sx%d sy%d ex%d ey%d\n", layer_id, index, param_ptr->fecth0_slice_region[layer_id][index].sx, param_ptr->fecth0_slice_region[layer_id][index].sy,
+						param_ptr->fecth0_slice_region[layer_id][index].ex, param_ptr->fecth0_slice_region[layer_id][index].ey);
+					pr_debug("layer %d slice %d fetch 1 sx%d sy%d ex%d ey%d\n", layer_id, index, param_ptr->fecth1_slice_region[layer_id][index].sx, param_ptr->fecth1_slice_region[layer_id][index].sy,
+						param_ptr->fecth1_slice_region[layer_id][index].ex, param_ptr->fecth1_slice_region[layer_id][index].ey);
+					//store rec
+					if (layer_id == 0) {
+						param_ptr->store_rec_slice_region[layer_id][index].sx = param_ptr->fecth0_slice_region[layer_id][index].sx;
+						param_ptr->store_rec_slice_region[layer_id][index].ex = param_ptr->fecth0_slice_region[layer_id][index].ex;
+						param_ptr->store_rec_slice_region[layer_id][index].sy = param_ptr->fecth0_slice_region[layer_id][index].sy;
+						param_ptr->store_rec_slice_region[layer_id][index].ey = param_ptr->fecth0_slice_region[layer_id][index].ey;
+
+						param_ptr->store_rec_slice_overlap[layer_id][index].ov_left = param_ptr->fecth0_slice_overlap[layer_id][index].ov_left ;
+						param_ptr->store_rec_slice_overlap[layer_id][index].ov_right = param_ptr->fecth0_slice_overlap[layer_id][index].ov_right;
+						param_ptr->store_rec_slice_overlap[layer_id][index].ov_up = param_ptr->fecth0_slice_overlap[layer_id][index].ov_up   ;
+						param_ptr->store_rec_slice_overlap[layer_id][index].ov_down = param_ptr->fecth0_slice_overlap[layer_id][index].ov_down ;
+
+						if (!param_ptr->uw_sensor) {
+							param_ptr->store_rec_slice_crop_overlap[layer_id][index].ov_left = 0;
+							param_ptr->store_rec_slice_crop_overlap[layer_id][index].ov_right = 0;
+							param_ptr->store_rec_slice_crop_overlap[layer_id][index].ov_up = 0;
+							param_ptr->store_rec_slice_crop_overlap[layer_id][index].ov_down = 0;
+					} else {
+							param_ptr->store_rec_slice_crop_overlap[layer_id][index].ov_left = rec_slice_overlap[layer_id][index].ov_left;
+							param_ptr->store_rec_slice_crop_overlap[layer_id][index].ov_right = rec_slice_overlap[layer_id][index].ov_right;
+							param_ptr->store_rec_slice_crop_overlap[layer_id][index].ov_up = rec_slice_overlap[layer_id][index].ov_up;
+							param_ptr->store_rec_slice_crop_overlap[layer_id][index].ov_down = rec_slice_overlap[layer_id][index].ov_down;
+						}
+					} else {
+						param_ptr->store_rec_slice_crop_overlap[layer_id][index].ov_left = rec_slice_overlap[layer_id][index].ov_left;
+						param_ptr->store_rec_slice_crop_overlap[layer_id][index].ov_right = rec_slice_overlap[layer_id][index].ov_right;
+						param_ptr->store_rec_slice_crop_overlap[layer_id][index].ov_up = rec_slice_overlap[layer_id][index].ov_up;
+						param_ptr->store_rec_slice_crop_overlap[layer_id][index].ov_down = rec_slice_overlap[layer_id][index].ov_down;
+
+						param_ptr->store_rec_slice_overlap[layer_id][index].ov_left = (param_ptr->fecth0_slice_overlap[layer_id+1][index].ov_left << 1) - rec_slice_overlap[layer_id][index].ov_left ;
+						param_ptr->store_rec_slice_overlap[layer_id][index].ov_right = (param_ptr->fecth0_slice_overlap[layer_id+1][index].ov_right<< 1) - rec_slice_overlap[layer_id][index].ov_right;
+						param_ptr->store_rec_slice_overlap[layer_id][index].ov_up = (param_ptr->fecth0_slice_overlap[layer_id+1][index].ov_up << 1) - rec_slice_overlap[layer_id][index].ov_up;
+						param_ptr->store_rec_slice_overlap[layer_id][index].ov_down = (param_ptr->fecth0_slice_overlap[layer_id+1][index].ov_down <<1) - rec_slice_overlap[layer_id][index].ov_down ;
+
+						param_ptr->store_rec_slice_region[layer_id][index].sx = (param_ptr->fecth0_slice_region[layer_id + 1][index].sx << 1) + rec_slice_overlap[layer_id][index].ov_left ;
+						param_ptr->store_rec_slice_region[layer_id][index].ex = (((param_ptr->fecth0_slice_region[layer_id + 1][index].ex + 1) << 1) - 1) - rec_slice_overlap[layer_id][index].ov_right;
+						param_ptr->store_rec_slice_region[layer_id][index].sy = (param_ptr->fecth0_slice_region[layer_id + 1][index].sy << 1) + rec_slice_overlap[layer_id][index].ov_up;
+						param_ptr->store_rec_slice_region[layer_id][index].ey = (((param_ptr->fecth0_slice_region[layer_id + 1][index].ey + 1) << 1) - 1) - rec_slice_overlap[layer_id][index].ov_down ;
+					}
+				}
+			}
+		}
+	}while(0);
+
+	/* offline_slice_mode = 1,update layer5～layer2：auto slice */
+	if (param_ptr->offline_slice_mode == 1 && param_ptr->layerNum >= 3) {
+		for (layer_id = 2; layer_id < param_ptr->layerNum; layer_id++) {
+			for (i = 0; i < slice_num; i++) {
+				rec_slice_overlap[layer_id][i].ov_left = 0;
+				rec_slice_overlap[layer_id][i].ov_right = 0;
+				rec_slice_overlap[layer_id][i].ov_up = 0;
+				rec_slice_overlap[layer_id][i].ov_down = 0;
+			}
+		}
+
+		for (layer_id = 2; layer_id < param_ptr->layerNum; layer_id++) {
+			rec_slice_in.image_w = layer_id ? (layer0_padding_width >> layer_id) : (param_ptr->img_src_w);
+			rec_slice_in.image_h = layer_id ? (layer0_padding_height >> layer_id) : (param_ptr->img_src_h);
+			next_layer_width = rec_slice_in.image_w << 1;
+			pr_debug("next layer w %d im_src w %d layer0 p_w %d\n", next_layer_width, param_ptr->img_src_w, layer0_padding_width);
+			if (next_layer_width <= 2592)
+				slice_flag = 0;
+
+			if (!slice_flag) {
+				layer_slice_num = 1;
+				layer_slice_width = rec_slice_in.image_w;
+				layer_slice_height = rec_slice_in.image_h;
+			} else {
+				layer_slice_num = (rec_slice_in.image_w + 2592 / 2 - 1) / (2592 / 2);
+				layer_slice_width = (rec_slice_in.image_w / layer_slice_num + SLICE_W_ALIGN_V - 1) >> 2 << 2; //均匀切slice
+				layer_slice_height = rec_slice_in.image_h;
+			}
+
+			param_ptr->slice_number[layer_id] = layer_slice_num;
+			rec_slice_in.slice_w = layer_slice_width;
+			rec_slice_in.slice_h = layer0_padding_height >> layer_id;
+			rec_slice_in.overlap_left = overlap_rec_mode1->ov_left;
+			rec_slice_in.overlap_right = overlap_rec_mode1->ov_right;
+			rec_slice_in.overlap_up = overlap_rec_mode1->ov_up;
+			rec_slice_in.overlap_down = overlap_rec_mode1->ov_down ;
+			pr_debug("rec slice in L %d R %d\n", rec_slice_in.overlap_left, rec_slice_in.overlap_right);
+
+			if (-1 == isp_drv_regions_fetch(&rec_slice_in, &rec_slice_out[layer_id]))
+				return;
+			pr_debug("rec layer 4 slice out %d\n", rec_slice_out[layer_id].regions[0].ex);
+		}
+
+		slice_flag = 1;
+		for (layer_id = 2; layer_id < param_ptr->layerNum; layer_id++) {
+			org_rec_slice_in.image_w = layer_id ? (layer0_padding_width >> layer_id) : (param_ptr->img_src_w);
+			org_rec_slice_in.image_h = layer_id ? (layer0_padding_height >> layer_id) : (param_ptr->img_src_h);
+			next_layer_width = org_rec_slice_in.image_w << 1;
+			if (next_layer_width <= 2592)
+				slice_flag = 0;
+
+			if (!slice_flag) {
+				layer_slice_num = 1;
+				layer_slice_width  = org_rec_slice_in.image_w;
+				layer_slice_height = org_rec_slice_in.image_h;
+			} else {
+				layer_slice_num = (org_rec_slice_in.image_w + 2592 / 2 - 1) / (2592 / 2);
+				layer_slice_width = (org_rec_slice_in.image_w / layer_slice_num + SLICE_W_ALIGN_V - 1) >> 2 << 2; //均匀切slice
+				layer_slice_height = org_rec_slice_in.image_h;
+			}
+
+			org_rec_slice_in.slice_w = layer_slice_width;
+			org_rec_slice_in.slice_h = layer0_padding_height >> layer_id;
+			org_rec_slice_in.overlap_left = 0;
+			org_rec_slice_in.overlap_right = 0;
+			org_rec_slice_in.overlap_up = 0;
+			org_rec_slice_in.overlap_down = 0;
+
+			//get slice region
+			if (-1 == isp_drv_regions_fetch(&org_rec_slice_in, &org_rec_slice_out[layer_id]))
+				return;
+		}
+
+		//get rec layer5～layer2 overlap
+		//fetch0
+		for (layer_id = 2; layer_id < param_ptr->layerNum; layer_id++) {
+			for (i=0; i < param_ptr->slice_number[layer_id]; i++) {
+				index = i;
+				rec_slice_overlap[layer_id][index].ov_left = org_rec_slice_out[layer_id].regions[index].sx - rec_slice_out[layer_id].regions[index].sx;
+				rec_slice_overlap[layer_id][index].ov_right = rec_slice_out[layer_id].regions[index].ex - org_rec_slice_out[layer_id].regions[index].ex;
+				rec_slice_overlap[layer_id][index].ov_up = org_rec_slice_out[layer_id].regions[index].sy - rec_slice_out[layer_id].regions[index].sy;
+				rec_slice_overlap[layer_id][index].ov_down = rec_slice_out[layer_id].regions[index].ey - org_rec_slice_out[layer_id].regions[index].ey;
+
+				param_ptr->fecth0_slice_region[layer_id][index].sx = rec_slice_out[layer_id].regions[index].sx;
+				param_ptr->fecth0_slice_region[layer_id][index].ex = rec_slice_out[layer_id].regions[index].ex;
+				param_ptr->fecth0_slice_region[layer_id][index].sy = rec_slice_out[layer_id].regions[index].sy;
+				param_ptr->fecth0_slice_region[layer_id][index].ey = rec_slice_out[layer_id].regions[index].ey;
+				param_ptr->fecth0_slice_overlap[layer_id][index].ov_left  = rec_slice_overlap[layer_id][index].ov_left ;
+				param_ptr->fecth0_slice_overlap[layer_id][index].ov_right = rec_slice_overlap[layer_id][index].ov_right;
+				param_ptr->fecth0_slice_overlap[layer_id][index].ov_up    = rec_slice_overlap[layer_id][index].ov_up;
+				param_ptr->fecth0_slice_overlap[layer_id][index].ov_down  = rec_slice_overlap[layer_id][index].ov_down ;
+			}
+		}
+
+		//fetch1 layer1~layer4
+		for (layer_id = 1; layer_id < param_ptr->layerNum - 1; layer_id++) {
+			for (i=0; i < param_ptr->slice_number[layer_id + 1]; i++) {
+				index = i;
+
+				//fetch1
+				param_ptr->fecth1_slice_region[layer_id][index].sx = param_ptr->fecth0_slice_region[layer_id + 1][index].sx << 1;
+				param_ptr->fecth1_slice_region[layer_id][index].ex = ((param_ptr->fecth0_slice_region[layer_id + 1][index].ex + 1) << 1) - 1;
+				param_ptr->fecth1_slice_region[layer_id][index].sy = param_ptr->fecth0_slice_region[layer_id + 1][index].sy << 1;
+				param_ptr->fecth1_slice_region[layer_id][index].ey = ((param_ptr->fecth0_slice_region[layer_id + 1][index].ey + 1) << 1) - 1;
+
+				//store rec
+				param_ptr->store_rec_slice_crop_overlap[layer_id][index].ov_left = (param_ptr->fecth0_slice_overlap[layer_id + 1][index].ov_left << 1);
+				param_ptr->store_rec_slice_crop_overlap[layer_id][index].ov_right = (param_ptr->fecth0_slice_overlap[layer_id + 1][index].ov_right << 1);
+				param_ptr->store_rec_slice_crop_overlap[layer_id][index].ov_up = (param_ptr->fecth0_slice_overlap[layer_id + 1][index].ov_up << 1);
+				param_ptr->store_rec_slice_crop_overlap[layer_id][index].ov_down = (param_ptr->fecth0_slice_overlap[layer_id + 1][index].ov_down << 1);
+
+				param_ptr->store_rec_slice_overlap[layer_id][index].ov_left = 0;
+				param_ptr->store_rec_slice_overlap[layer_id][index].ov_right = 0;
+				param_ptr->store_rec_slice_overlap[layer_id][index].ov_up = 0;
+				param_ptr->store_rec_slice_overlap[layer_id][index].ov_down = 0;
+
+				param_ptr->store_rec_slice_region[layer_id][index].sx = (param_ptr->fecth0_slice_region[layer_id + 1][index].sx << 1) + (rec_slice_overlap[layer_id + 1][index].ov_left << 1);
+				param_ptr->store_rec_slice_region[layer_id][index].ex = (((param_ptr->fecth0_slice_region[layer_id + 1][index].ex + 1) << 1) - 1) - (rec_slice_overlap[layer_id + 1][index].ov_right << 1);
+				param_ptr->store_rec_slice_region[layer_id][index].sy = (param_ptr->fecth0_slice_region[layer_id + 1][index].sy << 1) + (rec_slice_overlap[layer_id + 1][index].ov_up << 1);
+				param_ptr->store_rec_slice_region[layer_id][index].ey = (((param_ptr->fecth0_slice_region[layer_id + 1][index].ey + 1) << 1) - 1) - (rec_slice_overlap[layer_id + 1][index].ov_down << 1);
+			}
+		}
+	}
+}
+
 void alg_slice_calc_drv_overlap(struct alg_slice_drv_overlap *param_ptr)
 {
 	int image_w;
 	int image_h;
-	uint32_t slice_flag;
-	int layer_slice_width, layer_slice_height;
-	int layer_slice_num;
-	int i,index;
-	int next_layer_width;
 	int SLICE_W_ALIGN_V;
 	int layer_num;
 
-	struct pipe_overlap_context contextScaler;
-	struct thumbnailscaler_context contextThumbnailScaler;
-	struct thumbnailscaler_param_t thumbnailscaler_param;
-	struct yuvscaler_param_t *scaler1_frame_p = (struct yuvscaler_param_t*)(param_ptr->scaler1.frameParam);
-	struct yuvscaler_param_t *scaler2_frame_p = (struct yuvscaler_param_t*)(param_ptr->scaler2.frameParam);
-
 	struct ltm_rgb_stat_param_t *ltm_sta_p = &param_ptr->ltm_sat;
-
 	struct alg_overlap_info ov_pipe;
 	struct alg_overlap_info ov_Y = {0};
 	struct alg_overlap_info ov_UV = {0};
@@ -2284,6 +2832,7 @@ void alg_slice_calc_drv_overlap(struct alg_slice_drv_overlap *param_ptr)
 	struct alg_fetch_region slice_in;
 	struct alg_slice_regions slice_out;
 	struct alg_slice_regions final_slice_regions;
+	struct alg_slice_regions *add_rec_slice_out = NULL;
 
 	int overlap_left_max;
 	int overlap_right_max;
@@ -2294,31 +2843,12 @@ void alg_slice_calc_drv_overlap(struct alg_slice_drv_overlap *param_ptr)
 	int layer0_padding_height;
 	int slice_num;
 	int layer_id;
-	struct alg_fetch_region rec_slice_in;
-	struct alg_overlap_info ov_layer_rec[MAX_PYR_DEC_LAYER_NUM] = {0};
-	struct alg_slice_regions rec_slice_out[MAX_PYR_DEC_LAYER_NUM];
-	struct alg_fetch_region org_rec_slice_in;
-	struct alg_slice_regions org_rec_slice_out[MAX_PYR_DEC_LAYER_NUM];
-	struct alg_fetch_region add_rec_slice_in;
-	struct alg_overlap_info ov_layer[MAX_PYR_DEC_LAYER_NUM] = {0};
-	struct alg_slice_regions add_rec_slice_out[MAX_PYR_DEC_LAYER_NUM];
-	struct alg_fetch_region org_add_rec_slice_in;
-	struct alg_slice_regions org_add_rec_slice_out[MAX_PYR_DEC_LAYER_NUM];
-	struct alg_overlap_info rec_slice_overlap[MAX_PYR_DEC_LAYER_NUM][PIPE_MAX_SLICE_NUM] = {{0}};
 
 	overlap_left_max = 0;
 	overlap_right_max = 0;
 	overlap_up_max = 0;
 	overlap_down_max = 0;
-	slice_flag = 1;
 	SLICE_W_ALIGN_V = 4;
-
-	for(layer_id = 0; layer_id < MAX_PYR_DEC_LAYER_NUM; layer_id++) {
-		memset(&rec_slice_out[layer_id],0, sizeof(struct alg_slice_regions));
-		memset(&org_rec_slice_out[layer_id], 0, sizeof(struct alg_slice_regions));
-		memset(&add_rec_slice_out[layer_id], 0, sizeof(struct alg_slice_regions));
-		memset(&org_add_rec_slice_out[layer_id], 0, sizeof(struct alg_slice_regions));
-	}
 
 	if (!param_ptr->pyramid_rec_bypass) {
 		image_w = param_ptr->img_src_w;
@@ -2421,10 +2951,10 @@ void alg_slice_calc_drv_overlap(struct alg_slice_drv_overlap *param_ptr)
 
 	// Y and UV MAX
 	{
-		ov_pipe.ov_left += (ov_Y.ov_left  > ov_UV.ov_left) ? ov_Y.ov_left : ov_UV.ov_left;
+		ov_pipe.ov_left += (ov_Y.ov_left > ov_UV.ov_left) ? ov_Y.ov_left : ov_UV.ov_left;
 		ov_pipe.ov_right += (ov_Y.ov_right > ov_UV.ov_right) ? ov_Y.ov_right : ov_UV.ov_right;
-		ov_pipe.ov_up += (ov_Y.ov_up    > ov_UV.ov_up) ? ov_Y.ov_up : ov_UV.ov_up;
-		ov_pipe.ov_down += (ov_Y.ov_down  > ov_UV.ov_down) ? ov_Y.ov_down : ov_UV.ov_down;
+		ov_pipe.ov_up += (ov_Y.ov_up > ov_UV.ov_up) ? ov_Y.ov_up : ov_UV.ov_up;
+		ov_pipe.ov_down += (ov_Y.ov_down > ov_UV.ov_down) ? ov_Y.ov_down : ov_UV.ov_down;
 	}
 
 	//set user overlap
@@ -2441,153 +2971,19 @@ void alg_slice_calc_drv_overlap(struct alg_slice_drv_overlap *param_ptr)
 	ov_pipe.ov_up = (ov_pipe.ov_up + 1) >> 1 << 1;
 	ov_pipe.ov_down = (ov_pipe.ov_down + 1) >> 1 << 1;
 
-	//set scaler context
-	contextScaler.frameWidth = image_w;
-	contextScaler.frameHeight = image_h;
-	contextScaler.pixelFormat = param_ptr->scaler_input_format;
-
-	//set thumbnail context
-	contextThumbnailScaler.src_width = image_w;
-	contextThumbnailScaler.src_height = image_h;
-	contextThumbnailScaler.offlineSliceWidth = param_ptr->slice_w;
-	contextThumbnailScaler.offlineSliceHeight = param_ptr->slice_h;
-
-	//set thumbnail scaler param
-	thumbnailscaler_param.configinfo.thumbnailscaler_trim0_en = param_ptr->thumbnailscaler.trim0_en;
-	thumbnailscaler_param.configinfo.thumbnailscaler_trimstartcol = param_ptr->thumbnailscaler.trim0_start_x;
-	thumbnailscaler_param.configinfo.thumbnailscaler_trimstartrow = param_ptr->thumbnailscaler.trim0_start_y;
-	thumbnailscaler_param.configinfo.thumbnailscaler_trimsizeX = param_ptr->thumbnailscaler.trim0_size_x;
-	thumbnailscaler_param.configinfo.thumbnailscaler_trimsizeY = param_ptr->thumbnailscaler.trim0_size_y;
-	thumbnailscaler_param.configinfo.thumbnailscaler_phaseX = param_ptr->thumbnailscaler.phase_x;
-	thumbnailscaler_param.configinfo.thumbnailscaler_phaseY = param_ptr->thumbnailscaler.phase_y;
-	thumbnailscaler_param.configinfo.thumbnailscaler_base_align = param_ptr->thumbnailscaler.base_align;
-	thumbnailscaler_param.configinfo.ow = param_ptr->thumbnailscaler.out_w;
-	thumbnailscaler_param.configinfo.oh = param_ptr->thumbnailscaler.out_h;
-	thumbnailscaler_param.configinfo.outformat = param_ptr->thumbnailscaler.out_format;
-
 	isp_drv_regions_set(&slice_out, &maxRegion);
 	isp_drv_regions_set(&slice_out, &orgRegion);
 
-	//step1
-	do {
-		struct alg_slice_regions refRegion;
-		struct alg_slice_regions nr3d_slice_region_out;
-		struct alg_slice_regions scaler1_slice_region_out;
-		struct alg_slice_regions scaler2_slice_region_out;
-		struct alg_slice_regions scaler3_slice_region_out;
-		struct alg_slice_regions maxRegionTemp;
-		struct alg_slice_regions* regions_arr[4];
-
-		memset(&refRegion, 0, sizeof(struct alg_slice_regions));
-		memset(&nr3d_slice_region_out, 0, sizeof(struct alg_slice_regions));
-		memset(&scaler1_slice_region_out, 0, sizeof(struct alg_slice_regions));
-		memset(&scaler2_slice_region_out, 0, sizeof(struct alg_slice_regions));
-		memset(&scaler3_slice_region_out, 0, sizeof(struct alg_slice_regions));
-		memset(&maxRegionTemp, 0, sizeof(struct alg_slice_regions));
-
-		regions_arr[0] = &nr3d_slice_region_out;
-		regions_arr[1] = &scaler1_slice_region_out;
-		regions_arr[2] = &scaler2_slice_region_out;
-		regions_arr[3] = &scaler3_slice_region_out;
-
-		isp_drv_regions_set(&maxRegion, &refRegion);
-
-		if(!param_ptr->nr3d_bd_bypass && param_ptr->nr3d_bd_FBC_en) {
-			isp_drv_regions_set(&orgRegion, &nr3d_slice_region_out);
-			isp_drv_regions_3dnr(&refRegion, &nr3d_slice_region_out,
-				AFBC_PADDING_W_YUV420_3dnr, AFBC_PADDING_H_YUV420_3dnr,0);
-			isp_drv_regions_set(&nr3d_slice_region_out, &orgRegion);
-		}
-
-		if (!param_ptr->scaler1.bypass) {
-			param_ptr->scaler1.slice_overlap_after_sclaer = 0;
-			param_ptr->scaler1.slice_overlapleft_after_sclaer = 0;
-			param_ptr->scaler1.slice_overlapright_after_sclaer = 0;
-			param_ptr->scaler1.flag = 0;
-
-			scaler_init(scaler1_frame_p, &param_ptr->scaler1, &contextScaler);
-			pr_debug("regin sx %d ex %d sy %d ey %d\n", param_ptr->scaler1.region_input[0].sx,
-				param_ptr->scaler1.region_input[0].ex, param_ptr->scaler1.region_input[0].sy,
-				param_ptr->scaler1.region_input[0].ey);
-			pr_debug("ref regin sx %d ex %d sy %d ey %d\n", refRegion.regions[0].sx,
-				refRegion.regions[0].ex, refRegion.regions[0].sy,
-				refRegion.regions[0].ey);
-			scaler_calculate_region(&refRegion, &scaler1_slice_region_out, scaler1_frame_p, 0, &param_ptr->scaler1, param_ptr->slice_w);
-		}
-
-		if (!param_ptr->scaler2.bypass) {
-			param_ptr->scaler1.slice_overlap_after_sclaer = 0;
-			param_ptr->scaler1.slice_overlapleft_after_sclaer = 0;
-			param_ptr->scaler1.slice_overlapright_after_sclaer = 0;
-			param_ptr->scaler1.flag = 0;
-
-			scaler_init(scaler2_frame_p, &param_ptr->scaler2, &contextScaler);
-			scaler_calculate_region(&refRegion, &scaler2_slice_region_out, scaler2_frame_p, 0, &param_ptr->scaler2, param_ptr->slice_w);
-		}
-
-		if (!param_ptr->thumbnailscaler.bypass)
-			thumbnailscaler_calculate_region(&refRegion,&scaler3_slice_region_out,&thumbnailscaler_param,&contextThumbnailScaler,0);
-
-		//get max
-		isp_drv_regions_arr_max(regions_arr, 4, &maxRegionTemp);
-		if (!isp_drv_regions_empty(&maxRegionTemp))
-			isp_drv_regions_set(&maxRegionTemp, &maxRegion);
-	} while (0);
-
-	//step2
-	do {
-		struct alg_slice_regions refRegion;
-		struct alg_slice_regions nr3d_slice_region_out;
-		struct alg_slice_regions scaler1_slice_region_out;
-		struct alg_slice_regions scaler2_slice_region_out;
-		struct alg_slice_regions scaler3_slice_region_out;
-		struct alg_slice_regions maxRegionTemp;
-		struct alg_slice_regions* regions_arr[4];
-
-		memset(&refRegion, 0, sizeof(struct alg_slice_regions));
-		memset(&nr3d_slice_region_out, 0, sizeof(struct alg_slice_regions));
-		memset(&scaler1_slice_region_out, 0, sizeof(struct alg_slice_regions));
-		memset(&scaler2_slice_region_out, 0, sizeof(struct alg_slice_regions));
-		memset(&scaler3_slice_region_out, 0, sizeof(struct alg_slice_regions));
-		memset(&maxRegionTemp, 0, sizeof(struct alg_slice_regions));
-
-		regions_arr[0] = &nr3d_slice_region_out;
-		regions_arr[1] = &scaler1_slice_region_out;
-		regions_arr[2] = &scaler2_slice_region_out;
-		regions_arr[3] = &scaler3_slice_region_out;
-
-		isp_drv_regions_set(&maxRegion, &refRegion);
-
-		if (!param_ptr->nr3d_bd_bypass && param_ptr->nr3d_bd_FBC_en) {
-			isp_drv_regions_set(&orgRegion, &nr3d_slice_region_out);
-			isp_drv_regions_3dnr(&refRegion, &nr3d_slice_region_out, AFBC_PADDING_W_YUV420_3dnr,AFBC_PADDING_H_YUV420_3dnr, 1);
-			isp_drv_regions_set(&nr3d_slice_region_out, &orgRegion);
-		}
-
-		if (!param_ptr->scaler1.bypass) {
-			param_ptr->scaler1.slice_overlap_after_sclaer = 0;
-			param_ptr->scaler1.slice_overlapleft_after_sclaer = 0;
-			param_ptr->scaler1.slice_overlapright_after_sclaer = 0;
-			param_ptr->scaler1.flag = 0;
-			scaler_calculate_region(&refRegion, &scaler1_slice_region_out, scaler1_frame_p, 1, &param_ptr->scaler1, param_ptr->slice_w);
-		}
-
-		if (!param_ptr->scaler2.bypass) {
-			param_ptr->scaler2.slice_overlap_after_sclaer = 0;
-			param_ptr->scaler2.slice_overlapleft_after_sclaer = 0;
-			param_ptr->scaler2.slice_overlapright_after_sclaer = 0;
-			param_ptr->scaler2.flag = 0;
-			scaler_calculate_region(&refRegion, &scaler2_slice_region_out, scaler2_frame_p, 1, &param_ptr->scaler2, param_ptr->slice_w);
-		}
-
-		if (!param_ptr->thumbnailscaler.bypass)
-			isp_drv_regions_set(&refRegion, &scaler3_slice_region_out);
-		//get max
-		isp_drv_regions_arr_max(regions_arr, 4, &maxRegionTemp);
-		if (!isp_drv_regions_empty(&maxRegionTemp))
-			isp_drv_regions_set(&maxRegionTemp, &maxRegion);
-	} while (0);
-	//////////////////////////////////////////////////////////////////////////
+	/* Add temp sub function to avoid stack size overflow */
+	{
+		struct alg_scaler_ovlap_temp scl_ovlap_temp = {0};
+		scl_ovlap_temp.image_w = image_w;
+		scl_ovlap_temp.image_h = image_h;
+		scl_ovlap_temp.param_ptr = param_ptr;
+		scl_ovlap_temp.maxRegion = &maxRegion;
+		scl_ovlap_temp.orgRegion = &orgRegion;
+		alg_slice_scaler_overlap_temp(&scl_ovlap_temp);
+	}
 
 	isp_drv_regions_max(&maxRegion, &orgRegion, &maxRegion);
 	slice_in.image_w = image_w;
@@ -2750,328 +3146,22 @@ void alg_slice_calc_drv_overlap(struct alg_slice_drv_overlap *param_ptr)
 	/////////////////////////////////////////////////////初始化每层的slice个数
 	for(layer_id = 0; layer_id < param_ptr->layerNum; layer_id++)
 		param_ptr->slice_number[layer_id] = slice_num;
-	// rec region
-	do {
-		int i, j, index, rows, cols;
-		rows = param_ptr->slice_rows;
-		cols = param_ptr->slice_cols;
-		for (layer_id = 0; layer_id < layer_num; layer_id++) {
-			ov_layer_rec[layer_id].ov_left = overlap_rec.ov_left ;
-			ov_layer_rec[layer_id].ov_right = overlap_rec.ov_right;
-			ov_layer_rec[layer_id].ov_up = overlap_rec.ov_up;
-			ov_layer_rec[layer_id].ov_down = overlap_rec.ov_down ;
-			if (!param_ptr->uw_sensor && layer_id == 0) {
-				ov_layer_rec[layer_id].ov_left = overlap_rec.ov_left << 1;
-				ov_layer_rec[layer_id].ov_right = overlap_rec.ov_right << 1;
-				ov_layer_rec[layer_id].ov_up = overlap_rec.ov_up << 1;
-				ov_layer_rec[layer_id].ov_down = overlap_rec.ov_down << 1;
-			}
 
-			rec_slice_in.image_w = layer_id ? (layer0_padding_width >>layer_id) : (param_ptr->img_src_w);
-			rec_slice_in.image_h = layer_id ? (layer0_padding_height >>layer_id) : (param_ptr->img_src_h);
-			rec_slice_in.slice_w = (slice_num == 1) ? rec_slice_in.image_w : param_ptr->slice_w>>layer_id;
-			rec_slice_in.slice_h = layer0_padding_height>>layer_id;
-			rec_slice_in.overlap_left = ov_layer_rec[layer_id].ov_left;
-			rec_slice_in.overlap_right = ov_layer_rec[layer_id].ov_right;
-			rec_slice_in.overlap_up = ov_layer_rec[layer_id].ov_up;
-			rec_slice_in.overlap_down = ov_layer_rec[layer_id].ov_down;
-
-	pr_debug("img w%d h%d slice w%d h%d ov L%d R %d\n", rec_slice_in.image_w, rec_slice_in.image_h,
-			rec_slice_in.slice_w, rec_slice_in.slice_h, rec_slice_in.overlap_left, rec_slice_in.overlap_right);
-			//get slice region
-			if (-1 == isp_drv_regions_fetch(&rec_slice_in, &rec_slice_out[layer_id]))
-				return;
-		}
-
-	pr_debug("lay num %d input laynum %d\n", layer_num, param_ptr->layerNum);
-	for (layer_id = 0; layer_id < layer_num; layer_id++) {
-		org_rec_slice_in.image_w = layer_id ? (layer0_padding_width  >>layer_id) : (param_ptr->img_src_w);
-		org_rec_slice_in.image_h = layer_id ? (layer0_padding_height >>layer_id) : (param_ptr->img_src_h);
-		org_rec_slice_in.slice_w = (slice_num == 1) ? org_rec_slice_in.image_w : param_ptr->slice_w>>layer_id;
-		org_rec_slice_in.slice_h = layer0_padding_height>>layer_id;
-		org_rec_slice_in.overlap_left  = 0;
-		org_rec_slice_in.overlap_right = 0;
-		org_rec_slice_in.overlap_up = 0;
-		org_rec_slice_in.overlap_down = 0;
-
-		pr_debug("img w%d h%d slice w%d h%d ov L%d R %d\n", org_rec_slice_in.image_w, org_rec_slice_in.image_h,
-			org_rec_slice_in.slice_w, org_rec_slice_in.slice_h, org_rec_slice_in.overlap_left, org_rec_slice_in.overlap_right);
-		//get slice region
-		if(-1 == isp_drv_regions_fetch(&org_rec_slice_in, &org_rec_slice_out[layer_id])) {
-			return;
-		}
-	}
-
-		//get rec overlap
-		//fetch
-		for (layer_id = 0; layer_id < layer_num; layer_id++) {
-			for (i=0; i < rows; i++) {
-				for (j=0; j < cols; j++) {
-					index = i * cols + j;
-					//
-					rec_slice_overlap[layer_id][index].ov_left = org_rec_slice_out[layer_id].regions[index].sx - rec_slice_out[layer_id].regions[index].sx;
-					rec_slice_overlap[layer_id][index].ov_right = rec_slice_out[layer_id].regions[index].ex - org_rec_slice_out[layer_id].regions[index].ex;
-					rec_slice_overlap[layer_id][index].ov_up = org_rec_slice_out[layer_id].regions[index].sy - rec_slice_out[layer_id].regions[index].sy;
-					rec_slice_overlap[layer_id][index].ov_down = rec_slice_out[layer_id].regions[index].ey - org_rec_slice_out[layer_id].regions[index].ey;
-				}
-			}
-		}
-	}while(0);
-
-	//////////////////////////////////////////////////////////////////////////
-	/* (ISP_overlap >> layer_id) + rec_overlap */
-	for (layer_id = 0; layer_id < layer_num; layer_id++) {
-		ov_layer[layer_id].ov_left = (ov_pipe_layer0.ov_left >> layer_id) + ov_layer_rec[layer_id].ov_left;
-		ov_layer[layer_id].ov_right = (ov_pipe_layer0.ov_right >> layer_id) + ov_layer_rec[layer_id].ov_right;
-		ov_layer[layer_id].ov_up = (ov_pipe_layer0.ov_up >> layer_id) + ov_layer_rec[layer_id].ov_up;
-		ov_layer[layer_id].ov_down = (ov_pipe_layer0.ov_down >>layer_id) + ov_layer_rec[layer_id].ov_down;
-
-		add_rec_slice_in.image_w = layer_id ? (layer0_padding_width >>layer_id) : (param_ptr->img_src_w);
-		add_rec_slice_in.image_h = layer_id ? (layer0_padding_height >>layer_id) : (param_ptr->img_src_h);
-		add_rec_slice_in.slice_w = (slice_num == 1) ? add_rec_slice_in.image_w : param_ptr->slice_w >> layer_id;
-		add_rec_slice_in.slice_h = layer0_padding_height >> layer_id;
-		add_rec_slice_in.overlap_left = ov_layer[layer_id].ov_left;
-		add_rec_slice_in.overlap_right = ov_layer[layer_id].ov_right;
-		add_rec_slice_in.overlap_up = ov_layer[layer_id].ov_up;
-		add_rec_slice_in.overlap_down = ov_layer[layer_id].ov_down;
-		pr_debug("img w%d h%d slice w%d h%d ov L%d R %d\n", add_rec_slice_in.image_w, add_rec_slice_in.image_h,
-			add_rec_slice_in.slice_w, add_rec_slice_in.slice_h, add_rec_slice_in.overlap_left, add_rec_slice_in.overlap_right);
-		//get slice region
-		if (-1 == isp_drv_regions_fetch(&add_rec_slice_in, &add_rec_slice_out[layer_id]))
-			return;
-	}
-
-	for(layer_id = 0; layer_id < layer_num; layer_id++) {
-		org_add_rec_slice_in.image_w = layer_id ? (layer0_padding_width  >>layer_id) : (param_ptr->img_src_w);
-		org_add_rec_slice_in.image_h = layer_id ? (layer0_padding_height >>layer_id) : (param_ptr->img_src_h);
-		org_add_rec_slice_in.slice_w = (slice_num == 1) ? org_add_rec_slice_in.image_w : param_ptr->slice_w >> layer_id;
-		org_add_rec_slice_in.slice_h = layer0_padding_height >> layer_id;
-		org_add_rec_slice_in.overlap_left = 0;
-		org_add_rec_slice_in.overlap_right = 0;
-		org_add_rec_slice_in.overlap_up = 0;
-		org_add_rec_slice_in.overlap_down = 0;
-
-		//get slice region
-		if(-1 == isp_drv_regions_fetch(&org_add_rec_slice_in, &org_add_rec_slice_out[layer_id]))
-			return;
-	}
-
-	//////////////////////////////////////////////////////////////////////////
-	param_ptr->slice_rows = add_rec_slice_out[0].rows;
-	param_ptr->slice_cols = add_rec_slice_out[0].cols;
-	do {
-		int i,j,index,rows,cols;
-		rows = param_ptr->slice_rows;
-		cols = param_ptr->slice_cols;
-		//fetch0
-		for (layer_id = 0; layer_id < layer_num; layer_id++) {
-			for ( i=0; i < rows; i++) {
-				for ( j=0; j < cols; j++) {
-					index = i * cols + j;
-					//
-					param_ptr->fecth0_slice_region[layer_id][index].sx = add_rec_slice_out[layer_id].regions[index].sx;
-					param_ptr->fecth0_slice_region[layer_id][index].ex = add_rec_slice_out[layer_id].regions[index].ex;
-					param_ptr->fecth0_slice_region[layer_id][index].sy = add_rec_slice_out[layer_id].regions[index].sy;
-					param_ptr->fecth0_slice_region[layer_id][index].ey = add_rec_slice_out[layer_id].regions[index].ey;
-					pr_debug("layer %d slice %d fetch 0 sx%d sy%d ex%d ey%d\n", layer_id, index, param_ptr->fecth0_slice_region[layer_id][index].sx, param_ptr->fecth0_slice_region[layer_id][index].sy,
-						param_ptr->fecth0_slice_region[layer_id][index].ex, param_ptr->fecth0_slice_region[layer_id][index].ey);
-					//
-					param_ptr->fecth0_slice_overlap[layer_id][index].ov_left = org_add_rec_slice_out[layer_id].regions[index].sx - add_rec_slice_out[layer_id].regions[index].sx;
-					param_ptr->fecth0_slice_overlap[layer_id][index].ov_right = add_rec_slice_out[layer_id].regions[index].ex - org_add_rec_slice_out[layer_id].regions[index].ex;
-					param_ptr->fecth0_slice_overlap[layer_id][index].ov_up = org_add_rec_slice_out[layer_id].regions[index].sy - add_rec_slice_out[layer_id].regions[index].sy;
-					param_ptr->fecth0_slice_overlap[layer_id][index].ov_down = add_rec_slice_out[layer_id].regions[index].ey - org_add_rec_slice_out[layer_id].regions[index].ey;
-				}
-			}
-		}
-
-		for(layer_id = 0; layer_id < layer_num - 1; layer_id++) {
-			for (i=0; i < rows; i++) {
-				for (j=0; j < cols; j++) {
-					index = i * cols + j;
-
-					//fetch1
-					param_ptr->fecth1_slice_region[layer_id][index].sx = param_ptr->fecth0_slice_region[layer_id + 1][index].sx << 1;
-					param_ptr->fecth1_slice_region[layer_id][index].ex = ((param_ptr->fecth0_slice_region[layer_id + 1][index].ex + 1) << 1) - 1;
-					param_ptr->fecth1_slice_region[layer_id][index].sy = param_ptr->fecth0_slice_region[layer_id + 1][index].sy << 1;
-					param_ptr->fecth1_slice_region[layer_id][index].ey = ((param_ptr->fecth0_slice_region[layer_id + 1][index].ey + 1) << 1) - 1;
-					if (layer_id == 0) {
-						param_ptr->fecth1_slice_region[layer_id][index].ex = MIN(param_ptr->fecth1_slice_region[layer_id][index].ex, param_ptr->img_src_w - 1);
-						param_ptr->fecth1_slice_region[layer_id][index].ey = MIN(param_ptr->fecth1_slice_region[layer_id][index].ey, param_ptr->img_src_h - 1);
-					} else {
-						param_ptr->fecth1_slice_region[layer_id][index].ex = MIN(param_ptr->fecth1_slice_region[layer_id][index].ex, (layer0_padding_width >> layer_id) - 1);
-						param_ptr->fecth1_slice_region[layer_id][index].ey = MIN(param_ptr->fecth1_slice_region[layer_id][index].ey, (layer0_padding_height >> layer_id) - 1);
-					}
-					pr_debug("layer %d slice %d fetch 0 sx%d sy%d ex%d ey%d\n", layer_id, index, param_ptr->fecth0_slice_region[layer_id][index].sx, param_ptr->fecth0_slice_region[layer_id][index].sy,
-						param_ptr->fecth0_slice_region[layer_id][index].ex, param_ptr->fecth0_slice_region[layer_id][index].ey);
-					pr_debug("layer %d slice %d fetch 1 sx%d sy%d ex%d ey%d\n", layer_id, index, param_ptr->fecth1_slice_region[layer_id][index].sx, param_ptr->fecth1_slice_region[layer_id][index].sy,
-						param_ptr->fecth1_slice_region[layer_id][index].ex, param_ptr->fecth1_slice_region[layer_id][index].ey);
-					//store rec
-					if (layer_id == 0) {
-						param_ptr->store_rec_slice_region[layer_id][index].sx = param_ptr->fecth0_slice_region[layer_id][index].sx;
-						param_ptr->store_rec_slice_region[layer_id][index].ex = param_ptr->fecth0_slice_region[layer_id][index].ex;
-						param_ptr->store_rec_slice_region[layer_id][index].sy = param_ptr->fecth0_slice_region[layer_id][index].sy;
-						param_ptr->store_rec_slice_region[layer_id][index].ey = param_ptr->fecth0_slice_region[layer_id][index].ey;
-
-						param_ptr->store_rec_slice_overlap[layer_id][index].ov_left = param_ptr->fecth0_slice_overlap[layer_id][index].ov_left ;
-						param_ptr->store_rec_slice_overlap[layer_id][index].ov_right = param_ptr->fecth0_slice_overlap[layer_id][index].ov_right;
-						param_ptr->store_rec_slice_overlap[layer_id][index].ov_up = param_ptr->fecth0_slice_overlap[layer_id][index].ov_up   ;
-						param_ptr->store_rec_slice_overlap[layer_id][index].ov_down = param_ptr->fecth0_slice_overlap[layer_id][index].ov_down ;
-
-						if (!param_ptr->uw_sensor) {
-							param_ptr->store_rec_slice_crop_overlap[layer_id][index].ov_left = 0;
-							param_ptr->store_rec_slice_crop_overlap[layer_id][index].ov_right = 0;
-							param_ptr->store_rec_slice_crop_overlap[layer_id][index].ov_up = 0;
-							param_ptr->store_rec_slice_crop_overlap[layer_id][index].ov_down = 0;
-					} else {
-							param_ptr->store_rec_slice_crop_overlap[layer_id][index].ov_left = rec_slice_overlap[layer_id][index].ov_left;
-							param_ptr->store_rec_slice_crop_overlap[layer_id][index].ov_right = rec_slice_overlap[layer_id][index].ov_right;
-							param_ptr->store_rec_slice_crop_overlap[layer_id][index].ov_up = rec_slice_overlap[layer_id][index].ov_up;
-							param_ptr->store_rec_slice_crop_overlap[layer_id][index].ov_down = rec_slice_overlap[layer_id][index].ov_down;
-						}
-					} else {
-						param_ptr->store_rec_slice_crop_overlap[layer_id][index].ov_left = rec_slice_overlap[layer_id][index].ov_left;
-						param_ptr->store_rec_slice_crop_overlap[layer_id][index].ov_right = rec_slice_overlap[layer_id][index].ov_right;
-						param_ptr->store_rec_slice_crop_overlap[layer_id][index].ov_up = rec_slice_overlap[layer_id][index].ov_up;
-						param_ptr->store_rec_slice_crop_overlap[layer_id][index].ov_down = rec_slice_overlap[layer_id][index].ov_down;
-
-						param_ptr->store_rec_slice_overlap[layer_id][index].ov_left = (param_ptr->fecth0_slice_overlap[layer_id+1][index].ov_left << 1) - rec_slice_overlap[layer_id][index].ov_left ;
-                        param_ptr->store_rec_slice_overlap[layer_id][index].ov_right = (param_ptr->fecth0_slice_overlap[layer_id+1][index].ov_right<< 1) - rec_slice_overlap[layer_id][index].ov_right;
-                        param_ptr->store_rec_slice_overlap[layer_id][index].ov_up = (param_ptr->fecth0_slice_overlap[layer_id+1][index].ov_up << 1) - rec_slice_overlap[layer_id][index].ov_up;
-                        param_ptr->store_rec_slice_overlap[layer_id][index].ov_down = (param_ptr->fecth0_slice_overlap[layer_id+1][index].ov_down <<1) - rec_slice_overlap[layer_id][index].ov_down ;
-
-                        param_ptr->store_rec_slice_region[layer_id][index].sx = (param_ptr->fecth0_slice_region[layer_id + 1][index].sx << 1) + rec_slice_overlap[layer_id][index].ov_left ;
-                        param_ptr->store_rec_slice_region[layer_id][index].ex = (((param_ptr->fecth0_slice_region[layer_id + 1][index].ex + 1) << 1) - 1) - rec_slice_overlap[layer_id][index].ov_right;
-                        param_ptr->store_rec_slice_region[layer_id][index].sy = (param_ptr->fecth0_slice_region[layer_id + 1][index].sy << 1) + rec_slice_overlap[layer_id][index].ov_up;
-                        param_ptr->store_rec_slice_region[layer_id][index].ey = (((param_ptr->fecth0_slice_region[layer_id + 1][index].ey + 1) << 1) - 1) - rec_slice_overlap[layer_id][index].ov_down ;
-                    }
-                }
-            }
-        }
-
-    }while(0);
-
-	/* offline_slice_mode = 1,update layer5～layer2：auto slice */
-	if (param_ptr->offline_slice_mode == 1 && param_ptr->layerNum >= 3) {
-		for (layer_id = 2; layer_id < param_ptr->layerNum; layer_id++) {
-			for (i = 0; i < slice_num; i++) {
-				rec_slice_overlap[layer_id][i].ov_left = 0;
-				rec_slice_overlap[layer_id][i].ov_right = 0;
-				rec_slice_overlap[layer_id][i].ov_up = 0;
-				rec_slice_overlap[layer_id][i].ov_down = 0;
-			}
-		}
-
-		for (layer_id = 2; layer_id < param_ptr->layerNum; layer_id++) {
-			rec_slice_in.image_w = layer_id ? (layer0_padding_width >> layer_id) : (param_ptr->img_src_w);
-			rec_slice_in.image_h = layer_id ? (layer0_padding_height >> layer_id) : (param_ptr->img_src_h);
-			next_layer_width = rec_slice_in.image_w << 1;
-			pr_debug("next layer w %d im_src w %d layer0 p_w %d\n", next_layer_width, param_ptr->img_src_w, layer0_padding_width);
-			if (next_layer_width <= 2592)
-				slice_flag = 0;
-
-			if (!slice_flag) {
-				layer_slice_num = 1;
-				layer_slice_width = rec_slice_in.image_w;
-				layer_slice_height = rec_slice_in.image_h;
-			} else {
-				layer_slice_num = (rec_slice_in.image_w + 2592 / 2 - 1) / (2592 / 2);
-				layer_slice_width = (rec_slice_in.image_w / layer_slice_num + SLICE_W_ALIGN_V - 1) >> 2 << 2; //均匀切slice
-				layer_slice_height = rec_slice_in.image_h;
-			}
-
-			param_ptr->slice_number[layer_id] = layer_slice_num;
-			rec_slice_in.slice_w = layer_slice_width;
-			rec_slice_in.slice_h = layer0_padding_height >> layer_id;
-			rec_slice_in.overlap_left = overlap_rec_mode1.ov_left;
-			rec_slice_in.overlap_right = overlap_rec_mode1.ov_right;
-			rec_slice_in.overlap_up = overlap_rec_mode1.ov_up;
-			rec_slice_in.overlap_down = overlap_rec_mode1.ov_down ;
-			pr_debug("rec slice in L %d R %d\n", rec_slice_in.overlap_left, rec_slice_in.overlap_right);
-
-			if (-1 == isp_drv_regions_fetch(&rec_slice_in, &rec_slice_out[layer_id]))
-				return;
-			pr_debug("rec layer 4 slice out %d\n", rec_slice_out[layer_id].regions[0].ex);
-		}
-
-		slice_flag = 1;
-		for (layer_id = 2; layer_id < param_ptr->layerNum; layer_id++) {
-			org_rec_slice_in.image_w = layer_id ? (layer0_padding_width >> layer_id) : (param_ptr->img_src_w);
-			org_rec_slice_in.image_h = layer_id ? (layer0_padding_height >> layer_id) : (param_ptr->img_src_h);
-			next_layer_width = org_rec_slice_in.image_w << 1;
-			if (next_layer_width <= 2592)
-				slice_flag = 0;
-
-			if (!slice_flag) {
-				layer_slice_num = 1;
-				layer_slice_width  = org_rec_slice_in.image_w;
-				layer_slice_height = org_rec_slice_in.image_h;
-			} else {
-				layer_slice_num = (org_rec_slice_in.image_w + 2592 / 2 - 1) / (2592 / 2);
-				layer_slice_width = (org_rec_slice_in.image_w / layer_slice_num + SLICE_W_ALIGN_V - 1) >> 2 << 2; //均匀切slice
-				layer_slice_height = org_rec_slice_in.image_h;
-			}
-
-			org_rec_slice_in.slice_w = layer_slice_width;
-			org_rec_slice_in.slice_h = layer0_padding_height >> layer_id;
-			org_rec_slice_in.overlap_left = 0;
-			org_rec_slice_in.overlap_right = 0;
-			org_rec_slice_in.overlap_up = 0;
-			org_rec_slice_in.overlap_down = 0;
-
-			//get slice region
-			if (-1 == isp_drv_regions_fetch(&org_rec_slice_in, &org_rec_slice_out[layer_id]))
-				return;
-		}
-
-		//get rec layer5～layer2 overlap
-		//fetch0
-		for (layer_id = 2; layer_id < param_ptr->layerNum; layer_id++) {
-			for (i=0; i < param_ptr->slice_number[layer_id]; i++) {
-				index = i;
-				rec_slice_overlap[layer_id][index].ov_left = org_rec_slice_out[layer_id].regions[index].sx - rec_slice_out[layer_id].regions[index].sx;
-				rec_slice_overlap[layer_id][index].ov_right = rec_slice_out[layer_id].regions[index].ex - org_rec_slice_out[layer_id].regions[index].ex;
-				rec_slice_overlap[layer_id][index].ov_up = org_rec_slice_out[layer_id].regions[index].sy - rec_slice_out[layer_id].regions[index].sy;
-				rec_slice_overlap[layer_id][index].ov_down = rec_slice_out[layer_id].regions[index].ey - org_rec_slice_out[layer_id].regions[index].ey;
-
-				param_ptr->fecth0_slice_region[layer_id][index].sx = rec_slice_out[layer_id].regions[index].sx;
-				param_ptr->fecth0_slice_region[layer_id][index].ex = rec_slice_out[layer_id].regions[index].ex;
-				param_ptr->fecth0_slice_region[layer_id][index].sy = rec_slice_out[layer_id].regions[index].sy;
-				param_ptr->fecth0_slice_region[layer_id][index].ey = rec_slice_out[layer_id].regions[index].ey;
-				param_ptr->fecth0_slice_overlap[layer_id][index].ov_left  = rec_slice_overlap[layer_id][index].ov_left ;
-				param_ptr->fecth0_slice_overlap[layer_id][index].ov_right = rec_slice_overlap[layer_id][index].ov_right;
-				param_ptr->fecth0_slice_overlap[layer_id][index].ov_up    = rec_slice_overlap[layer_id][index].ov_up;
-				param_ptr->fecth0_slice_overlap[layer_id][index].ov_down  = rec_slice_overlap[layer_id][index].ov_down ;
-			}
-		}
-
-		//fetch1 layer1~layer4
-		for (layer_id = 1; layer_id < param_ptr->layerNum - 1; layer_id++) {
-			for (i=0; i < param_ptr->slice_number[layer_id + 1]; i++) {
-				index = i;
-
-				//fetch1
-				param_ptr->fecth1_slice_region[layer_id][index].sx = param_ptr->fecth0_slice_region[layer_id + 1][index].sx << 1;
-				param_ptr->fecth1_slice_region[layer_id][index].ex = ((param_ptr->fecth0_slice_region[layer_id + 1][index].ex + 1) << 1) - 1;
-				param_ptr->fecth1_slice_region[layer_id][index].sy = param_ptr->fecth0_slice_region[layer_id + 1][index].sy << 1;
-				param_ptr->fecth1_slice_region[layer_id][index].ey = ((param_ptr->fecth0_slice_region[layer_id + 1][index].ey + 1) << 1) - 1;
-
-				//store rec
-				param_ptr->store_rec_slice_crop_overlap[layer_id][index].ov_left = (param_ptr->fecth0_slice_overlap[layer_id + 1][index].ov_left << 1);
-				param_ptr->store_rec_slice_crop_overlap[layer_id][index].ov_right = (param_ptr->fecth0_slice_overlap[layer_id + 1][index].ov_right << 1);
-				param_ptr->store_rec_slice_crop_overlap[layer_id][index].ov_up = (param_ptr->fecth0_slice_overlap[layer_id + 1][index].ov_up << 1);
-				param_ptr->store_rec_slice_crop_overlap[layer_id][index].ov_down = (param_ptr->fecth0_slice_overlap[layer_id + 1][index].ov_down << 1);
-
-				param_ptr->store_rec_slice_overlap[layer_id][index].ov_left = 0;
-				param_ptr->store_rec_slice_overlap[layer_id][index].ov_right = 0;
-				param_ptr->store_rec_slice_overlap[layer_id][index].ov_up = 0;
-				param_ptr->store_rec_slice_overlap[layer_id][index].ov_down = 0;
-
-				param_ptr->store_rec_slice_region[layer_id][index].sx = (param_ptr->fecth0_slice_region[layer_id + 1][index].sx << 1) + (rec_slice_overlap[layer_id + 1][index].ov_left << 1);
-				param_ptr->store_rec_slice_region[layer_id][index].ex = (((param_ptr->fecth0_slice_region[layer_id + 1][index].ex + 1) << 1) - 1) - (rec_slice_overlap[layer_id + 1][index].ov_right << 1);
-				param_ptr->store_rec_slice_region[layer_id][index].sy = (param_ptr->fecth0_slice_region[layer_id + 1][index].sy << 1) + (rec_slice_overlap[layer_id + 1][index].ov_up << 1);
-				param_ptr->store_rec_slice_region[layer_id][index].ey = (((param_ptr->fecth0_slice_region[layer_id + 1][index].ey + 1) << 1) - 1) - (rec_slice_overlap[layer_id + 1][index].ov_down << 1);
-			}
-		}
+	/* Add temp sub function to avoid stack size overflow */
+	{
+		struct alg_pyramid_ovlap_temp pyramid_ovlap_temp;
+		memset(&pyramid_ovlap_temp, 0, sizeof(struct alg_pyramid_ovlap_temp));
+		pyramid_ovlap_temp.param_ptr = param_ptr;
+		pyramid_ovlap_temp.layer_id = layer_id;
+		pyramid_ovlap_temp.layer_num = layer_num;
+		pyramid_ovlap_temp.overlap_rec = &overlap_rec;
+		pyramid_ovlap_temp.slice_num = slice_num;
+		pyramid_ovlap_temp.layer0_padding_height = layer0_padding_height;
+		pyramid_ovlap_temp.layer0_padding_width = layer0_padding_width;
+		pyramid_ovlap_temp.ov_pipe_layer0 = &ov_pipe_layer0;
+		pyramid_ovlap_temp.overlap_rec_mode1 = &overlap_rec_mode1;
+		add_rec_slice_out = &pyramid_ovlap_temp.add_rec_slice_out[0];
+		alg_slice_pyramid_ovlap_temp(&pyramid_ovlap_temp);
 	}
 
 	//calculation scaler slice param
@@ -3089,17 +3179,17 @@ void alg_slice_calc_drv_overlap(struct alg_slice_drv_overlap *param_ptr)
 				slice_context.cols = cols;
 				slice_context.slice_row_no = i;
 				slice_context.slice_col_no = j;
-				slice_context.slice_w = add_rec_slice_out[0].regions[index].ex - add_rec_slice_out[0].regions[index].sx + 1;
-				slice_context.slice_h = add_rec_slice_out[0].regions[index].ey - add_rec_slice_out[0].regions[index].sy + 1;
+				slice_context.slice_w = add_rec_slice_out->regions[index].ex - add_rec_slice_out->regions[index].sx + 1;
+				slice_context.slice_h = add_rec_slice_out->regions[index].ey - add_rec_slice_out->regions[index].sy + 1;
 
 				pr_debug("regin sx %d ex %d sy %d ey %d\n", param_ptr->scaler1.region_input[0].sx,
 					param_ptr->scaler1.region_input[0].ex, param_ptr->scaler1.region_input[0].sy,
 					param_ptr->scaler1.region_input[0].ey);
 				if (!param_ptr->scaler1.bypass)
-					scaler_slice_init(&add_rec_slice_out[0].regions[index], &slice_context, &param_ptr->scaler1);
+					scaler_slice_init(&add_rec_slice_out->regions[index], &slice_context, &param_ptr->scaler1);
 
 				if (!param_ptr->scaler2.bypass)
-					scaler_slice_init(&add_rec_slice_out[0].regions[index], &slice_context, &param_ptr->scaler2);
+					scaler_slice_init(&add_rec_slice_out->regions[index], &slice_context, &param_ptr->scaler2);
 			}
 		}
 	}while(0);

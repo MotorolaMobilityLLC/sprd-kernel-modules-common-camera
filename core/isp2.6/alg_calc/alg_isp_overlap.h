@@ -24,7 +24,7 @@ extern "C" {
 #define SCL_UP_MAX                      10
 #define SCL_DOWN_MAX                    10
 #define PIPE_MAX_SLICE_NUM              4
-#define ISP_DRV_REGIONS_NUM             16
+#define ISP_DRV_REGIONS_NUM             4
 #define FBC_PADDING_W_BAYER             128
 #define FBC_PADDING_H_BAYER             4
 #define FBC_PADDING_W_YUV420_scaler     32
