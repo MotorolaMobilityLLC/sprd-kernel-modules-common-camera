@@ -178,11 +178,15 @@ static void dcamint_frame_dispatch(struct dcam_hw_context *dcam_hw_ctx,
 	sw_ctx->dcam_cb_func(type, frame, sw_ctx->cb_priv_data);
 }
 
-static void dcamint_sof_event_dispatch(struct dcam_hw_context *dcam_hw_ctx)
+static void dcamint_sof_event_dispatch(struct dcam_sw_context *sw_ctx)
 {
 	struct camera_frame *frame = NULL;
 	struct timespec cur_ts;
-	struct dcam_sw_context *sw_ctx = dcam_hw_ctx->sw_ctx;
+
+	if (!sw_ctx) {
+		pr_err("fail to get valid input sw_ctx\n");
+		return;
+	}
 
 	frame = cam_queue_empty_frame_get();
 	if (frame) {
@@ -500,6 +504,11 @@ static void dcamint_cap_sof(void *param)
 	unsigned long flag;
 	int i;
 
+	if (!sw_ctx) {
+		pr_err("fail to get valid input sw_ctx\n");
+		return;
+	}
+
 	if (sw_ctx->offline) {
 		pr_debug("dcam%d offline\n", dcam_hw_ctx->hw_ctx_id);
 		return;
@@ -591,7 +600,7 @@ dispatch_sof:
 
 	if (!sw_ctx->slowmotion_count
 		|| !(sw_ctx->frame_index % sw_ctx->slowmotion_count)) {
-		dcamint_sof_event_dispatch(dcam_hw_ctx);
+		dcamint_sof_event_dispatch(sw_ctx);
 	}
 	sw_ctx->iommu_status = (uint32_t)(-1);
 
@@ -606,6 +615,11 @@ static void dcamint_preview_sof(void *param)
 	struct dcam_sw_context *sw_ctx = dcam_hw_ctx->sw_ctx;
 	struct dcam_path_desc *path = NULL;
 	int i = 0;
+
+	if (!sw_ctx) {
+		pr_err("fail to get valid input sw_ctx\n");
+		return;
+	}
 
 	if (sw_ctx->offline) {
 		pr_debug("dcam%d offline\n", dcam_hw_ctx->hw_ctx_id);
@@ -626,7 +640,7 @@ static void dcamint_preview_sof(void *param)
 		dcam_path_store_frm_set(sw_ctx, path, NULL);
 	}
 
-	dcamint_sof_event_dispatch(dcam_hw_ctx);
+	dcamint_sof_event_dispatch(sw_ctx);
 }
 
 static void dcamint_sensor_sof(void *param)
