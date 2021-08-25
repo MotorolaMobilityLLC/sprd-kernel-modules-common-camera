@@ -84,9 +84,9 @@ int dcam_drv_hw_deinit(void *arg)
 	dev = (struct dcam_pipe_dev *)arg;
 	hw = dev->hw;
 	/* unprepare clk and other resource */
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 4, 0))
 	hw->dcam_ioctl(hw, DCAM_HW_CFG_DISABLE_CLK, NULL);
 	hw->dcam_ioctl(hw, DCAM_HW_CFG_PW_OFF, NULL);
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 4, 0))
 	ret = sprd_cam_domain_disable();
 	ret = sprd_cam_pw_off();
 #endif
