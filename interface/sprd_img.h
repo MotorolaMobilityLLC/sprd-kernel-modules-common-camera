@@ -88,6 +88,9 @@ enum {
 	CAMERA_IRQ_SUPERSIZE_DONE,/*dcam0 full path output supersize done*/
 	CAMERA_IRQ_FDRL,
 	CAMERA_IRQ_FDRH,
+	CAMERA_IRQ_PRE_FDR,
+	CAMERA_IRQ_FDR_DRC,
+	CAMERA_IRQ_FDR_MERGE,
 	CAMERA_IRQ_TX_RESERVED,
 	CAMERA_IRQ_MAX
 };
@@ -251,7 +254,15 @@ enum capture_scene {
 
 enum FDR_POST_SCENE {
 	FDR_POST_LOW = 0,
-	FDR_POST_HIGH
+	FDR_POST_HIGH,
+	FDR_POST_PRE,
+	FDR_POST_DRC,
+	FDR_POST_MERGE,
+};
+
+enum FDR_VERSION {
+	FDR_V1,
+	FDR_V2,
 };
 
 enum {
@@ -485,6 +496,7 @@ struct sprd_img_parm {
 	uint32_t		  buf_property;
 	uint32_t                  is_statis_buf_reserved;
 	uint32_t                  raw_callback;
+	uint32_t		  fdr2_bpc_flag;
 	struct sprd_pdaf_control  pdaf_ctrl;
 	struct sprd_img_rect      crop_rect;
 	struct sprd_img_rect      total_rect;
@@ -512,6 +524,8 @@ struct sprd_img_function_mode {
 	uint32_t dual_cam;
 	uint32_t need_afbc;
 	uint32_t need_fdr;
+	uint32_t fdr_version;
+	uint32_t fdr_preview_captured_num;
 };
 #pragma pack(pop)
 

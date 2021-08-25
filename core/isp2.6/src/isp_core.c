@@ -1951,10 +1951,8 @@ static int ispcore_offline_thread_loop(void *arg)
 	while (1) {
 		if (wait_for_completion_interruptible(
 			&thrd->thread_com) == 0) {
-			if (atomic_cmpxchg(
-					&thrd->thread_stop, 1, 0) == 1) {
-				pr_info("isp context %d thread stop.\n",
-						pctx->ctx_id);
+			if (atomic_cmpxchg(&thrd->thread_stop, 1, 0) == 1) {
+				pr_info("isp context %d thread stop.\n", pctx->ctx_id);
 				break;
 			}
 			pr_debug("thread com done.\n");
@@ -3879,22 +3877,39 @@ static int ispcore_scene_fdr_set(uint32_t prj_id,
 			fdr_ctrl->dst = in->dst;
 			break;
 		case QOGIRL6:
-			if (i == 0) {
-				fdr_ctrl->in_format = IMG_PIX_FMT_GREY;
-				fdr_ctrl->out_format = IMG_PIX_FMT_FULL_RGB;
-				fdr_ctrl->src = in->src;
-				fdr_ctrl->crop = in->crop;
-				fdr_ctrl->dst.w = in->crop.size_x;
-				fdr_ctrl->dst.h = in->crop.size_y;
+			if (!in->fdr_version) {
+				if (i == 0) {
+					fdr_ctrl->in_format = IMG_PIX_FMT_GREY;
+					fdr_ctrl->out_format = IMG_PIX_FMT_FULL_RGB;
+					fdr_ctrl->src = in->src;
+					fdr_ctrl->crop = in->crop;
+					fdr_ctrl->dst.w = in->crop.size_x;
+					fdr_ctrl->dst.h = in->crop.size_y;
+				} else {
+					fdr_ctrl->in_format = IMG_PIX_FMT_FULL_RGB;
+					fdr_ctrl->out_format = IMG_PIX_FMT_NV21;
+					fdr_ctrl->src = out->fdrl_ctrl.dst;
+					fdr_ctrl->crop.start_x = 0;
+					fdr_ctrl->crop.start_y = 0;
+					fdr_ctrl->crop.size_x = fdr_ctrl->src.w;
+					fdr_ctrl->crop.size_y = fdr_ctrl->src.h;
+					fdr_ctrl->dst = in->dst;
+				}
 			} else {
-				fdr_ctrl->in_format = IMG_PIX_FMT_FULL_RGB;
-				fdr_ctrl->out_format = IMG_PIX_FMT_NV21;
-				fdr_ctrl->src = out->fdrl_ctrl.dst;
-				fdr_ctrl->crop.start_x = 0;
-				fdr_ctrl->crop.start_y = 0;
-				fdr_ctrl->crop.size_x = fdr_ctrl->src.w;
-				fdr_ctrl->crop.size_y = fdr_ctrl->src.h;
-				fdr_ctrl->dst = in->dst;
+				if (i == 0) {
+					fdr_ctrl->in_format = IMG_PIX_FMT_GREY;
+					fdr_ctrl->out_format = IMG_PIX_FMT_FULL_RGB;
+					fdr_ctrl->src = in->src;
+					fdr_ctrl->crop = in->crop;
+					fdr_ctrl->dst.w = in->crop.size_x;
+					fdr_ctrl->dst.h = in->crop.size_y;
+				} else {
+					fdr_ctrl->in_format = IMG_PIX_FMT_GREY;
+					fdr_ctrl->out_format = IMG_PIX_FMT_NV21;
+					fdr_ctrl->src = in->src;
+					fdr_ctrl->crop = in->crop;
+					fdr_ctrl->dst = in->dst;
+				}
 			}
 			break;
 		case QOGIRN6pro:
@@ -3950,7 +3965,6 @@ static int ispcore_datactrl_set(void *handle, void *in, void *out)
 		ret = -EFAULT;
 		break;
 	}
-
 exit:
 	return ret;
 }

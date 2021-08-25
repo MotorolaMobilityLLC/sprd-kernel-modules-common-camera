@@ -427,8 +427,6 @@ static int dcamhw_fetch_set(void *handle, void *arg)
 	uint32_t fetch_pitch;
 	struct dcam_hw_fetch_set *fetch = NULL;
 
-	pr_debug("enter.\n");
-
 	if (!arg) {
 		pr_err("fail to get valid arg\n");
 		return -EFAULT;

@@ -1205,9 +1205,10 @@ static int dcamcore_param_cfg(void *dcam_handle, void *param)
 	io_param = (struct isp_io_param *)param;
 
 	pctx = &sw_pctx->ctx[DCAM_CXT_0];
-	if (io_param->scene_id == PM_SCENE_FDRL)
+	if (io_param->scene_id == PM_SCENE_FDRL || io_param->scene_id == PM_SCENE_FDR_PRE)
 		pctx = &sw_pctx->ctx[DCAM_CXT_1];
-	if (io_param->scene_id == PM_SCENE_FDRH)
+	if (io_param->scene_id == PM_SCENE_FDRH || io_param->scene_id == PM_SCENE_FDR_DRC ||
+		io_param->scene_id == PM_SCENE_FDR_MERGE)
 		pctx = &sw_pctx->ctx[DCAM_CXT_2];
 	pm = &pctx->blk_pm;
 
@@ -2421,14 +2422,24 @@ static int dcamcore_scene_fdrl_get(uint32_t prj_id,
 
 	switch (prj_id) {
 	case SHARKL5pro:
-		out->start_ctrl = DCAM_START_CTRL_EN;
-		out->callback_ctrl = DCAM_CALLBACK_CTRL_ISP;
-		out->in_format = DCAM_STORE_RAW_BASE;
+		if (out->fdr_version){
+			out->start_ctrl = DCAM_START_CTRL_EN;
+			out->callback_ctrl = DCAM_CALLBACK_CTRL_USER;
+		} else {
+			out->start_ctrl = DCAM_START_CTRL_EN;
+			out->callback_ctrl = DCAM_CALLBACK_CTRL_ISP;
+			out->in_format = DCAM_STORE_RAW_BASE;
+		}
 		break;
 	case QOGIRL6:
-		out->start_ctrl = DCAM_START_CTRL_EN;
-		out->callback_ctrl = DCAM_CALLBACK_CTRL_ISP;
-		out->in_format = DCAM_STORE_RAW_BASE;
+		if (out->fdr_version) {
+			out->start_ctrl = DCAM_START_CTRL_EN;
+			out->callback_ctrl = DCAM_CALLBACK_CTRL_USER;
+		} else {
+			out->start_ctrl = DCAM_START_CTRL_EN;
+			out->callback_ctrl = DCAM_CALLBACK_CTRL_ISP;
+			out->in_format = DCAM_STORE_RAW_BASE;
+		}
 		break;
 	case QOGIRN6pro:
 		out->start_ctrl = DCAM_START_CTRL_EN;
@@ -2460,9 +2471,15 @@ static int dcamcore_scene_fdrh_get(uint32_t prj_id,
 		out->start_ctrl = DCAM_START_CTRL_EN;
 		out->callback_ctrl = DCAM_CALLBACK_CTRL_ISP;
 		out->in_format = DCAM_STORE_RAW_BASE;
+		out->out_format = DCAM_STORE_RAW_BASE;
 		break;
 	case QOGIRL6:
-		out->start_ctrl = DCAM_START_CTRL_DIS;
+		if (out->fdr_version) {
+			out->start_ctrl = DCAM_START_CTRL_EN;
+			out->callback_ctrl = DCAM_CALLBACK_CTRL_ISP;
+			out->out_format = DCAM_STORE_RAW_BASE;
+		} else
+			out->start_ctrl = DCAM_START_CTRL_DIS;
 		break;
 	case QOGIRN6pro:
 		out->start_ctrl = DCAM_START_CTRL_EN;
@@ -2496,6 +2513,7 @@ static int dcamcore_datactrl_get(void *handle, void *in, void *out)
 	cfg_in = (struct cam_data_ctrl_in *)in;
 	data_ctrl = (struct dcam_data_ctrl_info *)out;
 	prj_id = pctx->dev->hw->prj_id;
+	data_ctrl->fdr_version = pctx->fdr_version;
 
 	switch (cfg_in->scene_type) {
 	case CAM_SCENE_CTRL_FDR_L:

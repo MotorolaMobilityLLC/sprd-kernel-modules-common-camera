@@ -61,6 +61,7 @@ struct camera_frame {
 	uint32_t total_zoom;
 	uint32_t sw_slice_num;
 	uint32_t sw_slice_no;
+	uint32_t bpc_raw_flag;
 	struct img_trim slice_trim;
 	struct dcam_compress_info fbc_info;
 	struct sprd_img_rect zoom_crop;

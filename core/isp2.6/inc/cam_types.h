@@ -174,6 +174,9 @@ enum cam_frame_scene {
 	CAM_FRAME_COMMON = 0,
 	CAM_FRAME_FDRL,
 	CAM_FRAME_FDRH,
+	CAM_FRAME_PRE_FDR,
+	CAM_FRAME_MERGE,
+	CAM_FRAME_DRC,
 };
 
 struct camera_format {
@@ -321,6 +324,7 @@ enum dcam_store_format {
 
 struct cam_data_ctrl_in {
 	enum cam_scene_ctrl_type scene_type;
+	uint32_t fdr_version;
 	uint32_t ctx_id;
 	struct img_size src;
 	struct img_trim crop;

@@ -1419,7 +1419,6 @@ static struct isp_cfg_entry isp_hw_cfg_func_tab[ISP_BLOCK_TOTAL - ISP_BLOCK_BASE
 [ISP_BLOCK_YUV_LTM - ISP_BLOCK_BASE]  = {ISP_BLOCK_YUV_LTM,  isp_k_cfg_yuv_ltm},
 [ISP_BLOCK_RGB_GTM -ISP_BLOCK_BASE]   = {ISP_BLOCK_RGB_GTM,  isp_k_cfg_rgb_gtm},
 [ISP_BLOCK_HSV - ISP_BLOCK_BASE]      = {ISP_BLOCK_HSV,      isp_k_cfg_hsv},
-
 };
 
 static int isphw_block_func_get(void *handle, void *arg)

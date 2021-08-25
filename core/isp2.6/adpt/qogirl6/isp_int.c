@@ -600,8 +600,7 @@ static irqreturn_t ispint_isr_root(int irq, void *priv)
 		/*clear the interrupt*/
 		ISP_HREG_WR(irq_offset + ISP_INT_CLR0, irq_line);
 
-		pr_debug("isp ctx %d irqno %d, INT: 0x%x\n",
-						c_id, irq, irq_line);
+		pr_debug("isp ctx %d irqno %d, INT: 0x%x\n", c_id, irq, irq_line);
 
 		if (atomic_read(&isp_handle->sw_ctx[sw_ctx_id]->user_cnt) < 1) {
 			pr_info("contex %d is stopped\n", sw_ctx_id);

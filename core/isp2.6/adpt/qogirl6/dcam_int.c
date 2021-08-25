@@ -701,7 +701,7 @@ static void dcamint_full_path_done(void *param)
 
 	path = &sw_ctx->path[DCAM_PATH_FULL];
 	if (sw_ctx->offline) {
-		if (sw_ctx->dcam_slice_mode == CAM_OFFLINE_SLICE_HW) {
+		if (sw_ctx->dcam_slice_mode != CAM_OFFLINE_SLICE_SW) {
 			if (sw_ctx->slice_num > 0) {
 				pr_debug("dcam%d offline slice%d done.\n",
 					dcam_hw_ctx->hw_ctx_id, (sw_ctx->slice_num - sw_ctx->slice_count));
@@ -745,10 +745,10 @@ static void dcamint_full_path_done(void *param)
 				sw_ctx->dcam_cb_func(DCAM_CB_RET_SRC_BUF, frame, sw_ctx->cb_priv_data);
 			}
 		}
+
 		if (sw_ctx->rps == 0)
 			dcam_core_context_unbind(sw_ctx);
 		complete(&sw_ctx->frm_done);
-
 	}
 }
 

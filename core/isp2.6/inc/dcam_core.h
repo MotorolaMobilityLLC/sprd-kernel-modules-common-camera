@@ -24,7 +24,7 @@
 #include "dcam_interface.h"
 #include "dcam_fmcu.h"
 
-#define DCAM_IN_Q_LEN                     2
+#define DCAM_IN_Q_LEN                     12
 #define DCAM_PROC_Q_LEN                   12
 
 /* TODO: extend these for slow motion dev */
@@ -268,6 +268,7 @@ struct dcam_sw_context {
 	uint32_t is_pyr_rec;
 	uint32_t is_ebd;
 	uint32_t is_fdr;
+	uint32_t fdr_version;
 	uint32_t offline;/* flag: set 1 for 4in1 go through dcam1 bin */
 	uint32_t rps;/* raw_proc_scene 0:normal 1:hwsim*/
 	uint32_t dcam_slice_mode;
