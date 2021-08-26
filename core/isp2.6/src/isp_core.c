@@ -3017,7 +3017,7 @@ static int ispcore_ioctl(void *isp_handle, int ctx_id,
 	struct isp_sw_context *pctx = NULL;
 	struct isp_rec_ctx_desc *rec_ctx = NULL;
 
-	if (!isp_handle) {
+	if (!isp_handle || ctx_id < 0 || ctx_id >= ISP_CONTEXT_SW_NUM) {
 		pr_err("fail to get valid input ptr\n");
 		return -EFAULT;
 	}
