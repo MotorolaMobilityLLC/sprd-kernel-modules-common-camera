@@ -55,6 +55,7 @@ enum cam_iommu_mode {
 extern int g_dbg_iommu_mode;
 extern int g_dbg_set_iommu_mode;
 extern uint32_t g_pyr_dec_online_bypass;
+extern uint32_t g_pyr_dec_offline_bypass;
 extern uint32_t g_dcam_raw_src;
 
 /* for global camera control */

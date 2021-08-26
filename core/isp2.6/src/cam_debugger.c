@@ -42,6 +42,7 @@ uint32_t g_isp_bypass[ISP_CONTEXT_SW_NUM] = { 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 int g_dbg_iommu_mode = IOMMU_AUTO;
 int g_dbg_set_iommu_mode = IOMMU_AUTO;
 uint32_t g_pyr_dec_online_bypass = 0;
+uint32_t g_pyr_dec_offline_bypass = 0;
 uint32_t g_dcam_raw_src = PROCESS_RAW_SRC_SEL;
 
 extern atomic_t s_dcam_opened[DCAM_SW_CONTEXT_MAX];
@@ -1177,6 +1178,41 @@ static const struct file_operations lbuf_len_ops = {
 	.write = camdebugger_lbuf_len_write,
 };
 
+static ssize_t camdebugger_isp_pyr_dec_bypass(struct file *filp,
+	const char __user *buffer, size_t count, loff_t *ppos)
+{
+	int ret = 0;
+	char msg[8];
+	uint32_t val;
+
+	if (count > 2)
+		return -EINVAL;
+
+	ret = copy_from_user(msg, (void __user *)buffer, count);
+	if (ret) {
+		pr_err("fail to copy_from_user\n");
+		return -EFAULT;
+	}
+
+	msg[count] = '\0';
+	ret = kstrtouint(msg, 10, &val);
+	if (ret < 0) {
+		pr_err("fail to convert '%s', ret %d\n", msg, ret);
+		return ret;
+	}
+
+	g_pyr_dec_offline_bypass = val;
+	pr_debug("set pyr_dec_offline_bypass %u\n", g_pyr_dec_offline_bypass);
+
+	return count;
+}
+
+static const struct file_operations pyr_dec_offline_ops = {
+	.owner = THIS_MODULE,
+	.open = simple_open,
+	.write = camdebugger_isp_pyr_dec_bypass,
+};
+
 static int camdebugger_fbc_ctrl_read(struct seq_file *s, void *unused)
 {
 	struct compression_override *override = NULL;
@@ -1371,6 +1407,10 @@ static int camdebugger_isp_init(struct camera_debugger *debugger)
 
 	if (!debugfs_create_file("line_buf_len", 0644,
 		debugfs_base, NULL, &lbuf_len_ops))
+		return -ENOMEM;
+
+	if (!debugfs_create_file("offline_dec_bypass", 0664,
+		debugfs_base, NULL, &pyr_dec_offline_ops))
 		return -ENOMEM;
 
 #ifdef DBG_REGISTER

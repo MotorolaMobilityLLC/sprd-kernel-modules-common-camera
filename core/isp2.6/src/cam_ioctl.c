@@ -387,8 +387,11 @@ static int camioctl_function_mode_set(struct camera_module *module,
 
 	module->cam_uinfo.is_rgb_ltm = hw->ip_isp->rgb_ltm_support;
 	module->cam_uinfo.is_yuv_ltm = hw->ip_isp->yuv_ltm_support;
-	module->cam_uinfo.is_pyr_dec = hw->ip_isp->pyr_dec_support;
 	module->cam_uinfo.is_rgb_gtm = hw->ip_isp->rgb_gtm_support;
+	if (g_pyr_dec_offline_bypass)
+		module->cam_uinfo.is_pyr_dec = 0;
+	else
+		module->cam_uinfo.is_pyr_dec = hw->ip_isp->pyr_dec_support;
 
 	pr_info("4in1:[%d], rgb_ltm[%d], yuv_ltm[%d], gtm[%d], dual[%d], afbc[%d] dec %d, fdr_version:%d, is_fdr:%d, pre_num:%d\n",
 		module->cam_uinfo.is_4in1,module->cam_uinfo.is_rgb_ltm,
