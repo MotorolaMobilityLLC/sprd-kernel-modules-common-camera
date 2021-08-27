@@ -2011,6 +2011,7 @@ static int dcamcore_dev_start(void *dcam_handle, int online)
 
 	/* TODO: change AFL trigger */
 	atomic_set(&pctx->path[DCAM_PATH_AFL].user_cnt, 0);
+	atomic_set(&pctx->state, STATE_RUNNING);
 
 	dcam_int_tracker_reset(pctx->hw_ctx_id);
 	if (pctx->slowmotion_count && pctx->fmcu) {
@@ -2029,7 +2030,6 @@ static int dcamcore_dev_start(void *dcam_handle, int online)
 		hw->dcam_ioctl(hw, DCAM_HW_CFG_SRAM_CTRL_SET, &sramarg);
 	}
 
-	atomic_set(&pctx->state, STATE_RUNNING);
 	trace.type = NORMAL_REG_TRACE;
 	trace.idx = pctx->hw_ctx_id;
 	hw->isp_ioctl(hw, ISP_HW_CFG_REG_TRACE, &trace);
@@ -2110,6 +2110,10 @@ static int dcamcore_dev_stop(void *dcam_handle, enum dcam_stop_cmd pause)
 		path = &pctx->path[i];
 		atomic_set(&path->is_shutoff, 0);
 	}
+
+	atomic_set(&pctx->shadow_done_cnt, 0);
+	atomic_set(&pctx->shadow_config_cnt, 0);
+
 	pr_info("stop dcam pipe dev[%d] state = %d!\n", hw_ctx_id, atomic_read(&pctx->state));
 	return ret;
 }
@@ -2206,8 +2210,6 @@ static int dcamcore_context_deinit(struct dcam_pipe_dev *dev)
 			dev->dcam_pipe_ops->put_context(dev, pctx_sw->sw_ctx_id);
 			memset(pctx_sw, 0, sizeof(struct dcam_sw_context));
 			atomic_set(&pctx_sw->user_cnt, 0);
-			atomic_set(&pctx_sw->shadow_done_cnt, 0);
-			atomic_set(&pctx_sw->shadow_config_cnt, 0);
 		}
 	}
 	for (i = 0; i < DCAM_HW_CONTEXT_MAX; i++) {
