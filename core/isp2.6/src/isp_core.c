@@ -1245,7 +1245,7 @@ normal_out_put:
 					struct camera_frame, list);
 	} else {
 		int cnt = 0;
-		uint32_t not_use_reserved_buf = (pctx->ch_id == CAM_CH_CAP) && (tmp->not_use_reserved_buf);
+		uint32_t not_use_reserved_buf = (path->spath_id == ISP_SPATH_CP) && (tmp->not_use_reserved_buf);
 		do {
 			if (pctx->uinfo.path_info[path->spath_id].uframe_sync
 				&& tmp->target_fid != CAMERA_RESERVE_FRAME_NUM)
