@@ -478,7 +478,7 @@ int sprd_fd_drv_open(void *drv_handle)
 		}
 #endif
 #else
-		ret = pm_runtime_get(&hw_handle->pdev->dev);
+		ret = pm_runtime_get_sync(&hw_handle->pdev->dev);
 		if (ret != 0) {
 			pr_err("FD_ERR: sprd cam_sys power on failed %d\n",
 							ret);
@@ -589,7 +589,7 @@ int sprd_fd_drv_close(void *drv_handle)
 		sprd_cam_domain_disable();
 		ret = sprd_cam_pw_off();
 #else
-		ret = pm_runtime_put(&hw_handle->pdev->dev);
+		ret = pm_runtime_put_sync(&hw_handle->pdev->dev);
 #endif
 		if (ret != 0) {
 			pr_err("FD_ERR: sprd cam_sys power off failed\n");
@@ -959,15 +959,18 @@ int fd_drv_reg_write_handler(void *handle,
 	struct fd_drv *drv_handle = NULL;
 
 	drv_handle = (struct fd_drv *)handle;
+
+
+	if (cfg_param->reg_param >= SPRD_FD_REG_PARAM_MAX) {
+		pr_err("fail to write_param outpace\n");
+		return -EINVAL;
+	}
+
 	reg_info  =  &fd_reg_info_table[cfg_param->reg_param];
 
 	if (reg_info->reg_write == NULL) {
 		pr_err("FD_ERR: invalid reg write fun %d\n",
 				cfg_param->reg_param);
-		return -EINVAL;
-	}
-	if (cfg_param->reg_param >= SPRD_FD_REG_PARAM_MAX) {
-		pr_err("fail to write_param outpace\n");
 		return -EINVAL;
 	}
 
