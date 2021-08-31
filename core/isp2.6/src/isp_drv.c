@@ -863,6 +863,24 @@ static int ispdrv_thumb_scaler_get(struct isp_path_uinfo *in_ptr,
 	scalerInfo->uv_deci.deci_x = ispdrv_deci_factor_cal(scalerInfo->uv_deci.deci_x);
 	scalerInfo->uv_deci.deci_y = ispdrv_deci_factor_cal(scalerInfo->uv_deci.deci_y);
 
+	/* N6pro thumbscaler calculation regulation */
+	if (scalerInfo->thumbscl_cal_version == 1) {
+		scalerInfo->y_init_phase.w = scalerInfo->y_dst_after_scaler.w / 2;
+		scalerInfo->y_init_phase.h = scalerInfo->y_dst_after_scaler.h / 2;
+		scalerInfo->uv_src_after_deci.w = scalerInfo->y_src_after_deci.w / 2;
+		scalerInfo->uv_src_after_deci.h = scalerInfo->y_src_after_deci.h;
+		scalerInfo->uv_dst_after_scaler.w = scalerInfo->y_dst_after_scaler.w / 2;
+		scalerInfo->uv_dst_after_scaler.h = scalerInfo->y_dst_after_scaler.h / 2;
+		scalerInfo->uv_trim.size_x = scalerInfo->y_trim.size_x / 2;
+		scalerInfo->uv_trim.size_y = scalerInfo->y_trim.size_y / 2;
+		scalerInfo->uv_init_phase.w = scalerInfo->uv_dst_after_scaler.w / 2;
+		scalerInfo->uv_init_phase.h = scalerInfo->uv_dst_after_scaler.h / 2;
+		scalerInfo->uv_factor_in.w = scalerInfo->y_factor_in.w / 2;
+		scalerInfo->uv_factor_in.h = scalerInfo->y_factor_in.h / 2;
+		scalerInfo->uv_factor_out.w = scalerInfo->y_factor_out.w / 2;
+		scalerInfo->uv_factor_out.h = scalerInfo->y_factor_out.h / 2;
+	}
+
 	pr_debug("deciY %d %d, Yfactor (%d %d) => (%d %d) ytrim (%d %d %d %d)\n",
 		scalerInfo->y_deci.deci_x, scalerInfo->y_deci.deci_y,
 		scalerInfo->y_factor_in.w, scalerInfo->y_factor_in.h,
@@ -885,6 +903,10 @@ static int ispdrv_thumb_scaler_get(struct isp_path_uinfo *in_ptr,
 		scalerInfo->uv_src_after_deci.h,
 		scalerInfo->uv_dst_after_scaler.w,
 		scalerInfo->uv_dst_after_scaler.h);
+
+	pr_debug("init_phase: Y(%d %d), UV(%d %d)\n",
+		scalerInfo->y_init_phase.w, scalerInfo->y_init_phase.h,
+		scalerInfo->uv_init_phase.w, scalerInfo->uv_init_phase.h);
 
 	return ret;
 }
@@ -975,6 +997,8 @@ int isp_drv_pipeinfo_get(void *arg, void *frame)
 			}
 		} else {
 			pipe_in->thumb_scaler.idx = ctx->ctx_id;
+			if (ctx->dev->isp_hw->ip_isp->thumb_scaler_cal_version)
+				pipe_in->thumb_scaler.thumbscl_cal_version = 1;
 			ret = ispdrv_thumb_scaler_get(path_info, &pipe_in->thumb_scaler);
 			if (ret) {
 				pr_err("fail to get pipe thumb scaler info\n");

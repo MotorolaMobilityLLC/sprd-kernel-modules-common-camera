@@ -978,6 +978,7 @@ static int ispcore_init_dyn_ov_param(struct slice_cfg_input *slc_cfg_in, struct 
 	slc_cfg_in->calc_dyn_ov.thumb_scaler = &pctx->pipe_info.thumb_scaler;
 	slc_cfg_in->calc_dyn_ov.store[ISP_SPATH_CP] = &pctx->pipe_info.store[ISP_SPATH_CP].store;
 	slc_cfg_in->calc_dyn_ov.store[ISP_SPATH_VID] = &pctx->pipe_info.store[ISP_SPATH_VID].store;
+	slc_cfg_in->calc_dyn_ov.store[ISP_SPATH_FD] = &pctx->pipe_info.store[ISP_SPATH_FD].store;
 
 	return 0;
 }
@@ -1363,7 +1364,6 @@ static int ispcore_offline_size_update(
 		} else {
 			continue;
 		}
-
 		path_info->in_trim = path_trim;
 		pr_debug("update isp path%d trim %d %d %d %d\n",
 			i, path_trim.start_x, path_trim.start_y,

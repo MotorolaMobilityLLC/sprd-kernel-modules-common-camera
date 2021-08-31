@@ -565,6 +565,40 @@ abnormal_reg_trace:
 			ISP_REG_RD(trace->idx, addr + 12));
 	}
 
+	pr_info("ISP thumb_scaler: register list\n");
+	for (addr = ISP_THMB_SCALER_CFG; addr <= ISP_THMB_SCL_BWD_PARA;
+			addr += 16) {
+		pr_info("0x%lx: 0x%x 0x%x 0x%x 0x%x\n",
+			addr,
+			ISP_HREG_RD(addr),
+			ISP_HREG_RD(addr + 4),
+			ISP_HREG_RD(addr + 8),
+			ISP_HREG_RD(addr + 12));
+		pr_info("0x%lx: 0x%x 0x%x 0x%x 0x%x\n",
+			addr,
+			ISP_REG_RD(trace->idx, addr),
+			ISP_REG_RD(trace->idx, addr + 4),
+			ISP_REG_RD(trace->idx, addr + 8),
+			ISP_REG_RD(trace->idx, addr + 12));
+	}
+
+	pr_info("ISP thumb_store: register list\n");
+	for (addr = (ISP_STORE_THUMB_BASE + ISP_STORE_PARAM); addr <= (ISP_STORE_THUMB_BASE + ISP_STORE_SHADOW_CLR);
+			addr += 16) {
+		pr_info("0x%lx: 0x%x 0x%x 0x%x 0x%x\n",
+			addr,
+			ISP_HREG_RD(addr),
+			ISP_HREG_RD(addr + 4),
+			ISP_HREG_RD(addr + 8),
+			ISP_HREG_RD(addr + 12));
+		pr_info("0x%lx: 0x%x 0x%x 0x%x 0x%x\n",
+			addr,
+			ISP_REG_RD(trace->idx, addr),
+			ISP_REG_RD(trace->idx, addr + 4),
+			ISP_REG_RD(trace->idx, addr + 8),
+			ISP_REG_RD(trace->idx, addr + 12));
+	}
+
 	pr_info("ISP mmu: register list\n");
 	for (addr = ISP_MMU_INT_EN; addr <= ISP_MMU_INT_RAW;
 			addr += 16) {
@@ -2897,7 +2931,6 @@ static int isphw_slice_spath_thumbscaler(void *handle, void *arg)
 	cmd = ((spath->slc_scaler->y_init_phase.h & 0x3FF) << 16) |
 		(spath->slc_scaler->y_init_phase.w & 0x3FF);
 	FMCU_PUSH(spath->fmcu, addr, cmd);
-
 
 	addr = ISP_GET_REG(ISP_THMB_SCALER_UV_SLICE_SRC_SIZE);
 	cmd = ((spath->slc_scaler->uv_src_after_deci.h & 0x1FFF) << 16) |

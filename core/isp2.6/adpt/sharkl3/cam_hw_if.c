@@ -456,6 +456,7 @@ static struct cam_hw_ip_info isp = {
 	.fetch_raw_support = 1,
 	.nr3_compress_support = 0,
 	.capture_thumb_support = 0,
+	.thumb_scaler_cal_version = ISP_THUMB_SCL_VER_0,
 };
 
 struct cam_hw_info sharkl3_hw_info = {

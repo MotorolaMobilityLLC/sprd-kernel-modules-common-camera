@@ -264,6 +264,40 @@ struct slice_drv_overlap_thumbnail_scaler_param {
 	int out_w;
 	int out_h;
 	int out_format;
+	/* for update thumb_scaler_cfg param */
+	int slice_num;
+	int pipeline_pos;
+	int path_frame_skip;
+	int uv_sync_y;
+	int y_frame_src_size_hor;
+	int y_frame_src_size_ver;
+	int y_frame_des_size_hor;
+	int y_frame_des_size_ver;
+	int uv_frame_src_size_hor;
+	int uv_frame_src_size_ver;
+	int uv_frame_des_size_hor;
+	int uv_frame_des_size_ver;
+	int y_deci_hor_en;
+	int y_deci_hor_par;
+	int y_deci_ver_en;
+	int y_deci_ver_par;
+	int uv_deci_hor_en;
+	int uv_deci_hor_par;
+	int uv_deci_ver_en;
+	int uv_deci_ver_par;
+	int regular_bypass;
+	int regular_mode;
+	int regular_shrink_y_range;
+	int regular_shrink_uv_range;
+	int regular_shrink_y_offset;
+	int regular_shrink_uv_offset;
+	int regular_shrink_uv_dn_th;
+	int regular_shrink_uv_up_th;
+	int regular_shrink_y_dn_th;
+	int regular_shrink_y_up_th;
+	int regular_effect_v_th;
+	int regular_effect_u_th;
+	int regular_effect_y_th;
 };
 
 struct THUMB_SLICE_PARAM_T {
@@ -301,6 +335,33 @@ struct Sliceinfo {
 	int offlineSliceHeight;
 };
 
+struct thumbnailscaler_slice {
+	uint32_t bypass;
+	uint32_t slice_size_before_trim_hor;
+	uint32_t slice_size_before_trim_ver;
+	uint32_t y_trim0_start_hor;
+	uint32_t y_trim0_start_ver;
+	uint32_t y_trim0_size_hor;
+	uint32_t y_trim0_size_ver;
+	uint32_t uv_trim0_start_hor;
+	uint32_t uv_trim0_start_ver;
+	uint32_t uv_trim0_size_hor;
+	uint32_t uv_trim0_size_ver;
+	uint32_t y_slice_src_size_hor;
+	uint32_t y_slice_src_size_ver;
+	uint32_t y_slice_des_size_hor;
+	uint32_t y_slice_des_size_ver;
+	uint32_t uv_slice_src_size_hor;
+	uint32_t uv_slice_src_size_ver;
+	uint32_t uv_slice_des_size_hor;
+	uint32_t uv_slice_des_size_ver;
+	uint32_t y_init_phase_hor;
+	uint32_t y_init_phase_ver;
+	uint32_t uv_init_phase_hor;
+	uint32_t uv_init_phase_ver;
+	uint32_t chk_sum_clr;
+};
+
 struct thumbscaler_this {
 	struct THUMBINFO_T  thumbinfo;
 	struct CONFIGINFO_T configinfo;
@@ -308,6 +369,7 @@ struct thumbscaler_this {
 	struct Sliceinfo inputSliceList;
 	struct Sliceinfo inputSliceList_overlap;
 	int sumslice;
+	struct thumbnailscaler_slice sliceParam[PIPE_MAX_SLICE_NUM];
 };
 
 struct alg_slice_drv_overlap {
@@ -378,6 +440,7 @@ struct alg_slice_drv_overlap {
 	struct alg_slice_scaler_overlap scaler1;
 	struct alg_slice_scaler_overlap scaler2;
 	struct slice_drv_overlap_thumbnail_scaler_param thumbnailscaler;
+	struct thumbscaler_this thumbnail_scaler;
 
 	/************************************************************************/
 	/*  output                                                              */

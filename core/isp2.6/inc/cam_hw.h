@@ -862,6 +862,7 @@ struct isp_hw_thumbscaler_info {
 	uint32_t scaler_bypass;
 	uint32_t odata_mode;
 	uint32_t frame_deci;
+	uint32_t thumbscl_cal_version;
 
 	struct img_deci_info y_deci;
 	struct img_deci_info uv_deci;
@@ -1293,6 +1294,7 @@ struct cam_hw_ip_info {
 	uint32_t fetch_raw_support;
 	uint32_t nr3_compress_support;
 	uint32_t capture_thumb_support;
+	uint32_t thumb_scaler_cal_version;
 };
 
 struct cam_hw_soc_info {

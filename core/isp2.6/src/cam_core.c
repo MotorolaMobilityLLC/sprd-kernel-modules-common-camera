@@ -4194,9 +4194,10 @@ static int camcore_pyr_info_config(
 				&pyr_layer_num);
 	}
 
-	module->isp_dev_handle->isp_ops->ioctl(module->isp_dev_handle,
-			channel->isp_ctx_id, ISP_IOCTL_CFG_PYR_REC_NUM,
-			&pyr_layer_num);
+	if (channel->ch_id < CAM_CH_PRE_THM)
+		module->isp_dev_handle->isp_ops->ioctl(module->isp_dev_handle,
+				channel->isp_ctx_id, ISP_IOCTL_CFG_PYR_REC_NUM,
+				&pyr_layer_num);
 
 	return ret;
 }

@@ -76,6 +76,16 @@ enum isp_frame_bit_width {
 	ISP_FRAME_14_BIT = 14,
 };
 
+/*
+ * Before N6pro all use ISP_THUMB_SCL_VER_0
+ * N6pro use ISP_THUMB_SCL_VER_1.
+*/
+enum isp_thumb_scaler_version {
+	ISP_THUMB_SCL_VER_0,
+	ISP_THUMB_SCL_VER_1,
+	ISP_THUMB_SCL__MAX,
+};
+
 typedef int (*func_isp_cfg_param)(
 	struct isp_io_param *param,
 	struct isp_k_block *isp_k_param, uint32_t idx);

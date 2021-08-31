@@ -2274,7 +2274,8 @@ int isp_init_param_for_overlap_v2(
 	slice_overlap->img_w = slc_ctx->img_width;
 	slice_overlap->img_h = slc_ctx->img_height;
 
-	ISP_OVERLAP_DEBUG("src %d %d layer num %d\n", slice_overlap->img_w, slice_overlap->img_h, layer_num);
+	ISP_OVERLAP_DEBUG("src %d %d layer num %d img_type %d\n", slice_overlap->img_w, slice_overlap->img_h, layer_num,
+			slice_overlap->img_type);
 	/* update layer num based on img size */
 	while (isp_rec_small_layer_w(slice_overlap->img_w, layer_num) < MIN_PYR_WIDTH ||
 		isp_rec_small_layer_h(slice_overlap->img_h, layer_num) < MIN_PYR_HEIGHT) {
@@ -2298,6 +2299,7 @@ int isp_init_param_for_overlap_v2(
 	slice_overlap->img_src_w = slice_overlap->img_w;
 	slice_overlap->img_src_h = slice_overlap->img_h;
 	slice_overlap->uw_sensor = slice_input->calc_dyn_ov.need_dewarping;
+	ISP_OVERLAP_DEBUG("uw_sensor %d\n", slice_overlap->uw_sensor);
 
 	crop_region_w = slice_input->calc_dyn_ov.crop.start_x + slice_input->calc_dyn_ov.crop.size_x;
 	crop_region_h = slice_input->calc_dyn_ov.crop.start_y + slice_input->calc_dyn_ov.crop.size_y;
@@ -2311,6 +2313,10 @@ int isp_init_param_for_overlap_v2(
 	slice_overlap->crop_sy = slice_input->calc_dyn_ov.crop.start_y;
 	slice_overlap->crop_w = slice_input->calc_dyn_ov.crop.size_x;
 	slice_overlap->crop_h = slice_input->calc_dyn_ov.crop.size_y;
+	ISP_OVERLAP_DEBUG("crop_en %d, crop_mode %d\n", slice_overlap->crop_en, slice_overlap->crop_mode);
+	ISP_OVERLAP_DEBUG("crop sx %d, sy %d\n", slice_overlap->crop_sx, slice_overlap->crop_sy);
+	ISP_OVERLAP_DEBUG("crop w %d, h %d\n", slice_overlap->crop_w, slice_overlap->crop_h);
+	ISP_OVERLAP_DEBUG("src w %d, h %d\n", slice_input->calc_dyn_ov.src.w, slice_input->calc_dyn_ov.src.h);
 
 	slice_align_size = PYR_DEC_WIDTH_ALIGN << layer_num;
 	slice_overlap->slice_w = (slc_ctx->slice_width + slice_align_size - 1) & ~( slice_align_size - 1);
@@ -2363,9 +2369,11 @@ int isp_init_param_for_overlap_v2(
 		slice_overlap->dewarping_height = slice_overlap->img_src_h;
 	}
 
-	ISP_OVERLAP_DEBUG("ynr %d ee %d cnr %d dewarp %d cnr_new %d post-cnr %d",
-		slice_overlap->ynr_bypass, slice_overlap->ee_bypass, slice_overlap->cnr_bypass,
+	ISP_OVERLAP_DEBUG("ltm %d ynr %d ee %d cnr %d dewarp %d cnr_new %d post-cnr %d\n",
+		slice_overlap->ltm_sat.bypass, slice_overlap->ynr_bypass, slice_overlap->ee_bypass, slice_overlap->cnr_bypass,
 		slice_overlap->dewarping_bypass, slice_overlap->cnr_new_bypass, slice_overlap->post_cnr_bypass);
+	ISP_OVERLAP_DEBUG("dewarping w %d h %d\n", slice_overlap->dewarping_width, slice_overlap->dewarping_height);
+
 	/* TBD: 3dnr fbc just temp close */
 	slice_overlap->nr3d_bd_FBC_en = 0;
 
@@ -2497,9 +2505,16 @@ int isp_init_param_for_overlap_v2(
 	slice_overlap->thumbnailscaler.phase_x = slice_input->calc_dyn_ov.thumb_scaler->y_init_phase.w;
 	slice_overlap->thumbnailscaler.phase_y = slice_input->calc_dyn_ov.thumb_scaler->y_init_phase.h;
 	slice_overlap->thumbnailscaler.base_align = 4;/* TBD: just set temp 4 */
-	slice_overlap->thumbnailscaler.out_w = slice_input->calc_dyn_ov.thumb_scaler->y_src_after_deci.w;
-	slice_overlap->thumbnailscaler.out_h = slice_input->calc_dyn_ov.thumb_scaler->y_src_after_deci.h;
+	slice_overlap->thumbnailscaler.out_w = slice_input->calc_dyn_ov.thumb_scaler->y_dst_after_scaler.w;
+	slice_overlap->thumbnailscaler.out_h = slice_input->calc_dyn_ov.thumb_scaler->y_dst_after_scaler.h;
 	slice_overlap->thumbnailscaler.out_format = 1;
+	slice_overlap->thumbnailscaler.slice_num = slc_ctx->slice_num;
+
+	ISP_OVERLAP_DEBUG("start x %d y %d size x %d y %d phase x %d y %d out w %d h %d\n",
+		slice_overlap->thumbnailscaler.trim0_start_x, slice_overlap->thumbnailscaler.trim0_start_y,
+		slice_overlap->thumbnailscaler.trim0_size_x, slice_overlap->thumbnailscaler.trim0_size_y,
+		slice_overlap->thumbnailscaler.phase_x, slice_overlap->thumbnailscaler.phase_y,
+		slice_overlap->thumbnailscaler.out_w, slice_overlap->thumbnailscaler.out_h);
 
 	/* user define ovlap only for debug use */
 	slice_overlap->offlineCfgOverlap_en = 0;
@@ -2510,6 +2525,24 @@ int isp_init_param_for_overlap_v2(
 
 	/* calc overlap */
 	alg_slice_calc_drv_overlap(slice_overlap);
+
+	/* update thumb_scaler_cfg param */
+	slice_input->calc_dyn_ov.thumb_scaler->y_deci.deci_x = slice_overlap->thumbnailscaler.y_deci_hor_par;
+	slice_input->calc_dyn_ov.thumb_scaler->y_deci.deci_x_eb = slice_overlap->thumbnailscaler.y_deci_hor_en;
+	slice_input->calc_dyn_ov.thumb_scaler->y_deci.deci_y = slice_overlap->thumbnailscaler.y_deci_ver_par;
+	slice_input->calc_dyn_ov.thumb_scaler->y_deci.deci_y_eb = slice_overlap->thumbnailscaler.y_deci_ver_en;
+	slice_input->calc_dyn_ov.thumb_scaler->uv_deci.deci_x = slice_overlap->thumbnailscaler.uv_deci_hor_par;
+	slice_input->calc_dyn_ov.thumb_scaler->uv_deci.deci_x_eb = slice_overlap->thumbnailscaler.uv_deci_hor_en;
+	slice_input->calc_dyn_ov.thumb_scaler->uv_deci.deci_y = slice_overlap->thumbnailscaler.uv_deci_ver_par;
+	slice_input->calc_dyn_ov.thumb_scaler->uv_deci.deci_y_eb = slice_overlap->thumbnailscaler.uv_deci_ver_en;
+	slice_input->calc_dyn_ov.thumb_scaler->y_src_after_deci.w = slice_overlap->thumbnailscaler.y_frame_src_size_hor;
+	slice_input->calc_dyn_ov.thumb_scaler->y_src_after_deci.h = slice_overlap->thumbnailscaler.y_frame_src_size_ver;
+	slice_input->calc_dyn_ov.thumb_scaler->y_dst_after_scaler.w = slice_overlap->thumbnailscaler.y_frame_des_size_hor;
+	slice_input->calc_dyn_ov.thumb_scaler->y_dst_after_scaler.h = slice_overlap->thumbnailscaler.y_frame_des_size_ver;
+	slice_input->calc_dyn_ov.thumb_scaler->uv_src_after_deci.w = slice_overlap->thumbnailscaler.uv_frame_src_size_hor;
+	slice_input->calc_dyn_ov.thumb_scaler->uv_src_after_deci.h = slice_overlap->thumbnailscaler.uv_frame_src_size_ver;
+	slice_input->calc_dyn_ov.thumb_scaler->uv_dst_after_scaler.w = slice_overlap->thumbnailscaler.uv_frame_des_size_hor;
+	slice_input->calc_dyn_ov.thumb_scaler->uv_dst_after_scaler.h = slice_overlap->thumbnailscaler.uv_frame_des_size_ver;
 
 	for (i = 0 ; i < slc_ctx->slice_num; i++) {
 		ISP_OVERLAP_DEBUG("get calc result: slice id %d, region (%d, %d, %d, %d)\n",
