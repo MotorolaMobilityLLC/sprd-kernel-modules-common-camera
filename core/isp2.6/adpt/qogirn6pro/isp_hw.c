@@ -22,6 +22,15 @@
 #define COEF_VOR_Y_SIZE                (32 * 8)
 #define COEF_VOR_UV_SIZE               (32 * 8)
 
+#define SHRINK_Y_UP_TH_N6              (SHRINK_Y_UP_TH << 2)
+#define SHRINK_Y_DN_TH_N6              (SHRINK_Y_DN_TH << 2)
+#define SHRINK_UV_UP_TH_N6             (SHRINK_UV_UP_TH << 2)
+#define SHRINK_UV_DN_TH_N6             (SHRINK_UV_DN_TH << 2)
+#define SHRINK_Y_OFFSET_N6             (SHRINK_Y_OFFSET << 2)
+#define SHRINK_Y_RANGE_N6              (SHRINK_Y_RANGE << 2)
+#define SHRINK_C_OFFSET_N6             (SHRINK_C_OFFSET << 2)
+#define SHRINK_C_RANGE_N6              (SHRINK_C_RANGE << 2)
+
 static unsigned long irq_base[4] = {
 	ISP_P0_INT_BASE,
 	ISP_C0_INT_BASE,
@@ -1199,10 +1208,10 @@ static void isphw_path_shrink_info_set(
 	 * the value need to update.
 	 */
 	if (regular_info->regular_mode == DCAM_REGULAR_SHRINK) {
-		regular_info->shrink_y_up_th = SHRINK_Y_UP_TH;
-		regular_info->shrink_y_dn_th = SHRINK_Y_DN_TH;
-		regular_info->shrink_uv_up_th = SHRINK_UV_UP_TH;
-		regular_info->shrink_uv_dn_th = SHRINK_UV_DN_TH;
+		regular_info->shrink_y_up_th = SHRINK_Y_UP_TH_N6;
+		regular_info->shrink_y_dn_th = SHRINK_Y_DN_TH_N6;
+		regular_info->shrink_uv_up_th = SHRINK_UV_UP_TH_N6;
+		regular_info->shrink_uv_dn_th = SHRINK_UV_DN_TH_N6;
 		if (scaler_base == ISP_SCALER_VID_BASE) {
 			addr = ISP_RECORD_SCALER_SHRINK_CFG_Y;
 			reg_val = ((regular_info->shrink_y_dn_th  & 0x3FF) << 16) |
@@ -1214,10 +1223,11 @@ static void isphw_path_shrink_info_set(
 				(regular_info->shrink_uv_up_th & 0x3FF);
 			ISP_REG_WR(idx, addr, reg_val);
 
-			regular_info->shrink_y_offset = SHRINK_Y_OFFSET;
-			regular_info->shrink_y_range = SHRINK_Y_RANGE;
-			regular_info->shrink_c_offset = SHRINK_C_OFFSET;
-			regular_info->shrink_c_range = SHRINK_C_RANGE;
+			regular_info->shrink_y_offset = SHRINK_Y_OFFSET_N6;
+			regular_info->shrink_y_range = SHRINK_Y_RANGE_N6;
+			regular_info->shrink_c_offset = SHRINK_C_OFFSET_N6;
+			regular_info->shrink_c_range = SHRINK_C_RANGE_N6;
+
 			addr = ISP_RECORD_SCALER_REGULAR_CFG;
 			reg_val = ((regular_info->shrink_c_range & 0xF) << 24) |
 				((regular_info->shrink_c_offset & 0x7F) << 16);
