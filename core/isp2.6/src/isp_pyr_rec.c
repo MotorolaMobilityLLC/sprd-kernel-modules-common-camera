@@ -624,11 +624,13 @@ static int isppyrrec_cfg_param(void *handle,
 	switch (cmd) {
 	case ISP_REC_CFG_BUF:
 		pframe = (struct camera_frame *)param;
-		ret = cam_buf_iommu_map(&pframe->buf, CAM_IOMMUDEV_ISP);
-		if (ret) {
-			pr_err("fail to map isp pyr rec iommu buf.\n");
-			ret = -EINVAL;
-			goto exit;
+		if ((pframe->buf.mapping_state & CAM_BUF_MAPPING_DEV) == 0) {
+			ret = cam_buf_iommu_map(&pframe->buf, CAM_IOMMUDEV_ISP);
+			if (ret) {
+				pr_err("fail to map isp pyr rec iommu buf.\n");
+				ret = -EINVAL;
+				goto exit;
+			}
 		}
 
 		for (i = 0; i < ISP_PYR_REC_BUF_NUM; i++) {

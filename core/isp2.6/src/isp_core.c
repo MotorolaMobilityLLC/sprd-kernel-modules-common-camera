@@ -2497,7 +2497,7 @@ static int ispcore_frame_proc(void *isp_handle, void *param, int ctx_id)
 		pctx->uinfo.crop.start_y = 0;
 		pctx->uinfo.crop.size_x = pctx->uinfo.src.w;
 		pctx->uinfo.crop.size_y = pctx->uinfo.src.h;
-		pr_debug("src %d %d\n", pframe->width, pframe->height);
+		pr_debug("isp %d src %d %d\n", pctx->ctx_id, pframe->width, pframe->height);
 		ret = ispcore_dec_frame_proc(pctx, dec_dev, pframe);
 		return ret;
 	}
@@ -2680,7 +2680,7 @@ static int ispcore_path_cfg(void *isp_handle,
 	}
 
 	if (ctx_id >= ISP_CONTEXT_SW_NUM  || ctx_id < ISP_CONTEXT_P0) {
-		pr_err("fail to get legal id ctx %d\n", ctx_id);
+		pr_err("fail to get legal id ctx %d cmd %d\n", ctx_id, cfg_cmd);
 		return -EFAULT;
 	}
 	if (path_id >= ISP_SPATH_NUM) {

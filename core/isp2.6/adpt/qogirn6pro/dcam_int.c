@@ -51,6 +51,25 @@ enum dcam_fix_result {
 	BUFFER_READY,
 };
 
+static void dcamint_fetch_done_proc(struct dcam_sw_context *sw_ctx)
+{
+	struct camera_frame *frame = NULL;
+
+	if (!sw_ctx) {
+		pr_err("fail to get invalid ptr\n");
+		return;
+	}
+
+	frame = cam_queue_dequeue(&sw_ctx->proc_queue, struct camera_frame, list);
+	if (frame) {
+		cam_buf_iommu_unmap(&frame->buf);
+		sw_ctx->dcam_cb_func(DCAM_CB_RET_SRC_BUF, frame, sw_ctx->cb_priv_data);
+	}
+	if (sw_ctx->rps == 0)
+		dcam_core_context_unbind(sw_ctx);
+	complete(&sw_ctx->frm_done);
+}
+
 static inline void dcamint_dcam_int_record(uint32_t idx, uint32_t status, uint32_t status1)
 {
 	uint32_t i;
@@ -690,6 +709,7 @@ static void dcamint_raw_path_done(void *param)
 	struct camera_frame *frame = NULL;
 	struct dcam_path_desc *path = NULL;
 	struct dcam_path_desc *path_bin = NULL;
+	uint32_t fdr_raw_flag = 0;
 
 	if (!sw_ctx) {
 		pr_err("fail to get valid input sw_ctx\n");
@@ -699,10 +719,23 @@ static void dcamint_raw_path_done(void *param)
 	path = &sw_ctx->path[DCAM_PATH_RAW];
 	path_bin = &sw_ctx->path[DCAM_PATH_BIN];
 
+	if (sw_ctx->is_fdr && sw_ctx->fdr_version)
+		fdr_raw_flag = 1;
+
 	if (sw_ctx->offline) {
-		pr_debug("raw slice %d done\n", sw_ctx->slice_num- sw_ctx->slice_count);
-		if (sw_ctx->slice_count - 1)
-			return;
+		if (fdr_raw_flag) {
+			if (sw_ctx->dcam_slice_mode != CAM_OFFLINE_SLICE_SW) {
+				if (sw_ctx->slice_num > 0) {
+					complete(&sw_ctx->slice_done);
+					sw_ctx->slice_count--;
+					if (sw_ctx->slice_count > 0)
+						return;
+				}
+			}
+		} else {
+			if (sw_ctx->slice_count - 1)
+				return;
+		}
 	}
 
 	if ((frame = dcamint_frame_prepare(dcam_hw_ctx, DCAM_PATH_RAW))) {
@@ -711,7 +744,7 @@ static void dcamint_raw_path_done(void *param)
 			so dcam raw can put directly, and send isp yuv to user
 			meanwhile, dcam yuv dispatch to dcam_callback and to be processed in isp
 		*/
-		if (sw_ctx->offline) {
+		if (sw_ctx->offline && !fdr_raw_flag) {
 			pr_debug("dcam raw done, src %d, mfd 0x%x, frame %px\n",path->src_sel, frame->buf.mfd[0], frame);
 			cam_buf_iommu_unmap(&frame->buf);
 			cam_buf_ionbuf_put(&frame->buf);
@@ -729,9 +762,11 @@ static void dcamint_raw_path_done(void *param)
 			}
 			return;
 		}
-		if (sw_ctx->dcam_slice_mode)
+		if (sw_ctx->dcam_slice_mode && !fdr_raw_flag)
 			frame->irq_type = CAMERA_IRQ_SUPERSIZE_DONE;
 		dcamint_frame_dispatch(dcam_hw_ctx, DCAM_PATH_RAW, frame, DCAM_CB_DATA_DONE);
+		if (sw_ctx->offline && fdr_raw_flag)
+			dcamint_fetch_done_proc(sw_ctx);
 	}
 }
 
@@ -746,9 +781,20 @@ static void dcamint_full_path_done(void *param)
 		pr_err("fail to get valid input sw_ctx\n");
 		return;
 	}
-	/*need set default val for preview after dcam offline fetch frgb format*/
-	if (sw_ctx->offline)
+
+	if (sw_ctx->offline) {
 		DCAM_AXIM_MWR(0, IMG_FETCH_CTRL, BIT_1 | BIT_0, 0x1);
+		if (sw_ctx->dcam_slice_mode != CAM_OFFLINE_SLICE_SW) {
+			if (sw_ctx->slice_num > 0) {
+				pr_debug("dcam%d offline slice%d done.\n",
+					dcam_hw_ctx->hw_ctx_id, (sw_ctx->slice_num - sw_ctx->slice_count));
+				complete(&sw_ctx->slice_done);
+				sw_ctx->slice_count--;
+				if (sw_ctx->slice_count > 0)
+					return;
+			}
+		}
+	}
 
 	path = &sw_ctx->path[DCAM_PATH_FULL];
 	pr_debug("capture path done\n");
@@ -774,19 +820,8 @@ static void dcamint_full_path_done(void *param)
 		dcamint_frame_dispatch(dcam_hw_ctx, DCAM_PATH_FULL, frame, DCAM_CB_DATA_DONE);
 	}
 
-	if (sw_ctx->offline) {
-		if (sw_ctx->dcam_slice_mode != CAM_OFFLINE_SLICE_SW) {
-			if (sw_ctx->slice_num > 0) {
-				pr_debug("dcam%d offline slice%d done.\n",
-					dcam_hw_ctx->hw_ctx_id, (sw_ctx->slice_num - sw_ctx->slice_count));
-				complete(&sw_ctx->slice_done);
-				sw_ctx->slice_count--;
-				if (sw_ctx->slice_count > 0)
-					return;
-			}
-			complete(&sw_ctx->frm_done);
-		}
-	}
+	if (sw_ctx->offline && sw_ctx->dcam_slice_mode != CAM_OFFLINE_SLICE_SW)
+		dcamint_fetch_done_proc(sw_ctx);
 }
 
 static void dcamint_bin_path_done(void *param)
@@ -851,15 +886,7 @@ static void dcamint_bin_path_done(void *param)
 			if ((atomic_read(&path_raw->user_cnt) > 0) &&
 				(atomic_read(&path_raw->set_frm_cnt) != (atomic_read(&path->set_frm_cnt))))
 				return;
-			frame = cam_queue_dequeue(&sw_ctx->proc_queue, struct camera_frame, list);
-			if (frame) {
-				cam_buf_iommu_unmap(&frame->buf);
-				sw_ctx->dcam_cb_func(DCAM_CB_RET_SRC_BUF, frame,
-						  sw_ctx->cb_priv_data);
-			}
-			if (sw_ctx->rps == 0)
-				dcam_core_context_unbind(sw_ctx);
-			complete(&sw_ctx->frm_done);
+			dcamint_fetch_done_proc(sw_ctx);
 		}
 	}
 }
@@ -1326,12 +1353,13 @@ static void dcamint_iommu_regs_dump(struct dcam_hw_context *dcam_hw_ctx)
 					reg, val[0], val[1], val[2], val[3]);
 		}
 
-		pr_err("fbc %08x full y %08x u %08x bin y %08x u %08x\n",
+		pr_err("fbc %08x full y %08x u %08x bin y %08x u %08x raw:%08x\n",
 				DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, DCAM_YUV_FBC_SCAL_SLICE_PLOAD_BASE_ADDR),
 				DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, DCAM_STORE4_SLICE_Y_ADDR),
 				DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, DCAM_STORE4_SLICE_U_ADDR),
 				DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, DCAM_STORE0_SLICE_Y_ADDR),
-				DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, DCAM_STORE0_SLICE_U_ADDR));
+				DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, DCAM_STORE0_SLICE_U_ADDR),
+				DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, DCAM_RAW_PATH_BASE_WADDR));
 		pr_err("dec layer1 y %08x u %08x layer2 y %08x u %08x\n",
 				DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, DCAM_STORE_DEC_L1_BASE + DCAM_STORE_DEC_SLICE_Y_ADDR),
 				DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, DCAM_STORE_DEC_L1_BASE + DCAM_STORE_DEC_SLICE_U_ADDR),

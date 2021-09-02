@@ -206,6 +206,7 @@ struct dcam_data_ctrl_info {
 	uint32_t fdr_version;
 	uint32_t in_format;
 	uint32_t out_format;
+	uint32_t need_other_path;
 };
 
 /*

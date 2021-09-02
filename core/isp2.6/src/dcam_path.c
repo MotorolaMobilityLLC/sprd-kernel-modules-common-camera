@@ -221,10 +221,8 @@ int dcam_path_size_cfg(void *dcam_ctx_handle,
 
 		invalid = 0;
 		invalid |= ((path->in_size.w == 0) || (path->in_size.h == 0));
-		invalid |= ((path->in_trim.start_x +
-				path->in_trim.size_x) > path->in_size.w);
-		invalid |= ((path->in_trim.start_y +
-				path->in_trim.size_y) > path->in_size.h);
+		invalid |= ((path->in_trim.start_x + path->in_trim.size_x) > path->in_size.w);
+		invalid |= ((path->in_trim.start_y + path->in_trim.size_y) > path->in_size.h);
 		if (invalid) {
 			spin_unlock_irqrestore(&path->size_lock, flag);
 			pr_err("fail to get valid size, size:%d %d, trim %d %d %d %d\n",
@@ -808,7 +806,7 @@ void dcampath_update_size(struct dcam_sw_context *ctx, struct dcam_path_desc *pa
 		hw->dcam_ioctl(hw, DCAM_HW_CFG_PATH_SRC_SEL, &patharg);
 	}
 	path->base_update = 0;
-	if (path_id == DCAM_PATH_FULL) {
+	if (path_id == DCAM_PATH_FULL || path_id == DCAM_PATH_RAW) {
 		frame->width = path->out_size.w;
 		frame->height = path->out_size.h;
 	}

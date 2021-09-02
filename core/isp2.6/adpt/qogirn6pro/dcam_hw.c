@@ -1028,7 +1028,7 @@ static int dcamhw_path_start(void *handle, void *arg)
 		DCAM_REG_MWR(patharg->idx, DCAM_BWD1_PARAM, 0xE, val << 1);
 		/*bwd for RAW 10bit*/
 		DCAM_REG_MWR(patharg->idx, DCAM_BWD1_PARAM, BIT_0, 0);
-                if (patharg->cap_info.format ==  DCAM_CAP_MODE_YUV)
+		if (patharg->cap_info.format ==  DCAM_CAP_MODE_YUV)
 			DCAM_REG_MWR(patharg->idx, DCAM_RAW_PATH_CFG, BIT_12, 1 << 12);
 		DCAM_REG_MWR(patharg->idx, DCAM_RAW_PATH_CFG, BIT_0, 0);
 		break;
@@ -1097,7 +1097,6 @@ static int dcamhw_path_stop(void *handle, void *arg)
 {
 	int ret = 0;
 	uint32_t idx;
-	uint32_t reg_val;
 
 	struct dcam_hw_path_stop *patharg = NULL;
 
@@ -1113,7 +1112,6 @@ static int dcamhw_path_stop(void *handle, void *arg)
 
 	switch (patharg->path_id) {
 	case  DCAM_PATH_FULL:
-		reg_val = 0;
 		DCAM_REG_MWR(idx, DCAM_PATH_STOP, BIT_4, 1 << 4);
 		DCAM_REG_MWR(idx, DCAM_STORE4_PARAM, BIT_0, 1);
 		break;
@@ -1170,6 +1168,10 @@ static int dcamhw_path_restart(void *handle, void *arg)
 	case DCAM_PATH_RAW:
 		DCAM_REG_MWR(idx, DCAM_PATH_STOP, BIT_2, 0 << 2);
 		DCAM_REG_MWR(idx, DCAM_RAW_PATH_CFG, BIT_0, 0);
+		break;
+	case DCAM_PATH_FULL:
+		DCAM_REG_MWR(idx, DCAM_PATH_STOP, BIT_4, 0 << 4);
+		DCAM_REG_MWR(idx, DCAM_STORE4_PARAM, BIT_0, 0);
 		break;
 	default:
 		break;

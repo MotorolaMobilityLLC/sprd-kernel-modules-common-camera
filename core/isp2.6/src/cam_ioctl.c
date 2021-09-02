@@ -1306,6 +1306,7 @@ static int camioctl_frame_addr_set(struct camera_module *module,
 
 			if (pframe->bpc_raw_flag)
 				dcam_sw_ctx = dcam_sw_aux_ctx;
+
 			ret = module->dcam_dev_handle->dcam_pipe_ops->cfg_path(dcam_sw_ctx,
 				cmd, ch->dcam_path_id, pframe);
 			/* 4in1_raw_capture, maybe need two image once */
@@ -1322,8 +1323,7 @@ static int camioctl_frame_addr_set(struct camera_module *module,
 		}
 
 		if (ret) {
-			pr_err("fail to set output buffer for ch%d.\n",
-				ch->ch_id);
+			pr_err("fail to set output buffer for ch%d.\n", ch->ch_id);
 			cam_buf_ionbuf_put(&pframe->buf);
 			cam_queue_empty_frame_put(pframe);
 			ret = -EFAULT;
@@ -2789,18 +2789,21 @@ static int camioctl_raw_proc(struct camera_module *module,
 static int camioctl_fdr_post(struct camera_module *module,
 		unsigned long arg)
 {
-	int ret = 0;
-	int i;
+	int ret = 0, i = 0;
+	uint32_t shutoff = 0;
 	int32_t isp_path_id, isp_ctx_id;
 	struct dcam_pipe_dev *dcam = NULL;
 	struct channel_context *ch = NULL;
 	struct camera_frame *pframe = NULL, *pfrm[3] = { NULL, NULL, NULL };
 	struct camera_frame *pfrm_dcam = NULL, *pfrm_isp = NULL;
 	struct sprd_img_parm param;
-	struct dcam_data_ctrl_info dcam_ctrl;
+	struct dcam_data_ctrl_info dcam_ctrl = {0};
 	struct cam_data_ctrl_in ctrl_in;
 	struct isp_data_ctrl_cfg *fdr_ctrl = NULL;
 	struct dcam_path_cfg_param ch_desc;
+	struct dcam_hw_path_stop patharg;
+	struct dcam_hw_path_restart re_patharg;
+	struct dcam_sw_context *dcam_sw_aux_ctx = NULL;
 
 	ret = copy_from_user(&param, (void __user *)arg,
 				sizeof(struct sprd_img_parm));
@@ -2815,8 +2818,9 @@ static int camioctl_fdr_post(struct camera_module *module,
 		pr_debug("deinit_fdr_context may be called for stream off\n");
 		return 0;
 	}
+	dcam_sw_aux_ctx = &module->dcam_dev_handle->sw_ctx[module->offline_cxt_id];
 	module->dcam_dev_handle->sw_ctx[module->cur_sw_ctx_id].is_fdr = 0;
-	module->dcam_dev_handle->sw_ctx[module->offline_cxt_id].is_fdr = 0;
+	dcam_sw_aux_ctx->is_fdr = 0;
 
 	ch = &module->channel[CAM_CH_CAP];
 	for (i = 0; i < 3; i++) {
@@ -2881,6 +2885,22 @@ static int camioctl_fdr_post(struct camera_module *module,
 	dcam->sw_ctx[module->offline_cxt_id].pack_bits = DCAM_RAW_14;
 	dcam->sw_ctx[module->offline_cxt_id].fetch.fmt = dcam_ctrl.in_format;
 
+	if (dcam_ctrl.need_other_path) {
+		shutoff = 1;
+		patharg.path_id = ch->aux_raw_path_id;
+		patharg.idx = dcam_sw_aux_ctx->hw_ctx_id;
+		module->grp->hw_info->dcam_ioctl(module->grp->hw_info, DCAM_HW_CFG_PATH_STOP, &patharg);
+		module->dcam_dev_handle->dcam_pipe_ops->cfg_path(dcam_sw_aux_ctx,
+			DCAM_PATH_CFG_SHUTOFF, patharg.path_id, &shutoff);
+
+		shutoff = 0;
+		re_patharg.idx = dcam_sw_aux_ctx->hw_ctx_id;
+		re_patharg.path_id = ch->aux_dcam_path_id;
+		module->grp->hw_info->dcam_ioctl(module->grp->hw_info, DCAM_HW_CFG_PATH_RESTART, &re_patharg);
+		module->dcam_dev_handle->dcam_pipe_ops->cfg_path(dcam_sw_aux_ctx,
+			DCAM_PATH_CFG_SHUTOFF, re_patharg.path_id, &shutoff);
+	}
+
 	memset(&ch_desc, 0, sizeof(ch_desc));
 	ch_desc.bayer_pattern = module->cam_uinfo.sensor_if.img_ptn;
 	ch_desc.endian.y_endian = ENDIAN_LITTLE;
@@ -2904,7 +2924,7 @@ static int camioctl_fdr_post(struct camera_module *module,
 		pfrm_isp = pfrm[1];
 	}
 
-	if (dcam_ctrl.in_format == DCAM_STORE_FRGB) {
+	if (dcam_ctrl.in_format == DCAM_STORE_FRGB || dcam_ctrl.need_other_path) {
 		ch_desc.input_size.w = ch->ch_uinfo.src_size.w;
 		ch_desc.input_size.h = ch->ch_uinfo.src_size.h;
 		ch_desc.input_trim.size_x = ch->ch_uinfo.src_size.w;
@@ -2915,6 +2935,8 @@ static int camioctl_fdr_post(struct camera_module *module,
 				DCAM_PATH_CFG_SIZE, ch->aux_dcam_path_id, &ch_desc);
 	}
 
+	if (module->cam_uinfo.is_pyr_dec)
+		pfrm_dcam->need_pyr_dec = 1;
 	ret = module->dcam_dev_handle->dcam_pipe_ops->cfg_path(&dcam->sw_ctx[module->offline_cxt_id],
 		DCAM_PATH_CFG_OUTPUT_BUF, ch->aux_dcam_path_id, pfrm_dcam);
 	if (ret) {

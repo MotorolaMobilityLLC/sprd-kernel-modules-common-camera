@@ -55,7 +55,7 @@ struct camera_frame *dcam_offline_cycle_frame(struct dcam_sw_context *pctx)
 		return NULL;
 	}
 
-	pr_debug("frame %p, dcam%d	ch_id %d.  buf_fd %d\n", pframe,
+	pr_debug("frame %p, dcam%d ch_id %d.  buf_fd %d\n", pframe,
 		pctx->hw_ctx_id, pframe->channel_id, pframe->buf.mfd[0]);
 	pr_debug("size %d %d,  endian %d, pattern %d\n",
 		pframe->width, pframe->height, pframe->endian, pframe->pattern);
