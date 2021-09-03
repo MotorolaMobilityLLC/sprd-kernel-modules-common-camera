@@ -1503,9 +1503,6 @@ static int ispcore_offline_param_set(struct isp_sw_context *pctx,
 		if (atomic_read(&path->user_cnt) < 1)
 			continue;
 
-		/* slave path output buffer binding to master buffer*/
-		if (path_info->bind_type == ISP_PATH_SLAVE)
-			continue;
 		out_frame = ispcore_path_out_frame_get(pctx, path, tmp);
 		if (out_frame == NULL) {
 			pr_err("fail to get out_frame\n");
@@ -2386,10 +2383,7 @@ static int ispcore_postproc_irq(void *handle, uint32_t idx,
 			pr_debug("path %p not enable\n", path);
 			continue;
 		}
-		if (pctx->uinfo.path_info[i].bind_type == ISP_PATH_SLAVE) {
-			pr_debug("slave path %d\n", path->spath_id);
-			continue;
-		}
+
 		pframe = cam_queue_dequeue(&path->result_queue,
 			struct camera_frame, list);
 		if (!pframe) {

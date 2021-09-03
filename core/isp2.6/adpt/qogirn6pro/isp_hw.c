@@ -1186,11 +1186,11 @@ static int isphw_path_store(void *handle, void *arg)
 	ISP_REG_MWR(idx, addr + ISP_STORE_PARAM, BIT_1, (store_info->max_len_sel << 1));
 	ISP_REG_MWR(idx, addr + ISP_STORE_PARAM, BIT_2, (store_info->speed_2x << 2));
 	ISP_REG_MWR(idx, addr + ISP_STORE_PARAM, BIT_3, (store_info->mirror_en << 3));
-	ISP_REG_MWR(idx, addr + ISP_STORE_PARAM, 0xF0, (store_info->color_fmt << 4));
 	ISP_REG_MWR(idx, addr + ISP_STORE_PARAM, 0x300, (store_info->endian << 8));
 	ISP_REG_MWR(idx, addr + ISP_STORE_PARAM, BIT_13, 1 << 13);
 
 	if (store_info->need_bwd) {
+		ISP_REG_MWR(idx, addr + ISP_STORE_PARAM, 0xF0, (store_info->color_fmt << 4));
 		if (path_store->spath_id == ISP_SPATH_CP) {
 			ISP_REG_MWR(idx, ISP_CAP_SCALER_BWD_PARA, BIT_0, 0);
 			ISP_REG_MWR(idx, ISP_CAP_SCALER_BWD_PARA, BIT_4, BIT_4);
@@ -1202,6 +1202,8 @@ static int isphw_path_store(void *handle, void *arg)
 			ISP_REG_MWR(idx, ISP_THMB_SCL_BWD_PARA , BIT_4, BIT_4);
 		}
 	} else {
+		ISP_REG_MWR(idx, addr + ISP_STORE_PARAM, 0xF0, (12 << 4));
+		ISP_REG_MWR(idx, addr + ISP_STORE_PARAM, BIT_11, 1 << 11);
 		if (path_store->spath_id == ISP_SPATH_CP)
 			ISP_REG_MWR(idx, ISP_CAP_SCALER_BWD_PARA, BIT_0, 1);
 		else if (path_store->spath_id == ISP_SPATH_VID)

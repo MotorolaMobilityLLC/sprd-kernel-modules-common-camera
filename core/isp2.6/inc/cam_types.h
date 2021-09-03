@@ -116,7 +116,15 @@ enum cam_ch_id {
 	CAM_CH_CAP,
 	CAM_CH_PRE_THM,
 	CAM_CH_CAP_THM,
+	CAM_CH_VIRTUAL,
 	CAM_CH_MAX,
+};
+
+enum dump_channel_type {
+	DUMP_CH_RES = 0,
+	DUMP_CH_PRE,
+	DUMP_CH_CAP,
+	DUMP_CH_MAX,
 };
 
 enum cam_3dnr_type {

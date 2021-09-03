@@ -162,6 +162,7 @@ struct camera_uchannel {
 	uint32_t frame_sync_close;
 
 	struct dcam_regular_desc regular_desc;
+	struct sprd_vir_ch_info vir_channel[VIR_CH_NUM];
 };
 
 struct camera_uinfo {
@@ -4226,6 +4227,53 @@ static int camcore_pyr_info_config(
 	return ret;
 }
 
+static int camcore_vir_channel_config(
+	struct camera_module *module,
+	struct channel_context *channel)
+{
+	int ret = 0;
+	struct camera_uchannel *ch_uinfo = NULL;
+	struct isp_path_base_desc path_desc;
+	ch_uinfo = &channel->ch_uinfo;
+
+	/* pre path config */
+	ret = module->isp_dev_handle->isp_ops->get_path(module->isp_dev_handle,
+		channel->isp_ctx_id, channel->isp_path_id);
+	if (ret < 0) {
+		pr_err("fail to get isp path %d from context %d\n",
+			channel->isp_path_id, channel->isp_ctx_id);
+		return ret;
+	}
+
+	memset(&path_desc, 0, sizeof(path_desc));
+	path_desc.slave_type = ISP_PATH_SLAVE;
+	path_desc.out_fmt = ch_uinfo->slave_img_fmt;
+	path_desc.endian.y_endian = ENDIAN_LITTLE;
+	path_desc.endian.uv_endian = ENDIAN_LITTLE;
+	path_desc.output_size.w = ch_uinfo->vir_channel[0].dst_size.w;
+	path_desc.output_size.h = ch_uinfo->vir_channel[0].dst_size.h;
+	path_desc.data_bits = ch_uinfo->vir_channel[0].dump_isp_out_fmt;
+	ret = module->isp_dev_handle->isp_ops->cfg_path(module->isp_dev_handle,
+		ISP_PATH_CFG_PATH_BASE, channel->isp_ctx_id, channel->isp_path_id, &path_desc);
+
+	/* cap path config */
+	ret = module->isp_dev_handle->isp_ops->get_path(module->isp_dev_handle,
+		channel->slave_isp_ctx_id, channel->isp_path_id);
+	if (ret < 0) {
+		pr_err("fail to get isp path %d from context %d\n",
+			channel->isp_path_id, channel->slave_isp_ctx_id);
+		return ret;
+	}
+
+	path_desc.output_size.w = ch_uinfo->vir_channel[1].dst_size.w;
+	path_desc.output_size.h = ch_uinfo->vir_channel[1].dst_size.h;
+	path_desc.data_bits = ch_uinfo->vir_channel[1].dump_isp_out_fmt;
+	ret = module->isp_dev_handle->isp_ops->cfg_path(module->isp_dev_handle,
+		ISP_PATH_CFG_PATH_BASE, channel->slave_isp_ctx_id, channel->isp_path_id, &path_desc);
+
+	return 0;
+}
+
 static int camcore_channel_size_config(
 	struct camera_module *module,
 	struct channel_context *channel)
@@ -4906,6 +4954,7 @@ init_isp:
 		path_desc.endian.uv_endian = ENDIAN_LITTLE;
 		path_desc.output_size.w = fdrl_ctrl->dst.w;
 		path_desc.output_size.h = fdrl_ctrl->dst.h;
+		path_desc.data_bits = DCAM_STORE_10_BIT;
 		ret = module->isp_dev_handle->isp_ops->cfg_path(module->isp_dev_handle,
 			ISP_PATH_CFG_PATH_BASE,
 			isp_ctx_id, isp_path_id, &path_desc);
@@ -4943,6 +4992,7 @@ static int camcore_channel_init(struct camera_module *module,
 	int new_isp_ctx, new_isp_path, new_dcam_path;
 	struct channel_context *channel_prev = NULL;
 	struct channel_context *channel_cap = NULL;
+	struct channel_context *channel_vir = NULL;
 	struct camera_uchannel *ch_uinfo;
 	struct isp_path_base_desc path_desc;
 	struct dcam_path_cfg_param ch_desc = {0};
@@ -5042,6 +5092,18 @@ static int camcore_channel_init(struct camera_module *module,
 		else
 			dcam_path_id = hw->ip_dcam[0]->dcam_raw_path_id;
 		new_dcam_path = 1;
+		break;
+
+	case CAM_CH_VIRTUAL:
+		channel->isp_ctx_id = module->channel[CAM_CH_PRE].isp_ctx_id;
+		channel->slave_isp_ctx_id = module->channel[CAM_CH_CAP].isp_ctx_id;
+		channel->isp_path_id = ISP_SPATH_VID;
+		channel_vir = &module->channel[CAM_CH_VIRTUAL];
+		ret = camcore_vir_channel_config(module, channel_vir);
+		if (ret < 0) {
+			pr_err("fail to virtual config, ret = %d\n", ret);
+			return -EINVAL;
+		}
 		break;
 
 	default:
@@ -5323,6 +5385,7 @@ static int camcore_channel_init(struct camera_module *module,
 		path_desc.output_size.w = ch_uinfo->dst_size.w;
 		path_desc.output_size.h = ch_uinfo->dst_size.h;
 		path_desc.regular_mode = ch_uinfo->regular_desc.regular_mode;
+		path_desc.data_bits = DCAM_STORE_10_BIT;
 		ret = module->isp_dev_handle->isp_ops->cfg_path(module->isp_dev_handle,
 			ISP_PATH_CFG_PATH_BASE, isp_ctx_id, isp_path_id, &path_desc);
 	}
@@ -6082,6 +6145,7 @@ static int camcore_raw_pre_proc(
 	isp_path_desc.endian.uv_endian = ENDIAN_LITTLE;
 	isp_path_desc.output_size.w = proc_info->dst_size.width;
 	isp_path_desc.output_size.h = proc_info->dst_size.height;
+	isp_path_desc.data_bits = DCAM_STORE_10_BIT;
 	ret = module->isp_dev_handle->isp_ops->cfg_path(module->isp_dev_handle,
 		ISP_PATH_CFG_PATH_BASE, ctx_id, isp_path_id, &isp_path_desc);
 

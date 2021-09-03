@@ -57,6 +57,7 @@
 
 #define IMG_PATH_BUFFER_COUNT 40
 
+#define VIR_CH_NUM 2
 
 enum {
 	IMG_TX_DONE       = 0x00,
@@ -164,11 +165,14 @@ enum dcam_fmt {
 	DCAM_FTM_MAX
 };
 
-enum {
+enum dev_out_fmt {
 	DCAM_RAW_PACK_10 = 0,
 	DCAM_RAW_HALFWORD_10,
 	DCAM_RAW_14,
 	DCAM_RAW_8,
+	ISP_OUT_YUV420_8_BIT,
+	ISP_OUT_YUV420_10_BIT,
+	ISP_OUT_RGB,
 	DCAM_RAW_MAX
 };
 
@@ -227,6 +231,7 @@ enum dcam_scene_mode {
 	DCAM_SCENE_MODE_CAPTURE_CALLBACK,
 	DCAM_SCENE_MODE_HARDWARE_SIMULATION,
 	DCAM_SCENE_MODE_CAPTURE_THUMB,
+	DCAM_SCENE_MODE_VIRTUAL,
 	DCAM_SCENE_MODE_MAX
 };
 
@@ -462,13 +467,10 @@ struct sprd_irq_info {
 	uint32_t frame_id;
 };
 
-struct sprd_slave_info {
-	uint32_t is_slave_eb;
-	uint32_t buffer_count;
-	struct sprd_img_size dst_size;
+struct sprd_vir_ch_info {
 	uint32_t fd_array[IMG_PATH_BUFFER_COUNT];
-	struct sprd_img_frm_addr frame_addr_vir_array[IMG_PATH_BUFFER_COUNT];
-	struct sprd_img_frm_addr frame_addr_array[IMG_PATH_BUFFER_COUNT];
+	enum dev_out_fmt dump_isp_out_fmt;
+	struct sprd_img_size dst_size;
 };
 
 struct sprd_img_parm {
@@ -514,7 +516,7 @@ struct sprd_img_parm {
 	uint32_t                  is_high_fps;
 	uint32_t                  high_fps_skip_num;
 	struct sprd_img_binding	  aux_img;
-	struct sprd_slave_info    slave_frame_info;
+	struct sprd_vir_ch_info   vir_ch_info[VIR_CH_NUM];
 	uint32_t                  reserved[4];
 };
 

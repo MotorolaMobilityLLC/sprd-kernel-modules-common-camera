@@ -692,6 +692,10 @@ static int camioctl_output_size_set(struct camera_module *module,
 		channel = &module->channel[CAM_CH_CAP_THM];
 		channel->enable = 1;
 
+	} else if ((scene_mode == DCAM_SCENE_MODE_VIRTUAL) &&
+		(module->channel[CAM_CH_VIRTUAL].enable == 0)) {
+		channel = &module->channel[CAM_CH_VIRTUAL];
+		channel->enable = 1;
 	} else if (module->channel[CAM_CH_PRE].enable == 0) {
 		channel = &module->channel[CAM_CH_PRE];
 		channel->enable = 1;
@@ -748,6 +752,17 @@ static int camioctl_output_size_set(struct camera_module *module,
 	dst->scene = scene_mode;
 	if (cap_type == CAM_CAP_RAW_FULL && dst->is_high_fps)
 		dst->is_high_fps = 0;
+
+	if (channel->ch_id == CAM_CH_VIRTUAL) {
+		ret |= get_user(dst->vir_channel[0].dump_isp_out_fmt, &uparam->vir_ch_info[0].dump_isp_out_fmt);
+		ret |= copy_from_user(&dst->vir_channel[0].dst_size,
+			&uparam->vir_ch_info[0].dst_size, sizeof(struct sprd_img_size));
+		ret |= get_user(dst->vir_channel[1].dump_isp_out_fmt, &uparam->vir_ch_info[1].dump_isp_out_fmt);
+		ret |= copy_from_user(&dst->vir_channel[1].dst_size,
+			&uparam->vir_ch_info[1].dst_size, sizeof(struct sprd_img_size));
+		pr_debug("cam_virtual_pre_channel: dst %d %d\n",dst->vir_channel[0].dst_size.w,dst->vir_channel[0].dst_size.h);
+		pr_debug("cam_virtual_cap_channel: dst %d %d\n",dst->vir_channel[1].dst_size.w,dst->vir_channel[1].dst_size.h);
+	}
 
 	pr_info("cam_channel: ch_id %d high fps %u %u. aux %d %d %d %d\n",
 		channel->ch_id, dst->is_high_fps, dst->high_fps_skip_num,
@@ -1286,8 +1301,21 @@ static int camioctl_frame_addr_set(struct camera_module *module,
 					pframe->user_fid);
 				continue;
 			}
-			ret = module->isp_dev_handle->isp_ops->cfg_path(module->isp_dev_handle, cmd,
-				ch->isp_ctx_id, ch->isp_path_id, pframe);
+			if (param.channel_id == CAM_CH_VIRTUAL) {
+				if (param.vir_ch_info[0].fd_array[i] == DUMP_CH_PRE) {
+					pframe->height = ch->ch_uinfo.vir_channel[0].dst_size.h;
+					ret = module->isp_dev_handle->isp_ops->cfg_path(module->isp_dev_handle, cmd,
+						ch->isp_ctx_id, ch->isp_path_id, pframe);
+				}
+				else if (param.vir_ch_info[0].fd_array[i] == DUMP_CH_CAP) {
+					pframe->height = ch->ch_uinfo.vir_channel[1].dst_size.h;
+					ret = module->isp_dev_handle->isp_ops->cfg_path(module->isp_dev_handle, cmd,
+						ch->slave_isp_ctx_id, ch->isp_path_id, pframe);
+				}
+			}
+			else
+				ret = module->isp_dev_handle->isp_ops->cfg_path(module->isp_dev_handle, cmd,
+					ch->isp_ctx_id, ch->isp_path_id, pframe);
 		} else {
 			cmd = DCAM_PATH_CFG_OUTPUT_BUF;
 			if (param.is_reserved_buf) {
@@ -1793,7 +1821,7 @@ cfg_ch_done:
 	camcore_resframe_set(module);
 	for (i = 0; i < CAM_CH_MAX; i++) {
 		ch = &module->channel[i];
-		if (!ch->enable || (ch->ch_id == CAM_CH_RAW))
+		if (!ch->enable || (ch->ch_id == CAM_CH_RAW) || (ch->ch_id == CAM_CH_VIRTUAL))
 			continue;
 
 		live_ch_count++;
@@ -3689,7 +3717,7 @@ static int camioctl_dcam_raw_fmt_set(struct camera_module *module,unsigned long 
 	}
 
 	hw = module->grp->hw_info;
-	if (param.ch_id > CAM_CH_CAP) {
+	if (param.ch_id > CAM_CH_CAP && param.ch_id != CAM_CH_VIRTUAL) {
 		pr_err("fail to check param, ch%d\n", param.ch_id);
 		return -EFAULT;
 	}

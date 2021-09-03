@@ -1890,13 +1890,19 @@ static int ispslice_store_info_cfg(
 				break;
 			case ISP_STORE_YUV420_2FRAME:
 			case ISP_STORE_YVU420_2FRAME:
-			case ISP_STORE_YUV420_2FRAME_10:
-			case ISP_STORE_YVU420_2FRAME_10:
-			case ISP_STORE_YUV420_2FRAME_MIPI:
-			case ISP_STORE_YVU420_2FRAME_MIPI:
 				ch0_offset = start_col_out[j][cur_slc->x] + start_row_out[j][cur_slc->y] * frm_store->pitch.pitch_ch0;
 				ch1_offset = start_col_out[j][cur_slc->x] + start_row_out[j][cur_slc->y] * frm_store->pitch.pitch_ch1 / 2;
 				pr_debug("offset %d %d\n", ch0_offset, ch1_offset);
+				break;
+			case ISP_STORE_YUV420_2FRAME_10:
+			case ISP_STORE_YVU420_2FRAME_10:
+				ch0_offset = (start_col_out[j][cur_slc->x] + start_row_out[j][cur_slc->y] * frm_store->pitch.pitch_ch0) * 2;
+				ch1_offset = (start_col_out[j][cur_slc->x] + start_row_out[j][cur_slc->y] * frm_store->pitch.pitch_ch1 / 2) * 2;
+				break;
+			case ISP_STORE_YUV420_2FRAME_MIPI:
+			case ISP_STORE_YVU420_2FRAME_MIPI:
+				ch0_offset = (start_col_out[j][cur_slc->x] + start_row_out[j][cur_slc->y] * frm_store->pitch.pitch_ch0) * 10 / 8;
+				ch1_offset = (start_col_out[j][cur_slc->x] + start_row_out[j][cur_slc->y] * frm_store->pitch.pitch_ch1 / 2) * 10 / 8;
 				break;
 			case ISP_STORE_YUV420_3FRAME:
 				ch0_offset = start_col_out[j][cur_slc->x] + start_row_out[j][cur_slc->y] * frm_store->pitch.pitch_ch0;

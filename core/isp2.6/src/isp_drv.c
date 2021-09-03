@@ -532,11 +532,16 @@ static int ispdrv_fbd_yuv_get(void *cfg_in, void *cfg_out,
 	return 0;
 }
 
-static enum isp_store_format ispdrv_store_format_get(uint32_t forcc)
+static enum isp_store_format ispdrv_store_format_get(struct isp_path_uinfo *in_ptr)
 {
 	enum isp_store_format format = ISP_STORE_FORMAT_MAX;
 
-	switch (forcc) {
+	if (!in_ptr) {
+		pr_err("fail to get valid input ptr %p\n", in_ptr);
+		return -EFAULT;
+	}
+
+	switch (in_ptr->out_fmt) {
 	case IMG_PIX_FMT_UYVY:
 		format = ISP_STORE_UYVY;
 		break;
@@ -547,7 +552,10 @@ static enum isp_store_format ispdrv_store_format_get(uint32_t forcc)
 		format = ISP_STORE_YUV420_2FRAME;
 		break;
 	case IMG_PIX_FMT_NV21:
-		format = ISP_STORE_YVU420_2FRAME;
+		if (in_ptr->data_in_bits == ISP_FRAME_10_BIT)
+			format = ISP_STORE_YVU420_2FRAME;
+		else
+			format = ISP_STORE_YUV420_2FRAME_MIPI;
 		break;
 	case IMG_PIX_FMT_YUV420:
 		format = ISP_STORE_YUV420_3FRAME;
@@ -557,7 +565,7 @@ static enum isp_store_format ispdrv_store_format_get(uint32_t forcc)
 		break;
 	default:
 		format = ISP_STORE_FORMAT_MAX;
-		pr_err("fail to get support format 0x%x\n", forcc);
+		pr_err("fail to get support format 0x%x\n", in_ptr->out_fmt);
 		break;
 	}
 
@@ -628,7 +636,7 @@ static int ispdrv_store_normal_get(struct isp_path_uinfo *in_ptr,
 	}
 
 	store = &store_info->store;
-	store->color_fmt = ispdrv_store_format_get(in_ptr->out_fmt);
+	store->color_fmt = ispdrv_store_format_get(in_ptr);
 	store->bypass = 0;
 	store->endian = in_ptr->data_endian.uv_endian;
 	if (store->color_fmt == ISP_STORE_FULL_RGB)
@@ -960,7 +968,6 @@ int isp_drv_pipeinfo_get(void *arg, void *frame)
 			continue;
 		pipe_in->store[i].ctx_id = ctx->ctx_id;
 		pipe_in->store[i].spath_id = i;
-		path_info->data_in_bits = pipe_src->data_in_bits;
 		ret = ispdrv_store_normal_get(path_info, &pipe_in->store[i]);
 		if (ret) {
 			pr_err("fail to get pipe store normal info\n");
