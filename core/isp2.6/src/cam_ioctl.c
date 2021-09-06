@@ -1415,22 +1415,8 @@ static int camioctl_stream_off(struct camera_module *module,
 
 	hw = module->grp->hw_info;
 	/* stop raw dump */
-	if (module->dump_thrd.thread_task) {
-		if (module->in_dump)
-			complete(&module->dump_com);
-		mutex_lock(&g_dbg_dump.dump_lock);
-		i = module->dcam_idx;
-		if (i < DCAM_ID_MAX) {
-			g_dbg_dump.dump_start[i] = NULL;
-			g_dbg_dump.dump_count = 0;
-		}
-		mutex_unlock(&g_dbg_dump.dump_lock);
-		j = 0;
-		while (module->in_dump && (j++ < THREAD_STOP_TIMEOUT)) {
-			pr_info("camera%d in dump, wait...%d\n", module->idx, j);
-			msleep(10);
-		}
-	}
+	if (module->dump_thrd.thread_task)
+		camcore_dumpraw_deinit(module);
 
 	if (running) {
 		ret = module->dcam_dev_handle->dcam_pipe_ops->stop(sw_ctx, DCAM_STOP);
@@ -1590,11 +1576,9 @@ static int camioctl_stream_off(struct camera_module *module,
 
 			if ((module->cam_uinfo.is_pyr_rec && ch->ch_id != CAM_CH_CAP)
 				|| (module->cam_uinfo.is_pyr_dec && ch->ch_id == CAM_CH_CAP)) {
-				for (j = 0; j < ISP_PYR_REC_BUF_NUM; j++) {
-					if (ch->pyr_rec_buf[j]) {
-						camcore_k_frame_put(ch->pyr_rec_buf[j]);
-						ch->pyr_rec_buf[j] = NULL;
-					}
+				if (ch->pyr_rec_buf) {
+					camcore_k_frame_put(ch->pyr_rec_buf);
+					ch->pyr_rec_buf = NULL;
 				}
 			}
 
@@ -1657,9 +1641,6 @@ static int camioctl_stream_off(struct camera_module *module,
 			struct camera_frame, list);
 		cam_queue_clear(&module->remosaic_queue,
 			struct camera_frame, list);
-		if (module->dump_thrd.thread_task)
-			cam_queue_clear(&module->dump_queue,
-				struct camera_frame, list);
 		/* default 0, hal set 1 when needed */
 		module->auto_3dnr = 0;
 	}
@@ -1924,17 +1905,9 @@ cfg_ch_done:
 
 	atomic_set(&module->state, CAM_RUNNING);
 
-	if (module->dump_thrd.thread_task) {
-		cam_queue_init(&module->dump_queue, 10, camcore_k_frame_put);
-		init_completion(&module->dump_com);
-		mutex_lock(&g_dbg_dump.dump_lock);
-		i = module->dcam_idx;
-		if (i < DCAM_ID_MAX) {
-			g_dbg_dump.dump_start[i] = &module->dump_thrd.thread_com;
-			g_dbg_dump.dump_count = 0;
-		}
-		mutex_unlock(&g_dbg_dump.dump_lock);
-	}
+	if (module->dump_thrd.thread_task)
+		camcore_dumpraw_init(module);
+
 	atomic_inc(&module->grp->runner_nr);
 
 	pr_info("stream on done module->dcam_idx = %d.\n", module->dcam_idx);
@@ -2599,20 +2572,9 @@ static int camioctl_capture_start(struct camera_module *module,
 		module->cap_status = CAM_CAPTURE_START;
 
 	/* alway trigger dump for capture */
-	if (module->dump_thrd.thread_task) {
-		uint32_t idx = module->dcam_idx;
-		struct cam_dbg_dump *dbg = &g_dbg_dump;
+	if (module->dump_thrd.thread_task && module->dcam_idx < 2 && module->dcam_dev_handle)
+		camdump_start(&module->dump_thrd, &module->dump_base, module->dcam_idx);
 
-		if (idx < 2 && module->dcam_dev_handle) {
-			mutex_lock(&dbg->dump_lock);
-			if (!(dbg->dump_ongoing & (1 << idx))) {
-				complete(&module->dump_thrd.thread_com);
-				dbg->dump_count = 99;
-				pr_debug("trigger sdump capture raw\n");
-			}
-			mutex_unlock(&dbg->dump_lock);
-		}
-	}
 
 	pr_info("cam %d start capture type %d, scene %d, cnt %d, time %lld, capture num:%d\n",
 		module->idx, param.type, module->capture_scene, param.cap_cnt,
@@ -2697,9 +2659,8 @@ static int camioctl_capture_stop(struct camera_module *module,
 		module->dual_frame = NULL;
 	}
 	/* stop dump for capture */
-	if (module->dump_thrd.thread_task && module->in_dump) {
-		module->dump_count = 0;
-		complete(&module->dump_com);
+	if (module->dump_thrd.thread_task && module->dump_base.in_dump) {
+		camdump_stop(&module->dump_base);
 	}
 	/* 4in1 lowlux deinit */
 	if (module->cam_uinfo.is_4in1 && module->lowlux_4in1) {

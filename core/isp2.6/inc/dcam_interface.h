@@ -90,20 +90,20 @@ enum dcam_path_cfg_cmd {
 
 /* Just cal multilayer pyr_dec size but not include layer0 size */
 static inline uint32_t dcam_if_cal_pyramid_size(uint32_t w, uint32_t h,
-		uint32_t out_bits, uint32_t is_pack)
+		uint32_t out_bits, uint32_t is_pack, uint32_t layer_num)
 {
 	uint32_t align = 1, i = 0, size = 0, pitch = 0;
 	uint32_t w_align = PYR_DEC_WIDTH_ALIGN;
 	uint32_t h_align = PYR_DEC_HEIGHT_ALIGN;
 
-	for (i = 0; i < DCAM_PYR_DEC_LAYER_NUM; i++) {
+	for (i = 0; i < layer_num; i++) {
 		w_align *= 2;
 		h_align *= 2;
 	}
 
 	w = ALIGN(w, w_align);
 	h = ALIGN(h, h_align);
-	for (i = 0; i < DCAM_PYR_DEC_LAYER_NUM; i++) {
+	for (i = 0; i < layer_num; i++) {
 		align = align * 2;
 		pitch = w / align;
 		if (out_bits != DCAM_STORE_8_BIT) {

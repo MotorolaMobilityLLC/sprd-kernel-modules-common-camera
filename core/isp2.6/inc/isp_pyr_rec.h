@@ -202,7 +202,7 @@ struct isp_rec_ctx_desc {
 	struct img_addr store_addr[ISP_PYR_DEC_LAYER_NUM];
 	struct img_size pyr_layer_size[PYR_REC_ADDR_NUM];
 	struct img_size pyr_padding_size;
-	struct camera_frame *buf_info[ISP_PYR_REC_BUF_NUM];
+	struct camera_frame *buf_info;
 	void *fmcu_handle;
 
 	/* cur frame fetch: big size use rec fetch */

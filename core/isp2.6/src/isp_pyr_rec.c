@@ -611,7 +611,7 @@ static int isppyrrec_block_cfg_get(struct isp_rec_ctx_desc *ctx, uint32_t idx)
 static int isppyrrec_cfg_param(void *handle,
 		enum isp_rec_cfg_cmd cmd, void *param)
 {
-	int ret = 0, i = 0;
+	int ret = 0;
 	struct isp_rec_ctx_desc *rec_ctx = NULL;
 	struct camera_frame * pframe = NULL;
 
@@ -633,21 +633,14 @@ static int isppyrrec_cfg_param(void *handle,
 			}
 		}
 
-		for (i = 0; i < ISP_PYR_REC_BUF_NUM; i++) {
-			if (rec_ctx->buf_info[i] == NULL) {
-				rec_ctx->buf_info[i] = pframe;
-				pr_debug("REC buf[0x%p] = 0x%lx\n", pframe,
-					rec_ctx->buf_info[i]->buf.iova[0]);
-				break;
-			} else {
-				pr_debug("REC %d buf[0x%p] = 0x%lx\n", i, pframe,
-					rec_ctx->buf_info[i]->buf.iova[0]);
-			}
-		}
-		if (i == 2) {
-			pr_err("fail to set isp pyr_rec buffers.\n");
-			cam_buf_iommu_unmap(&pframe->buf);
-			goto exit;
+		if (rec_ctx->buf_info == NULL) {
+			rec_ctx->buf_info = pframe;
+			pr_debug("REC buf 0x%p = 0x%lx\n", pframe,
+				rec_ctx->buf_info->buf.iova[0]);
+			break;
+		} else {
+			pr_debug("REC buf 0x%p = 0x%lx\n", pframe,
+				rec_ctx->buf_info->buf.iova[0]);
 		}
 		break;
 	case ISP_REC_CFG_LAYER_NUM:
@@ -683,7 +676,7 @@ static int isppyrrec_pipe_proc(void *handle, void *param)
 {
 	int ret = 0;
 	uint32_t i = 0, j = 0, layer_num = 0;
-	uint32_t offset = 0, align = 1, size = 0, pitch = 0;
+	uint32_t offset = 0, offset1 = 0, align = 1, size = 0, pitch = 0;
 	struct isp_rec_ctx_desc *rec_ctx = NULL;
 	struct isp_pyr_rec_in *in_ptr = NULL;
 	struct isp_rec_slice_desc *cur_slc = NULL;
@@ -722,6 +715,8 @@ static int isppyrrec_pipe_proc(void *handle, void *param)
 	rec_ctx->pyr_layer_size[0].h = isp_rec_layer0_heigh(in_ptr->src.h, layer_num);
 	rec_ctx->pyr_padding_size.w = rec_ctx->pyr_layer_size[0].w - in_ptr->src.w;
 	rec_ctx->pyr_padding_size.h = rec_ctx->pyr_layer_size[0].h - in_ptr->src.h;
+	rec_ctx->store_addr[0].addr_ch0 = rec_ctx->buf_info->buf.iova[0];
+	rec_ctx->store_addr[0].addr_ch1 = rec_ctx->store_addr[0].addr_ch0 + size;
 
 	ISP_PYR_DEBUG("isp %d rec layer num %d\n", rec_ctx->ctx_id, layer_num);
 	ISP_PYR_DEBUG("isp %d layer0 size %d %d padding %d %d\n", rec_ctx->ctx_id,
@@ -738,6 +733,11 @@ static int isppyrrec_pipe_proc(void *handle, void *param)
 		rec_ctx->pyr_layer_size[i].h = rec_ctx->pyr_layer_size[0].h /align;
 		pitch = isppyrrec_pitch_get(in_ptr->in_fmt, rec_ctx->pyr_layer_size[i].w);
 		size = pitch * rec_ctx->pyr_layer_size[i].h;
+		if (i < layer_num) {
+			rec_ctx->store_addr[i].addr_ch0 = rec_ctx->buf_info->buf.iova[0] + offset1;
+			rec_ctx->store_addr[i].addr_ch1 = rec_ctx->store_addr[i].addr_ch0 + size;
+		}
+		offset1 += (size * 3 / 2);
 		rec_ctx->fetch_addr[i].addr_ch0 = in_ptr->in_addr.addr_ch0 + offset;
 		rec_ctx->fetch_addr[i].addr_ch1 = rec_ctx->fetch_addr[i].addr_ch0 + size;
 		ISP_PYR_DEBUG("isp %d layer%d size %d %d\n", rec_ctx->ctx_id, i,
@@ -751,24 +751,6 @@ static int isppyrrec_pipe_proc(void *handle, void *param)
 	rec_ctx->pyr_layer_size[0].h = in_ptr->src.h;
 	ISP_PYR_DEBUG("isp %d layer0 size %d %d\n", rec_ctx->ctx_id,
 		rec_ctx->pyr_layer_size[0].w, rec_ctx->pyr_layer_size[0].h);
-
-	/* calc multi layer pyramid rec output addr */
-	for (i = 0; i < layer_num; i++) {
-		/* This is for ensure the last store frame buf is OUT for user
-		.* Then the frame before should be temp. Thus, only one tmp
-		.* buffer is enough for all the isp pyramid rec process */
-		j = i % 2;
-		if (!rec_ctx->buf_info[j]) {
-			pr_err("fail to get valid rec out buf %d %d\n", i, j);
-			return -EFAULT;
-		}
-		pitch = isppyrrec_pitch_get(in_ptr->in_fmt, rec_ctx->buf_info[j]->width);
-		rec_ctx->store_addr[i].addr_ch0 = rec_ctx->buf_info[j]->buf.iova[0];
-		rec_ctx->store_addr[i].addr_ch1 = rec_ctx->store_addr[i].addr_ch0
-			+ pitch * rec_ctx->buf_info[j]->height;
-		ISP_PYR_DEBUG("layer %d store addr %x %x\n", i,
-			rec_ctx->store_addr[i].addr_ch0, rec_ctx->store_addr[i].addr_ch1);
-	}
 
 	rec_share_func.index = ISP_K_BLK_PYR_REC_SHARE;
 	rec_ctx->hw->isp_ioctl(rec_ctx->hw, ISP_HW_CFG_K_BLK_FUNC_GET, &rec_share_func);
@@ -840,7 +822,6 @@ void *isp_pyr_rec_ctx_get(uint32_t idx, void *hw)
 
 void isp_pyr_rec_ctx_put(void *rec_handle)
 {
-	int i = 0;
 	struct isp_rec_ctx_desc *rec_ctx = NULL;
 	struct camera_buf *buf_info = NULL;
 
@@ -850,13 +831,11 @@ void isp_pyr_rec_ctx_put(void *rec_handle)
 	}
 
 	rec_ctx = (struct isp_rec_ctx_desc *)rec_handle;
-	for (i = 0; i < ISP_PYR_REC_BUF_NUM; i++) {
-		if (rec_ctx->buf_info[i]) {
-			buf_info = &rec_ctx->buf_info[i]->buf;
-			if (buf_info && buf_info->mapping_state & CAM_BUF_MAPPING_DEV) {
-				cam_buf_iommu_unmap(buf_info);
-				buf_info = NULL;
-			}
+	if (rec_ctx->buf_info) {
+		buf_info = &rec_ctx->buf_info->buf;
+		if (buf_info && buf_info->mapping_state & CAM_BUF_MAPPING_DEV) {
+			cam_buf_iommu_unmap(buf_info);
+			buf_info = NULL;
 		}
 	}
 

@@ -15,7 +15,7 @@
 #define __CAM_DEBUGGER_H__
 
 #include "dcam_interface.h"
-
+#include "cam_dump.h"
 /* compression override commands */
 enum {
 	CH_PRE = 0,

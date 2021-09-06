@@ -80,23 +80,6 @@ struct cam_mem_dbg_info {
 };
 extern struct cam_mem_dbg_info *g_mem_dbg;
 
-enum {
-	DUMP_DISABLE = 0,
-	DUMP_PATH_BOTH,
-	DUMP_PATH_FULL,
-	DUMP_PATH_BIN,
-};
-
-/* for raw picture dump */
-struct cam_dbg_dump {
-	uint32_t dump_en;/* see enumerations above */
-	uint32_t dump_count;
-	uint32_t dump_ongoing;
-	struct mutex dump_lock;
-	struct completion *dump_start[6];
-};
-extern struct cam_dbg_dump g_dbg_dump;
-
 /*************** for global debug ends ********************/
 
 enum camera_slice_mode {

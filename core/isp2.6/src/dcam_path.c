@@ -806,14 +806,13 @@ void dcampath_update_size(struct dcam_sw_context *ctx, struct dcam_path_desc *pa
 		hw->dcam_ioctl(hw, DCAM_HW_CFG_PATH_SRC_SEL, &patharg);
 	}
 	path->base_update = 0;
-	if (path_id == DCAM_PATH_FULL || path_id == DCAM_PATH_RAW) {
+	if (path_id == DCAM_PATH_FULL || path_id == DCAM_PATH_RAW || path_id == DCAM_PATH_BIN) {
 		frame->width = path->out_size.w;
 		frame->height = path->out_size.h;
 	}
 	spin_unlock_irqrestore(&path->size_lock, flags);
 	frame->zoom_ratio = ctx->zoom_ratio;
 	frame->total_zoom = ctx->total_zoom;
-
 }
 
 int dcam_path_fmcu_slw_store_buf_set(
