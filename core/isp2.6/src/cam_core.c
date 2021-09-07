@@ -1339,7 +1339,7 @@ mul_share_buf_done:
 		}
 	}
 
-	if (hw->ip_dcam[module->dcam_idx]->superzoom_support) {
+	if (hw->ip_dcam[dcam_sw_ctx->hw_ctx_id]->superzoom_support) {
 		if (ch->postproc_buf) {
 			ret = module->isp_dev_handle->isp_ops->cfg_path(module->isp_dev_handle,
 				ISP_PATH_CFG_POSTPROC_BUF,
@@ -3423,9 +3423,9 @@ static int camcore_channel_swapsize_cal(struct camera_module *module)
 	ch_raw = &module->channel[CAM_CH_RAW];
 
 	if (module->channel[CAM_CH_CAP_THM].enable || module->grp->camsec_cfg.camsec_mode != SEC_UNABLE)
-		module->grp->hw_info->ip_dcam[module->dcam_idx]->rds_en = 0;
+		module->grp->hw_info->ip_dcam[0]->rds_en = 0;
 
-	if (module->grp->hw_info->ip_dcam[module->dcam_idx]->rds_en) {
+	if (module->grp->hw_info->ip_dcam[0]->rds_en) {
 		if (ch_vid->enable && (ch_prev->ch_uinfo.src_size.w <= CAM_VIDEO_LIMIT_W
 			|| ch_prev->ch_uinfo.src_size.h <= CAM_VIDEO_LIMIT_H))
 			module->zoom_solution = ZOOM_DEFAULT;
@@ -4956,7 +4956,7 @@ static int camcore_channel_init(struct camera_module *module,
 			|| module->raw_callback)
 			dcam_path_id = DCAM_PATH_VCH2;
 		else
-			dcam_path_id = hw->ip_dcam[module->dcam_idx]->dcam_raw_path_id;
+			dcam_path_id = hw->ip_dcam[0]->dcam_raw_path_id;
 		new_dcam_path = 1;
 		break;
 
