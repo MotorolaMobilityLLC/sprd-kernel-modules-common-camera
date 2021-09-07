@@ -973,6 +973,10 @@ int fd_drv_reg_write_handler(void *handle,
 				cfg_param->reg_param);
 		return -EINVAL;
 	}
+	if (cfg_param->reg_param >= SPRD_FD_REG_PARAM_MAX) {
+		pr_err("fail to write_param outpace\n");
+		return -EINVAL;
+	}
 
 	ret = reg_info->reg_write(drv_handle,
 			reg_info->reg_addr,
@@ -997,7 +1001,6 @@ int fd_drv_reg_multi_write_handler(void *handle,
 	struct fd_drv *drv_handle = NULL;
 
 	drv_handle = (struct fd_drv *)handle;
-
 	ret = copy_from_user(param_tab,
 			(struct sprd_fd_cfg_param *__user)param->reg_info_tab,
 			param->size * sizeof(struct sprd_fd_cfg_param));
@@ -1006,6 +1009,12 @@ int fd_drv_reg_multi_write_handler(void *handle,
 		return -EINVAL;
 	}
 	for (i = 0; i < param->size; i++) {
+
+		if (param_tab[i].reg_param > SPRD_FD_REG_PARAM_MAX) {
+			pr_err("FD_ERR: write size overbound\n");
+			return -EINVAL;
+		}
+
 		reg_info  =  &fd_reg_info_table[param_tab[i].reg_param];
 		if (reg_info->reg_write == NULL) {
 			pr_err("FD_ERR: invalid multi reg write fun %d\n",
@@ -1069,6 +1078,12 @@ int fd_drv_reg_multi_read_handler(void *handle,
 		return -EINVAL;
 	}
 	for (i = 0; i < param->size; i++) {
+
+		if (param_tab[i].reg_param > SPRD_FD_REG_PARAM_MAX) {
+			pr_err("FD_ERR: read size overbound\n");
+			return -EINVAL;
+		}
+
 		reg_info  =  &fd_reg_info_table[param_tab[i].reg_param];
 		param_tab[i].reg_val = FD_REG_RD(drv_handle->io_base,
 				reg_info->reg_addr);
