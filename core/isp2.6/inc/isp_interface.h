@@ -32,7 +32,7 @@
 #define ISP_FBC_STORE_TILE_HEIGHT       8
 #define ISP_PYR_DEC_LAYER_NUM           5
 #define MAX_PYR_DEC_LAYER_NUM           (ISP_PYR_DEC_LAYER_NUM + 1)
-#define ISP_PYRDEC_BUF_Q_LEN            3
+#define ISP_PYRDEC_BUF_Q_LEN            4
 #define ISP_CONTEXT_TIMEOUT             msecs_to_jiffies(2000)
 
 enum isp_context_id {
