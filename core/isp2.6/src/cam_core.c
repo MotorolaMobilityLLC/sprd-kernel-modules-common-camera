@@ -2871,6 +2871,9 @@ static int camcore_dcam_callback(enum dcam_cb_type type, void *param, void *priv
 
 			if ((module->flash_skip_fid == pframe->fid) && (module->flash_skip_fid != 0)) {
 				pr_debug("flash_skip_frame fd = %d\n", pframe->fid);
+				if (pframe->sync_data)
+					dcam_core_dcam_if_release_sync(pframe->sync_data, pframe);
+
 				ret = module->dcam_dev_handle->dcam_pipe_ops->cfg_path(dcam_sw_ctx,
 					DCAM_PATH_CFG_OUTPUT_BUF,
 					channel->dcam_path_id, pframe);

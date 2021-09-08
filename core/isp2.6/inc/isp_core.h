@@ -242,6 +242,8 @@ struct isp_sw_context {
 	struct mutex param_mutex;
 	/* lock block param to avoid acrossing frame */
 	struct mutex blkpm_lock;
+	/*stopping thread, stop wait for out frame*/
+	uint32_t thread_doing_stop;
 
 	struct camera_queue in_queue;
 	struct camera_queue proc_queue;

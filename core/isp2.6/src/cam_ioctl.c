@@ -1517,9 +1517,13 @@ static int camioctl_stream_off(struct camera_module *module,
 
 		if ((ch->ch_id == CAM_CH_PRE) || (ch->ch_id == CAM_CH_CAP)) {
 			isp_ctx_id[i] = ch->isp_ctx_id;
-			if (isp_ctx_id[i] != -1)
+			if (isp_ctx_id[i] != -1) {
+				uint32_t thread_proc_stop = 1;
+				module->isp_dev_handle->isp_ops->ioctl(module->isp_dev_handle,
+					isp_ctx_id[i], ISP_IOCTL_CFG_THREAD_PROC_STOP, &thread_proc_stop);
 				module->isp_dev_handle->isp_ops->put_context(module->isp_dev_handle,
 					isp_ctx_id[i]);
+			}
 			mutex_lock(&module->buf_lock[ch->ch_id]);
 			if (ch->alloc_start) {
 				wait_for_completion(&ch->alloc_com);

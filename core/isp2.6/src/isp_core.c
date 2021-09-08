@@ -1269,6 +1269,7 @@ normal_out_put:
 		int cnt = 0;
 		uint32_t not_use_reserved_buf = (path->spath_id == ISP_SPATH_CP) && (tmp->not_use_reserved_buf);
 		do {
+			not_use_reserved_buf &= (!pctx->thread_doing_stop);
 			if (pctx->uinfo.path_info[path->spath_id].uframe_sync
 				&& tmp->target_fid != CAMERA_RESERVE_FRAME_NUM)
 				out_frame = cam_queue_dequeue_if(&path->out_buf_queue,
@@ -3062,6 +3063,14 @@ static int ispcore_ioctl(void *isp_handle, int ctx_id,
 		if (rec_ctx)
 			rec_ctx->ops.cfg_param(rec_ctx, ISP_REC_CFG_LAYER_NUM, &pctx->uinfo.pyr_layer_num);
 		break;
+	case ISP_IOCTL_CFG_THREAD_PROC_STOP:
+		pctx = dev->sw_ctx[ctx_id];
+		if (!pctx) {
+			pr_err("fail to get pctx, ctx_id%d\n", ctx_id);
+			return -EFAULT;
+		}
+		pctx->thread_doing_stop = *(uint32_t *)param;
+		break;
 	default:
 		pr_err("fail to get known cmd: %d\n", cmd);
 		ret = -EFAULT;
@@ -3546,6 +3555,7 @@ static int ispcore_context_put(void *isp_handle, int ctx_id)
 	pctx->dev = dev;
 	pctx->attach_cam_id = CAM_ID_MAX;
 	pctx->hw = dev->isp_hw;
+	pctx->thread_doing_stop = 0;
 
 	mutex_unlock(&dev->path_mutex);
 	pr_info("done, put ctx_id: %d\n", ctx_id);
