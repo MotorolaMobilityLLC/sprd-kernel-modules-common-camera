@@ -6947,6 +6947,8 @@ static int camcore_offline_proc(void *param)
 	pctx->cur_ctx_id = DCAM_CXT_0;
 	if (pframe->irq_property != CAM_FRAME_COMMON)
 		pctx->cur_ctx_id = DCAM_CXT_1;
+	if (pframe->irq_property == CAM_FRAME_FDRH)
+		pctx->cur_ctx_id = DCAM_CXT_2;
 	pm_pctx = &pctx->ctx[pctx->cur_ctx_id];
 	pm = &pm_pctx->blk_pm;
 	if ((pm->lsc.buf.mapping_state & CAM_BUF_MAPPING_DEV) == 0) {
