@@ -64,8 +64,10 @@ struct flash_driver_data {
 	void *priv;
 	struct flash_ic_cfg flash_cfg;
 	u32 torch_led_index;
+	struct sprd_flash_capacity *flash_ic_info;
 };
 /* Static Variables Definitions */
+static struct sprd_flash_capacity flash_ic_info = {0};
 
 static const char *const flash_ic_gpio_names[FLASH_IC_GPIO_MAX] = {
 	"flash-chip-en-gpios", /*gpio-89 connect to hw-en*/
@@ -474,6 +476,17 @@ static int sprd_flash_ic_cfg_value_highlight(void *drvd, uint8_t idx,
 	return 0;
 }
 
+struct sprd_flash_capacity sprd_flash_ic_get_flash_info(void *drvd, uint8_t idx,
+					   struct sprd_flash_capacity *element)
+{
+
+	element = &flash_ic_info;
+	pr_info("sprd_flash_ic_get_flash_info flash_ic_name %s %s\n", element->flash_ic_name,flash_ic_info.flash_ic_name);
+
+
+	return flash_ic_info;
+}
+
 static const struct of_device_id sprd_flash_ic_of_match_table[] = {
 	{.compatible = "sprd,flash-ocp8137"},
 };
@@ -491,7 +504,8 @@ static const struct sprd_flash_driver_ops flash_ic_ops = {
 	.cfg_value_torch = sprd_flash_ic_cfg_value_torch,
 	.cfg_value_preflash = sprd_flash_ic_cfg_value_preflash,
 	.cfg_value_highlight = sprd_flash_ic_cfg_value_highlight,
-
+	.get_flash_info = sprd_flash_ic_get_flash_info,
+ 
 };
 
 static int sprd_flash_ic_driver_probe(struct i2c_client *client,
@@ -519,6 +533,8 @@ static int sprd_flash_ic_driver_probe(struct i2c_client *client,
 		return -ENOMEM;
 	client->dev.platform_data = (void *)pdata;
 	pdata->i2c_info = client;
+
+	flash_ic_info.flash_ic_name = "ocp8137";
 	mutex_init(&pdata->i2c_lock);
 	ret = of_property_read_u32(dev->of_node, "sprd,torch", &torch);
 	if (ret)
@@ -536,16 +552,20 @@ static int sprd_flash_ic_driver_probe(struct i2c_client *client,
 			"sprd,torch-level", &pdata->flash_cfg.torch_level);
 	if (ret)
 		pr_info("torch-level no cfg\n");
+	flash_ic_info.torch_steps = pdata->flash_cfg.torch_level;
 
 	ret = of_property_read_u32(dev->of_node,
 		"sprd,preflash-level", &pdata->flash_cfg.preflash_level);
 	if (ret)
 		pr_info("preflash-level no cfg\n");
+	flash_ic_info.preflash_steps = pdata->flash_cfg.preflash_level;
 
 	ret = of_property_read_u32(dev->of_node,
 		"sprd,highlight-level", &pdata->flash_cfg.highlight_level);
 	if (ret)
 		pr_info("highlight-level no cfg\n");
+	flash_ic_info.highlight_steps = pdata->flash_cfg.highlight_level;
+
 	ret = of_property_read_u32(dev->of_node,
 			 "sprd,lvfm-enable", &pdata->flash_cfg.lvfm_enable);
 	if (ret)
@@ -568,6 +588,8 @@ static int sprd_flash_ic_driver_probe(struct i2c_client *client,
 	}
 
 	memcpy((void *)pdata->gpio_tab, (void *)gpio, sizeof(gpio));
+	pdata->flash_ic_info = &flash_ic_info;
+	pr_info("flash_ic_info %s %s\n", flash_ic_info.flash_ic_name, pdata->flash_ic_info->flash_ic_name);
 
 	ret = sprd_flash_ic_init(pdata);
 

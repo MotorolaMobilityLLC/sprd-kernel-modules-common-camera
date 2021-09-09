@@ -42,6 +42,7 @@ struct flash_device {
 	void *driver_data[SPRD_FLASH_MAX];
 	int flashlight_status[SPRD_FLASH_MAX];
 	unsigned short attr_test_value;
+	char *flash_ic_name;
 };
 
 /* Static Variables Definitions */
@@ -189,11 +190,11 @@ exit:
 	return ret;
 }
 
-static int flash_get_flash_info(struct flash_device *dev,
+struct sprd_flash_capacity flash_get_flash_info(struct flash_device *dev,
 				    uint8_t flash_idx, uint8_t led_idx,
 				    struct sprd_flash_capacity *element)
 {
-	int ret = -EPERM;
+	struct sprd_flash_capacity ret = {0};
 
 	if (!dev || !dev->ops[flash_idx])
 		goto exit;
@@ -217,10 +218,10 @@ static int flash_close_all(struct flash_device *dev,
 	return ret;
 }
 
-int sprd_flash_get_info(uint8_t flash_idx, uint8_t led_idx,
+struct sprd_flash_capacity sprd_flash_get_info(uint8_t flash_idx, uint8_t led_idx,
 			struct sprd_flash_capacity *flash_capacity)
 {
-	int ret = 0;
+	struct sprd_flash_capacity ret = {0};
 	struct flash_device *flash_dev = s_flash_dev;
 
 	pr_info("flash_idx 0x%x led_idx %d\n", flash_idx, led_idx);
@@ -389,6 +390,7 @@ static long sprd_flash_ioctl(struct file *file, unsigned int cmd,
 }
 
 #ifdef FLASH_TEST
+static struct sprd_flash_capacity flash_capacity = {0};
 static ssize_t flash_sysfs_test(struct device *dev,
 				struct device_attribute *attr, const char *buf,
 				size_t size)
@@ -451,6 +453,12 @@ static ssize_t flash_sysfs_test(struct device *dev,
 		flash_cfg_value_highlight(flash_dev, flash_idx,
 					 led_idx, &element);
 		break;
+	case 9:
+		flash_capacity = flash_get_flash_info(flash_dev, flash_idx,
+							   led_idx, &flash_capacity);
+		flash_dev->flash_ic_name = flash_capacity.flash_ic_name;
+		pr_info("%s %s", flash_capacity.flash_ic_name, flash_dev->flash_ic_name);
+		break;
 	default:
 		break;
 	}
@@ -471,6 +479,8 @@ static ssize_t show_help(struct device *dev,
 		pr_err("flash device is null\n");
 		return 0;
 	}
+	if((flash_dev->attr_test_value & 0x0f) == 0x9)
+		return sprintf(buf, "%s\n", flash_capacity.flash_ic_name);
 
 	return sprintf(buf, "%x\n", flash_dev->attr_test_value);
 }

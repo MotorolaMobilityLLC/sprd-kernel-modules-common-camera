@@ -43,7 +43,7 @@ struct sprd_flash_driver_ops {
 				  struct sprd_flash_element *element);
 	int (*cfg_value_highlight)(void *drvd, uint8_t idx,
 				   struct sprd_flash_element *element);
-	int (*get_flash_info)(void *drvd, uint8_t idx,
+	struct sprd_flash_capacity (*get_flash_info)(void *drvd, uint8_t idx,
 				   struct sprd_flash_capacity *info);
 };
 
@@ -52,6 +52,6 @@ int sprd_flash_cfg(struct sprd_flash_cfg_param *parm);
 int sprd_flash_register(const struct sprd_flash_driver_ops *ops,
 			void *drvd,
 			uint8_t flash_idx);
-int sprd_flash_get_info(uint8_t flash_idx, uint8_t led_idx,
+struct sprd_flash_capacity sprd_flash_get_info(uint8_t flash_idx, uint8_t led_idx,
 			struct sprd_flash_capacity *flash_capacity);
 #endif

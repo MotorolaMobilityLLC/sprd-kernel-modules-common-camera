@@ -692,6 +692,7 @@ struct sprd_flash_capacity {
 	uint16_t torch_steps;
 	uint16_t preflash_steps;
 	uint16_t highlight_steps;
+	char *flash_ic_name;
 };
 
 struct sprd_img_set_flash {
@@ -911,7 +912,7 @@ struct sprd_dcam_raw_fmt {
 #define SPRD_IMG_IO_SET_3DNR             _IOW(SPRD_IMG_IO_MAGIC, 53, struct sprd_img_3dnr_param)
 #define SPRD_IMG_IO_SET_FUNCTION_MODE    _IOW(SPRD_IMG_IO_MAGIC, 54, struct sprd_img_function_mode)
 #define SPRD_ISP_IO_MASK_3A              _IOW(SPRD_IMG_IO_MAGIC, 55, uint32_t)
-#define SPRD_IMG_IO_GET_FLASH_INFO       _IOW(SPRD_IMG_IO_MAGIC, 56, struct sprd_img_set_flash)
+#define SPRD_IMG_IO_GET_FLASH_INFO       _IOW(SPRD_IMG_IO_MAGIC, 56, struct sprd_flash_capacity)
 #define SPRD_IMG_IO_MAP_IOVA             _IOW(SPRD_IMG_IO_MAGIC, 57, struct sprd_img_iova)
 #define SPRD_IMG_IO_UNMAP_IOVA           _IOW(SPRD_IMG_IO_MAGIC, 58, struct sprd_img_iova)
 #define SPRD_IMG_IO_GET_SG               _IOW(SPRD_IMG_IO_MAGIC, 59, struct sprd_img_iova)
