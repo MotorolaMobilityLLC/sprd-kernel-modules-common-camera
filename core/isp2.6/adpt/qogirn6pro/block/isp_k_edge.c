@@ -435,7 +435,7 @@ int isp_k_update_edge(void *handle)
 	ISP_REG_WR(idx, ISP_EE_PIXEL_POSTION, val);
 
 	edge_info->center_x = center_x;
-	edge_info->center_x = center_y;
+	edge_info->center_y = center_y;
 
 	if (edge_info->radius_base == 0)
 		edge_info->radius_base = 1024;
