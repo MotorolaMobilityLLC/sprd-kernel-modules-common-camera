@@ -16,7 +16,6 @@ struct camera_frame *dcam_offline_cycle_frame(struct dcam_sw_context *pctx)
 	int loop = 0;
 	int ret = 0;
 	struct dcam_path_desc *path = NULL;
-	struct dcam_hw_fetch_block blockarg;
 	struct cam_hw_info *hw = NULL;
 
 	if (!pctx) {
@@ -24,35 +23,26 @@ struct camera_frame *dcam_offline_cycle_frame(struct dcam_sw_context *pctx)
 		return NULL;
 	}
 
-	/* for L3 DCAM1 */
-	if (DCAM_FETCH_TWICE(pctx)) {
-		hw = pctx->dev->hw;
-		pctx->raw_fetch_count++;
-		blockarg.idx = pctx->hw_ctx_id;
-		blockarg.raw_fetch_count = pctx->raw_fetch_count;
-		ret = hw->dcam_ioctl(hw, DCAM_HW_CFG_FETCH_BLOCK_SET, &blockarg);
-		if (!DCAM_FIRST_FETCH(pctx)) {
-			struct camera_frame *frame = NULL;
-
-			frame = cam_queue_dequeue(&pctx->proc_queue,
-					struct camera_frame, list);
-			if (!frame) {
-				return NULL;
-			} else {
-				path = &pctx->path[hw->ip_dcam[DCAM_HW_CONTEXT_1]->aux_dcam_path];
-				ret = cam_queue_enqueue(&path->out_buf_queue, &frame->list);
-				pframe->endian = frame->endian;
-				pframe->pattern = frame->pattern;
-				pframe->width = frame->width;
-				pframe->height = frame->height;
-			}
-		}
-	}
-
 	pframe = cam_queue_dequeue(&pctx->in_queue, struct camera_frame, list);
 	if (pframe == NULL) {
 		pr_err("fail to get input frame (%p) for ctx %d\n", pframe, pctx->sw_ctx_id);
 		return NULL;
+	}
+
+	/* for L3 DCAM1 */
+	if (DCAM_FETCH_TWICE(pctx)) {
+		hw = pctx->dev->hw;
+		pctx->raw_fetch_count++;
+		if (!DCAM_FIRST_FETCH(pctx)) {
+			struct camera_frame *frame = NULL;
+
+			path = &pctx->path[hw->ip_dcam[DCAM_HW_CONTEXT_1]->aux_dcam_path];
+			frame = cam_queue_dequeue_peek(&path->out_buf_queue, struct camera_frame, list);
+			pframe->endian = frame->endian;
+			pframe->pattern = frame->pattern;
+			pframe->width = frame->width;
+			pframe->height = frame->height;
+		}
 	}
 
 	pr_debug("frame %p, dcam%d ch_id %d.  buf_fd %d\n", pframe,
@@ -250,6 +240,14 @@ int dcam_offline_param_set(struct cam_hw_info *hw, struct dcam_sw_context *pctx)
 	/* bypass all blks and then set all blks to current pm */
 	hw->dcam_ioctl(hw, DCAM_HW_CFG_BLOCKS_SETSTATIS, &pctx->ctx[pctx->cur_ctx_id].blk_pm);
 	hw->dcam_ioctl(hw, DCAM_HW_CFG_BLOCKS_SETALL, &pctx->ctx[pctx->cur_ctx_id].blk_pm);
+
+	/* for L3 DCAM1 */
+	if (DCAM_FETCH_TWICE(pctx)) {
+		struct dcam_hw_fetch_block blockarg;
+		blockarg.idx = pctx->hw_ctx_id;
+		blockarg.raw_fetch_count = pctx->raw_fetch_count;
+		hw->dcam_ioctl(hw, DCAM_HW_CFG_FETCH_BLOCK_SET, &blockarg);
+	}
 
 	fetcharg.idx = pctx->hw_ctx_id;
 	fetcharg.fetch_info = fetch;

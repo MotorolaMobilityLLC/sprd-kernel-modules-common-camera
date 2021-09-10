@@ -732,11 +732,27 @@ static void dcamint_bin_path_done(void *param)
 				sw_ctx->slice_num = 0;
 			}
 		}
+
 		if (DCAM_FETCH_TWICE(sw_ctx) && DCAM_FIRST_FETCH(sw_ctx)) {
+			struct camera_frame *frame2 = NULL;
+
 			complete(&sw_ctx->frm_done);
 			pr_debug("raw fetch done\n");
+			if ((sw_ctx->dcam_slice_mode == CAM_OFFLINE_SLICE_SW && sw_ctx->slice_count == 0)
+				|| sw_ctx->dcam_slice_mode != CAM_OFFLINE_SLICE_SW) {
+				/* there is source buffer for offline process */
+				frame2 = cam_queue_dequeue(&sw_ctx->proc_queue,
+					struct camera_frame, list);
+				if (frame2) {
+					cam_buf_iommu_unmap(&frame2->buf);
+					sw_ctx->dev->dcam_pipe_ops->cfg_path(sw_ctx,
+						DCAM_PATH_CFG_OUTPUT_BUF, DCAM_PATH_BIN, frame2);
+				}
+			}
+
+			dcam_core_context_unbind(sw_ctx);
 			cam_buf_iommu_unmap(&frame->buf);
-			dcamint_frame_dispatch(dcam_hw_ctx, DCAM_PATH_BIN, frame, DCAM_CB_DATA_DONE);
+			sw_ctx->dcam_cb_func(DCAM_CB_DATA_DONE, frame, sw_ctx->cb_priv_data);
 			return;
 		}
 		dcamint_frame_dispatch(dcam_hw_ctx, DCAM_PATH_BIN, frame, DCAM_CB_DATA_DONE);

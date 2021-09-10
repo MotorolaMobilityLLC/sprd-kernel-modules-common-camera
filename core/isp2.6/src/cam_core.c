@@ -3024,10 +3024,11 @@ static int camcore_dcam_callback(enum dcam_cb_type type, void *param, void *priv
 				return ret;
 			}
 			/* cap scene special process */
-			if (DCAM_FETCH_TWICE(dcam_sw_ctx) && DCAM_FIRST_FETCH(dcam_sw_ctx)) {
+			if (DCAM_FETCH_TWICE(dcam_sw_aux_ctx) && DCAM_FIRST_FETCH(dcam_sw_aux_ctx)) {
 				ret = camcore_frame_start_proc(module, pframe);
 				if (ret)
 					pr_err("fail to start dcam/isp for raw proc\n");
+				return 0;
 			} else if (module->dcam_cap_status == DCAM_CAPTURE_START_WITH_TIMESTAMP) {
 				pframe = camcore_dual_frame_deal(module, pframe, channel);
 
