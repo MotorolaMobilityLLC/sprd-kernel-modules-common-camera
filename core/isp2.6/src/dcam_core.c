@@ -1527,6 +1527,7 @@ static int dcamcore_path_cfg(void *dcam_handle, enum dcam_path_cfg_cmd cfg_cmd,
 			if (newfrm) {
 				newfrm->is_reserved = 2;
 				newfrm->priv_data = path;
+				newfrm->need_pyr_rec = pframe->need_pyr_rec;
 				memcpy(&newfrm->buf, &pframe->buf,
 					sizeof(pframe->buf));
 				ret = cam_queue_enqueue(
