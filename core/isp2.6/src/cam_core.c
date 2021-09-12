@@ -2605,6 +2605,11 @@ static int camcore_isp_callback(enum isp_cb_type type, void *param, void *priv_d
 						if ((module->fdr_done & (1 << CAMERA_IRQ_FDR_MERGE)) ||
 							(module->fdr_done & (1 << CAMERA_IRQ_FDR_DRC)))
 							complete(&module->cap_thrd.thread_com);
+						if (channel->fdrh_zoom_buf) {
+							cam_buf_ionbuf_put(&channel->fdrh_zoom_buf->buf);
+							cam_queue_empty_frame_put(channel->fdrh_zoom_buf);
+							channel->fdrh_zoom_buf = NULL;
+						}
 					}
 					pr_debug("fdr %d yuv buf %d done %x\n", pframe->irq_property,
 						pframe->buf.mfd[0], module->fdr_done);
