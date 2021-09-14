@@ -86,22 +86,28 @@ uint32_t dcam_offline_slice_needed(struct cam_hw_info *hw, struct dcam_sw_contex
 {
 	struct cam_hw_lbuf_share lbufarg;
 	struct cam_hw_lbuf_share camarg;
-
-	camarg.idx = pctx->hw_ctx_id;
-	camarg.width = in_width;
-	camarg.offline_flag = 1;
-	pr_info("dcam %d, sw ctx%d, in width %d set linebuf\n", camarg.idx, pctx->sw_ctx_id, camarg.width);
-	if (hw->ip_dcam[pctx->hw_ctx_id]->lbuf_share_support)
-		hw->dcam_ioctl(hw, DCAM_HW_CFG_LBUF_SHARE_SET, &camarg);
+	uint32_t out_width = 0;
 
 	lbufarg.idx = pctx->hw_ctx_id;
 	lbufarg.width = 0;
 	hw->dcam_ioctl(hw, DCAM_HW_CFG_LBUF_SHARE_GET, &lbufarg);
+	out_width = lbufarg.width;
 
-	if (!lbufarg.width)
+	camarg.idx = pctx->hw_ctx_id;
+	camarg.width = in_width;
+	camarg.offline_flag = 1;
+	pr_debug("Dcam%d, sw_ctx%d, new width %d old linebuf %d\n", camarg.idx, pctx->sw_ctx_id, camarg.width, lbufarg.width);
+	if (hw->ip_dcam[pctx->hw_ctx_id]->lbuf_share_support && (lbufarg.width < camarg.width)) {
+		hw->dcam_ioctl(hw, DCAM_HW_CFG_LBUF_SHARE_SET, &camarg);
+		lbufarg.idx = pctx->hw_ctx_id;
+		lbufarg.width = 0;
+		hw->dcam_ioctl(hw, DCAM_HW_CFG_LBUF_SHARE_GET, &lbufarg);
+		out_width = lbufarg.width;
+	}
+	if (!out_width)
 		*dev_lbuf = DCAM_PATH_WMAX * 2;
 	else
-		*dev_lbuf = lbufarg.width;
+		*dev_lbuf = out_width;
 	if (in_width > *dev_lbuf)
 		return 1;
 	else
