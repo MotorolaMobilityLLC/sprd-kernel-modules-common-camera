@@ -186,7 +186,6 @@ struct camera_uinfo {
 	uint32_t dcam_slice_mode;/*1: hw,  2:sw*/
 	uint32_t slice_num;
 	uint32_t slice_count;
-	uint32_t is_afbc;
 	uint32_t zsl_num;
 	uint32_t zsk_skip_num;
 	uint32_t need_share_buf;
@@ -990,20 +989,6 @@ static void camcore_compression_cal(struct camera_module *module)
 	ch_vid->compress_4bit_bypass = 1;
 	ch_raw->compress_4bit_bypass = 1;
 
-	/* open compression on SharkL5 pro */
-	if (dcam_hw->prj_id == SHARKL5pro) {
-		/* dcam support full path or bin path */
-		ch_cap->compress_input = 0;
-		ch_pre->compress_input = 0;
-		ch_vid->compress_input = 0;
-		/* isp support preview path and video path*/
-		ch_vid->compress_output = module->cam_uinfo.is_afbc;
-		/* 3dnr support preview&capture&video path*/
-		ch_cap->compress_3dnr = 0;
-		ch_pre->compress_3dnr = 0;
-		ch_vid->compress_3dnr = ch_pre->compress_3dnr;
-	}
-
 	/* manually control compression policy here */
 	override = &module->grp->debugger.compression[module->idx];
 	if (override->enable) {
@@ -1035,9 +1020,7 @@ static void camcore_compression_cal(struct camera_module *module)
 	if (ch_pre->ch_uinfo.is_high_fps)
 		ch_pre->compress_input = 0;
 
-	/* TBD: just bypass all compress first */
-	ch_pre->compress_input = 0;
-	ch_vid->compress_input = 0;
+	/* TBD: just bypass cap/raw compress first */
 	ch_cap->compress_input = 0;
 	ch_raw->compress_input = 0;
 
@@ -3788,16 +3771,22 @@ static int camcore_channel_size_binning_cal(
 				dcam_out.h = ALIGN(dcam_out.h, 2);
 			}
 		}
-		if (ch_prev->compress_input) {
+		if (ch_prev->compress_input)
 			dcam_out.h = ALIGN_DOWN(dcam_out.h, DCAM_FBC_TILE_HEIGHT);
-			trim_pv.size_y = (dcam_out.h << shift);
-		}
 
 		if (dcam_out.w > DCAM_SCALER_MAX_WIDTH) {
 			dcam_out.h = dcam_out.h * DCAM_SCALER_MAX_WIDTH / dcam_out.w;
 			dcam_out.h = ALIGN_DOWN(dcam_out.h, 2);
 			dcam_out.w = DCAM_SCALER_MAX_WIDTH;
 		}
+
+		if ((module->grp->hw_info->prj_id == QOGIRN6pro)
+			&& (dcam_out.w == DCAM_FBC_4K_WIDTH)
+			&& (dcam_out.h == DCAM_FBC_4K_HEIGHT)) {
+			ch_prev->compress_input = 0;
+			ch_vid->compress_input = 0;
+		}
+
 		pr_info("shift %d, dst_p %u %u, dst_v %u %u, dcam_out %u %u swap w:%d h:%d\n",
 			shift, dst_p.w, dst_p.h, dst_v.w, dst_v.h, dcam_out.w, dcam_out.h, ch_prev->swap_size.w, ch_prev->swap_size.h);
 
@@ -5943,6 +5932,7 @@ static int camcore_raw_pre_proc(
 	struct img_trim path_trim;
 	struct dcam_path_cfg_param ch_desc = {0};
 	struct dcam_path_cfg_param ch_raw_path_desc;
+	struct isp_ctx_compress_desc ctx_compression_desc;
 	struct isp_ctx_base_desc ctx_desc;
 	struct isp_ctx_size_desc ctx_size;
 	struct isp_path_base_desc isp_path_desc;
@@ -6165,6 +6155,12 @@ static int camcore_raw_pre_proc(
 	ctx_desc.ch_id = CAM_CH_CAP;
 	ret = module->isp_dev_handle->isp_ops->cfg_path(module->isp_dev_handle,
 		ISP_PATH_CFG_CTX_BASE, ctx_id, 0, &ctx_desc);
+
+	ctx_compression_desc.fetch_fbd = 0;
+	ctx_compression_desc.fetch_fbd_4bit_bypass = 0;
+	ctx_compression_desc.nr3_fbc_fbd = 0;
+	ret = module->isp_dev_handle->isp_ops->cfg_path(module->isp_dev_handle,
+		ISP_PATH_CFG_CTX_COMPRESSION, ctx_id, 0, &ctx_compression_desc);
 
 	isp_path_id = ISP_SPATH_CP;
 	ret = module->isp_dev_handle->isp_ops->get_path(

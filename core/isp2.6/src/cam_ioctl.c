@@ -382,7 +382,6 @@ static int camioctl_function_mode_set(struct camera_module *module,
 	hw = module->grp->hw_info;
 	ret |= get_user(module->cam_uinfo.is_4in1, &uparam->need_4in1);
 	ret |= get_user(module->cam_uinfo.is_dual, &uparam->dual_cam);
-	ret |= get_user(module->cam_uinfo.is_afbc, &uparam->need_afbc);
 	ret |= get_user(module->cam_uinfo.is_fdr, &uparam->need_fdr);
 	ret |= get_user(module->cam_uinfo.fdr_cap_pre_num, &uparam->fdr_preview_captured_num);
 	ret |= get_user(module->cam_uinfo.fdr_version, &uparam->fdr_version);
@@ -395,12 +394,12 @@ static int camioctl_function_mode_set(struct camera_module *module,
 	else
 		module->cam_uinfo.is_pyr_dec = hw->ip_isp->pyr_dec_support;
 
-	pr_info("4in1:[%d], rgb_ltm[%d], yuv_ltm[%d], gtm[%d], dual[%d], afbc[%d] dec %d, fdr_version:%d, is_fdr:%d, pre_num:%d\n",
+	pr_info("4in1:[%d], rgb_ltm[%d], yuv_ltm[%d], gtm[%d], dual[%d], dec %d, fdr_version:%d, is_fdr:%d, pre_num:%d\n",
 		module->cam_uinfo.is_4in1,module->cam_uinfo.is_rgb_ltm,
 		module->cam_uinfo.is_yuv_ltm, module->cam_uinfo.is_rgb_gtm,
-		module->cam_uinfo.is_dual,module->cam_uinfo.is_afbc,
-		module->cam_uinfo.is_pyr_dec, module->cam_uinfo.fdr_version,
-		module->cam_uinfo.is_fdr, module->cam_uinfo.fdr_cap_pre_num);
+		module->cam_uinfo.is_dual, module->cam_uinfo.is_pyr_dec,
+		module->cam_uinfo.fdr_version, module->cam_uinfo.is_fdr,
+		module->cam_uinfo.fdr_cap_pre_num);
 
 	if (unlikely(ret)) {
 		pr_err("fail to copy from user, ret %d\n", ret);

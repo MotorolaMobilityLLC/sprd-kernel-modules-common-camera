@@ -1717,7 +1717,7 @@ static void ispslice_slice_fbd_yuv_cfg(struct isp_fbd_yuv_info *frame_fbd_yuv,
 	struct slice_fbd_yuv_info *slc_fbd_yuv = &cur_slc->slice_fbd_yuv;
 
 	if (frame_fbd_yuv->trim.start_x || frame_fbd_yuv->trim.start_y) {
-		start_col = start_col  + frame_fbd_yuv->trim.start_x;
+		start_col = start_col + frame_fbd_yuv->trim.start_x;
 		start_row = start_row + frame_fbd_yuv->trim.start_y;
 		end_col = frame_fbd_yuv->trim.start_x + end_col;
 		end_row = frame_fbd_yuv->trim.start_y + end_row;

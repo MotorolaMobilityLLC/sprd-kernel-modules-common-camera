@@ -39,6 +39,9 @@
 #define DCAM_SCALER_MAX_WIDTH          3840
 #define DCAM_FRAME_TIMESTAMP_COUNT     0x100
 
+#define DCAM_FBC_4K_WIDTH              3840
+#define DCAM_FBC_4K_HEIGHT             2160
+
 /*
  * dcam_if fbc capability limit
  * modification to these values may cause some function in isp_slice.c not

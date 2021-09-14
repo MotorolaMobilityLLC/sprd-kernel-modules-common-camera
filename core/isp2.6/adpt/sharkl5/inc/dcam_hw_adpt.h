@@ -39,6 +39,9 @@
 #define DCAM_FRAME_TIMESTAMP_COUNT              0x40
 #define DCAM_OVERLAP                            0
 
+#define DCAM_FBC_4K_WIDTH                       3840
+#define DCAM_FBC_4K_HEIGHT                      2160
+
 /*
  *DCAM_CONTROL register bit map id
  * for force_cpy/auto_cpy control
