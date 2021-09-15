@@ -2640,6 +2640,7 @@ static int camioctl_capture_stop(struct camera_module *module,
 	sw_aux_ctx = &module->dcam_dev_handle->sw_ctx[module->offline_cxt_id];
 	module->cap_status = CAM_CAPTURE_STOP;
 	module->dcam_cap_status = DCAM_CAPTURE_STOP;
+	module->raw_cap_fetch_fmt = DCAM_RAW_MAX;
 
 	pr_info("cam %d stop capture.\n", module->idx);
 	hw = module->grp->hw_info;
@@ -3759,6 +3760,7 @@ static int camioctl_dcam_raw_fmt_set(struct camera_module *module,unsigned long 
 			break;
 		if (param.sensor_raw_fmt == hw->ip_dcam[0]->raw_fmt_support[i]) {
 			channel->ch_uinfo.sensor_raw_fmt = param.sensor_raw_fmt;
+			module->raw_cap_fetch_fmt = param.sensor_raw_fmt;
 			sensor_raw_update = 1;
 		}
 	}

@@ -289,6 +289,7 @@ struct camera_module {
 	uint32_t cur_sw_ctx_id;
 	uint32_t cur_aux_sw_ctx_id;
 	uint32_t offline_cxt_id;
+	uint32_t raw_cap_fetch_fmt;
 	enum camera_cap_status cap_status;
 	enum dcam_capture_status dcam_cap_status;
 
@@ -6161,14 +6162,16 @@ static int camcore_raw_pre_proc(
 		ch->dcam_path_id = dcam_path_id;
 
 	dev->sw_ctx[module->offline_cxt_id].fetch.fmt= DCAM_STORE_RAW_BASE;
-
 	if ((ch->ch_uinfo.sensor_raw_fmt >= DCAM_RAW_PACK_10) && (ch->ch_uinfo.sensor_raw_fmt < DCAM_RAW_MAX))
 		dev->sw_ctx[module->offline_cxt_id].pack_bits = ch->ch_uinfo.sensor_raw_fmt;
 	else {
 		dev->sw_ctx[module->offline_cxt_id].pack_bits = hw->ip_dcam[0]->sensor_raw_fmt;
-		if (module->cam_uinfo.dcam_slice_mode && hw->ip_dcam[0]->save_band_for_bigsize)
+		if (module->cam_uinfo.dcam_slice_mode && hw->ip_dcam[0]->save_band_for_bigsize) {
 			/* for save data band, ultra res not need sensor raw of raw14*/
 			dev->sw_ctx[module->offline_cxt_id].pack_bits = DCAM_RAW_PACK_10;
+			if (module->raw_cap_fetch_fmt != DCAM_RAW_MAX)
+				dev->sw_ctx[module->offline_cxt_id].pack_bits = module->raw_cap_fetch_fmt;
+		}
 		if (dcam_path_id == 0 && module->cam_uinfo.is_4in1 == 1)
 			dev->sw_ctx[module->offline_cxt_id].pack_bits = DCAM_RAW_PACK_10;
 	}
@@ -6223,8 +6226,11 @@ static int camcore_raw_pre_proc(
 		}
 		memcpy(&ch_raw_path_desc, &ch_desc, sizeof(struct dcam_path_cfg_param));
 
-		if (dev->sw_ctx[module->cur_sw_ctx_id].dcam_slice_mode && dev->hw->ip_dcam[0]->save_band_for_bigsize)
+		if (dev->sw_ctx[module->cur_sw_ctx_id].dcam_slice_mode && dev->hw->ip_dcam[0]->save_band_for_bigsize) {
 			ch_raw_path_desc.raw_fmt = DCAM_RAW_PACK_10;
+			if (module->raw_cap_fetch_fmt != DCAM_RAW_MAX)
+				ch_raw_path_desc.raw_fmt = module->raw_cap_fetch_fmt;
+		}
 		ch->ch_uinfo.dcam_raw_fmt = ch_raw_path_desc.raw_fmt;
 
 		ch_raw_path_desc.dcam_out_fmt = DCAM_STORE_RAW_BASE;
@@ -7069,6 +7075,7 @@ static int camcore_module_init(struct camera_module *module)
 
 	module->cap_status = CAM_CAPTURE_STOP;
 	module->dcam_cap_status = DCAM_CAPTURE_STOP;
+	module->raw_cap_fetch_fmt = DCAM_RAW_MAX;
 
 	for (ch = 0; ch < CAM_CH_MAX; ch++) {
 		channel = &module->channel[ch];

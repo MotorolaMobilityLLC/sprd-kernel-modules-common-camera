@@ -1672,10 +1672,11 @@ static int dcamhw_slice_fetch_set(void *handle, void *arg)
 {
 	int ret = 0;
 	uint32_t idx;
+	uint32_t bfp[2] = {0};
 	struct img_trim *cur_slice = NULL;
 	struct dcam_fetch_info *fetch = NULL;
 	struct dcam_hw_slice_fetch *slicearg = NULL;
-	uint32_t fetch_pitch = 0, prev_picth = 0, bwu_shift = 0, bfp = 0, fetch_fmt = 0;
+	uint32_t fetch_pitch = 0, prev_picth = 0, bwu_shift = 0, fetch_fmt = 0;
 
 	if (!arg) {
 		pr_err("fail to check param");
@@ -1695,11 +1696,11 @@ static int dcamhw_slice_fetch_set(void *handle, void *arg)
 	if (fetch->pack_bits != 0) {
 		fetch_pitch = (fetch->size.w * 16 + 127) / 128;
 		prev_picth = (slicearg->slice_trim.size_x * 16 + 127) / 128;
-		bfp = 8;
+		bfp[0] = 8;
 	} else {
 		fetch_pitch = (fetch->size.w * 10 + 127) / 128;
 		prev_picth = (slicearg->slice_trim.size_x * 16 + 127) / 128;
-		bfp = 5;
+		bfp[0] = 5;
 	}
 
 	if (fetch->fmt == DCAM_STORE_RAW_BASE) {
@@ -1711,6 +1712,11 @@ static int dcamhw_slice_fetch_set(void *handle, void *arg)
 		fetch_fmt = 2;
 	else
 		pr_err("fail to get valid fmt ,not support\n");
+
+	if (slicearg->st_pack)
+		bfp[1] = 5;
+	else
+		bfp[1] = 8;
 
 	DCAM_REG_WR(idx, DCAM_INT0_CLR, 0xFFFFFFFF);
 	DCAM_REG_WR(idx, DCAM_INT0_EN, DCAMINT_IRQ_LINE_EN0_NORMAL & (~BIT_2));
@@ -1782,9 +1788,9 @@ static int dcamhw_slice_fetch_set(void *handle, void *arg)
 			pr_debug("dcam%d, slice 1,start x %d size x = %d\n", idx, cur_slice->start_x, slicearg->slice_trim.size_x);
 
 			reg_val = DCAM_REG_RD(idx, DCAM_STORE0_SLICE_Y_ADDR);
-			DCAM_REG_WR(idx, DCAM_STORE0_SLICE_Y_ADDR, reg_val + cur_slice->start_x * bfp / 4);
+			DCAM_REG_WR(idx, DCAM_STORE0_SLICE_Y_ADDR, reg_val + cur_slice->start_x * bfp[1] / 4);
 			reg_val = DCAM_REG_RD(idx, DCAM_STORE0_SLICE_U_ADDR);
-			DCAM_REG_WR(idx, DCAM_STORE0_SLICE_U_ADDR, reg_val + cur_slice->start_x * bfp / 4);
+			DCAM_REG_WR(idx, DCAM_STORE0_SLICE_U_ADDR, reg_val + cur_slice->start_x * bfp[1] / 4);
 
 			/* cfg raw path */
 			DCAM_REG_MWR(idx, DCAM_RAW_PATH_SIZE, 0xFFFF, cur_slice->size_x & 0xffff);
@@ -1793,7 +1799,7 @@ static int dcamhw_slice_fetch_set(void *handle, void *arg)
 			DCAM_REG_WR(idx, DCAM_RAW_PATH_CROP_SIZE, (cur_slice->size_y << 16) | (cur_slice->size_x & 0x3fff));
 
 			reg_val = DCAM_REG_RD(idx, DCAM_RAW_PATH_BASE_WADDR);
-			DCAM_REG_WR(idx, DCAM_RAW_PATH_BASE_WADDR, reg_val + cur_slice->start_x * bfp / 4);
+			DCAM_REG_WR(idx, DCAM_RAW_PATH_BASE_WADDR, reg_val + cur_slice->start_x * bfp[0] / 4);
 
 			DCAM_REG_WR(idx, DCAM_YUV444TO420_IMAGE_WIDTH, cur_slice->size_x + DCAM_OVERLAP);
 			DCAM_REG_MWR(idx, DCAM_YUV444TOYUV420_PARAM, BIT_0, 0);
