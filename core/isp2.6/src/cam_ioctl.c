@@ -1765,6 +1765,8 @@ static int camioctl_stream_on(struct camera_module *module,
 	else if (module->zoom_solution == ZOOM_BINNING2 ||
 		module->zoom_solution == ZOOM_BINNING4)
 		camcore_channel_size_binning_cal(module, 0);
+	else if (module->zoom_solution == ZOOM_SCALER)
+		camcore_channel_size_binning_cal(module, ZOOM_SCALER);
 	else
 		camcore_channel_size_rds_cal(module);
 
@@ -2073,6 +2075,8 @@ static int camioctl_stream_resume(struct camera_module *module,
 	else if (module->zoom_solution == ZOOM_BINNING2 ||
 		module->zoom_solution == ZOOM_BINNING4)
 		camcore_channel_size_binning_cal(module, 0);
+	else if (module->zoom_solution == ZOOM_SCALER)
+		camcore_channel_size_binning_cal(module, ZOOM_SCALER);
 	else
 		camcore_channel_size_rds_cal(module);
 

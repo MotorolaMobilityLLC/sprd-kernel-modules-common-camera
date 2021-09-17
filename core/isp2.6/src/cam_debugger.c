@@ -264,16 +264,20 @@ static const struct file_operations dcam_reg_ops = {
 	.release = single_release,
 };
 
-static char zoom_mode_strings[5][8] = {
-	"bypass", "bin2", "bin4", "rds", "adapt"};
+static char zoom_mode_strings[6][8] = {
+	"bypass", "bin2", "bin4", "rds", "adapt", "scaler"};
 
 static ssize_t camdebugger_zoom_mode_show(struct file *filp,
 	char __user *buffer, size_t count, loff_t *ppos)
 {
 	char buf[16];
 
-	snprintf(buf, sizeof(buf), "%d(%s)\n", g_camctrl.dcam_zoom_mode,
-		zoom_mode_strings[g_camctrl.dcam_zoom_mode]);
+	if (g_camctrl.dcam_zoom_mode >= ZOOM_DEBUG_DEFAULT)
+		snprintf(buf, sizeof(buf), "%d(%s)\n", g_camctrl.dcam_zoom_mode,
+			zoom_mode_strings[g_camctrl.dcam_zoom_mode - ZOOM_DEBUG_DEFAULT]);
+	else
+		snprintf(buf, sizeof(buf), "%d(%s)\n", g_camctrl.dcam_zoom_mode,
+			zoom_mode_strings[g_camctrl.dcam_zoom_mode]);
 
 	return simple_read_from_buffer(
 		buffer, count, ppos,
@@ -300,20 +304,26 @@ static ssize_t camdebugger_zoom_mode_write(struct file *filp,
 	msg[1] = '\0';
 	val = simple_strtol(msg, &last, 0);
 	if (val == 0)
-		g_camctrl.dcam_zoom_mode = ZOOM_DEFAULT;
+		g_camctrl.dcam_zoom_mode = ZOOM_DEBUG_DEFAULT;
 	else if (val == 1)
-		g_camctrl.dcam_zoom_mode = ZOOM_BINNING2;
+		g_camctrl.dcam_zoom_mode = ZOOM_DEBUG_BINNING2;
 	else if (val == 2)
-		g_camctrl.dcam_zoom_mode = ZOOM_BINNING4;
+		g_camctrl.dcam_zoom_mode = ZOOM_DEBUG_BINNING4;
 	else if (val == 3)
-		g_camctrl.dcam_zoom_mode = ZOOM_RDS;
+		g_camctrl.dcam_zoom_mode = ZOOM_DEBUG_RDS;
 	else if (val == 4)
-		g_camctrl.dcam_zoom_mode = ZOOM_ADAPTIVE;
+		g_camctrl.dcam_zoom_mode = ZOOM_DEBUG_ADAPTIVE;
+	else if (val == 5)
+		g_camctrl.dcam_zoom_mode = ZOOM_DEBUG_SCALER;
 	else
 		pr_err("fail to get valid zoom mode: %d\n", val);
 
-	pr_info("set zoom mode %d(%s)\n", g_camctrl.dcam_zoom_mode,
-		zoom_mode_strings[g_camctrl.dcam_zoom_mode]);
+	if (g_camctrl.dcam_zoom_mode >= ZOOM_DEBUG_DEFAULT)
+		pr_info("set zoom mode %d(%s)\n", g_camctrl.dcam_zoom_mode,
+			zoom_mode_strings[g_camctrl.dcam_zoom_mode - ZOOM_DEBUG_DEFAULT]);
+	else
+		pr_info("set zoom mode %d(%s)\n", g_camctrl.dcam_zoom_mode,
+			zoom_mode_strings[g_camctrl.dcam_zoom_mode]);
 	return count;
 }
 

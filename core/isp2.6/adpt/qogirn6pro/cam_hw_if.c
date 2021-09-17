@@ -412,6 +412,7 @@ static struct cam_hw_ip_info dcam[DCAM_ID_MAX] = {
 		.raw_fmt_support[1] = DCAM_RAW_8,
 		.raw_fmt_support[2] = DCAM_RAW_HALFWORD_10,
 		.raw_fmt_support[3] = DCAM_RAW_PACK_10,
+		.dcam_zoom_mode = ZOOM_SCALER,
 	},
 	[DCAM_ID_1] = {
 		.aux_dcam_path = DCAM_PATH_BIN,
@@ -436,6 +437,7 @@ static struct cam_hw_ip_info dcam[DCAM_ID_MAX] = {
 		.raw_fmt_support[1] = DCAM_RAW_8,
 		.raw_fmt_support[2] = DCAM_RAW_HALFWORD_10,
 		.raw_fmt_support[3] = DCAM_RAW_PACK_10,
+		.dcam_zoom_mode = ZOOM_SCALER,
 	},
 	[DCAM_ID_2] = {
 		.aux_dcam_path = DCAM_PATH_FULL,

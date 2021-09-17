@@ -1275,6 +1275,7 @@ struct cam_hw_ip_info {
 	uint32_t sensor_raw_fmt;
 	uint32_t save_band_for_bigsize;
 	uint32_t raw_fmt_support[DCAM_RAW_MAX];
+	uint32_t dcam_zoom_mode;
 
 	/* For isp support info */
 	uint32_t slm_cfg_support;
