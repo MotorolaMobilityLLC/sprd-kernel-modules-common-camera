@@ -2467,7 +2467,8 @@ static int camioctl_capture_start(struct camera_module *module,
 		|| module->capture_scene == CAPTURE_FDR
 		|| module->capture_scene == CAPTURE_SW3DNR
 		|| module->capture_scene == CAPTURE_HW3DNR
-		|| module->capture_scene == CAPTURE_FLASH) {
+		|| module->capture_scene == CAPTURE_FLASH
+		|| module->capture_scene == CAPTURE_MFSR) {
 		dis.dcam_idx = sw_ctx->hw_ctx_id;
 		dis.isp_idx = isp_idx;
 		if (hw->ip_isp->rgb_gtm_support) {

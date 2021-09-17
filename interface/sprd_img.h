@@ -250,6 +250,7 @@ enum capture_scene {
 	CAPTURE_SW3DNR,
 	CAPTURE_HW3DNR,
 	CAPTURE_FLASH,
+	CAPTURE_MFSR,
 };
 
 enum FDR_POST_SCENE {
