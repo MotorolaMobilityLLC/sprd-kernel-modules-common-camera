@@ -2953,6 +2953,8 @@ static int camioctl_fdr_post(struct camera_module *module,
 		cam_buf_ionbuf_put(&pfrm_isp->buf);
 		cam_queue_empty_frame_put(pfrm_isp);
 	} else {
+		pfrm_isp->width = fdr_ctrl->dst.w;
+		pfrm_isp->height = fdr_ctrl->dst.h;
 		ret = module->isp_dev_handle->isp_ops->cfg_path(module->isp_dev_handle,
 			ISP_PATH_CFG_OUTPUT_BUF, isp_ctx_id, isp_path_id, pfrm_isp);
 		if (ret) {
