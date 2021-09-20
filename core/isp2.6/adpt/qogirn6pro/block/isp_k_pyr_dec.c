@@ -31,8 +31,13 @@ static const uint32_t isp_dec_irq_process[] = {
 static void isppyrdec_fmcu_config_done(void *dec_handle)
 {
 	struct isp_dec_pipe_dev *dev = NULL;
-
 	dev = (struct isp_dec_pipe_dev *)dec_handle;
+
+	if (!dev) {
+		pr_err("fail to get valid dec_handle\n");
+		return;
+	}
+
 	if (dev->irq_proc_func)
 		dev->irq_proc_func(dev);
 
