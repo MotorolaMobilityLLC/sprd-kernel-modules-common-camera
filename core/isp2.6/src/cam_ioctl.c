@@ -2641,10 +2641,7 @@ static int camioctl_capture_stop(struct camera_module *module,
 						DCAM_PATH_CLR_OUTPUT_ALTER_BUF,
 						module->channel[CAM_CH_CAP].dcam_path_id, &ch_desc);
 			}
-		} else
-			module->dcam_dev_handle->dcam_pipe_ops->cfg_path(sw_aux_ctx,
-					DCAM_PATH_CLR_OUTPUT_ALTER_BUF,
-					module->channel[CAM_CH_CAP].dcam_path_id, &ch_desc);
+		}
 	}
 
 	/* Handling special case in which stop_capture comes before start_capture.
