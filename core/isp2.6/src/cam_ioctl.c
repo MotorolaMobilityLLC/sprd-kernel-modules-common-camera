@@ -245,8 +245,10 @@ static int camioctl_param_cfg(struct camera_module *module,
 		ret = -EFAULT;
 		goto exit;
 	}
-	if (param.property_param == NULL) {
-		pr_err("fail to get user param ptr.\n");
+
+	if (atomic_read(&module->state) == CAM_INIT || param.property_param == NULL
+		|| module->dcam_dev_handle == NULL || module->isp_dev_handle == NULL) {
+		pr_err("fail to get user param. state %d\n", atomic_read(&module->state));
 		ret = -EFAULT;
 		goto exit;
 	}
