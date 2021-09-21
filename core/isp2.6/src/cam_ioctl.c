@@ -2852,15 +2852,11 @@ static int camioctl_fdr_post(struct camera_module *module,
 	if (dcam_ctrl.need_other_path) {
 		shutoff = 1;
 		patharg.path_id = ch->aux_raw_path_id;
-		patharg.idx = dcam_sw_aux_ctx->hw_ctx_id;
-		module->grp->hw_info->dcam_ioctl(module->grp->hw_info, DCAM_HW_CFG_PATH_STOP, &patharg);
 		module->dcam_dev_handle->dcam_pipe_ops->cfg_path(dcam_sw_aux_ctx,
 			DCAM_PATH_CFG_SHUTOFF, patharg.path_id, &shutoff);
 
 		shutoff = 0;
-		re_patharg.idx = dcam_sw_aux_ctx->hw_ctx_id;
 		re_patharg.path_id = ch->aux_dcam_path_id;
-		module->grp->hw_info->dcam_ioctl(module->grp->hw_info, DCAM_HW_CFG_PATH_RESTART, &re_patharg);
 		module->dcam_dev_handle->dcam_pipe_ops->cfg_path(dcam_sw_aux_ctx,
 			DCAM_PATH_CFG_SHUTOFF, re_patharg.path_id, &shutoff);
 	}

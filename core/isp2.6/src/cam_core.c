@@ -3010,15 +3010,11 @@ static int camcore_dcam_callback(enum dcam_cb_type type, void *param, void *priv
 					if (channel->dcam_path_id == DCAM_PATH_RAW) {
 						shutoff = 1;
 						patharg.path_id = channel->aux_dcam_path_id;
-						patharg.idx = dcam_sw_aux_ctx->hw_ctx_id;
-						hw->dcam_ioctl(hw, DCAM_HW_CFG_PATH_STOP, &patharg);
 						module->dcam_dev_handle->dcam_pipe_ops->cfg_path(dcam_sw_aux_ctx,
 							DCAM_PATH_CFG_SHUTOFF, patharg.path_id, &shutoff);
 
 						shutoff = 0;
-						re_patharg.idx = dcam_sw_aux_ctx->hw_ctx_id;
 						re_patharg.path_id = channel->aux_raw_path_id;
-						hw->dcam_ioctl(hw, DCAM_HW_CFG_PATH_RESTART, &re_patharg);
 						module->dcam_dev_handle->dcam_pipe_ops->cfg_path(dcam_sw_aux_ctx,
 							DCAM_PATH_CFG_SHUTOFF, re_patharg.path_id, &shutoff);
 					}
