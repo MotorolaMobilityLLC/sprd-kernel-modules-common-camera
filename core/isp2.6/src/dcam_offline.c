@@ -38,6 +38,10 @@ struct camera_frame *dcam_offline_cycle_frame(struct dcam_sw_context *pctx)
 
 			path = &pctx->path[hw->ip_dcam[DCAM_HW_CONTEXT_1]->aux_dcam_path];
 			frame = cam_queue_dequeue_peek(&path->out_buf_queue, struct camera_frame, list);
+			if (frame == NULL) {
+				pr_err("fail to get out_buf_queue frame\n");
+				return NULL;
+			}
 			pframe->endian = frame->endian;
 			pframe->pattern = frame->pattern;
 			pframe->width = frame->width;
