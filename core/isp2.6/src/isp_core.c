@@ -2861,7 +2861,7 @@ static int ispcore_path_cfg(void *isp_handle,
 	}
 exit:
 	pr_debug("isp %d cfg path %d cmd %d done. ret %d\n",
-			pctx->ctx_id, path->spath_id, cfg_cmd);
+			pctx->ctx_id, path->spath_id, cfg_cmd, ret);
 	return ret;
 }
 
