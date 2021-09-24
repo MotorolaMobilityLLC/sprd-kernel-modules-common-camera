@@ -426,7 +426,7 @@ static irqreturn_t dcam_isr_root(int irq, void *priv)
 			if (_DCAM_ISRS[cur_int]) {
 				_DCAM_ISRS[cur_int]((void*)cxt);
 			} else {
-				pr_warn("DCAM%u missing handler for int %d\n",
+				pr_warn("warning: DCAM%u missing handler for int %d\n",
 					cxt->dcam_idx, cur_int);
 			}
 			status &= ~BIT(cur_int);
@@ -436,7 +436,7 @@ static irqreturn_t dcam_isr_root(int irq, void *priv)
 	}
 
 	if (unlikely(status))
-		pr_warn("DCAM%u unhandled int 0x%x\n", cxt->dcam_idx, status);
+		pr_warn("warning: DCAM%u unhandled int 0x%x\n", cxt->dcam_idx, status);
 
 	return IRQ_HANDLED;
 }

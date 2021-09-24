@@ -1591,7 +1591,7 @@ static int dcamhw_lbuf_share_set(void *handle, void *arg)
 	if (camarg->pdaf_share_flag && camarg->idx == 1)
 		DCAM_AXIM_MWR(camarg->idx, DCAM_LBUF_SHARE_MODE, BIT_12 | BIT_13, 2 << 12);
 	if (!camarg->offline_flag && (dcam0_mipi_en || dcam1_mipi_en)) {
-		pr_warn("dcam 0/1 already in working\n");
+		pr_warn("warning: dcam 0/1 already in working\n");
 		return 0;
 	}
 	switch (camarg->idx) {

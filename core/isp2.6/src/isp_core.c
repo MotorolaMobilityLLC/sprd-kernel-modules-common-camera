@@ -733,7 +733,7 @@ static int ispcore_sw_context_get(struct isp_pipe_dev *dev)
 
 	q = &dev->sw_ctx_q;
 	if (q->state == CAM_Q_CLEAR) {
-		pr_warn("q is clear\n");
+		pr_warn("warning: q is clear\n");
 		goto exit;
 	}
 
@@ -755,7 +755,7 @@ static int ispcore_sw_context_get(struct isp_pipe_dev *dev)
 		}
 		atomic_inc(&g_mem_dbg->isp_sw_context_cnt);
 		if (q->cnt >= q->max) {
-			pr_warn("q full, cnt %d, max %d\n", q->cnt, q->max);
+			pr_warn("warning: q full, cnt %d, max %d\n", q->cnt, q->max);
 			goto queue_full;
 		}
 		atomic_set(&ctx->user_cnt, 1);
@@ -1279,7 +1279,7 @@ normal_out_put:
 				out_frame = cam_queue_dequeue(&path->out_buf_queue,
 					struct camera_frame, list);
 			if (!out_frame && not_use_reserved_buf) {
-				pr_warn_ratelimited("wait for frame %d\n", cnt++);
+				pr_warn_ratelimited("warning: wait for frame %d\n", cnt++);
 				usleep_range(1000, 1500);
 			}
 		} while ((!out_frame) && not_use_reserved_buf && (cnt < TIMEOUT_WAIT_FOR_VALID_BUFFER));
@@ -2646,7 +2646,7 @@ static int ispcore_path_put(void *isp_handle, int ctx_id, int path_id)
 	}
 
 	if (atomic_dec_return(&path->user_cnt) != 0) {
-		pr_warn("isp cxt %d, path %d has multi users.\n",
+		pr_warn("warning: isp cxt %d, path %d has multi users.\n",
 					ctx_id, path_id);
 		atomic_set(&path->user_cnt, 0);
 	}
@@ -2856,7 +2856,7 @@ static int ispcore_path_cfg(void *isp_handle,
 		mutex_unlock(&pctx->param_mutex);
 		break;
 	default:
-		pr_warn("unsupported cmd: %d\n", cfg_cmd);
+		pr_warn("warning: unsupported cmd: %d\n", cfg_cmd);
 		break;
 	}
 exit:
@@ -3521,7 +3521,7 @@ static int ispcore_context_put(void *isp_handle, int ctx_id)
 		for (i = 0; i < ISP_SPATH_NUM; i++) {
 			path = &pctx->isp_path[i];
 			if (atomic_read(&path->user_cnt) > 1)
-				pr_warn("isp cxt %d, path %d has multi users.\n", ctx_id, i);
+				pr_warn("warning: isp cxt %d, path %d has multi users.\n", ctx_id, i);
 
 			atomic_set(&path->user_cnt, 0);
 

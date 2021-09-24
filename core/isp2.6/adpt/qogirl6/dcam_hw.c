@@ -1026,7 +1026,7 @@ static int dcamhw_lbuf_share_set(void *handle, void *arg)
 	pr_debug("dcam %d offline %d en0 %d en1 %d\n", camarg->idx, camarg->offline_flag,
 		dcam0_mipi_en, dcam1_mipi_en);
 	if (!camarg->offline_flag && (dcam0_mipi_en || dcam1_mipi_en)) {
-		pr_warn("dcam 0/1 already in working\n");
+		pr_warn("warning: dcam 0/1 already in working\n");
 		return 0;
 	}
 
@@ -1465,7 +1465,7 @@ static int dcamhw_csi_disconnect(void *handle, void *arg)
 		if((val >> (6 - csi_id)) & BIT_0)
 			pr_err("fail to disconnect DCAM%d from csi%d, timeout\n", idx, csi_id);
 		else
-			pr_warn("csi%d is already disabled\n", csi_id);
+			pr_warn("warning: csi%d is already disabled\n", csi_id);
 	}
 
 	time_out = DCAMX_STOP_TIMEOUT;

@@ -336,7 +336,7 @@ int dcam_offline_slices_proc(struct cam_hw_info *hw, struct dcam_sw_context *pct
 
 		/* start fetch */
 		if (pctx->dcamsec_eb)
-			pr_warn("camca : dcam%d sec_eb= %d, fetch disable\n",
+			pr_warn("warning: camca : dcam%d sec_eb= %d, fetch disable\n",
 				pctx->hw_ctx_id, pctx->dcamsec_eb);
 		else
 			hw->dcam_ioctl(hw, DCAM_HW_CFG_FETCH_START, hw);

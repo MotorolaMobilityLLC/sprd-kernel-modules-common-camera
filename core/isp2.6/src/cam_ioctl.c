@@ -154,7 +154,7 @@ static int camioctl_statis_buf_set(struct camera_module *module,
 	if ((statis_buf.type != STATIS_INIT) &&
 		(statis_buf.type < STATIS_TYPE_MAX) &&
 		(atomic_read(&module->state) != CAM_RUNNING)) {
-		pr_warn("should not configure statis buf for state %d\n",
+		pr_warn("warning: should not configure statis buf for state %d\n",
 			atomic_read(&module->state));
 		goto exit;
 	}
@@ -255,7 +255,7 @@ static int camioctl_param_cfg(struct camera_module *module,
 
 	dev = (struct dcam_pipe_dev *)module->dcam_dev_handle;
 	if (dev && dev->sw_ctx[module->cur_sw_ctx_id].raw_fetch_count > 0) {
-		pr_warn("raw fetch in progress!\n");
+		pr_warn("warning: raw fetch in progress!\n");
 		return 0;
 	}
 	if (module->aux_dcam_dev && module->dcam_dev_handle->sw_ctx[module->offline_cxt_id].rps)
@@ -269,7 +269,7 @@ static int camioctl_param_cfg(struct camera_module *module,
 	for_capture = (param.scene_id == PM_SCENE_CAP ? 1 : 0) | for_fdr;
 
 	if (for_capture && (module->channel[CAM_CH_CAP].enable == 0)) {
-		pr_warn("ch scene_id[%d] ch_cap en[%d] ch_pre en[%d]\n",
+		pr_warn("warning: ch scene_id[%d] ch_cap en[%d] ch_pre en[%d]\n",
 		param.scene_id,
 		module->channel[CAM_CH_CAP].enable,
 		module->channel[CAM_CH_PRE].enable);
@@ -352,7 +352,7 @@ static int camioctl_param_cfg(struct camera_module *module,
 						&module->dcam_dev_handle->sw_ctx[module->offline_cxt_id], &param);
 				} else {
 					if (module->paused) {
-						pr_warn("cam%d paused, block %x\n", module->idx, param.sub_block);
+						pr_warn("warning: cam%d paused, block %x\n", module->idx, param.sub_block);
 						return 0;
 					}
 					ret = module->dcam_dev_handle->dcam_pipe_ops->cfg_blk_param(
@@ -927,7 +927,7 @@ static int camioctl_crop_set(struct camera_module *module,
 
 	if ((atomic_read(&module->state) != CAM_CFG_CH) &&
 		(atomic_read(&module->state) != CAM_RUNNING)) {
-		pr_warn("module state: %d\n", atomic_read(&module->state));
+		pr_warn("warning: module state: %d\n", atomic_read(&module->state));
 		return 0;
 	}
 
@@ -1023,7 +1023,7 @@ static int camioctl_crop_set(struct camera_module *module,
 	if (zoom) {
 		if (cam_queue_enqueue(&ch->zoom_coeff_queue, &zoom_param->list)) {
 			/* if zoom queue overflow, discard first one node in queue*/
-			pr_warn("ch %d zoom q overflow\n", channel_id);
+			pr_warn("warning: ch %d zoom q overflow\n", channel_id);
 			first = cam_queue_dequeue(&ch->zoom_coeff_queue,
 				struct camera_frame, list);
 			if (first) {
@@ -1174,7 +1174,7 @@ static int camioctl_frm_deci_set(struct camera_module *module,
 
 	if ((atomic_read(&module->state) != CAM_CFG_CH) &&
 		(atomic_read(&module->state) != CAM_RUNNING)) {
-		pr_warn("warn: only for state CFG_CH or RUNNING\n");
+		pr_warn("warning: only for state CFG_CH or RUNNING\n");
 		return 0;
 	}
 
@@ -1212,7 +1212,7 @@ static int camioctl_frame_addr_set(struct camera_module *module,
 
 	if ((atomic_read(&module->state) != CAM_CFG_CH) &&
 		(atomic_read(&module->state) != CAM_RUNNING)) {
-		pr_warn("warn: only for state CFG_CH or RUNNING\n");
+		pr_warn("warning: only for state CFG_CH or RUNNING\n");
 		return 0;
 	}
 
@@ -1346,7 +1346,7 @@ static int camioctl_frame_id_base_set(	struct camera_module *module,
 
 	if ((atomic_read(&module->state) != CAM_CFG_CH) &&
 		(atomic_read(&module->state) != CAM_RUNNING)) {
-		pr_warn("warn: only for state CFG_CH or RUNNING\n");
+		pr_warn("warning: only for state CFG_CH or RUNNING\n");
 		return 0;
 	}
 
@@ -2376,7 +2376,7 @@ static int camioctl_cam_res_put(struct camera_module *module,
 	idx = module->idx;
 
 	if (module->attach_sensor_id != res.sensor_id) {
-		pr_warn("warn: mismatch sensor id: %d, %d for cam %d\n",
+		pr_warn("warning: mismatch sensor id: %d, %d for cam %d\n",
 			module->attach_sensor_id, res.sensor_id,
 			module->idx);
 	}

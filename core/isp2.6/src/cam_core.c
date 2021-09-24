@@ -856,7 +856,7 @@ buf_init:
 		pframe->buf = *ion_buf;
 		ret = cam_queue_enqueue(&module->param_queue, &pframe->list);
 		if (ret) {
-			pr_warn("cam%d pmbufq overflow\n", module->idx);
+			pr_warn("warning: cam%d pmbufq overflow\n", module->idx);
 			cam_queue_empty_frame_put(pframe);
 		}
 
@@ -1966,7 +1966,7 @@ static struct camera_frame *camcore_dual_frame_deal(struct camera_module *module
 			return pftmp;
 		}
 	}
-	pr_warn("Sync fail, report current frame\n");
+	pr_warn("warning: Sync fail, report current frame\n");
 
 	return pframe;
 }
@@ -3165,7 +3165,7 @@ static int camcore_dcam_callback(enum dcam_cb_type type, void *param, void *priv
 			else
 				ret = cam_queue_enqueue(&channel->share_buf_queue, &pframe->list);
 			if (ret) {
-				pr_info("capture queue overflow\n");
+				pr_warn("warning: capture queue overflow\n");
 				if (pframe->sync_data)
 					dcam_core_dcam_if_release_sync(pframe->sync_data, pframe);
 				ret = module->dcam_dev_handle->dcam_pipe_ops->cfg_path(dcam_sw_ctx,
@@ -3190,7 +3190,7 @@ static int camcore_dcam_callback(enum dcam_cb_type type, void *param, void *priv
 			}
 		} else {
 			/* should not be here */
-			pr_warn("reset dcam path out %d for ch %d\n",
+			pr_warn("warning: reset dcam path out %d for ch %d\n",
 				channel->dcam_path_id, channel->ch_id);
 			ret = module->dcam_dev_handle->dcam_pipe_ops->cfg_path(dcam_sw_ctx,
 				DCAM_PATH_CFG_OUTPUT_BUF,
@@ -3614,7 +3614,7 @@ static int camcore_channel_swapsize_cal(struct camera_module *module)
 		ch_prev->swap_size.h = MAX(max_bin.h, max_rds.h);
 		break;
 	default:
-		pr_warn("unknown zoom solution %d\n", module->zoom_solution);
+		pr_warn("warning: unknown zoom solution %d\n", module->zoom_solution);
 		ch_prev->swap_size = max_bypass;
 		break;
 	}
@@ -4467,7 +4467,7 @@ static int camcore_4in1_channel_size_config(struct camera_module *module,
 		p->src_size.w /= 2;
 		p->src_size.h /= 2;
 		if ((p->src_size.w & 0x1) || (p->src_size.h & 0x1))
-			pr_warn("Some problem with sensor size in lowlux\n");
+			pr_warn("warning: Some problem with sensor size in lowlux\n");
 		p->src_crop.x /= 2;
 		p->src_crop.y /= 2;
 		p->src_crop.w /= 2;
@@ -4475,7 +4475,7 @@ static int camcore_4in1_channel_size_config(struct camera_module *module,
 		/* check zoom, low lux not support zoom now 190306 */
 		if (p->src_crop.w != p->src_size.w ||
 			p->src_crop.h != p->src_size.h) {
-			pr_warn("lowlux capture not support zoom now\n");
+			pr_warn("warning: lowlux capture not support zoom now\n");
 			p->src_crop.x = 0;
 			p->src_crop.y = 0;
 			p->src_crop.w = p->src_size.w;
@@ -6629,7 +6629,7 @@ static int camcore_capture_proc(void *param)
 	}
 
 	if (ret) {
-		pr_info("capture stop or isp queue overflow\n");
+		pr_warn("warning: capture stop or isp queue overflow\n");
 		if (module->cam_uinfo.dcam_slice_mode && pframe->dcam_idx == DCAM_ID_1)
 			ret = module->dcam_dev_handle->dcam_pipe_ops->cfg_path(dcam_sw_aux_ctx,
 				DCAM_PATH_CFG_OUTPUT_BUF,
@@ -6676,7 +6676,7 @@ static int camcore_offline_proc(void *param)
 		pr_err("fail to wait dcam context %d.\n", pctx->sw_ctx_id);
 		pframe = cam_queue_dequeue(&pctx->in_queue, struct camera_frame, list);
 		if (!pframe) {
-			pr_warn("no frame from in_q. dcam%d\n", pctx->hw_ctx_id);
+			pr_warn("warning: no frame from in_q. dcam%d\n", pctx->hw_ctx_id);
 			return 0;
 		}
 		ret = -EFAULT;
@@ -6782,7 +6782,7 @@ static int camcore_offline_proc(void *param)
 			pr_info("use fmcu support slices for ctx %d hw %d\n", pctx->sw_ctx_id, pctx->hw_ctx_id);
 			ret = dcam_offline_slice_fmcu_cmds_set((void *)fmcu, pctx);
 			if (ret) {
-				pr_warn("fail to set fmcu cmd, slice by ap\n");
+				pr_warn("warning: set fmcu cmd, slice by ap\n");
 				use_fmcu = 0;
 				dcam_fmcu_ctx_desc_put(fmcu);
 			}
@@ -7071,7 +7071,6 @@ rewait:
 		pchannel = NULL;
 		pframe = cam_queue_dequeue(&module->frm_queue,
 			struct camera_frame, list);
-
 		if (!pframe) {
 			/* any exception happens or user trigger exit. */
 			pr_info("No valid frame buffer. tx stop.\n");

@@ -339,19 +339,19 @@ int dcam_drv_dt_parse(struct platform_device *pdev,
 		uint8_t val;
 
 		if (of_property_read_u8(qos_node, "awqos-high", &val)) {
-			pr_warn("isp awqos-high reading fail.\n");
+			pr_warn("warning: isp awqos-high reading fail.\n");
 			val = 0xD;
 		}
 		soc_dcam->awqos_high = (uint32_t)val;
 
 		if (of_property_read_u8(qos_node, "awqos-low", &val)) {
-			pr_warn("isp awqos-low reading fail.\n");
+			pr_warn("warning: isp awqos-low reading fail.\n");
 			val = 0xA;
 		}
 		soc_dcam->awqos_low = (uint32_t)val;
 
 		if (of_property_read_u8(qos_node, "arqos", &val)) {
-			pr_warn("isp arqos-high reading fail.\n");
+			pr_warn("warning: isp arqos-high reading fail.\n");
 			val = 0xA;
 		}
 		soc_dcam->arqos_high = val;

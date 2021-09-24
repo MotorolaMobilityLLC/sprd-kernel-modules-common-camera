@@ -454,7 +454,7 @@ int dcam_path_skip_num_set(void *dcam_ctx_handle,
 		return -EINVAL;
 
 	if (atomic_read(&dcam_sw_ctx->state) == STATE_RUNNING) {
-		pr_warn("DCAM%u %s set skip_num while running is forbidden\n",
+		pr_warn("warning: DCAM%u %s set skip_num while running is forbidden\n",
 			dcam_sw_ctx->hw_ctx_id, dcam_path_name_get(path_id));
 		return -EINVAL;
 	}
@@ -1163,7 +1163,7 @@ int dcam_path_store_frm_set(void *dcam_ctx_handle,
 		}
 
 		if (unlikely(i != dcam_sw_ctx->slowmotion_count))
-			pr_warn("DCAM%u BIN %d frame missed\n",
+			pr_warn("warning: DCAM%u BIN %d frame missed\n",
 				idx, dcam_sw_ctx->slowmotion_count - i);
 	}
 

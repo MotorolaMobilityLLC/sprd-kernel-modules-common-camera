@@ -1089,22 +1089,22 @@ int isp_drv_dt_parse(struct device_node *dn,
 			uint8_t val;
 
 			if (of_property_read_u8(qos_node, "awqos-high", &val)) {
-				pr_warn("isp awqos-high reading fail.\n");
+				pr_warn("warning: isp awqos-high reading fail.\n");
 				val = 7;
 			}
 			soc_isp->awqos_high = (uint32_t)val;
 			if (of_property_read_u8(qos_node, "awqos-low", &val)) {
-				pr_warn("isp awqos-low reading fail.\n");
+				pr_warn("warning: isp awqos-low reading fail.\n");
 				val = 6;
 			}
 			soc_isp->awqos_low = (uint32_t)val;
 			if (of_property_read_u8(qos_node, "arqos-high", &val)) {
-				pr_warn("isp arqos-high reading fail.\n");
+				pr_warn("warning: isp arqos-high reading fail.\n");
 				val = 7;
 			}
 			soc_isp->arqos_high = (uint32_t)val;
 			if (of_property_read_u8(qos_node, "arqos-low", &val)) {
-				pr_warn("isp arqos-low reading fail.\n");
+				pr_warn("warning: isp arqos-low reading fail.\n");
 				val = 6;
 			}
 			soc_isp->arqos_low = (uint32_t)val;

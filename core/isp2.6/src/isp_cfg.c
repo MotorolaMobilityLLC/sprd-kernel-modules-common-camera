@@ -287,7 +287,7 @@ static int ispcfg_map_init(struct isp_cfg_ctx_desc *cfg_ctx)
 		struct isp_cfg_map_sector *cur = &s_map_sectors[0];
 
 		if (cfg_map_size > ISP_CFG_MAP_MAX) {
-			pr_warn("cfg map array is too large %d\n", cfg_map_size);
+			pr_warn("warning: cfg map array is too large %d\n", cfg_map_size);
 			s_map_sec_cnt = 0;
 			goto setting;
 		}

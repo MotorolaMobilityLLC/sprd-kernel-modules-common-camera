@@ -2035,9 +2035,9 @@ void calc_scaler_output_slice_info(int trim_start, int trim_size, int deci,
 	int trim_end = trim_start + trim_size;
 
 	if (scl_tap % 2 != 0)
-		pr_warn("fail to get valid scl_tap %d\n", scl_tap);
+		pr_warn("warning: get valid scl_tap %d\n", scl_tap);
 	if (trim_size % deci != 0)
-		pr_warn("fail to get valid trim_size %d\n", trim_size);
+		pr_warn("warning: get valid trim_size %d\n", trim_size);
 
 	//trim
 	input_slice_start = input_slice_start < trim_start ? trim_start : input_slice_start;
@@ -2080,9 +2080,9 @@ void calc_scaler_output_slice_info_v2(int trim_start, int trim_size, int deci,
 	int trim_end = trim_start + trim_size;
 
 	if (scl_tap % 2 != 0)
-		pr_warn("fail to get valid scl_tap %d\n", scl_tap);
+		pr_warn("warning: get valid scl_tap %d\n", scl_tap);
 	if (trim_size % deci != 0)
-		pr_warn("fail to get valid trim_size %d\n", trim_size);
+		pr_warn("warning: get valid trim_size %d\n", trim_size);
 
 	//trim
 	input_slice_start = input_slice_start < trim_start ? trim_start : input_slice_start;

@@ -916,7 +916,7 @@ static ssize_t camdebugger_isp_bypass_write(struct file *filp,
 	idx = debug_bypass->idx;
 	hw = debug_bypass->hw;
 	if (!s_isp_dev) { /* isp not working */
-		pr_warn("isp hardware not working, can't write\n");
+		pr_warn("warning: isp hardware not working, can't write\n");
 		return count;
 	}
 	memset(buf, 0x00, sizeof(buf));

@@ -216,7 +216,7 @@ static void ispint_fmcu_store_done(enum isp_context_hw_id hw_idx, void *isp_hand
 	dev = (struct isp_pipe_dev *)isp_handle;
 	pctx_hw = &dev->hw_ctx[hw_idx];
 	if (pctx_hw->fmcu_handle == NULL) {
-		pr_warn("warn: no fmcu for hw %d\n", hw_idx);
+		pr_warn("warning: no fmcu for hw %d\n", hw_idx);
 		return;
 	}
 
@@ -248,7 +248,7 @@ static void ispint_fmcu_shadow_done(enum isp_context_hw_id hw_idx, void *isp_han
 	dev = (struct isp_pipe_dev *)isp_handle;
 	pctx_hw = &dev->hw_ctx[hw_idx];
 	if (pctx_hw->fmcu_handle == NULL) {
-		pr_warn("warn: no fmcu for hw %d\n", hw_idx);
+		pr_warn("warning: no fmcu for hw %d\n", hw_idx);
 		return;
 	}
 

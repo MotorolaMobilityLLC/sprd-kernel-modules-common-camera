@@ -35,13 +35,13 @@ int cam_queue_enqueue(struct camera_queue *q, struct list_head *list)
 
 	spin_lock_irqsave(&q->lock, flags);
 	if (q->state == CAM_Q_CLEAR) {
-		pr_warn("q is clear\n");
+		pr_warn("warning: q is clear\n");
 		ret = -EPERM;
 		goto unlock;
 	}
 
 	if (q->cnt >= q->max) {
-		pr_warn("q full, cnt %d, max %d\n", q->cnt, q->max);
+		pr_warn("warning: q full, cnt %d, max %d\n", q->cnt, q->max);
 		ret = -EPERM;
 		goto unlock;
 	}
@@ -68,7 +68,7 @@ struct camera_frame *cam_queue_dequeue_tail(struct camera_queue *q)
 
 	spin_lock_irqsave(&q->lock, flags);
 	if (q->state == CAM_Q_CLEAR) {
-		pr_warn("q is clear\n");
+		pr_warn("warning: q is clear\n");
 		goto unlock;
 	}
 
@@ -105,7 +105,7 @@ struct camera_frame *cam_queue_dequeue_if(struct camera_queue *q,
 
 	spin_lock_irqsave(&q->lock, flags);
 	if (q->state == CAM_Q_CLEAR) {
-		pr_warn("q is clear\n");
+		pr_warn("warning: q is clear\n");
 		goto unlock;
 	}
 

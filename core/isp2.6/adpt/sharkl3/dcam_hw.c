@@ -148,7 +148,7 @@ static int dcamhw_axi_init(void *handle, void *arg)
 	}
 
 	if (time_out >= DCAM_AXI_STOP_TIMEOUT) {
-		pr_warn("fail to dcam axim timeout status 0x%x\n",
+		pr_warn("warning: dcam axim timeout status 0x%x\n",
 			DCAM_AXIM_RD(AXIM_DBG_STS));
 	} else {
 		/* reset dcam all (0/1/2/bus) */
@@ -337,7 +337,7 @@ static int dcamhw_force_copy(void *handle, void *arg)
 	unsigned long flags = 0;
 
 	if (unlikely(!arg)) {
-		pr_warn("invalid param dev\n");
+		pr_warn("warning: invalid param dev\n");
 		return -EFAULT;
 	}
 

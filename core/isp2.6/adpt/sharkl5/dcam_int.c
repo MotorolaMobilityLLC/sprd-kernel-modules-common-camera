@@ -94,7 +94,7 @@ static struct camera_frame *dcamint_frame_prepare(struct dcam_hw_context *dcam_h
 	sw_ctx = dcam_hw_ctx->sw_ctx;
 	path = &sw_ctx->path[path_id];
 	if (atomic_read(&path->set_frm_cnt) <= 1) {
-		pr_warn_ratelimited("DCAM%u %s cnt %d, deci %u, out %u, result %u\n",
+		pr_warn_ratelimited("warning: DCAM%u %s cnt %d, deci %u, out %u, result %u\n",
 			dcam_hw_ctx->hw_ctx_id, dcam_path_name_get(path_id),
 			atomic_read(&path->set_frm_cnt), path->frm_deci,
 			cam_queue_cnt_get(&path->out_buf_queue),
@@ -111,7 +111,7 @@ static struct camera_frame *dcamint_frame_prepare(struct dcam_hw_context *dcam_h
 
 	atomic_dec(&path->set_frm_cnt);
 	if (unlikely(frame->is_reserved)) {
-		pr_warn("DCAM%u %s use reserved buffer, out %u, result %u\n",
+		pr_warn("warning: DCAM%u %s use reserved buffer, out %u, result %u\n",
 			dcam_hw_ctx->hw_ctx_id, dcam_path_name_get(path_id),
 			cam_queue_cnt_get(&path->out_buf_queue),
 			cam_queue_cnt_get(&path->result_queue));
@@ -727,7 +727,7 @@ static void dcamint_bin_path_done(void *param)
 	path = &sw_ctx->path[DCAM_PATH_BIN];
 	cnt = atomic_read(&path->set_frm_cnt);
 	if (cnt <= sw_ctx->slowmotion_count) {
-		pr_warn("DCAM%u BIN cnt %d, deci %u, out %u, result %u\n",
+		pr_warn("warning: DCAM%u BIN cnt %d, deci %u, out %u, result %u\n",
 			dcam_hw_ctx->hw_ctx_id, cnt, path->frm_deci,
 			cam_queue_cnt_get(&path->out_buf_queue),
 			cam_queue_cnt_get(&path->result_queue));
@@ -917,7 +917,7 @@ static void dcamint_nr3_done(void *param)
 	if ((frame = dcamint_frame_prepare(dcam_hw_ctx, DCAM_PATH_3DNR))) {
 		sync = (struct dcam_frame_synchronizer *)frame->sync_data;
 		if (unlikely(!sync)) {
-			pr_warn("DCAM%u 3DNR sync not found\n", dcam_hw_ctx->hw_ctx_id);
+			pr_warn("warning: DCAM%u 3DNR sync not found\n", dcam_hw_ctx->hw_ctx_id);
 		} else {
 			sync->nr3_me.sub_me_bypass = (p >> 8) & 0x1;
 			sync->nr3_me.project_mode = (p >> 4) & 0x1;
@@ -1203,7 +1203,7 @@ static irqreturn_t dcamint_isr_root(int irq, void *priv)
 	}
 	if (atomic_read(&dcam_hw_ctx->sw_ctx->state) != STATE_RUNNING) {
 		/* clear int */
-		pr_warn_ratelimited("DCAM%u ignore irq in NON-running, 0x%x\n",
+		pr_warn_ratelimited("warning: DCAM%u ignore irq in NON-running, 0x%x\n",
 			dcam_hw_ctx->hw_ctx_id, DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, DCAM_INT_MASK));
 		DCAM_REG_WR(dcam_hw_ctx->hw_ctx_id, DCAM_INT_CLR, 0xFFFFFFFF);
 		return IRQ_NONE;
@@ -1240,7 +1240,7 @@ static irqreturn_t dcamint_isr_root(int irq, void *priv)
 				status &= ~dcam_hw_ctx->handled_bits;
 				dcam_hw_ctx->handled_bits = 0;
 			} else {
-				pr_warn("DCAM%u missing handler for int %d\n",
+				pr_warn("warning: DCAM%u missing handler for int %d\n",
 					dcam_hw_ctx->hw_ctx_id, cur_int);
 			}
 			status &= ~BIT(cur_int);
@@ -1253,7 +1253,7 @@ static irqreturn_t dcamint_isr_root(int irq, void *priv)
 	status &= ~BIT(DCAM_AFM_INTREQ0);
 
 	if (unlikely(status))
-		pr_warn("DCAM%u unhandled int 0x%x\n", dcam_hw_ctx->hw_ctx_id, status);
+		pr_warn("warning: DCAM%u unhandled int 0x%x\n", dcam_hw_ctx->hw_ctx_id, status);
 
 	return IRQ_HANDLED;
 }

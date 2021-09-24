@@ -520,7 +520,7 @@ static int isphw_reset(void *handle, void *arg)
 	}
 
 	if (time_out >= ISP_AXI_STOP_TIMEOUT) {
-		pr_warn("fail to isp reset timeout %d\n", time_out);
+		pr_warn("warning: isp reset timeout %d\n", time_out);
 	} else {
 		regmap_update_bits(soc->cam_ahb_gpr,
 			ip->syscon.rst, ip->syscon.rst_mask, ip->syscon.rst_mask);

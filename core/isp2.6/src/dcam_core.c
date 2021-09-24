@@ -841,7 +841,7 @@ int dcam_core_offline_slices_sw_start(void *param)
 	} else {
 		pframe = cam_queue_dequeue(&sw_pctx->in_queue, struct camera_frame, list);
 		if (pframe == NULL) {
-			pr_warn("no frame from in_q. dcam%d\n", sw_pctx->hw_ctx_id);
+			pr_warn("warning: no frame from in_q. dcam%d\n", sw_pctx->hw_ctx_id);
 			return 0;
 		}
 
@@ -1118,7 +1118,7 @@ exit:
 	spin_unlock_irqrestore(&pctx->helper_lock, flags);
 
 	if (ignore)
-		pr_warn("ignore not enabled sync helper\n");
+		pr_warn("warning: ignore not enabled sync helper\n");
 
 	return ret;
 }
@@ -1152,7 +1152,7 @@ exit:
 	spin_unlock_irqrestore(&pctx->helper_lock, flags);
 
 	if (running_low)
-		pr_warn_ratelimited("DCAM%u helper is running low...\n", pctx->hw_ctx_id);
+		pr_warn_ratelimited("warning: DCAM%u helper is running low...\n", pctx->hw_ctx_id);
 
 	return helper;
 }
@@ -1379,7 +1379,7 @@ static int dcamcore_path_put(void *dcam_handle, int path_id)
 	}
 
 	if (atomic_dec_return(&path->user_cnt) != 0) {
-		pr_warn("dcam%d path %d has multi users.\n",
+		pr_warn("warning: dcam%d path %d has multi users.\n",
 			pctx->hw_ctx_id, path_id);
 		atomic_set(&path->user_cnt, 0);
 	}
@@ -1575,7 +1575,7 @@ static int dcamcore_path_cfg(void *dcam_handle, enum dcam_path_cfg_cmd cfg_cmd,
 		spin_unlock_irqrestore(&path->state_lock, flag);
 		break;
 	default:
-		pr_warn("unsupported command: %d\n", cfg_cmd);
+		pr_warn("warning: unsupported command: %d\n", cfg_cmd);
 		break;
 	}
 exit:
@@ -2061,7 +2061,7 @@ static int dcamcore_dev_stop(void *dcam_handle, enum dcam_stop_cmd pause)
 	state = atomic_read(&pctx->state);
 	if ((unlikely(state == STATE_INIT) || unlikely(state == STATE_IDLE)) &&
 			((pctx->csi_connect_stat == DCAM_CSI_RESUME) || (hw->csi_connect_type == DCAM_BIND_FIXED))) {
-		pr_warn("DCAM%d not started yet\n", pctx->hw_ctx_id);
+		pr_warn("warning: DCAM%d not started yet\n", pctx->hw_ctx_id);
 		return -EINVAL;
 	}
 
