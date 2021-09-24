@@ -175,7 +175,8 @@ static inline int camdump_should_dump(int mode, int path)
 	return (mode == DUMP_PATH_BOTH)
 		|| (mode == DUMP_PATH_BIN && path == CAM_CH_PRE)
 		|| (mode == DUMP_PATH_FULL && path == CAM_CH_CAP)
-		|| (mode == DUMP_ISP_PYR_REC);
+		|| (mode == DUMP_ISP_PYR_REC)
+		|| (mode == DUMP_ISP_PYR_DEC);
 }
 
 static int camdump_param_cfg(void *handle, uint32_t cmd, void *param)
@@ -225,7 +226,7 @@ static int camdump_enqueue(struct cam_dump_ctx *dump_base, struct camera_frame *
 		return -EFAULT;
 	}
 	if (!camdump_should_dump(g_dbg_dump.dump_en, pframe->channel_id))
-		return 0;
+		return -EFAULT;
 	ret = cam_queue_enqueue(&dump_base->dump_queue, &pframe->list);
 	if (ret == 0)
 		complete(&dump_base->dump_com);
@@ -235,8 +236,8 @@ static int camdump_enqueue(struct cam_dump_ctx *dump_base, struct camera_frame *
 static int camdump_pyr_frame_dump(struct cam_dump_ctx *dump_base, struct camera_frame *pframe)
 {
 	ssize_t size = 0;
-	uint8_t file_name[ISP_PYR_DEC_LAYER_NUM][256] = {{ '\0' }};
-	uint8_t file_name1[ISP_PYR_DEC_LAYER_NUM][256] = {{ '\0' }};
+	uint8_t file_name[MAX_PYR_DEC_LAYER_NUM][256] = {{ '\0' }};
+	uint8_t file_name1[MAX_PYR_DEC_LAYER_NUM][256] = {{ '\0' }};
 	uint8_t tmp_str[20] = { '\0' };
 	uint32_t i = 0;
 	uint32_t align_w = 0, align_h = 0, offset = 0;
@@ -261,6 +262,8 @@ static int camdump_pyr_frame_dump(struct cam_dump_ctx *dump_base, struct camera_
 		strcat(file_name[i], CAMERA_DUMP_PATH);
 		if (g_dbg_dump.dump_en == DUMP_ISP_PYR_REC)
 			strcat(file_name[i], "pyr_rec_");
+		else if (g_dbg_dump.dump_en == DUMP_ISP_PYR_DEC)
+			strcat(file_name[i], "isp_dec_");
 		strcat(file_name[i], "layer_");
 		sprintf(tmp_str, "%d.", i);
 		strcat(file_name[i], tmp_str);
@@ -345,6 +348,10 @@ int camdump_start(struct cam_thread_info* thrd_info, struct cam_dump_ctx *dump_b
 			dump_base->dump_file = camdump_normal_frame_dump;
 			break;
 		case DUMP_ISP_PYR_REC:
+			dump_base->dump_enqueue = camdump_enqueue;
+			dump_base->dump_file = camdump_pyr_frame_dump;
+			break;
+		case DUMP_ISP_PYR_DEC:
 			dump_base->dump_enqueue = camdump_enqueue;
 			dump_base->dump_file = camdump_pyr_frame_dump;
 			break;

@@ -2435,13 +2435,12 @@ static int camcore_share_buf_cfg(enum share_buf_cb_type type,
 	return ret;
 }
 
-static int camcore_frame_dispatch(void *priv_data, void *param)
+static int camcore_dump_config(void *priv_data, void *param)
 {
 	struct cam_dump_ctx *dump_base = NULL;
 	struct camera_module *module = NULL;
 	struct camera_frame *pframe = NULL;
 	struct channel_context *channel = NULL;
-	uint32_t ret = 1;
 	uint32_t start_layer = 0;
 
 	if (!priv_data || !param) {
@@ -2467,9 +2466,7 @@ static int camcore_frame_dispatch(void *priv_data, void *param)
 			dump_base->dump_cfg(dump_base, DUMP_CFG_PYR_START_LAYER, &start_layer);
 		}
 	}
-	if (dump_base->dump_enqueue != NULL)
-		ret = dump_base->dump_enqueue(dump_base, pframe);
-	return ret;
+	return 0;
 }
 
 static int camcore_isp_callback(enum isp_cb_type type, void *param, void *priv_data)
@@ -2564,12 +2561,13 @@ static int camcore_isp_callback(enum isp_cb_type type, void *param, void *priv_d
 		} else {
 			/* return offline buffer to dcam available queue. */
 			pr_debug("isp reset dcam path out %d\n", channel->dcam_path_id);
-			if (g_dbg_dump.dump_en > DUMP_DISABLE && g_dbg_dump.dump_en <= DUMP_ISP_PYR_REC) {
+			if (g_dbg_dump.dump_en > DUMP_DISABLE && g_dbg_dump.dump_en <= DUMP_ISP_PYR_REC
+				&& module->dump_base.dump_enqueue != NULL) {
 				if (g_dbg_dump.dump_en == DUMP_ISP_PYR_REC && channel->pyr_rec_buf != NULL) {
 					channel->pyr_rec_buf->fid = pframe->fid;
-					camcore_frame_dispatch(module, channel->pyr_rec_buf);
+					module->dump_base.dump_enqueue(&module->dump_base, channel->pyr_rec_buf);
 				} else {
-					ret = camcore_frame_dispatch(module, pframe);
+					ret = module->dump_base.dump_enqueue(&module->dump_base, pframe);
 					if (ret == 0)
 						return 0;
 				}
@@ -2658,6 +2656,12 @@ static int camcore_isp_callback(enum isp_cb_type type, void *param, void *priv_d
 		}
 		break;
 	case ISP_CB_RET_PYR_DEC_BUF:
+		if (g_dbg_dump.dump_en == DUMP_ISP_PYR_DEC && channel->pyr_dec_buf != NULL
+			&& module->dump_base.dump_enqueue != NULL) {
+			ret = module->dump_base.dump_enqueue(&module->dump_base, channel->pyr_dec_buf);
+			if (ret == 0)
+				return 0;
+		}
 		if (module->cam_uinfo.is_fdr)
 			isp_ctx_id = channel->isp_fdrh_ctx;
 		else
@@ -5442,7 +5446,7 @@ static int camcore_fdr_context_deinit(struct camera_module *module, struct chann
 
 static int camcore_dumpraw_proc(void *param)
 {
-	uint32_t idx = 0, cnt = 0;
+	uint32_t idx = 0, cnt = 0, ret = 0;
 	struct camera_module *module = NULL;
 	struct channel_context *channel = NULL;
 	struct camera_frame *pframe = NULL;
@@ -5485,12 +5489,21 @@ static int camcore_dumpraw_proc(void *param)
 			if (!pframe)
 				continue;
 			mutex_lock(&dbg->dump_lock);
+			camcore_dump_config(module, pframe);
 			if (dump_base->dump_file != NULL)
 				dump_base->dump_file(dump_base, pframe);
 			mutex_unlock(&dbg->dump_lock);
 			if (dbg->dump_en == DUMP_ISP_PYR_REC)
 				continue;
 			channel = &module->channel[pframe->channel_id];
+			if (dbg->dump_en == DUMP_ISP_PYR_DEC){
+				ret = module->isp_dev_handle->isp_ops->proc_frame(module->isp_dev_handle,
+					pframe, channel->isp_ctx_id);
+				if (ret)
+					module->isp_dev_handle->isp_ops->cfg_path(module->isp_dev_handle,
+						ISP_PATH_CFG_PYR_DEC_BUF, channel->isp_ctx_id, channel->isp_path_id, pframe);
+				continue;
+			}
 			if (module->cam_uinfo.dcam_slice_mode == CAM_OFFLINE_SLICE_SW) {
 				struct channel_context *ch = NULL;
 

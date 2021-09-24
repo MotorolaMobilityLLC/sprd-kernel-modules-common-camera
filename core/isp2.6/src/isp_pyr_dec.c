@@ -753,6 +753,8 @@ static int isppyrdec_offline_frame_start(void *handle)
 
 	dec_dev->src.w = pframe->width;
 	dec_dev->src.h = pframe->height;
+	out_frame->width = pframe->width;
+	out_frame->height = pframe->height;
 	/* update layer num based on img size */
 	while (isp_rec_small_layer_w(dec_dev->src.w, layer_num) < MIN_PYR_WIDTH ||
 		isp_rec_small_layer_h(dec_dev->src.h, layer_num) < MIN_PYR_HEIGHT) {
