@@ -1047,8 +1047,11 @@ static int camioctl_crop_set(struct camera_module *module,
 			cam_queue_enqueue(&ch->zoom_coeff_queue, &zoom_param->list);
 		}
 		zoom_param = NULL;
-		if (ch_vid->enable && channel_id == CAM_CH_PRE)
+
+		if (ch_vid->enable && channel_id == CAM_CH_PRE) {
+			pr_debug("ch_vid->enable %d channel_id %d\n", ch_vid->enable, channel_id);
 			goto exit;
+		}
 		complete(&module->zoom_thrd.thread_com);
 	}
 exit:

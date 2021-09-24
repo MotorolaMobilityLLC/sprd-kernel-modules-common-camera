@@ -761,6 +761,8 @@ void dcampath_update_size(struct dcam_sw_context *ctx, struct dcam_path_desc *pa
 		 * or else size may mismatch with frame.
 		 */
 		if (spin_trylock_irqsave(&path->size_lock, flags)) {
+			if ((path_id == DCAM_PATH_BIN) && (frame->need_pyr_rec))
+				dcampath_pyr_dec_cfg(path, frame, hw, idx);
 			if (path->size_update) {
 				path_size.idx = ctx->hw_ctx_id;
 				path_size.auto_cpy_id = ctx->auto_cpy_id;
@@ -1066,8 +1068,7 @@ int dcam_path_store_frm_set(void *dcam_ctx_handle,
 		store_arg.blk_param = blk_dcam_pm;
 		hw->dcam_ioctl(hw, DCAM_HW_CFG_STORE_ADDR, &store_arg);
 	}
-	if (path_id == DCAM_PATH_BIN && frame->need_pyr_rec)
-		dcampath_pyr_dec_cfg(path, frame, hw, idx);
+
 	if (saved)
 		dcampath_frame_pointer_swap(&frame, &saved);
 
@@ -1086,12 +1087,9 @@ int dcam_path_store_frm_set(void *dcam_ctx_handle,
 			(uint32_t)frame->buf.size[0] / 2);
 	}
 
-	pr_debug("DCAM%u %s set frame: fid %u, count %d\n",
-		idx, dcam_path_name_get(path_id), frame->fid,
-		atomic_read(&path->set_frm_cnt));
-
-	pr_debug("DCAM%u %s reg %08x, addr %08x\n", idx, dcam_path_name_get(path_id),
-		(uint32_t)addr, (uint32_t)frame->buf.iova[0]);
+	pr_debug("DCAM%u %s, fid %u, count %d, path->out_size.w %d, is_reserver %d, channel_id %d, reg %08x, addr %08x\n",
+		idx, dcam_path_name_get(path_id), frame->fid, atomic_read(&path->set_frm_cnt), path->out_size.w,
+		frame->is_reserved, frame->channel_id, (uint32_t)addr, (uint32_t)frame->buf.iova[0]);
 
 	/* bind frame sync data if it is not reserved buffer and not raw */
 	if (helper && !frame->is_reserved && is_sync_enabled(dcam_sw_ctx, path_id)
@@ -1101,7 +1099,8 @@ int dcam_path_store_frm_set(void *dcam_ctx_handle,
 		frame->sync_data = &helper->sync;
 	}
 
-	dcampath_update_size(dcam_sw_ctx, path, frame, NULL);
+	if (!frame->is_reserved || frame->channel_id == CAM_CH_CAP)
+		dcampath_update_size(dcam_sw_ctx, path, frame, NULL);
 	dcampath_update_statis_head(dcam_sw_ctx, path, frame);
 
 	slm_path = hw->ip_dcam[idx]->slm_path;

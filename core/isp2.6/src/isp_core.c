@@ -1369,7 +1369,6 @@ static int ispcore_offline_size_update(
 			i, path_trim.start_x, path_trim.start_y,
 			path_trim.size_x, path_trim.size_y);
 	}
-	pctx->updated = 1;
 	return ret;
 }
 
@@ -1395,19 +1394,17 @@ static int ispcore_offline_param_cfg(struct isp_sw_context *pctx,
 
 	pipe_src = &pctx->pipe_src;
 	memcpy(pipe_src, &pctx->uinfo, sizeof(pctx->uinfo));
-	stream = cam_queue_dequeue(&pctx->stream_ctrl_in_q,
-		struct isp_stream_ctrl, list);
+
+	stream = cam_queue_dequeue(&pctx->stream_ctrl_in_q, struct isp_stream_ctrl, list);
+
 	tmp->stream = stream;
-	nr3_ctx = (struct isp_3dnr_ctx_desc *)pctx->nr3_handle;
 	if (stream) {
+		nr3_ctx = (struct isp_3dnr_ctx_desc *)pctx->nr3_handle;
 		pipe_src->in_fmt = stream->in_fmt;
 		cfg.src = stream->in;
 		cfg.crop = stream->in_crop;
 		isp_path_fetchsize_update(pctx, &cfg);
-		pr_debug("isp %d in_size %d %d crop_szie %d %d %d %d\n",
-			pctx->ctx_id, stream->in.w, stream->in.h,
-			stream->in_crop.start_x, stream->in_crop.start_y,
-			stream->in_crop.size_x, stream->in_crop.size_y);
+
 		for (i = 0; i < ISP_SPATH_NUM; i++) {
 			path = &pctx->isp_path[i];
 			path_info = &pctx->pipe_src.path_info[i];
@@ -1430,7 +1427,6 @@ static int ispcore_offline_param_cfg(struct isp_sw_context *pctx,
 		}
 		if (stream->data_src == ISP_STREAM_SRC_ISP)
 			pctx->pipe_src.data_in_bits = DCAM_STORE_8_BIT;
-		pctx->updated = 1;
 	}
 
 	if (pframe->sw_slice_num)
@@ -1441,11 +1437,15 @@ static int ispcore_offline_param_cfg(struct isp_sw_context *pctx,
 	/*update NR param for crop/scaling image */
 	ispcore_blkparam_adapt(pctx);
 	/* the context/path maybe init/updated after dev start. */
-	if (pctx->updated || pctx->sw_slice_num || pframe->need_pyr_rec)
-		ret = ispcore_slice_ctx_init(pctx, &tmp->multi_slice);
+	ret = ispcore_slice_ctx_init(pctx, &tmp->multi_slice);
 	if (pctx->pipe_src.uframe_sync)
 		tmp->target_fid = ispcore_fid_across_context_get(pctx->dev,
 			pctx->attach_cam_id);
+
+	pr_debug("isp %d src %d %d crop %d %d %d %d fid:%d pframe->width:%d\n",
+		pctx->ctx_id, pctx->pipe_src.src.w, pctx->pipe_src.src.h,
+		pctx->pipe_src.crop.start_x, pctx->pipe_src.crop.start_y,
+		pctx->pipe_src.crop.size_x, pctx->pipe_src.crop.size_y, pframe->fid, pframe->width);
 
 	return ret;
 }
@@ -1484,17 +1484,16 @@ static int ispcore_offline_param_set(struct isp_sw_context *pctx,
 		else if (hw->ip_isp->fbd_yuv_support)
 			hw->isp_ioctl(hw, ISP_HW_CFG_FBD_ADDR_SET, &pipe_in->fetch_fbd_yuv);
 	}
-	if (pctx->updated || pctx->sw_slice_num) {
-		hw->isp_ioctl(hw, ISP_HW_CFG_FETCH_SET, &pipe_in->fetch);
-		if (pipe_src->fetch_path_sel == ISP_FETCH_PATH_FBD) {
-			if (dev->isp_hw->ip_isp->fbd_raw_support)
-				hw->isp_ioctl(hw, ISP_HW_CFG_FETCH_FBD_SET, &pipe_in->fetch_fbd);
-			else if (dev->isp_hw->ip_isp->fbd_yuv_support)
-				hw->isp_ioctl(hw, ISP_HW_CFG_FETCH_FBD_SET, &pipe_in->fetch_fbd_yuv);
-		}
-		if (pipe_src->in_fmt == IMG_PIX_FMT_NV21)
-			hw->isp_ioctl(hw, ISP_HW_CFG_ISP_CFG_SUBBLOCK, &pipe_in->fetch);
+
+	hw->isp_ioctl(hw, ISP_HW_CFG_FETCH_SET, &pipe_in->fetch);
+	if (pipe_src->fetch_path_sel == ISP_FETCH_PATH_FBD) {
+		if (dev->isp_hw->ip_isp->fbd_raw_support)
+			hw->isp_ioctl(hw, ISP_HW_CFG_FETCH_FBD_SET, &pipe_in->fetch_fbd);
+		else if (dev->isp_hw->ip_isp->fbd_yuv_support)
+			hw->isp_ioctl(hw, ISP_HW_CFG_FETCH_FBD_SET, &pipe_in->fetch_fbd_yuv);
 	}
+	if (pipe_src->in_fmt == IMG_PIX_FMT_NV21)
+		hw->isp_ioctl(hw, ISP_HW_CFG_ISP_CFG_SUBBLOCK, &pipe_in->fetch);
 
 	/* config all paths output */
 	for (i = 0; i < ISP_SPATH_NUM; i++) {
@@ -1520,10 +1519,10 @@ static int ispcore_offline_param_set(struct isp_sw_context *pctx,
 				(uint32_t)out_frame->buf.iova[0], out_frame->user_fid,
 				out_frame->buf.mfd[0]);
 		else
-			pr_debug("isp %d is_reserved %d iova 0x%x, user_fid: %x mfd 0x%x\n",
+			pr_debug("isp %d is_reserved %d iova 0x%x, user_fid: %x mfd 0x%x fid: %d\n",
 				pctx->ctx_id, out_frame->is_reserved,
 				(uint32_t)out_frame->buf.iova[0], out_frame->user_fid,
-				out_frame->buf.mfd[0]);
+				out_frame->buf.mfd[0], out_frame->fid);
 		/* config store buffer */
 		ret = isp_path_store_frm_set(path, out_frame);
 		/* If some error comes then do not start ISP */
@@ -1548,27 +1547,25 @@ static int ispcore_offline_param_set(struct isp_sw_context *pctx,
 			isp_path_store_frm_set(slave_path, &temp);
 
 			hw->isp_ioctl(hw, ISP_HW_CFG_STORE_FRAME_ADDR, &pipe_in->store[path_info->slave_path_id]);
-			if (pctx->updated || pctx->sw_slice_num) {
-				if (path->spath_id == ISP_SPATH_FD)
-					hw->isp_ioctl(hw, ISP_HW_CFG_SET_PATH_THUMBSCALER, &pipe_in->thumb_scaler);
-				else
-					hw->isp_ioctl(hw, ISP_HW_CFG_SET_PATH_SCALER, &pipe_in->scaler[path_info->slave_path_id]);
-				hw->isp_ioctl(hw, ISP_HW_CFG_SET_PATH_STORE, &pipe_in->store[path_info->slave_path_id]);
-			}
+
+			if (path->spath_id == ISP_SPATH_FD)
+				hw->isp_ioctl(hw, ISP_HW_CFG_SET_PATH_THUMBSCALER, &pipe_in->thumb_scaler);
+			else
+				hw->isp_ioctl(hw, ISP_HW_CFG_SET_PATH_SCALER, &pipe_in->scaler[path_info->slave_path_id]);
+			hw->isp_ioctl(hw, ISP_HW_CFG_SET_PATH_STORE, &pipe_in->store[path_info->slave_path_id]);
 		}
 
 		hw->isp_ioctl(hw, ISP_HW_CFG_STORE_FRAME_ADDR, &pipe_in->store[i]);
-		if (pctx->updated || pctx->sw_slice_num) {
-			if (path->spath_id == ISP_SPATH_FD)
-				hw->isp_ioctl(hw, ISP_HW_CFG_SET_PATH_THUMBSCALER,
-					&pipe_in->thumb_scaler);
-			else
-				hw->isp_ioctl(hw, ISP_HW_CFG_SET_PATH_SCALER,
-					&pipe_in->scaler[i]);
-			hw->isp_ioctl(hw, ISP_HW_CFG_SET_PATH_STORE, &pipe_in->store[i]);
-			if (i < AFBC_PATH_NUM)
-				hw->isp_ioctl(hw, ISP_HW_CFG_AFBC_PATH_SET, &pipe_in->afbc[i]);
-		}
+
+		if (path->spath_id == ISP_SPATH_FD)
+			hw->isp_ioctl(hw, ISP_HW_CFG_SET_PATH_THUMBSCALER,
+				&pipe_in->thumb_scaler);
+		else
+			hw->isp_ioctl(hw, ISP_HW_CFG_SET_PATH_SCALER,
+				&pipe_in->scaler[i]);
+		hw->isp_ioctl(hw, ISP_HW_CFG_SET_PATH_STORE, &pipe_in->store[i]);
+		if (i < AFBC_PATH_NUM)
+			hw->isp_ioctl(hw, ISP_HW_CFG_AFBC_PATH_SET, &pipe_in->afbc[i]);
 
 		/*
 		 * context proc_queue frame number
@@ -1678,7 +1675,7 @@ static int ispcore_offline_frame_start(void *ctx)
 
 	pframe = cam_queue_dequeue(&pctx->in_queue, struct camera_frame, list);
 	if (!pctx_hw || pframe == NULL) {
-		pr_err("fail to get hw(%p) or input frame (%p) for ctx %d\n",
+		pr_err("fail to get hw(%px) or input frame (%px) for ctx %d\n",
 			pctx_hw, pframe, pctx->ctx_id);
 		ret = 0;
 		goto input_err;
@@ -1806,7 +1803,6 @@ static int ispcore_offline_frame_start(void *ctx)
 		}
 	}
 
-	pctx->updated = 0;
 	mutex_unlock(&pctx->param_mutex);
 
 	if (pctx->uinfo.enable_slowmotion) {
@@ -2075,11 +2071,6 @@ static int ispcore_stream_state_get(struct isp_sw_context *pctx)
 	if (!pctx) {
 		pr_err("fail to get valid input ptr\n");
 		return -EFAULT;
-	}
-
-	if (pctx->stream_ctrl_in_q.cnt != 0) {
-		pr_debug("cxt %d stream state not complete\n", pctx->ctx_id);
-		return ret;
 	}
 
 	uinfo = &pctx->uinfo;
@@ -2515,17 +2506,21 @@ static int ispcore_frame_proc(void *isp_handle, void *param, int ctx_id)
 		pframe->param_data = NULL;
 	}
 
-	pr_debug("cam%d ctx %d, fid %d, ch_id %d, buf  %d, 3dnr %d , w %d, h %d\n",
+	pr_debug("cam%d ctx %d, fid %d, ch_id %d, buf %d, 3dnr %d, w %d, h %d, pctx->uinfo.crop.size_x %d\n",
 		pctx->attach_cam_id, ctx_id, pframe->fid,
 		pframe->channel_id, pframe->buf.mfd[0], pctx->uinfo.mode_3dnr,
-		pframe->width, pframe->height);
+		pframe->width, pframe->height, pctx->uinfo.crop.size_x);
 
 	ret = cam_queue_enqueue(&pctx->in_queue, &pframe->list);
 	if (ret == 0) {
-		ispcore_stream_state_get(pctx);
-		if (pctx->uinfo.enable_slowmotion &&
-			++slw_frm_cnt < pctx->uinfo.slowmotion_count)
-			return ret;
+
+		if (pctx->uinfo.enable_slowmotion) {
+			if (++slw_frm_cnt < pctx->uinfo.slowmotion_count)
+				return ret;
+		} else {
+			if(dev->isp_hw->prj_id == QOGIRN6pro || cam_queue_cnt_get(&pctx->stream_ctrl_in_q) == 0)
+				ispcore_stream_state_get(pctx);
+		}
 		if (atomic_read(&pctx->user_cnt) > 0)
 			complete(&pctx->thread.thread_com);
 		slw_frm_cnt = 0;
@@ -2810,12 +2805,10 @@ static int ispcore_path_cfg(void *isp_handle,
 		break;
 	case ISP_PATH_CFG_CTX_BASE:
 		ret = isp_path_comn_uinfo_set(pctx, param);
-		pctx->updated = 1;
 		break;
 	case ISP_PATH_CFG_CTX_SIZE:
 		mutex_lock(&pctx->param_mutex);
 		ret = isp_path_fetch_uinfo_set(pctx, param);
-		pctx->updated = 1;
 		mutex_unlock(&pctx->param_mutex);
 		break;
 	case ISP_PATH_CFG_CTX_COMPRESSION:
@@ -2826,7 +2819,6 @@ static int ispcore_path_cfg(void *isp_handle,
 		break;
 	case ISP_PATH_CFG_PATH_BASE:
 		ret = isp_path_storecomn_uinfo_set(path_info, param);
-		pctx->updated = 1;
 		break;
 	case ISP_PATH_CFG_PATH_SIZE:
 		mutex_lock(&pctx->param_mutex);
@@ -2835,7 +2827,6 @@ static int ispcore_path_cfg(void *isp_handle,
 			slave_path = &pctx->uinfo.path_info[path_info->slave_path_id];
 			ret = isp_path_storecrop_uinfo_set(slave_path, param);
 		}
-		pctx->updated = 1;
 		mutex_unlock(&pctx->param_mutex);
 		break;
 	case ISP_PATH_CFG_PATH_COMPRESSION:
