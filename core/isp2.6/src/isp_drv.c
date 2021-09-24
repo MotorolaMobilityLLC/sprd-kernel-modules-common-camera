@@ -616,7 +616,7 @@ static int ispdrv_store_afbc_get(struct isp_path_uinfo *in_ptr,
 	return 0;
 }
 
-static ispdrv_store_normal_get(struct isp_path_uinfo *in_ptr,
+static int ispdrv_store_normal_get(struct isp_path_uinfo *in_ptr,
 	struct isp_hw_path_store *store_info)
 {
 	int ret = 0;
