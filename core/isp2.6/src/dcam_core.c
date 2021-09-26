@@ -2480,6 +2480,7 @@ static int dcamcore_scene_fdrh_get(uint32_t prj_id,
 		if (out->fdr_version) {
 			out->start_ctrl = DCAM_START_CTRL_EN;
 			out->callback_ctrl = DCAM_CALLBACK_CTRL_ISP;
+			out->in_format = DCAM_STORE_RAW_BASE;
 			out->out_format = DCAM_STORE_RAW_BASE;
 		} else
 			out->start_ctrl = DCAM_START_CTRL_DIS;
