@@ -3357,6 +3357,8 @@ void alg_slice_calc_drv_overlap(struct alg_slice_drv_overlap *param_ptr)
 	int layer_id;
 	uint32_t chk_sum_clr_flag = 0;
 
+	struct alg_pyramid_ovlap_temp pyramid_ovlap_temp;
+	memset(&pyramid_ovlap_temp, 0, sizeof(struct alg_pyramid_ovlap_temp));
 	overlap_left_max = 0;
 	overlap_right_max = 0;
 	overlap_up_max = 0;
@@ -3662,8 +3664,6 @@ void alg_slice_calc_drv_overlap(struct alg_slice_drv_overlap *param_ptr)
 
 	/* Add temp sub function to avoid stack size overflow */
 	{
-		struct alg_pyramid_ovlap_temp pyramid_ovlap_temp;
-		memset(&pyramid_ovlap_temp, 0, sizeof(struct alg_pyramid_ovlap_temp));
 		pyramid_ovlap_temp.param_ptr = param_ptr;
 		pyramid_ovlap_temp.layer_id = layer_id;
 		pyramid_ovlap_temp.layer_num = layer_num;

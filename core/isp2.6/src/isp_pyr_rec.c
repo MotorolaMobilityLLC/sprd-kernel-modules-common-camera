@@ -722,7 +722,7 @@ static int isppyrrec_pipe_proc(void *handle, void *param)
 	ISP_PYR_DEBUG("isp %d layer0 size %d %d padding %d %d\n", rec_ctx->ctx_id,
 		rec_ctx->pyr_layer_size[0].w, rec_ctx->pyr_layer_size[0].h,
 		rec_ctx->pyr_padding_size.w, rec_ctx->pyr_padding_size.h);
-	ISP_PYR_DEBUG("in format layer0 fetch addr %x %x\n", rec_ctx->in_fmt,
+	ISP_PYR_DEBUG("in format layer0 fetch addr %x %x %x\n", rec_ctx->in_fmt,
 		rec_ctx->fetch_addr[0].addr_ch0, rec_ctx->fetch_addr[0].addr_ch1);
 	for (i = 1; i < layer_num + 1; i++) {
 		align = align * 2;

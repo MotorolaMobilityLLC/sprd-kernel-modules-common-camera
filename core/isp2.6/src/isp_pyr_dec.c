@@ -95,7 +95,7 @@ static int isppyrdec_irq_request(struct isp_dec_pipe_dev *ctx)
 	struct cam_hw_info *hw = NULL;
 
 	if (!ctx) {
-		pr_err("fail to get valid input ptr ctx %p\n");
+		pr_err("fail to get valid input ptr ctx address is NULL\n");
 		return -EFAULT;
 	}
 
@@ -287,7 +287,7 @@ static int isppyrdec_store_dct_get(struct isp_dec_pipe_dev *dev, uint32_t idx)
 	struct isp_dec_store_info *store_dct = NULL;
 
 	if (!dev) {
-		pr_err("fail to get valid input dev\n", dev);
+		pr_err("fail to get valid input dev address is NULL \n");
 		return -EFAULT;
 	}
 
