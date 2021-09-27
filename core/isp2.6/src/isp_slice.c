@@ -1443,6 +1443,7 @@ static int ispslice_scaler_info_calc_cfg(
 						j, i, sliceParam->src_size_x, sliceParam->src_size_y, sliceParam->dst_size_x, sliceParam->dst_size_y);
 				}
 			} else {
+				slcParam_t = &slice_info->thumbnail_scaler.sliceParam[i];
 				if (slc_cfg_input->calc_dyn_ov.thumb_scaler->scaler_bypass) {
 					slice_ctx->slices[i].slice_thumbscaler.scaler_bypass = 1;
 					slice_ctx->slices[i].slice_thumbscaler.y_dst_after_scaler.w = slcParam_t->y_slice_des_size_hor;
@@ -1450,7 +1451,6 @@ static int ispslice_scaler_info_calc_cfg(
 					pr_debug("scaler_bypass: path %d, slice_id %d, y dst(hor %d ver %d)\n",
 						j, i, slcParam_t->y_slice_des_size_hor, slcParam_t->y_slice_des_size_ver);
 				} else {
-					slcParam_t = &slice_info->thumbnail_scaler.sliceParam[i];
 					slice_ctx->slices[i].slice_thumbscaler.src0.w = slcParam_t->slice_size_before_trim_hor;
 					slice_ctx->slices[i].slice_thumbscaler.src0.h = slcParam_t->slice_size_before_trim_ver;
 					slice_ctx->slices[i].slice_thumbscaler.y_src_after_deci.w = slcParam_t->y_slice_src_size_hor;
