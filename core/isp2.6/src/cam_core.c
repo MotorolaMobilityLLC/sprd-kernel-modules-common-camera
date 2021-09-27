@@ -700,7 +700,7 @@ static int camcore_resframe_set(struct camera_module *module)
 					* src_h * 3 / 2;
 
 			if (module->cam_uinfo.is_pyr_rec && ch->ch_id != CAM_CH_CAP)
-				in_size += dcam_if_cal_pyramid_size(src_w, src_h, mipi->bits_per_pxl, ch->ch_uinfo.dcam_out_pack, DCAM_PYR_DEC_LAYER_NUM);
+				in_size += dcam_if_cal_pyramid_size(src_w, src_h, mipi->bits_per_pxl, ch->ch_uinfo.dcam_out_pack, 1, DCAM_PYR_DEC_LAYER_NUM);
 			in_size = ALIGN(in_size, CAM_BUF_ALIGN_SIZE);
 
 			max_size = max3(max_size, out_size, in_size);
@@ -1585,7 +1585,7 @@ static int camcore_buffers_alloc(void *param)
 	}
 
 	if (module->cam_uinfo.is_pyr_rec && channel->ch_id != CAM_CH_CAP)
-		size += dcam_if_cal_pyramid_size(width, height, dcam_out_bits, is_pack, DCAM_PYR_DEC_LAYER_NUM);
+		size += dcam_if_cal_pyramid_size(width, height, dcam_out_bits, is_pack, 1, DCAM_PYR_DEC_LAYER_NUM);
 	size = ALIGN(size, CAM_BUF_ALIGN_SIZE);
 	pr_info("cam%d, ch_id %d, camsec=%d, buffer size: %u (%u x %u), num %d\n",
 		module->idx, channel->ch_id, sec_mode,
@@ -1791,7 +1791,7 @@ mul_alloc_end:
 		width = isp_rec_layer0_width(width, channel->pyr_layer_num);
 		height = isp_rec_layer0_heigh(height, channel->pyr_layer_num);
 		/* rec temp buf max size is equal to layer1 size: w/2 * h/2 */
-		size = dcam_if_cal_pyramid_size(width, height, dcam_out_bits, is_pack, channel->pyr_layer_num);
+		size = dcam_if_cal_pyramid_size(width, height, dcam_out_bits, channel->ch_uinfo.dcam_out_pack, 1, channel->pyr_layer_num - 1);
 		size = ALIGN(size, CAM_BUF_ALIGN_SIZE);
 		pframe = cam_queue_empty_frame_get();
 		if (channel->ch_id == CAM_CH_PRE && sec_mode == SEC_TIME_PRIORITY)
@@ -1814,7 +1814,7 @@ mul_alloc_end:
 	if (module->cam_uinfo.is_pyr_dec && channel->ch_id == CAM_CH_CAP) {
 		width = channel->swap_size.w;
 		height = channel->swap_size.h;
-		size = isp_cal_pyramid_dec_size(width, height);
+		size = dcam_if_cal_pyramid_size(width, height, dcam_out_bits, channel->ch_uinfo.dcam_out_pack, 0, ISP_PYR_DEC_LAYER_NUM);
 		size = ALIGN(size, CAM_BUF_ALIGN_SIZE);
 		pframe = cam_queue_empty_frame_get();
 		if (channel->ch_id == CAM_CH_PRE && sec_mode == SEC_TIME_PRIORITY)
@@ -1831,8 +1831,8 @@ mul_alloc_end:
 			goto exit;
 		}
 		channel->pyr_dec_buf = pframe;
-		pr_debug("hw_ctx_id %d, ch %d pyr_dec size %d, buf %p, w %d h %d\n",
-			sw_ctx->hw_ctx_id, channel->ch_id, size, pframe, width, height);
+		pr_debug("hw_ctx_id %d, ch %d pyr_dec size %d, buf %p, w %d h %d, pack:%d\n",
+			sw_ctx->hw_ctx_id, channel->ch_id, size, pframe, width, height, channel->ch_uinfo.dcam_out_pack);
 	}
 
 exit:
@@ -6420,7 +6420,7 @@ static int camcore_raw_post_proc(struct camera_module *module,
 		/* dec out buf for raw capture */
 		width = proc_info->src_size.width;
 		height = proc_info->src_size.height;
-		size = isp_cal_pyramid_dec_size(width, height);
+		size = dcam_if_cal_pyramid_size(width, height, dcam_out_bits, 1, 0, ISP_PYR_DEC_LAYER_NUM);
 		size = ALIGN(size, CAM_BUF_ALIGN_SIZE);
 		pframe = cam_queue_empty_frame_get();
 		pframe->width = width;
@@ -6446,7 +6446,7 @@ static int camcore_raw_post_proc(struct camera_module *module,
 		width = isp_rec_layer0_width(width, ISP_PYR_DEC_LAYER_NUM);
 		height = isp_rec_layer0_heigh(height, ISP_PYR_DEC_LAYER_NUM);
 		dcam_out_bits = module->cam_uinfo.sensor_if.if_spec.mipi.bits_per_pxl;
-		size = dcam_if_cal_pyramid_size(width, height, dcam_out_bits, 1, ISP_PYR_DEC_LAYER_NUM);
+		size = dcam_if_cal_pyramid_size(width, height, dcam_out_bits, 1, 1, ISP_PYR_DEC_LAYER_NUM - 1);
 		size = ALIGN(size, CAM_BUF_ALIGN_SIZE);
 		pframe = cam_queue_empty_frame_get();
 		pframe->width = width;

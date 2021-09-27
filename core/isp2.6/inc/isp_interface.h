@@ -269,27 +269,6 @@ static inline uint32_t isp_rec_layer0_heigh(uint32_t h, uint32_t layer_num)
 	return height;
 }
 
-static inline uint32_t isp_cal_pyramid_dec_size(uint32_t w, uint32_t h)
-{
-	uint32_t total_w = 0, total_h = 0, i = 0;
-	uint32_t w_align = PYR_DEC_WIDTH_ALIGN;
-	uint32_t h_align = PYR_DEC_HEIGHT_ALIGN;
-
-	for (i = 0; i < ISP_PYR_DEC_LAYER_NUM; i++) {
-		w_align *= 2;
-		h_align *= 2;
-	}
-
-	total_w = w;
-	total_h = h;
-	w = ALIGN(w, w_align);
-	h = ALIGN(h, h_align);
-	total_w = total_w + w / 2 + w / 4 + w / 8 + w / 16 + w / 32;
-	total_h = total_h+ h / 2 + h / 4 + h / 8 + h / 16 + h / 32;
-
-	return total_w * total_h * 3;
-}
-
 static inline uint32_t isp_rec_small_layer_w(uint32_t w, uint32_t layer_num)
 {
 	uint32_t width = 0, i = 0;
