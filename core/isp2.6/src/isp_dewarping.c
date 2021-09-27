@@ -399,8 +399,8 @@ static void get_xy_undistort(int64_t m_k_inv[3][3], int64_t m_k[3][3], int64_t d
 	yo = (y_t * (int64_t)fov_scale);
 	/* for affine transformation, w always equals to 1 left shift 17bit*/
 	_w = (((m_k_inv[2][0] * xo) >> 29) + ((m_k_inv[2][1] * yo) >> 29) + m_k_inv[2][2]);
-	_x = div_s64((((m_k_inv[0][0] * xo) >> 29) + ((m_k_inv[0][1] * yo) >> 29) + m_k_inv[0][2]), _w);
-	_y = div_s64((((m_k_inv[1][0] * xo) >> 29) + ((m_k_inv[1][1] * yo) >> 29) + m_k_inv[1][2]), _w);
+	_x = div64_s64((((m_k_inv[0][0] * xo) >> 29) + ((m_k_inv[0][1] * yo) >> 29) + m_k_inv[0][2]), _w);
+	_y = div64_s64((((m_k_inv[1][0] * xo) >> 29) + ((m_k_inv[1][1] * yo) >> 29) + m_k_inv[1][2]), _w);
 	/* 19bit */
 	x2 = (_x * _x) >> CAMERA_K_PREC;
 	y2 = (_y * _y) >> CAMERA_K_PREC;
@@ -413,7 +413,7 @@ static void get_xy_undistort(int64_t m_k_inv[3][3], int64_t m_k[3][3], int64_t d
 	//xd = _x*kr + p1*_2xy + p2*(r2 + 2*x2) + s1*r2+s2*r2*r2;
 	//yd = _y*kr + p1*(r2 + 2*y2) + p2*_2xy + s3*r2+s4*r2*r2;
 	//kr = ((1<<24) + ((k3*r2/(1<<24) + k2)*r2/(1<<24) + k1)*r2/(1<<24))*(1<<19)/((1<<24) + ((k6*r2/(1<<24) + k5)*r2/(1<<24) + k4)*r2/(1<<24));
-	kr = div_s64(((1 << 19) + ((div_s64(k3 * r2, (1 << CAMERA_K_PREC)) + k2) * div_s64(r2, (1 << CAMERA_K_PREC)) + k1) * div_s64(r2, (1 << CAMERA_K_PREC))) * (1 << 19), ((1 << 19)
+	kr = div64_s64(((1 << 19) + ((div_s64(k3 * r2, (1 << CAMERA_K_PREC)) + k2) * div_s64(r2, (1 << CAMERA_K_PREC)) + k1) * div_s64(r2, (1 << CAMERA_K_PREC))) * (1 << 19), ((1 << 19)
 		+ div_s64((div_s64((div_s64(k6 * r2, (1 << CAMERA_K_PREC)) + k5) * r2, (1 << CAMERA_K_PREC)) + k4) * r2, (1 << CAMERA_K_PREC))));
 	//kr = (((int64)1<<55) + ((k3*r2/(1<<5) + k2*(1<<12))*r2/(1<<5) + k1*(1<<24))*r2/(1<<5))/((1<<19) + ((k6*r2/(1<<17) + k5)*r2/(1<<17) + k4)*r2/(1<<17));
 	xd = ((_x * kr) >> 19) + ((p1 * _2xy) >> 19) + ((p2 * (r2 + 2 * x2)) >> 19) + ((s1 * r2) >> 19)
@@ -426,7 +426,7 @@ static void get_xy_undistort(int64_t m_k_inv[3][3], int64_t m_k[3][3], int64_t d
 	vec3_d[2] = 1 << CAMERA_K_PREC;
 
 	matrix_mulv(matTilt, vec3_d, vecTilt);
-	invProj = vecTilt[2] ? (div_s64(((int64_t)1 << (CAMERA_K_PREC + CAMERA_K_PREC)), vecTilt[2]) >
+	invProj = vecTilt[2] ? (div64_s64(((int64_t)1 << (CAMERA_K_PREC + CAMERA_K_PREC)), vecTilt[2]) >
 		(1 << CAMERA_K_PREC)) ? (1 << CAMERA_K_PREC) : div_s64(((int64_t)1 << (CAMERA_K_PREC+CAMERA_K_PREC)), vecTilt[2]) : (1 << CAMERA_K_PREC);
 
 	vecTilt[0] = vecTilt[0] >> 8;
@@ -451,16 +451,16 @@ static void calc_grid_data_undistort(struct isp_dewarp_input_info input_info, st
 	uint64_t scale_s_f,scale_f_c,scale_c_f,scale_f_s;
 
 	scale_s_f = div_s64(input_info.crop_width * ((int64_t)1 << SCALE_PREC), input_info.input_width);
-	scale_f_c = div_s64(calib_info->calib_size.calib_width * ((int64_t)1 << SCALE_PREC), calib_info->calib_size.crop_width);
+	scale_f_c = div64_u64(calib_info->calib_size.calib_width * (1 << SCALE_PREC), calib_info->calib_size.crop_width);
 	scale_c_f = div_s64(calib_info->calib_size.crop_width * ((int64_t)1 << SCALE_PREC), calib_info->calib_size.calib_width);
 	scale_f_s = div_s64(input_info.input_width * ((int64_t)1 << SCALE_PREC), input_info.crop_width);
 
 	fov_scale = div_s64(((int64_t)1 << 58), (calib_info->calib_size.fov_scale));
 	x_undist = y_undist = xs = ys = 0;
 
-	camera_k[0][0] = div_s64(calib_info->camera_k[0][0], ((scale_s_f * scale_f_c) >> SCALE_PREC));
-	camera_k[0][2] = div_s64((calib_info->calib_size.crop_start_x - input_info.crop_start_x) * ((int64_t)1 << SCALE_PREC) * ((int64_t)1 << CAMERA_K_PREC), scale_s_f)
-					+ div_s64(calib_info->camera_k[0][2], ((scale_s_f * scale_f_c) >> SCALE_PREC));
+	camera_k[0][0] = div64_s64(calib_info->camera_k[0][0], (int64_t)((scale_s_f * scale_f_c) >> SCALE_PREC));
+	camera_k[0][2] = div64_s64((calib_info->calib_size.crop_start_x - input_info.crop_start_x) * ((int64_t)1 << SCALE_PREC) * ((int64_t)1 << CAMERA_K_PREC), scale_s_f)
+					+ div_s64(calib_info->camera_k[0][2], (int64_t)((scale_s_f * scale_f_c) >> SCALE_PREC));
 	camera_k[1][1] = div_s64(calib_info->camera_k[1][1], ((scale_s_f * scale_f_c) >> SCALE_PREC));
 	camera_k[1][2] = div_s64((calib_info->calib_size.crop_start_y - input_info.crop_start_y) * ((int64_t)1 << SCALE_PREC) * ((int64_t)1 << CAMERA_K_PREC), scale_s_f)
 					+ div_s64(calib_info->camera_k[1][2], ((scale_s_f * scale_f_c) >> SCALE_PREC));
@@ -468,7 +468,7 @@ static void calc_grid_data_undistort(struct isp_dewarp_input_info input_info, st
 	camera_k[0][2] = camera_k[0][2] - div_s64(input_info.input_width * ((int64_t)1 << CAMERA_K_PREC), 2);
 	camera_k[1][2] = camera_k[1][2] - div_s64(input_info.input_height * ((int64_t)1 << CAMERA_K_PREC), 2);
 	/* 19bit */
-	camera_k_inv[0][0] = div_s64(((int64_t)1 << (CAMERA_K_PREC + CAMERA_K_PREC)), camera_k[0][0]);
+	camera_k_inv[0][0] = div64_s64(((int64_t)1 << (CAMERA_K_PREC + CAMERA_K_PREC)), camera_k[0][0]);
 	camera_k_inv[0][2] = div_s64(-camera_k[0][2] * ((int64_t)1 << CAMERA_K_PREC), camera_k[0][0]);
 	camera_k_inv[1][1] = div_s64(((int64_t)1 << (CAMERA_K_PREC + CAMERA_K_PREC)), camera_k[1][1]);
 	camera_k_inv[1][2] = div_s64(-camera_k[1][2]*((int64_t)1 << CAMERA_K_PREC), camera_k[1][1]);
