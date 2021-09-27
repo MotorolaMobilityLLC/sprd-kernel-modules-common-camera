@@ -2919,6 +2919,12 @@ static int camioctl_fdr_post(struct camera_module *module,
 		ch_desc.input_size.h = ch->ch_uinfo.src_size.h;
 		ch_desc.input_trim.size_x = ch->ch_uinfo.src_size.w;
 		ch_desc.input_trim.size_y = ch->ch_uinfo.src_size.h;
+		if (module->cam_uinfo.fdr_version) {
+			ch_desc.input_trim.start_x = ch->trim_dcam.start_x;
+			ch_desc.input_trim.start_y = ch->trim_dcam.start_y;
+			ch_desc.input_trim.size_x = ch->trim_dcam.size_x;
+			ch_desc.input_trim.size_y = ch->trim_dcam.size_y;
+		}
 		ch_desc.output_size.w = ch_desc.input_trim.size_x;
 		ch_desc.output_size.h = ch_desc.input_trim.size_y;
 		ret = module->dcam_dev_handle->dcam_pipe_ops->cfg_path(&dcam->sw_ctx[module->offline_cxt_id],

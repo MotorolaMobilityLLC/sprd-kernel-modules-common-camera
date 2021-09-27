@@ -713,7 +713,7 @@ int cam_buf_iommu_unmap(struct camera_buf *buf_info)
 			ret = sprd_iommu_unmap(buf_info->dev, &unmap_data);
 			if (ret)
 				pr_err("fail to free iommu %d\n", i);
-			if (g_mem_dbg)
+			if (g_mem_dbg && !ret)
 				atomic_dec(&g_mem_dbg->iommu_map_cnt[dev_info->type]);
 		}
 		buf_info->iova[i] = 0;
