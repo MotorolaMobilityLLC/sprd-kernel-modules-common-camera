@@ -238,10 +238,10 @@ static int isppyrrec_cur_fetch_get(struct isp_rec_ctx_desc *ctx, uint32_t idx)
 	cur_fetch->ft0_axi_reorder_en = 0;
 	cur_fetch->ft1_axi_reorder_en = 0;
 	cur_fetch->substract = 0;
-	cur_fetch->ft0_max_len_sel = 1;
-	cur_fetch->ft1_max_len_sel = 1;
-	cur_fetch->ft0_retain_num = 16;
-	cur_fetch->ft1_retain_num = 16;
+	cur_fetch->ft0_max_len_sel = 0;
+	cur_fetch->ft1_max_len_sel = 0;
+	cur_fetch->ft0_retain_num = 112;
+	cur_fetch->ft1_retain_num = 112;
 
 	cur_slc = &ctx->slices[0];
 	for (i = 0; i < ctx->slice_num; i++, cur_slc++) {
