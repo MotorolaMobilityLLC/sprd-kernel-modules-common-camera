@@ -1605,18 +1605,26 @@ static int camioctl_stream_off(struct camera_module *module,
 				ch->postproc_buf = NULL;
 			}
 
-			if ((module->cam_uinfo.is_pyr_rec && ch->ch_id != CAM_CH_CAP)
-				|| (module->cam_uinfo.is_pyr_dec && ch->ch_id == CAM_CH_CAP)) {
-				if (ch->pyr_rec_buf) {
-					camcore_k_frame_put(ch->pyr_rec_buf);
-					ch->pyr_rec_buf = NULL;
-				}
-			}
-
-			if (module->cam_uinfo.is_pyr_dec && ch->ch_id == CAM_CH_CAP) {
+			if (ch->ch_id == CAM_CH_CAP && module->grp->is_mul_buf_share) {
+				ch->pyr_rec_buf = NULL;
 				if (ch->pyr_dec_buf) {
-					camcore_k_frame_put(ch->pyr_dec_buf);
+					cam_queue_empty_frame_put(ch->pyr_dec_buf);
 					ch->pyr_dec_buf = NULL;
+				}
+			} else {
+				if ((module->cam_uinfo.is_pyr_rec && ch->ch_id != CAM_CH_CAP)
+					|| (module->cam_uinfo.is_pyr_dec && ch->ch_id == CAM_CH_CAP)) {
+					if (ch->pyr_rec_buf) {
+						camcore_k_frame_put(ch->pyr_rec_buf);
+						ch->pyr_rec_buf = NULL;
+					}
+				}
+
+				if (module->cam_uinfo.is_pyr_dec && ch->ch_id == CAM_CH_CAP) {
+					if (ch->pyr_dec_buf) {
+						camcore_k_frame_put(ch->pyr_dec_buf);
+						ch->pyr_dec_buf = NULL;
+					}
 				}
 			}
 		}

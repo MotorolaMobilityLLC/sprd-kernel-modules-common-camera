@@ -384,9 +384,13 @@ struct camera_group {
 	struct cam_hw_info *hw_info;
 	struct sprd_img_size mul_sn_max_size;
 	atomic_t mul_buf_alloced;
+	atomic_t mul_pyr_buf_alloced;
 	uint32_t is_mul_buf_share;
 	/* mul camera shared frame buffer for full path */
 	struct camera_queue mul_share_buf_q;
+	struct camera_frame *mul_share_pyr_dec_buf;
+	struct camera_frame *mul_share_pyr_rec_buf;
+	struct mutex pyr_mulshare_lock;
 };
 
 struct cam_ioctl_cmd {
@@ -1489,6 +1493,11 @@ static int camcore_buffers_alloc_num(struct channel_context *channel,
 	return num;
 }
 
+static inline int camcore_mulsharebuf_verif(struct channel_context *ch, struct camera_uinfo *info)
+{
+	return ch->ch_id == CAM_CH_CAP && info->need_share_buf && !info->dcam_slice_mode && !info->is_4in1;
+}
+
 static int camcore_buffers_alloc(void *param)
 {
 	int ret = 0;
@@ -1509,7 +1518,7 @@ static int camcore_buffers_alloc(void *param)
 	struct dcam_sw_context *sw_ctx = NULL;
 	struct camera_group *grp = NULL;
 	struct camera_queue *cap_buf_q = NULL;
-
+	struct camera_frame *pframe_dec;
 	pr_info("enter.\n");
 
 	module = (struct camera_module *)param;
@@ -1532,9 +1541,7 @@ static int camcore_buffers_alloc(void *param)
 	sec_mode = module->grp->camsec_cfg.camsec_mode;
 
 	total = camcore_buffers_alloc_num(channel, module);
-	if (channel->ch_id == CAM_CH_CAP && module->cam_uinfo.need_share_buf &&
-		!module->cam_uinfo.dcam_slice_mode && !module->cam_uinfo.is_4in1 &&
-		!module->cam_uinfo.is_fdr) {
+	if (camcore_mulsharebuf_verif(channel, &module->cam_uinfo) && !module->cam_uinfo.is_fdr) {
 		cap_buf_q = &grp->mul_share_buf_q;
 		width = grp->mul_sn_max_size.w;
 		height = grp->mul_sn_max_size.h;
@@ -1543,7 +1550,6 @@ static int camcore_buffers_alloc(void *param)
 		cap_buf_q = &channel->share_buf_queue;
 		width = channel->swap_size.w;
 		height = channel->swap_size.h;
-		grp->is_mul_buf_share = 0;
 	}
 
 	dcam_out_bits = module->cam_uinfo.sensor_if.if_spec.mipi.bits_per_pxl;
@@ -1778,10 +1784,21 @@ mul_alloc_end:
 		}
 	}
 
+	if (channel->ch_id == CAM_CH_CAP && grp->is_mul_buf_share && (module->cam_uinfo.is_pyr_rec || module->cam_uinfo.is_pyr_dec))
+		mutex_lock(&grp->pyr_mulshare_lock);
+
+	if ((channel->ch_id == CAM_CH_CAP && grp->is_mul_buf_share
+		&& (module->cam_uinfo.is_pyr_rec || module->cam_uinfo.is_pyr_dec)
+		&& atomic_inc_return(&grp->mul_pyr_buf_alloced) > 1)) {
+		channel->pyr_rec_buf = grp->mul_share_pyr_rec_buf;
+		pframe = cam_queue_empty_frame_get();
+		memcpy(pframe, grp->mul_share_pyr_dec_buf, sizeof(struct camera_frame));
+		channel->pyr_dec_buf = pframe;
+		goto mul_pyr_alloc_end;
+	}
+
 	if ((module->cam_uinfo.is_pyr_rec && channel->ch_id != CAM_CH_CAP)
 		|| (module->cam_uinfo.is_pyr_dec && channel->ch_id == CAM_CH_CAP)) {
-		width = channel->swap_size.w;
-		height = channel->swap_size.h;
 		width = isp_rec_layer0_width(width, channel->pyr_layer_num);
 		height = isp_rec_layer0_heigh(height, channel->pyr_layer_num);
 		/* rec temp buf max size is equal to layer1 size: w/2 * h/2 */
@@ -1800,14 +1817,17 @@ mul_alloc_end:
 			atomic_inc(&channel->err_status);
 			goto exit;
 		}
-		channel->pyr_rec_buf = pframe;
+		if (camcore_mulsharebuf_verif(channel, &module->cam_uinfo)) {
+			grp->mul_share_pyr_rec_buf = pframe;
+			channel->pyr_rec_buf = grp->mul_share_pyr_rec_buf;
+		} else
+			channel->pyr_rec_buf = pframe;
+
 		pr_debug("hw_ctx_id %d, pyr_rec w %d, h %d, buf %p\n",
 				sw_ctx->hw_ctx_id, width, height, pframe);
 	}
 
 	if (module->cam_uinfo.is_pyr_dec && channel->ch_id == CAM_CH_CAP) {
-		width = channel->swap_size.w;
-		height = channel->swap_size.h;
 		size = dcam_if_cal_pyramid_size(width, height, dcam_out_bits, channel->ch_uinfo.dcam_out_pack, 0, ISP_PYR_DEC_LAYER_NUM);
 		size = ALIGN(size, CAM_BUF_ALIGN_SIZE);
 		pframe = cam_queue_empty_frame_get();
@@ -1824,10 +1844,20 @@ mul_alloc_end:
 			atomic_inc(&channel->err_status);
 			goto exit;
 		}
-		channel->pyr_dec_buf = pframe;
+		if (camcore_mulsharebuf_verif(channel, &module->cam_uinfo)) {
+			grp->mul_share_pyr_dec_buf = pframe;
+			pframe_dec = cam_queue_empty_frame_get();
+			memcpy(pframe_dec, grp->mul_share_pyr_dec_buf, sizeof(struct camera_frame));
+			channel->pyr_dec_buf = pframe_dec;
+		} else
+			channel->pyr_dec_buf = pframe;
+
 		pr_debug("hw_ctx_id %d, ch %d pyr_dec size %d, buf %p, w %d h %d, pack:%d\n",
 			sw_ctx->hw_ctx_id, channel->ch_id, size, pframe, width, height, channel->ch_uinfo.dcam_out_pack);
 	}
+mul_pyr_alloc_end:
+	if (channel->ch_id == CAM_CH_CAP && grp->is_mul_buf_share && (module->cam_uinfo.is_pyr_rec || module->cam_uinfo.is_pyr_dec))
+		mutex_unlock(&grp->pyr_mulshare_lock);
 
 exit:
 	if (module->channel[CAM_CH_PRE].enable &&
@@ -7664,7 +7694,15 @@ static int camcore_release(struct inode *node, struct file *file)
 		cam_buf_iommudev_unreg(CAM_IOMMUDEV_DCAM);
 		cam_buf_iommudev_unreg(CAM_IOMMUDEV_DCAM_LITE);
 		cam_buf_iommudev_unreg(CAM_IOMMUDEV_ISP);
+		if (group->mul_share_pyr_rec_buf) {
+			camcore_k_frame_put(group->mul_share_pyr_rec_buf);
+			group->mul_share_pyr_rec_buf = NULL;
+		}
 
+		if (group->mul_share_pyr_dec_buf) {
+			camcore_k_frame_put(group->mul_share_pyr_dec_buf);
+			group->mul_share_pyr_dec_buf = NULL;
+		}
 		pr_info("release %px\n", g_empty_frm_q);
 
 		/* g_leak_debug_cnt should be 0 after clr, or else memory leak.
@@ -7679,7 +7717,9 @@ static int camcore_release(struct inode *node, struct file *file)
 		ret = cam_buf_mdbg_check();
 		atomic_set(&group->runner_nr, 0);
 		atomic_set(&group->mul_buf_alloced, 0);
+		atomic_set(&group->mul_pyr_buf_alloced, 0);
 		group->is_mul_buf_share = 0;
+		mutex_destroy(&group->pyr_mulshare_lock);
 		spin_unlock_irqrestore(&group->module_lock, flag);
 	}
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0))
@@ -7747,6 +7787,7 @@ static int camcore_probe(struct platform_device *pdev)
 	spin_lock_init(&group->module_lock);
 	spin_lock_init(&group->rawproc_lock);
 
+	mutex_init(&group->pyr_mulshare_lock);
 	pr_info("sprd img probe pdev name %s\n", pdev->name);
 	pr_info("sprd dcam dev name %s\n", pdev->dev.init_name);
 	ret = dcam_drv_dt_parse(pdev, group->hw_info, &group->dcam_count);
