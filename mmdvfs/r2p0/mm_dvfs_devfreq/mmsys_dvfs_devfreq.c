@@ -15,6 +15,7 @@
 #include "top_dvfs_reg.h"
 #include "mmsys_dvfs_comm.h"
 #include <video/sprd_mmsys_pw_domain.h>
+#include <linux/sprd_soc_id.h>
 
 #ifdef pr_fmt
 #undef pr_fmt
@@ -98,6 +99,44 @@ static int mmsys_dvfs_notify_callback(struct notifier_block *nb,
     return NOTIFY_OK;
 }
 
+static int mmsys_hw_dvfs_enable(struct regmap *regmap){
+	int ret;
+	u32 val;
+
+	ret = regmap_read(regmap, REG_TOP_DVFS_APB_SUBSYS_SW_DVFS_EN_CFG, &val);
+	if (ret)
+		return ret;
+
+	val &= (~BIT_MM_SYS_SW_DVFS_EN);
+	ret = regmap_write(regmap, REG_TOP_DVFS_APB_SUBSYS_SW_DVFS_EN_CFG, val);
+	if (ret)
+		return ret;
+
+	return MM_DVFS_SUCCESS;
+}
+
+u32 soc_ver_id_check(void)
+{
+	int ret;
+	u32 ver_id;
+
+	ret = sprd_get_soc_id(AON_VER_ID, &ver_id, 1);
+	if (ret) {
+		pr_err("fail to get soc id\n");
+		return -ENOMEM;
+	}
+	if (ver_id == 0)
+		pr_info("soc is AA\n");
+	else if (ver_id == 1)
+		pr_info("soc is AB\n");
+	else {
+		pr_info("unkowned soc\n");
+		ver_id = 0;
+	}
+
+	return ver_id;
+}
+
 static int mmsys_dvfs_probe(struct platform_device *pdev) {
     struct device *dev = &pdev->dev;
     struct device_node *np = pdev->dev.of_node;
@@ -143,6 +182,9 @@ static int mmsys_dvfs_probe(struct platform_device *pdev) {
                          &mmsys->mmsys_dvfs_para.sys_dvfs_min_volt)){
         pr_err("np: the value of the of_property_read_u32\n");
     }
+
+    mmsys->top_apb = syscon_regmap_lookup_by_phandle(np, "sprd,syscon-topapb");
+
     reg_res.start = REGS_MM_DVFS_AHB_START;
     reg_res.end = REGS_MM_DVFS_AHB_END;
     reg_base = ioremap(reg_res.start, reg_res.end - reg_res.start + 1);
@@ -192,7 +234,12 @@ static int mmsys_dvfs_probe(struct platform_device *pdev) {
     mmsys->pw_nb.notifier_call = mmsys_dvfs_notify_callback;
     ret = mmsys_register_notifier(&mmsys->pw_nb);
 
-    return MM_DVFS_SUCCESS;
+	//hw dvfs en for mmsys
+	pr_info("device is qogirn6pro,check aa or ab\n");
+	if (soc_ver_id_check())
+		ret = mmsys_hw_dvfs_enable(mmsys->top_apb);
+
+	return MM_DVFS_SUCCESS;
 
 err_iounmap:
 err:

@@ -21,6 +21,7 @@
 #include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/of.h>
+#include <linux/regmap.h>
 #include <linux/platform_device.h>
 #include "governor.h"
 #include "mmsys_dvfs_comm.h"
@@ -32,6 +33,7 @@ struct mmsys_dvfs {
     struct devfreq *devfreq;
     struct devfreq_event_dev *edev;
     struct ip_dvfs_ops *dvfs_ops;
+    struct regmap *top_apb;
     struct mmsys_dvfs_para mmsys_dvfs_para;
     struct mutex lock;
     struct notifier_block pw_nb;
