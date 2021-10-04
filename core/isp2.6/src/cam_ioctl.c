@@ -1499,7 +1499,6 @@ static int camioctl_stream_off(struct camera_module *module,
 				module->dcam_dev_handle->dcam_pipe_ops->cfg_path(sw_ctx,
 						DCAM_PATH_CLR_OUTPUT_ALTER_BUF,
 						module->channel[CAM_CH_CAP].dcam_path_id, &ch_desc);
-				module->read_fdr_preview_frame_num = 0;
 			}
 			mutex_unlock(&module->fdr_lock);
 		}
@@ -2677,6 +2676,16 @@ static int camioctl_capture_stop(struct camera_module *module,
 						DCAM_PATH_CLR_OUTPUT_ALTER_BUF,
 						module->channel[CAM_CH_CAP].dcam_path_id, &ch_desc);
 			}
+		} else {
+			if (module->channel[CAM_CH_CAP].dcam_path_id == DCAM_PATH_RAW) {
+				uint32_t shutoff = 0;
+				struct dcam_hw_path_restart re_patharg;
+				re_patharg.path_id = DCAM_PATH_RAW;
+				re_patharg.idx = sw_ctx->hw_ctx_id;
+				hw->dcam_ioctl(hw, DCAM_HW_CFG_PATH_RESTART, &re_patharg);
+				module->dcam_dev_handle->dcam_pipe_ops->cfg_path(sw_ctx,
+					DCAM_PATH_CFG_SHUTOFF, re_patharg.path_id, &shutoff);
+			}
 		}
 	}
 
@@ -2705,7 +2714,6 @@ static int camioctl_capture_stop(struct camera_module *module,
 				&module->lowlux_4in1);
 	}
 	module->capture_scene = CAPTURE_COMMON;
-	module->read_fdr_preview_frame_num = 0;
 
 	return 0;
 }

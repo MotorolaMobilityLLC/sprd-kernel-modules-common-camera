@@ -305,7 +305,6 @@ struct camera_module {
 	struct mutex fdr_lock;
 	uint32_t fdr_init;
 	uint32_t fdr_done;
-	uint32_t read_fdr_preview_frame_num;
 	uint32_t paused;
 
 	uint32_t simu_fid;
@@ -2956,7 +2955,6 @@ static int camcore_dcam_callback(enum dcam_cb_type type, void *param, void *priv
 					pr_info("FDR capture stopped, free buf fd %d\n", pframe->buf.mfd[0]);
 					cam_buf_ionbuf_put(&pframe->buf);
 					cam_queue_empty_frame_put(pframe);
-					module->read_fdr_preview_frame_num = 0;
 					return ret;
 				}
 
@@ -2993,19 +2991,25 @@ static int camcore_dcam_callback(enum dcam_cb_type type, void *param, void *priv
 				return ret;
 			}
 
-			if (module->cam_uinfo.fdr_version) {
-				if (!module->read_fdr_preview_frame_num) {
-					if (channel->dcam_path_id == DCAM_PATH_RAW) {
-						shutoff = 1;
-						patharg.path_id = channel->aux_dcam_path_id;
-						module->dcam_dev_handle->dcam_pipe_ops->cfg_path(dcam_sw_aux_ctx,
-							DCAM_PATH_CFG_SHUTOFF, patharg.path_id, &shutoff);
+			if (module->cam_uinfo.fdr_version && (channel->share_buf_queue.cnt > 0)) {
+				if (channel->dcam_path_id == DCAM_PATH_RAW && atomic_read(&module->capture_frames_dcam) < 1) {
+					shutoff = 1;
+					patharg.path_id = channel->aux_dcam_path_id;
+					module->dcam_dev_handle->dcam_pipe_ops->cfg_path(dcam_sw_aux_ctx,
+						DCAM_PATH_CFG_SHUTOFF, patharg.path_id, &shutoff);
 
-						shutoff = 0;
-						re_patharg.path_id = channel->aux_raw_path_id;
-						module->dcam_dev_handle->dcam_pipe_ops->cfg_path(dcam_sw_aux_ctx,
-							DCAM_PATH_CFG_SHUTOFF, re_patharg.path_id, &shutoff);
-					}
+					shutoff = 0;
+					re_patharg.path_id = channel->aux_raw_path_id;
+					module->dcam_dev_handle->dcam_pipe_ops->cfg_path(dcam_sw_aux_ctx,
+						DCAM_PATH_CFG_SHUTOFF, re_patharg.path_id, &shutoff);
+
+					shutoff = 1;
+					patharg.path_id = DCAM_PATH_RAW;
+					patharg.idx = dcam_sw_ctx->hw_ctx_id;
+					hw->dcam_ioctl(hw, DCAM_HW_CFG_PATH_STOP, &patharg);
+					module->dcam_dev_handle->dcam_pipe_ops->cfg_path(dcam_sw_ctx,
+						DCAM_PATH_CFG_SHUTOFF, patharg.path_id, &shutoff);
+
 					while (1) {
 						pframe_pre = cam_queue_dequeue(&channel->share_buf_queue,
 							struct camera_frame, list);
@@ -3014,9 +3018,17 @@ static int camcore_dcam_callback(enum dcam_cb_type type, void *param, void *priv
 						ret = camcore_frame_start_proc(module, pframe_pre);
 						if (ret)
 							pr_err("fail to start dcams for raw proc\n");
-						module->read_fdr_preview_frame_num++;
 					}
-					pr_debug("fdr pre num %d\n", module->read_fdr_preview_frame_num);
+				} else if (channel->dcam_path_id == DCAM_PATH_FULL) {
+					while (1) {
+						pframe_pre = cam_queue_dequeue(&channel->share_buf_queue,
+							struct camera_frame, list);
+						if (pframe_pre == NULL)
+							break;
+						ret = camcore_frame_start_proc(module, pframe_pre);
+						if (ret)
+							pr_err("fail to start dcams for raw proc\n");
+					}
 				}
 			}
 
@@ -3101,7 +3113,10 @@ static int camcore_dcam_callback(enum dcam_cb_type type, void *param, void *priv
 						ret = cam_queue_enqueue(&module->frm_queue, &pframe->list);
 						complete(&module->frm_com);
 					} else {
-						ret = camcore_frame_start_proc(module, pframe);
+						if (channel->dcam_path_id == DCAM_PATH_RAW)
+							ret = cam_queue_enqueue(&channel->share_buf_queue, &pframe->list);
+						else
+							ret = camcore_frame_start_proc(module, pframe);
 						if (ret)
 							pr_err("fail to start dcams for raw proc\n");
 					}
