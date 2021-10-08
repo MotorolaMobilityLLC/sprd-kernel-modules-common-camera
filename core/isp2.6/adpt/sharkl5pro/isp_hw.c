@@ -324,6 +324,15 @@ abnormal_reg_trace:
 			ISP_HREG_RD(addr + 12));
 	}
 
+	pr_info("ISP 3dnr: register list\n");
+	for (addr = ISP_3DNR_MEM_CTRL_PARAM0; addr <= ISP_3DNR_MEM_CTRL_PARAM13; addr += 16) {
+		pr_info("0x%lx: 0x%x 0x%x 0x%x 0x%x\n",
+			addr,
+			ISP_HREG_RD(addr),
+			ISP_HREG_RD(addr + 4),
+			ISP_HREG_RD(addr + 8),
+			ISP_HREG_RD(addr + 12));
+	}
 
 	pr_info("ISP mmu: register list\n");
 	for (addr = ISP_MMU_INT_EN; addr <= ISP_MMU_INT_RAW;

@@ -507,6 +507,10 @@ static void ispint_iommu_regs_dump(void)
 		ISP_HREG_RD(ISP_FBD_RAW_PARAM3),
 		ISP_HREG_RD(ISP_FBD_RAW_LOW_PARAM0));
 
+	pr_err("fetch 3dnr y %08x uv %08x\n",
+		ISP_HREG_RD(ISP_3DNR_MEM_CTRL_FT_CUR_LUMA_ADDR),
+		ISP_HREG_RD(ISP_3DNR_MEM_CTRL_FT_CUR_CHROMA_ADDR));
+
 	pr_err("store pre cap y %08x u %08x v %08x afbc head y %08x y %08x offset %08x\n",
 		ISP_HREG_RD(ISP_STORE_PRE_CAP_BASE + ISP_STORE_SLICE_Y_ADDR),
 		ISP_HREG_RD(ISP_STORE_PRE_CAP_BASE + ISP_STORE_SLICE_U_ADDR),
