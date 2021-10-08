@@ -237,7 +237,7 @@ int dcam_update_lsc(void *in)
 			DCAM_REG_WR(idx, offset, val);
 			offset += 4;
 		}
-		pr_info("update weight tab done\n");
+		pr_debug("update weight tab done\n");
 	}
 
 	/* step2: load grid table */
@@ -256,7 +256,7 @@ int dcam_update_lsc(void *in)
 				((info->grid_y_num & 0xff) << 8) |
 				(info->grid_x_num & 0xff);
 		DCAM_REG_WR(idx, DCAM_LENS_GRID_SIZE, val);
-		pr_info("update grid %d x %d y %d\n", info->grid_width,
+		pr_debug("update grid %d x %d y %d\n", info->grid_width,
 				info->grid_x_num, info->grid_y_num);
 	}
 
