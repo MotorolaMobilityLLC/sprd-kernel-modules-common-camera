@@ -1647,7 +1647,7 @@ static int ispcore_offline_frame_start(void *ctx)
 	yuv_ltm = (struct isp_ltm_ctx_desc *)pctx->yuv_ltm_handle;
 	rgb_gtm = (struct isp_gtm_ctx_desc *)pctx->rgb_gtm_handle;
 
-	if (pctx->multi_slice | ispcore_slice_needed(pctx))
+	if (pctx->multi_slice || ispcore_slice_needed(pctx))
 		use_fmcu = FMCU_IS_NEED;
 	if (use_fmcu && (pctx->uinfo.mode_3dnr != MODE_3DNR_OFF))
 		use_fmcu |= FMCU_IS_MUST;
