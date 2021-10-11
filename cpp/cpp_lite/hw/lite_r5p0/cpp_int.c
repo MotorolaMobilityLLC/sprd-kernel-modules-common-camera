@@ -102,6 +102,7 @@ static irqreturn_t cppint_isr_root(int irq, void *priv)
 	dev = (struct cpp_pipe_dev *)priv;
 	status = CPP_REG_RD(CPP_INT_STS);
 	mmu_irq_line = status & CPP_MMU_IRQ_LINE_MASK;
+	CPP_REG_WR(CPP_INT_CLR, status);
 	if (unlikely(mmu_irq_line != 0)) {
 		pr_err("fail to run iommu, int 0x%x\n", mmu_irq_line);
 		if (cppint_iommu_err_pre_proc(dev))
@@ -110,7 +111,6 @@ static irqreturn_t cppint_isr_root(int irq, void *priv)
 	path_irq_line = status & CPP_IRQ_LINE_MASK;
 	if (unlikely(path_irq_line == 0))
 		return IRQ_NONE;
-	CPP_REG_WR(CPP_INT_CLR, status);
 
 	spin_lock_irqsave(&dev->slock, flag);
 	for (i = 0; i < CPP_IRQ_NUMBER; i++) {
