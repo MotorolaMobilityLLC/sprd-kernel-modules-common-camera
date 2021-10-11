@@ -537,8 +537,8 @@ static enum isp_store_format ispdrv_store_format_get(struct isp_path_uinfo *in_p
 	enum isp_store_format format = ISP_STORE_FORMAT_MAX;
 
 	if (!in_ptr) {
-		pr_err("fail to get valid input ptr %p\n", in_ptr);
-		return -EFAULT;
+		pr_err("fail to get valid input ptr is NULL\n");
+		return format;
 	}
 
 	switch (in_ptr->out_fmt) {
