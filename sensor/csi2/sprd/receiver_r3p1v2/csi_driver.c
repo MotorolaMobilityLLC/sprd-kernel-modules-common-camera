@@ -244,9 +244,9 @@ void csi_ipg_mode_cfg(uint32_t idx, int enable)
 		CSI_REG_MWR(idx, IPG_OTHER_CFG0, IPG_H_BLANK_MASK, IPG_H_BLANK);
 
 		CSI_REG_MWR(idx, MODE_CFG, IPG_ENABLE_MASK, IPG_ENABLE);
-	} else
+	} else{
 		CSI_REG_MWR(idx, MODE_CFG, IPG_ENABLE_MASK, ~IPG_ENABLE);
-
+	}
 	pr_info("CSI IPG enable %d\n", enable);
 }
 
@@ -681,7 +681,6 @@ void csi_phy_testclr(int sensor_id, struct csi_phy_info *phy)
 	case PHY_CPHY:
 	case PHY_4LANE:
 		CSI_REG_MWR(sensor_id, PHY_TEST_CRTL0, PHY_TESTCLR, 1);
-		udelay(100);
 		CSI_REG_MWR(sensor_id, PHY_TEST_CRTL0, PHY_TESTCLR, 0);
 		break;
 	case PHY_2P2:
@@ -693,9 +692,7 @@ void csi_phy_testclr(int sensor_id, struct csi_phy_info *phy)
 			mask = BIT_0;//MASK_ANLG_PHY_G10_RF_ANALOG_MIPI_CSI_2P2LANE_DSI_TESTCLR_DB;
 			regmap_update_bits(anlg_phy_syscon,0xa8,mask, mask);
 			//REG_ANLG_PHY_G10_RF_ANALOG_MIPI_CSI_2P2LANE_CSI_2P2L_TEST_DB,
-			udelay(100);
 			CSI_REG_MWR(sensor_id, PHY_TEST_CRTL0, PHY_TESTCLR, 1);
-
 			CSI_REG_MWR(sensor_id, PHY_TEST_S_CRTL0, PHY_TESTCLR, 1);
 
 			regmap_update_bits(anlg_phy_syscon,0xa8,mask, ~mask);

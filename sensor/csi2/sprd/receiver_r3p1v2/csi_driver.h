@@ -113,7 +113,7 @@ int reg_mwr(unsigned int reg, unsigned int msk, unsigned int value);
 int reg_wr(unsigned int reg, unsigned int value);
 int reg_rd(unsigned int reg);
 
-#define CSI_REG_WR(idx, reg, val)  (REG_WR(CSI_BASE(idx)+reg, val))
+#define CSI_REG_WR(idx, reg, val)  udelay(10);(REG_WR(CSI_BASE(idx)+reg, val))
 #define CSI_REG_RD(idx, reg)  (REG_RD(CSI_BASE(idx)+reg))
 #define CSI_REG_MWR(idx, reg, msk, val)  CSI_REG_WR(idx, reg, \
 	((val) & (msk)) | (CSI_REG_RD(idx, reg) & (~(msk))))
