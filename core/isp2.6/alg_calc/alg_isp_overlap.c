@@ -900,6 +900,7 @@ void ltm_rgb_stat_param_init(uint16_t frame_width, uint16_t frame_height,
 	uint8_t tile_num = param_stat->tile_num_col * param_stat->tile_num_row;
 	uint16_t tile_size_temp = (1<<16) -1;
 	uint32_t tile_size, frame_size;
+	uint8_t calculate_times = 0;
 
 	frame_size = frame_width * frame_height;
 	min_tile_num = (frame_size + (TM_TILE_MAX_SIZE -1)) / TM_TILE_MAX_SIZE;
@@ -935,6 +936,14 @@ void ltm_rgb_stat_param_init(uint16_t frame_width, uint16_t frame_height,
 			tile_num_x = MIN(MAX(((tile_num_y * frame_width / frame_height)/2)*2, TM_TILE_NUM_MIN), max_tile_col);
 			tile_width = frame_width / (4 * tile_num_x) * 4;
 			tile_height = frame_height / (2 * tile_num_y) * 2;
+			calculate_times++;
+			if (calculate_times > 2) {
+				tile_num_y = 8;
+				tile_num_x = 8;
+				tile_width = frame_width / (4 * tile_num_x) * 4;
+				tile_height = frame_height / (2 * tile_num_y) * 2;
+				break;
+			}
 		}
 	} else {
 		tile_num_x = param_stat->tile_num_col;
