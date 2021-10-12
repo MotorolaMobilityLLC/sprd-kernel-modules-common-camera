@@ -1511,6 +1511,8 @@ static int dcamcore_path_cfg(void *dcam_handle, enum dcam_path_cfg_cmd cfg_cmd,
 
 		pframe->is_reserved = 1;
 		pframe->priv_data = path;
+		if (path_id == DCAM_PATH_BIN && path->fbc_mode)
+			pframe->is_compressed = 1;
 		ret = cam_queue_enqueue(&path->reserved_buf_queue, &pframe->list);
 		if (ret) {
 			pr_err("fail to enqueue frame of dcam path %d reserve buffer.\n",
@@ -1530,6 +1532,8 @@ static int dcamcore_path_cfg(void *dcam_handle, enum dcam_path_cfg_cmd cfg_cmd,
 				newfrm->need_pyr_rec = pframe->need_pyr_rec;
 				memcpy(&newfrm->buf, &pframe->buf,
 					sizeof(pframe->buf));
+				if (path_id == DCAM_PATH_BIN && path->fbc_mode)
+					newfrm->is_compressed = 1;
 				ret = cam_queue_enqueue(
 					&path->reserved_buf_queue,
 					&newfrm->list);

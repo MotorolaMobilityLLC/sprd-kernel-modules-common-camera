@@ -673,9 +673,10 @@ static int camcore_resframe_set(struct camera_module *module)
 	uint32_t max_size = 0, out_size = 0, in_size = 0;
 	uint32_t src_w = 0, src_h = 0;
 	struct camera_frame *pframe = NULL;
-	struct camera_frame *pframe1;
+	struct camera_frame *pframe1 = NULL;
 	struct dcam_sw_context *dcam_sw_ctx = NULL;
 	struct sprd_img_mipi_if *mipi = NULL;
+	struct dcam_compress_cal_para cal_fbc = {0};
 
 	mipi = &module->cam_uinfo.sensor_if.if_spec.mipi;
 	for (i = 0; i < CAM_CH_MAX; i++) {
@@ -689,7 +690,14 @@ static int camcore_resframe_set(struct camera_module *module)
 				out_size = cal_sprd_raw_pitch(ch->ch_uinfo.dst_size.w, ch->ch_uinfo.dcam_raw_fmt)
 					* ch->ch_uinfo.dst_size.h;
 
-			if (ch->ch_uinfo.sn_fmt != IMG_PIX_FMT_GREY)
+			if (ch->compress_input) {
+				cal_fbc.compress_4bit_bypass = ch->compress_4bit_bypass;
+				cal_fbc.data_bits = module->cam_uinfo.sensor_if.if_spec.mipi.bits_per_pxl;
+				cal_fbc.fmt = ch->dcam_out_fmt;
+				cal_fbc.height = src_h;
+				cal_fbc.width = src_w;
+				in_size = dcam_if_cal_compressed_size (&cal_fbc);
+			} else if (ch->ch_uinfo.sn_fmt != IMG_PIX_FMT_GREY)
 				in_size = src_w * src_h * 3 / 2;
 			else if (ch->dcam_out_fmt == DCAM_STORE_RAW_BASE)
 				in_size = cal_sprd_raw_pitch(src_w, ch->ch_uinfo.dcam_raw_fmt) * src_h;
