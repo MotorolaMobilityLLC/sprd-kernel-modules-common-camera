@@ -1027,6 +1027,10 @@ static void camcore_compression_cal(struct camera_module *module)
 	if (ch_pre->ch_uinfo.is_high_fps)
 		ch_pre->compress_input = 0;
 
+	/* Ensure to close l3 l5 l5pro l6 fbc, it will be deleted in fbc cap code */
+	if (module->grp->hw_info->prj_id != QOGIRN6pro)
+		ch_pre->compress_input = 0;
+
 	/* TBD: just bypass cap/raw compress first */
 	ch_cap->compress_input = 0;
 	ch_raw->compress_input = 0;
