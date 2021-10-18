@@ -450,7 +450,8 @@ static void isp_3dnr_config_crop(uint32_t idx,
 		crop->crop_bypass = 1;
 	ISP_REG_MWR(idx, ISP_3DNR_CROP_PARAM0,
 		BIT_0, crop->crop_bypass);
-
+	if (crop->crop_bypass)
+		return;
 	val = ((crop->src_height & 0xFFFF) << 16) |
 		(crop->src_width & 0xFFFF);
 	ISP_REG_WR(idx, ISP_3DNR_CROP_PARAM1, val);

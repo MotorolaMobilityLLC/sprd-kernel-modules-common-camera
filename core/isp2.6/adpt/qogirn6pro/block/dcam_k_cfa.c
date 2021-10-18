@@ -41,6 +41,9 @@ int dcam_k_cfa_block(struct dcam_dev_param *p)
 
 	if (idx >= DCAM_HW_CONTEXT_MAX)
 		return 0;
+	if (g_dcam_bypass[idx] & (1 << _E_CFA))
+		cfa_info->bypass = 1;
+
 	DCAM_REG_MWR(idx, DCAM_CFA_NEW_CFG0, BIT_0, cfa_info->bypass);
 	if (cfa_info->bypass)
 		return 0;

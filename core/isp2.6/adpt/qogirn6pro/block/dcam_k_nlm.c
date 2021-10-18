@@ -119,10 +119,17 @@ int dcam_k_nlm_block(struct dcam_dev_param *p)
 	re_width = nlm_info2->nlm_radial_1D_center_x << 1;
 	re_height = nlm_info2->nlm_radial_1D_center_y << 1;
 
+	if (g_dcam_bypass[idx] & (1 << _E_NLM))
+		nlm_info2->bypass = 1;
+	if (g_dcam_bypass[idx] & (1 << _E_VST))
+		nlm_info2->vst_bypass = 1;
+	if (g_dcam_bypass[idx] & (1 << _E_IVST))
+		nlm_info2->ivst_bypass = 1;
+
 	DCAM_REG_MWR(idx, DCAM_NLM_PARA, BIT_0, nlm_info2->bypass);
 	DCAM_REG_MWR(idx, DCAM_VST_PARA, BIT_0, nlm_info2->vst_bypass);
 	DCAM_REG_MWR(idx, DCAM_IVST_PARA, BIT_0, nlm_info2->ivst_bypass);
-	if (nlm_info2->bypass)
+	if (nlm_info2->bypass || nlm_info2->vst_bypass || nlm_info2->ivst_bypass)
 		return 0;
 
 	val = ((nlm_info2->imp_opt_bypass & 0x1) << 1) |
@@ -274,6 +281,9 @@ int dcam_k_nlm_imblance(struct dcam_dev_param *p)
 	re_width = imblance_info->imblance_radial_1D_center_x << 1;
 
 	/* new added below */
+	if (g_dcam_bypass[idx] & (1 << _E_IBL))
+		imblance_info->nlm_imblance_bypass = 1;
+
 	DCAM_REG_MWR(idx, DCAM_NLM_IMBLANCE_CTRL, BIT_0,
 			imblance_info->nlm_imblance_bypass);
 	if (imblance_info->nlm_imblance_bypass == 1)

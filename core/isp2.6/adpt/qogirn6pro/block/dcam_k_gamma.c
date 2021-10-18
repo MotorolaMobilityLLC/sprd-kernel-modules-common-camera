@@ -42,6 +42,8 @@ int dcam_k_gamma_block(struct dcam_dev_param *param)
 
 	if (idx >= DCAM_HW_CONTEXT_MAX)
 		return 0;
+	if (g_dcam_bypass[idx] & (1 << _E_GAMM))
+		p->bypass = 1;
 
 	DCAM_REG_MWR(idx, DCAM_FGAMMA10_PARAM, BIT_0, p->bypass);
 	if (p->bypass)

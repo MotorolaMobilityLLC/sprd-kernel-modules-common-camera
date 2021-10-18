@@ -40,6 +40,9 @@ static int isp_k_dct_block(struct isp_io_param *param,
 		return ret;
 	}
 
+	if (g_isp_bypass2[idx] & (1 << _EISP_DCT))
+		dct->bypass = 1;
+
 	return ret;
 }
 
@@ -85,6 +88,7 @@ int isp_k_update_dct(void *handle)
 	sensor_height = pctx->uinfo.sn_size.h;
 
 	dct_info = &pctx->isp_k_param.dct_info;
+
 	if (dct_info->bypass)
 		return 0;
 

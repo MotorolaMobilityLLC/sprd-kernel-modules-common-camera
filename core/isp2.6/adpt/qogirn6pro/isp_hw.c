@@ -65,10 +65,10 @@ static unsigned long scaler_base[ISP_SPATH_NUM] = {
 
 static const struct bypass_tag dcam_bypass_tab[] = {
 	[_E_4IN1] = {"4in1", DCAM_MIPI_CAP_CFG,           12}, /* 0x100.b12 */
-	[_E_PDAF] = {"pdaf", DCAM_PPE_FRM_CTRL0,          1}, /* 0x120.b1 */
+	[_E_PDAF] = {"pdaf", DCAM_PPE_FRM_CTRL0,          0}, /* 0x120.b1 */
 	[_E_LSC]  = {"lsc",  DCAM_LENS_LOAD_ENABLE,       0}, /* 0x138.b0 */
 	[_E_AEM]  = {"aem",  DCAM_AEM_FRM_CTRL0,          0}, /* 0x150.b0 */
-	[_E_HIST] = {"hist", DCAM_BAYER_HIST_CTRL0,       0}, /* 0x160.b0 */
+	[_E_HIST] = {"bayer-hist", DCAM_BAYER_HIST_CTRL0, 0}, /* 0x160.b0 */
 	[_E_AFL]  = {"afl",  ISP_AFL_PARAM0,              0}, /* 0x170.b0 */
 	[_E_AFM]  = {"afm",  DCAM_AFM_FRM_CTRL,           0}, /* 0x1A0.b0 */
 	[_E_BPC]  = {"bpc",  DCAM_BPC_PARAM,              0}, /* 0x200.b0 */
@@ -78,39 +78,53 @@ static const struct bypass_tag dcam_bypass_tab[] = {
 	[_E_PPI]  = {"ppi",  ISP_PPI_PARAM,               0}, /* 0x284.b0 */
 	[_E_AWBC] = {"awbc", DCAM_AWBC_GAIN0,             31}, /* 0x380.b31 */
 	[_E_NR3]  = {"nr3",  DCAM_NR3_FAST_ME_PARAM,      0}, /* 0x3F0.b0 */
+	[_E_NLM]  = {"nlm",  DCAM_NLM_PARA,               0},
+	[_E_VST]  = {"vst",  DCAM_VST_PARA,               0},
+	[_E_IVST] = {"ivst", DCAM_IVST_PARA,              0},
+	[_E_IBL]  = {"imbalance", DCAM_NLM_IMBLANCE_CTRL, 0},
 	[_E_GTM]  = {"gtm",  DCAM_GTM_GLB_CTRL,           0},
+	[_E_GAMM] = {"gamma", DCAM_FGAMMA10_PARAM,        0},
+	[_E_CCE]  = {"cce",   DCAM_CCE_PARAM,             0},
+	[_E_CFA]  = {"cfa",   DCAM_CFA_NEW_CFG0,          0},
+	[_E_CCM]  = {"ccm",   DCAM_CMC10_PARAM,           0},
+	[_E_ROI]  = {"hist-roi", DCAM_HIST_ROI_CTRL0,     0},
 };
 
 static const struct bypass_tag isp_hw_bypass_tab[] = {
-[_EISP_HSV]     = {"hsv",     ISP_HSV_PARAM,           0, 1},
-[_EISP_YNR]     = {"ynr",     ISP_YUV_REC_YNR_CONTRL0, 0, 1},
-[_EISP_EE]      = {"ee",      ISP_EE_PARAM,            0, 1},
-[_EISP_GAMY]    = {"ygamma",  ISP_YGAMMA_PARAM,        0, 1},
-[_EISP_CDN]     = {"cdn",     ISP_CDN_PARAM,           0, 1},
-[_EISP_UVD]     = {"uvd",     ISP_UVD_PARAM,           0, 1},
-[_EISP_YRAND]   = {"yrandom", ISP_YRANDOM_PARAM1,      0, 1},
-[_EISP_BCHS]    = {"bchs",    ISP_BCHS_PARAM,          0, 1},
-[_EISP_YUVNF]   = {"yuvnf",   ISP_YUV_NF_CTRL,         0, 1},
+	[_EISP_HSV]     = {"hsv",     ISP_HSV_PARAM,           0, 1},
+	[_EISP_YNR]     = {"ynr",     ISP_YUV_REC_YNR_CONTRL0, 0, 1},
+	[_EISP_EE]      = {"ee",      ISP_EE_PARAM,            0, 1},
+	[_EISP_GAMY]    = {"ygamma",  ISP_YGAMMA_PARAM,        0, 1},
+	[_EISP_CDN]     = {"cdn",     ISP_CDN_PARAM,           0, 1},
+	[_EISP_UVD]     = {"uvd",     ISP_UVD_PARAM,           0, 1},
+	[_EISP_YRAND]   = {"yrandom", ISP_YRANDOM_PARAM1,      0, 1},
+	[_EISP_BCHS]    = {"bchs",    ISP_BCHS_PARAM,          0, 1},
+	[_EISP_YUVNF]   = {"yuvnf",   ISP_YUV_NF_CTRL,         0, 1},
+	[_EISP_DEWARP]	= {"dewarp", ISP_DEWARPING_CACHE_PARA, 0, 1},
 
-	{"ydelay",    ISP_YDELAY_PARAM,                         0,  1},
-	{"fetch-fbd", ISP_FBD_RAW_SEL,                          0,  1},
+	{"ydelay",      ISP_YDELAY_PARAM,              0, 1},
+	{"cnr",         ISP_YUV_REC_CNR_CONTRL0,       0, 1},
+	{"dct",         ISP_YNR_DCT_PARAM,             0, 1},
+	{"3d-lut",      ISP_CTM_PARAM,                 0, 1},
+	{"post-cnr",    ISP_YUV_CNR_CONTRL0,           0, 1},
 	/* can't bypass when prev */
-	{"scale-pre", ISP_CAP_SCALER_CFG,                       20, 0},
-	{"store-pre", ISP_STORE_PRE_CAP_BASE + ISP_STORE_PARAM, 0,  0},
-	{"scale-vid", ISP_RECORD_SCALER_CFG,                    20, 1},
-	{"store-vid", ISP_STORE_VID_BASE + ISP_STORE_PARAM,     0,  1},
-	{"scale-thb", ISP_THMB_SCALER_CFG,                      20, 1},
-	{"store-thb", ISP_STORE_THUMB_BASE + ISP_STORE_PARAM,   0,  1},
+	{"scale-pre",   ISP_CAP_SCALER_CFG,            1, 0},
+	{"store-pre",   ISP_STORE_PRE_CAP_BASE + ISP_STORE_PARAM,   0,  0},
+	{"scale-vid",   ISP_RECORD_SCALER_CFG,                      1,  1},
+	{"store-vid",   ISP_STORE_VID_BASE + ISP_STORE_PARAM,       0,  1},
+	{"scale-thb",   ISP_THMB_SCALER_CFG,                        20, 1},
+	{"store-thb",   ISP_STORE_THUMB_BASE + ISP_STORE_PARAM,     0,  1},
 	/* ltm */
-	{"ltm-map",   ISP_LTM_MAP_PARAM0,                       0,  1},
-	{"ltm-hist",  ISP_LTM_PARAMETERS,                       0,  1},
+	{"ltm-map",     ISP_LTM_MAP_PARAM0,            0, 1},
+	{"ltm-hist",    ISP_LTM_PARAMETERS,            0, 1},
 	/* 3dnr/nr3 */
-	{"nr3-crop",  ISP_3DNR_CROP_PARAM0,                     0,  1},
-	{"nr3-store", ISP_3DNR_STORE_PARAM,                     0,  1},
-	{"nr3-mem",   ISP_3DNR_MEM_CTRL_PARAM0,                 0,  1},
+	{"nr3-crop",    ISP_3DNR_CROP_PARAM0,          0, 1},
+	{"nr3-store",   ISP_3DNR_STORE_PARAM,          0, 1},
+	{"nr3-mem",     ISP_3DNR_MEM_CTRL_PARAM0,      0, 1},
+	{"nr3-blend",   ISP_3DNR_BLEND_CONTROL0,       0, 1},
 
-	{"fetch",     ISP_FETCH_PARAM0,                         0,  0},
-	{"cfg",       ISP_CFG_PAMATER,                          0,  0},
+	{"fetch",       ISP_FETCH_PARAM0,              0, 0},
+	{"cfg",         ISP_CFG_PAMATER,               0, 0},
 };
 
 static struct qos_reg nic400_isp_blk_mtx_qos_list[] = {

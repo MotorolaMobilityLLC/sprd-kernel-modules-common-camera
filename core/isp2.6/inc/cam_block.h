@@ -278,6 +278,7 @@ int isp_k_dump_pm(void *pdst, void *psrc);
 
 /* for bypass dcam,isp sub-block */
 enum block_bypass {
+  /* RAW RGB */
 	_E_4IN1 = 0,
 	_E_PDAF,
 	_E_LSC,
@@ -293,7 +294,17 @@ enum block_bypass {
 	_E_PPI,
 	_E_AWBC,
 	_E_NR3,
+	_E_NLM,
+	_E_VST,
+	_E_IVST,
+	_E_IBL,
+  /* Full RGB */
 	_E_GTM,
+	_E_GAMM,
+	_E_CCE,
+	_E_CFA,
+	_E_CCM,
+	_E_ROI,
 };
 extern uint32_t g_dcam_bypass[];
 
@@ -333,6 +344,13 @@ enum isp_bypass {
 	/*Attention up to 31*/
 };
 extern uint32_t g_isp_bypass[];
+enum isp_bypass2 {
+	_EISP_CNR,
+	_EISP_DCT,
+	_EISP_3DLUT,
+	_EISP_PCNR,
+};
+extern uint32_t g_isp_bypass2[];
 
 struct bypass_tag {
 	char *p;/* abbreviation */

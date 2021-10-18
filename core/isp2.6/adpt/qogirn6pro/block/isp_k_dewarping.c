@@ -41,13 +41,19 @@ int isp_dewarping_dewarp_cache_set(void *handle)
 	idx = dewarp_cache->ctx_id;
 	pr_debug("enter: fmt:%d, pitch:%d, is_pack:%d\n", dewarp_cache->yuv_format,
 			dewarp_cache->frame_pitch, dewarp_cache->dewarp_cache_mipi);
+	if (g_isp_bypass[idx] & (1 << _EISP_DEWARP))
+		dewarp_cache->dewarp_cache_bypass = 1;
 
 	ISP_REG_MWR(idx, ISP_DEWARPING_CACHE_PARA, BIT_0, dewarp_cache->dewarp_cache_bypass);
+
+	if (dewarp_cache->dewarp_cache_bypass)
+		return 0;
+
 	ISP_REG_MWR(idx, ISP_COMMON_SCL_PATH_SEL, BIT_10 | BIT_11 , dewarp_cache->fetch_path_sel << 10);
 
 	val = ((dewarp_cache->dewarp_cache_endian & 0x3) << 1) | ((dewarp_cache->dewarp_cache_prefetch_len & 0x7) << 3) |
 		((dewarp_cache->dewarp_cache_mipi & 0x1) << 6) | ((dewarp_cache->yuv_format & 0x1) << 7);
-	ISP_REG_MWR(idx, ISP_DEWARPING_CACHE_PARA, 0xFE,val);
+	ISP_REG_MWR(idx, ISP_DEWARPING_CACHE_PARA, 0xFE, val);
 	ISP_REG_WR(idx, ISP_DEWARPING_CACHE_FRAME_WIDTH, dewarp_cache->frame_pitch);
 	ISP_REG_WR(idx, ISP_DEWARPING_CACHE_FRAME_YADDR, dewarp_cache->addr.addr_ch0);
 	ISP_REG_WR(idx, ISP_DEWARPING_CACHE_FRAME_UVADDR, dewarp_cache->addr.addr_ch1);

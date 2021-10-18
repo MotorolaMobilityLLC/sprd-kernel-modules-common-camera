@@ -39,6 +39,7 @@ uint32_t g_dcam_bypass[DCAM_HW_CONTEXT_MAX] = {0};
 struct cam_dbg_dump g_dbg_dump;
 int s_dbg_work_mode = ISP_CFG_MODE;
 uint32_t g_isp_bypass[ISP_CONTEXT_SW_NUM] = { 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+uint32_t g_isp_bypass2[ISP_CONTEXT_SW_NUM] = { 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 int g_dbg_iommu_mode = IOMMU_AUTO;
 int g_dbg_set_iommu_mode = IOMMU_AUTO;
 uint32_t g_pyr_dec_online_bypass = 0;
@@ -194,7 +195,10 @@ static int camdebugger_dcam_bypass_read(struct seq_file *s, void *unused)
 				seq_printf(s, "%s:bit%d=0  work\n",
 					data.tag->p, data.tag->bpos);
 		}
-		seq_puts(s, "\nall:1 #to bypass all\n");
+		seq_puts(s, "\nall:1 #to bypass all\n\n");
+		seq_puts(s, "Example: make 4in1 module bypass(1) or work(0)\n");
+		seq_puts(s, "bypass: echo 4in1:1 > bypass_dcam0\n");
+		seq_puts(s, "work: echo 4in1:0 > bypass_dcam0\n\n");
 	}
 	return 0;
 }
@@ -272,14 +276,15 @@ static char zoom_mode_strings[6][8] = {
 static ssize_t camdebugger_zoom_mode_show(struct file *filp,
 	char __user *buffer, size_t count, loff_t *ppos)
 {
-	char buf[16];
+	char buf[256];
+	const char *desc = "0: bypass, 1: bin2, 2: bin4, 3: rds, 4: adapt, 5: scaler";
 
 	if (g_camctrl.dcam_zoom_mode >= ZOOM_DEBUG_DEFAULT)
-		snprintf(buf, sizeof(buf), "%d(%s)\n", g_camctrl.dcam_zoom_mode,
-			zoom_mode_strings[g_camctrl.dcam_zoom_mode - ZOOM_DEBUG_DEFAULT]);
+		snprintf(buf, sizeof(buf), "%d(%s)\n%s\n", g_camctrl.dcam_zoom_mode,
+			zoom_mode_strings[g_camctrl.dcam_zoom_mode - ZOOM_DEBUG_DEFAULT], desc);
 	else
-		snprintf(buf, sizeof(buf), "%d(%s)\n", g_camctrl.dcam_zoom_mode,
-			zoom_mode_strings[g_camctrl.dcam_zoom_mode]);
+		snprintf(buf, sizeof(buf), "%d(%s)\n%s\n", g_camctrl.dcam_zoom_mode,
+			zoom_mode_strings[g_camctrl.dcam_zoom_mode], desc);
 
 	return simple_read_from_buffer(
 		buffer, count, ppos,
@@ -485,10 +490,11 @@ static const struct file_operations dumpswitch_ops = {
 static ssize_t camdebugger_dump_raw_show(struct file *filp,
 	char __user *buffer, size_t count, loff_t *ppos)
 {
-	const char *desc = "0: disable, 1: both, 2: full, 3: bin";
-	char buf[48];
+	const char *desc = "0:disable, 1:bin&full, 2:full, 3:bin, 4:rec, 5:offline_dec, 6:pdaf, 7:bin & raw, 8:high res";
+	char buf[256];
+	char *str = "Example: echo 0 > dump_raw_en";
 
-	snprintf(buf, sizeof(buf), "%u\n\n%s\n", g_dbg_dump.dump_en, desc);
+	snprintf(buf, sizeof(buf), "%u\n\n%s\n\n%s\n\n", g_dbg_dump.dump_en, desc, str);
 
 	return simple_read_from_buffer(
 		buffer, count, ppos,
@@ -608,6 +614,20 @@ static const struct file_operations csi_switch_ops = {
 	.write = camdebugger_csi_switch_write,
 };
 
+static ssize_t camdebugger_pyr_dec_show(struct file *filp,
+	char __user *buffer, size_t count, loff_t *ppos)
+{
+	const char *desc = "0: work, 1: bybass";
+	char buf[64];
+	char *str = "Example: echo 1 > pyr_dec_bypass";
+
+	snprintf(buf, sizeof(buf), "%u\n\n%s\n\n%s\n\n", g_pyr_dec_online_bypass, desc ,str);
+
+	return simple_read_from_buffer(
+		buffer, count, ppos,
+		buf, strlen(buf));
+}
+
 static ssize_t camdebugger_pyr_dec_bypass(struct file *filp,
 	const char __user *buffer, size_t count, loff_t *ppos)
 {
@@ -640,6 +660,7 @@ static ssize_t camdebugger_pyr_dec_bypass(struct file *filp,
 static const struct file_operations pyr_dec_online_ops = {
 	.owner = THIS_MODULE,
 	.open = simple_open,
+	.read = camdebugger_pyr_dec_show,
 	.write = camdebugger_pyr_dec_bypass,
 };
 
@@ -1051,7 +1072,7 @@ static int camdebugger_isp_bypass_read(struct seq_file *s,
 	}
 	seq_puts(s, "\nall:1 //bypass all except preview path\n");
 	seq_puts(s, "\nltm:1 //(ltm-hist,ltm-map)\n");
-	seq_puts(s, "\nr3:1 //or 3dnr:1(all of 3dnr block)\n");
+	seq_puts(s, "\nnr3:1 //or 3dnr:1(all of 3dnr block)\n");
 
 	return 0;
 }
@@ -1149,6 +1170,11 @@ static ssize_t camdebugger_isp_bypass_write(struct file *filp,
 			if (i < _EISP_TOTAL) {
 				g_isp_bypass[idx] &= (~(1 << i));
 				g_isp_bypass[idx] |= (val << i);
+				pr_debug("g_bypass: %s, %d, %d\n", data.tag->p, i, g_isp_bypass[idx]);
+			} else {
+				g_isp_bypass2[idx] &= (~(1 << (i - _EISP_TOTAL)));
+				g_isp_bypass2[idx] |= (val << (i - _EISP_TOTAL));
+				pr_debug("g_bypass: %s, %d, %d\n", data.tag->p, i, g_isp_bypass2[idx]);
 			}
 			if (bypass_all && (data.tag->all == 0))
 				continue;
@@ -1183,10 +1209,11 @@ static uint8_t work_mode_string[2][16] = {
 static ssize_t camdebugger_work_mode_show(struct file *filp,
 		char __user *buffer, size_t count, loff_t *ppos)
 {
-	char buf[16];
+	char buf[64];
+	const char *desc = "0: ISP_CFG_MODE, 1: ISP_AP_MODE";
 
-	snprintf(buf, sizeof(buf), "%d(%s)\n", s_dbg_work_mode,
-		work_mode_string[s_dbg_work_mode&1]);
+	snprintf(buf, sizeof(buf), "%d(%s)\n%s\n\n", s_dbg_work_mode,
+		work_mode_string[s_dbg_work_mode&1], desc);
 
 	return simple_read_from_buffer(
 		buffer, count, ppos,
@@ -1339,6 +1366,20 @@ static const struct file_operations lbuf_len_ops = {
 	.write = camdebugger_lbuf_len_write,
 };
 
+static ssize_t camdebugger_isp_pyr_dec_show(struct file *filp,
+	char __user *buffer, size_t count, loff_t *ppos)
+{
+	const char *desc = "0: work, 1: bybass";
+	char buf[60];
+	char *str = "Example: echo 1 > offline_dec_bypass";
+
+	snprintf(buf, sizeof(buf), "%u\n\n%s\n\n%s\n\n", g_pyr_dec_offline_bypass, desc ,str);
+
+	return simple_read_from_buffer(
+		buffer, count, ppos,
+		buf, strlen(buf));
+}
+
 static ssize_t camdebugger_isp_pyr_dec_bypass(struct file *filp,
 	const char __user *buffer, size_t count, loff_t *ppos)
 {
@@ -1371,6 +1412,7 @@ static ssize_t camdebugger_isp_pyr_dec_bypass(struct file *filp,
 static const struct file_operations pyr_dec_offline_ops = {
 	.owner = THIS_MODULE,
 	.open = simple_open,
+	.read = camdebugger_isp_pyr_dec_show,
 	.write = camdebugger_isp_pyr_dec_bypass,
 };
 
@@ -1558,6 +1600,7 @@ static int camdebugger_isp_init(struct camera_debugger *debugger)
 		return -ENOMEM;
 	}
 	memset(g_isp_bypass, 0x00, sizeof(g_isp_bypass));
+	memset(g_isp_bypass2, 0x00, sizeof(g_isp_bypass2));
 	if (!debugfs_create_file("work_mode", 0644,
 		debugfs_base, NULL, &work_mode_ops))
 		return -ENOMEM;

@@ -38,6 +38,8 @@ static int isp_k_cnr_block(struct isp_io_param *param,
 		pr_err("fail to copy from user, ret = %d\n", ret);
 		return ret;
 	}
+	if (g_isp_bypass2[idx] & (1 << _EISP_CNR))
+		cnr->bypass = 1;
 
 	return ret;
 }

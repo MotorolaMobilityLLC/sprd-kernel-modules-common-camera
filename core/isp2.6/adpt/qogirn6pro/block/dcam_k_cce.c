@@ -40,6 +40,8 @@ int dcam_k_cce_block(struct dcam_dev_param *p)
 	idx = p->idx;
 	if (idx >= DCAM_HW_CONTEXT_MAX)
 		return 0;
+	if (g_dcam_bypass[idx] & (1 << _E_CCE))
+		cce_info->bypass = 1;
 
 	DCAM_REG_WR(idx, DCAM_CCE_PARAM, cce_info->bypass);
 	if (cce_info->bypass)

@@ -52,6 +52,10 @@ static int isp_k_post_cnr_block(struct isp_io_param *param,
 
 	layer_num = 0;
 	ISP_REG_MWR(idx, ISP_YUV_CNR_CONTRL0, 0xE, layer_num << 1);
+	if (g_isp_bypass2[idx] & (1 << _EISP_PCNR))
+		post_cnr_h_info->bypass = 1;
+
+	ISP_REG_MWR(idx, ISP_YUV_CNR_CONTRL0, BIT_0, post_cnr_h_info->bypass);
 
 	if (post_cnr_h_info->bypass) {
 		pr_debug("idx %d, post_cnr_bypass!\n", idx);

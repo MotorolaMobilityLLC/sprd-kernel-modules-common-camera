@@ -45,6 +45,8 @@ static int isp_k_3dlut_block(struct isp_io_param *param,
 		pr_err("fail to copy from user, ret = %d\n", ret);
 		return ret;
 	}
+	if (g_isp_bypass2[idx] & (1 << _EISP_3DLUT))
+		lut3d_info->rgb3dlut_bypass = 1;
 
 	if (lut3d_info->rgb3dlut_bypass) {
 		pr_debug("idx %d, 3dlut_bypass!\n", idx);
