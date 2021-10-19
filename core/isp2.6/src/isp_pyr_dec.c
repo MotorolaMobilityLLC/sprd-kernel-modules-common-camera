@@ -375,7 +375,7 @@ static int isppyrdec_store_dec_get(struct isp_dec_pipe_dev *dev, uint32_t idx)
 	struct isp_dec_store_info *store_dec = NULL;
 
 	if (!dev) {
-		pr_err("fail to get valid input dev\n", dev);
+		pr_err("fail to get valid input dev\n");
 		return -EFAULT;
 	}
 
@@ -454,7 +454,7 @@ static int isppyrdec_offline_get(struct isp_dec_pipe_dev *dev, uint32_t idx)
 	struct isp_dec_offline_info *dec_offline = NULL;
 
 	if (!dev) {
-		pr_err("fail to get valid input dev\n", dev);
+		pr_err("fail to get valid input dev\n");
 		return -EFAULT;
 	}
 
@@ -516,7 +516,7 @@ static int isppyrdec_dct_ynr_get(struct isp_dec_pipe_dev *dev, uint32_t idx)
 	struct isp_dec_dct_ynr_info *dct_ynr = NULL;
 
 	if (!dev) {
-		pr_err("fail to get valid input dev\n", dev);
+		pr_err("fail to get valid input dev\n");
 		return -EFAULT;
 	}
 
