@@ -37,7 +37,7 @@ extern struct cpp_hw_info lite_r3p0_cpp_hw_info;
 #define SCALE_WIDTH_MIN             64
 #define SCALE_HEIGHT_MIN            32
 #define SCALE_SLICE_OUT_WIDTH_MAX   2400
-#define SCALE_FRAME_OUT_WIDTH_MAX   768
+#define SCALE_FRAME_OUT_WIDTH_MAX   8000
 #define SCALE_SC_COEFF_MAX          4
 #define SCALE_SC_COEFF_MID          4
 #define SCALE_DECI_FAC_MAX          8
