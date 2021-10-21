@@ -16,7 +16,7 @@
 
 #include <linux/of_device.h>
 #include <linux/pm_wakeup.h>
-#include <video/sprd_sensor_k.h>
+#include "sprd_sensor.h"
 
 #ifdef CONFIG_REGULATOR_SC2721
 #define SPRD_SENSOR_VDD_1000MV_VAL	1006250

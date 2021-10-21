@@ -14,7 +14,7 @@
 #include <linux/compat.h>
 #include <linux/fs.h>
 #include <linux/uaccess.h>
-#include <video/sprd_sensor_k.h>
+#include "sprd_sensor.h"
 #include "compat_sensor_drv.h"
 
 struct compat_sensor_reg_tab_tag {
