@@ -7545,7 +7545,7 @@ static int camcore_open(struct inode *node, struct file *file)
 	}
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0))
-	ret = pm_runtime_get(&grp->hw_info->pdev->dev);
+	ret = pm_runtime_get_sync(&grp->hw_info->pdev->dev);
 #endif
 
 	pr_info("sprd_img: the camera opened count %d\n",
@@ -7650,7 +7650,7 @@ exit:
 	atomic_dec(&grp->camera_opened);
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0))
-	pm_runtime_put_autosuspend(&grp->hw_info->pdev->dev);
+	pm_runtime_put_sync(&grp->hw_info->pdev->dev);
 #endif
 
 	pr_err("fail to open camera %d\n", ret);
@@ -7782,7 +7782,7 @@ static int camcore_release(struct inode *node, struct file *file)
 		spin_unlock_irqrestore(&group->module_lock, flag);
 	}
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0))
-	ret = pm_runtime_put_autosuspend(&group->hw_info->pdev->dev);
+	ret = pm_runtime_put_sync(&group->hw_info->pdev->dev);
 #endif
 
 	pr_info("sprd_img: cam %d release end.\n", idx);
