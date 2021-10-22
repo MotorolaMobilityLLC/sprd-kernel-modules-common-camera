@@ -422,6 +422,16 @@ abnormal_reg_trace:
 			DCAM_REG_RD(trace->idx, addr + 12));
 	}
 
+	for (addr = DCAM_YUV_FBC_SCAL_PARAM; addr <= DCAM_YUV_FBC_SCAL_STATUS3;
+		addr += 16) {
+		pr_info("fbc:0x%03lx: 0x%x 0x%x 0x%x 0x%x\n",
+			addr,
+			DCAM_REG_RD(trace->idx, addr),
+			DCAM_REG_RD(trace->idx, addr + 4),
+			DCAM_REG_RD(trace->idx, addr + 8),
+			DCAM_REG_RD(trace->idx, addr + 12));
+	}
+
 	for (addr = DCAM_RAW_PATH_CFG; addr <= DCAM_RAW_PATH_BASE_WADDR;
 		addr += 16) {
 		pr_info("raw:0x%03lx: 0x%x 0x%x 0x%x 0x%x\n",
