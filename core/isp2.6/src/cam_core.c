@@ -3662,7 +3662,7 @@ static int camcore_channel_size_binning_cal(
 	struct channel_context *ch_cap;
 	struct channel_context *ch_cap_thm;
 	struct sprd_img_rect *crop_p, *crop_v, *crop_c;
-	struct sprd_img_rect *total_crop_p;
+	struct sprd_img_rect *total_crop_p = NULL;
 	struct sprd_img_rect crop_dst;
 	struct sprd_img_rect total_crop_dst;
 	struct img_trim total_trim_pv = {0};
