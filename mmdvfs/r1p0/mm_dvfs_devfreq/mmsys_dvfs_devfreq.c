@@ -14,7 +14,14 @@
 #include "mmsys_dvfs.h"
 #include "top_dvfs_reg.h"
 #include "mmsys_dvfs_comm.h"
+#include <linux/version.h>
+
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 4, 0))
 #include <video/sprd_mmsys_pw_domain.h>
+#else 
+#include <sprd_camsys_domain.h>
+#endif
+
 
 static int mmsys_dvfs_target(struct device *dev, unsigned long *freq,
                              u32 flags);
