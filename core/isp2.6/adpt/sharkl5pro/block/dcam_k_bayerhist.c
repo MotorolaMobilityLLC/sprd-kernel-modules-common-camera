@@ -136,6 +136,9 @@ int dcam_k_cfg_bayerhist(struct isp_io_param *param,
 				(unsigned int)ret);
 			return -EPERM;
 		}
+
+		if (p->idx == DCAM_HW_CONTEXT_MAX)
+			return 0;
 		dcam_k_bayerhist_bypass(p);
 		break;
 	case DCAM_PRO_BAYERHIST_BLOCK: {

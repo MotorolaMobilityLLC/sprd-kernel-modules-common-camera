@@ -134,7 +134,11 @@ static int dcam_drv_lite_dt_parse(struct device_node *dn, struct cam_hw_info *hw
 		soc_dcam_lite->count = count;
 		iommu_node = of_parse_phandle(lite_node, "iommus", 0);
 		if (iommu_node) {
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 4, 0))
 			reg_base = of_iomap(iommu_node, 0);
+#else
+			reg_base = of_iomap(iommu_node, 1);
+#endif
 			if (!reg_base)
 				pr_err("fail to map DCAM LITE IOMMU base\n");
 			else
@@ -318,7 +322,11 @@ int dcam_drv_dt_parse(struct platform_device *pdev,
 
 	iommu_node = of_parse_phandle(dn, "iommus", 0);
 	if (iommu_node) {
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 4, 0))
 		reg_base = of_iomap(iommu_node, 0);
+#else
+		reg_base = of_iomap(iommu_node, 1);
+#endif
 		if (!reg_base)
 			pr_err("fail to map DCAM IOMMU base\n");
 		else

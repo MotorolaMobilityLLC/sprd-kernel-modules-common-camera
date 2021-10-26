@@ -41,7 +41,9 @@
 #include "fd_core.h"
 #include "fd_drv.h"
 #include "fd_reg.h"
+#if defined (PROJ_FD_N6PRO)
 #include <video/sprd_mmsys_pw_domain_qogirn6pro.h>
+#endif
 
 
 #ifdef pr_fmt

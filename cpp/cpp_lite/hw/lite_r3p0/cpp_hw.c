@@ -22,7 +22,7 @@
 #include "cpp_reg.h"
 #include "cpp_block.h"
 #include "cpp_hw.h"
-
+#include "cam_porting.h"
 
 /* Macro Definitions */
 #ifdef pr_fmt
@@ -388,6 +388,7 @@ int cpphw_probe(struct platform_device *pdev, struct cpp_hw_info * hw_info)
 	/* read global register */
 	for (i = 0; i < ARRAY_SIZE(syscon_name); i++) {
 		pname = syscon_name[i];
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 4, 0))
 		tregmap =  syscon_regmap_lookup_by_name(np, pname);
 		if (IS_ERR_OR_NULL(tregmap)) {
 			pr_err("fail to read %s regmap\n", pname);
@@ -399,6 +400,14 @@ int cpphw_probe(struct platform_device *pdev, struct cpp_hw_info * hw_info)
 				pname, ret);
 			continue;
 		}
+#else
+		tregmap = syscon_regmap_lookup_by_phandle_args(np, pname, 2, args);
+		if (IS_ERR_OR_NULL(tregmap)) {
+			pr_err("fail to read %s reg_map 0x%lx %d\n",
+			pname, (uintptr_t)tregmap, IS_ERR_OR_NULL(tregmap));
+			continue;
+		}
+#endif
 		soc_cpp->syscon_regs[i].gpr = tregmap;
 		soc_cpp->syscon_regs[i].reg = args[0];
 		soc_cpp->syscon_regs[i].mask = args[1];

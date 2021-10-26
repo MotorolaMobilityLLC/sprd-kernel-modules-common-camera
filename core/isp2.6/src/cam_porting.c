@@ -32,7 +32,7 @@ struct dma_buf * cam_ion_alloc(size_t len, unsigned int heap_id_mask,
 
 void cam_ion_free(struct dma_buf *dmabuf)
 {
-	ion_free((struct ion_buffer *)dmabuf->priv);
+	dma_buf_put(dmabuf);
 }
 
 struct file *cam_filp_open(const char *filename, int flags, umode_t mode)

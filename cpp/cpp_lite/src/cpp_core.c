@@ -38,7 +38,9 @@
 #include "cpp_drv.h"
 #include "cpp_reg.h"
 #include "cpp_hw.h"
+#ifdef PROJ_CPP_N6PRO
 #include <video/sprd_mmsys_pw_domain_qogirn6pro.h>
+#endif
 
 #ifdef pr_fmt
 #undef pr_fmt

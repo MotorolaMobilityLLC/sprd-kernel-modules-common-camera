@@ -1082,7 +1082,11 @@ int isp_drv_dt_parse(struct device_node *dn,
 
 		iommu_node = of_parse_phandle(isp_node, "iommus", 0);
 		if (iommu_node) {
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 4, 0))
 			reg_base = of_iomap(iommu_node, 0);
+#else
+			reg_base = of_iomap(iommu_node, 1);
+#endif
 			if (!reg_base)
 				pr_err("fail to map ISP IOMMU base\n");
 			else

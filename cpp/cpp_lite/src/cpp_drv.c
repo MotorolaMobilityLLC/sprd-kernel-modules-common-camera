@@ -86,8 +86,14 @@ static int cppdrv_get_addr(struct cpp_iommu_info *pfinfo)
 			pfinfo->iova[i] = iommu_data.iova_addr
 					+ pfinfo->offset[i];
 		} else {
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 4, 0))
 			ret = sprd_ion_get_phys_addr(pfinfo->mfd[i], NULL,
 				&pfinfo->iova[i], &pfinfo->size[i]);
+#else
+			ret = sprd_ion_get_phys_addr(-1, pfinfo->dmabuf_p[i],
+					&pfinfo->iova[i],
+					&pfinfo->size[i]);
+#endif
 			if (ret) {
 				pr_err("fail to get iommu phy addr\n");
 				pr_err("index:%d mfd:0x%x\n",
