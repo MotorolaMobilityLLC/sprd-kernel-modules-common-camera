@@ -27,6 +27,7 @@
 #include <linux/slab.h>
 #include <linux/sched.h>
 #include <linux/version.h>
+#include <linux/i2c.h>
 
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 4, 0))
 #include <video/sprd_mmsys_pw_domain.h>
@@ -617,6 +618,13 @@ static int sprd_sensor_file_open(struct inode *node, struct file *file)
 	struct sprd_sensor_file_tag *p_file;
 	struct sprd_sensor_core_module_tag *p_mod;
 	struct miscdevice *md = (struct miscdevice *)file->private_data;
+	struct sprd_sensor_dev_info_tag *p_dev = NULL;
+
+	p_dev = sprd_sensor_get_dev_context(0);
+	if (!p_dev || !p_dev->i2c_info) {
+		pr_err("%s, error\n", __func__);
+		return -EINVAL;
+	}
 
 	p_file = NULL;
 	if (!md) {
@@ -650,7 +658,7 @@ static int sprd_sensor_file_open(struct inode *node, struct file *file)
 		sprd_cam_domain_eb();
 		__pm_stay_awake(p_mod->ws);
 #else
-		ret = pm_runtime_get(md->this_device);
+		ret = pm_runtime_get_sync(&p_dev->i2c_info->dev);
 //		ret = sprd_cam_pw_on(NULL);
 #endif
 /*		wake_lock(&p_mod->wakelock);*/
@@ -684,6 +692,13 @@ static int sprd_sensor_file_release(struct inode *node, struct file *file)
 		{SPRD_SENSOR_DVDD_GPIO_TAG_E, SENSOR_REGULATOR_CAMDVDD_ID_E},
 		{SPRD_SENSOR_IOVDD_GPIO_TAG_E, SENSOR_REGULATOR_VDDIO_E},
 	};
+	struct sprd_sensor_dev_info_tag *p_dev = NULL;
+
+	p_dev = sprd_sensor_get_dev_context(0);
+	if (!p_dev || !p_dev->i2c_info) {
+		pr_err("%s, error\n", __func__);
+		return -EINVAL;
+	}
 
 	if (!p_file)
 		return -EINVAL;
@@ -713,7 +728,7 @@ static int sprd_sensor_file_release(struct inode *node, struct file *file)
 		sprd_cam_pw_off();
 		__pm_relax(p_mod->ws);
 #else
-		pm_runtime_put(p_file->md->this_device);
+		pm_runtime_put_sync(&p_dev->i2c_info->dev);
 //		ret = sprd_cam_pw_off(NULL);
 #endif
 /*		wake_unlock(&p_mod->wakelock);*/

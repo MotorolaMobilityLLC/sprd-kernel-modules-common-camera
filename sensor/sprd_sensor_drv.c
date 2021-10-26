@@ -32,6 +32,11 @@
 #include "csi_api.h"
 #include "sprd_sensor_core.h"
 #include "sprd_sensor_drv.h"
+#include <linux/version.h>
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0))
+#include <linux/pm_runtime.h>
+#include <linux/pm_domain.h>
+#endif
 
 #ifdef pr_fmt
 #undef pr_fmt
@@ -72,7 +77,6 @@ static const struct sensor_mclk_tag c_sensor_mclk_tab[] = {
 	{26, "clk_26m"},
 };
 
-static struct sprd_sensor_dev_info_tag *s_sensor_dev_data[SPRD_SENSOR_ID_MAX];
 
 static int sprd_sensor_parse_clk_dt(struct device *dev,
 				struct sprd_sensor_dev_info_tag
@@ -257,6 +261,11 @@ static int sprd_sensor_probe(struct i2c_client *client,
 	for (i = 0; i < SENSOR_REGULATOR_ID_MAX; i++)
 		pdata->regulator_supply[i] = NULL;
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0))
+	pm_runtime_set_active(dev);
+	pm_runtime_enable(dev);
+#endif
+
 	mutex_init(&pdata->sync_lock);
 	mutex_init(&pdata->set_voltage_lock);
 	atomic_set(&pdata->users, 0);
@@ -290,7 +299,7 @@ static int sprd_sensor_probe(struct i2c_client *client,
 	return ret;
 }
 
-static struct sprd_sensor_dev_info_tag *sprd_sensor_get_dev_context(int
+struct sprd_sensor_dev_info_tag *sprd_sensor_get_dev_context(int
 								sensor_id)
 {
 	if (sensor_id >= SPRD_SENSOR_ID_MAX || sensor_id < 0) {
