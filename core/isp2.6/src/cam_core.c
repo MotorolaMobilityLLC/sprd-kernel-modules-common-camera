@@ -3054,6 +3054,7 @@ static int camcore_dcam_callback(enum dcam_cb_type type, void *param, void *priv
 							struct camera_frame, list);
 						if (pframe_pre == NULL)
 							break;
+						pframe_pre->irq_property = CAM_FRAME_PRE_FDR;
 						ret = camcore_frame_start_proc(module, pframe_pre);
 						if (ret)
 							pr_err("fail to start dcams for raw proc\n");
@@ -3064,6 +3065,7 @@ static int camcore_dcam_callback(enum dcam_cb_type type, void *param, void *priv
 							struct camera_frame, list);
 						if (pframe_pre == NULL)
 							break;
+						pframe_pre->irq_property = CAM_FRAME_PRE_FDR;
 						ret = camcore_frame_start_proc(module, pframe_pre);
 						if (ret)
 							pr_err("fail to start dcams for raw proc\n");
@@ -3154,8 +3156,10 @@ static int camcore_dcam_callback(enum dcam_cb_type type, void *param, void *priv
 					} else {
 						if (channel->dcam_path_id == DCAM_PATH_RAW)
 							ret = cam_queue_enqueue(&channel->share_buf_queue, &pframe->list);
-						else
+						else {
+							pframe->irq_property = CAM_FRAME_PRE_FDR;
 							ret = camcore_frame_start_proc(module, pframe);
+						}
 						if (ret)
 							pr_err("fail to start dcams for raw proc\n");
 					}
@@ -6899,6 +6903,8 @@ static int camcore_offline_proc(void *param)
 		pctx->cur_ctx_id = DCAM_CXT_1;
 	if (pframe->irq_property == CAM_FRAME_FDRH)
 		pctx->cur_ctx_id = DCAM_CXT_2;
+	if (pframe->irq_property == CAM_FRAME_PRE_FDR)
+		pframe->irq_property = CAM_FRAME_COMMON;
 	pm_pctx = &pctx->ctx[pctx->cur_ctx_id];
 	pm = &pm_pctx->blk_pm;
 	if ((pm->lsc.buf.mapping_state & CAM_BUF_MAPPING_DEV) == 0) {
