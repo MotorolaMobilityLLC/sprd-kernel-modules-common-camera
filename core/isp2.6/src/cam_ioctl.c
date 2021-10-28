@@ -2616,7 +2616,7 @@ static int camioctl_capture_start(struct camera_module *module,
 		module->cap_status = CAM_CAPTURE_START;
 
 	/* alway trigger dump for capture */
-	if (module->dump_thrd.thread_task && module->dcam_idx < 2 && module->dcam_dev_handle)
+	if (module->dump_thrd.thread_task && module->dcam_dev_handle)
 		camdump_start(&module->dump_thrd, &module->dump_base, module->dcam_idx);
 
 

@@ -309,7 +309,11 @@ static int camdump_pyr_frame_dump(struct cam_dump_ctx *dump_base, struct camera_
 
 		addr = pframe->buf.addr_k[0] + offset;
 		addr1 = addr + size;
-		offset += (size * 3 / 2);
+		if (i == 0 && pframe->is_compressed && ((g_dbg_dump.dump_en == DUMP_PATH_BOTH)
+			|| (g_dbg_dump.dump_en == DUMP_PATH_BIN)))
+			offset += pframe->fbc_info.buffer_size;
+		else
+			offset += (size * 3 / 2);
 		camdump_write_image_to_file((char *)addr, size, file_name[i]);
 		pr_debug("dump for ch %d, size %d, kaddr %p, file %s\n", dump_base->ch_id,
 			(int)size, (void *)addr, file_name[i]);

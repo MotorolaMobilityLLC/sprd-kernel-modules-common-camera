@@ -2590,6 +2590,8 @@ static int camcore_isp_callback(enum isp_cb_type type, void *param, void *priv_d
 				&& module->dump_base.dump_enqueue != NULL) {
 				if (g_dbg_dump.dump_en == DUMP_ISP_PYR_REC && channel->pyr_rec_buf != NULL) {
 					channel->pyr_rec_buf->fid = pframe->fid;
+					channel->pyr_rec_buf->width = pframe->width;
+					channel->pyr_rec_buf->height = pframe->height;
 					module->dump_base.dump_enqueue(&module->dump_base, channel->pyr_rec_buf);
 				} else {
 					ret = module->dump_base.dump_enqueue(&module->dump_base, pframe);
