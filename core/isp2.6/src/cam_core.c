@@ -5265,6 +5265,13 @@ static int camcore_channel_init(struct camera_module *module,
 				channel->ch_uinfo.dcam_raw_fmt = ch_desc.raw_fmt;
 		}
 
+		if (dcam_path_id == 0 && module->cam_uinfo.is_4in1 == 1) {
+			ch_desc.raw_fmt = DCAM_RAW_PACK_10;
+			channel->ch_uinfo.dcam_raw_fmt = ch_desc.raw_fmt;
+			channel->ch_uinfo.sensor_raw_fmt = ch_desc.raw_fmt;
+			pr_debug("sensor_raw_fmt:%d raw_fmt %d\n", channel->ch_uinfo.sensor_raw_fmt, ch_desc.raw_fmt);
+		}
+
 		ch_desc.is_4in1 = module->cam_uinfo.is_4in1;
 		/*
 		 * Configure slow motion for BIN path. HAL must set @is_high_fps

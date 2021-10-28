@@ -724,14 +724,13 @@ static void dcamint_full_path_done(void *param)
 					sw_ctx->cb_priv_data);
 				return;
 			}
-			if (!sw_ctx->lowlux_4in1)/* 4in1,send to hal for remosaic */
+			if (!sw_ctx->lowlux_4in1 && !sw_ctx->offline)/* 4in1,send to hal for remosaic */
 				frame->irq_type = CAMERA_IRQ_4IN1_DONE;
 			else/* low lux, to isp as normal */
 				frame->irq_type = CAMERA_IRQ_IMG;
-		}
-		if (sw_ctx->dcam_slice_mode && sw_ctx->slice_num == 0)
+		} else if (sw_ctx->dcam_slice_mode && sw_ctx->slice_num == 0) {
 			frame->irq_type = CAMERA_IRQ_SUPERSIZE_DONE;
-		if(sw_ctx->offline && sw_ctx->sw_ctx_id == DCAM_ID_1)
+		} else if(sw_ctx->offline && sw_ctx->sw_ctx_id == DCAM_ID_1)
 			frame->irq_type = CAMERA_IRQ_IMG;
 		dcamint_frame_dispatch(dcam_hw_ctx, DCAM_PATH_FULL, frame, DCAM_CB_DATA_DONE);
 	}

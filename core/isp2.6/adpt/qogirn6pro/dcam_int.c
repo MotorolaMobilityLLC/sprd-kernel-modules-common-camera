@@ -811,7 +811,7 @@ static void dcamint_full_path_done(void *param)
 					sw_ctx->cb_priv_data);
 				return;
 			}
-			if (!sw_ctx->lowlux_4in1)/* 4in1,send to hal for remosaic */
+			if (!sw_ctx->lowlux_4in1 && !sw_ctx->offline)/* 4in1,send to hal for remosaic */
 				frame->irq_type = CAMERA_IRQ_4IN1_DONE;
 			else/* low lux, to isp as normal */
 				frame->irq_type = CAMERA_IRQ_IMG;
