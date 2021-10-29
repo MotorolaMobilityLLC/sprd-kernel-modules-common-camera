@@ -2060,6 +2060,7 @@ static int ispcore_stream_state_get(struct isp_sw_context *pctx)
 	int i = 0, j = 0;
 	uint32_t normal_cnt = 0, postproc_cnt = 0;
 	uint32_t maxw = 0, maxh = 0;
+	uint32_t min_crop_w = 0xFFFFFFFF, min_crop_h = 0xFFFFFFFF;
 	uint32_t scl_x = 0, scl_w = 0, scl_h = 0;
 	enum isp_stream_frame_type frame_type = ISP_STREAM_SIGNLE;
 	struct isp_stream_ctrl *stream = NULL;
@@ -2082,6 +2083,8 @@ static int ispcore_stream_state_get(struct isp_sw_context *pctx)
 			continue;
 		maxw = MAX(maxw, path_info->dst.w);
 		maxh = MAX(maxh, path_info->dst.h);
+		min_crop_w = MIN(min_crop_w, path_info->in_trim.size_x);
+		min_crop_h = MIN(min_crop_h, path_info->in_trim.size_y);
 	}
 
 	if (!maxw || !maxh) {
@@ -2089,11 +2092,11 @@ static int ispcore_stream_state_get(struct isp_sw_context *pctx)
 		return -EFAULT;
 	}
 
-	scl_w = maxw / uinfo->crop.size_x;
-	if ((maxw % uinfo->crop.size_x) != 0)
+	scl_w = maxw / min_crop_w;
+	if ((maxw % min_crop_w) != 0)
 		scl_w ++;
-	scl_h = maxh / uinfo->crop.size_y;
-	if ((maxh % uinfo->crop.size_y) != 0)
+	scl_h = maxh / min_crop_h;
+	if ((maxh % min_crop_h) != 0)
 		scl_h ++;
 	scl_x = MAX(scl_w, scl_h);
 	pr_debug("scl_x %d scl_w %d scl_h %d max_w %d max_h %d\n", scl_x,
@@ -2114,10 +2117,8 @@ static int ispcore_stream_state_get(struct isp_sw_context *pctx)
 
 	for (i = postproc_cnt - 1; i >= 0; i--) {
 		maxw = maxw / ISP_SCALER_UP_MAX;
-		maxw = MAX(maxw, uinfo->crop.size_y);
 		maxw = ISP_ALIGN_W(maxw);
 		maxh = maxh / ISP_SCALER_UP_MAX;
-		maxh = MAX(maxh, uinfo->crop.size_y);
 		maxh = ISP_ALIGN_H(maxh);
 
 		if (i == 0) {
