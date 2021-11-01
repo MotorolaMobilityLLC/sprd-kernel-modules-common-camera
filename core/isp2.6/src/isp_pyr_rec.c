@@ -368,12 +368,14 @@ static int isppyrrec_reconstruct_get(struct isp_rec_ctx_desc *ctx, uint32_t idx)
 		slc_pyr_rec->reduce_flt_vblank = rec_cfg->ver_padding_num + 20;
 		slc_pyr_rec->cur_layer.h = slc_pyr_rec->out.h + slc_pyr_rec->ver_padding_num;
 		slc_pyr_rec->cur_layer.w = slc_pyr_rec->out.w;
+		slc_pyr_rec->hor_padding_en = 0;
+		slc_pyr_rec->hor_padding_num = 0;
 		if (i == (ctx->slice_num - 1)) {
 			slc_pyr_rec->hor_padding_en = rec_cfg->hor_padding_en;
 			slc_pyr_rec->hor_padding_num = rec_cfg->hor_padding_num;
 			slc_pyr_rec->cur_layer.w = slc_pyr_rec->out.w + slc_pyr_rec->hor_padding_num;
-			slc_pyr_rec->reduce_flt_hblank = rec_cfg->hor_padding_num + 20;
 		}
+		slc_pyr_rec->reduce_flt_hblank = slc_pyr_rec->hor_padding_num + 20;
 
 		slc_pyr_rec->dispatch_dly_width_num = 60;
 		slc_pyr_rec->dispatch_dly_height_num = 37;
@@ -497,8 +499,6 @@ static int isppyrrec_store_get(struct isp_rec_ctx_desc *ctx, uint32_t idx)
 	rec_store->addr[1] = ctx->store_addr[idx].addr_ch1;
 	rec_store->width = ctx->pyr_layer_size[idx].w;
 	rec_store->height = ctx->pyr_layer_size[idx].h;
-	rec_store->pitch[0] = rec_store->width * rec_store->height;
-	rec_store->pitch[1] = rec_store->pitch[0];
 	pitch = isppyrrec_pitch_get(rec_store->color_format, rec_store->width);
 	rec_store->pitch[0] = pitch;
 	rec_store->pitch[1] = pitch;
@@ -525,8 +525,8 @@ static int isppyrrec_store_get(struct isp_rec_ctx_desc *ctx, uint32_t idx)
 		overlap_down = cur_slc->slice_overlap.overlap_down;
 		overlap_left = cur_slc->slice_overlap.overlap_left;
 		overlap_right = cur_slc->slice_overlap.overlap_right;
-		start_row_out = start_row + overlap_up;
-		start_col_out = start_col + overlap_left;
+		start_row_out = start_row;
+		start_col_out = start_col;
 
 		switch (rec_store->color_format) {
 		case ISP_FETCH_YUV420_2FRAME_MIPI:
@@ -547,8 +547,8 @@ static int isppyrrec_store_get(struct isp_rec_ctx_desc *ctx, uint32_t idx)
 
 		slc_rec_store->addr.addr_ch0 = rec_store->addr[0] + ch_offset[0];
 		slc_rec_store->addr.addr_ch1 = rec_store->addr[1] + ch_offset[1];
-		slc_rec_store->size.h = end_row - start_row + 1 - overlap_up - overlap_down;
-		slc_rec_store->size.w = end_col - start_col + 1 - overlap_left - overlap_right;
+		slc_rec_store->size.h = end_row - start_row + 1;
+		slc_rec_store->size.w = end_col - start_col + 1;
 		slc_rec_store->border.up_border = overlap_up;
 		slc_rec_store->border.down_border = overlap_down;
 		slc_rec_store->border.left_border = overlap_left;
@@ -776,10 +776,10 @@ static int isppyrrec_pipe_proc(void *handle, void *param)
 			cur_slc->slice_store_pos.start_col = slice_overlap->store_rec_slice_region[i - 1][j].sx;
 			cur_slc->slice_store_pos.end_row = slice_overlap->store_rec_slice_region[i - 1][j].ey;
 			cur_slc->slice_store_pos.end_col = slice_overlap->store_rec_slice_region[i - 1][j].ex;
-			cur_slc->slice_overlap.overlap_up = slice_overlap->store_rec_slice_overlap[i - 1][j].ov_up;
-			cur_slc->slice_overlap.overlap_down = slice_overlap->store_rec_slice_overlap[i - 1][j].ov_down;
-			cur_slc->slice_overlap.overlap_left = slice_overlap->store_rec_slice_overlap[i - 1][j].ov_left;
-			cur_slc->slice_overlap.overlap_right = slice_overlap->store_rec_slice_overlap[i - 1][j].ov_right;
+			cur_slc->slice_overlap.overlap_up = slice_overlap->store_rec_slice_crop_overlap[i - 1][j].ov_up;
+			cur_slc->slice_overlap.overlap_down = slice_overlap->store_rec_slice_crop_overlap[i - 1][j].ov_down;
+			cur_slc->slice_overlap.overlap_left = slice_overlap->store_rec_slice_crop_overlap[i - 1][j].ov_left;
+			cur_slc->slice_overlap.overlap_right = slice_overlap->store_rec_slice_crop_overlap[i - 1][j].ov_right;
 		}
 		ret = isppyrrec_block_cfg_get(rec_ctx, i);
 		if (ret) {
