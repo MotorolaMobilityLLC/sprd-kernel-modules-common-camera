@@ -37,22 +37,38 @@ void cam_ion_free(struct dma_buf *dmabuf)
 
 struct file *cam_filp_open(const char *filename, int flags, umode_t mode)
 {
+#ifdef CONFIG_SPRD_DCAM_DEBUG_RAW
+	return filp_open(filename, flags, mode);
+#else
 	return NULL;
+#endif
 }
 
 int cam_filp_close(struct file *filp, fl_owner_t id)
 {
+#ifdef CONFIG_SPRD_DCAM_DEBUG_RAW
+	return filp_close(filp, id);
+#else
 	return 0;
+#endif
 }
 
 ssize_t cam_kernel_read(struct file *file, void *buf, size_t count, loff_t *pos)
 {
+#ifdef CONFIG_SPRD_DCAM_DEBUG_RAW
+	return kernel_read(file, buf, count, &file->f_pos);
+#else
 	return 0;
+#endif
 }
 
 ssize_t cam_kernel_write(struct file *file, void *buf, size_t count, loff_t *pos)
 {
+#ifdef CONFIG_SPRD_DCAM_DEBUG_RAW
+	return kernel_write(file, buf, count, &file->f_pos);
+#else
 	return 0;
+#endif
 }
 
 void cam_kproperty_get(const char *key, char *value,
