@@ -1125,12 +1125,17 @@ static const struct {
  * report error back to adaptive layer
  */
 
-static void dcamint_iommu_regs_dump(struct dcam_hw_context *dcam_hw_ctx)
+static void dcamint_iommu_regs_dump(struct dcam_hw_context *dcam_hw_ctx, struct dcam_sw_context *dcam_sw_ctx)
 {
 	uint32_t reg = 0;
 	uint32_t val[4];
 
-	if (dcam_hw_ctx->sw_ctx->err_count) {
+	if (!dcam_hw_ctx || !dcam_sw_ctx) {
+		pr_err("fail to get valid input hw_ctx or sw_ctx\n");
+		return;
+	}
+
+	if (dcam_sw_ctx->err_count) {
 		for (reg = 0; reg <= MMU_STS; reg += 16) {
 			val[0] = DCAM_MMU_RD(reg);
 			val[1] = DCAM_MMU_RD(reg + 4);
@@ -1162,18 +1167,21 @@ static void dcamint_iommu_regs_dump(struct dcam_hw_context *dcam_hw_ctx)
 				DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, ISP_BPC_OUT_ADDR),
 				DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, ISP_AFM_BASE_WADDR),
 				DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, ISP_NR3_WADDR));
-		dcam_hw_ctx->sw_ctx->err_count -= 1;
+		dcam_sw_ctx->err_count -= 1;
 	}
 }
 
-static irqreturn_t dcamint_error_handler(struct dcam_hw_context *dcam_hw_ctx,
-				uint32_t status)
+static irqreturn_t dcamint_error_handler(struct dcam_hw_context *dcam_hw_ctx, struct dcam_sw_context *sw_ctx, uint32_t status)
 {
 	const char *tb_ovr[2] = {"", ", overflow"};
 	const char *tb_lne[2] = {"", ", line error"};
 	const char *tb_frm[2] = {"", ", frame error"};
 	const char *tb_mmu[2] = {"", ", mmu"};
-	struct dcam_sw_context *sw_ctx = dcam_hw_ctx->sw_ctx;
+
+	if (!sw_ctx) {
+		pr_err("fail to get valid sw_ctx\n");
+		return IRQ_HANDLED;
+	}
 
 	pr_err("fail to get normal status DCAM%u 0x%x%s%s%s%s\n", dcam_hw_ctx->hw_ctx_id, status,
 		tb_ovr[!!(status & BIT(DCAM_DCAM_OVF))],
@@ -1185,14 +1193,14 @@ static irqreturn_t dcamint_error_handler(struct dcam_hw_context *dcam_hw_ctx,
 		uint32_t val = DCAM_MMU_RD(MMU_STS);
 
 		if (val != sw_ctx->iommu_status) {
-			dcamint_iommu_regs_dump(dcam_hw_ctx);
+			dcamint_iommu_regs_dump(dcam_hw_ctx, sw_ctx);
 			sw_ctx->iommu_status = val;
 		}
 	}
 
 	if ((status & DCAMINT_FATAL_ERROR)
-		&& (atomic_read(&dcam_hw_ctx->sw_ctx->state) != STATE_ERROR)) {
-		atomic_set(&dcam_hw_ctx->sw_ctx->state, STATE_ERROR);
+		&& (atomic_read(&sw_ctx->state) != STATE_ERROR)) {
+		atomic_set(&sw_ctx->state, STATE_ERROR);
 		sw_ctx->dcam_cb_func(DCAM_CB_DEV_ERR, sw_ctx, sw_ctx->cb_priv_data);
 	}
 
@@ -1205,6 +1213,7 @@ static irqreturn_t dcamint_error_handler(struct dcam_hw_context *dcam_hw_ctx,
 static irqreturn_t dcamint_isr_root(int irq, void *priv)
 {
 	struct dcam_hw_context *dcam_hw_ctx = (struct dcam_hw_context *)priv;
+	struct dcam_sw_context *dcam_sw_ctx = dcam_hw_ctx->sw_ctx;
 	uint32_t status = 0;
 	unsigned int i = 0;
 
@@ -1212,13 +1221,13 @@ static irqreturn_t dcamint_isr_root(int irq, void *priv)
 		pr_err("fail to match DCAM%u irq %d %d\n", dcam_hw_ctx->hw_ctx_id, irq, dcam_hw_ctx->irq);
 		return IRQ_NONE;
 	}
-	if (!dcam_hw_ctx->sw_ctx) {
+	if (!dcam_sw_ctx) {
 		status = DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, DCAM_INT_MASK);
 		DCAM_REG_WR(dcam_hw_ctx->hw_ctx_id, DCAM_INT_CLR, status);
-		pr_err("fail to check param %px, status %x\n", dcam_hw_ctx->sw_ctx, status);
+		pr_err("fail to check param %px, status %x\n", dcam_sw_ctx, status);
 		return IRQ_NONE;
 	}
-	if (atomic_read(&dcam_hw_ctx->sw_ctx->state) != STATE_RUNNING) {
+	if (atomic_read(&dcam_sw_ctx->state) != STATE_RUNNING) {
 		/* clear int */
 		pr_warn_ratelimited("warning: DCAM%u ignore irq in NON-running, 0x%x\n",
 			dcam_hw_ctx->hw_ctx_id, DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, DCAM_INT_MASK));
@@ -1237,7 +1246,7 @@ static irqreturn_t dcamint_isr_root(int irq, void *priv)
 	dcamint_dcam_int_record(dcam_hw_ctx->hw_ctx_id, status);
 
 	if (unlikely(DCAMINT_ALL_ERROR & status)) {
-		dcamint_error_handler(dcam_hw_ctx, status);
+		dcamint_error_handler(dcam_hw_ctx, dcam_sw_ctx, status);
 		status &= (~DCAMINT_ALL_ERROR);
 	}
 
