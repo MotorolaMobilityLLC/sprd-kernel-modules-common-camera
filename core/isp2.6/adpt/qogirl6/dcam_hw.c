@@ -13,7 +13,7 @@
 
 #ifdef CAM_HW_ADPT_LAYER
 
-#define DCAMX_STOP_TIMEOUT 2000
+#define DCAMX_STOP_TIMEOUT 500
 #define DCAM_AXI_STOP_TIMEOUT 2000
 #define DCAM_AXIM_AQOS_MASK (0x30FFFF)
 #define IMG_TYPE_RAW10        0x2B
@@ -1465,7 +1465,7 @@ static int dcamhw_csi_disconnect(void *handle, void *arg)
 		if((val >> (6 - csi_id)) & BIT_0)
 			pr_err("fail to disconnect DCAM%d from csi%d, timeout\n", idx, csi_id);
 		else
-			pr_warn("warning: csi%d is already disabled\n", csi_id);
+			pr_warn("warning: csi%d is already disabled. AHB_EN: 0x%x\n", csi_id, val);
 	}
 
 	time_out = DCAMX_STOP_TIMEOUT;

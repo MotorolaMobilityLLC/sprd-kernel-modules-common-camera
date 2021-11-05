@@ -3562,8 +3562,9 @@ static int camioctl_csi_switch(struct camera_module *module, unsigned long arg)
 			/* switch connect */
 			csi_switch.csi_id = module->dcam_idx;
 			csi_switch.dcam_id= sw_ctx->hw_ctx_id;
-			pr_info("Connect csi_id = %d, dcam_id = %d module idx %d\n", csi_switch.csi_id, csi_switch.dcam_id, module->idx);
 			hw->dcam_ioctl(hw, DCAM_HW_CONECT_CSI, &csi_switch);
+
+			pr_info("Connect csi_id = %d, dcam_id = %d module idx %d\n", csi_switch.csi_id, csi_switch.dcam_id, module->idx);
 
 			sw_ctx->csi_connect_stat = DCAM_CSI_RESUME;
 			break;

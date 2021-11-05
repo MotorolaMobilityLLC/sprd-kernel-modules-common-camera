@@ -16,7 +16,7 @@
 #include <video/sprd_mmsys_pw_domain_qogirn6pro.h>
 #include <qos_struct_def.h>
 
-#define DCAMX_STOP_TIMEOUT             2000
+#define DCAMX_STOP_TIMEOUT             500
 #define DCAM_AXI_STOP_TIMEOUT          2000
 #define DCAM_AXIM_AQOS_MASK            (0xF030FFFF)
 #define DCAM_LITE_AXIM_AQOS_MASK       (0x30FFFF)
@@ -2282,7 +2282,7 @@ static int dcamhw_set_store_addr(void *handle, void *arg)
 
 static int dcamhw_csi_disconnect(void *handle, void *arg)
 {
-	uint32_t idx = 0, csi_id = 0;
+	uint32_t idx = 0, csi_id = 0, csi_controller = 0, csi_reg_bit = 0;
 	struct cam_hw_info *hw = NULL;
 	int time_out = DCAMX_STOP_TIMEOUT;
 	uint32_t val = 0xffffffff;
@@ -2293,11 +2293,39 @@ static int dcamhw_csi_disconnect(void *handle, void *arg)
 	csi_id = csi_switch->csi_id;
 	hw = (struct cam_hw_info *)handle;
 
+	switch (csi_id) {
+		case 0:
+			csi_controller = 0;
+			break;
+		case 1:
+			csi_controller = 1;
+			break;
+		case 2:
+		case 3:
+			csi_controller = 2;
+			break;
+		case 4:
+		case 5:
+			csi_controller = 3;
+			break;
+		default:
+			pr_err("fail to get right csi id\n");
+			return -1;
+	}
+	/* read AHB DCAM_BLK_EN bit12~15: csi_en0~3 */
+	csi_reg_bit = 1 << (csi_controller + 12);
+
 	regmap_update_bits(hw->soc_dcam->cam_switch_gpr, idx * 4, BIT_31, BIT_31);
 	while (time_out) {
-		regmap_read(hw->soc_dcam->cam_switch_gpr, idx * 4, &val);
-		if (val & BIT_30)
+		regmap_read(hw->soc_dcam->cam_ahb_gpr, 0x0c, &val);
+		if (val & csi_reg_bit) {
+			regmap_read(hw->soc_dcam->cam_switch_gpr, idx * 4, &val);
+			if (val & BIT_30)
+				break;
+		} else {
+			pr_warning("csi%d disabled already. DCAM_BLK_EN 0x%x\n", csi_id, val);
 			break;
+		}
 		udelay(1000);
 		time_out--;
 	}
@@ -2318,7 +2346,6 @@ static int dcamhw_csi_disconnect(void *handle, void *arg)
 
 	if (time_out == 0)
 		pr_err("fail to stop:DCAM%d: stop timeout for 2s\n", idx);
-
 
 	DCAM_REG_WR(idx, DCAM_INT0_CLR, 0xffffffff);
 	DCAM_REG_WR(idx, DCAM_INT0_EN, DCAMINT_IRQ_LINE_EN0_NORMAL);
