@@ -954,22 +954,24 @@ static void camcore_compression_cal(struct camera_module *module)
 	 * Enable compression for DCAM path by default. Full path is prior to
 	 * bin path.
 	 */
+	dcam_hw = module->grp->hw_info;
 	ch_cap->compress_input = ch_cap->enable
 		&& ch_cap->ch_uinfo.sn_fmt == IMG_PIX_FMT_GREY
 		&& !ch_cap->ch_uinfo.is_high_fps
-		&& !module->cam_uinfo.is_4in1;
+		&& !module->cam_uinfo.is_4in1
+		&& dcam_hw->ip_dcam[dcam_hw_ctx_id]->dcam_full_fbc_mode;
 	ch_pre->compress_input = ch_pre->enable
 		&& ch_pre->ch_uinfo.sn_fmt == IMG_PIX_FMT_GREY
 		&& !ch_pre->ch_uinfo.is_high_fps
-		&& !module->cam_uinfo.is_4in1;
+		&& !module->cam_uinfo.is_4in1
+		&& dcam_hw->ip_dcam[dcam_hw_ctx_id]->dcam_bin_fbc_mode;
 	ch_vid->compress_input = ch_pre->compress_input;
 	ch_raw->compress_input = ch_raw->enable
 		&& ch_raw->ch_uinfo.sn_fmt == IMG_PIX_FMT_GREY
 		&& !ch_raw->ch_uinfo.is_high_fps
-		&& !module->cam_uinfo.is_4in1;
+		&& !module->cam_uinfo.is_4in1
+		&& dcam_hw->ip_dcam[dcam_hw_ctx_id]->dcam_raw_fbc_mode;
 	ch_raw->compress_input = ch_cap->compress_input ? 0 : ch_raw->compress_input;
-
-	dcam_hw = module->grp->hw_info;
 
 	/* Disable compression for 3DNR by default */
 	nr3_compress_eb = module->isp_dev_handle->isp_hw->ip_isp->nr3_compress_support;
