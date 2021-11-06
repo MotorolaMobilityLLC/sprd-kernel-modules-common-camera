@@ -2463,7 +2463,9 @@ static int camcore_dump_config(void *priv_data, void *param)
 	struct camera_module *module = NULL;
 	struct camera_frame *pframe = NULL;
 	struct channel_context *channel = NULL;
+	struct dcam_sw_context *dcam_sw_ctx = NULL;
 	uint32_t start_layer = 0;
+	uint32_t pdaf_type = 0;
 
 	if (!priv_data || !param) {
 		pr_err("fail to get valid param %p\n", priv_data);
@@ -2474,6 +2476,8 @@ static int camcore_dump_config(void *priv_data, void *param)
 	dump_base = &module->dump_base;
 	dump_base->ch_id = pframe->channel_id;
 	channel = &module->channel[dump_base->ch_id];
+	dcam_sw_ctx = &module->dcam_dev_handle->sw_ctx[module->cur_sw_ctx_id];
+	pdaf_type = dcam_sw_ctx->ctx[dcam_sw_ctx->cur_ctx_id].blk_pm.pdaf.pdaf_type;
 
 	if (g_dbg_dump.dump_en == DUMP_ISP_PYR_REC)
 		start_layer = 1;
@@ -2481,6 +2485,8 @@ static int camcore_dump_config(void *priv_data, void *param)
 		dump_base->dump_cfg(dump_base, DUMP_CFG_OUT_FMT, &channel->dcam_out_fmt);
 		dump_base->dump_cfg(dump_base, DUMP_CFG_IS_PACK, &channel->ch_uinfo.dcam_out_pack);
 		dump_base->dump_cfg(dump_base, DUMP_CFG_OUT_BITS, &module->cam_uinfo.sensor_if.if_spec.mipi.bits_per_pxl);
+		if (g_dbg_dump.dump_en == DUMP_DCAM_PDAF)
+			dump_base->dump_cfg(dump_base, DUMP_CFG_PDAF_TYPE, &pdaf_type);
 		if (g_dbg_dump.dump_en > 0 && g_dbg_dump.dump_en < DUMP_PATH_BIN && pframe->need_pyr_rec == 0)
 			dump_base->dump_cfg(dump_base, DUMP_CFG_PACK_BITS, &channel->ch_uinfo.dcam_raw_fmt);
 		else {
@@ -3259,6 +3265,14 @@ static int camcore_dcam_callback(enum dcam_cb_type type, void *param, void *priv
 						pframe);
 
 			return ret;
+		}
+
+		if (g_dbg_dump.dump_en == DUMP_DCAM_PDAF &&
+			module->dump_base.dump_enqueue != NULL
+			&& pframe->irq_property == STATIS_PDAF) {
+			ret = module->dump_base.dump_enqueue(&module->dump_base, pframe);
+			if (ret == 0)
+				return 0;
 		}
 		if (atomic_read(&module->state) == CAM_RUNNING) {
 			pframe->priv_data = module;
@@ -5657,6 +5671,22 @@ static int camcore_dumpraw_proc(void *param)
 			if (dump_base->dump_file != NULL)
 				dump_base->dump_file(dump_base, pframe);
 			mutex_unlock(&dbg->dump_lock);
+			if (dbg->dump_en == DUMP_DCAM_PDAF) {
+				if (atomic_read(&module->state) == CAM_RUNNING) {
+					pframe->priv_data = module;
+					ret = cam_queue_enqueue(&module->frm_queue, &pframe->list);
+					if (ret) {
+						cam_queue_empty_frame_put(pframe);
+					} else {
+						complete(&module->frm_com);
+						pr_debug("get statis frame: %p, type %d, %d\n",
+							pframe, pframe->irq_type, pframe->irq_property);
+					}
+				} else {
+					cam_queue_empty_frame_put(pframe);
+				}
+				continue;
+			}
 			if (dbg->dump_en == DUMP_ISP_PYR_REC)
 				continue;
 			channel = &module->channel[pframe->channel_id];

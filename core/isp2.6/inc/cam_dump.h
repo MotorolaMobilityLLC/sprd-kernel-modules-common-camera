@@ -37,6 +37,7 @@ enum dump_mode {
 	DUMP_PATH_BIN,
 	DUMP_ISP_PYR_REC,
 	DUMP_ISP_PYR_DEC,
+	DUMP_DCAM_PDAF,
 	DUMP_CAM_MAX
 };
 
@@ -47,6 +48,7 @@ enum dump_cfg {
 	DUMP_CFG_OUT_BITS,
 	DUMP_CFG_PYR_LAYER_NUM,
 	DUMP_CFG_PYR_START_LAYER,
+	DUMP_CFG_PDAF_TYPE,
 	DUMP_CFG_MAX
 };
 
@@ -80,6 +82,9 @@ struct cam_dump_ctx {
 	uint32_t start_layer;
 	uint32_t is_pyr_rec;
 	uint32_t is_pyr_dec;
+
+	/* PDAF */
+	uint32_t pdaf_type;
 
 	/*one*/
 	struct dcam_compress_info fbc_info;

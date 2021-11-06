@@ -170,13 +170,53 @@ static int camdump_one_frame_dump(struct cam_dump_ctx *dump_base, struct camera_
 	return 0;
 }
 
+static int camdump_pdaf_frame_dump(struct cam_dump_ctx *dump_base, struct camera_frame *pframe)
+{
+	ssize_t size = 0;
+	uint8_t file_name[256] = { '\0' };
+	uint8_t file_name1[256] = { '\0' };
+	uint8_t tmp_str[20] = { '\0' };
+	unsigned long addr = 0, addr1 = 0;
+
+	if(dump_base == NULL || pframe == NULL)
+		return 0;
+
+	/* Just add pdaf type3 dump now */
+	if (dump_base->pdaf_type != DCAM_PDAF_TYPE3)
+		return 0;
+	strcat(file_name, CAMERA_DUMP_PATH);
+	strcat(file_name, "pdaf");
+	sprintf(tmp_str, "%d.", (uint32_t)dump_base->cur_dump_ts.tv_sec);
+	strcat(file_name, tmp_str);
+	sprintf(tmp_str, "%06d", (uint32_t)(dump_base->cur_dump_ts.tv_nsec / NSEC_PER_USEC));
+	strcat(file_name, tmp_str);
+	sprintf(tmp_str, "_No%d", pframe->fid);
+	strcat(file_name, tmp_str);
+
+	strcat(file_name1, file_name);
+	strcat(file_name, "_left.yuv");
+	strcat(file_name1, "_right.yuv");
+
+	size = pframe->buf.size[0] / 2;;
+	addr = pframe->buf.addr_k[0];
+	addr1 = addr + size;
+	camdump_write_image_to_file((char *)addr, size, file_name);
+	camdump_write_image_to_file((char *)addr1, size, file_name1);
+
+	pr_debug("dump for pdaf, size %d, kaddr %p, file %s\n",
+		(int)size, (void *)pframe->buf.addr_k[0], file_name);
+
+	return 0;
+}
+
 static inline int camdump_should_dump(int mode, int path)
 {
 	return (mode == DUMP_PATH_BOTH)
 		|| (mode == DUMP_PATH_BIN && path == CAM_CH_PRE)
 		|| (mode == DUMP_PATH_FULL && path == CAM_CH_CAP)
 		|| (mode == DUMP_ISP_PYR_REC)
-		|| (mode == DUMP_ISP_PYR_DEC);
+		|| (mode == DUMP_ISP_PYR_DEC
+		|| (mode == DUMP_DCAM_PDAF));
 }
 
 static int camdump_param_cfg(void *handle, uint32_t cmd, void *param)
@@ -208,6 +248,9 @@ static int camdump_param_cfg(void *handle, uint32_t cmd, void *param)
 		break;
 	case DUMP_CFG_PYR_START_LAYER:
 		dump_base->start_layer = *(uint32_t *)param;
+		break;
+	case DUMP_CFG_PDAF_TYPE:
+		dump_base->pdaf_type = *(uint32_t *)param;
 		break;
 	default:
 		pr_err("fail to get known cmd: %d\n", cmd);
@@ -359,6 +402,10 @@ int camdump_start(struct cam_thread_info* thrd_info, struct cam_dump_ctx *dump_b
 			dump_base->dump_enqueue = camdump_enqueue;
 			dump_base->dump_file = camdump_pyr_frame_dump;
 			break;
+		case DUMP_DCAM_PDAF:
+			dump_base->dump_enqueue = camdump_enqueue;
+			dump_base->dump_file = camdump_pdaf_frame_dump;
+			break;
 		default:
 			dump_base->dump_enqueue = NULL;
 			dump_base->dump_file = NULL;
@@ -366,7 +413,7 @@ int camdump_start(struct cam_thread_info* thrd_info, struct cam_dump_ctx *dump_b
 		}
 		complete(&thrd_info->thread_com);
 		dbg->dump_count = 99;
-		pr_debug("trigger sdump capture raw\n");
+		pr_debug("trigger sdump capture raw mode %d\n", g_dbg_dump.dump_en);
 	}
 	mutex_unlock(&dbg->dump_lock);
 	return 0;
