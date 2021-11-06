@@ -1815,8 +1815,6 @@ cfg_ch_done:
 	camarg.width = line_w;
 	camarg.offline_flag = 0;
 	pr_debug("dcam %d pdaf type%d\n", sw_ctx->hw_ctx_id, sw_ctx->ctx[DCAM_CXT_0].blk_pm.pdaf.pdaf_type);
-	if (sw_ctx->ctx[DCAM_CXT_0].blk_pm.pdaf.pdaf_type == DCAM_PDAF_TYPE2)
-		camarg.pdaf_share_flag = 1;
 	if (hw->ip_dcam[sw_ctx->hw_ctx_id]->lbuf_share_support)
 		ret = hw->dcam_ioctl(hw, DCAM_HW_CFG_LBUF_SHARE_SET, &camarg);
 
