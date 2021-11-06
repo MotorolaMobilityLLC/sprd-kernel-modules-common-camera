@@ -588,7 +588,6 @@ static int dcampath_pyr_dec_cfg(struct dcam_path_desc *path,
 		struct camera_frame *frame, struct cam_hw_info *hw, uint32_t idx)
 {
 	int ret = 0, i = 0;
-	uint32_t offset = 0, align = 1, size = 0;
 	uint32_t align_w = 0, align_h = 0;
 	uint32_t layer_num = 0;
 	struct dcam_hw_dec_store_cfg dec_store;
@@ -602,26 +601,14 @@ static int dcampath_pyr_dec_cfg(struct dcam_path_desc *path,
 	memset(&dec_store, 0, sizeof(struct dcam_hw_dec_store_cfg));
 	memset(&dec_online, 0, sizeof(struct dcam_hw_dec_online_cfg));
 
-	layer_num = DCAM_PYR_DEC_LAYER_NUM;
-	/* update layer num based on img size */
-	while (isp_rec_small_layer_w(path->out_size.w, layer_num) < MIN_PYR_WIDTH ||
-		isp_rec_small_layer_h(path->out_size.h, layer_num) < MIN_PYR_HEIGHT) {
-		pr_debug("layer num need decrease based on small input %d %d\n",
-			path->out_size.w, path->out_size.h);
-		layer_num--;
-	}
-
-	align_w = dcampath_dec_align_width(path->out_size.w, layer_num);
-	align_h = dcampath_dec_align_heigh(path->out_size.h, layer_num);
-	size = path->out_pitch * path->out_size.h;
-
+	layer_num = path->dec_store_info.layer_num;
 	dec_online.idx = idx;
 	dec_online.layer_num = layer_num;
 	dec_online.chksum_clr_mode = 0;
 	dec_online.chksum_work_mode = 0;
 	dec_online.path_sel = DACM_DEC_PATH_DEC;
-	dec_online.hor_padding_num = align_w - path->out_size.w;
-	dec_online.ver_padding_num = align_h - path->out_size.h;
+	dec_online.hor_padding_num = path->dec_store_info.align_w - path->out_size.w;
+	dec_online.ver_padding_num = path->dec_store_info.align_h - path->out_size.h;
 	if (dec_online.hor_padding_num)
 		dec_online.hor_padding_en = 1;
 	if (dec_online.ver_padding_num)
@@ -660,30 +647,78 @@ static int dcampath_pyr_dec_cfg(struct dcam_path_desc *path,
 
 	pr_debug("dcam %d padding w %d h %d alignw %d h%d\n", idx,
 		dec_online.hor_padding_num, dec_online.ver_padding_num, align_w, align_h);
-	pr_debug("dcam %d out pitch %d addr %x\n", idx, path->out_pitch, frame->buf.iova[0]);
 	for (i = 0; i < layer_num; i++) {
 		dec_store.bypass = 0;
-		align = align * 2;
-		if (i == 0 && frame->is_compressed)
-			offset += frame->fbc_info.buffer_size;
-		else
-			offset += (size * 3 / 2);
 		dec_store.cur_layer = i;
-		dec_store.width = align_w / align;
-		dec_store.height = align_h / align;
-		dec_store.pitch[0] = cal_sprd_yuv_pitch(dec_store.width, path->data_bits, path->is_pack);
-		dec_store.pitch[1] = dec_store.pitch[0];
-		size = dec_store.pitch[0] * dec_store.height;
-		dec_store.addr[0] = frame->buf.iova[0] + offset;
-		dec_store.addr[1] = dec_store.addr[0] + size;
-		hw->dcam_ioctl(hw, DCAM_HW_CFG_DEC_STORE_ADDR, &dec_store);
+		dec_store.width = path->dec_store_info.size_t[i].w;
+		dec_store.height = path->dec_store_info.size_t[i].h;
+		dec_store.pitch[0] = path->dec_store_info.pitch_t[i].pitch_ch0;
+		dec_store.pitch[1] = path->dec_store_info.pitch_t[i].pitch_ch1;
 		/* when zoom, if necessary size update may set with path size udapte
 		 thus, the dec_store need remember on path or ctx, and calc & reg set
 		 need separate too, now just */
 		hw->dcam_ioctl(hw, DCAM_HW_CFG_DEC_SIZE_UPDATE, &dec_store);
 
 		pr_debug("dcam %d dec_layer %d w %d h %d\n", idx, i, dec_store.width, dec_store.height);
-		pr_debug("dcam %d dec_layer %d w %x h %x\n", idx, i, dec_store.addr[0], dec_store.addr[1]);
+	}
+
+	return ret;
+}
+
+static int dcampath_update_pyr_dec_addr(struct dcam_sw_context *ctx, struct dcam_path_desc *path,
+			struct camera_frame *frame)
+{
+	int ret = 0, i = 0;
+	uint32_t layer_num = 0;
+	uint32_t offset = 0, align = 1, size = 0;
+	uint32_t align_w = 0, align_h = 0;
+	struct cam_hw_info *hw = NULL;
+	struct dcam_hw_dec_store_cfg *dec_store = NULL;
+
+	if (!path || !frame) {
+		pr_err("fail to check param, path%px, frame%px\n", path, frame);
+		return -EINVAL;
+	}
+
+	dec_store = &path->dec_store_info;
+	hw = ctx->dev->hw;
+	dec_store->idx = ctx->hw_ctx_id;
+
+	layer_num = DCAM_PYR_DEC_LAYER_NUM;
+	/* update layer num based on img size */
+	while (isp_rec_small_layer_w(path->out_size.w, layer_num) < MIN_PYR_WIDTH ||
+		isp_rec_small_layer_h(path->out_size.h, layer_num) < MIN_PYR_HEIGHT) {
+		pr_debug("layer num need decrease based on small input %d %d\n",
+			path->out_size.w, path->out_size.h);
+		layer_num--;
+	}
+
+	align_w = dcampath_dec_align_width(path->out_size.w, layer_num);
+	align_h = dcampath_dec_align_heigh(path->out_size.h, layer_num);
+	size = path->out_pitch * path->out_size.h;
+	dec_store->layer_num = layer_num;
+	dec_store->align_w = align_w;
+	dec_store->align_h = align_h;
+
+	pr_debug("dcam %d out pitch %d addr %x\n", dec_store->idx, path->out_pitch, frame->buf.iova[0]);
+	for (i = 0; i < layer_num; i++) {
+		align = align * 2;
+		if (i == 0 && frame->is_compressed)
+			offset += frame->fbc_info.buffer_size;
+		else
+			offset += (size * 3 / 2);
+		dec_store->cur_layer = i;
+		dec_store->size_t[i].w = align_w / align;
+		dec_store->size_t[i].h = align_h / align;
+		dec_store->pitch_t[i].pitch_ch0 = cal_sprd_yuv_pitch(dec_store->size_t[i].w, path->data_bits, path->is_pack);
+		dec_store->pitch_t[i].pitch_ch1 = dec_store->pitch_t[i].pitch_ch0;
+		size = dec_store->pitch_t[i].pitch_ch0 * dec_store->size_t[i].h;
+		dec_store->addr[0] = frame->buf.iova[0] + offset;
+		dec_store->addr[1] = dec_store->addr[0] + size;
+		hw->dcam_ioctl(hw, DCAM_HW_CFG_DEC_STORE_ADDR, dec_store);
+
+		pr_debug("dcam %d dec_layer %d w %d h %d\n", dec_store->idx, i, dec_store->size_t[i].w, dec_store->size_t[i].h);
+		pr_debug("dcam %d dec_layer %d w %x h %x\n", dec_store->idx, i, dec_store->addr[0], dec_store->addr[1]);
 	}
 
 	return ret;
@@ -1068,6 +1103,9 @@ int dcam_path_store_frm_set(void *dcam_ctx_handle,
 		store_arg.blk_param = blk_dcam_pm;
 		hw->dcam_ioctl(hw, DCAM_HW_CFG_STORE_ADDR, &store_arg);
 	}
+
+	if ((path_id == DCAM_PATH_BIN) && (frame->need_pyr_rec))
+		dcampath_update_pyr_dec_addr(dcam_sw_ctx, path, frame);
 
 	if (saved)
 		dcampath_frame_pointer_swap(&frame, &saved);

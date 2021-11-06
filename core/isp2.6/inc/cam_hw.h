@@ -1111,6 +1111,7 @@ struct dcam_hw_cfg_store_addr {
 struct dcam_hw_dec_store_cfg {
 	uint32_t idx;
 	uint32_t cur_layer;
+	uint32_t layer_num;
 	uint32_t bypass;
 	uint32_t endian;
 	uint32_t mono_en;
@@ -1133,6 +1134,10 @@ struct dcam_hw_dec_store_cfg {
 	uint32_t store_res;
 	uint32_t shadow_clr;
 	uint32_t last_frm_en;
+	uint32_t align_w;
+	uint32_t align_h;
+	struct img_size size_t[5];
+	struct img_pitch pitch_t[5];
 };
 
 struct dcam_hw_dec_online_cfg {

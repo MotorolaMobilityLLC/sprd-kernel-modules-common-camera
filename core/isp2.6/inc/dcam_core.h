@@ -147,6 +147,7 @@ struct dcam_path_desc {
 	struct camera_queue result_queue;
 	struct dcam_rds_slice_ctrl gphase;
 	struct yuv_scaler_info scaler_info;
+	struct dcam_hw_dec_store_cfg dec_store_info;
 };
 
 /*
