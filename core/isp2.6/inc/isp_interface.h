@@ -76,6 +76,7 @@ enum isp_path_cfg_cmd {
 	ISP_PATH_CFG_3DNR_MODE,
 	ISP_PATH_CFG_PYR_REC_BUF,
 	ISP_PATH_CFG_PYR_DEC_BUF,
+	ISP_PATH_CFG_PATH_SLW,
 	ISP_PATH_CFG_MAX,
 };
 
@@ -181,6 +182,9 @@ struct isp_ctx_base_desc {
 	uint32_t enable_slowmotion;
 	uint32_t slowmotion_count;
 	uint32_t slw_state;
+	uint32_t slowmotion_stage_a_num;
+	uint32_t slowmotion_stage_a_valid_num;
+	uint32_t slowmotion_stage_b_num;
 	enum cam_ch_id ch_id;
 	struct sprd_img_size sn_size;
 };

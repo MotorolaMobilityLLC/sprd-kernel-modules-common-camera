@@ -3805,15 +3805,56 @@ static int camioctl_key_set(struct camera_module *module, unsigned long arg)
 	int ret = 0;
 	uint32_t param = 0;
 	ret = copy_from_user(&param, (void __user *)arg, sizeof(uint32_t));
+        if (unlikely(ret)) {
+             pr_err("fail to copy from user, ret %d\n", ret);
+             return -EFAULT;
+        }
+	if (param == CAM_IOCTL_PRIVATE_KEY)
+		module->private_key = 1;
+
+	pr_info("cam%d get ioctrl permission %d\n", module->idx, module->private_key);
+	return 0;
+}
+
+static int camioctl_960fps_param_set(struct camera_module *module, unsigned long arg)
+{
+	struct sprd_slowmotion_960fps_param param;
+	struct channel_context *channel = NULL;
+	int ret = 0;
+	int isp_ctx_id = 0;
+	int isp_path_id = 0;
+	ret = copy_from_user(&param, (void __user *)arg, sizeof(struct sprd_slowmotion_960fps_param));
 	if (unlikely(ret)) {
 		pr_err("fail to copy from user, ret %d\n", ret);
 		return -EFAULT;
 	}
-	if (param == CAM_IOCTL_PRIVATE_KEY) {
-		module->private_key = 1;
+
+	if (param.ch_id > CAM_CH_CAP && param.ch_id != CAM_CH_VIRTUAL) {
+		pr_err("fail to check param, ch%d\n", param.ch_id);
+		return -EFAULT;
 	}
-	pr_info("get into camioctl_key_set successful, module_pri_key =%d\n", module->private_key);
+	channel = &module->channel[param.ch_id];
+	if (channel->enable == 0) {
+		pr_err("ch%d not enable\n", param.ch_id);
+		return -EFAULT;
+	}
+	isp_ctx_id = channel->isp_ctx_id;
+	isp_path_id = ISP_SPATH_VID;
+	channel->ch_uinfo.frame_num = param.stage_a_frm_num;
+	channel->ch_uinfo.frame_num1 = param.stage_b_frm_num;
+	channel->ch_uinfo.high_fps_skip_num1= param.stage_a_valid_frm_num;
+	if (channel->ch_uinfo.is_high_fps && (isp_ctx_id >= 0)) {
+		struct isp_ctx_base_desc slw_desc;
+		memset(&slw_desc, 0, sizeof(struct isp_ctx_base_desc));
+		slw_desc.slowmotion_stage_a_num = channel->ch_uinfo.frame_num;
+		slw_desc.slowmotion_stage_a_valid_num = channel->ch_uinfo.high_fps_skip_num1;
+		slw_desc.slowmotion_stage_b_num = channel->ch_uinfo.frame_num1;
+		ret = module->isp_dev_handle->isp_ops->cfg_path(module->isp_dev_handle,
+			ISP_PATH_CFG_PATH_SLW, isp_ctx_id, isp_path_id, &slw_desc);
+	}
+	pr_info("cam%d ch%d, (%d/8 %d num), (8/8 %d num)\n",
+		module->idx, param.ch_id, channel->ch_uinfo.high_fps_skip_num1,
+		channel->ch_uinfo.frame_num, channel->ch_uinfo.frame_num1);
 	return 0;
 }
-
 #endif

@@ -539,7 +539,7 @@ static int ispcore_dewarp_frame_process(struct isp_sw_context *pctx,
 
 static int ispcore_fmcu_slw_queue_set(
 		struct isp_fmcu_ctx_desc *fmcu,
-		struct isp_sw_context *pctx)
+		struct isp_sw_context *pctx, uint32_t vid_valid)
 {
 	int ret = 0, i;
 	uint32_t frame_id;
@@ -578,13 +578,25 @@ static int ispcore_fmcu_slw_queue_set(
 		path = &pctx->isp_path[i];
 		if (atomic_read(&path->user_cnt) < 1)
 			continue;
+		out_frame = NULL;
 
-		if (i == ISP_SPATH_VID)
+		if (i == ISP_SPATH_VID && vid_valid) {
 			out_frame = cam_queue_dequeue(&path->out_buf_queue,
 				struct camera_frame, list);
-		if (out_frame == NULL)
+			pr_debug("vid use valid %px\n", out_frame);
+		}
+
+		if (out_frame == NULL) {
 			out_frame = cam_queue_dequeue(&path->reserved_buf_queue,
 				struct camera_frame, list);
+		} else if (i == ISP_SPATH_VID) {
+			if (pctx->uinfo.stage_a_frame_num > 0)
+				pctx->uinfo.stage_a_frame_num--;
+			else if (pctx->uinfo.stage_b_frame_num > 0)
+				pctx->uinfo.stage_b_frame_num--;
+			else if (pctx->uinfo.stage_c_frame_num > 0)
+				pctx->uinfo.stage_c_frame_num--;
+		}
 
 		if (out_frame == NULL) {
 			pr_debug("fail to get available output buffer.\n");
@@ -606,9 +618,9 @@ static int ispcore_fmcu_slw_queue_set(
 		out_frame->sensor_time = pframe->sensor_time;
 		out_frame->boot_sensor_time = pframe->boot_sensor_time;
 
-		pr_debug("isp output buf, iova 0x%x, phy: 0x%x\n",
-				(uint32_t)out_frame->buf.iova[0],
-				(uint32_t)out_frame->buf.addr_k[0]);
+		pr_debug("fid %d,ch_id %d,isp output buf, iova 0x%x, phy: 0x%x, is reserve %d\n",
+				out_frame->fid,out_frame->channel_id,(uint32_t)out_frame->buf.iova[0],
+				(uint32_t)out_frame->buf.addr_k[0], out_frame->is_reserved);
 		isp_path_store_frm_set(path, out_frame);
 		if ((i < AFBC_PATH_NUM) && pctx->pipe_src.path_info[i].store_fbc)
 			isp_path_afbc_store_frm_set(path, out_frame);
@@ -1248,7 +1260,7 @@ static struct camera_frame *ispcore_path_out_frame_get(
 	int ret = 0, j = 0;
 	uint32_t buf_type = 0;
 	struct camera_frame *out_frame = NULL;
-
+	uint32_t use_reserve_because_960fps_end = 0;
 	if (!pctx || !path || !tmp) {
 		pr_err("fail to get valid input pctx %p, path %p\n", pctx, path);
 		return NULL;
@@ -1258,6 +1270,13 @@ static struct camera_frame *ispcore_path_out_frame_get(
 		buf_type = tmp->stream->buf_type[path->spath_id];
 		switch (buf_type) {
 		case ISP_STREAM_BUF_OUT:
+			if ((path->spath_id == ISP_SPATH_VID) &&
+				pctx->uinfo.stage_a_valid_count &&
+				(!pctx->uinfo.stage_a_frame_num) &&
+				(!pctx->uinfo.stage_b_frame_num) &&
+				(!pctx->uinfo.stage_c_frame_num))
+				use_reserve_because_960fps_end = 1;
+			pr_info("use_reserve_because_960fps_end %d, path%d, a valid cnt %d, %d %d %d\n", use_reserve_because_960fps_end, path->spath_id, pctx->uinfo.stage_a_valid_count, pctx->uinfo.stage_a_frame_num, pctx->uinfo.stage_b_frame_num, pctx->uinfo.stage_c_frame_num);
 			goto normal_out_put;
 		case ISP_STREAM_BUF_RESERVED:
 			out_frame = cam_queue_dequeue(&path->reserved_buf_queue,
@@ -1296,7 +1315,7 @@ normal_out_put:
 	if (pctx->sw_slice_num && pctx->sw_slice_no != 0) {
 		out_frame = cam_queue_dequeue(&path->result_queue,
 					struct camera_frame, list);
-	} else {
+	} else if (use_reserve_because_960fps_end == 0){
 		int cnt = 0;
 		uint32_t not_use_reserved_buf = (path->spath_id == ISP_SPATH_CP) && (tmp->not_use_reserved_buf);
 		do {
@@ -1543,14 +1562,22 @@ static int ispcore_offline_param_set(struct isp_sw_context *pctx,
 		out_frame->sensor_time = pframe->sensor_time;
 		out_frame->boot_sensor_time = pframe->boot_sensor_time;
 
+		if (i == ISP_SPATH_VID && pctx->uinfo.stage_a_valid_count && (!out_frame->is_reserved)) {
+			if (pctx->uinfo.stage_a_frame_num > 0)
+				pctx->uinfo.stage_a_frame_num--;
+			else if (pctx->uinfo.stage_b_frame_num > 0)
+				pctx->uinfo.stage_b_frame_num--;
+			else if (pctx->uinfo.stage_c_frame_num > 0)
+				pctx->uinfo.stage_c_frame_num--;
+		}
 		if (pctx->ch_id == CAM_CH_CAP)
 			pr_info("isp_ctx %d is_reserved %d iova 0x%x, user_fid: %x mfd 0x%x\n",
 				pctx->ctx_id, out_frame->is_reserved,
 				(uint32_t)out_frame->buf.iova[0], out_frame->user_fid,
 				out_frame->buf.mfd[0]);
 		else
-			pr_debug("isp %d is_reserved %d iova 0x%x, user_fid: %x mfd 0x%x fid: %d\n",
-				pctx->ctx_id, out_frame->is_reserved,
+			pr_debug("isp %d, path%d is_reserved %d iova 0x%x, user_fid: %x mfd 0x%x fid: %d\n",
+				pctx->ctx_id, i, out_frame->is_reserved,
 				(uint32_t)out_frame->buf.iova[0], out_frame->user_fid,
 				out_frame->buf.mfd[0], out_frame->fid);
 		/* config store buffer */
@@ -1639,6 +1666,33 @@ static int ispcore_offline_param_set(struct isp_sw_context *pctx,
 
 exit:
 	return ret;
+}
+
+static uint32_t ispcore_slw_need_vid_num(struct isp_uinfo *uinfo)
+{
+	uint32_t vid_valid_count = 0;
+	uint32_t res_num = 0, valid_cnt = 0;
+
+	if (uinfo->stage_a_valid_count == 0)
+		return (uinfo->slowmotion_count - 1);
+
+	if (uinfo->stage_a_frame_num > 0) {
+		res_num = uinfo->stage_a_frame_num;
+		valid_cnt = uinfo->stage_a_valid_count;
+	} else if (uinfo->stage_b_frame_num > 0) {
+		res_num = uinfo->stage_b_frame_num;
+		valid_cnt = uinfo->slowmotion_count;
+	} else if(uinfo->stage_c_frame_num > 0) {
+		res_num = uinfo->stage_c_frame_num;
+		valid_cnt = uinfo->stage_a_valid_count;
+	} else if (uinfo->stage_a_valid_count)
+		return 0;
+
+	if ((res_num / valid_cnt) >= 1)
+		vid_valid_count = valid_cnt - 1;
+	else
+		vid_valid_count = res_num % valid_cnt;
+	return vid_valid_count;
 }
 
 static int ispcore_offline_frame_start(void *ctx)
@@ -1769,7 +1823,7 @@ static int ispcore_offline_frame_start(void *ctx)
 	}
 
 	if (tmp.valid_out_frame == -1) {
-		pr_debug(" No available output buffer sw %d, hw %d,discard\n",
+		pr_info(" No available output buffer sw %d, hw %d,discard\n",
 			pctx_hw->sw_ctx_id, pctx_hw->hw_ctx_id);
 		if (rgb_ltm)
 			rgb_ltm->ltm_ops.sync_ops.clear_status(rgb_ltm);
@@ -1838,8 +1892,13 @@ static int ispcore_offline_frame_start(void *ctx)
 	mutex_unlock(&pctx->param_mutex);
 
 	if (pctx->uinfo.enable_slowmotion) {
+		uint32_t vid_valid_count = 0;
+		vid_valid_count = ispcore_slw_need_vid_num(&pctx->uinfo);
+		pr_info("vid count %d, stage a frm_num %d, stage b frm_num %d, stage c frm_num %d, fps %d",
+			vid_valid_count,pctx->uinfo.stage_a_frame_num,pctx->uinfo.stage_b_frame_num, pctx->uinfo.stage_c_frame_num, pctx->uinfo.slowmotion_count);
+
 		for (i = 0; i < pctx->uinfo.slowmotion_count - 1; i++) {
-			ret = ispcore_fmcu_slw_queue_set(fmcu, pctx);
+			ret = ispcore_fmcu_slw_queue_set(fmcu, pctx, i < vid_valid_count);
 			if (ret)
 				pr_err("fail to set fmcu slw queue\n");
 		}
@@ -2602,10 +2661,10 @@ static int ispcore_frame_proc(void *isp_handle, void *param, int ctx_id)
 		return -EFAULT;
 	}
 
-	pr_debug("cam%d ctx %d, fid %d, ch_id %d, buf %d, 3dnr %d, w %d, h %d, pctx->uinfo.crop.size_x %d\n",
+	pr_debug("cam%d ctx %d, fid %d, ch_id %d, buf %d, 3dnr %d, w %d, h %d, pctx->uinfo.crop.size_x %d,pframe->is_reserved %d\n",
 		pctx->attach_cam_id, ctx_id, pframe->fid,
 		pframe->channel_id, pframe->buf.mfd[0], pctx->uinfo.mode_3dnr,
-		pframe->width, pframe->height, pctx->uinfo.crop.size_x);
+		pframe->width, pframe->height, pctx->uinfo.crop.size_x,pframe->is_reserved);
 
 	stream_ctrl_cnt = cam_queue_cnt_get(&pctx->stream_ctrl_in_q);
 	if (is_superzoom && pctx->ch_id == CAM_CH_CAP && pctx->is_post_multi) {
@@ -2958,6 +3017,9 @@ static int ispcore_path_cfg(void *isp_handle,
 		mutex_lock(&pctx->param_mutex);
 		pctx->uinfo.mode_3dnr = *(uint32_t *)param;
 		mutex_unlock(&pctx->param_mutex);
+		break;
+	case ISP_PATH_CFG_PATH_SLW:
+		ret = isp_path_slw960_uinfo_set(pctx, param);
 		break;
 	default:
 		pr_warn("warning: unsupported cmd: %d\n", cfg_cmd);

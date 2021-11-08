@@ -50,6 +50,30 @@ static uint32_t isppath_deci_factor_get(uint32_t src_size, uint32_t dst_size)
 	return factor;
 }
 
+int isp_path_slw960_uinfo_set(struct isp_sw_context *pctx, void *param)
+{
+	struct isp_uinfo *uinfo = NULL;
+	struct isp_ctx_base_desc *cfg_in = NULL;
+
+	if (!pctx || !param) {
+		pr_err("fail to get valid input ptr, pctx %p, param %p\n",
+			pctx, param);
+		return -EFAULT;
+	}
+	uinfo = &pctx->uinfo;
+	cfg_in = (struct isp_ctx_base_desc *)param;
+	if (uinfo->enable_slowmotion) {
+		uinfo->stage_a_frame_num = cfg_in->slowmotion_stage_a_num;
+		uinfo->stage_a_valid_count = cfg_in->slowmotion_stage_a_valid_num;
+		uinfo->stage_b_frame_num = cfg_in->slowmotion_stage_b_num;
+		uinfo->stage_c_frame_num = cfg_in->slowmotion_stage_a_num;
+	}
+	pr_info("isp%d, slw enable %d, stage_a_frame_num %d, stage_a_valid_count %d, stage_b_frame_num %d\n",
+		pctx->ctx_id, uinfo->enable_slowmotion, uinfo->stage_a_frame_num, uinfo->stage_a_valid_count,
+		uinfo->stage_b_frame_num);
+	return 0;
+}
+
 int isp_path_comn_uinfo_set(struct isp_sw_context *pctx, void *param)
 {
 	int ret = 0;
@@ -363,7 +387,7 @@ int isp_path_fetch_frm_set(struct isp_sw_context *pctx,
 	if (pctx->dev->sec_mode == SEC_SPACE_PRIORITY)
 		cam_trusty_isp_fetch_addr_set(yuv_addr[0], yuv_addr[1], yuv_addr[2]);
 
-	pr_debug("camca  isp sec_mode=%d,  %lx %lx %lx\n", pctx->dev->sec_mode,
+	pr_info("camca  isp sec_mode=%d,  %lx %lx %lx\n", pctx->dev->sec_mode,
 		yuv_addr[0],
 		yuv_addr[1],
 		yuv_addr[2]);

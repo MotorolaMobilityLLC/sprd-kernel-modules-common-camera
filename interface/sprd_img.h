@@ -55,7 +55,7 @@
 
 #define SPRD_FLASH_MAX_CELL  40
 
-#define IMG_PATH_BUFFER_COUNT 40
+#define IMG_PATH_BUFFER_COUNT 64
 
 #define VIR_CH_NUM 2
 
@@ -860,6 +860,13 @@ struct sprd_dcam_raw_fmt {
 	uint32_t dcam_raw_fmt;
 };
 
+struct sprd_slowmotion_960fps_param {
+	uint32_t ch_id;
+	uint32_t stage_a_frm_num;
+	uint32_t stage_b_frm_num;
+	uint32_t stage_a_valid_frm_num;
+};
+
 #define SPRD_IMG_IO_MAGIC                'Z'
 #define SPRD_IMG_IO_SET_MODE             _IOW(SPRD_IMG_IO_MAGIC, 0, uint32_t)
 #define SPRD_IMG_IO_SET_CAP_SKIP_NUM     _IOW(SPRD_IMG_IO_MAGIC, 1, uint32_t)
@@ -942,6 +949,7 @@ struct sprd_dcam_raw_fmt {
 #define SPRD_IMG_IO_SET_MUL_MAX_SN_SIZE  _IOW(SPRD_IMG_IO_MAGIC, 80, struct sprd_img_size)
 #define SPRD_IMG_IO_SET_DCAM_RAW_FMT     _IOW(SPRD_IMG_IO_MAGIC, 81, struct sprd_dcam_raw_fmt)
 #define SPRD_IMG_TO_SET_KEY              _IOW(SPRD_IMG_IO_MAGIC, 82, uint32_t)
+#define SPRD_IMG_IO_SET_960FPS_PARAM     _IOW(SPRD_IMG_IO_MAGIC, 83, struct sprd_slowmotion_960fps_param)
 
 /*
  * Dump dcam register.

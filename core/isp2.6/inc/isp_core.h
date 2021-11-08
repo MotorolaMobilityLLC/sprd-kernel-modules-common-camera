@@ -34,7 +34,7 @@
 #define ISP_SLW_IN_Q_LEN           50
 #define ISP_SLW_PROC_Q_LEN         50
 #define ISP_SLW_RESULT_Q_LEN       50
-#define ISP_OUT_BUF_Q_LEN          48
+#define ISP_OUT_BUF_Q_LEN          96
 #define ISP_RESERVE_BUF_Q_LEN      24
 #define ISP_STREAM_STATE_Q_LEN     12
 #define ISP_SW_CONTEXT_Q_LEN       ISP_SW_CONTEXT_NUM
@@ -200,7 +200,12 @@ struct isp_uinfo {
 	uint32_t mode_3dnr;
 	uint32_t slw_state;
 	uint32_t enable_slowmotion;
+	uint32_t slowmotion_240fp_count;
 	uint32_t slowmotion_count;
+	uint32_t stage_a_frame_num;
+	uint32_t stage_a_valid_count;
+	uint32_t stage_b_frame_num;
+	uint32_t stage_c_frame_num;
 	uint32_t uframe_sync;
 	uint32_t scaler_coeff_ex;
 	uint32_t pyr_layer_num;

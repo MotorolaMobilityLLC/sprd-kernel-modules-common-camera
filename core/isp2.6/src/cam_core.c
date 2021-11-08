@@ -141,6 +141,9 @@ struct camera_uchannel {
 	uint32_t deci_factor;/* for ISP output path */
 	uint32_t is_high_fps;/* for DCAM slow motion feature */
 	uint32_t high_fps_skip_num;/* for DCAM slow motion feature */
+	uint32_t frame_num;/* for DCAM slow motion feature 60 frame*/
+	uint32_t high_fps_skip_num1;/* for DCAM slow motion feature */
+	uint32_t frame_num1;/* for DCAM slow motion feature 90 frame*/
 	uint32_t is_compressed;/* for ISP output fbc format */
 
 	int32_t sensor_raw_fmt;
@@ -5561,6 +5564,16 @@ static int camcore_channel_init(struct camera_module *module,
 		path_desc.data_bits = DCAM_STORE_10_BIT;
 		ret = module->isp_dev_handle->isp_ops->cfg_path(module->isp_dev_handle,
 			ISP_PATH_CFG_PATH_BASE, isp_ctx_id, isp_path_id, &path_desc);
+
+		if (ch_uinfo->is_high_fps) {
+			struct isp_ctx_base_desc slw_desc;
+			memset(&slw_desc, 0, sizeof(struct isp_ctx_base_desc));
+			slw_desc.slowmotion_stage_a_num = ch_uinfo->frame_num;
+			slw_desc.slowmotion_stage_a_valid_num = ch_uinfo->high_fps_skip_num1;
+			slw_desc.slowmotion_stage_b_num = ch_uinfo->frame_num1;
+			ret = module->isp_dev_handle->isp_ops->cfg_path(module->isp_dev_handle,
+				ISP_PATH_CFG_PATH_SLW, isp_ctx_id, isp_path_id, &slw_desc);
+		}
 	}
 
 	if (new_isp_path && channel->ch_uinfo.slave_img_en) {
@@ -7216,6 +7229,7 @@ static struct cam_ioctl_cmd ioctl_cmds_table[] = {
 	[_IOC_NR(SPRD_IMG_IO_SET_CAP_ZSL_INFO)]     = {SPRD_IMG_IO_SET_CAP_ZSL_INFO,     camioctl_cap_zsl_info_set},
 	[_IOC_NR(SPRD_IMG_IO_SET_DCAM_RAW_FMT)]     = {SPRD_IMG_IO_SET_DCAM_RAW_FMT,     camioctl_dcam_raw_fmt_set},
 	[_IOC_NR(SPRD_IMG_TO_SET_KEY)]              = {SPRD_IMG_TO_SET_KEY,              camioctl_key_set},
+	[_IOC_NR(SPRD_IMG_IO_SET_960FPS_PARAM)]     = {SPRD_IMG_IO_SET_960FPS_PARAM,     camioctl_960fps_param_set},
 };
 
 static long camcore_ioctl(struct file *file, unsigned int cmd,
@@ -7433,7 +7447,8 @@ rewait:
 			read_op.parm.frame.irq_property = pframe->irq_property;
 		}
 
-		pr_debug("read frame, evt 0x%x irq %d, irq_property %d, ch 0x%x index 0x%x mfd 0x%x\n",
+		if (read_op.parm.frame.channel_id == 1 ||read_op.parm.frame.channel_id == 2)
+		pr_info("read frame, evt 0x%x irq %d, irq_property %d, ch 0x%x index 0x%x mfd 0x%x\n",
 			read_op.evt, read_op.parm.frame.irq_type, read_op.parm.frame.irq_property, read_op.parm.frame.channel_id,
 			read_op.parm.frame.real_index, read_op.parm.frame.mfd);
 

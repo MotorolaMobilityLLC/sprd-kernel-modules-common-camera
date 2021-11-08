@@ -43,5 +43,6 @@ int isp_path_afbc_store_frm_set(struct isp_path_desc *path, struct camera_frame 
 int isp_path_scaler_param_calc(struct img_trim *in_trim,
 		struct img_size *out_size, struct yuv_scaler_info *scaler,
 		struct img_deci_info *deci);
+int isp_path_slw960_uinfo_set(struct isp_sw_context *pctx, void *param);
 
 #endif
