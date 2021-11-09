@@ -500,10 +500,10 @@ abnormal_reg_trace:
 			addr += 16) {
 		pr_info("0x%lx: 0x%x 0x%x 0x%x 0x%x\n",
 			addr,
-			ISP_HREG_RD(addr),
-			ISP_HREG_RD(addr + 4),
-			ISP_HREG_RD(addr + 8),
-			ISP_HREG_RD(addr + 12));
+			ISP_MMU_RD(addr),
+			ISP_MMU_RD(addr + 4),
+			ISP_MMU_RD(addr + 8),
+			ISP_MMU_RD(addr + 12));
 	}
 
 	pr_info("ISP common status: register list\n");
@@ -522,7 +522,7 @@ abnormal_reg_trace:
 			ISP_REG_RD(trace->idx, addr + 8),
 			ISP_REG_RD(trace->idx, addr + 12));
 	}
-
+	return 0;
 normal_reg_trace:
 	val_mmu = DCAM_MMU_RD(MMU_EN);
 	cnt = sizeof(cam_reg_trace_tab) /

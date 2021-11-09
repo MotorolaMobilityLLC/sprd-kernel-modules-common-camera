@@ -506,6 +506,13 @@ static void dcamint_debug_dump(
 		frame, sw_ctx->cb_priv_data);
 }
 
+static void dcamint_cap_eof(void *param, struct dcam_sw_context *sw_ctx)
+{
+	struct dcam_hw_context *dcam_hw_ctx = (struct dcam_hw_context *)param;
+	DCAM_AXIM_WR(dcam_hw_ctx->hw_ctx_id, AXIM_CNT_CLR, 1);
+	pr_debug("get into dcamint_cap_eof success\n");
+}
+
 static void dcamint_cap_sof(void *param, struct dcam_sw_context *sw_ctx)
 {
 	struct dcam_hw_context *dcam_hw_ctx = (struct dcam_hw_context *)param;
@@ -1252,6 +1259,7 @@ static const dcam_isr_type _DCAM_ISRS[] = {
 	[DCAM_IF_IRQ_INT0_SENSOR_SOF] = dcamint_sensor_sof,
 	[DCAM_IF_IRQ_INT0_SENSOR_EOF] = dcamint_sensor_eof,
 	[DCAM_IF_IRQ_INT0_CAP_SOF] = dcamint_cap_sof,
+	[DCAM_IF_IRQ_INT0_CAP_EOF] = dcamint_cap_eof,
 	[DCAM_IF_IRQ_INT0_RAW_PATH_TX_DONE] = dcamint_raw_path_done,
 	[DCAM_IF_IRQ_INT0_PREIEW_SOF] = dcamint_preview_sof,
 	[DCAM_IF_IRQ_INT0_CAPTURE_PATH_TX_DONE] = dcamint_full_path_done,
@@ -1283,6 +1291,7 @@ static const dcam_isr_type _DCAM_ISRS1[] = {
 static const int _DCAM0_SEQUENCE[] = {
 	DCAM_IF_IRQ_INT0_SENSOR_SOF,
 	DCAM_IF_IRQ_INT0_CAP_SOF,/* must */
+	DCAM_IF_IRQ_INT0_CAP_EOF,
 	DCAM_IF_IRQ_INT0_PREIEW_SOF,
 	DCAM_IF_IRQ_INT0_SENSOR_EOF,/* TODO: why for flash */
 	DCAM_IF_IRQ_INT0_NR3_TX_DONE,/* for 3dnr, before data path */
@@ -1316,6 +1325,7 @@ static const int _DCAM0_SEQUENCE_INT1[] = {
 static const int _DCAM1_SEQUENCE[] = {
 	DCAM_IF_IRQ_INT0_SENSOR_SOF,
 	DCAM_IF_IRQ_INT0_CAP_SOF,/* must */
+	DCAM_IF_IRQ_INT0_CAP_EOF,
 	DCAM_IF_IRQ_INT0_SENSOR_EOF,/* TODO: why for flash */
 	DCAM_IF_IRQ_INT0_NR3_TX_DONE,/* for 3dnr, before data path */
 	DCAM_IF_IRQ_INT0_RAW_PATH_TX_DONE,/* for raw path */

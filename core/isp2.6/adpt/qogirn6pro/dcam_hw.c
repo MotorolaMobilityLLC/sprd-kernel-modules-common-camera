@@ -37,7 +37,7 @@ static uint32_t dcam_hw_linebuf_len[3] = {0, 0, 0};
 static uint32_t g_gtm_bypass = 1;
 static uint32_t g_ltm_bypass = 1;
 static atomic_t clk_users;
-
+extern contr_cap_eof;
 static uint32_t dcam_fbc_store_base[DCAM_FBC_PATH_NUM] = {
 	DCAM_YUV_FBC_SCAL_BASE,
 	/* full path share fbc with raw path*/
@@ -412,12 +412,17 @@ static int dcamhw_start(void *handle, void *arg)
 	DCAM_REG_WR(parm->idx, DCAM_INT0_CLR, 0xFFFFFFFF);
 	DCAM_REG_WR(parm->idx, DCAM_INT1_CLR, 0xFFFFFFFF);
 	/* see DCAM_PREVIEW_SOF in dcam_int.h for details */
-	if (parm->raw_callback == 1) {
+	if (parm->raw_callback == 1)
 		DCAM_REG_WR(parm->idx, DCAM_INT_EN, DCAMINT_IRQ_LINE_EN0_NORMAL | BIT(DCAM_IF_IRQ_INT0_SENSOR_SOF));
-	} else {
+	else
 		DCAM_REG_WR(parm->idx, DCAM_INT0_EN, DCAMINT_IRQ_LINE_EN0_NORMAL);
-	}
+
 	DCAM_REG_WR(parm->idx, DCAM_INT1_EN, DCAMINT_IRQ_LINE_EN1_NORMAL);
+
+	if (contr_cap_eof == 0)
+		DCAM_REG_MWR(parm->idx, DCAM_INT0_EN, BIT_3, 0);
+	else
+		DCAM_REG_MWR(parm->idx, DCAM_INT0_EN, BIT_3, BIT_3);
 
 	/* trigger cap_en*/
 	DCAM_REG_MWR(parm->idx, DCAM_MIPI_CAP_CFG, BIT_0, 1);

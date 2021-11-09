@@ -46,6 +46,7 @@ uint32_t g_pyr_dec_offline_bypass = 0;
 uint32_t g_dcam_raw_src = PROCESS_RAW_SRC_SEL;
 uint32_t g_dbg_dumpswitch = 0;
 uint32_t g_dbg_fbc_control = 0;
+uint32_t contr_cap_eof = 1;
 extern atomic_t s_dcam_opened[DCAM_SW_CONTEXT_MAX];
 extern struct isp_pipe_dev *s_isp_dev;
 extern uint32_t s_dbg_linebuf_len;
@@ -706,6 +707,48 @@ static const struct file_operations dcam_raw_src_ops = {
 	.write = camdebugger_dcam_raw_src_set,
 };
 
+static ssize_t camdebugger_dcamint_eof_read(struct file *filp,
+	char __user *buffer, size_t count, loff_t *ppos)
+{
+	char buf[16];
+	snprintf(buf, sizeof(buf), "%d\n", contr_cap_eof);
+	return simple_read_from_buffer(
+		buffer, count, ppos,
+		buf, strlen(buf));
+}
+
+static ssize_t camdebugger_dcamint_eof_write(struct file *filp,
+	const char __user *buffer, size_t count, loff_t *ppos)
+{
+	int ret = 0;
+	char msg[8];
+	char *last;
+	int x;
+	if (count > 8)
+		return -EINVAL;
+	ret = copy_from_user(msg, (void __user *)buffer, count);
+	for (x = 0; x < count-1; x++) {
+		if (!(('0' <= msg[x]) && (msg[x] <= '9'))) {
+			pr_err("fail to set the msg\n");
+			return -EFAULT;
+		}
+	}
+	if (ret) {
+		pr_err("fail to copy_from_user\n");
+		return -EFAULT;
+	}
+	contr_cap_eof = simple_strtol(msg, &last, 0);
+	pr_info("set contr_cap_eof value %d\n", contr_cap_eof);
+	return count;
+}
+
+static const struct file_operations dcam_eof_ops = {
+	.owner = THIS_MODULE,
+	.open = simple_open,
+	.read = camdebugger_dcamint_eof_read,
+	.write = camdebugger_dcamint_eof_write,
+};
+
 static int camdebugger_replace_image_read(struct seq_file *s,
 		void *unused)
 {
@@ -900,6 +943,10 @@ static int camdebugger_dcam_init(struct camera_debugger *debugger)
 	if (!debugfs_create_file("fbc_control", 0664,
 		pd, NULL, &fbc_control_ops))
 		ret |= BIT(15);
+	if (!debugfs_create_file("dcam_cap_eof", 0664,
+		pd, debugger, &dcam_eof_ops))
+		ret |= BIT(16);
+
 	entry = debugfs_create_file("replace_image", 0644, pd,
 			&debugger->replacer[0],
 			&replace_image_ops);
