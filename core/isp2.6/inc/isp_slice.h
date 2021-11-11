@@ -411,12 +411,15 @@ struct isp_slice_desc {
 	uint32_t x;
 	uint32_t y;
 	uint32_t path_en[ISP_SPATH_NUM];
+	uint32_t pyr_rec_eb;
 	/* slice position in src buffer, for fetch */
 	struct slice_pos_info slice_pos_fetch;
 	/* slice position (in fetched image) without overlap*/
 	struct slice_pos_info slice_pos_orig;
 	/* slice position (in fetched image) with overlap*/
 	struct slice_pos_info slice_pos;
+	/* slice position for fbd*/
+	struct slice_pos_info slice_pos_fbd;
 	struct slice_overlap_info slice_overlap;
 	struct slice_fetch_info slice_fetch;
 	struct slice_fbd_raw_info slice_fbd_raw;

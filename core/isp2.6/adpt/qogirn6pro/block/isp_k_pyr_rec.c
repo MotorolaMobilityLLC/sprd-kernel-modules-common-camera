@@ -681,11 +681,8 @@ int isp_pyr_rec_slice_common_config(void *handle)
 	cur_rec_slc->slice_cur_fetch.cur_layer = ctx->cur_layer;
 	cur_rec_slc->slice_cur_fetch.fetch_path_sel = ctx->fetch_path_sel;
 	memcpy(&cur_rec_slc->slice_cur_fetch.fetch_fbd, &ctx->fetch_fbd, sizeof(struct isp_fbd_yuv_info));
-	if ((cur_rec_slc->slice_cur_fetch.cur_layer == 0) && (cur_rec_slc->slice_cur_fetch.fetch_path_sel == 1)) {
-		cur_rec_slc->slice_cur_fetch.fetch_fbd.slice_size.w = cur_rec_slc->slice_cur_fetch.size.w;
-		cur_rec_slc->slice_cur_fetch.fetch_fbd.slice_size.h = cur_rec_slc->slice_cur_fetch.size.h;
+	if ((cur_rec_slc->slice_cur_fetch.cur_layer == 0) && (cur_rec_slc->slice_cur_fetch.fetch_path_sel == 1))
 		isppyrrec_fbd_fetch_slice_set(&cur_rec_slc->slice_cur_fetch, ctx->fmcu_handle);
-	}
 	else
 		isppyrrec_fetch_slice_set(&cur_rec_slc->slice_cur_fetch, ctx->fmcu_handle, ISP_PYR_REC_CUR);
 	isppyrrec_fetch_slice_set(&cur_rec_slc->slice_ref_fetch, ctx->fmcu_handle, ISP_PYR_REC_REF);

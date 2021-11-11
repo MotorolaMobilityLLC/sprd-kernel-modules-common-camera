@@ -986,6 +986,11 @@ static int ispslice_base_info_calc_cfg(struct slice_cfg_input *in_ptr,
 			cur_slc->slice_pos_fetch.end_col = cur_slc->slice_pos.end_col + fetch_start_x;
 			cur_slc->slice_pos_fetch.end_row = cur_slc->slice_pos.end_row + fetch_start_y;
 
+			cur_slc->slice_pos_fbd.start_col = slc_ctx->slice_overlap.fecth1_slice_region[0][j].sx + fetch_start_x;
+			cur_slc->slice_pos_fbd.start_row = slc_ctx->slice_overlap.fecth1_slice_region[0][j].sy + fetch_start_y;
+			cur_slc->slice_pos_fbd.end_col = slc_ctx->slice_overlap.fecth1_slice_region[0][j].ex + fetch_start_x;
+			cur_slc->slice_pos_fbd.end_row = slc_ctx->slice_overlap.fecth1_slice_region[0][j].ey + fetch_start_y;
+
 			pr_debug("slice %d %d pos_orig [start x %d y %d end x %d y %d]\n", i, j,
 				cur_slc->slice_pos_orig.start_col,
 				cur_slc->slice_pos_orig.start_row,
@@ -1006,6 +1011,12 @@ static int ispslice_base_info_calc_cfg(struct slice_cfg_input *in_ptr,
 				cur_slc->slice_overlap.overlap_right,
 				cur_slc->slice_overlap.overlap_up,
 				cur_slc->slice_overlap.overlap_down);
+
+			pr_debug("slice %d %d pos_fbd [start x %d y %d end x %d y %d]\n", i, j,
+				cur_slc->slice_pos_fbd.start_col,
+				cur_slc->slice_pos_fbd.start_row,
+				cur_slc->slice_pos_fbd.end_col,
+				cur_slc->slice_pos_fbd.end_row);
 
 			cur_slc->slice_fbd_raw.fetch_fbd_bypass = frame_fbd_raw->fetch_fbd_bypass;
 			cur_slc->slice_fbd_yuv.fetch_fbd_bypass = frame_fbd_yuv->fetch_fbd_bypass;
@@ -1709,12 +1720,21 @@ static void ispslice_slice_fbd_yuv_cfg(struct isp_fbd_yuv_info *frame_fbd_yuv,
 		struct isp_slice_desc *cur_slc)
 {
 	uint32_t tiles_num_pitch = frame_fbd_yuv->tile_num_pitch;
-	uint32_t start_row = cur_slc->slice_pos_fetch.start_row;
-	uint32_t end_row = cur_slc->slice_pos_fetch.end_row;
-	uint32_t start_col = cur_slc->slice_pos_fetch.start_col;
-	uint32_t end_col = cur_slc->slice_pos_fetch.end_col;
-
+	uint32_t start_row = 0, end_row = 0;
+	uint32_t start_col = 0, end_col = 0;
 	struct slice_fbd_yuv_info *slc_fbd_yuv = &cur_slc->slice_fbd_yuv;
+
+	if (cur_slc->pyr_rec_eb) {
+		start_row = cur_slc->slice_pos_fbd.start_row;
+		end_row = cur_slc->slice_pos_fbd.end_row;
+		start_col = cur_slc->slice_pos_fbd.start_col;
+		end_col = cur_slc->slice_pos_fbd.end_col;
+	} else {
+		start_row = cur_slc->slice_pos_fetch.start_row;
+		end_row = cur_slc->slice_pos_fetch.end_row;
+		start_col = cur_slc->slice_pos_fetch.start_col;
+		end_col = cur_slc->slice_pos_fetch.end_col;
+	}
 
 	if (frame_fbd_yuv->trim.start_x || frame_fbd_yuv->trim.start_y) {
 		start_col = start_col + frame_fbd_yuv->trim.start_x;
@@ -1752,6 +1772,7 @@ static int ispslice_fetch_info_cfg(void *cfg_in, struct isp_slice_context *slc_c
 		if (cur_slc->valid == 0)
 			continue;
 
+		cur_slc->pyr_rec_eb = slc_ctx->pyr_rec_eb;
 		if (!in_ptr->frame_fbd_raw->fetch_fbd_bypass)
 			ispslice_slice_fbd_raw_cfg(in_ptr->frame_fbd_raw, cur_slc);
 		else if (!in_ptr->frame_fbd_yuv->fetch_fbd_bypass)
@@ -3452,6 +3473,10 @@ int isp_slice_fmcu_cmds_set(void *fmcu_handle, void *ctx)
 		if (slc_ctx->pyr_rec_eb) {
 			rec_slice_func.index = ISP_K_BLK_PYR_REC_SLICE_COMMON;
 			hw->isp_ioctl(hw, ISP_HW_CFG_K_BLK_FUNC_GET, &rec_slice_func);
+			rec_ctx->fetch_fbd.slice_size = cur_slc->slice_fbd_yuv.slice_size;
+			rec_ctx->fetch_fbd.slice_start_pxl_xpt = cur_slc->slice_fbd_yuv.slice_start_pxl_xpt;
+			rec_ctx->fetch_fbd.slice_start_pxl_ypt = cur_slc->slice_fbd_yuv.slice_start_pxl_ypt;
+			rec_ctx->fetch_fbd.slice_start_header_addr = cur_slc->slice_fbd_yuv.slice_start_header_addr;
 			rec_ctx->cur_slice_id = i;
 			if (rec_slice_func.k_blk_func)
 				rec_slice_func.k_blk_func(pctx->rec_handle);
