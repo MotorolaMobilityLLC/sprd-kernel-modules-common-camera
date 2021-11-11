@@ -113,7 +113,7 @@
 #define IPG_V_BLANK			(0xFFF << 13)
 #define IPG_H_BLANK			(0x1FFF)
 
-static unsigned long s_csi_regbase[SPRD_SENSOR_ID_MAX];
+unsigned long s_csi_regbase[SPRD_SENSOR_ID_MAX];
 static unsigned long csi_dump_regbase[CSI_MAX_COUNT];
 static spinlock_t csi_dump_lock[CSI_MAX_COUNT] = {
 	__SPIN_LOCK_UNLOCKED(csi_dump_lock),

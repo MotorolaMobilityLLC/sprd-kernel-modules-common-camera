@@ -18,7 +18,7 @@
 #include <linux/spinlock.h>
 
 
-
+extern unsigned long s_csi_regbase[];
 #define CSI_BASE(idx)			(s_csi_regbase[idx])
 
 struct dphy_lane_cfg {
