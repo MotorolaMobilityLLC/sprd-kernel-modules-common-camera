@@ -73,6 +73,7 @@ struct sprd_sensor_dev_info_tag {
 	int mclk_freq;
 	int mclk_count;
 	struct device_node *dev_node;
+    uint32_t i2c_clock;
 };
 
 static struct sprd_sensor_dev_info_tag *s_sensor_dev_data[SPRD_SENSOR_ID_MAX];

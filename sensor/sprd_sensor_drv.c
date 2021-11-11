@@ -77,6 +77,8 @@ static const struct sensor_mclk_tag c_sensor_mclk_tab[] = {
 	{26, "clk_26m"},
 };
 
+#define I2C_1M_FLAG_CAM         0X0080
+#define I2C_400K_FLAG_CAM             0X0040
 
 static int sprd_sensor_parse_clk_dt(struct device *dev,
 				struct sprd_sensor_dev_info_tag
@@ -915,6 +917,7 @@ int sprd_sensor_set_i2c_clk(int sensor_id, uint32_t clock)
 		return -EINVAL;
 	}
 
+    p_dev->i2c_clock = clock;
 	pr_debug("set i2c %d clk %d\n", p_dev->i2c_info->adapter->nr, clock);
 
 	return 0;
@@ -958,11 +961,17 @@ int sprd_sensor_read_reg(int sensor_id, struct sensor_reg_bits_tag *pReg)
 
 	for (i = 0; i < SPRD_SENSOR_I2C_OP_TRY_NUM; i++) {
 		msg_r[0].addr = p_dev->i2c_info->addr;
-		msg_r[0].flags = 0;
+		if (1000000 == p_dev->i2c_clock)
+			msg_r[0].flags = 0 | I2C_1M_FLAG_CAM;
+		else
+			msg_r[0].flags = 0 | I2C_400K_FLAG_CAM;
 		msg_r[0].buf = cmd;
 		msg_r[0].len = w_cmd_num;
 		msg_r[1].addr = p_dev->i2c_info->addr;
-		msg_r[1].flags = I2C_M_RD;
+		if (1000000 == p_dev->i2c_clock)
+			msg_r[1].flags = I2C_M_RD | I2C_1M_FLAG_CAM;
+		else
+			msg_r[1].flags = I2C_M_RD | I2C_400K_FLAG_CAM;
 		msg_r[1].buf = buf_r;
 		msg_r[1].len = r_cmd_num;
 		cnt = i2c_transfer(p_dev->i2c_info->adapter, msg_r, 2);
@@ -1035,8 +1044,11 @@ int sprd_sensor_write_reg(int sensor_id, struct sensor_reg_bits_tag *pReg)
 	if (subaddr != SPRD_SENSOR_WRITE_DELAY) {
 		for (i = 0; i < SPRD_SENSOR_I2C_OP_TRY_NUM; i++) {
 			msg_w.addr = p_dev->i2c_info->addr;
-			msg_w.flags = 0;
-			msg_w.buf = cmd;
+			if (1000000 == p_dev->i2c_clock)
+				msg_w.flags = 0 | I2C_1M_FLAG_CAM;
+			else
+				msg_w.flags = 0 | I2C_400K_FLAG_CAM;
+            msg_w.buf = cmd;
 			msg_w.len = index;
 			cnt = i2c_transfer(p_dev->i2c_info->adapter, &msg_w, 1);
 			if (cnt != SPRD_SENSOR_I2C_WRITE_SUCCESS_CNT) {
@@ -1130,7 +1142,10 @@ int sprd_sensor_burst_write_samsung(struct sensor_reg_tag *p_reg_table,
 
 			for(i = 0; i < SPRD_SENSOR_I2C_OP_TRY_NUM; i++) {
 				msg_w.addr = p_dev->i2c_info->addr;
-				msg_w.flags = 0;
+				if (1000000 == p_dev->i2c_clock)
+					msg_w.flags = 0 | I2C_1M_FLAG_CAM;
+				else
+					msg_w.flags = 0 | I2C_400K_FLAG_CAM;
 				msg_w.buf = p_reg_val_tmp;
 				msg_w.len = wr_num_once;
 				cnt = i2c_transfer(p_dev->i2c_info->adapter, &msg_w, 1);
@@ -1225,8 +1240,11 @@ int sprd_sensor_burst_write_reg16_val8(struct sensor_reg_tag *p_reg_table,
 
 		for(i = 0; i < SPRD_SENSOR_I2C_OP_TRY_NUM; i++) {
 			msg_w.addr = p_dev->i2c_info->addr;
-			msg_w.flags = 0;
-			msg_w.buf = p_reg_val_tmp;
+			if (1000000 == p_dev->i2c_clock)
+				msg_w.flags = 0 | I2C_1M_FLAG_CAM;
+			else
+				msg_w.flags = 0 | I2C_400K_FLAG_CAM;
+            msg_w.buf = p_reg_val_tmp;
 			msg_w.len = wr_num_once;
 			cnt = i2c_transfer(p_dev->i2c_info->adapter, &msg_w, 1);
 			if (cnt != SPRD_SENSOR_I2C_WRITE_SUCCESS_CNT) {
@@ -1302,8 +1320,11 @@ int sprd_sensor_burst_write_reg16_val16(struct sensor_reg_tag *p_reg_table,
 
 		for(i = 0; i < SPRD_SENSOR_I2C_OP_TRY_NUM; i++) {
 			msg_w.addr = p_dev->i2c_info->addr;
-			msg_w.flags = 0;
-			msg_w.buf = p_reg_val_tmp;
+			if (1000000 == p_dev->i2c_clock)
+				msg_w.flags = 0 | I2C_1M_FLAG_CAM;
+			else
+				msg_w.flags = 0 | I2C_400K_FLAG_CAM;
+            msg_w.buf = p_reg_val_tmp;
 			msg_w.len = wr_num_once;
 			cnt = i2c_transfer(p_dev->i2c_info->adapter, &msg_w, 1);
 			if (cnt != SPRD_SENSOR_I2C_WRITE_SUCCESS_CNT) {
@@ -1562,8 +1583,11 @@ int sprd_sensor_write_i2c(struct sensor_i2c_tag *i2c_tab,
 	}
 
 	msg_w.addr = i2c_tab->slave_addr;
-	msg_w.flags = 0;
-	msg_w.buf = cmd;
+	if (1000000 == p_dev->i2c_clock)
+		msg_w.flags = 0 | I2C_1M_FLAG_CAM;
+	else
+		msg_w.flags = 0 | I2C_400K_FLAG_CAM;
+    msg_w.buf = cmd;
 	msg_w.len = cnt;
 
 	if (p_dev->vcm_i2c_client == NULL)
@@ -1743,12 +1767,18 @@ int sprd_sensor_read_i2c(struct sensor_i2c_tag *i2c_tab,
 
 	for (i = 0; i < SPRD_SENSOR_I2C_OP_TRY_NUM; i++) {
 		msg_r[0].addr = i2c_tab->slave_addr;
-		msg_r[0].flags = 0;
-		msg_r[0].buf = cmd;
+		if (1000000 == p_dev->i2c_clock)
+			msg_r[0].flags = 0 | I2C_1M_FLAG_CAM;
+		else
+			msg_r[0].flags = 0 | I2C_400K_FLAG_CAM;
+        msg_r[0].buf = cmd;
 		msg_r[0].len = cnt;
 		msg_r[1].addr = i2c_tab->slave_addr;
-		msg_r[1].flags = I2C_M_RD;
-		msg_r[1].buf = p_buf_r;
+		if (1000000 == p_dev->i2c_clock)
+			msg_r[1].flags = I2C_M_RD | I2C_1M_FLAG_CAM;
+		else
+			msg_r[1].flags = I2C_M_RD | I2C_400K_FLAG_CAM;
+        msg_r[1].buf = p_buf_r;
 		msg_r[1].len = read_num;
 
 		if (p_dev->vcm_i2c_client == NULL)
