@@ -2568,6 +2568,7 @@ static int camioctl_capture_start(struct camera_module *module,
 			atomic_set(&module->cap_skip_frames, cap_skip_num);
 		}
 		atomic_set(&module->capture_frames_dcam, param.cap_cnt);
+		atomic_set(&module->cap_total_frames, param.cap_cnt);
 		if (module->capture_scene == CAPTURE_SW3DNR && (param.timestamp != 0))
 			module->capture_times = param.timestamp;
 		else

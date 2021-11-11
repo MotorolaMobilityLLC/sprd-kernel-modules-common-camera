@@ -344,6 +344,7 @@ struct camera_module {
 	struct camera_frame *dual_frame;/* 0: no, to find, -1: no need find */
 	atomic_t capture_frames_dcam;/* how many frames to report, -1:always */
 	atomic_t cap_skip_frames;
+	atomic_t cap_total_frames;
 	int64_t capture_times;/* *ns, timestamp get from start_capture */
 	uint32_t capture_scene;
 	uint32_t lowlux_4in1;/* flag */
@@ -2730,7 +2731,7 @@ static int camcore_isp_callback(enum isp_cb_type type, void *param, void *priv_d
 
 static int camcore_dcam_callback(enum dcam_cb_type type, void *param, void *priv_data)
 {
-	int ret = 0, cap_frame = 0, skip_frame = 0;
+	int ret = 0, cap_frame = 0, skip_frame = 0, total_cap_num = 0, recycle = 0;
 	uint32_t gtm_param_idx = DCAM_GTM_PARAM_PRE;
 	struct camera_frame *pframe;
 	struct camera_frame *pframe_pre;
@@ -3191,7 +3192,15 @@ static int camcore_dcam_callback(enum dcam_cb_type type, void *param, void *priv
 				} else {
 					cap_frame = atomic_read(&module->capture_frames_dcam);
 					skip_frame = atomic_read(&module->cap_skip_frames);
-					if (cap_frame > 0 && skip_frame == 0) {
+					total_cap_num = atomic_read(&module->cap_total_frames);
+					recycle = 0;
+					if (cap_frame == 0)
+						recycle = 1;
+					if ((module->capture_scene == CAPTURE_MFSR) &&
+						((module->cam_uinfo.is_pyr_dec && (pframe->width != channel->ch_uinfo.src_crop.w) &&
+						(cap_frame == total_cap_num)) || channel->zoom_coeff_queue.cnt))
+						recycle = 1;
+					if (cap_frame > 0 && skip_frame == 0 && recycle == 0) {
 						if (hw->ip_isp->rgb_gtm_support == 0) {
 							module->dcam_dev_handle->dcam_pipe_ops->ioctl(dcam_sw_ctx,
 								DCAM_IOCTL_CFG_GTM_UPDATE, &gtm_param_idx);
@@ -3199,8 +3208,11 @@ static int camcore_dcam_callback(enum dcam_cb_type type, void *param, void *priv
 						}
 						pframe->not_use_isp_reserved_buf = 1;
 					} else {
-						pr_info("cam%d cap type[%d] num[%d]\n", module->idx, module->dcam_cap_status, cap_frame);
-						atomic_dec(&module->cap_skip_frames);
+						pr_info("cam%d cap type[%d], fid %d, frame width %d, channal width src %d, cap frame %d, scene %d, zoom_q cnt %d\n",
+							module->idx, module->dcam_cap_status, pframe->fid, pframe->width, channel->ch_uinfo.src_crop.w, cap_frame,
+							module->capture_scene,channel->zoom_coeff_queue.cnt);
+						if(skip_frame > 0)
+							atomic_dec(&module->cap_skip_frames);
 						if (pframe->sync_data)
 							dcam_core_dcam_if_release_sync(pframe->sync_data, pframe);
 						ret = module->dcam_dev_handle->dcam_pipe_ops->cfg_path(dcam_sw_ctx,
@@ -3209,6 +3221,7 @@ static int camcore_dcam_callback(enum dcam_cb_type type, void *param, void *priv
 
 						return ret;
 					}
+					pr_info("cam%d cap type[%d] num[%d] frame_id %d\n", module->idx, module->dcam_cap_status, cap_frame, pframe->fid);
 				}
 			}
 			/* to isp */
