@@ -2347,26 +2347,9 @@ static int dcamhw_csi_disconnect(void *handle, void *arg)
 	if (time_out == 0)
 		pr_err("fail to stop:DCAM%d: stop timeout for 2s\n", idx);
 
-	DCAM_REG_WR(idx, DCAM_INT0_CLR, 0xffffffff);
-	DCAM_REG_WR(idx, DCAM_INT0_EN, DCAMINT_IRQ_LINE_EN0_NORMAL);
-
-	DCAM_REG_WR(idx, DCAM_INT1_CLR, 0xffffffff);
-	DCAM_REG_WR(idx, DCAM_INT1_EN, DCAMINT_IRQ_LINE_INT1_MASK);
-
-
-	/* disable internal logic access sram */
-	DCAM_REG_MWR(idx, DCAM_APB_SRAM_CTRL, BIT_0, 0);
-	DCAM_REG_WR(idx, DCAM_MIPI_CAP_CFG, 0); /* disable all path */
-	DCAM_REG_WR(idx, DCAM_IMAGE_CONTROL, 0x2b << 8 | 0x01);
-	DCAM_REG_MWR(idx, DCAM_CAP_FRM_CLR, BIT_8, BIT_8);
-
-	if (IS_DCAM_IF(idx)) {
-		/* default bypass all blocks */
-		dcamhw_bypass_all(idx);
-	} else {
-		DCAM_REG_WR(idx, DCAM_LITE_IMAGE_DT_VC_CONTROL, 0x2b << 8 | 0x01);
-		DCAM_REG_MWR(idx, DCAM_LITE_MIPI_CAP_CFG, BIT_0, 0);
-	}
+	// reset
+	hw->dcam_ioctl(hw, DCAM_HW_CFG_STOP, &idx);
+	hw->dcam_ioctl(hw, DCAM_HW_CFG_RESET, &idx);
 
 	return 0;
 }
