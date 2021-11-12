@@ -1353,8 +1353,9 @@ static void dcamint_iommu_regs_dump(struct dcam_hw_context *dcam_hw_ctx, struct 
 					reg, val[0], val[1], val[2], val[3]);
 		}
 
-		pr_err("fbc %08x full y %08x u %08x bin y %08x u %08x raw:%08x\n",
+		pr_err("bin fbc %08x full fbc %08x full y %08x u %08x bin y %08x u %08x raw:%08x\n",
 				DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, DCAM_YUV_FBC_SCAL_SLICE_PLOAD_BASE_ADDR),
+				DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, DCAM_FBC_RAW_SLICE_Y_ADDR),
 				DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, DCAM_STORE4_SLICE_Y_ADDR),
 				DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, DCAM_STORE4_SLICE_U_ADDR),
 				DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, DCAM_STORE0_SLICE_Y_ADDR),
