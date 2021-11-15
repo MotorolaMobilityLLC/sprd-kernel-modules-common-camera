@@ -368,6 +368,8 @@ struct camera_group {
 	uint32_t module_used;
 	struct camera_module *module[CAM_COUNT];
 
+	spinlock_t dual_frame_lock;
+
 	spinlock_t rawproc_lock;
 	uint32_t rawproc_in;
 
@@ -1945,6 +1947,7 @@ static struct camera_frame *camcore_dual_frame_deal(struct camera_module *module
 		struct channel_context *channel)
 {
 	int ret;
+	unsigned long flag;
 	struct camera_frame *pftmp;
 	struct dcam_sw_context *dcam_sw_ctx = NULL;
 
@@ -1964,6 +1967,7 @@ static struct camera_frame *camcore_dual_frame_deal(struct camera_module *module
 		}
 		return NULL;
 	}
+	spin_lock_irqsave(&module->grp->dual_frame_lock, flag);
 	pftmp = module->dual_frame;
 	if (pftmp) {
 		module->dual_frame = NULL;
@@ -1971,11 +1975,12 @@ static struct camera_frame *camcore_dual_frame_deal(struct camera_module *module
 		if (pframe->sync_data)
 			dcam_core_dcam_if_release_sync(pframe->sync_data,	pframe);
 		ret = module->dcam_dev_handle->dcam_pipe_ops->cfg_path(dcam_sw_ctx, DCAM_PATH_CFG_OUTPUT_BUF, channel->dcam_path_id, pframe);
-
+		spin_unlock_irqrestore(&module->grp->dual_frame_lock, flag);
 		return pftmp;
 	}
 	/* get the same frame */
 	ret = camcore_dual_same_frame_get(module);
+	spin_unlock_irqrestore(&module->grp->dual_frame_lock, flag);
 	if (!ret) {
 		pftmp = module->dual_frame;
 		if (pftmp) {
@@ -7845,6 +7850,7 @@ static int camcore_probe(struct platform_device *pdev)
 	atomic_set(&group->runner_nr, 0);
 	spin_lock_init(&group->module_lock);
 	spin_lock_init(&group->rawproc_lock);
+	spin_lock_init(&group->dual_frame_lock);
 
 	mutex_init(&group->pyr_mulshare_lock);
 	pr_info("sprd img probe pdev name %s\n", pdev->name);
