@@ -1097,7 +1097,10 @@ static int isppyrdec_irq_proc(void *handle)
 		if (sync)
 			sync->frames[DCAM_PATH_FULL] = pctx->buf_out;
 		cam_buf_iommu_unmap(&pframe->buf);
-		pctx->cb_func(ISP_CB_RET_SRC_BUF, pframe, pctx->cb_priv_data);
+		if (pctx->cb_func)
+			pctx->cb_func(ISP_CB_RET_SRC_BUF, pframe, pctx->cb_priv_data);
+		else
+			pr_err("fail to get cb_func ptr at ret src");
 	} else {
 		pr_err("fail to get src frame sw_idx=%d proc_queue.cnt:%d\n",
 			cur_ctx_id, dec_dev->proc_queue.cnt);
@@ -1108,7 +1111,10 @@ static int isppyrdec_irq_proc(void *handle)
 		/* return buffer to cam core for start isp pyrrec proc */
 		cam_buf_iommu_unmap(&pframe->buf);
 		pframe->need_pyr_rec = 1;
-		pctx->cb_func(ISP_CB_RET_PYR_DEC_BUF, pframe, pctx->cb_priv_data);
+		if (pctx->cb_func)
+			pctx->cb_func(ISP_CB_RET_PYR_DEC_BUF, pframe, pctx->cb_priv_data);
+		else
+			pr_err("fail to get cb_func ptr at ret pyr dec");
 	} else {
 		pr_err("fail to get src frame sw_idx=%d \n", cur_ctx_id);
 	}
