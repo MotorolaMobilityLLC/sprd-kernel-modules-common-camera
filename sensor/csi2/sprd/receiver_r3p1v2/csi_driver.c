@@ -351,6 +351,19 @@ int reg_rd(unsigned int reg)
 	return val;
 }
 
+int _csi_reg_mwr(unsigned int idx, unsigned int reg, unsigned int msk, unsigned int val){
+
+	/*unsigned int reg_base = 0x3e200000 + idx * 0x100000 + reg;
+	//pr_info("reg_base 0x%x: idx 0x%x reg 0x%x\n", reg_base,idx,reg);
+	REG_MWR((void *)&reg_base, msk, val);*/
+	pr_debug("idx 0x%x reg 0x%x\n", idx,reg);
+
+	//REG_WR(CSI_BASE(idx)+reg, ((val) & (msk)) | (CSI_REG_RD(idx, reg) & (~(msk))));
+	writel_relaxed(((val) & (msk)) | (CSI_REG_RD(idx, reg) & (~(msk))),
+					(volatile void __iomem *)(CSI_BASE(idx)+reg));
+	return 0;
+}
+
 
 int reg_dump_rd(unsigned long reg, int len, char *reg_name)
 {
