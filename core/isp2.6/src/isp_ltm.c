@@ -703,14 +703,14 @@ static int ispltm_map_config_gen(struct isp_ltm_ctx_desc *ctx,
 			ratio_w = ((frame_width_map << 8) + (frame_width_stat / 2)) / frame_width_stat;
 			ratio_h = ((frame_height_map << 8) + (frame_height_stat / 2)) / frame_height_stat;
 		}
-		tm.tile_width = (ratio_w * ts.tile_width) >> 10 << 2;
-		tm.tile_height = (ratio_h * ts.tile_height) >> 9 << 1;
+		tm.tile_width = ((ratio_w * ts.tile_width) >> 10) << 2;
+		tm.tile_height = ((ratio_h * ts.tile_height) >> 9) << 1;
 	} else {
 		if (frame_width_stat != 0)
 			ratio = (frame_width_map << 7) / frame_width_stat;
 
-		tm.tile_width = (ratio * ts.tile_width  + 128) >> 8 << 1;
-		tm.tile_height = (ratio * ts.tile_height + 128) >> 8 << 1;
+		tm.tile_width = ((ratio * ts.tile_width  + 128) >> 8) << 1;
+		tm.tile_height = ((ratio * ts.tile_height + 128) >> 8) << 1;
 	}
 
 	crop_cols_curr = frame_width_map - tm.tile_width * mnum.tile_num_x;
