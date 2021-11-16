@@ -431,7 +431,7 @@ int isp_k_update_edge(void *handle)
 
 	center_x = new_width >> 1;
 	center_y = new_height >> 1;
-	val = (center_y << 16) | center_x;
+	val = ((center_x & 0x3FFF) << 16) | (center_y & 0x3FFF);
 	ISP_REG_WR(idx, ISP_EE_PIXEL_POSTION, val);
 
 	edge_info->center_x = center_x;
@@ -440,7 +440,7 @@ int isp_k_update_edge(void *handle)
 	if (edge_info->radius_base == 0)
 		edge_info->radius_base = 1024;
 
-	radius = (sensor_width + sensor_height ) * edge_info->radius_threshold_factor / edge_info->radius_base;
+	radius = (sensor_width + sensor_height ) * edge_info->radius_threshold / edge_info->radius_base;
 	radius_limit = new_width+new_height;
 	radius = (radius < radius_limit) ? radius : radius_limit;
 	if (old_width / new_width != 1)
@@ -451,7 +451,7 @@ int isp_k_update_edge(void *handle)
 		(edge_info->layer_pyramid_offset_coef1 & 0x3FFF);
 	ISP_REG_WR(idx, ISP_EE_PYRAMID_OFFSET_COEF0, val);
 	pr_debug("cen %d %d, base %d, factor %d, new radius %d\n",
-		center_x, center_y, edge_info->radius_base, edge_info->radius_threshold_factor, radius);
+		center_x, center_y, edge_info->radius_base, edge_info->radius_threshold, radius);
 
 	return ret;
 }
