@@ -460,7 +460,7 @@ static void calc_grid_data_undistort(struct isp_dewarp_input_info input_info, st
 
 	camera_k[0][0] = div64_s64(calib_info->camera_k[0][0], (int64_t)((scale_s_f * scale_f_c) >> SCALE_PREC));
 	camera_k[0][2] = div64_s64((calib_info->calib_size.crop_start_x - input_info.crop_start_x) * ((int64_t)1 << SCALE_PREC) * ((int64_t)1 << CAMERA_K_PREC), scale_s_f)
-					+ div_s64(calib_info->camera_k[0][2], (int64_t)((scale_s_f * scale_f_c) >> SCALE_PREC));
+					+ div64_s64(calib_info->camera_k[0][2], (int64_t)((scale_s_f * scale_f_c) >> SCALE_PREC));
 	camera_k[1][1] = div_s64(calib_info->camera_k[1][1], ((scale_s_f * scale_f_c) >> SCALE_PREC));
 	camera_k[1][2] = div_s64((calib_info->calib_size.crop_start_y - input_info.crop_start_y) * ((int64_t)1 << SCALE_PREC) * ((int64_t)1 << CAMERA_K_PREC), scale_s_f)
 					+ div_s64(calib_info->camera_k[1][2], ((scale_s_f * scale_f_c) >> SCALE_PREC));
