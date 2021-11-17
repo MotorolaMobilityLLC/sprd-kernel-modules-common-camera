@@ -424,7 +424,7 @@ int csi_api_open(int bps_per_lane, int phy_id, int lane_num, int sensor_id, int 
 	csi_phy_power_down(dt_info, sensor_id, 0);
 	csi_phy_testclr_init(&dt_info->phy);
 	csi_controller_enable(dt_info);
-	csi_phy_testclr(dt_info->controller_id, &dt_info->phy);
+//	csi_phy_testclr(dt_info->controller_id, &dt_info->phy);
 	csi_phy_init(dt_info, dt_info->controller_id);
 	if(phy_id == 5 || phy_id == 7)
 		csi_start(4, dt_info->controller_id);

@@ -693,8 +693,8 @@ void csi_phy_testclr(int sensor_id, struct csi_phy_info *phy)
 	case PHY_4LANE1:
 	case PHY_CPHY:
 	case PHY_4LANE:
-		CSI_REG_MWR(sensor_id, PHY_TEST_CRTL0, PHY_TESTCLR, 1);
-		CSI_REG_MWR(sensor_id, PHY_TEST_CRTL0, PHY_TESTCLR, 0);
+		//CSI_REG_MWR(sensor_id, PHY_TEST_CRTL0, PHY_TESTCLR, 1);
+		//CSI_REG_MWR(sensor_id, PHY_TEST_CRTL0, PHY_TESTCLR, 0);
 		break;
 	case PHY_2P2:
 	case PHY_2P2RO:
@@ -1195,6 +1195,7 @@ void csi_phy_init(struct csi_dt_node_info *dt_info, int32_t idx)
 	}else{
 		anlg_phy_syscon = phy->anlg_phy_g4_syscon;
 	}
+	csi_phy_testclr(dt_info->controller_id, &dt_info->phy);
 
 	switch (phy->phy_id) {
 	case PHY_4LANE:
