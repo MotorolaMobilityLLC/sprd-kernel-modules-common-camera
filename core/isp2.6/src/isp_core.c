@@ -2454,7 +2454,7 @@ static int ispcore_frame_proc(void *isp_handle, void *param, int ctx_id)
 {
 	int ret = 0;
 	struct camera_frame *pframe;
-	static int slw_frm_cnt;
+	static uint32_t slw_frm_cnt;
 	struct isp_sw_context *pctx;
 	struct isp_pipe_dev *dev;
 	struct isp_stream_ctrl *stream = NULL;
