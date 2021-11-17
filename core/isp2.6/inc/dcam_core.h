@@ -178,12 +178,14 @@ enum dcam_state {
  * @enabled: enabled path for this exact frame, when it becomes zero, we should
  *           recycle this sync data
  * @dev:     pointer to the dcam_pipe_dev
+ * @helper_put_enable:     when helper_put_enable become zero,we should not recycle this sync data:bug1755867
  */
 struct dcam_sync_helper {
 	struct list_head list;
 	struct dcam_frame_synchronizer sync;
 	uint32_t enabled;
 	void *dev;
+	uint32_t helper_put_enable;
 };
 
 /* for multi dcam context (offline) */

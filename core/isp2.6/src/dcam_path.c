@@ -1133,6 +1133,7 @@ int dcam_path_store_frm_set(void *dcam_ctx_handle,
 	if (helper && !frame->is_reserved && is_sync_enabled(dcam_sw_ctx, path_id)
 		&& !(path_id == DCAM_PATH_FULL && path->src_sel == 0)) {
 		helper->enabled |= BIT(path_id);
+		helper->helper_put_enable = 1;
 		helper->sync.frames[path_id] = frame;
 		frame->sync_data = &helper->sync;
 	}

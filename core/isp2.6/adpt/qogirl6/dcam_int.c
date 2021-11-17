@@ -580,7 +580,7 @@ static void dcamint_cap_sof(void *param, struct dcam_sw_context *sw_ctx)
 	}
 
 	if (helper) {
-		if (helper->enabled)
+		if (helper->enabled || helper->helper_put_enable == 0)
 			helper->sync.index = sw_ctx->base_fid + sw_ctx->index_to_set;
 		else
 			dcam_core_sync_helper_put(sw_ctx, helper);

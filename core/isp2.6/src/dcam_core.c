@@ -996,6 +996,7 @@ static inline void dcamcore_sync_helper_locked_init(struct dcam_sw_context *pctx
 	memset(&helper->sync, 0, sizeof(struct dcam_frame_synchronizer));
 	helper->enabled = 0;
 	helper->dev = pctx;
+	helper->helper_put_enable = 0;
 }
 
 /*
