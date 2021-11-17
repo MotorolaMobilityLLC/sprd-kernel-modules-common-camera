@@ -6322,9 +6322,6 @@ static int camcore_raw_pre_proc(
 	ret = module->isp_dev_handle->isp_ops->cfg_path(module->isp_dev_handle,
 		ISP_PATH_CFG_PATH_SIZE, ctx_id, isp_path_id, &path_trim);
 
-	/* Close pyramids only for large sizes,delete after correction */
-	if (module->cam_uinfo.dcam_slice_mode)
-		module->cam_uinfo.is_pyr_dec = 0;
 	if (module->cam_uinfo.is_pyr_dec) {
 		pyr_layer_num = ISP_PYR_DEC_LAYER_NUM;
 		module->isp_dev_handle->isp_ops->ioctl(module->isp_dev_handle,
