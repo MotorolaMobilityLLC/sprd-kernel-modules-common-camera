@@ -3335,6 +3335,7 @@ static int ispcore_context_get(void *isp_handle, void *param)
 	/* bypass fbd_raw by default */
 	pctx->pipe_info.fetch_fbd.fetch_fbd_bypass = 1;
 	pctx->pipe_info.fetch_fbd_yuv.fetch_fbd_bypass = 1;
+	pctx->pipe_info.thumb_scaler.scaler_bypass = 1;
 	pctx->multi_slice = 0;
 	pctx->started = 0;
 	pctx->attach_cam_id = init_param->cam_id;
