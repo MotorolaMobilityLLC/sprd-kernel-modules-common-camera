@@ -66,6 +66,7 @@ struct offline_tmp_param {
 	uint32_t multi_slice;
 	uint32_t target_fid;
 	uint32_t not_use_reserved_buf;
+	uint32_t need_post_proc[ISP_SPATH_NUM];
 	struct isp_stream_ctrl *stream;
 };
 
@@ -1244,6 +1245,7 @@ static struct camera_frame *ispcore_path_out_frame_get(
 			if (out_frame) {
 				ret = cam_buf_iommu_map(&out_frame->buf, CAM_IOMMUDEV_ISP);
 				tmp->valid_out_frame = 1;
+				tmp->need_post_proc[path->spath_id] = 1;
 				if (ret)
 					out_frame = NULL;
 			}
@@ -1574,14 +1576,16 @@ static int ispcore_offline_param_set(struct isp_sw_context *pctx,
 		 * path result_queue enqueue should be OK.
 		 */
 		loop = 0;
-		do {
-			ret = cam_queue_enqueue(&path->result_queue, &out_frame->list);
-			if (ret == 0)
-				break;
-			printk_ratelimited(KERN_INFO "wait for output queue. loop %d\n", loop);
-			/* wait for previous frame output queue done */
-			mdelay(1);
-		} while (loop++ < 500);
+		if (!tmp->need_post_proc[path->spath_id]) {
+			do {
+				ret = cam_queue_enqueue(&path->result_queue, &out_frame->list);
+				if (ret == 0)
+					break;
+				printk_ratelimited(KERN_INFO "wait for output queue. loop %d\n", loop);
+				/* wait for previous frame output queue done */
+				mdelay(1);
+			} while (loop++ < 500);
+		}
 
 		if (ret) {
 			isp_int_isp_irq_cnt_trace(tmp->hw_ctx_id);
@@ -1829,6 +1833,22 @@ static int ispcore_offline_frame_start(void *ctx)
 		if (ret) {
 			pr_err("fail to stream state overflow\n");
 			cam_queue_empty_state_put(tmp.stream);
+		}
+	}
+	for (i = 0; i < ISP_SPATH_NUM; i++) {
+		path = &pctx->isp_path[i];
+		if (atomic_read(&path->user_cnt) < 1)
+			continue;
+		if (tmp.need_post_proc[path->spath_id]) {
+			do {
+				ret = cam_queue_enqueue(&pctx->isp_path[path->spath_id].result_queue,
+					&pctx->postproc_buf->list);
+				if (ret == 0)
+					break;
+				printk_ratelimited(KERN_INFO "wait for output queue. loop %d\n", loop);
+				/* wait for previous frame output queue done */
+				mdelay(1);
+			} while (loop++ < 500);
 		}
 	}
 	pctx->iommu_status = (uint32_t)(-1);
@@ -2319,6 +2339,7 @@ static int ispcore_postproc_irq(void *handle, uint32_t idx,
 
 	dev = (struct isp_pipe_dev *)handle;
 	pctx = dev->sw_ctx[idx];
+	pframe = cam_queue_dequeue(&pctx->proc_queue, struct camera_frame, list);
 	if (pctx->uinfo.enable_slowmotion == 0) {
 		isp_core_context_unbind(pctx);
 		complete(&pctx->frm_done);
@@ -2330,13 +2351,11 @@ static int ispcore_postproc_irq(void *handle, uint32_t idx,
 	stream = cam_queue_dequeue(&pctx->stream_ctrl_proc_q,
 		struct isp_stream_ctrl, list);
 
-	pframe = cam_queue_dequeue(&pctx->proc_queue, struct camera_frame, list);
-
 	if (pframe) {
 		zoom_ratio = pframe->zoom_ratio;
 		total_zoom = pframe->total_zoom;
 		if (stream && stream->data_src == ISP_STREAM_SRC_ISP) {
-			pr_info("isp %d post proc, do not need to return frame\n", pctx->ctx_id);
+			pr_debug("isp %d post proc, do not need to return frame\n", pctx->ctx_id);
 			cam_buf_iommu_unmap(&pframe->buf);
 		} else if (pframe->data_src_dec) {
 			pr_debug("isp %d dec done\n", pctx->ctx_id);
@@ -2449,12 +2468,43 @@ static int ispcore_dec_frame_proc(struct isp_sw_context *pctx,
 	return ret;
 }
 
+static int ispcore_is_superzoom(struct isp_sw_context *pctx)
+{
+	int ret = 0, i = 0;
+	struct isp_uinfo *uinfo = NULL;
+	struct isp_path_desc *path = NULL;
+	struct isp_path_uinfo *path_info = NULL;
+	uint32_t maxw = 0, maxh = 0;
+	uint32_t min_crop_w = 0xFFFFFFFF, min_crop_h = 0xFFFFFFFF;
+
+	uinfo = &pctx->uinfo;
+	for (i = 0; i < ISP_SPATH_NUM; i++) {
+		path = &pctx->isp_path[i];
+		path_info = &uinfo->path_info[i];
+		if (atomic_read(&path->user_cnt) < 1)
+			continue;
+		maxw = MAX(maxw, path_info->dst.w);
+		maxh = MAX(maxh, path_info->dst.h);
+		min_crop_w = MIN(min_crop_w, path_info->in_trim.size_x);
+		min_crop_h = MIN(min_crop_h, path_info->in_trim.size_y);
+	}
+
+	pr_debug("isp %d max w %d h %d min_crop w %d h %d\n", pctx->ctx_id, maxw, maxh,
+		min_crop_w, min_crop_h);
+	if (maxw > min_crop_w * ISP_SCALER_UP_MAX ||
+		maxh > min_crop_h * ISP_SCALER_UP_MAX)
+		ret = 1;
+
+	return ret;
+}
+
 /* offline process frame */
 static int ispcore_frame_proc(void *isp_handle, void *param, int ctx_id)
 {
 	int ret = 0;
-	struct camera_frame *pframe;
-	static uint32_t slw_frm_cnt;
+	uint32_t is_superzoom = 0, proc_cnt = 0, stream_ctrl_cnt = 0;
+	struct camera_frame *pframe, *pframe_proc;
+	static int slw_frm_cnt;
 	struct isp_sw_context *pctx;
 	struct isp_pipe_dev *dev;
 	struct isp_stream_ctrl *stream = NULL;
@@ -2494,7 +2544,7 @@ static int ispcore_frame_proc(void *isp_handle, void *param, int ctx_id)
 
 	stream = cam_queue_dequeue_peek(&pctx->stream_ctrl_in_q,
 		struct isp_stream_ctrl, list);
-	if (stream && stream->state == ISP_STREAM_POST_PROC) {
+	if (stream && stream->state == ISP_STREAM_POST_PROC && pctx->ch_id != CAM_CH_CAP) {
 		if (stream->frame_type == ISP_STREAM_SIGNLE ||
 			stream->data_src == ISP_STREAM_SRC_ISP) {
 			pr_debug("isp postproc running: frame need write back\n");
@@ -2510,19 +2560,51 @@ static int ispcore_frame_proc(void *isp_handle, void *param, int ctx_id)
 		pframe->param_data = NULL;
 	}
 
+	is_superzoom = ispcore_is_superzoom(pctx);
+	proc_cnt = cam_queue_cnt_get(&pctx->proc_queue);
+	if (is_superzoom && proc_cnt != 0 && pctx->ch_id != CAM_CH_CAP) {
+		pr_debug("isp %d is_superzoom %d proc_q cnt %d\n", pctx->ctx_id, is_superzoom, proc_cnt);
+		pr_debug("isp superzoom running: frame need write back\n");
+		return -EFAULT;
+	}
+
 	pr_debug("cam%d ctx %d, fid %d, ch_id %d, buf %d, 3dnr %d, w %d, h %d, pctx->uinfo.crop.size_x %d\n",
 		pctx->attach_cam_id, ctx_id, pframe->fid,
 		pframe->channel_id, pframe->buf.mfd[0], pctx->uinfo.mode_3dnr,
 		pframe->width, pframe->height, pctx->uinfo.crop.size_x);
 
-	ret = cam_queue_enqueue(&pctx->in_queue, &pframe->list);
+	stream_ctrl_cnt = cam_queue_cnt_get(&pctx->stream_ctrl_in_q);
+	if (is_superzoom && pctx->ch_id == CAM_CH_CAP && pctx->is_post_multi) {
+		if (atomic_read(&pctx->post_cap_cnt) > 0) {
+			ret = cam_queue_enqueue(&pctx->post_proc_queue, &pframe->list);
+			atomic_dec(&pctx->post_cap_cnt);
+		} else {
+			pctx->isp_cb_func(ISP_CB_RET_SRC_BUF, pframe, pctx->cb_priv_data);
+		}
+		if (!stream_ctrl_cnt && !proc_cnt) {
+			pframe_proc = cam_queue_dequeue(&pctx->post_proc_queue,
+				struct camera_frame, list);
+			if (pframe_proc)
+				ret = cam_queue_enqueue(&pctx->in_queue, &pframe_proc->list);
+			else
+				return 0;
+		} else {
+			ret = -ESPIPE;
+			return ret;
+		}
+	} else {
+		if ((stream_ctrl_cnt || proc_cnt) && is_superzoom && pctx->ch_id == CAM_CH_CAP)
+			ret = -EFAULT;
+		else
+			ret = cam_queue_enqueue(&pctx->in_queue, &pframe->list);
+	}
 	if (ret == 0) {
 
 		if (pctx->uinfo.enable_slowmotion) {
 			if (++slw_frm_cnt < pctx->uinfo.slowmotion_count)
 				return ret;
 		} else {
-			if(dev->isp_hw->prj_id == QOGIRN6pro || cam_queue_cnt_get(&pctx->stream_ctrl_in_q) == 0)
+			if(dev->isp_hw->prj_id == QOGIRN6pro || stream_ctrl_cnt == 0)
 				ispcore_stream_state_get(pctx);
 		}
 		if (atomic_read(&pctx->user_cnt) > 0)
@@ -3027,6 +3109,7 @@ static int ispcore_ioctl(void *isp_handle, int ctx_id,
 	struct isp_pipe_dev *dev = NULL;
 	struct isp_sw_context *pctx = NULL;
 	struct isp_rec_ctx_desc *rec_ctx = NULL;
+	uint32_t post_cap_cnt = 0;
 
 	if (!isp_handle || ctx_id < 0 || ctx_id >= ISP_CONTEXT_SW_NUM) {
 		pr_err("fail to get valid input ptr\n");
@@ -3059,6 +3142,15 @@ static int ispcore_ioctl(void *isp_handle, int ctx_id,
 			return -EFAULT;
 		}
 		pctx->thread_doing_stop = *(uint32_t *)param;
+		break;
+	case ISP_IOCTL_CFG_POST_CNT:
+		pctx = dev->sw_ctx[ctx_id];
+		post_cap_cnt = *(uint32_t *)param;
+		atomic_set(&pctx->post_cap_cnt, post_cap_cnt);
+		break;
+	case ISP_IOCTL_CFG_POST_MULTI_SCENE:
+		pctx = dev->sw_ctx[ctx_id];
+		pctx->is_post_multi = *(uint32_t *)param;
 		break;
 	default:
 		pr_err("fail to get known cmd: %d\n", cmd);
@@ -3337,6 +3429,8 @@ static int ispcore_context_get(void *isp_handle, void *param)
 			ISP_IN_Q_LEN, ispcore_src_frame_ret);
 		cam_queue_init(&pctx->proc_queue,
 			ISP_PROC_Q_LEN, ispcore_src_frame_ret);
+		cam_queue_init(&pctx->post_proc_queue,
+			ISP_STREAM_STATE_Q_LEN, ispcore_src_frame_ret);
 	} else {
 		cam_queue_init(&pctx->in_queue,
 			ISP_SLW_IN_Q_LEN, ispcore_src_frame_ret);
@@ -3463,6 +3557,7 @@ static int ispcore_context_put(void *isp_handle, int ctx_id)
 
 		cam_queue_clear(&pctx->in_queue, struct camera_frame, list);
 		cam_queue_clear(&pctx->proc_queue, struct camera_frame, list);
+		cam_queue_clear(&pctx->post_proc_queue, struct camera_frame, list);
 		cam_queue_clear(&pctx->hist2_result_queue,
 			struct camera_frame, list);
 		cam_queue_clear(&pctx->stream_ctrl_in_q,

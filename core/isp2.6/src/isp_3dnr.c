@@ -32,6 +32,8 @@ static int isp3dnr_calc_img_pitch(enum isp_fetch_format fmt, uint32_t w)
 		break;
 	case ISP_FETCH_YUV420_2FRAME_MIPI:
 	case ISP_FETCH_YVU420_2FRAME_MIPI:
+	case ISP_FETCH_YUV420_2FRAME:
+	case ISP_FETCH_YVU420_2FRAME:
 		pitch = w * 2;
 		break;
 	default:

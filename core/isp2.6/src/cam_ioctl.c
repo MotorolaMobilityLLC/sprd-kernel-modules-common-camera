@@ -2470,6 +2470,7 @@ static int camioctl_capture_start(struct camera_module *module,
 	struct dcam_sw_context *sw_aux_ctx = NULL;
 	struct isp_hw_gtm_func gtm_func;
 	struct dcam_hw_path_restart re_patharg;
+	uint32_t is_post_multi = 0;
 
 	ret = copy_from_user(&param, (void __user *)arg,
 			sizeof(struct sprd_img_capture_param));
@@ -2503,6 +2504,8 @@ static int camioctl_capture_start(struct camera_module *module,
 	sw_aux_ctx = &module->dcam_dev_handle->sw_ctx[module->offline_cxt_id];
 	module->capture_scene = param.cap_scene;
 	isp_idx = module->channel[CAM_CH_CAP].isp_ctx_id;
+	module->isp_dev_handle->isp_ops->ioctl(module->isp_dev_handle, ch->isp_ctx_id,
+		ISP_IOCTL_CFG_POST_CNT, &param.cap_cnt);
 	if (module->capture_scene == CAPTURE_HDR
 		|| module->capture_scene == CAPTURE_FDR
 		|| module->capture_scene == CAPTURE_SW3DNR
@@ -2526,7 +2529,7 @@ static int camioctl_capture_start(struct camera_module *module,
 			module->dcam_dev_handle->dcam_pipe_ops->ioctl(sw_ctx,
 				DCAM_IOCTL_CFG_GTM_UPDATE, &gtm_param_idx);
 	}
-	module->isp_dev_handle->isp_ops->clear_stream_ctrl(module->isp_dev_handle, isp_idx);
+
 	if (module->capture_scene == CAPTURE_FDR && !module->cam_uinfo.fdr_version) {
 		struct dcam_path_cfg_param ch_desc;
 
@@ -2555,6 +2558,9 @@ static int camioctl_capture_start(struct camera_module *module,
 
 	/* recognize the capture scene */
 	if (param.type == DCAM_CAPTURE_START_FROM_NEXT_SOF) {
+		is_post_multi = 1;
+		module->isp_dev_handle->isp_ops->ioctl(module->isp_dev_handle, ch->isp_ctx_id,
+			ISP_IOCTL_CFG_POST_MULTI_SCENE, &is_post_multi);
 		module->dcam_cap_status = DCAM_CAPTURE_START_FROM_NEXT_SOF;
 		if (hw->ip_isp->rgb_gtm_support) {
 			idx = module->channel[CAM_CH_CAP].isp_ctx_id;
@@ -2634,6 +2640,7 @@ static int camioctl_capture_stop(struct camera_module *module,
 	struct dcam_sw_context *sw_ctx = NULL;
 	struct dcam_sw_context *sw_aux_ctx = NULL;
 	struct isp_hw_gtm_func gtm_func;
+	uint32_t is_post_multi = 0;
 
 	if (module->cap_status == CAM_CAPTURE_STOP) {
 		pr_info("cam%d alreay capture stopped\n", module->idx);
@@ -2649,6 +2656,8 @@ static int camioctl_capture_stop(struct camera_module *module,
 	pr_info("cam %d stop capture.\n", module->idx);
 	hw = module->grp->hw_info;
 	isp_idx = module->channel[CAM_CH_CAP].isp_ctx_id;
+	module->isp_dev_handle->isp_ops->ioctl(module->isp_dev_handle, module->channel[CAM_CH_CAP].isp_ctx_id,
+		ISP_IOCTL_CFG_POST_MULTI_SCENE, &is_post_multi);
 	if (module->capture_scene == CAPTURE_HDR
 		|| module->capture_scene == CAPTURE_FDR
 		|| module->capture_scene == CAPTURE_SW3DNR

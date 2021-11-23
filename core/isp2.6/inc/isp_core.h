@@ -227,6 +227,8 @@ struct isp_sw_context {
 	struct list_head list;
 	atomic_t user_cnt;
 	atomic_t state_user_cnt;
+	atomic_t post_cap_cnt;
+	uint32_t is_post_multi;
 	uint32_t started;
 	uint32_t ctx_id;
 	uint32_t in_irq_handler;
@@ -265,6 +267,7 @@ struct isp_sw_context {
 	struct camera_queue stream_ctrl_in_q;
 	struct camera_queue stream_ctrl_proc_q;
 	struct camera_queue pyrdec_buf_queue;
+	struct camera_queue post_proc_queue;
 
 	struct camera_frame *postproc_buf;
 	struct camera_buf statis_buf_array[STATIS_BUF_NUM_MAX];

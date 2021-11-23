@@ -6863,6 +6863,10 @@ static int camcore_capture_proc(void *param)
 
 	if (ret) {
 		pr_warn("warning: capture stop or isp queue overflow\n");
+		if (ret == -ESPIPE && module->dcam_cap_status == DCAM_CAPTURE_START_FROM_NEXT_SOF) {
+			atomic_inc(&module->capture_frames_dcam);
+			return 0;
+		}
 		if (pframe->sync_data)
 			dcam_core_dcam_if_release_sync(pframe->sync_data, pframe);
 		if (module->cam_uinfo.dcam_slice_mode && pframe->dcam_idx == DCAM_ID_1)
