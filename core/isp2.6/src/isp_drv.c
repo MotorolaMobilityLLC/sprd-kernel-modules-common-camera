@@ -79,7 +79,7 @@ static int ispdrv_path_scaler_get(struct isp_path_uinfo *in_ptr,
 
 	if (((scaler->scaler_ver_factor_in == scaler->scaler_ver_factor_out)
 		&& (scaler->scaler_factor_in == scaler->scaler_factor_out)
-		&& (is_yuv422 || in_ptr->scaler_coeff_ex))
+		&& (is_yuv422 || in_ptr->scaler_bypass_ctrl))
 		|| in_ptr->out_fmt == IMG_PIX_FMT_FULL_RGB) {
 		scaler->scaler_bypass = 1;
 	} else {
@@ -999,6 +999,7 @@ int isp_drv_pipeinfo_get(void *arg, void *frame)
 				pipe_in->scaler[i].in_trim = path_info->in_trim;
 			}
 			path_info->scaler_coeff_ex = ctx->hw->ip_isp->scaler_coeff_ex;
+			path_info->scaler_bypass_ctrl = ctx->hw->ip_isp->scaler_bypass_ctrl;
 			ret = ispdrv_path_scaler_get(path_info, &pipe_in->scaler[i]);
 			if (ret) {
 				pr_err("fail to get pipe path scaler info\n");

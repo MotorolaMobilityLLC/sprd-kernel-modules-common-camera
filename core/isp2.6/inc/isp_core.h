@@ -178,6 +178,7 @@ struct isp_path_uinfo {
 	uint32_t regular_mode;
 	uint32_t uframe_sync;
 	uint32_t scaler_coeff_ex;
+	uint32_t scaler_bypass_ctrl;
 	struct img_endian data_endian;
 	struct img_size dst;
 	struct img_trim in_trim;

@@ -1285,6 +1285,7 @@ struct cam_hw_ip_info {
 	/* For isp support info */
 	uint32_t slm_cfg_support;
 	uint32_t scaler_coeff_ex;
+	uint32_t scaler_bypass_ctrl;
 	uint32_t *ctx_fmcu_support;
 	uint32_t rgb_ltm_support;
 	uint32_t yuv_ltm_support;

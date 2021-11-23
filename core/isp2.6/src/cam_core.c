@@ -3870,6 +3870,7 @@ static int camcore_channel_size_binning_cal(
 			dcam_out.h = dcam_out.h * DCAM_SCALER_MAX_WIDTH / dcam_out.w;
 			dcam_out.h = ALIGN_DOWN(dcam_out.h, 2);
 			dcam_out.w = DCAM_SCALER_MAX_WIDTH;
+			ratio_min = (1 << RATIO_SHIFT) * trim_pv.size_x / dcam_out.w;
 		}
 
 		/* TBD: temp change for 6pro 4K fbc & overflow issue */

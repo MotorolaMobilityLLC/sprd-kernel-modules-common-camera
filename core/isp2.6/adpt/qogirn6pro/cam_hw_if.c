@@ -487,6 +487,7 @@ static struct cam_hw_ip_info dcam[DCAM_ID_MAX] = {
 static struct cam_hw_ip_info isp = {
 	.slm_cfg_support = 1,
 	.scaler_coeff_ex = 1,
+	.scaler_bypass_ctrl = 0,
 	.ctx_fmcu_support = isp_ctx_fmcu_support,
 	.rgb_ltm_support = 1,
 	.yuv_ltm_support = 0,
