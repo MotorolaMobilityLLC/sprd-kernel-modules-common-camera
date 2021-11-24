@@ -351,16 +351,19 @@ int reg_rd(unsigned int reg)
 	return val;
 }
 
-int _csi_reg_mwr(unsigned int idx, unsigned int reg, unsigned int msk, unsigned int val){
+int CSI_REG_MWR(unsigned int idx, unsigned int reg, unsigned int msk, unsigned int val){
 
-	/*unsigned int reg_base = 0x3e200000 + idx * 0x100000 + reg;
+	unsigned int reg_base = 0x3e200000 + idx * 0x100000 + reg;
 	//pr_info("reg_base 0x%x: idx 0x%x reg 0x%x\n", reg_base,idx,reg);
-	REG_MWR((void *)&reg_base, msk, val);*/
-	pr_debug("idx 0x%x reg 0x%x\n", idx,reg);
+/*	REG_MWR((void *)&reg_base, msk, val);*/
+	unsigned int temp = ((val) & (msk)) | (CSI_REG_RD(idx, reg) & (~(msk)));
+	pr_debug("reg_base 0x%x 0x%x\n", reg_base,CSI_BASE(idx)+reg);
+	udelay(10);
+	writel_relaxed(temp, (void __iomem *)(CSI_BASE(idx)+reg));
 
 	//REG_WR(CSI_BASE(idx)+reg, ((val) & (msk)) | (CSI_REG_RD(idx, reg) & (~(msk))));
-	writel_relaxed(((val) & (msk)) | (CSI_REG_RD(idx, reg) & (~(msk))),
-					(volatile void __iomem *)(CSI_BASE(idx)+reg));
+	//writel_relaxed(((val) & (msk)) | (CSI_REG_RD(idx, reg) & (~(msk))),
+	//				(volatile void __iomem *)(CSI_BASE(idx)+reg));
 	return 0;
 }
 
@@ -693,8 +696,8 @@ void csi_phy_testclr(int sensor_id, struct csi_phy_info *phy)
 	case PHY_4LANE1:
 	case PHY_CPHY:
 	case PHY_4LANE:
-		//CSI_REG_MWR(sensor_id, PHY_TEST_CRTL0, PHY_TESTCLR, 1);
-		//CSI_REG_MWR(sensor_id, PHY_TEST_CRTL0, PHY_TESTCLR, 0);
+		CSI_REG_MWR(sensor_id, PHY_TEST_CRTL0, PHY_TESTCLR, 1);
+		CSI_REG_MWR(sensor_id, PHY_TEST_CRTL0, PHY_TESTCLR, 0);
 		break;
 	case PHY_2P2:
 	case PHY_2P2RO:

@@ -112,11 +112,11 @@ int reg_dump_rd(unsigned long reg, int len, char *reg_name);
 int reg_mwr(unsigned int reg, unsigned int msk, unsigned int value);
 int reg_wr(unsigned int reg, unsigned int value);
 int reg_rd(unsigned int reg);
-int _csi_reg_mwr(unsigned int idx, unsigned int reg, unsigned int msk, unsigned int val);
+int CSI_REG_MWR(unsigned int idx, unsigned int reg, unsigned int msk, unsigned int val);
 
 #define CSI_REG_WR(idx, reg, val)  udelay(10);(REG_WR(CSI_BASE(idx)+reg, val))
 #define CSI_REG_RD(idx, reg)  (REG_RD(CSI_BASE(idx)+reg))
-#define CSI_REG_MWR(idx, reg, msk, val)  _csi_reg_mwr(idx, reg, msk, val)
+//#define CSI_REG_MWR(idx, reg, msk, val)  _csi_reg_mwr(idx, reg, msk, val)
 /*#define CSI_REG_MWR(idx, reg, msk, val)  CSI_REG_WR(idx, reg, \
 	((val) & (msk)) | (CSI_REG_RD(idx, reg) & (~(msk))))*/
 #define IPG_REG_MWR(reg, msk, val)  REG_WR(reg, \
