@@ -898,6 +898,7 @@ struct cam_hw_reg_trace {
 struct dcam_store {
 	uint32_t color_fmt;
 	unsigned long  reg_addr;
+	uint32_t is_compressed;
 	struct img_addr store_addr;
 };
 
@@ -969,6 +970,7 @@ struct isp_hw_afbc_path_slice {
 
 struct isp_hw_slw_fmcu_cmds {
 	uint32_t ctx_id;
+	uint32_t is_compressed;
 	struct img_addr fetchaddr;
 	struct isp_fmcu_ctx_desc *fmcu_handle;
 	struct isp_afbc_store_info afbc_store[AFBC_PATH_NUM];

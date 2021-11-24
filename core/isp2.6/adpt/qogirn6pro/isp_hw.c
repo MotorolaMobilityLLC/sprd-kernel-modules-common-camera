@@ -2416,13 +2416,23 @@ static int isphw_slw_fmcu_cmds(void *handle, void *arg)
 
 	hw->isp_ioctl(hw, ISP_HW_CFG_FMCU_CFG, &cfg);
 
-	addr = ISP_GET_REG(ISP_FETCH_BASE + ISP_FETCH_SLICE_Y_ADDR);
-	cmd = fetch_addr->addr_ch0;
-	FMCU_PUSH(fmcu, addr, cmd);
+	if (!slw->is_compressed) {
+		addr = ISP_GET_REG(ISP_FETCH_BASE + ISP_FETCH_SLICE_Y_ADDR);
+		cmd = fetch_addr->addr_ch0;
+		FMCU_PUSH(fmcu, addr, cmd);
 
-	addr = ISP_GET_REG(ISP_FETCH_BASE + ISP_FETCH_SLICE_U_ADDR);
-	cmd = fetch_addr->addr_ch1;
-	FMCU_PUSH(fmcu, addr, cmd);
+		addr = ISP_GET_REG(ISP_FETCH_BASE + ISP_FETCH_SLICE_U_ADDR);
+		cmd = fetch_addr->addr_ch1;
+		FMCU_PUSH(fmcu, addr, cmd);
+	} else {
+		addr = ISP_GET_REG(ISP_YUV_AFBD_FETCH_BASE + ISP_AFBD_FETCH_PARAM1);
+		fetch_addr->addr_ch0 = ALIGN(fetch_addr->addr_ch0, FBC_STORE_ADDR_ALIGN);
+		cmd = fetch_addr->addr_ch0;
+		FMCU_PUSH(fmcu, addr, cmd);
+
+		addr = ISP_GET_REG(ISP_YUV_AFBD_FETCH_BASE + ISP_AFBD_FETCH_PARAM2);
+		FMCU_PUSH(fmcu, addr, cmd);
+	}
 
 	for (i = 0; i < ISP_SPATH_NUM; i++) {
 		path = &slw->isp_path[i];

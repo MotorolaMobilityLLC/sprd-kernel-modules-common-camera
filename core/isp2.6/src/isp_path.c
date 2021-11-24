@@ -313,46 +313,50 @@ int isp_path_fetch_frm_set(struct isp_sw_context *pctx,
 		pr_err("fail to get valid pctx %p, frame %p\n", pctx, frame);
 		return -EINVAL;
 	}
-	pr_debug("enter.\n");
 
-	fetch = &pctx->pipe_info.fetch;
-	if (fetch->fetch_fmt == ISP_FETCH_YUV422_3FRAME)
-		planes = 3;
-	else if ((fetch->fetch_fmt == ISP_FETCH_YUV422_2FRAME)
-			|| (fetch->fetch_fmt == ISP_FETCH_YVU422_2FRAME)
-			|| (fetch->fetch_fmt == ISP_FETCH_YUV420_2FRAME)
-			|| (fetch->fetch_fmt == ISP_FETCH_YVU420_2FRAME)
-			|| (fetch->fetch_fmt == ISP_FETCH_YVU420_2FRAME_MIPI)
-			|| (fetch->fetch_fmt == ISP_FETCH_YUV420_2FRAME_MIPI))
-		planes = 2;
-	else
-		planes = 1;
+	if (!frame->is_compressed) {
+		fetch = &pctx->pipe_info.fetch;
+		if (fetch->fetch_fmt == ISP_FETCH_YUV422_3FRAME)
+			planes = 3;
+		else if ((fetch->fetch_fmt == ISP_FETCH_YUV422_2FRAME)
+				|| (fetch->fetch_fmt == ISP_FETCH_YVU422_2FRAME)
+				|| (fetch->fetch_fmt == ISP_FETCH_YUV420_2FRAME)
+				|| (fetch->fetch_fmt == ISP_FETCH_YVU420_2FRAME)
+				|| (fetch->fetch_fmt == ISP_FETCH_YVU420_2FRAME_MIPI)
+				|| (fetch->fetch_fmt == ISP_FETCH_YUV420_2FRAME_MIPI))
+			planes = 2;
+		else
+			planes = 1;
 
-	yuv_addr[0] = frame->buf.iova[0];
-	yuv_addr[1] = frame->buf.iova[1];
-	yuv_addr[2] = frame->buf.iova[2];
+		yuv_addr[0] = frame->buf.iova[0];
+		yuv_addr[1] = frame->buf.iova[1];
+		yuv_addr[2] = frame->buf.iova[2];
 
-	if (planes > 1) {
-		offset_u = fetch->pitch.pitch_ch0 * fetch->src.h;
-		yuv_addr[1] = yuv_addr[0] + offset_u;
+		if (planes > 1) {
+			offset_u = fetch->pitch.pitch_ch0 * fetch->src.h;
+			yuv_addr[1] = yuv_addr[0] + offset_u;
+		}
+
+		if ((planes > 2)) {
+			offset_v = fetch->pitch.pitch_ch1 * fetch->src.h;
+			yuv_addr[2] = yuv_addr[1] + offset_v;
+		}
+
+		/* set the start address of source frame */
+		fetch->addr.addr_ch0 = yuv_addr[0];
+		fetch->addr.addr_ch1 = yuv_addr[1];
+		fetch->addr.addr_ch2 = yuv_addr[2];
+		yuv_addr[0] += fetch->trim_off.addr_ch0;
+		yuv_addr[1] += fetch->trim_off.addr_ch1;
+		yuv_addr[2] += fetch->trim_off.addr_ch2;
+		fetch->addr_hw.addr_ch0 = yuv_addr[0];
+		fetch->addr_hw.addr_ch1 = yuv_addr[1];
+		fetch->addr_hw.addr_ch2 = yuv_addr[2];
+	} else {
+		fetch = &pctx->pipe_info.fetch;
+		fetch->addr_hw.addr_ch0 = frame->buf.iova[0];
+		fetch->addr_hw.addr_ch1 = fetch->addr_hw.addr_ch0;
 	}
-
-	if ((planes > 2)) {
-		offset_v = fetch->pitch.pitch_ch1 * fetch->src.h;
-		yuv_addr[2] = yuv_addr[1] + offset_v;
-	}
-
-	/* set the start address of source frame */
-	fetch->addr.addr_ch0 = yuv_addr[0];
-	fetch->addr.addr_ch1 = yuv_addr[1];
-	fetch->addr.addr_ch2 = yuv_addr[2];
-	yuv_addr[0] += fetch->trim_off.addr_ch0;
-	yuv_addr[1] += fetch->trim_off.addr_ch1;
-	yuv_addr[2] += fetch->trim_off.addr_ch2;
-	fetch->addr_hw.addr_ch0 = yuv_addr[0];
-	fetch->addr_hw.addr_ch1 = yuv_addr[1];
-	fetch->addr_hw.addr_ch2 = yuv_addr[2];
-
 	if (pctx->dev->sec_mode == SEC_SPACE_PRIORITY)
 		cam_trusty_isp_fetch_addr_set(yuv_addr[0], yuv_addr[1], yuv_addr[2]);
 

@@ -605,6 +605,7 @@ static int ispcore_fmcu_slw_queue_set(
 	slw.ctx_id = pctx->ctx_id;
 	slw.fetchaddr = pctx->pipe_info.fetch.addr;
 	slw.isp_path = pctx->isp_path;
+	slw.is_compressed = pframe->is_compressed;
 	ret = path->hw->isp_ioctl(path->hw, ISP_HW_CFG_SLW_FMCU_CMDS, &slw);
 
 	pr_debug("fmcu slw queue done!");

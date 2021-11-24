@@ -1034,10 +1034,6 @@ static void camcore_compression_cal(struct camera_module *module)
 		ch_raw->compress_input = 0;
 	}
 
-	/* dcam not support fbc when open slowmotion */
-	if (ch_pre->ch_uinfo.is_high_fps)
-		ch_pre->compress_input = 0;
-
 	pr_info("cam%d: cap %u %u %u, pre %u %u %u, vid %u %u %u raw %u.\n",
 		module->idx,
 		ch_cap->compress_input, ch_cap->compress_3dnr,

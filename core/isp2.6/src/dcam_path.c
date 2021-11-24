@@ -920,6 +920,7 @@ int dcam_path_fmcu_slw_store_buf_set(
 		cal_fbc.width = size->w;
 		cal_fbc.out = &fbc_addr;
 		dcam_if_cal_compressed_addr(&cal_fbc);
+		slw->store_info[path_id].is_compressed = out_frame->is_compressed;
 		slw->store_info[path_id].store_addr.addr_ch0 = fbc_addr.addr0;
 		slw->store_info[path_id].store_addr.addr_ch1 = fbc_addr.addr1;
 		slw->store_info[path_id].store_addr.addr_ch2 = fbc_addr.addr2;

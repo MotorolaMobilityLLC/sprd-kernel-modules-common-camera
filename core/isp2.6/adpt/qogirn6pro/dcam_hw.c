@@ -2490,12 +2490,21 @@ static int dcamhw_slw_fmcu_cmds(void *handle, void *arg)
 		if (slw->store_info[i].store_addr.addr_ch0 == 0)
 			continue;
 		if (i == DCAM_PATH_BIN) {
-			addr = DCAM_GET_REG(fmcu->hw_ctx_id, DCAM_STORE0_SLICE_Y_ADDR);
-			cmd = slw->store_info[i].store_addr.addr_ch0;
-			DCAM_FMCU_PUSH(fmcu, addr, cmd);
-			addr = DCAM_GET_REG(fmcu->hw_ctx_id, DCAM_STORE0_SLICE_U_ADDR);
-			cmd = slw->store_info[i].store_addr.addr_ch1;
-			DCAM_FMCU_PUSH(fmcu, addr, cmd);
+			if (!slw->store_info[i].is_compressed) {
+				addr = DCAM_GET_REG(fmcu->hw_ctx_id, DCAM_STORE0_SLICE_Y_ADDR);
+				cmd = slw->store_info[i].store_addr.addr_ch0;
+				DCAM_FMCU_PUSH(fmcu, addr, cmd);
+				addr = DCAM_GET_REG(fmcu->hw_ctx_id, DCAM_STORE0_SLICE_U_ADDR);
+				cmd = slw->store_info[i].store_addr.addr_ch1;
+				DCAM_FMCU_PUSH(fmcu, addr, cmd);
+			} else {
+				addr = DCAM_GET_REG(fmcu->hw_ctx_id, DCAM_YUV_FBC_SCAL_SLICE_HEADER_BASE_ADDR);
+				DCAM_FMCU_PUSH(fmcu, addr, slw->store_info[i].store_addr.addr_ch0);
+				addr = DCAM_GET_REG(fmcu->hw_ctx_id, DCAM_YUV_FBC_SCAL_SLICE_PLOAD_BASE_ADDR);
+				DCAM_FMCU_PUSH(fmcu, addr, slw->store_info[i].store_addr.addr_ch1);
+				addr = DCAM_GET_REG(fmcu->hw_ctx_id, DCAM_YUV_FBC_SCAL_SLICE_PLOAD_OFFSET_ADDR);
+				DCAM_FMCU_PUSH(fmcu, addr, slw->store_info[i].store_addr.addr_ch1 - slw->store_info[i].store_addr.addr_ch0);
+			}
 		} else if(i == DCAM_PATH_FULL) {
 			addr = DCAM_GET_REG(fmcu->hw_ctx_id, DCAM_STORE4_SLICE_Y_ADDR);
 			cmd = slw->store_info[i].store_addr.addr_ch0;
