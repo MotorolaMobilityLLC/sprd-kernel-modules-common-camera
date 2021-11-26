@@ -1100,7 +1100,7 @@ static int isppyrdec_irq_proc(void *handle)
 		if (pctx->cb_func)
 			pctx->cb_func(ISP_CB_RET_SRC_BUF, pframe, pctx->cb_priv_data);
 		else
-			pr_err("fail to get cb_func ptr at ret src");
+			pr_err("fail to get cb_func ptr at ret src\n");
 	} else {
 		pr_err("fail to get src frame sw_idx=%d proc_queue.cnt:%d\n",
 			cur_ctx_id, dec_dev->proc_queue.cnt);
@@ -1114,7 +1114,7 @@ static int isppyrdec_irq_proc(void *handle)
 		if (pctx->cb_func)
 			pctx->cb_func(ISP_CB_RET_PYR_DEC_BUF, pframe, pctx->cb_priv_data);
 		else
-			pr_err("fail to get cb_func ptr at ret pyr dec");
+			pr_err("fail to get cb_func ptr at ret pyr dec\n");
 	} else {
 		pr_err("fail to get src frame sw_idx=%d \n", cur_ctx_id);
 	}

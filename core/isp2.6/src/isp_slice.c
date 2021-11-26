@@ -2114,7 +2114,6 @@ static int ispslice_3dnr_memctrl_info_cfg(
 		slc_3dnr_memctrl->back_toddr_en = 1;
 		slc_3dnr_memctrl->chk_sum_clr_en = 1;
 		slc_3dnr_memctrl->bypass = mem_ctrl->bypass;
-		slc_3dnr_memctrl->slice_info = mem_ctrl->slice_info;
 		slc_3dnr_memctrl->ref_pic_flag = mem_ctrl->ref_pic_flag;
 		slc_3dnr_memctrl->yuv_8bits_flag = mem_ctrl->yuv_8bits_flag;
 		slc_3dnr_memctrl->nr3_ft_path_sel = mem_ctrl->nr3_ft_path_sel ;

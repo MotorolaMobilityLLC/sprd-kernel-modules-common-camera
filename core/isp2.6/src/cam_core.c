@@ -7783,7 +7783,6 @@ static int camcore_release(struct inode *node, struct file *file)
 		atomic_set(&group->mul_buf_alloced, 0);
 		atomic_set(&group->mul_pyr_buf_alloced, 0);
 		group->is_mul_buf_share = 0;
-		mutex_destroy(&group->pyr_mulshare_lock);
 		spin_unlock_irqrestore(&group->module_lock, flag);
 	}
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0))
