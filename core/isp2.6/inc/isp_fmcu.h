@@ -20,7 +20,7 @@
 
 #include "cam_buf.h"
 
-#define ISP_FMCU_CMDQ_SIZE          0x2000
+#define ISP_FMCU_CMDQ_SIZE          0x3000
 
 enum fmcu_id {
 	ISP_FMCU_0, /* P0 */

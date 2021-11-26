@@ -39,7 +39,7 @@ static int ispfmcu_cmd_push(struct isp_fmcu_ctx_desc *fmcu_ctx,
 		return -EFAULT;
 	}
 	if (fmcu_ctx->cmdq_pos[fmcu_ctx->cur_buf_id]
-		> (fmcu_ctx->cmdq_size / sizeof(uint32_t))) {
+		>= (fmcu_ctx->cmdq_size / sizeof(uint32_t))) {
 		pr_err("fail to get fmcu%d cmdq, overflow.\n", fmcu_ctx->fid);
 		return -EFAULT;
 	}
@@ -72,7 +72,7 @@ static int ispfmcu_cmd_ready(struct isp_fmcu_ctx_desc *fmcu_ctx)
 		base = ISP_FMCU1_BASE;
 
 	if (fmcu_ctx->cmdq_pos[fmcu_ctx->cur_buf_id]
-		> (fmcu_ctx->cmdq_size / sizeof(uint32_t))) {
+		>= (fmcu_ctx->cmdq_size / sizeof(uint32_t))) {
 		pr_err("fail to get fmcu%d cmdq, overflow.\n", fmcu_ctx->fid);
 		return -EFAULT;
 	}
@@ -122,7 +122,7 @@ static int ispfmcu_start(struct isp_fmcu_ctx_desc *fmcu_ctx)
 	pr_debug("start fmcu%d\n", fmcu_ctx->fid);
 
 	if (fmcu_ctx->cmdq_pos[fmcu_ctx->cur_buf_id]
-		> (fmcu_ctx->cmdq_size / sizeof(uint32_t))) {
+		>= (fmcu_ctx->cmdq_size / sizeof(uint32_t))) {
 		pr_err("fail to get fmcu%d cmdq, overflow.\n", fmcu_ctx->fid);
 		return -EFAULT;
 	}
