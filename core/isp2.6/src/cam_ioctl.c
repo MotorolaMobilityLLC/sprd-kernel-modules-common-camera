@@ -3455,8 +3455,8 @@ static int camioctl_csi_switch(struct camera_module *module, unsigned long arg)
 	switch (csi_connect) {
 		case 0:
 			if (sw_ctx->hw_ctx_id == DCAM_HW_CONTEXT_MAX) {
-				pr_err("fail to disconnect. sw_ctx already unbind\n");
-				return -1;
+				pr_warn("warning: sw_ctx has been disconnected and unbinded already. sw_ctx_id: %d\n", sw_ctx->sw_ctx_id);
+				return 0;
 			}
 
 			/* switch disconnect */
