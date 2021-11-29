@@ -71,10 +71,20 @@ static struct csi_dt_node_info *csi_get_dt_node_data(int sensor_id)
 }
 /* csi src 0 soc, 1 sensor, and csi test pattern clk */
 
+int cnt = 0;
 static int csi_mipi_clk_enable(int sensor_id)
 {
 	struct csi_dt_node_info *dt_info = csi_get_dt_node_data(sensor_id);
 	int ret = 0;
+	void __iomem *reg_base = NULL;
+
+	if(!cnt) {
+		reg_base = ioremap_nocache(0x3000000c, 1);
+		if (!reg_base) {
+			pr_info("0x%x: ioremap failed\n", 0x30000008);
+			return -1;
+		}
+	}
 
 	if (!dt_info) {
 		pr_err("fail to get valid dt_info ptr\n");
@@ -85,7 +95,20 @@ static int csi_mipi_clk_enable(int sensor_id)
 		pr_err("fail to csi mipi clk enable\n");
 		return -EINVAL;
 	}
-
+	if(!cnt) {
+		REG_MWR(reg_base, BIT_15 | BIT_14 | BIT_13 | BIT_12, BIT_15 | BIT_14 | BIT_13 | BIT_12);
+		iounmap(reg_base);
+/*		reg_base = ioremap_nocache(0x3001004c, 9);
+		if (!reg_base) {
+			pr_info("0x%x: ioremap failed\n", 0x3001004c);
+			return -1;
+		}
+		REG_MWR(reg_base, BIT_16, ~BIT_16);
+		REG_MWR(reg_base + 4, BIT_16, ~BIT_16);
+		REG_MWR(reg_base + 8, BIT_16, ~BIT_16);
+		iounmap(reg_base)*/;
+		//csi_api_reg_trace();
+	}
 	ret = clk_prepare_enable(dt_info->csi_eb_clk);
 	if (ret) {
 		pr_err("fail to csi eb clk\n");
@@ -127,6 +150,7 @@ static int csi_mipi_clk_enable(int sensor_id)
 static void csi_mipi_clk_disable(int sensor_id)
 {
 	struct csi_dt_node_info *dt_info = csi_get_dt_node_data(sensor_id);
+	void __iomem *reg_base = NULL;
 
 	if (!dt_info) {
 		pr_err("fail to get valid dt_info ptr\n");
@@ -146,6 +170,15 @@ static void csi_mipi_clk_disable(int sensor_id)
 		~MASK_AON_APB_CGM_CPHY_CFG_EN);
 	regmap_update_bits(dt_info->phy.aon_apb_syscon,
 		0x0c, 0x04, ~0x04);
+	cnt--;
+	if(!cnt) {
+		reg_base = ioremap_nocache(0x3000000c, 1);
+		if (!reg_base) {
+			pr_info("0x%x: ioremap failed\n", 0x30000008);
+		}
+		REG_MWR(reg_base, BIT_15 | BIT_14 | BIT_13 | BIT_12, 0);
+		iounmap(reg_base);
+	}
 
 	//clk_disable_unprepare(dt_info->mipi_csi_gate_eb);
 	clk_disable_unprepare(dt_info->csi_eb_clk);

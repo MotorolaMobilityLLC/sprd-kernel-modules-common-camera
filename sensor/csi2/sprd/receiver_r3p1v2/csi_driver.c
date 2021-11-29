@@ -356,11 +356,16 @@ int CSI_REG_MWR(unsigned int idx, unsigned int reg, unsigned int msk, unsigned i
 	unsigned int reg_base = 0x3e200000 + idx * 0x100000 + reg;
 	//pr_info("reg_base 0x%x: idx 0x%x reg 0x%x\n", reg_base,idx,reg);
 /*	REG_MWR((void *)&reg_base, msk, val);*/
+	while((reg_rd(0x3000000c)&(1<<(12+idx)))==0x0){
+		pr_info("%s csi%d need enable\n", __func__, idx);
+		reg_mwr(0x3000000c,  (1<<(12+idx)), (1<<(12+idx)));
+	}
+	if(1){
 	unsigned int temp = ((val) & (msk)) | (CSI_REG_RD(idx, reg) & (~(msk)));
 	pr_debug("reg_base 0x%x 0x%x\n", reg_base,CSI_BASE(idx)+reg);
 	udelay(10);
 	writel_relaxed(temp, (void __iomem *)(CSI_BASE(idx)+reg));
-
+	}
 	//REG_WR(CSI_BASE(idx)+reg, ((val) & (msk)) | (CSI_REG_RD(idx, reg) & (~(msk))));
 	//writel_relaxed(((val) & (msk)) | (CSI_REG_RD(idx, reg) & (~(msk))),
 	//				(volatile void __iomem *)(CSI_BASE(idx)+reg));
@@ -944,8 +949,13 @@ void csi_controller_enable(struct csi_dt_node_info *dt_info)
 
 
 	csi_dump_regbase[dt_info->controller_id] = dt_info->reg_base;
-	regmap_update_bits(phy->cam_ahb_syscon, 0x0c,
+	do{
+		pr_info("%s csi, id %d phy %d enable\n", __func__, dt_info->controller_id,
+		phy->phy_id);
+		regmap_update_bits(phy->cam_ahb_syscon, 0x0c,
 			mask_eb, mask_eb);
+	}while((reg_rd(0x3000000c)&mask_eb)==0x0);
+
 }
 
 void csi_controller_disable(struct csi_dt_node_info *dt_info, int32_t idx)
@@ -997,8 +1007,8 @@ void csi_controller_disable(struct csi_dt_node_info *dt_info, int32_t idx)
 
 	csi_dump_regbase[dt_info->controller_id] = 0;
 
-	regmap_update_bits(phy->cam_ahb_syscon, 0x0c,
-			mask_eb, mask_eb);
+	//regmap_update_bits(phy->cam_ahb_syscon, 0x0c,
+	//		mask_eb, mask_eb);
 	regmap_update_bits(phy->cam_ahb_syscon, 0xc8,
 			mask_rst, ~mask_rst);
 	udelay(1);
