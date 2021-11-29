@@ -1408,7 +1408,7 @@ static irqreturn_t dcamint_error_handler(struct dcam_hw_context *dcam_hw_ctx, st
 	 * Need to be removed in AB chip
 	 */
 	if ((status & BIT(DCAM_IF_IRQ_INT0_DCAM_OVF)) && DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, DCAM_CAP_FRM_CLR) == 0){
-		pr_warn("warning: to clean first frame DCAM%u 0x%x%s\n", dcam_hw_ctx->hw_ctx_id, status,
+		pr_warn_ratelimited("warning: to clean first frame DCAM%u 0x%x%s\n", dcam_hw_ctx->hw_ctx_id, status,
 		tb_ovr[!!(status & BIT(DCAM_IF_IRQ_INT0_DCAM_OVF))]);
 		return IRQ_HANDLED;
 	}
