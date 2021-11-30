@@ -4414,7 +4414,7 @@ static int camcore_channel_size_config(
 
 	if (atomic_read(&module->state) == CAM_RUNNING) {
 		is_zoom = 1;
-		loop_count = 5;
+		loop_count = 8;
 	} else {
 		is_zoom = 0;
 		loop_count = 1;
