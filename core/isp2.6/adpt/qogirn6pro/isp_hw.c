@@ -114,7 +114,7 @@ static const struct bypass_tag isp_hw_bypass_tab[] = {
 };
 
 static struct qos_reg nic400_isp_blk_mtx_qos_list[] = {
-	//nic400_isp_blk_mtx_m0_qos_list
+	/*nic400_isp_blk_mtx_m0_qos_list*/
 	{"REGU_OT_CTRL_EN",     0x30040000, 0x00000001, 0x00000001},
 	{"REGU_OT_CTRL_AW_CFG", 0x30040004, 0xffffffff, 0x08080402},
 	{"REGU_OT_CTRL_AR_CFG", 0x30040008, 0x3f3f3f3f, 0x10101010},
@@ -122,7 +122,7 @@ static struct qos_reg nic400_isp_blk_mtx_qos_list[] = {
 	{"REGU_AXQOS_GEN_EN",   0x30040060, 0x80000003, 0x00000003},
 	{"REGU_AXQOS_GEN_CFG",  0x30040064, 0x3fff3fff, 0x01110666},
 	{"REGU_URG_CNT_CFG",    0x30040068, 0x00000701, 0x00000001},
-	//nic400_isp_blk_mtx_m1_qos_list
+	/*nic400_isp_blk_mtx_m1_qos_list*/
 	{"REGU_OT_CTRL_EN",     0x30040080, 0x00000001, 0x00000001},
 	{"REGU_OT_CTRL_AW_CFG", 0x30040084, 0xffffffff, 0x02889090},
 	{"REGU_OT_CTRL_AR_CFG", 0x30040088, 0x3f3f3f3f, 0x10060402},
@@ -134,18 +134,17 @@ static struct qos_reg nic400_isp_blk_mtx_qos_list[] = {
 	{"REGU_AXQOS_GEN_EN",   0x300400E0, 0x80000003, 0x00000003},
 	{"REGU_AXQOS_GEN_CFG",  0x300400E4, 0x3fff3fff, 0x0a880a88},
 	{"REGU_URG_CNT_CFG",    0x300400E8, 0x00000701, 0x00000001},
-	//nic400_isp_blk_mtx_m2_qos_list
+	/*nic400_isp_blk_mtx_m2_qos_list*/
 	{"REGU_AXQOS_GEN_EN",   0x30040160, 0x80000003, 0x00000003},
 	{"REGU_AXQOS_GEN_CFG",  0x30040164, 0x3fff3fff, 0x01110666},
 	{"REGU_URG_CNT_CFG",    0x30040168, 0x00000701, 0x00000001},
-	//nic400_isp_blk_mtx_m3_qos_list
+	/*nic400_isp_blk_mtx_m3_qos_list*/
 	{"REGU_AXQOS_GEN_EN",   0x300401E0, 0x80000003, 0x00000003},
 	{"REGU_AXQOS_GEN_CFG",  0x300401E4, 0x3fff3fff, 0x01110666},
 	{"REGU_URG_CNT_CFG",    0x300401E8, 0x00000701, 0x00000001},
 };
 
 static struct qos_reg glb_rf_isp_qos_list[] = {
-
 	{"MM_ISP_BLK_M0_LPC_CTRL", 0x3000005C, 0x00010000, 0x00000000},
 	{"MM_ISP_BLK_M0_LPC_CTRL", 0x3000005C, 0x00010000, 0x00010000},
 	{"MM_ISP_BLK_M1_LPC_CTRL", 0x30000060, 0x00010000, 0x00000000},
@@ -864,9 +863,9 @@ static int isphw_cfg_map_info_get(void *handle, void *arg)
 
 void isphw_qos_set(void)
 {
-	int i, length_mtx,length_list;
-	void __iomem *addr;
-	uint32_t reg_val, temp;
+	int i = 0, length_mtx = 0,length_list = 0;
+	void __iomem *addr = NULL;
+	uint32_t reg_val = 0, temp = 0;
 
 	length_mtx = sizeof(nic400_isp_blk_mtx_qos_list) /
 		sizeof(nic400_isp_blk_mtx_qos_list[0]);

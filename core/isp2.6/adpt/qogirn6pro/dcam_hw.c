@@ -46,22 +46,23 @@ static uint32_t dcam_fbc_store_base[DCAM_FBC_PATH_NUM] = {
 };
 
 static struct qos_reg nic400_dcam_blk_mtx_qos_list[] = {
-	//nic400_dcam_blk_mtx_m0_qos_list
+	/*nic400_dcam_blk_mtx_m0_qos_list*/
 	{"REGU_OT_CTRL_AW_CFG", 0x30060004, 0xffffffff, 0x08010101},
 	{"REGU_OT_CTRL_AR_CFG", 0x30060008, 0x3f3f3f3f, 0x08080808},
 	{"REGU_OT_CTRL_Ax_CFG", 0x3006000C, 0x3f3fffff, 0x10100808},
-	{"REGU_AXQOS_GEN_CFG",	0x30060064, 0x3fff3fff, 0x0dda0aaa},
-	{"REGU_URG_CNT_CFG",	0x30060068, 0x00000701, 0x00000001},
-	//nic400_dcam_blk_mtx_m1_qos_list
+	{"REGU_AXQOS_GEN_EN",   0x30060060, 0x80000003, 0x00000003},
+	{"REGU_AXQOS_GEN_CFG",  0x30060064, 0x3fff3fff, 0x0dda0aaa},
+	{"REGU_URG_CNT_CFG",    0x30060068, 0x00000701, 0x00000001},
+	/*nic400_dcam_blk_mtx_m1_qos_list*/
 	{"REGU_OT_CTRL_AW_CFG", 0x30060084, 0xffffffff, 0x08010101},
 	{"REGU_OT_CTRL_AR_CFG", 0x30060088, 0x3f3f3f3f, 0x08080808},
 	{"REGU_OT_CTRL_Ax_CFG", 0x3006008C, 0x3f3fffff, 0x10100808},
-	{"REGU_AXQOS_GEN_CFG",	0x300600E4, 0x3fff3fff, 0x0dda0aaa},
-	{"REGU_URG_CNT_CFG",	0x300600E8, 0x00000701, 0x00000001},
+	{"REGU_AXQOS_GEN_EN",   0x300600E0, 0x80000003, 0x00000003},
+	{"REGU_AXQOS_GEN_CFG",  0x300600E4, 0x3fff3fff, 0x0dda0aaa},
+	{"REGU_URG_CNT_CFG",    0x300600E8, 0x00000701, 0x00000001},
 	};
 
 static struct qos_reg glb_rf_dcam_qos_list[] = {
-
 	{"MM_DCAM_BLK_M0_LPC_CTRL", 0x30060074, 0x00010000, 0x00000000},
 	{"MM_DCAM_BLK_M0_LPC_CTRL", 0x30060074, 0x00010000, 0x00010000},
 	{"MM_DCAM_BLK_M1_LPC_CTRL", 0x30060078, 0x00010000, 0x00000000},
@@ -326,9 +327,9 @@ static int dcamhw_axi_init(void *handle, void *arg)
 
 static int dcamhw_qos_set(void *handle, void *arg)
 {
-	int i, length_mtx,length_list;
-	void __iomem *addr;
-	uint32_t reg_val, temp;
+	int i = 0, length_mtx = 0,length_list = 0;
+	void __iomem *addr = NULL;
+	uint32_t reg_val = 0, temp = 0;
 
 	if (!handle) {
 		pr_err("fail to get invalid handle\n");
@@ -359,35 +360,7 @@ static int dcamhw_qos_set(void *handle, void *arg)
 	}
 	return 0;
 }
-/*
-	uint32_t reg_val = 0;
-	struct cam_hw_info *hw = NULL;
-	struct cam_hw_soc_info *soc = NULL;
-	struct cam_hw_soc_info *soc_lite = NULL;
-	uint32_t id = *(uint32_t *)arg;
 
-	if (!handle) {
-		pr_err("fail to get invalid handle\n");
-		return -EFAULT;
-	}
-
-	hw = (struct cam_hw_info *)handle;
-	soc = hw->soc_dcam;
-	soc_lite = hw->soc_dcam_lite;
-
-	if (id <= DCAM_ID_1) {
-		reg_val = (0xF << 28) | (0x0 <<20) | ((soc->arqos_low & 0xF) << 12) | (0x8 << 8) |
-			((soc->awqos_high & 0xF) << 4) | (soc->awqos_low & 0xF);
-		REG_MWR(soc->axi_reg_base + AXIM_CTRL, DCAM_AXIM_AQOS_MASK, reg_val);
-	} else {
-		reg_val = (0x0 <<20) | ((soc->arqos_low & 0xF) << 12) | (0x8 << 8) |
-			((soc->awqos_high & 0xF) << 4) | (soc->awqos_low & 0xF);
-		REG_MWR(soc_lite->axi_reg_base + AXIM_CTRL, DCAM_LITE_AXIM_AQOS_MASK, reg_val);
-	}
-
-	return 0;
-}
-*/
 static int dcamhw_start(void *handle, void *arg)
 {
 	int ret = 0;
