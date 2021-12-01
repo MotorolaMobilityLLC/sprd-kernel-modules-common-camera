@@ -200,7 +200,10 @@ static void isppyrrec_cfg_reconstruct(uint32_t idx,
 	ISP_REG_WR(idx, ISP_REC_PARAM9, val);
 
 	ISP_REG_MWR(idx, ISP_COMMON_SCL_PATH_SEL, BIT_13, BIT_13);
-	ISP_REG_WR(idx, ISP_DISPATCH_BASE + ISP_DISPATCH_LINE_DLY1, 0x40400280);
+	if (pyr_rec->layer_num > 2)
+		ISP_REG_WR(idx, ISP_DISPATCH_BASE + ISP_DISPATCH_LINE_DLY1, 0x40400280);
+	else
+		ISP_REG_WR(idx, ISP_DISPATCH_BASE + ISP_DISPATCH_LINE_DLY1, 0x40408280);
 }
 
 static void isppyrrec_cfg_store(uint32_t idx,
