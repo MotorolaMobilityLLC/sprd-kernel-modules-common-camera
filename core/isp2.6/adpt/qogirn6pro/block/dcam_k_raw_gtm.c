@@ -78,6 +78,12 @@ int dcam_k_raw_gtm_block(uint32_t gtm_param_idx,
 	gtm = &param->rgb_gtm[DCAM_GTM_PARAM_PRE];
 	sw_ctx = (struct dcam_sw_context *)param->dev;
 	p = &(gtm->rgb_gtm_info);
+
+	if (!sw_ctx) {
+		pr_err("fail to get sw_ctx\n");
+		return -EFAULT;
+	}
+
 	if (idx >= DCAM_HW_CONTEXT_MAX)
 		return 0;
 

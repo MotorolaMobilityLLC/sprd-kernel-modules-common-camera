@@ -105,6 +105,11 @@ int dcam_init_lsc(void *in, uint32_t online)
 
 	blk_dcam_pm = (struct dcam_dev_param *)in;
 	dcam_sw_ctx = (struct dcam_sw_context *)blk_dcam_pm->dev;
+
+	if (!dcam_sw_ctx) {
+		pr_err("fail to get in ptr(NULL)\n");
+		return -EFAULT;
+	}
 	hw = dcam_sw_ctx->dev->hw;
 	param = &blk_dcam_pm->lsc;
 

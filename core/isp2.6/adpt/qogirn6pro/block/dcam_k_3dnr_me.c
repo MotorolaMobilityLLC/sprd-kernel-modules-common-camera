@@ -143,13 +143,19 @@ int dcam_k_3dnr_me(struct dcam_dev_param *param)
 	struct dcam_path_desc *path;
 	struct isp_img_rect rect;
 
-	if (param == NULL)
+	if (!param)
 		return -EPERM;
 
 	idx = param->idx;
 	if (idx >= DCAM_HW_CONTEXT_MAX)
 		return 0;
+
 	dev = (struct dcam_sw_context *)param->dev;
+
+	if (!dev) {
+		pr_err("fail to get dev(NULL)\n");
+		return -EPERM;
+	}
 
 	/* debugfs bypass nr3 */
 	if (g_dcam_bypass[idx] & (1 << _E_NR3))
