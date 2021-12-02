@@ -65,7 +65,7 @@
 
 #define CAM_COUNT                       CAM_ID_MAX
 /* TODO: extend this for slow motion dev */
-#define CAM_SHARED_BUF_NUM              25
+#define CAM_SHARED_BUF_NUM              50
 #define CAM_FRAME_Q_LEN                 48
 #define CAM_IRQ_Q_LEN                   16
 #define CAM_STATIS_Q_LEN                16

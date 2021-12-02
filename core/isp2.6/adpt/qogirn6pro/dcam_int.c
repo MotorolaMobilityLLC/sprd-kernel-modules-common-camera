@@ -1054,6 +1054,7 @@ static void dcamint_fmcu_config_done(void *param, struct dcam_sw_context *sw_ctx
 {
 	struct dcam_hw_context *dcam_hw_ctx = (struct dcam_hw_context *)param;
 	struct dcam_path_desc *path = NULL;
+	struct camera_frame *frame = NULL;
 	int i = 0;
 	int path_id = 0;
 	if (!sw_ctx) {
@@ -1067,10 +1068,12 @@ static void dcamint_fmcu_config_done(void *param, struct dcam_sw_context *sw_ctx
 			path = &sw_ctx->path[path_id];
 			if (atomic_read(&path->user_cnt) < 1 || atomic_read(&path->is_shutoff) > 0)
 				continue;
-			if (path_id <= DCAM_PATH_RAW)
-				dcamint_frame_dispatch(dcam_hw_ctx, sw_ctx, path_id,dcamint_frame_prepare(dcam_hw_ctx, sw_ctx, path_id),DCAM_CB_DATA_DONE);
-			else
-				dcamint_frame_dispatch(dcam_hw_ctx, sw_ctx, path_id,dcamint_frame_prepare(dcam_hw_ctx, sw_ctx, path_id),DCAM_CB_STATIS_DONE);
+			if ((frame = dcamint_frame_prepare(dcam_hw_ctx, sw_ctx, path_id))) {
+				if (path_id <= DCAM_PATH_RAW)
+					dcamint_frame_dispatch(dcam_hw_ctx, sw_ctx, path_id, frame, DCAM_CB_DATA_DONE);
+				else
+					dcamint_frame_dispatch(dcam_hw_ctx, sw_ctx, path_id, frame, DCAM_CB_STATIS_DONE);
+			}
 		}
 	}
 	if (atomic_read(&sw_ctx->shadow_config_cnt) == atomic_read(&sw_ctx->shadow_done_cnt)) {
