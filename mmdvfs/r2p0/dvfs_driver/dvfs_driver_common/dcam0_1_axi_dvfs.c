@@ -96,7 +96,7 @@ int set_dcam01_axi_work_freq(unsigned int index){
     index_cfg_reg = DVFS_REG_RD(REG_MM_DVFS_AHB_DCAM0_1_AXI_DVFS_INDEX_CFG);
 	index_cfg_reg = (index_cfg_reg & (~0x7)) | index;
 	DVFS_REG_WR(REG_MM_DVFS_AHB_DCAM0_1_AXI_DVFS_INDEX_CFG, index_cfg_reg);
-	pr_info("dvfs ops: %s, governor: DCAM0_1_AXI, index=%d,\n", __func__,
+	pr_info("dvfs ops: %s, DCAM0_1_AXI, work_index=%d,\n", __func__,
 		index);
 	return MM_DVFS_SUCCESS;
 

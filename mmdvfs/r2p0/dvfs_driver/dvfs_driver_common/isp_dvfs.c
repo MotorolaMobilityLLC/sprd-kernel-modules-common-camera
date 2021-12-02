@@ -122,7 +122,7 @@ static void set_ip_dvfs_work_index(struct devfreq *devfreq,
     index_cfg_reg = DVFS_REG_RD(REG_MM_DVFS_AHB_ISP_DVFS_INDEX_CFG);
     index_cfg_reg = (index_cfg_reg & (~0x7)) | index;
     DVFS_REG_WR(REG_MM_DVFS_AHB_ISP_DVFS_INDEX_CFG, index_cfg_reg);
-    pr_info("dvfs ops: %s, index_cfg=%d\n", __func__, index_cfg_reg);
+    pr_info("dvfs ops: %s, ISP, work_index=%d\n", __func__, index_cfg_reg);
 }
 
 static int set_work_freq(struct devfreq *devfreq, unsigned long work_freq) {
