@@ -539,7 +539,7 @@ dcam_path_frame_cycle(struct dcam_sw_context *dcam_sw_ctx, struct dcam_path_desc
 			cam_buf_iommu_unmap(&frame->buf);
 			cam_queue_enqueue(&path->alter_out_queue, &frame->list);
 		}
-		pr_err("fail to enqueue frame to result_queue, hw_ctx_id %u %s overflow\n",
+		pr_err_ratelimited("fail to enqueue frame to result_queue, hw_ctx_id %u %s overflow\n",
 			dcam_sw_ctx->hw_ctx_id, dcam_path_name_get(path->path_id));
 		return ERR_PTR(-EPERM);
 	}

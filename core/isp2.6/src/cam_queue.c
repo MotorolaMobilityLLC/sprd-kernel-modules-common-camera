@@ -41,7 +41,7 @@ int cam_queue_enqueue(struct camera_queue *q, struct list_head *list)
 	}
 
 	if (q->cnt >= q->max) {
-		pr_warn("warning: q full, cnt %d, max %d\n", q->cnt, q->max);
+		pr_warn_ratelimited("warning: q full, cnt %d, max %d\n", q->cnt, q->max);
 		ret = -EPERM;
 		goto unlock;
 	}

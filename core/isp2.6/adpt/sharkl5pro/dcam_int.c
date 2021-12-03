@@ -679,9 +679,11 @@ static void dcamint_full_path_done(void *param, struct dcam_sw_context *sw_ctx)
 {
 	struct dcam_hw_context *dcam_hw_ctx = (struct dcam_hw_context *)param;
 	struct camera_frame *frame = NULL;
-	struct dcam_path_desc *path = NULL;
 
-	path = &sw_ctx->path[DCAM_PATH_FULL];
+	if (!sw_ctx || !param) {
+		pr_err("fail to get valid input sw_ctx %p\n", sw_ctx);
+		return;
+	}
 
 	if (sw_ctx->offline) {
 		if (sw_ctx->dcam_slice_mode != CAM_OFFLINE_SLICE_SW) {
