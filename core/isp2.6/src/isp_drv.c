@@ -1156,6 +1156,12 @@ int isp_drv_dt_parse(struct device_node *dn,
 			ARRAY_SIZE(args), args))
 			ip_isp->syscon.rst_vau_mask = args[1];
 
+		if (!cam_syscon_get_args_by_name(isp_node, "sys_h2p_db_soft_rst",
+			ARRAY_SIZE(args), args)) {
+			ip_isp->syscon.sys_soft_rst = args[0];
+			ip_isp->syscon.sys_h2p_db_soft_rst = args[1];
+		}
+
 		if (of_address_to_resource(isp_node, i, &res))
 			pr_err("fail to get isp phys addr\n");
 

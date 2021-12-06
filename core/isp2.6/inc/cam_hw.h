@@ -1260,6 +1260,8 @@ struct glb_syscon {
 	uint32_t all_rst;
 	uint32_t all_rst_mask;
 	uint32_t axi_rst_mask;
+	uint32_t sys_soft_rst;
+	uint32_t sys_h2p_db_soft_rst;
 };
 
 struct cam_hw_ip_info {
