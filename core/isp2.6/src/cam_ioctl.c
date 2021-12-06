@@ -1537,8 +1537,13 @@ static int camioctl_stream_off(struct camera_module *module,
 
 	for (i = 0; i < CAM_CH_MAX; i++) {
 		ch = &module->channel[i];
-		if (!ch->enable || (ch->ch_id == CAM_CH_RAW))
+		if (!ch->enable)
 			continue;
+		if (ch->ch_id == CAM_CH_RAW) {
+			if (g_dbg_dump.dump_en == DUMP_PATH_RAW_BIN)
+				cam_queue_clear(&ch->share_buf_queue, struct camera_frame, list);
+			continue;
+		}
 #ifdef DCAM_BRINGUP
 		if (dcam_ctx_id[i] != -1)
 			module->dcam_dev_handle->dcam_pipe_ops->put_context(module->dcam_dev_handle,
@@ -1773,6 +1778,8 @@ static int camioctl_stream_on(struct camera_module *module,
 	if (!online)
 		goto cfg_ch_done;
 
+	if (g_dbg_dump.dump_en == DUMP_PATH_RAW_BIN)
+		camcore_full_raw_switch(module);
 	/* settle down compression policy here */
 	camcore_compression_cal(module);
 

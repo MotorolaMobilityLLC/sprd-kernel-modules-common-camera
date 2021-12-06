@@ -21,6 +21,7 @@ extern "C" {
 #include <linux/fs.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
+#include <linux/spinlock.h>
 
 #include "cam_queue.h"
 #include "cam_types.h"
@@ -28,7 +29,13 @@ extern "C" {
 
 #define CAMERA_DUMP_PATH "/data/ylog/"
 /* will create thread in user to read raw buffer*/
-#define BYTE_PER_ONCE 4096
+#define BYTE_PER_ONCE                   4096
+#define AFBC_PADDING_W_YUV420_scaler    32
+#define AFBC_PADDING_H_YUV420_scaler    8
+#define AFBC_VERSION                    5
+#define AFBC_FILEHEADER_SIZE            32
+#define DUMP_Q_LEN                      50
+#define DUMP_RAW_BUF_NUM                10
 
 enum dump_mode {
 	DUMP_DISABLE = 0,
@@ -38,6 +45,7 @@ enum dump_mode {
 	DUMP_ISP_PYR_REC,
 	DUMP_ISP_PYR_DEC,
 	DUMP_DCAM_PDAF,
+	DUMP_PATH_RAW_BIN,
 	DUMP_CAM_MAX
 };
 
@@ -52,12 +60,31 @@ enum dump_cfg {
 	DUMP_CFG_MAX
 };
 
+enum dump_afbc_format {
+	DUMP_AFBC_Y_UV = 1,
+	DUMP_AFBC_Y_VU = 2,
+	DUMP_AFBC_FORMAT_MAX
+};
+
+struct cam_dump_fbc_header {
+    uint8_t yuv_mirror_en;
+    uint8_t yuv_format;
+    uint8_t endian;
+    uint8_t bits;
+    int32_t img_h_pad;
+    int32_t img_w_pad;
+    int32_t img_h;
+    int32_t img_w;
+    int32_t fbc_buffer_size;
+    uint8_t fbc_hdr_buffer[32];
+};
+
 /* for raw picture dump */
 struct cam_dbg_dump {
 	uint32_t dump_en;/* see enumerations above */
 	uint32_t dump_count;
 	uint32_t dump_ongoing;
-	struct mutex dump_lock;
+	spinlock_t dump_lock;
 	struct completion *dump_start[6];
 };
 extern struct cam_dbg_dump g_dbg_dump;

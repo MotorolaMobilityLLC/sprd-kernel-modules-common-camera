@@ -19,7 +19,7 @@ static void camdump_write_image_to_file(uint8_t *buffer,
 	ssize_t result = 0, total = 0, writ = 0;
 	struct file *wfp;
 
-	wfp = cam_filp_open(file, O_CREAT|O_RDWR, 0666);
+	wfp = cam_filp_open(file, O_CREAT | O_RDWR | O_APPEND, 0666);
 	if (IS_ERR_OR_NULL(wfp)) {
 		pr_err("fail to open file %s\n", file);
 		return;
@@ -41,6 +41,69 @@ static void camdump_write_image_to_file(uint8_t *buffer,
 	pr_debug("write image done, total=%d\n", (uint32_t)total);
 }
 
+static int camdump_compress_frame_dump(struct cam_dump_ctx *dump_base, struct camera_frame *pframe, uint8_t* file_name, uint32_t* offset)
+{
+	struct cam_dump_fbc_header fbc_hdr = {0};
+	unsigned long addr = 0;
+	uint8_t tmp_str[20] = { '\0' };
+	uint8_t superblock_layout = 5, file_message = 2;
+	uint8_t tiled = 0, yuv_transform = 0, block_split = 0, left_crop = 0, top_crop = 0;
+	uint8_t ncomponents[2];
+	sprintf(tmp_str, "_compress");
+	strcat(file_name, tmp_str);
+	if (dump_base->pack_bits == CAM_RAW_HALF14 || dump_base->pack_bits == CAM_RAW_HALF10)
+		strcat(file_name, ".raw");
+	else
+		strcat(file_name, ".mipi_raw");
+	/* The fbd tool need to configure fbc_hdr.The fbc_hdr setting from Algorithm team. */
+	ncomponents[0] = 1;
+	ncomponents[1] = 2;
+	fbc_hdr.yuv_mirror_en = 0;
+	fbc_hdr.yuv_format = DUMP_AFBC_Y_UV;
+	fbc_hdr.endian = 0;
+	fbc_hdr.bits = dump_base->dcam_out_bits;
+	fbc_hdr.img_h = pframe->height;
+	fbc_hdr.img_w = pframe->width;
+	fbc_hdr.img_h_pad = (pframe->height + AFBC_PADDING_H_YUV420_scaler - 1)/AFBC_PADDING_H_YUV420_scaler*AFBC_PADDING_H_YUV420_scaler;
+	fbc_hdr.img_w_pad = (pframe->width  + AFBC_PADDING_W_YUV420_scaler - 1)/AFBC_PADDING_W_YUV420_scaler*AFBC_PADDING_W_YUV420_scaler;
+	fbc_hdr.fbc_buffer_size = pframe->fbc_info.buffer_size;
+	fbc_hdr.fbc_hdr_buffer[0] = 'A';
+	fbc_hdr.fbc_hdr_buffer[1] = 'F';
+	fbc_hdr.fbc_hdr_buffer[2] = 'B';
+	fbc_hdr.fbc_hdr_buffer[3] = 'C';
+	fbc_hdr.fbc_hdr_buffer[4] = AFBC_FILEHEADER_SIZE;
+	fbc_hdr.fbc_hdr_buffer[5] = 0x00;
+	fbc_hdr.fbc_hdr_buffer[6] = AFBC_VERSION;
+	fbc_hdr.fbc_hdr_buffer[7] = 0x00;
+	memcpy(&fbc_hdr.fbc_hdr_buffer[8], &(fbc_hdr.fbc_buffer_size), sizeof(fbc_hdr.fbc_buffer_size));
+	fbc_hdr.fbc_hdr_buffer[12] = ncomponents[0] + ncomponents[1];
+	fbc_hdr.fbc_hdr_buffer[13] = superblock_layout;
+	fbc_hdr.fbc_hdr_buffer[14] = yuv_transform;
+	fbc_hdr.fbc_hdr_buffer[15] = block_split;
+	fbc_hdr.fbc_hdr_buffer[16] = dump_base->dcam_out_bits & 0xff;
+	fbc_hdr.fbc_hdr_buffer[17] = dump_base->dcam_out_bits & 0xff;
+	fbc_hdr.fbc_hdr_buffer[18] = dump_base->dcam_out_bits & 0xff;
+	fbc_hdr.fbc_hdr_buffer[19] = 0x00;
+	fbc_hdr.fbc_hdr_buffer[20] = pframe->fbc_info.tile_col & 0xff;
+	fbc_hdr.fbc_hdr_buffer[21] = (pframe->fbc_info.tile_col >> 8) & 0xff;
+	fbc_hdr.fbc_hdr_buffer[22] = pframe->fbc_info.tile_row & 0xff;
+	fbc_hdr.fbc_hdr_buffer[23] = (pframe->fbc_info.tile_row >> 8) & 0xff;
+	fbc_hdr.fbc_hdr_buffer[24] = fbc_hdr.img_w_pad & 0xff;
+	fbc_hdr.fbc_hdr_buffer[25] = (fbc_hdr.img_w_pad >> 8) & 0xff;
+	fbc_hdr.fbc_hdr_buffer[26] = fbc_hdr.img_h_pad & 0xff;
+	fbc_hdr.fbc_hdr_buffer[27] = (fbc_hdr.img_h_pad >> 8) & 0xff;
+	fbc_hdr.fbc_hdr_buffer[28] = left_crop;
+	fbc_hdr.fbc_hdr_buffer[29] = top_crop;
+	fbc_hdr.fbc_hdr_buffer[30] = tiled;
+	fbc_hdr.fbc_hdr_buffer[31] = file_message;
+	camdump_write_image_to_file((char *)&fbc_hdr, sizeof(fbc_hdr), file_name);
+	addr = pframe->buf.addr_k[0] + *offset;
+	*offset += pframe->fbc_info.buffer_size;
+	camdump_write_image_to_file((char *)pframe->buf.addr_k[0], pframe->fbc_info.buffer_size, file_name);
+
+	return 0;
+}
+
 static int camdump_one_frame_dump(struct cam_dump_ctx *dump_base, struct camera_frame *pframe)
 {
 	ssize_t size = 0;
@@ -50,7 +113,6 @@ static int camdump_one_frame_dump(struct cam_dump_ctx *dump_base, struct camera_
 	uint32_t width = 0,offset = 0;
 	unsigned long  addr = 0, addr1 = 0;
 	enum cam_ch_id ch_id = 0;
-	struct dcam_compress_info fbc_info = {0};
 
 	if(dump_base == NULL || pframe == NULL)
 		return 0;
@@ -62,16 +124,18 @@ static int camdump_one_frame_dump(struct cam_dump_ctx *dump_base, struct camera_
 
 	strcat(file_name, CAMERA_DUMP_PATH);
 	if (dump_base->ch_id == CAM_CH_PRE)
-		strcat(file_name, "pre");
+		strcat(file_name, "pre_");
+	else if(dump_base->ch_id == CAM_CH_RAW)
+		strcat(file_name, "raw_");
 	else
-		strcat(file_name, "cap");
+		strcat(file_name, "cap_");
 
 	if (dump_base->dcam_out_fmt == DCAM_STORE_RAW_BASE)
-		strcat(file_name, "prevraw_");
+		strcat(file_name, "raw_");
 	else if (dump_base->dcam_out_fmt == DCAM_STORE_FRGB)
-		strcat(file_name, "prevrgb_");
+		strcat(file_name, "rgb_");
 	else
-		strcat(file_name, "prevyuv_");
+		strcat(file_name, "yuv_");
 
 	sprintf(tmp_str, "%d.", (uint32_t)dump_base->cur_dump_ts.tv_sec);
 	strcat(file_name, tmp_str);
@@ -98,31 +162,7 @@ static int camdump_one_frame_dump(struct cam_dump_ctx *dump_base, struct camera_
 	strcat(file_name, tmp_str);
 
 	if (pframe->is_compressed) {
-		struct compressed_addr addr;
-		struct dcam_compress_cal_para cal_fbc;
-
-		cal_fbc.compress_4bit_bypass = pframe->compress_4bit_bypass;
-		cal_fbc.data_bits = dump_base->dcam_out_bits;
-		cal_fbc.fbc_info = &fbc_info;
-		cal_fbc.in = pframe->buf.iova[0];
-		cal_fbc.fmt = dump_base->dcam_out_fmt;
-		cal_fbc.height = pframe->height;
-		cal_fbc.width = pframe->width;
-		cal_fbc.out = &addr;
-
-		size = dcam_if_cal_compressed_size (&cal_fbc);
-
-		dcam_if_cal_compressed_addr(&cal_fbc);
-		pframe->fbc_info = fbc_info;
-		sprintf(tmp_str, "_tile%08lx", addr.addr1 - pframe->buf.iova[0]);
-		strcat(file_name, tmp_str);
-		sprintf(tmp_str, "_low2tile%08x", addr.addr2 - addr.addr1);
-		strcat(file_name, tmp_str);
-		if (dump_base->pack_bits == CAM_RAW_HALF14 || dump_base->pack_bits == CAM_RAW_HALF10)
-			strcat(file_name, ".raw");
-		else
-			strcat(file_name, ".mipi_raw");
-		camdump_write_image_to_file((char *)pframe->buf.addr_k[0], size, file_name);
+		camdump_compress_frame_dump(dump_base, pframe, file_name, &offset);
 	} else {
 		if (dump_base->dcam_out_fmt == DCAM_STORE_RAW_BASE) {
 			size = cal_sprd_raw_pitch(width, dump_base->pack_bits) * pframe->height;
@@ -215,8 +255,9 @@ static inline int camdump_should_dump(int mode, int path)
 		|| (mode == DUMP_PATH_BIN && path == CAM_CH_PRE)
 		|| (mode == DUMP_PATH_FULL && path == CAM_CH_CAP)
 		|| (mode == DUMP_ISP_PYR_REC)
-		|| (mode == DUMP_ISP_PYR_DEC
-		|| (mode == DUMP_DCAM_PDAF));
+		|| (mode == DUMP_ISP_PYR_DEC)
+		|| (mode == DUMP_DCAM_PDAF)
+		|| (mode == DUMP_PATH_RAW_BIN && (path == CAM_CH_PRE || path == CAM_CH_RAW));
 }
 
 static int camdump_param_cfg(void *handle, uint32_t cmd, void *param)
@@ -341,6 +382,12 @@ static int camdump_pyr_frame_dump(struct cam_dump_ctx *dump_base, struct camera_
 			if (dump_base->is_pack)
 				strcat(file_name[i], "_mipi");
 		}
+
+		if (pframe->is_compressed && i == 0) {
+			camdump_compress_frame_dump(dump_base, pframe, file_name[i], &offset);
+			continue;
+		}
+
 		strcat(file_name1[i], file_name[i]);
 		if (dump_base->dcam_out_fmt == DCAM_STORE_YUV420) {
 			strcat(file_name[i], "_yuv420.y");
@@ -367,7 +414,6 @@ static int camdump_pyr_frame_dump(struct cam_dump_ctx *dump_base, struct camera_
 	}
 
 	cam_buf_kunmap(&pframe->buf);
-	dump_base->dump_count--;
 	return 0;
 }
 
@@ -383,14 +429,15 @@ static int camdump_normal_frame_dump(struct cam_dump_ctx *dump_base, struct came
 int camdump_start(struct cam_thread_info* thrd_info, struct cam_dump_ctx *dump_base, uint32_t dcam_idx)
 {
 	struct cam_dbg_dump *dbg = &g_dbg_dump;
-
-	mutex_lock(&dbg->dump_lock);
+	unsigned long flag = 0;
+	spin_lock_irqsave(&dbg->dump_lock, flag);
 	if (!(dbg->dump_ongoing & (1 << dcam_idx))) {
 		dump_base->dump_cfg = camdump_param_cfg;
 		switch (g_dbg_dump.dump_en) {
 		case DUMP_PATH_BOTH:
 		case DUMP_PATH_FULL:
 		case DUMP_PATH_BIN:
+		case DUMP_PATH_RAW_BIN:
 			dump_base->dump_enqueue = camdump_enqueue;
 			dump_base->dump_file = camdump_normal_frame_dump;
 			break;
@@ -415,17 +462,19 @@ int camdump_start(struct cam_thread_info* thrd_info, struct cam_dump_ctx *dump_b
 		dbg->dump_count = 99;
 		pr_debug("trigger sdump capture raw mode %d\n", g_dbg_dump.dump_en);
 	}
-	mutex_unlock(&dbg->dump_lock);
+	spin_unlock_irqrestore(&dbg->dump_lock, flag);
 	return 0;
 }
 
 int camdump_stop(struct cam_dump_ctx *dump_base)
 {
-	mutex_lock(&g_dbg_dump.dump_lock);
+	unsigned long flag = 0;
+	spin_lock_irqsave(&g_dbg_dump.dump_lock, flag);
 	dump_base->dump_count = 0;
 	dump_base->dump_cfg = NULL;
 	dump_base->dump_enqueue = NULL;
-	mutex_unlock(&g_dbg_dump.dump_lock);
+	dump_base->dump_file = NULL;
+	spin_unlock_irqrestore(&g_dbg_dump.dump_lock, flag);
 	complete(&dump_base->dump_com);
 	return 0;
 }

@@ -44,7 +44,8 @@ int g_dbg_set_iommu_mode = IOMMU_AUTO;
 uint32_t g_pyr_dec_online_bypass = 0;
 uint32_t g_pyr_dec_offline_bypass = 0;
 uint32_t g_dcam_raw_src = PROCESS_RAW_SRC_SEL;
-
+uint32_t g_dbg_dumpswitch = 0;
+uint32_t g_dbg_fbc_control = 0;
 extern atomic_t s_dcam_opened[DCAM_SW_CONTEXT_MAX];
 extern struct isp_pipe_dev *s_isp_dev;
 extern uint32_t s_dbg_linebuf_len;
@@ -381,6 +382,105 @@ static const struct file_operations rds_limit_ops = {
 	.write = camdebugger_rds_limit_write,
 };
 
+static ssize_t camdebugger_userparam_set(const char __user *buffer, size_t count, uint32_t *val)
+{
+	int ret = 0;
+	char msg[8];
+
+	if (count > 2)
+		return -EINVAL;
+
+	ret = copy_from_user(msg, (void __user *)buffer, count);
+	if (ret) {
+		pr_err("fail to copy_from_user\n");
+		return -EFAULT;
+	}
+
+	msg[count] = '\0';
+	ret = kstrtouint(msg, 10, val);
+	if (ret < 0) {
+		pr_err("fail to convert '%s', ret %d\n", msg, ret);
+		return ret;
+	}
+	return ret;
+}
+
+static int camdebugger_fbc_control_read(struct seq_file *s, void *unused)
+{
+	const char *desc = "bit 0:bin 1:full 2:raw\n";
+	char buf[48];
+
+	snprintf(buf, sizeof(buf), "%u\n\n%s\n", g_dbg_fbc_control, desc);
+
+	seq_printf(s, "\nUsage:\n");
+	seq_printf(s, "         echo val > fbc_contrl\n");
+	seq_printf(s, "The different bits represent fbc switch in different path\n");
+	seq_printf(s, "\nExample:\n");
+	seq_printf(s, "         echo 6 > fbc_contrl   // bit 110, bypass full and raw path fbc\n");
+	seq_printf(s, "         echo 3 > fbc_contrl   // bit 011, bypass bin and full path fbc\n");
+
+	return 0;
+}
+
+static int camdebugger_fbc_control_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, camdebugger_fbc_control_read, inode->i_private);
+}
+
+static ssize_t camdebugger_fbc_control_write(struct file *filp,
+	const char __user *buffer, size_t count, loff_t *ppos)
+{
+	int ret = 0;
+	ret = camdebugger_userparam_set(buffer,count,&g_dbg_fbc_control);
+	if (ret < 0) {
+		pr_err("set fbc_control fail\n");
+		return ret;
+	}
+	pr_info("set fbc_control %u\n", g_dbg_fbc_control);
+	return count;
+}
+
+static const struct file_operations fbc_control_ops = {
+	.owner = THIS_MODULE,
+	.open = camdebugger_fbc_control_open,
+	.read = seq_read,
+	.write = camdebugger_fbc_control_write,
+};
+
+
+static ssize_t camdebugger_dumpswitch_show(struct file *filp,
+	char __user *buffer, size_t count, loff_t *ppos)
+{
+	const char *desc = "0: disable, 1: bin path and raw path\n";
+	char buf[48];
+
+	snprintf(buf, sizeof(buf), "%u\n\n%s\n", g_dbg_dumpswitch, desc);
+
+	return simple_read_from_buffer(
+		buffer, count, ppos,
+		buf, strlen(buf));
+}
+
+static ssize_t camdebugger_dumpswitch_write(struct file *filp,
+	const char __user *buffer, size_t count, loff_t *ppos)
+{
+	int ret = 0;
+	ret = camdebugger_userparam_set(buffer,count,&g_dbg_dumpswitch);
+	if (ret < 0) {
+		pr_err("set fbc_control fail");
+		return ret;
+	}
+	pr_info("set pathswitch %u\n", g_dbg_dumpswitch);
+	return count;
+}
+
+static const struct file_operations dumpswitch_ops = {
+	.owner = THIS_MODULE,
+	.open = simple_open,
+	.read = camdebugger_dumpswitch_show,
+	.write = camdebugger_dumpswitch_write,
+};
+
 static ssize_t camdebugger_dump_raw_show(struct file *filp,
 	char __user *buffer, size_t count, loff_t *ppos)
 {
@@ -439,6 +539,7 @@ static ssize_t camdebugger_dump_count_write(struct file *filp,
 	int val;
 	int i = 0;
 	struct cam_dbg_dump *dbg = &g_dbg_dump;
+	unsigned long flag = 0;
 
 	if ((dbg->dump_en == 0) || count > 3)
 		return -EINVAL;
@@ -457,7 +558,7 @@ static ssize_t camdebugger_dump_count_write(struct file *filp,
 	/* valid value: 1 ~ 99 */
 	/* if dump thread is ongoing, new setting will not be accepted. */
 	/* capture raw dump will be triggered when catpure starts. */
-	mutex_lock(&dbg->dump_lock);
+	spin_lock_irqsave(&dbg->dump_lock, flag);
 	dbg->dump_count = 0;
 	if (val >= 200 || val == 0) {
 		pr_err("fail to get dump_raw_count %d\n", val);
@@ -472,7 +573,7 @@ static ssize_t camdebugger_dump_count_write(struct file *filp,
 			i++;
 		}
 	}
-	mutex_unlock(&dbg->dump_lock);
+	spin_unlock_irqrestore(&dbg->dump_lock, flag);
 
 	return count;
 }
@@ -793,8 +894,12 @@ static int camdebugger_dcam_init(struct camera_debugger *debugger)
 	if (!debugfs_create_file("dcam_raw_src", 0664,
 		pd, debugger, &dcam_raw_src_ops))
 		ret |= BIT(13);
-	mutex_init(&g_dbg_dump.dump_lock);
-
+	if (!debugfs_create_file("dump_switch", 0664,
+		pd, NULL, &dumpswitch_ops))
+		ret |= BIT(14);
+	if (!debugfs_create_file("fbc_control", 0664,
+		pd, NULL, &fbc_control_ops))
+		ret |= BIT(15);
 	entry = debugfs_create_file("replace_image", 0644, pd,
 			&debugger->replacer[0],
 			&replace_image_ops);
@@ -813,7 +918,6 @@ static int camdebugger_dcam_deinit(void)
 	if (s_p_dentry)
 		debugfs_remove_recursive(s_p_dentry);
 	s_p_dentry = NULL;
-	mutex_destroy(&g_dbg_dump.dump_lock);
 	return 0;
 }
 #else

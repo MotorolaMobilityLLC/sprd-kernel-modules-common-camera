@@ -966,18 +966,21 @@ static void camcore_compression_cal(struct camera_module *module)
 		&& ch_cap->ch_uinfo.sn_fmt == IMG_PIX_FMT_GREY
 		&& !ch_cap->ch_uinfo.is_high_fps
 		&& !module->cam_uinfo.is_4in1
-		&& dcam_hw->ip_dcam[dcam_hw_ctx_id]->dcam_full_fbc_mode;
+		&& dcam_hw->ip_dcam[dcam_hw_ctx_id]->dcam_full_fbc_mode
+		&& !(g_dbg_fbc_control & DEBUG_FBC_CRL_FULL);
 	ch_pre->compress_input = ch_pre->enable
 		&& ch_pre->ch_uinfo.sn_fmt == IMG_PIX_FMT_GREY
 		&& !ch_pre->ch_uinfo.is_high_fps
 		&& !module->cam_uinfo.is_4in1
-		&& dcam_hw->ip_dcam[dcam_hw_ctx_id]->dcam_bin_fbc_mode;
+		&& dcam_hw->ip_dcam[dcam_hw_ctx_id]->dcam_bin_fbc_mode
+		&& !(g_dbg_fbc_control & DEBUG_FBC_CRL_BIN);
 	ch_vid->compress_input = ch_pre->compress_input;
 	ch_raw->compress_input = ch_raw->enable
 		&& ch_raw->ch_uinfo.sn_fmt == IMG_PIX_FMT_GREY
 		&& !ch_raw->ch_uinfo.is_high_fps
 		&& !module->cam_uinfo.is_4in1
-		&& dcam_hw->ip_dcam[dcam_hw_ctx_id]->dcam_raw_fbc_mode;
+		&& dcam_hw->ip_dcam[dcam_hw_ctx_id]->dcam_raw_fbc_mode
+		&& !(g_dbg_fbc_control & DEBUG_FBC_CRL_RAW);
 	ch_raw->compress_input = ch_cap->compress_input ? 0 : ch_raw->compress_input;
 
 	/* Disable compression for 3DNR by default */
@@ -1529,7 +1532,10 @@ static int camcore_buffers_alloc(void *param)
 		pr_err("fail to dequeue alloc_buf\n");
 		return -1;
 	}
-
+	if (channel->ch_id == CAM_CH_CAP && g_dbg_dump.dump_en == DUMP_PATH_RAW_BIN) {
+		complete(&channel->alloc_com);
+		return 0;
+	}
 	hw = module->grp->hw_info;
 	iommu_enable = module->iommu_enable;
 	channel_vid = &module->channel[CAM_CH_VID];
@@ -2493,7 +2499,8 @@ static int camcore_dump_config(void *priv_data, void *param)
 		dump_base->dump_cfg(dump_base, DUMP_CFG_OUT_BITS, &module->cam_uinfo.sensor_if.if_spec.mipi.bits_per_pxl);
 		if (g_dbg_dump.dump_en == DUMP_DCAM_PDAF)
 			dump_base->dump_cfg(dump_base, DUMP_CFG_PDAF_TYPE, &pdaf_type);
-		if (g_dbg_dump.dump_en > 0 && g_dbg_dump.dump_en < DUMP_PATH_BIN && pframe->need_pyr_rec == 0)
+		if (((g_dbg_dump.dump_en > 0 && g_dbg_dump.dump_en < DUMP_PATH_BIN) || g_dbg_dump.dump_en == DUMP_PATH_RAW_BIN)
+			&& pframe->need_pyr_rec == 0)
 			dump_base->dump_cfg(dump_base, DUMP_CFG_PACK_BITS, &channel->ch_uinfo.dcam_raw_fmt);
 		else {
 			dump_base->dump_cfg(dump_base, DUMP_CFG_PYR_LAYER_NUM, &channel->pyr_layer_num);
@@ -2600,7 +2607,7 @@ static int camcore_isp_callback(enum isp_cb_type type, void *param, void *priv_d
 			pframe->need_gtm_hist = module->cam_uinfo.is_rgb_gtm;
 			pframe->need_gtm_map = module->cam_uinfo.is_rgb_gtm;
 			pframe->gtm_mod_en = module->cam_uinfo.is_rgb_gtm;
-			if (g_dbg_dump.dump_en > DUMP_DISABLE && g_dbg_dump.dump_en <= DUMP_ISP_PYR_REC
+			if (((g_dbg_dump.dump_en > DUMP_DISABLE && g_dbg_dump.dump_en <= DUMP_ISP_PYR_REC) || g_dbg_dump.dump_en == DUMP_PATH_RAW_BIN)
 				&& module->dump_base.dump_enqueue != NULL) {
 				if (g_dbg_dump.dump_en == DUMP_ISP_PYR_REC && channel->pyr_rec_buf != NULL) {
 					channel->pyr_rec_buf->fid = pframe->fid;
@@ -2868,6 +2875,26 @@ static int camcore_dcam_callback(enum dcam_cb_type type, void *param, void *priv
 			}
 		} else if (channel->ch_id == CAM_CH_RAW) {
 			/* RAW capture or test_dcam only */
+			if (g_dbg_dump.dump_en == DUMP_PATH_RAW_BIN) {
+				if (module->dump_thrd.thread_task) {
+					if (g_dbg_dumpswitch) {
+						if (module->dump_base.dump_enqueue)
+							ret = module->dump_base.dump_enqueue(&module->dump_base, pframe);
+						else {
+							camdump_start(&module->dump_thrd, &module->dump_base, module->dcam_idx);
+							ret = module->dump_base.dump_enqueue(&module->dump_base, pframe);
+						}
+						if (ret == 0)
+							return 0;
+					}
+					if (!g_dbg_dumpswitch && module->dump_base.dump_enqueue != NULL)
+						camdump_stop(&module->dump_base);
+				}
+				ret = module->dcam_dev_handle->dcam_pipe_ops->cfg_path(dcam_sw_ctx,
+							DCAM_PATH_CFG_OUTPUT_BUF,
+							channel->dcam_path_id, pframe);
+				return 0;
+			}
 			if (module->cam_uinfo.is_4in1 == 0) {
 				uint32_t capture = 0;
 				if (module->cap_status == CAM_CAPTURE_START) {
@@ -5701,7 +5728,7 @@ static int camcore_dumpraw_proc(void *param)
 	struct dcam_sw_context *dcam_sw_ctx = NULL;
 	struct dcam_sw_context *dcam_sw_aux_ctx = NULL;
 	struct cam_dump_ctx *dump_base = NULL;
-
+	unsigned long flag = 0;
 	pr_info("enter. %p\n", param);
 	module = (struct camera_module *)param;
 	idx = module->dcam_idx;
@@ -5709,11 +5736,11 @@ static int camcore_dumpraw_proc(void *param)
 		return 0;
 	dump_base = &module->dump_base;
 
-	mutex_lock(&dbg->dump_lock);
+	spin_lock_irqsave(&dbg->dump_lock, flag);
 	dbg->dump_ongoing |= (1 << idx);
 	dump_base->dump_count = dbg->dump_count;
 	init_completion(&dump_base->dump_com);
-	mutex_unlock(&dbg->dump_lock);
+	spin_unlock_irqrestore(&dbg->dump_lock, flag);
 
 	dcam_sw_ctx = &module->dcam_dev_handle->sw_ctx[module->cur_sw_ctx_id];
 	dcam_sw_aux_ctx = &module->dcam_dev_handle->sw_ctx[module->cur_aux_sw_ctx_id];
@@ -5724,72 +5751,77 @@ static int camcore_dumpraw_proc(void *param)
 		ktime_get_ts(&dump_base->cur_dump_ts);
 		if (wait_for_completion_interruptible(
 			&dump_base->dump_com) == 0) {
-			if ((atomic_read(&module->state) != CAM_RUNNING) ||
-				(dump_base->dump_count == 0)) {
+			if ((atomic_read(&module->state) != CAM_RUNNING)) {
 				pr_info("dump raw proc exit, %d %u\n",
 					atomic_read(&module->state),
 					dump_base->dump_count);
 				break;
 			}
-			pframe = cam_queue_dequeue(&dump_base->dump_queue,
-				struct camera_frame, list);
-			if (!pframe)
-				continue;
-			mutex_lock(&dbg->dump_lock);
-			camcore_dump_config(module, pframe);
-			if (dump_base->dump_file != NULL)
-				dump_base->dump_file(dump_base, pframe);
-			mutex_unlock(&dbg->dump_lock);
-			if (dbg->dump_en == DUMP_DCAM_PDAF) {
-				if (atomic_read(&module->state) == CAM_RUNNING) {
-					pframe->priv_data = module;
-					ret = cam_queue_enqueue(&module->frm_queue, &pframe->list);
-					if (ret) {
-						cam_queue_empty_frame_put(pframe);
-					} else {
-						complete(&module->frm_com);
-						pr_debug("get statis frame: %p, type %d, %d\n",
-							pframe, pframe->irq_type, pframe->irq_property);
-					}
-				} else {
-					cam_queue_empty_frame_put(pframe);
-				}
-				continue;
-			}
-			if (dbg->dump_en == DUMP_ISP_PYR_REC)
-				continue;
-			channel = &module->channel[pframe->channel_id];
-			if (dbg->dump_en == DUMP_ISP_PYR_DEC){
-				ret = module->isp_dev_handle->isp_ops->proc_frame(module->isp_dev_handle,
-					pframe, channel->isp_ctx_id);
-				if (ret)
-					module->isp_dev_handle->isp_ops->cfg_path(module->isp_dev_handle,
-						ISP_PATH_CFG_PYR_DEC_BUF, channel->isp_ctx_id, channel->isp_path_id, pframe);
-				continue;
-			}
-			if (module->cam_uinfo.dcam_slice_mode == CAM_OFFLINE_SLICE_SW) {
-				struct channel_context *ch = NULL;
-
-				pr_debug("slice %d %p\n", module->cam_uinfo.slice_count, pframe);
-				module->cam_uinfo.slice_count++;
-				ch = &module->channel[CAM_CH_CAP];
-				module->dcam_dev_handle->dcam_pipe_ops->cfg_path(dcam_sw_ctx,
-						DCAM_PATH_CFG_OUTPUT_BUF, ch->dcam_path_id, pframe);
-				if (module->cam_uinfo.slice_count >= module->cam_uinfo.slice_num)
-					module->cam_uinfo.slice_count = 0;
+			while (1) {
+				pframe = cam_queue_dequeue(&dump_base->dump_queue,
+					struct camera_frame, list);
+				if (!pframe)
+					break;
+				if (dump_base->dump_count == 0)
+					camdump_stop(dump_base);
 				else
-					camcore_frame_start_proc(module, pframe);
-				continue;
+					dump_base->dump_count--;
+				spin_lock_irqsave(&dbg->dump_lock, flag);
+				camcore_dump_config(module, pframe);
+				spin_unlock_irqrestore(&dbg->dump_lock, flag);
+				if (dump_base->dump_file != NULL)
+					dump_base->dump_file(dump_base, pframe);
+				if (dbg->dump_en == DUMP_DCAM_PDAF) {
+					if (atomic_read(&module->state) == CAM_RUNNING) {
+						pframe->priv_data = module;
+						ret = cam_queue_enqueue(&module->frm_queue, &pframe->list);
+						if (ret) {
+							cam_queue_empty_frame_put(pframe);
+						} else {
+							complete(&module->frm_com);
+							pr_debug("get statis frame: %p, type %d, %d\n",
+								pframe, pframe->irq_type, pframe->irq_property);
+						}
+					} else {
+						cam_queue_empty_frame_put(pframe);
+					}
+					continue;
+				}
+				if (dbg->dump_en == DUMP_ISP_PYR_REC)
+					continue;
+				channel = &module->channel[pframe->channel_id];
+				if (dbg->dump_en == DUMP_ISP_PYR_DEC){
+					ret = module->isp_dev_handle->isp_ops->proc_frame(module->isp_dev_handle,
+						pframe, channel->isp_ctx_id);
+					if (ret)
+						module->isp_dev_handle->isp_ops->cfg_path(module->isp_dev_handle,
+							ISP_PATH_CFG_PYR_DEC_BUF, channel->isp_ctx_id, channel->isp_path_id, pframe);
+					continue;
+				}
+				if (module->cam_uinfo.dcam_slice_mode == CAM_OFFLINE_SLICE_SW) {
+					struct channel_context *ch = NULL;
+
+					pr_debug("slice %d %p\n", module->cam_uinfo.slice_count, pframe);
+					module->cam_uinfo.slice_count++;
+					ch = &module->channel[CAM_CH_CAP];
+					module->dcam_dev_handle->dcam_pipe_ops->cfg_path(dcam_sw_ctx,
+							DCAM_PATH_CFG_OUTPUT_BUF, ch->dcam_path_id, pframe);
+					if (module->cam_uinfo.slice_count >= module->cam_uinfo.slice_num)
+						module->cam_uinfo.slice_count = 0;
+					else
+						camcore_frame_start_proc(module, pframe);
+					continue;
+				}
+				/* return it to dcam output queue */
+				if (module->cam_uinfo.is_4in1 && channel->aux_dcam_path_id == DCAM_PATH_BIN && pframe->buf.type == CAM_BUF_KERNEL)
+					module->dcam_dev_handle->dcam_pipe_ops->cfg_path(dcam_sw_aux_ctx,
+						DCAM_PATH_CFG_OUTPUT_BUF,
+						channel->aux_dcam_path_id, pframe);
+				else
+					module->dcam_dev_handle->dcam_pipe_ops->cfg_path(dcam_sw_ctx,
+						DCAM_PATH_CFG_OUTPUT_BUF,
+						channel->dcam_path_id, pframe);
 			}
-			/* return it to dcam output queue */
-			if (module->cam_uinfo.is_4in1 && channel->aux_dcam_path_id == DCAM_PATH_BIN && pframe->buf.type == CAM_BUF_KERNEL)
-				module->dcam_dev_handle->dcam_pipe_ops->cfg_path(dcam_sw_aux_ctx,
-					DCAM_PATH_CFG_OUTPUT_BUF,
-					channel->aux_dcam_path_id, pframe);
-			else
-				module->dcam_dev_handle->dcam_pipe_ops->cfg_path(dcam_sw_ctx,
-					DCAM_PATH_CFG_OUTPUT_BUF,
-					channel->dcam_path_id, pframe);
 		} else {
 			pr_info("dump raw proc exit.");
 			break;
@@ -5800,10 +5832,10 @@ static int camcore_dumpraw_proc(void *param)
 	dump_base->in_dump = 0;
 	pr_info("end dump, real cnt %d\n", cnt);
 
-	mutex_lock(&dbg->dump_lock);
+	spin_lock_irqsave(&dbg->dump_lock, flag);
 	dbg->dump_count = 0;
 	dbg->dump_ongoing &= ~(1 << idx);
-	mutex_unlock(&dbg->dump_lock);
+	spin_unlock_irqrestore(&dbg->dump_lock, flag);
 	return 0;
 }
 
@@ -5811,16 +5843,17 @@ static void camcore_dumpraw_init(struct camera_module *module)
 {
 	uint32_t i = 0;
 	struct cam_dump_ctx *dump_base = NULL;
+
 	dump_base = &module->dump_base;
-	cam_queue_init(&dump_base->dump_queue, 10, camcore_k_frame_put);
+	cam_queue_init(&dump_base->dump_queue, DUMP_Q_LEN, camcore_k_frame_put);
 	init_completion(&dump_base->dump_com);
-	mutex_lock(&g_dbg_dump.dump_lock);
+	spin_lock(&g_dbg_dump.dump_lock);
 	i = module->dcam_idx;
 	if (i < DCAM_ID_MAX) {
 		g_dbg_dump.dump_start[i] = &module->dump_thrd.thread_com;
 		g_dbg_dump.dump_count = 0;
 	}
-	mutex_unlock(&g_dbg_dump.dump_lock);
+	spin_unlock(&g_dbg_dump.dump_lock);
 	dump_base->is_pyr_rec = module->cam_uinfo.is_pyr_rec;
 	dump_base->is_pyr_dec = module->cam_uinfo.is_pyr_dec;
 }
@@ -5829,16 +5862,17 @@ static void camcore_dumpraw_deinit(struct camera_module *module)
 {
 	uint32_t i = 0, j = 0;
 	struct cam_dump_ctx *dump_base = NULL;
+	unsigned long flag = 0;
 	dump_base = &module->dump_base;
 	if (dump_base->in_dump)
 		complete(&dump_base->dump_com);
-	mutex_lock(&g_dbg_dump.dump_lock);
+	spin_lock_irqsave(&g_dbg_dump.dump_lock, flag);
 	i = module->dcam_idx;
 	if (i < DCAM_ID_MAX) {
 		g_dbg_dump.dump_start[i] = NULL;
 		g_dbg_dump.dump_count = 0;
 	}
-	mutex_unlock(&g_dbg_dump.dump_lock);
+	spin_unlock_irqrestore(&g_dbg_dump.dump_lock, flag);
 	while (dump_base->in_dump && (j++ < THREAD_STOP_TIMEOUT)) {
 		pr_debug("camera%d in dump, wait...%d\n", module->idx, j);
 		msleep(10);
@@ -6783,6 +6817,99 @@ dst_fail:
 src_fail:
 	cam_queue_empty_frame_put(src_frame);
 	pr_err("fail to call post raw proc\n");
+	return ret;
+}
+
+static int camcore_full_raw_switch(struct camera_module *module)
+{
+	int shutoff = 0;
+	struct camera_frame *pframe;
+	int total = DUMP_RAW_BUF_NUM, i = 0, ret = 0;
+	uint32_t size = 0, pack_bits = 0, dcam_out_bits = 0, pitch = 0, is_pack = 0;
+	struct dcam_path_cfg_param ch_desc;
+	struct channel_context *ch_raw;
+	struct dcam_sw_context *sw_ctx = &module->dcam_dev_handle->sw_ctx[module->cur_sw_ctx_id];
+	struct cam_hw_info *hw = module->grp->hw_info;
+	shutoff = 1;
+	module->dcam_dev_handle->dcam_pipe_ops->cfg_path(sw_ctx, DCAM_PATH_CFG_SHUTOFF, DCAM_PATH_FULL, &shutoff);
+
+	module->channel[CAM_CH_RAW].enable = 1;
+	ch_raw = &module->channel[CAM_CH_RAW];
+	ch_raw->ch_uinfo.sensor_raw_fmt = hw->ip_dcam[0]->sensor_raw_fmt;
+	ch_raw->ch_uinfo.dcam_raw_fmt = hw->ip_dcam[0]->raw_fmt_support[0];
+	camcore_channel_init(module, ch_raw);
+	cam_queue_init(&ch_raw->share_buf_queue,
+		CAM_SHARED_BUF_NUM, camcore_k_frame_put);
+	ch_raw->swap_size.w = ch_raw->ch_uinfo.src_size.w;
+	ch_raw->swap_size.h = ch_raw->ch_uinfo.src_size.h;
+
+	memset(&ch_desc, 0, sizeof(ch_desc));
+	ch_desc.input_size.w = ch_raw->ch_uinfo.src_size.w;
+	ch_desc.input_size.h = ch_raw->ch_uinfo.src_size.h;
+	ch_desc.output_size = ch_desc.input_size;
+	ch_desc.input_trim.start_x = 0;
+	ch_desc.input_trim.start_y = 0;
+	ch_desc.input_trim.size_x = ch_desc.input_size.w;
+	ch_desc.input_trim.size_y = ch_desc.input_size.h;
+	ret = module->dcam_dev_handle->dcam_pipe_ops->cfg_path(sw_ctx,
+			DCAM_PATH_CFG_SIZE, ch_raw->dcam_path_id, &ch_desc);
+
+	if ((g_dcam_raw_src >= ORI_RAW_SRC_SEL) && (g_dcam_raw_src < MAX_RAW_SRC_SEL))
+		sw_ctx->path[DCAM_PATH_RAW].src_sel = g_dcam_raw_src;
+	else
+		sw_ctx->path[DCAM_PATH_RAW].src_sel = PROCESS_RAW_SRC_SEL;
+
+	dcam_out_bits = module->cam_uinfo.sensor_if.if_spec.mipi.bits_per_pxl;
+	if (ch_raw->aux_dcam_path_id >= 0)
+		pack_bits = ch_raw->ch_uinfo.sensor_raw_fmt;
+	else
+		pack_bits = ch_raw->ch_uinfo.dcam_raw_fmt;
+	is_pack = 0;
+	if ((ch_raw->dcam_out_fmt & DCAM_STORE_RAW_BASE) && (pack_bits == DCAM_RAW_PACK_10))
+		is_pack = 1;
+	if ((ch_raw->dcam_out_fmt & DCAM_STORE_YUV_BASE) && (dcam_out_bits == DCAM_STORE_10_BIT))
+		is_pack = 1;
+	if (ch_raw->dcam_out_fmt & DCAM_STORE_RAW_BASE) {
+		size = cal_sprd_raw_pitch(ch_raw->swap_size.w, pack_bits) * ch_raw->swap_size.h;
+	} else if ((ch_raw->dcam_out_fmt == DCAM_STORE_YUV420) || (ch_raw->dcam_out_fmt == DCAM_STORE_YVU420)) {
+		pitch = cal_sprd_yuv_pitch(ch_raw->swap_size.w, dcam_out_bits, is_pack);
+		size = pitch * ch_raw->swap_size.h * 3 / 2;
+		pr_debug("ch%d, dcam yuv size %d\n", ch_raw->ch_id, size);
+	} else {
+		size = ch_raw->swap_size.w * ch_raw->swap_size.h * 3;
+	}
+
+	pr_debug("cam%d, ch_id %d, buffer size: %u (%u x %u), num %d\n",
+		module->idx, ch_raw->ch_id, size, ch_raw->swap_size.w, ch_raw->swap_size.h, total);
+
+	for (i = 0 ; i < total; i++) {
+		pframe = cam_queue_empty_frame_get();
+		pframe->channel_id = ch_raw->ch_id;
+		pframe->is_compressed = ch_raw->compress_input;
+		pframe->compress_4bit_bypass = ch_raw->compress_4bit_bypass;
+		pframe->width = ch_raw->swap_size.w;
+		pframe->height = ch_raw->swap_size.h;
+		pframe->endian = ENDIAN_LITTLE;
+
+		ret = cam_buf_alloc(&pframe->buf, size, module->iommu_enable);
+		if (ret) {
+			pr_err("fail to alloc buf: %d ch %d\n", i, ch_raw->ch_id);
+			cam_queue_empty_frame_put(pframe);
+			atomic_inc(&ch_raw->err_status);
+			return -ENOMEM;
+		}
+		pr_debug("dcam_path_id:%d", ch_raw->dcam_path_id);
+		ret = module->dcam_dev_handle->dcam_pipe_ops->cfg_path(sw_ctx,
+			DCAM_PATH_CFG_OUTPUT_BUF, ch_raw->dcam_path_id, pframe);
+		if (ret) {
+			pr_err("fail to enqueue out buf: %d ch %d\n", i, ch_raw->ch_id);
+			cam_buf_free(&pframe->buf);
+			cam_queue_empty_frame_put(pframe);
+		} else {
+			pr_debug("frame %p,idx %d,cnt %d,phy_addr %p\n",
+				pframe, i, (void *)pframe->buf.addr_vir[0]);
+		}
+	}
 	return ret;
 }
 

@@ -29,6 +29,13 @@ enum {
 	FBC_MAX = 3,
 };
 
+enum fbc_crl_type {
+	DEBUG_FBC_CRL_BIN = 0x1,
+	DEBUG_FBC_CRL_FULL = 0x2,
+	DEBUG_FBC_CRL_RAW = 0x4,
+	DEBUG_FBC_CRL_MAX,
+};
+
 /* compression override setting */
 struct compression_override {
 	uint32_t enable;
