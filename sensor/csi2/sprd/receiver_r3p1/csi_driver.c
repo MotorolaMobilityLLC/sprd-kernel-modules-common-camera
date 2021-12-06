@@ -777,8 +777,8 @@ void csi_controller_disable(struct csi_dt_node_info *dt_info, int32_t idx)
 
 	csi_dump_regbase[dt_info->controller_id] = 0;
 
-	regmap_update_bits(phy->cam_ahb_syscon, 0x00,//REG_MM_AHB_RF_AHB_EB,
-			mask_eb, mask_eb);
+	//regmap_update_bits(phy->cam_ahb_syscon, 0x00,//REG_MM_AHB_RF_AHB_EB,
+	//		mask_eb, mask_eb);
 	regmap_update_bits(phy->cam_ahb_syscon, 0x04,//REG_MM_AHB_RF_AHB_RST,
 			mask_rst, ~mask_rst);
 	udelay(1);

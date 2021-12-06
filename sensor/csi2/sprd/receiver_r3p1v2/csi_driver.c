@@ -346,7 +346,7 @@ int reg_rd(unsigned int reg)
 		return -1;
 	}
 	val = REG_RD(reg_base);
-	pr_info("0x%x: val %x\n", reg, val);
+	pr_debug("0x%x: val %x\n", reg, val);
 	iounmap(reg_base);
 	return val;
 }
@@ -354,21 +354,14 @@ int reg_rd(unsigned int reg)
 int CSI_REG_MWR(unsigned int idx, unsigned int reg, unsigned int msk, unsigned int val){
 
 	unsigned int reg_base = 0x3e200000 + idx * 0x100000 + reg;
-	//pr_info("reg_base 0x%x: idx 0x%x reg 0x%x\n", reg_base,idx,reg);
-/*	REG_MWR((void *)&reg_base, msk, val);*/
-	while((reg_rd(0x3000000c)&(1<<(12+idx)))==0x0){
+/*	while((reg_rd(0x3000000c)&(1<<(12+idx)))==0x0){
 		pr_info("%s csi%d need enable\n", __func__, idx);
+		udelay(10);
 		reg_mwr(0x3000000c,  (1<<(12+idx)), (1<<(12+idx)));
-	}
-	if(1){
+	}*/
 	unsigned int temp = ((val) & (msk)) | (CSI_REG_RD(idx, reg) & (~(msk)));
 	pr_debug("reg_base 0x%x 0x%x\n", reg_base,CSI_BASE(idx)+reg);
-	udelay(10);
-	writel_relaxed(temp, (void __iomem *)(CSI_BASE(idx)+reg));
-	}
-	//REG_WR(CSI_BASE(idx)+reg, ((val) & (msk)) | (CSI_REG_RD(idx, reg) & (~(msk))));
-	//writel_relaxed(((val) & (msk)) | (CSI_REG_RD(idx, reg) & (~(msk))),
-	//				(volatile void __iomem *)(CSI_BASE(idx)+reg));
+	writel_relaxed(temp, (volatile void __iomem *)(CSI_BASE(idx)+reg));
 	return 0;
 }
 
@@ -954,6 +947,7 @@ void csi_controller_enable(struct csi_dt_node_info *dt_info)
 		phy->phy_id);
 		regmap_update_bits(phy->cam_ahb_syscon, 0x0c,
 			mask_eb, mask_eb);
+		udelay(10);
 	}while((reg_rd(0x3000000c)&mask_eb)==0x0);
 
 }
