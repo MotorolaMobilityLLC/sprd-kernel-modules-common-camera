@@ -146,7 +146,7 @@ ssize_t cam_kernel_write(struct file *file, void *buf, size_t count, loff_t *pos
 void cam_kproperty_get(const char *key, char *value,
 	const char *default_value)
 {
-#if defined(PROJ_SHARKL5PRO) || defined(PROJ_QOGIRL6)
+#if defined(PROJ_SHARKL5PRO) || defined(PROJ_QOGIRL6) || defined(PROJ_QOGIRN6PRO)
 	sprd_kproperty_get(key, value, default_value);
 #endif
 }

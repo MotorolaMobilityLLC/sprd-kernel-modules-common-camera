@@ -760,6 +760,7 @@ static int dcamhw_mipi_cap_set(void *handle, void *arg)
 	uint32_t image_vc = 0, image_mode = 1;
 	uint32_t image_data_type = IMG_TYPE_RAW10;
 	uint32_t bwu_shift = 4;
+	char chip_type[64] = { 0 };
 
 	if (!arg) {
 		pr_err("fail to get valid arg\n");
@@ -776,6 +777,7 @@ static int dcamhw_mipi_cap_set(void *handle, void *arg)
 			cap_info->sensor_if);
 		return -EINVAL;
 	}
+	cam_kproperty_get("auto/chipid", chip_type, "-1");
 
 	/* data format */
 	if (cap_info->format == DCAM_CAP_MODE_RAWRGB) {
@@ -835,8 +837,10 @@ static int dcamhw_mipi_cap_set(void *handle, void *arg)
 	DCAM_REG_WR(idx, DCAM_MIPI_CAP_END, reg_val);
 
 	/* frame skip before capture */
-	if (cap_info->frm_skip == 0)
-		cap_info->frm_skip = 1;
+	if (strncmp(chip_type, "UMS9620-AA", strlen("UMS9620-AA")) == 0) {
+		if (cap_info->frm_skip == 0)
+			cap_info->frm_skip = 1;
+	}
 	DCAM_REG_MWR(idx, DCAM_MIPI_CAP_CFG,
 			BIT_8 | BIT_9 | BIT_10 | BIT_11,
 				cap_info->frm_skip << 8);
