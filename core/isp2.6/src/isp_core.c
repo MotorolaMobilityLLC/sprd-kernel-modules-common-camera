@@ -232,9 +232,9 @@ static int ispcore_blkparam_adapt(struct isp_sw_context *pctx)
 	}
 
 	pctx->isp_k_param.blkparam_info.new_height = new_height;
-	pctx->isp_k_param.blkparam_info.new_width= new_width;
-	pctx->isp_k_param.blkparam_info.old_height= old_height;
-	pctx->isp_k_param.blkparam_info.old_width= old_width;
+	pctx->isp_k_param.blkparam_info.new_width = new_width;
+	pctx->isp_k_param.blkparam_info.old_height = old_height;
+	pctx->isp_k_param.blkparam_info.old_width = old_width;
 	crop_start_x = src_trim->start_x;
 	crop_start_y = src_trim->start_y;
 	crop_end_x = src_trim->start_x + src_trim->size_x - 1;
@@ -274,14 +274,36 @@ static int ispcore_blkparam_adapt(struct isp_sw_context *pctx)
 	if (sub_blk_func.k_blk_func)
 		sub_blk_func.k_blk_func(pctx);
 
+	if (pctx->uinfo.mode_3dnr != MODE_3DNR_OFF)
+		isp_k_update_3dnr(pctx->ctx_id, &pctx->isp_k_param,
+			 new_width, old_width, new_height, old_height);
+
+	return 0;
+}
+
+static int ispcore_dct_blkparam_update(struct isp_sw_context *pctx)
+{
+	uint32_t new_width, old_width;
+	uint32_t new_height, old_height;
+	struct isp_hw_k_blk_func sub_blk_func;
+
+	old_width = pctx->uinfo.src.w;
+	old_height = pctx->uinfo.src.h;
+	new_width = old_width;
+	new_height = old_height;
+
+	pctx->isp_k_param.blkparam_info.new_height = new_height;
+	pctx->isp_k_param.blkparam_info.new_width = new_width;
+	pctx->isp_k_param.blkparam_info.old_height = old_height;
+	pctx->isp_k_param.blkparam_info.old_width = old_width;
+
+	pr_debug("ch_id: %d ctx_id:%d, size(%d %d) => (%d %d)\n", pctx->ch_id, pctx->ctx_id,
+		old_width, old_height, new_width, new_height);
+
 	sub_blk_func.index = ISP_K_BLK_DCT_UPDATE;
 	pctx->hw->isp_ioctl(pctx->hw, ISP_HW_CFG_K_BLK_FUNC_GET, &sub_blk_func);
 	if (sub_blk_func.k_blk_func)
 		sub_blk_func.k_blk_func(pctx);
-
-	if (pctx->uinfo.mode_3dnr != MODE_3DNR_OFF)
-		isp_k_update_3dnr(pctx->ctx_id, &pctx->isp_k_param,
-			 new_width, old_width, new_height, old_height);
 
 	return 0;
 }
@@ -2463,6 +2485,7 @@ static int ispcore_dec_frame_proc(struct isp_sw_context *pctx,
 
 	uinfo = &pctx->uinfo;
 
+	ispcore_dct_blkparam_update(pctx);
 	format = isp_drv_fetch_format_get(uinfo);
 	dec_dev->dct_ynr_info.dct = &pctx->isp_k_param.dct_info;
 	dec_dev->dct_ynr_info.dct_radius = pctx->isp_k_param.dct_radius;
