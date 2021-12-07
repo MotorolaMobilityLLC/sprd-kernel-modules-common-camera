@@ -421,6 +421,8 @@ static int dcamhw_stop(void *handle, void *arg)
 	int ret = 0;
 	int time_out = DCAMX_STOP_TIMEOUT;
 	uint32_t idx = 0;
+	struct cam_hw_info *hw = NULL;
+	struct cam_hw_reg_trace trace;
 
 	if (!arg) {
 		pr_err("fail to get valid arg\n");
@@ -428,6 +430,7 @@ static int dcamhw_stop(void *handle, void *arg)
 	}
 
 	idx = *(uint32_t *)arg;
+	hw = (struct cam_hw_info *)handle;
 
 	/* reset  cap_en*/
 	DCAM_REG_MWR(idx, DCAM_MIPI_CAP_CFG, BIT_0, 0);
@@ -447,8 +450,12 @@ static int dcamhw_stop(void *handle, void *arg)
 		time_out--;
 	}
 
-	if (time_out == 0)
+	if (time_out == 0) {
 		pr_err("fail to normal stop, DCAM%d timeout for 2s\n", idx);
+		trace.type = ABNORMAL_REG_TRACE;
+		trace.idx = idx;
+		hw->isp_ioctl(hw, ISP_HW_CFG_REG_TRACE, &trace);
+	}
 
 	pr_info("dcam%d stop\n", idx);
 	return ret;
@@ -597,17 +604,13 @@ static int dcamhw_reset(void *handle, void *arg)
 	struct cam_hw_info *hw = NULL;
 	struct cam_hw_soc_info *soc = NULL;
 	struct cam_hw_ip_info *ip = NULL;
-	uint32_t time_out = 0, flag = 0;
+	uint32_t time_out = 0;
 	uint32_t dbg_sts_reg;
 	uint32_t mask = ~0;
-	uint32_t reset_bit[DCAM_ID_MAX] = {
-		BIT(5),
-		BIT(4),
-		BIT(3)
-	};
 	uint32_t sts_bit[DCAM_ID_MAX] = {
 		BIT(12), BIT(13), BIT(14)
 	};
+	struct cam_hw_reg_trace trace;
 
 	if (!handle || !arg) {
 		pr_err("fail to get input arg\n");
@@ -632,12 +635,14 @@ static int dcamhw_reset(void *handle, void *arg)
 	}
 
 	if (time_out >= DCAM_AXI_STOP_TIMEOUT) {
-		pr_info("DCAM%d: reset timeout, axim status 0x%x\n", idx,
+		pr_err("fail to reset DCAM%d timeout, axim status 0x%x\n", idx,
 			DCAM_AXIM_RD(idx, dbg_sts_reg));
+		trace.type = ABNORMAL_REG_TRACE;
+		trace.idx = idx;
+		hw->isp_ioctl(hw, ISP_HW_CFG_REG_TRACE, &trace);
 	} else {
-		flag = reset_bit[idx];
-		pr_debug("DCAM%d, rst=0x%x, rst_mask=0x%x flag=0x%x\n",
-			idx, ip->syscon.rst, ip->syscon.rst_mask, flag);
+		pr_debug("DCAM%d, rst=0x%x, rst_mask=0x%x\n",
+			idx, ip->syscon.rst, ip->syscon.rst_mask);
 
 		regmap_update_bits(soc->cam_ahb_gpr,
 			ip->syscon.rst, ip->syscon.rst_mask, ip->syscon.rst_mask);
@@ -2374,7 +2379,7 @@ static int dcamhw_csi_disconnect(void *handle, void *arg)
 	if (time_out == 0)
 		pr_err("fail to stop:DCAM%d: stop timeout for 2s\n", idx);
 
-	// reset
+	/* reset */
 	hw->dcam_ioctl(hw, DCAM_HW_CFG_STOP, &idx);
 	hw->dcam_ioctl(hw, DCAM_HW_CFG_RESET, &idx);
 

@@ -304,137 +304,14 @@ static int isphw_reg_trace(void *handle, void *arg)
 	}
 
 abnormal_reg_trace:
-	pr_info("DCAM%d: Register list\n", trace->idx);
-
 	if (trace->idx >= DCAM_HW_CONTEXT_MAX) {
 		pr_err("fail to get vaild dcam hw idx %d\n", trace->idx);
 		return 0;
 	}
-	for (addr = DCAM_IP_REVISION; addr <= DCAM_CAP_FBC_STATUS3;
-		addr += 16) {
+
+	pr_info("DCAM%d: Register list\n", trace->idx);
+	for (addr = 0x0; addr <= 0xffff; addr += 16) {
 		pr_info("0x%03lx: 0x%x 0x%x 0x%x 0x%x\n",
-			addr,
-			DCAM_REG_RD(trace->idx, addr),
-			DCAM_REG_RD(trace->idx, addr + 4),
-			DCAM_REG_RD(trace->idx, addr + 8),
-			DCAM_REG_RD(trace->idx, addr + 12));
-	}
-	for (addr = DCAM_MIPI_CAP_CFG; addr <= DCAM_CAP_RAW_SIZE;
-		addr += 16) {
-		pr_info("0x%03lx: 0x%x 0x%x 0x%x 0x%x\n",
-			addr,
-			DCAM_REG_RD(trace->idx, addr),
-			DCAM_REG_RD(trace->idx, addr + 4),
-			DCAM_REG_RD(trace->idx, addr + 8),
-			DCAM_REG_RD(trace->idx, addr + 12));
-	}
-
-	pr_info("FMCU: Register list\n");
-	for (addr = MM_DCAM_FMCU_BASE; addr <= DCAM_FMCU_SW_TRIGGER;
-		addr += 16) {
-		pr_info("0x%03lx: 0x%x 0x%x 0x%x 0x%x\n",
-			addr,
-			DCAM_FMCU_RD(addr),
-			DCAM_FMCU_RD(addr + 4),
-			DCAM_FMCU_RD(addr + 8),
-			DCAM_FMCU_RD(addr + 12));
-	}
-
-	addr = DCAM_CROP0_PARAM0;
-	pr_info("CROP0:0x%03lx: 0x%x 0x%x 0x%x\n",
-		addr,
-		DCAM_REG_RD(trace->idx, addr),
-		DCAM_REG_RD(trace->idx, addr + 4),
-		DCAM_REG_RD(trace->idx, addr + 8));
-	addr = DCAM_CROP1_CTRL;
-	pr_info("CROP1(raw):0x%03lx: 0x%x 0x%x 0x%x\n",
-		addr,
-		DCAM_REG_RD(trace->idx, addr),
-		DCAM_REG_RD(trace->idx, addr + 4),
-		DCAM_REG_RD(trace->idx, addr + 8));
-	addr = DCAM_CROP2_CTRL;
-	pr_info("CROP2(cap):0x%03lx: 0x%x 0x%x 0x%x\n",
-		addr,
-		DCAM_REG_RD(trace->idx, addr),
-		DCAM_REG_RD(trace->idx, addr + 4),
-		DCAM_REG_RD(trace->idx, addr + 8));
-	addr = DCAM_CROP3_CTRL;
-	pr_info("CROP3(afm):0x%03lx: 0x%x 0x%x 0x%x\n",
-		addr,
-		DCAM_REG_RD(trace->idx, addr),
-		DCAM_REG_RD(trace->idx, addr + 4),
-		DCAM_REG_RD(trace->idx, addr + 8));
-
-	for (addr = DCAM_CFA_NEW_CFG0; addr <= DCAM_CFA_GBUF_CFG; addr += 16) {
-		pr_info("CFA:0x%03lx: 0x%x 0x%x 0x%x 0x%x\n",
-			addr,
-			DCAM_REG_RD(trace->idx, addr),
-			DCAM_REG_RD(trace->idx, addr + 4),
-			DCAM_REG_RD(trace->idx, addr + 8),
-			DCAM_REG_RD(trace->idx, addr + 12));
-	}
-	for (addr = DCAM_CMC10_PARAM; addr <= DCAM_CMC10_MATRIX4; addr += 16) {
-		pr_info("CMC10:0x%03lx: 0x%x 0x%x 0x%x 0x%x\n",
-			addr,
-			DCAM_REG_RD(trace->idx, addr),
-			DCAM_REG_RD(trace->idx, addr + 4),
-			DCAM_REG_RD(trace->idx, addr + 8),
-			DCAM_REG_RD(trace->idx, addr + 12));
-	}
-
-	for (addr = DCAM_CCE_PARAM; addr <= DCAM_CCE_SHIFT; addr += 16) {
-		pr_info("CCE:0x%03lx: 0x%x 0x%x 0x%x 0x%x\n",
-			addr,
-			DCAM_REG_RD(trace->idx, addr),
-			DCAM_REG_RD(trace->idx, addr + 4),
-			DCAM_REG_RD(trace->idx, addr + 8),
-			DCAM_REG_RD(trace->idx, addr + 12));
-	}
-	pr_info("YUV444TO420:0x%03lx: 0x%x, 0x%x\n", DCAM_YUV444TOYUV420_PARAM,
-		DCAM_REG_RD(trace->idx, DCAM_YUV444TOYUV420_PARAM),
-		DCAM_REG_RD(trace->idx, DCAM_YUV444TOYUV420_PARAM + 4));
-
-	for (addr = DCAM_SCL0_CFG; addr <= DCAM_SCL0_BWD_PARA; addr += 16) {
-		pr_info("SCL(pre):0x%03lx: 0x%x 0x%x 0x%x 0x%x\n",
-			addr,
-			DCAM_REG_RD(trace->idx, addr),
-			DCAM_REG_RD(trace->idx, addr + 4),
-			DCAM_REG_RD(trace->idx, addr + 8),
-			DCAM_REG_RD(trace->idx, addr + 12));
-	}
-
-	for (addr = DCAM_STORE0_PARAM; addr <= DCAM_STORE0_SHADOW_CLR;
-		addr += 16) {
-		pr_info("store0(pre):0x%03lx: 0x%x 0x%x 0x%x 0x%x\n",
-			addr,
-			DCAM_REG_RD(trace->idx, addr),
-			DCAM_REG_RD(trace->idx, addr + 4),
-			DCAM_REG_RD(trace->idx, addr + 8),
-			DCAM_REG_RD(trace->idx, addr + 12));
-	}
-	for (addr = DCAM_STORE4_PARAM; addr <= DCAM_STORE4_SHADOW_CLR;
-		addr += 16) {
-		pr_info("store4(cap):0x%03lx: 0x%x 0x%x 0x%x 0x%x\n",
-			addr,
-			DCAM_REG_RD(trace->idx, addr),
-			DCAM_REG_RD(trace->idx, addr + 4),
-			DCAM_REG_RD(trace->idx, addr + 8),
-			DCAM_REG_RD(trace->idx, addr + 12));
-	}
-
-	for (addr = DCAM_YUV_FBC_SCAL_PARAM; addr <= DCAM_YUV_FBC_SCAL_STATUS3;
-		addr += 16) {
-		pr_info("fbc:0x%03lx: 0x%x 0x%x 0x%x 0x%x\n",
-			addr,
-			DCAM_REG_RD(trace->idx, addr),
-			DCAM_REG_RD(trace->idx, addr + 4),
-			DCAM_REG_RD(trace->idx, addr + 8),
-			DCAM_REG_RD(trace->idx, addr + 12));
-	}
-
-	for (addr = DCAM_RAW_PATH_CFG; addr <= DCAM_RAW_PATH_BASE_WADDR;
-		addr += 16) {
-		pr_info("raw:0x%03lx: 0x%x 0x%x 0x%x 0x%x\n",
 			addr,
 			DCAM_REG_RD(trace->idx, addr),
 			DCAM_REG_RD(trace->idx, addr + 4),
@@ -451,6 +328,16 @@ abnormal_reg_trace:
 			DCAM_AXIM_RD(trace->idx, addr + 4),
 			DCAM_AXIM_RD(trace->idx, addr + 8),
 			DCAM_AXIM_RD(trace->idx, addr + 12));
+	}
+
+	pr_info("FMCU: Register list\n");
+	for (addr = 0x0; addr <= 0x3C; addr += 16) {
+		pr_info("0x%03lx: 0x%x 0x%x 0x%x 0x%x\n",
+			addr,
+			DCAM_FMCU_RD(addr),
+			DCAM_FMCU_RD(addr + 4),
+			DCAM_FMCU_RD(addr + 8),
+			DCAM_FMCU_RD(addr + 12));
 	}
 
 	pr_info("ISP: Register list\n");
