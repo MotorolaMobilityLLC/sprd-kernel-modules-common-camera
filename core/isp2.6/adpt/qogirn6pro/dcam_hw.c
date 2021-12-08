@@ -325,6 +325,40 @@ static int dcamhw_axi_init(void *handle, void *arg)
 	return 0;
 }
 
+static void dcamhw_ip_qos_set(void *handle, void *arg)
+{
+	uint32_t reg_val = 0;
+	struct cam_hw_info *hw = NULL;
+	struct cam_hw_soc_info *soc = NULL;
+	struct cam_hw_soc_info *soc_lite = NULL;
+	uint32_t id = *(uint32_t *)arg;
+	uint32_t awqos_thrd = 0, axi_urgent = 0, awqos_ultra_high = 0;
+
+	hw = (struct cam_hw_info *)handle;
+	soc = hw->soc_dcam;
+	soc_lite = hw->soc_dcam_lite;
+
+	/* qos value need cfg from DT. Now 6pro DT not cfg dcam qos.
+	* if only for test, can cfg specific value into dcam reg. Now, just
+	* cfg default value for dcam and not consider dcam_lite first.
+	*/
+	soc->awqos_low = 0x1;
+	soc->awqos_high = 0x6;
+	soc->arqos_low = 0x6;
+	awqos_thrd = 0x2;
+	axi_urgent = 0x0;
+	awqos_ultra_high = 0xF;
+	if (id <= DCAM_ID_1) {
+		reg_val = (awqos_ultra_high << 28) | (axi_urgent <<20) | ((soc->arqos_low & 0xF) << 12) | (awqos_thrd << 8) |
+			((soc->awqos_high & 0xF) << 4) | (soc->awqos_low & 0xF);
+		REG_MWR(soc->axi_reg_base + AXIM_CTRL, DCAM_AXIM_AQOS_MASK, reg_val);
+	} else {
+		reg_val = (0x0 <<20) | ((soc->arqos_low & 0xF) << 12) | (0x8 << 8) |
+			((soc->awqos_high & 0xF) << 4) | (soc->awqos_low & 0xF);
+		REG_MWR(soc_lite->axi_reg_base + AXIM_CTRL, DCAM_LITE_AXIM_AQOS_MASK, reg_val);
+	}
+}
+
 static int dcamhw_qos_set(void *handle, void *arg)
 {
 	int i = 0, length_mtx = 0,length_list = 0;
@@ -358,6 +392,8 @@ static int dcamhw_qos_set(void *handle, void *arg)
 		writel_relaxed(reg_val, addr);
 		iounmap(addr);
 	}
+
+	dcamhw_ip_qos_set(handle, arg);
 	return 0;
 }
 
