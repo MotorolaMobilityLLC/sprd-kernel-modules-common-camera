@@ -59,6 +59,8 @@
 
 #define VIR_CH_NUM 2
 
+#define CAM_IOCTL_PRIVATE_KEY 0xf34d
+
 enum {
 	IMG_TX_DONE       = 0x00,
 	IMG_NO_MEM        = 0x01,
@@ -939,6 +941,7 @@ struct sprd_dcam_raw_fmt {
 #define SPRD_IMG_IO_SET_LONGEXP_CAP      _IOR(SPRD_IMG_IO_MAGIC, 79, uint32_t)
 #define SPRD_IMG_IO_SET_MUL_MAX_SN_SIZE  _IOW(SPRD_IMG_IO_MAGIC, 80, struct sprd_img_size)
 #define SPRD_IMG_IO_SET_DCAM_RAW_FMT     _IOW(SPRD_IMG_IO_MAGIC, 81, struct sprd_dcam_raw_fmt)
+#define SPRD_IMG_TO_SET_KEY              _IOW(SPRD_IMG_IO_MAGIC, 82, uint32_t)
 
 /*
  * Dump dcam register.

@@ -3799,4 +3799,21 @@ static int camioctl_dcam_raw_fmt_set(struct camera_module *module,unsigned long 
 		return 0;
 
 }
+
+static int camioctl_key_set(struct camera_module *module, unsigned long arg)
+{
+	int ret = 0;
+	uint32_t param = 0;
+	ret = copy_from_user(&param, (void __user *)arg, sizeof(uint32_t));
+	if (unlikely(ret)) {
+		pr_err("fail to copy from user, ret %d\n", ret);
+		return -EFAULT;
+	}
+	if (param == CAM_IOCTL_PRIVATE_KEY) {
+		module->private_key = 1;
+	}
+	pr_info("get into camioctl_key_set successful, module_pri_key =%d\n", module->private_key);
+	return 0;
+}
+
 #endif

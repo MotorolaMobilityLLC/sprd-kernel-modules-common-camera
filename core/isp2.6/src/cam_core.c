@@ -285,7 +285,7 @@ struct camera_module {
 	struct mutex lock;
 	struct camera_group *grp;
 	uint32_t exit_flag;/*= 1, normal exit, =0, abnormal exit*/
-
+	uint32_t private_key;
 	int attach_sensor_id;
 	uint32_t iommu_enable;
 
@@ -7215,6 +7215,7 @@ static struct cam_ioctl_cmd ioctl_cmds_table[] = {
 	[_IOC_NR(SPRD_IMG_IO_SET_MUL_MAX_SN_SIZE)]  = {SPRD_IMG_IO_SET_MUL_MAX_SN_SIZE,  camioctl_mul_max_sensor_size_set},
 	[_IOC_NR(SPRD_IMG_IO_SET_CAP_ZSL_INFO)]     = {SPRD_IMG_IO_SET_CAP_ZSL_INFO,     camioctl_cap_zsl_info_set},
 	[_IOC_NR(SPRD_IMG_IO_SET_DCAM_RAW_FMT)]     = {SPRD_IMG_IO_SET_DCAM_RAW_FMT,     camioctl_dcam_raw_fmt_set},
+	[_IOC_NR(SPRD_IMG_TO_SET_KEY)]              = {SPRD_IMG_TO_SET_KEY,              camioctl_key_set},
 };
 
 static long camcore_ioctl(struct file *file, unsigned int cmd,
@@ -7258,11 +7259,13 @@ static long camcore_ioctl(struct file *file, unsigned int cmd,
 		locked = 1;
 	}
 
-	ret = ioctl_cmd_p->cmd_proc(module, arg);
-	if (ret) {
-		pr_debug("fail to ioctl cmd:%x, nr:%d, func %ps\n",
-			cmd, nr, ioctl_cmd_p->cmd_proc);
-		goto exit;
+	if (cmd == SPRD_IMG_TO_SET_KEY || module->private_key == 1) {
+		ret = ioctl_cmd_p->cmd_proc(module, arg);
+		if (ret) {
+			pr_debug("fail to ioctl cmd:%x, nr:%d, func %ps\n",
+				cmd, nr, ioctl_cmd_p->cmd_proc);
+			goto exit;
+		}
 	}
 
 	pr_debug("cam id:%d, %ps, done!\n",
@@ -7724,7 +7727,7 @@ static int camcore_release(struct inode *node, struct file *file)
 		pr_err("fail to get valid input ptr\n");
 		return -EFAULT;
 	}
-
+	module->private_key = 0;
 	group = module->grp;
 	idx = module->idx;
 
