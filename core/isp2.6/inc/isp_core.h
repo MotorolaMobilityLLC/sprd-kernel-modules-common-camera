@@ -28,7 +28,7 @@
 #include "isp_gtm.h"
 
 #define ISP_LINE_BUFFER_W          ISP_MAX_LINE_WIDTH
-#define ISP_IN_Q_LEN               4
+#define ISP_IN_Q_LEN               8
 #define ISP_PROC_Q_LEN             2
 #define ISP_RESULT_Q_LEN           2
 #define ISP_SLW_IN_Q_LEN           50
