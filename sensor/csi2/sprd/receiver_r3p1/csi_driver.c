@@ -271,6 +271,21 @@ void phy_reg_trace(unsigned int idx, unsigned int code_in,
 
 }
 
+int reg_rd(unsigned int reg)
+{
+	void __iomem *reg_base = NULL;
+	int val = 0;
+
+	reg_base = ioremap_nocache(reg, 0x4);
+	if (!reg_base) {
+		pr_info("0x%x: ioremap failed\n", reg);
+		return -1;
+	}
+	val = REG_RD(reg_base);
+	pr_debug("0x%x: val %x\n", reg, val);
+	iounmap(reg_base);
+	return val;
+}
 int reg_dump_rd(unsigned long reg, int len, char *reg_name)
 {
 	void __iomem *reg_base = NULL;
