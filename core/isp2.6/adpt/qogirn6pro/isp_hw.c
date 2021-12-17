@@ -2946,8 +2946,8 @@ static int isphw_slice_nr_info_set(void *handle, void *arg)
 {
 	uint32_t addr = 0, cmd = 0;
 	struct isp_hw_set_slice_nr_info *nrarg = NULL;
+	nrarg = (struct isp_hw_set_slice_nr_info *) arg;
 
-	return 0;
 	/* Post CNR */
 	addr = ISP_GET_REG(ISP_YUV_CNR_CONTRL1);
 	cmd = ((nrarg->slice_postcnr_info->st_y & 0xFFFF) << 16) |

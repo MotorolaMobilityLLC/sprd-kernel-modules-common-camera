@@ -115,7 +115,6 @@ int isp_k_gtm_mapping_set(void *param)
 		ISP_REG_MWR(idx, ISP_GTM_GLB_CTRL, BIT_1, BIT_1);
 		return -1;
 	}
-
 	val = ((mapping->gtm_hw_ymin & 0xFF) << 0);
 	ISP_REG_MWR(idx, ISP_GTM_HIST_YMIN, 0xFF, val);
 
@@ -132,14 +131,19 @@ int isp_k_gtm_mapping_set(void *param)
 	val = ((mapping->gtm_hw_log_diff & 0x1FFFFFFF) << 0);
 	ISP_REG_WR(idx, ISP_GTM_LOG_DIFF, val);
 
-	ISP_REG_MWR(idx, ISP_GTM_GLB_CTRL, BIT_1, 0);
-	if (mapping->sw_mode)
+	if (mapping->sw_mode) {
+		ISP_REG_MWR(idx, ISP_GTM_HIST_CTRL0, BIT_0, 0);
+		ISP_REG_MWR(idx, ISP_GTM_HIST_CTRL1, BIT_0, 0);
 		ISP_REG_MWR(idx, ISP_GTM_GLB_CTRL, BIT_3, 0);
-	else
+		ISP_REG_MWR(idx, ISP_GTM_GLB_CTRL, BIT_4, 1);
+	} else {
+		ISP_REG_MWR(idx, ISP_GTM_HIST_CTRL0, BIT_0, 1);
+		ISP_REG_MWR(idx, ISP_GTM_HIST_CTRL1, BIT_0, 1);
 		ISP_REG_MWR(idx, ISP_GTM_GLB_CTRL, BIT_3, BIT_3);
+	}
 
-	pr_debug("ctx %d, gtm hw_ymin %d, target_norm %d, lr_int %d\n",
-		idx, mapping->gtm_hw_ymin, mapping->gtm_hw_target_norm, mapping->gtm_hw_lr_int);
+	pr_debug("ctx %d, sw mode %d, gtm hw_ymin %d, target_norm %d, lr_int %d\n",
+		idx, mapping->sw_mode, mapping->gtm_hw_ymin, mapping->gtm_hw_target_norm, mapping->gtm_hw_lr_int);
 	pr_debug("ctx %d, gtm log_min_int %d, log_diff_int %d, log_diff %d\n",
 		idx, mapping->gtm_hw_log_min_int, mapping->gtm_hw_log_diff_int, mapping->gtm_hw_log_diff);
 

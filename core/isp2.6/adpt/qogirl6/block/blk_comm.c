@@ -129,6 +129,9 @@ int init_isp_pm(struct isp_k_block *isp_k_param)
 	isp_k_param->ygamma_info.bypass = 1;
 	isp_k_param->yrandom_info.bypass = 1;
 	isp_k_param->nf_info.yrandom_bypass= 1;
+	isp_k_param->gtm_rgb_info.bypass_info.gtm_mod_en = 0;
+	isp_k_param->gtm_rgb_info.bypass_info.gtm_hist_stat_bypass = 1;
+	isp_k_param->gtm_rgb_info.bypass_info.gtm_map_bypass = 1;
 
 	return 0;
 }

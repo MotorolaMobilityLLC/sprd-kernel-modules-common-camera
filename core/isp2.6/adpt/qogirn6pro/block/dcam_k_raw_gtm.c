@@ -240,7 +240,6 @@ int dcam_k_rgb_gtm_mapping(struct cam_gtm_mapping *param)
 	val = ((param->diff & 0x1FFFFFFF) << 0);
 	DCAM_REG_WR(idx, GTM_LOG_DIFF, val);
 
-	DCAM_REG_MWR(idx, DCAM_GTM_GLB_CTRL, BIT_0, 0);
 	DCAM_REG_MWR(idx, DCAM_GTM_GLB_CTRL, BIT_2, BIT_2);
 
 	pr_debug("ctx %d, gtm hw_ymin %d, target_norm %d, lr_int %d\n",

@@ -965,6 +965,7 @@ struct isp_hw_ltm_slice {
 };
 
 struct isp_hw_gtm_slice{
+	uint32_t idx;
 	struct isp_fmcu_ctx_desc *fmcu_handle;
 	struct slice_gtm_info *slice_param;
 };

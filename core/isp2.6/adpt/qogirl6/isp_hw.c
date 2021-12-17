@@ -122,6 +122,7 @@ static const struct bypass_tag isp_hw_bypass_tab[] = {
 [_EISP_YRAND]   = {"yrandom", ISP_YRANDOM_PARAM1,      0, 1},
 [_EISP_BCHS]    = {"bchs",    ISP_BCHS_PARAM,          0, 1},
 [_EISP_YUVNF]   = {"yuvnf",   ISP_YUV_NF_CTRL,         0, 1},
+[_EISP_GTM]     = {"gtm",     ISP_GTM_GLB_CTRL,        1, 1},
 
 	{"ydelay",    ISP_YDELAY_PARAM, 0, 1},
 	{"cce",       ISP_CCE_PARAM, 0, 0},
@@ -1919,6 +1920,7 @@ int isphw_gtm_slice_set(void *handle)
 {
 	uint32_t addr = 0;
 	uint32_t cmd = 0;
+	uint32_t val = 0;
 	struct isp_hw_gtm_slice *gtm = (struct isp_hw_gtm_slice *)handle;
 	struct isp_fmcu_ctx_desc *fmcu = gtm->fmcu_handle;
 	struct slice_gtm_info *gtm_slice = gtm->slice_param;
@@ -1933,12 +1935,12 @@ int isphw_gtm_slice_set(void *handle)
 		return 0;
 	}
 
+	val = ISP_REG_RD(gtm->idx, ISP_GTM_GLB_CTRL);
+	if ((val & BIT_2) == 0)
+		return 0;
+
 	addr = ISP_GET_REG(ISP_GTM_GLB_CTRL);
-	cmd = (gtm_slice->gtm_mode_en & 0x1)
-		| ((gtm_slice->gtm_map_bypass & 0x1) << 1)
-		| ((gtm_slice->gtm_hist_stat_bypass & 0x1) << 2)
-		| ((gtm_slice->gtm_tm_param_calc_by_hw & 0x1) << 3)
-		| ((gtm_slice->gtm_cur_is_first_frame & 0x1) << 4)
+	cmd = (val & 0x1f)
 		| ((gtm_slice->gtm_tm_luma_est_mode & 0x3) << 5)
 		| ((gtm_slice->last_slice & 0x1) << 21)
 		| ((gtm_slice->first_slice & 0x1) << 22)
@@ -1946,6 +1948,8 @@ int isphw_gtm_slice_set(void *handle)
 		| ((gtm_slice->gtm_tm_in_bit_depth & 0xf) << 24)
 		| ((gtm_slice->gtm_tm_out_bit_depth & 0xf) << 28);
 	FMCU_PUSH(fmcu, addr, cmd);
+	pr_debug("mode_en %d, map_bypass %d, hist_stat_bypass %d, ctrl reg %x\n",
+		gtm_slice->gtm_mode_en, gtm_slice->gtm_map_bypass, gtm_slice->gtm_hist_stat_bypass, cmd);
 
 	addr = ISP_GET_REG(ISP_GTM_SLICE_LINE_STARTPOS);
 	cmd = gtm_slice->line_startpos;
@@ -1955,8 +1959,6 @@ int isphw_gtm_slice_set(void *handle)
 	cmd = gtm_slice->line_endpos;
 	FMCU_PUSH(fmcu, addr, cmd);
 
-	pr_debug("mode_en %d, map_bypass %d, hist_stat_bypass %d, \n",
-		gtm_slice->gtm_mode_en, gtm_slice->gtm_map_bypass, gtm_slice->gtm_hist_stat_bypass);
 	pr_debug("luma_est_mode %d, last_slice %d, first_slice %d, \n",
 		gtm_slice->gtm_tm_luma_est_mode, gtm_slice->last_slice, gtm_slice->first_slice);
 	pr_debug("in_depth %d, out_depth %d, stat_slice_en %d, line pos %d, %d\n",

@@ -297,6 +297,13 @@ static int ispgtm_pipe_proc(void *handle, void *param, void *param2)
 		gtm_k_block.tuning->bypass_info.gtm_hist_stat_bypass = 1;
 
 		if (gtm_k_block.tuning->bypass_info.gtm_mod_en == 0) {
+			gtm_bypass.ctx_id = gtm_ctx->ctx_id;
+			gtm_bypass.hist_bypass = gtm_ctx->gtm_hist_stat_bypass || gtm_k_block.tuning->bypass_info.gtm_hist_stat_bypass;
+			gtm_bypass.map_bypass = gtm_ctx->gtm_map_bypass || gtm_k_block.tuning->bypass_info.gtm_map_bypass;
+			gtm_bypass.mod_en = gtm_ctx->gtm_mode_en && gtm_k_block.tuning->bypass_info.gtm_mod_en;
+			gtm_func.index = ISP_K_GTM_BYPASS_SET;
+			gtm_ctx->hw->isp_ioctl(gtm_ctx->hw, ISP_HW_CFG_GTM_FUNC_GET, &gtm_func);
+			gtm_func.k_blk_func(&gtm_bypass);
 			pr_debug("capture frame ctx_id %d, mod_en off\n", gtm_ctx->ctx_id);
 			goto exit;
 		}

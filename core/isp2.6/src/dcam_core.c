@@ -1217,7 +1217,7 @@ static int dcamcore_gtm_ltm_bypass_cfg(struct dcam_sw_context *sw_pctx, struct i
 		path = &sw_pctx->path[DCAM_PATH_FULL];
 	else
 		path = &sw_pctx->path[DCAM_PATH_BIN];
-	frame = cam_queue_dequeue_peek(&path->result_queue, struct camera_frame, list);
+	frame = cam_queue_tail_peek(&path->result_queue, struct camera_frame, list);
 	if (frame) {
 		if (io_param->sub_block == ISP_BLOCK_RGB_LTM) {
 			frame->need_ltm_hist = !ltm_bypass_info.ltm_hist_stat_bypass;

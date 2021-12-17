@@ -199,6 +199,21 @@ struct camera_queue {
 	__node;                                                              \
 })
 
+#define cam_queue_tail_peek(queue, type, member) ({                          \
+	unsigned long __flags;                                               \
+	struct camera_queue *__q = (queue);                                  \
+	type *__node = NULL;                                                 \
+	if (__q != NULL) {                                                   \
+		spin_lock_irqsave(&__q->lock, __flags);                      \
+		if ((!list_empty(&__q->head)) && (__q->cnt)                  \
+			&& (__q->state != CAM_Q_CLEAR)) {                    \
+			__node = list_last_entry(&__q->head, type, member);  \
+		}                                                            \
+		spin_unlock_irqrestore(&__q->lock, __flags);                 \
+	}                                                                    \
+	__node;                                                              \
+})
+
 int cam_queue_enqueue(struct camera_queue *q, struct list_head *list);
 struct camera_frame *cam_queue_dequeue_tail(struct camera_queue *q);
 struct camera_frame *cam_queue_dequeue_if(struct camera_queue *q,
