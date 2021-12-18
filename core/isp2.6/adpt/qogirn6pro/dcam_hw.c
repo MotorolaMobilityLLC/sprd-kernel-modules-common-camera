@@ -1173,7 +1173,11 @@ static int dcamhw_path_start(void *handle, void *arg)
 		if (patharg->pdaf_path_eb) {
 			if (patharg->pdaf_type == DCAM_PDAF_TYPE3)
 				DCAM_REG_MWR(patharg->idx, DCAM_PPE_FRM_CTRL0, BIT_0, 1);
-			else
+			else if (patharg->pdaf_type == DCAM_PDAF_TYPE2) {
+				DCAM_REG_MWR(patharg->idx, DCAM_MIPI_CAP_CFG1, BIT_0, BIT_0);
+				DCAM_REG_MWR(patharg->idx, DCAM_BUF_CTRL, BIT_6 | BIT_7, 0);
+				DCAM_REG_MWR(patharg->idx, DCAM_VCH3_CONTROL, BIT_0, 1);
+			} else
 				DCAM_REG_MWR(patharg->idx, DCAM_VC1_CONTROL, BIT_0, 1);
 		}
 		break;
@@ -2518,6 +2522,12 @@ static int dcamhw_set_store_addr(void *handle, void *arg)
 			blk_y = param->blk_param->afm.win_num.height;
 			DCAM_REG_WR(idx, DCAM_AFM_HIST_BASE_WADDR, param->frame_addr[0] + blk_x * blk_y * 16);
 		}
+		break;
+	case DCAM_PATH_PDAF:
+		if (param->blk_param->pdaf.pdaf_type == DCAM_PDAF_TYPE2)
+			DCAM_REG_WR(idx, DCAM_VCH3_BASE_WADDR, param->frame_addr[0]);
+		else
+			DCAM_REG_WR(idx, addr, param->frame_addr[0]);
 		break;
 	default:
 		DCAM_REG_WR(idx, addr, param->frame_addr[0]);

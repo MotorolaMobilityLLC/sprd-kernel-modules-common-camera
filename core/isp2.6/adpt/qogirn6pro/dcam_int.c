@@ -947,8 +947,9 @@ static void dcamint_vch3_path_done(void *param, struct dcam_sw_context *sw_ctx)
 	struct dcam_hw_context *dcam_hw_ctx = (struct dcam_hw_context *)param;
 	struct camera_frame *frame = NULL;
 
-	if ((frame = dcamint_frame_prepare(dcam_hw_ctx, sw_ctx, DCAM_PATH_VCH3)))
-		dcamint_frame_dispatch(dcam_hw_ctx, sw_ctx, DCAM_PATH_AFM, frame, DCAM_CB_STATIS_DONE);
+	pr_debug("dcam%d enter\n", dcam_hw_ctx->hw_ctx_id);
+	if ((frame = dcamint_frame_prepare(dcam_hw_ctx, sw_ctx, DCAM_PATH_PDAF)))
+		dcamint_frame_dispatch(dcam_hw_ctx, sw_ctx, DCAM_PATH_PDAF, frame, DCAM_CB_STATIS_DONE);
 }
 
 static void dcamint_afm_done(void *param, struct dcam_sw_context *sw_ctx)

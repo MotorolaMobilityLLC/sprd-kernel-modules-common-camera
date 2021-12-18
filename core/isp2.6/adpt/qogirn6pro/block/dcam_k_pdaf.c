@@ -97,7 +97,7 @@ static int isp_k_pdaf_type2_block(
 	if (idx == DCAM_HW_CONTEXT_MAX)
 		return 0;
 
-	DCAM_REG_WR(idx, DCAM_PDAF_CONTROL,
+	DCAM_REG_WR(idx, DCAM_VCH3_CONTROL,
 		(vch2_info->vch2_vc & 0x03) << 16
 		|(vch2_info->vch2_data_type & 0x3f) << 8
 		|(vch2_info->vch2_mode & 0x03));
@@ -373,13 +373,15 @@ int dcam_k_pdaf(struct dcam_dev_param *p)
 	if (p->pdaf.pdaf_type == DCAM_PDAF_TYPE3) {
 		DCAM_REG_MWR(p->idx, ISP_PPI_PARAM, BIT_0, bypass);
 		DCAM_REG_MWR(p->idx, DCAM_VC1_CONTROL, BIT_0, !bypass);
-	} else
+	} else if (p->pdaf.pdaf_type == DCAM_PDAF_TYPE2)
+		DCAM_REG_MWR(p->idx, DCAM_VCH3_CONTROL, BIT_0, !bypass);
+	else
 		DCAM_REG_MWR(p->idx, DCAM_VC1_CONTROL, BIT_0, !bypass);
 	if (bypass) {
-		pr_debug("dcam%d pdaf bypass\n", idx);
+		pr_debug("dcam%d pdaf_type %d bypass\n", idx, p->pdaf.pdaf_type);
 		return 0;
 	}
-	pr_info("dcam%d reconfigure pdaf param, type %d\n", idx, p->pdaf.pdaf_type);
+	pr_info("dcam%d reconfigure pdaf param, type %d bypass %d\n", idx, p->pdaf.pdaf_type, bypass);
 
 	if (p->pdaf.pdaf_type == DCAM_PDAF_TYPE3) {
 		/* mode */
@@ -446,6 +448,17 @@ int dcam_k_pdaf(struct dcam_dev_param *p)
 		val = 0;
 		val = (ppi_info->block_size.width << 4) | (ppi_info->block_size.height << 6);
 		DCAM_REG_MWR(idx, ISP_PPI_PARAM, 0x000000f0, val);
+	} else if (p->pdaf.pdaf_type == DCAM_PDAF_TYPE2) {
+		DCAM_REG_MWR(idx, DCAM_MIPI_CAP_CFG1, BIT_0, BIT_0);
+
+		DCAM_REG_MWR(idx, DCAM_VCH3_CONTROL, 0x33f30,
+			(vch2_info->vch2_vc & 0x03) << 16
+			| (vch2_info->vch2_data_type & 0x3f) << 8
+			| (vch2_info->vch2_mode & 0x03) << 4);
+		if (idx == DCAM_HW_CONTEXT_0)
+			DCAM_AXIM_MWR(idx, DCAM_LBUF_SHARE_MODE, BIT_20 | BIT_21, 1 << 20);
+		else if (idx == DCAM_HW_CONTEXT_1)
+			DCAM_AXIM_MWR(idx, DCAM_LBUF_SHARE_MODE, BIT_20 | BIT_21, 2 << 20);
 	} else {
 		DCAM_REG_MWR(idx, DCAM_MIPI_CAP_CFG1, BIT_0, BIT_0);
 
