@@ -1260,7 +1260,6 @@ static struct camera_frame *ispcore_path_out_frame_get(
 	int ret = 0, j = 0;
 	uint32_t buf_type = 0;
 	struct camera_frame *out_frame = NULL;
-	uint32_t use_reserve_because_960fps_end = 0;
 	if (!pctx || !path || !tmp) {
 		pr_err("fail to get valid input pctx %p, path %p\n", pctx, path);
 		return NULL;
@@ -1270,13 +1269,6 @@ static struct camera_frame *ispcore_path_out_frame_get(
 		buf_type = tmp->stream->buf_type[path->spath_id];
 		switch (buf_type) {
 		case ISP_STREAM_BUF_OUT:
-			if ((path->spath_id == ISP_SPATH_VID) &&
-				pctx->uinfo.stage_a_valid_count &&
-				(!pctx->uinfo.stage_a_frame_num) &&
-				(!pctx->uinfo.stage_b_frame_num) &&
-				(!pctx->uinfo.stage_c_frame_num))
-				use_reserve_because_960fps_end = 1;
-			pr_info("use_reserve_because_960fps_end %d, path%d, a valid cnt %d, %d %d %d\n", use_reserve_because_960fps_end, path->spath_id, pctx->uinfo.stage_a_valid_count, pctx->uinfo.stage_a_frame_num, pctx->uinfo.stage_b_frame_num, pctx->uinfo.stage_c_frame_num);
 			goto normal_out_put;
 		case ISP_STREAM_BUF_RESERVED:
 			out_frame = cam_queue_dequeue(&path->reserved_buf_queue,
@@ -1315,7 +1307,7 @@ normal_out_put:
 	if (pctx->sw_slice_num && pctx->sw_slice_no != 0) {
 		out_frame = cam_queue_dequeue(&path->result_queue,
 					struct camera_frame, list);
-	} else if (use_reserve_because_960fps_end == 0){
+	} else {
 		int cnt = 0;
 		uint32_t not_use_reserved_buf = (path->spath_id == ISP_SPATH_CP) && (tmp->not_use_reserved_buf);
 		do {
@@ -1823,7 +1815,7 @@ static int ispcore_offline_frame_start(void *ctx)
 	}
 
 	if (tmp.valid_out_frame == -1) {
-		pr_info(" No available output buffer sw %d, hw %d,discard\n",
+		pr_debug(" No available output buffer sw %d, hw %d,discard\n",
 			pctx_hw->sw_ctx_id, pctx_hw->hw_ctx_id);
 		if (rgb_ltm)
 			rgb_ltm->ltm_ops.sync_ops.clear_status(rgb_ltm);
@@ -1894,7 +1886,7 @@ static int ispcore_offline_frame_start(void *ctx)
 	if (pctx->uinfo.enable_slowmotion) {
 		uint32_t vid_valid_count = 0;
 		vid_valid_count = ispcore_slw_need_vid_num(&pctx->uinfo);
-		pr_info("vid count %d, stage a frm_num %d, stage b frm_num %d, stage c frm_num %d, fps %d",
+		pr_debug("vid count %d, stage a frm_num %d, stage b frm_num %d, stage c frm_num %d, fps %d",
 			vid_valid_count,pctx->uinfo.stage_a_frame_num,pctx->uinfo.stage_b_frame_num, pctx->uinfo.stage_c_frame_num, pctx->uinfo.slowmotion_count);
 
 		for (i = 0; i < pctx->uinfo.slowmotion_count - 1; i++) {

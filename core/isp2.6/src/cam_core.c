@@ -7448,8 +7448,7 @@ rewait:
 			read_op.parm.frame.irq_property = pframe->irq_property;
 		}
 
-		if (read_op.parm.frame.channel_id == 1 ||read_op.parm.frame.channel_id == 2)
-		pr_info("read frame, evt 0x%x irq %d, irq_property %d, ch 0x%x index 0x%x mfd 0x%x\n",
+		pr_debug("read frame, evt 0x%x irq %d, irq_property %d, ch 0x%x index 0x%x mfd 0x%x\n",
 			read_op.evt, read_op.parm.frame.irq_type, read_op.parm.frame.irq_property, read_op.parm.frame.channel_id,
 			read_op.parm.frame.real_index, read_op.parm.frame.mfd);
 

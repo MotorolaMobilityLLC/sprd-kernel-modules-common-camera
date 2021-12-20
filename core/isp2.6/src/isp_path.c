@@ -68,7 +68,7 @@ int isp_path_slw960_uinfo_set(struct isp_sw_context *pctx, void *param)
 		uinfo->stage_b_frame_num = cfg_in->slowmotion_stage_b_num;
 		uinfo->stage_c_frame_num = cfg_in->slowmotion_stage_a_num;
 	}
-	pr_info("isp%d, slw enable %d, stage_a_frame_num %d, stage_a_valid_count %d, stage_b_frame_num %d\n",
+	pr_debug("isp%d, slw enable %d, stage_a_frame_num %d, stage_a_valid_count %d, stage_b_frame_num %d\n",
 		pctx->ctx_id, uinfo->enable_slowmotion, uinfo->stage_a_frame_num, uinfo->stage_a_valid_count,
 		uinfo->stage_b_frame_num);
 	return 0;
@@ -387,7 +387,7 @@ int isp_path_fetch_frm_set(struct isp_sw_context *pctx,
 	if (pctx->dev->sec_mode == SEC_SPACE_PRIORITY)
 		cam_trusty_isp_fetch_addr_set(yuv_addr[0], yuv_addr[1], yuv_addr[2]);
 
-	pr_info("camca  isp sec_mode=%d,  %lx %lx %lx\n", pctx->dev->sec_mode,
+	pr_debug("camca  isp sec_mode=%d,  %lx %lx %lx\n", pctx->dev->sec_mode,
 		yuv_addr[0],
 		yuv_addr[1],
 		yuv_addr[2]);

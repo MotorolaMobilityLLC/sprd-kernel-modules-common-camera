@@ -3049,7 +3049,7 @@ static int isphw_frame_addr_fetch(void *handle, void *arg)
 		cam_trusty_isp_fetch_addr_set(fetch->addr_hw.addr_ch0,
 			fetch->addr_hw.addr_ch1, fetch->addr_hw.addr_ch2);
 	} else {
-		pr_info("y_addr:%x, u_addr:%x.\n", fetch->addr_hw.addr_ch0, fetch->addr_hw.addr_ch1);
+		pr_debug("y_addr:%x, u_addr:%x.\n", fetch->addr_hw.addr_ch0, fetch->addr_hw.addr_ch1);
 		ISP_REG_WR(idx, addr + ISP_FETCH_SLICE_Y_ADDR, fetch->addr_hw.addr_ch0);
 		ISP_REG_WR(idx, addr + ISP_FETCH_SLICE_U_ADDR, fetch->addr_hw.addr_ch1);
 	}
