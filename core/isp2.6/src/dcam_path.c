@@ -1176,7 +1176,7 @@ int dcam_path_store_frm_set(void *dcam_ctx_handle,
 		frame->sync_data = &helper->sync;
 	}
 
-	if (!frame->is_reserved || frame->channel_id == CAM_CH_CAP)
+	if (!frame->is_reserved || path_id == DCAM_PATH_FULL)
 		dcampath_update_size(dcam_sw_ctx, path, frame, NULL);
 	dcampath_update_statis_head(dcam_sw_ctx, path, frame);
 
