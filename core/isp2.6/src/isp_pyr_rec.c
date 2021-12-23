@@ -380,11 +380,8 @@ static int isppyrrec_reconstruct_get(struct isp_rec_ctx_desc *ctx, uint32_t idx)
 		}
 		slc_pyr_rec->reduce_flt_hblank = slc_pyr_rec->hor_padding_num + 20;
 
-		if (rec_cfg->layer_num > 0)
-			slc_pyr_rec->dispatch_dly_width_num = 1128;
-		else
-			slc_pyr_rec->dispatch_dly_width_num = 60;
-		slc_pyr_rec->dispatch_dly_height_num = 32;
+		slc_pyr_rec->dispatch_dly_width_num = 60;
+		slc_pyr_rec->dispatch_dly_height_num = 37;
 		slc_pyr_rec->dispatch_pipe_full_num = 100;
 		if (slc_pyr_rec->pre_layer.w <= 40 && slc_pyr_rec->pre_layer.h <= 32)
 			slc_pyr_rec->dispatch_dly_height_num = 256;
