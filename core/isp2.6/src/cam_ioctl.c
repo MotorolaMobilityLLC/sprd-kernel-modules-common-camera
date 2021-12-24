@@ -466,7 +466,6 @@ static int camioctl_cam_security_set(struct camera_module *module,
 		unsigned long arg)
 {
 	int ret = 0;
-	int loop = 0;
 	bool sec_ret = 0;
 	bool iommu_en = 0;
 	bool ca_conn = 0;
@@ -521,25 +520,10 @@ static int camioctl_cam_security_set(struct camera_module *module,
 		iommu_en = true;
 	}
 
-	ret = -EINVAL;
-	do {
-		if (atomic_read(&module->isp_dev_handle->pd_clk_rdy) > 0) {
-			ret = 0;
-			break;
-		}
-		pr_info_ratelimited("loop %d\n", loop);
-		usleep_range(600, 800);
-	} while(loop++ < 1000);
-
-	if (ret) {
-		pr_err("fail to get isp domain & clk, timeout.\n");
-		goto exit;
-	}
-
 	module->grp->camsec_cfg.work_mode = uparam.work_mode;
 	module->grp->camsec_cfg.camsec_mode = uparam.camsec_mode;
-
-	ret = sprd_iommu_set_cam_bypass(iommu_en);
+	if (atomic_read(&module->isp_dev_handle->pd_clk_rdy) > 0)
+		ret = sprd_iommu_set_cam_bypass(iommu_en);
 
 exit:
 	return ret;

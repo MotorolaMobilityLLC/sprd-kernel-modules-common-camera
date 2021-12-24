@@ -3965,6 +3965,7 @@ static int ispcore_dev_open(void *isp_handle, void *param)
 		spin_lock_init(&hw->isp_cfg_lock);
 
 		ret = isp_drv_hw_init(dev);
+		atomic_set(&dev->pd_clk_rdy, 1);
 		if (dev->pyr_dec_handle == NULL && hw->ip_isp->pyr_dec_support) {
 			dev->pyr_dec_handle = isp_pyr_dec_dev_get(dev, hw);
 			if (!dev->pyr_dec_handle) {
@@ -3979,8 +3980,6 @@ static int ispcore_dev_open(void *isp_handle, void *param)
 			ret = -EFAULT;
 			goto dec_err;
 		}
-
-		atomic_set(&dev->pd_clk_rdy, 1);
 	}
 
 	pr_info("open isp pipe dev done!\n");

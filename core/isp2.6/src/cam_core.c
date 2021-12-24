@@ -7683,7 +7683,7 @@ static int camcore_open(struct inode *node, struct file *file)
 		cam_queue_init(g_empty_frm_q, CAM_EMP_Q_LEN_MAX,
 			cam_queue_empty_frame_free);
 		g_empty_state_q = &grp->empty_state_q;
-		cam_queue_init(g_empty_state_q, CAM_EMP_Q_LEN_MAX / 4,
+		cam_queue_init(g_empty_state_q, CAM_EMP_STATE_LEN_MAX,
 			cam_queue_empty_state_free);
 		cam_queue_init(&grp->mul_share_buf_q,
 			CAM_SHARED_BUF_NUM, camcore_k_frame_put);

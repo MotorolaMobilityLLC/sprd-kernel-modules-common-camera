@@ -23,7 +23,8 @@
 #include "isp_interface.h"
 
 #define CAM_EMP_Q_LEN_INC               16
-#define CAM_EMP_Q_LEN_MAX               2048
+#define CAM_EMP_Q_LEN_MAX               3072
+#define CAM_EMP_STATE_LEN_MAX           128
 
 enum {
 	CAM_Q_INIT,
