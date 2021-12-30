@@ -88,8 +88,10 @@ static int csi_mipi_clk_enable(int sensor_id)
 		pr_err("fail to csi mipi clk enable\n");
 		return -EINVAL;
 	}
-	if(cnt >= CSI_MAX_COUNT)
+
+	if(cnt < 0)
 		cnt = 0;
+
 	if((BIT_5 | BIT_4 | BIT_3)!=(reg_rd(0x30000008)&(BIT_5 | BIT_4 | BIT_3))) {
 		reg_base = ioremap_nocache(0x30000008, 1);
 		if (!reg_base) {
@@ -155,6 +157,9 @@ static void csi_mipi_clk_disable(int sensor_id)
 		return;
 	}
 
+	if(cnt > CSI_MAX_COUNT)
+		cnt = CSI_MAX_COUNT;
+
 	regmap_update_bits(dt_info->phy.aon_apb_syscon,
 		REG_AON_APB_CGM_CLK_TOP_REG1,
 		MASK_AON_APB_CGM_CPHY_CFG_EN,
@@ -171,7 +176,7 @@ static void csi_mipi_clk_disable(int sensor_id)
 	}
 
 	clk_disable_unprepare(dt_info->mipi_csi_gate_eb);
-	//clk_disable_unprepare(dt_info->csi_eb_clk);
+	clk_disable_unprepare(dt_info->csi_eb_clk);
 	if(!csi_pattern_enable)
 		clk_disable_unprepare(dt_info->csi_src_eb);//don't need enable in ipg mode
 
