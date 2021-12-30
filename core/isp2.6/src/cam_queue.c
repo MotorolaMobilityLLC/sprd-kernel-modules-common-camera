@@ -184,7 +184,7 @@ int cam_queue_same_frame_get(struct camera_queue *q0,
 	spin_lock_irqsave(&q0->lock, flags0);
 	spin_lock_irqsave(&q1->lock, flags1);
 	if (list_empty(&q0->head) || list_empty(&q1->head)) {
-		pr_err("fail to get list node\n");
+		pr_warn("warning:Get list node fail\n");
 		ret = -EFAULT;
 		goto _EXT;
 	}

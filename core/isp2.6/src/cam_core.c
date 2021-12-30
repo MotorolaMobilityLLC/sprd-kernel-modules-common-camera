@@ -1936,7 +1936,7 @@ static int camcore_dual_same_frame_get(struct camera_module *module)
 	t = pmd[0]->capture_times;
 	ret = cam_queue_same_frame_get(q[0], q[1], &pframe[0], &pframe[1], t);
 	if (ret) {
-		pr_err("fail to get same frame\n");
+		pr_warn("warning:Get same frame fail\n");
 		return ret;
 	}
 	pmd[0]->dual_frame = pframe[0];
