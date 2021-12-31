@@ -1823,6 +1823,7 @@ mul_alloc_end:
 			goto exit;
 		}
 		if (camcore_mulsharebuf_verif(channel, &module->cam_uinfo)) {
+			pframe->buf.sharebuf_flag = 1;
 			grp->mul_share_pyr_rec_buf = pframe;
 			channel->pyr_rec_buf = grp->mul_share_pyr_rec_buf;
 		} else

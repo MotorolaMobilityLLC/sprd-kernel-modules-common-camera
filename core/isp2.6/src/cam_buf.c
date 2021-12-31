@@ -592,6 +592,12 @@ int cam_buf_iommu_map(struct camera_buf *buf_info,
 		return -EFAULT;
 	}
 
+	if (buf_info->sharebuf_flag == 1) {
+		buf_info->sharebuf_map_cnt++;
+		if (buf_info->sharebuf_map_cnt > 1)
+			return ret;
+	}
+
 	pr_debug("enter.\n");
 	for (i = 0; i < 3; i++) {
 		if (buf_info->ionbuf[i] == NULL)
@@ -691,6 +697,12 @@ int cam_buf_iommu_unmap(struct camera_buf *buf_info)
 		pr_info("buf dev %p, may not be mapping %d\n",
 			buf_info->dev, buf_info->mapping_state);
 		return ret;
+	}
+
+	if (buf_info->sharebuf_flag == 1) {
+		buf_info->sharebuf_map_cnt--;
+		if (buf_info->sharebuf_map_cnt > 0)
+			return ret;
 	}
 
 	dev_info = cambuf_iommu_dev_get(CAM_IOMMUDEV_MAX, buf_info->dev);
