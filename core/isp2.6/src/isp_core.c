@@ -4050,8 +4050,7 @@ static int ispcore_dev_reset(void *isp_handle, void *param)
 	hw = (struct cam_hw_info *)param;
 
 	cam_kproperty_get("auto/chipid", chip_type, "-1");
-	if (hw->prj_id == QOGIRN6pro
-		&& strncmp(chip_type, "UMS9620-AA", strlen("UMS9620-AA")) == 0)
+	if (hw->prj_id == QOGIRN6pro)
 		return 0;
 
 	reset_flag = ISP_RESET_BEFORE_POWER_OFF;
