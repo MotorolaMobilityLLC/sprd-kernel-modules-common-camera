@@ -380,7 +380,7 @@ int dcam_fmcu_ctx_desc_put(struct dcam_fmcu_ctx_desc *fmcu)
 		}
 	}
 
-	if (fmcu != NULL)
+	if (fmcu->hw != NULL)
 		pr_err("fail to match original ptr %p\n", fmcu);
 
 	return 0;

@@ -2497,7 +2497,7 @@ static int dcamhw_fmcu_enable(void *handle, void *arg)
 
 	param = (struct dcam_fmcu_enable *)arg;
 
-	pr_debug("dcam%d enable fmcu\n", param->idx);
+	pr_debug("dcam%d enable fmcu %d\n", param->idx,param->enable);
 	DCAM_REG_MWR(param->idx, DCAM_PATH_SEL, BIT_31, param->enable << 31);
 	if (param->enable) {
 		if (param->idx == 0)
