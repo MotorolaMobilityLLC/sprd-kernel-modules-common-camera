@@ -1118,6 +1118,7 @@ int dcam_core_dcam_if_release_sync(struct dcam_frame_synchronizer *sync,
 		pctx->hw_ctx_id, dcam_path_name_get(path_id), sync->index, sync);
 
 	spin_lock_irqsave(&pctx->helper_lock, flags);
+	helper->helper_put_enable = 0;
 	if (unlikely(!helper->enabled)) {
 		ignore = true;
 		goto exit;
