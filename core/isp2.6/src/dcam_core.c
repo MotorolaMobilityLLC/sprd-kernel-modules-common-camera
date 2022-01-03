@@ -2333,7 +2333,7 @@ static int dcamcore_dev_open(void *dcam_handle)
 		spin_lock_init(&dev->ctx_lock);
 	}
 	mutex_unlock(&dev->ctx_mutex);
-	pr_info("open dcam pipe dev done!\n");
+	pr_info("open dcam pipe dev done! enable %d\n",atomic_read(&dev->enable));
 	return 0;
 
 context_init_fail:
@@ -2354,12 +2354,14 @@ static int dcamcore_dev_close(void *dcam_handle)
 		pr_err("fail to get valid input ptr\n");
 		return -EINVAL;
 	}
+	mutex_lock(&dev->ctx_mutex);
 	if (atomic_dec_return(&dev->enable) == 0) {
 		mutex_destroy(&dev->path_mutex);
 		ret = dcamcore_context_deinit(dev);
 		ret = dcam_drv_hw_deinit(dev);
 	}
-	pr_info("dcam dev disable done\n");
+	mutex_unlock(&dev->ctx_mutex);
+	pr_info("dcam dev disable done enable %d\n",atomic_read(&dev->enable));
 	return ret;
 
 }
@@ -2857,7 +2859,6 @@ exit:
 
 int dcam_core_pipe_dev_put(void *dcam_handle)
 {
-	int user_cnt = 0, en_cnt = 0;
 	int ret = 0;
 	struct dcam_pipe_dev *dev = (struct dcam_pipe_dev *)dcam_handle;
 
@@ -2876,11 +2877,6 @@ int dcam_core_pipe_dev_put(void *dcam_handle)
 		pr_err("fail to match dev: %px, %px\n", dev, s_dcam_dev);
 		return -EINVAL;
 	}
-
-	user_cnt = atomic_read(&dev->user_cnt);
-	en_cnt = atomic_read(&dev->enable);
-	if (user_cnt != (en_cnt + 1))
-		pr_err("fail to match %d %d\n", user_cnt, en_cnt);
 
 	if (atomic_dec_return(&dev->user_cnt) == 0) {
 		pr_info("free dcam pipe dev %px\n", dev);
