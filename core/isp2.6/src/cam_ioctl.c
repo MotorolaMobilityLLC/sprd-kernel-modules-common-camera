@@ -3463,6 +3463,7 @@ static int camioctl_csi_switch(struct camera_module *module, unsigned long arg)
 			pr_info("Disconnect csi_id = %d, dcam_id = %d, sw_ctx_id = %d module idx %d\n",
 				csi_switch.csi_id, csi_switch.dcam_id, sw_ctx->sw_ctx_id, module->idx);
 
+			atomic_set(&sw_ctx->state, STATE_IDLE);
 			/* reset */
 			dcam_int_tracker_dump(sw_ctx->hw_ctx_id);
 			dcam_int_tracker_reset(sw_ctx->hw_ctx_id);
@@ -3527,7 +3528,6 @@ static int camioctl_csi_switch(struct camera_module *module, unsigned long arg)
 					} while (pframe);
 				}
 			}
-			atomic_set(&sw_ctx->state, STATE_IDLE);
 			sw_ctx->csi_connect_stat = DCAM_CSI_PAUSE;
 			break;
 
