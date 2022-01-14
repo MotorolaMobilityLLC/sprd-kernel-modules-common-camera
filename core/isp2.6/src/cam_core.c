@@ -2971,7 +2971,7 @@ static int camcore_dcam_callback(enum dcam_cb_type type, void *param, void *priv
 				pr_info("cur %p\n", pframe->param_data);
 			}
 
-			if ((module->flash_skip_fid == pframe->fid) && (module->flash_skip_fid != 0)) {
+			if ((module->flash_skip_fid == pframe->fid) && (module->flash_skip_fid != 0) && (!channel->ch_uinfo.is_high_fps)) {
 				pr_debug("flash_skip_frame fd = %d\n", pframe->fid);
 				if (pframe->sync_data)
 					dcam_core_dcam_if_release_sync(pframe->sync_data, pframe);
