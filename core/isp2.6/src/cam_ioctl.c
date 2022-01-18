@@ -2573,7 +2573,8 @@ static int camioctl_capture_start(struct camera_module *module,
 		module->dcam_cap_status = DCAM_CAPTURE_START_FROM_NEXT_SOF;
 		atomic_set(&module->capture_frames_dcam, param.cap_cnt);
 		atomic_set(&module->cap_total_frames, param.cap_cnt);
-		if (module->capture_scene == CAPTURE_SW3DNR && (param.timestamp != 0))
+		if ((module->capture_scene == CAPTURE_SW3DNR ||
+			module->capture_scene == CAPTURE_FROM_TIMESTAMP) && (param.timestamp != 0))
 			module->capture_times = param.timestamp;
 		else
 			module->capture_times = start_time;
