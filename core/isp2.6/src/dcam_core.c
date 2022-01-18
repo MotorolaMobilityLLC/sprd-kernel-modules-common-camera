@@ -1274,7 +1274,7 @@ static int dcamcore_param_cfg(void *dcam_handle, void *param)
 		io_param->scene_id == PM_SCENE_OFFLINE_BPC)
 		pctx = &sw_pctx->ctx[DCAM_CXT_1];
 	if (io_param->scene_id == PM_SCENE_FDRH || io_param->scene_id == PM_SCENE_FDR_DRC ||
-		io_param->scene_id == PM_SCENE_OFFLINE_CAP)
+		io_param->scene_id == PM_SCENE_OFFLINE_CAP || (io_param->scene_id == PM_SCENE_SFNR))
 		pctx = &sw_pctx->ctx[DCAM_CXT_2];
 	pm = &pctx->blk_pm;
 
@@ -1475,9 +1475,10 @@ static int dcamcore_path_cfg(void *dcam_handle, enum dcam_path_cfg_cmd cfg_cmd,
 	int i = 0;
 	struct dcam_sw_context *pctx = NULL;
 	struct dcam_path_desc *path = NULL;
+	struct dcam_path_desc *path_raw = NULL;
 	struct cam_hw_info *hw = NULL;
 	struct dcam_hw_path_src_sel patharg;
-	struct camera_frame *pframe = NULL, *newfrm = NULL;
+	struct camera_frame *pframe = NULL, *newfrm = NULL, *rawfrm = NULL;
 	uint32_t lowlux_4in1 = 0;
 	uint32_t shutoff = 0;
 	unsigned long flag = 0;
@@ -1498,6 +1499,7 @@ static int dcamcore_path_cfg(void *dcam_handle, enum dcam_path_cfg_cmd cfg_cmd,
 	pctx = (struct dcam_sw_context *)dcam_handle;
 	hw = pctx->dev->hw;
 	path = &pctx->path[path_id];
+	path_raw = &pctx->path[DCAM_PATH_RAW];
 
 	if (atomic_read(&path->user_cnt) == 0) {
 		pr_err("fail to get a valid user_cnt, dcam%d, path %d is not in use.%d\n",
@@ -1598,7 +1600,6 @@ static int dcamcore_path_cfg(void *dcam_handle, enum dcam_path_cfg_cmd cfg_cmd,
 			cam_buf_iommu_unmap(&pframe->buf);
 			goto exit;
 		}
-
 		pr_info("config dcam path%d output reserverd buffer.\n", path_id);
 
 		i = 1;
@@ -1608,13 +1609,20 @@ static int dcamcore_path_cfg(void *dcam_handle, enum dcam_path_cfg_cmd cfg_cmd,
 				newfrm->is_reserved = 2;
 				newfrm->priv_data = path;
 				newfrm->need_pyr_rec = pframe->need_pyr_rec;
-				memcpy(&newfrm->buf, &pframe->buf,
-					sizeof(pframe->buf));
+				memcpy(&newfrm->buf, &pframe->buf, sizeof(pframe->buf));
 				if (path->fbc_mode)
 					newfrm->is_compressed = 1;
-				ret = cam_queue_enqueue(
-					&path->reserved_buf_queue,
-					&newfrm->list);
+				ret = cam_queue_enqueue(&path->reserved_buf_queue, &newfrm->list);
+				if (path_id == DCAM_PATH_FULL && pctx->raw_alg_type == RAW_ALG_AI_SFNR) {
+					rawfrm = cam_queue_empty_frame_get();
+					if (rawfrm) {
+						rawfrm->is_reserved = 2;
+						rawfrm->priv_data = path_raw;
+						rawfrm->need_pyr_rec = pframe->need_pyr_rec;
+						memcpy(&rawfrm->buf, &pframe->buf, sizeof(pframe->buf));
+						ret = cam_queue_enqueue(&path_raw->reserved_buf_queue, &rawfrm->list);
+					}
+				}
 				i++;
 			}
 		}
@@ -2181,11 +2189,8 @@ static int dcamcore_dev_stop(void *dcam_handle, enum dcam_stop_cmd pause)
 		pm->gtm[DCAM_GTM_PARAM_CAP].update_en = 1;
 		pm->frm_idx = 0;
 		pr_info("stop all\n");
-
-		pctx->is_3dnr = pctx->is_4in1 = pctx->is_fdr = 0;
-	} else if (pause == DCAM_PAUSE_ONLINE || pause == DCAM_RECOVERY) {
 		pctx->is_3dnr = pctx->is_4in1 = pctx->is_raw_alg = 0;
-	} else if (pause == DCAM_PAUSE_ONLINE) {
+	} else if (pause == DCAM_PAUSE_ONLINE || pause == DCAM_RECOVERY) {
 		pm->frm_idx = pctx->base_fid + pctx->frame_index;
 		pr_info("dcam%d online pause fram id %d %d, base_fid %d, new %d\n", hw_ctx_id,
 			pctx->frame_index, pctx->index_to_set, pctx->base_fid, pm->frm_idx);
@@ -2588,16 +2593,17 @@ static int dcamcore_scene_fdrl_get(uint32_t prj_id,
 		}
 		break;
 	case QOGIRN6pro:
-		if (!out->raw_alg_type) {
-			out->start_ctrl = DCAM_START_CTRL_EN;
-			out->callback_ctrl = DCAM_CALLBACK_CTRL_USER;
-		} else {
+		if (out->raw_alg_type == RAW_ALG_MFNR) {
 			out->start_ctrl = DCAM_START_CTRL_EN;
 			out->callback_ctrl = DCAM_CALLBACK_CTRL_USER;
 			out->in_format = DCAM_STORE_RAW_BASE;
 			out->out_format = DCAM_STORE_RAW_BASE;
-			if (out->raw_alg_type == RAW_ALG_MFNR)
-				out->need_raw_path = 1;
+			out->need_raw_path = 1;
+		} else {
+			out->start_ctrl = DCAM_START_CTRL_EN;
+			out->callback_ctrl = DCAM_CALLBACK_CTRL_USER;
+			out->in_format = DCAM_STORE_RAW_BASE;
+			out->out_format = DCAM_STORE_FRGB;
 		}
 		break;
 	default:
@@ -2627,16 +2633,17 @@ static int dcamcore_scene_fdrh_get(uint32_t prj_id,
 		out->out_format = DCAM_STORE_RAW_BASE;
 		break;
 	case QOGIRL6:
-		if (out->raw_alg_type) {
+		if (out->raw_alg_type == RAW_ALG_FDR_V1) {
+			out->start_ctrl = DCAM_START_CTRL_DIS;
+		} else {
 			out->start_ctrl = DCAM_START_CTRL_EN;
 			out->callback_ctrl = DCAM_CALLBACK_CTRL_ISP;
 			out->in_format = DCAM_STORE_RAW_BASE;
 			out->out_format = DCAM_STORE_RAW_BASE;
-		} else
-			out->start_ctrl = DCAM_START_CTRL_DIS;
+		}
 		break;
 	case QOGIRN6pro:
-		if (!out->raw_alg_type) {
+		if (out->raw_alg_type == RAW_ALG_FDR_V1) {
 			out->start_ctrl = DCAM_START_CTRL_EN;
 			out->callback_ctrl = DCAM_CALLBACK_CTRL_ISP;
 			out->in_format = DCAM_STORE_FRGB;
@@ -2646,8 +2653,6 @@ static int dcamcore_scene_fdrh_get(uint32_t prj_id,
 			out->callback_ctrl = DCAM_CALLBACK_CTRL_ISP;
 			out->in_format = DCAM_STORE_RAW_BASE;
 			out->out_format = DCAM_STORE_YUV420;
-			if (out->raw_alg_type == RAW_ALG_MFNR)
-				out->need_raw_path = 0;
 		}
 		break;
 	default:

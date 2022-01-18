@@ -1173,7 +1173,7 @@ static int dcamhw_slice_fetch_set(void *handle, void *arg)
 			DCAM_AXIM_WR(IMG_FETCH_RADDR, fetch->addr.addr_ch0
 				+ (cur_slice->start_x - DCAM_OVERLAP) * bfp / 4);
 			DCAM_AXIM_WR(IMG_FETCH_SIZE,
-				(cur_slice->size_y  << 16) | ((cur_slice->size_x + DCAM_OVERLAP) & 0x1fff));
+				(cur_slice->size_y << 16) | ((cur_slice->size_x + DCAM_OVERLAP) & 0x1fff));
 			DCAM_AXIM_WR(IMG_FETCH_X, (fetch_pitch << 16) | (0 & 0x1fff));
 			DCAM_REG_MWR(idx, DCAM_CAM_BIN_CFG,
 				(0x3FF << 20) |(1 << 1), (fetch_pitch << 20) | (1 << 1));

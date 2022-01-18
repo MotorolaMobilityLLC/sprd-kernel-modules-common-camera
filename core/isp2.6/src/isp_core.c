@@ -4361,7 +4361,7 @@ static int ispcore_scene_fdr_set(uint32_t prj_id,
 			fdr_ctrl->dst = in->dst;
 			break;
 		case QOGIRL6:
-			if (!in->raw_alg_type) {
+			if (in->raw_alg_type == RAW_ALG_FDR_V1) {
 				if (i == 0) {
 					fdr_ctrl->in_format = IMG_PIX_FMT_GREY;
 					fdr_ctrl->out_format = IMG_PIX_FMT_FULL_RGB;

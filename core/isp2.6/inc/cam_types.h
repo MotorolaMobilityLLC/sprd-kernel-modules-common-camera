@@ -331,7 +331,7 @@ enum dcam_store_format {
 
 struct cam_data_ctrl_in {
 	enum cam_scene_ctrl_type scene_type;
-	uint32_t raw_alg_type;
+	enum raw_alg_types raw_alg_type;
 	uint32_t ctx_id;
 	struct img_size src;
 	struct img_trim crop;

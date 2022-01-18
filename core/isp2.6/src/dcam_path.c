@@ -483,7 +483,8 @@ dcam_path_frame_cycle(struct dcam_sw_context *dcam_sw_ctx, struct dcam_path_desc
 	uint32_t src = 0;
 	struct camera_frame *frame = NULL;
 
-	if ((path->path_id == DCAM_PATH_FULL || path->path_id == DCAM_PATH_RAW) && dcam_sw_ctx->is_raw_alg) {
+	if ((path->path_id == DCAM_PATH_FULL || path->path_id == DCAM_PATH_RAW) &&
+		(dcam_sw_ctx->need_raw_img)) {
 		frame = cam_queue_dequeue(&path->alter_out_queue, struct camera_frame, list);
 		src = 0;
 	}
@@ -881,22 +882,38 @@ void dcampath_update_addr_and_size(struct dcam_sw_context *ctx, struct dcam_path
 				}
 			}
 		}
-
-		if (path_id == DCAM_PATH_FULL && path->base_update) {
-			struct dcam_hw_path_src_sel patharg;
-			patharg.idx = ctx->hw_ctx_id;
-			patharg.src_sel = path->src_sel;
-			patharg.pack_bits = path->pack_bits;
-			hw->dcam_ioctl(hw, DCAM_HW_CFG_PATH_SRC_SEL, &patharg);
-		}
-		path->base_update = 0;
-		if (path_id == DCAM_PATH_FULL || path_id == DCAM_PATH_RAW || path_id == DCAM_PATH_BIN) {
-			frame->width = path->out_size.w;
-			frame->height = path->out_size.h;
-		}
-		frame->zoom_ratio = ctx->zoom_ratio;
-		frame->total_zoom = ctx->total_zoom;
 	}
+
+	if (path_id == DCAM_PATH_FULL && path->base_update) {
+		struct dcam_hw_path_src_sel patharg;
+		patharg.idx = ctx->hw_ctx_id;
+		patharg.src_sel = path->src_sel;
+		patharg.pack_bits = path->pack_bits;
+		hw->dcam_ioctl(hw, DCAM_HW_CFG_PATH_SRC_SEL, &patharg);
+	}
+	if (path_id == DCAM_PATH_RAW && ctx->need_raw_img && ctx->raw_alg_type == RAW_ALG_AI_SFNR) {
+		struct dcam_hw_path_start patharg;
+		patharg.path_id = path_id;
+		patharg.idx = ctx->hw_ctx_id;
+		patharg.slowmotion_count = ctx->slowmotion_count;
+		patharg.cap_info = ctx->cap_info;
+		patharg.pack_bits = ctx->path[path_id].pack_bits;
+		patharg.src_sel = ctx->path[path_id].src_sel;
+		patharg.bayer_pattern = ctx->path[path_id].bayer_pattern;
+		patharg.in_trim = ctx->path[path_id].in_trim;
+		patharg.endian = ctx->path[path_id].endian;
+		patharg.out_fmt = ctx->path[path_id].out_fmt;
+		patharg.data_bits = ctx->path[path_id].data_bits;
+		patharg.is_pack = ctx->path[path_id].is_pack;
+		hw->dcam_ioctl(hw, DCAM_HW_CFG_PATH_START, &patharg);
+	}
+	path->base_update = 0;
+	if (path_id == DCAM_PATH_FULL || path_id == DCAM_PATH_RAW || path_id == DCAM_PATH_BIN) {
+		frame->width = path->out_size.w;
+		frame->height = path->out_size.h;
+	}
+	frame->zoom_ratio = ctx->zoom_ratio;
+	frame->total_zoom = ctx->total_zoom;
 	spin_unlock_irqrestore(&path->size_lock, flags);
 }
 
@@ -1102,8 +1119,6 @@ int dcam_path_store_frm_set(void *dcam_ctx_handle,
 	dcam_sw_ctx->auto_cpy_id |= *(hw->ip_dcam[idx]->path_ctrl_id_tab + path_id);
 	if (dcam_sw_ctx->cap_info.format == DCAM_CAP_MODE_YUV)
 		dcam_sw_ctx->auto_cpy_id |= *(hw->ip_dcam[idx]->path_ctrl_id_tab + DCAM_PATH_BIN);
-
-	pr_debug("DCAM%u %s enter\n", idx, dcam_path_name_get(path_id));
 
 	if (path_id == DCAM_PATH_GTM_HIST)
 		dcampath_check_path_status(dcam_sw_ctx, path);

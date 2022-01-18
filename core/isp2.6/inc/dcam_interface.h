@@ -209,7 +209,7 @@ enum dcam_callback_ctrl {
 struct dcam_data_ctrl_info {
 	enum dcam_start_ctrl start_ctrl;
 	enum dcam_callback_ctrl callback_ctrl;
-	uint32_t raw_alg_type;
+	enum raw_alg_types raw_alg_type;
 	uint32_t in_format;
 	uint32_t out_format;
 	uint32_t need_raw_path;
