@@ -232,8 +232,8 @@ static int ispdrv_fetch_normal_get(void *cfg_in, void *cfg_out,
 		break;
 	case ISP_FETCH_YUV420_2FRAME_10:
 	case ISP_FETCH_YVU420_2FRAME_10:
-		fetch->pitch.pitch_ch0 = (src->w * 16 + 31) / 32 * 32 / 8;
-		fetch->pitch.pitch_ch1 = (src->w * 16 + 31) / 32 * 32 / 8;
+		fetch->pitch.pitch_ch0 = (src->w * 16 + 127) / 128 * 128 / 8;
+		fetch->pitch.pitch_ch1 = (src->w * 16 + 127) / 128 * 128 / 8;
 		trim_offset[0] = intrim->start_y * fetch->pitch.pitch_ch0 + intrim->start_x * 2;
 		trim_offset[1] = intrim->start_y * fetch->pitch.pitch_ch1 / 2 + intrim->start_x * 2;
 		break;
@@ -243,8 +243,8 @@ static int ispdrv_fetch_normal_get(void *cfg_in, void *cfg_out,
 		uint32_t start_col = intrim->start_x;
 		uint32_t start_row = intrim->start_y;
 		uint32_t end_col =  intrim->start_x + intrim->size_x - 1;
-		fetch->pitch.pitch_ch0 = (src->w * 10 + 31) / 32 * 32 / 8;
-		fetch->pitch.pitch_ch1 = (src->w * 10 + 31) / 32 * 32 / 8;
+		fetch->pitch.pitch_ch0 = (src->w * 10 + 127) / 128 * 128 / 8;
+		fetch->pitch.pitch_ch1 = (src->w * 10 + 127) / 128 * 128 / 8;
 		fetch->mipi_byte_rel_pos = intrim->start_x & 0xf;
 		fetch->mipi_word_num = ((end_col + 1) >> 4) * 5
 			+ mipi_word_num_end[(end_col + 1) & 0xF]
