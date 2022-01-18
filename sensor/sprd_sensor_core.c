@@ -451,6 +451,16 @@ static int sprd_sensor_io_if_switch(struct sprd_sensor_file_tag *p_file,
 	return ret;
 }
 
+static int sprd_sensor_io_if_dump(struct sprd_sensor_file_tag *p_file,
+				 unsigned long arg)
+{
+	int ret = 0;
+	pr_info("E\n");
+	csi_api_reg_trace();
+
+	return ret;
+}
+
 static int sprd_sensor_io_grc_write_i2c(struct sprd_sensor_file_tag *p_file,
 					unsigned long arg)
 {
@@ -593,6 +603,9 @@ static long sprd_sensor_file_ioctl(struct file *file, unsigned int cmd,
 		break;
 	case SENSOR_IO_IF_SWITCH:
 		ret = sprd_sensor_io_if_switch(p_file, arg);
+		break;
+	case SENSOR_IO_IF_DUMP:
+		ret = sprd_sensor_io_if_dump(p_file, arg);
 		break;
 	case SENSOR_IO_GRC_I2C_WRITE:
 		ret = sprd_sensor_io_grc_write_i2c(p_file, arg);

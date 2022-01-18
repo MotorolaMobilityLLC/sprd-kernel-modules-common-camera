@@ -191,6 +191,8 @@ struct sensor_muti_aec_i2c_tag {
 	_IOW(SENSOR_IOC_MAGIC,  23, struct sensor_muti_aec_i2c_tag)
 #define SENSOR_IO_IF_SWITCH            \
 	_IOW(SENSOR_IOC_MAGIC,  24, struct sensor_if_cfg_tag)
+#define SENSOR_IO_IF_DUMP            \
+	_IOW(SENSOR_IOC_MAGIC,	25, uint32_t)
 #define SENSOR_IO_READ_OTPDATA	\
 	_IOWR(SENSOR_IOC_MAGIC, 254, struct _sensor_otp_param_tag)
 #define SENSOR_IO_GET_SOCID	\
