@@ -2478,6 +2478,7 @@ static int camcore_dump_config(void *priv_data, void *param)
 	struct camera_frame *pframe = NULL;
 	struct channel_context *channel = NULL;
 	struct dcam_sw_context *dcam_sw_ctx = NULL;
+	struct dcam_sw_context *dcam_sw_aux_ctx = NULL;
 	uint32_t start_layer = 0;
 	uint32_t pdaf_type = 0;
 
@@ -2491,12 +2492,16 @@ static int camcore_dump_config(void *priv_data, void *param)
 	dump_base->ch_id = pframe->channel_id;
 	channel = &module->channel[dump_base->ch_id];
 	dcam_sw_ctx = &module->dcam_dev_handle->sw_ctx[module->cur_sw_ctx_id];
+	dcam_sw_aux_ctx = &module->dcam_dev_handle->sw_ctx[module->offline_cxt_id];
 	pdaf_type = dcam_sw_ctx->ctx[dcam_sw_ctx->cur_ctx_id].blk_pm.pdaf.pdaf_type;
 
 	if (g_dbg_dump.dump_en == DUMP_ISP_PYR_REC)
 		start_layer = 1;
 	if (dump_base->dump_cfg != NULL){
-		dump_base->dump_cfg(dump_base, DUMP_CFG_OUT_FMT, &channel->dcam_out_fmt);
+		if (g_dbg_dump.dump_en == DUMP_DCAM_OFFLINE)
+			dump_base->dump_cfg(dump_base, DUMP_CFG_OUT_FMT, &dcam_sw_aux_ctx->path[channel->aux_dcam_path_id].out_fmt);
+		else
+			dump_base->dump_cfg(dump_base, DUMP_CFG_OUT_FMT, &channel->dcam_out_fmt);
 		dump_base->dump_cfg(dump_base, DUMP_CFG_IS_PACK, &channel->ch_uinfo.dcam_out_pack);
 		dump_base->dump_cfg(dump_base, DUMP_CFG_OUT_BITS, &module->cam_uinfo.sensor_if.if_spec.mipi.bits_per_pxl);
 		if (g_dbg_dump.dump_en == DUMP_DCAM_PDAF)
@@ -2609,8 +2614,18 @@ static int camcore_isp_callback(enum isp_cb_type type, void *param, void *priv_d
 			pframe->need_gtm_hist = module->cam_uinfo.is_rgb_gtm;
 			pframe->need_gtm_map = module->cam_uinfo.is_rgb_gtm;
 			pframe->gtm_mod_en = module->cam_uinfo.is_rgb_gtm;
-			if (((g_dbg_dump.dump_en > DUMP_DISABLE && g_dbg_dump.dump_en <= DUMP_ISP_PYR_REC) || g_dbg_dump.dump_en == DUMP_PATH_RAW_BIN)
-				&& module->dump_base.dump_enqueue != NULL) {
+			if (g_dbg_dump.dump_en == DUMP_PATH_BIN && module->dump_thrd.thread_task) {
+				if (g_dbg_dumpswitch && !module->dump_base.dump_enqueue) {
+					camdump_start(&module->dump_thrd, &module->dump_base, module->dcam_idx);
+					ret = module->dump_base.dump_enqueue(&module->dump_base, pframe);
+					if (ret == 0)
+						return 0;
+				}
+				if (!g_dbg_dumpswitch && module->dump_base.dump_enqueue)
+					camdump_stop(&module->dump_base);
+			}
+			if (((g_dbg_dump.dump_en > DUMP_DISABLE && g_dbg_dump.dump_en <= DUMP_ISP_PYR_REC) || g_dbg_dump.dump_en == DUMP_PATH_RAW_BIN
+				|| g_dbg_dump.dump_en == DUMP_DCAM_OFFLINE) && module->dump_base.dump_enqueue != NULL) {
 				if (g_dbg_dump.dump_en == DUMP_ISP_PYR_REC && channel->pyr_rec_buf != NULL) {
 					channel->pyr_rec_buf->fid = pframe->fid;
 					channel->pyr_rec_buf->width = pframe->width;
@@ -5823,7 +5838,8 @@ static int camcore_dumpraw_proc(void *param)
 					continue;
 				}
 				/* return it to dcam output queue */
-				if (module->cam_uinfo.is_4in1 && channel->aux_dcam_path_id == DCAM_PATH_BIN && pframe->buf.type == CAM_BUF_KERNEL)
+				if ((module->cam_uinfo.is_4in1 && channel->aux_dcam_path_id == DCAM_PATH_BIN && pframe->buf.type == CAM_BUF_KERNEL)
+					|| dbg->dump_en == DUMP_DCAM_OFFLINE)
 					module->dcam_dev_handle->dcam_pipe_ops->cfg_path(dcam_sw_aux_ctx,
 						DCAM_PATH_CFG_OUTPUT_BUF,
 						channel->aux_dcam_path_id, pframe);

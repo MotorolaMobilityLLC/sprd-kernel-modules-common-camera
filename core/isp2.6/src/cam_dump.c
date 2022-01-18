@@ -257,6 +257,7 @@ static inline int camdump_should_dump(int mode, int path)
 		|| (mode == DUMP_ISP_PYR_REC)
 		|| (mode == DUMP_ISP_PYR_DEC)
 		|| (mode == DUMP_DCAM_PDAF)
+		|| (mode == DUMP_DCAM_OFFLINE)
 		|| (mode == DUMP_PATH_RAW_BIN && (path == CAM_CH_PRE || path == CAM_CH_RAW));
 }
 
@@ -452,6 +453,10 @@ int camdump_start(struct cam_thread_info* thrd_info, struct cam_dump_ctx *dump_b
 		case DUMP_DCAM_PDAF:
 			dump_base->dump_enqueue = camdump_enqueue;
 			dump_base->dump_file = camdump_pdaf_frame_dump;
+			break;
+		case DUMP_DCAM_OFFLINE:
+			dump_base->dump_enqueue = camdump_enqueue;
+			dump_base->dump_file = camdump_one_frame_dump;
 			break;
 		default:
 			dump_base->dump_enqueue = NULL;
