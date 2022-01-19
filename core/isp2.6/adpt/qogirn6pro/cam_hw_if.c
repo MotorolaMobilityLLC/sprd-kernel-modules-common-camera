@@ -416,6 +416,7 @@ static struct cam_hw_ip_info dcam[DCAM_ID_MAX] = {
 		.dcam_zoom_mode = ZOOM_SCALER,
 		.dcam_output_support[0] = DCAM_STORE_10_BIT,
 		.dcam_output_support[1] = DCAM_STORE_8_BIT,
+		.recovery_support = 0,/*DCAMINT_INT0_FATAL_ERROR,*/
 	},
 	[DCAM_ID_1] = {
 		.aux_dcam_path = DCAM_PATH_BIN,
@@ -444,6 +445,7 @@ static struct cam_hw_ip_info dcam[DCAM_ID_MAX] = {
 		.dcam_zoom_mode = ZOOM_SCALER,
 		.dcam_output_support[0] = DCAM_STORE_10_BIT,
 		.dcam_output_support[1] = DCAM_STORE_8_BIT,
+		.recovery_support = 0,/*DCAMINT_INT0_FATAL_ERROR,*/
 	},
 	[DCAM_ID_2] = {
 		.aux_dcam_path = DCAM_PATH_FULL,
@@ -469,6 +471,7 @@ static struct cam_hw_ip_info dcam[DCAM_ID_MAX] = {
 		.raw_fmt_support[2] = DCAM_RAW_MAX,
 		.dcam_output_support[0] = DCAM_STORE_10_BIT,
 		.dcam_output_support[1] = DCAM_STORE_8_BIT,
+		.recovery_support = 0,
 	},
 	[DCAM_ID_3] = {
 		.aux_dcam_path = DCAM_PATH_FULL,
@@ -494,6 +497,7 @@ static struct cam_hw_ip_info dcam[DCAM_ID_MAX] = {
 		.raw_fmt_support[2] = DCAM_RAW_MAX,
 		.dcam_output_support[0] = DCAM_STORE_10_BIT,
 		.dcam_output_support[1] = DCAM_STORE_8_BIT,
+		.recovery_support = 0,
 	},
 };
 static struct cam_hw_ip_info isp = {

@@ -305,6 +305,10 @@ static int isphw_reg_trace(void *handle, void *arg)
 	uint32_t val_mmu, val[8], i, j, n, cnt;
 	struct cam_hw_reg_trace *trace = NULL;
 
+	if (arg == NULL) {
+		pr_err("fail to get arg\n");
+		return -EFAULT;
+	}
 	trace = (struct cam_hw_reg_trace *)arg;
 
 	if (trace->type == NORMAL_REG_TRACE) {
@@ -410,6 +414,23 @@ abnormal_reg_trace:
 
 	pr_info("ISP fetch: register list\n");
 	for (addr = (ISP_FETCH_BASE + ISP_FETCH_PARAM0); addr <= (ISP_FETCH_BASE + ISP_FETCH_MIPI_PARAM_UV); addr += 16) {
+		pr_info("0x%lx: 0x%x 0x%x 0x%x 0x%x\n",
+			addr,
+			ISP_HREG_RD(addr),
+			ISP_HREG_RD(addr + 4),
+			ISP_HREG_RD(addr + 8),
+			ISP_HREG_RD(addr + 12));
+
+		pr_info("0x%lx: 0x%x 0x%x 0x%x 0x%x\n",
+			addr,
+			ISP_REG_RD(trace->idx, addr),
+			ISP_REG_RD(trace->idx, addr + 4),
+			ISP_REG_RD(trace->idx, addr + 8),
+			ISP_REG_RD(trace->idx, addr + 12));
+	}
+
+	pr_info("ISP fbd fetch:reg list\n");
+	for (addr = (ISP_YUV_AFBD_FETCH_BASE + ISP_AFBD_FETCH_SEL); addr <= (ISP_YUV_AFBD_FETCH_BASE + ISP_AFBD_FETCH_PARAM2); addr += 16) {
 		pr_info("0x%lx: 0x%x 0x%x 0x%x 0x%x\n",
 			addr,
 			ISP_HREG_RD(addr),

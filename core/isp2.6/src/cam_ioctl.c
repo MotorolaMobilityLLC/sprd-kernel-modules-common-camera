@@ -3431,17 +3431,9 @@ static int camioctl_path_rect_get(struct camera_module *module,
 static int camioctl_csi_switch(struct camera_module *module, unsigned long arg)
 {
 	int ret = 0;
-	struct cam_hw_info *hw = module->grp->hw_info;
-	struct dcam_sw_context *sw_ctx = &module->dcam_dev_handle->sw_ctx[module->cur_sw_ctx_id];
-	struct dcam_hw_context *hw_ctx = sw_ctx->hw_ctx;
-	struct dcam_switch_param csi_switch;
-	struct dcam_path_desc *path = NULL;
-	uint32_t j = 0;
-	struct camera_frame *frame = NULL;
 	uint32_t csi_connect = 0;
-	uint32_t loop = 0;
-	struct isp_offline_param *in_param = NULL;
-	struct camera_frame *pframe = NULL;
+	uint32_t switch_mode = CAM_CSI_NORMAL_SWITCH;
+	struct dcam_sw_context *sw_ctx = &module->dcam_dev_handle->sw_ctx[module->cur_sw_ctx_id];
 
 	ret = copy_from_user(&csi_connect, (void __user *)arg, sizeof(uint32_t));
 	if (unlikely(ret)) {
@@ -3451,130 +3443,12 @@ static int camioctl_csi_switch(struct camera_module *module, unsigned long arg)
 
 	switch (csi_connect) {
 		case 0:
-			if (sw_ctx->hw_ctx_id == DCAM_HW_CONTEXT_MAX) {
-				pr_warn("warning: sw_ctx has been disconnected and unbinded already. sw_ctx_id: %d\n", sw_ctx->sw_ctx_id);
-				return 0;
-			}
-
-			/* switch disconnect */
-			csi_switch.csi_id = module->dcam_idx;
-			csi_switch.dcam_id= sw_ctx->hw_ctx_id;
-
-			if (atomic_read(&hw_ctx->user_cnt) > 0)
-				hw->dcam_ioctl(hw, DCAM_HW_DISCONECT_CSI, &csi_switch);
-			else {
-				pr_err("fail to get DCAM%d valid user cnt %d\n", hw_ctx->hw_ctx_id, atomic_read(&hw_ctx->user_cnt));
-				return -1;
-			}
-			pr_info("Disconnect csi_id = %d, dcam_id = %d, sw_ctx_id = %d module idx %d\n",
-				csi_switch.csi_id, csi_switch.dcam_id, sw_ctx->sw_ctx_id, module->idx);
-
-			atomic_set(&sw_ctx->state, STATE_IDLE);
-			/* reset */
-			dcam_int_tracker_dump(sw_ctx->hw_ctx_id);
-			dcam_int_tracker_reset(sw_ctx->hw_ctx_id);
-
-			/* reset result q */
-			for (j = 0; j < DCAM_PATH_MAX; j++) {
-				path = &sw_ctx->path[j];
-				if (path == NULL)
-					continue;
-				frame = cam_queue_dequeue(&path->result_queue, struct camera_frame, list);
-				while (frame) {
-					pr_debug("DCAM%u path%d fid %u\n", sw_ctx->sw_ctx_id, j, frame->fid);
-
-					in_param = (struct isp_offline_param *)frame->param_data;
-					if (in_param) {
-						struct isp_offline_param *prev = NULL;
-						while (in_param) {
-							prev = (struct isp_offline_param *)in_param->prev;
-							kfree(in_param);
-							in_param = prev;
-						}
-						frame->param_data = NULL;
-					}
-
-					if (frame->is_reserved)
-						cam_queue_enqueue(&path->reserved_buf_queue, &frame->list);
-					else {
-						cam_queue_enqueue(&path->out_buf_queue, &frame->list);
-						if (path->path_id == DCAM_PATH_FULL)
-							cam_buf_iommu_unmap(&frame->buf);
-					}
-					if (frame->sync_data)
-						dcam_core_dcam_if_release_sync(frame->sync_data, frame);
-
-					frame = cam_queue_dequeue(&path->result_queue, struct camera_frame, list);
-				}
-			}
-
-			/* unbind */
-			dcam_core_context_unbind(sw_ctx);
-			if (module->channel[CAM_CH_CAP].enable) {
-				if (module->cam_uinfo.need_share_buf) {
-					module->dcam_dev_handle->dcam_pipe_ops->cfg_path(sw_ctx,
-						DCAM_PATH_CLR_OUTPUT_SHARE_BUF,
-						DCAM_PATH_FULL, sw_ctx);
-					do {
-						pframe = cam_queue_dequeue(&module->channel[CAM_CH_CAP].share_buf_queue,
-							struct camera_frame, list);
-						if (pframe == NULL)
-							break;
-						camcore_share_buf_cfg(SHARE_BUF_SET_CB, pframe, module);
-					} while (pframe);
-				} else {
-					path = &sw_ctx->path[module->channel[CAM_CH_CAP].dcam_path_id];
-					do {
-						pframe = cam_queue_dequeue(&module->channel[CAM_CH_CAP].share_buf_queue,
-							struct camera_frame, list);
-						if (pframe == NULL)
-							break;
-						module->dcam_dev_handle->dcam_pipe_ops->cfg_path(sw_ctx,
-							DCAM_PATH_CFG_OUTPUT_BUF, path->path_id, pframe);
-					} while (pframe);
-				}
-			}
-			sw_ctx->dec_all_done = 0;
-			sw_ctx->dec_layer0_done = 0;
 			sw_ctx->csi_connect_stat = DCAM_CSI_PAUSE;
+			ret = camcore_csi_switch_disconnect(module, switch_mode);
 			break;
-
 		case 1:
-			/* bind */
-			do {
-				ret = dcam_core_context_bind(sw_ctx, hw->csi_connect_type, module->dcam_idx);
-				if (!ret) {
-					if (sw_ctx->hw_ctx_id >= DCAM_HW_CONTEXT_MAX)
-						pr_err("fail to get hw_ctx_id\n");
-					break;
-				}
-				pr_info_ratelimited("hw_ctx_id %d wait for hw. loop %d\n", sw_ctx->hw_ctx_id, loop);
-				usleep_range(600, 800);
-			} while (loop++ < 5000);
-
-			if (sw_ctx->hw_ctx_id == DCAM_HW_CONTEXT_MAX) {
-				pr_err("fail to connect. csi %d dcam %d sw_ctx_id %d\n", module->dcam_idx, sw_ctx->hw_ctx_id, sw_ctx->sw_ctx_id);
-				return -1;
-			}
-
-			/* reconfig*/
-			module->dcam_dev_handle->dcam_pipe_ops->ioctl(sw_ctx, DCAM_IOCTL_RECFG_PARAM, NULL);
-
-			/* start */
-			ret = module->dcam_dev_handle->dcam_pipe_ops->start(sw_ctx, 1);
-			if (ret < 0) {
-				pr_err("fail to start dcam dev, ret %d\n", ret);
-				break;
-			}
-
-			/* switch connect */
-			csi_switch.csi_id = module->dcam_idx;
-			csi_switch.dcam_id= sw_ctx->hw_ctx_id;
-			hw->dcam_ioctl(hw, DCAM_HW_CONECT_CSI, &csi_switch);
-
-			pr_info("Connect csi_id = %d, dcam_id = %d module idx %d\n", csi_switch.csi_id, csi_switch.dcam_id, module->idx);
-
 			sw_ctx->csi_connect_stat = DCAM_CSI_RESUME;
+			ret = camcore_csi_switch_connect(module, switch_mode);
 			break;
 		default:
 			pr_err("fail to get vailed csi_connect: %d\n", csi_connect);

@@ -324,6 +324,7 @@ struct dcam_hw_context {
 	uint32_t handled_bits_on_int1;
 	struct dcam_sw_context *sw_ctx;
 	struct dcam_fmcu_ctx_desc *fmcu;
+	struct cam_hw_info *hw;
 };
 
 struct dcam_pipe_dev {
@@ -347,6 +348,7 @@ enum dcam_bind_mode {
 struct dcam_switch_param {
 	uint32_t csi_id;
 	uint32_t dcam_id;
+	uint32_t is_recovery;
 };
 
 static inline uint32_t cal_sprd_yuv_pitch(uint32_t w, uint32_t dcam_out_bits, uint32_t is_pack)

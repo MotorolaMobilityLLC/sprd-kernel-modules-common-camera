@@ -17,7 +17,7 @@
 #include <linux/completion.h>
 #include "sprd_img.h"
 #include "cam_porting.h"
-
+#include <linux/spinlock.h>
 #if defined(PROJ_QOGIRN6PRO)
 #define CAM_ON_HAPS
 #endif

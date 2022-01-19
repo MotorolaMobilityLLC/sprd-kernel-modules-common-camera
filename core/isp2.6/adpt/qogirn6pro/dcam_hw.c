@@ -285,6 +285,7 @@ static int dcamhw_axi_init(void *handle, void *arg)
 	idx = *(uint32_t *)arg;
 	ip = hw->ip_dcam[idx];
 	soc = hw->soc_dcam;
+	write_lock(&soc->cam_ahb_lock);
 	if (idx <= DCAM_ID_1) {
 		ctrl_reg = AXIM_CTRL;
 		dbg_reg = AXIM_DBG_STS;
@@ -322,7 +323,7 @@ static int dcamhw_axi_init(void *handle, void *arg)
 
 	/* the end, enable AXI writing */
 	DCAM_AXIM_MWR(idx, ctrl_reg, BIT_24 | BIT_23, (0x0 << 23));
-
+	write_unlock(&soc->cam_ahb_lock);
 	return 0;
 }
 
@@ -466,12 +467,15 @@ static int dcamhw_stop(void *handle, void *arg)
 
 	/* wait for AHB path busy cleared */
 	while (time_out) {
-		ret = DCAM_REG_RD(idx, DCAM_PATH_BUSY) & 0x7FFF;
+		ret = DCAM_REG_RD(idx, DCAM_PATH_BUSY) & 0x7FFB;
 		if (!ret)
 			break;
 		udelay(1000);
 		time_out--;
 	}
+
+	if (DCAM_REG_RD(idx, DCAM_PATH_BUSY) & 0x4)
+		pr_warn("dcam % pdaf is busy\n", idx);
 
 	if (time_out == 0) {
 		pr_err("fail to normal stop, DCAM%d timeout for 2s\n", idx);
@@ -619,6 +623,99 @@ void dcamhw_bypass_all(enum dcam_id idx)
 	DCAM_REG_MWR(idx, DCAM_FBC_RAW_PARAM, BIT_0, 1);
 	DCAM_REG_MWR(idx, DCAM_YUV_FBC_SCAL_PARAM, BIT_0, 1);
 	DCAM_REG_MWR(idx, DCAM_BUF_CTRL, BIT_0 | BIT_1 | BIT_2 | BIT_3 | BIT_4 | BIT_5, 0x3F);
+}
+
+static int dcamhw_irq_disable(void *handle, void *arg)
+{
+	struct cam_hw_info *hw = NULL;
+	uint32_t idx = 0;
+	if (!handle || !arg) {
+		pr_err("fail to get valid arg\n");
+		return -EFAULT;
+	}
+
+	hw = (struct cam_hw_info *)handle;
+	idx = *(uint32_t *)arg;
+
+	DCAM_REG_WR(idx, DCAM_INT0_EN, 0);
+	DCAM_REG_WR(idx, DCAM_INT0_CLR, 0xFFFFFFFF);
+	DCAM_REG_WR(idx, DCAM_INT1_EN, 0);
+	DCAM_REG_WR(idx, DCAM_INT1_CLR, 0xFFFFFFFF);
+	return 0;
+}
+
+static int dcamhw_axi_reset(void *handle, void *arg)
+{
+	uint32_t time_out = 0, idx = 0, flag = 0, ctrl_reg = 0, dbg_reg = 0, i = 0, mask = 0xffffffff;
+	struct cam_hw_info *hw = NULL;
+	struct cam_hw_soc_info *soc = NULL;
+	struct cam_hw_ip_info *ip = NULL;
+
+	if (!handle || !arg) {
+		pr_err("fail to get valid arg\n");
+		return -EFAULT;
+	}
+
+	hw = (struct cam_hw_info *)handle;
+	idx = *(uint32_t *)arg;
+	soc = hw->soc_dcam;
+	/* idx == DCAM_ID_MAX,dcam0 and dcam1 reset and axi reset*/
+	ctrl_reg = AXIM_CTRL;
+	dbg_reg = AXIM_DBG_STS;
+	write_lock(&soc->cam_ahb_lock);
+	DCAM_AXIM_MWR(DCAM_ID_0, ctrl_reg, BIT_24 | BIT_23, (0x3 << 23));
+	/* then wait for AHB busy cleared */
+	while (++time_out < 500) {
+		if ((DCAM_AXIM_RD(DCAM_ID_0, dbg_reg) & 0x8000) == 0)
+			break;
+		udelay(1000);
+	}
+
+	if (time_out >= 500)
+		pr_err("fail to wait dcam axi fifo clear\n");
+
+	while (++time_out < DCAM_AXI_STOP_TIMEOUT) {
+		if ((DCAM_AXIM_RD(DCAM_ID_0, dbg_reg) & 0x1700F) == 0)
+			break;
+		udelay(1000);
+	}
+
+	if (time_out >= DCAM_AXI_STOP_TIMEOUT) {
+		pr_info("fail to dcam axim timeout status 0x%x\n", DCAM_AXIM_RD(DCAM_ID_0, dbg_reg));
+	} else {
+		ip = hw->ip_dcam[DCAM_ID_0];
+		flag = ip->syscon.all_rst_mask
+			| ip->syscon.axi_rst_mask
+			| ip->syscon.rst_mask
+			| hw->ip_dcam[DCAM_ID_1]->syscon.rst_mask;
+		/* reset dcam all (0/1/2/bus) */
+		regmap_update_bits(soc->cam_ahb_gpr, ip->syscon.all_rst, flag, flag);
+		udelay(10);
+		regmap_update_bits(soc->cam_ahb_gpr, ip->syscon.all_rst, flag, ~flag);
+	}
+
+	hw->dcam_ioctl(hw, DCAM_HW_CFG_SET_QOS, arg);
+	/* the end, enable AXI writing */
+	DCAM_AXIM_MWR(DCAM_ID_0, ctrl_reg, BIT_24 | BIT_23, (0x0 << 23));
+	write_unlock(&soc->cam_ahb_lock);
+
+	for(i = DCAM_ID_0; i <= DCAM_ID_1; i++) {
+		DCAM_REG_MWR(i, DCAM_INT0_CLR, mask, mask);
+		DCAM_REG_WR(i, DCAM_INT0_EN, DCAMINT_IRQ_LINE_EN0_NORMAL);
+
+		DCAM_REG_MWR(i, DCAM_INT1_CLR, mask, mask);
+		DCAM_REG_WR(i, DCAM_INT1_EN, DCAMINT_IRQ_LINE_INT1_MASK);
+
+		/* disable internal logic access sram */
+		DCAM_REG_MWR(i, DCAM_APB_SRAM_CTRL, BIT_0, 0);
+		DCAM_REG_WR(i, DCAM_MIPI_CAP_CFG, 0); /* disable all path */
+		DCAM_REG_WR(i, DCAM_IMAGE_CONTROL, IMG_TYPE_RAW10 << 8 | 0x01);
+
+		dcam_hw_linebuf_len[i] = 0;
+	}
+
+	pr_debug("dcam all & axi reset done\n");
+	return 0;
 }
 
 static int dcamhw_reset(void *handle, void *arg)
@@ -800,6 +897,10 @@ static int dcamhw_mipi_cap_set(void *handle, void *arg)
 	cap_info = &caparg->cap_info;
 	idx = caparg->idx;
 
+	if (idx > DCAM_ID_1){
+		pr_err("fail to get invalid dcam index %d\n", idx);
+		return 0;
+	}
 	/* set mipi interface  */
 	if (cap_info->sensor_if != DCAM_CAP_IF_CSI2) {
 		pr_err("fail to support sensor if : %d\n",
@@ -2494,7 +2595,8 @@ static int dcamhw_csi_disconnect(void *handle, void *arg)
 
 	/* reset */
 	hw->dcam_ioctl(hw, DCAM_HW_CFG_STOP, &idx);
-	hw->dcam_ioctl(hw, DCAM_HW_CFG_RESET, &idx);
+	if (!csi_switch->is_recovery)
+		hw->dcam_ioctl(hw, DCAM_HW_CFG_RESET, &idx);
 
 	return 0;
 }
@@ -2887,6 +2989,8 @@ static struct hw_io_ctrl_fun dcam_ioctl_fun_tab[] = {
 	{DCAM_HW_CFG_DEC_STORE_ADDR,        dcamhw_dec_store_addr},
 	{DCAM_HW_CFG_DEC_SIZE_UPDATE,       dcamhw_dec_size_update},
 	{DCAM_HW_CFG_GTM_HIST_GET,          dcamhw_get_gtm_hist},
+	{DCAM_HW_CFG_ALL_RESET,             dcamhw_axi_reset},
+	{DCAM_HW_CFG_IRQ_DISABLE,           dcamhw_irq_disable},
 };
 
 static hw_ioctl_fun dcamhw_ioctl_fun_get(enum dcam_hw_cfg_cmd cmd)

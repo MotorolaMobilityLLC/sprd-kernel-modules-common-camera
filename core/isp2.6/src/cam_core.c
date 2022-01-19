@@ -21,6 +21,7 @@
 #include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
+#include <linux/rwsem.h>
 #include <linux/platform_device.h>
 #include <linux/uaccess.h>
 #include <linux/slab.h>
@@ -59,6 +60,7 @@
 
 #define IMG_DEVICE_NAME                 "sprd_image"
 #define CAMERA_TIMEOUT                  5000
+#define CAMERA_RECOVERY_TIMEOUT         100
 #define CAMERA_LONGEXP_TIMEOUT          50000
 
 #define THREAD_STOP_TIMEOUT             3000
@@ -97,6 +99,18 @@ enum camera_module_state {
 	CAM_ERROR,
 };
 
+enum camera_csi_switch_mode {
+	CAM_CSI_NORMAL_SWITCH,
+	CAM_CSI_RECOVERY_SWITCH,
+	CAM_CSI_MAX_SWITCH,
+};
+
+enum camera_recovery_state {
+	CAM_RECOVERY_NONE = 0,
+	CAM_RECOVERY_RUNNING,
+	CAM_RECOVERY_DONE,
+	CAM_RECOVERY_MAX,
+};
 /* Static Variables Declaration */
 static struct camera_format output_img_fmt[] = {
 	{ /*ISP_STORE_UYVY = 0 */
@@ -403,6 +417,10 @@ struct camera_group {
 	struct camera_frame *mul_share_pyr_dec_buf;
 	struct camera_frame *mul_share_pyr_rec_buf;
 	struct mutex pyr_mulshare_lock;
+
+	atomic_t recovery_state;
+	struct rw_semaphore switch_recovery_lock;
+	struct cam_thread_info recovery_thrd;
 };
 
 struct cam_ioctl_cmd {
@@ -2828,6 +2846,7 @@ static int camcore_dcam_callback(enum dcam_cb_type type, void *param, void *priv
 	}
 
 	if (unlikely(type == DCAM_CB_DEV_ERR)) {
+		uint32_t status = *(uint32_t*)param;
 		pr_err("fail to check cb type. camera %d\n", module->idx);
 
 		csi_api_reg_trace();
@@ -2835,6 +2854,13 @@ static int camcore_dcam_callback(enum dcam_cb_type type, void *param, void *priv
 		trace.type = ABNORMAL_REG_TRACE;
 		trace.idx = dcam_sw_ctx->hw_ctx_id;
 		hw->isp_ioctl(hw, ISP_HW_CFG_REG_TRACE, &trace);
+
+		if (hw->ip_dcam[DCAM_ID_0]->recovery_support & status) {
+			pr_info("cam %d start recovery\n", module->idx);
+			hw->dcam_ioctl(hw, DCAM_HW_CFG_IRQ_DISABLE, &dcam_sw_ctx->hw_ctx_id);
+			complete(&module->grp->recovery_thrd.thread_com);
+			return 0;
+		}
 
 		module->dcam_dev_handle->dcam_pipe_ops->stop(dcam_sw_ctx, DCAM_STOP);
 
@@ -2848,6 +2874,10 @@ static int camcore_dcam_callback(enum dcam_cb_type type, void *param, void *priv
 		return 0;
 	}
 
+	if (atomic_read(&module->grp->recovery_state) == CAM_RECOVERY_DONE) {
+		pr_debug("recovery success\n");
+		atomic_set(&module->grp->recovery_state, CAM_RECOVERY_NONE);
+	}
 	pframe = (struct camera_frame *)param;
 	pframe->priv_data = NULL;
 	channel = &module->channel[pframe->channel_id];
@@ -6028,8 +6058,6 @@ static int camcore_timer_start(struct timer_list *cam_timer,
 
 	pr_debug("starting timer %ld\n", jiffies);
 	ret = mod_timer(cam_timer, jiffies + msecs_to_jiffies(time_val));
-	if (ret)
-		pr_err("fail to start in mod_timer %d\n", ret);
 
 	return ret;
 }
@@ -7007,6 +7035,164 @@ static int camcore_full_raw_switch(struct camera_module *module)
 	return ret;
 }
 
+static int camcore_csi_switch_disconnect(struct camera_module *module, uint32_t mode)
+{
+	int ret = 0;
+	struct cam_hw_info *hw = module->grp->hw_info;
+	struct dcam_sw_context *sw_ctx = &module->dcam_dev_handle->sw_ctx[module->cur_sw_ctx_id];
+	struct dcam_hw_context *hw_ctx = sw_ctx->hw_ctx;
+	struct dcam_switch_param csi_switch = {0};
+	struct dcam_path_desc *path = NULL;
+	struct camera_frame *frame = NULL;
+	uint32_t j = 0;
+	struct isp_offline_param *in_param = NULL;
+	struct camera_frame *pframe = NULL;
+
+	if (sw_ctx->hw_ctx_id == DCAM_HW_CONTEXT_MAX) {
+		pr_warn("warning: sw_ctx has been disconnected and unbinded already. sw_ctx_id: %d\n", sw_ctx->sw_ctx_id);
+		return 0;
+	}
+	/* switch disconnect */
+	csi_switch.csi_id = module->dcam_idx;
+	csi_switch.dcam_id = sw_ctx->hw_ctx_id;
+	if (mode == CAM_CSI_RECOVERY_SWITCH)
+		csi_switch.is_recovery = 1;
+
+	if (atomic_read(&hw_ctx->user_cnt) > 0)
+		hw->dcam_ioctl(hw, DCAM_HW_DISCONECT_CSI, &csi_switch);
+	else {
+		pr_err("fail to get DCAM%d valid user cnt %d\n", hw_ctx->hw_ctx_id, atomic_read(&hw_ctx->user_cnt));
+		return -1;
+	}
+	pr_info("Disconnect csi_id = %d, dcam_id = %d, sw_ctx_id = %d module idx %d mode:%d\n",
+		csi_switch.csi_id, csi_switch.dcam_id, sw_ctx->sw_ctx_id, module->idx, mode);
+
+	atomic_set(&sw_ctx->state, STATE_IDLE);
+	/* reset */
+	dcam_int_tracker_dump(sw_ctx->hw_ctx_id);
+	dcam_int_tracker_reset(sw_ctx->hw_ctx_id);
+
+	/* reset result q */
+	for (j = 0; j < DCAM_PATH_MAX; j++) {
+		path = &sw_ctx->path[j];
+		if (path == NULL)
+			continue;
+		frame = cam_queue_dequeue(&path->result_queue, struct camera_frame, list);
+		while (frame) {
+			pr_debug("DCAM%u path%d fid %u\n", sw_ctx->sw_ctx_id, j, frame->fid);
+
+			in_param = (struct isp_offline_param *)frame->param_data;
+			if (in_param) {
+				if (mode == CAM_CSI_RECOVERY_SWITCH && path->path_id == DCAM_PATH_BIN) {
+					struct channel_context *channel = &module->channel[frame->channel_id];
+					if (!channel) {
+						pr_err("fail to get channel,path_id:%d,channel_id:%d,frame->is_reserved:%d", path->path_id, frame->channel_id, frame->is_reserved);
+					} else {
+						in_param->prev = channel->isp_updata;
+						channel->isp_updata = in_param;
+						frame->param_data = NULL;
+						pr_debug("store:  cur %p   prev %p\n", in_param, channel->isp_updata);
+					}
+				} else {
+					struct isp_offline_param *prev = NULL;
+					while (in_param) {
+						prev = (struct isp_offline_param *)in_param->prev;
+						kfree(in_param);
+						in_param = prev;
+					}
+					frame->param_data = NULL;
+				}
+			}
+
+			if (frame->is_reserved)
+				cam_queue_enqueue(&path->reserved_buf_queue, &frame->list);
+			else {
+				cam_queue_enqueue(&path->out_buf_queue, &frame->list);
+				if (path->path_id == DCAM_PATH_FULL)
+					cam_buf_iommu_unmap(&frame->buf);
+			}
+			if (frame->sync_data)
+				dcam_core_dcam_if_release_sync(frame->sync_data, frame);
+
+			frame = cam_queue_dequeue(&path->result_queue, struct camera_frame, list);
+		}
+	}
+
+	/* unbind */
+	if (mode != CAM_CSI_RECOVERY_SWITCH)
+		dcam_core_context_unbind(sw_ctx);
+	if (module->channel[CAM_CH_CAP].enable) {
+		if (module->cam_uinfo.need_share_buf) {
+			module->dcam_dev_handle->dcam_pipe_ops->cfg_path(sw_ctx,
+				DCAM_PATH_CLR_OUTPUT_SHARE_BUF,
+				DCAM_PATH_FULL, sw_ctx);
+			do {
+				pframe = cam_queue_dequeue(&module->channel[CAM_CH_CAP].share_buf_queue,
+					struct camera_frame, list);
+				if (pframe == NULL)
+					break;
+				camcore_share_buf_cfg(SHARE_BUF_SET_CB, pframe, module);
+			} while (pframe);
+		} else {
+			path = &sw_ctx->path[module->channel[CAM_CH_CAP].dcam_path_id];
+			do {
+				pframe = cam_queue_dequeue(&module->channel[CAM_CH_CAP].share_buf_queue,
+					struct camera_frame, list);
+				if (pframe == NULL)
+					break;
+				module->dcam_dev_handle->dcam_pipe_ops->cfg_path(sw_ctx,
+					DCAM_PATH_CFG_OUTPUT_BUF, path->path_id, pframe);
+			} while (pframe);
+		}
+	}
+	sw_ctx->dec_all_done = 0;
+	sw_ctx->dec_layer0_done = 0;
+
+	return ret;
+}
+
+static int camcore_csi_switch_connect(struct camera_module *module, uint32_t mode)
+{
+	int ret = 0;
+	struct cam_hw_info *hw = module->grp->hw_info;
+	struct dcam_sw_context *sw_ctx = &module->dcam_dev_handle->sw_ctx[module->cur_sw_ctx_id];
+	struct dcam_switch_param csi_switch = {0};
+	uint32_t loop = 0;
+
+	/* bind */
+	do {
+		ret = dcam_core_context_bind(sw_ctx, hw->csi_connect_type, module->dcam_idx);
+		if (!ret) {
+			if (sw_ctx->hw_ctx_id >= DCAM_HW_CONTEXT_MAX)
+				pr_err("fail to get hw_ctx_id\n");
+			break;
+		}
+		pr_info_ratelimited("hw_ctx_id %d wait for hw. loop %d\n", sw_ctx->hw_ctx_id, loop);
+		usleep_range(600, 800);
+	} while (loop++ < 5000);
+
+	if (sw_ctx->hw_ctx_id == DCAM_HW_CONTEXT_MAX) {
+		pr_err("fail to connect. csi %d dcam %d sw_ctx_id %d\n", module->dcam_idx, sw_ctx->hw_ctx_id, sw_ctx->sw_ctx_id);
+		return -1;
+	}
+
+	/* reconfig*/
+	module->dcam_dev_handle->dcam_pipe_ops->ioctl(sw_ctx, DCAM_IOCTL_RECFG_PARAM, NULL);
+
+	/* start */
+	ret = module->dcam_dev_handle->dcam_pipe_ops->start(sw_ctx, 1);
+	if (ret < 0) {
+		pr_err("fail to start dcam dev, ret %d\n", ret);
+		return ret;
+	}
+	/* switch connect */
+	csi_switch.csi_id = module->dcam_idx;
+	csi_switch.dcam_id= sw_ctx->hw_ctx_id;
+	hw->dcam_ioctl(hw, DCAM_HW_CONECT_CSI, &csi_switch);
+	pr_info("Connect csi_id = %d, dcam_id = %d module idx %d\n", csi_switch.csi_id, csi_switch.dcam_id, module->idx);
+	return ret;
+}
+
 static int camcore_zoom_proc(void *param)
 {
 	int update_pv = 0, update_c = 0;
@@ -7501,7 +7687,7 @@ static long camcore_ioctl(struct file *file, unsigned int cmd,
 		mutex_lock(&module->lock);
 		locked = 1;
 	}
-
+	down_read(&module->grp->switch_recovery_lock);
 	if (cmd == SPRD_IMG_IO_SET_KEY || module->private_key == 1) {
 		ret = ioctl_cmd_p->cmd_proc(module, arg);
 		if (ret) {
@@ -7515,8 +7701,87 @@ static long camcore_ioctl(struct file *file, unsigned int cmd,
 	pr_debug("cam id:%d, %ps, done!\n",
 		module->idx, ioctl_cmd_p->cmd_proc);
 exit:
+	up_read(&module->grp->switch_recovery_lock);
 	if (locked)
 		mutex_unlock(&module->lock);
+
+	return ret;
+}
+
+static int camcore_recovery_proc(void *param)
+{
+	int ret = 0, i = 0, recovery_id = 0, line_w = 0;
+	struct camera_group *grp = NULL;
+	struct camera_module *module = NULL;
+	struct dcam_sw_context *sw_ctx = NULL;
+	struct cam_hw_info *hw = NULL;
+	struct dcam_switch_param csi_switch = {0};
+	uint32_t switch_mode = CAM_CSI_RECOVERY_SWITCH;
+	struct cam_hw_lbuf_share camarg;
+
+	grp = (struct camera_group *)param;
+	hw = grp->hw_info;
+
+	if (atomic_read(&grp->recovery_state) != CAM_RECOVERY_NONE) {
+		pr_warn("warning: in recoverying\n");
+		return 0;
+	}
+
+	down_write(&grp->switch_recovery_lock);
+	atomic_set(&grp->recovery_state, CAM_RECOVERY_RUNNING);
+	/* all avaiable dcam csi switch disconnect & stop */
+	for (i = 0; i < CAM_COUNT; i++) {
+		module = grp->module[i];
+		if (module && (atomic_read(&module->state) == CAM_RUNNING)){
+			sw_ctx = &module->dcam_dev_handle->sw_ctx[module->cur_sw_ctx_id];
+			if (sw_ctx->hw_ctx_id == DCAM_HW_CONTEXT_MAX) {
+				pr_warn("warning: sw_ctx %d has been disconnected and unbinded already\n", sw_ctx->sw_ctx_id);
+				continue;
+			}
+			pr_debug("sw_ctx %d dcam %d recovery disconnect\n", sw_ctx->sw_ctx_id, sw_ctx->hw_ctx_id);
+			module->dcam_dev_handle->dcam_pipe_ops->stop(sw_ctx, DCAM_PAUSE_ONLINE);
+			camcore_csi_switch_disconnect(module, switch_mode);
+		}
+	}
+
+	recovery_id = 0;
+	hw->dcam_ioctl(hw, DCAM_HW_CFG_ALL_RESET, &recovery_id);
+	cam_buf_iommu_restore(CAM_IOMMUDEV_DCAM);
+
+	/* all avaiable dcam reconfig & start */
+	for (i = 0; i < CAM_COUNT; i++) {
+		module = grp->module[i];
+		if (module && (atomic_read(&module->state) == CAM_RUNNING)){
+			sw_ctx = &module->dcam_dev_handle->sw_ctx[module->cur_sw_ctx_id];
+			if (sw_ctx->hw_ctx_id == DCAM_HW_CONTEXT_MAX) {
+				pr_warn("warning: sw_ctx %d has been disconnected and unbinded already\n", sw_ctx->sw_ctx_id);
+				continue;
+			}
+
+			line_w = module->cam_uinfo.sn_rect.w;
+			if (module->cam_uinfo.is_4in1)
+				line_w /= 2;
+			camarg.idx = sw_ctx->hw_ctx_id;
+			camarg.width = line_w;
+			camarg.offline_flag = 0;
+			if (hw->ip_dcam[sw_ctx->hw_ctx_id]->lbuf_share_support)
+				ret = hw->dcam_ioctl(hw, DCAM_HW_CFG_LBUF_SHARE_SET, &camarg);
+
+			pr_debug("sw_ctx %d dcam %d recovery connect\n", sw_ctx->sw_ctx_id, sw_ctx->hw_ctx_id);
+			csi_switch.csi_id = module->dcam_idx;
+			csi_switch.dcam_id= sw_ctx->hw_ctx_id;
+			hw->dcam_ioctl(hw, DCAM_HW_FORCE_EN_CSI, &csi_switch);
+
+			pr_debug("sw_ctx %d dcam %d recovery start\n", sw_ctx->sw_ctx_id, sw_ctx->hw_ctx_id);
+			module->dcam_dev_handle->dcam_pipe_ops->ioctl(sw_ctx, DCAM_IOCTL_RECFG_PARAM, NULL);
+
+			ret = module->dcam_dev_handle->dcam_pipe_ops->start(sw_ctx, 1);
+		}
+	}
+	atomic_set(&grp->recovery_state, CAM_RECOVERY_DONE);
+	up_write(&grp->switch_recovery_lock);
+	pr_info("cam recovery is finish\n");
+
 	return ret;
 }
 
@@ -7823,6 +8088,7 @@ static int camcore_open(struct inode *node, struct file *file)
 	struct camera_group *grp = NULL;
 	struct miscdevice *md = file->private_data;
 	uint32_t i, idx, count = 0;
+	struct cam_thread_info *thrd = NULL;
 
 	grp = md->this_device->platform_data;
 	count = grp->dcam_count;
@@ -7907,7 +8173,7 @@ static int camcore_open(struct inode *node, struct file *file)
 			ret = cam_buf_iommudev_reg(
 				&grp->hw_info->soc_isp->pdev->dev,
 				CAM_IOMMUDEV_ISP);
-
+		rwlock_init(&grp->hw_info->soc_dcam->cam_ahb_lock);
 		g_empty_frm_q = &grp->empty_frm_q;
 		cam_queue_init(g_empty_frm_q, CAM_EMP_Q_LEN_MAX,
 			cam_queue_empty_frame_free);
@@ -7917,7 +8183,14 @@ static int camcore_open(struct inode *node, struct file *file)
 		cam_queue_init(&grp->mul_share_buf_q,
 			CAM_SHARED_BUF_NUM, camcore_k_frame_put);
 		spin_unlock_irqrestore(&grp->module_lock, flag);
-
+		/* create recovery thread */
+		if (grp->hw_info->ip_dcam[DCAM_ID_0]->recovery_support) {
+			thrd = &grp->recovery_thrd;
+			sprintf(thrd->thread_name, "cam_recovery");
+			ret = camcore_thread_create(grp, thrd, camcore_recovery_proc);
+			if (ret)
+				pr_warn("warning: creat recovery thread fail\n");
+		}
 		pr_info("init frm_q %px state_q %px\n", g_empty_frm_q, g_empty_state_q);
 	}
 
@@ -8073,6 +8346,7 @@ static int camcore_release(struct inode *node, struct file *file)
 		atomic_set(&group->mul_pyr_buf_alloced, 0);
 		group->is_mul_buf_share = 0;
 		spin_unlock_irqrestore(&group->module_lock, flag);
+		camcore_thread_stop(&group->recovery_thrd);
 	}
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0))
 	ret = pm_runtime_put_sync(&group->hw_info->pdev->dev);
@@ -8136,11 +8410,13 @@ static int camcore_probe(struct platform_device *pdev)
 	}
 	atomic_set(&group->camera_opened, 0);
 	atomic_set(&group->runner_nr, 0);
+	atomic_set(&group->recovery_state, 0);
 	spin_lock_init(&group->module_lock);
 	spin_lock_init(&group->rawproc_lock);
 	spin_lock_init(&group->dual_frame_lock);
 
 	mutex_init(&group->pyr_mulshare_lock);
+	init_rwsem(&group->switch_recovery_lock);
 	pr_info("sprd img probe pdev name %s\n", pdev->name);
 	pr_info("sprd dcam dev name %s\n", pdev->dev.init_name);
 	ret = dcam_drv_dt_parse(pdev, group->hw_info, &group->dcam_count);

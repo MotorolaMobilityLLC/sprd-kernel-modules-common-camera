@@ -64,8 +64,8 @@ static int camdump_compress_frame_dump(struct cam_dump_ctx *dump_base, struct ca
 	fbc_hdr.bits = dump_base->dcam_out_bits;
 	fbc_hdr.img_h = pframe->height;
 	fbc_hdr.img_w = pframe->width;
-	fbc_hdr.img_h_pad = (pframe->height + AFBC_PADDING_H_YUV420_scaler - 1)/AFBC_PADDING_H_YUV420_scaler*AFBC_PADDING_H_YUV420_scaler;
-	fbc_hdr.img_w_pad = (pframe->width  + AFBC_PADDING_W_YUV420_scaler - 1)/AFBC_PADDING_W_YUV420_scaler*AFBC_PADDING_W_YUV420_scaler;
+	fbc_hdr.img_h_pad = (pframe->height + AFBC_PADDING_H_YUV420_scaler - 1) / AFBC_PADDING_H_YUV420_scaler * AFBC_PADDING_H_YUV420_scaler;
+	fbc_hdr.img_w_pad = (pframe->width  + AFBC_PADDING_W_YUV420_scaler - 1) / AFBC_PADDING_W_YUV420_scaler * AFBC_PADDING_W_YUV420_scaler;
 	fbc_hdr.fbc_buffer_size = pframe->fbc_info.buffer_size;
 	fbc_hdr.fbc_hdr_buffer[0] = 'A';
 	fbc_hdr.fbc_hdr_buffer[1] = 'F';

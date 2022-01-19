@@ -217,6 +217,8 @@ enum dcam_hw_cfg_cmd {
 	DCAM_HW_CFG_DEC_STORE_ADDR,
 	DCAM_HW_CFG_DEC_SIZE_UPDATE,
 	DCAM_HW_CFG_GTM_HIST_GET,
+	DCAM_HW_CFG_ALL_RESET,
+	DCAM_HW_CFG_IRQ_DISABLE,
 	DCAM_HW_CFG_MAX
 };
 
@@ -1303,6 +1305,7 @@ struct cam_hw_ip_info {
 	uint32_t raw_fmt_support[DCAM_RAW_MAX];
 	uint32_t dcam_zoom_mode;
 	uint32_t dcam_output_support[DCAM_STORE_BIT_MAX];
+	uint32_t recovery_support;
 
 	/* For isp support info */
 	uint32_t slm_cfg_support;
@@ -1335,7 +1338,7 @@ struct cam_hw_soc_info {
 	struct regmap *cam_ahb_gpr;
 	struct regmap *aon_apb_gpr;
 	struct regmap *cam_switch_gpr;
-
+	rwlock_t cam_ahb_lock;
 	struct clk *core_eb;
 	struct clk *axi_eb;
 	struct clk *mtx_en;

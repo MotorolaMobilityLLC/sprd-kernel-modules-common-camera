@@ -114,6 +114,10 @@ int dcam_init_lsc(void *in, uint32_t online)
 	param = &blk_dcam_pm->lsc;
 
 	idx = blk_dcam_pm->idx;
+	if (idx > DCAM_ID_1) {
+		pr_err("fail to get valid idx %d\n", idx);
+		return 0;
+	}
 	info = &param->lens_info;
 	param->update = 0;
 	param->load_trigger = 0;

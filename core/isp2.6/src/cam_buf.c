@@ -578,6 +578,17 @@ int cam_buf_ionbuf_put(struct camera_buf *buf_info)
 }
 EXPORT_SYMBOL(cam_buf_ionbuf_put);
 
+int cam_buf_iommu_restore(enum cam_iommudev_type type)
+{
+	struct iommudev_info *dev_info;
+	uint32_t ret;
+	dev_info = cambuf_iommu_dev_get(type, NULL);
+	ret = sprd_iommu_restore(dev_info->dev);
+	if (ret != 0)
+		pr_info("fail to iommu enable\n");
+	return ret;
+}
+
 int cam_buf_iommu_map(struct camera_buf *buf_info,
 	enum cam_iommudev_type type)
 {

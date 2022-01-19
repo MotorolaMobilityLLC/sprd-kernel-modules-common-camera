@@ -51,7 +51,7 @@ enum dcam_fix_result {
 	INDEX_FIXED,
 	BUFFER_READY,
 };
-
+static void dcamint_iommu_regs_dump(struct dcam_hw_context *dcam_hw_ctx, struct dcam_sw_context *dcam_sw_ctx);
 static void dcamint_fetch_done_proc(struct dcam_sw_context *sw_ctx)
 {
 	struct camera_frame *frame = NULL;
@@ -1498,7 +1498,7 @@ static irqreturn_t dcamint_error_handler(struct dcam_hw_context *dcam_hw_ctx, st
 	if ((status & DCAMINT_INT0_FATAL_ERROR)
 		&& (atomic_read(&sw_ctx->state) != STATE_ERROR)) {
 		atomic_set(&sw_ctx->state, STATE_ERROR);
-		sw_ctx->dcam_cb_func(DCAM_CB_DEV_ERR, sw_ctx, sw_ctx->cb_priv_data);
+		sw_ctx->dcam_cb_func(DCAM_CB_DEV_ERR, &status, sw_ctx->cb_priv_data);
 	}
 	return IRQ_HANDLED;
 }
@@ -1509,19 +1509,26 @@ static irqreturn_t dcamint_isr_root(int irq, void *priv)
 	struct dcam_sw_context *dcam_sw_ctx = dcam_hw_ctx->sw_ctx;
 	uint32_t status = 0, status1 = 0;
 	unsigned int i = 0;
+	int ret = 0;
 
 	if (unlikely(irq != dcam_hw_ctx->irq)) {
 		pr_err("fail to match DCAM%u irq %d %d\n", dcam_hw_ctx->hw_ctx_id, irq, dcam_hw_ctx->irq);
 		return IRQ_NONE;
 	}
+
+	if (!read_trylock(&dcam_hw_ctx->hw->soc_dcam->cam_ahb_lock))
+		return IRQ_HANDLED;
+
 	if (!dcam_sw_ctx) {
 		status = DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, DCAM_INT0_MASK);
 		status1 = DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, DCAM_INT1_MASK);
 		DCAM_REG_WR(dcam_hw_ctx->hw_ctx_id, DCAM_INT0_CLR, status);
 		DCAM_REG_WR(dcam_hw_ctx->hw_ctx_id, DCAM_INT1_CLR, status1);
-		pr_err("fail to check param %px, 0x%x 0x%x\n", dcam_sw_ctx, status, status1);
-		return IRQ_NONE;
+		pr_err("fail to check param %px, 0x%x 0x%x\n", dcam_sw_ctx, status, status1, dcam_hw_ctx->hw_ctx_id);
+		ret = IRQ_NONE;
+		goto exit;
 	}
+
 	if (atomic_read(&dcam_sw_ctx->state) != STATE_RUNNING) {
 		/* clear int */
 		pr_warn_ratelimited("warning: DCAM%u ignore irq in NON-running, 0x%x 0x%x\n",
@@ -1529,14 +1536,17 @@ static irqreturn_t dcamint_isr_root(int irq, void *priv)
 			DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, DCAM_INT1_MASK));
 		DCAM_REG_WR(dcam_hw_ctx->hw_ctx_id, DCAM_INT0_CLR, 0xFFFFFFFF);
 		DCAM_REG_WR(dcam_hw_ctx->hw_ctx_id, DCAM_INT1_CLR, 0xFFFFFFFF);
-		return IRQ_NONE;
+		ret = IRQ_NONE;
+		goto exit;
 	}
 
 	status = DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, DCAM_INT0_MASK);
 	status1 = DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, DCAM_INT1_MASK);
 
-	if (unlikely(!status && !status1))
-		return IRQ_NONE;
+	if (unlikely(!status && !status1)) {
+		ret = IRQ_NONE;
+		goto exit;
+	}
 
 	DCAM_REG_WR(dcam_hw_ctx->hw_ctx_id, DCAM_INT0_CLR, status);
 	DCAM_REG_WR(dcam_hw_ctx->hw_ctx_id, DCAM_INT1_CLR, status1);
@@ -1599,8 +1609,10 @@ static irqreturn_t dcamint_isr_root(int irq, void *priv)
 	}
 	if (unlikely(status1))
 		pr_warn("warning: DCAM%u unhandled int1 bit0x%x\n", dcam_hw_ctx->hw_ctx_id, status1);
-
-	return IRQ_HANDLED;
+	ret = IRQ_HANDLED;
+exit:
+	read_unlock(&dcam_hw_ctx->hw->soc_dcam->cam_ahb_lock);
+	return ret;
 }
 
 int dcam_int_irq_request(struct device *pdev, int irq, void *param)

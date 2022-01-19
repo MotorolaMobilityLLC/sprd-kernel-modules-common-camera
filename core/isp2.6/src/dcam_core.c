@@ -2232,6 +2232,7 @@ static int dcamcore_context_init(struct dcam_pipe_dev *dev)
 		pctx_hw->hw_ctx_id = i;
 		pctx_hw->sw_ctx_id = DCAM_SW_CONTEXT_MAX;
 		pctx_hw->sw_ctx = NULL;
+		pctx_hw->hw = dev->hw;
 		atomic_set(&pctx_hw->user_cnt, 0);
 
 		pr_debug("register irq for dcam %d. irq_no %d\n", i, dev->hw->ip_dcam[i]->irq_no);

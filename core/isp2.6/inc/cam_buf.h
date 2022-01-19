@@ -73,6 +73,7 @@ int cam_buf_ionbuf_get(struct camera_buf *buf_info);
 int cam_buf_ionbuf_put(struct camera_buf *buf_info);
 int cam_buf_iommu_single_page_map(struct camera_buf *buf_info,
 	enum cam_iommudev_type type);
+int cam_buf_iommu_restore(enum cam_iommudev_type type);
 int cam_buf_iommu_map(struct camera_buf *buf_info,
 	enum cam_iommudev_type type);
 int cam_buf_iommu_unmap(struct camera_buf *buf_info);
