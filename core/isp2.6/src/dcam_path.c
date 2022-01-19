@@ -1119,6 +1119,7 @@ int dcam_path_store_frm_set(void *dcam_ctx_handle,
 		cal_fbc.width = size->w;
 		cal_fbc.out = &fbc_addr;
 		dcam_if_cal_compressed_addr(&cal_fbc);
+		dcam_sw_ctx->fbc_info = frame->fbc_info;
 		fbc_info = frame->fbc_info;
 		fbcadr.idx = idx;
 		fbcadr.addr = addr;

@@ -306,6 +306,7 @@ struct dcam_sw_context {
 	struct dcam_pipe_dev *dev;
 	dcam_dev_callback dcam_cb_func;
 	struct dcam_offline_slice_info slice_info;
+	struct dcam_compress_info fbc_info;
 	share_buf_get_cb buf_get_cb;
 	void *buf_cb_data;
 	atomic_t shadow_done_cnt;

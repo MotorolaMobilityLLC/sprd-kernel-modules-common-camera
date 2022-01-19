@@ -218,6 +218,7 @@ struct channel_context {
 	uint32_t compress_input;
 	uint32_t compress_4bit_bypass;
 	uint32_t compress_3dnr;
+	uint32_t compress_offline;
 	uint32_t compress_output;
 
 	int32_t dcam_ctx_id;
@@ -982,6 +983,7 @@ static void camcore_compression_cal(struct camera_module *module)
 		&& !module->cam_uinfo.is_4in1
 		&& dcam_hw->ip_dcam[dcam_hw_ctx_id]->dcam_raw_fbc_mode
 		&& !(g_dbg_fbc_control & DEBUG_FBC_CRL_RAW);
+	ch_cap->compress_offline = dcam_hw->ip_dcam[dcam_hw_ctx_id]->dcam_offline_fbc_mode;
 	ch_raw->compress_input = ch_cap->compress_input ? 0 : ch_raw->compress_input;
 
 	/* Disable compression for 3DNR by default */
@@ -1042,7 +1044,7 @@ static void camcore_compression_cal(struct camera_module *module)
 		ch_raw->compress_input = 0;
 	}
 
-	pr_info("cam%d: cap %u %u %u, pre %u %u %u, vid %u %u %u raw %u.\n",
+	pr_info("cam%d: cap %u %u %u, pre %u %u %u, vid %u %u %u raw %u offline %u.\n",
 		module->idx,
 		ch_cap->compress_input, ch_cap->compress_3dnr,
 		ch_cap->compress_output,
@@ -1050,7 +1052,8 @@ static void camcore_compression_cal(struct camera_module *module)
 		ch_pre->compress_output,
 		ch_vid->compress_input, ch_vid->compress_3dnr,
 		ch_vid->compress_output,
-		ch_raw->compress_input);
+		ch_raw->compress_input,
+		ch_cap->compress_offline);
 }
 
 static void camcore_compression_config(struct camera_module *module)
@@ -1133,6 +1136,19 @@ static void camcore_compression_config(struct camera_module *module)
 		ch_raw->compress_input = 0;
 
 	pr_debug("raw fbc = %d\n", fbc_mode);
+
+	/* dcam offline fbc */
+	if (ch_cap->compress_offline)
+		fbc_mode = hw->ip_dcam[DCAM_HW_CONTEXT_1]->dcam_offline_fbc_mode;
+	else
+		fbc_mode = DCAM_FBC_DISABLE;
+
+	if (ch_cap->enable && ch_cap->compress_offline)
+		sw_handle[module->offline_cxt_id].path[ch_cap->aux_dcam_path_id].fbc_mode = fbc_mode;
+	if (!fbc_mode)
+		ch_cap->compress_input = 0;
+
+	pr_debug("dcam offline fbc = %d\n", fbc_mode);
 
 	module->dcam_dev_handle->dcam_pipe_ops->ioctl(&module->dcam_dev_handle->sw_ctx[module->cur_sw_ctx_id],
 			DCAM_IOCTL_CFG_FBC, &fbc_mode);
@@ -3475,6 +3491,7 @@ static int camcore_bigsize_aux_init(struct camera_module *module,
 {
 	int ret = 0;
 	uint32_t dcam_path_id;
+	uint32_t offline_fbc_mode;
 	struct camera_group *grp = module->grp;
 	struct dcam_path_cfg_param ch_desc;
 	struct dcam_pipe_dev *dev = NULL;
@@ -3501,7 +3518,12 @@ static int camcore_bigsize_aux_init(struct camera_module *module,
 	}
 
 	/* todo: will update after dcam offline ctx done. */
-	dcam_path_id = dev->hw->ip_dcam[DCAM_HW_CONTEXT_1]->aux_dcam_path;
+	offline_fbc_mode = dev->hw->ip_dcam[DCAM_HW_CONTEXT_1]->dcam_offline_fbc_mode;
+	if (!offline_fbc_mode)
+		dcam_path_id = dev->hw->ip_dcam[DCAM_HW_CONTEXT_1]->aux_dcam_path;
+	else
+		dcam_path_id = DCAM_PATH_FULL;
+
 	ret = module->dcam_dev_handle->dcam_pipe_ops->get_path(&dev->sw_ctx[module->offline_cxt_id],
 		dcam_path_id);
 	if (ret < 0) {
@@ -3542,6 +3564,7 @@ static int camcore_bigsize_aux_init(struct camera_module *module,
 		ch_desc.raw_fmt);
 	ret = module->dcam_dev_handle->dcam_pipe_ops->cfg_path(&dev->sw_ctx[module->offline_cxt_id],
 		DCAM_PATH_CFG_BASE, channel->aux_dcam_path_id, &ch_desc);
+	channel->dcam_out_fmt = ch_desc.dcam_out_fmt;
 
 	pr_info("done\n");
 	return ret;
@@ -3558,9 +3581,15 @@ static int camcore_bigsize_aux_deinit(struct camera_module *module)
 {
 	int ret = 0;
 	uint32_t dcam_path_id;
+	uint32_t offline_fbc_mode;
 	struct dcam_sw_context *sw_ctx = NULL;
 
-	dcam_path_id = module->dcam_dev_handle->hw->ip_dcam[DCAM_HW_CONTEXT_1]->aux_dcam_path;
+	offline_fbc_mode = module->dcam_dev_handle->hw->ip_dcam[DCAM_HW_CONTEXT_1]->dcam_offline_fbc_mode;
+	if (!offline_fbc_mode)
+		dcam_path_id = module->dcam_dev_handle->hw->ip_dcam[DCAM_HW_CONTEXT_1]->aux_dcam_path;
+	else
+		dcam_path_id = DCAM_PATH_FULL;
+
 	sw_ctx = &module->dcam_dev_handle->sw_ctx[module->offline_cxt_id];
 	pr_debug("aux_dcam_path id %d, cur_aux_sw_ctx_id %d\n", dcam_path_id, module->offline_cxt_id);
 
@@ -4285,6 +4314,8 @@ static int camcore_channel_bigsize_config(
 	struct camera_frame *pframe = NULL;
 	struct dcam_sw_context *dcam_sw_aux_ctx = NULL;
 	struct dcam_path_desc *path = NULL;
+	struct dcam_compress_info fbc_info;
+	struct dcam_compress_cal_para cal_fbc = {0};
 
 	ch_uinfo = &channel->ch_uinfo;
 	iommu_enable = module->iommu_enable;
@@ -4297,7 +4328,15 @@ static int camcore_channel_bigsize_config(
 	dcam_out_bits = module->cam_uinfo.sensor_if.if_spec.mipi.bits_per_pxl;
 	is_pack = channel->ch_uinfo.dcam_out_pack;
 
-	if (path->out_fmt & DCAM_STORE_RAW_BASE)
+	if (channel->compress_offline) {
+		cal_fbc.compress_4bit_bypass = channel->compress_4bit_bypass;
+		cal_fbc.data_bits = dcam_out_bits;
+		cal_fbc.fbc_info = &fbc_info;
+		cal_fbc.fmt = channel->dcam_out_fmt;
+		cal_fbc.height = height;
+		cal_fbc.width = width;
+		size = dcam_if_cal_compressed_size (&cal_fbc);
+	} else if (path->out_fmt & DCAM_STORE_RAW_BASE)
 		size = cal_sprd_raw_pitch(width, pack_bits) * height;
 	else if (path->out_fmt == DCAM_STORE_YUV420 || path->out_fmt == DCAM_STORE_YVU420)
 		size = cal_sprd_yuv_pitch(width, dcam_out_bits, is_pack) * height * 3 / 2;
@@ -4320,7 +4359,7 @@ static int camcore_channel_bigsize_config(
 		do {
 			pframe = cam_queue_empty_frame_get();
 			pframe->channel_id = channel->ch_id;
-			pframe->is_compressed = channel->compress_input;
+			pframe->is_compressed = channel->compress_offline;
 			pframe->compress_4bit_bypass =
 					channel->compress_4bit_bypass;
 			pframe->width = width;

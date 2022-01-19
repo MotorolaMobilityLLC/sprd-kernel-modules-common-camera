@@ -682,6 +682,7 @@ struct dcam_hw_slice_fetch {
 	uint32_t slice_count;
 	uint32_t dcam_slice_mode;
 	uint32_t st_pack;
+	struct dcam_compress_info fbc_info;
 	struct dcam_fetch_info *fetch;
 	struct img_trim *cur_slice;
 	struct img_trim slice_trim;
@@ -1284,6 +1285,7 @@ struct cam_hw_ip_info {
 	uint32_t dcam_full_fbc_mode;
 	uint32_t dcam_bin_fbc_mode;
 	uint32_t dcam_raw_fbc_mode;
+	uint32_t dcam_offline_fbc_mode;
 	unsigned long *store_addr_tab;
 	uint32_t *path_ctrl_id_tab;
 	uint32_t afl_gbuf_size;

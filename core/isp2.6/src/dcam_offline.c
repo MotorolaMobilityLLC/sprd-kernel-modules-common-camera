@@ -303,6 +303,7 @@ int dcam_offline_slices_proc(struct cam_hw_info *hw, struct dcam_sw_context *pct
 			slicearg.dcam_slice_mode = pctx->dcam_slice_mode;
 			slicearg.slice_count = pctx->slice_count;
 			slicearg.st_pack = pctx->path[DCAM_PATH_BIN].is_pack;
+			slicearg.fbc_info = pctx->fbc_info;
 			pr_info("slc%d, (%d %d %d %d)\n", i,
 				pctx->slice_info.slice_trim[i].start_x, pctx->slice_info.slice_trim[i].start_y,
 				pctx->slice_info.slice_trim[i].size_x, pctx->slice_info.slice_trim[i].size_y);
