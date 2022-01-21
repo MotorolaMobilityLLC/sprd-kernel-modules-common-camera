@@ -1486,6 +1486,8 @@ static int camioctl_stream_off(struct camera_module *module,
 		camcore_bigsize_aux_deinit(module);
 
 	ch_prv = &module->channel[CAM_CH_PRE];
+
+	mutex_lock(&module->zoom_lock);
 	for (i = 0; i < CAM_CH_MAX; i++) {
 		ch = &module->channel[i];
 		isp_ctx_id[i] = -1;
@@ -1589,9 +1591,8 @@ static int camioctl_stream_off(struct camera_module *module,
 						break;
 					camcore_share_buf_cfg(SHARE_BUF_SET_CB, pframe, module);
 				} while (pframe);
-			} else {
+			} else
 				cam_queue_clear(&ch->share_buf_queue, struct camera_frame, list);
-			}
 
 			for (j = 0; j < ISP_NR3_BUF_NUM; j++) {
 				if (ch->nr3_bufs[j]) {
@@ -1671,6 +1672,7 @@ static int camioctl_stream_off(struct camera_module *module,
 		ch->ch_uinfo.sensor_raw_fmt = -1;
 		init_completion(&ch->alloc_com);
 	}
+	mutex_unlock(&module->zoom_lock);
 
 	if (running) {
 		if (atomic_dec_return(&module->grp->runner_nr) == 0)
@@ -1918,9 +1920,10 @@ cfg_ch_done:
 
 	module->dual_frame = NULL;
 
-	if (module->channel[CAM_CH_CAP].enable)
-		dev->dcam_pipe_ops->cfg_path(sw_ctx, DCAM_PATH_CFG_STATE,
-			DCAM_PATH_FULL, &module->path_state);
+	if (module->channel[CAM_CH_CAP].enable &&
+		module->channel[CAM_CH_CAP].dcam_path_id == DCAM_PATH_FULL)
+			dev->dcam_pipe_ops->cfg_path(sw_ctx, DCAM_PATH_CFG_STATE,
+				DCAM_PATH_FULL, &module->path_state);
 
 	ret = hw->dcam_ioctl(hw, DCAM_HW_CFG_RESET, &sw_ctx->hw_ctx_id);
 	if (ret)

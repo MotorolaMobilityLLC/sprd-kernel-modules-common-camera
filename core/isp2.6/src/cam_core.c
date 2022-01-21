@@ -362,6 +362,7 @@ struct camera_module {
 	struct camera_queue param_queue;
 	int pmq_init;
 	uint32_t raw_callback;
+	struct mutex zoom_lock;
 };
 
 struct camera_group {
@@ -4469,12 +4470,20 @@ static int camcore_channel_size_config(
 	struct channel_context *ch_pre = NULL;
 	struct dcam_sw_context *dcam_sw_ctx = NULL;
 
+	if (!module || !channel) {
+		pr_err("fail to get valid param %p %p\n", module, channel);
+		return -EFAULT;
+	}
+
 	if (atomic_read(&module->state) == CAM_RUNNING) {
 		is_zoom = 1;
 		loop_count = 8;
-	} else {
+	} else if (atomic_read(&module->state) == CAM_STREAM_ON) {
 		is_zoom = 0;
 		loop_count = 1;
+	} else {
+		pr_warn("warning: cam%d state:%d\n", module->idx, atomic_read(&module->state));
+		return 0;
 	}
 
 	hw = module->grp->hw_info;
@@ -6974,10 +6983,16 @@ next:
 		else
 			camcore_channel_size_rds_cal(module);
 
-		if (ch_cap->enable && (update_c || update_always))
+		if (ch_cap->enable && (update_c || update_always)) {
+			mutex_lock(&module->zoom_lock);
 			camcore_channel_size_config(module, ch_cap);
-		if (ch_prev->enable && (update_pv || update_always))
+			mutex_unlock(&module->zoom_lock);
+		}
+		if (ch_prev->enable && (update_pv || update_always)) {
+			mutex_lock(&module->zoom_lock);
 			camcore_channel_size_config(module, ch_prev);
+			mutex_unlock(&module->zoom_lock);
+		}
 		goto next;
 	}
 	return 0;
