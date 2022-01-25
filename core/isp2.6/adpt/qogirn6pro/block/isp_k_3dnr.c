@@ -33,7 +33,7 @@ static void isp_3dnr_config_mem_ctrl(uint32_t idx,
 	if (g_isp_bypass[idx] & (1 << _EISP_NR3))
 		mem_ctrl->bypass = 1;
 
-	mem_ctrl->retain_num = 110;
+	mem_ctrl->retain_num = 32;
 	mem_ctrl->ft_hblank_num = 50;
 	mem_ctrl->ft_fifo_nfull_num = 1400;
 

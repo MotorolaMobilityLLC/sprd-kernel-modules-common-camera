@@ -2108,7 +2108,7 @@ static int ispslice_3dnr_memctrl_info_cfg(
 		}
 
 		slc_3dnr_memctrl->roi_mode = 0;
-		slc_3dnr_memctrl->retain_num = 110;
+		slc_3dnr_memctrl->retain_num = 32;
 		slc_3dnr_memctrl->ft_max_len_sel = 1;
 		slc_3dnr_memctrl->data_toyuv_en = 1;
 		slc_3dnr_memctrl->back_toddr_en = 1;
