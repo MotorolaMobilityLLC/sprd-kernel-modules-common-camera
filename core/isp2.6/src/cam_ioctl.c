@@ -3533,6 +3533,8 @@ static int camioctl_csi_switch(struct camera_module *module, unsigned long arg)
 					} while (pframe);
 				}
 			}
+			sw_ctx->dec_all_done = 0;
+			sw_ctx->dec_layer0_done = 0;
 			sw_ctx->csi_connect_stat = DCAM_CSI_PAUSE;
 			break;
 
