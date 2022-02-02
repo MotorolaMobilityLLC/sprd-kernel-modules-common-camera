@@ -99,10 +99,16 @@ static struct camera_frame *dcamint_frame_prepare(struct dcam_hw_context *dcam_h
 		return NULL;
 	}
 
-	frame = cam_queue_dequeue(&path->result_queue, struct camera_frame, list);
-	if (!frame) {
-		pr_err("fail to available output buffer DCAM%u %s\n",
-			dcam_hw_ctx->hw_ctx_id, dcam_path_name_get(path_id));
+	if (atomic_read(&sw_ctx->state) == STATE_RUNNING) {
+		frame = cam_queue_dequeue(&path->result_queue, struct camera_frame, list);
+		if (!frame) {
+			pr_err("fail to available output buffer DCAM%u %s\n",
+				dcam_hw_ctx->hw_ctx_id, dcam_path_name_get(path_id));
+			return NULL;
+		}
+	} else {
+		pr_warn("warning: DCAM%u state %d %s\n", dcam_hw_ctx->hw_ctx_id,
+			atomic_read(&sw_ctx->state), dcam_path_name_get(path_id));
 		return NULL;
 	}
 

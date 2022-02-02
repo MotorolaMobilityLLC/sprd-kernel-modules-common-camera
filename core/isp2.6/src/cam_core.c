@@ -7273,6 +7273,7 @@ static int camcore_module_init(struct camera_module *module)
 
 	atomic_set(&module->state, CAM_INIT);
 	mutex_init(&module->lock);
+	mutex_init(&module->zoom_lock);
 	mutex_init(&module->fdr_lock);
 	init_completion(&module->frm_com);
 	init_completion(&module->streamoff_com);
@@ -7324,6 +7325,7 @@ static int camcore_module_deinit(struct camera_module *module)
 		mutex_destroy(&module->buf_lock[channel->ch_id]);
 	}
 	mutex_destroy(&module->fdr_lock);
+	mutex_destroy(&module->zoom_lock);
 	mutex_destroy(&module->lock);
 	return 0;
 }
