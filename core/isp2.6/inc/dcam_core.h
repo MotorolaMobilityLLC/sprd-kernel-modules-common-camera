@@ -120,7 +120,9 @@ struct dcam_path_desc {
 	uint32_t is_4in1;
 	uint32_t is_pack;
 	uint32_t out_pitch;
-
+	/* pyr output */
+	uint32_t pyr_data_bits;
+	uint32_t pyr_is_pack;
 	/* full path source sel */
 	uint32_t src_sel;
 

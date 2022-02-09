@@ -160,6 +160,7 @@ struct isp_rec_ops {
 
 struct isp_pyr_rec_in {
 	uint32_t in_fmt;
+	uint32_t pyr_fmt;
 	uint32_t pyr_ynr_radius;
 	uint32_t pyr_cnr_radius;
 	struct img_size src;
@@ -187,6 +188,7 @@ struct isp_rec_ctx_desc {
 	uint32_t ctx_id;
 	uint32_t in_fmt;
 	uint32_t out_fmt;
+	uint32_t pyr_fmt;
 	uint32_t cur_layer;
 	uint32_t slice_num;
 	uint32_t hw_ctx_id;

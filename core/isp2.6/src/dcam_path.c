@@ -125,6 +125,8 @@ int dcam_path_base_cfg(void *dcam_ctx_handle,
 		path->bayer_pattern = ch_desc->bayer_pattern;
 		path->out_fmt = ch_desc->dcam_out_fmt;
 		path->data_bits = ch_desc->dcam_out_bits;
+		path->pyr_data_bits = ch_desc->pyr_data_bits;
+		path->pyr_is_pack = ch_desc->pyr_is_pack;
 
 		path->is_pack = 0;
 		if ((path->out_fmt & DCAM_STORE_YUV_BASE) && (path->data_bits == DCAM_STORE_10_BIT))
@@ -636,7 +638,8 @@ static int dcampath_pyr_dec_cfg(struct dcam_path_desc *path,
 	dec_store.border_down = 0;
 	dec_store.border_left = 0;
 	dec_store.border_right = 0;
-	dec_store.data_10b = (path->data_bits > DCAM_STORE_8_BIT) ? 1 : 0;
+	/*because hw limit, pyr output 10bit*/
+	dec_store.data_10b = 1;
 	dec_store.flip_en = 0;
 	dec_store.last_frm_en = 1;
 	dec_store.mirror_en = 0;
@@ -711,7 +714,7 @@ static int dcampath_update_pyr_dec_addr(struct dcam_sw_context *ctx, struct dcam
 		dec_store->cur_layer = i;
 		dec_store->size_t[i].w = align_w / align;
 		dec_store->size_t[i].h = align_h / align;
-		dec_store->pitch_t[i].pitch_ch0 = cal_sprd_yuv_pitch(dec_store->size_t[i].w, path->data_bits, path->is_pack);
+		dec_store->pitch_t[i].pitch_ch0 = cal_sprd_yuv_pitch(dec_store->size_t[i].w, path->pyr_data_bits, path->pyr_is_pack);
 		dec_store->pitch_t[i].pitch_ch1 = dec_store->pitch_t[i].pitch_ch0;
 		size = dec_store->pitch_t[i].pitch_ch0 * dec_store->size_t[i].h;
 		dec_store->addr[0] = frame->buf.iova[0] + offset;

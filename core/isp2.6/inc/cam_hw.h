@@ -473,6 +473,7 @@ struct isp_hw_fetch_info {
 	uint32_t bayer_pattern;
 	enum sprd_cam_sec_mode sec_mode;
 	enum isp_fetch_format fetch_fmt;
+	enum isp_fetch_format fetch_pyr_fmt;
 	struct img_size src;
 	struct img_trim in_trim;
 	struct img_addr addr;
@@ -1301,6 +1302,7 @@ struct cam_hw_ip_info {
 	uint32_t save_band_for_bigsize;
 	uint32_t raw_fmt_support[DCAM_RAW_MAX];
 	uint32_t dcam_zoom_mode;
+	uint32_t dcam_output_support[DCAM_STORE_BIT_MAX];
 
 	/* For isp support info */
 	uint32_t slm_cfg_support;

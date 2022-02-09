@@ -441,6 +441,7 @@ static int ispcore_rec_frame_process(struct isp_sw_context *pctx,
 	cfg_in.in_addr = pipe_in->fetch.addr;
 	cfg_in.in_trim = pipe_in->fetch.in_trim;
 	cfg_in.in_fmt = pipe_in->fetch.fetch_fmt;
+	cfg_in.pyr_fmt = pipe_in->fetch.fetch_pyr_fmt;
 	cfg_in.pyr_ynr_radius = pctx->isp_k_param.ynr_radius;
 	cfg_in.pyr_cnr_radius = pctx->isp_k_param.cnr_radius;
 	cfg_in.slice_overlap = &slc_ctx->slice_overlap;
@@ -2527,6 +2528,7 @@ static int ispcore_dec_frame_proc(struct isp_sw_context *pctx,
 {
 	int ret = 0;
 	uint32_t format = 0;
+	uint32_t pyr_format = 0;
 	struct isp_uinfo *uinfo = NULL;
 
 	if (!dec_dev) {
@@ -2538,9 +2540,10 @@ static int ispcore_dec_frame_proc(struct isp_sw_context *pctx,
 
 	ispcore_dct_blkparam_update(pctx);
 	format = isp_drv_fetch_format_get(uinfo);
+	pyr_format = isp_drv_fetch_pyr_format_get(uinfo);
 	dec_dev->dct_ynr_info.dct = &pctx->isp_k_param.dct_info;
 	dec_dev->dct_ynr_info.dct_radius = pctx->isp_k_param.dct_radius;
-	dec_dev->ops.cfg_param(dec_dev, pctx->ctx_id, ISP_DEC_CFG_IN_FORMAT, &format);
+	dec_dev->ops.cfg_param(dec_dev, pctx->ctx_id, ISP_DEC_CFG_IN_FORMAT, &format, &pyr_format);
 	frame->dec_ctx_id = pctx->ctx_id;
 	frame->data_bits = uinfo->data_in_bits;
 	ret = dec_dev->ops.proc_frame(dec_dev, frame);

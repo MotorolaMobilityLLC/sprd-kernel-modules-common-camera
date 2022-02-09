@@ -190,6 +190,9 @@ struct isp_uinfo {
 	uint32_t pack_bits;
 	uint32_t is_pack;
 	uint32_t data_in_bits;
+	/* pyr output*/
+	uint32_t pyr_data_in_bits;
+	uint32_t pyr_is_pack;
 	/* GR, R, B, Gb */
 	uint32_t bayer_pattern;
 	uint32_t ltm_rgb;

@@ -113,6 +113,8 @@ int isp_path_comn_uinfo_set(struct isp_sw_context *pctx, void *param)
 	uinfo->mode_3dnr = cfg_in->mode_3dnr;
 	uinfo->is_pack = cfg_in->is_pack;
 	uinfo->data_in_bits = cfg_in->data_in_bits;
+	uinfo->pyr_data_in_bits = cfg_in->pyr_data_bits;
+	uinfo->pyr_is_pack = cfg_in->pyr_is_pack;
 	if (cfg_in->data_in_bits == DCAM_STORE_8_BIT)
 		uinfo->is_pack = 0;
 	if (rgb_ltm) {

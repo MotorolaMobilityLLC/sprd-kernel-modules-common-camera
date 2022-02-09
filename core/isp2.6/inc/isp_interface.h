@@ -185,6 +185,8 @@ struct isp_ctx_base_desc {
 	uint32_t slowmotion_stage_a_num;
 	uint32_t slowmotion_stage_a_valid_num;
 	uint32_t slowmotion_stage_b_num;
+	uint32_t pyr_data_bits;
+	uint32_t pyr_is_pack;
 	enum cam_ch_id ch_id;
 	struct sprd_img_size sn_size;
 };

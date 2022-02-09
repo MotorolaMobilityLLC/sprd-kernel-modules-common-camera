@@ -131,7 +131,7 @@ static int isppyrrec_ref_fetch_get(struct isp_rec_ctx_desc *ctx, uint32_t idx)
 
 	ref_fetch = &ctx->ref_fetch;
 	ref_fetch->bypass = 0;
-	ref_fetch->color_format = ctx->in_fmt;
+	ref_fetch->color_format = ctx->pyr_fmt;
 	ref_fetch->addr[0] = ctx->store_addr[idx].addr_ch0;
 	ref_fetch->addr[1] = ctx->store_addr[idx].addr_ch1;
 	if (idx == ctx->layer_num) {
@@ -231,6 +231,8 @@ static int isppyrrec_cur_fetch_get(struct isp_rec_ctx_desc *ctx, uint32_t idx)
 	cur_fetch->addr[1] = ctx->fetch_addr[idx].addr_ch1;
 	cur_fetch->width = ctx->pyr_layer_size[idx].w;
 	cur_fetch->height = ctx->pyr_layer_size[idx].h;
+	if (idx != 0)
+		cur_fetch->color_format = ctx->pyr_fmt;
 	pitch = isppyrrec_pitch_get(cur_fetch->color_format, cur_fetch->width);
 	cur_fetch->pitch[0] = pitch;
 	cur_fetch->pitch[1] = pitch;
@@ -497,7 +499,7 @@ static int isppyrrec_store_get(struct isp_rec_ctx_desc *ctx, uint32_t idx)
 	rec_store = &ctx->rec_store;
 	idx = idx - 1;
 	rec_store->bypass = 0;
-	rec_store->color_format = ctx->out_fmt;
+	rec_store->color_format = ctx->pyr_fmt;
 	rec_store->addr[0] = ctx->store_addr[idx].addr_ch0;
 	rec_store->addr[1] = ctx->store_addr[idx].addr_ch1;
 	rec_store->width = ctx->pyr_layer_size[idx].w;
@@ -707,6 +709,7 @@ static int isppyrrec_pipe_proc(void *handle, void *param)
 	/* calc multi layer pyramid dec input addr & size */
 	pitch = isppyrrec_pitch_get(in_ptr->in_fmt, in_ptr->src.w);
 	size = pitch * in_ptr->src.h;
+	rec_ctx->pyr_fmt = in_ptr->pyr_fmt;
 	rec_ctx->rec_ynr.pyr_ynr = in_ptr->pyr_ynr;
 	rec_ctx->rec_cnr.pyr_cnr = in_ptr->pyr_cnr;
 	rec_ctx->rec_ynr_radius = in_ptr->pyr_ynr_radius;
@@ -725,7 +728,7 @@ static int isppyrrec_pipe_proc(void *handle, void *param)
 	ISP_PYR_DEBUG("isp %d layer0 size %d %d padding %d %d\n", rec_ctx->ctx_id,
 		rec_ctx->pyr_layer_size[0].w, rec_ctx->pyr_layer_size[0].h,
 		rec_ctx->pyr_padding_size.w, rec_ctx->pyr_padding_size.h);
-	ISP_PYR_DEBUG("in format layer0 fetch addr %x %x %x\n", rec_ctx->in_fmt,
+	ISP_PYR_DEBUG("in format layer0 %d fetch addr %x %x %x\n", rec_ctx->in_fmt,
 		rec_ctx->fetch_addr[0].addr_ch0, rec_ctx->fetch_addr[0].addr_ch1);
 	for (i = 1; i < layer_num + 1; i++) {
 		align = align * 2;
@@ -734,7 +737,7 @@ static int isppyrrec_pipe_proc(void *handle, void *param)
 			offset = rec_ctx->fbcd_buffer_size;
 		rec_ctx->pyr_layer_size[i].w = rec_ctx->pyr_layer_size[0].w /align;
 		rec_ctx->pyr_layer_size[i].h = rec_ctx->pyr_layer_size[0].h /align;
-		pitch = isppyrrec_pitch_get(in_ptr->in_fmt, rec_ctx->pyr_layer_size[i].w);
+		pitch = isppyrrec_pitch_get(rec_ctx->pyr_fmt, rec_ctx->pyr_layer_size[i].w);
 		size = pitch * rec_ctx->pyr_layer_size[i].h;
 		if (i < layer_num) {
 			rec_ctx->store_addr[i].addr_ch0 = rec_ctx->buf_info->buf.iova[0] + offset1;

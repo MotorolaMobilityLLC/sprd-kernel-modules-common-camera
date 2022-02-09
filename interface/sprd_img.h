@@ -859,6 +859,7 @@ struct sprd_dcam_raw_fmt {
 	uint32_t ch_id;
 	uint32_t sensor_raw_fmt;
 	uint32_t dcam_raw_fmt;
+	uint32_t dcam_output_bit;
 };
 
 struct sprd_slowmotion_960fps_param {

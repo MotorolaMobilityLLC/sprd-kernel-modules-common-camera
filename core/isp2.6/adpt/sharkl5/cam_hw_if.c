@@ -401,6 +401,8 @@ static struct cam_hw_ip_info dcam[DCAM_ID_MAX] = {
 		.raw_fmt_support[0] = DCAM_RAW_PACK_10,
 		.raw_fmt_support[1] = DCAM_RAW_HALFWORD_10,
 		.raw_fmt_support[2] = DCAM_RAW_MAX,
+		.dcam_output_support[0] = DCAM_STORE_10_BIT,
+		.dcam_output_support[1] = DCAM_STORE_8_BIT,
 	},
 	[DCAM_ID_1] = {
 		.aux_dcam_path = DCAM_PATH_BIN,
@@ -424,6 +426,8 @@ static struct cam_hw_ip_info dcam[DCAM_ID_MAX] = {
 		.raw_fmt_support[0] = DCAM_RAW_PACK_10,
 		.raw_fmt_support[1] = DCAM_RAW_HALFWORD_10,
 		.raw_fmt_support[2] = DCAM_RAW_MAX,
+		.dcam_output_support[0] = DCAM_STORE_10_BIT,
+		.dcam_output_support[1] = DCAM_STORE_8_BIT,
 	},
 	[DCAM_ID_2] = {
 		.aux_dcam_path = DCAM_PATH_BIN,
@@ -447,6 +451,8 @@ static struct cam_hw_ip_info dcam[DCAM_ID_MAX] = {
 		.raw_fmt_support[0] = DCAM_RAW_PACK_10,
 		.raw_fmt_support[1] = DCAM_RAW_HALFWORD_10,
 		.raw_fmt_support[2] = DCAM_RAW_MAX,
+		.dcam_output_support[0] = DCAM_STORE_10_BIT,
+		.dcam_output_support[1] = DCAM_STORE_8_BIT,
 	},
 };
 static struct cam_hw_ip_info isp = {

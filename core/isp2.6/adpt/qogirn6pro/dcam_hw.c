@@ -1748,6 +1748,8 @@ static int dcamhw_slice_fetch_set(void *handle, void *arg)
 
 	if (slicearg->st_pack)
 		bfp[1] = 5;
+	else if (slicearg->st_pack == 0)
+		bfp[1] = 4;
 	else
 		bfp[1] = 8;
 

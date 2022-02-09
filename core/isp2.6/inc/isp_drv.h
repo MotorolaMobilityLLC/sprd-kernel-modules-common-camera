@@ -17,6 +17,7 @@
 int isp_drv_hw_init(void *arg);
 int isp_drv_hw_deinit(void *arg);
 enum isp_fetch_format isp_drv_fetch_format_get(struct isp_uinfo *pipe_src);
+enum isp_fetch_format isp_drv_fetch_pyr_format_get(struct isp_uinfo *pipe_src);
 int isp_drv_pipeinfo_get(void *arg, void *frame);
 int isp_drv_dt_parse(struct device_node *dn, struct cam_hw_info *hw_info, uint32_t *isp_count);
 

@@ -301,6 +301,10 @@ static int isppyrdec_cfg_store(struct isp_dec_pipe_dev *ctx, uint32_t store_bloc
 		color_format = 0x5;
 		data_10b = 1;
 		break;
+	case ISP_FETCH_YVU420_2FRAME:
+		color_format = 0x5;
+		data_10b = 0;
+		break;
 	default:
 		data_10b = 0;
 		pr_err("fail to support color foramt %d.\n", store->color_format);
@@ -530,6 +534,12 @@ static int isppyrdec_cfg_dct_ynr(struct isp_dec_pipe_dev *ctx)
 		addr = ISP_GET_REG(ISP_YNR_DCT_PARAM14);
 		cmd = (dct_ynr->img.w & 0xFFFF) | ((dct_ynr->img.h & 0xFFFF) << 16);
 		FMCU_PUSH(fmcu, addr, cmd);
+
+		if (ctx->store_dct_info.color_format == ISP_FETCH_YVU420_2FRAME) {
+			addr = ISP_GET_REG(ISP_YNR_DCT_PARAM15);
+			cmd = (16 & 0xFFFF) | ((0 & 0xFFFF) << 16);
+			FMCU_PUSH(fmcu, addr, cmd);
+		}
 	}
 
 	return ret;

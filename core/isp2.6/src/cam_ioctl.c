@@ -2922,7 +2922,7 @@ static int camioctl_fdr_post(struct camera_module *module,
 	ch_desc.raw_fmt= DCAM_RAW_14;
 	ch_desc.is_4in1 = module->cam_uinfo.is_4in1;
 	ch_desc.dcam_out_fmt = dcam_ctrl.out_format;
-	ch_desc.dcam_out_bits = module->cam_uinfo.sensor_if.if_spec.mipi.bits_per_pxl;
+	ch_desc.dcam_out_bits = ch->ch_uinfo.dcam_output_bit;
 
 	ret = module->dcam_dev_handle->dcam_pipe_ops->cfg_path(&dcam->sw_ctx[module->offline_cxt_id],
 		DCAM_PATH_CFG_BASE, ch->aux_dcam_path_id, &ch_desc);
@@ -3741,7 +3741,7 @@ static int camioctl_dcam_raw_fmt_set(struct camera_module *module,unsigned long 
 	struct sprd_dcam_raw_fmt param;
 	struct cam_hw_info *hw = NULL;
 	struct channel_context *channel = NULL;
-	uint32_t dcam_raw_update = 0, sensor_raw_update = 0;
+	uint32_t dcam_raw_update = 0, sensor_raw_update = 0, dcam_out_update = 0;
 	uint32_t i = 0;
 
 	ret = copy_from_user(&param, (void __user *)arg, sizeof(struct sprd_dcam_raw_fmt));
@@ -3786,11 +3786,21 @@ static int camioctl_dcam_raw_fmt_set(struct camera_module *module,unsigned long 
 		}
 	}
 
+	for (i = 0; i < DCAM_STORE_BIT_MAX; i++) {
+		if (hw->ip_dcam[0]->dcam_output_support[i] == DCAM_STORE_BIT_MAX)
+			break;
+		if (param.dcam_output_bit == hw->ip_dcam[0]->dcam_output_support[i]) {
+			channel->ch_uinfo.dcam_output_bit = param.dcam_output_bit;
+			dcam_out_update = 1;
+		}
+	}
+
 	if (dcam_raw_update)
 		pr_info("cam%d, ch%d set dcam raw fmt %d\n", module->idx, param.ch_id, channel->ch_uinfo.dcam_raw_fmt);
 	if (sensor_raw_update)
 		pr_info("cam%d, ch%d set sensor raw fmt %d\n", module->idx, param.ch_id, channel->ch_uinfo.sensor_raw_fmt);
-
+	if (dcam_out_update)
+		pr_info("cam%d, ch%d set dcam_output_bit %d\n", module->idx, param.ch_id, channel->ch_uinfo.dcam_output_bit);
  	if ((!dcam_raw_update) && (!sensor_raw_update)) {
 		pr_err("fail to support raw fmt, not support, %d %d\n", param.sensor_raw_fmt, param.dcam_raw_fmt);
 		return -EFAULT;

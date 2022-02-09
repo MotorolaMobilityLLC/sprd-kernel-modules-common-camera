@@ -148,7 +148,10 @@ struct camera_uchannel {
 
 	int32_t sensor_raw_fmt;
 	int32_t dcam_raw_fmt;
+	int32_t dcam_output_bit;
 	uint32_t dcam_out_pack;
+	uint32_t pyr_data_bits;
+	uint32_t pyr_is_pack;
 
 	struct sprd_img_size src_size;
 	struct sprd_img_rect src_crop;
@@ -705,7 +708,7 @@ static int camcore_resframe_set(struct camera_module *module)
 
 			if (ch->compress_input) {
 				cal_fbc.compress_4bit_bypass = ch->compress_4bit_bypass;
-				cal_fbc.data_bits = module->cam_uinfo.sensor_if.if_spec.mipi.bits_per_pxl;
+				cal_fbc.data_bits = ch->ch_uinfo.dcam_output_bit;
 				cal_fbc.fmt = ch->dcam_out_fmt;
 				cal_fbc.height = src_h;
 				cal_fbc.width = src_w;
@@ -715,11 +718,11 @@ static int camcore_resframe_set(struct camera_module *module)
 			else if (ch->dcam_out_fmt == DCAM_STORE_RAW_BASE)
 				in_size = cal_sprd_raw_pitch(src_w, ch->ch_uinfo.dcam_raw_fmt) * src_h;
 			else if ((ch->dcam_out_fmt == DCAM_STORE_YUV420) || (ch->dcam_out_fmt == DCAM_STORE_YVU420))
-				in_size = cal_sprd_yuv_pitch(src_w, mipi->bits_per_pxl, ch->ch_uinfo.dcam_out_pack)
+				in_size = cal_sprd_yuv_pitch(src_w, ch->ch_uinfo.dcam_output_bit, ch->ch_uinfo.dcam_out_pack)
 					* src_h * 3 / 2;
 
 			if (module->cam_uinfo.is_pyr_rec && ch->ch_id != CAM_CH_CAP)
-				in_size += dcam_if_cal_pyramid_size(src_w, src_h, mipi->bits_per_pxl, ch->ch_uinfo.dcam_out_pack, 1, DCAM_PYR_DEC_LAYER_NUM);
+				in_size += dcam_if_cal_pyramid_size(src_w, src_h, ch->ch_uinfo.pyr_data_bits, ch->ch_uinfo.pyr_is_pack, 1, DCAM_PYR_DEC_LAYER_NUM);
 			in_size = ALIGN(in_size, CAM_BUF_ALIGN_SIZE);
 
 			max_size = max3(max_size, out_size, in_size);
@@ -1570,7 +1573,7 @@ static int camcore_buffers_alloc(void *param)
 		height = channel->swap_size.h;
 	}
 
-	dcam_out_bits = module->cam_uinfo.sensor_if.if_spec.mipi.bits_per_pxl;
+	dcam_out_bits = channel->ch_uinfo.dcam_output_bit;
 	if (channel->aux_dcam_path_id >= 0)
 		pack_bits = channel->ch_uinfo.sensor_raw_fmt;
 	else
@@ -1603,7 +1606,7 @@ static int camcore_buffers_alloc(void *param)
 	}
 
 	if (module->cam_uinfo.is_pyr_rec && channel->ch_id != CAM_CH_CAP)
-		size += dcam_if_cal_pyramid_size(width, height, dcam_out_bits, is_pack, 1, DCAM_PYR_DEC_LAYER_NUM);
+		size += dcam_if_cal_pyramid_size(width, height, channel->ch_uinfo.pyr_data_bits, channel->ch_uinfo.pyr_is_pack, 1, DCAM_PYR_DEC_LAYER_NUM);
 	size = ALIGN(size, CAM_BUF_ALIGN_SIZE);
 	pr_info("cam%d, ch_id %d, camsec=%d, buffer size: %u (%u x %u), num %d\n",
 		module->idx, channel->ch_id, sec_mode,
@@ -1824,7 +1827,7 @@ mul_alloc_end:
 		width = isp_rec_layer0_width(width, channel->pyr_layer_num);
 		height = isp_rec_layer0_heigh(height, channel->pyr_layer_num);
 		/* rec temp buf max size is equal to layer1 size: w/2 * h/2 */
-		size = dcam_if_cal_pyramid_size(width, height, dcam_out_bits, channel->ch_uinfo.dcam_out_pack, 1, channel->pyr_layer_num - 1);
+		size = dcam_if_cal_pyramid_size(width, height, channel->ch_uinfo.pyr_data_bits, channel->ch_uinfo.pyr_is_pack, 1, channel->pyr_layer_num - 1);
 		size = ALIGN(size, CAM_BUF_ALIGN_SIZE);
 		pframe = cam_queue_empty_frame_get();
 		if (channel->ch_id == CAM_CH_PRE && sec_mode == SEC_TIME_PRIORITY)
@@ -1851,7 +1854,7 @@ mul_alloc_end:
 	}
 
 	if (module->cam_uinfo.is_pyr_dec && channel->ch_id == CAM_CH_CAP) {
-		size = dcam_if_cal_pyramid_size(width, height, dcam_out_bits, channel->ch_uinfo.dcam_out_pack, 0, ISP_PYR_DEC_LAYER_NUM);
+		size = dcam_if_cal_pyramid_size(width, height, channel->ch_uinfo.pyr_data_bits, channel->ch_uinfo.pyr_is_pack, 0, ISP_PYR_DEC_LAYER_NUM);
 		size = ALIGN(size, CAM_BUF_ALIGN_SIZE);
 		pframe = cam_queue_empty_frame_get();
 		if (channel->ch_id == CAM_CH_PRE && sec_mode == SEC_TIME_PRIORITY)
@@ -2519,7 +2522,7 @@ static int camcore_dump_config(void *priv_data, void *param)
 		else
 			dump_base->dump_cfg(dump_base, DUMP_CFG_OUT_FMT, &channel->dcam_out_fmt);
 		dump_base->dump_cfg(dump_base, DUMP_CFG_IS_PACK, &channel->ch_uinfo.dcam_out_pack);
-		dump_base->dump_cfg(dump_base, DUMP_CFG_OUT_BITS, &module->cam_uinfo.sensor_if.if_spec.mipi.bits_per_pxl);
+		dump_base->dump_cfg(dump_base, DUMP_CFG_OUT_BITS, &channel->ch_uinfo.dcam_output_bit);
 		if (g_dbg_dump.dump_en == DUMP_DCAM_PDAF)
 			dump_base->dump_cfg(dump_base, DUMP_CFG_PDAF_TYPE, &pdaf_type);
 		if (((g_dbg_dump.dump_en > 0 && g_dbg_dump.dump_en < DUMP_PATH_BIN) || g_dbg_dump.dump_en == DUMP_PATH_RAW_BIN)
@@ -3556,7 +3559,7 @@ static int camcore_bigsize_aux_init(struct camera_module *module,
 		ch_desc.dcam_out_fmt = DCAM_STORE_YVU420;
 	else
 		ch_desc.dcam_out_fmt = DCAM_STORE_RAW_BASE;
-	ch_desc.dcam_out_bits = module->cam_uinfo.sensor_if.if_spec.mipi.bits_per_pxl;
+	ch_desc.dcam_out_bits = channel->ch_uinfo.dcam_output_bit;
 
 	pr_debug("fetch packbit %d, out fmt %d, packbit %d\n",
 		dev->sw_ctx[module->offline_cxt_id].pack_bits,
@@ -4325,7 +4328,7 @@ static int camcore_channel_bigsize_config(
 	pack_bits = channel->ch_uinfo.dcam_raw_fmt;
 	dcam_sw_aux_ctx = &module->dcam_dev_handle->sw_ctx[module->offline_cxt_id];
 	path = &dcam_sw_aux_ctx->path[channel->aux_dcam_path_id];
-	dcam_out_bits = module->cam_uinfo.sensor_if.if_spec.mipi.bits_per_pxl;
+	dcam_out_bits = channel->ch_uinfo.dcam_output_bit;
 	is_pack = channel->ch_uinfo.dcam_out_pack;
 
 	if (channel->compress_offline) {
@@ -5463,7 +5466,17 @@ static int camcore_channel_init(struct camera_module *module,
 		*   other chip input raw10 output raw 10bit
 		*   YUV sensor input 8bit output 8bit
 		*/
-		ch_desc.dcam_out_bits = module->cam_uinfo.sensor_if.if_spec.mipi.bits_per_pxl;
+
+		if ((channel->ch_uinfo.dcam_output_bit >= DCAM_STORE_8_BIT) && (channel->ch_uinfo.dcam_output_bit < DCAM_STORE_BIT_MAX))
+			ch_desc.dcam_out_bits = channel->ch_uinfo.dcam_output_bit;
+		else
+			ch_desc.dcam_out_bits = hw->ip_dcam[0]->dcam_output_support[0];
+		channel->ch_uinfo.dcam_output_bit = ch_desc.dcam_out_bits;
+		/* hw limit:pyr output must 10bit; control pyr output switch, pyr_is_pack 1:mipi; 0:half word; */
+		channel->ch_uinfo.pyr_data_bits = DCAM_STORE_10_BIT;
+		channel->ch_uinfo.pyr_is_pack = PYR_IS_PACK;
+		ch_desc.pyr_data_bits = channel->ch_uinfo.pyr_data_bits;
+		ch_desc.pyr_is_pack = channel->ch_uinfo.pyr_is_pack;
 		if ((hw->ip_isp->fetch_raw_support == 0) || (format == DCAM_CAP_MODE_YUV))
 			ch_desc.dcam_out_fmt = DCAM_STORE_YVU420;
 		else
@@ -5513,6 +5526,8 @@ static int camcore_channel_init(struct camera_module *module,
 				ctx_desc.in_fmt = camcore_format_dcam_translate(ch_desc.dcam_out_fmt);
 		}
 
+		ctx_desc.pyr_data_bits = ch_desc.pyr_data_bits;
+		ctx_desc.pyr_is_pack = ch_desc.pyr_is_pack;
 		ctx_desc.data_in_bits = ch_desc.dcam_out_bits;
 		/* cfg pack bit */
 		if (channel->ch_uinfo.dcam_raw_fmt >= DCAM_RAW_PACK_10 && channel->ch_uinfo.dcam_raw_fmt < DCAM_RAW_MAX)
@@ -6336,7 +6351,7 @@ static int camcore_raw_pre_proc(
 	ch_desc.raw_cap = 1;
 	ch_desc.endian.y_endian = ENDIAN_LITTLE;
 	if (hw->prj_id == QOGIRN6pro) {
-		ch_desc.dcam_out_bits = module->cam_uinfo.sensor_if.if_spec.mipi.bits_per_pxl;
+		ch_desc.dcam_out_bits = module->grp->hw_info->ip_dcam[0]->dcam_output_support[0];
 		ch_desc.dcam_out_fmt = DCAM_STORE_YVU420;
 	} else
 		ch_desc.dcam_out_fmt = DCAM_STORE_RAW_BASE;
@@ -6417,7 +6432,8 @@ static int camcore_raw_pre_proc(
 		ch->ch_uinfo.dcam_out_pack = 1;
 	if ((ch_desc.dcam_out_fmt & DCAM_STORE_YUV_BASE) && (ch_desc.dcam_out_bits == DCAM_STORE_10_BIT))
 		ch->ch_uinfo.dcam_out_pack = 1;
-
+	ctx_desc.pyr_data_bits = DCAM_STORE_10_BIT;
+	ctx_desc.pyr_is_pack = PYR_IS_PACK;
 	ctx_desc.is_pack = ch->ch_uinfo.dcam_out_pack;
 	ctx_desc.bayer_pattern = proc_info->src_pattern;
 	ctx_desc.mode_ltm = MODE_LTM_OFF;
@@ -6685,6 +6701,7 @@ static int camcore_raw_post_proc(struct camera_module *module,
 		/* dec out buf for raw capture */
 		width = proc_info->src_size.width;
 		height = proc_info->src_size.height;
+		dcam_out_bits = module->grp->hw_info->ip_dcam[0]->dcam_output_support[0];
 		size = dcam_if_cal_pyramid_size(width, height, dcam_out_bits, 1, 0, ISP_PYR_DEC_LAYER_NUM);
 		size = ALIGN(size, CAM_BUF_ALIGN_SIZE);
 		pframe = cam_queue_empty_frame_get();
@@ -6710,7 +6727,6 @@ static int camcore_raw_post_proc(struct camera_module *module,
 		height = proc_info->src_size.height;
 		width = isp_rec_layer0_width(width, ISP_PYR_DEC_LAYER_NUM);
 		height = isp_rec_layer0_heigh(height, ISP_PYR_DEC_LAYER_NUM);
-		dcam_out_bits = module->cam_uinfo.sensor_if.if_spec.mipi.bits_per_pxl;
 		size = dcam_if_cal_pyramid_size(width, height, dcam_out_bits, 1, 1, ISP_PYR_DEC_LAYER_NUM - 1);
 		size = ALIGN(size, CAM_BUF_ALIGN_SIZE);
 		pframe = cam_queue_empty_frame_get();

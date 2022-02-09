@@ -43,7 +43,7 @@ enum isp_dec_cfg_cmd {
 };
 
 struct isp_dec_ops {
-	int (*cfg_param)(void *dec_handle, int ctx_id, enum isp_dec_cfg_cmd cmd, void *param);
+	int (*cfg_param)(void *dec_handle, int ctx_id, enum isp_dec_cfg_cmd cmd, void *in_fmt, void *pyr_fmt);
 	int (*proc_frame)(void *dec_handle, void *param);
 	int (*set_callback)(void *dec_handle, int ctx_id, isp_dev_callback cb, void *priv_data);
 	int (*get_out_buf_cb)(void *dec_handle, int ctx_id, pyr_dec_buf_cb cb, void *priv_data);
@@ -189,6 +189,7 @@ struct isp_dec_pipe_dev {
 
 	uint32_t in_fmt;
 	uint32_t out_fmt;
+	uint32_t pyr_fmt;
 	struct img_size src;
 	struct img_size dec_padding_size;
 	struct img_size dec_layer_size[PYR_DEC_ADDR_NUM];

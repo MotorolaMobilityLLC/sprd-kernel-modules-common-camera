@@ -523,6 +523,8 @@ int isp_pyr_rec_frame_config(void *handle)
 	struct isp_dev_cnr_h_info *pyr_cnr = NULL;
 	struct isp_cnr_h_info *layer_cnr_h = NULL;
 	struct isp_rec_ynr_info *ynr_info = NULL;
+	struct isp_rec_fetch_info *rec_fetch = NULL;
+	uint32_t color_format = 0;
 
 	if (!handle) {
 		pr_err("fail to rec_config_reg parm NULL\n");
@@ -535,6 +537,42 @@ int isp_pyr_rec_frame_config(void *handle)
 	layer_cnr_h = &pyr_cnr->layer_cnr_h[ctx->cur_layer];
 	ynr_info = &ctx->rec_ynr;
 	idx = ctx->ctx_id;
+
+	if (ctx->cur_layer == 0)
+		rec_fetch = &ctx->cur_fetch;
+	else
+		rec_fetch = &ctx->ref_fetch;
+
+	switch (rec_fetch->color_format) {
+	case ISP_FETCH_YVU420_2FRAME_10:
+	case ISP_FETCH_YVU420_2FRAME_MIPI:
+		color_format = 1;
+		break;
+	case ISP_FETCH_YVU420_2FRAME:
+		color_format = 3;
+		break;
+	case ISP_FETCH_YUV420_2FRAME_10:
+	case ISP_FETCH_YUV420_2FRAME_MIPI:
+		color_format = 0;
+		break;
+	case ISP_FETCH_YUV420_2FRAME:
+		color_format = 2;
+		break;
+	case ISP_FETCH_FULL_RGB10:
+		color_format = 4;
+		break;
+	default:
+		pr_err("fail to get isp fetch format:%d\n", rec_fetch->color_format);
+		break;
+	}
+	addr = ISP_GET_REG(ISP_FETCH_PARAM0) + PYR_REC_CUR_FETCH_BASE;
+	cmd = ((rec_fetch->chk_sum_clr_en & 0x1) << 11) |
+		((rec_fetch->ft0_axi_reorder_en & 0x1) << 9) |
+		((rec_fetch->ft0_axi_reorder_en & 0x1) << 8)|
+		((color_format & 0x7) << 4) |
+		((rec_fetch->substract & 0x1) << 1);
+	FMCU_PUSH(fmcu, addr, cmd);
+	ISP_REG_WR(idx, PYR_REC_CUR_FETCH_BASE + ISP_FETCH_PARAM0, cmd);
 
 	addr = ISP_GET_REG(ISP_FETCH_SLICE_Y_PITCH) + PYR_REC_CUR_FETCH_BASE;
 	cmd = ctx->cur_fetch.pitch[0];

@@ -152,6 +152,54 @@ enum isp_fetch_format isp_drv_fetch_format_get(struct isp_uinfo *pipe_src)
 	return format;
 }
 
+enum isp_fetch_format isp_drv_fetch_pyr_format_get(struct isp_uinfo *pipe_src)
+{
+	enum isp_fetch_format format = ISP_FETCH_FORMAT_MAX;
+	switch (pipe_src->in_fmt) {
+	case IMG_PIX_FMT_GREY:
+		format = ISP_FETCH_CSI2_RAW10;
+		if (pipe_src->pyr_data_in_bits == ISP_RAW_HALF14 || pipe_src->pyr_data_in_bits == ISP_RAW_HALF10)
+			format = ISP_FETCH_RAW10;
+		break;
+	case IMG_PIX_FMT_UYVY:
+		format = ISP_FETCH_UYVY;
+		break;
+	case IMG_PIX_FMT_YUV422P:
+		format = ISP_FETCH_YUV422_3FRAME;
+		break;
+	case IMG_PIX_FMT_NV12:
+		if (pipe_src->pyr_data_in_bits == DCAM_STORE_10_BIT) {
+			format = ISP_FETCH_YUV420_2FRAME_10;
+			if (pipe_src->pyr_is_pack)
+				format = ISP_FETCH_YUV420_2FRAME_MIPI;
+		}
+		else if (pipe_src->pyr_data_in_bits == DCAM_STORE_8_BIT)
+			format = ISP_FETCH_YUV420_2FRAME;
+		else
+			pr_err("fail to get support data_bits:%d\n", pipe_src->pyr_data_in_bits);
+		break;
+	case IMG_PIX_FMT_NV21:
+		if (pipe_src->pyr_data_in_bits == DCAM_STORE_10_BIT) {
+			format = ISP_FETCH_YVU420_2FRAME_10;
+			if (pipe_src->pyr_is_pack)
+				format = ISP_FETCH_YVU420_2FRAME_MIPI;
+		}
+		else if (pipe_src->pyr_data_in_bits == DCAM_STORE_8_BIT)
+			format = ISP_FETCH_YVU420_2FRAME;
+		else
+			pr_err("fail to get support data_bits:%d\n", pipe_src->pyr_data_in_bits);
+		break;
+	case IMG_PIX_FMT_FULL_RGB:
+		format = ISP_FETCH_FULL_RGB10;
+		break;
+	default:
+		format = ISP_FETCH_FORMAT_MAX;
+		pr_err("fail to get support format 0x%x\n", pipe_src->in_fmt);
+		break;
+	}
+	return format;
+}
+
 static int ispdrv_fetch_normal_get(void *cfg_in, void *cfg_out,
 		struct camera_frame *frame)
 {
@@ -178,6 +226,7 @@ static int ispdrv_fetch_normal_get(void *cfg_in, void *cfg_out,
 	fetch->src = *src;
 	fetch->in_trim = *intrim;
 	fetch->fetch_fmt = isp_drv_fetch_format_get(pipe_src);
+	fetch->fetch_pyr_fmt = isp_drv_fetch_pyr_format_get(pipe_src);
 	fetch->is_pack = pipe_src->is_pack;
 	fetch->data_bits = pipe_src->data_in_bits;
 	fetch->bayer_pattern = pipe_src->bayer_pattern;

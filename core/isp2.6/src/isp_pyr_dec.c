@@ -29,6 +29,10 @@ static uint32_t isppyrdec_cal_pitch(uint32_t w, uint32_t format)
 	uint32_t pitch = 0;
 
 	switch (format) {
+	case ISP_FETCH_YUV420_2FRAME:
+	case ISP_FETCH_YVU420_2FRAME:
+		pitch = w;
+		break;
 	case ISP_FETCH_YUV420_2FRAME_MIPI:
 	case ISP_FETCH_YVU420_2FRAME_MIPI:
 		pitch = (w * 10 + 31) / 32 * 32 / 8;
@@ -214,6 +218,8 @@ static int isppyrdec_fetch_get(struct isp_dec_pipe_dev *dev, uint32_t idx)
 	fetch->addr[1] = dev->fetch_addr[idx].addr_ch1;
 	fetch->width = dev->dec_layer_size[idx].w;
 	fetch->height = dev->dec_layer_size[idx].h;
+	if (idx != 0)
+		fetch->color_format = dev->pyr_fmt;
 	fetch->pitch[0] = isppyrdec_cal_pitch(fetch->width, fetch->color_format);
 	fetch->pitch[1] = fetch->pitch[0];
 	fetch->chk_sum_clr_en = 0;
@@ -345,6 +351,11 @@ static int isppyrdec_store_dct_get(struct isp_dec_pipe_dev *dev, uint32_t idx)
 			ch_offset[0] = start_row * store_dct->pitch[0] + start_col * 5 /4 + (start_col & 0x3);
 			ch_offset[1] = ((start_row * store_dct->pitch[1]) >> 1) + start_col * 5 /4 + (start_col & 0x3);
 			break;
+		case ISP_FETCH_YUV420_2FRAME:
+		case ISP_FETCH_YVU420_2FRAME:
+			ch_offset[0] = start_row * store_dct->pitch[0] + start_col;
+			ch_offset[1] = ((start_row * store_dct->pitch[1]) >> 1) + start_col;
+			break;
 		case ISP_FETCH_YVU420_2FRAME_10:
 		case ISP_FETCH_YUV420_2FRAME_10:
 			ch_offset[0] = start_row * store_dct->pitch[0] + (start_col << 1);
@@ -392,7 +403,7 @@ static int isppyrdec_store_dec_get(struct isp_dec_pipe_dev *dev, uint32_t idx)
 	store_dec = &dev->store_dec_info;
 	idx = idx +1;
 	store_dec->bypass = 0;
-	store_dec->color_format = dev->out_fmt;
+	store_dec->color_format = dev->pyr_fmt;
 	store_dec->addr[0] = dev->store_addr[idx].addr_ch0;
 	store_dec->addr[1] = dev->store_addr[idx].addr_ch1;
 	store_dec->width = dev->dec_layer_size[idx].w;
@@ -855,7 +866,7 @@ static int isppyrdec_offline_frame_start(void *handle)
 		offset += (size * 3 / 2);
 		dec_dev->dec_layer_size[i].w = dec_dev->dec_layer_size[i - 1].w / 2;
 		dec_dev->dec_layer_size[i].h = dec_dev->dec_layer_size[i - 1].h / 2;
-		pitch = isppyrdec_cal_pitch(dec_dev->dec_layer_size[i].w, dec_dev->in_fmt);
+		pitch = isppyrdec_cal_pitch(dec_dev->dec_layer_size[i].w, dec_dev->pyr_fmt);
 		size = pitch * dec_dev->dec_layer_size[i].h;
 		dec_dev->store_addr[i].addr_ch0 = pctx->buf_out->buf.iova[0] + offset;
 		dec_dev->store_addr[i].addr_ch1 = dec_dev->store_addr[i].addr_ch0 + size;
@@ -968,13 +979,13 @@ static int isppyrdec_offline_thread_create(void *param)
 }
 
 static int isppyrdec_cfg_param(void *handle, int ctx_id,
-		enum isp_dec_cfg_cmd cmd, void *param)
+		enum isp_dec_cfg_cmd cmd, void *in_fmt, void *pyr_fmt)
 {
 	int ret = 0;
 	struct isp_dec_pipe_dev *dec_dev = NULL;
 	struct isp_dec_sw_ctx *pctx = NULL;
 
-	if (!handle || !param) {
+	if (!handle || !in_fmt || !pyr_fmt) {
 		pr_err("fail to get valid input ptr %p\n", handle);
 		return -EFAULT;
 	}
@@ -983,9 +994,11 @@ static int isppyrdec_cfg_param(void *handle, int ctx_id,
 	pctx = &dec_dev->sw_ctx[ctx_id];
 	switch (cmd) {
 	case ISP_DEC_CFG_IN_FORMAT:
-		dec_dev->in_fmt = *(uint32_t *)param;
+		dec_dev->in_fmt = *(uint32_t *)in_fmt;
 		dec_dev->out_fmt = dec_dev->in_fmt;
+		dec_dev->pyr_fmt = *(uint32_t *)pyr_fmt;
 		ISP_DEC_DEBUG("DEC proc format %d\n", dec_dev->in_fmt);
+		ISP_DEC_DEBUG("DEC proc pyr format %d\n", dec_dev->pyr_fmt);
 		break;
 	default:
 		pr_err("fail to get known cmd: %d\n", cmd);

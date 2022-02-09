@@ -36,6 +36,8 @@
 #define PYR_DEC_HEIGHT_ALIGN            2
 #define MIN_PYR_WIDTH                   20
 #define MIN_PYR_HEIGHT                  16
+#define PYR_IS_PACK                      1
+
 
 /*************** for global debug starts********************/
 
@@ -283,6 +285,7 @@ enum dcam_store_bit_width {
 	DCAM_STORE_10_BIT = 10,
 	DCAM_STORE_12_BIT = 12,
 	DCAM_STORE_14_BIT = 14,
+	DCAM_STORE_BIT_MAX,
 };
 
 struct dcam_compress_info {
