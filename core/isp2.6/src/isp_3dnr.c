@@ -677,12 +677,10 @@ static int isp3dnr_config_gen(struct isp_3dnr_ctx_desc *ctx)
 		return ret;
 	}
 
-	if (!ctx->nr3_store.st_bypass) {
-		ret = isp3dnr_store_config_gen(ctx);
-		if (ret) {
-			pr_err("fail to generate store configuration\n");
-			return ret;
-		}
+	ret = isp3dnr_store_config_gen(ctx);
+	if (ret) {
+		pr_err("fail to generate store configuration\n");
+		return ret;
 	}
 
 	if (!ctx->nr3_fbc_store.bypass) {

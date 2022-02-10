@@ -2358,16 +2358,17 @@ static int ispslice_3dnr_fbd_fetch_info_cfg(
 		slc_3dnr_fbd_fetch->afbc_mode = nr3_fbd_fetch->afbc_mode;
 		slc_3dnr_fbd_fetch->color_fmt = nr3_fbd_fetch->color_fmt;
 		slc_3dnr_fbd_fetch->hblank_en = nr3_fbd_fetch->hblank_en;
-		slc_3dnr_fbd_fetch->slice_width = nr3_fbd_fetch->slice_width;
-		slc_3dnr_fbd_fetch->slice_height = nr3_fbd_fetch->slice_height;
+		slc_3dnr_fbd_fetch->slice_width = end_col - start_col + 1;
+		slc_3dnr_fbd_fetch->slice_height = end_row - start_row + 1;
 		slc_3dnr_fbd_fetch->hblank_num = nr3_fbd_fetch->hblank_num;
 		slc_3dnr_fbd_fetch->tile_num_pitch = nr3_fbd_fetch->tile_num_pitch;
 		slc_3dnr_fbd_fetch->start_3dnr_afbd = nr3_fbd_fetch->start_3dnr_afbd;
 		slc_3dnr_fbd_fetch->chk_sum_auto_clr = nr3_fbd_fetch->chk_sum_auto_clr;
-		slc_3dnr_fbd_fetch->slice_start_pxl_xpt = nr3_fbd_fetch->slice_start_pxl_xpt;
-		slc_3dnr_fbd_fetch->slice_start_pxl_ypt = nr3_fbd_fetch->slice_start_pxl_ypt;
+		slc_3dnr_fbd_fetch->slice_start_pxl_xpt = start_col;
+		slc_3dnr_fbd_fetch->slice_start_pxl_ypt = start_row;
 		slc_3dnr_fbd_fetch->dout_req_signal_type = nr3_fbd_fetch->dout_req_signal_type;
-		slc_3dnr_fbd_fetch->slice_start_header_addr = nr3_fbd_fetch->slice_start_header_addr;
+		slc_3dnr_fbd_fetch->slice_start_header_addr = nr3_fbd_fetch->slice_start_header_addr
+			+ ((start_row / ISP_FBD_TILE_HEIGHT) * nr3_fbd_fetch->tile_num_pitch + start_col / ISP_FBD_TILE_WIDTH) * FBC_NR3_HEADER_SIZE ;
 		slc_3dnr_fbd_fetch->frame_header_base_addr = nr3_fbd_fetch->frame_header_base_addr;
 
 	}
@@ -2539,23 +2540,24 @@ static int ispslice_3dnr_fbc_store_info_cfg(
 		slc_3dnr_fbc_store->bypass = nr3_fbc_store->bypass;
 
 		/*This is for N6pro*/
-		slc_3dnr_fbc_store->slice_payload_offset_addr_init = nr3_fbc_store->slice_payload_offset_addr_init;
-		slc_3dnr_fbc_store->slice_payload_base_addr = nr3_fbc_store->slice_payload_base_addr;
-		slc_3dnr_fbc_store->slice_header_base_addr = nr3_fbc_store->slice_header_base_addr;
+		slc_3dnr_fbc_store->slice_payload_base_addr = nr3_fbc_store->slice_payload_base_addr + start_col * FBC_NR3_PAYLOAD_YUV10_SIZE;
+		slc_3dnr_fbc_store->slice_header_base_addr = nr3_fbc_store->slice_header_base_addr + start_col * FBC_NR3_HEADER_SIZE;
+		slc_3dnr_fbc_store->slice_payload_offset_addr_init = slc_3dnr_fbc_store->slice_payload_base_addr -
+			slc_3dnr_fbc_store->slice_header_base_addr + start_col * FBC_NR3_PAYLOAD_YUV10_SIZE;
 		slc_3dnr_fbc_store->y_nearly_full_level = nr3_fbc_store->y_nearly_full_level;
 		slc_3dnr_fbc_store->c_nearly_full_level = nr3_fbc_store->c_nearly_full_level;
 		slc_3dnr_fbc_store->tile_num_pitch = nr3_fbc_store->tile_number_pitch;
 		slc_3dnr_fbc_store->color_format = nr3_fbc_store->color_format;
-		slc_3dnr_fbc_store->fbc_size_in_ver = nr3_fbc_store->size_in_ver;
-		slc_3dnr_fbc_store->fbc_size_in_hor = nr3_fbc_store->size_in_hor;
+		slc_3dnr_fbc_store->fbc_size_in_ver = end_row - start_row + 1;
+		slc_3dnr_fbc_store->fbc_size_in_hor = end_col - start_col + 1;
 		slc_3dnr_fbc_store->afbc_mode = nr3_fbc_store->afbc_mode;
 		slc_3dnr_fbc_store->mirror_en = nr3_fbc_store->mirror_en;
 		slc_3dnr_fbc_store->endian = nr3_fbc_store->endian;
 		slc_3dnr_fbc_store->left_border = nr3_fbc_store->left_border;
 		slc_3dnr_fbc_store->up_border = nr3_fbc_store->up_border;
 
-		pr_debug("[%s] [slice id %d] tile_number %d\n", __func__,
-			idx, slc_3dnr_fbc_store->fbc_tile_number);
+		pr_debug("[%s] [slice id %d] tile_number %d, size:(%d, %d)\n", __func__,
+			idx, slc_3dnr_fbc_store->fbc_tile_number, slc_3dnr_fbc_store->fbc_size_in_ver, slc_3dnr_fbc_store->fbc_size_in_hor);
 	}
 
 	return ret;

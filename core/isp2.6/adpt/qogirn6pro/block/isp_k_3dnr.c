@@ -293,9 +293,6 @@ static void isp_3dnr_config_store(uint32_t idx,
 	val = nr3_store->st_bypass;
 	ISP_REG_WR(idx, ISP_3DNR_STORE_PARAM, val);
 
-	if (nr3_store->st_bypass)
-		return;
-
 	nr3_store->st_max_len_sel = 0;
 
 	switch (nr3_store->color_format) {

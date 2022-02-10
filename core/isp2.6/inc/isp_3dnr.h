@@ -26,7 +26,9 @@ extern "C" {
 #define FBC_NR3_Y_PAD_HEIGHT           4
 #define FBC_NR3_Y_WIDTH                128
 #define FBC_NR3_Y_HEIGHT               2
+#define FBC_NR3_HEADER_SIZE            16
 #define FBC_NR3_BASE_ALIGN             256
+#define FBC_NR3_PAYLOAD_YUV10_SIZE     512
 #define FBD_NR3_Y_PAD_WIDTH            256
 #define FBD_NR3_Y_PAD_HEIGHT           4
 #define FBD_NR3_Y_WIDTH                128
