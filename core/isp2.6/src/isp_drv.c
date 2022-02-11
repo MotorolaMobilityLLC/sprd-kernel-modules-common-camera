@@ -124,8 +124,7 @@ enum isp_fetch_format isp_drv_fetch_format_get(struct isp_uinfo *pipe_src)
 			format = ISP_FETCH_YUV420_2FRAME_10;
 			if (pipe_src->is_pack)
 				format = ISP_FETCH_YUV420_2FRAME_MIPI;
-		}
-		else if (pipe_src->data_in_bits == DCAM_STORE_8_BIT)
+		} else if (pipe_src->data_in_bits == DCAM_STORE_8_BIT)
 			format = ISP_FETCH_YUV420_2FRAME;
 		else
 			pr_err("fail to get support data_bits:%d\n", pipe_src->data_in_bits);
@@ -135,8 +134,7 @@ enum isp_fetch_format isp_drv_fetch_format_get(struct isp_uinfo *pipe_src)
 			format = ISP_FETCH_YVU420_2FRAME_10;
 			if (pipe_src->is_pack)
 				format = ISP_FETCH_YVU420_2FRAME_MIPI;
-		}
-		else if (pipe_src->data_in_bits == DCAM_STORE_8_BIT)
+		} else if (pipe_src->data_in_bits == DCAM_STORE_8_BIT)
 			format = ISP_FETCH_YVU420_2FRAME;
 		else
 			pr_err("fail to get support data_bits:%d\n", pipe_src->data_in_bits);
@@ -172,8 +170,7 @@ enum isp_fetch_format isp_drv_fetch_pyr_format_get(struct isp_uinfo *pipe_src)
 			format = ISP_FETCH_YUV420_2FRAME_10;
 			if (pipe_src->pyr_is_pack)
 				format = ISP_FETCH_YUV420_2FRAME_MIPI;
-		}
-		else if (pipe_src->pyr_data_in_bits == DCAM_STORE_8_BIT)
+		} else if (pipe_src->pyr_data_in_bits == DCAM_STORE_8_BIT)
 			format = ISP_FETCH_YUV420_2FRAME;
 		else
 			pr_err("fail to get support data_bits:%d\n", pipe_src->pyr_data_in_bits);
@@ -183,8 +180,7 @@ enum isp_fetch_format isp_drv_fetch_pyr_format_get(struct isp_uinfo *pipe_src)
 			format = ISP_FETCH_YVU420_2FRAME_10;
 			if (pipe_src->pyr_is_pack)
 				format = ISP_FETCH_YVU420_2FRAME_MIPI;
-		}
-		else if (pipe_src->pyr_data_in_bits == DCAM_STORE_8_BIT)
+		} else if (pipe_src->pyr_data_in_bits == DCAM_STORE_8_BIT)
 			format = ISP_FETCH_YVU420_2FRAME;
 		else
 			pr_err("fail to get support data_bits:%d\n", pipe_src->pyr_data_in_bits);

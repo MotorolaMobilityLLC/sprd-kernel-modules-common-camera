@@ -780,8 +780,10 @@ int cam_buf_iommu_unmap(struct camera_buf *buf_info)
 			unmap_data.buf = NULL;
 			pr_debug("upmap buf addr: %lx\n", unmap_data.iova_addr);
 			ret = sprd_iommu_unmap(buf_info->dev, &unmap_data);
-			if (ret)
+			if (ret) {
 				pr_err("fail to free iommu %d\n", i);
+				goto exit;
+			}
 			if (g_mem_dbg && !ret)
 				atomic_dec(&g_mem_dbg->iommu_map_cnt[dev_info->type]);
 			if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0)) {
@@ -796,9 +798,10 @@ int cam_buf_iommu_unmap(struct camera_buf *buf_info)
 		buf_info->iova[i] = 0;
 	}
 
+exit:
 	buf_info->dev = NULL;
 	buf_info->mapping_state &= ~(CAM_BUF_MAPPING_DEV);
 	pr_debug("unmap done.\n");
-	return 0;
+	return ret;
 }
 EXPORT_SYMBOL(cam_buf_iommu_unmap);

@@ -1270,10 +1270,11 @@ static int dcamcore_param_cfg(void *dcam_handle, void *param)
 	io_param = (struct isp_io_param *)param;
 
 	pctx = &sw_pctx->ctx[DCAM_CXT_0];
-	if (io_param->scene_id == PM_SCENE_FDRL || io_param->scene_id == PM_SCENE_FDR_PRE)
+	if (io_param->scene_id == PM_SCENE_FDRL || io_param->scene_id == PM_SCENE_FDR_PRE ||
+		io_param->scene_id == PM_SCENE_OFFLINE_BPC)
 		pctx = &sw_pctx->ctx[DCAM_CXT_1];
 	if (io_param->scene_id == PM_SCENE_FDRH || io_param->scene_id == PM_SCENE_FDR_DRC ||
-		io_param->scene_id == PM_SCENE_FDR_MERGE)
+		io_param->scene_id == PM_SCENE_OFFLINE_CAP)
 		pctx = &sw_pctx->ctx[DCAM_CXT_2];
 	pm = &pctx->blk_pm;
 
@@ -1390,8 +1391,7 @@ static inline void dcamcore_frame_info_show(struct dcam_sw_context *pctx,
 		frame->buf.iova[0], size);
 }
 
-static int dcamcore_path_get(
-	void *dcam_handle, int path_id)
+static int dcamcore_path_get(void *dcam_handle, int path_id)
 {
 	struct dcam_sw_context *pctx;
 	struct dcam_path_desc *path = NULL;
@@ -1647,7 +1647,7 @@ static int dcamcore_path_cfg(void *dcam_handle, enum dcam_path_cfg_cmd cfg_cmd,
 	case DCAM_PATH_CFG_SHUTOFF:
 		shutoff = *(uint32_t *)param;
 		atomic_set(&path->is_shutoff, shutoff);
-		pr_debug("set path %d shutoff %d\n", path_id, shutoff);
+		pr_debug("set path %d shutoff %d\n", path_id, path->is_shutoff);
 		break;
 	case DCAM_PATH_CFG_STATE:
 		state = *(uint32_t *)param;
@@ -2568,7 +2568,7 @@ static int dcamcore_scene_fdrl_get(uint32_t prj_id,
 
 	switch (prj_id) {
 	case SHARKL5pro:
-		if (out->fdr_version){
+		if (out->raw_alg_type){
 			out->start_ctrl = DCAM_START_CTRL_EN;
 			out->callback_ctrl = DCAM_CALLBACK_CTRL_USER;
 		} else {
@@ -2578,7 +2578,7 @@ static int dcamcore_scene_fdrl_get(uint32_t prj_id,
 		}
 		break;
 	case QOGIRL6:
-		if (out->fdr_version) {
+		if (out->raw_alg_type) {
 			out->start_ctrl = DCAM_START_CTRL_EN;
 			out->callback_ctrl = DCAM_CALLBACK_CTRL_USER;
 		} else {
@@ -2588,14 +2588,16 @@ static int dcamcore_scene_fdrl_get(uint32_t prj_id,
 		}
 		break;
 	case QOGIRN6pro:
-		if (out->is_raw_alg) {
+		if (!out->raw_alg_type) {
 			out->start_ctrl = DCAM_START_CTRL_EN;
 			out->callback_ctrl = DCAM_CALLBACK_CTRL_USER;
 		} else {
 			out->start_ctrl = DCAM_START_CTRL_EN;
 			out->callback_ctrl = DCAM_CALLBACK_CTRL_USER;
 			out->in_format = DCAM_STORE_RAW_BASE;
-			out->out_format = DCAM_STORE_FRGB;
+			out->out_format = DCAM_STORE_RAW_BASE;
+			if (out->raw_alg_type == RAW_ALG_MFNR)
+				out->need_raw_path = 1;
 		}
 		break;
 	default:
@@ -2625,7 +2627,7 @@ static int dcamcore_scene_fdrh_get(uint32_t prj_id,
 		out->out_format = DCAM_STORE_RAW_BASE;
 		break;
 	case QOGIRL6:
-		if (out->fdr_version) {
+		if (out->raw_alg_type) {
 			out->start_ctrl = DCAM_START_CTRL_EN;
 			out->callback_ctrl = DCAM_CALLBACK_CTRL_ISP;
 			out->in_format = DCAM_STORE_RAW_BASE;
@@ -2634,7 +2636,7 @@ static int dcamcore_scene_fdrh_get(uint32_t prj_id,
 			out->start_ctrl = DCAM_START_CTRL_DIS;
 		break;
 	case QOGIRN6pro:
-		if (!out->fdr_version) {
+		if (!out->raw_alg_type) {
 			out->start_ctrl = DCAM_START_CTRL_EN;
 			out->callback_ctrl = DCAM_CALLBACK_CTRL_ISP;
 			out->in_format = DCAM_STORE_FRGB;
@@ -2644,7 +2646,8 @@ static int dcamcore_scene_fdrh_get(uint32_t prj_id,
 			out->callback_ctrl = DCAM_CALLBACK_CTRL_ISP;
 			out->in_format = DCAM_STORE_RAW_BASE;
 			out->out_format = DCAM_STORE_YUV420;
-			out->need_other_path = 1;
+			if (out->raw_alg_type == RAW_ALG_MFNR)
+				out->need_raw_path = 0;
 		}
 		break;
 	default:
@@ -2673,8 +2676,7 @@ static int dcamcore_datactrl_get(void *handle, void *in, void *out)
 	cfg_in = (struct cam_data_ctrl_in *)in;
 	data_ctrl = (struct dcam_data_ctrl_info *)out;
 	prj_id = pctx->dev->hw->prj_id;
-	data_ctrl->fdr_version = pctx->fdr_version;
-	data_ctrl->is_raw_alg = cfg_in->is_raw_alg;
+	data_ctrl->raw_alg_type = pctx->raw_alg_type;
 
 	switch (cfg_in->scene_type) {
 	case CAM_SCENE_CTRL_FDR_L:

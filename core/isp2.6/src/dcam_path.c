@@ -842,7 +842,7 @@ void dcampath_update_addr_and_size(struct dcam_sw_context *ctx, struct dcam_path
 			dcampath_update_pyr_dec_addr(ctx, path, frame);
 	}
 
-	if (!frame->is_reserved || path_id == DCAM_PATH_FULL || slw != NULL) {
+	if (!frame->is_reserved || path_id == DCAM_PATH_FULL || path_id == DCAM_PATH_RAW || slw != NULL) {
 		if ((path_id == DCAM_PATH_FULL) || (path_id == DCAM_PATH_BIN) ||
 			(path_id == DCAM_PATH_3DNR) || (path_id == DCAM_PATH_RAW)) {
 			if ((path_id == DCAM_PATH_BIN) && (frame->need_pyr_rec))

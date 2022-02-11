@@ -3735,12 +3735,9 @@ static int ispcore_context_put(void *isp_handle, int ctx_id)
 			if (path->q_init == 0)
 				continue;
 			/* reserved buffer queue should be cleared at last. */
-			cam_queue_clear(&path->result_queue,
-				struct camera_frame, list);
-			cam_queue_clear(&path->out_buf_queue,
-				struct camera_frame, list);
-			cam_queue_clear(&path->reserved_buf_queue,
-				struct camera_frame, list);
+			cam_queue_clear(&path->result_queue, struct camera_frame, list);
+			cam_queue_clear(&path->out_buf_queue, struct camera_frame, list);
+			cam_queue_clear(&path->reserved_buf_queue, struct camera_frame, list);
 		}
 
 		if (pctx->postproc_buf) {
@@ -4116,7 +4113,7 @@ static int ispcore_scene_fdr_set(uint32_t prj_id,
 			fdr_ctrl->dst = in->dst;
 			break;
 		case QOGIRL6:
-			if (!in->fdr_version) {
+			if (!in->raw_alg_type) {
 				if (i == 0) {
 					fdr_ctrl->in_format = IMG_PIX_FMT_GREY;
 					fdr_ctrl->out_format = IMG_PIX_FMT_FULL_RGB;
@@ -4137,7 +4134,7 @@ static int ispcore_scene_fdr_set(uint32_t prj_id,
 			} else {
 				if (i == 0) {
 					fdr_ctrl->in_format = IMG_PIX_FMT_GREY;
-					fdr_ctrl->out_format = IMG_PIX_FMT_FULL_RGB;
+					fdr_ctrl->out_format = IMG_PIX_FMT_GREY;
 					fdr_ctrl->src = in->src;
 					fdr_ctrl->crop = in->crop;
 					fdr_ctrl->dst.w = in->crop.size_x;

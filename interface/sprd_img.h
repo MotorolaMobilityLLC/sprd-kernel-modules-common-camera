@@ -91,10 +91,10 @@ enum {
 	CAMERA_IRQ_SUPERSIZE_DONE,/*dcam0 full path output supersize done*/
 	CAMERA_IRQ_FDRL,
 	CAMERA_IRQ_FDRH,
-	CAMERA_IRQ_RAW_IMG,
 	CAMERA_IRQ_PRE_FDR,
 	CAMERA_IRQ_FDR_DRC,
-	CAMERA_IRQ_RAW_PROC_IMG,
+	CAMERA_IRQ_RAW_IMG,
+	CAMERA_IRQ_RAW_BPC_IMG,
 	CAMERA_IRQ_TX_RESERVED,
 	CAMERA_IRQ_MAX
 };
@@ -272,16 +272,12 @@ enum FDR_POST_SCENE {
 	FDR_POST_MERGE,
 };
 
-enum FDR_VERSION {
-	FDR_V1,
-	FDR_V2,
-};
-
 enum raw_alg_types {
 	RAW_ALG_TYPE_DEFAULT,
 	RAW_ALG_FDR_V1,
 	RAW_ALG_FDR_V2,
 	RAW_ALG_AI_SFNR,
+	RAW_ALG_MFNR,
 	RAW_ALG_TYPE_MAX,
 };
 
@@ -541,8 +537,6 @@ struct sprd_img_function_mode {
 	uint32_t dual_cam;
 	uint32_t need_afbc;
 	uint32_t is_raw_alg;
-	uint32_t need_fdr;
-	uint32_t fdr_version;
 	uint32_t raw_alg_type;
 	uint32_t fdr_preview_captured_num;
 	uint32_t zoom_conflict_with_ltm;

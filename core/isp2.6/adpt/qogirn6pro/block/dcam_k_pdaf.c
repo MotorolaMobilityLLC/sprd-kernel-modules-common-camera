@@ -370,6 +370,7 @@ int dcam_k_pdaf(struct dcam_dev_param *p)
 
 	if (idx >= DCAM_HW_CONTEXT_MAX)
 		return 0;
+
 	if (p->pdaf.pdaf_type == DCAM_PDAF_TYPE3) {
 		DCAM_REG_MWR(p->idx, ISP_PPI_PARAM, BIT_0, bypass);
 		DCAM_REG_MWR(p->idx, DCAM_VC1_CONTROL, BIT_0, !bypass);
@@ -455,10 +456,12 @@ int dcam_k_pdaf(struct dcam_dev_param *p)
 			(vch2_info->vch2_vc & 0x03) << 16
 			| (vch2_info->vch2_data_type & 0x3f) << 8
 			| (vch2_info->vch2_mode & 0x03) << 4);
+		/* TODO:dcam trans pdaf type2 use its own path, to avoid the streak of bpc raw for
+		take vch3 for pdaf type2 */
 		if (idx == DCAM_HW_CONTEXT_0)
-			DCAM_AXIM_MWR(idx, DCAM_LBUF_SHARE_MODE, BIT_20 | BIT_21, 1 << 20);
+			DCAM_AXIM_MWR(idx, DCAM_LBUF_SHARE_MODE, BIT_20 | BIT_21, 0 << 20);
 		else if (idx == DCAM_HW_CONTEXT_1)
-			DCAM_AXIM_MWR(idx, DCAM_LBUF_SHARE_MODE, BIT_20 | BIT_21, 2 << 20);
+			DCAM_AXIM_MWR(idx, DCAM_LBUF_SHARE_MODE, BIT_20 | BIT_21, 0 << 20);
 	} else {
 		DCAM_REG_MWR(idx, DCAM_MIPI_CAP_CFG1, BIT_0, BIT_0);
 

@@ -1474,7 +1474,7 @@ static int dcamhw_path_size_update(void *handle, void *arg)
 	idx = sizearg->idx;
 	if (idx >= DCAM_HW_CONTEXT_MAX)
 		return 0;
-	pr_debug("sizearg->path_id:%d in_size:%d %d, out_size:%d %d in_trim:%d %d %d %d\n", sizearg->path_id,
+	pr_debug("idx:%d, sizearg->path_id:%d in_size:%d %d, out_size:%d %d in_trim:%d %d %d %d\n", idx, sizearg->path_id,
 		sizearg->in_size.w, sizearg->in_size.h, sizearg->out_size.w, sizearg->out_size.h,
 		sizearg->in_trim.start_x, sizearg->in_trim.start_y, sizearg->in_trim.size_x, sizearg->in_trim.size_y);
 
@@ -1499,26 +1499,21 @@ static int dcamhw_path_size_update(void *handle, void *arg)
 			DCAM_REG_WR(idx, DCAM_FBC_RAW_SLICE_SIZE, reg_val);
 			DCAM_REG_WR(idx, DCAM_FBC_RAW_SLICE_TILE_PITCH, sizearg->compress_info.tile_col);
 		}
-
 		DCAM_REG_WR(idx, DCAM_STORE4_Y_PITCH, sizearg->out_pitch);
 		DCAM_REG_WR(idx, DCAM_STORE4_U_PITCH, sizearg->out_pitch);
 		break;
 	case DCAM_PATH_BIN:
-
 		/* scaler0 cfg */
-		reg_val = (sizearg->in_size.h << 16) |
-				sizearg->in_size.w;
+		reg_val = (sizearg->in_size.h << 16) | sizearg->in_size.w;
 		DCAM_REG_WR(idx, DCAM_SCL0_SRC_SIZE, reg_val);
 
-		reg_val = (sizearg->out_size.h << 16) |
-				sizearg->out_size.w;
+		reg_val = (sizearg->out_size.h << 16) | sizearg->out_size.w;
 		DCAM_REG_WR(idx, DCAM_SCL0_DES_SIZE, reg_val);
 
-		reg_val = (sizearg->in_trim.start_y << 16) |
-			sizearg->in_trim.start_x;
+		reg_val = (sizearg->in_trim.start_y << 16) | sizearg->in_trim.start_x;
 		DCAM_REG_WR(idx, DCAM_SCL0_TRIM0_START, reg_val);
-		reg_val = (sizearg->in_trim.size_y << 16) |
-					sizearg->in_trim.size_x;
+
+		reg_val = (sizearg->in_trim.size_y << 16) | sizearg->in_trim.size_x;
 		DCAM_REG_WR(idx, DCAM_SCL0_TRIM0_SIZE, reg_val);
 
 		DCAM_REG_MWR(idx, DCAM_SCL0_CFG, BIT_6, 0 << 6);
