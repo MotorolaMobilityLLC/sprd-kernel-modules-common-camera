@@ -2530,6 +2530,7 @@ static int camioctl_capture_start(struct camera_module *module,
 	isp_idx = module->channel[CAM_CH_CAP].isp_ctx_id;
 	module->isp_dev_handle->isp_ops->ioctl(module->isp_dev_handle, ch->isp_ctx_id,
 		ISP_IOCTL_CFG_POST_CNT, &param.cap_cnt);
+	module->isp_dev_handle->isp_ops->clear_stream_ctrl(module->isp_dev_handle, ch->isp_ctx_id);
 	if (module->capture_scene == CAPTURE_FDR
 		|| module->capture_scene == CAPTURE_HW3DNR
 		|| module->capture_scene == CAPTURE_FLASH) {
