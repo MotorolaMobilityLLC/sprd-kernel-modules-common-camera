@@ -671,10 +671,10 @@ static void dcamint_sensor_sof(void *param, struct dcam_sw_context *sw_ctx)
 {
 	struct dcam_hw_context *dcam_hw_ctx = (struct dcam_hw_context *)param;
 
-	pr_debug("DCAM%d, dcamint_sensor_sof raw_callback = %d frame_index=%d\n",
-		dcam_hw_ctx->hw_ctx_id, sw_ctx->raw_callback, sw_ctx->frame_index);
+	pr_debug("DCAM%d, dcamint_sensor_sof raw_callback = %d frame_index=%d, sw_ctx->cap_info.cap_size.size_x:%d\n",
+		dcam_hw_ctx->hw_ctx_id, sw_ctx->raw_callback, sw_ctx->frame_index, sw_ctx->cap_info.cap_size.size_x);
 
-	if (sw_ctx->raw_callback) {
+	if (sw_ctx->raw_callback || sw_ctx->cap_info.cap_size.size_x > DCAM_TOTAL_LBUF) {
 		if (sw_ctx->frame_index == 0)
 			sw_ctx->frame_index++;
 		else

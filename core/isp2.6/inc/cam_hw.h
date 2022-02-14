@@ -680,8 +680,10 @@ struct dcam_hw_gtm_hist {
 struct dcam_hw_slice_fetch {
 	uint32_t idx;
 	uint32_t slice_count;
+	uint32_t slice_num;
 	uint32_t dcam_slice_mode;
 	uint32_t st_pack;
+	uint32_t relative_offset;
 	struct dcam_compress_info fbc_info;
 	struct dcam_fetch_info *fetch;
 	struct img_trim *cur_slice;
@@ -810,6 +812,7 @@ struct dcam_hw_start {
 	uint32_t idx;
 	uint32_t format;
 	uint32_t raw_callback;
+	void *dcam_sw_context;
 };
 
 struct reg_add_val_tag {

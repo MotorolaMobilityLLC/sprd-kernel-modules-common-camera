@@ -6311,7 +6311,7 @@ static int camcore_raw_pre_proc(
 		if (module->cam_uinfo.dcam_slice_mode && hw->ip_dcam[0]->save_band_for_bigsize) {
 			/* for save data band, ultra res not need sensor raw of raw14*/
 			dev->sw_ctx[module->offline_cxt_id].pack_bits = DCAM_RAW_PACK_10;
-			if (module->raw_cap_fetch_fmt != DCAM_RAW_MAX)
+			if (module->raw_cap_fetch_fmt != DCAM_RAW_MAX && proc_info->src_size.width <= DCAM_64M_WIDTH)
 				dev->sw_ctx[module->offline_cxt_id].pack_bits = module->raw_cap_fetch_fmt;
 		}
 		if (dcam_path_id == 0 && module->cam_uinfo.is_4in1 == 1)

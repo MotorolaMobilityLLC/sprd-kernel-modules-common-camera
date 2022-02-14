@@ -35,7 +35,7 @@
 #define DCAM_LSC_BUF_SIZE                 0x3000
 
 #define DCAM_OFFLINE_TIMEOUT              msecs_to_jiffies(2000)
-#define DCAM_OFFLINE_SLC_MAX              2
+#define DCAM_OFFLINE_SLC_MAX              3
 
 // TODO: how many helpers there should be?
 #define DCAM_SYNC_HELPER_COUNT            20

@@ -23,8 +23,8 @@ extern "C" {
 
 #define SCL_UP_MAX                      10
 #define SCL_DOWN_MAX                    10
-#define PIPE_MAX_SLICE_NUM              4
-#define ISP_DRV_REGIONS_NUM             4
+#define PIPE_MAX_SLICE_NUM              5
+#define ISP_DRV_REGIONS_NUM             5
 #define FBC_PADDING_W_BAYER             128
 #define FBC_PADDING_H_BAYER             4
 #define FBC_PADDING_W_YUV420_scaler     32
@@ -345,7 +345,7 @@ struct slice_drv_overlap_param_t {
 };
 
 int alg_isp_get_dynamic_overlap(void *cfg_slice_in, void*slc_ctx);
-int alg_isp_init_yuvscaler_slice(void *slc_cfg_input, void *slc_ctx, struct isp_fw_scaler_slice (*slice_param)[4]);
+int alg_isp_init_yuvscaler_slice(void *slc_cfg_input, void *slc_ctx, struct isp_fw_scaler_slice (*slice_param)[PIPE_MAX_SLICE_NUM]);
 
 void core_drv_nr3d_init_block(struct isp_block_drv_t *block_ptr);
 void core_drv_ltmsta_init_block(struct isp_block_drv_t *block_ptr);

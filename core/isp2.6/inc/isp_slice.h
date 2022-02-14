@@ -19,8 +19,8 @@
 #include "alg_isp_overlap.h"
 #include "alg_slice_calc.h"
 
-#define SLICE_NUM_MAX                   4
-#define SLICE_W_NUM_MAX                 4
+#define SLICE_NUM_MAX                   5
+#define SLICE_W_NUM_MAX                 5
 #define SLICE_H_NUM_MAX                 1
 #define SLICE_OVERLAP_W_MAX             64
 
@@ -42,6 +42,7 @@
 struct slice_scaler_info {
 	uint32_t out_of_range;
 	uint32_t scaler_bypass;
+	uint32_t sub_scaler_bypass;
 	uint32_t odata_mode;
 	uint32_t trim0_size_x;
 	uint32_t trim0_size_y;

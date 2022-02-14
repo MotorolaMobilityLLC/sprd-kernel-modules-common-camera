@@ -2790,7 +2790,7 @@ static int isphw_slice_spath_scaler(void *handle, void *arg)
 	/* bit31 enable path */
 	addr = ISP_GET_REG(ISP_SCALER_CFG) + base;
 	cmd = ISP_REG_RD(spath->ctx_idx, base + ISP_SCALER_CFG);
-	cmd |= (1 << 31);
+	cmd |= ((1 << 31) | (spath->slc_scaler->sub_scaler_bypass << 1));
 	FMCU_PUSH(spath->fmcu, addr, cmd);
 
 	addr = ISP_GET_REG(ISP_SCALER_SRC_SIZE) + base;

@@ -1683,7 +1683,7 @@ void slice_drv_calculate_overlap(struct slice_drv_overlap_param_t *param_ptr)
 }
 
 static int isp_init_param_for_yuvscaler_slice(void *slc_cfg_input, void *slc_ctx,
-		struct isp_fw_scaler_slice (*slice_param)[4])
+		struct isp_fw_scaler_slice (*slice_param)[PIPE_MAX_SLICE_NUM])
 {
 	int i = 0;
 	int id = 0;
@@ -2584,7 +2584,7 @@ int isp_init_param_for_overlap_v2(
 	return 0;
 }
 
-int alg_isp_init_yuvscaler_slice(void *slc_cfg_input, void *slc_ctx, struct isp_fw_scaler_slice (*slice_param)[4])
+int alg_isp_init_yuvscaler_slice(void *slc_cfg_input, void *slc_ctx, struct isp_fw_scaler_slice (*slice_param)[PIPE_MAX_SLICE_NUM])
 {
 	int ret = 0;
 	uint32_t dyn_ov_version = 0;

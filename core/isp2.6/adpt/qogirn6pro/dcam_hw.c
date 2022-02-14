@@ -401,6 +401,7 @@ static int dcamhw_start(void *handle, void *arg)
 {
 	int ret = 0;
 	struct dcam_hw_start *parm = NULL;
+	struct dcam_sw_context *sw_ctx = NULL;
 
 	if (!arg) {
 		pr_err("fail to get valid arg\n");
@@ -408,11 +409,12 @@ static int dcamhw_start(void *handle, void *arg)
 	}
 
 	parm = (struct dcam_hw_start *)arg;
+	sw_ctx = parm->dcam_sw_context;
 
 	DCAM_REG_WR(parm->idx, DCAM_INT0_CLR, 0xFFFFFFFF);
 	DCAM_REG_WR(parm->idx, DCAM_INT1_CLR, 0xFFFFFFFF);
 	/* see DCAM_PREVIEW_SOF in dcam_int.h for details */
-	if (parm->raw_callback == 1)
+	if (parm->raw_callback == 1 || sw_ctx->cap_info.cap_size.size_x > DCAM_TOTAL_LBUF)
 		DCAM_REG_WR(parm->idx, DCAM_INT_EN, DCAMINT_IRQ_LINE_EN0_NORMAL | BIT(DCAM_IF_IRQ_INT0_SENSOR_SOF));
 	else
 		DCAM_REG_WR(parm->idx, DCAM_INT0_EN, DCAMINT_IRQ_LINE_EN0_NORMAL);
@@ -807,6 +809,8 @@ static int dcamhw_mipi_cap_set(void *handle, void *arg)
 		reg_val = (cap_info->data_bits - 8) >> 1;
 		DCAM_REG_MWR(idx, DCAM_MIPI_CAP_CFG2, BIT_16 | BIT_17, reg_val << 16);
 		DCAM_REG_MWR(idx, DCAM_MIPI_CAP_CFG2, 0xFFFF,  cap_info->cap_size.size_x);
+		if (cap_info->cap_size.size_x > DCAM_TOTAL_LBUF)
+			DCAM_REG_MWR(idx, DCAM_MIPI_CAP_CFG2, BIT_21, BIT_21);
 	} else if (cap_info->format == DCAM_CAP_MODE_YUV) {
 		if (unlikely(cap_info->data_bits != DCAM_CAP_8_BITS)) {
 			pr_err("fail to get valid data bits for yuv format %d\n",
@@ -1051,7 +1055,7 @@ static int dcamhw_path_start(void *handle, void *arg)
 		DCAM_REG_MWR(patharg->idx, DCAM_BWD1_PARAM, 0xE, val << 1);
 		/*bwd for RAW 10bit*/
 		DCAM_REG_MWR(patharg->idx, DCAM_BWD1_PARAM, BIT_0, 0);
-		if (patharg->cap_info.format ==  DCAM_CAP_MODE_YUV)
+		if (patharg->cap_info.format ==  DCAM_CAP_MODE_YUV || patharg->cap_info.cap_size.size_x > DCAM_TOTAL_LBUF)
 			DCAM_REG_MWR(patharg->idx, DCAM_RAW_PATH_CFG, BIT_12, 1 << 12);
 		DCAM_REG_MWR(patharg->idx, DCAM_RAW_PATH_CFG, BIT_0, 0);
 		break;
@@ -1700,6 +1704,12 @@ static int dcamhw_slice_fetch_set(void *handle, void *arg)
 	struct dcam_fetch_info *fetch = NULL;
 	struct dcam_hw_slice_fetch *slicearg = NULL;
 	uint32_t fetch_pitch = 0, prev_picth = 0, bwu_shift = 0, fetch_fmt = 0;
+	uint32_t reg_val = 0;
+	uint32_t addr = 0;
+	uint32_t start_title_num = 0;
+	uint32_t reg_header = 0;
+	uint32_t reg_addr = 0;
+	uint32_t addr_offset = 0;
 
 	if (!arg) {
 		pr_err("fail to check param");
@@ -1764,9 +1774,10 @@ static int dcamhw_slice_fetch_set(void *handle, void *arg)
 		DCAM_REG_WR(idx, DCAM_STORE0_PARAM, (prev_picth << 20) | BIT_5 | BIT_4 | BIT_0);
 		DCAM_REG_MWR(idx, DCAM_STORE0_PARAM, BIT_2 | BIT_3, fetch->pack_bits << 2);
 	} else {
-		if (slicearg->slice_count == 2) {
-			DCAM_REG_MWR(idx, DCAM_MIPI_CAP_CFG,
-				BIT_5 | BIT_4, (fetch->pattern & 3) << 4);
+		if (slicearg->slice_count == slicearg->slice_num) {
+			DCAM_REG_MWR(idx, DCAM_MIPI_CAP_CFG, BIT_5 | BIT_4, (fetch->pattern & 3) << 4);
+			DCAM_AXIM_WR(idx, IMG_FETCH_RADDR, fetch->addr.addr_ch0);
+
 			DCAM_AXIM_MWR(idx, IMG_FETCH_CTRL, BIT_1 | BIT_0, fetch_fmt);
 			DCAM_AXIM_MWR(idx, IMG_FETCH_CTRL, BIT_3 | BIT_2, fetch->endian << 2);
 			DCAM_AXIM_MWR(idx, IMG_FETCH_CTRL, BIT_18 | BIT_17 | BIT_16, bwu_shift << 16);
@@ -1777,16 +1788,14 @@ static int dcamhw_slice_fetch_set(void *handle, void *arg)
 			DCAM_REG_MWR(idx, DCAM_MIPI_CAP_CFG, BIT_12, 0x1 << 12);
 			DCAM_REG_MWR(idx, DCAM_MIPI_CAP_CFG, BIT_1, 0x1 << 1);
 
-			DCAM_AXIM_WR(idx, IMG_FETCH_RADDR, fetch->addr.addr_ch0);
-			DCAM_AXIM_WR(idx, IMG_FETCH_SIZE,
-				(cur_slice->size_y << 16) | ((cur_slice->size_x + DCAM_OVERLAP) & 0x3fff));
+			DCAM_AXIM_WR(idx, IMG_FETCH_SIZE, (cur_slice->size_y << 16) | ((cur_slice->size_x + DCAM_OVERLAP) & 0x3fff));
 			DCAM_AXIM_WR(idx, IMG_FETCH_X, (fetch_pitch << 16) | (cur_slice->start_x & 0x3fff));
 
-			pr_debug("dcam%d, slice 0,  start x %d, size x = %d  size y = %d\n", idx, cur_slice->start_x, cur_slice->size_x, cur_slice->size_y);
+			pr_debug("dcam%d, slice 0,  start x %d, size x = %d size y = %d relative_offset %d\n",
+				idx, cur_slice->start_x, cur_slice->size_x, cur_slice->size_y,  slicearg->relative_offset);
 			if (!slicearg->fbc_info.is_compress) {
-				/* cfg bin path */
-				DCAM_REG_MWR(idx, DCAM_STORE0_SLICE_SIZE, 0xFFFF, cur_slice->size_x & 0xffff);
 				DCAM_REG_WR(idx, DCAM_STORE0_BORDER, DCAM_OVERLAP << 16);
+				DCAM_REG_MWR(idx, DCAM_STORE0_SLICE_SIZE, 0xFFFF, cur_slice->size_x & 0xffff);
 			} else
 				DCAM_REG_MWR(idx, DCAM_FBC_RAW_SLICE_SIZE, 0x1FFF, cur_slice->size_x & 0x1fff);
 
@@ -1796,17 +1805,10 @@ static int dcamhw_slice_fetch_set(void *handle, void *arg)
 			DCAM_REG_WR(idx, DCAM_RAW_PATH_CROP_START, (cur_slice->start_y << 16) | (cur_slice->start_x & 0x3fff));
 			DCAM_REG_WR(idx, DCAM_RAW_PATH_CROP_SIZE, (cur_slice->size_y << 16) | (cur_slice->size_x & 0x3fff));
 
-			/* cfg yuv444 to 420 */
 			DCAM_REG_WR(idx, DCAM_YUV444TO420_IMAGE_WIDTH, cur_slice->size_x + DCAM_OVERLAP);
 			DCAM_REG_MWR(idx, DCAM_YUV444TOYUV420_PARAM, BIT_0, 0);
-		} else {
-			uint32_t reg_val = 0;
-			uint32_t addr = 0;
-			uint32_t start_title_num = 0;
-			uint32_t reg_header = 0;
-			uint32_t reg_addr = 0;
-			uint32_t addr_offset = 0;
-
+			slicearg->relative_offset = cur_slice->start_x;
+		} else if (slicearg->slice_count == 1) {
 			DCAM_REG_MWR(idx, DCAM_MIPI_CAP_CFG, BIT_30, 0x1 << 30);
 			DCAM_AXIM_WR(idx, IMG_FETCH_RADDR, fetch->addr.addr_ch0);
 
@@ -1814,21 +1816,21 @@ static int dcamhw_slice_fetch_set(void *handle, void *arg)
 			DCAM_AXIM_MWR(idx, IMG_FETCH_CTRL, BIT_3 | BIT_2, fetch->endian << 2);
 			DCAM_AXIM_MWR(idx, IMG_FETCH_CTRL, BIT_18 | BIT_17 | BIT_16, bwu_shift << 16);
 
-			DCAM_AXIM_WR(idx, IMG_FETCH_SIZE,
-				(cur_slice->size_y  << 16) | ((cur_slice->size_x + DCAM_OVERLAP) & 0x3fff));
+			DCAM_AXIM_WR(idx, IMG_FETCH_SIZE, (cur_slice->size_y  << 16) | ((cur_slice->size_x + DCAM_OVERLAP) & 0x3fff));
 			DCAM_AXIM_WR(idx, IMG_FETCH_X, (fetch_pitch << 16) | ((cur_slice->start_x - DCAM_OVERLAP) & 0x3fff));
-			pr_debug("dcam%d, slice 1,  start x %d, size x = %d  size y = %d\n", idx, cur_slice->start_x, cur_slice->size_x, cur_slice->size_y);
 
+			pr_debug("dcam%d, last slice,  start x %d, size x = %d size y = %d relative_offset %d\n",
+				idx, cur_slice->start_x, cur_slice->size_x, cur_slice->size_y,  slicearg->relative_offset);
 			if (!slicearg->fbc_info.is_compress) {
 				DCAM_REG_WR(idx, DCAM_STORE0_BORDER, DCAM_OVERLAP & 0xffff);
 				DCAM_REG_MWR(idx, DCAM_STORE0_SLICE_SIZE, 0xFFFF, cur_slice->size_x & 0xffff);
 
 				reg_val = DCAM_REG_RD(idx, DCAM_STORE0_SLICE_Y_ADDR);
-				DCAM_REG_WR(idx, DCAM_STORE0_SLICE_Y_ADDR, reg_val + cur_slice->start_x * bfp[1] / 4);
+				DCAM_REG_WR(idx, DCAM_STORE0_SLICE_Y_ADDR, reg_val + (cur_slice->start_x - slicearg->relative_offset ) * bfp[1] / 4);
 				reg_val = DCAM_REG_RD(idx, DCAM_STORE0_SLICE_U_ADDR);
-				DCAM_REG_WR(idx, DCAM_STORE0_SLICE_U_ADDR, reg_val + cur_slice->start_x * bfp[1] / 4);
+				DCAM_REG_WR(idx, DCAM_STORE0_SLICE_U_ADDR, reg_val + (cur_slice->start_x - slicearg->relative_offset ) * bfp[1] / 4);
 			} else {
-				start_title_num = (cur_slice->start_x + 31) / 32;
+				start_title_num = (cur_slice->start_x - slicearg->relative_offset  + 31) / 32;
 
 				DCAM_REG_WR(idx, DCAM_FBC_RAW_BORDER, DCAM_OVERLAP << 16);
 				DCAM_REG_MWR(idx, DCAM_FBC_RAW_SLICE_SIZE, 0x1FFF, cur_slice->size_x & 0x1fff);
@@ -1845,10 +1847,9 @@ static int dcamhw_slice_fetch_set(void *handle, void *arg)
 				DCAM_REG_WR(idx, DCAM_FBC_RAW_SLICE_OFFSET, addr_offset);
 
 				reg_addr = DCAM_REG_RD(idx, DCAM_FBC_RAW_SLCIE_LOWBIT_ADDR);
-				addr = reg_addr + cur_slice->start_x / 2;
+				addr = reg_addr + (cur_slice->start_x - slicearg->relative_offset ) / 2;
 				DCAM_REG_WR(idx, DCAM_FBC_RAW_SLCIE_LOWBIT_ADDR, addr);
 			}
-
 			/* cfg raw path */
 			DCAM_REG_MWR(idx, DCAM_RAW_PATH_SIZE, 0xFFFF, cur_slice->size_x & 0xffff);
 			DCAM_REG_MWR(idx, DCAM_RAW_PATH_CFG, BIT_1, BIT_1);
@@ -1856,10 +1857,64 @@ static int dcamhw_slice_fetch_set(void *handle, void *arg)
 			DCAM_REG_WR(idx, DCAM_RAW_PATH_CROP_SIZE, (cur_slice->size_y << 16) | (cur_slice->size_x & 0x3fff));
 
 			reg_val = DCAM_REG_RD(idx, DCAM_RAW_PATH_BASE_WADDR);
-			DCAM_REG_WR(idx, DCAM_RAW_PATH_BASE_WADDR, reg_val + cur_slice->start_x * bfp[0] / 4);
+			DCAM_REG_WR(idx, DCAM_RAW_PATH_BASE_WADDR, reg_val + (cur_slice->start_x - slicearg->relative_offset ) * bfp[0] / 4);
 
 			DCAM_REG_WR(idx, DCAM_YUV444TO420_IMAGE_WIDTH, cur_slice->size_x + DCAM_OVERLAP);
 			DCAM_REG_MWR(idx, DCAM_YUV444TOYUV420_PARAM, BIT_0, 0);
+		} else {
+			DCAM_REG_MWR(idx, DCAM_MIPI_CAP_CFG, BIT_30, 0x0 << 30); /* middle slices*/
+			DCAM_AXIM_WR(idx, IMG_FETCH_RADDR, fetch->addr.addr_ch0);
+
+			DCAM_AXIM_MWR(idx, IMG_FETCH_CTRL, BIT_1 | BIT_0, fetch_fmt);
+			DCAM_AXIM_MWR(idx, IMG_FETCH_CTRL, BIT_3 | BIT_2, fetch->endian << 2);
+			DCAM_AXIM_MWR(idx, IMG_FETCH_CTRL, BIT_18 | BIT_17 | BIT_16, bwu_shift << 16);
+
+			DCAM_AXIM_WR(idx, IMG_FETCH_SIZE, (cur_slice->size_y << 16) | ((cur_slice->size_x + DCAM_OVERLAP * 2) & 0x3fff));
+			DCAM_AXIM_WR(idx, IMG_FETCH_X, (fetch_pitch << 16) | ((cur_slice->start_x - DCAM_OVERLAP) & 0x3fff));
+
+			pr_debug("dcam%d, middle slice,  start x %d, size x = %d size y = %d relative_offset %d\n",
+				idx, cur_slice->start_x, cur_slice->size_x, cur_slice->size_y,  slicearg->relative_offset);
+			if (!slicearg->fbc_info.is_compress) {
+				DCAM_REG_WR(idx, DCAM_STORE0_BORDER, (DCAM_OVERLAP << 16) | (DCAM_OVERLAP & 0xffff));
+				DCAM_REG_MWR(idx, DCAM_STORE0_SLICE_SIZE, 0xFFFF, cur_slice->size_x & 0xffff);
+
+				reg_val = DCAM_REG_RD(idx, DCAM_STORE0_SLICE_Y_ADDR);
+				DCAM_REG_WR(idx, DCAM_STORE0_SLICE_Y_ADDR, reg_val + (cur_slice->start_x - slicearg->relative_offset ) * bfp[1] / 4);
+				reg_val = DCAM_REG_RD(idx, DCAM_STORE0_SLICE_U_ADDR);
+				DCAM_REG_WR(idx, DCAM_STORE0_SLICE_U_ADDR, reg_val + (cur_slice->start_x - slicearg->relative_offset ) * bfp[1] / 4);
+			} else {
+				start_title_num = (cur_slice->start_x - slicearg->relative_offset  + 31) / 32;
+
+				DCAM_REG_WR(idx, DCAM_FBC_RAW_BORDER, DCAM_OVERLAP << 16);
+				DCAM_REG_MWR(idx, DCAM_FBC_RAW_SLICE_SIZE, 0x1FFF, cur_slice->size_x & 0x1fff);
+
+				reg_header = DCAM_REG_RD(idx, DCAM_FBC_RAW_SLICE_Y_HEADER);
+				addr = reg_header + FBC_STORE_ADDR_ALIGN * start_title_num;
+				DCAM_REG_WR(idx, DCAM_FBC_RAW_SLICE_Y_HEADER, addr);
+
+				reg_addr = DCAM_REG_RD(idx, DCAM_FBC_RAW_SLICE_Y_ADDR);
+				addr = reg_addr + FBC_PAYLOAD_YUV10_BYTE_UNIT * start_title_num;
+				DCAM_REG_WR(idx, DCAM_FBC_RAW_SLICE_Y_ADDR, addr);
+
+				addr_offset = reg_addr - reg_header + FBC_PAYLOAD_YUV10_BYTE_UNIT * start_title_num;
+				DCAM_REG_WR(idx, DCAM_FBC_RAW_SLICE_OFFSET, addr_offset);
+
+				reg_addr = DCAM_REG_RD(idx, DCAM_FBC_RAW_SLCIE_LOWBIT_ADDR);
+				addr = reg_addr + (cur_slice->start_x - slicearg->relative_offset ) / 2;
+				DCAM_REG_WR(idx, DCAM_FBC_RAW_SLCIE_LOWBIT_ADDR, addr);
+			}
+			/* cfg raw path */
+			DCAM_REG_MWR(idx, DCAM_RAW_PATH_SIZE, 0xFFFF, cur_slice->size_x & 0xffff);
+			DCAM_REG_MWR(idx, DCAM_RAW_PATH_CFG, BIT_1, BIT_1);
+			DCAM_REG_WR(idx, DCAM_RAW_PATH_CROP_START, DCAM_OVERLAP & 0x3fff);
+			DCAM_REG_WR(idx, DCAM_RAW_PATH_CROP_SIZE, (cur_slice->size_y << 16) | (cur_slice->size_x & 0x3fff));
+
+			reg_val = DCAM_REG_RD(idx, DCAM_RAW_PATH_BASE_WADDR);
+			DCAM_REG_WR(idx, DCAM_RAW_PATH_BASE_WADDR, reg_val + (cur_slice->start_x - slicearg->relative_offset ) * bfp[0] / 4);
+
+			DCAM_REG_WR(idx, DCAM_YUV444TO420_IMAGE_WIDTH, cur_slice->size_x + DCAM_OVERLAP * 2);
+			DCAM_REG_MWR(idx, DCAM_YUV444TOYUV420_PARAM, BIT_0, 0);
+			slicearg->relative_offset = cur_slice->start_x;
 		}
 	}
 

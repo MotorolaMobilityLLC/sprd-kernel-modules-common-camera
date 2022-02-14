@@ -17,7 +17,7 @@
 #include "isp_interface.h"
 #include "alg_isp_overlap.h"
 
-#define ALG_REGIONS_NUM               4
+#define ALG_REGIONS_NUM               5
 #define DEC_OVERLAP                   4
 #define REC_OVERLAP                   2
 #define AFBC_PADDING_W_YUV420_scaler  32

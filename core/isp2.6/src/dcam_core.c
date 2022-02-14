@@ -967,6 +967,7 @@ int dcam_core_offline_slices_sw_start(void *param)
 	slicearg.slice_trim = sw_pctx->slice_trim;
 	slicearg.dcam_slice_mode = sw_pctx->dcam_slice_mode;
 	slicearg.slice_count = sw_pctx->slice_count;
+	slicearg.slice_num = sw_pctx->slice_num;
 
 	hw->dcam_ioctl(hw, DCAM_HW_CFG_SLICE_FETCH_SET, &slicearg);
 
@@ -2075,6 +2076,17 @@ static int dcamcore_dev_start(void *dcam_handle, int online)
 	if (pctx->slowmotion_count && pctx->fmcu)
 		ret = dcam_path_fmcu_slw_queue_set(pctx);
 
+	if (pctx->slowmotion_count && pctx->fmcu) {
+		pctx->fmcu->ops->hw_start(pctx->fmcu);
+	} else {
+		parm.idx = pctx->hw_ctx_id;
+		parm.format = pctx->cap_info.format;
+		parm.raw_callback = pctx->raw_callback;
+		parm.dcam_sw_context = pctx;
+		pr_debug("idx %d  format %d raw_callback %d x %d\n", parm.idx, parm.format, parm.raw_callback, pctx->cap_info.cap_size.size_x);
+		hw->dcam_ioctl(hw, DCAM_HW_CFG_START, &parm);
+	}
+
 	/* DCAM_CTRL_COEF will always set in dcam_init_lsc() */
 	copyarg.id = force_ids;
 	copyarg.idx = pctx->hw_ctx_id;
@@ -2093,15 +2105,6 @@ static int dcamcore_dev_start(void *dcam_handle, int online)
 	atomic_set(&pctx->state, STATE_RUNNING);
 
 	dcam_int_tracker_reset(pctx->hw_ctx_id);
-	if (pctx->slowmotion_count && pctx->fmcu) {
-		pctx->fmcu->ops->hw_start(pctx->fmcu);
-	} else {
-		parm.idx = pctx->hw_ctx_id;
-		parm.format = pctx->cap_info.format;
-		parm.raw_callback = pctx->raw_callback;
-		pr_debug("idx %d  format %d raw_callback %d\n", parm.idx, parm.format, parm.raw_callback);
-		hw->dcam_ioctl(hw, DCAM_HW_CFG_START, &parm);
-	}
 
 	if (pctx->is_4in1 == 0) {
 		sramarg.sram_ctrl_en = 1;
