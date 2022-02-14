@@ -109,9 +109,9 @@ static inline uint32_t dcam_if_cal_pyramid_size(uint32_t w, uint32_t h,
 		pitch = w / align;
 		if (out_bits != DCAM_STORE_8_BIT) {
 			if(is_pack)
-				pitch = (pitch * 10 + 127) / 128 * 128 / 8;
+				pitch = (pitch * 10 + 31) / 32 * 32 / 8;
 			else
-				pitch = (pitch * 16 + 127) / 128 * 128 / 8;
+				pitch = (pitch * 16 + 31) / 32 * 32 / 8;
 		}
 		size = size + pitch * (h / align) * 3 / 2;
 		align = align * 2;

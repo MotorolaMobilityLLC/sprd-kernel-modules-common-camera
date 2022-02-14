@@ -31,11 +31,11 @@ static uint32_t isppyrdec_cal_pitch(uint32_t w, uint32_t format)
 	switch (format) {
 	case ISP_FETCH_YUV420_2FRAME_MIPI:
 	case ISP_FETCH_YVU420_2FRAME_MIPI:
-		pitch = (w * 10 + 127) / 128 * 128 / 8;
+		pitch = (w * 10 + 31) / 32 * 32 / 8;
 		break;
 	case ISP_FETCH_YVU420_2FRAME_10:
 	case ISP_FETCH_YUV420_2FRAME_10:
-		pitch = (w * 16 + 127) / 128 * 128 / 8;
+		pitch = (w * 16 + 31) / 32 * 32 / 8;
 		break;
 	default:
 		pitch =w;

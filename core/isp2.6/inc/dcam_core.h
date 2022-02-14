@@ -351,9 +351,9 @@ static inline uint32_t cal_sprd_yuv_pitch(uint32_t w, uint32_t dcam_out_bits, ui
 {
 	if (dcam_out_bits != DCAM_STORE_8_BIT) {
 		if(is_pack)
-			w = (w * 10 + 127) / 128 * 128 / 8;
+			w = (w * 10 + 31) / 32 * 32 / 8;
 		else
-			w = (w * 16 + 127) / 128 * 128 / 8;
+			w = (w * 16 + 31) / 32 * 32 / 8;
 	}
 
 	return w;
