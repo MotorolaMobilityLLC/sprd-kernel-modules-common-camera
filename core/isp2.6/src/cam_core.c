@@ -7054,7 +7054,7 @@ next:
 	}
 
 	if (update_pv || update_c) {
-		if (ch_cap->enable && (ch_cap->mode_ltm == MODE_LTM_CAP))
+		if (ch_cap->enable && (ch_cap->mode_ltm == MODE_LTM_CAP) && (!module->cam_uinfo.is_dual))
 			update_always = 1;
 
 		if (module->zoom_solution == ZOOM_DEFAULT)
