@@ -1037,7 +1037,7 @@ int dcam_path_store_frm_set(void *dcam_ctx_handle,
 	struct camera_frame *frame = NULL, *saved = NULL;
 	struct dcam_hw_fbc_addr fbcadr;
 	uint32_t idx = 0, path_id = 0;
-	unsigned long addr = 0;
+	unsigned long addr = 0, flags = 0;
 	const int _bin = 0, _aem = 1, _hist = 2;
 	int i = 0, ret = 0;
 	uint32_t slm_path = 0;
@@ -1174,10 +1174,12 @@ int dcam_path_store_frm_set(void *dcam_ctx_handle,
 	/* bind frame sync data if it is not reserved buffer and not raw */
 	if (helper && !frame->is_reserved && is_sync_enabled(dcam_sw_ctx, path_id)
 		&& !(path_id == DCAM_PATH_FULL && path->src_sel == 0)) {
+		spin_lock_irqsave(&dcam_sw_ctx->helper_lock, flags);
 		helper->enabled |= BIT(path_id);
 		helper->helper_put_enable = 1;
 		helper->sync.frames[path_id] = frame;
 		frame->sync_data = &helper->sync;
+		spin_unlock_irqrestore(&dcam_sw_ctx->helper_lock, flags);
 	}
 
 	if (!frame->is_reserved || path_id == DCAM_PATH_FULL)

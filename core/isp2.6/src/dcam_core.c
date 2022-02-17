@@ -1183,17 +1183,13 @@ exit:
 void dcam_core_sync_helper_put(void *dev,
 		struct dcam_sync_helper *helper)
 {
-	unsigned long flags = 0;
 	struct dcam_sw_context *pctx = (struct dcam_sw_context *)dev;
 
 	if (unlikely(!pctx)) {
 		pr_err("fail to get valid param.\n");
 		return;
 	}
-
-	spin_lock_irqsave(&pctx->helper_lock, flags);
 	dcamcore_sync_helper_locked_put(pctx, helper);
-	spin_unlock_irqrestore(&pctx->helper_lock, flags);
 }
 
 static int dcamcore_gtm_ltm_bypass_cfg(struct dcam_sw_context *sw_pctx, struct isp_io_param *io_param)
