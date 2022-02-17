@@ -3223,7 +3223,7 @@ static int ispslice_gtm_info_cfg(struct isp_gtm_ctx_desc *gtm_ctx,
 		struct isp_slice_context *slc_ctx)
 {
 	int i = 0;
-	uint32_t overlap_left = 0;
+	uint32_t overlap_left = 0, overlap_right = 0;
 	struct isp_slice_desc *cur_slc =NULL;
 
 	if (!gtm_ctx || !slc_ctx) {
@@ -3260,12 +3260,13 @@ static int ispslice_gtm_info_cfg(struct isp_gtm_ctx_desc *gtm_ctx,
 
 		cur_slc->slice_gtm.gtm_cur_is_first_frame = (gtm_ctx->calc_mode == GTM_SW_CALC) ? 1 : 0;
 		cur_slc->slice_gtm.gtm_tm_luma_est_mode = gtm_ctx->gtm_tm_luma_est_mode;
-		cur_slc->slice_gtm.gtm_tm_in_bit_depth = 10;
-		cur_slc->slice_gtm.gtm_tm_out_bit_depth = 10;
+		cur_slc->slice_gtm.gtm_tm_in_bit_depth = 14;
+		cur_slc->slice_gtm.gtm_tm_out_bit_depth = 14;
 
 		overlap_left = cur_slc->slice_overlap.overlap_left;
+		overlap_right = cur_slc->slice_overlap.overlap_right;
 		cur_slc->slice_gtm.line_startpos = overlap_left;
-		cur_slc->slice_gtm.line_endpos = overlap_left + cur_slc->slice_fetch.size.w;
+		cur_slc->slice_gtm.line_endpos = cur_slc->slice_fetch.size.w - overlap_right;
 	}
 
 	return 0;

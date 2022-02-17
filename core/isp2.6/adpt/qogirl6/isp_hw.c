@@ -1936,7 +1936,7 @@ int isphw_gtm_slice_set(void *handle)
 	}
 
 	val = ISP_REG_RD(gtm->idx, ISP_GTM_GLB_CTRL);
-	if ((val & BIT_2) == 0)
+	if (val & BIT_2)
 		return 0;
 
 	addr = ISP_GET_REG(ISP_GTM_GLB_CTRL);

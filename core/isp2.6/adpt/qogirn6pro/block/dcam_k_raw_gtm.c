@@ -33,15 +33,15 @@ void dcam_k_raw_gtm_set_default(struct dcam_dev_rgb_gtm_block_info *p)
 	p->gtm_tm_out_bit_depth = 0xE;
 	p->gtm_tm_in_bit_depth = 0xE;
 	p->gtm_cur_is_first_frame = 0x0;
-	p->gtm_log_diff = 0xd8ce;
-	p->gtm_log_diff_int = 0x25C9;
+	p->gtm_log_diff = 0x6D801;
+	p->gtm_log_diff_int = 0x4AD;
 	p->gtm_log_max_int = 0x0;
-	p->gtm_log_min_int = 0x496B;
-	p->gtm_lr_int = 0x23F;
+	p->gtm_log_min_int = 0x7800;
+	p->gtm_lr_int = 0x7FFF;
 	p->gtm_tm_param_calc_by_hw = 0x1;
-	p->gtm_yavg = 0x0;
-	p->gtm_ymax = 0x0;
-	p->gtm_ymin = 0x4;
+	p->gtm_yavg = 0xA9E;
+	p->gtm_ymax = 0x3FFF;
+	p->gtm_ymin = 0x2;
 	p->tm_lumafilter_shift = 0x6;
 	p->slice.gtm_slice_line_startpos = 0x0;
 	p->slice.gtm_slice_line_endpos = 0x0;
@@ -90,11 +90,6 @@ int dcam_k_raw_gtm_block(uint32_t gtm_param_idx,
 	pr_debug("dcam%d gtm_param_idx %d update_en %d map_bypass %d stat_bypass %d\n",
 		idx, gtm_param_idx, gtm->update_en, p->bypass_info.gtm_map_bypass, p->bypass_info.gtm_hist_stat_bypass);
 
-	if (!gtm->update_en)
-		p->bypass_info.gtm_map_bypass = 0;
-	else
-		p->bypass_info.gtm_map_bypass = 1;
-
 	if (g_dcam_bypass[idx] & (1 << _E_GTM)) {
 		p->bypass_info.gtm_map_bypass = 1;
 		p->bypass_info.gtm_hist_stat_bypass = 1;
@@ -117,6 +112,11 @@ int dcam_k_raw_gtm_block(uint32_t gtm_param_idx,
 		((p->gtm_cur_is_first_frame & 0x1) << 4) |
 		((p->gtm_rgb2y_mode & 0x1) << 5);
 	DCAM_REG_MWR(idx, DCAM_GTM_GLB_CTRL, 0x3F, val);
+
+	if (gtm->gtm_calc_mode == GTM_SW_CALC)
+		DCAM_REG_MWR(idx, DCAM_GTM_GLB_CTRL, BIT_2, BIT_2);
+	else
+		DCAM_REG_MWR(idx, DCAM_GTM_GLB_CTRL, BIT_2, 0);
 
 	val = (p->gtm_imgkey_setting_mode & 0x1) | ((p->gtm_imgkey_setting_value & 0x7FFF) << 4);
 	DCAM_REG_MWR(idx, GTM_HIST_CTRL0, 0x7FFF1, val);
