@@ -2500,6 +2500,7 @@ static int camcore_dump_config(void *priv_data, void *param)
 	struct dcam_sw_context *dcam_sw_aux_ctx = NULL;
 	uint32_t start_layer = 0;
 	uint32_t pdaf_type = 0;
+	uint32_t dcam_path_id = 0;
 
 	if (!priv_data || !param) {
 		pr_err("fail to get valid param %p\n", priv_data);
@@ -2513,12 +2514,13 @@ static int camcore_dump_config(void *priv_data, void *param)
 	dcam_sw_ctx = &module->dcam_dev_handle->sw_ctx[module->cur_sw_ctx_id];
 	dcam_sw_aux_ctx = &module->dcam_dev_handle->sw_ctx[module->offline_cxt_id];
 	pdaf_type = dcam_sw_ctx->ctx[dcam_sw_ctx->cur_ctx_id].blk_pm.pdaf.pdaf_type;
+	dcam_path_id = module->dcam_dev_handle->hw->ip_dcam[DCAM_HW_CONTEXT_1]->aux_dcam_path;
 
 	if (g_dbg_dump.dump_en == DUMP_ISP_PYR_REC)
 		start_layer = 1;
 	if (dump_base->dump_cfg != NULL){
 		if (g_dbg_dump.dump_en == DUMP_DCAM_OFFLINE)
-			dump_base->dump_cfg(dump_base, DUMP_CFG_OUT_FMT, &dcam_sw_aux_ctx->path[channel->aux_dcam_path_id].out_fmt);
+			dump_base->dump_cfg(dump_base, DUMP_CFG_OUT_FMT, &dcam_sw_aux_ctx->path[dcam_path_id].out_fmt);
 		else
 			dump_base->dump_cfg(dump_base, DUMP_CFG_OUT_FMT, &channel->dcam_out_fmt);
 		dump_base->dump_cfg(dump_base, DUMP_CFG_IS_PACK, &channel->ch_uinfo.dcam_out_pack);
@@ -2619,6 +2621,11 @@ static int camcore_isp_callback(enum isp_cb_type type, void *param, void *priv_d
 			/* for case raw capture post-proccessing
 			 * just release it, no need to return
 			 */
+			if (g_dbg_dump.dump_en == DUMP_DCAM_OFFLINE && module->dump_base.dump_enqueue != NULL) {
+				ret = module->dump_base.dump_enqueue(&module->dump_base, pframe);
+				if (ret == 0)
+					return 0;
+			}
 			if (pframe->buf.type == CAM_BUF_USER)
 				cam_buf_ionbuf_put(&pframe->buf);
 			else
@@ -2644,7 +2651,8 @@ static int camcore_isp_callback(enum isp_cb_type type, void *param, void *priv_d
 					camdump_stop(&module->dump_base);
 			}
 			if (((g_dbg_dump.dump_en > DUMP_DISABLE && g_dbg_dump.dump_en <= DUMP_ISP_PYR_REC) || g_dbg_dump.dump_en == DUMP_PATH_RAW_BIN
-				|| g_dbg_dump.dump_en == DUMP_DCAM_OFFLINE) && module->dump_base.dump_enqueue != NULL) {
+				|| (g_dbg_dump.dump_en == DUMP_DCAM_OFFLINE && channel->ch_id == CAM_CH_CAP))
+				&& module->dump_base.dump_enqueue != NULL) {
 				if (g_dbg_dump.dump_en == DUMP_ISP_PYR_REC && channel->pyr_rec_buf != NULL) {
 					channel->pyr_rec_buf->fid = pframe->fid;
 					channel->pyr_rec_buf->width = pframe->width;
@@ -5889,6 +5897,11 @@ static int camcore_dumpraw_proc(void *param)
 						module->cam_uinfo.slice_count = 0;
 					else
 						camcore_frame_start_proc(module, pframe);
+					continue;
+				}
+				if (dbg->dump_en == DUMP_DCAM_OFFLINE && module->cap_status == CAM_CAPTURE_RAWPROC) {
+					cam_buf_free(&pframe->buf);
+					cam_queue_empty_frame_put(pframe);
 					continue;
 				}
 				/* return it to dcam output queue */
