@@ -537,12 +537,44 @@ static int sprd_sensor_io_power_cfg(struct sprd_sensor_file_tag *p_file,
 	return ret;
 }
 
+static int sprd_sensor_io_set_private_key(struct sprd_sensor_file_tag *p_file,
+					unsigned long arg)
+{
+	int ret = 0;
+	unsigned int private_key;
+
+	ret = copy_from_user(&private_key, (unsigned int *)arg, sizeof(unsigned int));
+	if(ret) {
+		pr_info("copy private_key from user failed.\n");
+		return ret;
+	}
+
+	if(private_key == SENSOR_IOC_PRIVATE_KEY) {
+		p_file->private_key = 1;
+		pr_info("sensor set private key successfully\n");
+        } else {
+        	pr_info("sensor set private key faild\n");
+        	return 1;
+        }
+	return ret;
+}
+
 static long sprd_sensor_file_ioctl(struct file *file, unsigned int cmd,
 				   unsigned long arg)
 {
 	int ret = 0;
 	struct sprd_sensor_core_module_tag *p_mod;
 	struct sprd_sensor_file_tag *p_file = file->private_data;
+
+	if(cmd == SENSOR_IO_PRI_KEY) {
+		ret = sprd_sensor_io_set_private_key(p_file, arg);
+          	return ret;
+	}
+  
+	if(p_file->private_key != 1) {
+		pr_info("sensor match private key failed, permission deny!\n");
+		return ret;
+	}
 
 	p_mod = p_file->mod_data;
 	if (cmd == SENSOR_IO_SET_ID) {
@@ -553,6 +585,7 @@ static long sprd_sensor_file_ioctl(struct file *file, unsigned int cmd,
 
 		mutex_unlock(&p_mod->sensor_id_lock);
 	}
+
 
 	sprd_sensor_sync_lock(p_file->sensor_id);
 	switch (cmd) {
@@ -677,6 +710,8 @@ static int sprd_sensor_file_open(struct inode *node, struct file *file)
 /*		wake_lock(&p_mod->wakelock);*/
 
 	}
+	p_file->sensor_id = SPRD_SENSOR_ID_INIT;
+	p_file->private_key = 0;
 	p_file->md = md;
 	file->private_data = p_file;
 	p_file->mod_data = p_mod;
@@ -747,6 +782,7 @@ static int sprd_sensor_file_release(struct inode *node, struct file *file)
 /*		wake_unlock(&p_mod->wakelock);*/
 
 	}
+	p_file->private_key = 0;
 	kfree(p_file);
 	p_file = NULL;
 	file->private_data = NULL;

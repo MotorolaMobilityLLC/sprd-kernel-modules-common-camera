@@ -35,6 +35,8 @@
 #define SPRD_SENSOR_VDD_3300MV_VAL	3300000
 #define SPRD_SENSOR_VDD_3800MV_VAL	3800000
 
+#define SPRD_SENSOR_ID_INIT 0xFFFF
+
 enum sprd_sensor_vdd_e {
 	SPRD_SENSOR_VDD_3800MV = 0,
 	SPRD_SENSOR_VDD_3300MV,
@@ -121,6 +123,7 @@ struct sprd_sensor_file_tag {
 	struct sprd_sensor_core_module_tag *mod_data;
 	enum SPRD_SENSOR_ID_E sensor_id;
 	enum SPRD_SENSOR_MIPI_STATE_E mipi_state;
+	unsigned int private_key;
 };
 
 int sprd_sensor_malloc(struct sprd_sensor_mem_tag *mem_ptr, unsigned int size);
