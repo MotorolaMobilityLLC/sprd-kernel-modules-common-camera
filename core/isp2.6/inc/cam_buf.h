@@ -60,6 +60,8 @@ struct camera_buf {
 	uint32_t mapping_state;
 	uint32_t sharebuf_flag;
 	uint32_t sharebuf_map_cnt;
+	struct dma_buf_attachment *attachment[3];
+	struct sg_table *table[3];
 };
 
 int cam_buf_iommudev_reg(struct device *dev,
