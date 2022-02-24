@@ -6662,9 +6662,9 @@ static int camcore_raw_post_proc(struct camera_module *module,
 	mid_frame->boot_sensor_time = src_frame->boot_sensor_time;
 
 	if (dev->hw->ip_dcam[0]->dcam_raw_path_id == DCAM_PATH_RAW) {
-		width = proc_info->src_size.width;
+		width = cal_sprd_yuv_pitch(proc_info->src_size.width, 10 , 1);
 		height = proc_info->src_size.height;
-		size = width * height * 15 / 8;
+		size = width * height * 3 / 2;
 		size = ALIGN(size, CAM_BUF_ALIGN_SIZE);
 		mid_yuv_frame = cam_queue_empty_frame_get();
 		memcpy(mid_yuv_frame, mid_frame, sizeof(struct camera_frame));
