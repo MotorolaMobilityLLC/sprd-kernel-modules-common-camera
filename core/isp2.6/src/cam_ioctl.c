@@ -3814,14 +3814,13 @@ static int camioctl_key_set(struct camera_module *module, unsigned long arg)
 	int ret = 0;
 	uint32_t param = 0;
 	ret = copy_from_user(&param, (void __user *)arg, sizeof(uint32_t));
-        if (unlikely(ret)) {
-             pr_err("fail to copy from user, ret %d\n", ret);
-             return -EFAULT;
-        }
+	if (unlikely(ret)) {
+		pr_err("fail to copy from user, ret %d\n", ret);
+		return -EFAULT;
+	}
 	if (param == CAM_IOCTL_PRIVATE_KEY)
 		module->private_key = 1;
-
-	pr_info("cam%d get ioctrl permission %d\n", module->idx, module->private_key);
+	pr_info("cam%d get ioctl permission %d\n", module->idx, module->private_key);
 	return 0;
 }
 
