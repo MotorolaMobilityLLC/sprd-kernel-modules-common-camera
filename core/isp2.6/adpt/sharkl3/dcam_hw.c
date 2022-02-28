@@ -30,6 +30,7 @@
 #define DCAM_BLC_BYPASS_CTRL           DCAM_MIPI_CAP_CFG
 
 static atomic_t clk_users;
+static int dcamhw_force_copy(void *handle, void *arg);
 
 static int dcamhw_clk_eb(void *handle, void *arg)
 {
@@ -191,6 +192,9 @@ static int dcamhw_start(void *handle, void *arg)
 {
 	int ret = 0;
 	struct dcam_hw_start *parm = NULL;
+	struct dcam_sw_context *sw_ctx = NULL;
+	struct dcam_hw_force_copy copyarg;
+	uint32_t force_ids = DCAM_CTRL_ALL;
 	uint32_t reg_val = 0;
 	uint32_t image_vc = 0;
 	uint32_t image_data_type = IMG_TYPE_RAW10;
@@ -203,6 +207,7 @@ static int dcamhw_start(void *handle, void *arg)
 	}
 
 	parm = (struct dcam_hw_start *)arg;
+	sw_ctx = parm->dcam_sw_context;
 
 	if (parm->format == DCAM_CAP_MODE_YUV)
 		image_data_type = IMG_TYPE_YUV;
@@ -229,6 +234,11 @@ static int dcamhw_start(void *handle, void *arg)
 	else
 		line_en = DCAM2INT_IRQ_LINE_EN_NORMAL;
 	DCAM_REG_WR(parm->idx, DCAM_INT_EN, line_en);
+
+	copyarg.id = force_ids;
+	copyarg.idx = sw_ctx->hw_ctx_id;
+	copyarg.glb_reg_lock = sw_ctx->glb_reg_lock;
+	dcamhw_force_copy(handle, &copyarg);
 	/* trigger cap_en*/
 	DCAM_REG_MWR(parm->idx, DCAM_CFG, BIT_0, 1);
 

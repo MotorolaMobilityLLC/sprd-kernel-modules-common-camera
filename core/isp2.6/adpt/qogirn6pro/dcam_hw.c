@@ -38,6 +38,7 @@ static uint32_t g_gtm_bypass = 1;
 static uint32_t g_ltm_bypass = 1;
 static atomic_t clk_users;
 extern contr_cap_eof;
+static int dcamhw_force_copy(void *handle, void *arg);
 static uint32_t dcam_fbc_store_base[DCAM_FBC_PATH_NUM] = {
 	DCAM_YUV_FBC_SCAL_BASE,
 	/* full path share fbc with raw path*/
@@ -402,6 +403,8 @@ static int dcamhw_start(void *handle, void *arg)
 	int ret = 0;
 	struct dcam_hw_start *parm = NULL;
 	struct dcam_sw_context *sw_ctx = NULL;
+	struct dcam_hw_force_copy copyarg;
+	uint32_t force_ids = DCAM_CTRL_ALL;
 
 	if (!arg) {
 		pr_err("fail to get valid arg\n");
@@ -426,6 +429,10 @@ static int dcamhw_start(void *handle, void *arg)
 	else
 		DCAM_REG_MWR(parm->idx, DCAM_INT0_EN, BIT_3, BIT_3);
 
+	copyarg.id = force_ids;
+	copyarg.idx = sw_ctx->hw_ctx_id;
+	copyarg.glb_reg_lock = sw_ctx->glb_reg_lock;
+	dcamhw_force_copy(handle, &copyarg);
 	/* trigger cap_en*/
 	DCAM_REG_MWR(parm->idx, DCAM_MIPI_CAP_CFG, BIT_0, 1);
 

@@ -1880,7 +1880,6 @@ static int dcamcore_dev_start(void *dcam_handle, int online)
 {
 	int ret = 0;
 	int i = 0;
-	uint32_t force_ids = DCAM_CTRL_ALL;
 	struct dcam_sw_context *pctx = NULL;
 	struct dcam_dev_param *pm = NULL;
 	struct dcam_sync_helper *helper = NULL;
@@ -1889,7 +1888,6 @@ static int dcamcore_dev_start(void *dcam_handle, int online)
 	struct cam_hw_reg_trace trace;
 	struct dcam_hw_path_ctrl pause;
 	struct dcam_hw_start parm;
-	struct dcam_hw_force_copy copyarg;
 	struct dcam_hw_mipi_cap caparg;
 	struct dcam_hw_path_start patharg;
 	struct dcam_hw_sram_ctrl sramarg;
@@ -2072,23 +2070,6 @@ static int dcamcore_dev_start(void *dcam_handle, int online)
 	if (pctx->slowmotion_count && pctx->fmcu)
 		ret = dcam_path_fmcu_slw_queue_set(pctx);
 
-	if (pctx->slowmotion_count && pctx->fmcu) {
-		pctx->fmcu->ops->hw_start(pctx->fmcu);
-	} else {
-		parm.idx = pctx->hw_ctx_id;
-		parm.format = pctx->cap_info.format;
-		parm.raw_callback = pctx->raw_callback;
-		parm.dcam_sw_context = pctx;
-		pr_debug("idx %d  format %d raw_callback %d x %d\n", parm.idx, parm.format, parm.raw_callback, pctx->cap_info.cap_size.size_x);
-		hw->dcam_ioctl(hw, DCAM_HW_CFG_START, &parm);
-	}
-
-	/* DCAM_CTRL_COEF will always set in dcam_init_lsc() */
-	copyarg.id = force_ids;
-	copyarg.idx = pctx->hw_ctx_id;
-	copyarg.glb_reg_lock = pctx->glb_reg_lock;
-	hw->dcam_ioctl(hw, DCAM_HW_CFG_FORCE_COPY, &copyarg);
-
 	if (helper) {
 		if (helper->enabled)
 			helper->sync.index = pctx->base_fid + pctx->index_to_set;
@@ -2101,6 +2082,17 @@ static int dcamcore_dev_start(void *dcam_handle, int online)
 	atomic_set(&pctx->state, STATE_RUNNING);
 
 	dcam_int_tracker_reset(pctx->hw_ctx_id);
+
+	if (pctx->slowmotion_count && pctx->fmcu) {
+		pctx->fmcu->ops->hw_start(pctx->fmcu);
+	} else {
+		parm.idx = pctx->hw_ctx_id;
+		parm.format = pctx->cap_info.format;
+		parm.raw_callback = pctx->raw_callback;
+		parm.dcam_sw_context = pctx;
+		pr_debug("idx %d  format %d raw_callback %d x %d\n", parm.idx, parm.format, parm.raw_callback, pctx->cap_info.cap_size.size_x);
+		hw->dcam_ioctl(hw, DCAM_HW_CFG_START, &parm);
+	}
 
 	if (pctx->is_4in1 == 0) {
 		sramarg.sram_ctrl_en = 1;
