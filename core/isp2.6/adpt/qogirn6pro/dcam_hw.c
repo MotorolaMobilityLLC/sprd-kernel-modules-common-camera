@@ -618,6 +618,7 @@ void dcamhw_bypass_all(enum dcam_id idx)
 	DCAM_REG_MWR(idx, DCAM_VCH3_CONTROL, BIT_0, 0);
 	DCAM_REG_MWR(idx, DCAM_FBC_RAW_PARAM, BIT_0, 1);
 	DCAM_REG_MWR(idx, DCAM_YUV_FBC_SCAL_PARAM, BIT_0, 1);
+	DCAM_REG_MWR(idx, DCAM_BUF_CTRL, BIT_0 | BIT_1 | BIT_2 | BIT_3 | BIT_4 | BIT_5, 0x3F);
 }
 
 static int dcamhw_reset(void *handle, void *arg)
@@ -1434,6 +1435,8 @@ static int dcamhw_path_size_update(void *handle, void *arg)
 		DCAM_REG_MWR(idx, DCAM_SCL0_CFG, BIT_6, 0 << 6);
 		DCAM_REG_MWR(idx, DCAM_SCL0_CFG, BIT_9, 0 << 9);
 		DCAM_REG_MWR(idx, DCAM_SCL0_CFG, BIT_0, 0);
+		/* PINGPONG BUF CONTROL  SW MODE*/
+		DCAM_REG_MWR(idx, DCAM_BUF_CTRL, BIT_3, BIT_3);
 
 		pr_debug("scaler_sel %d\n", sizearg->scaler_sel);
 		if (sizearg->scaler_sel == DCAM_SCALER_BYPASS) {
@@ -1472,8 +1475,6 @@ static int dcamhw_path_size_update(void *handle, void *arg)
 
 			dcamhw_path_scaler_coeff_set(idx, sizearg->scaler_info->coeff_buf);
 
-			/* PINGPONG BUF CONTROL  SW MODE*/
-			DCAM_REG_MWR(idx, DCAM_BUF_CTRL, BIT_3, BIT_3);
 			reg_val = DCAM_REG_RD(idx, DCAM_BUF_CTRL);
 			reg_val = reg_val & BIT_19;
 			DCAM_REG_MWR(idx, DCAM_BUF_CTRL, BIT_19, ~reg_val);

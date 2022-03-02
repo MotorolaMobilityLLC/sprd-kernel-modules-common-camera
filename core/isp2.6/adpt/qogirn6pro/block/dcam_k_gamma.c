@@ -45,12 +45,11 @@ int dcam_k_gamma_block(struct dcam_dev_param *param)
 	if (g_dcam_bypass[idx] & (1 << _E_GAMM))
 		p->bypass = 1;
 
+	/* only cfg mode and buf0 is selected. */
+	DCAM_REG_MWR(idx, DCAM_BUF_CTRL, BIT_4, BIT_4);
 	DCAM_REG_MWR(idx, DCAM_FGAMMA10_PARAM, BIT_0, p->bypass);
 	if (p->bypass)
 		return 0;
-
-	/* only cfg mode and buf0 is selected. */
-	DCAM_REG_MWR(idx, DCAM_BUF_CTRL, BIT_4, BIT_4);
 
 	DCAM_REG_MWR(idx, DCAM_BUF_CTRL, 0x300, 0 << 8);
 	for (i = 0; i < ISP_FRGB_GAMMA_PT_NUM_V1 - 1; i++) {

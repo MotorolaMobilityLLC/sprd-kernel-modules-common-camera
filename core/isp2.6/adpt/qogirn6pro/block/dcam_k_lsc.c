@@ -120,6 +120,8 @@ int dcam_init_lsc(void *in, uint32_t online)
 	copyarg.id = DCAM_CTRL_COEF;
 	copyarg.idx = idx;
 	copyarg.glb_reg_lock = dcam_sw_ctx->glb_reg_lock;
+
+	DCAM_REG_MWR(idx, DCAM_BUF_CTRL, BIT_0, BIT_0);
 	/* debugfs bypass, not return, need force copy */
 	if (g_dcam_bypass[idx] & (1 << _E_LSC))
 		info->bypass = 1;
@@ -215,7 +217,6 @@ int dcam_init_lsc(void *in, uint32_t online)
 	/* lens_load_buf_sel toggle */
 	val = DCAM_REG_RD(idx, DCAM_BUF_CTRL);
 	buf_sel = !(val & BIT_16);
-	DCAM_REG_MWR(idx, DCAM_BUF_CTRL, BIT_0, BIT_0);
 	DCAM_REG_MWR(idx, DCAM_BUF_CTRL, BIT_16, buf_sel << 16);
 	pr_debug("buf_sel %d\n", buf_sel);
 
