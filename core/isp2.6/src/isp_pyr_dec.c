@@ -621,16 +621,17 @@ static int isppyrdec_calc_base_info(struct isp_dec_pipe_dev *dev)
 		cur_ovlap->slice_num = slice_cols * slice_rows;
 		dec_slice_num[i] = cur_ovlap->slice_num;
 		ISP_DEC_DEBUG("layer %d num %d\n", i, cur_ovlap->slice_num);
-		for (j = 0; j < cur_ovlap->slice_num; j++) {
-			cur_ovlap->slice_fetch_region[j].start_col = dec_ovlap.fecth_dec_region[i][j].sx;
-			cur_ovlap->slice_fetch_region[j].start_row = dec_ovlap.fecth_dec_region[i][j].sy;
-			cur_ovlap->slice_fetch_region[j].end_col = dec_ovlap.fecth_dec_region[i][j].ex;
-			cur_ovlap->slice_fetch_region[j].end_row = dec_ovlap.fecth_dec_region[i][j].ey;
-			ISP_DEC_DEBUG("fetch sx %d sy %d ex %d ey %d\n", cur_ovlap->slice_fetch_region[j].start_col,
-				cur_ovlap->slice_fetch_region[j].start_row, cur_ovlap->slice_fetch_region[j].end_col,
-				cur_ovlap->slice_fetch_region[j].end_row);
+		if (i < dev->layer_num) {
+			for (j = 0; j < cur_ovlap->slice_num; j++) {
+				cur_ovlap->slice_fetch_region[j].start_col = dec_ovlap.fecth_dec_region[i][j].sx;
+				cur_ovlap->slice_fetch_region[j].start_row = dec_ovlap.fecth_dec_region[i][j].sy;
+				cur_ovlap->slice_fetch_region[j].end_col = dec_ovlap.fecth_dec_region[i][j].ex;
+				cur_ovlap->slice_fetch_region[j].end_row = dec_ovlap.fecth_dec_region[i][j].ey;
+				ISP_DEC_DEBUG("fetch sx %d sy %d ex %d ey %d\n", cur_ovlap->slice_fetch_region[j].start_col,
+					cur_ovlap->slice_fetch_region[j].start_row, cur_ovlap->slice_fetch_region[j].end_col,
+					cur_ovlap->slice_fetch_region[j].end_row);
+			}
 		}
-
 		if (i == 0)
 			slice_num = dec_slice_num[i];
 		else
@@ -876,8 +877,9 @@ static int isppyrdec_offline_frame_start(void *handle)
 		}
 		ISP_DEC_DEBUG("isp %d layer%d size %d %d\n", ctx_id, i,
 			dec_dev->dec_layer_size[i].w, dec_dev->dec_layer_size[i].h);
-		ISP_DEC_DEBUG("layer %d fetch addr %x %x\n", i,
-			dec_dev->fetch_addr[i].addr_ch0, dec_dev->fetch_addr[i].addr_ch1);
+		if (i < layer_num)
+			ISP_DEC_DEBUG("layer %d fetch addr %x %x\n", i,
+				dec_dev->fetch_addr[i].addr_ch0, dec_dev->fetch_addr[i].addr_ch1);
 		ISP_DEC_DEBUG("layer %d store addr %x %x\n", i,
 			dec_dev->store_addr[i].addr_ch0, dec_dev->store_addr[i].addr_ch1);
 	}

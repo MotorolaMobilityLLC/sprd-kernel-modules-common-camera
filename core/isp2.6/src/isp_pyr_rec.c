@@ -132,11 +132,12 @@ static int isppyrrec_ref_fetch_get(struct isp_rec_ctx_desc *ctx, uint32_t idx)
 	ref_fetch = &ctx->ref_fetch;
 	ref_fetch->bypass = 0;
 	ref_fetch->color_format = ctx->pyr_fmt;
-	ref_fetch->addr[0] = ctx->store_addr[idx].addr_ch0;
-	ref_fetch->addr[1] = ctx->store_addr[idx].addr_ch1;
 	if (idx == ctx->layer_num) {
 		ref_fetch->addr[0] = ctx->fetch_addr[idx].addr_ch0;
 		ref_fetch->addr[1] = ctx->fetch_addr[idx].addr_ch1;
+	} else {
+		ref_fetch->addr[0] = ctx->store_addr[idx].addr_ch0;
+		ref_fetch->addr[1] = ctx->store_addr[idx].addr_ch1;
 	}
 	ref_fetch->width = ctx->pyr_layer_size[idx].w;
 	ref_fetch->height = ctx->pyr_layer_size[idx].h;
