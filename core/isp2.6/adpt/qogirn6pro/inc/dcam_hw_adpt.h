@@ -39,9 +39,6 @@
 #define DCAM_SCALER_MAX_WIDTH          3840
 #define DCAM_FRAME_TIMESTAMP_COUNT     0x100
 
-#define DCAM_FBC_4K_WIDTH              3840
-#define DCAM_FBC_4K_HEIGHT             2160
-
 /*Total lbuf DCAM0+DCAM1: 5184+5184 */
 #define DCAM_TOTAL_LBUF                10368
 

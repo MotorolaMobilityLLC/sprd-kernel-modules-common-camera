@@ -4016,15 +4016,6 @@ static int camcore_channel_size_binning_cal(
 		if (ch_prev->compress_input)
 			dcam_out.h = ALIGN_DOWN(dcam_out.h, DCAM_FBC_TILE_HEIGHT);
 
-		/* TBD: temp change for 6pro 4K fbc & overflow issue */
-		if ((module->grp->hw_info->prj_id == QOGIRN6pro)
-			&& (ch_prev->swap_size.w == DCAM_FBC_4K_WIDTH)
-			&& (ch_prev->swap_size.h == DCAM_FBC_4K_HEIGHT)) {
-			ch_prev->compress_input = 0;
-			ch_vid->compress_input = 0;
-			module->cam_uinfo.is_pyr_rec = 0;
-		}
-
 		pr_info("shift %d, dst_p %u %u, dst_v %u %u, dcam_out %u %u swap w:%d h:%d\n",
 			shift, dst_p.w, dst_p.h, dst_v.w, dst_v.h, dcam_out.w, dcam_out.h, ch_prev->swap_size.w, ch_prev->swap_size.h);
 
