@@ -22,7 +22,7 @@ extern unsigned long g_dcam_mmubase;
 extern unsigned long g_dcam_fmcubase;
 extern unsigned long g_dcam_phys_base[];
 
-#define DCAM_PATH_CROP_ALIGN                            8
+#define DCAM_PATH_CROP_ALIGN                            4
 
 /* DCAM0/DCAM1 module registers define */
 #define DCAM_BASE_ADDR                                  (0x3e000000)
