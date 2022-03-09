@@ -143,6 +143,7 @@ struct dcam_path_desc {
 
 	atomic_t set_frm_cnt;
 	atomic_t is_shutoff;
+	uint32_t reg_addr;
 	struct camera_frame *cur_frame;
 	struct camera_queue reserved_buf_queue;
 	struct camera_queue out_buf_queue;

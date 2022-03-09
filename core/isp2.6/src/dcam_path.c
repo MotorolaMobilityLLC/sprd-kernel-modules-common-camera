@@ -777,30 +777,70 @@ void dcampath_update_statis_head(struct dcam_sw_context *sw_ctx, struct dcam_pat
 
 }
 
-void dcampath_update_size(struct dcam_sw_context *ctx, struct dcam_path_desc *path,
+void dcampath_update_addr_and_size(struct dcam_sw_context *ctx, struct dcam_path_desc *path,
 			struct camera_frame *frame, struct dcam_hw_slw_fmcu_cmds *slw)
 {
 	struct cam_hw_info *hw = NULL;
 	uint32_t idx = 0, path_id = 0;
-	struct dcam_hw_path_size path_size;
+	struct dcam_hw_path_size path_size = {0};
 	unsigned long flags = 0;
+	struct dcam_compress_info fbc_info = {0};
+	struct dcam_hw_fbc_addr fbcadr = {0};
+	struct dcam_hw_cfg_store_addr store_arg = {0};
+	struct dcam_dev_param *blk_dcam_pm = NULL;
 
 	hw = ctx->dev->hw;
 	idx = ctx->hw_ctx_id;
 	path_id = path->path_id;
+	blk_dcam_pm = &ctx->ctx[ctx->cur_ctx_id].blk_pm;
 
-	if ((path_id == DCAM_PATH_FULL) || (path_id == DCAM_PATH_BIN) ||
-		(path_id == DCAM_PATH_3DNR) || (path_id == DCAM_PATH_RAW)) {
-		/* use trylock here to avoid waiting if cfg_path_size
-		 * is already lock
-		 * because this function maybe called from irq handling.
-		 * disable irq to make sure less time gap between size updating
-		 * to register and frame buffer address updating to register
-		 * make sure that corresponding param
-		 * will applied for same frame.
-		 * or else size may mismatch with frame.
-		 */
-		if (spin_trylock_irqsave(&path->size_lock, flags)) {
+	spin_lock_irqsave(&path->size_lock, flags);
+	if (slw == NULL) {
+		if (frame->is_compressed) {
+			struct compressed_addr fbc_addr = {0};
+			struct img_size *size = &path->out_size;
+			struct dcam_compress_cal_para cal_fbc = {0};
+
+			cal_fbc.compress_4bit_bypass = frame->compress_4bit_bypass;
+			cal_fbc.data_bits = path->data_bits;
+			cal_fbc.fbc_info = &frame->fbc_info;
+			cal_fbc.in = frame->buf.iova[0];
+			cal_fbc.fmt = path->out_fmt;
+			cal_fbc.height = size->h;
+			cal_fbc.width = size->w;
+			cal_fbc.out = &fbc_addr;
+			dcam_if_cal_compressed_addr(&cal_fbc);
+			ctx->fbc_info = frame->fbc_info;
+			fbc_info = frame->fbc_info;
+			fbcadr.idx = idx;
+			fbcadr.addr = path->reg_addr;
+			fbcadr.fbc_addr = &fbc_addr;
+			fbcadr.path_id = path_id;
+			fbcadr.data_bits = path->data_bits;
+			hw->dcam_ioctl(hw, DCAM_HW_CFG_FBC_ADDR_SET, &fbcadr);
+		} else {
+			store_arg.idx = idx;
+			store_arg.frame_addr[0] = frame->buf.iova[0];
+			store_arg.frame_addr[1] = frame->buf.iova[1];
+			store_arg.frame_addr[2] = frame->buf.iova[2];
+			store_arg.path_id= path_id;
+			store_arg.reg_addr = path->reg_addr;
+			store_arg.out_fmt = path->out_fmt;
+			store_arg.out_size.h = path->out_size.h;
+			store_arg.out_size.w = path->out_size.w;
+			store_arg.out_pitch = path->out_pitch;
+			store_arg.in_fmt = ctx->cap_info.format;
+			store_arg.blk_param = blk_dcam_pm;
+			hw->dcam_ioctl(hw, DCAM_HW_CFG_STORE_ADDR, &store_arg);
+		}
+
+		if ((path_id == DCAM_PATH_BIN) && (frame->need_pyr_rec))
+			dcampath_update_pyr_dec_addr(ctx, path, frame);
+	}
+
+	if (!frame->is_reserved || path_id == DCAM_PATH_FULL || slw != NULL) {
+		if ((path_id == DCAM_PATH_FULL) || (path_id == DCAM_PATH_BIN) ||
+			(path_id == DCAM_PATH_3DNR) || (path_id == DCAM_PATH_RAW)) {
 			if ((path_id == DCAM_PATH_BIN) && (frame->need_pyr_rec))
 				dcampath_pyr_dec_cfg(path, frame, hw, idx);
 			if (path->size_update) {
@@ -836,25 +876,24 @@ void dcampath_update_size(struct dcam_sw_context *ctx, struct dcam_path_desc *pa
 					ctx->total_zoom = ZOOM_RATIO_DEFAULT *path->in_size.w / path->total_in_trim.size_x;
 				}
 			}
-			spin_unlock_irqrestore(&path->size_lock, flags);
 		}
-	}
-	spin_lock_irqsave(&path->size_lock, flags);
-	if (path_id == DCAM_PATH_FULL && path->base_update) {
-		struct dcam_hw_path_src_sel patharg;
-		patharg.idx = ctx->hw_ctx_id;
-		patharg.src_sel = path->src_sel;
-		patharg.pack_bits = path->pack_bits;
-		hw->dcam_ioctl(hw, DCAM_HW_CFG_PATH_SRC_SEL, &patharg);
-	}
-	path->base_update = 0;
-	if (path_id == DCAM_PATH_FULL || path_id == DCAM_PATH_RAW || path_id == DCAM_PATH_BIN) {
-		frame->width = path->out_size.w;
-		frame->height = path->out_size.h;
+
+		if (path_id == DCAM_PATH_FULL && path->base_update) {
+			struct dcam_hw_path_src_sel patharg;
+			patharg.idx = ctx->hw_ctx_id;
+			patharg.src_sel = path->src_sel;
+			patharg.pack_bits = path->pack_bits;
+			hw->dcam_ioctl(hw, DCAM_HW_CFG_PATH_SRC_SEL, &patharg);
+		}
+		path->base_update = 0;
+		if (path_id == DCAM_PATH_FULL || path_id == DCAM_PATH_RAW || path_id == DCAM_PATH_BIN) {
+			frame->width = path->out_size.w;
+			frame->height = path->out_size.h;
+		}
+		frame->zoom_ratio = ctx->zoom_ratio;
+		frame->total_zoom = ctx->total_zoom;
 	}
 	spin_unlock_irqrestore(&path->size_lock, flags);
-	frame->zoom_ratio = ctx->zoom_ratio;
-	frame->total_zoom = ctx->total_zoom;
 }
 
 int dcam_path_fmcu_slw_store_buf_set(
@@ -942,7 +981,7 @@ int dcam_path_fmcu_slw_store_buf_set(
 		slw->store_info[path_id].store_addr.addr_ch2 = out_frame->buf.iova[2];
 	}
 
-	dcampath_update_size(sw_ctx, path, out_frame, slw);
+	dcampath_update_addr_and_size(sw_ctx, path, out_frame, slw);
 	dcampath_update_statis_head(sw_ctx, path, out_frame);
 
 	pr_debug("path%d set no.%d buffer done!pitch:%d.\n", path_id, slw_idx, path->out_pitch);
@@ -1036,14 +1075,11 @@ int dcam_path_store_frm_set(void *dcam_ctx_handle,
 	struct dcam_dev_param *blk_dcam_pm;
 	struct cam_hw_info *hw = NULL;
 	struct camera_frame *frame = NULL, *saved = NULL;
-	struct dcam_hw_fbc_addr fbcadr;
 	uint32_t idx = 0, path_id = 0;
 	unsigned long addr = 0, flags = 0;
 	const int _bin = 0, _aem = 1, _hist = 2;
 	int i = 0, ret = 0;
 	uint32_t slm_path = 0;
-	struct dcam_hw_cfg_store_addr store_arg;
-	struct dcam_compress_info fbc_info = {0};
 
 	if (unlikely(!dcam_ctx_handle || !path))
 		return -EINVAL;
@@ -1109,46 +1145,6 @@ int dcam_path_store_frm_set(void *dcam_ctx_handle,
 
 	if (saved)
 		dcampath_frame_pointer_swap(&frame, &saved);
-	if (frame->is_compressed) {
-		struct compressed_addr fbc_addr;
-		struct img_size *size = &path->out_size;
-		struct dcam_compress_cal_para cal_fbc;
-
-		cal_fbc.compress_4bit_bypass = frame->compress_4bit_bypass;
-		cal_fbc.data_bits = path->data_bits;
-		cal_fbc.fbc_info = &frame->fbc_info;
-		cal_fbc.in = frame->buf.iova[0];
-		cal_fbc.fmt = path->out_fmt;
-		cal_fbc.height = size->h;
-		cal_fbc.width = size->w;
-		cal_fbc.out = &fbc_addr;
-		dcam_if_cal_compressed_addr(&cal_fbc);
-		dcam_sw_ctx->fbc_info = frame->fbc_info;
-		fbc_info = frame->fbc_info;
-		fbcadr.idx = idx;
-		fbcadr.addr = addr;
-		fbcadr.fbc_addr = &fbc_addr;
-		fbcadr.path_id = path_id;
-		fbcadr.data_bits = path->data_bits;
-		hw->dcam_ioctl(hw, DCAM_HW_CFG_FBC_ADDR_SET, &fbcadr);
-	} else {
-		store_arg.idx = idx;
-		store_arg.frame_addr[0] = frame->buf.iova[0];
-		store_arg.frame_addr[1] = frame->buf.iova[1];
-		store_arg.frame_addr[2] = frame->buf.iova[2];
-		store_arg.path_id= path_id;
-		store_arg.reg_addr = addr;
-		store_arg.out_fmt = path->out_fmt;
-		store_arg.out_size.h = path->out_size.h;
-		store_arg.out_size.w = path->out_size.w;
-		store_arg.out_pitch = path->out_pitch;
-		store_arg.in_fmt = dcam_sw_ctx->cap_info.format;
-		store_arg.blk_param = blk_dcam_pm;
-		hw->dcam_ioctl(hw, DCAM_HW_CFG_STORE_ADDR, &store_arg);
-	}
-
-	if ((path_id == DCAM_PATH_BIN) && (frame->need_pyr_rec))
-		dcampath_update_pyr_dec_addr(dcam_sw_ctx, path, frame);
 
 	if (saved)
 		dcampath_frame_pointer_swap(&frame, &saved);
@@ -1183,8 +1179,10 @@ int dcam_path_store_frm_set(void *dcam_ctx_handle,
 		spin_unlock_irqrestore(&dcam_sw_ctx->helper_lock, flags);
 	}
 
-	if (!frame->is_reserved || path_id == DCAM_PATH_FULL)
-		dcampath_update_size(dcam_sw_ctx, path, frame, NULL);
+	path->reg_addr = addr;
+
+	dcampath_update_addr_and_size(dcam_sw_ctx, path, frame, NULL);
+
 	dcampath_update_statis_head(dcam_sw_ctx, path, frame);
 
 	slm_path = hw->ip_dcam[idx]->slm_path;
