@@ -2134,7 +2134,7 @@ static int dcamcore_dev_stop(void *dcam_handle, enum dcam_stop_cmd pause)
 		return -EINVAL;
 	}
 
-	if (hw_ctx_id != DCAM_HW_CONTEXT_MAX) {
+	if (hw_ctx_id != DCAM_HW_CONTEXT_MAX && pause != DCAM_RECOVERY) {
 		hw->dcam_ioctl(hw, DCAM_HW_CFG_STOP, &hw_ctx_id);
 		hw->dcam_ioctl(hw, DCAM_HW_CFG_RESET, &hw_ctx_id);
 		dcam_int_tracker_dump(hw_ctx_id);
@@ -2163,7 +2163,7 @@ static int dcamcore_dev_stop(void *dcam_handle, enum dcam_stop_cmd pause)
 		pr_info("stop all\n");
 
 		pctx->is_3dnr = pctx->is_4in1 = pctx->is_fdr = 0;
-	} else if (pause == DCAM_PAUSE_ONLINE) {
+	} else if (pause == DCAM_PAUSE_ONLINE || pause == DCAM_RECOVERY) {
 		pm->frm_idx = pctx->base_fid + pctx->frame_index;
 		pr_info("dcam%d online pause fram id %d %d, base_fid %d, new %d\n", hw_ctx_id,
 			pctx->frame_index, pctx->index_to_set, pctx->base_fid, pm->frm_idx);

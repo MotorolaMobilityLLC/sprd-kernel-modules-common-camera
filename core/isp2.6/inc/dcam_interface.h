@@ -147,7 +147,8 @@ enum dcam_ioctrl_cmd {
 enum dcam_stop_cmd {
 	DCAM_STOP,
 	DCAM_PAUSE_ONLINE,
-	DCAM_PAUSE_OFFLINE
+	DCAM_PAUSE_OFFLINE,
+	DCAM_RECOVERY,
 };
 
 struct dcam_cap_cfg {

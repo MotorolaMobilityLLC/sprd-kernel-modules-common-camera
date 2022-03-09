@@ -2906,7 +2906,7 @@ static int camcore_dcam_callback(enum dcam_cb_type type, void *param, void *priv
 	}
 
 	if (atomic_read(&module->grp->recovery_state) == CAM_RECOVERY_DONE) {
-		pr_debug("recovery success\n");
+		pr_info("recovery success\n");
 		atomic_set(&module->grp->recovery_state, CAM_RECOVERY_NONE);
 	}
 	pframe = (struct camera_frame *)param;
@@ -7762,8 +7762,9 @@ static int camcore_recovery_proc(void *param)
 				continue;
 			}
 			pr_debug("sw_ctx %d dcam %d recovery disconnect\n", sw_ctx->sw_ctx_id, sw_ctx->hw_ctx_id);
-			module->dcam_dev_handle->dcam_pipe_ops->stop(sw_ctx, DCAM_PAUSE_ONLINE);
+			module->dcam_dev_handle->dcam_pipe_ops->stop(sw_ctx, DCAM_RECOVERY);
 			camcore_csi_switch_disconnect(module, switch_mode);
+			dcam_core_put_fmcu(sw_ctx);
 		}
 	}
 
@@ -7797,7 +7798,7 @@ static int camcore_recovery_proc(void *param)
 
 			pr_debug("sw_ctx %d dcam %d recovery start\n", sw_ctx->sw_ctx_id, sw_ctx->hw_ctx_id);
 			module->dcam_dev_handle->dcam_pipe_ops->ioctl(sw_ctx, DCAM_IOCTL_RECFG_PARAM, NULL);
-
+			dcam_core_get_fmcu(sw_ctx);
 			ret = module->dcam_dev_handle->dcam_pipe_ops->start(sw_ctx, 1);
 		}
 	}
