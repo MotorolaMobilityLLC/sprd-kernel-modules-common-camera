@@ -622,13 +622,13 @@ int cam_buf_iommu_map(struct camera_buf *buf_info,
 				}
 				buf_info->attachment[i] = dma_buf_attach(buf_info->dmabuf_p[i], dev_info->dev);
 				if (IS_ERR_OR_NULL(buf_info->attachment[i])) {
-					pr_err("failed to attach dmabuf %px\n", (void *)buf_info->dmabuf_p[i]);
+					pr_err("fail to attach dmabuf %px\n", (void *)buf_info->dmabuf_p[i]);
 					ret = -EINVAL;
 					goto attach_failed;
 				}
 				buf_info->table[i] = dma_buf_map_attachment(buf_info->attachment[i], DMA_BIDIRECTIONAL);
 				if (IS_ERR_OR_NULL(buf_info->table[i])) {
-					pr_err("failed to map attachment %px\n", (void *)buf_info->attachment[i]);
+					pr_err("fail to map attachment %px\n", (void *)buf_info->attachment[i]);
 					ret = -EINVAL;
 					goto map_attachment_failed;
 				}
