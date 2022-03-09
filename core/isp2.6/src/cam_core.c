@@ -170,6 +170,7 @@ struct camera_uchannel {
 	struct sprd_img_size src_size;
 	struct sprd_img_rect src_crop;
 	struct sprd_img_rect total_src_crop;
+	struct sprd_img_rect dst_crop;
 	struct sprd_img_size dst_size;
 	uint32_t scene;
 
@@ -471,6 +472,36 @@ static inline void camcore_largest_crop_get(
 		crop_dst->w = end_x_new - crop_dst->x;
 		crop_dst->h = end_y_new - crop_dst->y;
 	}
+}
+
+static int camcore_crop_size_align(
+	struct camera_module *module, struct sprd_img_rect *crop)
+{
+	struct img_size max_size;
+
+	max_size.w = module->cam_uinfo.sn_rect.w;
+	max_size.h = module->cam_uinfo.sn_rect.h;
+	/* Sharkl5pro crop align need to do research*/
+	crop->w = ((crop->w + DCAM_PATH_CROP_ALIGN - 1)
+		& ~(DCAM_PATH_CROP_ALIGN - 1));
+	crop->h = ((crop->h + DCAM_PATH_CROP_ALIGN - 1)
+		& ~(DCAM_PATH_CROP_ALIGN - 1));
+	if (max_size.w > crop->w)
+		crop->x = (max_size.w - crop->w) / 2;
+	if (max_size.h > crop->h)
+		crop->y = (max_size.h - crop->h) / 2;
+	crop->x &= ~1;
+	crop->y &= ~1;
+
+	if ((crop->x + crop->w) > max_size.w)
+		crop->w -= DCAM_PATH_CROP_ALIGN;
+	if ((crop->y + crop->h) > max_size.h)
+		crop->h -= DCAM_PATH_CROP_ALIGN;
+
+	pr_info("aligned crop %d %d %d %d.  max %d %d\n",
+		crop->x, crop->y, crop->w, crop->h, max_size.w, max_size.h);
+
+	return 0;
 }
 
 static void camcore_diff_trim_get(struct sprd_img_rect *orig,
@@ -4020,7 +4051,7 @@ static int camcore_channel_size_binning_cal(
 			shift, dst_p.w, dst_p.h, dst_v.w, dst_v.h, dcam_out.w, dcam_out.h, ch_prev->swap_size.w, ch_prev->swap_size.h);
 
 		/* applied latest rect for aem */
-		module->zoom_ratio = src_p.w * ZOOM_RATIO_DEFAULT / crop_p->w;
+		module->zoom_ratio = ch_prev->ch_uinfo.dst_crop.w * ZOOM_RATIO_DEFAULT / crop_p->w;
 		ch_prev->trim_dcam = trim_pv;
 
 		total_crop_dst = *total_crop_p;
@@ -4601,6 +4632,7 @@ static int camcore_channel_size_config(
 	memset(&ch_desc, 0, sizeof(ch_desc));
 	ch_desc.input_size.w = ch_uinfo->src_size.w;
 	ch_desc.input_size.h = ch_uinfo->src_size.h;
+	ch_desc.dst_crop = ch_uinfo->dst_crop;
 	if ((channel->ch_id == CAM_CH_CAP) || (channel->ch_id == CAM_CH_RAW)) {
 		/* PYR_DEC: crop by dcam; Normal:no trim in dcam full path. */
 		if (module->cam_uinfo.is_pyr_dec && channel->ch_id == CAM_CH_CAP && module->cam_uinfo.is_fdr == 0) {

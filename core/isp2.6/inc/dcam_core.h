@@ -133,6 +133,7 @@ struct dcam_path_desc {
 	uint32_t scaler_sel;/* 0: bining, 1: RDS, 2&3: bypass */
 	void *rds_coeff_buf;
 	uint32_t rds_coeff_size;
+	uint32_t dst_crop_w;
 
 	uint32_t frm_deci;
 	uint32_t frm_deci_cnt;

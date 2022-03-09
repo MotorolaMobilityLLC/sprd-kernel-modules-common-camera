@@ -752,7 +752,7 @@ static int camioctl_output_size_set(struct camera_module *module,
 		pr_err("fail to get valid high fps %u\n", dst->high_fps_skip_num);
 		ret = -EINVAL;
 	}
-	ret |= copy_from_user(&dst->src_crop,
+	ret |= copy_from_user(&dst->dst_crop,
 			&uparam->crop_rect, sizeof(struct sprd_img_rect));
 	ret |= copy_from_user(&dst->dst_size,
 			&uparam->dst_size, sizeof(struct sprd_img_size));
@@ -765,6 +765,7 @@ static int camioctl_output_size_set(struct camera_module *module,
 	// TODO get this from HAL
 	dst->is_compressed = 0;
 	dst->scene = scene_mode;
+	dst->src_crop = dst->dst_crop;
 	if (cap_type == CAM_CAP_RAW_FULL && dst->is_high_fps)
 		dst->is_high_fps = 0;
 
@@ -778,14 +779,16 @@ static int camioctl_output_size_set(struct camera_module *module,
 		pr_debug("cam_virtual_pre_channel: dst %d %d\n",dst->vir_channel[0].dst_size.w,dst->vir_channel[0].dst_size.h);
 		pr_debug("cam_virtual_cap_channel: dst %d %d\n",dst->vir_channel[1].dst_size.w,dst->vir_channel[1].dst_size.h);
 	}
+	/* for AF zoom_ratio cal*/
+	camcore_crop_size_align(module, &dst->dst_crop);
 
 	pr_info("cam_channel: ch_id %d high fps %u %u. aux %d %d %d %d\n",
 		channel->ch_id, dst->is_high_fps, dst->high_fps_skip_num,
 		dst->slave_img_en, dst->slave_img_fmt,
 		dst->slave_img_size.w, dst->slave_img_size.h);
 	pr_info("cam_channel: crop %d %d %d %d dst %d %d\n",
-		dst->src_crop.x, dst->src_crop.y,
-		dst->src_crop.w, dst->src_crop.h,
+		dst->dst_crop.x, dst->dst_crop.y,
+		dst->dst_crop.w, dst->dst_crop.h,
 		dst->dst_size.w, dst->dst_size.h);
 
 exit:
@@ -1030,25 +1033,7 @@ static int camioctl_crop_set(struct camera_module *module,
 		max.w >>= 1;
 		max.h >>= 1;
 	}
-
-	/* Sharkl5pro crop align need to do research*/
-	crop->w = ((crop->w + DCAM_PATH_CROP_ALIGN - 1)
-		& ~(DCAM_PATH_CROP_ALIGN - 1));
-	crop->h = ((crop->h + DCAM_PATH_CROP_ALIGN - 1)
-		& ~(DCAM_PATH_CROP_ALIGN - 1));
-	if (max.w > crop->w)
-		crop->x = (max.w - crop->w) / 2;
-	if (max.h > crop->h)
-		crop->y = (max.h - crop->h) / 2;
-	crop->x &= ~1;
-	crop->y &= ~1;
-
-	if ((crop->x + crop->w) > max.w)
-		crop->w -= DCAM_PATH_CROP_ALIGN;
-	if ((crop->y + crop->h) > max.h)
-		crop->h -= DCAM_PATH_CROP_ALIGN;
-	pr_info("aligned crop %d %d %d %d.  max %d %d\n",
-		crop->x, crop->y, crop->w, crop->h, max.w, max.h);
+	camcore_crop_size_align(module, crop);
 
 	if (zoom) {
 		if (cam_queue_enqueue(&ch->zoom_coeff_queue, &zoom_param->list)) {
