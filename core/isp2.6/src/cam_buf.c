@@ -594,8 +594,8 @@ int cam_buf_iommu_map(struct camera_buf *buf_info,
 	}
 
 	if (buf_info->sharebuf_flag == 1) {
-		buf_info->sharebuf_map_cnt++;
-		if (buf_info->sharebuf_map_cnt > 1)
+		atomic_inc(&buf_info->sharebuf_map_cnt);
+		if (atomic_read(&buf_info->sharebuf_map_cnt) > 1)
 			return ret;
 	}
 
@@ -758,8 +758,8 @@ int cam_buf_iommu_unmap(struct camera_buf *buf_info)
 	}
 
 	if (buf_info->sharebuf_flag == 1) {
-		buf_info->sharebuf_map_cnt--;
-		if (buf_info->sharebuf_map_cnt > 0)
+		atomic_dec(&buf_info->sharebuf_map_cnt);
+		if (atomic_read(&buf_info->sharebuf_map_cnt) > 0)
 			return ret;
 	}
 
