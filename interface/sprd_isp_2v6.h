@@ -432,6 +432,7 @@ enum cam_pm_scene {
 	PM_SCENE_FDR_PRE,
 	PM_SCENE_FDR_DRC,
 	PM_SCENE_FDR_MERGE,
+	PM_SCENE_SFNR,
 	PM_SCENE_MAX,
 };
 
