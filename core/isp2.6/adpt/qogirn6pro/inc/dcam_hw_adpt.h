@@ -16,7 +16,7 @@
 
 #include "cam_types.h"
 
-#define DCAM_64M_WIDTH                 9216
+#define DCAM_64M_WIDTH                 9280
 #define DCAM_24M_WIDTH                 5664
 #define DCAM_16M_WIDTH                 4672
 #define DCAM_13M_WIDTH                 4160
