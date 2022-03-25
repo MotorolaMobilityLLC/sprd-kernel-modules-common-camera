@@ -1076,7 +1076,7 @@ int dcam_path_store_frm_set(void *dcam_ctx_handle,
 	struct cam_hw_info *hw = NULL;
 	struct camera_frame *frame = NULL, *saved = NULL;
 	uint32_t idx = 0, path_id = 0;
-	unsigned long addr = 0, flags = 0;
+	unsigned long addr = 0, ppe_addr = 0, flags = 0;
 	const int _bin = 0, _aem = 1, _hist = 2;
 	int i = 0, ret = 0;
 	uint32_t slm_path = 0;
@@ -1157,10 +1157,10 @@ int dcam_path_store_frm_set(void *dcam_ctx_handle,
 	if (!blk_dcam_pm->pdaf.bypass &&
 		blk_dcam_pm->pdaf.pdaf_type == DCAM_PDAF_TYPE3 && path_id == DCAM_PATH_PDAF) {
 		/* PDAF type3, half buffer for right PD, TBD */
-		addr = hw->ip_dcam[idx]->pdaf_type3_reg_addr;
-		DCAM_REG_WR(idx, addr,
+		ppe_addr = hw->ip_dcam[idx]->pdaf_type3_reg_addr;
+		DCAM_REG_WR(idx, ppe_addr,
 			frame->buf.iova[0] + frame->buf.size[0] / 2);
-		pr_debug("PDAF iova %08x,  offset %x\n", (uint32_t)frame->buf.iova[0],
+		pr_debug("reg %08x,  PDAF iova %08x,  offset %x\n", (uint32_t)ppe_addr, (uint32_t)frame->buf.iova[0],
 			(uint32_t)frame->buf.size[0] / 2);
 	}
 
