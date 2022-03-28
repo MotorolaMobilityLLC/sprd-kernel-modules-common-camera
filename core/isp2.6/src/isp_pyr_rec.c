@@ -630,7 +630,7 @@ static int isppyrrec_cfg_param(void *handle,
 	switch (cmd) {
 	case ISP_REC_CFG_BUF:
 		pframe = (struct camera_frame *)param;
-		if ((pframe->buf.mapping_state & CAM_BUF_MAPPING_DEV) == 0 || (pframe->buf.sharebuf_flag == 1)) {
+		if ((pframe->buf.mapping_state & CAM_BUF_MAPPING_DEV) == 0) {
 			ret = cam_buf_iommu_map(&pframe->buf, CAM_IOMMUDEV_ISP);
 			if (ret) {
 				pr_err("fail to map isp pyr rec iommu buf.\n");
@@ -840,7 +840,7 @@ void isp_pyr_rec_ctx_put(void *rec_handle)
 	rec_ctx = (struct isp_rec_ctx_desc *)rec_handle;
 	if (rec_ctx->buf_info) {
 		buf_info = &rec_ctx->buf_info->buf;
-		if ((buf_info && buf_info->mapping_state & CAM_BUF_MAPPING_DEV) || (buf_info->sharebuf_flag == 1)) {
+		if (buf_info && buf_info->mapping_state & CAM_BUF_MAPPING_DEV) {
 			cam_buf_iommu_unmap(buf_info);
 			buf_info = NULL;
 		}
