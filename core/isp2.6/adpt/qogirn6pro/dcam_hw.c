@@ -317,13 +317,12 @@ static int dcamhw_axi_init(void *handle, void *arg)
 		regmap_update_bits(soc->cam_ahb_gpr, ip->syscon.all_rst,
 			flag, ~flag);
 	}
-
+	write_unlock(&soc->cam_ahb_lock);
 
 	hw->dcam_ioctl(hw, DCAM_HW_CFG_SET_QOS, arg);
 
 	/* the end, enable AXI writing */
 	DCAM_AXIM_MWR(idx, ctrl_reg, BIT_24 | BIT_23, (0x0 << 23));
-	write_unlock(&soc->cam_ahb_lock);
 	return 0;
 }
 
@@ -694,10 +693,10 @@ static int dcamhw_axi_reset(void *handle, void *arg)
 		regmap_update_bits(soc->cam_ahb_gpr, ip->syscon.all_rst, flag, ~flag);
 	}
 
+	write_unlock(&soc->cam_ahb_lock);
 	hw->dcam_ioctl(hw, DCAM_HW_CFG_SET_QOS, arg);
 	/* the end, enable AXI writing */
 	DCAM_AXIM_MWR(DCAM_ID_0, ctrl_reg, BIT_24 | BIT_23, (0x0 << 23));
-	write_unlock(&soc->cam_ahb_lock);
 
 	for(i = DCAM_ID_0; i <= DCAM_ID_1; i++) {
 		DCAM_REG_MWR(i, DCAM_INT0_CLR, mask, mask);
