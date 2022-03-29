@@ -1198,7 +1198,7 @@ static void camcore_compression_config(struct camera_module *module)
 	if (ch_cap->enable && ch_cap->compress_offline)
 		sw_handle[module->offline_cxt_id].path[ch_cap->aux_dcam_path_id].fbc_mode = fbc_mode;
 	if (!fbc_mode)
-		ch_cap->compress_input = 0;
+		ch_cap->compress_offline = 0;
 
 	pr_debug("dcam offline fbc = %d\n", fbc_mode);
 
