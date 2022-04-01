@@ -1458,13 +1458,12 @@ static int camioctl_stream_off(struct camera_module *module,
 		camcore_timer_stop(&module->cam_timer);
 	}
 
-	if (sw_ctx->fmcu) {
+	if (sw_ctx->slw_type == DCAM_SLW_FMCU) {
 		ret = hw->dcam_ioctl(hw, DCAM_HW_CFG_INIT_AXI, &sw_ctx->hw_ctx_id);
 		if (ret)
 			pr_err("fail to reset fmcu dcam%d ret:%d\n", sw_ctx->hw_ctx_id, ret);
+		sw_ctx->hw_ctx->fmcu->ops->buf_unmap(sw_ctx->hw_ctx->fmcu);
 	}
-
-	dcam_core_put_fmcu(sw_ctx);
 
 	if (module->cam_uinfo.is_4in1)
 		camcore_4in1_aux_deinit(module);
@@ -1929,7 +1928,8 @@ cfg_ch_done:
 		non_zsl_cap = 1;
 	dev->dcam_pipe_ops->ioctl(sw_ctx, DCAM_IOCTL_RECFG_PARAM, &non_zsl_cap);
 
-	dcam_core_get_fmcu(sw_ctx);
+	if (sw_ctx->slw_type == DCAM_SLW_FMCU)
+		sw_ctx->hw_ctx->fmcu->ops->buf_map(sw_ctx->hw_ctx->fmcu);
 
 	sw_ctx->raw_callback = module->raw_callback;
 	ret = dev->dcam_pipe_ops->start(sw_ctx, online);

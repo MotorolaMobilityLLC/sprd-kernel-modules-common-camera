@@ -7504,9 +7504,8 @@ static int camcore_offline_proc(void *param)
 				pr_err("fail to init fmcu ctx\n");
 				dcam_fmcu_ctx_desc_put(fmcu);
 				use_fmcu = 0;
-			} else {
+			} else
 				pctx->hw_ctx->fmcu = fmcu;
-			}
 		} else {
 			pr_debug("no more fmcu\n");
 			use_fmcu = 0;
@@ -7748,10 +7747,11 @@ static int camcore_recovery_proc(void *param)
 	struct camera_group *grp = NULL;
 	struct camera_module *module = NULL;
 	struct dcam_sw_context *sw_ctx = NULL;
+	struct dcam_hw_context *hw_ctx = NULL;
 	struct cam_hw_info *hw = NULL;
 	struct dcam_switch_param csi_switch = {0};
 	uint32_t switch_mode = CAM_CSI_RECOVERY_SWITCH;
-	struct cam_hw_lbuf_share camarg;
+	struct cam_hw_lbuf_share camarg = {0};
 
 	grp = (struct camera_group *)param;
 	hw = grp->hw_info;
@@ -7775,7 +7775,9 @@ static int camcore_recovery_proc(void *param)
 			pr_debug("sw_ctx %d dcam %d recovery disconnect\n", sw_ctx->sw_ctx_id, sw_ctx->hw_ctx_id);
 			module->dcam_dev_handle->dcam_pipe_ops->stop(sw_ctx, DCAM_RECOVERY);
 			camcore_csi_switch_disconnect(module, switch_mode);
-			dcam_core_put_fmcu(sw_ctx);
+			hw_ctx = sw_ctx->hw_ctx;
+			if (sw_ctx->slw_type == DCAM_SLW_FMCU)
+				hw_ctx->fmcu->ops->buf_unmap(hw_ctx->fmcu);
 		}
 	}
 
@@ -7809,7 +7811,8 @@ static int camcore_recovery_proc(void *param)
 
 			pr_debug("sw_ctx %d dcam %d recovery start\n", sw_ctx->sw_ctx_id, sw_ctx->hw_ctx_id);
 			module->dcam_dev_handle->dcam_pipe_ops->ioctl(sw_ctx, DCAM_IOCTL_RECFG_PARAM, NULL);
-			dcam_core_get_fmcu(sw_ctx);
+			if (sw_ctx->slw_type == DCAM_SLW_FMCU)
+				hw_ctx->fmcu->ops->buf_map(hw_ctx->fmcu);
 			ret = module->dcam_dev_handle->dcam_pipe_ops->start(sw_ctx, 1);
 		}
 	}

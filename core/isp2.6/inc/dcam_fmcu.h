@@ -82,6 +82,8 @@ struct dcam_fmcu_ops {
 					uint32_t addr, uint32_t cmd);
 	int (*hw_start)(struct dcam_fmcu_ctx_desc *fmcu_ctx);
 	int (*cmd_ready)(struct dcam_fmcu_ctx_desc *fmcu_ctx);
+	int (*buf_map)(void *handle);
+	int (*buf_unmap)(void *handle);
 };
 
 struct dcam_fmcu_ctx_desc *dcam_fmcu_ctx_desc_get(void *arg, uint32_t index);

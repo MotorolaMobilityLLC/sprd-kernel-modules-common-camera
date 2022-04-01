@@ -549,7 +549,7 @@ static void dcamint_cap_sof(void *param, struct dcam_sw_context *sw_ctx)
 	if (fix_result == DEFER_TO_NEXT)
 		return;
 
-	if (sw_ctx->slowmotion_count && (!sw_ctx->fmcu)) {
+	if (sw_ctx->slw_type == DCAM_SLW_AP) {
 		uint32_t n = sw_ctx->frame_index % sw_ctx->slowmotion_count;
 		/* auto copy at last frame of a group of slow motion frames */
 		if (n == sw_ctx->slowmotion_count - 1) {
@@ -608,7 +608,7 @@ static void dcamint_cap_sof(void *param, struct dcam_sw_context *sw_ctx)
 				spin_unlock_irqrestore(&path->state_lock, flag);
 			}
 
-			if ((!sw_ctx->fmcu) || (sw_ctx->slowmotion_count == 0))
+			if (sw_ctx->slw_type != DCAM_SLW_FMCU)
 				dcam_path_store_frm_set(sw_ctx, path, helper);
 		}
 	}
@@ -1099,11 +1099,11 @@ static void dcamint_fmcu_config_done(void *param, struct dcam_sw_context *sw_ctx
 	if (atomic_read(&sw_ctx->shadow_config_cnt) == atomic_read(&sw_ctx->shadow_done_cnt)) {
 		atomic_inc(&sw_ctx->shadow_done_cnt);
 		atomic_inc(&sw_ctx->shadow_config_cnt);
-		if (sw_ctx->fmcu) {
+		if (dcam_hw_ctx->fmcu) {
 			sw_ctx->index_to_set = sw_ctx->index_to_set + sw_ctx->slowmotion_count;
-			sw_ctx->fmcu->ops->ctx_reset(sw_ctx->fmcu);
+			dcam_hw_ctx->fmcu->ops->ctx_reset(dcam_hw_ctx->fmcu);
 			dcam_path_fmcu_slw_queue_set(sw_ctx);
-			sw_ctx->fmcu->ops->cmd_ready(sw_ctx->fmcu);
+			dcam_hw_ctx->fmcu->ops->cmd_ready(dcam_hw_ctx->fmcu);
 		} else
 			pr_err("fail to get fmcu handle\n");
 	}
@@ -1124,11 +1124,11 @@ static void dcamint_fmcu_shadow_done(void *param, struct dcam_sw_context *sw_ctx
 	}
 	atomic_inc(&sw_ctx->shadow_done_cnt);
 
-	if (sw_ctx->fmcu) {
+	if (sw_ctx->slw_type == DCAM_SLW_FMCU) {
 		sw_ctx->index_to_set = sw_ctx->index_to_set + sw_ctx->slowmotion_count;
-		sw_ctx->fmcu->ops->ctx_reset(sw_ctx->fmcu);
+		dcam_hw_ctx->fmcu->ops->ctx_reset(dcam_hw_ctx->fmcu);
 		dcam_path_fmcu_slw_queue_set(sw_ctx);
-		sw_ctx->fmcu->ops->cmd_ready(sw_ctx->fmcu);
+		dcam_hw_ctx->fmcu->ops->cmd_ready(dcam_hw_ctx->fmcu);
 	} else
 		pr_err("fail to get fmcu handle\n");
 }

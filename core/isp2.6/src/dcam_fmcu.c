@@ -203,6 +203,68 @@ static int dcamfmcu_ctx_reset(struct dcam_fmcu_ctx_desc *fmcu_ctx)
 	return ret;
 }
 
+static int dcamfmcu_buf_map(void *handle)
+{
+	int ret = 0, i = 0;
+	struct camera_buf *ion_buf = NULL;
+	struct dcam_fmcu_ctx_desc *fmcu_ctx = NULL;
+
+	if (!handle) {
+		pr_err("fail to get fmcu_ctx pointer\n");
+		return -EFAULT;
+	}
+
+	fmcu_ctx = (struct dcam_fmcu_ctx_desc *)handle;
+
+	for (i = 0; i < DCAM_FMCU_BUF_MAX; i++) {
+		ion_buf = &fmcu_ctx->ion_pool[i];
+
+		ret = cam_buf_iommu_map(ion_buf, CAM_IOMMUDEV_DCAM);
+		if (ret) {
+			pr_err("fail to map fmcu buffer\n");
+			ret = -EFAULT;
+			goto err_hwmap_fmcu;
+		}
+
+		fmcu_ctx->hw_addr[i] = ion_buf->iova[0];
+		fmcu_ctx->cmdq_pos[i] = 0;
+
+		pr_info("fmcu%d cmd buf hw_addr:0x%lx, sw_addr:%p, size:%zd\n",
+			i, fmcu_ctx->hw_addr[i], fmcu_ctx->cmd_buf[i], ion_buf->size[0]);
+	}
+
+	return 0;
+
+err_hwmap_fmcu:
+	for (i = 0; i < DCAM_FMCU_BUF_MAX; i++) {
+		ion_buf = &fmcu_ctx->ion_pool[i];
+		if (ion_buf)
+			cam_buf_iommu_unmap(ion_buf);
+	}
+	pr_err("fail to map fmcu%d.\n", fmcu_ctx->fid);
+	return ret;
+}
+
+static int dcamfmcu_buf_unmap(void *handle)
+{
+	int ret = 0, i = 0;
+	struct camera_buf *ion_buf = NULL;
+	struct dcam_fmcu_ctx_desc *fmcu_ctx = NULL;
+
+	if (!handle) {
+		pr_err("fail to get fmcu_ctx pointer\n");
+		return -EFAULT;
+	}
+
+	fmcu_ctx = (struct dcam_fmcu_ctx_desc *)handle;
+	for (i = 0; i < DCAM_FMCU_BUF_MAX; i++) {
+		ion_buf = &fmcu_ctx->ion_pool[i];
+		cam_buf_iommu_unmap(ion_buf);
+	}
+	pr_debug("fmcu buf unmap done\n");
+	return ret;
+}
+
 static int dcamfmcu_ctx_init(struct dcam_fmcu_ctx_desc *fmcu_ctx)
 {
 	int ret = 0;
@@ -238,41 +300,25 @@ static int dcamfmcu_ctx_init(struct dcam_fmcu_ctx_desc *fmcu_ctx)
 			ret = -EFAULT;
 			goto err_alloc_fmcu;
 		}
-
 		ret = cam_buf_kmap(ion_buf);
 		if (ret) {
 			pr_err("fail to kmap fmcu buffer\n");
 			ret = -EFAULT;
 			goto err_kmap_fmcu;
 		}
-		ret = cam_buf_iommu_map(ion_buf, CAM_IOMMUDEV_DCAM);
-		if (ret) {
-			pr_err("fail to map fmcu buffer\n");
-			ret = -EFAULT;
-			goto err_hwmap_fmcu;
-		}
+
 		fmcu_ctx->cmd_buf[i] = (uint32_t *)ion_buf->addr_k[0];
-		fmcu_ctx->hw_addr[i] = ion_buf->iova[0];
-		fmcu_ctx->cmdq_pos[i] = 0;
-		pr_info("fmcu%d cmd buf hw_addr:0x%lx, sw_addr:%p, size:%zd\n",
-			i, fmcu_ctx->hw_addr[i], fmcu_ctx->cmd_buf[i],
-			ion_buf->size[0]);
 	}
 
 	return 0;
 
-err_hwmap_fmcu:
-	for (i = 0; i < DCAM_FMCU_BUF_MAX; i++) {
-		ion_buf = &fmcu_ctx->ion_pool[i];
-		if (ion_buf)
-			cam_buf_iommu_unmap(ion_buf);
-	}
 err_kmap_fmcu:
 	for (i = 0; i < DCAM_FMCU_BUF_MAX; i++) {
 		ion_buf = &fmcu_ctx->ion_pool[i];
 		if (ion_buf)
 			cam_buf_kunmap(ion_buf);
 	}
+
 err_alloc_fmcu:
 	for (i = 0; i < DCAM_FMCU_BUF_MAX; i++) {
 		ion_buf = &fmcu_ctx->ion_pool[i];
@@ -297,7 +343,6 @@ static int dcamfmcu_ctx_deinit(struct dcam_fmcu_ctx_desc *fmcu_ctx)
 	pr_debug("Enter\n");
 	for (i = 0; i < DCAM_FMCU_BUF_MAX; i++) {
 		ion_buf = &fmcu_ctx->ion_pool[i];
-		cam_buf_iommu_unmap(ion_buf);
 		cam_buf_kunmap(ion_buf);
 		cam_buf_free(ion_buf);
 	}
@@ -313,6 +358,8 @@ static struct dcam_fmcu_ops fmcu_ops = {
 	.push_cmdq = dcamfmcu_cmd_push,
 	.hw_start = dcamfmcu_start,
 	.cmd_ready = dcamfmcu_cmd_ready,
+	.buf_map = dcamfmcu_buf_map,
+	.buf_unmap = dcamfmcu_buf_unmap,
 };
 
 static struct dcam_fmcu_ctx_desc s_fmcu_desc[DCAM_FMCU_NUM] = {
@@ -325,11 +372,9 @@ static struct dcam_fmcu_ctx_desc s_fmcu_desc[DCAM_FMCU_NUM] = {
 
 struct dcam_fmcu_ctx_desc *dcam_fmcu_ctx_desc_get(void *arg, uint32_t hw_idx)
 {
-	int i;
-	uint32_t fmcu_id;
+	int i = 0;
 	struct dcam_fmcu_ctx_desc *fmcu = NULL;
 	struct cam_hw_info *hw = NULL;
-	struct dcam_fmcu_enable fmcu_enable =  {0};
 
 	if (!arg) {
 		pr_err("fail to get valid arg\n");
@@ -339,10 +384,6 @@ struct dcam_fmcu_ctx_desc *dcam_fmcu_ctx_desc_get(void *arg, uint32_t hw_idx)
 	hw = (struct cam_hw_info *)arg;
 	for (i = 0; i < DCAM_FMCU_NUM; i++) {
 		if (atomic_inc_return(&s_fmcu_desc[i].user_cnt) == 1) {
-			fmcu_id = s_fmcu_desc[i].fid;
-			fmcu_enable.enable = 1;
-			fmcu_enable.idx = hw_idx;
-			hw->dcam_ioctl(hw, DCAM_HW_FMCU_EBABLE, &fmcu_enable);
 			fmcu = &s_fmcu_desc[i];
 			fmcu->hw_ctx_id = hw_idx;
 			fmcu->hw = hw;

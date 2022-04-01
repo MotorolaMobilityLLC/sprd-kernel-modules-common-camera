@@ -2720,12 +2720,16 @@ static int dcamhw_fmcu_enable(void *handle, void *arg)
 
 	pr_debug("dcam%d enable fmcu %d\n", param->idx,param->enable);
 	DCAM_REG_MWR(param->idx, DCAM_PATH_SEL, BIT_31, param->enable << 31);
+
 	if (param->enable) {
+		DCAM_REG_MWR(param->idx, DCAM_PATH_SEL, BIT_31, BIT_31);
 		if (param->idx == 0)
 			DCAM_REG_MWR(DCAM_ID_1, DCAM_PATH_SEL, BIT_31, 0);
 		else
 			DCAM_REG_MWR(DCAM_ID_0, DCAM_PATH_SEL, BIT_31, 0);
-	}
+	} else
+		DCAM_REG_MWR(param->idx, DCAM_PATH_SEL, BIT_31, 0);
+
 	return 0;
 }
 

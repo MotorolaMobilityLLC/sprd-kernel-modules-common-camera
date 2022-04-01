@@ -140,6 +140,10 @@ int dcam_path_base_cfg(void *dcam_ctx_handle,
 		 * architecture defect and not going to be fixed now.
 		 */
 		dcam_sw_ctx->slowmotion_count = ch_desc->slowmotion_count;
+		if (!dcam_sw_ctx->slowmotion_count)
+			dcam_sw_ctx->slw_type = DCAM_SLW_OFF;
+		else
+			dcam_sw_ctx->slw_type = DCAM_SLW_AP;
 		dcam_sw_ctx->is_3dnr |= ch_desc->enable_3dnr;
 		dcam_sw_ctx->raw_cap = ch_desc->raw_cap;
 		break;
@@ -997,10 +1001,12 @@ int dcam_path_fmcu_slw_queue_set(struct dcam_sw_context *sw_ctx)
 	struct dcam_hw_slw_fmcu_cmds slw;
 	struct dcam_fmcu_ctx_desc *fmcu = NULL;
 	int ret = 0;
+	struct dcam_hw_context *hw_ctx = NULL;
 
 	hw = sw_ctx->dev->hw;
-	if (!sw_ctx || !hw)
-		pr_err("fail to check param sw_ctx %px, hw %px\n", sw_ctx, hw);
+	hw_ctx = sw_ctx->hw_ctx;
+	if (!sw_ctx || !hw || !hw_ctx)
+		pr_err("fail to check param sw_ctx %px, hw %px, hw_ctx %px\n", sw_ctx, hw, hw_ctx);
 
 	memset(&slw, 0, sizeof(struct dcam_hw_slw_fmcu_cmds));
 	for (j = 0; j < sw_ctx->slowmotion_count; j++) {
@@ -1020,7 +1026,7 @@ int dcam_path_fmcu_slw_queue_set(struct dcam_sw_context *sw_ctx)
 				dcam_path_fmcu_slw_store_buf_set(path, sw_ctx, &slw, j);
 			}
 		}
-		fmcu = sw_ctx->fmcu;
+		fmcu = hw_ctx->fmcu;
 		if (!fmcu)
 			pr_err("fail to check param fmcu%px\n", fmcu);
 		slw.fmcu_handle = fmcu;

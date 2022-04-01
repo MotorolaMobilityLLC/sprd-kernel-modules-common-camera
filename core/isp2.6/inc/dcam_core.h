@@ -82,6 +82,12 @@ enum dcam_csi_state {
 	DCAM_CSI_RESUME,
 };
 
+enum dcam_slowmotion_type {
+	DCAM_SLW_OFF = 0,
+	DCAM_SLW_AP,
+	DCAM_SLW_FMCU,
+};
+
 struct dcam_rds_slice_ctrl {
 	uint32_t rds_input_h_global;
 	uint32_t rds_input_w_global;
@@ -257,6 +263,7 @@ struct dcam_sw_context {
 	struct timespec frame_ts[DCAM_FRAME_TIMESTAMP_COUNT];
 	ktime_t frame_ts_boot[DCAM_FRAME_TIMESTAMP_COUNT];
 	uint32_t slowmotion_count;
+	enum dcam_slowmotion_type slw_type;
 	uint32_t helper_enabled;
 	spinlock_t helper_lock;
 	struct list_head helper_list;
@@ -387,8 +394,8 @@ void dcam_core_sync_helper_put(void *dev,
 int dcam_core_context_bind(struct dcam_sw_context *pctx, enum dcam_bind_mode mode, uint32_t dcam_idx);
 int dcam_core_context_unbind(struct dcam_sw_context *pctx);
 int dcam_core_hw_context_id_get(struct dcam_sw_context *pctx);
-void dcam_core_get_fmcu(struct dcam_sw_context *pctx);
-void dcam_core_put_fmcu(struct dcam_sw_context *pctx);
+void dcam_core_get_fmcu(struct dcam_hw_context *pctx_hw);
+void dcam_core_put_fmcu(struct dcam_hw_context *pctx_hw);
 int dcam_core_ctx_switch(struct dcam_sw_context *ori_sw_ctx, struct dcam_sw_context *new_sw_ctx,
 						struct dcam_hw_context *hw_ctx);
 int dcam_core_hw_slices_set(struct dcam_sw_context *pctx, struct camera_frame *pframe, uint32_t slice_wmax);
