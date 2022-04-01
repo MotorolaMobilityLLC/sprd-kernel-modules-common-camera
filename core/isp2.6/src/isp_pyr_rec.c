@@ -627,13 +627,11 @@ static int isppyrrec_cfg_param(void *handle,
 	switch (cmd) {
 	case ISP_REC_CFG_BUF:
 		pframe = (struct camera_frame *)param;
-		if ((pframe->buf.mapping_state & CAM_BUF_MAPPING_DEV) == 0) {
-			ret = cam_buf_iommu_map(&pframe->buf, CAM_IOMMUDEV_ISP);
-			if (ret) {
-				pr_err("fail to map isp pyr rec iommu buf.\n");
-				ret = -EINVAL;
-				goto exit;
-			}
+		ret = cam_buf_iommu_map(&pframe->buf, CAM_IOMMUDEV_ISP);
+		if (ret) {
+			pr_err("fail to map isp pyr rec iommu buf.\n");
+			ret = -EINVAL;
+			goto exit;
 		}
 
 		if (rec_ctx->buf_info == NULL) {
@@ -641,10 +639,9 @@ static int isppyrrec_cfg_param(void *handle,
 			pr_debug("REC buf 0x%p = 0x%lx\n", pframe,
 				rec_ctx->buf_info->buf.iova[0]);
 			break;
-		} else {
+		} else
 			pr_debug("REC buf 0x%p = 0x%lx\n", pframe,
 				rec_ctx->buf_info->buf.iova[0]);
-		}
 		break;
 	case ISP_REC_CFG_LAYER_NUM:
 		rec_ctx->layer_num = *(uint32_t *)param;

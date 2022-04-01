@@ -2965,9 +2965,7 @@ static int ispcore_path_cfg(void *isp_handle,
 	case ISP_PATH_CFG_PYR_REC_BUF:
 		if (!rec_ctx)
 			return 0;
-		mutex_lock(&dev->rec_sharebuf_lock);
 		ret = rec_ctx->ops.cfg_param(rec_ctx, ISP_REC_CFG_BUF, param);
-		mutex_unlock(&dev->rec_sharebuf_lock);
 		if (ret) {
 			pr_err("fail to set isp ctx %d rec buffer.\n", ctx_id);
 			goto exit;
@@ -3967,7 +3965,6 @@ static int ispcore_dev_open(void *isp_handle, void *param)
 
 		dev->isp_hw = hw;
 		mutex_init(&dev->path_mutex);
-		mutex_init(&dev->rec_sharebuf_lock);
 		spin_lock_init(&dev->ctx_lock);
 		spin_lock_init(&hw->isp_cfg_lock);
 
@@ -4022,7 +4019,6 @@ static int ispcore_dev_close(void *isp_handle)
 		ret = hw->isp_ioctl(hw, ISP_HW_CFG_STOP, NULL);
 		ret = ispcore_context_deinit(dev);
 		mutex_destroy(&dev->path_mutex);
-		mutex_destroy(&dev->rec_sharebuf_lock);
 		if (dev->pyr_dec_handle && hw->ip_isp->pyr_dec_support) {
 			isp_pyr_dec_dev_put(dev->pyr_dec_handle);
 			dev->pyr_dec_handle = NULL;

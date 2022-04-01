@@ -1601,7 +1601,8 @@ static int camcore_buffers_alloc(void *param)
 	struct dcam_sw_context *sw_ctx = NULL;
 	struct camera_group *grp = NULL;
 	struct camera_queue *cap_buf_q = NULL;
-	struct camera_frame *pframe_dec;
+	struct camera_frame *pframe_dec = NULL;
+	struct camera_frame *pframe_rec = NULL;
 	pr_info("enter.\n");
 
 	module = (struct camera_module *)param;
@@ -1881,10 +1882,12 @@ mul_alloc_end:
 	if ((channel->ch_id == CAM_CH_CAP && grp->is_mul_buf_share
 		&& (module->cam_uinfo.is_pyr_rec || module->cam_uinfo.is_pyr_dec)
 		&& atomic_inc_return(&grp->mul_pyr_buf_alloced) > 1)) {
-		channel->pyr_rec_buf = grp->mul_share_pyr_rec_buf;
-		pframe = cam_queue_empty_frame_get();
-		memcpy(pframe, grp->mul_share_pyr_dec_buf, sizeof(struct camera_frame));
-		channel->pyr_dec_buf = pframe;
+		pframe_rec = cam_queue_empty_frame_get();
+		memcpy(pframe_rec, grp->mul_share_pyr_rec_buf, sizeof(struct camera_frame));
+		channel->pyr_rec_buf = pframe_rec;
+		pframe_dec = cam_queue_empty_frame_get();
+		memcpy(pframe_dec, grp->mul_share_pyr_dec_buf, sizeof(struct camera_frame));
+		channel->pyr_dec_buf = pframe_dec;
 		goto mul_pyr_alloc_end;
 	}
 
@@ -1910,7 +1913,9 @@ mul_alloc_end:
 		}
 		if (camcore_mulsharebuf_verif(channel, &module->cam_uinfo)) {
 			grp->mul_share_pyr_rec_buf = pframe;
-			channel->pyr_rec_buf = grp->mul_share_pyr_rec_buf;
+			pframe_rec = cam_queue_empty_frame_get();
+			memcpy(pframe_rec, grp->mul_share_pyr_rec_buf, sizeof(struct camera_frame));
+			channel->pyr_rec_buf = pframe_rec;
 		} else
 			channel->pyr_rec_buf = pframe;
 

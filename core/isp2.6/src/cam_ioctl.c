@@ -1612,7 +1612,10 @@ static int camioctl_stream_off(struct camera_module *module,
 			}
 
 			if (ch->ch_id == CAM_CH_CAP && module->grp->is_mul_buf_share) {
-				ch->pyr_rec_buf = NULL;
+				if (ch->pyr_rec_buf) {
+					cam_queue_empty_frame_put(ch->pyr_rec_buf);
+					ch->pyr_rec_buf = NULL;
+				}
 				if (ch->pyr_dec_buf) {
 					cam_queue_empty_frame_put(ch->pyr_dec_buf);
 					ch->pyr_dec_buf = NULL;
