@@ -1520,6 +1520,7 @@ static int dcamcore_path_cfg(void *dcam_handle, enum dcam_path_cfg_cmd cfg_cmd,
 		pr_debug("config dcam%d path %d output buffer.\n", pctx->hw_ctx_id,  path_id);
 		break;
 	case DCAM_PATH_CLR_OUTPUT_SHARE_BUF:
+		state = *(uint32_t *)param;
 		do {
 			pframe = cam_queue_dequeue(&path->out_buf_queue,
 				struct camera_frame, list);
@@ -1529,11 +1530,15 @@ static int dcamcore_path_cfg(void *dcam_handle, enum dcam_path_cfg_cmd cfg_cmd,
 
 		} while (1);
 		do {
-			pframe = cam_queue_dequeue(&path->result_queue,
-				struct camera_frame, list);
-			if (pframe == NULL)
+			if (cam_queue_cnt_get(&path->result_queue) == 1 && state == DCAM_PATH_PAUSE)
 				break;
-			pctx->buf_get_cb(SHARE_BUF_SET_CB, pframe, pctx->buf_cb_data);
+			else {
+				pframe = cam_queue_dequeue(&path->result_queue,
+					struct camera_frame, list);
+				if (pframe == NULL)
+					break;
+				pctx->buf_get_cb(SHARE_BUF_SET_CB, pframe, pctx->buf_cb_data);
+			}
 
 		} while (1);
 		break;
