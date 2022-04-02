@@ -46,6 +46,7 @@ uint32_t g_pyr_dec_online_bypass = 0;
 uint32_t g_pyr_dec_offline_bypass = 0;
 uint32_t g_dcam_raw_src = PROCESS_RAW_SRC_SEL;
 uint32_t g_dbg_dumpswitch = 0;
+uint32_t g_dbg_recovery = 0;
 uint32_t g_dbg_fbc_control = 0;
 uint32_t contr_cap_eof = 1;
 extern atomic_t s_dcam_opened[DCAM_SW_CONTEXT_MAX];
@@ -453,6 +454,38 @@ static const struct file_operations fbc_control_ops = {
 	.write = camdebugger_fbc_control_write,
 };
 
+static ssize_t camdebugger_recovery_show(struct file *filp,
+	char __user *buffer, size_t count, loff_t *ppos)
+{
+	const char *desc = "0: open, 1: bypass recovery\n";
+	char buf[48];
+
+	snprintf(buf, sizeof(buf), "%u\n\n%s\n", g_dbg_recovery, desc);
+
+	return simple_read_from_buffer(
+		buffer, count, ppos,
+		buf, strlen(buf));
+}
+
+static ssize_t camdebugger_recovery_write(struct file *filp,
+	const char __user *buffer, size_t count, loff_t *ppos)
+{
+	int ret = 0;
+	ret = camdebugger_userparam_set(buffer,count,&g_dbg_recovery);
+	if (ret < 0) {
+		pr_err("set recovery fail");
+		return ret;
+	}
+	pr_info("set recovery %u\n", g_dbg_recovery);
+	return count;
+}
+
+static const struct file_operations recovery_ops = {
+	.owner = THIS_MODULE,
+	.open = simple_open,
+	.read = camdebugger_recovery_show,
+	.write = camdebugger_recovery_write,
+};
 
 static ssize_t camdebugger_dumpswitch_show(struct file *filp,
 	char __user *buffer, size_t count, loff_t *ppos)
@@ -967,6 +1000,9 @@ static int camdebugger_dcam_init(struct camera_debugger *debugger)
 	if (!debugfs_create_file("dcam_cap_eof", 0664,
 		pd, debugger, &dcam_eof_ops))
 		ret |= BIT(16);
+	if (!debugfs_create_file("recovery_bypass", 0664,
+		pd, debugger, &recovery_ops))
+		ret |= BIT(17);
 
 	entry = debugfs_create_file("replace_image", 0644, pd,
 			&debugger->replacer[0],

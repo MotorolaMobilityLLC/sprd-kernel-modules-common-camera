@@ -61,6 +61,7 @@ extern uint32_t g_pyr_dec_offline_bypass;
 extern uint32_t g_dcam_raw_src;
 extern uint32_t g_dbg_dumpswitch;
 extern uint32_t g_dbg_fbc_control;
+extern uint32_t g_dbg_recovery;
 
 /* for global camera control */
 struct cam_global_ctrl {

@@ -2885,7 +2885,7 @@ static int camcore_dcam_callback(enum dcam_cb_type type, void *param, void *priv
 		trace.idx = dcam_sw_ctx->hw_ctx_id;
 		hw->isp_ioctl(hw, ISP_HW_CFG_REG_TRACE, &trace);
 
-		if (hw->ip_dcam[DCAM_ID_0]->recovery_support & status) {
+		if ((hw->ip_dcam[DCAM_ID_0]->recovery_support & status) && !g_dbg_recovery) {
 			pr_info("cam %d start recovery\n", module->idx);
 			hw->dcam_ioctl(hw, DCAM_HW_CFG_IRQ_DISABLE, &dcam_sw_ctx->hw_ctx_id);
 			complete(&module->grp->recovery_thrd.thread_com);
