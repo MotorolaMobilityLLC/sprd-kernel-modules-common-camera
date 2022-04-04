@@ -180,8 +180,8 @@ enum cam_frame_scene {
 	CAM_FRAME_FDRL,
 	CAM_FRAME_FDRH,
 	CAM_FRAME_PRE_FDR,
-	CAM_FRAME_MERGE,
 	CAM_FRAME_DRC,
+	CAM_FRAME_RAW_PROC,
 };
 
 struct camera_format {
@@ -278,6 +278,7 @@ enum share_buf_cb_type {
 enum cam_scene_ctrl_type {
 	CAM_SCENE_CTRL_FDR_L,
 	CAM_SCENE_CTRL_FDR_H,
+	CAM_SCENE_CTRL_RAW_PROC,
 	CAM_SCENE_CTRL_MAX,
 };
 
@@ -330,6 +331,7 @@ enum dcam_store_format {
 
 struct cam_data_ctrl_in {
 	enum cam_scene_ctrl_type scene_type;
+	uint32_t is_raw_alg;
 	uint32_t fdr_version;
 	uint32_t ctx_id;
 	struct img_size src;

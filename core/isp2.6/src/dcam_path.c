@@ -479,7 +479,7 @@ dcam_path_frame_cycle(struct dcam_sw_context *dcam_sw_ctx, struct dcam_path_desc
 	uint32_t src = 0;
 	struct camera_frame *frame = NULL;
 
-	if ((path->path_id == DCAM_PATH_FULL || path->path_id == DCAM_PATH_RAW) && dcam_sw_ctx->is_fdr == 1) {
+	if ((path->path_id == DCAM_PATH_FULL || path->path_id == DCAM_PATH_RAW) && dcam_sw_ctx->is_raw_alg) {
 		frame = cam_queue_dequeue(&path->alter_out_queue, struct camera_frame, list);
 		src = 0;
 	}

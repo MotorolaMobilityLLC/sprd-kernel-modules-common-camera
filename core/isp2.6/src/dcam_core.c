@@ -2169,6 +2169,8 @@ static int dcamcore_dev_stop(void *dcam_handle, enum dcam_stop_cmd pause)
 
 		pctx->is_3dnr = pctx->is_4in1 = pctx->is_fdr = 0;
 	} else if (pause == DCAM_PAUSE_ONLINE || pause == DCAM_RECOVERY) {
+		pctx->is_3dnr = pctx->is_4in1 = pctx->is_raw_alg = 0;
+	} else if (pause == DCAM_PAUSE_ONLINE) {
 		pm->frm_idx = pctx->base_fid + pctx->frame_index;
 		pr_info("dcam%d online pause fram id %d %d, base_fid %d, new %d\n", hw_ctx_id,
 			pctx->frame_index, pctx->index_to_set, pctx->base_fid, pm->frm_idx);
@@ -2522,10 +2524,15 @@ static int dcamcore_scene_fdrl_get(uint32_t prj_id,
 		}
 		break;
 	case QOGIRN6pro:
-		out->start_ctrl = DCAM_START_CTRL_EN;
-		out->callback_ctrl = DCAM_CALLBACK_CTRL_USER;
-		out->in_format = DCAM_STORE_RAW_BASE;
-		out->out_format = DCAM_STORE_FRGB;
+		if (out->is_raw_alg) {
+			out->start_ctrl = DCAM_START_CTRL_EN;
+			out->callback_ctrl = DCAM_CALLBACK_CTRL_USER;
+		} else {
+			out->start_ctrl = DCAM_START_CTRL_EN;
+			out->callback_ctrl = DCAM_CALLBACK_CTRL_USER;
+			out->in_format = DCAM_STORE_RAW_BASE;
+			out->out_format = DCAM_STORE_FRGB;
+		}
 		break;
 	default:
 		pr_err("fail to support current project %d\n", prj_id);
@@ -2603,6 +2610,7 @@ static int dcamcore_datactrl_get(void *handle, void *in, void *out)
 	data_ctrl = (struct dcam_data_ctrl_info *)out;
 	prj_id = pctx->dev->hw->prj_id;
 	data_ctrl->fdr_version = pctx->fdr_version;
+	data_ctrl->is_raw_alg = cfg_in->is_raw_alg;
 
 	switch (cfg_in->scene_type) {
 	case CAM_SCENE_CTRL_FDR_L:

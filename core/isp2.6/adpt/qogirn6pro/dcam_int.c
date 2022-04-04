@@ -727,7 +727,7 @@ static void dcamint_raw_path_done(void *param, struct dcam_sw_context *sw_ctx)
 	path = &sw_ctx->path[DCAM_PATH_RAW];
 	path_bin = &sw_ctx->path[DCAM_PATH_BIN];
 
-	if (sw_ctx->is_fdr && sw_ctx->fdr_version)
+	if (sw_ctx->is_raw_alg && sw_ctx->fdr_version)
 		fdr_raw_flag = 1;
 
 	if (sw_ctx->offline) {
