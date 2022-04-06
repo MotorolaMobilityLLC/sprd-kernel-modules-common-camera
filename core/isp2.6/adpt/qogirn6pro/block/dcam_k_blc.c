@@ -70,8 +70,10 @@ int dcam_k_cfg_blc(struct isp_io_param *param, struct dcam_dev_param *p)
 					(unsigned int)ret);
 				return -EPERM;
 			}
-			if (p->idx == DCAM_HW_CONTEXT_MAX || (g_dcam_bypass[p->idx] & (1 << _E_BLC)))
+			if (p->idx == DCAM_HW_CONTEXT_MAX)
 				return 0;
+			if (g_dcam_bypass[p->idx] & (1 << _E_BLC))
+				p->blc.blc_info.bypass = 1;
 			ret = dcam_k_blc_block(p);
 		} else {
 			mutex_lock(&p->param_lock);

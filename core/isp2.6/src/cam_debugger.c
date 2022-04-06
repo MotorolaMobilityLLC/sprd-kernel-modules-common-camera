@@ -38,8 +38,7 @@
 uint32_t g_dcam_bypass[DCAM_HW_CONTEXT_MAX] = {0};
 struct cam_dbg_dump g_dbg_dump;
 int s_dbg_work_mode = ISP_CFG_MODE;
-uint32_t g_isp_bypass[ISP_CONTEXT_SW_NUM] = { 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-uint32_t g_isp_bypass2[ISP_CONTEXT_SW_NUM] = { 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+uint64_t g_isp_bypass[ISP_CONTEXT_SW_NUM] = { 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 int g_dbg_iommu_mode = IOMMU_AUTO;
 int g_dbg_set_iommu_mode = IOMMU_AUTO;
 uint32_t g_pyr_dec_online_bypass = 0;
@@ -1129,6 +1128,7 @@ static ssize_t camdebugger_isp_bypass_write(struct file *filp,
 	uint32_t i;
 	char name[16 + 1];
 	uint32_t bypass_all = 0;
+	uint64_t bypass_val = 1;
 
 	debug_bypass = (struct cam_debug_bypass *)p->private;
 	idx = debug_bypass->idx;
@@ -1173,15 +1173,17 @@ static ssize_t camdebugger_isp_bypass_write(struct file *filp,
 			parm.idx = idx;
 			parm.val = val;
 			hw->isp_ioctl(hw, ISP_HW_CFG_LTM_PARAM, &parm);
-			g_isp_bypass[idx] &= (~(1 << _EISP_LTM));
+			bypass_val = (bypass_val << _EISP_LTM);
+			g_isp_bypass[idx] &= (~bypass_val);
 			if (val)
-				g_isp_bypass[idx] |= (1 << _EISP_LTM);
+				g_isp_bypass[idx] |= bypass_val;
 			return count;
 		} else if (strcmp(name, "nr3") == 0 ||
 			strcmp(name, "3dnr") == 0) {
-			g_isp_bypass[idx] &= (~(1 << _EISP_NR3));
+			bypass_val = (bypass_val << _EISP_NR3);
+			g_isp_bypass[idx] &= (~bypass_val);
 			if (val)
-				g_isp_bypass[idx] |= (1 << _EISP_NR3);
+				g_isp_bypass[idx] |= bypass_val;
 			parm.idx = idx;
 			parm.val = val;
 			hw->isp_ioctl(hw, ISP_HW_CFG_3DNR_PARAM, &parm);
@@ -1204,13 +1206,10 @@ static ssize_t camdebugger_isp_bypass_write(struct file *filp,
 			pr_debug("set isp addr 0x%x, bit %d val %d\n",
 				data.tag->addr, data.tag->bpos, val);
 			if (i < _EISP_TOTAL) {
-				g_isp_bypass[idx] &= (~(1 << i));
-				g_isp_bypass[idx] |= (val << i);
-				pr_debug("g_bypass: %s, %d, %d\n", data.tag->p, i, g_isp_bypass[idx]);
-			} else {
-				g_isp_bypass2[idx] &= (~(1 << (i - _EISP_TOTAL)));
-				g_isp_bypass2[idx] |= (val << (i - _EISP_TOTAL));
-				pr_debug("g_bypass: %s, %d, %d\n", data.tag->p, i, g_isp_bypass2[idx]);
+				bypass_val = val;
+				bypass_val = bypass_val << i;
+				g_isp_bypass[idx] &= (~bypass_val);
+				g_isp_bypass[idx] |= bypass_val;
 			}
 			if (bypass_all && (data.tag->all == 0))
 				continue;
@@ -1636,7 +1635,6 @@ static int camdebugger_isp_init(struct camera_debugger *debugger)
 		return -ENOMEM;
 	}
 	memset(g_isp_bypass, 0x00, sizeof(g_isp_bypass));
-	memset(g_isp_bypass2, 0x00, sizeof(g_isp_bypass2));
 	if (!debugfs_create_file("work_mode", 0644,
 		debugfs_base, NULL, &work_mode_ops))
 		return -ENOMEM;

@@ -1279,8 +1279,8 @@ static int camioctl_frame_addr_set(struct camera_module *module,
 		pframe->buf.addr_vir[1] = param.frame_addr_vir_array[i].u;
 		pframe->buf.addr_vir[2] = param.frame_addr_vir_array[i].v;
 
-		pr_debug("ch %d, mfd 0x%x, off 0x%x 0x%x 0x%x, reserved %d user_fid[%d]\n",
-			pframe->channel_id, pframe->buf.mfd[0],
+		pr_debug("cam%d ch %d, mfd 0x%x, off 0x%x 0x%x 0x%x, reserved %d user_fid[%d]\n",
+			module->idx, pframe->channel_id, pframe->buf.mfd[0],
 			pframe->buf.offset[0], pframe->buf.offset[1],
 			pframe->buf.offset[2], param.is_reserved_buf,
 			pframe->user_fid);
@@ -3492,6 +3492,9 @@ static int camioctl_path_pause(struct camera_module *module,
 	if (atomic_read(&module->state) == CAM_RUNNING) {
 		mutex_lock(&module->lock);
 		if (module->channel[CAM_CH_CAP].enable) {
+			ret = module->isp_dev_handle->isp_ops->clear_blk_param_q(module->isp_dev_handle, module->channel[CAM_CH_CAP].isp_ctx_id);
+			if (ret)
+				pr_err("fail to recycle cam%d  blk param node\n", module->idx);
 			if (module->cam_uinfo.need_share_buf) {
 				module->dcam_dev_handle->dcam_pipe_ops->cfg_path(sw_ctx,
 					DCAM_PATH_CFG_STATE, DCAM_PATH_FULL, &dcam_path_state);
@@ -3755,5 +3758,98 @@ static int camioctl_960fps_param_set(struct camera_module *module, unsigned long
 		module->idx, param.ch_id, channel->ch_uinfo.high_fps_skip_num1,
 		channel->ch_uinfo.frame_num, channel->ch_uinfo.frame_num1);
 	return 0;
+}
+
+static int camioctl_cfg_param_start_end(struct camera_module *module, unsigned long arg)
+{
+	int ret = 0;
+	struct sprd_cfg_param_status param;
+	struct channel_context *channel = NULL;
+	struct camera_frame *param_frame = NULL;
+	struct isp_sw_context *pctx = NULL;
+	uint32_t for_fdr = 0, for_capture = 0;
+
+	if (atomic_read(&module->state) != CAM_CFG_CH && atomic_read(&module->state) != CAM_STREAM_ON &&atomic_read(&module->state) != CAM_RUNNING)
+		return ret;
+
+	ret = copy_from_user(&param, (void __user *)arg, sizeof(struct sprd_cfg_param_status));
+	if (unlikely(ret)) {
+		pr_err("fail to copy from user, ret %d\n", ret);
+		return -EFAULT;
+	}
+
+	if ((param.scene_id == PM_SCENE_FDRL) ||
+		(param.scene_id == PM_SCENE_FDRH) ||
+		(param.scene_id == PM_SCENE_FDR_PRE) ||
+		(param.scene_id == PM_SCENE_FDR_DRC))
+		for_fdr = 1;
+	for_capture = (param.scene_id == PM_SCENE_CAP ? 1 : 0) | for_fdr;
+
+	if (for_capture && (module->channel[CAM_CH_CAP].enable == 0)) {
+		pr_warn("warn: cam%d cap channel not enable\n");
+		return 0;
+	}
+
+	if (param.status == 0)
+		pr_debug("cam%d start param, fid %d, scene %d\n", module->idx, param.frame_id, param.scene_id);
+	else
+		pr_debug("cam%d end param, fid %d, scene %d\n", module->idx, param.frame_id, param.scene_id);
+	if (module->isp_dev_handle->cfg_handle && param.status == 0) {
+		if (param.scene_id == PM_SCENE_PRE) {
+			channel = &module->channel[CAM_CH_PRE];
+			if (channel->enable == 0)
+				return 0;
+			pctx = module->isp_dev_handle->sw_ctx[channel->isp_ctx_id];
+			param_frame = cam_queue_empty_blk_param_get(&pctx->param_share_queue);
+			if (param_frame) {
+				pctx->isp_receive_param = param_frame;
+			} else {
+				pr_err("fail to recive param, cam%d scene %d fid %d\n", module->idx, param.scene_id, param.frame_id);
+				return -EFAULT;
+			}
+		}
+	}
+
+	if (module->isp_dev_handle->cfg_handle && param.status) {
+		if (param.scene_id == PM_SCENE_PRE) {
+			channel = &module->channel[CAM_CH_PRE];
+			if (channel->enable == 0)
+				return 0;
+			pctx = module->isp_dev_handle->sw_ctx[channel->isp_ctx_id];
+			param_frame = pctx->isp_receive_param;
+			if (!param_frame)
+				return 0;
+			if (param.update)
+				param_frame->blkparam_info.update = 1;
+			else
+				param_frame->blkparam_info.update = 0;
+			param_frame->fid = param.frame_id;
+			ret = cam_queue_enqueue(&pctx->param_buf_queue, &param_frame->list);
+			pctx->isp_receive_param = NULL;
+		} else {
+			channel = &module->channel[CAM_CH_CAP];
+			if (channel->enable == 0)
+				return 0;
+			pctx = module->isp_dev_handle->sw_ctx[channel->isp_ctx_id];
+			param_frame = cam_queue_empty_blk_param_get(&pctx->param_share_queue);
+			if (!param_frame) {
+				param_frame = cam_queue_dequeue(&pctx->param_buf_queue, struct camera_frame, list);
+				if (param_frame)
+					pr_debug("isp%d deq param node %d\n", channel->isp_ctx_id, param_frame->fid);
+			}
+
+			if (param_frame) {
+				memcpy(param_frame->blkparam_info.param_block, &pctx->isp_k_param, sizeof(struct isp_k_block));
+				if (param.update)
+					param_frame->blkparam_info.update = 1;
+				else
+					param_frame->blkparam_info.update = 0;
+				param_frame->fid = param.frame_id;
+				ret = cam_queue_enqueue(&pctx->param_buf_queue, &param_frame->list);
+			} else
+				pr_warn("isp%d cap lose param %d\n", pctx->ctx_id, param.frame_id);
+		}
+	}
+	return ret;
 }
 #endif

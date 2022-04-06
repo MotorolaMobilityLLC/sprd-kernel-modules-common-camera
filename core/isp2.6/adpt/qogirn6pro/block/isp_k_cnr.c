@@ -19,28 +19,25 @@
 #include "cam_types.h"
 #include "cam_block.h"
 #include "isp_core.h"
+#include "cam_queue.h"
 
 #ifdef pr_fmt
 #undef pr_fmt
 #endif
 #define pr_fmt(fmt) "CNR: %d %d %s : "fmt, current->pid, __LINE__, __func__
 
-static int isp_k_cnr_block(struct isp_io_param *param,
-	struct isp_k_block *isp_k_param, uint32_t idx)
+int isp_k_cnr_block(struct isp_k_block *isp_k_param, uint32_t idx)
 {
 	int ret = 0;
 	struct isp_dev_cnr_h_info *cnr = NULL;
 
-	cnr = &isp_k_param->cnr_info;
-	ret = copy_from_user((void *)cnr, param->property_param,
-			sizeof(struct isp_dev_cnr_h_info));
-	if (ret != 0) {
-		pr_err("fail to copy from user, ret = %d\n", ret);
+	if (isp_k_param->cnr_info.isupdate == 0)
 		return ret;
-	}
-	if (g_isp_bypass2[idx] & (1 << _EISP_CNR))
-		cnr->bypass = 1;
 
+	cnr = &isp_k_param->cnr_info;
+	isp_k_param->cnr_info.isupdate = 0;
+	if (g_isp_bypass[idx] & (1 << _EISP_CNR))
+		cnr->bypass = 1;
 	return ret;
 }
 
@@ -48,10 +45,21 @@ int isp_k_cfg_cnr(struct isp_io_param *param,
 	struct isp_k_block *isp_k_param, uint32_t idx)
 {
 	int ret = 0;
+	struct isp_dev_cnr_h_info *cnr = NULL;
+
+	cnr = &isp_k_param->cnr_info;
 
 	switch (param->property) {
 	case ISP_PRO_CNR_H_BLOCK:
-		ret = isp_k_cnr_block(param, isp_k_param, idx);
+		ret = copy_from_user((void *)cnr, param->property_param,
+				sizeof(struct isp_dev_cnr_h_info));
+		if (ret != 0) {
+			pr_err("fail to copy from user, ret = %d\n", ret);
+			return ret;
+		}
+		cnr->isupdate = 1;
+		if (g_isp_bypass[idx] & (1 << _EISP_CNR))
+			cnr->bypass = 1;
 		break;
 	default:
 		pr_err("fail to support cmd id = %d\n", param->property);
@@ -78,14 +86,14 @@ int isp_k_update_cnr(void *handle)
 
 	pctx = (struct isp_sw_context *)handle;
 	idx = pctx->ctx_id;
-	new_width = pctx->isp_k_param.blkparam_info.new_width;
-	new_height = pctx->isp_k_param.blkparam_info.new_height;
-	old_width = pctx->isp_k_param.blkparam_info.old_width;
-	old_height = pctx->isp_k_param.blkparam_info.old_height;
+	new_width = pctx->isp_using_param->blkparam_info.new_width;
+	new_height = pctx->isp_using_param->blkparam_info.new_height;
+	old_width = pctx->isp_using_param->blkparam_info.old_width;
+	old_height = pctx->isp_using_param->blkparam_info.old_height;
 	sensor_width = pctx->uinfo.sn_size.w;
 	sensor_height = pctx->uinfo.sn_size.h;
 
-	cnr_info_h = &pctx->isp_k_param.cnr_info;
+	cnr_info_h = &pctx->isp_using_param->cnr_info;
 	param_cnr_info = &cnr_info_h->layer_cnr_h[0];
 
 	if (cnr_info_h->bypass)
@@ -99,8 +107,20 @@ int isp_k_update_cnr(void *handle)
 	radius = (radius < radius_limit) ? radius : radius_limit;
 	radius = new_height * radius / old_height;
 
-	pctx->isp_k_param.cnr_radius = radius;
+	pctx->isp_using_param->cnr_radius = radius;
 	pr_debug("base %d, factor %d, radius %d\n", cnr_info_h->radius_base, param_cnr_info->base_radius_factor, radius);
+
+	return ret;
+}
+
+int isp_k_cpy_cnr(struct isp_k_block *param_block, struct isp_k_block *isp_k_param)
+{
+	int ret = 0;
+	if (isp_k_param->cnr_info.isupdate == 1) {
+		memcpy(&param_block->cnr_info, &isp_k_param->cnr_info, sizeof(struct isp_dev_cnr_h_info));
+		isp_k_param->cnr_info.isupdate = 0;
+		param_block->cnr_info.isupdate = 1;
+	}
 
 	return ret;
 }

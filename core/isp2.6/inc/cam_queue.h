@@ -20,7 +20,9 @@
 
 #include "cam_types.h"
 #include "cam_buf.h"
+#include "cam_block.h"
 #include "isp_interface.h"
+#include "isp_cfg.h"
 
 #define CAM_EMP_Q_LEN_INC               16
 #define CAM_EMP_Q_LEN_MAX               3072
@@ -31,6 +33,12 @@ enum {
 	CAM_Q_EMPTY,
 	CAM_Q_FULL,
 	CAM_Q_CLEAR
+};
+
+struct blk_param_info {
+	uint32_t update;
+	struct isp_k_block *param_block;
+	void *blk_param_node;
 };
 
 struct camera_frame {
@@ -82,6 +90,7 @@ struct camera_frame {
 	ktime_t boot_time;/* ns from boot @ISP DONE */
 	struct timeval sensor_time;/* time without suspend @SOF */
 	ktime_t boot_sensor_time;/* ns from boot @SOF */
+	struct blk_param_info blkparam_info;
 	struct camera_buf buf;
 };
 
@@ -232,5 +241,6 @@ void cam_queue_empty_frame_free(void *param);
 struct isp_stream_ctrl *cam_queue_empty_state_get(void);
 void cam_queue_empty_state_put(void *param);
 void cam_queue_empty_state_free(void *param);
-
+int cam_queue_recycle_blk_param(struct camera_queue *q, struct camera_frame *param_pframe);
+struct camera_frame * cam_queue_empty_blk_param_get(struct camera_queue *q);
 #endif/* _CAM_QUEUE_H_ */

@@ -42,7 +42,7 @@ int dcam_k_gamma_block(struct dcam_dev_param *param)
 
 	if (idx >= DCAM_HW_CONTEXT_MAX)
 		return 0;
-	if (g_dcam_bypass[idx] & (1 << _E_GAMM))
+	if (g_dcam_bypass[idx] & (1 << _E_GAMMA))
 		p->bypass = 1;
 
 	/* only cfg mode and buf0 is selected. */
@@ -95,6 +95,8 @@ int dcam_k_cfg_gamma(struct isp_io_param *param, struct dcam_dev_param *p)
 			}
 			if (p->idx == DCAM_HW_CONTEXT_MAX || param->scene_id == PM_SCENE_CAP)
 				return 0;
+			if (g_dcam_bypass[p->idx] & (1 << _E_GAMMA))
+				p->gamma_info_v1.gamma_info.bypass = 1;
 			ret = dcam_k_gamma_block(p);
 		} else {
 			mutex_lock(&p->param_lock);

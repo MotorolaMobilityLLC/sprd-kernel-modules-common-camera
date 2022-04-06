@@ -156,7 +156,8 @@ int dcam_k_cfg_frgbhist(struct isp_io_param *param, struct dcam_dev_param *p)
 
 		if (p->idx == DCAM_HW_CONTEXT_MAX)
 			return 0;
-
+		if (g_dcam_bypass[p->idx] & (1 << _E_RGBHIST))
+			p->hist_roi.hist_roi_info.bypass = 1;
 		if (atomic_read(&sw_ctx->state) != STATE_RUNNING) {
 			ret = dcam_k_frgbhist_block(p);
 			if (ret)

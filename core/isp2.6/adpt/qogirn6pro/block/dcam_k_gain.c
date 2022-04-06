@@ -105,6 +105,9 @@ int dcam_k_cfg_rgb_gain(struct isp_io_param *param, struct dcam_dev_param *p)
 			/* debug bypass rgb gain */
 			if (p->idx == DCAM_HW_CONTEXT_MAX || (g_dcam_bypass[p->idx] & (1 << _E_RGB)))
 				return 0;
+			if (g_dcam_bypass[p->idx] & (1 << _E_RGB))
+				p->rgb.gain_info.bypass = 1;
+
 			ret = dcam_k_rgb_gain_block(p);
 		} else {
 			mutex_lock(&p->param_lock);
@@ -144,8 +147,10 @@ int dcam_k_cfg_rgb_dither(struct isp_io_param *param, struct dcam_dev_param *p)
 				return -1;
 			}
 			/* debugfs bypass rgb dither(rand) */
-			if (p->idx == DCAM_HW_CONTEXT_MAX || (g_dcam_bypass[p->idx] & (1 << _E_RAND)))
+			if (p->idx == DCAM_HW_CONTEXT_MAX)
 				return 0;
+			if (g_dcam_bypass[p->idx] & (1 << _E_RAND))
+				p->rgb.rgb_dither.random_bypass = 1;
 			ret = dcam_k_rgb_dither_random_block(p);
 		} else {
 			mutex_lock(&p->param_lock);

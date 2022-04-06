@@ -754,7 +754,7 @@ static int isp3dnr_pipe_proc(void *handle, void *param, uint32_t mode)
 	nr3_ctx = (struct isp_3dnr_ctx_desc *)handle;
 	fsync = (struct dcam_frame_synchronizer *)param;
 
-	if (g_isp_bypass[nr3_ctx->ctx_id] & (1 << _EISP_NR3))
+	if ((g_isp_bypass[nr3_ctx->ctx_id] >> _EISP_NR3) & 1)
 		mode = NR3_FUNC_OFF;
 
 	switch (mode) {

@@ -165,6 +165,7 @@ enum isp_stream_frame_type {
 struct isp_init_param {
 	uint32_t is_high_fps;
 	uint32_t cam_id;
+	uint32_t blkparam_node_num;
 };
 
 struct isp_ctx_base_desc {
@@ -353,6 +354,7 @@ struct isp_pipe_ops {
 	int (*put_context)(void *isp_handle, int ctx_id);
 
 	int (*get_path)(void *isp_handle, int ctx_id, int path_id);
+	int (*get_param)(void *handle, void *arg);
 	int (*put_path)(void *isp_handle, int ctx_id, int path_id);
 	int (*cfg_path)(void *isp_handle, enum isp_path_cfg_cmd cfg_cmd,
 			int ctx_id, int path_id, void *param);
@@ -365,6 +367,7 @@ struct isp_pipe_ops {
 	int (*update_clk)(void *isp_handle, void *arg);
 	int (*clear_stream_ctrl)(void *isp_handle, int ctx_id);
 	int (*set_datactrl)(void *handle, void *in, void *out);
+	int (*clear_blk_param_q)(void *isp_handle, int ctx_id);
 };
 
 #endif

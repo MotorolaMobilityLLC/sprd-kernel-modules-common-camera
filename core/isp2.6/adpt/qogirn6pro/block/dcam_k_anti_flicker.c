@@ -92,6 +92,8 @@ int dcam_k_afl_block(struct dcam_dev_param *param)
 		return 0;
 	p = &(param->afl.afl_info);
 
+	if (g_dcam_bypass[idx] & (1 << _E_AFL))
+		p->bypass = 1;
 	pr_debug("cfg afl bypass %d, mode %d %d %d\n",
 		p->bypass, p->mode,
 		p->bayer2y_chanel, p->bayer2y_mode);
@@ -155,6 +157,8 @@ int dcam_k_afl_bypass(struct dcam_dev_param *param)
 	idx = param->idx;
 	if (idx >= DCAM_HW_CONTEXT_MAX)
 		return 0;
+	if (g_dcam_bypass[idx] & (1 << _E_AFL))
+		param->afl.afl_info.bypass = 1;
 	mode = (DCAM_REG_RD(idx, ISP_AFL_PARAM0) >> 1) & 1;
 	pr_debug("afl bypass %d, mode %d\n", param->afl.afl_info.bypass, mode);
 
@@ -204,6 +208,8 @@ int dcam_k_cfg_afl(struct isp_io_param *param, struct dcam_dev_param *p)
 		}
 		if (p->idx == DCAM_HW_CONTEXT_MAX)
 			return 0;
+		if (g_dcam_bypass[p->idx] & (1 << _E_AFL))
+			p->afl.afl_info.bypass = 1;
 		ret = sub_func(p);
 	} else {
 		mutex_lock(&p->param_lock);

@@ -40,6 +40,8 @@ int dcam_k_aem_bypass(struct dcam_dev_param *param)
 	idx = param->idx;
 	if (idx >= DCAM_HW_CONTEXT_MAX)
 		return 0;
+	if (g_dcam_bypass[idx] & (1 << _E_AEM))
+		param->aem.bypass = 1;
 	DCAM_REG_MWR(idx, DCAM_AEM_FRM_CTRL0, BIT_0,
 		param->aem.bypass & BIT_0);
 

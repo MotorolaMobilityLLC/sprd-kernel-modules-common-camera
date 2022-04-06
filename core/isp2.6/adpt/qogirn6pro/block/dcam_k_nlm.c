@@ -281,7 +281,7 @@ int dcam_k_nlm_imblance(struct dcam_dev_param *p)
 	re_width = imblance_info->imblance_radial_1D_center_x << 1;
 
 	/* new added below */
-	if (g_dcam_bypass[idx] & (1 << _E_IBL))
+	if (g_dcam_bypass[idx] & (1 << _E_GRGB))
 		imblance_info->nlm_imblance_bypass = 1;
 
 	DCAM_REG_MWR(idx, DCAM_NLM_IMBLANCE_CTRL, BIT_0,
@@ -486,6 +486,14 @@ int dcam_k_cfg_nlm(struct isp_io_param *param, struct dcam_dev_param *p)
 
 		if (p->idx == DCAM_HW_CONTEXT_MAX || param->scene_id == PM_SCENE_CAP)
 			return 0;
+		if (g_dcam_bypass[p->idx] & (1 << _E_NLM)) {
+			p->nlm_info2.bypass = 1;
+			p->nlm_info2.vst_bypass = 1;
+			p->nlm_info2.ivst_bypass = 1;
+		}
+
+		if (g_dcam_bypass[p->idx] & (1 << _E_GRGB))
+			p->nlm_imblance2.nlm_imblance_bypass = 1;
 		ret = sub_func(p);
 	} else {
 		mutex_lock(&p->param_lock);

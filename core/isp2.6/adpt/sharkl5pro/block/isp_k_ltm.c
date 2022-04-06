@@ -18,6 +18,7 @@
 #include "cam_block.h"
 #include "isp_ltm.h"
 #include "sprd_isp_2v6.h"
+#include "cam_queue.h"
 
 #ifdef pr_fmt
 #undef pr_fmt
@@ -51,7 +52,7 @@ static void isp_ltm_config_hists(uint32_t idx,
 		return;
 	}
 
-	if (g_isp_bypass[idx] & (1 << _EISP_LTM)) {
+	if ((g_isp_bypass[idx] >> _EISP_LTM) & 1) {
 		pr_debug("ltm hist g_isp_bypass\n");
 		hists->bypass = 1;
 	}
@@ -119,7 +120,7 @@ static void isp_ltm_config_map(uint32_t idx,
 		return;
 	}
 
-	if (g_isp_bypass[idx] & (1 << _EISP_LTM)) {
+	if ((g_isp_bypass[idx] >> _EISP_LTM) & 1) {
 		pr_debug("ltm map g_isp_bypass\n");
 		map->bypass = 1;
 	}
@@ -199,6 +200,7 @@ int isp_k_ltm_rgb_block(struct isp_io_param *param,
 	ret = copy_from_user((void *)p,
 			(void __user *)param->property_param,
 			sizeof(struct isp_dev_rgb_ltm_info));
+	isp_k_param->ltm_rgb_info.isupdate = 1;
 	if (ret != 0) {
 		pr_err("fail to get ltm from user, ret = %d\n", ret);
 		return -EPERM;
@@ -220,6 +222,7 @@ int isp_k_ltm_yuv_block(struct isp_io_param *param,
 	ret = copy_from_user((void *)p,
 			(void __user *)param->property_param,
 			sizeof(struct isp_dev_yuv_ltm_info));
+	isp_k_param->ltm_yuv_info.isupdate = 1;
 	if (ret != 0) {
 		pr_err("fail to get ltm from user, ret = %d\n", ret);
 		return -EPERM;
@@ -264,3 +267,26 @@ int isp_k_cfg_yuv_ltm(struct isp_io_param *param,
 	return ret;
 }
 
+int isp_k_cpy_yuv_ltm(struct isp_k_block *param_block, struct isp_k_block *isp_k_param)
+{
+	int ret = 0;
+	if(isp_k_param->ltm_yuv_info.isupdate == 1) {
+		memcpy(&param_block->ltm_yuv_info, &isp_k_param->ltm_yuv_info, sizeof(struct isp_dev_yuv_ltm_info));
+		isp_k_param->ltm_yuv_info.isupdate = 0;
+		param_block->ltm_yuv_info.isupdate = 1;
+	}
+
+	return ret;
+}
+
+int isp_k_cpy_rgb_ltm(struct isp_k_block *param_block, struct isp_k_block *isp_k_param)
+{
+	int ret = 0;
+	if (isp_k_param->ltm_rgb_info.isupdate == 1) {
+		memcpy(&param_block->ltm_rgb_info, &isp_k_param->ltm_rgb_info, sizeof(struct isp_dev_rgb_ltm_info));
+		isp_k_param->ltm_rgb_info.isupdate = 0;
+		param_block->ltm_rgb_info.isupdate = 1;
+	}
+
+	return ret;
+}

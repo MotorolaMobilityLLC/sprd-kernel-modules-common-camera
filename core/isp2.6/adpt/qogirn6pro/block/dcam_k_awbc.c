@@ -151,8 +151,10 @@ int dcam_k_cfg_awbc(struct isp_io_param *param,	struct dcam_dev_param *p)
 				(unsigned int)ret);
 			return -EPERM;
 		}
-		if (p->idx == DCAM_HW_CONTEXT_MAX || (g_dcam_bypass[p->idx] & (1 << _E_AWBC)))
+		if (p->idx == DCAM_HW_CONTEXT_MAX)
 			return 0;
+		if (g_dcam_bypass[p->idx] & (1 << _E_AWBC))
+			p->awbc.awbc_info.awbc_bypass = 1;
 		ret = sub_func(p);
 		return ret;
 	}

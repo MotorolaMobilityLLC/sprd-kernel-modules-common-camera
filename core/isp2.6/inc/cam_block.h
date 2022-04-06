@@ -21,6 +21,8 @@ struct isp_blkparam_adapt {
 	uint32_t new_height;
 	uint32_t old_width;
 	uint32_t old_height;
+	uint32_t sensor_width;
+	uint32_t sensor_height;
 };
 
 struct isp_k_block {
@@ -37,6 +39,7 @@ struct isp_k_block {
 	uint32_t gtm_calc_mode;
 	/* sharkl6 */
 	struct isp_dev_grgb_info grgb_info;
+	struct isp_dev_hist2_info hist2_info;
 	struct isp_dev_bchs_info bchs_info;
 	struct isp_dev_rgb_ltm_info ltm_rgb_info;
 	struct isp_dev_yuv_ltm_info ltm_yuv_info;
@@ -170,8 +173,63 @@ int dcam_k_lscm_bypass(struct dcam_dev_param *param);
 int dcam_k_lscm_monitor(struct dcam_dev_param *param);
 
 int dcam_k_pdaf(struct dcam_dev_param *param);
-/* for dcam driver internal end */
 
+int isp_k_nlm_block(struct isp_k_block *isp_k_param, uint32_t idx);
+int isp_k_nlm_imblance(struct isp_k_block *isp_k_param, uint32_t idx);
+int isp_k_edge_block(struct isp_k_block *isp_k_param, uint32_t idx);
+int isp_k_post_cdn_block(struct isp_k_block *isp_k_param, uint32_t idx);
+int isp_k_precdn_block(struct isp_k_block *isp_k_param, uint32_t idx);
+int isp_k_cnr_block(struct isp_k_block *isp_k_param, uint32_t idx);
+int isp_k_post_cnr_block(struct isp_k_block *isp_k_param, uint32_t idx);
+int isp_k_3dlut_block(struct isp_k_block *isp_k_param, uint32_t idx);
+int isp_k_dct_block(struct isp_k_block *isp_k_param, uint32_t idx);
+int isp_k_gamma_block(struct isp_k_block *isp_k_param, uint32_t idx);
+int isp_k_cmc10_block(struct isp_k_block *isp_k_param, uint32_t idx);
+int isp_k_bchs_block(struct isp_k_block *isp_k_param, uint32_t idx);
+int isp_k_hsv_block(struct isp_k_block *isp_k_param, uint32_t idx);
+int isp_k_iircnr_block(struct isp_k_block *isp_k_param, uint32_t idx);
+int isp_k_cfa_block(struct isp_k_block *isp_k_param, uint32_t idx);
+int isp_k_cdn_block(struct isp_k_block *isp_k_param, uint32_t idx);
+int isp_k_uvd_block(struct isp_k_block *isp_k_param, uint32_t idx);
+int isp_k_yrandom_block(struct isp_k_block *isp_k_param, uint32_t idx);
+int isp_k_ynr_block(struct isp_k_block *isp_k_param, uint32_t idx);
+int isp_k_ygamma_block(struct isp_k_block *isp_k_param, uint32_t idx);
+int isp_k_cce_block(struct isp_k_block *isp_k_param, uint32_t idx);
+int isp_k_brightness1_block(struct isp_k_block *isp_k_param,uint32_t idx);
+int isp_k_contrast1_block(struct isp_k_block *isp_k_param,uint32_t idx);
+int isp_k_csa1_block(struct isp_k_block *isp_k_param,uint32_t idx);
+int isp_k_hue1_block(struct isp_k_block *isp_k_param,uint32_t idx);
+void isp_3dnr_config_blend(uint32_t idx, struct isp_3dnr_blend_info *blend);
+
+int isp_k_cpy_cce(struct isp_k_block *param_block, struct isp_k_block *isp_k_param);
+int isp_k_cpy_nlm(struct isp_k_block *param_block, struct isp_k_block *isp_k_param);
+int isp_k_cpy_cfa(struct isp_k_block *param_block, struct isp_k_block *isp_k_param);
+int isp_k_cpy_ygamma(struct isp_k_block *param_block, struct isp_k_block *isp_k_param);
+int isp_k_cpy_gamma(struct isp_k_block *param_block, struct isp_k_block *isp_k_param);
+int isp_k_cpy_cmc10(struct isp_k_block *param_block, struct isp_k_block *isp_k_param);
+int isp_k_cpy_pre_cdn(struct isp_k_block *param_block, struct isp_k_block *isp_k_param);
+int isp_k_cpy_ynr(struct isp_k_block *param_block, struct isp_k_block *isp_k_param);
+int isp_k_cpy_uvd(struct isp_k_block *param_block, struct isp_k_block *isp_k_param);
+int isp_k_cpy_cdn(struct isp_k_block *param_block, struct isp_k_block *isp_k_param);
+int isp_k_cpy_edge(struct isp_k_block *param_block, struct isp_k_block *isp_k_param);
+int isp_k_cpy_post_cdn(struct isp_k_block *param_block, struct isp_k_block *isp_k_param);
+int isp_k_cpy_bchs(struct isp_k_block *param_block, struct isp_k_block *isp_k_param);
+int isp_k_cpy_cnr(struct isp_k_block *param_block, struct isp_k_block *isp_k_param);
+int isp_k_cpy_post_cnr_h(struct isp_k_block *param_block, struct isp_k_block *isp_k_param);
+int isp_k_cpy_3dlut(struct isp_k_block *param_block, struct isp_k_block *isp_k_param);
+int isp_k_cpy_dct(struct isp_k_block *param_block, struct isp_k_block *isp_k_param);
+int isp_k_cpy_iircnr(struct isp_k_block *param_block, struct isp_k_block *isp_k_param);
+int isp_k_cpy_yrandom(struct isp_k_block *param_block, struct isp_k_block *isp_k_param);
+int isp_k_cpy_rgb_ltm(struct isp_k_block *param_block, struct isp_k_block *isp_k_param);
+int isp_k_cpy_yuv_ltm(struct isp_k_block *param_block, struct isp_k_block *isp_k_param);
+int isp_k_cpy_rgb_gtm(struct isp_k_block *param_block, struct isp_k_block *isp_k_param);
+int isp_k_cpy_hsv(struct isp_k_block *param_block, struct isp_k_block *isp_k_param);
+int isp_k_cpy_brightness1(struct isp_k_block *param_block,struct isp_k_block * isp_k_param);
+int isp_k_cpy_contrast1(struct isp_k_block *param_block,struct isp_k_block * isp_k_param);
+int isp_k_cpy_csa1(struct isp_k_block *param_block,struct isp_k_block * isp_k_param);
+int isp_k_cpy_hue1(struct isp_k_block *param_block,struct isp_k_block * isp_k_param);
+int isp_k_cpy_3dnr(struct isp_k_block *param_block, struct isp_k_block *isp_k_param);
+/* for dcam driver internal end */
 int isp_k_cfg_nlm(struct isp_io_param *param,
 	struct isp_k_block *isp_k_param, uint32_t idx);
 int isp_k_cfg_ynr(struct isp_io_param *param,
@@ -266,7 +324,7 @@ int isp_k_dewarping_slice_config(void *handle);
 int isp_pyr_dec_irq_func(void *handle);
 int isp_pyr_dec_config(void *handle);
 
-int isp_k_gtm_block(void *pctx, void *param);
+int isp_k_gtm_block(void *pctx, void *param, void *param2);
 int isp_k_gtm_mapping_set(void *param);
 int isp_k_gtm_mapping_get(void *param);
 int isp_k_gtm_sw_map_set(void *param);
@@ -300,11 +358,12 @@ enum block_bypass {
 	_E_IBL,
   /* Full RGB */
 	_E_GTM,
-	_E_GAMM,
 	_E_CCE,
 	_E_CFA,
-	_E_CCM,
-	_E_ROI,
+	_E_CMC,
+	_E_GAMMA,
+	_E_RGBHIST,
+	_E_LSCM,
 };
 extern uint32_t g_dcam_bypass[];
 
@@ -337,20 +396,18 @@ enum isp_bypass {
 	_EISP_YUVNF,
 	_EISP_DEWARP,
 	_EISP_GTM,
-	_EISP_TOTAL, /* total before this */
-	_EISP_CCE = 29,
-	_EISP_LTM = 30,
-	_EISP_NR3 = 31,
-	/*Attention up to 31*/
-};
-extern uint32_t g_isp_bypass[];
-enum isp_bypass2 {
-	_EISP_CNR,
-	_EISP_DCT,
 	_EISP_3DLUT,
-	_EISP_PCNR,
+	_EISP_CNR,
+	_EISP_POSTCNR,
+	_EISP_DCT,
+	_EISP_TOTAL, /* total 32 before this */
+	_EISP_CCE = 33,
+	_EISP_LTM = 34,
+	_EISP_NR3 = 35,
+	/*Attention up to 63*/
 };
-extern uint32_t g_isp_bypass2[];
+
+extern uint64_t g_isp_bypass[];
 
 struct bypass_tag {
 	char *p;/* abbreviation */

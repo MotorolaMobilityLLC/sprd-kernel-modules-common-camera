@@ -5262,6 +5262,7 @@ init_isp:
 		/* get context id and config context */
 		memset(&init_param, 0, sizeof(struct isp_init_param));
 		init_param.cam_id = module->idx;
+		init_param.blkparam_node_num = CAM_SCENE_CTRL_MAX;
 		ret = module->isp_dev_handle->isp_ops->get_context(module->isp_dev_handle, &init_param);
 		if (ret < 0) {
 			pr_err("fail to get isp context for cam%d ch %d\n",
@@ -5596,6 +5597,10 @@ static int camcore_channel_init(struct camera_module *module,
 		memset(&ctx_desc, 0, sizeof(struct isp_ctx_base_desc));
 		init_param.is_high_fps = ch_uinfo->is_high_fps;
 		init_param.cam_id = module->idx;
+		if (channel->ch_uinfo.is_high_fps)
+			init_param.blkparam_node_num = CAM_SHARED_BUF_NUM / ch_uinfo->high_fps_skip_num;
+		else
+			init_param.blkparam_node_num = camcore_buffers_alloc_num(channel, module) + 1;
 		ret = module->isp_dev_handle->isp_ops->get_context(module->isp_dev_handle, &init_param);
 		if (ret < 0) {
 			pr_err("fail to get isp context for cam%d ch %d\n",
@@ -6501,6 +6506,7 @@ static int camcore_raw_pre_proc(
 	/* specify isp context & path */
 	init_param.is_high_fps = 0;/* raw capture + slow motion ?? */
 	init_param.cam_id = module->idx;
+	init_param.blkparam_node_num = 1;
 	ret = module->isp_dev_handle->isp_ops->get_context(module->isp_dev_handle, &init_param);
 	if (ret < 0) {
 		pr_err("fail to get isp context\n");
@@ -7094,7 +7100,7 @@ static int camcore_csi_switch_disconnect(struct camera_module *module, uint32_t 
 	struct dcam_switch_param csi_switch = {0};
 	struct dcam_path_desc *path = NULL;
 	struct camera_frame *frame = NULL;
-	uint32_t j = 0;
+	uint32_t i = 0,j = 0;
 	struct isp_offline_param *in_param = NULL;
 	struct camera_frame *pframe = NULL;
 
@@ -7168,6 +7174,13 @@ static int camcore_csi_switch_disconnect(struct camera_module *module, uint32_t 
 		}
 	}
 
+	for(i = 0; i < CAM_CH_MAX; i++) {
+		if (module->channel[i].enable) {
+			ret = module->isp_dev_handle->isp_ops->clear_blk_param_q(module->isp_dev_handle, module->channel[i].isp_ctx_id);
+			if (ret)
+				pr_err("fail to recycle cam%d ch %d blk param node\n", module->idx, i);
+		}
+	}
 	/* unbind */
 	if (mode != CAM_CSI_RECOVERY_SWITCH)
 		dcam_core_context_unbind(sw_ctx);
@@ -7695,6 +7708,7 @@ static struct cam_ioctl_cmd ioctl_cmds_table[] = {
 	[_IOC_NR(SPRD_IMG_IO_SET_DCAM_RAW_FMT)]     = {SPRD_IMG_IO_SET_DCAM_RAW_FMT,     camioctl_dcam_raw_fmt_set},
 	[_IOC_NR(SPRD_IMG_IO_SET_KEY)]              = {SPRD_IMG_IO_SET_KEY,              camioctl_key_set},
 	[_IOC_NR(SPRD_IMG_IO_SET_960FPS_PARAM)]     = {SPRD_IMG_IO_SET_960FPS_PARAM,     camioctl_960fps_param_set},
+	[_IOC_NR(SPRD_IMG_IO_CFG_PARAM_STATUS)]     = {SPRD_IMG_IO_CFG_PARAM_STATUS,     camioctl_cfg_param_start_end},
 };
 
 static long camcore_ioctl(struct file *file, unsigned int cmd,
@@ -7999,8 +8013,8 @@ rewait:
 			read_op.parm.frame.irq_property = pframe->irq_property;
 		}
 
-		pr_debug("read frame, evt 0x%x irq %d, irq_property %d, ch 0x%x index 0x%x mfd 0x%x\n",
-			read_op.evt, read_op.parm.frame.irq_type, read_op.parm.frame.irq_property, read_op.parm.frame.channel_id,
+		pr_debug("cam%d read frame, evt 0x%x irq %d, irq_property %d, ch 0x%x index 0x%x mfd 0x%x\n",
+			module->idx, read_op.evt, read_op.parm.frame.irq_type, read_op.parm.frame.irq_property, read_op.parm.frame.channel_id,
 			read_op.parm.frame.real_index, read_op.parm.frame.mfd);
 
 		if (pframe) {

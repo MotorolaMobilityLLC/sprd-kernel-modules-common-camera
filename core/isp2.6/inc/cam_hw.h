@@ -231,6 +231,7 @@ enum isp_hw_cfg_cmd {
 	ISP_HW_CFG_FETCH_FBD_SET,
 	ISP_HW_CFG_DEFAULT_PARA_SET,
 	ISP_HW_CFG_BLOCK_FUNC_GET,
+	ISP_HW_CFG_PARAM_BLOCK_FUNC_GET,
 	ISP_HW_CFG_K_BLK_FUNC_GET,
 	ISP_HW_CFG_CFG_MAP_INFO_GET,
 	ISP_HW_CFG_FMCU_VALID_GET,
@@ -282,6 +283,7 @@ enum isp_hw_cfg_cmd {
 	ISP_HW_CFG_FMCU_CMD,
 	ISP_HW_CFG_FMCU_START,
 	ISP_HW_CFG_YUV_BLOCK_CTRL_TYPE,
+	ISP_HW_CFG_SUBBLOCK_RECFG,
 	ISP_HW_CFG_FMCU_CMD_ALIGN,
 	ISP_HW_CFG_ALLDONE_CTRL,
 	ISP_HW_CFG_GTM_FUNC_GET,
@@ -852,6 +854,11 @@ struct isp_hw_default_param {
 struct isp_hw_block_func {
 	uint32_t index;
 	struct isp_cfg_entry *isp_entry;
+};
+
+struct isp_cfg_block_param {
+	uint32_t index;
+	struct isp_cfg_pre_param *isp_param;
 };
 
 struct isp_hw_k_blk_func {

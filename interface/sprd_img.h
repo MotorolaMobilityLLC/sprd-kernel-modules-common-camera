@@ -876,6 +876,14 @@ struct sprd_slowmotion_960fps_param {
 	uint32_t stage_a_valid_frm_num;
 };
 
+struct sprd_cfg_param_status {
+	uint32_t status; /* 0: start; 1: end */
+	uint32_t frame_id; /* sof id */
+	uint32_t scene_id;
+	uint32_t update;
+	uint32_t request_id;
+};
+
 #define SPRD_IMG_IO_MAGIC                'Z'
 #define SPRD_IMG_IO_SET_MODE             _IOW(SPRD_IMG_IO_MAGIC, 0, uint32_t)
 #define SPRD_IMG_IO_SET_CAP_SKIP_NUM     _IOW(SPRD_IMG_IO_MAGIC, 1, uint32_t)
@@ -959,6 +967,7 @@ struct sprd_slowmotion_960fps_param {
 #define SPRD_IMG_IO_SET_DCAM_RAW_FMT     _IOW(SPRD_IMG_IO_MAGIC, 81, struct sprd_dcam_raw_fmt)
 #define SPRD_IMG_IO_SET_KEY              _IOW(SPRD_IMG_IO_MAGIC, 82, uint32_t)
 #define SPRD_IMG_IO_SET_960FPS_PARAM     _IOW(SPRD_IMG_IO_MAGIC, 83, struct sprd_slowmotion_960fps_param)
+#define SPRD_IMG_IO_CFG_PARAM_STATUS     _IOW(SPRD_IMG_IO_MAGIC, 84, struct sprd_cfg_param_status)
 
 /*
  * Dump dcam register.

@@ -19,6 +19,7 @@
 #include "cam_types.h"
 #include "cam_block.h"
 #include "isp_core.h"
+#include "cam_queue.h"
 
 #ifdef pr_fmt
 #undef pr_fmt
@@ -26,39 +27,33 @@
 #define pr_fmt(fmt) "POSTCNR: %d %d %s : "\
 	fmt, current->pid, __LINE__, __func__
 
-static int isp_k_post_cnr_block(struct isp_io_param *param,
-	struct isp_k_block *isp_k_param, uint32_t idx)
+int isp_k_post_cnr_block(struct isp_k_block *isp_k_param, uint32_t idx)
 {
 	int ret = 0;
 	uint32_t i = 0, val = 0, layer_num = 0;
 	struct isp_dev_post_cnr_h_info *post_cnr_h_info = NULL;
 	struct isp_post_cnr_h *param_post_cnr_h = NULL;
 
-	if (!param || !isp_k_param) {
+        if (!isp_k_param) {
 		pr_err("fail to get input ptr\n");
 		return -1;
 	}
+	if (isp_k_param->post_cnr_h_info.isupdate == 0)
+		return ret;
 
 	post_cnr_h_info = &isp_k_param->post_cnr_h_info;
 	param_post_cnr_h = &post_cnr_h_info->param_post_cnr_h;
-
-	ret = copy_from_user((void *)post_cnr_h_info,
-			param->property_param,
-			sizeof(struct isp_dev_post_cnr_h_info));
-	if (ret != 0) {
-		pr_err("fail to copy from user, ret = %d\n", ret);
-		return ret;
-	}
+	isp_k_param->post_cnr_h_info.isupdate = 0;
 
 	layer_num = 0;
 	ISP_REG_MWR(idx, ISP_YUV_CNR_CONTRL0, 0xE, layer_num << 1);
-	if (g_isp_bypass2[idx] & (1 << _EISP_PCNR))
+	if (g_isp_bypass[idx] & (1 << _EISP_POSTCNR))
 		post_cnr_h_info->bypass = 1;
 
 	ISP_REG_MWR(idx, ISP_YUV_CNR_CONTRL0, BIT_0, post_cnr_h_info->bypass);
 
 	if (post_cnr_h_info->bypass) {
-		pr_debug("idx %d, post_cnr_bypass!\n", idx);
+		pr_info("idx %d, post_cnr_bypass!\n", idx);
 		return 0;
 	}
 
@@ -115,7 +110,6 @@ static int isp_k_post_cnr_block(struct isp_io_param *param,
 			(param_post_cnr_h->weight_uv[2][4 * i] & 0xFF);
 		ISP_REG_WR(idx, ISP_YUV_CNR_UV_L2_WHT0 + 4 * i, val);
 	}
-
 	return ret;
 }
 
@@ -123,10 +117,22 @@ int isp_k_cfg_post_cnr_h(struct isp_io_param *param,
 	struct isp_k_block *isp_k_param, uint32_t idx)
 {
 	int ret = 0;
+	struct isp_dev_post_cnr_h_info *post_cnr_h_info = NULL;
+
+	post_cnr_h_info = &isp_k_param->post_cnr_h_info;
 
 	switch (param->property) {
 	case ISP_PRO_POST_CNR_H_BLOCK:
-		ret = isp_k_post_cnr_block(param, isp_k_param, idx);
+		ret = copy_from_user((void *)post_cnr_h_info,
+				param->property_param,
+				sizeof(struct isp_dev_post_cnr_h_info));
+		if (ret != 0) {
+			pr_err("fail to copy from user, ret = %d\n", ret);
+			return ret;
+		}
+		post_cnr_h_info->isupdate = 1;
+		if (g_isp_bypass[idx] & (1 << _EISP_POSTCNR))
+			post_cnr_h_info->bypass = 1;
 		break;
 	default:
 		pr_err("fail to idx %d, support cmd id = %d\n", idx, param->property);
@@ -154,14 +160,14 @@ int isp_k_update_post_cnr(void *handle)
 
 	pctx = (struct isp_sw_context *)handle;
 	idx = pctx->ctx_id;
-	new_width = pctx->isp_k_param.blkparam_info.new_width;
-	new_height = pctx->isp_k_param.blkparam_info.new_height;
-	old_width = pctx->isp_k_param.blkparam_info.old_width;
-	old_height = pctx->isp_k_param.blkparam_info.old_height;
+	new_width = pctx->isp_using_param->blkparam_info.new_width;
+	new_height = pctx->isp_using_param->blkparam_info.new_height;
+	old_width = pctx->isp_using_param->blkparam_info.old_width;
+	old_height = pctx->isp_using_param->blkparam_info.old_height;
 	sensor_width = pctx->uinfo.sn_size.w;
 	sensor_height = pctx->uinfo.sn_size.h;
 
-	post_cnr_info = &pctx->isp_k_param.post_cnr_h_info;
+	post_cnr_info = &pctx->isp_using_param->post_cnr_h_info;
 	param_post_cnr_info = &post_cnr_info->param_post_cnr_h;
 
 	if (post_cnr_info->bypass)
@@ -189,8 +195,20 @@ int isp_k_update_post_cnr(void *handle)
 		((param_post_cnr_info->denoise_radial_en & 0x1) << 1) |
 		(param_post_cnr_info->lowpass_filter_en & 0x1);
 	ISP_REG_WR(idx, ISP_YUV_CNR_CFG0, val);
-	pr_debug("cen %d %d, base %d, factor %d, radius %d\n",
-		center_x, center_y, post_cnr_info->radius_base, param_post_cnr_info->base_radius_factor, radius);
+	pr_debug("isp%d,cen %d %d, base %d, factor %d, radius %d\n",
+		pctx->ctx_id, center_x, center_y, post_cnr_info->radius_base, param_post_cnr_info->base_radius_factor, radius);
+
+	return ret;
+}
+
+int isp_k_cpy_post_cnr_h(struct isp_k_block *param_block, struct isp_k_block *isp_k_param)
+{
+	int ret = 0;
+	if (isp_k_param->post_cnr_h_info.isupdate == 1) {
+		memcpy(&param_block->post_cnr_h_info, &isp_k_param->post_cnr_h_info, sizeof(struct isp_dev_post_cnr_h_info));
+		isp_k_param->post_cnr_h_info.isupdate = 0;
+		param_block->post_cnr_h_info.isupdate = 1;
+	}
 
 	return ret;
 }

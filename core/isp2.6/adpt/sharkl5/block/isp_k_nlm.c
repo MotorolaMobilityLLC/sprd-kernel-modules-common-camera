@@ -20,6 +20,7 @@
 #include "cam_types.h"
 #include "cam_block.h"
 #include "isp_core.h"
+#include "cam_queue.h"
 
 #ifdef pr_fmt
 #undef pr_fmt
@@ -27,6 +28,44 @@
 #define pr_fmt(fmt) "NLM: %d %d %s : "\
 	fmt, current->pid, __LINE__, __func__
 
+static int isp_k_save_vst_ivst(struct isp_k_block *isp_k_param)
+{
+	int ret = 0;
+	uint32_t buf_len = 0;
+	unsigned long utab_addr = 0;
+	uint32_t *vst_ivst_buf = NULL;
+	struct isp_dev_nlm_info_v2 *nlm_info2 = NULL;
+
+	if (isp_k_param == NULL)
+		return 0;
+
+	nlm_info2 = &isp_k_param->nlm_info_base;
+	nlm_info2->vst_bypass = 1;
+	nlm_info2->ivst_bypass =1;
+	if (nlm_info2->vst_bypass == 0 && nlm_info2->vst_table_addr) {
+		buf_len = ISP_VST_IVST_NUM2 * 4;
+		if (nlm_info2->vst_len < (ISP_VST_IVST_NUM2 * 4))
+			buf_len = nlm_info2->vst_len;
+
+		vst_ivst_buf = isp_k_param->vst_buf;
+		utab_addr = (unsigned long)nlm_info2->vst_table_addr;
+		pr_debug("vst table addr 0x%lx\n", utab_addr);
+		ret = copy_from_user((void *)vst_ivst_buf, (void __user *)utab_addr, buf_len);
+	}
+
+	if (nlm_info2->ivst_bypass == 0 && nlm_info2->ivst_table_addr) {
+		buf_len = ISP_VST_IVST_NUM2 * 4;
+		if (nlm_info2->ivst_len < (ISP_VST_IVST_NUM2 * 4))
+			buf_len = nlm_info2->ivst_len;
+
+		vst_ivst_buf = isp_k_param->ivst_buf;
+		utab_addr = (unsigned long)nlm_info2->ivst_table_addr;
+		pr_debug("vst table addr 0x%lx\n", utab_addr);
+		ret = copy_from_user((void *)vst_ivst_buf, (void __user *)utab_addr, buf_len);
+	}
+	return ret;
+
+}
 
 static int load_vst_ivst_buf(
 	struct isp_dev_nlm_info_v2 *nlm_info,
@@ -36,7 +75,6 @@ static int load_vst_ivst_buf(
 	uint32_t buf_len;
 	uint32_t buf_sel;
 	unsigned long reg_addr;
-	unsigned long utab_addr;
 	uint32_t *vst_ivst_buf;
 
 	buf_sel = 0;
@@ -49,10 +87,6 @@ static int load_vst_ivst_buf(
 			buf_len = nlm_info->vst_len;
 
 		vst_ivst_buf = isp_k_param->vst_buf;
-		utab_addr = (unsigned long)nlm_info->vst_table_addr;
-		pr_debug("vst table addr 0x%lx\n", utab_addr);
-		ret = copy_from_user((void *)vst_ivst_buf,
-				(void __user *)utab_addr, buf_len);
 
 		reg_addr = ISP_BASE_ADDR(idx) + ISP_VST_BUF0_ADDR;
 		memcpy((void *)reg_addr, vst_ivst_buf, buf_len);
@@ -64,10 +98,6 @@ static int load_vst_ivst_buf(
 			buf_len = nlm_info->ivst_len;
 
 		vst_ivst_buf = isp_k_param->ivst_buf;
-		utab_addr = (unsigned long)nlm_info->ivst_table_addr;
-		pr_debug("ivst table addr 0x%lx\n", utab_addr);
-		ret = copy_from_user((void *)vst_ivst_buf,
-				(void __user *)utab_addr, buf_len);
 
 		reg_addr = ISP_BASE_ADDR(idx) + ISP_IVST_BUF0_ADDR;
 		memcpy((void *)reg_addr, vst_ivst_buf, buf_len);
@@ -76,29 +106,23 @@ static int load_vst_ivst_buf(
 	return ret;
 }
 
-static int isp_k_nlm_block(struct isp_io_param *param,
-		struct isp_k_block *isp_k_param, uint32_t idx)
+int isp_k_nlm_block(struct isp_k_block *isp_k_param, uint32_t idx)
 {
 	int ret = 0;
 	uint32_t i, j, val = 0;
 	struct isp_dev_nlm_info_v2 *p;
+	if (isp_k_param->nlm_info_base.isupdate == 0)
+		return ret;
 
 	p = &isp_k_param->nlm_info_base;
-	ret = copy_from_user((void *)p,
-			(void __user *)param->property_param,
-			sizeof(struct isp_dev_nlm_info_v2));
-	if (ret != 0) {
-		pr_err("fail to copy from user, ret = %d\n", ret);
-		return  ret;
-	}
+	isp_k_param->nlm_info_base.isupdate = 0;
+
 	if (g_isp_bypass[idx] & (1 << _EISP_NLM))
 		p->bypass = 1;
 	if (g_isp_bypass[idx] & (1 << _EISP_VST))
 		p->vst_bypass = 1;
 	if (g_isp_bypass[idx] & (1 << _EISP_IVST))
 		p->ivst_bypass = 1;
-
-	memcpy(&isp_k_param->nlm_info, p, sizeof(struct isp_dev_nlm_info_v2));
 
 	ISP_REG_MWR(idx, ISP_NLM_PARA, BIT_0, p->bypass);
 	ISP_REG_MWR(idx, ISP_VST_PARA, BIT_0, p->vst_bypass);
@@ -218,24 +242,14 @@ static int isp_k_nlm_block(struct isp_io_param *param,
 	return ret;
 }
 
-static int isp_k_nlm_imblance(struct isp_io_param *param,
-	struct isp_k_block *isp_k_param, uint32_t idx)
+int isp_k_nlm_imblance(struct isp_k_block *isp_k_param, uint32_t idx)
 {
 	int ret = 0;
 	struct isp_dev_nlm_imblance imblance_info;
-
-	ret = copy_from_user((void *)&imblance_info,
-			(void __user *)param->property_param,
-			sizeof(struct isp_dev_nlm_imblance));
-	if (ret != 0) {
-		pr_err("fail to copy from user, ret = %d\n", ret);
-		return  ret;
-	}
-
-	memcpy(&isp_k_param->imblance_info_v0, &imblance_info,
-		sizeof(struct isp_dev_nlm_imblance));
-	memcpy(&isp_k_param->imbalance_info_v0_base, &imblance_info,
-		sizeof(struct isp_dev_nlm_imblance));
+	if (isp_k_param->imbalance_info_v0_base.isupdate == 0)
+		return ret;
+	imblance_info = isp_k_param->imbalance_info_v0_base;
+	isp_k_param->imbalance_info_v0_base.isupdate = 0;
 
 	/* new added below */
 	ISP_REG_MWR(idx, ISP_NLM_PARA, BIT_7,
@@ -300,13 +314,38 @@ int isp_k_cfg_nlm(struct isp_io_param *param,
 		struct isp_k_block *isp_k_param, uint32_t idx)
 {
 	int ret = 0;
+	struct isp_dev_nlm_info_v2 *p = NULL;
+	struct isp_dev_nlm_imblance *imblance_info = NULL;
+
+	p = &isp_k_param->nlm_info_base;
+	imblance_info = &isp_k_param->imbalance_info_v0_base;
 
 	switch (param->property) {
 	case ISP_PRO_NLM_BLOCK:
-		ret = isp_k_nlm_block(param, isp_k_param, idx);
+		ret = copy_from_user((void *)p, (void __user *)param->property_param, sizeof(struct isp_dev_nlm_info_v2));
+		if (ret != 0) {
+			pr_err("fail to copy from user, ret = %d\n", ret);
+			return  ret;
+		}
+		memcpy(&isp_k_param->nlm_info, p, sizeof(struct isp_dev_nlm_info_v2));
+		ret = isp_k_save_vst_ivst(isp_k_param);
+		if (ret) {
+			pr_err("fail to copy from user ret=0x%x\n", (unsigned int)ret);
+			return -EPERM;
+		}
+		isp_k_param->nlm_info_base.isupdate = 1;
 		break;
 	case ISP_PRO_NLM_IMBLANCE:
-		ret = isp_k_nlm_imblance(param, isp_k_param, idx);
+		ret = copy_from_user((void *)&imblance_info,
+			(void __user *)param->property_param,
+			sizeof(struct isp_dev_nlm_imblance));
+		if (ret != 0) {
+			pr_err("fail to copy from user, ret = %d\n", ret);
+			return  ret;
+		}
+		memcpy(&isp_k_param->imblance_info_v0, &imblance_info,
+			sizeof(struct isp_dev_nlm_imblance));
+		isp_k_param->imbalance_info_v0_base.isupdate = 1;
 		break;
 	default:
 		pr_err("fail to support cmd id = %d\n",
@@ -337,12 +376,12 @@ int isp_k_update_nlm(void *handle)
 
 	pctx = (struct isp_sw_context *)handle;
 	idx = pctx->ctx_id;
-	pdst = &pctx->isp_k_param.nlm_info;
-	p = &pctx->isp_k_param.nlm_info_base;
-	new_width = pctx->isp_k_param.blkparam_info.new_width;
-	new_height = pctx->isp_k_param.blkparam_info.new_height;
-	old_width = pctx->isp_k_param.blkparam_info.old_width;
-	old_height = pctx->isp_k_param.blkparam_info.old_height;
+	pdst = &pctx->isp_using_param->nlm_info;
+	p = &pctx->isp_using_param->nlm_info_base;
+	new_width = pctx->isp_using_param->blkparam_info.new_width;
+	new_height = pctx->isp_using_param->blkparam_info.new_height;
+	old_width = pctx->isp_using_param->blkparam_info.old_width;
+	old_height = pctx->isp_using_param->blkparam_info.old_height;
 
 	center_x = new_width >> 1;
 	center_y = new_height >> 1;
@@ -415,3 +454,23 @@ int isp_k_update_nlm(void *handle)
 
 	return ret;
 }
+
+int isp_k_cpy_nlm(struct isp_k_block *param_block, struct isp_k_block *isp_k_param)
+{
+	if (isp_k_param->nlm_info_base.isupdate == 1) {
+		memcpy(&param_block->nlm_info_base, &isp_k_param->nlm_info_base, sizeof(struct isp_dev_nlm_info_v2));
+		memcpy(&param_block->nlm_info, &param_block->nlm_info_base, sizeof(struct isp_dev_nlm_info_v2));
+		memcpy(&param_block->vst_buf, &isp_k_param->vst_buf, sizeof(uint32_t) * ISP_VST_IVST_NUM2);
+		memcpy(&param_block->ivst_buf, &isp_k_param->ivst_buf, sizeof(uint32_t) * ISP_VST_IVST_NUM2);
+		isp_k_param->nlm_info_base.isupdate = 0;
+		param_block->nlm_info_base.isupdate = 1;
+	}
+	if (isp_k_param->imbalance_info_base2.isupdate == 1) {
+		memcpy(&param_block->imbalance_info_base2, &isp_k_param->imbalance_info_base2, sizeof(struct isp_dev_nlm_imblance_v2));
+		isp_k_param->imbalance_info_base2.isupdate = 0;
+		param_block->imbalance_info_base2.isupdate = 1;
+	}
+
+	return 0;
+}
+

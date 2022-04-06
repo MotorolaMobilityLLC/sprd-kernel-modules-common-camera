@@ -769,7 +769,8 @@ static int isppyrdec_offline_frame_start(void *handle)
 	struct isp_dec_slice_desc *cur_slc = NULL;
 	struct isp_dec_overlap_info *cur_ovlap = NULL, *temp_ovlap = NULL;
 	struct isp_hw_k_blk_func dec_cfg_func;
-
+	struct isp_hw_k_blk_func dct_update_func;
+	struct isp_k_block *dct_param = NULL;
 	if (!handle) {
 		pr_err("fail to get valid input handle\n");
 		return -EFAULT;
@@ -808,6 +809,11 @@ static int isppyrdec_offline_frame_start(void *handle)
 		goto inq_overflow;
 	}
 
+	if (!pframe->blkparam_info.param_block) {
+			pr_err("fail to get dec param, fid %d\n", pframe->fid);
+			goto out_err;
+	}
+
 	loop = 0;
 	do {
 		pctx->buf_cb_func((void *)&out_frame, pctx->buf_cb_priv_data);
@@ -821,6 +827,24 @@ static int isppyrdec_offline_frame_start(void *handle)
 		pr_err("fail to get outframe loop cnt %d cxt %d\n", loop, ctx_id);
 		goto out_err;
 	}
+
+	out_frame->blkparam_info = pframe->blkparam_info;
+	pframe->blkparam_info.update = 0;
+	pframe->blkparam_info.param_block = NULL;
+	pframe->blkparam_info.blk_param_node = NULL;
+	dct_param = out_frame->blkparam_info.param_block;
+	dec_dev->dct_ynr_info.dct = &dct_param->dct_info;
+	dec_dev->dct_ynr_info.old_width = dct_param->blkparam_info.old_width;
+	dec_dev->dct_ynr_info.old_height = dct_param->blkparam_info.old_height;
+	dec_dev->dct_ynr_info.new_width = dct_param->blkparam_info.new_width;
+	dec_dev->dct_ynr_info.new_height = dct_param->blkparam_info.new_height;
+	dec_dev->dct_ynr_info.sensor_height = dct_param->blkparam_info.sensor_height;
+	dec_dev->dct_ynr_info.sensor_width = dct_param->blkparam_info.sensor_width;
+	dct_update_func.index = ISP_K_BLK_DCT_UPDATE;
+	dec_dev->hw->isp_ioctl(dec_dev->hw, ISP_HW_CFG_K_BLK_FUNC_GET, &dct_update_func);
+	if (dct_update_func.k_blk_func)
+		dct_update_func.k_blk_func(dec_dev);
+	dct_param->dct_radius = dec_dev->dct_ynr_info.dct_radius;
 
 	pctx->buf_out = out_frame;
 	ret = cam_buf_iommu_map(&pctx->buf_out->buf, CAM_IOMMUDEV_ISP);

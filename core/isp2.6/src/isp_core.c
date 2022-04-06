@@ -68,6 +68,12 @@ struct offline_tmp_param {
 	uint32_t not_use_reserved_buf;
 	uint32_t need_post_proc[ISP_SPATH_NUM];
 	struct isp_stream_ctrl *stream;
+	struct check_blk_param *blkparam_info;
+};
+
+struct check_blk_param {
+	uint32_t param_update;
+	struct camera_frame *valid_param_frame;
 };
 
 static void ispcore_offline_pararm_free(void *param)
@@ -179,6 +185,29 @@ static void ispcore_reserved_buf_destroy(void *param)
 	cam_queue_empty_frame_put(frame);
 }
 
+static void ispcore_param_buf_destroy(void *param)
+{
+	struct camera_frame *frame = NULL;
+	int ret = 0;
+
+	if (!param) {
+		pr_err("fail to get input ptr.\n");
+		return;
+	}
+
+	frame = (struct camera_frame *)param;
+	if (frame->buf.addr_k[0]) {
+		ret = cam_buf_kunmap(&frame->buf);
+		if(ret)
+			pr_err("fail to unmap param node %px\n", frame);
+	}
+	ret = cam_buf_free(&frame->buf);
+	if(ret)
+		pr_err("fail to unmap param node %px\n", frame);
+
+	cam_queue_empty_frame_put(frame);
+}
+
 static void ispcore_statis_buf_destroy(void *param)
 {
 	struct camera_frame *frame;
@@ -232,10 +261,10 @@ static int ispcore_blkparam_adapt(struct isp_sw_context *pctx)
 		new_height = old_height;
 	}
 
-	pctx->isp_k_param.blkparam_info.new_height = new_height;
-	pctx->isp_k_param.blkparam_info.new_width = new_width;
-	pctx->isp_k_param.blkparam_info.old_height = old_height;
-	pctx->isp_k_param.blkparam_info.old_width = old_width;
+	pctx->isp_using_param->blkparam_info.new_height = new_height;
+	pctx->isp_using_param->blkparam_info.new_width = new_width;
+	pctx->isp_using_param->blkparam_info.old_height = old_height;
+	pctx->isp_using_param->blkparam_info.old_width = old_width;
 	crop_start_x = src_trim->start_x;
 	crop_start_y = src_trim->start_y;
 	crop_end_x = src_trim->start_x + src_trim->size_x - 1;
@@ -276,35 +305,30 @@ static int ispcore_blkparam_adapt(struct isp_sw_context *pctx)
 		sub_blk_func.k_blk_func(pctx);
 
 	if (pctx->uinfo.mode_3dnr != MODE_3DNR_OFF)
-		isp_k_update_3dnr(pctx->ctx_id, &pctx->isp_k_param,
+		isp_k_update_3dnr(pctx->ctx_id, pctx->isp_using_param,
 			 new_width, old_width, new_height, old_height);
 
 	return 0;
 }
 
-static int ispcore_dct_blkparam_update(struct isp_sw_context *pctx)
+static int ispcore_dct_blkparam_update(struct isp_sw_context *pctx, struct isp_k_block *param)
 {
 	uint32_t new_width, old_width;
 	uint32_t new_height, old_height;
-	struct isp_hw_k_blk_func sub_blk_func;
 
 	old_width = pctx->uinfo.src.w;
 	old_height = pctx->uinfo.src.h;
 	new_width = old_width;
 	new_height = old_height;
 
-	pctx->isp_k_param.blkparam_info.new_height = new_height;
-	pctx->isp_k_param.blkparam_info.new_width = new_width;
-	pctx->isp_k_param.blkparam_info.old_height = old_height;
-	pctx->isp_k_param.blkparam_info.old_width = old_width;
-
+	param->blkparam_info.new_height = new_height;
+	param->blkparam_info.new_width = new_width;
+	param->blkparam_info.old_height = old_height;
+	param->blkparam_info.old_width = old_width;
+	param->blkparam_info.sensor_width = pctx->uinfo.sn_size.w;
+	param->blkparam_info.sensor_height = pctx->uinfo.sn_size.h;
 	pr_debug("ch_id: %d ctx_id:%d, size(%d %d) => (%d %d)\n", pctx->ch_id, pctx->ctx_id,
 		old_width, old_height, new_width, new_height);
-
-	sub_blk_func.index = ISP_K_BLK_DCT_UPDATE;
-	pctx->hw->isp_ioctl(pctx->hw, ISP_HW_CFG_K_BLK_FUNC_GET, &sub_blk_func);
-	if (sub_blk_func.k_blk_func)
-		sub_blk_func.k_blk_func(pctx);
 
 	return 0;
 }
@@ -362,7 +386,7 @@ static int ispcore_3dnr_frame_process(struct isp_sw_context *pctx,
 	nr3_handle->ops.cfg_param(nr3_handle, ISP_3DNR_CFG_FBC_FBD_INFO, &pipe_src->nr3_fbc_fbd);
 	nr3_handle->ops.cfg_param(nr3_handle, ISP_3DNR_CFG_SIZE_INFO, &pipe_src->crop);
 	nr3_handle->ops.cfg_param(nr3_handle, ISP_3DNR_CFG_MEMCTL_STORE_INFO, &pctx->pipe_info.fetch);
-	nr3_handle->ops.cfg_param(nr3_handle, ISP_3DNR_CFG_BLEND_INFO, &pctx->isp_k_param);
+	nr3_handle->ops.cfg_param(nr3_handle, ISP_3DNR_CFG_BLEND_INFO, &pctx->isp_using_param);
 	nr3_handle->ops.pipe_proc(nr3_handle, fsync, pctx->uinfo.mode_3dnr);
 
 	if (fsync)
@@ -388,14 +412,13 @@ static int ispcore_ltm_frame_process(struct isp_sw_context *pctx,
 	pipe_src = &pctx->pipe_src;
 	rgb_ltm = (struct isp_ltm_ctx_desc *)pctx->rgb_ltm_handle;
 	yuv_ltm = (struct isp_ltm_ctx_desc *)pctx->yuv_ltm_handle;
-
 	if (rgb_ltm) {
 		rgb_ltm->ltm_ops.core_ops.cfg_param(rgb_ltm, ISP_LTM_CFG_HIST_BYPASS, &pframe->need_ltm_hist);
 		rgb_ltm->ltm_ops.core_ops.cfg_param(rgb_ltm, ISP_LTM_CFG_MAP_BYPASS, &pframe->need_ltm_map);
 		rgb_ltm->ltm_ops.core_ops.cfg_param(rgb_ltm, ISP_LTM_CFG_MODE, &pipe_src->mode_ltm);
 		rgb_ltm->ltm_ops.core_ops.cfg_param(rgb_ltm, ISP_LTM_CFG_FRAME_ID, &pframe->fid);
 		rgb_ltm->ltm_ops.core_ops.cfg_param(rgb_ltm, ISP_LTM_CFG_SIZE_INFO, &pipe_src->crop);
-		ret = rgb_ltm->ltm_ops.core_ops.pipe_proc(rgb_ltm, &pctx->isp_k_param.ltm_rgb_info);
+		ret = rgb_ltm->ltm_ops.core_ops.pipe_proc(rgb_ltm, &pctx->isp_using_param->ltm_rgb_info);
 		if (ret == -1) {
 			pipe_src->mode_ltm = MODE_LTM_OFF;
 			pr_err("fail to rgb LTM cfg frame, DISABLE\n");
@@ -406,7 +429,7 @@ static int ispcore_ltm_frame_process(struct isp_sw_context *pctx,
 		yuv_ltm->ltm_ops.core_ops.cfg_param(yuv_ltm, ISP_LTM_CFG_MODE, &pipe_src->mode_ltm);
 		yuv_ltm->ltm_ops.core_ops.cfg_param(yuv_ltm, ISP_LTM_CFG_FRAME_ID, &pframe->fid);
 		yuv_ltm->ltm_ops.core_ops.cfg_param(yuv_ltm, ISP_LTM_CFG_SIZE_INFO, &pipe_src->crop);
-		ret = yuv_ltm->ltm_ops.core_ops.pipe_proc(yuv_ltm, &pctx->isp_k_param.ltm_yuv_info);
+		ret = yuv_ltm->ltm_ops.core_ops.pipe_proc(yuv_ltm, &pctx->isp_using_param->ltm_yuv_info);
 		if (ret == -1) {
 			pipe_src->mode_ltm = MODE_LTM_OFF;
 			pr_err("fail to yuv LTM cfg frame, DISABLE\n");
@@ -437,17 +460,16 @@ static int ispcore_rec_frame_process(struct isp_sw_context *pctx,
 	pipe_src = &pctx->pipe_src;
 	slc_ctx = (struct isp_slice_context *)pctx->slice_ctx;
 	rec_ctx = (struct isp_rec_ctx_desc *)pctx->rec_handle;
-
 	cfg_in.src = pipe_in->fetch.src;
 	cfg_in.in_addr = pipe_in->fetch.addr;
 	cfg_in.in_trim = pipe_in->fetch.in_trim;
 	cfg_in.in_fmt = pipe_in->fetch.fetch_fmt;
 	cfg_in.pyr_fmt = pipe_in->fetch.fetch_pyr_fmt;
-	cfg_in.pyr_ynr_radius = pctx->isp_k_param.ynr_radius;
-	cfg_in.pyr_cnr_radius = pctx->isp_k_param.cnr_radius;
+	cfg_in.pyr_ynr_radius = pctx->isp_using_param->ynr_radius;
+	cfg_in.pyr_cnr_radius = pctx->isp_using_param->cnr_radius;
 	cfg_in.slice_overlap = &slc_ctx->slice_overlap;
-	cfg_in.pyr_cnr = &pctx->isp_k_param.cnr_info;
-	cfg_in.pyr_ynr = &pctx->isp_k_param.ynr_info_v3;
+	cfg_in.pyr_cnr = &pctx->isp_using_param->cnr_info;
+	cfg_in.pyr_ynr = &pctx->isp_using_param->ynr_info_v3;
 	cfg_in.out_addr = pipe_in->store[ISP_SPATH_CP].store.addr;
 
 	if (rec_ctx && pipe_src->fetch_path_sel == 1) {
@@ -487,16 +509,15 @@ static int ispcore_gtm_frame_process(struct isp_sw_context *pctx,
 		return 0;/*not support GTM in isp*/
 
 	pr_debug("ctx_id %d, mode %d, fid %d\n", rgb_gtm->ctx_id, rgb_gtm->mode, pframe->fid);
-
 	rgb_gtm->gtm_ops.cfg_param(rgb_gtm, ISP_GTM_CFG_FRAME_ID, &pframe->fid);
 	rgb_gtm->gtm_ops.cfg_param(rgb_gtm, ISP_GTM_CFG_HIST_BYPASS, &pframe->need_gtm_hist);
 	rgb_gtm->gtm_ops.cfg_param(rgb_gtm, ISP_GTM_CFG_MAP_BYPASS, &pframe->need_gtm_map);
 	rgb_gtm->gtm_ops.cfg_param(rgb_gtm, ISP_GTM_CFG_MOD_EN, &pframe->gtm_mod_en);
-	rgb_gtm->gtm_ops.cfg_param(rgb_gtm, ISP_GTM_CFG_CALC_MODE, &pctx->isp_k_param.gtm_calc_mode);
-	gtm_rgb_info = &pctx->isp_k_param.gtm_rgb_info;
+	rgb_gtm->gtm_ops.cfg_param(rgb_gtm, ISP_GTM_CFG_CALC_MODE, &pctx->isp_using_param->gtm_calc_mode);
+	gtm_rgb_info = &pctx->isp_using_param->gtm_rgb_info;
 	rgb_gtm->src.w = pctx->pipe_src.crop.size_x;
 	rgb_gtm->src.h = pctx->pipe_src.crop.size_y;
-	ret = rgb_gtm->gtm_ops.pipe_proc(rgb_gtm, gtm_rgb_info, &pctx->isp_k_param.gtm_sw_map_info);
+	ret = rgb_gtm->gtm_ops.pipe_proc(rgb_gtm, gtm_rgb_info, &pctx->isp_using_param->gtm_sw_map_info);
 	if (ret) {
 		pctx->pipe_src.mode_gtm = MODE_GTM_OFF;
 		pr_err("fail to rgb GTM process, GTM_OFF\n");
@@ -1142,7 +1163,7 @@ static int ispcore_slices_proc(struct isp_sw_context *pctx,
 		pctx->started = 1;
 		mutex_lock(&pctx->blkpm_lock);
 		blk_ctrl.idx = pctx->ctx_id;
-		blk_ctrl.blk_param = &pctx->isp_k_param;
+		blk_ctrl.blk_param = pctx->isp_using_param;
 		if (pctx->pipe_src.in_fmt == IMG_PIX_FMT_NV21)
 			blk_ctrl.type = ISP_YUV_BLOCK_DISABLE;
 		else
@@ -1362,7 +1383,7 @@ exit:
 
 static int ispcore_offline_size_update(
 		struct isp_sw_context *pctx,
-		struct isp_offline_param *in_param)
+                struct camera_frame *pframe)
 {
 	int ret = 0;
 	int i;
@@ -1373,6 +1394,7 @@ static int ispcore_offline_size_update(
 	struct isp_path_uinfo *path_info = NULL;
 	uint32_t update[ISP_SPATH_NUM] = {
 		ISP_PATH0_TRIM, ISP_PATH1_TRIM, ISP_PATH2_TRIM};
+        struct isp_offline_param *in_param = (struct isp_offline_param *)pframe->param_data;
 
 	if(in_param->valid & ISP_SRC_SIZE) {
 		memcpy(&pctx->uinfo.original, &in_param->src_info,
@@ -1387,8 +1409,10 @@ static int ispcore_offline_size_update(
 		pr_debug("isp sw %d update size: %d %d\n",
 			pctx->ctx_id, cfg.src.w, cfg.src.h);
 		src_new = &cfg.src;
-		pctx->isp_k_param.src_w = pctx->pipe_src.src.w;
-		pctx->isp_k_param.src_h = pctx->pipe_src.src.h;
+		if (pframe->blkparam_info.param_block) {
+			pframe->blkparam_info.param_block->src_w = pctx->uinfo.src.w;
+			pframe->blkparam_info.param_block->src_h = pctx->uinfo.src.h;
+		}
 	}
 
 	/* update all path scaler trim0  */
@@ -1689,6 +1713,130 @@ static uint32_t ispcore_slw_need_vid_num(struct isp_uinfo *uinfo)
 	return vid_valid_count;
 }
 
+static int ispcore_copy_param(struct camera_frame *param_frame, struct isp_sw_context *pctx)
+{
+	int ret = 0, i = 0;
+	struct cam_hw_info *ops = pctx->dev->isp_hw;
+	struct isp_cfg_block_param fucarg;
+	func_isp_cfg_block_param cfg_fun_ptr = NULL;
+
+	for(i = ISP_BLOCK_BCHS; i < ISP_BLOCK_TOTAL; i++) {
+		fucarg.index = i - ISP_BLOCK_BASE;
+		ops->isp_ioctl(ops, ISP_HW_CFG_PARAM_BLOCK_FUNC_GET, &fucarg);
+		if (fucarg.isp_param != NULL && fucarg.isp_param->cfg_block_func != NULL) {
+			cfg_fun_ptr = fucarg.isp_param->cfg_block_func;
+			ret = cfg_fun_ptr(&pctx->isp_k_param, param_frame->blkparam_info.param_block);
+		}
+	}
+	return ret;
+}
+
+static int ispcore_prepare_blk_param(struct isp_sw_context *pctx, uint32_t target_fid, struct blk_param_info *out)
+{
+	int ret = 0;
+	int loop = 0;
+	uint32_t param_update = 0;
+	struct camera_frame *param_pframe = NULL;
+	struct camera_frame *last_param = NULL;
+	int param_last_fid = -1;
+
+	if (out->param_block) {
+		pr_info("already get param in dec process\n");
+		return 0;
+	}
+	if (pctx->ch_id == CAM_CH_CAP) {
+		out->param_block = NULL;
+		out->blk_param_node = NULL;
+		out->update = 1;
+		param_update = 1;
+		goto capture_param;
+	} else {
+		out->param_block = &pctx->isp_k_param;
+		out->blk_param_node = NULL;
+		goto preview_param;
+	}
+
+preview_param:
+	do {
+		param_pframe = cam_queue_dequeue_peek(&pctx->param_buf_queue, struct camera_frame, list);
+		if (param_pframe) {
+			pr_debug("pctx =%d, param_pframe.id=%d,pframe.id=%d\n",
+				pctx->ctx_id,param_pframe->fid,target_fid);
+			if (param_pframe->fid <= target_fid) {
+				/*update old preview param into pctx, cache latest capture param*/
+				cam_queue_dequeue(&pctx->param_buf_queue, struct camera_frame, list);
+				if (param_pframe->blkparam_info.update) {
+					pr_debug("isp%d update param %d\n", pctx->ctx_id, param_pframe->fid);
+					ispcore_copy_param(param_pframe, pctx);
+					param_update = 1;
+				}
+				param_last_fid = param_pframe->fid;
+				cam_queue_recycle_blk_param(&pctx->param_share_queue, param_pframe);
+				if (param_last_fid == target_fid)
+					break;
+				param_pframe = NULL;
+			} else {
+				pr_err("fail to match param, isp%d, fid %d\n", pctx->ctx_id, target_fid);
+				if (param_last_fid != -1)
+					pr_warn("use old param, param id %d, frame id %d\n", param_last_fid, target_fid);
+				else
+					pr_warn("no param update, frame id %d\n", target_fid);
+				break;
+			}
+		}
+	} while (loop++ < pctx->param_buf_queue.max);
+	if (!out->param_block)
+		out->param_block = &pctx->isp_k_param;
+	out->update = param_update;
+	return param_update;
+
+capture_param:
+	mutex_lock(&pctx->blkpm_q_lock);
+	do {
+		param_pframe = cam_queue_dequeue_peek(&pctx->param_buf_queue, struct camera_frame, list);
+		if (param_pframe) {
+			pr_debug("pctx =%d, param_pframe.id=%d,pframe.id=%d\n",
+				pctx->ctx_id,param_pframe->fid,target_fid);
+			if (param_pframe->fid <= target_fid) {
+				cam_queue_dequeue(&pctx->param_buf_queue, struct camera_frame, list);
+				/*return old param*/
+				if (last_param)
+					ret = cam_queue_recycle_blk_param(&pctx->param_share_queue, last_param);
+				/*cache latest capture param*/
+				last_param = param_pframe;
+				param_last_fid = param_pframe->fid;
+
+				if (param_last_fid == target_fid)
+					break;
+
+				param_pframe = NULL;
+			} else {
+				pr_err("fail to match param, isp%d, fid %d\n", pctx->ctx_id, target_fid);
+				if (!last_param) {
+					pr_warn("dont have old param, use latest param, frame %d\n", target_fid);
+					out->param_block = &pctx->isp_k_param;
+					out->blk_param_node = NULL;
+				}
+				break;
+			}
+		}
+	} while (loop++ < pctx->param_buf_queue.max);
+
+	if (last_param) {
+		out->param_block = last_param->blkparam_info.param_block;
+		out->blk_param_node = last_param;
+		if (param_last_fid != target_fid)
+			pr_warn("use old param, param id %d, frame id %d\n", param_last_fid, target_fid);
+	} else if (out->param_block == NULL) {
+		pr_warn("isp%d not have param in q, use latest param, frame id %d\n", pctx->ctx_id, target_fid);
+		out->param_block = &pctx->isp_k_param;
+		out->blk_param_node = NULL;
+	}
+	out->update = param_update;
+	mutex_unlock(&pctx->blkpm_q_lock);
+	return param_update;
+}
+
 static int ispcore_offline_frame_start(void *ctx)
 {
 	int ret = 0;
@@ -1767,6 +1915,10 @@ static int ispcore_offline_frame_start(void *ctx)
 			pframe->fid, pframe->channel_id, pframe->buf.mfd[0],
 			pframe->buf.iova[0]);
 
+        /* may already get param in dec process*/
+	ispcore_prepare_blk_param(pctx, pframe->fid, &pframe->blkparam_info);
+	pctx->isp_using_param = pframe->blkparam_info.param_block;
+
 	ret = cam_buf_iommu_map(&pframe->buf, CAM_IOMMUDEV_ISP);
 	if (ret) {
 		pr_err("fail to map buf to ISP iommu. cxt %d\n",
@@ -1796,6 +1948,11 @@ static int ispcore_offline_frame_start(void *ctx)
 	 * updated when set to register.
 	 */
 	mutex_lock(&pctx->param_mutex);
+	if (pframe->blkparam_info.update == 1) {
+		blk_ctrl.idx = pctx->ctx_id;
+		blk_ctrl.blk_param = pctx->isp_using_param;
+		hw->isp_ioctl(hw, ISP_HW_CFG_SUBBLOCK_RECFG, &blk_ctrl);
+	}
 	tmp.multi_slice = pctx->multi_slice;
 	tmp.valid_out_frame = -1;
 	tmp.target_fid = CAMERA_RESERVE_FRAME_NUM;
@@ -1817,7 +1974,7 @@ static int ispcore_offline_frame_start(void *ctx)
 	}
 
 	if (tmp.valid_out_frame == -1) {
-		pr_debug(" No available output buffer sw %d, hw %d,discard\n",
+		pr_warn("No available output buffer sw %d, hw %d,discard\n",
 			pctx_hw->sw_ctx_id, pctx_hw->hw_ctx_id);
 		if (rgb_ltm)
 			rgb_ltm->ltm_ops.sync_ops.clear_status(rgb_ltm);
@@ -1866,7 +2023,7 @@ static int ispcore_offline_frame_start(void *ctx)
 		slc_cfg.rgb_ltm = (struct isp_ltm_ctx_desc *)pctx->rgb_ltm_handle;
 		slc_cfg.yuv_ltm = (struct isp_ltm_ctx_desc *)pctx->yuv_ltm_handle;
 		slc_cfg.rgb_gtm = (struct isp_gtm_ctx_desc *)pctx->rgb_gtm_handle;
-		slc_cfg.nofilter_ctx = &pctx->isp_k_param;
+		slc_cfg.nofilter_ctx = pctx->isp_using_param;
 		slc_cfg.calc_dyn_ov.verison = hw->ip_isp->dyn_overlap_version;
 		isp_slice_info_cfg(&slc_cfg, pctx->slice_ctx);
 
@@ -1950,7 +2107,8 @@ static int ispcore_offline_frame_start(void *ctx)
 		mutex_lock(&pctx->blkpm_lock);
 		ispcore_debug_dump_check(pctx, pframe);
 		blk_ctrl.idx = pctx->ctx_id;
-		blk_ctrl.blk_param = &pctx->isp_k_param;
+
+		blk_ctrl.blk_param = pctx->isp_using_param;
 		if (pctx->pipe_src.in_fmt == IMG_PIX_FMT_NV21)
 			blk_ctrl.type = ISP_YUV_BLOCK_DISABLE;
 		else
@@ -1983,6 +2141,13 @@ static int ispcore_offline_frame_start(void *ctx)
 		}
 	}
 
+	pframe->blkparam_info.update = 0;
+	pframe->blkparam_info.param_block = NULL;
+	pctx->isp_using_param = NULL;
+	if (pframe->blkparam_info.blk_param_node) {
+		cam_queue_recycle_blk_param(&pctx->param_share_queue, pframe->blkparam_info.blk_param_node);
+		pframe->blkparam_info.blk_param_node = NULL;
+	}
 done:
 	pr_debug("done.\n");
 	return 0;
@@ -2011,6 +2176,13 @@ inq_overflow:
 	if (pframe)
 		cam_buf_iommu_unmap(&pframe->buf);
 map_err:
+	pframe->blkparam_info.param_block = NULL;
+	pframe->blkparam_info.update = 0;
+	pctx->isp_using_param = NULL;
+	if (pframe->blkparam_info.blk_param_node) {
+		cam_queue_recycle_blk_param(&pctx->param_share_queue, pframe->blkparam_info.blk_param_node);
+		pframe->blkparam_info.blk_param_node = NULL;
+	}
 input_err:
 	if (pframe) {
 		ispcore_offline_pararm_free(pframe->param_data);
@@ -2538,12 +2710,11 @@ static int ispcore_dec_frame_proc(struct isp_sw_context *pctx,
 	}
 
 	uinfo = &pctx->uinfo;
+	ispcore_prepare_blk_param(pctx, frame->fid, &frame->blkparam_info);
 
-	ispcore_dct_blkparam_update(pctx);
+	ispcore_dct_blkparam_update(pctx, frame->blkparam_info.param_block);
 	format = isp_drv_fetch_format_get(uinfo);
 	pyr_format = isp_drv_fetch_pyr_format_get(uinfo);
-	dec_dev->dct_ynr_info.dct = &pctx->isp_k_param.dct_info;
-	dec_dev->dct_ynr_info.dct_radius = pctx->isp_k_param.dct_radius;
 	dec_dev->ops.cfg_param(dec_dev, pctx->ctx_id, ISP_DEC_CFG_IN_FORMAT, &format, &pyr_format);
 	frame->dec_ctx_id = pctx->ctx_id;
 	frame->data_bits = uinfo->data_in_bits;
@@ -2642,7 +2813,7 @@ static int ispcore_frame_proc(void *isp_handle, void *param, int ctx_id)
 	in_param = (struct isp_offline_param *)pframe->param_data;
 	if (in_param) {
 		/*preview*/
-		ispcore_offline_size_update(pctx, in_param);
+		ispcore_offline_size_update(pctx, pframe);
 		ispcore_offline_pararm_free(in_param);
 		pframe->param_data = NULL;
 	}
@@ -3321,11 +3492,20 @@ static int ispcore_blkparam_cfg(
 		return -EINVAL;
 	}
 
+	if (pctx->isp_receive_param == NULL && io_param->scene_id == PM_SCENE_PRE) {
+		pr_err("fail to get recive handle, param out of range, isp%d blk %d\n", pctx->ctx_id, io_param->sub_block);
+		mutex_unlock(&dev->path_mutex);
+		return 0;
+	}
 	/* lock to avoid block param across frame */
 	mutex_lock(&pctx->blkpm_lock);
 	if (io_param->sub_block == ISP_BLOCK_3DNR) {
-		if (pctx->uinfo.mode_3dnr != MODE_3DNR_OFF)
-			ret = isp_k_cfg_3dnr(param, &pctx->isp_k_param, ctx_id);
+		if (pctx->uinfo.mode_3dnr != MODE_3DNR_OFF) {
+			if (io_param->scene_id == PM_SCENE_PRE || io_param->scene_id == PM_SCENE_VID)
+				ret = isp_k_cfg_3dnr(param, pctx->isp_receive_param->blkparam_info.param_block, ctx_id);
+			else
+				ret = isp_k_cfg_3dnr(param, &pctx->isp_k_param, ctx_id);
+		}
 	} else if (io_param->sub_block == ISP_BLOCK_NOISEFILTER) {
 		if (io_param->scene_id == PM_SCENE_CAP)
 			ret = isp_k_cfg_yuv_noisefilter(param, &pctx->isp_k_param, ctx_id);
@@ -3344,7 +3524,10 @@ static int ispcore_blkparam_cfg(
 			return 0;
 		}
 
-		ret = cfg_fun_ptr(io_param, &pctx->isp_k_param, ctx_id);
+		if (io_param->scene_id == PM_SCENE_PRE) {
+			ret = cfg_fun_ptr(io_param, pctx->isp_receive_param->blkparam_info.param_block, ctx_id);
+		} else
+			ret = cfg_fun_ptr(io_param, &pctx->isp_k_param, ctx_id);
 	}
 
 	mutex_unlock(&pctx->blkpm_lock);
@@ -3406,6 +3589,30 @@ static int ispcore_callback_set(void *isp_handle, int ctx_id,
 	return ret;
 }
 
+static int ispcore_param_buf_init(struct camera_frame *cfg_frame)
+{
+	int ret = 0;
+	unsigned int iommu_enable = 0;
+	size_t size = 0;
+
+	/*alloc cfg context buffer*/
+	if (cam_buf_iommu_status_get(CAM_IOMMUDEV_ISP) == 0) {
+		pr_debug("isp iommu enable\n");
+		iommu_enable = 1;
+	} else {
+		pr_debug("isp iommu disable\n");
+		iommu_enable = 0;
+	}
+	size = sizeof(struct isp_k_block);
+	ret = cam_buf_alloc(&cfg_frame->buf, size, 1);
+	if (ret) {
+		pr_err("fail to get cfg buffer\n");
+		ret = -EFAULT;
+	}
+
+	return ret;
+}
+
 /*
  * Get a free context and initialize it.
  * Input param is possible max_size of image.
@@ -3416,6 +3623,7 @@ static int ispcore_context_get(void *isp_handle, void *param)
 	int ret = 0;
 	int i;
 	int sel_ctx_id = 0;
+	int loop = 0;
 	struct isp_sw_context *pctx = NULL;
 	struct isp_pipe_dev *dev = NULL;
 	struct isp_path_desc *path = NULL;
@@ -3424,6 +3632,7 @@ static int ispcore_context_get(void *isp_handle, void *param)
 	struct isp_init_param *init_param;
 	struct isp_hw_default_param dfult_param;
 	struct isp_dec_pipe_dev *dec_dev = NULL;
+	struct camera_frame *pframe_param = NULL;
 
 	if (!isp_handle || !param) {
 		pr_err("fail to get valid input ptr, isp_handle %p, param %p\n",
@@ -3565,6 +3774,27 @@ static int ispcore_context_get(void *isp_handle, void *param)
 			ISP_SLW_PROC_Q_LEN, ispcore_src_frame_ret);
 	}
 
+	mutex_init(&pctx->blkpm_q_lock);
+	cam_queue_init(&pctx->param_share_queue, init_param->blkparam_node_num, ispcore_param_buf_destroy);
+	cam_queue_init(&pctx->param_buf_queue, init_param->blkparam_node_num, ispcore_param_buf_destroy);
+	for (i = 0; i < init_param->blkparam_node_num; i++) {
+		pframe_param = cam_queue_empty_frame_get();
+		ret = ispcore_param_buf_init(pframe_param);
+		if (ret) {
+			pr_err("fail to alloc memory.\n");
+			cam_queue_empty_frame_put(pframe_param);
+			ret = -ENOMEM;
+			goto map_error;
+		}
+
+		ret = cam_queue_recycle_blk_param(&pctx->param_share_queue, pframe_param);
+		if (ret) {
+			pr_err("fail to enqueue shared buf: %d ch %d\n", i, pctx->ch_id);
+			ret = -ENOMEM;
+			goto map_error;
+		}
+	}
+
 	cam_queue_init(&pctx->stream_ctrl_in_q,
 		ISP_STREAM_STATE_Q_LEN, cam_queue_empty_state_put);
 	cam_queue_init(&pctx->stream_ctrl_proc_q,
@@ -3579,6 +3809,16 @@ static int ispcore_context_get(void *isp_handle, void *param)
 	isp_int_isp_irq_sw_cnt_reset(pctx->ctx_id);
 
 	goto exit;
+
+map_error:
+	loop = cam_queue_cnt_get(&pctx->param_share_queue);
+	do {
+		pframe_param = cam_queue_dequeue(&pctx->param_share_queue, struct camera_frame, list);
+		if (pframe_param) {
+			cam_buf_free(&pframe_param->buf);
+			cam_queue_empty_frame_put(pframe_param);
+		}
+	} while (loop-- > 0);
 
 thrd_err:
 	if (dec_dev != NULL && hw->ip_isp->pyr_dec_support)
@@ -3679,6 +3919,10 @@ static int ispcore_context_put(void *isp_handle, int ctx_id)
 			loop++;
 			udelay(500);
 		};
+
+		pr_debug("isp%d, share q cnt %d, buf q cnt %d\n", pctx->ctx_id, cam_queue_cnt_get(&pctx->param_share_queue), cam_queue_cnt_get(&pctx->param_buf_queue));
+		cam_queue_clear(&pctx->param_share_queue, struct camera_frame, list);
+		cam_queue_clear(&pctx->param_buf_queue, struct camera_frame, list);
 
 		if (pctx->slice_ctx)
 			isp_slice_ctx_put(&pctx->slice_ctx);
@@ -3896,6 +4140,7 @@ static int ispcore_context_deinit(struct isp_pipe_dev *dev)
 		atomic_set(&pctx->user_cnt, 0);
 		mutex_destroy(&pctx->param_mutex);
 		mutex_destroy(&pctx->blkpm_lock);
+		mutex_destroy(&pctx->blkpm_q_lock);
 	}
 	cam_queue_clear(&dev->sw_ctx_q, struct isp_sw_context, list);
 
@@ -4208,6 +4453,31 @@ exit:
 	return ret;
 }
 
+int ispcore_blk_param_q_clear(void *isp_handle, int ctx_id)
+{
+	struct isp_pipe_dev *dev = NULL;
+	struct isp_sw_context *pctx = NULL;
+	struct camera_frame *frame = NULL;
+	uint32_t loop = 0;
+
+	if (!isp_handle || (ctx_id < 0) || (ctx_id >= ISP_CONTEXT_SW_NUM)) {
+		pr_err("fail to get valid ctx %p, %d\n", isp_handle, ctx_id);
+		return -1;
+	}
+
+	dev = (struct isp_pipe_dev *)isp_handle;
+	pctx = dev->sw_ctx[ctx_id];
+
+	loop = cam_queue_cnt_get(&pctx->param_buf_queue);
+	do {
+		frame = cam_queue_dequeue(&pctx->param_buf_queue, struct camera_frame, list);
+		if (frame)
+			cam_queue_recycle_blk_param(&pctx->param_share_queue, frame);
+	} while (loop-- > 0);
+
+	return 0;
+}
+
 static struct isp_pipe_ops isp_ops = {
 	.open = ispcore_dev_open,
 	.close = ispcore_dev_close,
@@ -4223,6 +4493,7 @@ static struct isp_pipe_ops isp_ops = {
 	.set_callback = ispcore_callback_set,
 	.clear_stream_ctrl = ispcore_stream_state_put,
 	.set_datactrl = ispcore_datactrl_set,
+	.clear_blk_param_q = ispcore_blk_param_q_clear,
 };
 
 void *isp_core_pipe_dev_get(void)

@@ -17,6 +17,7 @@
 #include "cam_block.h"
 #include "isp_ltm.h"
 #include "sprd_isp_2v6.h"
+#include "cam_queue.h"
 
 #ifdef pr_fmt
 #undef pr_fmt
@@ -31,7 +32,7 @@ static void isp_ltm_config_hists(uint32_t idx,
 	base = ISP_LTM_HIST_YUV_BASE;
 
 	pr_debug("isp %d ltm hist bypass %d\n", idx, hists->bypass);
-	if (g_isp_bypass[idx] & (1 << _EISP_LTM))
+	if ((g_isp_bypass[idx] >> _EISP_LTM) & 1)
 		hists->bypass = 1;
 	ISP_REG_MWR(idx, base + ISP_LTM_HIST_PARAM, BIT_0, hists->bypass);
 	if (hists->bypass)
@@ -79,7 +80,7 @@ static void isp_ltm_config_map(uint32_t idx,
 	base = ISP_LTM_MAP_YUV_BASE;
 
 	pr_debug("isp %d ltm map bypass %d\n", idx, map->bypass);
-	if (g_isp_bypass[idx] & (1 << _EISP_LTM))
+	if ((g_isp_bypass[idx] >> _EISP_LTM) & 1)
 		map->bypass = 1;
 	ISP_REG_MWR(idx, base + ISP_LTM_MAP_PARAM0, BIT_0, map->bypass);
 	if (map->bypass)
@@ -142,7 +143,7 @@ int isp_ltm_config_param(void *handle)
 }
 
 int isp_k_ltm_yuv_block(struct isp_io_param *param,
-	struct isp_k_block *isp_k_param, uint32_t idx)
+		struct isp_k_block *isp_k_param, uint32_t idx)
 {
 	int ret = 0;
 	struct isp_dev_yuv_ltm_info *p = NULL;
@@ -156,6 +157,7 @@ int isp_k_ltm_yuv_block(struct isp_io_param *param,
 		pr_err("fail to get ltm from user, ret = %d\n", ret);
 		return -EPERM;
 	}
+	isp_k_param->ltm_yuv_info.isupdate = 1;
 
 	return ret;
 }
@@ -177,3 +179,16 @@ int isp_k_cfg_yuv_ltm(struct isp_io_param *param,
 
 	return ret;
 }
+
+int isp_k_cpy_yuv_ltm(struct isp_k_block *param_block, struct isp_k_block *isp_k_param)
+{
+	int ret = 0;
+	if(isp_k_param->ltm_yuv_info.isupdate == 1) {
+		memcpy(&param_block->ltm_yuv_info, &isp_k_param->ltm_yuv_info, sizeof(struct isp_dev_yuv_ltm_info));
+		isp_k_param->ltm_yuv_info.isupdate = 0;
+		param_block->ltm_yuv_info.isupdate = 1;
+	}
+
+	return ret;
+}
+

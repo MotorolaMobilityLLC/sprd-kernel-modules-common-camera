@@ -127,6 +127,8 @@ int dcam_k_cfg_lscm(struct isp_io_param *param, struct dcam_dev_param *p)
 		}
 		if (p->idx == DCAM_HW_CONTEXT_MAX)
 			return 0;
+		if (g_dcam_bypass[p->idx] & (1 << _E_LSCM))
+			p->lscm.bypass = 1;
 		ret = sub_func(p);
 	} else {
 		mutex_lock(&p->param_lock);

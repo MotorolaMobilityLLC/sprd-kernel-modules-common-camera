@@ -232,6 +232,7 @@ struct isp_ltm_map_info {
 };
 
 struct isp_ltm_info {
+        uint32_t is_update;
 	struct isp_ltm_stat_info ltm_stat;
 	struct isp_ltm_map_info ltm_map;
 };

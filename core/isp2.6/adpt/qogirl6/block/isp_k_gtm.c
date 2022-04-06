@@ -18,6 +18,7 @@
 #include "cam_block.h"
 #include "isp_gtm.h"
 #include "isp_reg.h"
+#include "cam_queue.h"
 
 #ifdef pr_fmt
 #undef pr_fmt
@@ -25,7 +26,8 @@
 #define pr_fmt(fmt) "GTM: %d %d %s : "\
 	fmt, current->pid, __LINE__, __func__
 
-static void isp_k_raw_gtm_set_default(struct dcam_dev_raw_gtm_block_info *p)
+static void isp_k_raw_gtm_set_default(struct dcam_dev_raw_gtm_block_info *p,
+	struct cam_gtm_mapping *map)
 {
 	p->gtm_tm_out_bit_depth = 0xE;
 	p->gtm_tm_in_bit_depth = 0xE;
@@ -49,6 +51,17 @@ static void isp_k_raw_gtm_set_default(struct dcam_dev_raw_gtm_block_info *p)
 	p->slice.gtm_slice_line_startpos = 0x0;
 	p->slice.gtm_slice_line_endpos = 0x0;
 	p->slice.gtm_slice_main = 0x0;
+
+	if (map) {
+		map->ymin = 2;
+		map->ymax = 0;
+		map->yavg = 0;
+		map->target = 4015;
+		map->lr_int = 27564;
+		map->log_min_int = 30208;
+		map->log_diff_int = 1378;
+		map->diff = 389601;
+	}
 }
 
 int isp_k_gtm_mapping_get(void *param)
@@ -150,7 +163,7 @@ int isp_k_gtm_mapping_set(void *param)
 	return 0;
 }
 
-int isp_k_gtm_block(void *pctx, void *param)
+int isp_k_gtm_block(void *pctx, void *param, void *param2)
 {
 	int ret = 0;
 	uint32_t idx = 0;
@@ -159,6 +172,7 @@ int isp_k_gtm_block(void *pctx, void *param)
 	struct isp_gtm_ctx_desc *ctx = NULL;
 	struct dcam_dev_raw_gtm_block_info *p = NULL;
 	struct dcam_dev_gtm_slice_info *gtm_slice = NULL;
+	struct cam_gtm_mapping *map = NULL;
 
 	if (!pctx || !param) {
 		pr_err("fail to get input ptr ctx %p, param %p\n", pctx,  param);
@@ -176,7 +190,9 @@ int isp_k_gtm_block(void *pctx, void *param)
 		p->bypass_info.gtm_mod_en = 0;
 	}
 
-	isp_k_raw_gtm_set_default(p);
+	if (ctx->fid)
+		map = (struct cam_gtm_mapping *)param2;
+	isp_k_raw_gtm_set_default(p, map);
 
 	ISP_REG_MWR(idx, ISP_GTM_GLB_CTRL, BIT_0, (p->bypass_info.gtm_mod_en & 0x1));
 	if (p->bypass_info.gtm_mod_en == 0) {
@@ -184,6 +200,7 @@ int isp_k_gtm_block(void *pctx, void *param)
 		ISP_REG_MWR(idx, ISP_GTM_GLB_CTRL, BIT_2 | BIT_1, 3 << 1);
 		return 0;
 	}
+	p->gtm_cur_is_first_frame = 1;
 
 	if (ctx->mode == MODE_GTM_PRE) {
 		if (atomic_read(&ctx->cnt) == 0)
@@ -309,6 +326,8 @@ int isp_k_cfg_rgb_gtm(struct isp_io_param *param,
 	struct dcam_dev_raw_gtm_block_info *gtm = NULL;
 	struct cam_gtm_mapping *gtm_alg_calc = NULL;
 
+	gtm = &isp_k_param->gtm_rgb_info;
+
 	switch (param->property) {
 	case DCAM_PRO_GTM_BLOCK:
 		gtm = &isp_k_param->gtm_rgb_info;
@@ -318,6 +337,7 @@ int isp_k_cfg_rgb_gtm(struct isp_io_param *param,
 			pr_err("fail to copy, ret=0x%x\n", (unsigned int)ret);
 			return -EPERM;
 		}
+		isp_k_param->gtm_rgb_info.isupdate = 1;
 		if (param->scene_id == PM_SCENE_CAP)
 			gtm->bypass_info.gtm_hist_stat_bypass = 1;
 		pr_debug("ctx_id %d , mod_en %d, map %d, hist_stat %d\n",
@@ -330,7 +350,7 @@ int isp_k_cfg_rgb_gtm(struct isp_io_param *param,
 			pr_err("fail to copy alg_calc ret %d\n", ret);
 			return -EPERM;
 		}
-
+		isp_k_param->gtm_sw_map_info.isupdate = 1;
 		pr_debug("ctx_id %d, get gtm alg_calc info\n", idx);
 		break;
 	case DCAM_PRO_GTM_CALC_MODE:
@@ -351,4 +371,18 @@ int isp_k_cfg_rgb_gtm(struct isp_io_param *param,
 	return ret;
 }
 
+int isp_k_cpy_rgb_gtm(struct isp_k_block *param_block, struct isp_k_block *isp_k_param)
+{
+	int ret = 0;
+	if (isp_k_param->gtm_rgb_info.isupdate == 1) {
+		memcpy(&param_block->gtm_rgb_info, &isp_k_param->gtm_rgb_info, sizeof(struct dcam_dev_raw_gtm_block_info));
+		param_block->gtm_calc_mode = isp_k_param->gtm_calc_mode;
+		isp_k_param->gtm_rgb_info.isupdate = 0;
+	}
 
+	if (isp_k_param->gtm_sw_map_info.isupdate == 1) {
+		memcpy(&param_block->gtm_sw_map_info, &isp_k_param->gtm_sw_map_info, sizeof(struct cam_gtm_mapping));
+		isp_k_param->gtm_sw_map_info.isupdate = 0;
+	}
+	return ret;
+}

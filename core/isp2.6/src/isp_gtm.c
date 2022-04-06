@@ -65,7 +65,7 @@ static int ispgtm_cfg_param(void *handle,
 		break;
 	case ISP_GTM_CFG_CALC_MODE:
 		gtm_ctx->calc_mode = *(uint32_t *)param;
-		pr_debug("GTM ctx_id %d, calc mode %d\n", gtm_ctx->calc_mode);
+		pr_debug("GTM ctx_id %d, calc mode %d\n", gtm_ctx->ctx_id, gtm_ctx->calc_mode);
 		break;
 	 default:
 		 pr_debug("fail to get known cmd: %d\n", cmd);

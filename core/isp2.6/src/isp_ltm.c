@@ -463,6 +463,7 @@ static int ispltm_histo_param_calc(ltm_param_t *param_histo, uint32_t alignment)
 	uint32_t strength = param_histo->strength;
 	uint32_t frame_width = param_histo->frame_width;
 	uint32_t frame_height = param_histo->frame_height;
+        uint32_t calculate_times = 0;
 
 	ispltm_binning_factor_calc(param_histo);
 
@@ -498,6 +499,14 @@ static int ispltm_histo_param_calc(ltm_param_t *param_histo, uint32_t alignment)
 
 			tile_width = frame_width / (alignment * tile_num_x) * alignment;
 			tile_height = frame_height / (2 * tile_num_y) * 2;
+                        calculate_times++;
+                        if (calculate_times > 2) {
+                            tile_num_y = 8;
+                            tile_num_x = 8;
+                            tile_width = frame_width / (4 * tile_num_x) *4;
+                            tile_height = frame_height / (2 * tile_num_y) *2;
+                            break;
+                        }
 		}
 	} else {
 		tile_num_x = param_histo->tile_num_x;

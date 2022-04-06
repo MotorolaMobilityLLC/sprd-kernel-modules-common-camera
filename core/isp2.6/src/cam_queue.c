@@ -382,3 +382,63 @@ void cam_queue_empty_state_free(void *param)
 	kfree(stream_state);
 }
 
+
+int cam_queue_recycle_blk_param(struct camera_queue *q, struct camera_frame *param_pframe)
+{
+	int ret = 0;
+
+	if (!q || !param_pframe) {
+		pr_err("fail to get valid handle %p %p\n", q, param_pframe);
+		return -1;
+	}
+
+	param_pframe->blkparam_info.update = 0;
+	param_pframe->fid = 0xffff;
+	param_pframe->blkparam_info.param_block = NULL;
+
+	if (param_pframe->buf.addr_k[0]) {
+		memset((void *)param_pframe->buf.addr_k[0], 0, sizeof(struct isp_k_block));
+		ret = cam_buf_kunmap(&param_pframe->buf);
+		if(ret) {
+			pr_err("fail to unmap param node %px\n", param_pframe);
+			goto error;
+		}
+	}
+	ret = cam_queue_enqueue(q, &param_pframe->list);
+	if(ret) {
+		pr_err("fail to recycle param node %px\n", param_pframe);
+		goto error;
+	}
+	return ret;
+error:
+	cam_buf_free(&param_pframe->buf);
+	cam_queue_empty_frame_put(param_pframe);
+	return ret;
+}
+
+struct camera_frame * cam_queue_empty_blk_param_get(struct camera_queue *q)
+{
+	int ret = 0;
+	struct camera_frame *param_frame = NULL;
+
+	if (!q) {
+		pr_err("fail to get valid handle\n");
+		return NULL;
+	}
+
+	param_frame = cam_queue_dequeue(q, struct camera_frame, list);
+	if (param_frame) {
+		ret = cam_buf_kmap(&param_frame->buf);
+		param_frame->blkparam_info.param_block = (void *)param_frame->buf.addr_k[0];
+		if (ret) {
+			pr_err("fail to kmap cfg buffer\n");
+			param_frame->buf.addr_k[0] = 0;
+			param_frame->buf.addr_k[1] = 0;
+			param_frame->buf.addr_k[2] = 0;
+			param_frame->blkparam_info.param_block = NULL;
+			return NULL;
+		}
+		pr_debug("pframe_param.buf =%lu,pframe_param->param_block=%p\n",param_frame->buf,param_frame->blkparam_info.param_block);
+	}
+	return param_frame;
+}

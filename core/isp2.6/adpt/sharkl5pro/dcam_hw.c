@@ -1300,6 +1300,7 @@ static int dcamhw_gtm_ltm_eb(void *handle, void *arg)
 {
 	struct cam_hw_gtm_ltm_eb *eb = NULL;
 	struct dcam_dev_param *p = NULL;
+	uint64_t val = 1;
 
 	eb = (struct cam_hw_gtm_ltm_eb *)arg;
 	if (eb->dcam_idx >= DCAM_ID_MAX || eb->isp_idx >= ISP_CONTEXT_SW_NUM) {
@@ -1308,7 +1309,9 @@ static int dcamhw_gtm_ltm_eb(void *handle, void *arg)
 	}
 
 	g_dcam_bypass[eb->dcam_idx] &= (~(1 << _E_GTM));
-	g_isp_bypass[eb->isp_idx] &= (~(1 << _EISP_LTM));
+
+	val = (~(val << _EISP_LTM));
+	g_isp_bypass[eb->isp_idx] &= val;
 	p = (struct dcam_dev_param *)(eb->dcam_param);
 	if (p)
 		dcam_k_gtm_bypass(p, &p->gtm[DCAM_GTM_PARAM_PRE].gtm_info.bypass_info);
@@ -1321,6 +1324,7 @@ static int dcamhw_gtm_ltm_eb(void *handle, void *arg)
 static int dcamhw_gtm_ltm_dis(void *handle, void *arg)
 {
 	struct cam_hw_gtm_ltm_dis *dis = NULL;
+	uint64_t val = 1;
 
 	dis = (struct cam_hw_gtm_ltm_dis *)arg;
 
@@ -1332,7 +1336,8 @@ static int dcamhw_gtm_ltm_dis(void *handle, void *arg)
 	g_dcam_bypass[dis->dcam_idx] |= (1 << _E_GTM);
 	DCAM_REG_MWR(dis->dcam_idx, DCAM_GTM_GLB_CTRL, BIT_0, 0);
 
-	g_isp_bypass[dis->isp_idx] |= (1 << _EISP_LTM);
+	val = (val << _EISP_LTM);
+	g_isp_bypass[dis->isp_idx] |= val;
 	ISP_REG_MWR(dis->isp_idx, ISP_LTM_MAP_RGB_BASE + ISP_LTM_MAP_PARAM0, BIT_0, 1);
 
 	pr_debug("gtm &ltm disable, dcam hw ctx %d, isp sw ctx %d\n", dis->dcam_idx, dis->isp_idx);

@@ -40,7 +40,7 @@ int dcam_k_cmc10_block(struct dcam_dev_param *param)
 	if (idx >= DCAM_HW_CONTEXT_MAX)
 		return 0;
 	cmc10_info = &param->cmc10_info;
-	if (g_dcam_bypass[idx] & (1 << _E_CCM))
+	if (g_dcam_bypass[idx] & (1 << _E_CMC))
 		cmc10_info->bypass = 1;
 
 	DCAM_REG_MWR(idx, DCAM_CMC10_PARAM, BIT_0, cmc10_info->bypass);
@@ -85,6 +85,8 @@ int dcam_k_cfg_cmc10(struct isp_io_param *param, struct dcam_dev_param *p)
 			}
 			if (p->idx == DCAM_HW_CONTEXT_MAX)
 				return 0;
+			if (g_dcam_bypass[p->idx] & (1 << _E_CMC))
+				p->cmc10_info.bypass = 1;
 			ret = dcam_k_cmc10_block(p);
 		} else {
 			mutex_lock(&p->param_lock);

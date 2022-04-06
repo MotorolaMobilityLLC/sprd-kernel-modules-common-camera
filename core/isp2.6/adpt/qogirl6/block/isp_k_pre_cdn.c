@@ -17,6 +17,7 @@
 #include "isp_reg.h"
 #include "cam_types.h"
 #include "cam_block.h"
+#include "cam_queue.h"
 
 #ifdef pr_fmt
 #undef pr_fmt
@@ -24,23 +25,18 @@
 #define pr_fmt(fmt) "PRECDN: %d %d %s : "\
 	fmt, current->pid, __LINE__, __func__
 
-static int isp_k_precdn_block(struct isp_io_param *param,
-	struct isp_k_block *isp_k_param, uint32_t idx)
+int isp_k_precdn_block(struct isp_k_block *isp_k_param, uint32_t idx)
 {
 	int ret = 0;
 	uint32_t val = 0;
 	uint32_t i = 0;
-	struct isp_dev_pre_cdn_info *pre_cdn_info;
+	struct isp_dev_pre_cdn_info *pre_cdn_info = NULL;
+	if (isp_k_param->pre_cdn_info.isupdate == 0)
+		return ret;
 
 	pre_cdn_info = &isp_k_param->pre_cdn_info;
+	isp_k_param->pre_cdn_info.isupdate = 0;
 
-	ret = copy_from_user((void *)pre_cdn_info,
-			param->property_param,
-			sizeof(struct isp_dev_pre_cdn_info));
-	if (ret != 0) {
-		pr_err("fail to copy from user, ret = %d\n", ret);
-		return ret;
-	}
 	if (g_isp_bypass[idx] & (1 << _EISP_PRECDN))
 		pre_cdn_info->bypass = 1;
 	if (pre_cdn_info->bypass)
@@ -120,15 +116,35 @@ int isp_k_cfg_pre_cdn(struct isp_io_param *param,
 	struct isp_k_block *isp_k_param, uint32_t idx)
 {
 	int ret = 0;
+	struct isp_dev_pre_cdn_info *pre_cdn_info = NULL;
+
+	pre_cdn_info = &isp_k_param->pre_cdn_info;
 
 	switch (param->property) {
 	case ISP_PRO_PRE_CDN_BLOCK:
-		ret = isp_k_precdn_block(param, isp_k_param, idx);
+		ret = copy_from_user((void *)pre_cdn_info, param->property_param, sizeof(struct isp_dev_pre_cdn_info));
+		if (ret != 0) {
+			pr_err("fail to copy from user, ret = %d\n", ret);
+			return ret;
+		}
+		isp_k_param->pre_cdn_info.isupdate = 1;
 		break;
 	default:
 		pr_err("fail to support cmd id = %d\n",
 			param->property);
 		break;
+	}
+
+	return ret;
+}
+
+int isp_k_cpy_pre_cdn(struct isp_k_block *param_block, struct isp_k_block *isp_k_param)
+{
+	int ret = 0;
+	if (isp_k_param->pre_cdn_info.isupdate == 1) {
+		memcpy(&param_block->pre_cdn_info, &isp_k_param->pre_cdn_info, sizeof(struct isp_dev_pre_cdn_info));
+		isp_k_param->pre_cdn_info.isupdate = 0;
+		param_block->pre_cdn_info.isupdate = 1;
 	}
 
 	return ret;

@@ -18,6 +18,7 @@
 #include "cam_types.h"
 #include "cam_block.h"
 #include "isp_core.h"
+#include "cam_queue.h"
 
 #ifdef pr_fmt
 #undef pr_fmt
@@ -25,21 +26,17 @@
 #define pr_fmt(fmt) "YNR: %d %d %s : "\
 	fmt, current->pid, __LINE__, __func__
 
-static int isp_k_ynr_block(struct isp_io_param *param,
-	struct isp_k_block *isp_k_param, uint32_t idx)
+int isp_k_ynr_block(struct isp_k_block *isp_k_param, uint32_t idx)
 {
 	int ret = 0;
-	uint32_t val;
-	struct isp_dev_ynr_info_v2 *ynr;
+	uint32_t val = 0;
+	struct isp_dev_ynr_info_v2 *ynr = NULL;
+	if (isp_k_param->ynr_info_v2_base.isupdate == 0)
+		return ret;
 
 	ynr = &isp_k_param->ynr_info_v2_base;
-	ret = copy_from_user((void *)ynr,
-			param->property_param,
-			sizeof(struct isp_dev_ynr_info_v2));
-	if (ret != 0) {
-		pr_err("fail to copy from user, ret = %d\n", ret);
-		return ret;
-	}
+	isp_k_param->ynr_info_v2_base.isupdate = 0;
+
 	if (g_isp_bypass[idx] & (1 << _EISP_YNR))
 		ynr->bypass = 1;
 
@@ -266,10 +263,19 @@ int isp_k_cfg_ynr(struct isp_io_param *param,
 	struct isp_k_block *isp_k_param, uint32_t idx)
 {
 	int ret = 0;
+	struct isp_dev_ynr_info_v2 *ynr = NULL;
+
+	ynr = &isp_k_param->ynr_info_v2_base;
 
 	switch (param->property) {
 	case ISP_PRO_YNR_BLOCK:
-		ret = isp_k_ynr_block(param, isp_k_param, idx);
+		ret = copy_from_user((void *)ynr, param->property_param, sizeof(struct isp_dev_ynr_info_v2));
+		if (ret != 0) {
+			pr_err("fail to copy from user, ret = %d\n", ret);
+			return ret;
+		}
+
+		isp_k_param->ynr_info_v2_base.isupdate = 1;
 		break;
 	default:
 		pr_err("fail to support cmd id = %d\n",
@@ -298,13 +304,13 @@ int isp_k_update_ynr(void *handle)
 
 	pctx = (struct isp_sw_context *)handle;
 	idx = pctx->ctx_id;
-	new_width = pctx->isp_k_param.blkparam_info.new_width;
-	new_height = pctx->isp_k_param.blkparam_info.new_height;
-	old_width = pctx->isp_k_param.blkparam_info.old_width;
-	old_height = pctx->isp_k_param.blkparam_info.old_height;
+	new_width = pctx->isp_using_param->blkparam_info.new_width;
+	new_height = pctx->isp_using_param->blkparam_info.new_height;
+	old_width = pctx->isp_using_param->blkparam_info.old_width;
+	old_height = pctx->isp_using_param->blkparam_info.old_height;
 
-	pdst = &pctx->isp_k_param.ynr_info_v2;
-	ynr_info = &pctx->isp_k_param.ynr_info_v2_base;
+	pdst = &pctx->isp_using_param->ynr_info_v2;
+	ynr_info = &pctx->isp_using_param->ynr_info_v2_base;
 	if (ynr_info->bypass)
 		return 0;
 
@@ -339,6 +345,18 @@ int isp_k_update_ynr(void *handle)
 		center_x, center_y, ynr_info->radius, ynr_info->max_radius,
 		ynr_info->radius_factor, ynr_info->max_radius_factor,
 		ynr_info->radius_base, radius, max_radius, dis_interval);
+
+	return ret;
+}
+
+int isp_k_cpy_ynr(struct isp_k_block *param_block, struct isp_k_block *isp_k_param)
+{
+	int ret = 0;
+	if (isp_k_param->ynr_info_v2_base.isupdate == 1) {
+		memcpy(&param_block->ynr_info_v2_base, &isp_k_param->ynr_info_v2_base, sizeof(struct isp_dev_ynr_info_v2));
+		isp_k_param->ynr_info_v2_base.isupdate = 0;
+		param_block->ynr_info_v2_base.isupdate = 1;
+	}
 
 	return ret;
 }

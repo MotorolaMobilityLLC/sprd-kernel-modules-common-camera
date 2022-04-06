@@ -18,6 +18,7 @@
 #include "isp_reg.h"
 #include "cam_types.h"
 #include "cam_block.h"
+#include "cam_queue.h"
 
 #ifdef pr_fmt
 #undef pr_fmt
@@ -25,22 +26,17 @@
 #define pr_fmt(fmt) "CMC10: %d %d %s : "\
 	fmt, current->pid, __LINE__, __func__
 
-static int isp_k_cmc10_block(struct isp_io_param *param,
-	struct isp_k_block *isp_k_param, uint32_t idx)
+int isp_k_cmc10_block(struct isp_k_block *isp_k_param, uint32_t idx)
 {
 	int ret = 0;
 	uint32_t val = 0;
-	struct isp_dev_cmc10_info *cmc10_info;
+	struct isp_dev_cmc10_info *cmc10_info = NULL;
 
-	cmc10_info = &isp_k_param->cmc10_info;
-
-	ret = copy_from_user((void *)cmc10_info,
-			param->property_param,
-			sizeof(struct isp_dev_cmc10_info));
-	if (ret != 0) {
-		pr_err("fail to copy from user, ret = %d\n", ret);
+	if (isp_k_param->cmc10_info.isupdate == 0)
 		return ret;
-	}
+	cmc10_info = &isp_k_param->cmc10_info;
+	isp_k_param->cmc10_info.isupdate = 0;
+
 	if (g_isp_bypass[idx] & (1 << _EISP_CMC))
 		cmc10_info->bypass = 1;
 	ISP_REG_MWR(idx, ISP_CMC10_PARAM, BIT_0, cmc10_info->bypass);
@@ -73,10 +69,17 @@ int isp_k_cfg_cmc10(struct isp_io_param *param,
 	struct isp_k_block *isp_k_param, uint32_t idx)
 {
 	int ret = 0;
+	struct isp_dev_cmc10_info *cmc10_info = NULL;
 
+	cmc10_info = &isp_k_param->cmc10_info;
 	switch (param->property) {
 	case ISP_PRO_CMC_BLOCK:
-		ret = isp_k_cmc10_block(param, isp_k_param, idx);
+		ret = copy_from_user((void *)cmc10_info, param->property_param, sizeof(struct isp_dev_cmc10_info));
+		if (ret != 0) {
+			pr_err("fail to copy from user, ret = %d\n", ret);
+			return ret;
+		}
+		isp_k_param->cmc10_info.isupdate = 1;
 		break;
 	default:
 		pr_err("fail to support cmd id = %d\n",
@@ -86,3 +89,15 @@ int isp_k_cfg_cmc10(struct isp_io_param *param,
 
 	return ret;
 }
+
+int isp_k_cpy_cmc10(struct isp_k_block *param_block, struct isp_k_block *isp_k_param)
+{
+	int ret = 0;
+	if (isp_k_param->cmc10_info.isupdate == 1) {
+		memcpy(&param_block->cmc10_info, &isp_k_param->cmc10_info, sizeof(struct isp_dev_cmc10_info));
+		isp_k_param->cmc10_info.isupdate = 0;
+		param_block->cmc10_info.isupdate = 1;
+	}
+	return ret;
+}
+

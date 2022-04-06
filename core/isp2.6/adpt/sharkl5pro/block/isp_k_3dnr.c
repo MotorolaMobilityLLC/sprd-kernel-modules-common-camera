@@ -30,7 +30,7 @@ static void isp_3dnr_config_mem_ctrl(uint32_t idx,
 {
 	unsigned int val;
 
-	if (g_isp_bypass[idx] & (1 << _EISP_NR3))
+	if ((g_isp_bypass[idx] >> _EISP_NR3) & 1)
 		mem_ctrl->bypass = 1;
 
 	val = ((mem_ctrl->nr3_done_mode & 0x1) << 1) |
@@ -117,7 +117,7 @@ static void isp_3dnr_config_mem_ctrl(uint32_t idx,
 	ISP_REG_WR(idx, ISP_3DNR_MEM_CTRL_PARAM13, val);
 }
 
-static void isp_3dnr_config_blend(uint32_t idx,
+void isp_3dnr_config_blend(uint32_t idx,
 		struct isp_3dnr_blend_info *blend)
 {
 	unsigned int val;
@@ -127,6 +127,9 @@ static void isp_3dnr_config_blend(uint32_t idx,
 		return;
 	}
 
+	if (blend->isupdate == 0)
+		return;
+	blend->isupdate = 0;
 	ISP_REG_MWR(idx, ISP_3DNR_BLEND_CONTROL0, BIT_1, blend->fusion_mode << 1);
 	ISP_REG_MWR(idx, ISP_3DNR_BLEND_CONTROL0, BIT_2, blend->filter_switch << 2);
 
@@ -281,7 +284,7 @@ static void isp_3dnr_config_store(uint32_t idx,
 {
 	unsigned int val;
 
-	if (g_isp_bypass[idx] & (1 << _EISP_NR3))
+	if ((g_isp_bypass[idx] >> _EISP_NR3) & 1)
 		nr3_store->st_bypass = 1;
 	val = ((nr3_store->chk_sum_clr_en & 0x1) << 4) |
 		((nr3_store->shadow_clr_sel & 0x1) << 3) |
@@ -373,7 +376,7 @@ static void isp_3dnr_config_fbc_store(uint32_t idx,
 {
 	unsigned int val;
 
-	if (g_isp_bypass[idx] & (1 << _EISP_NR3))
+	if ((g_isp_bypass[idx] >> _EISP_NR3) & 1)
 		nr3_fbc_store->bypass = 1;
 
 	val = (nr3_fbc_store->bypass & 0x1) |
@@ -420,7 +423,7 @@ static void isp_3dnr_config_crop(uint32_t idx,
 {
 	unsigned int val;
 
-	if (g_isp_bypass[idx] & (1 << _EISP_NR3))
+	if ((g_isp_bypass[idx] >> _EISP_NR3) & 1)
 		crop->crop_bypass = 1;
 	ISP_REG_MWR(idx, ISP_3DNR_MEM_CTRL_PRE_PARAM0,
 		BIT_0, crop->crop_bypass);
@@ -454,7 +457,7 @@ static int isp_k_3dnr_block(struct isp_io_param *param,
 		return -EPERM;
 	}
 
-	isp_3dnr_config_blend(idx, &pnr3->blend);
+	pnr3->blend.isupdate = 1;
 
 	memcpy(&isp_k_param->nr3d_info, pnr3, sizeof(struct isp_dev_3dnr_info));
 
@@ -637,6 +640,19 @@ int isp_k_cfg_3dnr(struct isp_io_param *param,
 	default:
 		pr_err("fail to 3dnr cmd id = %d\n", param->property);
 		break;
+	}
+
+	return ret;
+}
+
+int isp_k_cpy_3dnr(struct isp_k_block *param_block, struct isp_k_block *isp_k_param)
+{
+	int ret = 0;
+	if (isp_k_param->nr3_info_base.blend.isupdate == 1) {
+		memcpy(&param_block->nr3_info_base, &isp_k_param->nr3_info_base, sizeof(struct isp_dev_3dnr_info));
+		memcpy(&param_block->nr3d_info, &isp_k_param->nr3d_info, sizeof(struct isp_dev_3dnr_info));
+		isp_k_param->nr3_info_base.blend.isupdate = 0;
+		param_block->nr3_info_base.blend.isupdate = 1;
 	}
 
 	return ret;

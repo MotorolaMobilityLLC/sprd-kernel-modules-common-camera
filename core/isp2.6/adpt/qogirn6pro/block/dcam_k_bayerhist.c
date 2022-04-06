@@ -147,6 +147,8 @@ int dcam_k_cfg_bayerhist(struct isp_io_param *param,
 		}
 		if (p->idx == DCAM_HW_CONTEXT_MAX)
 			return 0;
+		if (g_dcam_bypass[p->idx] & (1 << _E_HIST))
+			p->hist.bayerHist_info.hist_bypass = 1;
 		dcam_k_bayerhist_bypass(p);
 		break;
 	case DCAM_PRO_BAYERHIST_BLOCK: {
@@ -173,6 +175,8 @@ int dcam_k_cfg_bayerhist(struct isp_io_param *param,
 		spin_unlock_irqrestore(&path->size_lock, flags);
 		if (p->idx == DCAM_HW_CONTEXT_MAX)
 			return 0;
+		if (g_dcam_bypass[p->idx] & (1 << _E_HIST))
+			p->hist.bayerHist_info.hist_bypass = 1;
 		if (atomic_read(&sw_ctx->state) != STATE_RUNNING) {
 			ret = dcam_k_bayerhist_block(p);
 			pr_debug("dcam%d config hist %d, win (%d %d %d %d)\n",

@@ -17,6 +17,7 @@
 #include "isp_reg.h"
 #include "cam_types.h"
 #include "cam_block.h"
+#include "cam_queue.h"
 
 #ifdef pr_fmt
 #undef pr_fmt
@@ -24,20 +25,17 @@
 #define pr_fmt(fmt) "BCHS: %d %d %s : "\
 	fmt, current->pid, __LINE__, __func__
 
-static int isp_k_bchs_block(struct isp_io_param *param,
-	struct isp_k_block *isp_k_param, uint32_t idx)
+int isp_k_bchs_block(struct isp_k_block *isp_k_param, uint32_t idx)
 {
 	int ret = 0;
-	struct isp_dev_bchs_info *bchs_info;
+	struct isp_dev_bchs_info *bchs_info = NULL;
+
+	if (isp_k_param->bchs_info.isupdate == 0)
+		return ret;
 
 	bchs_info = &isp_k_param->bchs_info;
+	isp_k_param->bchs_info.isupdate = 0;
 
-	ret = copy_from_user((void *)bchs_info,
-		param->property_param, sizeof(struct isp_dev_bchs_info));
-	if (ret != 0) {
-		pr_err("fail to copy from user, ret = %d\n", ret);
-		return -1;
-	}
 	if (g_isp_bypass[idx] & (1 << _EISP_BCHS))
 		bchs_info->bchs_bypass = 1;
 	if (bchs_info->bchs_bypass)
@@ -203,10 +201,18 @@ int isp_k_cfg_bchs(struct isp_io_param *param,
 	struct isp_k_block *isp_k_param, uint32_t idx)
 {
 	int ret = 0;
+	struct isp_dev_bchs_info *bchs_info = NULL;
+
+	bchs_info = &isp_k_param->bchs_info;
 
 	switch (param->property) {
 	case ISP_PRO_BCHS_BLOCK:
-		ret = isp_k_bchs_block(param, isp_k_param, idx);
+		ret = copy_from_user((void *)bchs_info, param->property_param, sizeof(struct isp_dev_bchs_info));
+		if (ret != 0) {
+			pr_err("fail to copy from user, ret = %d\n", ret);
+			return -1;
+		}
+		isp_k_param->bchs_info.isupdate = 1;
 		break;
 	case ISP_PRO_BCHS_BRIGHT:
 		ret = isp_k_brightness_block(param, isp_k_param, idx);
@@ -224,6 +230,18 @@ int isp_k_cfg_bchs(struct isp_io_param *param,
 		pr_err("fail to support cmd id = %d\n",
 				param->property);
 		break;
+	}
+
+	return ret;
+}
+
+int isp_k_cpy_bchs(struct isp_k_block *param_block, struct isp_k_block *isp_k_param)
+{
+	int ret = 0;
+	if (isp_k_param->bchs_info.isupdate == 1) {
+		memcpy(&param_block->bchs_info, &isp_k_param->bchs_info, sizeof(struct isp_dev_bchs_info));
+		isp_k_param->bchs_info.isupdate = 0;
+		param_block->bchs_info.isupdate = 1;
 	}
 
 	return ret;

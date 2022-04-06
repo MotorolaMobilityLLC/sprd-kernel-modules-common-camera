@@ -63,49 +63,49 @@ static unsigned long scaler_base[ISP_SPATH_NUM] = {
 };
 
 static const struct bypass_tag dcam_bypass_tab[] = {
-	[_E_4IN1] = {"4in1", DCAM_MIPI_CAP_CFG,           12}, /* 0x100.b12 */
-	[_E_PDAF] = {"pdaf", DCAM_PPE_FRM_CTRL0,          0}, /* 0x120.b1 */
-	[_E_LSC]  = {"lsc",  DCAM_LENS_LOAD_ENABLE,       0}, /* 0x138.b0 */
-	[_E_AEM]  = {"aem",  DCAM_AEM_FRM_CTRL0,          0}, /* 0x150.b0 */
-	[_E_HIST] = {"bayer-hist", DCAM_BAYER_HIST_CTRL0, 0}, /* 0x160.b0 */
-	[_E_AFL]  = {"afl",  ISP_AFL_PARAM0,              0}, /* 0x170.b0 */
-	[_E_AFM]  = {"afm",  DCAM_AFM_FRM_CTRL,           0}, /* 0x1A0.b0 */
-	[_E_BPC]  = {"bpc",  DCAM_BPC_PARAM,              0}, /* 0x200.b0 */
-	[_E_BLC]  = {"blc",  DCAM_BLC_PARA_R_B,           0}, /* 0x268.b0 */
-	[_E_RGB]  = {"rgb",  ISP_RGBG_YRANDOM_PARAMETER0, 0}, /* 0x278.b0 rgb gain */
-	[_E_RAND] = {"rand", ISP_RGBG_YRANDOM_PARAMETER0, 1}, /* 0x278.b1 */
-	[_E_PPI]  = {"ppi",  ISP_PPI_PARAM,               0}, /* 0x284.b0 */
-	[_E_AWBC] = {"awbc", DCAM_AWBC_GAIN0,             31}, /* 0x380.b31 */
-	[_E_NR3]  = {"nr3",  DCAM_NR3_FAST_ME_PARAM,      0}, /* 0x3F0.b0 */
-	[_E_NLM]  = {"nlm",  DCAM_NLM_PARA,               0},
-	[_E_VST]  = {"vst",  DCAM_VST_PARA,               0},
-	[_E_IVST] = {"ivst", DCAM_IVST_PARA,              0},
-	[_E_IBL]  = {"imbalance", DCAM_NLM_IMBLANCE_CTRL, 0},
-	[_E_GTM]  = {"gtm",  DCAM_GTM_GLB_CTRL,           0},
-	[_E_GAMM] = {"gamma", DCAM_FGAMMA10_PARAM,        0},
-	[_E_CCE]  = {"cce",   DCAM_CCE_PARAM,             0},
-	[_E_CFA]  = {"cfa",   DCAM_CFA_NEW_CFG0,          0},
-	[_E_CCM]  = {"ccm",   DCAM_CMC10_PARAM,           0},
-	[_E_ROI]  = {"hist-roi", DCAM_HIST_ROI_CTRL0,     0},
+	[_E_CCE]     = {"cce",       DCAM_CCE_PARAM,              0},
+	[_E_CFA]     = {"cfa",       DCAM_CFA_NEW_CFG0,           0},
+	[_E_4IN1]    = {"4in1",      DCAM_BIN_4IN1_CTRL0,         0}, /* 0x100.b12 */
+	[_E_PDAF]    = {"pdaf",      DCAM_VC1_CONTROL,            0}, /* 0x120.b1 */
+	[_E_LSC]     = {"lsc",       DCAM_LENS_LOAD_ENABLE,       0}, /* 0x138.b0 */
+	[_E_AEM]     = {"aem",       DCAM_AEM_FRM_CTRL0,          0}, /* 0x150.b0 */
+	[_E_HIST]    = {"hist",      DCAM_BAYER_HIST_CTRL0,       0}, /* 0x160.b0 */
+	[_E_AFL]     = {"afl",       ISP_AFL_PARAM0,              0}, /* 0x170.b0 */
+	[_E_AFM]     = {"afm",       DCAM_AFM_FRM_CTRL,           0}, /* 0x1A0.b0 */
+	[_E_BPC]     = {"bpc",       DCAM_BPC_PARAM,              0}, /* 0x200.b0 */
+	[_E_BLC]     = {"blc",       DCAM_BLC_PARA_R_B,           31}, /* 0x268.b31 */
+	[_E_RGB]     = {"rgb",       ISP_RGBG_YRANDOM_PARAMETER0, 0}, /* 0x278.b0 rgb gain */
+	[_E_RAND]    = {"rand",      ISP_RGBG_YRANDOM_PARAMETER0, 1}, /* 0x278.b1 */
+	[_E_PPI]     = {"ppi",       ISP_PPI_PARAM,               0}, /* 0x284.b0 */
+	[_E_AWBC]    = {"awbc",      DCAM_AWBC_GAIN0,             31}, /* 0x380.b31 */
+	[_E_NR3]     = {"nr3",       DCAM_NR3_FAST_ME_PARAM,      0}, /* 0x3F0.b0 */
+	[_E_GTM]     = {"gtm",       DCAM_GTM_GLB_CTRL,           0},
+	[_E_CMC]     = {"cmc",       DCAM_CMC10_PARAM,            0},
+	[_E_RGBHIST] = {"rgbhist",   DCAM_HIST_ROI_CTRL0,         0},
+	[_E_GAMMA]   = {"gamma",     DCAM_FGAMMA10_PARAM,         0},
+	[_E_LSCM]    = {"lscm",      DCAM_LSCM_FRM_CTRL0,         0},
+	[_E_NLM]     = {"nlm",       DCAM_NLM_PARA,               0},
+	[_E_VST]     = {"vst",       DCAM_VST_PARA,               0},
+	[_E_IVST]    = {"ivst",      DCAM_IVST_PARA,              0},
+	[_E_GRGB]    = {"imbalance", DCAM_NLM_IMBLANCE_CTRL,      0},
 };
 
 static const struct bypass_tag isp_hw_bypass_tab[] = {
-	[_EISP_HSV]     = {"hsv",     ISP_HSV_PARAM,           0, 1},
-	[_EISP_YNR]     = {"ynr",     ISP_YUV_REC_YNR_CONTRL0, 0, 1},
-	[_EISP_EE]      = {"ee",      ISP_EE_PARAM,            0, 1},
-	[_EISP_GAMY]    = {"ygamma",  ISP_YGAMMA_PARAM,        0, 1},
-	[_EISP_CDN]     = {"cdn",     ISP_CDN_PARAM,           0, 1},
-	[_EISP_UVD]     = {"uvd",     ISP_UVD_PARAM,           0, 1},
-	[_EISP_YRAND]   = {"yrandom", ISP_YRANDOM_PARAM1,      0, 1},
-	[_EISP_BCHS]    = {"bchs",    ISP_BCHS_PARAM,          0, 1},
-	[_EISP_YUVNF]   = {"yuvnf",   ISP_YUV_NF_CTRL,         0, 1},
-	[_EISP_DEWARP]	= {"dewarp", ISP_DEWARPING_CACHE_PARA, 0, 1},
+[_EISP_HSV]     = {"hsv",     ISP_HSV_PARAM,           0, 1},
+[_EISP_YNR]     = {"ynr",     ISP_YUV_REC_YNR_CONTRL0, 0, 1},
+[_EISP_EE]      = {"ee",      ISP_EE_PARAM,            0, 1},
+[_EISP_GAMY]    = {"ygamma",  ISP_YGAMMA_PARAM,        0, 1},
+[_EISP_CDN]     = {"cdn",     ISP_CDN_PARAM,           0, 1},
+[_EISP_UVD]     = {"uvd",     ISP_UVD_PARAM,           0, 1},
+[_EISP_YRAND]   = {"yrandom", ISP_YRANDOM_PARAM1,      0, 1},
+[_EISP_BCHS]    = {"bchs",    ISP_BCHS_PARAM,          0, 1},
+[_EISP_YUVNF]   = {"yuvnf",   ISP_YUV_NF_CTRL,         0, 1},
+[_EISP_3DLUT]   = {"3dlut",   ISP_CTM_PARAM,           0, 1},
+[_EISP_CNR]     = {"cnr",     ISP_YUV_REC_CNR_CONTRL0, 0, 1},
+[_EISP_POSTCNR] = {"postcnr", ISP_YUV_CNR_CONTRL0,     0, 1},
 
-	{"ydelay",      ISP_YDELAY_PARAM,              0, 1},
-	{"cnr",         ISP_YUV_REC_CNR_CONTRL0,       0, 1},
-	{"dct",         ISP_YNR_DCT_PARAM,             0, 1},
-	{"3d-lut",      ISP_CTM_PARAM,                 0, 1},
-	{"post-cnr",    ISP_YUV_CNR_CONTRL0,           0, 1},
+	{"ydelay",    ISP_YDELAY_PARAM,                         0,  1},
+	{"fetch-fbd", ISP_FBD_RAW_SEL,                          0,  1},
 	/* can't bypass when prev */
 	{"scale-pre",   ISP_CAP_SCALER_CFG,            1, 0},
 	{"store-pre",   ISP_STORE_PRE_CAP_BASE + ISP_STORE_PARAM,   0,  0},
@@ -1731,6 +1731,37 @@ static int isphw_block_func_get(void *handle, void *arg)
 	return 0;
 }
 
+static struct isp_cfg_pre_param isp_hw_cfg_param_func_tab[ISP_BLOCK_TOTAL - ISP_BLOCK_BASE] = {
+	[ISP_BLOCK_BCHS - ISP_BLOCK_BASE]           = {ISP_BLOCK_BCHS,           isp_k_cpy_bchs},
+	[ISP_BLOCK_CNR_H - ISP_BLOCK_BASE]          = {ISP_BLOCK_CNR_H,          isp_k_cpy_cnr},
+	[ISP_BLOCK_POST_CNR_H - ISP_BLOCK_BASE]     = {ISP_BLOCK_POST_CNR_H,     isp_k_cpy_post_cnr_h},
+	[ISP_BLOCK_CDN - ISP_BLOCK_BASE]            = {ISP_BLOCK_CDN,            isp_k_cpy_cdn},
+	[ISP_BLOCK_EDGE - ISP_BLOCK_BASE]           = {ISP_BLOCK_EDGE,           isp_k_cpy_edge},
+	[ISP_BLOCK_3DLUT - ISP_BLOCK_BASE]          = {ISP_BLOCK_3DLUT,          isp_k_cpy_3dlut},
+	[ISP_BLOCK_UVD - ISP_BLOCK_BASE]            = {ISP_BLOCK_UVD,            isp_k_cpy_uvd},
+	[ISP_BLOCK_YGAMMA - ISP_BLOCK_BASE]         = {ISP_BLOCK_YGAMMA,         isp_k_cpy_ygamma},
+	[ISP_BLOCK_YRANDOM - ISP_BLOCK_BASE]        = {ISP_BLOCK_YRANDOM,        isp_k_cpy_yrandom},
+	[ISP_BLOCK_YNR - ISP_BLOCK_BASE]            = {ISP_BLOCK_YNR,            isp_k_cpy_ynr},
+	[ISP_BLOCK_RGB_LTM- ISP_BLOCK_BASE]         = {ISP_BLOCK_RGB_LTM,        isp_k_cpy_rgb_ltm},
+	[ISP_BLOCK_HSV - ISP_BLOCK_BASE]            = {ISP_BLOCK_HSV,            isp_k_cpy_hsv},
+	[ISP_BLOCK_DCT - ISP_BLOCK_BASE]            = {ISP_BLOCK_DCT,            isp_k_cpy_dct},
+	[ISP_BLOCK_3DNR - ISP_BLOCK_BASE]           = {ISP_BLOCK_3DNR,           isp_k_cpy_3dnr},
+};
+
+static int isphw_param_get(void *handle, void *arg)
+{
+	void *block_func = NULL;
+	struct isp_cfg_block_param *func_arg = NULL;
+
+	func_arg = (struct isp_cfg_block_param *)arg;
+	if (func_arg->index < (ISP_BLOCK_TOTAL - ISP_BLOCK_BASE)) {
+		block_func = (struct isp_cfg_pre_param *)&isp_hw_cfg_param_func_tab[func_arg->index];
+		func_arg->isp_param = block_func;
+	}
+
+	return 0;
+}
+
 static isp_k_blk_func isp_hw_k_blk_func_tab[ISP_K_BLK_MAX] = {
 	[ISP_K_BLK_LTM] = isp_ltm_config_param,
 	[ISP_K_BLK_PYR_REC_SHARE] = isp_pyr_rec_share_config,
@@ -3314,6 +3345,41 @@ static int isphw_cfg_alldone_ctrl(void *handle, void *arg)
 	return 0;
 }
 
+static int isphw_subblock_reconfig(void *handle, void *arg)
+{
+	uint32_t ret = 0, idx = 0;
+	struct isp_k_block *p = NULL;
+	struct isp_hw_yuv_block_ctrl *blk_ctrl = NULL;
+
+	if (!arg) {
+		pr_err("fail to get valid input arg\n");
+		return -EFAULT;
+	}
+
+	blk_ctrl = (struct isp_hw_yuv_block_ctrl *)arg;
+	p = blk_ctrl->blk_param;
+	idx = blk_ctrl->idx;
+	if (!p) {
+		pr_err("fail to get reconfig blk param\n");
+		return -EFAULT;
+	}
+	/* reconfig isp sublock */
+	isp_k_cnr_block(p, idx);
+	isp_k_post_cnr_block(p, idx);
+	isp_k_edge_block(p, idx);
+	isp_k_uvd_block(p, idx);
+	isp_k_hsv_block(p, idx);
+	isp_k_3dlut_block(p, idx);
+	isp_k_ygamma_block(p, idx);
+	isp_k_cdn_block(p, idx);
+	isp_k_yrandom_block(p, idx);
+	isp_k_bchs_block(p, idx);
+	isp_k_dct_block(p, idx);
+	isp_k_ynr_block(p, idx);
+	isp_3dnr_config_blend(idx, &p->nr3_info_base_v1.blend);
+	return ret;
+}
+
 static struct hw_io_ctrl_fun isp_ioctl_fun_tab[] = {
 	{ISP_HW_CFG_ENABLE_CLK,              isphw_clk_eb},
 	{ISP_HW_CFG_DISABLE_CLK,             isphw_clk_dis},
@@ -3325,6 +3391,7 @@ static struct hw_io_ctrl_fun isp_ioctl_fun_tab[] = {
 	{ISP_HW_CFG_FETCH_FBD_SET,           isphw_fetch_fbd_set},
 	{ISP_HW_CFG_DEFAULT_PARA_SET,        isphw_default_param_set},
 	{ISP_HW_CFG_BLOCK_FUNC_GET,          isphw_block_func_get},
+	{ISP_HW_CFG_PARAM_BLOCK_FUNC_GET,    isphw_param_get},
 	{ISP_HW_CFG_K_BLK_FUNC_GET,          isphw_k_blk_func_get},
 	{ISP_HW_CFG_CFG_MAP_INFO_GET,        isphw_cfg_map_info_get},
 	{ISP_HW_CFG_FMCU_VALID_GET,          isphw_fmcu_available},
@@ -3375,6 +3442,7 @@ static struct hw_io_ctrl_fun isp_ioctl_fun_tab[] = {
 	{ISP_HW_CFG_YUV_BLOCK_CTRL_TYPE,     isphw_yuv_block_ctrl},
 	{ISP_HW_CFG_FMCU_CMD_ALIGN,          isphw_fmcu_cmd_align},
 	{ISP_HW_CFG_ALLDONE_CTRL,            isphw_cfg_alldone_ctrl},
+	{ISP_HW_CFG_SUBBLOCK_RECFG,          isphw_subblock_reconfig},
 };
 
 static hw_ioctl_fun isphw_ioctl_fun_get(enum isp_hw_cfg_cmd cmd)

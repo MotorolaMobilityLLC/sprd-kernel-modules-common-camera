@@ -18,6 +18,7 @@
 #include "isp_reg.h"
 #include "cam_types.h"
 #include "cam_block.h"
+#include "cam_queue.h"
 
 #ifdef pr_fmt
 #undef pr_fmt
@@ -25,22 +26,17 @@
 #define pr_fmt(fmt) "YRANDOM: %d %d %s : "\
 	fmt, current->pid, __LINE__, __func__
 
-static int isp_k_yrandom_block(struct isp_io_param *param,
-	struct isp_k_block *isp_k_param, uint32_t idx)
+int isp_k_yrandom_block(struct isp_k_block *isp_k_param, uint32_t idx)
 {
 	int ret = 0;
 	uint32_t val;
-	struct isp_dev_yrandom_info *yrandom_info;
+	struct isp_dev_yrandom_info *yrandom_info = NULL;
 
-	yrandom_info = &isp_k_param->yrandom_info;
-
-	ret = copy_from_user((void *)yrandom_info,
-			param->property_param,
-			sizeof(struct isp_dev_yrandom_info));
-	if (ret != 0) {
-		pr_err("fail to copy from user, ret = %d\n", ret);
+	if (isp_k_param->yrandom_info.isupdate == 0)
 		return ret;
-	}
+	yrandom_info = &isp_k_param->yrandom_info;
+	isp_k_param->yrandom_info.isupdate = 0;
+
 	if (g_isp_bypass[idx] & (1 << _EISP_YRAND))
 		yrandom_info->bypass = 1;
 	if (yrandom_info->bypass)
@@ -74,10 +70,17 @@ int isp_k_cfg_yrandom(struct isp_io_param *param,
 	struct isp_k_block *isp_k_param, uint32_t idx)
 {
 	int ret = 0;
+	struct isp_dev_yrandom_info *yrandom_info = NULL;
 
+	yrandom_info = &isp_k_param->yrandom_info;
 	switch (param->property) {
 	case ISP_PRO_YRANDOM_BLOCK:
-		ret = isp_k_yrandom_block(param, isp_k_param, idx);
+		ret = copy_from_user((void *)yrandom_info, param->property_param, sizeof(struct isp_dev_yrandom_info));
+		if (ret != 0) {
+			pr_err("fail to copy from user, ret = %d\n", ret);
+			return ret;
+		}
+		isp_k_param->yrandom_info.isupdate = 1;
 		break;
 	default:
 		pr_err("fail to support cmd id:%d\n", param->property);
@@ -86,3 +89,15 @@ int isp_k_cfg_yrandom(struct isp_io_param *param,
 
 	return ret;
 }
+
+int isp_k_cpy_yrandom(struct isp_k_block *param_block, struct isp_k_block *isp_k_param)
+{
+	int ret = 0;
+	if (isp_k_param->yrandom_info.isupdate == 1) {
+		memcpy(&param_block->yrandom_info, &isp_k_param->yrandom_info, sizeof(struct isp_dev_yrandom_info));
+		isp_k_param->yrandom_info.isupdate = 0;
+		param_block->yrandom_info.isupdate = 1;
+	}
+	return ret;
+}
+

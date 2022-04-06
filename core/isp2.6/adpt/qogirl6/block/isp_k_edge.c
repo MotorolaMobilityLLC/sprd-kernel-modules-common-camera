@@ -17,6 +17,7 @@
 #include "isp_reg.h"
 #include "cam_types.h"
 #include "cam_block.h"
+#include "cam_queue.h"
 
 #ifdef pr_fmt
 #undef pr_fmt
@@ -24,22 +25,17 @@
 #define pr_fmt(fmt) "EDGE: %d %d %s : "\
 	fmt, current->pid, __LINE__, __func__
 
-static int isp_k_edge_block(struct isp_io_param *param,
-	struct isp_k_block *isp_k_param, uint32_t idx)
+int isp_k_edge_block(struct isp_k_block *isp_k_param, uint32_t idx)
 {
 	int ret = 0;
 	uint32_t i = 0, val = 0;
-	struct isp_dev_edge_info_v2 *edge_info;
+	struct isp_dev_edge_info_v2 *edge_info = NULL;
+	if (isp_k_param->edge_info.isupdate == 0)
+		return ret;
 
 	edge_info = &isp_k_param->edge_info;
+	isp_k_param->edge_info.isupdate = 0;
 
-	ret = copy_from_user((void *)edge_info,
-			param->property_param,
-			sizeof(struct isp_dev_edge_info_v2));
-	if (ret != 0) {
-		pr_err("fail to copy from user, ret = %d\n", ret);
-		return ret;
-	}
 	if (g_isp_bypass[idx] & (1 << _EISP_EE))
 		edge_info->bypass = 1;
 	if (edge_info->bypass)
@@ -346,16 +342,36 @@ int isp_k_cfg_edge(struct isp_io_param *param,
 	struct isp_k_block *isp_k_param, uint32_t idx)
 {
 	int ret = 0;
+	struct isp_dev_edge_info_v2 *edge_info = NULL;
+
+	edge_info = &isp_k_param->edge_info;
 
 	switch (param->property) {
 	case ISP_PRO_EDGE_BLOCK:
-		ret = isp_k_edge_block(param, isp_k_param, idx);
+		ret = copy_from_user((void *)edge_info, param->property_param, sizeof(struct isp_dev_edge_info_v2));
+		if (ret != 0) {
+			pr_err("fail to copy from user, ret = %d\n", ret);
+			return ret;
+		}
+		isp_k_param->edge_info.isupdate = 1;
 		break;
 
 	default:
 		pr_err("fail to support cmd id = %d\n",
 			param->property);
 		break;
+	}
+
+	return ret;
+}
+
+int isp_k_cpy_edge(struct isp_k_block *param_block, struct isp_k_block *isp_k_param)
+{
+	int ret = 0;
+	if (isp_k_param->edge_info.isupdate == 1) {
+		memcpy(&param_block->edge_info, &isp_k_param->edge_info, sizeof(struct isp_dev_edge_info_v2));
+		isp_k_param->edge_info.isupdate = 0;
+		param_block->edge_info.isupdate = 1;
 	}
 
 	return ret;

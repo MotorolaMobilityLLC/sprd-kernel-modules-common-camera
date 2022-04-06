@@ -95,12 +95,21 @@ typedef int (*func_isp_cfg_param)(
 	struct isp_io_param *param,
 	struct isp_k_block *isp_k_param, uint32_t idx);
 
+typedef int (*func_isp_cfg_block_param)(
+	struct isp_k_block *param_block,
+	struct isp_k_block *isp_k_param);
+
 typedef int(*isp_irq_postproc)(void *handle, uint32_t idx,
 	enum isp_postproc_type type);
 
 struct isp_cfg_entry {
 	uint32_t sub_block;
 	func_isp_cfg_param cfg_func;
+};
+
+struct isp_cfg_pre_param {
+	uint32_t sub_block;
+	func_isp_cfg_block_param cfg_block_func;
 };
 
 struct slice_dyn_calc_param{
@@ -261,6 +270,8 @@ struct isp_sw_context {
 	void *rgb_gtm_handle;
 	void *dewarp_handle;
 	struct isp_k_block isp_k_param;
+	struct camera_frame *isp_receive_param;
+	struct isp_k_block *isp_using_param;
 
 	struct cam_thread_info thread;
 	struct completion frm_done;
@@ -271,6 +282,10 @@ struct isp_sw_context {
 	struct mutex blkpm_lock;
 	/*stopping thread, stop wait for out frame*/
 	uint32_t thread_doing_stop;
+
+	struct camera_queue param_share_queue;
+	struct camera_queue param_buf_queue;
+	struct mutex blkpm_q_lock;
 
 	struct camera_queue in_queue;
 	struct camera_queue proc_queue;
