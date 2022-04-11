@@ -13,7 +13,9 @@
 
 #ifdef CAM_HW_ADPT_LAYER
 
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 4, 0))
 #include <video/sprd_mmsys_pw_domain_qogirn6pro.h>
+#endif
 #include <qos_struct_def.h>
 
 #define DCAMX_STOP_TIMEOUT             500
@@ -255,14 +257,18 @@ static int dcamhw_clk_dis(void *handle, void *arg)
 static int dcamhw_pw_on(void *handle, void *arg)
 {
 	int ret = 0;
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 4, 0))
 	ret = sprd_dcam_pw_on();
+#endif
 	return ret;
 }
 
 static int dcamhw_pw_off(void *handle, void *arg)
 {
 	int ret = 0;
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 4, 0))
 	ret = sprd_dcam_pw_off();
+#endif
 	return ret;
 }
 
@@ -801,8 +807,8 @@ static int dcamhw_fetch_set(void *handle, void *arg)
 {
 	int ret = 0;
 	uint32_t val = 0;
-	uint32_t fetch_pitch;
-	uint32_t bwu_shift;
+	uint32_t fetch_pitch = 0;
+	uint32_t bwu_shift = 0;
 	struct dcam_hw_fetch_set *fetch = NULL;
 
 	pr_debug("enter.\n");

@@ -38,8 +38,11 @@
 #include "cpp_drv.h"
 #include "cpp_reg.h"
 #include "cpp_hw.h"
+
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 4, 0))
 #ifdef PROJ_CPP_N6PRO
 #include <video/sprd_mmsys_pw_domain_qogirn6pro.h>
+#endif
 #endif
 
 #ifdef pr_fmt
@@ -296,6 +299,7 @@ static int cppcore_release(struct inode *node,
 		dev->cppif->scif = NULL;
 	}
 	cpp_int_irq_free(dev->cppif);
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 4, 0))
 #if defined (PROJ_CPP_N6PRO)
 	ret = sprd_isp_blk_dis();
 	if (ret) {
@@ -307,6 +311,7 @@ static int cppcore_release(struct inode *node,
 		pr_err("%s fail to power off cpp\n", __func__);
 		return -EFAULT;
 	}
+#endif
 #endif
 	cppcore_module_disable(dev);
 

@@ -78,6 +78,9 @@ static inline void dcamint_dcam_int_record(uint32_t idx, uint32_t status, uint32
 	for (i = 0; i < DCAM_IF_IRQ_INT0_NUMBER; i++) {
 		if (status & BIT(i))
 			dcam_int0_tracker[idx][i]++;
+	}
+
+	for (i = 0; i < DCAM_IF_IRQ_INT1_NUMBER; i++) {
 		if (status1 & BIT(i))
 			dcam_int1_tracker[idx][i]++;
 	}
@@ -414,7 +417,7 @@ static enum dcam_fix_result dcamint_fix_index_if_needed(struct dcam_hw_context *
 	/* restore timestamp and index for slow motion */
 	delta_ns = ktime_sub(sw_ctx->frame_ts_boot[tsid(old_index)],
 			sw_ctx->frame_ts_boot[tsid(old_index - 1)]);
-	delta_ts = timespec_sub(sw_ctx->frame_ts[tsid(old_index)],
+	delta_ts = cam_timespec_sub(sw_ctx->frame_ts[tsid(old_index)],
 				sw_ctx->frame_ts[tsid(old_index - 1)]);
 
 	while (--end >= begin) {
@@ -422,7 +425,7 @@ static enum dcam_fix_result dcamint_fix_index_if_needed(struct dcam_hw_context *
 			= ktime_sub_ns(sw_ctx->frame_ts_boot[tsid(end + 1)],
 				delta_ns);
 		sw_ctx->frame_ts[tsid(end)]
-			= timespec_sub(sw_ctx->frame_ts[tsid(end + 1)],
+			= cam_timespec_sub(sw_ctx->frame_ts[tsid(end + 1)],
 				delta_ts);
 	}
 
@@ -1226,13 +1229,15 @@ void dcam_int_tracker_dump(uint32_t idx)
 {
 	int i = 0;
 
-	if (!is_dcam_id(idx))
+	if (idx >= DCAM_HW_CONTEXT_MAX)
 		return;
 
 	for (i = 0; i < DCAM_IF_IRQ_INT0_NUMBER; i++) {
 		if (dcam_int0_tracker[idx][i])
 			pr_info("DCAM%u i=%d, int0=%u\n", idx, i,
 				 dcam_int0_tracker[idx][i]);
+	}
+	for (i = 0; i < DCAM_IF_IRQ_INT1_NUMBER; i++) {
 		if (dcam_int1_tracker[idx][i])
 			pr_info("DCAM%u i=%d, int1=%u\n", idx, i,
 				 dcam_int1_tracker[idx][i]);

@@ -12,8 +12,9 @@
  */
 
 #ifdef CAM_HW_ADPT_LAYER
-
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 4, 0))
 #include <video/sprd_mmsys_pw_domain_qogirn6pro.h>
+#endif
 #include <qos_struct_def.h>
 
 #define ISP_AXI_STOP_TIMEOUT           1000
@@ -592,14 +593,18 @@ normal_reg_trace:
 static int isphw_pw_on(void *handle, void *arg)
 {
 	int ret = 0;
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 4, 0))
 	ret = sprd_isp_pw_on();
+#endif
 	return ret;
 }
 
 static int isphw_pw_off(void *handle, void *arg)
 {
 	int ret = 0;
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 4, 0))
 	ret = sprd_isp_pw_off();
+#endif
 	return ret;
 }
 
@@ -644,6 +649,7 @@ static int isphw_clk_eb(void *handle, void *arg)
 		return ret;
 	}
 
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 4, 0))
 	ret = sprd_isp_blk_cfg_en();
 	if (ret) {
 		pr_err("fail to set cfg isp, ret = %d\n", ret);
@@ -651,6 +657,7 @@ static int isphw_clk_eb(void *handle, void *arg)
 		clk_disable_unprepare(soc->core_eb);
 		return ret;
 	}
+#endif
 	ret = clk_prepare_enable(soc->tck_en);
 
 	return ret;
@@ -675,9 +682,13 @@ static int isphw_clk_dis(void *handle, void *arg)
 	clk_disable_unprepare(soc->clk);
 
 	clk_disable_unprepare(soc->tck_en);
+
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 4, 0))
 	ret = sprd_isp_blk_dis();
 	if (ret)
 		pr_err("fail to set isp dis, ret = %d\n", ret);
+#endif
+
 	clk_disable_unprepare(soc->mtx_en);
 	clk_disable_unprepare(soc->core_eb);
 
