@@ -185,8 +185,8 @@ int dcam_core_slice_trim_get(uint32_t width, uint32_t heigth, uint32_t slice_num
 
 static void dcamcore_src_frame_ret(void *param)
 {
-	struct camera_frame *frame;
-	struct dcam_sw_context *pctx;
+	struct camera_frame *frame = NULL;
+	struct dcam_sw_context *pctx = NULL;
 
 	if (!param) {
 		pr_err("fail to get valid param.\n");
@@ -195,21 +195,23 @@ static void dcamcore_src_frame_ret(void *param)
 
 	frame = (struct camera_frame *)param;
 	pctx = (struct dcam_sw_context *)frame->priv_data;
+	if (!pctx) {
+		pr_err("fail to get valid src_frame pctx.\n");
+		return;
+	}
+
 	pr_debug("frame %p, ch_id %d, buf_fd %d\n",
 		frame, frame->channel_id, frame->buf.mfd[0]);
 
 	cam_buf_iommu_unmap(&frame->buf);
-
-	pctx->dcam_cb_func(
-		DCAM_CB_RET_SRC_BUF,
-		frame, pctx->cb_priv_data);
+	pctx->dcam_cb_func(DCAM_CB_RET_SRC_BUF, frame, pctx->cb_priv_data);
 }
 
 static void dcamcore_out_frame_ret(void *param)
 {
-	struct camera_frame *frame;
+	struct camera_frame *frame = NULL;
 	struct dcam_sw_context *pctx = NULL;
-	struct dcam_path_desc *path;
+	struct dcam_path_desc *path = NULL;
 
 	if (!param) {
 		pr_err("fail to get valid param.\n");
@@ -220,10 +222,18 @@ static void dcamcore_out_frame_ret(void *param)
 
 	if (frame->is_reserved) {
 		path = (struct dcam_path_desc *)frame->priv_data;
+		if (!path) {
+			pr_err("fail to get valid out_frame path.\n");
+			return;
+		}
 		cam_queue_enqueue(&path->reserved_buf_queue, &frame->list);
 	} else {
 		cam_buf_iommu_unmap(&frame->buf);
 		pctx = (struct dcam_sw_context *)frame->priv_data;
+		if (!pctx) {
+			pr_err("fail to get valid out_frame pctx.\n");
+			return;
+		}
 		pctx->dcam_cb_func(DCAM_CB_DATA_DONE, frame, pctx->cb_priv_data);
 	}
 }
