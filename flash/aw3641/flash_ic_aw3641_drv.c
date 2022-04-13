@@ -347,6 +347,7 @@ static int sprd_flash_aw3641_cfg_value_highlight(void *drvd, uint8_t idx, struct
 
 static const struct of_device_id aw3641_flash_of_match_table[] = {
 	{.compatible = "sprd,flash-aw3641"},
+	{/* MUST end with empty struct */},
 };
 
 static const struct sprd_flash_driver_ops flash_gpio_ops = {

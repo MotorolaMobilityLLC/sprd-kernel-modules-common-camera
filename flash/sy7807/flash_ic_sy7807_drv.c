@@ -271,6 +271,7 @@ static int sprd_flash_ic_cfg_value_highlight(void *drvd, uint8_t idx,
 
 static const struct of_device_id sprd_flash_ic_of_match_table[] = {
 	{.compatible = "sprd,pwm-sy7807"},
+	{/* MUST end with empty struct */},
 };
 
 

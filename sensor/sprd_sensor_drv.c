@@ -456,6 +456,7 @@ static int sprd_sensor_remove(struct i2c_client *client)
 
 static const struct of_device_id sprd_sensor_main_of_match_table[] = {
 	{.compatible = "sprd,sensor-main"},
+	{/* MUST end with empty struct */},
 };
 
 static const struct i2c_device_id sprd_sensor_main_ids[] = {
@@ -476,6 +477,7 @@ static struct i2c_driver sprd_main_sensor_driver = {
 
 static const struct of_device_id sprd_sensor_main2_of_match_table[] = {
 	{.compatible = "sprd,sensor-main2"},
+	{/* MUST end with empty struct */},
 };
 
 static const struct i2c_device_id sprd_sensor_main2_ids[] = {
@@ -496,6 +498,7 @@ static struct i2c_driver sprd_main2_sensor_driver = {
 
 static const struct of_device_id sprd_sensor_main3_of_match_table[] = {
 	{.compatible = "sprd,sensor-main3"},
+	{/* MUST end with empty struct */},
 };
 
 static const struct i2c_device_id sprd_sensor_main3_ids[] = {
@@ -520,6 +523,7 @@ static const struct i2c_device_id sprd_sensor_sub_ids[] = {
 
 static const struct of_device_id sprd_sensor_sub_of_match_table[] = {
 	{.compatible = "sprd,sensor-sub"},
+	{/* MUST end with empty struct */},
 };
 
 static struct i2c_driver sprd_sub_sensor_driver = {
@@ -540,6 +544,7 @@ static const struct i2c_device_id sprd_sensor_sub2_ids[] = {
 
 static const struct of_device_id sprd_sensor_sub2_of_match_table[] = {
 	{.compatible = "sprd,sensor-sub2"},
+	{/* MUST end with empty struct */},
 };
 
 static struct i2c_driver sprd_sub2_sensor_driver = {
@@ -560,6 +565,7 @@ static const struct i2c_device_id sprd_sensor_sub3_ids[] = {
 
 static const struct of_device_id sprd_sensor_sub3_of_match_table[] = {
 	{.compatible = "sprd,sensor-sub3"},
+	{/* MUST end with empty struct */},
 };
 
 static struct i2c_driver sprd_sub3_sensor_driver = {

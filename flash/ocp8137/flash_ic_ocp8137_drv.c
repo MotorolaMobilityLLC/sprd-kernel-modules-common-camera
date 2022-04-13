@@ -489,6 +489,7 @@ struct sprd_flash_capacity sprd_flash_ic_get_flash_info(void *drvd, uint8_t idx,
 
 static const struct of_device_id sprd_flash_ic_of_match_table[] = {
 	{.compatible = "sprd,flash-ocp8137"},
+	{/* MUST end with empty struct */},
 };
 
 static const struct i2c_device_id sprd_flash_ic_ids[] = {

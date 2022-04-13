@@ -316,6 +316,7 @@ static int sprd_flash_sgm37891_cfg_value_highlight(void *drvd, uint8_t idx,
 
 static const struct of_device_id sgm37891_flash_of_match_table[] = {
 	{.compatible = "sprd,flash-sgm37891"},
+	{/* MUST end with empty struct */},
 };
 
 static const struct sprd_flash_driver_ops flash_gpio_ops = {

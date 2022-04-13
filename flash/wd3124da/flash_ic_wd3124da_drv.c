@@ -276,6 +276,7 @@ exit:
 
 static const struct of_device_id wd3124da_flash_of_match_table[] = {
 	{.compatible = "sprd,flash-wd3124da"},
+	{/* MUST end with empty struct */},
 };
 
 static const struct sprd_flash_driver_ops flash_gpio_ops = {
