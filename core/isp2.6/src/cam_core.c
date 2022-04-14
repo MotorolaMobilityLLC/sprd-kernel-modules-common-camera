@@ -2630,17 +2630,8 @@ static int camcore_isp_callback(enum isp_cb_type type, void *param, void *priv_d
 		return 0;
 	}
 
-	if (unlikely(type == ISP_CB_DEV_ERR)) {
+	if (unlikely(type == ISP_CB_DEV_ERR))
 		pr_err("fail to get isp state, camera %d\n", module->idx);
-		pframe = cam_queue_empty_frame_get();
-		if (pframe) {
-			pframe->evt = IMG_TX_ERR;
-			pframe->irq_type = CAMERA_IRQ_IMG;
-			ret = cam_queue_enqueue(&module->frm_queue, &pframe->list);
-		}
-		complete(&module->frm_com);
-		return 0;
-	}
 
 	pframe = (struct camera_frame *)param;
 	pframe->priv_data = NULL;
