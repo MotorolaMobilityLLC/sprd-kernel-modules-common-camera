@@ -204,6 +204,7 @@ static void ispcore_sw_context_clear(void *param)
 	ctx = (struct isp_sw_context *)param;
 	atomic_dec(&g_mem_dbg->isp_sw_context_cnt);
 	vfree(ctx);
+	ctx = NULL;
 }
 
 static int ispcore_blkparam_adapt(struct isp_sw_context *pctx)

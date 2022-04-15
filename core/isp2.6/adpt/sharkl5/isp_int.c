@@ -540,7 +540,11 @@ static irqreturn_t ispint_isr_root(int irq, void *priv)
 			continue;
 		}
 
-		isp_handle->sw_ctx[sw_ctx_id]->in_irq_handler = 1;
+		if (isp_handle->sw_ctx[sw_ctx_id] == NULL) {
+			pr_err("fail to get sw_ctx\n");
+			return IRQ_HANDLED;
+		} else
+			isp_handle->sw_ctx[sw_ctx_id]->in_irq_handler = 1;
 
 		ispint_isp_int_record(sw_ctx_id, c_id, irq_line);
 
