@@ -39,12 +39,6 @@
 #include "cpp_reg.h"
 #include "cpp_hw.h"
 
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 4, 0))
-#ifdef PROJ_CPP_N6PRO
-#include <video/sprd_mmsys_pw_domain_qogirn6pro.h>
-#endif
-#endif
-
 #ifdef pr_fmt
 #undef pr_fmt
 #endif
@@ -202,18 +196,6 @@ static int cppcore_open(struct inode *node, struct file *file)
 		goto fail;
 	}
 	sprd_cam_domain_eb();
-#if defined (PROJ_CPP_N6PRO)
-	ret = sprd_isp_pw_on();
-	if (ret) {
-		pr_err("%s fail to power on cpp\n", __func__);
-		goto fail;
-	}
-	ret = sprd_isp_blk_cfg_en();
-	if (ret) {
-		pr_err("%s fail to enable  cpp\n", __func__);
-		goto fail;
-	}
-#endif
 #else
 	ret = pm_runtime_get_sync(&dev->pdev->dev);
 	if (ret) {
@@ -299,22 +281,7 @@ static int cppcore_release(struct inode *node,
 		dev->cppif->scif = NULL;
 	}
 	cpp_int_irq_free(dev->cppif);
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 4, 0))
-#if defined (PROJ_CPP_N6PRO)
-	ret = sprd_isp_blk_dis();
-	if (ret) {
-		pr_err("%s fail to disable cpp\n", __func__);
-		return -EFAULT;
-	}
-	ret = sprd_isp_pw_off();
-	if (ret) {
-		pr_err("%s fail to power off cpp\n", __func__);
-		return -EFAULT;
-	}
-#endif
-#endif
 	cppcore_module_disable(dev);
-
 
 	vfree(dev->cppif);
 	dev->cppif = NULL;

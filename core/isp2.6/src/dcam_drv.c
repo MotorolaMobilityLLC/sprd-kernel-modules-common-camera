@@ -59,7 +59,6 @@ int dcam_drv_hw_init(void *arg)
 	ret = sprd_cam_domain_eb();
 #endif
 	/* prepare clk */
-	hw->dcam_ioctl(hw, DCAM_HW_CFG_PW_ON, NULL);
 	hw->dcam_ioctl(hw, DCAM_HW_CFG_ENABLE_CLK, NULL);
 	sprd_iommu_restore(&hw->soc_dcam->pdev->dev);
 	return ret;
@@ -85,7 +84,6 @@ int dcam_drv_hw_deinit(void *arg)
 	hw = dev->hw;
 	/* unprepare clk and other resource */
 	hw->dcam_ioctl(hw, DCAM_HW_CFG_DISABLE_CLK, NULL);
-	hw->dcam_ioctl(hw, DCAM_HW_CFG_PW_OFF, NULL);
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 4, 0))
 	ret = sprd_cam_domain_disable();
 	ret = sprd_cam_pw_off();

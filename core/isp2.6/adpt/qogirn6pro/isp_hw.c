@@ -12,9 +12,7 @@
  */
 
 #ifdef CAM_HW_ADPT_LAYER
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 4, 0))
-#include <video/sprd_mmsys_pw_domain_qogirn6pro.h>
-#endif
+
 #include <qos_struct_def.h>
 
 #define ISP_AXI_STOP_TIMEOUT           1000
@@ -590,24 +588,6 @@ normal_reg_trace:
 	return 0;
 }
 
-static int isphw_pw_on(void *handle, void *arg)
-{
-	int ret = 0;
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 4, 0))
-	ret = sprd_isp_pw_on();
-#endif
-	return ret;
-}
-
-static int isphw_pw_off(void *handle, void *arg)
-{
-	int ret = 0;
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 4, 0))
-	ret = sprd_isp_pw_off();
-#endif
-	return ret;
-}
-
 static int isphw_clk_eb(void *handle, void *arg)
 {
 	int ret = 0;
@@ -649,15 +629,6 @@ static int isphw_clk_eb(void *handle, void *arg)
 		return ret;
 	}
 
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 4, 0))
-	ret = sprd_isp_blk_cfg_en();
-	if (ret) {
-		pr_err("fail to set cfg isp, ret = %d\n", ret);
-		clk_disable_unprepare(soc->mtx_en);
-		clk_disable_unprepare(soc->core_eb);
-		return ret;
-	}
-#endif
 	ret = clk_prepare_enable(soc->tck_en);
 
 	return ret;
@@ -682,12 +653,6 @@ static int isphw_clk_dis(void *handle, void *arg)
 	clk_disable_unprepare(soc->clk);
 
 	clk_disable_unprepare(soc->tck_en);
-
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 4, 0))
-	ret = sprd_isp_blk_dis();
-	if (ret)
-		pr_err("fail to set isp dis, ret = %d\n", ret);
-#endif
 
 	clk_disable_unprepare(soc->mtx_en);
 	clk_disable_unprepare(soc->core_eb);
@@ -3352,8 +3317,6 @@ static int isphw_cfg_alldone_ctrl(void *handle, void *arg)
 static struct hw_io_ctrl_fun isp_ioctl_fun_tab[] = {
 	{ISP_HW_CFG_ENABLE_CLK,              isphw_clk_eb},
 	{ISP_HW_CFG_DISABLE_CLK,             isphw_clk_dis},
-	{ISP_HW_CFG_PW_ON,                   isphw_pw_on},
-	{ISP_HW_CFG_PW_OFF,                  isphw_pw_off},
 	{ISP_HW_CFG_RESET,                   isphw_reset},
 	{ISP_HW_CFG_ENABLE_IRQ,              isphw_irq_enable},
 	{ISP_HW_CFG_DISABLE_IRQ,             isphw_irq_disable},
