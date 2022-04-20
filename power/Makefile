@@ -1,5 +1,5 @@
 #
-# mmdvfs.ko
+# sprd_cpp.ko
 #
 # Makefile: for external make invocation
 #
@@ -8,12 +8,9 @@
 #   done in this Makefile
 #
 
-KO_MODULE_NAME := mmdvfs
+KO_MODULE_NAME := sprd_camsys_pw_domain
 KO_MODULE_OUT := $(BSP_MODULES_OUT)/$(KO_MODULE_NAME)
 KO_MODULE_KBUILD := $(CURDIR)/Kbuild
-
-KBUILD_EXTRA_SYMBOLS += $(BSP_MODULES_OUT)/sprd_camsys_pw_domain/Module.symvers
-export KBUILD_EXTRA_SYMBOLS
 
 .PHONY: modules modules_install clean
 
