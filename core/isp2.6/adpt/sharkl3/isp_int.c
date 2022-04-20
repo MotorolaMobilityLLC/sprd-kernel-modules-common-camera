@@ -503,8 +503,10 @@ static irqreturn_t ispint_isr_root(int irq, void *priv)
 		if (isp_handle->sw_ctx[sw_ctx_id] == NULL) {
 			pr_err("fail to get sw_ctx\n");
 			return IRQ_HANDLED;
-		} else
-			isp_handle->sw_ctx[sw_ctx_id]->in_irq_handler = 1;
+		} else {
+			ctx = isp_handle->sw_ctx[sw_ctx_id];
+			ctx->in_irq_handler = 1;
+		}
 
 		ispint_isp_int_record(sw_ctx_id, c_id, irq_line);
 
@@ -514,15 +516,15 @@ static irqreturn_t ispint_isr_root(int irq, void *priv)
 		pr_debug("isp ctx %d irqno %d, INT: 0x%x\n",
 						c_id, irq, irq_line);
 
-		if (atomic_read(&isp_handle->sw_ctx[sw_ctx_id]->user_cnt) < 1) {
+		if (atomic_read(&ctx->user_cnt) < 1) {
 			pr_info("contex %d is stopped\n", sw_ctx_id);
-			isp_handle->sw_ctx[sw_ctx_id]->in_irq_handler = 0;
+			ctx->in_irq_handler = 0;
 			return IRQ_HANDLED;
 		}
 
-		if (unlikely(isp_handle->sw_ctx[sw_ctx_id]->started == 0)) {
+		if (unlikely(ctx->started == 0)) {
 			pr_info("ctx %d not started. irq 0x%x\n", sw_ctx_id, irq_line);
-			isp_handle->sw_ctx[sw_ctx_id]->in_irq_handler = 0;
+			ctx->in_irq_handler = 0;
 			return IRQ_HANDLED;
 		}
 
@@ -530,7 +532,7 @@ static irqreturn_t ispint_isr_root(int irq, void *priv)
 			pr_err("fail to handle,ISP ctx%d status 0x%x\n", sw_ctx_id, irq_line);
 			/*handle the error here*/
 			if (ispint_err_pre_proc(c_id, isp_handle)) {
-				isp_handle->sw_ctx[sw_ctx_id]->in_irq_handler = 0;
+				ctx->in_irq_handler = 0;
 				return IRQ_HANDLED;
 			}
 		}
@@ -538,7 +540,6 @@ static irqreturn_t ispint_isr_root(int irq, void *priv)
 		mmu_irq_line = ISP_MMU_RD(ISP_MMU_INT_STS);
 		if (unlikely(ISP_INT_LINE_MASK_MMU & mmu_irq_line)) {
 			pr_info("ISP ctx%d status 0x%x\n", sw_ctx_id, irq_line);
-			ctx = isp_handle->sw_ctx[sw_ctx_id];
 			val = ISP_MMU_RD(ISP_MMU_INT_STS);
 
 			if (val != ctx->iommu_status) {
@@ -561,7 +562,7 @@ static irqreturn_t ispint_isr_root(int irq, void *priv)
 			if (!irq_line)
 				break;
 		}
-		isp_handle->sw_ctx[sw_ctx_id]->in_irq_handler = 0;
+		ctx->in_irq_handler = 0;
 	}
 
 	return IRQ_HANDLED;
