@@ -86,7 +86,7 @@ static struct camera_frame *dcamint_frame_prepare(struct dcam_hw_context *dcam_h
 	struct dcam_frame_synchronizer *sync = NULL;
 	struct timespec *ts = NULL;
 	uint32_t dev_fid;
-	if (unlikely(!dcam_hw_ctx || !is_path_id(path_id)) || !dcam_hw_ctx->sw_ctx)
+	if (unlikely(!dcam_hw_ctx || !is_path_id(path_id)) || !sw_ctx)
 		return NULL;
 
 	path = &sw_ctx->path[path_id];
@@ -163,7 +163,7 @@ static void dcamint_frame_dispatch(struct dcam_hw_context *dcam_hw_ctx, struct d
 				enum dcam_cb_type type)
 {
 	struct timespec cur_ts;
-	if (unlikely(!dcam_hw_ctx || !frame || !is_path_id(path_id)))
+	if (unlikely(!dcam_hw_ctx || !frame || !is_path_id(path_id) || !sw_ctx))
 		return;
 	ktime_get_ts(&cur_ts);
 	frame->time.tv_sec = cur_ts.tv_sec;
@@ -428,6 +428,11 @@ static void dcamint_debug_dump(struct dcam_hw_context *dcam_hw_ctx, struct dcam_
 	struct debug_base_info *base_info;
 	void *pm_data;
 
+	if (!sw_ctx) {
+		pr_err("fail to get valid input sw_ctx\n");
+		return;
+	}
+
 	sw_ctx->dcam_cb_func(DCAM_CB_GET_PMBUF, (void *)&frame, sw_ctx->cb_priv_data);
 	if (frame == NULL)
 		return;
@@ -621,6 +626,11 @@ static void dcamint_sensor_sof(void *param, struct dcam_sw_context *sw_ctx)
 {
 	struct dcam_hw_context *dcam_hw_ctx = (struct dcam_hw_context *)param;
 
+	if (!sw_ctx) {
+		pr_err("fail to get valid input sw_ctx\n");
+		return;
+	}
+
 	pr_debug("DCAM%d, dcamint_sensor_sof raw_callback = %d frame_index=%d\n",
 		dcam_hw_ctx->hw_ctx_id, sw_ctx->raw_callback, sw_ctx->frame_index);
 
@@ -637,6 +647,11 @@ static void dcamint_sensor_eof(void *param, struct dcam_sw_context *sw_ctx)
 {
 	struct camera_frame *pframe = NULL;
 	struct dcam_hw_context *dcam_hw_ctx = (struct dcam_hw_context *)param;
+
+	if (!sw_ctx) {
+		pr_err("fail to get valid input sw_ctx\n");
+		return;
+	}
 
 	if (sw_ctx->offline) {
 		pr_debug("dcam%d offline\n", dcam_hw_ctx->hw_ctx_id);
@@ -659,6 +674,11 @@ static void dcamint_full_path_done(void *param, struct dcam_sw_context *sw_ctx)
 {
 	struct dcam_hw_context *dcam_hw_ctx = (struct dcam_hw_context *)param;
 	struct camera_frame *frame = NULL;
+
+	if (!sw_ctx) {
+		pr_err("fail to get valid input sw_ctx\n");
+		return;
+	}
 
 	if ((frame = dcamint_frame_prepare(dcam_hw_ctx, sw_ctx, DCAM_PATH_FULL))) {
 		if (sw_ctx->is_4in1) {
@@ -690,6 +710,11 @@ static void dcamint_bin_path_done(void *param, struct dcam_sw_context *sw_ctx)
 	struct dcam_path_desc *path = NULL;
 	struct camera_frame *frame = NULL;
 	uint32_t i = 0, cnt = 0;
+
+	if (!sw_ctx) {
+		pr_err("fail to get valid input sw_ctx\n");
+		return;
+	}
 
 	if (unlikely(dcam_hw_ctx->hw_ctx_id == DCAM_HW_CONTEXT_2))
 		return;
@@ -809,14 +834,20 @@ static void dcamint_pdaf_path_done(void *param, struct dcam_sw_context *sw_ctx)
 static void dcamint_vch2_path_done(void *param, struct dcam_sw_context *sw_ctx)
 {
 	struct dcam_hw_context *dcam_hw_ctx = (struct dcam_hw_context *)param;
-	struct dcam_path_desc *path = &sw_ctx->path[DCAM_PATH_VCH2];
+	struct dcam_path_desc *path = NULL;
 	struct camera_frame *frame = NULL;
 	enum dcam_cb_type type;
+
+	if (!sw_ctx) {
+		pr_err("fail to get valid input sw_ctx\n");
+		return;
+	}
 
 	pr_debug("dcamint_vch2_path_done hw_ctx_id = %d\n", dcam_hw_ctx->hw_ctx_id);
 	if (unlikely(dcam_hw_ctx->hw_ctx_id == DCAM_HW_CONTEXT_2))
 		return;
 
+	path = &sw_ctx->path[DCAM_PATH_VCH2];
 	type = path->src_sel ? DCAM_CB_DATA_DONE : DCAM_CB_STATIS_DONE;
 	if ((frame = dcamint_frame_prepare(dcam_hw_ctx, sw_ctx, DCAM_PATH_VCH2)))
 		dcamint_frame_dispatch(dcam_hw_ctx, sw_ctx, DCAM_PATH_VCH2, frame, type);
@@ -857,6 +888,11 @@ static void dcamint_afl_done(void *param, struct dcam_sw_context *sw_ctx)
 	struct dcam_hw_context *dcam_hw_ctx = (struct dcam_hw_context *)param;
 	struct camera_frame *frame = NULL;
 
+	if (!sw_ctx) {
+		pr_err("fail to get valid input sw_ctx\n");
+		return;
+	}
+
 	if (unlikely(dcam_hw_ctx->hw_ctx_id == DCAM_HW_CONTEXT_2))
 		return;
 
@@ -875,6 +911,11 @@ static void dcamint_nr3_done(void *param, struct dcam_sw_context *sw_ctx)
 	struct camera_frame *frame = NULL;
 	struct dcam_frame_synchronizer *sync = NULL;
 	uint32_t p = 0, out0 = 0, out1 = 0;
+
+	if (!sw_ctx) {
+		pr_err("fail to get valid input sw_ctx\n");
+		return;
+	}
 
 	if (unlikely(dcam_hw_ctx->hw_ctx_id == DCAM_HW_CONTEXT_2))
 		return;
