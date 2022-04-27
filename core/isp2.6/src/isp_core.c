@@ -2614,17 +2614,20 @@ static int ispcore_frame_proc(void *isp_handle, void *param, int ctx_id)
 	if (pframe->need_pyr_dec && dec_dev) {
 		pctx->uinfo.src.w = pframe->width;
 		pctx->uinfo.src.h = pframe->height;
-		pctx->uinfo.crop.start_x = 0;
-		pctx->uinfo.crop.start_y = 0;
-		pctx->uinfo.crop.size_x = pctx->uinfo.src.w;
-		pctx->uinfo.crop.size_y = pctx->uinfo.src.h;
 		pr_debug("isp %d src %d %d\n", pctx->ctx_id, pframe->width, pframe->height);
 		ret = ispcore_dec_frame_proc(pctx, dec_dev, pframe);
 		return ret;
 	}
 
-	if (pframe->data_src_dec)
+	if (pframe->data_src_dec) {
 		pctx->uinfo.fetch_path_sel = 0;
+		pctx->uinfo.src.w = pframe->width;
+		pctx->uinfo.src.h = pframe->height;
+		pctx->uinfo.crop.start_x = 0;
+		pctx->uinfo.crop.start_y = 0;
+		pctx->uinfo.crop.size_x = pframe->width;
+		pctx->uinfo.crop.size_y = pframe->height;
+	}
 
 	stream = cam_queue_dequeue_peek(&pctx->stream_ctrl_in_q,
 		struct isp_stream_ctrl, list);
