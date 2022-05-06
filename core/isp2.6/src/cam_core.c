@@ -2635,8 +2635,10 @@ static int camcore_isp_callback(enum isp_cb_type type, void *param, void *priv_d
 		return 0;
 	}
 
-	if (unlikely(type == ISP_CB_DEV_ERR))
+	if (unlikely(type == ISP_CB_DEV_ERR)) {
 		pr_err("fail to get isp state, camera %d\n", module->idx);
+		return 0;
+	}
 
 	pframe = (struct camera_frame *)param;
 	pframe->priv_data = NULL;
