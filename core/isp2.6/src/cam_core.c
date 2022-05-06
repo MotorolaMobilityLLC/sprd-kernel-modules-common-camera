@@ -3024,6 +3024,24 @@ static int camcore_rawalg_proc(struct camera_module *module, struct channel_cont
 	return ret;
 }
 
+static inline bool camcore_capture_sizechoice(struct camera_module *module, struct channel_context *channel)
+{
+	return module->cam_uinfo.is_pyr_dec && channel->ch_id == CAM_CH_CAP &&
+			(!module->cam_uinfo.is_raw_alg || module->cam_uinfo.raw_alg_type == RAW_ALG_AI_SFNR);
+}
+
+static bool camcore_dcam_capture_skip_condition(struct camera_frame *pframe, struct channel_context *channel, struct camera_module *module)
+{
+	if (channel->ch_id != CAM_CH_CAP)
+		return false;
+	if(!module->cam_uinfo.is_4in1 && !module->cam_uinfo.dcam_slice_mode && (module->cap_status != CAM_CAPTURE_RAWPROC) && (pframe->fid < 1))
+		return true;
+	if (camcore_capture_sizechoice(module, channel))
+		return pframe->width != channel->trim_dcam.size_x || channel->zoom_coeff_queue.cnt;
+	else
+		return module->isp_dev_handle->sw_ctx[channel->isp_ctx_id]->uinfo.path_info[channel->isp_path_id].in_trim.size_x != channel->trim_isp.size_x || channel->zoom_coeff_queue.cnt;
+}
+
 static int camcore_dcam_callback(enum dcam_cb_type type, void *param, void *priv_data)
 {
 	int ret = 0, cap_frame = 0, total_cap_num = 0, recycle = 0;
@@ -3544,8 +3562,7 @@ static int camcore_dcam_callback(enum dcam_cb_type type, void *param, void *priv
 			}
 			/* to isp */
 			/* skip first frame for online capture (in case of non-zsl) because lsc abnormal */
-			if (!module->cam_uinfo.is_4in1 && !module->cam_uinfo.dcam_slice_mode
-				&& (module->cap_status != CAM_CAPTURE_RAWPROC) && (pframe->fid < 1))
+			if (camcore_dcam_capture_skip_condition(pframe, channel, module))
 				ret = 1;
 			else
 				ret = cam_queue_enqueue(&channel->share_buf_queue, &pframe->list);
@@ -4784,8 +4801,7 @@ static int camcore_channel_size_config(
 	ch_desc.dst_crop = ch_uinfo->dst_crop;
 	if ((channel->ch_id == CAM_CH_CAP) || (channel->ch_id == CAM_CH_RAW)) {
 		/* PYR_DEC: crop by dcam; Normal:no trim in dcam full path. */
-		if (module->cam_uinfo.is_pyr_dec && channel->ch_id == CAM_CH_CAP &&
-			(!module->cam_uinfo.is_raw_alg || module->cam_uinfo.raw_alg_type == RAW_ALG_AI_SFNR)) {
+		if (camcore_capture_sizechoice(module, channel)) {
 			ch_desc.input_trim = channel->trim_dcam;
 			ch_desc.output_size.w = channel->trim_dcam.size_x;
 			ch_desc.output_size.h = channel->trim_dcam.size_y;
@@ -6635,6 +6651,8 @@ static int camcore_raw_pre_proc(
 	ch_desc.input_trim.start_y = 0;
 	ch_desc.input_trim.size_x = ch_desc.input_size.w;
 	ch_desc.input_trim.size_y = ch_desc.input_size.h;
+	ch->trim_dcam.size_x = ch_desc.input_size.w;
+	ch->trim_dcam.size_y = ch_desc.input_size.h;
 	ch_desc.output_size = ch_desc.input_size;
 	ch_desc.priv_size_data = NULL;
 	ret = module->dcam_dev_handle->dcam_pipe_ops->cfg_path(sw_ctx,
@@ -6754,6 +6772,8 @@ static int camcore_raw_pre_proc(
 	path_trim.start_y = 0;
 	path_trim.size_x = proc_info->src_size.width;
 	path_trim.size_y = proc_info->src_size.height;
+	ch->trim_isp.size_x = path_trim.size_x;
+	ch->trim_isp.size_y = path_trim.size_y;
 	ret = module->isp_dev_handle->isp_ops->cfg_path(module->isp_dev_handle,
 		ISP_PATH_CFG_PATH_SIZE, ctx_id, isp_path_id, &path_trim);
 
@@ -8517,7 +8537,9 @@ static int camcore_release(struct inode *node, struct file *file)
 	}
 	spin_unlock_irqrestore(&group->module_lock, flag);
 
+	down_read(&group->switch_recovery_lock);
 	ret = camioctl_stream_off(module, 0L);
+	up_read(&group->switch_recovery_lock);
 
 	camcore_module_deinit(module);
 

@@ -239,14 +239,8 @@ int dcam_path_size_cfg(void *dcam_ctx_handle,
 				path->in_trim.size_y);
 			return -EINVAL;
 		}
-		if ((path->in_size.w > path->in_trim.size_x) ||
-			(path->in_size.h > path->in_trim.size_y)) {
-			path->out_size.w = path->in_trim.size_x;
-			path->out_size.h = path->in_trim.size_y;
-		} else {
-			path->out_size.w = path->in_size.w;
-			path->out_size.h = path->in_size.h;
-		}
+
+		path->out_size = ch_desc->output_size;
 
 		if (path->out_fmt & DCAM_STORE_RAW_BASE)
 			path->out_pitch = cal_sprd_raw_pitch(path->out_size.w, path->pack_bits);
