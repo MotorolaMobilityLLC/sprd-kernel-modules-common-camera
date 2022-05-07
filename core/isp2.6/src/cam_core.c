@@ -2621,7 +2621,7 @@ static int camcore_isp_callback(enum isp_cb_type type, void *param, void *priv_d
 	struct channel_context *channel = NULL;
 	struct dcam_sw_context *dcam_sw_ctx = NULL;
 	struct dcam_sw_context *dcam_sw_aux_ctx = NULL;
-
+	struct isp_sw_context *isp_sw_ctx = NULL;
 	if (!param || !priv_data) {
 		pr_err("fail to get valid param %p %p\n", param, priv_data);
 		return -EFAULT;
@@ -2648,6 +2648,7 @@ static int camcore_isp_callback(enum isp_cb_type type, void *param, void *priv_d
 	channel = &module->channel[pframe->channel_id];
 	dcam_sw_ctx = &module->dcam_dev_handle->sw_ctx[module->cur_sw_ctx_id];
 	dcam_sw_aux_ctx = &module->dcam_dev_handle->sw_ctx[module->offline_cxt_id];
+	isp_sw_ctx = module->isp_dev_handle->sw_ctx[channel->isp_ctx_id];
 
 	if ((pframe->fid & 0x3F) == 0)
 		pr_debug("cam %d, module %p, frame %p, ch %d\n",
@@ -2797,7 +2798,11 @@ static int camcore_isp_callback(enum isp_cb_type type, void *param, void *priv_d
 			}
 			pframe->evt = IMG_TX_DONE;
 			ch_id = pframe->channel_id;
-
+			if (module->dcam_cap_status != DCAM_CAPTURE_START_FROM_NEXT_SOF && pframe->channel_id == CAM_CH_CAP && isp_sw_ctx && (atomic_read(&isp_sw_ctx->cap_cnt) != pframe->cap_cnt)) {
+				ret = module->isp_dev_handle->isp_ops->cfg_path(module->isp_dev_handle, ISP_PATH_RETURN_OUTPUT_BUF,
+					channel->isp_ctx_id, channel->isp_path_id, pframe);
+				break;
+			}
 			ret = cam_queue_enqueue(&module->frm_queue, &pframe->list);
 			if (ret) {
 				cam_buf_ionbuf_put(&pframe->buf);

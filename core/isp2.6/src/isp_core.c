@@ -1579,7 +1579,8 @@ static int ispcore_offline_param_set(struct isp_sw_context *pctx,
 		out_frame->fid = pframe->fid;
 		out_frame->sensor_time = pframe->sensor_time;
 		out_frame->boot_sensor_time = pframe->boot_sensor_time;
-
+		if (pctx->ch_id == CAM_CH_CAP)
+			out_frame->cap_cnt = pframe->cap_cnt;
 		if (i == ISP_SPATH_VID && pctx->uinfo.stage_a_valid_count && (!out_frame->is_reserved)) {
 			if (pctx->uinfo.stage_a_frame_num > 0)
 				pctx->uinfo.stage_a_frame_num--;
@@ -1903,8 +1904,13 @@ static int ispcore_offline_frame_start(void *ctx)
 
 	pframe = cam_queue_dequeue(&pctx->in_queue, struct camera_frame, list);
 	if (!pctx_hw || pframe == NULL) {
-		pr_err("fail to get hw(%px) or input frame (%px) for ctx %d\n",
-			pctx_hw, pframe, pctx->ctx_id);
+		pr_err("fail to get hw(%px) or input frame (%px) for ctx %d status %d\n ",
+			pctx_hw, pframe, pctx->ctx_id, atomic_read(&pctx->cap_cnt));
+		ret = 0;
+		goto input_err;
+	}
+	if (pctx->ch_id == CAM_CH_CAP && atomic_read(&pctx->cap_cnt) != pframe->cap_cnt) {
+		pr_debug("isp status idle,status:%d,cap_cnt:%d", pctx->cap_cnt, pframe->cap_cnt);
 		ret = 0;
 		goto input_err;
 	}
@@ -1968,7 +1974,7 @@ static int ispcore_offline_frame_start(void *ctx)
 
 	ret = ispcore_offline_param_set(pctx, pframe, &tmp);
 	if (ret) {
-		pr_err("fail to set offline param.\n");
+		pr_err("fail to set offline param\n");
 		ret = 0;
 		goto unlock;
 	}
@@ -2831,6 +2837,8 @@ static int ispcore_frame_proc(void *isp_handle, void *param, int ctx_id)
 		return -EFAULT;
 	}
 
+	if (pframe->channel_id == CAM_CH_CAP && !pframe->data_src_dec)
+		pframe->cap_cnt = atomic_read(&pctx->cap_cnt);
 	pr_debug("cam%d ctx %d, fid %d, ch_id %d, buf %d, 3dnr %d, w %d, h %d, pctx->uinfo.crop.size_x %d,pframe->is_reserved %d\n",
 		pctx->attach_cam_id, ctx_id, pframe->fid,
 		pframe->channel_id, pframe->buf.mfd[0], pctx->uinfo.mode_3dnr,
@@ -3102,6 +3110,11 @@ static int ispcore_path_cfg(void *isp_handle,
 				path_id);
 			goto exit;
 		}
+		break;
+	case ISP_PATH_RETURN_OUTPUT_BUF:
+		pframe = (struct camera_frame *)param;
+		pframe->priv_data = path;
+		ret = cam_queue_enqueue_front(&path->out_buf_queue, &pframe->list);
 		break;
 	case ISP_PATH_CFG_PYR_DEC_BUF:
 		pframe = (struct camera_frame *)param;
@@ -3406,8 +3419,9 @@ static int ispcore_ioctl(void *isp_handle, int ctx_id,
 	struct isp_pipe_dev *dev = NULL;
 	struct isp_sw_context *pctx = NULL;
 	struct isp_rec_ctx_desc *rec_ctx = NULL;
+	struct isp_dec_pipe_dev *dec_dev = NULL;
 	uint32_t post_cap_cnt = 0;
-
+	uint32_t cap_cnt = 0;
 	if (!isp_handle || ctx_id < 0 || ctx_id >= ISP_CONTEXT_SW_NUM) {
 		pr_err("fail to get valid input ptr\n");
 		return -EFAULT;
@@ -3448,6 +3462,15 @@ static int ispcore_ioctl(void *isp_handle, int ctx_id,
 	case ISP_IOCTL_CFG_POST_MULTI_SCENE:
 		pctx = dev->sw_ctx[ctx_id];
 		pctx->is_post_multi = *(uint32_t *)param;
+		break;
+	case ISP_IOCTL_CFG_CTX_CAP_CNT:
+		pctx = dev->sw_ctx[ctx_id];
+		cap_cnt = atomic_read(&pctx->cap_cnt);
+		cap_cnt++;
+		dec_dev = (struct isp_dec_pipe_dev *)dev->pyr_dec_handle;
+		atomic_set(&pctx->cap_cnt, cap_cnt);
+		if (dec_dev)
+			atomic_set(&dec_dev->sw_ctx[ctx_id].cap_cnt, cap_cnt);
 		break;
 	default:
 		pr_err("fail to get known cmd: %d\n", cmd);
@@ -3675,6 +3698,7 @@ static int ispcore_context_get(void *isp_handle, void *param)
 	pctx->started = 0;
 	pctx->attach_cam_id = init_param->cam_id;
 	pctx->uinfo.enable_slowmotion = 0;
+	atomic_set(&pctx->cap_cnt, 0);
 	pctx->postproc_func = ispcore_postproc_irq;
 	if (init_param->is_high_fps)
 		pctx->uinfo.enable_slowmotion = hw->ip_isp->slm_cfg_support;
@@ -4007,7 +4031,7 @@ static int ispcore_context_put(void *isp_handle, int ctx_id)
 	pctx->attach_cam_id = CAM_ID_MAX;
 	pctx->hw = dev->isp_hw;
 	pctx->thread_doing_stop = 0;
-
+	atomic_set(&pctx->cap_cnt, 0);
 	mutex_unlock(&dev->path_mutex);
 	pr_info("done, put ctx_id: %d\n", ctx_id);
 	return ret;

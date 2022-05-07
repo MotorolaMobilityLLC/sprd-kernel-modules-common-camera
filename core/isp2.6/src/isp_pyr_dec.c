@@ -786,7 +786,11 @@ static int isppyrdec_offline_frame_start(void *handle)
 	ctx_id = pframe->dec_ctx_id;
 	pctx = &dec_dev->sw_ctx[ctx_id];
 	layer_num = ISP_PYR_DEC_LAYER_NUM;
-
+	if (atomic_read(&pctx->cap_cnt) != pframe->cap_cnt) {
+		pr_debug("status:%d,cap_cnt:%d", atomic_read(&pctx->cap_cnt), pframe->cap_cnt);
+		isppyrdec_src_frame_ret(pframe);
+		return 0;
+	}
 	ret = cam_buf_iommu_map(&pframe->buf, CAM_IOMMUDEV_ISP);
 	if (ret) {
 		pr_err("fail to map buf to ISP iommu. cxt %d\n", ctx_id);
@@ -860,6 +864,7 @@ static int isppyrdec_offline_frame_start(void *handle)
 	dec_dev->src.h = pframe->height;
 	out_frame->width = pframe->width;
 	out_frame->height = pframe->height;
+	out_frame->cap_cnt = pframe->cap_cnt;
 	/* update layer num based on img size */
 	while (isp_rec_small_layer_w(dec_dev->src.w, layer_num) < MIN_PYR_WIDTH ||
 		isp_rec_small_layer_h(dec_dev->src.h, layer_num) < MIN_PYR_HEIGHT) {
@@ -1050,6 +1055,7 @@ static int isppyrdec_proc_frame(void *handle, void *param)
 	pframe = (struct camera_frame *)param;
 	pframe->priv_data = dec_dev;
 
+	pframe->cap_cnt = atomic_read(&dec_dev->sw_ctx[pframe->dec_ctx_id].cap_cnt);
 	ret = cam_queue_enqueue(&dec_dev->in_queue, &pframe->list);
 	if (ret == 0)
 		complete(&dec_dev->thread.thread_com);
@@ -1122,11 +1128,18 @@ static int isppyrdec_irq_proc(void *handle)
 	dec_dev = (struct isp_dec_pipe_dev *)handle;
 	cur_ctx_id = dec_dev->cur_ctx_id;
 	pctx = &dec_dev->sw_ctx[cur_ctx_id];
-
+	if (!pctx) {
+		pr_err("fail to get pctx:%x\n", pctx);
+		return -EFAULT;
+	}
 	complete(&dec_dev->frm_done);
 
 	pframe = cam_queue_dequeue(&dec_dev->proc_queue, struct camera_frame, list);
 	if (pframe) {
+		if (!pctx->buf_out) {
+			pr_err("fail to get pctx->buf_out:%x\n", pctx->buf_out);
+			return -EFAULT;
+		}
 		/* return buffer to cam channel shared buffer queue. */
 		pctx->buf_out->fid = pframe->fid;
 		pctx->buf_out->sensor_time = pframe->sensor_time;
@@ -1146,6 +1159,7 @@ static int isppyrdec_irq_proc(void *handle)
 	}
 
 	pframe = pctx->buf_out;
+	pctx->buf_out = NULL;
 	if (pframe) {
 		/* return buffer to cam core for start isp pyrrec proc */
 		cam_buf_iommu_unmap(&pframe->buf);
@@ -1213,7 +1227,7 @@ static int isppyrdec_proc_deinit(void *handle, int ctx_id)
 	pctx->cb_priv_data = NULL;
 	pctx->buf_cb_func = NULL;
 	pctx->buf_cb_priv_data = NULL;
-
+	atomic_set(&pctx->cap_cnt, 0);
 	return ret;
 }
 

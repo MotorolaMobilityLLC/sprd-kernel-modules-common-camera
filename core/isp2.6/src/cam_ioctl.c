@@ -2685,8 +2685,10 @@ static int camioctl_capture_start(struct camera_module *module,
 		atomic_set(&module->capture_frames_dcam, -1);
 	}
 
-	if (param.type != DCAM_CAPTURE_STOP)
+	if (param.type != DCAM_CAPTURE_STOP) {
 		module->cap_status = CAM_CAPTURE_START;
+		module->isp_dev_handle->isp_ops->ioctl(module->isp_dev_handle, module->channel[CAM_CH_CAP].isp_ctx_id, ISP_IOCTL_CFG_CTX_CAP_CNT, NULL);
+	}
 
 	/* alway trigger dump for capture */
 	if (module->dump_thrd.thread_task && module->dcam_dev_handle)
@@ -2714,6 +2716,8 @@ static int camioctl_capture_stop(struct camera_module *module,
 		return 0;
 	}
 
+	module->isp_dev_handle->isp_ops->ioctl(module->isp_dev_handle, module->channel[CAM_CH_CAP].isp_ctx_id,
+		ISP_IOCTL_CFG_CTX_CAP_CNT, NULL);
 	sw_ctx = &module->dcam_dev_handle->sw_ctx[module->cur_sw_ctx_id];
 	sw_aux_ctx = &module->dcam_dev_handle->sw_ctx[module->offline_cxt_id];
 	channel = &module->channel[CAM_CH_CAP];
@@ -2726,7 +2730,6 @@ static int camioctl_capture_stop(struct camera_module *module,
 	isp_idx = channel->isp_ctx_id;
 	module->isp_dev_handle->isp_ops->ioctl(module->isp_dev_handle, module->channel[CAM_CH_CAP].isp_ctx_id,
 		ISP_IOCTL_CFG_POST_MULTI_SCENE, &is_post_multi);
-
 	if (module->capture_scene == CAPTURE_FDR
 		|| module->capture_scene == CAPTURE_HW3DNR
 		|| module->capture_scene == CAPTURE_FLASH

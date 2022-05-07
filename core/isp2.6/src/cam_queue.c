@@ -54,6 +54,37 @@ unlock:
 	return ret;
 }
 
+int cam_queue_enqueue_front(struct camera_queue *q, struct list_head *list)
+{
+	int ret = 0;
+	unsigned long flags;
+
+	if (q == NULL || list == NULL) {
+		pr_err("fail to get valid param %p %p\n", q, list);
+		return -EINVAL;
+	}
+
+	spin_lock_irqsave(&q->lock, flags);
+	if (q->state == CAM_Q_CLEAR) {
+		pr_warn("warning: q is clear\n");
+		ret = -EPERM;
+		goto unlock;
+	}
+
+	if (q->cnt >= q->max) {
+		pr_warn_ratelimited("warning: q full, cnt %d, max %d\n", q->cnt, q->max);
+		ret = -EPERM;
+		goto unlock;
+	}
+	q->cnt++;
+	list_add(list, &q->head);
+
+unlock:
+	spin_unlock_irqrestore(&q->lock, flags);
+
+	return ret;
+}
+
 /* dequeue frame from tail of queue */
 struct camera_frame *cam_queue_dequeue_tail(struct camera_queue *q)
 {

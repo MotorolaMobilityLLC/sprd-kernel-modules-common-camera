@@ -79,6 +79,7 @@ struct camera_frame {
 	uint32_t sw_slice_no;
 	uint32_t bpc_raw_flag;
 	uint32_t is_raw_alg;
+	uint32_t cap_cnt;/*odd:stop capture, even:start capture,frame cap_cnt match isp_ctx cap_cnt*/
 	struct img_trim slice_trim;
 	struct dcam_compress_info fbc_info;
 	struct sprd_img_rect zoom_crop;
@@ -224,6 +225,7 @@ struct camera_queue {
 	__node;                                                              \
 })
 
+int cam_queue_enqueue_front(struct camera_queue *q, struct list_head *list);
 int cam_queue_enqueue(struct camera_queue *q, struct list_head *list);
 struct camera_frame *cam_queue_dequeue_tail(struct camera_queue *q);
 struct camera_frame *cam_queue_dequeue_if(struct camera_queue *q,

@@ -247,6 +247,7 @@ struct isp_sw_context {
 	atomic_t user_cnt;
 	atomic_t state_user_cnt;
 	atomic_t post_cap_cnt;
+	atomic_t cap_cnt;
 	uint32_t is_post_multi;
 	uint32_t started;
 	uint32_t ctx_id;
