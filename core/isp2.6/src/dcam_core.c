@@ -1540,7 +1540,7 @@ static int dcamcore_path_cfg(void *dcam_handle, enum dcam_path_cfg_cmd cfg_cmd,
 
 		} while (1);
 		do {
-			if (cam_queue_cnt_get(&path->result_queue) == 1 && state == DCAM_PATH_PAUSE)
+			if (state == DCAM_PATH_PAUSE)
 				break;
 			else {
 				pframe = cam_queue_dequeue(&path->result_queue,
