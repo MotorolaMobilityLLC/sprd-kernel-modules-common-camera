@@ -7138,7 +7138,7 @@ static int camcore_csi_switch_disconnect(struct camera_module *module, uint32_t 
 
 			in_param = (struct isp_offline_param *)frame->param_data;
 			if (in_param) {
-				if (mode == CAM_CSI_RECOVERY_SWITCH && path->path_id == DCAM_PATH_BIN) {
+				if (path->path_id == DCAM_PATH_BIN) {
 					struct channel_context *channel = &module->channel[frame->channel_id];
 					if (!channel) {
 						pr_err("fail to get channel,path_id:%d,channel_id:%d,frame->is_reserved:%d", path->path_id, frame->channel_id, frame->is_reserved);
