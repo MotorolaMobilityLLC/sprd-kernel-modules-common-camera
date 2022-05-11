@@ -2558,6 +2558,15 @@ static int camioctl_capture_start(struct camera_module *module,
 		}
 	}
 
+	if (module->capture_scene == CAPTURE_RAWALG && atomic_read(&sw_ctx->path[DCAM_PATH_RAW].is_shutoff) == 1) {
+		uint32_t shutoff = 0;
+		re_patharg.idx = sw_ctx->hw_ctx_id;
+		re_patharg.path_id = DCAM_PATH_RAW;
+		hw->dcam_ioctl(hw, DCAM_HW_CFG_PATH_RESTART, &re_patharg);
+		module->dcam_dev_handle->dcam_pipe_ops->cfg_path(sw_ctx, DCAM_PATH_CFG_SHUTOFF,
+			DCAM_PATH_RAW, &shutoff);
+	}
+
 	/* recognize the capture scene */
 	if (param.type == DCAM_CAPTURE_START_FROM_NEXT_SOF) {
 		is_post_multi = 1;
