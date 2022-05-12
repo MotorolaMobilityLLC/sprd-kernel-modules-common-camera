@@ -1103,6 +1103,8 @@ static int dcamhw_path_start(void *handle, void *arg)
 		DCAM_REG_MWR(patharg->idx, DCAM_STORE0_PARAM, BIT_0, 0);
 		break;
 	case DCAM_PATH_RAW:
+		/* when dcam0 & dcam1 vch3 share mode eb, vch2_3 share mode shuould disable. */
+		DCAM_REG_MWR(patharg->idx, DCAM_BUF_CTRL, BIT_6 | BIT_7, 0);
 		/*max len sel: default 1*/
 		DCAM_REG_MWR(patharg->idx, DCAM_RAW_PATH_CFG, BIT_6 | BIT_7, 0x1 << 6);
 		DCAM_REG_MWR(patharg->idx, DCAM_RAW_PATH_CFG, BIT_9 | BIT_8, patharg->endian.y_endian << 8);
