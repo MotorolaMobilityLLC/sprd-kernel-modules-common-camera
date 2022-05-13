@@ -206,6 +206,7 @@ static int ispgtm_capture_tunning_get(int cam_id,
 	}
 
 	memcpy(tunning, &s_rgb_gtm_sync[i].tuning, sizeof(struct dcam_dev_raw_gtm_block_info));
+	tunning->isupdate = 1;
 	pr_debug("cam_id %d, mod_en %d\n", cam_id, s_rgb_gtm_sync[i].tuning.bypass_info.gtm_mod_en);
 	return 0;
 }
@@ -233,7 +234,6 @@ static int ispgtm_pipe_proc(void *handle, void *param, void *param2)
 	case MODE_GTM_PRE:
 		gtm_k_block.ctx = gtm_ctx;
 		gtm_k_block.tuning = (struct dcam_dev_raw_gtm_block_info *)param;
-		gtm_k_block.map= (struct cam_gtm_mapping *)param2;
 
 		gtm_func.index = ISP_K_GTM_BLOCK_SET;
 		gtm_ctx->hw->isp_ioctl(gtm_ctx->hw, ISP_HW_CFG_GTM_FUNC_GET, &gtm_func);
@@ -245,6 +245,7 @@ static int ispgtm_pipe_proc(void *handle, void *param, void *param2)
 			gtm_ctx->hw->isp_ioctl(gtm_ctx->hw, ISP_HW_CFG_GTM_FUNC_GET, &gtm_func);
 			if (gtm_ctx->calc_mode == GTM_SW_CALC) {
 				struct isp_gtm_mapping map = {0};
+				gtm_k_block.map= (struct cam_gtm_mapping *)param2;
 				map.ctx_id= gtm_ctx->ctx_id;
 				map.sw_mode = 1;
 				map.gtm_hw_ymin = gtm_k_block.map->ymin;
@@ -293,7 +294,6 @@ static int ispgtm_pipe_proc(void *handle, void *param, void *param2)
 
 		gtm_k_block.ctx = gtm_ctx;
 		gtm_k_block.tuning = param;
-		gtm_k_block.map= (struct cam_gtm_mapping *)param2;
 		gtm_k_block.tuning->bypass_info.gtm_hist_stat_bypass = 1;
 
 		if (gtm_k_block.tuning->bypass_info.gtm_mod_en == 0) {
@@ -314,6 +314,7 @@ static int ispgtm_pipe_proc(void *handle, void *param, void *param2)
 			gtm_ctx->hw->isp_ioctl(gtm_ctx->hw, ISP_HW_CFG_GTM_FUNC_GET, &gtm_func);
 			gtm_func.k_blk_func(&gtm_k_block);
 
+			gtm_k_block.map= (struct cam_gtm_mapping *)param2;
 			map.ctx_id= gtm_ctx->ctx_id;
 			map.sw_mode = 1;
 			map.gtm_hw_ymin = gtm_k_block.map->ymin;

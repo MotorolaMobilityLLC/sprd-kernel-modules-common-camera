@@ -132,14 +132,14 @@ int isp_k_gtm_mapping_set(void *param)
 	ISP_REG_MWR(idx, ISP_GTM_HIST_YMIN, 0xFF, val);
 
 	val = ((mapping->gtm_hw_target_norm & 0x3FFF) << 2);
-	ISP_REG_MWR(idx, ISP_GTM_HIST_CTRL1, 0x3FFFFFFD, val);
+	ISP_REG_MWR(idx, ISP_GTM_HIST_CTRL1, 0x3FFF << 2, val);
 
 	val = ((mapping->gtm_hw_lr_int & 0xFFFF) << 0) |
 		((mapping->gtm_hw_log_min_int & 0xFFFF) << 16);
 	ISP_REG_MWR(idx, ISP_GTM_HIST_CTRL3, 0xFFFFFFFF, val);
 
 	val = ((mapping->gtm_hw_log_diff_int & 0xFFFF) << 16);
-	ISP_REG_MWR(idx,  ISP_GTM_HIST_CTRL4, 0xFFFFFFFF, val);
+	ISP_REG_MWR(idx,  ISP_GTM_HIST_CTRL4, 0xFFFF0000, val);
 
 	val = ((mapping->gtm_hw_log_diff & 0x1FFFFFFF) << 0);
 	ISP_REG_WR(idx, ISP_GTM_LOG_DIFF, val);
@@ -378,11 +378,13 @@ int isp_k_cpy_rgb_gtm(struct isp_k_block *param_block, struct isp_k_block *isp_k
 		memcpy(&param_block->gtm_rgb_info, &isp_k_param->gtm_rgb_info, sizeof(struct dcam_dev_raw_gtm_block_info));
 		param_block->gtm_calc_mode = isp_k_param->gtm_calc_mode;
 		isp_k_param->gtm_rgb_info.isupdate = 0;
+		param_block->gtm_rgb_info.isupdate = 1;
 	}
 
 	if (isp_k_param->gtm_sw_map_info.isupdate == 1) {
 		memcpy(&param_block->gtm_sw_map_info, &isp_k_param->gtm_sw_map_info, sizeof(struct cam_gtm_mapping));
 		isp_k_param->gtm_sw_map_info.isupdate = 0;
+		param_block->gtm_sw_map_info.isupdate = 1;
 	}
 	return ret;
 }

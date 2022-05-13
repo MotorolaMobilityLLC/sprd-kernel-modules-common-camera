@@ -370,6 +370,7 @@ static void ispint_rgb_gtm_hists_done(enum isp_context_hw_id hw_idx, void *isp_h
 	int i = 0;
 	int max_item = GTM_HIST_ITEM_NUM;
 	uint32_t hist_total = 0;
+	struct cam_gtm_mapping *map = NULL;
 
 	dev = (struct isp_pipe_dev *)isp_handle;
 	idx = isp_core_sw_context_id_get(hw_idx, dev);
@@ -403,7 +404,18 @@ static void ispint_rgb_gtm_hists_done(enum isp_context_hw_id hw_idx, void *isp_h
 					buf[i] = ISP_HREG_RD(ISP_GTM_HIST_BUF0_CH0 + i * 4);
 				hist_total= gtm_ctx->src.w * gtm_ctx->src.h;
 				buf[i++] = hist_total;
-				buf[i] = gtm_ctx->fid;
+				map = (struct cam_gtm_mapping *)&buf[i];
+				map->idx = gtm_ctx->fid;
+				map->ymin = 0;
+				map->ymax = 0;
+				map->yavg = 0;
+				map->target = 0;
+				map->lr_int = 0;
+				map->log_min_int = 0;
+				map->log_diff_int = 0;
+				map->diff = 0;
+				map->ltm_strength = 0;
+				map->isupdate = 0;
 				ispint_frame_dispatch(idx, isp_handle, frame, ISP_CB_STATIS_DONE);
 			}
 		}
