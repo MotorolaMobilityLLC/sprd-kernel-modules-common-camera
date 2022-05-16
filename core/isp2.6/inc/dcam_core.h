@@ -285,6 +285,7 @@ struct dcam_sw_context {
 	uint32_t need_raw_img;
 	uint32_t is_raw_alg;
 	enum raw_alg_types raw_alg_type;
+	uint32_t need_dcam_raw;
 	uint32_t offline;/* flag: set 1 for 4in1 go through dcam1 bin */
 	uint32_t rps;/* raw_proc_scene 0:normal 1:hwsim*/
 	uint32_t dcam_slice_mode;

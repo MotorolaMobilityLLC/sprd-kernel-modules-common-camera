@@ -434,6 +434,7 @@ static int camioctl_function_mode_set(struct camera_module *module,
 	ret |= get_user(module->cam_uinfo.raw_alg_type, &uparam->raw_alg_type);
 	ret |= get_user(module->cam_uinfo.fdr_cap_pre_num, &uparam->fdr_preview_captured_num);
 	ret |= get_user(module->cam_uinfo.zoom_conflict_with_ltm, &uparam->zoom_conflict_with_ltm);
+	ret |= get_user(module->cam_uinfo.need_dcam_raw, &uparam->need_dcam_raw);
 	module->cam_uinfo.is_rgb_ltm = hw->ip_isp->rgb_ltm_support;
 	module->cam_uinfo.is_yuv_ltm = hw->ip_isp->yuv_ltm_support;
 	module->cam_uinfo.is_rgb_gtm = hw->ip_isp->rgb_gtm_support;
@@ -443,13 +444,14 @@ static int camioctl_function_mode_set(struct camera_module *module,
 	else
 		module->cam_uinfo.is_pyr_dec = hw->ip_isp->pyr_dec_support;
 
-	pr_info("4in1:[%d], rgb_ltm[%d], yuv_ltm[%d], gtm[%d], dual[%d], dec %d, raw_alg_type:%d, zoom_conflict_with_ltm %d, %d.\n",
+	pr_info("4in1:[%d], rgb_ltm[%d], yuv_ltm[%d], gtm[%d], dual[%d], dec %d, raw_alg_type:%d, zoom_conflict_with_ltm %d, %d. dcam_raw %d\n",
 		module->cam_uinfo.is_4in1,module->cam_uinfo.is_rgb_ltm,
 		module->cam_uinfo.is_yuv_ltm, module->cam_uinfo.is_rgb_gtm,
 		module->cam_uinfo.is_dual, module->cam_uinfo.is_pyr_dec,
 		module->cam_uinfo.raw_alg_type,
 		module->cam_uinfo.zoom_conflict_with_ltm,
-		module->cam_uinfo.is_raw_alg);
+		module->cam_uinfo.is_raw_alg,
+		module->cam_uinfo.need_dcam_raw);
 
 	if (unlikely(ret)) {
 		pr_err("fail to copy from user, ret %d\n", ret);
@@ -1486,6 +1488,10 @@ static int camioctl_stream_off(struct camera_module *module,
 	if (module->dump_thrd.thread_task)
 		camcore_dumpraw_deinit(module);
 
+	/* stop mes */
+	if (module->mes_thrd.thread_task)
+		camcore_mes_deinit(module);
+
 	if (running) {
 		ret = module->dcam_dev_handle->dcam_pipe_ops->stop(sw_ctx, DCAM_STOP);
 		if (ret != 0)
@@ -2008,6 +2014,9 @@ cfg_ch_done:
 
 	atomic_set(&module->state, CAM_RUNNING);
 
+	if (module->mes_thrd.thread_task)
+		camcore_mes_init(module);
+
 	if (module->dump_thrd.thread_task)
 		camcore_dumpraw_init(module);
 
@@ -2274,6 +2283,13 @@ static int camioctl_cam_res_get(struct camera_module *module,
 	if (ret)
 		goto stop_thrd;
 
+	/* create raw mes thread */
+	thrd = &module->mes_thrd;
+	sprintf(thrd->thread_name, "cam%d_mes_proc", module->idx);
+	ret = camcore_thread_create(module, thrd, camcore_mes_proc);
+	if (ret)
+		goto stop_thrd;
+
 	if (g_dbg_dump.dump_en) {
 		/* create dump thread */
 		thrd = &module->dump_thrd;
@@ -2452,6 +2468,7 @@ stop_thrd:
 	camcore_thread_stop(&module->buf_thrd);
 	camcore_thread_stop(&module->dump_thrd);
 	camcore_thread_stop(&module->dcam_offline_proc_thrd);
+	camcore_thread_stop(&module->mes_thrd);
 
 	return ret;
 }
@@ -2497,6 +2514,7 @@ static int camioctl_cam_res_put(struct camera_module *module,
 	camcore_thread_stop(&module->zoom_thrd);
 	camcore_thread_stop(&module->buf_thrd);
 	camcore_thread_stop(&module->dump_thrd);
+	camcore_thread_stop(&module->mes_thrd);
 
 	if (module->dcam_dev_handle) {
 		module->dcam_dev_handle->dcam_pipe_ops->put_context(module->dcam_dev_handle,

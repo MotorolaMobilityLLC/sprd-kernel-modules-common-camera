@@ -1525,7 +1525,7 @@ static int isphw_fetch_set(void *handle, void *arg)
 	ISP_REG_MWR(idx, ISP_COMMON_SCL_PATH_SEL, BIT_6, 1 << 6);
 
 	ISP_REG_MWR(idx, ISP_FBD_RAW_SEL, BIT(0), 0x1);
-	if (fetch->pack_bits == ISP_RAW_HALF14 || fetch->pack_bits == ISP_RAW_HALF10)
+	if (fetch->pack_bits == ISP_RAW_HALF14)
 		bwu_val = 0x40001;
 	else
 		bwu_val = 0x40000;

@@ -544,6 +544,8 @@ static void dcamint_cap_sof(void *param, struct dcam_sw_context *sw_ctx)
 		helper = dcam_core_sync_helper_get(sw_ctx);
 
 	for (i = 0; i < DCAM_PATH_MAX; i++) {
+		if (i == DCAM_PATH_RAW && sw_ctx->need_dcam_raw)
+			continue;
 		path = &sw_ctx->path[i];
 		if (atomic_read(&path->user_cnt) < 1 || atomic_read(&path->is_shutoff) > 0)
 			continue;

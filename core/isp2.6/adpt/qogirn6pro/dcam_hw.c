@@ -1156,6 +1156,11 @@ static int dcamhw_path_start(void *handle, void *arg)
 		DCAM_REG_MWR(patharg->idx, DCAM_RAW_PATH_CFG, BIT_2 | BIT_3, val << 2);
 		val = (patharg->data_bits - DCAM_STORE_8_BIT) >> 1;
 		DCAM_REG_MWR(patharg->idx, DCAM_BWD1_PARAM, BIT_4 | BIT_5, val << 4);
+		if (patharg->data_bits == DCAM_STORE_14_BIT)
+			val = 0;
+		else
+			val = 4;
+		DCAM_REG_MWR(patharg->idx, DCAM_BWU1_PARAM, 0x70, val << 4);
 		if (patharg->src_sel == ORI_RAW_SRC_SEL) {
 			val = patharg->data_bits - 10;
 			DCAM_REG_MWR(patharg->idx, DCAM_IMAGE_CONTROL, 0x70, val << 4);
@@ -1633,7 +1638,7 @@ static int dcamhw_path_size_update(void *handle, void *arg)
 				DCAM_REG_WR(idx, DCAM_CROP1_SIZE, reg_val);
 			} else {
 				DCAM_REG_MWR(idx, DCAM_RAW_PATH_CFG, BIT_1, BIT_1);
-				DCAM_REG_MWR(idx, DCAM_CROP1_CTRL, BIT_0, 1);
+				DCAM_REG_MWR(idx, DCAM_CROP1_CTRL, BIT_0, 0);
 				reg_val = (sizearg->in_trim.start_y << 16) | sizearg->in_trim.start_x;
 				DCAM_REG_WR(idx, DCAM_RAW_PATH_CROP_START, reg_val);
 				reg_val = (sizearg->in_trim.size_y << 16) | sizearg->in_trim.size_x;

@@ -36,6 +36,7 @@ extern "C" {
 #define AFBC_FILEHEADER_SIZE            32
 #define DUMP_Q_LEN                      50
 #define DUMP_RAW_BUF_NUM                10
+#define DCAM_MID_BUF                    20
 
 enum dump_mode {
 	DUMP_DISABLE = 0,
@@ -89,6 +90,11 @@ struct cam_dbg_dump {
 	struct completion *dump_start[6];
 };
 extern struct cam_dbg_dump g_dbg_dump;
+
+struct cam_mes_ctx {
+	struct camera_queue mes_queue;
+	struct completion mes_com;
+};
 
 struct cam_dump_ctx {
 	struct camera_queue dump_queue;
