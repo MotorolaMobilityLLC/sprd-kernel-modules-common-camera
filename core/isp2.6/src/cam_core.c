@@ -713,6 +713,9 @@ static void camcore_empty_frame_put(void *param)
 
 	frame = (struct camera_frame *)param;
 	module = frame->priv_data;
+
+	if (frame->buf.mapping_state & CAM_BUF_MAPPING_DEV)
+		cam_buf_iommu_unmap(&frame->buf);
 	if (frame->priv_data) {
 		if (!frame->irq_type)
 			kfree(frame->priv_data);
@@ -2762,6 +2765,8 @@ static int camcore_isp_callback(enum isp_cb_type type, void *param, void *priv_d
 		if (atomic_read(&module->state) == CAM_RUNNING) {
 			if (module->cap_status == CAM_CAPTURE_RAWPROC) {
 				pr_info("raw proc return dst frame %px\n", pframe);
+				if (pframe->buf.mapping_state & CAM_BUF_MAPPING_DEV)
+					cam_buf_iommu_unmap(&pframe->buf);
 				cam_buf_ionbuf_put(&pframe->buf);
 				module->cap_status = CAM_CAPTURE_RAWPROC_DONE;
 				pframe->irq_type = CAMERA_IRQ_DONE;
@@ -2808,6 +2813,8 @@ static int camcore_isp_callback(enum isp_cb_type type, void *param, void *priv_d
 			}
 			ret = cam_queue_enqueue(&module->frm_queue, &pframe->list);
 			if (ret) {
+				if (pframe->buf.mapping_state & CAM_BUF_MAPPING_DEV)
+					cam_buf_iommu_unmap(&pframe->buf);
 				cam_buf_ionbuf_put(&pframe->buf);
 				cam_queue_empty_frame_put(pframe);
 			} else {
@@ -2816,6 +2823,8 @@ static int camcore_isp_callback(enum isp_cb_type type, void *param, void *priv_d
 					ch_id, pframe, pframe->evt, pframe->buf.mfd[0]);
 			}
 		} else {
+			if (pframe->buf.mapping_state & CAM_BUF_MAPPING_DEV)
+				cam_buf_iommu_unmap(&pframe->buf);
 			cam_buf_ionbuf_put(&pframe->buf);
 			cam_queue_empty_frame_put(pframe);
 		}
@@ -8139,6 +8148,8 @@ rewait:
 				|| (pframe->irq_type == CAMERA_IRQ_PRE_FDR)
 				|| (pframe->irq_type == CAMERA_IRQ_RAW_IMG)
 				|| (pframe->irq_type == CAMERA_IRQ_RAW_BPC_IMG)) {
+				if (pframe->buf.mapping_state & CAM_BUF_MAPPING_DEV)
+					cam_buf_iommu_unmap(&pframe->buf);
 				cam_buf_ionbuf_put(&pframe->buf);
 				pchannel = &module->channel[pframe->channel_id];
 				if (pframe->buf.mfd[0] == pchannel->reserved_buf_fd) {

@@ -2696,7 +2696,6 @@ static int ispcore_postproc_irq(void *handle, uint32_t idx,
 						(int)pframe->buf.size[j], (int)path->reserve_buf_size[j]);
 				}
 			}
-			cam_buf_iommu_unmap(&pframe->buf);
 			pctx->isp_cb_func(ISP_CB_RET_DST_BUF, pframe, pctx->cb_priv_data);
 		}
 	}
@@ -3119,6 +3118,8 @@ static int ispcore_path_cfg(void *isp_handle,
 	case ISP_PATH_RETURN_OUTPUT_BUF:
 		pframe = (struct camera_frame *)param;
 		pframe->priv_data = path;
+		if (pframe->buf.mapping_state & CAM_BUF_MAPPING_DEV)
+			cam_buf_iommu_unmap(&pframe->buf);
 		ret = cam_queue_enqueue_front(&path->out_buf_queue, &pframe->list);
 		break;
 	case ISP_PATH_CFG_PYR_DEC_BUF:
