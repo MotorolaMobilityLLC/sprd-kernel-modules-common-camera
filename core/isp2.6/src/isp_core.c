@@ -204,7 +204,6 @@ static void ispcore_param_buf_destroy(void *param)
 	ret = cam_buf_free(&frame->buf);
 	if(ret)
 		pr_err("fail to unmap param node %px\n", frame);
-
 	cam_queue_empty_frame_put(frame);
 }
 
@@ -1759,6 +1758,7 @@ static int ispcore_prepare_blk_param(struct isp_sw_context *pctx, uint32_t targe
 
 preview_param:
 	do {
+		mutex_lock(&pctx->blkpm_q_lock);
 		param_pframe = cam_queue_dequeue_peek(&pctx->param_buf_queue, struct camera_frame, list);
 		if (param_pframe) {
 			pr_debug("pctx =%d, param_pframe.id=%d,pframe.id=%d\n",
@@ -1766,6 +1766,7 @@ preview_param:
 			if (param_pframe->fid <= target_fid) {
 				/*update old preview param into pctx, cache latest capture param*/
 				cam_queue_dequeue(&pctx->param_buf_queue, struct camera_frame, list);
+				mutex_unlock(&pctx->blkpm_q_lock);
 				if (param_pframe->blkparam_info.update) {
 					pr_debug("isp%d update param %d\n", pctx->ctx_id, param_pframe->fid);
 					ispcore_copy_param(param_pframe, pctx);
@@ -1777,6 +1778,7 @@ preview_param:
 					break;
 				param_pframe = NULL;
 			} else {
+				mutex_unlock(&pctx->blkpm_q_lock);
 				pr_err("fail to match param, isp%d, fid %d\n", pctx->ctx_id, target_fid);
 				if (param_last_fid != -1)
 					pr_warn("use old param, param id %d, frame id %d\n", param_last_fid, target_fid);
@@ -1784,7 +1786,8 @@ preview_param:
 					pr_warn("no param update, frame id %d\n", target_fid);
 				break;
 			}
-		}
+		} else
+			mutex_unlock(&pctx->blkpm_q_lock);
 	} while (loop++ < pctx->param_buf_queue.max);
 	if (!out->param_block)
 		out->param_block = &pctx->isp_k_param;
@@ -1792,14 +1795,15 @@ preview_param:
 	return param_update;
 
 capture_param:
-	mutex_lock(&pctx->blkpm_q_lock);
 	do {
+		mutex_lock(&pctx->blkpm_q_lock);
 		param_pframe = cam_queue_dequeue_peek(&pctx->param_buf_queue, struct camera_frame, list);
 		if (param_pframe) {
 			pr_debug("pctx =%d, param_pframe.id=%d,pframe.id=%d\n",
 				pctx->ctx_id,param_pframe->fid,target_fid);
 			if (param_pframe->fid <= target_fid) {
 				cam_queue_dequeue(&pctx->param_buf_queue, struct camera_frame, list);
+				mutex_unlock(&pctx->blkpm_q_lock);
 				/*return old param*/
 				if (last_param)
 					ret = cam_queue_recycle_blk_param(&pctx->param_share_queue, last_param);
@@ -1812,6 +1816,7 @@ capture_param:
 
 				param_pframe = NULL;
 			} else {
+				mutex_unlock(&pctx->blkpm_q_lock);
 				pr_err("fail to match param, isp%d, fid %d\n", pctx->ctx_id, target_fid);
 				if (!last_param) {
 					pr_warn("dont have old param, use latest param, frame %d\n", target_fid);
@@ -1820,7 +1825,8 @@ capture_param:
 				}
 				break;
 			}
-		}
+		} else
+			mutex_unlock(&pctx->blkpm_q_lock);
 	} while (loop++ < pctx->param_buf_queue.max);
 
 	if (last_param) {
@@ -1834,7 +1840,6 @@ capture_param:
 		out->blk_param_node = NULL;
 	}
 	out->update = param_update;
-	mutex_unlock(&pctx->blkpm_q_lock);
 	return param_update;
 }
 
@@ -3944,9 +3949,12 @@ static int ispcore_context_put(void *isp_handle, int ctx_id)
 			udelay(500);
 		};
 
-		pr_debug("isp%d, share q cnt %d, buf q cnt %d\n", pctx->ctx_id, cam_queue_cnt_get(&pctx->param_share_queue), cam_queue_cnt_get(&pctx->param_buf_queue));
+		pr_debug("isp%d, share q cnt %d, buf q cnt %d\n",
+			pctx->ctx_id, cam_queue_cnt_get(&pctx->param_share_queue), cam_queue_cnt_get(&pctx->param_buf_queue));
+		mutex_lock(&pctx->blkpm_q_lock);
 		cam_queue_clear(&pctx->param_share_queue, struct camera_frame, list);
 		cam_queue_clear(&pctx->param_buf_queue, struct camera_frame, list);
+		mutex_unlock(&pctx->blkpm_q_lock);
 
 		if (pctx->slice_ctx)
 			isp_slice_ctx_put(&pctx->slice_ctx);

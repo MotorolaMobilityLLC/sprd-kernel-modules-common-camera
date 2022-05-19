@@ -3939,7 +3939,9 @@ static int camioctl_cfg_param_start_end(struct camera_module *module, unsigned l
 			pctx = module->isp_dev_handle->sw_ctx[channel->isp_ctx_id];
 			param_frame = cam_queue_empty_blk_param_get(&pctx->param_share_queue);
 			if (!param_frame) {
+				mutex_lock(&pctx->blkpm_q_lock);
 				param_frame = cam_queue_dequeue(&pctx->param_buf_queue, struct camera_frame, list);
+				mutex_unlock(&pctx->blkpm_q_lock);
 				if (param_frame)
 					pr_debug("isp%d deq param node %d\n", channel->isp_ctx_id, param_frame->fid);
 			}
