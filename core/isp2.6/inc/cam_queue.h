@@ -110,6 +110,7 @@ struct camera_frame {
 	struct blk_param_info blkparam_info;
 	struct camera_buf buf;
 	struct nr3_me_data nr3_me;
+	struct dcam_dev_param *pm;
 };
 
 /**

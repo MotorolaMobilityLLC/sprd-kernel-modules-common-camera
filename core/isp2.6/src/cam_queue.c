@@ -517,6 +517,7 @@ int cam_queue_recycle_blk_param(struct camera_queue *q, struct camera_frame *par
 		goto error;
 	}
 	return ret;
+
 error:
 	cam_buf_free(&param_pframe->buf);
 	cam_queue_empty_frame_put(param_pframe);

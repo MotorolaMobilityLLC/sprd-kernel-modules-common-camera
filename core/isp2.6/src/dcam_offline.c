@@ -186,7 +186,7 @@ int dcam_offline_param_get(struct cam_hw_info *hw, struct dcam_sw_context *pctx,
 	return ret;
 }
 
-int dcam_offline_param_set(struct cam_hw_info *hw, struct dcam_sw_context *pctx)
+int dcam_offline_param_set(struct cam_hw_info *hw, struct dcam_sw_context *pctx, struct dcam_dev_param *pm)
 {
 	int i = 0, ret = 0;
 	struct dcam_hw_fbc_ctrl fbc_arg;
@@ -220,7 +220,6 @@ int dcam_offline_param_set(struct cam_hw_info *hw, struct dcam_sw_context *pctx)
 		if(pctx->dev->hw->ip_isp->rgb_gtm_support == 0)
 			atomic_set(&pctx->path[DCAM_PATH_GTM_HIST].user_cnt, 0);
 	}
-
 
 	/*use for offline 4in1*/
 	binning.binning_4in1_en = 0;
@@ -271,8 +270,8 @@ int dcam_offline_param_set(struct cam_hw_info *hw, struct dcam_sw_context *pctx)
 	multi_cxt = atomic_read(&pctx->dev->user_cnt);
 	multi_cxt = (multi_cxt < 2) ? 0 : 1;
 	/* bypass all blks and then set all blks to current pm */
-	hw->dcam_ioctl(hw, DCAM_HW_CFG_BLOCKS_SETSTATIS, &pctx->ctx[pctx->cur_ctx_id].blk_pm);
-	hw->dcam_ioctl(hw, DCAM_HW_CFG_BLOCKS_SETALL, &pctx->ctx[pctx->cur_ctx_id].blk_pm);
+	hw->dcam_ioctl(hw, DCAM_HW_CFG_BLOCKS_SETSTATIS, pm);
+	hw->dcam_ioctl(hw, DCAM_HW_CFG_BLOCKS_SETALL, pm);
 
 	/* for L3 DCAM1 */
 	if (DCAM_FETCH_TWICE(pctx)) {
@@ -288,7 +287,8 @@ int dcam_offline_param_set(struct cam_hw_info *hw, struct dcam_sw_context *pctx)
 	return ret;
 }
 
-int dcam_offline_slices_proc(struct cam_hw_info *hw, struct dcam_sw_context *pctx, struct camera_frame *pframe)
+int dcam_offline_slices_proc(struct cam_hw_info *hw, struct dcam_sw_context *pctx,
+	struct camera_frame *pframe, struct dcam_dev_param *pm)
 {
 	int i = 0, ret = 0;
 	uint32_t force_ids = DCAM_CTRL_ALL;
@@ -296,13 +296,8 @@ int dcam_offline_slices_proc(struct cam_hw_info *hw, struct dcam_sw_context *pct
 	struct dcam_hw_slice_fetch slicearg;
 	struct dcam_hw_force_copy copyarg;
 	struct dcam_fetch_info *fetch = NULL;
-	struct dcam_dev_param *pm;
-	struct dcam_pipe_context *pm_pctx;
 
 	fetch = &pctx->fetch;
-	pm_pctx = &pctx->ctx[pctx->cur_ctx_id];
-	pm = &pm_pctx->blk_pm;
-
 	for (i = 0; i < pctx->slice_num; i++) {
 		ret = wait_for_completion_interruptible_timeout(
 			&pctx->slice_done, DCAM_OFFLINE_TIMEOUT);
@@ -396,4 +391,3 @@ int dcam_offline_slice_fmcu_cmds_set(struct dcam_fmcu_ctx_desc *fmcu, struct dca
 {
 	return 0;
 }
-

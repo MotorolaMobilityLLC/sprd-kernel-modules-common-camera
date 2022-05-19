@@ -30,6 +30,7 @@
 #define DCAM_FULL_MV_Q_LEN                12
 #define DCAM_BIN_MV_Q_LEN                 12
 #define DCAM_MIDDLE_Q_LEN                 50
+#define DCAM_OFFLINE_PARAM_Q_LEN          20
 
 /* TODO: extend these for slow motion dev */
 #define DCAM_RESULT_Q_LEN                 50
@@ -261,9 +262,8 @@ struct dcam_sw_context {
 	uint32_t is_3dnr;
 	uint32_t is_pyr_rec;
 	uint32_t is_ebd;
-	uint32_t need_raw_img;
 	uint32_t is_raw_alg;
-	enum raw_alg_types raw_alg_type;
+	uint32_t raw_alg_type;
 	uint32_t need_dcam_raw;
 	uint32_t offline;/* flag: set 1 for 4in1 go through dcam1 bin */
 	uint32_t rps;/* raw_proc_scene 0:normal 1:hwsim*/
@@ -309,6 +309,8 @@ struct dcam_sw_context {
 	struct camera_queue binpath_mv_queue;
 	struct cam_thread_info dcam_interruption_proc_thrd;
 	struct camera_queue interruption_sts_queue;
+	struct camera_queue blk_param_queue;
+	struct dcam_dev_param *pm;
 };
 
 struct dcam_hw_context {

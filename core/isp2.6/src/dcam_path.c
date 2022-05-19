@@ -478,7 +478,7 @@ dcam_path_frame_cycle(struct dcam_sw_context *dcam_sw_ctx, struct dcam_path_desc
 	struct camera_frame *frame = NULL;
 
 	if ((path->path_id == DCAM_PATH_FULL || path->path_id == DCAM_PATH_RAW) &&
-		(dcam_sw_ctx->need_raw_img)) {
+		(dcam_sw_ctx->is_raw_alg)) {
 		frame = cam_queue_dequeue(&path->alter_out_queue, struct camera_frame, list);
 		src = 0;
 	}
@@ -893,22 +893,6 @@ void dcampath_update_addr_and_size(struct dcam_sw_context *ctx, struct dcam_path
 		patharg.src_sel = path->src_sel;
 		patharg.pack_bits = path->pack_bits;
 		hw->dcam_ioctl(hw, DCAM_HW_CFG_PATH_SRC_SEL, &patharg);
-	}
-	if (path_id == DCAM_PATH_RAW && ctx->need_raw_img && ctx->raw_alg_type == RAW_ALG_AI_SFNR) {
-		struct dcam_hw_path_start patharg;
-		patharg.path_id = path_id;
-		patharg.idx = idx;
-		patharg.slowmotion_count = ctx->slowmotion_count;
-		patharg.cap_info = ctx->cap_info;
-		patharg.pack_bits = ctx->path[path_id].pack_bits;
-		patharg.src_sel = ctx->path[path_id].src_sel;
-		patharg.bayer_pattern = ctx->path[path_id].bayer_pattern;
-		patharg.in_trim = ctx->path[path_id].in_trim;
-		patharg.endian = ctx->path[path_id].endian;
-		patharg.out_fmt = ctx->path[path_id].out_fmt;
-		patharg.data_bits = ctx->path[path_id].data_bits;
-		patharg.is_pack = ctx->path[path_id].is_pack;
-		hw->dcam_ioctl(hw, DCAM_HW_CFG_PATH_START, &patharg);
 	}
 	path->base_update = 0;
 	if (path_id == DCAM_PATH_FULL || path_id == DCAM_PATH_RAW || path_id == DCAM_PATH_BIN) {

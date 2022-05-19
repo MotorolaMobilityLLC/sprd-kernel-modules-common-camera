@@ -628,6 +628,20 @@ void dcamhw_bypass_all(enum dcam_id idx)
 	DCAM_REG_MWR(idx, DCAM_BUF_CTRL, BIT_0 | BIT_1 | BIT_2 | BIT_3 | BIT_4 | BIT_5, 0x3F);
 }
 
+static int dcamhw_module_bypass(void *handle, void *arg)
+{
+	uint32_t idx = 0;
+	if (!arg) {
+		pr_err("fail to get valid arg\n");
+		return -EFAULT;
+	}
+
+	idx = *(uint32_t *)arg;
+	dcamhw_bypass_all(idx);
+
+	return 0;
+}
+
 static int dcamhw_irq_disable(void *handle, void *arg)
 {
 	struct cam_hw_info *hw = NULL;
@@ -1262,34 +1276,21 @@ static int dcamhw_path_stop(void *handle, void *arg)
 
 	switch (patharg->path_id) {
 	case  DCAM_PATH_FULL:
-		/*TODO:auto dc ai sfnr flash capture online full path trans to raw path
-		lead overflow, need discuss it with asic*/
-		if (patharg->raw_alg_type != RAW_ALG_AI_SFNR)
-			DCAM_REG_MWR(idx, DCAM_PATH_STOP, BIT_4, 1 << 4);
 		DCAM_REG_MWR(idx, DCAM_STORE4_PARAM, BIT_0, 1);
 		break;
 	case  DCAM_PATH_BIN:
-		DCAM_REG_MWR(idx, DCAM_PATH_STOP, BIT_3, 1 << 3);
 		DCAM_REG_MWR(idx, DCAM_STORE0_PARAM, BIT_0, 1);
 		break;
 	case  DCAM_PATH_PDAF:
-		DCAM_REG_MWR(idx, DCAM_PATH_STOP, BIT_6, 1 << 6);
 		DCAM_REG_MWR(idx, DCAM_PPE_FRM_CTRL0, BIT_0, 0);
 		break;
 	case  DCAM_PATH_VCH2:
-		DCAM_REG_MWR(idx, DCAM_PATH_STOP, BIT_7, 1 << 7);
 		DCAM_REG_MWR(idx, DCAM_VCH2_CONTROL, BIT_0, 0);
 		break;
 	case  DCAM_PATH_VCH3:
-		DCAM_REG_MWR(idx, DCAM_PATH_STOP, BIT_8, 1 << 8);
 		DCAM_REG_MWR(idx, DCAM_VCH3_CONTROL, BIT_0, 0);
 		break;
 	case DCAM_PATH_RAW:
-		/*TODO:auto dc ai sfnr flash capture online full path trans to raw path
-		lead overflow, need discuss it with asic*/
-		if (patharg->raw_alg_type != RAW_ALG_AI_SFNR &&
-			patharg->raw_alg_type != RAW_ALG_MFNR)
-			DCAM_REG_MWR(idx, DCAM_PATH_STOP, BIT_2, 1 << 2);
 		DCAM_REG_MWR(idx, DCAM_RAW_PATH_CFG, BIT_0, 1);
 		break;
 	default:
@@ -1318,23 +1319,13 @@ static int dcamhw_path_restart(void *handle, void *arg)
 
 	switch (patharg->path_id) {
 	case  DCAM_PATH_BIN:
-		DCAM_REG_MWR(idx, DCAM_PATH_STOP, BIT_3, 0 << 3);
 		DCAM_REG_MWR(idx, DCAM_STORE0_PARAM, BIT_0, 0);
 		DCAM_REG_MWR(idx, DCAM_MIPI_CAP_CFG, BIT_0, 1);
 		break;
 	case DCAM_PATH_RAW:
-		/*TODO:auto dc ai sfnr flash capture online full path trans to raw path
-		lead overflow, need discuss it with asic*/
-		if (patharg->raw_alg_type != RAW_ALG_AI_SFNR &&
-			patharg->raw_alg_type != RAW_ALG_MFNR)
-			DCAM_REG_MWR(idx, DCAM_PATH_STOP, BIT_2, 0 << 2);
 		DCAM_REG_MWR(idx, DCAM_RAW_PATH_CFG, BIT_0, 0);
 		break;
 	case DCAM_PATH_FULL:
-		/*TODO:auto dc ai sfnr flash capture online full path trans to raw path
-		lead overflow, need discuss it with asic*/
-		if (patharg->raw_alg_type != RAW_ALG_AI_SFNR)
-			DCAM_REG_MWR(idx, DCAM_PATH_STOP, BIT_4, 0 << 4);
 		DCAM_REG_MWR(idx, DCAM_STORE4_PARAM, BIT_0, 0);
 		break;
 	default:
@@ -2362,7 +2353,6 @@ static int dcamhw_block_func_get(void *handle, void *arg)
 
 static int dcamhw_blocks_setall(void *handle, void *arg)
 {
-	uint32_t idx;
 	struct dcam_dev_param *p;
 
 	if (!arg) {
@@ -2371,7 +2361,6 @@ static int dcamhw_blocks_setall(void *handle, void *arg)
 	}
 	p = (struct dcam_dev_param *)arg;
 
-	idx = p->idx;
 	dcam_k_awbc_block(p);
 	dcam_k_blc_block(p);
 	dcam_k_bpc_block(p);
@@ -2390,7 +2379,7 @@ static int dcamhw_blocks_setall(void *handle, void *arg)
 	dcam_k_cfa_block(p);
 	dcam_k_gamma_block(p);
 
-	pr_info("dcam%d set all\n", idx);
+	pr_info("dcam%d set all\n", p->idx);
 
 	return 0;
 }
@@ -3055,6 +3044,7 @@ static struct hw_io_ctrl_fun dcam_ioctl_fun_tab[] = {
 	{DCAM_HW_CFG_GTM_HIST_GET,          dcamhw_get_gtm_hist},
 	{DCAM_HW_CFG_ALL_RESET,             dcamhw_axi_reset},
 	{DCAM_HW_CFG_IRQ_DISABLE,           dcamhw_irq_disable},
+	{DCAM_HW_CFG_MODULE_BYPASS,         dcamhw_module_bypass},
 };
 
 static hw_ioctl_fun dcamhw_ioctl_fun_get(enum dcam_hw_cfg_cmd cmd)
