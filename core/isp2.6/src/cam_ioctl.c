@@ -2661,7 +2661,8 @@ static int camioctl_capture_start(struct camera_module *module,
 		if ((module->capture_scene == CAPTURE_SW3DNR ||
 			module->capture_scene == CAPTURE_FDR ||
 			module->capture_scene == CAPTURE_RAWALG ||
-			module->capture_scene == CAPTURE_AI_SFNR) &&
+			module->capture_scene == CAPTURE_AI_SFNR ||
+			module->capture_scene == CAPTURE_HDR) &&
 			(param.timestamp != 0))
 			module->capture_times = param.timestamp;
 		else
