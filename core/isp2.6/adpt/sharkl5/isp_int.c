@@ -504,6 +504,11 @@ static irqreturn_t ispint_isr_root(int irq, void *priv)
 		return IRQ_HANDLED;
 	}
 
+	if (atomic_read(&isp_handle->enable) == 0) {
+		pr_err("fail to get isp_handle enable\n");
+		return IRQ_HANDLED;
+	}
+
 	if (irq == isp_handle->irq_no[0]) {
 		iid = 0;
 	} else if (irq == isp_handle->irq_no[1]) {
