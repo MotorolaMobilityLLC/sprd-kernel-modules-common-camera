@@ -2622,6 +2622,7 @@ static int camcore_isp_callback(enum isp_cb_type type, void *param, void *priv_d
 	struct dcam_sw_context *dcam_sw_ctx = NULL;
 	struct dcam_sw_context *dcam_sw_aux_ctx = NULL;
 	struct isp_sw_context *isp_sw_ctx = NULL;
+
 	if (!param || !priv_data) {
 		pr_err("fail to get valid param %p %p\n", param, priv_data);
 		return -EFAULT;
@@ -2798,7 +2799,9 @@ static int camcore_isp_callback(enum isp_cb_type type, void *param, void *priv_d
 			}
 			pframe->evt = IMG_TX_DONE;
 			ch_id = pframe->channel_id;
-			if (module->dcam_cap_status != DCAM_CAPTURE_START_FROM_NEXT_SOF && pframe->channel_id == CAM_CH_CAP && isp_sw_ctx && (atomic_read(&isp_sw_ctx->cap_cnt) != pframe->cap_cnt)) {
+
+			if (pframe->channel_id == CAM_CH_CAP && isp_sw_ctx && (atomic_read(&isp_sw_ctx->cap_cnt) != pframe->cap_cnt) &&
+				module->dcam_cap_status != DCAM_CAPTURE_START_FROM_NEXT_SOF) {
 				ret = module->isp_dev_handle->isp_ops->cfg_path(module->isp_dev_handle, ISP_PATH_RETURN_OUTPUT_BUF,
 					channel->isp_ctx_id, channel->isp_path_id, pframe);
 				break;

@@ -2687,7 +2687,9 @@ static int camioctl_capture_start(struct camera_module *module,
 
 	if (param.type != DCAM_CAPTURE_STOP) {
 		module->cap_status = CAM_CAPTURE_START;
-		module->isp_dev_handle->isp_ops->ioctl(module->isp_dev_handle, module->channel[CAM_CH_CAP].isp_ctx_id, ISP_IOCTL_CFG_CTX_CAP_CNT, NULL);
+		if (module->dcam_cap_status != DCAM_CAPTURE_START_FROM_NEXT_SOF)
+			module->isp_dev_handle->isp_ops->ioctl(module->isp_dev_handle, module->channel[CAM_CH_CAP].isp_ctx_id,
+				ISP_IOCTL_CFG_CTX_CAP_CNT, NULL);
 	}
 
 	/* alway trigger dump for capture */
@@ -2716,8 +2718,10 @@ static int camioctl_capture_stop(struct camera_module *module,
 		return 0;
 	}
 
-	module->isp_dev_handle->isp_ops->ioctl(module->isp_dev_handle, module->channel[CAM_CH_CAP].isp_ctx_id,
-		ISP_IOCTL_CFG_CTX_CAP_CNT, NULL);
+	if (module->dcam_cap_status != DCAM_CAPTURE_START_FROM_NEXT_SOF)
+		module->isp_dev_handle->isp_ops->ioctl(module->isp_dev_handle, module->channel[CAM_CH_CAP].isp_ctx_id,
+			ISP_IOCTL_CFG_CTX_CAP_CNT, NULL);
+
 	sw_ctx = &module->dcam_dev_handle->sw_ctx[module->cur_sw_ctx_id];
 	sw_aux_ctx = &module->dcam_dev_handle->sw_ctx[module->offline_cxt_id];
 	channel = &module->channel[CAM_CH_CAP];
