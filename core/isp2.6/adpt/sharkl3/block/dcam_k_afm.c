@@ -39,11 +39,9 @@ int dcam_k_afm_block(struct dcam_dev_param *param)
 	p = &(param->afm.af_param);
 
 	val = (p->afm_cg_dis & 0x1) |
-		((p->afm_iir_enable & 0x1) << 2) |
-		((p->afm_lum_stat_chn_sel & 0x3) << 4) |
-		((p->afm_done_tile_num_y & 0xF) << 8) |
-		((p->afm_done_tile_num_x & 0x1F) << 12);
-	DCAM_REG_MWR(idx, ISP_AFM_PARAMETERS, 0x1FF35, val);
+		((p->afm_iir_enable & 0x1) << 7) |
+		((p->afm_lum_stat_chn_sel & 0x3) << 8) ;
+	DCAM_REG_MWR(idx, ISP_AFM_PARAMETERS, 0x381, val);
 
 	/* IIR cfg */
 	val = ((p->afm_iir_g1 & 0xFFF) << 16) |
@@ -58,12 +56,12 @@ int dcam_k_afm_block(struct dcam_dev_param *param)
 
 	/* enhance control cfg */
 	val = (p->afm_channel_sel & 0x3) |
-		((p->afm_denoise_mode & 0x3) << 2) |
-		((p->afm_center_weight & 0x3) << 4) |
-		((p->afm_clip_en0 & 0x1) << 6) |
-		((p->afm_clip_en1 & 0x1) << 7) |
-		((p->afm_fv0_shift & 0x7) << 8) |
-		((p->afm_fv1_shift & 0x7) << 12);
+		((p->afm_denoise_mode & 0x3) << 10) |
+		((p->afm_center_weight & 0x3) << 12) |
+		((p->afm_clip_en0 & 0x1) << 14) |
+		((p->afm_clip_en1 & 0x1) << 15) |
+		((p->afm_fv0_shift & 0x7) << 16) |
+		((p->afm_fv1_shift & 0x7) << 19);
 	DCAM_REG_WR(idx, ISP_AFM_ENHANCE_CTRL, val);
 
 	val = (p->afm_fv0_th.min & 0xFFF) |
