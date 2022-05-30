@@ -274,47 +274,11 @@ struct nr3_me_data {
 	s8 mv_y;
 	uint32_t src_width;
 	uint32_t src_height;
+	uint32_t full_path_mv_ready;
+	uint32_t full_path_cnt;
+	uint32_t bin_path_mv_ready;
+	uint32_t bin_path_cnt;
 };
-
-/*
- * Use dcam_frame_synchronizer to synchronize frames between different paths.
- * Normally we set WADDR for all paths in CAP_SOF interrupt, which is the best
- * opportunity that we bind buffers together and set frame number for them.
- * Modules such as 3DNR or LTM need to know the precise relationship between
- * bin/full buffer and statis buffer.
- * Some data which can be read directly from register is also included in this
- * object.
- * After data in image or statis buffer consumed, consumer modules must call
- * dcam_core_dcam_if_release_sync() to notify dcam_if.
- *
- * @index:             frame index tracked by dcam_if
- * @valid:             camera_frame valid bit for each path
- * @frames:            pointers to frames from each path
- *
- * @nr3_me:            nr3 data
- */
-struct dcam_frame_synchronizer {
-	uint32_t index;
-	uint32_t valid;
-	struct camera_frame *frames[DCAM_PATH_MAX];
-	struct nr3_me_data nr3_me;
-};
-
-/*
- * Enables/Disables frame sync for path_id. Should be called before streaming.
- */
-int dcamcore_dcam_if_sync_enable_set(void *handle, int path_id, int enable);
-/*
- * Release frame sync reference for @frame thus dcam_frame_synchronizer data
- * can be recycled for next use.
- */
-int dcam_core_dcam_if_release_sync(struct dcam_frame_synchronizer *sync,
-			struct camera_frame *frame);
-/*
- * Test if frame data is valid for path_id. Data will be valid only after
- * TX_DONE interrupt.
- */
-#define dcam_if_is_sync_valid(sync, path_id) (sync->valid & BIT(path_id))
 
 /*
  * Retrieve a dcam_if device for the hardware. A dcam_if device is a wrapper

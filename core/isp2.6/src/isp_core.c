@@ -361,20 +361,16 @@ static int ispcore_3dnr_frame_process(struct isp_sw_context *pctx,
 	uint32_t mv_version = 0;
 	struct isp_uinfo *pipe_src = NULL;
 	struct isp_3dnr_ctx_desc *nr3_handle = NULL;
-	struct dcam_frame_synchronizer *fsync = NULL;
 
 	if (pctx == NULL || pframe == NULL) {
 		pr_err("fail to get valid parameter pctx %p pframe %p\n", pctx, pframe);
 		return 0;
 	}
 
-	fsync = (struct dcam_frame_synchronizer *)pframe->sync_data;
-	if (fsync) {
-		pr_debug("id %u, valid %d, x %d, y %d, w %u, h %u\n",
-			 fsync->index, fsync->nr3_me.valid,
-			 fsync->nr3_me.mv_x, fsync->nr3_me.mv_y,
-			 fsync->nr3_me.src_width, fsync->nr3_me.src_height);
-	}
+	pr_debug("fid %d, valid %d, x %d, y %d, w %u, h %u\n",
+			 pframe->fid, pframe->nr3_me.valid,
+			 pframe->nr3_me.mv_x, pframe->nr3_me.mv_y,
+			 pframe->nr3_me.src_width, pframe->nr3_me.src_height);
 
 	pipe_src = &pctx->pipe_src;
 	mv_version = pctx->hw->ip_isp->nr3_mv_alg_version;
@@ -386,10 +382,7 @@ static int ispcore_3dnr_frame_process(struct isp_sw_context *pctx,
 	nr3_handle->ops.cfg_param(nr3_handle, ISP_3DNR_CFG_SIZE_INFO, &pipe_src->crop);
 	nr3_handle->ops.cfg_param(nr3_handle, ISP_3DNR_CFG_MEMCTL_STORE_INFO, &pctx->pipe_info.fetch);
 	nr3_handle->ops.cfg_param(nr3_handle, ISP_3DNR_CFG_BLEND_INFO, pctx->isp_using_param);
-	nr3_handle->ops.pipe_proc(nr3_handle, fsync, pctx->uinfo.mode_3dnr);
-
-	if (fsync)
-		dcam_core_dcam_if_release_sync(fsync, pframe);
+	nr3_handle->ops.pipe_proc(nr3_handle, &pframe->nr3_me, pctx->uinfo.mode_3dnr);
 
 	return 0;
 }
@@ -2204,9 +2197,6 @@ input_err:
 			cam_queue_recycle_blk_param(&pctx->param_share_queue, pframe->blkparam_info.blk_param_node);
 			pframe->blkparam_info.blk_param_node = NULL;
 		}
-		/* release sync data as if ISP has consumed */
-		if (pframe->sync_data)
-			dcam_core_dcam_if_release_sync(pframe->sync_data, pframe);
 		/* return buffer to cam channel shared buffer queue. */
 		if (tmp.stream && tmp.stream->data_src == ISP_STREAM_SRC_ISP) {
 			pr_debug("isp postproc no need return\n");
@@ -2226,9 +2216,6 @@ input_err:
 			if (pframe) {
 				ispcore_offline_pararm_free(pframe->param_data);
 				pframe->param_data = NULL;
-				/* release sync data as if ISP has consumed */
-				if (pframe->sync_data)
-					dcam_core_dcam_if_release_sync(pframe->sync_data, pframe);
 				/* return buffer to cam channel shared buffer queue. */
 				pctx->isp_cb_func(ISP_CB_RET_SRC_BUF, pframe, pctx->cb_priv_data);
 			}

@@ -744,7 +744,7 @@ static int isp3dnr_pipe_proc(void *handle, void *param, uint32_t mode)
 {
 	int ret = 0;
 	struct isp_3dnr_ctx_desc *nr3_ctx = NULL;
-	struct dcam_frame_synchronizer *fsync = NULL;
+	struct nr3_me_data *nr3_me = NULL;
 
 	if (!handle || !param) {
 		pr_debug("fail to get valid input ptr\n");
@@ -752,7 +752,7 @@ static int isp3dnr_pipe_proc(void *handle, void *param, uint32_t mode)
 	}
 
 	nr3_ctx = (struct isp_3dnr_ctx_desc *)handle;
-	fsync = (struct dcam_frame_synchronizer *)param;
+	nr3_me = (struct nr3_me_data *)param;
 
 	if ((g_isp_bypass[nr3_ctx->ctx_id] >> _EISP_NR3) & 1)
 		mode = NR3_FUNC_OFF;
@@ -761,10 +761,10 @@ static int isp3dnr_pipe_proc(void *handle, void *param, uint32_t mode)
 	case MODE_3DNR_PRE:
 		nr3_ctx->type = NR3_FUNC_PRE;
 
-		if (fsync && fsync->nr3_me.valid) {
-			nr3_ctx->mv.mv_x = fsync->nr3_me.mv_x;
-			nr3_ctx->mv.mv_y = fsync->nr3_me.mv_y;
-			nr3_ctx->mvinfo = &fsync->nr3_me;
+		if (nr3_me->valid) {
+			nr3_ctx->mv.mv_x = nr3_me->mv_x;
+			nr3_ctx->mv.mv_y = nr3_me->mv_y;
+			nr3_ctx->mvinfo = nr3_me;
 			isp3dnr_conversion_mv(nr3_ctx);
 		} else {
 			pr_err("fail to get binning path mv, set default 0\n");
@@ -784,10 +784,10 @@ static int isp3dnr_pipe_proc(void *handle, void *param, uint32_t mode)
 		if (nr3_ctx->mode == MODE_3DNR_OFF)
 			return 0;
 
-		if (fsync && fsync->nr3_me.valid) {
-			nr3_ctx->mv.mv_x = fsync->nr3_me.mv_x;
-			nr3_ctx->mv.mv_y = fsync->nr3_me.mv_y;
-			nr3_ctx->mvinfo = &fsync->nr3_me;
+		if (nr3_me->valid) {
+			nr3_ctx->mv.mv_x = nr3_me->mv_x;
+			nr3_ctx->mv.mv_y = nr3_me->mv_y;
+			nr3_ctx->mvinfo = nr3_me;
 			if (nr3_ctx->mvinfo->src_width != nr3_ctx->width ||
 				nr3_ctx->mvinfo->src_height != nr3_ctx->height) {
 				isp3dnr_conversion_mv(nr3_ctx);

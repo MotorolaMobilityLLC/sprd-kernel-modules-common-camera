@@ -23,6 +23,7 @@
 #include "cam_block.h"
 #include "isp_interface.h"
 #include "isp_cfg.h"
+#include "dcam_interface.h"
 
 #define CAM_EMP_Q_LEN_INC               16
 #define CAM_EMP_Q_LEN_MAX               3072
@@ -95,13 +96,13 @@ struct camera_frame {
 	void *priv_data;
 	/* for more param extend especially in offline process */
 	void *param_data;
-	void *sync_data;/* struct dcam_frame_synchronizer */
 	timeval time;/* time without suspend @ISP DONE */
 	ktime_t boot_time;/* ns from boot @ISP DONE */
 	timeval sensor_time;/* time without suspend @SOF */
 	ktime_t boot_sensor_time;/* ns from boot @SOF */
 	struct blk_param_info blkparam_info;
 	struct camera_buf buf;
+	struct nr3_me_data nr3_me;
 };
 
 /**
@@ -127,6 +128,19 @@ struct isp_stream_ctrl {
 	uint32_t cur_cnt;
 	uint32_t max_cnt;
 	uint32_t in_fmt;
+};
+
+struct tasklet_irq_info {
+	struct list_head list;
+	uint32_t is_used;
+	uint32_t irq_status0;
+	uint32_t irq_status1;
+	/* add interrupt proc function array */
+};
+
+struct dcam_3dnrmv_ctrl {
+	struct list_head list;
+	struct nr3_me_data nr3_me;
 };
 
 struct camera_queue {
@@ -258,4 +272,8 @@ void cam_queue_empty_state_put(void *param);
 void cam_queue_empty_state_free(void *param);
 int cam_queue_recycle_blk_param(struct camera_queue *q, struct camera_frame *param_pframe);
 struct camera_frame * cam_queue_empty_blk_param_get(struct camera_queue *q);
+struct dcam_3dnrmv_ctrl *cam_queue_empty_mv_state_get(void);
+void cam_queue_empty_mv_state_put(void *param);
+void cam_queue_empty_mv_state_free(void *param);
+
 #endif/* _CAM_QUEUE_H_ */

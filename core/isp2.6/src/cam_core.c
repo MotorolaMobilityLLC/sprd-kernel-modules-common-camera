@@ -418,6 +418,7 @@ struct camera_group {
 	struct camera_queue empty_frm_q;
 	struct camera_queue empty_state_q;
 	struct camera_queue empty_interruption_q;
+	struct camera_queue empty_mv_state_q;
 	struct sprd_cam_sec_cfg camsec_cfg;
 	struct camera_debugger debugger;
 	struct cam_hw_info *hw_info;
@@ -455,6 +456,7 @@ struct cam_ioctl_cmd {
 struct camera_queue *g_empty_frm_q;
 struct camera_queue *g_empty_state_q;
 struct camera_queue *g_empty_interruption_q;
+struct camera_queue *g_empty_mv_state_q;
 struct cam_global_ctrl g_camctrl = {
 	ZOOM_BINNING2,
 	DCAM_SCALE_DOWN_MAX * 10,
@@ -1993,9 +1995,6 @@ static struct camera_frame *camcore_dual_frame_deal(struct camera_module *module
 		/* no need report to hal, do fifo */
 		pframe = camcore_dual_fifo_queue(module, pframe, channel);
 		if (pframe) {
-			if (pframe->sync_data)
-				dcam_core_dcam_if_release_sync(pframe->sync_data,
-					pframe);
 			ret = module->dcam_dev_handle->dcam_pipe_ops->cfg_path(dcam_sw_ctx, DCAM_PATH_CFG_OUTPUT_BUF, channel->dcam_path_id, pframe);
 			if (ret)
 				pr_err("fail to set output buffer\n");
@@ -2006,9 +2005,6 @@ static struct camera_frame *camcore_dual_frame_deal(struct camera_module *module
 	pftmp = module->dual_frame;
 	if (pftmp) {
 		module->dual_frame = NULL;
-		/* cur frame to out_buf_queue */
-		if (pframe->sync_data)
-			dcam_core_dcam_if_release_sync(pframe->sync_data,	pframe);
 		ret = module->dcam_dev_handle->dcam_pipe_ops->cfg_path(dcam_sw_ctx, DCAM_PATH_CFG_OUTPUT_BUF, channel->dcam_path_id, pframe);
 		spin_unlock_irqrestore(&module->grp->dual_frame_lock, flag);
 		return pftmp;
@@ -2020,10 +2016,6 @@ static struct camera_frame *camcore_dual_frame_deal(struct camera_module *module
 		pftmp = module->dual_frame;
 		if (pftmp) {
 			module->dual_frame = NULL;
-			/* cur frame to out_buf_queue */
-			if (pframe->sync_data)
-				dcam_core_dcam_if_release_sync(pframe->sync_data,
-					pframe);
 			ret = module->dcam_dev_handle->dcam_pipe_ops->cfg_path(dcam_sw_ctx, DCAM_PATH_CFG_OUTPUT_BUF, channel->dcam_path_id, pframe);
 
 			return pftmp;
@@ -2044,9 +2036,6 @@ static struct camera_frame *camcore_4in1_frame_deal(struct camera_module *module
 	struct dcam_hw_path_stop patharg;
 	struct dcam_sw_context *dcam_sw_ctx = NULL;
 
-	/* full path release sync */
-	if (pframe->sync_data)
-		dcam_core_dcam_if_release_sync(pframe->sync_data, pframe);
 	/* 1: aux dcam bin tx done, set frame to isp
 	 * 2: lowlux capture, dcam0 full path done, set frame to isp
 	 */
@@ -2371,9 +2360,6 @@ static struct camera_frame *camcore_supersize_frame_deal(struct camera_module *m
 	struct dcam_sw_context *dcam_sw_aux_ctx = NULL;
 	struct dcam_pipe_dev *dev = (struct dcam_pipe_dev *)module->aux_dcam_dev;
 
-	/* full path release sync */
-	if (pframe->sync_data)
-		dcam_core_dcam_if_release_sync(pframe->sync_data, pframe);
 	/* 1: aux dcam bin tx done, set frame to isp
 	 * 2: lowlux capture, dcam0 full path done, set frame to isp
 	 */
@@ -2864,8 +2850,6 @@ static int camcore_rawalg_proc(struct camera_module *module, struct channel_cont
 						pr_debug("cam%d cap cap_time[%lld] sof_time[%lld] fmt %d mfd %x\n",
 							module->idx, module->capture_times,
 							pframe_pre->boot_sensor_time, pframe_pre->img_fmt, pframe_pre->buf.mfd[0]);
-						if (pframe_pre->sync_data)
-							dcam_core_dcam_if_release_sync(pframe_pre->sync_data, pframe_pre);
 						ret = module->dcam_dev_handle->dcam_pipe_ops->cfg_path(dcam_sw_ctx,
 							DCAM_PATH_CFG_OUTPUT_BUF, channel->dcam_path_id, pframe_pre);
 						continue;
@@ -2899,8 +2883,6 @@ static int camcore_rawalg_proc(struct camera_module *module, struct channel_cont
 					pr_debug("cam%d cap cap_time[%lld] sof_time[%lld] fmt %d\n",
 						module->idx, module->capture_times,
 						pframe->boot_sensor_time, pframe->img_fmt);
-					if (pframe->sync_data)
-						dcam_core_dcam_if_release_sync(pframe->sync_data, pframe);
 					ret = module->dcam_dev_handle->dcam_pipe_ops->cfg_path(dcam_sw_ctx,
 						DCAM_PATH_CFG_OUTPUT_BUF,
 						channel->dcam_path_id, pframe);
@@ -3189,8 +3171,6 @@ static int camcore_dcam_callback(enum dcam_cb_type type, void *param, void *priv
 					pframe->fid, module->cap_status, module->dcam_cap_status);
 				pr_info("cap time %lld, frame time %lld\n",
 					module->capture_times, pframe->boot_sensor_time);
-				if (pframe->sync_data)
-					dcam_core_dcam_if_release_sync(pframe->sync_data, pframe);
 				if (channel->ch_uinfo.scene == DCAM_SCENE_MODE_CAPTURE
 					&& capture == 0) {
 					ret = module->dcam_dev_handle->dcam_pipe_ops->cfg_path(dcam_sw_ctx,
@@ -3250,9 +3230,6 @@ static int camcore_dcam_callback(enum dcam_cb_type type, void *param, void *priv
 
 			if ((module->flash_skip_fid == pframe->fid) && (module->flash_skip_fid != 0) && (!channel->ch_uinfo.is_high_fps)) {
 				pr_debug("flash_skip_frame fd = %d\n", pframe->fid);
-				if (pframe->sync_data)
-					dcam_core_dcam_if_release_sync(pframe->sync_data, pframe);
-
 				ret = module->dcam_dev_handle->dcam_pipe_ops->cfg_path(dcam_sw_ctx,
 					DCAM_PATH_CFG_OUTPUT_BUF,
 					channel->dcam_path_id, pframe);
@@ -3294,9 +3271,6 @@ static int camcore_dcam_callback(enum dcam_cb_type type, void *param, void *priv
 				ret = module->dcam_dev_handle->dcam_pipe_ops->cfg_path(dcam_sw_ctx,
 					DCAM_PATH_CFG_OUTPUT_BUF,
 					channel->dcam_path_id, pframe);
-				/* release sync if ISP don't need it */
-				if (pframe->sync_data)
-					dcam_core_dcam_if_release_sync(pframe->sync_data, pframe);
 			}
 		} else if (channel->ch_id == CAM_CH_CAP) {
 			if (pframe->irq_property != CAM_FRAME_COMMON) {
@@ -3315,14 +3289,6 @@ static int camcore_dcam_callback(enum dcam_cb_type type, void *param, void *priv
 			}
 			if ((module->cap_status != CAM_CAPTURE_START) &&
 				(module->cap_status != CAM_CAPTURE_RAWPROC)) {
-				/*
-				 * Release sync if we don't deliver this @pframe
-				 * to ISP.
-				 */
-				if (pframe->sync_data)
-					dcam_core_dcam_if_release_sync(pframe->sync_data,
-							     pframe);
-
 				if (module->cam_uinfo.raw_alg_type == RAW_ALG_FDR_V1 &&
 					pframe->img_fmt == IMG_PIX_FMT_GREY) {
 					pr_info("FDR capture stopped, free buf fd %d\n", pframe->buf.mfd[0]);
@@ -3402,8 +3368,6 @@ static int camcore_dcam_callback(enum dcam_cb_type type, void *param, void *priv
 			} else if (module->dcam_cap_status == DCAM_CAPTURE_START_FROM_NEXT_SOF) {
 				/* FDR catpure should wait for RAW buffer except time condition */
 				if (camcore_rawalg_judge(module->capture_scene)) {
-					if (pframe->sync_data)
-						dcam_core_dcam_if_release_sync(pframe->sync_data, pframe);
 					if ((pframe->boot_sensor_time < module->capture_times) ||
 						(pframe->img_fmt != IMG_PIX_FMT_GREY) ||
 						(atomic_read(&module->capture_frames_dcam) < 1)) {
@@ -3469,8 +3433,6 @@ static int camcore_dcam_callback(enum dcam_cb_type type, void *param, void *priv
 							struct camera_frame, list);
 						if (!pframe_pre)
 							break;
-						if (pframe_pre->sync_data)
-							dcam_core_dcam_if_release_sync(pframe_pre->sync_data, pframe_pre);
 						ret = module->dcam_dev_handle->dcam_pipe_ops->cfg_path(dcam_sw_ctx,
 							DCAM_PATH_CFG_OUTPUT_BUF,
 							channel->dcam_path_id, pframe_pre);
@@ -3482,8 +3444,6 @@ static int camcore_dcam_callback(enum dcam_cb_type type, void *param, void *priv
 						module->dcam_cap_status,
 						module->capture_times,
 						pframe->boot_sensor_time);
-					if (pframe->sync_data)
-						dcam_core_dcam_if_release_sync(pframe->sync_data, pframe);
 					ret = module->dcam_dev_handle->dcam_pipe_ops->cfg_path(dcam_sw_ctx,
 						DCAM_PATH_CFG_OUTPUT_BUF,
 						channel->dcam_path_id, pframe);
@@ -3514,8 +3474,6 @@ static int camcore_dcam_callback(enum dcam_cb_type type, void *param, void *priv
 						pr_info("cam%d cap type[%d], fid %d, frame width %d, channal width src %d, cap frame %d, scene %d, zoom_q cnt %d\n",
 							module->idx, module->dcam_cap_status, pframe->fid, pframe->width, channel->ch_uinfo.src_crop.w, cap_frame,
 							module->capture_scene,channel->zoom_coeff_queue.cnt);
-						if (pframe->sync_data)
-							dcam_core_dcam_if_release_sync(pframe->sync_data, pframe);
 						ret = module->dcam_dev_handle->dcam_pipe_ops->cfg_path(dcam_sw_ctx,
 							DCAM_PATH_CFG_OUTPUT_BUF,
 							channel->dcam_path_id, pframe);
@@ -3533,8 +3491,6 @@ static int camcore_dcam_callback(enum dcam_cb_type type, void *param, void *priv
 				ret = cam_queue_enqueue(&channel->share_buf_queue, &pframe->list);
 			if (ret) {
 				pr_warn("warning: capture queue overflow\n");
-				if (pframe->sync_data)
-					dcam_core_dcam_if_release_sync(pframe->sync_data, pframe);
 				ret = module->dcam_dev_handle->dcam_pipe_ops->cfg_path(dcam_sw_ctx,
 						DCAM_PATH_CFG_OUTPUT_BUF,
 						channel->dcam_path_id, pframe);
@@ -3543,8 +3499,6 @@ static int camcore_dcam_callback(enum dcam_cb_type type, void *param, void *priv
 					(module->cap_status != CAM_CAPTURE_RAWPROC) && channel->zsl_buffer_num) {
 					pframe = cam_queue_dequeue(&channel->share_buf_queue,
 						struct camera_frame, list);
-					if (pframe->sync_data)
-						dcam_core_dcam_if_release_sync(pframe->sync_data, pframe);
 					ret = module->dcam_dev_handle->dcam_pipe_ops->cfg_path(
 							dcam_sw_ctx, DCAM_PATH_CFG_OUTPUT_BUF,
 							channel->dcam_path_id, pframe);
@@ -7457,8 +7411,6 @@ static int camcore_csi_switch_disconnect(struct camera_module *module, uint32_t 
 				if (path->path_id == DCAM_PATH_FULL)
 					cam_buf_iommu_unmap(&frame->buf);
 			}
-			if (frame->sync_data)
-				dcam_core_dcam_if_release_sync(frame->sync_data, frame);
 
 			frame = cam_queue_dequeue(&path->result_queue, struct camera_frame, list);
 		}
@@ -7667,8 +7619,6 @@ static int camcore_capture_proc(void *param)
 			pr_debug("cam%d cap skip frame type[%d] cap_time[%lld] sof_time[%lld]\n",
 				module->idx, module->dcam_cap_status,
 				module->capture_times, pframe->boot_sensor_time);
-			if (pframe->sync_data)
-				dcam_core_dcam_if_release_sync(pframe->sync_data, pframe);
 			ret = module->dcam_dev_handle->dcam_pipe_ops->cfg_path(
 				dcam_sw_ctx, DCAM_PATH_CFG_OUTPUT_BUF,
 				channel->dcam_path_id, pframe);
@@ -7692,8 +7642,6 @@ static int camcore_capture_proc(void *param)
 			atomic_inc(&module->capture_frames_dcam);
 			return 0;
 		}
-		if (pframe->sync_data)
-			dcam_core_dcam_if_release_sync(pframe->sync_data, pframe);
 		if (module->cam_uinfo.dcam_slice_mode && pframe->dcam_idx == DCAM_ID_1)
 			ret = module->dcam_dev_handle->dcam_pipe_ops->cfg_path(dcam_sw_aux_ctx,
 				DCAM_PATH_CFG_OUTPUT_BUF,
@@ -8570,6 +8518,9 @@ static int camcore_open(struct inode *node, struct file *file)
 			cam_queue_empty_interrupt_free);
 		cam_queue_init(&grp->mul_share_buf_q,
 			CAM_SHARED_BUF_NUM, camcore_k_frame_put);
+		g_empty_mv_state_q = &grp->empty_mv_state_q;
+		cam_queue_init(g_empty_mv_state_q, CAM_EMP_STATE_LEN_MAX, cam_queue_empty_mv_state_free);
+
 		spin_unlock_irqrestore(&grp->module_lock, flag);
 		/* create recovery thread */
 		if (grp->hw_info->ip_dcam[DCAM_ID_0]->recovery_support) {
@@ -8579,7 +8530,7 @@ static int camcore_open(struct inode *node, struct file *file)
 			if (ret)
 				pr_warn("warning: creat recovery thread fail\n");
 		}
-		pr_info("init frm_q %px state_q %px\n", g_empty_frm_q, g_empty_state_q);
+		pr_info("init frm_q %px state_q %px mv_state_q %px\n", g_empty_frm_q, g_empty_state_q, g_empty_mv_state_q);
 	}
 
 	module->idx = idx;
@@ -8731,6 +8682,8 @@ static int camcore_release(struct inode *node, struct file *file)
 		g_empty_state_q = NULL;
 		cam_queue_clear(g_empty_interruption_q, struct camera_interrupt, list);
 		g_empty_interruption_q = NULL;
+		cam_queue_clear(g_empty_mv_state_q, struct dcam_3dnrmv_ctrl, list);
+		g_empty_mv_state_q = NULL;
 
 		ret = cam_buf_mdbg_check();
 		atomic_set(&group->runner_nr, 0);

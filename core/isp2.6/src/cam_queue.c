@@ -549,3 +549,80 @@ struct camera_frame * cam_queue_empty_blk_param_get(struct camera_queue *q)
 	}
 	return param_frame;
 }
+
+struct dcam_3dnrmv_ctrl *cam_queue_empty_mv_state_get(void)
+{
+	int ret = 0;
+	uint32_t i;
+	struct camera_queue *q = g_empty_mv_state_q;
+	struct dcam_3dnrmv_ctrl *mv_state = NULL;
+
+	pr_debug("Enter.\n");
+	do {
+		mv_state = cam_queue_dequeue(q, struct dcam_3dnrmv_ctrl, list);
+		if (mv_state == NULL) {
+			if (in_interrupt()) {
+				/* fast alloc and return for irq handler */
+				mv_state = kzalloc(sizeof(*mv_state), GFP_ATOMIC);
+				if (mv_state)
+					atomic_inc(&g_mem_dbg->empty_mv_state_cnt);
+				else
+					pr_err("fail to alloc memory\n");
+				return mv_state;
+			}
+
+			for (i = 0; i < CAM_EMP_Q_LEN_INC; i++) {
+				mv_state = kzalloc(sizeof(*mv_state), GFP_KERNEL);
+				if (mv_state == NULL) {
+					pr_err("fail to alloc memory, retry\n");
+					continue;
+				}
+				atomic_inc(&g_mem_dbg->empty_mv_state_cnt);
+				pr_debug("alloc frame %p\n", mv_state);
+				ret = cam_queue_enqueue(q, &mv_state->list);
+				if (ret) {
+					/* q full, return pframe directly here */
+					break;
+				}
+				mv_state = NULL;
+			}
+			pr_debug("alloc %d empty states, cnt %d\n",
+				i, atomic_read(&g_mem_dbg->empty_mv_state_cnt));
+		}
+	} while (mv_state == NULL);
+
+	pr_debug("Done. get state %p\n", mv_state);
+	return mv_state;
+}
+
+void cam_queue_empty_mv_state_put(void *param)
+{
+	int ret = 0;
+	struct dcam_3dnrmv_ctrl *mv_state = NULL;
+
+	if (param == NULL) {
+		pr_err("fail to get valid param\n");
+		return;
+	}
+	mv_state = (struct dcam_3dnrmv_ctrl *)param;
+	pr_debug("put state %p\n", mv_state);
+
+	memset(mv_state, 0, sizeof(struct dcam_3dnrmv_ctrl));
+	ret = cam_queue_enqueue(g_empty_mv_state_q, &mv_state->list);
+	if (ret) {
+		pr_debug("queue should be enlarged\n");
+		atomic_dec(&g_mem_dbg->empty_mv_state_cnt);
+		kfree(mv_state);
+	}
+}
+
+void cam_queue_empty_mv_state_free(void *param)
+{
+	struct dcam_3dnrmv_ctrl *mv_state = NULL;
+
+	mv_state = (struct dcam_3dnrmv_ctrl *)param;
+	atomic_dec(&g_mem_dbg->empty_mv_state_cnt);
+	pr_debug("free state %p, cnt %d\n", mv_state,
+		atomic_read(&g_mem_dbg->empty_mv_state_cnt));
+	kfree(mv_state);
+}

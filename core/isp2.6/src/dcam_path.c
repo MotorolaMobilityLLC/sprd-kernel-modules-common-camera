@@ -548,8 +548,6 @@ dcam_path_frame_cycle(struct dcam_sw_context *dcam_sw_ctx, struct dcam_path_desc
 	}
 
 	frame->fid = dcam_sw_ctx->base_fid + dcam_sw_ctx->index_to_set;
-	frame->sync_data = NULL;
-
 	return frame;
 }
 
@@ -836,7 +834,7 @@ void dcampath_update_addr_and_size(struct dcam_sw_context *ctx, struct dcam_path
 			dcampath_update_pyr_dec_addr(ctx, path, frame, idx);
 	}
 
-	if (!frame->is_reserved || path_id == DCAM_PATH_FULL || path_id == DCAM_PATH_RAW || slw != NULL) {
+	if (!frame->is_reserved || path_id == DCAM_PATH_FULL || path_id == DCAM_PATH_RAW || slw != NULL || (path_id == DCAM_PATH_3DNR)) {
 		if ((path_id == DCAM_PATH_FULL) || (path_id == DCAM_PATH_BIN) ||
 			(path_id == DCAM_PATH_3DNR) || (path_id == DCAM_PATH_RAW)) {
 			if ((path_id == DCAM_PATH_BIN) && (frame->need_pyr_rec))
@@ -1090,16 +1088,14 @@ void dcampath_check_path_status(struct dcam_sw_context *dcam_sw_ctx, struct dcam
 	}
 }
 
-int dcam_path_store_frm_set(void *dcam_ctx_handle,
-		struct dcam_path_desc *path,
-		struct dcam_sync_helper *helper)
+int dcam_path_store_frm_set(void *dcam_ctx_handle, struct dcam_path_desc *path)
 {
 	struct dcam_sw_context *dcam_sw_ctx = (struct dcam_sw_context *)dcam_ctx_handle;
 	struct dcam_dev_param *blk_dcam_pm;
 	struct cam_hw_info *hw = NULL;
 	struct camera_frame *frame = NULL, *saved = NULL;
 	uint32_t idx = 0, path_id = 0;
-	unsigned long addr = 0, ppe_addr = 0, flags = 0;
+	unsigned long addr = 0, ppe_addr = 0;
 	const int _bin = 0, _aem = 1, _hist = 2;
 	int i = 0, ret = 0;
 	uint32_t slm_path = 0;
@@ -1178,17 +1174,6 @@ int dcam_path_store_frm_set(void *dcam_ctx_handle,
 	pr_debug("DCAM%u %s, fid %u, count %d, path->out_size.w %d, is_reserver %d, channel_id %d, reg %08x, addr %08x\n",
 		idx, dcam_path_name_get(path_id), frame->fid, atomic_read(&path->set_frm_cnt), path->out_size.w,
 		frame->is_reserved, frame->channel_id, (uint32_t)addr, (uint32_t)frame->buf.iova[0]);
-
-	/* bind frame sync data if it is not reserved buffer and not raw */
-	if (helper && !frame->is_reserved && is_sync_enabled(dcam_sw_ctx, path_id)
-		&& !(path_id == DCAM_PATH_FULL && path->src_sel == 0)) {
-		spin_lock_irqsave(&dcam_sw_ctx->helper_lock, flags);
-		helper->enabled |= BIT(path_id);
-		helper->helper_put_enable = 1;
-		helper->sync.frames[path_id] = frame;
-		frame->sync_data = &helper->sync;
-		spin_unlock_irqrestore(&dcam_sw_ctx->helper_lock, flags);
-	}
 
 	path->reg_addr = addr;
 

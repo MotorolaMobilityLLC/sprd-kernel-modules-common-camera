@@ -26,6 +26,10 @@
 
 #define DCAM_IN_Q_LEN                     12
 #define DCAM_PROC_Q_LEN                   12
+#define DCAM_IRQ_Q_LEN                    256
+#define DCAM_FULL_MV_Q_LEN                12
+#define DCAM_BIN_MV_Q_LEN                 12
+#define DCAM_MIDDLE_Q_LEN                 50
 
 /* TODO: extend these for slow motion dev */
 #define DCAM_RESULT_Q_LEN                 50
@@ -38,8 +42,6 @@
 #define DCAM_OFFLINE_TIMEOUT              msecs_to_jiffies(2000)
 #define DCAM_OFFLINE_SLC_MAX              3
 
-// TODO: how many helpers there should be?
-#define DCAM_SYNC_HELPER_COUNT            20
 /* get index of timestamp from frame index */
 #define tsid(x)                           ((x) & (DCAM_FRAME_TIMESTAMP_COUNT - 1))
 #define DCAM_FETCH_TWICE(p)               (p->raw_fetch_num > 1)
@@ -158,6 +160,7 @@ struct dcam_path_desc {
 	struct camera_queue alter_out_queue;
 	struct camera_queue result_queue;
 	struct dcam_rds_slice_ctrl gphase;
+	struct camera_queue middle_queue;
 	struct yuv_scaler_info scaler_info;
 	struct dcam_hw_dec_store_cfg dec_store_info;
 };
@@ -178,26 +181,6 @@ enum dcam_state {
 	STATE_IDLE = 1,
 	STATE_RUNNING = 2,
 	STATE_ERROR = 3,
-};
-
-/*
- * Wrapper for dcam_frame_synchronizer. This helper uses kernel list to maintain
- * frame synchronizer data. Any operation on list should be protected by
- * helper_lock.
- *
- * @list:    support list operation
- * @sync:    underlaying synchronizer data
- * @enabled: enabled path for this exact frame, when it becomes zero, we should
- *           recycle this sync data
- * @dev:     pointer to the dcam_pipe_dev
- * @helper_put_enable:     when helper_put_enable become zero,we should not recycle this sync data:bug1755867
- */
-struct dcam_sync_helper {
-	struct list_head list;
-	struct dcam_frame_synchronizer sync;
-	uint32_t enabled;
-	void *dev;
-	uint32_t helper_put_enable;
 };
 
 /* for multi dcam context (offline) */
@@ -266,10 +249,6 @@ struct dcam_sw_context {
 	ktime_t frame_ts_boot[DCAM_FRAME_TIMESTAMP_COUNT];
 	uint32_t slowmotion_count;
 	enum dcam_slowmotion_type slw_type;
-	uint32_t helper_enabled;
-	spinlock_t helper_lock;
-	struct list_head helper_list;
-	struct dcam_sync_helper helpers[DCAM_SYNC_HELPER_COUNT];
 	spinlock_t glb_reg_lock;
 	bool dcamsec_eb;
 	uint32_t err_status;/* TODO: change to use state */
@@ -325,7 +304,9 @@ struct dcam_sw_context {
 	void *buf_cb_data;
 	atomic_t shadow_done_cnt;
 	atomic_t shadow_config_cnt;
-
+	struct nr3_me_data nr3_me;
+	struct camera_queue fullpath_mv_queue;
+	struct camera_queue binpath_mv_queue;
 	struct cam_thread_info dcam_interruption_proc_thrd;
 	struct camera_queue interruption_sts_queue;
 };
@@ -377,24 +358,6 @@ static inline uint32_t cal_sprd_yuv_pitch(uint32_t w, uint32_t dcam_out_bits, ui
 
 	return w;
 }
-
-/*
- * Test if frame sync is enabled for path @path_id.
- */
-#define is_sync_enabled(dev, path_id) (dev->helper_enabled & BIT(path_id))
-/*
- * Get an empty dcam_sync_helper. Returns NULL if no empty helper remains.
- */
-struct dcam_sync_helper *dcam_core_sync_helper_get(void *dev);
-/*
- * Put an empty dcam_sync_helper.
- *
- * In CAP_SOF, when the requested empty dcam_sync_helper finally not being used,
- * it should be returned to circle. This only happens when no buffer is
- * available and all paths are using reserved memory.
- */
-void dcam_core_sync_helper_put(void *dev,
-			struct dcam_sync_helper *helper);
 
 int dcam_core_context_bind(struct dcam_sw_context *pctx, enum dcam_bind_mode mode, uint32_t dcam_idx);
 int dcam_core_context_unbind(struct dcam_sw_context *pctx);

@@ -232,7 +232,7 @@ int dcam_offline_param_set(struct cam_hw_info *hw, struct dcam_sw_context *pctx)
 		if (atomic_read(&path->user_cnt) < 1 || atomic_read(&path->is_shutoff) > 0)
 			continue;
 		path->size_update = 1;
-		ret = dcam_path_store_frm_set(pctx, path, NULL); /* TODO: */
+		ret = dcam_path_store_frm_set(pctx, path); /* TODO: */
 		if (ret == 0) {
 			/* interrupt need > 1 */
 			atomic_set(&path->set_frm_cnt, 1);

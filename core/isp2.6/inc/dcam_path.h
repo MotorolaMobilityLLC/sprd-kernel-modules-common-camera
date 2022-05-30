@@ -32,9 +32,6 @@ int dcam_path_skip_num_set(void *dcam_ctx_handle,
 				int path_id, uint32_t skip_num);
 
 /* / TODO: refine this*/
-int dcam_path_store_frm_set(
-			void *dcam_ctx_handle,
-			struct dcam_path_desc *path,
-			struct dcam_sync_helper *helper);
+int dcam_path_store_frm_set(void *dcam_ctx_handle, struct dcam_path_desc *path);
 int dcam_path_fmcu_slw_queue_set(struct dcam_sw_context *sw_ctx);
 #endif

@@ -485,7 +485,7 @@ static int dcamcore_statis_bufferq_init(struct dcam_sw_context *pctx)
 
 		for (j = 0; j < STATIS_BUF_NUM_MAX; j++) {
 			ion_buf = &pctx->statis_buf_array[stats_type][j];
-			if (ion_buf->mfd[0] <= 0)
+			if (ion_buf->mfd[0] <= 0 || stats_type == STATIS_3DNR)
 				continue;
 
 			ret = cam_buf_ionbuf_get(ion_buf);
@@ -589,7 +589,7 @@ static int dcamcore_statis_buffer_unmap(struct dcam_sw_context *pctx)
 		for (j = 0; j < STATIS_BUF_NUM_MAX; j++) {
 			ion_buf = &pctx->statis_buf_array[stats_type][j];
 			mfd = ion_buf->mfd[0];
-			if (mfd <= 0)
+			if (mfd <= 0 || stats_type == STATIS_3DNR)
 				continue;
 
 			pr_debug("stats %d,  j %d,  mfd %d, offset %d\n",
@@ -635,7 +635,7 @@ static int dcamcore_statis_buffer_cfg(
 		for (i = 0; i < ARRAY_SIZE(s_statis_path_info_all); i++) {
 			path_id = s_statis_path_info_all[i].path_id;
 			stats_type = s_statis_path_info_all[i].buf_type;
-			if (!stats_type)
+			if (!stats_type || stats_type == STATIS_3DNR)
 				continue;
 			path = &pctx->path[path_id];
 			if (((path_id == DCAM_PATH_VCH2) && path->src_sel) ||
@@ -935,7 +935,7 @@ int dcam_core_offline_slices_sw_start(void *param)
 		path = &sw_pctx->path[i];
 		if (atomic_read(&path->user_cnt) < 1 || atomic_read(&path->is_shutoff) > 0)
 			continue;
-		ret = dcam_path_store_frm_set(sw_pctx, path, NULL); /* TODO: */
+		ret = dcam_path_store_frm_set(sw_pctx, path); /* TODO: */
 		if (ret == 0) {
 			/* interrupt need > 1 */
 			atomic_set(&path->set_frm_cnt, 1);
@@ -1019,199 +1019,6 @@ map_err:
 	sw_pctx->slice_count = 0;
 	sw_pctx->dcam_cb_func(DCAM_CB_RET_SRC_BUF, pframe, sw_pctx->cb_priv_data);
 	return ret;
-}
-
-/*
- * Helper function to initialize dcam_sync_helper.
- */
-static inline void dcamcore_sync_helper_locked_init(struct dcam_sw_context *pctx,
-			struct dcam_sync_helper *helper)
-{
-	memset(&helper->sync, 0, sizeof(struct dcam_frame_synchronizer));
-	helper->enabled = 0;
-	helper->dev = pctx;
-	helper->helper_put_enable = 0;
-}
-
-/*
- * Initialize frame synchronizer helper.
- */
-static inline int dcamcore_sync_helper_init(struct dcam_sw_context *pctx)
-{
-	unsigned long flags = 0;
-	int i = 0;
-
-	INIT_LIST_HEAD(&pctx->helper_list);
-
-	spin_lock_irqsave(&pctx->helper_lock, flags);
-
-	for (i = 0; i < DCAM_SYNC_HELPER_COUNT; i++) {
-		dcamcore_sync_helper_locked_init(pctx, &pctx->helpers[i]);
-		list_add_tail(&pctx->helpers[i].list, &pctx->helper_list);
-	}
-	spin_unlock_irqrestore(&pctx->helper_lock, flags);
-
-	return 0;
-}
-
-/*
- * Helper function to put dcam_sync_helper.
- */
-static inline void dcamcore_sync_helper_locked_put(struct dcam_sw_context *pctx,
-			struct dcam_sync_helper *helper)
-{
-	dcamcore_sync_helper_locked_init(pctx, helper);
-	list_add_tail(&helper->list, &pctx->helper_list);
-}
-
-/*
- * Enables/Disables frame sync for path_id. Should be called before streaming.
- */
-int dcam_core_dcam_if_sync_enable_set(void *handle, int path_id, int enable)
-{
-	struct dcam_sw_context *pctx = NULL;
-	int ret = 0;
-
-	if (unlikely(!handle)) {
-		pr_err("fail to get valid param.\n");
-		return -EINVAL;
-	}
-	pctx = (struct dcam_sw_context *)handle;
-
-	if (unlikely(!is_path_id(path_id))) {
-		pr_err("fail to get valid param path_id: %d\n", path_id);
-		return -EINVAL;
-	}
-
-	ret = atomic_read(&pctx->state);
-	if (unlikely(ret != STATE_INIT && ret != STATE_IDLE)) {
-		pr_err("fail to get a valid ret, DCAM%u frame sync in %d state\n",
-			pctx->hw_ctx_id, ret);
-		return -EINVAL;
-	}
-
-	if (enable)
-		pctx->helper_enabled |= BIT(path_id);
-	else
-		pctx->helper_enabled &= ~BIT(path_id);
-
-	pr_info("DCAM%u %s %s frame sync\n", pctx->hw_ctx_id,
-		dcam_path_name_get(path_id), enable ? "enable" : "disable");
-
-	return 0;
-}
-
-/*
- * Release frame sync reference for @frame thus dcam_frame_synchronizer data
- * can be recycled for next use.
- */
-int dcam_core_dcam_if_release_sync(struct dcam_frame_synchronizer *sync,
-		struct camera_frame *frame)
-{
-	struct dcam_sync_helper *helper = NULL;
-	struct dcam_sw_context *pctx = NULL;
-	unsigned long flags = 0;
-	int ret = 0, path_id = 0;
-	bool ignore = false;
-
-	if (unlikely(!sync || !frame)) {
-		pr_err("fail to get valid param. sync=%p, frame=%p\n", sync, frame);
-		return -EINVAL;
-	}
-
-	helper = container_of(sync, struct dcam_sync_helper, sync);
-	pctx = (struct dcam_sw_context *)helper->dev;
-	spin_lock_irqsave(&pctx->helper_lock, flags);
-	helper->helper_put_enable = 0;
-
-	for (path_id = 0; path_id < DCAM_PATH_MAX; path_id++) {
-		if (frame == sync->frames[path_id])
-			break;
-	}
-
-	if (unlikely(!is_path_id(path_id))) {
-		pr_err("fail to get a valid path_id, DCAM%u can't find path id, fid %u, sync %u\n",
-			pctx->hw_ctx_id, frame->fid, sync->index);
-		return -EINVAL;
-	}
-
-	/* unbind each other */
-	frame->sync_data = NULL;
-	sync->frames[path_id] = NULL;
-
-	pr_debug("DCAM%u %s release sync, id %u, data 0x%p\n",
-		pctx->hw_ctx_id, dcam_path_name_get(path_id), sync->index, sync);
-
-	if (unlikely(!helper->enabled)) {
-		ignore = true;
-		goto exit;
-	}
-	helper->enabled &= ~BIT(path_id);
-	if (!helper->enabled)
-		dcamcore_sync_helper_locked_put(pctx, helper);
-
-exit:
-	spin_unlock_irqrestore(&pctx->helper_lock, flags);
-
-	if (ignore)
-		pr_warn("warning: ignore not enabled sync helper\n");
-
-	return ret;
-}
-
-/*
- * Get an empty dcam_sync_helper. Returns NULL if no empty helper remains.
- */
-struct dcam_sync_helper *dcam_core_sync_helper_get(void *dev)
-{
-	struct dcam_sync_helper *helper = NULL;
-	unsigned long flags = 0;
-	bool running_low = false;
-
-	struct dcam_sw_context *pctx = (struct dcam_sw_context *)dev;
-	if (unlikely(!pctx)) {
-		pr_err("fail to get valid param.\n");
-		return NULL;
-	}
-
-	spin_lock_irqsave(&pctx->helper_lock, flags);
-	if (unlikely(list_empty(&pctx->helper_list))) {
-		running_low = true;
-		goto exit;
-	}
-
-	helper = list_first_entry(&pctx->helper_list,
-			struct dcam_sync_helper, list);
-	list_del_init(&helper->list);
-
-exit:
-	spin_unlock_irqrestore(&pctx->helper_lock, flags);
-
-	if (running_low)
-		pr_warn_ratelimited("warning: DCAM%u helper is running low...\n", pctx->hw_ctx_id);
-
-	return helper;
-}
-
-/*
- * Put an empty dcam_sync_helper.
- *
- * In CAP_SOF, when the requested empty dcam_sync_helper finally not being used,
- * it should be returned to FIFO. This only happens when no buffer is
- * available and all paths are using reserved memory.
- *
- * This is also an code defect in CAP_SOF that should be changed later...
- */
-void dcam_core_sync_helper_put(void *dev,
-		struct dcam_sync_helper *helper)
-{
-	struct dcam_sw_context *pctx = (struct dcam_sw_context *)dev;
-
-	if (unlikely(!pctx)) {
-		pr_err("fail to get valid param.\n");
-		return;
-	}
-	dcamcore_sync_helper_locked_put(pctx, helper);
 }
 
 static int dcamcore_gtm_ltm_bypass_cfg(struct dcam_sw_context *sw_pctx, struct isp_io_param *io_param)
@@ -1433,6 +1240,8 @@ static int dcamcore_path_get(void *dcam_handle, int path_id)
 		dcamcore_out_frame_ret);
 	cam_queue_init(&path->reserved_buf_queue, DCAM_RESERVE_BUF_Q_LEN,
 		dcamcore_reserved_buf_destroy);
+	cam_queue_init(&path->middle_queue, DCAM_MIDDLE_Q_LEN,
+		dcamcore_out_frame_ret);
 
 	return 0;
 }
@@ -1475,6 +1284,7 @@ static int dcamcore_path_put(void *dcam_handle, int path_id)
 	cam_queue_clear(&path->out_buf_queue, struct camera_frame, list);
 	cam_queue_clear(&path->alter_out_queue, struct camera_frame, list);
 	cam_queue_clear(&path->reserved_buf_queue, struct camera_frame, list);
+	cam_queue_clear(&path->middle_queue, struct camera_frame, list);
 
 	pr_info("put dcam%d path %d done\n", pctx->hw_ctx_id, path_id);
 	return ret;
@@ -1972,7 +1782,6 @@ static int dcamcore_dev_start(void *dcam_handle, int online)
 	int i = 0;
 	struct dcam_sw_context *pctx = NULL;
 	struct dcam_dev_param *pm = NULL;
-	struct dcam_sync_helper *helper = NULL;
 	struct dcam_path_desc *path = NULL;
 	struct cam_hw_info *hw = NULL;
 	struct cam_hw_reg_trace trace;
@@ -2019,13 +1828,6 @@ static int dcamcore_dev_start(void *dcam_handle, int online)
 	}
 
 	pr_info("DCAM%u start: %px, state = %d, sw%d\n", pctx->hw_ctx_id, pctx, atomic_read(&pctx->state), pctx->sw_ctx_id);
-
-	ret = dcamcore_sync_helper_init(pctx);
-	if (ret < 0) {
-		pr_err("fail to init DCAM%u sync helper, ret: %d\n",
-			pctx->hw_ctx_id, ret);
-		return ret;
-	}
 
 	if (pctx->raw_callback) {
 		atomic_set(&pctx->path[DCAM_PATH_AEM].user_cnt, 0);
@@ -2078,16 +1880,6 @@ static int dcamcore_dev_start(void *dcam_handle, int online)
 	memset(pctx->frame_ts_boot, 0,
 		sizeof(pctx->frame_ts_boot[0]) * DCAM_FRAME_TIMESTAMP_COUNT);
 
-	pctx->helper_enabled = 0;
-	if (!pctx->slowmotion_count) {
-		/* enable frame sync for 3DNR in normal mode */
-		dcam_core_dcam_if_sync_enable_set(pctx, DCAM_PATH_FULL, 1);
-		dcam_core_dcam_if_sync_enable_set(pctx, DCAM_PATH_BIN, 1);
-		dcam_core_dcam_if_sync_enable_set(pctx, DCAM_PATH_3DNR, 1);
-
-		helper = dcam_core_sync_helper_get(pctx);
-	}
-
 	caparg.idx = pctx->hw_ctx_id;
 	caparg.cap_info = pctx->cap_info;
 	caparg.slowmotion_count = pctx->slowmotion_count;
@@ -2136,7 +1928,7 @@ static int dcamcore_dev_start(void *dcam_handle, int online)
 
 		/* online ctx use fmcu means slowmotion */
 		if (pctx->slw_type != DCAM_SLW_FMCU)
-			ret = dcam_path_store_frm_set(pctx, path, helper);
+			ret = dcam_path_store_frm_set(pctx, path);
 		if (ret < 0) {
 			pr_err("fail to set frame for DCAM%u %s , ret %d\n",
 				pctx->hw_ctx_id, dcam_path_name_get(path->path_id), ret);
@@ -2161,13 +1953,6 @@ static int dcamcore_dev_start(void *dcam_handle, int online)
 
 	if (pctx->slw_type == DCAM_SLW_FMCU)
 		ret = dcam_path_fmcu_slw_queue_set(pctx);
-
-	if (helper) {
-		if (helper->enabled)
-			helper->sync.index = pctx->base_fid + pctx->index_to_set;
-		else
-			dcam_core_sync_helper_put(pctx, helper);
-	}
 
 	/* TODO: change AFL trigger */
 	atomic_set(&pctx->path[DCAM_PATH_AFL].user_cnt, 0);
@@ -2574,6 +2359,11 @@ static int dcamcore_context_get(void *dcam_handle)
 		dcamcore_src_frame_ret);
 	cam_queue_init(&pctx->interruption_sts_queue, DCAM_INT_PROC_FRM_NUM,
 		dcamcore_empty_interrupt_put);
+	cam_queue_init(&pctx->fullpath_mv_queue, DCAM_FULL_MV_Q_LEN,
+		cam_queue_empty_mv_state_put);
+	cam_queue_init(&pctx->binpath_mv_queue, DCAM_BIN_MV_Q_LEN,
+		cam_queue_empty_mv_state_put);
+	memset(&pctx->nr3_me, 0, sizeof(struct nr3_me_data));
 
 	atomic_set(&pctx->state, STATE_IDLE);
 	spin_lock_init(&pctx->glb_reg_lock);
@@ -2616,6 +2406,9 @@ static int dcamcore_context_put(void *dcam_handle, int ctx_id)
 		cam_queue_clear(&pctx->proc_queue, struct camera_frame, list);
 		dcamcore_thread_stop(&pctx->dcam_interruption_proc_thrd);
 		cam_queue_clear(&pctx->interruption_sts_queue, struct camera_interrupt, list);
+		cam_queue_clear(&pctx->fullpath_mv_queue, struct camera_frame, list);
+		cam_queue_clear(&pctx->binpath_mv_queue, struct camera_frame, list);
+		memset(&pctx->nr3_me, 0, sizeof(struct nr3_me_data));
 		pctx->dcam_cb_func = NULL;
 		pctx->buf_get_cb = NULL;
 

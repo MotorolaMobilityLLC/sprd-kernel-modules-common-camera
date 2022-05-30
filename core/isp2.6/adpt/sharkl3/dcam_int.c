@@ -21,6 +21,8 @@
 #include "dcam_reg.h"
 #include "dcam_int.h"
 #include "dcam_path.h"
+#include "cam_queue.h"
+#include "cam_types.h"
 
 /* Macro Definitions */
 #ifdef pr_fmt
@@ -83,7 +85,6 @@ static struct camera_frame *dcamint_frame_prepare(struct dcam_hw_context *dcam_h
 {
 	struct dcam_path_desc *path = NULL;
 	struct camera_frame *frame = NULL;
-	struct dcam_frame_synchronizer *sync = NULL;
 	timespec *ts = NULL;
 	uint32_t dev_fid;
 	if (unlikely(!dcam_hw_ctx || !is_path_id(path_id)) || !sw_ctx)
@@ -114,10 +115,11 @@ static struct camera_frame *dcamint_frame_prepare(struct dcam_hw_context *dcam_h
 
 	atomic_dec(&path->set_frm_cnt);
 	if (unlikely(frame->is_reserved)) {
-		pr_warn("warning: DCAM%u %s use reserved buffer, out %u, result %u, fid %d\n",
-			dcam_hw_ctx->hw_ctx_id, dcam_path_name_get(path_id),
-			cam_queue_cnt_get(&path->out_buf_queue),
-			cam_queue_cnt_get(&path->result_queue), frame->fid);
+		if (path_id != DCAM_PATH_3DNR)
+			pr_warn("warning: DCAM%u %s use reserved buffer, out %u, result %u, fid %d\n",
+				dcam_hw_ctx->hw_ctx_id, dcam_path_name_get(path_id),
+				cam_queue_cnt_get(&path->out_buf_queue),
+				cam_queue_cnt_get(&path->result_queue), frame->fid);
 		cam_queue_enqueue(&path->reserved_buf_queue, &frame->list);
 		return NULL;
 	}
@@ -129,15 +131,8 @@ static struct camera_frame *dcamint_frame_prepare(struct dcam_hw_context *dcam_h
 	frame->sensor_time.tv_usec = ts->tv_nsec / NSEC_PER_USEC;
 	frame->boot_sensor_time = sw_ctx->frame_ts_boot[tsid(dev_fid)];
 
-	if (frame->sync_data) {
-		sync = (struct dcam_frame_synchronizer *)frame->sync_data;
-		sync->valid |= BIT(path_id);
-		pr_debug("DCAM%u %s sync ready, id %u, sync 0x%p\n", dcam_hw_ctx->hw_ctx_id,
-			dcam_path_name_get(path_id), sync->index, sync);
-	}
-
-	pr_debug("DCAM%u %s: TX DONE, fid %u, sync 0x%p\n",
-		 dcam_hw_ctx->hw_ctx_id, dcam_path_name_get(path_id), frame->fid, frame->sync_data);
+	pr_debug("DCAM%u %s: TX DONE, fid %u\n",
+		 dcam_hw_ctx->hw_ctx_id, dcam_path_name_get(path_id), frame->fid);
 
 	if (!sw_ctx->rps && !frame->boot_sensor_time) {
 		pr_info("DCAM%u %s fid %u invalid 0 timestamp\n",
@@ -146,8 +141,6 @@ static struct camera_frame *dcamint_frame_prepare(struct dcam_hw_context *dcam_h
 			cam_queue_enqueue(&path->reserved_buf_queue, &frame->list);
 		else
 			cam_queue_enqueue(&path->out_buf_queue, &frame->list);
-		if (frame->sync_data)
-			dcam_core_dcam_if_release_sync(frame->sync_data, frame);
 		frame = NULL;
 	}
 
@@ -163,6 +156,7 @@ static void dcamint_frame_dispatch(struct dcam_hw_context *dcam_hw_ctx, struct d
 				enum dcam_cb_type type)
 {
 	timespec cur_ts;
+
 	if (unlikely(!dcam_hw_ctx || !frame || !is_path_id(path_id) || !sw_ctx))
 		return;
 	ktime_get_ts(&cur_ts);
@@ -481,7 +475,6 @@ static void dcamint_cap_sof(void *param, struct dcam_sw_context *sw_ctx)
 	struct dcam_hw_context *dcam_hw_ctx = (struct dcam_hw_context *)param;
 	struct cam_hw_info *hw = NULL;
 	struct dcam_path_desc *path = NULL;
-	struct dcam_sync_helper *helper = NULL;
 	struct dcam_hw_path_ctrl path_ctrl;
 	enum dcam_fix_result fix_result;
 	struct dcam_hw_auto_copy copyarg;
@@ -520,10 +513,6 @@ static void dcamint_cap_sof(void *param, struct dcam_sw_context *sw_ctx)
 
 		sw_ctx->index_to_set = sw_ctx->frame_index + sw_ctx->slowmotion_count;
 	}
-
-	/* don't need frame sync in slow motion */
-	if (!sw_ctx->slowmotion_count)
-		helper = dcam_core_sync_helper_get(sw_ctx);
 
 	for (i = 0; i < DCAM_PATH_MAX; i++) {
 		if (i == DCAM_PATH_RAW && sw_ctx->need_dcam_raw)
@@ -564,15 +553,8 @@ static void dcamint_cap_sof(void *param, struct dcam_sw_context *sw_ctx)
 				}
 				spin_unlock_irqrestore(&path->state_lock, flag);
 			}
-			dcam_path_store_frm_set(sw_ctx, path, helper);
+			dcam_path_store_frm_set(sw_ctx, path);
 		}
-	}
-
-	if (helper) {
-		if (helper->enabled)
-			helper->sync.index = sw_ctx->base_fid + sw_ctx->index_to_set;
-		else
-			dcam_core_sync_helper_put(sw_ctx, helper);
 	}
 
 dispatch_sof:
@@ -620,7 +602,7 @@ static void dcamint_preview_sof(void *param, struct dcam_sw_context *sw_ctx)
 			continue;
 
 		/* frame deci is deprecated in slow motion */
-		dcam_path_store_frm_set(sw_ctx, path, NULL);
+		dcam_path_store_frm_set(sw_ctx, path);
 	}
 
 	dcamint_sof_event_dispatch(sw_ctx);
@@ -678,12 +660,16 @@ static void dcamint_full_path_done(void *param, struct dcam_sw_context *sw_ctx)
 {
 	struct dcam_hw_context *dcam_hw_ctx = (struct dcam_hw_context *)param;
 	struct camera_frame *frame = NULL;
+	struct dcam_path_desc *path = NULL;
+	struct dcam_3dnrmv_ctrl *mv_state = NULL;
+	uint32_t mv_ready = 0;
 
 	if (!sw_ctx) {
 		pr_err("fail to get valid input sw_ctx\n");
 		return;
 	}
 
+	path = &sw_ctx->path[DCAM_PATH_FULL];
 	if ((frame = dcamint_frame_prepare(dcam_hw_ctx, sw_ctx, DCAM_PATH_FULL))) {
 		if (sw_ctx->is_4in1) {
 			if (sw_ctx->skip_4in1 > 0) {
@@ -701,6 +687,30 @@ static void dcamint_full_path_done(void *param, struct dcam_sw_context *sw_ctx)
 			else/* low lux, to isp as normal */
 				frame->irq_type = CAMERA_IRQ_IMG;
 		}
+
+		if (sw_ctx->is_3dnr && !sw_ctx->dcam_slice_mode && !sw_ctx->is_4in1) {
+			mv_ready = sw_ctx->nr3_me.full_path_mv_ready;
+			if (mv_ready == 0) {
+				sw_ctx->nr3_me.full_path_cnt++;
+				cam_queue_enqueue(&path->middle_queue, &frame->list);
+				return;
+			} else if (mv_ready == 1) {
+				mv_state = cam_queue_dequeue(&sw_ctx->fullpath_mv_queue, struct dcam_3dnrmv_ctrl, list);
+				if (mv_state) {
+					frame->nr3_me.mv_x = mv_state->nr3_me.mv_x;
+					frame->nr3_me.mv_y = mv_state->nr3_me.mv_y;
+					frame->nr3_me.project_mode = mv_state->nr3_me.project_mode;
+					frame->nr3_me.sub_me_bypass = mv_state->nr3_me.sub_me_bypass;
+					frame->nr3_me.src_height = mv_state->nr3_me.src_height;
+					frame->nr3_me.src_width = mv_state->nr3_me.src_width;
+					frame->nr3_me.valid = mv_state->nr3_me.valid;
+					sw_ctx->nr3_me.full_path_mv_ready = 0;
+					sw_ctx->nr3_me.full_path_cnt = 0;
+					cam_queue_empty_mv_state_put(mv_state);
+				}
+				pr_debug("dcam %d,fid %d mv_x %d mv_y %d",dcam_hw_ctx->hw_ctx_id,frame->fid,frame->nr3_me.mv_x,frame->nr3_me.mv_y);
+			}
+		}
 		dcamint_frame_dispatch(dcam_hw_ctx, sw_ctx, DCAM_PATH_FULL, frame, DCAM_CB_DATA_DONE);
 	}
 }
@@ -713,6 +723,8 @@ static void dcamint_bin_path_done(void *param, struct dcam_sw_context *sw_ctx)
 	struct dcam_hw_context *dcam_hw_ctx = (struct dcam_hw_context *)param;
 	struct dcam_path_desc *path = NULL;
 	struct camera_frame *frame = NULL;
+	struct dcam_3dnrmv_ctrl *mv_state = NULL;
+	uint32_t mv_ready = 0;
 	uint32_t i = 0, cnt = 0;
 
 	if (!sw_ctx) {
@@ -776,6 +788,30 @@ static void dcamint_bin_path_done(void *param, struct dcam_sw_context *sw_ctx)
 			cam_buf_iommu_unmap(&frame->buf);
 			sw_ctx->dcam_cb_func(DCAM_CB_DATA_DONE, frame, sw_ctx->cb_priv_data);
 			return;
+		}
+
+		if (sw_ctx->is_3dnr && !sw_ctx->dcam_slice_mode) {
+			mv_ready = sw_ctx->nr3_me.bin_path_mv_ready;
+			if (mv_ready == 0) {
+				sw_ctx->nr3_me.bin_path_cnt++;
+				cam_queue_enqueue(&path->middle_queue, &frame->list);
+				return;
+			} else if (mv_ready == 1) {
+				mv_state = cam_queue_dequeue(&sw_ctx->binpath_mv_queue, struct dcam_3dnrmv_ctrl, list);
+				if (mv_state) {
+					frame->nr3_me.mv_x = mv_state->nr3_me.mv_x;
+					frame->nr3_me.mv_y = mv_state->nr3_me.mv_y;
+					frame->nr3_me.project_mode = mv_state->nr3_me.project_mode;
+					frame->nr3_me.sub_me_bypass = mv_state->nr3_me.sub_me_bypass;
+					frame->nr3_me.src_height = mv_state->nr3_me.src_height;
+					frame->nr3_me.src_width = mv_state->nr3_me.src_width;
+					frame->nr3_me.valid = mv_state->nr3_me.valid;
+					sw_ctx->nr3_me.bin_path_mv_ready = 0;
+					sw_ctx->nr3_me.bin_path_cnt = 0;
+					cam_queue_empty_mv_state_put(mv_state);
+				}
+				pr_debug("dcam %d,fid %d mv_x %d mv_y %d",dcam_hw_ctx->hw_ctx_id,frame->fid,frame->nr3_me.mv_x,frame->nr3_me.mv_y);
+			}
 		}
 		dcamint_frame_dispatch(dcam_hw_ctx, sw_ctx, DCAM_PATH_BIN, frame, DCAM_CB_DATA_DONE);
 	}
@@ -847,6 +883,11 @@ static void dcamint_vch2_path_done(void *param, struct dcam_sw_context *sw_ctx)
 		return;
 	}
 
+	if (!sw_ctx) {
+		pr_err("fail to get valid input sw_ctx\n");
+		return;
+	}
+
 	pr_debug("dcamint_vch2_path_done hw_ctx_id = %d\n", dcam_hw_ctx->hw_ctx_id);
 	if (unlikely(dcam_hw_ctx->hw_ctx_id == DCAM_HW_CONTEXT_2))
 		return;
@@ -900,7 +941,7 @@ static void dcamint_afl_done(void *param, struct dcam_sw_context *sw_ctx)
 	if (unlikely(dcam_hw_ctx->hw_ctx_id == DCAM_HW_CONTEXT_2))
 		return;
 
-	dcam_path_store_frm_set(sw_ctx, &sw_ctx->path[DCAM_PATH_AFL], NULL);
+	dcam_path_store_frm_set(sw_ctx, &sw_ctx->path[DCAM_PATH_AFL]);
 	if ((frame = dcamint_frame_prepare(dcam_hw_ctx, sw_ctx, DCAM_PATH_AFL)))
 		dcamint_frame_dispatch(dcam_hw_ctx, sw_ctx, DCAM_PATH_AFL, frame, DCAM_CB_STATIS_DONE);
 }
@@ -912,47 +953,106 @@ static void dcamint_afl_done(void *param, struct dcam_sw_context *sw_ctx)
 static void dcamint_nr3_done(void *param, struct dcam_sw_context *sw_ctx)
 {
 	struct dcam_hw_context *dcam_hw_ctx = (struct dcam_hw_context *)param;
-	struct camera_frame *frame = NULL;
-	struct dcam_frame_synchronizer *sync = NULL;
 	uint32_t p = 0, out0 = 0, out1 = 0;
+	int ret = 0;
+	struct camera_frame *frame = NULL;
+	struct dcam_path_desc *path = NULL;
+	struct dcam_3dnrmv_ctrl *full_mv_state = NULL;
+	struct dcam_3dnrmv_ctrl *bin_mv_state = NULL;
 
-	if (!sw_ctx) {
+	if (!sw_ctx || !dcam_hw_ctx || dcam_hw_ctx->hw_ctx_id >= DCAM_HW_CONTEXT_MAX) {
 		pr_err("fail to get valid input sw_ctx\n");
 		return;
 	}
-
-	if (unlikely(dcam_hw_ctx->hw_ctx_id == DCAM_HW_CONTEXT_2))
-		return;
 
 	p = DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, NR3_FAST_ME_PARAM);
 	out0 = DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, NR3_FAST_ME_OUT0);
 	out1 = DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, NR3_FAST_ME_OUT1);
 
-	if ((frame = dcamint_frame_prepare(dcam_hw_ctx, sw_ctx, DCAM_PATH_3DNR))) {
-		sync = (struct dcam_frame_synchronizer *)frame->sync_data;
-		if (unlikely(!sync)) {
-			pr_warn("warning: DCAM%u 3DNR sync not found\n", dcam_hw_ctx->hw_ctx_id);
-		} else {
-			sync->nr3_me.sub_me_bypass = (p >> 8) & 0x1;
-			sync->nr3_me.project_mode = (p >> 4) & 0x1;
-			/* currently ping-pong is disabled, mv will always be stored in ping */
-			sync->nr3_me.mv_x = (out0 >> 8) & 0xff;
-			sync->nr3_me.mv_y = out0 & 0xff;
-			sync->nr3_me.src_width = sw_ctx->cap_info.cap_size.size_x;
-			sync->nr3_me.src_height = sw_ctx->cap_info.cap_size.size_y;
-			sync->nr3_me.valid = 1;
+	sw_ctx->nr3_me.full_path_mv_ready++;
+	sw_ctx->nr3_me.bin_path_mv_ready++;
+	if (sw_ctx->nr3_me.full_path_mv_ready > 1)
+		sw_ctx->nr3_me.full_path_mv_ready = 1;
+	if (sw_ctx->nr3_me.bin_path_mv_ready > 1)
+		sw_ctx->nr3_me.bin_path_mv_ready = 1;
 
-			/*
-			 * Since 3DNR AXI buffer is not used, we can release it
-			 * here. This will not affect motion vector in @sync.
-			 */
-			dcam_core_dcam_if_release_sync(sync, frame);
+	full_mv_state = cam_queue_empty_mv_state_get();
+	if (full_mv_state) {
+		full_mv_state->nr3_me.sub_me_bypass = (p >> 8) & 0x1;
+		full_mv_state->nr3_me.project_mode = (p >> 4) & 0x1;
+		/* currently ping-pong is disabled, mv will always be stored in ping */
+		full_mv_state->nr3_me.mv_x = (out0 >> 8) & 0xff;
+		full_mv_state->nr3_me.mv_y = out0 & 0xff;
+		full_mv_state->nr3_me.src_width = sw_ctx->cap_info.cap_size.size_x;
+		full_mv_state->nr3_me.src_height = sw_ctx->cap_info.cap_size.size_y;
+		full_mv_state->nr3_me.valid = 1;
+		pr_debug("dcam %d full mv_x %d,mv_y %d full_path_cnt %d bin_path_cnt %d",dcam_hw_ctx->hw_ctx_id,full_mv_state->nr3_me.mv_x,full_mv_state->nr3_me.mv_y,sw_ctx->nr3_me.full_path_cnt,sw_ctx->nr3_me.bin_path_cnt);
+
+		ret = cam_queue_enqueue(&sw_ctx->fullpath_mv_queue, &full_mv_state->list);
+		if (ret) {
+			pr_debug("full path path mv state overflow\n");
+			cam_queue_empty_mv_state_put(full_mv_state);
 		}
-
-		dcamint_frame_dispatch(dcam_hw_ctx, sw_ctx, DCAM_PATH_3DNR, frame, DCAM_CB_STATIS_DONE);
 	}
-}
 
+	bin_mv_state = cam_queue_empty_mv_state_get();
+	if (bin_mv_state) {
+		bin_mv_state->nr3_me.sub_me_bypass = (p >> 8) & 0x1;
+		bin_mv_state->nr3_me.project_mode = (p >> 4) & 0x1;
+		/* currently ping-pong is disabled, mv will always be stored in ping */
+		bin_mv_state->nr3_me.mv_x = (out0 >> 8) & 0xff;
+		bin_mv_state->nr3_me.mv_y = out0 & 0xff;
+		bin_mv_state->nr3_me.src_width = sw_ctx->cap_info.cap_size.size_x;
+		bin_mv_state->nr3_me.src_height = sw_ctx->cap_info.cap_size.size_y;
+		bin_mv_state->nr3_me.valid = 1;
+		pr_debug("dcam %d bin mv_x %d,mv_y %d full_path_cnt %d bin_path_cnt %d",dcam_hw_ctx->hw_ctx_id,bin_mv_state->nr3_me.mv_x,bin_mv_state->nr3_me.mv_y,sw_ctx->nr3_me.full_path_cnt,sw_ctx->nr3_me.bin_path_cnt);
+
+		ret = cam_queue_enqueue(&sw_ctx->binpath_mv_queue, &bin_mv_state->list);
+		if (ret) {
+			pr_debug("bin path mv state overflow\n");
+			cam_queue_empty_mv_state_put(bin_mv_state);
+		}
+	}
+
+	if (sw_ctx->nr3_me.full_path_cnt) {
+		full_mv_state = cam_queue_dequeue(&sw_ctx->fullpath_mv_queue, struct dcam_3dnrmv_ctrl, list);
+		path = &sw_ctx->path[DCAM_PATH_FULL];
+		frame = cam_queue_dequeue(&path->middle_queue, struct camera_frame, list);
+		frame->nr3_me.mv_x = full_mv_state->nr3_me.mv_x;
+		frame->nr3_me.mv_y = full_mv_state->nr3_me.mv_y;
+		frame->nr3_me.project_mode = full_mv_state->nr3_me.project_mode;
+		frame->nr3_me.sub_me_bypass = full_mv_state->nr3_me.sub_me_bypass;
+		frame->nr3_me.src_height = full_mv_state->nr3_me.src_height;
+		frame->nr3_me.src_width = full_mv_state->nr3_me.src_width;
+		frame->nr3_me.valid = full_mv_state->nr3_me.valid;
+		dcamint_frame_dispatch(dcam_hw_ctx, sw_ctx, DCAM_PATH_FULL, frame,
+					DCAM_CB_DATA_DONE);
+		cam_queue_empty_mv_state_put(full_mv_state);
+		sw_ctx->nr3_me.full_path_mv_ready = 0;
+		sw_ctx->nr3_me.full_path_cnt = 0;
+	}
+
+	if (sw_ctx->nr3_me.bin_path_cnt) {
+		bin_mv_state = cam_queue_dequeue(&sw_ctx->binpath_mv_queue, struct dcam_3dnrmv_ctrl, list);
+		path = &sw_ctx->path[DCAM_PATH_BIN];
+		frame = cam_queue_dequeue(&path->middle_queue, struct camera_frame, list);
+		frame->nr3_me.mv_x = bin_mv_state->nr3_me.mv_x;
+		frame->nr3_me.mv_y = bin_mv_state->nr3_me.mv_y;
+		frame->nr3_me.project_mode = bin_mv_state->nr3_me.project_mode;
+		frame->nr3_me.sub_me_bypass = bin_mv_state->nr3_me.sub_me_bypass;
+		frame->nr3_me.src_height = bin_mv_state->nr3_me.src_height;
+		frame->nr3_me.src_width = bin_mv_state->nr3_me.src_width;
+		frame->nr3_me.valid = bin_mv_state->nr3_me.valid;
+		dcamint_frame_dispatch(dcam_hw_ctx, sw_ctx, DCAM_PATH_BIN, frame,
+					DCAM_CB_DATA_DONE);
+		cam_queue_empty_mv_state_put(bin_mv_state);
+		sw_ctx->nr3_me.bin_path_mv_ready = 0;
+		sw_ctx->nr3_me.bin_path_cnt = 0;
+	}
+
+	dcamint_frame_prepare(dcam_hw_ctx, sw_ctx, DCAM_PATH_3DNR);
+
+}
 
 /*
  * reset tracker
