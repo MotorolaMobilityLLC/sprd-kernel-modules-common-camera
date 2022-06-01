@@ -2542,7 +2542,8 @@ static int dcamcore_context_put(void *dcam_handle, int ctx_id)
 
 		cam_queue_clear(&pctx->in_queue, struct camera_frame, list);
 		cam_queue_clear(&pctx->proc_queue, struct camera_frame, list);
-
+		pctx->dcam_cb_func = NULL;
+		pctx->buf_get_cb = NULL;
 		if (pctx->path[DCAM_PATH_BIN].rds_coeff_buf) {
 			kfree(pctx->path[DCAM_PATH_BIN].rds_coeff_buf);
 			pctx->path[DCAM_PATH_BIN].rds_coeff_buf = NULL;

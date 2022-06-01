@@ -2423,6 +2423,7 @@ stop_thrd:
 	camcore_thread_stop(&module->zoom_thrd);
 	camcore_thread_stop(&module->buf_thrd);
 	camcore_thread_stop(&module->dump_thrd);
+	camcore_thread_stop(&module->dcam_offline_proc_thrd);
 
 	return ret;
 }
@@ -2470,6 +2471,10 @@ static int camioctl_cam_res_put(struct camera_module *module,
 	camcore_thread_stop(&module->dump_thrd);
 
 	if (module->dcam_dev_handle) {
+		module->dcam_dev_handle->dcam_pipe_ops->put_context(module->dcam_dev_handle,
+			module->cur_sw_ctx_id);
+		module->dcam_dev_handle->dcam_pipe_ops->put_context(module->dcam_dev_handle,
+			module->offline_cxt_id);
 		module->dcam_dev_handle->dcam_pipe_ops->close(module->dcam_dev_handle);
 		dcam_core_pipe_dev_put(module->dcam_dev_handle);
 		module->dcam_dev_handle = NULL;
