@@ -4491,7 +4491,6 @@ int ispcore_blk_param_q_clear(void *isp_handle, int ctx_id)
 	struct isp_pipe_dev *dev = NULL;
 	struct isp_sw_context *pctx = NULL;
 	struct camera_frame *frame = NULL;
-	uint32_t loop = 0;
 
 	if (!isp_handle || (ctx_id < 0) || (ctx_id >= ISP_CONTEXT_SW_NUM)) {
 		pr_err("fail to get valid ctx %p, %d\n", isp_handle, ctx_id);
@@ -4501,12 +4500,13 @@ int ispcore_blk_param_q_clear(void *isp_handle, int ctx_id)
 	dev = (struct isp_pipe_dev *)isp_handle;
 	pctx = dev->sw_ctx[ctx_id];
 
-	loop = cam_queue_cnt_get(&pctx->param_buf_queue);
 	do {
+		mutex_lock(&pctx->blkpm_q_lock);
 		frame = cam_queue_dequeue(&pctx->param_buf_queue, struct camera_frame, list);
 		if (frame)
 			cam_queue_recycle_blk_param(&pctx->param_share_queue, frame);
-	} while (loop-- > 0);
+		mutex_unlock(&pctx->blkpm_q_lock);
+	} while (pctx->param_buf_queue.cnt > 0);
 
 	return 0;
 }
