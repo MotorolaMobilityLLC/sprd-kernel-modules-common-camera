@@ -6621,7 +6621,6 @@ static int camcore_raw_pre_proc(
 		ret = dcam_core_context_bind(sw_ctx, hw->csi_connect_type, module->aux_dcam_id);
 		if (ret)
 			pr_err("fail to get hw_ctx_id\n");
-
 	}
 	/* specify isp context & path */
 	init_param.is_high_fps = 0;/* raw capture + slow motion ?? */
@@ -6655,6 +6654,16 @@ static int camcore_raw_pre_proc(
 	ctx_desc.bayer_pattern = proc_info->src_pattern;
 	ctx_desc.mode_ltm = MODE_LTM_OFF;
 	ctx_desc.mode_gtm = MODE_GTM_OFF;
+	if (sw_ctx->rps == 1){
+		if (module->cam_uinfo.is_rgb_gtm) {
+			ch->gtm_rgb = 1;
+			ctx_desc.gtm_rgb = 1;
+			ctx_desc.mode_gtm = MODE_GTM_PRE;
+			module->simulator = 1;
+			module->isp_dev_handle->sw_ctx[ctx_id]->rps = 1;
+		}
+	}
+
 	ctx_desc.mode_3dnr = MODE_3DNR_OFF;
 	ctx_desc.ch_id = CAM_CH_CAP;
 	ret = module->isp_dev_handle->isp_ops->cfg_path(module->isp_dev_handle,
@@ -6804,6 +6813,7 @@ static int camcore_raw_post_proc(struct camera_module *module,
 	if (ret)
 		goto src_fail;
 
+
 	dst_frame = cam_queue_empty_frame_get();
 	dst_frame->buf.type = CAM_BUF_USER;
 	dst_frame->buf.mfd[0] = proc_info->fd_dst1;
@@ -6866,6 +6876,10 @@ static int camcore_raw_post_proc(struct camera_module *module,
 	mid_frame->time = src_frame->time;
 	mid_frame->boot_time = src_frame->boot_time;
 	mid_frame->boot_sensor_time = src_frame->boot_sensor_time;
+
+	mid_frame->need_gtm_hist = module->cam_uinfo.is_rgb_gtm;
+	mid_frame->need_gtm_map = module->cam_uinfo.is_rgb_gtm;
+	mid_frame->gtm_mod_en = module->cam_uinfo.is_rgb_gtm;
 
 	if (dev->hw->ip_dcam[0]->dcam_raw_path_id == DCAM_PATH_RAW) {
 		width = cal_sprd_yuv_pitch(proc_info->src_size.width, 10 , 1);

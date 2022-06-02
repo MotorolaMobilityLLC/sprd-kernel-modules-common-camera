@@ -305,6 +305,7 @@ struct isp_sw_context {
 	uint32_t valid_slc_num;
 	uint32_t sw_slice_num;
 	uint32_t sw_slice_no;
+	uint32_t rps;
 
 	uint32_t zoom_conflict_with_ltm;
 

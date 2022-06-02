@@ -378,7 +378,7 @@ static void ispint_rgb_gtm_hists_done(enum isp_context_hw_id hw_idx, void *isp_h
 	}
 
 	pctx = dev->sw_ctx[idx];
-	if ((pctx->ch_id != CAM_CH_PRE) && (pctx->ch_id != CAM_CH_VID))
+	if ((pctx->ch_id != CAM_CH_PRE) && (pctx->ch_id != CAM_CH_VID) && (pctx->rps != 1))
 		return;
 
 	gtm_ctx = (struct isp_gtm_ctx_desc *)pctx->rgb_gtm_handle;

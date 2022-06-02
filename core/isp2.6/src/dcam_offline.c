@@ -188,16 +188,26 @@ int dcam_offline_param_set(struct cam_hw_info *hw, struct dcam_sw_context *pctx)
 
 	if (pctx->rps == 1) {
 		pr_debug("hwsim:offline enable aem\n");
+		pctx->ctx[pctx->cur_ctx_id].blk_pm.non_zsl_cap = 1;
 		atomic_set(&pctx->path[DCAM_PATH_AEM].user_cnt, 1);/* hwsim first loop need aem statis */
+		atomic_set(&pctx->path[DCAM_PATH_PDAF].user_cnt, 1);
+		atomic_set(&pctx->path[DCAM_PATH_AFM].user_cnt, 1);
+		atomic_set(&pctx->path[DCAM_PATH_AFL].user_cnt, 1);
+		atomic_set(&pctx->path[DCAM_PATH_HIST].user_cnt, 1);
+		atomic_set(&pctx->path[DCAM_PATH_LSCM].user_cnt, 1);
+		if(pctx->dev->hw->ip_isp->rgb_gtm_support == 0)
+			atomic_set(&pctx->path[DCAM_PATH_GTM_HIST].user_cnt, 1);
 	} else {
 		atomic_set(&pctx->path[DCAM_PATH_AEM].user_cnt, 0);
+		atomic_set(&pctx->path[DCAM_PATH_PDAF].user_cnt, 0);
+		atomic_set(&pctx->path[DCAM_PATH_AFM].user_cnt, 0);
+		atomic_set(&pctx->path[DCAM_PATH_AFL].user_cnt, 0);
+		atomic_set(&pctx->path[DCAM_PATH_HIST].user_cnt, 0);
+		atomic_set(&pctx->path[DCAM_PATH_LSCM].user_cnt, 0);
+		if(pctx->dev->hw->ip_isp->rgb_gtm_support == 0)
+			atomic_set(&pctx->path[DCAM_PATH_GTM_HIST].user_cnt, 0);
 	}
 
-	atomic_set(&pctx->path[DCAM_PATH_PDAF].user_cnt, 0);
-	atomic_set(&pctx->path[DCAM_PATH_AFM].user_cnt, 0);
-	atomic_set(&pctx->path[DCAM_PATH_AFL].user_cnt, 0);
-	atomic_set(&pctx->path[DCAM_PATH_HIST].user_cnt, 0);
-	atomic_set(&pctx->path[DCAM_PATH_LSCM].user_cnt, 0);
 
 	/*use for offline 4in1*/
 	binning.binning_4in1_en = 0;

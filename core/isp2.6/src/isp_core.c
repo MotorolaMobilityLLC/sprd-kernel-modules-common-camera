@@ -3556,8 +3556,13 @@ static int ispcore_blkparam_cfg(
 
 		if (io_param->scene_id == PM_SCENE_PRE) {
 			ret = cfg_fun_ptr(io_param, pctx->isp_receive_param->blkparam_info.param_block, ctx_id);
-		} else
+		} else {
+			if (io_param->sub_block == ISP_BLOCK_RGB_GTM) {
+				if(pctx->rps)
+					io_param->scene_id = PM_SCENE_PRE;
+			}
 			ret = cfg_fun_ptr(io_param, &pctx->isp_k_param, ctx_id);
+		}
 	}
 
 	mutex_unlock(&pctx->blkpm_lock);
