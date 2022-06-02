@@ -174,7 +174,7 @@ static int isppyrdec_offline_thread_loop(void *arg)
 		if (wait_for_completion_interruptible(
 			&thrd->thread_com) == 0) {
 			if (atomic_cmpxchg(&thrd->thread_stop, 1, 0) == 1) {
-				pr_info("isp pyr rec thread stop.\n");
+				pr_info("isp pyr dec thread stop.\n");
 				break;
 			}
 			pr_debug("thread com done.\n");

@@ -4332,8 +4332,10 @@ static int ispcore_dev_reset(void *isp_handle, void *param)
 	hw = (struct cam_hw_info *)param;
 
 	cam_kproperty_get("auto/chipid", chip_type, "-1");
-	if (hw->prj_id == QOGIRN6pro)
+	if (hw->prj_id == QOGIRN6pro) {
+		sprd_iommu_restore(&hw->soc_isp->pdev->dev);
 		return 0;
+	}
 
 	reset_flag = ISP_RESET_BEFORE_POWER_OFF;
 	hw->isp_ioctl(hw, ISP_HW_CFG_RESET, &reset_flag);

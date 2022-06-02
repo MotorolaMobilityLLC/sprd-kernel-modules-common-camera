@@ -1285,6 +1285,7 @@ int isp_drv_hw_init(void *arg)
 	default_para.type = ISP_HW_PARA;
 	hw->isp_ioctl(hw, ISP_HW_CFG_DEFAULT_PARA_SET, &default_para);
 
+	sprd_iommu_restore(&hw->soc_isp->pdev->dev);
 	return 0;
 
 reset_fail:
