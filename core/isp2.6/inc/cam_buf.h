@@ -58,8 +58,6 @@ struct camera_buf {
 	struct device *dev;/* mapped device */
 	enum cam_buf_type type;
 	uint32_t mapping_state;
-	struct dma_buf_attachment *attachment[3];
-	struct sg_table *table[3];
 };
 
 int cam_buf_iommudev_reg(struct device *dev,
