@@ -16,7 +16,6 @@
 
 #include <linux/bitops.h>
 #include <linux/device.h>
-
 #include "cam_types.h"
 
 enum {
@@ -215,5 +214,5 @@ void dcam_int_irq_free(struct device *pdev, void *param);
 
 void dcam_int_tracker_reset(uint32_t idx);
 void dcam_int_tracker_dump(uint32_t idx);
-
+int dcamint_interruption_proc(void *dcam_handle);
 #endif

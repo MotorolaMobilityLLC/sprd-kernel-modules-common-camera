@@ -2248,10 +2248,8 @@ static int ispcore_offline_thread_loop(void *arg)
 	thrd = (struct cam_thread_info *)arg;
 	pctx = (struct isp_sw_context *)thrd->ctx_handle;
 	dev = pctx->dev;
-
 	while (1) {
-		if (wait_for_completion_interruptible(
-			&thrd->thread_com) == 0) {
+		if (wait_for_completion_interruptible(&thrd->thread_com) == 0) {
 			if (atomic_cmpxchg(&thrd->thread_stop, 1, 0) == 1) {
 				pr_info("isp context %d thread stop.\n", pctx->ctx_id);
 				break;
@@ -2303,7 +2301,7 @@ static int ispcore_offline_thread_stop(void *param)
 	else if (ret == 0)
 		pr_err("fail to wait ctx %d, timeout.\n", pctx->ctx_id);
 	else
-		pr_info("wait time %d\n", ret);
+		pr_info("offline thread wait time %d\n", ret);
 	return 0;
 }
 
@@ -2580,12 +2578,10 @@ exit:
 	return ret;
 }
 
-static int ispcore_postproc_irq(void *handle, uint32_t idx,
-	enum isp_postproc_type type)
+static int ispcore_postproc_irq(void *handle)
 {
 	int ret = 0;
 	int i, j;
-	struct isp_pipe_dev *dev = NULL;
 	struct isp_stream_ctrl *stream = NULL;
 	struct isp_sw_context *pctx = NULL;
 	struct camera_frame *pframe = NULL;
@@ -2596,14 +2592,16 @@ static int ispcore_postproc_irq(void *handle, uint32_t idx,
 	uint32_t total_zoom = 0;
 
 	memset(&cur_ts, 0, sizeof(struct timespec));
-	if (!handle || type >= POSTPROC_MAX) {
-		pr_err("fail to get valid input handle %p, type %d\n",
-			handle, type);
+	pctx = (struct isp_sw_context *)handle;
+	if (!pctx) {
+		pr_err("fail to get valid input handle %p.\n", handle);
+		return -EFAULT;
+	}
+	if (pctx->post_type >= POSTPROC_MAX) {
+		pr_err("fail to get valid type %d.\n", pctx->post_type);
 		return -EFAULT;
 	}
 
-	dev = (struct isp_pipe_dev *)handle;
-	pctx = dev->sw_ctx[idx];
 	pframe = cam_queue_dequeue(&pctx->proc_queue, struct camera_frame, list);
 	if (pctx->uinfo.enable_slowmotion == 0) {
 		isp_core_context_unbind(pctx);
@@ -2705,6 +2703,98 @@ static int ispcore_postproc_irq(void *handle, uint32_t idx,
 		cam_queue_empty_state_put(stream);
 
 	return ret;
+}
+
+static int ispcore_postproc_thread_loop(void *arg)
+{
+	struct isp_pipe_dev *dev = NULL;
+	struct isp_sw_context *pctx = NULL;
+	struct cam_thread_info *thrd = NULL;
+
+	if (!arg) {
+		pr_err("fail to get valid input ptr\n");
+		return -1;
+	}
+
+	thrd = (struct cam_thread_info *)arg;
+	pctx = (struct isp_sw_context *)thrd->ctx_handle;
+	dev = pctx->dev;
+	while (1) {
+		if (wait_for_completion_interruptible(&thrd->thread_com) == 0) {
+			if (atomic_cmpxchg(&thrd->thread_stop, 1, 0) == 1) {
+				pr_info("isp context %d thread stop.\n", pctx->ctx_id);
+				break;
+			}
+			pr_debug("thread com done.\n");
+
+			if (thrd->proc_func(pctx)) {
+				pr_err("fail to start isp pipe to proc. exit thread\n");
+				pctx->isp_cb_func(ISP_CB_DEV_ERR, dev, pctx->cb_priv_data);
+				break;
+			}
+		} else {
+			pr_debug("offline thread exit!");
+			break;
+		}
+	}
+
+	return 0;
+}
+
+static int ispcore_postproc_thread_stop(void *param)
+{
+	int cnt = 0;
+	struct cam_thread_info *thrd;
+	struct isp_sw_context *pctx;
+
+	thrd = (struct cam_thread_info *)param;
+	pctx = (struct isp_sw_context *)thrd->ctx_handle;
+
+	if (thrd->thread_task) {
+		atomic_set(&thrd->thread_stop, 1);
+		complete(&thrd->thread_com);
+		while (cnt < 2500) {
+			cnt++;
+			if (atomic_read(&thrd->thread_stop) == 0)
+				break;
+			udelay(1000);
+		}
+		thrd->thread_task = NULL;
+		pr_info("postproc thread stopped. wait %d ms\n", cnt);
+	}
+
+	return 0;
+}
+
+static int ispcore_postproc_thread_create(void *param)
+{
+	struct isp_sw_context *pctx = NULL;
+	struct cam_thread_info *thrd = NULL;
+	char thread_name[32] = { 0 };
+
+	pctx = (struct isp_sw_context *)param;
+	thrd = &pctx->postproc_thread;
+	thrd->ctx_handle = pctx;
+
+	if (thrd->thread_task) {
+		pr_info("isp ctx sw %d postproc thread created is exist.\n", pctx->ctx_id);
+		return 0;
+	}
+
+	thrd->proc_func = ispcore_postproc_irq;
+	sprintf(thread_name, "isp_ctx%d_postproc", pctx->ctx_id);
+	atomic_set(&thrd->thread_stop, 0);
+	init_completion(&thrd->thread_com);
+	thrd->thread_task = kthread_run(ispcore_postproc_thread_loop,
+		thrd, "%s", thread_name);
+	if (IS_ERR_OR_NULL(thrd->thread_task)) {
+		pr_err("fail to start postproc thread for isp sw %d err %ld\n",
+				pctx->ctx_id, PTR_ERR(thrd->thread_task));
+		return -EFAULT;
+	}
+
+	pr_debug("isp ctx sw %d postproc thread created.\n", pctx->ctx_id);
+	return 0;
 }
 
 static int ispcore_dec_frame_proc(struct isp_sw_context *pctx,
@@ -3711,7 +3801,6 @@ static int ispcore_context_get(void *isp_handle, void *param)
 	pctx->attach_cam_id = init_param->cam_id;
 	pctx->uinfo.enable_slowmotion = 0;
 	atomic_set(&pctx->cap_cnt, 0);
-	pctx->postproc_func = ispcore_postproc_irq;
 	if (init_param->is_high_fps)
 		pctx->uinfo.enable_slowmotion = hw->ip_isp->slm_cfg_support;
 	pr_info("cam%d isp slowmotion eb %d\n",
@@ -3793,6 +3882,12 @@ static int ispcore_context_get(void *isp_handle, void *param)
 	ret = ispcore_offline_thread_create(pctx);
 	if (unlikely(ret != 0)) {
 		pr_err("fail to create offline thread for isp cxt:%d\n", pctx->ctx_id);
+		goto thrd_err;
+	}
+
+	ret = ispcore_postproc_thread_create(pctx);
+	if (unlikely(ret != 0)) {
+		pr_err("fail to create postproc thread for isp cxt:%d\n", pctx->ctx_id);
 		goto thrd_err;
 	}
 
@@ -3942,8 +4037,10 @@ static int ispcore_context_put(void *isp_handle, int ctx_id)
 
 	mutex_lock(&dev->path_mutex);
 
-	if (atomic_read(&pctx->user_cnt) == 1)
+	if (atomic_read(&pctx->user_cnt) == 1) {
 		ispcore_offline_thread_stop(&pctx->thread);
+		ispcore_postproc_thread_stop(&pctx->postproc_thread);
+	}
 
 	if (atomic_dec_return(&pctx->user_cnt) == 0) {
 		pctx->started = 0;

@@ -14,7 +14,6 @@
 #ifndef _ISP_HW_H_
 #define _ISP_HW_H_
 
-
 #include "dcam_hw_adpt.h"
 #include "isp_hw_adpt.h"
 #include "sprd_isp_2v6.h"

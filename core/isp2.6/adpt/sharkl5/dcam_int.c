@@ -1213,15 +1213,69 @@ static irqreturn_t dcamint_error_handler(struct dcam_hw_context *dcam_hw_ctx, st
 	return IRQ_HANDLED;
 }
 
+int dcamint_interruption_proc(void *dcam_handle)
+{
+	struct dcam_sw_context *dcam_sw_ctx = NULL;
+	struct dcam_hw_context *dcam_hw_ctx = NULL;
+	struct camera_interrupt *interruption = NULL;
+	uint32_t status = 0, i = 0;
+
+	dcam_sw_ctx = (struct dcam_sw_context *)dcam_handle;
+
+	if (dcam_sw_ctx) {
+		dcam_hw_ctx = dcam_sw_ctx->hw_ctx;
+		interruption = cam_queue_dequeue(&dcam_sw_ctx->interruption_sts_queue, struct camera_interrupt, list);
+		if (interruption) {
+			status = interruption->dcamint_status;
+
+			cam_queue_empty_interrupt_put(interruption);
+			if (dcam_hw_ctx) {
+				if (unlikely(DCAMINT_ALL_ERROR & status)) {
+					dcamint_error_handler(dcam_hw_ctx, dcam_sw_ctx, status);
+					status &= (~DCAMINT_ALL_ERROR);
+				}
+
+				pr_debug("DCAM%u status=0x%x\n", dcam_hw_ctx->hw_ctx_id, status);
+				for (i = 0; i < DCAM_SEQUENCES[dcam_hw_ctx->hw_ctx_id].count; i++) {
+				       int cur_int = DCAM_SEQUENCES[dcam_hw_ctx->hw_ctx_id].bits[i];
+
+					if (status & BIT(cur_int)) {
+						if (_DCAM_ISRS[dcam_hw_ctx->hw_ctx_id][cur_int]) {
+							_DCAM_ISRS[dcam_hw_ctx->hw_ctx_id][cur_int](dcam_hw_ctx, dcam_sw_ctx);
+							status &= ~dcam_hw_ctx->handled_bits;
+							dcam_hw_ctx->handled_bits = 0;
+						} else {
+							pr_warn("warning: DCAM%u missing handler for int %d\n",
+							       dcam_hw_ctx->hw_ctx_id, cur_int);
+						}
+						status &= ~BIT(cur_int);
+						if (!status)
+							break;
+					}
+				}
+				/* TODO ignore DCAM_AFM_INTREQ0 now */
+				status &= ~BIT(DCAM_AFM_INTREQ0);
+				if (unlikely(status))
+					pr_warn("warning: DCAM%u unhandled int 0x%x\n", dcam_hw_ctx->hw_ctx_id, status);
+			} else
+				pr_warn("warning:sw_context & hw_context has been ubind.\n");
+		}else
+			pr_warn("warning:status frame is null.\n");
+	} else
+		pr_warn("warning:sw_context & hw_context has been ubind.\n");
+
+	return 0;
+}
+
 /*
  * interrupt handler
  */
 static irqreturn_t dcamint_isr_root(int irq, void *priv)
 {
 	struct dcam_hw_context *dcam_hw_ctx = (struct dcam_hw_context *)priv;
-	uint32_t status = 0;
+	struct camera_interrupt *interruption = NULL;
+	uint32_t status = 0, ret = 0;
 	uint32_t line_mask;
-	unsigned int i = 0;
 	struct dcam_sw_context *sw_ctx = dcam_hw_ctx->sw_ctx;
 
 	if (unlikely(irq != dcam_hw_ctx->irq)) {
@@ -1254,38 +1308,17 @@ static irqreturn_t dcamint_isr_root(int irq, void *priv)
 
 	DCAM_REG_WR(dcam_hw_ctx->hw_ctx_id, DCAM_INT_CLR, status);
 
+	interruption = cam_queue_empty_interrupt_get();
+	interruption->dcamint_status = status;
 	dcamint_dcam_int_record(dcam_hw_ctx->hw_ctx_id, status);
 
-	if (unlikely(DCAMINT_ALL_ERROR & status)) {
-		dcamint_error_handler(dcam_hw_ctx, sw_ctx, status);
-		status &= (~DCAMINT_ALL_ERROR);
-	}
-
-	pr_debug("DCAM%u status=0x%x\n", dcam_hw_ctx->hw_ctx_id, status);
-
-	for (i = 0; i < DCAM_SEQUENCES[dcam_hw_ctx->hw_ctx_id].count; i++) {
-		int cur_int = DCAM_SEQUENCES[dcam_hw_ctx->hw_ctx_id].bits[i];
-
-		if (status & BIT(cur_int)) {
-			if (_DCAM_ISRS[dcam_hw_ctx->hw_ctx_id][cur_int]) {
-				_DCAM_ISRS[dcam_hw_ctx->hw_ctx_id][cur_int](dcam_hw_ctx, sw_ctx);
-				status &= ~dcam_hw_ctx->handled_bits;
-				dcam_hw_ctx->handled_bits = 0;
-			} else {
-				pr_warn("warning: DCAM%u missing handler for int %d\n",
-					dcam_hw_ctx->hw_ctx_id, cur_int);
-			}
-			status &= ~BIT(cur_int);
-			if (!status)
-				break;
-		}
-	}
-
-	/* TODO ignore DCAM_AFM_INTREQ0 now */
-	status &= ~BIT(DCAM_AFM_INTREQ0);
-
-	if (unlikely(status))
-		pr_warn("warning: DCAM%u unhandled int 0x%x\n", dcam_hw_ctx->hw_ctx_id, status);
+	ret = cam_queue_enqueue(&dcam_sw_ctx->interruption_sts_queue, &interruption->list);
+	if (ret) {
+		pr_warn("warning:fail to enqueue int queue.\n");
+		cam_queue_empty_interrupt_put(interruption);
+		return IRQ_NONE;
+	} else
+		complete(&dcam_sw_ctx->dcam_interruption_proc_thrd.thread_com);
 
 	return IRQ_HANDLED;
 }

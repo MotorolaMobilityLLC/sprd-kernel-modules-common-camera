@@ -27,6 +27,8 @@
 #define CAM_EMP_Q_LEN_INC               16
 #define CAM_EMP_Q_LEN_MAX               3072
 #define CAM_EMP_STATE_LEN_MAX           128
+#define CAM_INT_EMP_Q_LEN_INC           48
+#define CAM_INT_EMP_Q_LEN_MAX           256
 
 enum {
 	CAM_Q_INIT,
@@ -39,6 +41,12 @@ struct blk_param_info {
 	uint32_t update;
 	struct isp_k_block *param_block;
 	void *blk_param_node;
+};
+
+struct camera_interrupt {
+	struct list_head list;
+	uint32_t dcamint_status;
+	uint32_t dcamint_status1;
 };
 
 struct camera_frame {
@@ -240,6 +248,10 @@ int cam_queue_same_frame_get(struct camera_queue *q0,
 struct camera_frame *cam_queue_empty_frame_get(void);
 int cam_queue_empty_frame_put(struct camera_frame *pframe);
 void cam_queue_empty_frame_free(void *param);
+
+struct camera_interrupt *cam_queue_empty_interrupt_get(void);
+int cam_queue_empty_interrupt_put(struct camera_interrupt *interruption);
+void cam_queue_empty_interrupt_free(void *param);
 
 struct isp_stream_ctrl *cam_queue_empty_state_get(void);
 void cam_queue_empty_state_put(void *param);

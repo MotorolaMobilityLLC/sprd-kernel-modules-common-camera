@@ -253,6 +253,7 @@ struct isp_sw_context {
 	uint32_t ctx_id;
 	uint32_t in_irq_handler;
 	uint32_t iommu_status;
+	enum isp_postproc_type post_type;
 	enum camera_id attach_cam_id;
 	enum cam_ch_id ch_id;
 
@@ -275,6 +276,7 @@ struct isp_sw_context {
 	struct isp_k_block *isp_using_param;
 
 	struct cam_thread_info thread;
+	struct cam_thread_info postproc_thread;
 	struct completion frm_done;
 	struct completion slice_done;
 	/* lock ctx/path param(size) updated from zoom */

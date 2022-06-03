@@ -19,6 +19,7 @@
 #include <linux/of.h>
 #include <linux/sprd_iommu.h>
 #include <linux/sprd_ion.h>
+#include <linux/dma-mapping.h>
 
 #include "cam_types.h"
 #include "cam_buf.h"
@@ -79,22 +80,24 @@ static struct iommudev_info *cambuf_iommu_dev_get(
 /*************** some externel interface only for camera driver ****************/
 int cam_buf_mdbg_check(void)
 {
-	int val[11];
+	int val[12];
 
 	val[0] = atomic_read(&g_mem_dbg->ion_alloc_cnt);
 	val[1] = atomic_read(&g_mem_dbg->ion_kmap_cnt);
 	val[2] = atomic_read(&g_mem_dbg->ion_dma_cnt);
 	val[3] = atomic_read(&g_mem_dbg->empty_frm_cnt);
-	val[4] = atomic_read(&g_mem_dbg->iommu_map_cnt[0]);
-	val[5] = atomic_read(&g_mem_dbg->iommu_map_cnt[1]);
-	val[6] = atomic_read(&g_mem_dbg->iommu_map_cnt[2]);
-	val[7] = atomic_read(&g_mem_dbg->iommu_map_cnt[3]);
-	val[8] = atomic_read(&g_mem_dbg->empty_state_cnt);
-	val[9] = atomic_read(&g_mem_dbg->isp_sw_context_cnt);
-	val[10] = atomic_read(&g_mem_dbg->ion_alloc_size);
+	val[4] = atomic_read(&g_mem_dbg->empty_interruption_cnt);
+	val[5] = atomic_read(&g_mem_dbg->iommu_map_cnt[0]);
+	val[6] = atomic_read(&g_mem_dbg->iommu_map_cnt[1]);
+	val[7] = atomic_read(&g_mem_dbg->iommu_map_cnt[2]);
+	val[8] = atomic_read(&g_mem_dbg->iommu_map_cnt[3]);
+	val[9] = atomic_read(&g_mem_dbg->empty_state_cnt);
+	val[10] = atomic_read(&g_mem_dbg->isp_sw_context_cnt);
+	val[11] = atomic_read(&g_mem_dbg->ion_alloc_size);
 
-	pr_info("mdbg info: %d, %d, %d, %d, %d, %d, %d, %d %d %d, total_size: %d Bytes\n",
-		val[0], val[1], val[2], val[3], val[4], val[5], val[6], val[7], val[8], val[9], val[10]);
+
+	pr_info("mdbg info: %d, %d, %d, %d, %d, %d, %d, %d, %d %d %d, %d, total_size: %d Bytes\n",
+		val[0], val[1], val[2], val[3], val[4], val[5], val[6], val[7], val[8], val[9], val[10], val[11]);
 	return 0;
 }
 
@@ -607,6 +610,37 @@ int cam_buf_iommu_map(struct camera_buf *buf_info,
 	for (i = 0; i < 3; i++) {
 		if (buf_info->ionbuf[i] == NULL)
 			continue;
+		if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0)) {
+			if (buf_info->type == CAM_BUF_USER) {
+				if (buf_info->dmabuf_p[i] == NULL) {
+					buf_info->dmabuf_p[i] = dma_buf_get(buf_info->mfd[i]);
+					if (IS_ERR_OR_NULL(buf_info->dmabuf_p[i])) {
+						pr_err("fail to get dma buf %p\n", buf_info->dmabuf_p[i]);
+						ret = -EINVAL;
+						goto dmabuf_get_failed;
+					}
+					if (g_mem_dbg)
+						atomic_inc(&g_mem_dbg->ion_dma_cnt);
+					pr_debug("dmabuf %p\n", buf_info->dmabuf_p[i]);
+				}
+				if (dma_set_mask(dev_info->dev, DMA_BIT_MASK(64))) {
+					dev_warn(dev_info->dev, "mydev: No suitable DMA available\n");
+					goto ignore_this_device;
+				}
+				buf_info->attachment[i] = dma_buf_attach(buf_info->dmabuf_p[i], dev_info->dev);
+				if (IS_ERR_OR_NULL(buf_info->attachment[i])) {
+					pr_err("fail to attach dmabuf %px\n", (void *)buf_info->dmabuf_p[i]);
+					ret = -EINVAL;
+					goto attach_failed;
+				}
+				buf_info->table[i] = dma_buf_map_attachment(buf_info->attachment[i], DMA_BIDIRECTIONAL);
+				if (IS_ERR_OR_NULL(buf_info->table[i])) {
+					pr_err("fail to map attachment %px\n", (void *)buf_info->attachment[i]);
+					ret = -EINVAL;
+					goto map_attachment_failed;
+				}
+			}
+		}
 		ionbuf[i] = buf_info->ionbuf[i];
 
 		if (dev_info->iommu_en && !buf_info->buf_sec) {
@@ -676,10 +710,38 @@ failed:
 				pr_err("fail to free iommu %d\n", i);
 			if (g_mem_dbg)
 				atomic_dec(&g_mem_dbg->iommu_map_cnt[type]);
+			if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0)) {
+				if (!IS_ERR_OR_NULL(buf_info->table[i]))
+					dma_buf_unmap_attachment(buf_info->attachment[i], buf_info->table[i], DMA_BIDIRECTIONAL);
+			}
 		}
 		buf_info->iova[i] = 0;
 	}
 
+map_attachment_failed:
+	if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0)) {
+		for (i = 0; i < 3; i++) {
+			if (buf_info->ionbuf[i] == NULL)
+				continue;
+			if (!IS_ERR_OR_NULL(buf_info->attachment[i]))
+				dma_buf_detach(buf_info->dmabuf_p[i], buf_info->attachment[i]);
+		}
+	}
+attach_failed:
+ignore_this_device:
+	if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0)) {
+		for (i = 0; i < 3; i++) {
+			if (buf_info->ionbuf[i] == NULL)
+				continue;
+			if (!IS_ERR_OR_NULL(buf_info->dmabuf_p[i])) {
+				dma_buf_put(buf_info->dmabuf_p[i]);
+				buf_info->dmabuf_p[i] = NULL;
+				if (g_mem_dbg)
+					atomic_dec(&g_mem_dbg->ion_dma_cnt);
+			}
+		}
+	}
+dmabuf_get_failed:
 	return ret;
 }
 EXPORT_SYMBOL(cam_buf_iommu_map);
@@ -727,6 +789,14 @@ int cam_buf_iommu_unmap(struct camera_buf *buf_info)
 			}
 			if (g_mem_dbg && !ret)
 				atomic_dec(&g_mem_dbg->iommu_map_cnt[dev_info->type]);
+			if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0)) {
+				if (buf_info->type == CAM_BUF_USER) {
+					if (!IS_ERR_OR_NULL(buf_info->table[i]))
+						dma_buf_unmap_attachment(buf_info->attachment[i], buf_info->table[i], DMA_BIDIRECTIONAL);
+					if (!IS_ERR_OR_NULL(buf_info->attachment[i]))
+						dma_buf_detach(buf_info->dmabuf_p[i], buf_info->attachment[i]);
+				}
+			}
 		}
 		buf_info->iova[i] = 0;
 	}

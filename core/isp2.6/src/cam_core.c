@@ -411,6 +411,7 @@ struct camera_group {
 	struct platform_device *pdev;
 	struct camera_queue empty_frm_q;
 	struct camera_queue empty_state_q;
+	struct camera_queue empty_interruption_q;
 	struct sprd_cam_sec_cfg camsec_cfg;
 	struct camera_debugger debugger;
 	struct cam_hw_info *hw_info;
@@ -447,6 +448,7 @@ struct cam_ioctl_cmd {
 
 struct camera_queue *g_empty_frm_q;
 struct camera_queue *g_empty_state_q;
+struct camera_queue *g_empty_interruption_q;
 struct cam_global_ctrl g_camctrl = {
 	ZOOM_BINNING2,
 	DCAM_SCALE_DOWN_MAX * 10,
@@ -8417,6 +8419,9 @@ static int camcore_open(struct inode *node, struct file *file)
 		g_empty_state_q = &grp->empty_state_q;
 		cam_queue_init(g_empty_state_q, CAM_EMP_STATE_LEN_MAX,
 			cam_queue_empty_state_free);
+		g_empty_interruption_q = &grp->empty_interruption_q;
+		cam_queue_init(g_empty_interruption_q, CAM_INT_EMP_Q_LEN_MAX,
+			cam_queue_empty_interrupt_free);
 		cam_queue_init(&grp->mul_share_buf_q,
 			CAM_SHARED_BUF_NUM, camcore_k_frame_put);
 		spin_unlock_irqrestore(&grp->module_lock, flag);
@@ -8574,10 +8579,11 @@ static int camcore_release(struct inode *node, struct file *file)
 		 */
 		cam_queue_clear(&group->mul_share_buf_q, struct camera_frame, list);
 		cam_queue_clear(g_empty_frm_q, struct camera_frame, list);
-
 		g_empty_frm_q = NULL;
 		cam_queue_clear(g_empty_state_q, struct isp_stream_ctrl, list);
 		g_empty_state_q = NULL;
+		cam_queue_clear(g_empty_interruption_q, struct isp_stream_ctrl, list);
+		g_empty_interruption_q = NULL;
 
 		ret = cam_buf_mdbg_check();
 		atomic_set(&group->runner_nr, 0);

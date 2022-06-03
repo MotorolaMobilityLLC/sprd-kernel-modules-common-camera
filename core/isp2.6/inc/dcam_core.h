@@ -33,6 +33,7 @@
 #define DCAM_RESERVE_BUF_Q_LEN            50
 
 #define DCAM_LSC_BUF_SIZE                 0x3000
+#define DCAM_INT_PROC_FRM_NUM             256
 
 #define DCAM_OFFLINE_TIMEOUT              msecs_to_jiffies(2000)
 #define DCAM_OFFLINE_SLC_MAX              3
@@ -323,6 +324,9 @@ struct dcam_sw_context {
 	void *buf_cb_data;
 	atomic_t shadow_done_cnt;
 	atomic_t shadow_config_cnt;
+
+	struct cam_thread_info dcam_interruption_proc_thrd;
+	struct camera_queue interruption_sts_queue;
 };
 
 struct dcam_hw_context {

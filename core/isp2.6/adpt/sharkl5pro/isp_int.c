@@ -172,7 +172,8 @@ static void ispint_all_done(enum isp_context_hw_id hw_idx, void *isp_handle)
 		complete(&pctx->slice_done);
 	}
 
-	pctx->postproc_func(dev, idx, POSTPROC_FRAME_DONE);
+	pctx->post_type = POSTPROC_FRAME_DONE;
+	complete(&pctx->postproc_thread.thread_com);
 }
 
 static void ispint_shadow_done(enum isp_context_hw_id idx, void *isp_handle)
@@ -222,15 +223,15 @@ static void ispint_fmcu_store_done(enum isp_context_hw_id hw_idx, void *isp_hand
 	}
 
 	pctx = dev->sw_ctx[idx];
-
+	pctx->post_type = POSTPROC_FRAME_DONE;
 	pr_debug("fmcu done cxt_id:%d ch_id[%d]\n", idx, pctx->ch_id);
-	pctx->postproc_func(dev, idx, POSTPROC_FRAME_DONE);
+	complete(&pctx->postproc_thread.thread_com);
 
 	if (pctx->uinfo.enable_slowmotion == 1) {
 		isp_core_context_unbind(pctx);
 		complete(&pctx->frm_done);
 		for (i = 0; i < pctx->uinfo.slowmotion_count - 1; i++)
-			pctx->postproc_func(dev, idx, POSTPROC_FRAME_DONE);
+			complete(&pctx->postproc_thread.thread_com);
 	}
 }
 
