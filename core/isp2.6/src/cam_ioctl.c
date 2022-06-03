@@ -1534,8 +1534,7 @@ static int camioctl_stream_off(struct camera_module *module,
 		if (dcam_path_id >= 0) {
 			module->dcam_dev_handle->dcam_pipe_ops->put_path(sw_ctx, ch->dcam_path_id);
 			if (module->cam_uinfo.raw_alg_type == RAW_ALG_AI_SFNR)
-				module->dcam_dev_handle->dcam_pipe_ops->put_path(sw_ctx,
-						DCAM_PATH_RAW);
+				module->dcam_dev_handle->dcam_pipe_ops->put_path(sw_ctx, DCAM_PATH_RAW);
 		}
 	}
 
@@ -1636,6 +1635,14 @@ static int camioctl_stream_off(struct camera_module *module,
 					cam_queue_empty_frame_put(ch->pyr_dec_buf);
 					ch->pyr_dec_buf = NULL;
 				}
+				if (ch->pyr_rec_buf_alg) {
+					cam_queue_empty_frame_put(ch->pyr_rec_buf_alg);
+					ch->pyr_rec_buf_alg = NULL;
+				}
+				if (ch->pyr_dec_buf_alg) {
+					cam_queue_empty_frame_put(ch->pyr_dec_buf_alg);
+					ch->pyr_dec_buf_alg = NULL;
+				}
 			} else {
 				if ((module->cam_uinfo.is_pyr_rec && ch->ch_id != CAM_CH_CAP)
 					|| (module->cam_uinfo.is_pyr_dec && ch->ch_id == CAM_CH_CAP)) {
@@ -1644,7 +1651,7 @@ static int camioctl_stream_off(struct camera_module *module,
 						ch->pyr_rec_buf = NULL;
 					}
 					if (ch->pyr_rec_buf_alg && ch->ch_id == CAM_CH_CAP) {
-						camcore_k_frame_put(ch->pyr_rec_buf_alg);
+						ret = cam_queue_empty_frame_put(ch->pyr_rec_buf_alg);
 						ch->pyr_rec_buf_alg = NULL;
 					}
 				}
@@ -1655,7 +1662,7 @@ static int camioctl_stream_off(struct camera_module *module,
 						ch->pyr_dec_buf = NULL;
 					}
 					if (ch->pyr_dec_buf_alg) {
-						camcore_k_frame_put(ch->pyr_dec_buf_alg);
+						ret = cam_queue_empty_frame_put(ch->pyr_dec_buf_alg);
 						ch->pyr_dec_buf_alg = NULL;
 					}
 				}
@@ -2617,12 +2624,18 @@ static int camioctl_capture_start(struct camera_module *module,
 			frame = cam_queue_dequeue(&sw_ctx->path[DCAM_PATH_RAW].reserved_buf_queue,
 				struct camera_frame, list);
 			if (frame) {
-				store_arg.idx = sw_ctx->hw_ctx_id;
-				store_arg.path_id = DCAM_PATH_RAW;
-				store_arg.frame_addr[0] = frame->buf.iova[0];
-				store_arg.frame_addr[1] = frame->buf.iova[1];
-				store_arg.frame_addr[2] = frame->buf.iova[2];
-				hw->dcam_ioctl(hw, DCAM_HW_CFG_STORE_ADDR, &store_arg);
+				ret = cam_queue_enqueue(&sw_ctx->path[DCAM_PATH_RAW].result_queue, &frame->list);
+				if (ret) {
+					pr_warn("warning:fail to enqueue raw path result queue.\n");
+					cam_queue_enqueue(&sw_ctx->path[DCAM_PATH_RAW].reserved_buf_queue, &frame->list);
+				} else {
+					store_arg.idx = sw_ctx->hw_ctx_id;
+					store_arg.path_id = DCAM_PATH_RAW;
+					store_arg.frame_addr[0] = frame->buf.iova[0];
+					store_arg.frame_addr[1] = frame->buf.iova[1];
+					store_arg.frame_addr[2] = frame->buf.iova[2];
+					hw->dcam_ioctl(hw, DCAM_HW_CFG_STORE_ADDR, &store_arg);
+				}
 			}
 		} else
 			pr_debug("other cap scene:%d.\n", module->capture_scene);
