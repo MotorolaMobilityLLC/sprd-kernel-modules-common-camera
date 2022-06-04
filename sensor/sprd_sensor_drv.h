@@ -74,6 +74,7 @@ struct sprd_sensor_dev_info_tag {
 	int mclk_count;
 	struct device_node *dev_node;
     uint32_t i2c_clock;
+	uint32_t i2c_burst;
 };
 
 static struct sprd_sensor_dev_info_tag *s_sensor_dev_data[SPRD_SENSOR_ID_MAX];
@@ -91,6 +92,7 @@ int sprd_sensor_set_rst_level(int sensor_id, uint32_t rst_level);
 int sprd_sensor_set_mipi_level(int sensor_id, uint32_t plus_level);
 int sprd_sensor_set_i2c_addr(int sensor_id, uint16_t i2c_addr);
 int sprd_sensor_set_i2c_clk(int sensor_id, uint32_t clock);
+int sprd_sensor_set_i2c_burst(int sensor_id, uint32_t burst_mode);
 int sprd_sensor_read_reg(int sensor_id, struct sensor_reg_bits_tag *pReg);
 int sprd_sensor_write_reg(int sensor_id, struct sensor_reg_bits_tag *pReg);
 int sprd_sensor_burst_write_reg16_val8(struct sensor_reg_tag *p_reg_table,

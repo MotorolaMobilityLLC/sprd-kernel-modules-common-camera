@@ -352,6 +352,19 @@ static int sprd_sensor_io_set_i2c_clk(struct sprd_sensor_file_tag *p_file,
 	return ret;
 }
 
+static int sprd_sensor_io_set_i2c_burst(struct sprd_sensor_file_tag *p_file,
+				      unsigned long arg)
+{
+	int ret = 0;
+	unsigned int burst_mode;
+
+	ret = copy_from_user(&burst_mode, (unsigned int *)arg, sizeof(unsigned int));
+	if (ret == 0)
+		ret = sprd_sensor_set_i2c_burst(p_file->sensor_id, burst_mode);
+
+	return ret;
+}
+
 static int sprd_sensor_io_read_i2c(struct sprd_sensor_file_tag *p_file,
 				   unsigned long arg)
 {
@@ -651,6 +664,9 @@ static long sprd_sensor_file_ioctl(struct file *file, unsigned int cmd,
 		break;
 	case SENSOR_IO_POWER_CFG:
 		ret = sprd_sensor_io_power_cfg(p_file, arg);
+		break;
+	case SENSOR_IO_SET_I2CBURST:
+		ret = sprd_sensor_io_set_i2c_burst(p_file, arg);
 		break;
 	}
 	sprd_sensor_sync_unlock(p_file->sensor_id);

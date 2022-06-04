@@ -930,6 +930,23 @@ int sprd_sensor_set_i2c_clk(int sensor_id, uint32_t clock)
 
 }
 
+int sprd_sensor_set_i2c_burst(int sensor_id, uint32_t burst_mode)
+{
+	struct sprd_sensor_dev_info_tag *p_dev = NULL;
+
+	p_dev = sprd_sensor_get_dev_context(sensor_id);
+	if (!p_dev) {
+		pr_err("%s, error\n", __func__);
+		return -EINVAL;
+	}
+
+    p_dev->i2c_burst = burst_mode;
+	pr_debug("set sensor_id:%d, i2c_burst_mode:%d\n", sensor_id, burst_mode);
+
+	return 0;
+
+}
+
 int sprd_sensor_read_reg(int sensor_id, struct sensor_reg_bits_tag *pReg)
 {
 	uint8_t cmd[2] = { 0 };
@@ -1631,6 +1648,7 @@ int sprd_sensor_write_muti_i2c(struct sensor_muti_aec_i2c_tag *muti_aec_i2c)
 	struct sensor_reg_tag ssettings_2[AEC_I2C_SETTINGS_MAX];
 	struct sensor_reg_bits_tag reg_bit;
 	uint32_t i;
+	struct sprd_sensor_dev_info_tag *p_dev = NULL;
 
 	ret = copy_from_user(sensor_id,
 			muti_aec_i2c->sensor_id,
@@ -1693,37 +1711,178 @@ int sprd_sensor_write_muti_i2c(struct sensor_muti_aec_i2c_tag *muti_aec_i2c)
 			ssettings[i].reg_addr, ssettings[i].reg_value);
 	}
 #endif
+
 	/* master aec info set to i2c */
-	for (i = 0; i < muti_aec_i2c->msize; i++) {
-		reg_bit.reg_addr = msettings[i].reg_addr;
-		reg_bit.reg_value = msettings[i].reg_value;
-		reg_bit.reg_bits = addr_bits_type[0] | data_bits_type[0];
-		ret = sprd_sensor_write_reg(sensor_id[0], &reg_bit);
-		if (ret) {
-			pr_err("fail to write m reg\n");
-			goto exit;
+	if (muti_aec_i2c->msize > 0) {
+
+		p_dev = sprd_sensor_get_dev_context(sensor_id[0]);
+		if (!p_dev) {
+			pr_err("%s, error\n", __func__);
+			return -EINVAL;
+		}
+
+		switch (p_dev->i2c_burst) {
+		case SPRD_SENSOR_I2C_SINGLE_WRITE: {
+			for (i = 0; i < muti_aec_i2c->msize; i++) {
+				reg_bit.reg_addr = msettings[i].reg_addr;
+				reg_bit.reg_value = msettings[i].reg_value;
+				reg_bit.reg_bits = addr_bits_type[0] | data_bits_type[0];
+				ret = sprd_sensor_write_reg(sensor_id[0], &reg_bit);
+				if (ret) {
+					pr_err("fail to write m reg, single\n");
+					goto exit;
+				}
+			}
+			break;
+		}
+
+		case SPRD_SENSOR_I2C_BURST_REG16_VAL8: {
+			ret = sprd_sensor_burst_write_reg16_val8(msettings, sensor_id[0], muti_aec_i2c->msize, 0);
+			if (ret) {
+				pr_err("fail to write m reg, burst_reg16_val8\n");
+				goto exit;
+			}
+			break;
+		}
+
+		case SPRD_SENSOR_I2C_BURST_REG16_VAL16: {
+			ret = sprd_sensor_burst_write_reg16_val16(msettings, sensor_id[0], muti_aec_i2c->msize, 0);
+			if (ret) {
+				pr_err("fail to write m reg, burst_reg16_val16\n");
+				goto exit;
+			}
+			break;
+		}
+
+		default: {
+			for (i = 0; i < muti_aec_i2c->msize; i++) {
+				reg_bit.reg_addr = msettings[i].reg_addr;
+				reg_bit.reg_value = msettings[i].reg_value;
+				reg_bit.reg_bits = addr_bits_type[0] | data_bits_type[0];
+				ret = sprd_sensor_write_reg(sensor_id[0], &reg_bit);
+				if (ret) {
+					pr_err("fail to write m reg, default\n");
+					goto exit;
+				}
+			}
+			break;
+		}
 		}
 	}
+
 	/* slave aec info set to i2c */
-	for (i = 0; i < muti_aec_i2c->ssize; i++) {
-		reg_bit.reg_addr = ssettings[i].reg_addr;
-		reg_bit.reg_value = ssettings[i].reg_value;
-		reg_bit.reg_bits = addr_bits_type[1] | data_bits_type[1];
-		ret = sprd_sensor_write_reg(sensor_id[1], &reg_bit);
-		if (ret) {
-			pr_err("fail to write s reg\n");
-			goto exit;
+	if (muti_aec_i2c->ssize > 0) {
+
+		p_dev = sprd_sensor_get_dev_context(sensor_id[1]);
+		if (!p_dev) {
+			pr_err("%s, error\n", __func__);
+			return -EINVAL;
+		}
+
+		switch (p_dev->i2c_burst) {
+		case SPRD_SENSOR_I2C_SINGLE_WRITE: {
+			for (i = 0; i < muti_aec_i2c->ssize; i++) {
+				reg_bit.reg_addr = ssettings[i].reg_addr;
+				reg_bit.reg_value = ssettings[i].reg_value;
+				reg_bit.reg_bits = addr_bits_type[1] | data_bits_type[1];
+				ret = sprd_sensor_write_reg(sensor_id[1], &reg_bit);
+				if (ret) {
+					pr_err("fail to write s reg, single\n");
+					goto exit;
+				}
+			}
+			break;
+		}
+
+		case SPRD_SENSOR_I2C_BURST_REG16_VAL8: {
+			ret = sprd_sensor_burst_write_reg16_val8(ssettings, sensor_id[1], muti_aec_i2c->ssize, 0);
+			if (ret) {
+				pr_err("fail to write s reg, burst_reg16_val8\n");
+				goto exit;
+			}
+			break;
+		}
+
+		case SPRD_SENSOR_I2C_BURST_REG16_VAL16: {
+			ret = sprd_sensor_burst_write_reg16_val16(ssettings, sensor_id[1], muti_aec_i2c->ssize, 0);
+			if (ret) {
+				pr_err("fail to write s reg, burst_reg16_val16\n");
+				goto exit;
+			}
+			break;
+		}
+
+		default: {
+			for (i = 0; i < muti_aec_i2c->ssize; i++) {
+				reg_bit.reg_addr = ssettings[i].reg_addr;
+				reg_bit.reg_value = ssettings[i].reg_value;
+				reg_bit.reg_bits = addr_bits_type[1] | data_bits_type[1];
+				ret = sprd_sensor_write_reg(sensor_id[1], &reg_bit);
+				if (ret) {
+					pr_err("fail to write s reg, default\n");
+					goto exit;
+				}
+			}
+			break;
+		}
 		}
 	}
+
 	/* slave_2 aec info set to i2c */
-	for (i = 0; i < muti_aec_i2c->ssize_2; i++) {
-		reg_bit.reg_addr = ssettings_2[i].reg_addr;
-		reg_bit.reg_value = ssettings_2[i].reg_value;
-		reg_bit.reg_bits = addr_bits_type[2] | data_bits_type[2];
-		ret = sprd_sensor_write_reg(sensor_id[2], &reg_bit);
-		if (ret) {
-			pr_err("fail to write s reg\n");
-			goto exit;
+	if (muti_aec_i2c->ssize_2 > 0) {
+
+		p_dev = sprd_sensor_get_dev_context(sensor_id[2]);
+		if (!p_dev) {
+			pr_err("%s, error\n", __func__);
+			return -EINVAL;
+		}
+
+		switch (p_dev->i2c_burst) {
+		case SPRD_SENSOR_I2C_SINGLE_WRITE: {
+			for (i = 0; i < muti_aec_i2c->ssize_2; i++) {
+				reg_bit.reg_addr = ssettings_2[i].reg_addr;
+				reg_bit.reg_value = ssettings_2[i].reg_value;
+				reg_bit.reg_bits = addr_bits_type[2] | data_bits_type[2];
+				ret = sprd_sensor_write_reg(sensor_id[2], &reg_bit);
+				if (ret) {
+					pr_err("fail to write s_2 reg, single\n");
+					goto exit;
+				}
+			}
+			break;
+		}
+
+		case SPRD_SENSOR_I2C_BURST_REG16_VAL8: {
+			ret = sprd_sensor_burst_write_reg16_val8(ssettings_2, sensor_id[2], muti_aec_i2c->ssize_2, 0);
+			if (ret) {
+				pr_err("fail to write s_2 reg, burst_reg16_val8\n");
+				goto exit;
+			}
+			break;
+		}
+
+		case SPRD_SENSOR_I2C_BURST_REG16_VAL16: {
+			ret = sprd_sensor_burst_write_reg16_val16(ssettings_2, sensor_id[2], muti_aec_i2c->ssize_2, 0);
+			if (ret) {
+				pr_err("fail to write s_2 reg, burst_reg16_val16\n");
+				goto exit;
+			}
+			break;
+		}
+
+		default: {
+			for (i = 0; i < muti_aec_i2c->ssize_2; i++) {
+				reg_bit.reg_addr = ssettings_2[i].reg_addr;
+				reg_bit.reg_value = ssettings_2[i].reg_value;
+				reg_bit.reg_bits = addr_bits_type[2] | data_bits_type[2];
+				ret = sprd_sensor_write_reg(sensor_id[2], &reg_bit);
+				if (ret) {
+					pr_err("fail to write s_2 reg, default\n");
+					goto exit;
+				}
+			}
+			break;
+		}
 		}
 	}
 
