@@ -7962,7 +7962,8 @@ static long camcore_ioctl(struct file *file, unsigned int cmd,
 	if (atomic_read(&module->state) != CAM_RUNNING
 		|| cmd == SPRD_IMG_IO_STREAM_OFF
 		|| cmd == SPRD_ISP_IO_CFG_PARAM
-		|| cmd == SPRD_IMG_IO_DCAM_SWITCH) {
+		|| cmd == SPRD_IMG_IO_DCAM_SWITCH
+		|| cmd == SPRD_IMG_IO_CFG_PARAM_STATUS) {
 		mutex_lock(&module->lock);
 		locked = 1;
 	}
