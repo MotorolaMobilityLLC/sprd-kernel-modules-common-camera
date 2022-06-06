@@ -128,7 +128,7 @@ static int sprd_flash_ic_open_torch(void *drvd, uint8_t idx)
 	idx = drv_data->torch_led_index;
 
 	if (drv_data->i2c_info) {
-		flash_ic_driver_reg_write(drv_data->i2c_info, 0x01, 0x09);
+		flash_ic_driver_reg_write(drv_data->i2c_info, 0x01, 0x0a);
 	}
 
 	return 0;
@@ -162,7 +162,7 @@ static int sprd_flash_ic_open_preflash(void *drvd, uint8_t idx)
 	idx = drv_data->torch_led_index;
 
 	if (drv_data->i2c_info) {
-		flash_ic_driver_reg_write(drv_data->i2c_info, 0x01, 0x09);
+		flash_ic_driver_reg_write(drv_data->i2c_info, 0x01, 0x0a);
 	}
 
 	return 0;
@@ -196,7 +196,7 @@ static int sprd_flash_ic_open_highlight(void *drvd, uint8_t idx)
 	idx = drv_data->torch_led_index;
 
 	if (drv_data->i2c_info) {
-		flash_ic_driver_reg_write(drv_data->i2c_info, 0x01, 0x0D);
+		flash_ic_driver_reg_write(drv_data->i2c_info, 0x01, 0x0E);
 	}
 
 	return 0;
