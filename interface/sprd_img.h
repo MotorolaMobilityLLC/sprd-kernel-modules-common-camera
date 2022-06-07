@@ -881,7 +881,6 @@ struct sprd_cfg_param_status {
 	uint32_t frame_id; /* sof id */
 	uint32_t scene_id;
 	uint32_t update;
-	uint32_t request_id;
 };
 
 #define SPRD_IMG_IO_MAGIC                'Z'
