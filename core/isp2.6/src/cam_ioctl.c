@@ -1238,7 +1238,7 @@ static int camioctl_frame_addr_set(struct camera_module *module,
 	struct camera_frame *pframe = NULL;
 	struct dcam_sw_context *dcam_sw_ctx = NULL;
 	struct dcam_sw_context *dcam_sw_aux_ctx = NULL;
-
+	struct cam_hw_info *hw = NULL;
 	if ((atomic_read(&module->state) != CAM_CFG_CH) &&
 		(atomic_read(&module->state) != CAM_RUNNING)) {
 		pr_warn("warning: only for state CFG_CH or RUNNING\n");
@@ -1265,6 +1265,7 @@ static int camioctl_frame_addr_set(struct camera_module *module,
 
 	ch_prv = &module->channel[CAM_CH_PRE];
 	ch = &module->channel[param.channel_id];
+	hw = module->grp->hw_info;
 	dcam_sw_ctx = &module->dcam_dev_handle->sw_ctx[module->cur_sw_ctx_id];
 	dcam_sw_aux_ctx = &module->dcam_dev_handle->sw_ctx[module->offline_cxt_id];
 
@@ -1356,6 +1357,17 @@ static int camioctl_frame_addr_set(struct camera_module *module,
 			else
 				ret = module->dcam_dev_handle->dcam_pipe_ops->cfg_path(dcam_sw_ctx,
 					cmd, ch->dcam_path_id, pframe);
+
+			if (atomic_read(&dcam_sw_ctx->path[DCAM_PATH_RAW].is_shutoff) == 1 &&
+				module->cam_uinfo.raw_alg_type == RAW_ALG_MFNR) {
+				uint32_t shutoff = 0;
+				struct dcam_hw_path_restart re_patharg;
+				re_patharg.idx = dcam_sw_ctx->hw_ctx_id;
+				re_patharg.path_id = DCAM_PATH_RAW;
+				hw->dcam_ioctl(hw, DCAM_HW_CFG_PATH_RESTART, &re_patharg);
+				module->dcam_dev_handle->dcam_pipe_ops->cfg_path(dcam_sw_ctx, DCAM_PATH_CFG_SHUTOFF,
+					DCAM_PATH_RAW, &shutoff);
+			}
 			/* 4in1_raw_capture, maybe need two image once */
 			if (ch->second_path_enable) {
 				ch->pack_bits = ch->ch_uinfo.dcam_raw_fmt;
@@ -2639,15 +2651,6 @@ static int camioctl_capture_start(struct camera_module *module,
 			}
 		} else
 			pr_debug("other cap scene:%d.\n", module->capture_scene);
-	}
-
-	if (module->capture_scene == CAPTURE_RAWALG && atomic_read(&sw_ctx->path[DCAM_PATH_RAW].is_shutoff) == 1) {
-		uint32_t shutoff = 0;
-		re_patharg.idx = sw_ctx->hw_ctx_id;
-		re_patharg.path_id = DCAM_PATH_RAW;
-		hw->dcam_ioctl(hw, DCAM_HW_CFG_PATH_RESTART, &re_patharg);
-		module->dcam_dev_handle->dcam_pipe_ops->cfg_path(sw_ctx, DCAM_PATH_CFG_SHUTOFF,
-			DCAM_PATH_RAW, &shutoff);
 	}
 
 	/* recognize the capture scene */
