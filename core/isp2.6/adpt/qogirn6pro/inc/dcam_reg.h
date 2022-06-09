@@ -24,6 +24,9 @@ extern unsigned long g_dcam_phys_base[];
 
 #define DCAM_PATH_CROP_ALIGN                            8
 
+extern unsigned long g_reg_wr_flag;
+extern spinlock_t g_reg_wr_lock;
+
 /* DCAM0/DCAM1 module registers define */
 #define DCAM_BASE_ADDR                                  (0x3e000000)
 #define DCAM_COMMON_BASE                                (0x0000UL)
@@ -1052,21 +1055,157 @@ extern const unsigned long slowmotion_store_addr[3][4];
 #define DCAM_PHYS_ADDR(idx)                             (g_dcam_phys_base[idx])
 #define DCAM_GET_REG(idx, reg)                          (DCAM_PHYS_ADDR(idx) + (reg))
 
-#define DCAM_REG_WR(idx, reg, val)                      (REG_WR(DCAM_BASE(idx)+(reg), (val)))
-#define DCAM_REG_RD(idx, reg)                           (REG_RD(DCAM_BASE(idx)+(reg)))
-#define DCAM_REG_MWR(idx, reg, msk, val)                DCAM_REG_WR((idx), (reg), ((val) & (msk)) | (DCAM_REG_RD(idx, reg) & (~(msk))))
+#define DCAM_REG_WR(idx, reg, val) ({                                                \
+	unsigned long __flags;                                                       \
+	spin_lock_irqsave(&g_reg_wr_lock, __flags);                                  \
+	if (!g_reg_wr_flag)                                                       \
+		(REG_WR(DCAM_BASE(idx)+(reg), (val)));                                   \
+	else {                                                                        \
+		pr_err("fail to wr reg when axi rest.\n");                      \
+		BUG_ON(1);                                                  \
+	}                                            \
+	spin_unlock_irqrestore(&g_reg_wr_lock, __flags);                                 \
+})
 
-#define DCAM_AXIM_WR(id, reg, val)                      (REG_WR(DCAM_AXIM_BASE(id)+(reg), (val)))
-#define DCAM_AXIM_RD(id, reg)                           (REG_RD(DCAM_AXIM_BASE(id)+(reg)))
-#define DCAM_AXIM_MWR(id, reg, msk, val)                DCAM_AXIM_WR((id), (reg), ((val) & (msk)) | (DCAM_AXIM_RD((id), (reg)) & (~(msk))))
+#define DCAM_REG_RD(idx, reg) ({                                          \
+	unsigned long __flags;                                                       \
+	uint32_t val;                                                       \
+	spin_lock_irqsave(&g_reg_wr_lock, __flags);                                  \
+	if (!g_reg_wr_flag)                                                         \
+		val = (REG_RD(DCAM_BASE(idx)+(reg)));                                          \
+	else {                                                      \
+		val = 0;                                                            \
+		BUG_ON(1);                                  \
+	}                                                  \
+	spin_unlock_irqrestore(&g_reg_wr_lock, __flags);                                 \
+	val;                                        \
+})
 
-#define DCAM_MMU_WR(reg, val)                           (REG_WR(DCAM_MMU_BASE+(reg), (val)))
-#define DCAM_MMU_RD(reg)                                (REG_RD(DCAM_MMU_BASE+(reg)))
-#define DCAM_MMU_MWR(reg, msk, val)                     DCAM_MMU_WR((reg), ((val) & (msk)) | (DCAM_MMU_RD(reg) & (~(msk))))
+#define DCAM_REG_MWR(idx, reg, msk, val) ({                               \
+	unsigned long __flags;                                                       \
+	spin_lock_irqsave(&g_reg_wr_lock, __flags);                                  \
+	if (!g_reg_wr_flag)                                                       \
+		(REG_WR(DCAM_BASE(idx)+(reg), ((val) & (msk)) | (REG_RD(DCAM_BASE(idx)+(reg)) & (~(msk)))));            \
+	else {                                          \
+		pr_err("fail to mwr reg when axi rest.\n");                      \
+		BUG_ON(1);                                    \
+	}                                          \
+	spin_unlock_irqrestore(&g_reg_wr_lock, __flags);                                 \
+})
 
-#define DCAM_FMCU_WR(reg, val)                          (REG_WR(DCAM_FMCU_BASE + (reg), (val)))
-#define DCAM_FMCU_RD(reg)                               (REG_RD(DCAM_FMCU_BASE + (reg)))
-#define DCAM_FMCU_MWR(reg, msk, val)                     DCAM_FMCU_WR((reg), ((val) & (msk)) | (DCAM_FMCU_RD((reg)) & (~(msk))))
+#define DCAM_AXIM_WR(id, reg, val) ({                                 \
+	unsigned long __flags;                                                       \
+	spin_lock_irqsave(&g_reg_wr_lock, __flags);                                  \
+	if (!g_reg_wr_flag)                                                       \
+		(REG_WR(DCAM_AXIM_BASE(id)+(reg), (val)));                           \
+	else {                                                                        \
+		pr_err("fail to aximwr reg when axi rest.\n");                      \
+		BUG_ON(1);                                                  \
+	}                                            \
+	spin_unlock_irqrestore(&g_reg_wr_lock, __flags);                                 \
+})
+
+#define DCAM_AXIM_RD(id, reg) ({                                         \
+	unsigned long __flags;                                                       \
+	uint32_t val;                                                       \
+	spin_lock_irqsave(&g_reg_wr_lock, __flags);                                  \
+	if (!g_reg_wr_flag)                                                         \
+		val = (REG_RD(DCAM_AXIM_BASE(id)+(reg)));                                          \
+	else {                                                      \
+		val = 0;                                                            \
+		BUG_ON(1);                                  \
+	}                                                  \
+	spin_unlock_irqrestore(&g_reg_wr_lock, __flags);                                 \
+	val;                                        \
+})
+
+#define DCAM_AXIM_MWR(id, reg, msk, val) ({                               \
+	unsigned long __flags;                                                       \
+	spin_lock_irqsave(&g_reg_wr_lock, __flags);                                  \
+	if (!g_reg_wr_flag)                                                       \
+		(REG_WR(DCAM_AXIM_BASE(id)+(reg), ((val) & (msk)) | (REG_RD(DCAM_AXIM_BASE(id)+(reg)) & (~(msk)))));            \
+	else {                                                    \
+		pr_err("fail to aximmwr reg when axi rest.\n");                      \
+		BUG_ON(1);                                    \
+	}                                \
+	spin_unlock_irqrestore(&g_reg_wr_lock, __flags);                                 \
+})
+
+#define DCAM_MMU_WR(reg, val) ({                                          \
+	unsigned long __flags;                                                       \
+	spin_lock_irqsave(&g_reg_wr_lock, __flags);                                  \
+	if (!g_reg_wr_flag)                                                       \
+		(REG_WR(DCAM_MMU_BASE+(reg), (val)));                           \
+	else {                                                                        \
+		pr_err("fail to mmuwr reg when axi rest.\n");                      \
+		BUG_ON(1);                                                  \
+	}                                            \
+	spin_unlock_irqrestore(&g_reg_wr_lock, __flags);                                 \
+})
+
+#define DCAM_MMU_RD(reg) ({                                        \
+	unsigned long __flags;                                                       \
+	uint32_t val;                                                       \
+	spin_lock_irqsave(&g_reg_wr_lock, __flags);                                  \
+	if (!g_reg_wr_flag)                                                         \
+		val = (REG_RD(DCAM_MMU_BASE+(reg)));                                          \
+	else {                                                      \
+		val = 0;                                                            \
+		BUG_ON(1);                                  \
+	}                                                  \
+	spin_unlock_irqrestore(&g_reg_wr_lock, __flags);                                 \
+	val;                                        \
+})
+
+#define DCAM_MMU_MWR(reg, msk, val) ({                             \
+	unsigned long __flags;                                                       \
+	spin_lock_irqsave(&g_reg_wr_lock, __flags);                                  \
+	if (!g_reg_wr_flag)                                                       \
+		(REG_WR(DCAM_MMU_BASE+(reg), ((val) & (msk)) | (REG_RD(DCAM_MMU_BASE+(reg)) & (~(msk)))));            \
+	else {                                                    \
+		pr_err("fail to mmuwr reg when axi rest.\n");                      \
+		BUG_ON(1);                                    \
+	}                                                        \
+	spin_unlock_irqrestore(&g_reg_wr_lock, __flags);                                 \
+})
+
+#define DCAM_FMCU_WR(reg, val) ({                                \
+	unsigned long __flags;                                                       \
+	spin_lock_irqsave(&g_reg_wr_lock, __flags);                                  \
+	if (!g_reg_wr_flag)                                                       \
+		(REG_WR(DCAM_FMCU_BASE+(reg), (val)));                           \
+	else {                                                                        \
+		pr_err("fail to fmcuwr reg when axi rest.\n");                      \
+		BUG_ON(1);                                                  \
+	}                                            \
+	spin_unlock_irqrestore(&g_reg_wr_lock, __flags);                                 \
+})
+
+#define DCAM_FMCU_RD(reg) ({                                              \
+	unsigned long __flags;                                                       \
+	uint32_t val;                                                       \
+	spin_lock_irqsave(&g_reg_wr_lock, __flags);                                  \
+	if (!g_reg_wr_flag)                                                         \
+		val = (REG_RD(DCAM_FMCU_BASE+(reg)));                                          \
+	else {                                                      \
+		val = 0;                                                            \
+		BUG_ON(1);                                  \
+	}                                                  \
+	spin_unlock_irqrestore(&g_reg_wr_lock, __flags);                                 \
+	val;                                        \
+})
+
+#define DCAM_FMCU_MWR(reg, msk, val) ({                             \
+	unsigned long __flags;                                                       \
+	spin_lock_irqsave(&g_reg_wr_lock, __flags);                                  \
+	if (!g_reg_wr_flag)                                                       \
+		(REG_WR(DCAM_FMCU_BASE+(reg), ((val) & (msk)) | (REG_RD(DCAM_FMCU_BASE+(reg)) & (~(msk)))));            \
+	else {                                                    \
+		pr_err("fail to fmcumwr reg when axi rest.\n");                      \
+		BUG_ON(1);                                    \
+	}                             \
+	spin_unlock_irqrestore(&g_reg_wr_lock, __flags);                                 \
+})
 
 /* TODO: add DCAM0/1 lsc grid table mapping */
 

@@ -89,6 +89,9 @@
 #define CAM_VIDEO_LIMIT_H               2160
 #define PRE_RDS_OUT                     3264
 
+unsigned long g_reg_wr_flag;
+spinlock_t g_reg_wr_lock;
+
 enum camera_module_state {
 	CAM_INIT = 0,
 	CAM_IDLE,
@@ -8695,6 +8698,7 @@ static int camcore_probe(struct platform_device *pdev)
 	spin_lock_init(&group->module_lock);
 	spin_lock_init(&group->rawproc_lock);
 	spin_lock_init(&group->dual_frame_lock);
+	spin_lock_init(&g_reg_wr_lock);
 
 	mutex_init(&group->pyr_mulshare_lock);
 	init_rwsem(&group->switch_recovery_lock);

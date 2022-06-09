@@ -32,6 +32,20 @@
 
 #define IS_DCAM_IF(idx)                ((idx) < 2)
 
+#define SPIN_LOCK_WR_REG(lock, flag) ({            \
+	unsigned long __flags;                       \
+	spin_lock_irqsave(&lock, __flags);               \
+	flag = 1;                                  \
+	spin_unlock_irqrestore(&lock, __flags);          \
+})
+
+#define SPIN_UNLOCK_WR_REG(lock, flag) ({            \
+	unsigned long __flags;                       \
+	spin_lock_irqsave(&lock, __flags);               \
+	flag = 0;                                  \
+	spin_unlock_irqrestore(&lock, __flags);          \
+})
+
 static uint32_t dcam_hw_linebuf_len[3] = {0, 0, 0};
 static uint32_t g_gtm_bypass = 1;
 static uint32_t g_ltm_bypass = 1;
@@ -295,12 +309,14 @@ static int dcamhw_axi_init(void *handle, void *arg)
 	} else {
 		flag = ip->syscon.all_rst_mask
 			|ip->syscon.axi_rst_mask;
+		SPIN_LOCK_WR_REG(g_reg_wr_lock, g_reg_wr_flag);
 		/* reset dcam all (0/1/2/bus) */
 		regmap_update_bits(soc->cam_ahb_gpr, ip->syscon.all_rst,
 			flag, flag);
 		udelay(10);
 		regmap_update_bits(soc->cam_ahb_gpr, ip->syscon.all_rst,
 			flag, ~flag);
+		SPIN_UNLOCK_WR_REG(g_reg_wr_lock, g_reg_wr_flag);
 	}
 	write_unlock(&soc->cam_ahb_lock);
 
