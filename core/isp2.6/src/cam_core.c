@@ -3461,7 +3461,8 @@ static int camcore_dcam_callback(enum dcam_cb_type type, void *param, void *priv
 							DCAM_PATH_CFG_OUTPUT_ALTER_BUF :
 							DCAM_PATH_CFG_OUTPUT_BUF;
 						dcam_path_id = channel->dcam_path_id;
-						if (module->cam_uinfo.raw_alg_type == RAW_ALG_AI_SFNR)
+						if (module->cam_uinfo.raw_alg_type == RAW_ALG_AI_SFNR &&
+							pframe->img_fmt == IMG_PIX_FMT_GREY)
 							dcam_path_id = DCAM_PATH_RAW;
 						ret = module->dcam_dev_handle->dcam_pipe_ops->cfg_path(dcam_sw_ctx, cmd,
 							dcam_path_id, pframe);
