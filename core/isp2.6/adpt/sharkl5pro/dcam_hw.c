@@ -1585,12 +1585,6 @@ static int dcamhw_get_gtm_hist(void *handle, void *arg)
 
 static int dcamhw_csi_disconnect(void *handle, void *arg)
 {
-	struct cam_hw_info *hw = NULL;
-	struct dcam_switch_param *csi_switch = NULL;
-	csi_switch = (struct dcam_switch_param *)arg;
-	hw = (struct cam_hw_info *)handle;
-	hw->dcam_ioctl(hw, DCAM_HW_CFG_STOP, &csi_switch->dcam_id);
-	hw->dcam_ioctl(hw, DCAM_HW_CFG_RESET, &csi_switch->dcam_id);
 	return 0;
 }
 

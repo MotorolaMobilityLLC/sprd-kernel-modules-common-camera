@@ -272,6 +272,9 @@ struct dcam_sw_context {
 	uint32_t slice_count;
 	uint32_t dec_all_done;
 	uint32_t dec_layer0_done;
+	uint32_t prev_fbc_done;
+	uint32_t cap_fbc_done;
+	spinlock_t fbc_lock;
 	struct img_trim slice_trim;/* for sw slices */
 	struct img_trim hw_slices[DCAM_OFFLINE_SLC_MAX];/* for offline hw slices */
 	struct img_trim *cur_slice;

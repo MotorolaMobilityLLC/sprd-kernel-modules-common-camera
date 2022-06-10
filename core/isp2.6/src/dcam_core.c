@@ -2017,7 +2017,7 @@ static int dcamcore_dev_stop(void *dcam_handle, enum dcam_stop_cmd pause)
 	}
 
 	if (hw_ctx_id != DCAM_HW_CONTEXT_MAX && pause != DCAM_RECOVERY) {
-		hw->dcam_ioctl(hw, DCAM_HW_CFG_STOP, &hw_ctx_id);
+		hw->dcam_ioctl(hw, DCAM_HW_CFG_STOP, pctx);
 		hw->dcam_ioctl(hw, DCAM_HW_CFG_RESET, &hw_ctx_id);
 		dcam_int_tracker_dump(hw_ctx_id);
 		dcam_int_tracker_reset(hw_ctx_id);
@@ -2398,6 +2398,7 @@ static int dcamcore_context_get(void *dcam_handle)
 
 	atomic_set(&pctx->state, STATE_IDLE);
 	spin_lock_init(&pctx->glb_reg_lock);
+	spin_lock_init(&pctx->fbc_lock);
 	/* for debugfs */
 	atomic_inc(&s_dcam_opened[pctx->sw_ctx_id]);
 exit:

@@ -241,6 +241,7 @@ static int dcamhw_stop(void *handle, void *arg)
 {
 	int ret = 0;
 	int time_out = DCAMX_STOP_TIMEOUT;
+	struct dcam_sw_context *pctx = NULL;
 	uint32_t idx = 0;
 
 	if (!arg) {
@@ -248,7 +249,9 @@ static int dcamhw_stop(void *handle, void *arg)
 		return -EFAULT;
 	}
 
-	idx = *(uint32_t *)arg;
+	pctx = (struct dcam_sw_context *)arg;
+	idx = pctx->hw_ctx_id;
+
 	/* reset  cap_en*/
 	DCAM_REG_MWR(idx, DCAM_CFG, BIT_0, 0);
 	DCAM_REG_WR(idx, DCAM_PATH_STOP, 0x2DFF);

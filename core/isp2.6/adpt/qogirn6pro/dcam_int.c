@@ -1790,6 +1790,20 @@ static irqreturn_t dcamint_isr_root(int irq, void *priv)
 		goto exit;
 	}
 
+	spin_lock(&dcam_sw_ctx->fbc_lock);
+	if (status & BIT(DCAM_IF_IRQ_INT0_CAP_SOF)) {
+		dcam_sw_ctx->prev_fbc_done = 0;
+		if (atomic_read(&dcam_hw_ctx->sw_ctx->path[DCAM_PATH_FULL].user_cnt) > 0)
+			dcam_sw_ctx->cap_fbc_done = 0;
+		else
+			dcam_sw_ctx->cap_fbc_done = 1;
+	}
+	if (status & BIT(DCAM_IF_IRQ_INT0_CAPTURE_PATH_TX_DONE))
+		dcam_sw_ctx->cap_fbc_done = 1;
+	if (status & BIT(DCAM_IF_IRQ_INT0_PREVIEW_PATH_TX_DONE))
+		dcam_sw_ctx->prev_fbc_done = 1;
+	spin_unlock(&dcam_sw_ctx->fbc_lock);
+
 	DCAM_REG_WR(dcam_hw_ctx->hw_ctx_id, DCAM_INT0_CLR, status);
 	DCAM_REG_WR(dcam_hw_ctx->hw_ctx_id, DCAM_INT1_CLR, status1);
 

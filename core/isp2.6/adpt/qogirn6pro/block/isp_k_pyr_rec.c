@@ -507,7 +507,8 @@ int isp_pyr_rec_bypass(void *handle)
 	ISP_REG_MWR(idx, PYR_REC_STORE_BASE + ISP_STORE_SHADOW_CLR_SEL, BIT_1, 0);
 
 	addr = ISP_GET_REG(ISP_COMMON_SCL_PATH_SEL);
-	cmd = ((~bypass) & 0x1) << 13;
+	cmd = ISP_REG_RD(idx, ISP_COMMON_SCL_PATH_SEL);
+	cmd &= ~(((bypass & 0x1) << 13) & 0x2000);
 	FMCU_PUSH(fmcu, addr, cmd);
 
 	addr = PYR_REC_STORE_BASE + ISP_GET_REG(ISP_STORE_SHADOW_CLR);

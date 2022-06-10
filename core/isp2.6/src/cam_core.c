@@ -7402,9 +7402,13 @@ static int camcore_csi_switch_disconnect(struct camera_module *module, uint32_t 
 	if (mode == CAM_CSI_RECOVERY_SWITCH)
 		csi_switch.is_recovery = 1;
 
-	if (atomic_read(&hw_ctx->user_cnt) > 0)
+	if (atomic_read(&hw_ctx->user_cnt) > 0) {
 		hw->dcam_ioctl(hw, DCAM_HW_DISCONECT_CSI, &csi_switch);
-	else {
+		/* reset */
+		hw->dcam_ioctl(hw, DCAM_HW_CFG_STOP, sw_ctx);
+		if (!csi_switch.is_recovery)
+			hw->dcam_ioctl(hw, DCAM_HW_CFG_RESET, &sw_ctx->hw_ctx_id);
+	} else {
 		pr_err("fail to get DCAM%d valid user cnt %d\n", hw_ctx->hw_ctx_id, atomic_read(&hw_ctx->user_cnt));
 		return -1;
 	}

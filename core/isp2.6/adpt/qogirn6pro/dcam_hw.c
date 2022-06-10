@@ -449,24 +449,22 @@ static int dcamhw_stop(void *handle, void *arg)
 	int time_out = DCAMX_STOP_TIMEOUT;
 	uint32_t idx = 0;
 	struct cam_hw_info *hw = NULL;
+	struct dcam_sw_context *pctx = NULL;
 	struct cam_hw_reg_trace trace;
+	unsigned long flag = 0;
 
 	if (!arg) {
 		pr_err("fail to get valid arg\n");
 		return -EFAULT;
 	}
 
-	idx = *(uint32_t *)arg;
+	pctx = (struct dcam_sw_context *)arg;
+	idx = pctx->hw_ctx_id;
 	hw = (struct cam_hw_info *)handle;
 
 	/* reset  cap_en*/
 	DCAM_REG_MWR(idx, DCAM_MIPI_CAP_CFG, BIT_0, 0);
 	DCAM_REG_WR(idx, DCAM_PATH_STOP, 0x7FFFF);
-
-	DCAM_REG_WR(idx, DCAM_INT0_EN, 0);
-	DCAM_REG_WR(idx, DCAM_INT0_CLR, 0xFFFFFFFF);
-	DCAM_REG_WR(idx, DCAM_INT1_EN, 0);
-	DCAM_REG_WR(idx, DCAM_INT1_CLR, 0xFFFFFFFF);
 
 	/* wait for AHB path busy cleared */
 	while (time_out) {
@@ -486,6 +484,35 @@ static int dcamhw_stop(void *handle, void *arg)
 		trace.idx = idx;
 		hw->isp_ioctl(hw, ISP_HW_CFG_REG_TRACE, &trace);
 	}
+
+	time_out = 35;
+	while (time_out) {
+		spin_lock_irqsave(&pctx->fbc_lock, flag);
+		if (pctx->prev_fbc_done && pctx->cap_fbc_done) {
+			spin_unlock_irqrestore(&pctx->fbc_lock, flag);
+			udelay(10);
+			break;
+		}
+		spin_unlock_irqrestore(&pctx->fbc_lock, flag);
+		udelay(1000);
+		time_out--;
+	}
+
+	if (time_out == 0)
+		pr_warn("warning: DCAM%d wait fbc done %d %d timeout for 35ms\n", idx,
+			pctx->prev_fbc_done, pctx->cap_fbc_done);
+	else
+		pr_debug("dcam%d time %d\n", idx, time_out);
+
+	spin_lock_irqsave(&pctx->fbc_lock, flag);
+	pctx->prev_fbc_done = 0;
+	pctx->cap_fbc_done = 0;
+	spin_unlock_irqrestore(&pctx->fbc_lock, flag);
+
+	DCAM_REG_WR(idx, DCAM_INT0_EN, 0);
+	DCAM_REG_WR(idx, DCAM_INT0_CLR, 0xFFFFFFFF);
+	DCAM_REG_WR(idx, DCAM_INT1_EN, 0);
+	DCAM_REG_WR(idx, DCAM_INT1_CLR, 0xFFFFFFFF);
 
 	pr_info("dcam%d stop\n", idx);
 	return ret;
@@ -2616,11 +2643,6 @@ static int dcamhw_csi_disconnect(void *handle, void *arg)
 
 	if (time_out == 0)
 		pr_err("fail to stop:DCAM%d: stop timeout for 2s\n", idx);
-
-	/* reset */
-	hw->dcam_ioctl(hw, DCAM_HW_CFG_STOP, &idx);
-	if (!csi_switch->is_recovery)
-		hw->dcam_ioctl(hw, DCAM_HW_CFG_RESET, &idx);
 
 	return 0;
 }
