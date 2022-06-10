@@ -3889,7 +3889,6 @@ static int camcore_channel_swapsize_cal(struct camera_module *module)
 	uint32_t ratio_v_w, ratio_v_h;
 	uint32_t ratio_p_w1, ratio_p_h1;
 	uint32_t ratio_v_w1, ratio_v_h1;
-	uint32_t ratio_min_p, ratio_min_v;
 	uint32_t isp_linebuf_len = g_camctrl.isp_linebuf_len;
 	struct channel_context *ch_prev = NULL;
 	struct channel_context *ch_vid = NULL;
@@ -3995,19 +3994,10 @@ static int camcore_channel_swapsize_cal(struct camera_module *module)
 	max_bin.h >>= shift;
 
 	/* scaler */
-	ratio_p_w = (1 << RATIO_SHIFT) * ch_prev->ch_uinfo.src_size.w / ch_prev->ch_uinfo.dst_size.w;
-	ratio_p_h = (1 << RATIO_SHIFT) * ch_prev->ch_uinfo.src_size.h / ch_prev->ch_uinfo.dst_size.h;
-	ratio_min_p = MIN(ratio_p_w, ratio_p_h);
-	ratio_v_w = (1 << RATIO_SHIFT) * ch_vid->ch_uinfo.src_size.w / ch_vid->ch_uinfo.dst_size.w;
-	ratio_v_h = (1 << RATIO_SHIFT) * ch_vid->ch_uinfo.src_size.h / ch_vid->ch_uinfo.dst_size.h;
-	ratio_min_v = MIN(ratio_v_w, ratio_v_h);
-
 	max_scaler.w = MAX(ch_prev->ch_uinfo.dst_size.w, ch_vid->ch_uinfo.dst_size.w);
 	max_scaler.h = MAX(ch_prev->ch_uinfo.dst_size.h, ch_vid->ch_uinfo.dst_size.h);
-	if (ratio_min_p != ratio_min_v && ch_vid->enable) {
-		max_scaler.w = MAX(max_bin.w, max_scaler.w);
-		max_scaler.h = MAX(max_bin.h, max_scaler.h);
-	}
+	max_scaler.w = MAX(max_bin.w, max_scaler.w);
+	max_scaler.h = MAX(max_bin.h, max_scaler.h);
 
 	/* go through rds path */
 	if ((dst_p.w == 0) || (dst_p.h == 0)) {
@@ -4083,7 +4073,7 @@ static int camcore_channel_size_binning_cal(
 {
 	uint32_t shift = 0, factor = 0, align_size = 0;
 	uint32_t src_binning = 0;
-	uint32_t ratio_w = 0, ratio_h = 0;
+	uint32_t ratio_w = 0, ratio_h = 0, ratio_min = 0;
 	struct channel_context *ch_prev;
 	struct channel_context *ch_vid;
 	struct channel_context *ch_cap;
@@ -4213,16 +4203,16 @@ static int camcore_channel_size_binning_cal(
 		dcam_out.h = ALIGN_DOWN(dcam_out.h, 2);
 
 		if (bypass_always == ZOOM_SCALER) {
-			ratio_w = 1 << RATIO_SHIFT;
-			ratio_h = 1 << RATIO_SHIFT;
+			ratio_min = 1 << RATIO_SHIFT;
 			if (trim_pv.size_x > ch_prev->swap_size.w || trim_pv.size_y > ch_prev->swap_size.h) {
 				ratio_w = (1 << RATIO_SHIFT) * trim_pv.size_x / ch_prev->swap_size.w;
 				ratio_h = (1 << RATIO_SHIFT) * trim_pv.size_y / ch_prev->swap_size.h;
-				dcam_out.w = camcore_ratio16_divide(trim_pv.size_x, ratio_w);
-				dcam_out.h = camcore_ratio16_divide(trim_pv.size_y, ratio_h);
+				ratio_min = MAX(ratio_w, ratio_h);
+				ratio_min = MAX(ratio_min, 1 << RATIO_SHIFT);
+				dcam_out.w = camcore_ratio16_divide(trim_pv.size_x, ratio_min);
+				dcam_out.h = camcore_ratio16_divide(trim_pv.size_y, ratio_min);
 				dcam_out.w = ALIGN(dcam_out.w, 4);
 				dcam_out.h = ALIGN(dcam_out.h, 2);
-				pr_debug("ratio %d %d %d, shift %d\n", ratio_w, ratio_h, shift);
 			}
 		}
 
@@ -4230,8 +4220,7 @@ static int camcore_channel_size_binning_cal(
 			dcam_out.h = dcam_out.h * DCAM_SCALER_MAX_WIDTH / dcam_out.w;
 			dcam_out.h = ALIGN_DOWN(dcam_out.h, 2);
 			dcam_out.w = DCAM_SCALER_MAX_WIDTH;
-			ratio_w = (1 << RATIO_SHIFT) * trim_pv.size_x / dcam_out.w;
-			ratio_h = (1 << RATIO_SHIFT) * trim_pv.size_y / dcam_out.h;
+			ratio_min = (1 << RATIO_SHIFT) * trim_pv.size_x / dcam_out.w;
 		}
 
 		if (ch_prev->compress_input)
@@ -4255,16 +4244,15 @@ static int camcore_channel_size_binning_cal(
 		isp_trim = &ch_prev->trim_isp;
 		if (bypass_always == ZOOM_SCALER) {
 			isp_trim->size_x =
-				camcore_ratio16_divide(ch_prev->ch_uinfo.src_crop.w, ratio_w);
+				camcore_ratio16_divide(ch_prev->ch_uinfo.src_crop.w, ratio_min);
 			isp_trim->size_y =
-				camcore_ratio16_divide(ch_prev->ch_uinfo.src_crop.h, ratio_h);
+				camcore_ratio16_divide(ch_prev->ch_uinfo.src_crop.h, ratio_min);
 			isp_trim->size_x = ALIGN(isp_trim->size_x, 4);
 			isp_trim->size_y = ALIGN(isp_trim->size_y, 2);
 		} else {
 			isp_trim->size_x = ((ch_prev->ch_uinfo.src_crop.w >> shift) + 1) & ~1;
 			isp_trim->size_y = ((ch_prev->ch_uinfo.src_crop.h >> shift) + 1) & ~1;
 		}
-
 		isp_trim->size_x = min(isp_trim->size_x, dcam_out.w);
 		isp_trim->size_y = min(isp_trim->size_y, dcam_out.h);
 		isp_trim->start_x = ((dcam_out.w - isp_trim->size_x) >> 1) & ~1;
