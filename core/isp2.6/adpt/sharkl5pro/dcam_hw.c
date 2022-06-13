@@ -1582,6 +1582,17 @@ static int dcamhw_get_gtm_hist(void *handle, void *arg)
 	return 0;
 }
 
+static int dcamhw_csi_disconnect(void *handle, void *arg)
+{
+	struct cam_hw_info *hw = NULL;
+	struct dcam_switch_param *csi_switch = NULL;
+	csi_switch = (struct dcam_switch_param *)arg;
+	hw = (struct cam_hw_info *)handle;
+	hw->dcam_ioctl(hw, DCAM_HW_CFG_STOP, &csi_switch->dcam_id);
+	hw->dcam_ioctl(hw, DCAM_HW_CFG_RESET, &csi_switch->dcam_id);
+	return 0;
+}
+
 static struct hw_io_ctrl_fun dcam_ioctl_fun_tab[] = {
 	{DCAM_HW_CFG_ENABLE_CLK,            dcamhw_clk_eb},
 	{DCAM_HW_CFG_DISABLE_CLK,           dcamhw_clk_dis},
@@ -1623,6 +1634,7 @@ static struct hw_io_ctrl_fun dcam_ioctl_fun_tab[] = {
 	{DCAM_HW_CFG_HIST_ROI_UPDATE,       dcamhw_bayer_hist_roi_update},
 	{DCAM_HW_CFG_STORE_ADDR,            dcamhw_set_store_addr},
 	{DCAM_HW_CFG_GTM_HIST_GET,          dcamhw_get_gtm_hist},
+	{DCAM_HW_DISCONECT_CSI,             dcamhw_csi_disconnect},
 };
 
 static hw_ioctl_fun dcamhw_ioctl_fun_get(enum dcam_hw_cfg_cmd cmd)
