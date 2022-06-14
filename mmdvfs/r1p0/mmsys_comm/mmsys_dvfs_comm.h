@@ -32,6 +32,7 @@
 #include <linux/kernel.h>
 #include <sprd_mm.h>
 #include <asm/memory.h>
+#include <linux/version.h>
 
 //#include "governor.h"
 

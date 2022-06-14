@@ -14,11 +14,10 @@
 #include "mmsys_dvfs.h"
 #include "top_dvfs_reg.h"
 #include "mmsys_dvfs_comm.h"
-#include <linux/version.h>
 
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 4, 0))
 #include <video/sprd_mmsys_pw_domain.h>
-#else 
+#else
 #include <sprd_camsys_domain.h>
 #endif
 
@@ -198,6 +197,14 @@ static int mmsys_dvfs_probe(struct platform_device *pdev) {
         goto err_iounmap;
     }
     g_mmreg_map.mm_power_regbase = (unsigned long)reg_base;
+
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0))
+    ret = dev_pm_opp_of_add_table(dev);
+    if (ret) {
+        dev_err(dev, "mmsys_dvfs: Invalid operating-points in device tree.\n");
+        goto err;
+    }
+#endif
 
     platform_set_drvdata(pdev, mmsys);
     mmsys->devfreq =
