@@ -750,7 +750,7 @@ static int dcamhw_reset(void *handle, void *arg)
 	pr_info("DCAM%d: reset.\n", idx);
 	/* then wait for AXIM cleared */
 	while (++time_out < DCAM_AXI_STOP_TIMEOUT) {
-		if (0 == (DCAM_AXIM_RD(idx, dbg_sts_reg) & sts_bit[idx]))
+		if (0 == (DCAM_AXIM_RD(idx, dbg_sts_reg) & (sts_bit[idx] | BIT(16))))
 			break;
 		udelay(1000);
 	}
