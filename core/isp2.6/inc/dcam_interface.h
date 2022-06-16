@@ -191,7 +191,7 @@ struct dcam_path_cfg_param {
 	struct img_trim input_trim;
 	struct img_trim total_input_trim;
 	struct img_size output_size;
-	struct sprd_img_rect dst_crop;
+	struct sprd_img_rect zoom_ratio_base;
 };
 
 enum dcam_start_ctrl {

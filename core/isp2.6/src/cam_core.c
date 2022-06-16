@@ -170,10 +170,10 @@ struct camera_uchannel {
 	uint32_t pyr_data_bits;
 	uint32_t pyr_is_pack;
 
+	struct sprd_img_rect zoom_ratio_base;
 	struct sprd_img_size src_size;
 	struct sprd_img_rect src_crop;
 	struct sprd_img_rect total_src_crop;
-	struct sprd_img_rect dst_crop;
 	struct sprd_img_size dst_size;
 	uint32_t scene;
 
@@ -4233,7 +4233,7 @@ static int camcore_channel_size_binning_cal(
 			shift, dst_p.w, dst_p.h, dst_v.w, dst_v.h, dcam_out.w, dcam_out.h, ch_prev->swap_size.w, ch_prev->swap_size.h);
 
 		/* applied latest rect for aem */
-		module->zoom_ratio = ch_prev->ch_uinfo.dst_crop.w * ZOOM_RATIO_DEFAULT / crop_p->w;
+		module->zoom_ratio = ZOOM_RATIO_DEFAULT * ch_prev->ch_uinfo.zoom_ratio_base.w / crop_p->w;
 		ch_prev->trim_dcam = trim_pv;
 
 		total_crop_dst = *total_crop_p;
@@ -4814,7 +4814,7 @@ static int camcore_channel_size_config(
 	memset(&ch_desc, 0, sizeof(ch_desc));
 	ch_desc.input_size.w = ch_uinfo->src_size.w;
 	ch_desc.input_size.h = ch_uinfo->src_size.h;
-	ch_desc.dst_crop = ch_uinfo->dst_crop;
+	ch_desc.zoom_ratio_base = ch_uinfo->zoom_ratio_base;
 	if ((channel->ch_id == CAM_CH_CAP) || (channel->ch_id == CAM_CH_RAW)) {
 		/* PYR_DEC: crop by dcam; Normal:no trim in dcam full path. */
 		if (camcore_capture_sizechoice(module, channel)) {

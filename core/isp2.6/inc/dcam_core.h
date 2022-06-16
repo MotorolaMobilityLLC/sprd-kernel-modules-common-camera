@@ -116,8 +116,9 @@ struct dcam_path_desc {
 	struct img_trim in_trim;
 	struct img_trim total_in_trim;
 	struct img_size out_size;
-	uint32_t fbc_mode;
+	struct sprd_img_rect zoom_ratio_base;
 
+	uint32_t fbc_mode;
 	uint32_t base_update;
 	uint32_t bayer_pattern;
 	uint32_t out_fmt;

@@ -763,7 +763,9 @@ static int camioctl_output_size_set(struct camera_module *module,
 		pr_err("fail to get valid high fps %u\n", dst->high_fps_skip_num);
 		ret = -EINVAL;
 	}
-	ret |= copy_from_user(&dst->dst_crop,
+	ret |= copy_from_user(&dst->zoom_ratio_base,
+		&uparam->base_rect, sizeof(struct sprd_img_rect));
+	ret |= copy_from_user(&dst->src_crop,
 			&uparam->crop_rect, sizeof(struct sprd_img_rect));
 	ret |= copy_from_user(&dst->dst_size,
 			&uparam->dst_size, sizeof(struct sprd_img_size));
@@ -776,7 +778,6 @@ static int camioctl_output_size_set(struct camera_module *module,
 	// TODO get this from HAL
 	dst->is_compressed = 0;
 	dst->scene = scene_mode;
-	dst->src_crop = dst->dst_crop;
 	if (cap_type == CAM_CAP_RAW_FULL && dst->is_high_fps)
 		dst->is_high_fps = 0;
 
@@ -790,16 +791,17 @@ static int camioctl_output_size_set(struct camera_module *module,
 		pr_debug("cam_virtual_pre_channel: dst %d %d\n",dst->vir_channel[0].dst_size.w,dst->vir_channel[0].dst_size.h);
 		pr_debug("cam_virtual_cap_channel: dst %d %d\n",dst->vir_channel[1].dst_size.w,dst->vir_channel[1].dst_size.h);
 	}
+
 	/* for AF zoom_ratio cal*/
-	camcore_crop_size_align(module, &dst->dst_crop);
+	camcore_crop_size_align(module, &dst->zoom_ratio_base);
 
 	pr_info("cam_channel: ch_id %d high fps %u %u. aux %d %d %d %d\n",
 		channel->ch_id, dst->is_high_fps, dst->high_fps_skip_num,
 		dst->slave_img_en, dst->slave_img_fmt,
 		dst->slave_img_size.w, dst->slave_img_size.h);
-	pr_info("cam_channel: crop %d %d %d %d dst %d %d\n",
-		dst->dst_crop.x, dst->dst_crop.y,
-		dst->dst_crop.w, dst->dst_crop.h,
+	pr_info("cam_channel: zoom ratio base %d %d %d %d dst %d %d\n",
+		dst->zoom_ratio_base.x,dst->zoom_ratio_base.y,
+		dst->zoom_ratio_base.w,dst->zoom_ratio_base.h,
 		dst->dst_size.w, dst->dst_size.h);
 
 exit:

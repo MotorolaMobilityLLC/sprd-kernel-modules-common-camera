@@ -511,6 +511,7 @@ struct sprd_img_parm {
 	uint32_t                  raw_callback;
 	uint32_t		  fdr2_bpc_flag;
 	struct sprd_pdaf_control  pdaf_ctrl;
+	struct sprd_img_rect      base_rect;
 	struct sprd_img_rect      crop_rect;
 	struct sprd_img_rect      total_rect;
 	struct sprd_img_size      dst_size;
