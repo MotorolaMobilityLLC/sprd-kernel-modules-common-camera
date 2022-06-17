@@ -7724,7 +7724,7 @@ static int camcore_offline_proc(void *param)
 			goto return_buf;
 		}
 	}
-
+	pctx->ctx[pctx->cur_ctx_id].blk_pm.non_zsl_cap = 1;
 	ret = dcam_offline_param_set(hw, pctx);
 	if (ret) {
 		pr_err("fail to set dcam offline param\n");
