@@ -5338,7 +5338,8 @@ static int camcore_aux_dcam_deinit(struct camera_module *module)
 
 	path_id = module->channel[CAM_CH_CAP].aux_raw_path_id;
 	if (module->grp->hw_info->ip_dcam[0]->dcam_raw_path_id == DCAM_PATH_RAW
-		&& (module->cam_uinfo.raw_alg_type == RAW_ALG_FDR_V2) && path_id >= 0) {
+		&& (module->cam_uinfo.raw_alg_type == RAW_ALG_FDR_V2 ||
+		module->cam_uinfo.raw_alg_type == RAW_ALG_MFNR) && path_id >= 0) {
 		module->dcam_dev_handle->dcam_pipe_ops->put_path(sw_ctx, path_id);
 		module->channel[CAM_CH_CAP].aux_raw_path_id = -1;
 	}
