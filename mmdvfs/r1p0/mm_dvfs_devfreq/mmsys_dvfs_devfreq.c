@@ -122,26 +122,6 @@ static int mmsys_dvfs_probe(struct platform_device *pdev) {
     };
 #endif
 
-    if (of_property_read_u32(np, "sprd,dvfs-sys-sw-dvfs-en",
-                         &mmsys->mmsys_dvfs_para.sys_sw_dvfs_en)){
-        pr_err("np: the value of the of_property_read_u32\n");
-    }
-    if (of_property_read_u32(np, "sprd,dvfs-sys-dvfs-hold-en",
-                         &mmsys->mmsys_dvfs_para.sys_dvfs_hold_en)){
-        pr_err("np: the value of the of_property_read_u32\n");
-    }
-    if (of_property_read_u32(np, "sprd,dvfs-sys-dvfs-clk-gate-ctrl",
-                         &mmsys->mmsys_dvfs_para.sys_dvfs_clk_gate_ctrl)){
-        pr_err("np: the value of the of_property_read_u32\n");
-    }
-    if (of_property_read_u32(np, "sprd,dvfs-sys-dvfs-wait_window",
-                         &mmsys->mmsys_dvfs_para.sys_dvfs_wait_window)){
-        pr_err("np: the value of the of_property_read_u32\n");
-    }
-    if (of_property_read_u32(np, "sprd,dvfs-sys-dvfs-min_volt",
-                         &mmsys->mmsys_dvfs_para.sys_dvfs_min_volt)){
-        pr_err("np: the value of the of_property_read_u32\n");
-    }
     reg_res.start = REGS_MM_DVFS_AHB_START;
     reg_res.end = REGS_MM_DVFS_AHB_END;
     reg_base = ioremap(reg_res.start, reg_res.end - reg_res.start + 1);
