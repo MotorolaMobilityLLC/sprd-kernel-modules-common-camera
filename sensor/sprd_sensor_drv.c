@@ -1385,6 +1385,11 @@ int sprd_sensor_write_regtab(struct sensor_reg_tab_tag *p_reg_table,
 	struct sprd_sensor_mem_tag p_mem = {0};
 
 	size = cnt * sizeof(*sensor_reg_ptr);
+	if(cnt != 0 && size/cnt != sizeof(*sensor_reg_ptr)) {
+		ret = -EINVAL;
+		pr_err("sensor w err: interger overflow occurs\n", ret);
+		goto exit;
+	}
 	ret = sprd_sensor_malloc(&p_mem, size);
 	if (ret) {
 		pr_err("SENSOR: wr reg tab alloc fail %d\n", ret);
@@ -1595,6 +1600,11 @@ int sprd_sensor_write_i2c(struct sensor_i2c_tag *i2c_tab,
 	p_dev = sprd_sensor_get_dev_context(sensor_id);
 	if (!p_dev) {
 		pr_err("%s, error\n", __func__);
+		return -EINVAL;
+	}
+
+	if(cnt > sizeof(cmd)/sizeof(cmd[0])) {
+		pr_err("sensor W I2C ERR: i2c_count is out of boundary, i2c_count: %d", cnt);
 		return -EINVAL;
 	}
 
