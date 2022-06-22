@@ -1622,8 +1622,8 @@ static int camioctl_stream_off(struct camera_module *module,
 						break;
 					camcore_share_buf_cfg(SHARE_BUF_SET_CB, pframe, module);
 				} while (pframe);
-			} else
-				cam_queue_clear(&ch->share_buf_queue, struct camera_frame, list);
+			}
+			cam_queue_clear(&ch->share_buf_queue, struct camera_frame, list);
 
 			for (j = 0; j < ISP_NR3_BUF_NUM; j++) {
 				if (ch->nr3_bufs[j]) {
