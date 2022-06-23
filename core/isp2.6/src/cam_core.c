@@ -2058,9 +2058,9 @@ static struct camera_frame *camcore_4in1_frame_deal(struct camera_module *module
 		 *	pframe->sensor_time.tv_usec == 0)
 		 */
 		{
-			struct timespec cur_ts;
+			timespec cur_ts;
 
-			memset(&cur_ts, 0, sizeof(struct timespec));
+			memset(&cur_ts, 0, sizeof(timespec));
 			pframe->boot_sensor_time = ktime_get_boottime();
 			ktime_get_ts(&cur_ts);
 			pframe->sensor_time.tv_sec = cur_ts.tv_sec;
@@ -2435,9 +2435,9 @@ static struct camera_frame *camcore_supersize_frame_deal(struct camera_module *m
 		return NULL;
 	} else {
 		/*dcam1 deal with supersize finish*/
-		struct timespec cur_ts;
+		timespec cur_ts;
 
-		memset(&cur_ts, 0, sizeof(struct timespec));
+		memset(&cur_ts, 0, sizeof(timespec));
 		pframe->boot_sensor_time = ktime_get_boottime();
 		ktime_get_ts(&cur_ts);
 		pframe->sensor_time.tv_sec = cur_ts.tv_sec;
@@ -6911,10 +6911,10 @@ static int camcore_raw_post_proc(struct camera_module *module,
 	struct camera_frame *dst_frame = NULL;
 	struct camera_frame *pframe = NULL;
 	struct dcam_pipe_dev *dev = NULL;
-	struct timespec cur_ts;
+	timespec cur_ts;
 	struct dcam_sw_context *sw_ctx = NULL;
 
-	memset(&cur_ts, 0, sizeof(struct timespec));
+	memset(&cur_ts, 0, sizeof(timespec));
 	pr_info("start\n");
 
 	dev = (struct dcam_pipe_dev *)module->dcam_dev_handle;
@@ -7175,9 +7175,9 @@ static int camcore_raw_post_proc_new(
 	struct camera_frame *mid_frame;
 	struct camera_frame *dst_frame;
 	struct dcam_sw_context *dcam_sw_ctx = NULL;
-	struct timespec cur_ts;
+	timespec cur_ts;
 
-	memset(&cur_ts, 0, sizeof(struct timespec));
+	memset(&cur_ts, 0, sizeof(timespec));
 	pr_info("cam%d start\n", module->idx);
 
 	ch = &module->channel[CAM_CH_CAP];

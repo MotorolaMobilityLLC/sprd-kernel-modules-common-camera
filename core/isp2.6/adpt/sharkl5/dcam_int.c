@@ -58,7 +58,7 @@ static inline void dcamint_dcam_int_record(uint32_t idx, uint32_t status)
 #ifdef DCAM_INT_RECORD
 	{
 		uint32_t cnt, time, int_no;
-		struct timespec cur_ts;
+		timespec cur_ts;
 
 		ktime_get_ts(&cur_ts);
 		time = (uint32_t)(cur_ts.tv_sec & 0xffff);
@@ -85,7 +85,7 @@ static struct camera_frame *dcamint_frame_prepare(struct dcam_hw_context *dcam_h
 	struct dcam_path_desc *path = NULL;
 	struct camera_frame *frame = NULL;
 	struct dcam_frame_synchronizer *sync = NULL;
-	struct timespec *ts = NULL;
+	timespec *ts = NULL;
 	uint32_t dev_fid;
 	if (unlikely(!dcam_hw_ctx || !is_path_id(path_id)) || !sw_ctx)
 		return NULL;
@@ -163,7 +163,7 @@ static void dcamint_frame_dispatch(struct dcam_hw_context *dcam_hw_ctx, struct d
 				struct camera_frame *frame,
 				enum dcam_cb_type type)
 {
-	struct timespec cur_ts;
+	timespec cur_ts;
 	if (unlikely(!dcam_hw_ctx || !frame || !is_path_id(path_id) || !sw_ctx))
 		return;
 	ktime_get_ts(&cur_ts);
@@ -183,7 +183,7 @@ static void dcamint_frame_dispatch(struct dcam_hw_context *dcam_hw_ctx, struct d
 static void dcamint_sof_event_dispatch(struct dcam_sw_context *sw_ctx)
 {
 	struct camera_frame *frame = NULL;
-	struct timespec cur_ts;
+	timespec cur_ts;
 
 	if (!sw_ctx) {
 		pr_err("fail to get valid input sw_ctx\n");
@@ -315,7 +315,7 @@ static enum dcam_fix_result dcamint_fix_index_if_needed(struct dcam_hw_context *
 	uint32_t frm_cnt = 0, cur_cnt = 0;
 	uint32_t old_index = 0, begin = 0, end = 0;
 	uint32_t old_n = 0, cur_n = 0, old_d = 0, cur_d = 0, cur_rd = 0;
-	struct timespec delta_ts;
+	timespec delta_ts;
 	ktime_t delta_ns;
 
 	frm_cnt = DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, DCAM_CAP_FRM_CLR) & 0x3f;
@@ -394,7 +394,7 @@ static enum dcam_fix_result dcamint_fix_index_if_needed(struct dcam_hw_context *
 	/* restore timestamp and index for slow motion */
 	delta_ns = ktime_sub(sw_ctx->frame_ts_boot[tsid(old_index)],
 			     sw_ctx->frame_ts_boot[tsid(old_index - 1)]);
-	delta_ts = timespec_sub(sw_ctx->frame_ts[tsid(old_index)],
+	delta_ts = cam_timespec_sub(sw_ctx->frame_ts[tsid(old_index)],
 				sw_ctx->frame_ts[tsid(old_index - 1)]);
 
 	end = sw_ctx->frame_index;
@@ -404,7 +404,7 @@ static enum dcam_fix_result dcamint_fix_index_if_needed(struct dcam_hw_context *
 			= ktime_sub_ns(sw_ctx->frame_ts_boot[tsid(end + 1)],
 				       delta_ns);
 		sw_ctx->frame_ts[tsid(end)]
-			= timespec_sub(sw_ctx->frame_ts[tsid(end + 1)],
+			= cam_timespec_sub(sw_ctx->frame_ts[tsid(end + 1)],
 				       delta_ts);
 	}
 
@@ -442,7 +442,7 @@ static enum dcam_fix_result dcamint_fix_index_if_needed(struct dcam_hw_context *
 static void dcamint_debug_dump(struct dcam_hw_context *dcam_hw_ctx, struct dcam_sw_context *sw_ctx, struct dcam_dev_param *pm)
 {
 	int size;
-	struct timespec *frame_ts;
+	timespec *frame_ts;
 	struct camera_frame *frame = NULL;
 	struct debug_base_info *base_info;
 	void *pm_data;

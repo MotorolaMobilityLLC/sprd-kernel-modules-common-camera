@@ -262,7 +262,7 @@ struct dcam_sw_context {
 	uint32_t index_to_set;
 	bool need_fix;
 	uint32_t iommu_status;
-	struct timespec frame_ts[DCAM_FRAME_TIMESTAMP_COUNT];
+	timespec frame_ts[DCAM_FRAME_TIMESTAMP_COUNT];
 	ktime_t frame_ts_boot[DCAM_FRAME_TIMESTAMP_COUNT];
 	uint32_t slowmotion_count;
 	enum dcam_slowmotion_type slw_type;

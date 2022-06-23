@@ -2585,12 +2585,12 @@ static int ispcore_postproc_irq(void *handle)
 	struct isp_sw_context *pctx = NULL;
 	struct camera_frame *pframe = NULL;
 	struct isp_path_desc *path;
-	struct timespec cur_ts;
+	timespec cur_ts;
 	ktime_t boot_time;
 	uint32_t zoom_ratio = 0;
 	uint32_t total_zoom = 0;
 
-	memset(&cur_ts, 0, sizeof(struct timespec));
+	memset(&cur_ts, 0, sizeof(timespec));
 	pctx = (struct isp_sw_context *)handle;
 	if (!pctx) {
 		pr_err("fail to get valid input handle %p.\n", handle);
@@ -2598,7 +2598,6 @@ static int ispcore_postproc_irq(void *handle)
 	}
 	if (pctx->post_type >= POSTPROC_MAX) {
 		pr_err("fail to get valid type %d.\n", pctx->post_type);
-		return -EFAULT;
 	}
 
 	pframe = cam_queue_dequeue(&pctx->proc_queue, struct camera_frame, list);

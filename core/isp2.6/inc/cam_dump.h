@@ -99,7 +99,7 @@ struct cam_mes_ctx {
 struct cam_dump_ctx {
 	struct camera_queue dump_queue;
 	struct completion dump_com;
-	struct timespec cur_dump_ts;
+	timespec cur_dump_ts;
 	uint32_t in_dump;
 	uint32_t dump_count;
 	enum cam_ch_id ch_id;

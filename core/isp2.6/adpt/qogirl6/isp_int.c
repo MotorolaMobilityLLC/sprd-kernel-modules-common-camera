@@ -86,7 +86,7 @@ static inline void ispint_isp_int_record(
 #ifdef ISP_INT_RECORD
 	{
 		uint32_t cnt, time, int_no;
-		struct timespec cur_ts;
+		timespec cur_ts;
 
 		ktime_get_ts(&cur_ts);
 		time = (uint32_t)(cur_ts.tv_sec & 0xffff);
@@ -336,7 +336,7 @@ static void ispint_frame_dispatch(enum isp_context_id idx,
 				struct camera_frame *frame,
 				enum isp_cb_type type)
 {
-	struct timespec cur_ts;
+	timespec cur_ts;
 	struct isp_pipe_dev *dev = (struct isp_pipe_dev *)isp_handle;
 	struct isp_sw_context *pctx;
 

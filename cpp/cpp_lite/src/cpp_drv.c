@@ -30,7 +30,7 @@
 #include <linux/uaccess.h>
 #include <linux/vmalloc.h>
 #include <sprd_mm.h>
-
+#include "cam_porting.h"
 #include "cam_types.h"
 #include "cpp_drv.h"
 #include "cpp_hw.h"
@@ -47,8 +47,13 @@ static int cppdrv_get_sg_table(struct cpp_iommu_info *pfinfo)
 
 	for (i = 0; i < 2; i++) {
 		if (pfinfo->mfd[i] > 0) {
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0))
+			ret = sprd_dmabuf_get_sysbuffer(pfinfo->mfd[i], NULL,
+				&pfinfo->buf[i], &pfinfo->size[i]);
+#else
 			ret = sprd_ion_get_buffer(pfinfo->mfd[i], NULL,
 				&pfinfo->buf[i], &pfinfo->size[i]);
+#endif
 			if (ret) {
 				pr_err("fail to get sg table\n");
 				return -EFAULT;
@@ -86,9 +91,10 @@ static int cppdrv_get_addr(struct cpp_iommu_info *pfinfo)
 			pfinfo->iova[i] = iommu_data.iova_addr
 					+ pfinfo->offset[i];
 		} else {
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 4, 0))
-			ret = sprd_ion_get_phys_addr(pfinfo->mfd[i], NULL,
-				&pfinfo->iova[i], &pfinfo->size[i]);
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0))
+			ret = sprd_dmabuf_get_phys_addr(-1, pfinfo->dmabuf_p[i],
+					&pfinfo->iova[i],
+					&pfinfo->size[i]);
 #else
 			ret = sprd_ion_get_phys_addr(-1, pfinfo->dmabuf_p[i],
 					&pfinfo->iova[i],

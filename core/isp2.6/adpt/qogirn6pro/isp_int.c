@@ -83,7 +83,7 @@ static inline void ispint_isp_int_record(
 #ifdef ISP_INT_RECORD
 	{
 		uint32_t cnt, time, int_no;
-		struct timespec cur_ts;
+		timespec cur_ts;
 
 		ktime_get_ts(&cur_ts);
 		time = (uint32_t)(cur_ts.tv_sec & 0xffff);

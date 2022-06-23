@@ -2600,7 +2600,7 @@ static int dcamhw_csi_disconnect(void *handle, void *arg)
 			if (val & BIT_30)
 				break;
 		} else {
-			pr_warning("csi%d disabled already. DCAM_BLK_EN 0x%x\n", csi_id, val);
+			pr_warn("csi%d disabled already. DCAM_BLK_EN 0x%x\n", csi_id, val);
 			break;
 		}
 		udelay(1000);

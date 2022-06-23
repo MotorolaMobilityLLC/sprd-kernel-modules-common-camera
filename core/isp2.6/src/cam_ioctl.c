@@ -18,9 +18,9 @@ static int camioctl_time_get(struct camera_module *module,
 {
 	int ret = 0;
 	struct sprd_img_time utime;
-	struct timespec ts;
+	timespec ts;
 
-	memset(&ts, 0, sizeof(struct timespec));
+	memset(&ts, 0, sizeof(timespec));
 	ktime_get_ts(&ts);
 	utime.sec = (uint32_t)ts.tv_sec;
 	utime.usec = (uint32_t)(ts.tv_nsec / NSEC_PER_USEC);
@@ -3377,7 +3377,7 @@ static int camioctl_4in1_post_proc(struct camera_module *module,
 		pr_info("Can't find frame in the queue, get new one\n");
 		pframe = cam_queue_empty_frame_get();
 		pframe->boot_sensor_time = sensor_time;
-		pframe->sensor_time = ktime_to_timeval(ktime_sub(
+		pframe->sensor_time = cam_ktime_to_timeval(ktime_sub(
 			pframe->boot_sensor_time, ktime_sub(
 			ktime_get_boottime(), ktime_get())));
 		pframe->fid = param.index;

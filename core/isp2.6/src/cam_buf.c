@@ -149,7 +149,7 @@ int cam_buf_iommu_single_page_map(struct camera_buf *buf_info,
 					(uint32_t)buf_info->offset[i],
 					(uint32_t)buf_info->size[i]);
 		} else {
-			ret = sprd_ion_get_phys_addr(-1,
+			ret = cam_buf_get_phys_addr(-1,
 					buf_info->dmabuf_p[i],
 					&buf_info->iova[i],
 					&buf_info->size[i]);
@@ -217,8 +217,7 @@ int cam_buf_kmap(struct camera_buf *buf_info)
 			(buf_info->dmabuf_p[i] == NULL))
 			continue;
 
-		buf_info->addr_k[i] = (unsigned long)
-			sprd_ion_map_kernel(buf_info->dmabuf_p[i], 0);
+		ret = cam_buf_map_kernel(buf_info, i);
 		if (IS_ERR_OR_NULL((void *)buf_info->addr_k[i])) {
 			pr_err("fail to map k_addr %p for dmabuf[%p]\n",
 				(void *)buf_info->addr_k[i], buf_info->dmabuf_p[i]);
@@ -226,6 +225,7 @@ int cam_buf_kmap(struct camera_buf *buf_info)
 			ret = -EINVAL;
 			goto map_fail;
 		}
+
 		buf_info->addr_k[i] += buf_info->offset[i];
 
 		pr_debug("buf%d, addr_k %p, dmabuf[%p]\n", i,
@@ -243,7 +243,7 @@ map_fail:
 		if ((buf_info->size[i] <= 0) ||
 			(buf_info->dmabuf_p[i] == NULL))
 			continue;
-		sprd_ion_unmap_kernel(buf_info->dmabuf_p[i], 0);
+		ret = cam_buf_unmap_kernel(buf_info, i);
 		buf_info->addr_k[i] = 0;
 		if (g_mem_dbg)
 			atomic_dec(&g_mem_dbg->ion_kmap_cnt);
@@ -275,7 +275,7 @@ int cam_buf_kunmap(struct camera_buf *buf_info)
 		pr_debug("buf%d, addr_k %p, dmabuf[%p]\n", i,
 			(void *)buf_info->addr_k[i], buf_info->dmabuf_p[i]);
 
-		sprd_ion_unmap_kernel(buf_info->dmabuf_p[i], 0);
+		ret = cam_buf_unmap_kernel(buf_info, i);
 		buf_info->addr_k[i] = 0;
 		if (g_mem_dbg)
 			atomic_dec(&g_mem_dbg->ion_kmap_cnt);
@@ -289,7 +289,6 @@ int cam_buf_alloc(struct camera_buf *buf_info,
 		size_t size, unsigned int iommu_enable)
 {
 	int ret = 0;
-	int heap_type;
 	unsigned int flag = 0;
 	char name[64];
 
@@ -309,34 +308,28 @@ int cam_buf_alloc(struct camera_buf *buf_info,
 	/* force reserved memory during bringup. */
 	iommu_enable = 0;
 #endif
-
-	if (buf_info->buf_sec)
-		heap_type = ION_HEAP_ID_MASK_CAM;
-	else {
-		heap_type = iommu_enable ?
-				ION_HEAP_ID_MASK_SYSTEM :
-				ION_HEAP_ID_MASK_MM;
-	}
-
-	buf_info->dmabuf_p[0] = cam_ion_alloc(size, heap_type, flag);
+	ret = cam_buffer_alloc(buf_info, size, iommu_enable, flag);
 	if (IS_ERR_OR_NULL(buf_info->dmabuf_p[0])) {
 		pr_err("fail to alloc ion buf size = 0x%x\n", (int)size);
 		ret = -ENOMEM;
 		return ret;
 	}
-	ret = sprd_ion_get_buffer(-1,
+
+	ret = cam_ion_get_buffer(-1, buf_info->buf_sec,
 			buf_info->dmabuf_p[0],
 			&buf_info->ionbuf[0],
 			&buf_info->size[0]);
+
 	if (ret) {
 		pr_err("fail to get ionbuf for kernel buffer %p\n",
 				buf_info->dmabuf_p[0]);
 		ret = -EFAULT;
 		goto failed;
 	}
-	pr_debug("dmabuf_p[%p], ionbuf[%p], size %d, heap %d\n",
+
+	pr_debug("dmabuf_p[%p], ionbuf[%p], size %d\n",
 		buf_info->dmabuf_p[0],
-		buf_info->ionbuf[0], (int)buf_info->size[0], heap_type);
+		buf_info->ionbuf[0], (int)buf_info->size[0]);
 
 	buf_info->type = CAM_BUF_KERNEL;
 	if (g_mem_dbg) {
@@ -347,7 +340,7 @@ int cam_buf_alloc(struct camera_buf *buf_info,
 	return 0;
 
 failed:
-	cam_ion_free(buf_info->dmabuf_p[0]);
+	cam_buffer_free(buf_info->dmabuf_p[0]);
 	buf_info->dmabuf_p[0] = NULL;
 	buf_info->ionbuf[0] = NULL;
 	buf_info->size[0] = 0;
@@ -377,7 +370,7 @@ int cam_buf_free(struct camera_buf *buf_info)
 
 	dmabuf = buf_info->dmabuf_p[0];
 	if (dmabuf) {
-		cam_ion_free(dmabuf);
+		cam_buffer_free(dmabuf);
 		size = (int)buf_info->size[0];
 		buf_info->dmabuf_p[0] = NULL;
 		buf_info->mfd[0] = 0;
@@ -488,9 +481,9 @@ int cam_buf_ionbuf_get(struct camera_buf *buf_info)
 	for (i = 0; i < 3; i++) {
 		if (buf_info->mfd[i] <= 0)
 			continue;
-
 		pr_debug("user buf:  %d,  %d\n", i, buf_info->mfd[i]);
-		ret = sprd_ion_get_buffer(buf_info->mfd[i],
+
+		ret = cam_ion_get_buffer(buf_info->mfd[i], buf_info->buf_sec,
 				NULL,
 				&ionbuf[i],
 				&buf_info->size[i]);
@@ -670,7 +663,7 @@ int cam_buf_iommu_map(struct camera_buf *buf_info,
 					(uint32_t)buf_info->offset[i],
 					(uint32_t)buf_info->size[i]);
 		} else {
-			ret = sprd_ion_get_phys_addr(-1,
+			ret = cam_buf_get_phys_addr(-1,
 					buf_info->dmabuf_p[i],
 					&buf_info->iova[i],
 					&buf_info->size[i]);
