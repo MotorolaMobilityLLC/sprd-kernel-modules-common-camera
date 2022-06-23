@@ -1241,62 +1241,73 @@ static int camioctl_frame_addr_set(struct camera_module *module,
 {
 	int ret = 0;
 	uint32_t i = 0, cmd = ISP_PATH_CFG_OUTPUT_BUF;
-	struct sprd_img_parm param;
+	struct sprd_img_parm __user *uparam;
 	struct channel_context *ch = NULL;
 	struct channel_context *ch_prv = NULL;
 	struct camera_frame *pframe = NULL;
 	struct dcam_sw_context *dcam_sw_ctx = NULL;
 	struct dcam_sw_context *dcam_sw_aux_ctx = NULL;
 	struct cam_hw_info *hw = NULL;
+	uint32_t channel_id = 0, buffer_count = 0, is_reserved_buf = 0, pixel_fmt = 0;
+
 	if ((atomic_read(&module->state) != CAM_CFG_CH) &&
 		(atomic_read(&module->state) != CAM_RUNNING)) {
 		pr_warn("warning: only for state CFG_CH or RUNNING\n");
 		return 0;
 	}
 
-	ret = copy_from_user(&param, (void __user *)arg,
-		sizeof(struct sprd_img_parm));
-	if (ret) {
-		pr_err("fail to copy from user. ret %d\n", ret);
+	uparam = (struct sprd_img_parm __user *)arg;
+
+	ret |= get_user(channel_id, &uparam->channel_id);
+	ret |= get_user(buffer_count, &uparam->buffer_count);
+	ret |= get_user(is_reserved_buf, &uparam->is_reserved_buf);
+	ret |= get_user(pixel_fmt, &uparam->pixel_fmt);
+
+	if (unlikely(ret)) {
+		pr_err("fail to copy from user, ret %d\n", ret);
 		return -EFAULT;
 	}
 
-	if ((param.channel_id >= CAM_CH_MAX) ||
-		(param.buffer_count == 0) ||
-		(module->channel[param.channel_id].enable == 0)) {
+	if ((channel_id >= CAM_CH_MAX) || (buffer_count == 0) ||
+		(module->channel[channel_id].enable == 0)) {
 		pr_err("fail to get valid channel id %d. buf cnt %d\n",
-			param.channel_id,  param.buffer_count);
+			channel_id, buffer_count);
 		return -EFAULT;
 	}
 
-	pr_debug("ch %d, buffer_count %d\n", param.channel_id,
-		param.buffer_count);
+	pr_debug("ch %d, buffer_count %d\n", channel_id, buffer_count);
 
 	ch_prv = &module->channel[CAM_CH_PRE];
-	ch = &module->channel[param.channel_id];
 	hw = module->grp->hw_info;
+	ch = &module->channel[channel_id];
 	dcam_sw_ctx = &module->dcam_dev_handle->sw_ctx[module->cur_sw_ctx_id];
 	dcam_sw_aux_ctx = &module->dcam_dev_handle->sw_ctx[module->offline_cxt_id];
 
-	for (i = 0; i < param.buffer_count; i++) {
+	for (i = 0; i < buffer_count; i++) {
 		pframe = cam_queue_empty_frame_get();
 		pframe->buf.type = CAM_BUF_USER;
-		pframe->buf.mfd[0] = param.fd_array[i];
-		pframe->buf.offset[0] = param.frame_addr_array[i].y;
-		pframe->buf.offset[1] = param.frame_addr_array[i].u;
-		pframe->buf.offset[2] = param.frame_addr_array[i].v;
 		pframe->channel_id = ch->ch_id;
 		pframe->img_fmt = ch->ch_uinfo.dst_fmt;
-		pframe->user_fid = param.user_fid;
-		pframe->bpc_raw_flag = param.fdr2_bpc_flag;
-		pframe->buf.addr_vir[0] = param.frame_addr_vir_array[i].y;
-		pframe->buf.addr_vir[1] = param.frame_addr_vir_array[i].u;
-		pframe->buf.addr_vir[2] = param.frame_addr_vir_array[i].v;
+		ret |= get_user(pframe->buf.mfd[0], &uparam->fd_array[i]);
+		ret |= get_user(pframe->buf.offset[0], &uparam->frame_addr_array[i].y);
+		ret |= get_user(pframe->buf.offset[1], &uparam->frame_addr_array[i].u);
+		ret |= get_user(pframe->buf.offset[2], &uparam->frame_addr_array[i].v);
+		ret |= get_user(pframe->user_fid, &uparam->user_fid);
+		ret |= get_user(pframe->bpc_raw_flag, &uparam->fdr2_bpc_flag);
+		ret |= get_user(pframe->buf.addr_vir[0], &uparam->frame_addr_vir_array[i].y);
+		ret |= get_user(pframe->buf.addr_vir[1], &uparam->frame_addr_vir_array[i].u);
+		ret |= get_user(pframe->buf.addr_vir[2], &uparam->frame_addr_vir_array[i].v);
+
+		if (unlikely(ret)) {
+			pr_err("fail to copy from user, ret %d\n", ret);
+			ret = -EFAULT;
+			break;
+		}
 
 		pr_debug("cam%d ch %d, mfd 0x%x, off 0x%x 0x%x 0x%x, reserved %d user_fid[%d]\n",
 			module->idx, pframe->channel_id, pframe->buf.mfd[0],
 			pframe->buf.offset[0], pframe->buf.offset[1],
-			pframe->buf.offset[2], param.is_reserved_buf,
+			pframe->buf.offset[2], is_reserved_buf,
 			pframe->user_fid);
 
 		ret = cam_buf_ionbuf_get(&pframe->buf);
@@ -1306,15 +1317,15 @@ static int camioctl_frame_addr_set(struct camera_module *module,
 			break;
 		}
 
-		if (param.channel_id == CAM_CH_CAP)
+		if (channel_id == CAM_CH_CAP)
 			pr_info("ch %d, mfd 0x%x, off 0x%x 0x%x 0x%x, size 0x%x, reserved %d, buffer_cnt %d, bpc flag:%d\n",
 				pframe->channel_id, pframe->buf.mfd[0],
 				pframe->buf.offset[0],pframe->buf.offset[1], pframe->buf.offset[2],
-				(uint32_t)pframe->buf.size[0], param.is_reserved_buf, param.buffer_count, pframe->is_raw_alg);
+				(uint32_t)pframe->buf.size[0], is_reserved_buf, buffer_count, pframe->bpc_raw_flag);
 
-		if (ch->isp_path_id >= 0 && param.pixel_fmt != IMG_PIX_FMT_GREY) {
+		if (ch->isp_path_id >= 0 && pixel_fmt != IMG_PIX_FMT_GREY) {
 			cmd = ISP_PATH_CFG_OUTPUT_BUF;
-			if (param.is_reserved_buf) {
+			if (is_reserved_buf) {
 				ch->reserved_buf_fd = pframe->buf.mfd[0];
 				pframe->is_reserved = 1;
 				ch->res_frame = pframe;
@@ -1325,13 +1336,13 @@ static int camioctl_frame_addr_set(struct camera_module *module,
 					pframe->user_fid);
 				continue;
 			}
-			if (param.channel_id == CAM_CH_VIRTUAL) {
-				if (param.vir_ch_info[0].fd_array[i] == DUMP_CH_PRE) {
+			if (channel_id == CAM_CH_VIRTUAL) {
+				if (uparam->vir_ch_info[0].fd_array[i] == DUMP_CH_PRE) {
 					pframe->height = ch->ch_uinfo.vir_channel[0].dst_size.h;
 					ret = module->isp_dev_handle->isp_ops->cfg_path(module->isp_dev_handle, cmd,
 						ch->isp_ctx_id, ch->isp_path_id, pframe);
 				}
-				else if (param.vir_ch_info[0].fd_array[i] == DUMP_CH_CAP) {
+				else if (uparam->vir_ch_info[0].fd_array[i] == DUMP_CH_CAP) {
 					pframe->height = ch->ch_uinfo.vir_channel[1].dst_size.h;
 					ret = module->isp_dev_handle->isp_ops->cfg_path(module->isp_dev_handle, cmd,
 						ch->slave_isp_ctx_id, ch->isp_path_id, pframe);
@@ -1342,7 +1353,7 @@ static int camioctl_frame_addr_set(struct camera_module *module,
 					ch->isp_ctx_id, ch->isp_path_id, pframe);
 		} else {
 			cmd = DCAM_PATH_CFG_OUTPUT_BUF;
-			if (param.is_reserved_buf) {
+			if (is_reserved_buf) {
 				ch->reserved_buf_fd = pframe->buf.mfd[0];
 				pframe->is_reserved = 1;
 				ch->res_frame = pframe;
@@ -1352,9 +1363,8 @@ static int camioctl_frame_addr_set(struct camera_module *module,
 					pframe->buf.offset[2], (uint32_t)pframe->buf.size[0],
 					pframe->user_fid);
 				continue;
-			} else if ((ch->ch_id == CAM_CH_CAP) &&
-					param.pixel_fmt == IMG_PIX_FMT_GREY) {
-				pframe->img_fmt = param.pixel_fmt;
+			} else if ((ch->ch_id == CAM_CH_CAP) && pixel_fmt == IMG_PIX_FMT_GREY) {
+				pframe->img_fmt = pixel_fmt;
 				cmd = DCAM_PATH_CFG_OUTPUT_ALTER_BUF;
 			}
 
@@ -1380,7 +1390,7 @@ static int camioctl_frame_addr_set(struct camera_module *module,
 			/* 4in1_raw_capture, maybe need two image once */
 			if (ch->second_path_enable) {
 				ch->pack_bits = ch->ch_uinfo.dcam_raw_fmt;
-				pframe = camcore_secondary_buf_get(&param, ch, i);
+				pframe = camcore_secondary_buf_get(uparam, ch, i);
 				if (!pframe) {
 					ret = -EFAULT;
 					break;
