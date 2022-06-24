@@ -32,12 +32,12 @@ int isp_k_ygamma_block(struct isp_k_block *isp_k_param, uint32_t idx)
 	int ret = 0;
 	uint32_t i = 0, val = 0;
 	uint32_t buf_sel = 0, ybuf_addr = 0;
-	struct isp_dev_ygamma_info *ygamma_info = NULL;
-	if (isp_k_param->ygamma_info.isupdate == 0)
+	struct isp_dev_ygamma_info_v1 *ygamma_info = NULL;
+	if (isp_k_param->ygamma_info_v1.isupdate == 0)
 		return ret;
 
-	ygamma_info = &isp_k_param->ygamma_info;
-	isp_k_param->ygamma_info.isupdate = 0;
+	ygamma_info = &isp_k_param->ygamma_info_v1;
+	isp_k_param->ygamma_info_v1.isupdate = 0;
 
 	if (g_isp_bypass[idx] & (1 << _EISP_GAMY))
 		ygamma_info->bypass = 1;
@@ -60,18 +60,18 @@ int isp_k_cfg_ygamma(struct isp_io_param *param,
 	struct isp_k_block *isp_k_param, uint32_t idx)
 {
 	int ret = 0;
-	struct isp_dev_ygamma_info *ygamma_info = NULL;
+	struct isp_dev_ygamma_info_v1 *ygamma_info = NULL;
 
-	ygamma_info = &isp_k_param->ygamma_info;
+	ygamma_info = &isp_k_param->ygamma_info_v1;
 
 	switch (param->property) {
 	case ISP_PRO_YGAMMA_BLOCK:
-		ret = copy_from_user((void *)ygamma_info, param->property_param, sizeof(struct isp_dev_ygamma_info));
+		ret = copy_from_user((void *)ygamma_info, param->property_param, sizeof(struct isp_dev_ygamma_info_v1));
 		if (ret != 0) {
 			pr_err("fail to copy from user, ret = %d\n", ret);
 			return ret;
 		}
-		isp_k_param->ygamma_info.isupdate = 1;
+		isp_k_param->ygamma_info_v1.isupdate = 1;
 		break;
 	default:
 		pr_err("fail to support cmd id = %d\n",
@@ -85,10 +85,10 @@ int isp_k_cfg_ygamma(struct isp_io_param *param,
 int isp_k_cpy_ygamma(struct isp_k_block *param_block, struct isp_k_block *isp_k_param)
 {
 	int ret = 0;
-	if (isp_k_param->ygamma_info.isupdate == 1) {
-		memcpy(&param_block->ygamma_info, &isp_k_param->ygamma_info, sizeof(struct isp_dev_ygamma_info));
-		isp_k_param->ygamma_info.isupdate = 0;
-		param_block->ygamma_info.isupdate = 1;
+	if (isp_k_param->ygamma_info_v1.isupdate == 1) {
+		memcpy(&param_block->ygamma_info_v1, &isp_k_param->ygamma_info_v1, sizeof(struct isp_dev_ygamma_info_v1));
+		isp_k_param->ygamma_info_v1.isupdate = 0;
+		param_block->ygamma_info_v1.isupdate = 1;
 	}
 
 	return ret;
