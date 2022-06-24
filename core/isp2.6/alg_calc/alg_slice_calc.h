@@ -362,9 +362,12 @@ struct thumbnailscaler_slice {
 	uint32_t chk_sum_clr;
 };
 
-struct thumbscaler_this {
+struct thumbscaler_info {
 	struct THUMBINFO_T  thumbinfo;
 	struct CONFIGINFO_T configinfo;
+};
+
+struct thumbscaler_this {
 	struct TH_infophasenum th_infophasenum;
 	struct Sliceinfo inputSliceList;
 	struct Sliceinfo inputSliceList_overlap;
@@ -441,6 +444,7 @@ struct alg_slice_drv_overlap {
 	struct alg_slice_scaler_overlap scaler2;
 	struct slice_drv_overlap_thumbnail_scaler_param thumbnailscaler;
 	struct thumbscaler_this thumbnail_scaler;
+	struct thumbscaler_info thumbnail_scaler_lite;
 
 	/************************************************************************/
 	/*  output                                                              */

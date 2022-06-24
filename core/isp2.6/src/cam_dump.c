@@ -318,103 +318,117 @@ static int camdump_enqueue(struct cam_dump_ctx *dump_base, struct camera_frame *
 	return ret;
 }
 
-static int camdump_pyr_frame_dump(struct cam_dump_ctx *dump_base, struct camera_frame *pframe)
+static int camdump_pyr_frame_store(struct cam_dump_ctx *dump_base, struct camera_frame *pframe,uint32_t i,
+	uint32_t align_w, uint32_t align_h,ssize_t size )
 {
-	ssize_t size = 0;
-	uint8_t file_name[MAX_PYR_DEC_LAYER_NUM][256] = {{ '\0' }};
-	uint8_t file_name1[MAX_PYR_DEC_LAYER_NUM][256] = {{ '\0' }};
+	uint8_t file_name[256] = { '\0' };
+	uint8_t file_name1[256] = { '\0' };
 	uint8_t tmp_str[20] = { '\0' };
-	uint32_t i = 0;
-	uint32_t align_w = 0, align_h = 0, offset = 0;
 	unsigned long addr = 0, addr1 = 0;
-	uint32_t layer_loop = 0;
-
-	if(dump_base == NULL || pframe == NULL)
-		return 0;
+	uint32_t offset = 0;
 
 	if (cam_buf_kmap(&pframe->buf)) {
 		pr_err("fail to kmap dump buf\n");
 		return -EFAULT;
 	}
 
+	strcat(file_name, CAMERA_DUMP_PATH);
+	if (g_dbg_dump.dump_en == DUMP_ISP_PYR_REC)
+		strcat(file_name, "pyr_rec_");
+	else if (g_dbg_dump.dump_en == DUMP_ISP_PYR_DEC)
+			strcat(file_name, "isp_dec_");
+		strcat(file_name, "layer_");
+		sprintf(tmp_str, "%d.", i);
+		strcat(file_name, tmp_str);
+		sprintf(tmp_str, "%d.", (uint32_t)dump_base->cur_dump_ts.tv_sec);
+		strcat(file_name, tmp_str);
+		sprintf(tmp_str, "%06d", (uint32_t)(dump_base->cur_dump_ts.tv_nsec / NSEC_PER_USEC));
+		strcat(file_name, tmp_str);
+	if (i == 0) {
+		sprintf(tmp_str, "_w%d", pframe->width);
+		strcat(file_name, tmp_str);
+		sprintf(tmp_str, "_h%d", pframe->height);
+		strcat(file_name, tmp_str);
+	} else {
+		sprintf(tmp_str, "_w%d", align_w);
+		strcat(file_name, tmp_str);
+		sprintf(tmp_str, "_h%d", align_h);
+		strcat(file_name, tmp_str);
+	}
+		sprintf(tmp_str, "_No%d", pframe->fid);
+		strcat(file_name, tmp_str);
+
+	if (dump_base->dcam_out_bits == DCAM_STORE_8_BIT) {
+		strcat(file_name, "_8bit");
+	} else {
+		strcat(file_name, "_10bit");
+		if (dump_base->is_pack)
+			strcat(file_name, "_mipi");
+	}
+
+	if (pframe->is_compressed && i == 0) {
+		camdump_compress_frame_dump(dump_base, pframe, file_name, &offset);
+		return 0;
+	}
+
+	strcat(file_name1, file_name);
+	if (dump_base->dcam_out_fmt == DCAM_STORE_YUV420) {
+		strcat(file_name, "_yuv420.y");
+		strcat(file_name1, "_yuv420.uv");
+	} else {
+		strcat(file_name, "_yvu420.y");
+		strcat(file_name1, "_yvu420.uv");
+	}
+
+	addr = pframe->buf.addr_k[0] + offset;
+	addr1 = addr + size;
+	if (i == 0 && pframe->is_compressed && ((g_dbg_dump.dump_en == DUMP_PATH_BOTH)
+		|| (g_dbg_dump.dump_en == DUMP_PATH_BIN)))
+		offset += pframe->fbc_info.buffer_size;
+	else
+		offset += (size * 3 / 2);
+	camdump_write_image_to_file((char *)addr, size, file_name);
+	pr_debug("dump for ch %d, size %d, kaddr %p, file %s\n", dump_base->ch_id,
+		(int)size, (void *)addr, file_name);
+	size = size / 2;
+	camdump_write_image_to_file((char *)addr1, size, file_name1);
+	pr_debug("dump for ch %d, size %d, kaddr %p, file %s\n", dump_base->ch_id,
+		(int)size, (void *)addr1, file_name1);
+	cam_buf_kunmap(&pframe->buf);
+	return 0;
+}
+
+static int camdump_pyr_frame_dump(struct cam_dump_ctx *dump_base, struct camera_frame *pframe)
+{
+	ssize_t size = 0;
+	uint32_t i = 0;
+	uint32_t align_w = 0, align_h = 0;
+	uint32_t layer_loop = 0;
+
+	if(dump_base == NULL || pframe == NULL)
+		return 0;
+
 	align_w = isp_rec_layer0_width(pframe->width, dump_base->pyr_layer_num);
 	align_h = isp_rec_layer0_heigh(pframe->height, dump_base->pyr_layer_num);
+
 	if (g_dbg_dump.dump_en == DUMP_ISP_PYR_REC)
 		layer_loop = dump_base->pyr_layer_num;
 	else
 		layer_loop = dump_base->pyr_layer_num + 1;
 	for (i = dump_base->start_layer; i < layer_loop; i++) {
-		strcat(file_name[i], CAMERA_DUMP_PATH);
-		if (g_dbg_dump.dump_en == DUMP_ISP_PYR_REC)
-			strcat(file_name[i], "pyr_rec_");
-		else if (g_dbg_dump.dump_en == DUMP_ISP_PYR_DEC)
-			strcat(file_name[i], "isp_dec_");
-		strcat(file_name[i], "layer_");
-		sprintf(tmp_str, "%d.", i);
-		strcat(file_name[i], tmp_str);
-		sprintf(tmp_str, "%d.", (uint32_t)dump_base->cur_dump_ts.tv_sec);
-		strcat(file_name[i], tmp_str);
-		sprintf(tmp_str, "%06d", (uint32_t)(dump_base->cur_dump_ts.tv_nsec / NSEC_PER_USEC));
-		strcat(file_name[i], tmp_str);
 		if (i == 0) {
-			sprintf(tmp_str, "_w%d", pframe->width);
-			strcat(file_name[i], tmp_str);
-			sprintf(tmp_str, "_h%d", pframe->height);
-			strcat(file_name[i], tmp_str);
 			size = cal_sprd_yuv_pitch(pframe->width, dump_base->dcam_out_bits, dump_base->is_pack);
 			size = size * pframe->height;
 		} else {
 			align_w = align_w /2;
 			align_h = align_h /2;
-			sprintf(tmp_str, "_w%d", align_w);
-			strcat(file_name[i], tmp_str);
-			sprintf(tmp_str, "_h%d", align_h);
-			strcat(file_name[i], tmp_str);
 			size = cal_sprd_yuv_pitch(align_w, dump_base->dcam_out_bits, dump_base->is_pack);
 			size = size * align_h;
 		}
-		sprintf(tmp_str, "_No%d", pframe->fid);
-		strcat(file_name[i], tmp_str);
 
-		if (dump_base->dcam_out_bits == DCAM_STORE_8_BIT) {
-			strcat(file_name[i], "_8bit");
-		} else {
-			strcat(file_name[i], "_10bit");
-			if (dump_base->is_pack)
-				strcat(file_name[i], "_mipi");
-		}
-
-		if (pframe->is_compressed && i == 0) {
-			camdump_compress_frame_dump(dump_base, pframe, file_name[i], &offset);
-			continue;
-		}
-
-		strcat(file_name1[i], file_name[i]);
-		if (dump_base->dcam_out_fmt == DCAM_STORE_YUV420) {
-			strcat(file_name[i], "_yuv420.y");
-			strcat(file_name1[i], "_yuv420.uv");
-		} else {
-			strcat(file_name[i], "_yvu420.y");
-			strcat(file_name1[i], "_yvu420.uv");
-		}
-
-		addr = pframe->buf.addr_k[0] + offset;
-		addr1 = addr + size;
-		if (i == 0 && pframe->is_compressed && ((g_dbg_dump.dump_en == DUMP_PATH_BOTH)
-			|| (g_dbg_dump.dump_en == DUMP_PATH_BIN)))
-			offset += pframe->fbc_info.buffer_size;
-		else
-			offset += (size * 3 / 2);
-		camdump_write_image_to_file((char *)addr, size, file_name[i]);
-		pr_debug("dump for ch %d, size %d, kaddr %p, file %s\n", dump_base->ch_id,
-			(int)size, (void *)addr, file_name[i]);
-		size = size / 2;
-		camdump_write_image_to_file((char *)addr1, size, file_name1[i]);
-		pr_debug("dump for ch %d, size %d, kaddr %p, file %s\n", dump_base->ch_id,
-			(int)size, (void *)addr1, file_name1[i]);
+		camdump_pyr_frame_store(dump_base, pframe,i,align_w,align_h,size);
 	}
 
-	cam_buf_kunmap(&pframe->buf);
 	return 0;
 }
 

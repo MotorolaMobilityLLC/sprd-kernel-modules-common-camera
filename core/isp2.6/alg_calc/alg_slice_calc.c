@@ -1075,7 +1075,7 @@ void cal_trimcoordinate(struct THUMB_SLICE_PARAM_T* thumbslice_param,struct CONF
 	}
 }
 
-void thumbInitSliceInfo_forhw(struct thumbscaler_this* thumbnail_info, int col, int row,
+void thumbInitSliceInfo_forhw(struct thumbscaler_info* thumbnail_info, int col, int row,
 	int totalcol, int totalrow, struct THUMB_SLICE_PARAM_T *thumbframeInfo)
 {
 	int id = thumbframeInfo->id;
@@ -1641,7 +1641,7 @@ void thumbnailscaler_calculate_region(
 	struct THUMB_SLICE_PARAM_T thumbslice_param_obj;
 	struct THUMB_SLICE_PARAM_T *thumbslice_param;
 	int id =0;
-	struct thumbscaler_this thumbscaler_param_temp = {0};
+	struct thumbscaler_info thumbscaler_param_temp = {0};
 	struct THUMB_SLICE_PARAM_T *sliceInfo = (struct THUMB_SLICE_PARAM_T *)vzalloc(sizeof(struct THUMB_SLICE_PARAM_T) * slicerows * slicecols);
 
 	isp_drv_regions_set(r_ref,r_out);
@@ -1716,7 +1716,8 @@ void thumbnailscaler_calculate_region(
 	vfree(sliceInfo);
 }
 
-void method_firmware_for_driver(struct thumbscaler_this *thumbnail_scaler)
+void method_firmware_for_driver(struct thumbscaler_this *thumbnail_scaler,
+	struct thumbscaler_info *thumbnail_scaler_lite)
 {
 
 	struct THUMB_SLICE_PARAM_T thumbslice_param_obj = {0};
@@ -1746,15 +1747,15 @@ void method_firmware_for_driver(struct thumbscaler_this *thumbnail_scaler)
 			thumbslice_param->overlap_right = 0;
 			thumbslice_param->overlap_up = 0;
 			thumbslice_param->overlap_down = 0;
-			thumbInitSliceInfo_forhw(thumbnail_scaler, jj, ii, thumbnail_scaler->inputSliceList.cols, thumbnail_scaler->inputSliceList.rows, thumbslice_param);
+			thumbInitSliceInfo_forhw(thumbnail_scaler_lite, jj, ii, thumbnail_scaler->inputSliceList.cols, thumbnail_scaler->inputSliceList.rows, thumbslice_param);
 		}
 	}
 
-	cal_TH_infophasenum_v2_forhw(&thumbnail_scaler->th_infophasenum, &thumbnail_scaler->configinfo, &thumbnail_scaler->thumbinfo, slicecols, slicerows);
+	cal_TH_infophasenum_v2_forhw(&thumbnail_scaler->th_infophasenum, &thumbnail_scaler_lite->configinfo, &thumbnail_scaler_lite->thumbinfo, slicecols, slicerows);
 
 	id = 0;
 	for (i = 0; i < sumslice; id++, i++) {
-		if (thumbnail_scaler->thumbinfo.thumbsliceinfo[id].scalerswitch == 0)
+		if (thumbnail_scaler_lite->thumbinfo.thumbsliceinfo[id].scalerswitch == 0)
 			continue;
 		thumbslice_param->id = id;
 		thumbslice_param->width = thumbnail_scaler->inputSliceList_overlap.slices[id].e_col - thumbnail_scaler->inputSliceList_overlap.slices[id].s_col + 1;
@@ -1768,13 +1769,14 @@ void method_firmware_for_driver(struct thumbscaler_this *thumbnail_scaler)
 		thumbslice_param->overlap_up = thumbnail_scaler->inputSliceList_overlap.slices[id].overlap_up;
 		thumbslice_param->overlap_down = thumbnail_scaler->inputSliceList_overlap.slices[id].overlap_down;
 
-		cal_trimcoordinate(thumbslice_param, &thumbnail_scaler->configinfo, &thumbnail_scaler->thumbinfo, &thumbnail_scaler->th_infophasenum);
+		cal_trimcoordinate(thumbslice_param, &thumbnail_scaler_lite->configinfo, &thumbnail_scaler_lite->thumbinfo, &thumbnail_scaler->th_infophasenum);
 	}
 }
 
 void thumbnailscaler_slice_init(struct alg_slice_drv_overlap *param_ptr)
 {
 	struct thumbscaler_this *thumbnail_scaler = NULL;
+	struct thumbscaler_info *thumbnail_scaler_lite = NULL;
 	struct CONFIGINFO_T *configinfo = NULL;
 	struct Sliceinfo *slice = NULL, *slice_overlap = NULL;
 	struct alg_region_info *slice_pos_array = NULL;
@@ -1788,8 +1790,9 @@ void thumbnailscaler_slice_init(struct alg_slice_drv_overlap *param_ptr)
 	struct thumbnailscaler_slice slice_param[PIPE_MAX_SLICE_NUM] = {0};
 
 	thumbnail_scaler = &param_ptr->thumbnail_scaler;
+	thumbnail_scaler_lite = &param_ptr->thumbnail_scaler_lite;
 	thumbnailscaler = &param_ptr->thumbnailscaler;
-	configinfo = &thumbnail_scaler->configinfo;
+	configinfo = &thumbnail_scaler_lite->configinfo;
 	slice = &thumbnail_scaler->inputSliceList;
 	slice_overlap = &thumbnail_scaler->inputSliceList_overlap;
 	slice_pos_array = param_ptr->slice_region;
@@ -1860,14 +1863,14 @@ void thumbnailscaler_slice_init(struct alg_slice_drv_overlap *param_ptr)
 		}
 	}
 
-	method_firmware_for_driver(thumbnail_scaler);
+	method_firmware_for_driver(thumbnail_scaler,thumbnail_scaler_lite);
 
-	deci_factor_x = thumbnail_scaler->thumbinfo.thumbsliceinfo[0].deci_factor_x;
-	deci_factor_y = thumbnail_scaler->thumbinfo.thumbsliceinfo[0].deci_factor_y;
-	trimx = thumbnail_scaler->thumbinfo.thumbsliceinfo[0].trimx;
-	trimy = thumbnail_scaler->thumbinfo.thumbsliceinfo[0].trimy;
+	deci_factor_x = thumbnail_scaler_lite->thumbinfo.thumbsliceinfo[0].deci_factor_x;
+	deci_factor_y = thumbnail_scaler_lite->thumbinfo.thumbsliceinfo[0].deci_factor_y;
+	trimx = thumbnail_scaler_lite->thumbinfo.thumbsliceinfo[0].trimx;
+	trimy = thumbnail_scaler_lite->thumbinfo.thumbsliceinfo[0].trimy;
 	for (slice_id = 0; slice_id< thumbnail_scaler->sumslice; slice_id++) {
-		slice_param[slice_id].bypass = 1 - thumbnail_scaler->thumbinfo.thumbsliceinfo[slice_id].scalerswitch;
+		slice_param[slice_id].bypass = 1 - thumbnail_scaler_lite->thumbinfo.thumbsliceinfo[slice_id].scalerswitch;
 		slice_param[slice_id].y_trim0_start_hor = thumbnail_scaler->th_infophasenum.thumbinfo_trimcoordinate_yid[slice_id].trim_s_col;
 		slice_param[slice_id].y_trim0_start_ver = thumbnail_scaler->th_infophasenum.thumbinfo_trimcoordinate_yid[slice_id].trim_s_row;
 		slice_param[slice_id].y_trim0_size_hor = thumbnail_scaler->th_infophasenum.thumbinfo_trimcoordinate_yid[slice_id].trim_width;
@@ -1880,18 +1883,18 @@ void thumbnailscaler_slice_init(struct alg_slice_drv_overlap *param_ptr)
 		slice_param[slice_id].y_init_phase_ver = thumbnail_scaler->th_infophasenum.thumbinfo_phasenum_yid[slice_id].phaseup;
 		slice_param[slice_id].uv_init_phase_hor = thumbnail_scaler->th_infophasenum.thumbinfo_phasenum_uvid[slice_id].phaseleft;
 		slice_param[slice_id].uv_init_phase_ver = thumbnail_scaler->th_infophasenum.thumbinfo_phasenum_uvid[slice_id].phaseup;
-		slice_param[slice_id].y_slice_src_size_hor = thumbnail_scaler->thumbinfo.thumbsliceinfo[slice_id].realiw / deci_factor_x;
-		slice_param[slice_id].y_slice_src_size_ver = thumbnail_scaler->thumbinfo.thumbsliceinfo[slice_id].realih / deci_factor_y;
-		slice_param[slice_id].y_slice_des_size_hor = thumbnail_scaler->thumbinfo.thumbsliceinfo[slice_id].realow;
-		slice_param[slice_id].y_slice_des_size_ver = thumbnail_scaler->thumbinfo.thumbsliceinfo[slice_id].realoh;
-		slice_param[slice_id].uv_slice_src_size_hor = thumbnail_scaler->thumbinfo.thumbsliceinfo[slice_id].realiw / (deci_factor_x * 2);
-		slice_param[slice_id].uv_slice_src_size_ver = thumbnail_scaler->thumbinfo.thumbsliceinfo[slice_id].realih / deci_factor_y;
+		slice_param[slice_id].y_slice_src_size_hor = thumbnail_scaler_lite->thumbinfo.thumbsliceinfo[slice_id].realiw / deci_factor_x;
+		slice_param[slice_id].y_slice_src_size_ver = thumbnail_scaler_lite->thumbinfo.thumbsliceinfo[slice_id].realih / deci_factor_y;
+		slice_param[slice_id].y_slice_des_size_hor = thumbnail_scaler_lite->thumbinfo.thumbsliceinfo[slice_id].realow;
+		slice_param[slice_id].y_slice_des_size_ver = thumbnail_scaler_lite->thumbinfo.thumbsliceinfo[slice_id].realoh;
+		slice_param[slice_id].uv_slice_src_size_hor = thumbnail_scaler_lite->thumbinfo.thumbsliceinfo[slice_id].realiw / (deci_factor_x * 2);
+		slice_param[slice_id].uv_slice_src_size_ver = thumbnail_scaler_lite->thumbinfo.thumbsliceinfo[slice_id].realih / deci_factor_y;
 		if (thumbnailscaler->out_format == 0) {
-			slice_param[slice_id].uv_slice_des_size_hor = thumbnail_scaler->thumbinfo.thumbsliceinfo[slice_id].realow / 2;
-			slice_param[slice_id].uv_slice_des_size_ver = thumbnail_scaler->thumbinfo.thumbsliceinfo[slice_id].realoh;
+			slice_param[slice_id].uv_slice_des_size_hor = thumbnail_scaler_lite->thumbinfo.thumbsliceinfo[slice_id].realow / 2;
+			slice_param[slice_id].uv_slice_des_size_ver = thumbnail_scaler_lite->thumbinfo.thumbsliceinfo[slice_id].realoh;
 		} else if (thumbnailscaler->out_format == 1) {
-			slice_param[slice_id].uv_slice_des_size_hor = thumbnail_scaler->thumbinfo.thumbsliceinfo[slice_id].realow / 2;
-			slice_param[slice_id].uv_slice_des_size_ver = thumbnail_scaler->thumbinfo.thumbsliceinfo[slice_id].realoh / 2;
+			slice_param[slice_id].uv_slice_des_size_hor = thumbnail_scaler_lite->thumbinfo.thumbsliceinfo[slice_id].realow / 2;
+			slice_param[slice_id].uv_slice_des_size_ver = thumbnail_scaler_lite->thumbinfo.thumbsliceinfo[slice_id].realoh / 2;
 		} else {
 			slice_param[slice_id].uv_slice_des_size_hor = 0;
 			slice_param[slice_id].uv_slice_des_size_ver = 0;
