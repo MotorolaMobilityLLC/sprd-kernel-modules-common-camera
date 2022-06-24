@@ -10,7 +10,7 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  */
-
+#include <linux/compat.h>
 #ifdef CAM_IOCTL_LAYER
 
 static int camioctl_time_get(struct camera_module *module,
@@ -248,14 +248,21 @@ static int camioctl_param_cfg(struct camera_module *module,
 {
 	int ret = 0;
 	int for_capture = 0, for_fdr = 0;
-	int32_t isp_ctx_id;
-	struct channel_context *channel;
-	struct isp_io_param param;
+	int32_t isp_ctx_id = 0;
+	u32 property_param = 0;
+	struct channel_context *channel = NULL;
+	struct isp_io_param param = {0};
+	struct compat_isp_io_param __user *uparam = NULL;
 	struct dcam_pipe_dev *dev = NULL;
 	struct dcam_sw_context *dcam_aux_ctx = NULL;
 	uint32_t is_rps= 0;
 
-	ret = copy_from_user((void *)&param, (void *)arg, sizeof(struct isp_io_param));
+	uparam = (struct compat_isp_io_param __user *)arg;
+	ret |= get_user(param.scene_id, &uparam->scene_id);
+	ret |= get_user(param.sub_block, &uparam->sub_block);
+	ret |= get_user(param.property, &uparam->property);
+	ret |= get_user(property_param, &uparam->property_param);
+	param.property_param = compat_ptr(property_param);
 
 	if (unlikely(ret)) {
 		pr_err("fail to copy from user, ret %d\n", ret);

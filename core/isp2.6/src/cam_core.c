@@ -48,10 +48,6 @@
 #include "dcam_offline.h"
 #include "cam_dump.h"
 
-#ifdef CONFIG_COMPAT
-#include "compat_cam_drv.h"
-#endif
-
 #ifdef pr_fmt
 #undef pr_fmt
 #endif
@@ -431,6 +427,16 @@ struct camera_group {
 	atomic_t recovery_state;
 	struct rw_semaphore switch_recovery_lock;
 	struct cam_thread_info recovery_thrd;
+};
+
+#define COMPAT_SPRD_ISP_IO_CFG_PARAM \
+	_IOWR(SPRD_IMG_IO_MAGIC, 41, struct compat_isp_io_param)
+
+struct compat_isp_io_param {
+	uint32_t scene_id;
+	uint32_t sub_block;
+	uint32_t property;
+	u32 property_param;
 };
 
 struct cam_ioctl_cmd {
@@ -7855,6 +7861,10 @@ static long camcore_ioctl(struct file *file, unsigned int cmd,
 	struct camera_module *module = NULL;
 	struct cam_ioctl_cmd *ioctl_cmd_p = NULL;
 	int nr = _IOC_NR(cmd);
+	void __user *data32 = compat_ptr(arg);
+
+	if (!file->f_op || !file->f_op->unlocked_ioctl)
+		return -ENOTTY;
 
 	pr_debug("cam ioctl, cmd:0x%x, cmdnum %d\n", cmd, nr);
 
@@ -7867,6 +7877,11 @@ static long camcore_ioctl(struct file *file, unsigned int cmd,
 	if (unlikely(!(nr >= 0 && nr < ARRAY_SIZE(ioctl_cmds_table)))) {
 		pr_info("invalid cmd: 0x%xn", cmd);
 		return -EINVAL;
+	}
+
+	if (cmd == COMPAT_SPRD_ISP_IO_CFG_PARAM) {
+		cmd = SPRD_ISP_IO_CFG_PARAM;
+		nr = _IOC_NR(cmd);
 	}
 
 	ioctl_cmd_p = &ioctl_cmds_table[nr];
@@ -7890,7 +7905,7 @@ static long camcore_ioctl(struct file *file, unsigned int cmd,
 	}
 	down_read(&module->grp->switch_recovery_lock);
 	if (cmd == SPRD_IMG_IO_SET_KEY || module->private_key == 1) {
-		ret = ioctl_cmd_p->cmd_proc(module, arg);
+		ret = ioctl_cmd_p->cmd_proc(module, (unsigned long)data32);
 		if (ret) {
 			pr_debug("fail to ioctl cmd:%x, nr:%d, func %ps\n",
 				cmd, nr, ioctl_cmd_p->cmd_proc);
@@ -8574,7 +8589,7 @@ static const struct file_operations image_fops = {
 	.open = camcore_open,
 	.unlocked_ioctl = camcore_ioctl,
 #ifdef CONFIG_COMPAT
-	.compat_ioctl = compat_sprd_img_ioctl,
+	.compat_ioctl = camcore_ioctl,
 #endif
 	.release = camcore_release,
 	.read = camcore_read,
