@@ -2929,24 +2929,35 @@ static int camioctl_fdr_post(struct camera_module *module,
 {
 	int ret = 0, i = 0;
 	uint32_t shutoff = 0;
-	int32_t isp_path_id, isp_ctx_id;
+	uint32_t scene_mode = 0, user_fid = 0, index = 0, reserved[4] = {0};
+	int32_t isp_path_id = 0, isp_ctx_id = 0;
+	struct sprd_img_size dst_size = {0};
 	struct dcam_pipe_dev *dcam = NULL;
 	struct channel_context *ch = NULL;
-	struct camera_frame *pframe = NULL, *pfrm[3] = { NULL, NULL, NULL };
+	struct camera_frame *pframe = NULL, *pfrm[3] = {NULL, NULL, NULL};
 	struct camera_frame *pfrm_dcam = NULL, *pfrm_isp = NULL;
-	struct sprd_img_parm param;
 	struct dcam_data_ctrl_info dcam_ctrl = {0};
-	struct cam_data_ctrl_in ctrl_in;
+	struct cam_data_ctrl_in ctrl_in = {0};
 	struct isp_data_ctrl_cfg *fdr_ctrl = NULL;
-	struct dcam_path_cfg_param ch_desc;
-	struct dcam_hw_path_stop patharg;
-	struct dcam_hw_path_restart re_patharg;
+	struct dcam_path_cfg_param ch_desc = {0};
+	struct dcam_hw_path_stop patharg = {0};
+	struct dcam_hw_path_restart re_patharg = {0};
 	struct dcam_sw_context *dcam_sw_aux_ctx = NULL;
 	struct dcam_sw_context *dcam_sw_ctx = NULL;
 	struct isp_sw_context *isp_sw_ctx = NULL;
+	struct sprd_img_parm __user *uparam;
 
-	ret = copy_from_user(&param, (void __user *)arg,
-				sizeof(struct sprd_img_parm));
+	uparam = (struct sprd_img_parm __user *)arg;
+	ret |= get_user(scene_mode, &uparam->scene_mode);
+	ret |= get_user(user_fid, &uparam->user_fid);
+	ret |= get_user(index, &uparam->index);
+	ret |= get_user(reserved[0], &uparam->reserved[0]);
+	ret |= get_user(reserved[1], &uparam->reserved[1]);
+	ret |= get_user(reserved[2], &uparam->reserved[2]);
+	ret |= get_user(reserved[3], &uparam->reserved[3]);
+	ret |= get_user(dst_size.w, &uparam->dst_size.w);
+	ret |= get_user(dst_size.h, &uparam->dst_size.h);
+
 	if (ret) {
 		pr_err("fail to copy_from_user\n");
 		return -EFAULT;
@@ -2971,23 +2982,26 @@ static int camioctl_fdr_post(struct camera_module *module,
 		pframe->pattern = module->cam_uinfo.sensor_if.img_ptn;
 		pframe->width = ch->ch_uinfo.src_size.w;
 		pframe->height = ch->ch_uinfo.src_size.h;
-		pframe->user_fid = param.user_fid;
-		pframe->fid = param.index;
-		pframe->sensor_time.tv_sec = param.reserved[0];
-		pframe->sensor_time.tv_usec = param.reserved[1];
-		pframe->boot_sensor_time = param.reserved[3];
-		pframe->boot_sensor_time = (pframe->boot_sensor_time << 32) | param.reserved[2];
+		pframe->user_fid = user_fid;
+		pframe->fid = index;
+		pframe->sensor_time.tv_sec = reserved[0];
+		pframe->sensor_time.tv_usec = reserved[1];
+		pframe->boot_sensor_time = reserved[3];
+		pframe->boot_sensor_time = (pframe->boot_sensor_time << 32) | reserved[2];
 		pframe->buf.type = CAM_BUF_USER;
-		pframe->buf.mfd[0] = param.fd_array[i];
-		pframe->buf.offset[0] = param.frame_addr_array[i].y;
-		pframe->buf.offset[1] = param.frame_addr_array[i].u;
-		pframe->buf.offset[2] = param.frame_addr_array[i].v;
-		pframe->buf.addr_vir[0] = param.frame_addr_vir_array[i].y;
-		pframe->buf.addr_vir[1] = param.frame_addr_vir_array[i].u;
-		pframe->buf.addr_vir[2] = param.frame_addr_vir_array[i].v;
+		ret |= get_user(pframe->buf.mfd[0],&uparam->fd_array[i]);
+		ret |= get_user(pframe->buf.offset[0],&uparam->frame_addr_array[i].y);
+		ret |= get_user(pframe->buf.offset[1],&uparam->frame_addr_array[i].u);
+		ret |= get_user(pframe->buf.offset[2],&uparam->frame_addr_array[i].v);
+		ret |= get_user(pframe->buf.addr_vir[0],&uparam->frame_addr_vir_array[i].y);
+		ret |= get_user(pframe->buf.addr_vir[1],&uparam->frame_addr_vir_array[i].u);
+		ret |= get_user(pframe->buf.addr_vir[2],&uparam->frame_addr_vir_array[i].v);
+		if (ret) {
+			pr_err("fail to copy_from_user\n");
+			return -EFAULT;
+		}
 		pframe->channel_id = ch->ch_id;
-		if (param.scene_mode == FDR_POST_DRC ||
-			param.scene_mode == FDR_POST_HIGH) {
+		if (scene_mode == FDR_POST_DRC || scene_mode == FDR_POST_HIGH) {
 			pframe->irq_property = CAM_FRAME_FDRH;
 			isp_path_id = ch->isp_fdrh_path;
 			isp_ctx_id = ch->isp_fdrh_ctx;
@@ -3086,7 +3100,7 @@ static int camioctl_fdr_post(struct camera_module *module,
 		}
 	}
 
-	if (param.scene_mode == FDR_POST_HIGH) {
+	if (scene_mode == FDR_POST_HIGH) {
 		ch_desc.input_size.w = ch->ch_uinfo.src_size.w;
 		ch_desc.input_size.h = ch->ch_uinfo.src_size.h;
 		ch_desc.input_trim.size_x = ch->ch_uinfo.src_size.w;
@@ -3130,12 +3144,12 @@ static int camioctl_fdr_post(struct camera_module *module,
 		path_desc.data_bits = DCAM_STORE_10_BIT;
 		pfrm_isp->width = fdr_ctrl->dst.w;
 		pfrm_isp->height = fdr_ctrl->dst.h;
-		pr_debug("w:%d, h:%d.\n", param.dst_size.w, param.dst_size.h);
-		if (param.dst_size.w && param.dst_size.h) {
-			path_desc.output_size.w = param.dst_size.w;
-			path_desc.output_size.h = param.dst_size.h;
-			pfrm_isp->width = param.dst_size.w;
-			pfrm_isp->height = param.dst_size.h;
+		pr_debug("w:%d, h:%d.\n", dst_size.w, dst_size.h);
+		if (dst_size.w && dst_size.h) {
+			path_desc.output_size.w = dst_size.w;
+			path_desc.output_size.h = dst_size.h;
+			pfrm_isp->width = dst_size.w;
+			pfrm_isp->height = dst_size.h;
 		}
 		ret = module->isp_dev_handle->isp_ops->cfg_path(module->isp_dev_handle,
 			ISP_PATH_CFG_PATH_BASE,
@@ -3149,8 +3163,7 @@ static int camioctl_fdr_post(struct camera_module *module,
 	}
 
 	ret = camcore_frame_start_proc(module, pfrm[0]);
-	pr_info("scene %d, frm fd (%x 0x%x), (%x 0x%x), (%x 0x%x), ctrl_in.scene_type:%d\n",
-		param.scene_mode,
+	pr_info("scene %d, frm fd (%d 0x%x), (%d 0x%x), (%d 0x%x)\n", scene_mode,
 		pfrm[0]->buf.mfd[0], pfrm[0]->buf.offset[0],
 		pfrm[1]->buf.mfd[0], pfrm[1]->buf.offset[0],
 		pfrm[2]->buf.mfd[0], pfrm[2]->buf.offset[0], ctrl_in.scene_type);
@@ -3174,8 +3187,7 @@ isp_proc:
 	ret = module->isp_dev_handle->isp_ops->proc_frame(module->isp_dev_handle, pframe,
 		isp_ctx_id);
 
-	pr_info("scene %d, frm fd (%d 0x%x), (%d 0x%x), (%d 0x%x)\n",
-		param.scene_mode,
+	pr_info("scene %d, frm fd (%d 0x%x), (%d 0x%x), (%d 0x%x)\n", scene_mode,
 		pfrm[0]->buf.mfd[0], pfrm[0]->buf.offset[0],
 		pfrm[1]->buf.mfd[0], pfrm[1]->buf.offset[0],
 		pfrm[2]->buf.mfd[0], pfrm[2]->buf.offset[0]);

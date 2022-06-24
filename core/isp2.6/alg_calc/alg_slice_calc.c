@@ -2941,15 +2941,72 @@ void alg_slice_scaler_overlap_temp(struct alg_scaler_ovlap_temp *in_ptr)
 	} while (0);
 }
 
+void alg_slice_pyr_get_slice_region
+	(struct alg_slice_drv_overlap *param_ptr,
+	struct alg_pyramid_ovlap_temp *in_ptr)
+{
+	int i = 0, j = 0, index = 0, layer_id = 0;
+	int rows = 0, cols = 0, layer_num = 0, slice_num = 0;
+	int layer0_padding_width = 0, layer0_padding_height = 0;
+	struct alg_slice_regions org_add_rec_slice_out[MAX_PYR_DEC_LAYER_NUM];
+	struct alg_fetch_region org_add_rec_slice_in;
+
+	layer_num = in_ptr->layer_num;
+	slice_num = in_ptr->slice_num;
+	layer0_padding_width = in_ptr->layer0_padding_width;
+	layer0_padding_height = in_ptr->layer0_padding_height;
+	for (layer_id = 0; layer_id < MAX_PYR_DEC_LAYER_NUM; layer_id++)
+		memset(&org_add_rec_slice_out[layer_id], 0, sizeof(struct alg_slice_regions));
+
+	for (layer_id = 0; layer_id < layer_num; layer_id++) {
+		org_add_rec_slice_in.image_w = layer_id ? (layer0_padding_width >> layer_id) : (param_ptr->img_src_w);
+		org_add_rec_slice_in.image_h = layer_id ? (layer0_padding_height >> layer_id) : (param_ptr->img_src_h);
+		org_add_rec_slice_in.slice_w = (slice_num == 1) ? org_add_rec_slice_in.image_w : param_ptr->slice_w >> layer_id;
+		org_add_rec_slice_in.slice_h = layer0_padding_height >> layer_id;
+		org_add_rec_slice_in.overlap_left = 0;
+		org_add_rec_slice_in.overlap_right = 0;
+		org_add_rec_slice_in.overlap_up = 0;
+		org_add_rec_slice_in.overlap_down = 0;
+
+		//get slice region
+		if (-1 == isp_drv_regions_fetch(&org_add_rec_slice_in, &org_add_rec_slice_out[layer_id]))
+			return;
+	}
+	rows = in_ptr->add_rec_slice_out[0].rows;
+	cols = in_ptr->add_rec_slice_out[0].cols;
+	//get fetch0
+	for (layer_id = 0; layer_id < layer_num; layer_id++) {
+		for (i = 0; i < rows; i++) {
+			for (j = 0; j < cols; j++) {
+				index = i * cols + j;
+				//
+				param_ptr->fecth0_slice_region[layer_id][index].sx = in_ptr->add_rec_slice_out[layer_id].regions[index].sx;
+				param_ptr->fecth0_slice_region[layer_id][index].ex = in_ptr->add_rec_slice_out[layer_id].regions[index].ex;
+				param_ptr->fecth0_slice_region[layer_id][index].sy = in_ptr->add_rec_slice_out[layer_id].regions[index].sy;
+				param_ptr->fecth0_slice_region[layer_id][index].ey = in_ptr->add_rec_slice_out[layer_id].regions[index].ey;
+				pr_debug("layer %d slice %d fetch 0 sx%d sy%d ex%d ey%d\n", layer_id, index,
+					param_ptr->fecth0_slice_region[layer_id][index].sx, param_ptr->fecth0_slice_region[layer_id][index].sy,
+					param_ptr->fecth0_slice_region[layer_id][index].ex, param_ptr->fecth0_slice_region[layer_id][index].ey);
+				//
+				param_ptr->fecth0_slice_overlap[layer_id][index].ov_left = org_add_rec_slice_out[layer_id].regions[index].sx
+					- in_ptr->add_rec_slice_out[layer_id].regions[index].sx;
+				param_ptr->fecth0_slice_overlap[layer_id][index].ov_right = in_ptr->add_rec_slice_out[layer_id].regions[index].ex
+					- org_add_rec_slice_out[layer_id].regions[index].ex;
+				param_ptr->fecth0_slice_overlap[layer_id][index].ov_up = org_add_rec_slice_out[layer_id].regions[index].sy
+					- in_ptr->add_rec_slice_out[layer_id].regions[index].sy;
+				param_ptr->fecth0_slice_overlap[layer_id][index].ov_down = in_ptr->add_rec_slice_out[layer_id].regions[index].ey
+					- org_add_rec_slice_out[layer_id].regions[index].ey;
+			}
+		}
+	}
+}
+
 void alg_slice_pyramid_ovlap_temp(struct alg_pyramid_ovlap_temp *in_ptr)
 {
 	int i = 0, layer_slice_num = 0, index = 0;
 	int layer_slice_width = 0, layer_slice_height = 0;
-	int layer_id = 0;
-	int layer_num = 0;
-	int slice_num = 0;
-	int layer0_padding_width = 0;
-	int layer0_padding_height = 0;
+	int layer_id = 0, layer_num = 0, slice_num = 0;
+	int layer0_padding_width = 0, layer0_padding_height = 0;
 	int next_layer_width= 0;
 	int SLICE_W_ALIGN_V = 4;
 	uint32_t slice_flag = 1;
@@ -2959,14 +3016,12 @@ void alg_slice_pyramid_ovlap_temp(struct alg_pyramid_ovlap_temp *in_ptr)
 	struct alg_overlap_info *overlap_rec_mode1 = NULL;
 	struct alg_slice_regions rec_slice_out[MAX_PYR_DEC_LAYER_NUM];
 	struct alg_slice_regions org_rec_slice_out[MAX_PYR_DEC_LAYER_NUM];
-	struct alg_slice_regions org_add_rec_slice_out[MAX_PYR_DEC_LAYER_NUM];
 	struct alg_overlap_info ov_layer_rec[MAX_PYR_DEC_LAYER_NUM] = {0};
-	struct alg_fetch_region rec_slice_in;
-	struct alg_fetch_region org_rec_slice_in;
+	struct alg_fetch_region rec_slice_in = {0};
+	struct alg_fetch_region org_rec_slice_in = {0};
 	struct alg_overlap_info rec_slice_overlap[MAX_PYR_DEC_LAYER_NUM][PIPE_MAX_SLICE_NUM] = {{0}};
 	struct alg_overlap_info ov_layer[MAX_PYR_DEC_LAYER_NUM] = {0};
-	struct alg_fetch_region add_rec_slice_in;
-	struct alg_fetch_region org_add_rec_slice_in;
+	struct alg_fetch_region add_rec_slice_in = {0};
 
 	if (!in_ptr) {
 		pr_err("fail to get invalid ptr\n");
@@ -2976,7 +3031,6 @@ void alg_slice_pyramid_ovlap_temp(struct alg_pyramid_ovlap_temp *in_ptr)
 	for (layer_id = 0; layer_id < MAX_PYR_DEC_LAYER_NUM; layer_id++) {
 		memset(&rec_slice_out[layer_id],0, sizeof(struct alg_slice_regions));
 		memset(&org_rec_slice_out[layer_id], 0, sizeof(struct alg_slice_regions));
-		memset(&org_add_rec_slice_out[layer_id], 0, sizeof(struct alg_slice_regions));
 	}
 
 	param_ptr = in_ptr->param_ptr;
@@ -2988,7 +3042,6 @@ void alg_slice_pyramid_ovlap_temp(struct alg_pyramid_ovlap_temp *in_ptr)
 	overlap_rec = in_ptr->overlap_rec;
 	ov_pipe_layer0 = in_ptr->ov_pipe_layer0;
 	overlap_rec_mode1 = in_ptr->overlap_rec_mode1;
-
 	// rec region
 	do {
 		int i, j, index, rows, cols;
@@ -3006,8 +3059,8 @@ void alg_slice_pyramid_ovlap_temp(struct alg_pyramid_ovlap_temp *in_ptr)
 				ov_layer_rec[layer_id].ov_down = overlap_rec->ov_down << 1;
 			}
 
-			rec_slice_in.image_w = layer_id ? (layer0_padding_width >>layer_id) : (param_ptr->img_src_w);
-			rec_slice_in.image_h = layer_id ? (layer0_padding_height >>layer_id) : (param_ptr->img_src_h);
+			rec_slice_in.image_w = layer_id ? (layer0_padding_width >> layer_id) : (param_ptr->img_src_w);
+			rec_slice_in.image_h = layer_id ? (layer0_padding_height >> layer_id) : (param_ptr->img_src_h);
 			rec_slice_in.slice_w = (slice_num == 1) ? rec_slice_in.image_w : param_ptr->slice_w >> layer_id;
 			rec_slice_in.slice_h = layer0_padding_height >> layer_id;
 			rec_slice_in.overlap_left = ov_layer_rec[layer_id].ov_left;
@@ -3022,25 +3075,24 @@ void alg_slice_pyramid_ovlap_temp(struct alg_pyramid_ovlap_temp *in_ptr)
 				return;
 		}
 
-	pr_debug("lay num %d input laynum %d\n", layer_num, param_ptr->layerNum);
-	for (layer_id = 0; layer_id < layer_num; layer_id++) {
-		org_rec_slice_in.image_w = layer_id ? (layer0_padding_width  >>layer_id) : (param_ptr->img_src_w);
-		org_rec_slice_in.image_h = layer_id ? (layer0_padding_height >>layer_id) : (param_ptr->img_src_h);
-		org_rec_slice_in.slice_w = (slice_num == 1) ? org_rec_slice_in.image_w : param_ptr->slice_w>>layer_id;
-		org_rec_slice_in.slice_h = layer0_padding_height>>layer_id;
-		org_rec_slice_in.overlap_left  = 0;
-		org_rec_slice_in.overlap_right = 0;
-		org_rec_slice_in.overlap_up = 0;
-		org_rec_slice_in.overlap_down = 0;
+		pr_debug("lay num %d input laynum %d\n", layer_num, param_ptr->layerNum);
+		for (layer_id = 0; layer_id < layer_num; layer_id++) {
+			org_rec_slice_in.image_w = layer_id ? (layer0_padding_width >> layer_id) : (param_ptr->img_src_w);
+			org_rec_slice_in.image_h = layer_id ? (layer0_padding_height >> layer_id) : (param_ptr->img_src_h);
+			org_rec_slice_in.slice_w = (slice_num == 1) ? org_rec_slice_in.image_w : param_ptr->slice_w>>layer_id;
+			org_rec_slice_in.slice_h = layer0_padding_height >> layer_id;
+			org_rec_slice_in.overlap_left  = 0;
+			org_rec_slice_in.overlap_right = 0;
+			org_rec_slice_in.overlap_up = 0;
+			org_rec_slice_in.overlap_down = 0;
 
-		pr_debug("img w%d h%d slice w%d h%d ov L%d R %d\n", org_rec_slice_in.image_w, org_rec_slice_in.image_h,
-			org_rec_slice_in.slice_w, org_rec_slice_in.slice_h, org_rec_slice_in.overlap_left, org_rec_slice_in.overlap_right);
-		//get slice region
-		if(-1 == isp_drv_regions_fetch(&org_rec_slice_in, &org_rec_slice_out[layer_id])) {
-			return;
+			pr_debug("img w%d h%d slice w%d h%d ov L%d R %d\n", org_rec_slice_in.image_w, org_rec_slice_in.image_h,
+				org_rec_slice_in.slice_w, org_rec_slice_in.slice_h, org_rec_slice_in.overlap_left, org_rec_slice_in.overlap_right);
+			//get slice region
+			if (-1 == isp_drv_regions_fetch(&org_rec_slice_in, &org_rec_slice_out[layer_id])) {
+				return;
+			}
 		}
-	}
-
 		//get rec overlap
 		//fetch
 		for (layer_id = 0; layer_id < layer_num; layer_id++) {
@@ -3055,7 +3107,7 @@ void alg_slice_pyramid_ovlap_temp(struct alg_pyramid_ovlap_temp *in_ptr)
 				}
 			}
 		}
-	}while(0);
+	} while(0);
 
 	//////////////////////////////////////////////////////////////////////////
 	/* (ISP_overlap >> layer_id) + rec_overlap */
@@ -3063,10 +3115,10 @@ void alg_slice_pyramid_ovlap_temp(struct alg_pyramid_ovlap_temp *in_ptr)
 		ov_layer[layer_id].ov_left = (ov_pipe_layer0->ov_left >> layer_id) + ov_layer_rec[layer_id].ov_left;
 		ov_layer[layer_id].ov_right = (ov_pipe_layer0->ov_right >> layer_id) + ov_layer_rec[layer_id].ov_right;
 		ov_layer[layer_id].ov_up = (ov_pipe_layer0->ov_up >> layer_id) + ov_layer_rec[layer_id].ov_up;
-		ov_layer[layer_id].ov_down = (ov_pipe_layer0->ov_down >>layer_id) + ov_layer_rec[layer_id].ov_down;
+		ov_layer[layer_id].ov_down = (ov_pipe_layer0->ov_down >> layer_id) + ov_layer_rec[layer_id].ov_down;
 
-		add_rec_slice_in.image_w = layer_id ? (layer0_padding_width >>layer_id) : (param_ptr->img_src_w);
-		add_rec_slice_in.image_h = layer_id ? (layer0_padding_height >>layer_id) : (param_ptr->img_src_h);
+		add_rec_slice_in.image_w = layer_id ? (layer0_padding_width >> layer_id) : (param_ptr->img_src_w);
+		add_rec_slice_in.image_h = layer_id ? (layer0_padding_height >> layer_id) : (param_ptr->img_src_h);
 		add_rec_slice_in.slice_w = (slice_num == 1) ? add_rec_slice_in.image_w : param_ptr->slice_w >> layer_id;
 		add_rec_slice_in.slice_h = layer0_padding_height >> layer_id;
 		add_rec_slice_in.overlap_left = ov_layer[layer_id].ov_left;
@@ -3079,55 +3131,19 @@ void alg_slice_pyramid_ovlap_temp(struct alg_pyramid_ovlap_temp *in_ptr)
 		if (-1 == isp_drv_regions_fetch(&add_rec_slice_in, &in_ptr->add_rec_slice_out[layer_id]))
 			return;
 	}
-
-	for(layer_id = 0; layer_id < layer_num; layer_id++) {
-		org_add_rec_slice_in.image_w = layer_id ? (layer0_padding_width  >>layer_id) : (param_ptr->img_src_w);
-		org_add_rec_slice_in.image_h = layer_id ? (layer0_padding_height >>layer_id) : (param_ptr->img_src_h);
-		org_add_rec_slice_in.slice_w = (slice_num == 1) ? org_add_rec_slice_in.image_w : param_ptr->slice_w >> layer_id;
-		org_add_rec_slice_in.slice_h = layer0_padding_height >> layer_id;
-		org_add_rec_slice_in.overlap_left = 0;
-		org_add_rec_slice_in.overlap_right = 0;
-		org_add_rec_slice_in.overlap_up = 0;
-		org_add_rec_slice_in.overlap_down = 0;
-
-		//get slice region
-		if(-1 == isp_drv_regions_fetch(&org_add_rec_slice_in, &org_add_rec_slice_out[layer_id]))
-			return;
-	}
-
 	//////////////////////////////////////////////////////////////////////////
 	param_ptr->slice_rows = in_ptr->add_rec_slice_out[0].rows;
 	param_ptr->slice_cols = in_ptr->add_rec_slice_out[0].cols;
+
 	do {
-		int i,j,index,rows,cols;
+		int i, j, index, rows, cols;
 		rows = param_ptr->slice_rows;
 		cols = param_ptr->slice_cols;
-		//fetch0
-		for (layer_id = 0; layer_id < layer_num; layer_id++) {
-			for (i=0; i < rows; i++) {
-				for (j=0; j < cols; j++) {
-					index = i * cols + j;
-					//
-					param_ptr->fecth0_slice_region[layer_id][index].sx = in_ptr->add_rec_slice_out[layer_id].regions[index].sx;
-					param_ptr->fecth0_slice_region[layer_id][index].ex = in_ptr->add_rec_slice_out[layer_id].regions[index].ex;
-					param_ptr->fecth0_slice_region[layer_id][index].sy = in_ptr->add_rec_slice_out[layer_id].regions[index].sy;
-					param_ptr->fecth0_slice_region[layer_id][index].ey = in_ptr->add_rec_slice_out[layer_id].regions[index].ey;
-					pr_debug("layer %d slice %d fetch 0 sx%d sy%d ex%d ey%d\n", layer_id, index, param_ptr->fecth0_slice_region[layer_id][index].sx, param_ptr->fecth0_slice_region[layer_id][index].sy,
-						param_ptr->fecth0_slice_region[layer_id][index].ex, param_ptr->fecth0_slice_region[layer_id][index].ey);
-					//
-					param_ptr->fecth0_slice_overlap[layer_id][index].ov_left = org_add_rec_slice_out[layer_id].regions[index].sx - in_ptr->add_rec_slice_out[layer_id].regions[index].sx;
-					param_ptr->fecth0_slice_overlap[layer_id][index].ov_right = in_ptr->add_rec_slice_out[layer_id].regions[index].ex - org_add_rec_slice_out[layer_id].regions[index].ex;
-					param_ptr->fecth0_slice_overlap[layer_id][index].ov_up = org_add_rec_slice_out[layer_id].regions[index].sy - in_ptr->add_rec_slice_out[layer_id].regions[index].sy;
-					param_ptr->fecth0_slice_overlap[layer_id][index].ov_down = in_ptr->add_rec_slice_out[layer_id].regions[index].ey - org_add_rec_slice_out[layer_id].regions[index].ey;
-				}
-			}
-		}
-
+		alg_slice_pyr_get_slice_region(param_ptr, in_ptr);
 		for (layer_id = 0; layer_id < layer_num - 1; layer_id++) {
-			for (i=0; i < rows; i++) {
-				for (j=0; j < cols; j++) {
+			for (i = 0; i < rows; i++) {
+				for (j = 0; j < cols; j++) {
 					index = i * cols + j;
-
 					//fetch1
 					param_ptr->fecth1_slice_region[layer_id][index].sx = param_ptr->fecth0_slice_region[layer_id + 1][index].sx << 1;
 					param_ptr->fecth1_slice_region[layer_id][index].ex = ((param_ptr->fecth0_slice_region[layer_id + 1][index].ex + 1) << 1) - 1;
@@ -3140,10 +3156,10 @@ void alg_slice_pyramid_ovlap_temp(struct alg_pyramid_ovlap_temp *in_ptr)
 						param_ptr->fecth1_slice_region[layer_id][index].ex = MIN(param_ptr->fecth1_slice_region[layer_id][index].ex, (layer0_padding_width >> layer_id) - 1);
 						param_ptr->fecth1_slice_region[layer_id][index].ey = MIN(param_ptr->fecth1_slice_region[layer_id][index].ey, (layer0_padding_height >> layer_id) - 1);
 					}
-					pr_debug("layer %d slice %d fetch 0 sx%d sy%d ex%d ey%d\n", layer_id, index, param_ptr->fecth0_slice_region[layer_id][index].sx, param_ptr->fecth0_slice_region[layer_id][index].sy,
-						param_ptr->fecth0_slice_region[layer_id][index].ex, param_ptr->fecth0_slice_region[layer_id][index].ey);
-					pr_debug("layer %d slice %d fetch 1 sx%d sy%d ex%d ey%d\n", layer_id, index, param_ptr->fecth1_slice_region[layer_id][index].sx, param_ptr->fecth1_slice_region[layer_id][index].sy,
-						param_ptr->fecth1_slice_region[layer_id][index].ex, param_ptr->fecth1_slice_region[layer_id][index].ey);
+					pr_debug("layer %d slice %d fetch 0 sx%d sy%d ex%d ey%d\n", layer_id, index, param_ptr->fecth0_slice_region[layer_id][index].sx,
+						param_ptr->fecth0_slice_region[layer_id][index].sy, param_ptr->fecth0_slice_region[layer_id][index].ex, param_ptr->fecth0_slice_region[layer_id][index].ey);
+					pr_debug("layer %d slice %d fetch 1 sx%d sy%d ex%d ey%d\n", layer_id, index, param_ptr->fecth1_slice_region[layer_id][index].sx,
+						param_ptr->fecth1_slice_region[layer_id][index].sy, param_ptr->fecth1_slice_region[layer_id][index].ex, param_ptr->fecth1_slice_region[layer_id][index].ey);
 					//store rec
 					if (layer_id == 0) {
 						param_ptr->store_rec_slice_region[layer_id][index].sx = param_ptr->fecth0_slice_region[layer_id][index].sx;
@@ -3151,10 +3167,10 @@ void alg_slice_pyramid_ovlap_temp(struct alg_pyramid_ovlap_temp *in_ptr)
 						param_ptr->store_rec_slice_region[layer_id][index].sy = param_ptr->fecth0_slice_region[layer_id][index].sy;
 						param_ptr->store_rec_slice_region[layer_id][index].ey = param_ptr->fecth0_slice_region[layer_id][index].ey;
 
-						param_ptr->store_rec_slice_overlap[layer_id][index].ov_left = param_ptr->fecth0_slice_overlap[layer_id][index].ov_left ;
+						param_ptr->store_rec_slice_overlap[layer_id][index].ov_left = param_ptr->fecth0_slice_overlap[layer_id][index].ov_left;
 						param_ptr->store_rec_slice_overlap[layer_id][index].ov_right = param_ptr->fecth0_slice_overlap[layer_id][index].ov_right;
-						param_ptr->store_rec_slice_overlap[layer_id][index].ov_up = param_ptr->fecth0_slice_overlap[layer_id][index].ov_up   ;
-						param_ptr->store_rec_slice_overlap[layer_id][index].ov_down = param_ptr->fecth0_slice_overlap[layer_id][index].ov_down ;
+						param_ptr->store_rec_slice_overlap[layer_id][index].ov_up = param_ptr->fecth0_slice_overlap[layer_id][index].ov_up;
+						param_ptr->store_rec_slice_overlap[layer_id][index].ov_down = param_ptr->fecth0_slice_overlap[layer_id][index].ov_down;
 
 						if (!param_ptr->uw_sensor) {
 							param_ptr->store_rec_slice_crop_overlap[layer_id][index].ov_left = 0;
@@ -3186,7 +3202,7 @@ void alg_slice_pyramid_ovlap_temp(struct alg_pyramid_ovlap_temp *in_ptr)
 				}
 			}
 		}
-	}while(0);
+	} while(0);
 
 	/* offline_slice_mode = 1,update layer5¡«layer2£ºauto slice */
 	if (param_ptr->offline_slice_mode == 1 && param_ptr->layerNum >= 3) {
@@ -3264,7 +3280,7 @@ void alg_slice_pyramid_ovlap_temp(struct alg_pyramid_ovlap_temp *in_ptr)
 		//get rec layer5¡«layer2 overlap
 		//fetch0
 		for (layer_id = 2; layer_id < param_ptr->layerNum; layer_id++) {
-			for (i=0; i < param_ptr->slice_number[layer_id]; i++) {
+			for (i = 0; i < param_ptr->slice_number[layer_id]; i++) {
 				index = i;
 				rec_slice_overlap[layer_id][index].ov_left = org_rec_slice_out[layer_id].regions[index].sx - rec_slice_out[layer_id].regions[index].sx;
 				rec_slice_overlap[layer_id][index].ov_right = rec_slice_out[layer_id].regions[index].ex - org_rec_slice_out[layer_id].regions[index].ex;
