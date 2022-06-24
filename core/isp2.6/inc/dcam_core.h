@@ -269,7 +269,6 @@ struct dcam_sw_context {
 	spinlock_t helper_lock;
 	struct list_head helper_list;
 	struct dcam_sync_helper helpers[DCAM_SYNC_HELPER_COUNT];
-	struct dcam_image_replacer *replacer;
 	spinlock_t glb_reg_lock;
 	bool dcamsec_eb;
 	uint32_t err_status;/* TODO: change to use state */

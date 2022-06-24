@@ -1808,9 +1808,6 @@ static int dcamcore_ioctrl(void *dcam_handle, enum dcam_ioctrl_cmd cmd, void *pa
 	case DCAM_IOCTL_CFG_RPS:
 		ret = dcamcore_rps_cfg(pctx, param);
 		break;
-	case DCAM_IOCTL_CFG_REPLACER:
-		pctx->replacer = (struct dcam_image_replacer *)param;
-		break;
 	case DCAM_IOCTL_GET_PATH_RECT:
 		ret = dcamcore_path_rect_get(pctx, param);
 		break;

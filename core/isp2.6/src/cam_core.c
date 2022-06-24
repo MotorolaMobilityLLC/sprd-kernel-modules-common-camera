@@ -1272,77 +1272,6 @@ static void camcore_compression_config(struct camera_module *module)
 	}
 }
 
-static void camcore_prepare_frame_from_file(struct camera_queue *queue,
-				char *filename, uint32_t data_bits, uint32_t fmt,
-				uint32_t width, uint32_t height, uint32_t pack_bits)
-{
-	struct camera_frame *frame, *f;
-	struct file *raw;
-	uint8_t *buf;
-	char fullname[DCAM_IMAGE_REPLACER_FILENAME_MAX + 32] = { 0 };
-	const char *folder = "/data/ylog/";
-	size_t cur;
-	uint32_t total;
-	int64_t left;
-	const uint32_t per = 4096;
-	ktime_t start, stop;
-	int result = 0;
-	struct dcam_compress_cal_para cal_fbc = {0};
-
-	/* prepare 1st buffer */
-	frame = cam_queue_dequeue_tail(queue);
-	if (!frame)
-		return;
-
-	if (frame->is_compressed) {
-		cal_fbc.compress_4bit_bypass = frame->compress_4bit_bypass;
-		cal_fbc.data_bits = data_bits;
-		cal_fbc.fbc_info = &frame->fbc_info;
-		cal_fbc.fmt = fmt;
-		cal_fbc.height = height;
-		cal_fbc.width = width;
-		total= dcam_if_cal_compressed_size (&cal_fbc);
-	} else
-		total = cal_sprd_raw_pitch(width, pack_bits) * height;
-
-	strcpy(fullname, folder);
-	/* length of filename is less then DCAM_IMAGE_REPLACER_FILENAME_MAX */
-	strcpy(fullname + strlen(folder), filename);
-
-	pr_info("reading %u bytes from %s\n", total, fullname);
-	start = ktime_get_boottime();
-	raw = cam_filp_open(fullname, O_RDONLY, 0);
-	if (IS_ERR_OR_NULL(raw)) {
-		pr_err("fail to open data file\n");
-		goto enqueue_frame;
-	}
-
-	buf = (uint8_t *)frame->buf.addr_k[0];
-	left = total;
-	do {
-		cur = min((uint32_t)left, per);
-		result = cam_kernel_read(raw, buf, cur, &raw->f_pos);
-		buf += result;
-		left -= result;
-	} while (result > 0 && left > 0);
-	filp_close(raw, 0);
-	stop = ktime_get_boottime();
-	pr_info("read succeed, costs %lldns\n", ktime_sub(stop, start));
-
-	/* prepare other buffers */
-	list_for_each_entry(f, &queue->head, list) {
-		start = ktime_get_boottime();
-		memcpy((uint8_t *)f->buf.addr_k[0],
-			(uint8_t *)frame->buf.addr_k[0], total);
-		stop = ktime_get_boottime();
-		pr_info("copy succeed, costs %lldns\n", ktime_sub(stop, start));
-	}
-	pr_info("done\n");
-
-enqueue_frame:
-	cam_queue_enqueue(queue, &frame->list);
-}
-
 static int camcore_buffer_path_cfg(struct camera_module *module,
 	uint32_t index)
 {
@@ -1422,7 +1351,7 @@ mul_share_buf_done:
 		}
 	}
 
-	if (hw->ip_dcam[dcam_sw_ctx->hw_ctx_id]->superzoom_support) {
+	if (hw->ip_dcam[DCAM_ID_0]->superzoom_support) {
 		if (ch->postproc_buf) {
 			ret = module->isp_dev_handle->isp_ops->cfg_path(module->isp_dev_handle,
 				ISP_PATH_CFG_POSTPROC_BUF,
@@ -1744,23 +1673,8 @@ mul_alloc_end:
 	path_id = channel->dcam_path_id;
 	is_super_size = (module->cam_uinfo.dcam_slice_mode == CAM_OFFLINE_SLICE_HW
 		&& width >= DCAM_HW_SLICE_WIDTH_MAX) ? 1 : 0;
-	if (path_id >= 0 && path_id < DCAM_IMAGE_REPLACER_PATH_MAX) {
-		struct dcam_image_replacer *replacer;
 
-		replacer = &debugger->replacer[sw_ctx->hw_ctx_id];
-		if (replacer->enabled[path_id]) {
-			camcore_prepare_frame_from_file(&channel->share_buf_queue,
-				replacer->filename[path_id], dcam_out_bits, channel->dcam_out_fmt,
-				width, height, pack_bits);
-			module->dcam_dev_handle->dcam_pipe_ops->ioctl(&module->dcam_dev_handle->sw_ctx[module->cur_sw_ctx_id],
-				DCAM_IOCTL_CFG_REPLACER, replacer);
-		}
-	} else {
-		module->dcam_dev_handle->dcam_pipe_ops->ioctl(&module->dcam_dev_handle->sw_ctx[module->cur_sw_ctx_id],
-			DCAM_IOCTL_CFG_REPLACER, NULL);
-	}
-
-	if (hw->ip_dcam[sw_ctx->hw_ctx_id]->superzoom_support && !is_super_size) {
+	if (hw->ip_dcam[DCAM_ID_0]->superzoom_support && !is_super_size) {
 		postproc_w = channel->ch_uinfo.dst_size.w / ISP_SCALER_UP_MAX;
 		postproc_h = channel->ch_uinfo.dst_size.h / ISP_SCALER_UP_MAX;
 		if (channel->ch_id != CAM_CH_CAP && channel_vid->enable) {

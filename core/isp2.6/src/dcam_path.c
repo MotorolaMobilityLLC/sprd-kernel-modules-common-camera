@@ -1151,16 +1151,6 @@ int dcam_path_store_frm_set(void *dcam_ctx_handle,
 		return 0;
 	}
 
-	/* replace image data for debug */
-	if (dcam_sw_ctx->replacer) {
-		struct dcam_image_replacer *replacer = dcam_sw_ctx->replacer;
-
-		if ((path_id < DCAM_IMAGE_REPLACER_PATH_MAX)
-			&& replacer->enabled[path_id])
-			saved = cam_queue_dequeue(&path->reserved_buf_queue,
-				struct camera_frame, list);
-	}
-
 	if (saved)
 		dcampath_frame_pointer_swap(&frame, &saved);
 

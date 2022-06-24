@@ -802,124 +802,6 @@ static const struct file_operations dcam_eof_ops = {
 	.write = camdebugger_dcamint_eof_write,
 };
 
-static int camdebugger_replace_image_read(struct seq_file *s,
-		void *unused)
-{
-	struct dcam_image_replacer *replacer = NULL;
-	char *str;
-	int i = 0, j = 0;
-
-	replacer = (struct dcam_image_replacer *)s->private;
-	seq_printf(s, "\n");
-	for (i = 0; i < DCAM_ID_MAX; i++) {
-		seq_printf(s, "DCAM%d\n", i);
-		for (j = 0; j < DCAM_IMAGE_REPLACER_PATH_MAX; j++) {
-			str = "<disabled>";
-			if (replacer[i].enabled[j])
-				str = replacer[i].filename[j];
-			seq_printf(s, "   %s: %s\n", dcam_path_name_get(j), str);
-		}
-	}
-
-	seq_printf(s, "\nUsage:\n");
-	seq_printf(s, "         echo DCAM_ID PATH_ID disable > replace_image\n");
-	seq_printf(s, "         echo DCAM_ID PATH_ID filename > replace_image\n");
-	seq_printf(s, "\nExample:\n");
-	seq_printf(s, "         echo 0 0 disable > replace_image        // disable\n");
-	seq_printf(s, "         echo 1 1 abc.mipi_raw > replace_image   // replace DCAM1 BIN image with 'abc.mipi_raw'\n");
-
-	return 0;
-}
-
-static int camdebugger_replace_image_open(struct inode *inode,
-		struct file *file)
-{
-	return single_open(file, camdebugger_replace_image_read, inode->i_private);
-}
-
-static ssize_t camdebugger_replace_image_write(struct file *filp,
-		const char __user *buffer, size_t count, loff_t *ppos)
-{
-	struct seq_file *p = (struct seq_file *)filp->private_data;
-	struct dcam_image_replacer *replacer =
-		(struct dcam_image_replacer *)p->private;
-	char buf[DCAM_IMAGE_REPLACER_FILENAME_MAX] = { 0 };
-	char *s, *c;
-	uint32_t dcam, path;
-	int ret;
-
-	/* filename is less than this value, which is intentional */
-	if (count > DCAM_IMAGE_REPLACER_FILENAME_MAX || count < 1) {
-		pr_err("fail to get filename size\n");
-		return -EINVAL;
-	}
-
-	ret = copy_from_user(buf, (void __user *)buffer, count);
-	if (ret) {
-		pr_err("fail to copy_from_user\n");
-		return -EINVAL;
-	}
-	buf[count - 1] = '\0';
-
-	/* DCAM id */
-	s = buf;
-	c = strchr(s, ' ');
-	if (!c) {
-		pr_err("fail to get DCAM id\n");
-		return -EINVAL;
-	}
-	*c = '\0';
-
-	if (kstrtouint(s, 10, &dcam) < 0) {
-		pr_err("fail to parse DCAM id '%s'\n", s);
-		return -EINVAL;
-	}
-
-	if (dcam >= DCAM_ID_MAX) {
-		pr_err("fail to get valid DCAM id %u\n", dcam);
-		return -EINVAL;
-	}
-
-	/* path */
-	s = c + 1;
-	c = strchr(s, ' ');
-	if (!c) {
-		pr_err("fail to get DCAM path\n");
-		return -EINVAL;
-	}
-	*c = '\0';
-
-	if (kstrtouint(s, 10, &path) < 0) {
-		pr_err("fail to parse DCAM path '%s'\n", s);
-		return -EINVAL;
-	}
-
-	/* filename */
-	s = c + 1;
-	if (path >= DCAM_IMAGE_REPLACER_PATH_MAX) {
-		pr_err("fail to get DCAM path %u\n", path);
-		return -EINVAL;
-	}
-
-	/* filename */
-	replacer[dcam].enabled[path] = !!strncmp(s, "disable", 7);
-	strcpy(replacer[dcam].filename[path], s);
-
-	pr_info("DCAM%u %s set replace image: %u %s\n",
-		dcam, dcam_path_name_get(path),
-		replacer[dcam].enabled[path],
-		replacer[dcam].filename[path]);
-
-	return count;
-}
-
-static const struct file_operations replace_image_ops = {
-	.owner = THIS_MODULE,
-	.open = camdebugger_replace_image_open,
-	.read = seq_read,
-	.write = camdebugger_replace_image_write,
-};
-
 /* /sys/kernel/debug/sprd_dcam/
  * dcam0_reg, dcam1_reg, dcam2_reg, dcam_axi_reg
  * dcam0/1/2_reg,dcam_axi_reg: cat .....(no echo > )
@@ -929,7 +811,7 @@ static int camdebugger_dcam_init(struct camera_debugger *debugger)
 {
 	/* folder in /sys/kernel/debug/ */
 	const char tb_folder[] = {"sprd_dcam"};
-	struct dentry *pd, *entry;
+	struct dentry *pd;
 	static int tb_dcam_id[] = {0, 1, 2, 3};
 	static struct cam_debug_bypass dcam_debug_bypass[2];
 	int ret = 0;
@@ -1002,12 +884,6 @@ static int camdebugger_dcam_init(struct camera_debugger *debugger)
 	if (!debugfs_create_file("recovery_bypass", 0664,
 		pd, debugger, &recovery_ops))
 		ret |= BIT(17);
-
-	entry = debugfs_create_file("replace_image", 0644, pd,
-			&debugger->replacer[0],
-			&replace_image_ops);
-	if (IS_ERR_OR_NULL(entry))
-		return -ENOMEM;
 
 	if (ret)
 		ret = -ENOMEM;
