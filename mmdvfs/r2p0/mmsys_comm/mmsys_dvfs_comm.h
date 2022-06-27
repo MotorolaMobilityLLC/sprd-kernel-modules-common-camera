@@ -32,8 +32,8 @@
 #include <linux/kernel.h>
 #include <sprd_mm.h>
 #include <asm/memory.h>
+#include <linux/version.h>
 
-//#include "governor.h"
 
 #define TRUE 1
 #define FALSE 0

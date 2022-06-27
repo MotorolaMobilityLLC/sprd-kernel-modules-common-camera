@@ -2,8 +2,8 @@
 #include "mmsys_dvfs_comm.h"
 
 struct mmsys_clk_para clk_vote_table[5] = {
-	{JPG_CLK, JPG_CLK4096, 1},
-	{VDSP_MTX_DATA_CLK, VDSP_MTX_CLK5120, 1},/*hww ? 512?*/
+	{JPG_CLK, JPG_CLK5120, 1},
+	{VDSP_MTX_DATA_CLK, VDSP_MTX_CLK4096, 1},/*camera scenes less than 0.75V*/
 	{ISP_CLK, ISP_CLK4096, 1},
 	{DCAM0_1_AXI_CLK, DCAM0_1_AXI_CLK5120, 1},
 	{MM_MTX_DATA_CLK, MM_MTX_DATA_CLK5120, 1},

@@ -79,6 +79,7 @@ static void get_ip_index_from_table(struct ip_dvfs_map_cfg *dvfs_cfg,
     pr_debug("dvfs ops: %s,index=%d work_freq %ld", __func__, *index, work_freq);
 }
 
+/*
 static void set_change_flag(unsigned long work_freq) {
 	u32 i =0, clk_reg = 0, ip_clk_sel = 0;
 	unsigned long current_ip_clk = 0;
@@ -117,6 +118,7 @@ static void updata_clk_vote_table(unsigned int *mtx_index, unsigned long work_fr
 		*mtx_index = 7;
 	}
 }
+*/
 
 /*work-idle dvfs index ops*/
 static void set_ip_dvfs_work_index(struct devfreq *devfreq,
@@ -129,6 +131,10 @@ static void set_ip_dvfs_work_index(struct devfreq *devfreq,
 }
 
 static int set_work_freq(struct devfreq *devfreq, unsigned long work_freq) {
+
+	//fix dcam clk on 6pro platform
+	pr_info("dvfs ops: dcam clk has been fixed at 512MHZ");
+	/*
 	u32 index = 0,mtx_index = 0;
 
 	get_ip_index_from_table(dcam0_1_dvfs_config_table, work_freq, &index);
@@ -148,6 +154,7 @@ static int set_work_freq(struct devfreq *devfreq, unsigned long work_freq) {
 		set_dcam01_axi_work_freq(index);
 		set_mtx_data_work_freq(mtx_index);
 	}
+	*/
 	return MM_DVFS_SUCCESS;
 }
 

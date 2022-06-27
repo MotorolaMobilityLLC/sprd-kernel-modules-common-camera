@@ -14,7 +14,7 @@
 #include "mmsys_dvfs_comm.h"
 #include "top_dvfs_reg.h"
 #include "mm_dvfs.h"
-#include <video/sprd_mmsys_pw_domain.h>
+#include <sprd_camsys_domain.h>
 
 static LIST_HEAD(ip_dvfs_ops_list);
 static DEFINE_MUTEX(ip_dvfsops_list_lock);
