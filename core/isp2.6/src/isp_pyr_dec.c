@@ -814,8 +814,8 @@ static int isppyrdec_offline_frame_start(void *handle)
 	}
 
 	if (!pframe->blkparam_info.param_block) {
-			pr_err("fail to get dec param, fid %d\n", pframe->fid);
-			goto out_err;
+		pr_err("fail to get dec param, fid %d\n", pframe->fid);
+		goto out_err;
 	}
 
 	loop = 0;

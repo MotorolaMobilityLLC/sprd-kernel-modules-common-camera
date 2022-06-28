@@ -2205,6 +2205,7 @@ input_err:
 		if (tmp.stream && tmp.stream->data_src == ISP_STREAM_SRC_ISP) {
 			pr_debug("isp postproc no need return\n");
 		} else if (pframe->data_src_dec) {
+			ret = cam_queue_recycle_blk_param(&pctx->param_share_queue, (struct camera_frame *)pframe->blkparam_info.blk_param_node);
 			cam_queue_enqueue(&pctx->pyrdec_buf_queue, &pframe->list);
 		} else {
 			pctx->isp_cb_func(ISP_CB_RET_SRC_BUF, pframe, pctx->cb_priv_data);
