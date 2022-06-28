@@ -1490,7 +1490,7 @@ static int camcore_buffers_alloc_num(struct channel_context *channel,
 	}
 
 	if (channel->ch_id == CAM_CH_CAP && module->cam_uinfo.is_dual)
-		num = 4;
+		num = 7;
 
 	/* 4in1 non-zsl capture for single frame */
 	if ((module->cam_uinfo.is_4in1 || module->cam_uinfo.dcam_slice_mode)
