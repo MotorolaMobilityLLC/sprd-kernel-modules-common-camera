@@ -162,6 +162,7 @@ int csi_reg_base_save(struct csi_dt_node_info *dt_info, int32_t idx)
 
 void csi_ipg_mode_cfg(uint32_t idx, int enable)
 {
+	int ipg_raw_mode = IPG_IMAGE_MODE;
 	if (enable) {
 		CSI_REG_MWR(idx, MODE_CFG,
 			IPG_IMAGE_H_MASK, IPG_IMAGE_H_REG);
@@ -194,7 +195,7 @@ void csi_ipg_mode_cfg(uint32_t idx, int enable)
 
 		CSI_REG_MWR(idx, IPG_RAW10_CFG3, IPG_BAYER_PATTERN_MASK,
 						IPG_BAYER_PATTERN_BGGR);
-		if (!IPG_IMAGE_MODE) {
+		if (!ipg_raw_mode) {
 			CSI_REG_MWR(idx, IPG_YUV422_8_CFG0,
 				0x00FF0000, IPG_YUV_CFG0_B);
 			CSI_REG_MWR(idx, IPG_YUV422_8_CFG0,

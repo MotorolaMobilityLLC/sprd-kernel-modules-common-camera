@@ -126,7 +126,7 @@ static int sprd_sensor_parse_gpio_dt(struct device *dev,
 			ret = devm_gpio_request(dev, sensor_info->gpio_tab[i],
 						sprd_sensor_gpio_names[i]);
 		} else {
-			pr_err("invalid gpio: i=%d, gpio=%d, name=%s\n",
+			pr_debug("invalid gpio: i=%d, gpio=%d, name=%s\n",
 			       i, sensor_info->gpio_tab[i],
 			       sprd_sensor_gpio_names[i]);
 		}

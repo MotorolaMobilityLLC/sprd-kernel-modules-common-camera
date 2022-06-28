@@ -89,14 +89,14 @@ static int csi_mipi_clk_enable(int sensor_id)
 		return -EINVAL;
 	}
 	if((BIT_15 | BIT_14 | BIT_13 | BIT_12)!=(reg_rd(0x3000000c)&(BIT_15 | BIT_14 | BIT_13 | BIT_12))){
-		reg_base = ioremap_nocache(0x3000000c, 1);
+		reg_base = ioremap(0x3000000c, 1);
 		if (!reg_base) {
 			pr_info("0x%x: ioremap failed\n", 0x3000000c);
 			return -1;
 		}
 		REG_MWR(reg_base, BIT_15 | BIT_14 | BIT_13 | BIT_12, BIT_15 | BIT_14 | BIT_13 | BIT_12);
 		iounmap(reg_base);
-/*		reg_base = ioremap_nocache(0x3001004c, 9);
+/*		reg_base = ioremap(0x3001004c, 9);
 		if (!reg_base) {
 			pr_info("0x%x: ioremap failed\n", 0x3001004c);
 			return -1;
@@ -170,7 +170,7 @@ static void csi_mipi_clk_disable(int sensor_id)
 	cnt--;
 	pr_debug("cnt 0x%x 0x%x\n", cnt, reg_rd(0x3000000c));
 	if(!cnt) {
-		reg_base = ioremap_nocache(0x3000000c, 1);
+		reg_base = ioremap(0x3000000c, 1);
 		if (!reg_base) {
 			pr_info("0x%x: ioremap failed\n", 0x3000000c);
 		}
@@ -268,7 +268,7 @@ int csi_api_dt_node_init(struct device *dev, struct device_node *dn,
 		return -EINVAL;
 	}
 
-	reg_base = devm_ioremap_nocache(dev, res.start, resource_size(&res));
+	reg_base = devm_ioremap(dev, res.start, resource_size(&res));
 	if (IS_ERR_OR_NULL(reg_base)) {
 		pr_err("csi_dt_init:fail to get csi regbase\n");
 		return PTR_ERR(reg_base);

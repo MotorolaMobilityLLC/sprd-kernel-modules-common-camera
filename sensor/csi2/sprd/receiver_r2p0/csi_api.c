@@ -210,7 +210,7 @@ int csi_api_dt_node_init(struct device *dev, struct device_node *dn,
 		return -EINVAL;
 	}
 
-	reg_base = devm_ioremap_nocache(dev, res.start, resource_size(&res));
+	reg_base = devm_ioremap(dev, res.start, resource_size(&res));
 	if (IS_ERR_OR_NULL(reg_base)) {
 		pr_err("csi_dt_init:fail to get csi regbase\n");
 		return PTR_ERR(reg_base);

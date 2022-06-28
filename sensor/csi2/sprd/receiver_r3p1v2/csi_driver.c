@@ -177,6 +177,7 @@ int csi_reg_base_save(struct csi_dt_node_info *dt_info, int32_t idx)
 
 void csi_ipg_mode_cfg(uint32_t idx, int enable)
 {
+	int ipg_raw_mode = IPG_IMAGE_MODE;
 	CSI_REG_MWR(idx, PHY_PD_N, BIT_0, 1);
 	CSI_REG_MWR(idx, RST_DPHY_N, BIT_0, 1);
 	CSI_REG_MWR(idx, RST_CSI2_N, BIT_0, 1);
@@ -217,7 +218,7 @@ void csi_ipg_mode_cfg(uint32_t idx, int enable)
 
 		CSI_REG_MWR(idx, IPG_RAW10_CFG3, IPG_BAYER_PATTERN_MASK,
 						IPG_BAYER_PATTERN_GBRG);
-		if (!IPG_IMAGE_MODE) {
+		if (!ipg_raw_mode) {
 			CSI_REG_MWR(idx, IPG_YUV422_8_CFG0,
 				0x00FF0000, IPG_YUV_CFG0_B);
 			CSI_REG_MWR(idx, IPG_YUV422_8_CFG0,
@@ -309,7 +310,7 @@ int reg_mwr(unsigned int reg, unsigned int msk, unsigned int value)
 {
 	void __iomem *reg_base = NULL;
 
-	reg_base = ioremap_nocache(reg, 0x4);
+	reg_base = ioremap(reg, 0x4);
 	if (!reg_base) {
 		pr_info("0x%x: ioremap failed\n", reg);
 		return -1;
@@ -324,7 +325,7 @@ int reg_wr(unsigned int reg, unsigned int value)
 {
 	void __iomem *reg_base = NULL;
 
-	reg_base = ioremap_nocache(reg, 0x4);
+	reg_base = ioremap(reg, 0x4);
 	if (!reg_base) {
 		pr_info("0x%x: ioremap failed\n", reg);
 		return -1;
@@ -340,7 +341,7 @@ int reg_rd(unsigned int reg)
 	void __iomem *reg_base = NULL;
 	int val = 0;
 
-	reg_base = ioremap_nocache(reg, 0x4);
+	reg_base = ioremap(reg, 0x4);
 	if (!reg_base) {
 		pr_info("0x%x: ioremap failed\n", reg);
 		return -1;
@@ -371,7 +372,7 @@ int reg_dump_rd(unsigned long reg, int len, char *reg_name)
 	void __iomem *reg_base = NULL;
 	unsigned long addr = 0;
 
-	reg_base = ioremap_nocache(reg, len);
+	reg_base = ioremap(reg, len);
 	if (!reg_base) {
 		pr_info("0x%x: ioremap failed\n", reg);
 		return -1;
