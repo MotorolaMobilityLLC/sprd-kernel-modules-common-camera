@@ -283,6 +283,10 @@ static int cppcore_release(struct inode *node,
 		vfree(dev->cppif->scif);
 		dev->cppif->scif = NULL;
 	}
+	if (dev->cppif->dmaif) {
+		vfree(dev->cppif->dmaif);
+		dev->cppif->dmaif = NULL;
+	}
 	cpp_int_irq_free(dev->cppif);
 	cppcore_module_disable(dev);
 

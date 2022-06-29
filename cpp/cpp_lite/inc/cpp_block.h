@@ -72,6 +72,17 @@ struct rot_drv_private {
 	void *priv;
 };
 
+struct dma_drv_private {
+	struct sprd_cpp_dma_cfg_parm cfg_parm;
+	spinlock_t *hw_lock;
+	unsigned int dma_src_addr;
+	unsigned int dma_dst_addr;
+	struct cpp_iommu_info iommu_src;
+	struct cpp_iommu_info iommu_dst;
+	void __iomem *io_base;
+	void *priv;
+};
+
 struct scale_drv_private {
 	struct sprd_cpp_scale_cfg_parm cfg_parm;
 	unsigned int input_fmt;
@@ -157,4 +168,9 @@ int cpp_k_scale_clk_switch(void *arg);
 int cpp_k_scale_luma_hcoeff_set(void *arg);
 int cpp_k_scale_chrima_hcoeff_set(void *arg);
 int cpp_k_scale_vcoeff_set(void *arg);
+int cpp_k_dma_dev_enable(void *arg);
+int cpp_k_dma_dev_disable(void *arg);
+int cpp_k_dma_dev_start(void *arg);
+int cpp_k_dma_dev_stop(void *arg);
+int cpp_k_dma_dev_cfg(void *arg);
 #endif

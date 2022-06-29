@@ -69,7 +69,14 @@ enum cppdrv_cfg_cmd {
 	CPP_DRV_ROT_RESET,
 	CPP_DRV_CLK_EB,
 	CPP_DRV_CLK_DIS,
-	CPP_DRV_CFG_MAX
+	CPP_DRV_CFG_MAX,
+	CPP_DRV_DMA_REG_TRACE,
+	CPP_DRV_DMA_EB,
+	CPP_DRV_DMA_SET_PARM,
+	CPP_DRV_DMA_CFG_PARM,
+	CPP_DRV_DMA_START,
+	CPP_DRV_DMA_STOP,
+	CPP_DRV_DMA_RESET
 };
 
 
@@ -114,7 +121,13 @@ enum cpp_hw_cfg_cmd {
 	CPP_HW_CFG_SCL_LUMA_HCOEFF_SET,
 	CPP_HW_CFG_SCL_CHRIMA_HCOEF_SET,
 	CPP_HW_CFG_SCL_VCOEF_SET,
-	CPP_HW_CFG_MAX
+	CPP_HW_CFG_MAX,
+	CPP_HW_CFG_DMA_EB,
+	CPP_HW_CFG_DMA_DISABLE,
+	CPP_HW_CFG_DMA_RESET,
+	CPP_HW_CFG_DMA_START,
+	CPP_HW_CFG_DMA_STOP,
+	CPP_HW_CFG_DMA_PARM
 };
 
 #define ALIGNED_DOWN_2(w)   ((w) & ~(2 - 1))
@@ -139,6 +152,13 @@ struct scif_device {
 	struct scale_drv_private drv_priv;
 };
 
+struct dmaif_device {
+	atomic_t count;
+	struct mutex dma_mutex;
+	struct completion done_com;
+	struct dma_drv_private drv_priv;
+};
+
 struct cppdrv_ops {
 	int (*ioctl)(enum cppdrv_cfg_cmd cmd, void *arg1, void *arg2);
 };
@@ -151,6 +171,7 @@ struct cpp_pipe_dev {
 	spinlock_t slock;
 	struct rotif_device *rotif;
 	struct scif_device *scif;
+	struct dmaif_device *dmaif;
 	struct cpp_hw_info *hw_info;
 	struct cppdrv_ops *cppdrv_ops;
 };

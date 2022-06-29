@@ -47,12 +47,12 @@ extern unsigned long g_cpp_base;
 		(MMU_PAOR_RD_INT_BIT | MMU_PAOR_WR_INT_BIT))
 
 #define CPP_BASE                                0x00
-#define MM_AHB_RESET                            (0x0004UL)
-#define CPP_DMA_AHB_RESET_BIT                   (1 << 13)
-#define CPP_PATH1_AHB_RESET_BIT                 (1 << 14)
-#define CPP_PATH0_AHB_RESET_BIT                 (1 << 15)
-#define CPP_AHB_RESET_BIT                       (1 << 16)
-#define CPP_AHB_REST_MASK                       (1 << 18)
+#define MM_AHB_RESET                            (0x00ccUL)
+#define CPP_DMA_AHB_RESET_BIT                   (1 << 6)
+#define CPP_PATH1_AHB_RESET_BIT                 (1 << 7)
+#define CPP_PATH0_AHB_RESET_BIT                 (1 << 8)
+#define CPP_AHB_RESET_BIT                       (1 << 10)
+//#define CPP_AHB_REST_MASK                       (1 << 18)
 #define CPP_PATH_EB                             0x00
 #define CPP_DMA_EB_BIT                          BIT(2)
 #define CPP_ROT_EB_BIT                          BIT(1)

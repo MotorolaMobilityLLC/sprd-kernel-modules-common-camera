@@ -51,9 +51,19 @@ static void cppint_rot_done(struct cpp_pipe_dev *dev)
 		(*user_func) (priv);
 }
 
+static void cppint_dma_done(struct cpp_pipe_dev *dev)
+{
+	cpp_isr_func user_func = isr_func[CPP_DMA_DONE];
+	void *priv = isr_data[CPP_DMA_DONE];
+
+	if (user_func)
+		(*user_func) (priv);
+}
+
 static const cpp_isr cpp_isr_list[CPP_IRQ_NUMBER] = {
 	cppint_scale_done,
 	cppint_rot_done,
+	cppint_dma_done,
 };
 
 static void cppint_iommu_reg_trace(struct cpp_pipe_dev *dev)
@@ -175,11 +185,24 @@ static void cppint_scale_isr(void *priv)
 	complete(&scif->done_com);
 }
 
+static void cppint_dma_isr(void *priv)
+{
+	struct dmaif_device *dmaif = (struct dmaif_device *)priv;
+
+	if (!dmaif) {
+		pr_err("fail to get valid input ptr\n");
+		return;
+	}
+
+	complete(&dmaif->done_com);
+}
+
 int cpp_int_irq_request(void *cpp_handle)
 {
 	int ret = 0;
 	struct rotif_device *rotif = NULL;
 	struct scif_device *scif = NULL;
+	struct dmaif_device *dmaif = NULL;
 	struct cpp_pipe_dev *dev;
 
 	if (!cpp_handle) {
@@ -219,7 +242,20 @@ int cpp_int_irq_request(void *cpp_handle)
 	mutex_init(&scif->sc_mutex);
 	cppint_register_isr(dev, CPP_SCALE_DONE,
 		cppint_scale_isr, (void *)scif);
-
+	dmaif = vzalloc(sizeof(*dmaif));
+	if (unlikely(!dmaif)) {
+		ret = -EFAULT;
+		pr_err("fail to vzalloc dmaif\n");
+		goto fail;
+	}
+	dmaif->drv_priv.io_base = dev->io_base;
+	dmaif->drv_priv.priv = (void *)dmaif;
+	dev->dmaif = dmaif;
+	dmaif->drv_priv.hw_lock = &dev->hw_lock;
+	spin_lock_init(&dev->hw_lock);
+	cppint_register_isr(dev, CPP_DMA_DONE, cppint_dma_isr, (void *)dmaif);
+	init_completion(&dmaif->done_com);
+	mutex_init(&dmaif->dma_mutex);
 	ret = devm_request_irq(&dev->pdev->dev, dev->irq,
 		cppint_isr_root, IRQF_SHARED, "CPP", (void *)dev);
 	if (ret < 0) {
@@ -235,6 +271,10 @@ fail:
 	if (rotif) {
 		vfree(rotif);
 		dev->rotif = NULL;
+	}
+	if (dmaif) {
+		vfree(dmaif);
+		dev->dmaif = NULL;
 	}
 	return ret;
 }

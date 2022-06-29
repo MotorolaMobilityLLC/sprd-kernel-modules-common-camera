@@ -1442,6 +1442,168 @@ static int cppdrv_scale_stop(void *arg1, void *arg2)
 	return 0;
 }
 
+static int cppdrv_dma_enable(void *arg1, void *arg2)
+{
+	struct dma_drv_private *p = NULL;
+	struct cpp_pipe_dev *cppif= NULL;
+	struct cpp_hw_info *hw = NULL;
+	int ret = 0;
+
+	if (!arg2) {
+		pr_err("fail to get valid input ptr\n");
+		return -1 ;
+	}
+	cppif = (struct cpp_pipe_dev *)arg2;
+	p = &(cppif->dmaif->drv_priv);
+	hw = cppif->hw_info;
+	if (!p || !hw) {
+		pr_err("fail to get valid drv_private %p, hw %p\n", p, hw);
+		return -EINVAL;
+	}
+	ret = hw->cpp_hw_ioctl(CPP_HW_CFG_DMA_EB, p);
+	if (ret) {
+		pr_err("fail to eb dma\n");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int cppdrv_dma_param_set(void *arg1, void *arg2)
+{
+	int ret = 0;
+	struct dma_drv_private *p = NULL;
+	struct sprd_cpp_dma_cfg_parm *parm = NULL;
+	struct cpp_pipe_dev *cppif = NULL;
+
+	if (!arg1 || !arg2) {
+		pr_err("fail to get valid input ptr\n");
+		return -EINVAL;
+	}
+
+	parm = (struct sprd_cpp_dma_cfg_parm *)arg1;
+	cppif = (struct cpp_pipe_dev *)arg2;
+	p = &(cppif->dmaif->drv_priv);
+	if (!p) {
+		pr_err("fail to get valid dma_drv_private\n");
+		return -EINVAL;
+	}
+	memcpy((void *)&p->cfg_parm, (void *)parm,
+		sizeof(struct sprd_cpp_dma_cfg_parm));
+	memcpy(p->iommu_src.mfd, parm->input_addr.mfd,
+		sizeof(parm->input_addr.mfd));
+	memcpy(p->iommu_dst.mfd, parm->output_addr.mfd,
+		sizeof(parm->output_addr.mfd));
+
+	ret = cppdrv_get_sg_table(&p->iommu_src);
+	if (ret) {
+		pr_err("fail to get cpp sg table\n");
+		return -1;
+	}
+	p->iommu_src.offset[0] = p->cfg_parm.input_addr.y;
+	p->iommu_src.offset[1] = p->cfg_parm.input_addr.u;
+	ret = cppdrv_get_addr(&p->iommu_src);
+	if (ret) {
+		pr_err("fail to get src addr\n");
+		return -EFAULT;
+	}
+
+	ret = cppdrv_get_sg_table(&p->iommu_dst);
+	if (ret) {
+		pr_err("fail to get cpp sg table\n");
+		cppdrv_free_addr(&p->iommu_src);
+		return -1;
+	}
+	p->iommu_dst.offset[0] = p->cfg_parm.output_addr.y;
+	p->iommu_dst.offset[1] = p->cfg_parm.output_addr.u;
+	ret = cppdrv_get_addr(&p->iommu_dst);
+	if (ret) {
+		pr_err("fail to get src addr\n");
+		cppdrv_free_addr(&p->iommu_src);
+		return -EFAULT;
+	}
+	p->dma_src_addr = p->iommu_src.iova[0];
+	p->dma_dst_addr = p->iommu_dst.iova[0];
+	pr_debug("src fd 0x%x, addr 0x%x, dst fd 0x%x, addr 0x%x\n",
+		parm->input_addr.mfd[0], p->dma_src_addr,
+		parm->output_addr.mfd[0], p->dma_dst_addr);
+
+	return ret;
+
+}
+
+static int cppdrv_dma_start(void *arg1, void *arg2)
+
+{
+	struct dma_drv_private *p = NULL;
+	struct cpp_pipe_dev *cppif= NULL;
+	struct cpp_hw_info *hw = NULL;
+	int ret = 0;
+
+	if (!arg2) {
+		pr_err("fail to get valid input ptr\n");
+		return -EINVAL;
+	}
+
+	cppif = (struct cpp_pipe_dev *)arg2;
+	p = &(cppif->dmaif->drv_priv);
+	hw = cppif->hw_info;
+
+	if (!p || !hw) {
+		pr_err("fail to get valid drv_private %p, hw %p\n", p, hw);
+		return -EINVAL;
+	}
+
+	ret = hw->cpp_hw_ioctl(CPP_HW_CFG_DMA_PARM, p);
+	if (ret) {
+		pr_err("fail to cfg dma\n");
+		return -EINVAL;
+	}
+
+	ret = hw->cpp_hw_ioctl(CPP_HW_CFG_DMA_START,p);
+	if (ret) {
+		pr_err("fail to start dma\n");
+		return -EINVAL;
+	}
+
+	return 0;
+
+}
+
+static int cppdrv_dma_stop(void *arg1, void *arg2)
+{
+	struct dma_drv_private *p = NULL;
+	struct cpp_pipe_dev *cppif= NULL;
+	struct cpp_hw_info *hw = NULL;
+	int ret = 0;
+
+	if (!arg2) {
+		pr_err("fail to get valid input ptr\n");
+		return -1;
+	}
+	cppif = (struct cpp_pipe_dev *)arg2;
+	p = &(cppif->dmaif->drv_priv);
+	hw = cppif->hw_info;
+	if (!p || !hw) {
+		pr_err("fail to get valid dma_drv_private %p, hw %p\n", p, hw);
+		return -EINVAL;
+	}
+	ret = hw->cpp_hw_ioctl(CPP_HW_CFG_DMA_STOP,p);
+	if (ret) {
+		pr_err("fail to stop dma\n");
+		return -EINVAL;
+	}
+	udelay(1);
+	ret = hw->cpp_hw_ioctl(CPP_HW_CFG_DMA_DISABLE,p);
+	if (ret) {
+		pr_err("fail to disable dma\n");
+		return -EINVAL;
+	}
+	cppdrv_free_addr(&p->iommu_src);
+	cppdrv_free_addr(&p->iommu_dst);
+	return ret;
+}
+
 static int cppdrv_scale_capability_get(void *arg1, void *arg2)
 {
 	struct sprd_cpp_scale_capability *scale_param = NULL;
@@ -1673,6 +1835,29 @@ static int cppdrv_scale_reset(void *arg1, void *arg2)
 	return ret;
 }
 
+static int cppdrv_dma_reset(void *arg1, void *arg2)
+
+{
+	int ret = 0;
+	struct cpp_hw_soc_info *soc_cpp = NULL;
+	struct cpp_hw_info *hw = NULL;
+
+	if (!arg1 || !arg2) {
+		pr_err("fail to get valid input ptr\n");
+		ret = -1;
+		return ret;
+	}
+	hw = (struct cpp_hw_info *)arg1;
+	soc_cpp = (struct cpp_hw_soc_info *)arg2;
+
+	ret = hw->cpp_hw_ioctl(CPP_HW_CFG_DMA_RESET, soc_cpp);
+	if (ret) {
+		pr_err("fail to reset dma\n");
+		return -EINVAL;
+	}
+	return ret;
+}
+
 static int cppdrv_clk_eb(void *arg1, void *arg2)
 {
 	int ret = 0;
@@ -1754,7 +1939,12 @@ static struct cppdrv_ioctrl cppdrv_ioctl_fun_tab[] = {
 	{CPP_DRV_ROT_RESET,               cppdrv_rot_reset},
 	{CPP_DRV_SCL_RESET,               cppdrv_scale_reset},
 	{CPP_DRV_CLK_EB,                  cppdrv_clk_eb},
-	{CPP_DRV_CLK_DIS,                 cppdrv_clk_disable}
+	{CPP_DRV_CLK_DIS,                 cppdrv_clk_disable},
+	{CPP_DRV_DMA_SET_PARM,            cppdrv_dma_param_set},
+	{CPP_DRV_DMA_EB,                  cppdrv_dma_enable},
+	{CPP_DRV_DMA_STOP,                cppdrv_dma_stop},
+	{CPP_DRV_DMA_START,               cppdrv_dma_start},
+	{CPP_DRV_DMA_RESET,               cppdrv_dma_reset}
 };
 
 static cppdrv_ioctl_fun cppdrv_ioctl_fun_get(

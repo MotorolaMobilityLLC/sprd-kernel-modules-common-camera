@@ -78,6 +78,17 @@ enum {
 };
 
 enum {
+	DMA_YUV422 = 0,
+	DMA_YUV420,
+	DMA_YUV400,
+	DMA_RGB888,
+	DMA_RGB666,
+	DMA_RGB565,
+	DMA_RGB555,
+	DMA_FMT_MAX
+};
+
+enum {
 	PATH2_ENDIAN_BIG = 0,
 	PATH2_ENDIAN_LITTLE,
 	PATH2_ENDIAN_HALFBIG,
@@ -458,6 +469,11 @@ struct sprd_cpp_dma_cfg_parm {
 	struct sprd_cpp_addr output_addr;
 	struct sprd_cpp_scale_endian_sel output_endian;
 	unsigned int isDirectVirAddr;
+
+	unsigned int src_endian;
+	unsigned int dst_endian;
+	unsigned int loop_num;
+	unsigned int rest_num;
 };
 
 struct sprd_cpp_path2_cfg_parm {

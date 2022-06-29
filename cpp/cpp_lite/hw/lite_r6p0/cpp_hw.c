@@ -181,6 +181,26 @@ static int cpphw_rot_reset(void *cpp_soc_handle)
 	return 0;
 }
 
+static int cpphw_dma_reset(void *cpp_soc_handle)
+{
+	struct cpp_hw_soc_info *soc_cpp = NULL;
+
+	if (!cpp_soc_handle) {
+		pr_err("fail to get valid input ptr\n");
+		return -EINVAL;
+	}
+	soc_cpp = (struct cpp_hw_soc_info *)cpp_soc_handle;
+
+	regmap_update_bits(soc_cpp->mm_ahb_gpr, MM_AHB_RESET,
+			CPP_DMA_AHB_RESET_BIT,
+			(unsigned int)CPP_DMA_AHB_RESET_BIT);
+	udelay(2);
+	regmap_update_bits(soc_cpp->mm_ahb_gpr, MM_AHB_RESET,
+			CPP_DMA_AHB_RESET_BIT,
+			~(unsigned int)CPP_DMA_AHB_RESET_BIT);
+	return 0;
+}
+
 static int cpphw_clk_enable(void *cpp_soc_handle)
 {
 	int ret = 0;
@@ -242,6 +262,7 @@ static struct hw_ioctrl_fun cpphw_ioctl_fun_tab[] = {
 	{CPP_HW_CFG_MODULE_RESET,               cpphw_module_reset},
 	{CPP_HW_CFG_SCALE_RESET,                cpphw_scale_reset},
 	{CPP_HW_CFG_ROT_RESET,                  cpphw_rot_reset},
+	{CPP_HW_CFG_DMA_RESET,                  cpphw_dma_reset},
 	{CPP_HW_CFG_CLK_EB,                     cpphw_clk_enable},
 	{CPP_HW_CFG_CLK_DIS,                    cpphw_clk_disable},
 	{CPP_HW_CFG_SC_REG_TRACE,               cpp_k_scale_reg_trace},
@@ -273,7 +294,12 @@ static struct hw_ioctrl_fun cpphw_ioctl_fun_tab[] = {
 	{CPP_HW_CFG_SCL_ADDR_SET,               cpp_k_scale_addr_set},
 	{CPP_HW_CFG_SCL_LUMA_HCOEFF_SET,        cpp_k_scale_luma_hcoeff_set},
 	{CPP_HW_CFG_SCL_CHRIMA_HCOEF_SET,       cpp_k_scale_chrima_hcoeff_set},
-	{CPP_HW_CFG_SCL_VCOEF_SET,              cpp_k_scale_vcoeff_set}
+	{CPP_HW_CFG_SCL_VCOEF_SET,              cpp_k_scale_vcoeff_set},
+	{CPP_HW_CFG_DMA_EB,                     cpp_k_dma_dev_enable},
+	{CPP_HW_CFG_DMA_DISABLE,                cpp_k_dma_dev_disable},
+	{CPP_HW_CFG_DMA_START,                  cpp_k_dma_dev_start},
+	{CPP_HW_CFG_DMA_STOP,                   cpp_k_dma_dev_stop},
+	{CPP_HW_CFG_DMA_PARM,                   cpp_k_dma_dev_cfg}
 };
 
 static cpp_hw_ioctl_fun cpphw_ioctl_fun_get(

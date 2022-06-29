@@ -566,6 +566,141 @@ start_scal_exit:
 	return ret;
 }
 
+static int cppcore_ioctl_open_dma(struct cpp_device *dev,
+	unsigned long arg)
+{
+	int ret = 0;
+
+	if (arg)
+		ret = copy_to_user((int *)arg, &ret, sizeof(ret));
+	if (ret) {
+		pr_err("fail to open dma drv");
+		ret = -EFAULT;
+		goto dma_open_exit;
+	}
+
+dma_open_exit:
+
+	return ret;
+}
+
+static int cppcore_ioctl_start_dma(struct cpp_device *dev,
+	unsigned long arg)
+{
+	int ret = 0;
+	int timeleft = 0;
+	struct cpp_pipe_dev *cppif = NULL;
+	struct cpp_hw_soc_info *soc_cpp = NULL;
+	struct dmaif_device *dmaif = NULL;
+	struct sprd_cpp_dma_cfg_parm dma_parm;
+	struct dma_drv_private *p = NULL;
+	unsigned long i = 0;
+
+	cppif = dev->cppif;
+	soc_cpp = dev->hw_info->soc_cpp;
+
+	if (!cppif) {
+		pr_err("fail to get invalid cppif!!\n");
+		ret = -EINVAL;
+		goto dma_exit;
+	}
+	dmaif = cppif->dmaif;
+	if (!dmaif) {
+		pr_err("fail to get invalid dmaif!\n");
+		ret = -EINVAL;
+		goto dma_exit;
+	}
+	p = &(cppif->dmaif->drv_priv);
+	mutex_lock(&dmaif->dma_mutex);
+	memset(&dma_parm, 0x00, sizeof(dma_parm));
+	ret = copy_from_user(&dma_parm, (void __user *)arg, sizeof(dma_parm));
+	if (unlikely(ret)) {
+		pr_err("fail to get dma param form user, ret %d\n", ret);
+		ret = -EFAULT;
+		goto dma_exit;
+	}
+
+	dmaif->drv_priv.iommu_src.dev = &dev->pdev->dev;
+	dmaif->drv_priv.iommu_dst.dev = &dev->pdev->dev;
+
+	ret = cppif->cppdrv_ops->ioctl(CPP_DRV_DMA_STOP, &dma_parm, cppif);
+	if (ret) {
+		pr_err("fail to stop dma\n");
+		ret = -EFAULT;
+		goto dma_exit;
+	}
+
+	ret = cppif->cppdrv_ops->ioctl(CPP_DRV_DMA_EB, &dma_parm, cppif);
+	if (ret) {
+		pr_err("fail to en dma\n");
+		ret = -EFAULT;
+		goto dma_exit;
+	}
+
+	ret = cppif->cppdrv_ops->ioctl(CPP_DRV_DMA_SET_PARM, &dma_parm, cppif);
+	if (ret) {
+		pr_err("fail to set dma parm\n");
+		ret = -EFAULT;
+		goto dma_exit;
+	}
+
+	for (i = 0; i < dma_parm.loop_num; i++) {
+		ret = cppif->cppdrv_ops->ioctl(CPP_DRV_DMA_START, &dma_parm, cppif);
+		if (ret) {
+			pr_err("fail to start dma\n");
+			ret = -EFAULT;
+			goto dma_exit;
+		}
+
+		timeleft = wait_for_completion_timeout(&dmaif->done_com,
+					msecs_to_jiffies(DMA_TIMEOUT));
+		if (timeleft == 0) {
+			ret = cppif->cppdrv_ops->ioctl(CPP_DRV_DMA_REG_TRACE, cppif, NULL);
+			ret = -EBUSY;
+			goto dma_exit;
+		}
+		p->dma_src_addr += dma_parm.total_num;
+		p->dma_dst_addr += dma_parm.total_num;
+	}
+
+	if (dma_parm.rest_num != 0) {
+		p->cfg_parm.total_num = dma_parm.rest_num;
+		ret = cppif->cppdrv_ops->ioctl(CPP_DRV_DMA_START, &dma_parm, cppif);
+		if (ret) {
+			pr_err("fail to start dma\n");
+			ret = -EFAULT;
+			goto dma_exit;
+		}
+
+		timeleft = wait_for_completion_timeout(&dmaif->done_com,
+					msecs_to_jiffies(DMA_TIMEOUT));
+		if (timeleft == 0) {
+			ret = cppif->cppdrv_ops->ioctl(CPP_DRV_DMA_REG_TRACE, cppif, NULL);
+			ret = -EBUSY;
+			goto dma_exit;
+		}
+	}
+
+	ret = cppif->cppdrv_ops->ioctl(CPP_DRV_DMA_STOP, &dma_parm, cppif);
+	if (ret) {
+		pr_err("fail to stop dma\n");
+		ret = -EFAULT;
+		goto dma_exit;
+	}
+	cppif->cppdrv_ops->ioctl(CPP_DRV_DMA_RESET, dev->hw_info, soc_cpp);
+	if (ret) {
+		pr_err("fail to reset dma\n");
+		ret = -EFAULT;
+		goto dma_exit;
+	}
+	mutex_unlock(&dmaif->dma_mutex);
+
+dma_exit:
+
+	CPP_TRACE("cpp dma ret %d\n", ret);
+	return ret;
+}
+
 static int cppcore_ioctl_get_scale_cap(struct cpp_device *dev,
 	unsigned long arg)
 {
@@ -625,8 +760,8 @@ static struct cpp_io_ctl_func s_cpp_io_ctrl_fun_tab[] = {
 	{SPRD_CPP_IO_OPEN_SCALE,       cppcore_ioctl_open_scale},
 	{SPRD_CPP_IO_START_SCALE,      cppcore_ioctl_start_scale},
 	{SPRD_CPP_IO_STOP_SCALE,       NULL},
-	{SPRD_CPP_IO_OPEN_DMA,         NULL},
-	{SPRD_CPP_IO_START_DMA,        NULL},
+	{SPRD_CPP_IO_OPEN_DMA,         cppcore_ioctl_open_dma},
+	{SPRD_CPP_IO_START_DMA,        cppcore_ioctl_start_dma},
 	{SPRD_CPP_IO_SCALE_CAPABILITY, cppcore_ioctl_get_scale_cap},
 };
 
