@@ -58,6 +58,7 @@ struct cpp_device {
 	struct miscdevice md;
 	struct cpp_pipe_dev *cppif;
 	struct cpp_hw_info *hw_info;
+	struct wakeup_source *ws;
 };
 
 static int cppcore_module_enable(struct cpp_device *dev)
@@ -118,6 +119,7 @@ static void cppcore_module_disable(struct cpp_device *dev)
 	sprd_cam_pw_off();
 #else
 	pm_runtime_put_sync(&dev->pdev->dev);
+	__pm_relax(dev->ws);
 #endif
 fail:
 	mutex_unlock(&dev->lock);
@@ -202,6 +204,7 @@ static int cppcore_open(struct inode *node, struct file *file)
 		pr_err("%s fail to power on cpp\n", __func__);
 		goto fail;
 	}
+	__pm_stay_awake(dev->ws);	
 #endif
 	hw = dev->hw_info;
 	if (!hw) {
@@ -345,6 +348,8 @@ static int cppcore_probe(struct platform_device *pdev)
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0))
 	pm_runtime_enable(&pdev->dev);
 	pm_runtime_set_active(&pdev->dev);
+	dev->ws = wakeup_source_create("Camera cpp Wakeup Source");
+	wakeup_source_add(dev->ws);
 #endif
 	platform_set_drvdata(pdev, (void *)dev);
 	CPP_TRACE("cpp probe OK\n");
@@ -361,7 +366,8 @@ fail:
 static int cppcore_remove(struct platform_device *pdev)
 {
 	struct cpp_device *dev = platform_get_drvdata(pdev);
-
+	wakeup_source_remove(dev->ws);
+	wakeup_source_destroy(dev->ws);
 	misc_deregister(&dev->md);
 	return 0;
 }

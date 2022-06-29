@@ -718,11 +718,10 @@ static int sprd_sensor_file_open(struct inode *node, struct file *file)
 			goto exit;
 		}
 		sprd_cam_domain_eb();
-		__pm_stay_awake(p_mod->ws);
 #else
 		ret = pm_runtime_get_sync(&p_dev->i2c_info->dev);
-//		ret = sprd_cam_pw_on(NULL);
 #endif
+		__pm_stay_awake(p_mod->ws);
 /*		wake_lock(&p_mod->wakelock);*/
 
 	}
@@ -790,11 +789,10 @@ static int sprd_sensor_file_release(struct inode *node, struct file *file)
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 4, 0))
 		sprd_cam_domain_disable();
 		sprd_cam_pw_off();
-		__pm_relax(p_mod->ws);
 #else
 		pm_runtime_put_sync(&p_dev->i2c_info->dev);
-//		ret = sprd_cam_pw_off(NULL);
 #endif
+		__pm_relax(p_mod->ws);
 /*		wake_unlock(&p_mod->wakelock);*/
 
 	}
@@ -901,7 +899,7 @@ static void sprd_sensor_core_module_exit(void)
 	sprd_sensor_unregister_driver();
 	if (p_data) {
 		mutex_destroy(&p_data->sensor_id_lock);
-/*		wake_lock_destroy(&p_data->wakelock);*/
+		wakeup_source_remove(p_data->ws);
 		wakeup_source_destroy(p_data->ws);
 		kfree(p_data);
 		p_data = NULL;

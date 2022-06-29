@@ -423,6 +423,7 @@ struct camera_group {
 	struct camera_frame *mul_share_pyr_dec_buf;
 	struct camera_frame *mul_share_pyr_rec_buf;
 	struct mutex pyr_mulshare_lock;
+	struct wakeup_source *ws;
 
 	atomic_t recovery_state;
 	struct rw_semaphore switch_recovery_lock;
@@ -8347,6 +8348,9 @@ static int camcore_open(struct inode *node, struct file *file)
 	pr_info("camca: camsec_mode = %d\n", grp->camsec_cfg.camsec_mode);
 
 	spin_lock_irqsave(&grp->module_lock, flag);
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0))
+	__pm_stay_awake(grp->ws);
+#endif
 	for (i = 0, idx = count; i < count; i++) {
 		if ((grp->module_used & (1 << i)) == 0) {
 			if (grp->module[i] != NULL) {
@@ -8580,6 +8584,9 @@ static int camcore_release(struct inode *node, struct file *file)
 		atomic_set(&group->mul_buf_alloced, 0);
 		atomic_set(&group->mul_pyr_buf_alloced, 0);
 		group->is_mul_buf_share = 0;
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0))
+		__pm_relax(group->ws);
+#endif
 		spin_unlock_irqrestore(&group->module_lock, flag);
 		camcore_thread_stop(&group->recovery_thrd);
 	}
@@ -8672,6 +8679,8 @@ static int camcore_probe(struct platform_device *pdev)
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0))
 	pm_runtime_set_active(&pdev->dev);
 	pm_runtime_enable(&pdev->dev);
+	group->ws = wakeup_source_create("Camdrv Wakeuplock");
+	wakeup_source_add(group->ws);
 #endif
 
 	/* for get ta status
@@ -8707,6 +8716,10 @@ static int camcore_remove(struct platform_device *pdev)
 	if (group) {
 		if (group->ca_conn)
 			cam_trusty_disconnect();
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0))
+		wakeup_source_remove(group->ws);
+		wakeup_source_destroy(group->ws);
+#endif
 		kfree(group);
 		image_dev.this_device->platform_data = NULL;
 	}
