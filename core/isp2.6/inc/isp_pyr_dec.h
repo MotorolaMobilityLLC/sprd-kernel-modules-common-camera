@@ -53,6 +53,7 @@ struct isp_dec_ops {
 
 struct isp_dec_sw_ctx {
 	atomic_t cap_cnt;
+	uint32_t in_irq_handler;
 	struct camera_frame *buf_out;
 	isp_dev_callback cb_func;
 	void *cb_priv_data;

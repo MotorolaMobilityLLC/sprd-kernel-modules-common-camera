@@ -53,7 +53,9 @@ static irqreturn_t isppyrdec_isr_root(int irq, void *priv)
 	uint32_t irq_line = 0, k = 0;
 	uint32_t err_mask = 0;
 	uint32_t irq_numbers = 0;
+	uint32_t cur_ctx_id = 0;
 	struct isp_dec_pipe_dev *ctx = (struct isp_dec_pipe_dev *)priv;
+	struct isp_dec_sw_ctx *pctx = NULL;
 
 	if (!ctx) {
 		pr_err("fail to get valid dev\n");
@@ -68,7 +70,23 @@ static irqreturn_t isppyrdec_isr_root(int irq, void *priv)
 	irq_numbers = ARRAY_SIZE(isp_dec_irq_process);
 	err_mask = ISP_DEC_INT_LINE_MASK_ERR;
 	irq_line = ISP_HREG_RD(ISP_DEC_INT_BASE + ISP_INT_INT0);
+
+	cur_ctx_id = ctx->cur_ctx_id;
+	if (&ctx->sw_ctx[cur_ctx_id] == NULL) {
+		pr_err("fail to get sw_ctx\n");
+		return IRQ_HANDLED;
+	} else {
+		pctx = &ctx->sw_ctx[cur_ctx_id];
+		pctx->in_irq_handler = 1;
+	}
 	ISP_HREG_WR(ISP_DEC_INT_BASE + ISP_INT_CLR0, irq_line);
+
+	if (atomic_read(&ctx->proc_eb) < 1) {
+		pr_err("fail to eb dec proc, ctx %d stopped, irq 0x%x\n",
+			cur_ctx_id, irq_line);
+		pctx->in_irq_handler = 0;
+		return IRQ_HANDLED;
+	}
 
 	pr_debug("isp pyr dec irq status:%d\n", irq_line);
 	if (unlikely(err_mask & irq_line)) {
@@ -89,6 +107,7 @@ static irqreturn_t isppyrdec_isr_root(int irq, void *priv)
 		if (!irq_line)
 			break;
 	}
+	pctx->in_irq_handler = 0;
 
 	return IRQ_HANDLED;
 }

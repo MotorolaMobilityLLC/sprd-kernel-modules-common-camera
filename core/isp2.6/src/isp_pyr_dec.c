@@ -1211,7 +1211,7 @@ static int isppyrdec_proc_init(void *handle)
 
 static int isppyrdec_proc_deinit(void *handle, int ctx_id)
 {
-	int ret = 0;
+	int ret = 0, loop = 0;
 	struct isp_dec_pipe_dev *dec_dev = NULL;
 	struct isp_dec_sw_ctx *pctx = NULL;
 
@@ -1225,6 +1225,11 @@ static int isppyrdec_proc_deinit(void *handle, int ctx_id)
 
 	if (atomic_read(&dec_dev->proc_eb) == 1) {
 		isppyrdec_offline_thread_stop(&dec_dev->thread);
+		while (pctx->in_irq_handler && (loop < 1000)) {
+			pr_info_ratelimited("dec in irq. wait %d\n", loop);
+			loop++;
+			udelay(500);
+		}
 		cam_queue_clear(&dec_dev->in_queue, struct camera_frame, list);
 		cam_queue_clear(&dec_dev->proc_queue, struct camera_frame, list);
 		atomic_set(&dec_dev->proc_eb, 0);

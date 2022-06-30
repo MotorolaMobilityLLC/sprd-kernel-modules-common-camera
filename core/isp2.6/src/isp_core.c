@@ -3143,6 +3143,7 @@ static int ispcore_path_cfg(void *isp_handle,
 
 	if ((cfg_cmd != ISP_PATH_CFG_CTX_BASE) &&
 		(cfg_cmd != ISP_PATH_CFG_CTX_SIZE) &&
+		(cfg_cmd != ISP_PATH_CFG_PYR_DEC_BUF) &&
 		(cfg_cmd != ISP_PATH_CFG_CTX_COMPRESSION)) {
 		if (atomic_read(&path->user_cnt) == 0) {
 			pr_err("fail to use free isp cxt %d, path %d.\n",
