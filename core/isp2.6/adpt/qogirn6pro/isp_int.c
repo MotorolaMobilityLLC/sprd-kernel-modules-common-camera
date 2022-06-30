@@ -363,7 +363,8 @@ static void ispint_all_done(enum isp_context_hw_id hw_idx, void *isp_handle)
 		pr_debug("frame done.\n");
 	}
 
-	pctx->postproc_func(dev, idx, POSTPROC_FRAME_DONE);
+	pctx->post_type = POSTPROC_FRAME_DONE;
+	complete(&pctx->postproc_thread.thread_com);
 }
 
 static void ispint_shadow_done(enum isp_context_hw_id idx, void *isp_handle)

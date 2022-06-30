@@ -2637,6 +2637,10 @@ static int camcore_isp_callback(enum isp_cb_type type, void *param, void *priv_d
 			pframe->need_gtm_hist = module->cam_uinfo.is_rgb_gtm;
 			pframe->need_gtm_map = module->cam_uinfo.is_rgb_gtm;
 			pframe->gtm_mod_en = module->cam_uinfo.is_rgb_gtm;
+			if (pframe->blkparam_info.blk_param_node) {
+				cam_queue_recycle_blk_param(&isp_sw_ctx->param_share_queue, (struct camera_frame *)pframe->blkparam_info.blk_param_node);
+				pframe->blkparam_info.blk_param_node = NULL;
+			}
 			if (g_dbg_dump.dump_en == DUMP_PATH_BIN && module->dump_thrd.thread_task) {
 				if (g_dbg_dumpswitch && !module->dump_base.dump_enqueue) {
 					camdump_start(&module->dump_thrd, &module->dump_base, module->dcam_idx);

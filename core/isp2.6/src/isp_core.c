@@ -2190,14 +2190,14 @@ map_err:
 	pframe->blkparam_info.param_block = NULL;
 	pframe->blkparam_info.update = 0;
 	pctx->isp_using_param = NULL;
-	if (pframe->blkparam_info.blk_param_node) {
-		cam_queue_recycle_blk_param(&pctx->param_share_queue, pframe->blkparam_info.blk_param_node);
-		pframe->blkparam_info.blk_param_node = NULL;
-	}
 input_err:
 	if (pframe) {
 		ispcore_offline_pararm_free(pframe->param_data);
 		pframe->param_data = NULL;
+		if (pframe->blkparam_info.blk_param_node) {
+			cam_queue_recycle_blk_param(&pctx->param_share_queue, pframe->blkparam_info.blk_param_node);
+			pframe->blkparam_info.blk_param_node = NULL;
+		}
 		/* release sync data as if ISP has consumed */
 		if (pframe->sync_data)
 			dcam_core_dcam_if_release_sync(pframe->sync_data, pframe);
@@ -2205,7 +2205,6 @@ input_err:
 		if (tmp.stream && tmp.stream->data_src == ISP_STREAM_SRC_ISP) {
 			pr_debug("isp postproc no need return\n");
 		} else if (pframe->data_src_dec) {
-			ret = cam_queue_recycle_blk_param(&pctx->param_share_queue, (struct camera_frame *)pframe->blkparam_info.blk_param_node);
 			cam_queue_enqueue(&pctx->pyrdec_buf_queue, &pframe->list);
 		} else {
 			pctx->isp_cb_func(ISP_CB_RET_SRC_BUF, pframe, pctx->cb_priv_data);
