@@ -3405,15 +3405,15 @@ static int camcore_dcam_callback(enum dcam_cb_type type, void *param, void *priv
 					atomic_dec(&module->capture_frames_dcam);
 					if (module->grp->hw_info->ip_dcam[0]->dcam_raw_path_id == DCAM_PATH_RAW && module->cam_uinfo.is_raw_alg &&
 						atomic_read(&module->capture_frames_dcam) < 1 && module->cam_uinfo.raw_alg_type != RAW_ALG_FDR_V2) {
-						shutoff = 1;
-						patharg.path_id = DCAM_PATH_RAW;
-						patharg.idx = dcam_sw_ctx->hw_ctx_id;
-						patharg.raw_alg_type = module->cam_uinfo.raw_alg_type;
-						hw->dcam_ioctl(hw, DCAM_HW_CFG_PATH_STOP, &patharg);
-						module->dcam_dev_handle->dcam_pipe_ops->cfg_path(dcam_sw_ctx, DCAM_PATH_CFG_SHUTOFF,
-							DCAM_PATH_RAW, &shutoff);
-
 						if (module->cam_uinfo.raw_alg_type == RAW_ALG_FDR_V1) {
+							shutoff = 1;
+							patharg.path_id = DCAM_PATH_RAW;
+							patharg.idx = dcam_sw_ctx->hw_ctx_id;
+							patharg.raw_alg_type = module->cam_uinfo.raw_alg_type;
+							hw->dcam_ioctl(hw, DCAM_HW_CFG_PATH_STOP, &patharg);
+							module->dcam_dev_handle->dcam_pipe_ops->cfg_path(dcam_sw_ctx, DCAM_PATH_CFG_SHUTOFF,
+								DCAM_PATH_RAW, &shutoff);
+
 						       patharg.path_id = DCAM_PATH_BIN;
 						       patharg.idx = dcam_sw_ctx->hw_ctx_id;
 						       hw->dcam_ioctl(hw, DCAM_HW_CFG_PATH_STOP, &patharg);
