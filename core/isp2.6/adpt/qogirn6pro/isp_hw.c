@@ -1764,6 +1764,7 @@ static int isphw_param_get(void *handle, void *arg)
 
 static isp_k_blk_func isp_hw_k_blk_func_tab[ISP_K_BLK_MAX] = {
 	[ISP_K_BLK_LTM] = isp_ltm_config_param,
+	[ISP_K_BLK_PYR_REC_BYPASS] = isp_pyr_rec_bypass,
 	[ISP_K_BLK_PYR_REC_SHARE] = isp_pyr_rec_share_config,
 	[ISP_K_BLK_PYR_REC_FRAME] = isp_pyr_rec_frame_config,
 	[ISP_K_BLK_PYR_REC_SLICE] = isp_pyr_rec_slice_config,

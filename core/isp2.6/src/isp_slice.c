@@ -3473,16 +3473,21 @@ int isp_slice_fmcu_cmds_set(void *fmcu_handle, void *ctx)
 			}
 		}
 
-		if (slc_ctx->pyr_rec_eb) {
-			rec_slice_func.index = ISP_K_BLK_PYR_REC_SLICE_COMMON;
-			hw->isp_ioctl(hw, ISP_HW_CFG_K_BLK_FUNC_GET, &rec_slice_func);
-			rec_ctx->fetch_fbd.slice_size = cur_slc->slice_fbd_yuv.slice_size;
-			rec_ctx->fetch_fbd.slice_start_pxl_xpt = cur_slc->slice_fbd_yuv.slice_start_pxl_xpt;
-			rec_ctx->fetch_fbd.slice_start_pxl_ypt = cur_slc->slice_fbd_yuv.slice_start_pxl_ypt;
-			rec_ctx->fetch_fbd.slice_start_header_addr = cur_slc->slice_fbd_yuv.slice_start_header_addr;
-			rec_ctx->cur_slice_id = i;
+		if (rec_ctx && rec_ctx->layer_num) {
+			if (slc_ctx->pyr_rec_eb) {
+				rec_slice_func.index = ISP_K_BLK_PYR_REC_SLICE_COMMON;
+				hw->isp_ioctl(hw, ISP_HW_CFG_K_BLK_FUNC_GET, &rec_slice_func);
+				rec_ctx->fetch_fbd.slice_size = cur_slc->slice_fbd_yuv.slice_size;
+				rec_ctx->fetch_fbd.slice_start_pxl_xpt = cur_slc->slice_fbd_yuv.slice_start_pxl_xpt;
+				rec_ctx->fetch_fbd.slice_start_pxl_ypt = cur_slc->slice_fbd_yuv.slice_start_pxl_ypt;
+				rec_ctx->fetch_fbd.slice_start_header_addr = cur_slc->slice_fbd_yuv.slice_start_header_addr;
+				rec_ctx->cur_slice_id = i;
+			} else {
+				rec_slice_func.index = ISP_K_BLK_PYR_REC_BYPASS;
+				hw->isp_ioctl(hw, ISP_HW_CFG_K_BLK_FUNC_GET, &rec_slice_func);
+			}
 			if (rec_slice_func.k_blk_func)
-				rec_slice_func.k_blk_func(pctx->rec_handle);
+				rec_slice_func.k_blk_func(rec_ctx);
 		}
 
 		if (pctx->pipe_src.ltm_rgb){

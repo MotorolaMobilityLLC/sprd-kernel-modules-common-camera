@@ -38,6 +38,12 @@ enum {
 	CAM_Q_CLEAR
 };
 
+enum pyr_status {
+	PYR_OFF,
+	ONLINE_DEC_ON,
+	OFFLINE_DEC_ON
+};
+
 struct blk_param_info {
 	uint32_t update;
 	struct isp_k_block *param_block;
@@ -66,6 +72,7 @@ struct camera_frame {
 	uint32_t is_reserved;
 	uint32_t is_compressed;
 	uint32_t compress_4bit_bypass;
+	enum pyr_status pyr_status;
 	/* use for dcam dec & isp rec */
 	uint32_t need_pyr_rec;
 	/* use for isp dec */

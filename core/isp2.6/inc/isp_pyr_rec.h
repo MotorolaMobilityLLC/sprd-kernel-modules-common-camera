@@ -28,6 +28,7 @@ extern "C" {
 #endif
 
 #define PYR_REC_ADDR_NUM        ISP_PYR_DEC_LAYER_NUM + 1
+#define ISP_FLASH_LIMIT_WIDTH   768
 
 enum {
 	ISP_PYR_REC_CUR,

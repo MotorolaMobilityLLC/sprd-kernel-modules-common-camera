@@ -201,7 +201,6 @@ static void isppyrrec_cfg_reconstruct(uint32_t idx,
 	ISP_REG_WR(idx, ISP_REC_PARAM9, val);
 
 	ISP_REG_MWR(idx, ISP_COMMON_SCL_PATH_SEL, BIT_13, BIT_13);
-	ISP_REG_WR(idx, ISP_DISPATCH_BASE + ISP_DISPATCH_LINE_DLY1, 0xC0400FFF);
 }
 
 static void isppyrrec_cfg_store(uint32_t idx,
@@ -440,6 +439,13 @@ static int isppyrrec_reconstruct_slice_set(struct slice_pyr_rec_info *pyr_rec, v
 		| (pyr_rec->dispatch_dly_width_num & 0xFFFF);
 	FMCU_PUSH(fmcu, addr, cmd);
 
+	addr = ISP_GET_REG(ISP_DISPATCH_BASE + ISP_DISPATCH_LINE_DLY1);
+	cmd = (pyr_rec->width_flash_mode << 31)
+		| (pyr_rec->dispatch_mode << 30)
+		| ((pyr_rec->yuv_start_row_num & 0xFF) << 20)
+		| (pyr_rec->width_dly_num_flash & 0xFFFF);
+	FMCU_PUSH(fmcu, addr, cmd);
+
 	addr = ISP_GET_REG(ISP_DISPATCH_BASE + ISP_DISPATCH_PIPE_BUF_CTRL_CH0);
 	cmd = ((pyr_rec->dispatch_pipe_full_num & 0x7FF) << 16) | (0x43c & 0xFFFF);
 	FMCU_PUSH(fmcu, addr, cmd);
@@ -475,6 +481,59 @@ static int isppyrrec_store_slice_set(struct slice_store_info *rec_store, void *i
 
 	addr = ISP_GET_REG(ISP_STORE_SLICE_U_ADDR) + base;
 	cmd = rec_store->addr.addr_ch1;
+	FMCU_PUSH(fmcu, addr, cmd);
+
+	return 0;
+}
+
+int isp_pyr_rec_bypass(void *handle)
+{
+	int idx, bypass = 0;
+	uint32_t cmd = 0;
+	unsigned int addr = 0;
+	struct isp_fmcu_ctx_desc *fmcu = NULL;
+	struct isp_rec_ctx_desc *ctx = NULL;
+
+	if (!handle) {
+		pr_err("fail to rec_config_reg parm NULL\n");
+		return -EFAULT;
+	}
+
+	ctx = (struct isp_rec_ctx_desc *)handle;
+	fmcu = (struct isp_fmcu_ctx_desc *)ctx->fmcu_handle;
+	idx = ctx->ctx_id;
+	bypass = ctx->pyr_rec.reconstruct_bypass;
+
+	ISP_REG_MWR(idx, PYR_REC_STORE_BASE + ISP_STORE_SHADOW_CLR_SEL, BIT_1, 0);
+
+	addr = ISP_GET_REG(ISP_COMMON_SCL_PATH_SEL);
+	cmd = ((~bypass) & 0x1) << 13;
+	FMCU_PUSH(fmcu, addr, cmd);
+
+	addr = PYR_REC_STORE_BASE + ISP_GET_REG(ISP_STORE_SHADOW_CLR);
+	cmd = (~bypass) & 0x1;
+	FMCU_PUSH(fmcu, addr, cmd);
+
+	cmd = bypass & 0x1;
+	addr = PYR_REC_CUR_FETCH_BASE + ISP_GET_REG(ISP_FETCH_PARAM0);
+	FMCU_PUSH(fmcu, addr, cmd);
+
+	addr = ISP_GET_REG(ISP_YNR_DCT_PARAM);
+	FMCU_PUSH(fmcu, addr, cmd);
+
+	addr = ISP_GET_REG(ISP_REC_PARAM);
+	FMCU_PUSH(fmcu, addr, cmd);
+
+	addr = ISP_GET_REG(ISP_YUV_REC_CNR_CONTRL0);
+	FMCU_PUSH(fmcu, addr, cmd);
+
+	addr = ISP_GET_REG(ISP_YUV_REC_YNR_CONTRL0);
+	FMCU_PUSH(fmcu, addr, cmd);
+
+	addr = ISP_GET_REG(ISP_REC_UVDELAY_PARAM);
+	FMCU_PUSH(fmcu, addr, cmd);
+
+	addr = PYR_REC_STORE_BASE + ISP_GET_REG(ISP_STORE_PARAM);
 	FMCU_PUSH(fmcu, addr, cmd);
 
 	return 0;

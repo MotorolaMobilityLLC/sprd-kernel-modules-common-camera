@@ -452,6 +452,9 @@ static int ispcore_rec_frame_process(struct isp_sw_context *pctx,
 	pipe_src = &pctx->pipe_src;
 	slc_ctx = (struct isp_slice_context *)pctx->slice_ctx;
 	rec_ctx = (struct isp_rec_ctx_desc *)pctx->rec_handle;
+	if (!rec_ctx)
+		return 0;
+
 	cfg_in.src = pipe_in->fetch.src;
 	cfg_in.in_addr = pipe_in->fetch.addr;
 	cfg_in.in_trim = pipe_in->fetch.in_trim;
@@ -464,21 +467,22 @@ static int ispcore_rec_frame_process(struct isp_sw_context *pctx,
 	cfg_in.pyr_ynr = &pctx->isp_using_param->ynr_info_v3;
 	cfg_in.out_addr = pipe_in->store[ISP_SPATH_CP].store.addr;
 
-	if (rec_ctx && pipe_src->fetch_path_sel == 1) {
+	if (pipe_src->fetch_path_sel == 1) {
 		rec_ctx->fetch_path_sel = pipe_src->fetch_path_sel;
 		rec_ctx->fetch_fbd = pipe_in->fetch_fbd_yuv;
 		rec_ctx->fbcd_buffer_size = pipe_in->fetch_fbd_yuv.buffer_size;
 	}
 
-	if (rec_ctx && pframe->need_pyr_rec) {
+	rec_ctx->ops.cfg_param(rec_ctx, ISP_REC_CFG_FMCU_HANDLE, pctx_hw->fmcu_handle);
+	rec_ctx->ops.cfg_param(rec_ctx, ISP_REC_CFG_LAYER_NUM, &pctx->uinfo.pyr_layer_num);
+	if (pframe->need_pyr_rec) {
 		rec_ctx->ops.cfg_param(rec_ctx, ISP_REC_CFG_WORK_MODE, &pctx->dev->wmode);
 		rec_ctx->ops.cfg_param(rec_ctx, ISP_REC_CFG_HW_CTX_IDX, &pctx_hw->hw_ctx_id);
-		rec_ctx->ops.cfg_param(rec_ctx, ISP_REC_CFG_FMCU_HANDLE, pctx_hw->fmcu_handle);
-		rec_ctx->ops.cfg_param(rec_ctx, ISP_REC_CFG_LAYER_NUM, &pctx->uinfo.pyr_layer_num);
 		ret = rec_ctx->ops.pipe_proc(rec_ctx, &cfg_in);
 		if (ret == -1)
 			pr_err("fail to proc rec frame\n");
-	}
+	} else
+		rec_ctx->pyr_rec.reconstruct_bypass = 1;
 
 	return ret;
 }
@@ -1996,7 +2000,7 @@ static int ispcore_offline_frame_start(void *ctx)
 	use_fmcu = 0;
 	fmcu = (struct isp_fmcu_ctx_desc *)pctx_hw->fmcu_handle;
 	if (fmcu) {
-		use_fmcu = (tmp.multi_slice | pctx->uinfo.enable_slowmotion | pframe->need_pyr_rec);
+		use_fmcu = (tmp.multi_slice | pctx->uinfo.enable_slowmotion | pctx->uinfo.pyr_layer_num);
 		if (use_fmcu)
 			fmcu->ops->ctx_reset(fmcu);
 	}
@@ -2006,7 +2010,7 @@ static int ispcore_offline_frame_start(void *ctx)
 	ispcore_rec_frame_process(pctx, pctx_hw, pframe);
 	ispcore_gtm_frame_process(pctx, pframe);
 	ispcore_dewarp_frame_process(pctx, pctx_hw, pframe);
-	if (tmp.multi_slice || pctx->uinfo.enable_slowmotion || pframe->need_pyr_rec) {
+	if (tmp.multi_slice || pctx->uinfo.enable_slowmotion || pctx->uinfo.pyr_layer_num) {
 		struct slice_cfg_input slc_cfg;
 
 		memset(&slc_cfg, 0, sizeof(slc_cfg));
@@ -2198,13 +2202,12 @@ input_err:
 			pframe->blkparam_info.blk_param_node = NULL;
 		}
 		/* return buffer to cam channel shared buffer queue. */
-		if (tmp.stream && tmp.stream->data_src == ISP_STREAM_SRC_ISP) {
+		if (tmp.stream && tmp.stream->data_src == ISP_STREAM_SRC_ISP)
 			pr_debug("isp postproc no need return\n");
-		} else if (pframe->data_src_dec) {
+		else if (pframe->data_src_dec)
 			cam_queue_enqueue(&pctx->pyrdec_buf_queue, &pframe->list);
-		} else {
+		else
 			pctx->isp_cb_func(ISP_CB_RET_SRC_BUF, pframe, pctx->cb_priv_data);
-		}
 	}
 
 	if (tmp.stream)
@@ -2881,7 +2884,7 @@ static int ispcore_frame_proc(void *isp_handle, void *param, int ctx_id)
 		return ret;
 	}
 
-	if (pframe->data_src_dec) {
+	if (pframe->pyr_status == OFFLINE_DEC_ON) {
 		pctx->uinfo.fetch_path_sel = 0;
 		pctx->uinfo.src.w = pframe->width;
 		pctx->uinfo.src.h = pframe->height;

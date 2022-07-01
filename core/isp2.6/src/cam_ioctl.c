@@ -3156,6 +3156,7 @@ static int camioctl_fdr_post(struct camera_module *module,
 			DCAM_PATH_CFG_OUTPUT_BUF, ch->aux_raw_path_id, pfrm_dcam);
 	else {
 		pfrm_dcam->need_pyr_dec = 1;
+		pfrm_dcam->pyr_status = OFFLINE_DEC_ON;
 		ret = module->dcam_dev_handle->dcam_pipe_ops->cfg_path(&dcam->sw_ctx[module->offline_cxt_id],
 			DCAM_PATH_CFG_OUTPUT_BUF, ch->aux_dcam_path_id, pfrm_dcam);
 	}

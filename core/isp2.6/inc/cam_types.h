@@ -34,7 +34,9 @@
 #define ALIGN_OFFSET                    16
 #define PYR_DEC_WIDTH_ALIGN             4
 #define PYR_DEC_HEIGHT_ALIGN            2
-#define MIN_PYR_WIDTH                   20
+/* To avoid rec fifo err, isp fetch burst_lens = 8, then MIN_PYR_WIDTH >= 128;
+ isp fetch burst_lens = 16, then MIN_PYR_WIDTH >= 256. */
+#define MIN_PYR_WIDTH                   128
 #define MIN_PYR_HEIGHT                  16
 #define PYR_IS_PACK                      1
 

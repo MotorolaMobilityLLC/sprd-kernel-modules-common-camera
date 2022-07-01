@@ -830,7 +830,7 @@ static int camcore_resframe_set(struct camera_module *module)
 				pframe1->buf.offset[2] = pframe->buf.offset[2];
 				pframe1->channel_id = ch->ch_id;
 				if (module->cam_uinfo.is_pyr_rec && ch->ch_id != CAM_CH_CAP)
-					pframe1->need_pyr_rec = 1;
+					pframe1->pyr_status = ONLINE_DEC_ON;
 
 				ret = cam_buf_ionbuf_get(&pframe1->buf);
 				if (ret) {
@@ -1660,9 +1660,9 @@ static int camcore_buffers_alloc(void *param)
 			if (channel->ch_id == CAM_CH_PRE && sec_mode != SEC_UNABLE)
 				pframe->buf.buf_sec = 1;
 			if (module->cam_uinfo.is_pyr_rec && channel->ch_id != CAM_CH_CAP)
-				pframe->need_pyr_rec = 1;
+				pframe->pyr_status = ONLINE_DEC_ON;
 			if (module->cam_uinfo.is_pyr_dec && channel->ch_id == CAM_CH_CAP)
-				pframe->need_pyr_dec = 1;
+				pframe->pyr_status = OFFLINE_DEC_ON;
 
 			ret = cam_buf_alloc(&pframe->buf, size, iommu_enable);
 			if (ret) {

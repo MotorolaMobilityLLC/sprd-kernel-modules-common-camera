@@ -2290,7 +2290,8 @@ int isp_init_param_for_overlap_v2(
 		isp_rec_small_layer_h(slice_overlap->img_h, layer_num) < MIN_PYR_HEIGHT) {
 		ISP_OVERLAP_DEBUG("layer num need decrease based on small input %d %d\n",
 				slice_overlap->img_w, slice_overlap->img_h);
-		layer_num--;
+		if (--layer_num == 0)
+			break;
 	}
 	slice_input->calc_dyn_ov.pyr_layer_num = layer_num;
 

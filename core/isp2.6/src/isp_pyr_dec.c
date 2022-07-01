@@ -1149,6 +1149,7 @@ static int isppyrdec_irq_proc(void *handle)
 		pctx->buf_out->fid = pframe->fid;
 		pctx->buf_out->sensor_time = pframe->sensor_time;
 		pctx->buf_out->boot_sensor_time = pframe->boot_sensor_time;
+		pctx->buf_out->pyr_status = pframe->pyr_status;
 		cam_buf_iommu_unmap(&pframe->buf);
 		if (pctx->cb_func)
 			pctx->cb_func(ISP_CB_RET_SRC_BUF, pframe, pctx->cb_priv_data);

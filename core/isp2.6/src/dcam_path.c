@@ -693,7 +693,15 @@ static int dcampath_update_pyr_dec_addr(struct dcam_sw_context *ctx, struct dcam
 		pr_debug("layer num need decrease based on small input %d %d\n",
 			path->out_size.w, path->out_size.h);
 		layer_num--;
+		dec_store->layer_num = layer_num;
+		hw->dcam_ioctl(hw, DCAM_HW_BYPASS_DEC, dec_store);
+		if (layer_num == 0)
+			break;
 	}
+	if (!layer_num)
+		frame->need_pyr_rec = 0;
+	else
+		frame->need_pyr_rec = 1;
 
 	align_w = dcampath_dec_align_width(path->out_size.w, layer_num);
 	align_h = dcampath_dec_align_heigh(path->out_size.h, layer_num);
@@ -781,6 +789,7 @@ void dcampath_update_addr_and_size(struct dcam_sw_context *ctx, struct dcam_path
 	uint32_t path_id = 0;
 	struct dcam_hw_path_size path_size = {0};
 	unsigned long flags = 0;
+	int layer_num = ISP_PYR_DEC_LAYER_NUM;
 	struct dcam_compress_info fbc_info = {0};
 	struct dcam_hw_fbc_addr fbcadr = {0};
 	struct dcam_hw_cfg_store_addr store_arg = {0};
@@ -830,14 +839,14 @@ void dcampath_update_addr_and_size(struct dcam_sw_context *ctx, struct dcam_path
 			hw->dcam_ioctl(hw, DCAM_HW_CFG_STORE_ADDR, &store_arg);
 		}
 
-		if ((path_id == DCAM_PATH_BIN) && (frame->need_pyr_rec))
+		if ((path_id == DCAM_PATH_BIN) && (frame->pyr_status == ONLINE_DEC_ON))
 			dcampath_update_pyr_dec_addr(ctx, path, frame, idx);
 	}
 
 	if (!frame->is_reserved || path_id == DCAM_PATH_FULL || path_id == DCAM_PATH_RAW || slw != NULL || (path_id == DCAM_PATH_3DNR)) {
 		if ((path_id == DCAM_PATH_FULL) || (path_id == DCAM_PATH_BIN) ||
 			(path_id == DCAM_PATH_3DNR) || (path_id == DCAM_PATH_RAW)) {
-			if ((path_id == DCAM_PATH_BIN) && (frame->need_pyr_rec))
+			if ((path_id == DCAM_PATH_BIN) && (frame->pyr_status == ONLINE_DEC_ON))
 				dcampath_pyr_dec_cfg(path, frame, hw, idx);
 			if (path->size_update) {
 				path_size.idx = idx;
@@ -906,6 +915,20 @@ void dcampath_update_addr_and_size(struct dcam_sw_context *ctx, struct dcam_path
 		frame->width = path->out_size.w;
 		frame->height = path->out_size.h;
 	}
+	if (path_id == DCAM_PATH_FULL && frame->pyr_status == OFFLINE_DEC_ON) {
+		while (isp_rec_small_layer_w(path->out_size.w, layer_num) < MIN_PYR_WIDTH ||
+			isp_rec_small_layer_h(path->out_size.h, layer_num) < MIN_PYR_HEIGHT) {
+			pr_debug("layer num need decrease based on small input %d %d\n",
+				path->out_size.w, path->out_size.h);
+			if (--layer_num == 0)
+				break;
+		}
+		if (!layer_num) {
+			frame->need_pyr_dec = 0;
+			frame->need_pyr_rec = 0;
+		} else
+			frame->need_pyr_dec = 1;
+	}
 	frame->zoom_ratio = ctx->zoom_ratio;
 	frame->total_zoom = ctx->total_zoom;
 	spin_unlock_irqrestore(&path->size_lock, flags);
@@ -967,6 +990,7 @@ int dcam_path_fmcu_slw_store_buf_set(
 	out_frame->fid = sw_ctx->base_fid + sw_ctx->index_to_set + slw_idx;
 	out_frame->need_pyr_dec = 0;
 	out_frame->need_pyr_rec = 0;
+	out_frame->pyr_status = PYR_OFF;
 
 	slw->store_info[path_id].reg_addr = *(hw->ip_dcam[0]->store_addr_tab + path_id);
 	if (out_frame->is_compressed) {

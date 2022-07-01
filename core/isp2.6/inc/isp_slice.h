@@ -390,6 +390,10 @@ struct slice_pyr_rec_info {
 	uint32_t dispatch_dly_width_num;
 	uint32_t dispatch_dly_height_num;
 	uint32_t dispatch_pipe_full_num;
+	uint32_t width_flash_mode;
+	uint32_t dispatch_mode;
+	uint32_t yuv_start_row_num;
+	uint32_t width_dly_num_flash;
 };
 
 struct slice_dewarping_info {

@@ -148,8 +148,10 @@ static int isppyrrec_ref_fetch_get(struct isp_rec_ctx_desc *ctx, uint32_t idx)
 	ref_fetch->ft0_axi_reorder_en = 0;
 	ref_fetch->ft1_axi_reorder_en = 0;
 	ref_fetch->substract = 0;
-	ref_fetch->ft0_max_len_sel = 1;
-	ref_fetch->ft1_max_len_sel = 1;
+	/* To avoid rec fifo err, isp fetch burst_lens = 8, then MIN_PYR_WIDTH >= 128;
+	 isp fetch burst_lens = 16, then MIN_PYR_WIDTH >= 256. */
+	ref_fetch->ft0_max_len_sel = 0;
+	ref_fetch->ft1_max_len_sel = 0;
 	ref_fetch->ft0_retain_num = 16;
 	ref_fetch->ft1_retain_num = 16;
 
@@ -241,10 +243,10 @@ static int isppyrrec_cur_fetch_get(struct isp_rec_ctx_desc *ctx, uint32_t idx)
 	cur_fetch->ft0_axi_reorder_en = 0;
 	cur_fetch->ft1_axi_reorder_en = 0;
 	cur_fetch->substract = 0;
-	cur_fetch->ft0_max_len_sel = 0;
-	cur_fetch->ft1_max_len_sel = 0;
-	cur_fetch->ft0_retain_num = 112;
-	cur_fetch->ft1_retain_num = 112;
+	cur_fetch->ft0_max_len_sel = 1;
+	cur_fetch->ft1_max_len_sel = 1;
+	cur_fetch->ft0_retain_num = 16;
+	cur_fetch->ft1_retain_num = 16;
 
 	cur_slc = &ctx->slices[0];
 	for (i = 0; i < ctx->slice_num; i++, cur_slc++) {
@@ -383,6 +385,15 @@ static int isppyrrec_reconstruct_get(struct isp_rec_ctx_desc *ctx, uint32_t idx)
 		slc_pyr_rec->dispatch_dly_width_num = 60;
 		slc_pyr_rec->dispatch_dly_height_num = 37;
 		slc_pyr_rec->dispatch_pipe_full_num = 100;
+		slc_pyr_rec->dispatch_mode = 1;
+		slc_pyr_rec->yuv_start_row_num = 4;
+		if (slc_pyr_rec->pre_layer.w <= ISP_FLASH_LIMIT_WIDTH) {
+			slc_pyr_rec->width_flash_mode = 1;
+			slc_pyr_rec->width_dly_num_flash = 0x0fff;
+		} else {
+			slc_pyr_rec->width_flash_mode = 0;
+			slc_pyr_rec->width_dly_num_flash = 0x0280;
+		}
 		if (slc_pyr_rec->pre_layer.w <= 40 && slc_pyr_rec->pre_layer.h <= 32)
 			slc_pyr_rec->dispatch_dly_height_num = 256;
 		if (rec_cfg->layer_num == 0)

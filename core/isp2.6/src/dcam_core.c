@@ -1429,7 +1429,7 @@ static int dcamcore_path_cfg(void *dcam_handle, enum dcam_path_cfg_cmd cfg_cmd,
 			if (newfrm) {
 				newfrm->is_reserved = 2;
 				newfrm->priv_data = path;
-				newfrm->need_pyr_rec = pframe->need_pyr_rec;
+				newfrm->pyr_status = pframe->pyr_status;
 				memcpy(&newfrm->buf, &pframe->buf, sizeof(pframe->buf));
 				if (path->fbc_mode)
 					newfrm->is_compressed = 1;
@@ -1439,7 +1439,7 @@ static int dcamcore_path_cfg(void *dcam_handle, enum dcam_path_cfg_cmd cfg_cmd,
 					if (rawfrm) {
 						rawfrm->is_reserved = 2;
 						rawfrm->priv_data = path_raw;
-						rawfrm->need_pyr_rec = pframe->need_pyr_rec;
+						rawfrm->pyr_status = pframe->pyr_status;
 						memcpy(&rawfrm->buf, &pframe->buf, sizeof(pframe->buf));
 						ret = cam_queue_enqueue(&path_raw->reserved_buf_queue, &rawfrm->list);
 					}

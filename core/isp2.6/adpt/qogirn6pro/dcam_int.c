@@ -877,7 +877,10 @@ static void dcamint_bin_path_done(void *param, struct dcam_sw_context *sw_ctx)
 		}
 	}
 
-	if ((sw_ctx->is_pyr_rec && sw_ctx->dec_all_done) || !sw_ctx->is_pyr_rec) {
+	frame = cam_queue_dequeue_peek(&path->result_queue, struct camera_frame, list);
+	if (unlikely(!frame))
+		return;
+	if ((sw_ctx->is_pyr_rec && sw_ctx->dec_all_done) || !sw_ctx->is_pyr_rec || !frame->need_pyr_rec) {
 		if ((frame = dcamint_frame_prepare(dcam_hw_ctx, sw_ctx, DCAM_PATH_BIN))) {
 			if (dcam_hw_ctx->hw_ctx_id == DCAM_ID_1 &&
 				sw_ctx->dcam_slice_mode == CAM_OFFLINE_SLICE_HW)

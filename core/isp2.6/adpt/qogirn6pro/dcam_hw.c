@@ -2889,6 +2889,33 @@ static int dcamhw_dec_online(void *handle, void *arg)
 	return 0;
 }
 
+static int dcamhw_dec_bypass(void *handle, void *arg)
+{
+	uint32_t idx = 0, base = 0;
+	uint32_t reg_base[4] = {
+		DCAM_STORE_DEC_L1_BASE,
+		DCAM_STORE_DEC_L2_BASE,
+		DCAM_STORE_DEC_L3_BASE,
+		DCAM_STORE_DEC_L4_BASE
+	};
+	struct dcam_hw_dec_store_cfg *param = NULL;
+
+	if (!handle || !arg) {
+		pr_err("fail to get valid handle or arg\n");
+		return -1;
+	}
+
+	param = (struct dcam_hw_dec_store_cfg *)arg;
+	idx = param->idx;
+	if (idx >= DCAM_HW_CONTEXT_MAX)
+		return 0;
+
+	base = reg_base[param->layer_num];
+	DCAM_REG_MWR(idx, base + DCAM_STORE_DEC_PARAM, BIT_0, 1);
+
+	return 0;
+}
+
 static int dcamhw_dec_store_addr(void *handle, void *arg)
 {
 	uint32_t idx = 0, base = 0;
@@ -3022,6 +3049,7 @@ static struct hw_io_ctrl_fun dcam_ioctl_fun_tab[] = {
 	{DCAM_HW_FMCU_EBABLE,               dcamhw_fmcu_enable},
 	{DCAM_HW_CFG_SLW_FMCU_CMDS,         dcamhw_slw_fmcu_cmds},
 	{DCAM_HW_CFG_DEC_ONLINE,            dcamhw_dec_online},
+	{DCAM_HW_BYPASS_DEC,                dcamhw_dec_bypass},
 	{DCAM_HW_CFG_DEC_STORE_ADDR,        dcamhw_dec_store_addr},
 	{DCAM_HW_CFG_DEC_SIZE_UPDATE,       dcamhw_dec_size_update},
 	{DCAM_HW_CFG_GTM_HIST_GET,          dcamhw_get_gtm_hist},
