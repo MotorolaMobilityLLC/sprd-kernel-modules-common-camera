@@ -6829,7 +6829,6 @@ static int camcore_raw_post_proc(struct camera_module *module,
 	if (ret)
 		goto src_fail;
 
-
 	dst_frame = cam_queue_empty_frame_get();
 	dst_frame->buf.type = CAM_BUF_USER;
 	dst_frame->buf.mfd[0] = proc_info->fd_dst1;

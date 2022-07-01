@@ -204,7 +204,7 @@ static int cppcore_open(struct inode *node, struct file *file)
 		pr_err("%s fail to power on cpp\n", __func__);
 		goto fail;
 	}
-	__pm_stay_awake(dev->ws);	
+	__pm_stay_awake(dev->ws);
 #endif
 	hw = dev->hw_info;
 	if (!hw) {
