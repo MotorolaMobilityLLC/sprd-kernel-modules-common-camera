@@ -334,6 +334,7 @@ void cam_queue_empty_frame_free(void *param)
 	pr_debug("free frame %p, cnt %d\n", pframe,
 		atomic_read(&g_mem_dbg->empty_frm_cnt));
 	kfree(pframe);
+	pframe = NULL;
 }
 
 struct isp_stream_ctrl *cam_queue_empty_state_get(void)
@@ -411,6 +412,7 @@ void cam_queue_empty_state_free(void *param)
 	pr_debug("free state %p, cnt %d\n", stream_state,
 		atomic_read(&g_mem_dbg->empty_state_cnt));
 	kfree(stream_state);
+	stream_state = NULL;
 }
 
 struct camera_interrupt *cam_queue_empty_interrupt_get(void)
@@ -485,6 +487,7 @@ void cam_queue_empty_interrupt_free(void *param)
 	pr_debug("free frame %p, cnt %d\n", interruption,
 		atomic_read(&g_mem_dbg->empty_interruption_cnt));
 	kfree(interruption);
+	interruption = NULL;
 }
 
 int cam_queue_recycle_blk_param(struct camera_queue *q, struct camera_frame *param_pframe)
