@@ -567,7 +567,7 @@ static int isppyrdec_calc_base_info(struct isp_dec_pipe_dev *dev)
 	uint32_t slice_max_w, max_w;
 	uint32_t linebuf_len, slice_rows, slice_cols;
 	uint32_t img_w, img_h, slice_w_org, slice_h_org;
-	struct alg_dec_offline_overlap dec_ovlap = {0};
+	struct alg_dec_offline_overlap *dec_ovlap = NULL;
 	struct isp_dec_overlap_info *cur_ovlap = NULL;
 	uint32_t dec_slice_num[MAX_PYR_DEC_LAYER_NUM] = {0};
 
@@ -575,6 +575,9 @@ static int isppyrdec_calc_base_info(struct isp_dec_pipe_dev *dev)
 		pr_err("fail to get valid input handle\n");
 		return -EFAULT;
 	}
+	dec_ovlap = vzalloc(sizeof(struct alg_dec_offline_overlap));
+	if (!dec_ovlap)
+		return -EFAULT;
 
 	cur_ovlap = &dev->overlap_dec_info[0];
 	/* calc the slice w & h base on input size */
@@ -592,26 +595,26 @@ static int isppyrdec_calc_base_info(struct isp_dec_pipe_dev *dev)
 	}
 	pr_debug("input_w %d, slice_num %d, slice_w %d\n", max_w, slice_num, slice_w);
 
-	dec_ovlap.slice_w = slice_w;
-	dec_ovlap.slice_h = dev->src.h / SLICE_H_NUM_MAX;
-	dec_ovlap.slice_w = ISP_ALIGNED(dec_ovlap.slice_w);
-	dec_ovlap.slice_h = ISP_ALIGNED(dec_ovlap.slice_h);
-	dec_ovlap.img_w = dev->src.w;
-	dec_ovlap.img_h = dev->src.h;
-	dec_ovlap.crop_en = 0;
-	dec_ovlap.img_type = 4;
-	dec_ovlap.dct_bypass = 0;
-	dec_ovlap.dec_offline_bypass = 0;
-	dec_ovlap.layerNum = dev->layer_num + 1;
-	dec_ovlap.slice_mode = 1;
-	dec_ovlap.MaxSliceWidth = linebuf_len;
-	alg_slice_calc_dec_offline_overlap(&dec_ovlap);
+	dec_ovlap->slice_w = slice_w;
+	dec_ovlap->slice_h = dev->src.h / SLICE_H_NUM_MAX;
+	dec_ovlap->slice_w = ISP_ALIGNED(dec_ovlap->slice_w);
+	dec_ovlap->slice_h = ISP_ALIGNED(dec_ovlap->slice_h);
+	dec_ovlap->img_w = dev->src.w;
+	dec_ovlap->img_h = dev->src.h;
+	dec_ovlap->crop_en = 0;
+	dec_ovlap->img_type = 4;
+	dec_ovlap->dct_bypass = 0;
+	dec_ovlap->dec_offline_bypass = 0;
+	dec_ovlap->layerNum = dev->layer_num + 1;
+	dec_ovlap->slice_mode = 1;
+	dec_ovlap->MaxSliceWidth = linebuf_len;
+	alg_slice_calc_dec_offline_overlap(dec_ovlap);
 
-	for (i = 0; i < dec_ovlap.layerNum; i++, cur_ovlap++) {
+	for (i = 0; i < dec_ovlap->layerNum; i++, cur_ovlap++) {
 		img_w = dev->dec_layer_size[0].w >> i;
 		img_h = dev->dec_layer_size[0].h >> i;
-		slice_w_org = dec_ovlap.slice_w >> i;
-		slice_h_org = dec_ovlap.slice_h >> i;
+		slice_w_org = dec_ovlap->slice_w >> i;
+		slice_h_org = dec_ovlap->slice_h >> i;
 		slice_w = ((img_w << i) * slice_w_org + dev->src.w - 1) / dev->src.w;
 		slice_h = ((img_h << i) * slice_h_org + dev->src.h - 1) / dev->src.h;
 		slice_cols = (img_w + slice_w - 1) / slice_w;
@@ -623,10 +626,10 @@ static int isppyrdec_calc_base_info(struct isp_dec_pipe_dev *dev)
 		ISP_DEC_DEBUG("layer %d num %d\n", i, cur_ovlap->slice_num);
 		if (i < dev->layer_num) {
 			for (j = 0; j < cur_ovlap->slice_num; j++) {
-				cur_ovlap->slice_fetch_region[j].start_col = dec_ovlap.fecth_dec_region[i][j].sx;
-				cur_ovlap->slice_fetch_region[j].start_row = dec_ovlap.fecth_dec_region[i][j].sy;
-				cur_ovlap->slice_fetch_region[j].end_col = dec_ovlap.fecth_dec_region[i][j].ex;
-				cur_ovlap->slice_fetch_region[j].end_row = dec_ovlap.fecth_dec_region[i][j].ey;
+				cur_ovlap->slice_fetch_region[j].start_col = dec_ovlap->fecth_dec_region[i][j].sx;
+				cur_ovlap->slice_fetch_region[j].start_row = dec_ovlap->fecth_dec_region[i][j].sy;
+				cur_ovlap->slice_fetch_region[j].end_col = dec_ovlap->fecth_dec_region[i][j].ex;
+				cur_ovlap->slice_fetch_region[j].end_row = dec_ovlap->fecth_dec_region[i][j].ey;
 				ISP_DEC_DEBUG("fetch sx %d sy %d ex %d ey %d\n", cur_ovlap->slice_fetch_region[j].start_col,
 					cur_ovlap->slice_fetch_region[j].start_row, cur_ovlap->slice_fetch_region[j].end_col,
 					cur_ovlap->slice_fetch_region[j].end_row);
@@ -637,21 +640,25 @@ static int isppyrdec_calc_base_info(struct isp_dec_pipe_dev *dev)
 		else
 			slice_num = dec_slice_num[i - 1];
 		for (j = 0; j < slice_num; j++) {
-			cur_ovlap->slice_store_region[j].start_col = dec_ovlap.store_dec_region[i][j].sx;
-			cur_ovlap->slice_store_region[j].start_row = dec_ovlap.store_dec_region[i][j].sy;
-			cur_ovlap->slice_store_region[j].end_col = dec_ovlap.store_dec_region[i][j].ex;
-			cur_ovlap->slice_store_region[j].end_row = dec_ovlap.store_dec_region[i][j].ey;
+			cur_ovlap->slice_store_region[j].start_col = dec_ovlap->store_dec_region[i][j].sx;
+			cur_ovlap->slice_store_region[j].start_row = dec_ovlap->store_dec_region[i][j].sy;
+			cur_ovlap->slice_store_region[j].end_col = dec_ovlap->store_dec_region[i][j].ex;
+			cur_ovlap->slice_store_region[j].end_row = dec_ovlap->store_dec_region[i][j].ey;
 			ISP_DEC_DEBUG("store sx %d sy %d ex %d ey %d\n", cur_ovlap->slice_store_region[j].start_col,
 				cur_ovlap->slice_store_region[j].start_row, cur_ovlap->slice_store_region[j].end_col,
 				cur_ovlap->slice_store_region[j].end_row);
-			cur_ovlap->slice_store_overlap[j].overlap_up = dec_ovlap.store_dec_overlap[i][j].ov_up;
-			cur_ovlap->slice_store_overlap[j].overlap_down = dec_ovlap.store_dec_overlap[i][j].ov_down;
-			cur_ovlap->slice_store_overlap[j].overlap_left = dec_ovlap.store_dec_overlap[i][j].ov_left;
-			cur_ovlap->slice_store_overlap[j].overlap_right = dec_ovlap.store_dec_overlap[i][j].ov_right;
+			cur_ovlap->slice_store_overlap[j].overlap_up = dec_ovlap->store_dec_overlap[i][j].ov_up;
+			cur_ovlap->slice_store_overlap[j].overlap_down = dec_ovlap->store_dec_overlap[i][j].ov_down;
+			cur_ovlap->slice_store_overlap[j].overlap_left = dec_ovlap->store_dec_overlap[i][j].ov_left;
+			cur_ovlap->slice_store_overlap[j].overlap_right = dec_ovlap->store_dec_overlap[i][j].ov_right;
 			ISP_DEC_DEBUG("store up %d down %d left %d right %d\n", cur_ovlap->slice_store_overlap[j].overlap_up,
 				cur_ovlap->slice_store_overlap[j].overlap_down, cur_ovlap->slice_store_overlap[j].overlap_left,
 				cur_ovlap->slice_store_overlap[j].overlap_right);
 		}
+	}
+	if (dec_ovlap) {
+		vfree(dec_ovlap);
+		dec_ovlap = NULL;
 	}
 
 	return ret;
@@ -947,7 +954,6 @@ static int isppyrdec_offline_frame_start(void *handle)
 				dec_cfg_func.k_blk_func(dec_dev);
 		}
 	}
-
 	ret = wait_for_completion_interruptible_timeout(&dec_dev->frm_done,
 			ISP_CONTEXT_TIMEOUT);
 	if (ret == -ERESTARTSYS) {
