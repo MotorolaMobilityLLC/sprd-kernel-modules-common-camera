@@ -1779,7 +1779,10 @@ preview_param:
 				param_pframe = NULL;
 			} else {
 				mutex_unlock(&pctx->blkpm_q_lock);
-				pr_err("fail to match param, isp%d, fid %d\n", pctx->ctx_id, target_fid);
+				if ((param_pframe->fid - target_fid) <= 5)
+					pr_debug("param not match, isp%d, fid %d\n", pctx->ctx_id, target_fid);
+				else
+					pr_warn("warning:param not match, isp%d, fid %d\n", pctx->ctx_id, target_fid);
 				if (param_last_fid != -1)
 					pr_warn("use old param, param id %d, frame id %d\n", param_last_fid, target_fid);
 				else
@@ -1817,7 +1820,10 @@ capture_param:
 				param_pframe = NULL;
 			} else {
 				mutex_unlock(&pctx->blkpm_q_lock);
-				pr_err("fail to match param, isp%d, fid %d\n", pctx->ctx_id, target_fid);
+				if ((param_pframe->fid - target_fid) <= 5)
+					pr_debug("param not match, isp%d, fid %d\n", pctx->ctx_id, target_fid);
+				else
+					pr_warn("warning:param not match, isp%d, fid %d\n", pctx->ctx_id, target_fid);
 				if (!last_param) {
 					pr_warn("dont have old param, use latest param, frame %d\n", target_fid);
 					out->param_block = &pctx->isp_k_param;
@@ -3611,7 +3617,7 @@ static int ispcore_blkparam_cfg(
 	}
 
 	if (pctx->isp_receive_param == NULL && io_param->scene_id == PM_SCENE_PRE) {
-		pr_err("fail to get recive handle, param out of range, isp%d blk %d\n", pctx->ctx_id, io_param->sub_block);
+		pr_debug("not get recive handle, param out of range, isp%d blk %d\n", pctx->ctx_id, io_param->sub_block);
 		mutex_unlock(&dev->path_mutex);
 		return 0;
 	}
