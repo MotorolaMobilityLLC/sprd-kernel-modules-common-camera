@@ -12,7 +12,7 @@ KO_MODULE_NAME := sprd_camera
 KO_MODULE_OUT := $(BSP_MODULES_OUT)/$(KO_MODULE_NAME)
 KO_MODULE_KBUILD := $(CURDIR)/Kbuild
 
-ifneq ($(findstring $(strip $(BSP_KERNEL_VERSION)) , kernel5.4 kernel5.15),)
+ifneq ($(findstring $(strip $(BSP_KERNEL_VERSION)), kernel5.4 kernel5.15),)
 KBUILD_EXTRA_SYMBOLS += $(BSP_MODULES_OUT)/sprd_flash_drv/Module.symvers
 KBUILD_EXTRA_SYMBOLS += $(BSP_MODULES_OUT)/sprd_sensor/Module.symvers
 export KBUILD_EXTRA_SYMBOLS
