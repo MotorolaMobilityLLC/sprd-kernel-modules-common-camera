@@ -2691,11 +2691,7 @@ static int camcore_isp_callback(enum isp_cb_type type, void *param, void *priv_d
 						channel->dcam_path_id,
 						pframe);
 					if (ret) {
-						ret = cam_queue_enqueue(&channel->share_buf_queue, &pframe->list);
-						if (ret) {
-							cam_buf_iommu_unmap(&pframe->buf);
-							cam_queue_empty_frame_put(pframe);
-						}
+						cam_queue_enqueue(&channel->share_buf_queue, &pframe->list);
 					}
 				}
 			}

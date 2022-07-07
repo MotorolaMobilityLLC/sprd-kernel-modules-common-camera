@@ -1348,6 +1348,7 @@ static int dcamcore_path_cfg(void *dcam_handle, enum dcam_path_cfg_cmd cfg_cmd,
 		if (ret) {
 			pr_warn("warning:enqueue frame of dcam path %d fail\n",
 				path_id);
+			cam_buf_iommu_unmap(&pframe->buf);
 			goto exit;
 		}
 		pr_debug("config dcam%d path %d output buffer.\n", pctx->hw_ctx_id,  path_id);
