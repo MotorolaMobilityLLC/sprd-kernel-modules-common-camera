@@ -46,22 +46,6 @@ struct compat_sensor_otp_param_tag {
 	struct compat_sensor_otp_data_info_tag lsc;
 };
 
-struct compat_sensor_muti_aec_i2c_tag {
-	compat_caddr_t sensor_id;
-	uint16_t id_size;
-	compat_caddr_t i2c_slave_addr;
-	uint16_t i2c_slave_len;
-	compat_caddr_t addr_bits_type;
-	uint16_t addr_bits_type_len;
-	compat_caddr_t data_bits_type;
-	uint16_t data_bits_type_len;
-	compat_caddr_t master_i2c_tab;
-	uint16_t msize;
-	compat_caddr_t slave_i2c_tab;
-	uint16_t ssize;
-	compat_caddr_t slave_i2c_tab_2;
-	uint16_t ssize_2;
-};
 
 #define COMPAT_SENSOR_IO_I2C_WRITE_REGS \
 	_IOW(SENSOR_IOC_MAGIC,  14, struct compat_sensor_reg_tab_tag)
@@ -70,7 +54,7 @@ struct compat_sensor_muti_aec_i2c_tag {
 #define COMPAT_SENSOR_IO_GRC_I2C_READ \
 	_IOWR(SENSOR_IOC_MAGIC, 20, struct compat_sensor_i2c_tag)
 #define COMPAT_SENSOR_IO_MUTI_I2C_WRITE \
-	_IOW(SENSOR_IOC_MAGIC,  23, struct compat_sensor_muti_aec_i2c_tag)
+	_IOW(SENSOR_IOC_MAGIC,  23, struct sensor_muti_aec_i2c_tag)
 #define COMPAT_SENSOR_IO_READ_OTPDATA \
 	_IOWR(SENSOR_IOC_MAGIC, 254, struct compat_sensor_otp_param_tag)
 
@@ -96,7 +80,7 @@ long compat_sensor_k_ioctl(struct file *filp,
 
 	case COMPAT_SENSOR_IO_MUTI_I2C_WRITE:
 	{
-		struct compat_sensor_muti_aec_i2c_tag __user *data32;
+		struct sensor_muti_aec_i2c_tag __user *data32;
 
 		data32 = compat_ptr(arg);
 		err = filp->f_op->unlocked_ioctl(filp,

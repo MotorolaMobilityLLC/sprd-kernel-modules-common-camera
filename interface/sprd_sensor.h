@@ -120,21 +120,23 @@ struct _sensor_otp_param_tag {
 };
 
 struct sensor_muti_aec_i2c_tag {
-	uint16_t __user *sensor_id;
+	unsigned int sensor_id;
 	uint16_t id_size;
-	uint16_t __user *i2c_slave_addr;
+	unsigned int i2c_slave_addr;
 	uint16_t i2c_slave_len;
-	uint16_t __user *addr_bits_type;
+	unsigned int addr_bits_type;
 	uint16_t addr_bits_type_len;
-	uint16_t __user *data_bits_type;
+	unsigned int data_bits_type;
 	uint16_t data_bits_type_len;
-	struct sensor_reg_tag __user *master_i2c_tab;
+	unsigned int master_i2c_tab;
 	uint16_t msize;
-	struct sensor_reg_tag __user *slave_i2c_tab;
+	unsigned int slave_i2c_tab;
 	uint16_t ssize;
-	/* TODO optimize this later */
-	struct sensor_reg_tag __user *slave_i2c_tab_2;
+	unsigned int slave_i2c_tab_2;
 	uint16_t ssize_2;
+	ktime_t master_end_time;
+	ktime_t slave_end_time;
+	ktime_t slave2_end_time;
 };
 
 #define AEC_I2C_SETTINGS_MAX 64

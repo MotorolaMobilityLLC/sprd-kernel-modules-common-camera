@@ -1659,52 +1659,62 @@ int sprd_sensor_write_muti_i2c(struct sensor_muti_aec_i2c_tag *muti_aec_i2c)
 	struct sensor_reg_bits_tag reg_bit;
 	uint32_t i;
 	struct sprd_sensor_dev_info_tag *p_dev = NULL;
+	ktime_t id0_end = 0;
+	ktime_t id1_end = 0;
+	ktime_t id2_end = 0;
 
 	ret = copy_from_user(sensor_id,
-			muti_aec_i2c->sensor_id,
+			(uint16_t __user *)(unsigned long) muti_aec_i2c->sensor_id,
 			sizeof(sensor_id));
 	if (ret) {
 		pr_err("fail to read sensor id\n");
 		goto exit;
 	}
+
 	ret = copy_from_user(i2c_slave_addr,
-			muti_aec_i2c->i2c_slave_addr,
+			(uint16_t __user *)(unsigned long) muti_aec_i2c->i2c_slave_addr,
 			sizeof(i2c_slave_addr));
 	if (ret) {
 		pr_err("fail to read slave addr\n");
 		goto exit;
 	}
+
 	ret = copy_from_user(addr_bits_type,
-			muti_aec_i2c->addr_bits_type,
+			(uint16_t __user *)(unsigned long) muti_aec_i2c->addr_bits_type,
 			sizeof(addr_bits_type));
 	if (ret) {
 		pr_err("fail to read addr bits\n");
 		goto exit;
 	}
+
 	ret = copy_from_user(data_bits_type,
-			muti_aec_i2c->data_bits_type,
+			(uint16_t __user *)(unsigned long) muti_aec_i2c->data_bits_type,
 			sizeof(data_bits_type));
 	if (ret) {
 		pr_err("fail to read data bits\n");
 		goto exit;
 	}
+
 	ret = copy_from_user(msettings,
-			muti_aec_i2c->master_i2c_tab,
+			(uint16_t __user *)(unsigned long) muti_aec_i2c->master_i2c_tab,
 			muti_aec_i2c->msize * sizeof(struct sensor_reg_tag));
 	if (ret) {
 		pr_err("fail to read msetting\n");
 		goto exit;
 	}
+
 	ret = copy_from_user(ssettings,
-			muti_aec_i2c->slave_i2c_tab,
+			(uint16_t __user *)(unsigned long) muti_aec_i2c->slave_i2c_tab,
 			muti_aec_i2c->ssize * sizeof(struct sensor_reg_tag));
 	if (ret) {
 		pr_err("fail to read ssetting\n");
 		goto exit;
 	}
+
 	// TODO may cause kernel crash
+
 	ret = copy_from_user(ssettings_2,
-			muti_aec_i2c->slave_i2c_tab_2,
+			(uint16_t __user *)(unsigned long) muti_aec_i2c->slave_i2c_tab_2,
 			muti_aec_i2c->ssize_2 * sizeof(struct sensor_reg_tag));
 	if (ret) {
 		pr_err("fail to read ssetting\n");
@@ -1723,8 +1733,8 @@ int sprd_sensor_write_muti_i2c(struct sensor_muti_aec_i2c_tag *muti_aec_i2c)
 #endif
 
 	/* master aec info set to i2c */
-	if (muti_aec_i2c->msize > 0) {
 
+	if (muti_aec_i2c->msize > 0) {
 		p_dev = sprd_sensor_get_dev_context(sensor_id[0]);
 		if (!p_dev) {
 			pr_err("%s, error\n", __func__);
@@ -1778,6 +1788,8 @@ int sprd_sensor_write_muti_i2c(struct sensor_muti_aec_i2c_tag *muti_aec_i2c)
 			break;
 		}
 		}
+	id0_end = ktime_get_boottime();
+	muti_aec_i2c->master_end_time = id0_end;
 	}
 
 	/* slave aec info set to i2c */
@@ -1836,6 +1848,9 @@ int sprd_sensor_write_muti_i2c(struct sensor_muti_aec_i2c_tag *muti_aec_i2c)
 			break;
 		}
 		}
+
+	id1_end = ktime_get_boottime();
+	muti_aec_i2c->slave_end_time = id1_end;
 	}
 
 	/* slave_2 aec info set to i2c */
@@ -1894,6 +1909,9 @@ int sprd_sensor_write_muti_i2c(struct sensor_muti_aec_i2c_tag *muti_aec_i2c)
 			break;
 		}
 		}
+
+	id2_end = ktime_get_boottime();
+	muti_aec_i2c->slave2_end_time = id2_end;
 	}
 
 exit:
