@@ -31,6 +31,8 @@
 #include <linux/vmalloc.h>
 #include <sprd_mm.h>
 #include "cam_porting.h"
+#include <linux/dma-mapping.h>
+#include <uapi/linux/dma-buf.h>
 #include "cam_types.h"
 #include "cpp_drv.h"
 #include "cpp_hw.h"
@@ -76,6 +78,37 @@ static int cppdrv_get_addr(struct cpp_iommu_info *pfinfo)
 			continue;
 
 		if (sprd_iommu_attach_device(pfinfo->dev) == 0) {
+			if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0)) {
+				if (pfinfo->dmabuf_p[i] == NULL) {
+					pfinfo->dmabuf_p[i] = dma_buf_get(pfinfo->mfd[i]);
+					if (IS_ERR_OR_NULL(pfinfo->dmabuf_p[i])) {
+						pr_err("fail to get dma buf %p\n", pfinfo->dmabuf_p[i]);
+						ret = -EINVAL;
+						goto dmabuf_get_failed;
+					}
+				}
+				pr_debug("i %d, mfd %d, dmabuf %p\n",i , pfinfo->mfd[i], pfinfo->dmabuf_p[i]);
+
+				if (dma_set_mask(pfinfo->dev, DMA_BIT_MASK(64))) {
+					dev_warn(pfinfo->dev, "mydev: No suitable DMA available\n");
+					goto ignore_this_device;
+				}
+
+				pfinfo->attachment[i] = dma_buf_attach(pfinfo->dmabuf_p[i], pfinfo->dev);
+				if (IS_ERR_OR_NULL(pfinfo->attachment[i])) {
+					pr_err("failed to attach dmabuf %px\n", (void *)pfinfo->dmabuf_p[i]);
+					ret = -EINVAL;
+					goto attach_failed;
+				}
+				pfinfo->table[i] = dma_buf_map_attachment(pfinfo->attachment[i], DMA_BIDIRECTIONAL);
+				if (IS_ERR_OR_NULL(pfinfo->table[i])) {
+					pr_err("failed to map attachment %px\n", (void *)pfinfo->attachment[i]);
+					ret = -EINVAL;
+					goto map_attachment_failed;
+				}
+				ret = dma_buf_end_cpu_access(pfinfo->dmabuf_p[i], DMA_BIDIRECTIONAL);
+			}
+
 			memset(&iommu_data, 0x00, sizeof(iommu_data));
 			iommu_data.buf = pfinfo->buf[i];
 			iommu_data.iova_size = pfinfo->size[i];
@@ -111,6 +144,30 @@ static int cppdrv_get_addr(struct cpp_iommu_info *pfinfo)
 	}
 
 	return 0;
+
+map_attachment_failed:
+	if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0)) {
+		for (i = 0; i < 2; i++) {
+			if (pfinfo->buf[i] == NULL)
+				continue;
+			if (!IS_ERR_OR_NULL(pfinfo->attachment[i]))
+				dma_buf_detach(pfinfo->dmabuf_p[i], pfinfo->attachment[i]);
+		}
+	}
+attach_failed:
+ignore_this_device:
+	if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0)) {
+		for (i = 0; i < 2; i++) {
+			if (pfinfo->buf[i] == NULL)
+				continue;
+			if (!IS_ERR_OR_NULL(pfinfo->dmabuf_p[i])) {
+				dma_buf_put(pfinfo->dmabuf_p[i]);
+				pfinfo->dmabuf_p[i] = NULL;
+			}
+		}
+	}
+dmabuf_get_failed:
+	return ret;
 }
 
 static int cppdrv_free_addr(struct cpp_iommu_info *pfinfo)
@@ -135,6 +192,18 @@ static int cppdrv_free_addr(struct cpp_iommu_info *pfinfo)
 			if (ret) {
 				pr_err("failed to free iommu %d\n", i);
 				return -EFAULT;
+			}
+			if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0)) {
+				if (!IS_ERR_OR_NULL(pfinfo->table[i]))
+					dma_buf_unmap_attachment(pfinfo->attachment[i], pfinfo->table[i], DMA_BIDIRECTIONAL);
+				if (!IS_ERR_OR_NULL(pfinfo->attachment[i]))
+					dma_buf_detach(pfinfo->dmabuf_p[i], pfinfo->attachment[i]);
+				if (!IS_ERR_OR_NULL(pfinfo->dmabuf_p[i])) {
+					if (!IS_ERR_OR_NULL(pfinfo->dmabuf_p[i]->file) &&
+						virt_addr_valid(pfinfo->dmabuf_p[i]->file))
+							dma_buf_put(pfinfo->dmabuf_p[i]);
+					pfinfo->dmabuf_p[i] = NULL;
+				}
 			}
 		}
 	}

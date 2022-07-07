@@ -52,6 +52,7 @@ struct cpp_iommu_info {
 	unsigned long iova[3];
 	struct dma_buf *dmabuf_p[3];
 	unsigned int offset[3];
+	struct dma_buf_attachment *attachment[3];
 };
 
 struct rot_drv_private {
