@@ -106,6 +106,7 @@ static int ispint_err_pre_proc(enum isp_context_hw_id hw_idx, void *isp_handle)
 	unsigned long addr = 0;
 	struct isp_pipe_dev *dev = NULL;
 	struct isp_sw_context *pctx;
+	uint32_t val[4];
 	int idx = -1;
 
 	dev = (struct isp_pipe_dev *)isp_handle;
@@ -169,8 +170,35 @@ static int ispint_err_pre_proc(enum isp_context_hw_id hw_idx, void *isp_handle)
 			ISP_HREG_RD(addr + 12));
 	}
 
+	pr_info("MMU register list info\n");
+	for (addr = ISP_MMU_VERSION; addr <= ISP_MMU_INT_RAW; addr += 16) {
+		val[0] = ISP_MMU_RD(addr);
+		val[1] = ISP_MMU_RD(addr + 4);
+		val[2] = ISP_MMU_RD(addr + 8);
+		val[3] = ISP_MMU_RD(addr + 12);
+		pr_err("offset=0x%04x: %08x %08x %08x %08x\n",
+			addr, val[0], val[1], val[2], val[3]);
+	}
+
 	pr_info("ISP fetch: register list\n");
 	for (addr = (ISP_FETCH_BASE + ISP_FETCH_PARAM0); addr <= (ISP_FETCH_BASE + ISP_FETCH_MIPI_PARAM_UV); addr += 16) {
+		pr_info("0x%lx: 0x%x 0x%x 0x%x 0x%x\n",
+			addr,
+			ISP_HREG_RD(addr),
+			ISP_HREG_RD(addr + 4),
+			ISP_HREG_RD(addr + 8),
+			ISP_HREG_RD(addr + 12));
+
+		pr_info("0x%lx: 0x%x 0x%x 0x%x 0x%x\n",
+			addr,
+			ISP_REG_RD(0, addr),
+			ISP_REG_RD(0, addr + 4),
+			ISP_REG_RD(0, addr + 8),
+			ISP_REG_RD(0, addr + 12));
+	}
+
+	pr_info("ISP afbd fetch: register list\n");
+	for (addr = (ISP_YUV_AFBD_FETCH_BASE + ISP_AFBD_FETCH_SEL); addr <= (ISP_YUV_AFBD_FETCH_BASE + ISP_AFBD_FETCH_PARAM2); addr += 16) {
 		pr_info("0x%lx: 0x%x 0x%x 0x%x 0x%x\n",
 			addr,
 			ISP_HREG_RD(addr),

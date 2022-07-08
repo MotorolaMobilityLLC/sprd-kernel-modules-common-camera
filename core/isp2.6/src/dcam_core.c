@@ -598,7 +598,8 @@ static int dcamcore_statis_buffer_unmap(struct dcam_sw_context *pctx)
 				stats_type, j, mfd, ion_buf->offset[0]);
 			if (ion_buf->mapping_state & CAM_BUF_MAPPING_KERNEL)
 				cam_buf_kunmap(ion_buf);
-			cam_buf_iommu_unmap(ion_buf);
+			if (ion_buf->mapping_state & CAM_BUF_MAPPING_DEV)
+				cam_buf_iommu_unmap(ion_buf);
 			cam_buf_ionbuf_put(ion_buf);
 			memset(ion_buf->iova, 0, sizeof(ion_buf->iova));
 			memset(ion_buf->addr_k, 0, sizeof(ion_buf->addr_k));
