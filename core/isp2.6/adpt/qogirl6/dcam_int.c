@@ -159,6 +159,7 @@ static void dcamint_frame_dispatch(struct dcam_hw_context *dcam_hw_ctx, struct d
 				struct camera_frame *frame,
 				enum dcam_cb_type type)
 {
+	uint32_t ret = 0;
 	timespec cur_ts;
 
 	if (unlikely(!dcam_hw_ctx || !frame || !is_path_id(path_id) || !sw_ctx))
@@ -171,8 +172,22 @@ static void dcamint_frame_dispatch(struct dcam_hw_context *dcam_hw_ctx, struct d
 			(int)frame->time.tv_sec, (int)frame->time.tv_usec);
 
 	/* data path has independent buffer. statis share one same buffer */
-	if ((type == DCAM_CB_DATA_DONE) || (type == DCAM_CB_VCH2_DONE))
-		cam_buf_iommu_unmap(&frame->buf);
+	if ((type == DCAM_CB_DATA_DONE) || (type == DCAM_CB_VCH2_DONE)) {
+		ret = cam_buf_iommu_unmap(&frame->buf);
+		if (ret) {
+			pr_err("fail ro unmap path:%d buffer.\n", path_id);
+			ret = cam_queue_enqueue(&sw_ctx->path[path_id].out_buf_queue, &frame->list);
+			if (ret) {
+				pr_err("fail to enqueue path:%d frame, q_cnt:%d.\n", path_id, sw_ctx->path[path_id].out_buf_queue.cnt);
+				if (frame->buf.type == CAM_BUF_USER)
+					cam_buf_ionbuf_put(&frame->buf);
+				else
+					cam_buf_free(&frame->buf);
+				cam_queue_empty_frame_put(frame);
+			}
+			return;
+		}
+	}
 
 	sw_ctx->dcam_cb_func(type, frame, sw_ctx->cb_priv_data);
 }
