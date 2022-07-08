@@ -505,7 +505,7 @@ static void dcamint_cap_sof(void *param, struct dcam_sw_context *sw_ctx)
 	struct dcam_hw_path_ctrl path_ctrl;
 	enum dcam_fix_result fix_result;
 	struct dcam_hw_auto_copy copyarg;
-	unsigned long flag;
+	unsigned long flag, flags = 0;
 	int i;
 
 	if (!sw_ctx) {
@@ -589,10 +589,12 @@ static void dcamint_cap_sof(void *param, struct dcam_sw_context *sw_ctx)
 	}
 
 	if (helper) {
-		if (helper->enabled)
+		spin_lock_irqsave(&sw_ctx->helper_lock, flags);
+		if (helper->enabled || helper->helper_put_enable == 0)
 			helper->sync.index = sw_ctx->base_fid + sw_ctx->index_to_set;
 		else
 			dcam_core_sync_helper_put(sw_ctx, helper);
+		spin_unlock_irqrestore(&sw_ctx->helper_lock, flags);
 	}
 
 dispatch_sof:
