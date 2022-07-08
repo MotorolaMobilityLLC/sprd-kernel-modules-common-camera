@@ -1536,7 +1536,7 @@ static int dcamcore_path_cfg(void *dcam_handle, enum dcam_path_cfg_cmd cfg_cmd,
 		pframe->priv_data = pctx;
 		ret = cam_queue_enqueue(&path->out_buf_queue, &pframe->list);
 		if (ret) {
-			pr_warning("warning:enqueue frame of dcam path %d fail\n",
+			pr_warn("warning:enqueue frame of dcam path %d fail\n",
 				path_id);
 			goto exit;
 		}

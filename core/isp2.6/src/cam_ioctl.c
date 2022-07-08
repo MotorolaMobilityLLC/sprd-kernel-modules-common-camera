@@ -3238,48 +3238,51 @@ exit:
 static int camioctl_4in1_raw_addr_set(struct camera_module *module,
 		unsigned long arg)
 {
-	int ret;
+	int ret = 0;
 	enum dcam_id idx;
-	struct sprd_img_parm param;
+	struct sprd_img_parm __user *uparam;
 	struct channel_context *ch;
 	struct camera_frame *pframe;
 	struct dcam_sw_context *dcam_sw_ctx = NULL;
+	uint32_t channel_id, buffer_count, is_reserved_buf;
 	int i, j;
 
-	ret = copy_from_user(&param, (void __user *)arg,
-		sizeof(struct sprd_img_parm));
+	uparam = (struct sprd_img_parm __user *)arg;
+	ret |= get_user(channel_id, &uparam->channel_id);
+	ret |= get_user(buffer_count, &uparam->buffer_count);
+	ret |= get_user(is_reserved_buf, &uparam->is_reserved_buf);
 	if (ret) {
 		pr_err("fail to copy_from_user\n");
 		return -EFAULT;
 	}
 	idx = module->idx;
 	pr_debug("idx %d, channel_id %d, enable %d\n", idx,
-		param.channel_id, module->channel[param.channel_id].enable);
-	if ((param.channel_id >= CAM_CH_MAX) ||
-		(param.buffer_count == 0) ||
-		(module->channel[param.channel_id].enable == 0)) {
+		channel_id, module->channel[channel_id].enable);
+	if ((channel_id >= CAM_CH_MAX) ||
+		(buffer_count == 0) ||
+		(module->channel[channel_id].enable == 0)) {
 		pr_err("fail to get valid channel id %d. buf cnt %d\n",
-			param.channel_id,  param.buffer_count);
+			channel_id, buffer_count);
 		return -EFAULT;
 	}
-	pr_info("ch %d, buffer_count %d\n", param.channel_id,
-		param.buffer_count);
+	pr_info("ch %d, buffer_count %d\n", channel_id,
+		buffer_count);
 
-	ch = &module->channel[param.channel_id];
+	ch = &module->channel[channel_id];
 	dcam_sw_ctx = &module->dcam_dev_handle->sw_ctx[module->cur_sw_ctx_id];
 
-	for (i = 0; i < param.buffer_count; i++) {
+	for (i = 0; i < buffer_count; i++) {
 		pframe = cam_queue_empty_frame_get();
 		pframe->buf.type = CAM_BUF_USER;
-		pframe->buf.mfd[0] = param.fd_array[i];
-		pframe->buf.addr_vir[0] = param.frame_addr_vir_array[i].y;
-		pframe->buf.addr_vir[1] = param.frame_addr_vir_array[i].u;
-		pframe->buf.addr_vir[2] = param.frame_addr_vir_array[i].v;
+		ret |= get_user(pframe->buf.mfd[0],&uparam->fd_array[i]);
+		ret |= get_user(pframe->buf.addr_vir[0],&uparam->frame_addr_vir_array[i].y);
+		ret |= get_user(pframe->buf.addr_vir[1],&uparam->frame_addr_vir_array[i].u);
+		ret |= get_user(pframe->buf.addr_vir[2],&uparam->frame_addr_vir_array[i].v);
 		pframe->channel_id = ch->ch_id;
 		pframe->width = ch->ch_uinfo.src_size.w;
 		pframe->height = ch->ch_uinfo.src_size.h;
 		pr_debug("mfd %d, reserved %d\n", pframe->buf.mfd[0],
-			param.is_reserved_buf);
+			is_reserved_buf);
 		ret = cam_buf_ionbuf_get(&pframe->buf);
 		if (ret) {
 			pr_err("fail to get ion buffer\n");
@@ -3288,7 +3291,7 @@ static int camioctl_4in1_raw_addr_set(struct camera_module *module,
 			break;
 		}
 
-		if (param.is_reserved_buf) {
+		if (is_reserved_buf) {
 			ch->reserved_buf_fd = pframe->buf.mfd[0];
 			pframe->is_reserved = 1;
 			ch->res_frame = pframe;
@@ -3323,11 +3326,12 @@ static int camioctl_4in1_raw_addr_set(struct camera_module *module,
 static int camioctl_4in1_post_proc(struct camera_module *module,
 		unsigned long arg)
 {
-	struct sprd_img_parm param;
+	struct sprd_img_parm __user *uparam;
 	int ret = 0;
 	int iommu_enable;
 	struct channel_context *channel;
 	struct camera_frame *pframe = NULL;
+	uint32_t index, reserved1, reserved2, fd_array;
 	int i;
 	ktime_t sensor_time;
 
@@ -3337,8 +3341,11 @@ static int camioctl_4in1_post_proc(struct camera_module *module,
 		return -EFAULT;
 	}
 
-	ret = copy_from_user(&param, (void __user *)arg,
-		sizeof(struct sprd_img_parm));
+	uparam = (struct sprd_img_parm __user *)arg;
+	ret |= get_user(reserved1, &uparam->reserved[1]);
+	ret |= get_user(reserved2, &uparam->reserved[2]);
+	ret |= get_user(fd_array, &uparam->fd_array[0]);
+	ret |= get_user(index, &uparam->index);
 	if (ret) {
 		pr_err("fail to copy_from_user\n");
 		return -EFAULT;
@@ -3355,9 +3362,9 @@ static int camioctl_4in1_post_proc(struct camera_module *module,
 	 * Attention: Only send back one time, maybe need some
 	 * change when hal use another time
 	 */
-	sensor_time = param.reserved[2];
+	sensor_time = reserved2;
 	sensor_time <<= 32;
-	sensor_time |= param.reserved[1];
+	sensor_time |= reserved1;
 	/* get frame: 1:check id;2:check time;3:get first,4:get new */
 	i = cam_queue_cnt_get(&module->remosaic_queue);
 	while (i--) {
@@ -3366,7 +3373,7 @@ static int camioctl_4in1_post_proc(struct camera_module *module,
 		/* check frame id */
 		if (pframe == NULL)
 			break;
-		if (pframe->fid == param.index)
+		if (pframe->fid == index)
 			break;
 		if (pframe->boot_sensor_time == sensor_time)
 			break;
@@ -3380,17 +3387,17 @@ static int camioctl_4in1_post_proc(struct camera_module *module,
 		pframe->sensor_time = cam_ktime_to_timeval(ktime_sub(
 			pframe->boot_sensor_time, ktime_sub(
 			ktime_get_boottime(), ktime_get())));
-		pframe->fid = param.index;
+		pframe->fid = index;
 	}
 	pframe->endian = ENDIAN_LITTLE;
 	pframe->pattern = module->cam_uinfo.sensor_if.img_ptn;
 	pframe->width = channel->ch_uinfo.src_size.w;
 	pframe->height = channel->ch_uinfo.src_size.h;
 	pframe->buf.type = CAM_BUF_USER;
-	pframe->buf.mfd[0] = param.fd_array[0];
-	pframe->buf.addr_vir[0] = param.frame_addr_vir_array[0].y;
-	pframe->buf.addr_vir[1] = param.frame_addr_vir_array[0].u;
-	pframe->buf.addr_vir[2] = param.frame_addr_vir_array[0].v;
+	pframe->buf.mfd[0] = fd_array;
+	ret |= get_user(pframe->buf.addr_vir[0],&uparam->frame_addr_vir_array[0].y);
+	ret |= get_user(pframe->buf.addr_vir[1],&uparam->frame_addr_vir_array[0].u);
+	ret |= get_user(pframe->buf.addr_vir[2],&uparam->frame_addr_vir_array[0].v);
 	pframe->channel_id = channel->ch_id;
 
 	ret = cam_buf_ionbuf_get(&pframe->buf);
