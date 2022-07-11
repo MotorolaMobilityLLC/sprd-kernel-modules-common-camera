@@ -670,7 +670,7 @@ static int dcampath_pyr_dec_cfg(struct dcam_path_desc *path,
 }
 
 static int dcampath_update_pyr_dec_addr(struct dcam_sw_context *ctx, struct dcam_path_desc *path,
-			struct camera_frame *frame)
+			struct camera_frame *frame, uint32_t idx)
 {
 	int ret = 0, i = 0;
 	uint32_t layer_num = 0;
@@ -686,7 +686,7 @@ static int dcampath_update_pyr_dec_addr(struct dcam_sw_context *ctx, struct dcam
 
 	dec_store = &path->dec_store_info;
 	hw = ctx->dev->hw;
-	dec_store->idx = ctx->hw_ctx_id;
+	dec_store->idx = idx;
 
 	layer_num = DCAM_PYR_DEC_LAYER_NUM;
 	/* update layer num based on img size */
@@ -777,10 +777,10 @@ void dcampath_update_statis_head(struct dcam_sw_context *sw_ctx, struct dcam_pat
 }
 
 void dcampath_update_addr_and_size(struct dcam_sw_context *ctx, struct dcam_path_desc *path,
-			struct camera_frame *frame, struct dcam_hw_slw_fmcu_cmds *slw)
+			struct camera_frame *frame, struct dcam_hw_slw_fmcu_cmds *slw, uint32_t idx)
 {
 	struct cam_hw_info *hw = NULL;
-	uint32_t idx = 0, path_id = 0;
+	uint32_t path_id = 0;
 	struct dcam_hw_path_size path_size = {0};
 	unsigned long flags = 0;
 	struct dcam_compress_info fbc_info = {0};
@@ -789,7 +789,6 @@ void dcampath_update_addr_and_size(struct dcam_sw_context *ctx, struct dcam_path
 	struct dcam_dev_param *blk_dcam_pm = NULL;
 
 	hw = ctx->dev->hw;
-	idx = ctx->hw_ctx_id;
 	path_id = path->path_id;
 	blk_dcam_pm = &ctx->ctx[ctx->cur_ctx_id].blk_pm;
 
@@ -834,7 +833,7 @@ void dcampath_update_addr_and_size(struct dcam_sw_context *ctx, struct dcam_path
 		}
 
 		if ((path_id == DCAM_PATH_BIN) && (frame->need_pyr_rec))
-			dcampath_update_pyr_dec_addr(ctx, path, frame);
+			dcampath_update_pyr_dec_addr(ctx, path, frame, idx);
 	}
 
 	if (!frame->is_reserved || path_id == DCAM_PATH_FULL || path_id == DCAM_PATH_RAW || slw != NULL) {
@@ -843,7 +842,7 @@ void dcampath_update_addr_and_size(struct dcam_sw_context *ctx, struct dcam_path
 			if ((path_id == DCAM_PATH_BIN) && (frame->need_pyr_rec))
 				dcampath_pyr_dec_cfg(path, frame, hw, idx);
 			if (path->size_update) {
-				path_size.idx = ctx->hw_ctx_id;
+				path_size.idx = idx;
 				path_size.auto_cpy_id = ctx->auto_cpy_id;
 				path_size.size_x = ctx->cap_info.cap_size.size_x;
 				path_size.size_y = ctx->cap_info.cap_size.size_y;
@@ -883,7 +882,7 @@ void dcampath_update_addr_and_size(struct dcam_sw_context *ctx, struct dcam_path
 
 	if (path_id == DCAM_PATH_FULL && path->base_update) {
 		struct dcam_hw_path_src_sel patharg;
-		patharg.idx = ctx->hw_ctx_id;
+		patharg.idx = idx;
 		patharg.src_sel = path->src_sel;
 		patharg.pack_bits = path->pack_bits;
 		hw->dcam_ioctl(hw, DCAM_HW_CFG_PATH_SRC_SEL, &patharg);
@@ -891,7 +890,7 @@ void dcampath_update_addr_and_size(struct dcam_sw_context *ctx, struct dcam_path
 	if (path_id == DCAM_PATH_RAW && ctx->need_raw_img && ctx->raw_alg_type == RAW_ALG_AI_SFNR) {
 		struct dcam_hw_path_start patharg;
 		patharg.path_id = path_id;
-		patharg.idx = ctx->hw_ctx_id;
+		patharg.idx = idx;
 		patharg.slowmotion_count = ctx->slowmotion_count;
 		patharg.cap_info = ctx->cap_info;
 		patharg.pack_bits = ctx->path[path_id].pack_bits;
@@ -919,10 +918,10 @@ int dcam_path_fmcu_slw_store_buf_set(
 		struct dcam_sw_context *sw_ctx,
 		struct dcam_hw_slw_fmcu_cmds *slw, int slw_idx)
 {
-	int ret = 0;
+	int ret = 0, path_id = 0;
 	struct camera_frame *out_frame = NULL;
 	struct cam_hw_info *hw = NULL;
-	int path_id = 0;
+	uint32_t idx = 0;
 
 	if (!path || !sw_ctx) {
 		pr_err("fail to check param, path%px, sw_ctx %px\n", path, sw_ctx);
@@ -930,7 +929,11 @@ int dcam_path_fmcu_slw_store_buf_set(
 	}
 
 	hw = sw_ctx->dev->hw;
+	idx = sw_ctx->hw_ctx_id;
 	path_id = path->path_id;
+
+	if (idx >= DCAM_HW_CONTEXT_MAX)
+		return 0;
 
 	if (atomic_read(&path->user_cnt) < 1)
 		return ret;
@@ -993,13 +996,13 @@ int dcam_path_fmcu_slw_store_buf_set(
 			out_frame->buf.iova[1] = out_frame->buf.iova[0] + path->out_pitch * path->out_size.h;
 
 		if (path_id == DCAM_PATH_AFL)
-			out_frame->buf.iova[1] = out_frame->buf.iova[0] + hw->ip_dcam[sw_ctx->hw_ctx_id]->afl_gbuf_size;
+			out_frame->buf.iova[1] = out_frame->buf.iova[0] + hw->ip_dcam[idx]->afl_gbuf_size;
 
 		slw->store_info[path_id].store_addr.addr_ch1 = out_frame->buf.iova[1];
 		slw->store_info[path_id].store_addr.addr_ch2 = out_frame->buf.iova[2];
 	}
 
-	dcampath_update_addr_and_size(sw_ctx, path, out_frame, slw);
+	dcampath_update_addr_and_size(sw_ctx, path, out_frame, slw, idx);
 	dcampath_update_statis_head(sw_ctx, path, out_frame);
 
 	pr_debug("path%d set no.%d buffer done!pitch:%d.\n", path_id, slw_idx, path->out_pitch);
@@ -1189,7 +1192,7 @@ int dcam_path_store_frm_set(void *dcam_ctx_handle,
 
 	path->reg_addr = addr;
 
-	dcampath_update_addr_and_size(dcam_sw_ctx, path, frame, NULL);
+	dcampath_update_addr_and_size(dcam_sw_ctx, path, frame, NULL, idx);
 
 	dcampath_update_statis_head(dcam_sw_ctx, path, frame);
 
@@ -1213,7 +1216,7 @@ int dcam_path_store_frm_set(void *dcam_ctx_handle,
 				addr = slowmotion_store_addr[_hist][i];
 			DCAM_REG_WR(idx, addr, frame->buf.iova[0]);
 
-			pr_debug("DCAM%u %s set reserved frame\n", dcam_sw_ctx->hw_ctx_id,
+			pr_debug("DCAM%u %s set reserved frame\n", idx,
 				 dcam_path_name_get(path_id));
 			i++;
 		}
