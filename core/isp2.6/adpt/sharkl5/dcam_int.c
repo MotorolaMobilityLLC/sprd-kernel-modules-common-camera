@@ -345,10 +345,6 @@ static enum dcam_fix_result dcamint_fix_index_if_needed(struct dcam_hw_context *
 			dcam_hw_ctx->hw_ctx_id, diff, sw_ctx->frame_index);
 	}
 
-	/* record SOF timestamp for current frame */
-	sw_ctx->frame_ts_boot[tsid(sw_ctx->frame_index)] = ktime_get_boottime();
-	ktime_get_ts(&sw_ctx->frame_ts[tsid(sw_ctx->frame_index)]);
-
 	if (frm_cnt == cur_cnt) {
 		sw_ctx->index_to_set = sw_ctx->frame_index + 1;
 		return INDEX_FIXED;
@@ -1308,19 +1304,25 @@ static irqreturn_t dcamint_isr_root(int irq, void *priv)
 	if (unlikely(!status))
 		return IRQ_NONE;
 
+	if (status & DCAM_CAP_SOF) {
+		/* record SOF timestamp for current frame */
+		sw_ctx->frame_ts_boot[tsid(sw_ctx->frame_index)] = ktime_get_boottime();
+		ktime_get_ts(&sw_ctx->frame_ts[tsid(sw_ctx->frame_index)]);
+	}
+
 	DCAM_REG_WR(dcam_hw_ctx->hw_ctx_id, DCAM_INT_CLR, status);
 
 	interruption = cam_queue_empty_interrupt_get();
 	interruption->dcamint_status = status;
 	dcamint_dcam_int_record(dcam_hw_ctx->hw_ctx_id, status);
 
-	ret = cam_queue_enqueue(&dcam_sw_ctx->interruption_sts_queue, &interruption->list);
+	ret = cam_queue_enqueue(&sw_ctx->interruption_sts_queue, &interruption->list);
 	if (ret) {
 		pr_warn("warning:fail to enqueue int queue.\n");
 		cam_queue_empty_interrupt_put(interruption);
 		return IRQ_NONE;
 	} else
-		complete(&dcam_sw_ctx->dcam_interruption_proc_thrd.thread_com);
+		complete(&sw_ctx->dcam_interruption_proc_thrd.thread_com);
 
 	return IRQ_HANDLED;
 }

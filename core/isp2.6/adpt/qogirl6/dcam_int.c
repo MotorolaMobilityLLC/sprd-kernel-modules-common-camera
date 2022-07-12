@@ -342,10 +342,6 @@ static enum dcam_fix_result dcamint_fix_index_if_needed(struct dcam_hw_context *
 			dcam_hw_ctx->hw_ctx_id, diff, sw_ctx->frame_index);
 	}
 
-	/* record SOF timestamp for current frame */
-	sw_ctx->frame_ts_boot[tsid(sw_ctx->frame_index)] = ktime_get_boottime();
-	ktime_get_ts(&sw_ctx->frame_ts[tsid(sw_ctx->frame_index)]);
-
 	if (frm_cnt == cur_cnt) {
 		sw_ctx->index_to_set = sw_ctx->frame_index + 1;
 		return INDEX_FIXED;
@@ -1317,6 +1313,12 @@ static irqreturn_t dcamint_isr_root(int irq, void *priv)
 	status = status & DCAMINT_IRQ_LINE_MASK;
 	if (unlikely(!status))
 		return IRQ_NONE;
+
+	if (status & DCAM_CAP_SOF) {
+		/* record SOF timestamp for current frame */
+		dcam_sw_ctx->frame_ts_boot[tsid(dcam_sw_ctx->frame_index)] = ktime_get_boottime();
+		ktime_get_ts(&dcam_sw_ctx->frame_ts[tsid(dcam_sw_ctx->frame_index)]);
+	}
 
 	DCAM_REG_WR(dcam_hw_ctx->hw_ctx_id, DCAM_INT_CLR, status);
 
