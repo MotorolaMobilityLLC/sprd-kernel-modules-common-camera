@@ -156,7 +156,7 @@ int dcam_k_awbc_gain(struct dcam_dev_param *param);
 int dcam_k_awbc_block(struct dcam_dev_param *param);
 
 int dcam_k_bpc_block(struct dcam_dev_param *param);
-int dcam_k_bpc_ppe_param(struct dcam_dev_param *param);
+int dcam_k_bpc_ppi_param(struct dcam_dev_param *param);
 
 int dcam_k_3dnr_me(struct dcam_dev_param *param);
 

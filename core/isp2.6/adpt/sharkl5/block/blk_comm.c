@@ -34,7 +34,7 @@ int init_dcam_pm(struct dcam_dev_param *blk_pm_ctx )
 	blk_pm_ctx->aem.bypass = 1;
 	blk_pm_ctx->afl.afl_info.bypass = 1;
 	blk_pm_ctx->awbc.awbc_info.awbc_bypass = 1;
-	blk_pm_ctx->bpc.ppi_info.ppi_bypass = 1;
+	blk_pm_ctx->pdaf.ppe_ppc_info.ppi_bypass = 1;
 	blk_pm_ctx->bpc.bpc_param.bpc_info.bpc_bypass = 1;
 	blk_pm_ctx->bpc.bpc_param.bpc_info_l3.bpc_bypass = 1;
 	blk_pm_ctx->grgb.grgb_info.bypass = 1;

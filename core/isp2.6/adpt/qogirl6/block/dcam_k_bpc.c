@@ -63,14 +63,13 @@ int dcam_k_bpc_block(struct dcam_dev_param *param)
 
 	val = ((p->bpc_mode & 0x3) << 4) |
 		((p->bpc_is_mono_sensor & 0x1) << 6) |
-		((p->bpc_ppi_en & 0x1) << 7) |
 		((p->bpc_edge_hv_mode & 0x3) << 8) |
 		((p->bpc_edge_rd_mode & 0x3) << 10) |
 		((p->bpc_pos_out_en & 0x1) << 16) |
 		((p->bpc_map_clr_en & 0x1) << 17) |
 		((p->bpc_mod_en & 0x1) << 30) |
 		((p->bpc_cg_dis & 0x1) << 31);
-	DCAM_REG_MWR(idx, ISP_BPC_PARAM, 0xC01F0FF0, val);
+	DCAM_REG_MWR(idx, ISP_BPC_PARAM, 0xC01F0F70, val);
 
 	for (i = 0; i < 4; i++) {
 		val = (p->bpc_four_badpixel_th[i] & 0x3FF) |
@@ -113,31 +112,28 @@ int dcam_k_bpc_block(struct dcam_dev_param *param)
 	return ret;
 }
 
-int dcam_k_bpc_ppe_param(struct dcam_dev_param *param)
+int dcam_k_bpc_ppi_param(struct dcam_dev_param *param)
 {
 	int ret = 0;
-	int i;
-	uint32_t offset;
 	uint32_t idx = param->idx;
 	uint32_t val = 0;
 	struct dcam_bpc_ppi_info *p;
 
-	p = &(param->bpc.ppi_info);
+	p = &(param->bpc.bpc_ppi_info);
 
-	val = ((p->ppi_phase_map_corr_en & 1) << 3) | (p->ppi_bypass & 1);
-	DCAM_REG_MWR(idx, ISP_PPI_PARAM, BIT_3 | BIT_0, val);
-
-	if (!p->ppi_phase_map_corr_en)
+	if (!p->bpc_ppi_en)
 		return 0;
 
-	offset = PDAF_CORR_TABLE_START;
-	for (i = 0; i < PDAF_PPI_GAIN_MAP_LEN; i++) {
-		val = (p->ppi_l_gain_map[i] & 0x3FFF);
-		val <<= 16;
-		val |= (p->ppi_r_gain_map[i] & 0x3FFF);
-		DCAM_REG_WR(idx, offset, val);
-		offset += 4;
-	}
+	val = p->bpc_ppi_start_row
+		| p->bpc_ppi_end_row << 16;
+	DCAM_REG_WR(idx, ISP_BPC_PPI_RANG, val);
+
+	val = p->bpc_ppi_start_col
+		| p->bpc_ppi_end_col << 16;
+	DCAM_REG_WR(idx, ISP_BPC_PPI_RANG1, val);
+
+	val = (p->bpc_ppi_en & 1) << 7;
+	DCAM_REG_MWR(idx, ISP_BPC_PARAM, BIT_7, val);
 
 	return ret;
 }
@@ -158,11 +154,11 @@ int dcam_k_cfg_bpc(struct isp_io_param *param, struct dcam_dev_param *p)
 		sub_func = dcam_k_bpc_block;
 		break;
 	}
-	case DCAM_PRO_BPC_PPE_PARAM:
+	case DCAM_PRO_BPC_PPI_PARAM:
 	{
-		dst_ptr = (void *)&p->bpc.ppi_info;
+		dst_ptr = (void *)&p->bpc.bpc_ppi_info;
 		dst_size = sizeof(struct dcam_bpc_ppi_info);
-		sub_func = dcam_k_bpc_ppe_param;
+		sub_func = dcam_k_bpc_ppi_param;
 		break;
 	}
 	default:

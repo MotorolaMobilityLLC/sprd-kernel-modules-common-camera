@@ -251,14 +251,6 @@ static int isp_k_pdaf_type3_set_ppi_info(
 		| ppi_info->block.end_y << 16;
 	DCAM_REG_MWR(idx, ISP_PPI_BLOCK_ROW, 0xffffffff, val);
 
-	val = ppi_info->block.start_y
-		| ppi_info->block.end_y << 16;
-	DCAM_REG_WR(idx, ISP_BPC_PPI_RANG, val);
-
-	val = ppi_info->block.start_x
-		| ppi_info->block.end_x << 16;
-	DCAM_REG_WR(idx, ISP_BPC_PPI_RANG1, val);
-
 	/* ppi block w*h */
 	val = 0;
 	val = (ppi_info->block_size.width<<4)
@@ -356,7 +348,8 @@ static int isp_k_pdaf_type3_set_mode(
 
 int dcam_k_pdaf(struct dcam_dev_param *p)
 {
-	uint32_t val;
+	int i = 0;
+	uint32_t offset = 0, val = 0;
 	uint32_t idx = p->idx;
 	uint32_t bypass = p->pdaf.bypass;
 	uint32_t mode = p->pdaf.mode;
@@ -364,6 +357,7 @@ int dcam_k_pdaf(struct dcam_dev_param *p)
 	struct dev_dcam_vc2_control *vch2_info = &p->pdaf.vch2_info;
 	struct pdaf_ppi_info *ppi_info = &p->pdaf.ppi_info;
 	struct pdaf_roi_info *roi_info = &p->pdaf.roi_info;
+	struct dcam_ppe_ppc_info *ppe_ppc_info = &(p->pdaf.ppe_ppc_info);
 
 	DCAM_REG_MWR(p->idx, ISP_PPI_PARAM, BIT_0, bypass);
 	if (bypass) {
@@ -438,7 +432,69 @@ int dcam_k_pdaf(struct dcam_dev_param *p)
 		| (ppi_info->block_size.height << 6);
 	DCAM_REG_MWR(idx, ISP_PPI_PARAM, 0x000000f0, val);
 
+	/* ppe ppc block w*h */
+	val = ((ppe_ppc_info->ppi_phase_map_corr_en & 1) << 3) | (ppe_ppc_info->ppi_bypass & 1);
+	DCAM_REG_MWR(idx, ISP_PPI_PARAM, BIT_3 | BIT_0, val);
+
+	if (!ppe_ppc_info->ppi_phase_map_corr_en)
+		return 0;
+
+	offset = PDAF_CORR_TABLE_START;
+	for (i = 0; i < PDAF_PPI_GAIN_MAP_LEN; i++) {
+		val = (ppe_ppc_info->ppc_l_gain_map[i] & 0x3FFF);
+		val <<= 16;
+		val |= (ppe_ppc_info->ppc_r_gain_map[i] & 0x3FFF);
+		DCAM_REG_WR(idx, offset, val);
+		offset += 4;
+	}
+
 	return 0;
+}
+
+int dcam_k_ppe_ppc_param(struct isp_io_param *param, struct dcam_dev_param *p)
+{
+	int ret = 0, i = 0;
+	uint32_t offset = 0, val = 0;
+	uint32_t idx = p->idx;
+	struct dcam_ppe_ppc_info *ppe_ppc_info = &(p->pdaf.ppe_ppc_info);
+
+	if (p->offline == 0) {
+		ret = copy_from_user((void *)ppe_ppc_info,
+				param->property_param,
+				sizeof(struct dcam_ppe_ppc_info));
+		if (ret != 0) {
+			pr_err("fail to copy from user, ret = %d\n", ret);
+			return -1;
+		}
+	} else {
+		mutex_lock(&p->param_lock);
+		ret = copy_from_user((void *)ppe_ppc_info,
+				param->property_param,
+				sizeof(struct dcam_ppe_ppc_info));
+		mutex_unlock(&p->param_lock);
+		if (ret)
+			pr_err("fail to copy from user, ret = %d\n", ret);
+		return ret;
+	}
+	if (p->idx == DCAM_HW_CONTEXT_MAX)
+		return 0;
+
+	val = ((ppe_ppc_info->ppi_phase_map_corr_en & 1) << 3) | (ppe_ppc_info->ppi_bypass & 1);
+	DCAM_REG_MWR(idx, ISP_PPI_PARAM, BIT_3 | BIT_0, val);
+
+	if (!ppe_ppc_info->ppi_phase_map_corr_en)
+		return 0;
+
+	offset = PDAF_CORR_TABLE_START;
+	for (i = 0; i < PDAF_PPI_GAIN_MAP_LEN; i++) {
+		val = (ppe_ppc_info->ppc_l_gain_map[i] & 0x3FFF);
+		val <<= 16;
+		val |= (ppe_ppc_info->ppc_r_gain_map[i] & 0x3FFF);
+		DCAM_REG_WR(idx, offset, val);
+		offset += 4;
+	}
+
+	return ret;
 }
 
 int dcam_k_cfg_pdaf(struct isp_io_param *param, struct dcam_dev_param *p)
@@ -485,6 +541,9 @@ int dcam_k_cfg_pdaf(struct isp_io_param *param, struct dcam_dev_param *p)
 		break;
 	case DCAM_PDAF_TYPE3_BLOCK:
 		ret = isp_k_pdaf_type3_block(param, p);
+		break;
+	case DCAM_PDAF_PPE_PPC_PARAM:
+		ret = dcam_k_ppe_ppc_param(param, p);
 		break;
 	default:
 		pr_err("fail to support cmd id = %d\n",

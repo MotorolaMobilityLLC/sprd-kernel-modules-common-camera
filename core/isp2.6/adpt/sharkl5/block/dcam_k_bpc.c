@@ -60,7 +60,6 @@ int dcam_k_bpc_block(struct dcam_dev_param *param)
 
 	val = ((p->bpc_mode & 0x3) << 4) |
 		((p->bpc_is_mono_sensor & 0x1) << 6) |
-		((p->bpc_ppi_en & 0x1) << 7) |
 		((p->bpc_edge_hv_mode & 0x3) << 8) |
 		((p->bpc_edge_rd_mode & 0x3) << 10) |
 		((p->bpc_pos_out_en & 0x1) << 16) |
@@ -70,7 +69,7 @@ int dcam_k_bpc_block(struct dcam_dev_param *param)
 		((p->bpc_blk_mode & 0x1) << 20) |
 		((p->bpc_mod_en & 0x1) << 30) |
 		((p->bpc_cg_dis & 0x1) << 31);
-	DCAM_REG_MWR(idx, ISP_BPC_PARAM, 0xC01F0FF0, val);
+	DCAM_REG_MWR(idx, ISP_BPC_PARAM, 0xC01F0F70, val);
 
 	for (i = 0; i < 4; i++) {
 		val = (p->bpc_four_badpixel_th[i] & 0x3FF) |
@@ -113,73 +112,29 @@ int dcam_k_bpc_block(struct dcam_dev_param *param)
 	return ret;
 }
 
-int dcam_k_bpc_ppe_param(struct dcam_dev_param *param)
+int dcam_k_bpc_ppi_param(struct dcam_dev_param *param)
 {
 	int ret = 0;
-	int i;
-	uint32_t offset;
 	uint32_t idx = param->idx;
 	uint32_t val = 0;
 	struct dcam_bpc_ppi_info *p;
 
-	p = &(param->bpc.ppi_info);
+	p = &(param->bpc.bpc_ppi_info);
 
-	// val = ((p->ppi_phase_map_corr_en & 1) << 3) | (p->ppi_bypass & 1);
-	// DCAM_REG_MWR(idx, ISP_PPI_PARAM, BIT_3 | BIT_0, val);
-
-	val = ((p->ppi_upperbound_gr & 0x3ff) << 16) |
-		(p->ppi_upperbound_gb & 0x3ff);
-	DCAM_REG_WR(idx, ISP_PPI_GAIN_PARA0, val);
-
-	val = ((p->ppi_upperbound_r & 0x3ff) << 16) |
-		(p->ppi_upperbound_b & 0x3ff);
-	DCAM_REG_WR(idx, ISP_PPI_GAIN_PARA1, val);
-
-	val = ((p->ppi_blc_b & 0x3ff) << 10) |
-		(p->ppi_blc_r & 0x3ff);
-	DCAM_REG_WR(idx, ISP_PPI_BLC_PARA0, val);
-
-	val = ((p->ppi_blc_gb & 0x3ff) << 10) |
-		(p->ppi_blc_gr & 0x3ff);
-	DCAM_REG_WR(idx, ISP_PPI_BLC_PARA1, val);
-
-	if (!p->ppi_phase_map_corr_en)
+	if (!p->bpc_ppi_en)
 		return 0;
 
-	offset = PDAF_CORR_TABLE_START;
-	for (i = 0; i < PDAF_PPI_GAIN_MAP_LEN; i++) {
-		val = (p->ppi_l_gain_map[i] & 0x3FFF);
-		val <<= 16;
-		val |= (p->ppi_r_gain_map[i] & 0x3FFF);
-		DCAM_REG_WR(idx, offset, val);
-		offset += 4;
-	}
-
-	// following parameters should set in dcam_k_pdaf only once.
-#if 0
-	val = (p->bpc_ppi_block_start_row & 0xFFFF) |
-		((p->bpc_ppi_block_end_row & 0xFFFF) << 16);
+	val = p->bpc_ppi_start_row
+		| p->bpc_ppi_end_row << 16;
 	DCAM_REG_WR(idx, ISP_ZZBPC_PPI_RANG, val);
 
-	val = (p->bpc_ppi_block_start_col & 0xFFFF) |
-		((p->bpc_ppi_block_end_col & 0xFFFF) << 16);
+	val = p->bpc_ppi_start_col
+		| p->bpc_ppi_end_col << 16;
 	DCAM_REG_WR(idx, ISP_ZZBPC_PPI_RANG1, val);
 
-	val = ((p->bpc_ppi_block_width & 0x3) << 4) |
-		((p->bpc_ppi_block_height & 0x3) << 6) |
-		((p->bpc_ppi_phase_pixel_num & 0x7F) << 16);
-	DCAM_REG_WR(idx, ISP_PPI_PARAM, val);
+	val = (p->bpc_ppi_en & 1) << 7;
+	DCAM_REG_MWR(idx, ISP_BPC_PARAM, BIT_7, val);
 
-	for (i = 0; i < 32; i++) {
-		val = (p->bpc_ppi_pattern_col[i * 2] & 0x3F) |
-			((p->bpc_ppi_pattern_row[i * 2] & 0x3F) << 6) |
-			((p->bpc_ppi_pattern_pos[i * 2] & 0x1) << 12) |
-			((p->bpc_ppi_pattern_col[i * 2 + 1] & 0x3F) << 16) |
-			((p->bpc_ppi_pattern_row[i * 2 + 1] & 0x3F) << 22) |
-			((p->bpc_ppi_pattern_pos[i * 2 + 1] & 0x1) << 28);
-		DCAM_REG_WR(idx, ISP_PPI_PATTERN01 + i * 4, val);
-	}
-#endif
 
 	return ret;
 }
@@ -200,11 +155,11 @@ int dcam_k_cfg_bpc(struct isp_io_param *param, struct dcam_dev_param *p)
 		sub_func = dcam_k_bpc_block;
 		break;
 	}
-	case DCAM_PRO_BPC_PPE_PARAM:
+	case DCAM_PRO_BPC_PPI_PARAM:
 	{
-		dst_ptr = (void *)&p->bpc.ppi_info;
+		dst_ptr = (void *)&p->bpc.bpc_ppi_info;
 		dst_size = sizeof(struct dcam_bpc_ppi_info);
-		sub_func = dcam_k_bpc_ppe_param;
+		sub_func = dcam_k_bpc_ppi_param;
 		break;
 	}
 	default:

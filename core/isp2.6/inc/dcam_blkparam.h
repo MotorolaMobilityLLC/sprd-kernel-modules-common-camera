@@ -78,7 +78,7 @@ struct dcam_dev_awbc_param {
 };
 
 struct dcam_dev_bpc_param {
-	struct dcam_bpc_ppi_info ppi_info;
+	struct dcam_bpc_ppi_info bpc_ppi_info;
 	union {
 		struct dcam_dev_bpc_info bpc_info;
 		struct dcam_dev_bpc_info_l3 bpc_info_l3;
@@ -171,6 +171,7 @@ struct dcam_dev_pdaf_param {
 	struct dev_dcam_vc2_control vch2_info;
 	struct pdaf_ppi_info ppi_info;
 	struct pdaf_roi_info roi_info;
+	struct dcam_ppe_ppc_info ppe_ppc_info;
 };
 
 struct dcam_dev_param {

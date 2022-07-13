@@ -217,6 +217,7 @@ enum dcam_bpc_property {
 	DCAM_PRO_BPC_MAP,
 	DCAM_PRO_BPC_HDR_PARAM,
 	DCAM_PRO_BPC_PPE_PARAM,
+	DCAM_PRO_BPC_PPI_PARAM,
 };
 
 enum dcam_3dnr_me_property {
@@ -246,6 +247,7 @@ enum dcam_pdaf_property {
 	DCAM_PDAF_TYPE2_BLOCK,
 	DCAM_PDAF_TYPE3_BLOCK,
 	DCAM_DUAL_PDAF_BLOCK,
+	DCAM_PDAF_PPE_PPC_PARAM,
 };
 
 enum isp_bchs_property {
@@ -817,6 +819,14 @@ struct dcam_bpc_rawhdr_info{
 };
 
 struct dcam_bpc_ppi_info{
+	uint32_t bpc_ppi_en;
+	uint32_t bpc_ppi_start_row;
+	uint32_t bpc_ppi_end_row;
+	uint32_t bpc_ppi_start_col;
+	uint32_t bpc_ppi_end_col;
+};
+
+struct dcam_ppe_ppc_info{
 	uint32_t ppi_bypass;
 	uint32_t ppi_upperbound_r;
 	uint32_t ppi_upperbound_b;
@@ -827,8 +837,8 @@ struct dcam_bpc_ppi_info{
 	uint32_t ppi_blc_gr;
 	uint32_t ppi_blc_gb;
 	uint32_t ppi_phase_map_corr_en;
-	uint16_t ppi_l_gain_map[PDAF_PPI_GAIN_MAP_LEN];
-	uint16_t ppi_r_gain_map[PDAF_PPI_GAIN_MAP_LEN];
+	uint16_t ppc_l_gain_map[PDAF_PPI_GAIN_MAP_LEN];
+	uint16_t ppc_r_gain_map[PDAF_PPI_GAIN_MAP_LEN];
 };
 
 struct dcam_dev_bpc_info {

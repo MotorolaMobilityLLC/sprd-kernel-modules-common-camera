@@ -1414,7 +1414,7 @@ static int dcamhw_blocks_setall(void *handle, void *arg)
 	dcam_k_awbc_block(p);
 	dcam_k_blc_block(p);
 	dcam_k_bpc_block(p);
-	dcam_k_bpc_ppe_param(p);
+	dcam_k_bpc_ppi_param(p);
 	dcam_k_rgb_gain_block(p);
 	if (p->non_zsl_cap)
 		dcam_k_raw_gtm_block(DCAM_GTM_PARAM_CAP, p);
