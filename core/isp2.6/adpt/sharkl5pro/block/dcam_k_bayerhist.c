@@ -84,6 +84,8 @@ int dcam_k_bayerhist_roi(struct dcam_dev_param *param)
 	if (param == NULL)
 		return -1;
 	idx = param->idx;
+	if(idx >= DCAM_HW_CONTEXT_MAX)
+		return 0;
 
 	/* update ? */
 	if (!(param->hist.update & _UPDATE_ROI))

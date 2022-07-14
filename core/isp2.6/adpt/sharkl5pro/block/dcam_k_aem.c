@@ -84,6 +84,8 @@ int dcam_k_aem_win(struct dcam_dev_param *param)
 	param->aem.update &= (~(_UPDATE_WIN));
 
 	idx = param->idx;
+	if(idx >= DCAM_HW_CONTEXT_MAX)
+		return 0;
 	p = &(param->aem.win_info);
 
 	val = ((p->offset_y & 0x1FFF) << 16) |
