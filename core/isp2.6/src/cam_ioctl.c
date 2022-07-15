@@ -1243,6 +1243,7 @@ static int camioctl_frame_addr_set(struct camera_module *module,
 {
 	int ret = 0;
 	uint32_t i = 0, cmd = ISP_PATH_CFG_OUTPUT_BUF;
+	uint32_t dump_type[IMG_PATH_BUFFER_COUNT] = {0};
 	struct sprd_img_parm __user *uparam;
 	struct channel_context *ch = NULL;
 	struct channel_context *ch_prv = NULL;
@@ -1299,6 +1300,7 @@ static int camioctl_frame_addr_set(struct camera_module *module,
 		ret |= get_user(pframe->buf.addr_vir[0], &uparam->frame_addr_vir_array[i].y);
 		ret |= get_user(pframe->buf.addr_vir[1], &uparam->frame_addr_vir_array[i].u);
 		ret |= get_user(pframe->buf.addr_vir[2], &uparam->frame_addr_vir_array[i].v);
+		ret |= get_user(dump_type[i], &uparam->vir_ch_info[0].fd_array[i]);
 
 		if (unlikely(ret)) {
 			pr_err("fail to copy from user, ret %d\n", ret);
@@ -1339,12 +1341,12 @@ static int camioctl_frame_addr_set(struct camera_module *module,
 				continue;
 			}
 			if (channel_id == CAM_CH_VIRTUAL) {
-				if (uparam->vir_ch_info[0].fd_array[i] == DUMP_CH_PRE) {
+				if (dump_type[i] == DUMP_CH_PRE) {
 					pframe->height = ch->ch_uinfo.vir_channel[0].dst_size.h;
 					ret = module->isp_dev_handle->isp_ops->cfg_path(module->isp_dev_handle, cmd,
 						ch->isp_ctx_id, ch->isp_path_id, pframe);
 				}
-				else if (uparam->vir_ch_info[0].fd_array[i] == DUMP_CH_CAP) {
+				else if (dump_type[i] == DUMP_CH_CAP) {
 					pframe->height = ch->ch_uinfo.vir_channel[1].dst_size.h;
 					ret = module->isp_dev_handle->isp_ops->cfg_path(module->isp_dev_handle, cmd,
 						ch->slave_isp_ctx_id, ch->isp_path_id, pframe);
