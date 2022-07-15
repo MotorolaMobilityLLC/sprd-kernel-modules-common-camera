@@ -17,7 +17,7 @@ KO_MODULE_SRC  :=
 
 ADAPT_DIR := $(BSP_BOARD_CAMERA_MODULE_ISP_ADAPT_VERSION)
 
-KO_MODULE_SRC += $(wildcard $(KO_MODULE_PATH)/$(BSP_KERNEL_VERSION)/*.c)
+KO_MODULE_SRC += $(wildcard $(KO_MODULE_PATH)/kernel/*.c)
 
 #
 # Final Objects
