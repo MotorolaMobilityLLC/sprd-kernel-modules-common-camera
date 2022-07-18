@@ -671,7 +671,7 @@ int sprd_sensor_set_mclk(unsigned int *saved_clk, unsigned int set_mclk,
 
 	if (set_mclk == 0  && p_dev->mclk_count) {
 		if (p_dev->mclk_freq) {
-#if 1//ndef MCLK_NEW_PROCESS
+#ifndef MCLK_NEW_PROCESS
 			if (p_dev->sensor_eb)
 				clk_disable_unprepare(p_dev->sensor_eb);
 			else if (p_dev->ccir_eb)
@@ -693,7 +693,7 @@ int sprd_sensor_set_mclk(unsigned int *saved_clk, unsigned int set_mclk,
 				}
 				clk_disable_unprepare(p_dev->sensor_clk);
 			}
-#if 0//def MCLK_NEW_PROCESS
+#ifdef MCLK_NEW_PROCESS
 			if (p_dev->sensor_eb)
 				clk_disable_unprepare(p_dev->sensor_eb);
 			else if (p_dev->ccir_eb)
@@ -722,7 +722,7 @@ int sprd_sensor_set_mclk(unsigned int *saved_clk, unsigned int set_mclk,
 			}
 			pr_debug("set_mclk %d sensor_id %d\n",
 				set_mclk, sensor_id);
-#if 0//def MCLK_NEW_PROCESS
+#ifdef MCLK_NEW_PROCESS
 			clk_prepare_enable(p_dev->sensor_eb);
 #endif
 			ret = clk_set_parent(p_dev->sensor_clk, clk_parent);
@@ -736,7 +736,7 @@ int sprd_sensor_set_mclk(unsigned int *saved_clk, unsigned int set_mclk,
 				pr_err("set rate failed\n");
 				goto exit;
 			}
-#if 1//ndef MCLK_NEW_PROCESS
+#ifndef MCLK_NEW_PROCESS
 
 			clk_prepare_enable(p_dev->sensor_eb);
 #endif
