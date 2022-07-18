@@ -253,6 +253,7 @@ struct isp_sw_context {
 	uint32_t ctx_id;
 	uint32_t in_irq_handler;
 	uint32_t iommu_status;
+	uint32_t slw_frm_cnt;
 	enum isp_postproc_type post_type;
 	enum camera_id attach_cam_id;
 	enum cam_ch_id ch_id;

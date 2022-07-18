@@ -2864,7 +2864,6 @@ static int ispcore_frame_proc(void *isp_handle, void *param, int ctx_id)
 	int ret = 0;
 	uint32_t is_superzoom = 0, proc_cnt = 0, stream_ctrl_cnt = 0;
 	struct camera_frame *pframe, *pframe_proc;
-	static int slw_frm_cnt;
 	struct isp_sw_context *pctx;
 	struct isp_pipe_dev *dev;
 	struct isp_stream_ctrl *stream = NULL;
@@ -2971,7 +2970,7 @@ static int ispcore_frame_proc(void *isp_handle, void *param, int ctx_id)
 	if (ret == 0) {
 
 		if (pctx->uinfo.enable_slowmotion) {
-			if (++slw_frm_cnt < pctx->uinfo.slowmotion_count)
+			if (++(pctx->slw_frm_cnt) < pctx->uinfo.slowmotion_count)
 				return ret;
 		} else {
 			if(dev->isp_hw->prj_id == QOGIRN6pro || stream_ctrl_cnt == 0)
@@ -2979,7 +2978,7 @@ static int ispcore_frame_proc(void *isp_handle, void *param, int ctx_id)
 		}
 		if (atomic_read(&pctx->user_cnt) > 0)
 			complete(&pctx->thread.thread_com);
-		slw_frm_cnt = 0;
+		pctx->slw_frm_cnt = 0;
 	}
 
 	return ret;
@@ -3806,8 +3805,10 @@ static int ispcore_context_get(void *isp_handle, void *param)
 	pctx->attach_cam_id = init_param->cam_id;
 	pctx->uinfo.enable_slowmotion = 0;
 	atomic_set(&pctx->cap_cnt, 0);
-	if (init_param->is_high_fps)
+	if (init_param->is_high_fps) {
+		pctx->slw_frm_cnt = 0;
 		pctx->uinfo.enable_slowmotion = hw->ip_isp->slm_cfg_support;
+	}
 	pr_info("cam%d isp slowmotion eb %d\n",
 		pctx->attach_cam_id, pctx->uinfo.enable_slowmotion);
 
@@ -4148,6 +4149,7 @@ static int ispcore_context_put(void *isp_handle, int ctx_id)
 	pctx->attach_cam_id = CAM_ID_MAX;
 	pctx->hw = dev->isp_hw;
 	pctx->thread_doing_stop = 0;
+	pctx->slw_frm_cnt = 0;
 	atomic_set(&pctx->cap_cnt, 0);
 	mutex_unlock(&dev->path_mutex);
 	pr_info("done, put ctx_id: %d\n", ctx_id);
