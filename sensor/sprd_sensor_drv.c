@@ -1387,7 +1387,7 @@ int sprd_sensor_write_regtab(struct sensor_reg_tab_tag *p_reg_table,
 	size = cnt * sizeof(*sensor_reg_ptr);
 	if(cnt != 0 && size/cnt != sizeof(*sensor_reg_ptr)) {
 		ret = -EINVAL;
-		pr_err("sensor w err: interger overflow occurs\n", ret);
+		pr_err("sensor w err: interger overflow occurs\n");
 		goto exit;
 	}
 	ret = sprd_sensor_malloc(&p_mem, size);
