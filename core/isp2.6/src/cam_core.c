@@ -7500,6 +7500,7 @@ static int camcore_csi_switch_connect(struct camera_module *module, uint32_t mod
 	struct cam_hw_info *hw = module->grp->hw_info;
 	struct dcam_sw_context *sw_ctx = &module->dcam_dev_handle->sw_ctx[module->cur_sw_ctx_id];
 	struct dcam_switch_param csi_switch = {0};
+	struct channel_context *ch_prev = NULL, *ch_cap = NULL;
 	uint32_t loop = 0;
 
 	/* bind */
@@ -7533,6 +7534,13 @@ static int camcore_csi_switch_connect(struct camera_module *module, uint32_t mod
 	csi_switch.dcam_id= sw_ctx->hw_ctx_id;
 	hw->dcam_ioctl(hw, DCAM_HW_CONECT_CSI, &csi_switch);
 	pr_info("Connect csi_id = %d, dcam_id = %d module idx %d\n", csi_switch.csi_id, csi_switch.dcam_id, module->idx);
+	ch_prev = &module->channel[CAM_CH_PRE];
+	if (ch_prev->enable)
+		camcore_channel_size_config(module, ch_prev);
+
+	ch_cap = &module->channel[CAM_CH_CAP];
+	if (ch_cap->enable)
+		camcore_channel_size_config(module, ch_cap);
 	return ret;
 }
 
