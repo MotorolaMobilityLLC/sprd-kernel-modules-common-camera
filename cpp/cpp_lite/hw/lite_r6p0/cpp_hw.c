@@ -125,20 +125,21 @@ static int cpphw_mmu_set(void *cpp_soc_handle)
 static int cpphw_module_reset(void *cpp_soc_handle)
 {
 	struct cpp_hw_soc_info *soc_cpp = NULL;
+	unsigned int cpp_module_reset_mask;
 
 	if (!cpp_soc_handle) {
 		pr_err("fail to get valid input ptr\n");
 		return -EINVAL;
 	}
 	soc_cpp = (struct cpp_hw_soc_info *)cpp_soc_handle;
-
-	regmap_update_bits(soc_cpp->mm_ahb_gpr, MM_AHB_RESET,
-			CPP_PATH_RESET_MASK,
-			(unsigned int)CPP_PATH_RESET_MASK);
+	cpp_module_reset_mask =
+		(soc_cpp->syscon.ahb_rst_mask | soc_cpp->syscon.path0_soft_rst_mask |
+		 soc_cpp->syscon.path1_soft_rst_mask | soc_cpp->syscon.dma_soft_rst_mask);
+	regmap_update_bits(soc_cpp->mm_ahb_gpr, soc_cpp->syscon.ahb_rst,
+			cpp_module_reset_mask, cpp_module_reset_mask);
 	udelay(2);
-	regmap_update_bits(soc_cpp->mm_ahb_gpr, MM_AHB_RESET,
-			CPP_PATH_RESET_MASK,
-			~(unsigned int)CPP_PATH_RESET_MASK);
+	regmap_update_bits(soc_cpp->mm_ahb_gpr, soc_cpp->syscon.ahb_rst,
+			cpp_module_reset_mask, ~cpp_module_reset_mask);
 	return 0;
 }
 
@@ -151,14 +152,11 @@ static int cpphw_scale_reset(void *cpp_soc_handle)
 		return -EINVAL;
 	}
 	soc_cpp = (struct cpp_hw_soc_info *)cpp_soc_handle;
-
-	regmap_update_bits(soc_cpp->mm_ahb_gpr, (unsigned int)MM_AHB_RESET,
-			(unsigned int)CPP_PATH0_AHB_RESET_BIT,
-			(unsigned int)CPP_PATH0_AHB_RESET_BIT);
+	regmap_update_bits(soc_cpp->mm_ahb_gpr, soc_cpp->syscon.ahb_rst,
+			soc_cpp->syscon.path0_soft_rst_mask, soc_cpp->syscon.path0_soft_rst_mask);
 	udelay(2);
-	regmap_update_bits(soc_cpp->mm_ahb_gpr, (unsigned int)MM_AHB_RESET,
-			(unsigned int)CPP_PATH0_AHB_RESET_BIT,
-			~(unsigned int)CPP_PATH0_AHB_RESET_BIT);
+	regmap_update_bits(soc_cpp->mm_ahb_gpr, soc_cpp->syscon.ahb_rst,
+			soc_cpp->syscon.path0_soft_rst_mask, ~soc_cpp->syscon.path0_soft_rst_mask);
 	return 0;
 }
 
@@ -171,14 +169,11 @@ static int cpphw_rot_reset(void *cpp_soc_handle)
 		return -EINVAL;
 	}
 	soc_cpp = (struct cpp_hw_soc_info *)cpp_soc_handle;
-
-	regmap_update_bits(soc_cpp->mm_ahb_gpr, MM_AHB_RESET,
-			CPP_PATH1_AHB_RESET_BIT,
-			(unsigned int)CPP_PATH1_AHB_RESET_BIT);
+	regmap_update_bits(soc_cpp->mm_ahb_gpr, soc_cpp->syscon.ahb_rst,
+			soc_cpp->syscon.path1_soft_rst_mask, soc_cpp->syscon.path1_soft_rst_mask);
 	udelay(2);
-	regmap_update_bits(soc_cpp->mm_ahb_gpr, MM_AHB_RESET,
-			CPP_PATH1_AHB_RESET_BIT,
-			~(unsigned int)CPP_PATH1_AHB_RESET_BIT);
+	regmap_update_bits(soc_cpp->mm_ahb_gpr, soc_cpp->syscon.ahb_rst,
+			soc_cpp->syscon.path1_soft_rst_mask, ~soc_cpp->syscon.path1_soft_rst_mask);
 	return 0;
 }
 
@@ -191,14 +186,11 @@ static int cpphw_dma_reset(void *cpp_soc_handle)
 		return -EINVAL;
 	}
 	soc_cpp = (struct cpp_hw_soc_info *)cpp_soc_handle;
-
-	regmap_update_bits(soc_cpp->mm_ahb_gpr, MM_AHB_RESET,
-			CPP_DMA_AHB_RESET_BIT,
-			(unsigned int)CPP_DMA_AHB_RESET_BIT);
+	regmap_update_bits(soc_cpp->mm_ahb_gpr, soc_cpp->syscon.ahb_rst,
+			soc_cpp->syscon.dma_soft_rst_mask, soc_cpp->syscon.dma_soft_rst_mask);
 	udelay(2);
-	regmap_update_bits(soc_cpp->mm_ahb_gpr, MM_AHB_RESET,
-			CPP_DMA_AHB_RESET_BIT,
-			~(unsigned int)CPP_DMA_AHB_RESET_BIT);
+	regmap_update_bits(soc_cpp->mm_ahb_gpr, soc_cpp->syscon.ahb_rst,
+			soc_cpp->syscon.dma_soft_rst_mask, ~soc_cpp->syscon.dma_soft_rst_mask);
 	return 0;
 }
 
@@ -346,6 +338,9 @@ int cpphw_probe(struct platform_device *pdev, struct cpp_hw_info * hw_info)
 	struct cpp_hw_soc_info *soc_cpp = NULL;
 	struct cpp_hw_ip_info *ip_cpp = NULL;
 	struct device_node *qos_node = NULL;
+	struct device_node *cpp_node = NULL;
+	struct regmap *reg_map = NULL;
+	uint32_t args[2];
 
 	if (!pdev|| !hw_info) {
 		pr_err("fail to get pdev %p, hw_info %p\n", pdev, hw_info);
@@ -389,6 +384,43 @@ int cpphw_probe(struct platform_device *pdev, struct cpp_hw_info * hw_info)
 		return ret;
 	}
 	soc_cpp->mm_ahb_gpr = mm_ahb_gpr;
+	cpp_node = pdev->dev.of_node;
+	if (cpp_node == NULL) {
+		pr_err("fail to parse the property of sprd,cpp\n");
+		return -EFAULT;
+	}
+	reg_map = syscon_regmap_lookup_by_phandle_args(cpp_node, "cpp_ahb_reset", ARRAY_SIZE(args), args);
+	if (IS_ERR_OR_NULL(reg_map)) {
+		pr_err("fail to get syscon %s %d, %p\n", "cpp_ahb_reset", ARRAY_SIZE(args), args);
+	} else {
+		soc_cpp->syscon.ahb_rst = args[0];
+		soc_cpp->syscon.ahb_rst_mask = args[1];
+	}
+	reg_map = syscon_regmap_lookup_by_phandle_args(cpp_node, "cpp_path0_reset", ARRAY_SIZE(args), args);
+	if (IS_ERR_OR_NULL(reg_map)) {
+		pr_err("fail to get syscon %s %d, %p\n", "cpp_path0_reset", ARRAY_SIZE(args), args);
+	} else {
+		soc_cpp->syscon.path0_soft_rst_mask = args[1];
+	}
+	reg_map = syscon_regmap_lookup_by_phandle_args(cpp_node, "cpp_path1_reset", ARRAY_SIZE(args), args);
+	if (IS_ERR_OR_NULL(reg_map)) {
+		pr_err("fail to get syscon %s %d, %p\n", "cpp_path1_reset", ARRAY_SIZE(args), args);
+	} else {
+		soc_cpp->syscon.path1_soft_rst_mask = args[1];
+	}
+	reg_map = syscon_regmap_lookup_by_phandle_args(cpp_node, "cpp_dma_soft_set", ARRAY_SIZE(args), args);
+	if (IS_ERR_OR_NULL(reg_map)) {
+		pr_err("fail to get syscon %s %d, %p\n", "cpp_dma_soft_set", ARRAY_SIZE(args), args);
+	} else {
+		soc_cpp->syscon.dma_soft_rst_mask = args[1];
+	}
+
+	reg_base = of_iomap(pdev->dev.of_node, 0);
+	if (IS_ERR_OR_NULL(reg_base)) {
+		pr_err("fail to get cpp base\n");
+		ret = PTR_ERR(reg_base);
+		return ret;
+	}
 
 	reg_base = of_iomap(pdev->dev.of_node, 0);
 	if (IS_ERR_OR_NULL(reg_base)) {

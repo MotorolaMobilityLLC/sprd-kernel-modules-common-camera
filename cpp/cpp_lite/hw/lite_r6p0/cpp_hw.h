@@ -59,6 +59,17 @@ enum cpp_prj_id {
 	PROJECT_MAX
 };
 
+struct cpp_syscon {
+	uint32_t ahb_rst;
+	uint32_t ahb_rst_mask;
+	uint32_t dma_soft_rst;
+	uint32_t dma_soft_rst_mask;
+	uint32_t path0_soft_rst;
+	uint32_t path0_soft_rst_mask;
+	uint32_t path1_soft_rst;
+	uint32_t path1_soft_rst_mask;
+};
+
 struct cpp_hw_soc_info {
 	struct platform_device *pdev;
 	struct regmap *mm_ahb_gpr;
@@ -66,6 +77,7 @@ struct cpp_hw_soc_info {
 	struct clk *cpp_clk_parent;
 	struct clk *cpp_clk_default;
 	struct clk *cpp_eb;
+	struct cpp_syscon syscon;
 	uint32_t awrqos;
 };
 
