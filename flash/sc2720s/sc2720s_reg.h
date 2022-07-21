@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015-2016 Spreadtrum Communications Inc.
+ * Copyright (C) 2021-2022 UNISOC Communications Inc.
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -10,6 +10,7 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  */
+
 #ifndef _SC2720S_FLASH_REG_H_
 #define _SC2720S_FLASH_REG_H_
 

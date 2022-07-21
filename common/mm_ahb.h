@@ -1,15 +1,15 @@
 /*
- * Copyright (C) 2020-2021 UNISOC Communications Inc.
+ * Copyright (C) 2021-2022 UNISOC Communications Inc.
  *
- * This file is dual-licensed: you can use it either under the terms
- * of the GPL or the X11 license, at your option. Note that this dual
- * licensing only applies to this file, and not this project as a
- * whole.
+ * This software is licensed under the terms of the GNU General Public
+ * License version 2, as published by the Free Software Foundation, and
+ * may be copied, distributed, and modified under those terms.
  *
- * updated at 2018-05-10 14:14:24
- *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  */
-
 
 #ifndef MM_AHB_H
 #define MM_AHB_H

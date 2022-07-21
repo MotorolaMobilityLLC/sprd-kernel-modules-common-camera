@@ -1,7 +1,5 @@
 /*
- * Copyright (C) 2014 Spreadtrum Communications Inc.
- *
- * Author: Haibing.Yang <haibing.yang@spreadtrum.com>
+ * Copyright (C) 2021-2022 UNISOC Communications Inc.
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and

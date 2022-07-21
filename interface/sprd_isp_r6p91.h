@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019 Unisoc Communications Inc.
+ * Copyright (C) 2021-2022 UNISOC Communications Inc.
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -10,8 +10,9 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  */
- #ifndef _ISP_DRV_KERNEL_H_
- #define _ISP_DRV_KERNEL_H_
+
+#ifndef _ISP_DRV_KERNEL_H_
+#define _ISP_DRV_KERNEL_H_
 
 #ifdef __KERNEL__
 #include <linux/types.h>
