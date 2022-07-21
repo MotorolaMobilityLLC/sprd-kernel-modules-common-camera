@@ -270,6 +270,7 @@ static int dcamhw_axi_init(void *handle, void *arg)
 	uint32_t time_out = 0;
 	uint32_t idx = 0;
 	uint32_t flag = 0;
+	unsigned long __flags;
 	struct cam_hw_info *hw = NULL;
 	struct cam_hw_soc_info *soc = NULL;
 	struct cam_hw_ip_info *ip = NULL;
@@ -311,11 +312,13 @@ static int dcamhw_axi_init(void *handle, void *arg)
 			|ip->syscon.axi_rst_mask;
 		SPIN_LOCK_WR_REG(g_reg_wr_lock, g_reg_wr_flag);
 		/* reset dcam all (0/1/2/bus) */
+		spin_lock_irqsave(&g_reg_wr_lock, __flags);
 		regmap_update_bits(soc->cam_ahb_gpr, ip->syscon.all_rst,
 			flag, flag);
 		udelay(10);
 		regmap_update_bits(soc->cam_ahb_gpr, ip->syscon.all_rst,
 			flag, ~flag);
+		spin_unlock_irqrestore(&g_reg_wr_lock, __flags);
 		SPIN_UNLOCK_WR_REG(g_reg_wr_lock, g_reg_wr_flag);
 	}
 	write_unlock(&soc->cam_ahb_lock);

@@ -1071,12 +1071,7 @@ extern const unsigned long slowmotion_store_addr[3][4];
 	unsigned long __flags;                                                       \
 	uint32_t val;                                                       \
 	spin_lock_irqsave(&g_reg_wr_lock, __flags);                                  \
-	if (!g_reg_wr_flag)                                                         \
-		val = (REG_RD(DCAM_BASE(idx)+(reg)));                                          \
-	else {                                                      \
-		val = 0;                                                            \
-		BUG_ON(1);                                  \
-	}                                                  \
+	val = (REG_RD(DCAM_BASE(idx)+(reg)));                                          \
 	spin_unlock_irqrestore(&g_reg_wr_lock, __flags);                                 \
 	val;                                        \
 })
@@ -1109,12 +1104,7 @@ extern const unsigned long slowmotion_store_addr[3][4];
 	unsigned long __flags;                                                       \
 	uint32_t val;                                                       \
 	spin_lock_irqsave(&g_reg_wr_lock, __flags);                                  \
-	if (!g_reg_wr_flag)                                                         \
-		val = (REG_RD(DCAM_AXIM_BASE(id)+(reg)));                                          \
-	else {                                                      \
-		val = 0;                                                            \
-		BUG_ON(1);                                  \
-	}                                                  \
+	val = (REG_RD(DCAM_AXIM_BASE(id)+(reg)));                                          \
 	spin_unlock_irqrestore(&g_reg_wr_lock, __flags);                                 \
 	val;                                        \
 })
@@ -1147,12 +1137,7 @@ extern const unsigned long slowmotion_store_addr[3][4];
 	unsigned long __flags;                                                       \
 	uint32_t val;                                                       \
 	spin_lock_irqsave(&g_reg_wr_lock, __flags);                                  \
-	if (!g_reg_wr_flag)                                                         \
-		val = (REG_RD(DCAM_MMU_BASE+(reg)));                                          \
-	else {                                                      \
-		val = 0;                                                            \
-		BUG_ON(1);                                  \
-	}                                                  \
+	val = (REG_RD(DCAM_MMU_BASE+(reg)));                                          \
 	spin_unlock_irqrestore(&g_reg_wr_lock, __flags);                                 \
 	val;                                        \
 })
@@ -1184,13 +1169,8 @@ extern const unsigned long slowmotion_store_addr[3][4];
 #define DCAM_FMCU_RD(reg) ({                                              \
 	unsigned long __flags;                                                       \
 	uint32_t val;                                                       \
-	spin_lock_irqsave(&g_reg_wr_lock, __flags);                                  \
-	if (!g_reg_wr_flag)                                                         \
-		val = (REG_RD(DCAM_FMCU_BASE+(reg)));                                          \
-	else {                                                      \
-		val = 0;                                                            \
-		BUG_ON(1);                                  \
-	}                                                  \
+	spin_lock_irqsave(&g_reg_wr_lock, __flags);                                                            \
+	val = (REG_RD(DCAM_FMCU_BASE+(reg)));                                          \
 	spin_unlock_irqrestore(&g_reg_wr_lock, __flags);                                 \
 	val;                                        \
 })
