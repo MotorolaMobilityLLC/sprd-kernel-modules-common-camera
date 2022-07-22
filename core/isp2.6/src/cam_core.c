@@ -4218,8 +4218,17 @@ static int camcore_channel_size_binning_cal(
 		ch_vid->dst_dcam = dcam_out;
 		ch_vid->trim_dcam = trim_pv;
 		isp_trim = &ch_vid->trim_isp;
-		isp_trim->size_x = ((ch_vid->ch_uinfo.src_crop.w >> shift) + 1) & ~1;
-		isp_trim->size_y = ((ch_vid->ch_uinfo.src_crop.h >> shift) + 1) & ~1;
+		if (bypass_always == ZOOM_SCALER) {
+			isp_trim->size_x =
+				camcore_ratio16_divide(ch_vid->ch_uinfo.src_crop.w, ratio_min);
+			isp_trim->size_y =
+				camcore_ratio16_divide(ch_vid->ch_uinfo.src_crop.h, ratio_min);
+			isp_trim->size_x = ALIGN(isp_trim->size_x, 4);
+			isp_trim->size_y = ALIGN(isp_trim->size_y, 2);
+		} else {
+			isp_trim->size_x = ((ch_vid->ch_uinfo.src_crop.w >> shift) + 1) & ~1;
+			isp_trim->size_y = ((ch_vid->ch_uinfo.src_crop.h >> shift) + 1) & ~1;
+		}
 		isp_trim->size_x = min(isp_trim->size_x, dcam_out.w);
 		isp_trim->size_y = min(isp_trim->size_y, dcam_out.h);
 		isp_trim->start_x = ((dcam_out.w - isp_trim->size_x) >> 1) & ~1;
