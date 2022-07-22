@@ -3273,7 +3273,7 @@ static int isphw_yuv_block_ctrl(void *handle, void *arg)
 	ISP_REG_MWR(idx, ISP_UVD_PARAM, BIT_0, p->uvd_info_v1.bypass);
 	ISP_REG_MWR(idx, ISP_HSV_PARAM, BIT_0, p->hsv_info3.hsv_bypass);
 	ISP_REG_MWR(idx, ISP_CTM_PARAM, BIT_0, p->lut3d_info.rgb3dlut_bypass);
-	ISP_REG_MWR(idx, ISP_YGAMMA_PARAM, BIT_0, p->ygamma_info.bypass);
+	ISP_REG_MWR(idx, ISP_YGAMMA_PARAM, BIT_0, p->ygamma_info_v1.bypass);
 	ISP_REG_MWR(idx, ISP_EE_PARAM, BIT_0, p->edge_info_v3.bypass);
 	ISP_REG_MWR(idx, ISP_CDN_PARAM, BIT_0, p->cdn_info.bypass);
 	ISP_REG_MWR(idx, ISP_YRANDOM_PARAM1, BIT_0, p->yrandom_info.bypass);

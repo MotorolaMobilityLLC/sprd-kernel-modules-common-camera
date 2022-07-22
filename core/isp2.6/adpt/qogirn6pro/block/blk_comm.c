@@ -129,7 +129,7 @@ int init_isp_pm(struct isp_k_block *isp_k_param)
 	isp_k_param->ltm_rgb_info.ltm_map.bypass = 1;
 	isp_k_param->hsv_info3.hsv_bypass = 1;
 	isp_k_param->lut3d_info.rgb3dlut_bypass = 1;
-	isp_k_param->ygamma_info.bypass = 1;
+	isp_k_param->ygamma_info_v1.bypass = 1;
 	isp_k_param->edge_info_v3.bypass = 1;
 	isp_k_param->cdn_info.bypass = 1;
 	isp_k_param->yrandom_info.bypass = 1;
