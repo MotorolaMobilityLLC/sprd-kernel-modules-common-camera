@@ -63,7 +63,8 @@ static int boot_mode_check(void)
 	if (ret < 0)
 		return 0;
 
-	if (strstr(cmd_line, "androidboot.mode=cali"))
+	if (strstr(cmd_line, "androidboot.mode=cali") ||
+			strstr(cmd_line, "sprdboot.mode=cali"))
 		ret = 1;
 
 	return ret;
