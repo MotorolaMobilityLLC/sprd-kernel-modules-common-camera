@@ -1121,6 +1121,8 @@ int dcam_core_dcam_if_release_sync(struct dcam_frame_synchronizer *sync,
 
 	helper = container_of(sync, struct dcam_sync_helper, sync);
 	pctx = (struct dcam_sw_context *)helper->dev;
+	spin_lock_irqsave(&pctx->helper_lock, flags);
+	helper->helper_put_enable = 0;
 
 	for (path_id = 0; path_id < DCAM_PATH_MAX; path_id++) {
 		if (frame == sync->frames[path_id])
@@ -1140,8 +1142,6 @@ int dcam_core_dcam_if_release_sync(struct dcam_frame_synchronizer *sync,
 	pr_debug("DCAM%u %s release sync, id %u, data 0x%p\n",
 		pctx->hw_ctx_id, dcam_path_name_get(path_id), sync->index, sync);
 
-	spin_lock_irqsave(&pctx->helper_lock, flags);
-	helper->helper_put_enable = 0;
 	if (unlikely(!helper->enabled)) {
 		ignore = true;
 		goto exit;
