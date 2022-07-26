@@ -308,6 +308,7 @@ struct camera_module {
 	uint32_t idx;
 	atomic_t state;
 	atomic_t timeout_flag;
+	uint32_t master_flag; /* master cam capture flag */
 	struct mutex lock;
 	struct camera_group *grp;
 	uint32_t exit_flag;/*= 1, normal exit, =0, abnormal exit*/
@@ -379,6 +380,7 @@ struct camera_module {
 	atomic_t cap_total_frames;
 	atomic_t cap_skip_frames;
 	atomic_t cap_zsl_frames;
+	atomic_t cap_flag;
 	int64_t capture_times;/* *ns, timestamp get from start_capture */
 	uint32_t capture_scene;
 	uint32_t lowlux_4in1;/* flag */
@@ -402,8 +404,6 @@ struct camera_group {
 	spinlock_t module_lock;
 	uint32_t module_used;
 	struct camera_module *module[CAM_COUNT];
-
-	spinlock_t dual_frame_lock;
 
 	spinlock_t rawproc_lock;
 	uint32_t rawproc_in;
@@ -1926,7 +1926,7 @@ static struct camera_frame *camcore_dual_fifo_queue(struct camera_module *module
 		return pframe;
 
 	if (camcore_outbuf_queue_cnt_get(&module->dcam_dev_handle->sw_ctx[module->cur_sw_ctx_id],
-		channel->dcam_path_id) < 1) {
+		channel->dcam_path_id) < 3) {
 		/* do fifo */
 		pframe = cam_queue_dequeue(&module->zsl_fifo_queue,
 			struct camera_frame, list);
@@ -1937,15 +1937,16 @@ static struct camera_frame *camcore_dual_fifo_queue(struct camera_module *module
 	return NULL;
 }
 
-static int camcore_dual_same_frame_get(struct camera_module *module)
+static int camcore_dual_same_frame_get(struct camera_module *module, struct camera_frame *mframe)
 {
-	struct camera_group *grp;
-	struct camera_module *pmd[CAM_COUNT];
-	struct camera_queue *q[CAM_COUNT];
-	struct camera_frame *pframe[CAM_COUNT];
-	int i, j;
+	struct camera_group *grp = NULL;
+	struct camera_module *pmd[CAM_COUNT] = {0};
+	struct camera_queue *q = NULL;
+	struct camera_frame *pframe = NULL;
+	struct camera_module *slave_module = NULL;
+	int i = 0, j = 0;
 	int ret = 0;
-	int64_t t;
+	int64_t t_sec = 0, t_usec = 0;
 
 	grp = module->grp;
 	if (!grp)
@@ -1955,23 +1956,24 @@ static int camcore_dual_same_frame_get(struct camera_module *module)
 		pmd[j] = grp->module[i];
 		if (!pmd[j])
 			continue;
-		if (pmd[j]->cam_uinfo.is_dual)
-			j++;
+		if (pmd[j] != module) {
+			slave_module = pmd[j];
+			break;
+		}
 	}
-	if (j != 2) {
-		pr_err("fail to get module, dual camera, but have %d module\n", j);
-		return -EFAULT;
-	}
-	q[0] = &(pmd[0]->zsl_fifo_queue);
-	q[1] = &(pmd[1]->zsl_fifo_queue);
-	t = pmd[0]->capture_times;
-	ret = cam_queue_same_frame_get(q[0], q[1], &pframe[0], &pframe[1], t);
+
+	q = &(slave_module->zsl_fifo_queue);
+	t_sec = mframe->sensor_time.tv_sec;
+	t_usec = mframe->sensor_time.tv_usec;
+	ret = cam_queue_same_frame_get(q, &pframe, t_sec, t_usec);
 	if (ret) {
-		pr_warn("warning:Get same frame fail\n");
-		return ret;
+		pr_debug("No find match frame\n");
+		atomic_set(&slave_module->cap_flag, 1);
+		slave_module->dual_frame = NULL;
+		return 0;
 	}
-	pmd[0]->dual_frame = pframe[0];
-	pmd[1]->dual_frame = pframe[1];
+	slave_module->dual_frame = pframe;
+	atomic_set(&slave_module->cap_flag, 1);
 
 	return 0;
 }
@@ -1983,45 +1985,26 @@ static struct camera_frame *camcore_dual_frame_deal(struct camera_module *module
 		struct camera_frame *pframe,
 		struct channel_context *channel)
 {
-	int ret;
-	unsigned long flag;
-	struct camera_frame *pftmp;
+	int ret = 0;
+	struct camera_frame *pframe_pre = NULL;
 	struct dcam_sw_context *dcam_sw_ctx = NULL;
 
 	channel = &module->channel[pframe->channel_id];
 	dcam_sw_ctx = &module->dcam_dev_handle->sw_ctx[module->cur_sw_ctx_id];
 
-	if (atomic_read(&(module->capture_frames_dcam)) == 0) {
-		/* no need report to hal, do fifo */
-		pframe = camcore_dual_fifo_queue(module, pframe, channel);
-		if (pframe) {
-			ret = module->dcam_dev_handle->dcam_pipe_ops->cfg_path(dcam_sw_ctx, DCAM_PATH_CFG_OUTPUT_BUF, channel->dcam_path_id, pframe);
-			if (ret)
-				pr_err("fail to set output buffer\n");
-		}
-		return NULL;
-	}
-	spin_lock_irqsave(&module->grp->dual_frame_lock, flag);
-	pftmp = module->dual_frame;
-	if (pftmp) {
-		module->dual_frame = NULL;
-		ret = module->dcam_dev_handle->dcam_pipe_ops->cfg_path(dcam_sw_ctx, DCAM_PATH_CFG_OUTPUT_BUF, channel->dcam_path_id, pframe);
-		spin_unlock_irqrestore(&module->grp->dual_frame_lock, flag);
-		return pftmp;
-	}
 	/* get the same frame */
-	ret = camcore_dual_same_frame_get(module);
-	spin_unlock_irqrestore(&module->grp->dual_frame_lock, flag);
+	ret = camcore_dual_same_frame_get(module , pframe);
 	if (!ret) {
-		pftmp = module->dual_frame;
-		if (pftmp) {
-			module->dual_frame = NULL;
-			ret = module->dcam_dev_handle->dcam_pipe_ops->cfg_path(dcam_sw_ctx, DCAM_PATH_CFG_OUTPUT_BUF, channel->dcam_path_id, pframe);
-
-			return pftmp;
+		while (1) {
+			pframe_pre = cam_queue_dequeue(&module->zsl_fifo_queue,
+				struct camera_frame, list);
+			if (!pframe_pre)
+				break;
+			ret = module->dcam_dev_handle->dcam_pipe_ops->cfg_path(dcam_sw_ctx,
+				DCAM_PATH_CFG_OUTPUT_BUF,
+				channel->dcam_path_id, pframe_pre);
 		}
 	}
-	pr_warn("warning: Sync fail, report current frame\n");
 
 	return pframe;
 }
@@ -3294,6 +3277,10 @@ static int camcore_dcam_callback(enum dcam_cb_type type, void *param, void *priv
 				}
 
 				if (module->cam_uinfo.is_dual) {
+					if (module->master_flag == 0 && atomic_read(&module->cap_flag) == 1 && module->dual_frame == NULL) {
+						module->dual_frame = pframe;
+						return 0;
+					}
 					pframe = camcore_dual_fifo_queue(module,
 						pframe, channel);
 				} else if (channel->zsl_skip_num == module->cam_uinfo.zsk_skip_num) {
@@ -3346,7 +3333,39 @@ static int camcore_dcam_callback(enum dcam_cb_type type, void *param, void *priv
 					pr_err("fail to start dcam/isp for raw proc\n");
 				return 0;
 			} else if (module->dcam_cap_status == DCAM_CAPTURE_START_WITH_TIMESTAMP) {
-				pframe = camcore_dual_frame_deal(module, pframe, channel);
+
+				if (module->master_flag == 1) {
+					if ((atomic_read(&module->capture_frames_dcam) == 0 && atomic_read(&module->cap_flag) == 1)
+						|| pframe->boot_sensor_time < module->capture_times) {
+						pframe = camcore_dual_fifo_queue(module, pframe, channel);
+						ret = module->dcam_dev_handle->dcam_pipe_ops->cfg_path(dcam_sw_ctx,
+							DCAM_PATH_CFG_OUTPUT_BUF, channel->dcam_path_id, pframe);
+						return 0;
+					}
+					if (atomic_read(&module->cap_flag) == 0) {
+						camcore_dual_frame_deal(module, pframe, channel);
+						atomic_set(&module->cap_flag, 1);
+					}
+				}
+
+				if (module->master_flag == 0) {
+					if (atomic_read(&module->cap_flag) == 0) {
+						pframe = camcore_dual_fifo_queue(module, pframe, channel);
+						if (!pframe)
+							return 0;
+						ret = module->dcam_dev_handle->dcam_pipe_ops->cfg_path(dcam_sw_ctx,
+							DCAM_PATH_CFG_OUTPUT_BUF, channel->dcam_path_id, pframe);
+						return 0;
+					} else {
+						if (module->dual_frame != NULL) {
+							ret = module->dcam_dev_handle->dcam_pipe_ops->cfg_path(dcam_sw_ctx,
+								DCAM_PATH_CFG_OUTPUT_BUF, channel->dcam_path_id, pframe);
+							 pframe = module->dual_frame;
+							 module->dual_frame = NULL;
+						}
+						atomic_set(&module->cap_flag, 0);
+					}
+				}
 
 				if (!pframe)
 					return 0;
@@ -3418,7 +3437,6 @@ static int camcore_dcam_callback(enum dcam_cb_type type, void *param, void *priv
 					pr_info("get fdr raw frame: fd %d\n", pframe->buf.mfd[0]);
 					return ret;
 				}
-
 				if (module->cam_uinfo.is_dual) {
 					while (1) {
 						pframe_pre = cam_queue_dequeue(&module->zsl_fifo_queue,
@@ -8831,7 +8849,6 @@ static int camcore_probe(struct platform_device *pdev)
 	atomic_set(&group->recovery_state, 0);
 	spin_lock_init(&group->module_lock);
 	spin_lock_init(&group->rawproc_lock);
-	spin_lock_init(&group->dual_frame_lock);
 	spin_lock_init(&g_reg_wr_lock);
 
 	mutex_init(&group->pyr_mulshare_lock);

@@ -2668,8 +2668,9 @@ static int camioctl_capture_start(struct camera_module *module,
 	} else if (param.type == DCAM_CAPTURE_START_WITH_TIMESTAMP) {
 		module->dcam_cap_status = DCAM_CAPTURE_START_WITH_TIMESTAMP;
 		/* dual camera need 1 frame */
-		atomic_set(&module->capture_frames_dcam, CAP_NUM_COMMON);
+		atomic_set(&module->capture_frames_dcam, param.cap_cnt);
 		module->capture_times = param.timestamp;
+		module->master_flag = param.master_flag;
 	} else if (module->cam_uinfo.is_4in1) {
 		/* not report when setting */
 		atomic_set(&module->capture_frames_dcam, 0);
@@ -2713,9 +2714,9 @@ static int camioctl_capture_start(struct camera_module *module,
 	if (module->dump_thrd.thread_task && module->dcam_dev_handle)
 		camdump_start(&module->dump_thrd, &module->dump_base, module->dcam_idx);
 
-	pr_info("cam %d start capture type %d, scene %d, cnt %d, time %lld, capture num:%d\n",
+	pr_info("cam %d start capture type %d, scene %d, cnt %d, time %lld, master flag %d capture num:%d\n",
 		module->idx, param.type, module->capture_scene, param.cap_cnt,
-		module->capture_times, module->capture_frames_dcam);
+		module->capture_times, module->master_flag, module->capture_frames_dcam);
 	return ret;
 }
 
@@ -2745,6 +2746,7 @@ static int camioctl_capture_stop(struct camera_module *module,
 	module->cap_status = CAM_CAPTURE_STOP;
 	module->dcam_cap_status = DCAM_CAPTURE_STOP;
 	module->raw_cap_fetch_fmt = DCAM_RAW_MAX;
+	atomic_set(&module->cap_flag, 0);
 
 	pr_info("cam %d stop capture.\n", module->idx);
 	hw = module->grp->hw_info;

@@ -264,9 +264,7 @@ int cam_queue_init(struct camera_queue *q,
 			uint32_t max, void (*cb_func)(void *));
 uint32_t cam_queue_cnt_get(struct camera_queue *q);
 int cam_queue_same_frame_get(struct camera_queue *q0,
-	struct camera_queue *q1, struct camera_frame **pf0,
-	struct camera_frame **pf1, int64_t t);
-
+	struct camera_frame **pf0, int64_t t_sec, int64_t t_usec);
 struct camera_frame *cam_queue_empty_frame_get(void);
 int cam_queue_empty_frame_put(struct camera_frame *pframe);
 void cam_queue_empty_frame_free(void *param);
