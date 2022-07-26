@@ -489,7 +489,7 @@ static int camioctl_cam_security_set(struct camera_module *module,
 {
 	int ret = 0;
 	bool sec_ret = 0;
-	bool iommu_en = 0;
+	bool vaor_bp_en = 0;
 	bool ca_conn = 0;
 	struct sprd_cam_sec_cfg uparam;
 
@@ -521,7 +521,7 @@ static int camioctl_cam_security_set(struct camera_module *module,
 		uparam.camsec_mode, uparam.work_mode);
 
 	if (uparam.camsec_mode == SEC_UNABLE) {
-		iommu_en = false;
+		vaor_bp_en = false;
 	}  else {
 		if (!module->grp->ca_conn) {
 			ca_conn = cam_trusty_connect();
@@ -539,13 +539,13 @@ static int camioctl_cam_security_set(struct camera_module *module,
 			pr_err("fail to init cam security set\n");
 			goto exit;
 		}
-		iommu_en = true;
+		vaor_bp_en = true;
 	}
 
 	module->grp->camsec_cfg.work_mode = uparam.work_mode;
 	module->grp->camsec_cfg.camsec_mode = uparam.camsec_mode;
 	if (atomic_read(&module->isp_dev_handle->pd_clk_rdy) > 0)
-		ret = sprd_iommu_set_cam_bypass(iommu_en);
+		ret = sprd_iommu_set_cam_bypass(vaor_bp_en);
 
 exit:
 	return ret;
@@ -1243,6 +1243,7 @@ static int camioctl_frame_addr_set(struct camera_module *module,
 		unsigned long arg)
 {
 	int ret = 0;
+	uint32_t sec = 0;
 	uint32_t i = 0, cmd = ISP_PATH_CFG_OUTPUT_BUF;
 	uint32_t dump_type[IMG_PATH_BUFFER_COUNT] = {0};
 	struct sprd_img_parm __user *uparam;
@@ -1302,12 +1303,27 @@ static int camioctl_frame_addr_set(struct camera_module *module,
 		ret |= get_user(pframe->buf.addr_vir[1], &uparam->frame_addr_vir_array[i].u);
 		ret |= get_user(pframe->buf.addr_vir[2], &uparam->frame_addr_vir_array[i].v);
 		ret |= get_user(dump_type[i], &uparam->vir_ch_info[0].fd_array[i]);
+		ret |= get_user(sec, &uparam->img_statis_info.sec);
 
 		if (unlikely(ret)) {
 			pr_err("fail to copy from user, ret %d\n", ret);
 			ret = -EFAULT;
 			break;
 		}
+
+		#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0))
+			bool vaor_bp_en = 0;
+			if (sec) {
+				pframe->buf.buf_sec = 1;
+				vaor_bp_en = true;
+				ret = sprd_iommu_set_cam_bypass(vaor_bp_en);
+				if (unlikely(ret)) {
+					pr_err("fail to enable vaor bypass mode, ret %d\n", ret);
+					ret = -EFAULT;
+					break;
+				}
+			}
+		#endif
 
 		pr_debug("cam%d ch %d, mfd 0x%x, off 0x%x 0x%x 0x%x, reserved %d user_fid[%d]\n",
 			module->idx, pframe->channel_id, pframe->buf.mfd[0],
