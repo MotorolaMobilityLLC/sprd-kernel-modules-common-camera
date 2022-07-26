@@ -1058,12 +1058,7 @@ extern const unsigned long slowmotion_store_addr[3][4];
 #define DCAM_REG_WR(idx, reg, val) ({                                                \
 	unsigned long __flags;                                                       \
 	spin_lock_irqsave(&g_reg_wr_lock, __flags);                                  \
-	if (!g_reg_wr_flag)                                                       \
-		(REG_WR(DCAM_BASE(idx)+(reg), (val)));                                   \
-	else {                                                                        \
-		pr_err("fail to wr reg when axi rest.\n");                      \
-		BUG_ON(1);                                                  \
-	}                                            \
+	(REG_WR(DCAM_BASE(idx)+(reg), (val)));                                   \
 	spin_unlock_irqrestore(&g_reg_wr_lock, __flags);                                 \
 })
 
@@ -1079,24 +1074,14 @@ extern const unsigned long slowmotion_store_addr[3][4];
 #define DCAM_REG_MWR(idx, reg, msk, val) ({                               \
 	unsigned long __flags;                                                       \
 	spin_lock_irqsave(&g_reg_wr_lock, __flags);                                  \
-	if (!g_reg_wr_flag)                                                       \
-		(REG_WR(DCAM_BASE(idx)+(reg), ((val) & (msk)) | (REG_RD(DCAM_BASE(idx)+(reg)) & (~(msk)))));            \
-	else {                                          \
-		pr_err("fail to mwr reg when axi rest.\n");                      \
-		BUG_ON(1);                                    \
-	}                                          \
+	(REG_WR(DCAM_BASE(idx)+(reg), ((val) & (msk)) | (REG_RD(DCAM_BASE(idx)+(reg)) & (~(msk)))));            \
 	spin_unlock_irqrestore(&g_reg_wr_lock, __flags);                                 \
 })
 
 #define DCAM_AXIM_WR(id, reg, val) ({                                 \
 	unsigned long __flags;                                                       \
 	spin_lock_irqsave(&g_reg_wr_lock, __flags);                                  \
-	if (!g_reg_wr_flag)                                                       \
-		(REG_WR(DCAM_AXIM_BASE(id)+(reg), (val)));                           \
-	else {                                                                        \
-		pr_err("fail to aximwr reg when axi rest.\n");                      \
-		BUG_ON(1);                                                  \
-	}                                            \
+	(REG_WR(DCAM_AXIM_BASE(id)+(reg), (val)));                           \
 	spin_unlock_irqrestore(&g_reg_wr_lock, __flags);                                 \
 })
 
@@ -1112,24 +1097,14 @@ extern const unsigned long slowmotion_store_addr[3][4];
 #define DCAM_AXIM_MWR(id, reg, msk, val) ({                               \
 	unsigned long __flags;                                                       \
 	spin_lock_irqsave(&g_reg_wr_lock, __flags);                                  \
-	if (!g_reg_wr_flag)                                                       \
-		(REG_WR(DCAM_AXIM_BASE(id)+(reg), ((val) & (msk)) | (REG_RD(DCAM_AXIM_BASE(id)+(reg)) & (~(msk)))));            \
-	else {                                                    \
-		pr_err("fail to aximmwr reg when axi rest.\n");                      \
-		BUG_ON(1);                                    \
-	}                                \
+	(REG_WR(DCAM_AXIM_BASE(id)+(reg), ((val) & (msk)) | (REG_RD(DCAM_AXIM_BASE(id)+(reg)) & (~(msk)))));            \
 	spin_unlock_irqrestore(&g_reg_wr_lock, __flags);                                 \
 })
 
 #define DCAM_MMU_WR(reg, val) ({                                          \
 	unsigned long __flags;                                                       \
 	spin_lock_irqsave(&g_reg_wr_lock, __flags);                                  \
-	if (!g_reg_wr_flag)                                                       \
-		(REG_WR(DCAM_MMU_BASE+(reg), (val)));                           \
-	else {                                                                        \
-		pr_err("fail to mmuwr reg when axi rest.\n");                      \
-		BUG_ON(1);                                                  \
-	}                                            \
+	(REG_WR(DCAM_MMU_BASE+(reg), (val)));                           \
 	spin_unlock_irqrestore(&g_reg_wr_lock, __flags);                                 \
 })
 
@@ -1145,24 +1120,14 @@ extern const unsigned long slowmotion_store_addr[3][4];
 #define DCAM_MMU_MWR(reg, msk, val) ({                             \
 	unsigned long __flags;                                                       \
 	spin_lock_irqsave(&g_reg_wr_lock, __flags);                                  \
-	if (!g_reg_wr_flag)                                                       \
-		(REG_WR(DCAM_MMU_BASE+(reg), ((val) & (msk)) | (REG_RD(DCAM_MMU_BASE+(reg)) & (~(msk)))));            \
-	else {                                                    \
-		pr_err("fail to mmuwr reg when axi rest.\n");                      \
-		BUG_ON(1);                                    \
-	}                                                        \
+	(REG_WR(DCAM_MMU_BASE+(reg), ((val) & (msk)) | (REG_RD(DCAM_MMU_BASE+(reg)) & (~(msk)))));            \
 	spin_unlock_irqrestore(&g_reg_wr_lock, __flags);                                 \
 })
 
 #define DCAM_FMCU_WR(reg, val) ({                                \
 	unsigned long __flags;                                                       \
 	spin_lock_irqsave(&g_reg_wr_lock, __flags);                                  \
-	if (!g_reg_wr_flag)                                                       \
-		(REG_WR(DCAM_FMCU_BASE+(reg), (val)));                           \
-	else {                                                                        \
-		pr_err("fail to fmcuwr reg when axi rest.\n");                      \
-		BUG_ON(1);                                                  \
-	}                                            \
+	(REG_WR(DCAM_FMCU_BASE+(reg), (val)));                           \
 	spin_unlock_irqrestore(&g_reg_wr_lock, __flags);                                 \
 })
 
@@ -1178,12 +1143,7 @@ extern const unsigned long slowmotion_store_addr[3][4];
 #define DCAM_FMCU_MWR(reg, msk, val) ({                             \
 	unsigned long __flags;                                                       \
 	spin_lock_irqsave(&g_reg_wr_lock, __flags);                                  \
-	if (!g_reg_wr_flag)                                                       \
-		(REG_WR(DCAM_FMCU_BASE+(reg), ((val) & (msk)) | (REG_RD(DCAM_FMCU_BASE+(reg)) & (~(msk)))));            \
-	else {                                                    \
-		pr_err("fail to fmcumwr reg when axi rest.\n");                      \
-		BUG_ON(1);                                    \
-	}                             \
+	(REG_WR(DCAM_FMCU_BASE+(reg), ((val) & (msk)) | (REG_RD(DCAM_FMCU_BASE+(reg)) & (~(msk)))));            \
 	spin_unlock_irqrestore(&g_reg_wr_lock, __flags);                                 \
 })
 
