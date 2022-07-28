@@ -421,6 +421,8 @@ int isp_k_cfg_nlm(struct isp_io_param *param,
 			pr_err("fail to copy from user, ret = %d\n", ret);
 			return  ret;
 		}
+		p->ivst_bypass = p->bypass;
+		p->vst_bypass = p->bypass;
 		memcpy(&isp_k_param->nlm_info, p, sizeof(struct isp_dev_nlm_info_v2));
 		ret = isp_k_save_vst_ivst(isp_k_param);
 		if (ret) {
