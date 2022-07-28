@@ -264,16 +264,16 @@ static void dcamcore_reserved_buf_destroy(void *param)
 	cam_queue_empty_frame_put(frame);
 }
 
-static void dcamcore_empty_frame_put(void *param)
+static void dcamcore_empty_interrupt_put(void *param)
 {
-	struct camera_frame *frame = NULL;
+	struct camera_interrupt *interruption = NULL;
 	if (!param) {
 		pr_err("fail to get valid param.\n");
 		return;
 	}
 
-	frame = (struct camera_frame *)param;
-	cam_queue_empty_frame_put(frame);
+	interruption = (struct camera_interrupt *)param;
+	cam_queue_empty_interrupt_put(interruption);
 }
 
 static struct camera_buf *dcamcore_reserved_buffer_get(struct dcam_sw_context *pctx, size_t size)
@@ -2573,7 +2573,7 @@ static int dcamcore_context_get(void *dcam_handle)
 	cam_queue_init(&pctx->proc_queue, DCAM_PROC_Q_LEN,
 		dcamcore_src_frame_ret);
 	cam_queue_init(&pctx->interruption_sts_queue, DCAM_INT_PROC_FRM_NUM,
-		dcamcore_empty_frame_put);
+		dcamcore_empty_interrupt_put);
 
 	atomic_set(&pctx->state, STATE_IDLE);
 	spin_lock_init(&pctx->glb_reg_lock);
@@ -2615,7 +2615,7 @@ static int dcamcore_context_put(void *dcam_handle, int ctx_id)
 		cam_queue_clear(&pctx->in_queue, struct camera_frame, list);
 		cam_queue_clear(&pctx->proc_queue, struct camera_frame, list);
 		dcamcore_thread_stop(&pctx->dcam_interruption_proc_thrd);
-		cam_queue_clear(&pctx->interruption_sts_queue, struct camera_frame, list);
+		cam_queue_clear(&pctx->interruption_sts_queue, struct camera_interrupt, list);
 		pctx->dcam_cb_func = NULL;
 		pctx->buf_get_cb = NULL;
 

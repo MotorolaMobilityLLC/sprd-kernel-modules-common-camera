@@ -8729,7 +8729,7 @@ static int camcore_release(struct inode *node, struct file *file)
 		g_empty_frm_q = NULL;
 		cam_queue_clear(g_empty_state_q, struct isp_stream_ctrl, list);
 		g_empty_state_q = NULL;
-		cam_queue_clear(g_empty_interruption_q, struct isp_stream_ctrl, list);
+		cam_queue_clear(g_empty_interruption_q, struct camera_interrupt, list);
 		g_empty_interruption_q = NULL;
 
 		ret = cam_buf_mdbg_check();
