@@ -1311,19 +1311,9 @@ static int camioctl_frame_addr_set(struct camera_module *module,
 			break;
 		}
 
-		#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0))
-			bool vaor_bp_en = 0;
-			if (sec) {
-				pframe->buf.buf_sec = 1;
-				vaor_bp_en = true;
-				ret = sprd_iommu_set_cam_bypass(vaor_bp_en);
-				if (unlikely(ret)) {
-					pr_err("fail to enable vaor bypass mode, ret %d\n", ret);
-					ret = -EFAULT;
-					break;
-				}
-			}
-		#endif
+		ret = cam_faceid_secbuf(sec, &pframe->buf);
+		if (unlikely(ret))
+			break;
 
 		pr_debug("cam%d ch %d, mfd 0x%x, off 0x%x 0x%x 0x%x, reserved %d user_fid[%d]\n",
 			module->idx, pframe->channel_id, pframe->buf.mfd[0],

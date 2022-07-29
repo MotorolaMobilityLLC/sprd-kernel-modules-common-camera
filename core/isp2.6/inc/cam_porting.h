@@ -81,4 +81,5 @@ int cam_ion_get_buffer(int fd, bool buf_sec, struct dma_buf *dmabuf,
 int cam_buf_get_phys_addr(int fd, struct dma_buf *dmabuf,
 		unsigned long *phys_addr, size_t *size);
 
+int cam_faceid_secbuf(uint32_t sec, struct camera_buf *buf);
 #endif
