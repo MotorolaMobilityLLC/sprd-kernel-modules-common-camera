@@ -336,9 +336,11 @@ int dcam_offline_slices_proc(struct cam_hw_info *hw, struct dcam_sw_context *pct
 		}
 
 		mutex_lock(&pm->lsc.lsc_lock);
-		if (i == 0)
-			dcam_init_lsc(pm, 0);
-		else
+		if (i == 0) {
+			ret = dcam_init_lsc(pm, 0);
+			if (ret < 0)
+				return 0;
+		} else
 			dcam_init_lsc_slice(pm, 0);
 		mutex_unlock(&pm->lsc.lsc_lock);
 
@@ -394,3 +396,4 @@ int dcam_offline_slice_fmcu_cmds_set(struct dcam_fmcu_ctx_desc *fmcu, struct dca
 {
 	return 0;
 }
+
