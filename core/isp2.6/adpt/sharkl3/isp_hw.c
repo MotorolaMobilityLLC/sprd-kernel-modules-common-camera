@@ -310,6 +310,11 @@ static int isphw_reg_trace(void *handle, void *arg)
 	}
 
 abnormal_reg_trace:
+	if (trace->idx >= DCAM_HW_CONTEXT_MAX) {
+		pr_err("fail to get vaild dcam hw idx %d\n", trace->idx);
+		return 0;
+	}
+
 	pr_info("DCAM%d: Register list\n", trace->idx);
 	for (addr = DCAM_IP_REVISION; addr <= ISP_AFL_SUM2;
 		addr += 16) {
