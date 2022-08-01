@@ -109,6 +109,9 @@ int dcam_k_raw_gtm_block(uint32_t gtm_param_idx,
 	if (atomic_read(&sw_ctx->state) != STATE_RUNNING)
 		p->gtm_cur_is_first_frame = 1;
 
+	if (gtm->gtm_calc_mode != GTM_SW_CALC && p->gtm_cur_is_first_frame)
+		p->bypass_info.gtm_map_bypass = 1;
+
 	val = ((p->bypass_info.gtm_map_bypass & 0x1) << 1) |
 		((p->bypass_info.gtm_hist_stat_bypass & 0x1) << 2) |
 		((p->gtm_tm_param_calc_by_hw & 0x1) << 3) |
