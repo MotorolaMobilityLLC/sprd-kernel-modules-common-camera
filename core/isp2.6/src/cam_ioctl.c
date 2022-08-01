@@ -1299,7 +1299,7 @@ static int camioctl_frame_addr_set(struct camera_module *module,
 			break;
 		}
 
-		ret = cam_faceid_secbuf(sec, &pframe->buf);
+		ret = camcore_faceid_secbuf(sec, &pframe->buf);
 		if (unlikely(ret))
 			break;
 

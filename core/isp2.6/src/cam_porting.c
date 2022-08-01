@@ -112,24 +112,6 @@ int cam_buf_get_phys_addr(int fd, struct dma_buf *dmabuf,
 	ret = sprd_dmabuf_get_phys_addr(fd, dmabuf, phys_addr, size);
 	return ret;
 }
-
-int cam_faceid_secbuf(uint32_t sec, struct camera_buf *buf)
-{
-	int ret = 0;
-	bool vaor_bp_en = 0;
-	if (sec) {
-		buf->buf_sec = 1;
-		vaor_bp_en = true;
-		ret = sprd_iommu_set_cam_bypass(vaor_bp_en);
-		if (unlikely(ret)) {
-			pr_err("fail to enable vaor bypass mode, ret %d\n", ret);
-			ret = -EFAULT;
-		}
-	}
-
-	return ret;
-}
-
 #else
 timeval cam_ktime_to_timeval(const ktime_t kt)
 {
@@ -207,14 +189,6 @@ int cam_buf_get_phys_addr(int fd, struct dma_buf *dmabuf,
 	ret = sprd_ion_get_phys_addr(fd, dmabuf, phys_addr, size);
 	return ret;
 }
-
-int cam_faceid_secbuf(uint32_t sec, struct camera_buf *buf)
-{
-	int ret = 0;
-
-	return ret;
-}
-
 #endif
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0))

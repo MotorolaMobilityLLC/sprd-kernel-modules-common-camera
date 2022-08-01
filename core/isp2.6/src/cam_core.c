@@ -7927,6 +7927,23 @@ static int camcore_module_deinit(struct camera_module *module)
 	return 0;
 }
 
+static int camcore_faceid_secbuf(uint32_t sec, struct camera_buf *buf)
+{
+	int ret = 0;
+	bool vaor_bp_en = 0;
+	if (sec) {
+		buf->buf_sec = 1;
+		vaor_bp_en = true;
+		ret = sprd_iommu_set_cam_bypass(vaor_bp_en);
+		if (unlikely(ret)) {
+			pr_err("fail to enable vaor bypass mode, ret %d\n", ret);
+			ret = -EFAULT;
+		}
+	}
+
+	return ret;
+}
+
 #define CAM_IOCTL_LAYER
 #include "cam_ioctl.c"
 #undef CAM_IOCTL_LAYER
