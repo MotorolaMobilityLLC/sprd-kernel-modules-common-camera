@@ -1504,6 +1504,8 @@ static int camcore_buffers_alloc_num(struct channel_context *channel,
 		channel->zsl_skip_num = module->cam_uinfo.zsk_skip_num;
 		channel->zsl_buffer_num = module->cam_uinfo.zsl_num;
 		num += channel->zsl_buffer_num;
+		if (module->cam_uinfo.is_pyr_dec)
+			num += 1;
 	}
 
 	if (channel->ch_id == CAM_CH_CAP && module->cam_uinfo.is_dual)
