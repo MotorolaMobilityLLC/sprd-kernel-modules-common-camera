@@ -18,6 +18,12 @@ KBUILD_EXTRA_SYMBOLS += $(BSP_MODULES_OUT)/sprd_sensor/Module.symvers
 export KBUILD_EXTRA_SYMBOLS
 endif
 
+ifeq ($(strip $(BSP_KERNEL_VERSION)), kernel5.15)
+KBUILD_EXTRA_SYMBOLS += $(BSP_MODULES_OUT)/sprd-dmabuf/Module.symvers
+export KBUILD_EXTRA_SYMBOLS
+endif
+
+
 .PHONY: modules modules_install clean
 
 modules:
