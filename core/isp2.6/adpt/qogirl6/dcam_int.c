@@ -166,7 +166,7 @@ static void dcamint_frame_dispatch(struct dcam_hw_context *dcam_hw_ctx, struct d
 			(int)frame->time.tv_sec, (int)frame->time.tv_usec);
 
 	/* data path has independent buffer. statis share one same buffer */
-	if (type == DCAM_CB_DATA_DONE)
+	if ((type == DCAM_CB_DATA_DONE) || (type == DCAM_CB_VCH2_DONE))
 		cam_buf_iommu_unmap(&frame->buf);
 
 	sw_ctx->dcam_cb_func(type, frame, sw_ctx->cb_priv_data);
@@ -917,6 +917,8 @@ static void dcamint_vch2_path_done(void *param, struct dcam_sw_context *sw_ctx)
 	if ((frame = dcamint_frame_prepare(dcam_hw_ctx, sw_ctx, DCAM_PATH_VCH2))) {
 		if (sw_ctx->dcam_slice_mode)
 			frame->irq_type = CAMERA_IRQ_SUPERSIZE_DONE;
+		if (frame->channel_id == CAM_CH_DCAM_VCH)
+			type = DCAM_CB_VCH2_DONE;
 		dcamint_frame_dispatch(dcam_hw_ctx, sw_ctx, DCAM_PATH_VCH2, frame, type);
 	}
 }

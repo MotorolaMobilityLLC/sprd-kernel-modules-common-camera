@@ -3628,6 +3628,19 @@ static int camcore_dcam_callback(enum dcam_cb_type type, void *param, void *priv
 		}
 		break;
 
+	case DCAM_CB_VCH2_DONE:
+		pframe->evt = IMG_TX_DONE;
+		pframe->irq_type = CAMERA_IRQ_IMG;
+		pframe->priv_data = module;
+		ret = cam_queue_enqueue(&module->frm_queue, &pframe->list);
+		if (ret) {
+			cam_buf_ionbuf_put(&pframe->buf);
+			cam_queue_empty_frame_put(pframe);
+		} else {
+			complete(&module->frm_com);
+			pr_debug("get out sensor raw frame: fd:%d\n", pframe->buf.mfd[0]);
+		}
+		break;
 	default:
 		break;
 	}
@@ -5579,6 +5592,10 @@ static int camcore_channel_init(struct camera_module *module,
 			return -EINVAL;
 		}
 		break;
+	case CAM_CH_DCAM_VCH:
+		dcam_path_id = DCAM_PATH_VCH2;
+		new_dcam_path = 1;
+		break;
 
 	default:
 		pr_err("fail to get channel id %d\n", channel->ch_id);
@@ -5606,6 +5623,8 @@ static int camcore_channel_init(struct camera_module *module,
 		ch_desc.raw_src = PROCESS_RAW_SRC_SEL;
 		if (channel->ch_id == CAM_CH_RAW && module->cam_uinfo.need_dcam_raw == 0)
 			ch_desc.is_raw = 1;
+		if (channel->ch_id == CAM_CH_DCAM_VCH)
+			ch_desc.is_raw = 1;
 		if ((channel->ch_id == CAM_CH_CAP) && module->cam_uinfo.is_4in1)
 			ch_desc.is_raw = 1;
 		if ((channel->ch_id == CAM_CH_CAP) && module->cam_uinfo.dcam_slice_mode)
@@ -5617,7 +5636,7 @@ static int camcore_channel_init(struct camera_module *module,
 			dcam_sw_ctx->raw_alg_type = module->cam_uinfo.raw_alg_type;
 		}
 		if (ch_desc.is_raw && module->grp->hw_info->ip_dcam[0]->dcam_raw_path_id == DCAM_PATH_RAW &&
-			!module->raw_callback)
+			!module->raw_callback && (channel->ch_id != CAM_CH_DCAM_VCH))
 			dcam_path_id = DCAM_PATH_RAW;
 		ret = module->dcam_dev_handle->dcam_pipe_ops->get_path(dcam_sw_ctx, dcam_path_id);
 		if (ret < 0) {

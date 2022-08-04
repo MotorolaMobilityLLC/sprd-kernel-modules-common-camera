@@ -680,7 +680,7 @@ static int camioctl_output_size_set(struct camera_module *module,
 		goto exit;
 	}
 
-	if (dst_fmt == IMG_PIX_FMT_GREY && cap_type != CAM_CAP_RAW_FULL)
+	if ((dst_fmt == IMG_PIX_FMT_GREY) && (cap_type != CAM_CAP_RAW_FULL) && (scene_mode != DCAM_SCENE_MODE_SENSOR_RAW))
 		module->raw_callback = 1;
 	else
 		module->raw_callback = 0;
@@ -693,6 +693,10 @@ static int camioctl_output_size_set(struct camera_module *module,
 	if ((scene_mode == DCAM_SCENE_MODE_HARDWARE_SIMULATION) &&
 		(module->channel[CAM_CH_RAW].enable == 0)) {
 		channel = &module->channel[CAM_CH_RAW];
+		channel->enable = 1;
+	} else if ((scene_mode == DCAM_SCENE_MODE_SENSOR_RAW) &&
+		(module->channel[CAM_CH_DCAM_VCH].enable == 0)) {
+		channel = &module->channel[CAM_CH_DCAM_VCH];
 		channel->enable = 1;
 	} else if (((cap_type == CAM_CAP_RAW_FULL) || (dst_fmt == sn_fmt)) &&
 		(module->channel[CAM_CH_RAW].enable == 0)) {
@@ -715,7 +719,6 @@ static int camioctl_output_size_set(struct camera_module *module,
 		(module->channel[CAM_CH_CAP_THM].enable == 0)) {
 		channel = &module->channel[CAM_CH_CAP_THM];
 		channel->enable = 1;
-
 	} else if ((scene_mode == DCAM_SCENE_MODE_VIRTUAL) &&
 		(module->channel[CAM_CH_VIRTUAL].enable == 0)) {
 		channel = &module->channel[CAM_CH_VIRTUAL];
@@ -1889,7 +1892,7 @@ cfg_ch_done:
 	camcore_resframe_set(module);
 	for (i = 0; i < CAM_CH_MAX; i++) {
 		ch = &module->channel[i];
-		if (!ch->enable || (ch->ch_id == CAM_CH_RAW) || (ch->ch_id == CAM_CH_VIRTUAL))
+		if (!ch->enable || (ch->ch_id == CAM_CH_RAW) || (ch->ch_id == CAM_CH_VIRTUAL) || (ch->ch_id == CAM_CH_DCAM_VCH))
 			continue;
 
 		live_ch_count++;
@@ -3761,6 +3764,12 @@ static int camioctl_dcam_raw_fmt_set(struct camera_module *module,unsigned long 
 	}
 
 	hw = module->grp->hw_info;
+	channel = &module->channel[param.ch_id];
+	if (param.ch_id == CAM_CH_DCAM_VCH){
+		channel->ch_uinfo.sensor_raw_fmt = param.sensor_raw_fmt;
+		return 0;
+	}
+
 	if (param.ch_id > CAM_CH_CAP && param.ch_id != CAM_CH_VIRTUAL) {
 		pr_err("fail to check param, ch%d\n", param.ch_id);
 		return -EFAULT;
@@ -3771,7 +3780,6 @@ static int camioctl_dcam_raw_fmt_set(struct camera_module *module,unsigned long 
 		return -EFAULT;
 	}
 
-	channel = &module->channel[param.ch_id];
 	if (channel->enable == 0) {
 		pr_err("ch%d not enable\n", param.ch_id);
 		return -EFAULT;
