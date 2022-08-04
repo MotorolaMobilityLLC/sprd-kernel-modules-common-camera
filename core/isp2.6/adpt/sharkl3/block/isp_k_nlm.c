@@ -311,7 +311,7 @@ int isp_k_update_nlm(void *handle)
 	val = ((center_y & 0x3FFF) << 16) | (center_x & 0x3FFF);
 	ISP_REG_WR(idx, ISP_NLM_RADIAL_1D_DIST, val);
 
-	r_base = p->radius_base;
+	r_base = 1024;
 	r_factor = p->nlm_radial_1D_radius_threshold_factor;
 	radius_threshold = p->nlm_radial_1D_radius_threshold;
 	radius_threshold *= new_width;
