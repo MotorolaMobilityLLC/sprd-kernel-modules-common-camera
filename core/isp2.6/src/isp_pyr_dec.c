@@ -840,9 +840,6 @@ static int isppyrdec_offline_frame_start(void *handle)
 	}
 
 	out_frame->blkparam_info = pframe->blkparam_info;
-	pframe->blkparam_info.update = 0;
-	pframe->blkparam_info.param_block = NULL;
-	pframe->blkparam_info.blk_param_node = NULL;
 	dct_param = out_frame->blkparam_info.param_block;
 	dec_dev->dct_ynr_info.dct = &dct_param->dct_info;
 	dec_dev->dct_ynr_info.old_width = dct_param->blkparam_info.old_width;
@@ -965,6 +962,11 @@ static int isppyrdec_offline_frame_start(void *handle)
 		ret = -EFAULT;
 		goto calc_err;
 	}
+
+	/* keep param node untile dec start successful, or recycle param node with input pframe */
+	pframe->blkparam_info.update = 0;
+	pframe->blkparam_info.param_block = NULL;
+	pframe->blkparam_info.blk_param_node = NULL;
 
 	dec_dev->cur_ctx_id = ctx_id;
 	/* start pyr dec fmcu */

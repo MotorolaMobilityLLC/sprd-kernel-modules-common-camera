@@ -3964,6 +3964,7 @@ static int camioctl_cfg_param_start_end(struct camera_module *module, unsigned l
 				/*give up current param and no longer receive new param after csi disconnect*/
 				if ((module->dcam_dev_handle->sw_ctx[module->cur_sw_ctx_id].hw_ctx_id == DCAM_HW_CONTEXT_MAX) && param.frame_id > 0) {
 					ret = cam_queue_recycle_blk_param(&pctx->param_share_queue, param_frame);
+					pctx->isp_receive_param = NULL;
 					return ret;
 				}
 				if (param.update)

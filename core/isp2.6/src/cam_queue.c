@@ -515,6 +515,25 @@ error:
 	return ret;
 }
 
+int cam_queue_frame_param_unbind(struct camera_queue *q, struct camera_frame *p)
+{
+	int ret = 0;
+
+	if (!q || !p) {
+		pr_err("fail to get valid handle %p %p\n", q, p);
+		return -1;
+	}
+
+	p->blkparam_info.param_block = NULL;
+	p->blkparam_info.update = 0;
+	if (p->blkparam_info.blk_param_node) {
+		ret = cam_queue_recycle_blk_param(q, p->blkparam_info.blk_param_node);
+		p->blkparam_info.blk_param_node = NULL;
+	}
+
+	return ret;
+}
+
 struct camera_frame * cam_queue_empty_blk_param_get(struct camera_queue *q)
 {
 	int ret = 0;

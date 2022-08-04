@@ -2121,7 +2121,6 @@ static int ispcore_offline_frame_start(void *ctx)
 		mutex_lock(&pctx->blkpm_lock);
 		ispcore_debug_dump_check(pctx, pframe);
 		blk_ctrl.idx = pctx->ctx_id;
-
 		blk_ctrl.blk_param = pctx->isp_using_param;
 		if (pctx->pipe_src.in_fmt == IMG_PIX_FMT_NV21)
 			blk_ctrl.type = ISP_YUV_BLOCK_DISABLE;
@@ -2130,6 +2129,9 @@ static int ispcore_offline_frame_start(void *ctx)
 		hw->isp_ioctl(hw, ISP_HW_CFG_YUV_BLOCK_CTRL_TYPE, &blk_ctrl);
 		ret = cfg_desc->ops->hw_cfg(cfg_desc, pctx->ctx_id, hw_ctx_id, kick_fmcu);
 		mutex_unlock(&pctx->blkpm_lock);
+
+		pctx->isp_using_param = NULL;
+		cam_queue_frame_param_unbind(&pctx->param_share_queue, pframe);
 
 		if (kick_fmcu) {
 			pr_debug("isp %d frame %d w %d h %d fmcu start\n", pctx->ctx_id,
@@ -2146,6 +2148,8 @@ static int ispcore_offline_frame_start(void *ctx)
 			hw->isp_ioctl(hw, ISP_HW_CFG_START_ISP, &hw_ctx_id);
 		}
 	} else {
+		pctx->isp_using_param = NULL;
+		cam_queue_frame_param_unbind(&pctx->param_share_queue, pframe);
 		if (kick_fmcu) {
 			pr_info("fmcu start.\n");
 			ret = fmcu->ops->hw_start(fmcu);
@@ -2155,13 +2159,6 @@ static int ispcore_offline_frame_start(void *ctx)
 		}
 	}
 
-	pframe->blkparam_info.update = 0;
-	pframe->blkparam_info.param_block = NULL;
-	pctx->isp_using_param = NULL;
-	if (pframe->blkparam_info.blk_param_node) {
-		cam_queue_recycle_blk_param(&pctx->param_share_queue, pframe->blkparam_info.blk_param_node);
-		pframe->blkparam_info.blk_param_node = NULL;
-	}
 done:
 	pr_debug("done.\n");
 	return 0;
@@ -2190,17 +2187,12 @@ inq_overflow:
 	if (pframe)
 		cam_buf_iommu_unmap(&pframe->buf);
 map_err:
-	pframe->blkparam_info.param_block = NULL;
-	pframe->blkparam_info.update = 0;
 	pctx->isp_using_param = NULL;
 input_err:
 	if (pframe) {
 		ispcore_offline_pararm_free(pframe->param_data);
 		pframe->param_data = NULL;
-		if (pframe->blkparam_info.blk_param_node) {
-			cam_queue_recycle_blk_param(&pctx->param_share_queue, pframe->blkparam_info.blk_param_node);
-			pframe->blkparam_info.blk_param_node = NULL;
-		}
+		cam_queue_frame_param_unbind(&pctx->param_share_queue, pframe);
 		/* return buffer to cam channel shared buffer queue. */
 		if (tmp.stream && tmp.stream->data_src == ISP_STREAM_SRC_ISP)
 			pr_debug("isp postproc no need return\n");

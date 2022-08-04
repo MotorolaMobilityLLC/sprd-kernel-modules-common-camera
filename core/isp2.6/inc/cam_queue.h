@@ -278,8 +278,8 @@ void cam_queue_empty_state_put(void *param);
 void cam_queue_empty_state_free(void *param);
 int cam_queue_recycle_blk_param(struct camera_queue *q, struct camera_frame *param_pframe);
 struct camera_frame * cam_queue_empty_blk_param_get(struct camera_queue *q);
+int cam_queue_frame_param_unbind(struct camera_queue *q, struct camera_frame *p);
 struct dcam_3dnrmv_ctrl *cam_queue_empty_mv_state_get(void);
 void cam_queue_empty_mv_state_put(void *param);
 void cam_queue_empty_mv_state_free(void *param);
-
 #endif/* _CAM_QUEUE_H_ */
