@@ -372,5 +372,7 @@ int dcam_core_hw_slices_set(struct dcam_sw_context *pctx, struct camera_frame *p
 void dcam_core_offline_debug_dump(struct dcam_sw_context *pctx, struct dcam_dev_param *pm, struct camera_frame *proc_frame);
 int dcam_core_slice_trim_get(uint32_t width, uint32_t heigth, uint32_t slice_num, uint32_t slice_no, struct img_trim *slice_trim);
 int dcam_core_offline_slices_sw_start(void *param);
+void dcamcore_empty_interrupt_put(void *param);
+int dcamcore_thread_create(void *ctx_handle, struct cam_thread_info *thrd, proc_func func);
 
 #endif

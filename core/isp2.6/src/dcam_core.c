@@ -264,7 +264,7 @@ static void dcamcore_reserved_buf_destroy(void *param)
 	cam_queue_empty_frame_put(frame);
 }
 
-static void dcamcore_empty_interrupt_put(void *param)
+void dcamcore_empty_interrupt_put(void *param)
 {
 	struct camera_interrupt *interruption = NULL;
 	if (!param) {
@@ -1747,8 +1747,7 @@ static int dcamcore_thread_loop(void *arg)
 	return 0;
 }
 
-static int dcamcore_thread_create(void *ctx_handle,
-	struct cam_thread_info *thrd, proc_func func)
+int dcamcore_thread_create(void *ctx_handle, struct cam_thread_info *thrd, proc_func func)
 {
 	thrd->ctx_handle = ctx_handle;
 	thrd->proc_func = func;
@@ -1827,6 +1826,10 @@ static int dcamcore_dev_start(void *dcam_handle, int online)
 	}
 
 	pr_info("DCAM%u start: %px, state = %d, sw%d\n", pctx->hw_ctx_id, pctx, atomic_read(&pctx->state), pctx->sw_ctx_id);
+
+	sprintf(pctx->dcam_interruption_proc_thrd.thread_name, "dcam%d_interruption_proc", pctx->sw_ctx_id);
+	ret = dcamcore_thread_create(pctx, &pctx->dcam_interruption_proc_thrd, dcamint_interruption_proc);
+	cam_queue_init(&pctx->interruption_sts_queue, DCAM_INT_PROC_FRM_NUM, dcamcore_empty_interrupt_put);
 
 	if (pctx->raw_callback) {
 		atomic_set(&pctx->path[DCAM_PATH_AEM].user_cnt, 0);
@@ -2019,6 +2022,8 @@ static int dcamcore_dev_stop(void *dcam_handle, enum dcam_stop_cmd pause)
 		dcam_int_tracker_dump(hw_ctx_id);
 		dcam_int_tracker_reset(hw_ctx_id);
 	}
+	dcamcore_thread_stop(&pctx->dcam_interruption_proc_thrd);
+	cam_queue_clear(&pctx->interruption_sts_queue, struct camera_interrupt, list);
 
 	atomic_set(&pctx->state, STATE_IDLE);
 	for (i = DCAM_CXT_1; i < DCAM_CXT_NUM; i++) {
@@ -2385,12 +2390,8 @@ static int dcamcore_context_get(void *dcam_handle)
 		}
 	}
 
-	sprintf(pctx->dcam_interruption_proc_thrd.thread_name, "dcam%d_interruption_proc", sel_ctx_id);
-	ret = dcamcore_thread_create(pctx, &pctx->dcam_interruption_proc_thrd, dcamint_interruption_proc);
-
 	cam_queue_init(&pctx->in_queue, DCAM_IN_Q_LEN, dcamcore_src_frame_ret);
 	cam_queue_init(&pctx->proc_queue, DCAM_PROC_Q_LEN, dcamcore_src_frame_ret);
-	cam_queue_init(&pctx->interruption_sts_queue, DCAM_INT_PROC_FRM_NUM, dcamcore_empty_interrupt_put);
 	cam_queue_init(&pctx->fullpath_mv_queue, DCAM_FULL_MV_Q_LEN, cam_queue_empty_mv_state_put);
 	cam_queue_init(&pctx->binpath_mv_queue, DCAM_BIN_MV_Q_LEN, cam_queue_empty_mv_state_put);
 	memset(&pctx->nr3_me, 0, sizeof(struct nr3_me_data));
@@ -2434,8 +2435,6 @@ static int dcamcore_context_put(void *dcam_handle, int ctx_id)
 
 		cam_queue_clear(&pctx->in_queue, struct camera_frame, list);
 		cam_queue_clear(&pctx->proc_queue, struct camera_frame, list);
-		dcamcore_thread_stop(&pctx->dcam_interruption_proc_thrd);
-		cam_queue_clear(&pctx->interruption_sts_queue, struct camera_interrupt, list);
 		cam_queue_clear(&pctx->fullpath_mv_queue, struct camera_frame, list);
 		cam_queue_clear(&pctx->binpath_mv_queue, struct camera_frame, list);
 		memset(&pctx->nr3_me, 0, sizeof(struct nr3_me_data));

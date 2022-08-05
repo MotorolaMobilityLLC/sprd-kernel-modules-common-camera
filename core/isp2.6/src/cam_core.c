@@ -7767,6 +7767,9 @@ static int camcore_offline_proc(void *param)
 		return -1;
 	}
 	pr_debug("bind  hw context %d\n", pctx->hw_ctx_id);
+	sprintf(pctx->dcam_interruption_proc_thrd.thread_name, "dcam%d_interruption_proc", pctx->sw_ctx_id);
+	ret = dcamcore_thread_create(pctx, &pctx->dcam_interruption_proc_thrd, dcamint_interruption_proc);
+	cam_queue_init(&pctx->interruption_sts_queue, DCAM_INT_PROC_FRM_NUM, dcamcore_empty_interrupt_put);
 
 	if (pctx->dcam_slice_mode == CAM_OFFLINE_SLICE_SW) {
 		ret = dcam_core_offline_slices_sw_start(pctx);
