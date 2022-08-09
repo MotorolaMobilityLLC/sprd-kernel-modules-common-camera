@@ -469,6 +469,7 @@ static int dcamhw_reset(void *handle, void *arg)
 	DCAM_REG_MWR(idx, ISP_AFM_PARAMETERS, BIT_1, eb << 1); /* afm crop eb */
 	DCAM_REG_MWR(idx, NR3_FAST_ME_PARAM, BIT_0, bypass);
 	pr_info("DCAM%d: reset end\n", idx);
+	sprd_iommu_restore(&hw->soc_dcam->pdev->dev);
 
 	return ret;
 }

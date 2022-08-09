@@ -446,6 +446,7 @@ static int dcamhw_reset(void *handle, void *arg)
 	DCAM_REG_MWR(idx, DCAM_GTM_GLB_CTRL, BIT_0, 0);
 	DCAM_REG_MWR(idx, DCAM_FBC_CTRL, BIT_0, 0);
 	pr_info("DCAM%d: reset end\n", idx);
+	sprd_iommu_restore(&hw->soc_dcam->pdev->dev);
 
 	return ret;
 }
