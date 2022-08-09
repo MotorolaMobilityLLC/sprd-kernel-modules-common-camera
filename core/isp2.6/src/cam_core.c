@@ -5292,7 +5292,7 @@ static int camcore_aux_dcam_deinit(struct camera_module *module)
 static int camcore_dcam_pmbuf_init(struct dcam_sw_context *sw_ctx)
 {
 	int ret = 0;
-	uint32_t i = 0, iommu_enable;
+	uint32_t i = 0, iommu_enable = 0 ;
 	struct camera_frame * param_frm = NULL;
 
 	if (!sw_ctx) {
