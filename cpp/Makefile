@@ -22,6 +22,11 @@ KBUILD_EXTRA_SYMBOLS += $(BSP_MODULES_OUT)/sprd-dmabuf/Module.symvers
 export KBUILD_EXTRA_SYMBOLS
 endif
 
+ifeq ($(strip $(BSP_KERNEL_VERSION)), kernel5.4)
+KBUILD_EXTRA_SYMBOLS += $(BSP_MODULES_OUT)/sprd-ion/Module.symvers
+export KBUILD_EXTRA_SYMBOLS
+endif
+
 .PHONY: modules modules_install clean
 
 modules:
