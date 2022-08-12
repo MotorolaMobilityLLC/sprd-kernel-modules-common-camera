@@ -45,21 +45,19 @@
 
 static int cppdrv_get_sg_table(struct cpp_iommu_info *pfinfo)
 {
-	int i = 0, ret = 0;
+	int ret = 0;
 
-	for (i = 0; i < 2; i++) {
-		if (pfinfo->mfd[i] > 0) {
+	if (pfinfo->mfd[0] > 0) {
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0))
-			ret = sprd_dmabuf_get_sysbuffer(pfinfo->mfd[i], NULL,
-				&pfinfo->buf[i], &pfinfo->size[i]);
+		ret = sprd_dmabuf_get_sysbuffer(pfinfo->mfd[0], NULL,
+			&pfinfo->buf, &pfinfo->size);
 #else
-			ret = sprd_ion_get_buffer(pfinfo->mfd[i], NULL,
-				&pfinfo->buf[i], &pfinfo->size[i]);
+		ret = sprd_ion_get_buffer(pfinfo->mfd[0], NULL,
+			&pfinfo->buf, &pfinfo->size);
 #endif
-			if (ret) {
-				pr_err("fail to get sg table\n");
-				return -EFAULT;
-			}
+		if (ret) {
+			pr_err("fail to get sg table\n");
+			return -EFAULT;
 		}
 	}
 
@@ -73,70 +71,70 @@ static int cppdrv_get_addr(struct cpp_iommu_info *pfinfo)
 
 	memset(&iommu_data, 0x00, sizeof(iommu_data));
 
-	for (i = 0; i < 2; i++) {
-		if (pfinfo->size[i] <= 0)
-			continue;
+	if (pfinfo->size <= 0) {
+		pr_err("fail to get valid buffer size\n");
+		return -EFAULT;
+	}
 
-		if (sprd_iommu_attach_device(pfinfo->dev) == 0) {
-			if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0)) {
-				if (pfinfo->dmabuf_p[i] == NULL) {
-					pfinfo->dmabuf_p[i] = dma_buf_get(pfinfo->mfd[i]);
-					if (IS_ERR_OR_NULL(pfinfo->dmabuf_p[i])) {
-						pr_err("fail to get dma buf %p\n", pfinfo->dmabuf_p[i]);
-						ret = -EINVAL;
-						goto dmabuf_get_failed;
-					}
-				}
-				pr_debug("i %d, mfd %d, dmabuf %p\n",i , pfinfo->mfd[i], pfinfo->dmabuf_p[i]);
-
-				if (dma_set_mask(pfinfo->dev, DMA_BIT_MASK(64))) {
-					dev_warn(pfinfo->dev, "mydev: No suitable DMA available\n");
-					goto ignore_this_device;
-				}
-
-				pfinfo->attachment[i] = dma_buf_attach(pfinfo->dmabuf_p[i], pfinfo->dev);
-				if (IS_ERR_OR_NULL(pfinfo->attachment[i])) {
-					pr_err("failed to attach dmabuf %px\n", (void *)pfinfo->dmabuf_p[i]);
+	if (sprd_iommu_attach_device(pfinfo->dev) == 0) {
+		if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0)) {
+			if (pfinfo->dmabuf_p == NULL) {
+				pfinfo->dmabuf_p = dma_buf_get(pfinfo->mfd[0]);
+				if (IS_ERR_OR_NULL(pfinfo->dmabuf_p)) {
+					pr_err("fail to get dma buf %p\n", pfinfo->dmabuf_p);
 					ret = -EINVAL;
-					goto attach_failed;
+					goto dmabuf_get_failed;
 				}
-				pfinfo->table[i] = dma_buf_map_attachment(pfinfo->attachment[i], DMA_BIDIRECTIONAL);
-				if (IS_ERR_OR_NULL(pfinfo->table[i])) {
-					pr_err("failed to map attachment %px\n", (void *)pfinfo->attachment[i]);
-					ret = -EINVAL;
-					goto map_attachment_failed;
-				}
-				ret = dma_buf_end_cpu_access(pfinfo->dmabuf_p[i], DMA_BIDIRECTIONAL);
 			}
+			pr_debug("mfd %d, dmabuf %p\n", pfinfo->mfd[0], pfinfo->dmabuf_p);
 
-			memset(&iommu_data, 0x00, sizeof(iommu_data));
-			iommu_data.buf = pfinfo->buf[i];
-			iommu_data.iova_size = pfinfo->size[i];
-			iommu_data.ch_type = SPRD_IOMMU_FM_CH_RW;
-			iommu_data.sg_offset = pfinfo->offset[i];
-
-			ret = sprd_iommu_map(pfinfo->dev, &iommu_data);
-			if (ret) {
-				pr_err("fail to get iommu kaddr %d\n", i);
-				return -EFAULT;
+			if (dma_set_mask(pfinfo->dev, DMA_BIT_MASK(64))) {
+				dev_warn(pfinfo->dev, "mydev: No suitable DMA available\n");
+				goto ignore_this_device;
 			}
+			pfinfo->attachment = dma_buf_attach(pfinfo->dmabuf_p, pfinfo->dev);
+			if (IS_ERR_OR_NULL(pfinfo->attachment)) {
+				pr_err("failed to attach dmabuf %px\n", (void *)pfinfo->dmabuf_p);
+				ret = -EINVAL;
+				goto attach_failed;
+			}
+			pfinfo->table = dma_buf_map_attachment(pfinfo->attachment, DMA_BIDIRECTIONAL);
+			if (IS_ERR_OR_NULL(pfinfo->table)) {
+				pr_err("failed to map attachment %px\n", (void *)pfinfo->attachment);
+				ret = -EINVAL;
+				goto map_attachment_failed;
+			}
+		}
 
+		memset(&iommu_data, 0x00, sizeof(iommu_data));
+		iommu_data.buf = pfinfo->buf;
+		iommu_data.iova_size = pfinfo->size;
+		iommu_data.ch_type = SPRD_IOMMU_FM_CH_RW;
+
+		ret = sprd_iommu_map(pfinfo->dev, &iommu_data);
+		if (ret) {
+			pr_err("fail to get iommu kaddr %d\n", i);
+			return -EFAULT;
+		}
+
+		for (i = 0; i < 2; i++)
 			pfinfo->iova[i] = iommu_data.iova_addr
 					+ pfinfo->offset[i];
-		} else {
+	} else {
+		for (i = 0; i < 2; i++) {
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0))
-			ret = sprd_dmabuf_get_phys_addr(-1, pfinfo->dmabuf_p[i],
+			ret = sprd_dmabuf_get_phys_addr(-1, pfinfo->dmabuf_p,
 					&pfinfo->iova[i],
-					&pfinfo->size[i]);
+					&pfinfo->size);
 #else
-			ret = sprd_ion_get_phys_addr(-1, pfinfo->dmabuf_p[i],
+			ret = sprd_ion_get_phys_addr(-1, pfinfo->dmabuf_p,
 					&pfinfo->iova[i],
-					&pfinfo->size[i]);
+					&pfinfo->size);
 #endif
 			if (ret) {
 				pr_err("fail to get iommu phy addr\n");
 				pr_err("index:%d mfd:0x%x\n",
-					i, pfinfo->mfd[i]);
+					i, pfinfo->mfd[0]);
 				return -EFAULT;
 			}
 			pfinfo->iova[i] += pfinfo->offset[i];
@@ -147,23 +145,15 @@ static int cppdrv_get_addr(struct cpp_iommu_info *pfinfo)
 
 map_attachment_failed:
 	if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0)) {
-		for (i = 0; i < 2; i++) {
-			if (pfinfo->buf[i] == NULL)
-				continue;
-			if (!IS_ERR_OR_NULL(pfinfo->attachment[i]))
-				dma_buf_detach(pfinfo->dmabuf_p[i], pfinfo->attachment[i]);
-		}
+		if (!IS_ERR_OR_NULL(pfinfo->attachment))
+			dma_buf_detach(pfinfo->dmabuf_p, pfinfo->attachment);
 	}
 attach_failed:
 ignore_this_device:
 	if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0)) {
-		for (i = 0; i < 2; i++) {
-			if (pfinfo->buf[i] == NULL)
-				continue;
-			if (!IS_ERR_OR_NULL(pfinfo->dmabuf_p[i])) {
-				dma_buf_put(pfinfo->dmabuf_p[i]);
-				pfinfo->dmabuf_p[i] = NULL;
-			}
+		if (!IS_ERR_OR_NULL(pfinfo->dmabuf_p)) {
+			dma_buf_put(pfinfo->dmabuf_p);
+			pfinfo->dmabuf_p = NULL;
 		}
 	}
 dmabuf_get_failed:
@@ -172,38 +162,38 @@ dmabuf_get_failed:
 
 static int cppdrv_free_addr(struct cpp_iommu_info *pfinfo)
 {
-	int i, ret;
+	int ret = 0;
 	struct sprd_iommu_unmap_data iommu_data;
 
 	memset(&iommu_data, 0x00, sizeof(iommu_data));
 
-	for (i = 0; i < 2; i++) {
-		if (pfinfo->size[i] <= 0)
-			continue;
+	if (pfinfo->size <= 0) {
+		pr_err("fail to get valid buffer size\n");
+		return -EFAULT;
+	}
 
-		if (sprd_iommu_attach_device(pfinfo->dev) == 0) {
-			iommu_data.iova_addr = pfinfo->iova[i]
-					- pfinfo->offset[i];
-			iommu_data.iova_size = pfinfo->size[i];
-			iommu_data.ch_type = SPRD_IOMMU_FM_CH_RW;
-			iommu_data.buf = NULL;
+	if (sprd_iommu_attach_device(pfinfo->dev) == 0) {
+		iommu_data.iova_addr = pfinfo->iova[0]
+				- pfinfo->offset[0];
+		iommu_data.iova_size = pfinfo->size;
+		iommu_data.ch_type = SPRD_IOMMU_FM_CH_RW;
+		iommu_data.buf = NULL;
 
-			ret = sprd_iommu_unmap(pfinfo->dev, &iommu_data);
-			if (ret) {
-				pr_err("failed to free iommu %d\n", i);
-				return -EFAULT;
-			}
-			if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0)) {
-				if (!IS_ERR_OR_NULL(pfinfo->table[i]))
-					dma_buf_unmap_attachment(pfinfo->attachment[i], pfinfo->table[i], DMA_BIDIRECTIONAL);
-				if (!IS_ERR_OR_NULL(pfinfo->attachment[i]))
-					dma_buf_detach(pfinfo->dmabuf_p[i], pfinfo->attachment[i]);
-				if (!IS_ERR_OR_NULL(pfinfo->dmabuf_p[i])) {
-					if (!IS_ERR_OR_NULL(pfinfo->dmabuf_p[i]->file) &&
-						virt_addr_valid(pfinfo->dmabuf_p[i]->file))
-							dma_buf_put(pfinfo->dmabuf_p[i]);
-					pfinfo->dmabuf_p[i] = NULL;
-				}
+		ret = sprd_iommu_unmap(pfinfo->dev, &iommu_data);
+		if (ret) {
+			pr_err("failed to free iommu\n");
+			return -EFAULT;
+		}
+		if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0)) {
+			if (!IS_ERR_OR_NULL(pfinfo->table))
+				dma_buf_unmap_attachment(pfinfo->attachment, pfinfo->table, DMA_BIDIRECTIONAL);
+			if (!IS_ERR_OR_NULL(pfinfo->attachment))
+				dma_buf_detach(pfinfo->dmabuf_p, pfinfo->attachment);
+			if (!IS_ERR_OR_NULL(pfinfo->dmabuf_p)) {
+				if (!IS_ERR_OR_NULL(pfinfo->dmabuf_p->file) &&
+					virt_addr_valid(pfinfo->dmabuf_p->file))
+						dma_buf_put(pfinfo->dmabuf_p);
+				pfinfo->dmabuf_p = NULL;
 			}
 		}
 	}
@@ -425,6 +415,9 @@ static int cppdrv_rot_y_parm_set(void *arg1, void *arg2)
 		return -EFAULT;
 	}
 
+	if (p->iommu_src.attachment && p->iommu_src.table)
+		ret = dma_buf_end_cpu_access(p->iommu_src.dmabuf_p, DMA_BIDIRECTIONAL);
+
 	ret = cppdrv_get_sg_table(&p->iommu_dst);
 	if (ret) {
 		pr_err("fail to get cpp sg table\n");
@@ -645,17 +638,14 @@ static int cppdrv_scale_addr_set(
 	}
 
 	if (cfg_parm->input_addr.mfd[0] == 0 ||
-		cfg_parm->input_addr.mfd[1] == 0 ||
-		cfg_parm->output_addr.mfd[0] == 0 ||
-		cfg_parm->output_addr.mfd[1] == 0) {
+		cfg_parm->output_addr.mfd[0] == 0) {
 		pr_err("fail to get valid in or out mfd\n");
 		return -1;
 	}
 	bp_support = cppdrv_get_bp_support(cppif);
 	if (1 == bp_support){
 		if ((p->bp_en == 1) &&
-			(cfg_parm->bp_output_addr.mfd[0] == 0 ||
-			cfg_parm->bp_output_addr.mfd[1] == 0)) {
+			(cfg_parm->bp_output_addr.mfd[0] == 0)) {
 			pr_err("fail to get valid bypass mfd\n");
 			return -1;
 		}
@@ -684,6 +674,9 @@ static int cppdrv_scale_addr_set(
 			pr_err("fail to get cpp src addr\n");
 			return -1;
 		}
+
+		if (p->iommu_src.attachment && p->iommu_src.table)
+			ret = dma_buf_end_cpu_access(p->iommu_src.dmabuf_p, DMA_BIDIRECTIONAL);
 
 		ret = cppdrv_get_sg_table(&p->iommu_dst);
 		if (ret) {

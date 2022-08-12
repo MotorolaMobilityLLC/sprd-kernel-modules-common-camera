@@ -46,13 +46,13 @@ enum {
 struct cpp_iommu_info {
 	struct device *dev;
 	unsigned int mfd[3];
-	struct sg_table *table[3];
-	void *buf[3];
-	size_t size[3];
+	struct sg_table *table;
+	void *buf;
+	size_t size;
 	unsigned long iova[3];
-	struct dma_buf *dmabuf_p[3];
+	struct dma_buf *dmabuf_p;
 	unsigned int offset[3];
-	struct dma_buf_attachment *attachment[3];
+	struct dma_buf_attachment *attachment;
 };
 
 struct rot_drv_private {
