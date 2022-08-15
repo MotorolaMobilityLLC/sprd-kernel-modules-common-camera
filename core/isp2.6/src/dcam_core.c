@@ -1307,9 +1307,10 @@ static int dcamcore_path_cfg(void *dcam_handle, enum dcam_path_cfg_cmd cfg_cmd,
 	int i = 0;
 	struct dcam_sw_context *pctx = NULL;
 	struct dcam_path_desc *path = NULL;
+	struct dcam_path_desc *path_raw = NULL;
 	struct cam_hw_info *hw = NULL;
 	struct dcam_hw_path_src_sel patharg;
-	struct camera_frame *pframe = NULL, *newfrm = NULL;
+	struct camera_frame *pframe = NULL, *newfrm = NULL, *rawfrm = NULL;
 	uint32_t lowlux_4in1 = 0;
 	uint32_t shutoff = 0;
 	unsigned long flag = 0;
@@ -1330,6 +1331,7 @@ static int dcamcore_path_cfg(void *dcam_handle, enum dcam_path_cfg_cmd cfg_cmd,
 	pctx = (struct dcam_sw_context *)dcam_handle;
 	hw = pctx->dev->hw;
 	path = &pctx->path[path_id];
+	path_raw = &pctx->path[DCAM_PATH_RAW];
 
 	if (atomic_read(&path->user_cnt) == 0) {
 		pr_err("fail to get a valid user_cnt, dcam%d, path %d is not in use.%d\n",
@@ -1359,7 +1361,7 @@ static int dcamcore_path_cfg(void *dcam_handle, enum dcam_path_cfg_cmd cfg_cmd,
 			cam_buf_iommu_unmap(&pframe->buf);
 			goto exit;
 		}
-		pr_debug("config dcam%d path %d output buffer.\n", pctx->hw_ctx_id,  path_id);
+		pr_debug("config dcam%d path %d output buffer:%d.\n", pctx->hw_ctx_id,  path_id, pframe->buf.mfd[0]);
 		break;
 	case DCAM_PATH_CLR_OUTPUT_SHARE_BUF:
 		state = *(uint32_t *)param;
@@ -1443,6 +1445,16 @@ static int dcamcore_path_cfg(void *dcam_handle, enum dcam_path_cfg_cmd cfg_cmd,
 				if (path->fbc_mode)
 					newfrm->is_compressed = 1;
 				ret = cam_queue_enqueue(&path->reserved_buf_queue, &newfrm->list);
+				if (path_id == DCAM_PATH_FULL && pctx->raw_alg_type == RAW_ALG_AI_SFNR) {
+					rawfrm = cam_queue_empty_frame_get();
+					if (rawfrm) {
+						rawfrm->is_reserved = 2;
+						rawfrm->priv_data = path_raw;
+						rawfrm->pyr_status = pframe->pyr_status;
+						memcpy(&rawfrm->buf, &pframe->buf, sizeof(pframe->buf));
+						ret = cam_queue_enqueue(&path_raw->reserved_buf_queue, &rawfrm->list);
+					}
+				}
 				i++;
 			}
 		}
@@ -1948,6 +1960,17 @@ static int dcamcore_dev_start(void *dcam_handle, int online)
 				hw->dcam_ioctl(hw, DCAM_HW_CFG_FBC_CTRL, &fbc_arg);
 			}
 		}
+	}
+
+	if (!pctx->param_frame_sync && pctx->raw_alg_type  == RAW_ALG_AI_SFNR) {
+		uint32_t shutoff = 1;
+		struct dcam_hw_path_stop patharg;
+
+		patharg.path_id = DCAM_PATH_RAW;
+		patharg.idx = pctx->hw_ctx_id;
+		hw->dcam_ioctl(hw, DCAM_HW_CFG_PATH_STOP, &patharg);
+		pctx->dev->dcam_pipe_ops->cfg_path(pctx,
+			DCAM_PATH_CFG_SHUTOFF, patharg.path_id, &shutoff);
 	}
 
 	if (pctx->is_4in1 == 0)

@@ -263,6 +263,7 @@ struct dcam_sw_context {
 	uint32_t is_pyr_rec;
 	uint32_t is_ebd;
 	uint32_t is_raw_alg;
+	uint32_t param_frame_sync;
 	uint32_t raw_alg_type;
 	uint32_t need_dcam_raw;
 	uint32_t offline;/* flag: set 1 for 4in1 go through dcam1 bin */
