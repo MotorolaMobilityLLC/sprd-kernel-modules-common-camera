@@ -37,6 +37,8 @@
 #define pr_fmt(fmt) "DCAM_CORE: %d %d %s : "\
 	fmt, current->pid, __LINE__, __func__
 
+#define DCAM_STOP_TIMEOUT             msecs_to_jiffies(2000)
+
 /* VCH2 maybe used for raw picture output
  * If yes, PDAF should not output data though VCH2
  * todo: avoid conflict between raw/pdaf type3
@@ -1778,10 +1780,18 @@ int dcamcore_thread_create(void *ctx_handle, struct cam_thread_info *thrd, proc_
 
 static void dcamcore_thread_stop(struct cam_thread_info *thrd)
 {
+	int ret = 0;
+
 	if (thrd->thread_task) {
 		atomic_set(&thrd->thread_stop, 1);
 		complete(&thrd->thread_com);
-		wait_for_completion(&thrd->thread_stop_com);
+		ret = wait_for_completion_interruptible_timeout(&thrd->thread_stop_com, DCAM_STOP_TIMEOUT);
+		if (ret == -ERESTARTSYS)
+			pr_err("fail to interruption_proc, when dcam wait\n");
+		else if (ret == 0)
+			pr_err("fail to wait interruption_proc, timeout.\n");
+		else
+			pr_info("dcam interruption_proc thread wait time %d\n", ret);
 		thrd->thread_task = NULL;
 	}
 }
