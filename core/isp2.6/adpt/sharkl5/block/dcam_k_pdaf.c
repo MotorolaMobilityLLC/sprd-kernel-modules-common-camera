@@ -331,7 +331,7 @@ static int isp_k_pdaf_type3_set_mode(struct isp_io_param *param, struct dcam_dev
 	return ret;
 }
 
-int dcam_k_ppe_ppc_param(struct isp_io_param *param, struct dcam_isp_k_block *p)
+int dcam_k_ppe_ppc_param(struct isp_io_param *param, struct dcam_dev_param *p)
 {
 	int ret = 0, i = 0;
 	uint32_t offset = 0, val = 0;

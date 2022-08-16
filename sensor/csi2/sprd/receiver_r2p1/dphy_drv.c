@@ -60,7 +60,7 @@ static char *phy_name[] = {
 /* Temp varibale to know which project, 0 : SharkL5, 1 : ROC1 */
 uint32_t g_project_id = 0;
 
-static struct dphy_info *g_phy_info[4];
+static struct dphy_info *g_phy_info[5];
 
 static unsigned int csi_addr[] = {
 	0x62300000,
