@@ -17,6 +17,7 @@
 #include <linux/mfd/syscon.h>
 #include <linux/regmap.h>
 #include <linux/spinlock.h>
+#include <linux/version.h>
 
 struct csi_glb_syscon {
 	struct regmap *mm_ahb;
@@ -49,6 +50,12 @@ struct csi_dt_node_info {
 	//struct csi_phy_info phy;
 	struct csi_glb_syscon syscon;
 };
+
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0))
+int syscon_get_args_by_name(struct device_node *np, const char *name,int arg_count, unsigned int *out_args);
+struct regmap *syscon_regmap_lookup_by_name(struct device_node *np, const char *name);
+struct regmap *syscon_regmap_lookup_by_phandle(struct device_node *np, const char *property);
+#endif
 
 int csi_api_mipi_phy_cfg(void);
 int csi_api_mipi_phy_cfg_init(struct device_node *phy_node, int sensor_id);
