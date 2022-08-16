@@ -28,6 +28,7 @@ enum sprd_campw_id {
 	CAM_PW_SHARKLE,
 	CAM_PW_QOGIRN6PRO,
 	CAM_PW_QOGIRL6,
+	CAM_PW_SHARKL5,
 	CAM_PW_MAX
 };
 
@@ -151,6 +152,23 @@ struct camsys_power_info {
 			struct clk *mm_mtx_clk_defalut;
 			struct register_gpr regs[14];
 		} qogirn6pro;
+		struct {
+			atomic_t users_pw;
+			atomic_t users_clk;
+			uint8_t mm_qos_ar, mm_qos_aw;
+			struct register_gpr syscon_regs[6];
+
+			struct clk *mm_eb;
+			struct clk *mm_ahb_eb;
+			struct clk *ahb_clk;
+			struct clk *ahb_clk_parent;
+			struct clk *ahb_clk_default;
+
+			struct clk *mm_mtx_eb;
+			struct clk *mtx_clk;
+			struct clk *mtx_clk_parent;
+			struct clk *mtx_clk_default;
+		} l5;
 	} u;
 };
 
@@ -160,6 +178,7 @@ extern  struct camsys_power_ops camsys_power_ops_le;
 extern  struct camsys_power_ops camsys_power_ops_pike2;
 extern  struct camsys_power_ops camsys_power_ops_qogirl6;
 extern  struct camsys_power_ops camsys_power_ops_qogirn6pro;
+extern  struct camsys_power_ops camsys_power_ops_l5;
 
 int sprd_mm_pw_notify_register(struct notifier_block *nb);
 int sprd_mm_pw_notify_unregister(struct notifier_block *nb);
