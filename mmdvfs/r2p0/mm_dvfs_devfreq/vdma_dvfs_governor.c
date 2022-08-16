@@ -60,16 +60,19 @@ static int vdma_dvfs_gov_get_target(struct devfreq *devfreq,
 		else
 			adjusted_freq = module->module_dvfs_para.u_idle_freq;
 
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 15, 0))
 		if (devfreq->max_freq && adjusted_freq > devfreq->max_freq)
 			adjusted_freq = devfreq->max_freq;
 
 		if (devfreq->min_freq && adjusted_freq < devfreq->min_freq)
 			adjusted_freq = devfreq->min_freq;
+#endif
 		*freq = adjusted_freq;
-	} else {
-		*freq = devfreq->max_freq; /* No user freq specified yet */
-	}
-	pr_info("gov:%s *freq:%lu ", devfreq->governor_name, *freq);
+	} else
+		pr_err("vdma_dvfs_gov, %s: dvfs unenable", __func__);
+
+	pr_info("vdma_dvfs_gov, %s: *freq:%lu", __func__, *freq);
+
 	return MM_DVFS_SUCCESS;
 }
 

@@ -40,6 +40,9 @@
 #define MM_DVFS_SUCCESS 0
 #define TOP_SW_DVFS_ENABLE 0 //1:enable    0:disable
 #define MM_SW_DVFS_ENABLE 0  //1:enable    0:disable
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0))
+#define DEVFREQ_NAME_LEN 16
+#endif
 
 typedef enum {
     DVFS_DCAM0_1 = 0,

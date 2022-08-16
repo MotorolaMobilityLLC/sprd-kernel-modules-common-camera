@@ -339,9 +339,10 @@ static int ip_dvfs_init(struct devfreq *devfreq) {
         return 1;
     }
     dcam0_1_dvfs_map_cfg();
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 15, 0))
     devfreq->max_freq = dcam0_1_dvfs_config_table[7].clk_freq;
     devfreq->min_freq = dcam0_1_dvfs_config_table[0].clk_freq;
-
+#endif
     set_ip_freq_upd_en_byp(DCAM0_1_FREQ_UPD_EN_BYP);
     set_ip_freq_upd_delay_en(DCAM0_1_FREQ_UPD_DELAY_EN);
     set_ip_freq_upd_hdsk_en(DCAM0_1_FREQ_UPD_HDSK_EN);

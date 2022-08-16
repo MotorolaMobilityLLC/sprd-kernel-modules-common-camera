@@ -322,8 +322,10 @@ static int ip_dvfs_init(struct devfreq *devfreq) {
         return -EINVAL;
     }
     isp_dvfs_map_cfg();
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 15, 0))
     devfreq->max_freq = isp_dvfs_config_table[7].clk_freq;
     devfreq->min_freq = isp_dvfs_config_table[0].clk_freq;
+#endif
     set_ip_freq_upd_en_byp(ISP_FREQ_UPD_EN_BYP);
     set_ip_freq_upd_delay_en(ISP_FREQ_UPD_DELAY_EN);
     set_ip_freq_upd_hdsk_en(ISP_FREQ_UPD_HDSK_EN);
