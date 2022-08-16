@@ -78,7 +78,7 @@ struct cpp_hw_info {
 	struct platform_device *pdev;
 	struct cpp_hw_soc_info *soc_cpp;
 	struct cpp_hw_ip_info *ip_cpp;
-	int (*cpp_hw_ioctl)( uint32_t, void *);
+	int (*cpp_hw_ioctl)(enum cpp_hw_cfg_cmd, void *);
 	int (*cpp_probe)(struct platform_device *pdev,struct cpp_hw_info * hw_info);
 };
 #endif

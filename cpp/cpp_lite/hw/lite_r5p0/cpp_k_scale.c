@@ -19,6 +19,7 @@
 #include <linux/semaphore.h>
 
 #include "cpp_reg.h"
+#include "cpp_drv.h"
 #include "cpp_hw.h"
 #include "cpp_block.h"
 #define SCALE_DRV_DEBUG 1
