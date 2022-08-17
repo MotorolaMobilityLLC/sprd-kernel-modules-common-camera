@@ -311,7 +311,10 @@ unsigned long g_cpp_base;
 
 int cpphw_probe(struct platform_device *pdev, struct cpp_hw_info * hw_info)
 {
-	int i, ret = 0;
+	int i;
+ #if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 4, 0))
+        int ret = 0;
+ #endif
 	unsigned int irq = 0;
 	struct cpp_hw_soc_info *soc_cpp = NULL;
 	struct cpp_hw_ip_info *ip_cpp = NULL;
