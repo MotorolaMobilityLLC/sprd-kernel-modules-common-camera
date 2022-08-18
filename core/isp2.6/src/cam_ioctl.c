@@ -1246,6 +1246,7 @@ static int camioctl_frame_addr_set(struct camera_module *module,
 	struct dcam_sw_context *dcam_sw_ctx = NULL;
 	struct dcam_sw_context *dcam_sw_aux_ctx = NULL;
 	struct cam_hw_info *hw = NULL;
+	struct secondary_buffer_info secondary_buf_info = {0};
 	uint32_t channel_id = 0, buffer_count = 0, is_reserved_buf = 0, pixel_fmt = 0;
 
 	if ((atomic_read(&module->state) != CAM_CFG_CH) &&
@@ -1297,6 +1298,10 @@ static int camioctl_frame_addr_set(struct camera_module *module,
 		ret |= get_user(pframe->buf.addr_vir[2], &uparam->frame_addr_vir_array[i].v);
 		ret |= get_user(dump_type[i], &uparam->vir_ch_info[0].fd_array[i]);
 		ret |= get_user(sec, &uparam->img_statis_info.sec);
+		ret |= get_user(secondary_buf_info.frame_addr_array[i].y, &uparam->frame_addr_array[i].y);
+		ret |= get_user(secondary_buf_info.frame_addr_array[i].u, &uparam->frame_addr_array[i].u);
+		ret |= get_user(secondary_buf_info.frame_addr_array[i].v, &uparam->frame_addr_array[i].v);
+		ret |= get_user(secondary_buf_info.fd_array[i], &uparam->fd_array[i]);
 
 		if (unlikely(ret)) {
 			pr_err("fail to copy from user, ret %d\n", ret);
@@ -1385,7 +1390,7 @@ static int camioctl_frame_addr_set(struct camera_module *module,
 			/* 4in1_raw_capture, maybe need two image once */
 			if (ch->second_path_enable) {
 				ch->pack_bits = ch->ch_uinfo.dcam_raw_fmt;
-				pframe = camcore_secondary_buf_get(uparam, ch, i);
+				pframe = camcore_secondary_buf_get(&secondary_buf_info, ch, i);
 				if (!pframe) {
 					ret = -EFAULT;
 					break;

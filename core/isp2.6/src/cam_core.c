@@ -439,6 +439,11 @@ struct camera_group {
 	struct cam_thread_info recovery_thrd;
 };
 
+struct secondary_buffer_info {
+	struct sprd_img_frm_addr frame_addr_array[IMG_PATH_BUFFER_COUNT];
+	uint32_t fd_array[IMG_PATH_BUFFER_COUNT];
+};
+
 #define COMPAT_SPRD_ISP_IO_CFG_PARAM \
 	_IOWR(SPRD_IMG_IO_MAGIC, 41, struct compat_isp_io_param)
 
@@ -630,7 +635,7 @@ static int camcore_slice_num_info_get(struct sprd_img_size *src, struct sprd_img
  * input: i: get i group buffer
  */
 static struct camera_frame *camcore_secondary_buf_get(
-	struct sprd_img_parm *p, struct channel_context *ch, uint32_t i)
+	struct secondary_buffer_info *p, struct channel_context *ch, uint32_t i)
 {
 	struct camera_frame *pframe;
 	int ret;
