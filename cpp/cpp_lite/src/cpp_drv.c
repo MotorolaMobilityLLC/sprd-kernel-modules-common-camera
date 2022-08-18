@@ -30,7 +30,7 @@
 #include <linux/uaccess.h>
 #include <linux/vmalloc.h>
 #include <sprd_mm.h>
-#include "cam_porting.h"
+#include "cam_kernel_adapt.h"
 #include <linux/dma-mapping.h>
 #include <uapi/linux/dma-buf.h>
 #include "cam_types.h"
@@ -43,11 +43,48 @@
 #define pr_fmt(fmt) "CPP_DRV: %d %d %s : "\
 	fmt, current->pid, __LINE__, __func__
 
-static int cppdrv_get_sg_table(struct cpp_iommu_info *pfinfo)
+atomic_t cpp_dma_cnt;
+
+static int cppdrv_put_sg_table(struct cpp_iommu_info *pfinfo)
 {
 	int ret = 0;
 
-	if (pfinfo->mfd[0] > 0) {
+	if (!pfinfo) {
+		pr_err("fail to get buffer info ptr\n");
+		return -EFAULT;
+	}
+
+	pr_debug("enter.\n");
+	if (pfinfo->mfd[0] <= 0) {
+		pr_err("fail to get valid buffer\n");
+		return -EFAULT;
+	}
+
+	if (!IS_ERR_OR_NULL(pfinfo->dmabuf_p)) {
+		if (!IS_ERR_OR_NULL(pfinfo->dmabuf_p->file) &&
+			virt_addr_valid(pfinfo->dmabuf_p->file))
+			dma_buf_put(pfinfo->dmabuf_p);
+		pfinfo->dmabuf_p = NULL;
+		if (atomic_read(&cpp_dma_cnt))
+			atomic_dec(&cpp_dma_cnt);
+	}
+	pfinfo->buf = NULL;
+	return ret;
+}
+
+static int cppdrv_get_sg_table(struct cpp_iommu_info *pfinfo)
+{
+	int ret = 0;
+	if (!pfinfo) {
+		pr_err("fail to get buffer info ptr\n");
+		return -EFAULT;
+	}
+
+	pr_debug("enter.\n");
+	if (pfinfo->mfd[0] <= 0) {
+		pr_err("fail to get valid buffer\n");
+		return -EFAULT;
+	}
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0))
 		ret = sprd_dmabuf_get_sysbuffer(pfinfo->mfd[0], NULL,
 			&pfinfo->buf, &pfinfo->size);
@@ -59,9 +96,20 @@ static int cppdrv_get_sg_table(struct cpp_iommu_info *pfinfo)
 			pr_err("fail to get sg table\n");
 			return -EFAULT;
 		}
+	if (pfinfo->dmabuf_p == NULL) {
+		pfinfo->dmabuf_p = dma_buf_get(pfinfo->mfd[0]);
+		if (IS_ERR_OR_NULL(pfinfo->dmabuf_p)) {
+			pr_err("fail to get dma buf %p\n", pfinfo->dmabuf_p);
+			goto failed;
+		}
+		if (atomic_read(&cpp_dma_cnt))
+			atomic_inc(&cpp_dma_cnt);
+		pr_debug("dmabuf %p\n", pfinfo->dmabuf_p);
 	}
-
 	return 0;
+failed:
+	cppdrv_put_sg_table(pfinfo);
+	return -EINVAL;
 }
 
 static int cppdrv_get_addr(struct cpp_iommu_info *pfinfo)
@@ -71,39 +119,37 @@ static int cppdrv_get_addr(struct cpp_iommu_info *pfinfo)
 
 	memset(&iommu_data, 0x00, sizeof(iommu_data));
 
-	if (pfinfo->size <= 0) {
-		pr_err("fail to get valid buffer size\n");
+	if (!pfinfo) {
+		pr_err("fail to get buffer info ptr\n");
 		return -EFAULT;
 	}
 
 	if (sprd_iommu_attach_device(pfinfo->dev) == 0) {
-		if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0)) {
-			if (pfinfo->dmabuf_p == NULL) {
-				pfinfo->dmabuf_p = dma_buf_get(pfinfo->mfd[0]);
-				if (IS_ERR_OR_NULL(pfinfo->dmabuf_p)) {
-					pr_err("fail to get dma buf %p\n", pfinfo->dmabuf_p);
-					ret = -EINVAL;
-					goto dmabuf_get_failed;
-				}
+		if (pfinfo->dmabuf_p == NULL) {
+			pfinfo->dmabuf_p = dma_buf_get(pfinfo->mfd[0]);
+			if (IS_ERR_OR_NULL(pfinfo->dmabuf_p)) {
+				pr_err("fail to get dma buf %p\n", pfinfo->dmabuf_p);
+				ret = -EINVAL;
+				goto dmabuf_get_failed;
 			}
-			pr_debug("mfd %d, dmabuf %p\n", pfinfo->mfd[0], pfinfo->dmabuf_p);
+		}
+		pr_debug("mfd %d, dmabuf %p\n", pfinfo->mfd[0], pfinfo->dmabuf_p);
 
-			if (dma_set_mask(pfinfo->dev, DMA_BIT_MASK(64))) {
-				dev_warn(pfinfo->dev, "mydev: No suitable DMA available\n");
-				goto ignore_this_device;
-			}
-			pfinfo->attachment = dma_buf_attach(pfinfo->dmabuf_p, pfinfo->dev);
-			if (IS_ERR_OR_NULL(pfinfo->attachment)) {
-				pr_err("failed to attach dmabuf %px\n", (void *)pfinfo->dmabuf_p);
-				ret = -EINVAL;
-				goto attach_failed;
-			}
-			pfinfo->table = dma_buf_map_attachment(pfinfo->attachment, DMA_BIDIRECTIONAL);
-			if (IS_ERR_OR_NULL(pfinfo->table)) {
-				pr_err("failed to map attachment %px\n", (void *)pfinfo->attachment);
-				ret = -EINVAL;
-				goto map_attachment_failed;
-			}
+		if (dma_set_mask(pfinfo->dev, DMA_BIT_MASK(64))) {
+			dev_warn(pfinfo->dev, "mydev: No suitable DMA available\n");
+			goto ignore_this_device;
+		}
+		pfinfo->attachment = dma_buf_attach(pfinfo->dmabuf_p, pfinfo->dev);
+		if (IS_ERR_OR_NULL(pfinfo->attachment)) {
+			pr_err("failed to attach dmabuf %px\n", (void *)pfinfo->dmabuf_p);
+			ret = -EINVAL;
+			goto attach_failed;
+		}
+		pfinfo->table = dma_buf_map_attachment(pfinfo->attachment, DMA_BIDIRECTIONAL);
+		if (IS_ERR_OR_NULL(pfinfo->table)) {
+			pr_err("failed to map attachment %px\n", (void *)pfinfo->attachment);
+			ret = -EINVAL;
+			goto map_attachment_failed;
 		}
 
 		memset(&iommu_data, 0x00, sizeof(iommu_data));
@@ -113,7 +159,7 @@ static int cppdrv_get_addr(struct cpp_iommu_info *pfinfo)
 
 		ret = sprd_iommu_map(pfinfo->dev, &iommu_data);
 		if (ret) {
-			pr_err("fail to get iommu kaddr %d\n", i);
+			pr_err("fail to get iommu kaddr\n");
 			return -EFAULT;
 		}
 
@@ -167,8 +213,8 @@ static int cppdrv_free_addr(struct cpp_iommu_info *pfinfo)
 
 	memset(&iommu_data, 0x00, sizeof(iommu_data));
 
-	if (pfinfo->size <= 0) {
-		pr_err("fail to get valid buffer size\n");
+	if (!pfinfo) {
+		pr_err("fail to get buffer info ptr\n");
 		return -EFAULT;
 	}
 
@@ -184,20 +230,12 @@ static int cppdrv_free_addr(struct cpp_iommu_info *pfinfo)
 			pr_err("failed to free iommu\n");
 			return -EFAULT;
 		}
-		if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0)) {
-			if (!IS_ERR_OR_NULL(pfinfo->table))
-				dma_buf_unmap_attachment(pfinfo->attachment, pfinfo->table, DMA_BIDIRECTIONAL);
-			if (!IS_ERR_OR_NULL(pfinfo->attachment))
-				dma_buf_detach(pfinfo->dmabuf_p, pfinfo->attachment);
-			if (!IS_ERR_OR_NULL(pfinfo->dmabuf_p)) {
-				if (!IS_ERR_OR_NULL(pfinfo->dmabuf_p->file) &&
-					virt_addr_valid(pfinfo->dmabuf_p->file))
-						dma_buf_put(pfinfo->dmabuf_p);
-				pfinfo->dmabuf_p = NULL;
-			}
-		}
+		if (!IS_ERR_OR_NULL(pfinfo->table))
+			dma_buf_unmap_attachment(pfinfo->attachment, pfinfo->table, DMA_BIDIRECTIONAL);
+		if (!IS_ERR_OR_NULL(pfinfo->attachment))
+			dma_buf_detach(pfinfo->dmabuf_p, pfinfo->attachment);
+		cppdrv_put_sg_table(pfinfo);
 	}
-
 	return 0;
 }
 
@@ -2088,6 +2126,7 @@ int cpp_drv_get_cpp_res(struct cpp_pipe_dev *cppif, struct cpp_hw_info *hw)
 	    cppif->pdev= hw->pdev;
 	    cppif->irq = hw->ip_cpp->irq;
 	    cppif->io_base = hw->ip_cpp->io_base;
+	    atomic_set(&cpp_dma_cnt, 0);
 	    ret = cppdrv_init(cppif);
 	}
    return ret;

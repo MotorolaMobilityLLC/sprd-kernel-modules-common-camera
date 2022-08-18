@@ -18,7 +18,7 @@
 #include <linux/device.h>
 #include <linux/sprd_iommu.h>
 
-#include "cam_porting.h"
+#include "cam_kernel_adapt.h"
 
 #define CAM_BUF_NAME_LEN         32
 #define CAM_BUF_CAHCED           (1 << 31)

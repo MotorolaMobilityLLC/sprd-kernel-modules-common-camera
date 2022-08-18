@@ -22,7 +22,7 @@
 #include "cpp_reg.h"
 #include "cpp_block.h"
 #include "cpp_hw.h"
-#include "cam_porting.h"
+#include "cam_kernel_adapt.h"
 
 /* Macro Definitions */
 #ifdef pr_fmt

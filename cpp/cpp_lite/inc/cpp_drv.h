@@ -176,5 +176,7 @@ struct cpp_pipe_dev {
 	struct cppdrv_ops *cppdrv_ops;
 };
 
+extern atomic_t cpp_dma_cnt;
+
 int cpp_drv_get_cpp_res(struct cpp_pipe_dev *cppif, struct cpp_hw_info *hw);
 #endif

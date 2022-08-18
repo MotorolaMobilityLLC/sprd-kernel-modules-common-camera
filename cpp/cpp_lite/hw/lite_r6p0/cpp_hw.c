@@ -422,13 +422,6 @@ int cpphw_probe(struct platform_device *pdev, struct cpp_hw_info * hw_info)
 		return ret;
 	}
 
-	reg_base = of_iomap(pdev->dev.of_node, 0);
-	if (IS_ERR_OR_NULL(reg_base)) {
-		pr_err("fail to get cpp base\n");
-		ret = PTR_ERR(reg_base);
-		return ret;
-	}
-
 	g_cpp_base = (unsigned long)reg_base;
 	qos_node = of_parse_phandle(pdev->dev.of_node, "cpp_qos", 0);
 	if (qos_node) {

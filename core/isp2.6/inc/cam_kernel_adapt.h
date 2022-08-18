@@ -11,8 +11,8 @@
  * GNU General Public License for more details.
  */
 
-#ifndef _CAM_PORT_H_
-#define _CAM_PORT_H_
+#ifndef _CAM_KERNEL_ADAPT_H_
+#define _CAM_KERNEL_ADAPT_H_
 
 #include <linux/version.h>
 

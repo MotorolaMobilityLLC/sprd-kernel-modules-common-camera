@@ -289,7 +289,7 @@ static int cppcore_release(struct inode *node,
 	}
 	cpp_int_irq_free(dev->cppif);
 	cppcore_module_disable(dev);
-
+	pr_info("cpp mdbg info:%d\n", cpp_dma_cnt);
 	vfree(dev->cppif);
 	dev->cppif = NULL;
 

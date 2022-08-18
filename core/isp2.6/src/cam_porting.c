@@ -13,7 +13,7 @@
 
 #include <linux/mfd/syscon.h>
 #include <linux/regmap.h>
-#include "cam_porting.h"
+#include "cam_kernel_adapt.h"
 
 #ifdef pr_fmt
 #undef pr_fmt

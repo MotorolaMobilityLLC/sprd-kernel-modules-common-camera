@@ -22,7 +22,7 @@
 #include <video/sprd_vsp_pw_domain.h>
 #endif
 
-#include "cam_porting.h"
+#include "cam_kernel_adapt.h"
 #include "cpp_drv.h"
 #include "cpp_reg.h"
 #include "cpp_block.h"
