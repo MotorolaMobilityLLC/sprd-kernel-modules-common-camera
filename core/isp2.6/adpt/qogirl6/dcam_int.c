@@ -1046,15 +1046,17 @@ static void dcamint_nr3_done(void *param, struct dcam_sw_context *sw_ctx)
 		full_mv_state = cam_queue_dequeue(&sw_ctx->fullpath_mv_queue, struct dcam_3dnrmv_ctrl, list);
 		path = &sw_ctx->path[DCAM_PATH_FULL];
 		frame = cam_queue_dequeue(&path->middle_queue, struct camera_frame, list);
-		frame->nr3_me.mv_x = full_mv_state->nr3_me.mv_x;
-		frame->nr3_me.mv_y = full_mv_state->nr3_me.mv_y;
-		frame->nr3_me.project_mode = full_mv_state->nr3_me.project_mode;
-		frame->nr3_me.sub_me_bypass = full_mv_state->nr3_me.sub_me_bypass;
-		frame->nr3_me.src_height = full_mv_state->nr3_me.src_height;
-		frame->nr3_me.src_width = full_mv_state->nr3_me.src_width;
-		frame->nr3_me.valid = full_mv_state->nr3_me.valid;
-		dcamint_frame_dispatch(dcam_hw_ctx, sw_ctx, DCAM_PATH_FULL, frame,
-					DCAM_CB_DATA_DONE);
+		if (frame) {
+			frame->nr3_me.mv_x = full_mv_state->nr3_me.mv_x;
+			frame->nr3_me.mv_y = full_mv_state->nr3_me.mv_y;
+			frame->nr3_me.project_mode = full_mv_state->nr3_me.project_mode;
+			frame->nr3_me.sub_me_bypass = full_mv_state->nr3_me.sub_me_bypass;
+			frame->nr3_me.src_height = full_mv_state->nr3_me.src_height;
+			frame->nr3_me.src_width = full_mv_state->nr3_me.src_width;
+			frame->nr3_me.valid = full_mv_state->nr3_me.valid;
+			dcamint_frame_dispatch(dcam_hw_ctx, sw_ctx, DCAM_PATH_FULL, frame,
+						DCAM_CB_DATA_DONE);
+		}
 		cam_queue_empty_mv_state_put(full_mv_state);
 		sw_ctx->nr3_me.full_path_mv_ready = 0;
 		sw_ctx->nr3_me.full_path_cnt = 0;
@@ -1064,15 +1066,17 @@ static void dcamint_nr3_done(void *param, struct dcam_sw_context *sw_ctx)
 		bin_mv_state = cam_queue_dequeue(&sw_ctx->binpath_mv_queue, struct dcam_3dnrmv_ctrl, list);
 		path = &sw_ctx->path[DCAM_PATH_BIN];
 		frame = cam_queue_dequeue(&path->middle_queue, struct camera_frame, list);
-		frame->nr3_me.mv_x = bin_mv_state->nr3_me.mv_x;
-		frame->nr3_me.mv_y = bin_mv_state->nr3_me.mv_y;
-		frame->nr3_me.project_mode = bin_mv_state->nr3_me.project_mode;
-		frame->nr3_me.sub_me_bypass = bin_mv_state->nr3_me.sub_me_bypass;
-		frame->nr3_me.src_height = bin_mv_state->nr3_me.src_height;
-		frame->nr3_me.src_width = bin_mv_state->nr3_me.src_width;
-		frame->nr3_me.valid = bin_mv_state->nr3_me.valid;
-		dcamint_frame_dispatch(dcam_hw_ctx, sw_ctx, DCAM_PATH_BIN, frame,
-					DCAM_CB_DATA_DONE);
+		if (frame) {
+			frame->nr3_me.mv_x = bin_mv_state->nr3_me.mv_x;
+			frame->nr3_me.mv_y = bin_mv_state->nr3_me.mv_y;
+			frame->nr3_me.project_mode = bin_mv_state->nr3_me.project_mode;
+			frame->nr3_me.sub_me_bypass = bin_mv_state->nr3_me.sub_me_bypass;
+			frame->nr3_me.src_height = bin_mv_state->nr3_me.src_height;
+			frame->nr3_me.src_width = bin_mv_state->nr3_me.src_width;
+			frame->nr3_me.valid = bin_mv_state->nr3_me.valid;
+			dcamint_frame_dispatch(dcam_hw_ctx, sw_ctx, DCAM_PATH_BIN, frame,
+						DCAM_CB_DATA_DONE);
+		}
 		cam_queue_empty_mv_state_put(bin_mv_state);
 		sw_ctx->nr3_me.bin_path_mv_ready = 0;
 		sw_ctx->nr3_me.bin_path_cnt = 0;
