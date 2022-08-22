@@ -10,7 +10,7 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  */
-
+#include <linux/version.h>
 #include <linux/interrupt.h>
 #include <linux/uaccess.h>
 
@@ -24,8 +24,9 @@
 #include "isp_reg.h"
 #include "dcam_core.h"
 
-#define ION
-#ifdef ION
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0))
+#include <linux/ion.h>
+#else
 #include "ion.h"
 #endif
 

@@ -22,8 +22,16 @@
 #include <linux/kthread.h>
 #include <linux/pagemap.h>
 #include <linux/sprd_iommu.h>
+#include <linux/version.h>
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0))
+#include <linux/pm_runtime.h>
+#include <linux/ion.h>
+#else
 #include <video/sprd_mmsys_pw_domain.h>
-
+#include "ion.h"
+#endif
+#include <linux/mfd/syscon.h>
+#include "cam_porting.h"
 #include "sprd_mm.h"
 #include "sprd_img.h"
 #include "isp_buf.h"
@@ -36,7 +44,7 @@
 #include "isp_slw.h"
 #include "isp_block.h"
 #include "dcam_core.h"
-#include "ion.h"
+
 #include "cam_dbg.h"
 
 #define ISP_OFF_PRODUCER_Q_SIZE_MAX             2
@@ -403,6 +411,7 @@ void sprd_isp_glb_reg_owr(uint32_t idx, unsigned long addr,
 
 void do_reset_isp_hw(struct isp_pipe_dev *dev)
 {
+	unsigned int val = 0;
 	uint32_t idx = dev->com_idx;
 	struct isp_cctx_desc *cctx_desc = NULL;
 
@@ -417,6 +426,8 @@ void do_reset_isp_hw(struct isp_pipe_dev *dev)
 			   syscon_regs[ISP_HW_RESET].reg,
 			   syscon_regs[ISP_HW_RESET].mask,
 			   ~syscon_regs[ISP_HW_RESET].mask);
+	regmap_read(syscon_regs[ISP_HW_RESET].gpr, 0, &val);
+	regmap_read(syscon_regs[ISP_HW_RESET].gpr, 8, &val);
 
 	sprd_isp_glb_reg_awr(idx, ISP_AXI_ITI2AXIM_CTRL, ~BIT_26, ISP_AXI_REG);
 	/*
@@ -4000,6 +4011,8 @@ int sprd_isp_module_en(void *isp_handle, enum isp_id iid)
 	mutex_lock(&isp_module_sema[iid]);
 	if (atomic_inc_return(&s_isp_users[iid]) == 1) {
 		/*sprd_isp_pw_on */
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 4, 0))
+
 		ret = sprd_cam_pw_on();
 		if (ret) {
 			pr_err("fail to power on cam sys %d, iid%d\n",
@@ -4013,14 +4026,13 @@ int sprd_isp_module_en(void *isp_handle, enum isp_id iid)
 			       iid, ret);
 			goto exit;
 		}
-
+#endif
 		ret = isp_enable_clk();
 		if (ret) {
 			pr_err("fail to enable iid%d isp clk %d\n",
 			       iid, ret);
 			goto exit;
 		}
-
 		ret = sprd_isp_reset(dev);
 		if (ret) {
 			pr_err("fail to iid%d reset isp %d\n",
@@ -4125,7 +4137,7 @@ int sprd_isp_module_dis(void *isp_handle, enum isp_id iid)
 			       iid, rtn);
 			goto exit;
 		}
-
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 4, 0))
 		rtn = sprd_cam_domain_disable();
 		if (rtn) {
 			pr_err("fail to disable cam domain iid%d\n %d",
@@ -4139,6 +4151,7 @@ int sprd_isp_module_dis(void *isp_handle, enum isp_id iid)
 			       iid, rtn);
 			goto exit;
 		}
+#endif		
 	}
 
 exit:
@@ -4355,7 +4368,6 @@ void sprd_isp_drv_deinit(void)
 
 int sprd_isp_parse_dt(struct device_node *dn, uint32_t *isp_count)
 {
-	int ret = 0;
 	int i = 0;
 	uint32_t count = 0;
 	uint32_t offbuf_count = ISP_FRM_QUEUE_LENGTH;
@@ -4445,15 +4457,9 @@ int sprd_isp_parse_dt(struct device_node *dn, uint32_t *isp_count)
 		/* read global register */
 		for (i = 0; i < ARRAY_SIZE(syscon_name); i++) {
 			pname = syscon_name[i];
-			tregmap =  syscon_regmap_lookup_by_name(np, pname);
+			tregmap =  syscon_regmap_lookup_by_phandle_args(np, pname, 2, args);
 			if (IS_ERR_OR_NULL(tregmap)) {
 				pr_err("fail to read %s regmap\n", pname);
-				continue;
-			}
-			ret = syscon_get_args_by_name(np, pname, 2, args);
-			if (ret != 2) {
-				pr_err("fail to read %s args, ret %d\n",
-					pname, ret);
 				continue;
 			}
 			syscon_regs[i].gpr = tregmap;

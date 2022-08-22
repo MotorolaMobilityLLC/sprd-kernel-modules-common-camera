@@ -11,6 +11,7 @@
  * GNU General Public License for more details.
  */
 
+#include <linux/version.h>
 #include <linux/delay.h>
 #include <linux/errno.h>
 #include <linux/fs.h>
@@ -29,6 +30,11 @@
 #include <linux/sprd_iommu.h>
 #include <linux/sprd_ion.h>
 #include <linux/workqueue.h>
+#include <linux/pm_wakeup.h>
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0))
+#include <linux/pm_runtime.h>
+#include <linux/ion.h>
+#endif
 
 #include "dcam_core.h"
 #include "dcam_buf.h"
@@ -37,6 +43,7 @@
 #include "compat_isp_drv.h"
 #endif
 #include "cam_dbg.h"
+struct wakeup_source *Camera_Sys_Wakelock;
 
 /* Macro Definitions */
 #ifdef pr_fmt
@@ -851,6 +858,7 @@ static int set_isp_path_buf_cfg(void *handle, enum isp_cfg_id cfg_id,
 				struct camera_img_buf_queue *queue)
 {
 	int ret = 0;
+	int fret = -1;
 	struct camera_img_buf_addr *cur_node;
 	struct camera_addr frm_addr;
 
@@ -875,9 +883,14 @@ static int set_isp_path_buf_cfg(void *handle, enum isp_cfg_id cfg_id,
 		frm_addr.mfd_v = cur_node->frm_addr.mfd_v;
 		frm_addr.user_fid = cur_node->frm_addr.user_fid;
 		ret = set_isp_path_cfg(handle, path_index, cfg_id, &frm_addr);
+		if(unlikely(fret)){
+		    fret=ret;
+		}
 	}
 
 exit:
+    if(ret==0 || fret==0)
+       return 0;
 	return ret;
 }
 
@@ -1992,14 +2005,19 @@ static void sprd_img_handle_pulse_line(struct work_struct *work)
 exit:
 	return;
 }
-
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0))
+static void sprd_timer_callback(struct timer_list *t)
+{
+	struct camera_dev *dev = from_timer(dev, t, dcam_timer);
+#else
 static void sprd_timer_callback(unsigned long data)
 {
 	struct camera_dev *dev = (struct camera_dev *)data;
+#endif
 	struct camera_node node = {0};
 	int ret = 0;
 
-	if (0 == data || 0 == atomic_read(&dev->stream_on)) {
+	if (!dev || 0 == atomic_read(&dev->stream_on)) {
 		pr_err("fail to call timer cb\n");
 		return;
 	}
@@ -2019,7 +2037,11 @@ static void sprd_timer_callback(unsigned long data)
 
 static void sprd_init_timer(struct timer_list *dcam_timer, unsigned long data)
 {
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0))
+	timer_setup(dcam_timer, sprd_timer_callback, 0);
+#else
 	setup_timer(dcam_timer, sprd_timer_callback, data);
+#endif
 }
 
 static int sprd_start_timer(struct timer_list *dcam_timer,
@@ -2356,6 +2378,9 @@ static int sprd_img_k_open(struct inode *node, struct file *file)
 	}
 
 	camerafile->grp = md->this_device->platform_data;
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0))
+	ret = pm_runtime_get_sync(&camerafile->grp->pdev->dev);
+#endif
 	file->private_data = (void *)camerafile;
 	count = camerafile->grp->dcam_count;
 
@@ -2407,17 +2432,21 @@ OPEN_EXIT2:
 
 static int sprd_img_k_release(struct inode *node, struct file *file)
 {
-	int i = 0;
+	int i = 0, ret = 0;
 	struct camera_file *camerafile = NULL;
 	struct camera_group *group = NULL;
 
 	camerafile = file->private_data;
-	if (!camerafile)
+	if (!camerafile ||!camerafile->grp){
+                pr_err("camerafile or camerafile->grp is NULL!\n");
 		goto exit;
+        }
 	group = camerafile->grp;
 
 	if (group->dev_inited & (1 << 0))
 		complete(&((struct camera_dev *)group->dev[0])->irq_com);
+
+	camerafile->private_key = 0;
 
 	pr_info("sprd_img: release start.\n");
 	if (atomic_dec_return(&group->camera_opened) == 0) {
@@ -2448,6 +2477,10 @@ static int sprd_img_k_release(struct inode *node, struct file *file)
 
 	vfree(camerafile);
 	file->private_data = NULL;
+
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0))
+	ret = pm_runtime_put_sync(&group->pdev->dev);
+#endif
 
 	pr_info("sprd_img: release end!\n");
 exit:
@@ -3823,7 +3856,9 @@ static int sprd_img_set_frame_addr(struct camera_file *camerafile,
 						buf_addr.frm_addr_vir.yaddr,
 						buf_addr.frm_addr_vir.uaddr,
 						buf_addr.frm_addr_vir.vaddr);
-
+				if(p->user_fid!=-1 && p->channel_id ==2 && atomic_read(&dev->stream_on) == 0){
+				    goto exit;
+				}
 				ret = sprd_img_buf_queue_write(
 					&path->buf_queue,
 					&buf_addr);
@@ -4041,17 +4076,18 @@ static long sprd_img_k_ioctl(struct file *file, uint32_t cmd,
 		pr_err("fail to get valid input ptr\n");
 		goto exit;
 	}
-
-	io_ctrl = dcam_ioctl_get_fun(cmd);
-	if (io_ctrl != NULL) {
-		ret = io_ctrl(camerafile, arg, cmd);
-		if (ret) {
-			pr_err("fail to cmd %d\n", _IOC_NR(cmd));
-			goto exit;
+	if(cmd == SPRD_IMG_IO_SET_KEY || camerafile->private_key == 1) {
+		io_ctrl = dcam_ioctl_get_fun(cmd);
+		if (io_ctrl != NULL) {
+			ret = io_ctrl(camerafile, arg, cmd);
+			if (ret) {
+				pr_err("fail to cmd %d\n", _IOC_NR(cmd));
+				goto exit;
+			}
+		} else {
+			pr_debug("fail to get valid cmd 0x%x 0x%x\n", cmd,
+				 _IOC_NR(cmd));
 		}
-	} else {
-		pr_debug("fail to get valid cmd 0x%x 0x%x\n", cmd,
-			 _IOC_NR(cmd));
 	}
 exit:
 	return 0;
@@ -4376,8 +4412,12 @@ static int sprd_img_probe(struct platform_device *pdev)
 	image_dev.this_device->platform_data = (void *)group;
 	group->pdev = pdev;
 	atomic_set(&group->camera_opened, 0);
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0)
+    Camera_Sys_Wakelock = wakeup_source_create("Camera Sys Wakelock");
+    wakeup_source_add(Camera_Sys_Wakelock);
+#else
 	wakeup_source_init(&group->ws, "Camera Sys Wakelock");
-
+#endif 
 	pr_info("sprd img probe pdev name %s\n", pdev->name);
 	pr_info("sprd dcam dev name %s\n", pdev->dev.init_name);
 	ret = sprd_dcam_parse_dt(pdev->dev.of_node, &group->dcam_count);
@@ -4410,6 +4450,10 @@ static int sprd_img_probe(struct platform_device *pdev)
 		goto err_dbg_init_exit;
 	}
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0)
+	pm_runtime_set_active(&pdev->dev);
+	pm_runtime_enable(&pdev->dev);
+#endif
 	ret = sysfs_create_group(&image_dev.this_device->kobj,
 				 &isp_dbg_img_attrs_group);
 	if (unlikely(ret)) {
@@ -4447,7 +4491,12 @@ err_isp_init_exit:
 	sprd_dcam_drv_deinit();
 err_dcam_init_exit:
 err_exit:
-	wakeup_source_trash(&group->ws);
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0)
+    wakeup_source_remove(Camera_Sys_Wakelock);
+    wakeup_source_destroy(Camera_Sys_Wakelock);
+#else
+    wakeup_source_trash(&group->ws);
+#endif
 	vfree(group);
 	misc_deregister(&image_dev);
 
@@ -4475,7 +4524,12 @@ static int sprd_img_remove(struct platform_device *pdev)
 	sprd_isp_drv_deinit();
 	sprd_dcam_drv_deinit();
 	if (group) {
-		wakeup_source_trash(&group->ws);
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0)
+        wakeup_source_remove(Camera_Sys_Wakelock);
+        wakeup_source_destroy(Camera_Sys_Wakelock);
+#else
+        wakeup_source_trash(&group->ws);
+#endif	
 		vfree(group);
 	}
 	misc_deregister(&image_dev);

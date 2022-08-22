@@ -170,6 +170,10 @@ static int isp_k_2d_lsc_block(struct isp_io_param *param,
 	struct isp_pipe_dev *dev = NULL;
 	enum isp_id iid = ISP_GET_IID(idx);
 
+	if (param == NULL || isp_k_param == NULL) {
+            pr_err("isp_k_2d_lsc_block: param or isp_k_param null\n");
+            return ret;
+	}
 	memset(&lens_info, 0x00, sizeof(lens_info));
 
 	ret = copy_from_user((void *)&lens_info, param->property_param,

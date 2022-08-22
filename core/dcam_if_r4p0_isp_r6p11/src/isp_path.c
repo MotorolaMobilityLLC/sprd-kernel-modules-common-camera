@@ -1271,7 +1271,7 @@ int isp_path_set_next_frm(struct isp_module *module,
 	uint32_t iova0, iova2;
 	uint32_t frm_q_len;
 	uint32_t target_fid = 0;
-	uint32_t ret;
+	uint32_t ret = 0;
 
 	if (module == NULL) {
 		pr_err("fail to get moudule, It's NULL\n");

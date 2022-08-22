@@ -231,6 +231,8 @@ struct dcam_dev {
 	uint32_t                 channel_id;
 	void                     *driver_data;
 	void                     *isp_dev_handle;
+	uint32_t                 private_key;
+	uint32_t                 idx;
 };
 
 struct dcam_group {
@@ -2981,10 +2983,11 @@ static int sprd_img_k_release(struct inode *node, struct file *file)
 		return -EBADFD;
 	pr_info("%s start\n", __func__);
 	dev = file->private_data;
-	if (!dev) {
-		pr_err("dev is NULL!\n");
+	if (!dev || !dev->driver_data) {
+		pr_err("dev or dev->driver_data is NULL!\n");
 		goto exit;
 	}
+	dev->private_key = 0;
 
 	md = dev->driver_data;
 	ret = sprd_img_stream_off(file);
@@ -3106,6 +3109,7 @@ static long sprd_img_k_ioctl(struct file *file, unsigned int cmd,
 	uint32_t                 led0_status;
 	uint32_t                 led1_status;
 	uint32_t                 iommu_enable;
+	uint32_t                 param;
 	struct sprd_img_parm     parm;
 	struct sprd_img_size     size;
 	struct sprd_img_rect     rect;
@@ -3122,6 +3126,11 @@ static long sprd_img_k_ioctl(struct file *file, unsigned int cmd,
 	}
 
 	info = &dev->dcam_cxt;
+	if(cmd == SPRD_IMG_IO_SET_KEY || dev->private_key == 1){}
+	else {
+		pr_err("%s private key error\n", __func__);
+		goto exit;
+	}
 
 	switch (cmd) {
 	case SPRD_IMG_IO_SET_MODE:
@@ -3729,6 +3738,19 @@ static long sprd_img_k_ioctl(struct file *file, unsigned int cmd,
 			sprd_img_isp_reg_isr(dev);
 		else
 			sprd_img_isp_unreg_isr(dev);
+		break;
+	case SPRD_IMG_IO_SET_KEY:
+		ret = 0;
+		param = 0;
+		ret = copy_from_user(&param, (void __user *)arg, sizeof(uint32_t));
+		if (unlikely(ret)) {
+			pr_err("fail to copy from user, ret %d\n", ret);
+			return -EFAULT;
+		}
+		if (param == CAM_IOCTL_PRIVATE_KEY) {
+			dev->private_key = 1;
+		}
+		pr_info("cam%d get ioctrl permission %d\n", dev->idx, dev->private_key);
 		break;
 	default:
 		pr_err("sprd_img_k_ioctl: invalid cmd NR %u\n", _IOC_NR(cmd));

@@ -10,13 +10,16 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  */
-
+#include <linux/version.h>
 #include "isp_statis_buf.h"
 #include <linux/sprd_ion.h>
 #include <linux/sprd_iommu.h>
 
-#define ION
-#ifdef ION
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0))
+#include <linux/pm_runtime.h>
+#include <linux/ion.h>
+#else
+#include <video/sprd_mmsys_pw_domain.h>
 #include "ion.h"
 #endif
 

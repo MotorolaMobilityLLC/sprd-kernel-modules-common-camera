@@ -15,10 +15,17 @@
 #include <linux/sprd_ion.h>
 #include <linux/sprd_iommu.h>
 #include <linux/vmalloc.h>
-
+#include <linux/version.h>
 #include "isp_buf.h"
 #include "isp_statis_buf.h"
+#include "cam_porting.h"
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0))
+#include <linux/ion.h>
+#include <linux/pm_runtime.h>
+#else
+#include <video/sprd_mmsys_pw_domain.h>
 #include "ion.h"
+#endif
 
 #ifdef pr_fmt
 #undef pr_fmt
@@ -663,7 +670,7 @@ int isp_offline_get_buf(struct isp_offline_desc *off_desc, uint8_t off_type)
 			ION_HEAP_ID_MASK_MM :
 			ION_HEAP_ID_MASK_SYSTEM;
 
-		ion_buf->dmabuf_p = ion_new_alloc(buf_desc->buf_len, heap_t, 0);
+		ion_buf->dmabuf_p = cam_ion_alloc(buf_desc->buf_len, heap_t, 0);
 		if (IS_ERR_OR_NULL(ion_buf->dmabuf_p)) {
 			pr_err("fail to alloc ion buf size = 0x%x %ld\n",
 				(int)buf_desc->buf_len,
@@ -687,7 +694,8 @@ int isp_offline_get_buf(struct isp_offline_desc *off_desc, uint8_t off_type)
 			goto err_map_kernel;
 
 		if (sprd_iommu_attach_device(&s_isp_pdev->dev)) {
-			ret = sprd_ion_get_phys_addr_by_db(ion_buf->dmabuf_p,
+			ret = sprd_ion_get_phys_addr(-1,
+			                   ion_buf->dmabuf_p,
 							   &phys_addr,
 							   &buf_len);
 			if (ret) {
@@ -723,7 +731,7 @@ err_get_phyaddr:
 err_map_kernel:
 err_get_buf:
 	ion_buf = &buf_desc->ion_buf[num];
-	ion_free(ion_buf->dmabuf_p);
+	cam_ion_free(ion_buf->dmabuf_p);
 	ion_buf->dmabuf_p = NULL;
 	ion_buf->buf = NULL;
 	ion_buf->buf_size = 0;
@@ -732,7 +740,7 @@ err_alloc:
 	for (i = 0; i < num; i++) {
 		ion_buf = &buf_desc->ion_buf[i];
 		sprd_ion_unmap_kernel(ion_buf->dmabuf_p, 0);
-		ion_free(ion_buf->dmabuf_p);
+		cam_ion_free(ion_buf->dmabuf_p);
 		ion_buf->dmabuf_p = NULL;
 		ion_buf->buf = NULL;
 		ion_buf->buf_size = 0;
@@ -764,7 +772,7 @@ int isp_offline_put_buf(struct isp_offline_desc *off_desc,
 		if (IS_ERR_OR_NULL(ion_buf->dmabuf_p))
 			continue;
 		sprd_ion_unmap_kernel(ion_buf->dmabuf_p, 0);
-		ion_free(ion_buf->dmabuf_p);
+		cam_ion_free(ion_buf->dmabuf_p);
 		ion_buf->dmabuf_p = NULL;
 		ion_buf->buf = NULL;
 		ion_buf->buf_size = 0;
@@ -1037,7 +1045,7 @@ int isp_gen_buf_alloc(struct isp_buf_info *buf_info)
 			ION_HEAP_ID_MASK_MM :
 			ION_HEAP_ID_MASK_SYSTEM;
 
-	buf_info->dmabuf_p = ion_new_alloc(buf_info->size, heap_type, 0);
+	buf_info->dmabuf_p = cam_ion_alloc(buf_info->size, heap_type, 0);
 	if (IS_ERR_OR_NULL(buf_info->dmabuf_p)) {
 		pr_err("fail to alloc ion buf size = 0x%x %ld\n",
 			(int)buf_info->size,
@@ -1070,7 +1078,8 @@ int isp_gen_buf_alloc(struct isp_buf_info *buf_info)
 		unsigned long phys_addr;
 		size_t size;
 
-		ret = sprd_ion_get_phys_addr_by_db(buf_info->dmabuf_p,
+		ret = sprd_ion_get_phys_addr(-1,
+		        buf_info->dmabuf_p,
 				&phys_addr,
 				&size);
 		if (ret) {
@@ -1095,7 +1104,7 @@ map_failed:
 	sprd_ion_unmap_kernel(buf_info->dmabuf_p, 0);
 
 failed:
-	ion_free(buf_info->dmabuf_p);
+	cam_ion_free(buf_info->dmabuf_p);
 	buf_info->dmabuf_p = NULL;
 	buf_info->buf = NULL;
 	buf_info->buf_size = 0;
@@ -1105,6 +1114,7 @@ failed:
 
 int isp_gen_buf_free(struct isp_buf_info *buf_info)
 {
+
 	if (buf_info == NULL || buf_info->dmabuf_p == NULL) {
 		pr_err("fail to get valid buffer info\n");
 		return -EINVAL;
@@ -1113,7 +1123,7 @@ int isp_gen_buf_free(struct isp_buf_info *buf_info)
 	sprd_ion_unmap_kernel(buf_info->dmabuf_p, 0);
 	buf_info->sw_addr = NULL;
 
-	ion_free(buf_info->dmabuf_p);
+	cam_ion_free(buf_info->dmabuf_p);
 	buf_info->dmabuf_p = NULL;
 	buf_info->buf = NULL;
 	buf_info->buf_size = 0;

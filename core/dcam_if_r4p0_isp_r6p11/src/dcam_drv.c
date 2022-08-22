@@ -31,8 +31,15 @@
 #include <linux/sprd_iommu.h>
 #include <linux/videodev2.h>
 #include <linux/vmalloc.h>
+#include <linux/version.h>
+#include <linux/time.h>
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0))
+#include <linux/pm_runtime.h>
+#include <linux/ion.h>
+#else
 #include <video/sprd_mmsys_pw_domain.h>
-
+#include "ion.h"
+#endif
 #include "sprd_mm.h"
 #include "dcam_drv.h"
 #include "gen_scale_coef.h"
@@ -329,31 +336,31 @@ static const int s_dcam_time_logger;
 
 static inline void dcam_print_time(char *str, int type)
 {
-	struct timeval t;
-	static struct timeval old_t;
+	struct timespec t;
+	static struct timespec old_t;
 	struct tm broken;
 	long total, old_total;
 
 	if (s_dcam_time_logger == 0)
 		return;
 
-	do_gettimeofday(&t);
+	ktime_get_ts(&t);
 
 	if (type == DCAM_TIME_SOF)
 		old_t = t;
 	else if (type == DCAM_TIME_TX_DONE) {
-		total = t.tv_sec * 1000000 + t.tv_usec;
-		old_total = old_t.tv_sec * 1000000 + old_t.tv_usec;
+		total = t.tv_sec * 1000000 + t.tv_nsec;
+		old_total = old_t.tv_sec * 1000000 + old_t.tv_nsec;
 		if (total - old_total > 33000 + 1000 ||
 			total - old_total < 33000 - 1000)
 			pr_info("debug shaking: out of range\n");
 	}
 
-	time_to_tm(t.tv_sec, 0, &broken);
+	time64_to_tm(t.tv_sec, 0, &broken);
 
 	pr_info("%s: %02d:%02d:%02d:%03ld.%03ld\n",
 		str, broken.tm_hour, broken.tm_min,
-		broken.tm_sec, t.tv_usec/1000, t.tv_usec%1000);
+		broken.tm_sec, t.tv_nsec/1000, t.tv_nsec%1000);
 }
 
 /* Internal Function Implementation */
@@ -4187,6 +4194,7 @@ int sprd_dcam_module_en(enum dcam_id idx)
 
 	mutex_lock(&dcam_module_sema[idx]);
 	if (atomic_inc_return(&s_dcam_users[idx]) == 1) {
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 4, 0))
 		ret = sprd_cam_pw_on();
 		if (ret != 0) {
 			pr_err("fail to power on camera\n");
@@ -4194,6 +4202,7 @@ int sprd_dcam_module_en(enum dcam_id idx)
 			return ret;
 		}
 		sprd_cam_domain_eb();
+#endif		
 		dcam_enable_clk();
 		sprd_dcam_reset(idx, NULL, NULL);
 
@@ -4327,6 +4336,7 @@ int sprd_dcam_module_dis(enum dcam_id idx)
 	mutex_lock(&dcam_module_sema[idx]);
 	if (atomic_dec_return(&s_dcam_users[idx]) == 0) {
 		dcam_disable_clk(idx);
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 4, 0))		
 		sprd_cam_domain_disable();
 		rtn = sprd_cam_pw_off();
 		if (rtn != 0) {
@@ -4334,7 +4344,7 @@ int sprd_dcam_module_dis(enum dcam_id idx)
 			mutex_unlock(&dcam_module_sema[idx]);
 			return rtn;
 		}
-
+#endif
 		free_irq(s_dcam_irq[idx], (void *)&s_dcam_irq[idx]);
 	}
 	mutex_unlock(&dcam_module_sema[idx]);

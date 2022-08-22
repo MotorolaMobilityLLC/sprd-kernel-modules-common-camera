@@ -63,6 +63,10 @@ static int32_t isp_k_2d_lsc_block(struct isp_io_param *param,
 	uint32_t i = 0;
 	struct isp_dev_2d_lsc_info lens_info;
 
+	if (param == NULL || isp_k_param == NULL) {
+            pr_err("isp_k_2d_lsc_block: param or isp_k_param null\n");
+            return ret;
+	}
 	memset(&lens_info, 0x00, sizeof(lens_info));
 	if (atomic_read(&isp_k_param->lsc_updated) == 1) {
 		pr_debug("already updated for current frame\n");
