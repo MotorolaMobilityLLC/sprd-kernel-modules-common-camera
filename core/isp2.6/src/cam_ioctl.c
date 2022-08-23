@@ -2380,6 +2380,7 @@ check:
 	} else {
 		module->offline_cxt_id = ret;
 		module->dcam_dev_handle->sw_ctx[module->offline_cxt_id].offline = 1;
+		module->dcam_dev_handle->dcam_pipe_ops->ioctl(&module->dcam_dev_handle->sw_ctx[module->offline_cxt_id], DCAM_IOCTL_CREAT_INT_THREAD, NULL);
 		if (module->cam_uinfo.raw_alg_type && module->cam_uinfo.param_frame_sync) {
 			ret = camcore_dcam_pmbuf_init(&module->dcam_dev_handle->sw_ctx[module->offline_cxt_id]);
 			if (ret)

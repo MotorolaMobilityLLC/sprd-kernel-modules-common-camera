@@ -1542,6 +1542,72 @@ static int dcamcore_path_rect_get(struct dcam_sw_context *pctx, void *param)
 	return 0;
 }
 
+static int dcamcore_thread_loop(void *arg)
+{
+	struct cam_thread_info *thrd = NULL;
+
+	if (!arg) {
+		pr_err("fail to get valid input ptr\n");
+		return -1;
+	}
+
+	thrd = (struct cam_thread_info *)arg;
+	pr_debug("%s loop starts %px\n", thrd->thread_name, thrd);
+	while (1) {
+		if (!IS_ERR_OR_NULL(thrd) && wait_for_completion_interruptible(
+			&thrd->thread_com) == 0) {
+			if (atomic_cmpxchg(&thrd->thread_stop, 1, 0) == 1) {
+				pr_info("thread %s should stop.\n", thrd->thread_name);
+				break;
+			}
+			pr_debug("thread %s trigger\n", thrd->thread_name);
+			thrd->proc_func(thrd->ctx_handle);
+		} else {
+			pr_debug("thread %s exit!", thrd->thread_name);
+			break;
+		}
+	}
+	pr_debug("%s thread stop.\n", thrd->thread_name);
+	complete(&thrd->thread_stop_com);
+
+	return 0;
+}
+
+int dcamcore_thread_create(void *ctx_handle, struct cam_thread_info *thrd, proc_func func)
+{
+	thrd->ctx_handle = ctx_handle;
+	thrd->proc_func = func;
+	atomic_set(&thrd->thread_stop, 0);
+	init_completion(&thrd->thread_com);
+	init_completion(&thrd->thread_stop_com);
+	thrd->thread_task = kthread_run(dcamcore_thread_loop,
+		thrd, "%s", thrd->thread_name);
+	if (IS_ERR_OR_NULL(thrd->thread_task)) {
+		pr_err("fail to start thread %s\n", thrd->thread_name);
+		thrd->thread_task = NULL;
+		return -EFAULT;
+	}
+	return 0;
+}
+
+static void dcamcore_thread_stop(struct cam_thread_info *thrd)
+{
+	int ret = 0;
+
+	if (thrd->thread_task) {
+		atomic_set(&thrd->thread_stop, 1);
+		complete(&thrd->thread_com);
+		ret = wait_for_completion_interruptible_timeout(&thrd->thread_stop_com, DCAM_STOP_TIMEOUT);
+		if (ret == -ERESTARTSYS)
+			pr_err("fail to interruption_proc, when dcam wait\n");
+		else if (ret == 0)
+			pr_err("fail to wait interruption_proc, timeout.\n");
+		else
+			pr_info("dcam interruption_proc thread wait time %d\n", ret);
+		thrd->thread_task = NULL;
+	}
+}
+
 static int dcamcore_ioctrl(void *dcam_handle, enum dcam_ioctrl_cmd cmd, void *param)
 {
 	int ret = 0;
@@ -1670,6 +1736,15 @@ static int dcamcore_ioctrl(void *dcam_handle, enum dcam_ioctrl_cmd cmd, void *pa
 	case DCAM_IOCTL_CFG_PYR_DEC_EN:
 		pctx->is_pyr_rec = *(uint32_t *)param;
 		break;
+	case DCAM_IOCTL_CREAT_INT_THREAD:
+		sprintf(pctx->dcam_interruption_proc_thrd.thread_name, "dcam%d_interruption_proc", pctx->sw_ctx_id);
+		ret = dcamcore_thread_create(pctx, &pctx->dcam_interruption_proc_thrd, dcamint_interruption_proc);
+		cam_queue_init(&pctx->interruption_sts_queue, DCAM_INT_PROC_FRM_NUM, dcamcore_empty_interrupt_put);
+		if (ret) {
+			pr_err("fail to creat offline dcam int proc thread.\n");
+			dcamcore_thread_stop(&pctx->dcam_interruption_proc_thrd);
+		}
+		break;
 	default:
 		pr_err("fail to get a known cmd: %d\n", cmd);
 		ret = -EFAULT;
@@ -1730,71 +1805,7 @@ static int dcamcore_share_buf_cb_set(void *dcam_handle, int ctx_id,
 	return ret;
 }
 
-static int dcamcore_thread_loop(void *arg)
-{
-	struct cam_thread_info *thrd = NULL;
 
-	if (!arg) {
-		pr_err("fail to get valid input ptr\n");
-		return -1;
-	}
-
-	thrd = (struct cam_thread_info *)arg;
-	pr_debug("%s loop starts %px\n", thrd->thread_name, thrd);
-	while (1) {
-		if (!IS_ERR_OR_NULL(thrd) && wait_for_completion_interruptible(
-			&thrd->thread_com) == 0) {
-			if (atomic_cmpxchg(&thrd->thread_stop, 1, 0) == 1) {
-				pr_info("thread %s should stop.\n", thrd->thread_name);
-				break;
-			}
-			pr_debug("thread %s trigger\n", thrd->thread_name);
-			thrd->proc_func(thrd->ctx_handle);
-		} else {
-			pr_debug("thread %s exit!", thrd->thread_name);
-			break;
-		}
-	}
-	pr_debug("%s thread stop.\n", thrd->thread_name);
-	complete(&thrd->thread_stop_com);
-
-	return 0;
-}
-
-int dcamcore_thread_create(void *ctx_handle, struct cam_thread_info *thrd, proc_func func)
-{
-	thrd->ctx_handle = ctx_handle;
-	thrd->proc_func = func;
-	atomic_set(&thrd->thread_stop, 0);
-	init_completion(&thrd->thread_com);
-	init_completion(&thrd->thread_stop_com);
-	thrd->thread_task = kthread_run(dcamcore_thread_loop,
-		thrd, "%s", thrd->thread_name);
-	if (IS_ERR_OR_NULL(thrd->thread_task)) {
-		pr_err("fail to start thread %s\n", thrd->thread_name);
-		thrd->thread_task = NULL;
-		return -EFAULT;
-	}
-	return 0;
-}
-
-static void dcamcore_thread_stop(struct cam_thread_info *thrd)
-{
-	int ret = 0;
-
-	if (thrd->thread_task) {
-		atomic_set(&thrd->thread_stop, 1);
-		complete(&thrd->thread_com);
-		ret = wait_for_completion_interruptible_timeout(&thrd->thread_stop_com, DCAM_STOP_TIMEOUT);
-		if (ret == -ERESTARTSYS)
-			pr_err("fail to interruption_proc, when dcam wait\n");
-		else if (ret == 0)
-			pr_err("fail to wait interruption_proc, timeout.\n");
-		else
-			pr_info("dcam interruption_proc thread wait time %d\n", ret);
-		thrd->thread_task = NULL;
-	}
-}
 
 static int dcamcore_dev_start(void *dcam_handle, int online)
 {
@@ -1850,8 +1861,15 @@ static int dcamcore_dev_start(void *dcam_handle, int online)
 	pr_info("DCAM%u start: %px, state = %d, sw%d\n", pctx->hw_ctx_id, pctx, atomic_read(&pctx->state), pctx->sw_ctx_id);
 
 	sprintf(pctx->dcam_interruption_proc_thrd.thread_name, "dcam%d_interruption_proc", pctx->sw_ctx_id);
-	ret = dcamcore_thread_create(pctx, &pctx->dcam_interruption_proc_thrd, dcamint_interruption_proc);
-	cam_queue_init(&pctx->interruption_sts_queue, DCAM_INT_PROC_FRM_NUM, dcamcore_empty_interrupt_put);
+	if (pctx->dcam_interruption_proc_thrd.thread_task == NULL) {
+		ret = dcamcore_thread_create(pctx, &pctx->dcam_interruption_proc_thrd, dcamint_interruption_proc);
+		cam_queue_init(&pctx->interruption_sts_queue, DCAM_INT_PROC_FRM_NUM, dcamcore_empty_interrupt_put);
+		if (ret) {
+			pr_err("fail to creat online dcam int pro thread.\n");
+			dcamcore_thread_stop(&pctx->dcam_interruption_proc_thrd);
+			return ret;
+		}
+	}
 
 	if (pctx->raw_callback) {
 		atomic_set(&pctx->path[DCAM_PATH_AEM].user_cnt, 0);
@@ -2055,8 +2073,10 @@ static int dcamcore_dev_stop(void *dcam_handle, enum dcam_stop_cmd pause)
 		dcam_int_tracker_dump(hw_ctx_id);
 		dcam_int_tracker_reset(hw_ctx_id);
 	}
-	dcamcore_thread_stop(&pctx->dcam_interruption_proc_thrd);
-	cam_queue_clear(&pctx->interruption_sts_queue, struct camera_interrupt, list);
+	if (!pctx->offline) {
+		dcamcore_thread_stop(&pctx->dcam_interruption_proc_thrd);
+		cam_queue_clear(&pctx->interruption_sts_queue, struct camera_interrupt, list);
+	}
 
 	atomic_set(&pctx->state, STATE_IDLE);
 	for (i = DCAM_CXT_1; i < DCAM_CXT_NUM; i++) {
@@ -2471,6 +2491,10 @@ static int dcamcore_context_put(void *dcam_handle, int ctx_id)
 		cam_queue_clear(&pctx->proc_queue, struct camera_frame, list);
 		cam_queue_clear(&pctx->fullpath_mv_queue, struct camera_frame, list);
 		cam_queue_clear(&pctx->binpath_mv_queue, struct camera_frame, list);
+		if (pctx->offline) {
+			dcamcore_thread_stop(&pctx->dcam_interruption_proc_thrd);
+			cam_queue_clear(&pctx->interruption_sts_queue, struct camera_interrupt, list);
+		}
 		memset(&pctx->nr3_me, 0, sizeof(struct nr3_me_data));
 		pctx->dcam_cb_func = NULL;
 		pctx->buf_get_cb = NULL;
