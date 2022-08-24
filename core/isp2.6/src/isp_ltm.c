@@ -884,6 +884,17 @@ static int ispltm_pipe_proc(void *handle, void *param)
 					break;
 				}
 			}
+			/*
+			* Capture size ratio must be same as preview size ratio
+			* Because Capture Stats depend on Preview Stats
+			* Transform (A/B != C/D) to (A*D != B*C)
+			*/
+			if ((sync->pre_frame_w * ctx->frame_height) != (sync->pre_frame_h * ctx->frame_width)) {
+				pr_err("fail to match prv size with cap size\n");
+				ctx->map.bypass = 1;
+				ret = -1;
+				break;
+			}
 		}
 
 		ret = ispltm_histo_config_gen(ctx, &ltm_info->ltm_stat);

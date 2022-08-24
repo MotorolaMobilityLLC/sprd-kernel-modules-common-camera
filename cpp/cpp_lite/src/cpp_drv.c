@@ -86,16 +86,16 @@ static int cppdrv_get_sg_table(struct cpp_iommu_info *pfinfo)
 		return -EFAULT;
 	}
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0))
-		ret = sprd_dmabuf_get_sysbuffer(pfinfo->mfd[0], NULL,
-			&pfinfo->buf, &pfinfo->size);
+	ret = sprd_dmabuf_get_sysbuffer(pfinfo->mfd[0], NULL,
+		&pfinfo->buf, &pfinfo->size);
 #else
-		ret = sprd_ion_get_buffer(pfinfo->mfd[0], NULL,
-			&pfinfo->buf, &pfinfo->size);
+	ret = sprd_ion_get_buffer(pfinfo->mfd[0], NULL,
+		&pfinfo->buf, &pfinfo->size);
 #endif
-		if (ret) {
-			pr_err("fail to get sg table\n");
-			return -EFAULT;
-		}
+	if (ret) {
+		pr_err("fail to get sg table\n");
+		return -EFAULT;
+	}
 	if (pfinfo->dmabuf_p == NULL) {
 		pfinfo->dmabuf_p = dma_buf_get(pfinfo->mfd[0]);
 		if (IS_ERR_OR_NULL(pfinfo->dmabuf_p)) {
