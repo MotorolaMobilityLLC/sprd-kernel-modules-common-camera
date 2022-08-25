@@ -125,7 +125,7 @@ static int sprd_cam_domain_eb(struct camsys_power_info *pw_info)
 {
 	int ret = 0;
 
-	pr_info("cb %p\n", __builtin_return_address(0));
+	pr_info("cb %pS\n", __builtin_return_address(0));
 
 	/* config cam emc clk */
 	clk_prepare_enable(pw_info->u.qogirn6pro.mm_eb);
@@ -144,7 +144,7 @@ static int sprd_cam_domain_eb(struct camsys_power_info *pw_info)
 
 static int sprd_cam_domain_disable(struct camsys_power_info *pw_info)
 {
-	pr_info("cb %p\n", __builtin_return_address(0));
+	pr_info("cb %pS\n", __builtin_return_address(0));
 
 	/* mm bus enable */
 	clk_disable_unprepare(pw_info->u.qogirn6pro.blk_cfg_en);
@@ -277,13 +277,12 @@ static int sprd_cam_pw_off(struct camsys_power_info *pw_info)
 		goto err_pw_off;
 	}
 
+	pr_info("Done, cb: %pS\n", __builtin_return_address(0));
 	return 0;
 
 err_pw_off:
 	pr_err("fail to power off cam sys, ret %d, read count %d\n", ret, read_count);
-
 	return ret;
-
 }
 
 static int sprd_cam_pw_on(struct camsys_power_info *pw_info)
@@ -294,7 +293,7 @@ static int sprd_cam_pw_on(struct camsys_power_info *pw_info)
 	unsigned int power_state3 = 0;
 	unsigned int read_count = 0;
 
-	pr_info("power on state %d, cb %p\n",
+	pr_info("power on state %d, cb %pS\n",
 		atomic_read(&pw_info->u.qogirn6pro.users_pw),
 		__builtin_return_address(0));
 
@@ -410,7 +409,6 @@ static int sprd_cam_pw_on(struct camsys_power_info *pw_info)
 err_pw_on:
 	pr_err("fail to power on cam sys\n");
 	return ret;
-
 }
 
 static long sprd_campw_init(struct platform_device *pdev, struct camsys_power_info *pw_info)
