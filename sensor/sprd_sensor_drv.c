@@ -587,14 +587,19 @@ int sprd_sensor_register_driver(void)
 	memset(s_sensor_dev_data, 0, sizeof(s_sensor_dev_data));
 	ret = i2c_add_driver(&sprd_main_sensor_driver);
 	pr_info("register main sensor:%d\n", ret);
+	usleep_range(10*1000, 11*1000);
 	ret = i2c_add_driver(&sprd_sub_sensor_driver);
 	pr_info("register sub sensor:%d\n", ret);
+	usleep_range(10*1000, 11*1000);
 	ret = i2c_add_driver(&sprd_main2_sensor_driver);
 	pr_info("register main2 sensor:%d\n", ret);
+	usleep_range(10*1000, 11*1000);
 	ret = i2c_add_driver(&sprd_sub2_sensor_driver);
 	pr_info("register  sub2 sensor:%d\n", ret);
+	usleep_range(10*1000, 11*1000);
 	ret = i2c_add_driver(&sprd_main3_sensor_driver);
 	pr_info("register main3 sensor:%d\n", ret);
+	usleep_range(10*1000, 11*1000);
 	ret = i2c_add_driver(&sprd_sub3_sensor_driver);
 	pr_info("register  sub3 sensor:%d\n", ret);
 
