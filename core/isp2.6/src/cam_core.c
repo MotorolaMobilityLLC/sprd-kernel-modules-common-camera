@@ -410,6 +410,7 @@ struct camera_group {
 	spinlock_t rawproc_lock;
 	uint32_t rawproc_in;
 
+	struct mutex dual_deal_lock;
 	uint32_t dcam_count;/*dts cfg dcam count*/
 	uint32_t isp_count;/*dts cfg isp count*/
 
@@ -2993,6 +2994,7 @@ static int camcore_dcam_callback(enum dcam_cb_type type, void *param, void *priv
 	struct dcam_sw_context *dcam_sw_aux_ctx = NULL;
 	struct dcam_hw_path_stop patharg;
 	struct dcam_hw_path_restart re_patharg;
+	struct camera_group *grp = NULL;
 
 	if (!param || !priv_data) {
 		pr_err("fail to get valid param %px %px\n", param, priv_data);
@@ -3003,6 +3005,7 @@ static int camcore_dcam_callback(enum dcam_cb_type type, void *param, void *priv
 	hw = module->grp->hw_info;
 	dcam_sw_ctx = &module->dcam_dev_handle->sw_ctx[module->cur_sw_ctx_id];
 	dcam_sw_aux_ctx = &module->dcam_dev_handle->sw_ctx[module->offline_cxt_id];
+	grp = module->grp;
 
 	if (unlikely(type == DCAM_CB_GET_PMBUF)) {
 		struct camera_frame **pm_frame;
@@ -3286,10 +3289,13 @@ static int camcore_dcam_callback(enum dcam_cb_type type, void *param, void *priv
 				}
 
 				if (module->cam_uinfo.is_dual) {
+					mutex_lock(&grp->dual_deal_lock);
 					if (module->master_flag == 0 && atomic_read(&module->cap_flag) == 1 && module->dual_frame == NULL) {
 						module->dual_frame = pframe;
+						mutex_unlock(&grp->dual_deal_lock);
 						return 0;
 					}
+					mutex_unlock(&grp->dual_deal_lock);
 					pframe = camcore_dual_fifo_queue(module,
 						pframe, channel);
 				} else if (channel->zsl_skip_num == module->cam_uinfo.zsk_skip_num) {
@@ -3343,10 +3349,14 @@ static int camcore_dcam_callback(enum dcam_cb_type type, void *param, void *priv
 				return 0;
 			} else if (module->dcam_cap_status == DCAM_CAPTURE_START_WITH_TIMESTAMP) {
 
+				mutex_lock(&grp->dual_deal_lock);
 				if (module->master_flag == 1) {
 					if ((atomic_read(&module->capture_frames_dcam) == 0 && atomic_read(&module->cap_flag) == 1)
 						|| pframe->boot_sensor_time < module->capture_times) {
 						pframe = camcore_dual_fifo_queue(module, pframe, channel);
+						mutex_unlock(&grp->dual_deal_lock);
+						if (!pframe)
+							return 0;
 						ret = module->dcam_dev_handle->dcam_pipe_ops->cfg_path(dcam_sw_ctx,
 							DCAM_PATH_CFG_OUTPUT_BUF, channel->dcam_path_id, pframe);
 						return 0;
@@ -3360,6 +3370,7 @@ static int camcore_dcam_callback(enum dcam_cb_type type, void *param, void *priv
 				if (module->master_flag == 0) {
 					if (atomic_read(&module->cap_flag) == 0) {
 						pframe = camcore_dual_fifo_queue(module, pframe, channel);
+						mutex_unlock(&grp->dual_deal_lock);
 						if (!pframe)
 							return 0;
 						ret = module->dcam_dev_handle->dcam_pipe_ops->cfg_path(dcam_sw_ctx,
@@ -3376,6 +3387,7 @@ static int camcore_dcam_callback(enum dcam_cb_type type, void *param, void *priv
 					}
 				}
 
+				mutex_unlock(&grp->dual_deal_lock);
 				if (!pframe)
 					return 0;
 
@@ -9029,6 +9041,7 @@ static int camcore_probe(struct platform_device *pdev)
 	spin_lock_init(&group->rawproc_lock);
 	spin_lock_init(&g_reg_wr_lock);
 
+	mutex_init(&group->dual_deal_lock);
 	mutex_init(&group->pyr_mulshare_lock);
 	init_rwsem(&group->switch_recovery_lock);
 	pr_info("sprd img probe pdev name %s\n", pdev->name);

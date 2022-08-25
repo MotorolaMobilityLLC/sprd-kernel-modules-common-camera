@@ -107,6 +107,7 @@ struct camera_frame {
 	ktime_t boot_time;/* ns from boot @ISP DONE */
 	timeval sensor_time;/* time without suspend @SOF */
 	ktime_t boot_sensor_time;/* ns from boot @SOF */
+	int64_t frame_interval_time;/* dual frame diff @SOF */
 	struct blk_param_info blkparam_info;
 	struct camera_buf buf;
 	struct nr3_me_data nr3_me;

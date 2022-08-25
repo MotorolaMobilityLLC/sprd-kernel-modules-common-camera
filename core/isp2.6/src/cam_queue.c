@@ -211,6 +211,7 @@ int cam_queue_same_frame_get(struct camera_queue *q0,
 	unsigned long flags0;
 	struct camera_frame *tmpf0;
 	int64_t t0, t1, mint;
+	int64_t t_diff_time = 0;
 
 	spin_lock_irqsave(&q0->lock, flags0);
 	if (list_empty(&q0->head)) {
@@ -237,7 +238,8 @@ int cam_queue_same_frame_get(struct camera_queue *q0,
 			break;
 	}
 	pr_info("mint:%lld\n", mint);
-	if (mint > 16500) { /* delta > 16.5ms fail */
+	t_diff_time = div64_u64((*pf0)->frame_interval_time, 1000 * 2);
+	if (mint > t_diff_time) { /* delta > slave dynamic frame rate half fail */
 		ret = -EFAULT;
 		goto _EXT;
 	}

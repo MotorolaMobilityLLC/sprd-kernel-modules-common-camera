@@ -87,6 +87,7 @@ static struct camera_frame *dcamint_frame_prepare(struct dcam_hw_context *dcam_h
 	struct camera_frame *frame = NULL;
 	timespec *ts = NULL;
 	uint32_t dev_fid;
+
 	if (unlikely(!dcam_hw_ctx || !is_path_id(path_id)) || !sw_ctx)
 		return NULL;
 
@@ -130,6 +131,10 @@ static struct camera_frame *dcamint_frame_prepare(struct dcam_hw_context *dcam_h
 	frame->sensor_time.tv_sec = ts->tv_sec;
 	frame->sensor_time.tv_usec = ts->tv_nsec / NSEC_PER_USEC;
 	frame->boot_sensor_time = sw_ctx->frame_ts_boot[tsid(dev_fid)];
+	if (dev_fid == 0)
+		frame->frame_interval_time = 0;
+	else
+		frame->frame_interval_time = frame->boot_sensor_time - sw_ctx->frame_ts_boot[tsid(dev_fid - 1)];
 
 	pr_debug("DCAM%u %s: TX DONE, fid %u\n",
 		 dcam_hw_ctx->hw_ctx_id, dcam_path_name_get(path_id), frame->fid);
