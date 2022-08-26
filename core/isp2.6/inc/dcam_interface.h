@@ -150,6 +150,7 @@ enum dcam_stop_cmd {
 	DCAM_PAUSE_ONLINE,
 	DCAM_PAUSE_OFFLINE,
 	DCAM_RECOVERY,
+	DCAM_DEV_ERR,
 };
 
 struct dcam_cap_cfg {

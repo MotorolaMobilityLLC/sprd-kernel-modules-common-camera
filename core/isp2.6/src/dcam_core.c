@@ -2073,7 +2073,8 @@ static int dcamcore_dev_stop(void *dcam_handle, enum dcam_stop_cmd pause)
 		dcam_int_tracker_dump(hw_ctx_id);
 		dcam_int_tracker_reset(hw_ctx_id);
 	}
-	if (!pctx->offline) {
+
+	if (!pctx->offline && pause != DCAM_DEV_ERR) {
 		dcamcore_thread_stop(&pctx->dcam_interruption_proc_thrd);
 		cam_queue_clear(&pctx->interruption_sts_queue, struct camera_interrupt, list);
 	}
@@ -2086,7 +2087,7 @@ static int dcamcore_dev_stop(void *dcam_handle, enum dcam_stop_cmd pause)
 	}
 
 	pm = &pctx->ctx[DCAM_CXT_0].blk_pm;
-	if (pause == DCAM_STOP) {
+	if (pause == DCAM_STOP || pause == DCAM_DEV_ERR) {
 		pm->aem.bypass = 1;
 		pm->afm.bypass = 1;
 		pm->afl.afl_info.bypass = 1;

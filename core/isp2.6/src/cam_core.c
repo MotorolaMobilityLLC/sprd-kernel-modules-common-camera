@@ -3030,7 +3030,7 @@ static int camcore_dcam_callback(enum dcam_cb_type type, void *param, void *priv
 			return 0;
 		}
 
-		module->dcam_dev_handle->dcam_pipe_ops->stop(dcam_sw_ctx, DCAM_STOP);
+		module->dcam_dev_handle->dcam_pipe_ops->stop(dcam_sw_ctx, DCAM_DEV_ERR);
 
 		pframe = cam_queue_empty_frame_get();
 		if (pframe) {
