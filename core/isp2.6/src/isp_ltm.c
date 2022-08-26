@@ -893,7 +893,6 @@ static int ispltm_pipe_proc(void *handle, void *param)
 				pr_err("fail to match prv size with cap size\n");
 				ctx->map.bypass = 1;
 				ret = -1;
-				break;
 			}
 		}
 
