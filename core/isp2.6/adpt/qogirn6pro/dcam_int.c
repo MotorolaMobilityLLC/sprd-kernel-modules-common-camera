@@ -531,6 +531,12 @@ static void dcamint_cap_sof(void *param, struct dcam_sw_context *sw_ctx)
 		return;
 	}
 
+	if (sw_ctx->virtualsensor) {
+		pr_debug("dcam%d virtual sensor\n", dcam_hw_ctx->hw_ctx_id);
+		dcamint_sof_event_dispatch(sw_ctx);
+		return;
+	}
+
 	if (sw_ctx->offline) {
 		pr_debug("dcam%d offline\n", dcam_hw_ctx->hw_ctx_id);
 		return;
@@ -792,6 +798,20 @@ static void dcamint_full_path_done(void *param, struct dcam_sw_context *sw_ctx)
 		}
 	}
 
+	if (sw_ctx->virtualsensor) {
+		DCAM_AXIM_MWR(0, IMG_FETCH_CTRL, BIT_1 | BIT_0, 0x1);
+		if (sw_ctx->dcam_slice_mode != CAM_OFFLINE_SLICE_SW) {
+			if (sw_ctx->slice_num > 0) {
+				pr_debug("dcam%d offline slice%d done.\n",
+					dcam_hw_ctx->hw_ctx_id, (sw_ctx->slice_num - sw_ctx->slice_count));
+				complete(&sw_ctx->slice_done);
+				sw_ctx->slice_count--;
+				if (sw_ctx->slice_count > 0)
+					return;
+			}
+		}
+	}
+
 	path = &sw_ctx->path[DCAM_PATH_FULL];
 	pr_debug("capture path done\n");
 
@@ -841,6 +861,9 @@ static void dcamint_full_path_done(void *param, struct dcam_sw_context *sw_ctx)
 
 	if (sw_ctx->offline && sw_ctx->dcam_slice_mode != CAM_OFFLINE_SLICE_SW)
 		dcamint_fetch_done_proc(sw_ctx);
+
+	if (sw_ctx->virtualsensor)
+		dcamint_fetch_done_proc(sw_ctx);
 }
 
 static void dcamint_bin_path_done(void *param, struct dcam_sw_context *sw_ctx)
@@ -863,6 +886,19 @@ static void dcamint_bin_path_done(void *param, struct dcam_sw_context *sw_ctx)
 	path_raw = &sw_ctx->path[DCAM_PATH_RAW];
 	cnt = atomic_read(&path->set_frm_cnt);
 	sw_ctx->dec_layer0_done = 1;
+
+	if (sw_ctx->virtualsensor && (atomic_read(&sw_ctx->virtualsensor_cap_en) == 0)) {
+		if (sw_ctx->dcam_slice_mode != CAM_OFFLINE_SLICE_SW) {
+			if (sw_ctx->slice_num > 0) {
+				pr_debug("dcam%d offline slice%d done.\n",
+					dcam_hw_ctx->hw_ctx_id, (sw_ctx->slice_num - sw_ctx->slice_count));
+				complete(&sw_ctx->slice_done);
+				sw_ctx->slice_count--;
+				if (sw_ctx->slice_count > 0)
+					return;
+			}
+		}
+	}
 
 	if (sw_ctx->offline) {
 		if (sw_ctx->dcam_slice_mode != CAM_OFFLINE_SLICE_SW) {
@@ -936,6 +972,9 @@ static void dcamint_bin_path_done(void *param, struct dcam_sw_context *sw_ctx)
 			dcamint_fetch_done_proc(sw_ctx);
 		}
 	}
+
+	if (sw_ctx->virtualsensor && (atomic_read(&sw_ctx->virtualsensor_cap_en) == 0))
+		dcamint_fetch_done_proc(sw_ctx);
 }
 
 static void dcamint_lscm_done(void *param, struct dcam_sw_context *sw_ctx)

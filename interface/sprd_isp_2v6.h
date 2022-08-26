@@ -2521,6 +2521,7 @@ enum raw_proc_cmd {
 	RAW_PROC_PRE,
 	RAW_PROC_POST,
 	RAW_PROC_DONE,
+	VIRTUAL_SENSOR_PROC,
 };
 
 enum raw_proc_scene {

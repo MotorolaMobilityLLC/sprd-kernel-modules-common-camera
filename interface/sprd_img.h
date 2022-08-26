@@ -545,6 +545,7 @@ struct sprd_img_function_mode {
 	uint32_t zoom_conflict_with_ltm;
 	uint32_t need_dcam_raw;/* 1: dcam_raw 0: normal */
 	uint32_t param_frame_sync;
+	uint32_t virtualsensor;/* 1: virtual sensor 0: normal */
 };
 #pragma pack(pop)
 

@@ -217,6 +217,7 @@ struct camera_uinfo {
 	uint32_t param_frame_sync;
 	/* for dcam raw*/
 	uint32_t need_dcam_raw;
+	uint32_t virtualsensor;/* 1: virtual sensor 0: normal */
 };
 
 struct sprd_img_flash_info {
@@ -2330,7 +2331,11 @@ static uint32_t camcore_frame_start_proc(struct camera_module *module, struct ca
 	struct dcam_sw_context *pctx = NULL;
 	int ret = 0;
 
-	pctx = &module->dcam_dev_handle->sw_ctx[module->offline_cxt_id];
+	if (module->cam_uinfo.virtualsensor)
+		pctx = &module->dcam_dev_handle->sw_ctx[module->cur_sw_ctx_id];
+	else
+		pctx = &module->dcam_dev_handle->sw_ctx[module->offline_cxt_id];
+
 	pframe->priv_data = pctx;
 	ret = cam_queue_enqueue(&pctx->in_queue, &pframe->list);
 	if (ret == 0)
@@ -3628,6 +3633,14 @@ static int camcore_dcam_callback(enum dcam_cb_type type, void *param, void *priv
 			module->dcam_dev_handle->dcam_pipe_ops->cfg_path(dcam_sw_ctx,
 				DCAM_PATH_CFG_OUTPUT_BUF,
 				channel->dcam_path_id, pframe);
+		} else if (module->cam_uinfo.virtualsensor) {
+			/* for case raw capture post-proccessing
+			 * and case 4in1 after stream off
+			 * just release it, no need to return
+			 */
+			cam_buf_ionbuf_put(&pframe->buf);
+			cam_queue_empty_frame_put(pframe);
+			pr_debug("virtual sensor ret buf\n");
 		} else if ((module->cap_status == CAM_CAPTURE_RAWPROC) ||
 			(atomic_read(&module->state) != CAM_RUNNING)) {
 			/* for case raw capture post-proccessing
@@ -5653,7 +5666,7 @@ static int camcore_channel_init(struct camera_module *module,
 			ch_desc.is_raw = 1;
 		if ((channel->ch_id == CAM_CH_CAP) && module->cam_uinfo.is_4in1)
 			ch_desc.is_raw = 1;
-		if ((channel->ch_id == CAM_CH_CAP) && module->cam_uinfo.dcam_slice_mode)
+		if ((channel->ch_id == CAM_CH_CAP) && (module->cam_uinfo.dcam_slice_mode) && (!module->cam_uinfo.virtualsensor))
 			ch_desc.is_raw = 1;
 		if (channel->ch_id == CAM_CH_CAP && module->cam_uinfo.is_raw_alg &&
 			(module->cam_uinfo.param_frame_sync || module->cam_uinfo.raw_alg_type != RAW_ALG_AI_SFNR)) {
@@ -7325,6 +7338,103 @@ src_fail:
 	return ret;
 }
 
+static int camcore_virtual_sensor_proc(
+		struct camera_module *module,
+		struct isp_raw_proc_info *proc_info)
+{
+	int ret = 0;
+	struct channel_context *ch_pre = NULL, *ch_cap = NULL ;
+	struct camera_frame *src_frame = NULL;
+	struct dcam_sw_context *sw_ctx = NULL;
+	struct dcam_path_cfg_param ch_desc = {0};
+	struct camera_uchannel *ch_uinfo = NULL;
+	timespec cur_ts = {0};
+
+	sw_ctx = &module->dcam_dev_handle->sw_ctx[module->cur_sw_ctx_id];
+
+	/*for preview path dcam size config*/
+	ch_pre = &module->channel[CAM_CH_PRE];
+	if (ch_pre->enable) {
+		ch_uinfo = &ch_pre->ch_uinfo;
+		ch_desc.input_size.w = proc_info->src_size.width;
+		ch_desc.input_size.h = proc_info->src_size.height;
+		ch_desc.zoom_ratio_base = ch_uinfo->zoom_ratio_base;
+		ch_desc.input_trim = ch_pre->trim_dcam;
+		ch_desc.total_input_trim = ch_pre->total_trim_dcam;
+		ch_desc.output_size = ch_pre->dst_dcam;
+		ch_desc.priv_size_data = NULL;
+		ret = module->dcam_dev_handle->dcam_pipe_ops->cfg_path(sw_ctx,
+				DCAM_PATH_CFG_SIZE, ch_pre->dcam_path_id, &ch_desc);
+	}
+	/*for capture path dcam size config*/
+	ch_cap = &module->channel[CAM_CH_CAP];
+	if (ch_cap->enable) {
+		ch_uinfo = &ch_cap->ch_uinfo;
+		ch_desc.input_size.w = proc_info->src_size.width;
+		ch_desc.input_size.h = proc_info->src_size.height;
+		ch_desc.zoom_ratio_base = ch_uinfo->zoom_ratio_base;
+
+		if (camcore_capture_sizechoice(module, ch_cap)) {
+			ch_desc.input_trim = ch_cap->trim_dcam;
+			ch_desc.output_size.w = ch_cap->trim_dcam.size_x;
+			ch_desc.output_size.h = ch_cap->trim_dcam.size_y;
+		} else {
+			ch_desc.output_size = ch_desc.input_size;
+			ch_desc.input_trim.start_x = 0;
+			ch_desc.input_trim.start_y = 0;
+			ch_desc.input_trim.size_x = ch_desc.input_size.w;
+			ch_desc.input_trim.size_y = ch_desc.input_size.h;
+		}
+
+		ch_desc.priv_size_data = NULL;
+		ret = module->dcam_dev_handle->dcam_pipe_ops->cfg_path(sw_ctx,
+				DCAM_PATH_CFG_SIZE, ch_cap->dcam_path_id, &ch_desc);
+	}
+
+	memset(&cur_ts, 0, sizeof(timespec));
+
+	atomic_set(&sw_ctx->state, STATE_RUNNING);
+
+	src_frame = cam_queue_empty_frame_get();
+
+	if (ch_cap->enable)
+		src_frame->channel_id = ch_cap->ch_id;
+	else if (ch_pre->enable)
+		src_frame->channel_id = ch_pre->ch_id;
+	else {
+		pr_err("fail to get channel enable state\n");
+		return -EFAULT;
+	}
+	src_frame->buf.type = CAM_BUF_USER;
+	src_frame->buf.mfd[0] = proc_info->fd_src;
+	src_frame->buf.offset[0] = proc_info->src_offset;
+	src_frame->width = proc_info->src_size.width;
+	src_frame->height = proc_info->src_size.height;
+	src_frame->endian = proc_info->src_y_endian;
+	src_frame->pattern = proc_info->src_pattern;
+	ret = cam_buf_ionbuf_get(&src_frame->buf);
+	if (ret)
+		goto virtual_sensor_src_fail;
+
+	src_frame->fid = module->simu_fid++;
+	ktime_get_ts(&cur_ts);
+	src_frame->sensor_time.tv_sec = cur_ts.tv_sec;
+	src_frame->sensor_time.tv_usec = cur_ts.tv_nsec / NSEC_PER_USEC;
+	src_frame->time = src_frame->sensor_time;
+	src_frame->boot_time = ktime_get_boottime();
+	src_frame->boot_sensor_time = src_frame->boot_time;
+
+	ret = camcore_frame_start_proc(module, src_frame);
+	if (ret)
+		pr_err("fail to start dcam/isp for virtual sensor proc\n");
+
+	return ret;
+virtual_sensor_src_fail:
+	cam_queue_empty_frame_put(src_frame);
+	pr_err("fail to call post raw proc\n");
+	return ret;
+}
+
 static int camcore_full_raw_switch(struct camera_module *module)
 {
 	int shutoff = 0;
@@ -7793,7 +7903,12 @@ static int camcore_offline_proc(void *param)
 
 	module = (struct camera_module *)param;
 	dev = module->dcam_dev_handle;
-	pctx = &dev->sw_ctx[module->offline_cxt_id];
+
+	if (module->cam_uinfo.virtualsensor)
+		pctx = &dev->sw_ctx[module->cur_sw_ctx_id];
+	else
+		pctx = &dev->sw_ctx[module->offline_cxt_id];
+
 	hw = module->grp->hw_info;
 
 	pr_debug("enter\n");
@@ -7810,18 +7925,20 @@ static int camcore_offline_proc(void *param)
 		return ret;
 	}
 
-	loop = 0;
-	do {
-		ret = dcam_core_context_bind(pctx, hw->csi_connect_type, module->aux_dcam_id);
-		if (!ret)
-			break;
-		pr_info_ratelimited("ctx %d wait for hw. loop %d\n", pctx->hw_ctx_id, loop);
-		usleep_range(600, 800);
-	} while (loop++ < 5000);
+	if (!module->cam_uinfo.virtualsensor) {
+		loop = 0;
+		do {
+			ret = dcam_core_context_bind(pctx, hw->csi_connect_type, module->aux_dcam_id);
+			if (!ret)
+				break;
+			pr_info_ratelimited("ctx %d wait for hw. loop %d\n", pctx->hw_ctx_id, loop);
+			usleep_range(600, 800);
+		} while (loop++ < 5000);
 
-	if ((loop == 5000) || (pctx->hw_ctx_id >= DCAM_HW_CONTEXT_MAX)) {
-		pr_err("fail to get hw_ctx_id\n");
-		return -1;
+		if ((loop == 5000) || (pctx->hw_ctx_id >= DCAM_HW_CONTEXT_MAX)) {
+			pr_err("fail to get hw_ctx_id\n");
+			return -1;
+		}
 	}
 	pr_debug("bind  hw context %d\n", pctx->hw_ctx_id);
 

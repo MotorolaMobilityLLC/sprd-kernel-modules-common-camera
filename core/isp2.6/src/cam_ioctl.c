@@ -353,7 +353,7 @@ static int camioctl_param_cfg(struct camera_module *module,
 		if (for_capture && (module->aux_dcam_dev == NULL))
 			pr_debug("Config DCAM param for capture. Maybe raw proc\n");
 
-		if ((for_capture && (module->aux_dcam_dev != NULL)) || is_rps) {
+		if (((for_capture && (module->aux_dcam_dev != NULL)) || is_rps) && (!module->cam_uinfo.virtualsensor)) {
 			ret = module->dcam_dev_handle->dcam_pipe_ops->cfg_blk_param(
 				&module->dcam_dev_handle->sw_ctx[module->offline_cxt_id], &param);
 		} else {
@@ -425,6 +425,7 @@ static int camioctl_function_mode_set(struct camera_module *module,
 	ret |= get_user(module->cam_uinfo.fdr_cap_pre_num, &uparam->fdr_preview_captured_num);
 	ret |= get_user(module->cam_uinfo.zoom_conflict_with_ltm, &uparam->zoom_conflict_with_ltm);
 	ret |= get_user(module->cam_uinfo.need_dcam_raw, &uparam->need_dcam_raw);
+	ret |= get_user(module->cam_uinfo.virtualsensor, &uparam->virtualsensor);
 	module->cam_uinfo.is_rgb_ltm = hw->ip_isp->rgb_ltm_support;
 	module->cam_uinfo.is_yuv_ltm = hw->ip_isp->yuv_ltm_support;
 	module->cam_uinfo.is_rgb_gtm = hw->ip_isp->rgb_gtm_support;
@@ -434,7 +435,7 @@ static int camioctl_function_mode_set(struct camera_module *module,
 	else
 		module->cam_uinfo.is_pyr_dec = hw->ip_isp->pyr_dec_support;
 
-	pr_info("4in1:[%d], rgb_ltm[%d], yuv_ltm[%d], gtm[%d], dual[%d], dec %d, raw_alg_type:%d, zoom_conflict_with_ltm %d, %d. dcam_raw %d, param_frame_sync:%d\n",
+	pr_info("4in1:[%d], rgb_ltm[%d], yuv_ltm[%d], gtm[%d], dual[%d], dec %d, raw_alg_type:%d, zoom_conflict_with_ltm %d, %d. dcam_raw %d, param_frame_sync:%d,virtualsensor %d\n",
 		module->cam_uinfo.is_4in1,module->cam_uinfo.is_rgb_ltm,
 		module->cam_uinfo.is_yuv_ltm, module->cam_uinfo.is_rgb_gtm,
 		module->cam_uinfo.is_dual, module->cam_uinfo.is_pyr_dec,
@@ -442,7 +443,8 @@ static int camioctl_function_mode_set(struct camera_module *module,
 		module->cam_uinfo.zoom_conflict_with_ltm,
 		module->cam_uinfo.is_raw_alg,
 		module->cam_uinfo.need_dcam_raw,
-		module->cam_uinfo.param_frame_sync);
+		module->cam_uinfo.param_frame_sync,
+		module->cam_uinfo.need_dcam_raw,module->cam_uinfo.virtualsensor);
 
 	if (unlikely(ret)) {
 		pr_err("fail to copy from user, ret %d\n", ret);
@@ -1977,9 +1979,11 @@ cfg_ch_done:
 			dev->dcam_pipe_ops->cfg_path(sw_ctx, DCAM_PATH_CFG_STATE,
 				DCAM_PATH_FULL, &module->path_state);
 
-	ret = hw->dcam_ioctl(hw, DCAM_HW_CFG_RESET, &sw_ctx->hw_ctx_id);
-	if (ret)
-		pr_err("fail to reset dcam%d\n", sw_ctx->hw_ctx_id);
+	if (!module->cam_uinfo.virtualsensor) {
+		ret = hw->dcam_ioctl(hw, DCAM_HW_CFG_RESET, &sw_ctx->hw_ctx_id);
+		if (ret)
+			pr_err("fail to reset dcam%d\n", sw_ctx->hw_ctx_id);
+	}
 
 	if(hw->csi_connect_type == DCAM_BIND_DYNAMIC && sw_ctx->csi_connect_stat != DCAM_CSI_RESUME) {
 		struct dcam_switch_param csi_switch;
@@ -1999,18 +2003,20 @@ cfg_ch_done:
 		sw_ctx->hw_ctx->fmcu->ops->buf_map(sw_ctx->hw_ctx->fmcu);
 
 	sw_ctx->raw_callback = module->raw_callback;
-	ret = dev->dcam_pipe_ops->start(sw_ctx, online);
-	if (ret < 0) {
-		pr_err("fail to start dcam dev, ret %d\n", ret);
-		goto exit;
-	}
-
-	if (module->aux_dcam_dev) {
-		struct dcam_sw_context *aux_sw_ctx = &dev->sw_ctx[module->offline_cxt_id];
-		ret = dev->dcam_pipe_ops->start(aux_sw_ctx, 0);
+	if (!module->cam_uinfo.virtualsensor) {
+		ret = dev->dcam_pipe_ops->start(sw_ctx, online);
 		if (ret < 0) {
-			pr_err("fail to start aux_dcam dev, ret %d\n", ret);
+			pr_err("fail to start dcam dev, ret %d\n", ret);
 			goto exit;
+		}
+
+		if (module->aux_dcam_dev) {
+			struct dcam_sw_context *aux_sw_ctx = &dev->sw_ctx[module->offline_cxt_id];
+			ret = dev->dcam_pipe_ops->start(aux_sw_ctx, 0);
+			if (ret < 0) {
+				pr_err("fail to start aux_dcam dev, ret %d\n", ret);
+				goto exit;
+			}
 		}
 	}
 
@@ -2032,6 +2038,17 @@ cfg_ch_done:
 
 	atomic_inc(&module->grp->runner_nr);
 
+	if (module->cam_uinfo.virtualsensor) {
+		init_completion(&sw_ctx->frm_done);
+		complete(&sw_ctx->frm_done);
+		init_completion(&sw_ctx->slice_done);
+		complete(&sw_ctx->slice_done);
+		ch = &module->channel[CAM_CH_CAP];
+		if (ch->enable)
+			atomic_set(&sw_ctx->virtualsensor_cap_en, 1);
+		else
+			atomic_set(&sw_ctx->virtualsensor_cap_en, 0);
+	}
 	pr_info("stream on done module->dcam_idx = %d.\n", module->dcam_idx);
 	cam_buf_mdbg_check();
 	return 0;
@@ -2672,7 +2689,7 @@ static int camioctl_capture_start(struct camera_module *module,
 				re_patharg.raw_alg_type = module->cam_uinfo.raw_alg_type;
 				hw->dcam_ioctl(hw, DCAM_HW_CFG_PATH_RESTART, &re_patharg);
 				module->dcam_dev_handle->dcam_pipe_ops->cfg_path(sw_ctx,
-					DCAM_PATH_CFG_SHUTOFF, re_patharg.path_id, &shutoff);		
+					DCAM_PATH_CFG_SHUTOFF, re_patharg.path_id, &shutoff);
 		} else
 			pr_debug("other cap scene:%d.\n", module->capture_scene);
 	}
@@ -2879,6 +2896,7 @@ static int camioctl_raw_proc(struct camera_module *module,
 	int error_state = 0;
 	struct isp_raw_proc_info proc_info;
 	uint32_t rps_info;
+	struct dcam_sw_context *dcam_sw_ctx = NULL;
 
 	ret = copy_from_user(&proc_info, (void __user *)arg,
 				sizeof(struct isp_raw_proc_info));
@@ -2903,8 +2921,18 @@ static int camioctl_raw_proc(struct camera_module *module,
 	if (proc_info.scene == RAW_PROC_SCENE_HWSIM) {
 		rps_info = 1;
 		pr_info("hwsim\n");
-		ret = module->dcam_dev_handle->dcam_pipe_ops->ioctl(&module->dcam_dev_handle->sw_ctx[module->offline_cxt_id],
-			DCAM_IOCTL_CFG_RPS, &rps_info);
+		if (module->cam_uinfo.virtualsensor) {
+			dcam_sw_ctx = &module->dcam_dev_handle->sw_ctx[module->cur_sw_ctx_id];
+			ret = module->dcam_dev_handle->dcam_pipe_ops->ioctl(&module->dcam_dev_handle->sw_ctx[module->cur_sw_ctx_id],
+					DCAM_IOCTL_CFG_RPS, &rps_info);
+			dcam_sw_ctx->virtualsensor = 1;
+
+		} else {
+			dcam_sw_ctx = &module->dcam_dev_handle->sw_ctx[module->offline_cxt_id];
+			ret = module->dcam_dev_handle->dcam_pipe_ops->ioctl(&module->dcam_dev_handle->sw_ctx[module->offline_cxt_id],
+					DCAM_IOCTL_CFG_RPS, &rps_info);
+			dcam_sw_ctx->virtualsensor = 0;
+		}
 		if (ret != 0) {
 			pr_err("fail to config rps %d\n", ret);
 			return -EFAULT;
@@ -2944,6 +2972,8 @@ static int camioctl_raw_proc(struct camera_module *module,
 		ret = camcore_raw_post_proc(module, &proc_info);
 	} else if (proc_info.cmd == RAW_PROC_DONE) {
 		ret = camcore_raw_proc_done(module);
+	} else if (proc_info.cmd == VIRTUAL_SENSOR_PROC) {
+		ret = camcore_virtual_sensor_proc(module, &proc_info);
 	} else {
 		pr_err("fail to get correct cmd %d\n", proc_info.cmd);
 		ret = -EINVAL;

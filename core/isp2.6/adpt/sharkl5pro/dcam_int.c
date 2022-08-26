@@ -508,6 +508,12 @@ static void dcamint_cap_sof(void *param, struct dcam_sw_context *sw_ctx)
 		return;
 	}
 
+	if (sw_ctx->virtualsensor) {
+		pr_debug("dcam%d virtual sensor\n", dcam_hw_ctx->hw_ctx_id);
+		dcamint_sof_event_dispatch(sw_ctx);
+		return;
+	}
+
 	if (sw_ctx->offline) {
 		pr_debug("dcam%d offline\n", dcam_hw_ctx->hw_ctx_id);
 		return;
@@ -609,6 +615,11 @@ static void dcamint_preview_sof(void *param, struct dcam_sw_context *sw_ctx)
 		return;
 	}
 
+	if (sw_ctx->virtualsensor) {
+		pr_debug("dcam%d virtual sensor\n", dcam_hw_ctx->hw_ctx_id);
+		dcamint_sof_event_dispatch(sw_ctx);
+		return;
+	}
 	if (sw_ctx->offline) {
 		pr_debug("dcam%d offline\n", dcam_hw_ctx->hw_ctx_id);
 		return;
@@ -695,6 +706,20 @@ static void dcamint_full_path_done(void *param, struct dcam_sw_context *sw_ctx)
 	}
 
 	path = &sw_ctx->path[DCAM_PATH_FULL];
+
+	if (sw_ctx->virtualsensor) {
+		if (sw_ctx->dcam_slice_mode != CAM_OFFLINE_SLICE_SW) {
+			if (sw_ctx->slice_num > 0) {
+				pr_debug("dcam%d offline slice%d done.\n",
+					dcam_hw_ctx->hw_ctx_id, (sw_ctx->slice_num - sw_ctx->slice_count));
+				complete(&sw_ctx->slice_done);
+				sw_ctx->slice_count--;
+				if (sw_ctx->slice_count > 0)
+					return;
+			}
+		}
+	}
+
 	if (sw_ctx->offline) {
 		if (sw_ctx->dcam_slice_mode != CAM_OFFLINE_SLICE_SW) {
 			if (sw_ctx->slice_num > 0) {
@@ -764,9 +789,23 @@ static void dcamint_full_path_done(void *param, struct dcam_sw_context *sw_ctx)
 				sw_ctx->dcam_cb_func(DCAM_CB_RET_SRC_BUF, frame, sw_ctx->cb_priv_data);
 			}
 	}
-	dcam_core_context_unbind(sw_ctx);
-	complete(&sw_ctx->frm_done);
-}
+		dcam_core_context_unbind(sw_ctx);
+		complete(&sw_ctx->frm_done);
+	}
+
+	if (sw_ctx->virtualsensor) {
+		if ((sw_ctx->dcam_slice_mode == CAM_OFFLINE_SLICE_SW && sw_ctx->slice_count == 0)
+				|| sw_ctx->dcam_slice_mode != CAM_OFFLINE_SLICE_SW) {
+			/* there is source buffer for offline process */
+			frame = cam_queue_dequeue(&sw_ctx->proc_queue, struct camera_frame, list);
+			if (frame) {
+				cam_buf_iommu_unmap(&frame->buf);
+				sw_ctx->dcam_cb_func(DCAM_CB_RET_SRC_BUF, frame, sw_ctx->cb_priv_data);
+			}
+		}
+		complete(&sw_ctx->frm_done);
+	}
+
 }
 
 /*
@@ -794,6 +833,19 @@ static void dcamint_bin_path_done(void *param, struct dcam_sw_context *sw_ctx)
 			cam_queue_cnt_get(&path->out_buf_queue),
 			cam_queue_cnt_get(&path->result_queue));
 		return;
+	}
+
+	if (sw_ctx->virtualsensor && (atomic_read(&sw_ctx->virtualsensor_cap_en) == 0)) {
+		if (sw_ctx->dcam_slice_mode != CAM_OFFLINE_SLICE_SW) {
+			if (sw_ctx->slice_num > 0) {
+				pr_debug("dcam%d offline slice%d done.\n",
+					dcam_hw_ctx->hw_ctx_id, (sw_ctx->slice_num - sw_ctx->slice_count));
+				complete(&sw_ctx->slice_done);
+				sw_ctx->slice_count--;
+				if (sw_ctx->slice_count > 0)
+					return;
+			}
+		}
 	}
 
 	if (sw_ctx->offline) {
@@ -869,6 +921,19 @@ static void dcamint_bin_path_done(void *param, struct dcam_sw_context *sw_ctx)
 			}
 		}
 		dcam_core_context_unbind(sw_ctx);
+		complete(&sw_ctx->frm_done);
+	}
+
+	if (sw_ctx->virtualsensor && (atomic_read(&sw_ctx->virtualsensor_cap_en) == 0)) {
+		if ((sw_ctx->dcam_slice_mode == CAM_OFFLINE_SLICE_SW && sw_ctx->slice_count == 0)
+				|| sw_ctx->dcam_slice_mode != CAM_OFFLINE_SLICE_SW) {
+			/* there is source buffer for offline process */
+			frame = cam_queue_dequeue(&sw_ctx->proc_queue, struct camera_frame, list);
+			if (frame) {
+				cam_buf_iommu_unmap(&frame->buf);
+				sw_ctx->dcam_cb_func(DCAM_CB_RET_SRC_BUF, frame, sw_ctx->cb_priv_data);
+			}
+		}
 		complete(&sw_ctx->frm_done);
 	}
 }

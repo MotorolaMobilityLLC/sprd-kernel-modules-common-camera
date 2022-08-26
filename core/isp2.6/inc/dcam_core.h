@@ -233,6 +233,7 @@ struct dcam_offline_slice_info {
 struct dcam_sw_context {
 	atomic_t user_cnt;
 	atomic_t state;/* TODO: use mutex to protect */
+	atomic_t virtualsensor_cap_en;/* for virtual sensor only pre channel ret buf */
 
 	uint32_t sw_ctx_id;
 	uint32_t hw_ctx_id;
@@ -268,6 +269,7 @@ struct dcam_sw_context {
 	uint32_t need_dcam_raw;
 	uint32_t offline;/* flag: set 1 for 4in1 go through dcam1 bin */
 	uint32_t rps;/* raw_proc_scene 0:normal 1:hwsim*/
+	uint32_t virtualsensor;
 	uint32_t dcam_slice_mode;
 	uint32_t slice_num;
 	uint32_t slice_count;
