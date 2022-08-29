@@ -29,8 +29,8 @@ extern struct cpp_hw_info lite_r3p0_cpp_hw_info;
 #define CPP_DST_YUV420_H_ALIGN         4
 #define CPP_DST_YUV422_H_ALIGN         2
 
-#define SCALE_FRAME_WIDTH_MAX          8192
-#define SCALE_FRAME_HEIGHT_MAX         8192
+#define SCALE_FRAME_WIDTH_MAX          8000
+#define SCALE_FRAME_HEIGHT_MAX         8000
 #define SCALE_FRAME_WIDTH_MIN          64
 #define SCALE_FRAME_HEIGHT_MIN         32
 #define BP_TRIM_SIZE_MIN               32
