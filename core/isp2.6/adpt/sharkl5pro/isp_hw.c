@@ -3025,6 +3025,7 @@ static int isphw_subblock_reconfig(void *handle, void *arg)
 	isp_k_cfa_block(p, idx);
 	isp_k_ynr_block(p, idx);
 	isp_k_yrandom_block(p, idx);
+	isp_k_uvd_block(p, idx);
 	isp_3dnr_config_blend(idx, &p->nr3_info_base.blend);
 	return ret;
 }
