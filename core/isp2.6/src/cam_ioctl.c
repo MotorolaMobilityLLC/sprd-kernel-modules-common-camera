@@ -444,7 +444,7 @@ static int camioctl_function_mode_set(struct camera_module *module,
 		module->cam_uinfo.is_raw_alg,
 		module->cam_uinfo.need_dcam_raw,
 		module->cam_uinfo.param_frame_sync,
-		module->cam_uinfo.need_dcam_raw,module->cam_uinfo.virtualsensor);
+		module->cam_uinfo.virtualsensor);
 
 	if (unlikely(ret)) {
 		pr_err("fail to copy from user, ret %d\n", ret);

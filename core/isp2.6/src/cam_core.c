@@ -5669,7 +5669,7 @@ static int camcore_channel_init(struct camera_module *module,
 		if ((channel->ch_id == CAM_CH_CAP) && (module->cam_uinfo.dcam_slice_mode) && (!module->cam_uinfo.virtualsensor))
 			ch_desc.is_raw = 1;
 		if (channel->ch_id == CAM_CH_CAP && module->cam_uinfo.is_raw_alg &&
-			(module->cam_uinfo.param_frame_sync || module->cam_uinfo.raw_alg_type != RAW_ALG_AI_SFNR)) {
+			(module->cam_uinfo.param_frame_sync || module->cam_uinfo.raw_alg_type != RAW_ALG_AI_SFNR) && (!module->cam_uinfo.virtualsensor)) {
 			/* config full path to raw */
 			ch_desc.is_raw = 1;
 			dcam_sw_ctx->is_raw_alg = 1;
@@ -7352,9 +7352,14 @@ static int camcore_virtual_sensor_proc(
 
 	sw_ctx = &module->dcam_dev_handle->sw_ctx[module->cur_sw_ctx_id];
 
+	sw_ctx->fetch.fmt = DCAM_STORE_RAW_BASE;
+	sw_ctx->pack_bits = DCAM_RAW_PACK_10;
 	/*for preview path dcam size config*/
+	camcore_compression_config(module);
+
 	ch_pre = &module->channel[CAM_CH_PRE];
 	if (ch_pre->enable) {
+		camcore_pyr_info_config(module, ch_pre);
 		ch_uinfo = &ch_pre->ch_uinfo;
 		ch_desc.input_size.w = proc_info->src_size.width;
 		ch_desc.input_size.h = proc_info->src_size.height;
@@ -7369,6 +7374,7 @@ static int camcore_virtual_sensor_proc(
 	/*for capture path dcam size config*/
 	ch_cap = &module->channel[CAM_CH_CAP];
 	if (ch_cap->enable) {
+		camcore_pyr_info_config(module, ch_cap);
 		ch_uinfo = &ch_cap->ch_uinfo;
 		ch_desc.input_size.w = proc_info->src_size.width;
 		ch_desc.input_size.h = proc_info->src_size.height;
