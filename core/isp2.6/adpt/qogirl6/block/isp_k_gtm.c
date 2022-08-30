@@ -57,10 +57,10 @@ static void isp_k_raw_gtm_set_default(struct dcam_dev_raw_gtm_block_info *p,
 		map->ymax = 0;
 		map->yavg = 0;
 		map->target = 4015;
-		map->lr_int = 27564;
-		map->log_min_int = 30208;
-		map->log_diff_int = 1378;
-		map->diff = 389601;
+		map->lr_int = 61517;
+		map->log_min_int = 32580;
+		map->log_diff_int = 698;
+		map->diff = 769156;
 	}
 }
 
