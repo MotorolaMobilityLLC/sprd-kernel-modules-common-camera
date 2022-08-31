@@ -1382,7 +1382,7 @@ static int camioctl_frame_addr_set(struct camera_module *module,
 			if (pframe->bpc_raw_flag)
 				dcam_sw_ctx = dcam_sw_aux_ctx;
 
-			if (module->cam_uinfo.raw_alg_type == RAW_ALG_AI_SFNR && !module->cam_uinfo.param_frame_sync)
+			if (module->cam_uinfo.raw_alg_type == RAW_ALG_AI_SFNR && !module->cam_uinfo.param_frame_sync && (ch->ch_id != CAM_CH_DCAM_VCH))
 				ret = module->dcam_dev_handle->dcam_pipe_ops->cfg_path(dcam_sw_ctx,
 					cmd, DCAM_PATH_RAW, pframe);
 			else
