@@ -1597,10 +1597,8 @@ static void dcamcore_thread_stop(struct cam_thread_info *thrd)
 	if (thrd->thread_task) {
 		atomic_set(&thrd->thread_stop, 1);
 		complete(&thrd->thread_com);
-		ret = wait_for_completion_interruptible_timeout(&thrd->thread_stop_com, DCAM_STOP_TIMEOUT);
-		if (ret == -ERESTARTSYS)
-			pr_err("fail to interruption_proc, when dcam wait\n");
-		else if (ret == 0)
+		ret = wait_for_completion_timeout(&thrd->thread_stop_com, DCAM_STOP_TIMEOUT);
+		if (ret == 0)
 			pr_err("fail to wait interruption_proc, timeout.\n");
 		else
 			pr_info("dcam interruption_proc thread wait time %d\n", ret);
