@@ -4417,7 +4417,7 @@ static int sprd_img_probe(struct platform_device *pdev)
     wakeup_source_add(Camera_Sys_Wakelock);
 #else
 	wakeup_source_init(&group->ws, "Camera Sys Wakelock");
-#endif 
+#endif
 	pr_info("sprd img probe pdev name %s\n", pdev->name);
 	pr_info("sprd dcam dev name %s\n", pdev->dev.init_name);
 	ret = sprd_dcam_parse_dt(pdev->dev.of_node, &group->dcam_count);
@@ -4529,7 +4529,7 @@ static int sprd_img_remove(struct platform_device *pdev)
         wakeup_source_destroy(Camera_Sys_Wakelock);
 #else
         wakeup_source_trash(&group->ws);
-#endif	
+#endif
 		vfree(group);
 	}
 	misc_deregister(&image_dev);

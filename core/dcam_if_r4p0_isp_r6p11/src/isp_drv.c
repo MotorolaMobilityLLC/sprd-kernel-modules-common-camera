@@ -4151,7 +4151,7 @@ int sprd_isp_module_dis(void *isp_handle, enum isp_id iid)
 			       iid, rtn);
 			goto exit;
 		}
-#endif		
+#endif
 	}
 
 exit:

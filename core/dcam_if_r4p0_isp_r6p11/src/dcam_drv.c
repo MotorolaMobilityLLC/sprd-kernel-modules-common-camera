@@ -4202,7 +4202,7 @@ int sprd_dcam_module_en(enum dcam_id idx)
 			return ret;
 		}
 		sprd_cam_domain_eb();
-#endif		
+#endif
 		dcam_enable_clk();
 		sprd_dcam_reset(idx, NULL, NULL);
 
@@ -4336,7 +4336,7 @@ int sprd_dcam_module_dis(enum dcam_id idx)
 	mutex_lock(&dcam_module_sema[idx]);
 	if (atomic_dec_return(&s_dcam_users[idx]) == 0) {
 		dcam_disable_clk(idx);
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 4, 0))		
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 4, 0))
 		sprd_cam_domain_disable();
 		rtn = sprd_cam_pw_off();
 		if (rtn != 0) {

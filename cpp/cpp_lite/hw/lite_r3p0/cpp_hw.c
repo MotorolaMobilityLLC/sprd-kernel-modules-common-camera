@@ -309,12 +309,52 @@ static int cpphw_ioctl(enum cpp_hw_cfg_cmd cmd, void *arg)
 
 unsigned long g_cpp_base;
 
+static int cpphw_parse_dts(struct cpp_hw_soc_info *soc_cpp,struct platform_device *pdev)
+{
+    struct device_node *np_isp;
+    if (!soc_cpp|| !pdev) {
+        pr_err("soc_cpp or pdev is null\n");
+        return -EFAULT;
+    }
+    soc_cpp->cpp_eb = devm_clk_get(&pdev->dev, "cpp_eb");
+    if (IS_ERR(soc_cpp->cpp_eb))
+        return PTR_ERR(soc_cpp->cpp_eb);
+
+    soc_cpp->cpp_axi_eb = devm_clk_get(&pdev->dev, "cpp_axi_eb");
+    if (IS_ERR(soc_cpp->cpp_axi_eb))
+        return PTR_ERR(soc_cpp->cpp_axi_eb);
+
+	/* hw: cpp,isp use the same clk
+	 * so read isp_clk, isp_clk_parent from isp node
+	 * If change clk, need change isp_clk_parent
+	 */
+    np_isp = of_parse_phandle(pdev->dev.of_node, "ref-node", 0);
+    if (IS_ERR(np_isp)) {
+        pr_err("fail to get isp node\n");
+        return PTR_ERR(np_isp);
+    }
+
+    soc_cpp->cpp_clk = of_clk_get_by_name(np_isp, "isp_clk");
+    if (IS_ERR(soc_cpp->cpp_clk)) {
+        pr_err("fail to get isp_clk, %p\n", soc_cpp->cpp_clk);
+        return PTR_ERR(soc_cpp->cpp_clk);
+    }
+
+    soc_cpp->cpp_clk_parent = of_clk_get_by_name(np_isp, "isp_clk_parent");
+    if (IS_ERR(soc_cpp->cpp_clk_parent)) {
+        pr_err("fail to get isp_clk_parent %p\n", soc_cpp->cpp_clk_parent);
+        return PTR_ERR(soc_cpp->cpp_clk_parent);
+    }
+
+    soc_cpp->cpp_clk_default = clk_get_parent(soc_cpp->cpp_clk);
+    if (IS_ERR(soc_cpp->cpp_clk_default))
+        return PTR_ERR(soc_cpp->cpp_clk_default);
+    return 0;
+}
+
 int cpphw_probe(struct platform_device *pdev, struct cpp_hw_info * hw_info)
 {
-	int i;
- #if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 4, 0))
-        int ret = 0;
- #endif
+    int i,ret = 0;
 	unsigned int irq = 0;
 	struct cpp_hw_soc_info *soc_cpp = NULL;
 	struct cpp_hw_ip_info *ip_cpp = NULL;
@@ -323,7 +363,6 @@ int cpphw_probe(struct platform_device *pdev, struct cpp_hw_info * hw_info)
 	struct regmap *tregmap = NULL;
 	uint32_t args[2];
 	struct resource *res = NULL;
-	struct device_node *np_isp;
 
 	if (!pdev|| !hw_info) {
 		pr_err("fail to get pdev %p, hw_info %p\n", pdev, hw_info);
@@ -346,39 +385,10 @@ int cpphw_probe(struct platform_device *pdev, struct cpp_hw_info * hw_info)
 		return PTR_ERR(ip_cpp->io_base);
 	g_cpp_base = (unsigned long)ip_cpp->io_base;
 
-	soc_cpp->cpp_eb = devm_clk_get(&pdev->dev, "cpp_eb");
-	if (IS_ERR(soc_cpp->cpp_eb))
-		return PTR_ERR(soc_cpp->cpp_eb);
-
-	soc_cpp->cpp_axi_eb = devm_clk_get(&pdev->dev, "cpp_axi_eb");
-	if (IS_ERR(soc_cpp->cpp_axi_eb))
-		return PTR_ERR(soc_cpp->cpp_axi_eb);
-
-	/* hw: cpp,isp use the same clk
-	 * so read isp_clk, isp_clk_parent from isp node
-	 * If change clk, need change isp_clk_parent
-	 */
-	np_isp = of_parse_phandle(pdev->dev.of_node, "ref-node", 0);
-	if (IS_ERR(np_isp)) {
-		pr_err("fail to get isp node\n");
-		return PTR_ERR(np_isp);
-	}
-
-	soc_cpp->cpp_clk = of_clk_get_by_name(np_isp, "isp_clk");
-	if (IS_ERR(soc_cpp->cpp_clk)) {
-		pr_err("fail to get isp_clk, %p\n", soc_cpp->cpp_clk);
-		return PTR_ERR(soc_cpp->cpp_clk);
-	}
-
-	soc_cpp->cpp_clk_parent = of_clk_get_by_name(np_isp, "isp_clk_parent");
-	if (IS_ERR(soc_cpp->cpp_clk_parent)) {
-		pr_err("fail to get isp_clk_parent %p\n", soc_cpp->cpp_clk_parent);
-		return PTR_ERR(soc_cpp->cpp_clk_parent);
-	}
-
-	soc_cpp->cpp_clk_default = clk_get_parent(soc_cpp->cpp_clk);
-	if (IS_ERR(soc_cpp->cpp_clk_default))
-		return PTR_ERR(soc_cpp->cpp_clk_default);
+    ret = cpphw_parse_dts(soc_cpp,pdev);
+    if (ret != 0){
+        return ret;
+    }
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq <= 0) {
