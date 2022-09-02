@@ -45,22 +45,21 @@ static int ip_hw_dvfs_en(struct devfreq *devfreq, unsigned int dvfs_eb) {
 }
 
 static int ip_auto_tune_en(struct devfreq *devfreq, unsigned long dvfs_eb) {
-/*    u32 dfs_en_reg;
-
-    mutex_lock(&mmsys_glob_reg_lock);
-    dfs_en_reg = DVFS_REG_RD(REG_MM_DVFS_AHB_MM_DFS_EN_CTRL);
-
-    if (dvfs_eb)
-        DVFS_REG_WR(REG_MM_DVFS_AHB_MM_DFS_EN_CTRL,
-                    dfs_en_reg | BIT_MM_MTX_DATA_DVFS_SW_EN);
-    else
-        DVFS_REG_WR(REG_MM_DVFS_AHB_MM_DFS_EN_CTRL,
-                    dfs_en_reg & (~BIT_MM_MTX_DATA_DVFS_SW_EN));
-    mutex_unlock(&mmsys_glob_reg_lock);
-
-    pr_debug("dvfs ops: %s, dvfs_eb=%lu\n", __func__, dvfs_eb); */
-    return MM_DVFS_SUCCESS;
+#ifdef DVFS_VERSION_N6L
+	u32 dfs_en_reg;
+	mutex_lock(&mmsys_glob_reg_lock);
+	dfs_en_reg = DVFS_REG_RD(REG_MM_DVFS_AHB_MM_AUTO_TUNE_EN_CTRL);
+	if (dvfs_eb)
+		DVFS_REG_WR(REG_MM_DVFS_AHB_MM_AUTO_TUNE_EN_CTRL,
+		dfs_en_reg | BIT_MM_SYS_MTX_AUTO_TUNE_EN);
+	else
+		DVFS_REG_WR(REG_MM_DVFS_AHB_MM_AUTO_TUNE_EN_CTRL,
+		dfs_en_reg & (~BIT_MM_SYS_MTX_AUTO_TUNE_EN));
+	mutex_unlock(&mmsys_glob_reg_lock);
+#endif
+	return MM_DVFS_SUCCESS;
 }
+
 
 /*work-idle dvfs map  ops*/
 static int get_ip_dvfs_table(struct devfreq *devfreq,
@@ -74,10 +73,8 @@ static int get_ip_dvfs_table(struct devfreq *devfreq,
         dvfs_table[i].clk = mtx_data_dvfs_config_table[i].clk;
         dvfs_table[i].volt_value = mtx_data_dvfs_config_table[i].volt_value;
         dvfs_table[i].volt = mtx_data_dvfs_config_table[i].volt;
-        dvfs_table[i].fdiv_denom = mtx_data_dvfs_config_table[i].fdiv_denom;
-        dvfs_table[i].fdiv_num = mtx_data_dvfs_config_table[i].fdiv_num;
-        dvfs_table[i].axi_index = mtx_data_dvfs_config_table[i].axi_index;
-        dvfs_table[i].mtx_index = mtx_data_dvfs_config_table[i].mtx_index;
+        dvfs_table[i].dcam_axi_index = mtx_data_dvfs_config_table[i].dcam_axi_index;
+        dvfs_table[i].mm_mtx_index = mtx_data_dvfs_config_table[i].mm_mtx_index;
         dvfs_table[i].reg_add = mtx_data_dvfs_config_table[i].reg_add;
     }
 
@@ -313,7 +310,9 @@ static int ip_dvfs_init(struct devfreq *devfreq) {
     //set_ip_dvfs_swtrig_en(MTX_DATA_SW_TRIG_EN);
     set_ip_dvfs_work_index(devfreq, MTX_DATA_WORK_INDEX_DEF);
     set_ip_dvfs_idle_index(devfreq, MTX_DATA_IDLE_INDEX_DEF);
-    //ip_auto_tune_en(devfreq, MTX_DATA_AUTO_TUNE);
+#ifdef DVFS_VERSION_N6L
+    ip_auto_tune_en(devfreq, MM_MTX_AUTO_TUNE);
+#endif
     mtx_data->dvfs_enable = TRUE;
     mtx_data->freq = mtx_data_dvfs_config_table[MTX_DATA_WORK_INDEX_DEF].clk_freq;
     pr_info("mtx data dvfs init param: HDSK_EN %d WORK_INDEX_DEF %d IDLE_INDEX_DEF %d\n", MTX_DATA_FREQ_UPD_HDSK_EN,MTX_DATA_WORK_INDEX_DEF,

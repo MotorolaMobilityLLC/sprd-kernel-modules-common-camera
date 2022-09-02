@@ -244,9 +244,13 @@ static int mmsys_dvfs_probe(struct platform_device *pdev) {
     ret = mmsys_register_notifier(&mmsys->pw_nb);
 
 	//hw dvfs en for mmsys
+#ifdef DVFS_VERSION_N6P
 	pr_info("device is qogirn6pro,check aa or ab\n");
 	if (soc_ver_id_check())
 		ret = mmsys_hw_dvfs_enable(mmsys->top_apb);
+#else
+	ret = mmsys_hw_dvfs_enable(mmsys->top_apb);
+#endif
 
 	return MM_DVFS_SUCCESS;
 
@@ -389,46 +393,50 @@ void __exit mmsys_dvfs_exit(void) {
 int __init mmsys_module_init(void) {
     int ret = MM_DVFS_SUCCESS;
 
-    pr_err("enter mmsys_moudule_init \n");
+    pr_info("enter mmsys_moudule_init \n");
 	pr_info("hww\n");
     ret = mmsys_dvfs_init();
     ret = cpp_dvfs_init();
-    ret = fd_dvfs_init();
     ret = isp_dvfs_init();
     ret = jpg_dvfs_init();
-    ret = depth_dvfs_init();
     ret = dcam_mtx_dvfs_init();
     ret = dcam0_1_dvfs_init();
     ret = dcam0_1_axi_dvfs_init();
     ret = dcam2_3_dvfs_init();
     ret = dcam2_3_axi_dvfs_init();
+#ifdef DVFS_VERSION_N6P
+    ret = fd_dvfs_init();
+    ret = depth_dvfs_init();
     ret = vdsp_dvfs_init();
     ret = vdma_dvfs_init();
     ret = vdsp_mtx_dvfs_init();
+#endif
     ret = mtx_data_dvfs_init();
-    pr_err("end mmsys_moudule_init \n");
+    pr_info("end mmsys_moudule_init \n");
 
     return ret;
 }
 
 void __exit mmsys_module_exit(void) {
-    pr_err("enter mmsys_moudule_exit \n");
+    pr_info("enter mmsys_moudule_exit \n");
     mtx_data_dvfs_exit();
+#ifdef DVFS_VERSION_N6P
     vdsp_mtx_dvfs_exit();
     vdma_dvfs_exit();
     vdsp_dvfs_exit();
+    depth_dvfs_exit();
+    fd_dvfs_exit();
+#endif
     dcam2_3_axi_dvfs_exit();
     dcam2_3_dvfs_exit();
     dcam0_1_axi_dvfs_exit();
     dcam0_1_dvfs_exit();
     dcam_mtx_dvfs_exit();
-    depth_dvfs_exit();
     jpg_dvfs_exit();
     isp_dvfs_exit();
-    fd_dvfs_exit();
     cpp_dvfs_exit();
     mmsys_dvfs_exit();
-    pr_err("end mmsys_moudule_exit \n");
+    pr_info("end mmsys_moudule_exit \n");
 }
 
 module_init(mmsys_module_init);

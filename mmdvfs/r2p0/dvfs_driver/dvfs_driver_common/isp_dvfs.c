@@ -18,9 +18,9 @@
 #include "mm_dvfs_table.h"
 
 /* userspace  interface*/
-static int ip_hw_dvfs_en(struct devfreq *devfreq, unsigned int dvfs_eb) {
-
-/*    u32 dfs_en_reg;
+static int ip_hw_dfs_en(struct devfreq *devfreq, unsigned int dvfs_eb) {
+#ifdef DVFS_VERSION_N6L
+    u32 dfs_en_reg;
     mutex_lock(&mmsys_glob_reg_lock);
     dfs_en_reg = DVFS_REG_RD(REG_MM_DVFS_AHB_MM_DFS_EN_CTRL);
     if (dvfs_eb)
@@ -30,7 +30,7 @@ static int ip_hw_dvfs_en(struct devfreq *devfreq, unsigned int dvfs_eb) {
         DVFS_REG_WR(REG_MM_DVFS_AHB_MM_DFS_EN_CTRL,
                     dfs_en_reg & (~BIT_ISP_DFS_EN));
     mutex_unlock(&mmsys_glob_reg_lock);
-*/
+#endif
     pr_debug("dvfs ops: %s, dvfs_eb=%d\n", __func__, dvfs_eb);
     return MM_DVFS_SUCCESS;
 }
@@ -53,10 +53,8 @@ static int get_ip_dvfs_table(struct devfreq *devfreq,
         dvfs_table[i].clk = isp_dvfs_config_table[i].clk;
         dvfs_table[i].volt_value = isp_dvfs_config_table[i].volt_value;
         dvfs_table[i].volt = isp_dvfs_config_table[i].volt;
-        dvfs_table[i].fdiv_denom = isp_dvfs_config_table[i].fdiv_denom;
-        dvfs_table[i].fdiv_num = isp_dvfs_config_table[i].fdiv_num;
-        dvfs_table[i].axi_index = isp_dvfs_config_table[i].axi_index;
-        dvfs_table[i].mtx_index = isp_dvfs_config_table[i].mtx_index;
+        dvfs_table[i].dcam_axi_index = isp_dvfs_config_table[i].dcam_axi_index;
+        dvfs_table[i].mm_mtx_index = isp_dvfs_config_table[i].mm_mtx_index;
         dvfs_table[i].reg_add = isp_dvfs_config_table[i].reg_add;
     }
     return MM_DVFS_SUCCESS;
@@ -89,6 +87,7 @@ static void get_ip_index_from_table(struct ip_dvfs_map_cfg *dvfs_cfg,
     pr_debug("dvfs ops: %s,index=%d work_freq %ld", __func__, *index, work_freq);
 }
 
+#ifdef DVFS_VERSION_N6P
 static void set_change_flag(unsigned long work_freq) {
 	u32 i =0, clk_reg = 0, ip_clk_sel = 0;
 	unsigned long current_ip_clk = 0;
@@ -109,7 +108,7 @@ static void set_change_flag(unsigned long work_freq) {
 		clk_vote_table[ISP_CLK].ip_change_flag = 0;
 }
 
-static void updata_clk_vote_table(unsigned int *mtx_index, unsigned long work_freq) {
+static void updata_clk_vote_table(unsigned int *mm_mtx_index, unsigned long work_freq) {
 	u32 i =0, arb_clk = 0;
 	clk_vote_table[ISP_CLK].clk_value = work_freq;
 	arb_clk = clk_vote_table[0].clk_value;
@@ -120,12 +119,13 @@ static void updata_clk_vote_table(unsigned int *mtx_index, unsigned long work_fr
 
 	for (i = 0; i < 8; i++) {
 		if (arb_clk == mtx_data_dvfs_config_table[i].clk_freq) {
-			*mtx_index = mtx_data_dvfs_config_table[i].map_index;
+			*mm_mtx_index = mtx_data_dvfs_config_table[i].map_index;
 			break;
 		}
-		*mtx_index = 7;
+		*mm_mtx_index = 7;
 	}
 }
+#endif
 
 /*work-idle dvfs index ops*/
 static void set_ip_dvfs_work_index(struct devfreq *devfreq,
@@ -139,21 +139,29 @@ static void set_ip_dvfs_work_index(struct devfreq *devfreq,
 }
 
 static int set_work_freq(struct devfreq *devfreq, unsigned long work_freq) {
-	u32 index = 0,mtx_index = 0;
+#ifdef DVFS_VERSION_N6P
+	u32 index = 0,mm_mtx_index = 0;
 
 	get_ip_index_from_table(isp_dvfs_config_table, work_freq, &index);
 
 	set_change_flag(work_freq);
 
-	updata_clk_vote_table(&mtx_index, work_freq);
+	updata_clk_vote_table(&mm_mtx_index, work_freq);
 
 	if (clk_vote_table[ISP_CLK].ip_change_flag) {
-		set_mtx_data_work_freq(mtx_index);
-		set_ip_dvfs_work_index(devfreq,index);
+		set_mtx_data_work_freq(mm_mtx_index);
+		set_ip_dvfs_work_index(devfreq, index);
 	} else {
-		set_ip_dvfs_work_index(devfreq,index);
-		set_mtx_data_work_freq(mtx_index);
+		set_ip_dvfs_work_index(devfreq, index);
+		set_mtx_data_work_freq(mm_mtx_index);
 	}
+#else
+	u32 index = 0;
+
+	get_ip_index_from_table(isp_dvfs_config_table, work_freq, &index);
+
+	set_ip_dvfs_work_index(devfreq, index);
+#endif
 	return MM_DVFS_SUCCESS;
 }
 
@@ -289,6 +297,7 @@ static void isp_dvfs_map_cfg(void) {
     u32 map_cfg_reg = 0;
     u32 i = 0;
 
+#ifdef DVFS_VERSION_N6P
     for (i = 0; i < 8; i++) {
         map_cfg_reg = 0x0;
         map_cfg_reg =
@@ -301,6 +310,22 @@ static void isp_dvfs_map_cfg(void) {
         //        map_cfg_reg);
         DVFS_REG_WR((isp_dvfs_config_table[i].reg_add), map_cfg_reg);
     }
+#else
+    for (i = 0; i < 8; i++) {
+        map_cfg_reg = 0x0;
+        map_cfg_reg =
+            (map_cfg_reg & (~0x3ff)) |
+            BITS_ISP_VOTE_MM_MTX_INDEX0(isp_dvfs_config_table[i].mm_mtx_index)|
+            BITS_ISP_VOL_INDEX0(isp_dvfs_config_table[i].volt) |
+            BITS_CGM_ISP_SEL_INDEX0(isp_dvfs_config_table[i].clk);
+
+        /* DVFS_REG_RD(REG_MM_DVFS_AHB_ISP_INDEX0_MAP, map_cfg_reg); */
+        //pr_info("dvfs ops: %s isp map_cfg_reg=%d-- %d\n", __func__, i,
+        //        map_cfg_reg);
+        DVFS_REG_WR((isp_dvfs_config_table[i].reg_add), map_cfg_reg);
+    }
+
+#endif
 }
 
 static void set_ip_dvfs_idle_index(struct devfreq *devfreq,
@@ -333,7 +358,7 @@ static int ip_dvfs_init(struct devfreq *devfreq) {
     //set_ip_dvfs_swtrig_en(ISP_SW_TRIG_EN);
     set_ip_dvfs_work_index(devfreq, ISP_WORK_INDEX_DEF);
     set_ip_dvfs_idle_index(devfreq, ISP_IDLE_INDEX_DEF);
-    //ip_hw_dvfs_en(devfreq, ISP_DFS_EN);
+    ip_hw_dfs_en(devfreq, ISP_DFS_EN);
     isp->dvfs_enable = TRUE;
     isp->freq = isp_dvfs_config_table[ISP_WORK_INDEX_DEF].clk_freq;
     pr_info("isp dvfs init param: HDSK_EN %d WORK_INDEX_DEF %d IDLE_INDEX_DEF %d\n", ISP_FREQ_UPD_HDSK_EN,ISP_WORK_INDEX_DEF,
@@ -400,7 +425,7 @@ struct ip_dvfs_ops isp_dvfs_ops = {
     .available = 1,
 
     .ip_dvfs_init = ip_dvfs_init,
-    .ip_hw_dvfs_en = ip_hw_dvfs_en,
+    .ip_hw_dvfs_en = ip_hw_dfs_en,
     .ip_auto_tune_en = ip_auto_tune_en,
     .set_work_freq = set_work_freq,
     .set_idle_freq = set_idle_freq,

@@ -16,7 +16,7 @@
 #include "mm_devfreq_common.h"
 #include "mm_dvfs_coffe.h"
 #include "mm_dvfs_table.h"
-
+#ifdef DVFS_VERSION_N6P
 #ifdef pr_fmt
 #undef pr_fmt
 #endif
@@ -63,8 +63,8 @@ static int get_ip_dvfs_table(struct devfreq *devfreq,
 		dvfs_table[i].volt = vdsp_dvfs_config_table[i].volt;
 		dvfs_table[i].fdiv_denom = vdsp_dvfs_config_table[i].fdiv_denom;
 		dvfs_table[i].fdiv_num = vdsp_dvfs_config_table[i].fdiv_num;
-		dvfs_table[i].axi_index = vdsp_dvfs_config_table[i].axi_index;
-		dvfs_table[i].mtx_index = vdsp_dvfs_config_table[i].mtx_index;
+		dvfs_table[i].dcam_axi_index = vdsp_dvfs_config_table[i].dcam_axi_index;
+		dvfs_table[i].mm_mtx_index = vdsp_dvfs_config_table[i].mm_mtx_index;
 		dvfs_table[i].reg_add = vdsp_dvfs_config_table[i].reg_add;
 	}
 	return MM_DVFS_SUCCESS;
@@ -120,7 +120,7 @@ static void set_change_flag(unsigned long work_freq)
 		clk_vote_table[VDSP_MTX_DATA_CLK].ip_change_flag = 0;
 }
 
-static void updata_clk_vote_table(unsigned int *mtx_index,
+static void updata_clk_vote_table(unsigned int *mm_mtx_index,
 				  unsigned long work_freq)
 {
 	u32 i =0, arb_clk = 0;
@@ -137,12 +137,12 @@ static void updata_clk_vote_table(unsigned int *mtx_index,
 
 	for (i = 0; i < 8; i++) {
 		if (arb_clk <= mtx_data_dvfs_config_table[i].clk_freq) {
-			*mtx_index = mtx_data_dvfs_config_table[i].map_index;
+			*mm_mtx_index = mtx_data_dvfs_config_table[i].map_index;
 			break;
 		}
-		*mtx_index = 7;
+		*mm_mtx_index = 7;
 	}
-	pr_info("mtx_index=%d work_freq %ld", *mtx_index, work_freq);
+	pr_info("mm_mtx_index=%d work_freq %ld", *mm_mtx_index, work_freq);
 }
 
 static int set_vdsp_work_freq(unsigned int index)
@@ -172,21 +172,21 @@ static void change_vdspmtx_index(unsigned int *vdspmtx_index,
 
 static int set_work_freq(struct devfreq *devfreq, unsigned long work_freq)
 {
-	u32 index = 0, mtx_index = 0, vdspmtx_index = 0;
+	u32 index = 0, mm_mtx_index = 0, vdspmtx_index = 0;
 
 	get_ip_index_from_table(vdsp_dvfs_config_table, work_freq, &index);
 	set_change_flag(work_freq);
-	updata_clk_vote_table(&mtx_index, work_freq / 2);
+	updata_clk_vote_table(&mm_mtx_index, work_freq / 2);
 	change_vdspmtx_index(&vdspmtx_index, work_freq / 2);
 
 	if (clk_vote_table[VDSP_MTX_DATA_CLK].ip_change_flag) {
-		set_mtx_data_work_freq(mtx_index);
+		set_mtx_data_work_freq(mm_mtx_index);
 		set_vdsp_mtx_work_freq(vdspmtx_index);
 		set_vdsp_work_freq(index);
 	} else {
 		set_vdsp_work_freq(index);
 		set_vdsp_mtx_work_freq(vdspmtx_index);
-		set_mtx_data_work_freq(mtx_index);
+		set_mtx_data_work_freq(mm_mtx_index);
 	}
 	return MM_DVFS_SUCCESS;
 }
@@ -490,5 +490,5 @@ struct ip_dvfs_ops *get_vdsp_dvfs_ops(void)
 	return &vdsp_dvfs_ops;
 }
 EXPORT_SYMBOL(get_vdsp_dvfs_ops);
-
+#endif
 

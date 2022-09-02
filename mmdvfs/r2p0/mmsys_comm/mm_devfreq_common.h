@@ -50,14 +50,16 @@ struct module_dvfs {
 extern struct ip_dvfs_ops isp_dvfs_ops;
 extern struct devfreq_governor isp_dvfs_gov;
 
-extern struct ip_dvfs_ops fd_dvfs_ops;
-extern struct devfreq_governor fd_dvfs_gov;
-
 extern struct ip_dvfs_ops cpp_dvfs_ops;
 extern struct devfreq_governor cpp_dvfs_gov;
 
+#ifdef DVFS_VERSION_N6P
 extern struct ip_dvfs_ops depth_dvfs_ops;
 extern struct devfreq_governor depth_dvfs_gov;
+
+extern struct ip_dvfs_ops fd_dvfs_ops;
+extern struct devfreq_governor fd_dvfs_gov;
+#endif
 
 extern struct ip_dvfs_ops dcam0_1_dvfs_ops;
 extern struct devfreq_governor dcam0_1_dvfs_gov;

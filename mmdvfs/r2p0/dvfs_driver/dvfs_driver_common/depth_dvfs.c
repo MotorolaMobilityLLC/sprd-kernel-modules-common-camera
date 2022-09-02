@@ -16,7 +16,7 @@
 #include "mm_devfreq_common.h"
 #include "mm_dvfs_coffe.h"
 #include "mm_dvfs_table.h"
-
+#ifdef DVFS_VERSION_N6P
 /* userspace  interface*/
 static int ip_hw_dvfs_en(struct devfreq *devfreq, unsigned int dvfs_eb) {
 
@@ -55,10 +55,8 @@ static int get_ip_dvfs_table(struct devfreq *devfreq,
         dvfs_table[i].clk = depth_dvfs_config_table[i].clk;
         dvfs_table[i].volt_value = depth_dvfs_config_table[i].volt_value;
         dvfs_table[i].volt = depth_dvfs_config_table[i].volt;
-        dvfs_table[i].fdiv_denom = depth_dvfs_config_table[i].fdiv_denom;
-        dvfs_table[i].fdiv_num = depth_dvfs_config_table[i].fdiv_num;
-        dvfs_table[i].axi_index = depth_dvfs_config_table[i].axi_index;
-        dvfs_table[i].mtx_index = depth_dvfs_config_table[i].mtx_index;
+        dvfs_table[i].dcam_axi_index = depth_dvfs_config_table[i].dcam_axi_index;
+        dvfs_table[i].mm_mtx_index = depth_dvfs_config_table[i].mm_mtx_index;
         dvfs_table[i].reg_add = depth_dvfs_config_table[i].reg_add;
     }
 
@@ -384,4 +382,4 @@ struct ip_dvfs_ops depth_dvfs_ops = {
     .mm_current_volt = mm_current_volt,
     .event_handler = NULL,
 };
-
+#endif

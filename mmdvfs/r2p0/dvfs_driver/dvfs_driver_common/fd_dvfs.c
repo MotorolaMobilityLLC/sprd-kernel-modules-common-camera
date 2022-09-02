@@ -16,8 +16,7 @@
 #include "mm_devfreq_common.h"
 #include "mm_dvfs_coffe.h"
 #include "mm_dvfs_table.h"
-
-/* userspace  interface*/
+#ifdef DVFS_VERSION_N6P/* userspace  interface*/
 static int ip_hw_dvfs_en(struct devfreq *devfreq, unsigned int dvfs_eb) {
 
 /*    u32 dfs_en_reg;
@@ -53,10 +52,8 @@ static int get_ip_dvfs_table(struct devfreq *devfreq,
         dvfs_table[i].clk = fd_dvfs_config_table[i].clk;
         dvfs_table[i].volt_value = fd_dvfs_config_table[i].volt_value;
         dvfs_table[i].volt = fd_dvfs_config_table[i].volt;
-        dvfs_table[i].fdiv_denom = fd_dvfs_config_table[i].fdiv_denom;
-        dvfs_table[i].fdiv_num = fd_dvfs_config_table[i].fdiv_num;
-        dvfs_table[i].axi_index = fd_dvfs_config_table[i].axi_index;
-        dvfs_table[i].mtx_index = fd_dvfs_config_table[i].mtx_index;
+        dvfs_table[i].dcam_axi_index = fd_dvfs_config_table[i].dcam_axi_index;
+        dvfs_table[i].mm_mtx_index = fd_dvfs_config_table[i].mm_mtx_index;
         dvfs_table[i].reg_add = fd_dvfs_config_table[i].reg_add;
     }
     return MM_DVFS_SUCCESS;
@@ -98,7 +95,7 @@ static int set_work_freq(struct devfreq *devfreq, unsigned long work_freq) {
     index_cfg_reg = DVFS_REG_RD(REG_MM_DVFS_AHB_FD_DVFS_INDEX_CFG);
     index_cfg_reg = (index_cfg_reg & (~0x7)) | index;
     DVFS_REG_WR(REG_MM_DVFS_AHB_FD_DVFS_INDEX_CFG, index_cfg_reg);
-     pr_info("dvfs ops: %s, fd_work_freq=%lu, index=%d,\n", __func__, work_freq, index);
+    pr_info("dvfs ops: %s, fd_work_freq=%lu, index=%d,\n", __func__, work_freq, index);
     return MM_DVFS_SUCCESS;
 }
 
@@ -379,3 +376,4 @@ struct ip_dvfs_ops fd_dvfs_ops = {
     .mm_current_volt = mm_current_volt,
     .event_handler = NULL,
 };
+#endif

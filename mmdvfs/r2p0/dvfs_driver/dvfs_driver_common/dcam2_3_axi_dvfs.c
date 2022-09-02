@@ -23,19 +23,21 @@ static int ip_hw_dvfs_en(struct devfreq *devfreq, unsigned int dvfs_eb) {
     return MM_DVFS_SUCCESS;
 }
 
-static int ip_auto_tune_en(struct devfreq *devfreq, unsigned long dvfs_eb) {
- /*   u32 dfs_en_reg;
-    mutex_lock(&mmsys_glob_reg_lock);
-    dfs_en_reg = DVFS_REG_RD(REG_MM_DVFS_AHB_MM_DFS_EN_CTRL);
-    if (dvfs_eb)
-        DVFS_REG_WR(REG_MM_DVFS_AHB_MM_DFS_EN_CTRL,
-                    dfs_en_reg | BIT_DCAM2_3_AXI_DFS_EN);
-    else
-        DVFS_REG_WR(REG_MM_DVFS_AHB_MM_DFS_EN_CTRL,
-                    dfs_en_reg & (~BIT_DCAM2_3_AXI_DFS_EN));
-    mutex_unlock(&mmsys_glob_reg_lock);  */
-    return MM_DVFS_SUCCESS;
 
+static int ip_auto_tune_en(struct devfreq *devfreq, unsigned long dvfs_eb) {
+#ifdef DVFS_VERSION_N6L
+	u32 dfs_en_reg;
+	mutex_lock(&mmsys_glob_reg_lock);
+	dfs_en_reg = DVFS_REG_RD(REG_MM_DVFS_AHB_MM_AUTO_TUNE_EN_CTRL);
+	if (dvfs_eb)
+		DVFS_REG_WR(REG_MM_DVFS_AHB_MM_AUTO_TUNE_EN_CTRL,
+		dfs_en_reg | BIT_DCAM2_3_AXI_AUTO_TUNE_EN);
+	else
+		DVFS_REG_WR(REG_MM_DVFS_AHB_MM_AUTO_TUNE_EN_CTRL,
+		dfs_en_reg & (~BIT_DCAM2_3_AXI_AUTO_TUNE_EN));
+	mutex_unlock(&mmsys_glob_reg_lock); 
+#endif
+	return MM_DVFS_SUCCESS;
 }
 
 /*work-idle dvfs map  ops*/
@@ -50,10 +52,8 @@ static int get_ip_dvfs_table(struct devfreq *devfreq,
         dvfs_table[i].clk = dcam2_3_axi_dvfs_config_table[i].clk;
         dvfs_table[i].volt_value = dcam2_3_axi_dvfs_config_table[i].volt_value;
         dvfs_table[i].volt = dcam2_3_axi_dvfs_config_table[i].volt;
-        dvfs_table[i].fdiv_denom = dcam2_3_axi_dvfs_config_table[i].fdiv_denom;
-        dvfs_table[i].fdiv_num = dcam2_3_axi_dvfs_config_table[i].fdiv_num;
-        dvfs_table[i].axi_index = dcam2_3_axi_dvfs_config_table[i].axi_index;
-        dvfs_table[i].mtx_index = dcam2_3_axi_dvfs_config_table[i].mtx_index;
+        dvfs_table[i].dcam_axi_index = dcam2_3_axi_dvfs_config_table[i].dcam_axi_index;
+        dvfs_table[i].mm_mtx_index = dcam2_3_axi_dvfs_config_table[i].mm_mtx_index;
         dvfs_table[i].reg_add = dcam2_3_axi_dvfs_config_table[i].reg_add;
     }
 
@@ -265,7 +265,9 @@ static int ip_dvfs_init(struct devfreq *devfreq) {
     set_ip_gfree_wait_delay(DCAM2_3_AXI_GFREE_WAIT_DELAY);
     set_ip_dvfs_work_index(devfreq, DCAM2_3_AXI_WORK_INDEX_DEF);
     set_ip_dvfs_idle_index(devfreq, DCAM2_3_AXI_IDLE_INDEX_DEF);
-    //ip_auto_tune_en(devfreq, DCAM2_3_AXI_AUTO_TUNE);
+#ifdef DVFS_VERSION_N6L
+    ip_auto_tune_en(devfreq, DCAM2_3_AXI_AUTO_TUNE);
+#endif
     dcam2_3_axi->dvfs_enable = TRUE;
     dcam2_3_axi->freq = dcam2_3_axi_dvfs_config_table[DCAM2_3_AXI_WORK_INDEX_DEF].clk_freq;
 
