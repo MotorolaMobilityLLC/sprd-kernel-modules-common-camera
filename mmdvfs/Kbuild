@@ -15,6 +15,8 @@ endif
 DVFS_DEVICE := $(strip $(BSP_BOARD_CAMERA_MODULE_DVFS))
 ifeq ($(DVFS_DEVICE),qogirn6pro)
 ADAPT_DIR := r2p0
+else ifeq ($(DVFS_DEVICE),qogirn6l)
+ADAPT_DIR := r2p0
 else
 ADAPT_DIR := r1p0
 endif

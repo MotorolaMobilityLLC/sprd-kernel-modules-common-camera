@@ -225,6 +225,8 @@ static int get_ip_status(struct devfreq *devfreq,
             break;
         }
     }
+
+#ifdef DVFS_VERSION_N6P
     // depth
     clk_reg = DVFS_REG_RD(REG_MM_DVFS_AHB_MM_DEPTH_DVFS_CGM_CFG_DBG);
     ip_clk = (clk_reg >> SHFT_BITS_CGM_DEPTH_SEL_DVFS) & MASK_BITS_CGM_DEPTH_SEL_DVFS;
@@ -258,6 +260,8 @@ static int get_ip_status(struct devfreq *devfreq,
             break;
         }
     }
+#endif
+
     return 1;
 }
 

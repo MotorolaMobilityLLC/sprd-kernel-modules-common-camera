@@ -61,7 +61,7 @@ static int dvfs_gov_get_target(struct devfreq *devfreq,
 #endif
         *freq = adjusted_freq;
     } else
-         pr_err("isp_dvfs_gov, %s: dvfs unenable", __func__);
+        pr_err("isp_dvfs_gov, %s: dvfs unenable", __func__);
 
     pr_info("isp_dvfs_gov, %s: *freq:%lu", __func__, *freq);
 

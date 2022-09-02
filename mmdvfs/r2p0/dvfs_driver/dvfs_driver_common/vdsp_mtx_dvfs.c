@@ -16,7 +16,7 @@
 #include "mm_devfreq_common.h"
 #include "mm_dvfs_coffe.h"
 #include "mm_dvfs_table.h"
-
+#ifdef DVFS_VERSION_N6P
 #ifdef pr_fmt
 #undef pr_fmt
 #endif
@@ -51,8 +51,8 @@ static int get_ip_dvfs_table(struct devfreq *devfreq,
 	  dvfs_table[i].volt = vdsp_mtx_dvfs_config_table[i].volt;
 	  dvfs_table[i].fdiv_denom = vdsp_mtx_dvfs_config_table[i].fdiv_denom;
 	  dvfs_table[i].fdiv_num = vdsp_mtx_dvfs_config_table[i].fdiv_num;
-	  dvfs_table[i].axi_index = vdsp_mtx_dvfs_config_table[i].axi_index;
-	  dvfs_table[i].mtx_index = vdsp_mtx_dvfs_config_table[i].mtx_index;
+	  dvfs_table[i].dcam_axi_index = vdsp_mtx_dvfs_config_table[i].dcam_axi_index;
+	  dvfs_table[i].mm_mtx_index = vdsp_mtx_dvfs_config_table[i].mm_mtx_index;
 	  dvfs_table[i].reg_add = vdsp_mtx_dvfs_config_table[i].reg_add;
 	}
 	return MM_DVFS_SUCCESS;
@@ -400,4 +400,4 @@ struct ip_dvfs_ops *get_vdsp_mtx_dvfs_ops(void)
 
 EXPORT_SYMBOL(get_vdsp_mtx_dvfs_ops);
 
-
+#endif

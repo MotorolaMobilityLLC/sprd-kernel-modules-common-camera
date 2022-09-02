@@ -12,7 +12,7 @@
  */
 
 #include "mm_devfreq_common.h"
-
+#ifdef DVFS_VERSION_N6P
 #ifdef pr_fmt
 #undef pr_fmt
 #endif
@@ -303,4 +303,4 @@ void vdsp_dvfs_exit(void)
 		pr_err("%s: failed to remove ops: %d\n", __func__, ret);
 
 }
-
+#endif

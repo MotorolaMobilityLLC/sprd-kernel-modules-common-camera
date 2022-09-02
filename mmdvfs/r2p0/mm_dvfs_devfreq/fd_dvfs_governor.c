@@ -12,7 +12,7 @@
  */
 
 #include "mm_devfreq_common.h"
-
+#ifdef DVFS_VERSION_N6P
 static int dvfs_probe(struct platform_device *pdev);
 static int dvfs_remove(struct platform_device *pdev);
 static int dvfs_gov_get_target(struct devfreq *devfreq,
@@ -281,4 +281,4 @@ void fd_dvfs_exit(void) {
         pr_err("%s: failed to remove ops: %d\n", __func__, ret);
 
 }
-
+#endif

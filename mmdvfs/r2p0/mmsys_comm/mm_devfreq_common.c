@@ -598,10 +598,12 @@
         len += sprintf(buf + len, "clk=%d\n", dvfs_table[i].clk_freq);
         len += sprintf(buf + len, "map_index=%d\n", dvfs_table[i].map_index);
         len += sprintf(buf + len, "reg_add=%lu\n", dvfs_table[i].reg_add);
+#ifdef DVFS_VERSION_N6P
         len += sprintf(buf + len, "fdiv_denom=%d\n", dvfs_table[i].fdiv_denom);
         len += sprintf(buf + len, "fdiv_num=%d\n", dvfs_table[i].fdiv_num);
-        len += sprintf(buf + len, "axi_index=%d\n", dvfs_table[i].axi_index);
-        len += sprintf(buf + len, "mtx_index=%d\n\n", dvfs_table[i].mtx_index);
+#endif
+        len += sprintf(buf + len, "dcam_axi_index=%d\n", dvfs_table[i].dcam_axi_index);
+        len += sprintf(buf + len, "mm_mtx_index=%d\n\n", dvfs_table[i].mm_mtx_index);
     }
     mutex_unlock(&devfreq->lock);
     return len;
@@ -619,10 +621,17 @@
     module = dev_get_drvdata(devfreq->dev.parent);
     mutex_lock(&devfreq->lock);
     /* To do */
+#ifdef DVFS_VERSION_N6P
     err = sscanf(buf, " %d,%lu,%d,%d,%d,%d,%d,%d,\n", &dvfs_table.map_index,
                  &dvfs_table.reg_add, &dvfs_table.volt, &dvfs_table.clk,
                  &dvfs_table.fdiv_denom, &dvfs_table.fdiv_num,
-                 &dvfs_table.axi_index, &dvfs_table.mtx_index);
+                 &dvfs_table.dcam_axi_index, &dvfs_table.mm_mtx_index);
+#else
+    err = sscanf(buf, " %d,%lu,%d,%d,%d,%d,\n", &dvfs_table.map_index,
+                 &dvfs_table.reg_add, &dvfs_table.volt, &dvfs_table.clk,
+                 &dvfs_table.dcam_axi_index, &dvfs_table.mm_mtx_index);
+
+#endif
     if (err != 8) {
         mutex_unlock(&devfreq->lock);
         return -EINVAL;
