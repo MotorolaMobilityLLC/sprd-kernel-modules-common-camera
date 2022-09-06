@@ -1847,6 +1847,7 @@ static int dcamcore_dev_start(void *dcam_handle, int online)
 		init_completion(&pctx->slice_done);
 		complete(&pctx->slice_done);
 		atomic_set(&pctx->state, STATE_RUNNING);
+		pctx->frame_index = DCAM_FRAME_INDEX_MAX;
 		return ret;
 	}
 

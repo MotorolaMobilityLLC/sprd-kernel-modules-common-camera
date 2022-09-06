@@ -106,11 +106,14 @@ int dcam_k_raw_gtm_block(uint32_t gtm_param_idx,
 		return 0;
 	}
 
-	if (atomic_read(&sw_ctx->state) != STATE_RUNNING)
+	if (gtm->gtm_calc_mode == GTM_SW_CALC) {
 		p->gtm_cur_is_first_frame = 1;
-
-	if (gtm->gtm_calc_mode != GTM_SW_CALC && p->gtm_cur_is_first_frame)
+		pr_info("gtm_sw_calc first frame need gtm map\n");
+	} else if (atomic_read(&sw_ctx->state) != STATE_RUNNING || sw_ctx->frame_index == DCAM_FRAME_INDEX_MAX) {
+		pr_debug("sw_ctx->state %d offline_gtm_bypass_status %d\n", atomic_read(&sw_ctx->state), sw_ctx->frame_index);
+		p->gtm_cur_is_first_frame = 1;
 		p->bypass_info.gtm_map_bypass = 1;
+	}
 
 	val = ((p->bypass_info.gtm_map_bypass & 0x1) << 1) |
 		((p->bypass_info.gtm_hist_stat_bypass & 0x1) << 2) |
