@@ -1518,6 +1518,11 @@ static int camcore_buffers_alloc_num(struct channel_context *channel,
 	if (channel->ch_id == CAM_CH_CAP && module->cam_uinfo.is_dual)
 		num = 7;
 
+	if (channel->ch_id == CAM_CH_CAP && module->cam_uinfo.is_dual && module->master_flag) /*for dual hdr*/
+		num += 3;
+	if (channel->ch_id == CAM_CH_CAP && !module->cam_uinfo.is_dual && !channel->zsl_buffer_num)
+		num += 3;
+
 	/* 4in1 non-zsl capture for single frame */
 	if ((module->cam_uinfo.is_4in1 || module->cam_uinfo.dcam_slice_mode)
 		&& channel->ch_id == CAM_CH_CAP &&
@@ -3349,8 +3354,7 @@ static int camcore_dcam_callback(enum dcam_cb_type type, void *param, void *priv
 
 				mutex_lock(&grp->dual_deal_lock);
 				if (module->master_flag == 1) {
-					if ((atomic_read(&module->capture_frames_dcam) == 0 && atomic_read(&module->cap_flag) == 1)
-						|| pframe->boot_sensor_time < module->capture_times) {
+					if (pframe->boot_sensor_time < module->capture_times) {
 						pframe = camcore_dual_fifo_queue(module, pframe, channel);
 						mutex_unlock(&grp->dual_deal_lock);
 						if (!pframe)
@@ -3513,6 +3517,11 @@ static int camcore_dcam_callback(enum dcam_cb_type type, void *param, void *priv
 					}
 					pr_info("cam%d cap type[%d] num[%d] frame_id %d\n", module->idx, module->dcam_cap_status, cap_frame, pframe->fid);
 				}
+			} else if (module->dcam_cap_status == DCAM_CAPTURE_START && pframe->boot_sensor_time < module->capture_times) {
+				pr_debug("cam%d cap skip frame type[%d] cap_time[%lld] sof_time[%lld]\n", module->idx, module->dcam_cap_status,
+					module->capture_times, pframe->boot_sensor_time);
+				ret = module->dcam_dev_handle->dcam_pipe_ops->cfg_path(dcam_sw_ctx, DCAM_PATH_CFG_OUTPUT_BUF, channel->dcam_path_id, pframe);
+				return ret;
 			}
 			/* to isp */
 			/* skip first frame for online capture (in case of non-zsl) because lsc abnormal */

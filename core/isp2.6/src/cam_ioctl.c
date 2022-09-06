@@ -430,6 +430,8 @@ static int camioctl_function_mode_set(struct camera_module *module,
 	ret |= get_user(module->cam_uinfo.zoom_conflict_with_ltm, &uparam->zoom_conflict_with_ltm);
 	ret |= get_user(module->cam_uinfo.need_dcam_raw, &uparam->need_dcam_raw);
 	ret |= get_user(module->cam_uinfo.virtualsensor, &uparam->virtualsensor);
+	ret |= get_user(module->master_flag, &uparam->master_flag);
+
 	module->cam_uinfo.is_rgb_ltm = hw->ip_isp->rgb_ltm_support;
 	module->cam_uinfo.is_yuv_ltm = hw->ip_isp->yuv_ltm_support;
 	module->cam_uinfo.is_rgb_gtm = hw->ip_isp->rgb_gtm_support;
@@ -439,7 +441,7 @@ static int camioctl_function_mode_set(struct camera_module *module,
 	else
 		module->cam_uinfo.is_pyr_dec = hw->ip_isp->pyr_dec_support;
 
-	pr_info("4in1:[%d], rgb_ltm[%d], yuv_ltm[%d], gtm[%d], dual[%d], dec %d, raw_alg_type:%d, zoom_conflict_with_ltm %d, %d. dcam_raw %d, param_frame_sync:%d,virtualsensor %d\n",
+	pr_info("4in1:[%d], rgb_ltm[%d], yuv_ltm[%d], gtm[%d], dual[%d], dec %d, raw_alg_type:%d, zoom_conflict_with_ltm %d, %d. dcam_raw %d, param_frame_sync:%d,virtualsensor %d, master_flag:%d\n",
 		module->cam_uinfo.is_4in1,module->cam_uinfo.is_rgb_ltm,
 		module->cam_uinfo.is_yuv_ltm, module->cam_uinfo.is_rgb_gtm,
 		module->cam_uinfo.is_dual, module->cam_uinfo.is_pyr_dec,
@@ -448,7 +450,8 @@ static int camioctl_function_mode_set(struct camera_module *module,
 		module->cam_uinfo.is_raw_alg,
 		module->cam_uinfo.need_dcam_raw,
 		module->cam_uinfo.param_frame_sync,
-		module->cam_uinfo.virtualsensor);
+		module->cam_uinfo.virtualsensor,
+		module->master_flag);
 
 	if (unlikely(ret)) {
 		pr_err("fail to copy from user, ret %d\n", ret);
@@ -2598,6 +2601,7 @@ static int camioctl_capture_start(struct camera_module *module,
 	struct dcam_sw_context *sw_ctx = NULL;
 	struct dcam_sw_context *sw_aux_ctx = NULL;
 	struct dcam_hw_path_restart re_patharg;
+	struct camera_frame *pframe = NULL;
 	uint32_t is_post_multi = 0;
 
 	ret = copy_from_user(&param, (void __user *)arg,
@@ -2722,7 +2726,6 @@ static int camioctl_capture_start(struct camera_module *module,
 		/* dual camera need 1 frame */
 		atomic_set(&module->capture_frames_dcam, param.cap_cnt);
 		module->capture_times = param.timestamp;
-		module->master_flag = param.master_flag;
 	} else if (module->cam_uinfo.is_4in1) {
 		/* not report when setting */
 		atomic_set(&module->capture_frames_dcam, 0);
@@ -2751,6 +2754,14 @@ static int camioctl_capture_start(struct camera_module *module,
 		module->capture_times = param.timestamp;
 		module->dcam_cap_status = DCAM_CAPTURE_START;
 		atomic_set(&module->capture_frames_dcam, CAP_NUM_COMMON);
+		if (module->capture_scene == CAPTURE_HDR) {
+			while (1) {
+				pframe = cam_queue_dequeue(&module->channel[CAM_CH_CAP].share_buf_queue, struct camera_frame, list);
+				if (!pframe)
+					break;
+				module->dcam_dev_handle->dcam_pipe_ops->cfg_path(sw_ctx, DCAM_PATH_CFG_OUTPUT_BUF, module->channel[CAM_CH_CAP].dcam_path_id, pframe);
+			}
+		}
 	} else {
 		atomic_set(&module->capture_frames_dcam, -1);
 	}
@@ -2766,9 +2777,9 @@ static int camioctl_capture_start(struct camera_module *module,
 	if (module->dump_thrd.thread_task && module->dcam_dev_handle)
 		camdump_start(&module->dump_thrd, &module->dump_base, module->dcam_idx);
 
-	pr_info("cam %d start capture type %d, scene %d, cnt %d, time %lld, master flag %d capture num:%d\n",
+	pr_info("cam %d start capture type %d, scene %d, cnt %d, time %lld, capture num:%d\n",
 		module->idx, param.type, module->capture_scene, param.cap_cnt,
-		module->capture_times, module->master_flag, module->capture_frames_dcam);
+		module->capture_times, module->capture_frames_dcam);
 	return ret;
 }
 
