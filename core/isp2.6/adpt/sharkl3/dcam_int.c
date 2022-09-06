@@ -196,7 +196,7 @@ static void dcamint_frame_dispatch(struct dcam_hw_context *dcam_hw_ctx, struct d
 static void dcamint_sof_event_dispatch(struct dcam_sw_context *sw_ctx)
 {
 	struct camera_frame *frame = NULL;
-	timespec cur_ts;
+	timespec *ts = NULL;
 
 	if (!sw_ctx) {
 		pr_err("fail to get valid input sw_ctx\n");
@@ -205,10 +205,10 @@ static void dcamint_sof_event_dispatch(struct dcam_sw_context *sw_ctx)
 
 	frame = cam_queue_empty_frame_get();
 	if (frame) {
-		ktime_get_ts(&cur_ts);
-		frame->boot_sensor_time = ktime_get_boottime();
-		frame->sensor_time.tv_sec = cur_ts.tv_sec;
-		frame->sensor_time.tv_usec = cur_ts.tv_nsec / NSEC_PER_USEC;
+		ts = &sw_ctx->frame_ts[tsid(sw_ctx->frame_index)];
+		frame->sensor_time.tv_sec = ts->tv_sec;
+		frame->sensor_time.tv_usec = ts->tv_nsec / NSEC_PER_USEC;
+		frame->boot_sensor_time = sw_ctx->frame_ts_boot[tsid(sw_ctx->frame_index)];
 		frame->evt = IMG_TX_DONE;
 		frame->irq_type = CAMERA_IRQ_DONE;
 		frame->irq_property = IRQ_DCAM_SOF;
