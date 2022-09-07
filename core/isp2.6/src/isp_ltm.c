@@ -611,6 +611,10 @@ static int ispltm_histo_config_gen(struct isp_ltm_ctx_desc *ctx,
 	if (hists->bypass) {
 		pr_debug("tile_width %d, tile_height %d, roi_start_x %d, roi_start_y %d\n",
 			hists->tile_width, hists->tile_height, hists->roi_start_x, hists->roi_start_y);
+		if (ctx->mode == MODE_LTM_PRE) {
+			ctx->frame_width = 0;
+			ctx->frame_height = 0;
+		}
 		return 0;
 	}
 
@@ -691,9 +695,12 @@ static int ispltm_map_config_gen(struct isp_ltm_ctx_desc *ctx,
 	frame_width_map = ctx->frame_width;
 	frame_height_map = ctx->frame_height;
 
-	if ((frame_width_stat == 0) || (frame_height_stat == 0))
+	if ((frame_width_stat == 0) || (frame_height_stat == 0) || frame_width_map == 0 || frame_height_map == 0) {
 		pr_err("fail to get input param, width stat %d, height stat %d\n",
 			frame_width_stat, frame_height_stat);
+		map->bypass = 1;
+		return 0;
+	}
 
 	pr_debug("tile_num_x[%d], tile_num_y[%d], tile_width[%d], tile_height[%d], \
 		frame_width_stat[%d], frame_height_stat[%d], \
