@@ -390,6 +390,7 @@ struct camera_module {
 	uint32_t auto_3dnr;/* 1: enable hw,and alloc buffer before stream on */
 	struct sprd_img_flash_info flash_info;
 	uint32_t flash_skip_fid;
+	uint32_t is_flash_status;
 	uint32_t path_state;
 
 	struct camera_buf pmbuf_array[PARAM_BUF_NUM_MAX];
@@ -3548,17 +3549,10 @@ static int camcore_dcam_callback(enum dcam_cb_type type, void *param, void *priv
 		pframe->irq_type = CAMERA_IRQ_STATIS;
 		/* temp: statis/irq share same queue with frame data. */
 		/* todo: separate statis/irq and frame queue. */
+		if ((pframe->irq_property != STATIS_PARAM) && (module->flash_skip_fid != 0))
+			pframe->is_flash_status = module->is_flash_status;
 
-		if ((pframe->irq_property != STATIS_PARAM)
-			&& (module->flash_skip_fid == pframe->fid)
-			&& (module->flash_skip_fid != 0)) {
-			ret = module->dcam_dev_handle->dcam_pipe_ops->ioctl(dcam_sw_ctx,
-						DCAM_IOCTL_CFG_STATIS_BUF_SKIP,
-						pframe);
-
-			return ret;
-		}
-
+		pr_debug("pframe->fid %d is_flash_status %d irq_property %d\n",pframe->fid, pframe->is_flash_status, pframe->irq_property);
 		if (g_dbg_dump.dump_en == DUMP_DCAM_PDAF &&
 			module->dump_base.dump_enqueue != NULL
 			&& pframe->irq_property == STATIS_PDAF) {
@@ -3591,9 +3585,10 @@ static int camcore_dcam_callback(enum dcam_cb_type type, void *param, void *priv
 				(module->flash_info.led1_ctrl && module->flash_info.led1_status < FLASH_STATUS_MAX)) {
 				module->flash_core_handle->flash_core_ops->start_flash(module->flash_core_handle,
 					&module->flash_info.set_param);
-				if (module->flash_info.flash_last_status != module->flash_info.led0_status)
+				if (module->flash_info.flash_last_status != module->flash_info.led0_status) {
 					module->flash_skip_fid = pframe->fid;
-				else
+					module->is_flash_status = module->flash_info.led0_status;
+				} else
 					pr_info("do not need skip");
 				pr_info("skip_fram=%d\n", pframe->fid);
 				module->flash_info.flash_last_status = module->flash_info.led0_status;
@@ -8495,6 +8490,7 @@ rewait:
 			read_op.parm.frame.height = pframe->height;
 			read_op.parm.frame.real_index = pframe->fid;
 			read_op.parm.frame.frame_id = pframe->fid;
+			read_op.parm.frame.is_flash_status = pframe->is_flash_status;
 			/*
 			 * read_op.parm.frame.sec = pframe->time.tv_sec;
 			 * read_op.parm.frame.usec = pframe->time.tv_usec;

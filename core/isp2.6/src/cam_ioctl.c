@@ -1807,6 +1807,7 @@ static int camioctl_stream_on(struct camera_module *module,
 
 	atomic_set(&module->state, CAM_STREAM_ON);
 	module->flash_skip_fid = 0;
+	module->is_flash_status = 0;
 	module->simu_fid = 0;
 
 	loop = 0;
@@ -2886,6 +2887,7 @@ static int camioctl_capture_stop(struct camera_module *module,
 				&module->lowlux_4in1);
 	}
 	module->capture_scene = CAPTURE_COMMON;
+	module->is_flash_status = 0;
 
 	return 0;
 }
