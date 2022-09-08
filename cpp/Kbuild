@@ -51,3 +51,7 @@ endif
 ifeq ($(ISP_ADAPT_VERSION), qogirn6pro)
 ccflags-y += -DPROJ_CPP_N6PRO
 endif
+
+ifeq ($(ISP_ADAPT_VERSION), qogirn6l)
+ccflags-y += -DPROJ_CPP_N6L
+endif

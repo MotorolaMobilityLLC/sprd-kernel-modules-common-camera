@@ -5194,7 +5194,7 @@ static int camcore_aux_dcam_init(struct camera_module *module,
 
 get_path:
 	if (grp->hw_info->prj_id == QOGIRL6 || grp->hw_info->prj_id == SHARKL5pro ||
-		grp->hw_info->prj_id == QOGIRN6pro)
+		grp->hw_info->prj_id == QOGIRN6pro || grp->hw_info->prj_id == QOGIRN6L)
 		dcam_path_id = DCAM_PATH_FULL;
 	else
 		dcam_path_id = DCAM_PATH_BIN;
@@ -6778,7 +6778,7 @@ static int camcore_raw_pre_proc(
 	ch_desc.is_4in1 = module->cam_uinfo.is_4in1;
 	ch_desc.raw_cap = 1;
 	ch_desc.endian.y_endian = ENDIAN_LITTLE;
-	if (hw->prj_id == QOGIRN6pro) {
+	if (hw->prj_id == QOGIRN6pro || hw->prj_id == QOGIRN6L) {
 		ch_desc.dcam_out_bits = module->grp->hw_info->ip_dcam[0]->dcam_output_support[0];
 		ch_desc.dcam_out_fmt = DCAM_STORE_YVU420;
 	} else
@@ -6853,7 +6853,7 @@ static int camcore_raw_pre_proc(
 	memset(&ctx_desc, 0, sizeof(ctx_desc));
 	ctx_desc.pack_bits = ch->ch_uinfo.dcam_raw_fmt;
 	ctx_desc.in_fmt = proc_info->src_format;
-	if (hw->prj_id == QOGIRN6pro) {
+	if (hw->prj_id == QOGIRN6pro || hw->prj_id == QOGIRN6L) {
 		ctx_desc.in_fmt = camcore_format_dcam_translate(ch_desc.dcam_out_fmt);
 		ctx_desc.data_in_bits = ch_desc.dcam_out_bits;
 	}

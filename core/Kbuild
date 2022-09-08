@@ -83,6 +83,8 @@ else ifeq ($(ADAPT_DIR), qogirl6)
 ccflags-y += -DPROJ_QOGIRL6
 else ifeq ($(ADAPT_DIR), qogirn6pro)
 ccflags-y += -DPROJ_QOGIRN6PRO
+else ifeq ($(ADAPT_DIR), qogirn6l)
+ccflags-y += -DPROJ_QOGIRN6L
 endif
 
 #

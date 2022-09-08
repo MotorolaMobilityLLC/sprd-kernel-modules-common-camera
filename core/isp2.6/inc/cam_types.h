@@ -18,7 +18,7 @@
 #include "sprd_img.h"
 #include "cam_kernel_adapt.h"
 #include <linux/spinlock.h>
-#if defined(PROJ_QOGIRN6PRO)
+#if defined(PROJ_QOGIRN6PRO) || defined(PROJ_QOGIRN6L)
 #define CAM_ON_HAPS
 #endif
 

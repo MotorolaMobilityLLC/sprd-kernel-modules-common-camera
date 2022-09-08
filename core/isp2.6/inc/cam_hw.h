@@ -26,6 +26,7 @@ extern struct cam_hw_info sharkl5_hw_info;
 extern struct cam_hw_info sharkl5pro_hw_info;
 extern struct cam_hw_info qogirl6_hw_info;
 extern struct cam_hw_info qogirn6pro_hw_info;
+extern struct cam_hw_info qogirn6l_hw_info;
 
 typedef int (*hw_ioctl_fun)(void *handle, void *arg);
 typedef int (*isp_k_blk_func)(void *handle);
@@ -40,6 +41,7 @@ enum cam_prj_id {
 	ROC1,
 	SHARKL5pro,
 	QOGIRN6pro,
+	QOGIRN6L,
 	QOGIRL6,
 	PROJECT_MAX
 };
