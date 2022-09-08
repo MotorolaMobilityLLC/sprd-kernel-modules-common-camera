@@ -466,6 +466,7 @@ struct sprd_img_statis_info {
 	uint32_t zoom_ratio;
 	uint32_t width;
 	uint32_t height;
+	uint32_t is_flash_status;
 };
 
 struct sprd_irq_info {
@@ -625,6 +626,7 @@ struct sprd_img_frm_info {
 	uint32_t total_zoom;
 	struct sprd_img_vcm_dac_info dac_info;
 	uint32_t reserved[4];
+	uint32_t is_flash_status;
 };
 #pragma pack(pop)
 

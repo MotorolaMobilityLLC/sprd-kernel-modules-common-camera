@@ -112,6 +112,7 @@ struct camera_frame {
 	struct camera_buf buf;
 	struct nr3_me_data nr3_me;
 	struct dcam_dev_param *pm;
+	uint32_t is_flash_status;
 };
 
 /**
