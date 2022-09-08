@@ -2554,6 +2554,7 @@ static int dcamcore_scene_fdrl_get(uint32_t prj_id,
 		}
 		break;
 	case QOGIRN6pro:
+	case QOGIRN6L:
 		if (out->raw_alg_type == RAW_ALG_MFNR) {
 			out->start_ctrl = DCAM_START_CTRL_EN;
 			out->callback_ctrl = DCAM_CALLBACK_CTRL_USER;
@@ -2604,6 +2605,7 @@ static int dcamcore_scene_fdrh_get(uint32_t prj_id,
 		}
 		break;
 	case QOGIRN6pro:
+	case QOGIRN6L:
 		if (out->raw_alg_type == RAW_ALG_FDR_V1) {
 			out->start_ctrl = DCAM_START_CTRL_EN;
 			out->callback_ctrl = DCAM_CALLBACK_CTRL_ISP;

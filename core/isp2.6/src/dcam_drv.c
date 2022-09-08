@@ -285,7 +285,7 @@ int dcam_drv_dt_parse(struct platform_device *pdev,
 		return PTR_ERR(ahb_map);
 	}
 
-	if (hw_info->prj_id == QOGIRN6pro) {
+	if (hw_info->prj_id == QOGIRN6pro || hw_info->prj_id == QOGIRN6L) {
 		switch_map = syscon_regmap_lookup_by_phandle(dn, "sprd,csi-switch");
 		if (IS_ERR_OR_NULL(switch_map))
 			pr_err("fail to get sprd,csi-switch\n");

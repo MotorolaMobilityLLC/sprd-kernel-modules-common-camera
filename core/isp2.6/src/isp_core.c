@@ -2956,7 +2956,7 @@ static int ispcore_frame_proc(void *isp_handle, void *param, int ctx_id)
 			if (++(pctx->slw_frm_cnt) < pctx->uinfo.slowmotion_count)
 				return ret;
 		} else {
-			if(dev->isp_hw->prj_id == QOGIRN6pro || stream_ctrl_cnt == 0)
+			if(dev->isp_hw->prj_id == QOGIRN6pro || stream_ctrl_cnt == 0 || dev->isp_hw->prj_id == QOGIRN6L)
 				ispcore_stream_state_get(pctx);
 		}
 		if (atomic_read(&pctx->user_cnt) > 0)
@@ -4426,7 +4426,7 @@ static int ispcore_dev_reset(void *isp_handle, void *param)
 	hw = (struct cam_hw_info *)param;
 
 	cam_kproperty_get("auto/chipid", chip_type, "-1");
-	if (hw->prj_id == QOGIRN6pro) {
+	if (hw->prj_id == QOGIRN6pro || hw->prj_id == QOGIRN6L) {
 		sprd_iommu_restore(&hw->soc_isp->pdev->dev);
 		return 0;
 	}
@@ -4526,6 +4526,7 @@ static int ispcore_scene_fdr_set(uint32_t prj_id,
 			}
 			break;
 		case QOGIRN6pro:
+		case QOGIRN6L:
 			if (i == 0) {
 				fdr_ctrl->start_ctrl = ISP_START_CTRL_DIS;
 			} else {
