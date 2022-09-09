@@ -7965,7 +7965,10 @@ static int camcore_offline_proc(void *param)
 		return ret;
 	}
 
+	/*in icap multi frame remove pctx->frame_index = DCAM_FRAME_INDEX_MAX for gtm map*/
 	ret = hw->dcam_ioctl(hw, DCAM_HW_CFG_RESET, &pctx->hw_ctx_id);
+	pctx->frame_index = DCAM_FRAME_INDEX_MAX;
+
 	if (ret)
 		pr_err("fail to reset dcam%d\n", pctx->hw_ctx_id);
 
@@ -8030,6 +8033,7 @@ static int camcore_offline_proc(void *param)
 		pr_err("fail to set dcam offline param\n");
 		goto return_buf;
 	}
+	pctx->frame_index = pframe->fid;
 
 	use_fmcu = 0;
 	if (use_fmcu) {

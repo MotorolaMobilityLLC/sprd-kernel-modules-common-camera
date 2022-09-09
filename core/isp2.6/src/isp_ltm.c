@@ -846,6 +846,7 @@ static int ispltm_pipe_proc(void *handle, void *param)
 		ispltm_sync_config_get(ctx, &ctx->hists);
 		pre_fid = atomic_read(&sync->pre_fid);
 		ctx->map.bypass = sync->pre_hist_bypass;
+		ctx->hists.bypass = 1;
 		pr_debug("LTM capture ctx_id %d, map %d\n", ctx->ctx_id, ctx->map.bypass);
 		if (!ctx->map.bypass) {
 			while (ctx->fid > pre_fid) {

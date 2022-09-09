@@ -49,6 +49,8 @@
 #define DCAM_FIRST_FETCH(p)               (p->raw_fetch_count == 1)
 #define DCAM_LAST_FETCH(p)                (p->raw_fetch_count == 2)
 
+#define DCAM_FRAME_INDEX_MAX              0xFFFFFFFF
+
 struct dcam_pipe_dev;
 
 typedef int (*func_dcam_cfg_param)(struct isp_io_param *param,

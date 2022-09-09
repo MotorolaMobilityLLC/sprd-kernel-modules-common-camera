@@ -42,6 +42,10 @@ ifeq ($(strip $(CSI_DIR)),receiver_r3p1v2)
 ccflags-y += -DMCLK_NEW_PROCESS
 ccflags-y += -DMCLK_NEW_PROCESS1
 endif
+ifeq ($(strip $(CSI_DIR)),receiver_r3p2)
+ccflags-y += -DMCLK_NEW_PROCESS
+ccflags-y += -DMCLK_NEW_PROCESS1
+endif
 #
 # Final Objects
 #
