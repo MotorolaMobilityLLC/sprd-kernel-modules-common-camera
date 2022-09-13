@@ -2074,7 +2074,7 @@ static int dcamcore_dev_stop(void *dcam_handle, enum dcam_stop_cmd pause)
 		dcam_int_tracker_reset(hw_ctx_id);
 	}
 
-	if (!pctx->offline && pause != DCAM_DEV_ERR) {
+	if (!pctx->offline && pause != DCAM_DEV_ERR && !pctx->virtualsensor) {
 		dcamcore_thread_stop(&pctx->dcam_interruption_proc_thrd);
 		cam_queue_clear(&pctx->interruption_sts_queue, struct camera_interrupt, list);
 	}
@@ -2492,7 +2492,7 @@ static int dcamcore_context_put(void *dcam_handle, int ctx_id)
 		cam_queue_clear(&pctx->proc_queue, struct camera_frame, list);
 		cam_queue_clear(&pctx->fullpath_mv_queue, struct camera_frame, list);
 		cam_queue_clear(&pctx->binpath_mv_queue, struct camera_frame, list);
-		if (pctx->offline) {
+		if (pctx->offline || pctx->virtualsensor) {
 			dcamcore_thread_stop(&pctx->dcam_interruption_proc_thrd);
 			cam_queue_clear(&pctx->interruption_sts_queue, struct camera_interrupt, list);
 		}
