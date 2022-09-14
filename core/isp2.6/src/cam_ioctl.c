@@ -255,14 +255,18 @@ static int camioctl_param_cfg(struct camera_module *module,
 	struct compat_isp_io_param __user *uparam = NULL;
 	struct dcam_pipe_dev *dev = NULL;
 	struct dcam_sw_context *dcam_aux_ctx = NULL;
-	uint32_t is_rps= 0;
+	uint32_t is_rps = 0;
 
-	uparam = (struct compat_isp_io_param __user *)arg;
-	ret |= get_user(param.scene_id, &uparam->scene_id);
-	ret |= get_user(param.sub_block, &uparam->sub_block);
-	ret |= get_user(param.property, &uparam->property);
-	ret |= get_user(property_param, &uparam->property_param);
-	param.property_param = compat_ptr(property_param);
+	if (module->compat_flag) {
+		uparam = (struct compat_isp_io_param __user *)arg;
+		ret |= get_user(param.scene_id, &uparam->scene_id);
+		ret |= get_user(param.sub_block, &uparam->sub_block);
+		ret |= get_user(param.property, &uparam->property);
+		ret |= get_user(property_param, &uparam->property_param);
+		param.property_param = compat_ptr(property_param);
+	} else {
+		ret = copy_from_user((void *)&param, (void *)arg, sizeof(struct isp_io_param));
+	}
 
 	if (unlikely(ret)) {
 		pr_err("fail to copy from user, ret %d\n", ret);
