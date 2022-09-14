@@ -2048,6 +2048,7 @@ cfg_ch_done:
 			atomic_set(&sw_ctx->virtualsensor_cap_en, 1);
 		else
 			atomic_set(&sw_ctx->virtualsensor_cap_en, 0);
+		module->dcam_dev_handle->dcam_pipe_ops->ioctl(&module->dcam_dev_handle->sw_ctx[module->cur_sw_ctx_id], DCAM_IOCTL_CREAT_INT_THREAD, NULL);
 	}
 	pr_info("stream on done module->dcam_idx = %d.\n", module->dcam_idx);
 	cam_buf_mdbg_check();
