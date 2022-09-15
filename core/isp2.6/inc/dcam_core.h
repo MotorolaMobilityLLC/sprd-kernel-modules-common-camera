@@ -243,6 +243,7 @@ struct dcam_sw_context {
 	uint32_t csi_connect_stat;
 	struct dcam_fmcu_ctx_desc *fmcu;
 
+	uint32_t do_tasklet;
 	uint32_t auto_cpy_id;
 	uint32_t base_fid;
 	uint32_t frame_index;
@@ -326,6 +327,7 @@ struct dcam_hw_context {
 	uint32_t irq;
 	uint32_t sw_ctx_id;
 	uint32_t hw_ctx_id;
+	uint32_t frame_index;
 	uint32_t handled_bits;
 	uint32_t handled_bits_on_int1;
 	struct dcam_sw_context *sw_ctx;
