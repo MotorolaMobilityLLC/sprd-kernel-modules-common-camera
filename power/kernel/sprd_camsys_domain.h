@@ -29,6 +29,7 @@ enum sprd_campw_id {
 	CAM_PW_QOGIRN6PRO,
 	CAM_PW_QOGIRL6,
 	CAM_PW_SHARKL5,
+	CAM_PW_QOGIRN6L,
 	CAM_PW_MAX
 };
 
@@ -169,6 +170,26 @@ struct camsys_power_info {
 			struct clk *mtx_clk_parent;
 			struct clk *mtx_clk_default;
 		} l5;
+		struct {
+			atomic_t users_pw;
+			atomic_t users_dcam_pw;
+			atomic_t users_isp_pw;
+			atomic_t users_clk;
+			atomic_t users_blk_cfg_en;
+
+			struct mutex mlock;
+			struct clk *mm_eb;
+			struct clk *mm_mtx_data_en;
+			struct clk *ckg_en;
+			struct clk *blk_cfg_en;
+			struct clk *sys_cfg_mtx_busmon_en;
+			struct clk *sys_mst_busmon_en;
+
+			struct clk *mm_mtx_clk;
+			struct clk *mm_mtx_clk_parent;
+			struct clk *mm_mtx_clk_defalut;
+			struct register_gpr regs[14];
+		} qogirn6l;
 	} u;
 };
 
@@ -179,6 +200,7 @@ extern  struct camsys_power_ops camsys_power_ops_pike2;
 extern  struct camsys_power_ops camsys_power_ops_qogirl6;
 extern  struct camsys_power_ops camsys_power_ops_qogirn6pro;
 extern  struct camsys_power_ops camsys_power_ops_l5;
+extern  struct camsys_power_ops camsys_power_ops_qogirn6l;
 
 int sprd_mm_pw_notify_register(struct notifier_block *nb);
 int sprd_mm_pw_notify_unregister(struct notifier_block *nb);
