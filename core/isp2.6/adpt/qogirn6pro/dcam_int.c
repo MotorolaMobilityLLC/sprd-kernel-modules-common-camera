@@ -57,12 +57,16 @@ static void dcamint_iommu_regs_dump(struct dcam_hw_context *dcam_hw_ctx, struct 
 static void dcamint_fetch_done_proc(struct dcam_sw_context *sw_ctx)
 {
 	struct camera_frame *frame = NULL;
+	struct cam_hw_info *hw = NULL;
 
 	if (!sw_ctx) {
 		pr_err("fail to get invalid ptr\n");
 		return;
 	}
 
+	hw = sw_ctx->dev->hw;
+	if (sw_ctx->offline && sw_ctx->is_raw_alg)
+		hw->dcam_ioctl(hw, DCAM_HW_FETCH_STATUS_GET, sw_ctx);
 	frame = cam_queue_dequeue(&sw_ctx->proc_queue, struct camera_frame, list);
 	if (frame) {
 		cam_buf_iommu_unmap(&frame->buf);

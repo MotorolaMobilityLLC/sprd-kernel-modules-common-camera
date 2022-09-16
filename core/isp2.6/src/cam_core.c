@@ -5135,6 +5135,7 @@ static int camcore_aux_dcam_init(struct camera_module *module,
 	uint32_t dcam_path_id, opened = 0, newdcam = 0;
 	struct dcam_pipe_dev *dcam = NULL;
 	struct camera_group *grp = NULL;
+	struct dcam_sw_context *dcam_sw = NULL;
 	struct dcam_sw_context *dcam_aux_sw = NULL;
 	struct dcam_path_cfg_param ch_desc;
 	uint32_t dcam_idx = DCAM_HW_CONTEXT_0;
@@ -5151,6 +5152,7 @@ static int camcore_aux_dcam_init(struct camera_module *module,
 	}
 
 	grp = module->grp;
+	dcam_sw = &module->dcam_dev_handle->sw_ctx[module->cur_sw_ctx_id];
 
 	if (module->paused) {
 		dcam = module->dcam_dev_handle;
@@ -5166,6 +5168,7 @@ static int camcore_aux_dcam_init(struct camera_module *module,
 		return -EFAULT;
 	}
 	dcam_aux_sw = &dcam->sw_ctx[module->offline_cxt_id];
+	dcam_aux_sw->is_raw_alg = dcam_sw->is_raw_alg;
 	module->aux_dcam_dev = dcam;
 	for (; dcam_idx < DCAM_HW_CONTEXT_MAX; dcam_idx++) {
 		if (dcam_idx != module->dcam_idx) {
@@ -7926,7 +7929,7 @@ static int camcore_offline_proc(void *param)
 
 	hw = module->grp->hw_info;
 
-	pr_debug("enter\n");
+	pr_debug("enter is raw alg:%d\n", pctx->is_raw_alg);
 	ret = wait_for_completion_interruptible_timeout(&pctx->frm_done, DCAM_OFFLINE_TIMEOUT);
 	if (ret <= 0) {
 		pr_err("fail to wait dcam context %d.\n", pctx->sw_ctx_id);
@@ -7955,7 +7958,7 @@ static int camcore_offline_proc(void *param)
 			return -1;
 		}
 	}
-	pr_debug("bind  hw context %d\n", pctx->hw_ctx_id);
+	pr_debug("bind hw context %d\n", pctx->hw_ctx_id);
 
 	if (pctx->dcam_slice_mode == CAM_OFFLINE_SLICE_SW) {
 		ret = dcam_core_offline_slices_sw_start(pctx);
