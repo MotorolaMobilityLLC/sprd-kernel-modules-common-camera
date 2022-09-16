@@ -234,7 +234,7 @@ int dcam_offline_param_set(struct cam_hw_info *hw, struct dcam_sw_context *pctx,
 
 	for (i = 0; i < DCAM_PATH_MAX; i++) {
 		path = &pctx->path[i];
-		if (atomic_read(&path->user_cnt) < 1 || atomic_read(&path->is_shutoff) > 0)
+		if (atomic_read(&path->user_cnt) < 1 || atomic_read(&path->is_shutoff) > 0 || (pctx->virtualsensor && i == DCAM_PATH_RAW && pctx->need_dcam_raw ))
 			continue;
 		path->size_update = 1;
 		ret = dcam_path_store_frm_set(pctx, path); /* TODO: */
