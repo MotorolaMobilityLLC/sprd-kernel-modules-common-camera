@@ -32,11 +32,11 @@ static void isp_k_raw_gtm_set_default(struct dcam_dev_raw_gtm_block_info *p,
 	p->gtm_tm_out_bit_depth = 0xE;
 	p->gtm_tm_in_bit_depth = 0xE;
 	p->gtm_cur_is_first_frame = 0x0;
-	p->gtm_log_diff = 0x0;
-	p->gtm_log_diff_int = 0x25C9;
+	p->gtm_log_diff = 769156;
+	p->gtm_log_diff_int = 698;
 	p->gtm_log_max_int = 0x0;
-	p->gtm_log_min_int = 0x496B;
-	p->gtm_lr_int = 0x23F;
+	p->gtm_log_min_int = 32580;
+	p->gtm_lr_int = 61517;
 	p->gtm_tm_param_calc_by_hw = 0x1;
 	p->tm_lumafilter_c[0][0] = 0x4;
 	p->tm_lumafilter_c[0][1] = 0x2;
@@ -51,6 +51,8 @@ static void isp_k_raw_gtm_set_default(struct dcam_dev_raw_gtm_block_info *p,
 	p->slice.gtm_slice_line_startpos = 0x0;
 	p->slice.gtm_slice_line_endpos = 0x0;
 	p->slice.gtm_slice_main = 0x0;
+	p->gtm_ymin = 2;
+	p->gtm_target_norm = 4015;
 
 	if (map) {
 		map->ymin = 2;
@@ -118,6 +120,16 @@ int isp_k_gtm_mapping_set(void *param)
 
 	mapping = (struct isp_gtm_mapping *)param;
 	idx = mapping->ctx_id;
+	if (mapping->sw_mode) {
+		ISP_REG_MWR(idx, ISP_GTM_HIST_CTRL0, BIT_0, 0);
+		ISP_REG_MWR(idx, ISP_GTM_HIST_CTRL1, BIT_0, 0);
+		ISP_REG_MWR(idx, ISP_GTM_GLB_CTRL, BIT_3, 0);
+		ISP_REG_MWR(idx, ISP_GTM_GLB_CTRL, BIT_4, 1);
+	} else {
+		ISP_REG_MWR(idx, ISP_GTM_HIST_CTRL0, BIT_0, 1);
+		ISP_REG_MWR(idx, ISP_GTM_HIST_CTRL1, BIT_0, 1);
+		ISP_REG_MWR(idx, ISP_GTM_GLB_CTRL, BIT_3, BIT_3);
+	}
 
 	if (g_isp_bypass[idx] & (1 << _EISP_GTM))
 		return 0;
@@ -143,17 +155,6 @@ int isp_k_gtm_mapping_set(void *param)
 
 	val = ((mapping->gtm_hw_log_diff & 0x1FFFFFFF) << 0);
 	ISP_REG_WR(idx, ISP_GTM_LOG_DIFF, val);
-
-	if (mapping->sw_mode) {
-		ISP_REG_MWR(idx, ISP_GTM_HIST_CTRL0, BIT_0, 0);
-		ISP_REG_MWR(idx, ISP_GTM_HIST_CTRL1, BIT_0, 0);
-		ISP_REG_MWR(idx, ISP_GTM_GLB_CTRL, BIT_3, 0);
-		ISP_REG_MWR(idx, ISP_GTM_GLB_CTRL, BIT_4, 1);
-	} else {
-		ISP_REG_MWR(idx, ISP_GTM_HIST_CTRL0, BIT_0, 1);
-		ISP_REG_MWR(idx, ISP_GTM_HIST_CTRL1, BIT_0, 1);
-		ISP_REG_MWR(idx, ISP_GTM_GLB_CTRL, BIT_3, BIT_3);
-	}
 
 	pr_debug("ctx %d, sw mode %d, gtm hw_ymin %d, target_norm %d, lr_int %d\n",
 		idx, mapping->sw_mode, mapping->gtm_hw_ymin, mapping->gtm_hw_target_norm, mapping->gtm_hw_lr_int);
@@ -190,7 +191,7 @@ int isp_k_gtm_block(void *pctx, void *param, void *param2)
 		p->bypass_info.gtm_mod_en = 0;
 	}
 
-	if (ctx->fid)
+	if (ctx->fid == 0)
 		map = (struct cam_gtm_mapping *)param2;
 	isp_k_raw_gtm_set_default(p, map);
 

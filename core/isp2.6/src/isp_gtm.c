@@ -235,6 +235,8 @@ static int ispgtm_pipe_proc(void *handle, void *param, void *param2)
 		gtm_k_block.ctx = gtm_ctx;
 		gtm_k_block.tuning = (struct dcam_dev_raw_gtm_block_info *)param;
 
+		if (gtm_ctx->fid == 0)
+			gtm_k_block.map= (struct cam_gtm_mapping *)param2;
 		gtm_func.index = ISP_K_GTM_BLOCK_SET;
 		gtm_ctx->hw->isp_ioctl(gtm_ctx->hw, ISP_HW_CFG_GTM_FUNC_GET, &gtm_func);
 		gtm_func.k_blk_func(&gtm_k_block);
@@ -267,7 +269,10 @@ static int ispgtm_pipe_proc(void *handle, void *param, void *param2)
 
 		gtm_bypass.ctx_id = gtm_ctx->ctx_id;
 		gtm_bypass.hist_bypass = gtm_ctx->gtm_hist_stat_bypass || gtm_k_block.tuning->bypass_info.gtm_hist_stat_bypass;
-		gtm_bypass.map_bypass = gtm_ctx->gtm_map_bypass || gtm_k_block.tuning->bypass_info.gtm_map_bypass;
+		if ((gtm_ctx->calc_mode != GTM_SW_CALC) && (gtm_ctx->fid == 0))
+			gtm_bypass.map_bypass = 1;
+		else
+			gtm_bypass.map_bypass = gtm_ctx->gtm_map_bypass || gtm_k_block.tuning->bypass_info.gtm_map_bypass;
 		gtm_bypass.mod_en = gtm_ctx->gtm_mode_en && gtm_k_block.tuning->bypass_info.gtm_mod_en;
 		gtm_func.index = ISP_K_GTM_BYPASS_SET;
 		gtm_ctx->hw->isp_ioctl(gtm_ctx->hw, ISP_HW_CFG_GTM_FUNC_GET, &gtm_func);
