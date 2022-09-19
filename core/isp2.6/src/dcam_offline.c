@@ -145,7 +145,7 @@ int dcamoffline_fetch_info_get(struct dcam_sw_context *pctx, struct camera_frame
 		if (atomic_read(&path->user_cnt) < 1 || atomic_read(&path->is_shutoff) > 0)
 			continue;
 		if (i == DCAM_PATH_FULL || i == DCAM_PATH_BIN) {
-			if (pctx->rps == 1)
+			if (pctx->rps == 1 && !pctx->virtualsensor)
 				loose_val = (loose_val | (path->pack_bits));
 			else
 				loose_val = path->pack_bits;
@@ -162,7 +162,7 @@ int dcamoffline_fetch_info_get(struct dcam_sw_context *pctx, struct camera_frame
 		else
 			fetch->pack_bits = 0;
 	}
-	pr_info("pack_bits =%d",fetch->pack_bits);
+	pr_info("pack_bits =%d\n",fetch->pack_bits);
 	fetch->endian = pframe->endian;
 	fetch->pattern = pframe->pattern;
 	fetch->size.w = pframe->width;
@@ -209,7 +209,7 @@ int dcam_offline_param_set(struct cam_hw_info *hw, struct dcam_sw_context *pctx,
 		if (pm->afm.bypass == 0)
 			atomic_set(&pctx->path[DCAM_PATH_AFM].user_cnt, 1);
 		if (pm->afl.afl_info.bypass == 0)
-			atomic_set(&pctx->path[DCAM_PATH_AFL].user_cnt, 1);
+			atomic_set(&pctx->path[DCAM_PATH_AFL].user_cnt, 0);
 		if (pm->hist.bayerHist_info.hist_bypass == 0)
 			atomic_set(&pctx->path[DCAM_PATH_HIST].user_cnt, 1);
 		if (pm->lscm.bypass == 0)
@@ -234,7 +234,7 @@ int dcam_offline_param_set(struct cam_hw_info *hw, struct dcam_sw_context *pctx,
 
 	for (i = 0; i < DCAM_PATH_MAX; i++) {
 		path = &pctx->path[i];
-		if (atomic_read(&path->user_cnt) < 1 || atomic_read(&path->is_shutoff) > 0)
+		if (atomic_read(&path->user_cnt) < 1 || atomic_read(&path->is_shutoff) > 0 || (pctx->virtualsensor && i == DCAM_PATH_RAW && pctx->need_dcam_raw ))
 			continue;
 		path->size_update = 1;
 		ret = dcam_path_store_frm_set(pctx, path); /* TODO: */

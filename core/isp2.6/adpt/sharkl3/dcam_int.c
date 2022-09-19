@@ -136,8 +136,8 @@ static struct camera_frame *dcamint_frame_prepare(struct dcam_hw_context *dcam_h
 	else
 		frame->frame_interval_time = frame->boot_sensor_time - sw_ctx->frame_ts_boot[tsid(dev_fid - 1)];
 
-	pr_debug("DCAM%u %s: TX DONE, fid %u\n",
-		 dcam_hw_ctx->hw_ctx_id, dcam_path_name_get(path_id), frame->fid);
+	pr_debug("DCAM%u %s: TX DONE, fid %u, %lld\n",
+		dcam_hw_ctx->hw_ctx_id, dcam_path_name_get(path_id), frame->fid, frame->frame_interval_time);
 
 	if (!sw_ctx->rps && !frame->boot_sensor_time) {
 		pr_info("DCAM%u %s fid %u invalid 0 timestamp\n",

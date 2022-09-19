@@ -311,6 +311,7 @@ struct camera_module {
 	atomic_t state;
 	atomic_t timeout_flag;
 	uint32_t master_flag; /* master cam capture flag */
+	uint32_t compat_flag;
 	struct mutex lock;
 	struct camera_group *grp;
 	uint32_t exit_flag;/*= 1, normal exit, =0, abnormal exit*/
@@ -5511,7 +5512,7 @@ static int camcore_channel_init(struct camera_module *module,
 {
 	int ret = 0;
 	int isp_ctx_id = 0, isp_path_id = 0, dcam_path_id = 0;
-	int slave_path_id = 0;
+	int slave_path_id = 0, bpc_raw_flag = 0;
 	int new_isp_ctx, new_isp_path, new_dcam_path;
 	struct channel_context *channel_prev = NULL;
 	struct channel_context *channel_cap = NULL;
@@ -5651,8 +5652,13 @@ static int camcore_channel_init(struct camera_module *module,
 	dcam_sw_ctx = &module->dcam_dev_handle->sw_ctx[module->cur_sw_ctx_id];
 	if (channel->ch_id == CAM_CH_RAW && module->cam_uinfo.need_dcam_raw && (module->channel[CAM_CH_CAP].enable
 		|| module->channel[CAM_CH_VID].enable)) {
-		dcam_path_id = DCAM_PATH_RAW;
-		dcam_sw_ctx->need_dcam_raw = 1;
+		if (module->grp->hw_info->prj_id == QOGIRN6pro) {
+			module->cam_uinfo.need_dcam_raw = 0;
+			bpc_raw_flag = 1;
+		} else {
+			dcam_path_id = DCAM_PATH_RAW;
+			dcam_sw_ctx->need_dcam_raw = 1;
+		}
 	}
 	pr_info("cam%d, simulator=%d\n", module->idx, module->simulator);
 	if (new_dcam_path) {
@@ -5673,6 +5679,10 @@ static int camcore_channel_init(struct camera_module *module,
 			ch_desc.is_raw = 1;
 			dcam_sw_ctx->is_raw_alg = 1;
 			dcam_sw_ctx->raw_alg_type = module->cam_uinfo.raw_alg_type;
+		}
+		if (bpc_raw_flag) {
+			ch_desc.is_raw = 0;
+			ch_desc.raw_src = BPC_RAW_SRC_SEL;
 		}
 		if (ch_desc.is_raw && module->grp->hw_info->ip_dcam[0]->dcam_raw_path_id == DCAM_PATH_RAW &&
 			!module->raw_callback && (channel->ch_id != CAM_CH_DCAM_VCH))
@@ -5766,10 +5776,10 @@ static int camcore_channel_init(struct camera_module *module,
 		if ((dcam_path_id == DCAM_PATH_RAW) && (format == DCAM_CAP_MODE_YUV))
 			ch_desc.dcam_out_fmt = DCAM_STORE_YUV422;
 
-		pr_debug("ch%d, dcam path%d, cap fmt%d, is raw %d, slice mode %d, dcam out format 0x%lx, bits %d, raw fmt %d"
+		pr_debug("ch%d, dcam path%d, cap fmt%d, is raw %d, slice mode %d, dcam out format 0x%lx, bits %d, raw fmt %d raw_src %d"
 			", sensor raw fmt %d, dcam raw fmt %d\n",
 			channel->ch_id, dcam_path_id, format, ch_desc.is_raw, module->cam_uinfo.dcam_slice_mode,
-			ch_desc.dcam_out_fmt, ch_desc.dcam_out_bits, ch_desc.raw_fmt,
+			ch_desc.dcam_out_fmt, ch_desc.dcam_out_bits, ch_desc.raw_fmt, ch_desc.raw_src,
 			channel->ch_uinfo.sensor_raw_fmt, channel->ch_uinfo.dcam_raw_fmt);
 
 		/* auto_3dnr:hw enable, channel->uinfo_3dnr == 1: hw enable */
@@ -8234,10 +8244,6 @@ static long camcore_ioctl(struct file *file, unsigned int cmd,
 	struct camera_module *module = NULL;
 	struct cam_ioctl_cmd *ioctl_cmd_p = NULL;
 	int nr = _IOC_NR(cmd);
-	void __user *data32 = compat_ptr(arg);
-
-	if (!file->f_op || !file->f_op->unlocked_ioctl)
-		return -ENOTTY;
 
 	pr_debug("cam ioctl, cmd:0x%x, cmdnum %d\n", cmd, nr);
 
@@ -8250,11 +8256,6 @@ static long camcore_ioctl(struct file *file, unsigned int cmd,
 	if (unlikely(!(nr >= 0 && nr < ARRAY_SIZE(ioctl_cmds_table)))) {
 		pr_info("invalid cmd: 0x%xn", cmd);
 		return -EINVAL;
-	}
-
-	if (cmd == COMPAT_SPRD_ISP_IO_CFG_PARAM) {
-		cmd = SPRD_ISP_IO_CFG_PARAM;
-		nr = _IOC_NR(cmd);
 	}
 
 	ioctl_cmd_p = &ioctl_cmds_table[nr];
@@ -8278,7 +8279,7 @@ static long camcore_ioctl(struct file *file, unsigned int cmd,
 	}
 	down_read(&module->grp->switch_recovery_lock);
 	if (cmd == SPRD_IMG_IO_SET_KEY || module->private_key == 1) {
-		ret = ioctl_cmd_p->cmd_proc(module, (unsigned long)data32);
+		ret = ioctl_cmd_p->cmd_proc(module, arg);
 		if (ret) {
 			pr_debug("fail to ioctl cmd:%x, nr:%d, func %ps\n",
 				cmd, nr, ioctl_cmd_p->cmd_proc);
@@ -8296,6 +8297,40 @@ exit:
 
 	return ret;
 }
+
+#ifdef CONFIG_COMPAT
+static long camcore_ioctl_compat(struct file *file,
+	unsigned int cmd, unsigned long arg)
+{
+
+	long ret = 0L;
+	struct camera_module *module = NULL;
+	void __user *data32 = compat_ptr(arg);
+
+	if (!file->f_op || !file->f_op->unlocked_ioctl)
+		return -ENOTTY;
+
+	module = (struct camera_module *)file->private_data;
+	if (!module) {
+		pr_err("fail to get valid input ptr\n");
+		return -EFAULT;
+	}
+
+	module->compat_flag = 1;
+	pr_debug("cmd [0x%x][%d]\n", cmd, _IOC_NR(cmd));
+
+	switch (cmd) {
+	case COMPAT_SPRD_ISP_IO_CFG_PARAM:
+		ret = file->f_op->unlocked_ioctl(file, SPRD_ISP_IO_CFG_PARAM,
+			(unsigned long)data32);
+		break;
+	default:
+		ret = file->f_op->unlocked_ioctl(file, cmd, (unsigned long)data32);
+		break;
+	}
+	return ret;
+}
+#endif
 
 static int camcore_recovery_proc(void *param)
 {
@@ -8977,7 +9012,7 @@ static const struct file_operations image_fops = {
 	.open = camcore_open,
 	.unlocked_ioctl = camcore_ioctl,
 #ifdef CONFIG_COMPAT
-	.compat_ioctl = camcore_ioctl,
+	.compat_ioctl = camcore_ioctl_compat,
 #endif
 	.release = camcore_release,
 	.read = camcore_read,

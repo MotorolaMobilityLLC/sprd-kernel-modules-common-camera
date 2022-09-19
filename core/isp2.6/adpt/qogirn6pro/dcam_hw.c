@@ -1172,21 +1172,34 @@ static int dcamhw_path_start(void *handle, void *arg)
 		DCAM_REG_MWR(patharg->idx, DCAM_RAW_PATH_CFG, BIT_14, 0 << 14);
 		DCAM_REG_MWR(patharg->idx, DCAM_RAW_PATH_CFG, BIT_15, 0 << 15);
 
-		if (patharg->src_sel == ORI_RAW_SRC_SEL)
+		if (patharg->src_sel == ORI_RAW_SRC_SEL) {
+			val = patharg->data_bits - 10;
+			DCAM_REG_MWR(patharg->idx, DCAM_IMAGE_CONTROL, 0x70, val << 4);
 			DCAM_REG_MWR(patharg->idx, DCAM_RAW_PATH_CFG, BIT_13, BIT_13);
-		else if (patharg->src_sel == LSC_RAW_SRC_SEL) {
+		} else if (patharg->src_sel == LSC_RAW_SRC_SEL) {
+			val = patharg->data_bits - 10;
+			DCAM_REG_MWR(patharg->idx, DCAM_IMAGE_CONTROL, 0x70, val << 4);
 			DCAM_REG_MWR(patharg->idx, DCAM_RAW_PATH_CFG, BIT_5 | BIT_4, 1 << 4);
 			DCAM_REG_MWR(patharg->idx, DCAM_RAW_PATH_CFG, BIT_13, 0 << 13);
 		} else if (patharg->src_sel == BPC_RAW_SRC_SEL) {
+			val = patharg->data_bits - 10;
+			DCAM_REG_MWR(patharg->idx, DCAM_IMAGE_CONTROL, 0x70, val << 4);
 			DCAM_REG_MWR(patharg->idx, DCAM_RAW_PATH_CFG, BIT_5 | BIT_4, 2 << 4);
 			DCAM_REG_MWR(patharg->idx, DCAM_RAW_PATH_CFG, BIT_13, 0 << 13);
 		} else if (patharg->src_sel == NLM_RAW_SRC_SEL) {
+			val = patharg->data_bits - 10;
+			DCAM_REG_MWR(patharg->idx, DCAM_IMAGE_CONTROL, 0x70, val << 4);
 			DCAM_REG_MWR(patharg->idx, DCAM_RAW_PATH_CFG, BIT_5 | BIT_4, 3 << 4);
 			DCAM_REG_MWR(patharg->idx, DCAM_RAW_PATH_CFG, BIT_13, 0 << 13);
 		} else if (patharg->src_sel == PROCESS_RAW_SRC_SEL) {
+			val = patharg->data_bits - 10;
+			DCAM_REG_MWR(patharg->idx, DCAM_IMAGE_CONTROL, 0x70, val << 4);
 			DCAM_REG_MWR(patharg->idx, DCAM_RAW_PATH_CFG, BIT_5 | BIT_4, 0 << 4);
 			DCAM_REG_MWR(patharg->idx, DCAM_RAW_PATH_CFG, BIT_13, 0 << 13);
-		}
+		} else
+			/*default 14bit down to 10bit*/
+			val = 14 - 10;
+		DCAM_REG_MWR(patharg->idx, DCAM_BWD1_PARAM, 0xE, val << 1);
 
 		if (patharg->is_pack)
 			val = 0;
@@ -1206,14 +1219,6 @@ static int dcamhw_path_start(void *handle, void *arg)
 		else
 			val = 4;
 		DCAM_REG_MWR(patharg->idx, DCAM_BWU1_PARAM, 0x70, val << 4);
-		if (patharg->src_sel == ORI_RAW_SRC_SEL) {
-			val = patharg->data_bits - 10;
-			DCAM_REG_MWR(patharg->idx, DCAM_IMAGE_CONTROL, 0x70, val << 4);
-		}
-		else
-			/*default 14bit down to 10bit*/
-			val = 14 - 10;
-		DCAM_REG_MWR(patharg->idx, DCAM_BWD1_PARAM, 0xE, val << 1);
 		/*bwd for RAW 10bit*/
 		DCAM_REG_MWR(patharg->idx, DCAM_BWD1_PARAM, BIT_0, 0);
 		if (patharg->cap_info.format ==  DCAM_CAP_MODE_YUV || patharg->cap_info.cap_size.size_x > DCAM_TOTAL_LBUF)
