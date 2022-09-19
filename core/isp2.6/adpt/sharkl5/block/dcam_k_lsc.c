@@ -331,6 +331,7 @@ int dcam_k_lsc_block(struct dcam_dev_param *p)
 		}
 		w_buff = kzalloc(info->weight_num, GFP_ATOMIC);
 		if (w_buff == NULL) {
+			pr_err("fail to alloc lsc weight_num\n");
 			ret = -ENOMEM;
 			goto exit;
 		}

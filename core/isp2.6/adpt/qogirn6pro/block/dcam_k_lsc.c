@@ -440,6 +440,7 @@ int dcam_k_lsc_block(struct dcam_dev_param *p)
 		}
 		w_buff_x = kzalloc(info->weight_num_x, GFP_ATOMIC);
 		if (w_buff_x == NULL) {
+			pr_err("fail to alloc lsc weight_num_x\n");
 			ret = -ENOMEM;
 			goto exit;
 		}
@@ -455,6 +456,7 @@ int dcam_k_lsc_block(struct dcam_dev_param *p)
 		}
 		w_buff_y = kzalloc(info->weight_num_y, GFP_ATOMIC);
 		if (w_buff_y == NULL) {
+			pr_err("fail to alloc lsc weight_num_y\n");
 			ret = -ENOMEM;
 			goto exit;
 		}

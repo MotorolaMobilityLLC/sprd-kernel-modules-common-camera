@@ -3058,6 +3058,19 @@ static int camcore_dcam_callback(enum dcam_cb_type type, void *param, void *priv
 			pr_debug("dcam path %d. outdata: %08x %08x %08x %08x\n",
 				channel->dcam_path_id, ptr[0], ptr[1], ptr[2], ptr[3]);
 		}
+
+		if (atomic_read(&module->state) != CAM_RUNNING || module->paused) {
+			pr_info("stream off or paused. put frame %px, state:%d\n", pframe, module->state);
+			if (pframe->buf.type == CAM_BUF_KERNEL) {
+				cam_queue_enqueue(&channel->share_buf_queue, &pframe->list);
+			} else {
+				/* 4in1 or raw buffer is allocate from user */
+				cam_buf_ionbuf_put(&pframe->buf);
+				cam_queue_empty_frame_put(pframe);
+			}
+			return 0;
+		}
+
 		if (channel->ch_id == CAM_CH_CAP && pframe->irq_property != CAM_FRAME_COMMON) {
 			int32_t isp_ctx_id;
 			if (pframe->irq_property == CAM_FRAME_FDRL || pframe->irq_property == CAM_FRAME_RAW_PROC)
@@ -3109,16 +3122,7 @@ static int camcore_dcam_callback(enum dcam_cb_type type, void *param, void *priv
 				isp_ctx_id);
 			return ret;
 		}
-		if (atomic_read(&module->state) != CAM_RUNNING || module->paused) {
-			pr_info("stream off or paused. put frame %px, state:%d\n", pframe, module->state);
-			if (pframe->buf.type == CAM_BUF_KERNEL) {
-				cam_queue_enqueue(&channel->share_buf_queue, &pframe->list);
-			} else {
-				/* 4in1 or raw buffer is allocate from user */
-				cam_buf_ionbuf_put(&pframe->buf);
-				cam_queue_empty_frame_put(pframe);
-			}
-		} else if (channel->ch_id == CAM_CH_RAW) {
+		if (channel->ch_id == CAM_CH_RAW) {
 			/* RAW capture or test_dcam only */
 			if (g_dbg_dump.dump_en == DUMP_PATH_RAW_BIN) {
 				if (module->dump_thrd.thread_task) {
