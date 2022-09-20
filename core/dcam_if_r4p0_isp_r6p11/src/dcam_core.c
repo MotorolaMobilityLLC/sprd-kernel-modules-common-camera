@@ -4272,7 +4272,7 @@ static ssize_t sprd_img_write(struct file *file, const char __user *u_data,
 	struct camera_group *group = camerafile->grp;
 	int idx = camerafile->idx;
 	struct camera_dev *dev = group->dev[idx];
-	struct camera_info *info = &dev->dcam_cxt;
+	struct camera_info *info;
 	struct sprd_img_write_op write_op;
 	struct camera_path_spec *path;
 	int ret = 0;
@@ -4295,6 +4295,7 @@ static ssize_t sprd_img_write(struct file *file, const char __user *u_data,
 
 	if (!dev)
 		return -EFAULT;
+	info = &dev->dcam_cxt;
 
 	switch (write_op.cmd) {
 	case SPRD_IMG_STOP_DCAM:
