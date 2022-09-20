@@ -54,6 +54,7 @@ struct camera_interrupt {
 	struct list_head list;
 	uint32_t dcamint_status;
 	uint32_t dcamint_status1;
+	uint32_t frame_index;
 };
 
 struct camera_frame {
