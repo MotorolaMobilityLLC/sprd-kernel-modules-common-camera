@@ -487,22 +487,26 @@ dcam_path_frame_cycle(struct dcam_sw_context *dcam_sw_ctx, struct dcam_path_desc
 		frame = cam_queue_dequeue(&path->out_buf_queue, struct camera_frame, list);
 		src = 1;
 		if (frame != NULL && path->path_id == DCAM_PATH_FULL) {
-			if (cam_buf_iommu_map(&frame->buf, CAM_IOMMUDEV_DCAM)) {
-				pr_err("fail to map dcam buf\n");
-				cam_queue_enqueue(&path->out_buf_queue, &frame->list);
-				frame = NULL;
+			if (!(frame->buf.mapping_state & CAM_BUF_MAPPING_DEV)) {
+				if (cam_buf_iommu_map(&frame->buf, CAM_IOMMUDEV_DCAM)) {
+					pr_err("fail to map dcam buf\n");
+					cam_queue_enqueue(&path->out_buf_queue, &frame->list);
+					frame = NULL;
+				}
 			}
 		}
 	}
 
 	if (frame && (src == 0)) {
 		/* usr buffer for raw, mapping delay to here */
-		if (cam_buf_iommu_map(&frame->buf, CAM_IOMMUDEV_DCAM)) {
-			pr_err("fail to map dcam buf\n");
-			cam_queue_enqueue(&path->alter_out_queue, &frame->list);
-			pr_debug("mapping raw buffer for ch %d, mfd %d\n",
-				frame->channel_id, frame->buf.mfd[0]);
-			frame = NULL;
+		if (!(frame->buf.mapping_state & CAM_BUF_MAPPING_DEV)) {
+			if (cam_buf_iommu_map(&frame->buf, CAM_IOMMUDEV_DCAM)) {
+				pr_err("fail to map dcam buf\n");
+				cam_queue_enqueue(&path->alter_out_queue, &frame->list);
+				pr_debug("mapping raw buffer for ch %d, mfd %d\n",
+					frame->channel_id, frame->buf.mfd[0]);
+				frame = NULL;
+			}
 		}
 	}
 
@@ -512,10 +516,12 @@ dcam_path_frame_cycle(struct dcam_sw_context *dcam_sw_ctx, struct dcam_path_desc
 		if (frame != NULL) {
 			frame->is_reserved = 0;
 			frame->priv_data = dcam_sw_ctx;
-			if (cam_buf_iommu_map(&frame->buf, CAM_IOMMUDEV_DCAM)) {
-				pr_err("fail to iommu map\n");
-				cam_queue_enqueue(&path->out_buf_queue, &frame->list);
-				frame = NULL;
+			if (!(frame->buf.mapping_state & CAM_BUF_MAPPING_DEV)) {
+				if (cam_buf_iommu_map(&frame->buf, CAM_IOMMUDEV_DCAM)) {
+					pr_err("fail to iommu map\n");
+					cam_queue_enqueue(&path->out_buf_queue, &frame->list);
+					frame = NULL;
+				}
 			}
 		}
 	}
