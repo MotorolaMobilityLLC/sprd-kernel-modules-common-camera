@@ -3942,7 +3942,7 @@ static ssize_t sprd_img_write(struct file *file, const char __user *u_data,
 		       size_t cnt, loff_t *cnt_ret)
 {
 	struct dcam_dev          *dev = file->private_data;
-	struct dcam_info         *info = &dev->dcam_cxt;
+	struct dcam_info         *info;
 	struct dcam_path_spec    *path;
 	struct sprd_img_write_op write_op;
 	uint32_t                 index;
@@ -3952,6 +3952,7 @@ static ssize_t sprd_img_write(struct file *file, const char __user *u_data,
 
 	if (!dev)
 		return -EFAULT;
+	info = &dev->dcam_cxt;
 
 	if (cnt < sizeof(struct sprd_img_write_op)) {
 		pr_err("sprd_img_write: error cnt %d.\n", cnt);
