@@ -1910,7 +1910,7 @@ static irqreturn_t dcamint_isr_root(int irq, void *priv)
 				dcamint_sof_event_dispatch(dcam_sw_ctx, dcam_sw_ctx->frame_index);
 				status &= ~BIT(DCAM_IF_IRQ_INT0_CAP_SOF);
 			}
-			if (!dcam_sw_ctx->offline) {
+			if (!dcam_sw_ctx->offline && !dcam_sw_ctx->virtualsensor) {
 				fix_result = dcamint_fix_index_if_needed(dcam_hw_ctx, dcam_sw_ctx);
 				interruption->frame_index = dcam_sw_ctx->frame_index;
 				if (fix_result == DEFER_TO_NEXT)
