@@ -8798,20 +8798,6 @@ static int camcore_open(struct inode *node, struct file *file)
 		/* should check all needed interface here. */
 		spin_lock_irqsave(&grp->module_lock, flag);
 
-		if (grp->hw_info && grp->hw_info->soc_dcam->pdev)
-			ret = cam_buf_iommudev_reg(
-				&grp->hw_info->soc_dcam->pdev->dev,
-				CAM_IOMMUDEV_DCAM);
-
-		if (grp->hw_info && grp->hw_info->soc_dcam_lite && grp->hw_info->soc_dcam_lite->pdev)
-			ret = cam_buf_iommudev_reg(
-				&grp->hw_info->soc_dcam_lite->pdev->dev,
-				CAM_IOMMUDEV_DCAM_LITE);
-
-		if (grp->hw_info && grp->hw_info->soc_isp->pdev)
-			ret = cam_buf_iommudev_reg(
-				&grp->hw_info->soc_isp->pdev->dev,
-				CAM_IOMMUDEV_ISP);
 		rwlock_init(&grp->hw_info->soc_dcam->cam_ahb_lock);
 		g_empty_frm_q = &grp->empty_frm_q;
 		cam_queue_init(g_empty_frm_q, CAM_EMP_Q_LEN_MAX,
@@ -8964,10 +8950,6 @@ static int camcore_release(struct inode *node, struct file *file)
 
 	if (atomic_dec_return(&group->camera_opened) == 0) {
 		spin_lock_irqsave(&group->module_lock, flag);
-
-		cam_buf_iommudev_unreg(CAM_IOMMUDEV_DCAM);
-		cam_buf_iommudev_unreg(CAM_IOMMUDEV_DCAM_LITE);
-		cam_buf_iommudev_unreg(CAM_IOMMUDEV_ISP);
 		if (group->mul_share_pyr_rec_buf) {
 			camcore_k_frame_put(group->mul_share_pyr_rec_buf);
 			group->mul_share_pyr_rec_buf = NULL;
@@ -9088,6 +9070,20 @@ static int camcore_probe(struct platform_device *pdev)
 		goto probe_pw_fail;
 	}
 
+	if (group->hw_info && group->hw_info->soc_dcam->pdev)
+		ret = cam_buf_iommudev_reg(
+			&group->hw_info->soc_dcam->pdev->dev,
+			CAM_IOMMUDEV_DCAM);
+
+	if (group->hw_info && group->hw_info->soc_dcam_lite && group->hw_info->soc_dcam_lite->pdev)
+		ret = cam_buf_iommudev_reg(
+			&group->hw_info->soc_dcam_lite->pdev->dev,
+			CAM_IOMMUDEV_DCAM_LITE);
+
+	if (group->hw_info && group->hw_info->soc_isp->pdev)
+		ret = cam_buf_iommudev_reg(
+			&group->hw_info->soc_isp->pdev->dev,
+			CAM_IOMMUDEV_ISP);
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0))
 	pm_runtime_set_active(&pdev->dev);
 	pm_runtime_enable(&pdev->dev);
@@ -9126,6 +9122,9 @@ static int camcore_remove(struct platform_device *pdev)
 
 	group = image_dev.this_device->platform_data;
 	if (group) {
+		cam_buf_iommudev_unreg(CAM_IOMMUDEV_DCAM);
+		cam_buf_iommudev_unreg(CAM_IOMMUDEV_DCAM_LITE);
+		cam_buf_iommudev_unreg(CAM_IOMMUDEV_ISP);
 		if (group->ca_conn)
 			cam_trusty_disconnect();
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0))
