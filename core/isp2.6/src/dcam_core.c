@@ -2002,7 +2002,11 @@ static int dcamcore_dev_start(void *dcam_handle, int online)
 	}
 
 	if (pctx->is_4in1 == 0)
-		dcam_init_lsc(pm, 1);
+		ret = dcam_init_lsc(pm, 1);
+	if (ret < 0) {
+		pr_err("fail to init lsc\n");
+		return ret;
+	}
 
 	if (pctx->slw_type == DCAM_SLW_FMCU)
 		ret = dcam_path_fmcu_slw_queue_set(pctx);

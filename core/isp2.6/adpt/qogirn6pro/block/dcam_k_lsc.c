@@ -135,6 +135,9 @@ int dcam_init_lsc(void *in, uint32_t online)
 		hw->dcam_ioctl(hw, DCAM_HW_CFG_FORCE_COPY, &copyarg);
 		return 0;
 	}
+	pr_info("w_x %d, w_y %d, grid len %d grid_width_x %d  num_t %d (%d, %d)\n",
+		info->weight_num_x, info->weight_num_y, info->gridtab_len, info->grid_width_x,
+		info->grid_num_t, info->grid_x_num, info->grid_y_num);
 
 	/* need update grid_x_num and more when offline slice*/
 	if (online == 0 && dcam_sw_ctx->dcam_slice_mode == CAM_OFFLINE_SLICE_HW) {
@@ -151,8 +154,8 @@ int dcam_init_lsc(void *in, uint32_t online)
 	w_buff_y = (uint16_t *)param->weight_tab_y;
 	gain_tab = (uint16_t *)param->buf.addr_k[0];
 	hw_addr = (uint32_t)param->buf.iova[0];
-	if (!w_buff_x || !w_buff_y || !gain_tab || !hw_addr) {
-		pr_err("fail to get buf %px %px %px %x\n", w_buff_x, w_buff_y, gain_tab, hw_addr);
+	if (!w_buff_x || !w_buff_y || !gain_tab || !hw_addr || info->grid_width_x >= LSC_WEI_TABLE_MAX_NUM || info->grid_width_y >= LSC_WEI_TABLE_MAX_NUM) {
+		pr_err("fail to get buf %px %px %px %x grid_width_x %x grid_width_y %x\n", w_buff_x, w_buff_y, gain_tab, hw_addr, info->grid_width_x, info->grid_width_x);
 		ret = -EPERM;
 		goto exit;
 	}
@@ -260,9 +263,6 @@ int dcam_init_lsc(void *in, uint32_t online)
 		param->load_trigger = 1;
 	}
 
-	pr_debug("w_x %d, w_y %d, grid len %d grid_width_x %d  num_t %d (%d, %d)\n",
-		info->weight_num_x, info->weight_num_y, info->gridtab_len, info->grid_width_x,
-		info->grid_num_t, info->grid_x_num, info->grid_y_num);
 	return 0;
 
 exit:
@@ -318,8 +318,8 @@ int dcam_update_lsc(void *in)
 	w_buff_y = (uint16_t *)param->weight_tab_y;
 	gain_tab = (uint16_t *)param->buf.addr_k[0];
 	hw_addr = (uint32_t)param->buf.iova[0];
-	if (!w_buff_x || !w_buff_y || !gain_tab || !hw_addr) {
-		pr_err("fail to get buf %px %px %px %x\n", w_buff_x, w_buff_y, gain_tab, hw_addr);
+	if (!w_buff_x || !w_buff_y || !gain_tab || !hw_addr || info->grid_width_x >= LSC_WEI_TABLE_MAX_NUM || info->grid_width_y >= LSC_WEI_TABLE_MAX_NUM) {
+		pr_err("fail to get buf %px %px %px %x grid_width_x %x grid_width_y %x\n", w_buff_x, w_buff_y, gain_tab, hw_addr, info->grid_width_x, info->grid_width_x);
 		ret = -EPERM;
 		goto exit;
 	}

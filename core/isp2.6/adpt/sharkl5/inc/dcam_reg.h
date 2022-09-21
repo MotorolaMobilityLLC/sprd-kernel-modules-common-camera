@@ -493,6 +493,7 @@ extern const unsigned long slowmotion_store_addr[3][4];
 
 #define LSC_WEI_TABLE_START                    (0x0800UL)
 #define LSC_WEI_TABLE_SIZE                     (0x0400UL)
+#define LSC_WEI_TABLE_MAX_NUM                  (0x00FFUL)
 
 #define PDAF_CORR_TABLE_START                  (0x0E00UL)
 #define PDAF_CORR_TABLE_SIZE                   (0x0200UL)
