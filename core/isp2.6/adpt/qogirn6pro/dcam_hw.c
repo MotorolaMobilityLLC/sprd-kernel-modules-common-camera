@@ -794,7 +794,7 @@ static int dcamhw_reset(void *handle, void *arg)
 	pr_info("DCAM%d: reset.\n", idx);
 	/* then wait for AXIM cleared */
 	while (++time_out < DCAM_AXI_STOP_TIMEOUT) {
-		if (0 == (DCAM_AXIM_RD(idx, dbg_sts_reg) & (sts_bit[idx] | BIT(16))))
+		if (0 == (DCAM_AXIM_RD(idx, dbg_sts_reg) & sts_bit[idx]))
 			break;
 		udelay(1000);
 	}
@@ -3017,6 +3017,34 @@ static int dcamhw_dec_size_update(void *handle, void *arg)
 	return 0;
 }
 
+static int dcamhw_fetch_sts_get(void *handle, void *arg)
+{
+	int time_out = 0;
+	uint32_t dbg_sts_reg = 0;
+	struct dcam_sw_context *dcam_sw_ctx = NULL;
+
+	if (!handle || !arg) {
+		pr_err("fail to get input arg\n");
+		return -EFAULT;
+	}
+
+	dcam_sw_ctx = (struct dcam_sw_context *)arg;
+	if (dcam_sw_ctx->hw_ctx_id <= DCAM_ID_1)
+		dbg_sts_reg = AXIM_DBG_STS;
+	else
+		dbg_sts_reg = DCAM_LITE_AXIM_DBG_STS;
+
+	while (time_out++ < DCAM_AXI_STOP_TIMEOUT) {
+		if (0 == (DCAM_AXIM_RD(dcam_sw_ctx->hw_ctx_id, dbg_sts_reg) & BIT(16)))
+			break;
+		udelay(1000);
+	}
+	if (time_out > DCAM_AXI_STOP_TIMEOUT)
+		pr_warn("Warning:dcam fetch status is busy.\n");
+
+	return time_out;
+}
+
 static struct hw_io_ctrl_fun dcam_ioctl_fun_tab[] = {
 	{DCAM_HW_CFG_ENABLE_CLK,            dcamhw_clk_eb},
 	{DCAM_HW_CFG_DISABLE_CLK,           dcamhw_clk_dis},
@@ -3073,6 +3101,7 @@ static struct hw_io_ctrl_fun dcam_ioctl_fun_tab[] = {
 	{DCAM_HW_CFG_ALL_RESET,             dcamhw_axi_reset},
 	{DCAM_HW_CFG_IRQ_DISABLE,           dcamhw_irq_disable},
 	{DCAM_HW_CFG_MODULE_BYPASS,         dcamhw_module_bypass},
+	{DCAM_HW_FETCH_STATUS_GET,          dcamhw_fetch_sts_get},
 };
 
 static hw_ioctl_fun dcamhw_ioctl_fun_get(enum dcam_hw_cfg_cmd cmd)
