@@ -4040,6 +4040,8 @@ static int ispcore_context_put(void *isp_handle, int ctx_id)
 			udelay(500);
 		};
 
+		if (pctx->isp_receive_param)
+			cam_queue_recycle_blk_param(&pctx->param_share_queue, pctx->isp_receive_param);
 		pr_debug("isp%d, share q cnt %d, buf q cnt %d\n",
 			pctx->ctx_id, cam_queue_cnt_get(&pctx->param_share_queue), cam_queue_cnt_get(&pctx->param_buf_queue));
 		mutex_lock(&pctx->blkpm_q_lock);
