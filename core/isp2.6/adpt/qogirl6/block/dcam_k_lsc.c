@@ -136,11 +136,15 @@ int dcam_init_lsc(void *in, uint32_t online)
 	slice.current_x = (start_roi / 2) / info->grid_width;
 	slice.relative_x = (start_roi / 2) % info->grid_width;
 
+	pr_info("w %d,  grid len %d grid %d  num_t %d (%d, %d)\n",
+		info->weight_num, info->gridtab_len, info->grid_width,
+		info->grid_num_t, info->grid_x_num, info->grid_y_num);
+
 	w_buff = (uint16_t *)param->weight_tab;
 	gain_tab = (uint16_t *)param->buf.addr_k[0];
 	hw_addr = (uint32_t)param->buf.iova[0];
-	if (!w_buff || !gain_tab || !hw_addr) {
-		pr_err("fail to get buf %p %p %x\n", w_buff, gain_tab, hw_addr);
+	if (!w_buff || !gain_tab || !hw_addr || info->grid_width >= LSC_WEI_TABLE_MAX_NUM) {
+		pr_err("fail to get buf %p %p %x grid_width %x\n", w_buff, gain_tab, hw_addr, info->grid_width);
 		ret = -EPERM;
 		goto exit;
 	}
@@ -232,9 +236,6 @@ int dcam_init_lsc(void *in, uint32_t online)
 		param->load_trigger = 1;
 	}
 
-	pr_info("w %d,  grid len %d grid %d  num_t %d (%d, %d)\n",
-		info->weight_num, info->gridtab_len, info->grid_width,
-		info->grid_num_t, info->grid_x_num, info->grid_y_num);
 	return 0;
 
 exit:
@@ -289,8 +290,8 @@ int dcam_update_lsc(void *in)
 	w_buff = (uint16_t *)param->weight_tab;
 	gain_tab = (uint16_t *)param->buf.addr_k[0];
 	hw_addr = (uint32_t)param->buf.iova[0];
-	if (!w_buff || !gain_tab || !hw_addr) {
-		pr_err("fail to get buf %px %px %x\n", w_buff, gain_tab, hw_addr);
+	if (!w_buff || !gain_tab || !hw_addr || info->grid_width >= LSC_WEI_TABLE_MAX_NUM) {
+		pr_err("fail to get buf %px %px %x grid_width 0x\n", w_buff, gain_tab, hw_addr, info->grid_width >= 0xFF);
 		ret = -EPERM;
 		goto exit;
 	}

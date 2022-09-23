@@ -1181,16 +1181,19 @@ static int dcamhw_path_start(void *handle, void *arg)
 			DCAM_REG_MWR(patharg->idx, DCAM_IMAGE_CONTROL, 0x70, val << 4);
 			DCAM_REG_MWR(patharg->idx, DCAM_RAW_PATH_CFG, BIT_5 | BIT_4, 1 << 4);
 			DCAM_REG_MWR(patharg->idx, DCAM_RAW_PATH_CFG, BIT_13, 0 << 13);
+			val = 14 - 10;
 		} else if (patharg->src_sel == BPC_RAW_SRC_SEL) {
 			val = patharg->data_bits - 10;
 			DCAM_REG_MWR(patharg->idx, DCAM_IMAGE_CONTROL, 0x70, val << 4);
 			DCAM_REG_MWR(patharg->idx, DCAM_RAW_PATH_CFG, BIT_5 | BIT_4, 2 << 4);
 			DCAM_REG_MWR(patharg->idx, DCAM_RAW_PATH_CFG, BIT_13, 0 << 13);
+			val = 14 - 10;
 		} else if (patharg->src_sel == NLM_RAW_SRC_SEL) {
 			val = patharg->data_bits - 10;
 			DCAM_REG_MWR(patharg->idx, DCAM_IMAGE_CONTROL, 0x70, val << 4);
 			DCAM_REG_MWR(patharg->idx, DCAM_RAW_PATH_CFG, BIT_5 | BIT_4, 3 << 4);
 			DCAM_REG_MWR(patharg->idx, DCAM_RAW_PATH_CFG, BIT_13, 0 << 13);
+			val = 14 - 10;
 		} else if (patharg->src_sel == PROCESS_RAW_SRC_SEL) {
 			val = patharg->data_bits - 10;
 			DCAM_REG_MWR(patharg->idx, DCAM_IMAGE_CONTROL, 0x70, val << 4);

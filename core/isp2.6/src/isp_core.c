@@ -4367,7 +4367,9 @@ dec_err:
 	}
 err_init:
 	hw->isp_ioctl(hw, ISP_HW_CFG_STOP, NULL);
+	atomic_set(&dev->pd_clk_rdy, 0);
 	isp_drv_hw_deinit(dev);
+	mutex_destroy(&dev->path_mutex);
 	atomic_dec(&dev->enable);
 	pr_err("fail to open isp dev!\n");
 	return ret;
@@ -4386,21 +4388,20 @@ static int ispcore_dev_close(void *isp_handle)
 
 	dev = (struct isp_pipe_dev *)isp_handle;
 	hw = dev->isp_hw;
-	if (atomic_dec_return(&dev->enable) == 0) {
+	if (atomic_dec_return(&dev->enable) == 0 && atomic_read(&dev->pd_clk_rdy)) {
 		ret = hw->isp_ioctl(hw, ISP_HW_CFG_STOP, NULL);
 		ret = ispcore_context_deinit(dev);
-		mutex_destroy(&dev->path_mutex);
 		if (dev->pyr_dec_handle && hw->ip_isp->pyr_dec_support) {
 			isp_pyr_dec_dev_put(dev->pyr_dec_handle);
 			dev->pyr_dec_handle = NULL;
 		}
-		ret = isp_drv_hw_deinit(dev);
 		atomic_set(&dev->pd_clk_rdy, 0);
+		ret = isp_drv_hw_deinit(dev);
+		mutex_destroy(&dev->path_mutex);
 	}
 
 	pr_info("isp dev disable done\n");
 	return ret;
-
 }
 
 static int ispcore_dev_reset(void *isp_handle, void *param)
