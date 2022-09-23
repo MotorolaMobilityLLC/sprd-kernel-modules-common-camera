@@ -638,4 +638,5 @@ void cam_queue_empty_mv_state_free(void *param)
 	pr_debug("free state %p, cnt %d\n", mv_state,
 		atomic_read(&g_mem_dbg->empty_mv_state_cnt));
 	kfree(mv_state);
+	mv_state = NULL;
 }
