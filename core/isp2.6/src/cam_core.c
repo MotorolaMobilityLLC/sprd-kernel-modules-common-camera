@@ -1535,7 +1535,7 @@ static int camcore_buffers_alloc_num(struct channel_context *channel,
 
 	/* extend buffer queue for slow motion */
 	if (channel->ch_uinfo.is_high_fps)
-		num = CAM_SHARED_BUF_NUM;
+		num = channel->ch_uinfo.high_fps_skip_num * 4;
 
 	if (channel->ch_id == CAM_CH_PRE &&
 		module->grp->camsec_cfg.camsec_mode != SEC_UNABLE) {
