@@ -1840,6 +1840,8 @@ static irqreturn_t dcamint_isr_root(int irq, void *priv)
 
 	if (unlikely(irq != dcam_hw_ctx->irq)) {
 		pr_err("fail to match DCAM%u irq %d %d\n", dcam_hw_ctx->hw_ctx_id, irq, dcam_hw_ctx->irq);
+		DCAM_REG_WR(dcam_hw_ctx->hw_ctx_id, DCAM_INT0_CLR, 0xFFFFFFFF);
+		DCAM_REG_WR(dcam_hw_ctx->hw_ctx_id, DCAM_INT1_CLR, 0xFFFFFFFF);
 		return IRQ_NONE;
 	}
 
