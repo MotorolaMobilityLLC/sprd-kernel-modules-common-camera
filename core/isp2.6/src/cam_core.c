@@ -6144,6 +6144,10 @@ static int camcore_mes_proc(void *param)
 	if (wait_for_completion_interruptible(&mes_base->mes_com) == 0) {
 
 		temp_pframe = cam_queue_dequeue(&mes_base->mes_queue,struct camera_frame, list);
+		if (temp_pframe == NULL) {
+			pr_err("fail to get temp_pframe buf\n");
+			return -EFAULT;
+		}
 		channel = &module->channel[temp_pframe->channel_id];
 		if (channel_raw->ch_uinfo.dst_size.w == channel_cap->ch_uinfo.dst_size.w)
 			dump_path = CAM_CH_CAP;
