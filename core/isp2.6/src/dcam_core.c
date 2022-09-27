@@ -436,6 +436,7 @@ static void dcamcore_statis_buf_destroy(void *param)
 
 	frame = (struct camera_frame *)param;
 	cam_queue_empty_frame_put(frame);
+	frame = NULL;
 }
 
 static int dcamcore_statis_bufferq_init(struct dcam_sw_context *pctx)

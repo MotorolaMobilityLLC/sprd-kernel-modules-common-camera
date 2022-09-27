@@ -512,6 +512,8 @@ int cam_queue_recycle_blk_param(struct camera_queue *q, struct camera_frame *par
 	return ret;
 
 error:
+	if (param_pframe->buf.mapping_state & CAM_BUF_MAPPING_DEV)
+		cam_buf_iommu_unmap(&param_pframe->buf);
 	cam_buf_free(&param_pframe->buf);
 	cam_queue_empty_frame_put(param_pframe);
 	return ret;
