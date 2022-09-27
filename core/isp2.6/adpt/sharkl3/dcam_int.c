@@ -1431,11 +1431,13 @@ static irqreturn_t dcamint_isr_root(int irq, void *priv)
 	if (unlikely(irq != dcam_hw_ctx->irq)) {
 		pr_err("fail to get irq,DCAM%u irq %d mismatch %d\n",
 			dcam_hw_ctx->hw_ctx_id, irq, dcam_hw_ctx->irq);
+		DCAM_REG_WR(dcam_hw_ctx->hw_ctx_id, DCAM_INT_CLR, 0xFFFFFFFF);
 		return IRQ_NONE;
 	}
 	if (!dcam_sw_ctx) {
-		pr_err("fail to check param %px\n", dcam_sw_ctx);
-		return IRQ_NONE;
+		status = DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, DCAM_INT_MASK);
+		DCAM_REG_WR(dcam_hw_ctx->hw_ctx_id, DCAM_INT_CLR, status);
+		return IRQ_HANDLED;
 	}
 	if (atomic_read(&dcam_sw_ctx->state) != STATE_RUNNING) {
 		/* clear int */
