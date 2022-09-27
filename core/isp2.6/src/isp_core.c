@@ -205,6 +205,7 @@ static void ispcore_param_buf_destroy(void *param)
 	if(ret)
 		pr_err("fail to unmap param node %px\n", frame);
 	cam_queue_empty_frame_put(frame);
+	frame = NULL;
 }
 
 static void ispcore_statis_buf_destroy(void *param)
@@ -218,6 +219,7 @@ static void ispcore_statis_buf_destroy(void *param)
 
 	frame = (struct camera_frame *)param;
 	cam_queue_empty_frame_put(frame);
+	frame = NULL;
 }
 
 static void ispcore_sw_context_clear(void *param)
@@ -4040,8 +4042,10 @@ static int ispcore_context_put(void *isp_handle, int ctx_id)
 			udelay(500);
 		};
 
-		if (pctx->isp_receive_param)
+		if (pctx->isp_receive_param) {
 			cam_queue_recycle_blk_param(&pctx->param_share_queue, pctx->isp_receive_param);
+			pctx->isp_receive_param = NULL;
+		}
 		pr_debug("isp%d, share q cnt %d, buf q cnt %d\n",
 			pctx->ctx_id, cam_queue_cnt_get(&pctx->param_share_queue), cam_queue_cnt_get(&pctx->param_buf_queue));
 		mutex_lock(&pctx->blkpm_q_lock);
