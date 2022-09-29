@@ -7609,7 +7609,7 @@ static int camcore_csi_switch_disconnect(struct camera_module *module, uint32_t 
 		path = &sw_ctx->path[j];
 		if (path == NULL)
 			continue;
-		frame = cam_queue_dequeue(&path->result_queue, struct camera_frame, list);
+		frame = cam_queue_del_tail(&path->result_queue, struct camera_frame, list);
 		while (frame) {
 			pr_debug("DCAM%u path%d fid %u\n", sw_ctx->sw_ctx_id, j, frame->fid);
 
@@ -7639,12 +7639,11 @@ static int camcore_csi_switch_disconnect(struct camera_module *module, uint32_t 
 			if (frame->is_reserved)
 				cam_queue_enqueue(&path->reserved_buf_queue, &frame->list);
 			else {
-				cam_queue_enqueue(&path->out_buf_queue, &frame->list);
+				cam_queue_enqueue_front(&path->out_buf_queue, &frame->list);
 				if (path->path_id == DCAM_PATH_FULL)
 					cam_buf_iommu_unmap(&frame->buf);
 			}
-
-			frame = cam_queue_dequeue(&path->result_queue, struct camera_frame, list);
+			frame = cam_queue_del_tail(&path->result_queue, struct camera_frame, list);
 		}
 	}
 
