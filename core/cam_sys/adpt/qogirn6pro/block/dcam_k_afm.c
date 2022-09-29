@@ -292,6 +292,51 @@ int dcam_k_afm_done_tilenum(struct dcam_isp_k_block *param)
 	return ret;
 }
 
+int dcam_k_afm_iir_info(struct dcam_isp_k_block *param)
+{
+	int ret = 0;
+	uint32_t idx = 0;
+	uint32_t val = 0;
+	struct dcam_dev_afm_iir_info *p = NULL;
+
+	if (param == NULL)
+		return -1;
+
+	idx = param->idx;
+	if (idx >= DCAM_HW_CONTEXT_MAX)
+		return 0;
+	p = &param->afm.af_iir_info;
+
+	DCAM_REG_MWR(idx, DCAM_AFM_PARAMETERS, BIT_0, p->afm_iir_enable);
+
+	/* IIR cfg */
+	val = ((p->afm_iir_g1 & 0xFFF) << 16) |
+		(p->afm_iir_g0 & 0xFFF);
+	DCAM_REG_WR(idx, DCAM_AFM_IIR_FILTER0, val);
+
+	val = ((p->afm_iir_c2 & 0xFFF) << 16) |
+			(p->afm_iir_c1 & 0xFFF);
+	DCAM_REG_WR(idx, DCAM_AFM_IIR_FILTER1, val);
+	val = ((p->afm_iir_c4 & 0xFFF) << 16) |
+			(p->afm_iir_c3 & 0xFFF);
+	DCAM_REG_WR(idx, DCAM_AFM_IIR_FILTER2, val);
+	val = ((p->afm_iir_c6 & 0xFFF) << 16) |
+			(p->afm_iir_c5 & 0xFFF);
+	DCAM_REG_WR(idx, DCAM_AFM_IIR_FILTER3, val);
+	val = ((p->afm_iir_c8 & 0xFFF) << 16) |
+			(p->afm_iir_c7 & 0xFFF);
+	DCAM_REG_WR(idx, DCAM_AFM_IIR_FILTER4, val);
+	val = ((p->afm_iir_c10 & 0xFFF) << 16) |
+			(p->afm_iir_c9 & 0xFFF);
+	DCAM_REG_WR(idx, DCAM_AFM_IIR_FILTER5, val);
+
+	pr_debug("iir_enable %d\n", p->afm_iir_enable);
+	pr_debug("iir_g0 %d, iir_g1 %d\n", p->afm_iir_g0, p->afm_iir_g1);
+	pr_debug("iir_c1 %d, iir_c2 %d, iir_c3 %d, iir_c4 %d, iir_c5 %d\n", p->afm_iir_c1, p->afm_iir_c2, p->afm_iir_c3, p->afm_iir_c4, p->afm_iir_c5);
+	pr_debug("iir_c6 %d, iir_c7 %d, iir_c8 %d, iir_c9 %d, iir_c10 %d\n", p->afm_iir_c6, p->afm_iir_c7, p->afm_iir_c8, p->afm_iir_c9, p->afm_iir_c10);
+	return ret;
+}
+
 int dcam_k_cfg_afm(struct isp_io_param *param, struct dcam_isp_k_block *p)
 {
 	int ret = 0;
@@ -344,6 +389,11 @@ int dcam_k_cfg_afm(struct isp_io_param *param, struct dcam_isp_k_block *p)
 		pcpy = (void *)&(p->afm.done_tile_num);
 		size = sizeof(p->afm.done_tile_num);
 		sub_func = dcam_k_afm_done_tilenum;
+		break;
+	case DCAM_PRO_AFM_IIR_CFG:
+		pcpy = (void *)&(p->afm.af_iir_info);
+		size = sizeof(p->afm.af_iir_info);
+		sub_func = dcam_k_afm_iir_info;
 		break;
 	default:
 		pr_err("fail to support property %d\n",
