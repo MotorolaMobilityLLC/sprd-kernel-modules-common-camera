@@ -37,7 +37,7 @@
 #define pr_fmt(fmt) "DCAM_CORE: %d %d %s : "\
 	fmt, current->pid, __LINE__, __func__
 
-#define DCAM_STOP_TIMEOUT             msecs_to_jiffies(2000)
+#define DCAM_STOP_TIMEOUT             msecs_to_jiffies(3500)
 
 /* VCH2 maybe used for raw picture output
  * If yes, PDAF should not output data though VCH2
