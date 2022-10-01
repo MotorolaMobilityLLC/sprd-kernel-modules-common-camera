@@ -47,9 +47,10 @@ int isp_k_hsv_block(struct isp_k_block *isp_k_param, uint32_t idx)
 
 	if (g_isp_bypass[idx] & (1 << _EISP_HSV))
 		hsv_info->hsv_bypass = 1;
+	hsv_info->hsv_bypass = 1;
 	ISP_REG_MWR(idx, ISP_HSV_PARAM, BIT_0, hsv_info->hsv_bypass);
 	if (hsv_info->hsv_bypass) {
-		pr_debug("idx %d, hsv_bypass!\n", idx);
+		pr_info("idx %d, hsv_bypass!\n", idx);
 		return 0;
 	}
 	hsv_info->hsv_delta_value_en = 1;
