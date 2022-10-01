@@ -98,6 +98,8 @@ void csi_controller_enable(struct csi_dt_node_info *dt_info);
 void phy_csi_path_cfg(struct csi_dt_node_info *dt_info, int sensor_id);
 void csi_controller_disable(struct csi_dt_node_info *dt_info, int32_t idx);
 void csi_phy_init(struct csi_dt_node_info *dt_info, int32_t idx);
+void csi_set_on_lanes_s(uint8_t lanes, int32_t idx);
+void csi_set_on_lanes_m(uint8_t lanes, int32_t idx);
 void csi_set_on_lanes(uint8_t lanes, int32_t idx);
 void csi_shut_down_phy(uint8_t shutdown, int32_t idx);
 void csi_close(int32_t idx);
