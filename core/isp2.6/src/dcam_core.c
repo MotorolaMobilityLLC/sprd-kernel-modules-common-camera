@@ -1346,7 +1346,7 @@ static int dcamcore_path_cfg(void *dcam_handle, enum dcam_path_cfg_cmd cfg_cmd,
 	switch (cfg_cmd) {
 	case DCAM_PATH_CFG_OUTPUT_BUF:
 		pframe = (struct camera_frame *)param;
-		if (path_id != DCAM_PATH_FULL) {
+		if (path_id != DCAM_PATH_FULL && !(path_id == DCAM_PATH_VCH2 && pframe->channel_id == CAM_CH_DCAM_VCH)) {
 			ret = cam_buf_iommu_map(&pframe->buf, CAM_IOMMUDEV_DCAM);
 			if (ret)
 				goto exit;
