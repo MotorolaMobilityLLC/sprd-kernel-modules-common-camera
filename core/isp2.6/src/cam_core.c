@@ -9166,6 +9166,8 @@ static const struct of_device_id sprd_cam_of_match[] = {
 	{ .compatible = "sprd,qogirl6-cam", .data = &qogirl6_hw_info},
 	#elif defined (PROJ_QOGIRN6PRO)
 	{ .compatible = "sprd,qogirn6pro-cam", .data = &qogirn6pro_hw_info},
+	#elif defined (PROJ_QOGIRN6L)
+	{ .compatible = "sprd,qogirn6l-cam", .data = &qogirn6l_hw_info},
 	#endif
 	{ },
 };
