@@ -1012,10 +1012,8 @@ static int dcamhw_mipi_cap_set(void *handle, void *arg)
 	DCAM_REG_WR(idx, DCAM_MIPI_CAP_END, reg_val);
 
 	/* frame skip before capture */
-	if (strncmp(chip_type, "UMS9620-AA", strlen("UMS9620-AA")) == 0) {
-		if (cap_info->frm_skip == 0)
-			cap_info->frm_skip = 1;
-	}
+	if (cap_info->frm_skip == 0)
+		cap_info->frm_skip = 1;
 	DCAM_REG_MWR(idx, DCAM_MIPI_CAP_CFG,
 			BIT_8 | BIT_9 | BIT_10 | BIT_11,
 				cap_info->frm_skip << 8);
