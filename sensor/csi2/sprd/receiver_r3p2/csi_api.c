@@ -214,13 +214,13 @@ int csi_api_get_dcam_id(struct device_node *phy_node, int sensor_id, unsigned in
 	}else if (phy_id == PHY_4LANE || phy_id == PHY_CPHY){
 	        dcam_id = 0;
 	}else if (phy_id == PHY_2P2 || phy_id == PHY_2P2_M){
-	        dcam_id = 1;
-	}else if (phy_id == PHY_2P2RO|| phy_id == PHY_2P2RO_M){
-	        dcam_id = 3;
-	}else if (phy_id == PHY_2P2_S){
 	        dcam_id = 2;
-	}else if (phy_id == PHY_2P2RO_S)
+	}else if (phy_id == PHY_2P2RO|| phy_id == PHY_2P2RO_M){
 	        dcam_id = 4;
+	}else if (phy_id == PHY_2P2_S){
+	        dcam_id = 3;
+	}else if (phy_id == PHY_2P2RO_S)
+	        dcam_id = 5;
 
 	pr_info("sensor_id %d dcam_id:%u\n", sensor_id, dcam_id);
 
@@ -346,6 +346,16 @@ void csi_start(int lane_num, int sensor_id)
 	csi_event_enable(sensor_id);
 }
 
+void csi_start_s(int lane_num, int sensor_id)
+{
+	csi_set_on_lanes_s(lane_num, sensor_id);
+	csi_event_enable(sensor_id);
+}
+void csi_start_m(int lane_num, int sensor_id)
+{
+	csi_set_on_lanes_m(lane_num, sensor_id);
+	csi_event_enable(sensor_id);
+}
 #if 0
 static int csi_efuse_cfg(void)
 {
@@ -452,8 +462,10 @@ int csi_api_open(int bps_per_lane, int phy_id, int lane_num, int sensor_id, int 
 	csi_controller_enable(dt_info);
 //	csi_phy_testclr(dt_info->controller_id, &dt_info->phy);
 	csi_phy_init(dt_info, dt_info->controller_id);
-	if(phy_id == PHY_2P2_S || phy_id == PHY_2P2RO_S)
-		csi_start(4, dt_info->controller_id);
+	if(dt_info->phy.phy_id == PHY_2P2_S || dt_info->phy.phy_id == PHY_2P2RO_S)
+		csi_start_s(lane_num, dt_info->controller_id);
+	else if(dt_info->phy.phy_id == PHY_2P2_M || dt_info->phy.phy_id == PHY_2P2RO_M)
+		csi_start_m(lane_num, dt_info->controller_id);
 	else
 		csi_start(lane_num, dt_info->controller_id);
 
@@ -464,7 +476,7 @@ int csi_api_open(int bps_per_lane, int phy_id, int lane_num, int sensor_id, int 
 
 EXIT:
 	pr_err("fail to open csi api %d\n", ret);
-	csi_api_close(phy_id, sensor_id);
+	csi_api_close(dt_info->phy.phy_id, sensor_id);
 	return ret;
 
 }

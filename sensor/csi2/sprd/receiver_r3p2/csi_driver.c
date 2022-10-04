@@ -472,6 +472,8 @@ void csi_reg_trace(unsigned int idx)
 		reg_dump_rd(0x64900000, 0xff, "aon-apb");
 		reg_dump_rd(0x64910100, 0x1ff, "aon-pm");
 #endif
+		reg_dump_rd(0x3b600000, 0x10, "csi-sw");
+
 #ifdef DEBUG_DCAM
 	reg_dump_rd(0x3e000000, 0xff, "dcam");
 	reg_dump_rd(0x3e000400, 0xff, "dcam-mipicap");
@@ -1163,6 +1165,7 @@ void dphy_afe_cali(struct csi_dt_node_info *dt_info, int32_t idx){
 		phy_write(idx, 0xd0, 0, BIT_6 | BIT_5);
 
 }
+static int csi_reset[CSI_MAX_COUNT] = {0, 0, 0};
 
 void csi_phy_init(struct csi_dt_node_info *dt_info, int32_t idx)
 {
@@ -1179,19 +1182,26 @@ void csi_phy_init(struct csi_dt_node_info *dt_info, int32_t idx)
 		pr_err("fail to get valid phy ptr\n");
 		return;
 	}
+	pr_info("csi_reset[%d] %d\n", idx, csi_reset[idx]);
+	if(csi_reset[idx] < 0)
+		csi_reset[idx] = 0;
 
-	csi_ahb_reset(phy, dt_info->controller_id);
-	csi_reset_controller(idx);
-	csi_shut_down_phy(0, idx);
-	csi_reset_phy(idx);
     if (phy->phy_id == PHY_CPHY || phy->phy_id == PHY_4LANE || phy->phy_id == PHY_2P2 ||
 		phy->phy_id == PHY_2P2_M || phy->phy_id == PHY_2P2_S){
 		anlg_phy_syscon = phy->anlg_phy_g4l_syscon;
 	}else{
 		anlg_phy_syscon = phy->anlg_phy_g4_syscon;
 	}
-	csi_phy_testclr(dt_info->controller_id, &dt_info->phy);
 
+	if(csi_reset[idx] == 0){
+		csi_ahb_reset(phy, dt_info->controller_id);
+		csi_reset_controller(idx);
+		csi_shut_down_phy(0, idx);
+		csi_reset_phy(idx);
+		csi_phy_testclr(dt_info->controller_id, &dt_info->phy);
+		csi_reset[idx]++;
+
+	}
 	switch (phy->phy_id) {
 	case PHY_4LANE:
 	//case PHY_4LANE1:
@@ -1290,9 +1300,19 @@ void csi_phy_init(struct csi_dt_node_info *dt_info, int32_t idx)
 
 void csi_set_on_lanes(uint8_t lanes, int32_t idx)
 {
+	pr_info("lanes %d idx %d", lanes, idx);
 	CSI_REG_MWR(idx, LANE_NUMBER, 0x7, (lanes - 1));
 }
-
+void csi_set_on_lanes_s(uint8_t lanes, int32_t idx)
+{
+	pr_info("lanes %d idx %d", lanes, idx);
+	CSI_REG_MWR(idx, LANE_NUMBER, BIT_1 | BIT_2, (2*lanes - 1)<<1);
+}
+void csi_set_on_lanes_m(uint8_t lanes, int32_t idx)
+{
+	pr_info("lanes %d idx %d", lanes, idx);
+	CSI_REG_MWR(idx, LANE_NUMBER, BIT_0, (lanes - 1));
+}
 /* PHY power down input, active low */
 void csi_shut_down_phy(uint8_t shutdown, int32_t idx)
 {
@@ -1301,6 +1321,7 @@ void csi_shut_down_phy(uint8_t shutdown, int32_t idx)
 
 void csi_reset_controller(int32_t idx)
 {
+	pr_info("%d", idx);
 	CSI_REG_MWR(idx, RST_CSI2_N, BIT_0, 0);
 	CSI_REG_MWR(idx, RST_CSI2_N, BIT_0, 1);
 }
@@ -1320,7 +1341,10 @@ void csi_event_enable(int32_t idx)
 
 void csi_close(int32_t idx)
 {
+	pr_info("csi_reset[%d] %d\n", idx, csi_reset[idx]);
 	csi_shut_down_phy(1, idx);
 	csi_reset_phy(idx);
-	csi_reset_controller(idx);
+	csi_reset[idx]--;
+	//if(csi_reset[idx] == 0)
+	//	csi_reset_controller(idx);
 }
