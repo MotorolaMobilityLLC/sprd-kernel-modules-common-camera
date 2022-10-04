@@ -1186,21 +1186,22 @@ void csi_phy_init(struct csi_dt_node_info *dt_info, int32_t idx)
 	if(csi_reset[idx] < 0)
 		csi_reset[idx] = 0;
 
-	csi_ahb_reset(phy, dt_info->controller_id);
-	if(csi_reset[idx] == 0){
-		csi_reset_controller(idx);
-		csi_reset[idx]++;
-	}
-	csi_shut_down_phy(0, idx);
-	csi_reset_phy(idx);
     if (phy->phy_id == PHY_CPHY || phy->phy_id == PHY_4LANE || phy->phy_id == PHY_2P2 ||
 		phy->phy_id == PHY_2P2_M || phy->phy_id == PHY_2P2_S){
 		anlg_phy_syscon = phy->anlg_phy_g4l_syscon;
 	}else{
 		anlg_phy_syscon = phy->anlg_phy_g4_syscon;
 	}
-	csi_phy_testclr(dt_info->controller_id, &dt_info->phy);
 
+	if(csi_reset[idx] == 0){
+		csi_ahb_reset(phy, dt_info->controller_id);
+		csi_reset_controller(idx);
+		csi_shut_down_phy(0, idx);
+		csi_reset_phy(idx);
+		csi_phy_testclr(dt_info->controller_id, &dt_info->phy);
+		csi_reset[idx]++;
+
+	}
 	switch (phy->phy_id) {
 	case PHY_4LANE:
 	//case PHY_4LANE1:
@@ -1340,9 +1341,10 @@ void csi_event_enable(int32_t idx)
 
 void csi_close(int32_t idx)
 {
+	pr_info("csi_reset[%d] %d\n", idx, csi_reset[idx]);
 	csi_shut_down_phy(1, idx);
 	csi_reset_phy(idx);
 	csi_reset[idx]--;
-	if(csi_reset[idx] == 0)
-		csi_reset_controller(idx);
+	//if(csi_reset[idx] == 0)
+	//	csi_reset_controller(idx);
 }
