@@ -32,6 +32,7 @@ int dcam_k_bpc_block(struct dcam_dev_param *param)
 	int i = 0;
 	uint32_t val = 0;
 	struct dcam_dev_bpc_info_v1 *p;
+	struct img_rgb_info bpc_awbc_gain = {0};
 
 	idx = param->idx;
 	if (idx >= DCAM_HW_CONTEXT_MAX)
@@ -110,6 +111,16 @@ int dcam_k_bpc_block(struct dcam_dev_param *param)
 
 	val = p->bpc_bad_pixel_pos_out_addr & 0xFFFFFFF0;
 	DCAM_REG_WR(idx, DCAM_BPC_OUT_ADDR, val);
+
+	bpc_awbc_gain.r = 1024;
+	bpc_awbc_gain.b = 1024;
+	val = (bpc_awbc_gain.r & 0x3FFF) | ((bpc_awbc_gain.b & 0x3FFF) << 16);
+	DCAM_REG_WR(idx, ISP_AWBC_GAIN0, val);
+
+	bpc_awbc_gain.gr = 1024;
+	bpc_awbc_gain.gb = 1024;
+	val = (bpc_awbc_gain.gr & 0x3FFF) | ((bpc_awbc_gain.gb & 0x3FFF) << 16);
+	DCAM_REG_WR(idx, ISP_AWBC_GAIN1, val);
 
 	return ret;
 }
