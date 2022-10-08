@@ -1,0 +1,138 @@
+/*
+ * Copyright (C) 2021-2022 UNISOC Communications Inc.
+ *
+ * This software is licensed under the terms of the GNU General Public
+ * License version 2, as published by the Free Software Foundation, and
+ * may be copied, distributed, and modified under those terms.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
+
+#ifndef _CAM_BUF_MANAGER_H_
+#define _CAM_BUF_MANAGER_H_
+
+#include "cam_queue.h"
+
+#define CAM_COUNT_MAX         4
+#define PIPELINE_CNT_MAX      10
+#define NODE_CNT_MAX          5
+#define PORT_CNT_MAX          20
+#define POOL_TAG_MAX          10
+#define PRIVATE_POOL_NUM_MAX  ((PIPELINE_CNT_MAX * NODE_CNT_MAX * PORT_CNT_MAX) + POOL_TAG_MAX)
+#define RESERVE_BUF_Q_LEN     500
+#define CAM_RESERVE_BUF_Q_LEN 50
+
+struct cam_buf_pool_id {
+	uint32_t tag_id;
+	uint32_t reserved_pool_id;/*for reserved buffer*/
+	uint32_t private_pool_idx;
+};
+
+enum cam_buf_pool_status_type {
+	CAM_BUF_POOL_STATUS_LENTH,
+	CAM_BUF_POOL_STATUS_CNT,
+	CAM_BUF_POOL_STATUS_MINFID,
+	CAM_BUF_POOL_STATUS_NUM,
+};
+
+enum cam_buf_pool_tag_id {
+	CAM_BUF_POOL_SHARE_FULL_PATH = 1,
+	CAM_BUF_POOL_CAM0_SENSOR_RAW_OUT,
+	CAM_BUF_POOL_CAM1_SENSOR_RAW_OUT,
+	CAM_BUF_POOL_CAM2_SENSOR_RAW_OUT,
+	CAM_BUF_POOL_TAG_ID_NUM,
+};
+
+enum cam_queue_ops_cmd {
+	CAM_QUEUE_DEL_TAIL = 1,
+	CAM_QUEUE_DEQ_PEEK,
+	CAM_QUEUE_TAIL_PEEK,
+};
+
+enum cambufmanager_status_ops_cmd {
+	CAM_BUF_STATUS_MOVE_TO_ALLOC = 1,
+	CAM_BUF_STATUS_MOVE_TO_ION,
+	CAM_BUF_STATUS_GET_IOVA,
+	CAM_BUF_STATUS_GET_SINGLE_PAGE_IOVA,
+	CAM_BUF_STATUS_GET_K_ADDR,
+	CAM_BUF_STATUS_PUT_IOVA,
+	CAM_BUF_STATUS_PUT_K_ADDR,
+	CAM_BUF_STATUS_OPS_CMD_NUM,
+};
+
+enum cambufmanager_status_cmd {
+	CAM_BUF_STATUS_ALLOC_2_ION = 1,
+	CAM_BUF_STATUS_ALLOC_2_IOVA,
+	CAM_BUF_STATUS_ALLOC_2_SINGLE_PAGE_MAP,
+	CAM_BUF_STATUS_ALLOC_2_KMAP,
+	CAM_BUF_STATUS_ALLOC_2_IOVA_K,
+
+	CAM_BUF_STATUS_ION_2_ALLOC,
+	CAM_BUF_STATUS_ION_2_IOVA,
+	CAM_BUF_STATUS_ION_2_SINGLE_PAGE_MAP,
+	CAM_BUF_STATUS_ION_2_KMAP,
+	CAM_BUF_STATUS_ION_2_IOVA_K,
+
+	CAM_BUF_STATUS_IOVA_2_ALLOC,
+	CAM_BUF_STATUS_IOVA_2_ION,
+	CAM_BUF_STATUS_IOVA_2_KMAP,
+	CAM_BUF_STATUS_IOVA_2_IOVA_K,
+
+	CAM_BUF_STATUS_SINGLE_PAGE_MAP_2_ALLOC,
+	CAM_BUF_STATUS_SINGLE_PAGE_MAP_2_ION,
+
+	CAM_BUF_STATUS_KMAP_2_ALLOC,
+	CAM_BUF_STATUS_KMAP_2_ION,
+	CAM_BUF_STATUS_KMAP_2_IOVA,
+	CAM_BUF_STATUS_KMAP_2_IOVA_K,
+
+	CAM_BUF_STATUS_K_IOVA_2_ALLOC,
+	CAM_BUF_STATUS_K_IOVA_2_ION,
+	CAM_BUF_STATUS_K_IOVA_2_IOVA,
+	CAM_BUF_STATUS_K_IOVA_2_K,
+
+	CAM_BUF_STATUS_SWITCH_NUM,
+};
+
+struct camera_buf_get_desc {
+	uint32_t is_uframe_sync;
+	uint32_t target_fid;
+	uint32_t buf_ops_cmd;
+	enum cam_queue_ops_cmd q_ops_cmd;
+	enum cam_iommudev_type mmu_type;
+};
+
+struct cam_buf_manager {
+	atomic_t user_cnt;
+	struct camera_queue *reserve_buf_pool[CAM_COUNT_MAX];
+	struct camera_queue *private_buf_pool[PRIVATE_POOL_NUM_MAX];
+	struct camera_queue *tag_pool[CAM_BUF_POOL_TAG_ID_NUM];
+	struct mutex pool_lock;
+};
+
+#define cam_buf_destory(pframe) { \
+	struct camera_frame *__p = (pframe); \
+	if (__p != NULL) { \
+		cam_buf_manager_buf_status_change(&__p->buf, CAM_BUF_ALLOC, CAM_IOMMUDEV_MAX); \
+		if (__p->buf.type == CAM_BUF_KERNEL) \
+			cam_buf_free(&__p->buf); \
+		cam_queue_empty_frame_put(__p); \
+	}\
+}
+
+int inline cam_buf_manager_buf_status_change(struct camera_buf *buf,
+		enum cam_buf_status dst_status,
+		enum cam_iommudev_type type);
+int cam_buf_manager_pool_cnt(struct cam_buf_pool_id *pool_id);
+int cam_buf_manager_pool_unreg(struct cam_buf_pool_id *pool_id);
+int cam_buf_manager_pool_reg(struct cam_buf_pool_id *pool_id, uint32_t length);
+void cam_buf_manager_buf_clear(struct cam_buf_pool_id *pool_id);
+int cam_buf_manager_buf_enqueue(struct cam_buf_pool_id *pool_id,
+	struct camera_frame *pframe, struct camera_buf_get_desc *buf_desc);
+struct camera_frame *cam_buf_manager_buf_dequeue(struct cam_buf_pool_id *pool_id, struct camera_buf_get_desc *buf_desc);
+int cam_buf_manager_init(uint32_t cam_id);
+int cam_buf_manager_deinit(uint32_t cam_id);
+#endif
