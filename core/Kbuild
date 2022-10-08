@@ -15,9 +15,17 @@ KO_MODULE_NAME := sprd_camera
 KO_MODULE_PATH := $(src)
 KO_MODULE_SRC  :=
 
-ISP_DIR	  := $(BSP_BOARD_CAMERA_MODULE_ISP_VERSION)
+ISP_DIR   := $(BSP_BOARD_CAMERA_MODULE_ISP_VERSION)
 CSI_DIR   := $(BSP_BOARD_CAMERA_MODULE_CSI_VERSION)
 ADAPT_DIR := $(BSP_BOARD_CAMERA_MODULE_ISP_ADAPT_VERSION)
+
+ifeq ($(strip $(BSP_KERNEL_VERSION)), kernel5.15)
+ISP_DIR := cam_sys
+endif
+
+ifeq ($(ADAPT_DIR),qogirn6l)
+ISP_DIR := isp2.6
+endif
 
 ifeq ($(ISP_DIR),dcam_r6p0_isp_r6p91)
 KO_MODULE_SRC += $(shell find $(KO_MODULE_PATH)/$(ISP_DIR) -name "*.c")
@@ -27,7 +35,7 @@ KO_MODULE_SRC += \
   ifeq ($(ISP_DIR),dcam_if_r4p0_isp_r6p11)
   KO_MODULE_SRC += $(wildcard $(KO_MODULE_PATH)/common/*.c)
   endif
-  ifeq ($(ISP_DIR),isp2.6)
+  ifneq ($(findstring $(strip $(ISP_DIR)), isp2.6 cam_sys),)
   KO_MODULE_SRC += $(wildcard $(KO_MODULE_PATH)/$(ISP_DIR)/adpt/$(ADAPT_DIR)/block/*.c)
   KO_MODULE_SRC += $(wildcard $(KO_MODULE_PATH)/$(ISP_DIR)/adpt/$(ADAPT_DIR)/*.c)
   KO_MODULE_SRC += $(wildcard $(KO_MODULE_PATH)/$(ISP_DIR)/test/*.c)
@@ -67,7 +75,7 @@ ifeq ($(ISP_DIR),dcam_r6p0_isp_r6p91)
 ccflags-y += -I$(KO_MODULE_PATH)/$(ISP_DIR)/common
 endif
 
-ifeq ($(ISP_DIR),isp2.6)
+ifneq ($(findstring $(strip $(ISP_DIR)), isp2.6 cam_sys),)
 ccflags-y += -I$(KO_MODULE_PATH)/$(ISP_DIR)/adpt/$(ADAPT_DIR)/inc
 ccflags-y += -I$(KO_MODULE_PATH)/$(ISP_DIR)/test/
 ccflags-y += -I$(KO_MODULE_PATH)/$(ISP_DIR)/alg_calc/
