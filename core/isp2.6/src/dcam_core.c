@@ -1104,7 +1104,6 @@ static int dcamcore_param_cfg(void *dcam_handle, void *param)
 		if (sw_pctx->pm) {
 			pm = sw_pctx->pm;
 			pm->offline = sw_pctx->offline;
-			pr_info("pm ptr:%p.\n", pm);
 		} else
 			pr_warn("warning:Not get pm buffer ptr.\n");
 	}

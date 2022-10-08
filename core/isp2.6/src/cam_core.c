@@ -5366,7 +5366,6 @@ static int camcore_dcam_pmbuf_init(struct dcam_sw_context *sw_ctx)
 			return -1;
 		}
 	}
-
 	return 0;
 
 map_fail:
@@ -7898,6 +7897,7 @@ struct dcam_dev_param *camcore_aux_dcam_param_prepare(struct camera_frame *pfram
 	uint32_t loop = 0;
 	struct camera_frame *param_frm = NULL;
 
+	mutex_lock(&pctx->blkpm_dcam_lock);
 	do {
 		param_frm = cam_queue_dequeue(&pctx->blk_param_queue, struct camera_frame, list);
 		if (param_frm) {
@@ -7905,12 +7905,14 @@ struct dcam_dev_param *camcore_aux_dcam_param_prepare(struct camera_frame *pfram
 			if (param_frm->fid == pframe->fid) {
 				param_frm->fid = 0xffff;
 				cam_queue_enqueue(&pctx->blk_param_queue, &param_frm->list);
+				mutex_unlock(&pctx->blkpm_dcam_lock);
 				return param_frm->pm;
 			} else
 				cam_queue_enqueue(&pctx->blk_param_queue, &param_frm->list);
 		} else
 			pr_warn("warning:no frame in param queue:%d.\n", pctx->blk_param_queue.cnt);
 	} while (loop++ < pctx->blk_param_queue.cnt);
+	mutex_unlock(&pctx->blkpm_dcam_lock);
 
 	pr_warn("Warning: not get param fm.\n");
 	return NULL;
@@ -8001,7 +8003,7 @@ static int camcore_offline_proc(void *param)
 	if (!module->cam_uinfo.virtualsensor)
 		pm->non_zsl_cap = 1;
 	pm->dev = pctx;
-	if (pframe->irq_property == CAM_FRAME_FDRH && module->cam_uinfo.param_frame_sync) {
+	if (pframe->irq_property == CAM_FRAME_FDRH && module->cam_uinfo.raw_alg_type == RAW_ALG_MFNR) {
 		pm = camcore_aux_dcam_param_prepare(pframe, pctx);
 		if (pm) {
 			pm->dev = pctx;
@@ -8010,6 +8012,7 @@ static int camcore_offline_proc(void *param)
 			pm = &pm_pctx->blk_pm;
 			pm->dev = pctx;
 		}
+		pm->non_zsl_cap = 1;
 	}
 
 	if ((pm->lsc.buf.mapping_state & CAM_BUF_MAPPING_DEV) == 0) {
