@@ -1013,7 +1013,7 @@ static int dcamhw_mipi_cap_set(void *handle, void *arg)
 
 	/* frame skip before capture */
 	if (cap_info->frm_skip == 0)
-		cap_info->frm_skip = 3;
+		cap_info->frm_skip = 1;
 	DCAM_REG_MWR(idx, DCAM_MIPI_CAP_CFG,
 			BIT_8 | BIT_9 | BIT_10 | BIT_11,
 				cap_info->frm_skip << 8);
