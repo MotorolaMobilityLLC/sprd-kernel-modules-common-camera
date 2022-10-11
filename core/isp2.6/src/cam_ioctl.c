@@ -14,6 +14,15 @@
 #include <linux/compat.h>
 #ifdef CAM_IOCTL_LAYER
 
+#define IS_XTM_CONFLICT_SCENE(scene) ({\
+	uint32_t __s = scene;          \
+	(__s == CAPTURE_FDR            \
+	|| __s == CAPTURE_HW3DNR       \
+	|| __s == CAPTURE_FLASH        \
+	|| __s == CAPTURE_RAWALG       \
+	|| __s == CAPTURE_AI_SFNR);    \
+})
+
 static int camioctl_time_get(struct camera_module *module,
 		unsigned long arg)
 {
@@ -2639,11 +2648,7 @@ static int camioctl_capture_start(struct camera_module *module,
 	module->isp_dev_handle->isp_ops->ioctl(module->isp_dev_handle, ch->isp_ctx_id,
 		ISP_IOCTL_CFG_POST_CNT, &param.cap_cnt);
 	module->isp_dev_handle->isp_ops->clear_stream_ctrl(module->isp_dev_handle, ch->isp_ctx_id);
-	if (module->capture_scene == CAPTURE_FDR
-		|| module->capture_scene == CAPTURE_HW3DNR
-		|| module->capture_scene == CAPTURE_FLASH
-		|| module->capture_scene == CAPTURE_RAWALG
-		|| module->capture_scene == CAPTURE_AI_SFNR) {
+	if (IS_XTM_CONFLICT_SCENE(module->capture_scene)) {
 		dis.dcam_idx = sw_ctx->hw_ctx_id;
 		dis.isp_idx = isp_idx;
 		if (!hw->ip_isp->rgb_gtm_support) {
@@ -2816,10 +2821,7 @@ static int camioctl_capture_stop(struct camera_module *module,
 	isp_idx = channel->isp_ctx_id;
 	module->isp_dev_handle->isp_ops->ioctl(module->isp_dev_handle, module->channel[CAM_CH_CAP].isp_ctx_id,
 		ISP_IOCTL_CFG_POST_MULTI_SCENE, &is_post_multi);
-	if (module->capture_scene == CAPTURE_FDR
-		|| module->capture_scene == CAPTURE_HW3DNR
-		|| module->capture_scene == CAPTURE_FLASH
-		|| module->capture_scene == CAPTURE_AI_SFNR) {
+	if (IS_XTM_CONFLICT_SCENE(module->capture_scene)) {
 		struct dcam_path_cfg_param ch_desc;
 		memset(&ch_desc, 0, sizeof(ch_desc));
 

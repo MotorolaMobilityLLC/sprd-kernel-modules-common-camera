@@ -14,6 +14,15 @@
 #include <linux/compat.h>
 #ifdef CAM_IOCTL_LAYER
 
+#define IS_XTM_CONFLICT_SCENE(scene) ({\
+	uint32_t __s = scene;          \
+	(__s == CAPTURE_FDR            \
+	|| __s == CAPTURE_HW3DNR       \
+	|| __s == CAPTURE_FLASH        \
+	|| __s == CAPTURE_RAWALG       \
+	|| __s == CAPTURE_AI_SFNR);    \
+})
+
 static int camioctl_time_get(struct camera_module *module,
 		unsigned long arg)
 {
@@ -1847,11 +1856,7 @@ static int camioctl_capture_start(struct camera_module *module,
 	}
 
 	module->capture_scene = param.cap_scene;
-	if (module->capture_scene == CAPTURE_FDR
-		|| module->capture_scene == CAPTURE_HW3DNR
-		|| module->capture_scene == CAPTURE_FLASH
-		|| module->capture_scene == CAPTURE_RAWALG
-		|| module->capture_scene == CAPTURE_AI_SFNR) {
+	if (IS_XTM_CONFLICT_SCENE(module->capture_scene)) {
 		uint32_t eb = 0;
 		ret = CAM_PIPEINE_DCAM_ONLINE_NODE_CFG(ch, CAM_PIPELINE_CFG_XTM_EN, &eb);
 	}
@@ -1958,11 +1963,7 @@ static int camioctl_capture_stop(struct camera_module *module,
 
 	pr_info("cam %d stop capture.\n", module->idx);
 	hw = module->grp->hw_info;
-	if (module->capture_scene == CAPTURE_FDR
-		|| module->capture_scene == CAPTURE_HW3DNR
-		|| module->capture_scene == CAPTURE_FLASH
-		|| module->capture_scene == CAPTURE_RAWALG
-		|| module->capture_scene == CAPTURE_AI_SFNR) {
+	if (IS_XTM_CONFLICT_SCENE(module->capture_scene)) {
 		uint32_t eb = 1;
 		ret = CAM_PIPEINE_DCAM_ONLINE_NODE_CFG(ch, CAM_PIPELINE_CFG_XTM_EN, &eb);
 	}
