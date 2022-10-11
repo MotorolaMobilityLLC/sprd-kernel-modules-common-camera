@@ -577,6 +577,7 @@ struct dcam_hw_gtm_hist {
 
 struct dcam_hw_slice_fetch {
 	uint32_t idx;
+	uint32_t virtualsensor_pre_sof;
 	uint32_t path_id;
 	uint32_t slice_count;
 	uint32_t slice_num;
@@ -690,6 +691,7 @@ struct dcam_hw_path_start {
 
 struct dcam_hw_fetch_set {
 	uint32_t idx;
+	uint32_t virtualsensor_pre_sof;
 	struct dcam_fetch_info *fetch_info;
 };
 

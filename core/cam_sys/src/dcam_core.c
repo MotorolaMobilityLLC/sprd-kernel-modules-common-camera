@@ -138,15 +138,12 @@ static int dcamcore_irq_proc(void *handle)
 	irq_info.status1 = irq_status->int_status1;
 	cam_queue_empty_interrupt_put(irq_status);
 
-	if (!read_trylock(&dcam_hw_ctx->hw->soc_dcam->cam_ahb_lock))
-		return 0;
-
 	pr_debug("DCAM%d status: %x, status1: %x\n", dcam_hw_ctx->hw_ctx_id, irq_info.status, irq_info.status1);
 	if (dcam_hw_ctx->is_offline_proc)
 		dcamcore_offline_irq_proc(dcam_hw_ctx, &irq_info);
 	else
 		dcamint_dcam_status_rw(irq_info, dcam_hw_ctx);
-	read_unlock(&dcam_hw_ctx->hw->soc_dcam->cam_ahb_lock);
+
 	dcam_hw_ctx->in_irq_proc = 0;
 	return ret;
 }

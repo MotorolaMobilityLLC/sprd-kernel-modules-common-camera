@@ -883,7 +883,10 @@ static int dcamhw_fetch_set(void *handle, void *arg)
 		fetch->fetch_info->trim.start_x, fetch_pitch, fetch->fetch_info->addr.addr_ch0, fetch->fetch_info->fmt);
 	/* (bitfile)unit 32b,(spec)64b */
 	DCAM_REG_WR(fetch->idx, DCAM_INT0_CLR, 0xFFFFFFFF);
-	DCAM_REG_WR(fetch->idx, DCAM_INT0_EN, DCAMINT_IRQ_LINE_EN0_NORMAL & (~BIT_2));
+	if (fetch->virtualsensor_pre_sof)
+		DCAM_REG_WR(fetch->idx, DCAM_INT0_EN, DCAMINT_IRQ_LINE_EN0_NORMAL & (~BIT_2) | BIT(DCAM_IF_IRQ_INT0_PREIEW_SOF));
+	else
+		DCAM_REG_WR(fetch->idx, DCAM_INT0_EN, DCAMINT_IRQ_LINE_EN0_NORMAL & (~BIT_2));
 
 	DCAM_REG_WR(fetch->idx, DCAM_INT1_CLR, 0xFFFFFFFF);
 	DCAM_REG_WR(fetch->idx, DCAM_INT1_EN, DCAMINT_IRQ_LINE_INT1_MASK);
@@ -1787,7 +1790,10 @@ static int dcamhw_slice_fetch_set(void *handle, void *arg)
 		bfp[1] = 8;
 
 	DCAM_REG_WR(idx, DCAM_INT0_CLR, 0xFFFFFFFF);
-	DCAM_REG_WR(idx, DCAM_INT0_EN, DCAMINT_IRQ_LINE_EN0_NORMAL & (~BIT_2));
+	if (slicearg->virtualsensor_pre_sof)
+		DCAM_REG_WR(idx, DCAM_INT0_EN, DCAMINT_IRQ_LINE_EN0_NORMAL & (~BIT_2) | BIT(DCAM_IF_IRQ_INT0_PREIEW_SOF));
+	else
+		DCAM_REG_WR(idx, DCAM_INT0_EN, DCAMINT_IRQ_LINE_EN0_NORMAL & (~BIT_2));
 	DCAM_REG_WR(idx, DCAM_INT1_CLR, 0xFFFFFFFF);
 	DCAM_REG_WR(idx, DCAM_INT1_EN, DCAMINT_IRQ_LINE_INT1_MASK);
 

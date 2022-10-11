@@ -407,6 +407,7 @@ static int camioctl_function_mode_set(struct camera_module *module,
 	ret |= get_user(module->cam_uinfo.zoom_conflict_with_ltm, &uparam->zoom_conflict_with_ltm);
 	ret |= get_user(module->cam_uinfo.need_dcam_raw, &uparam->need_dcam_raw);
 	ret |= get_user(module->master_flag, &uparam->master_flag);
+	ret |= get_user(module->cam_uinfo.virtualsensor, &uparam->virtualsensor);
 	module->cam_uinfo.is_rgb_ltm = hw->ip_isp->rgb_ltm_support;
 	module->cam_uinfo.is_rgb_gtm = hw->ip_isp->rgb_gtm_support;
 	if (g_pyr_dec_offline_bypass || module->channel[CAM_CH_CAP].ch_uinfo.is_high_fps
@@ -419,7 +420,7 @@ static int camioctl_function_mode_set(struct camera_module *module,
 		module->cam_uinfo.is_pyr_rec = 0;
 	else
 		module->cam_uinfo.is_pyr_rec = hw->ip_dcam[0]->pyramid_support;
-	pr_info("4in1:[%d], rgb_ltm[%d], gtm[%d], dual[%d], dec %d, raw_alg_type:%d, zoom_conflict_with_ltm %d, %d. dcam_raw %d, master_flag:%d\n",
+	pr_info("4in1:[%d], rgb_ltm[%d], gtm[%d], dual[%d], dec %d, raw_alg_type:%d, zoom_conflict_with_ltm %d, %d. dcam_raw %d, master_flag:%d,virtualsensor %d\n",
 		module->cam_uinfo.is_4in1,module->cam_uinfo.is_rgb_ltm,
 		module->cam_uinfo.is_rgb_gtm,
 		module->cam_uinfo.is_dual, module->cam_uinfo.is_pyr_dec,
@@ -427,7 +428,8 @@ static int camioctl_function_mode_set(struct camera_module *module,
 		module->cam_uinfo.zoom_conflict_with_ltm,
 		module->cam_uinfo.is_raw_alg,
 		module->cam_uinfo.need_dcam_raw,
-		module->master_flag);
+		module->master_flag,
+		module->cam_uinfo.virtualsensor);
 
 	if (unlikely(ret)) {
 		pr_err("fail to copy from user, ret %d\n", ret);
@@ -2021,6 +2023,8 @@ static int camioctl_raw_proc(struct camera_module *module,
 		ret = camcore_raw_post_proc(module, &proc_info);
 	} else if (proc_info.cmd == RAW_PROC_DONE) {
 		ret = camcore_raw_proc_done(module);
+	} else if (proc_info.cmd == VIRTUAL_SENSOR_PROC) {
+		ret = camcore_virtual_sensor_proc(module, &proc_info);
 	} else {
 		pr_err("fail to get correct cmd %d\n", proc_info.cmd);
 		ret = -EINVAL;
