@@ -932,6 +932,7 @@ static int dcamhw_mipi_cap_set(void *handle, void *arg)
 	uint32_t idx = 0, reg_val = 0;
 	struct dcam_mipi_info *cap_info = NULL;
 	struct dcam_hw_mipi_cap *caparg = NULL;
+	struct cam_hw_info *hw = NULL;
 	uint32_t image_vc = 0, image_mode = 1;
 	uint32_t image_data_type = IMG_TYPE_RAW10;
 	uint32_t bwu_shift = 4;
@@ -942,6 +943,7 @@ static int dcamhw_mipi_cap_set(void *handle, void *arg)
 		return -EFAULT;
 	}
 
+	hw = (struct cam_hw_info *)handle;
 	caparg = (struct dcam_hw_mipi_cap *)arg;
 	cap_info = &caparg->cap_info;
 	idx = caparg->idx;
@@ -1022,6 +1024,11 @@ static int dcamhw_mipi_cap_set(void *handle, void *arg)
 		if (cap_info->frm_skip == 0)
 			cap_info->frm_skip = 1;
 	}
+
+	if (hw->prj_id == QOGIRN6L) {
+		cap_info->frm_skip = 3;
+	}
+
 	DCAM_REG_MWR(idx, DCAM_MIPI_CAP_CFG,
 			BIT_8 | BIT_9 | BIT_10 | BIT_11,
 				cap_info->frm_skip << 8);

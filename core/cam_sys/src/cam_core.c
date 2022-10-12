@@ -1552,7 +1552,8 @@ static int camcore_pipeline_callback(enum cam_cb_type type, void *param, void *p
 	hw = module->grp->hw_info;
 	if (unlikely(type == CAM_CB_DCAM_DEV_ERR)) {
 		pr_info("fail to fatal err may need recovery\n");
-		csi_api_reg_trace();
+		if (hw->prj_id != QOGIRN6L)
+			csi_api_reg_trace();
 		if (*(uint32_t *)param) {
 			pr_info("cam %d start recovery\n", module->idx);
 			if (atomic_cmpxchg(&module->grp->recovery_state, CAM_RECOVERY_NONE, CAM_RECOVERY_RUNNING) == CAM_RECOVERY_NONE)

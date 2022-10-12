@@ -3183,12 +3183,14 @@ static int isphw_subblock_reconfig(void *handle, void *arg)
 	uint32_t ret = 0, idx = 0;
 	struct dcam_isp_k_block *p = NULL;
 	struct isp_hw_yuv_block_ctrl *blk_ctrl = NULL;
+	struct cam_hw_info *hw = NULL;
 
 	if (!arg) {
 		pr_err("fail to get valid input arg\n");
 		return -EFAULT;
 	}
 
+	hw = (struct cam_hw_info *)handle;
 	blk_ctrl = (struct isp_hw_yuv_block_ctrl *)arg;
 	p = blk_ctrl->blk_param;
 	idx = blk_ctrl->idx;
@@ -3196,6 +3198,8 @@ static int isphw_subblock_reconfig(void *handle, void *arg)
 		pr_err("fail to get reconfig blk param\n");
 		return -EFAULT;
 	}
+	if(hw->prj_id == QOGIRN6L)
+		p->hsv_info3.hsv_bypass = 1;
 	/* reconfig isp sublock */
 	isp_k_cnr_block(p, idx);
 	isp_k_post_cnr_block(p, idx);
