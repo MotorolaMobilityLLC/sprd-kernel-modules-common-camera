@@ -2810,7 +2810,7 @@ static int dcamhw_slw_fmcu_cmds(void *handle, void *arg)
 				addr = DCAM_GET_REG(fmcu->hw_ctx_id, DCAM_YUV_FBC_SCAL_SLICE_PLOAD_OFFSET_ADDR);
 				DCAM_FMCU_PUSH(fmcu, addr, slw->store_info[i].store_addr.addr_ch1 - slw->store_info[i].store_addr.addr_ch0);
 			}
-		} else if(i == DCAM_PATH_FULL) {
+		} else if (i == DCAM_PATH_FULL) {
 			addr = DCAM_GET_REG(fmcu->hw_ctx_id, DCAM_STORE4_SLICE_Y_ADDR);
 			cmd = slw->store_info[i].store_addr.addr_ch0;
 			DCAM_FMCU_PUSH(fmcu, addr, cmd);
@@ -2833,6 +2833,15 @@ static int dcamhw_slw_fmcu_cmds(void *handle, void *arg)
 			addr = DCAM_GET_REG(fmcu->hw_ctx_id, DCAM_BAYER_HIST_BASE_WADDR);
 			cmd = slw->store_info[i].store_addr.addr_ch0 + STATIS_HIST_HEADER_SIZE;
 			DCAM_FMCU_PUSH(fmcu, addr, cmd);
+		} else if (i == DCAM_PATH_AFM) {
+			addr = DCAM_GET_REG(fmcu->hw_ctx_id, DCAM_AFM_LUM_FV_BASE_WADDR);
+			cmd = slw->store_info[i].store_addr.addr_ch0;
+			DCAM_FMCU_PUSH(fmcu, addr, cmd);
+			addr = DCAM_GET_REG(fmcu->hw_ctx_id, DCAM_AFM_HIST_BASE_WADDR);
+			cmd = slw->store_info[i].store_addr.addr_ch1;
+			DCAM_FMCU_PUSH(fmcu, addr, cmd);
+		} else if (i == DCAM_PATH_GTM_HIST) {
+			continue;
 		} else {
 			addr = DCAM_GET_REG(fmcu->hw_ctx_id, slw->store_info[i].reg_addr);
 			cmd = slw->store_info[i].store_addr.addr_ch0;

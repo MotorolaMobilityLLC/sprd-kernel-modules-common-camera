@@ -2753,6 +2753,9 @@ static int dcamhw_slw_fmcu_cmds(void *handle, void *arg)
 			addr = DCAM_GET_REG(fmcu->hw_ctx_id, DCAM_AFM_LUM_FV_BASE_WADDR);
 			cmd = slw->store_info[i].store_addr.addr_ch0;
 			DCAM_FMCU_PUSH(fmcu, addr, cmd);
+			addr = DCAM_GET_REG(fmcu->hw_ctx_id, DCAM_AFM_HIST_BASE_WADDR);
+			cmd = slw->store_info[i].store_addr.addr_ch1;
+			DCAM_FMCU_PUSH(fmcu, addr, cmd);
 			break;
 		case DCAM_PATH_FRGB_HIST:
 			addr = DCAM_GET_REG(fmcu->hw_ctx_id, DCAM_HIST_ROI_BASE_WADDR);
@@ -2763,6 +2766,8 @@ static int dcamhw_slw_fmcu_cmds(void *handle, void *arg)
 			addr = DCAM_GET_REG(fmcu->hw_ctx_id, DCAM_LSCM_BASE_WADDR);
 			cmd = slw->store_info[i].store_addr.addr_ch0;
 			DCAM_FMCU_PUSH(fmcu, addr, cmd);
+			break;
+		case DCAM_PATH_GTM_HIST:
 			break;
 		default :
 			pr_err("fail to get valid path id%d\n", i);

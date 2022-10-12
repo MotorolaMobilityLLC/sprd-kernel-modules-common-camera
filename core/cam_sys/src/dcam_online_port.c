@@ -119,6 +119,8 @@ static void dcamonline_port_check_status(struct dcam_online_port *dcam_port,
 	if (blk_dcam_pm->rgb_gtm[DCAM_GTM_PARAM_PRE].rgb_gtm_info.bypass_info.gtm_hist_stat_bypass
 		&& (blk_dcam_pm->rgb_gtm[DCAM_GTM_PARAM_PRE].rgb_gtm_info.bypass_info.gtm_mod_en == 0))
 		recycle = 1;
+	if (g_dcam_bypass[hw_ctx->hw_ctx_id] & (1 << _E_GTM))
+		recycle = 1;
 	if (recycle) {
 		pr_debug("dcam hw%d gtm bypass, no need buf\n", hw_ctx->hw_ctx_id);
 		frame = cam_buf_manager_buf_dequeue(&dcam_port->result_pool, &buf_desc);
@@ -1111,6 +1113,14 @@ static int dcamonline_port_slw_store_set(void *handle, void *param)
 		break;
 	case PORT_FRGB_HIST_OUT:
 		dcamonline_port_hist_update_statis_head(dcam_port, out_frame, hw_ctx, blk_dcam_pm);
+		break;
+	case PORT_AFM_OUT:
+		if (slw && blk_dcam_pm) {
+			uint32_t w = 0, h = 0;
+			w = blk_dcam_pm->afm.win_num.width;
+			h = blk_dcam_pm->afm.win_num.height;
+			slw->store_info[path_id].store_addr.addr_ch1 = out_frame->buf.iova + w * h * 16;
+		}
 		break;
 	}
 	pr_debug("path%s set no.%d buffer done!pitch:%d.\n", cam_port_name_get(port_id), hw_ctx->slw_idx, dcam_port->out_pitch);

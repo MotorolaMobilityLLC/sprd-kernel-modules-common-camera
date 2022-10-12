@@ -933,6 +933,7 @@ int dcam_path_fmcu_slw_store_buf_set(
 	struct camera_frame *out_frame = NULL;
 	struct cam_hw_info *hw = NULL;
 	uint32_t idx = 0;
+	struct dcam_dev_param *blk_dcam_pm = &sw_ctx->ctx[sw_ctx->cur_ctx_id].blk_pm;
 
 	if (!path || !sw_ctx) {
 		pr_err("fail to check param, path%px, sw_ctx %px\n", path, sw_ctx);
@@ -1009,7 +1010,12 @@ int dcam_path_fmcu_slw_store_buf_set(
 
 		if (path_id == DCAM_PATH_AFL)
 			out_frame->buf.iova[1] = out_frame->buf.iova[0] + hw->ip_dcam[idx]->afl_gbuf_size;
-
+		if (path_id == DCAM_PATH_AFM) {
+			uint32_t w = 0, h = 0;
+			w = blk_dcam_pm->afm.win_num.width;
+			h = blk_dcam_pm->afm.win_num.height;
+			out_frame->buf.iova[1] = out_frame->buf.iova[0] + w * h * 16;
+		}
 		slw->store_info[path_id].store_addr.addr_ch1 = out_frame->buf.iova[1];
 		slw->store_info[path_id].store_addr.addr_ch2 = out_frame->buf.iova[2];
 	}
@@ -1090,6 +1096,8 @@ void dcampath_check_path_status(struct dcam_sw_context *dcam_sw_ctx, struct dcam
 		recycle = 1;
 	if (blk_dcam_pm->rgb_gtm[DCAM_GTM_PARAM_PRE].rgb_gtm_info.bypass_info.gtm_hist_stat_bypass
 		&& (blk_dcam_pm->rgb_gtm[DCAM_GTM_PARAM_PRE].rgb_gtm_info.bypass_info.gtm_mod_en == 0))
+		recycle = 1;
+	if (g_dcam_bypass[dcam_sw_ctx->hw_ctx_id] & (1 << _E_GTM))
 		recycle = 1;
 	if (recycle) {
 		pr_debug("dcam sw%d gtm bypass, no need buf\n", dcam_sw_ctx->sw_ctx_id);
