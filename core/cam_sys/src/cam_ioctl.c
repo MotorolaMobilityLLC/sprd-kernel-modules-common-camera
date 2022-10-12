@@ -1923,7 +1923,7 @@ static int camioctl_capture_start(struct camera_module *module,
 	cap_param.cap_timestamp = module->capture_times;
 	cap_param.cap_scene = module->capture_scene;
 	if ((!module->cam_uinfo.dcam_slice_mode && module->cam_uinfo.zsl_num != 0
-		&& !module->cam_uinfo.is_4in1) || module->cam_uinfo.is_dual)
+		&& !module->cam_uinfo.is_4in1 && (module->capture_scene != CAPTURE_AI_SFNR)) || module->cam_uinfo.is_dual)
 		ret = CAM_PIPEINE_FRAME_CACHE_NODE_CFG(ch, CAM_PIPELINE_CFG_CAP_PARAM, &cap_param);
 	else
 		ret = CAM_PIPEINE_DCAM_ONLINE_NODE_CFG(ch, CAM_PIPELINE_CFG_CAP_PARAM, &cap_param);

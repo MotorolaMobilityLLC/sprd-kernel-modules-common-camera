@@ -2594,8 +2594,9 @@ static int camcore_dcamonline_desc_get(struct camera_module *module,
 				dcam_online_desc->port_desc[i].raw_src = BPC_RAW_SRC_SEL;
 			}
 		} else if (pipeline_type == CAM_PIPELINE_ONLINERAW_2_USER_2_BPCRAW_2_USER_2_OFFLINEYUV
-				|| pipeline_type == CAM_PIPELINE_ONLINE_NORMAL2YUV_OR_RAW2USER2YUV) {
-			if (outport_graph->link.port_id == PORT_RAW_OUT) {
+				|| pipeline_type == CAM_PIPELINE_ONLINE_NORMAL2YUV_OR_RAW2USER2YUV
+				|| pipeline_type == CAM_PIPELINE_ONLINE_NORMALZSLCAPTURE_OR_RAW2USER2YUV) {
+			if (outport_graph->id == PORT_RAW_OUT) {
 				dcam_online_desc->port_desc[i].is_raw = 1;
 				dcam_online_desc->port_desc[i].dcam_out_fmt = CAM_RAW_14;
 			}
@@ -2776,7 +2777,8 @@ static camcore_dcamoffline_desc_get(struct camera_module *module,
 		dcam_offline_desc->port_desc.dcam_out_fmt = CAM_YUV420_2FRAME_MIPI;
 	channel->dcam_out_fmt = dcam_offline_desc->port_desc.dcam_out_fmt;
 	if (pipeline_type == CAM_PIPELINE_ONLINERAW_2_USER_2_BPCRAW_2_USER_2_OFFLINEYUV
-		|| pipeline_type == CAM_PIPELINE_ONLINE_NORMAL2YUV_OR_RAW2USER2YUV) {
+		|| pipeline_type == CAM_PIPELINE_ONLINE_NORMAL2YUV_OR_RAW2USER2YUV
+		|| pipeline_type == CAM_PIPELINE_ONLINE_NORMALZSLCAPTURE_OR_RAW2USER2YUV) {
 		if (module->cam_uinfo.raw_alg_type)
 			dcam_offline_desc->fetch_fmt = CAM_RAW_14;
 		dcam_offline_desc->port_desc.dcam_out_fmt = CAM_YUV420_2FRAME_MIPI;
@@ -2963,6 +2965,8 @@ static int camcore_pipeline_init(struct camera_module *module,
 		if (module->cam_uinfo.is_raw_alg) {
 			if (module->cam_uinfo.raw_alg_type == RAW_ALG_AI_SFNR) {
 				pipeline_type = CAM_PIPELINE_ONLINE_NORMAL2YUV_OR_RAW2USER2YUV;
+				if (module->cam_uinfo.zsl_num != 0)
+					pipeline_type = CAM_PIPELINE_ONLINE_NORMALZSLCAPTURE_OR_RAW2USER2YUV;
 				if (module->cam_uinfo.param_frame_sync) {
 					dcam_port_id = dcamoffline_pathid_convert_to_portid(hw->ip_dcam[0]->dcam_raw_path_id);
 					pipeline_type = CAM_PIPELINE_ONLINERAW_2_USER_2_OFFLINEYUV;
