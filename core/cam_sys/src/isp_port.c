@@ -1590,7 +1590,7 @@ void *isp_port_get(uint32_t port_id, struct isp_port_desc *port_desc)
 	}
 
 	if (*port_desc->port_dev == NULL) {
-		port = vzalloc(sizeof(struct isp_port));
+		port = cam_buf_kernel_sys_vzalloc(sizeof(struct isp_port));
 		if (!port) {
 			pr_err("fail to get valid isp port %d\n", port_id);
 			return NULL;
@@ -1657,7 +1657,7 @@ void isp_port_put(struct isp_port *port)
 		port->resbuf_get_cb = NULL;
 		port->data_cb_func = NULL;
 		port->port_cfg_cb_func = NULL;
-		vfree(port);
+		cam_buf_kernel_sys_vfree(port);
 		port = NULL;
 		pr_info("isp portfree success\n");
 	}

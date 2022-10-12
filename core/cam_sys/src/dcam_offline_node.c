@@ -598,18 +598,18 @@ static int dcamoffline_pmctx_init(struct dcam_offline_node *node)
 
 	init_dcam_pm(blk_pm);
 
-	pa->weight_tab_x = kzalloc(DCAM_LSC_WEIGHT_TAB_SIZE, GFP_ATOMIC);
+	pa->weight_tab_x = cam_buf_kernel_sys_kzalloc(DCAM_LSC_WEIGHT_TAB_SIZE, GFP_KERNEL);
 	if (pa->weight_tab_x == NULL) {
 		ret = -ENOMEM;
 		goto buf_fail;
 	}
-	pa->weight_tab_y = kzalloc(DCAM_LSC_WEIGHT_TAB_SIZE, GFP_ATOMIC);
+	pa->weight_tab_y = cam_buf_kernel_sys_kzalloc(DCAM_LSC_WEIGHT_TAB_SIZE, GFP_KERNEL);
 	if (pa->weight_tab_y == NULL) {
 		ret = -ENOMEM;
 		goto weight_tab_y_fail;
 	}
 
-	pa->weight_tab = kzalloc(DCAM_LSC_WEIGHT_TAB_SIZE, GFP_ATOMIC);
+	pa->weight_tab = cam_buf_kernel_sys_kzalloc(DCAM_LSC_WEIGHT_TAB_SIZE, GFP_KERNEL);
 	if (pa->weight_tab == NULL) {
 		ret = -ENOMEM;
 		goto weight_tab_fail;
@@ -618,10 +618,10 @@ static int dcamoffline_pmctx_init(struct dcam_offline_node *node)
 	return 0;
 
 weight_tab_fail:
-	kfree(pa->weight_tab_y);
+	cam_buf_kernel_sys_kfree(pa->weight_tab_y);
 	pa->weight_tab_y = NULL;
 weight_tab_y_fail:
-	kfree(pa->weight_tab_x);
+	cam_buf_kernel_sys_kfree(pa->weight_tab_x);
 	pa->weight_tab_x = NULL;
 buf_fail:
 	cam_buf_kunmap(&blk_pm->lsc.buf);
@@ -650,15 +650,15 @@ static int dcamoffline_pmctx_deinit(struct dcam_offline_node *node)
 	cam_buf_kunmap(&blk_pm->lsc.buf);
 	cam_buf_free(&blk_pm->lsc.buf);
 	if(blk_pm->lsc.weight_tab) {
-		kfree(blk_pm->lsc.weight_tab);
+		cam_buf_kernel_sys_kfree(blk_pm->lsc.weight_tab);
 		blk_pm->lsc.weight_tab = NULL;
 	}
 	if(blk_pm->lsc.weight_tab_x) {
-		kfree(blk_pm->lsc.weight_tab_x);
+		cam_buf_kernel_sys_kfree(blk_pm->lsc.weight_tab_x);
 		blk_pm->lsc.weight_tab_x = NULL;
 	}
 	if(blk_pm->lsc.weight_tab_y) {
-		kfree(blk_pm->lsc.weight_tab_y);
+		cam_buf_kernel_sys_kfree(blk_pm->lsc.weight_tab_y);
 		blk_pm->lsc.weight_tab_y = NULL;
 	}
 
@@ -679,7 +679,7 @@ static int dcamoffline_pmbuf_init(struct dcam_offline_node *node)
 
 	for (i = 0; i < DCAM_OFFLINE_PARAM_Q_LEN; i++) {
 		param_frm = cam_queue_empty_frame_get();
-		param_frm->blkparam_info.param_block = vzalloc(sizeof(struct dcam_isp_k_block));
+		param_frm->blkparam_info.param_block = cam_buf_kernel_sys_vzalloc(sizeof(struct dcam_isp_k_block));
 		param_frm->fid = 0xffff;
 		if (param_frm->blkparam_info.param_block) {
 			init_dcam_pm(param_frm->blkparam_info.param_block);
@@ -695,18 +695,18 @@ static int dcamoffline_pmbuf_init(struct dcam_offline_node *node)
 			ret = cam_buf_kmap(&param_frm->blkparam_info.param_block->lsc.buf);
 			if (ret)
 				goto map_fail;
-			pa->weight_tab_x = kzalloc(DCAM_LSC_WEIGHT_TAB_SIZE, GFP_ATOMIC);
+			pa->weight_tab_x = cam_buf_kernel_sys_kzalloc(DCAM_LSC_WEIGHT_TAB_SIZE, GFP_KERNEL);
 			if (pa->weight_tab_x == NULL) {
 				ret = -ENOMEM;
 				goto weight_tab_x_fail;
 			}
-			pa->weight_tab_y = kzalloc(DCAM_LSC_WEIGHT_TAB_SIZE, GFP_ATOMIC);
+			pa->weight_tab_y = cam_buf_kernel_sys_kzalloc(DCAM_LSC_WEIGHT_TAB_SIZE, GFP_KERNEL);
 			if (pa->weight_tab_y == NULL) {
 				ret = -ENOMEM;
 				goto weight_tab_y_fail;
 			}
 
-			pa->weight_tab = kzalloc(DCAM_LSC_WEIGHT_TAB_SIZE, GFP_ATOMIC);
+			pa->weight_tab = cam_buf_kernel_sys_kzalloc(DCAM_LSC_WEIGHT_TAB_SIZE, GFP_KERNEL);
 			if (pa->weight_tab == NULL) {
 				ret = -ENOMEM;
 				goto weight_tab_fail;
@@ -716,7 +716,7 @@ static int dcamoffline_pmbuf_init(struct dcam_offline_node *node)
 				pr_warn("Warning:fail to enqueue empty queue.\n");
 				cam_buf_kunmap(&param_frm->blkparam_info.param_block->lsc.buf);
 				cam_buf_free(&param_frm->blkparam_info.param_block->lsc.buf);
-				vfree(param_frm->blkparam_info.param_block);
+				cam_buf_kernel_sys_vfree(param_frm->blkparam_info.param_block);
 				cam_queue_empty_frame_put(param_frm);
 			}
 		} else {
@@ -729,10 +729,10 @@ static int dcamoffline_pmbuf_init(struct dcam_offline_node *node)
 	return 0;
 
 weight_tab_fail:
-	kfree(pa->weight_tab_y);
+	cam_buf_kernel_sys_kfree(pa->weight_tab_y);
 	pa->weight_tab_y = NULL;
 weight_tab_y_fail:
-	kfree(pa->weight_tab_x);
+	cam_buf_kernel_sys_kfree(pa->weight_tab_x);
 	pa->weight_tab_x = NULL;
 weight_tab_x_fail:
 	cam_buf_kunmap(&param_frm->blkparam_info.param_block->lsc.buf);
@@ -741,7 +741,7 @@ map_fail:
 	cam_buf_free(&param_frm->blkparam_info.param_block->lsc.buf);
 alloc_fail:
 	pr_err("fail to alloc lsc buf.\n");
-	vfree(param_frm->blkparam_info.param_block);
+	cam_buf_kernel_sys_vfree(param_frm->blkparam_info.param_block);
 	cam_queue_empty_frame_put(param_frm);
 
 	return -1;
@@ -766,18 +766,18 @@ static void dcamoffline_pmbuf_destroy(void *param)
 	cam_buf_kunmap(&param_frm->blkparam_info.param_block->lsc.buf);
 	cam_buf_free(&param_frm->blkparam_info.param_block->lsc.buf);
 	if(param_frm->blkparam_info.param_block->lsc.weight_tab) {
-		kfree(param_frm->blkparam_info.param_block->lsc.weight_tab);
+		cam_buf_kernel_sys_kfree(param_frm->blkparam_info.param_block->lsc.weight_tab);
 		param_frm->blkparam_info.param_block->lsc.weight_tab = NULL;
 	}
 	if(param_frm->blkparam_info.param_block->lsc.weight_tab_x) {
-		kfree(param_frm->blkparam_info.param_block->lsc.weight_tab_x);
+		cam_buf_kernel_sys_kfree(param_frm->blkparam_info.param_block->lsc.weight_tab_x);
 		param_frm->blkparam_info.param_block->lsc.weight_tab_x = NULL;
 	}
 	if(param_frm->blkparam_info.param_block->lsc.weight_tab_y) {
-		kfree(param_frm->blkparam_info.param_block->lsc.weight_tab_y);
+		cam_buf_kernel_sys_kfree(param_frm->blkparam_info.param_block->lsc.weight_tab_y);
 		param_frm->blkparam_info.param_block->lsc.weight_tab_y = NULL;
 	}
-	vfree(param_frm->blkparam_info.param_block);
+	cam_buf_kernel_sys_vfree(param_frm->blkparam_info.param_block);
 	param_frm->blkparam_info.param_block = NULL;
 	cam_queue_empty_frame_put(param_frm);
 }
@@ -990,7 +990,7 @@ void *dcam_offline_node_get(uint32_t node_id, struct dcam_offline_node_desc *par
 
 	pr_info("node id %d node_dev %px\n", node_id, *param->node_dev);
 	if (*param->node_dev == NULL) {
-		node = vzalloc(sizeof(struct dcam_offline_node));
+		node = cam_buf_kernel_sys_vzalloc(sizeof(struct dcam_offline_node));
 		if (!node) {
 			pr_err("fail to get valid dcam offline node\n");
 			return NULL;
@@ -1080,6 +1080,6 @@ void dcam_offline_node_put(struct dcam_offline_node *node)
 	node->port_cfg_cb_func = NULL;
 	node->port_cfg_cb_handle = NULL;
 	pr_info("dcam offline node %d put success\n", node->node_id);
-	vfree(node);
+	cam_buf_kernel_sys_vfree(node);
 	node = NULL;
 }

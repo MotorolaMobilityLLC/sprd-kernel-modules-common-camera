@@ -1085,7 +1085,7 @@ void thumbInitSliceInfo_forhw(struct thumbscaler_info *thumbnail_info, int col, 
 	uint16_t first2,second2,third2,fourth2;
 	int flagsum ;
 	int a[4] = {1,2,3,4};
-	uint16_t *aa = (uint16_t*)vzalloc(16 * sizeof(uint16_t));
+	uint16_t *aa = (uint16_t*)cam_buf_kernel_sys_vzalloc(16 * sizeof(uint16_t));
 	int coltemp=0,rowtemp=0;
 	int i;
 
@@ -1285,7 +1285,7 @@ void thumbInitSliceInfo_forhw(struct thumbscaler_info *thumbnail_info, int col, 
 			thumbnail_info->configinfo.trim0slice_totalrow = thumbnail_info->thumbinfo.thumbsliceinfo[id].trim0slice_row + 1;
 		}
 	}
-	vfree(aa);
+	cam_buf_kernel_sys_vfree(aa);
 
 	thumbnail_info->thumbinfo.thumbsliceinfo[id].totalcol = totalcol;
 	thumbnail_info->thumbinfo.thumbsliceinfo[id].totalrow = totalrow;
@@ -1641,7 +1641,8 @@ void thumbnailscaler_calculate_region(
 	struct THUMB_SLICE_PARAM_T *thumbslice_param;
 	int id =0;
 	struct thumbscaler_info thumbscaler_param_temp = {0};
-	struct THUMB_SLICE_PARAM_T *sliceInfo = (struct THUMB_SLICE_PARAM_T *)vzalloc(sizeof(struct THUMB_SLICE_PARAM_T) * slicerows * slicecols);
+	struct THUMB_SLICE_PARAM_T *sliceInfo = (struct THUMB_SLICE_PARAM_T *)
+		cam_buf_kernel_sys_vzalloc(sizeof(struct THUMB_SLICE_PARAM_T) * slicerows * slicecols);
 
 	isp_drv_regions_set(r_ref,r_out);
 
@@ -1712,7 +1713,7 @@ void thumbnailscaler_calculate_region(
 	r_out->rows = rows;
 	r_out->cols = cols;
 
-	vfree(sliceInfo);
+	cam_buf_kernel_sys_vfree(sliceInfo);
 }
 
 void method_firmware_for_driver(struct thumbscaler_this *thumbnail_scaler,

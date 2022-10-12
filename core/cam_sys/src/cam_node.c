@@ -1148,7 +1148,7 @@ void *cam_node_creat(struct cam_node_desc *param)
 		return NULL;
 	}
 
-	node = vzalloc(sizeof(struct cam_node));
+	node = cam_buf_kernel_sys_vzalloc(sizeof(struct cam_node));
 	if (!node) {
 		pr_err("fail to alloc cam node\n");
 		return NULL;
@@ -1158,7 +1158,7 @@ void *cam_node_creat(struct cam_node_desc *param)
 	nodes_dev = (struct cam_nodes_dev *)param->nodes_dev;
 	if (!node->node_graph || !nodes_dev) {
 		pr_err("fail to get valid node graph %p\n", nodes_dev);
-		vfree(node);
+		cam_buf_kernel_sys_vfree(node);
 		return NULL;
 	}
 
@@ -1379,6 +1379,6 @@ void cam_node_destory(struct cam_node *node)
 		node->inport_list[i] = NULL;
 	}
 
-	vfree(node);
+	cam_buf_kernel_sys_vfree(node);
 	node = NULL;
 }

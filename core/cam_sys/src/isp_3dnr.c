@@ -920,7 +920,7 @@ void *isp_3dnr_ctx_get(uint32_t idx)
 {
 	struct isp_3dnr_ctx_desc *nr3_ctx = NULL;
 
-	nr3_ctx = vzalloc(sizeof(struct isp_3dnr_ctx_desc));
+	nr3_ctx = cam_buf_kernel_sys_vzalloc(sizeof(struct isp_3dnr_ctx_desc));
 	if (!nr3_ctx)
 		return NULL;
 
@@ -952,6 +952,6 @@ void isp_3dnr_ctx_put(void *nr3_handle)
 	}
 
 	if (nr3_ctx)
-		vfree(nr3_ctx);
+		cam_buf_kernel_sys_vfree(nr3_ctx);
 	nr3_ctx = NULL;
 }

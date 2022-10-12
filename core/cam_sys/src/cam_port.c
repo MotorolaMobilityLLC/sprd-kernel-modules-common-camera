@@ -333,7 +333,7 @@ void *cam_port_creat(struct cam_port_desc *param, uint32_t node_id)
 		return NULL;
 	}
 
-	port = vzalloc(sizeof(struct cam_port));
+	port = cam_buf_kernel_sys_vzalloc(sizeof(struct cam_port));
 	if (!port) {
 		pr_err("fail to alloc cam port\n");
 		return NULL;
@@ -342,7 +342,7 @@ void *cam_port_creat(struct cam_port_desc *param, uint32_t node_id)
 	port->port_graph = param->port_graph;
 	if (!port->port_graph) {
 		pr_info("port->port_graph is NULL\n");
-		vfree(port);
+		cam_buf_kernel_sys_vfree(port);
 		return NULL;
 	}
 
@@ -350,7 +350,7 @@ void *cam_port_creat(struct cam_port_desc *param, uint32_t node_id)
 	pr_debug("port id %d nodes_dev %px\n", port->port_graph->id, nodes_dev);
 	if (!nodes_dev) {
 		pr_info("nodes_dev is NULL\n");
-		vfree(port);
+		cam_buf_kernel_sys_vfree(port);
 		return NULL;
 	}
 
@@ -438,6 +438,6 @@ void cam_port_destory(struct cam_port *port)
 
 	pr_info("node type %s port %s free success\n", cam_node_name_get(port->port_graph->node_type),
 			cam_port_name_get(port->port_graph->id));
-	vfree(port);
+	cam_buf_kernel_sys_vfree(port);
 	port = NULL;
 }

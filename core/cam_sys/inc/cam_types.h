@@ -87,6 +87,8 @@ struct cam_mem_dbg_info {
 	atomic_t iommu_map_cnt[6];
 	atomic_t empty_frm_cnt;
 	atomic_t empty_interruption_cnt;
+	atomic_t mem_kzalloc_cnt;
+	atomic_t mem_vzalloc_cnt;
 };
 extern struct cam_mem_dbg_info *g_mem_dbg;
 

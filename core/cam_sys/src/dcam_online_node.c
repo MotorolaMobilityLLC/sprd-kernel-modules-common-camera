@@ -1664,17 +1664,17 @@ int dcam_online_node_pmctx_init(struct dcam_online_node *node)
 
 	init_dcam_pm(blk_pm_ctx);
 
-	pa->weight_tab_x = kzalloc(DCAM_LSC_WEIGHT_TAB_SIZE, GFP_ATOMIC);
+	pa->weight_tab_x = cam_buf_kernel_sys_kzalloc(DCAM_LSC_WEIGHT_TAB_SIZE, GFP_KERNEL);
 	if (pa->weight_tab_x == NULL) {
 		ret = -ENOMEM;
 		goto buf_fail;
 	}
-	pa->weight_tab_y = kzalloc(DCAM_LSC_WEIGHT_TAB_SIZE, GFP_ATOMIC);
+	pa->weight_tab_y = cam_buf_kernel_sys_kzalloc(DCAM_LSC_WEIGHT_TAB_SIZE, GFP_KERNEL);
 	if (pa->weight_tab_y == NULL) {
 		ret = -ENOMEM;
 		goto weight_tab_y_fail;
 	}
-	pa->weight_tab = kzalloc(DCAM_LSC_WEIGHT_TAB_SIZE, GFP_ATOMIC);
+	pa->weight_tab = cam_buf_kernel_sys_kzalloc(DCAM_LSC_WEIGHT_TAB_SIZE, GFP_KERNEL);
 	if (pa->weight_tab == NULL) {
 		ret = -ENOMEM;
 		goto weight_tab;
@@ -1683,10 +1683,10 @@ int dcam_online_node_pmctx_init(struct dcam_online_node *node)
 	return 0;
 
 weight_tab:
-	kfree(pa->weight_tab_y);
+	cam_buf_kernel_sys_kfree(pa->weight_tab_y);
 	pa->weight_tab_y = NULL;
 weight_tab_y_fail:
-	kfree(pa->weight_tab_x);
+	cam_buf_kernel_sys_kfree(pa->weight_tab_x);
 	pa->weight_tab_x = NULL;
 buf_fail:
 	cam_buf_kunmap(&blk_pm_ctx->lsc.buf);
@@ -1727,15 +1727,15 @@ int dcam_online_node_pmctx_deinit(struct dcam_online_node *node)
 	cam_buf_kunmap(&blk_pm_ctx->lsc.buf);
 	cam_buf_free(&blk_pm_ctx->lsc.buf);
 	if(blk_pm_ctx->lsc.weight_tab) {
-		kfree(blk_pm_ctx->lsc.weight_tab);
+		cam_buf_kernel_sys_kfree(blk_pm_ctx->lsc.weight_tab);
 		blk_pm_ctx->lsc.weight_tab = NULL;
 	}
 	if(blk_pm_ctx->lsc.weight_tab_x) {
-		kfree(blk_pm_ctx->lsc.weight_tab_x);
+		cam_buf_kernel_sys_kfree(blk_pm_ctx->lsc.weight_tab_x);
 		blk_pm_ctx->lsc.weight_tab_x = NULL;
 	}
 	if(blk_pm_ctx->lsc.weight_tab_y) {
-		kfree(blk_pm_ctx->lsc.weight_tab_y);
+		cam_buf_kernel_sys_kfree(blk_pm_ctx->lsc.weight_tab_y);
 		blk_pm_ctx->lsc.weight_tab_y = NULL;
 	}
 	atomic_set(&node->pm_cnt, 0);
@@ -2014,7 +2014,7 @@ int dcam_online_node_reset(struct dcam_online_node *node, void *param)
 					struct isp_offline_param *prev = NULL;
 					while (in_param) {
 						prev = (struct isp_offline_param *)in_param->prev;
-						kfree(in_param);
+						cam_buf_kernel_sys_vfree(in_param);
 						in_param = prev;
 					}
 					frame->param_data = NULL;
@@ -2119,7 +2119,7 @@ void *dcam_online_node_get(uint32_t node_id, struct dcam_online_node_desc *param
 
 	pr_info("node id %d node_dev %px\n", node_id, *param->node_dev);
 	if (*param->node_dev == NULL) {
-		node = vzalloc(sizeof(struct dcam_online_node));
+		node = cam_buf_kernel_sys_vzalloc(sizeof(struct dcam_online_node));
 		if (!node) {
 			pr_err("fail to get valid dcam online node\n");
 			return NULL;
@@ -2215,7 +2215,7 @@ void dcam_online_node_put(struct dcam_online_node *node)
 		node->port_cfg_cb_handle = NULL;
 		atomic_set(&node->state, STATE_INIT);
 		pr_info("dcam online node %d put success\n", node->node_id);
-		vfree(node);
+		cam_buf_kernel_sys_vfree(node);
 		node = NULL;
 	}
 }

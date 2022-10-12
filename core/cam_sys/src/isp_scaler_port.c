@@ -651,7 +651,7 @@ void *isp_scaler_port_get(uint32_t port_id, struct isp_scaler_port_desc *param)
 
 	pr_info("port id %d  node_dev %px\n", port_id, *param->port_dev);
 	if (*param->port_dev == NULL) {
-		port = vzalloc(sizeof(struct isp_scaler_port));
+		port = cam_buf_kernel_sys_vzalloc(sizeof(struct isp_scaler_port));
 		if (!port) {
 			pr_err("fail to get valid isp port %d\n", port_id);
 			return NULL;
@@ -688,7 +688,7 @@ void isp_scaler_port_put(struct isp_scaler_port *port)
 	atomic_set(&port->user_cnt, 0);
 	port->resbuf_get_cb = NULL;
 	port->data_cb_func = NULL;
-	vfree(port);
+	cam_buf_kernel_sys_vfree(port);
 	port = NULL;
 	pr_info("isp port free success\n");
 }

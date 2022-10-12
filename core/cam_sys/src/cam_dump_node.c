@@ -459,7 +459,7 @@ void *cam_dump_node_get(uint32_t node_id, cam_data_cb cb_func, void *priv_data)
 		return NULL;
 	}
 
-	node = vzalloc(sizeof(struct cam_dump_node));
+	node = cam_buf_kernel_sys_vzalloc(sizeof(struct cam_dump_node));
 	if (!node) {
 		pr_err("fail to get valid cam dump node\n");
 		return NULL;
@@ -502,7 +502,7 @@ void cam_dump_node_put(struct cam_dump_node *node)
 	node->dump_cb_func = NULL;
 	node->dump_cb_handle = NULL;
 	pr_info("cam dump node %d put\n", node->node_id);
-	vfree(node);
+	cam_buf_kernel_sys_vfree(node);
 	node = NULL;
 }
 

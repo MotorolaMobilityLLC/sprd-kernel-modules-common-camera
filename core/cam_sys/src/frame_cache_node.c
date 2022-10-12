@@ -265,7 +265,7 @@ void *frame_cache_node_get(uint32_t node_id, struct frame_cache_node_desc *param
 		return NULL;
 	}
 
-	node = vzalloc(sizeof(struct frame_cache_node));
+	node = cam_buf_kernel_sys_vzalloc(sizeof(struct frame_cache_node));
 	if (!node) {
 		pr_err("fail to get valid frame cache node\n");
 		return NULL;
@@ -300,6 +300,6 @@ void frame_cache_node_put(struct frame_cache_node *node)
 	}
 
 	cam_queue_clear(&node->cache_buf_queue, struct camera_frame, list);
-	vfree(node);
+	cam_buf_kernel_sys_vfree(node);
 	node = NULL;
 }

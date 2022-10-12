@@ -271,7 +271,7 @@ static int dcamonline_port_size_cfg(void *handle, void *param)
 		}
 
 		if (dcam_online_port->priv_size_data) {
-			kvfree(dcam_online_port->priv_size_data);
+			cam_buf_kernel_sys_vfree(dcam_online_port->priv_size_data);
 			dcam_online_port->priv_size_data = NULL;
 		}
 		dcam_online_port->priv_size_data = ch_desc->priv_size_data;
@@ -1336,7 +1336,7 @@ void *dcam_online_port_get(uint32_t port_id, struct dcam_online_port_desc *param
 
 	pr_debug("port id %s param %px node_dev %px\n", cam_port_name_get(port_id), param, *param->port_dev);
 	if (*param->port_dev == NULL) {
-		port = vzalloc(sizeof(struct dcam_online_port));
+		port = cam_buf_kernel_sys_vzalloc(sizeof(struct dcam_online_port));
 		if (!port) {
 			pr_err("fail to get valid dcam online port %d\n", port_id);
 			return NULL;
@@ -1370,7 +1370,7 @@ void *dcam_online_port_get(uint32_t port_id, struct dcam_online_port_desc *param
 	ret = cam_buf_manager_pool_reg(NULL, DCAM_OUT_BUF_Q_LEN);
 	if (ret < 0) {
 		pr_err("fail to reg pool for port%d\n", port->port_id);
-		vfree(port);
+		cam_buf_kernel_sys_vfree(port);
 		return NULL;
 	}
 	port->unprocess_pool.private_pool_idx = ret;
@@ -1379,7 +1379,7 @@ void *dcam_online_port_get(uint32_t port_id, struct dcam_online_port_desc *param
 	if (ret < 0) {
 		pr_err("fail to reg pool for port%d\n", cam_port_name_get(port->port_id));
 		cam_buf_manager_pool_unreg(&port->unprocess_pool);
-		vfree(port);
+		cam_buf_kernel_sys_vfree(port);
 		return NULL;
 	}
 	port->result_pool.private_pool_idx = ret;
@@ -1417,7 +1417,7 @@ void dcam_online_port_put(struct dcam_online_port *port)
 			port->isp_updata = NULL;
 			while (cur) {
 				prev = (struct isp_offline_param *)cur->prev;
-				kvfree(cur);
+				cam_buf_kernel_sys_vfree(cur);
 				cur = prev;
 			}
 		}
@@ -1427,7 +1427,7 @@ void dcam_online_port_put(struct dcam_online_port *port)
 			port->priv_size_data = NULL;
 			while (cur) {
 				prev = (struct isp_offline_param *)cur->prev;
-				kvfree(cur);
+				cam_buf_kernel_sys_vfree(cur);
 				cur = prev;
 			}
 		}
@@ -1465,7 +1465,7 @@ void dcam_online_port_put(struct dcam_online_port *port)
 		pr_info("unreg result_pool_id %d\n", port->result_pool.private_pool_idx);
 
 		pr_debug("dcam online port %s put success\n", cam_port_name_get(port->port_id));
-		vfree(port);
+		cam_buf_kernel_sys_vfree(port);
 		port = NULL;
 	}
 }

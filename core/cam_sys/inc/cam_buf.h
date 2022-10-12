@@ -110,5 +110,10 @@ int  cam_buf_alloc(struct camera_buf *buf_info, size_t size,
 		unsigned int iommu_enable);
 int cam_buf_free(struct camera_buf *buf_info);
 
+void *cam_buf_kernel_sys_kzalloc(unsigned long size, gfp_t flags);
+void cam_buf_kernel_sys_kfree(const void *mem);
+void *cam_buf_kernel_sys_vzalloc(unsigned long size);
+void cam_buf_kernel_sys_vfree(const void *mem);
+
 int cam_buf_mdbg_check(void);
 #endif/* _CAM_BUF_H_ */
