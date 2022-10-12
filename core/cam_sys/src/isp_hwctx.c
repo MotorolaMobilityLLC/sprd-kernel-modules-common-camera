@@ -18,6 +18,7 @@
 #include "isp_cfg.h"
 #include "isp_dev.h"
 #include "isp_slice.h"
+#include "cam_port.h"
 
 #ifdef pr_fmt
 #undef pr_fmt
@@ -470,8 +471,8 @@ int isp_hwctx_store_frm_set(struct isp_pipe_info *pipe_info, uint32_t path_id, s
 
 	yuv_addr[0] = frame->buf.iova;
 
-	pr_debug("fmt %d, planes %d addr %lx %lx %lx, pitch:%d\n",
-		store->color_fmt, planes, yuv_addr[0], yuv_addr[1], yuv_addr[2], store->pitch.pitch_ch0);
+	pr_debug("fmt %s, planes %d addr %lx %lx %lx, pitch:%d\n",
+		camport_fmt_name_get(store->color_fmt), planes, yuv_addr[0], yuv_addr[1], yuv_addr[2], store->pitch.pitch_ch0);
 
 	if ((planes > 1) && yuv_addr[1] == 0) {
 		offset_u = store->pitch.pitch_ch0 * store->size.h;

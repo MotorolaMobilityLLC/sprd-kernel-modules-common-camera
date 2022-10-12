@@ -13,6 +13,7 @@
 
 #include "isp_3dnr.h"
 #include "alg_nr3_calc.h"
+#include "cam_port.h"
 
 #ifdef pr_fmt
 #undef pr_fmt
@@ -34,7 +35,7 @@ static int isp3dnr_calc_img_pitch(enum cam_format fmt, uint32_t w)
 		pitch = w * 2;
 		break;
 	default:
-		pr_err("fail to get isp fetch format:%d, pitch:%d\n", fmt, pitch);
+		pr_err("fail to get isp fetch format:%s, pitch:%d\n", camport_fmt_name_get(fmt), pitch);
 	}
 
 	return pitch;

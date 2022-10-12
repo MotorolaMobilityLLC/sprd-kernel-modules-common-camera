@@ -17,6 +17,7 @@
 #include "isp_hw_adpt.h"
 #include "cam_buf.h"
 #include "cam_test.h"
+#include "cam_port.h"
 
 #include "isp_reg.h"
 #include "isp_int.h"
@@ -492,7 +493,7 @@ static int camt_isp_cfg_fetch(struct ispt_context *ctx,
 		break;
 	}
 	default:
-		pr_err("fail to get fetch format: %d\n", fetch->fetch_fmt);
+		pr_err("fail to get fetch format: %s\n", camport_fmt_name_get(fetch->fetch_fmt));
 		break;
 	}
 
@@ -582,7 +583,7 @@ static int camt_isp_cfg_store(struct ispt_context *ctx,
 		store->total_size = store->size.w * store->size.h * 3 / 2;
 		break;
 	default:
-		pr_err("fail to get support store fmt: %d\n", store->color_fmt);
+		pr_err("fail to get support store fmt: %s\n", camport_fmt_name_get(store->color_fmt));
 			store->pitch.pitch_ch0 = 0;
 			store->pitch.pitch_ch1 = 0;
 			store->pitch.pitch_ch2 = 0;

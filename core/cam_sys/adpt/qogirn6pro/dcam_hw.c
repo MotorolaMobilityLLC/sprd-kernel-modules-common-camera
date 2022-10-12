@@ -901,9 +901,9 @@ static int dcamhw_fetch_set(void *handle, void *arg)
 		bwu_shift = 0;
 	}
 
-	pr_info("size [%d %d], start %d, pitch %d, 0x%x fmt %d\n",
+	pr_info("size [%d %d], start %d, pitch %d, 0x%x fmt %s\n",
 		fetch->fetch_info->trim.size_x, fetch->fetch_info->trim.size_y,
-		fetch->fetch_info->trim.start_x, fetch_pitch, fetch->fetch_info->addr.addr_ch0, fetch->fetch_info->fmt);
+		fetch->fetch_info->trim.start_x, fetch_pitch, fetch->fetch_info->addr.addr_ch0, camport_fmt_name_get(fetch->fetch_info->fmt));
 	/* (bitfile)unit 32b,(spec)64b */
 	DCAM_REG_WR(fetch->idx, DCAM_INT0_CLR, 0xFFFFFFFF);
 	if (fetch->virtualsensor_pre_sof)
@@ -1855,8 +1855,8 @@ static int dcamhw_slice_fetch_set(void *handle, void *arg)
 			DCAM_AXIM_WR(idx, IMG_FETCH_SIZE, (cur_slice->size_y << 16) | ((cur_slice->size_x + DCAM_OVERLAP) & 0x3fff));
 			DCAM_AXIM_WR(idx, IMG_FETCH_X, (fetch_pitch << 16) | (cur_slice->start_x & 0x3fff));
 
-			pr_debug("dcam%d, slice 0,  start x %d, size x = %d size y = %d relative_offset %d fmt %d\n",
-				idx, cur_slice->start_x, cur_slice->size_x, cur_slice->size_y,  slicearg->relative_offset, fetch->fmt);
+			pr_debug("dcam%d, slice 0,  start x %d, size x = %d size y = %d relative_offset %d fmt %s\n",
+				idx, cur_slice->start_x, cur_slice->size_x, cur_slice->size_y,  slicearg->relative_offset, camport_fmt_name_get(fetch->fmt));
 			if (!slicearg->is_compress) {
 				if (slicearg->path_id == DCAM_PATH_BIN) {
 					DCAM_REG_WR(idx, DCAM_STORE0_BORDER, DCAM_OVERLAP << 16);
@@ -1888,8 +1888,8 @@ static int dcamhw_slice_fetch_set(void *handle, void *arg)
 			DCAM_AXIM_WR(idx, IMG_FETCH_SIZE, (cur_slice->size_y  << 16) | ((cur_slice->size_x + DCAM_OVERLAP) & 0x3fff));
 			DCAM_AXIM_WR(idx, IMG_FETCH_X, (fetch_pitch << 16) | ((cur_slice->start_x - DCAM_OVERLAP) & 0x3fff));
 
-			pr_debug("dcam%d, last slice,  start x %d, size x = %d size y = %d relative_offset %d fmt %d\n",
-				idx, cur_slice->start_x, cur_slice->size_x, cur_slice->size_y,  slicearg->relative_offset, fetch->fmt);
+			pr_debug("dcam%d, last slice,  start x %d, size x = %d size y = %d relative_offset %d fmt %s\n",
+				idx, cur_slice->start_x, cur_slice->size_x, cur_slice->size_y,  slicearg->relative_offset, camport_fmt_name_get(fetch->fmt));
 			if (!slicearg->is_compress) {
 				if (slicearg->path_id == DCAM_PATH_BIN) {
 					DCAM_REG_WR(idx, DCAM_STORE0_BORDER, DCAM_OVERLAP & 0xffff);
@@ -1950,8 +1950,8 @@ static int dcamhw_slice_fetch_set(void *handle, void *arg)
 			DCAM_AXIM_WR(idx, IMG_FETCH_SIZE, (cur_slice->size_y << 16) | ((cur_slice->size_x + DCAM_OVERLAP * 2) & 0x3fff));
 			DCAM_AXIM_WR(idx, IMG_FETCH_X, (fetch_pitch << 16) | ((cur_slice->start_x - DCAM_OVERLAP) & 0x3fff));
 
-			pr_debug("dcam%d, middle slice,  start x %d, size x = %d size y = %d relative_offset %d fmt %d\n",
-				idx, cur_slice->start_x, cur_slice->size_x, cur_slice->size_y,  slicearg->relative_offset, fetch->fmt);
+			pr_debug("dcam%d, middle slice,  start x %d, size x = %d size y = %d relative_offset %d fmt %s\n",
+				idx, cur_slice->start_x, cur_slice->size_x, cur_slice->size_y,  slicearg->relative_offset, camport_fmt_name_get(fetch->fmt));
 			if (!slicearg->is_compress) {
 				if (slicearg->path_id == DCAM_PATH_BIN) {
 					DCAM_REG_WR(idx, DCAM_STORE0_BORDER, (DCAM_OVERLAP << 16) | (DCAM_OVERLAP & 0xffff));

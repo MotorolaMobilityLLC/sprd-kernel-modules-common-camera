@@ -1795,7 +1795,7 @@ int ispslice_store_info_cfg(void *cfg_in, struct isp_slice_context *slc_ctx)
 				ch0_offset = start_col_out[j][cur_slc->x] * 8 + start_row_out[j][cur_slc->y] * frm_store->pitch.pitch_ch0;
 				break;
 			default:
-				pr_err("fail to support store format %d\n", frm_store->color_fmt);
+				pr_err("fail to support store format %s\n", camport_fmt_name_get(frm_store->color_fmt));
 				break;
 			}
 			slc_store->addr.addr_ch0 = frm_store->addr.addr_ch0 + ch0_offset;

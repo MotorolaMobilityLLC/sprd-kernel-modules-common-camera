@@ -603,8 +603,8 @@ int isp_scaler_port_store_frm_set(struct isp_pipe_info *pipe_info, struct isp_sc
 
 	yuv_addr[0] = frame->buf.iova;
 
-	pr_debug("fmt %d, planes %d addr %lx %lx %lx, pitch:%d\n",
-		store->color_fmt, planes, yuv_addr[0], yuv_addr[1], yuv_addr[2], store->pitch.pitch_ch0);
+	pr_debug("fmt %s, planes %d addr %lx %lx %lx, pitch:%d\n",
+		camport_fmt_name_get(store->color_fmt), planes, yuv_addr[0], yuv_addr[1], yuv_addr[2], store->pitch.pitch_ch0);
 
 	if ((planes > 1) && yuv_addr[1] == 0) {
 		offset_u = store->pitch.pitch_ch0 * store->size.h;
@@ -777,7 +777,7 @@ static int isp_yuv_scaler_node_offline_param_cfg(struct isp_yuv_scaler_node *ino
 	pipe_src->in_fmt = pframe->in_fmt;
 	pipe_src->src = pframe->in;
 	pipe_src->crop = pframe->in_crop;
-	pr_debug("pipe_src->in_fmt %d pipe_src->src.w %d pipe_src->src.h %d pipe_src->crop size_x %d pipe_src->crop size_y %d\n",pipe_src->in_fmt,pipe_src->src.w,pipe_src->src.h,pipe_src->crop.size_x,pipe_src->crop.size_y);
+	pr_debug("pipe_src->in_fmt %s pipe_src->src.w %d pipe_src->src.h %d pipe_src->crop size_x %d pipe_src->crop size_y %d\n",camport_fmt_name_get(pipe_src->in_fmt),pipe_src->src.w,pipe_src->src.h,pipe_src->crop.size_x,pipe_src->crop.size_y);
 	list_for_each_entry(port, &inode->port_queue.head, list) {
 		if (atomic_read(&port->user_cnt) >= 1) {
 			hw_path_id = isp_scaler_port_id_switch(port->port_id);

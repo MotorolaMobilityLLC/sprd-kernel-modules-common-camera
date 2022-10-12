@@ -191,14 +191,14 @@ int ispscaler_port_fetch_normal_get(void *cfg_in, void *cfg_out, struct camera_f
 		break;
 	}
 	default:
-		pr_err("fail to get fetch format: %d\n", fetch->fetch_fmt);
+		pr_err("fail to get fetch format: %s\n", camport_fmt_name_get(fetch->fetch_fmt));
 		break;
 	}
 
 	fetch->addr_hw.addr_ch0 = fetch->addr.addr_ch0 + trim_offset[0];
 	fetch->addr_hw.addr_ch1 = fetch->addr.addr_ch1 + trim_offset[1];
 	fetch->addr_hw.addr_ch2 = fetch->addr.addr_ch2 + trim_offset[2];
-	pr_debug("fetch fmt %d, y_addr: %x, u_addr: %x\n", fetch->fetch_fmt, fetch->addr_hw.addr_ch0, fetch->addr_hw.addr_ch1);
+	pr_debug("fetch fmt %s, y_addr: %x, u_addr: %x\n", camport_fmt_name_get(fetch->fetch_fmt), fetch->addr_hw.addr_ch0, fetch->addr_hw.addr_ch1);
 
 	return ret;
 }
@@ -282,7 +282,7 @@ int ispscaler_port_store_normal_get(void *cfg_in, struct isp_hw_path_store *stor
 		store->pitch.pitch_ch0 = store->size.w * 8;
 		break;
 	default:
-		pr_err("fail to get support store fmt: %d\n", store->color_fmt);
+		pr_err("fail to get support store fmt: %s\n", camport_fmt_name_get(store->color_fmt));
 		store->pitch.pitch_ch0 = 0;
 		store->pitch.pitch_ch1 = 0;
 		store->pitch.pitch_ch2 = 0;
