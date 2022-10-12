@@ -33,16 +33,15 @@ void dcam_k_raw_gtm_set_default(struct dcam_dev_rgb_gtm_block_info *p)
 	p->gtm_tm_out_bit_depth = 0xE;
 	p->gtm_tm_in_bit_depth = 0xE;
 	p->gtm_cur_is_first_frame = 0x0;
-	p->gtm_log_diff = 0xBBC84;
-	p->gtm_log_diff_int = 0x2BA;
+	p->gtm_log_diff = 0x6D801;
+	p->gtm_log_diff_int = 0x4AD;
 	p->gtm_log_max_int = 0x0;
-	p->gtm_log_min_int = 0x7F44;
-	p->gtm_lr_int = 0xF04D;
+	p->gtm_log_min_int = 0x7800;
+	p->gtm_lr_int = 0x7FFF;
 	p->gtm_tm_param_calc_by_hw = 0x1;
 	p->gtm_yavg = 0xA9E;
 	p->gtm_ymax = 0x3FFF;
 	p->gtm_ymin = 0x2;
-	p->gtm_target_norm = 0xFAF;
 	p->tm_lumafilter_shift = 0x6;
 	p->slice.gtm_slice_line_startpos = 0x0;
 	p->slice.gtm_slice_line_endpos = 0x0;
@@ -120,6 +119,11 @@ int dcam_k_raw_gtm_block(uint32_t gtm_param_idx,
 		((p->gtm_rgb2y_mode & 0x1) << 5);
 	DCAM_REG_MWR(idx, DCAM_GTM_GLB_CTRL, 0x3F, val);
 
+	if (gtm->gtm_calc_mode == GTM_SW_CALC)
+		DCAM_REG_MWR(idx, DCAM_GTM_GLB_CTRL, BIT_2, BIT_2);
+	else
+		DCAM_REG_MWR(idx, DCAM_GTM_GLB_CTRL, BIT_2, 0);
+
 	val = (p->gtm_imgkey_setting_mode & 0x1) | ((p->gtm_imgkey_setting_value & 0x7FFF) << 4);
 	DCAM_REG_MWR(idx, GTM_HIST_CTRL0, 0x7FFF1, val);
 
@@ -127,19 +131,6 @@ int dcam_k_raw_gtm_block(uint32_t gtm_param_idx,
 		| ((p->gtm_target_norm & 0xFFF) << 4)
 		| ((p->gtm_target_norm_coeff & 0x3FFF) << 16);
 	DCAM_REG_MWR(idx, GTM_HIST_CTRL1, 0x3FFFFFF1, val);
-
-	if (gtm->gtm_calc_mode == GTM_SW_CALC) {
-		DCAM_REG_MWR(idx, DCAM_GTM_GLB_CTRL, BIT_2, BIT_2);
-		DCAM_REG_MWR(idx, DCAM_GTM_GLB_CTRL, BIT_3, BIT_3);
-		DCAM_REG_MWR(idx, GTM_HIST_CTRL0, BIT_0, 0);
-		DCAM_REG_MWR(idx, GTM_HIST_CTRL1, BIT_0, 0);
-	}
-	else {
-		DCAM_REG_MWR(idx, DCAM_GTM_GLB_CTRL, BIT_2, 0);
-		DCAM_REG_MWR(idx, DCAM_GTM_GLB_CTRL, BIT_3, BIT_3);
-		DCAM_REG_MWR(idx, GTM_HIST_CTRL0, BIT_0, BIT_0);
-		DCAM_REG_MWR(idx, GTM_HIST_CTRL1, BIT_0, BIT_0);
-	}
 
 	val = p->gtm_ymin & 0x3FFF;
 	DCAM_REG_MWR(idx, GTM_HIST_YMIN, 0x3FFF, val);

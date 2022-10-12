@@ -1396,13 +1396,11 @@ static void dcamint_gtm_done(void *param, struct dcam_sw_context *sw_ctx)
 	uint32_t w = 0;
 	uint32_t h = 0;
 	uint32_t *buf = NULL;
-	uint32_t idx = 0;
 	struct dcam_hw_gtm_hist gtm_hist = {0};
 	struct cam_hw_info *hw = NULL;
 	struct camera_frame *frame = NULL;
 	struct dcam_pipe_dev *dcam_dev = NULL;
 	struct dcam_hw_context *dcam_hw_ctx = (struct dcam_hw_context *)param;
-	struct cam_gtm_mapping *map = NULL;
 
 	if (!sw_ctx || !param) {
 		pr_err("fail to check param %px %px\n", sw_ctx, param);
@@ -1434,7 +1432,6 @@ static void dcamint_gtm_done(void *param, struct dcam_sw_context *sw_ctx)
 	}
 
 	gtm_hist.idx = dcam_hw_ctx->hw_ctx_id;
-	idx = gtm_hist.idx;
 
 	for (i = 0; i < GTM_HIST_ITEM_NUM; i++) {
 		gtm_hist.hist_index = i;
@@ -1445,18 +1442,7 @@ static void dcamint_gtm_done(void *param, struct dcam_sw_context *sw_ctx)
 	w = sw_ctx->cap_info.cap_size.size_x;
 	h = sw_ctx->cap_info.cap_size.size_y;
 	buf[i++] =  w * h;
-	map = (struct cam_gtm_mapping *)&buf[i];
-	map->idx = frame->fid;
-	map->ymin = DCAM_REG_RD(idx, DCAM_GTM_STATUS0) & 0x3FFF;
-	map->ymax = (DCAM_REG_RD(idx, DCAM_GTM_STATUS0) >> 16) & 0x3FFF;
-	map->yavg = DCAM_REG_RD(idx, DCAM_GTM_STATUS1) & 0x3FFF;
-	map->target = (DCAM_REG_RD(idx, DCAM_GTM_STATUS1) >> 16) & 0xFFF;
-	map->lr_int = (DCAM_REG_RD(idx, DCAM_GTM_STATUS2) >> 16) & 0xFFFF;
-	map->log_min_int = DCAM_REG_RD(idx, DCAM_GTM_STATUS3) & 0xFFFF;
-	map->log_diff_int = (DCAM_REG_RD(idx, DCAM_GTM_STATUS3) >> 16) & 0xFFFF;
-	map->diff = DCAM_REG_RD(idx, DCAM_GTM_STATUS4) & 0x1FFFFFFF;
-	map->ltm_strength = 0;
-	map->isupdate = 0;
+	buf[i] = frame->fid;
 	dcamint_frame_dispatch(dcam_hw_ctx, sw_ctx, DCAM_PATH_GTM_HIST, frame, DCAM_CB_STATIS_DONE);
 	pr_debug("success get frame w %d, h %d, user_fid %d, mfd %d, fid %d\n", w, h, frame->user_fid, frame->buf.mfd[0], frame->fid);
 }
