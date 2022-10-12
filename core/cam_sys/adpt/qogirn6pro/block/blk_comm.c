@@ -45,10 +45,10 @@ int init_dcam_pm(struct dcam_isp_k_block *blk_pm_ctx)
 	blk_pm_ctx->cce_info.bypass = 1;
 	blk_pm_ctx->cmc10_info.bypass = 1;
 	blk_pm_ctx->cfa_info_v1.bypass = 1;
-	blk_pm_ctx->nlm_info2.ivst_bypass = 1;
-	blk_pm_ctx->nlm_info2.vst_bypass = 1;
-	blk_pm_ctx->nlm_info2.bypass = 1;
-	blk_pm_ctx->nlm_imblance2.nlm_imblance_bypass = 1;
+	blk_pm_ctx->nlm_info_base.ivst_bypass = 1;
+	blk_pm_ctx->nlm_info_base.vst_bypass = 1;
+	blk_pm_ctx->nlm_info_base.bypass = 1;
+	blk_pm_ctx->imbalance_info_base2.nlm_imblance_bypass = 1;
 	blk_pm_ctx->rgb_gtm[0].update_en = 1;
 	blk_pm_ctx->rgb_gtm[0].rgb_gtm_info.bypass_info.gtm_mod_en = 0;
 	blk_pm_ctx->rgb_gtm[0].rgb_gtm_info.bypass_info.gtm_map_bypass = 1;
