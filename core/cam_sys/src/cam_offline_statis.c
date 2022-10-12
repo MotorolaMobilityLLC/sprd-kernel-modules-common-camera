@@ -61,26 +61,7 @@ static enum cam_port_dcam_offline_out_id camoffstatis_dcam_type_to_port_id(enum 
 	}
 }
 
-static void camoffstatis_dcam_buf_destroy(void *param)
-{
-	struct camera_frame *frame = NULL;
-
-	if (!param) {
-		pr_err("fail to get valid param.\n");
-		return;
-	}
-
-	frame = (struct camera_frame *)param;
-	if (frame->is_reserved) {
-		cam_buf_iommu_unmap(&frame->buf);
-		if (frame->is_reserved == CAM_RESERVED_BUFFER_ORI)
-			cam_buf_ionbuf_put(&frame->buf);
-	}
-
-	cam_queue_empty_frame_put(frame);
-}
-
-static int camoffstatis_dcam_port_buffer_unmap(void *dcam_handle)
+int camoffline_statis_dcam_port_bufferq_deinit(void *dcam_handle)
 {
 	int i = 0, j = 0;
 	int32_t mfd = 0;
@@ -106,11 +87,7 @@ static int camoffstatis_dcam_port_buffer_unmap(void *dcam_handle)
 
 			pr_debug("stats %d,  j %d,  mfd %d, offset %d\n",
 				stats_type, j, mfd, ion_buf->offset[0]);
-			if (ion_buf->mapping_state & CAM_BUF_MAPPING_KERNEL)
-				cam_buf_kunmap(ion_buf);
-			if (ion_buf->mapping_state & CAM_BUF_MAPPING_DEV)
-				cam_buf_iommu_unmap(ion_buf);
-			cam_buf_ionbuf_put(ion_buf);
+			cam_buf_manager_buf_status_change(ion_buf, CAM_BUF_ALLOC, CAM_IOMMUDEV_DCAM);
 			ion_buf->iova = 0UL;
 			ion_buf->addr_k = 0UL;
 		}
@@ -134,22 +111,13 @@ int camoffline_statis_dcam_port_bufferq_init(void *dcam_handle)
 	pr_debug("enter\n");
 	dcam_node = (struct dcam_offline_node *)dcam_handle;
 	for (i = 0; i < ARRAY_SIZE(s_offlinestatis_port_info_all); i++) {
+
 		port_id = s_offlinestatis_port_info_all[i].port_id;
 		stats_type = s_offlinestatis_port_info_all[i].buf_type;
 		dcam_port = dcam_offline_node_port_get(dcam_node, port_id);
 		if (!stats_type || !dcam_port)
 			continue;
-
-		cam_queue_init(&dcam_port->out_buf_queue, DCAM_OUT_BUF_Q_LEN, camoffstatis_dcam_buf_destroy);
-		cam_queue_init(&dcam_port->result_queue, DCAM_RESULT_Q_LEN, camoffstatis_dcam_buf_destroy);
-	}
-
-	for (i = 0; i < ARRAY_SIZE(s_offlinestatis_port_info_all); i++) {
-
-		port_id = s_offlinestatis_port_info_all[i].port_id;
-		stats_type = s_offlinestatis_port_info_all[i].buf_type;
-		dcam_port = dcam_offline_node_port_get(dcam_node, port_id);
-		if (!stats_type || !dcam_port)
+		if (port_id == PORT_GTM_HIST_OUT && dcam_node->dev->hw->ip_isp->rgb_gtm_support)
 			continue;
 
 		for (j = 0; j < STATIS_BUF_NUM_MAX; j++) {
@@ -157,31 +125,19 @@ int camoffline_statis_dcam_port_bufferq_init(void *dcam_handle)
 			if (ion_buf->mfd <= 0)
 				continue;
 
-			ret = cam_buf_ionbuf_get(ion_buf);
-			if (ret) {
+			if (stats_type != STATIS_PDAF)
+				ret = cam_buf_manager_buf_status_change(ion_buf, CAM_BUF_WITH_IOVA_K_ADDR, CAM_IOMMUDEV_DCAM);
+			else
+				ret = cam_buf_manager_buf_status_change(ion_buf, CAM_BUF_WITH_IOVA, CAM_IOMMUDEV_DCAM);
+			if (ret)
 				continue;
-			}
-
-			ret = cam_buf_iommu_map(ion_buf, CAM_IOMMUDEV_DCAM);
-			if (ret) {
-				cam_buf_ionbuf_put(ion_buf);
-				continue;
-			}
-
-			if (stats_type != STATIS_PDAF) {
-				ret = cam_buf_kmap(ion_buf);
-				if (ret) {
-					pr_err("fail to kmap statis buf %d\n", ion_buf->mfd);
-					ion_buf->addr_k = 0UL;
-				}
-			}
-
 			pframe = cam_queue_empty_frame_get();
 			pframe->channel_id = 0;
 			pframe->irq_property = stats_type;
 			pframe->buf = *ion_buf;
+			pframe->buf.type = CAM_BUF_NONE;
 
-			ret = cam_queue_enqueue(&dcam_port->out_buf_queue, &pframe->list);
+			ret = cam_buf_manager_buf_enqueue(&dcam_port->unprocess_pool, pframe, NULL);
 			if (ret) {
 				pr_info("dcam%d statis %d overflow\n", dcam_node->hw_ctx_id, stats_type);
 				cam_queue_empty_frame_put(pframe);
@@ -197,34 +153,6 @@ int camoffline_statis_dcam_port_bufferq_init(void *dcam_handle)
 
 	pr_info("done.\n");
 	return res_buf_size;
-}
-
-int camoffline_statis_dcam_port_bufferq_deinit(void *dcam_handle)
-{
-	int ret = 0, i = 0;
-	enum cam_port_dcam_offline_out_id port_id = PORT_DCAM_OFFLINE_OUT_MAX;
-	struct dcam_offline_node *dcam_node = NULL;
-	struct dcam_offline_port *dcam_port = NULL;
-
-	pr_info("enter\n");
-	dcam_node = (struct dcam_offline_node *)dcam_handle;
-	for (i = 0; i < ARRAY_SIZE(s_offlinestatis_port_info_all); i++) {
-		port_id = s_offlinestatis_port_info_all[i].port_id;
-		dcam_port = dcam_offline_node_port_get(dcam_node, port_id);
-
-		pr_debug("port_id[%d] i[%d]\n", port_id, i);
-		if (!dcam_port || port_id == PORT_DCAM_OUT_MAX)
-			continue;
-
-		atomic_set(&dcam_port->is_work, 0);
-		cam_queue_clear(&dcam_port->out_buf_queue, struct camera_frame, list);
-		cam_queue_clear(&dcam_port->result_queue, struct camera_frame, list);
-	}
-
-	camoffstatis_dcam_port_buffer_unmap(dcam_handle);
-
-	pr_info("done.\n");
-	return ret;
 }
 
 int camoffline_statis_dcam_port_buffer_cfg(
@@ -255,6 +183,8 @@ int camoffline_statis_dcam_port_buffer_cfg(
 			dcam_port = dcam_offline_node_port_get(dcam_node, port_id);
 			if (!stats_type || !dcam_port)
 				continue;
+			if (port_id == PORT_GTM_HIST_OUT && dcam_node->dev->hw->ip_isp->rgb_gtm_support)
+				continue;
 
 			for (j = 0; j < STATIS_BUF_NUM_MAX; j++) {
 				mfd = input->mfd_array[stats_type][j];
@@ -269,6 +199,7 @@ int camoffline_statis_dcam_port_buffer_cfg(
 				ion_buf->mfd = mfd;
 				ion_buf->offset[0] = input->offset_array[stats_type][j];
 				ion_buf->type = CAM_BUF_USER;
+				ion_buf->status = CAM_BUF_ALLOC;
 
 				pr_debug("stats %d, mfd %d, off %d\n",
 					stats_type, mfd, ion_buf->offset[0]);
@@ -306,7 +237,8 @@ int camoffline_statis_dcam_port_buffer_cfg(
 		pframe = cam_queue_empty_frame_get();
 		pframe->irq_property = input->type;
 		pframe->buf = *ion_buf;
-		ret = cam_queue_enqueue(&dcam_port->out_buf_queue, &pframe->list);
+		pframe->buf.type = CAM_BUF_NONE;
+		ret = cam_buf_manager_buf_enqueue(&dcam_port->unprocess_pool, pframe, NULL);
 		pr_debug("statis %d, mfd %d, off %d, iova 0x%08x,  kaddr 0x%lx\n",
 			input->type, mfd, offset,
 			(uint32_t)pframe->buf.iova, pframe->buf.addr_k);

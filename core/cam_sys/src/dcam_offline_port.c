@@ -147,30 +147,6 @@ static int dcamoffline_port_base_cfg(struct dcam_offline_port *port,
 	return ret;
 }
 
-static void dcamoffline_port_outframe_ret(void *param)
-{
-	struct camera_frame *frame = NULL;
-	struct dcam_offline_port *dcam_port = NULL;
-
-	if (!param) {
-		pr_err("fail to get valid param.\n");
-		return;
-	}
-
-	frame = (struct camera_frame *)param;
-
-	if (frame->is_reserved) {
-		dcam_port = (struct dcam_offline_port *)frame->priv_data;
-		pr_err("fail to: dcam offline used reserved buf\n");
-		/* Need Update it later for offline reserved buf use */
-		/* dcam_port->resbuf_get_cb(RESERVED_BUF_SET_CB, frame, dcam_port->resbuf_cb_data); */
-	} else {
-		cam_buf_iommu_unmap(&frame->buf);
-		dcam_port = (struct dcam_offline_port *)frame->priv_data;
-		dcam_port->data_cb_func(CAM_CB_DCAM_CLEAR_BUF, frame, dcam_port->data_cb_handle);
-	}
-}
-
 /* This function may put it into dcam core for hw ctx cfg,
  * or call sub function in dcam core for hw ctx cfg.
  */
@@ -188,6 +164,7 @@ static int dcamoffline_port_param_get(void *handle, void *param)
 	struct dcam_hw_fbc_ctrl *hw_fbc_ctrl = NULL;
 	struct compressed_addr fbc_addr = {0};
 	struct dcam_compress_cal_para cal_fbc = {0};
+	struct camera_buf_get_desc buf_desc = {0};
 
 	if (!handle || !param) {
 		pr_err("fail to get valid input ptr %px %px\n", handle, param);
@@ -209,14 +186,16 @@ static int dcamoffline_port_param_get(void *handle, void *param)
 	hw_fbc_store = &hw_ctx->hw_path[path_id].hw_fbc_store;
 	hw_fbc_ctrl = &hw_ctx->hw_path[path_id].hw_fbc;
 
-	frame = cam_queue_dequeue(&dcam_port->out_buf_queue, struct camera_frame, list);
+	buf_desc.buf_ops_cmd = CAM_BUF_STATUS_GET_IOVA;
+	buf_desc.mmu_type = CAM_IOMMUDEV_DCAM;
+	frame = cam_buf_manager_buf_dequeue(&dcam_port->unprocess_pool, &buf_desc);
 	if (!frame) {
 		pr_err("fail to get dcam offline port %s frame\n", cam_port_dcam_offline_out_id_name_get(dcam_port->port_id));
 		return -EFAULT;
 	}
 
 	frame->link_from.port_id = dcam_port->port_id;
-	ret = cam_queue_enqueue(&dcam_port->result_queue, &frame->list);
+	ret = cam_buf_manager_buf_enqueue(&dcam_port->result_pool, frame, NULL);
 	if (ret) {
 		pr_err("fail to enqueue dcam offline port %s frame\n", cam_port_dcam_offline_out_id_name_get(dcam_port->port_id));
 		return -EFAULT;
@@ -290,6 +269,7 @@ int dcam_offline_port_param_cfg(void *handle, enum cam_port_cfg_cmd cmd, void *p
 	struct camera_frame *pframe = NULL;
 	struct camera_frame **frame = NULL;
 	uint32_t layer_num = ISP_PYR_DEC_LAYER_NUM;
+	struct camera_buf_get_desc buf_desc = {0};
 
 	if (!handle || !param) {
 		pr_err("fail to get valid input ptr %px %px\n", handle, param);
@@ -300,12 +280,8 @@ int dcam_offline_port_param_cfg(void *handle, enum cam_port_cfg_cmd cmd, void *p
 	switch (cmd) {
 	case PORT_BUFFER_CFG_SET:
 		pframe = (struct camera_frame *)param;
-		if ((pframe->buf.mapping_state & CAM_BUF_MAPPING_DEV) == 0) {
-			ret = cam_buf_iommu_map(&pframe->buf, CAM_IOMMUDEV_DCAM);
-			if (ret)
-				goto exit;
-		}
-
+		buf_desc.buf_ops_cmd = CAM_BUF_STATUS_GET_IOVA;
+		buf_desc.mmu_type = CAM_IOMMUDEV_DCAM;
 		pframe->priv_data = dcam_port;
 		if (pframe->pyr_status == OFFLINE_DEC_ON) {
 			while (isp_rec_small_layer_w(dcam_port->out_size.w, layer_num) < MIN_PYR_WIDTH ||
@@ -320,10 +296,9 @@ int dcam_offline_port_param_cfg(void *handle, enum cam_port_cfg_cmd cmd, void *p
 			else
 				pframe->need_pyr_dec = 1;
 		}
-		ret = cam_queue_enqueue(&dcam_port->out_buf_queue, &pframe->list);
+		ret = cam_buf_manager_buf_enqueue(&dcam_port->unprocess_pool, pframe, &buf_desc);
 		if (ret) {
 			pr_err("fail to enqueue frame of dcam path %s\n", cam_port_dcam_offline_out_id_name_get(dcam_port->port_id));
-			cam_buf_iommu_unmap(&pframe->buf);
 			goto exit;
 		}
 		pr_info("config dcam offline path %s output buffer.\n", cam_port_dcam_offline_out_id_name_get(dcam_port->port_id));
@@ -336,7 +311,7 @@ int dcam_offline_port_param_cfg(void *handle, enum cam_port_cfg_cmd cmd, void *p
 		break;
 	case PORT_BUFFER_CFG_GET:
 		frame = (struct camera_frame **)param;
-		*frame = cam_queue_dequeue(&dcam_port->result_queue, struct camera_frame, list);
+		*frame = cam_buf_manager_buf_dequeue(&dcam_port->result_pool, NULL);
 		if (*frame == NULL) {
 			pr_err("fail to available dcamoffline result buf %s\n", cam_port_dcam_offline_out_id_name_get(dcam_port->port_id));
 			ret = -EFAULT;
@@ -352,9 +327,81 @@ exit:
 	return ret;
 }
 
+int dcam_offline_port_buf_alloc(void *handle, struct cam_buf_alloc_desc *param)
+{
+	int ret = 0;
+	struct dcam_offline_port *port = (struct dcam_offline_port *)handle;
+	struct camera_frame *pframe = NULL;
+	uint32_t i = 0,size = 0, height = 0, width = 0, total = 0, out_fmt;
+
+	if (!port || !param) {
+		pr_err("fail to get valid handle %px %px\n", handle, param);
+		return -1;
+	}
+
+	width = param->width;
+	height = param->height;
+	out_fmt = port->out_fmt;
+	if (param->compress_offline) {
+		struct dcam_compress_info fbc_info = {0};
+		struct dcam_compress_cal_para cal_fbc = {0};
+		cal_fbc.data_bits = cam_data_bits(out_fmt);
+		cal_fbc.fbc_info = &fbc_info;
+		cal_fbc.fmt = out_fmt;
+		cal_fbc.height = height;
+		cal_fbc.width = width;
+		size = dcam_if_cal_compressed_size (&cal_fbc);
+	} else if (camcore_raw_fmt_get(out_fmt))
+		size = cal_sprd_raw_pitch(width, cam_pack_bits(out_fmt)) * height;
+	else if (out_fmt == CAM_YUV420_2FRAME ||
+			out_fmt == CAM_YVU420_2FRAME ||
+			out_fmt == CAM_YUV420_2FRAME_MIPI)
+		size = cal_sprd_yuv_pitch(width, cam_data_bits(out_fmt),
+				cam_is_pack(out_fmt)) * height * 3 / 2;
+
+	size = ALIGN(size, CAM_BUF_ALIGN_SIZE);
+
+	total = param->dcamoffline_buf_alloc_num;
+	pr_info("ch %d alloc shared buffer size: %u (w %u h %u), num %d\n",
+		param->ch_id, size, width, height, total);
+
+	for (i = 0; i < total; i++) {
+		do {
+			pframe = cam_queue_empty_frame_get();
+			pframe->channel_id = param->ch_id;
+			pframe->is_compressed = param->compress_en;
+			pframe->width = width;
+			pframe->height = height;
+			pframe->endian = ENDIAN_LITTLE;
+			pframe->pattern = param->sensor_img_ptn;
+			pframe->buf.buf_sec = 0;
+			if (param->is_pyr_rec && port->port_id == PORT_OFFLINE_BIN_OUT)
+				pframe->need_pyr_rec = 1;
+			if (param->is_pyr_dec && port->port_id == PORT_OFFLINE_FULL_OUT)
+				pframe->need_pyr_dec = 1;
+			ret = cam_buf_alloc(&pframe->buf, size, param->iommu_enable);
+			if (ret) {
+				pr_err("fail to alloc buf: %d ch %d\n",
+					i, param->ch_id);
+				cam_queue_empty_frame_put(pframe);
+				continue;
+			}
+
+			ret = cam_buf_manager_buf_enqueue(&port->unprocess_pool, pframe, NULL);
+		} while (0);
+	}
+
+	ret = cam_buf_manager_pool_cnt(&port->unprocess_pool);
+	if (ret > 0 || !total)
+		return 0;
+	else
+		return -1;
+}
+
 void *dcam_offline_port_get(uint32_t port_id, struct dcam_offline_port_desc *param)
 {
 	struct dcam_offline_port *port = NULL;
+	int ret = 0;
 
 	if (!param) {
 		pr_err("fail to get valid param\n");
@@ -377,13 +424,24 @@ void *dcam_offline_port_get(uint32_t port_id, struct dcam_offline_port_desc *par
 	port->port_id = port_id;
 	*param->port_dev = port;
 	atomic_set(&port->is_work, 0);
-	if (port_id == PORT_OFFLINE_RAW_OUT || port_id == PORT_OFFLINE_BIN_OUT || port_id == PORT_OFFLINE_FULL_OUT) {
-		cam_queue_init(&port->result_queue, DCAM_OFFLINE_RESULT_Q_LEN,
-			dcamoffline_port_outframe_ret);
-		cam_queue_init(&port->out_buf_queue, DCAM_OFFLINE_OUT_BUF_Q_LEN,
-			dcamoffline_port_outframe_ret);
-	}
 
+	ret = cam_buf_manager_pool_reg(NULL, DCAM_OFFLINE_OUT_BUF_Q_LEN);
+	if (ret <= 0) {
+		pr_err("fail to reg unprocess pool for dcam offline node\n");
+		vfree(port);
+		return NULL;
+	}
+	port->unprocess_pool.private_pool_idx = ret;
+
+	ret = cam_buf_manager_pool_reg(NULL, DCAM_OFFLINE_RESULT_Q_LEN);
+	if (ret <= 0) {
+		pr_err("fail to reg result pool for dcam offline node\n");
+		cam_buf_manager_pool_unreg(&port->unprocess_pool);
+		vfree(port);
+		return NULL;
+	}
+	port->result_pool.private_pool_idx = ret;
+	pr_debug("%s reg pool %d %d", cam_port_dcam_offline_out_id_name_get(port_id), port->unprocess_pool.private_pool_idx, port->result_pool.private_pool_idx);
 	dcamoffline_port_base_cfg(port, param);
 	*param->port_dev = port;
 	port->port_id = port_id;
@@ -404,8 +462,8 @@ void dcam_offline_port_put(struct dcam_offline_port *port)
 	}
 
 	if (atomic_dec_return(&port->user_cnt) == 0) {
-		cam_queue_clear(&port->result_queue, struct camera_frame, list);
-		cam_queue_clear(&port->out_buf_queue, struct camera_frame, list);
+		cam_buf_manager_pool_unreg(&port->unprocess_pool);
+		cam_buf_manager_pool_unreg(&port->result_pool);
 		port->data_cb_handle = NULL;
 		port->data_cb_func = NULL;
 

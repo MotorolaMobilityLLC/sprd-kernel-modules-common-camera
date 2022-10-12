@@ -322,6 +322,7 @@ struct cam_buf_alloc_desc {
 	uint32_t is_pack;
 	uint32_t ch_id;
 	uint32_t compress_en;
+	uint32_t compress_offline;
 	uint32_t dcamonline_out_fmt;
 	uint32_t dcamoffline_out_fmt;
 	uint32_t is_pyr_rec;
@@ -329,7 +330,8 @@ struct cam_buf_alloc_desc {
 	uint32_t pyr_out_fmt;
 	uint32_t cam_idx;
 	uint32_t sec_mode;
-	uint32_t buf_alloc_num;
+	uint32_t dcamonline_buf_alloc_num;
+	uint32_t dcamoffline_buf_alloc_num;
 	uint32_t sensor_img_ptn;
 	uint32_t share_buffer;
 	uint32_t iommu_enable;

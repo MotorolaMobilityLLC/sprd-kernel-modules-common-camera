@@ -520,7 +520,7 @@ int cam_buf_manager_buf_enqueue(struct cam_buf_pool_id *pool_id,
 		return -1;
 
 	if (cam_queue_enqueue(heap, &pframe->list)) {
-		pr_err("fail to enq (p%d t%d r%d)\n", pool_id->private_pool_idx, pool_id->tag_id, pool_id->reserved_pool_id);
+		pr_err("fail to enq, (p %d, t %d, r%d) frame %px\n", pool_id->private_pool_idx, pool_id->tag_id, pool_id->reserved_pool_id, pframe);
 		if (buf_desc)
 			cam_buf_manager_buf_status_change(&pframe->buf, ori_status, buf_desc->mmu_type);
 		return -1;
