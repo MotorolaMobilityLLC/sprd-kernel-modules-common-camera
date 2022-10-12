@@ -78,10 +78,6 @@ uint32_t isp_yuv_scaler_cfg_param(void *node, uint32_t port_id, uint32_t cmd, vo
 	uinfo = &inode->uinfo;
 
 	switch (cmd) {
-	case ISP_YUV_SCALER_NODE_CFG_PORT_UFRAME:
-		uinfo->uframe_sync |= *(uint32_t *)param;
-		path_info->uframe_sync = *(uint32_t *)param;
-		break;
 	case ISP_YUV_SCALER_NODE_INSERT_PORT:
 		isp_yuv_scaler_node_insert_port(inode, param);
 		break;
@@ -683,18 +679,17 @@ int isp_yuv_scaler_node_pipeinfo_get(void *arg, void *param, void *frame)
 static struct camera_frame *isp_yuv_scaler_node_path_out_frame_get(struct isp_yuv_scaler_node *inode, struct isp_scaler_port *port,
 				struct scaler_tmp_param *tmp,struct camera_frame *pframe)
 {
-	int ret = 0, hw_path_id = 0;
+	int ret = 0;
 	struct camera_frame *out_frame = NULL;
 
 	if (!inode || !port || !tmp || !pframe) {
 		pr_err("fail to get valid input pctx %p, path %p\n", inode, port);
 		return NULL;
 	}
-	hw_path_id = isp_scaler_port_id_switch(port->port_id);
 
-	pr_debug("hw_path_id %d\n",hw_path_id);
+	pr_debug("port->port_id %d\n", port->port_id);
 
-	if (inode->uinfo.path_info[hw_path_id].uframe_sync && tmp->target_fid != CAMERA_RESERVE_FRAME_NUM)
+	if (inode->uinfo.uframe_sync && tmp->target_fid != CAMERA_RESERVE_FRAME_NUM)
 		out_frame = cam_queue_dequeue_if(&port->out_buf_queue, ispscaler_port_fid_check, (void *)&tmp->target_fid);
 	else
 		out_frame = cam_queue_dequeue(&port->out_buf_queue, struct camera_frame, list);
@@ -724,7 +719,6 @@ static uint32_t isp_scaler_node_fid_across_context_get(struct isp_yuv_scaler_nod
 	struct isp_scaler_port *port = NULL;
 	struct camera_frame *frame;
 	uint32_t target_fid;
-	int hw_path_id = 0;
 
 	if (!inode)
 		return CAMERA_RESERVE_FRAME_NUM;
@@ -732,11 +726,10 @@ static uint32_t isp_scaler_node_fid_across_context_get(struct isp_yuv_scaler_nod
 	target_fid = CAMERA_RESERVE_FRAME_NUM;
 
 	list_for_each_entry(port, &inode->port_queue.head, list) {
-		if (atomic_read(&port->user_cnt) >= 1 && inode->uinfo.path_info[hw_path_id].uframe_sync) {
-			hw_path_id = isp_scaler_port_id_switch(port->port_id);
+		if (atomic_read(&port->user_cnt) >= 1 && inode->uinfo.uframe_sync) {
 			frame = cam_queue_dequeue_peek(&port->out_buf_queue, struct camera_frame, list);
 			target_fid = min(target_fid, frame->user_fid);
-			pr_debug("node id%d path%d user_fid %u\n",inode->node_id, hw_path_id, frame->user_fid);
+			pr_debug("node id%d port%d user_fid %u\n",inode->node_id, port->port_id, frame->user_fid);
 		}
 	}
 	pr_debug("target_fid %u, cam_id = %d\n", target_fid, cam_id);
@@ -1121,6 +1114,7 @@ void *isp_yuv_scaler_node_get (uint32_t node_id, struct isp_yuv_scaler_node_desc
 	node->node_id = node_id;
 	node->node_type = param->node_type;
 	node->is_bind = 0;
+	node->uinfo.uframe_sync = param->uframe_sync;
 
 	path_info = &node->uinfo.path_info[param->hw_path_id];
 	path_info->dst = param->output_size;
