@@ -1087,6 +1087,7 @@ static int dcamonline_done_proc(void *param, void *handle, struct dcam_hw_contex
 		case PORT_AFL_OUT:
 			dcam_port->port_cfg_cb_func(hw_ctx, DCAM_PORT_STORE_SET, dcam_port);
 			if ((frame = dcamonline_frame_prepare(node, dcam_port, hw_ctx))) {
+				frame->fid = hw_ctx->base_fid + hw_ctx->index_to_set - 1;
 				irq_proc->param = frame;
 				irq_proc->type = CAM_CB_DCAM_STATIS_DONE;
 				dcamonline_frame_dispatch(irq_proc, node);

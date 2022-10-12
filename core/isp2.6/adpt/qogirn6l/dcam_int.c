@@ -1071,8 +1071,10 @@ static void dcamint_afl_done(void *param, struct dcam_sw_context *sw_ctx)
 	}
 
 	dcam_path_store_frm_set(sw_ctx, &sw_ctx->path[DCAM_PATH_AFL]);
-	if ((frame = dcamint_frame_prepare(dcam_hw_ctx, sw_ctx, DCAM_PATH_AFL)))
+	if ((frame = dcamint_frame_prepare(dcam_hw_ctx, sw_ctx, DCAM_PATH_AFL))) {
+		frame->fid = sw_ctx->base_fid + sw_ctx->index_to_set - 1;
 		dcamint_frame_dispatch(dcam_hw_ctx, sw_ctx, DCAM_PATH_AFL, frame, DCAM_CB_STATIS_DONE);
+	}
 }
 
 static void dcamint_hist_done(void *param, struct dcam_sw_context *sw_ctx)
