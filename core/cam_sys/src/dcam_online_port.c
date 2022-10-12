@@ -809,8 +809,8 @@ static inline int dcamonline_port_hist_out_frm_set(struct dcam_online_port *dcam
 				idx, cam_port_name_get(port_id));
 			return -ENOMEM;
 		}
-		i = 0;
-		while (i < hw_ctx->slowmotion_count - 1) {
+		i = 1;
+		while (i < hw_ctx->slowmotion_count) {
 			addr = slowmotion_store_addr[_hist][i];
 			slw_addr.reg_addr = addr;
 			slw_addr.idx = idx;
@@ -859,8 +859,8 @@ static inline int dcamonline_port_aem_out_frm_set(struct dcam_online_port *dcam_
 				idx, cam_port_name_get(port_id));
 			return -ENOMEM;
 		}
-		i = 0;
-		while (i < hw_ctx->slowmotion_count - 1) {
+		i = 1;
+		while (i < hw_ctx->slowmotion_count) {
 			addr = slowmotion_store_addr[_aem][i];
 			slw_addr.reg_addr = addr;
 			slw_addr.idx = idx;
