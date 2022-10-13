@@ -103,9 +103,10 @@ static int isp_k_hist2_block(struct isp_io_param *param,
 }
 
 int isp_k_cfg_hist2(struct isp_io_param *param,
-	struct dcam_isp_k_block *isp_k_param, uint32_t idx)
+	struct dcam_isp_k_block *isp_k_param)
 {
 	int ret = 0;
+	uint32_t idx = isp_k_param->cfg_id;
 
 	switch (param->property) {
 	case ISP_PRO_HIST2_BLOCK:

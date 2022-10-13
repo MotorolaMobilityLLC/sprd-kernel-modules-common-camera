@@ -895,9 +895,9 @@ int dcam_offline_node_blk_param_set(struct dcam_offline_node *node, void *param)
 	int ret = 0, index = 0;
 	struct isp_io_param *blk_param = NULL;
 	struct dcam_isp_k_block *pm = NULL;
-	func_dcam_cfg_param cfg_fun_ptr = NULL;
+	func_cam_cfg_param cfg_fun_ptr = NULL;
 	struct cam_hw_info *hw = NULL;
-	struct dcam_hw_block_func_get blk_func = {0};
+	struct cam_hw_block_func_get blk_func = {0};
 
 	if (!node || !param) {
 		pr_err("fail to get valid param %px %px\n", node, param);
@@ -912,12 +912,12 @@ int dcam_offline_node_blk_param_set(struct dcam_offline_node *node, void *param)
 	}
 	hw = node->dev->hw;
 
-	index = blk_param->sub_block - DCAM_BLOCK_BASE;
+	index = blk_param->sub_block;
 	blk_func.index = index;
-	hw->dcam_ioctl(hw, DCAM_HW_CFG_BLOCK_FUNC_GET, &blk_func);
-	if (blk_func.dcam_entry != NULL &&
-		blk_func.dcam_entry->sub_block == blk_param->sub_block) {
-		cfg_fun_ptr = blk_func.dcam_entry->cfg_func;
+	hw->cam_ioctl(hw, CAM_HW_GET_BLK_FUN, &blk_func);
+	if (blk_func.cam_entry != NULL &&
+		blk_func.cam_entry->sub_block == blk_param->sub_block) {
+		cfg_fun_ptr = blk_func.cam_entry->cfg_func;
 	} else {
 		pr_err("fail to check param, io_param->sub_block = %d, error\n", blk_param->sub_block);
 	}

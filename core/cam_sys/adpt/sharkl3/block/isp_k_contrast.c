@@ -45,7 +45,7 @@ int isp_k_contrast1_block(struct dcam_isp_k_block *isp_k_param, uint32_t idx)
 }
 
 int isp_k_cfg_contrast(struct isp_io_param *param,
-	struct dcam_isp_k_block *isp_k_param, uint32_t idx)
+	struct dcam_isp_k_block *isp_k_param)
 {
 	int ret = 0;
 	struct isp_dev_contrast_info *contrast_info = NULL;

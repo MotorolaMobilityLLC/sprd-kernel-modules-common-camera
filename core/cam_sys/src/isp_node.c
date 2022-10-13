@@ -1002,9 +1002,9 @@ static int ispnode_blkparam_cfg(void *node, void *param)
 	struct isp_node* inode = NULL;
 	struct isp_pipe_dev *dev = NULL;
 	struct isp_io_param *io_param = NULL;
-	func_isp_cfg_param cfg_fun_ptr = NULL;
+	func_cam_cfg_param cfg_fun_ptr = NULL;
 	struct cam_hw_info *ops = NULL;
-	struct isp_hw_block_func fucarg = {0};
+	struct cam_hw_block_func_get fucarg = {0};
 	struct isp_port_blksize_desc size_desc = {0};
 	struct isp_port *port = NULL;
 
@@ -1047,20 +1047,20 @@ static int ispnode_blkparam_cfg(void *node, void *param)
 	if (io_param->sub_block == ISP_BLOCK_3DNR) {
 		if (inode->uinfo.mode_3dnr != MODE_3DNR_OFF) {
 			if (io_param->scene_id == PM_SCENE_PRE || io_param->scene_id == PM_SCENE_VID)
-				ret = isp_k_cfg_3dnr(param, inode->isp_receive_param->blkparam_info.param_block, inode->cfg_id);
+				ret = isp_k_cfg_3dnr(param, inode->isp_receive_param->blkparam_info.param_block);
 			else
-				ret = isp_k_cfg_3dnr(param, &inode->isp_k_param, inode->cfg_id);
+				ret = isp_k_cfg_3dnr(param, &inode->isp_k_param);
 		}
 	} else if (io_param->sub_block == ISP_BLOCK_NOISEFILTER) {
 		if (io_param->scene_id == PM_SCENE_CAP)
-			ret = isp_k_cfg_yuv_noisefilter(param, &inode->isp_k_param, inode->cfg_id);
+			ret = isp_k_cfg_yuv_noisefilter(param, &inode->isp_k_param);
 	} else {
-		i = io_param->sub_block - ISP_BLOCK_BASE;
+		i = io_param->sub_block;
 		fucarg.index = i;
-		ops->isp_ioctl(ops, ISP_HW_CFG_BLOCK_FUNC_GET, &fucarg);
-		if (fucarg.isp_entry != NULL &&
-			fucarg.isp_entry->sub_block == io_param->sub_block)
-			cfg_fun_ptr = fucarg.isp_entry->cfg_func;
+		ops->cam_ioctl(ops, CAM_HW_GET_BLK_FUN, &fucarg);
+		if (fucarg.cam_entry != NULL &&
+			fucarg.cam_entry->sub_block == io_param->sub_block)
+			cfg_fun_ptr = fucarg.cam_entry->cfg_func;
 
 		if (cfg_fun_ptr == NULL) {
 			pr_debug("isp block 0x%x is not supported.\n", io_param->sub_block);
@@ -1069,9 +1069,9 @@ static int ispnode_blkparam_cfg(void *node, void *param)
 			return 0;
 		}
 		if (io_param->scene_id == PM_SCENE_PRE)
-			ret = cfg_fun_ptr(io_param, inode->isp_receive_param->blkparam_info.param_block, inode->cfg_id);
+			ret = cfg_fun_ptr(io_param, inode->isp_receive_param->blkparam_info.param_block);
 		else
-			ret = cfg_fun_ptr(io_param, &inode->isp_k_param, inode->cfg_id);
+			ret = cfg_fun_ptr(io_param, &inode->isp_k_param);
 	}
 
 	mutex_unlock(&inode->blkpm_lock);

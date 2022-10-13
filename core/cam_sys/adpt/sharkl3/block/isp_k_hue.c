@@ -43,7 +43,7 @@ int isp_k_hue1_block(struct dcam_isp_k_block *isp_k_param, uint32_t idx)
 }
 
 int isp_k_cfg_hue(struct isp_io_param *param,
-	struct dcam_isp_k_block *isp_k_param, uint32_t idx)
+	struct dcam_isp_k_block *isp_k_param)
 {
 	int ret = 0;
 	struct isp_dev_hue_info_l3 *hue_info = NULL;

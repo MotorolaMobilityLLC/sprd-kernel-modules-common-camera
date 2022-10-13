@@ -90,9 +90,10 @@ static int isp_k_grgb_block(struct isp_io_param *param,
 }
 
 int isp_k_cfg_grgb(struct isp_io_param *param,
-	struct dcam_isp_k_block *isp_k_param, uint32_t idx)
+	struct dcam_isp_k_block *isp_k_param)
 {
 	int ret = 0;
+	uint32_t idx = isp_k_param->cfg_id;
 
 	if (param->property_param == NULL) {
 		pr_err("fail to get property_param\n");

@@ -119,8 +119,7 @@ int dcam_k_bayerhist_bypass(struct dcam_isp_k_block *p)
 	return ret;
 }
 
-int dcam_k_cfg_bayerhist(struct isp_io_param *param,
-			struct dcam_isp_k_block *p)
+int dcam_k_cfg_bayerhist(struct isp_io_param *param, struct dcam_isp_k_block *p)
 {
 	int ret = 0;
 

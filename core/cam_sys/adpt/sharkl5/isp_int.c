@@ -576,11 +576,6 @@ int isp_int_irq_request(struct device *p_dev,
 	ispdev = (struct isp_pipe_dev *)isp_handle;
 
 	for (id = 0; id < ISP_LOGICAL_COUNT; id++) {
-
-		if (ispdev->isp_hw->prj_id == QOGIRN6pro) {
-			if (id == (ISP_LOGICAL_COUNT - 1))
-				break;
-		}
 		ispdev->irq_no[id] = irq_no[id];
 		ret = devm_request_irq(p_dev,
 				ispdev->irq_no[id], ispint_isr_root,

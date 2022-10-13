@@ -278,11 +278,154 @@ err_axi_iounmap:
 	return -1;
 }
 
+static int camhw_get_csi_switch(void *handle, void *arg)
+{
+	struct cam_hw_info *hw = NULL;
+	struct regmap *switch_map = NULL;
+	struct device_node *dn = (struct device_node *)arg;
+	struct cam_hw_soc_info *soc_dcam = NULL;
+	if (!handle) {
+		pr_err("fail to get invalid handle\n");
+		return -EINVAL;
+	}
+
+	hw = (struct cam_hw_info *)handle;
+	soc_dcam = hw->soc_dcam;
+
+	switch_map = syscon_regmap_lookup_by_phandle(dn, "sprd,csi-switch");
+	if (IS_ERR_OR_NULL(switch_map)) {
+		pr_err("fail to get sprd,csi-switch\n");
+		return -EINVAL;
+	}
+	soc_dcam->cam_switch_gpr = switch_map;
+
+	return 0;
+}
+
+static int camhw_get_block_type(void *handle, void *arg)
+{
+	int ret = 0;
+	struct cam_cfg_block *blk_type = (struct cam_cfg_block *)arg;
+
+	switch (blk_type->sub_block) {
+	case ISP_BLOCK_GAMMA:
+	case ISP_BLOCK_CMC:
+	case ISP_BLOCK_CFA:
+	case ISP_BLOCK_NLM:
+	case ISP_BLOCK_CCE:
+	case ISP_BLOCK_HIST2:
+	case DCAM_BLOCK_BLC:
+	case DCAM_BLOCK_RGBG:
+	case DCAM_BLOCK_RGBG_DITHER:
+	case DCAM_BLOCK_PDAF:
+	case DCAM_BLOCK_LSC:
+	case DCAM_BLOCK_BAYERHIST:
+	case DCAM_BLOCK_AEM:
+	case DCAM_BLOCK_AFL:
+	case DCAM_BLOCK_AWBC:
+	case DCAM_BLOCK_BPC:
+	case DCAM_BLOCK_LSCM:
+	case DCAM_BLOCK_AFM:
+	case DCAM_BLOCK_3DNR_ME:
+	case DCAM_BLOCK_GTM:
+		blk_type->block_type = DCAM_BLOCK_TYPE;
+		break;
+	case ISP_BLOCK_DCT:
+		blk_type->block_type = DEC_BLOCK_TYPE;
+		break;
+	case ISP_BLOCK_RGB_LTM:
+		if(blk_type->property == ISP_PRO_RGB_LTM_BYPASS)
+			blk_type->block_type = DCAM_BLOCK_TYPE;
+		else
+			blk_type->block_type = ISP_BLOCK_TYPE;
+		break;
+	case ISP_BLOCK_BCHS:
+	case ISP_BLOCK_CNR_H:
+	case ISP_BLOCK_POST_CNR_H:
+	case ISP_BLOCK_CDN:
+	case ISP_BLOCK_EDGE:
+	case ISP_BLOCK_3DLUT:
+	case ISP_BLOCK_UVD:
+	case ISP_BLOCK_YGAMMA:
+	case ISP_BLOCK_YRANDOM:
+	case ISP_BLOCK_YNR:
+	case ISP_BLOCK_HSV:
+	case ISP_BLOCK_HIST:
+	case ISP_BLOCK_3DNR:
+	case ISP_BLOCK_PYRAMID_OFFL:
+	case ISP_BLOCK_PYRAMID_ONL:
+	case ISP_BLOCK_NOISEFILTER:
+		blk_type->block_type = ISP_BLOCK_TYPE;
+		break;
+	default:
+		pr_err("fail to get valid block %d\n", blk_type->sub_block);
+		ret = -EFAULT;
+		break;
+	}
+	return ret;
+}
+
+static struct cam_cfg_entry cam_hw_cfg_func_tab[ISP_BLOCK_TOTAL] = {
+	[DCAM_BLOCK_BLC]         = {DCAM_BLOCK_BLC,         dcam_k_cfg_blc},
+	[DCAM_BLOCK_AEM]         = {DCAM_BLOCK_AEM,         dcam_k_cfg_aem},
+	[DCAM_BLOCK_AWBC]        = {DCAM_BLOCK_AWBC,        dcam_k_cfg_awbc},
+	[DCAM_BLOCK_AFM]         = {DCAM_BLOCK_AFM,         dcam_k_cfg_afm},
+	[DCAM_BLOCK_AFL]         = {DCAM_BLOCK_AFL,         dcam_k_cfg_afl},
+	[DCAM_BLOCK_LSC]         = {DCAM_BLOCK_LSC,         dcam_k_cfg_lsc},
+	[DCAM_BLOCK_BPC]         = {DCAM_BLOCK_BPC,         dcam_k_cfg_bpc},
+	[DCAM_BLOCK_RGBG]        = {DCAM_BLOCK_RGBG,        dcam_k_cfg_rgb_gain},
+	[DCAM_BLOCK_RGBG_DITHER] = {DCAM_BLOCK_RGBG_DITHER, dcam_k_cfg_rgb_dither},
+	[DCAM_BLOCK_PDAF]        = {DCAM_BLOCK_PDAF,        dcam_k_cfg_pdaf},
+	[DCAM_BLOCK_BAYERHIST]   = {DCAM_BLOCK_BAYERHIST,   dcam_k_cfg_bayerhist},
+	[DCAM_BLOCK_3DNR_ME]     = {DCAM_BLOCK_3DNR_ME,     dcam_k_cfg_3dnr_me},
+	[DCAM_BLOCK_LSCM]        = {DCAM_BLOCK_LSCM,        dcam_k_cfg_lscm},
+	[DCAM_BLOCK_GTM]         = {DCAM_BLOCK_GTM,         dcam_k_cfg_raw_gtm},
+	[ISP_BLOCK_GAMMA]        = {ISP_BLOCK_GAMMA,        dcam_k_cfg_gamma},
+	[ISP_BLOCK_CMC]          = {ISP_BLOCK_CMC,          dcam_k_cfg_cmc10},
+	[ISP_BLOCK_CFA]          = {ISP_BLOCK_CFA,          dcam_k_cfg_cfa},
+	[ISP_BLOCK_NLM]          = {ISP_BLOCK_NLM,          dcam_k_cfg_nlm},
+	[ISP_BLOCK_CCE]          = {ISP_BLOCK_CCE,          dcam_k_cfg_cce},
+	[ISP_BLOCK_HIST2]        = {ISP_BLOCK_HIST2,        dcam_k_cfg_frgbhist},
+	[ISP_BLOCK_YGAMMA]       = {ISP_BLOCK_YGAMMA,       isp_k_cfg_ygamma},
+	[ISP_BLOCK_YNR]          = {ISP_BLOCK_YNR,          isp_k_cfg_ynr},
+	[ISP_BLOCK_UVD]          = {ISP_BLOCK_UVD,          isp_k_cfg_uvd},
+	[ISP_BLOCK_CDN]          = {ISP_BLOCK_CDN,          isp_k_cfg_cdn},
+	[ISP_BLOCK_EDGE]         = {ISP_BLOCK_EDGE,         isp_k_cfg_edge},
+	[ISP_BLOCK_YRANDOM]      = {ISP_BLOCK_YRANDOM,      isp_k_cfg_yrandom},
+	[ISP_BLOCK_BCHS]         = {ISP_BLOCK_BCHS,         isp_k_cfg_bchs},
+	[ISP_BLOCK_RGB_LTM]      = {ISP_BLOCK_RGB_LTM,      isp_k_cfg_rgb_ltm},
+	[ISP_BLOCK_HSV]          = {ISP_BLOCK_HSV,          isp_k_cfg_hsv},
+	[ISP_BLOCK_CNR_H]        = {ISP_BLOCK_CNR_H,        isp_k_cfg_cnr},
+	[ISP_BLOCK_POST_CNR_H]   = {ISP_BLOCK_POST_CNR_H,   isp_k_cfg_post_cnr_h},
+	[ISP_BLOCK_3DLUT]        = {ISP_BLOCK_3DLUT,        isp_k_cfg_3dlut},
+	[ISP_BLOCK_DCT]          = {ISP_BLOCK_DCT,          isp_k_cfg_dct},
+};
+
+static int camhw_get_block_fun(void *handle, void *arg)
+{
+	void *block_func = NULL;
+	struct cam_hw_block_func_get *fucarg = NULL;
+
+	fucarg = (struct cam_hw_block_func_get *)arg;
+	if (fucarg->index < ISP_BLOCK_TOTAL) {
+		block_func = (struct cam_cfg_entry *)&cam_hw_cfg_func_tab[fucarg->index];
+		fucarg->cam_entry = block_func;
+	}
+
+	if (block_func == NULL)
+		pr_err("fail to get valid block func %d\n", fucarg->index);
+
+	return 0;
+}
+
 static struct hw_io_ctrl_fun cam_ioctl_fun_tab[] = {
 	{CAM_HW_GET_ALL_RST,            camhw_get_all_rst},
 	{CAM_HW_GET_AXI_BASE,           camhw_get_axi_base},
 	{CAM_HW_GET_DCAM_DTS_CLK,       camhw_get_dcam_dts_clk},
 	{CAM_HW_GET_ISP_DTS_CLK,        camhw_get_isp_dts_clk},
+	{CAM_HW_GET_BLOCK_TYPE,         camhw_get_block_type},
+	{CAM_HW_GET_CSI_SWITCH,         camhw_get_csi_switch},
+	{CAM_HW_GET_BLK_FUN,            camhw_get_block_fun},
 };
 
 static hw_ioctl_fun camhw_ioctl_fun_get(enum cam_hw_cfg_cmd cmd)

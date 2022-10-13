@@ -376,7 +376,7 @@ int isp_k_edge_block(struct dcam_isp_k_block *isp_k_param, uint32_t idx)
 }
 
 int isp_k_cfg_edge(struct isp_io_param *param,
-	struct dcam_isp_k_block *isp_k_param, uint32_t idx)
+	struct dcam_isp_k_block *isp_k_param)
 {
 	int ret = 0;
 	struct isp_dev_edge_info_v3 *edge_info = NULL;

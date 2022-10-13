@@ -103,7 +103,7 @@ int dcam_k_awbc_bypass(struct dcam_isp_k_block *param)
 	return ret;
 }
 
-int dcam_k_cfg_awbc(struct isp_io_param *param,	struct dcam_isp_k_block *p)
+int dcam_k_cfg_awbc(struct isp_io_param *param, struct dcam_isp_k_block *p)
 {
 	int ret = 0;
 	void *pcpy;

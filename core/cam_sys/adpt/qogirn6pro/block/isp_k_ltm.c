@@ -173,10 +173,11 @@ int isp_k_ltm_rgb_block(struct isp_io_param *param,
 	return ret;
 }
 
-int isp_k_cfg_rgb_ltm(struct isp_io_param *param,
-		struct dcam_isp_k_block *isp_k_param, uint32_t idx)
+int isp_k_cfg_rgb_ltm(struct isp_io_param *param, struct dcam_isp_k_block *isp_k_param)
 {
 	int ret = 0;
+	uint32_t idx = isp_k_param->cfg_id;
+
 	switch (param->property) {
 	case ISP_PRO_RGB_LTM_BLOCK:
 		ret = isp_k_ltm_rgb_block(param, isp_k_param, idx);

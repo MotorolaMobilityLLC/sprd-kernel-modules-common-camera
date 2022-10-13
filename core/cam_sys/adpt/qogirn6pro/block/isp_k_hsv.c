@@ -155,8 +155,7 @@ int isp_k_hsv_block(struct dcam_isp_k_block *isp_k_param, uint32_t idx)
 	return ret;
 }
 
-int isp_k_cfg_hsv(struct isp_io_param *param,
-	struct dcam_isp_k_block *isp_k_param, uint32_t idx)
+int isp_k_cfg_hsv(struct isp_io_param *param, struct dcam_isp_k_block *isp_k_param)
 {
 	int ret = 0;
 	struct isp_dev_hsv_info_v3 *hsv_info = NULL;
@@ -173,7 +172,7 @@ int isp_k_cfg_hsv(struct isp_io_param *param,
 		isp_k_param->hsv_info3.isupdate = 1;
 		break;
 	default:
-		pr_err("fail to idx %d, support cmd id = %d\n", idx, param->property);
+		pr_err("fail to idx %d, support cmd id = %d\n", isp_k_param->cfg_id, param->property);
 		break;
 	}
 
@@ -339,8 +338,7 @@ int isp_k_hsv_block(struct dcam_isp_k_block *isp_k_param, uint32_t idx)
 	return ret;
 }
 
-int isp_k_cfg_hsv(struct isp_io_param *param,
-	struct dcam_isp_k_block *isp_k_param, uint32_t idx)
+int isp_k_cfg_hsv(struct isp_io_param *param, struct dcam_isp_k_block *isp_k_param)
 {
 	int ret = 0;
 	struct isp_dev_hsv_info_v4 *hsv_info = NULL;
@@ -357,7 +355,7 @@ int isp_k_cfg_hsv(struct isp_io_param *param,
 		isp_k_param->hsv_info4.isupdate = 1;
 		break;
 	default:
-		pr_err("fail to idx %d, support cmd id = %d\n", idx, param->property);
+		pr_err("fail to idx %d, support cmd id = %d\n", isp_k_param->cfg_id, param->property);
 		break;
 	}
 

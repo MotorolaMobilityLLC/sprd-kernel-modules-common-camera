@@ -111,10 +111,11 @@ int isp_k_post_cnr_block(struct dcam_isp_k_block *isp_k_param, uint32_t idx)
 	return ret;
 }
 
-int isp_k_cfg_post_cnr_h(struct isp_io_param *param,
-	struct dcam_isp_k_block *isp_k_param, uint32_t idx)
+int isp_k_cfg_post_cnr_h(struct isp_io_param *param, struct dcam_isp_k_block *isp_k_param)
 {
 	int ret = 0;
+	uint32_t idx = isp_k_param->cfg_id;
+
 	struct isp_dev_post_cnr_h_info *post_cnr_h_info = NULL;
 
 	post_cnr_h_info = &isp_k_param->post_cnr_h_info;

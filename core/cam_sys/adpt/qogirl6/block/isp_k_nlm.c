@@ -403,7 +403,7 @@ int isp_k_nlm_imblance(struct dcam_isp_k_block *isp_k_param, uint32_t idx)
 }
 
 int isp_k_cfg_nlm(struct isp_io_param *param,
-		struct dcam_isp_k_block *isp_k_param, uint32_t idx)
+		struct dcam_isp_k_block *isp_k_param)
 {
 	int ret = 0;
 	struct isp_dev_nlm_info_v2 *p = NULL;

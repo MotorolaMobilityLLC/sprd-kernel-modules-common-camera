@@ -41,9 +41,10 @@ int isp_k_cnr_block(struct dcam_isp_k_block *isp_k_param, uint32_t idx)
 }
 
 int isp_k_cfg_cnr(struct isp_io_param *param,
-	struct dcam_isp_k_block *isp_k_param, uint32_t idx)
+	struct dcam_isp_k_block *isp_k_param)
 {
 	int ret = 0;
+	uint32_t idx = isp_k_param->cfg_id;
 	struct isp_dev_cnr_h_info *cnr = NULL;
 
 	cnr = &isp_k_param->cnr_info;

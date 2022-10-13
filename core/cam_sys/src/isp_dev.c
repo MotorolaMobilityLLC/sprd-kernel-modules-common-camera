@@ -306,11 +306,6 @@ static int ispdev_reset(void *isp_handle, void *param)
 	dev = (struct isp_pipe_dev *)isp_handle;
 	hw = (struct cam_hw_info *)param;
 
-	if (hw->prj_id == QOGIRN6pro || hw->prj_id == QOGIRN6L) {
-		/* Need to check isp reset issue */
-		return 0;
-	}
-
 	reset_flag = ISP_RESET_BEFORE_POWER_OFF;
 	hw->isp_ioctl(hw, ISP_HW_CFG_RESET, &reset_flag);
 	hw->isp_ioctl(hw, ISP_HW_CFG_DEFAULT_PARA_SET, NULL);

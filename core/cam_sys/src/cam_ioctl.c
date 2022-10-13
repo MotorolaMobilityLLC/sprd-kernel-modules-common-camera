@@ -292,9 +292,10 @@ static int camioctl_param_cfg(struct camera_module *module, unsigned long arg)
 	struct compat_isp_io_param __user *uparam = NULL;
 	struct dcam_pipe_dev *dev = NULL;
 	struct dcam_isp_k_block *pm = NULL;
-	func_dcam_cfg_param cfg_fun_ptr = NULL;
+	func_cam_cfg_param cfg_fun_ptr = NULL;
 	struct cam_hw_info *hw = NULL;
-	struct dcam_hw_block_func_get blk_func = {0};
+	struct cam_cfg_block blk_type = {0};
+	struct cam_hw_block_func_get blk_func = {0};
 
 	if (module->compat_flag) {
 		uparam = (struct compat_isp_io_param __user *)arg;
@@ -312,6 +313,8 @@ static int camioctl_param_cfg(struct camera_module *module, unsigned long arg)
 		ret = -EFAULT;
 		goto exit;
 	}
+	blk_type.sub_block = param.sub_block;
+	blk_type.property = param.property;
 
 	if (atomic_read(&module->state) == CAM_INIT || param.property_param == NULL
 		|| module->dcam_dev_handle == NULL || module->isp_dev_handle == NULL) {
@@ -321,6 +324,7 @@ static int camioctl_param_cfg(struct camera_module *module, unsigned long arg)
 	}
 
 	dev = (struct dcam_pipe_dev *)module->dcam_dev_handle;
+	hw = dev->hw;
 
 	if ((param.scene_id == PM_SCENE_OFFLINE_CAP) ||
 		(param.scene_id == PM_SCENE_OFFLINE_BPC) ||
@@ -353,26 +357,28 @@ static int camioctl_param_cfg(struct camera_module *module, unsigned long arg)
 		for_capture = 1;
 	}
 
+	ret = hw->cam_ioctl(hw, CAM_HW_GET_BLOCK_TYPE, &blk_type);
+	if (unlikely(ret)) {
+		pr_err("fail to get block_type, ret %d\n", ret);
+		ret = -EFAULT;
+		goto exit;
+	}
+
 	if (!channel->enable || !channel->pipeline_handle) {
 		pr_warn("warning: channel %d has not been enable %px scene %d subblock %d\n",
 				channel->ch_id, channel->pipeline_handle, param.scene_id, param.sub_block);
 		if (param.sub_block == DCAM_BLOCK_LSC)
 			goto exit;
 		if (!for_capture) {
-			hw = dev->hw;
 			pm = &channel->blk_pm;
-			blk_func.index = param.sub_block - DCAM_BLOCK_BASE;
+			blk_func.index = param.sub_block;
 			if(dev->hw->ip_isp->rgb_gtm_support && (blk_func.index == DCAM_BLOCK_GTM))
 				goto exit;
-			if (blk_func.index < DCAM_BLOCK_TOTAL ||
-				((module->grp->hw_info->prj_id == QOGIRN6pro || module->grp->hw_info->prj_id == QOGIRN6L)
-				&& (param.sub_block == ISP_BLOCK_GAMMA || param.sub_block == ISP_BLOCK_CMC ||
-				param.sub_block == ISP_BLOCK_CFA || param.sub_block == ISP_BLOCK_NLM ||
-				param.sub_block == ISP_BLOCK_CCE || param.sub_block == ISP_BLOCK_HIST2))) {
-				hw->dcam_ioctl(hw, DCAM_HW_CFG_BLOCK_FUNC_GET, &blk_func);
-				if (blk_func.dcam_entry != NULL &&
-					blk_func.dcam_entry->sub_block == param.sub_block) {
-					cfg_fun_ptr = blk_func.dcam_entry->cfg_func;
+			if (blk_type.block_type == DCAM_BLOCK_TYPE) {
+				hw->cam_ioctl(hw, CAM_HW_GET_BLK_FUN, &blk_func);
+				if (blk_func.cam_entry != NULL &&
+					blk_func.cam_entry->sub_block == param.sub_block) {
+					cfg_fun_ptr = blk_func.cam_entry->cfg_func;
 				} else { /* if not, some error */
 					pr_err("fail to check param, io_param->sub_block = %d, error\n", param.sub_block);
 				}
@@ -386,26 +392,19 @@ static int camioctl_param_cfg(struct camera_module *module, unsigned long arg)
 		ret = -EFAULT;
 		goto exit;
 	}
-
-	if ((param.sub_block & DCAM_ISP_BLOCK_MASK) == DCAM_BLOCK_BASE) {
-		if (dev && dev->hw->ip_isp->rgb_gtm_support && (param.sub_block == DCAM_BLOCK_GTM)) {
+	switch (blk_type.block_type) {
+	case DCAM_BLOCK_TYPE:
+		if (blk_type.sub_block == ISP_BLOCK_RGB_GTM) {
 			param.sub_block = ISP_BLOCK_RGB_GTM;
-
-			pr_debug("Config gtm block chn en%d \n", channel->enable);
 			if (channel->enable) {
-				if (param.property == DCAM_PRO_GTM_BYPASS) {
-					/* gtm bypass sync with frm in dcam ctx */
-					if (for_capture && (module->capture_type == CAM_CAPTURE_RAWPROC
-						|| module->cam_uinfo.dcam_slice_mode || module->cam_uinfo.is_4in1))
-						pr_warn("not support offline ctx now\n");
-					else
-						ret = CAM_PIPEINE_DCAM_ONLINE_NODE_CFG(channel, CAM_PIPELINE_CFG_BLK_PARAM, &param);
-				} else
-					ret = CAM_PIPEINE_ISP_NODE_CFG(channel, CAM_PIPELINE_CFG_BLK_PARAM, &param);
+				if (for_capture && (module->capture_type == CAM_CAPTURE_RAWPROC
+					|| module->cam_uinfo.dcam_slice_mode || module->cam_uinfo.is_4in1))
+					pr_warn("not support offline ctx now\n");
+				else
+					ret = CAM_PIPEINE_DCAM_ONLINE_NODE_CFG(channel, CAM_PIPELINE_CFG_BLK_PARAM, &param);
 			}
 			goto exit;
 		}
-		/* Temp add for dcam offline node raw capture */
 		if (for_capture && (module->capture_type == CAM_CAPTURE_RAWPROC
 			|| module->cam_uinfo.dcam_slice_mode || module->cam_uinfo.is_4in1
 			|| (param.scene_id == PM_SCENE_OFFLINE_BPC)
@@ -414,34 +413,21 @@ static int camioctl_param_cfg(struct camera_module *module, unsigned long arg)
 			ret = CAM_PIPEINE_DCAM_OFFLINE_NODE_CFG(channel, CAM_PIPELINE_CFG_BLK_PARAM, &param);
 		else
 			ret = CAM_PIPEINE_DCAM_ONLINE_NODE_CFG(channel, CAM_PIPELINE_CFG_BLK_PARAM, &param);
-	} else {
+		break;
+	case ISP_BLOCK_TYPE:
+		if (blk_type.sub_block == ISP_BLOCK_RGB_GTM)
+			param.sub_block = ISP_BLOCK_RGB_GTM;
+		ret = CAM_PIPEINE_ISP_NODE_CFG(channel, CAM_PIPELINE_CFG_BLK_PARAM, &param);
+		break;
+	case DEC_BLOCK_TYPE:
 		if (channel->enable) {
-			if (((module->grp->hw_info->prj_id == QOGIRN6pro || module->grp->hw_info->prj_id == QOGIRN6L)
-				&& (param.sub_block == ISP_BLOCK_GAMMA || param.sub_block == ISP_BLOCK_CMC ||
-				param.sub_block == ISP_BLOCK_CFA || param.sub_block == ISP_BLOCK_NLM ||
-				param.sub_block == ISP_BLOCK_CCE || param.sub_block == ISP_BLOCK_HIST2)) ||
-				(param.sub_block == ISP_BLOCK_RGB_LTM && param.property == ISP_PRO_RGB_LTM_BYPASS)) {
-				if (for_capture && (module->capture_type == CAM_CAPTURE_RAWPROC
-					|| module->cam_uinfo.dcam_slice_mode
-					|| module->cam_uinfo.is_4in1
-					|| (param.scene_id == PM_SCENE_OFFLINE_BPC)
-					|| (param.scene_id == PM_SCENE_OFFLINE_CAP)
-					|| (param.scene_id == PM_SCENE_SFNR)))
-					ret = CAM_PIPEINE_DCAM_OFFLINE_NODE_CFG(channel, CAM_PIPELINE_CFG_BLK_PARAM, &param);
-				else {
-					ret = CAM_PIPEINE_DCAM_ONLINE_NODE_CFG(channel, CAM_PIPELINE_CFG_BLK_PARAM, &param);
-					if (ret)
-						pr_err("fail to set block %d\n", param.sub_block);
-				}
-			} else {
-				if (param.sub_block == ISP_BLOCK_DCT) {
-					if (param.scene_id == PM_SCENE_PRE)
-						goto exit;
-					ret = CAM_PIPEINE_PYR_DEC_NODE_CFG(channel, CAM_PIPELINE_CFG_BLK_PARAM, &param);
-				} else
-					ret = CAM_PIPEINE_ISP_NODE_CFG(channel, CAM_PIPELINE_CFG_BLK_PARAM, &param);
-			}
+			if (param.scene_id == PM_SCENE_PRE)
+				goto exit;
+			ret = CAM_PIPEINE_PYR_DEC_NODE_CFG(channel, CAM_PIPELINE_CFG_BLK_PARAM, &param);
 		}
+		break;
+	default:
+		break;
 	}
 exit:
 	return ret;

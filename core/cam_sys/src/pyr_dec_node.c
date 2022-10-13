@@ -1326,8 +1326,8 @@ int pyr_dec_node_blk_param_set(void *handle, void *param)
 	int ret = 0, index = 0;
 	struct pyr_dec_node *node = NULL;
 	struct isp_io_param *blk_param = NULL;
-	func_isp_cfg_param cfg_fun_ptr = NULL;
-	struct isp_hw_block_func fucarg = {0};
+	func_cam_cfg_param cfg_fun_ptr = NULL;
+	struct cam_hw_block_func_get fucarg = {0};
 	struct cam_hw_info *hw = NULL;
 	struct isp_pipe_dev *dev = NULL;
 
@@ -1350,12 +1350,12 @@ int pyr_dec_node_blk_param_set(void *handle, void *param)
 
 	/* lock to avoid block param across frame */
 	mutex_lock(&node->blkpm_lock);
-	index = blk_param->sub_block - ISP_BLOCK_BASE;
+	index = blk_param->sub_block;
 	fucarg.index = index;
-	hw->isp_ioctl(hw, ISP_HW_CFG_BLOCK_FUNC_GET, &fucarg);
-	if (fucarg.isp_entry != NULL &&
-		fucarg.isp_entry->sub_block == blk_param->sub_block) {
-		cfg_fun_ptr = fucarg.isp_entry->cfg_func;
+	hw->cam_ioctl(hw, CAM_HW_GET_BLK_FUN, &fucarg);
+	if (fucarg.cam_entry != NULL &&
+		fucarg.cam_entry->sub_block == blk_param->sub_block) {
+		cfg_fun_ptr = fucarg.cam_entry->cfg_func;
 	} else {
 		pr_err("fail to check param, io_param->sub_block = %d, error\n", blk_param->sub_block);
 	}
@@ -1364,7 +1364,7 @@ int pyr_dec_node_blk_param_set(void *handle, void *param)
 		goto exit;
 	}
 
-	ret = cfg_fun_ptr(blk_param, &node->isp_k_param, node->isp_node_cfg_id);
+	ret = cfg_fun_ptr(blk_param, &node->isp_k_param);
 
 	mutex_unlock(&node->blkpm_lock);
 	mutex_unlock(&dev->path_mutex);
