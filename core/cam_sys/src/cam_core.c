@@ -2798,7 +2798,7 @@ static camcore_dcamoffline_desc_get(struct camera_module *module,
 	return ret;
 }
 
-static camcore_dcamoffline_bpcraw_desc_get(struct camera_module *module,
+static int camcore_dcamoffline_bpcraw_desc_get(struct camera_module *module,
 		struct channel_context *channel, struct dcam_offline_node_desc *dcam_offline_desc)
 {
 	int ret = 0;
@@ -3197,6 +3197,7 @@ static int camcore_raw_proc_done(struct camera_module *module)
 	struct channel_context *ch = NULL;
 	struct dcam_pipe_dev *dev = NULL;
 	struct cam_nodes_dev *nodes_dev = NULL;
+	struct dcam_statis_param statis_param = {0};
 
 	pr_info("cam%d start\n", module->idx);
 	module->capture_type = CAM_CAPTURE_STOP;
@@ -3210,6 +3211,11 @@ static int camcore_raw_proc_done(struct camera_module *module)
 	ch = &module->channel[CAM_CH_CAP];
 
 	camcore_timer_stop(&module->cam_timer);
+
+	if (ch->enable) {
+		statis_param.statis_cmd = DCAM_IOCTL_DEINIT_STATIS_Q;
+		CAM_PIPEINE_DCAM_OFFLINE_NODE_CFG(ch, CAM_PIPELINE_CFG_STATIS_BUF, &statis_param);
+	}
 
 	if (module->cam_uinfo.is_pyr_dec) {
 		if (ch->pyr_dec_buf) {
@@ -3278,6 +3284,7 @@ static int camcore_raw_pre_proc(struct camera_module *module,
 	dcam_offline_desc->dcam_idx = module->dcam_idx;
 	dcam_offline_desc->port_desc.endian = ENDIAN_LITTLE;
 	dcam_offline_desc->port_desc.src_sel = PROCESS_RAW_SRC_SEL;
+	dcam_offline_desc->statis_en = 1;
 	camcore_valid_fmt_get(&module->raw_cap_fetch_fmt, hw->ip_dcam[0]->sensor_raw_fmt);
 	dcam_offline_desc->fetch_fmt = module->raw_cap_fetch_fmt;
 	camcore_valid_fmt_get(&ch->ch_uinfo.dcam_raw_fmt, hw->ip_dcam[0]->raw_fmt_support[0]);
@@ -3380,16 +3387,15 @@ static int camcore_raw_post_proc(struct camera_module *module,
 		struct isp_raw_proc_info *proc_info)
 {
 	int ret = 0;
-	uint32_t width = 0;
-	uint32_t height = 0;
+	uint32_t width = 0, height = 0, size = 0;
 	uint32_t pack_bits = 0, dcam_out_bits = 0;
-	uint32_t size = 0;
 	struct channel_context *ch = NULL;
 	struct camera_frame *src_frame = NULL;
 	struct camera_frame *mid_frame = NULL;
 	struct camera_frame *dst_frame = NULL;
 	struct camera_frame *pframe = NULL;
 	struct dcam_pipe_dev *dev = NULL;
+	struct dcam_statis_param statis_param = {0};
 	timespec cur_ts = {0};
 	memset(&cur_ts, 0, sizeof(timespec));
 	pr_info("start\n");
@@ -3401,6 +3407,9 @@ static int camcore_raw_post_proc(struct camera_module *module,
 		pr_err("fail to get channel enable state\n");
 		return -EFAULT;
 	}
+
+	statis_param.statis_cmd = DCAM_IOCTL_INIT_STATIS_Q;
+	CAM_PIPEINE_DCAM_OFFLINE_NODE_CFG(ch, CAM_PIPELINE_CFG_STATIS_BUF, &statis_param);
 
 	pr_info("src %d 0x%x, mid %d, 0x%x, dst %d, 0x%x\n",
 		proc_info->fd_src, proc_info->src_offset,

@@ -408,6 +408,30 @@ uint32_t dcamoffline_portid_convert_to_pathid(uint32_t port_id)
 	case PORT_OFFLINE_RAW_OUT:
 		path_id = DCAM_PATH_RAW;
 		break;
+	case PORT_OFFLINE_PDAF_OUT:
+		path_id = DCAM_PATH_PDAF;
+		break;
+	case PORT_OFFLINE_AEM_OUT:
+		path_id = DCAM_PATH_AEM;
+		break;
+	case PORT_OFFLINE_AFM_OUT:
+		path_id = DCAM_PATH_AFM;
+		break;
+	case PORT_OFFLINE_AFL_OUT:
+		path_id = DCAM_PATH_AFL;
+		break;
+	case PORT_OFFLINE_BAYER_HIST_OUT:
+		path_id = DCAM_PATH_HIST;
+		break;
+	case PORT_OFFLINE_FRGB_HIST_OUT:
+		path_id = DCAM_PATH_FRGB_HIST;
+		break;
+	case PORT_OFFLINE_LSCM_OUT:
+		path_id = DCAM_PATH_LSCM;
+		break;
+	case PORT_OFFLINE_GTM_HIST_OUT:
+		path_id = DCAM_PATH_GTM_HIST;
+		break;
 	default :
 		pr_err("fail to support port id %d\n", port_id);
 		break;

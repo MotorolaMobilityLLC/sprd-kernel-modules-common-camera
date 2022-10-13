@@ -136,7 +136,7 @@ exit:
 static int camioctl_statis_buf_set(struct camera_module *module,
 		unsigned long arg)
 {
-	int ret = 0;
+	int ret = 0, is_raw_cap = 0;
 	struct channel_context *ch = NULL;
 	struct isp_statis_buf_input statis_buf = {0};
 	struct cam_hw_info *hw = module->dcam_dev_handle->hw;
@@ -166,12 +166,20 @@ static int camioctl_statis_buf_set(struct camera_module *module,
 		goto exit;
 	}
 	ch = &module->channel[CAM_CH_PRE];
+	is_raw_cap = (module->capture_type == CAM_CAPTURE_RAWPROC ? 1 : 0);
 	switch (statis_buf.type) {
 		case STATIS_INIT:
-			if (ch->enable && ch->pipeline_handle) {
+			if (ch->enable) {
 				statis_param.statis_cmd = DCAM_IOCTL_CFG_STATIS_BUF;
 				statis_param.param = &statis_buf;
 				ret = CAM_PIPEINE_DCAM_ONLINE_NODE_CFG(ch, CAM_PIPELINE_CFG_STATIS_BUF, &statis_param);
+ 			} else {
+				ch = &module->channel[CAM_CH_CAP];
+				if (ch->enable && is_raw_cap) {
+					statis_param.statis_cmd = DCAM_IOCTL_CFG_STATIS_BUF;
+					statis_param.param = &statis_buf;
+					ret = CAM_PIPEINE_DCAM_OFFLINE_NODE_CFG(ch, CAM_PIPELINE_CFG_STATIS_BUF, &statis_param);
+				}
 			}
 
 			/* N6: frgb hist in dcam; others: yuv hist in isp */
@@ -189,35 +197,57 @@ static int camioctl_statis_buf_set(struct camera_module *module,
 		case STATIS_EBD:
 		case STATIS_LSCM:
 			pr_debug("cam%d type %d mfd %d\n", module->idx, statis_buf.type, statis_buf.mfd);
-			if (ch->enable && ch->pipeline_handle) {
+			if (ch->enable) {
 				statis_param.statis_cmd = DCAM_IOCTL_CFG_STATIS_BUF;
 				statis_param.param = &statis_buf;
 				ret = CAM_PIPEINE_DCAM_ONLINE_NODE_CFG(ch, CAM_PIPELINE_CFG_STATIS_BUF, &statis_param);
+			} else {
+				ch = &module->channel[CAM_CH_CAP];
+				if (ch->enable && is_raw_cap) {
+					statis_param.statis_cmd = DCAM_IOCTL_CFG_STATIS_BUF;
+					statis_param.param = &statis_buf;
+					ret = CAM_PIPEINE_DCAM_OFFLINE_NODE_CFG(ch, CAM_PIPELINE_CFG_STATIS_BUF, &statis_param);
+				}
 			}
 			break;
 		case STATIS_GTMHIST:
-			ch = &module->channel[CAM_CH_PRE];
-			if (!ch->enable) {
-				pr_debug("prev channel disable, can not set gtm buf\n");
-				break;
-			}
 			if (hw->ip_isp->rgb_gtm_support > 0) {
+				if (!ch->enable) {
+					pr_debug("prev channel disable, can not set gtm buf\n");
+					break;
+				}
 				/*gtm in isp*/
 				ret = CAM_PIPEINE_ISP_NODE_CFG(ch, CAM_PIPELINE_CFG_STATIS_BUF, &statis_buf);
 			} else {
 				/*gtm in dcam*/
 				pr_debug("dcam gtm statis buf cfg\n");
-				statis_param.statis_cmd = DCAM_IOCTL_CFG_STATIS_BUF;
-				statis_param.param = &statis_buf;
-				ret = CAM_PIPEINE_DCAM_ONLINE_NODE_CFG(ch, CAM_PIPELINE_CFG_STATIS_BUF, &statis_param);
+				if (ch->enable) {
+					statis_param.statis_cmd = DCAM_IOCTL_CFG_STATIS_BUF;
+					statis_param.param = &statis_buf;
+					ret = CAM_PIPEINE_DCAM_ONLINE_NODE_CFG(ch, CAM_PIPELINE_CFG_STATIS_BUF, &statis_param);
+				} else {
+					ch = &module->channel[CAM_CH_CAP];
+					if (ch->enable && is_raw_cap) {
+						statis_param.statis_cmd = DCAM_IOCTL_CFG_STATIS_BUF;
+						statis_param.param = &statis_buf;
+						ret = CAM_PIPEINE_DCAM_OFFLINE_NODE_CFG(ch, CAM_PIPELINE_CFG_STATIS_BUF, &statis_param);
+					}
+				}
 			}
 			break;
 		case STATIS_HIST2:
 			if (hw->ip_isp->frbg_hist_support) {
-				if (ch->enable && ch->pipeline_handle) {
+				if (ch->enable) {
 					statis_param.statis_cmd = DCAM_IOCTL_CFG_STATIS_BUF;
 					statis_param.param = &statis_buf;
 					ret = CAM_PIPEINE_DCAM_ONLINE_NODE_CFG(ch, CAM_PIPELINE_CFG_STATIS_BUF, &statis_param);
+				} else {
+					ch = &module->channel[CAM_CH_CAP];
+					if (ch->enable && is_raw_cap) {
+						statis_param.statis_cmd = DCAM_IOCTL_CFG_STATIS_BUF;
+						statis_param.param = &statis_buf;
+						ret = CAM_PIPEINE_DCAM_OFFLINE_NODE_CFG(ch, CAM_PIPELINE_CFG_STATIS_BUF, &statis_param);
+					}
 				}
 			} else {
 				if (ch->enable)
@@ -294,6 +324,12 @@ static int camioctl_param_cfg(struct camera_module *module, unsigned long arg)
 		channel = &module->channel[CAM_CH_PRE];
 	else
 		channel = &module->channel[CAM_CH_CAP];
+	if ((module->capture_type == CAM_CAPTURE_RAWPROC) && (param.sub_block == DCAM_BLOCK_LSCM
+		|| param.sub_block == DCAM_BLOCK_AEM
+		|| param.sub_block == DCAM_BLOCK_BAYERHIST)) {
+		channel = &module->channel[CAM_CH_CAP];
+		for_capture = 1;
+	}
 
 	if (!channel->enable || !channel->pipeline_handle) {
 		pr_warn("warning: channel %d has not been enable %px scene %d subblock %d\n",
@@ -346,7 +382,8 @@ static int camioctl_param_cfg(struct camera_module *module, unsigned long arg)
 					ret = CAM_PIPEINE_ISP_NODE_CFG(channel, CAM_PIPELINE_CFG_BLK_PARAM, &param);
 			}
 			goto exit;
-		}
+		} else if (dev && !dev->hw->ip_isp->rgb_gtm_support && (param.sub_block == DCAM_BLOCK_GTM))
+			goto exit;
 
 		/* Temp add for dcam offline node raw capture */
 		if (for_capture && (module->capture_type == CAM_CAPTURE_RAWPROC
@@ -369,9 +406,9 @@ static int camioctl_param_cfg(struct camera_module *module, unsigned long arg)
 					|| module->cam_uinfo.is_4in1
 					|| (param.scene_id == PM_SCENE_OFFLINE_BPC)
 					|| (param.scene_id == PM_SCENE_OFFLINE_CAP)
-					|| (param.scene_id == PM_SCENE_SFNR))) {
+					|| (param.scene_id == PM_SCENE_SFNR)))
 					ret = CAM_PIPEINE_DCAM_OFFLINE_NODE_CFG(channel, CAM_PIPELINE_CFG_BLK_PARAM, &param);
-				} else {
+				else {
 					ret = CAM_PIPEINE_DCAM_ONLINE_NODE_CFG(channel, CAM_PIPELINE_CFG_BLK_PARAM, &param);
 					if (ret)
 						pr_err("fail to set block %d\n", param.sub_block);

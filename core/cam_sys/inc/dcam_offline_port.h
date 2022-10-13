@@ -31,8 +31,10 @@ struct dcam_offline_port_desc {
 };
 
 struct dcam_offline_port {
+	struct list_head list;
 	enum cam_port_dcam_offline_out_id port_id;
 	atomic_t user_cnt;
+	atomic_t is_work; /* dynamic switch counter of port */
 
 	uint32_t src_sel;
 	uint32_t endian;

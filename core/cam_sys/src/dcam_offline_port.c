@@ -123,19 +123,22 @@ static int dcamoffline_port_base_cfg(struct dcam_offline_port *port,
 		port->out_fmt = port_desc->dcam_out_fmt;
 		port->src_sel = port_desc->src_sel;
 		port->compress_en = port_desc->compress_en;
+		atomic_set(&port->is_work, 1);
 		break;
 	case PORT_OFFLINE_BIN_OUT:
 		port->endian = port_desc->endian;
 		port->out_fmt = port_desc->dcam_out_fmt;
 		port->src_sel = port_desc->src_sel;
+		atomic_set(&port->is_work, 1);
 		break;
 	case PORT_OFFLINE_RAW_OUT:
 		port->endian = port_desc->endian;
 		port->out_fmt = port_desc->dcam_out_fmt;
 		port->src_sel = port_desc->src_sel;
+		atomic_set(&port->is_work, 1);
 		break;
 	default:
-		pr_err("fail to get valid port %s\n", cam_port_dcam_offline_out_id_name_get(port->port_id));
+		pr_debug("get valid port %s\n", cam_port_dcam_offline_out_id_name_get(port->port_id));
 		ret = -EFAULT;
 		break;
 	}
@@ -193,6 +196,10 @@ static int dcamoffline_port_param_get(void *handle, void *param)
 
 	dcam_port = (struct dcam_offline_port *)handle;
 	hw_ctx = (struct dcam_hw_context *)param;
+	if (atomic_read(&dcam_port->is_work) < 1) {
+		pr_debug("dcam offline port %s is not work\n", cam_port_dcam_offline_out_id_name_get(dcam_port->port_id));
+		return 0;
+	}
 
 	path_id = dcamoffline_portid_convert_to_pathid(dcam_port->port_id);
 	pr_info("dcam offline port %s path id %d\n", cam_port_dcam_offline_out_id_name_get(dcam_port->port_id), path_id);
@@ -369,10 +376,13 @@ void *dcam_offline_port_get(uint32_t port_id, struct dcam_offline_port_desc *par
 
 	port->port_id = port_id;
 	*param->port_dev = port;
-	cam_queue_init(&port->result_queue, DCAM_OFFLINE_RESULT_Q_LEN,
-		dcamoffline_port_outframe_ret);
-	cam_queue_init(&port->out_buf_queue, DCAM_OFFLINE_OUT_BUF_Q_LEN,
-		dcamoffline_port_outframe_ret);
+	atomic_set(&port->is_work, 0);
+	if (port_id == PORT_OFFLINE_RAW_OUT || port_id == PORT_OFFLINE_BIN_OUT || port_id == PORT_OFFLINE_FULL_OUT) {
+		cam_queue_init(&port->result_queue, DCAM_OFFLINE_RESULT_Q_LEN,
+			dcamoffline_port_outframe_ret);
+		cam_queue_init(&port->out_buf_queue, DCAM_OFFLINE_OUT_BUF_Q_LEN,
+			dcamoffline_port_outframe_ret);
+	}
 
 	dcamoffline_port_base_cfg(port, param);
 	*param->port_dev = port;
