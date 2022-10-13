@@ -2320,6 +2320,8 @@ static int dcamhw_get_gtm_hist(void *handle, void *arg)
 	struct dcam_hw_gtm_hist *param = NULL;
 	uint32_t idx = 0;
 	uint32_t hist_index = 0;
+	uint32_t *buf = NULL;
+	uint32_t sum = 0;
 
 	if (!arg) {
 		pr_err("fail to get gtm hist\n");
@@ -2328,9 +2330,17 @@ static int dcamhw_get_gtm_hist(void *handle, void *arg)
 
 	param = (struct dcam_hw_gtm_hist *)arg;
 	idx = param->idx;
-	hist_index = param->hist_index;
+	buf = param->value;
+	if (!buf) {
+		pr_err("fail to get gtm buffer\n");
+		return -1;
+	}
 
-	param->value = DCAM_REG_RD(idx, GTM_HIST_CNT + hist_index * 4);
+	for (hist_index = 0; hist_index < GTM_HIST_ITEM_NUM; hist_index++) {
+		buf[hist_index] = DCAM_REG_RD(idx, GTM_HIST_CNT + hist_index * 4);
+		sum += buf[hist_index];
+	}
+	buf[GTM_HIST_ITEM_NUM] = sum;
 	return 0;
 }
 

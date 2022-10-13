@@ -1091,11 +1091,11 @@ void dcampath_check_path_status(struct dcam_sw_context *dcam_sw_ctx, struct dcam
 
 	blk_dcam_pm = &dcam_sw_ctx->ctx[dcam_sw_ctx->cur_ctx_id].blk_pm;
 
-	if (blk_dcam_pm->gtm[DCAM_GTM_PARAM_PRE].gtm_info.bypass_info.gtm_hist_stat_bypass
-		&& (blk_dcam_pm->gtm[DCAM_GTM_PARAM_PRE].gtm_info.bypass_info.gtm_mod_en == 0))
+	if (blk_dcam_pm->gtm[DCAM_GTM_PARAM_PRE].gtm_info.bypass_info.gtm_hist_stat_bypass)
 		recycle = 1;
-	if (blk_dcam_pm->rgb_gtm[DCAM_GTM_PARAM_PRE].rgb_gtm_info.bypass_info.gtm_hist_stat_bypass
-		&& (blk_dcam_pm->rgb_gtm[DCAM_GTM_PARAM_PRE].rgb_gtm_info.bypass_info.gtm_mod_en == 0))
+	if (blk_dcam_pm->rgb_gtm[DCAM_GTM_PARAM_PRE].rgb_gtm_info.bypass_info.gtm_hist_stat_bypass)
+		recycle = 1;
+	if (g_dcam_bypass[dcam_sw_ctx->hw_ctx_id] & (1 << _E_GTM))
 		recycle = 1;
 	if (g_dcam_bypass[dcam_sw_ctx->hw_ctx_id] & (1 << _E_GTM))
 		recycle = 1;
@@ -1103,7 +1103,10 @@ void dcampath_check_path_status(struct dcam_sw_context *dcam_sw_ctx, struct dcam
 		pr_debug("dcam sw%d gtm bypass, no need buf\n", dcam_sw_ctx->sw_ctx_id);
 		frame = cam_queue_del_tail(&path->result_queue, struct camera_frame, list);
 		if (frame) {
-			ret = cam_queue_enqueue(&path->out_buf_queue, &frame->list);
+			if (frame->is_reserved)
+				ret = cam_queue_enqueue(&path->reserved_buf_queue, &frame->list);
+			else
+				ret = cam_queue_enqueue(&path->out_buf_queue, &frame->list);
 			if (ret)
 				pr_err("fail to enqueue gtm\n");
 		}
