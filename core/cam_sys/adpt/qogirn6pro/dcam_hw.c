@@ -883,7 +883,10 @@ static int dcamhw_fetch_set(void *handle, void *arg)
 		fetch->fetch_info->trim.start_x, fetch_pitch, fetch->fetch_info->addr.addr_ch0, fetch->fetch_info->fmt);
 	/* (bitfile)unit 32b,(spec)64b */
 	DCAM_REG_WR(fetch->idx, DCAM_INT0_CLR, 0xFFFFFFFF);
-	DCAM_REG_WR(fetch->idx, DCAM_INT0_EN, DCAMINT_IRQ_LINE_EN0_NORMAL & (~BIT_2));
+	if (fetch->virtualsensor_pre_sof)
+		DCAM_REG_WR(fetch->idx, DCAM_INT0_EN, DCAMINT_IRQ_LINE_EN0_NORMAL & (~BIT_2) | BIT(DCAM_IF_IRQ_INT0_PREIEW_SOF));
+	else
+		DCAM_REG_WR(fetch->idx, DCAM_INT0_EN, DCAMINT_IRQ_LINE_EN0_NORMAL & (~BIT_2));
 
 	DCAM_REG_WR(fetch->idx, DCAM_INT1_CLR, 0xFFFFFFFF);
 	DCAM_REG_WR(fetch->idx, DCAM_INT1_EN, DCAMINT_IRQ_LINE_INT1_MASK);
@@ -1787,7 +1790,10 @@ static int dcamhw_slice_fetch_set(void *handle, void *arg)
 		bfp[1] = 8;
 
 	DCAM_REG_WR(idx, DCAM_INT0_CLR, 0xFFFFFFFF);
-	DCAM_REG_WR(idx, DCAM_INT0_EN, DCAMINT_IRQ_LINE_EN0_NORMAL & (~BIT_2));
+	if (slicearg->virtualsensor_pre_sof)
+		DCAM_REG_WR(idx, DCAM_INT0_EN, DCAMINT_IRQ_LINE_EN0_NORMAL & (~BIT_2) | BIT(DCAM_IF_IRQ_INT0_PREIEW_SOF));
+	else
+		DCAM_REG_WR(idx, DCAM_INT0_EN, DCAMINT_IRQ_LINE_EN0_NORMAL & (~BIT_2));
 	DCAM_REG_WR(idx, DCAM_INT1_CLR, 0xFFFFFFFF);
 	DCAM_REG_WR(idx, DCAM_INT1_EN, DCAMINT_IRQ_LINE_INT1_MASK);
 
@@ -2747,6 +2753,9 @@ static int dcamhw_slw_fmcu_cmds(void *handle, void *arg)
 			addr = DCAM_GET_REG(fmcu->hw_ctx_id, DCAM_AFM_LUM_FV_BASE_WADDR);
 			cmd = slw->store_info[i].store_addr.addr_ch0;
 			DCAM_FMCU_PUSH(fmcu, addr, cmd);
+			addr = DCAM_GET_REG(fmcu->hw_ctx_id, DCAM_AFM_HIST_BASE_WADDR);
+			cmd = slw->store_info[i].store_addr.addr_ch1;
+			DCAM_FMCU_PUSH(fmcu, addr, cmd);
 			break;
 		case DCAM_PATH_FRGB_HIST:
 			addr = DCAM_GET_REG(fmcu->hw_ctx_id, DCAM_HIST_ROI_BASE_WADDR);
@@ -2757,6 +2766,8 @@ static int dcamhw_slw_fmcu_cmds(void *handle, void *arg)
 			addr = DCAM_GET_REG(fmcu->hw_ctx_id, DCAM_LSCM_BASE_WADDR);
 			cmd = slw->store_info[i].store_addr.addr_ch0;
 			DCAM_FMCU_PUSH(fmcu, addr, cmd);
+			break;
+		case DCAM_PATH_GTM_HIST:
 			break;
 		default :
 			pr_err("fail to get valid path id%d\n", i);

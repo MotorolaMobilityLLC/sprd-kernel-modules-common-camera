@@ -192,6 +192,7 @@ struct camera_uinfo {
 	uint32_t param_frame_sync;
 	/* for dcam raw*/
 	uint32_t need_dcam_raw;
+	uint32_t virtualsensor;/* 1: virtual sensor 0: normal */
 };
 
 struct sprd_img_flash_info {
@@ -2556,6 +2557,10 @@ static int camcore_dcamonline_desc_get(struct camera_module *module,
 	dcam_online_desc->dcam_idx = module->dcam_idx;
 	dcam_online_desc->raw_alg_type = module->cam_uinfo.raw_alg_type;
 	dcam_online_desc->param_frame_sync = module->cam_uinfo.param_frame_sync;
+	dcam_online_desc->virtualsensor = module->cam_uinfo.virtualsensor;
+	if (dcam_online_desc->virtualsensor && channel->ch_id == CAM_CH_CAP)
+		dcam_online_desc->virtualsensor_cap_en = 1;
+
 	if (module->cam_uinfo.is_pyr_rec && (!channel->ch_uinfo.is_high_fps))
 		dcam_online_desc->is_pyr_rec = 1;
 	else
@@ -2594,8 +2599,9 @@ static int camcore_dcamonline_desc_get(struct camera_module *module,
 				dcam_online_desc->port_desc[i].raw_src = BPC_RAW_SRC_SEL;
 			}
 		} else if (pipeline_type == CAM_PIPELINE_ONLINERAW_2_USER_2_BPCRAW_2_USER_2_OFFLINEYUV
-				|| pipeline_type == CAM_PIPELINE_ONLINE_NORMAL2YUV_OR_RAW2USER2YUV) {
-			if (outport_graph->link.port_id == PORT_RAW_OUT) {
+				|| pipeline_type == CAM_PIPELINE_ONLINE_NORMAL2YUV_OR_RAW2USER2YUV
+				|| pipeline_type == CAM_PIPELINE_ONLINE_NORMALZSLCAPTURE_OR_RAW2USER2YUV) {
+			if (outport_graph->id == PORT_RAW_OUT) {
 				dcam_online_desc->port_desc[i].is_raw = 1;
 				dcam_online_desc->port_desc[i].dcam_out_fmt = CAM_RAW_14;
 			}
@@ -2776,7 +2782,8 @@ static camcore_dcamoffline_desc_get(struct camera_module *module,
 		dcam_offline_desc->port_desc.dcam_out_fmt = CAM_YUV420_2FRAME_MIPI;
 	channel->dcam_out_fmt = dcam_offline_desc->port_desc.dcam_out_fmt;
 	if (pipeline_type == CAM_PIPELINE_ONLINERAW_2_USER_2_BPCRAW_2_USER_2_OFFLINEYUV
-		|| pipeline_type == CAM_PIPELINE_ONLINE_NORMAL2YUV_OR_RAW2USER2YUV) {
+		|| pipeline_type == CAM_PIPELINE_ONLINE_NORMAL2YUV_OR_RAW2USER2YUV
+		|| pipeline_type == CAM_PIPELINE_ONLINE_NORMALZSLCAPTURE_OR_RAW2USER2YUV) {
 		if (module->cam_uinfo.raw_alg_type)
 			dcam_offline_desc->fetch_fmt = CAM_RAW_14;
 		dcam_offline_desc->port_desc.dcam_out_fmt = CAM_YUV420_2FRAME_MIPI;
@@ -2963,6 +2970,8 @@ static int camcore_pipeline_init(struct camera_module *module,
 		if (module->cam_uinfo.is_raw_alg) {
 			if (module->cam_uinfo.raw_alg_type == RAW_ALG_AI_SFNR) {
 				pipeline_type = CAM_PIPELINE_ONLINE_NORMAL2YUV_OR_RAW2USER2YUV;
+				if (module->cam_uinfo.zsl_num != 0)
+					pipeline_type = CAM_PIPELINE_ONLINE_NORMALZSLCAPTURE_OR_RAW2USER2YUV;
 				if (module->cam_uinfo.param_frame_sync) {
 					dcam_port_id = dcamoffline_pathid_convert_to_portid(hw->ip_dcam[0]->dcam_raw_path_id);
 					pipeline_type = CAM_PIPELINE_ONLINERAW_2_USER_2_OFFLINEYUV;
@@ -3560,6 +3569,82 @@ dst_fail:
 src_fail:
 	cam_queue_empty_frame_put(src_frame);
 	pr_err("fail to call post raw proc\n");
+	return ret;
+}
+
+static int camcore_virtual_sensor_proc(struct camera_module *module,
+		struct isp_raw_proc_info *proc_info)
+{
+	int ret = 0, i = 0, is_valid_node = 0;
+	struct channel_context *ch = NULL;
+	struct camera_frame *src_frame = NULL;
+	struct dcam_pipe_dev *dev = NULL;
+	struct cam_node *cur_node = NULL;
+	struct cam_pipeline *pipeline = NULL;
+	struct dcam_online_node *node = NULL;
+
+	timespec cur_ts = {0};
+	memset(&cur_ts, 0, sizeof(timespec));
+	dev = (struct dcam_pipe_dev *)module->dcam_dev_handle;
+
+	ch = &module->channel[CAM_CH_CAP];
+	if (ch->enable == 0) {
+		pr_debug("cap channel is not enable \n");
+		ch = &module->channel[CAM_CH_PRE];
+		if (ch->enable == 0) {
+			pr_err("fail to get channel enable state\n");
+			return -EFAULT;
+		}
+	}
+
+	src_frame = cam_queue_empty_frame_get();
+	src_frame->buf.type = CAM_BUF_USER;
+	src_frame->buf.mfd = proc_info->fd_src;
+	src_frame->buf.offset[0] = proc_info->src_offset;
+	src_frame->channel_id = ch->ch_id;
+	src_frame->width = proc_info->src_size.width;
+	src_frame->height = proc_info->src_size.height;
+	src_frame->endian = proc_info->src_y_endian;
+	src_frame->pattern = proc_info->src_pattern;
+	ktime_get_ts(&cur_ts);
+	src_frame->sensor_time.tv_sec = cur_ts.tv_sec;
+	src_frame->sensor_time.tv_usec = cur_ts.tv_nsec / NSEC_PER_USEC;
+	src_frame->time = src_frame->sensor_time;
+	src_frame->boot_time = ktime_get_boottime();
+	src_frame->boot_sensor_time = src_frame->boot_time;
+	ret = cam_buf_ionbuf_get(&src_frame->buf);
+	if (ret)
+		goto virtualsensor_src_fail;
+
+	pipeline = ch->pipeline_handle;
+
+	/* find specific node by node type */
+	for (i = 0; i < pipeline->pipeline_graph->node_cnt; i++) {
+		cur_node = pipeline->node_list[i];
+		if (cur_node && cur_node->node_graph->type == CAM_NODE_TYPE_DCAM_ONLINE) {
+			is_valid_node = 1;
+			break;
+		}
+	}
+	if (!is_valid_node || !cur_node) {
+		pr_err("fail to get node %d %px\n",is_valid_node, cur_node);
+		return -EFAULT;
+	}
+	src_frame->priv_data = cur_node->handle;
+	node = cur_node->handle;
+	ret = cam_queue_enqueue(&node->virtualsensor_in_queue, &src_frame->list);
+	if (ret == 0)
+	        complete(&node->virtualsensor_thread.thread_com);
+	else
+		goto virtualsensor_src_fail;
+
+	atomic_set(&module->timeout_flag, 1);
+	ret = camcore_timer_start(&module->cam_timer, CAMERA_TIMEOUT);
+
+	return ret;
+virtualsensor_src_fail:
+	cam_queue_empty_frame_put(src_frame);
+	pr_err("fail to call virtual sensor raw proc\n");
 	return ret;
 }
 

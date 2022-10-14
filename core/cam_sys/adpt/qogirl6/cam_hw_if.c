@@ -297,7 +297,7 @@ static struct cam_hw_soc_info isp_soc_info;
 static struct cam_hw_ip_info dcam[DCAM_ID_MAX] = {
 	[DCAM_ID_0] = {
 		.aux_dcam_path = DCAM_PATH_FULL,
-		.slm_path = BIT(DCAM_PATH_BIN) | BIT(DCAM_PATH_AEM) | BIT(DCAM_PATH_HIST),
+		.slm_path = BIT(PORT_BIN_OUT) | BIT(PORT_AEM_OUT) | BIT(PORT_BAYER_HIST_OUT),
 		.lbuf_share_support = 1,
 		.offline_slice_support = 1,
 		.superzoom_support = 1,
@@ -321,7 +321,7 @@ static struct cam_hw_ip_info dcam[DCAM_ID_MAX] = {
 	},
 	[DCAM_ID_1] = {
 		.aux_dcam_path = DCAM_PATH_FULL,
-		.slm_path = BIT(DCAM_PATH_BIN) | BIT(DCAM_PATH_AEM) | BIT(DCAM_PATH_HIST),
+		.slm_path = BIT(PORT_BIN_OUT) | BIT(PORT_AEM_OUT) | BIT(PORT_BAYER_HIST_OUT),
 		.lbuf_share_support = 1,
 		.offline_slice_support = 1,
 		.superzoom_support = 1,
@@ -345,7 +345,7 @@ static struct cam_hw_ip_info dcam[DCAM_ID_MAX] = {
 	},
 	[DCAM_ID_2] = {
 		.aux_dcam_path = DCAM_PATH_FULL,
-		.slm_path = BIT(DCAM_PATH_BIN) | BIT(DCAM_PATH_AEM) | BIT(DCAM_PATH_HIST),
+		.slm_path = BIT(PORT_BIN_OUT) | BIT(PORT_AEM_OUT) | BIT(PORT_BAYER_HIST_OUT),
 		.lbuf_share_support = 0,
 		.offline_slice_support = 0,
 		.superzoom_support = 1,

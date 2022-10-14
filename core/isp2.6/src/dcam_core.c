@@ -1905,9 +1905,11 @@ static int dcamcore_dev_start(void *dcam_handle, int online)
 		if (pctx->is_ebd)
 			atomic_set(&pctx->path[DCAM_PATH_VCH2].user_cnt, 1);
 
-		if ((pm->gtm[DCAM_GTM_PARAM_PRE].gtm_calc_mode == GTM_SW_CALC) && (pctx->dev->hw->ip_isp->rgb_gtm_support == 0))
+		if ((pm->gtm[DCAM_GTM_PARAM_PRE].gtm_info.bypass_info.gtm_mod_en || pm->gtm[DCAM_GTM_PARAM_CAP].gtm_info.bypass_info.gtm_mod_en)
+			&& (pm->gtm[DCAM_GTM_PARAM_PRE].gtm_calc_mode == GTM_SW_CALC))
 			atomic_set(&pctx->path[DCAM_PATH_GTM_HIST].user_cnt, 1);
-		if ((pm->rgb_gtm[DCAM_GTM_PARAM_PRE].gtm_calc_mode == GTM_SW_CALC) && (pctx->dev->hw->ip_isp->rgb_gtm_support == 0))
+		if ((pm->rgb_gtm[DCAM_GTM_PARAM_PRE].rgb_gtm_info.bypass_info.gtm_mod_en || pm->rgb_gtm[DCAM_GTM_PARAM_CAP].rgb_gtm_info.bypass_info.gtm_mod_en)
+			&& (pm->rgb_gtm[DCAM_GTM_PARAM_PRE].gtm_calc_mode == GTM_SW_CALC))
 			atomic_set(&pctx->path[DCAM_PATH_GTM_HIST].user_cnt, 1);
 	}
 

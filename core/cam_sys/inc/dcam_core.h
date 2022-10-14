@@ -133,6 +133,7 @@ struct dcam_hw_path {
 
 struct dcam_hw_context {
 	uint32_t is_offline_proc;
+	uint32_t is_virtualsensor_proc;
 	uint32_t fid;
 	uint32_t base_fid;
 	uint32_t frame_index;

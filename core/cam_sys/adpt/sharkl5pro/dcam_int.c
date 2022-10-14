@@ -197,6 +197,8 @@ static void dcamint_irq_preview_sof(void *param)
 		return;
 	}
 
+	if (dcam_hw_ctx->hw_ctx_id == DCAM_ID_1 && !dcam_hw_ctx->is_virtualsensor_proc)
+		return;
 	irq_proc.of = PREV_START_OF_FRAME;
 	dcam_hw_ctx->dcam_irq_cb_func(&irq_proc, dcam_hw_ctx->dcam_irq_cb_handle);
 }
@@ -382,6 +384,7 @@ static const int _DCAM0_SEQUENCE[] = {
 static const int _DCAM1_SEQUENCE[] = {
 	DCAM_CAP_SOF,/* must */
 	DCAM_SENSOR_SOF,
+	DCAM_PREVIEW_SOF,
 	DCAM_SENSOR_EOF,/* TODO: why for flash */
 	DCAM_NR3_TX_DONE,/* for 3dnr, before data path */
 	DCAM_PREV_PATH_TX_DONE,/* for bin path */
