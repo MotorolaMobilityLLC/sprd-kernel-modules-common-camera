@@ -867,34 +867,6 @@ void csi_phy_power_down(struct csi_dt_node_info *csi_info,
 
 int csi_ahb_reset(struct csi_phy_info *phy, unsigned int csi_id)
 {
-	unsigned int flag = 0;
-
-	if (!phy) {
-		pr_err("fail to get valid phy ptr\n");
-		return -EINVAL;
-	}
-	pr_info("csi, id %d phy %d\n", csi_id, phy->phy_id);
-
-	switch (csi_id) {
-	case CSI_RX0:
-		flag = BIT_11;
-		break;
-	case CSI_RX1:
-		flag = BIT_9;
-		break;
-	case CSI_RX2:
-		flag = BIT_8;
-		break;
-	default:
-		pr_err("fail to get valid csi id %d\n", csi_id);
-		break;
-	}
-	regmap_update_bits(phy->cam_ahb_syscon,
-			0xc8, flag, flag);
-	udelay(1);
-	regmap_update_bits(phy->cam_ahb_syscon,
-			0xc8, flag, ~flag);
-
 	return 0;
 }
 
@@ -949,56 +921,7 @@ void csi_controller_enable(struct csi_dt_node_info *dt_info)
 
 void csi_controller_disable(struct csi_dt_node_info *dt_info, int32_t idx)
 {
-	struct csi_phy_info *phy = NULL;
-	uint32_t mask_eb = 0;
-	uint32_t mask_rst = 0;
-
-	if (!dt_info) {
-		pr_err("fail to get valid dt_info ptr\n");
-		return;
-	}
-
-	phy = &dt_info->phy;
-	if (!phy) {
-		pr_err("fail to get valid phy ptr\n");
-		return;
-	}
-
-	pr_info("%s csi, id %d phy %d\n", __func__, dt_info->controller_id,
-		phy->phy_id);
-
-	switch (dt_info->controller_id) {
-	case CSI_RX0: {
-		mask_eb = BIT_12;
-		mask_rst = BIT_11;
-		break;
-	}
-	case CSI_RX1: {
-		mask_eb = BIT_14;
-		mask_rst = BIT_9;
-		break;
-	}
-	case CSI_RX2: {
-		mask_eb = BIT_15;
-		mask_rst = BIT_8;
-		break;
-	}
-	default:
-		pr_err("fail to get valid csi id\n");
-		return;
-	}
-
-
 	csi_dump_regbase[dt_info->controller_id] = 0;
-
-	//regmap_update_bits(phy->cam_ahb_syscon, 0x0c,
-	//		mask_eb, mask_eb);
-	regmap_update_bits(phy->cam_ahb_syscon, 0xc8,
-			mask_rst, ~mask_rst);
-	udelay(1);
-	regmap_update_bits(phy->cam_ahb_syscon, 0xc8,
-			mask_rst, ~mask_rst);
-
 }
 
 void phy_csi_path_cfg(struct csi_dt_node_info *dt_info, int sensor_id)
