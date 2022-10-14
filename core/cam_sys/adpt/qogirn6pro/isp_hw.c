@@ -702,30 +702,32 @@ static int isphw_reset(void *handle, void *arg)
 		flag = ip->syscon.rst_mask
 			| ip->syscon.rst_ahb_mask
 			| ip->syscon.rst_vau_mask;
-		if (strncmp(chip_type, "UMS9620-AB", strlen("UMS9620-AB")) == 0) {
-			sys_rst_flag = ip->syscon.sys_h2p_db_soft_rst;
 
-			pr_debug("cam_ahb_gpr:0x%x, rst:0x%x, flag:0x%x, sys_soft_rst:0x%x, sys_h2p_db_soft_rst:0x%x\n",
-				soc->cam_ahb_gpr, ip->syscon.rst, flag, ip->syscon.sys_soft_rst, ip->syscon.sys_h2p_db_soft_rst);
+		if (hw->prj_id == QOGIRN6pro) {
+			if (strncmp(chip_type, "UMS9620-AB", strlen("UMS9620-AB")) == 0) {
+				sys_rst_flag = ip->syscon.sys_h2p_db_soft_rst;
+				pr_debug("cam_ahb_gpr:0x%x, rst:0x%x, flag:0x%x, sys_soft_rst:0x%x, sys_h2p_db_soft_rst:0x%x\n",
+					soc->cam_ahb_gpr, ip->syscon.rst, flag, ip->syscon.sys_soft_rst, ip->syscon.sys_h2p_db_soft_rst);
 
-			regmap_update_bits(soc->cam_ahb_gpr,
-				ip->syscon.rst, flag, flag);
-			regmap_update_bits(soc->cam_ahb_gpr,
-				ip->syscon.sys_soft_rst, sys_rst_flag, sys_rst_flag);
+				regmap_update_bits(soc->cam_ahb_gpr, ip->syscon.rst, flag, flag);
+				regmap_update_bits(soc->cam_ahb_gpr, ip->syscon.sys_soft_rst, sys_rst_flag, sys_rst_flag);
+				udelay(10);
+				regmap_update_bits(soc->cam_ahb_gpr, ip->syscon.rst, flag, ~flag);
+				regmap_update_bits(soc->cam_ahb_gpr, ip->syscon.sys_soft_rst, sys_rst_flag, ~sys_rst_flag);
+			}
+
+			if (strncmp(chip_type, "UMS9620-AA", strlen("UMS9620-AA")) == 0
+				&& reset_flag == ISP_RESET_AFTER_POWER_ON) {
+				regmap_update_bits(soc->cam_ahb_gpr,
+					ip->syscon.rst, flag, flag);
+				udelay(10);
+				regmap_update_bits(soc->cam_ahb_gpr,
+					ip->syscon.rst, flag, ~flag);
+			}
+		} else {
+			regmap_update_bits(soc->cam_ahb_gpr, ip->syscon.rst, flag, flag);
 			udelay(10);
-			regmap_update_bits(soc->cam_ahb_gpr,
-				ip->syscon.rst, flag, ~flag);
-			regmap_update_bits(soc->cam_ahb_gpr,
-				ip->syscon.sys_soft_rst, sys_rst_flag, ~sys_rst_flag);
-		}
-
-		if (strncmp(chip_type, "UMS9620-AA", strlen("UMS9620-AA")) == 0
-			&& reset_flag == ISP_RESET_AFTER_POWER_ON) {
-			regmap_update_bits(soc->cam_ahb_gpr,
-				ip->syscon.rst, flag, flag);
-			udelay(10);
-			regmap_update_bits(soc->cam_ahb_gpr,
-				ip->syscon.rst, flag, ~flag);
+			regmap_update_bits(soc->cam_ahb_gpr, ip->syscon.rst, flag, ~flag);
 		}
 	}
 
