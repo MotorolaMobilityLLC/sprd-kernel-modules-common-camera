@@ -1272,6 +1272,7 @@ struct hw_io_ctrl_fun {
 
 struct glb_syscon {
 	uint32_t rst;
+	uint32_t rst_mipi_mask;
 	uint32_t rst_mask;
 	uint32_t rst_ahb_mask;
 	uint32_t rst_vau_mask;

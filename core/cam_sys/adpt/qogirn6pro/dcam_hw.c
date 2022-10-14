@@ -772,6 +772,7 @@ static int dcamhw_reset(void *handle, void *arg)
 	uint32_t time_out = 0;
 	uint32_t dbg_sts_reg;
 	uint32_t mask = ~0;
+	uint32_t flag = 0;
 	uint32_t sts_bit[DCAM_ID_MAX] = {
 		BIT(12), BIT(13), BIT(14)
 	};
@@ -806,14 +807,16 @@ static int dcamhw_reset(void *handle, void *arg)
 		trace.idx = idx;
 		hw->isp_ioctl(hw, ISP_HW_CFG_REG_TRACE, &trace);
 	} else {
-		pr_debug("DCAM%d, rst=0x%x, rst_mask=0x%x\n",
-			idx, ip->syscon.rst, ip->syscon.rst_mask);
+		flag = ip->syscon.rst_mask;
+		#if defined (PROJ_QOGIRN6L)
+		flag |= ip->syscon.rst_mipi_mask;
+		#endif
+		pr_debug("DCAM%d, rst=0x%x, rst_mask=0x%x mipi_mask=0x%x\n",
+			idx, ip->syscon.rst, ip->syscon.rst_mask, ip->syscon.rst_mipi_mask);
 
-		regmap_update_bits(soc->cam_ahb_gpr,
-			ip->syscon.rst, ip->syscon.rst_mask, ip->syscon.rst_mask);
+		regmap_update_bits(soc->cam_ahb_gpr, ip->syscon.rst, flag, flag);
 		udelay(10);
-		regmap_update_bits(soc->cam_ahb_gpr,
-			ip->syscon.rst, ip->syscon.rst_mask, ~(ip->syscon.rst_mask));
+		regmap_update_bits(soc->cam_ahb_gpr, ip->syscon.rst, flag, ~flag);
 	}
 
 	DCAM_REG_MWR(idx, DCAM_INT0_CLR, mask, mask);
