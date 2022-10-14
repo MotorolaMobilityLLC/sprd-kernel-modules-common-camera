@@ -1544,6 +1544,7 @@ void *cam_pipeline_creat(struct cam_pipeline_desc *param)
 	node_desc.dcam_online_desc = &param->dcam_online_desc;
 	node_desc.dcam_offline_desc = &param->dcam_offline_desc;
 	node_desc.dcam_offline_bpcraw_desc = &param->dcam_offline_bpcraw_desc;
+	node_desc.dcam_fetch_desc = &param->dcam_fetch_desc;
 	node_desc.isp_node_description = &param->isp_node_description;
 	node_desc.frame_cache_desc = &param->frame_cache_desc;
 	node_desc.pyr_dec_desc = &param->pyr_dec_desc;

@@ -78,7 +78,7 @@ int cam_statis_dcam_port_bufferq_deinit(void *dcam_handle)
 	for (i = 0; i < ARRAY_SIZE(s_statis_port_info_all); i++) {
 		port_id = s_statis_port_info_all[i].port_id;
 		stats_type = s_statis_port_info_all[i].buf_type;
-		dcam_port = dcam_online_node_get_port(dcam_node, port_id);
+		dcam_port = dcam_online_node_port_get(dcam_node, port_id);
 		if (!stats_type || !dcam_port)
 			continue;
 		if (port_id == PORT_VCH2_OUT && dcam_port->raw_src)
@@ -119,7 +119,7 @@ int cam_statis_dcam_port_bufferq_init(void *dcam_handle)
 	for (i = 0; i < ARRAY_SIZE(s_statis_port_info_all); i++) {
 		port_id = s_statis_port_info_all[i].port_id;
 		stats_type = s_statis_port_info_all[i].buf_type;
-		dcam_port = dcam_online_node_get_port(dcam_node, port_id);
+		dcam_port = dcam_online_node_port_get(dcam_node, port_id);
 		if (!stats_type || !dcam_port)
 			continue;
 
@@ -189,7 +189,7 @@ int cam_statis_dcam_port_buffer_cfg(
 		for (i = 0; i < ARRAY_SIZE(s_statis_port_info_all); i++) {
 			port_id = s_statis_port_info_all[i].port_id;
 			stats_type = s_statis_port_info_all[i].buf_type;
-			dcam_port = dcam_online_node_get_port(dcam_node, port_id);
+			dcam_port = dcam_online_node_port_get(dcam_node, port_id);
 			if (!stats_type || !dcam_port)
 				continue;
 
@@ -228,7 +228,7 @@ int cam_statis_dcam_port_buffer_cfg(
 			goto exit;
 		}
 
-		dcam_port = dcam_online_node_get_port(dcam_node, port_id);
+		dcam_port = dcam_online_node_port_get(dcam_node, port_id);
 		if (port_id == PORT_VCH2_OUT && dcam_port->raw_src)
 			goto exit;
 
@@ -275,7 +275,7 @@ int cam_statis_dcam_port_buffer_skip_cfg(void *dcam_handle, struct camera_frame 
 
 	dcam_node = (struct dcam_online_node *)dcam_handle;
 	port_id = camstatis_dcam_type_to_port_id(pframe->irq_property);
-	dcam_port = dcam_online_node_get_port(dcam_node, port_id);
+	dcam_port = dcam_online_node_port_get(dcam_node, port_id);
 
 	if (port_id == PORT_DCAM_OUT_MAX || !dcam_port) {
 		pr_err("invalid statis type: %d, dcam_port %p\n", pframe->irq_property, dcam_port);

@@ -16,6 +16,7 @@
 
 #include "cam_port.h"
 #include "dcam_online_node.h"
+#include "dcam_fetch_node.h"
 #include "isp_node.h"
 #include "frame_cache_node.h"
 #include "dcam_offline_node.h"
@@ -160,6 +161,7 @@ struct cam_node_desc {
 	struct dcam_online_node_desc *dcam_online_desc;
 	struct dcam_offline_node_desc *dcam_offline_desc;
 	struct dcam_offline_node_desc *dcam_offline_bpcraw_desc;
+	struct dcam_fetch_node_desc *dcam_fetch_desc;
 	struct isp_node_desc *isp_node_description;
 	struct isp_yuv_scaler_node_desc *isp_yuv_scaler_desc;
 	struct frame_cache_node_desc *frame_cache_desc;
@@ -189,6 +191,8 @@ struct cam_node {
 
 	struct cam_capture_param cap_param;
 	struct cam_node_shutoff_ctrl node_shutoff;
+
+	uint32_t need_fetch;
 };
 
 /* the global all main node/port index for different
@@ -196,6 +200,7 @@ struct cam_node {
  */
 struct cam_nodes_dev {
 	struct dcam_online_node *dcam_online_node_dev;
+	struct dcam_fetch_node *dcam_fetch_node_dev;
 	struct dcam_online_port *dcam_online_out_port_dev[PORT_DCAM_OUT_MAX];
 	struct dcam_offline_node *dcam_offline_node_dev;
 	struct dcam_offline_port *dcam_offline_out_port_dev[PORT_DCAM_OUT_MAX];

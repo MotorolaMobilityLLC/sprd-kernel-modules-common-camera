@@ -100,6 +100,7 @@ struct cam_pipeline_desc {
 	struct dcam_online_node_desc dcam_online_desc;
 	struct dcam_offline_node_desc dcam_offline_desc;
 	struct dcam_offline_node_desc dcam_offline_bpcraw_desc;
+	struct dcam_fetch_node_desc dcam_fetch_desc;
 	struct isp_node_desc isp_node_description;
 	struct frame_cache_node_desc frame_cache_desc;
 	struct pyr_dec_node_desc pyr_dec_desc;

@@ -22,6 +22,7 @@
 #include "cam_copy_node.h"
 #include "pyr_dec_node.h"
 #include "isp_scaler_node.h"
+#include "dcam_fetch_node.h"
 
 #ifdef pr_fmt
 #undef pr_fmt
@@ -319,7 +320,7 @@ static int camnode_cfg_node_param_dcam_online(void *handle, enum cam_node_cfg_cm
 		break;
 	case CAM_NODE_RECT_GET:
 	case CAM_NODE_CFG_STATIS:
-		ret = dcam_online_cfg_param(node->handle, cmd, in_param);
+		ret = dcam_online_cfg_param(node->handle, cmd, in_param->param);
 		break;
 	case CAM_NODE_CFG_BLK_PARAM:
 		ret = dcam_online_node_blk_param_set(node->handle, in_param->param);
@@ -331,7 +332,7 @@ static int camnode_cfg_node_param_dcam_online(void *handle, enum cam_node_cfg_cm
 		ret = dcam_online_node_reset(node->handle, in_param->param);
 		break;
 	case CAM_NODE_INSERT_PORT:
-		ret = dcam_online_node_insert_port(node->handle, in_param->param);
+		ret = dcam_online_node_port_insert(node->handle, in_param->param);
 		break;
 	case CAM_NODE_CFG_XTM_EN:
 		ret = dcam_online_node_xtm_disable(node->handle, in_param->param);
@@ -415,6 +416,61 @@ static int camnode_cfg_node_param_dcam_offline_bpc(void *handle, enum cam_node_c
 		ret = dcam_offline_node_blk_param_set(node->handle, in_param->param);
 		break;
 	case CAM_NODE_INSERT_PORT:
+		break;
+	default:
+		pr_err("fail to support node %s cmd %d\n", cam_node_name_get(node->node_graph->type), cmd);
+		ret = -EFAULT;
+		break;
+	}
+
+	return ret;
+}
+
+static int camnode_cfg_node_param_dcam_fetch(void *handle, enum cam_node_cfg_cmd cmd, void *param)
+{
+	int ret = 0;
+	struct cam_node *node = NULL;
+	struct cam_node_cfg_param *in_param = NULL;
+	struct cam_capture_param *cap_param = NULL;
+
+	if (!handle || !param) {
+		pr_err("fail to get valid input ptr %px %px\n", handle, param);
+		return -EFAULT;
+	}
+
+	node = (struct cam_node *)handle;
+	in_param = (struct cam_node_cfg_param *)param;
+
+	switch (cmd) {
+	case CAM_NODE_CFG_SIZE:
+		ret = node->ops.cfg_port_param(node, PORT_SIZE_CFG_SET, param);
+		break;
+	case CAM_NODE_CFG_CAP_PARAM:
+		cap_param = (struct cam_capture_param *)in_param->param;
+		node->cap_param.cap_type = cap_param->cap_type;
+		node->cap_param.cap_cnt = cap_param->cap_cnt;
+		node->cap_param.cap_timestamp = cap_param->cap_timestamp;
+		node->cap_param.cap_scene = cap_param->cap_scene;
+		pr_info("node: %s id %d cap K_type %d, scene %d, cnt %d, time %lld\n", cam_node_name_get(node->node_graph->type),
+			node->node_graph->id, node->cap_param.cap_type, node->cap_param.cap_scene, atomic_read(&node->cap_param.cap_cnt),
+			node->cap_param.cap_timestamp);
+		break;
+	case CAM_NODE_CFG_BUF:
+	case CAM_NODE_RECT_GET:
+	case CAM_NODE_CFG_STATIS:
+		ret = dcam_fetch_node_cfg_param(node->handle, cmd, in_param->param);
+		break;
+	case CAM_NODE_CFG_BLK_PARAM:
+		ret = dcam_fetch_node_blk_param_set(node->handle, in_param->param);
+		break;
+	case CAM_NODE_CFG_SHARE_BUF:
+		ret = dcam_fetch_share_buf(node->handle, in_param);
+		break;
+	case CAM_NODE_RESET:
+		ret = dcam_fetch_node_reset(node->handle, in_param->param);
+		break;
+	case CAM_NODE_INSERT_PORT:
+		ret = dcam_fetch_node_port_insert(node->handle, in_param->param);
 		break;
 	default:
 		pr_err("fail to support node %s cmd %d\n", cam_node_name_get(node->node_graph->type), cmd);
@@ -662,7 +718,10 @@ static int camnode_cfg_node_param(void *handle, enum cam_node_cfg_cmd cmd, void 
 
 	switch (node->node_graph->type) {
 	case CAM_NODE_TYPE_DCAM_ONLINE:
-		ret = camnode_cfg_node_param_dcam_online(node, cmd, param);
+		if (node->need_fetch)
+			ret = camnode_cfg_node_param_dcam_fetch(node, cmd, param);
+		else
+			ret = camnode_cfg_node_param_dcam_online(node, cmd, param);
 		break;
 	case CAM_NODE_TYPE_DCAM_OFFLINE:
 		ret = camnode_cfg_node_param_dcam_offline(node, cmd, param);
@@ -765,7 +824,10 @@ static int camnode_request_proc(void *handle, void *in_param)
 	node_param = (struct cam_node_cfg_param *)in_param;
 	switch (node->node_graph->type) {
 	case CAM_NODE_TYPE_DCAM_ONLINE:
-		ret = dcam_online_node_request_proc(node->handle, node_param);
+		if (node->need_fetch)
+			ret = dcam_fetch_node_request_proc(node->handle, node_param);
+		else
+			ret = dcam_online_node_request_proc(node->handle, node_param);
 		break;
 	case CAM_NODE_TYPE_DCAM_OFFLINE:
 	case CAM_NODE_TYPE_DCAM_OFFLINE_BPC_RAW:
@@ -809,7 +871,10 @@ static int camnode_stop_proc(void *handle, void *in_param)
 
 	node = (struct cam_node *)handle;
 
-	ret = dcam_online_node_stop_proc(node->handle, in_param);
+	if (node->need_fetch)
+		ret = dcam_fetch_node_stop_proc(node->handle, in_param);
+	else
+		ret = dcam_online_node_stop_proc(node->handle, in_param);
 	if (ret)
 		pr_err("fail to stop node\n");
 	return ret;
@@ -1083,6 +1148,7 @@ void *cam_node_creat(struct cam_node_desc *param)
 	}
 
 	pr_info("node: %s start creat\n", cam_node_name_get(node->node_graph->type));
+	node->need_fetch = param->dcam_fetch_desc->virtualsensor;
 	node->data_cb_handle = param->data_cb_handle;
 	node->data_cb_func = param->data_cb_func;
 	node->ops.cfg_node_param = camnode_cfg_node_param;
@@ -1103,7 +1169,12 @@ void *cam_node_creat(struct cam_node_desc *param)
 		param->dcam_online_desc->shutoff_cfg_cb_handle = node;
 		param->dcam_online_desc->node_dev = (void *)&nodes_dev->dcam_online_node_dev;
 		param->dcam_online_desc->node_type = node->node_graph->type;
-		node->handle = dcam_online_node_get(node->node_graph->id, param->dcam_online_desc);
+		if (param->dcam_fetch_desc->virtualsensor) {
+			param->dcam_fetch_desc->online_node_desc = param->dcam_online_desc;
+			param->dcam_fetch_desc->node_dev = (void *)&nodes_dev->dcam_fetch_node_dev;
+			node->handle = dcam_fetch_node_get(node->node_graph->id, param->dcam_fetch_desc);
+		} else
+			node->handle = dcam_online_node_get(node->node_graph->id, param->dcam_online_desc);
 		break;
 	case CAM_NODE_TYPE_DCAM_OFFLINE:
 		param->dcam_offline_desc->data_cb_func = camnode_data_callback;
@@ -1242,7 +1313,10 @@ void cam_node_destory(struct cam_node *node)
 
 	switch (node->node_graph->type) {
 	case CAM_NODE_TYPE_DCAM_ONLINE:
-		dcam_online_node_put(node->handle);
+		if (node->need_fetch)
+			dcam_fetch_node_put(node->handle);
+		else
+			dcam_online_node_put(node->handle);
 		break;
 	case CAM_NODE_TYPE_DCAM_OFFLINE:
 	case CAM_NODE_TYPE_DCAM_OFFLINE_BPC_RAW:

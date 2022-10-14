@@ -2563,9 +2563,6 @@ static int camcore_dcamonline_desc_get(struct camera_module *module,
 	dcam_online_desc->dcam_idx = module->dcam_idx;
 	dcam_online_desc->raw_alg_type = module->cam_uinfo.raw_alg_type;
 	dcam_online_desc->param_frame_sync = module->cam_uinfo.param_frame_sync;
-	dcam_online_desc->virtualsensor = module->cam_uinfo.virtualsensor;
-	if (dcam_online_desc->virtualsensor && channel->ch_id == CAM_CH_CAP)
-		dcam_online_desc->virtualsensor_cap_en = 1;
 
 	if (module->cam_uinfo.is_pyr_rec && (!channel->ch_uinfo.is_high_fps))
 		dcam_online_desc->is_pyr_rec = 1;
@@ -2940,6 +2937,7 @@ static int camcore_pipeline_init(struct camera_module *module,
 	struct frame_cache_node_desc *frame_cache_desc = NULL;
 	struct pyr_dec_node_desc *pyr_dec_desc = NULL;
 	struct isp_yuv_scaler_node_desc *isp_yuv_scaler_desc = NULL;
+	struct dcam_fetch_node_desc *dcam_fetch_desc = NULL;
 
 	hw = module->grp->hw_info;
 	pyrdec_support = hw->ip_isp->pyr_dec_support;
@@ -3048,6 +3046,13 @@ static int camcore_pipeline_init(struct camera_module *module,
 	if (cam_scene_pipeline_need_dcamonline(pipeline_type)) {
 		dcam_online_desc = &pipeline_desc.dcam_online_desc;
 		camcore_dcamonline_desc_get(module, channel, pipeline_type, dcam_online_desc);
+		if (module->cam_uinfo.virtualsensor) {
+			dcam_fetch_desc = &pipeline_desc.dcam_fetch_desc;
+			dcam_fetch_desc->online_node_desc = dcam_online_desc;
+			dcam_fetch_desc->virtualsensor = module->cam_uinfo.virtualsensor;
+			if (dcam_fetch_desc->virtualsensor && channel->ch_id == CAM_CH_CAP)
+				dcam_fetch_desc->virtualsensor_cap_en = 1;
+		}
 	}
 
 	if (cam_scene_pipeline_need_dcamoffline(pipeline_type)) {
@@ -3597,17 +3602,12 @@ src_fail:
 static int camcore_virtual_sensor_proc(struct camera_module *module,
 		struct isp_raw_proc_info *proc_info)
 {
-	int ret = 0, i = 0, is_valid_node = 0;
+	int ret = 0;
 	struct channel_context *ch = NULL;
 	struct camera_frame *src_frame = NULL;
-	struct dcam_pipe_dev *dev = NULL;
-	struct cam_node *cur_node = NULL;
-	struct cam_pipeline *pipeline = NULL;
-	struct dcam_online_node *node = NULL;
 
 	timespec cur_ts = {0};
 	memset(&cur_ts, 0, sizeof(timespec));
-	dev = (struct dcam_pipe_dev *)module->dcam_dev_handle;
 
 	ch = &module->channel[CAM_CH_CAP];
 	if (ch->enable == 0) {
@@ -3638,26 +3638,8 @@ static int camcore_virtual_sensor_proc(struct camera_module *module,
 	if (ret)
 		goto virtualsensor_src_fail;
 
-	pipeline = ch->pipeline_handle;
-
-	/* find specific node by node type */
-	for (i = 0; i < pipeline->pipeline_graph->node_cnt; i++) {
-		cur_node = pipeline->node_list[i];
-		if (cur_node && cur_node->node_graph->type == CAM_NODE_TYPE_DCAM_ONLINE) {
-			is_valid_node = 1;
-			break;
-		}
-	}
-	if (!is_valid_node || !cur_node) {
-		pr_err("fail to get node %d %px\n",is_valid_node, cur_node);
-		return -EFAULT;
-	}
-	src_frame->priv_data = cur_node->handle;
-	node = cur_node->handle;
-	ret = cam_queue_enqueue(&node->virtualsensor_in_queue, &src_frame->list);
-	if (ret == 0)
-	        complete(&node->virtualsensor_thread.thread_com);
-	else
+	ret = CAM_PIPEINE_DCAM_ONLINE_NODE_CFG(ch, CAM_PIPELINE_CFG_BUF, src_frame);
+	if (ret)
 		goto virtualsensor_src_fail;
 
 	atomic_set(&module->timeout_flag, 1);
