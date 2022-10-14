@@ -7998,7 +7998,8 @@ static int camcore_offline_proc(void *param)
 		pframe->irq_property = CAM_FRAME_COMMON;
 	pm_pctx = &pctx->ctx[pctx->cur_ctx_id];
 	pm = &pm_pctx->blk_pm;
-	pm->non_zsl_cap = 1;
+	if (!module->cam_uinfo.virtualsensor)
+		pm->non_zsl_cap = 1;
 	pm->dev = pctx;
 	if (pframe->irq_property == CAM_FRAME_FDRH && module->cam_uinfo.param_frame_sync) {
 		pm = camcore_aux_dcam_param_prepare(pframe, pctx);
