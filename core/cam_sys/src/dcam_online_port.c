@@ -633,7 +633,6 @@ static void dcamonline_port_cfg_store_addr(struct dcam_online_port *dcam_port,st
 			cal_fbc.width = size->w;
 			cal_fbc.out = &fbc_addr;
 			dcam_if_cal_compressed_addr(&cal_fbc);
-			hw_ctx->fbc_info = frame->fbc_info;
 			fbcadr.idx = idx;
 			fbcadr.frame_addr[0] = fbc_addr.addr0;
 			fbcadr.frame_addr[1] = fbc_addr.addr1;

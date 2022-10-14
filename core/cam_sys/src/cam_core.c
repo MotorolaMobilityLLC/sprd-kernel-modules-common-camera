@@ -3450,7 +3450,7 @@ static int camcore_raw_post_proc(struct camera_module *module,
 	else
 		pack_bits = ch->ch_uinfo.dcam_raw_fmt;
 
-	pr_info("day raw_proc_post pack_bits %d", pack_bits);
+	pr_info("dcam raw_proc_post pack_bits %d\n", pack_bits);
 	if (proc_info->fd_dst0 > 0) {
 		mid_frame->buf.type = CAM_BUF_USER;
 		mid_frame->link_from.node_type = CAM_NODE_TYPE_USER;

@@ -262,7 +262,7 @@ static int dcamoffline_hw_frame_param_set(struct dcam_hw_context *hw_ctx)
 	for (i = 0; i < DCAM_PATH_MAX; i++) {
 		if (!hw_ctx->hw_path[i].need_update)
 			continue;
-		pr_info("dcam path id %d update\n", i);
+		pr_info("dcam path id %d update, compress_en %d\n", i, hw_ctx->hw_path[i].hw_fbc.compress_en);
 		if (hw_ctx->hw_path[i].hw_fbc.compress_en)
 			hw->dcam_ioctl(hw, DCAM_HW_CFG_FBC_ADDR_SET, &hw_ctx->hw_path[i].hw_fbc_store);
 		else
@@ -326,7 +326,7 @@ static int dcamoffline_slice_proc(struct dcam_offline_node *node, struct dcam_is
 				&node->slice_done, DCAM_OFFLINE_TIMEOUT);
 		if (ret <= 0) {
 			pr_err("fail to wait as dcam%d offline timeout. ret: %d\n", hw_ctx->hw_ctx_id, ret);
-			trace.type = NORMAL_REG_TRACE;
+			trace.type = ABNORMAL_REG_TRACE;
 			trace.idx = hw_ctx->hw_ctx_id;
 			hw->isp_ioctl(hw, ISP_HW_CFG_REG_TRACE, &trace);
 			return -EFAULT;
@@ -337,13 +337,13 @@ static int dcamoffline_slice_proc(struct dcam_offline_node *node, struct dcam_is
 
 		if (hw->ip_dcam[hw_ctx->hw_ctx_id]->offline_slice_support && slice->slice_num > 1) {
 			slicearg.idx = hw_ctx->hw_ctx_id;
-			slicearg.path_id= hw->ip_dcam[1]->aux_dcam_path;
+			slicearg.path_id= hw->ip_dcam[hw_ctx->hw_ctx_id]->aux_dcam_path;
 			slicearg.fetch = fetch;
 			slicearg.cur_slice = slice->cur_slice;
 			slicearg.dcam_slice_mode = slice->dcam_slice_mode;
 			slicearg.slice_num = slice->slice_num;
 			slicearg.slice_count = slice->slice_count;
-			slicearg.fbc_info= hw_ctx->fbc_info;
+			slicearg.is_compress = hw_ctx->hw_path[DCAM_PATH_FULL].hw_fbc.compress_en;
 			slicearg.st_pack = cam_is_pack(hw_ctx->hw_path[DCAM_PATH_FULL].hw_start.out_fmt);
 			pr_info("slc%d, (%d %d %d %d)\n", i,
 				slice->slice_trim[i].start_x, slice->slice_trim[i].start_y,
@@ -450,7 +450,7 @@ static int dcamoffline_node_frame_start(void *param)
 		pr_err("fail to get hw_ctx_id\n");
 		return -1;
 	}
-	pr_debug("bind  hw context %d.\n", node->hw_ctx_id);
+	pr_debug("bind hw context %d.\n", node->hw_ctx_id);
 
 	slice = &node->hw_ctx->slice_info;
 	ret = dcamoffline_hw_reset(node->hw_ctx);

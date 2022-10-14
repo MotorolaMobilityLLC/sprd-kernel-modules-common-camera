@@ -118,18 +118,18 @@ static int dcamoffline_port_base_cfg(struct dcam_offline_port *port,
 	}
 
 	switch (port->port_id) {
-	case PORT_FULL_OUT:
+	case PORT_OFFLINE_FULL_OUT:
 		port->endian = port_desc->endian;
 		port->out_fmt = port_desc->dcam_out_fmt;
 		port->src_sel = port_desc->src_sel;
 		port->compress_en = port_desc->compress_en;
 		break;
-	case PORT_BIN_OUT:
+	case PORT_OFFLINE_BIN_OUT:
 		port->endian = port_desc->endian;
 		port->out_fmt = port_desc->dcam_out_fmt;
 		port->src_sel = port_desc->src_sel;
 		break;
-	case PORT_RAW_OUT:
+	case PORT_OFFLINE_RAW_OUT:
 		port->endian = port_desc->endian;
 		port->out_fmt = port_desc->dcam_out_fmt;
 		port->src_sel = port_desc->src_sel;
@@ -223,7 +223,6 @@ static int dcamoffline_port_param_get(void *handle, void *param)
 		cal_fbc.width = dcam_port->out_size.w;
 		cal_fbc.out = &fbc_addr;
 		dcam_if_cal_compressed_addr(&cal_fbc);
-		hw_ctx->fbc_info = frame->fbc_info;
 		hw_fbc_store->idx = hw_ctx->hw_ctx_id;
 		hw_fbc_store->path_id = path_id;
 		hw_fbc_store->frame_addr[0] = fbc_addr.addr0;

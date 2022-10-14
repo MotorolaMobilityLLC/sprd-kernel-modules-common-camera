@@ -1947,13 +1947,13 @@ static int dcamonline_fetch_slice_proc(struct dcam_online_node *node)
 		if (hw->ip_dcam[hw_ctx->hw_ctx_id]->offline_slice_support && slice->slice_num > 1) {
 			slicearg.idx = hw_ctx->hw_ctx_id;
 			slicearg.virtualsensor_pre_sof = 1;
-			slicearg.path_id= hw->ip_dcam[1]->aux_dcam_path;
+			slicearg.path_id= hw->ip_dcam[hw_ctx->hw_ctx_id]->aux_dcam_path;
 			slicearg.fetch = fetch;
 			slicearg.cur_slice = slice->cur_slice;
 			slicearg.dcam_slice_mode = slice->dcam_slice_mode;
 			slicearg.slice_num = slice->slice_num;
 			slicearg.slice_count = slice->slice_count;
-			slicearg.fbc_info= hw_ctx->fbc_info;
+			slicearg.is_compress = hw_ctx->hw_path[DCAM_PATH_FULL].hw_fbc.compress_en;
 			slicearg.st_pack = cam_is_pack(hw_ctx->hw_path[DCAM_PATH_FULL].hw_start.out_fmt);
 			pr_debug("slc%d, (%d %d %d %d)\n", i,
 				slice->slice_trim[i].start_x, slice->slice_trim[i].start_y,

@@ -162,7 +162,7 @@ static inline uint32_t dcam_if_cal_compressed_size(struct dcam_compress_cal_para
 	header_size = ALIGN(header_size, FBC_TILE_HEAD_SIZE_ALIGN);
 
 	/*payload/lowbit addr 16byte align, lowbit addr = payload addr + payload size, so payload size 16byte align*/
-	payload_size= tile_col * tile_row * payload_unit;
+	payload_size = tile_col * tile_row * payload_unit;
 	payload_size = ALIGN(payload_size, FBC_STORE_ADDR_ALIGN);
 
 	return header_size + payload_size + lowbits_size;
@@ -174,7 +174,7 @@ static inline void dcam_if_cal_compressed_addr(struct dcam_compress_cal_para *pa
 	int32_t tile_col = 0, tile_row = 0, header_size = 0, payload_unit = 0;
 	struct dcam_compress_info *fbc_info = para->fbc_info;
 
-	if (unlikely(!para|| !para->out))
+	if (unlikely(!para || !para->out))
 		return;
 
 	if (para->fmt & CAM_RAW_BASE)
