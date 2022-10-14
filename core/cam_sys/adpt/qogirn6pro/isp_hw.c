@@ -823,7 +823,11 @@ static uint32_t ISP_CFG_MAP[] __aligned(8) = {
 		0x00203010, /*0x3010  - 0x302C , 8   , YUV420toRGB*/
 		0x001C3110, /*0x3110  - 0x3128 , 7   , frgb_LTM_hists*/
 		0x00183210, /*0x3210  - 0x3224 , 6   , frgb_LTM_map*/
+#if defined (PROJ_QOGIRN6PRO)
 		0x005C3310, /*0x3310  - 0x3368 , 23  , HSV*/
+#elif defined (PROJ_QOGIRN6L)
+		0x00783310, /*0x3310  - 0x3384 , 30  , HSV*/
+#endif
 		0x00043410, /*0x3410  - 0x3410 , 1   , CTM*/
 		0x00203510, /*0x3510  - 0x352C , 8   , RGBtoYUV420*/
 		0x00484010, /*0x4010  - 0x4054 , 18  , CDN*/
@@ -859,10 +863,17 @@ static uint32_t ISP_CFG_MAP[] __aligned(8) = {
 		0x00180310, /*0x310   - 0x324  , 6   , DISPATCH*/
 		0x0040A010, /*0xA010  - 0xA04C , 16  , Dewarping*/
 		0x0010A110, /*0xA110  - 0xA11C , 4   , Dewarping_cache*/
+#if defined (PROJ_QOGIRN6PRO)
 		0x01D58000, /*0x18000 - 0x181D0, 117 , ISP_HSV_TABLEA_BUF0_CH0*/
 		0x01A18400, /*0x18400 - 0x1859C, 104 , ISP_HSV_TABLEB_BUF0_CH0*/
 		0x01B18800, /*0x18800 - 0x189AC, 108 , ISP_HSV_TABLEC_BUF0_CH0*/
 		0x01818C00, /*0x18C00 - 0x18D7C, 96  , ISP_HSV_TABLED_BUF0_CH0*/
+#elif defined (PROJ_QOGIRN6L)
+		0x01D98000, /*0x18000 - 0x181D4, 118 , ISP_HSV_TABLEA_BUF0_CH0*/
+		0x01A58400, /*0x18400 - 0x185A0, 105 , ISP_HSV_TABLEB_BUF0_CH0*/
+		0x01B58800, /*0x18800 - 0x189B0, 109 , ISP_HSV_TABLEC_BUF0_CH0*/
+		0x01858C00, /*0x18C00 - 0x18D80, 97  , ISP_HSV_TABLED_BUF0_CH0*/
+#endif
 		0x08019600, /*0x19600 - 0x19DFC, 512 , ISP_YGAMMA_BUF0_CH0*/
 		0x0201A000, /*0x1A000 - 0x1A1FC, 128 , ISP_RGB_LTM_BUF0_CH0*/
 		0x0B65B000, /*0x1B000 - 0x1BB60, 729 , ISP_CTM_LUT_BUF0_CH0*/
@@ -3084,6 +3095,9 @@ static int isphw_yuv_block_ctrl(void *handle, void *arg)
 	uint32_t type = 0;
 	struct dcam_isp_k_block *p = NULL;
 	struct isp_hw_yuv_block_ctrl *blk_ctrl = NULL;
+	struct cam_hw_info *hw = NULL;
+
+	hw = (struct cam_hw_info *)handle;
 	if (!arg) {
 		pr_err("fail to get valid input arg\n");
 		return -EFAULT;
@@ -3104,7 +3118,10 @@ static int isphw_yuv_block_ctrl(void *handle, void *arg)
 	ISP_REG_MWR(idx, ISP_YUV_REC_CNR_CONTRL0, BIT_0, p->cnr_info.bypass);
 	ISP_REG_MWR(idx, ISP_YUV_CNR_CONTRL0, BIT_0, p->post_cnr_h_info.bypass);
 	ISP_REG_MWR(idx, ISP_UVD_PARAM, BIT_0, p->uvd_info_v1.bypass);
-	ISP_REG_MWR(idx, ISP_HSV_PARAM, BIT_0, p->hsv_info3.hsv_bypass);
+	if (hw->prj_id == QOGIRN6pro)
+		ISP_REG_MWR(idx, ISP_HSV_PARAM, BIT_0, p->hsv_info3.hsv_bypass);
+	else
+		ISP_REG_MWR(idx, ISP_HSV_PARAM, BIT_0, p->hsv_info4.hsv_bypass);
 	ISP_REG_MWR(idx, ISP_CTM_PARAM, BIT_0, p->lut3d_info.rgb3dlut_bypass);
 	ISP_REG_MWR(idx, ISP_YGAMMA_PARAM, BIT_0, p->ygamma_info_v1.bypass);
 	ISP_REG_MWR(idx, ISP_EE_PARAM, BIT_0, p->edge_info_v3.bypass);
