@@ -73,10 +73,11 @@ ssize_t set_mmsys_power_store(struct device *dev, struct device_attribute *attr,
 
 ssize_t get_sys_status_show(struct device *dev, struct device_attribute *attr,
                             char *buf) {
-/*    struct devfreq *devfreq = to_devfreq(dev);
+    ssize_t len = 0;
+#ifdef DVFS_VERSION_N6L
+    struct devfreq *devfreq = to_devfreq(dev);
     struct mmsys_dvfs *mmsys;
     struct ip_dvfs_status ip_status;
-    ssize_t len = 0;
     mmsys = dev_get_drvdata(devfreq->dev.parent);
     mutex_lock(&devfreq->lock);
     if (mmsys != NULL && mmsys->dvfs_ops != NULL &&
@@ -84,38 +85,37 @@ ssize_t get_sys_status_show(struct device *dev, struct device_attribute *attr,
         (mmsys->dvfs_ops->get_ip_status(devfreq, &ip_status) > 0)) {
 
         len = sprintf(buf, "ip "
-                           "volt(V):\nmtx_vote\tisp_vote\tfd_"
-                           "vote\t\tcpp_vote\tjpg_vote\tdcam_vote\taxi_"
-                           "vote\tmm_vote\t\ttop\n");
+            "volt(V):\nmm_mtx_vote\tisp_vote\tcpp_vote\tjpg_vote\tdcam_mtx_vote"
+            "\tdcam01_vote\tdcam01axi_vote\tdcam23_vote\t"
+            "dcam23axi_vote\tmm_vote\n");
 
         len += sprintf(buf + len,
-                       "%s\t\t%s\t\t%s\t\t%s\t\t%s\t\t%s\t\t%s\t\t%s\t\t%s\t\t%s\t\t%s\t\t%s\t\t%s\n",
+                       "%s\t\t%s\t\t%s\t\t%s\t\t%s\t\t%s\t\t%s\t\t%s\t\t%s\t\t%s\n",
                        ip_status.mtx_data_vote_volt, ip_status.isp_vote_volt,
-                       ip_status.fd_vote_volt, ip_status.cpp_vote_volt,
-                       ip_status.jpg_vote_volt, ip_status.depth_vote_volt,
-                       ip_status.dcam0_1_axi_vote_volt, ip_status.dcam0_1_vote_volt,
-                       ip_status.dcam2_3_axi_vote_volt, ip_status.dcam2_3_vote_volt,
-                       ip_status.dcam_mtx_vote_volt, ip_status.mm_vote_volt,
-                       ip_status.top_volt);
+                       ip_status.cpp_vote_volt, ip_status.jpg_vote_volt,
+                       ip_status.dcam_mtx_vote_volt, ip_status.dcam0_1_vote_volt,
+                       ip_status.dcam0_1_axi_vote_volt, ip_status.dcam2_3_vote_volt,
+                       ip_status.dcam2_3_axi_vote_volt, ip_status.mm_vote_volt);
 
         len += sprintf(
             buf + len,
-            "ip clock(Hz):\nmtx\t\tisp\t\tfd\t\tcpp\t\tjpg\t\tdepth\t\tdcam01axi\t\tdcamaxi\t\tdcam23axi
-                \t\tdcam23\t\tdcammtx\n");
+            "ip clock(Hz):\nmm_mtx\t\tisp\t\tcpp\t\tjpg\t\t"
+            "dcam_mtx\tdcam01\t\tdcam01axi\tdcam23\t\t"
+            "dcam23axi\n");
 
-        len += sprintf(buf + len, "%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\n",
+        len += sprintf(buf + len, "%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\n",
                        ip_status.mtx_data_clk, ip_status.isp_clk,
-                       ip_status.fd_clk, ip_status.cpp_clk,
-                       ip_status.jpg_clk, ip_status.depth_clk
-                       ip_status.dcam0_1_axi_clk, ip_status.dcam0_1_clk,
-                       ip_status.dcam2_3_axi_clk, ip_status.dcam2_3_clk,
-                       ip_status.dcam_mtx_clk);
+                       ip_status.cpp_clk, ip_status.jpg_clk,
+                       ip_status.dcam_mtx_clk,  ip_status.dcam0_1_clk,
+                       ip_status.dcam0_1_axi_clk, ip_status.dcam2_3_clk,
+                       ip_status.dcam2_3_axi_clk);
     } else {
         len = sprintf(buf, "Error:Get ip status at wrong time.\nCamera is "
                            "power off or ip ops null\n\n");
     }
-    mutex_unlock(&devfreq->lock);*/
-    return 0;//len;
+    mutex_unlock(&devfreq->lock);
+#endif
+    return len;
 }
 
 ssize_t set_sys_status_store(struct device *dev, struct device_attribute *attr,
