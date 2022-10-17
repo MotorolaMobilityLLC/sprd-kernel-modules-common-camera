@@ -331,7 +331,7 @@
 //DCAM0_1
 /*REG_MM_DVFS_AHB_DCAM0_1_INDEX0_MAP, 0x30014234 */
 #define BITS_DCAM0_1_VOTE_AXI_INDEX0(_X_)        ((_X_) << 13 & (BIT(13)|BIT(14)|BIT(15)))
-#define BITS_DCAM0_1_VOTE_DCAM_MTX_INDEX0(_X_)   ((_X_) << 10 & (BIT(10)|BIT(10)|BIT(12)))
+#define BITS_DCAM0_1_VOTE_DCAM_MTX_INDEX0(_X_)   ((_X_) << 10 & (BIT(10)|BIT(11)|BIT(12)))
 #define BITS_DCAM0_1_VOTE_MM_MTX_INDEX0(_X_)     ((_X_) << 7 & (BIT(7)|BIT(8)|BIT(9)))
 #define BITS_DCAM0_1_VOL_INDEX0(_X_)             ((_X_) << 3 & (BIT(3)|BIT(4)|BIT(5)|BIT(6)))
 #define BITS_CGM_DCAM0_1_SEL_INDEX0(_X_)         ((_X_) << 0 & (BIT(0)|BIT(1)|BIT(2)))
@@ -343,7 +343,7 @@
 //DCAM2_3
 /*REG_MM_DVFS_AHB_DCAM2_3_INDEX0_MAP, 0x30014274 */
 #define BITS_DCAM2_3_VOTE_AXI_INDEX0(_X_)        ((_X_) << 13 & (BIT(13)|BIT(14)|BIT(15)))
-#define BITS_DCAM2_3_VOTE_DCAM_MTX_INDEX0(_X_)   ((_X_) << 10 & (BIT(10)|BIT(10)|BIT(12)))
+#define BITS_DCAM2_3_VOTE_DCAM_MTX_INDEX0(_X_)   ((_X_) << 10 & (BIT(10)|BIT(11)|BIT(12)))
 #define BITS_DCAM2_3_VOTE_MM_MTX_INDEX0(_X_)     ((_X_) << 7 & (BIT(7)|BIT(8)|BIT(9)))
 #define BITS_DCAM2_3_VOL_INDEX0(_X_)             ((_X_) << 3 & (BIT(3)|BIT(4)|BIT(5)|BIT(6)))
 #define BITS_CGM_DCAM2_3_SEL_INDEX0(_X_)         ((_X_) << 0 & (BIT(0)|BIT(1)|BIT(2)))
