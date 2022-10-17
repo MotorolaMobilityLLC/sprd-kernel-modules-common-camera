@@ -262,13 +262,9 @@ static int dcamonline_port_size_cfg(void *handle, void *param)
 		 */
 		spin_lock_irqsave(&dcam_online_port->size_lock, flag);
 		if (dcam_online_port->size_update) {
-			if (dcam_online_node_state_get(dcam_online_port->data_cb_handle) != STATE_RUNNING)
-				pr_info("Overwrite dcam port size before dcam dev start if any\n");
-			else {
-				spin_unlock_irqrestore(&dcam_online_port->size_lock, flag);
-				pr_warn("warning: Previous port size updating pending\n");
-				return -EFAULT;
-			}
+			spin_unlock_irqrestore(&dcam_online_port->size_lock, flag);
+			pr_warn("warning: Previous port size updating pending\n");
+			return -EFAULT;
 		}
 
 		dcam_online_port->in_size = ch_desc->input_size;
@@ -346,6 +342,10 @@ static int dcamonline_port_size_cfg(void *handle, void *param)
 				break;
 		}
 
+		if (dcam_online_port->priv_size_data) {
+			kvfree(dcam_online_port->priv_size_data);
+			dcam_online_port->priv_size_data = NULL;
+		}
 		dcam_online_port->priv_size_data = ch_desc->priv_size_data;
 		dcam_online_port->size_update = 1;
 		spin_unlock_irqrestore(&dcam_online_port->size_lock, flag);
@@ -1265,7 +1265,7 @@ int dcam_online_port_param_cfg(void *handle, enum cam_port_cfg_cmd cmd, void *pa
 		ret = dcamonline_port_size_cfg(dcam_port, param);
 		break;
 	default:
-		pr_err("fail to support node type %d\n", cmd);
+		pr_err("fail to support port type %d\n", cmd);
 		ret = -EFAULT;
 		break;
 	}
@@ -1488,6 +1488,18 @@ void dcam_online_port_put(struct dcam_online_port *port)
 
 			cur = (struct isp_offline_param *)port->isp_updata;
 			port->isp_updata = NULL;
+			while (cur) {
+				prev = (struct isp_offline_param *)cur->prev;
+				kvfree(cur);
+				cur = prev;
+			}
+		}
+
+		if (port->priv_size_data) {
+			struct isp_offline_param *cur, *prev;
+
+			cur = (struct isp_offline_param *)port->priv_size_data;
+			port->priv_size_data = NULL;
 			while (cur) {
 				prev = (struct isp_offline_param *)cur->prev;
 				kvfree(cur);

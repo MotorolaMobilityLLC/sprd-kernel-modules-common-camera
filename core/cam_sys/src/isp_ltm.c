@@ -247,6 +247,7 @@ static void ispltm_sync_ctx_init(struct isp_ltm_sync *sync)
 	sync->tile_num_y_minus = 0;
 	sync->tile_width = 0;
 	sync->tile_height = 0;
+	sync->pre_slice_ltm_bypass = 0;
 	atomic_set(&sync->wait_completion, 0);
 	init_completion(&sync->share_comp);
 	mutex_init(&sync->share_mutex);
@@ -831,6 +832,9 @@ static int ispltm_pipe_proc(void *handle, void *param)
 	ctx->hw->isp_ioctl(ctx->hw, ISP_HW_CFG_K_BLK_FUNC_GET, &ltm_cfg_func);
 	if (ltm_cfg_func.k_blk_func == NULL)
 		return 0;
+
+	if (sync->pre_slice_ltm_bypass == 1)
+		ctx->mode = MODE_LTM_OFF;
 
 	pr_debug("type[%d], fid[%d], frame_width[%d], frame_height[%d] bypass %d, static %d, map %d\n",
 		ctx->mode, ctx->fid, ctx->frame_width, ctx->frame_height, ctx->bypass, ltm_info->ltm_stat.bypass, ltm_info->ltm_map.bypass);

@@ -584,12 +584,18 @@ static int ispnode_ltm_frame_process(struct isp_node *inode, struct isp_port_cfg
 {
 	int ret = 0;
 	struct isp_ltm_ctx_desc *rgb_ltm = NULL;
+
 	if (!inode || !port_cfg) {
 		pr_err("fail to get valid parameter inode %p port_cfg %p\n",
 			inode, port_cfg);
 	}
 
 	rgb_ltm = (struct isp_ltm_ctx_desc *)inode->rgb_ltm_handle;
+
+	if (inode->ch_id == CAM_CH_PRE && ispnode_slice_needed(inode)) {
+		inode->pipe_src.mode_ltm = MODE_LTM_OFF;
+		rgb_ltm->sync->pre_slice_ltm_bypass = 1;
+	}
 
 	if (rgb_ltm) {
 		rgb_ltm->ltm_ops.core_ops.cfg_param(rgb_ltm, ISP_LTM_CFG_HIST_BYPASS, &port_cfg->src_frame->xtm_conflict.need_ltm_hist);

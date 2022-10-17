@@ -547,6 +547,18 @@ void cam_buf_manager_buf_clear(struct cam_buf_pool_id *pool_id)
 	do {
 		pframe = cam_queue_dequeue(heap, struct camera_frame, list);
 		if (pframe) {
+			if (pframe->param_data) {
+				struct isp_offline_param *cur, *prev;
+
+				cur = (struct isp_offline_param *)pframe->param_data;
+				pframe->param_data = NULL;
+				while (cur) {
+					prev = (struct isp_offline_param *)cur->prev;
+					kvfree(cur);
+					cur = prev;
+				}
+			}
+
 			if (pframe->is_reserved == CAM_RESERVED_BUFFER_COPY)
 				cam_buf_manager_buf_status_change(&pframe->buf, CAM_BUF_WITH_ION, CAM_IOMMUDEV_MAX);
 			else

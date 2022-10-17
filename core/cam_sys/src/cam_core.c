@@ -2385,7 +2385,7 @@ static int camcore_channel_size_config(
 	if (channel->ch_id == CAM_CH_RAW)
 		return ret;
 	if (ret && ch_desc.priv_size_data) {
-		kfree(ch_desc.priv_size_data);
+		kvfree(ch_desc.priv_size_data);
 		ch_desc.priv_size_data = NULL;
 		isp_param = NULL;
 	}

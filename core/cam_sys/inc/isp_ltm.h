@@ -145,6 +145,7 @@ struct isp_ltm_sync {
 	uint32_t tile_num_y_minus;
 	uint32_t tile_width;
 	uint32_t tile_height;
+	uint32_t pre_slice_ltm_bypass;
 
 	atomic_t wait_completion;
 	struct completion share_comp;
