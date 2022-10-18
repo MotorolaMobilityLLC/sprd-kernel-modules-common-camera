@@ -42,7 +42,7 @@
 #define DCAM_SCALE_DOWN_MAX            4
 #define DCAM_SCALER_MAX_WIDTH          0xFFFFFFFF
 #define DCAM_FRAME_TIMESTAMP_COUNT     0x100
-
+#define GTM_HIST_VALUE_SIZE            1
 
 /*
  *DCAM_CONTROL register bit map id

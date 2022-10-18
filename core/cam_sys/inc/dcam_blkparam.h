@@ -118,14 +118,12 @@ struct dcam_dev_afm_param {
 struct dcam_dev_gtm_param {
 	uint32_t update_en;
 	uint32_t gtm_calc_mode;
-	struct cam_gtm_mapping mapping_info;
 	struct dcam_dev_raw_gtm_block_info gtm_info;
 };
 
 struct dcam_dev_rgb_gtm_param {
 	uint32_t update_en;
 	uint32_t gtm_calc_mode;
-	struct cam_gtm_mapping mapping_info;
 	struct dcam_dev_rgb_gtm_block_info rgb_gtm_info;
 };
 

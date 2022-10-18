@@ -27,7 +27,6 @@
 #define COEF_VOR_Y_SIZE                (32 * 8)
 #define COEF_VOR_UV_SIZE               (32 * 8)
 #define DCAM_BLOCK_SUM                 270
-#define GTM_HIST_ITEM_NUM              128
 #define IS_DCAM_IF(idx)                ((idx) < 2)
 
 #define SPIN_LOCK_WR_REG(lock, flag) ({            \
@@ -2223,7 +2222,9 @@ static int dcamhw_get_gtm_hist(void *handle, void *arg)
 {
 	struct dcam_hw_gtm_hist *param = NULL;
 	uint32_t idx = 0;
-	int i = 0;
+	uint32_t hist_index = 0;
+	uint32_t *buf = NULL;
+	uint32_t sum = 0;
 
 	if (!arg) {
 		pr_err("fail to get gtm hist\n");
@@ -2232,12 +2233,28 @@ static int dcamhw_get_gtm_hist(void *handle, void *arg)
 
 	param = (struct dcam_hw_gtm_hist *)arg;
 	idx = param->idx;
-
-	for (i = 0; i < GTM_HIST_ITEM_NUM; i++) {
-		param->buf[i] = DCAM_REG_RD(idx, GTM_HIST_CNT + i * 4);
+	buf = param->value;
+	if (!buf) {
+		pr_err("fail to get gtm buffer\n");
+		return -1;
 	}
-	param->buf[i++] = param->hist_total;
-	param->buf[i] = param->fid;
+
+	for (hist_index = 0; hist_index < GTM_HIST_ITEM_NUM; hist_index++) {
+		buf[hist_index] = DCAM_REG_RD(idx, GTM_HIST_CNT + hist_index * 4);
+		sum += buf[hist_index];
+	}
+	buf[GTM_HIST_ITEM_NUM] = sum;
+	hist_index = GTM_HIST_ITEM_NUM + 2;
+	buf[hist_index++] = DCAM_REG_RD(idx, DCAM_GTM_STATUS0) & 0x3FFF;
+	buf[hist_index++] = (DCAM_REG_RD(idx, DCAM_GTM_STATUS0) >> 16) & 0x3FFF;
+	buf[hist_index++] = DCAM_REG_RD(idx, DCAM_GTM_STATUS1) & 0x3FFF;
+	buf[hist_index++] = (DCAM_REG_RD(idx, DCAM_GTM_STATUS1) >> 16) & 0xFFF;
+	buf[hist_index++] = (DCAM_REG_RD(idx, DCAM_GTM_STATUS2) >> 16) & 0xFFFF;
+	buf[hist_index++] = DCAM_REG_RD(idx, DCAM_GTM_STATUS3) & 0xFFFF;
+	buf[hist_index++] = (DCAM_REG_RD(idx, DCAM_GTM_STATUS3) >> 16) & 0xFFFF;
+	buf[hist_index++] = DCAM_REG_RD(idx, DCAM_GTM_STATUS4) & 0x1FFFFFFF;
+	buf[hist_index++] = 0;
+	buf[hist_index] = 0;
 
 	return 0;
 }

@@ -172,6 +172,27 @@ struct nr3_done dcamint_nr3_done_rd(uint32_t idx)
 	return com;
 }
 
+static void dcamint_gtm_hist_value_read(struct dcam_hw_context *hw_ctx)
+{
+	uint32_t i = 0;
+	uint32_t hw_idx = 0;
+	uint32_t sum = 0;
+	unsigned long flag = 0;
+	if (!hw_ctx) {
+		pr_err("fail to get hw ctx\n");
+		return;
+	}
+	spin_lock_irqsave(&hw_ctx->ghist_read_lock, flag);
+	hw_idx = hw_ctx->hw_ctx_id;
+	for (i = 0; i < GTM_HIST_ITEM_NUM; i++) {
+		hw_ctx->gtm_hist_value[i] = DCAM_REG_RD(hw_idx, i * 4 + GTM_HIST_CNT);
+		sum += hw_ctx->gtm_hist_value[i];
+	}
+	hw_ctx->gtm_hist_value[i] = sum;
+	/* GTM_HIST_ITEM_NUM + 1:fid */
+	spin_unlock_irqrestore(&hw_ctx->ghist_read_lock, flag);
+}
+
 static void dcamint_gtm_port_done(void *param)
 {
 	struct dcam_hw_context *dcam_hw_ctx = (struct dcam_hw_context *)param;
@@ -656,7 +677,8 @@ irqreturn_t dcamint_isr_root(int irq, void *priv)
 				node->frame_ts_boot[tsid(dcam_hw_ctx->frame_index)] = ktime_get_boottime();
 				ktime_get_ts(&node->frame_ts[tsid(dcam_hw_ctx->frame_index)]);
 			}
-		}
+		} else if (irq_status.status & BIT(DCAM_GTM_TX_DONE))
+			dcamint_gtm_hist_value_read(dcam_hw_ctx);
 		irq_desc = cam_queue_empty_interrupt_get();
 		irq_desc->irq_num = irq_status.irq_num;
 		irq_desc->int_status = irq_status.status;

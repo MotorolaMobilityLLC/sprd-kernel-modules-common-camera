@@ -570,9 +570,7 @@ struct cam_hw_gtm_update {
 
 struct dcam_hw_gtm_hist {
 	uint32_t idx;
-	uint32_t *buf;
-	uint32_t hist_total;
-	uint32_t fid;
+	uint32_t *value;
 };
 
 struct dcam_hw_slice_fetch {

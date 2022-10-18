@@ -36,11 +36,9 @@ static void dcamonline_port_check_status(struct dcam_online_port *dcam_port,
 		return;
 
 	buf_desc.q_ops_cmd = CAM_QUEUE_DEL_TAIL;
-	if (blk_dcam_pm->gtm[DCAM_GTM_PARAM_PRE].gtm_info.bypass_info.gtm_hist_stat_bypass
-		&& (blk_dcam_pm->gtm[DCAM_GTM_PARAM_PRE].gtm_info.bypass_info.gtm_mod_en == 0))
+	if (blk_dcam_pm->gtm[DCAM_GTM_PARAM_PRE].gtm_info.bypass_info.gtm_hist_stat_bypass)
 		recycle = 1;
-	if (blk_dcam_pm->rgb_gtm[DCAM_GTM_PARAM_PRE].rgb_gtm_info.bypass_info.gtm_hist_stat_bypass
-		&& (blk_dcam_pm->rgb_gtm[DCAM_GTM_PARAM_PRE].rgb_gtm_info.bypass_info.gtm_mod_en == 0))
+	if (blk_dcam_pm->rgb_gtm[DCAM_GTM_PARAM_PRE].rgb_gtm_info.bypass_info.gtm_hist_stat_bypass)
 		recycle = 1;
 	if (g_dcam_bypass[hw_ctx->hw_ctx_id] & (1 << _E_GTM))
 		recycle = 1;

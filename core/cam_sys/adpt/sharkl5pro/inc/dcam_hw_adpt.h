@@ -41,7 +41,8 @@
 #define FBC_TILE_ADDR_ALIGN            256
 #define FBC_HEADER_REDUNDANT           64
 #define DCAM_FRAME_TIMESTAMP_COUNT     0x100
-
+#define GTM_HIST_ITEM_NUM              128
+#define GTM_HIST_VALUE_SIZE            129
 /*
  *DCAM_CONTROL register bit map id
  * for force_cpy/auto_cpy control

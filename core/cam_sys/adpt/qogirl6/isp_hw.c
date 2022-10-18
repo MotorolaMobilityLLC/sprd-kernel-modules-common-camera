@@ -20,7 +20,6 @@
 #define COEF_HOR_UV_SIZE        16
 #define COEF_VOR_Y_SIZE         (32 * 8)
 #define COEF_VOR_UV_SIZE        (32 * 8)
-#define GTM_HIST_ITEM_NUM       128
 static unsigned long irq_base[4] = {
 	ISP_P0_INT_BASE,
 	ISP_C0_INT_BASE,
@@ -2872,7 +2871,7 @@ static int isphw_gtm_block_set(void *handle)
 		return -1;
 	}
 
-	return isp_k_gtm_block(gtm_k_block->ctx, gtm_k_block->tuning, gtm_k_block->map);
+	return isp_k_gtm_block(gtm_k_block->ctx, gtm_k_block->tuning);
 }
 
 static int isphw_gtm_mapping_set(void *handle)
