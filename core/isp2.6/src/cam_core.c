@@ -5746,12 +5746,7 @@ static int camcore_channel_init(struct camera_module *module,
 			channel->ch_uinfo.sensor_raw_fmt = ch_desc.raw_fmt;
 		}
 
-		if (dcam_path_id == 0 && module->cam_uinfo.is_4in1 == 1) {
-			ch_desc.raw_fmt = DCAM_RAW_PACK_10;
-			channel->ch_uinfo.dcam_raw_fmt = ch_desc.raw_fmt;
-			channel->ch_uinfo.sensor_raw_fmt = ch_desc.raw_fmt;
-			pr_debug("sensor_raw_fmt:%d raw_fmt %d\n", channel->ch_uinfo.sensor_raw_fmt, ch_desc.raw_fmt);
-		}
+		pr_info("sensor_raw_fmt:%d, dcam_raw_fmt:%d\n", channel->ch_uinfo.sensor_raw_fmt, channel->ch_uinfo.dcam_raw_fmt);
 
 		ch_desc.is_4in1 = module->cam_uinfo.is_4in1;
 		/*
@@ -6764,7 +6759,7 @@ static int camcore_raw_pre_proc(
 		ret = -EFAULT;
 		goto get_dcam_path_fail;
 	}
-		ch->dcam_path_id = dcam_path_id;
+	ch->dcam_path_id = dcam_path_id;
 
 	dev->sw_ctx[module->offline_cxt_id].fetch.fmt= DCAM_STORE_RAW_BASE;
 	if ((ch->ch_uinfo.sensor_raw_fmt >= DCAM_RAW_PACK_10) && (ch->ch_uinfo.sensor_raw_fmt < DCAM_RAW_MAX))
@@ -6785,9 +6780,10 @@ static int camcore_raw_pre_proc(
 	/* config dcam path  */
 	memset(&ch_desc, 0, sizeof(ch_desc));
 
-	if(ch->dcam_path_id == 0 && module->cam_uinfo.is_4in1 == 1)
-		ch_desc.raw_fmt = DCAM_RAW_PACK_10;
- 	else if ((ch->ch_uinfo.dcam_raw_fmt >= DCAM_RAW_PACK_10) && (ch->ch_uinfo.dcam_raw_fmt < DCAM_RAW_MAX))
+	if((ch->dcam_path_id == DCAM_PATH_FULL || ch->dcam_path_id == DCAM_PATH_BIN) && module->cam_uinfo.is_4in1 == 1) {
+		ch_desc.raw_fmt = proc_info->dcam_raw_fmt;
+		ch->ch_uinfo.dcam_raw_fmt = ch_desc.raw_fmt;
+	} else if ((ch->ch_uinfo.dcam_raw_fmt >= DCAM_RAW_PACK_10) && (ch->ch_uinfo.dcam_raw_fmt < DCAM_RAW_MAX))
 		ch_desc.raw_fmt = ch->ch_uinfo.dcam_raw_fmt;
 	else {
 		ch_desc.raw_fmt = dev->hw->ip_dcam[0]->raw_fmt_support[0];
@@ -6806,9 +6802,10 @@ static int camcore_raw_pre_proc(
 
 	ret = module->dcam_dev_handle->dcam_pipe_ops->cfg_path(sw_ctx,
 		DCAM_PATH_CFG_BASE, ch->dcam_path_id, &ch_desc);
-	pr_debug("dcam fetch packbit %d path%d raw fmt %d, default raw fmt %d\n",
-		dev->sw_ctx[module->offline_cxt_id].pack_bits, ch->dcam_path_id, ch->ch_uinfo.dcam_raw_fmt,
-		 dev->hw->ip_dcam[0]->raw_fmt_support[0]);
+
+	pr_debug("dcam fetch packbit %d path%d sensor_raw_fmt %d, dcam_raw_fmt %d, default raw fmt %d\n",
+		dev->sw_ctx[module->offline_cxt_id].pack_bits, ch->dcam_path_id,ch->ch_uinfo.sensor_raw_fmt,
+		ch->ch_uinfo.dcam_raw_fmt, dev->hw->ip_dcam[0]->raw_fmt_support[0]);
 
 	ch_desc.input_size.w = proc_info->src_size.width;
 	ch_desc.input_size.h = proc_info->src_size.height;

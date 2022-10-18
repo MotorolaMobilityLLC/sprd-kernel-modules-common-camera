@@ -99,6 +99,7 @@ int dcam_path_base_cfg(void *dcam_ctx_handle,
 		path->out_fmt = ch_desc->dcam_out_fmt;
 		path->data_bits = ch_desc->dcam_out_bits;
 
+		pr_info("out fmt %d, data_bits %d\n", path->out_fmt, path->data_bits);
 		path->is_pack = 0;
 		if ((path->out_fmt & DCAM_STORE_YUV_BASE) && (path->data_bits == DCAM_STORE_10_BIT))
 			path->is_pack = 1;
@@ -128,6 +129,7 @@ int dcam_path_base_cfg(void *dcam_ctx_handle,
 		path->pyr_data_bits = ch_desc->pyr_data_bits;
 		path->pyr_is_pack = ch_desc->pyr_is_pack;
 
+		pr_info("out fmt %d, data_bits %d\n", path->out_fmt, path->data_bits);
 		path->is_pack = 0;
 		if ((path->out_fmt & DCAM_STORE_YUV_BASE) && (path->data_bits == DCAM_STORE_10_BIT))
 			path->is_pack = 1;
