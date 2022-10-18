@@ -325,8 +325,28 @@ abnormal_reg_trace:
 		return 0;
 	}
 
-	pr_info("DCAM%d: Register list\n", trace->idx);
+	pr_debug("DCAM%d: Register list\n", trace->idx);
 	for (addr = 0x0; addr <= 0xffff; addr += 16) {
+		pr_debug("0x%03lx: 0x%x 0x%x 0x%x 0x%x\n",
+			addr,
+			DCAM_REG_RD(trace->idx, addr),
+			DCAM_REG_RD(trace->idx, addr + 4),
+			DCAM_REG_RD(trace->idx, addr + 8),
+			DCAM_REG_RD(trace->idx, addr + 12));
+	}
+
+	pr_info("DCAM%d COMMON: Register list\n", trace->idx);
+	for (addr = 0x0; addr <= 0x158; addr += 16) {
+		pr_info("0x%03lx: 0x%x 0x%x 0x%x 0x%x\n",
+			addr,
+			DCAM_REG_RD(trace->idx, addr),
+			DCAM_REG_RD(trace->idx, addr + 4),
+			DCAM_REG_RD(trace->idx, addr + 8),
+			DCAM_REG_RD(trace->idx, addr + 12));
+	}
+
+	pr_info("DCAM%d CAP: Register list\n", trace->idx);
+	for (addr = 0x400; addr <= 0x44C; addr += 16) {
 		pr_info("0x%03lx: 0x%x 0x%x 0x%x 0x%x\n",
 			addr,
 			DCAM_REG_RD(trace->idx, addr),
