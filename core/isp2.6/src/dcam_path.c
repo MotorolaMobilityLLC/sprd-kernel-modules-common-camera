@@ -486,7 +486,7 @@ dcam_path_frame_cycle(struct dcam_sw_context *dcam_sw_ctx, struct dcam_path_desc
 	if (frame == NULL) {
 		frame = cam_queue_dequeue(&path->out_buf_queue, struct camera_frame, list);
 		src = 1;
-		if (frame != NULL && path->path_id == DCAM_PATH_FULL) {
+		if (frame != NULL && (path->path_id == DCAM_PATH_FULL || (path->path_id == DCAM_PATH_VCH2 && frame->channel_id == CAM_CH_DCAM_VCH))) {
 			if (!(frame->buf.mapping_state & CAM_BUF_MAPPING_DEV)) {
 				if (cam_buf_iommu_map(&frame->buf, CAM_IOMMUDEV_DCAM)) {
 					pr_err("fail to map dcam buf\n");
@@ -542,7 +542,7 @@ dcam_path_frame_cycle(struct dcam_sw_context *dcam_sw_ctx, struct dcam_path_desc
 			cam_queue_enqueue(&path->reserved_buf_queue, &frame->list);
 		else if (src == 1) {
 			cam_queue_enqueue(&path->out_buf_queue, &frame->list);
-			if (path->path_id == DCAM_PATH_FULL)
+			if (path->path_id == DCAM_PATH_FULL || (path->path_id == DCAM_PATH_VCH2 && frame->channel_id == CAM_CH_DCAM_VCH))
 				cam_buf_iommu_unmap(&frame->buf);
 		} else {
 			cam_buf_iommu_unmap(&frame->buf);

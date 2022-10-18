@@ -446,6 +446,8 @@ int cam_buf_ionbuf_get(struct camera_buf *buf_info)
 {
 	int ret = 0;
 	void *ionbuf = NULL;
+	enum cam_iommudev_type type;
+	struct iommudev_info *dev_info = NULL;
 
 	if (!buf_info) {
 		pr_err("fail to get buffer info ptr\n");
@@ -495,9 +497,39 @@ int cam_buf_ionbuf_get(struct camera_buf *buf_info)
 		pr_debug("dmabuf %p\n", buf_info->dmabuf_p);
 	}
 
+	if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0)) {
+		for (type = CAM_IOMMUDEV_ISP; type < CAM_IOMMUDEV_MAX; type++) {
+			dev_info = cambuf_iommu_dev_get(type, NULL);
+			if (!dev_info)
+				continue;
+			if (dma_set_mask(dev_info->dev, DMA_BIT_MASK(64))) {
+				dev_warn(dev_info->dev, "mydev: No suitable DMA available\n");
+				goto failed;
+			}
+			buf_info->attachment[type] = dma_buf_attach(buf_info->dmabuf_p, dev_info->dev);
+			if (IS_ERR_OR_NULL(buf_info->attachment[type])) {
+				pr_err("fail to attach dmabuf %px\n", (void *)buf_info->dmabuf_p);
+				ret = -EINVAL;
+				goto failed;
+			}
+			buf_info->table[type] = dma_buf_map_attachment(buf_info->attachment[type], DMA_BIDIRECTIONAL);
+			if (IS_ERR_OR_NULL(buf_info->table[type])) {
+				pr_err("fail to map attachment %px\n", (void *)buf_info->attachment[type]);
+				ret = -EINVAL;
+				goto map_attachment_failed;
+			}
+
+		}
+	}
+
 	buf_info->status = CAM_BUF_WITH_ION;
 	return 0;
 
+map_attachment_failed:
+	for (type = CAM_IOMMUDEV_ISP; type < CAM_IOMMUDEV_MAX; type++) {
+		if (!IS_ERR_OR_NULL(buf_info->attachment[type]))
+			dma_buf_detach(buf_info->dmabuf_p, buf_info->attachment[type]);
+	}
 failed:
 	if (!IS_ERR_OR_NULL(buf_info->dmabuf_p)) {
 		dma_buf_put(buf_info->dmabuf_p);
@@ -513,6 +545,7 @@ EXPORT_SYMBOL(cam_buf_ionbuf_get);
 int cam_buf_ionbuf_put(struct camera_buf *buf_info)
 {
 	int ret = 0;
+	enum cam_iommudev_type type;
 
 	if (!buf_info) {
 		pr_err("fail to get buffer info ptr\n");
@@ -528,14 +561,23 @@ int cam_buf_ionbuf_put(struct camera_buf *buf_info)
 		pr_err("fail to put ionbuf, mfd %d\n", buf_info->mfd);
 		return -EFAULT;
 	}
-	if (!IS_ERR_OR_NULL(buf_info->dmabuf_p)) {
-		if (!IS_ERR_OR_NULL(buf_info->dmabuf_p->file) &&
-			virt_addr_valid(buf_info->dmabuf_p->file))
-			dma_buf_put(buf_info->dmabuf_p);
-		buf_info->dmabuf_p = NULL;
-		if (g_mem_dbg)
-			atomic_dec(&g_mem_dbg->ion_dma_cnt);
+	if (IS_ERR_OR_NULL(buf_info->dmabuf_p))
+		goto exit;
+
+	for (type = CAM_IOMMUDEV_ISP; type < CAM_IOMMUDEV_MAX; type++) {
+		if (!IS_ERR_OR_NULL(buf_info->table[type]))
+			dma_buf_unmap_attachment(buf_info->attachment[type], buf_info->table[type], DMA_BIDIRECTIONAL);
+		if (!IS_ERR_OR_NULL(buf_info->attachment[type]))
+			dma_buf_detach(buf_info->dmabuf_p, buf_info->attachment[type]);
 	}
+	if (!IS_ERR_OR_NULL(buf_info->dmabuf_p->file) &&
+		virt_addr_valid(buf_info->dmabuf_p->file))
+		dma_buf_put(buf_info->dmabuf_p);
+	buf_info->dmabuf_p = NULL;
+	if (g_mem_dbg)
+		atomic_dec(&g_mem_dbg->ion_dma_cnt);
+
+exit:
 	buf_info->ionbuf = NULL;
 	buf_info->status = CAM_BUF_ALLOC;
 	return ret;
@@ -573,37 +615,6 @@ int cam_buf_iommu_map(struct camera_buf *buf_info,
 	}
 
 	pr_debug("enter.\n");
-	if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0)) {
-		if (buf_info->type == CAM_BUF_USER) {
-			if (buf_info->dmabuf_p == NULL) {
-				buf_info->dmabuf_p = dma_buf_get(buf_info->mfd);
-				if (IS_ERR_OR_NULL(buf_info->dmabuf_p)) {
-					pr_err("fail to get dma buf %p\n", buf_info->dmabuf_p);
-					ret = -EINVAL;
-					goto dmabuf_get_failed;
-				}
-				if (g_mem_dbg)
-					atomic_inc(&g_mem_dbg->ion_dma_cnt);
-				pr_debug("dmabuf %p\n", buf_info->dmabuf_p);
-			}
-			if (dma_set_mask(dev_info->dev, DMA_BIT_MASK(64))) {
-				dev_warn(dev_info->dev, "mydev: No suitable DMA available\n");
-				goto ignore_this_device;
-			}
-			buf_info->attachment = dma_buf_attach(buf_info->dmabuf_p, dev_info->dev);
-			if (IS_ERR_OR_NULL(buf_info->attachment)) {
-				pr_err("fail to attach dmabuf %px\n", (void *)buf_info->dmabuf_p);
-				ret = -EINVAL;
-				goto attach_failed;
-			}
-			buf_info->table = dma_buf_map_attachment(buf_info->attachment, DMA_BIDIRECTIONAL);
-			if (IS_ERR_OR_NULL(buf_info->table)) {
-				pr_err("fail to map attachment %px\n", (void *)buf_info->attachment);
-				ret = -EINVAL;
-				goto map_attachment_failed;
-			}
-		}
-	}
 	ionbuf = buf_info->ionbuf;
 	if (dev_info->iommu_en && !buf_info->buf_sec) {
 		memset(&iommu_data, 0,
@@ -657,8 +668,10 @@ int cam_buf_iommu_map(struct camera_buf *buf_info,
 	return 0;
 
 failed:
-	if (buf_info->size <= 0 || buf_info->iova == 0)
-		goto map_attachment_failed;
+	if (buf_info->size <= 0 || buf_info->iova == 0) {
+		buf_info->iova = 0;
+		return ret;
+	}
 
 	if (dev_info->iommu_en) {
 		struct sprd_iommu_unmap_data unmap_data;
@@ -673,30 +686,8 @@ failed:
 			pr_err("fail to free iommu\n");
 		if (g_mem_dbg)
 			atomic_dec(&g_mem_dbg->iommu_map_cnt[type]);
-		if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0)) {
-			if (!IS_ERR_OR_NULL(buf_info->table))
-				dma_buf_unmap_attachment(buf_info->attachment, buf_info->table, DMA_BIDIRECTIONAL);
-		}
 	}
 	buf_info->iova = 0;
-
-map_attachment_failed:
-	if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0)) {
-		if (!IS_ERR_OR_NULL(buf_info->attachment))
-			dma_buf_detach(buf_info->dmabuf_p, buf_info->attachment);
-	}
-attach_failed:
-ignore_this_device:
-	if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0)) {
-		if (!IS_ERR_OR_NULL(buf_info->dmabuf_p)) {
-			dma_buf_put(buf_info->dmabuf_p);
-			buf_info->dmabuf_p = NULL;
-			if (g_mem_dbg)
-				atomic_dec(&g_mem_dbg->ion_dma_cnt);
-		}
-	}
-dmabuf_get_failed:
-
 	return ret;
 }
 EXPORT_SYMBOL(cam_buf_iommu_map);
@@ -745,14 +736,6 @@ int cam_buf_iommu_unmap(struct camera_buf *buf_info)
 		}
 		if (g_mem_dbg && !ret)
 			atomic_dec(&g_mem_dbg->iommu_map_cnt[dev_info->type]);
-		if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0)) {
-			if (buf_info->type == CAM_BUF_USER) {
-				if (!IS_ERR_OR_NULL(buf_info->table))
-					dma_buf_unmap_attachment(buf_info->attachment, buf_info->table, DMA_BIDIRECTIONAL);
-				if (!IS_ERR_OR_NULL(buf_info->attachment))
-					dma_buf_detach(buf_info->dmabuf_p, buf_info->attachment);
-			}
-		}
 	}
 	buf_info->iova = 0;
 exit:

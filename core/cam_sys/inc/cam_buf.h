@@ -81,8 +81,8 @@ struct camera_buf {
 	struct device *dev;/* mapped device */
 	enum cam_buf_type type;
 	uint32_t mapping_state;
-	struct dma_buf_attachment *attachment;
-	struct sg_table *table;
+	struct dma_buf_attachment *attachment[CAM_IOMMUDEV_MAX];
+	struct sg_table *table[CAM_IOMMUDEV_MAX];
 	uint32_t status;
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0))
 	struct dma_buf_map map;/* for k515 dambuf */

@@ -25,6 +25,7 @@
 #include "dcam_int.h"
 #include "dcam_fmcu.h"
 #include "dcam_online_node.h"
+#include "dcam_offline_node.h"
 
 #define DCAM_IN_Q_LEN                     12
 #define DCAM_PROC_Q_LEN                   12
@@ -168,7 +169,6 @@ struct dcam_hw_context {
 	uint32_t prev_fbc_done;
 	uint32_t cap_fbc_done;
 	spinlock_t fbc_lock;
-	struct dcam_compress_info fbc_info;
 	struct dcam_offline_slice_info slice_info;
 	struct dcam_fmcu_ctx_desc *fmcu;
 	struct cam_hw_info *hw;

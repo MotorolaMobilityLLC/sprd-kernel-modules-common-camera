@@ -310,6 +310,12 @@ extern spinlock_t g_reg_wr_lock;
 #define DCAM_BPC_PPI_PATTERN32                          (DCAM_BPC_BASE + 0x00FCUL)
 #define DCAM_BPC_MAP_ADDR                               (DCAM_BPC_BASE + 0x0100UL)
 #define DCAM_BPC_OUT_ADDR                               (DCAM_BPC_BASE + 0x0104UL)
+#if defined (PROJ_QOGIRN6L)
+#define ISP_AWBC_GAIN0                                  (DCAM_BPC_BASE + 0x0114UL)
+#define ISP_AWBC_GAIN1                                  (DCAM_BPC_BASE + 0x0118UL)
+#define ISP_AWBR_GAIN0                                  (DCAM_BPC_BASE + 0x011CUL)
+#define ISP_AWBR_GAIN1                                  (DCAM_BPC_BASE + 0x0120UL)
+#endif
 
 #define DCAM_CROP1_BASE                                 (0x2200UL)
 #define DCAM_CROP1_CTRL                                 (DCAM_CROP1_BASE + 0x0010UL)

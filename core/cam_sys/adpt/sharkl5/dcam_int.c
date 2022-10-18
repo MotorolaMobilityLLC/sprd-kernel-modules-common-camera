@@ -582,7 +582,6 @@ irqreturn_t dcamint_isr_root(int irq, void *priv)
 	struct dcam_hw_context *dcam_hw_ctx = NULL;
 	struct dcam_irq_info irq_status = {0};
 	struct camera_interrupt *irq_desc = NULL;
-	struct dcam_online_node *node = NULL;
 	int ret = 0;
 
 	if (unlikely(!priv)) {
@@ -591,7 +590,6 @@ irqreturn_t dcamint_isr_root(int irq, void *priv)
 	}
 
 	dcam_hw_ctx = (struct dcam_hw_context *)priv;
-	node = (struct dcam_online_node *)dcam_hw_ctx->dcam_irq_cb_handle;
 	if (unlikely(irq != dcam_hw_ctx->irq)) {
 		pr_err("fail to match DCAM%u irq %d %d\n", dcam_hw_ctx->hw_ctx_id, irq, dcam_hw_ctx->irq);
 		return IRQ_NONE;
@@ -622,8 +620,17 @@ irqreturn_t dcamint_isr_root(int irq, void *priv)
 	if (!dcam_hw_ctx->slowmotion_count) {
 		if (irq_status.status & DCAM_CAP_SOF) {
 			/* record SOF timestamp for current frame */
-			node->frame_ts_boot[tsid(dcam_hw_ctx->frame_index)] = ktime_get_boottime();
-			ktime_get_ts(&node->frame_ts[tsid(dcam_hw_ctx->frame_index)]);
+			if (dcam_hw_ctx->is_offline_proc) {
+				struct dcam_offline_node *node = NULL;
+				node = (struct dcam_offline_node *)dcam_hw_ctx->dcam_irq_cb_handle;
+				node->frame_ts_boot[tsid(dcam_hw_ctx->frame_index)] = ktime_get_boottime();
+				ktime_get_ts(&node->frame_ts[tsid(dcam_hw_ctx->frame_index)]);
+			} else {
+				struct dcam_online_node *node = NULL;
+				node = (struct dcam_online_node *)dcam_hw_ctx->dcam_irq_cb_handle;
+				node->frame_ts_boot[tsid(dcam_hw_ctx->frame_index)] = ktime_get_boottime();
+				ktime_get_ts(&node->frame_ts[tsid(dcam_hw_ctx->frame_index)]);
+			}
 		}
 		irq_desc = cam_queue_empty_interrupt_get();
 		irq_desc->irq_num = irq_status.irq_num;
@@ -706,6 +713,14 @@ int dcam_int_irq_desc_get(uint32_t index, void *param)
 	case DCAM_PREV_PATH_TX_DONE:
 		irq_desc->dcam_cb_type = CAM_CB_DCAM_DATA_DONE;
 		irq_desc->dcam_port_id = PORT_OFFLINE_BIN_OUT;
+		break;
+	case DCAM_AEM_TX_DONE:
+		irq_desc->dcam_cb_type = CAM_CB_DCAM_STATIS_DONE;
+		irq_desc->dcam_port_id = PORT_OFFLINE_AEM_OUT;
+		break;
+	case DCAM_HIST_TX_DONE:
+		irq_desc->dcam_cb_type = CAM_CB_DCAM_STATIS_DONE;
+		irq_desc->dcam_port_id = PORT_OFFLINE_BAYER_HIST_OUT;
 		break;
 	default :
 		pr_warn("Warning: not to support irq index BIT%d\n", index);

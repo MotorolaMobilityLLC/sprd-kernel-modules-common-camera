@@ -604,8 +604,7 @@ static int dcamhw_force_copy(void *handle, void *arg)
 		}
 	} else {
 		mask = 0;
-		pr_err("fail to get dev idx 0x%x exceed DCAM_ID_MAX\n",
-			forcpy->idx);
+		pr_err("fail to get dev idx 0x%x exceed DCAM_ID_MAX\n", forcpy->idx);
 	}
 
 	pr_debug("DCAM%u: force copy 0x%0x, id 0x%x\n", forcpy->idx, mask, forcpy->id);
@@ -933,6 +932,7 @@ static int dcamhw_mipi_cap_set(void *handle, void *arg)
 	uint32_t idx = 0, reg_val = 0;
 	struct dcam_mipi_info *cap_info = NULL;
 	struct dcam_hw_mipi_cap *caparg = NULL;
+	struct cam_hw_info *hw = NULL;
 	uint32_t image_vc = 0, image_mode = 1;
 	uint32_t image_data_type = IMG_TYPE_RAW10;
 	uint32_t bwu_shift = 4;
@@ -943,6 +943,7 @@ static int dcamhw_mipi_cap_set(void *handle, void *arg)
 		return -EFAULT;
 	}
 
+	hw = (struct cam_hw_info *)handle;
 	caparg = (struct dcam_hw_mipi_cap *)arg;
 	cap_info = &caparg->cap_info;
 	idx = caparg->idx;
@@ -1023,6 +1024,11 @@ static int dcamhw_mipi_cap_set(void *handle, void *arg)
 		if (cap_info->frm_skip == 0)
 			cap_info->frm_skip = 1;
 	}
+
+	if (hw->prj_id == QOGIRN6L) {
+		cap_info->frm_skip = 3;
+	}
+
 	DCAM_REG_MWR(idx, DCAM_MIPI_CAP_CFG,
 			BIT_8 | BIT_9 | BIT_10 | BIT_11,
 				cap_info->frm_skip << 8);
@@ -1834,7 +1840,7 @@ static int dcamhw_slice_fetch_set(void *handle, void *arg)
 
 			pr_debug("dcam%d, slice 0,  start x %d, size x = %d size y = %d relative_offset %d fmt %d\n",
 				idx, cur_slice->start_x, cur_slice->size_x, cur_slice->size_y,  slicearg->relative_offset, fetch->fmt);
-			if (!slicearg->fbc_info.is_compress) {
+			if (!slicearg->is_compress) {
 				if (slicearg->path_id == DCAM_PATH_BIN) {
 					DCAM_REG_WR(idx, DCAM_STORE0_BORDER, DCAM_OVERLAP << 16);
 					DCAM_REG_MWR(idx, DCAM_STORE0_SLICE_SIZE, 0xFFFF, cur_slice->size_x & 0xffff);
@@ -1867,7 +1873,7 @@ static int dcamhw_slice_fetch_set(void *handle, void *arg)
 
 			pr_debug("dcam%d, last slice,  start x %d, size x = %d size y = %d relative_offset %d fmt %d\n",
 				idx, cur_slice->start_x, cur_slice->size_x, cur_slice->size_y,  slicearg->relative_offset, fetch->fmt);
-			if (!slicearg->fbc_info.is_compress) {
+			if (!slicearg->is_compress) {
 				if (slicearg->path_id == DCAM_PATH_BIN) {
 					DCAM_REG_WR(idx, DCAM_STORE0_BORDER, DCAM_OVERLAP & 0xffff);
 					DCAM_REG_MWR(idx, DCAM_STORE0_SLICE_SIZE, 0xFFFF, cur_slice->size_x & 0xffff);
@@ -1929,7 +1935,7 @@ static int dcamhw_slice_fetch_set(void *handle, void *arg)
 
 			pr_debug("dcam%d, middle slice,  start x %d, size x = %d size y = %d relative_offset %d fmt %d\n",
 				idx, cur_slice->start_x, cur_slice->size_x, cur_slice->size_y,  slicearg->relative_offset, fetch->fmt);
-			if (!slicearg->fbc_info.is_compress) {
+			if (!slicearg->is_compress) {
 				if (slicearg->path_id == DCAM_PATH_BIN) {
 					DCAM_REG_WR(idx, DCAM_STORE0_BORDER, (DCAM_OVERLAP << 16) | (DCAM_OVERLAP & 0xffff));
 					DCAM_REG_MWR(idx, DCAM_STORE0_SLICE_SIZE, 0xFFFF, cur_slice->size_x & 0xffff);

@@ -23,9 +23,9 @@ ifeq ($(strip $(BSP_KERNEL_VERSION)), kernel5.15)
 ISP_DIR := cam_sys
 endif
 
-ifeq ($(ADAPT_DIR),qogirn6l)
-ISP_DIR := isp2.6
-endif
+#ifeq ($(ADAPT_DIR),qogirn6l)
+#ISP_DIR := isp2.6
+#endif
 
 ifeq ($(ISP_DIR),dcam_r6p0_isp_r6p91)
 KO_MODULE_SRC += $(shell find $(KO_MODULE_PATH)/$(ISP_DIR) -name "*.c")
@@ -36,8 +36,13 @@ KO_MODULE_SRC += \
   KO_MODULE_SRC += $(wildcard $(KO_MODULE_PATH)/common/*.c)
   endif
   ifneq ($(findstring $(strip $(ISP_DIR)), isp2.6 cam_sys),)
-  KO_MODULE_SRC += $(wildcard $(KO_MODULE_PATH)/$(ISP_DIR)/adpt/$(ADAPT_DIR)/block/*.c)
-  KO_MODULE_SRC += $(wildcard $(KO_MODULE_PATH)/$(ISP_DIR)/adpt/$(ADAPT_DIR)/*.c)
+    ifeq ($(ADAPT_DIR),qogirn6l)
+    KO_MODULE_SRC += $(wildcard $(KO_MODULE_PATH)/$(ISP_DIR)/adpt/qogirn6pro/block/*.c)
+    KO_MODULE_SRC += $(wildcard $(KO_MODULE_PATH)/$(ISP_DIR)/adpt/qogirn6pro/*.c)
+    else
+    KO_MODULE_SRC += $(wildcard $(KO_MODULE_PATH)/$(ISP_DIR)/adpt/$(ADAPT_DIR)/block/*.c)
+    KO_MODULE_SRC += $(wildcard $(KO_MODULE_PATH)/$(ISP_DIR)/adpt/$(ADAPT_DIR)/*.c)
+    endif
   KO_MODULE_SRC += $(wildcard $(KO_MODULE_PATH)/$(ISP_DIR)/test/*.c)
   KO_MODULE_SRC += $(wildcard $(KO_MODULE_PATH)/$(ISP_DIR)/alg_calc/*.c)
   else
@@ -76,7 +81,11 @@ ccflags-y += -I$(KO_MODULE_PATH)/$(ISP_DIR)/common
 endif
 
 ifneq ($(findstring $(strip $(ISP_DIR)), isp2.6 cam_sys),)
-ccflags-y += -I$(KO_MODULE_PATH)/$(ISP_DIR)/adpt/$(ADAPT_DIR)/inc
+  ifeq ($(ADAPT_DIR),qogirn6l)
+  ccflags-y += -I$(KO_MODULE_PATH)/$(ISP_DIR)/adpt/qogirn6pro/inc
+  else
+  ccflags-y += -I$(KO_MODULE_PATH)/$(ISP_DIR)/adpt/$(ADAPT_DIR)/inc
+  endif
 ccflags-y += -I$(KO_MODULE_PATH)/$(ISP_DIR)/test/
 ccflags-y += -I$(KO_MODULE_PATH)/$(ISP_DIR)/alg_calc/
 endif

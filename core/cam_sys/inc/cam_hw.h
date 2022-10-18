@@ -577,6 +577,7 @@ struct dcam_hw_gtm_hist {
 
 struct dcam_hw_slice_fetch {
 	uint32_t idx;
+	uint32_t is_compress;
 	uint32_t virtualsensor_pre_sof;
 	uint32_t path_id;
 	uint32_t slice_count;
@@ -584,7 +585,6 @@ struct dcam_hw_slice_fetch {
 	uint32_t dcam_slice_mode;
 	uint32_t st_pack;
 	uint32_t relative_offset;
-	struct dcam_compress_info fbc_info;
 	struct dcam_fetch_info *fetch;
 	struct img_trim *cur_slice;
 	struct img_trim slice_trim;

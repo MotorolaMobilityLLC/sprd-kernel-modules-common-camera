@@ -375,7 +375,11 @@ static int camnode_cfg_node_param_dcam_offline(void *handle, enum cam_node_cfg_c
 	case CAM_NODE_RESET_PARAM_PTR:
 		dcam_offline_node_param_ptr_reset(node->handle);
 		break;
+	case CAM_NODE_CFG_STATIS:
+		ret = dcam_offline_node_statis_cfg(node->handle, in_param->param);
+		break;
 	case CAM_NODE_INSERT_PORT:
+		ret = dcam_offline_node_port_insert(node->handle, in_param->param);
 		break;
 	default:
 		pr_err("fail to support node: %s cmd %d\n", cam_node_name_get(node->node_graph->type), cmd);

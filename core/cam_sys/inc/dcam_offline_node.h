@@ -32,6 +32,7 @@ struct dcam_offline_node_desc {
 	uint32_t node_type;
 	uint32_t dcam_idx;
 	uint32_t fetch_fmt;
+	uint32_t statis_en;
 	struct img_size input_size;
 	struct img_trim input_trim;
 	struct img_size output_size;
@@ -54,6 +55,7 @@ struct dcam_offline_node {
 	uint32_t node_type;
 	uint32_t node_id;
 	atomic_t user_cnt;
+	uint32_t statis_en;
 	cam_data_cb data_cb_func;
 	void *data_cb_handle;
 	port_cfg_cb port_cfg_cb_func;
@@ -66,9 +68,11 @@ struct dcam_offline_node {
 	struct dcam_pm_context pm_ctx;
 	struct camera_queue in_queue;
 	struct camera_queue proc_queue;
+	struct camera_queue port_queue;
 	struct camera_queue blk_param_queue;
 	struct completion frm_done;
 	struct completion slice_done;
+	struct camera_buf statis_buf_array[STATIS_TYPE_MAX][STATIS_BUF_NUM_MAX];
 
 	uint32_t port_id;
 	uint32_t dcam_idx;
@@ -79,6 +83,9 @@ struct dcam_offline_node {
 	struct mutex blkpm_dcam_lock;
 };
 
+int dcam_offline_node_port_insert(struct dcam_offline_node *node, void *param);
+struct dcam_offline_port *dcam_offline_node_port_get(struct dcam_offline_node *node, uint32_t port_id);
+int dcam_offline_node_statis_cfg(struct dcam_offline_node *node, void *param);
 int dcam_offline_node_blkpm_fid_set(struct dcam_offline_node *node, void *param);
 void dcam_offline_node_param_ptr_reset(struct dcam_offline_node *node);
 int dcam_offline_node_blk_param_set(struct dcam_offline_node *node, void *param);

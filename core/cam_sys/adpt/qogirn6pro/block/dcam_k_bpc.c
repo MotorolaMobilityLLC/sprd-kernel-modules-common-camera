@@ -109,7 +109,13 @@ int dcam_k_bpc_block(struct dcam_isp_k_block *param)
 
 	val = p->bpc_bad_pixel_pos_out_addr & 0xFFFFFFF0;
 	DCAM_REG_WR(idx, DCAM_BPC_OUT_ADDR, val);
+#if defined (PROJ_QOGIRN6L)
+	val = (1024 & 0x3FFF) | ((1024 & 0x3FFF) << 16);
+	DCAM_REG_WR(idx, ISP_AWBC_GAIN0, val);
 
+	val = (1024 & 0x3FFF) | ((1024 & 0x3FFF) << 16);
+	DCAM_REG_WR(idx, ISP_AWBC_GAIN1, val);
+#endif
 	return ret;
 }
 
