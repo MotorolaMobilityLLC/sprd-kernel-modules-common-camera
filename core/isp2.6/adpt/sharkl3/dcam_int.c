@@ -334,7 +334,8 @@ static enum dcam_fix_result dcamint_fix_index_if_needed(struct dcam_hw_context *
 		diff = diff + frm_cnt - cur_cnt;
 		diff &= DCAM_FRAME_TIMESTAMP_COUNT - 1;
 
-		old_index = sw_ctx->frame_index - 1;
+		if (sw_ctx->frame_index)
+			old_index = sw_ctx->frame_index - 1;
 		sw_ctx->frame_index += diff;
 		pr_info("DCAM%u adjust index by %u, new %u\n",
 			dcam_hw_ctx->hw_ctx_id, diff, sw_ctx->frame_index);

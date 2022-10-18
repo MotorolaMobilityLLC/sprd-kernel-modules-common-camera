@@ -593,7 +593,8 @@ static enum dcam_fix_result dcamonline_fix_index(struct dcam_online_node *node, 
 		diff = diff + irq_proc->frm_cnt - cur_cnt;
 		diff &= DCAM_FRAME_TIMESTAMP_COUNT - 1;
 
-		old_index = hw_ctx->frame_index - 1;
+		if (hw_ctx->frame_index)
+			old_index = hw_ctx->frame_index - 1;
 		hw_ctx->frame_index += diff;
 		pr_info("DCAM%u adjust index by %u, new %u\n", node->hw_ctx_id, diff, hw_ctx->frame_index);
 	}
