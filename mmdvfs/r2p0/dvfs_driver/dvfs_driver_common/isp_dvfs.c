@@ -156,11 +156,13 @@ static int set_work_freq(struct devfreq *devfreq, unsigned long work_freq) {
 		set_mtx_data_work_freq(mm_mtx_index);
 	}
 #else
+/*
 	u32 index = 0;
 
 	get_ip_index_from_table(isp_dvfs_config_table, work_freq, &index);
 
 	set_ip_dvfs_work_index(devfreq, index);
+*/
 #endif
 	return MM_DVFS_SUCCESS;
 }
