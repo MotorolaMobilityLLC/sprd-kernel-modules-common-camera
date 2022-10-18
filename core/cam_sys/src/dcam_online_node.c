@@ -1208,6 +1208,10 @@ static int dcamonline_irq_proc(void *param, void *handle)
 		dcamonline_done_proc(param, handle, hw_ctx);
 		break;
 	case DCAM_INT_ERROR:
+		if (unlikely(atomic_read(&node->state) == STATE_INIT) || unlikely(atomic_read(&node->state) == STATE_IDLE)) {
+			node->dev->hw->dcam_ioctl(node->dev->hw, DCAM_HW_CFG_RESET, &hw_ctx->hw_ctx_id);
+			break;
+		}
 		atomic_set(&node->state, STATE_ERROR);
 		trace.type = ABNORMAL_REG_TRACE;
 		trace.idx = hw_ctx->hw_ctx_id;
@@ -1710,6 +1714,7 @@ static int dcamonline_dev_stop(struct dcam_online_node *node, enum dcam_stop_cmd
 		return ret;
 	}
 
+	atomic_set(&node->state, STATE_IDLE);
 	if (hw_ctx_id != DCAM_HW_CONTEXT_MAX && pause != DCAM_RECOVERY) {
 		hw->dcam_ioctl(hw, DCAM_HW_CFG_STOP, hw_ctx);
 		hw->dcam_ioctl(hw, DCAM_HW_CFG_RESET, &hw_ctx_id);
@@ -1717,7 +1722,6 @@ static int dcamonline_dev_stop(struct dcam_online_node *node, enum dcam_stop_cmd
 		dcam_int_tracker_reset(hw_ctx_id);
 	}
 
-	atomic_set(&node->state, STATE_IDLE);
 	if (pause != DCAM_RECOVERY && atomic_read(&node->pm_cnt) > 0)
 		ret = dcamonline_pmctx_deinit(node);
 
