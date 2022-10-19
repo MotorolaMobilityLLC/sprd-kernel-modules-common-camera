@@ -3229,7 +3229,7 @@ static int isphw_gtm_block_set(void *handle)
 		return -1;
 	}
 
-	return isp_k_gtm_block(gtm_k_block->ctx, gtm_k_block->tuning, gtm_k_block->map);
+	return isp_k_gtm_block(gtm_k_block->ctx, gtm_k_block->tuning);
 }
 
 static int isphw_gtm_mapping_set(void *handle)
