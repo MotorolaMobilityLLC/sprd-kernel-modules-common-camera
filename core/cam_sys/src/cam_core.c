@@ -1534,7 +1534,7 @@ static uint32_t camcore_frame_start_proc(struct camera_module *module, struct ca
 
 static inline bool camcore_capture_sizechoice(struct camera_module *module, struct channel_context *channel)
 {
-	return channel->ch_id == CAM_CH_CAP &&
+	return module->cam_uinfo.is_pyr_dec && channel->ch_id == CAM_CH_CAP &&
 		(!module->cam_uinfo.is_raw_alg ||
 		(module->cam_uinfo.raw_alg_type == RAW_ALG_AI_SFNR && !module->cam_uinfo.param_frame_sync));
 }
@@ -1716,29 +1716,6 @@ static int camcore_pipeline_callback(enum cam_cb_type type, void *param, void *p
 	return ret;
 }
 
-static void camcore_scaler_swapsize_get(struct channel_context *ch_prev,
-	struct channel_context *ch_vid, struct img_size *max_scaler)
-{
-	uint32_t ratio_p = 0, ratio_v = 0;
-	uint32_t max_dst_size = 0, min_dst_ratio = 0;
-
-	ratio_p = (1 << RATIO_SHIFT);
-	ratio_v = (1 << RATIO_SHIFT);
-	if (ch_prev->enable)
-		ratio_p = (1 << RATIO_SHIFT) * ch_prev->ch_uinfo.dst_size.w / ch_prev->ch_uinfo.dst_size.h;
-	if (ch_vid->enable)
-		ratio_v = (1 << RATIO_SHIFT) * ch_vid->ch_uinfo.dst_size.w / ch_vid->ch_uinfo.dst_size.h;
-	min_dst_ratio = MIN(ratio_p, ratio_v);
-	max_scaler->w = MAX(ch_prev->ch_uinfo.dst_size.w, ch_vid->ch_uinfo.dst_size.w);
-	max_scaler->h = MAX(ch_prev->ch_uinfo.dst_size.h, ch_vid->ch_uinfo.dst_size.h);
-	max_dst_size = MAX(max_scaler->w, max_scaler->h);
-	pr_debug("ratio %d %d max_scaler %d %d min_ratio %d max_dst %d\n", ratio_p, ratio_v,
-		max_scaler->w, max_scaler->h, min_dst_ratio, max_dst_size);
-	/* use max size update swap size */
-	max_scaler->w = max_dst_size;
-	max_scaler->h = camcore_ratio16_divide(max_dst_size, min_dst_ratio);
-}
-
 static int camcore_channel_swapsize_cal(struct camera_module *module)
 {
 	uint32_t i = 0, shift = 0, binning_limit = 0;
@@ -1812,6 +1789,12 @@ static int camcore_channel_swapsize_cal(struct camera_module *module)
 	max_bin.w >>= shift;
 	max_bin.h >>= shift;
 
+	/* scaler */
+	max_scaler.w = MAX(ch_prev->ch_uinfo.dst_size.w, ch_vid->ch_uinfo.dst_size.w);
+	max_scaler.h = MAX(ch_prev->ch_uinfo.dst_size.h, ch_vid->ch_uinfo.dst_size.h);
+	max_scaler.w = MAX(max_bin.w, max_scaler.w);
+	max_scaler.h = MAX(max_bin.h, max_scaler.h);
+
 	/* go through rds path */
 	if ((dst_p.w == 0) || (dst_p.h == 0)) {
 		pr_err("fail to get valid w %d h %d\n", dst_p.w, dst_p.h);
@@ -1827,7 +1810,6 @@ static int camcore_channel_swapsize_cal(struct camera_module *module)
 		ch_prev->swap_size = max_bin;
 		break;
 	case ZOOM_SCALER:
-		camcore_scaler_swapsize_get(ch_prev, ch_vid, &max_scaler);
 		ch_prev->swap_size = max_scaler;
 		break;
 	default:
@@ -1846,8 +1828,7 @@ static int camcore_channel_size_calc(struct camera_module *module)
 {
 	uint32_t i = 0, shift = 0, align_size = 0, binning_limit = 0, max_w = 0;
 	uint32_t isp_linebuf_len = g_camctrl.isp_linebuf_len;
-	uint32_t ratio_p_w = 0, ratio_p_h = 0, ratio_v_w = 0, ratio_v_h = 0;
-	uint32_t ratio_min_w = 0, ratio_min_h = 0, ratio_min = 0;
+	uint32_t ratio_w = 0, ratio_h = 0, ratio_min = 0;
 	struct channel_context *ch_prev = NULL;
 	struct channel_context *ch_vid = NULL;
 	struct channel_context *ch_cap = NULL;
@@ -1973,30 +1954,15 @@ static int camcore_channel_size_calc(struct camera_module *module)
 
 		if (module->zoom_solution == ZOOM_SCALER) {
 			ratio_min = 1 << RATIO_SHIFT;
-			ratio_min_w = 1 << RATIO_SHIFT;
-			ratio_min_h = 1 << RATIO_SHIFT;
 			if (trim_pv.size_x > ch_prev->swap_size.w || trim_pv.size_y > ch_prev->swap_size.h) {
-				ratio_p_w = (1 << RATIO_SHIFT) * trim_pv.size_x / dst_p.w;
-				ratio_p_h = (1 << RATIO_SHIFT) * trim_pv.size_y / dst_p.h;
-				ratio_v_w = (1 << RATIO_SHIFT) * trim_pv.size_x / dst_v.w;
-				ratio_v_h = (1 << RATIO_SHIFT) * trim_pv.size_y / dst_v.h;
-				ratio_min = MIN(MIN(ratio_p_w, ratio_p_h), MIN(ratio_v_w, ratio_v_h));
-				ratio_min_w = ratio_min_h = ratio_min;
+				ratio_w = (1 << RATIO_SHIFT) * trim_pv.size_x / ch_prev->swap_size.w;
+				ratio_h = (1 << RATIO_SHIFT) * trim_pv.size_y / ch_prev->swap_size.h;
+				ratio_min = MAX(ratio_w, ratio_h);
+				ratio_min = MAX(ratio_min, 1 << RATIO_SHIFT);
 				dcam_out.w = camcore_ratio16_divide(trim_pv.size_x, ratio_min);
 				dcam_out.h = camcore_ratio16_divide(trim_pv.size_y, ratio_min);
 				dcam_out.w = ALIGN(dcam_out.w, 4);
 				dcam_out.h = ALIGN(dcam_out.h, 2);
-				if ((dcam_out.w != max_dst_pv.w && abs(dcam_out.w - max_dst_pv.w) <= DCAM_PATH_CROP_ALIGN) ||
-					(dcam_out.h != max_dst_pv.h && abs(dcam_out.h - max_dst_pv.h) <= DCAM_PATH_CROP_ALIGN)) {
-					dcam_out.w = dcam_out.w > max_dst_pv.w ? max_dst_pv.w : dcam_out.w;
-					dcam_out.h = dcam_out.h > max_dst_pv.h ? max_dst_pv.h : dcam_out.h;
-					ratio_min_w = (1 << RATIO_SHIFT) * trim_pv.size_x / dcam_out.w;
-					ratio_min_h = (1 << RATIO_SHIFT) * trim_pv.size_y / dcam_out.h;
-					pr_debug("ratio %d %d\n", ratio_min_w, ratio_min_h);
-				}
-				if (abs(dcam_out.w - max_dst_pv.w) > DCAM_PATH_CROP_ALIGN ||
-					abs(dcam_out.h - max_dst_pv.h) > DCAM_PATH_CROP_ALIGN)
-					pr_warn("warning: inconsistent scaling of width and height\n");
 			}
 		}
 
@@ -2004,8 +1970,7 @@ static int camcore_channel_size_calc(struct camera_module *module)
 			dcam_out.h = dcam_out.h * DCAM_SCALER_MAX_WIDTH / dcam_out.w;
 			dcam_out.h = ALIGN_DOWN(dcam_out.h, 2);
 			dcam_out.w = DCAM_SCALER_MAX_WIDTH;
-			ratio_min_w = (1 << RATIO_SHIFT) * trim_pv.size_x / dcam_out.w;
-			ratio_min_h = (1 << RATIO_SHIFT) * trim_pv.size_y / dcam_out.h;
+			ratio_min = (1 << RATIO_SHIFT) * trim_pv.size_x / dcam_out.w;
 		}
 
 		if (ch_prev->compress_en)
@@ -2028,9 +1993,9 @@ static int camcore_channel_size_calc(struct camera_module *module)
 		isp_trim = &ch_prev->trim_isp;
 		if (module->zoom_solution == ZOOM_SCALER) {
 			isp_trim->size_x =
-				camcore_ratio16_divide(ch_prev->ch_uinfo.src_crop.w, ratio_min_w);
+				camcore_ratio16_divide(ch_prev->ch_uinfo.src_crop.w, ratio_min);
 			isp_trim->size_y =
-				camcore_ratio16_divide(ch_prev->ch_uinfo.src_crop.h, ratio_min_h);
+				camcore_ratio16_divide(ch_prev->ch_uinfo.src_crop.h, ratio_min);
 			isp_trim->size_x = ALIGN(isp_trim->size_x, 4);
 			isp_trim->size_y = ALIGN(isp_trim->size_y, 2);
 		} else {
@@ -2052,9 +2017,9 @@ static int camcore_channel_size_calc(struct camera_module *module)
 		isp_trim = &ch_vid->trim_isp;
 		if (module->zoom_solution == ZOOM_SCALER) {
 			isp_trim->size_x =
-				camcore_ratio16_divide(ch_vid->ch_uinfo.src_crop.w, ratio_min_w);
+				camcore_ratio16_divide(ch_vid->ch_uinfo.src_crop.w, ratio_min);
 			isp_trim->size_y =
-				camcore_ratio16_divide(ch_vid->ch_uinfo.src_crop.h, ratio_min_h);
+				camcore_ratio16_divide(ch_vid->ch_uinfo.src_crop.h, ratio_min);
 			isp_trim->size_x = ALIGN(isp_trim->size_x, 4);
 			isp_trim->size_y = ALIGN(isp_trim->size_y, 2);
 		} else {
@@ -2297,6 +2262,10 @@ static int camcore_channel_size_config(
 	if (!is_zoom && (channel->ch_id != CAM_CH_RAW))
 		camcore_pyr_info_config(module, channel);
 
+	/* DCAM full path not updating for zoom. */
+	if (is_zoom && channel->ch_id == CAM_CH_CAP && !module->cam_uinfo.is_pyr_dec)
+		goto cfg_isp;
+
 	if (!is_zoom && (channel->swap_size.w > 0) && (channel->ch_id != CAM_CH_RAW)) {
 		cam_queue_init(&channel->share_buf_queue, CAM_SHARED_BUF_NUM, camcore_k_frame_put);
 
@@ -2422,6 +2391,29 @@ static int camcore_channel_size_config(
 	if (channel->ch_id == CAM_CH_PRE) {
 		pr_info("update channel size done for preview\n");
 		return ret;
+	}
+
+cfg_isp:
+	isp_port_id = channel->isp_port_id;
+	if (channel->ch_id == CAM_CH_CAP) {
+		if (module->cam_uinfo.is_pyr_dec) {
+			size_cfg.size.w = channel->trim_dcam.size_x;
+			size_cfg.size.h = channel->trim_dcam.size_y;
+			size_cfg.trim.start_x = 0;
+			size_cfg.trim.start_y = 0;
+			size_cfg.trim.size_x = size_cfg.size.w;
+			size_cfg.trim.size_y = size_cfg.size.h;
+		} else {
+			size_cfg.size = ch_uinfo->src_size;
+			size_cfg.trim = channel->trim_dcam;
+		}
+		ret = CAM_PIPEINE_ISP_IN_PORT_CFG(channel, PORT_ISP_OFFLINE_IN, CAM_PIPELINE_CFG_SIZE, &size_cfg);
+		if (ret != 0) {
+			goto exit;
+		}
+		pr_info("cfg ch_id:%d size src w %d, h %d, crop %d %d %d %d\n",
+			channel->ch_id, size_cfg.size.w, size_cfg.size.h,
+			size_cfg.trim.start_x, size_cfg.trim.start_y, size_cfg.trim.size_x, size_cfg.trim.size_y);
 	}
 
 cfg_path:

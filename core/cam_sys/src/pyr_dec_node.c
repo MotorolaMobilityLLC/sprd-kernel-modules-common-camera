@@ -668,8 +668,8 @@ static int pyrdec_node_calc_overlap_info(struct pyr_dec_node *node)
 
 	dec_ovlap->slice_w = slice_w;
 	dec_ovlap->slice_h = node->src.h / SLICE_H_NUM_MAX;
-	dec_ovlap->slice_w = ALIGN_UP(dec_ovlap->slice_w, ISP_SLICE_ALIGN_SIZE);
-	dec_ovlap->slice_h = ALIGN_UP(dec_ovlap->slice_h, ISP_SLICE_ALIGN_SIZE);
+	dec_ovlap->slice_w = ISP_ALIGNED(dec_ovlap->slice_w);
+	dec_ovlap->slice_h = ISP_ALIGNED(dec_ovlap->slice_h);
 	dec_ovlap->img_w = node->src.w;
 	dec_ovlap->img_h = node->src.h;
 	dec_ovlap->crop_en = 0;
