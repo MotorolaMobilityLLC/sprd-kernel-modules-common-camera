@@ -2368,7 +2368,8 @@ static int camioctl_cam_res_get(struct camera_module *module,
 check:
 	if (!is_csi_id(dcam_idx) || (dcam_idx < 0)) {
 		pr_err("fail to get dcam id for sensor: %d\n", res.sensor_id);
-		return -EFAULT;
+		ret = -EFAULT;
+		goto stop_thrd;
 	}
 
 	dcam = module->dcam_dev_handle;
