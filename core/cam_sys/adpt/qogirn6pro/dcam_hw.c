@@ -1027,10 +1027,6 @@ static int dcamhw_mipi_cap_set(void *handle, void *arg)
 			cap_info->frm_skip = 1;
 	}
 
-	if (hw->prj_id == QOGIRN6L) {
-		cap_info->frm_skip = 3;
-	}
-
 	DCAM_REG_MWR(idx, DCAM_MIPI_CAP_CFG,
 			BIT_8 | BIT_9 | BIT_10 | BIT_11,
 				cap_info->frm_skip << 8);
