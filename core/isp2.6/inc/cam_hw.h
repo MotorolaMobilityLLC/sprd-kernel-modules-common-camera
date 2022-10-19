@@ -680,8 +680,7 @@ struct cam_hw_gtm_update {
 
 struct dcam_hw_gtm_hist {
 	uint32_t idx;
-	uint32_t hist_index;
-	uint32_t value;
+	uint32_t *value;
 };
 
 struct dcam_hw_slice_fetch {
@@ -1273,6 +1272,7 @@ struct hw_io_ctrl_fun {
 
 struct glb_syscon {
 	uint32_t rst;
+	uint32_t rst_mipi_mask;
 	uint32_t rst_mask;
 	uint32_t rst_ahb_mask;
 	uint32_t rst_vau_mask;

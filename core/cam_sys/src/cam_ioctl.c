@@ -1571,8 +1571,6 @@ static int camioctl_stream_on(struct camera_module *module, unsigned long arg)
 			uframe_sync = 0;
 		CAM_PIPEINE_ISP_IN_PORT_CFG(ch, PORT_ISP_OFFLINE_IN, CAM_PIPELINE_CFG_UFRAME, &uframe_sync);
 		CAM_PIPEINE_ISP_OUT_PORT_CFG(ch, ch->isp_port_id, CAM_PIPELINE_CFG_UFRAME, &uframe_sync);
-		if (ch->need_yuv_scaler)
-			CAM_PIPEINE_ISP_SCALER_OUT_PORT_CFG(ch, ch->isp_port_id, CAM_PIPELINE_CFG_UFRAME, &uframe_sync);
 
 		cam_queue_init(&ch->zoom_coeff_queue, CAM_ZOOM_COEFF_Q_LEN, camcore_empty_frame_put);
 		if (i == CAM_CH_PRE || (i == CAM_CH_VID && !module->channel[CAM_CH_PRE].enable) || (i == CAM_CH_CAP && !module->channel[CAM_CH_PRE].enable)) {
@@ -1932,7 +1930,7 @@ static int camioctl_capture_start(struct camera_module *module,
 		module->capture_type = CAM_CAPTURE_START;
 		module->capture_times = param.timestamp;
 		atomic_set(&module->capture_frames_dcam, CAP_NUM_COMMON);
-		if (module->capture_scene == CAPTURE_HDR)
+		if (ch->need_framecache)
 			ret = CAM_PIPEINE_FRAME_CACHE_NODE_CFG(ch, CAM_PIPELINE_CLR_CACHE_BUF, NULL);
 		break;
 	case DCAM_CAPTURE_START_3DNR:

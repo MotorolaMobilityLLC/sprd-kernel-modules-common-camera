@@ -296,6 +296,25 @@ static void set_ip_dvfs_idle_index(struct devfreq *devfreq,
     DVFS_REG_WR(REG_MM_DVFS_AHB_DCAM0_1_DVFS_INDEX_IDLE_CFG, index_cfg_reg);
 }
 
+#ifdef DVFS_VERSION_N6L
+static void set_slave_idle_disable(bool on) {
+
+    u32 reg_temp = 0;
+
+    mutex_lock(&mmsys_glob_reg_lock);
+    reg_temp = DVFS_REG_RD(REG_MM_DVFS_AHB_MM_DFS_IDLE_DISABLE_CFG0);
+
+    if (on)
+        DVFS_REG_WR(REG_MM_DVFS_AHB_MM_DFS_IDLE_DISABLE_CFG0,
+                    reg_temp | (0x1d << 8));
+    else
+        DVFS_REG_WR(REG_MM_DVFS_AHB_MM_DFS_IDLE_DISABLE_CFG0,
+                    reg_temp & 0);
+    mutex_unlock(&mmsys_glob_reg_lock);
+    pr_debug("dvfs ops: %s\n", __func__);
+}
+#endif
+
 static void dcam0_1_dvfs_map_cfg(void) {
     u32 map_cfg_reg = 0;
     int i = 0;
@@ -349,6 +368,9 @@ static int ip_dvfs_init(struct devfreq *devfreq) {
     set_ip_dvfs_work_index(devfreq, DCAM0_1_WORK_INDEX_DEF);
     set_ip_dvfs_idle_index(devfreq, DCAM0_1_IDLE_INDEX_DEF);
     ip_hw_dfs_en(devfreq, DCAM0_1_DFS_EN);
+#ifdef DVFS_VERSION_N6L
+    set_slave_idle_disable(TRUE);
+#endif
     dcam0_1->dvfs_enable = TRUE;
     dcam0_1->freq = dcam0_1_dvfs_config_table[DCAM0_1_WORK_INDEX_DEF].clk_freq;
     pr_info("dcam0_1 dvfs init param:  HDSK_EN %d WORK_INDEX_DEF %d IDLE_INDEX_DEF %d\n", DCAM0_1_FREQ_UPD_HDSK_EN, DCAM0_1_WORK_INDEX_DEF,

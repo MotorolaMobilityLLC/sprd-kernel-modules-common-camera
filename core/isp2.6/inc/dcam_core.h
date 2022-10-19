@@ -334,6 +334,8 @@ struct dcam_hw_context {
 	struct dcam_sw_context *sw_ctx;
 	struct dcam_fmcu_ctx_desc *fmcu;
 	struct cam_hw_info *hw;
+	spinlock_t ghist_read_lock;
+	uint32_t gtm_hist_value[GTM_HIST_VALUE_SIZE];
 };
 
 struct dcam_pipe_dev {

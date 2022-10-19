@@ -1905,11 +1905,9 @@ static int dcamcore_dev_start(void *dcam_handle, int online)
 		if (pctx->is_ebd)
 			atomic_set(&pctx->path[DCAM_PATH_VCH2].user_cnt, 1);
 
-		if ((pm->gtm[DCAM_GTM_PARAM_PRE].gtm_info.bypass_info.gtm_mod_en || pm->gtm[DCAM_GTM_PARAM_CAP].gtm_info.bypass_info.gtm_mod_en)
-			&& (pm->gtm[DCAM_GTM_PARAM_PRE].gtm_calc_mode == GTM_SW_CALC))
+		if ((pm->gtm[DCAM_GTM_PARAM_PRE].gtm_calc_mode == GTM_SW_CALC) && (pctx->dev->hw->ip_isp->rgb_gtm_support == 0))
 			atomic_set(&pctx->path[DCAM_PATH_GTM_HIST].user_cnt, 1);
-		if ((pm->rgb_gtm[DCAM_GTM_PARAM_PRE].rgb_gtm_info.bypass_info.gtm_mod_en || pm->rgb_gtm[DCAM_GTM_PARAM_CAP].rgb_gtm_info.bypass_info.gtm_mod_en)
-			&& (pm->rgb_gtm[DCAM_GTM_PARAM_PRE].gtm_calc_mode == GTM_SW_CALC))
+		if ((pm->rgb_gtm[DCAM_GTM_PARAM_PRE].gtm_calc_mode == GTM_SW_CALC) && (pctx->dev->hw->ip_isp->rgb_gtm_support == 0))
 			atomic_set(&pctx->path[DCAM_PATH_GTM_HIST].user_cnt, 1);
 	}
 
@@ -2259,6 +2257,7 @@ static int dcamcore_context_init(struct dcam_pipe_dev *dev)
 		pctx_hw->sw_ctx = NULL;
 		pctx_hw->hw = dev->hw;
 		atomic_set(&pctx_hw->user_cnt, 0);
+		spin_lock_init(&pctx_hw->ghist_read_lock);
 
 		pr_debug("register irq for dcam %d. irq_no %d\n", i, dev->hw->ip_dcam[i]->irq_no);
 		ret = dcam_int_irq_request(&dev->hw->pdev->dev,

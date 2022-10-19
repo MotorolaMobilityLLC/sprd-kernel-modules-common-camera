@@ -22,6 +22,7 @@
 #define ISP_HSV_TABLE_D          96  /*8*128*/
 #define ISP_HSV_HUE3             3
 #define ISP_HSV_HUE2             2
+#define ISP_HSV_HUE4             4
 
 #define PDAF_PPI_NUM             64
 #define PDAF_PPI_GAIN_MAP_LEN    128
@@ -1592,6 +1593,20 @@ struct isp_dev_hsv_info_v3 {
 	uint32_t  hsv_delta_value_en;
 	uint32_t  hsv_hue_thr[ISP_HSV_HUE3][ISP_HSV_HUE2];
 	struct hsv_param hsv_param[4];
+	uint32_t  y_blending_factor;
+	uint32_t  hsv_1d_sat_lut[ISP_HSV_SAT_GRID];
+	uint32_t  hsv_1d_hue_lut[ISP_HSV_HUE_GRID];
+};
+
+struct isp_dev_hsv_info_v4 {
+	uint32_t isupdate;
+	uint32_t  hsv_bypass;
+	struct hsv_buf_param buf_param;
+	uint32_t  hsv_delta_value_en;
+	uint32_t  hsv_curve_mode;
+	uint32_t  hsv_hue_thr[ISP_HSV_HUE4][ISP_HSV_HUE2];
+	struct hsv_param hsv_h_param[4];
+	struct hsv_param hsv_s_param[4];
 	uint32_t  y_blending_factor;
 	uint32_t  hsv_1d_sat_lut[ISP_HSV_SAT_GRID];
 	uint32_t  hsv_1d_hue_lut[ISP_HSV_HUE_GRID];

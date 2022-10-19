@@ -46,7 +46,6 @@ static uint32_t int_index[DCAM_HW_CONTEXT_MAX][DCAM_IF_IRQ_INT0_NUMBER];
 static uint32_t dcam_int0_tracker[DCAM_HW_CONTEXT_MAX][DCAM_IF_IRQ_INT0_NUMBER] = {0};
 static uint32_t dcam_int1_tracker[DCAM_HW_CONTEXT_MAX][DCAM_IF_IRQ_INT1_NUMBER] = {0};
 static char *dcam_dev_name[] = {"DCAM0", "DCAM1", "DCAM2"};
-#define GTM_HIST_ITEM_NUM 128
 
 enum dcam_fix_result {
 	DEFER_TO_NEXT,
@@ -1355,17 +1354,51 @@ static void dcamint_sensor_sof3(void *param, struct dcam_sw_context *sw_ctx)
 	pr_debug("dcamint_sensor_sof3\n");
 }
 
+static void dcamint_gtm_hist_value_read(struct dcam_hw_context *hw_ctx)
+{
+	uint32_t i = 0;
+	uint32_t hw_idx = 0;
+	uint32_t sum = 0;
+	unsigned long flag = 0;
+	if (!hw_ctx) {
+		pr_err("fail to get hw ctx\n");
+		return;
+	}
+	spin_lock_irqsave(&hw_ctx->ghist_read_lock, flag);
+	hw_idx = hw_ctx->hw_ctx_id;
+	for (i = 0; i < GTM_HIST_ITEM_NUM; i++) {
+		hw_ctx->gtm_hist_value[i] = DCAM_REG_RD(hw_idx, i * 4 + GTM_HIST_CNT);
+		sum += hw_ctx->gtm_hist_value[i];
+	}
+	hw_ctx->gtm_hist_value[i] = sum;
+	/* GTM_HIST_ITEM_NUM + 1:fid */
+	i = GTM_HIST_ITEM_NUM + 2;
+	hw_ctx->gtm_hist_value[i++] = DCAM_REG_RD(hw_idx, DCAM_GTM_STATUS0) & 0x3FFF;
+	hw_ctx->gtm_hist_value[i++] = (DCAM_REG_RD(hw_idx, DCAM_GTM_STATUS0) >> 16) & 0x3FFF;
+	hw_ctx->gtm_hist_value[i++] = DCAM_REG_RD(hw_idx, DCAM_GTM_STATUS1) & 0x3FFF;
+	hw_ctx->gtm_hist_value[i++] = (DCAM_REG_RD(hw_idx, DCAM_GTM_STATUS1) >> 16) & 0xFFF;
+	hw_ctx->gtm_hist_value[i++] = (DCAM_REG_RD(hw_idx, DCAM_GTM_STATUS2) >> 16) & 0xFFFF;
+	hw_ctx->gtm_hist_value[i++] = DCAM_REG_RD(hw_idx, DCAM_GTM_STATUS3) & 0xFFFF;
+	hw_ctx->gtm_hist_value[i++] = (DCAM_REG_RD(hw_idx, DCAM_GTM_STATUS3) >> 16) & 0xFFFF;
+	hw_ctx->gtm_hist_value[i++] = DCAM_REG_RD(hw_idx, DCAM_GTM_STATUS4) & 0x1FFFFFFF;
+	hw_ctx->gtm_hist_value[i++] = 0;
+	hw_ctx->gtm_hist_value[i] = 0;
+	spin_unlock_irqrestore(&hw_ctx->ghist_read_lock, flag);
+}
+
 static void dcamint_gtm_done(void *param, struct dcam_sw_context *sw_ctx)
 {
-	int i = 0;
 	uint32_t w = 0;
 	uint32_t h = 0;
 	uint32_t *buf = NULL;
+	uint32_t idx = 0;
 	struct dcam_hw_gtm_hist gtm_hist = {0};
 	struct cam_hw_info *hw = NULL;
 	struct camera_frame *frame = NULL;
 	struct dcam_pipe_dev *dcam_dev = NULL;
 	struct dcam_hw_context *dcam_hw_ctx = (struct dcam_hw_context *)param;
+	struct cam_gtm_mapping *map = NULL;
+	uint32_t sum = 0;
 
 	if (!sw_ctx || !param) {
 		pr_err("fail to check param %px %px\n", sw_ctx, param);
@@ -1396,18 +1429,40 @@ static void dcamint_gtm_done(void *param, struct dcam_sw_context *sw_ctx)
 		return;
 	}
 
-	gtm_hist.idx = dcam_hw_ctx->hw_ctx_id;
-
-	for (i = 0; i < GTM_HIST_ITEM_NUM; i++) {
-		gtm_hist.hist_index = i;
+	if (sw_ctx->slowmotion_count) {
+		gtm_hist.idx = dcam_hw_ctx->hw_ctx_id;
+		gtm_hist.value = buf;
 		hw->dcam_ioctl(hw, DCAM_HW_CFG_GTM_HIST_GET, &gtm_hist);
-		buf[i] = gtm_hist.value;
+		idx = dcam_hw_ctx->hw_ctx_id;
+		map = (struct cam_gtm_mapping *)&buf[GTM_HIST_ITEM_NUM + 1];
+		map->idx = frame->fid;
+		map->ymin = DCAM_REG_RD(idx, DCAM_GTM_STATUS0) & 0x3FFF;
+		map->ymax = (DCAM_REG_RD(idx, DCAM_GTM_STATUS0) >> 16) & 0x3FFF;
+		map->yavg = DCAM_REG_RD(idx, DCAM_GTM_STATUS1) & 0x3FFF;
+		map->target = (DCAM_REG_RD(idx, DCAM_GTM_STATUS1) >> 16) & 0xFFF;
+		map->lr_int = (DCAM_REG_RD(idx, DCAM_GTM_STATUS2) >> 16) & 0xFFFF;
+		map->log_min_int = DCAM_REG_RD(idx, DCAM_GTM_STATUS3) & 0xFFFF;
+		map->log_diff_int = (DCAM_REG_RD(idx, DCAM_GTM_STATUS3) >> 16) & 0xFFFF;
+		map->diff = DCAM_REG_RD(idx, DCAM_GTM_STATUS4) & 0x1FFFFFFF;
+		map->ltm_strength = 0;
+		map->isupdate = 0;
+	} else {
+		unsigned long flag = 0;
+		spin_lock_irqsave(&dcam_hw_ctx->ghist_read_lock, flag);
+		memcpy(buf, dcam_hw_ctx->gtm_hist_value, sizeof(uint32_t) * GTM_HIST_VALUE_SIZE);
+		spin_unlock_irqrestore(&dcam_hw_ctx->ghist_read_lock, flag);
 	}
+	sum = buf[GTM_HIST_ITEM_NUM];
 
 	w = sw_ctx->cap_info.cap_size.size_x;
 	h = sw_ctx->cap_info.cap_size.size_y;
-	buf[i++] =  w * h;
-	buf[i] = frame->fid;
+	if (sum != (w * h)) {
+		struct dcam_path_desc *path = &sw_ctx->path[DCAM_PATH_GTM_HIST];
+		pr_debug("pixel num check wrong, fid %d, sum %d, should be %d\n", frame->fid, sum, (w * h));
+		cam_queue_enqueue(&path->out_buf_queue, &frame->list);
+		return;
+	}
+	buf[GTM_HIST_ITEM_NUM + 1] = frame->fid;
 	dcamint_frame_dispatch(dcam_hw_ctx, sw_ctx, DCAM_PATH_GTM_HIST, frame, DCAM_CB_STATIS_DONE);
 	pr_debug("success get frame w %d, h %d, user_fid %d, mfd %d, fid %d\n", w, h, frame->user_fid, frame->buf.mfd[0], frame->fid);
 }
@@ -1862,7 +1917,8 @@ static irqreturn_t dcamint_isr_root(int irq, void *priv)
 			/* record SOF timestamp for current frame */
 			dcam_sw_ctx->frame_ts_boot[tsid(dcam_sw_ctx->frame_index)] = ktime_get_boottime();
 			ktime_get_ts(&dcam_sw_ctx->frame_ts[tsid(dcam_sw_ctx->frame_index)]);
-		}
+		} else if (status & BIT(DCAM_IF_IRQ_INT0_GTM_DONE))
+			dcamint_gtm_hist_value_read(dcam_hw_ctx);
 		interruption = cam_queue_empty_interrupt_get();
 		interruption->dcamint_status = status;
 		interruption->dcamint_status1 = status1;

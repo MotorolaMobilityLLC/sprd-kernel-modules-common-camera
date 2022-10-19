@@ -51,7 +51,7 @@ static int get_ip_status(struct devfreq *devfreq,
               MASK_BITS_MM_INTERNAL_VOTE_VOLTAGE;
 
     for (i = 0; i < 8; i++) {
-        if (ip_volt == isp_dvfs_config_table[i].volt) { //vdsp_table_support0.75V
+        if (ip_volt == isp_dvfs_config_table[i].volt) {
             ip_status->mm_vote_volt = isp_dvfs_config_table[i].volt_value;
             break;
         }

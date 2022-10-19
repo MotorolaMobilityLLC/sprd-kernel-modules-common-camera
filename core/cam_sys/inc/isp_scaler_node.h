@@ -70,6 +70,7 @@ enum isp_yuv_scaler_node_cfg_cmd {
 
 struct isp_yuv_scaler_node_desc {
 	uint32_t node_type;
+	uint32_t uframe_sync;
 	void **node_dev;
 	void *dev;
 	enum cam_ch_id ch_id;
