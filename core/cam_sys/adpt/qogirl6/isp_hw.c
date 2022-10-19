@@ -2988,6 +2988,9 @@ static int isphw_gtmhist_get(void *handle, void *arg)
 	uint32_t *buf = NULL;
 	uint32_t max_item = GTM_HIST_ITEM_NUM;
 	uint32_t i = 0;
+	uint32_t sum = 0;
+	struct cam_gtm_mapping *map = NULL;
+
 	struct isp_hw_gtmhist_get_param *param = (struct isp_hw_gtmhist_get_param *)arg;
 
 	if (!arg) {
@@ -2995,10 +2998,29 @@ static int isphw_gtmhist_get(void *handle, void *arg)
 		return -1;
 	}
 	buf = param->buf;
-	for (i = 0; i < max_item; i++)
+	for (i = 0; i < max_item; i++) {
 		buf[i] = ISP_HREG_RD(ISP_GTM_HIST_BUF0_CH0 + i * 4);
-	buf[i++] = param->hist_total;
+		sum += buf[i];
+	}
+	buf[i++] = sum;
 	buf[i] = param->fid;
+	map = (struct cam_gtm_mapping *)&buf[i];
+	map->ymin = 0;
+	map->ymax = 0;
+	map->yavg = 0;
+	map->target = 0;
+	map->lr_int = 0;
+	map->log_min_int = 0;
+	map->log_diff_int = 0;
+	map->diff = 0;
+	map->ltm_strength = 0;
+	map->isupdate = 0;
+
+	if (sum != param->hist_total) {
+		pr_debug("pixel num check wrong, fid %d, sum %d, should be %d\n", param->fid, sum, param->hist_total);
+		return -1;
+	}
+
 	return 0;
 }
 

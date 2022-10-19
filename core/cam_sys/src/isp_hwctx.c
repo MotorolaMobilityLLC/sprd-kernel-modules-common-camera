@@ -363,9 +363,10 @@ uint32_t isp_hwctx_hist2_frame_prepare(void *buf, uint32_t hw_idx, void *isp_han
 	return 0;
 }
 
-uint32_t isp_hwctx_gtm_hist_result_get(void *buf, uint32_t hw_idx, void *dev,
+int isp_hwctx_gtm_hist_result_get(void *buf, uint32_t hw_idx, void *dev,
 		uint32_t hist_total, uint32_t fid)
 {
+	int ret = 0;
 	struct isp_pipe_dev *isp_dev;
 	struct camera_frame *pframe;
 	struct isp_hw_gtmhist_get_param param;
@@ -375,9 +376,9 @@ uint32_t isp_hwctx_gtm_hist_result_get(void *buf, uint32_t hw_idx, void *dev,
 	param.buf = (uint32_t *)pframe->buf.addr_k;
 	param.hist_total = hist_total;
 	param.fid = fid;
-	isp_dev->isp_hw->isp_ioctl(isp_dev->isp_hw, ISP_HW_CFG_GTMHIST_GET, &param);
+	ret = isp_dev->isp_hw->isp_ioctl(isp_dev->isp_hw, ISP_HW_CFG_GTMHIST_GET, &param);
 
-	return 0;
+	return ret;
 }
 
 int isp_hwctx_fetch_frm_set(void *dev_handle, struct isp_hw_fetch_info *fetch, struct camera_frame *frame)

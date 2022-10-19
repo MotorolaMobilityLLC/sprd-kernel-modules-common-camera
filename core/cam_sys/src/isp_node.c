@@ -261,6 +261,7 @@ static void ispnode_rgb_gtm_hist_done_process(struct isp_node *inode, uint32_t h
 	struct camera_frame *frame = NULL;
 	uint32_t *buf = NULL;
 	uint32_t hist_total = 0;
+	int ret = 0;
 
 	gtm_ctx = (struct isp_gtm_ctx_desc *)inode->rgb_gtm_handle;
 	if (!gtm_ctx) {
@@ -280,7 +281,11 @@ static void ispnode_rgb_gtm_hist_done_process(struct isp_node *inode, uint32_t h
 				return;
 			} else {
 				hist_total= gtm_ctx->src.w * gtm_ctx->src.h;
-				isp_hwctx_gtm_hist_result_get(frame, hw_idx, dev, hist_total, gtm_ctx->fid);
+				ret = isp_hwctx_gtm_hist_result_get(frame, hw_idx, dev, hist_total, gtm_ctx->fid);
+				if (ret) {
+					cam_queue_enqueue(&inode->gtmhist_result_queue, &frame->list);
+					return;
+				}
 				inode->data_cb_func(CAM_CB_ISP_STATIS_DONE, frame, inode->data_cb_handle);
 			}
 		}
