@@ -38,7 +38,7 @@
 #define DCAM_SCALER_MAX_WIDTH                   0xFFFFFFFF
 #define DCAM_FRAME_TIMESTAMP_COUNT              0x40
 #define DCAM_OVERLAP                            0
-
+#define GTM_HIST_VALUE_SIZE                     1
 /*
  *DCAM_CONTROL register bit map id
  * for force_cpy/auto_cpy control

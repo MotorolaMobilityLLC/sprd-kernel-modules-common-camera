@@ -123,6 +123,8 @@ struct dcam_isp_k_block {
 	struct isp_dev_posterize_info pstrz_info;
 	struct isp_dev_uvd_info uvd_info;
 	struct isp_dev_ynr_info ynr_info;
+	/*qogirn6l*/
+	struct isp_dev_hsv_info_v4 hsv_info4;
 	/* common */
 	struct isp_blkparam_adapt blkparam_info;
 

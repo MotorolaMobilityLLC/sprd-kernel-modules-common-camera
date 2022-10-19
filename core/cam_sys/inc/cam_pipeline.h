@@ -270,22 +270,6 @@ struct cam_pipeline {
 	ret; \
 })
 
-#define CAM_PIPEINE_ISP_SCALER_OUT_PORT_CFG(channel, portid, cmd, par)  ({ \
-	struct cam_pipeline_cfg_param param_cfg = {0}; \
-	int ret = 0; \
-	param_cfg.node_type = CAM_NODE_TYPE_ISP_YUV_SCALER; \
-	param_cfg.node_param.param = (par); \
-	param_cfg.node_param.port_type = PORT_TRANSFER_OUT; \
-	param_cfg.node_param.port_id = (portid); \
-	if ((channel)->pipeline_handle) \
-		ret = (channel)->pipeline_handle->ops.cfg_param((channel)->pipeline_handle, (cmd), &param_cfg); \
-	else { \
-		pr_warn("warning: current channel not contain pipeline\n"); \
-		ret = -EFAULT; \
-	} \
-	ret; \
-})
-
 #define CAM_PIPEINE_SHUTOFF_PARAM_CFG(channel, pipeline_shutoff)  ({ \
 	int ret = 0; \
 	enum cam_node_type node_type; \

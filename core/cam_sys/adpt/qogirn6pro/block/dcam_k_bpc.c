@@ -31,11 +31,13 @@ int dcam_k_bpc_block(struct dcam_isp_k_block *param)
 	int i = 0;
 	uint32_t val = 0;
 	struct dcam_dev_bpc_info_v1 *p;
+	struct dcam_dev_awbc_info *p1 = NULL;
 
 	idx = param->idx;
 	if (idx >= DCAM_HW_CONTEXT_MAX)
 		return 0;
 	p = &(param->bpc_n6pro.bpc_param_n6pro.bpc_info);
+	p1 = &(param->awbc.awbc_info);
 
 	/* debugfs bpc not bypass then write*/
 	if (g_dcam_bypass[idx] & (1 << _E_BPC))
@@ -109,13 +111,23 @@ int dcam_k_bpc_block(struct dcam_isp_k_block *param)
 
 	val = p->bpc_bad_pixel_pos_out_addr & 0xFFFFFFF0;
 	DCAM_REG_WR(idx, DCAM_BPC_OUT_ADDR, val);
+
 #if defined (PROJ_QOGIRN6L)
-	val = (1024 & 0x3FFF) | ((1024 & 0x3FFF) << 16);
+	val = ((p1->gain.b & 0x3FFF) << 16) | (p1->gain.r & 0x3FFF);
 	DCAM_REG_WR(idx, ISP_AWBC_GAIN0, val);
 
-	val = (1024 & 0x3FFF) | ((1024 & 0x3FFF) << 16);
+	val = ((p1->gain.gb & 0x3FFF) << 16) | (p1->gain.gr & 0x3FFF);
 	DCAM_REG_WR(idx, ISP_AWBC_GAIN1, val);
+
+	val = ((((1 << 20) / p1->gain.b) & 0x3FFF) << 16) |
+		(((1 << 20) / p1->gain.r) & 0x3FFF);
+	DCAM_REG_WR(idx, ISP_AWBR_GAIN0, val);
+
+	val = ((((1 << 20) / p1->gain.gb) & 0x3FFF) << 16) |
+		(((1 << 20) / p1->gain.gr) & 0x3FFF);
+	DCAM_REG_WR(idx, ISP_AWBR_GAIN1, val);
 #endif
+
 	return ret;
 }
 

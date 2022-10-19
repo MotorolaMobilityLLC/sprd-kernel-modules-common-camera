@@ -770,6 +770,7 @@ static int dcamhw_reset(void *handle, void *arg)
 	uint32_t time_out = 0;
 	uint32_t dbg_sts_reg;
 	uint32_t mask = ~0;
+	uint32_t flag = 0;
 	uint32_t sts_bit[DCAM_ID_MAX] = {
 		BIT(12), BIT(13), BIT(14)
 	};
@@ -804,14 +805,15 @@ static int dcamhw_reset(void *handle, void *arg)
 		trace.idx = idx;
 		hw->isp_ioctl(hw, ISP_HW_CFG_REG_TRACE, &trace);
 	} else {
-		pr_debug("DCAM%d, rst=0x%x, rst_mask=0x%x\n",
-			idx, ip->syscon.rst, ip->syscon.rst_mask);
+		flag = ip->syscon.rst_mask | ip->syscon.rst_mipi_mask;
+		pr_debug("DCAM%d, rst=0x%x, rst_mask=0x%x mipi_mask=0x%x\n",
+			idx, ip->syscon.rst, ip->syscon.rst_mask, ip->syscon.rst_mipi_mask);
 
 		regmap_update_bits(soc->cam_ahb_gpr,
-			ip->syscon.rst, ip->syscon.rst_mask, ip->syscon.rst_mask);
+			ip->syscon.rst, flag, flag);
 		udelay(10);
 		regmap_update_bits(soc->cam_ahb_gpr,
-			ip->syscon.rst, ip->syscon.rst_mask, ~(ip->syscon.rst_mask));
+			ip->syscon.rst, flag, ~flag);
 	}
 
 	DCAM_REG_MWR(idx, DCAM_INT0_CLR, mask, mask);
@@ -1012,8 +1014,6 @@ static int dcamhw_mipi_cap_set(void *handle, void *arg)
 	DCAM_REG_WR(idx, DCAM_MIPI_CAP_END, reg_val);
 
 	/* frame skip before capture */
-	if (cap_info->frm_skip == 0)
-		cap_info->frm_skip = 1;
 	DCAM_REG_MWR(idx, DCAM_MIPI_CAP_CFG,
 			BIT_8 | BIT_9 | BIT_10 | BIT_11,
 				cap_info->frm_skip << 8);
@@ -2320,6 +2320,8 @@ static int dcamhw_get_gtm_hist(void *handle, void *arg)
 	struct dcam_hw_gtm_hist *param = NULL;
 	uint32_t idx = 0;
 	uint32_t hist_index = 0;
+	uint32_t *buf = NULL;
+	uint32_t sum = 0;
 
 	if (!arg) {
 		pr_err("fail to get gtm hist\n");
@@ -2328,9 +2330,17 @@ static int dcamhw_get_gtm_hist(void *handle, void *arg)
 
 	param = (struct dcam_hw_gtm_hist *)arg;
 	idx = param->idx;
-	hist_index = param->hist_index;
+	buf = param->value;
+	if (!buf) {
+		pr_err("fail to get gtm buffer\n");
+		return -1;
+	}
 
-	param->value = DCAM_REG_RD(idx, GTM_HIST_CNT + hist_index * 4);
+	for (hist_index = 0; hist_index < GTM_HIST_ITEM_NUM; hist_index++) {
+		buf[hist_index] = DCAM_REG_RD(idx, GTM_HIST_CNT + hist_index * 4);
+		sum += buf[hist_index];
+	}
+	buf[GTM_HIST_ITEM_NUM] = sum;
 	return 0;
 }
 

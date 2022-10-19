@@ -213,9 +213,19 @@ static int dcam_drv_lite_dt_parse(struct device_node *dn, struct cam_hw_info *hw
 				ip_dcam->syscon.rst = args[0];
 				ip_dcam->syscon.rst_mask = args[1];
 			} else {
-				pr_err("fail to get dcam%d reset syscon\n", i + dcam_if_count);
+				pr_err("fail to get dcam_lite%d reset syscon\n", i + dcam_if_count);
 				goto err_vau_unmap;
 			}
+			#if defined (PROJ_QOGIRN6L)
+			sprintf(dcam_name, "lite%d_mipi_reset", i);
+			if (!cam_syscon_get_args_by_name(lite_node, dcam_name,
+				ARRAY_SIZE(args), args)) {
+				ip_dcam->syscon.rst_mipi_mask = args[1];
+			} else {
+				pr_err("fail to get dcam_lite_mipi%d reset syscon\n", i + dcam_if_count);
+				goto err_vau_unmap;
+			}
+			#endif
 			ip_dcam->syscon.all_rst = all_rst[0];
 			ip_dcam->syscon.all_rst_mask = all_rst[1];
 		}

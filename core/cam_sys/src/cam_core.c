@@ -220,7 +220,7 @@ struct channel_context {
 	int32_t aux_dcam_port_id;
 	int32_t aux_raw_port_id;
 	int32_t isp_port_id;
-	uint32_t need_yuv_scaler;
+	uint32_t need_framecache;
 
 	uint32_t zsl_buffer_num;
 	uint32_t zsl_skip_num;
@@ -2894,11 +2894,16 @@ static int camcore_isp_yuv_scaler_desc_get(struct camera_module *module,
 		struct channel_context *channel, struct isp_yuv_scaler_node_desc *isp_yuv_scaler_desc)
 {
 	int ret = 0;
+	uint32_t uframe_sync = 0;
 	if (!module || !channel || !isp_yuv_scaler_desc) {
 		pr_err("fail to get valid inptr %p %p %p\n", module, channel, isp_yuv_scaler_desc);
 		return -EINVAL;
 	}
 
+	uframe_sync = channel->ch_id != CAM_CH_CAP;
+	if (channel->ch_uinfo.frame_sync_close)
+		uframe_sync = 0;
+	isp_yuv_scaler_desc->uframe_sync = uframe_sync;
 	isp_yuv_scaler_desc->dev = module->isp_dev_handle;
 	isp_yuv_scaler_desc->resbuf_get_cb = camcore_reserved_buf_cfg;
 	isp_yuv_scaler_desc->resbuf_cb_data = module;
@@ -3058,6 +3063,7 @@ static int camcore_pipeline_init(struct camera_module *module,
 	if (cam_scene_pipeline_need_framecache(pipeline_type)) {
 		frame_cache_desc = &pipeline_desc.frame_cache_desc;
 		camcore_framecache_desc_get(module, frame_cache_desc);
+		channel->need_framecache = 1;
 	}
 
 	if (cam_scene_pipeline_need_pyrdec(pipeline_type, pyrdec_support)) {
@@ -3069,7 +3075,6 @@ static int camcore_pipeline_init(struct camera_module *module,
 		isp_yuv_scaler_desc = &pipeline_desc.isp_yuv_scaler_desc;
 		isp_yuv_scaler_desc->hw_path_id = isp_port_id_switch(isp_port_id);
 		camcore_isp_yuv_scaler_desc_get(module, channel, isp_yuv_scaler_desc);
-		channel->need_yuv_scaler = 1;
 	}
 
 	channel->pipeline_handle = cam_pipeline_creat(&pipeline_desc);
@@ -3253,6 +3258,7 @@ static int camcore_raw_pre_proc(struct camera_module *module,
 	int ret = 0;
 	uint32_t pipeline_type = 0;
 	uint32_t pyr_layer_num = ISP_PYR_DEC_LAYER_NUM;
+	uint32_t pyrdec_support = 0;
 	struct cam_hw_info *hw = NULL;
 	struct channel_context *ch = NULL;
 	struct cam_pipeline_desc pipeline_desc = {0};
@@ -3266,6 +3272,7 @@ static int camcore_raw_pre_proc(struct camera_module *module,
 
 	module->capture_type = CAM_CAPTURE_RAWPROC;
 	hw = module->grp->hw_info;
+	pyrdec_support = hw->ip_isp->pyr_dec_support;
 	ch = &module->channel[CAM_CH_CAP];
 	ch->dcam_port_id = -1;
 	ch->isp_port_id = PORT_CAP_OUT;
@@ -3343,7 +3350,7 @@ static int camcore_raw_pre_proc(struct camera_module *module,
 	ch->dcam_port_id = dcamoffline_pathid_convert_to_portid(hw->ip_dcam[DCAM_HW_CONTEXT_0]->aux_dcam_path);
 
 	/*TEMP: config ispctxid to pyrdec node*/
-	if (pyr_dec_desc && isp_node_description)
+	if (cam_scene_pipeline_need_pyrdec(pipeline_type, pyrdec_support))
 		camcore_pyrdec_ctxid_cfg(ch, isp_node_description->isp_node);
 
 	ch_desc.input_size.w = proc_info->src_size.width;

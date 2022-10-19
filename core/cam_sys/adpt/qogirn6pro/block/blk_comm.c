@@ -71,7 +71,11 @@ int init_isp_pm(struct dcam_isp_k_block *isp_k_param)
 	isp_k_param->nr3d_info_v1.blend.bypass = 1;
 	isp_k_param->ltm_rgb_info.ltm_stat.bypass = 1;
 	isp_k_param->ltm_rgb_info.ltm_map.bypass = 1;
+#if defined (PROJ_QOGIRN6PRO)
 	isp_k_param->hsv_info3.hsv_bypass = 1;
+#elif defined (PROJ_QOGIRN6L)
+	isp_k_param->hsv_info4.hsv_bypass = 1;
+#endif
 	isp_k_param->lut3d_info.rgb3dlut_bypass = 1;
 	isp_k_param->ygamma_info_v1.bypass = 1;
 	isp_k_param->edge_info_v3.bypass = 1;
