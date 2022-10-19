@@ -612,7 +612,6 @@ struct dcam_hw_path_size {
 	struct img_size in_size;
 	struct img_trim in_trim;
 	struct img_size out_size;
-	struct img_deci_info deci;
 	struct dcam_compress_info compress_info;
 	struct yuv_scaler_info *scaler_info;
 };

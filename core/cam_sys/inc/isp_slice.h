@@ -38,6 +38,7 @@
 #define ODATA_YUV422               0
 
 #define ISP_SLICE_ALIGN_SIZE            2
+#define ISP_ALIGNED(size)               (((size) + ISP_SLICE_ALIGN_SIZE - 1) & ~(ISP_SLICE_ALIGN_SIZE - 1))
 #define FMCU_PUSH(fmcu, addr, cmd) \
 		fmcu->ops->push_cmdq(fmcu, addr, cmd)
 

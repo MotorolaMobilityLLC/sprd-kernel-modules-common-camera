@@ -25,83 +25,6 @@
 #endif
 #define pr_fmt(fmt) "DCAM_ONLINE_PORT: %d %d %s : " fmt, current->pid, __LINE__, __func__
 
-#define DCAM_ONLINE_PORT_DECI_FAC_MAX            4
-#define DCAM_PIXEL_ALIGN_WIDTH                   4
-#define DCAM_PIXEL_ALIGN_HEIGHT                  2
-
-static uint32_t dcamonline_port_deci_factor_get(uint32_t src_size, uint32_t dst_size)
-{
-	uint32_t factor = 0;
-
-	if (!src_size || !dst_size)
-		return factor;
-
-	/* factor: 0 - 1/2, 1 - 1/4, 2 - 1/8, 3 - 1/16 */
-	for (factor = 0; factor < DCAM_ONLINE_PORT_DECI_FAC_MAX; factor++) {
-		if (src_size < (uint32_t) (dst_size * (1 << (factor + 1))))
-			break;
-	}
-
-	return factor;
-}
-
-static int dcamonline_port_scaler_param_calc(struct img_trim *in_trim,
-	struct img_size *out_size, struct yuv_scaler_info *scaler,
-	struct img_deci_info *deci)
-{
-	int ret = 0;
-	uint32_t tmp_dstsize = 0;
-	uint32_t align_size = 0;
-	uint32_t d_max = DCAM_SCALE_DOWN_MAX;
-
-	pr_debug("dcam scaler in_trim_size_x:%d, in_trim_size_y:%d, out_size_w:%d,out_size_h:%d\n",
-		in_trim->size_x, in_trim->size_y, out_size->w, out_size->h);
-
-	scaler->scaler_factor_in = in_trim->size_x;
-	scaler->scaler_ver_factor_in = in_trim->size_y;
-	/* Down scaling should not be smaller then 1/10*/
-	if (in_trim->size_x > out_size->w * d_max) {
-		tmp_dstsize = out_size->w * d_max;
-		deci->deci_x = dcamonline_port_deci_factor_get(in_trim->size_x, tmp_dstsize);
-		deci->deci_x_eb = 1;
-		align_size = (1 << (deci->deci_x + 1)) * DCAM_PIXEL_ALIGN_WIDTH;
-		in_trim->size_x = (in_trim->size_x) & ~(align_size - 1);
-		in_trim->start_x = (in_trim->start_x) & ~(align_size - 1);
-		scaler->scaler_factor_in = in_trim->size_x >> (deci->deci_x + 1);
-		pr_debug("deci x %d %d, intrim x %d %d, align %d, in %d\n",
-			deci->deci_x_eb, deci->deci_x, in_trim->start_x, in_trim->size_x,
-			align_size, scaler->scaler_factor_in);
-	} else {
-		deci->deci_x = 1;
-		deci->deci_x_eb = 0;
-	}
-
-	if (in_trim->size_y > out_size->h * d_max) {
-		tmp_dstsize = out_size->h * d_max;
-		deci->deci_y = dcamonline_port_deci_factor_get(in_trim->size_y, tmp_dstsize);
-		deci->deci_y_eb = 1;
-		align_size = (1 << (deci->deci_y + 1)) * DCAM_PIXEL_ALIGN_HEIGHT;
-		in_trim->size_y = (in_trim->size_y) & ~(align_size - 1);
-		in_trim->start_y = (in_trim->start_y) & ~(align_size - 1);
-		scaler->scaler_ver_factor_in = in_trim->size_y >> (deci->deci_y + 1);
-		pr_debug("deci y %d %d, intrim y %d %d, align %d, in %d\n",
-			deci->deci_y_eb, deci->deci_y, in_trim->start_y, in_trim->size_y,
-			align_size, scaler->scaler_ver_factor_in);
-	} else {
-		deci->deci_y = 1;
-		deci->deci_y_eb = 0;
-	}
-	pr_debug("dcam scaler out_size  w %d, h %d, deci eb %d %d\n",
-		out_size->w, out_size->h, deci->deci_x_eb, deci->deci_y_eb);
-
-	scaler->scaler_factor_out = out_size->w;
-	scaler->scaler_ver_factor_out = out_size->h;
-	scaler->scaler_out_width = out_size->w;
-	scaler->scaler_out_height = out_size->h;
-
-	return ret;
-}
-
 static void dcamonline_port_check_status(struct dcam_online_port *dcam_port,
 	struct dcam_hw_context *hw_ctx, struct dcam_isp_k_block *blk_dcam_pm)
 {
@@ -285,6 +208,12 @@ static int dcamonline_port_size_cfg(void *handle, void *param)
 		invalid |= dcam_online_port->in_trim.size_x < dcam_online_port->out_size.w;
 		invalid |= dcam_online_port->in_trim.size_y < dcam_online_port->out_size.h;
 
+		/* Down scaling should not be smaller then 1/4*/
+		invalid |= dcam_online_port->in_trim.size_x >
+				(dcam_online_port->out_size.w * DCAM_SCALE_DOWN_MAX);
+		invalid |= dcam_online_port->in_trim.size_y >
+				(dcam_online_port->out_size.h * DCAM_SCALE_DOWN_MAX);
+
 		if (invalid) {
 			spin_unlock_irqrestore(&dcam_online_port->size_lock, flag);
 			pr_err("fail to get valid size, size:%d %d, trim %d %d %d %d, dst %d %d\n",
@@ -311,18 +240,19 @@ static int dcamonline_port_size_cfg(void *handle, void *param)
 					dcam_online_port->scaler_sel = PORT_SCALER_BYPASS;
 					break;
 				}
-				if (dst_size.w > DCAM_SCALER_MAX_WIDTH) {
+				if (dst_size.w > DCAM_SCALER_MAX_WIDTH || dcam_online_port->in_trim.size_x > (dst_size.w * DCAM_SCALE_DOWN_MAX)) {
 					pr_err("fail to support scaler, in width %d, out width %d\n",
 						dcam_online_port->in_trim.size_x, dst_size.w);
 					ret = -1;
 				}
 				dcam_online_port->scaler_sel = PORT_SCALER_BY_YUVSCALER;
-				ret = dcamonline_port_scaler_param_calc(&dcam_online_port->in_trim, &dst_size,
-					&dcam_online_port->scaler_info, &dcam_online_port->deci);
-				if (ret) {
-					pr_err("fail to calc scaler param.\n");
-					return ret;
-				}
+				dcam_online_port->scaler_info.scaler_factor_in = dcam_online_port->in_trim.size_x;
+				dcam_online_port->scaler_info.scaler_factor_out = dst_size.w;
+				dcam_online_port->scaler_info.scaler_ver_factor_in = dcam_online_port->in_trim.size_y;
+				dcam_online_port->scaler_info.scaler_ver_factor_out = dst_size.h;
+				dcam_online_port->scaler_info.scaler_out_width = dst_size.w;
+				dcam_online_port->scaler_info.scaler_out_height = dst_size.h;
+
 				dcam_online_port->scaler_info.work_mode = 2;
 				dcam_online_port->scaler_info.scaler_bypass = 0;
 				ret = cam_scaler_coeff_calc_ex(&dcam_online_port->scaler_info);
@@ -456,7 +386,6 @@ static void dcamonline_port_update_path_size(struct dcam_online_port *dcam_port,
 		path_size.out_size = dcam_port->out_size;
 		path_size.out_pitch= dcam_port->out_pitch;
 		path_size.compress_info = frame->fbc_info;
-		path_size.deci = dcam_port->deci;
 		path_size.scaler_info = &dcam_port->scaler_info;
 		frame->param_data = dcam_port->priv_size_data;
 		hw->dcam_ioctl(hw, DCAM_HW_CFG_PATH_SIZE_UPDATE, &path_size);
@@ -914,8 +843,7 @@ static inline int dcamonline_port_bin_out_frm_set(struct dcam_online_port *dcam_
 			atomic_inc(&dcam_port->set_frm_cnt);
 
 			frame->fid = hw_ctx->base_fid + hw_ctx->index_to_set + i;
-			frame->width = dcam_port->out_size.w;
-			frame->height = dcam_port->out_size.h;
+
 			pr_debug("DCAM%u set frame: fid %u, count %d\n", idx, frame->fid,
 				atomic_read(&dcam_port->set_frm_cnt));
 			i++;

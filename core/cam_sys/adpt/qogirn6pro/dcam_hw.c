@@ -1463,11 +1463,8 @@ static int dcamhw_path_size_update(void *handle, void *arg)
 		reg_val = (sizearg->in_trim.size_y << 16) | sizearg->in_trim.size_x;
 		DCAM_REG_WR(idx, DCAM_SCL0_TRIM0_SIZE, reg_val);
 
-		/*set X/Y deci */
-		DCAM_REG_MWR(idx, DCAM_SCL0_CFG, BIT_6, sizearg->deci.deci_x_eb << 6);
-		DCAM_REG_MWR(idx, DCAM_SCL0_CFG, (BIT_4 | BIT_5), sizearg->deci.deci_x << 4);
-		DCAM_REG_MWR(idx, DCAM_SCL0_CFG, BIT_9, sizearg->deci.deci_y_eb << 9);
-		DCAM_REG_MWR(idx, DCAM_SCL0_CFG, (BIT_7 | BIT_8), sizearg->deci.deci_y << 7);
+		DCAM_REG_MWR(idx, DCAM_SCL0_CFG, BIT_6, 0 << 6);
+		DCAM_REG_MWR(idx, DCAM_SCL0_CFG, BIT_9, 0 << 9);
 		DCAM_REG_MWR(idx, DCAM_SCL0_CFG, BIT_0, 0);
 
 		/* PINGPONG BUF CONTROL  SW MODE*/

@@ -117,7 +117,6 @@ struct dcam_online_port {
 	struct img_trim in_trim;
 	struct img_size out_size;
 	struct img_trim total_in_trim;
-	struct img_deci_info deci;
 	struct dcam_hw_dec_store_cfg dec_store_info;
 	struct yuv_scaler_info scaler_info;
 	/* queue info */

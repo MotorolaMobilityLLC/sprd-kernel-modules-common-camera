@@ -495,7 +495,6 @@ static void ispslice_slice_size_info_get(
 	uint32_t j;
 	uint32_t slice_num, slice_w, slice_w_out;
 	uint32_t slice_max_w, max_w;
-	uint32_t slice_tmp_w;
 	uint32_t linebuf_len;
 	struct img_size *input = &in_ptr->frame_in_size;
 	struct img_size *output;
@@ -541,15 +540,8 @@ static void ispslice_slice_size_info_get(
 	*w = (slice_w < slice_w_out) ? slice_w : slice_w_out;
 	*h = input->h / SLICE_H_NUM_MAX;
 
-	slice_tmp_w = (*w + RAW_OVERLAP_RIGHT) * max_w / input->w;
-	if (slice_tmp_w > linebuf_len) {
-		slice_num = slice_num + 1;
-		*w = (input->w + slice_num - 1) / slice_num;
-		pr_debug("slice_num %d, slice_w %d\n", slice_num, *w);
-	}
-
-	*w = ALIGN_UP(*w, ISP_SLICE_ALIGN_SIZE);
-	*h = ALIGN_UP(*h, ISP_SLICE_ALIGN_SIZE);
+	*w = (*w + ISP_SLICE_ALIGN_SIZE -1) & ~(ISP_SLICE_ALIGN_SIZE -1);
+	*h = (*h + ISP_SLICE_ALIGN_SIZE -1) & ~(ISP_SLICE_ALIGN_SIZE -1);
 }
 
 static int ispslice_slice_overlap_info_get(

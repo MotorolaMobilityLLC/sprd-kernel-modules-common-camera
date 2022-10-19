@@ -132,9 +132,9 @@ static uint32_t ispport_buf_set(struct isp_port *port, void *param)
 	struct camera_frame *pframe = NULL;
 
 	pframe = VOID_PTR_TO(param, struct camera_frame);
-	if (port->type == PORT_TRANSFER_IN) {
-		if (pframe->pyr_status == OFFLINE_DEC_ON)
-			port->fetch_path_sel = ISP_FETCH_PATH_NORMAL;
+	if (port->type == PORT_TRANSFER_IN && pframe->pyr_status == OFFLINE_DEC_ON) {
+		port->fetch_path_sel = ISP_FETCH_PATH_NORMAL;
+
 		port->size.w = pframe->width;
 		port->size.h = pframe->height;
 		port->trim.start_x = 0;
@@ -1212,8 +1212,13 @@ static int ispport_store_pipeinfo_get(struct isp_port *port, struct isp_port_cfg
 	pipe_in->scaler[path_id].spath_id = path_id;
 	pipe_in->scaler[path_id].src.w = port_cfg->src_crop.size_x;
 	pipe_in->scaler[path_id].src.h = port_cfg->src_crop.size_y;
-	pipe_in->scaler[path_id].in_trim.size_x = port_cfg->src_crop.size_x;
-	pipe_in->scaler[path_id].in_trim.size_y = port_cfg->src_crop.size_y;
+	if (port_cfg->src_frame->link_from.node_type == CAM_NODE_TYPE_PYR_DEC) {
+		pipe_in->scaler[path_id].in_trim.size_x = port_cfg->src_crop.size_x;
+		pipe_in->scaler[path_id].in_trim.size_y = port_cfg->src_crop.size_y;
+	} else {
+		pipe_in->scaler[path_id].in_trim = port_cfg->src_frame->out_crop[path_id];
+	}
+
 	port->scaler_coeff_ex = port_cfg->scaler_coeff_ex;
 	port->scaler_bypass_ctrl = port_cfg->scaler_bypass_ctrl;
 	ret = ispport_scaler_get(port, &pipe_in->scaler[path_id], port_cfg);
