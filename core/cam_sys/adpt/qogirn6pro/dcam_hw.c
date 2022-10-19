@@ -323,6 +323,44 @@ static int dcamhw_axi_init(void *handle, void *arg)
 	return 0;
 }
 
+static int dcamhw_fmcu_reset(void *handle, void *arg)
+{
+	int ret = 0;
+	uint32_t idx = 0;
+	struct cam_hw_info *hw = NULL;
+	struct cam_hw_soc_info *soc = NULL;
+	struct cam_hw_ip_info *ip = NULL;
+	#if defined (PROJ_QOGIRN6L)
+	uint32_t flag = 0;
+	#endif
+
+	if (!handle || !arg) {
+		pr_err("fail to get input arg %px, %px\n", handle, arg);
+		return -EFAULT;
+	}
+
+	idx = *(uint32_t *)arg;
+	hw = (struct cam_hw_info *)handle;
+	soc = hw->soc_dcam;
+	ip = hw->ip_dcam[idx];
+
+	#if defined (PROJ_QOGIRN6L)
+	flag = ip->syscon.rst_fmcu_mask;
+	pr_debug("DCAM%d, rst=0x%x, rst_fmcu_mask=0x%x\n",
+		idx, ip->syscon.rst, ip->syscon.rst_fmcu_mask);
+
+	regmap_update_bits(soc->cam_ahb_gpr, ip->syscon.rst, flag, flag);
+	udelay(10);
+	regmap_update_bits(soc->cam_ahb_gpr, ip->syscon.rst, flag, ~flag);
+
+	pr_info("DCAM%d: fmcu end\n", idx);
+	#else
+	ret = hw->dcam_ioctl(hw, DCAM_HW_CFG_INIT_AXI, &idx);
+	#endif
+
+	return ret;
+}
+
 static void dcamhw_ip_qos_set(void *handle, void *arg)
 {
 	uint32_t reg_val = 0;
@@ -3021,6 +3059,7 @@ static struct hw_io_ctrl_fun dcam_ioctl_fun_tab[] = {
 	{DCAM_HW_CFG_ENABLE_CLK,            dcamhw_clk_eb},
 	{DCAM_HW_CFG_DISABLE_CLK,           dcamhw_clk_dis},
 	{DCAM_HW_CFG_INIT_AXI,              dcamhw_axi_init},
+	{DCAM_HW_CFG_FMCU_RESET,            dcamhw_fmcu_reset},
 	{DCAM_HW_CFG_SET_QOS,               dcamhw_qos_set},
 	{DCAM_HW_CFG_RESET,                 dcamhw_reset},
 	{DCAM_HW_CFG_START,                 dcamhw_start},

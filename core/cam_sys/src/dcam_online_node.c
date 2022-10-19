@@ -1543,7 +1543,7 @@ static int dcamonline_dev_stop(struct dcam_online_node *node, enum dcam_stop_cmd
 
 	if (node->slw_type == DCAM_SLW_FMCU) {
 		if (pause != DCAM_RECOVERY) {
-			ret = hw->dcam_ioctl(hw, DCAM_HW_CFG_INIT_AXI, &hw_ctx_id);
+			ret = hw->dcam_ioctl(hw, DCAM_HW_CFG_FMCU_RESET, &hw_ctx_id);
 			if (ret)
 				pr_err("fail to reset fmcu dcam%d ret:%d\n", hw_ctx_id, ret);
 		}

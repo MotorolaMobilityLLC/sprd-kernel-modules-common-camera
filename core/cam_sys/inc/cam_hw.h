@@ -157,6 +157,7 @@ enum dcam_hw_cfg_cmd {
 	DCAM_HW_CFG_ENABLE_CLK,
 	DCAM_HW_CFG_DISABLE_CLK,
 	DCAM_HW_CFG_INIT_AXI,
+	DCAM_HW_CFG_FMCU_RESET,
 	DCAM_HW_CFG_SET_QOS,
 	DCAM_HW_CFG_RESET,
 	DCAM_HW_CFG_START,
@@ -1177,6 +1178,7 @@ struct hw_io_ctrl_fun {
 struct glb_syscon {
 	uint32_t rst;
 	uint32_t rst_mipi_mask;
+	uint32_t rst_fmcu_mask;
 	uint32_t rst_mask;
 	uint32_t rst_ahb_mask;
 	uint32_t rst_vau_mask;

@@ -176,6 +176,16 @@ static int camhw_get_all_rst(void *handle, void *arg)
 	}
 	dcam_info = hw->ip_dcam[1];
 	dcam_info->syscon.rst_mipi_mask = args[1];
+
+	ret = cam_syscon_get_args_by_name(dn, "dcam01_fmcu_soft_reset", ARRAY_SIZE(args), args);
+	if (ret) {
+		pr_err("fail to get dcam01 fmcu reset syscon\n");
+		return -EINVAL;
+	}
+	dcam_info = hw->ip_dcam[0];
+	dcam_info->syscon.rst_fmcu_mask = args[1];
+	dcam_info = hw->ip_dcam[1];
+	dcam_info->syscon.rst_fmcu_mask = args[1];
 #endif
 
 	ret = cam_syscon_get_args_by_name(dn, "dcam01_axi_reset", ARRAY_SIZE(args), args);
