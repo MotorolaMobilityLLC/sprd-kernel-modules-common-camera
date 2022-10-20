@@ -712,6 +712,12 @@ static int camcore_resframe_set(struct camera_module *module)
 	if (ch->enable && ch->pipeline_handle) {
 		statis_param.statis_cmd = DCAM_IOCTL_INIT_STATIS_Q;
 		res_size = CAM_PIPEINE_DCAM_ONLINE_NODE_CFG(ch, CAM_PIPELINE_CFG_STATIS_BUF, &statis_param);
+	} else {
+		ch = &module->channel[CAM_CH_CAP];
+		if (ch->enable && module->cam_uinfo.is_longexp) {
+			statis_param.statis_cmd = DCAM_IOCTL_INIT_STATIS_Q;
+			res_size = CAM_PIPEINE_DCAM_ONLINE_NODE_CFG(ch, CAM_PIPELINE_CFG_STATIS_BUF, &statis_param);
+		}
 	}
 
 	pframe = cam_queue_empty_frame_get();
