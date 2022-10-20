@@ -40,7 +40,6 @@ static int ispnode_stream_state_get(struct isp_node *node,struct camera_frame *p
 	uint32_t maxw = 0, maxh = 0, scl_x = 0, scl_w = 0, scl_h = 0;
 	uint32_t min_crop_w = 0xFFFFFFFF, min_crop_h = 0xFFFFFFFF;
 	struct isp_stream_ctrl tmp_stream[5] = {0};
-	struct img_trim out_port_trim = {0};
 	struct isp_port *port = NULL;
 
 	if (!node || !pframe) {
@@ -53,15 +52,8 @@ static int ispnode_stream_state_get(struct isp_node *node,struct camera_frame *p
 		if (port->type == PORT_TRANSFER_OUT && atomic_read(&port->user_cnt) >= 1 && atomic_read(&port->is_work) > 0) {
 			maxw = MAX(maxw, port->size.w);
 			maxh = MAX(maxh, port->size.h);
-			out_port_trim.size_x = port->trim.size_x;
-			out_port_trim.size_y = port->trim.size_y;
-			if (port->trim.size_x != pframe->width ||
-				port->trim.size_y != pframe->height) {
-				out_port_trim.size_x = pframe->width;
-				out_port_trim.size_y = pframe->height;
-			}
-			min_crop_w = MIN(min_crop_w, out_port_trim.size_x);
-			min_crop_h = MIN(min_crop_h, out_port_trim.size_y);
+			min_crop_w = MIN(min_crop_w, port->trim.size_x);
+			min_crop_h = MIN(min_crop_h, port->trim.size_y);
 		}
 	}
 	if (!maxw || !maxh) {
@@ -136,7 +128,7 @@ static int ispnode_stream_state_get(struct isp_node *node,struct camera_frame *p
 				} else if (i == 0) {
 					tmp_stream[i].out[hw_path_id].w = tmp_stream[i + 1].in.w;
 					tmp_stream[i].out[hw_path_id].h = tmp_stream[i + 1].in.h;
-					tmp_stream[i].out_crop[hw_path_id] = out_port_trim;
+					tmp_stream[i].out_crop[hw_path_id] = port->trim;
 				} else {
 					tmp_stream[i].out[hw_path_id].w = tmp_stream[i + 1].in.w;
 					tmp_stream[i].out[hw_path_id].h = tmp_stream[i + 1].in.h;
@@ -165,7 +157,7 @@ static int ispnode_stream_state_get(struct isp_node *node,struct camera_frame *p
 				hw_path_id = isp_port_id_switch(port->port_id);
 					pframe->buf_type = ISP_STREAM_BUF_OUT;
 				pframe->out[hw_path_id] = port->size;
-				pframe->out_crop[hw_path_id] = out_port_trim;
+				pframe->out_crop[hw_path_id] = port->trim;
 				pr_debug("isp %d hw_path_id %d normal_cnt %d out_size %d %d crop_szie %d %d %d %d\n",
 					node->cfg_id, hw_path_id, normal_cnt ,pframe->out[hw_path_id].w, pframe->out[hw_path_id].h,
 					pframe->out_crop[hw_path_id].start_x, pframe->out_crop[hw_path_id].start_y,
@@ -210,7 +202,7 @@ static int ispnode_stream_state_get(struct isp_node *node,struct camera_frame *p
 					node->nr3_blend_cnt = 0;
 				node->nr3_blend_cnt++;
 				pframe->out[hw_path_id] = port->size;
-				pframe->out_crop[hw_path_id] = out_port_trim;
+				pframe->out_crop[hw_path_id] = port->trim;
 				if (postproc_cnt) {
 					pframe->out[hw_path_id] = tmp_stream[0].out[hw_path_id];
 					pframe->out_crop[hw_path_id] = tmp_stream[0].out_crop[hw_path_id];
