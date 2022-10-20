@@ -2110,9 +2110,9 @@ static int camcore_channel_bigsize_config(
 			pframe->pattern = module->cam_uinfo.sensor_if.img_ptn;
 			pframe->buf.buf_sec = 0;
 			if (module->cam_uinfo.is_pyr_rec && channel->ch_id != CAM_CH_CAP)
-				pframe->need_pyr_rec = 1;
+				pframe->pyr_status = ONLINE_DEC_ON;
 			if (module->cam_uinfo.is_pyr_dec && channel->ch_id == CAM_CH_CAP)
-				pframe->need_pyr_dec = 1;
+				pframe->pyr_status = OFFLINE_DEC_ON;
 			ret = cam_buf_alloc(&pframe->buf, size, iommu_enable);
 			if (ret) {
 				pr_err("fail to alloc buf: %d ch %d\n",

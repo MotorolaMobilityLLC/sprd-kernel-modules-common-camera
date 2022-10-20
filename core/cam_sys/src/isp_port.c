@@ -1212,7 +1212,9 @@ static int ispport_store_pipeinfo_get(struct isp_port *port, struct isp_port_cfg
 	pipe_in->scaler[path_id].spath_id = path_id;
 	pipe_in->scaler[path_id].src.w = port_cfg->src_crop.size_x;
 	pipe_in->scaler[path_id].src.h = port_cfg->src_crop.size_y;
-	if (port_cfg->src_frame->link_from.node_type == CAM_NODE_TYPE_PYR_DEC) {
+	if (port_cfg->src_frame->pyr_status == OFFLINE_DEC_ON) {
+		pipe_in->scaler[path_id].in_trim.start_x = 0;
+		pipe_in->scaler[path_id].in_trim.start_y = 0;
 		pipe_in->scaler[path_id].in_trim.size_x = port_cfg->src_crop.size_x;
 		pipe_in->scaler[path_id].in_trim.size_y = port_cfg->src_crop.size_y;
 	} else {
