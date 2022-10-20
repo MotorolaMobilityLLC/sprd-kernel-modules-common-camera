@@ -269,7 +269,6 @@ struct camera_module {
 	uint32_t master_flag; /* master cam capture flag */
 	uint32_t compat_flag;
 	struct camera_group *grp;
-	uint32_t exit_flag;/*= 1, normal exit, =0, abnormal exit*/
 	uint32_t private_key;
 	int attach_sensor_id;
 	uint32_t iommu_enable;
@@ -648,7 +647,7 @@ static void camcore_empty_frame_put(void *param)
 	if (frame->priv_data) {
 		if (!frame->irq_type)
 			kfree(frame->priv_data);
-		else if (module && module->exit_flag == 1)
+		else if (frame->buf.type == CAM_BUF_USER)
 			cam_buf_ionbuf_put(&frame->buf);
 	}
 	cam_queue_empty_frame_put(frame);
@@ -3851,7 +3850,6 @@ static int camcore_module_init(struct camera_module *module)
 	mutex_init(&module->zoom_lock);
 	init_completion(&module->frm_com);
 
-	module->exit_flag = 0;
 	module->capture_type = CAM_CAPTURE_STOP;
 	module->raw_cap_fetch_fmt = CAM_FORMAT_MAX;
 	module->attach_sensor_id = SPRD_SENSOR_ID_MAX + 1;
@@ -4382,7 +4380,6 @@ static ssize_t camcore_write(struct file *file, const char __user *u_data,
 	switch (write_op.cmd) {
 	case SPRD_IMG_STOP_DCAM:
 		pr_info("user stop camera %d\n", module->idx);
-		module->exit_flag = 1;
 		complete(&module->frm_com);
 		break;
 
