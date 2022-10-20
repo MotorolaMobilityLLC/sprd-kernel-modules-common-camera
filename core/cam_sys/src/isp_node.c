@@ -860,6 +860,7 @@ static int ispnode_start_proc(void *node)
 	pctx_hw->isp_using_param = inode->isp_using_param;
 	pctx_hw->pyr_layer_num = inode->uinfo.pyr_layer_num;
 	pctx_hw->wmode = dev->wmode;
+	pctx_hw->valid_slc_num = 0;
 	if (pctx_hw->fmcu_handle || slice_need) {
 		ret = isp_hwctx_slice_ctx_init(pctx_hw, &pctx_hw->pipe_info);
 		isp_hwctx_fmcu_reset(pctx_hw);

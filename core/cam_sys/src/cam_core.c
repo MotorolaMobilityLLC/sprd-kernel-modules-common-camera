@@ -2589,7 +2589,7 @@ static int camcore_dcamonline_desc_get(struct camera_module *module,
 			dcam_online_desc->port_desc[i].dcam_out_fmt = channel->ch_uinfo.sensor_raw_fmt;
 			if (module->cam_uinfo.raw_alg_type)
 				dcam_online_desc->port_desc[i].dcam_out_fmt = CAM_RAW_14;
-			if (module->cam_uinfo.need_dcam_raw) {
+			if (module->cam_uinfo.need_dcam_raw && hw->ip_dcam[0]->bpc_raw_support) {
 				dcam_online_desc->port_desc[i].is_raw = 0;
 				dcam_online_desc->port_desc[i].raw_src = BPC_RAW_SRC_SEL;
 			}
@@ -2920,6 +2920,7 @@ static int camcore_pipeline_init(struct camera_module *module,
 	int dcam_port_id = 0, isp_port_id = 0;
 	uint32_t pipeline_type = 0, pyrdec_support = 0;
 	struct channel_context *channel_prev = NULL;
+	struct channel_context *channel_cap = NULL;
 	struct cam_hw_info *hw = NULL;
 	struct cam_pipeline_desc pipeline_desc = {0};
 	struct dcam_online_node_desc *dcam_online_desc = NULL;
@@ -2995,12 +2996,16 @@ static int camcore_pipeline_init(struct camera_module *module,
 			dcam_port_id = PORT_VCH2_OUT;
 		else
 			dcam_port_id = dcamoffline_pathid_convert_to_portid(hw->ip_dcam[0]->dcam_raw_path_id);
+
+		channel_cap = &module->channel[CAM_CH_CAP];
 		module->cam_uinfo.is_raw_alg = 0;
 		module->cam_uinfo.raw_alg_type = 0;
 		module->auto_3dnr = channel->uinfo_3dnr = 0;
 		isp_port_id = -1;
 		pipeline_type = CAM_PIPELINE_SENSOR_RAW;
-		if (module->cam_uinfo.need_dcam_raw && module->grp->hw_info->ip_isp->fetch_raw_support)
+		if (!channel_cap->enable)
+			pr_info("ITS Only open preview pipeline,shoud open raw channel\n");
+		else if (module->cam_uinfo.need_dcam_raw && module->grp->hw_info->ip_isp->fetch_raw_support)
 			return 0;
 		break;
 	case CAM_CH_VIRTUAL:

@@ -1270,7 +1270,7 @@ static int camioctl_frame_addr_set(struct camera_module *module,
 				pframe->irq_property = CAM_FRAME_ORIGINAL_RAW;
 				ret = CAM_PIPEINE_DCAM_ONLINE_OUT_PORT_CFG(ch, dcamonline_pathid_convert_to_portid(DCAM_PATH_RAW),
 					CAM_PIPELINE_CFG_BUF, pframe);
-			} else if (ch->ch_id == CAM_CH_RAW && module->cam_uinfo.need_dcam_raw && module->grp->hw_info->ip_isp->fetch_raw_support){
+			} else if (ch->ch_id == CAM_CH_RAW && module->cam_uinfo.need_dcam_raw && module->grp->hw_info->ip_isp->fetch_raw_support && ch_cap->enable){
 				if (ch->ch_uinfo.dst_size.w == ch_cap->ch_uinfo.dst_size.w) {
 					pr_debug("cap path copy\n");
 					ret = CAM_PIPEINE_DATA_COPY_NODE_CFG(ch_cap, CAM_PIPELINE_CFG_BUF, pframe);
