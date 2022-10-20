@@ -12,6 +12,8 @@
  */
 
 #include <linux/compat.h>
+#include "cam_buf_manager.h"
+
 #ifdef CAM_IOCTL_LAYER
 
 #define IS_XTM_CONFLICT_SCENE(scene) ({\
@@ -1193,6 +1195,7 @@ static int camioctl_frame_addr_set(struct camera_module *module,
 		pframe->buf.type = CAM_BUF_USER;
 		pframe->channel_id = ch->ch_id;
 		pframe->img_fmt = ch->ch_uinfo.dst_fmt;
+		pframe->buf.status = CAM_BUF_ALLOC;
 		ret |= get_user(pframe->buf.mfd, &uparam->fd_array[i]);
 		ret |= get_user(pframe->buf.offset[0], &uparam->frame_addr_array[i].y);
 		ret |= get_user(pframe->buf.offset[1], &uparam->frame_addr_array[i].u);
@@ -1220,13 +1223,6 @@ static int camioctl_frame_addr_set(struct camera_module *module,
 			pframe->buf.offset[0], pframe->buf.offset[1],
 			pframe->buf.offset[2], is_reserved_buf,
 			pframe->user_fid);
-
-		ret = cam_buf_ionbuf_get(&pframe->buf);
-		if (ret) {
-			cam_queue_empty_frame_put(pframe);
-			ret = -EFAULT;
-			break;
-		}
 
 		if (channel_id == CAM_CH_CAP)
 			pr_info("ch %d, mfd 0x%x, off 0x%x 0x%x 0x%x, size 0x%x, reserved %d, buffer_cnt %d, bpc flag:%d\n",
@@ -1270,8 +1266,7 @@ static int camioctl_frame_addr_set(struct camera_module *module,
 
 		if (ret) {
 			pr_err("fail to set output buffer for ch%d.\n", ch->ch_id);
-			cam_buf_ionbuf_put(&pframe->buf);
-			cam_queue_empty_frame_put(pframe);
+			cam_buf_destory(pframe);
 			ret = -EFAULT;
 			break;
 		}
@@ -2119,11 +2114,7 @@ static int camioctl_cam_post_proc(struct camera_module *module,
 		ret |= get_user(pframe->buf.addr_vir[1], &uparam->frame_addr_vir_array[i].u);
 		ret |= get_user(pframe->buf.addr_vir[2], &uparam->frame_addr_vir_array[i].v);
 		pframe->channel_id = ch->ch_id;
-		ret = cam_buf_ionbuf_get(&pframe->buf);
-		if (ret) {
-			cam_queue_empty_frame_put(pframe);
-			goto exit;
-		}
+		pframe->buf.status = CAM_BUF_ALLOC;
 		pfrm[i] = pframe;
 	}
 
@@ -2166,6 +2157,7 @@ static int camioctl_cam_post_proc(struct camera_module *module,
 		ret = CAM_PIPEINE_ISP_OUT_PORT_CFG(ch, ch->isp_port_id, CAM_PIPELINE_CFG_SIZE, &size_cfg);
 		if (ret)
 			pr_warn("warning: small picture no cfg.\n");
+
 		ret = CAM_PIPEINE_ISP_OUT_PORT_CFG(ch, ch->isp_port_id, CAM_PIPELINE_CFG_BUF, pfrm_isp);
 		if (ret) {
 			pr_err("fail to cfg isp out buffer.\n");
@@ -2189,6 +2181,10 @@ static int camioctl_cam_post_proc(struct camera_module *module,
 	}
 
 	ret = camcore_frame_start_proc(module, pfrm[0], param.node_type);
+	if (ret) {
+		pr_err("fail to start pipeline or cfg dcam out buffer.\n");
+		goto exit;
+	}
 	pr_info("scene %d, frm fd (%d 0x%x), (%d 0x%x), (%d 0x%x)\n",
 		scene_mode, pfrm[0]->buf.mfd, pfrm[0]->buf.offset[0],
 		pfrm[1]->buf.mfd, pfrm[1]->buf.offset[0],
@@ -2199,8 +2195,7 @@ static int camioctl_cam_post_proc(struct camera_module *module,
 exit:
 	for (i = 0; i < 3; i++) {
 		if (pfrm[i]) {
-			cam_buf_ionbuf_put(&pfrm[i]->buf);
-			cam_queue_empty_frame_put(pfrm[i]);
+			cam_buf_destory(pfrm[i]);
 		}
 	}
 	return ret;
@@ -2272,8 +2267,7 @@ static int camioctl_4in1_raw_addr_set(struct camera_module *module,
 
 		if (ret) {
 			pr_err("fail to set output buffer for ch%d.\n", ch->ch_id);
-			cam_buf_ionbuf_put(&pframe->buf);
-			cam_queue_empty_frame_put(pframe);
+			cam_buf_destory(pframe);
 			ret = -EFAULT;
 			break;
 		}
@@ -2361,18 +2355,16 @@ static int camioctl_4in1_post_proc(struct camera_module *module,
 	ret |= get_user(pframe->buf.addr_vir[2],&uparam->frame_addr_vir_array[0].v);
 	pframe->channel_id = channel->ch_id;
 
-	ret = cam_buf_ionbuf_get(&pframe->buf);
-	if (ret) {
-		cam_queue_empty_frame_put(pframe);
-		return -EFAULT;
-	}
 	pr_info("frame[%d] fd %d addr_vir[0]=0x%lx iova=0x%lx\n",
 		pframe->fid, pframe->buf.mfd, pframe->buf.addr_vir[0],
 		pframe->buf.iova);
 
 	ret = camcore_frame_start_proc(module, pframe, CAM_NODE_TYPE_DCAM_OFFLINE);
-	if (ret)
+	if (ret) {
 		pr_err("fail to start dcam for raw proc\n");
+		cam_buf_destory(pframe);
+		return -EFAULT;
+	}
 
 	return ret;
 }

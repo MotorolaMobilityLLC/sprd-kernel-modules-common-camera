@@ -205,6 +205,22 @@ struct camera_queue {
 	ret; \
 })
 
+#define cam_queue_enqueue_head(queue, list) ( { \
+	int ret = -1; \
+	unsigned long __flags = 0; \
+	struct camera_queue *__q = (queue); \
+	if (__q != NULL && (list) != NULL) { \
+		spin_lock_irqsave(&__q->lock, __flags); \
+		if ((__q->state != CAM_Q_CLEAR) && (__q->cnt < __q->max)) { \
+			__q->cnt++; \
+			list_add((list), &__q->head); \
+			ret = 0; \
+		} \
+		spin_unlock_irqrestore(&__q->lock, __flags); \
+	} \
+	ret; \
+})
+
 #define cam_queue_dequeue(queue, type, member) ({ \
 	unsigned long __flags = 0; \
 	struct camera_queue *__q = (queue); \

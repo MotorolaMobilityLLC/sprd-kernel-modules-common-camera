@@ -56,6 +56,12 @@ int cam_copy_node_buffer_cfg(void *handle, void *param)
 	node = (struct cam_copy_node *)handle;
 	node->copy_flag = COPY_ENABLE;
 	pframe = (struct camera_frame *)param;
+	ret = cam_buf_ionbuf_get(&pframe->buf);
+	if (ret) {
+		pr_err("fail to get ion copy buffer\n");
+		return ret;
+	}
+
 	ret = cam_queue_enqueue(&node->out_queue, &pframe->list);
 	if (ret)
 		pr_err("fail to enqueue copy buffer\n");

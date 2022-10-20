@@ -3313,9 +3313,7 @@ static int camcore_raw_post_proc(struct camera_module *module,
 	src_frame->time = src_frame->sensor_time;
 	src_frame->boot_time = ktime_get_boottime();
 	src_frame->boot_sensor_time = src_frame->boot_time;
-	ret = cam_buf_ionbuf_get(&src_frame->buf);
-	if (ret)
-		goto src_fail;
+	src_frame->buf.status = CAM_BUF_ALLOC;
 
 	dst_frame = cam_queue_empty_frame_get();
 	dst_frame->buf.type = CAM_BUF_USER;
@@ -3327,12 +3325,11 @@ static int camcore_raw_post_proc(struct camera_module *module,
 	dst_frame->time = src_frame->time;
 	dst_frame->boot_time = src_frame->boot_time;
 	dst_frame->boot_sensor_time = src_frame->boot_sensor_time;
-	ret = cam_buf_ionbuf_get(&dst_frame->buf);
-	if (ret)
-		goto dst_fail;
+	dst_frame->buf.status = CAM_BUF_ALLOC;
 
 	mid_frame = cam_queue_empty_frame_get();
 	mid_frame->channel_id = ch->ch_id;
+	mid_frame->buf.status = CAM_BUF_ALLOC;
 	/* if user set this buffer, we use it for dcam output
 	 * or else we will allocate one for it.
 	 */
@@ -3347,9 +3344,6 @@ static int camcore_raw_post_proc(struct camera_module *module,
 		mid_frame->link_from.node_type = CAM_NODE_TYPE_USER;
 		mid_frame->buf.mfd = proc_info->fd_dst0;
 		mid_frame->buf.offset[0] = proc_info->dst0_offset;
-		ret = cam_buf_ionbuf_get(&mid_frame->buf);
-		if (ret)
-			goto mid_fail;
 	} else {
 		width = proc_info->src_size.width;
 		height = proc_info->src_size.height;
@@ -3360,8 +3354,10 @@ static int camcore_raw_post_proc(struct camera_module *module,
 			size = width * height * 3;
 		size = ALIGN(size, CAM_BUF_ALIGN_SIZE);
 		ret = cam_buf_alloc(&mid_frame->buf, (size_t)size, module->iommu_enable);
-		if (ret)
+		if (ret) {
+			pr_err("fail to get mid_frame.\n");
 			goto mid_fail;
+		}
 	}
 	mid_frame->sensor_time = src_frame->sensor_time;
 	mid_frame->time = src_frame->time;
@@ -3372,15 +3368,16 @@ static int camcore_raw_post_proc(struct camera_module *module,
 
 	cam_queue_frame_flag_reset(mid_frame);
 	ret = CAM_PIPEINE_DCAM_OFFLINE_OUT_PORT_CFG(ch, ch->dcam_port_id, CAM_PIPELINE_CFG_BUF, mid_frame, CAM_NODE_TYPE_DCAM_OFFLINE);
-
 	if (ret) {
 		pr_err("fail to cfg dcam out buffer.\n");
 		goto dcam_out_fail;
 	}
 
 	ret = CAM_PIPEINE_ISP_OUT_PORT_CFG(ch, ch->isp_port_id, CAM_PIPELINE_CFG_BUF, dst_frame);
-	if (ret)
+	if (ret) {
 		pr_err("fail to cfg isp out buffer.\n");
+		goto dcam_out_fail;
+	}
 
 	pr_info("raw proc, src %px, mid %px, dst %px\n", src_frame, mid_frame, dst_frame);
 	cam_queue_init(&ch->share_buf_queue, CAM_SHARED_BUF_NUM, camcore_k_frame_put);
@@ -3402,7 +3399,7 @@ static int camcore_raw_post_proc(struct camera_module *module,
 		if (ret) {
 			pr_err("fail to alloc raw dec buf\n");
 			cam_queue_empty_frame_put(pframe);
-			goto dcam_out_fail;
+			goto dst_fail;
 		}
 		ch->pyr_dec_buf = pframe;
 		pr_debug("pyr_dec size %d, buf %p, w %d h %d\n", size, pframe, width, height);
@@ -3432,20 +3429,31 @@ static int camcore_raw_post_proc(struct camera_module *module,
 	}
 
 	ret = camcore_frame_start_proc(module, src_frame, CAM_NODE_TYPE_DCAM_OFFLINE);
-	if (ret)
+	if (ret) {
 		pr_err("fail to start dcam/isp for raw proc\n");
+		goto src_fail;
+
+	}
 
 	atomic_set(&module->timeout_flag, 1);
 	ret = camcore_timer_start(&module->cam_timer, CAMERA_TIMEOUT);
 
 	return ret;
 
+src_fail:
+	if (ch->pyr_rec_buf) {
+		if (ch->pyr_rec_buf->buf.dmabuf_p)
+			cam_buf_free(&ch->pyr_rec_buf->buf);
+		cam_queue_empty_frame_put(ch->pyr_rec_buf);
+	}
 dec_fail:
 	if (ch->pyr_dec_buf) {
 		if (ch->pyr_dec_buf->buf.dmabuf_p)
 			cam_buf_free(&ch->pyr_dec_buf->buf);
 		cam_queue_empty_frame_put(ch->pyr_dec_buf);
 	}
+dst_fail:
+	cam_buf_ionbuf_put(&dst_frame->buf);
 dcam_out_fail:
 	if (mid_frame->buf.type == CAM_BUF_USER)
 		cam_buf_ionbuf_put(&mid_frame->buf);
@@ -3453,13 +3461,10 @@ dcam_out_fail:
 		cam_buf_free(&mid_frame->buf);
 mid_fail:
 	cam_queue_empty_frame_put(mid_frame);
-	cam_buf_ionbuf_put(&dst_frame->buf);
-dst_fail:
 	cam_queue_empty_frame_put(dst_frame);
-	cam_buf_ionbuf_put(&src_frame->buf);
-src_fail:
 	cam_queue_empty_frame_put(src_frame);
 	pr_err("fail to call post raw proc\n");
+
 	return ret;
 }
 

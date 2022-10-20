@@ -909,6 +909,7 @@ int dcam_offline_node_request_proc(struct dcam_offline_node *node, void *param)
 	int ret = 0;
 	struct cam_node_cfg_param *node_param = NULL;
 	struct camera_frame *pframe = NULL;
+	struct camera_buf_get_desc buf_desc = {0};
 
 	if (!node || !param) {
 		pr_err("fail to get valid param %px %px\n", node, param);
@@ -918,7 +919,8 @@ int dcam_offline_node_request_proc(struct dcam_offline_node *node, void *param)
 	node_param = (struct cam_node_cfg_param *)param;
 	pframe = (struct camera_frame *)node_param->param;
 	pframe->priv_data = node;
-	ret = cam_buf_manager_buf_enqueue(&node->in_pool, pframe, NULL);
+	buf_desc.buf_ops_cmd = CAM_BUF_STATUS_MOVE_TO_ION;
+	ret = cam_buf_manager_buf_enqueue(&node->in_pool, pframe, &buf_desc);
 	if (ret == 0)
 		complete(&node->thread.thread_com);
 	else

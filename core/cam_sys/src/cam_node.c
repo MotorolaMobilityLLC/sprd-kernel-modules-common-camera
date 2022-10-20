@@ -998,7 +998,8 @@ static int camnode_data_callback(enum cam_cb_type type, void *param, void *priv_
 		break;
 	}
 exit:
-	node->data_cb_func(type, param, node->data_cb_handle);
+	if (node->data_cb_func)
+		node->data_cb_func(type, param, node->data_cb_handle);
 	return ret;
 }
 

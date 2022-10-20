@@ -272,7 +272,7 @@ static void ispnode_rgb_gtm_hist_done_process(struct isp_node *inode, uint32_t h
 	if (gtm_ctx->calc_mode == GTM_SW_CALC) {
 		frame  = cam_queue_dequeue(&inode->gtmhist_result_queue, struct camera_frame, list);
 		if (!frame) {
-			pr_debug("isp ctx_id[%d] gtmhist_result_queue buffer \n", gtm_ctx->ctx_id);
+			pr_warn("isp ctx_id[%d] gtmhist_result_queue buffer \n", gtm_ctx->ctx_id);
 			return;
 		} else {
 			buf = (uint32_t *)frame->buf.addr_k;
@@ -807,7 +807,7 @@ static int ispnode_start_proc(void *node)
 	struct isp_pipe_dev *dev = NULL;
 	struct cam_hw_info *hw = NULL;
 	struct isp_hw_context *pctx_hw = NULL;
-	uint32_t ret = 0, loop = 0, i = 0, hw_path_id = 0, slice_need = 0;
+	uint32_t ret = 0, loop = 0, i = 0, hw_path_id = 0, slice_need = 0, out_buf_queue_cnt = 0, result_queue_cnt = 0;
 	struct isp_start_param start_param = {0};
 	struct isp_port_cfg port_cfg = {0};
 	struct isp_port *port = NULL;
@@ -934,10 +934,10 @@ static int ispnode_start_proc(void *node)
 						frame->link_from.node_type = inode->node_type;
 						frame->link_from.port_id = port->port_id;
 						frame->link_from.node_id = inode->node_id;
+						ret = cam_buf_manager_buf_enqueue(&port->store_result_pool, frame, NULL);
+						if (ret == 0)
+							break;
 					}
-					ret = cam_queue_enqueue(&port->result_queue, &frame->list);
-					if (ret == 0)
-						break;
 					printk_ratelimited(KERN_INFO "wait for output queue. loop %d\n", loop);
 					/* wait for previous frame output queue done */
 					mdelay(1);
@@ -996,7 +996,9 @@ exit:
 	if (inode->is_fast_stop) {
 		list_for_each_entry(port, &inode->port_queue.head, list) {
 			if (port->type == PORT_TRANSFER_IN && atomic_read(&port->user_cnt) > 0) {
-				if (cam_queue_cnt_get(&port->out_buf_queue) == 0 && cam_queue_cnt_get(&port->result_queue) == 0) {
+				out_buf_queue_cnt = cam_buf_manager_pool_cnt(&port->fetch_unprocess_pool);
+				result_queue_cnt = cam_buf_manager_pool_cnt(&port->fetch_result_pool);
+				if (out_buf_queue_cnt == 0 && result_queue_cnt == 0) {
 					inode->is_fast_stop = 0;
 					complete(inode->fast_stop_done);
 				}

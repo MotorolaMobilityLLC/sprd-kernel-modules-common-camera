@@ -19,7 +19,7 @@
 
 #define ISP_IN_Q_LEN               8
 #define ISP_PROC_Q_LEN             2
-#define ISP_RESULT_Q_LEN           2
+#define ISP_RESULT_Q_LEN           25
 #define ISP_SLW_IN_Q_LEN           50
 #define ISP_SLW_PROC_Q_LEN         50
 #define ISP_SLW_RESULT_Q_LEN       50
@@ -118,8 +118,6 @@ struct isp_port {
 	uint32_t type;
 	int32_t reserved_buf_fd;
 	size_t reserve_buf_size;
-	struct camera_queue out_buf_queue;
-	struct camera_queue result_queue;
 	uint32_t zoom_conflict_with_ltm;
 	uint32_t fmt;
 	uint32_t bind_type;
@@ -143,6 +141,10 @@ struct isp_port {
 	void *data_cb_handle;
 	port_cfg_cb port_cfg_cb_func;
 	struct cam_hw_info *hw;
+	struct cam_buf_pool_id fetch_unprocess_pool;
+	struct cam_buf_pool_id fetch_result_pool;
+	struct cam_buf_pool_id store_unprocess_pool;
+	struct cam_buf_pool_id store_result_pool;
 };
 
 uint32_t isp_port_id_switch(uint32_t port_id);

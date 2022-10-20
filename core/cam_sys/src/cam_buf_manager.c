@@ -275,7 +275,7 @@ static int inline cambufmanager_k_iova_2_alloc(struct camera_buf *buf)
 	return 0;
 }
 
-static int cambufmanager_buf_status_cfg(struct camera_frame *pframe, uint32_t cmd, enum cam_iommudev_type type)
+static int cambufmanager_buf_status_cfg(struct camera_frame *pframe, enum cambufmanager_status_ops_cmd cmd, enum cam_iommudev_type type)
 {
 	int ret = 0;
 	enum cam_buf_status dst_status = 0;
@@ -467,11 +467,20 @@ struct camera_frame *cam_buf_manager_buf_dequeue(struct cam_buf_pool_id *pool_id
 		case CAM_QUEUE_TAIL_PEEK:
 			tmp = cam_queue_tail_peek(heap, struct camera_frame, list);
 			break;
+		case CAM_QUEUE_TAIL:
+			tmp = cam_queue_dequeue_tail(heap, struct camera_frame, list);
+			src = heap;
+			break;
+		case CAM_QUEUE_IF:
+			tmp = cam_queue_dequeue_if(heap, buf_desc->filter, (void *)&buf_desc->target_fid);
+			src = heap;
+			break;
 		default:
 			tmp = cam_queue_dequeue(heap, struct camera_frame, list);
 			src = heap;
 		}
 	}
+
 	if (!tmp && resverve_heap) {/* && pool_id->tag_id != isp_blk_param*/
 		cambufmanager_reserve_q_cnt_check(resverve_heap);
 		tmp = cam_queue_dequeue(resverve_heap, struct camera_frame, list);
@@ -516,10 +525,17 @@ int cam_buf_manager_buf_enqueue(struct cam_buf_pool_id *pool_id,
 
 	if (buf_desc)
 		ret = cambufmanager_buf_status_cfg(pframe, buf_desc->buf_ops_cmd, buf_desc->mmu_type);
-	if (ret)
+	if (ret) {
+		pr_err("fail to cfg buffer\n");
 		return -1;
+	}
 
-	if (cam_queue_enqueue(heap, &pframe->list)) {
+	if (buf_desc && buf_desc->q_ops_cmd == CAM_QUEUE_FRONT)
+		ret = cam_queue_enqueue_head(heap, &pframe->list);
+	else
+		ret = cam_queue_enqueue(heap, &pframe->list);
+
+	if (ret) {
 		pr_err("fail to enq, (p %d, t %d, r%d) frame %px\n", pool_id->private_pool_idx, pool_id->tag_id, pool_id->reserved_pool_id, pframe);
 		if (buf_desc)
 			cam_buf_manager_buf_status_change(&pframe->buf, ori_status, buf_desc->mmu_type);
