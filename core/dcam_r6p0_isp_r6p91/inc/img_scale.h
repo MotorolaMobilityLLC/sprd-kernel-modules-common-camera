@@ -22,6 +22,7 @@
 struct scale_k_private {
 	struct completion start_com;
 	void *coeff_addr;
+	struct platform_device *pdev;
 };
 
 enum scale_k_status {

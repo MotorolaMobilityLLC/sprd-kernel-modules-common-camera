@@ -94,7 +94,7 @@ static int sprd_cam_domain_disable(struct camsys_power_info *pw_info)
 
 	clk_disable_unprepare(pw_info->u.pike2.cam_ckg_eb);
 
-	/*clk_disable_unprepare(pw_info->u.pike2.cam_mm_eb);*/
+	clk_disable_unprepare(pw_info->u.pike2.cam_mm_eb);
 
 	return 0;
 }
