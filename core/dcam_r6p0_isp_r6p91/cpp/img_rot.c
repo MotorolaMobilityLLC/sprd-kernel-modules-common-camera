@@ -23,6 +23,7 @@
 #include <linux/miscdevice.h>
 #include <linux/io.h>
 #include <linux/file.h>
+#include <linux/version.h>
 #include <linux/sched.h>
 #include "sprd_rot_k.h"
 #include <linux/slab.h>
@@ -35,12 +36,17 @@
 #include "rot_drv.h"
 #include "img_rot.h"
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0))
+#include <linux/pm_runtime.h>
+#include <linux/ion.h>
+#endif
 #define ROT_DEVICE_NAME "sprd_rotation"
 #define ROT_TIMEOUT      msecs_to_jiffies(5000) /*5000 *//*ms*/
 #define ROTATION_MINOR MISC_DYNAMIC_MINOR
 
 struct rot_k_private {
 	struct completion start_com;
+	struct platform_device *pdev;
 };
 
 struct rot_k_file {
@@ -110,7 +116,9 @@ static int rot_k_open(struct inode *node, struct file *file)
 		pr_err("rot_k_open fail rot_private NULL\n");
 		goto exit;
 	}
-
+	#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0))
+	pm_runtime_get(&rot_private->pdev->dev);
+	#endif
 	fd = vzalloc(sizeof(*fd));
 	if (!fd) {
 		ret = -ENOMEM;
@@ -149,6 +157,9 @@ static int rot_k_release(struct inode *node, struct file *file)
 
 	wait_for_completion(&rot_private->start_com);
 	complete(&rot_private->start_com);
+	#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0))
+	pm_runtime_put_autosuspend(&rot_private->pdev->dev);
+	#endif
 
 fd_free:
 	vfree(fd);
@@ -325,6 +336,7 @@ int rot_k_probe(struct platform_device *pdev)
 	init_completion(&rot_private->start_com);
 	complete(&rot_private->start_com);
 
+	rot_private->pdev = pdev;
 	platform_set_drvdata(pdev, rot_private);
 
 	ret = misc_register(&rotation_dev);
@@ -343,6 +355,10 @@ int rot_k_probe(struct platform_device *pdev)
 		ret = -EINVAL;
 		goto probe_out;
 	}
+	#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0))
+	pm_runtime_set_active(&pdev->dev);
+	pm_runtime_enable(&pdev->dev);
+	#endif
 	pr_alert(" rot_k_probe Success\n");
 	goto exit;
 probe_out:

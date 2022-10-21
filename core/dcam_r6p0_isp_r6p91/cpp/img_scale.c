@@ -13,6 +13,7 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
+#include <linux/version.h>
 #include <linux/miscdevice.h>
 #include <linux/platform_device.h>
 #include <linux/proc_fs.h>
@@ -30,6 +31,10 @@
 #include <linux/completion.h>
 #include <sprd_mm.h>
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0))
+#include <linux/pm_runtime.h>
+#include <linux/ion.h>
+#endif
 #define SCALE_DEVICE_NAME "sprd_scale"
 #define SCALE_TIMEOUT             msecs_to_jiffies(5000)/*ms*/
 #define SCALE_MINOR MISC_DYNAMIC_MINOR
@@ -82,6 +87,9 @@ static int scale_k_open(struct inode *node, struct file *file)
 		goto exit;
 	}
 
+	#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0))
+		pm_runtime_get(&scale_private->pdev->dev);
+	#endif
 	fd = vzalloc(sizeof(*fd));
 	if (!fd) {
 		ret = -ENOMEM;
@@ -134,7 +142,9 @@ static int scale_k_release(struct inode *node, struct file *file)
 
 	wait_for_completion(&scale_private->start_com);
 	complete(&scale_private->start_com);
-
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0))
+	pm_runtime_put_autosuspend(&scale_private->pdev->dev);
+#endif
 fd_free:
 	vfree(fd);
 	fd = NULL;
@@ -345,6 +355,7 @@ int scale_k_probe(struct platform_device *pdev)
 	init_completion(&scale_private->start_com);
 	complete(&scale_private->start_com);
 
+	scale_private->pdev = pdev;
 	platform_set_drvdata(pdev, scale_private);
 
 	ret = misc_register(&scale_dev);
@@ -357,6 +368,10 @@ int scale_k_probe(struct platform_device *pdev)
 	scale_dev.this_device->of_node = pdev->dev.of_node;
 	scale_dev.this_device->platform_data = (void *)scale_private;
 	sprd_scale_drv_init(pdev);
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0))
+	pm_runtime_set_active(&pdev->dev);
+	pm_runtime_enable(&pdev->dev);
+#endif
 	pr_info("scale_k_probe success!");
 	goto exit;
 
