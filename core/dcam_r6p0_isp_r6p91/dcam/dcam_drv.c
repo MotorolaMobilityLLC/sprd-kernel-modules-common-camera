@@ -416,7 +416,7 @@ static void _dcam_reg_trace(void)
 
 }
 
-static void dcam_mmu_reg_trace(void)
+/*static void dcam_mmu_reg_trace(void)
 {
 	unsigned long addr = 0;
 
@@ -429,7 +429,7 @@ static void dcam_mmu_reg_trace(void)
 			REG_RD(addr + 8),
 			REG_RD(addr + 12));
 	}
-}
+}*/
 
 struct isp_reg_info {
 	uint32_t base;
@@ -3607,7 +3607,7 @@ static int32_t    _dcam_err_pre_proc(void)
 	return 0;
 }
 
-static int dcam_mmu_err_pre_proc(unsigned int irq_status)
+/*static int dcam_mmu_err_pre_proc(unsigned int irq_status)
 {
 	if (DCAM_ADDR_INVALID(s_p_dcam_mod)) {
 		pr_err("zero pointer\n");
@@ -3625,10 +3625,10 @@ static int dcam_mmu_err_pre_proc(unsigned int irq_status)
 
 	dcam_mmu_reg_trace();
 
-	panic("fatal dcam iommu error!");
+	//panic("fatal dcam iommu error!");
 
 	return 0;
-}
+}*/
 
 
 static const dcam_isr isr_list[DCAM_IRQ_NUMBER] = {
@@ -3664,7 +3664,7 @@ static const dcam_isr isr_list[DCAM_IRQ_NUMBER] = {
 
 static irqreturn_t _dcam_isr_root(int irq, void *dev_id)
 {
-	uint32_t                irq_line, status;
+	uint32_t                irq_line, irq_line1, status;
 	unsigned long           flag;
 	int32_t                 i;
 
@@ -3673,9 +3673,13 @@ static irqreturn_t _dcam_isr_root(int irq, void *dev_id)
 		return IRQ_NONE;
 
 	irq_line = status;
-	if (unlikely(DCAM_MMU_IRQ_ERR_MASK & irq_line))
-		if (dcam_mmu_err_pre_proc(irq_line))
-			return IRQ_HANDLED;
+	if (unlikely(DCAM_MMU_IRQ_ERR_MASK & irq_line)) {
+		/*if (dcam_mmu_err_pre_proc(irq_line))*/
+		pr_info("irq_line:%x\n", irq_line);
+		irq_line1 = DCAM_MMU_IRQ_ERR_MASK & irq_line;
+		REG_WR(DCAM_INT_CLR, irq_line1);
+		return IRQ_HANDLED;
+	}
 
 	if (unlikely(DCAM_IRQ_ERR_MASK & status)) {
 		if (_dcam_err_pre_proc())

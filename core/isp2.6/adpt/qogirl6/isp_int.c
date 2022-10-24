@@ -362,6 +362,7 @@ static void ispint_rgb_gtm_hists_done(enum isp_context_hw_id hw_idx, void *isp_h
 {
 	int wait_fid = 0;
 	int idx = -1;
+	uint32_t buf_sum = 0;
 	struct isp_sw_context *pctx;
 	struct isp_pipe_dev *dev;
 	struct isp_gtm_ctx_desc *gtm_ctx = NULL;
@@ -400,8 +401,10 @@ static void ispint_rgb_gtm_hists_done(enum isp_context_hw_id hw_idx, void *isp_h
 				cam_queue_enqueue(&pctx->gtmhist_result_queue, &frame->list);
 				return;
 			} else {
-				for (i = 0; i < max_item; i++)
+				for (i = 0; i < max_item; i++) {
 					buf[i] = ISP_HREG_RD(ISP_GTM_HIST_BUF0_CH0 + i * 4);
+					buf_sum = buf_sum + buf[i];
+				}
 				hist_total= gtm_ctx->src.w * gtm_ctx->src.h;
 				buf[i++] = hist_total;
 				map = (struct cam_gtm_mapping *)&buf[i];
@@ -416,6 +419,11 @@ static void ispint_rgb_gtm_hists_done(enum isp_context_hw_id hw_idx, void *isp_h
 				map->diff = 0;
 				map->ltm_strength = 0;
 				map->isupdate = 0;
+				if (buf_sum != hist_total) {
+					pr_debug("pixel num check wrong, fid %d, sum %d, should be %d\n", gtm_ctx->fid, buf_sum, hist_total);
+					cam_queue_enqueue(&pctx->gtmhist_result_queue, &frame->list);
+					return;
+				}
 				ispint_frame_dispatch(idx, isp_handle, frame, ISP_CB_STATIS_DONE);
 			}
 		}

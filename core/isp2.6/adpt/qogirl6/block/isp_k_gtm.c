@@ -164,7 +164,7 @@ int isp_k_gtm_mapping_set(void *param)
 	return 0;
 }
 
-int isp_k_gtm_block(void *pctx, void *param, void *param2)
+int isp_k_gtm_block(void *pctx, void *param)
 {
 	int ret = 0;
 	uint32_t idx = 0;
@@ -173,7 +173,6 @@ int isp_k_gtm_block(void *pctx, void *param, void *param2)
 	struct isp_gtm_ctx_desc *ctx = NULL;
 	struct dcam_dev_raw_gtm_block_info *p = NULL;
 	struct dcam_dev_gtm_slice_info *gtm_slice = NULL;
-	struct cam_gtm_mapping *map = NULL;
 
 	if (!pctx || !param) {
 		pr_err("fail to get input ptr ctx %p, param %p\n", pctx,  param);
@@ -190,10 +189,6 @@ int isp_k_gtm_block(void *pctx, void *param, void *param2)
 		pr_debug("ctx_id %d, g_isp_bypass GTM\n", idx);
 		p->bypass_info.gtm_mod_en = 0;
 	}
-
-	if (ctx->fid == 0)
-		map = (struct cam_gtm_mapping *)param2;
-	isp_k_raw_gtm_set_default(p, map);
 
 	ISP_REG_MWR(idx, ISP_GTM_GLB_CTRL, BIT_0, (p->bypass_info.gtm_mod_en & 0x1));
 	if (p->bypass_info.gtm_mod_en == 0) {
@@ -338,6 +333,8 @@ int isp_k_cfg_rgb_gtm(struct isp_io_param *param,
 			pr_err("fail to copy, ret=0x%x\n", (unsigned int)ret);
 			return -EPERM;
 		}
+		isp_k_raw_gtm_set_default(gtm, &isp_k_param->gtm_sw_map_info);
+		isp_k_param->gtm_sw_map_info.isupdate = 1;
 		isp_k_param->gtm_rgb_info.isupdate = 1;
 		if (param->scene_id == PM_SCENE_CAP)
 			gtm->bypass_info.gtm_hist_stat_bypass = 1;

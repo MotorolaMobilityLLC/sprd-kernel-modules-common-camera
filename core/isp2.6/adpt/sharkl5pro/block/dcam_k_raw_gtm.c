@@ -93,7 +93,6 @@ int dcam_k_raw_gtm_block(uint32_t gtm_param_idx,
 
 	sw_ctx = (struct dcam_sw_context *)param->dev;
 	p = &(gtm->gtm_info);
-	dcam_k_raw_gtm_set_default(p);
 
 	if (g_dcam_bypass[idx] & (1 << _E_GTM)) {
 		pr_debug("dcam gtm bypass  idx%d, \n", idx);
@@ -115,6 +114,10 @@ int dcam_k_raw_gtm_block(uint32_t gtm_param_idx,
 		p->bypass_info.gtm_map_bypass = 1;
 	}
 
+	pr_debug("ctx %d, gtm hw_ymin %d, target_norm %d, lr_int %d\n",
+		idx, p->gtm_ymin, p->gtm_target_norm, p->gtm_lr_int);
+	pr_debug("ctx %d, gtm log_min_int %d, log_diff_int %d, log_diff %d\n",
+		idx, p->gtm_log_min_int, p->gtm_log_diff_int, p->gtm_log_diff);
 	val = ((p->bypass_info.gtm_map_bypass & 0x1) << 1) |
 		((p->bypass_info.gtm_hist_stat_bypass & 0x1) << 2) |
 		((p->gtm_tm_param_calc_by_hw & 0x1) << 3) |
@@ -185,9 +188,8 @@ int dcam_k_raw_gtm_block(uint32_t gtm_param_idx,
 	return ret;
 }
 
-int dcam_k_raw_gtm_mapping(struct cam_gtm_mapping *param)
+int dcam_k_raw_gtm_mapping(struct dcam_dev_raw_gtm_block_info *param, uint32_t idx)
 {
-	uint32_t idx = 0;
 	uint32_t val = 0;
 
 	if (!param) {
@@ -195,39 +197,39 @@ int dcam_k_raw_gtm_mapping(struct cam_gtm_mapping *param)
 		return -1;
 	}
 
-	idx = param->idx;
-
 	if (g_dcam_bypass[idx] & (1 << _E_GTM)) {
 		pr_debug("gtm mapping disable, idx %d\n", idx);
 		return 0;
 	}
 
-	if ((!param->ymin) && (!param->target) && (!param->lr_int) && (!param->log_min_int) && (!param->log_diff_int) && (!param->diff)) {
+	if ((!param->gtm_ymin) && (!param->gtm_target_norm) && (!param->gtm_lr_int) &&
+		(!param->gtm_log_min_int) && (!param->gtm_log_diff_int) && (!param->gtm_log_diff)) {
 		pr_err("fail to get normal mapping param\n");
 		DCAM_REG_MWR(idx, DCAM_GTM_GLB_CTRL, BIT_1, BIT_1);
 		return -1;
 	}
-	val = ((param->ymin & 0xFF) << 0);
+	val = ((param->gtm_ymin & 0xFF) << 0);
 	DCAM_REG_MWR(idx, GTM_HIST_YMIN, 0xFF, val);
 
-	val = ((param->target & 0x3FFF) << 2);
+	val = ((param->gtm_target_norm & 0x3FFF) << 2);
 	DCAM_REG_MWR(idx, GTM_HIST_CTRL1, 0x3FFF << 2, val);
 
-	val = ((param->lr_int & 0xFFFF) << 0) |
-		((param->log_min_int & 0xFFFF) << 16);
+	val = ((param->gtm_lr_int & 0xFFFF) << 0) |
+		((param->gtm_log_min_int & 0xFFFF) << 16);
 	DCAM_REG_MWR(idx, GTM_HIST_CTRL3, 0xFFFFFFFF, val);
 
-	val = ((param->log_diff_int & 0xFFFF) << 16);
+	val = ((param->gtm_log_diff_int & 0xFFFF) << 16);
 	DCAM_REG_MWR(idx,  GTM_HIST_CTRL4, 0xFFFFFFFF, val);
 
-	val = ((param->diff & 0x1FFFFFFF) << 0);
+	val = ((param->gtm_log_diff & 0x1FFFFFFF) << 0);
 	DCAM_REG_WR(idx, GTM_LOG_DIFF, val);
 
 	DCAM_REG_MWR(idx, DCAM_GTM_GLB_CTRL, BIT_1, 0);
 	DCAM_REG_MWR(idx, DCAM_GTM_GLB_CTRL, BIT_3, 0);
 
 	pr_debug("hw ctx %d, hw_ymin %d, target_norm %d, lr_int %d, log_min %d, log_diff %d, log_diff %d\n",
-		idx, param->ymin, param->target, param->lr_int, param->log_min_int, param->log_diff_int, param->diff);
+		idx, param->gtm_ymin, param->gtm_target_norm, param->gtm_lr_int, param->gtm_log_min_int,
+		param->gtm_log_diff_int, param->gtm_log_diff);
 
 	return 0;
 }
@@ -261,7 +263,7 @@ int dcam_k_cfg_raw_gtm(struct isp_io_param *param, struct dcam_dev_param *p)
 	uint32_t gtm_param_idx = DCAM_GTM_PARAM_MAX;
 	uint32_t *calc_mode = NULL;
 	struct dcam_dev_raw_gtm_block_info *gtm_block = NULL;
-	struct cam_gtm_mapping *mapping = NULL;
+	struct cam_gtm_mapping map_param = {0};
 	struct dcam_dev_raw_gtm_bypass *gtm_bypass = NULL;
 
 	switch (param->property) {
@@ -285,7 +287,7 @@ int dcam_k_cfg_raw_gtm(struct isp_io_param *param, struct dcam_dev_param *p)
 				pr_err("fail to copy, ret=0x%x\n", (unsigned int)ret);
 				return -EPERM;
 			}
-
+			dcam_k_raw_gtm_set_default(gtm_block);
 			if (p->idx == DCAM_HW_CONTEXT_MAX)
 				return 0;
 
@@ -300,14 +302,15 @@ int dcam_k_cfg_raw_gtm(struct isp_io_param *param, struct dcam_dev_param *p)
 				pr_err("fail to copy, ret=0x%x\n", (unsigned int)ret);
 				return -EPERM;
 			}
+			dcam_k_raw_gtm_set_default(gtm_block);
 			mutex_unlock(&p->param_lock);
 		}
 		break;
 	case DCAM_PRO_GTM_MAPPING:
 		if (param->scene_id == PM_SCENE_CAP) {
-			mapping = &p->gtm[DCAM_GTM_PARAM_CAP].mapping_info;
+			gtm_block = &p->gtm[DCAM_GTM_PARAM_CAP].gtm_info;
 		} else if (param->scene_id == PM_SCENE_PRE || param->scene_id == PM_SCENE_VID) {
-			mapping = &p->gtm[DCAM_GTM_PARAM_PRE].mapping_info;
+			gtm_block = &p->gtm[DCAM_GTM_PARAM_PRE].gtm_info;
 		} else {
 			pr_debug("gtm mapping do not support, scene id %d\n", param->scene_id);
 			break;
@@ -315,16 +318,26 @@ int dcam_k_cfg_raw_gtm(struct isp_io_param *param, struct dcam_dev_param *p)
 
 		pr_debug("get mapping info, scene_id %d, offline %d\n", param->scene_id, p->offline);
 
-		ret = copy_from_user((void *)mapping, param->property_param, sizeof(struct cam_gtm_mapping));
+		ret = copy_from_user((void *)&map_param, param->property_param, sizeof(struct cam_gtm_mapping));
 		if (ret) {
 			pr_err("fail to copy, ret=0x%x\n", (unsigned int)ret);
 			return -EPERM;
 		}
+		if ((!map_param.ymin) && (!map_param.target) && (!map_param.lr_int) &&
+			(!map_param.log_min_int) && (!map_param.log_diff_int) && (!map_param.diff))
+			break;
+		gtm_block->gtm_lr_int = map_param.lr_int;
+		gtm_block->gtm_ymin = map_param.ymin;
+		gtm_block->gtm_ymax = map_param.ymax;
+		gtm_block->gtm_yavg = map_param.yavg;
+		gtm_block->gtm_target_norm = map_param.target;
+		gtm_block->gtm_log_min_int = map_param.log_min_int;
+		gtm_block->gtm_log_diff_int = map_param.log_diff_int;
+		gtm_block->gtm_log_diff = map_param.diff;
 		if (p->idx == DCAM_HW_CONTEXT_MAX)
 			return 0;
 
-		mapping->idx = p->idx;
-		dcam_k_raw_gtm_mapping(mapping);
+		dcam_k_raw_gtm_mapping(gtm_block, p->idx);
 		break;
 	case DCAM_PRO_GTM_BYPASS:
 		if (param->scene_id == PM_SCENE_CAP) {
