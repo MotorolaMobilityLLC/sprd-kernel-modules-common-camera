@@ -88,6 +88,6 @@ int isp_hwctx_slices_proc(struct isp_hw_context *pctx_hw, void *dev_handle, stru
 uint32_t isp_hwctx_hist2_frame_prepare(void *buf, uint32_t hw_idx, void *isp_handle);
 int isp_hwctx_store_frm_set(struct isp_pipe_info *pipe_info, uint32_t path_id, struct camera_frame *frame);
 int isp_hwctx_fetch_frm_set(void *dev_handle, struct isp_hw_fetch_info *fetch, struct camera_frame *frame);
-uint32_t isp_hwctx_gtm_hist_result_get(void *buf, uint32_t hw_idx, void *dev,
+int isp_hwctx_gtm_hist_result_get(void *buf, uint32_t hw_idx, void *dev,
 		uint32_t hist_total, uint32_t fid);
 #endif

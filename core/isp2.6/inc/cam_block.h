@@ -326,7 +326,7 @@ int isp_k_dewarping_slice_config(void *handle);
 int isp_pyr_dec_irq_func(void *handle);
 int isp_pyr_dec_config(void *handle);
 
-int isp_k_gtm_block(void *pctx, void *param, void *param2);
+int isp_k_gtm_block(void *pctx, void *param);
 int isp_k_gtm_mapping_set(void *param);
 int isp_k_gtm_mapping_get(void *param);
 int isp_k_gtm_sw_map_set(void *param);
