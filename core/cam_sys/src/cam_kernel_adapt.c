@@ -193,6 +193,12 @@ int cam_buf_get_phys_addr(int fd, struct dma_buf *dmabuf,
 
 #endif
 
+/*kernal 5.15 file operation need import namespace*/
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0))
+#ifdef CONFIG_SPRD_DCAM_DEBUG_RAW
+MODULE_IMPORT_NS(VFS_internal_I_am_really_a_filesystem_and_am_NOT_a_driver);
+#endif
+#endif
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0))
 struct dma_buf * cam_ion_alloc(size_t len, unsigned int heap_id_mask,
 					unsigned int flags)

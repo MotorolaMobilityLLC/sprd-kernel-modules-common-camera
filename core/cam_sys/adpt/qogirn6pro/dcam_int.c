@@ -736,7 +736,17 @@ static irqreturn_t dcamint_error_handler_param(struct dcam_hw_context *dcam_hw_c
 		pr_err("fail to get valid dcam_online_node\n");
 		return IRQ_HANDLED;
 	}
-
+	/*
+	 *bug 1651427
+	 * When reset dcam appears on cap mipi overflow, clear the first frame.
+	 * Need to be removed in AB chip
+	 */
+	if ((status & BIT(DCAM_IF_IRQ_INT0_DCAM_OVF)) && DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, DCAM_CAP_FRM_CLR) == 0){
+		pr_debug("warning: to clean first frame DCAM%u 0x%x%s\n", dcam_hw_ctx->hw_ctx_id, status, tb_ovr[!!(status & BIT(DCAM_IF_IRQ_INT0_DCAM_OVF))]);
+		status &= (~BIT(DCAM_IF_IRQ_INT0_DCAM_OVF));
+		if (!(DCAMINT_ALL_ERROR & status))
+			return IRQ_HANDLED;
+	}
 	pr_err("fail to get normal status DCAM%u 0x%x%s%s%s%s\n", dcam_hw_ctx->hw_ctx_id, status,
 		tb_ovr[!!(status & BIT(DCAM_IF_IRQ_INT0_DCAM_OVF))],
 		tb_lne[!!(status & BIT(DCAM_IF_IRQ_INT0_CAP_LINE_ERR))],
@@ -752,16 +762,6 @@ static irqreturn_t dcamint_error_handler_param(struct dcam_hw_context *dcam_hw_c
 		}
 	}
 
-	/*
-	 *bug 1651427
-	 * When reset dcam appears on cap mipi overflow, clear the first frame.
-	 * Need to be removed in AB chip
-	 */
-	if ((status & BIT(DCAM_IF_IRQ_INT0_DCAM_OVF)) && DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, DCAM_CAP_FRM_CLR) == 0){
-		pr_warn_ratelimited("warning: to clean first frame DCAM%u 0x%x%s\n", dcam_hw_ctx->hw_ctx_id, status,
-		tb_ovr[!!(status & BIT(DCAM_IF_IRQ_INT0_DCAM_OVF))]);
-		return IRQ_HANDLED;
-	}
 	if (dcam_hw_ctx->is_offline_proc) {
 		pr_err("fail to offline int error,status:%x \n", status);
 		return IRQ_HANDLED;
