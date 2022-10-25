@@ -209,6 +209,10 @@ static void campipeline_capture_get(struct cam_pipeline_topology *param, uint32_
 	if (pyrdec_support) {
 		cur_node->outport[PORT_FULL_OUT].switch_link.node_type = CAM_NODE_TYPE_PYR_DEC;
 		cur_node->outport[PORT_FULL_OUT].switch_link.node_id = PYR_DEC_NODE_ID;
+		for (i = PORT_AEM_OUT; i < PORT_DCAM_OUT_MAX; i++) {
+			cur_node->outport[i].link_state = PORT_LINK_NORMAL;
+			cur_node->outport[i].link.node_type = CAM_NODE_TYPE_USER;
+		}
 		cur_node++;
 		cur_node->id = CAM_DUMP_NODE_ID_0;
 		cur_node++;
@@ -221,6 +225,10 @@ static void campipeline_capture_get(struct cam_pipeline_topology *param, uint32_
 	} else {
 		cur_node->outport[PORT_FULL_OUT].switch_link.node_type = CAM_NODE_TYPE_ISP_OFFLINE;
 		cur_node->outport[PORT_FULL_OUT].switch_link.node_id = ISP_NODE_MODE_CAP_ID;
+		for (i = PORT_AEM_OUT; i < PORT_DCAM_OUT_MAX; i++) {
+			cur_node->outport[i].link_state = PORT_LINK_NORMAL;
+			cur_node->outport[i].link.node_type = CAM_NODE_TYPE_USER;
+		}
 		cur_node++;
 		cur_node->id = CAM_DUMP_NODE_ID_0;
 		cur_node++;
@@ -1536,6 +1544,7 @@ void *cam_pipeline_creat(struct cam_pipeline_desc *param)
 	node_desc.dcam_online_desc = &param->dcam_online_desc;
 	node_desc.dcam_offline_desc = &param->dcam_offline_desc;
 	node_desc.dcam_offline_bpcraw_desc = &param->dcam_offline_bpcraw_desc;
+	node_desc.dcam_fetch_desc = &param->dcam_fetch_desc;
 	node_desc.isp_node_description = &param->isp_node_description;
 	node_desc.frame_cache_desc = &param->frame_cache_desc;
 	node_desc.pyr_dec_desc = &param->pyr_dec_desc;

@@ -175,6 +175,11 @@ static int camioctl_statis_buf_set(struct camera_module *module,
 				ret = CAM_PIPEINE_DCAM_ONLINE_NODE_CFG(ch, CAM_PIPELINE_CFG_STATIS_BUF, &statis_param);
  			} else {
 				ch = &module->channel[CAM_CH_CAP];
+				if (ch->enable && module->cam_uinfo.is_longexp && !is_raw_cap) {
+					statis_param.statis_cmd = DCAM_IOCTL_CFG_STATIS_BUF;
+					statis_param.param = &statis_buf;
+					ret = CAM_PIPEINE_DCAM_ONLINE_NODE_CFG(ch, CAM_PIPELINE_CFG_STATIS_BUF, &statis_param);
+				}
 				if (ch->enable && is_raw_cap) {
 					statis_param.statis_cmd = DCAM_IOCTL_CFG_STATIS_BUF;
 					statis_param.param = &statis_buf;
@@ -203,6 +208,11 @@ static int camioctl_statis_buf_set(struct camera_module *module,
 				ret = CAM_PIPEINE_DCAM_ONLINE_NODE_CFG(ch, CAM_PIPELINE_CFG_STATIS_BUF, &statis_param);
 			} else {
 				ch = &module->channel[CAM_CH_CAP];
+				if (ch->enable && module->cam_uinfo.is_longexp && !is_raw_cap) {
+					statis_param.statis_cmd = DCAM_IOCTL_CFG_STATIS_BUF;
+					statis_param.param = &statis_buf;
+					ret = CAM_PIPEINE_DCAM_ONLINE_NODE_CFG(ch, CAM_PIPELINE_CFG_STATIS_BUF, &statis_param);
+				}
 				if (ch->enable && is_raw_cap) {
 					statis_param.statis_cmd = DCAM_IOCTL_CFG_STATIS_BUF;
 					statis_param.param = &statis_buf;
@@ -227,6 +237,11 @@ static int camioctl_statis_buf_set(struct camera_module *module,
 					ret = CAM_PIPEINE_DCAM_ONLINE_NODE_CFG(ch, CAM_PIPELINE_CFG_STATIS_BUF, &statis_param);
 				} else {
 					ch = &module->channel[CAM_CH_CAP];
+					if (ch->enable && module->cam_uinfo.is_longexp && !is_raw_cap) {
+						statis_param.statis_cmd = DCAM_IOCTL_CFG_STATIS_BUF;
+						statis_param.param = &statis_buf;
+						ret = CAM_PIPEINE_DCAM_ONLINE_NODE_CFG(ch, CAM_PIPELINE_CFG_STATIS_BUF, &statis_param);
+					}
 					if (ch->enable && is_raw_cap) {
 						statis_param.statis_cmd = DCAM_IOCTL_CFG_STATIS_BUF;
 						statis_param.param = &statis_buf;
@@ -243,6 +258,11 @@ static int camioctl_statis_buf_set(struct camera_module *module,
 					ret = CAM_PIPEINE_DCAM_ONLINE_NODE_CFG(ch, CAM_PIPELINE_CFG_STATIS_BUF, &statis_param);
 				} else {
 					ch = &module->channel[CAM_CH_CAP];
+					if (ch->enable && module->cam_uinfo.is_longexp && !is_raw_cap) {
+						statis_param.statis_cmd = DCAM_IOCTL_CFG_STATIS_BUF;
+						statis_param.param = &statis_buf;
+						ret = CAM_PIPEINE_DCAM_ONLINE_NODE_CFG(ch, CAM_PIPELINE_CFG_STATIS_BUF, &statis_param);
+					}
 					if (ch->enable && is_raw_cap) {
 						statis_param.statis_cmd = DCAM_IOCTL_CFG_STATIS_BUF;
 						statis_param.param = &statis_buf;
@@ -320,13 +340,15 @@ static int camioctl_param_cfg(struct camera_module *module, unsigned long arg)
 	if (atomic_read(&module->state) == CAM_STREAM_OFF)
 		return 0;
 
-	if (param.scene_id == PM_SCENE_PRE)
+	if (param.scene_id == PM_SCENE_PRE) {
 		channel = &module->channel[CAM_CH_PRE];
-	else
+		if (!channel->enable && module->cam_uinfo.is_longexp)
+			channel = &module->channel[CAM_CH_CAP];
+	} else
 		channel = &module->channel[CAM_CH_CAP];
+
 	if ((module->capture_type == CAM_CAPTURE_RAWPROC) && (param.sub_block == DCAM_BLOCK_LSCM
-		|| param.sub_block == DCAM_BLOCK_AEM
-		|| param.sub_block == DCAM_BLOCK_BAYERHIST)) {
+		|| param.sub_block == DCAM_BLOCK_AEM || param.sub_block == DCAM_BLOCK_BAYERHIST)){
 		channel = &module->channel[CAM_CH_CAP];
 		for_capture = 1;
 	}
@@ -1358,7 +1380,8 @@ static int camioctl_stream_off(struct camera_module *module,
 				ret = ch->pipeline_handle->ops.streamoff(ch->pipeline_handle, &pipe_param);
 				if (ret)
 					pr_err("fail to stop module %d dcam online ret:%d\n", module->idx, ret);
-				if (ch->ch_id == CAM_CH_PRE) {
+				if (ch->ch_id == CAM_CH_PRE || (ch->ch_id == CAM_CH_CAP
+					&& module->cam_uinfo.is_longexp)) {
 					statis_param.statis_cmd = DCAM_IOCTL_DEINIT_STATIS_Q;
 					statis_param.param = NULL;
 					ret = CAM_PIPEINE_DCAM_ONLINE_NODE_CFG(ch, CAM_PIPELINE_CFG_STATIS_BUF, &statis_param);

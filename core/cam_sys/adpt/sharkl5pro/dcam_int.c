@@ -488,6 +488,7 @@ static void dcamint_iommu_regs_dump(struct dcam_hw_context *dcam_hw_ctx)
 static irqreturn_t dcamint_error_handler_param(struct dcam_hw_context *dcam_hw_ctx, uint32_t status)
 {
 	struct dcam_irq_proc irq_proc = {0};
+	enum dcam_state state = STATE_INIT;
 
 	const char *tb_ovr[2] = {"", ", overflow"};
 	const char *tb_lne[2] = {"", ", line error"};
@@ -519,9 +520,13 @@ static irqreturn_t dcamint_error_handler_param(struct dcam_hw_context *dcam_hw_c
 		return IRQ_HANDLED;
 	}
 
+	if (dcam_hw_ctx->is_virtualsensor_proc)
+		state = dcam_fetch_node_state_get(dcam_hw_ctx->dcam_irq_cb_handle);
+	else
+		state = dcam_online_node_state_get(dcam_hw_ctx->dcam_irq_cb_handle);
+
 	if (dcam_hw_ctx->dcam_irq_cb_func) {
-		if ((status & DCAMINT_FATAL_ERROR)
-			&& (dcam_online_node_state_get(dcam_hw_ctx->dcam_irq_cb_handle) != STATE_ERROR)) {
+		if ((status & DCAMINT_FATAL_ERROR) && (state != STATE_ERROR)) {
 			irq_proc.of = DCAM_INT_ERROR;
 			irq_proc.status = status;
 			dcam_hw_ctx->dcam_irq_cb_func(&irq_proc, dcam_hw_ctx->dcam_irq_cb_handle);

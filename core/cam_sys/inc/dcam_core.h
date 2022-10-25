@@ -26,6 +26,7 @@
 #include "dcam_fmcu.h"
 #include "dcam_online_node.h"
 #include "dcam_offline_node.h"
+#include "dcam_fetch_node.h"
 
 #define DCAM_IN_Q_LEN                     12
 #define DCAM_PROC_Q_LEN                   12

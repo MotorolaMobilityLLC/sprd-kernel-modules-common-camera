@@ -20,11 +20,6 @@
 #include "dcam_interface.h"
 #include "cam_block.h"
 
-
-#define DCAM_ONLINE_IN_Q_LEN             12
-#define DCAM_ONLINE_PROC_Q_LEN           12
-#define DCAM_ONLINE_TIMEOUT              msecs_to_jiffies(2000)
-
 enum dcam_online_node_id {
 	DCAM_ONLINE_PRE_NODE_ID,
 	DCAM_ONLINE_MAX_NODE_ID,
@@ -64,8 +59,6 @@ struct dcam_online_node_desc {
 	uint32_t raw_cap;
 	uint32_t is_4in1;
 	uint32_t is_ebd;
-	uint32_t virtualsensor;
-	uint32_t virtualsensor_cap_en;
 	struct img_size input_size;
 	struct img_trim input_trim;
 	struct img_size output_size;
@@ -104,17 +97,12 @@ struct dcam_online_node {
 	uint32_t is_4in1;
 	uint32_t slowmotion_count;
 	uint32_t is_ebd;
-	uint32_t virtualsensor;
-	uint32_t virtualsensor_cap_en;
 	uint32_t is_pyr_rec;
 	uint32_t csi_connect_stat;
 	uint32_t dcam_slice_mode_temp/*TEMP:need delete later*/;
 	enum dcam_slowmotion_type slw_type;
 	struct sprd_ebd_control ebd_param;
 
-	struct dcam_fetch_info virtualsensor_fetch;
-	struct camera_queue virtualsensor_in_queue;
-	struct camera_queue virtualsensor_proc_queue;
 	struct camera_queue port_queue;
 	void *data_cb_handle;
 	cam_data_cb data_cb_func;
@@ -125,8 +113,6 @@ struct dcam_online_node {
 	port_cfg_cb port_cfg_cb_func;
 	void *port_cfg_cb_handle;
 	struct camera_buf statis_buf_array[STATIS_TYPE_MAX][STATIS_BUF_NUM_MAX];
-	struct completion virtualsensor_frm_done;
-	struct completion virtualsensor_slice_done;
 	void *nr3_frm;
 
 	uint32_t dcam_idx;
@@ -144,7 +130,6 @@ struct dcam_online_node {
 
 	shutoff_cfg_cb shutoff_cfg_cb_func;
 	void *shutoff_cfg_cb_handle;
-	struct cam_thread_info virtualsensor_thread;
 };
 
 #define DCAM_ONLINE_NODE_SHUTOFF_CALLBACK(dcam_port)  ({ \
@@ -156,10 +141,14 @@ struct dcam_online_node {
 	ret; \
 })
 
+int dcam_online_node_irq_proc(void *param, void *handle);
+int dcam_online_node_pmctx_init(struct dcam_online_node *node);
+void dcam_online_node_pmctx_update(struct dcam_isp_k_block *node_pm, struct dcam_isp_k_block *input_pm);
+int dcam_online_node_pmctx_deinit(struct dcam_online_node *node);
 int dcam_online_node_xtm_disable(struct dcam_online_node* node, void *param);
-int dcam_online_node_insert_port(struct dcam_online_node* node, void *param);
+int dcam_online_node_port_insert(struct dcam_online_node* node, void *param);
 int dcam_online_node_state_get(void *handle);
-struct dcam_online_port *dcam_online_node_get_port(struct dcam_online_node *node, uint32_t port_id);
+struct dcam_online_port *dcam_online_node_port_get(struct dcam_online_node *node, uint32_t port_id);
 int dcam_online_node_blk_param_set(struct dcam_online_node *node, void *param);
 int dcam_online_cfg_param(void *handle, uint32_t cmd, void *param);
 int dcam_online_share_buf(void *handle, void *param);
