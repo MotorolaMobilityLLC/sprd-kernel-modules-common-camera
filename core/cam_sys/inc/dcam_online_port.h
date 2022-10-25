@@ -84,7 +84,6 @@ struct dcam_online_port {
 	atomic_t is_work; /* dynamic switch counter of port */
 	atomic_t is_shutoff;
 	spinlock_t size_lock;
-	uint32_t port_update;
 	spinlock_t state_lock;
 	uint32_t state_update;
 	enum dcam_port_state port_state;

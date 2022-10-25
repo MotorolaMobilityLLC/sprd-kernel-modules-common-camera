@@ -945,7 +945,7 @@ static int dcamonline_port_base_cfg(struct dcam_online_port *port, struct dcam_o
 		spin_lock_irqsave(&port->size_lock, flags);
 		port->compress_en = param->compress_en;
 		port->raw_src = param->is_raw ? ORI_RAW_SRC_SEL : PROCESS_RAW_SRC_SEL;
-		port->port_update = 1;
+		port->base_update = 1;
 		pr_info("full path out fmt %d\n",port->dcamout_fmt);
 		spin_unlock_irqrestore(&port->size_lock, flags);
 		atomic_set(&port->is_work, 1);
