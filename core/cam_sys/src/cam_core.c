@@ -3230,17 +3230,6 @@ static int camcore_raw_proc_done(struct camera_module *module)
 		CAM_PIPEINE_DCAM_OFFLINE_NODE_CFG(ch, CAM_PIPELINE_CFG_STATIS_BUF, &statis_param);
 	}
 
-	if (module->cam_uinfo.is_pyr_dec) {
-		if (ch->pyr_dec_buf) {
-			camcore_k_frame_put(ch->pyr_dec_buf);
-			ch->pyr_dec_buf = NULL;
-		}
-		if (ch->pyr_rec_buf) {
-			camcore_k_frame_put(ch->pyr_rec_buf);
-			ch->pyr_rec_buf = NULL;
-		}
-	}
-
 	ch->enable = 0;
 	ch->dcam_port_id = -1;
 	ch->isp_port_id = -1;
@@ -3254,6 +3243,18 @@ static int camcore_raw_proc_done(struct camera_module *module)
 
 	atomic_set(&module->state, CAM_IDLE);
 	camcore_pipeline_deinit(module, ch);
+
+	if (module->cam_uinfo.is_pyr_dec) {
+		if (ch->pyr_dec_buf) {
+			camcore_k_frame_put(ch->pyr_dec_buf);
+			ch->pyr_dec_buf = NULL;
+		}
+		if (ch->pyr_rec_buf) {
+			camcore_k_frame_put(ch->pyr_rec_buf);
+			ch->pyr_rec_buf = NULL;
+		}
+	}
+
 	pr_info("camera%d rawproc done.\n", module->idx);
 
 	return ret;

@@ -1401,6 +1401,9 @@ exit:
 void dcam_online_port_put(struct dcam_online_port *port)
 {
 	uint32_t port_id = 0;
+	struct isp_offline_param *cur = NULL;
+	struct isp_offline_param *prev = NULL;
+
 	if (!port) {
 		pr_err("fail to get invalid port ptr\n");
 		return;
@@ -1409,8 +1412,6 @@ void dcam_online_port_put(struct dcam_online_port *port)
 	if (atomic_dec_return(&port->user_cnt) == 0) {
 		port_id = port->port_id;
 		if (port->isp_updata) {
-			struct isp_offline_param *cur, *prev;
-
 			cur = (struct isp_offline_param *)port->isp_updata;
 			port->isp_updata = NULL;
 			while (cur) {
@@ -1421,8 +1422,6 @@ void dcam_online_port_put(struct dcam_online_port *port)
 		}
 
 		if (port->priv_size_data) {
-			struct isp_offline_param *cur, *prev;
-
 			cur = (struct isp_offline_param *)port->priv_size_data;
 			port->priv_size_data = NULL;
 			while (cur) {
