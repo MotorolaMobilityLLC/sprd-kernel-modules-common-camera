@@ -53,12 +53,9 @@ KO_MODULE_SRC += \
   endif
 endif
 
-ifeq ($(strip $(BSP_KERNEL_VERSION)), kernel5.4)
 ifeq ($(strip $(BSP_BUILD_VARIANT)),userdebug)
 ccflags-y += -DCONFIG_SPRD_DCAM_DEBUG_RAW
 endif
-endif
-
 
 #
 # Build Options
