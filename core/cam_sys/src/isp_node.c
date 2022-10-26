@@ -33,7 +33,7 @@
 #endif
 #define pr_fmt(fmt) "ISP_OFFLINE_NODE: %d %d %s : " fmt, current->pid, __LINE__, __func__
 
-static int ispnode_stream_state_get(struct isp_node *node,struct camera_frame *pframe)
+static int ispnode_stream_state_get(struct isp_node *node, struct camera_frame *pframe)
 {
 	int ret = 0,i = 0, hw_path_id = 0;
 	uint32_t normal_cnt = 0, postproc_cnt = 0;
@@ -153,9 +153,17 @@ static int ispnode_stream_state_get(struct isp_node *node,struct camera_frame *p
 	for (i = 0; i < normal_cnt; i++) {
 		pframe->state = ISP_STREAM_NORMAL_PROC;
 		list_for_each_entry(port, &node->port_queue.head, list) {
+			if (port->type == PORT_TRANSFER_IN && atomic_read(&port->user_cnt) >= 1 && atomic_read(&port->is_work) > 0) {
+				pframe->in = port->size;
+				pframe->in_crop = port->trim;
+				pr_debug("isp %d hw_path_id %d normal_cnt %d in_size %d %d crop_szie %d %d %d %d\n",
+					node->cfg_id, hw_path_id, normal_cnt ,pframe->in.w, pframe->in.h,
+					pframe->in_crop.start_x, pframe->in_crop.start_y,
+					pframe->in_crop.size_x, pframe->in_crop.size_y);
+			}
 			if (port->type == PORT_TRANSFER_OUT && atomic_read(&port->user_cnt) >= 1 && atomic_read(&port->is_work) > 0) {
 				hw_path_id = isp_port_id_switch(port->port_id);
-					pframe->buf_type = ISP_STREAM_BUF_OUT;
+				pframe->buf_type = ISP_STREAM_BUF_OUT;
 				pframe->out[hw_path_id] = port->size;
 				pframe->out_crop[hw_path_id] = port->trim;
 				pr_debug("isp %d hw_path_id %d normal_cnt %d out_size %d %d crop_szie %d %d %d %d\n",
@@ -431,7 +439,7 @@ static int ispnode_blkparam_adapt(struct isp_node *inode)
 	block_param.cfg_id = inode->cfg_id;
 	block_param.isp_k_param = &inode->isp_k_param;
 	block_param.isp_using_param = inode->isp_using_param;
-	pr_debug("ch_id: %d ctx_id:%d crop %d %d %d %d, size(%d %d) => (%d %d)\n", inode->ch_id, inode->node_id,
+	pr_debug("ch_id: %d ctx_id:%d size(%d %d) => (%d %d)\n", inode->ch_id, inode->node_id,
 		size_desc.old_width, size_desc.old_height, size_desc.new_width, size_desc.new_height);
 
 	sub_blk_func.index = ISP_K_BLK_NLM_UPDATE;

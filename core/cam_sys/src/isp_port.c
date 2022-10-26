@@ -134,7 +134,6 @@ static uint32_t ispport_buf_set(struct isp_port *port, void *param)
 	pframe = VOID_PTR_TO(param, struct camera_frame);
 	if (port->type == PORT_TRANSFER_IN && pframe->pyr_status == OFFLINE_DEC_ON) {
 		port->fetch_path_sel = ISP_FETCH_PATH_NORMAL;
-
 		port->size.w = pframe->width;
 		port->size.h = pframe->height;
 		port->trim.start_x = 0;
@@ -753,8 +752,8 @@ static int ispport_fetch_normal_get(void *cfg_in, void *cfg_out,
 	port = VOID_PTR_TO(cfg_in, struct isp_port);
 	fetch = (struct isp_hw_fetch_info *)cfg_out;
 
-	src = &port->size;
-	intrim = &port->trim;
+	src = &frame->in;
+	intrim = &frame->in_crop;
 	fetch->src = *src;
 	fetch->in_trim = *intrim;
 	fetch->fetch_fmt = port->fmt;
@@ -891,9 +890,8 @@ static int ispport_fbdfetch_yuv_get(void *cfg_in, void *cfg_out, struct camera_f
 	port = VOID_PTR_TO(cfg_in, struct isp_port);
 
 	fbd_yuv->fetch_fbd_bypass = 0;
-	fbd_yuv->slice_size.w = port->size.w;
-	fbd_yuv->slice_size.h = port->size.h;
-	fbd_yuv->trim = port->trim;
+	fbd_yuv->slice_size = frame->in;
+	fbd_yuv->trim = frame->in_crop;
 	tile_col = (fbd_yuv->slice_size.w + ISP_FBD_TILE_WIDTH - 1) / ISP_FBD_TILE_WIDTH;
 	tile_row =(fbd_yuv->slice_size.h + ISP_FBD_TILE_HEIGHT - 1) / ISP_FBD_TILE_HEIGHT;
 
@@ -921,10 +919,10 @@ static int ispport_fbdfetch_yuv_get(void *cfg_in, void *cfg_out, struct camera_f
 			fbd_yuv->slice_start_pxl_xpt / ISP_FBD_TILE_WIDTH) * 16;
 	fbd_yuv->data_bits = cal_fbc.data_bits;
 
-	pr_debug("iova:%x, fetch_fbd: %u 0x%x 0x%x, 0x%x, size %u %u, channel_id:%d, tile_col:%d\n",
+	pr_debug("fetch_fbd: iova:%x, fid %u 0x%x 0x%x, 0x%x, size %u %u, channel_id:%d, tile_col:%d\n",
 		 frame->buf.iova, frame->fid, fbd_yuv->hw_addr.addr0,
 		 fbd_yuv->hw_addr.addr1, fbd_yuv->hw_addr.addr2,
-		port->size.w, port->size.h, frame->channel_id, fbd_yuv->tile_num_pitch);
+		fbd_yuv->slice_size.w, fbd_yuv->slice_size.h, frame->channel_id, fbd_yuv->tile_num_pitch);
 
 	return 0;
 }
@@ -1189,8 +1187,8 @@ static int ispport_fetch_pipeinfo_get(struct isp_port *port, struct isp_port_cfg
 		pr_err("fail to get pipe fetch info\n");
 		return -EFAULT;
 	}
-	port_cfg->src_size = port->size;
-	port_cfg->src_crop = port->trim;
+	port_cfg->src_size = port_cfg->src_frame->in;
+	port_cfg->src_crop = port_cfg->src_frame->in_crop;
 	return ret;
 }
 
