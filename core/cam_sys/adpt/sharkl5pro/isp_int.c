@@ -105,7 +105,7 @@ static inline void ispint_isp_int_record(uint32_t cfg_id, enum isp_context_hw_id
 static void ispint_all_done(enum isp_context_hw_id hw_idx, void *isp_handle)
 {
 	struct isp_pipe_dev *dev = NULL;
-	struct isp_hw_context *pctx_hw;
+	struct isp_hw_context *pctx_hw = NULL;
 
 	dev = (struct isp_pipe_dev *)isp_handle;
 
@@ -157,7 +157,7 @@ static void ispint_thumb_store_done(enum isp_context_hw_id idx, void *isp_handle
 static void ispint_fmcu_store_done(enum isp_context_hw_id hw_idx, void *isp_handle)
 {
 	struct isp_pipe_dev *dev = NULL;
-	struct isp_hw_context *pctx_hw;
+	struct isp_hw_context *pctx_hw = NULL;
 
 	dev = (struct isp_pipe_dev *)isp_handle;
 	pctx_hw = &dev->hw_ctx[hw_idx];
@@ -174,7 +174,7 @@ static void ispint_fmcu_store_done(enum isp_context_hw_id hw_idx, void *isp_hand
 static void ispint_fmcu_shadow_done(enum isp_context_hw_id hw_idx, void *isp_handle)
 {
 	struct isp_pipe_dev *dev = NULL;
-	struct isp_hw_context *pctx_hw;
+	struct isp_hw_context *pctx_hw = NULL;
 
 	dev = (struct isp_pipe_dev *)isp_handle;
 	pctx_hw = &dev->hw_ctx[hw_idx];
@@ -217,7 +217,7 @@ static int ispint_err_pre_proc(enum isp_context_hw_id hw_idx, void *isp_handle)
 {
 	unsigned long addr = 0;
 	struct isp_pipe_dev *dev = NULL;
-	struct isp_hw_context *pctx_hw;
+	struct isp_hw_context *pctx_hw = NULL;
 
 	dev = (struct isp_pipe_dev *)isp_handle;
 	pctx_hw = &dev->hw_ctx[hw_idx];
@@ -349,7 +349,7 @@ static void ispint_iommu_regs_dump(void)
 
 static struct ispint_isr_root ispint_isr_root_readint(uint32_t irq_offset)
 {
-	struct ispint_isr_root com;
+	struct ispint_isr_root com = {0};
 
 	com.irq_line = ISP_HREG_RD(irq_offset + ISP_INT_INT0);
 	return com;
@@ -362,7 +362,7 @@ static void ispint_isr_root_writeint(uint32_t irq_offset, struct ispint_isr_root
 
 static struct isp_int_ctxs_com ispint_ctxs_rd(int c_id)
 {
-	struct isp_int_ctxs_com com;
+	struct isp_int_ctxs_com com = {0};
 
 	com.irq_offset = isp_int_ctxs[c_id].reg_offset;
 	com.err_mask = isp_int_ctxs[c_id].err_mask;
@@ -605,7 +605,7 @@ int isp_int_irq_request(struct device *p_dev,
 {
 	int ret = 0;
 	uint32_t  id;
-	struct isp_pipe_dev *ispdev;
+	struct isp_pipe_dev *ispdev = NULL;
 
 	if (!p_dev || !isp_handle || !irq_no) {
 		pr_err("fail to get valid input ptr p_dev %p isp_handle %p irq_no %p\n",
@@ -663,7 +663,7 @@ int isp_int_isp_irq_sw_cnt_trace(int ctx_id)
 
 int isp_int_irq_free(struct device *p_dev, void *isp_handle)
 {
-	struct isp_pipe_dev *ispdev;
+	struct isp_pipe_dev *ispdev = NULL;
 
 	ispdev = (struct isp_pipe_dev *)isp_handle;
 	if (!ispdev) {

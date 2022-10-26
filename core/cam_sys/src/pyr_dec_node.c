@@ -1319,7 +1319,7 @@ int pyr_dec_node_blk_param_set(void *handle, void *param)
 	struct pyr_dec_node *node = NULL;
 	struct isp_io_param *blk_param = NULL;
 	func_isp_cfg_param cfg_fun_ptr = NULL;
-	struct isp_hw_block_func fucarg;
+	struct isp_hw_block_func fucarg = {0};
 	struct cam_hw_info *hw = NULL;
 	struct isp_pipe_dev *dev = NULL;
 
@@ -1546,7 +1546,7 @@ void *pyrdec_dev_get(void *isp_handle, void *hw)
 	int ret = 0;
 	struct pyrdec_pipe_dev *dec_dev = NULL;
 	struct isp_fmcu_ctx_desc *fmcu = NULL;
-	struct pyrdec_hw_k_blk_func irq_func;
+	struct pyrdec_hw_k_blk_func irq_func = {0};
 	struct cam_thread_info *thrd = NULL;
 
 	dec_dev = vzalloc(sizeof(struct pyrdec_pipe_dev));

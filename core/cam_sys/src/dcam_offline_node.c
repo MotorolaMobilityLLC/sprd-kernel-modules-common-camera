@@ -871,8 +871,8 @@ int dcam_offline_node_blkpm_fid_set(struct dcam_offline_node *node, void *param)
 				cam_queue_enqueue(&node->blk_param_queue, &param_frame->list);
 		} else {
 			pr_warn("Warning:no frame in dcam blk empty queue:%d.\n", node->blk_param_queue.cnt);
-			break;
 			ret = -EFAULT;
+			break;
 		}
 	} while (loop++ < node->blk_param_queue.cnt);
 
@@ -897,7 +897,7 @@ int dcam_offline_node_blk_param_set(struct dcam_offline_node *node, void *param)
 	struct dcam_isp_k_block *pm = NULL;
 	func_dcam_cfg_param cfg_fun_ptr = NULL;
 	struct cam_hw_info *hw = NULL;
-	struct dcam_hw_block_func_get blk_func;
+	struct dcam_hw_block_func_get blk_func = {0};
 
 	if (!node || !param) {
 		pr_err("fail to get valid param %px %px\n", node, param);
