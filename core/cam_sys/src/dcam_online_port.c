@@ -1430,6 +1430,30 @@ void dcam_online_port_put(struct dcam_online_port *port)
 				cur = prev;
 			}
 		}
+		if (port->share_full_path) {
+			struct cam_buf_pool_id pool_id = {0};
+			struct camera_buf_get_desc buf_desc = {0};
+			struct camera_frame *frame_unprocess = NULL;
+			struct camera_frame *frame_result_pool = NULL;
+
+			pool_id.tag_id = CAM_BUF_POOL_SHARE_FULL_PATH;
+			buf_desc.buf_ops_cmd = CAM_BUF_STATUS_PUT_IOVA;
+
+			do {
+				frame_unprocess = cam_buf_manager_buf_dequeue(&port->unprocess_pool, &buf_desc);
+				if (!frame_unprocess)
+					break;
+				cam_buf_manager_buf_enqueue(&pool_id, frame_unprocess, &buf_desc);
+			} while(1);
+
+			do {
+				frame_result_pool = cam_buf_manager_buf_dequeue(&port->result_pool, &buf_desc);
+				if (!frame_result_pool)
+					break;
+				cam_buf_manager_buf_enqueue(&pool_id, frame_result_pool, &buf_desc);
+			} while(1);
+		}
+
 		port->data_cb_func = NULL;
 		port->resbuf_get_cb = NULL;
 		port->sharebuf_get_cb = NULL;
