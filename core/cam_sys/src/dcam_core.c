@@ -297,7 +297,7 @@ static int dcamcore_ctx_bind(void *dev_handle, void *node, uint32_t node_id,
 		pctx_hw = &dev->hw_ctx[dcam_idx];
 		if (node_id == pctx_hw->node_id && pctx_hw->node == node) {
 			atomic_inc(&pctx_hw->user_cnt);
-			pr_info("sw %d & hw %d are already binded, cnt=%d\n",
+			pr_info("node %d & hw %d are already binded, cnt=%d\n",
 				node_id, dcam_idx, atomic_read(&pctx_hw->user_cnt));
 			return 0;
 		}
@@ -311,7 +311,7 @@ static int dcamcore_ctx_bind(void *dev_handle, void *node, uint32_t node_id,
 			pctx_hw = &dev->hw_ctx[i];
 			if (node_id == pctx_hw->node_id && pctx_hw->node == node) {
 				atomic_inc(&pctx_hw->user_cnt);
-				pr_info("sw %d & hw %d are already binded, cnt=%d\n",
+				pr_info("node %d & hw %d are already binded, cnt=%d\n",
 							node_id, i, atomic_read(&pctx_hw->user_cnt));
 				return 0;
 			}
@@ -339,7 +339,7 @@ exit:
 	pctx_hw->node = node;
 	pctx_hw->node_id = node_id;
 	*hw_id = hw_ctx_id;
-	pr_info("sw_ctx_id=%d, hw_ctx_id=%d, mode=%d, cnt=%d\n", pctx_hw->node_id, hw_ctx_id, mode, atomic_read(&pctx_hw->user_cnt));
+	pr_info("node_id=%d, hw_ctx_id=%d, mode=%d, cnt=%d\n", pctx_hw->node_id, hw_ctx_id, mode, atomic_read(&pctx_hw->user_cnt));
 	return 0;
 }
 
@@ -375,7 +375,7 @@ static int dcamcore_ctx_unbind(void *dev_handle, void *node, uint32_t node_id)
 				continue;
 
 		if (atomic_dec_return(&pctx_hw->user_cnt) == 0) {
-			pr_info("sw_id=%d, hw_id=%d unbind success\n", node_id, pctx_hw->hw_ctx_id);
+			pr_info("node_id=%d, hw_id=%d unbind success\n", node_id, pctx_hw->hw_ctx_id);
 			cam_queue_clear(&pctx_hw->dcam_irq_sts_q, struct camera_interrupt, list);
 			while (pctx_hw->in_irq_proc && loop < 1000) {
 				pr_debug("ctx % in irq. wait %d", pctx_hw->hw_ctx_id, loop);
@@ -391,7 +391,7 @@ static int dcamcore_ctx_unbind(void *dev_handle, void *node, uint32_t node_id)
 
 		cnt = atomic_read(&pctx_hw->user_cnt);
 		if (cnt >= 1) {
-			pr_info("sw id=%d, hw_id=%d, cnt=%d\n", node_id, pctx_hw->hw_ctx_id, cnt);
+			pr_info("node id=%d, hw_id=%d, cnt=%d\n", node_id, pctx_hw->hw_ctx_id, cnt);
 		} else {
 			pr_info("should not be here: sw id=%d, hw id=%d, cnt=%d\n",
 				node_id, pctx_hw->hw_ctx_id, cnt);
