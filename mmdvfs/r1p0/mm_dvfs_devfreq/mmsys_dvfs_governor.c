@@ -434,16 +434,18 @@ static int mmsys_dvfs_gov_get_target(struct devfreq *devfreq,
     if (!mmsys->mmsys_dvfs_para.sys_sw_dvfs_en) {
         unsigned long adjusted_freq = *freq;
 
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 15, 0))
         if (devfreq->max_freq && adjusted_freq > devfreq->max_freq)
             adjusted_freq = devfreq->max_freq;
 
         if (devfreq->min_freq && adjusted_freq < devfreq->min_freq)
             adjusted_freq = devfreq->min_freq;
+#endif
         *freq = adjusted_freq;
-    } else {
-        *freq = devfreq->max_freq; /* No user freq specified yet */
-    }
+    } else
+        pr_err("mmsys_dvfs_gov, %s: dvfs unenable", __func__);
 
+    pr_info("mmsys_dvfs_gov, %s: *freq:%lu", __func__, *freq);
     return MM_DVFS_SUCCESS;
 }
 

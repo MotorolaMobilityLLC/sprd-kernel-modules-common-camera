@@ -98,8 +98,7 @@ static int set_work_freq(struct devfreq *devfreq, unsigned long work_freq) {
     index_cfg_reg = DVFS_REG_RD(REG_MM_DVFS_AHB_ISP_DVFS_INDEX_CFG);
     index_cfg_reg = (index_cfg_reg & (~0x7)) | index;
     DVFS_REG_WR(REG_MM_DVFS_AHB_ISP_DVFS_INDEX_CFG, index_cfg_reg);
-    pr_info("dvfs ops: %s, governor: %s, work_freq=%lu, index=%d,\n", __func__,
-            devfreq->governor_name, work_freq, index);
+    pr_info("dvfs ops: %s, isp_work_freq=%lu, index=%d,\n", __func__, work_freq, index);
 
     return MM_DVFS_SUCCESS;
 }
@@ -281,8 +280,11 @@ static int ip_dvfs_init(struct devfreq *devfreq) {
         return -EINVAL;
     }
     isp_dvfs_map_cfg();
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 15, 0))
     devfreq->max_freq = isp_dvfs_config_table[7].clk_freq;
     devfreq->min_freq = isp_dvfs_config_table[0].clk_freq;
+#endif
+
     set_ip_freq_upd_en_byp(ISP_FREQ_UPD_EN_BYP);
     set_ip_freq_upd_delay_en(ISP_FREQ_UPD_DELAY_EN);
     set_ip_freq_upd_hdsk_en(ISP_FREQ_UPD_HDSK_EN);

@@ -122,6 +122,14 @@ static int mmsys_dvfs_probe(struct platform_device *pdev) {
     };
 #endif
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0))
+        ret = dev_pm_opp_of_add_table(dev);
+        if (ret) {
+            dev_err(dev, "mmsys_dvfs: Invalid operating-points in device tree.\n");
+            goto err;
+        }
+#endif
+
     reg_res.start = REGS_MM_DVFS_AHB_START;
     reg_res.end = REGS_MM_DVFS_AHB_END;
     reg_base = ioremap(reg_res.start, reg_res.end - reg_res.start + 1);
