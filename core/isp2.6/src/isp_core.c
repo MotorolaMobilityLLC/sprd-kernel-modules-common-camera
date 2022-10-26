@@ -156,7 +156,7 @@ static void ispcore_src_frame_ret(void *param)
 	frame->param_data = NULL;
 	if (frame->buf.mapping_state & CAM_BUF_MAPPING_DEV)
 		cam_buf_iommu_unmap(&frame->buf);
-	if (!frame->data_src_dec)
+	if (!frame->data_src_dec && pctx->isp_cb_func != NULL)
 		pctx->isp_cb_func(ISP_CB_RET_SRC_BUF, frame, pctx->cb_priv_data);
 }
 
