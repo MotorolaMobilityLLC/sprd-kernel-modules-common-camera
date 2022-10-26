@@ -85,7 +85,6 @@
 #define CAM_VIDEO_LIMIT_H               2160
 #define PRE_RDS_OUT                     3264
 
-unsigned long g_reg_wr_flag;
 spinlock_t g_reg_wr_lock;
 
 enum camera_module_state {

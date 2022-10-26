@@ -83,7 +83,7 @@
 #define DUAL_CAM_ALLOC_BUF_NUM          7
 
 #define PRE_SHARE_BUF                   1
-unsigned long g_reg_wr_flag;
+
 spinlock_t g_reg_wr_lock;
 
 enum camera_module_state {

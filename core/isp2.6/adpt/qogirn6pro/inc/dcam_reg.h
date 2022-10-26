@@ -24,7 +24,6 @@ extern unsigned long g_dcam_phys_base[];
 
 #define DCAM_PATH_CROP_ALIGN                            8
 
-extern unsigned long g_reg_wr_flag;
 extern spinlock_t g_reg_wr_lock;
 
 /* DCAM0/DCAM1 module registers define */
