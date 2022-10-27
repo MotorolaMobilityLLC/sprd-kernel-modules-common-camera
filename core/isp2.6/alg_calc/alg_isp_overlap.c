@@ -2567,18 +2567,20 @@ int isp_init_param_for_overlap_v2(
 			ISP_OVERLAP_DEBUG("get calc result: slice id %d, fetch0 region (%d, %d, %d, %d)\n",
 				i, slice_overlap->fecth0_slice_region[j][i].sx, slice_overlap->fecth0_slice_region[j][i].sy,
 				slice_overlap->fecth0_slice_region[j][i].ex, slice_overlap->fecth0_slice_region[j][i].ey);
-			ISP_OVERLAP_DEBUG("get calc result: slice id %d, fetch1 region (%d, %d, %d, %d)\n",
-				i, slice_overlap->fecth1_slice_region[j][i].sx, slice_overlap->fecth1_slice_region[j][i].sy,
-				slice_overlap->fecth1_slice_region[j][i].ex, slice_overlap->fecth1_slice_region[j][i].ey);
 			ISP_OVERLAP_DEBUG("get calc result: slice id %d, fetch0 overlap (left %d, right %d)\n",
 				i, slice_overlap->fecth0_slice_overlap[j][i].ov_left, slice_overlap->fecth0_slice_overlap[j][i].ov_right);
-			ISP_OVERLAP_DEBUG("get calc result: slice id %d, store region (%d, %d, %d, %d)\n",
-				i, slice_overlap->store_rec_slice_region[j][i].sx, slice_overlap->store_rec_slice_region[j][i].sy,
-				slice_overlap->store_rec_slice_region[j][i].ex, slice_overlap->store_rec_slice_region[j][i].ey);
-			ISP_OVERLAP_DEBUG("get calc result: slice id %d, store rec overlap (left %d, right %d)\n",
-				i, slice_overlap->store_rec_slice_overlap[j][i].ov_left, slice_overlap->store_rec_slice_overlap[j][i].ov_right);
-			ISP_OVERLAP_DEBUG("get calc result: slice id %d, store_crop overlap (left %d, right %d )\n",
-				i, slice_overlap->store_rec_slice_crop_overlap[j][i].ov_left, slice_overlap->store_rec_slice_crop_overlap[j][i].ov_right);
+			if (j != layer_num) {
+				ISP_OVERLAP_DEBUG("get calc result: slice id %d, fetch1 region (%d, %d, %d, %d)\n",
+					i, slice_overlap->fecth1_slice_region[j][i].sx, slice_overlap->fecth1_slice_region[j][i].sy,
+					slice_overlap->fecth1_slice_region[j][i].ex, slice_overlap->fecth1_slice_region[j][i].ey);
+				ISP_OVERLAP_DEBUG("get calc result: slice id %d, store region (%d, %d, %d, %d)\n",
+					i, slice_overlap->store_rec_slice_region[j][i].sx, slice_overlap->store_rec_slice_region[j][i].sy,
+					slice_overlap->store_rec_slice_region[j][i].ex, slice_overlap->store_rec_slice_region[j][i].ey);
+				ISP_OVERLAP_DEBUG("get calc result: slice id %d, store rec overlap (left %d, right %d)\n",
+					i, slice_overlap->store_rec_slice_overlap[j][i].ov_left, slice_overlap->store_rec_slice_overlap[j][i].ov_right);
+				ISP_OVERLAP_DEBUG("get calc result: slice id %d, store_crop overlap (left %d, right %d )\n",
+					i, slice_overlap->store_rec_slice_crop_overlap[j][i].ov_left, slice_overlap->store_rec_slice_crop_overlap[j][i].ov_right);
+			}
 		}
 	}
 
