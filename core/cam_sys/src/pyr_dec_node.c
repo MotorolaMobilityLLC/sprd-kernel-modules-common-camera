@@ -1211,6 +1211,14 @@ static int pyr_dec_node_start_proc(void *handle)
 		goto map_err;
 	}
 
+#if defined (PROJ_QOGIRN6L)
+	ret = cam_buf_kmap(&pframe->buf);
+	ret = cam_buf_kmap(&node->buf_out->buf);
+	memcpy((void*)(node->buf_out->buf.addr_k), (void*)(pframe->buf.addr_k), pframe->buf.size);
+	ret = cam_buf_kunmap(&pframe->buf);
+	ret = cam_buf_kunmap(&node->buf_out->buf);
+#endif
+
 	if (pframe->is_compressed)
 		ret = pyrdec_node_afbd_get(node->in_fmt, &node->yuv_afbd_info, pframe);
 
