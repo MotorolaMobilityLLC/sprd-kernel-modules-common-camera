@@ -1704,7 +1704,8 @@ static int camcore_pipeline_callback(enum cam_cb_type type, void *param, void *p
 		}
 		break;
 	case CAM_CB_DCAM_RET_SRC_BUF:
-		pr_info("dcam src buf return mfd %d\n", pframe->buf.mfd);
+	case CAM_CB_ISP_SCALE_RET_ISP_BUF:
+		pr_info("user buf return type:%d mfd %d\n", type, pframe->buf.mfd);
 		cam_buf_ionbuf_put(&pframe->buf);
 		cam_queue_empty_frame_put(pframe);
 		break;

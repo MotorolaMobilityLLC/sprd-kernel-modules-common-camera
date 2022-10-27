@@ -1088,6 +1088,7 @@ static int campipeline_callback(enum cam_cb_type type, void *param, void *priv_d
 	case CAM_CB_FRAME_CACHE_RET_SRC_BUF:
 	case CAM_CB_PYRDEC_RET_SRC_BUF:
 	case CAM_CB_COPY_SRC_BUFFER:
+	case CAM_CB_ISP_SCALE_RET_ISP_BUF:
 		ret = campipeline_src_cb_proc(type, pframe, pipeline);
 		break;
 	default :

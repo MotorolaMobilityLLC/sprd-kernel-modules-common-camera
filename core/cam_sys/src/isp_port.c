@@ -274,7 +274,7 @@ static int ispport_storeport_postproc(struct isp_port *port, void *param)
 	} else if (pframe->state == ISP_STREAM_POST_PROC) {
 		pframe1 = cam_queue_dequeue(&port->out_buf_queue, struct camera_frame, list);
 		if (!pframe1) {
-			pr_err("fail to get frame from queue\n");
+			pr_info("warning no frame get from queue\n");
 			return 0;
 		}
 		pframe->pframe_data = pframe1;
@@ -1466,6 +1466,8 @@ static int ispport_fast_stop(struct isp_port *port, void *param)
 		}
 		if (unlikely(pframe->is_reserved)) {
 			port->resbuf_get_cb(RESERVED_BUF_SET_CB, pframe, port->resbuf_cb_data);
+		} else if (pframe->state == ISP_STREAM_POST_PROC) {
+			cam_buf_iommu_unmap(&pframe->buf);
 		} else {
 			if (pframe->buf.mfd == port->reserved_buf_fd) {
 				pframe->buf.size = port->reserve_buf_size;

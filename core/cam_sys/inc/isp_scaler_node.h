@@ -65,6 +65,7 @@ enum isp_yuv_scaler_node_cfg_cmd {
 	ISP_YUV_SCALER_NODE_CFG_PORT_UFRAME,
 	ISP_YUV_SCALER_NODE_CFG_PORT_BUF,
 	ISP_YUV_SCALER_NODE_CFG_RESERVE_BUF,
+	ISP_YUV_SCALER_NODE_CFG_FAST_STOP,
 	ISP_YUV_SCALER_NODE_CFG_MAX,
 };
 
@@ -100,6 +101,8 @@ struct isp_yuv_scaler_node {
 	void *data_cb_handle;
 	reserved_buf_get_cb resbuf_get_cb;
 	void *resbuf_cb_data;
+	struct completion *fast_stop_done;
+	uint32_t is_fast_stop;
 	struct isp_pipe_dev *dev;
 	struct isp_scaler_uinfo pipe_src;
 	struct isp_scaler_uinfo uinfo;
