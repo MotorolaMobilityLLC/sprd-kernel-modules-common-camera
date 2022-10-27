@@ -570,9 +570,7 @@ struct cam_hw_gtm_update {
 
 struct dcam_hw_gtm_hist {
 	uint32_t idx;
-	uint32_t *buf;
-	uint32_t hist_total;
-	uint32_t fid;
+	uint32_t *value;
 };
 
 struct dcam_hw_slice_fetch {
@@ -1215,6 +1213,7 @@ struct cam_hw_ip_info {
 	uint32_t dcam_raw_fbc_support;
 	uint32_t dcam_offline_fbc_support;
 	uint32_t dcam_raw_path_id;
+	uint32_t bpc_raw_support;
 	uint32_t pyramid_support;
 	uint32_t fmcu_support;
 	uint32_t sensor_raw_fmt;

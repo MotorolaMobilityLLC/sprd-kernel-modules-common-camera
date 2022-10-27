@@ -177,4 +177,5 @@ int isp_node_request_proc(struct isp_node *node, void *param);
 uint32_t isp_node_config(void *node, enum isp_node_cfg_cmd cmd, void *param);
 int isp_node_prepare_blk_param(struct isp_node *inode, uint32_t target_fid, struct blk_param_info *out);
 void isp_node_offline_pararm_free(void *param);
+void isp_node_param_buf_destroy(void *param);
 #endif

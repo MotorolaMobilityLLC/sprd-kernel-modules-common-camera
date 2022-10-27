@@ -184,6 +184,8 @@ struct dcam_hw_context {
 	dcam_irq_proc_cb dcam_irq_cb_func;
 	struct cam_thread_info dcam_irq_proc_thrd;
 	struct camera_queue dcam_irq_sts_q;
+	spinlock_t ghist_read_lock;
+	uint32_t gtm_hist_value[GTM_HIST_VALUE_SIZE];
 };
 
 struct dcam_pipe_dev {

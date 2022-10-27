@@ -55,6 +55,8 @@ int init_dcam_pm(struct dcam_isp_k_block *blk_pm_ctx)
 int init_isp_pm(struct dcam_isp_k_block *isp_k_param)
 {
 	isp_k_param->nlm_info_base.bypass = 1;
+	isp_k_param->nlm_info_base.vst_bypass = 1;
+	isp_k_param->nlm_info_base.ivst_bypass = 1;
 	isp_k_param->nr3_info_base.blend.bypass = 1;
 
 	/* sharkl3 only */
@@ -79,7 +81,6 @@ int init_isp_pm(struct dcam_isp_k_block *isp_k_param)
 	isp_k_param->gamma_info.bypass = 1;
 	isp_k_param->hsv_info.bypass = 1;
 	isp_k_param->iircnr_info.bypass = 1;
-	isp_k_param->nlm_info.bypass = 1;
 	isp_k_param->ygamma_info.bypass = 1;
 	isp_k_param->yrandom_info.bypass = 1;
 	isp_k_param->nf_info.yrandom_bypass = 1;

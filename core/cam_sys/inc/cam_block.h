@@ -75,11 +75,6 @@ struct dcam_isp_k_block {
 	struct dcam_dev_pdaf_param pdaf;
 
 	struct isp_dev_nlm_info_v2 nlm_info_base;
-	struct isp_dev_nlm_info_v2 nlm_info2;
-	struct isp_dev_nlm_imblance imblance_info_v0;
-	struct isp_dev_nlm_imblance_v1 imblance_info;
-	struct isp_dev_nlm_imblance_v2 imblance_info2;
-	struct isp_dev_nlm_imblance_v2 nlm_imblance2;
 	struct isp_dev_nlm_imblance imbalance_info_v0_base;
 	struct isp_dev_nlm_imblance_v1 imbalance_info_base;
 	struct isp_dev_nlm_imblance_v2 imbalance_info_base2;
@@ -138,7 +133,6 @@ struct dcam_isp_k_block {
 	struct isp_dev_gamma_info gamma_info;
 	struct isp_dev_hsv_info_v2 hsv_info;
 	struct isp_dev_iircnr_info iircnr_info;
-	struct isp_dev_nlm_info_v2 nlm_info;
 	struct isp_dev_ygamma_info ygamma_info;
 	struct isp_dev_ygamma_info_v1 ygamma_info_v1;
 	struct isp_dev_yrandom_info yrandom_info;
@@ -368,7 +362,7 @@ int isp_pyr_rec_share_config(void *handle);
 int isp_pyr_rec_frame_config(void *handle);
 int isp_pyr_rec_slice_config(void *handle);
 int isp_pyr_rec_slice_common_config(void *handle);
-int isp_k_gtm_block(void *pctx, void *param, void *param2);
+int isp_k_gtm_block(void *pctx, void *param);
 int pyr_dec_irq_func(void *handle);
 int pyr_dec_config(void *handle);
 int isp_k_gtm_mapping_set(void *param);

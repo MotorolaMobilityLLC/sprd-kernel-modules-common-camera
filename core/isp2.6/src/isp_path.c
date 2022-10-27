@@ -431,7 +431,7 @@ int isp_path_storecomn_uinfo_set(struct isp_path_uinfo *path, void *param)
 	path->slave_path_id = cfg_in->slave_path_id;
 	path->dst = cfg_in->output_size;
 	path->data_in_bits = cfg_in->data_bits;
-	pr_debug("isp %d dst w %d h %d\n", path->dst.w, path->dst.h);
+	pr_debug("dst w %d h %d\n", path->dst.w, path->dst.h);
 
 	return ret;
 }

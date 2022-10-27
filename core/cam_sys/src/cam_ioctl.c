@@ -404,9 +404,7 @@ static int camioctl_param_cfg(struct camera_module *module, unsigned long arg)
 					ret = CAM_PIPEINE_ISP_NODE_CFG(channel, CAM_PIPELINE_CFG_BLK_PARAM, &param);
 			}
 			goto exit;
-		} else if (dev && !dev->hw->ip_isp->rgb_gtm_support && (param.sub_block == DCAM_BLOCK_GTM))
-			goto exit;
-
+		}
 		/* Temp add for dcam offline node raw capture */
 		if (for_capture && (module->capture_type == CAM_CAPTURE_RAWPROC
 			|| module->cam_uinfo.dcam_slice_mode || module->cam_uinfo.is_4in1
@@ -1272,7 +1270,7 @@ static int camioctl_frame_addr_set(struct camera_module *module,
 				pframe->irq_property = CAM_FRAME_ORIGINAL_RAW;
 				ret = CAM_PIPEINE_DCAM_ONLINE_OUT_PORT_CFG(ch, dcamonline_pathid_convert_to_portid(DCAM_PATH_RAW),
 					CAM_PIPELINE_CFG_BUF, pframe);
-			} else if (ch->ch_id == CAM_CH_RAW && module->cam_uinfo.need_dcam_raw && module->grp->hw_info->ip_isp->fetch_raw_support){
+			} else if (ch->ch_id == CAM_CH_RAW && module->cam_uinfo.need_dcam_raw && module->grp->hw_info->ip_isp->fetch_raw_support && ch_cap->enable){
 				if (ch->ch_uinfo.dst_size.w == ch_cap->ch_uinfo.dst_size.w) {
 					pr_debug("cap path copy\n");
 					ret = CAM_PIPEINE_DATA_COPY_NODE_CFG(ch_cap, CAM_PIPELINE_CFG_BUF, pframe);
@@ -1490,14 +1488,7 @@ static int camioctl_stream_off(struct camera_module *module,
 		ch->ch_uinfo.dcam_raw_fmt = -1;
 		ch->ch_uinfo.sensor_raw_fmt = -1;
 		ch->blk_pm.idx = DCAM_HW_CONTEXT_MAX;
-		ch->blk_pm.aem.bypass = 1;
-		ch->blk_pm.afm.bypass = 1;
-		ch->blk_pm.afl.afl_info.bypass = 1;
-		ch->blk_pm.hist.bayerHist_info.hist_bypass = 1;
-		ch->blk_pm.hist_roi.hist_roi_info.bypass = 1;
-		ch->blk_pm.lscm.bypass = 1;
-		ch->blk_pm.rgb_gtm[DCAM_GTM_PARAM_PRE].update_en = 1;
-		ch->blk_pm.rgb_gtm[DCAM_GTM_PARAM_CAP].update_en = 1;
+		init_dcam_pm(&ch->blk_pm);
 		init_completion(&ch->alloc_com);
 		init_completion(&ch->fast_stop);
 	}

@@ -19,7 +19,6 @@
 #define IMG_TYPE_RAW10                 0x2B
 #define IMG_TYPE_RAW8                  0x2A
 #define IMG_TYPE_YUV                   0x1E
-#define GTM_HIST_ITEM_NUM              128
 
 static uint32_t g_ltm_bypass = 1;
 static atomic_t clk_users;
@@ -1523,6 +1522,8 @@ static int dcamhw_get_gtm_hist(void *handle, void *arg)
 	struct dcam_hw_gtm_hist *param = NULL;
 	uint32_t idx = 0;
 	int i = 0;
+	uint32_t *buf = NULL;
+	uint32_t sum = 0;
 
 	if (!arg) {
 		pr_err("fail to get gtm hist\n");
@@ -1531,13 +1532,18 @@ static int dcamhw_get_gtm_hist(void *handle, void *arg)
 
 	param = (struct dcam_hw_gtm_hist *)arg;
 	idx = param->idx;
-
-	for (i = 0; i < GTM_HIST_ITEM_NUM; i++) {
-		param->buf[i] = DCAM_REG_RD(idx, GTM_HIST_CNT + i * 4);
+	buf = param->value;
+	if (!buf) {
+		pr_err("fail to get gtm buffer\n");
+		return -1;
 	}
 
-	param->buf[i++] = param->hist_total;
-	param->buf[i] = param->fid;
+	for (i = 0; i < GTM_HIST_ITEM_NUM; i++) {
+		buf[i] = DCAM_REG_RD(idx, GTM_HIST_CNT + i * 4);
+		sum += buf[i];
+	}
+
+	buf[i++] = sum;
 
 	return 0;
 }

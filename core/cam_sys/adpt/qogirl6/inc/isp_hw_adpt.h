@@ -40,5 +40,6 @@
 #define ISP_FBD_TILE_HEIGHT             4
 
 #define ISP_LTM_ALIGNMENT               2
+#define GTM_HIST_ITEM_NUM               128
 
 #endif

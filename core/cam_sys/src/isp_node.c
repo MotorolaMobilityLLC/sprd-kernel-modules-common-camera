@@ -860,6 +860,7 @@ static int ispnode_start_proc(void *node)
 	pctx_hw->isp_using_param = inode->isp_using_param;
 	pctx_hw->pyr_layer_num = inode->uinfo.pyr_layer_num;
 	pctx_hw->wmode = dev->wmode;
+	pctx_hw->valid_slc_num = 0;
 	if (pctx_hw->fmcu_handle || slice_need) {
 		ret = isp_hwctx_slice_ctx_init(pctx_hw, &pctx_hw->pipe_info);
 		isp_hwctx_fmcu_reset(pctx_hw);
@@ -1123,7 +1124,7 @@ static int ispnode_param_buf_init(struct camera_frame *cfg_frame)
 	return ret;
 }
 
-static void ispnode_param_buf_destroy(void *param)
+void isp_node_param_buf_destroy(void *param)
 {
 	struct camera_frame *frame = NULL;
 	int ret = 0;
@@ -1636,8 +1637,8 @@ void *isp_node_get(uint32_t node_id, struct isp_node_desc *param)
 		goto thread_err;
 	}
 	mutex_init(&node->blkpm_q_lock);
-	cam_queue_init(&node->param_share_queue, param->blkparam_node_num, ispnode_param_buf_destroy);
-	cam_queue_init(&node->param_buf_queue, param->blkparam_node_num, ispnode_param_buf_destroy);
+	cam_queue_init(&node->param_share_queue, param->blkparam_node_num, isp_node_param_buf_destroy);
+	cam_queue_init(&node->param_buf_queue, param->blkparam_node_num, isp_node_param_buf_destroy);
 	cam_queue_init(&node->isp_interrupt_queue, ISP_IRQ_Q_LEN, cam_queue_empty_interrupt_put);
 	for (i = 0; i < param->blkparam_node_num; i++) {
 		pframe_param = cam_queue_empty_frame_get();

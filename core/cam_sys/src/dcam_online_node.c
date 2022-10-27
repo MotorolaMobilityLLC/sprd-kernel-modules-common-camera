@@ -759,11 +759,13 @@ static int dcamonline_done_proc(void *param, void *handle, struct dcam_hw_contex
 	uint32_t mv_ready = 0;
 	struct isp_dev_hist2_info *p = NULL;
 	uint32_t *buf = NULL;
-	struct dcam_hw_gtm_hist gtm_hist = {0};
-	struct cam_hw_info *hw = NULL;
 	struct dcam_pipe_dev *dcam_dev = NULL;
 	struct camera_buf_get_desc buf_desc = {0};
 	struct dcam_offline_slice_info *slice_info = NULL;
+	uint32_t sum = 0;
+	uint32_t w = 0;
+	uint32_t h = 0;
+	unsigned long flag = 0;
 
 	node = (struct dcam_online_node *)handle;
 	irq_proc = (struct dcam_irq_proc *)param;
@@ -990,18 +992,19 @@ static int dcamonline_done_proc(void *param, void *handle, struct dcam_hw_contex
 				break;
 			}
 
-			hw = dcam_dev->hw;
-			if (!hw) {
-				pr_err("fail to get hw_info, hw ctx id%d\n", node->hw_ctx_id);
-				ret = -EFAULT;
+			spin_lock_irqsave(&hw_ctx->ghist_read_lock, flag);
+			memcpy(buf, hw_ctx->gtm_hist_value, sizeof(uint32_t) * GTM_HIST_VALUE_SIZE);
+			spin_unlock_irqrestore(&hw_ctx->ghist_read_lock, flag);
+
+			sum = buf[GTM_HIST_ITEM_NUM];
+			w = hw_ctx->cap_info.cap_size.size_x;
+			h = hw_ctx->cap_info.cap_size.size_y;
+			if (sum != (w * h)) {
+				pr_debug("pixel num check wrong, fid %d, sum %d, should be %d\n", frame->fid, sum, (w * h));
+				cam_buf_manager_buf_enqueue(&dcam_port->unprocess_pool, frame, NULL);
 				break;
 			}
-
-			gtm_hist.idx = node->hw_ctx_id;
-			gtm_hist.hist_total = node->cap_info.cap_size.size_x * node->cap_info.cap_size.size_y;
-			gtm_hist.fid = frame->fid;
-			gtm_hist.buf = buf;
-			hw->dcam_ioctl(hw, DCAM_HW_CFG_GTM_HIST_GET, &gtm_hist);
+			buf[GTM_HIST_ITEM_NUM + 1] = frame->fid;
 			irq_proc->param = frame;
 			irq_proc->type = CAM_CB_DCAM_STATIS_DONE;
 			dcamonline_frame_dispatch(irq_proc, node);

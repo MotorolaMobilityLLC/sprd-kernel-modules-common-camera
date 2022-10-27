@@ -421,7 +421,6 @@ int isp_k_cfg_nlm(struct isp_io_param *param,
 		}
 		p->ivst_bypass = p->bypass;
 		p->vst_bypass = p->bypass;
-		memcpy(&isp_k_param->nlm_info, p, sizeof(struct isp_dev_nlm_info_v2));
 		ret = isp_k_save_vst_ivst(isp_k_param);
 		if (ret) {
 			pr_err("fail to copy from user ret=0x%x\n", (unsigned int)ret);
@@ -430,12 +429,11 @@ int isp_k_cfg_nlm(struct isp_io_param *param,
 		isp_k_param->nlm_info_base.isupdate = 1;
 		break;
 	case ISP_PRO_NLM_IMBLANCE:
-		ret = copy_from_user((void *)imblance_info, (void __user *)param->property_param, sizeof(struct isp_dev_nlm_imblance_v1));
+		ret = copy_from_user((void *)imblance_info, (void __user *)param->property_param, sizeof(struct isp_dev_nlm_imblance_v2));
 		if (ret != 0) {
 			pr_err("fail to copy from user, ret = %d\n", ret);
 			return  ret;
 		}
-		memcpy(&isp_k_param->imblance_info2, imblance_info, sizeof(struct isp_dev_nlm_imblance_v1));
 		isp_k_param->imbalance_info_base2.isupdate = 1;
 		break;
 	default:
@@ -457,7 +455,7 @@ int isp_k_update_nlm(void *handle)
 	uint32_t filter_ratio = 0, coef2 = 0, flat_thresh_coef = 0;
 	uint32_t idx = 0,new_width = 0, old_width = 0;
 	uint32_t new_height = 0, old_height = 0;
-	struct isp_dev_nlm_info_v2 *p = NULL, *pdst = NULL;
+	struct isp_dev_nlm_info_v2 *p = NULL;
 	struct isp_k_block_param *block_param = NULL;
 
 	if (!handle) {
@@ -467,7 +465,6 @@ int isp_k_update_nlm(void *handle)
 
 	block_param = (struct isp_k_block_param *)handle;
 	idx = block_param->cfg_id;
-	pdst = &block_param->isp_using_param->nlm_info;
 	if (!block_param->isp_using_param) {
 		pr_err("fail to get param\n");
 		return -EFAULT;
@@ -495,7 +492,6 @@ int isp_k_update_nlm(void *handle)
 	radius_threshold = (radius_threshold < radius_limit) ? radius_threshold : radius_limit;
 	ISP_REG_MWR(idx, ISP_NLM_RADIAL_1D_THRESHOLD, 0x7FFF, radius_threshold);
 
-	pdst->nlm_radial_1D_radius_threshold = radius_threshold;
 	pr_debug("center (%d %d)  raius %d  (%d %d), new %d\n",
 		center_x, center_y, p->nlm_radial_1D_radius_threshold,
 		r_factor, r_base, radius_threshold);
@@ -525,9 +521,6 @@ int isp_k_update_nlm(void *handle)
 			ISP_NLM_RADIAL_1D_RATIO + i * 16 + j * 4,
 			0x3FFF0000, (coef2 << 16));
 
-		pdst->nlm_radial_1D_radius_threshold_filter_ratio[i][j] = filter_ratio;
-		pdst->nlm_radial_1D_coef2[i][j] = coef2;
-
 		if (j < 3) {
 			flat_thresh_coef =
 				p->nlm_first_lum_flat_thresh_coef[i][j];
@@ -537,8 +530,6 @@ int isp_k_update_nlm(void *handle)
 			ISP_REG_MWR(idx,
 				ISP_NLM_RADIAL_1D_THR0 + i * 12 + j * 4,
 				0x7FFF, flat_thresh_coef);
-
-			pdst->nlm_first_lum_flat_thresh_coef[i][j] = flat_thresh_coef;
 		}
 		if (loop == 0)
 			pr_debug("filter coef2 flat (%d %d %d) (%d %d %d)\n",
@@ -558,7 +549,7 @@ int isp_k_update_imbalance(void *handle)
 	uint32_t radius = 0, radius_limit = 0;
 	uint32_t idx = 0, new_width = 0, old_width = 0;
 	uint32_t new_height = 0, old_height = 0;
-	struct isp_dev_nlm_imblance_v2 *imbalance_info = NULL, *pdst = NULL;
+	struct isp_dev_nlm_imblance_v2 *imbalance_info = NULL;
 	struct isp_k_block_param *block_param = NULL;
 
 	if (!handle) {
@@ -581,8 +572,6 @@ int isp_k_update_imbalance(void *handle)
 	if (imbalance_info->nlm_imblance_bypass)
 		return 0;
 
-	pdst = &block_param->isp_using_param->imblance_info2;
-
 	center_x = new_width >> 1;
 	center_y = new_height >> 1;
 	val = (center_x << 16) | center_y;
@@ -598,10 +587,6 @@ int isp_k_update_imbalance(void *handle)
 	val = radius;
 	ISP_REG_WR(idx, ISP_NLM_IMBLANCE_PARA29, val);
 
-	pdst->imblance_radial_1D_center_x = center_x;
-	pdst->imblance_radial_1D_center_y = center_y;
-	pdst->imblance_radial_1D_radius_thr = radius;
-
 	pr_debug("center %d %d,  orig radius %d %d, base %d, new %d %d\n",
 		center_x, center_y, imbalance_info->imblance_radial_1D_radius_thr,
 		imbalance_info->imblance_radial_1D_radius_thr_factor,
@@ -614,7 +599,6 @@ int isp_k_cpy_nlm(struct dcam_isp_k_block *param_block, struct dcam_isp_k_block 
 {
 	if (isp_k_param->nlm_info_base.isupdate == 1) {
 		memcpy(&param_block->nlm_info_base, &isp_k_param->nlm_info_base, sizeof(struct isp_dev_nlm_info_v2));
-		memcpy(&param_block->nlm_info, &param_block->nlm_info_base, sizeof(struct isp_dev_nlm_info_v2));
 		memcpy(&param_block->vst_buf, &isp_k_param->vst_buf, sizeof(uint32_t) * ISP_VST_IVST_NUM2);
 		memcpy(&param_block->ivst_buf, &isp_k_param->ivst_buf, sizeof(uint32_t) * ISP_VST_IVST_NUM2);
 		isp_k_param->nlm_info_base.isupdate = 0;

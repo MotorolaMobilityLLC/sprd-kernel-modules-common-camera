@@ -486,7 +486,7 @@ static int camnode_cfg_node_param_isp_offline(void *handle, enum cam_node_cfg_cm
 	int ret = 0;
 	struct cam_node *node = NULL;
 	struct cam_node_cfg_param *in_param = NULL;
-
+	struct camera_frame *pframe = NULL;
 	if (!handle || !param) {
 		pr_err("fail to get valid input ptr %px %px\n", handle, param);
 		return -EFAULT;
@@ -554,7 +554,17 @@ static int camnode_cfg_node_param_isp_offline(void *handle, enum cam_node_cfg_cm
 		ret = isp_node_config(node->handle, ISP_NODE_CFG_SUPERZOOM_BUF, in_param->param);
 		break;
 	case CAM_NODE_RECYCLE_BLK_PARAM:
-		ret = isp_node_config(node->handle, ISP_NODE_CFG_RECYCLE_BLK_PARAM, in_param->param);
+		if (node->handle)
+			ret = isp_node_config(node->handle, ISP_NODE_CFG_RECYCLE_BLK_PARAM, in_param->param);
+		else {
+			pframe = (struct camera_frame *)in_param->param;
+			pframe->blkparam_info.update = 0;
+			pframe->blkparam_info.param_block = NULL;
+			if (pframe->blkparam_info.blk_param_node) {
+				isp_node_param_buf_destroy(pframe->blkparam_info.blk_param_node);
+				pframe->blkparam_info.blk_param_node = NULL;
+			}
+		}
 		break;
 	default:
 		pr_err("fail to support node: %s cmd: %d\n", cam_node_name_get(node->node_graph->type), cmd);
@@ -1344,6 +1354,7 @@ void cam_node_destory(struct cam_node *node)
 		pr_err("fail to support node type %d\n", node->node_graph->type);
 		break;
 	}
+	node->handle = NULL;
 
 	for (i = CAM_NODE_PORT_OUT_NUM - 1; i >= 0; i--) {
 		if (node->node_graph->outport[i].link_state != PORT_LINK_NORMAL)
@@ -1359,7 +1370,6 @@ void cam_node_destory(struct cam_node *node)
 		node->inport_list[i] = NULL;
 	}
 
-	node->handle = NULL;
 	vfree(node);
 	node = NULL;
 }

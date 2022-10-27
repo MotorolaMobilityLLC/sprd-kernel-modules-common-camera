@@ -238,8 +238,6 @@ static int ispgtm_pipe_proc(void *handle, void *param, void *param2)
 		gtm_k_block.ctx = gtm_ctx;
 		gtm_k_block.tuning = (struct dcam_dev_raw_gtm_block_info *)param;
 
-		if (gtm_ctx->fid == 0)
-			gtm_k_block.map= (struct cam_gtm_mapping *)param2;
 		gtm_func.index = ISP_K_GTM_BLOCK_SET;
 		gtm_ctx->hw->isp_ioctl(gtm_ctx->hw, ISP_HW_CFG_GTM_FUNC_GET, &gtm_func);
 		gtm_func.k_blk_func(&gtm_k_block);

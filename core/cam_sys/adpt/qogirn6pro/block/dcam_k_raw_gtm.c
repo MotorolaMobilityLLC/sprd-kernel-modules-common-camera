@@ -32,15 +32,16 @@ void dcam_k_raw_gtm_set_default(struct dcam_dev_rgb_gtm_block_info *p)
 	p->gtm_tm_out_bit_depth = 0xE;
 	p->gtm_tm_in_bit_depth = 0xE;
 	p->gtm_cur_is_first_frame = 0x0;
-	p->gtm_log_diff = 0x6D801;
-	p->gtm_log_diff_int = 0x4AD;
+	p->gtm_log_diff = 0xBBC84;
+	p->gtm_log_diff_int = 0x2BA;
 	p->gtm_log_max_int = 0x0;
-	p->gtm_log_min_int = 0x7800;
-	p->gtm_lr_int = 0x7FFF;
+	p->gtm_log_min_int = 0x7F44;
+	p->gtm_lr_int = 0xF04D;
 	p->gtm_tm_param_calc_by_hw = 0x1;
 	p->gtm_yavg = 0xA9E;
 	p->gtm_ymax = 0x3FFF;
 	p->gtm_ymin = 0x2;
+	p->gtm_target_norm = 0xFAF;
 	p->tm_lumafilter_shift = 0x6;
 	p->slice.gtm_slice_line_startpos = 0x0;
 	p->slice.gtm_slice_line_endpos = 0x0;
@@ -96,8 +97,6 @@ int dcam_k_raw_gtm_block(uint32_t gtm_param_idx,
 		return 0;
 	}
 
-	dcam_k_raw_gtm_set_default(p);
-
 	if (gtm->gtm_calc_mode == GTM_SW_CALC) {
 		p->gtm_cur_is_first_frame = 1;
 		pr_debug("gtm_sw_calc first frame need gtm map\n");
@@ -107,6 +106,10 @@ int dcam_k_raw_gtm_block(uint32_t gtm_param_idx,
 		p->bypass_info.gtm_map_bypass = 1;
 	}
 
+	pr_debug("ctx %d, gtm hw_ymin %d, target_norm %d, lr_int %d\n",
+		idx, p->gtm_ymin, p->gtm_target_norm, p->gtm_lr_int);
+	pr_debug("ctx %d, gtm log_min_int %d, log_diff_int %d, log_diff %d\n",
+		idx, p->gtm_log_min_int, p->gtm_log_diff_int, p->gtm_log_diff);
 	val = ((p->bypass_info.gtm_map_bypass & 0x1)) |
 		((p->bypass_info.gtm_hist_stat_bypass & 0x1) << 1) |
 		((p->gtm_tm_param_calc_by_sw & 0x1) << 2) |
@@ -115,11 +118,6 @@ int dcam_k_raw_gtm_block(uint32_t gtm_param_idx,
 		((p->gtm_rgb2y_mode & 0x1) << 5);
 	DCAM_REG_MWR(idx, DCAM_GTM_GLB_CTRL, 0x3F, val);
 
-	if (gtm->gtm_calc_mode == GTM_SW_CALC)
-		DCAM_REG_MWR(idx, DCAM_GTM_GLB_CTRL, BIT_2, BIT_2);
-	else
-		DCAM_REG_MWR(idx, DCAM_GTM_GLB_CTRL, BIT_2, 0);
-
 	val = (p->gtm_imgkey_setting_mode & 0x1) | ((p->gtm_imgkey_setting_value & 0x7FFF) << 4);
 	DCAM_REG_MWR(idx, GTM_HIST_CTRL0, 0x7FFF1, val);
 
@@ -127,6 +125,19 @@ int dcam_k_raw_gtm_block(uint32_t gtm_param_idx,
 		| ((p->gtm_target_norm & 0xFFF) << 4)
 		| ((p->gtm_target_norm_coeff & 0x3FFF) << 16);
 	DCAM_REG_MWR(idx, GTM_HIST_CTRL1, 0x3FFFFFF1, val);
+
+	if (gtm->gtm_calc_mode == GTM_SW_CALC) {
+		DCAM_REG_MWR(idx, DCAM_GTM_GLB_CTRL, BIT_2, BIT_2);
+		DCAM_REG_MWR(idx, DCAM_GTM_GLB_CTRL, BIT_3, BIT_3);
+		DCAM_REG_MWR(idx, GTM_HIST_CTRL0, BIT_0, 0);
+		DCAM_REG_MWR(idx, GTM_HIST_CTRL1, BIT_0, 0);
+	}
+	else {
+		DCAM_REG_MWR(idx, DCAM_GTM_GLB_CTRL, BIT_2, 0);
+		DCAM_REG_MWR(idx, DCAM_GTM_GLB_CTRL, BIT_3, BIT_3);
+		DCAM_REG_MWR(idx, GTM_HIST_CTRL0, BIT_0, BIT_0);
+		DCAM_REG_MWR(idx, GTM_HIST_CTRL1, BIT_0, BIT_0);
+	}
 
 	val = p->gtm_ymin & 0x3FFF;
 	DCAM_REG_MWR(idx, GTM_HIST_YMIN, 0x3FFF, val);
@@ -205,49 +216,47 @@ int dcam_k_raw_gtm_block(uint32_t gtm_param_idx,
 	return ret;
 }
 
-int dcam_k_rgb_gtm_mapping(struct cam_gtm_mapping *param)
+int dcam_k_rgb_gtm_mapping(struct dcam_dev_rgb_gtm_block_info *p, uint32_t idx)
 {
-	uint32_t idx = 0;
 	uint32_t val = 0;
 
-	if (!param) {
+	if (!p) {
 		pr_err("fail to input ptr NULL\n");
 		return -1;
 	}
 
-	idx = param->idx;
-
 	if (g_dcam_bypass[idx] & (1 << _EISP_GTM))
 		return 0;
 
-	if ((!param->ymin) && (!param->target) && (!param->lr_int) && (!param->log_min_int) && (!param->log_diff_int) && (!param->diff)) {
+	if ((!p->gtm_ymin) && (!p->gtm_target_norm) && (!p->gtm_lr_int) && (!p->gtm_log_min_int) &&
+		(!p->gtm_log_diff_int) && (!p->gtm_log_diff)) {
 		pr_err("fail to get normal mapping param\n");
 		DCAM_REG_MWR(idx, DCAM_GTM_GLB_CTRL, BIT_0, BIT_0);
 		return -1;
 	}
 
-	val = ((param->ymin & 0x3FFF) << 0);
+	val = ((p->gtm_ymin & 0x3FFF) << 0);
 	DCAM_REG_MWR(idx, GTM_HIST_YMIN, 0x3FFF, val);
 
-	val = ((param->target & 0xFFF) << 4);
+	val = ((p->gtm_target_norm & 0xFFF) << 4);
 	DCAM_REG_MWR(idx, GTM_HIST_CTRL1, 0xFFF0, val);
 
-	val = ((param->lr_int & 0xFFFF) << 0) |
-		((param->log_min_int & 0xFFFF) << 16);
+	val = ((p->gtm_lr_int & 0xFFFF) << 0) |
+		((p->gtm_log_min_int & 0xFFFF) << 16);
 	DCAM_REG_MWR(idx, GTM_HIST_CTRL3, 0xFFFFFFFF, val);
 
-	val = ((param->log_diff_int & 0xFFFF) << 16);
+	val = ((p->gtm_log_diff_int & 0xFFFF) << 16);
 	DCAM_REG_MWR(idx,  GTM_HIST_CTRL4, 0xFFFF0000, val);
 
-	val = ((param->diff & 0x1FFFFFFF) << 0);
+	val = ((p->gtm_log_diff & 0x1FFFFFFF) << 0);
 	DCAM_REG_WR(idx, GTM_LOG_DIFF, val);
 
 	DCAM_REG_MWR(idx, DCAM_GTM_GLB_CTRL, BIT_2, BIT_2);
 
 	pr_debug("ctx %d, gtm hw_ymin %d, target_norm %d, lr_int %d\n",
-		idx, param->ymin, param->target, param->lr_int);
+		idx, p->gtm_ymin, p->gtm_target_norm, p->gtm_lr_int);
 	pr_debug("ctx %d, gtm log_min_int %d, log_diff_int %d, log_diff %d\n",
-		idx, param->log_min_int, param->log_diff_int, param->diff);
+		idx, p->gtm_log_min_int, p->gtm_log_diff_int, p->gtm_log_diff);
 
 	return 0;
 }
@@ -278,11 +287,10 @@ int dcam_k_cfg_raw_gtm(struct isp_io_param *param, struct dcam_isp_k_block *p)
 	int ret = 0;
 	uint32_t gtm_param_idx = DCAM_GTM_PARAM_MAX;
 	struct dcam_dev_rgb_gtm_block_info *gtm_block = NULL;
-	struct cam_gtm_mapping *mapping = NULL;
+	struct cam_gtm_mapping map_param = {0};
 	struct dcam_dev_raw_gtm_bypass *gtm_bypass = NULL;
 	uint32_t *calc_mode = NULL;
 
-	pr_debug("dcam%d scene_id %d\n", p->idx, param->scene_id);
 	switch (param->property) {
 	case DCAM_PRO_GTM_BLOCK:
 		if (param->scene_id == PM_SCENE_CAP) {
@@ -301,27 +309,32 @@ int dcam_k_cfg_raw_gtm(struct isp_io_param *param, struct dcam_isp_k_block *p)
 				pr_err("fail to copy, ret=0x%x\n", (unsigned int)ret);
 				return -EPERM;
 			}
-
+			dcam_k_raw_gtm_set_default(gtm_block);
+			pr_debug("dcam%d scene_id %d, hist %d map %d\n",
+				p->idx, param->scene_id, gtm_block->bypass_info.gtm_hist_stat_bypass, gtm_block->bypass_info.gtm_map_bypass);
 			if (p->idx == DCAM_HW_CONTEXT_MAX)
 				return 0;
 
 			dcam_k_raw_gtm_block(gtm_param_idx, p);
 		} else {
 			mutex_lock(&p->param_lock);
-			ret = copy_from_user((void *)&(gtm_block), param->property_param, sizeof(gtm_block));
+			ret = copy_from_user((void *)(gtm_block), param->property_param, sizeof(struct dcam_dev_rgb_gtm_block_info));
 			if (ret) {
 				mutex_unlock(&p->param_lock);
 				pr_err("fail to copy, ret=0x%x\n", (unsigned int)ret);
 				return -EPERM;
 			}
+			dcam_k_raw_gtm_set_default(gtm_block);
+			pr_debug("dcam%d scene_id %d, hist %d map %d\n",
+				p->idx, param->scene_id, gtm_block->bypass_info.gtm_hist_stat_bypass, gtm_block->bypass_info.gtm_map_bypass);
 			mutex_unlock(&p->param_lock);
 		}
 		break;
 	case DCAM_PRO_GTM_MAPPING:
 		if (param->scene_id == PM_SCENE_CAP) {
-			mapping = &p->rgb_gtm[DCAM_GTM_PARAM_CAP].mapping_info;
+			gtm_block = &p->rgb_gtm[DCAM_GTM_PARAM_CAP].rgb_gtm_info;
 		} else if (param->scene_id == PM_SCENE_PRE || param->scene_id == PM_SCENE_VID) {
-			mapping = &p->rgb_gtm[DCAM_GTM_PARAM_PRE].mapping_info;
+			gtm_block = &p->rgb_gtm[DCAM_GTM_PARAM_PRE].rgb_gtm_info;
 		} else {
 			pr_debug("gtm mapping do not support, scene id %d\n", param->scene_id);
 			break;
@@ -329,16 +342,26 @@ int dcam_k_cfg_raw_gtm(struct isp_io_param *param, struct dcam_isp_k_block *p)
 
 		pr_debug("get mapping info, scene_id %d, offline %d\n", param->scene_id, p->offline);
 
-		ret = copy_from_user((void *)mapping, param->property_param, sizeof(struct cam_gtm_mapping));
+		ret = copy_from_user((void *)&map_param, param->property_param, sizeof(struct cam_gtm_mapping));
 		if (ret) {
 			pr_err("fail to copy, ret=0x%x\n", (unsigned int)ret);
 			return -EPERM;
 		}
+		if ((!map_param.ymin) && (!map_param.target) && (!map_param.lr_int) &&
+			(!map_param.log_min_int) && (!map_param.log_diff_int) && (!map_param.diff))
+			break;
+		gtm_block->gtm_lr_int = map_param.lr_int;
+		gtm_block->gtm_ymin = map_param.ymin;
+		gtm_block->gtm_ymax = map_param.ymax;
+		gtm_block->gtm_yavg = map_param.yavg;
+		gtm_block->gtm_target_norm = map_param.target;
+		gtm_block->gtm_log_min_int = map_param.log_min_int;
+		gtm_block->gtm_log_diff_int = map_param.log_diff_int;
+		gtm_block->gtm_log_diff = map_param.diff;
 		if (p->idx == DCAM_HW_CONTEXT_MAX)
 			return 0;
 
-		mapping->idx = p->idx;
-		dcam_k_rgb_gtm_mapping(mapping);
+		dcam_k_rgb_gtm_mapping(gtm_block, p->idx);
 
 		break;
 	case DCAM_PRO_GTM_BYPASS:

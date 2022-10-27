@@ -157,7 +157,8 @@ int dcamoffline_fetch_info_get(struct dcam_sw_context *pctx, struct camera_frame
 	fetch = &pctx->fetch;
 	fetch->pack_bits = pctx->pack_bits;
 	if (val_4in1 == 1) {
-		if (pctx->rps == 1)
+		if (pctx->rps == 1 || pctx->path[DCAM_PATH_FULL].pack_bits == DCAM_RAW_HALFWORD_10 ||
+			pctx->path[DCAM_PATH_BIN].pack_bits == DCAM_RAW_HALFWORD_10)
 			fetch->pack_bits = loose_val;
 		else
 			fetch->pack_bits = 0;

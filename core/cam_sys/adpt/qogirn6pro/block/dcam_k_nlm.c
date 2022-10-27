@@ -43,7 +43,7 @@ static int load_vst_ivst_buf(struct dcam_isp_k_block *p)
 	idx = p->idx;
 	if (idx >= DCAM_HW_CONTEXT_MAX)
 		return 0;
-	nlm_info = &p->nlm_info2;
+	nlm_info = &p->nlm_info_base;
 
 	DCAM_REG_MWR(idx, DCAM_BUF_CTRL, BIT_2 | BIT_1, 3 << 1);
 
@@ -109,7 +109,7 @@ int dcam_k_nlm_block(struct dcam_isp_k_block *p)
 	if (p == NULL)
 		return 0;
 
-	nlm_info2 = &p->nlm_info2;
+	nlm_info2 = &p->nlm_info_base;
 	idx = p->idx;
 	if (idx >= DCAM_HW_CONTEXT_MAX)
 		return 0;
@@ -270,7 +270,7 @@ int dcam_k_nlm_imblance(struct dcam_isp_k_block *p)
 	if (p == NULL)
 		return 0;
 
-	imblance_info = &p->nlm_imblance2;
+	imblance_info = &p->imbalance_info_base2;
 	idx = p->idx;
 	if (idx >= DCAM_HW_CONTEXT_MAX)
 		return 0;
@@ -420,7 +420,7 @@ int dcam_k_save_vst_ivst(struct dcam_isp_k_block *p)
 	if (p == NULL)
 		return 0;
 
-	nlm_info2 = &p->nlm_info2;
+	nlm_info2 = &p->nlm_info_base;
 	if (nlm_info2->vst_bypass == 0 && nlm_info2->vst_table_addr) {
 		buf_len = ISP_VST_IVST_NUM2 * 4;
 		if (nlm_info2->vst_len < (ISP_VST_IVST_NUM2 * 4))
@@ -454,12 +454,12 @@ int dcam_k_cfg_nlm(struct isp_io_param *param, struct dcam_isp_k_block *p)
 
 	switch (param->property) {
 	case ISP_PRO_NLM_BLOCK:
-		pcpy = (void *)&p->nlm_info2;
+		pcpy = (void *)&p->nlm_info_base;
 		size = sizeof(struct isp_dev_nlm_info_v2);
 		sub_func = dcam_k_nlm_block;
 		break;
 	case ISP_PRO_NLM_IMBLANCE:
-		pcpy = (void *)&p->nlm_imblance2;
+		pcpy = (void *)&p->imbalance_info_base2;
 		size = sizeof(struct isp_dev_nlm_imblance_v2);
 		sub_func = dcam_k_nlm_imblance;
 		break;
@@ -474,7 +474,8 @@ int dcam_k_cfg_nlm(struct isp_io_param *param, struct dcam_isp_k_block *p)
 			pr_err("fail to copy from user ret=0x%x\n", (unsigned int)ret);
 			return -EPERM;
 		}
-
+		p->nlm_info_base.vst_bypass = p->nlm_info_base.bypass;
+		p->nlm_info_base.ivst_bypass = p->nlm_info_base.bypass;
 		if (ISP_PRO_NLM_BLOCK == param->property) {
 			ret = dcam_k_save_vst_ivst(p);
 			if (ret) {
@@ -486,13 +487,13 @@ int dcam_k_cfg_nlm(struct isp_io_param *param, struct dcam_isp_k_block *p)
 		if (p->idx == DCAM_HW_CONTEXT_MAX || param->scene_id == PM_SCENE_CAP)
 			return 0;
 		if (g_dcam_bypass[p->idx] & (1 << _E_NLM)) {
-			p->nlm_info2.bypass = 1;
-			p->nlm_info2.vst_bypass = 1;
-			p->nlm_info2.ivst_bypass = 1;
+			p->nlm_info_base.bypass = 1;
+			p->nlm_info_base.vst_bypass = 1;
+			p->nlm_info_base.ivst_bypass = 1;
 		}
 
 		if (g_dcam_bypass[p->idx] & (1 << _E_GRGB))
-			p->nlm_imblance2.nlm_imblance_bypass = 1;
+			p->imbalance_info_base2.nlm_imblance_bypass = 1;
 		ret = sub_func(p);
 	} else {
 		mutex_lock(&p->param_lock);

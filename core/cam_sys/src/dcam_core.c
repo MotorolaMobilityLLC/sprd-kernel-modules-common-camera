@@ -172,6 +172,7 @@ static int dcamcore_context_init(struct dcam_pipe_dev *dev)
 		atomic_set(&pctx_hw->shadow_config_cnt, 0);
 		spin_lock_init(&pctx_hw->glb_reg_lock);
 		spin_lock_init(&pctx_hw->fbc_lock);
+		spin_lock_init(&pctx_hw->ghist_read_lock);
 
 		cam_queue_init(&pctx_hw->dcam_irq_sts_q, DCAM_INT_PROC_FRM_NUM, cam_queue_empty_interrupt_put);
 		thrd = &pctx_hw->dcam_irq_proc_thrd;
