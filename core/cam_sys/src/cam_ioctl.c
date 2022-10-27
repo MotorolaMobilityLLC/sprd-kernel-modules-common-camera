@@ -1538,7 +1538,7 @@ static int camioctl_stream_on(struct camera_module *module, unsigned long arg)
 {
 	int ret = 0;
 	uint32_t i = 0;
-	uint32_t uframe_sync = 0, live_ch_count = 0;
+	uint32_t uframe_sync = 0;
 	uint32_t timer = 0, non_zsl_cap = 0;
 	struct channel_context *ch = NULL;
 	struct channel_context *ch_pre = NULL;
@@ -1578,8 +1578,6 @@ static int camioctl_stream_on(struct camera_module *module, unsigned long arg)
 		if (!ch->enable || (ch->ch_id == CAM_CH_RAW) || (ch->ch_id == CAM_CH_VIRTUAL) || (ch->ch_id == CAM_CH_DCAM_VCH))
 			continue;
 
-		live_ch_count++;
-
 		uframe_sync = ch->ch_id != CAM_CH_CAP;
 		if (ch->ch_uinfo.frame_sync_close)
 			uframe_sync = 0;
@@ -1598,19 +1596,6 @@ static int camioctl_stream_on(struct camera_module *module, unsigned long arg)
 		if (ret) {
 			pr_err("fail to cfg ltm buffer\n");
 			goto exit;
-		}
-	}
-
-	/* TODO: WORKAROUND for BBAT/factory_test/mini_camera, remove later */
-	if (live_ch_count == 1) {
-		pr_info("disable all uframe_sync feature\n");
-
-		uframe_sync = 0;
-		for (i = 0; i < CAM_CH_MAX; i++) {
-			ch = &module->channel[i];
-			if (!ch->enable)
-				continue;
-			ret = CAM_PIPEINE_ISP_OUT_PORT_CFG(ch, ch->isp_port_id, CAM_PIPELINE_CFG_UFRAME, &uframe_sync);
 		}
 	}
 
