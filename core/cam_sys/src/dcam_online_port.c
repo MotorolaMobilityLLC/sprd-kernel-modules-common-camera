@@ -945,7 +945,7 @@ static int dcamonline_port_base_cfg(struct dcam_online_port *port, struct dcam_o
 		spin_lock_irqsave(&port->size_lock, flags);
 		port->compress_en = param->compress_en;
 		port->raw_src = param->is_raw ? ORI_RAW_SRC_SEL : PROCESS_RAW_SRC_SEL;
-		port->port_update = 1;
+		port->base_update = 1;
 		pr_info("full path out fmt %d\n",port->dcamout_fmt);
 		spin_unlock_irqrestore(&port->size_lock, flags);
 		atomic_set(&port->is_work, 1);
@@ -1401,6 +1401,9 @@ exit:
 void dcam_online_port_put(struct dcam_online_port *port)
 {
 	uint32_t port_id = 0;
+	struct isp_offline_param *cur = NULL;
+	struct isp_offline_param *prev = NULL;
+
 	if (!port) {
 		pr_err("fail to get invalid port ptr\n");
 		return;
@@ -1409,8 +1412,6 @@ void dcam_online_port_put(struct dcam_online_port *port)
 	if (atomic_dec_return(&port->user_cnt) == 0) {
 		port_id = port->port_id;
 		if (port->isp_updata) {
-			struct isp_offline_param *cur, *prev;
-
 			cur = (struct isp_offline_param *)port->isp_updata;
 			port->isp_updata = NULL;
 			while (cur) {
@@ -1421,8 +1422,6 @@ void dcam_online_port_put(struct dcam_online_port *port)
 		}
 
 		if (port->priv_size_data) {
-			struct isp_offline_param *cur, *prev;
-
 			cur = (struct isp_offline_param *)port->priv_size_data;
 			port->priv_size_data = NULL;
 			while (cur) {
@@ -1431,6 +1430,30 @@ void dcam_online_port_put(struct dcam_online_port *port)
 				cur = prev;
 			}
 		}
+		if (port->share_full_path) {
+			struct cam_buf_pool_id pool_id = {0};
+			struct camera_buf_get_desc buf_desc = {0};
+			struct camera_frame *frame_unprocess = NULL;
+			struct camera_frame *frame_result_pool = NULL;
+
+			pool_id.tag_id = CAM_BUF_POOL_SHARE_FULL_PATH;
+			buf_desc.buf_ops_cmd = CAM_BUF_STATUS_PUT_IOVA;
+
+			do {
+				frame_unprocess = cam_buf_manager_buf_dequeue(&port->unprocess_pool, &buf_desc);
+				if (!frame_unprocess)
+					break;
+				cam_buf_manager_buf_enqueue(&pool_id, frame_unprocess, &buf_desc);
+			} while(1);
+
+			do {
+				frame_result_pool = cam_buf_manager_buf_dequeue(&port->result_pool, &buf_desc);
+				if (!frame_result_pool)
+					break;
+				cam_buf_manager_buf_enqueue(&pool_id, frame_result_pool, &buf_desc);
+			} while(1);
+		}
+
 		port->data_cb_func = NULL;
 		port->resbuf_get_cb = NULL;
 		port->sharebuf_get_cb = NULL;

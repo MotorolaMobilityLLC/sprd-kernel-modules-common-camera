@@ -85,7 +85,6 @@
 #define CAM_VIDEO_LIMIT_H               2160
 #define PRE_RDS_OUT                     3264
 
-unsigned long g_reg_wr_flag;
 spinlock_t g_reg_wr_lock;
 
 enum camera_module_state {
@@ -7999,7 +7998,8 @@ static int camcore_offline_proc(void *param)
 		pframe->irq_property = CAM_FRAME_COMMON;
 	pm_pctx = &pctx->ctx[pctx->cur_ctx_id];
 	pm = &pm_pctx->blk_pm;
-	pm->non_zsl_cap = 1;
+	if (!module->cam_uinfo.virtualsensor)
+		pm->non_zsl_cap = 1;
 	pm->dev = pctx;
 	if (pframe->irq_property == CAM_FRAME_FDRH && module->cam_uinfo.param_frame_sync) {
 		pm = camcore_aux_dcam_param_prepare(pframe, pctx);

@@ -706,7 +706,7 @@ static int dcamhw_path_start(void *handle, void *arg)
 			BIT_2 | BIT_3, pack_bits << 2);
 		DCAM_REG_MWR(patharg->idx, DCAM_FULL_CFG, BIT_4, patharg->src_sel << 4);
 
-		if (pack_bits == 0) {
+		if (pack_bits == 0 || pack_bits == 1) {
 			/*10bit*/
 			DCAM_REG_MWR(patharg->idx, DCAM_BAYER_INFO_CFG, 0x7 << 18, 4 << 18);
 			DCAM_REG_MWR(patharg->idx, DCAM_BAYER_INFO_CFG, 0x3 << 16, 1 << 16);

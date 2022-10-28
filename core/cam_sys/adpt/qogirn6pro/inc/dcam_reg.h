@@ -22,7 +22,6 @@ extern unsigned long g_dcam_mmubase;
 extern unsigned long g_dcam_fmcubase;
 extern unsigned long g_dcam_phys_base[];
 
-extern unsigned long g_reg_wr_flag;
 extern spinlock_t g_reg_wr_lock;
 
 /* DCAM0/DCAM1 module registers define */
