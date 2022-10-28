@@ -269,10 +269,10 @@ struct sprd_cpp_trim {
 };
 
 struct sprd_cpp_addr {
-	unsigned int y;
-	unsigned int u;
-	unsigned int v;
-	unsigned int mfd[3];
+	unsigned long long y;
+	unsigned long long u;
+	unsigned long long v;
+	unsigned long long mfd[3];
 };
 
 struct sprd_cpp_rot_cfg_parm {
