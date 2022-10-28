@@ -1772,15 +1772,22 @@ static int isp_init_param_for_yuvscaler_slice(void *slc_cfg_input, void *slc_ctx
 			yuvscaler_param.src_size_x = slc_input->calc_dyn_ov.path_scaler[id]->src.w;
 			yuvscaler_param.src_size_y = slc_input->calc_dyn_ov.path_scaler[id]->src.h;
 
-			if (YUV_OUT_UYVY_422 == yuvFormat) {
+			if ((CAM_YUYV_1FRAME == yuvFormat)
+					|| (CAM_UYVY_1FRAME == yuvFormat)
+					|| (CAM_YVYU_1FRAME == yuvFormat)
+					|| (CAM_VYUY_1FRAME == yuvFormat)) {
 				config_output_align_hor = 2;
-			} else if ((YUV_OUT_Y_UV_422 == yuvFormat)
-					|| (YUV_OUT_Y_VU_422 == yuvFormat)
-					|| (YUV_OUT_Y_UV_420 == yuvFormat)
-					|| (YUV_OUT_Y_VU_420 == yuvFormat)) {
+			} else if ((CAM_YUV422_2FRAME == yuvFormat)
+					|| (CAM_YVU422_2FRAME == yuvFormat)
+					|| (CAM_YUV420_2FRAME == yuvFormat)
+					|| (CAM_YVU420_2FRAME == yuvFormat)
+					|| (CAM_YUV420_2FRAME_10 == yuvFormat)
+					|| (CAM_YVU420_2FRAME_10 == yuvFormat)
+					|| (CAM_YUV420_2FRAME_MIPI == yuvFormat)
+					|| (CAM_YVU420_2FRAME_MIPI == yuvFormat)){
 				config_output_align_hor = 4;
-			} else if ((YUV_OUT_Y_U_V_422 == yuvFormat)
-					||(YUV_OUT_Y_U_V_420 == yuvFormat)) {
+			} else if ((CAM_YUV422_3FRAME == yuvFormat)
+					||(CAM_YUV420_3FRAME == yuvFormat)) {
 				config_output_align_hor = 8;
 			}
 
@@ -2111,15 +2118,22 @@ static int isp_init_param_for_overlap_v1(
 	overlapParam->scaler1.yuv_output_format = 1;/* 0: 422 1: 420 */
 
 	yuvFormat = slice_input->calc_dyn_ov.store[ISP_SPATH_CP]->color_fmt;
-	if (YUV_OUT_UYVY_422 == yuvFormat) {
+	if ((CAM_YUYV_1FRAME == yuvFormat)
+			|| (CAM_UYVY_1FRAME == yuvFormat)
+			|| (CAM_YVYU_1FRAME == yuvFormat)
+			|| (CAM_VYUY_1FRAME == yuvFormat)) {
 		config_output_align_hor = 2;
-	} else if ((YUV_OUT_Y_UV_422 == yuvFormat)
-			|| (YUV_OUT_Y_VU_422 == yuvFormat)
-			|| (YUV_OUT_Y_UV_420 == yuvFormat)
-			|| (YUV_OUT_Y_VU_420 == yuvFormat)) {
+	} else if ((CAM_YUV422_2FRAME == yuvFormat)
+			|| (CAM_YVU422_2FRAME == yuvFormat)
+			|| (CAM_YUV420_2FRAME == yuvFormat)
+			|| (CAM_YVU420_2FRAME == yuvFormat)
+			|| (CAM_YUV420_2FRAME_10 == yuvFormat)
+			|| (CAM_YVU420_2FRAME_10 == yuvFormat)
+			|| (CAM_YUV420_2FRAME_MIPI == yuvFormat)
+			|| (CAM_YVU420_2FRAME_MIPI == yuvFormat)){
 		config_output_align_hor = 4;
-	} else if ((YUV_OUT_Y_U_V_422 == yuvFormat)
-			||(YUV_OUT_Y_U_V_420 == yuvFormat)) {
+	} else if ((CAM_YUV422_3FRAME == yuvFormat)
+			||(CAM_YUV420_3FRAME == yuvFormat)) {
 		config_output_align_hor = 8;
 	}
 	overlapParam->scaler1.output_align_hor = config_output_align_hor;
@@ -2162,15 +2176,22 @@ static int isp_init_param_for_overlap_v1(
 
 	config_output_align_hor = 2;
 	yuvFormat = slice_input->calc_dyn_ov.store[ISP_SPATH_VID]->color_fmt;
-	if (YUV_OUT_UYVY_422 == yuvFormat) {
+	if ((CAM_YUYV_1FRAME == yuvFormat)
+			|| (CAM_UYVY_1FRAME == yuvFormat)
+			|| (CAM_YVYU_1FRAME == yuvFormat)
+			|| (CAM_VYUY_1FRAME == yuvFormat)) {
 		config_output_align_hor = 2;
-	} else if ((YUV_OUT_Y_UV_422 == yuvFormat)
-			|| (YUV_OUT_Y_VU_422 == yuvFormat)
-			|| (YUV_OUT_Y_UV_420 == yuvFormat)
-			|| (YUV_OUT_Y_VU_420 == yuvFormat)) {
+	} else if ((CAM_YUV422_2FRAME == yuvFormat)
+			|| (CAM_YVU422_2FRAME == yuvFormat)
+			|| (CAM_YUV420_2FRAME == yuvFormat)
+			|| (CAM_YVU420_2FRAME == yuvFormat)
+			|| (CAM_YUV420_2FRAME_10 == yuvFormat)
+			|| (CAM_YVU420_2FRAME_10 == yuvFormat)
+			|| (CAM_YUV420_2FRAME_MIPI == yuvFormat)
+			|| (CAM_YVU420_2FRAME_MIPI == yuvFormat)){
 		config_output_align_hor = 4;
-	} else if ((YUV_OUT_Y_U_V_422 == yuvFormat)
-			||(YUV_OUT_Y_U_V_420 == yuvFormat)) {
+	} else if ((CAM_YUV422_3FRAME == yuvFormat)
+			||(CAM_YUV420_3FRAME == yuvFormat)) {
 		config_output_align_hor = 8;
 	}
 	overlapParam->scaler2.output_align_hor = config_output_align_hor;
@@ -2426,15 +2447,22 @@ int isp_init_param_for_overlap_v2(
 	else
 		slice_overlap->scaler1.scaler_en = 1;
 	yuvFormat = slice_input->calc_dyn_ov.store[ISP_SPATH_CP]->color_fmt;
-	if (YUV_OUT_UYVY_422 == yuvFormat) {
+	if ((CAM_YUYV_1FRAME == yuvFormat)
+			|| (CAM_UYVY_1FRAME == yuvFormat)
+			|| (CAM_YVYU_1FRAME == yuvFormat)
+			|| (CAM_VYUY_1FRAME == yuvFormat)) {
 		config_output_align_hor = 2;
-	} else if ((YUV_OUT_Y_UV_422 == yuvFormat)
-			|| (YUV_OUT_Y_VU_422 == yuvFormat)
-			|| (YUV_OUT_Y_UV_420 == yuvFormat)
-			|| (YUV_OUT_Y_VU_420 == yuvFormat)) {
+	} else if ((CAM_YUV422_2FRAME == yuvFormat)
+			|| (CAM_YVU422_2FRAME == yuvFormat)
+			|| (CAM_YUV420_2FRAME == yuvFormat)
+			|| (CAM_YVU420_2FRAME == yuvFormat)
+			|| (CAM_YUV420_2FRAME_10 == yuvFormat)
+			|| (CAM_YVU420_2FRAME_10 == yuvFormat)
+			|| (CAM_YUV420_2FRAME_MIPI == yuvFormat)
+			|| (CAM_YVU420_2FRAME_MIPI == yuvFormat)){
 		config_output_align_hor = 4;
-	} else if ((YUV_OUT_Y_U_V_422 == yuvFormat)
-			||(YUV_OUT_Y_U_V_420 == yuvFormat)) {
+	} else if ((CAM_YUV422_3FRAME == yuvFormat)
+			||(CAM_YUV420_3FRAME == yuvFormat)) {
 		config_output_align_hor = 8;
 	}
 	slice_overlap->scaler1.yuv_output_format = 1;/* 0: 422 1: 420 */
@@ -2488,15 +2516,22 @@ int isp_init_param_for_overlap_v2(
 
 	config_output_align_hor = 2;
 	yuvFormat = slice_input->calc_dyn_ov.store[ISP_SPATH_VID]->color_fmt;
-	if (YUV_OUT_UYVY_422 == yuvFormat) {
+	if ((CAM_YUYV_1FRAME == yuvFormat)
+			|| (CAM_UYVY_1FRAME == yuvFormat)
+			|| (CAM_YVYU_1FRAME == yuvFormat)
+			|| (CAM_VYUY_1FRAME == yuvFormat)) {
 		config_output_align_hor = 2;
-	} else if ((YUV_OUT_Y_UV_422 == yuvFormat)
-			|| (YUV_OUT_Y_VU_422 == yuvFormat)
-			|| (YUV_OUT_Y_UV_420 == yuvFormat)
-			|| (YUV_OUT_Y_VU_420 == yuvFormat)) {
+	} else if ((CAM_YUV422_2FRAME == yuvFormat)
+			|| (CAM_YVU422_2FRAME == yuvFormat)
+			|| (CAM_YUV420_2FRAME == yuvFormat)
+			|| (CAM_YVU420_2FRAME == yuvFormat)
+			|| (CAM_YUV420_2FRAME_10 == yuvFormat)
+			|| (CAM_YVU420_2FRAME_10 == yuvFormat)
+			|| (CAM_YUV420_2FRAME_MIPI == yuvFormat)
+			|| (CAM_YVU420_2FRAME_MIPI == yuvFormat)){
 		config_output_align_hor = 4;
-	} else if ((YUV_OUT_Y_U_V_422 == yuvFormat)
-			||(YUV_OUT_Y_U_V_420 == yuvFormat)) {
+	} else if ((CAM_YUV422_3FRAME == yuvFormat)
+			||(CAM_YUV420_3FRAME == yuvFormat)) {
 		config_output_align_hor = 8;
 	}
 	slice_overlap->scaler2.output_align_hor = config_output_align_hor;
