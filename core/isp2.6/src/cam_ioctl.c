@@ -2820,7 +2820,6 @@ static int camioctl_capture_stop(struct camera_module *module,
 	pr_info("cam %d stop capture.\n", module->idx);
 	hw = module->grp->hw_info;
 	isp_idx = channel->isp_ctx_id;
-	sw_ctx->is_longexp = 0;
 	module->isp_dev_handle->isp_ops->ioctl(module->isp_dev_handle, module->channel[CAM_CH_CAP].isp_ctx_id,
 		ISP_IOCTL_CFG_POST_MULTI_SCENE, &is_post_multi);
 	if (IS_XTM_CONFLICT_SCENE(module->capture_scene)) {
@@ -3798,7 +3797,6 @@ static int camioctl_longexp_mode_set(struct camera_module *module, unsigned long
 {
 	int ret = 0;
 	struct sprd_img_longexp_mode param = {0};
-	struct dcam_sw_context *dcam_sw_ctx = NULL;
 
 	if (!module) {
 		pr_err("fail to get input ptr %p\n", module);
@@ -3812,8 +3810,6 @@ static int camioctl_longexp_mode_set(struct camera_module *module, unsigned long
 	}
 
 	module->cam_uinfo.is_longexp = param.need_longexp;
-	dcam_sw_ctx = &module->dcam_dev_handle->sw_ctx[module->cur_sw_ctx_id];
-	dcam_sw_ctx->is_longexp = module->cam_uinfo.is_longexp;
 	pr_debug("is_longexp %d\n", param.need_longexp);
 
 	return ret;

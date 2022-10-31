@@ -1630,7 +1630,7 @@ static irqreturn_t dcamint_isr_root(int irq, void *priv)
 	DCAM_REG_WR(dcam_hw_ctx->hw_ctx_id, DCAM_INT_CLR, status);
 
 	if (!dcam_sw_ctx->slowmotion_count) {
-		if (status & DCAM_CAP_SOF) {
+		if (status & BIT(DCAM_CAP_SOF)) {
 			/* record SOF timestamp for current frame */
 			dcam_sw_ctx->frame_ts_boot[tsid(dcam_sw_ctx->frame_index)] = ktime_get_boottime();
 			ktime_get_ts(&dcam_sw_ctx->frame_ts[tsid(dcam_sw_ctx->frame_index)]);

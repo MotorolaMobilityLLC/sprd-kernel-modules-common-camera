@@ -243,7 +243,6 @@ struct dcam_sw_context {
 	uint32_t csi_connect_stat;
 	struct dcam_fmcu_ctx_desc *fmcu;
 
-	uint32_t is_longexp;
 	uint32_t do_tasklet;
 	uint32_t auto_cpy_id;
 	uint32_t base_fid;
