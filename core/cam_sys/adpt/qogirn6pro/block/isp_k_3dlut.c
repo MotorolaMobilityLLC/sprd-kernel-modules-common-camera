@@ -59,9 +59,10 @@ int isp_k_3dlut_block(struct dcam_isp_k_block *isp_k_param, uint32_t idx)
 }
 
 int isp_k_cfg_3dlut(struct isp_io_param *param,
-	struct dcam_isp_k_block *isp_k_param, uint32_t idx)
+	struct dcam_isp_k_block *isp_k_param)
 {
 	int ret = 0;
+	uint32_t idx = isp_k_param->cfg_id;
 	struct isp_dev_3dlut_info *lut3d_info = NULL;
 
 	lut3d_info = &isp_k_param->lut3d_info;

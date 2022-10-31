@@ -48,10 +48,9 @@ uint32_t g_dbg_dumpcount = 0;
 uint32_t g_dbg_recovery = DEBUG_DCAM_RECOVERY_IDLE;
 uint32_t g_dbg_fbc_control = 0;
 uint32_t contr_cap_eof = 1;
-extern atomic_t s_dcam_opened[DCAM_HW_CONTEXT_MAX];
 extern struct isp_pipe_dev *s_isp_dev;
+extern struct dcam_pipe_dev *s_dcam_dev;
 extern uint32_t s_dbg_linebuf_len;
-
 static struct dentry *debugfs_base;
 static uint32_t debug_ctx_id[4] = {0, 1, 2, 3};
 static struct dentry *s_p_dentry;
@@ -82,8 +81,8 @@ static ssize_t camdebugger_dcam_bypass_write(struct file *filp,
 	debug_bypass = (struct cam_debug_bypass *)p->private;
 	idx = debug_bypass->idx;
 	ops = debug_bypass->hw;
-	if (atomic_read(&s_dcam_opened[idx]) <= 0) {
-		pr_info("dcam%d Hardware not enable\n", idx);
+	if (!s_dcam_dev) {
+		pr_info("dcam Hardware not enable\n");
 		return count;
 	}
 	memset(buf, 0x00, sizeof(buf));
@@ -175,7 +174,7 @@ static int camdebugger_dcam_bypass_read(struct seq_file *s, void *unused)
 	type = DCAM_BYPASS_TYPE;
 	bypass_cnt = ops->isp_ioctl(ops, ISP_HW_CFG_BYPASS_COUNT_GET, &type);
 	seq_printf(s, "-----dcam%d-----\n", idx);
-	if (atomic_read(&s_dcam_opened[idx]) <= 0) {
+	if (!s_dcam_dev) {
 		seq_puts(s, "Hardware not enable\n");
 	} else {
 		for (i = 0; i < bypass_cnt; i++) {
@@ -228,7 +227,7 @@ static int camdebugger_dcam_reg_show(struct seq_file *s,
 
 	if (idx >= 3 && idx < 5) {
 		seq_printf(s, "-----dcam axi%d and fetch----\n", idx - 3);
-		if (atomic_read(&s_dcam_opened[idx]) <= 0) {
+		if (!s_dcam_dev) {
 			seq_puts(s, "Hardware not enable\n");
 			return 0;
 		}
@@ -240,9 +239,8 @@ static int camdebugger_dcam_reg_show(struct seq_file *s,
 		seq_puts(s, "--------------------\n");
 	} else {
 		seq_printf(s, "-----dcam%d----------\n", idx);
-		if (atomic_read(&s_dcam_opened[idx]) <= 0) {
+		if (!s_dcam_dev) {
 			seq_puts(s, "Hardware not enable\n");
-
 			return 0;
 		}
 		for (addr = 0; addr < addr_end[idx]; addr += 4)

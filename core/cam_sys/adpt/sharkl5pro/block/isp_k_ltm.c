@@ -206,9 +206,10 @@ int isp_k_ltm_yuv_block(struct isp_io_param *param,
 }
 
 int isp_k_cfg_rgb_ltm(struct isp_io_param *param,
-		struct dcam_isp_k_block *isp_k_param, uint32_t idx)
+		struct dcam_isp_k_block *isp_k_param)
 {
 	int ret = 0;
+	uint32_t idx = isp_k_param->cfg_id;
 
 	switch (param->property) {
 	case ISP_PRO_RGB_LTM_BLOCK:
@@ -224,9 +225,10 @@ int isp_k_cfg_rgb_ltm(struct isp_io_param *param,
 }
 
 int isp_k_cfg_yuv_ltm(struct isp_io_param *param,
-		struct dcam_isp_k_block *isp_k_param, uint32_t idx)
+		struct dcam_isp_k_block *isp_k_param)
 {
 	int ret = 0;
+	uint32_t idx = isp_k_param->cfg_id;
 
 	switch (param->property) {
 	case ISP_PRO_YUV_LTM_BLOCK:

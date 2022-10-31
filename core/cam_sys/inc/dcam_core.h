@@ -55,13 +55,6 @@
 
 #define DCAM_NR3_MV_MAX                   10
 
-typedef int (*func_dcam_cfg_param)(struct isp_io_param *param,
-				struct dcam_isp_k_block *p);
-struct dcam_cfg_entry {
-	uint32_t sub_block;
-	func_dcam_cfg_param cfg_func;
-};
-
 enum dcam_context_id {
 	DCAM_CTX_0,
 	DCAM_CTX_1,

@@ -463,9 +463,10 @@ int isp_k_update_3dnr(uint32_t idx,
 }
 
 int isp_k_cfg_3dnr(struct isp_io_param *param,
-	struct dcam_isp_k_block *isp_k_param, uint32_t idx)
+	struct dcam_isp_k_block *isp_k_param)
 {
 	int ret = 0;
+	uint32_t idx = isp_k_param->cfg_id;
 
 	if (!param || !param->property_param) {
 		pr_err("fail to get valid param error %p\n", param);

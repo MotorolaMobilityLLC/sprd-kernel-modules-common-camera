@@ -28,9 +28,8 @@
 #endif
 #define pr_fmt(fmt) "DCAM_CORE: %d %d %s : " fmt, current->pid, __LINE__, __func__
 
-atomic_t s_dcam_opened[DCAM_HW_CONTEXT_MAX];
 static DEFINE_MUTEX(s_dcam_dev_mutex);
-static struct dcam_pipe_dev *s_dcam_dev;
+struct dcam_pipe_dev *s_dcam_dev;
 
 static void dcamcore_get_fmcu(struct dcam_hw_context *pctx_hw)
 {

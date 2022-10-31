@@ -1543,7 +1543,7 @@ static int dcamonline_dev_stop(struct dcam_online_node *node, enum dcam_stop_cmd
 
 	if (node->slw_type == DCAM_SLW_FMCU) {
 		if (pause != DCAM_RECOVERY) {
-			ret = hw->dcam_ioctl(hw, DCAM_HW_CFG_INIT_AXI, &hw_ctx_id);
+			ret = hw->dcam_ioctl(hw, DCAM_HW_CFG_FMCU_RESET, &hw_ctx_id);
 			if (ret)
 				pr_err("fail to reset fmcu dcam%d ret:%d\n", hw_ctx_id, ret);
 		}
@@ -1821,11 +1821,11 @@ struct dcam_online_port *dcam_online_node_port_get(struct dcam_online_node *node
 int dcam_online_node_blk_param_set(struct dcam_online_node *node, void *param)
 {
 	int ret = 0;
-	func_dcam_cfg_param cfg_fun_ptr = NULL;
+	func_cam_cfg_param cfg_fun_ptr = NULL;
 	struct isp_io_param *io_param = NULL;
 	struct dcam_isp_k_block *pm = NULL;
 	struct cam_hw_info *hw = NULL;
-	struct dcam_hw_block_func_get blk_func = {0};
+	struct cam_hw_block_func_get blk_func = {0};
 
 	if (!node || !param) {
 		pr_err("fail to get valid param %px, %px\n", node, param);
@@ -1842,11 +1842,11 @@ int dcam_online_node_blk_param_set(struct dcam_online_node *node, void *param)
 		return ret;
 	}
 
-	blk_func.index = io_param->sub_block - DCAM_BLOCK_BASE;
-	hw->dcam_ioctl(hw, DCAM_HW_CFG_BLOCK_FUNC_GET, &blk_func);
-	if (blk_func.dcam_entry != NULL &&
-		blk_func.dcam_entry->sub_block == io_param->sub_block) {
-		cfg_fun_ptr = blk_func.dcam_entry->cfg_func;
+	blk_func.index = io_param->sub_block;
+	hw->cam_ioctl(hw, CAM_HW_GET_BLK_FUN, &blk_func);
+	if (blk_func.cam_entry != NULL &&
+		blk_func.cam_entry->sub_block == io_param->sub_block) {
+		cfg_fun_ptr = blk_func.cam_entry->cfg_func;
 	} else { /* if not, some error */
 		pr_err("fail to check param, io_param->sub_block = %d, error\n", io_param->sub_block);
 	}

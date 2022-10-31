@@ -56,9 +56,8 @@ struct statis_path_buf_info s_statis_path_info_all[] = {
 	{DCAM_PATH_GTM_HIST,0,  0, STATIS_GTMHIST},
 };
 
-atomic_t s_dcam_opened[DCAM_SW_CONTEXT_MAX];
 static DEFINE_MUTEX(s_dcam_dev_mutex);
-static struct dcam_pipe_dev *s_dcam_dev;
+struct dcam_pipe_dev *s_dcam_dev;
 
 /*
  * set MIPI capture related register
@@ -2457,8 +2456,6 @@ static int dcamcore_context_get(void *dcam_handle)
 	atomic_set(&pctx->state, STATE_IDLE);
 	spin_lock_init(&pctx->glb_reg_lock);
 	spin_lock_init(&pctx->fbc_lock);
-	/* for debugfs */
-	atomic_inc(&s_dcam_opened[pctx->sw_ctx_id]);
 exit:
 	mutex_unlock(&dev->path_mutex);
 	pr_info("Get context id %d\n", sel_ctx_id);
@@ -2509,8 +2506,6 @@ static int dcamcore_context_put(void *dcam_handle, int ctx_id)
 			pctx->path[DCAM_PATH_BIN].rds_coeff_buf = NULL;
 			pctx->path[DCAM_PATH_BIN].rds_coeff_size = 0;
 		}
-		/* for debugfs */
-		atomic_dec(&s_dcam_opened[pctx->sw_ctx_id]);
 	} else {
 		pr_debug("ctx%d.already release.\n", ctx_id);
 		atomic_set(&pctx->user_cnt, 0);

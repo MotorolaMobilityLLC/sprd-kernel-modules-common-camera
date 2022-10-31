@@ -1306,6 +1306,10 @@ void cam_node_close(struct cam_node *node)
 	case CAM_NODE_TYPE_PYR_DEC:
 		pyrdec_node_close(node->handle);
 		break;
+	case CAM_NODE_TYPE_DCAM_OFFLINE_BPC_RAW:
+	case CAM_NODE_TYPE_DCAM_OFFLINE:
+		dcam_offline_node_close(node->handle);
+		break;
 	default:
 		break;
 	}

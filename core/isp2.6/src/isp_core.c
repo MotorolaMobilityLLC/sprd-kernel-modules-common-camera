@@ -1460,9 +1460,7 @@ static int ispcore_offline_param_cfg(struct isp_sw_context *pctx,
 	pipe_src = &pctx->pipe_src;
 	memcpy(pipe_src, &pctx->uinfo, sizeof(pctx->uinfo));
 
-	stream = cam_queue_dequeue(&pctx->stream_ctrl_in_q, struct isp_stream_ctrl, list);
-
-	tmp->stream = stream;
+	stream = tmp->stream;
 	if (stream) {
 		nr3_ctx = (struct isp_3dnr_ctx_desc *)pctx->nr3_handle;
 		pipe_src->in_fmt = stream->in_fmt;
@@ -1868,6 +1866,7 @@ static int ispcore_offline_frame_start(void *ctx)
 	struct isp_ltm_ctx_desc *rgb_ltm = NULL;
 	struct isp_ltm_ctx_desc *yuv_ltm = NULL;
 	struct isp_gtm_ctx_desc *rgb_gtm = NULL;
+	struct isp_stream_ctrl *stream = NULL;
 
 	pctx = (struct isp_sw_context *)ctx;
 	pr_debug("enter sw id %d, user_cnt=%d, ch_id=%d, cam_id=%d\n",
@@ -1911,6 +1910,9 @@ static int ispcore_offline_frame_start(void *ctx)
 		pr_info_ratelimited("ctx %d wait for hw. loop %d\n", pctx->ctx_id, loop);
 		usleep_range(600, 800);
 	} while (loop++ < 5000);
+
+	stream = cam_queue_dequeue(&pctx->stream_ctrl_in_q, struct isp_stream_ctrl, list);
+	tmp.stream = stream;
 
 	pframe = cam_queue_dequeue(&pctx->in_queue, struct camera_frame, list);
 	if (!pctx_hw || pframe == NULL) {
@@ -1973,7 +1975,6 @@ static int ispcore_offline_frame_start(void *ctx)
 	tmp.valid_out_frame = -1;
 	tmp.target_fid = CAMERA_RESERVE_FRAME_NUM;
 	tmp.hw_ctx_id = hw_ctx_id;
-	tmp.stream = NULL;
 	tmp.not_use_reserved_buf = pframe->not_use_isp_reserved_buf;
 	ret = ispcore_offline_param_cfg(pctx, pframe, &tmp);
 	if (ret) {

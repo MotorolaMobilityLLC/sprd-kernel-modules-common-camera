@@ -56,6 +56,7 @@ enum isp_default_type {
 enum cam_block_type {
 	DCAM_BLOCK_TYPE,
 	ISP_BLOCK_TYPE,
+	DEC_BLOCK_TYPE,
 	MAX_BLOCK_TYPE
 };
 
@@ -157,6 +158,7 @@ enum dcam_hw_cfg_cmd {
 	DCAM_HW_CFG_ENABLE_CLK,
 	DCAM_HW_CFG_DISABLE_CLK,
 	DCAM_HW_CFG_INIT_AXI,
+	DCAM_HW_CFG_FMCU_RESET,
 	DCAM_HW_CFG_SET_QOS,
 	DCAM_HW_CFG_RESET,
 	DCAM_HW_CFG_START,
@@ -180,7 +182,6 @@ enum dcam_hw_cfg_cmd {
 	DCAM_HW_CFG_SLICE_FETCH_SET,
 	DCAM_HW_CFG_FBC_CTRL,
 	DCAM_HW_CFG_FBC_ADDR_SET,
-	DCAM_HW_CFG_BLOCK_FUNC_GET,
 	DCAM_HW_CFG_BLOCKS_SETALL,
 	DCAM_HW_CFG_BLOCKS_SETSTATIS,
 	DCAM_HW_CFG_MIPICAP,
@@ -223,7 +224,6 @@ enum isp_hw_cfg_cmd {
 	ISP_HW_CFG_FETCH_FBD_SET,
 	ISP_HW_CFG_DEFAULT_PARA_SET,
 	ISP_HW_CFG_DEFAULT_PARA_CFG,
-	ISP_HW_CFG_BLOCK_FUNC_GET,
 	ISP_HW_CFG_PARAM_BLOCK_FUNC_GET,
 	ISP_HW_CFG_K_BLK_FUNC_GET,
 	ISP_HW_CFG_CFG_MAP_INFO_GET,
@@ -292,6 +292,9 @@ enum cam_hw_cfg_cmd {
 	CAM_HW_GET_AXI_BASE,
 	CAM_HW_GET_DCAM_DTS_CLK,
 	CAM_HW_GET_ISP_DTS_CLK,
+	CAM_HW_GET_BLK_FUN,
+	CAM_HW_GET_BLOCK_TYPE,
+	CAM_HW_GET_CSI_SWITCH,
 	CAM_HW_GET_MAX
 };
 
@@ -568,6 +571,12 @@ struct cam_hw_gtm_update {
 	struct cam_hw_info *hw;
 };
 
+struct cam_cfg_block {
+	uint32_t sub_block;
+	uint32_t property;
+	uint32_t block_type;
+};
+
 struct dcam_hw_gtm_hist {
 	uint32_t idx;
 	uint32_t *value;
@@ -735,27 +744,16 @@ struct dcam_hw_ebd_set {
 	uint32_t idx;
 };
 
-typedef int (*func_isp_cfg_param)(
-	struct isp_io_param *param,
-	struct dcam_isp_k_block *isp_k_param, uint32_t idx);
-
 typedef int (*func_isp_cfg_block_param)(
 	struct dcam_isp_k_block *param_block,
 	struct dcam_isp_k_block *isp_k_param);
 
-struct isp_cfg_entry {
-	uint32_t sub_block;
-	func_isp_cfg_param cfg_func;
-};
+typedef int (*func_cam_cfg_param)
+			(struct isp_io_param *param,struct dcam_isp_k_block *p);
 
 struct isp_cfg_pre_param {
 	uint32_t sub_block;
 	func_isp_cfg_block_param cfg_block_func;
-};
-
-struct isp_hw_block_func {
-	uint32_t index;
-	struct isp_cfg_entry *isp_entry;
 };
 
 struct isp_cfg_block_param {
@@ -779,8 +777,13 @@ struct isp_hw_gtm_func {
 	uint32_t cap_skip_num;
 };
 
-struct dcam_hw_block_func_get {
-	struct dcam_cfg_entry *dcam_entry;
+struct cam_cfg_entry {
+	uint32_t sub_block;
+	func_cam_cfg_param cfg_func;
+};
+
+struct cam_hw_block_func_get {
+	struct cam_cfg_entry *cam_entry;
 	uint32_t index;
 };
 
@@ -1177,6 +1180,7 @@ struct hw_io_ctrl_fun {
 struct glb_syscon {
 	uint32_t rst;
 	uint32_t rst_mipi_mask;
+	uint32_t rst_fmcu_mask;
 	uint32_t rst_mask;
 	uint32_t rst_ahb_mask;
 	uint32_t rst_vau_mask;

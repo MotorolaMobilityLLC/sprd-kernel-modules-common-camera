@@ -323,6 +323,44 @@ static int dcamhw_axi_init(void *handle, void *arg)
 	return 0;
 }
 
+static int dcamhw_fmcu_reset(void *handle, void *arg)
+{
+	int ret = 0;
+	uint32_t idx = 0;
+	struct cam_hw_info *hw = NULL;
+	struct cam_hw_soc_info *soc = NULL;
+	struct cam_hw_ip_info *ip = NULL;
+	#if defined (PROJ_QOGIRN6L)
+	uint32_t flag = 0;
+	#endif
+
+	if (!handle || !arg) {
+		pr_err("fail to get input arg %px, %px\n", handle, arg);
+		return -EFAULT;
+	}
+
+	idx = *(uint32_t *)arg;
+	hw = (struct cam_hw_info *)handle;
+	soc = hw->soc_dcam;
+	ip = hw->ip_dcam[idx];
+
+	#if defined (PROJ_QOGIRN6L)
+	flag = ip->syscon.rst_fmcu_mask;
+	pr_debug("DCAM%d, rst=0x%x, rst_fmcu_mask=0x%x\n",
+		idx, ip->syscon.rst, ip->syscon.rst_fmcu_mask);
+
+	regmap_update_bits(soc->cam_ahb_gpr, ip->syscon.rst, flag, flag);
+	udelay(10);
+	regmap_update_bits(soc->cam_ahb_gpr, ip->syscon.rst, flag, ~flag);
+
+	pr_info("DCAM%d: fmcu end\n", idx);
+	#else
+	ret = hw->dcam_ioctl(hw, DCAM_HW_CFG_INIT_AXI, &idx);
+	#endif
+
+	return ret;
+}
+
 static void dcamhw_ip_qos_set(void *handle, void *arg)
 {
 	uint32_t reg_val = 0;
@@ -2239,47 +2277,6 @@ static int dcamhw_get_gtm_hist(void *handle, void *arg)
 	return 0;
 }
 
-static struct dcam_cfg_entry dcam_hw_cfg_func_tab[DCAM_BLOCK_SUM] = {
-[DCAM_BLOCK_BLC - DCAM_BLOCK_BASE]         = {DCAM_BLOCK_BLC,         dcam_k_cfg_blc},
-[DCAM_BLOCK_AEM - DCAM_BLOCK_BASE]         = {DCAM_BLOCK_AEM,         dcam_k_cfg_aem},
-[DCAM_BLOCK_AWBC - DCAM_BLOCK_BASE]        = {DCAM_BLOCK_AWBC,        dcam_k_cfg_awbc},
-[DCAM_BLOCK_AFM - DCAM_BLOCK_BASE]         = {DCAM_BLOCK_AFM,         dcam_k_cfg_afm},
-[DCAM_BLOCK_AFL - DCAM_BLOCK_BASE]         = {DCAM_BLOCK_AFL,         dcam_k_cfg_afl},
-[DCAM_BLOCK_LSC - DCAM_BLOCK_BASE]         = {DCAM_BLOCK_LSC,         dcam_k_cfg_lsc},
-[DCAM_BLOCK_BPC - DCAM_BLOCK_BASE]         = {DCAM_BLOCK_BPC,         dcam_k_cfg_bpc},
-[DCAM_BLOCK_RGBG - DCAM_BLOCK_BASE]        = {DCAM_BLOCK_RGBG,        dcam_k_cfg_rgb_gain},
-[DCAM_BLOCK_RGBG_DITHER - DCAM_BLOCK_BASE] = {DCAM_BLOCK_RGBG_DITHER, dcam_k_cfg_rgb_dither},
-[DCAM_BLOCK_PDAF - DCAM_BLOCK_BASE]        = {DCAM_BLOCK_PDAF,        dcam_k_cfg_pdaf},
-[DCAM_BLOCK_BAYERHIST - DCAM_BLOCK_BASE]   = {DCAM_BLOCK_BAYERHIST,   dcam_k_cfg_bayerhist},
-[DCAM_BLOCK_3DNR_ME - DCAM_BLOCK_BASE]     = {DCAM_BLOCK_3DNR_ME,     dcam_k_cfg_3dnr_me},
-[DCAM_BLOCK_GTM - DCAM_BLOCK_BASE]         = {DCAM_BLOCK_GTM,         dcam_k_cfg_raw_gtm},
-[DCAM_BLOCK_LSCM - DCAM_BLOCK_BASE]        = {DCAM_BLOCK_LSCM,        dcam_k_cfg_lscm},
-[ISP_BLOCK_GAMMA - DCAM_BLOCK_BASE]        = {ISP_BLOCK_GAMMA,        dcam_k_cfg_gamma},
-[ISP_BLOCK_CMC - DCAM_BLOCK_BASE]          = {ISP_BLOCK_CMC,          dcam_k_cfg_cmc10},
-[ISP_BLOCK_CFA - DCAM_BLOCK_BASE]          = {ISP_BLOCK_CFA,          dcam_k_cfg_cfa},
-[ISP_BLOCK_NLM - DCAM_BLOCK_BASE]          = {ISP_BLOCK_NLM,          dcam_k_cfg_nlm},
-[ISP_BLOCK_CCE - DCAM_BLOCK_BASE]          = {ISP_BLOCK_CCE,          dcam_k_cfg_cce},
-[ISP_BLOCK_HIST2 - DCAM_BLOCK_BASE]        = {ISP_BLOCK_HIST2,        dcam_k_cfg_frgbhist},
-};
-
-static int dcamhw_block_func_get(void *handle, void *arg)
-{
-	void *block_func = NULL;
-	struct dcam_hw_block_func_get *fucarg = NULL;
-
-	fucarg = (struct dcam_hw_block_func_get *)arg;
-
-	if (fucarg->index < DCAM_BLOCK_SUM) {
-		block_func = (struct dcam_cfg_entry *)&dcam_hw_cfg_func_tab[fucarg->index];
-		fucarg->dcam_entry = block_func;
-	}
-
-	if (block_func == NULL)
-		pr_err("fail to get valid block func %d\n", DCAM_BLOCK_TYPE);
-
-	return 0;
-}
-
 static int dcamhw_blocks_setall(void *handle, void *arg)
 {
 	uint32_t idx;
@@ -3021,6 +3018,7 @@ static struct hw_io_ctrl_fun dcam_ioctl_fun_tab[] = {
 	{DCAM_HW_CFG_ENABLE_CLK,            dcamhw_clk_eb},
 	{DCAM_HW_CFG_DISABLE_CLK,           dcamhw_clk_dis},
 	{DCAM_HW_CFG_INIT_AXI,              dcamhw_axi_init},
+	{DCAM_HW_CFG_FMCU_RESET,            dcamhw_fmcu_reset},
 	{DCAM_HW_CFG_SET_QOS,               dcamhw_qos_set},
 	{DCAM_HW_CFG_RESET,                 dcamhw_reset},
 	{DCAM_HW_CFG_START,                 dcamhw_start},
@@ -3047,7 +3045,6 @@ static struct hw_io_ctrl_fun dcam_ioctl_fun_tab[] = {
 	{DCAM_HW_CFG_GTM_LTM_EB,            dcamhw_gtm_ltm_eb},
 	{DCAM_HW_CFG_GTM_LTM_DIS,           dcamhw_gtm_ltm_dis},
 	{DCAM_HW_CFG_GTM_UPDATE,            dcamhw_gtm_update},
-	{DCAM_HW_CFG_BLOCK_FUNC_GET,        dcamhw_block_func_get},
 	{DCAM_HW_CFG_BLOCKS_SETALL,         dcamhw_blocks_setall},
 	{DCAM_HW_CFG_BLOCKS_SETSTATIS,      dcamhw_blocks_setstatis},
 	{DCAM_HW_CFG_MIPICAP,               dcamhw_mipicap_cfg},

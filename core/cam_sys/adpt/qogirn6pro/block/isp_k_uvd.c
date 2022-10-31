@@ -86,8 +86,7 @@ int isp_k_uvd_block(struct dcam_isp_k_block *isp_k_param, uint32_t idx)
 	return ret;
 }
 
-int isp_k_cfg_uvd(struct isp_io_param *param,
-	struct dcam_isp_k_block *isp_k_param, uint32_t idx)
+int isp_k_cfg_uvd(struct isp_io_param *param, struct dcam_isp_k_block *isp_k_param)
 {
 	int ret = 0;
 	struct isp_dev_uvd_info_v1 *uvd_info = NULL;

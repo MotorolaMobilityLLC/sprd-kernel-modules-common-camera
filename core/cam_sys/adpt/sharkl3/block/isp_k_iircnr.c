@@ -123,7 +123,7 @@ int isp_k_iircnr_block(struct dcam_isp_k_block *isp_k_param, uint32_t idx)
 }
 
 int isp_k_cfg_iircnr(struct isp_io_param *param,
-	struct dcam_isp_k_block *isp_k_param, uint32_t idx)
+	struct dcam_isp_k_block *isp_k_param)
 {
 	int ret = 0;
 	struct isp_dev_iircnr_info *iircnr_info = NULL;

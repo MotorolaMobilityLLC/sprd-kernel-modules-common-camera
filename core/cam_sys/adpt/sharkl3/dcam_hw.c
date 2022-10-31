@@ -1158,42 +1158,6 @@ static int dcamhw_k_null_cfg(struct isp_io_param *param, struct dcam_isp_k_block
 	return 0;
 }
 
-static struct dcam_cfg_entry dcam_cfg_func_tab[DCAM_BLOCK_TOTAL] = {
-[DCAM_BLOCK_BLC - DCAM_BLOCK_BASE]         = {DCAM_BLOCK_BLC,          dcam_k_cfg_blc},
-[DCAM_BLOCK_RGBG - DCAM_BLOCK_BASE]        = {DCAM_BLOCK_RGBG,         dcam_k_cfg_rgb_gain},
-[DCAM_BLOCK_RGBG_DITHER - DCAM_BLOCK_BASE] = {DCAM_BLOCK_RGBG_DITHER,  dcam_k_cfg_rgb_dither},
-[DCAM_BLOCK_PDAF - DCAM_BLOCK_BASE]        = {DCAM_BLOCK_PDAF,         dcam_k_cfg_pdaf},
-[DCAM_BLOCK_LSC - DCAM_BLOCK_BASE]         = {DCAM_BLOCK_LSC,          dcam_k_cfg_lsc},
-[DCAM_BLOCK_AEM - DCAM_BLOCK_BASE]         = {DCAM_BLOCK_AEM,          dcam_k_cfg_aem},
-[DCAM_BLOCK_AFL - DCAM_BLOCK_BASE]         = {DCAM_BLOCK_AFL,          dcam_k_cfg_afl},
-[DCAM_BLOCK_AWBC - DCAM_BLOCK_BASE]        = {DCAM_BLOCK_AWBC,         dcam_k_cfg_awbc},
-[DCAM_BLOCK_BPC - DCAM_BLOCK_BASE]         = {DCAM_BLOCK_BPC,          dcam_k_cfg_bpc},
-[DCAM_BLOCK_GRGB - DCAM_BLOCK_BASE]        = {DCAM_BLOCK_GRGB,         dcam_k_cfg_grgb},
-[DCAM_BLOCK_3DNR_ME - DCAM_BLOCK_BASE]     = {DCAM_BLOCK_3DNR_ME,      dcam_k_cfg_3dnr_me},
-[DCAM_BLOCK_AFM - DCAM_BLOCK_BASE]         = {DCAM_BLOCK_AFM,          dcam_k_cfg_afm},
-[DCAM_BLOCK_BAYERHIST - DCAM_BLOCK_BASE]   = {DCAM_BLOCK_BAYERHIST,    dcamhw_k_null_cfg},
-};
-
-static int dcamhw_block_func_get(void *handle, void *arg)
-{
-	void *block_func = NULL;
-	struct dcam_hw_block_func_get *fucarg = NULL;
-
-	fucarg = (struct dcam_hw_block_func_get *)arg;
-
-	if (fucarg->index < DCAM_BLOCK_TOTAL) {
-		block_func = (struct dcam_cfg_entry *)&dcam_cfg_func_tab[fucarg->index];
-		fucarg->dcam_entry = block_func;
-	}
-
-	if (block_func == NULL) {
-		pr_err("fail to get valid block func %d\n", DCAM_BLOCK_TYPE);
-		return -EFAULT;
-	}
-
-	return 0;
-}
-
 static int dcamhw_mipicap_cfg(void *handle, void *arg)
 {
 	struct dcam_hw_cfg_mipicap *mipiarg = NULL;
@@ -1398,7 +1362,6 @@ static struct hw_io_ctrl_fun dcam_hw_ioctl_fun_tab[] = {
 	{DCAM_HW_CFG_BINNING_4IN1_SET,      dcamhw_binning_4in1_set},
 	{DCAM_HW_CFG_SRAM_CTRL_SET,         dcamhw_sram_ctrl_set},
 	{DCAM_HW_CFG_SLICE_FETCH_SET,       dcamhw_slice_fetch_set},
-	{DCAM_HW_CFG_BLOCK_FUNC_GET,        dcamhw_block_func_get},
 	{DCAM_HW_CFG_BLOCKS_SETALL,         dcamhw_blocks_setall},
 	{DCAM_HW_CFG_BLOCKS_SETSTATIS,      dcamhw_blocks_setstatis},
 	{DCAM_HW_CFG_MIPICAP,               dcamhw_mipicap_cfg},

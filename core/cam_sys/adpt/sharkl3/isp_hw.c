@@ -840,50 +840,6 @@ static int isphw_default_param_cfg(void *handle, void *arg)
 	return 0;
 }
 
-static struct isp_cfg_entry isp_cfg_func_tab[ISP_BLOCK_TOTAL - ISP_BLOCK_BASE] = {
-[ISP_BLOCK_CCE - ISP_BLOCK_BASE]        = {ISP_BLOCK_CCE,        isp_k_cfg_cce},
-[ISP_BLOCK_CDN - ISP_BLOCK_BASE]        = {ISP_BLOCK_CDN,        isp_k_cfg_cdn},
-[ISP_BLOCK_CFA - ISP_BLOCK_BASE]        = {ISP_BLOCK_CFA,        isp_k_cfg_cfa},
-[ISP_BLOCK_NLM - ISP_BLOCK_BASE]        = {ISP_BLOCK_NLM,        isp_k_cfg_nlm},
-[ISP_BLOCK_YNR - ISP_BLOCK_BASE]        = {ISP_BLOCK_YNR,        isp_k_cfg_ynr},
-[ISP_BLOCK_BRIGHTNESS - ISP_BLOCK_BASE] = {ISP_BLOCK_BRIGHTNESS, isp_k_cfg_brightness},
-[ISP_BLOCK_CONTRAST - ISP_BLOCK_BASE]   = {ISP_BLOCK_CONTRAST,   isp_k_cfg_contrast},
-[ISP_BLOCK_CSA - ISP_BLOCK_BASE]        = {ISP_BLOCK_CSA,        isp_k_cfg_csa},
-[ISP_BLOCK_HUE - ISP_BLOCK_BASE]        = {ISP_BLOCK_HUE,        isp_k_cfg_hue},
-[ISP_BLOCK_CMC - ISP_BLOCK_BASE]        = {ISP_BLOCK_CMC,        isp_k_cfg_cmc10},
-[ISP_BLOCK_EDGE - ISP_BLOCK_BASE]       = {ISP_BLOCK_EDGE,       isp_k_cfg_edge},
-[ISP_BLOCK_GAMMA - ISP_BLOCK_BASE]      = {ISP_BLOCK_GAMMA,      isp_k_cfg_gamma},
-[ISP_BLOCK_HIST - ISP_BLOCK_BASE]       = {ISP_BLOCK_HIST,       isp_k_cfg_hist},
-[ISP_BLOCK_HSV - ISP_BLOCK_BASE]        = {ISP_BLOCK_HSV,        isp_k_cfg_hsv},
-[ISP_BLOCK_IIRCNR - ISP_BLOCK_BASE]     = {ISP_BLOCK_IIRCNR,     isp_k_cfg_iircnr},
-[ISP_BLOCK_POST_CDN - ISP_BLOCK_BASE]   = {ISP_BLOCK_POST_CDN,   isp_k_cfg_post_cdn},
-[ISP_BLOCK_PRE_CDN - ISP_BLOCK_BASE]    = {ISP_BLOCK_PRE_CDN,    isp_k_cfg_pre_cdn},
-[ISP_BLOCK_PSTRZ - ISP_BLOCK_BASE]      = {ISP_BLOCK_PSTRZ,      isp_k_cfg_pstrz},
-[ISP_BLOCK_UVD - ISP_BLOCK_BASE]        = {ISP_BLOCK_UVD,        isp_k_cfg_uvd},
-[ISP_BLOCK_YGAMMA - ISP_BLOCK_BASE]     = {ISP_BLOCK_YGAMMA,     isp_k_cfg_ygamma},
-[ISP_BLOCK_YRANDOM - ISP_BLOCK_BASE]    = {ISP_BLOCK_YRANDOM,    isp_k_cfg_yrandom},
-};
-
-static int isphw_block_func_get(void *handle, void *arg)
-{
-	void *block_func = NULL;
-	struct isp_hw_block_func *fucarg = NULL;
-
-	fucarg = (struct isp_hw_block_func *)arg;
-
-	if (fucarg->index < (ISP_BLOCK_TOTAL - ISP_BLOCK_BASE)) {
-		block_func = (struct isp_cfg_entry *)&isp_cfg_func_tab[fucarg->index];
-		fucarg->isp_entry = block_func;
-	}
-
-	if (block_func == NULL) {
-		pr_err("fail to get valid block func %d\n", ISP_BLOCK_TYPE);
-		return -EFAULT;
-	}
-
-	return 0;
-}
-
 static struct isp_cfg_pre_param isp_hw_cfg_param_func_tab[ISP_BLOCK_TOTAL - ISP_BLOCK_BASE] = {
 	[ISP_BLOCK_CCE - ISP_BLOCK_BASE]        = {ISP_BLOCK_CCE,        isp_k_cpy_cce},
 	[ISP_BLOCK_CDN - ISP_BLOCK_BASE]        = {ISP_BLOCK_CDN,        isp_k_cpy_cdn},
@@ -2396,7 +2352,6 @@ static struct hw_io_ctrl_fun isp_hw_ioctl_fun_tab[] = {
 	{ISP_HW_CFG_FETCH_SET,               isphw_fetch_set},
 	{ISP_HW_CFG_DEFAULT_PARA_SET,        isphw_default_param_set},
 	{ISP_HW_CFG_DEFAULT_PARA_CFG,        isphw_default_param_cfg},
-	{ISP_HW_CFG_BLOCK_FUNC_GET,          isphw_block_func_get},
 	{ISP_HW_CFG_PARAM_BLOCK_FUNC_GET,    isphw_param_get},
 	{ISP_HW_CFG_CFG_MAP_INFO_GET,        isphw_cfg_map_info_get},
 	{ISP_HW_CFG_FMCU_VALID_GET,          isphw_fmcu_available},

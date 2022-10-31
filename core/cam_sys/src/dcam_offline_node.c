@@ -895,9 +895,9 @@ int dcam_offline_node_blk_param_set(struct dcam_offline_node *node, void *param)
 	int ret = 0, index = 0;
 	struct isp_io_param *blk_param = NULL;
 	struct dcam_isp_k_block *pm = NULL;
-	func_dcam_cfg_param cfg_fun_ptr = NULL;
+	func_cam_cfg_param cfg_fun_ptr = NULL;
 	struct cam_hw_info *hw = NULL;
-	struct dcam_hw_block_func_get blk_func = {0};
+	struct cam_hw_block_func_get blk_func = {0};
 
 	if (!node || !param) {
 		pr_err("fail to get valid param %px %px\n", node, param);
@@ -912,12 +912,12 @@ int dcam_offline_node_blk_param_set(struct dcam_offline_node *node, void *param)
 	}
 	hw = node->dev->hw;
 
-	index = blk_param->sub_block - DCAM_BLOCK_BASE;
+	index = blk_param->sub_block;
 	blk_func.index = index;
-	hw->dcam_ioctl(hw, DCAM_HW_CFG_BLOCK_FUNC_GET, &blk_func);
-	if (blk_func.dcam_entry != NULL &&
-		blk_func.dcam_entry->sub_block == blk_param->sub_block) {
-		cfg_fun_ptr = blk_func.dcam_entry->cfg_func;
+	hw->cam_ioctl(hw, CAM_HW_GET_BLK_FUN, &blk_func);
+	if (blk_func.cam_entry != NULL &&
+		blk_func.cam_entry->sub_block == blk_param->sub_block) {
+		cfg_fun_ptr = blk_func.cam_entry->cfg_func;
 	} else {
 		pr_err("fail to check param, io_param->sub_block = %d, error\n", blk_param->sub_block);
 	}
@@ -953,6 +953,28 @@ int dcam_offline_node_request_proc(struct dcam_offline_node *node, void *param)
 		pr_err("fail to enqueue dcam offline frame\n");
 
 	return ret;
+}
+
+void dcam_offline_node_close(void *handle)
+{
+	int ret = 0;
+	struct dcam_offline_node *node = NULL;
+
+	if (!handle) {
+		pr_err("fail to get invalid node ptr\n");
+		return;
+	}
+	node = (struct dcam_offline_node *)handle;
+	if (node->thread.thread_task) {
+		camthread_stop(&node->thread);
+		/* wait for last frame done */
+		ret = wait_for_completion_timeout(&node->frm_done, ISP_CONTEXT_TIMEOUT);
+		if (ret == 0)
+			pr_err("fail to wait node %d, timeout.\n", node->node_id);
+		else
+			pr_info("wait time %d ms\n", ret);
+		cam_queue_clear(&node->port_queue, struct dcam_offline_port, list);
+	}
 }
 
 void *dcam_offline_node_get(uint32_t node_id, struct dcam_offline_node_desc *param)
@@ -1041,7 +1063,6 @@ void dcam_offline_node_put(struct dcam_offline_node *node)
 		return;
 	}
 
-	camthread_stop(&node->thread);
 	while (node->hw_ctx && loop < 1000) {
 		pr_debug("ctx % in irq. wait %d\n", node->node_id, loop);
 		loop++;
@@ -1049,7 +1070,6 @@ void dcam_offline_node_put(struct dcam_offline_node *node)
 	};
 	if (loop == 1000 && node->hw_ctx)
 		pr_warn("offline node unbind\n");
-	cam_queue_clear(&node->port_queue, struct dcam_offline_port, list);
 	dcamoffline_pmctx_deinit(node);
 	mutex_destroy(&node->blkpm_dcam_lock);
 	cam_queue_clear(&node->in_queue, struct camera_frame, list);

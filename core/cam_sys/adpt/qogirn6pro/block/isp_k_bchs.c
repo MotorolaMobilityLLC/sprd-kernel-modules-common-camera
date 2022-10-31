@@ -198,9 +198,10 @@ static int isp_k_hue_block(struct isp_io_param *param,
 }
 
 int isp_k_cfg_bchs(struct isp_io_param *param,
-	struct dcam_isp_k_block *isp_k_param, uint32_t idx)
+	struct dcam_isp_k_block *isp_k_param)
 {
 	int ret = 0;
+	uint32_t idx = isp_k_param->cfg_id;
 	struct isp_dev_bchs_info *bchs_info = NULL;
 
 	bchs_info = &isp_k_param->bchs_info;

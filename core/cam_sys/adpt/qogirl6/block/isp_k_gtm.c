@@ -315,7 +315,7 @@ int isp_k_rgb_gtm_bypass(void *param)
 }
 
 int isp_k_cfg_rgb_gtm(struct isp_io_param *param,
-		struct dcam_isp_k_block *isp_k_param, uint32_t idx)
+		struct dcam_isp_k_block *isp_k_param)
 {
 	int ret = 0;
 	uint32_t *calc_mode = NULL;
@@ -339,7 +339,7 @@ int isp_k_cfg_rgb_gtm(struct isp_io_param *param,
 		if (param->scene_id == PM_SCENE_CAP)
 			gtm->bypass_info.gtm_hist_stat_bypass = 1;
 		pr_debug("ctx_id %d , mod_en %d, map %d, hist_stat %d\n",
-			idx, gtm->bypass_info.gtm_mod_en, gtm->bypass_info.gtm_map_bypass, gtm->bypass_info.gtm_hist_stat_bypass);
+			isp_k_param->cfg_id, gtm->bypass_info.gtm_mod_en, gtm->bypass_info.gtm_map_bypass, gtm->bypass_info.gtm_hist_stat_bypass);
 		break;
 	case DCAM_PRO_GTM_MAPPING:
 		gtm_alg_calc = &isp_k_param->gtm_sw_map_info;
@@ -349,7 +349,7 @@ int isp_k_cfg_rgb_gtm(struct isp_io_param *param,
 			return -EPERM;
 		}
 		isp_k_param->gtm_sw_map_info.isupdate = 1;
-		pr_debug("ctx_id %d, get gtm alg_calc info\n", idx);
+		pr_debug("ctx_id %d, get gtm alg_calc info\n", isp_k_param->cfg_id);
 		break;
 	case DCAM_PRO_GTM_CALC_MODE:
 		calc_mode = &isp_k_param->gtm_calc_mode;
@@ -359,7 +359,7 @@ int isp_k_cfg_rgb_gtm(struct isp_io_param *param,
 			pr_err("fail to copy, ret=0x%x\n", (unsigned int)ret);
 			return -EPERM;
 		}
-		pr_debug("ctx_id %d, gtm calc mode %d\n", idx, isp_k_param->gtm_calc_mode);
+		pr_debug("ctx_id %d, gtm calc mode %d\n", isp_k_param->cfg_id, isp_k_param->gtm_calc_mode);
 		break;
 	default:
 		pr_err("fail cmd id:%d, not supported.\n",
