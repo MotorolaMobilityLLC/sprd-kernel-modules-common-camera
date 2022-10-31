@@ -902,7 +902,8 @@ void dcampath_update_addr_and_size(struct dcam_sw_context *ctx, struct dcam_path
 		patharg.pack_bits = path->pack_bits;
 		hw->dcam_ioctl(hw, DCAM_HW_CFG_PATH_SRC_SEL, &patharg);
 	}
-	path->base_update = 0;
+	if (!ctx->virtualsensor)
+		path->base_update = 0;
 	if (path_id == DCAM_PATH_FULL || path_id == DCAM_PATH_RAW || path_id == DCAM_PATH_BIN) {
 		frame->width = path->out_size.w;
 		frame->height = path->out_size.h;

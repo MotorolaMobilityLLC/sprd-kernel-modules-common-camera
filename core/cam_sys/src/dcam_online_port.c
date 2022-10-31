@@ -390,7 +390,8 @@ static void dcamonline_port_update_path_size(struct dcam_online_port *dcam_port,
 
 		dcam_port->size_update = 0;
 		dcam_port->priv_size_data = NULL;
-		dcam_port->base_update = 0;
+		if (!hw_ctx->is_virtualsensor_proc)
+			dcam_port->base_update = 0;
 	}
 }
 
