@@ -647,7 +647,7 @@ static void camcore_empty_frame_put(void *param)
 	if (frame->priv_data) {
 		if (!frame->irq_type)
 			kfree(frame->priv_data);
-		else if (frame->buf.type == CAM_BUF_USER)
+		else if (frame->buf.type == CAM_BUF_USER && frame->irq_type != CAMERA_IRQ_STATIS)
 			cam_buf_ionbuf_put(&frame->buf);
 	}
 	cam_queue_empty_frame_put(frame);

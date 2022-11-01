@@ -31,15 +31,12 @@ void dcam_k_raw_gtm_set_default(struct dcam_dev_raw_gtm_block_info *p)
 	p->gtm_tm_out_bit_depth = 0xE;
 	p->gtm_tm_in_bit_depth = 0xE;
 	p->gtm_cur_is_first_frame = 0x0;
-	p->gtm_log_diff = 0x0;
-	p->gtm_log_diff_int = 0x25C9;
+	p->gtm_log_diff = 769156;
+	p->gtm_log_diff_int = 698;
 	p->gtm_log_max_int = 0x0;
-	p->gtm_log_min_int = 0x496B;
-	p->gtm_lr_int = 0x23F;
+	p->gtm_log_min_int = 32580;
+	p->gtm_lr_int = 61517;
 	p->gtm_tm_param_calc_by_hw = 0x1;
-	p->gtm_yavg = 0x0;
-	p->gtm_ymax = 0x0;
-	p->gtm_ymin = 0x4;
 	p->tm_lumafilter_c[0][0] = 0x4;
 	p->tm_lumafilter_c[0][1] = 0x2;
 	p->tm_lumafilter_c[0][2] = 0x4;
@@ -53,6 +50,8 @@ void dcam_k_raw_gtm_set_default(struct dcam_dev_raw_gtm_block_info *p)
 	p->slice.gtm_slice_line_startpos = 0x0;
 	p->slice.gtm_slice_line_endpos = 0x0;
 	p->slice.gtm_slice_main = 0x0;
+	p->gtm_ymin = 2;
+	p->gtm_target_norm = 4015;
 }
 
 int dcam_k_raw_gtm_slice(uint32_t idx, struct dcam_dev_gtm_slice_info *gtm_slice)
@@ -107,10 +106,12 @@ int dcam_k_raw_gtm_block(uint32_t gtm_param_idx,
 
 	if (gtm->gtm_calc_mode == GTM_SW_CALC) {
 		p->gtm_cur_is_first_frame = 1;
-		pr_debug("gtm_sw_calc first frame need gtm map\n");
+		p->gtm_tm_param_calc_by_hw = 0;
+		pr_debug("scene %d gtm_sw_calc first frame need gtm map\n", gtm_param_idx);
 	} else if (hw_ctx->fid == 0) {
 		pr_debug("online or offline first frame gtm map need bypass\n");
 		p->gtm_cur_is_first_frame = 1;
+		p->gtm_tm_param_calc_by_hw = 1;
 		p->bypass_info.gtm_map_bypass = 1;
 	}
 	pr_debug("ctx %d, gtm hw_ymin %d, target_norm %d, lr_int %d\n",
@@ -139,8 +140,17 @@ int dcam_k_raw_gtm_block(uint32_t gtm_param_idx,
 		| ((p->gtm_target_norm_coeff & 0x3FFF) << 16);
 	DCAM_REG_MWR(idx, GTM_HIST_CTRL1, 0x3FFFFFFD, val);
 
+	DCAM_REG_MWR(idx, GTM_HIST_YMIN, 0xFF, p->gtm_ymin);
+
 	val = p->gtm_yavg_diff_thr & 0x3FFF;
 	DCAM_REG_WR(idx, GTM_HIST_CTRL2, val);
+
+	val = ((p->gtm_lr_int & 0xFFFF) << 0) |
+		((p->gtm_log_min_int & 0xFFFF) << 16);
+	DCAM_REG_MWR(idx, GTM_HIST_CTRL3, 0xFFFFFFFF, val);
+
+	val = ((p->gtm_log_diff_int & 0xFFFF) << 16);
+	DCAM_REG_MWR(idx,  GTM_HIST_CTRL4, 0xFFFFFFFF, val);
 
 	p->gtm_hist_total = hw_ctx->cap_info.cap_size.size_x * hw_ctx->cap_info.cap_size.size_y;
 	val = p->gtm_hist_total & 0x3FFFFFF;
@@ -188,7 +198,6 @@ int dcam_k_raw_gtm_block(uint32_t gtm_param_idx,
 
 	/* for slice */
 	dcam_k_raw_gtm_slice(idx, gtm_slice);
-
 	return ret;
 }
 
@@ -292,8 +301,8 @@ int dcam_k_cfg_raw_gtm(struct isp_io_param *param, struct dcam_isp_k_block *p)
 				return -EPERM;
 			}
 			dcam_k_raw_gtm_set_default(gtm_block);
-			pr_debug("gtm  mod_en %d,  hist_stat_bypass %d, map_bypass %d\n",
-				gtm_block->bypass_info.gtm_mod_en, gtm_block->bypass_info.gtm_hist_stat_bypass, gtm_block->bypass_info.gtm_map_bypass);
+			pr_debug("scene %d gtm mod_en %d,  hist_stat_bypass %d, map_bypass %d\n",
+				param->scene_id, gtm_block->bypass_info.gtm_mod_en, gtm_block->bypass_info.gtm_hist_stat_bypass, gtm_block->bypass_info.gtm_map_bypass);
 			if (p->idx == DCAM_HW_CONTEXT_MAX)
 				return 0;
 
@@ -307,8 +316,8 @@ int dcam_k_cfg_raw_gtm(struct isp_io_param *param, struct dcam_isp_k_block *p)
 				return -EPERM;
 			}
 			dcam_k_raw_gtm_set_default(gtm_block);
-			pr_debug("gtm  mod_en %d,  hist_stat_bypass %d, map_bypass %d\n",
-				gtm_block->bypass_info.gtm_mod_en, gtm_block->bypass_info.gtm_hist_stat_bypass, gtm_block->bypass_info.gtm_map_bypass);
+			pr_debug("scene %d gtm mod_en %d,  hist_stat_bypass %d, map_bypass %d\n",
+				param->scene_id, gtm_block->bypass_info.gtm_mod_en, gtm_block->bypass_info.gtm_hist_stat_bypass, gtm_block->bypass_info.gtm_map_bypass);
 			mutex_unlock(&p->param_lock);
 		}
 		break;
@@ -330,8 +339,10 @@ int dcam_k_cfg_raw_gtm(struct isp_io_param *param, struct dcam_isp_k_block *p)
 			return -EPERM;
 		}
 		if ((!map_param.ymin) && (!map_param.target) && (!map_param.lr_int) &&
-			(!map_param.log_min_int) && (!map_param.log_diff_int) && (!map_param.diff))
+			(!map_param.log_min_int) && (!map_param.log_diff_int) && (!map_param.diff)) {
+			pr_warn("warn: set wrong map param, drop it\n");
 			break;
+		}
 		gtm_block->gtm_lr_int = map_param.lr_int;
 		gtm_block->gtm_ymin = map_param.ymin;
 		gtm_block->gtm_ymax = map_param.ymax;

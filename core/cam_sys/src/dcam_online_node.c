@@ -30,12 +30,10 @@
 
 #define DCAMONLINE_STATIS_WORK_SET(bypass, node, port_id) ( { \
 	struct dcam_online_port *__port = NULL; \
-	__port = dcam_online_node_port_get(node, port_id); \
-	if (__port) { \
-		if ((bypass) == 0) \
+	if ((bypass) == 0) { \
+		__port = dcam_online_node_port_get(node, port_id); \
+		if (__port) \
 			atomic_set(&__port->is_work, 1); \
-		else \
-			atomic_set(&__port->is_work, 0); \
 	}\
 })
 
@@ -1418,8 +1416,11 @@ static int dcamonline_dev_start(struct dcam_online_node *node, void *param)
 		ret = dcamonline_fmcu_slw_set(node);
 
 	/* TODO: change AFL trigger */
-	if (pm->afl.afl_info.bypass == 0)
-		DCAMONLINE_STATIS_WORK_SET(1, node, PORT_AFL_OUT);
+	if (pm->afl.afl_info.bypass == 0) {
+		port = dcam_online_node_port_get(node, PORT_AFL_OUT);
+		if (port)
+			atomic_set(&port->is_work, 0);
+	}
 
 	atomic_set(&node->state, STATE_RUNNING);
 
