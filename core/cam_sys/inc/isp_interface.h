@@ -39,8 +39,8 @@
 
 enum isp_context_id {
 	ISP_CONTEXT_P0,
-	ISP_CONTEXT_C0,
 	ISP_CONTEXT_P1,
+	ISP_CONTEXT_C0,
 	ISP_CONTEXT_C1,
 	ISP_CONTEXT_P2,
 	ISP_CONTEXT_C2,
@@ -52,8 +52,8 @@ enum isp_context_id {
 
 enum isp_context_hw_id {
 	ISP_CONTEXT_HW_P0,
-	ISP_CONTEXT_HW_C0,
 	ISP_CONTEXT_HW_P1,
+	ISP_CONTEXT_HW_C0,
 	ISP_CONTEXT_HW_C1,
 	ISP_CONTEXT_HW_NUM
 };

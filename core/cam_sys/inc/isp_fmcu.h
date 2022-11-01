@@ -24,8 +24,8 @@
 
 enum fmcu_id {
 	ISP_FMCU_0, /* P0 */
-	ISP_FMCU_1, /* C */
 	ISP_FMCU_REC, /* p1 */
+	ISP_FMCU_1, /* C */
 	ISP_FMCU_DEC, /* dec, not use for context */
 	ISP_FMCU_NUM
 };

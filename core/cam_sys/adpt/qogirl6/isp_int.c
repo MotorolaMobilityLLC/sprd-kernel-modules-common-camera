@@ -302,14 +302,14 @@ static struct isp_int_ctx {
 			(uint32_t)ARRAY_SIZE(isp_irq_process),
 			isp_irq_process,
 		},
-		{ /* C0 */
-			ISP_C0_INT_BASE,
+		{ /* P1 */
+			ISP_P1_INT_BASE,
 			ISP_INT_LINE_MASK_ERR | ISP_INT_LINE_MASK_MMU,
 			(uint32_t)ARRAY_SIZE(isp_irq_process),
 			isp_irq_process,
 		},
-		{ /* P1 */
-			ISP_P1_INT_BASE,
+		{ /* C0 */
+			ISP_C0_INT_BASE,
 			ISP_INT_LINE_MASK_ERR | ISP_INT_LINE_MASK_MMU,
 			(uint32_t)ARRAY_SIZE(isp_irq_process),
 			isp_irq_process,
@@ -462,14 +462,12 @@ static irqreturn_t ispint_isr_root(int irq, void *priv)
 	}
 	pr_debug("isp irq %d, priv %p, iid %d\n", irq, priv, iid);
 	for (sid = 0; sid < 2; sid++) {
-		pctx_hw_id = (iid << 1) | sid;
+		pctx_hw_id = (sid << 1) | iid;
 		ctxs_com = ispint_ctxs_rd(pctx_hw_id);
-
 		/* read the interrupt*/
 		com = ispint_isr_root_readint(ctxs_com.irq_offset);
 		if (unlikely((com.irq_line == 0) && (com.irq_line1 == 0)))
 			continue;
-
 		pr_debug("hw %d, irq_line: 0x%08x 0x%08x\n", pctx_hw_id, com.irq_line, com.irq_line1);
 		hw_ctx = &isp_handle->hw_ctx[pctx_hw_id];
 		ispint_isp_int_record(hw_ctx->cfg_id, pctx_hw_id, com.irq_line);
