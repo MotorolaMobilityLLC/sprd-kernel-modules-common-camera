@@ -149,7 +149,7 @@ static int dcamcore_irq_proc(void *handle)
 
 static int dcamcore_context_init(struct dcam_pipe_dev *dev)
 {
-	int i = 0, ret = 0;
+	int i = 0, j = 0, ret = 0;
 	struct dcam_hw_context *pctx_hw = NULL;
 	struct cam_thread_info *thrd = NULL;
 
@@ -179,7 +179,8 @@ static int dcamcore_context_init(struct dcam_pipe_dev *dev)
 		ret = camthread_create(pctx_hw, thrd, dcamcore_irq_proc);
 		if (unlikely(ret != 0)) {
 			pr_err("fail to create dcam online interruption_proc thread\n");
-			return -EINVAL;
+			ret = -EINVAL;
+			goto thread_creat_fail;
 		}
 
 		pr_debug("register irq for dcam %d. irq_no %d\n", i, dev->hw->ip_dcam[i]->irq_no);
@@ -191,6 +192,18 @@ static int dcamcore_context_init(struct dcam_pipe_dev *dev)
 	}
 
 	pr_debug("done!\n");
+	return ret;
+
+thread_creat_fail:
+	cam_queue_clear(&pctx_hw->dcam_irq_sts_q, struct camera_frame, list);
+	for (j = 0; j < i; j++) {
+		pctx_hw = &dev->hw_ctx[j];
+		dcamcore_put_fmcu(pctx_hw);
+		dcam_int_irq_free(&dev->hw->pdev->dev, pctx_hw);
+		atomic_set(&pctx_hw->user_cnt, 0);
+		camthread_stop(&pctx_hw->dcam_irq_proc_thrd);
+		cam_queue_clear(&pctx_hw->dcam_irq_sts_q, struct camera_interrupt, list);
+	}
 	return ret;
 }
 
@@ -235,7 +248,7 @@ static int dcamcore_dev_open(void *dcam_handle)
 		ret = dcam_drv_hw_init(dev);
 		if (ret) {
 			pr_err("fail to init hw. ret: %d\n", ret);
-			goto context_init_fail;
+			goto exit;
 		}
 		dev->hw->dcam_ioctl(dev->hw, DCAM_HW_CFG_INIT_AXI, &hw_ctx_id);
 
@@ -243,7 +256,7 @@ static int dcamcore_dev_open(void *dcam_handle)
 		if (ret) {
 			pr_err("fail to init dcam context.\n");
 			ret = -EFAULT;
-			goto exit;
+			goto hw_init_fail;
 		}
 
 		mutex_init(&dev->path_mutex);
@@ -253,8 +266,9 @@ static int dcamcore_dev_open(void *dcam_handle)
 	pr_info("open dcam pipe dev done! enable %d\n",atomic_read(&dev->enable));
 	return 0;
 
-context_init_fail:
-	dcamcore_context_deinit(dev);
+hw_init_fail:
+	dcam_drv_hw_deinit(dev);
+
 exit:
 	atomic_dec(&dev->enable);
 	mutex_unlock(&dev->ctx_mutex);
