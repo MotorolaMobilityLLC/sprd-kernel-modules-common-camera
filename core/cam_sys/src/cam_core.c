@@ -2788,6 +2788,8 @@ static camcore_dcamoffline_desc_get(struct camera_module *module,
 			dcam_offline_desc->fetch_fmt = CAM_RAW_14;
 			dcam_offline_desc->port_desc.dcam_out_fmt = CAM_YUV420_2FRAME_MIPI;
 		}
+		if (module->cam_uinfo.is_4in1)
+			dcam_offline_desc->fetch_fmt = channel->ch_uinfo.dcam_raw_fmt;
 	}
 	channel->ch_uinfo.dcam_raw_fmt = dcam_offline_desc->port_desc.dcam_out_fmt;
 
