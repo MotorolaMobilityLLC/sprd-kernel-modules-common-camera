@@ -142,6 +142,7 @@ void isp_3dnr_config_blend(uint32_t idx,
 	if (blend->isupdate == 0)
 		return;
 	blend->isupdate = 0;
+	ISP_REG_MWR(idx, ISP_3DNR_BLEND_CONTROL0, BIT_0, blend->bypass);
 	ISP_REG_MWR(idx, ISP_3DNR_BLEND_CONTROL0,
 		BIT_1, blend->fusion_mode << 1);
 	ISP_REG_MWR(idx, ISP_3DNR_BLEND_CONTROL0,
@@ -407,7 +408,7 @@ void isp_3dnr_config_param(struct isp_3dnr_ctx_desc *ctx)
 	crop = &ctx->crop;
 	isp_3dnr_config_crop(idx, crop);
 
-	ISP_REG_MWR(idx, ISP_3DNR_BLEND_CONTROL0, BIT_0, 0);
+	ISP_REG_MWR(idx, ISP_3DNR_BLEND_CONTROL0, BIT_0, blend->bypass);
 	ISP_REG_MWR(idx, ISP_COMMON_SCL_PATH_SEL, BIT_8, 0x1 << 8);
 
 	blend_cnt = ctx->blending_cnt;
