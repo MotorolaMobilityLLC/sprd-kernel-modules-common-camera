@@ -168,11 +168,11 @@ static void ispltm_sync_fid_set(void *handle)
 }
 
 static int ispltm_sync_config_set(struct isp_ltm_ctx_desc *ctx,
-		struct isp_ltm_hists *hists)
+		struct isp_ltm_hists *hists, struct isp_ltm_info *ltm_info)
 {
 	struct isp_ltm_sync *sync = NULL;
 
-	if (!ctx || !hists) {
+	if (!ctx || !hists || !ltm_info) {
 		pr_err("fail to get invalid ptr %p\n", ctx);
 		return -EFAULT;
 	}
@@ -185,7 +185,7 @@ static int ispltm_sync_config_set(struct isp_ltm_ctx_desc *ctx,
 	}
 
 	mutex_lock(&sync->share_mutex);
-	sync->pre_hist_bypass = hists->bypass;
+	sync->pre_hist_bypass = hists->bypass || ltm_info->ltm_stat.bypass;
 	sync->pre_frame_h = ctx->frame_height_stat;
 	sync->pre_frame_w = ctx->frame_width_stat;
 	sync->tile_num_x_minus = hists->tile_num_x_minus;
@@ -849,7 +849,7 @@ static int ispltm_pipe_proc(void *handle, void *param)
 		}
 		ispltm_map_config_gen(ctx, &ltm_info->ltm_map, ISP_PRO_LTM_PRE_PARAM);
 		ltm_cfg_func.k_blk_func(ctx);
-		ispltm_sync_config_set(ctx, &ctx->hists);
+		ispltm_sync_config_set(ctx, &ctx->hists, ltm_info);
 		break;
 	case MODE_LTM_CAP:
 		ispltm_sync_config_get(ctx, &ctx->hists);
