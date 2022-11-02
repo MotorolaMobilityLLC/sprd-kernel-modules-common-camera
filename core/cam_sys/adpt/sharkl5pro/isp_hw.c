@@ -1379,7 +1379,7 @@ static int isphw_fetch_set(void *handle, void *arg)
 	ISP_REG_MWR(idx, ISP_COMMON_SCL_PATH_SEL, BIT_1 | BIT_0, 3 << 0);
 
 	ISP_REG_MWR(idx, ISP_FBD_RAW_SEL, BIT(0), 0x1);
-	if (pack_bits == CAM_RAW_14  || pack_bits == CAM_RAW_HALFWORD_10)
+	if (pack_bits == CAM_RAW_14)
 		bwu_val = 0x40001;
 	else
 		bwu_val = 0x40000;
