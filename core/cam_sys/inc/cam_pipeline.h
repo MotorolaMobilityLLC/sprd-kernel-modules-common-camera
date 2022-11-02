@@ -169,6 +169,20 @@ struct cam_pipeline {
 	ret; \
 })
 
+#define CAM_PIPEINE_ISP_SCALER_NODE_CFG(channel, cmd, par)  ({ \
+	struct cam_pipeline_cfg_param param_cfg = {0}; \
+	int ret = 0; \
+	param_cfg.node_type = CAM_NODE_TYPE_ISP_YUV_SCALER; \
+	param_cfg.node_param.param = (par); \
+	if ((channel)->pipeline_handle) \
+		ret = (channel)->pipeline_handle->ops.cfg_param((channel)->pipeline_handle, (cmd), &param_cfg); \
+	else { \
+		pr_warn("warning: current channel not contain pipeline\n"); \
+		ret = -EFAULT; \
+	} \
+	ret; \
+})
+
 #define CAM_PIPEINE_DCAM_ONLINE_NODE_CFG(channel, cmd, par)  ({ \
 	struct cam_pipeline_cfg_param param_cfg = {0}; \
 	int ret = 0; \

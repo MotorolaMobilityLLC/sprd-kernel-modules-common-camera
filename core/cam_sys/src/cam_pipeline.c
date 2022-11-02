@@ -320,6 +320,10 @@ static void campipeline_zsl_capture_get(struct cam_pipeline_topology *param, uin
 	cur_node->outport[PORT_FULL_OUT].link.node_type = CAM_NODE_TYPE_FRAME_CACHE;
 	cur_node->outport[PORT_FULL_OUT].link.node_id = FRAME_CACHE_CAP_NODE_ID;
 	cur_node->outport[PORT_FULL_OUT].link.port_id = PORT_FRAME_CACHE_IN;
+	for (i = PORT_AEM_OUT; i < PORT_DCAM_OUT_MAX; i++) {
+		cur_node->outport[i].link_state = PORT_LINK_NORMAL;
+		cur_node->outport[i].link.node_type = CAM_NODE_TYPE_USER;
+	}
 	cur_node++;
 	cur_node->id = CAM_DUMP_NODE_ID_0;
 	cur_node++;
@@ -1088,6 +1092,7 @@ static int campipeline_callback(enum cam_cb_type type, void *param, void *priv_d
 	case CAM_CB_FRAME_CACHE_RET_SRC_BUF:
 	case CAM_CB_PYRDEC_RET_SRC_BUF:
 	case CAM_CB_COPY_SRC_BUFFER:
+	case CAM_CB_ISP_SCALE_RET_ISP_BUF:
 		ret = campipeline_src_cb_proc(type, pframe, pipeline);
 		break;
 	default :

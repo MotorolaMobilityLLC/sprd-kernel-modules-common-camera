@@ -599,6 +599,9 @@ static int camnode_cfg_node_param_isp_yuv_scaler(void *handle, enum cam_node_cfg
 	case CAM_NODE_CFG_RESERVE_BUF:
 		ret = isp_yuv_scaler_cfg_param(node->handle, in_param->port_id, ISP_YUV_SCALER_NODE_CFG_RESERVE_BUF, in_param->param);
 		break;
+	case CAM_NODE_CFG_FAST_STOP:
+		ret = isp_yuv_scaler_cfg_param(node->handle, in_param->port_id, ISP_YUV_SCALER_NODE_CFG_FAST_STOP, in_param->param);
+		break;
 	default:
 		pr_err("fail to support node: %s cmd: %d\n", cam_node_name_get(node->node_graph->type), cmd);
 		ret = -EFAULT;
@@ -914,6 +917,7 @@ static int camnode_outbuf_back(void *handle, void *in_param)
 		ret = node->ops.cfg_port_param(node, PORT_BUFFER_CFG_SET, node_param);
 		break;
 	case CAM_NODE_TYPE_ISP_OFFLINE:
+		ret = node->ops.cfg_port_param(node, PORT_BUFFER_CFG_SET, node_param);
 		break;
 	case CAM_NODE_TYPE_FRAME_CACHE:
 		ret = frame_cache_outbuf_back(node->handle, node_param->param);
@@ -976,6 +980,7 @@ static int camnode_data_callback(enum cam_cb_type type, void *param, void *priv_
 	case CAM_CB_DCAM_RET_SRC_BUF:
 	case CAM_CB_FRAME_CACHE_RET_SRC_BUF:
 	case CAM_CB_PYRDEC_RET_SRC_BUF:
+	case CAM_CB_ISP_SCALE_RET_ISP_BUF:
 		cam_queue_frame_flag_reset(pframe);
 		pframe->link_to = pframe->link_from;
 		if (node->node_graph->inport[PORT_ISP_OFFLINE_IN].copy_en) {

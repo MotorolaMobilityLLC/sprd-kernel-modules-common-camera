@@ -65,6 +65,18 @@ static uint32_t isp_yuv_scaler_node_insert_port(struct isp_yuv_scaler_node* node
 	return 0;
 }
 
+static int ispyuv_node_fast_stop_cfg(void *handle)
+{
+	struct isp_yuv_scaler_node *node = NULL;
+	node = VOID_PTR_TO(handle, struct isp_yuv_scaler_node);
+	if (cam_queue_cnt_get(&node->in_queue) == 0 && cam_queue_cnt_get(&node->proc_queue) == 0) {
+		node->is_fast_stop = 0;
+		complete(node->fast_stop_done);
+	} else
+		node->is_fast_stop = 1;
+	return 0;
+}
+
 uint32_t isp_yuv_scaler_cfg_param(void *node, uint32_t port_id, uint32_t cmd, void *param)
 {
 	int ret = 0;
@@ -82,6 +94,10 @@ uint32_t isp_yuv_scaler_cfg_param(void *node, uint32_t port_id, uint32_t cmd, vo
 		isp_yuv_scaler_node_insert_port(inode, param);
 		break;
 	case ISP_YUV_SCALER_NODE_CFG_RESERVE_BUF:
+		break;
+	case ISP_YUV_SCALER_NODE_CFG_FAST_STOP:
+		inode->fast_stop_done = VOID_PTR_TO(param, struct completion);
+		ispyuv_node_fast_stop_cfg(inode);
 		break;
 	}
 	return ret;
@@ -543,6 +559,11 @@ static int isp_yuv_scaler_node_postproc_irq(void *handle, uint32_t hw_idx, enum 
 				inode->resbuf_get_cb(RESERVED_BUF_SET_CB, pframe, inode->resbuf_cb_data);
 			} else {
 				cam_buf_iommu_unmap(&pframe->buf);
+				if (inode->is_fast_stop) {
+					ispyuv_node_fast_stop_cfg(inode);
+					port->data_cb_func(CAM_CB_ISP_SCALE_RET_ISP_BUF, pframe, port->data_cb_handle);
+					return 0;
+				}
 				inode->data_cb_func(CAM_CB_ISP_RET_DST_BUF, pframe, inode->data_cb_handle);
 			}
 		}
@@ -873,7 +894,7 @@ static int isp_yuv_scaler_node_start_proc(void *node)
 	struct cam_hw_info *hw = NULL;
 	struct isp_cfg_ctx_desc *cfg_desc = NULL;
 	struct isp_fmcu_ctx_desc *fmcu = NULL;
-	int ret = 0, use_fmcu = 0, kick_fmcu = 0, hw_path_id = 0, loop = 0;
+	int ret = 0, use_fmcu = 0, kick_fmcu = 0, hw_path_id = 0, loop = 0, result_ret = 0;
 
 	inode = VOID_PTR_TO(node, struct isp_yuv_scaler_node);
 	if (atomic_read(&inode->user_cnt) < 1) {
@@ -893,6 +914,10 @@ static int isp_yuv_scaler_node_start_proc(void *node)
 	if (!pframe || !pctx_hw) {
 		pr_err("fail to get param\n");
 		ret = -EINVAL;
+		goto input_err;
+	}
+	if (inode->is_fast_stop) {
+		ispyuv_node_fast_stop_cfg(inode);
 		goto input_err;
 	}
 	ret = cam_buf_iommu_map(&pframe->buf, CAM_IOMMUDEV_ISP);
@@ -1018,25 +1043,30 @@ static int isp_yuv_scaler_node_start_proc(void *node)
 	pr_debug("done.\n");
 	return 0;
 dequeue:
-	list_for_each_entry(port, &inode->port_queue.head, list) {
-		if (atomic_read(&port->user_cnt) >= 1) {
-			hw_path_id = isp_scaler_port_id_switch(port->port_id);
-			pframe = cam_queue_dequeue_tail(&port->result_queue, struct camera_frame, list);
-			if (pframe) {
-				/* ret frame to original queue */
-				if (pframe->is_reserved)
-					inode->resbuf_get_cb(RESERVED_BUF_SET_CB, pframe, inode->resbuf_cb_data);
-				else
-					cam_queue_enqueue(&port->out_buf_queue, &pframe->list);
-			}
-		}
-	}
+	result_ret = 1;
 	pframe = cam_queue_dequeue_tail(&inode->proc_queue, struct camera_frame, list);
 inq_overflow:
 	if (pframe)
 		cam_buf_iommu_unmap(&pframe->buf);
 map_err:
 input_err:
+	list_for_each_entry(port, &inode->port_queue.head, list) {
+		if (atomic_read(&port->user_cnt) >= 1) {
+			if (result_ret)
+				pframe = cam_queue_dequeue_tail(&port->result_queue, struct camera_frame, list);
+			else
+				pframe = cam_queue_dequeue_tail(&port->out_buf_queue, struct camera_frame, list);
+			if (pframe) {
+				if (pframe->buf.mapping_state & CAM_BUF_MAPPING_DEV)
+					cam_buf_iommu_unmap(&pframe->buf);
+				if (pframe->is_reserved)
+					port->resbuf_get_cb(RESERVED_BUF_SET_CB, pframe, port->resbuf_cb_data);
+				else
+					port->data_cb_func(CAM_CB_ISP_SCALE_RET_ISP_BUF, pframe, port->data_cb_handle);
+
+			}
+		}
+	}
 	if (pctx_hw)
 		isp_scaler_node_context_unbind(inode);
 	return ret;
@@ -1064,7 +1094,6 @@ static void isp_scaler_node_src_frame_ret(void *param)
 	frame->param_data = NULL;
 	if (frame->buf.mapping_state & CAM_BUF_MAPPING_DEV)
 		cam_buf_iommu_unmap(&frame->buf);
-	inode->data_cb_func(CAM_CB_ISP_RET_SRC_BUF, frame, inode->data_cb_handle);
 }
 
 void *isp_yuv_scaler_node_get (uint32_t node_id, struct isp_yuv_scaler_node_desc *param)

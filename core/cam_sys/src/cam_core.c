@@ -1704,7 +1704,8 @@ static int camcore_pipeline_callback(enum cam_cb_type type, void *param, void *p
 		}
 		break;
 	case CAM_CB_DCAM_RET_SRC_BUF:
-		pr_info("dcam src buf return mfd %d\n", pframe->buf.mfd);
+	case CAM_CB_ISP_SCALE_RET_ISP_BUF:
+		pr_info("user buf return type:%d mfd %d\n", type, pframe->buf.mfd);
 		cam_buf_ionbuf_put(&pframe->buf);
 		cam_queue_empty_frame_put(pframe);
 		break;
@@ -2349,8 +2350,8 @@ static int camcore_channel_size_config(
 			 * (zoom ratio changes in short gap)
 			 * wait here and retry(how long?)
 			 */
-			pr_info("wait to update dcam port %d size, zoom %d, lp %d\n",
-				channel->dcam_port_id, is_zoom, loop_count);
+			pr_info("module %d wait to update dcam port %d size, zoom %d, lp %d\n",
+				module->idx, channel->dcam_port_id, is_zoom, loop_count);
 			msleep(20);
 		} else {
 			break;
@@ -4133,6 +4134,7 @@ static ssize_t camcore_read(struct file *file, char __user *u_data,
 	struct channel_context *pchannel = NULL;
 	struct sprd_img_path_capability *cap = NULL;
 	struct cam_hw_info *hw = NULL;
+	struct cam_hw_reg_trace trace = {0};
 
 	module = (struct camera_module *)file->private_data;
 	if (!module) {
@@ -4250,8 +4252,23 @@ rewait:
 			read_op.parm.frame.zoom_ratio = pframe->zoom_ratio;
 			read_op.parm.frame.total_zoom = pframe->total_zoom;
 		} else {
+			struct cam_hw_info *hw = module->grp->hw_info;
+			struct dcam_online_node *dcam_online_node_dev = NULL;
+
+			if (hw == NULL) {
+				pr_err("fail to get hw ops.\n");
+				return -EFAULT;
+			}
 			pr_err("fail to get correct event %d\n", pframe->evt);
 			csi_api_reg_trace();
+			if (module->nodes_dev.dcam_online_node_dev) {
+				trace.type = ABNORMAL_REG_TRACE;
+				dcam_online_node_dev = module->nodes_dev.dcam_online_node_dev;
+				if (dcam_online_node_dev->hw_ctx_id != DCAM_HW_CONTEXT_MAX) {
+					trace.idx = dcam_online_node_dev->hw_ctx_id;
+					hw->isp_ioctl(hw, ISP_HW_CFG_REG_TRACE, &trace);
+				}
+			}
 			read_op.evt = pframe->evt;
 			read_op.parm.frame.irq_type = pframe->irq_type;
 			read_op.parm.frame.irq_property = pframe->irq_property;

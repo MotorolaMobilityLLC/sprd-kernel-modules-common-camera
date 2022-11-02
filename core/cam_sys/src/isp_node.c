@@ -918,6 +918,9 @@ static int ispnode_start_proc(void *node)
 						frame->out_crop[hw_path_id].size_x = port_cfg.src_frame->out[hw_path_id].w;
 						frame->out_crop[hw_path_id].size_y = port_cfg.src_frame->out[hw_path_id].h;
 						frame->out[hw_path_id] = port->size;
+						frame->link_from.node_type = inode->node_type;
+						frame->link_from.port_id = port->port_id;
+						frame->link_from.node_id = inode->node_id;
 					}
 					ret = cam_queue_enqueue(&port->result_queue, &frame->list);
 					if (ret == 0)

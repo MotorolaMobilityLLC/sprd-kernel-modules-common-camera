@@ -2016,6 +2016,12 @@ static int camioctl_capture_stop(struct camera_module *module,
 	ret = wait_for_completion_interruptible_timeout(&ch->fast_stop, FAST_STOP_TIME_OUT);
 	if (ret <= 0)
 		pr_err("fail to fast stop isp ret:%d\n", ret);
+	if (cam_scene_pipeline_need_yuv_scaler(ch->pipeline_handle->pipeline_graph->type)) {
+		CAM_PIPEINE_ISP_SCALER_NODE_CFG(ch, CAM_PIPELINE_CFG_FAST_STOP, &ch->fast_stop);
+		ret = wait_for_completion_interruptible_timeout(&ch->fast_stop, FAST_STOP_TIME_OUT);
+		if (ret <= 0)
+			pr_err("fail to fast stop isp ret:%d\n", ret);
+	}
 exit:
 	return 0;
 }

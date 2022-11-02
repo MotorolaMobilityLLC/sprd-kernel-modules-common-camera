@@ -2066,7 +2066,7 @@ static int dcamcore_dev_stop(void *dcam_handle, enum dcam_stop_cmd pause)
 	if ((unlikely(state == STATE_INIT) || unlikely(state == STATE_IDLE)) &&
 			((pctx->csi_connect_stat == DCAM_CSI_RESUME) || (hw->csi_connect_type == DCAM_BIND_FIXED))) {
 		pr_warn("warning: DCAM%d not started yet\n", pctx->hw_ctx_id);
-		return -EINVAL;
+		return ret;
 	}
 
 	if (hw_ctx_id != DCAM_HW_CONTEXT_MAX && pause != DCAM_RECOVERY) {

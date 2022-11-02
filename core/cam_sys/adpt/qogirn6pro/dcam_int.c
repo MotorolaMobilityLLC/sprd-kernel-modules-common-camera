@@ -966,7 +966,7 @@ irqreturn_t dcamint_isr_root(int irq, void *priv)
 	}
 
 	if (!dcam_hw_ctx->slowmotion_count) {
-		if (irq_status.status & DCAM_CAP_SOF) {
+		if (irq_status.status & BIT(DCAM_IF_IRQ_INT0_CAP_SOF)) {
 			/* record SOF timestamp for current frame */
 			if (dcam_hw_ctx->is_offline_proc) {
 				struct dcam_offline_node *node = NULL;
