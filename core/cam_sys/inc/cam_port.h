@@ -260,6 +260,7 @@ struct cam_port {
 };
 
 extern struct cam_buf_manager *global_buf_manager;
+const char *camport_fmt_name_get(enum cam_format type);
 const char *cam_port_name_get(enum cam_port_dcam_online_out_id port_id);
 const char *cam_port_dcam_offline_out_id_name_get(enum cam_port_dcam_offline_out_id port_id);
 int cam_port_static_portlist_get(struct cam_port_topology *param, uint32_t node_type, uint32_t transfer_type);

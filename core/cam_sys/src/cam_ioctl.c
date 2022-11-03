@@ -2802,11 +2802,11 @@ static int camioctl_dcam_raw_fmt_set(struct camera_module *module,unsigned long 
 	}
 
 	if (dcam_raw_update)
-		pr_info("cam%d, ch%d set dcam raw fmt %d\n", module->idx, param.ch_id, channel->ch_uinfo.dcam_raw_fmt);
+		pr_info("cam%d, ch%d set dcam raw fmt %s\n", module->idx, param.ch_id, camport_fmt_name_get(channel->ch_uinfo.dcam_raw_fmt));
 	if (sensor_raw_update)
-		pr_info("cam%d, ch%d set sensor raw fmt %d\n", module->idx, param.ch_id, channel->ch_uinfo.sensor_raw_fmt);
+		pr_info("cam%d, ch%d set sensor raw fmt %s\n", module->idx, param.ch_id, camport_fmt_name_get(channel->ch_uinfo.sensor_raw_fmt));
  	if ((!dcam_raw_update) && (!sensor_raw_update)) {
-		pr_err("fail to support raw fmt, not support, %d %d\n", param.sensor_raw_fmt, param.dcam_raw_fmt);
+		pr_err("fail to support raw fmt, not support, %s %s\n", camport_fmt_name_get(param.sensor_raw_fmt), camport_fmt_name_get(param.dcam_raw_fmt));
 		return -EFAULT;
 	} else
 		return 0;

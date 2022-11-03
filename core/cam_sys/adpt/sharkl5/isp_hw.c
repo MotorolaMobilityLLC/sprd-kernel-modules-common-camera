@@ -790,7 +790,7 @@ static int isphw_path_store(void *handle, void *arg)
 		val = 7;
 		break;
 	default:
-		pr_err("fail to get isp store format:%d, val:%d\n", store_info->color_fmt, val);
+		pr_err("fail to get isp store format:%s, val:%d\n", camport_fmt_name_get(store_info->color_fmt), val);
 		break;
 	}
 
@@ -1339,7 +1339,7 @@ static int isphw_fetch_set(void *handle, void *arg)
 
 	fetch = (struct isp_hw_fetch_info *)arg;
 	idx = fetch->ctx_id;
-	pr_debug("enter: fmt:%d, w:%d, h:%d\n", fetch->fetch_fmt,
+	pr_debug("enter: fmt:%s, w:%d, h:%d\n", camport_fmt_name_get(fetch->fetch_fmt),
 			fetch->in_trim.size_x, fetch->in_trim.size_y);
 
 	ISP_REG_MWR(idx, ISP_COMMON_SPACE_SEL,
@@ -1400,7 +1400,7 @@ static int isphw_fetch_set(void *handle, void *arg)
 		val = 11;
 		break;
 	default:
-		pr_err("fail to get isp fetch format:%d, val:%d\n", fetch->fetch_fmt, val);
+		pr_err("fail to get isp fetch format:%s, val:%d\n", camport_fmt_name_get(fetch->fetch_fmt), val);
 		break;
 	}
 
@@ -1517,8 +1517,8 @@ static int isphw_subblock_cfg(void *handle, void *arg)
 
 	fetch = (struct isp_hw_fetch_info *)arg;
 	idx = fetch->ctx_id;
-	pr_debug("superzoom enter: fmt:%d, in_trim %d %d, src %d %d\n",
-		fetch->fetch_fmt, fetch->in_trim.size_x, fetch->in_trim.size_y,
+	pr_debug("superzoom enter: fmt:%s, in_trim %d %d, src %d %d\n",
+		camport_fmt_name_get(fetch->fetch_fmt), fetch->in_trim.size_x, fetch->in_trim.size_y,
 		fetch->src.w, fetch->src.h);
 
 	switch (fetch->fetch_fmt) {
@@ -1560,7 +1560,7 @@ static int isphw_subblock_cfg(void *handle, void *arg)
 		val = 11;
 		break;
 	default:
-		pr_err("fail to get isp fetch format:%d, val:%d\n", fetch->fetch_fmt, val);
+		pr_err("fail to get isp fetch format:%s, val:%d\n", camport_fmt_name_get(fetch->fetch_fmt), val);
 		break;
 	}
 

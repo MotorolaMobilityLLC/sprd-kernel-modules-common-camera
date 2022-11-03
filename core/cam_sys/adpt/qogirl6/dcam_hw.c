@@ -532,9 +532,9 @@ static int dcamhw_fetch_set(void *handle, void *arg)
 		fetch_pitch = (fetch->fetch_info->size.w * 16 + 127) / 128;
 	else
 		fetch_pitch = (fetch->fetch_info->size.w * 10 + 127) / 128;
-	pr_info("size [%d %d], start %d, pitch %d, 0x%x fmt %d\n",
+	pr_info("size [%d %d], start %d, pitch %d, 0x%x fmt %s\n",
 		fetch->fetch_info->trim.size_x, fetch->fetch_info->trim.size_y,
-		fetch->fetch_info->trim.start_x, fetch_pitch, fetch->fetch_info->addr.addr_ch0, fetch->fetch_info->fmt);
+		fetch->fetch_info->trim.start_x, fetch_pitch, fetch->fetch_info->addr.addr_ch0, camport_fmt_name_get(fetch->fetch_info->fmt));
 	/* (bitfile)unit 32b,(spec)64b */
 
 	DCAM_REG_MWR(fetch->idx, DCAM_INT_CLR,

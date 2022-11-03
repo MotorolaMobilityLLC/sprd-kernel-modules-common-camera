@@ -588,23 +588,23 @@ static int ispnode_ltm_frame_process(struct isp_node *inode, struct isp_port_cfg
 	}
 
 	rgb_ltm = (struct isp_ltm_ctx_desc *)inode->rgb_ltm_handle;
+	if (!rgb_ltm)
+		return 0;
 
 	if (inode->ch_id == CAM_CH_PRE && ispnode_slice_needed(inode)) {
 		inode->pipe_src.mode_ltm = MODE_LTM_OFF;
 		rgb_ltm->sync->pre_slice_ltm_bypass = 1;
 	}
 
-	if (rgb_ltm) {
-		rgb_ltm->ltm_ops.core_ops.cfg_param(rgb_ltm, ISP_LTM_CFG_HIST_BYPASS, &port_cfg->src_frame->xtm_conflict.need_ltm_hist);
-		rgb_ltm->ltm_ops.core_ops.cfg_param(rgb_ltm, ISP_LTM_CFG_MAP_BYPASS, &port_cfg->src_frame->xtm_conflict.need_ltm_map);
-		rgb_ltm->ltm_ops.core_ops.cfg_param(rgb_ltm, ISP_LTM_CFG_MODE, &inode->pipe_src.mode_ltm);
-		rgb_ltm->ltm_ops.core_ops.cfg_param(rgb_ltm, ISP_LTM_CFG_FRAME_ID, &port_cfg->src_frame->fid);
-		rgb_ltm->ltm_ops.core_ops.cfg_param(rgb_ltm, ISP_LTM_CFG_SIZE_INFO, &port_cfg->src_crop);
-		ret = rgb_ltm->ltm_ops.core_ops.pipe_proc(rgb_ltm, &inode->isp_using_param->ltm_rgb_info);
-		if (ret == -1) {
-			inode->pipe_src.mode_ltm = MODE_LTM_OFF;
-			pr_err("fail to rgb LTM cfg frame, DISABLE\n");
-		}
+	rgb_ltm->ltm_ops.core_ops.cfg_param(rgb_ltm, ISP_LTM_CFG_HIST_BYPASS, &port_cfg->src_frame->xtm_conflict.need_ltm_hist);
+	rgb_ltm->ltm_ops.core_ops.cfg_param(rgb_ltm, ISP_LTM_CFG_MAP_BYPASS, &port_cfg->src_frame->xtm_conflict.need_ltm_map);
+	rgb_ltm->ltm_ops.core_ops.cfg_param(rgb_ltm, ISP_LTM_CFG_MODE, &inode->pipe_src.mode_ltm);
+	rgb_ltm->ltm_ops.core_ops.cfg_param(rgb_ltm, ISP_LTM_CFG_FRAME_ID, &port_cfg->src_frame->fid);
+	rgb_ltm->ltm_ops.core_ops.cfg_param(rgb_ltm, ISP_LTM_CFG_SIZE_INFO, &port_cfg->src_crop);
+	ret = rgb_ltm->ltm_ops.core_ops.pipe_proc(rgb_ltm, &inode->isp_using_param->ltm_rgb_info);
+	if (ret == -1) {
+		inode->pipe_src.mode_ltm = MODE_LTM_OFF;
+		pr_err("fail to rgb LTM cfg frame, DISABLE\n");
 	}
 
 	return ret;

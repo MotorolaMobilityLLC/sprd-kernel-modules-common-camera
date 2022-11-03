@@ -1355,7 +1355,7 @@ static int dcamonline_dev_start(struct dcam_online_node *node, void *param)
 			patharg.in_trim = port->in_trim;
 			patharg.endian = port->endian;
 			patharg.out_fmt = port->dcamout_fmt;
-			pr_debug("path %d, fmt %d, src_sel %d\n", patharg.path_id, patharg.out_fmt, patharg.src_sel);
+			pr_debug("path %d, fmt %s, src_sel %d\n", patharg.path_id, camport_fmt_name_get(patharg.out_fmt), patharg.src_sel);
 			atomic_set(&port->set_frm_cnt, 0);
 
 			if (atomic_read(&port->is_work) < 1)

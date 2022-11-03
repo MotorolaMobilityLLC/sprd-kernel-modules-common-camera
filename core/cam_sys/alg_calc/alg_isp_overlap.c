@@ -21,6 +21,7 @@
 #include "isp_slice.h"
 #include "cam_scaler.h"
 #include "alg_slice_calc.h"
+#include "cam_port.h"
 
 #ifdef pr_fmt
 #undef pr_fmt
@@ -231,7 +232,7 @@ static int core_drv_get_fetch_fmt(enum cam_format fmt)
 			fetch_fmt = 4;
 			break;
 		default:
-			pr_err("fail to get fetch fmt %d\n", fmt);
+			pr_err("fail to get fetch fmt %s\n", camport_fmt_name_get(fmt));
 			fetch_fmt = -1;
 			break;
 	}

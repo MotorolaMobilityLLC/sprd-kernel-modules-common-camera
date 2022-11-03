@@ -266,7 +266,7 @@ static int dcamonline_port_size_cfg(void *handle, void *param)
 				break;
 
 			default:
-				pr_err("fail to get path->out_fmt :%d\n", dcam_online_port->dcamout_fmt);
+				pr_err("fail to get path->out_fmt:%s\n", camport_fmt_name_get(dcam_online_port->dcamout_fmt));
 				break;
 		}
 
@@ -947,19 +947,19 @@ static int dcamonline_port_base_cfg(struct dcam_online_port *port, struct dcam_o
 		port->compress_en = param->compress_en;
 		port->raw_src = param->is_raw ? ORI_RAW_SRC_SEL : PROCESS_RAW_SRC_SEL;
 		port->base_update = 1;
-		pr_info("full path out fmt %d\n",port->dcamout_fmt);
+		pr_info("full path out fmt %s\n",camport_fmt_name_get(port->dcamout_fmt));
 		spin_unlock_irqrestore(&port->size_lock, flags);
 		atomic_set(&port->is_work, 1);
 		break;
 	case PORT_BIN_OUT:
 		port->compress_en = param->compress_en;
 		port->pyr_out_fmt = param->pyr_out_fmt;
-		pr_info("bin path out fmt %d\n",port->dcamout_fmt);
+		pr_info("bin path out fmt %s\n",camport_fmt_name_get(port->dcamout_fmt));
 		atomic_set(&port->is_work, 1);
 		break;
 	case PORT_RAW_OUT:
 		port->raw_src = param->is_raw ? ORI_RAW_SRC_SEL : param->raw_src;
-		pr_info("raw path src %d, raw path out fmt %d\n", port->raw_src, port->dcamout_fmt);
+		pr_info("raw path src %d, raw path out fmt %s\n", port->raw_src, camport_fmt_name_get(port->dcamout_fmt));
 		atomic_set(&port->is_work, 1);
 		break;
 	case PORT_VCH2_OUT:
@@ -1277,9 +1277,9 @@ int dcam_online_port_buf_alloc(void *handle, struct cam_buf_alloc_desc *param)
 			return 0;
 	}
 
-	pr_info("port:%d, cam%d, ch_id %d, camsec=%d, buffer size: %u (%u x %u), fmt %d, pyr fmt %d, num %d\n",
+	pr_info("port:%d, cam%d, ch_id %d, camsec=%d, buffer size: %u (%u x %u), fmt %s, pyr fmt %s, num %d\n",
 		port->port_id, param->cam_idx, ch_id, param->sec_mode,
-		size, width, height, param->dcamonline_out_fmt, param->pyr_out_fmt, total);
+		size, width, height, camport_fmt_name_get(param->dcamonline_out_fmt), camport_fmt_name_get(param->pyr_out_fmt), total);
 
 	if (port->port_id == PORT_BIN_OUT) {
 		buf_desc.buf_ops_cmd = CAM_BUF_STATUS_GET_IOVA;

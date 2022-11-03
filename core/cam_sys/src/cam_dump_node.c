@@ -265,7 +265,7 @@ static void camdump_node_frame_size_get(struct camera_frame *frame, struct cam_d
 			msg->size = cal_sprd_yuv_pitch(msg->align_w, frame->cam_fmt, cam_is_pack(frame->cam_fmt)) * msg->align_h;
 	}
 
-	pr_debug("dump frame buf_size %d cal_size %d fmt %d\n", frame->buf.size, msg->size, frame->img_fmt);
+	pr_debug("dump frame buf_size %d cal_size %d fmt %s\n", frame->buf.size, msg->size, camport_fmt_name_get(frame->img_fmt));
 }
 
 static void camdump_node_frame_file_write(struct camera_frame *frame,

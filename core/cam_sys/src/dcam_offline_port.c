@@ -95,7 +95,7 @@ static int dcamoffline_port_size_cfg(void *handle, void *param)
 				dcampath_bin_scaler_get(crop_size, dst_size, &port->scaler_sel, &port->bin_ratio);
 				break;
 			default:
-				pr_err("fail to get path->out_fmt :%d\n", port->out_fmt);
+				pr_err("fail to get path->out_fmt :%s\n", camport_fmt_name_get(port->out_fmt));
 				break;
 		}
 		break;
@@ -142,7 +142,7 @@ static int dcamoffline_port_base_cfg(struct dcam_offline_port *port,
 		ret = -EFAULT;
 		break;
 	}
-	pr_info("path: %d, port->out_fmt %d\n", port->port_id, port->out_fmt);
+	pr_info("path: %d, port->out_fmt %s\n", port->port_id, camport_fmt_name_get(port->out_fmt));
 
 	return ret;
 }

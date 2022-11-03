@@ -1164,7 +1164,7 @@ static int isphw_path_store(void *handle, void *arg)
 		val = 5;
 		break;
 	default:
-		pr_err("fail to get isp store format:%d, val:%d\n", store_info->color_fmt, val);
+		pr_err("fail to get isp store format:%s, val:%d\n", camport_fmt_name_get(store_info->color_fmt), val);
 		break;
 	}
 
@@ -1804,7 +1804,7 @@ static int isphw_fetch_set(void *handle, void *arg)
 	idx = fetch->ctx_id;
 	is_pack = cam_is_pack(fetch->fetch_fmt);
 
-	pr_debug("enter: fmt:%d, w:%d, h:%d\n", fetch->fetch_fmt,
+	pr_debug("enter: fmt:%s, w:%d, h:%d\n", camport_fmt_name_get(fetch->fetch_fmt),
 			fetch->in_trim.size_x, fetch->in_trim.size_y);
 
 	ISP_REG_MWR(idx, ISP_COMMON_SPACE_SEL, BIT_1 | BIT_0, fetch->dispatch_color);
@@ -1834,7 +1834,7 @@ static int isphw_fetch_set(void *handle, void *arg)
 		val = 4;
 		break;
 	default:
-		pr_err("fail to get isp fetch format:%d, val:%d\n", fetch->fetch_fmt, val);
+		pr_err("fail to get isp fetch format:%s, val:%d\n", camport_fmt_name_get(fetch->fetch_fmt), val);
 		break;
 	}
 
