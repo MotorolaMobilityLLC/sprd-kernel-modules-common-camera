@@ -2065,7 +2065,6 @@ cfg_ch_done:
 			atomic_set(&sw_ctx->virtualsensor_cap_en, 1);
 		else
 			atomic_set(&sw_ctx->virtualsensor_cap_en, 0);
-		module->dcam_dev_handle->dcam_pipe_ops->ioctl(&module->dcam_dev_handle->sw_ctx[module->cur_sw_ctx_id], DCAM_IOCTL_CREAT_INT_THREAD, NULL);
 	}
 	pr_info("stream on done module->dcam_idx = %d.\n", module->dcam_idx);
 	cam_buf_mdbg_check();
@@ -2416,7 +2415,6 @@ check:
 	} else {
 		module->offline_cxt_id = ret;
 		module->dcam_dev_handle->sw_ctx[module->offline_cxt_id].offline = 1;
-		module->dcam_dev_handle->dcam_pipe_ops->ioctl(&module->dcam_dev_handle->sw_ctx[module->offline_cxt_id], DCAM_IOCTL_CREAT_INT_THREAD, NULL);
 		ret = camcore_dcam_pmbuf_init(&module->dcam_dev_handle->sw_ctx[module->offline_cxt_id]);
 		if (ret)
 			pr_err("fail to alloc dcam pm buffer, use ctx to recieve pm.\n");

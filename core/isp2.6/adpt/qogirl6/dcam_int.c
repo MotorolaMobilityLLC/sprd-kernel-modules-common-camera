@@ -179,11 +179,10 @@ static void dcamint_frame_dispatch(struct dcam_hw_context *dcam_hw_ctx, struct d
 			ret = cam_queue_enqueue(&sw_ctx->path[path_id].out_buf_queue, &frame->list);
 			if (ret) {
 				pr_err("fail to enqueue path:%d frame, q_cnt:%d.\n", path_id, sw_ctx->path[path_id].out_buf_queue.cnt);
-				if (frame->buf.type == CAM_BUF_USER)
-					cam_buf_ionbuf_put(&frame->buf);
-				else
+				if (frame->buf.type == CAM_BUF_KERNEL) {
 					cam_buf_free(&frame->buf);
-				cam_queue_empty_frame_put(frame);
+					cam_queue_empty_frame_put(frame);
+				}
 			}
 			return;
 		}
@@ -357,11 +356,9 @@ static enum dcam_fix_result dcamint_fix_index_if_needed(struct dcam_hw_context *
 			dcam_hw_ctx->hw_ctx_id, diff, sw_ctx->frame_index);
 	}
 
-	if (sw_ctx->slowmotion_count) {
-		/* record SOF timestamp for current frame */
-		sw_ctx->frame_ts_boot[tsid(sw_ctx->frame_index)] = ktime_get_boottime();
-		ktime_get_ts(&sw_ctx->frame_ts[tsid(sw_ctx->frame_index)]);
-	}
+	/* record SOF timestamp for current frame */
+	sw_ctx->frame_ts_boot[tsid(sw_ctx->frame_index)] = ktime_get_boottime();
+	ktime_get_ts(&sw_ctx->frame_ts[tsid(sw_ctx->frame_index)]);
 
 	if (frm_cnt == cur_cnt) {
 		sw_ctx->index_to_set = sw_ctx->frame_index + 1;
@@ -1406,61 +1403,6 @@ static irqreturn_t dcamint_error_handler(struct dcam_hw_context *dcam_hw_ctx, st
 	return IRQ_HANDLED;
 }
 
-int dcamint_interruption_proc(void *dcam_handle)
-{
-	struct dcam_sw_context *dcam_sw_ctx = NULL;
-	struct dcam_hw_context *dcam_hw_ctx = NULL;
-	struct camera_interrupt *interruption = NULL;
-	uint32_t status = 0, i = 0;
-
-	dcam_sw_ctx = (struct dcam_sw_context *)dcam_handle;
-
-	if (dcam_sw_ctx) {
-		dcam_hw_ctx = dcam_sw_ctx->hw_ctx;
-		interruption = cam_queue_dequeue(&dcam_sw_ctx->interruption_sts_queue, struct camera_interrupt, list);
-		if (interruption) {
-			status = interruption->dcamint_status;
-
-			cam_queue_empty_interrupt_put(interruption);
-			if (dcam_hw_ctx) {
-				if (unlikely(DCAMINT_ALL_ERROR & status)) {
-					dcamint_error_handler(dcam_hw_ctx, dcam_sw_ctx, status);
-					status &= (~DCAMINT_ALL_ERROR);
-				}
-
-				pr_debug("DCAM%u status=0x%x\n", dcam_hw_ctx->hw_ctx_id, status);
-				for (i = 0; i < DCAM_SEQUENCES[dcam_hw_ctx->hw_ctx_id].count; i++) {
-					int cur_int = DCAM_SEQUENCES[dcam_hw_ctx->hw_ctx_id].bits[i];
-
-					if (status & BIT(cur_int)) {
-						if (_DCAM_ISRS[cur_int]) {
-							_DCAM_ISRS[cur_int](dcam_hw_ctx, dcam_sw_ctx);
-							status &= ~dcam_hw_ctx->handled_bits;
-							dcam_hw_ctx->handled_bits = 0;
-						} else {
-							pr_warn("warning: DCAM%u missing handler for int %d\n",
-								dcam_hw_ctx->hw_ctx_id, cur_int);
-						}
-						status &= ~BIT(cur_int);
-						if (!status)
-							break;
-					}
-				}
-
-				/* TODO ignore DCAM_AFM_INTREQ0 now */
-				status &= ~BIT(DCAM_AFM_INTREQ0);
-				if (unlikely(status))
-					pr_warn("warning: DCAM%u unhandled int 0x%x\n", dcam_hw_ctx->hw_ctx_id, status);
-			} else
-				pr_warn("warning:sw_context & hw_context has been ubind.\n");
-		}else
-			pr_warn("warning:status frame is null.\n");
-	} else
-		pr_warn("warning:sw_context & hw_context has been ubind.\n");
-
-	return 0;
-}
-
 /*
  * interrupt handler
  */
@@ -1468,8 +1410,7 @@ static irqreturn_t dcamint_isr_root(int irq, void *priv)
 {
 	struct dcam_hw_context *dcam_hw_ctx = (struct dcam_hw_context *)priv;
 	struct dcam_sw_context *dcam_sw_ctx = dcam_hw_ctx->sw_ctx;
-	struct camera_interrupt *interruption = NULL;
-	uint32_t status = 0, ret = 0;
+	uint32_t status = 0;
 	unsigned int i = 0;
 
 	if (unlikely(irq != dcam_hw_ctx->irq)) {
@@ -1498,54 +1439,37 @@ static irqreturn_t dcamint_isr_root(int irq, void *priv)
 
 	DCAM_REG_WR(dcam_hw_ctx->hw_ctx_id, DCAM_INT_CLR, status);
 
-	if (!dcam_sw_ctx->slowmotion_count) {
-		if (status & BIT(DCAM_CAP_SOF)) {
-			/* record SOF timestamp for current frame */
-			dcam_sw_ctx->frame_ts_boot[tsid(dcam_sw_ctx->frame_index)] = ktime_get_boottime();
-			ktime_get_ts(&dcam_sw_ctx->frame_ts[tsid(dcam_sw_ctx->frame_index)]);
-		}
-		interruption = cam_queue_empty_interrupt_get();
-		interruption->dcamint_status = status;
+	if (!dcam_sw_ctx->slowmotion_count)
 		dcamint_dcam_int_record(dcam_hw_ctx->hw_ctx_id, status);
 
-		ret = cam_queue_enqueue(&dcam_sw_ctx->interruption_sts_queue, &interruption->list);
-		if (ret) {
-			pr_warn("warning:fail to enqueue int queue.\n");
-			cam_queue_empty_interrupt_put(interruption);
-			return IRQ_NONE;
-		} else
-			complete(&dcam_sw_ctx->dcam_interruption_proc_thrd.thread_com);
-
-	} else {
-		if (unlikely(DCAMINT_ALL_ERROR & status)) {
-			dcamint_error_handler(dcam_hw_ctx, dcam_sw_ctx, status);
-			status &= (~DCAMINT_ALL_ERROR);
-		}
-
-		pr_debug("DCAM%u status=0x%x\n", dcam_hw_ctx->hw_ctx_id, status);
-		for (i = 0; i < DCAM_SEQUENCES[dcam_hw_ctx->hw_ctx_id].count; i++) {
-			int cur_int = DCAM_SEQUENCES[dcam_hw_ctx->hw_ctx_id].bits[i];
-
-			if (status & BIT(cur_int)) {
-				if (_DCAM_ISRS[cur_int]) {
-					_DCAM_ISRS[cur_int](dcam_hw_ctx, dcam_sw_ctx);
-					status &= ~dcam_hw_ctx->handled_bits;
-					dcam_hw_ctx->handled_bits = 0;
-				} else {
-					pr_warn("warning: DCAM%u missing handler for int %d\n",
-						dcam_hw_ctx->hw_ctx_id, cur_int);
-				}
-				status &= ~BIT(cur_int);
-				if (!status)
-					break;
-			}
-		}
-
-		/* TODO ignore DCAM_AFM_INTREQ0 now */
-		status &= ~BIT(DCAM_AFM_INTREQ0);
-		if (unlikely(status))
-			pr_warn("warning: DCAM%u unhandled int 0x%x\n", dcam_hw_ctx->hw_ctx_id, status);
+	if (unlikely(DCAMINT_ALL_ERROR & status)) {
+		dcamint_error_handler(dcam_hw_ctx, dcam_sw_ctx, status);
+		status &= (~DCAMINT_ALL_ERROR);
 	}
+
+	pr_debug("DCAM%u status=0x%x\n", dcam_hw_ctx->hw_ctx_id, status);
+	for (i = 0; i < DCAM_SEQUENCES[dcam_hw_ctx->hw_ctx_id].count; i++) {
+		int cur_int = DCAM_SEQUENCES[dcam_hw_ctx->hw_ctx_id].bits[i];
+
+		if (status & BIT(cur_int)) {
+			if (_DCAM_ISRS[cur_int]) {
+				_DCAM_ISRS[cur_int](dcam_hw_ctx, dcam_sw_ctx);
+				status &= ~dcam_hw_ctx->handled_bits;
+				dcam_hw_ctx->handled_bits = 0;
+			} else {
+				pr_warn("warning: DCAM%u missing handler for int %d\n",
+					dcam_hw_ctx->hw_ctx_id, cur_int);
+			}
+			status &= ~BIT(cur_int);
+			if (!status)
+				break;
+		}
+	}
+
+	/* TODO ignore DCAM_AFM_INTREQ0 now */
+	status &= ~BIT(DCAM_AFM_INTREQ0);
+	if (unlikely(status))
+		pr_warn("warning: DCAM%u unhandled int 0x%x\n", dcam_hw_ctx->hw_ctx_id, status);
 
 	return IRQ_HANDLED;
 }
