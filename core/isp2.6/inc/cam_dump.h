@@ -93,7 +93,6 @@ extern struct cam_dbg_dump g_dbg_dump;
 
 struct cam_mes_ctx {
 	struct camera_queue mes_queue;
-	struct completion mes_com;
 };
 
 struct cam_dump_ctx {
