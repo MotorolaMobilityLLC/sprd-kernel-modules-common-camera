@@ -352,7 +352,6 @@ struct cam_data_ctrl_in {
 
 extern struct camera_queue *g_empty_frm_q;
 extern struct camera_queue *g_empty_state_q;
-extern struct camera_queue *g_empty_interruption_q;
 extern struct camera_queue *g_empty_mv_state_q;
 
 typedef int(*isp_dev_callback)(enum isp_cb_type type, void *param,

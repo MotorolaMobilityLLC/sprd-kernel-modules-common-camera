@@ -38,7 +38,6 @@
 #define DCAM_RESERVE_BUF_Q_LEN            50
 
 #define DCAM_LSC_BUF_SIZE                 0x3000
-#define DCAM_INT_PROC_FRM_NUM             256
 
 #define DCAM_OFFLINE_TIMEOUT              msecs_to_jiffies(2000)
 #define DCAM_OFFLINE_SLC_MAX              3
@@ -243,7 +242,6 @@ struct dcam_sw_context {
 	uint32_t csi_connect_stat;
 	struct dcam_fmcu_ctx_desc *fmcu;
 
-	uint32_t do_tasklet;
 	uint32_t auto_cpy_id;
 	uint32_t base_fid;
 	uint32_t frame_index;
@@ -316,8 +314,6 @@ struct dcam_sw_context {
 	struct nr3_me_data nr3_me;
 	struct camera_queue fullpath_mv_queue;
 	struct camera_queue binpath_mv_queue;
-	struct cam_thread_info dcam_interruption_proc_thrd;
-	struct camera_queue interruption_sts_queue;
 	struct camera_queue blk_param_queue;
 	struct dcam_dev_param *pm;
 	struct mutex blkpm_dcam_lock;
@@ -328,7 +324,6 @@ struct dcam_hw_context {
 	uint32_t irq;
 	uint32_t sw_ctx_id;
 	uint32_t hw_ctx_id;
-	uint32_t frame_index;
 	uint32_t handled_bits;
 	uint32_t handled_bits_on_int1;
 	struct dcam_sw_context *sw_ctx;
@@ -385,7 +380,5 @@ int dcam_core_hw_slices_set(struct dcam_sw_context *pctx, struct camera_frame *p
 void dcam_core_offline_debug_dump(struct dcam_sw_context *pctx, struct dcam_dev_param *pm, struct camera_frame *proc_frame);
 int dcam_core_slice_trim_get(uint32_t width, uint32_t heigth, uint32_t slice_num, uint32_t slice_no, struct img_trim *slice_trim);
 int dcam_core_offline_slices_sw_start(void *param);
-void dcamcore_empty_interrupt_put(void *param);
-int dcamcore_thread_create(void *ctx_handle, struct cam_thread_info *thrd, proc_func func);
 
 #endif

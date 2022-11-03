@@ -86,18 +86,17 @@ int cam_buf_mdbg_check(void)
 	val[1] = atomic_read(&g_mem_dbg->ion_kmap_cnt);
 	val[2] = atomic_read(&g_mem_dbg->ion_dma_cnt);
 	val[3] = atomic_read(&g_mem_dbg->empty_frm_cnt);
-	val[4] = atomic_read(&g_mem_dbg->empty_interruption_cnt);
-	val[5] = atomic_read(&g_mem_dbg->iommu_map_cnt[0]);
-	val[6] = atomic_read(&g_mem_dbg->iommu_map_cnt[1]);
-	val[7] = atomic_read(&g_mem_dbg->iommu_map_cnt[2]);
-	val[8] = atomic_read(&g_mem_dbg->iommu_map_cnt[3]);
-	val[9] = atomic_read(&g_mem_dbg->empty_state_cnt);
-	val[10] = atomic_read(&g_mem_dbg->isp_sw_context_cnt);
-	val[11] = atomic_read(&g_mem_dbg->empty_mv_state_cnt);
-	val[12] = atomic_read(&g_mem_dbg->ion_alloc_size);
+	val[4] = atomic_read(&g_mem_dbg->iommu_map_cnt[0]);
+	val[5] = atomic_read(&g_mem_dbg->iommu_map_cnt[1]);
+	val[6] = atomic_read(&g_mem_dbg->iommu_map_cnt[2]);
+	val[7] = atomic_read(&g_mem_dbg->iommu_map_cnt[3]);
+	val[8] = atomic_read(&g_mem_dbg->empty_state_cnt);
+	val[9] = atomic_read(&g_mem_dbg->isp_sw_context_cnt);
+	val[10] = atomic_read(&g_mem_dbg->empty_mv_state_cnt);
+	val[11] = atomic_read(&g_mem_dbg->ion_alloc_size);
 
 	pr_info("mdbg info: %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, total_size: %d Bytes\n",
-		val[0], val[1], val[2], val[3], val[4], val[5], val[6], val[7], val[8], val[9], val[10], val[11], val[12]);
+		val[0], val[1], val[2], val[3], val[4], val[5], val[6], val[7], val[8], val[9], val[10], val[11]);
 	return 0;
 }
 

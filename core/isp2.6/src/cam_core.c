@@ -353,6 +353,7 @@ struct camera_module {
 	struct mutex buf_lock[CAM_CH_MAX];
 
 	struct completion frm_com;
+	struct camera_queue put_queue;/* store user buf queue to put*/
 	struct camera_queue frm_queue;/* frame message queue for user*/
 	struct camera_queue irq_queue;/* IRQ message queue for user*/
 	struct camera_queue statis_queue;/* statis data queue or user*/
@@ -421,7 +422,6 @@ struct camera_group {
 	struct platform_device *pdev;
 	struct camera_queue empty_frm_q;
 	struct camera_queue empty_state_q;
-	struct camera_queue empty_interruption_q;
 	struct camera_queue empty_mv_state_q;
 	struct sprd_cam_sec_cfg camsec_cfg;
 	struct camera_debugger debugger;
@@ -464,7 +464,6 @@ struct cam_ioctl_cmd {
 
 struct camera_queue *g_empty_frm_q;
 struct camera_queue *g_empty_state_q;
-struct camera_queue *g_empty_interruption_q;
 struct camera_queue *g_empty_mv_state_q;
 struct cam_global_ctrl g_camctrl = {
 	ZOOM_BINNING2,
@@ -3068,8 +3067,7 @@ static int camcore_dcam_callback(enum dcam_cb_type type, void *param, void *priv
 				cam_queue_enqueue(&channel->share_buf_queue, &pframe->list);
 			} else {
 				/* 4in1 or raw buffer is allocate from user */
-				cam_buf_ionbuf_put(&pframe->buf);
-				cam_queue_empty_frame_put(pframe);
+				ret = cam_queue_enqueue(&module->put_queue, &pframe->list);
 			}
 			return 0;
 		}
@@ -3098,8 +3096,7 @@ static int camcore_dcam_callback(enum dcam_cb_type type, void *param, void *priv
 				pframe->evt = IMG_TX_DONE;
 				ret = cam_queue_enqueue(&module->frm_queue, &pframe->list);
 				if (ret) {
-					cam_buf_ionbuf_put(&pframe->buf);
-					cam_queue_empty_frame_put(pframe);
+					cam_queue_enqueue(&module->put_queue, &pframe->list);
 				} else {
 					complete(&module->frm_com);
 					pr_debug("ch %d get out frame: %p, evt %d mfd %x\n",
@@ -3284,8 +3281,7 @@ static int camcore_dcam_callback(enum dcam_cb_type type, void *param, void *priv
 				if (module->cam_uinfo.raw_alg_type == RAW_ALG_FDR_V1 &&
 					pframe->img_fmt == IMG_PIX_FMT_GREY) {
 					pr_info("FDR capture stopped, free buf fd %d\n", pframe->buf.mfd[0]);
-					cam_buf_ionbuf_put(&pframe->buf);
-					cam_queue_empty_frame_put(pframe);
+					ret = cam_queue_enqueue(&module->put_queue, &pframe->list);
 					return ret;
 				}
 
@@ -3630,8 +3626,7 @@ static int camcore_dcam_callback(enum dcam_cb_type type, void *param, void *priv
 	case DCAM_CB_RET_SRC_BUF:
 		if (pframe->irq_property != CAM_FRAME_COMMON) {
 			pr_info("fdr %d src return, mfd %d\n", pframe->irq_property, pframe->buf.mfd[0]);
-			cam_buf_ionbuf_put(&pframe->buf);
-			cam_queue_empty_frame_put(pframe);
+			ret = cam_queue_enqueue(&module->put_queue, &pframe->list);
 			break;
 		}
 
@@ -3649,8 +3644,7 @@ static int camcore_dcam_callback(enum dcam_cb_type type, void *param, void *priv
 			 * and case 4in1 after stream off
 			 * just release it, no need to return
 			 */
-			cam_buf_ionbuf_put(&pframe->buf);
-			cam_queue_empty_frame_put(pframe);
+			ret = cam_queue_enqueue(&module->put_queue, &pframe->list);
 			pr_debug("virtual sensor ret buf\n");
 		} else if ((module->cap_status == CAM_CAPTURE_RAWPROC) ||
 			(atomic_read(&module->state) != CAM_RUNNING)) {
@@ -3658,8 +3652,7 @@ static int camcore_dcam_callback(enum dcam_cb_type type, void *param, void *priv
 			 * and case 4in1 after stream off
 			 * just release it, no need to return
 			 */
-			cam_buf_ionbuf_put(&pframe->buf);
-			cam_queue_empty_frame_put(pframe);
+			ret = cam_queue_enqueue(&module->put_queue, &pframe->list);
 			pr_info("cap status %d, state %d\n", module->cap_status, atomic_read(&module->state));
 		} else if ((module->cam_uinfo.raw_alg_type == RAW_ALG_FDR_V2) || module->cam_uinfo.dcam_slice_mode) {
 			/* 4in1 capture case: dcam offline src buffer
@@ -3671,8 +3664,7 @@ static int camcore_dcam_callback(enum dcam_cb_type type, void *param, void *priv
 
 		} else {
 			pr_err("fail to get cap status\n");
-			cam_buf_ionbuf_put(&pframe->buf);
-			cam_queue_empty_frame_put(pframe);
+			ret = cam_queue_enqueue(&module->put_queue, &pframe->list);
 		}
 		break;
 
@@ -3682,8 +3674,7 @@ static int camcore_dcam_callback(enum dcam_cb_type type, void *param, void *priv
 		pframe->priv_data = module;
 		ret = cam_queue_enqueue(&module->frm_queue, &pframe->list);
 		if (ret) {
-			cam_buf_ionbuf_put(&pframe->buf);
-			cam_queue_empty_frame_put(pframe);
+			cam_queue_enqueue(&module->put_queue, &pframe->list);
 		} else {
 			complete(&module->frm_com);
 			pr_debug("get out sensor raw frame: fd:%d\n", pframe->buf.mfd[0]);
@@ -8137,6 +8128,8 @@ static int camcore_module_init(struct camera_module *module)
 	camcore_timer_init(&module->cam_timer, (unsigned long)module);
 	module->attach_sensor_id = SPRD_SENSOR_ID_MAX + 1;
 	module->is_smooth_zoom = 1;
+	cam_queue_init(&module->put_queue,
+		CAM_FRAME_Q_LEN, camcore_empty_frame_put);
 	cam_queue_init(&module->frm_queue,
 		CAM_FRAME_Q_LEN, camcore_empty_frame_put);
 	cam_queue_init(&module->irq_queue,
@@ -8155,6 +8148,7 @@ static int camcore_module_deinit(struct camera_module *module)
 	struct channel_context *channel = NULL;
 
 	put_cam_flash_handle(module->flash_core_handle);
+	cam_queue_clear(&module->put_queue, struct camera_frame, list);
 	cam_queue_clear(&module->frm_queue, struct camera_frame, list);
 	cam_queue_clear(&module->irq_queue, struct camera_frame, list);
 	cam_queue_clear(&module->statis_queue, struct camera_frame, list);
@@ -8502,6 +8496,17 @@ rewait:
 			}
 		}
 
+		while (1) {
+			pframe = cam_queue_dequeue(&module->put_queue,
+				struct camera_frame, list);
+			if (pframe) {
+				cam_buf_ionbuf_put(&pframe->buf);
+				cam_queue_empty_frame_put(pframe);
+			} else {
+				break;
+			}
+		}
+
 		pchannel = NULL;
 		pframe = cam_queue_dequeue(&module->frm_queue,
 			struct camera_frame, list);
@@ -8816,9 +8821,6 @@ static int camcore_open(struct inode *node, struct file *file)
 		g_empty_state_q = &grp->empty_state_q;
 		cam_queue_init(g_empty_state_q, CAM_EMP_STATE_LEN_MAX,
 			cam_queue_empty_state_free);
-		g_empty_interruption_q = &grp->empty_interruption_q;
-		cam_queue_init(g_empty_interruption_q, CAM_INT_EMP_Q_LEN_MAX,
-			cam_queue_empty_interrupt_free);
 		cam_queue_init(&grp->mul_share_buf_q,
 			CAM_SHARED_BUF_NUM, camcore_k_frame_put);
 		g_empty_mv_state_q = &grp->empty_mv_state_q;
@@ -8979,8 +8981,6 @@ static int camcore_release(struct inode *node, struct file *file)
 		g_empty_frm_q = NULL;
 		cam_queue_clear(g_empty_state_q, struct isp_stream_ctrl, list);
 		g_empty_state_q = NULL;
-		cam_queue_clear(g_empty_interruption_q, struct camera_interrupt, list);
-		g_empty_interruption_q = NULL;
 		cam_queue_clear(g_empty_mv_state_q, struct dcam_3dnrmv_ctrl, list);
 		g_empty_mv_state_q = NULL;
 
