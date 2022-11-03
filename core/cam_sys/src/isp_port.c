@@ -220,10 +220,13 @@ static int ispport_size_update(struct isp_port *port, void *param)
 static int ispport_fetchport_postproc(struct isp_port *port, void *param)
 {
 	struct camera_frame *pframe = NULL;
+	struct camera_frame *pframe_data = NULL;
 	struct isp_node_postproc_param *post_param = NULL;
 
 	post_param = VOID_PTR_TO(param, struct isp_node_postproc_param);
 	pframe = cam_queue_dequeue(&port->result_queue, struct camera_frame, list);
+	pframe_data = (struct camera_frame *)pframe->pframe_data;
+
 	if (pframe) {
 		post_param->zoom_ratio = pframe->zoom_ratio;
 		post_param->total_zoom = pframe->total_zoom;
@@ -237,6 +240,14 @@ static int ispport_fetchport_postproc(struct isp_port *port, void *param)
 	} else
 		pr_err("fail to get src frame  sw_idx=%d  proc_queue.cnt:%d\n",
 			port->port_id, port->result_queue.cnt);
+
+	if (pframe_data != NULL) {
+		if (pframe->buf.mapping_state & CAM_BUF_MAPPING_DEV)
+			cam_buf_iommu_unmap(&pframe_data->buf);
+		port->data_cb_func(CAM_CB_DCAM_RET_SRC_BUF, pframe_data, port->data_cb_handle);
+		pr_debug("port_link_from %d, ch_id %d, fid:%d\n",
+			pframe_data->link_from, pframe->channel_id, pframe->fid);
+	}
 	return 0;
 }
 
@@ -428,11 +439,13 @@ static uint32_t ispport_uframe_fid_get(struct isp_port* port, void *param)
 static int ispport_fetch_frame_cycle(struct isp_port *port, void *param)
 {
 	struct camera_frame *pframe = NULL;
+	struct camera_frame *pframe_data = NULL;
 	struct isp_port_cfg *port_cfg = NULL;
 	uint32_t ret = 0, loop = 0;
 
 	port_cfg = VOID_PTR_TO(param, struct isp_port_cfg);
 	pframe = cam_queue_dequeue(&port->out_buf_queue, struct camera_frame, list);
+	pframe_data = (struct camera_frame *)pframe->pframe_data;
 	if (pframe == NULL) {
 		pr_err("fail to get frame (%px) for port %d\n", pframe, port->port_id);
 		ret = -EINVAL;
@@ -444,6 +457,15 @@ static int ispport_fetch_frame_cycle(struct isp_port *port, void *param)
 		pr_err("fail to map buf to ISP iommu. port_id %d\n", port->port_id);
 		ret = -EINVAL;
 		goto err;
+	}
+
+	if (pframe_data != NULL) {
+		ret = cam_buf_iommu_map(&pframe_data->buf, CAM_IOMMUDEV_ISP);
+		if (ret) {
+			pr_err("fail to map buf to ISP iommu. port_id %d\n", port->port_id);
+			ret = -EINVAL;
+			goto err;
+		}
 	}
 
 	loop = 0;
@@ -466,6 +488,8 @@ static int ispport_fetch_frame_cycle(struct isp_port *port, void *param)
 err:
 	ispport_frame_ret(pframe);
 	port_cfg->src_frame = NULL;
+	if (pframe_data)
+		ispport_frame_ret(pframe_data);
 	return ret;
 }
 
@@ -740,6 +764,7 @@ static int ispport_fetch_normal_get(void *cfg_in, void *cfg_out,
 	struct img_trim *intrim = NULL;
 	struct isp_hw_fetch_info *fetch = NULL;
 	struct isp_port *port = NULL;
+	struct camera_frame *pframe_data = NULL;
 	uint32_t mipi_word_num_start[16] = {
 		0, 1, 1, 1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 4, 5, 5};
 	uint32_t mipi_word_num_end[16] = {
@@ -751,9 +776,9 @@ static int ispport_fetch_normal_get(void *cfg_in, void *cfg_out,
 
 	port = VOID_PTR_TO(cfg_in, struct isp_port);
 	fetch = (struct isp_hw_fetch_info *)cfg_out;
-
 	src = &frame->in;
 	intrim = &frame->in_crop;
+	pframe_data = (struct camera_frame *)frame->pframe_data;
 	fetch->src = *src;
 	fetch->in_trim = *intrim;
 	fetch->fetch_fmt = port->fmt;
@@ -768,7 +793,10 @@ static int ispport_fetch_normal_get(void *cfg_in, void *cfg_out,
 		fetch->dispatch_color = 2;
 	fetch->fetch_path_sel = port->fetch_path_sel;
 	fetch->addr.addr_ch0 = frame->buf.iova;
-
+	if (pframe_data != NULL)
+		fetch->addr_dcam_out.addr_ch0 = pframe_data->buf.iova;
+	else
+		fetch->addr_dcam_out.addr_ch0 = 0;
 	switch (fetch->fetch_fmt) {
 	case CAM_YUV422_3FRAME:
 		fetch->pitch.pitch_ch0 = src->w;
@@ -799,6 +827,8 @@ static int ispport_fetch_normal_get(void *cfg_in, void *cfg_out,
 		trim_offset[0] = intrim->start_y * fetch->pitch.pitch_ch0 + intrim->start_x;
 		trim_offset[1] = intrim->start_y * fetch->pitch.pitch_ch1 + intrim->start_x;
 		fetch->addr.addr_ch1 = fetch->addr.addr_ch0 + fetch->pitch.pitch_ch0 * fetch->src.h;
+		if (pframe_data != NULL)
+			fetch->addr_dcam_out.addr_ch1 = pframe_data->buf.iova + fetch->pitch.pitch_ch0 * fetch->src.h;
 		break;
 	case CAM_YUV420_2FRAME:
 	case CAM_YVU420_2FRAME:
@@ -807,6 +837,8 @@ static int ispport_fetch_normal_get(void *cfg_in, void *cfg_out,
 		trim_offset[0] = intrim->start_y * fetch->pitch.pitch_ch0 + intrim->start_x;
 		trim_offset[1] = intrim->start_y * fetch->pitch.pitch_ch1 / 2 + intrim->start_x;
 		fetch->addr.addr_ch1 = fetch->addr.addr_ch0 + fetch->pitch.pitch_ch0 * fetch->src.h;
+		if (pframe_data != NULL)
+			fetch->addr_dcam_out.addr_ch1 = pframe_data->buf.iova + fetch->pitch.pitch_ch0 * fetch->src.h;
 		pr_debug("y_addr: %x, pitch:: %x\n", fetch->addr.addr_ch0, fetch->pitch.pitch_ch0);
 		break;
 	case CAM_YUV420_2FRAME_10:
@@ -815,6 +847,9 @@ static int ispport_fetch_normal_get(void *cfg_in, void *cfg_out,
 		fetch->pitch.pitch_ch1 = (src->w * 16 + 127) / 128 * 128 / 8;
 		trim_offset[0] = intrim->start_y * fetch->pitch.pitch_ch0 + intrim->start_x * 2;
 		trim_offset[1] = intrim->start_y * fetch->pitch.pitch_ch1 / 2 + intrim->start_x * 2;
+		fetch->addr.addr_ch1 = fetch->addr.addr_ch0 + fetch->pitch.pitch_ch0 * fetch->src.h;
+		if (pframe_data != NULL)
+			fetch->addr_dcam_out.addr_ch1 = pframe_data->buf.iova + fetch->pitch.pitch_ch0 * fetch->src.h;
 		break;
 	case CAM_YUV420_2FRAME_MIPI:
 	case CAM_YVU420_2FRAME_MIPI:
@@ -836,6 +871,8 @@ static int ispport_fetch_normal_get(void *cfg_in, void *cfg_out,
 		trim_offset[1] = (start_row >> 1) * fetch->pitch.pitch_ch1 + (start_col >> 2) * 5 +
 			(start_col & 0x3);
 		fetch->addr.addr_ch1 = fetch->addr.addr_ch0 + fetch->pitch.pitch_ch0 * fetch->src.h;
+		if (pframe_data != NULL)
+			fetch->addr_dcam_out.addr_ch1 = pframe_data->buf.iova + fetch->pitch.pitch_ch0 * fetch->src.h;
 		break;
 	}
 	case CAM_FULL_RGB10:
@@ -1324,6 +1361,7 @@ static int ispport_blksize_get(struct isp_port *port, void *param)
 static int ispport_start_error(struct isp_port *port, void *param)
 {
 	struct camera_frame *pframe = NULL;
+	struct camera_frame *pframe_data = NULL;
 	struct isp_port_cfg *port_cfg = NULL;
 
 	port_cfg = VOID_PTR_TO(param, struct isp_port_cfg);
@@ -1332,6 +1370,7 @@ static int ispport_start_error(struct isp_port *port, void *param)
 			pframe = cam_queue_dequeue(&port->out_buf_queue, struct camera_frame, list);
 		else
 			pframe = cam_queue_dequeue_tail(&port->result_queue, struct camera_frame, list);
+		pframe_data = (struct camera_frame *)pframe->pframe_data;
 		if (pframe) {
 			if (pframe->is_reserved)
 				port->resbuf_get_cb(RESERVED_BUF_SET_CB, pframe, port->resbuf_cb_data);
@@ -1344,6 +1383,11 @@ static int ispport_start_error(struct isp_port *port, void *param)
 					cam_queue_blk_param_unbind(port_cfg->param_share_queue, pframe);
 				port->data_cb_func(CAM_CB_ISP_RET_SRC_BUF, pframe, port->data_cb_handle);
 			}
+		}
+		if (pframe_data != NULL) {
+			if (pframe->buf.mapping_state & CAM_BUF_MAPPING_DEV)
+				cam_buf_iommu_unmap(&pframe_data->buf);
+			port->data_cb_func(CAM_CB_DCAM_RET_SRC_BUF, pframe_data, port->data_cb_handle);
 		}
 	}
 

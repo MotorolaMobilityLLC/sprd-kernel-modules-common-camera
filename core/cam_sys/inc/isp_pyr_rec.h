@@ -167,6 +167,7 @@ struct isp_pyr_rec_in {
 	struct img_size src;
 	struct img_trim in_trim;
 	struct img_addr in_addr;
+	struct img_addr in_addr_dcam_out;
 	struct img_addr out_addr;
 	uint32_t slice_num[ISP_PYR_DEC_LAYER_NUM];
 	struct isp_dev_ynr_info_v3 *pyr_ynr;
