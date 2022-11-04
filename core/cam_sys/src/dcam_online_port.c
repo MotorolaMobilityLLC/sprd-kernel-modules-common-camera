@@ -1267,7 +1267,7 @@ int dcam_online_port_buf_alloc(void *handle, struct cam_buf_alloc_desc *param)
 	size = ALIGN(size, CAM_BUF_ALIGN_SIZE);
 
 	/* TBD: need to add buf_desc*/
-	total = param->buf_alloc_num;
+	total = param->dcamonline_buf_alloc_num;
 
 	if (param->share_buffer && (port->port_id == PORT_FULL_OUT)) {
 		uint32_t share_buf_num = 0;

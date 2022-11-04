@@ -849,29 +849,6 @@ static int camcore_buffer_path_cfg(struct camera_module *module, uint32_t index)
 		goto exit;
 	}
 
-	if (index == CAM_CH_CAP && module->grp->is_mul_buf_share)
-		goto mul_share_buf_done;
-
-	/* set shared frame for dcam output */
-	while (1) {
-		struct camera_frame *pframe = NULL;
-
-		pframe = cam_queue_dequeue(&ch->share_buf_queue, struct camera_frame, list);
-		if (pframe == NULL)
-			break;
-
-		if (module->cam_uinfo.is_4in1 && index == CAM_CH_CAP)
-			ret = CAM_PIPEINE_DCAM_OFFLINE_OUT_PORT_CFG(ch, ch->aux_dcam_port_id, CAM_PIPELINE_CFG_BUF, pframe, CAM_NODE_TYPE_DCAM_OFFLINE);
-
-		if (ret) {
-			pr_err("fail to config dcam output buffer. ch%d\n", ch->ch_id);
-			cam_queue_enqueue(&ch->share_buf_queue, &pframe->list);
-			ret = -EINVAL;
-			goto exit;
-		}
-	}
-
-mul_share_buf_done:
 	for (j = 0; j < ISP_NR3_BUF_NUM; j++) {
 		if (ch->nr3_bufs[j] == NULL)
 			continue;
@@ -979,11 +956,14 @@ static int camcore_buffers_alloc_num(struct channel_context *channel,
 	if (channel->ch_id == CAM_CH_CAP && !module->cam_uinfo.is_dual && !channel->zsl_buffer_num)
 		num += 3;
 	/* 4in1 non-zsl capture for single frame */
-	if ((module->cam_uinfo.is_4in1 || module->cam_uinfo.dcam_slice_mode)
+	if (module->cam_uinfo.dcam_slice_mode
 		&& channel->ch_id == CAM_CH_CAP &&
 		module->channel[CAM_CH_PRE].enable == 0 &&
 		module->channel[CAM_CH_VID].enable == 0)
 		num = 1;
+
+	if (module->cam_uinfo.is_4in1)
+		num = 0;
 
 	/* extend buffer queue for slow motion */
 	if (channel->ch_uinfo.is_high_fps)
@@ -1023,9 +1003,9 @@ static int camcore_buffers_alloc(void *param)
 {
 	int ret = 0;
 	int hw_ctx_id = 0;
-	int i = 0, count = 0, total = 0, iommu_enable = 0;
+	int i = 0, total = 0, iommu_enable = 0;
 	uint32_t width = 0, height = 0, size = 0, block_size = 0, pack_bits = 0, pitch = 0;
-	uint32_t postproc_w = 0, postproc_h = 0, dcam_share_buf = 0;
+	uint32_t postproc_w = 0, postproc_h = 0;
 	uint32_t is_super_size = 0, sec_mode = 0, is_pack = 0;
 	struct camera_module *module = NULL;
 	struct camera_frame *pframe = NULL;
@@ -1109,7 +1089,7 @@ static int camcore_buffers_alloc(void *param)
 	if (module->cam_uinfo.is_pyr_rec && channel->ch_id != CAM_CH_CAP)
 		size += dcam_if_cal_pyramid_size(width, height, cam_data_bits(channel->ch_uinfo.pyr_out_fmt), cam_is_pack(channel->ch_uinfo.pyr_out_fmt), 1, DCAM_PYR_DEC_LAYER_NUM);
 	size = ALIGN(size, CAM_BUF_ALIGN_SIZE);
-	pr_info("cam%d, ch_id %d, camsec=%d, buffer size: %u (%u x %u), num %d\n",
+	pr_debug("cam%d, ch_id %d, camsec=%d, buffer size: %u (%u x %u), num %d\n",
 		module->idx, channel->ch_id, sec_mode,
 		size, width, height, total);
 
@@ -1123,8 +1103,10 @@ static int camcore_buffers_alloc(void *param)
 	alloc_param.sec_mode = sec_mode;
 	alloc_param.iommu_enable = iommu_enable;
 	alloc_param.compress_en = channel->compress_en;
+	alloc_param.compress_offline = channel->compress_offline;
 	alloc_param.share_buffer = module->cam_uinfo.need_share_buf;
-	alloc_param.buf_alloc_num = total;
+	alloc_param.dcamonline_buf_alloc_num = total;
+	alloc_param.dcamoffline_buf_alloc_num = 1;
 
 	debugger = &module->grp->debugger;
 	is_super_size = (module->cam_uinfo.dcam_slice_mode == CAM_OFFLINE_SLICE_HW
@@ -1318,68 +1300,10 @@ mul_pyr_alloc_end:
 		((module->cam_uinfo.param_frame_sync || module->cam_uinfo.raw_alg_type != RAW_ALG_AI_SFNR) && module->cam_uinfo.is_raw_alg)))
 		goto exit;
 
-	/* keep 4in1 offline buffer alloc here, until dcam offline alloc code done*/
-	if (module->cam_uinfo.is_4in1 == 0 || channel->ch_id != CAM_CH_CAP) {
-		ret = cam_pipeline_buffer_alloc(channel->pipeline_handle, &alloc_param);
-		if (ret)
-			pr_err("fail to alloc buffer for cam%d channel%d\n", module->idx, channel->ch_id);
-		goto exit;
-	}
-
-	for (i = 0, count = 0; i < total; i++) {
-		pframe = cam_queue_empty_frame_get();
-		pframe->channel_id = channel->ch_id;
-		pframe->is_compressed = channel->compress_en;
-		pframe->width = width;
-		pframe->height = height;
-		pframe->endian = ENDIAN_LITTLE;
-		pframe->pattern = module->cam_uinfo.sensor_if.img_ptn;
-		pframe->fbc_info = fbc_info;
-		if (channel->ch_id == CAM_CH_PRE && sec_mode != SEC_UNABLE)
-			pframe->buf.buf_sec = 1;
-		if (module->cam_uinfo.is_pyr_rec && channel->ch_id != CAM_CH_CAP)
-			pframe->pyr_status = ONLINE_DEC_ON;
-		if (module->cam_uinfo.is_pyr_dec && channel->ch_id == CAM_CH_CAP)
-			pframe->pyr_status = OFFLINE_DEC_ON;
-		cam_queue_frame_flag_reset(pframe);
-		ret = cam_buf_alloc(&pframe->buf, size, iommu_enable);
-		if (ret) {
-			pr_err("fail to alloc buf: %d ch %d\n", i, channel->ch_id);
-			cam_queue_empty_frame_put(pframe);
-			atomic_inc(&channel->err_status);
-			goto exit;
-		}
-
-		if (channel->ch_id == CAM_CH_PRE) {
-			if (channel->ch_uinfo.is_high_fps)
-				dcam_share_buf = total - 1;
-			else
-				dcam_share_buf = PRE_SHARE_BUF - 1;
-		} else
-			dcam_share_buf = total;
-
-		if (i > dcam_share_buf)
-			ret = camcore_dcam_online_buf_cfg(channel, pframe, module);
-		else {
-			ret = cam_queue_enqueue(cap_buf_q, &pframe->list);
-			if (i == dcam_share_buf)
-				complete(&channel->alloc_com);
-		}
-		if (ret) {
-			if (i > dcam_share_buf) {
-				pr_err("fail to enqueue dcam out buf: %d ch %d\n", i, channel->ch_id);
-				ret = cam_queue_enqueue(cap_buf_q, &pframe->list);
-				if (!ret)
-					continue;
-			}
-			pr_err("fail to enqueue shared buf: %d ch %d\n", i, channel->ch_id);
-			cam_buf_free(&pframe->buf);
-			cam_queue_empty_frame_put(pframe);
-		} else {
-			count++;
-			pr_info("frame %p,idx %d,cnt %d,phy_addr %p ch_id %d\n",
-				pframe, i, count, (void *)pframe->buf.addr_vir[0], channel->ch_id);
-		}
+	ret = cam_pipeline_buffer_alloc(channel->pipeline_handle, &alloc_param);
+	if (ret) {
+		pr_err("fail to alloc buffer for cam%d channel%d\n", module->idx, channel->ch_id);
+		atomic_inc(&channel->err_status);
 	}
 
 exit:
@@ -2064,76 +1988,10 @@ static int camcore_channel_bigsize_config(
 	struct channel_context *channel)
 {
 	int ret = 0;
-	int i = 0, total = 0, iommu_enable = 0;
-	uint32_t width = 0, height = 0,  size = 0;
 	struct camera_uchannel *ch_uinfo = NULL;
 	struct dcam_path_cfg_param ch_desc = {0};
-	struct camera_frame *pframe = NULL;
-	struct dcam_compress_info fbc_info = {0};
-	struct dcam_compress_cal_para cal_fbc = {0};
 
 	ch_uinfo = &channel->ch_uinfo;
-	iommu_enable = module->iommu_enable;
-	width = channel->swap_size.w;
-	height = channel->swap_size.h;
-
-	if (channel->compress_offline) {
-		cal_fbc.data_bits = cam_data_bits(channel->dcam_out_fmt);
-		cal_fbc.fbc_info = &fbc_info;
-		cal_fbc.fmt = channel->dcam_out_fmt;
-		cal_fbc.height = height;
-		cal_fbc.width = width;
-		size = dcam_if_cal_compressed_size (&cal_fbc);
-	} else if (camcore_raw_fmt_get(channel->dcam_out_fmt))
-		size = cal_sprd_raw_pitch(width, cam_pack_bits(channel->ch_uinfo.dcam_raw_fmt)) * height;
-	else if (channel->dcam_out_fmt == CAM_YUV420_2FRAME ||
-			channel->dcam_out_fmt == CAM_YVU420_2FRAME ||
-			channel->dcam_out_fmt == CAM_YUV420_2FRAME_MIPI)
-		size = cal_sprd_yuv_pitch(width, cam_data_bits(channel->dcam_out_fmt),
-				cam_is_pack(channel->ch_uinfo.dcam_out_fmt)) * height * 3 / 2;
-
-	size = ALIGN(size, CAM_BUF_ALIGN_SIZE);
-
-	/* dcam1 alloc memory */
-	total = 5;
-
-	/* non-zsl capture for single frame */
-	if (channel->ch_id == CAM_CH_CAP &&
-		module->channel[CAM_CH_PRE].enable == 0 &&
-		module->channel[CAM_CH_VID].enable == 0)
-		total = 1;
-
-	pr_info("ch %d alloc shared buffer size: %u (w %u h %u), num %d\n",
-		channel->ch_id, size, width, height, total);
-
-	for (i = 0; i < total; i++) {
-		do {
-			pframe = cam_queue_empty_frame_get();
-			pframe->channel_id = channel->ch_id;
-			pframe->is_compressed = channel->compress_offline;
-			pframe->width = width;
-			pframe->height = height;
-			pframe->endian = ENDIAN_LITTLE;
-			pframe->pattern = module->cam_uinfo.sensor_if.img_ptn;
-			pframe->buf.buf_sec = 0;
-			if (module->cam_uinfo.is_pyr_rec && channel->ch_id != CAM_CH_CAP)
-				pframe->pyr_status = ONLINE_DEC_ON;
-			if (module->cam_uinfo.is_pyr_dec && channel->ch_id == CAM_CH_CAP)
-				pframe->pyr_status = OFFLINE_DEC_ON;
-			ret = cam_buf_alloc(&pframe->buf, size, iommu_enable);
-			if (ret) {
-				pr_err("fail to alloc buf: %d ch %d\n",
-					i, channel->ch_id);
-				cam_queue_empty_frame_put(pframe);
-				atomic_inc(&channel->err_status);
-				break;
-			}
-
-			ret = CAM_PIPEINE_DCAM_OFFLINE_OUT_PORT_CFG(channel, channel->aux_dcam_port_id,
-				CAM_PIPELINE_CFG_BUF, pframe, CAM_NODE_TYPE_DCAM_OFFLINE);
-		} while (0);
-	}
-
 	/* dcam1 cfg path size */
 	memset(&ch_desc, 0, sizeof(ch_desc));
 	ch_desc.input_size.w = ch_uinfo->src_size.w;

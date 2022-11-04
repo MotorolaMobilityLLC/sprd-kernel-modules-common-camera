@@ -33,30 +33,6 @@
 	}\
 })
 
-static void dcamoffline_src_frame_ret(void *param)
-{
-	struct camera_frame *frame = NULL;
-	struct dcam_offline_node *node = NULL;
-
-	if (!param) {
-		pr_err("fail to get valid param.\n");
-		return;
-	}
-
-	frame = (struct camera_frame *)param;
-	node = (struct dcam_offline_node *)frame->priv_data;
-	if (!node) {
-		pr_err("fail to get valid src_frame node.\n");
-		return;
-	}
-
-	pr_debug("frame %p, ch_id %d, buf_fd %d\n",
-		frame, frame->channel_id, frame->buf.mfd);
-
-	cam_buf_iommu_unmap(&frame->buf);
-	node->data_cb_func(CAM_CB_DCAM_RET_SRC_BUF, frame, node->data_cb_handle);
-}
-
 static int dcamoffline_ctx_unbind(struct dcam_offline_node *node)
 {
 	int ret = 0, i = 0;
@@ -144,14 +120,13 @@ static int dcamoffline_irq_proc(void *param, void *handle)
 		time_out = hw->dcam_ioctl(hw, DCAM_HW_FETCH_STATUS_GET, &node->hw_ctx_id);
 		if (time_out > CAM_DCAM_AXI_STOP_TIMEOUT)
 			pr_warn("Warning:dcam fetch status is busy.\n");
-		frame = cam_queue_dequeue(&node->proc_queue, struct camera_frame, list);
+		frame = cam_buf_manager_buf_dequeue(&node->proc_pool, NULL);
 		if (frame) {
-			cam_buf_iommu_unmap(&frame->buf);
+			cam_buf_manager_buf_status_change(&frame->buf, CAM_BUF_WITH_ION, CAM_IOMMUDEV_DCAM);
 			if (node->data_cb_func)
 				node->data_cb_func(CAM_CB_DCAM_RET_SRC_BUF, frame, node->data_cb_handle);
 		}
 		dcamoffline_ctx_unbind(node);
-
 		complete(&node->frm_done);
 	}
 
@@ -192,13 +167,14 @@ static struct camera_frame *dcamoffline_cycle_frame(struct dcam_offline_node *no
 {
 	int ret = 0, loop = 0;
 	struct camera_frame *pframe = NULL;
+	struct camera_buf_get_desc buf_desc = {0};
 
 	if (!node) {
 		pr_err("fail to get valid dcam offline node\n");
 		return NULL;
 	}
 
-	pframe = cam_queue_dequeue(&node->in_queue, struct camera_frame, list);
+	pframe = cam_buf_manager_buf_dequeue(&node->in_pool, NULL);
 	if (pframe == NULL) {
 		pr_err("fail to get input frame (%p) for node %d\n", pframe, node->node_id);
 		return NULL;
@@ -209,15 +185,12 @@ static struct camera_frame *dcamoffline_cycle_frame(struct dcam_offline_node *no
 	pr_debug("size %d %d,  endian %d, pattern %d\n",
 			pframe->width, pframe->height, pframe->endian, pframe->pattern);
 
-	ret = cam_buf_iommu_map(&pframe->buf, CAM_IOMMUDEV_DCAM);
-	if (ret) {
-		pr_err("fail to map buf to DCAM iommu. ctx %d\n", node->node_id);
-		goto map_err;
-	}
+	buf_desc.buf_ops_cmd = CAM_BUF_STATUS_GET_IOVA;
+	buf_desc.mmu_type = CAM_IOMMUDEV_DCAM;
 
 	loop = 0;
 	do {
-		ret = cam_queue_enqueue(&node->proc_queue, &pframe->list);
+		ret = cam_buf_manager_buf_enqueue(&node->proc_pool, pframe, &buf_desc);
 		if (ret == 0)
 			break;
 		pr_info_ratelimited("wait for proc queue. loop %d\n", loop);
@@ -233,9 +206,6 @@ static struct camera_frame *dcamoffline_cycle_frame(struct dcam_offline_node *no
 	return pframe;
 
 inq_overflow:
-	cam_buf_iommu_unmap(&pframe->buf);
-
-map_err:
 	node->data_cb_func(CAM_CB_DCAM_RET_SRC_BUF, pframe, node->data_cb_handle);
 
 	return NULL;
@@ -473,7 +443,7 @@ static int dcamoffline_node_frame_start(void *param)
 	ret = wait_for_completion_interruptible_timeout(&node->frm_done, DCAM_OFFLINE_TIMEOUT);
 	if (ret <= 0) {
 		pr_err("fail to wait dcam offline node %px\n", node);
-		pframe = cam_queue_dequeue(&node->in_queue, struct camera_frame, list);
+		pframe = cam_buf_manager_buf_dequeue(&node->in_pool, NULL);
 		if (!pframe) {
 			pr_warn("warning: no frame from in_q node %px\n", node);
 			return 0;
@@ -556,9 +526,11 @@ static int dcamoffline_node_frame_start(void *param)
 	return ret;
 
 return_buf:
-	pframe = cam_queue_dequeue(&node->proc_queue, struct camera_frame, list);
-	cam_buf_iommu_unmap(&pframe->buf);
-	node->data_cb_func(CAM_CB_DCAM_RET_SRC_BUF, pframe, node->data_cb_handle);
+	pframe = cam_buf_manager_buf_dequeue(&node->proc_pool, NULL);
+	if (pframe) {
+		cam_buf_manager_buf_status_change(&pframe->buf, CAM_BUF_WITH_ION, CAM_IOMMUDEV_MAX);
+		node->data_cb_func(CAM_CB_DCAM_RET_SRC_BUF, pframe, node->data_cb_handle);
+	}
 input_err:
 	complete(&node->slice_done);
 	complete(&node->frm_done);
@@ -946,7 +918,7 @@ int dcam_offline_node_request_proc(struct dcam_offline_node *node, void *param)
 	node_param = (struct cam_node_cfg_param *)param;
 	pframe = (struct camera_frame *)node_param->param;
 	pframe->priv_data = node;
-	ret = cam_queue_enqueue(&node->in_queue, &pframe->list);
+	ret = cam_buf_manager_buf_enqueue(&node->in_pool, pframe, NULL);
 	if (ret == 0)
 		complete(&node->thread.thread_com);
 	else
@@ -1006,10 +978,27 @@ void *dcam_offline_node_get(uint32_t node_id, struct dcam_offline_node_desc *par
 	init_completion(&node->slice_done);
 	complete(&node->slice_done);
 	mutex_init(&node->blkpm_dcam_lock);
-	cam_queue_init(&node->in_queue, DCAM_OFFLINE_IN_Q_LEN, dcamoffline_src_frame_ret);
-	cam_queue_init(&node->proc_queue, DCAM_OFFLINE_PROC_Q_LEN, dcamoffline_src_frame_ret);
 	cam_queue_init(&node->blk_param_queue, DCAM_OFFLINE_PARAM_Q_LEN, dcamoffline_pmbuf_destroy);
 	cam_queue_init(&node->port_queue, PORT_DCAM_OFFLINE_OUT_MAX, NULL);
+
+	ret = cam_buf_manager_pool_reg(NULL, DCAM_OFFLINE_IN_Q_LEN);
+	if (ret <= 0) {
+		pr_err("fail to reg in pool for dcam offline node\n");
+		vfree(node);
+		return NULL;
+	}
+	node->in_pool.private_pool_idx = ret;
+
+	ret = cam_buf_manager_pool_reg(NULL, DCAM_OFFLINE_PROC_Q_LEN);
+	if (ret <= 0) {
+		pr_err("fail to reg proc pool for dcam offline node\n");
+		cam_buf_manager_pool_unreg(&node->in_pool);
+		vfree(node);
+		return NULL;
+	}
+	node->proc_pool.private_pool_idx = ret;
+	pr_debug("reg pool %d %d\n", node->in_pool.private_pool_idx, node->proc_pool.private_pool_idx);
+
 	node->dev = param->dev;
 	node->dcam_idx = param->dcam_idx;
 	node->fetch.fmt = param->fetch_fmt;
@@ -1072,9 +1061,10 @@ void dcam_offline_node_put(struct dcam_offline_node *node)
 		pr_warn("offline node unbind\n");
 	dcamoffline_pmctx_deinit(node);
 	mutex_destroy(&node->blkpm_dcam_lock);
-	cam_queue_clear(&node->in_queue, struct camera_frame, list);
-	cam_queue_clear(&node->proc_queue, struct camera_frame, list);
 	cam_queue_clear(&node->blk_param_queue, struct camera_frame, list);
+
+	cam_buf_manager_pool_unreg(&node->in_pool);
+	cam_buf_manager_pool_unreg(&node->proc_pool);
 	node->data_cb_func = NULL;
 	node->data_cb_handle = NULL;
 	node->port_cfg_cb_func = NULL;

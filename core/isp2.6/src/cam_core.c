@@ -2676,10 +2676,9 @@ static int camcore_isp_callback(enum isp_cb_type type, void *param, void *priv_d
 			} else {
 				if (module->cam_uinfo.need_dcam_raw && (pframe->channel_id == CAM_CH_CAP
 						|| pframe->channel_id == CAM_CH_PRE)) {
-					complete(&module->mes_thrd.thread_com);
 					ret = cam_queue_enqueue(&module->mes_base.mes_queue, &pframe->list);
 					if (ret == 0)
-						complete(&module->mes_base.mes_com);
+						complete(&module->mes_thrd.thread_com);
 				} else {
 					ret = module->dcam_dev_handle->dcam_pipe_ops->cfg_path(dcam_sw_ctx,
 						DCAM_PATH_CFG_OUTPUT_BUF,
@@ -5366,7 +5365,6 @@ static int camcore_dcam_pmbuf_init(struct dcam_sw_context *sw_ctx)
 			return -1;
 		}
 	}
-
 	return 0;
 
 map_fail:
@@ -6135,84 +6133,82 @@ static int camcore_mes_proc(void *param)
 	channel_raw = &module->channel[CAM_CH_RAW];
 	channel_cap = &module->channel[CAM_CH_CAP];
 	path = &dcam_sw_ctx->path[DCAM_PATH_RAW];
-	if (wait_for_completion_interruptible(&mes_base->mes_com) == 0) {
 
-		temp_pframe = cam_queue_dequeue(&mes_base->mes_queue,struct camera_frame, list);
-		if (temp_pframe == NULL) {
-			pr_err("fail to get temp_pframe buf\n");
+	temp_pframe = cam_queue_dequeue(&mes_base->mes_queue,struct camera_frame, list);
+	if (temp_pframe == NULL) {
+		pr_err("fail to get temp_pframe buf\n");
+		return -EFAULT;
+	}
+	channel = &module->channel[temp_pframe->channel_id];
+	if (channel_raw->ch_uinfo.dst_size.w == channel_cap->ch_uinfo.dst_size.w)
+		dump_path = CAM_CH_CAP;
+	else
+		dump_path = CAM_CH_PRE;
+	if (channel_raw->ch_uinfo.dst_size.w != temp_pframe->width) {
+		if ((channel_raw->ch_uinfo.dst_size.w > temp_pframe->width) && (dump_path == CAM_CH_PRE))
+			pr_debug("pre zoom scene\n");
+		else {
+			pr_debug("Size no match, temp w %d and raw w %d\n",
+					temp_pframe->width, channel_raw->ch_uinfo.dst_size.w);
+			ret = module->dcam_dev_handle->dcam_pipe_ops->cfg_path(dcam_sw_ctx,
+					DCAM_PATH_CFG_OUTPUT_BUF,
+					channel->dcam_path_id,
+					temp_pframe);
+			return 0;
+		}
+	}
+	raw_frame = cam_queue_dequeue(&path->out_buf_queue, struct camera_frame, list);
+	if (raw_frame == NULL) {
+		pr_debug("raw path fail to get queue\n");
+		ret = module->dcam_dev_handle->dcam_pipe_ops->cfg_path(dcam_sw_ctx,
+				DCAM_PATH_CFG_OUTPUT_BUF,
+				channel->dcam_path_id,
+				temp_pframe);
+	} else {
+		pr_debug("start copy temp queue data\n");
+		if (temp_pframe->buf.size[0] > raw_frame->buf.size[0]) {
+			pr_err("fail to raw buff is small  temp buf size %d and raw buf size %d\n",
+					temp_pframe->buf.size[0], raw_frame->buf.size[0]);
+			ret = module->dcam_dev_handle->dcam_pipe_ops->cfg_path(dcam_sw_ctx,
+					DCAM_PATH_CFG_OUTPUT_BUF,
+					channel->dcam_path_id,
+					temp_pframe);
 			return -EFAULT;
 		}
-		channel = &module->channel[temp_pframe->channel_id];
-		if (channel_raw->ch_uinfo.dst_size.w == channel_cap->ch_uinfo.dst_size.w)
-			dump_path = CAM_CH_CAP;
-		else
-			dump_path = CAM_CH_PRE;
-		if (channel_raw->ch_uinfo.dst_size.w != temp_pframe->width) {
-			if ((channel_raw->ch_uinfo.dst_size.w > temp_pframe->width) && (dump_path == CAM_CH_PRE))
-				pr_debug("pre zoom scene\n");
-			else {
-				pr_debug("Size no match, temp w %d and raw w %d\n",
-					temp_pframe->width, channel_raw->ch_uinfo.dst_size.w);
-				ret = module->dcam_dev_handle->dcam_pipe_ops->cfg_path(dcam_sw_ctx,
-						DCAM_PATH_CFG_OUTPUT_BUF,
-						channel->dcam_path_id,
-						temp_pframe);
-				return 0;
-			}
+		if (cam_buf_kmap(&temp_pframe->buf)) {
+			pr_err("fail to kmap temp buf\n");
+			return -EFAULT;
 		}
-		raw_frame = cam_queue_dequeue(&path->out_buf_queue, struct camera_frame, list);
-		if (raw_frame == NULL) {
-			pr_debug("raw path fail to get queue\n");
-			ret = module->dcam_dev_handle->dcam_pipe_ops->cfg_path(dcam_sw_ctx,
-					DCAM_PATH_CFG_OUTPUT_BUF,
-					channel->dcam_path_id,
-					temp_pframe);
+		cam_buf_iommu_unmap(&raw_frame->buf);
+		if (cam_buf_kmap(&raw_frame->buf)) {
+			pr_err("fail to kmap raw buf\n");
+			return -EFAULT;
+		}
+		memcpy((char *)raw_frame->buf.addr_k[0], (char *)temp_pframe->buf.addr_k[0], temp_pframe->buf.size[0]);
+		/* use SOF time instead of ISP time for better accuracy */
+		raw_frame->width = temp_pframe->width;
+		raw_frame->height = temp_pframe->height;
+		raw_frame->fid = temp_pframe->fid;
+		raw_frame->sensor_time.tv_sec = temp_pframe->sensor_time.tv_sec;
+		raw_frame->sensor_time.tv_usec = temp_pframe->sensor_time.tv_usec;
+		raw_frame->boot_sensor_time = temp_pframe->boot_sensor_time;
+		cam_buf_kunmap(&temp_pframe->buf);
+		ret = module->dcam_dev_handle->dcam_pipe_ops->cfg_path(dcam_sw_ctx,
+				DCAM_PATH_CFG_OUTPUT_BUF,
+				channel->dcam_path_id,
+				temp_pframe);
+		cam_buf_kunmap(&raw_frame->buf);
+		raw_frame->evt = IMG_TX_DONE;
+		raw_frame->irq_type = CAMERA_IRQ_IMG;
+		raw_frame->priv_data = module;
+		raw_frame->channel_id = CAM_CH_RAW;
+		ret = cam_queue_enqueue(&module->frm_queue, &raw_frame->list);
+		if (ret) {
+			cam_buf_ionbuf_put(&raw_frame->buf);
+			cam_queue_empty_frame_put(raw_frame);
 		} else {
-			pr_debug("start copy temp queue data\n");
-			if (temp_pframe->buf.size[0] > raw_frame->buf.size[0]) {
-				pr_err("fail to raw buff is small  temp buf size %d and raw buf size %d\n",
-					temp_pframe->buf.size[0], raw_frame->buf.size[0]);
-				ret = module->dcam_dev_handle->dcam_pipe_ops->cfg_path(dcam_sw_ctx,
-						DCAM_PATH_CFG_OUTPUT_BUF,
-						channel->dcam_path_id,
-						temp_pframe);
-				return -EFAULT;
-			}
-			if (cam_buf_kmap(&temp_pframe->buf)) {
-				pr_err("fail to kmap temp buf\n");
-				return -EFAULT;
-			}
-			cam_buf_iommu_unmap(&raw_frame->buf);
-			if (cam_buf_kmap(&raw_frame->buf)) {
-				pr_err("fail to kmap raw buf\n");
-				return -EFAULT;
-			}
-			memcpy((char *)raw_frame->buf.addr_k[0], (char *)temp_pframe->buf.addr_k[0], temp_pframe->buf.size[0]);
-			/* use SOF time instead of ISP time for better accuracy */
-			raw_frame->width = temp_pframe->width;
-			raw_frame->height = temp_pframe->height;
-			raw_frame->fid = temp_pframe->fid;
-			raw_frame->sensor_time.tv_sec = temp_pframe->sensor_time.tv_sec;
-			raw_frame->sensor_time.tv_usec = temp_pframe->sensor_time.tv_usec;
-			raw_frame->boot_sensor_time = temp_pframe->boot_sensor_time;
-			cam_buf_kunmap(&temp_pframe->buf);
-			ret = module->dcam_dev_handle->dcam_pipe_ops->cfg_path(dcam_sw_ctx,
-					DCAM_PATH_CFG_OUTPUT_BUF,
-					channel->dcam_path_id,
-					temp_pframe);
-			cam_buf_kunmap(&raw_frame->buf);
-			raw_frame->evt = IMG_TX_DONE;
-			raw_frame->irq_type = CAMERA_IRQ_IMG;
-			raw_frame->priv_data = module;
-			raw_frame->channel_id = CAM_CH_RAW;
-			ret = cam_queue_enqueue(&module->frm_queue, &raw_frame->list);
-			if (ret) {
-				cam_buf_ionbuf_put(&raw_frame->buf);
-				cam_queue_empty_frame_put(raw_frame);
-			} else {
-				pr_debug("raw frame fid %d mfd 0x%x\n", raw_frame->fid, raw_frame->buf.mfd[0]);
-				complete(&module->frm_com);
-			}
+			pr_debug("raw frame fid %d mfd 0x%x\n", raw_frame->fid, raw_frame->buf.mfd[0]);
+			complete(&module->frm_com);
 		}
 	}
 	return ret;
@@ -6224,7 +6220,6 @@ static void camcore_mes_init(struct camera_module *module)
 
 	mes_base = &module->mes_base;
 	cam_queue_init(&mes_base->mes_queue, DCAM_MID_BUF, camcore_k_frame_put);
-	init_completion(&mes_base->mes_com);
 }
 
 static void camcore_mes_deinit(struct camera_module *module)
@@ -6234,7 +6229,6 @@ static void camcore_mes_deinit(struct camera_module *module)
 	mes_base = &module->mes_base;
 	cam_queue_clear(&mes_base->mes_queue, struct camera_frame, list);
 }
-
 
 static int camcore_dumpraw_proc(void *param)
 {
@@ -7898,6 +7892,7 @@ struct dcam_dev_param *camcore_aux_dcam_param_prepare(struct camera_frame *pfram
 	uint32_t loop = 0;
 	struct camera_frame *param_frm = NULL;
 
+	mutex_lock(&pctx->blkpm_dcam_lock);
 	do {
 		param_frm = cam_queue_dequeue(&pctx->blk_param_queue, struct camera_frame, list);
 		if (param_frm) {
@@ -7905,12 +7900,14 @@ struct dcam_dev_param *camcore_aux_dcam_param_prepare(struct camera_frame *pfram
 			if (param_frm->fid == pframe->fid) {
 				param_frm->fid = 0xffff;
 				cam_queue_enqueue(&pctx->blk_param_queue, &param_frm->list);
+				mutex_unlock(&pctx->blkpm_dcam_lock);
 				return param_frm->pm;
 			} else
 				cam_queue_enqueue(&pctx->blk_param_queue, &param_frm->list);
 		} else
 			pr_warn("warning:no frame in param queue:%d.\n", pctx->blk_param_queue.cnt);
 	} while (loop++ < pctx->blk_param_queue.cnt);
+	mutex_unlock(&pctx->blkpm_dcam_lock);
 
 	pr_warn("Warning: not get param fm.\n");
 	return NULL;
@@ -8001,7 +7998,7 @@ static int camcore_offline_proc(void *param)
 	if (!module->cam_uinfo.virtualsensor)
 		pm->non_zsl_cap = 1;
 	pm->dev = pctx;
-	if (pframe->irq_property == CAM_FRAME_FDRH && module->cam_uinfo.param_frame_sync) {
+	if (pframe->irq_property == CAM_FRAME_FDRH && module->cam_uinfo.raw_alg_type == RAW_ALG_MFNR) {
 		pm = camcore_aux_dcam_param_prepare(pframe, pctx);
 		if (pm) {
 			pm->dev = pctx;
@@ -8010,6 +8007,7 @@ static int camcore_offline_proc(void *param)
 			pm = &pm_pctx->blk_pm;
 			pm->dev = pctx;
 		}
+		pm->non_zsl_cap = 1;
 	}
 
 	if ((pm->lsc.buf.mapping_state & CAM_BUF_MAPPING_DEV) == 0) {

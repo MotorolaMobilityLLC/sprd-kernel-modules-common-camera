@@ -1552,10 +1552,10 @@ static int camioctl_stream_on(struct camera_module *module, unsigned long arg)
 			continue;
 		if (i == CAM_CH_VID && ch_pre->enable)
 			continue;
-		camcore_channel_size_config(module, ch);
 		if (i == CAM_CH_CAP && module->cam_uinfo.dcam_slice_mode
 			&& !module->cam_uinfo.is_4in1)
 			camcore_channel_bigsize_config(module, ch);
+		camcore_channel_size_config(module, ch);
 	}
 
 	camcore_resframe_set(module);

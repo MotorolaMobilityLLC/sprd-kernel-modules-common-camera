@@ -320,6 +320,7 @@ struct dcam_sw_context {
 	struct camera_queue interruption_sts_queue;
 	struct camera_queue blk_param_queue;
 	struct dcam_dev_param *pm;
+	struct mutex blkpm_dcam_lock;
 };
 
 struct dcam_hw_context {

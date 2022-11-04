@@ -316,6 +316,9 @@ int cam_port_buffers_alloc(void *handle, uint32_t node_id, struct cam_buf_alloc_
 	case CAM_NODE_TYPE_DCAM_ONLINE:
 		ret = dcam_online_port_buf_alloc(port->handle, param);
 		break;
+	case CAM_NODE_TYPE_DCAM_OFFLINE:
+		ret = dcam_offline_port_buf_alloc(port->handle, param);
+		break;
 	default:
 		pr_debug("not support node %s\n", cam_node_name_get(port->port_graph->node_type));
 		return ret;

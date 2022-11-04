@@ -2417,11 +2417,9 @@ check:
 		module->offline_cxt_id = ret;
 		module->dcam_dev_handle->sw_ctx[module->offline_cxt_id].offline = 1;
 		module->dcam_dev_handle->dcam_pipe_ops->ioctl(&module->dcam_dev_handle->sw_ctx[module->offline_cxt_id], DCAM_IOCTL_CREAT_INT_THREAD, NULL);
-		if (module->cam_uinfo.raw_alg_type && module->cam_uinfo.param_frame_sync) {
-			ret = camcore_dcam_pmbuf_init(&module->dcam_dev_handle->sw_ctx[module->offline_cxt_id]);
-			if (ret)
-				pr_err("fail to alloc dcam pm buffer, use ctx to recieve pm.\n");
-		}
+		ret = camcore_dcam_pmbuf_init(&module->dcam_dev_handle->sw_ctx[module->offline_cxt_id]);
+		if (ret)
+			pr_err("fail to alloc dcam pm buffer, use ctx to recieve pm.\n");
 	}
 
 	module->dcam_dev_handle->dcam_pipe_ops->set_callback(module->dcam_dev_handle,
@@ -3998,7 +3996,7 @@ static int camioctl_960fps_param_set(struct camera_module *module, unsigned long
 static int camioctl_cfg_param_start_end(struct camera_module *module, unsigned long arg)
 {
 	int ret = 0;
-	uint32_t for_fdr = 0, for_capture = 0;
+	uint32_t for_fdr = 0, for_capture = 0, loop = 0;
 	struct sprd_cfg_param_status param;
 	struct isp_sw_context *pctx = NULL;
 	struct dcam_sw_context *sw_ctx = NULL;
@@ -4030,6 +4028,8 @@ static int camioctl_cfg_param_start_end(struct camera_module *module, unsigned l
 		pr_debug("cam%d start param, fid %d, scene %d\n", module->idx, param.frame_id, param.scene_id);
 	else
 		pr_debug("cam%d end param, fid %d, scene %d\n", module->idx, param.frame_id, param.scene_id);
+
+	sw_ctx = &module->dcam_dev_handle->sw_ctx[module->offline_cxt_id];
 	if (param.status == 0) {
 		if (module->isp_dev_handle->cfg_handle) {
 			if (param.scene_id == PM_SCENE_PRE) {
@@ -4047,16 +4047,24 @@ static int camioctl_cfg_param_start_end(struct camera_module *module, unsigned l
 			}
 		}
 
-		if (module->cam_uinfo.is_raw_alg && param.scene_id == PM_SCENE_OFFLINE_CAP && module->cam_uinfo.param_frame_sync) {
-			sw_ctx = &module->dcam_dev_handle->sw_ctx[module->offline_cxt_id];
-			param_frame = cam_queue_dequeue(&sw_ctx->blk_param_queue, struct camera_frame, list);
-			if (param_frame) {
-				pr_info("frame id:%d,%p.\n", param.frame_id, param_frame->pm);
-				param_frame->fid = param.frame_id;
-				sw_ctx->pm = param_frame->pm;
-				cam_queue_enqueue(&sw_ctx->blk_param_queue, &param_frame->list);
-			} else
-				pr_debug("no frame in dcam blk empty queue:%d.\n", sw_ctx->blk_param_queue.cnt);
+		if (module->cam_uinfo.is_raw_alg && param.scene_id == PM_SCENE_OFFLINE_CAP) {
+			mutex_lock(&sw_ctx->blkpm_dcam_lock);
+			do {
+				param_frame = cam_queue_dequeue(&sw_ctx->blk_param_queue, struct camera_frame, list);
+				if (param_frame) {
+					if (param_frame->fid == 0xffff) {
+						param_frame->fid = param.frame_id;
+						sw_ctx->pm = param_frame->pm;
+						cam_queue_enqueue(&sw_ctx->blk_param_queue, &param_frame->list);
+						break;
+					} else
+						cam_queue_enqueue(&sw_ctx->blk_param_queue, &param_frame->list);
+				} else {
+					pr_warn("Warning:no frame in dcam blk empty queue:%d.\n", sw_ctx->blk_param_queue.cnt);
+					break;
+				}
+			} while (loop++ < sw_ctx->blk_param_queue.cnt);
+			mutex_unlock(&sw_ctx->blkpm_dcam_lock);
 		}
 	}
 
@@ -4109,7 +4117,11 @@ static int camioctl_cfg_param_start_end(struct camera_module *module, unsigned l
 					pr_warn("isp%d cap lose param %d\n", pctx->ctx_id, param.frame_id);
 			}
 		}
+
+		if (module->cam_uinfo.is_raw_alg && param.scene_id == PM_SCENE_OFFLINE_CAP)
+			sw_ctx->pm = NULL;
 	}
+
 	return ret;
 }
 #endif

@@ -66,9 +66,9 @@ struct dcam_offline_node {
 
 	struct dcam_fetch_info fetch;
 	struct dcam_pm_context pm_ctx;
-	struct camera_queue in_queue;
-	struct camera_queue proc_queue;
 	struct camera_queue port_queue;
+	struct cam_buf_pool_id in_pool;
+	struct cam_buf_pool_id proc_pool;
 	struct camera_queue blk_param_queue;
 	struct completion frm_done;
 	struct completion slice_done;
