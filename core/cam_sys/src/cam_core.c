@@ -1480,7 +1480,7 @@ static int camcore_pipeline_callback(enum cam_cb_type type, void *param, void *p
 	module = (struct camera_module *)priv_data;
 	hw = module->grp->hw_info;
 	if (unlikely(type == CAM_CB_DCAM_DEV_ERR)) {
-		pr_info("fail to fatal err may need recovery\n");
+		pr_err("fail to fatal err may need recovery\n");
 		if (hw->prj_id != QOGIRN6L)
 			csi_api_reg_trace();
 		if (*(uint32_t *)param) {
@@ -1488,6 +1488,11 @@ static int camcore_pipeline_callback(enum cam_cb_type type, void *param, void *p
 			if (atomic_cmpxchg(&module->grp->recovery_state, CAM_RECOVERY_NONE, CAM_RECOVERY_RUNNING) == CAM_RECOVERY_NONE)
 				complete(&module->grp->recovery_thrd.thread_com);
 		}
+		return 0;
+	}
+
+	if (unlikely(type == CAM_CB_ISP_DEV_ERR)) {
+		pr_err("fail to fatal err may not do anything\n");
 		return 0;
 	}
 
