@@ -1528,7 +1528,7 @@ void *cam_pipeline_creat(struct cam_pipeline_desc *param)
 		return NULL;
 	}
 
-	pipeline = vzalloc(sizeof(struct cam_pipeline));
+	pipeline = cam_buf_kernel_sys_vzalloc(sizeof(struct cam_pipeline));
 	if (!pipeline) {
 		pr_err("fail to alloc cam pipeline\n");
 		return NULL;
@@ -1565,7 +1565,7 @@ void *cam_pipeline_creat(struct cam_pipeline_desc *param)
 			while (i > 0)
 				cam_node_destory(pipeline->node_list[i--]);
 
-			vfree(pipeline);
+			cam_buf_kernel_sys_vfree(pipeline);
 			return NULL;
 		}
 	}
@@ -1593,6 +1593,6 @@ void cam_pipeline_destory(struct cam_pipeline *pipeline)
 			cam_node_destory(pipeline->node_list[i]);
 		pipeline->node_list[i] = NULL;
 	}
-	vfree(pipeline);
+	cam_buf_kernel_sys_vfree(pipeline);
 	pipeline = NULL;
 }

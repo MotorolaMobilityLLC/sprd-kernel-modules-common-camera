@@ -76,6 +76,26 @@ struct check_blk_param {
 	struct camera_frame *valid_param_frame;
 };
 
+static uint32_t ispcore_slice_needed(struct isp_sw_context *pctx)
+{
+	int i;
+	struct isp_path_uinfo *path_info = NULL;
+	struct isp_path_desc *path = NULL;
+
+	if (pctx->uinfo.crop.size_x > g_camctrl.isp_linebuf_len)
+		return 1;
+
+	for (i = 0; i < ISP_SPATH_NUM; i++) {
+		path = &pctx->isp_path[i];
+		path_info = &pctx->uinfo.path_info[i];
+		if (atomic_read(&path->user_cnt) < 1)
+			continue;
+		if (path_info->dst.w > g_camctrl.isp_linebuf_len)
+			return 1;
+	}
+	return 0;
+}
+
 static void ispcore_offline_pararm_free(void *param)
 {
 	struct isp_offline_param *cur, *prev;
@@ -396,6 +416,7 @@ static int ispcore_ltm_frame_process(struct isp_sw_context *pctx,
 	struct isp_uinfo *pipe_src = NULL;
 	struct isp_ltm_ctx_desc *rgb_ltm = NULL;
 	struct isp_ltm_ctx_desc *yuv_ltm = NULL;
+	uint32_t pre_hist_status = 1;
 
 	if (!pctx || !pframe) {
 		pr_err("fail to get valid parameter pctx %p pframe %p\n",
@@ -407,7 +428,12 @@ static int ispcore_ltm_frame_process(struct isp_sw_context *pctx,
 	rgb_ltm = (struct isp_ltm_ctx_desc *)pctx->rgb_ltm_handle;
 	yuv_ltm = (struct isp_ltm_ctx_desc *)pctx->yuv_ltm_handle;
 	if (rgb_ltm) {
-		rgb_ltm->ltm_ops.core_ops.cfg_param(rgb_ltm, ISP_LTM_CFG_HIST_BYPASS, &pframe->need_ltm_hist);
+		if (pctx->ch_id == CAM_CH_PRE && ispcore_slice_needed(pctx)) {
+			pipe_src->mode_ltm = MODE_LTM_OFF;
+			pre_hist_status = 0;
+		}
+		pre_hist_status = pre_hist_status && pframe->need_ltm_hist;
+		rgb_ltm->ltm_ops.core_ops.cfg_param(rgb_ltm, ISP_LTM_CFG_HIST_BYPASS, &pre_hist_status);
 		rgb_ltm->ltm_ops.core_ops.cfg_param(rgb_ltm, ISP_LTM_CFG_MAP_BYPASS, &pframe->need_ltm_map);
 		rgb_ltm->ltm_ops.core_ops.cfg_param(rgb_ltm, ISP_LTM_CFG_MODE, &pipe_src->mode_ltm);
 		rgb_ltm->ltm_ops.core_ops.cfg_param(rgb_ltm, ISP_LTM_CFG_FRAME_ID, &pframe->fid);
@@ -988,25 +1014,6 @@ exit:
 	return 0;
 }
 
-static uint32_t ispcore_slice_needed(struct isp_sw_context *pctx)
-{
-	int i;
-	struct isp_path_uinfo *path_info = NULL;
-	struct isp_path_desc *path = NULL;
-
-	if (pctx->uinfo.crop.size_x > g_camctrl.isp_linebuf_len)
-		return 1;
-
-	for (i = 0; i < ISP_SPATH_NUM; i++) {
-		path = &pctx->isp_path[i];
-		path_info = &pctx->uinfo.path_info[i];
-		if (atomic_read(&path->user_cnt) < 1)
-			continue;
-		if (path_info->dst.w > g_camctrl.isp_linebuf_len)
-			return 1;
-	}
-	return 0;
-}
 static int ispcore_init_dyn_ov_param(struct slice_cfg_input *slc_cfg_in, struct isp_sw_context *pctx)
 {
 	int i = 0;

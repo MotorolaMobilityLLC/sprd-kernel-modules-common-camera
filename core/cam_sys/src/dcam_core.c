@@ -441,7 +441,7 @@ void *dcam_core_pipe_dev_get(struct cam_hw_info *hw)
 		goto exit;
 	}
 
-	dev = vzalloc(sizeof(struct dcam_pipe_dev));
+	dev = cam_buf_kernel_sys_vzalloc(sizeof(struct dcam_pipe_dev));
 	if (!dev)
 		goto exit;
 
@@ -484,7 +484,7 @@ int dcam_core_pipe_dev_put(void *dcam_handle)
 	if (atomic_dec_return(&dev->user_cnt) == 0) {
 		pr_info("free dcam pipe dev %px\n", dev);
 		mutex_destroy(&dev->ctx_mutex);
-		vfree(dev);
+		cam_buf_kernel_sys_vfree(dev);
 		dev = NULL;
 		s_dcam_dev = NULL;
 	}

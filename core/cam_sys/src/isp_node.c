@@ -1158,7 +1158,7 @@ void isp_node_offline_pararm_free(void *param)
 	while (cur) {
 		prev = (struct isp_offline_param *)cur->prev;
 		pr_info("free %p\n", cur);
-		kvfree(cur);
+		cam_buf_kernel_sys_vfree(cur);
 		cur = prev;
 	}
 }
@@ -1510,7 +1510,7 @@ void *isp_node_get(uint32_t node_id, struct isp_node_desc *param)
 
 	pr_info("node id %d node_dev %px\n", node_id, *param->node_dev);
 	if (*param->node_dev == NULL) {
-		node = kvzalloc(sizeof(struct isp_node), GFP_KERNEL);
+		node = cam_buf_kernel_sys_vzalloc(sizeof(struct isp_node));
 		if (!node) {
 			pr_err("fail to get valid isp node\n");
 			return NULL;
@@ -1713,7 +1713,7 @@ rgb_gtm_err:
 		node->rgb_ltm_handle = NULL;
 	}
 rgb_ltm_err:
-	kvfree(node);
+	cam_buf_kernel_sys_vfree(node);
 	node = NULL;
 	return NULL;
 }
@@ -1775,7 +1775,7 @@ void isp_node_put(struct isp_node *node)
 		atomic_dec(&((struct isp_cfg_ctx_desc *)(node->dev->cfg_handle))->node_cnt);
 
 		pr_info("isp offline node %d put success\n", node->node_id);
-		kvfree(node);
+		cam_buf_kernel_sys_vfree(node);
 		node = NULL;
 	}
 }

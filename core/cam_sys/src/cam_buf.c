@@ -89,11 +89,13 @@ int cam_buf_mdbg_check(void)
 	val[4] = atomic_read(&g_mem_dbg->empty_interruption_cnt);
 	val[5] = atomic_read(&g_mem_dbg->iommu_map_cnt[0]);
 	val[6] = atomic_read(&g_mem_dbg->iommu_map_cnt[1]);
-	val[7] = atomic_read(&g_mem_dbg->ion_alloc_size);
+	val[7] = atomic_read(&g_mem_dbg->mem_kzalloc_cnt);
+	val[8] = atomic_read(&g_mem_dbg->mem_vzalloc_cnt);
+	val[9] = atomic_read(&g_mem_dbg->ion_alloc_size);
 
 	pr_info("mdbg info: k_alloc_cnt: %d, k_map_cnt: %d, u_ion_cnt: %d, "
-			"frm_cnt: %d, irq_cnt: %d, isp_map_cnt: %d, dcam_map_cnt: %d k_alloc_size: %d Bytes\n",
-			val[0], val[1], val[2], val[3], val[4], val[5], val[6], val[7]);
+			"frm_cnt: %d, irq_cnt: %d, isp_map_cnt: %d, dcam_map_cnt: %d kzalloc_cnt: %d vzalloc_cnt: %d k_alloc_size: %d Bytes\n",
+			val[0], val[1], val[2], val[3], val[4], val[5], val[6], val[7], val[8], val[9]);
 	return 0;
 }
 
@@ -365,6 +367,49 @@ int cam_buf_free(struct camera_buf *buf_info)
 	pr_debug("free done: %p, dmabuf[%p]\n", buf_info, dmabuf);
 	return rtn;
 }
+
+void *cam_buf_kernel_sys_kzalloc(unsigned long size, gfp_t flags)
+{
+	void *mem = NULL;
+	mem = kzalloc(size, flags);
+	if (mem) {
+		if (g_mem_dbg)
+			atomic_inc(&g_mem_dbg->mem_kzalloc_cnt);
+		pr_debug("kzalloc done: %p, mem_count %d\n", mem, g_mem_dbg->mem_kzalloc_cnt);
+	} else
+		pr_err("fail to kzalloc memory\n");
+	return mem;
+}
+
+void cam_buf_kernel_sys_kfree(const void *mem)
+{
+	kfree(mem);
+	if (g_mem_dbg)
+		atomic_dec(&g_mem_dbg->mem_kzalloc_cnt);
+	pr_debug("kfree done. mem_count %d\n", g_mem_dbg->mem_kzalloc_cnt);
+}
+
+void *cam_buf_kernel_sys_vzalloc(unsigned long size)
+{
+	void *mem = NULL;
+	mem = vzalloc(size);
+	if (mem) {
+		if (g_mem_dbg)
+			atomic_inc(&g_mem_dbg->mem_vzalloc_cnt);
+		pr_debug("vzalloc done: %p, mem_count %d\n", mem, g_mem_dbg->mem_vzalloc_cnt);
+	} else
+		pr_err("fail to vzalloc memory\n");
+	return mem;
+}
+
+void cam_buf_kernel_sys_vfree(const void *mem)
+{
+	vfree(mem);
+	if (g_mem_dbg)
+		atomic_dec(&g_mem_dbg->mem_vzalloc_cnt);
+	pr_debug("vfree done. mem_count %d\n", g_mem_dbg->mem_vzalloc_cnt);
+}
+
 
 /*************** some externel interface not only for camera driver ****************/
 int cam_buf_iommudev_reg(struct device *dev,

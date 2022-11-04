@@ -2931,15 +2931,12 @@ static int camioctl_raw_proc(struct camera_module *module,
 		return -EFAULT;
 	}
 
-	if (module->cam_uinfo.is_4in1)
-		proc_info.scene = RAW_PROC_SCENE_RAWCAP;
-
 	if (proc_info.scene == RAW_PROC_SCENE_HWSIM_NEW) {
 		ret = camcore_raw_post_proc_new(module, &proc_info);
 		return ret;
 	}
 
-	if (proc_info.scene == RAW_PROC_SCENE_HWSIM) {
+	if (proc_info.scene == RAW_PROC_SCENE_HWSIM || proc_info.scene == RAW_PROC_SCENE_RAWCAP) {
 		rps_info = 1;
 		pr_info("hwsim\n");
 		if (module->cam_uinfo.virtualsensor) {

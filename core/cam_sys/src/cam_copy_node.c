@@ -161,7 +161,7 @@ void *cam_copy_node_get(uint32_t node_id, cam_data_cb cb_func, void *priv_data)
 		return NULL;
 	}
 
-	node = vzalloc(sizeof(struct cam_copy_node));
+	node = cam_buf_kernel_sys_vzalloc(sizeof(struct cam_copy_node));
 	if (!node) {
 		pr_err("fail to get valid cam copy node\n");
 		return NULL;
@@ -203,7 +203,7 @@ void cam_copy_node_put(struct cam_copy_node *node)
 	node->copy_cb_func = NULL;
 	node->copy_cb_handle = NULL;
 	pr_info("cam copy node %d put\n", node->node_id);
-	vfree(node);
+	cam_buf_kernel_sys_vfree(node);
 	node = NULL;
 }
 

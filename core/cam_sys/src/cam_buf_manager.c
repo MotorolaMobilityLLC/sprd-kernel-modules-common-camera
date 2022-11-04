@@ -554,7 +554,7 @@ void cam_buf_manager_buf_clear(struct cam_buf_pool_id *pool_id)
 				pframe->param_data = NULL;
 				while (cur) {
 					prev = (struct isp_offline_param *)cur->prev;
-					kvfree(cur);
+					cam_buf_kernel_sys_vfree(cur);
 					cur = prev;
 				}
 			}
@@ -596,7 +596,7 @@ int cam_buf_manager_pool_reg(struct cam_buf_pool_id *pool_id, uint32_t length)
 		mutex_unlock(&global_buf_manager->pool_lock);
 		return -1;
 	}
-	tmp_p = vzalloc(sizeof(struct camera_queue));
+	tmp_p = cam_buf_kernel_sys_vzalloc(sizeof(struct camera_queue));
 	if (IS_ERR_OR_NULL(tmp_p)) {
 		pr_err("fail to alloc pool\n");
 		mutex_unlock(&global_buf_manager->pool_lock);
@@ -643,7 +643,7 @@ int cam_buf_manager_pool_unreg(struct cam_buf_pool_id *pool_id)
 	if (tmp_p) {
 		pr_debug("pool p:%d t:%d unreg\n", pool_id->private_pool_idx, pool_id->tag_id);
 		cam_buf_manager_buf_clear(pool_id);
-		vfree(tmp_p);
+		cam_buf_kernel_sys_vfree(tmp_p);
 	}
 
 	if (unreg_tag_pool)
@@ -677,7 +677,7 @@ int cam_buf_manager_init(uint32_t cam_id)
 	}
 
 	if (!global_buf_manager) {
-		global_buf_manager = vzalloc(sizeof(struct cam_buf_manager));
+		global_buf_manager = cam_buf_kernel_sys_vzalloc(sizeof(struct cam_buf_manager));
 		if (IS_ERR_OR_NULL(global_buf_manager)) {
 			global_buf_manager = NULL;
 			pr_err("fail to create cam buf manager\n");
@@ -689,11 +689,11 @@ int cam_buf_manager_init(uint32_t cam_id)
 	}
 
 	atomic_inc(&global_buf_manager->user_cnt);
-	tmp_q = vzalloc(sizeof(struct camera_queue));
+	tmp_q = cam_buf_kernel_sys_vzalloc(sizeof(struct camera_queue));
 	if (IS_ERR_OR_NULL(tmp_q)) {
 		pr_err("fail to alloc reserved q, cam%d\n", cam_id);
 		mutex_destroy(&global_buf_manager->pool_lock);
-		vfree(global_buf_manager);
+		cam_buf_kernel_sys_vfree(global_buf_manager);
 		global_buf_manager = NULL;
 		return -1;
 	}
@@ -719,7 +719,7 @@ int cam_buf_manager_deinit(uint32_t cam_id)
 	tmp_q = global_buf_manager->reserve_buf_pool[cam_id + 1];
 	if (tmp_q) {
 		cam_buf_manager_buf_clear(&pool_id);
-		vfree(tmp_q);
+		cam_buf_kernel_sys_vfree(tmp_q);
 		global_buf_manager->reserve_buf_pool[cam_id + 1] = NULL;
 	}
 	pr_info("cam%d buf manager deinit, unreg %px\n", cam_id, tmp_q);
@@ -733,7 +733,7 @@ int cam_buf_manager_deinit(uint32_t cam_id)
 				continue;
 			pool_id.reserved_pool_id = i;
 			cam_buf_manager_buf_clear(&pool_id);
-			vfree(tmp_q);
+			cam_buf_kernel_sys_vfree(tmp_q);
 			global_buf_manager->reserve_buf_pool[i] = NULL;
 		}
 
@@ -743,7 +743,7 @@ int cam_buf_manager_deinit(uint32_t cam_id)
 				continue;
 			pool_id.private_pool_idx = i;
 			cam_buf_manager_buf_clear(&pool_id);
-			vfree(tmp_q);
+			cam_buf_kernel_sys_vfree(tmp_q);
 			global_buf_manager->private_buf_pool[i] = NULL;
 		}
 
@@ -753,11 +753,11 @@ int cam_buf_manager_deinit(uint32_t cam_id)
 				continue;
 			pool_id.tag_id = i;
 			cam_buf_manager_buf_clear(&pool_id);
-			vfree(tmp_q);
+			cam_buf_kernel_sys_vfree(tmp_q);
 			global_buf_manager->tag_pool[i] = NULL;
 		}
 		mutex_destroy(&global_buf_manager->pool_lock);
-		vfree(global_buf_manager);
+		cam_buf_kernel_sys_vfree(global_buf_manager);
 		global_buf_manager = NULL;
 		pr_info("global_buf_manager deinit\n");
 	}

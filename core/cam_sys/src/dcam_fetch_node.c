@@ -769,7 +769,7 @@ void *dcam_fetch_node_get(uint32_t node_id, struct dcam_fetch_node_desc *param)
 
 	pr_info("node id %d node_dev %px\n", node_id, *param->node_dev);
 	if (*param->node_dev == NULL) {
-		node = vzalloc(sizeof(struct dcam_fetch_node));
+		node = cam_buf_kernel_sys_vzalloc(sizeof(struct dcam_fetch_node));
 		if (!node) {
 			pr_err("fail to get valid dcam fetch node\n");
 			return NULL;
@@ -882,7 +882,7 @@ void dcam_fetch_node_put(struct dcam_fetch_node *node)
 		node->online_node.port_cfg_cb_handle = NULL;
 		atomic_set(&node->online_node.state, STATE_INIT);
 		pr_info("dcam fetch node %d put success\n", node->online_node.node_id);
-		vfree(node);
+		cam_buf_kernel_sys_vfree(node);
 		node = NULL;
 	}
 }

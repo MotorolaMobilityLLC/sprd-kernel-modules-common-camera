@@ -166,7 +166,7 @@ struct camera_frame *cam_queue_empty_frame_get(void)
 		if (pframe == NULL) {
 			if (in_interrupt()) {
 				/* fast alloc and return for irq handler */
-				pframe = kzalloc(sizeof(*pframe), GFP_ATOMIC);
+				pframe = cam_buf_kernel_sys_kzalloc(sizeof(*pframe), GFP_ATOMIC);
 				if (pframe)
 					atomic_inc(&g_mem_dbg->empty_frm_cnt);
 				else
@@ -175,7 +175,7 @@ struct camera_frame *cam_queue_empty_frame_get(void)
 			}
 
 			for (i = 0; i < CAM_EMP_Q_LEN_INC; i++) {
-				pframe = kzalloc(sizeof(*pframe), GFP_KERNEL);
+				pframe = cam_buf_kernel_sys_kzalloc(sizeof(*pframe), GFP_KERNEL);
 				if (pframe == NULL) {
 					pr_err("fail to alloc memory, retry\n");
 					continue;
@@ -211,7 +211,7 @@ int cam_queue_empty_frame_put(struct camera_frame *pframe)
 	if (ret) {
 		pr_info("queue should be enlarged\n");
 		atomic_dec(&g_mem_dbg->empty_frm_cnt);
-		kfree(pframe);
+		cam_buf_kernel_sys_kfree(pframe);
 	}
 	return 0;
 }
@@ -225,7 +225,7 @@ void cam_queue_empty_frame_free(void *param)
 	atomic_dec(&g_mem_dbg->empty_frm_cnt);
 	pr_debug("free frame %p, cnt %d\n", pframe,
 		atomic_read(&g_mem_dbg->empty_frm_cnt));
-	kfree(pframe);
+	cam_buf_kernel_sys_kfree(pframe);
 	pframe = NULL;
 }
 
@@ -241,7 +241,7 @@ struct camera_interrupt *cam_queue_empty_interrupt_get(void)
 		if (interruption == NULL) {
 			if (in_interrupt()) {
 				/* fast alloc and return for irq handler */
-				interruption = kzalloc(sizeof(*interruption), GFP_ATOMIC);
+				interruption = cam_buf_kernel_sys_kzalloc(sizeof(*interruption), GFP_ATOMIC);
 				if (interruption)
 					atomic_inc(&g_mem_dbg->empty_interruption_cnt);
 				else
@@ -250,7 +250,7 @@ struct camera_interrupt *cam_queue_empty_interrupt_get(void)
 			}
 
 			for (i = 0; i < CAM_INT_EMP_Q_LEN_INC; i++) {
-				interruption = kzalloc(sizeof(*interruption), GFP_KERNEL);
+				interruption = cam_buf_kernel_sys_kzalloc(sizeof(*interruption), GFP_KERNEL);
 				if (interruption == NULL) {
 					pr_err("fail to alloc memory, retry\n");
 					continue;
@@ -289,7 +289,7 @@ void cam_queue_empty_interrupt_put(void *param)
 	if (ret) {
 		pr_info("queue should be enlarged\n");
 		atomic_dec(&g_mem_dbg->empty_interruption_cnt);
-		kfree(interruption);
+		cam_buf_kernel_sys_kfree(interruption);
 	}
 	return ;
 }
@@ -307,7 +307,7 @@ void cam_queue_empty_interrupt_free(void *param)
 	atomic_dec(&g_mem_dbg->empty_interruption_cnt);
 	pr_debug("free frame %p, cnt %d\n", interruption,
 		atomic_read(&g_mem_dbg->empty_interruption_cnt));
-	kfree(interruption);
+	cam_buf_kernel_sys_kfree(interruption);
 	interruption = NULL;
 }
 

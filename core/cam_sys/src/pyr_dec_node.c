@@ -646,7 +646,7 @@ static int pyrdec_node_calc_overlap_info(struct pyr_dec_node *node)
 		pr_err("fail to get valid input handle\n");
 		return -EFAULT;
 	}
-	dec_ovlap = vzalloc(sizeof(struct alg_dec_offline_overlap));
+	dec_ovlap = cam_buf_kernel_sys_vzalloc(sizeof(struct alg_dec_offline_overlap));
 	if (!dec_ovlap)
 		return -EFAULT;
 
@@ -728,7 +728,7 @@ static int pyrdec_node_calc_overlap_info(struct pyr_dec_node *node)
 		}
 	}
 	if (dec_ovlap) {
-		vfree(dec_ovlap);
+		cam_buf_kernel_sys_vfree(dec_ovlap);
 		dec_ovlap = NULL;
 	}
 
@@ -1473,7 +1473,7 @@ void *pyr_dec_node_get(uint32_t node_id, struct pyr_dec_node_desc *param)
 
 	pr_info("node id %d node_dev %px\n", node_id, *param->node_dev);
 	if (*param->node_dev == NULL) {
-		node = vzalloc(sizeof(struct pyr_dec_node));
+		node = cam_buf_kernel_sys_vzalloc(sizeof(struct pyr_dec_node));
 		if (!node) {
 			pr_err("fail to get valid isp node\n");
 			return NULL;
@@ -1543,7 +1543,7 @@ void pyr_dec_node_put(struct pyr_dec_node *node)
 	node->buf_cb_func = NULL;
 
 	if (node)
-		vfree(node);
+		cam_buf_kernel_sys_vfree(node);
 	node = NULL;
 
 	return;
@@ -1557,7 +1557,7 @@ void *pyrdec_dev_get(void *isp_handle, void *hw)
 	struct pyrdec_hw_k_blk_func irq_func = {0};
 	struct cam_thread_info *thrd = NULL;
 
-	dec_dev = vzalloc(sizeof(struct pyrdec_pipe_dev));
+	dec_dev = cam_buf_kernel_sys_vzalloc(sizeof(struct pyrdec_pipe_dev));
 	if (!dec_dev) {
 		pr_err("fail to get dec_dev\n");
 		return NULL;
@@ -1606,7 +1606,7 @@ thread_err:
 	camthread_stop(&dec_dev->pyrdec_irq_proc_thrd);
 irq_err:
 	if (dec_dev) {
-		vfree(dec_dev);
+		cam_buf_kernel_sys_vfree(dec_dev);
 		dec_dev = NULL;
 	}
 	return dec_dev;
@@ -1635,7 +1635,7 @@ void pyrdec_dev_put(void *dec_handle)
 	}
 	dec_dev->fmcu_handle = NULL;
 	if (dec_dev)
-		vfree(dec_dev);
+		cam_buf_kernel_sys_vfree(dec_dev);
 	dec_dev = NULL;
 
 	pr_info("pyrdec dev put success\n");

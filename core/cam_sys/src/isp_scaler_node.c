@@ -40,7 +40,7 @@ void isp_scaler_node_offline_pararm_free(void *param)
 	while (cur) {
 		prev = (struct isp_offline_param *)cur->prev;
 		pr_info("free %p\n", cur);
-		kfree(cur);
+		cam_buf_kernel_sys_vfree(cur);
 		cur = prev;
 	}
 }
@@ -1110,7 +1110,7 @@ void *isp_yuv_scaler_node_get (uint32_t node_id, struct isp_yuv_scaler_node_desc
 	}
 
 	if (*param->node_dev == NULL) {
-		node = kvzalloc(sizeof(struct isp_yuv_scaler_node), GFP_KERNEL);
+		node = cam_buf_kernel_sys_vzalloc(sizeof(struct isp_yuv_scaler_node));
 		if (!node) {
 			pr_err("fail to get valid isp yuv scaler node\n");
 			return NULL;
@@ -1225,7 +1225,7 @@ void isp_yuv_scaler_node_put (struct isp_yuv_scaler_node *node)
 		atomic_dec(&((struct isp_cfg_ctx_desc *)(node->dev->cfg_handle))->scaler_node_cnt);
 
 		pr_info("isp yuv scaler node %d put success\n", node->node_id);
-		kvfree(node);
+		cam_buf_kernel_sys_vfree(node);
 		node = NULL;
 	}
 }

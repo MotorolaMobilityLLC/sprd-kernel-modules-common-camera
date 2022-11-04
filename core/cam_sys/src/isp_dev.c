@@ -522,7 +522,7 @@ void *isp_core_pipe_dev_get(void)
 		goto exit;
 	}
 
-	dev = vzalloc(sizeof(struct isp_pipe_dev));
+	dev = cam_buf_kernel_sys_vzalloc(sizeof(struct isp_pipe_dev));
 	if (!dev)
 		goto exit;
 
@@ -565,7 +565,7 @@ int isp_core_pipe_dev_put(void *isp_handle)
 
 	if (atomic_dec_return(&dev->user_cnt) == 0) {
 		pr_info("free isp pipe dev %p\n", dev);
-		vfree(dev);
+		cam_buf_kernel_sys_vfree(dev);
 		dev = NULL;
 		s_isp_dev = NULL;
 	}

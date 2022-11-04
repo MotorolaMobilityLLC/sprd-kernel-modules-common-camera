@@ -821,7 +821,7 @@ void *isp_pyr_rec_ctx_get(uint32_t idx, void *hw)
 {
 	struct isp_rec_ctx_desc *rec_ctx = NULL;
 
-	rec_ctx = vzalloc(sizeof(struct isp_rec_ctx_desc));
+	rec_ctx = cam_buf_kernel_sys_vzalloc(sizeof(struct isp_rec_ctx_desc));
 	if (!rec_ctx)
 		return NULL;
 
@@ -853,6 +853,6 @@ void isp_pyr_rec_ctx_put(void *rec_handle)
 	}
 
 	if (rec_ctx)
-		vfree(rec_ctx);
+		cam_buf_kernel_sys_vfree(rec_ctx);
 	rec_ctx = NULL;
 }

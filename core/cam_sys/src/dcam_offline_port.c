@@ -362,7 +362,7 @@ void *dcam_offline_port_get(uint32_t port_id, struct dcam_offline_port_desc *par
 	}
 
 	if (*param->port_dev == NULL) {
-		port = vzalloc(sizeof(struct dcam_offline_port));
+		port = cam_buf_kernel_sys_vzalloc(sizeof(struct dcam_offline_port));
 		if (!port) {
 			pr_err("fail to get valid dcam offline port %s\n", cam_port_dcam_offline_out_id_name_get(port_id));
 			return NULL;
@@ -410,7 +410,7 @@ void dcam_offline_port_put(struct dcam_offline_port *port)
 		port->data_cb_func = NULL;
 
 		pr_debug("dcam offline port %s put success\n", cam_port_dcam_offline_out_id_name_get(port->port_id));
-		vfree(port);
+		cam_buf_kernel_sys_vfree(port);
 		port = NULL;
 	}
 }
