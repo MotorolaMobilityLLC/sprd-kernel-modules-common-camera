@@ -111,7 +111,7 @@ static void cam_ca_free_msg_buf_list(struct list_head *list)
 		list_del(&mb->node);
 
 		free_pages_exact(mb->buf_va, mb->buf_sz);
-		cam_buf_kernel_sys_kfree(mb);
+		kfree(mb);
 
 		mb = list_first_entry_or_null(list, struct tipc_msg_buf, node);
 	}

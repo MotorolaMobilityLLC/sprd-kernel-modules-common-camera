@@ -646,7 +646,7 @@ static void camcore_empty_frame_put(void *param)
 	module = frame->priv_data;
 	if (frame->priv_data) {
 		if (!frame->irq_type)
-			cam_buf_kernel_sys_kfree(frame->priv_data);
+			cam_buf_kernel_sys_vfree(frame->priv_data);
 		else if (frame->buf.type == CAM_BUF_USER && frame->irq_type != CAMERA_IRQ_STATIS)
 			cam_buf_ionbuf_put(&frame->buf);
 	}
@@ -4577,7 +4577,7 @@ static int camcore_probe(struct platform_device *pdev)
 	}
 
 	pr_info("Start camera img probe\n");
-	group = cam_buf_kernel_sys_kzalloc(sizeof(struct camera_group), GFP_KERNEL);
+	group = cam_buf_kernel_sys_vzalloc(sizeof(struct camera_group));
 	if (group == NULL) {
 		pr_err("fail to alloc memory\n");
 		return -ENOMEM;
@@ -4586,7 +4586,7 @@ static int camcore_probe(struct platform_device *pdev)
 	ret = misc_register(&image_dev);
 	if (ret) {
 		pr_err("fail to register misc devices, ret %d\n", ret);
-		cam_buf_kernel_sys_kfree(group);
+		cam_buf_kernel_sys_vfree(group);
 		return -EACCES;
 	}
 
@@ -4657,7 +4657,7 @@ static int camcore_probe(struct platform_device *pdev)
 
 probe_pw_fail:
 	misc_deregister(&image_dev);
-	cam_buf_kernel_sys_kfree(group);
+	cam_buf_kernel_sys_vfree(group);
 
 	return ret;
 }
@@ -4682,7 +4682,7 @@ static int camcore_remove(struct platform_device *pdev)
 		wakeup_source_remove(group->ws);
 		wakeup_source_destroy(group->ws);
 #endif
-		cam_buf_kernel_sys_kfree(group);
+		cam_buf_kernel_sys_vfree(group);
 		image_dev.this_device->platform_data = NULL;
 	}
 	misc_deregister(&image_dev);

@@ -486,7 +486,7 @@ int dcamt_init(struct cam_hw_info *hw, struct camt_info *info)
 	CHECK_NULL(hw);
 	CHECK_NULL(info);
 
-	cxt = cam_buf_kernel_sys_kzalloc(sizeof(struct dcamt_context), GFP_KERNEL);
+	cxt = cam_buf_kernel_sys_vzalloc(sizeof(struct dcamt_context));
 	if (cxt == NULL) {
 		pr_err("fail to alloc memory\n");
 		return -ENOMEM;
@@ -533,7 +533,7 @@ int dcamt_init(struct cam_hw_info *hw, struct camt_info *info)
 reset_fail:
 	camt_dcam_hw_deinit(cxt);
 info_fail:
-	cam_buf_kernel_sys_kfree(cxt);
+	cam_buf_kernel_sys_vfree(cxt);
 	dcamt_cxt = NULL;
 
 	return ret;
@@ -694,7 +694,7 @@ int dcamt_deinit(void)
 
 	CHECK_NULL(cxt);
 
-	cam_buf_kernel_sys_kfree(cxt);
+	cam_buf_kernel_sys_vfree(cxt);
 	dcamt_cxt = NULL;
 
 	return 0;
