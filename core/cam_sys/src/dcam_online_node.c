@@ -1576,6 +1576,7 @@ int dcam_online_node_irq_proc(void *param, void *handle)
 	struct dcam_hw_context *hw_ctx = NULL;
 	struct cam_hw_reg_trace trace = {0};
 	struct dcam_hw_force_copy copyarg = {0};
+	struct cam_hw_info *hw = NULL;
 	if (!handle || !param) {
 		pr_err("fail to get valid param %px %px\n", handle, param);
 		return -EFAULT;
@@ -1609,6 +1610,12 @@ int dcam_online_node_irq_proc(void *param, void *handle)
 		dcamonline_done_proc(param, handle, hw_ctx);
 		break;
 	case DCAM_INT_ERROR:
+		if (unlikely(atomic_read(&node->state) == STATE_INIT) || unlikely(atomic_read(&node->state) == STATE_IDLE)) {
+			hw = node->dev->hw;
+			hw->dcam_ioctl(hw, DCAM_HW_CFG_STOP, hw_ctx);
+			hw->dcam_ioctl(hw, DCAM_HW_CFG_RESET, &hw_ctx->hw_ctx_id);
+			break;
+		}
 		atomic_set(&node->state, STATE_ERROR);
 		trace.type = ABNORMAL_REG_TRACE;
 		trace.idx = hw_ctx->hw_ctx_id;
