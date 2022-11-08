@@ -1402,7 +1402,7 @@ int sprd_sensor_write_regtab(struct sensor_reg_tab_tag *p_reg_table,
 	}
 	pBuff = (char *)p_mem.buf_ptr;
 
-	ret = copy_from_user(pBuff, p_reg_table->sensor_reg_tab_ptr, size);
+	ret = copy_from_user(pBuff, (void __user *)p_reg_table->sensor_reg_tab_ptr, size);
 	if (ret) {
 		pr_err("sensor w err:copy user fail, size %d\n", size);
 		goto exit;
@@ -1510,7 +1510,7 @@ int sprd_sensor_k_write_regtab(struct sensor_reg_tab_tag *p_reg_table,
 	}
 	pBuff = (char *)p_mem.buf_ptr;
 
-	memcpy(pBuff, p_reg_table->sensor_reg_tab_ptr, size);
+	memcpy(pBuff, (void __user *)p_reg_table->sensor_reg_tab_ptr, size);
 
 	sensor_reg_ptr = (struct sensor_reg_tag *)pBuff;
 
@@ -1613,7 +1613,7 @@ int sprd_sensor_write_i2c(struct sensor_i2c_tag *i2c_tab,
 		return -EINVAL;
 	}
 
-	ret = copy_from_user(cmd, i2c_tab->i2c_data, cnt);
+	ret = copy_from_user(cmd, (void __user *)i2c_tab->i2c_data, cnt);
 
 	if (ret) {
 		pr_err("sensor W I2C ERR: copy user fail, size %d\n", cnt);
@@ -1668,48 +1668,41 @@ int sprd_sensor_write_muti_i2c(struct sensor_muti_aec_i2c_tag *muti_aec_i2c)
 	ktime_t id1_end = 0;
 	ktime_t id2_end = 0;
 
-	ret = copy_from_user(sensor_id,
-			(uint16_t __user *)(unsigned long) muti_aec_i2c->sensor_id,
-			sizeof(sensor_id));
+	ret = copy_from_user(sensor_id, (void __user *)muti_aec_i2c->sensor_id, sizeof(sensor_id));
 	if (ret) {
 		pr_err("fail to read sensor id\n");
 		goto exit;
 	}
 
-	ret = copy_from_user(i2c_slave_addr,
-			(uint16_t __user *)(unsigned long) muti_aec_i2c->i2c_slave_addr,
+	ret = copy_from_user(i2c_slave_addr, (void __user *)muti_aec_i2c->i2c_slave_addr,
 			sizeof(i2c_slave_addr));
 	if (ret) {
 		pr_err("fail to read slave addr\n");
 		goto exit;
 	}
 
-	ret = copy_from_user(addr_bits_type,
-			(uint16_t __user *)(unsigned long) muti_aec_i2c->addr_bits_type,
+	ret = copy_from_user(addr_bits_type, (void __user *)muti_aec_i2c->addr_bits_type,
 			sizeof(addr_bits_type));
 	if (ret) {
 		pr_err("fail to read addr bits\n");
 		goto exit;
 	}
 
-	ret = copy_from_user(data_bits_type,
-			(uint16_t __user *)(unsigned long) muti_aec_i2c->data_bits_type,
+	ret = copy_from_user(data_bits_type, (void __user *)muti_aec_i2c->data_bits_type,
 			sizeof(data_bits_type));
 	if (ret) {
 		pr_err("fail to read data bits\n");
 		goto exit;
 	}
 
-	ret = copy_from_user(msettings,
-			(uint16_t __user *)(unsigned long) muti_aec_i2c->master_i2c_tab,
+	ret = copy_from_user(msettings, (void __user *)muti_aec_i2c->master_i2c_tab,
 			muti_aec_i2c->msize * sizeof(struct sensor_reg_tag));
 	if (ret) {
 		pr_err("fail to read msetting\n");
 		goto exit;
 	}
 
-	ret = copy_from_user(ssettings,
-			(uint16_t __user *)(unsigned long) muti_aec_i2c->slave_i2c_tab,
+	ret = copy_from_user(ssettings, (void __user *)muti_aec_i2c->slave_i2c_tab,
 			muti_aec_i2c->ssize * sizeof(struct sensor_reg_tag));
 	if (ret) {
 		pr_err("fail to read ssetting\n");
@@ -1718,8 +1711,7 @@ int sprd_sensor_write_muti_i2c(struct sensor_muti_aec_i2c_tag *muti_aec_i2c)
 
 	// TODO may cause kernel crash
 
-	ret = copy_from_user(ssettings_2,
-			(uint16_t __user *)(unsigned long) muti_aec_i2c->slave_i2c_tab_2,
+	ret = copy_from_user(ssettings_2, (void __user *)muti_aec_i2c->slave_i2c_tab_2,
 			muti_aec_i2c->ssize_2 * sizeof(struct sensor_reg_tag));
 	if (ret) {
 		pr_err("fail to read ssetting\n");
@@ -1947,7 +1939,7 @@ int sprd_sensor_read_i2c(struct sensor_i2c_tag *i2c_tab,
 		pr_err("%s, error\n", __func__);
 		return -EINVAL;
 	}
-	ret = copy_from_user(cmd, i2c_tab->i2c_data, cnt);
+	ret = copy_from_user(cmd, (void __user *)i2c_tab->i2c_data, cnt);
 	if (ret) {
 		pr_err("sensor W I2C ERR: copy user fail, size %d\n", cnt);
 		goto exit;
@@ -1994,7 +1986,7 @@ int sprd_sensor_read_i2c(struct sensor_i2c_tag *i2c_tab,
 				ret, i2c_client->addr);
 			SLEEP_MS(20);
 		} else {
-			ret = copy_to_user(i2c_tab->i2c_data,
+			ret = copy_to_user((void __user *)i2c_tab->i2c_data,
 					p_buf_r, read_num);
 			if (ret) {
 				pr_err

@@ -1,14 +1,15 @@
 /*
- * Copyright (C) 2021-2022 UNISOC Communications Inc.
+ * SPDX-FileCopyrightText: 2022 Unisoc (Shanghai) Technologies Co., Ltd
+ * SPDX-License-Identifier: LicenseRef-Unisoc-General-1.0
  *
- * This software is licensed under the terms of the GNU General Public
- * License version 2, as published by the Free Software Foundation, and
- * may be copied, distributed, and modified under those terms.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * Copyright 2022 Unisoc (Shanghai) Technologies Co., Ltd.
+ * Licensed under the Unisoc General Software License, version 1.0 (the License);
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ * https://www.unisoc.com/en_us/license/UNISOC_GENERAL_LICENSE_V1.0-EN_US
+ * Software distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OF ANY KIND, either express or implied.
+ * See the Unisoc General Software License, version 1.0 for more details.
  */
 
 #ifndef _SPRD_SENSOR_K_H_
@@ -16,14 +17,14 @@
 
 
 struct sensor_i2c_tag {
-	uint8_t  *i2c_data;
+	uint64_t i2c_data;
 	uint16_t i2c_count;
 	uint16_t slave_addr;
 	uint16_t read_len;
 };
 
 struct sensor_i2c_seq_tag {
-	uint8_t  *i2c_data;
+	uint64_t i2c_data;
 	uint16_t i2c_count;
 	uint16_t slave_addr;
 	uint16_t wr_cnt;
@@ -42,7 +43,7 @@ struct sensor_reg_bits_tag {
 };
 
 struct sensor_reg_tab_tag {
-	struct sensor_reg_tag *sensor_reg_tab_ptr;
+	uint64_t sensor_reg_tab_ptr;
 	uint32_t reg_count;
 	uint32_t reg_bits;
 	uint32_t burst_mode;
@@ -120,25 +121,24 @@ struct _sensor_otp_param_tag {
 };
 
 struct sensor_muti_aec_i2c_tag {
-	unsigned int sensor_id;
+	uint64_t sensor_id;
 	uint16_t id_size;
-	unsigned int i2c_slave_addr;
+	uint64_t i2c_slave_addr;
 	uint16_t i2c_slave_len;
-	unsigned int addr_bits_type;
+	uint64_t addr_bits_type;
 	uint16_t addr_bits_type_len;
-	unsigned int data_bits_type;
+	uint64_t data_bits_type;
 	uint16_t data_bits_type_len;
-	unsigned int master_i2c_tab;
+	uint64_t master_i2c_tab;
 	uint16_t msize;
-	unsigned int slave_i2c_tab;
+	uint64_t slave_i2c_tab;
 	uint16_t ssize;
-	unsigned int slave_i2c_tab_2;
+	uint64_t slave_i2c_tab_2;
 	uint16_t ssize_2;
-	ktime_t master_end_time;
-	ktime_t slave_end_time;
-	ktime_t slave2_end_time;
+	int64_t master_end_time;
+	int64_t slave_end_time;
+	int64_t slave2_end_time;
 };
-
 #define AEC_I2C_SETTINGS_MAX 64
 #define AEC_I2C_SENSOR_MAX 3
 
@@ -199,10 +199,10 @@ struct sensor_muti_aec_i2c_tag {
 	_IOW(SENSOR_IOC_MAGIC,  25, uint32_t)
 #define SENSOR_IO_PRI_KEY	\
 	_IOW(SENSOR_IOC_MAGIC, 26, uint32_t)
-#define SENSOR_IO_SET_I2CBURST	\
-		_IOW(SENSOR_IOC_MAGIC,	27, uint32_t)
 #define SENSOR_IO_READ_OTPDATA	\
 	_IOWR(SENSOR_IOC_MAGIC, 254, struct _sensor_otp_param_tag)
+#define SENSOR_IO_SET_I2CBURST	\
+		_IOW(SENSOR_IOC_MAGIC,	27, uint32_t)
 #define SENSOR_IO_GET_SOCID	\
 	_IOWR(SENSOR_IOC_MAGIC, 255, struct sensor_socid_tag)
 

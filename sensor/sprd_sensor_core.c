@@ -56,36 +56,6 @@ extern int sprd_cam_pw_off(struct generic_pm_domain *domain);
 
 static int csi_pattern = 0;
 
-#ifdef CONFIG_COMPAT
-struct compat_sensor_reg_tab_tag {
-	compat_caddr_t sensor_reg_tab_ptr;
-	uint32_t reg_count;
-	uint32_t reg_bits;
-	uint32_t burst_mode;
-};
-
-struct compat_sensor_i2c_tag {
-	compat_caddr_t i2c_data;
-	uint16_t i2c_count;
-	uint16_t slave_addr;
-	uint16_t read_len;
-};
-
-struct compat_sensor_otp_data_info_tag {
-	uint32_t size;
-	compat_caddr_t data_ptr;
-};
-
-struct compat_sensor_otp_param_tag {
-	uint32_t type;
-	uint32_t start_addr;
-	uint32_t len;
-	compat_caddr_t buff;
-	struct compat_sensor_otp_data_info_tag golden;
-	struct compat_sensor_otp_data_info_tag awb;
-	struct compat_sensor_otp_data_info_tag lsc;
-};
-#endif
 static int sprd_sensor_mipi_if_open(struct sprd_sensor_file_tag *p_file,
 				    struct sensor_if_cfg_tag *if_cfg)
 {
@@ -438,21 +408,12 @@ static int sprd_sensor_io_write_i2c_regs(struct sprd_sensor_file_tag *p_file,
 {
 	int ret = 0;
 	struct sensor_reg_tab_tag regTab;
-#ifdef CONFIG_COMPAT
-	struct compat_sensor_reg_tab_tag __user *uparam;
-	u32 sensor_reg_tab_ptr;
-	uparam = (struct compat_sensor_reg_tab_tag __user *)arg;
-	ret |= get_user(regTab.reg_count, &uparam->reg_count);
-	ret |= get_user(regTab.reg_bits, &uparam->reg_bits);
-	ret |= get_user(regTab.burst_mode, &uparam->burst_mode);
-	ret |= get_user(sensor_reg_tab_ptr, &uparam->sensor_reg_tab_ptr);
-	regTab.sensor_reg_tab_ptr = (struct sensor_reg_tag *)(unsigned long)sensor_reg_tab_ptr;
-#else
-	ret = copy_from_user(&regTab, (struct sensor_reg_tab_tag *)arg,//(void __user *)arg,//(struct sensor_reg_tab_tag *)arg,
-			     sizeof(regTab));
-#endif
+
 	if (csi_pattern)
 		return 0;
+
+	ret = copy_from_user(&regTab, (struct sensor_reg_tab_tag *)arg,
+			     sizeof(regTab));
 	if (ret == 0)
 		ret = sprd_sensor_write_regtab(&regTab, p_file->sensor_id);
 
@@ -520,22 +481,12 @@ static int sprd_sensor_io_grc_write_i2c(struct sprd_sensor_file_tag *p_file,
 {
 	int ret = 0;
 	struct sensor_i2c_tag i2c_tab;
-#ifdef CONFIG_COMPAT
-	struct compat_sensor_i2c_tag __user *uparam;
-	u32 i2c_data;
-	uparam = (struct compat_sensor_i2c_tag __user *)arg;
-	ret |= get_user(i2c_tab.i2c_count, &uparam->i2c_count);
-	ret |= get_user(i2c_tab.slave_addr, &uparam->slave_addr);
-	ret |= get_user(i2c_tab.read_len, &uparam->read_len);
-	ret |= get_user(i2c_data, &uparam->i2c_data);
-	i2c_tab.i2c_data = (uint8_t  *)(unsigned long)i2c_data;
-#else
-	ret = copy_from_user(&i2c_tab, (struct sensor_i2c_tag *)arg,
-			     sizeof(i2c_tab));
-#endif
+
 	if (csi_pattern)
 		return 0;
 
+	ret = copy_from_user(&i2c_tab, (struct sensor_i2c_tag *)arg,
+			     sizeof(i2c_tab));
 	if (ret == 0)
 		ret = sprd_sensor_write_i2c(&i2c_tab, p_file->sensor_id);
 
@@ -547,22 +498,12 @@ static int sprd_sensor_io_grc_read_i2c(struct sprd_sensor_file_tag *p_file,
 {
 	int ret = 0;
 	struct sensor_i2c_tag i2c_tab;
-#ifdef CONFIG_COMPAT
-	struct compat_sensor_i2c_tag __user *uparam;
-	u32 i2c_data;
-	uparam = (struct compat_sensor_i2c_tag __user *)arg;
-	ret |= get_user(i2c_tab.i2c_count, &uparam->i2c_count);
-	ret |= get_user(i2c_tab.slave_addr, &uparam->slave_addr);
-	ret |= get_user(i2c_tab.read_len, &uparam->read_len);
-	ret |= get_user(i2c_data, &uparam->i2c_data);
-	i2c_tab.i2c_data = (uint8_t  *)(unsigned long)i2c_data;
-#else
-	ret = copy_from_user(&i2c_tab, (struct sensor_i2c_tag *)arg,
-			     sizeof(i2c_tab));
-#endif
+
 	if (csi_pattern)
 		return 0;
 
+	ret = copy_from_user(&i2c_tab, (struct sensor_i2c_tag *)arg,
+			     sizeof(i2c_tab));
 	if (ret == 0)
 		ret = sprd_sensor_read_i2c(&i2c_tab, p_file->sensor_id);
 
