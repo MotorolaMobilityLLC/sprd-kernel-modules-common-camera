@@ -255,7 +255,7 @@ exit:
 	return ret;
 }
 
-void isp_hwctx_slice_fmcu(struct isp_hw_context *pctx_hw, struct slice_cfg_input *slc_cfg)
+int isp_hwctx_slice_fmcu(struct isp_hw_context *pctx_hw, struct slice_cfg_input *slc_cfg)
 {
 	uint32_t i = 0, ret = 0;
 
@@ -271,6 +271,10 @@ void isp_hwctx_slice_fmcu(struct isp_hw_context *pctx_hw, struct slice_cfg_input
 	slc_cfg->frame_in_size.h = pctx_hw->pipe_info.fetch.in_trim.size_y;
 	slc_cfg->nofilter_ctx = pctx_hw->isp_using_param;
 	slc_cfg->calc_dyn_ov.verison = pctx_hw->hw->ip_isp->dyn_overlap_version;
+	if (!slc_cfg->nofilter_ctx) {
+		pr_err("fail to get using_param hwctx:%d\n", pctx_hw->hw_ctx_id);
+		return -1;
+	}
 	isp_slice_info_cfg(slc_cfg, pctx_hw->slice_ctx);
 
 	if (pctx_hw->fmcu_handle) {
@@ -278,6 +282,7 @@ void isp_hwctx_slice_fmcu(struct isp_hw_context *pctx_hw, struct slice_cfg_input
 			pctx_hw->cfg_id, pctx_hw->hw_ctx_id);
 		ret = isp_slice_fmcu_cmds_set(pctx_hw->fmcu_handle, pctx_hw);
 	}
+	return ret;
 }
 
 int isp_hwctx_slices_proc(struct isp_hw_context *pctx_hw, void *dev_handle, struct isp_start_param *param)
