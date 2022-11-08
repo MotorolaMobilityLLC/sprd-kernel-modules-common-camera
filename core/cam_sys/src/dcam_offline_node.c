@@ -984,7 +984,7 @@ void *dcam_offline_node_get(uint32_t node_id, struct dcam_offline_node_desc *par
 	ret = cam_buf_manager_pool_reg(NULL, DCAM_OFFLINE_IN_Q_LEN);
 	if (ret <= 0) {
 		pr_err("fail to reg in pool for dcam offline node\n");
-		vfree(node);
+		cam_buf_kernel_sys_vfree(node);
 		return NULL;
 	}
 	node->in_pool.private_pool_idx = ret;
@@ -993,7 +993,7 @@ void *dcam_offline_node_get(uint32_t node_id, struct dcam_offline_node_desc *par
 	if (ret <= 0) {
 		pr_err("fail to reg proc pool for dcam offline node\n");
 		cam_buf_manager_pool_unreg(&node->in_pool);
-		vfree(node);
+		cam_buf_kernel_sys_vfree(node);
 		return NULL;
 	}
 	node->proc_pool.private_pool_idx = ret;
