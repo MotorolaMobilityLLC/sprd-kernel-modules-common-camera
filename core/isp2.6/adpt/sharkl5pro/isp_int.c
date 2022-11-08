@@ -358,6 +358,7 @@ static struct camera_frame *ispint_hist2_frame_prepare(enum isp_context_id idx,
 	struct camera_frame *frame = NULL;
 	struct isp_pipe_dev *dev;
 	struct isp_sw_context *pctx;
+	uint32_t buf_sum = 0;
 
 	uint32_t *buf = NULL;
 
@@ -378,12 +379,19 @@ static struct camera_frame *ispint_hist2_frame_prepare(enum isp_context_id idx,
 			pr_err("fail to enqueue\n");
 		return NULL;
 	}
-	for (i = 0; i < max_item; i++)
+	for (i = 0; i < max_item; i++) {
 		buf[i] = ISP_HREG_RD(HIST_BUF + i * 4);
+		buf_sum = buf_sum + buf[i];
+	}
 
 	frame->width = pctx->pipe_info.fetch.in_trim.size_x;
 	frame->height = pctx->pipe_info.fetch.in_trim.size_y;
 
+	if (buf_sum != (frame->width * frame->height)) {
+		pr_debug("pixel num check wrong, sum %d, should be %d\n", buf_sum, frame->width * frame->height);
+		cam_queue_enqueue(&pctx->hist2_result_queue, &frame->list);
+		return NULL;
+	}
 	return frame;
 }
 

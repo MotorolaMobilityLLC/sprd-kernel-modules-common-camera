@@ -133,6 +133,28 @@ static int inline cambufmanager_alloc_2_kmap(struct camera_buf *buf)
 	return ret;
 }
 
+static int inline cambufmanager_alloc_2_k_iova(struct camera_buf *buf, enum cam_iommudev_type type)
+{
+	int ret = 0;
+
+	if ((buf->type == CAM_BUF_USER) && (!buf->dmabuf_p))
+		ret = cam_buf_ionbuf_get(buf);
+	if (ret)
+		return ret;
+	ret = cam_buf_iommu_map(buf, type);
+	if (ret && (buf->type == CAM_BUF_USER)) {
+		cam_buf_ionbuf_put(buf);
+		return ret;
+	}
+	ret = cam_buf_kmap(buf);
+	if (ret ) {
+		if (buf->type == CAM_BUF_USER)
+			cam_buf_ionbuf_put(buf);
+		cam_buf_iommu_unmap(buf);
+	}
+	return ret;
+}
+
 static int inline cambufmanager_ion_2_alloc(struct camera_buf *buf)
 {
 	if ((buf->type == CAM_BUF_USER) && buf->dmabuf_p)
@@ -157,6 +179,20 @@ static int inline cambufmanager_ion_2_kmap(struct camera_buf *buf)
 	return cam_buf_kmap(buf);
 }
 
+static int inline cambufmanager_ion_2_k_iova(struct camera_buf *buf, enum cam_iommudev_type type)
+{
+	int ret = 0;
+
+	ret = cam_buf_iommu_map(buf, type);
+	if (ret)
+		return ret;
+	ret = cam_buf_kmap(buf);
+	if (ret )
+		cam_buf_iommu_unmap(buf);
+
+	return ret;
+}
+
 static int inline cambufmanager_iova_2_alloc(struct camera_buf *buf)
 {
 	int ret = 0;
@@ -178,6 +214,11 @@ static int inline cambufmanager_iova_2_kmap(struct camera_buf *buf)
 	return cam_buf_kmap(buf);
 }
 
+static int inline cambufmanager_iova_2_k_iova(struct camera_buf *buf)
+{
+	return cam_buf_kmap(buf);
+}
+
 static int inline cambufmanager_kmap_2_alloc(struct camera_buf *buf)
 {
 	int ret = 0;
@@ -195,6 +236,11 @@ static int inline cambufmanager_kmap_2_ion(struct camera_buf *buf)
 }
 
 static int inline cambufmanager_kmap_2_iova(struct camera_buf *buf, enum cam_iommudev_type type)
+{
+	return cam_buf_iommu_map(buf, type);
+}
+
+static int inline cambufmanager_k_2_k_iova(struct camera_buf *buf, enum cam_iommudev_type type)
 {
 	return cam_buf_iommu_map(buf, type);
 }
@@ -227,52 +273,6 @@ static int inline cambufmanager_k_iova_2_alloc(struct camera_buf *buf)
 	else
 		buf->status = CAM_BUF_ALLOC;
 	return 0;
-}
-
-static int inline cambufmanager_alloc_2_k_iova(struct camera_buf *buf, enum cam_iommudev_type type)
-{
-	int ret = 0;
-
-	if ((buf->type == CAM_BUF_USER) && (!buf->dmabuf_p))
-		ret = cam_buf_ionbuf_get(buf);
-	if (ret)
-		return ret;
-	ret = cam_buf_iommu_map(buf, type);
-	if (ret && (buf->type == CAM_BUF_USER)) {
-		cam_buf_ionbuf_put(buf);
-		return ret;
-	}
-	ret = cam_buf_kmap(buf);
-	if (ret ) {
-		if (buf->type == CAM_BUF_USER)
-			cam_buf_ionbuf_put(buf);
-		cam_buf_iommu_unmap(buf);
-	}
-	return ret;
-}
-
-static int inline cambufmanager_ion_2_k_iova(struct camera_buf *buf, enum cam_iommudev_type type)
-{
-	int ret = 0;
-
-	ret = cam_buf_iommu_map(buf, type);
-	if (ret)
-		return ret;
-	ret = cam_buf_kmap(buf);
-	if (ret )
-		cam_buf_iommu_unmap(buf);
-
-	return ret;
-}
-
-static int inline cambufmanager_iova_2_k_iova(struct camera_buf *buf)
-{
-	return cam_buf_kmap(buf);
-}
-
-static int inline cambufmanager_k_2_k_iova(struct camera_buf *buf, enum cam_iommudev_type type)
-{
-	return cam_buf_iommu_map(buf, type);
 }
 
 static int cambufmanager_buf_status_cfg(struct camera_frame *pframe, uint32_t cmd, enum cam_iommudev_type type)
@@ -381,6 +381,8 @@ int inline cam_buf_manager_buf_status_change(struct camera_buf *buf,
 		return cambufmanager_alloc_2_single_page_iova(buf, type);
 	case CAM_BUF_STATUS_ALLOC_2_KMAP:
 		return cambufmanager_alloc_2_kmap(buf);
+	case CAM_BUF_STATUS_ALLOC_2_IOVA_K:
+		return cambufmanager_alloc_2_k_iova(buf, type);
 	case CAM_BUF_STATUS_ION_2_ALLOC:
 		return cambufmanager_ion_2_alloc(buf);
 	case CAM_BUF_STATUS_ION_2_IOVA:
@@ -389,12 +391,16 @@ int inline cam_buf_manager_buf_status_change(struct camera_buf *buf,
 		return cambufmanager_ion_2_single_page_iova(buf, type);
 	case CAM_BUF_STATUS_ION_2_KMAP:
 		return cambufmanager_ion_2_kmap(buf);
+	case CAM_BUF_STATUS_ION_2_IOVA_K:
+		return cambufmanager_ion_2_k_iova(buf, type);
 	case CAM_BUF_STATUS_IOVA_2_ALLOC:
 		return cambufmanager_iova_2_alloc(buf);
 	case CAM_BUF_STATUS_IOVA_2_ION:
 		return cambufmanager_iova_2_ion(buf);
 	case CAM_BUF_STATUS_IOVA_2_KMAP:
 		return cambufmanager_iova_2_kmap(buf);
+	case CAM_BUF_STATUS_IOVA_2_IOVA_K:
+		return cambufmanager_iova_2_k_iova(buf);
 	case CAM_BUF_STATUS_SINGLE_PAGE_MAP_2_ALLOC:
 		return cambufmanager_iova_2_alloc(buf);
 	case CAM_BUF_STATUS_SINGLE_PAGE_MAP_2_ION:
@@ -405,6 +411,8 @@ int inline cam_buf_manager_buf_status_change(struct camera_buf *buf,
 		return cambufmanager_kmap_2_ion(buf);
 	case CAM_BUF_STATUS_KMAP_2_IOVA:
 		return cambufmanager_kmap_2_iova(buf, type);
+	case CAM_BUF_STATUS_KMAP_2_IOVA_K:
+		return cambufmanager_k_2_k_iova(buf, type);
 	case CAM_BUF_STATUS_K_IOVA_2_ALLOC:
 		return cambufmanager_k_iova_2_alloc(buf);
 	case CAM_BUF_STATUS_K_IOVA_2_ION:
@@ -413,14 +421,6 @@ int inline cam_buf_manager_buf_status_change(struct camera_buf *buf,
 		return cambufmanager_k_iova_2_iova(buf);
 	case CAM_BUF_STATUS_K_IOVA_2_K:
 		return cambufmanager_k_iova_2_k(buf);
-	case CAM_BUF_STATUS_ALLOC_2_IOVA_K:
-		return cambufmanager_alloc_2_k_iova(buf, type);
-	case CAM_BUF_STATUS_ION_2_IOVA_K:
-		return cambufmanager_ion_2_k_iova(buf, type);
-	case CAM_BUF_STATUS_IOVA_2_IOVA_K:
-		return cambufmanager_iova_2_k_iova(buf);
-	case CAM_BUF_STATUS_KMAP_2_IOVA_K:
-		return cambufmanager_k_2_k_iova(buf, type);
 	default:
 		pr_err("fail to get status %d -> %d\n", buf->status, dst_status);
 		return 0;

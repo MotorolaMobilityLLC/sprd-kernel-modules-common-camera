@@ -428,7 +428,7 @@ void *dcam_offline_port_get(uint32_t port_id, struct dcam_offline_port_desc *par
 	ret = cam_buf_manager_pool_reg(NULL, DCAM_OFFLINE_OUT_BUF_Q_LEN);
 	if (ret <= 0) {
 		pr_err("fail to reg unprocess pool for dcam offline node\n");
-		vfree(port);
+		cam_buf_kernel_sys_vfree(port);
 		return NULL;
 	}
 	port->unprocess_pool.private_pool_idx = ret;
@@ -437,7 +437,7 @@ void *dcam_offline_port_get(uint32_t port_id, struct dcam_offline_port_desc *par
 	if (ret <= 0) {
 		pr_err("fail to reg result pool for dcam offline node\n");
 		cam_buf_manager_pool_unreg(&port->unprocess_pool);
-		vfree(port);
+		cam_buf_kernel_sys_vfree(port);
 		return NULL;
 	}
 	port->result_pool.private_pool_idx = ret;
