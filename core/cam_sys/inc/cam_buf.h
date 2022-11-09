@@ -67,6 +67,11 @@ enum cam_buf_status {
 	CAM_BUF_STATUS_NUM,
 };
 
+struct camera_ion_info {
+	struct list_head list;
+	struct camera_buf *pbuf;
+};
+
 struct camera_buf {
 	bool buf_sec;
 	/* user buffer info */

@@ -175,8 +175,6 @@ struct dcam_hw_context {
 
 	void *dcam_irq_cb_handle;
 	dcam_irq_proc_cb dcam_irq_cb_func;
-	struct cam_thread_info dcam_irq_proc_thrd;
-	struct camera_queue dcam_irq_sts_q;
 	spinlock_t ghist_read_lock;
 	uint32_t gtm_hist_value[GTM_HIST_VALUE_SIZE];
 };
@@ -227,5 +225,7 @@ static inline uint32_t cal_sprd_yuv_pitch(uint32_t w, uint32_t dcam_out_bits, ui
 
 	return w;
 }
+void dcam_core_offline_irq_proc(struct dcam_hw_context *dcam_hw_ctx,
+		struct dcam_irq_info *irq_info);
 
 #endif

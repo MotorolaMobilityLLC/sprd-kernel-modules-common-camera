@@ -1115,6 +1115,7 @@ static int pyr_dec_node_start_proc(void *handle)
 	struct camera_frame *out_frame = NULL;
 	struct isp_fmcu_ctx_desc *fmcu = NULL;
 	struct pyrdec_pipe_dev *dec_dev = NULL;
+	struct isp_node *isp_node = NULL;
 
 	if (!handle) {
 		pr_err("fail to get valid input handle\n");
@@ -1123,6 +1124,7 @@ static int pyr_dec_node_start_proc(void *handle)
 
 	node = (struct pyr_dec_node *)handle;
 	dec_dev = node->pyrdec_dev;
+	isp_node = VOID_PTR_TO(node->isp_node, struct isp_node);
 	if (!dec_dev) {
 		pr_err("fail to get dec_dev %p\n", dec_dev);
 		return -EFAULT;
@@ -1149,6 +1151,8 @@ static int pyr_dec_node_start_proc(void *handle)
 		return 0;
 	}
 
+	isp_node_prepare_blk_param(isp_node, pframe->fid, &pframe->blkparam_info);
+	pyrdec_node_blkparam_size_cfg(node, pframe->blkparam_info.param_block);
 	do {
 		dec_dev = (struct pyrdec_pipe_dev *)pyrdecnode_dev_bind(node);
 		if (!dec_dev) {
@@ -1283,7 +1287,6 @@ int pyr_dec_node_request_proc(struct pyr_dec_node *node, void *param)
 	int ret = 0;
 	struct camera_frame *pframe = NULL;
 	struct isp_pipe_dev *dev = NULL;
-	struct isp_node *isp_node = NULL;
 
 	if (!node || !param) {
 		pr_err("fail to get valid param %px %px\n", node, param);
@@ -1301,16 +1304,13 @@ int pyr_dec_node_request_proc(struct pyr_dec_node *node, void *param)
 	}
 	pframe->priv_data = node;
 	dev = node->dev;
-	isp_node = VOID_PTR_TO(node->isp_node, struct isp_node);
 
 	pr_debug("fid %d, ch_id %d, buf %d, w %d, h %d, pframe->is_reserved %d, compress_en %d\n",
 		pframe->fid, pframe->channel_id, pframe->buf.mfd,
 		pframe->width, pframe->height, pframe->is_reserved, pframe->is_compressed);
 
-	isp_node_prepare_blk_param(isp_node, pframe->fid, &pframe->blkparam_info);
 	node->src.w = pframe->width;
 	node->src.h = pframe->height;
-	pyrdec_node_blkparam_size_cfg(node, pframe->blkparam_info.param_block);
 
 	ret = cam_queue_enqueue(&node->in_queue, &pframe->list);
 	if (ret == 0)

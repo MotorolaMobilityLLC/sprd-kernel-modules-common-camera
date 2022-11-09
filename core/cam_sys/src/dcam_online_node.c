@@ -489,11 +489,9 @@ static enum dcam_fix_result dcamonline_fix_index(struct dcam_online_node *node, 
 		pr_info("DCAM%u adjust index by %u, new %u\n", node->hw_ctx_id, diff, hw_ctx->frame_index);
 	}
 
-	if (node->slowmotion_count) {
-		/* record SOF timestamp for current frame */
-		node->frame_ts_boot[tsid(hw_ctx->frame_index)] = ktime_get_boottime();
-		ktime_get_ts(&node->frame_ts[tsid(hw_ctx->frame_index)]);
-	}
+	/* record SOF timestamp for current frame */
+	node->frame_ts_boot[tsid(hw_ctx->frame_index)] = ktime_get_boottime();
+	ktime_get_ts(&node->frame_ts[tsid(hw_ctx->frame_index)]);
 
 	if (irq_proc->frm_cnt == cur_cnt) {
 		hw_ctx->index_to_set = hw_ctx->frame_index + 1;

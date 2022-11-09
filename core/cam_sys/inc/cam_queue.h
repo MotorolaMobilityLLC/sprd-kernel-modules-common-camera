@@ -359,6 +359,8 @@ struct camera_interrupt *cam_queue_empty_interrupt_get(void);
 void cam_queue_empty_interrupt_put(void *param);
 void cam_queue_empty_interrupt_free(void *param);
 
+void cam_queue_ioninfo_free(void *param);
+
 int cam_queue_recycle_blk_param(struct camera_queue *q, struct camera_frame *param_pframe);
 struct camera_frame * cam_queue_empty_blk_param_get(struct camera_queue *q);
 int cam_queue_blk_param_unbind(struct camera_queue *param_share_queue, struct camera_frame *pframe);

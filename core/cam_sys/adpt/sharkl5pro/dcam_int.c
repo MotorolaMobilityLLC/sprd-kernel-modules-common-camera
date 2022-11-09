@@ -628,7 +628,6 @@ irqreturn_t dcamint_isr_root(int irq, void *priv)
 {
 	struct dcam_hw_context *dcam_hw_ctx = NULL;
 	struct dcam_irq_info irq_status = {0};
-	struct camera_interrupt *irq_desc = NULL;
 	int ret = 0;
 
 	if (unlikely(!priv)) {
@@ -643,6 +642,7 @@ irqreturn_t dcamint_isr_root(int irq, void *priv)
 	}
 	if (!read_trylock(&dcam_hw_ctx->hw->soc_dcam->cam_ahb_lock))
 		return IRQ_HANDLED;
+	dcam_hw_ctx->in_irq_proc = 1;
 	if (!dcam_hw_ctx->dcam_irq_cb_handle) {
 		irq_status = dcamint_dcam_int_mask_clr(dcam_hw_ctx->hw_ctx_id);
 		ret = IRQ_NONE;
@@ -664,36 +664,12 @@ irqreturn_t dcamint_isr_root(int irq, void *priv)
 	}
 
 	if (!dcam_hw_ctx->slowmotion_count) {
-		if (irq_status.status & BIT(DCAM_CAP_SOF)) {
-			/* record SOF timestamp for current frame */
-			if (dcam_hw_ctx->is_offline_proc) {
-				struct dcam_offline_node *node = NULL;
-				node = (struct dcam_offline_node *)dcam_hw_ctx->dcam_irq_cb_handle;
-				node->frame_ts_boot[tsid(dcam_hw_ctx->frame_index)] = ktime_get_boottime();
-				ktime_get_ts(&node->frame_ts[tsid(dcam_hw_ctx->frame_index)]);
-			} else {
-				struct dcam_online_node *node = NULL;
-				node = (struct dcam_online_node *)dcam_hw_ctx->dcam_irq_cb_handle;
-				node->frame_ts_boot[tsid(dcam_hw_ctx->frame_index)] = ktime_get_boottime();
-				ktime_get_ts(&node->frame_ts[tsid(dcam_hw_ctx->frame_index)]);
-			}
-		} else if (irq_status.status & BIT(DCAM_GTM_TX_DONE))
+		if (irq_status.status & BIT(DCAM_GTM_TX_DONE))
 			dcamint_gtm_hist_value_read(dcam_hw_ctx);
-		irq_desc = cam_queue_empty_interrupt_get();
-		irq_desc->irq_num = irq_status.irq_num;
-		irq_desc->int_status = irq_status.status;
-		irq_desc->int_status1 = irq_status.status1;
-
-		ret = cam_queue_enqueue(&dcam_hw_ctx->dcam_irq_sts_q, &irq_desc->list);
-		if (ret) {
-			pr_err("fail to dcam%d enqueue irq_status_q.\n", dcam_hw_ctx->hw_ctx_id);
-			cam_queue_empty_interrupt_put(irq_desc);
-			ret = IRQ_NONE;
-			goto exit;
-		} else
-			complete(&dcam_hw_ctx->dcam_irq_proc_thrd.thread_com);
+	}
+	if (dcam_hw_ctx->is_offline_proc) {
+		dcam_core_offline_irq_proc(dcam_hw_ctx, &irq_status);
 	} else {
-
 		pr_debug("DCAM%u status=0x%x\n", dcam_hw_ctx->hw_ctx_id, irq_status.status);
 		/*dcam isr root write status */
 		dcamint_dcam_status_rw(irq_status, priv);
@@ -701,6 +677,7 @@ irqreturn_t dcamint_isr_root(int irq, void *priv)
 	ret = IRQ_HANDLED;
 exit:
 	read_unlock(&dcam_hw_ctx->hw->soc_dcam->cam_ahb_lock);
+	dcam_hw_ctx->in_irq_proc = 0;
 	return ret;
 }
 
