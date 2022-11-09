@@ -407,6 +407,10 @@ int dcam_path_size_cfg(void *dcam_ctx_handle,
 				break;
 		}
 
+		if (path->priv_size_data) {
+			cam_buf_kernel_sys_vfree(path->priv_size_data);
+			path->priv_size_data = NULL;
+		}
 		path->priv_size_data = ch_desc->priv_size_data;
 		path->size_update = 1;
 		/* if 3dnr path enable, need update when zoom */

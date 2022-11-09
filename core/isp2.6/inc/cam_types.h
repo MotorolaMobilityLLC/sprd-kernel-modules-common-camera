@@ -86,6 +86,8 @@ struct cam_mem_dbg_info {
 	atomic_t empty_interruption_cnt;
 	atomic_t isp_sw_context_cnt;
 	atomic_t empty_mv_state_cnt;
+	atomic_t mem_kzalloc_cnt;
+	atomic_t mem_vzalloc_cnt;
 };
 extern struct cam_mem_dbg_info *g_mem_dbg;
 

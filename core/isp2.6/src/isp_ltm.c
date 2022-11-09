@@ -1015,7 +1015,7 @@ static struct isp_ltm_ctx_desc *ispltm_ctx_init(uint32_t idx, uint32_t cam_id, v
 {
 	struct isp_ltm_ctx_desc *ltm_ctx = NULL;
 
-	ltm_ctx = vzalloc(sizeof(struct isp_ltm_ctx_desc));
+	ltm_ctx = cam_buf_kernel_sys_vzalloc(sizeof(struct isp_ltm_ctx_desc));
 	if (!ltm_ctx) {
 		pr_err("fail to alloc isp %d ltm ctx\n", idx);
 		return NULL;
@@ -1070,7 +1070,7 @@ static void ispltm_ctx_deinit(void *handle)
 	}
 
 	if (ltm_ctx)
-		vfree(ltm_ctx);
+		cam_buf_kernel_sys_vfree(ltm_ctx);
 	ltm_ctx = NULL;
 }
 

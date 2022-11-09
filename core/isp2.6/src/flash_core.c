@@ -225,7 +225,7 @@ struct cam_flash_task_info *get_cam_flash_handle(uint32_t cam_idx)
 	struct cam_flash_task_info *flash_ctx = NULL;
 	char thread_name[20] = { 0 };
 
-	flash_ctx = kzalloc(sizeof(*flash_ctx), GFP_KERNEL);
+	flash_ctx = cam_buf_kernel_sys_vzalloc(sizeof(*flash_ctx));
 	if (!flash_ctx) {
 		pr_err("fail to alloc flash task.\n");
 		return NULL;
@@ -249,7 +249,7 @@ struct cam_flash_task_info *get_cam_flash_handle(uint32_t cam_idx)
 		flash_ctx, "%s", thread_name);
 	if (IS_ERR_OR_NULL(flash_ctx->flash_thread)) {
 		pr_err("fail to create flash thread\n");
-		kfree(flash_ctx);
+		cam_buf_kernel_sys_vfree(flash_ctx);
 		return NULL;
 	}
 
@@ -274,7 +274,7 @@ int put_cam_flash_handle(struct cam_flash_task_info *flash_ctx)
 		}
 		flash_ctx->flash_thread = NULL;
 	}
-	kfree(flash_ctx);
+	cam_buf_kernel_sys_vfree(flash_ctx);
 	return ret;
 }
 

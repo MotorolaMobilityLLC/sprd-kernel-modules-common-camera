@@ -385,7 +385,7 @@ static struct isp_gtm_ctx_desc *ispgtm_ctx_init(uint32_t idx, uint32_t cam_id, v
 {
 	struct isp_gtm_ctx_desc *gtm_ctx = NULL;
 
-	gtm_ctx = vzalloc(sizeof(struct isp_gtm_ctx_desc));
+	gtm_ctx = cam_buf_kernel_sys_vzalloc(sizeof(struct isp_gtm_ctx_desc));
 	if (!gtm_ctx) {
 		pr_err("fail to alloc isp %d gtm ctx\n", idx);
 		return NULL;
@@ -417,7 +417,7 @@ void isp_gtm_rgb_ctx_put(void *gtm_handle)
 	gtm_ctx = (struct isp_gtm_ctx_desc *)gtm_handle;
 
 	if (gtm_ctx)
-		vfree(gtm_ctx);
+		cam_buf_kernel_sys_vfree(gtm_ctx);
 
 	gtm_ctx = NULL;
 }

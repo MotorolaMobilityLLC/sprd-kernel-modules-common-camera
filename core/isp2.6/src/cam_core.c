@@ -744,7 +744,7 @@ static void camcore_empty_frame_put(void *param)
 
 	if (frame->priv_data) {
 		if (!frame->irq_type)
-			kfree(frame->priv_data);
+			cam_buf_kernel_sys_vfree(frame->priv_data);
 		else if (module && module->exit_flag == 1 && frame->irq_type != CAMERA_IRQ_STATIS)
 			cam_buf_ionbuf_put(&frame->buf);
 	}
@@ -4797,7 +4797,7 @@ static int camcore_channel_size_config(
 	pr_info("update dcam path %d size for channel %d\n", channel->dcam_path_id, channel->ch_id);
 
 	if (channel->ch_id == CAM_CH_PRE || channel->ch_id == CAM_CH_VID) {
-		isp_param = kzalloc(sizeof(struct isp_offline_param), GFP_KERNEL);
+		isp_param = cam_buf_kernel_sys_vzalloc(sizeof(struct isp_offline_param));
 		if (isp_param == NULL) {
 			pr_err("fail to alloc memory.\n");
 			return -ENOMEM;
@@ -4836,7 +4836,7 @@ static int camcore_channel_size_config(
 	if (channel->ch_id == CAM_CH_RAW)
 		return ret;
 	if (ret && ch_desc.priv_size_data) {
-		kfree(ch_desc.priv_size_data);
+		cam_buf_kernel_sys_vfree(ch_desc.priv_size_data);
 		ch_desc.priv_size_data = NULL;
 		isp_param = NULL;
 	}
@@ -4945,7 +4945,7 @@ cfg_path:
 
 exit:
 	if (isp_param != NULL) {
-		kfree(isp_param);
+		cam_buf_kernel_sys_vfree(isp_param);
 		isp_param = NULL;
 	}
 	return ret;
@@ -5328,7 +5328,7 @@ static int camcore_dcam_pmbuf_init(struct dcam_sw_context *sw_ctx)
 
 	for (i = 0; i < DCAM_OFFLINE_PARAM_Q_LEN; i++) {
 		param_frm = cam_queue_empty_frame_get();
-		param_frm->pm = vzalloc(sizeof(struct dcam_dev_param));
+		param_frm->pm = cam_buf_kernel_sys_vzalloc(sizeof(struct dcam_dev_param));
 		param_frm->fid = 0xffff;
 		if (param_frm->pm) {
 			init_dcam_pm(param_frm->pm);
@@ -5347,7 +5347,7 @@ static int camcore_dcam_pmbuf_init(struct dcam_sw_context *sw_ctx)
 				pr_warn("Warning:fail to enqueue empty queue.\n");
 				cam_buf_kunmap(&param_frm->pm->lsc.buf);
 				cam_buf_free(&param_frm->pm->lsc.buf);
-				kfree(param_frm->pm);
+				cam_buf_kernel_sys_vfree(param_frm->pm);
 				cam_queue_empty_frame_put(param_frm);
 			}
 		} else {
@@ -5363,7 +5363,7 @@ map_fail:
 	cam_buf_free(&param_frm->pm->lsc.buf);
 alloc_fail:
 	pr_err("alloc lsc buf fail.\n");
-	kfree(param_frm->pm);
+	cam_buf_kernel_sys_vfree(param_frm->pm);
 	cam_queue_empty_frame_put(param_frm);
 
 	return -1;
@@ -7610,7 +7610,7 @@ static int camcore_csi_switch_disconnect(struct camera_module *module, uint32_t 
 					struct isp_offline_param *prev = NULL;
 					while (in_param) {
 						prev = (struct isp_offline_param *)in_param->prev;
-						kfree(in_param);
+						cam_buf_kernel_sys_vfree(in_param);
 						in_param = prev;
 					}
 					frame->param_data = NULL;
@@ -8791,11 +8791,11 @@ static int camcore_open(struct inode *node, struct file *file)
 		goto exit;
 	}
 
-	pr_debug("kzalloc. size of module %x, group %x\n",
+	pr_debug("alloc. size of module %x, group %x\n",
 		(int)sizeof(struct camera_module),
 		(int) sizeof(struct camera_group));
 
-	module = vzalloc(sizeof(struct camera_module));
+	module = cam_buf_kernel_sys_vzalloc(sizeof(struct camera_module));
 	if (!module) {
 		pr_err("fail to alloc camera module %d\n", idx);
 		ret = -ENOMEM;
@@ -8849,7 +8849,7 @@ static int camcore_open(struct inode *node, struct file *file)
 	return 0;
 
 init_fail:
-	vfree(module);
+	cam_buf_kernel_sys_vfree(module);
 
 alloc_fail:
 	spin_lock_irqsave(&grp->module_lock, flag);
@@ -8958,7 +8958,7 @@ static int camcore_release(struct inode *node, struct file *file)
 	group->module[idx] = NULL;
 	spin_unlock_irqrestore(&group->module_lock, flag);
 
-	vfree(module);
+	cam_buf_kernel_sys_vfree(module);
 	file->private_data = NULL;
 
 	if (atomic_dec_return(&group->camera_opened) == 0) {
@@ -9032,7 +9032,7 @@ static int camcore_probe(struct platform_device *pdev)
 	}
 
 	pr_info("Start camera img probe\n");
-	group = kzalloc(sizeof(struct camera_group), GFP_KERNEL);
+	group = cam_buf_kernel_sys_vzalloc(sizeof(struct camera_group));
 	if (group == NULL) {
 		pr_err("fail to alloc memory\n");
 		return -ENOMEM;
@@ -9041,7 +9041,7 @@ static int camcore_probe(struct platform_device *pdev)
 	ret = misc_register(&image_dev);
 	if (ret) {
 		pr_err("fail to register misc devices, ret %d\n", ret);
-		kfree(group);
+		cam_buf_kernel_sys_vfree(group);
 		return -EACCES;
 	}
 
@@ -9117,7 +9117,7 @@ static int camcore_probe(struct platform_device *pdev)
 
 probe_pw_fail:
 	misc_deregister(&image_dev);
-	kfree(group);
+	cam_buf_kernel_sys_vfree(group);
 
 	return ret;
 }
@@ -9142,7 +9142,7 @@ static int camcore_remove(struct platform_device *pdev)
 		wakeup_source_remove(group->ws);
 		wakeup_source_destroy(group->ws);
 #endif
-		kfree(group);
+		cam_buf_kernel_sys_vfree(group);
 		image_dev.this_device->platform_data = NULL;
 	}
 	misc_deregister(&image_dev);

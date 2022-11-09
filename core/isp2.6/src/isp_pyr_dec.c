@@ -575,7 +575,7 @@ static int isppyrdec_calc_base_info(struct isp_dec_pipe_dev *dev)
 		pr_err("fail to get valid input handle\n");
 		return -EFAULT;
 	}
-	dec_ovlap = vzalloc(sizeof(struct alg_dec_offline_overlap));
+	dec_ovlap = cam_buf_kernel_sys_vzalloc(sizeof(struct alg_dec_offline_overlap));
 	if (!dec_ovlap)
 		return -EFAULT;
 
@@ -657,7 +657,7 @@ static int isppyrdec_calc_base_info(struct isp_dec_pipe_dev *dev)
 		}
 	}
 	if (dec_ovlap) {
-		vfree(dec_ovlap);
+		cam_buf_kernel_sys_vfree(dec_ovlap);
 		dec_ovlap = NULL;
 	}
 
@@ -1247,7 +1247,7 @@ void *isp_pyr_dec_dev_get(void *isp_handle, void *hw)
 	struct isp_fmcu_ctx_desc *fmcu = NULL;
 	struct isp_hw_k_blk_func irq_func;
 
-	dec_dev = vzalloc(sizeof(struct isp_dec_pipe_dev));
+	dec_dev = cam_buf_kernel_sys_vzalloc(sizeof(struct isp_dec_pipe_dev));
 	if (!dec_dev)
 		return NULL;
 
@@ -1291,7 +1291,7 @@ void *isp_pyr_dec_dev_get(void *isp_handle, void *hw)
 
 irq_err:
 	if (dec_dev) {
-		vfree(dec_dev);
+		cam_buf_kernel_sys_vfree(dec_dev);
 		dec_dev = NULL;
 	}
 
@@ -1319,6 +1319,6 @@ void isp_pyr_dec_dev_put(void *dec_handle)
 	}
 	dec_dev->fmcu_handle = NULL;
 	if (dec_dev)
-		vfree(dec_dev);
+		cam_buf_kernel_sys_vfree(dec_dev);
 	dec_dev = NULL;
 }

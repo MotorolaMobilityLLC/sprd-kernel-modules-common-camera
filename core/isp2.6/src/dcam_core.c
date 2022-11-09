@@ -213,6 +213,8 @@ static void dcamcore_out_frame_ret(void *param)
 	struct camera_frame *frame = NULL;
 	struct dcam_sw_context *pctx = NULL;
 	struct dcam_path_desc *path = NULL;
+	struct isp_offline_param *cur = NULL;
+	struct isp_offline_param *prev = NULL;
 
 	if (!param) {
 		pr_err("fail to get valid param.\n");
@@ -220,6 +222,15 @@ static void dcamcore_out_frame_ret(void *param)
 	}
 
 	frame = (struct camera_frame *)param;
+	if (frame->param_data) {
+		cur = (struct isp_offline_param *)frame->param_data;
+		frame->param_data = NULL;
+		while (cur) {
+			prev = (struct isp_offline_param *)cur->prev;
+			cam_buf_kernel_sys_vfree(cur);
+			cur = prev;
+		}
+	}
 
 	if (frame->is_reserved) {
 		path = (struct dcam_path_desc *)frame->priv_data;
@@ -271,7 +282,7 @@ static struct camera_buf *dcamcore_reserved_buffer_get(struct dcam_sw_context *p
 	int iommu_enable = 0; /* todo: get from dev dts config value */
 	struct camera_buf *ion_buf = NULL;
 
-	ion_buf = kzalloc(sizeof(*ion_buf), GFP_KERNEL);
+	ion_buf = cam_buf_kernel_sys_vzalloc(sizeof(*ion_buf));
 	if (!ion_buf) {
 		pr_err("fail to alloc buffer.\n");
 		goto nomem;
@@ -295,7 +306,7 @@ static struct camera_buf *dcamcore_reserved_buffer_get(struct dcam_sw_context *p
 	return ion_buf;
 
 ion_fail:
-	kfree(ion_buf);
+	cam_buf_kernel_sys_vfree(ion_buf);
 nomem:
 	return NULL;
 }
@@ -314,7 +325,7 @@ static int dcamcore_reserved_buffer_put(struct dcam_sw_context *pctx)
 	if (ion_buf->type != CAM_BUF_USER)
 		cam_buf_free(ion_buf);
 
-	kfree(ion_buf);
+	cam_buf_kernel_sys_vfree(ion_buf);
 	pctx->internal_reserved_buf = NULL;
 
 	return 0;
@@ -765,15 +776,15 @@ static int dcamcore_pmctx_deinit(struct dcam_pipe_context *pctx)
 	cam_buf_kunmap(&blk_pm_ctx->lsc.buf);
 	cam_buf_free(&blk_pm_ctx->lsc.buf);
 	if(blk_pm_ctx->lsc.weight_tab) {
-		kfree(blk_pm_ctx->lsc.weight_tab);
+		cam_buf_kernel_sys_kfree(blk_pm_ctx->lsc.weight_tab);
 		blk_pm_ctx->lsc.weight_tab = NULL;
 	}
 	if(blk_pm_ctx->lsc.weight_tab_x) {
-		kfree(blk_pm_ctx->lsc.weight_tab_x);
+		cam_buf_kernel_sys_kfree(blk_pm_ctx->lsc.weight_tab_x);
 		blk_pm_ctx->lsc.weight_tab_x = NULL;
 	}
 	if(blk_pm_ctx->lsc.weight_tab_y) {
-		kfree(blk_pm_ctx->lsc.weight_tab_y);
+		cam_buf_kernel_sys_kfree(blk_pm_ctx->lsc.weight_tab_y);
 		blk_pm_ctx->lsc.weight_tab_y = NULL;
 	}
 	atomic_set(&pctx->user_cnt, 0);
@@ -1252,6 +1263,8 @@ static int dcamcore_path_put(void *dcam_handle, int path_id)
 	struct dcam_sw_context *pctx;
 	struct dcam_path_desc *path = NULL;
 	unsigned long flag = 0;
+	struct isp_offline_param *cur = NULL;
+	struct isp_offline_param *prev = NULL;
 
 	if (!dcam_handle) {
 		pr_err("fail to get a valid param,  dcam_handle=%p\n",
@@ -1265,6 +1278,15 @@ static int dcamcore_path_put(void *dcam_handle, int path_id)
 
 	pctx = (struct dcam_sw_context *)dcam_handle;
 	path = &pctx->path[path_id];
+	if (path->priv_size_data) {
+		cur = (struct isp_offline_param *)path->priv_size_data;
+		path->priv_size_data = NULL;
+		while (cur) {
+			prev = (struct isp_offline_param *)cur->prev;
+			cam_buf_kernel_sys_vfree(cur);
+			cur = prev;
+		}
+	}
 
 	if (atomic_read(&path->user_cnt) == 0) {
 		pr_debug("fail to get a valid user_cnt, dcam%d path %d is not in use.\n",
@@ -2091,18 +2113,18 @@ static void dcamcore_pmbuf_destroy(void *param)
 	cam_buf_kunmap(&param_frm->pm->lsc.buf);
 	cam_buf_free(&param_frm->pm->lsc.buf);
 	if(param_frm->pm->lsc.weight_tab) {
-		kfree(param_frm->pm->lsc.weight_tab);
+		cam_buf_kernel_sys_kfree(param_frm->pm->lsc.weight_tab);
 		param_frm->pm->lsc.weight_tab = NULL;
 	}
 	if(param_frm->pm->lsc.weight_tab_x) {
-		kfree(param_frm->pm->lsc.weight_tab_x);
+		cam_buf_kernel_sys_kfree(param_frm->pm->lsc.weight_tab_x);
 		param_frm->pm->lsc.weight_tab_x = NULL;
 	}
 	if(param_frm->pm->lsc.weight_tab_y) {
-		kfree(param_frm->pm->lsc.weight_tab_y);
+		cam_buf_kernel_sys_kfree(param_frm->pm->lsc.weight_tab_y);
 		param_frm->pm->lsc.weight_tab_y = NULL;
 	}
-	vfree(param_frm->pm);
+	cam_buf_kernel_sys_vfree(param_frm->pm);
 	param_frm->pm = NULL;
 	cam_queue_empty_frame_put(param_frm);
 }
@@ -2335,7 +2357,7 @@ static int dcamcore_context_get(void *dcam_handle)
 
 		if (path->path_id == DCAM_PATH_BIN) {
 			path->rds_coeff_size = RDS_COEF_TABLE_SIZE;
-			path->rds_coeff_buf = kzalloc(path->rds_coeff_size, GFP_KERNEL);
+			path->rds_coeff_buf = cam_buf_kernel_sys_vzalloc(path->rds_coeff_size);
 			if (path->rds_coeff_buf == NULL) {
 				path->rds_coeff_size = 0;
 				pr_err("fail to alloc rds coeff buffer.\n");
@@ -2396,7 +2418,7 @@ static int dcamcore_context_put(void *dcam_handle, int ctx_id)
 		pctx->buf_get_cb = NULL;
 
 		if (pctx->path[DCAM_PATH_BIN].rds_coeff_buf) {
-			kfree(pctx->path[DCAM_PATH_BIN].rds_coeff_buf);
+			cam_buf_kernel_sys_vfree(pctx->path[DCAM_PATH_BIN].rds_coeff_buf);
 			pctx->path[DCAM_PATH_BIN].rds_coeff_buf = NULL;
 			pctx->path[DCAM_PATH_BIN].rds_coeff_size = 0;
 		}
@@ -2730,7 +2752,7 @@ void *dcam_core_pipe_dev_get(struct cam_hw_info *hw)
 		goto exit;
 	}
 
-	dev = vzalloc(sizeof(struct dcam_pipe_dev));
+	dev = cam_buf_kernel_sys_vzalloc(sizeof(struct dcam_pipe_dev));
 	if (!dev)
 		goto exit;
 
@@ -2773,7 +2795,7 @@ int dcam_core_pipe_dev_put(void *dcam_handle)
 	if (atomic_dec_return(&dev->user_cnt) == 0) {
 		pr_info("free dcam pipe dev %px\n", dev);
 		mutex_destroy(&dev->ctx_mutex);
-		vfree(dev);
+		cam_buf_kernel_sys_vfree(dev);
 		dev = NULL;
 		s_dcam_dev = NULL;
 	}

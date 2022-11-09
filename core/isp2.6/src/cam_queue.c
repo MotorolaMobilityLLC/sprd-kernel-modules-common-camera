@@ -267,7 +267,7 @@ struct camera_frame *cam_queue_empty_frame_get(void)
 		if (pframe == NULL) {
 			if (in_interrupt()) {
 				/* fast alloc and return for irq handler */
-				pframe = kzalloc(sizeof(*pframe), GFP_ATOMIC);
+				pframe = cam_buf_kernel_sys_kzalloc(sizeof(*pframe), GFP_ATOMIC);
 				if (pframe)
 					atomic_inc(&g_mem_dbg->empty_frm_cnt);
 				else
@@ -276,7 +276,7 @@ struct camera_frame *cam_queue_empty_frame_get(void)
 			}
 
 			for (i = 0; i < CAM_EMP_Q_LEN_INC; i++) {
-				pframe = kzalloc(sizeof(*pframe), GFP_KERNEL);
+				pframe = cam_buf_kernel_sys_kzalloc(sizeof(*pframe), GFP_KERNEL);
 				if (pframe == NULL) {
 					pr_err("fail to alloc memory, retry\n");
 					continue;
@@ -312,7 +312,7 @@ int cam_queue_empty_frame_put(struct camera_frame *pframe)
 	if (ret) {
 		pr_info("queue should be enlarged\n");
 		atomic_dec(&g_mem_dbg->empty_frm_cnt);
-		kfree(pframe);
+		cam_buf_kernel_sys_kfree(pframe);
 	}
 	return 0;
 }
@@ -326,7 +326,7 @@ void cam_queue_empty_frame_free(void *param)
 	atomic_dec(&g_mem_dbg->empty_frm_cnt);
 	pr_debug("free frame %p, cnt %d\n", pframe,
 		atomic_read(&g_mem_dbg->empty_frm_cnt));
-	kfree(pframe);
+	cam_buf_kernel_sys_kfree(pframe);
 	pframe = NULL;
 }
 
@@ -343,7 +343,7 @@ struct isp_stream_ctrl *cam_queue_empty_state_get(void)
 		if (stream_state == NULL) {
 			if (in_interrupt()) {
 				/* fast alloc and return for irq handler */
-				stream_state = kzalloc(sizeof(*stream_state), GFP_ATOMIC);
+				stream_state = cam_buf_kernel_sys_kzalloc(sizeof(*stream_state), GFP_ATOMIC);
 				if (stream_state)
 					atomic_inc(&g_mem_dbg->empty_state_cnt);
 				else
@@ -352,7 +352,7 @@ struct isp_stream_ctrl *cam_queue_empty_state_get(void)
 			}
 
 			for (i = 0; i < CAM_EMP_Q_LEN_INC; i++) {
-				stream_state = kzalloc(sizeof(*stream_state), GFP_KERNEL);
+				stream_state = cam_buf_kernel_sys_kzalloc(sizeof(*stream_state), GFP_KERNEL);
 				if (stream_state == NULL) {
 					pr_err("fail to alloc memory, retry\n");
 					continue;
@@ -392,7 +392,7 @@ void cam_queue_empty_state_put(void *param)
 	if (ret) {
 		pr_debug("queue should be enlarged\n");
 		atomic_dec(&g_mem_dbg->empty_state_cnt);
-		kfree(stream_state);
+		cam_buf_kernel_sys_kfree(stream_state);
 	}
 }
 
@@ -404,7 +404,7 @@ void cam_queue_empty_state_free(void *param)
 	atomic_dec(&g_mem_dbg->empty_state_cnt);
 	pr_debug("free state %p, cnt %d\n", stream_state,
 		atomic_read(&g_mem_dbg->empty_state_cnt));
-	kfree(stream_state);
+	cam_buf_kernel_sys_kfree(stream_state);
 	stream_state = NULL;
 }
 
@@ -503,7 +503,7 @@ struct dcam_3dnrmv_ctrl *cam_queue_empty_mv_state_get(void)
 		if (mv_state == NULL) {
 			if (in_interrupt()) {
 				/* fast alloc and return for irq handler */
-				mv_state = kzalloc(sizeof(*mv_state), GFP_ATOMIC);
+				mv_state = cam_buf_kernel_sys_kzalloc(sizeof(*mv_state), GFP_ATOMIC);
 				if (mv_state)
 					atomic_inc(&g_mem_dbg->empty_mv_state_cnt);
 				else
@@ -512,7 +512,7 @@ struct dcam_3dnrmv_ctrl *cam_queue_empty_mv_state_get(void)
 			}
 
 			for (i = 0; i < CAM_EMP_Q_LEN_INC; i++) {
-				mv_state = kzalloc(sizeof(*mv_state), GFP_KERNEL);
+				mv_state = cam_buf_kernel_sys_kzalloc(sizeof(*mv_state), GFP_KERNEL);
 				if (mv_state == NULL) {
 					pr_err("fail to alloc memory, retry\n");
 					continue;
@@ -552,7 +552,7 @@ void cam_queue_empty_mv_state_put(void *param)
 	if (ret) {
 		pr_debug("queue should be enlarged\n");
 		atomic_dec(&g_mem_dbg->empty_mv_state_cnt);
-		kfree(mv_state);
+		cam_buf_kernel_sys_kfree(mv_state);
 	}
 }
 
@@ -564,6 +564,6 @@ void cam_queue_empty_mv_state_free(void *param)
 	atomic_dec(&g_mem_dbg->empty_mv_state_cnt);
 	pr_debug("free state %p, cnt %d\n", mv_state,
 		atomic_read(&g_mem_dbg->empty_mv_state_cnt));
-	kfree(mv_state);
+	cam_buf_kernel_sys_kfree(mv_state);
 	mv_state = NULL;
 }

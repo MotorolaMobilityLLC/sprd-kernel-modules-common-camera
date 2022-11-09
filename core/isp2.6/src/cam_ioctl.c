@@ -1631,7 +1631,7 @@ static int camioctl_stream_off(struct camera_module *module,
 				while (cur) {
 					prev = (struct isp_offline_param *)cur->prev;
 					pr_info("free %p\n", cur);
-					kfree(cur);
+					cam_buf_kernel_sys_vfree(cur);
 					cur = prev;
 				}
 			}
@@ -2145,7 +2145,7 @@ static int camioctl_stream_pause(struct camera_module *module,
 			while (cur) {
 				prev = (struct isp_offline_param *)cur->prev;
 				pr_info("free %p\n", cur);
-				kfree(cur);
+				cam_buf_kernel_sys_vfree(cur);
 				cur = prev;
 			}
 		}
