@@ -389,6 +389,7 @@ struct isp_hw_fetch_info {
 	struct img_size src;
 	struct img_trim in_trim;
 	struct img_addr addr;
+	struct img_addr addr_dcam_out; /* only for N6L cap rec layer0 form dcam store4 */
 	struct img_addr trim_off;
 	struct img_addr addr_hw;
 	struct img_pitch pitch;
@@ -1246,6 +1247,7 @@ struct cam_hw_ip_info {
 	uint32_t nr3_compress_support;
 	uint32_t capture_thumb_support;
 	uint32_t thumb_scaler_cal_version;
+	uint32_t pyr_rec_lay0_support;
 };
 
 struct cam_hw_soc_info {

@@ -404,6 +404,11 @@ static void dcamint_gtm_port_done(void *param)
 		return;
 	}
 
+	if (dcam_hw_ctx->dcam_irq_cb_func == NULL) {
+		pr_err("fail to dcamonline callback fun is NULL\n");
+		return;
+	}
+
 	irq_proc.of = CAP_DATA_DONE;
 	irq_proc.dcam_port_id = PORT_GTM_HIST_OUT;
 	dcam_hw_ctx->dcam_irq_cb_func(&irq_proc, dcam_hw_ctx->dcam_irq_cb_handle);

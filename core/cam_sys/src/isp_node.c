@@ -674,6 +674,7 @@ static int ispnode_rec_frame_process(struct isp_node *inode, struct isp_hw_conte
 
 	cfg_in.src = pipe_info->fetch.src;
 	cfg_in.in_addr = pipe_info->fetch.addr;
+	cfg_in.in_addr_dcam_out = pipe_info->fetch.addr_dcam_out;
 	cfg_in.in_trim = pipe_info->fetch.in_trim;
 	cfg_in.in_fmt = pipe_info->fetch.fetch_fmt;
 	cfg_in.pyr_fmt = pipe_info->fetch.fetch_pyr_fmt;

@@ -724,6 +724,8 @@ static int isppyrrec_pipe_proc(void *handle, void *param)
 	rec_ctx->in_fmt = in_ptr->in_fmt;
 	rec_ctx->out_fmt = in_ptr->in_fmt;
 	rec_ctx->fetch_addr[0] = in_ptr->in_addr;
+	if (in_ptr->in_addr_dcam_out.addr_ch0)
+		rec_ctx->fetch_addr[0] = in_ptr->in_addr_dcam_out;
 	rec_ctx->pyr_layer_size[0].w = isp_rec_layer0_width(in_ptr->src.w, layer_num);
 	rec_ctx->pyr_layer_size[0].h = isp_rec_layer0_heigh(in_ptr->src.h, layer_num);
 	rec_ctx->pyr_padding_size.w = rec_ctx->pyr_layer_size[0].w - in_ptr->src.w;

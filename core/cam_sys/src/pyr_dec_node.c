@@ -973,7 +973,7 @@ static int pyr_dec_node_irq_proc(void *handle)
 	struct pyrdec_pipe_dev *pyrdec = NULL;
 	struct pyr_dec_node *node = NULL;
 	struct camera_frame *pframe = NULL;
-
+	struct camera_frame *pframe1 = NULL;
 	if (!handle) {
 		pr_err("fail to get invalid ptr\n");
 		return -EFAULT;
@@ -1001,14 +1001,20 @@ static int pyr_dec_node_irq_proc(void *handle)
 		node->buf_out->pyr_status = pframe->pyr_status;
 		node->buf_out->cam_fmt = pframe->cam_fmt;
 		cam_buf_iommu_unmap(&pframe->buf);
-		if (node->data_cb_func)
-			node->data_cb_func(CAM_CB_PYRDEC_RET_SRC_BUF, pframe, node->data_cb_handle);
-		else
-			pr_err("fail to get data_cb_func ptr at ret src\n");
+		if (node->hw->ip_isp->pyr_rec_lay0_support)
+			pframe1 = pframe;
+		else {
+			if (node->data_cb_func)
+				node->data_cb_func(CAM_CB_PYRDEC_RET_SRC_BUF, pframe, node->data_cb_handle);
+			else
+				pr_err("fail to get data_cb_func ptr at ret src\n");
+		}
 	} else
 		pr_err("fail to get src frame proc_queue.cnt:%d\n", node->proc_queue.cnt);
 
 	pframe = node->buf_out;
+	if (node->hw->ip_isp->pyr_rec_lay0_support)
+		pframe->pframe_data = pframe1;
 	node->buf_out = NULL;
 	if (pframe) {
 		/* return buffer to cam core for start pyrrec proc */
@@ -1019,6 +1025,8 @@ static int pyr_dec_node_irq_proc(void *handle)
 				cam_queue_blk_param_unbind(&inode->param_share_queue, pframe);
 			}
 			cam_queue_enqueue_front(&node->pyrdec_buf_queue, &pframe->list);
+			if (node->hw->ip_isp->pyr_rec_lay0_support)
+				node->data_cb_func(CAM_CB_DCAM_RET_SRC_BUF, pframe1, node->data_cb_handle);
 			if (cam_queue_cnt_get(&node->in_queue) == 0 && cam_queue_cnt_get(&node->proc_queue) == 0) {
 				node->is_fast_stop = 0;
 				complete(node->fast_stop_done);
@@ -1210,14 +1218,6 @@ static int pyr_dec_node_start_proc(void *handle)
 		pr_err("fail to map buf to ISP iommu.\n");
 		goto map_err;
 	}
-
-#if defined (PROJ_QOGIRN6L)
-	ret = cam_buf_kmap(&pframe->buf);
-	ret = cam_buf_kmap(&node->buf_out->buf);
-	memcpy((void*)(node->buf_out->buf.addr_k), (void*)(pframe->buf.addr_k), pframe->buf.size);
-	ret = cam_buf_kunmap(&pframe->buf);
-	ret = cam_buf_kunmap(&node->buf_out->buf);
-#endif
 
 	if (pframe->is_compressed)
 		ret = pyrdec_node_afbd_get(node->in_fmt, &node->yuv_afbd_info, pframe);

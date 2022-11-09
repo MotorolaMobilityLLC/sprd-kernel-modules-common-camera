@@ -705,6 +705,11 @@ static struct cam_hw_ip_info isp = {
 	.nr3_compress_support = 0,
 	.capture_thumb_support = 1,
 	.thumb_scaler_cal_version = ISP_THUMB_SCL_VER_1,
+#if defined (PROJ_QOGIRN6L)
+	.pyr_rec_lay0_support = 1,
+#elif defined (PROJ_QOGIRN6PRO)
+	.pyr_rec_lay0_support = 0,
+#endif
 };
 
 struct cam_hw_info qogirn6pro_hw_info = {

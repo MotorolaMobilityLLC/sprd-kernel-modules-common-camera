@@ -391,12 +391,12 @@ static int dcamcore_ctx_unbind(void *dev_handle, void *node, uint32_t node_id)
 		if (atomic_dec_return(&pctx_hw->user_cnt) == 0) {
 			pr_info("node_id=%d, hw_id=%d unbind success\n", node_id, pctx_hw->hw_ctx_id);
 			cam_queue_clear(&pctx_hw->dcam_irq_sts_q, struct camera_interrupt, list);
-			while (pctx_hw->in_irq_proc && loop < 1000) {
+			while (pctx_hw->in_irq_proc && loop < 2000) {
 				pr_debug("ctx % in irq. wait %d", pctx_hw->hw_ctx_id, loop);
 				loop++;
 				udelay(500);
 			};
-			if (loop == 1000)
+			if (loop == 2000)
 				pr_warn("warning: dcam node unind wait irq timeout\n");
 			pctx_hw->node = NULL;
 			pctx_hw->node_id = -1;
