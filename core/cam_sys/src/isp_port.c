@@ -1460,6 +1460,10 @@ static int ispport_slowmotion(struct isp_port *port, void *param)
 	port_cfg = VOID_PTR_TO(param, struct isp_port_cfg);
 	if (port->type == PORT_TRANSFER_IN) {
 		ret = ispport_fetch_frame_cycle(port, port_cfg);
+		if (ret != 0 || port_cfg->src_frame == NULL) {
+			pr_err("fail to get frame (%px) for port %d ret %d\n", port_cfg->src_frame, port->port_id, ret);
+			return ret;
+		}
 		port_cfg->src_frame->width = port->size.w;
 		port_cfg->src_frame->height = port->size.h;
 		ret = isp_hwctx_fetch_frm_set(port_cfg->dev, &port_cfg->pipe_info->fetch, port_cfg->src_frame);
