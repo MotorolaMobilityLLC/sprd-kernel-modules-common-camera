@@ -93,13 +93,20 @@ static int camcopy_node_frame_start(void *param)
 		node->copy_cb_func(CAM_CB_COPY_SRC_BUFFER, pframe, node->copy_cb_handle);
 	} else {
 		pr_debug("start copy src queue data\n");
+		if (pframe->buf.size > raw_frame->buf.size) {
+			pr_err("fail to raw buff is small, frame buf size %d and raw buf size %d\n",
+				pframe->buf.size, raw_frame->buf.size);
+			pframe->copy_en = 0;
+			node->copy_cb_func(CAM_CB_COPY_SRC_BUFFER, pframe, node->copy_cb_handle);
+			return -EFAULT;
+		}
 		if (cam_buf_kmap(&pframe->buf)) {
-				pr_err("fail to kmap temp buf\n");
-				return -EFAULT;
+			pr_err("fail to kmap temp buf\n");
+			return -EFAULT;
 		}
 		if (cam_buf_kmap(&raw_frame->buf)) {
-				pr_err("fail to kmap raw buf\n");
-				return -EFAULT;
+			pr_err("fail to kmap raw buf\n");
+			return -EFAULT;
 		}
 		memcpy((char *)raw_frame->buf.addr_k, (char *)pframe->buf.addr_k, pframe->buf.size);
 		/* use SOF time instead of ISP time for better accuracy */
