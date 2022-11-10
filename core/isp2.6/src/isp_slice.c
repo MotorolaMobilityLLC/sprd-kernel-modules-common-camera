@@ -3370,7 +3370,7 @@ void *isp_slice_ctx_get()
 {
 	struct isp_slice_context *ptr;
 
-	ptr = vzalloc(sizeof(struct isp_slice_context));
+	ptr = cam_buf_kernel_sys_vzalloc(sizeof(struct isp_slice_context));
 	if (IS_ERR_OR_NULL(ptr))
 		return NULL;
 
@@ -3380,7 +3380,7 @@ void *isp_slice_ctx_get()
 int isp_slice_ctx_put(void **slc_ctx)
 {
 	if (*slc_ctx)
-		vfree(*slc_ctx);
+		cam_buf_kernel_sys_vfree(*slc_ctx);
 	*slc_ctx = NULL;
 	return 0;
 }

@@ -889,7 +889,11 @@ static int ispnode_start_proc(void *node)
 		slc_cfg.nr3_ctx = (struct isp_3dnr_ctx_desc *)inode->nr3_handle;
 		pctx_hw->rec_handle = inode->rec_handle;
 		pctx_hw->nr3_fbc_fbd = inode->pipe_src.nr3_fbc_fbd;
-		isp_hwctx_slice_fmcu(pctx_hw, &slc_cfg);
+		ret = isp_hwctx_slice_fmcu(pctx_hw, &slc_cfg);
+		if (ret) {
+			pr_err("fail to slice fmcu cfg, hwctx:%d\n", pctx_hw->hw_ctx_id);
+			goto exit;
+		}
 	}
 
 	if (inode->uinfo.enable_slowmotion) {

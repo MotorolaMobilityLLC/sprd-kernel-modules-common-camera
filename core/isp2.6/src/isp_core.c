@@ -104,7 +104,7 @@ static void ispcore_offline_pararm_free(void *param)
 	while (cur) {
 		prev = (struct isp_offline_param *)cur->prev;
 		pr_info("free %p\n", cur);
-		kfree(cur);
+		cam_buf_kernel_sys_vfree(cur);
 		cur = prev;
 	}
 }
@@ -253,7 +253,7 @@ static void ispcore_sw_context_clear(void *param)
 
 	ctx = (struct isp_sw_context *)param;
 	atomic_dec(&g_mem_dbg->isp_sw_context_cnt);
-	vfree(ctx);
+	cam_buf_kernel_sys_vfree(ctx);
 	ctx = NULL;
 }
 
@@ -836,7 +836,7 @@ static int ispcore_sw_context_get(struct isp_pipe_dev *dev)
 	}
 
 	if (!ctx) {
-		ctx = vzalloc(sizeof(*ctx));
+		ctx = cam_buf_kernel_sys_vzalloc(sizeof(*ctx));
 		if (!ctx) {
 			pr_err("fail to alloc isp sw context\n");
 			goto exit;
@@ -860,7 +860,7 @@ static int ispcore_sw_context_get(struct isp_pipe_dev *dev)
 
 queue_full:
 	atomic_dec(&g_mem_dbg->isp_sw_context_cnt);
-	vfree(ctx);
+	cam_buf_kernel_sys_vfree(ctx);
 exit:
 	return cxt_id;
 }
@@ -4651,7 +4651,7 @@ void *isp_core_pipe_dev_get(void)
 		goto exit;
 	}
 
-	dev = vzalloc(sizeof(struct isp_pipe_dev));
+	dev = cam_buf_kernel_sys_vzalloc(sizeof(struct isp_pipe_dev));
 	if (!dev)
 		goto exit;
 
@@ -4694,7 +4694,7 @@ int isp_core_pipe_dev_put(void *isp_handle)
 
 	if (atomic_dec_return(&dev->user_cnt) == 0) {
 		pr_info("free isp pipe dev %p\n", dev);
-		vfree(dev);
+		cam_buf_kernel_sys_vfree(dev);
 		dev = NULL;
 		s_isp_dev = NULL;
 	}

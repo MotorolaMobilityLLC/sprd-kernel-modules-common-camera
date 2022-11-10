@@ -132,8 +132,12 @@
 
     module = dev_get_drvdata(devfreq->dev.parent);
 
-    mutex_lock(&devfreq->lock);
+    if (!module->dvfs_enable) {
+        pr_info("dvfs not enable.\n");
+        return -EINVAL;
+    }
 
+    mutex_lock(&devfreq->lock);
     err = sscanf(buf, "%lu\n", &dvfs_en);
     if (err != 1) {
         mutex_unlock(&devfreq->lock);
@@ -142,7 +146,7 @@
     pr_info("%s: err=%d, dvfs_en=%lu\n", __func__, err, dvfs_en);
 
     module->module_dvfs_para.u_dvfs_en = dvfs_en;
-    module->dvfs_enable = dvfs_en;
+
     if (module->dvfs_ops != NULL && module->dvfs_ops->ip_hw_dvfs_en != NULL &&
         (err != 0)) {
 
@@ -182,6 +186,11 @@
     int err;
 
     module = dev_get_drvdata(devfreq->dev.parent);
+
+    if (!module->dvfs_enable) {
+        pr_info("dvfs not enable.\n");
+        return -EINVAL;
+    }
 
     mutex_lock(&devfreq->lock);
 
@@ -234,6 +243,12 @@
     int err;
 
     module = dev_get_drvdata(devfreq->dev.parent);
+
+    if (!module->dvfs_enable) {
+        pr_info("dvfs not enable.\n");
+        return -EINVAL;
+    }
+
     mutex_lock(&devfreq->lock);
     err = sscanf(buf, "%lu\n", &user_freq);
     if (err != 1) {
@@ -278,6 +293,12 @@
     int err;
 
     module = dev_get_drvdata(devfreq->dev.parent);
+
+    if (!module->dvfs_enable) {
+        pr_info("dvfs not enable.\n");
+        return -EINVAL;
+    }
+
     mutex_lock(&devfreq->lock);
     err = sscanf(buf, "%lu\n", &idle_freq);
     if (err == 0) {
@@ -334,6 +355,11 @@
 
     module = dev_get_drvdata(devfreq->dev.parent);
 
+    if (!module->dvfs_enable) {
+        pr_info("dvfs not enable.\n");
+        return -EINVAL;
+    }
+
     mutex_lock(&devfreq->lock);
 
     err = sscanf(buf, "%lu\n", &work_index);
@@ -386,6 +412,11 @@
     int err;
 
     module = dev_get_drvdata(devfreq->dev.parent);
+
+    if (!module->dvfs_enable) {
+        pr_info("dvfs not enable.\n");
+        return -EINVAL;
+    }
 
     mutex_lock(&devfreq->lock);
 

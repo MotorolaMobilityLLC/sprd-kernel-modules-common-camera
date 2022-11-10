@@ -311,11 +311,11 @@ int dcam_k_lsc_block(struct dcam_dev_param *p)
 	info = &param->lens_info;
 	if (param->weight_tab_size < info->weight_num) {
 		if (param->weight_tab) {
-			kfree(param->weight_tab);
+			cam_buf_kernel_sys_kfree(param->weight_tab);
 			param->weight_tab = NULL;
 			param->weight_tab_size = 0;
 		}
-		w_buff = kzalloc(info->weight_num, GFP_ATOMIC);
+		w_buff = cam_buf_kernel_sys_kzalloc(info->weight_num, GFP_KERNEL);
 		if (w_buff == NULL) {
 			pr_err("fail to alloc lsc weight_num\n");
 			ret = -ENOMEM;

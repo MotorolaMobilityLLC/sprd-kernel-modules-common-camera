@@ -854,7 +854,7 @@ void *isp_dewarping_ctx_get(uint32_t idx, void *hw)
 {
 	struct isp_dewarp_ctx_desc *dewarping_desc = NULL;
 
-	dewarping_desc = vzalloc(sizeof(struct isp_dewarp_ctx_desc));
+	dewarping_desc = cam_buf_kernel_sys_vzalloc(sizeof(struct isp_dewarp_ctx_desc));
 	if (!dewarping_desc)
 		return NULL;
 
@@ -877,6 +877,6 @@ void isp_dewarping_ctx_put(void *dewarp_handle)
 	dewarping_ctx = (struct isp_dewarp_ctx_desc *)dewarp_handle;
 
 	if (dewarping_ctx)
-		vfree(dewarping_ctx);
+		cam_buf_kernel_sys_vfree(dewarping_ctx);
 	dewarping_ctx = NULL;
 }

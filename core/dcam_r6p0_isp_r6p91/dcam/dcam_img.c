@@ -124,8 +124,9 @@ struct dcam_queue {
 	struct dcam_node           node[DCAM_QUEUE_LENGTH];
 	struct dcam_node           *write;
 	struct dcam_node           *read;
-	uint32_t                           wcnt;
-	uint32_t                           rcnt;
+	uint32_t                   wcnt;
+	uint32_t                   rcnt;
+	spinlock_t                 lock;
 };
 
 struct dcam_img_buf_addr {
@@ -1151,11 +1152,16 @@ static int sprd_img_queue_write(struct dcam_queue *queue,
 				struct dcam_node *node)
 {
 	struct dcam_node         *ori_node;
+	unsigned long flags;
 
-	if (queue == NULL || node == NULL ||
-	    queue->read == NULL || queue->write == NULL)
+	if (queue == NULL || node == NULL)
 		return -EINVAL;
 
+	spin_lock_irqsave(&queue->lock, flags);
+	if (queue->read == NULL || queue->write == NULL){
+		spin_unlock_irqrestore(&queue->lock, flags);
+		return -EINVAL;
+	}
 	ori_node = queue->write;
 	queue->wcnt++;
 	DCAM_TRACE("sprd_img_queue_write.\n");
@@ -1179,10 +1185,13 @@ static int sprd_img_queue_write(struct dcam_queue *queue,
 			pr_err("q full, isp irq %d, property %d, flag 0x%x, wr %d/%d\n",
 				node->irq_type, node->irq_property,
 				node->irq_flag, queue->wcnt, queue->rcnt);
-			if (node->irq_property == IRQ_DCAM_SOF)
+			if (node->irq_property == IRQ_DCAM_SOF){
+				spin_unlock_irqrestore(&queue->lock, flags);
 				return -EINVAL;
+			}
 		}
 	}
+	spin_unlock_irqrestore(&queue->lock, flags);
 
 	return 0;
 }
@@ -1190,11 +1199,13 @@ static int sprd_img_queue_write(struct dcam_queue *queue,
 static int sprd_img_queue_init(struct dcam_queue *queue)
 {
 	int ret = DCAM_RTN_SUCCESS;
+	unsigned long flags;
 
 	if (queue == NULL) {
 		pr_err("invalid queue!\n");
 		return -EINVAL;
 	}
+	spin_lock_irqsave(&queue->lock, flags);
 
 	pr_debug("sprd_img_queue_init.\n");
 	memset(&queue->node[0], 0,
@@ -1203,6 +1214,7 @@ static int sprd_img_queue_init(struct dcam_queue *queue)
 	queue->read  = &queue->node[0];
 	queue->wcnt = 0;
 	queue->rcnt = 0;
+	spin_unlock_irqrestore(&queue->lock, flags);
 
 	return ret;
 }
@@ -1211,12 +1223,15 @@ static int sprd_img_queue_read(struct dcam_queue *queue, struct dcam_node *node)
 {
 	int                      ret = DCAM_RTN_SUCCESS;
 	int                      flag = 0;
+	unsigned long            flags;
 
-	if (queue == NULL || node == NULL ||
-	    queue->read == NULL || queue->write == NULL)
+	if (queue == NULL || node == NULL)
 		return -EINVAL;
 
 	DCAM_TRACE("sprd_img_queue_read.\n");
+	spin_lock_irqsave(&queue->lock, flags);
+	if (queue->read == NULL || queue->write == NULL)
+		return -EINVAL;
 
 	if (queue->read != queue->write) {
 		flag = 1;
@@ -1232,7 +1247,7 @@ static int sprd_img_queue_read(struct dcam_queue *queue, struct dcam_node *node)
 	}
 	if (!flag)
 		ret = EAGAIN;
-
+	spin_unlock_irqrestore(&queue->lock, flags);
 	DCAM_TRACE("sprd_img_queue_read type %d.\n", node->f_type);
 	return ret;
 }

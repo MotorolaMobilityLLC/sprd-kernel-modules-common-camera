@@ -640,7 +640,7 @@ int ispt_init(struct cam_hw_info *hw, struct camt_info *info)
 	CHECK_NULL(hw);
 	CHECK_NULL(info);
 
-	cxt = kzalloc(sizeof(struct ispt_context), GFP_KERNEL);
+	cxt = cam_buf_kernel_sys_vzalloc(sizeof(struct ispt_context));
 	if (cxt == NULL) {
 		pr_err("fail to alloc memory\n");
 		return -ENOMEM;
@@ -673,7 +673,7 @@ int ispt_init(struct cam_hw_info *hw, struct camt_info *info)
 cfg_init_fail:
 	camt_isp_hw_deinit(cxt);
 exit:
-	kfree(cxt);
+	cam_buf_kernel_sys_vfree(cxt);
 	ispt_cxt = NULL;
 	return ret;
 }
@@ -805,7 +805,7 @@ int ispt_deinit(void)
 
 	CHECK_NULL(ctx);
 
-	kfree(ctx);
+	cam_buf_kernel_sys_vfree(ctx);
 	ispt_cxt = NULL;
 
 	return ret;
