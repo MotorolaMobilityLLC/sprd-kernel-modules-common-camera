@@ -1006,10 +1006,10 @@ exit:
 		}
 	}
 
-	if (pctx_hw)
-		dev->isp_ops->unbind(inode);
 	inode->isp_using_param = NULL;
 	pctx_hw->isp_using_param = NULL;
+	if (pctx_hw)
+		dev->isp_ops->unbind(inode);
 
 	return 0;
 }
