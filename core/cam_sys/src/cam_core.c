@@ -283,6 +283,7 @@ struct camera_module {
 	uint32_t dcam_idx;
 
 	uint32_t zoom_solution;/* for dynamic zoom type swicth. */
+	uint32_t binning_limit;
 	uint32_t zoom_ratio;/* userspace zoom ratio for aem statis */
 	struct camera_uinfo cam_uinfo;
 
@@ -1648,16 +1649,94 @@ static int camcore_pipeline_callback(enum cam_cb_type type, void *param, void *p
 	return ret;
 }
 
+static int camcore_binning_swapsize_get(struct camera_module *module, struct img_size *max_bin)
+{
+	uint32_t i = 0, shift = 0, binning_limit = 2;
+	uint32_t output_stg = 0;
+	struct channel_context *ch_prev = NULL;
+	struct channel_context *ch_vid = NULL;
+	struct img_size dst_p = {0}, dst_v = {0}, max = {0};
+
+	ch_prev = &module->channel[CAM_CH_PRE];
+	ch_vid = &module->channel[CAM_CH_VID];
+	output_stg = module->grp->hw_info->ip_dcam[0]->dcam_output_strategy;
+
+	dst_p.w = ch_prev->ch_uinfo.dst_size.w;
+	dst_p.h = ch_prev->ch_uinfo.dst_size.h;
+	dst_v.w = dst_v.h = 1;
+	if (ch_vid->enable) {
+		dst_p.w = ch_vid->ch_uinfo.dst_size.w;
+		dst_p.h = ch_vid->ch_uinfo.dst_size.h;
+	}
+
+	switch (output_stg) {
+	case IMG_POWER_CONSUM_PRI:
+		if ((ch_prev->ch_uinfo.src_size.w * 2) <= module->cam_uinfo.sn_max_size.w) {
+			if ((max_bin->w > g_camctrl.isp_linebuf_len) &&
+				(dst_p.w <= g_camctrl.isp_linebuf_len) &&
+				(dst_v.w <= g_camctrl.isp_linebuf_len))
+				shift = 1;
+
+			module->binning_limit = 0;
+			if (module->zoom_solution == ZOOM_BINNING4)
+				module->binning_limit = 1;
+			else if (shift == 1)
+				module->binning_limit = 1;
+		} else {
+			if ((max_bin->w >= (ch_prev->ch_uinfo.dst_size.w * 2)) &&
+				(max_bin->w >= (ch_vid->ch_uinfo.dst_size.w * 2)))
+				shift = 1;
+			else if ((max_bin->w > g_camctrl.isp_linebuf_len) &&
+				(dst_p.w <= g_camctrl.isp_linebuf_len) &&
+				(dst_v.w <= g_camctrl.isp_linebuf_len))
+				shift = 1;
+
+			module->binning_limit = 1;
+			if (module->zoom_solution == ZOOM_BINNING4)
+				module->binning_limit = 2;
+		}
+		break;
+	case IMG_QUALITY_PRI:
+		max.w = max_bin->w;
+		while (i < binning_limit) {
+			if (max.w > g_camctrl.isp_linebuf_len) {
+				max.w = max.w >> 1;
+				if ((max.w > dst_p.w) && (max.w > dst_v.w))
+					shift++;
+				else
+					break;
+			}
+			i++;
+		}
+		break;
+	default:
+		pr_err("fail to get invalid output type %d\n", output_stg);
+		break;
+	}
+
+	if (SEC_UNABLE != module->grp->camsec_cfg.camsec_mode)
+		shift = 1;
+	max_bin->w >>= shift;
+	max_bin->h >>= shift;
+
+	pr_debug("shift %d for binning, p=%d v=%d src=%d, %d\n",
+		shift, dst_p.w, dst_v.w, max_bin->w, g_camctrl.isp_linebuf_len);
+
+	if ((dst_p.w == 0) || (dst_p.h == 0)) {
+		pr_err("fail to get valid w %d h %d\n", dst_p.w, dst_p.h);
+		return -EFAULT;
+	}
+	return 0;
+}
+
 static int camcore_channel_swapsize_cal(struct camera_module *module)
 {
-	uint32_t i = 0, shift = 0, binning_limit = 0;
-	uint32_t isp_linebuf_len = g_camctrl.isp_linebuf_len;
+	uint32_t ret = 0;
 	struct channel_context *ch_prev = NULL;
 	struct channel_context *ch_vid = NULL;
 	struct channel_context *ch_cap = NULL;
 	struct channel_context *ch_raw = NULL;
-	struct img_size max_bypass = {0}, max_bin = {0}, max_scaler ={0}, max ={0};
-	struct img_size src_p = {0}, dst_p ={0}, dst_v ={0};
+	struct img_size max_bypass = {0}, max_bin = {0}, max_scaler = {0}, max = {0}, src_p = {0};
 
 	ch_prev = &module->channel[CAM_CH_PRE];
 	ch_cap = &module->channel[CAM_CH_CAP];
@@ -1694,44 +1773,16 @@ static int camcore_channel_swapsize_cal(struct camera_module *module)
 
 	src_p.w = ch_prev->ch_uinfo.src_size.w;
 	src_p.h = ch_prev->ch_uinfo.src_size.h;
-	dst_p.w = ch_prev->ch_uinfo.dst_size.w;
-	dst_p.h = ch_prev->ch_uinfo.dst_size.h;
-	dst_v.w = dst_v.h = 1;
-	if (ch_vid->enable) {
-		dst_p.w = ch_vid->ch_uinfo.dst_size.w;
-		dst_p.h = ch_vid->ch_uinfo.dst_size.h;
-	}
 
 	/* max_bypass: no scaler & binning; max_bin: bining */
-	max = max_bypass = max_bin = src_p;
-	/* hw can support max bining is bining twice */
-	binning_limit = 2;
-	while (i < binning_limit) {
-		if (max.w > isp_linebuf_len) {
-			max.w = max.w >> 1;
-			if ((max.w > dst_p.w) && (max.w > dst_v.w))
-				shift++;
-			else
-				break;
-		}
-		i++;
-	}
-	if (SEC_UNABLE != module->grp->camsec_cfg.camsec_mode)
-		shift = 1;
-	max_bin.w >>= shift;
-	max_bin.h >>= shift;
-
+	max_bypass = max_bin = src_p;
+	/* update max_bin */
+	ret = camcore_binning_swapsize_get(module, &max_bin);
 	/* scaler */
 	max_scaler.w = MAX(ch_prev->ch_uinfo.dst_size.w, ch_vid->ch_uinfo.dst_size.w);
 	max_scaler.h = MAX(ch_prev->ch_uinfo.dst_size.h, ch_vid->ch_uinfo.dst_size.h);
 	max_scaler.w = MAX(max_bin.w, max_scaler.w);
 	max_scaler.h = MAX(max_bin.h, max_scaler.h);
-
-	/* go through rds path */
-	if ((dst_p.w == 0) || (dst_p.h == 0)) {
-		pr_err("fail to get valid w %d h %d\n", dst_p.w, dst_p.h);
-		return -EFAULT;
-	}
 
 	switch (module->zoom_solution) {
 	case ZOOM_DEFAULT:
@@ -1756,16 +1807,77 @@ static int camcore_channel_swapsize_cal(struct camera_module *module)
 	return 0;
 }
 
+static int camcore_binning_shift_calc(struct camera_module *module, struct img_trim trim_pv) {
+	uint32_t i = 0, shift = 0, binning_limit = 2;
+	uint32_t factor = 0, src_binning = 0;
+	uint32_t output_stg = 0;
+	struct channel_context *ch_prev = NULL;
+	struct channel_context *ch_vid = NULL;
+	struct img_size max_dst_pv = {0}, max = {0};
+
+	ch_prev = &module->channel[CAM_CH_PRE];
+	ch_vid = &module->channel[CAM_CH_VID];
+	output_stg = module->grp->hw_info->ip_dcam[0]->dcam_output_strategy;
+
+	switch (output_stg) {
+	case IMG_POWER_CONSUM_PRI:
+		if ((ch_prev->ch_uinfo.src_size.w * 2) <= module->cam_uinfo.sn_max_size.w)
+			src_binning = 1;
+		factor = (src_binning ? 10 : 9);
+		if ((trim_pv.size_x >= (ch_prev->ch_uinfo.dst_size.w * 4)) &&
+			(trim_pv.size_x >= (ch_vid->ch_uinfo.dst_size.w * 4)) &&
+			(trim_pv.size_y >= (ch_prev->ch_uinfo.dst_size.h * 4)) &&
+			(trim_pv.size_y >= (ch_vid->ch_uinfo.dst_size.h * 4)))
+			shift = 2;
+		else if ((trim_pv.size_x >= (ch_prev->ch_uinfo.dst_size.w * 2 * factor / 10)) &&
+			(trim_pv.size_x >= (ch_vid->ch_uinfo.dst_size.w * 2 * factor / 10)) &&
+			(trim_pv.size_y >= (ch_prev->ch_uinfo.dst_size.h * 2 * factor / 10)) &&
+			(trim_pv.size_y >= (ch_vid->ch_uinfo.dst_size.h * 2 * factor / 10)))
+				shift = 1;
+		break;
+	case IMG_QUALITY_PRI:
+		max_dst_pv.w = MAX(ch_prev->ch_uinfo.dst_size.w, ch_vid->ch_uinfo.dst_size.w);
+		max.w = trim_pv.size_x;
+		while (i < binning_limit) {
+			if (max.w > g_camctrl.isp_linebuf_len) {
+				max.w = max.w >> 1;
+				if (max.w > max_dst_pv.w)
+					shift++;
+				else
+					break;
+			}
+			i++;
+		}
+		break;
+	default:
+		pr_err("fail to get invalid output type %d\n", output_stg);
+		break;
+	}
+	if (((trim_pv.size_x >> shift) > ch_prev->swap_size.w) ||
+		((trim_pv.size_y >> shift) > ch_prev->swap_size.h))
+			shift++;
+	pr_debug("dcam binning zoom shift %d, type %d\n", shift, output_stg);
+	if (shift > 2) {
+		pr_info("dcam binning should limit to 1/4\n");
+		shift = 2;
+	}
+	if (shift > module->binning_limit) {
+		pr_info("bin shift limit to %d\n", module->binning_limit);
+		shift = module->binning_limit;
+	}
+
+	return shift;
+}
+
 static int camcore_channel_size_calc(struct camera_module *module)
 {
-	uint32_t i = 0, shift = 0, align_size = 0, binning_limit = 0, max_w = 0;
-	uint32_t isp_linebuf_len = g_camctrl.isp_linebuf_len;
+	uint32_t shift = 0, align_size = 0;
 	uint32_t ratio_w = 0, ratio_h = 0, ratio_min = 0;
 	struct channel_context *ch_prev = NULL;
 	struct channel_context *ch_vid = NULL;
 	struct channel_context *ch_cap = NULL;
 	struct channel_context *ch_cap_thm = NULL;
-	struct sprd_img_rect *crop_p = NULL, *crop_v = NULL, *crop_c = NULL;
+	struct sprd_img_rect *crop_p = NULL, *crop_v = NULL;
 	struct sprd_img_rect *total_crop_p = NULL;
 	struct sprd_img_rect crop_dst = {0};
 	struct sprd_img_rect total_crop_dst = {0};
@@ -1782,10 +1894,8 @@ static int camcore_channel_size_calc(struct camera_module *module)
 	if (!ch_prev->enable && !ch_cap->enable && !ch_vid->enable)
 		return 0;
 
-	dcam_out.w = dcam_out.h = 0;
 	dst_p.w = dst_p.h = 1;
 	dst_v.w = dst_v.h = 1;
-	crop_p = crop_v = crop_c = NULL;
 	if (ch_prev->enable || (!ch_prev->enable && ch_vid->enable)) {
 		src_p.w = ch_prev->ch_uinfo.src_size.w;
 		src_p.h = ch_prev->ch_uinfo.src_size.h;
@@ -1825,28 +1935,8 @@ static int camcore_channel_size_calc(struct camera_module *module)
 		trim_c.start_y, trim_c.size_x, trim_c.size_y);
 
 	if (ch_prev->enable || (!ch_prev->enable && ch_vid->enable)) {
-		if (module->zoom_solution == ZOOM_BINNING2) {
-			binning_limit = 2;
-			max_w = trim_pv.size_x;
-			while (i < binning_limit) {
-				if (max_w > isp_linebuf_len) {
-					max_w = max_w >> 1;
-					if (max_w > max_dst_pv.w)
-						shift++;
-					else
-						break;
-				}
-				i++;
-			}
-			if (((trim_pv.size_x >> shift) > ch_prev->swap_size.w) ||
-				((trim_pv.size_y >> shift) > ch_prev->swap_size.h))
-					shift++;
-		}
-		if (shift > 2) {
-			pr_info("dcam binning should limit to 1/4\n");
-			shift = 2;
-		}
-
+		if (module->zoom_solution == ZOOM_BINNING2 || module->zoom_solution == ZOOM_BINNING4)
+			shift = camcore_binning_shift_calc(module, trim_pv);
 		if (shift == 2) {
 			/* make sure output 2 aligned and trim invalid */
 			pr_debug("shift 2 trim_pv %d %d %d %d\n",
@@ -2382,7 +2472,7 @@ static int camcore_channels_size_init(struct camera_module *module)
 
 	camcore_channel_swapsize_cal(module);
 
-	pr_info("zoom_solution %d\n", module->zoom_solution);
+	pr_info("zoom_solution %d, binning_limit %d\n", module->zoom_solution, module->binning_limit);
 
 	return 0;
 }

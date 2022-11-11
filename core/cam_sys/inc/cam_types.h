@@ -163,6 +163,12 @@ enum cam_data_endian {
 	ENDIAN_MAX
 };
 
+enum dcam_output_strategy {
+	IMG_POWER_CONSUM_PRI,
+	IMG_QUALITY_PRI,
+	IMG_STRATEGY_TYPEMAX,
+};
+
 enum cam_zoom_type {
 	ZOOM_DEFAULT = 0,
 	ZOOM_BINNING2,
