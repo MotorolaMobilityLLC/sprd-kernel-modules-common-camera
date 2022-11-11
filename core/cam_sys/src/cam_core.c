@@ -333,7 +333,7 @@ struct camera_group {
 	uint32_t module_used;
 	struct camera_module *module[CAM_COUNT];
 
-	struct mutex dual_deal_lock;
+	spinlock_t dual_deal_lock;
 	uint32_t dcam_count;/*dts cfg dcam count*/
 
 	atomic_t runner_nr; /*running camera num*/
@@ -1378,18 +1378,19 @@ static int camcore_dual_slave_frame_set(void *param, void *priv_data)
 	struct camera_module *module = NULL;
 	struct camera_group *grp = NULL;
 	int ret = CAM_FRAME_NO_DEAL;
+	unsigned long flag = 0;
 
 	pframe = (struct camera_frame *)param;
 	module = (struct camera_module *)priv_data;
 	grp = module->grp;
 
-	mutex_lock(&grp->dual_deal_lock);
+	spin_lock_irqsave(&grp->dual_deal_lock, flag);
 	if (module->master_flag == 0 && atomic_read(&module->dual_select_frame_done) == 1 &&
 		module->dual_frame == NULL && module->capture_type == CAM_CAPTURE_STOP) {
 		module->dual_frame = pframe;
 		ret = CAM_FRAME_DEAL;
 	}
-	mutex_unlock(&grp->dual_deal_lock);
+	spin_unlock_irqrestore(&grp->dual_deal_lock, flag);
 
 	return ret;
 }
@@ -1401,6 +1402,7 @@ static struct camera_frame *camcore_dual_frame_deal(void *param, void *priv_data
 	struct camera_module *module = NULL;
 	struct camera_group *grp = NULL;
 	int ret = 0;
+	unsigned long flag = 0;
 
 	if (!param || !priv_data) {
 		pr_err("fail to get valid ptr %px\n", param);
@@ -1412,7 +1414,7 @@ static struct camera_frame *camcore_dual_frame_deal(void *param, void *priv_data
 	channel = &module->channel[pframe->channel_id];
 	grp = module->grp;
 
-	mutex_lock(&grp->dual_deal_lock);
+	spin_lock_irqsave(&grp->dual_deal_lock, flag);
 	if (module->master_flag == 0) {
 		if (atomic_read(&module->dual_select_frame_done) == 0)
 			*frame_flag = CAM_FRAME_NO_DEAL;
@@ -1436,7 +1438,7 @@ static struct camera_frame *camcore_dual_frame_deal(void *param, void *priv_data
 			*frame_flag = CAM_FRAME_DEAL;
 		}
 	}
-	mutex_unlock(&grp->dual_deal_lock);
+	spin_unlock_irqrestore(&grp->dual_deal_lock, flag);
 
 	return pframe;
 }
@@ -4609,7 +4611,7 @@ static int camcore_probe(struct platform_device *pdev)
 	atomic_set(&group->recovery_state, CAM_RECOVERY_NONE);
 	spin_lock_init(&group->module_lock);
 	mutex_init(&group->pyr_mulshare_lock);
-	mutex_init(&group->dual_deal_lock);
+	spin_lock_init(&group->dual_deal_lock);
 	init_rwsem(&group->switch_recovery_lock);
 
 	pr_info("sprd img probe pdev name %s\n", pdev->name);
