@@ -22,6 +22,8 @@
 #include "isp_drv.h"
 #include "isp_slice.h"
 #include "cam_node.h"
+#include "cam_buf_manager.h"
+
 #ifdef pr_fmt
 #undef pr_fmt
 #endif
@@ -35,6 +37,7 @@ static void ispport_frame_ret(void *param)
 {
 	struct camera_frame * pframe = NULL;
 	struct isp_port *port = NULL;
+	int ret = 0;
 
 	if (!param) {
 		pr_err("fail to get input ptr.\n");
@@ -51,24 +54,15 @@ static void ispport_frame_ret(void *param)
 	pr_debug("port type:%d frame %p, ch_id %d, buf_fd %d\n",
 		port->type, pframe, pframe->channel_id, pframe->buf.mfd);
 
-	if (pframe->is_reserved)
-		port->resbuf_get_cb(RESERVED_BUF_SET_CB, pframe, port->resbuf_cb_data);
-	else {
-		if (pframe->buf.mapping_state & CAM_BUF_MAPPING_DEV)
-			cam_buf_iommu_unmap(&pframe->buf);
-		switch (port->type) {
-		case PORT_TRANSFER_IN:
-			isp_node_offline_pararm_free(pframe->param_data);
-			pframe->param_data = NULL;
-			port->data_cb_func(CAM_CB_ISP_RET_SRC_BUF, pframe, port->data_cb_handle);
-			break;
-		case PORT_TRANSFER_OUT:
-			port->data_cb_func(CAM_CB_ISP_RET_DST_BUF, pframe, port->data_cb_handle);
-			break;
-		default:
-			pr_err("fail to get port type.\n");
-		}
+	if (pframe->buf.mapping_state & CAM_BUF_MAPPING_DEV) {
+		ret = cam_buf_manager_buf_status_change(&pframe->buf, CAM_BUF_WITH_ION, CAM_IOMMUDEV_MAX);
+		if (ret)
+			pr_err("fail to unmap buffer\n");
 	}
+
+	isp_node_offline_pararm_free(pframe->param_data);
+	pframe->param_data = NULL;
+	port->data_cb_func(CAM_CB_ISP_RET_SRC_BUF, pframe, port->data_cb_handle);
 }
 
 static uint32_t ispport_base_cfg(struct isp_port *port, void *param)
@@ -130,6 +124,7 @@ static uint32_t ispport_buf_set(struct isp_port *port, void *param)
 {
 	uint32_t ret = 0;
 	struct camera_frame *pframe = NULL;
+	struct camera_buf_get_desc buf_desc = {0};
 
 	pframe = VOID_PTR_TO(param, struct camera_frame);
 	if (port->type == PORT_TRANSFER_IN && pframe->pyr_status == OFFLINE_DEC_ON) {
@@ -149,9 +144,19 @@ static uint32_t ispport_buf_set(struct isp_port *port, void *param)
 
 	pframe->is_reserved = 0;
 	pframe->priv_data = port;
-	ret = cam_queue_enqueue(&port->out_buf_queue, &pframe->list);
-	if (ret)
-		pr_err("fail to enqueue output buffer,type:%d port_id %d.\n", port->type, port->port_id);
+
+	if (port->type == PORT_TRANSFER_IN) {
+		ret = cam_buf_manager_buf_enqueue(&port->fetch_unprocess_pool, pframe, NULL);
+		if (ret)
+			pr_err("fail to enqueue output buffer,type:%d port_id %d.\n", port->type, port->port_id);
+	}
+
+	if (port->type == PORT_TRANSFER_OUT) {
+		buf_desc.buf_ops_cmd = CAM_BUF_STATUS_MOVE_TO_ION;
+		ret = cam_buf_manager_buf_enqueue(&port->store_unprocess_pool, pframe, &buf_desc);
+		if (ret)
+			pr_err("fail to enqueue output buffer,type:%d port_id %d.\n", port->type, port->port_id);
+	}
 	return ret;
 }
 
@@ -224,30 +229,28 @@ static int ispport_fetchport_postproc(struct isp_port *port, void *param)
 	struct isp_node_postproc_param *post_param = NULL;
 
 	post_param = VOID_PTR_TO(param, struct isp_node_postproc_param);
-	pframe = cam_queue_dequeue(&port->result_queue, struct camera_frame, list);
-	pframe_data = (struct camera_frame *)pframe->pframe_data;
 
+	pframe = cam_buf_manager_buf_dequeue(&port->fetch_result_pool, NULL);
 	if (pframe) {
+		pframe_data = (struct camera_frame *)pframe->pframe_data;
+		if (pframe_data != NULL) {
+			if (pframe_data->buf.mapping_state & CAM_BUF_MAPPING_DEV)
+				cam_buf_manager_buf_status_change(&pframe_data->buf, CAM_BUF_WITH_ION, CAM_IOMMUDEV_MAX);
+			port->data_cb_func(CAM_CB_DCAM_RET_SRC_BUF, pframe_data, port->data_cb_handle);
+			pr_debug("port_link_from %d, ch_id %d, fid:%d\n",
+				pframe_data->link_from, pframe->channel_id, pframe->fid);
+		}
+
 		post_param->zoom_ratio = pframe->zoom_ratio;
 		post_param->total_zoom = pframe->total_zoom;
-		/* return buffer to cam channel shared buffer queue. */
 		if (pframe->buf.mapping_state & CAM_BUF_MAPPING_DEV)
-			cam_buf_iommu_unmap(&pframe->buf);
+			cam_buf_manager_buf_status_change(&pframe->buf, CAM_BUF_WITH_ION, CAM_IOMMUDEV_MAX);
 		port->data_cb_func(CAM_CB_ISP_RET_SRC_BUF, pframe, port->data_cb_handle);
-		pr_debug("port %d, ch_id %d, fid:%d, mfd:%d, shard buffer cnt:%d\n",
-			port->port_id, pframe->channel_id, pframe->fid, pframe->buf.mfd,
-			port->result_queue.cnt);
+		pr_debug("port %d, ch_id %d, fid:%d, mfd:%d\n",
+			port->port_id, pframe->channel_id, pframe->fid, pframe->buf.mfd);
 	} else
-		pr_err("fail to get src frame  sw_idx=%d  proc_queue.cnt:%d\n",
-			port->port_id, port->result_queue.cnt);
+		pr_err("fail to get src frame  sw_idx=%d\n",port->port_id);
 
-	if (pframe_data != NULL) {
-		if (pframe->buf.mapping_state & CAM_BUF_MAPPING_DEV)
-			cam_buf_iommu_unmap(&pframe_data->buf);
-		port->data_cb_func(CAM_CB_DCAM_RET_SRC_BUF, pframe_data, port->data_cb_handle);
-		pr_debug("port_link_from %d, ch_id %d, fid:%d\n",
-			pframe_data->link_from, pframe->channel_id, pframe->fid);
-	}
 	return 0;
 }
 
@@ -258,7 +261,7 @@ static int ispport_storeport_postproc(struct isp_port *port, void *param)
 	struct camera_frame *pframe1 = NULL;
 
 	post_param = VOID_PTR_TO(param, struct isp_node_postproc_param);
-	pframe = cam_queue_dequeue(&port->result_queue, struct camera_frame, list);
+	pframe = cam_buf_manager_buf_dequeue(&port->store_result_pool, NULL);
 
 	if (!pframe) {
 		pr_err("fail to get frame from queue. port:%d, path:%d\n", port->port_id);
@@ -270,9 +273,8 @@ static int ispport_storeport_postproc(struct isp_port *port, void *param)
 	pframe->zoom_ratio = post_param->zoom_ratio;
 	pframe->total_zoom = post_param->total_zoom;
 
-	pr_debug("port%d, ch_id %d, fid %d, mfd 0x%x, queue cnt:%d, is_reserved %d\n",
-		port->port_id, pframe->channel_id, pframe->fid, pframe->buf.mfd,
-		port->result_queue.cnt, pframe->is_reserved);
+	pr_debug("port%d, ch_id %d, fid %d, mfd 0x%x, is_reserved %d\n",
+		port->port_id, pframe->channel_id, pframe->fid, pframe->buf.mfd, pframe->is_reserved);
 	pr_debug("time_sensor %03d.%6d, time_isp %03d.%06d\n",
 		(uint32_t)pframe->sensor_time.tv_sec,
 		(uint32_t)pframe->sensor_time.tv_usec,
@@ -282,7 +284,7 @@ static int ispport_storeport_postproc(struct isp_port *port, void *param)
 	if (unlikely(pframe->is_reserved)) {
 		port->resbuf_get_cb(RESERVED_BUF_SET_CB, pframe, port->resbuf_cb_data);
 	} else if (pframe->state == ISP_STREAM_POST_PROC) {
-		pframe1 = cam_queue_dequeue(&port->out_buf_queue, struct camera_frame, list);
+		pframe1 = cam_buf_manager_buf_dequeue(&port->store_unprocess_pool, NULL);
 		if (!pframe1) {
 			pr_info("warning no frame get from queue\n");
 			return 0;
@@ -292,10 +294,10 @@ static int ispport_storeport_postproc(struct isp_port *port, void *param)
 	} else {
 		if (pframe->buf.mfd == port->reserved_buf_fd) {
 			pframe->buf.size = port->reserve_buf_size;
-			pr_info("pframe->buf.size = %d, path->reserve_buf_size = %d",
+			pr_debug("pframe->buf.size = %d, path->reserve_buf_size = %d",
 				(int)pframe->buf.size, (int)port->reserve_buf_size);
 		}
-		cam_buf_iommu_unmap(&pframe->buf);
+		cam_buf_manager_buf_status_change(&pframe->buf, CAM_BUF_WITH_ION, CAM_IOMMUDEV_MAX);
 		port->data_cb_func(CAM_CB_ISP_RET_DST_BUF, pframe, port->data_cb_handle);
 	}
 	return 0;
@@ -331,14 +333,7 @@ static struct camera_frame *ispport_reserved_buf_get(reserved_buf_get_cb resbuf_
 
 	if (resbuf_get_cb)
 		resbuf_get_cb(RESERVED_BUF_GET_CB, (void *)&frame, cb_data);
-	if (frame != NULL) {
-		frame->priv_data = path;
-		if (cam_buf_iommu_single_page_map(&frame->buf, CAM_IOMMUDEV_ISP)) {
-			pr_err("fail to iommu map\n");
-			resbuf_get_cb(RESERVED_BUF_SET_CB, frame, cb_data);
-			frame = NULL;
-		}
-	}
+
 	return frame;
 }
 
@@ -347,6 +342,7 @@ static struct camera_frame *ispport_out_frame_get(struct isp_port *port, struct 
 	int ret = 0, hw_path_id = isp_port_id_switch(port->port_id);
 	struct camera_frame *out_frame = NULL;
 	uint32_t buf_type = 0;
+	struct camera_buf_get_desc buf_desc = {0};
 
 	if (!port || !port_cfg) {
 		pr_err("fail to get valid input pctx %p\n", port);
@@ -385,37 +381,29 @@ static struct camera_frame *ispport_out_frame_get(struct isp_port *port, struct 
 
 normal_out_put:
 
-	if (port->uframe_sync && port_cfg->target_fid != CAMERA_RESERVE_FRAME_NUM)
-		out_frame = cam_queue_dequeue_if(&port->out_buf_queue,
-			ispport_fid_check, (void *)&port_cfg->target_fid);
-	else
-		out_frame = cam_queue_dequeue(&port->out_buf_queue,
-			struct camera_frame, list);
+	if (port->uframe_sync && port_cfg->target_fid != CAMERA_RESERVE_FRAME_NUM) {
+		buf_desc.q_ops_cmd = CAM_QUEUE_IF;
+		buf_desc.filter = ispport_fid_check;
+		buf_desc.target_fid = port_cfg->target_fid;
+		out_frame = cam_buf_manager_buf_dequeue(&port->store_unprocess_pool, &buf_desc);
+	} else {
+		out_frame = cam_buf_manager_buf_dequeue(&port->store_unprocess_pool, NULL);
+	}
 
 	if (out_frame)
 		port_cfg->valid_out_frame = 1;
 	else
 		out_frame = ispport_reserved_buf_get(port->resbuf_get_cb, port->resbuf_cb_data, port);
+
 	if (out_frame != NULL) {
-		if (out_frame->is_reserved == 0 &&
-			(out_frame->buf.mapping_state & CAM_BUF_MAPPING_DEV) == 0) {
+		if (out_frame->is_reserved == 0 && (out_frame->buf.mapping_state & CAM_BUF_MAPPING_DEV) == 0) {
 			if (out_frame->buf.mfd == port->reserved_buf_fd) {
 				out_frame->buf.size = port->reserve_buf_size;
-				pr_debug("out_frame->buf.size = %d, path->reserve_buf_size = %d",
-					(int)out_frame->buf.size, (int)port->reserve_buf_size);
-				ret = cam_buf_iommu_single_page_map(&out_frame->buf, CAM_IOMMUDEV_ISP);
+				pr_debug("out_frame->buf.size = %d, path->reserve_buf_size = %d", (int)out_frame->buf.size, (int)port->reserve_buf_size);
 			} else
-				ret = cam_buf_iommu_map(&out_frame->buf, CAM_IOMMUDEV_ISP);
-
-			pr_debug("map output buffer %08x\n", (uint32_t)out_frame->buf.iova);
-			if (ret) {
-				cam_queue_enqueue(&port->out_buf_queue, &out_frame->list);
-				out_frame = NULL;
-				pr_err("fail to map isp iommu buf.\n");
-			}
+				pr_debug("out_frame->buf.size = %d",(int)out_frame->buf.size);
 		}
 	}
-
 exit:
 	return out_frame;
 }
@@ -424,11 +412,13 @@ static uint32_t ispport_uframe_fid_get(struct isp_port* port, void *param)
 {
 	uint32_t *port_fid = NULL;
 	struct camera_frame *frame = NULL;
+	struct camera_buf_get_desc buf_desc = {0};
 
 	port_fid = VOID_PTR_TO(param, uint32_t);
 	*port_fid = CAMERA_RESERVE_FRAME_NUM;
 	if (port->uframe_sync) {
-		frame = cam_queue_dequeue_peek(&port->out_buf_queue, struct camera_frame, list);
+		buf_desc.q_ops_cmd = CAM_QUEUE_DEQ_PEEK;
+		frame = cam_buf_manager_buf_dequeue(&port->store_unprocess_pool, &buf_desc);
 		if (!frame)
 			return 0;
 		*port_fid = frame->user_fid;
@@ -442,25 +432,22 @@ static int ispport_fetch_frame_cycle(struct isp_port *port, void *param)
 	struct camera_frame *pframe_data = NULL;
 	struct isp_port_cfg *port_cfg = NULL;
 	uint32_t ret = 0, loop = 0;
+	struct camera_buf_get_desc buf_desc = {0};
 
 	port_cfg = VOID_PTR_TO(param, struct isp_port_cfg);
-	pframe = cam_queue_dequeue(&port->out_buf_queue, struct camera_frame, list);
-	pframe_data = (struct camera_frame *)pframe->pframe_data;
+
+	buf_desc.buf_ops_cmd = CAM_BUF_STATUS_GET_IOVA;
+	buf_desc.mmu_type = CAM_IOMMUDEV_ISP;
+	pframe = cam_buf_manager_buf_dequeue(&port->fetch_unprocess_pool, &buf_desc);
 	if (pframe == NULL) {
 		pr_err("fail to get frame (%px) for port %d\n", pframe, port->port_id);
 		ret = -EINVAL;
 		goto err;
 	}
 
-	ret = cam_buf_iommu_map(&pframe->buf, CAM_IOMMUDEV_ISP);
-	if (ret) {
-		pr_err("fail to map buf to ISP iommu. port_id %d\n", port->port_id);
-		ret = -EINVAL;
-		goto err;
-	}
-
+	pframe_data = (struct camera_frame *)pframe->pframe_data;
 	if (pframe_data != NULL) {
-		ret = cam_buf_iommu_map(&pframe_data->buf, CAM_IOMMUDEV_ISP);
+		ret = cam_buf_manager_buf_status_change(&pframe_data->buf, CAM_BUF_WITH_IOVA, CAM_IOMMUDEV_ISP);
 		if (ret) {
 			pr_err("fail to map buf to ISP iommu. port_id %d\n", port->port_id);
 			ret = -EINVAL;
@@ -470,7 +457,7 @@ static int ispport_fetch_frame_cycle(struct isp_port *port, void *param)
 
 	loop = 0;
 	do {
-		ret = cam_queue_enqueue(&port->result_queue, &pframe->list);
+		ret = cam_buf_manager_buf_enqueue(&port->fetch_result_pool, pframe, NULL);
 		if (ret == 0)
 			break;
 		pr_info_ratelimited("wait for proc queue. loop %d\n", loop);
@@ -497,8 +484,10 @@ static int ispport_store_frameproc(struct isp_port *port, struct camera_frame *o
 {
 	int hw_path_id = isp_port_id_switch(port->port_id);
 	uint32_t ret = 0, loop = 0;
+	struct camera_buf_get_desc buf_desc = {0};
+
 	if (out_frame == NULL || !port_cfg->src_frame) {
-		pr_err("fail to get out_frame,port id:%d,out queue cnt:%d\n", port->port_id, cam_queue_cnt_get(&port->out_buf_queue));
+		pr_err("fail to get out_frame,port id:%d\n", port->port_id);
 		return -EINVAL;
 	}
 
@@ -507,25 +496,17 @@ static int ispport_store_frameproc(struct isp_port *port, struct camera_frame *o
 	out_frame->boot_sensor_time = port_cfg->src_frame->boot_sensor_time;
 	out_frame->link_from.port_id = port->port_id;
 
-	pr_debug("port %d, is_reserved %d iova 0x%x, user_fid: %x mfd 0x%x fid: %d\n",
-		port->port_id, out_frame->is_reserved,
-		(uint32_t)out_frame->buf.iova, out_frame->user_fid,
-		out_frame->buf.mfd, out_frame->fid);
-	/* config store buffer */
-	ret = isp_hwctx_store_frm_set(port_cfg->pipe_info, isp_port_id_switch(port->port_id), out_frame);
-	/* If some error comes then do not start ISP */
-
-	if (ret) {
-		cam_buf_iommu_unmap(&out_frame->buf);
-		cam_buf_ionbuf_put(&out_frame->buf);
-		cam_queue_empty_frame_put(out_frame);
-		pr_err("fail to set store buffer\n");
-		return -EINVAL;
-	}
-
 	if (!port_cfg->need_post_proc[hw_path_id]) {
 		do {
-			ret = cam_queue_enqueue(&port->result_queue, &out_frame->list);
+			if (!out_frame->is_reserved) {
+				if (out_frame->buf.mfd == port->reserved_buf_fd)
+					buf_desc.buf_ops_cmd = CAM_BUF_STATUS_GET_SINGLE_PAGE_IOVA;
+				else
+					buf_desc.buf_ops_cmd = CAM_BUF_STATUS_GET_IOVA;
+			} else
+				buf_desc.buf_ops_cmd = CAM_BUF_STATUS_GET_SINGLE_PAGE_IOVA;
+			buf_desc.mmu_type = CAM_IOMMUDEV_ISP;
+			ret = cam_buf_manager_buf_enqueue(&port->store_result_pool, out_frame, &buf_desc);
 			if (ret == 0)
 				break;
 			printk_ratelimited(KERN_INFO "wait for output queue. loop %d\n", loop);
@@ -543,12 +524,22 @@ static int ispport_store_frameproc(struct isp_port *port, struct camera_frame *o
 			if (port_cfg->rgb_ltm)
 				port_cfg->rgb_ltm->ltm_ops.sync_ops.clear_status(port_cfg->rgb_ltm);
 		} else {
-			cam_buf_iommu_unmap(&out_frame->buf);
-			cam_queue_enqueue(
-				&port->out_buf_queue, &out_frame->list);
+			buf_desc.buf_ops_cmd = CAM_BUF_STATUS_PUT_IOVA;
+			cam_buf_manager_buf_enqueue(&port->store_unprocess_pool, out_frame, &buf_desc);
 		}
 		return -EINVAL;
 	}
+
+	pr_debug("port %d, is_reserved %d iova 0x%x, user_fid: %x mfd 0x%x fid: %d\n", port->port_id, out_frame->is_reserved,
+		(uint32_t)out_frame->buf.iova, out_frame->user_fid, out_frame->buf.mfd, out_frame->fid);
+	/* config store buffer */
+	ret = isp_hwctx_store_frm_set(port_cfg->pipe_info, isp_port_id_switch(port->port_id), out_frame);
+	/* If some error comes then do not start ISP */
+	if (ret) {
+		pr_err("fail to set store buffer\n");
+		return -EINVAL;
+	}
+
 	return 0;
 }
 
@@ -1363,43 +1354,45 @@ static int ispport_start_error(struct isp_port *port, void *param)
 	struct camera_frame *pframe = NULL;
 	struct camera_frame *pframe_data = NULL;
 	struct isp_port_cfg *port_cfg = NULL;
+	struct camera_buf_get_desc buf_desc = {0};
 
 	port_cfg = VOID_PTR_TO(param, struct isp_port_cfg);
 	if (port->type == PORT_TRANSFER_IN) {
-		if (port_cfg->out_buf_clear)
-			pframe = cam_queue_dequeue(&port->out_buf_queue, struct camera_frame, list);
-		else
-			pframe = cam_queue_dequeue_tail(&port->result_queue, struct camera_frame, list);
-		pframe_data = (struct camera_frame *)pframe->pframe_data;
+		if (port_cfg->out_buf_clear) {
+			pframe = cam_buf_manager_buf_dequeue(&port->fetch_unprocess_pool, NULL);
+		} else {
+			buf_desc.q_ops_cmd = CAM_QUEUE_TAIL;
+			buf_desc.buf_ops_cmd = CAM_BUF_STATUS_PUT_IOVA;
+			pframe = cam_buf_manager_buf_dequeue(&port->fetch_result_pool, &buf_desc);
+		}
+
 		if (pframe) {
-			if (pframe->is_reserved)
-				port->resbuf_get_cb(RESERVED_BUF_SET_CB, pframe, port->resbuf_cb_data);
-			else {
-				if (pframe->buf.mapping_state & CAM_BUF_MAPPING_DEV)
-					cam_buf_iommu_unmap(&pframe->buf);
-				isp_node_offline_pararm_free(pframe->param_data);
-				pframe->param_data = NULL;
-				if (port_cfg->param_share_queue)
-					cam_queue_blk_param_unbind(port_cfg->param_share_queue, pframe);
-				port->data_cb_func(CAM_CB_ISP_RET_SRC_BUF, pframe, port->data_cb_handle);
+			pframe_data = (struct camera_frame *)pframe->pframe_data;
+			if (pframe_data != NULL) {
+				if (pframe_data->buf.mapping_state & CAM_BUF_MAPPING_DEV)
+					cam_buf_manager_buf_status_change(&pframe_data->buf, CAM_BUF_WITH_ION, CAM_IOMMUDEV_MAX);
+				port->data_cb_func(CAM_CB_DCAM_RET_SRC_BUF, pframe_data, port->data_cb_handle);
 			}
+
+			isp_node_offline_pararm_free(pframe->param_data);
+			pframe->param_data = NULL;
+			if (port_cfg->param_share_queue)
+				cam_queue_blk_param_unbind(port_cfg->param_share_queue, pframe);
+			port->data_cb_func(CAM_CB_ISP_RET_SRC_BUF, pframe, port->data_cb_handle);
 		}
-		if (pframe_data != NULL) {
-			if (pframe->buf.mapping_state & CAM_BUF_MAPPING_DEV)
-				cam_buf_iommu_unmap(&pframe_data->buf);
-			port->data_cb_func(CAM_CB_DCAM_RET_SRC_BUF, pframe_data, port->data_cb_handle);
-		}
+
 	}
 
 	if (port->type == PORT_TRANSFER_OUT) {
-		pframe = cam_queue_dequeue_tail(&port->result_queue, struct camera_frame, list);
+		buf_desc.q_ops_cmd = CAM_QUEUE_TAIL;
+		pframe = cam_buf_manager_buf_dequeue(&port->store_result_pool, &buf_desc);
 		if (pframe) {
-			pr_debug("port %d frame %px, is reserve %d\n", port->port_id, pframe, pframe->is_reserved);
 			/* ret frame to original queue */
 			if (pframe->is_reserved)
 				port->resbuf_get_cb(RESERVED_BUF_SET_CB, pframe, port->resbuf_cb_data);
-			else
-				cam_queue_enqueue(&port->out_buf_queue, &pframe->list);
+			else {
+				cam_buf_manager_buf_enqueue(&port->store_unprocess_pool, pframe, NULL);
+			}
 		}
 	}
 	return 0;
@@ -1410,8 +1403,9 @@ static int ispport_video_slowmotion(struct isp_port *port, struct isp_port_cfg *
 	struct camera_frame *out_frame = NULL;
 	uint32_t hw_path_id = isp_port_id_switch(port->port_id);
 	uint32_t ret = 0;
+
 	if (port_cfg->vid_valid) {
-		out_frame = cam_queue_dequeue(&port->out_buf_queue, struct camera_frame, list);
+		out_frame = cam_buf_manager_buf_dequeue(&port->store_unprocess_pool, NULL);
 		pr_debug("vid use valid %px\n", out_frame);
 	}
 
@@ -1423,18 +1417,9 @@ static int ispport_video_slowmotion(struct isp_port *port, struct isp_port_cfg *
 	if (out_frame->is_reserved == 0) {
 		if (out_frame->buf.mfd == port->reserved_buf_fd) {
 			out_frame->buf.size = port->reserve_buf_size;
-			pr_debug("out_frame->buf.size = %d, path->reserve_buf_size = %d",
-				(int)out_frame->buf.size, (int)port->reserve_buf_size);
-			ret = cam_buf_iommu_single_page_map(&out_frame->buf, CAM_IOMMUDEV_ISP);
+			pr_debug("out_frame->buf.size = %d, path->reserve_buf_size = %d", (int)out_frame->buf.size, (int)port->reserve_buf_size);
 		} else
-			ret = cam_buf_iommu_map(&out_frame->buf, CAM_IOMMUDEV_ISP);
-		pr_debug("map output buffer %08x\n", (uint32_t)out_frame->buf.iova);
-		if (ret) {
-			cam_queue_enqueue(&port->out_buf_queue, &out_frame->list);
-			out_frame = NULL;
-			pr_err("fail to map isp iommu buf.\n");
-			return -EINVAL;
-		}
+			pr_debug("map output buffer %08x\n", (uint32_t)out_frame->buf.iova);
 	}
 	ret = ispport_store_frameproc(port, out_frame, port_cfg);
 
@@ -1489,14 +1474,17 @@ static int ispport_fast_stop(struct isp_port *port, void *param)
 {
 	struct isp_port_cfg *port_cfg = NULL;
 	struct camera_frame *pframe = NULL;
-	uint32_t ret = 0;
+	uint32_t ret = 0, out_buf_queue_cnt = 0, result_queue_cnt = 0;
+	struct camera_buf_get_desc buf_desc = {0};
 
 	port_cfg = VOID_PTR_TO(param, struct isp_port_cfg);
 	if (port->type == PORT_TRANSFER_IN) {
 		if (*(port_cfg->faststop) == 1)
 			ispport_start_error(port, port_cfg);
 
-		if (cam_queue_cnt_get(&port->out_buf_queue) == 0 && cam_queue_cnt_get(&port->result_queue) == 0) {
+		out_buf_queue_cnt = cam_buf_manager_pool_cnt(&port->fetch_unprocess_pool);
+		result_queue_cnt = cam_buf_manager_pool_cnt(&port->fetch_result_pool);
+		if (out_buf_queue_cnt == 0 && result_queue_cnt == 0) {
 			*(port_cfg->faststop) = 0;
 			complete(port_cfg->faststop_done);
 		} else
@@ -1504,7 +1492,7 @@ static int ispport_fast_stop(struct isp_port *port, void *param)
 	}
 
 	if (port->type == PORT_TRANSFER_OUT) {
-		pframe = cam_queue_dequeue(&port->result_queue, struct camera_frame, list);
+		pframe = cam_buf_manager_buf_dequeue(&port->store_result_pool, NULL);
 
 		if (!pframe) {
 			pr_err("fail to get frame from queue. port:%d\n", port->port_id);
@@ -1520,8 +1508,9 @@ static int ispport_fast_stop(struct isp_port *port, void *param)
 				pr_info("pframe->buf.size = %d, path->reserve_buf_size = %d",
 					(int)pframe->buf.size, (int)port->reserve_buf_size);
 			}
-			cam_buf_iommu_unmap(&pframe->buf);
-			cam_queue_enqueue_front(&port->out_buf_queue, &pframe->list);
+			buf_desc.q_ops_cmd = CAM_QUEUE_FRONT;
+			buf_desc.buf_ops_cmd = CAM_BUF_STATUS_PUT_IOVA;
+			cam_buf_manager_buf_enqueue(&port->store_unprocess_pool, pframe, &buf_desc);
 		}
 	}
 	return ret;
@@ -1629,6 +1618,7 @@ int isp_port_param_cfg(void *handle, enum cam_port_cfg_cmd cmd, void *param)
 void *isp_port_get(uint32_t port_id, struct isp_port_desc *port_desc)
 {
 	struct isp_port *port = NULL;
+	int ret = 0, buffer_num = 0;
 
 	if (!port_desc) {
 		pr_err("fail to get valid param\n");
@@ -1647,13 +1637,10 @@ void *isp_port_get(uint32_t port_id, struct isp_port_desc *port_desc)
 		goto exit;
 	}
 
-	if (port_desc->is_high_fps == 0) {
-		cam_queue_init(&port->result_queue, ISP_RESULT_Q_LEN, ispport_frame_ret);
-		cam_queue_init(&port->out_buf_queue, ISP_OUT_BUF_Q_LEN, ispport_frame_ret);
-	} else {
-		cam_queue_init(&port->result_queue, ISP_SLW_IN_Q_LEN, ispport_frame_ret);
-		cam_queue_init(&port->out_buf_queue, ISP_OUT_BUF_Q_LEN, ispport_frame_ret);
-	}
+	if (port_desc->is_high_fps == 0)
+		buffer_num = ISP_RESULT_Q_LEN;
+	else
+		buffer_num = ISP_SLW_IN_Q_LEN;
 
 	port->resbuf_get_cb = port_desc->resbuf_get_cb;
 	port->resbuf_cb_data = port_desc->resbuf_cb_data;
@@ -1669,12 +1656,47 @@ void *isp_port_get(uint32_t port_id, struct isp_port_desc *port_desc)
 		port->store_3dnr_fmt= port_desc->store_3dnr_fmt;
 		port->sn_size = port_desc->sn_size;
 		port->fetch_path_sel = port_desc->fetch_path_sel;
-	}
-	if (port_desc->transfer_type == PORT_TRANSFER_OUT) {
+
+		/*fetch*/
+		ret = cam_buf_manager_pool_reg(NULL, ISP_OUT_BUF_Q_LEN);
+		if (ret < 0) {
+			pr_err("fail to reg pool for port%d\n", port->port_id);
+			cam_buf_kernel_sys_vfree(port);
+			return NULL;
+		}
+		port->fetch_unprocess_pool.private_pool_idx = ret;
+
+		ret = cam_buf_manager_pool_reg(NULL, buffer_num);
+		if (ret < 0) {
+			pr_err("fail to reg pool for port%d\n", cam_port_name_get(port->port_id));
+			cam_buf_manager_pool_unreg(&port->fetch_unprocess_pool);
+			cam_buf_kernel_sys_vfree(port);
+			return NULL;
+		}
+		port->fetch_result_pool.private_pool_idx = ret;
+	} else if (port_desc->transfer_type == PORT_TRANSFER_OUT) {
 		port->fmt = port_desc->out_fmt;
 		port->data_endian = port_desc->endian;
 		port->regular_mode = port_desc->regular_mode;
 		port->size = port_desc->output_size;
+
+		/*store*/
+		ret = cam_buf_manager_pool_reg(NULL, ISP_OUT_BUF_Q_LEN);
+		if (ret < 0) {
+			pr_err("fail to reg pool for port%d\n", port->port_id);
+			cam_buf_kernel_sys_vfree(port);
+			return NULL;
+		}
+		port->store_unprocess_pool.private_pool_idx = ret;
+
+		ret = cam_buf_manager_pool_reg(NULL, buffer_num);
+		if (ret < 0) {
+			pr_err("fail to reg pool for port%d\n", cam_port_name_get(port->port_id));
+			cam_buf_manager_pool_unreg(&port->store_unprocess_pool);
+			cam_buf_kernel_sys_vfree(port);
+			return NULL;
+		}
+		port->store_result_pool.private_pool_idx = ret;
 	}
 
 	port->port_id = port_id;
@@ -1692,17 +1714,25 @@ exit:
 
 void isp_port_put(struct isp_port *port)
 {
+
 	if (!port) {
 		pr_err("fail to get invalid port ptr\n");
 		return;
 	}
 
 	if (atomic_dec_return(&port->user_cnt) == 0) {
-		cam_queue_clear(&port->result_queue, struct camera_frame, list);
-		cam_queue_clear(&port->out_buf_queue, struct camera_frame, list);
 		port->resbuf_get_cb = NULL;
 		port->data_cb_func = NULL;
 		port->port_cfg_cb_func = NULL;
+
+		if (port->type == PORT_TRANSFER_IN) {
+			cam_buf_manager_pool_unreg(&port->fetch_unprocess_pool);
+			cam_buf_manager_pool_unreg(&port->fetch_result_pool);
+		} else if (port->type == PORT_TRANSFER_OUT) {
+			cam_buf_manager_pool_unreg(&port->store_unprocess_pool);
+			cam_buf_manager_pool_unreg(&port->store_result_pool);
+		}
+
 		cam_buf_kernel_sys_vfree(port);
 		port = NULL;
 		pr_info("isp portfree success\n");

@@ -22,15 +22,15 @@
 #define COEF_VOR_UV_SIZE        (32 * 8)
 static unsigned long irq_base[4] = {
 	ISP_P0_INT_BASE,
-	ISP_C0_INT_BASE,
 	ISP_P1_INT_BASE,
+	ISP_C0_INT_BASE,
 	ISP_C1_INT_BASE
 };
 
 unsigned long cfg_cmd_addr_reg[ISP_CONTEXT_HW_NUM] = {
 	ISP_CFG_PRE0_CMD_ADDR,
-	ISP_CFG_CAP0_CMD_ADDR,
 	ISP_CFG_PRE1_CMD_ADDR,
+	ISP_CFG_CAP0_CMD_ADDR,
 	ISP_CFG_CAP1_CMD_ADDR
 };
 
@@ -1789,12 +1789,12 @@ static int isphw_slw_fmcu_cmds(void *handle, void *arg)
 	struct isp_hw_fmcu_cfg cfg;
 
 	uint32_t shadow_done_cmd[ISP_CONTEXT_HW_NUM] = {
-		PRE0_SHADOW_DONE, CAP0_SHADOW_DONE,
-		PRE1_SHADOW_DONE, CAP1_SHADOW_DONE,
+		PRE0_SHADOW_DONE, PRE1_SHADOW_DONE,
+		CAP0_SHADOW_DONE, CAP1_SHADOW_DONE,
 	};
 	uint32_t all_done_cmd[ISP_CONTEXT_HW_NUM] = {
-		PRE0_ALL_DONE, CAP0_ALL_DONE,
-		PRE1_ALL_DONE, CAP1_ALL_DONE,
+		PRE0_ALL_DONE, PRE1_ALL_DONE,
+		CAP0_ALL_DONE, CAP1_ALL_DONE,
 	};
 
 	slw = (struct isp_hw_slw_fmcu_cmds *)arg;
@@ -1873,8 +1873,8 @@ static int isphw_fmcu_cfg(void *handle, void *arg)
 	unsigned long base;
 	unsigned long reg_addr[ISP_CONTEXT_HW_NUM] = {
 		ISP_CFG_PRE0_START,
-		ISP_CFG_CAP0_START,
 		ISP_CFG_PRE1_START,
+		ISP_CFG_CAP0_START,
 		ISP_CFG_CAP1_START,
 	};
 
@@ -1973,12 +1973,12 @@ static int isphw_slices_fmcu_cmds(void *handle, void *arg)
 	unsigned long base = 0;
 	struct isp_hw_slices_fmcu_cmds *parg = NULL;
 	uint32_t shadow_done_cmd[ISP_CONTEXT_HW_NUM] = {
-		PRE0_SHADOW_DONE, CAP0_SHADOW_DONE,
-		PRE1_SHADOW_DONE, CAP1_SHADOW_DONE,
+		PRE0_SHADOW_DONE, PRE1_SHADOW_DONE,
+		CAP0_SHADOW_DONE, CAP1_SHADOW_DONE,
 	};
 	uint32_t all_done_cmd[ISP_CONTEXT_HW_NUM] = {
-		PRE0_ALL_DONE, CAP0_ALL_DONE,
-		PRE1_ALL_DONE, CAP1_ALL_DONE,
+		PRE0_ALL_DONE, PRE1_ALL_DONE,
+		CAP0_ALL_DONE, CAP1_ALL_DONE,
 	};
 
 	parg = (struct isp_hw_slices_fmcu_cmds *)arg;
@@ -2572,8 +2572,8 @@ static int isphw_cfg_cmd_ready(void *handle, void *arg)
 	uint32_t hw_ctx_id = cfg_info->hw_ctx_id;
 	uint32_t ready_mode[ISP_CONTEXT_HW_NUM] = {
 		BIT_26,/* pre0_cmd_ready_mode */
-		BIT_24,/* cap0_cmd_ready_mode */
 		BIT_27,/* pre1_cmd_ready_mode */
+		BIT_24,/* cap0_cmd_ready_mode */
 		BIT_25/* cap1_cmd_ready_mode */
 	};
 
@@ -2603,8 +2603,8 @@ static int isphw_isp_start_cfg(void *handle, void *arg)
 	uint32_t ctx_id = 0;
 	unsigned long reg_addr[] = {
 		ISP_CFG_PRE0_START,
-		ISP_CFG_CAP0_START,
 		ISP_CFG_PRE1_START,
+		ISP_CFG_CAP0_START,
 		ISP_CFG_CAP1_START,
 	};
 

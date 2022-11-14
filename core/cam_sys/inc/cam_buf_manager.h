@@ -50,6 +50,9 @@ enum cam_queue_ops_cmd {
 	CAM_QUEUE_DEL_TAIL = 1,
 	CAM_QUEUE_DEQ_PEEK,
 	CAM_QUEUE_TAIL_PEEK,
+	CAM_QUEUE_TAIL,
+	CAM_QUEUE_IF,
+	CAM_QUEUE_FRONT,
 };
 
 enum cambufmanager_status_ops_cmd {
@@ -100,9 +103,10 @@ enum cambufmanager_status_cmd {
 struct camera_buf_get_desc {
 	uint32_t is_uframe_sync;
 	uint32_t target_fid;
-	uint32_t buf_ops_cmd;
+	enum cambufmanager_status_ops_cmd buf_ops_cmd;
 	enum cam_queue_ops_cmd q_ops_cmd;
 	enum cam_iommudev_type mmu_type;
+	bool (*filter)(struct camera_frame *, void *);
 };
 
 struct cam_buf_manager {

@@ -721,8 +721,10 @@ static void camcore_k_frame_put(void *param)
 	if (frame->buf.type == CAM_BUF_USER)
 		cam_buf_ionbuf_put(&frame->buf);
 	else {
-		if (frame->buf.mapping_state)
+		if (frame->buf.mapping_state & CAM_BUF_MAPPING_KERNEL)
 			cam_buf_kunmap(&frame->buf);
+		if (frame->buf.mapping_state & CAM_BUF_MAPPING_DEV)
+			cam_buf_iommu_unmap(&frame->buf);
 		cam_buf_free(&frame->buf);
 	}
 	ret = cam_queue_empty_frame_put(frame);

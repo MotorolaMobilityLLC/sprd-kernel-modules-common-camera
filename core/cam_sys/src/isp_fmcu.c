@@ -42,7 +42,7 @@ static int ispfmcu_cmd_debug(struct isp_fmcu_ctx_desc *fmcu_ctx)
 	pr_debug("fmcu %d  cmd num %d\n", (int)fmcu_ctx->fid, cmd_num);
 
 	for (i = 0; i <= cmd_num; i += 2) {
-		pr_debug(" a:0x%08x c: 0x%08x | a:0x%08x c: 0x%08x\n",
+		pr_debug("a:0x%08x c: 0x%08x | a:0x%08x c: 0x%08x\n",
 			*(uint32_t *)(addr + 4),
 			*(uint32_t *)(addr),
 			*(uint32_t *)(addr + 12),
@@ -282,12 +282,12 @@ struct isp_fmcu_ctx_desc s_fmcu_desc[ISP_FMCU_NUM] = {
 		.cur_buf_id = PING,
 	},
 	{
-		.fid = ISP_FMCU_1,
+		.fid = ISP_FMCU_REC,
 		.ops = &fmcu_ops,
 		.cur_buf_id = PING,
 	},
 	{
-		.fid = ISP_FMCU_REC,
+		.fid = ISP_FMCU_1,
 		.ops = &fmcu_ops,
 		.cur_buf_id = PING,
 	},

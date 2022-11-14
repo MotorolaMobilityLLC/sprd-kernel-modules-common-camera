@@ -627,6 +627,10 @@ static ssize_t camdebugger_csi_switch_write(struct file *filp,
 	int ret = 0;
 	char msg[8];
 
+	if (!s_dcam_dev) {
+		pr_err("dcam Hardware not enable\n");
+		return -EFAULT;
+	}
 	ret = copy_from_user(msg, (void __user *)buffer, count);
 	if (ret) {
 		pr_err("fail to copy_from_user\n");

@@ -240,6 +240,7 @@ static int ispint_err_pre_proc(enum isp_context_hw_id hw_idx, void *isp_handle)
 			ISP_HREG_RD(addr + 8),
 			ISP_HREG_RD(addr + 12));
 	}
+
 	pr_info("ISP: pyr_rec Register list\n");
 	for (addr = 0x9310; addr <= 0x9334; addr += 16) {
 		pr_info("0x%lx: 0x%x 0x%x 0x%x 0x%x\n",
@@ -479,14 +480,14 @@ static struct isp_int_ctx {
 			(uint32_t)ARRAY_SIZE(isp_irq_process),
 			isp_irq_process,
 		},
-		{ /* C0 */
-			ISP_C0_INT_BASE,
+		{ /* P1 */
+			ISP_P1_INT_BASE,
 			ISP_INT_LINE_MASK_ERR | ISP_INT_LINE_MASK_MMU,
 			(uint32_t)ARRAY_SIZE(isp_irq_process),
 			isp_irq_process,
 		},
-		{ /* P1 */
-			ISP_P1_INT_BASE,
+		{ /* C0 */
+			ISP_C0_INT_BASE,
 			ISP_INT_LINE_MASK_ERR | ISP_INT_LINE_MASK_MMU,
 			(uint32_t)ARRAY_SIZE(isp_irq_process),
 			isp_irq_process,
@@ -654,7 +655,7 @@ static irqreturn_t ispint_isr_root(int irq, void *priv)
 	}
 	pr_debug("isp irq %d, priv %p, iid %d\n", irq, priv, iid);
 	for (sid = 0; sid < 2; sid++) {
-		pctx_hw_id = (iid << 1) | sid;
+		pctx_hw_id = (sid << 1) | iid;
 		ctxs_com = ispint_ctxs_rd(pctx_hw_id);
 
 		/* read the interrupt*/
