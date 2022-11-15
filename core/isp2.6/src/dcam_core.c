@@ -1779,12 +1779,7 @@ static int dcamcore_dev_start(void *dcam_handle, int online)
 	}
 
 	if (pctx->offline) {
-		init_completion(&pctx->frm_done);
-		complete(&pctx->frm_done);
-		init_completion(&pctx->slice_done);
-		complete(&pctx->slice_done);
 		atomic_set(&pctx->state, STATE_RUNNING);
-		pctx->frame_index = DCAM_FRAME_INDEX_MAX;
 		return ret;
 	}
 
@@ -2376,6 +2371,12 @@ static int dcamcore_context_get(void *dcam_handle)
 	atomic_set(&pctx->state, STATE_IDLE);
 	spin_lock_init(&pctx->glb_reg_lock);
 	spin_lock_init(&pctx->fbc_lock);
+	/* offline scene */
+	init_completion(&pctx->frm_done);
+	complete(&pctx->frm_done);
+	init_completion(&pctx->slice_done);
+	complete(&pctx->slice_done);
+	pctx->frame_index = DCAM_FRAME_INDEX_MAX;
 exit:
 	mutex_unlock(&dev->path_mutex);
 	pr_info("Get context id %d\n", sel_ctx_id);
@@ -2385,6 +2386,7 @@ exit:
 static int dcamcore_context_put(void *dcam_handle, int ctx_id)
 {
 	int ret = 0;
+	uint32_t loop = 0;
 	struct dcam_pipe_dev *dev = NULL;
 	struct dcam_sw_context *pctx = NULL;
 
@@ -2408,6 +2410,21 @@ static int dcamcore_context_put(void *dcam_handle, int ctx_id)
 			pr_err("fail to get dev state, DCAM%u already closed\n", pctx->hw_ctx_id);
 			return -EINVAL;
 		}
+
+		ret = wait_for_completion_timeout(&pctx->frm_done, DCAM_OFFLINE_TIMEOUT);
+		if (ret == 0)
+			pr_err("fail to wait done %d, timeout.\n", ctx_id);
+		else
+			pr_info("offline wait time %d ms\n", ret);
+
+		/* make sure irq handler exit to avoid crash */
+		while (pctx->in_irq_handler && (loop < 1000)) {
+			pr_info("cxt % in irq. wait %d", ctx_id, loop);
+			loop++;
+			udelay(500);
+		};
+		if (loop == 1000)
+			pr_warn("warning: dcam context put wait irq timeout\n");
 
 		cam_queue_clear(&pctx->in_queue, struct camera_frame, list);
 		cam_queue_clear(&pctx->proc_queue, struct camera_frame, list);

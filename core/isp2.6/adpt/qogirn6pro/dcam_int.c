@@ -1859,6 +1859,8 @@ static irqreturn_t dcamint_isr_root(int irq, void *priv)
 	DCAM_REG_WR(dcam_hw_ctx->hw_ctx_id, DCAM_INT0_CLR, status);
 	DCAM_REG_WR(dcam_hw_ctx->hw_ctx_id, DCAM_INT1_CLR, status1);
 
+	dcam_sw_ctx->in_irq_handler = 1;
+
 	if (!dcam_sw_ctx->slowmotion_count) {
 		if (status & BIT(DCAM_IF_IRQ_INT0_GTM_DONE))
 			dcamint_gtm_hist_value_read(dcam_hw_ctx);
@@ -1914,6 +1916,7 @@ static irqreturn_t dcamint_isr_root(int irq, void *priv)
 	}
 	if (unlikely(status1))
 		pr_warn("warning: DCAM%u unhandled int1 bit0x%x\n", dcam_hw_ctx->hw_ctx_id, status1);
+	dcam_sw_ctx->in_irq_handler = 0;
 
 	ret = IRQ_HANDLED;
 exit:

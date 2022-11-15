@@ -235,6 +235,7 @@ enum dcam_afm_property {
 	DCAM_PRO_AFM_CROP_EB,
 	DCAM_PRO_AFM_CROP_SIZE,
 	DCAM_PRO_AFM_DONE_TILENUM,
+	DCAM_PRO_AFM_IIR_CFG,
 };
 
 enum dcam_pdaf_property {
@@ -1026,6 +1027,22 @@ struct dcam_dev_afm_info {
 	struct thrd_min_max afm_fv1_th;
 	uint16_t afm_fv1_coeff[4][9];
 	struct enhanced_lum afm_enhanced_lum;
+};
+
+struct dcam_dev_afm_iir_info {
+	uint8_t afm_iir_enable;
+	uint16_t afm_iir_g0;
+	uint16_t afm_iir_c1;
+	uint16_t afm_iir_c2;
+	uint16_t afm_iir_c3;
+	uint16_t afm_iir_c4;
+	uint16_t afm_iir_c5;
+	uint16_t afm_iir_g1;
+	uint16_t afm_iir_c6;
+	uint16_t afm_iir_c7;
+	uint16_t afm_iir_c8;
+	uint16_t afm_iir_c9;
+	uint16_t afm_iir_c10;
 };
 
 struct dcam_dev_vc2_control {

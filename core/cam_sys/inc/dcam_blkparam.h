@@ -113,6 +113,7 @@ struct dcam_dev_afm_param {
 	uint32_t crop_eb;
 	struct isp_img_rect crop_size;
 	struct isp_img_size done_tile_num;
+	struct dcam_dev_afm_iir_info af_iir_info;
 };
 
 struct dcam_dev_gtm_param {
