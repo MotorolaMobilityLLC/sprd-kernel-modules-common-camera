@@ -324,6 +324,7 @@ struct camera_module {
 	int reserved_pool_id;
 	uint32_t dcam_ctx_bind_state;/* 0: dcam_ctx_unbind, 1: dcam_ctx_bind */
 	uint32_t is_flash_status;
+	uint32_t simu_fid;
 };
 
 struct camera_group {
@@ -3589,6 +3590,7 @@ static int camcore_virtual_sensor_proc(struct camera_module *module,
 	src_frame->height = proc_info->src_size.height;
 	src_frame->endian = proc_info->src_y_endian;
 	src_frame->pattern = proc_info->src_pattern;
+	src_frame->fid = module->simu_fid++;
 	ktime_get_ts(&cur_ts);
 	src_frame->sensor_time.tv_sec = cur_ts.tv_sec;
 	src_frame->sensor_time.tv_usec = cur_ts.tv_nsec / NSEC_PER_USEC;

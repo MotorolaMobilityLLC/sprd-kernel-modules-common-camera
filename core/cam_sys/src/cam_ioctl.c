@@ -1536,6 +1536,7 @@ static int camioctl_stream_on(struct camera_module *module, unsigned long arg)
 	atomic_set(&module->state, CAM_STREAM_ON);
 	module->flash_skip_fid = 0;
 	module->is_flash_status = 0;
+	module->simu_fid = 0;
 
 	ret = camcore_channels_size_init(module);
 	camcore_channel_size_calc(module);
