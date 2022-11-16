@@ -546,11 +546,13 @@ static struct cam_hw_ip_info dcam[DCAM_ID_MAX] = {
 		.dcam_bin_fbc_support = 0,
 		.dcam_raw_fbc_support = 0,
 		.dcam_offline_fbc_support = 0,
+		.dcam_output_strategy = IMG_QUALITY_PRI,
 #elif defined (PROJ_QOGIRN6PRO)
 		.dcam_full_fbc_support = 1,
 		.dcam_bin_fbc_support = 1,
 		.dcam_raw_fbc_support = 0,
 		.dcam_offline_fbc_support = 0,
+		.dcam_output_strategy = IMG_POWER_CONSUM_PRI,
 #endif
 		.dcam_raw_path_id = DCAM_PATH_RAW,
 		.bpc_raw_support = 1,
@@ -589,11 +591,13 @@ static struct cam_hw_ip_info dcam[DCAM_ID_MAX] = {
 		.dcam_bin_fbc_support = 0,
 		.dcam_raw_fbc_support = 0,
 		.dcam_offline_fbc_support = 0,
+		.dcam_output_strategy = IMG_QUALITY_PRI,
 #elif defined (PROJ_QOGIRN6PRO)
 		.dcam_full_fbc_support = 1,
 		.dcam_bin_fbc_support = 1,
 		.dcam_raw_fbc_support = 0,
 		.dcam_offline_fbc_support = 0,
+		.dcam_output_strategy = IMG_POWER_CONSUM_PRI,
 #endif
 		.dcam_raw_path_id = DCAM_PATH_RAW,
 		.bpc_raw_support = 1,

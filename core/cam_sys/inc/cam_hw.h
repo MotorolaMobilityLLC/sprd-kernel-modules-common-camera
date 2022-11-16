@@ -1225,6 +1225,7 @@ struct cam_hw_ip_info {
 	uint32_t save_band_for_bigsize;
 	uint32_t raw_fmt_support[CAM_FORMAT_MAX];
 	uint32_t dcam_zoom_mode;
+	uint32_t dcam_output_strategy;
 	uint32_t recovery_support;
 	uint32_t dcam_output_fmt[CAM_FORMAT_MAX];
 	uint32_t store_pyr_fmt;

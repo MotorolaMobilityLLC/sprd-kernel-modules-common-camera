@@ -21,35 +21,40 @@
 #endif
 #define pr_fmt(fmt) "CAM_BUF_MANAGER: %d %d %s : " fmt, current->pid, __LINE__, __func__
 
+#define IS_PRIVATE_ID_VALID(val) (((val) > 0) && ((val) < PRIVATE_POOL_NUM_MAX))
+
+#define IS_TAG_ID_VALID(val) (((val) > 0) && ((val) < CAM_BUF_POOL_TAG_ID_NUM))
+
+#define IS_RESERVED_ID_VALID(val) (((val) > 0) && ((val) < CAM_COUNT_MAX))
+
 static struct cam_buf_manager *global_buf_manager = NULL;
 
 static struct camera_queue *cambufmanager_pool_handle_get(struct cam_buf_pool_id *pool_id)
 {
+	struct camera_queue *ret = NULL;
+
 	if (!pool_id) {
 		pr_err("fail to get pool id\n");
-		return NULL;
+		return ret;
 	}
 
-	if ((pool_id->private_pool_idx < PRIVATE_POOL_NUM_MAX) &&
-		(pool_id->private_pool_idx > 0) &&
+	if (IS_PRIVATE_ID_VALID(pool_id->private_pool_idx) &&
 		global_buf_manager->private_buf_pool[pool_id->private_pool_idx]) {
-		return global_buf_manager->private_buf_pool[pool_id->private_pool_idx];
+		ret = global_buf_manager->private_buf_pool[pool_id->private_pool_idx];
 	}
-
-	if ((pool_id->tag_id < CAM_BUF_POOL_TAG_ID_NUM) &&
-		(pool_id->tag_id > 0) &&
-		global_buf_manager->tag_pool[pool_id->tag_id])
-		return global_buf_manager->tag_pool[pool_id->tag_id];
-
-	if ((pool_id->reserved_pool_id < CAM_COUNT_MAX) &&
-		(pool_id->reserved_pool_id > 0) &&
-		global_buf_manager->reserve_buf_pool[pool_id->reserved_pool_id])
-		return global_buf_manager->reserve_buf_pool[pool_id->reserved_pool_id];
-
-	pr_debug("fail to get valid pool id tag%d private%d reserved id %d\n",
-		pool_id->tag_id, pool_id->private_pool_idx, pool_id->reserved_pool_id);
-
-	return NULL;
+	else if (IS_TAG_ID_VALID(pool_id->tag_id) &&
+		global_buf_manager->tag_pool[pool_id->tag_id]) {
+		ret = global_buf_manager->tag_pool[pool_id->tag_id];
+	}
+	else if (IS_RESERVED_ID_VALID(pool_id->reserved_pool_id) &&
+		global_buf_manager->reserve_buf_pool[pool_id->reserved_pool_id]) {
+		ret = global_buf_manager->reserve_buf_pool[pool_id->reserved_pool_id];
+	}
+	else {
+		pr_debug("get valid pool id tag%d private%d reserved id %d\n",
+			pool_id->tag_id, pool_id->private_pool_idx, pool_id->reserved_pool_id);
+	}
+	return ret;
 }
 
 static uint32_t s_status_switch_table[CAM_BUF_STATUS_NUM][CAM_BUF_STATUS_NUM] = {
@@ -260,7 +265,7 @@ static int inline cambufmanager_k_iova_2_ion(struct camera_buf *buf)
 	int ret = 0;
 	ret = cam_buf_iommu_unmap(buf);
 	ret |= cam_buf_kunmap(buf);
-	return 0;
+	return ret;
 }
 
 static int inline cambufmanager_k_iova_2_alloc(struct camera_buf *buf)
@@ -272,7 +277,7 @@ static int inline cambufmanager_k_iova_2_alloc(struct camera_buf *buf)
 		ret |= cam_buf_ionbuf_put(buf);
 	else
 		buf->status = CAM_BUF_ALLOC;
-	return 0;
+	return ret;
 }
 
 static int cambufmanager_buf_status_cfg(struct camera_frame *pframe, enum cambufmanager_status_ops_cmd cmd, enum cam_iommudev_type type)
@@ -368,63 +373,88 @@ int inline cam_buf_manager_buf_status_change(struct camera_buf *buf,
 		enum cam_buf_status dst_status,
 		enum cam_iommudev_type type)
 {
+	int ret = 0;
 	enum cambufmanager_status_cmd switch_cmd;
 	if ((buf->status == dst_status) || (buf->type == CAM_BUF_NONE))
 		return 0;
 	switch_cmd = s_status_switch_table[buf->status][dst_status];
 	switch (switch_cmd) {
 	case CAM_BUF_STATUS_ALLOC_2_ION:
-		return cambufmanager_alloc_2_ion(buf);
+		ret = cambufmanager_alloc_2_ion(buf);
+		break;
 	case CAM_BUF_STATUS_ALLOC_2_IOVA:
-		return cambufmanager_alloc_2_iova(buf, type);
+		ret = cambufmanager_alloc_2_iova(buf, type);
+		break;
 	case CAM_BUF_STATUS_ALLOC_2_SINGLE_PAGE_MAP:
-		return cambufmanager_alloc_2_single_page_iova(buf, type);
+		ret = cambufmanager_alloc_2_single_page_iova(buf, type);
+		break;
 	case CAM_BUF_STATUS_ALLOC_2_KMAP:
-		return cambufmanager_alloc_2_kmap(buf);
+		ret = cambufmanager_alloc_2_kmap(buf);
+		break;
 	case CAM_BUF_STATUS_ALLOC_2_IOVA_K:
-		return cambufmanager_alloc_2_k_iova(buf, type);
+		ret = cambufmanager_alloc_2_k_iova(buf, type);
+		break;
 	case CAM_BUF_STATUS_ION_2_ALLOC:
-		return cambufmanager_ion_2_alloc(buf);
+		ret = cambufmanager_ion_2_alloc(buf);
+		break;
 	case CAM_BUF_STATUS_ION_2_IOVA:
-		return cambufmanager_ion_2_iova(buf, type);
+		ret = cambufmanager_ion_2_iova(buf, type);
+		break;
 	case CAM_BUF_STATUS_ION_2_SINGLE_PAGE_MAP:
-		return cambufmanager_ion_2_single_page_iova(buf, type);
+		ret = cambufmanager_ion_2_single_page_iova(buf, type);
+		break;
 	case CAM_BUF_STATUS_ION_2_KMAP:
-		return cambufmanager_ion_2_kmap(buf);
+		ret = cambufmanager_ion_2_kmap(buf);
+		break;
 	case CAM_BUF_STATUS_ION_2_IOVA_K:
-		return cambufmanager_ion_2_k_iova(buf, type);
+		ret = cambufmanager_ion_2_k_iova(buf, type);
+		break;
 	case CAM_BUF_STATUS_IOVA_2_ALLOC:
-		return cambufmanager_iova_2_alloc(buf);
+		ret = cambufmanager_iova_2_alloc(buf);
+		break;
 	case CAM_BUF_STATUS_IOVA_2_ION:
-		return cambufmanager_iova_2_ion(buf);
+		ret = cambufmanager_iova_2_ion(buf);
+		break;
 	case CAM_BUF_STATUS_IOVA_2_KMAP:
-		return cambufmanager_iova_2_kmap(buf);
+		ret = cambufmanager_iova_2_kmap(buf);
+		break;
 	case CAM_BUF_STATUS_IOVA_2_IOVA_K:
-		return cambufmanager_iova_2_k_iova(buf);
+		ret = cambufmanager_iova_2_k_iova(buf);
+		break;
 	case CAM_BUF_STATUS_SINGLE_PAGE_MAP_2_ALLOC:
-		return cambufmanager_iova_2_alloc(buf);
+		ret = cambufmanager_iova_2_alloc(buf);
+		break;
 	case CAM_BUF_STATUS_SINGLE_PAGE_MAP_2_ION:
-		return cambufmanager_iova_2_ion(buf);
+		ret = cambufmanager_iova_2_ion(buf);
+		break;
 	case CAM_BUF_STATUS_KMAP_2_ALLOC:
-		return cambufmanager_kmap_2_alloc(buf);
+		ret = cambufmanager_kmap_2_alloc(buf);
+		break;
 	case CAM_BUF_STATUS_KMAP_2_ION:
-		return cambufmanager_kmap_2_ion(buf);
+		ret = cambufmanager_kmap_2_ion(buf);
+		break;
 	case CAM_BUF_STATUS_KMAP_2_IOVA:
-		return cambufmanager_kmap_2_iova(buf, type);
+		ret = cambufmanager_kmap_2_iova(buf, type);
+		break;
 	case CAM_BUF_STATUS_KMAP_2_IOVA_K:
-		return cambufmanager_k_2_k_iova(buf, type);
+		ret = cambufmanager_k_2_k_iova(buf, type);
+		break;
 	case CAM_BUF_STATUS_K_IOVA_2_ALLOC:
-		return cambufmanager_k_iova_2_alloc(buf);
+		ret = cambufmanager_k_iova_2_alloc(buf);
+		break;
 	case CAM_BUF_STATUS_K_IOVA_2_ION:
-		return cambufmanager_k_iova_2_ion(buf);
+		ret = cambufmanager_k_iova_2_ion(buf);
+		break;
 	case CAM_BUF_STATUS_K_IOVA_2_IOVA:
-		return cambufmanager_k_iova_2_iova(buf);
+		ret = cambufmanager_k_iova_2_iova(buf);
+		break;
 	case CAM_BUF_STATUS_K_IOVA_2_K:
-		return cambufmanager_k_iova_2_k(buf);
+		ret = cambufmanager_k_iova_2_k(buf);
+		break;
 	default:
 		pr_err("fail to get status %d -> %d\n", buf->status, dst_status);
-		return 0;
 	}
+	return ret;
 }
 
 struct camera_frame *cam_buf_manager_buf_dequeue(struct cam_buf_pool_id *pool_id, struct camera_buf_get_desc *buf_desc)
@@ -444,7 +474,7 @@ struct camera_frame *cam_buf_manager_buf_dequeue(struct cam_buf_pool_id *pool_id
 	pool_id_normal.reserved_pool_id = 0;
 	heap = cambufmanager_pool_handle_get(&pool_id_normal);
 
-	if ((pool_id->reserved_pool_id < CAM_COUNT_MAX) &&
+	if (IS_RESERVED_ID_VALID(pool_id->reserved_pool_id) &&
 		global_buf_manager->reserve_buf_pool[pool_id->reserved_pool_id])
 		resverve_heap = global_buf_manager->reserve_buf_pool[pool_id->reserved_pool_id];
 
@@ -594,8 +624,7 @@ int cam_buf_manager_pool_reg(struct cam_buf_pool_id *pool_id, uint32_t length)
 	struct camera_queue *tmp_p = NULL;
 
 	mutex_lock(&global_buf_manager->pool_lock);
-	if (pool_id && (pool_id->tag_id > 0) &&
-		(pool_id->tag_id < CAM_BUF_POOL_TAG_ID_NUM)) {
+	if (pool_id && IS_TAG_ID_VALID(pool_id->tag_id)) {
 		if (global_buf_manager->tag_pool[pool_id->tag_id]) {
 			pr_info("already reg tag pool %d\n", pool_id->tag_id);
 			mutex_unlock(&global_buf_manager->pool_lock);
@@ -638,22 +667,20 @@ int cam_buf_manager_pool_unreg(struct cam_buf_pool_id *pool_id)
 	uint32_t unreg_private_pool = 0, unreg_tag_pool = 0;
 	struct camera_queue *tmp_p = NULL;
 
-	if ((pool_id->private_pool_idx < PRIVATE_POOL_NUM_MAX) &&
-		(pool_id->private_pool_idx > 0)) {
+	if (IS_PRIVATE_ID_VALID(pool_id->private_pool_idx)) {
 		tmp_p = global_buf_manager->private_buf_pool[pool_id->private_pool_idx];
 		if (!tmp_p)
 			pr_warn("pool already unreg pri %d\n", pool_id->private_pool_idx);
 		unreg_private_pool = 1;
 	}
 
-	if ((pool_id->tag_id > 0) &&
-		(pool_id->tag_id < CAM_BUF_POOL_TAG_ID_NUM)) {
+	if (IS_TAG_ID_VALID(pool_id->tag_id)) {
 		tmp_p = global_buf_manager->tag_pool[pool_id->tag_id];
-		unreg_tag_pool = 1;
 		if (!tmp_p) {
 			pr_warn("tag pool %d already unreg\n", pool_id->tag_id);
 			return 0;
 		}
+		unreg_tag_pool = 1;
 	}
 
 	if (tmp_p) {

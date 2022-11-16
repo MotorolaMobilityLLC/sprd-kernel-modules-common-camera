@@ -577,7 +577,7 @@ static int dcamfetch_node_frame_start(void *param)
 	struct dcam_online_node *online_node = NULL;
 	struct camera_frame *pframe = NULL;
 	struct dcam_offline_slice_info *slice = NULL;
-	uint32_t lbuf_width = 0;
+	uint32_t lbuf_width = 0, dev_fid = 0;
 
 	node = (struct dcam_fetch_node *)param;
 	online_node = &node->online_node;
@@ -602,10 +602,13 @@ static int dcamfetch_node_frame_start(void *param)
 	pframe = dcamfetch_cycle_frame(node);
 	if (!pframe)
 		goto fetch_input_err;
+
+	node->hw_ctx->index_to_set = pframe->fid - node->hw_ctx->base_fid;
+	dev_fid = node->hw_ctx->index_to_set;
 	if (pframe->sensor_time.tv_sec || pframe->sensor_time.tv_usec) {
-		online_node->frame_ts[tsid(pframe->fid)].tv_sec = pframe->sensor_time.tv_sec;
-		online_node->frame_ts[tsid(pframe->fid)].tv_nsec = pframe->sensor_time.tv_usec * NSEC_PER_USEC;
-		online_node->frame_ts_boot[tsid(pframe->fid)] = pframe->boot_sensor_time;
+		online_node->frame_ts[tsid(dev_fid)].tv_sec = pframe->sensor_time.tv_sec;
+		online_node->frame_ts[tsid(dev_fid)].tv_nsec = pframe->sensor_time.tv_usec * NSEC_PER_USEC;
+		online_node->frame_ts_boot[tsid(dev_fid)] = pframe->boot_sensor_time;
 	}
 	ret = dcamfetch_param_get(node, pframe);
 	if (ret) {
