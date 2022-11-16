@@ -732,9 +732,7 @@ static void camcore_k_frame_put(void *param)
 
 static void camcore_empty_frame_put(void *param)
 {
-	int ret = 0;
-	struct camera_frame *frame;
-	struct camera_module *module;
+	struct camera_frame *frame = NULL;
 
 	if (!param) {
 		pr_err("fail to get valid param\n");
@@ -742,15 +740,10 @@ static void camcore_empty_frame_put(void *param)
 	}
 
 	frame = (struct camera_frame *)param;
-	module = frame->priv_data;
 
-	if (frame->priv_data) {
-		if (!frame->irq_type)
-			cam_buf_kernel_sys_vfree(frame->priv_data);
-		else if (module && module->exit_flag == 1 && frame->irq_type != CAMERA_IRQ_STATIS)
-			cam_buf_ionbuf_put(&frame->buf);
-	}
-	ret = cam_queue_empty_frame_put(frame);
+	if (frame->irq_type != CAMERA_IRQ_STATIS)
+		cam_buf_ionbuf_put(&frame->buf);
+	cam_queue_empty_frame_put(frame);
 }
 
 /* No need release buffer, only give back camera_frame
