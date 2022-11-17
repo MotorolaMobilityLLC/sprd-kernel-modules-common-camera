@@ -746,6 +746,21 @@ static void camcore_empty_frame_put(void *param)
 	cam_queue_empty_frame_put(frame);
 }
 
+static void camcore_putq_frame_put(void *param)
+{
+	struct camera_frame *frame = NULL;
+
+	if (!param) {
+		pr_err("fail to get valid param\n");
+		return;
+	}
+
+	frame = (struct camera_frame *)param;
+
+	cam_buf_ionbuf_put(&frame->buf);
+	cam_queue_empty_frame_put(frame);
+}
+
 /* No need release buffer, only give back camera_frame
  * for remosaic_queue, it save camera_frame info when
  * buf send to hal for remosaic, use again when 4in1_post
@@ -8125,7 +8140,7 @@ static int camcore_module_init(struct camera_module *module)
 	module->attach_sensor_id = SPRD_SENSOR_ID_MAX + 1;
 	module->is_smooth_zoom = 1;
 	cam_queue_init(&module->put_queue,
-		CAM_FRAME_Q_LEN, camcore_empty_frame_put);
+		CAM_FRAME_Q_LEN, camcore_putq_frame_put);
 	cam_queue_init(&module->frm_queue,
 		CAM_FRAME_Q_LEN, camcore_empty_frame_put);
 	cam_queue_init(&module->irq_queue,
