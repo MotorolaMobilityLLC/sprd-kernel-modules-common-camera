@@ -303,6 +303,8 @@ struct isp_3dnr_ctx_desc {
 	uint32_t blending_cnt;
 	uint32_t nr3_mv_version;
 	uint32_t pyr_rec_eb;
+	/*used to determine wheather is the first frame after hdr*/
+	uint32_t preblend_bypass;
 
 	struct fast_mv mv;
 	struct isp_3dnr_ops ops;

@@ -1054,7 +1054,7 @@ void dcam_offline_node_put(struct dcam_offline_node *node)
 		return;
 	}
 
-	while (node->hw_ctx && loop < 1000) {
+	while (node->hw_ctx && !node->hw_ctx->in_irq_proc && loop < 1000) {
 		pr_debug("ctx % in irq. wait %d\n", node->node_id, loop);
 		loop++;
 		udelay(1000);

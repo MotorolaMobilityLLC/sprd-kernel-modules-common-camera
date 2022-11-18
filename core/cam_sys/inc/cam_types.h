@@ -379,6 +379,7 @@ enum shutoff_type {
 	SHUTOFF_TYPE_MAX,
 };
 
+extern struct camera_queue *g_ion_buf_q;
 extern struct camera_queue *g_empty_frm_q;
 extern struct camera_queue *g_empty_interruption_q;
 

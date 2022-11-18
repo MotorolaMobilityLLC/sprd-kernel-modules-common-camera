@@ -741,6 +741,7 @@ static int isp3dnr_conversion_mv(struct isp_3dnr_ctx_desc *nr3_ctx)
 static int isp3dnr_pipe_proc(void *handle, void *param, uint32_t mode)
 {
 	int ret = 0;
+	uint32_t curblend_bypass = 0;
 	struct isp_3dnr_ctx_desc *nr3_ctx = NULL;
 	struct nr3_me_data *nr3_me = NULL;
 
@@ -770,6 +771,19 @@ static int isp3dnr_pipe_proc(void *handle, void *param, uint32_t mode)
 			nr3_ctx->mv.mv_y = 0;
 			nr3_ctx->mvinfo = NULL;
 		}
+
+		/*determine wheather the first frame after hdr*/
+		if (nr3_ctx->nr3_mv_version == ALG_NR3_MV_VER_0)
+			curblend_bypass = nr3_ctx->isp_block->nr3_info_base.blend.bypass;
+		else
+			curblend_bypass = nr3_ctx->isp_block->nr3_info_base_v1.blend.bypass;
+		if (nr3_ctx->preblend_bypass == 1 && curblend_bypass == 0) {
+			nr3_ctx->blending_cnt = 0;
+			nr3_ctx->mv.mv_x = 0;
+			nr3_ctx->mv.mv_y = 0;
+			pr_debug("the first frame after hdr, set 0\n");
+		}
+		nr3_ctx->preblend_bypass = curblend_bypass;
 
 		isp3dnr_config_gen(nr3_ctx);
 		isp_3dnr_config_param(nr3_ctx);

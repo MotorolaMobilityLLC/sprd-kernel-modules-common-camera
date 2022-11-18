@@ -493,6 +493,7 @@ int cam_buf_ionbuf_get(struct camera_buf *buf_info)
 	void *ionbuf = NULL;
 	enum cam_iommudev_type type;
 	struct iommudev_info *dev_info = NULL;
+	struct camera_ion_info *ion_info = NULL;
 
 	if (!buf_info) {
 		pr_err("fail to get buffer info ptr\n");
@@ -540,6 +541,12 @@ int cam_buf_ionbuf_get(struct camera_buf *buf_info)
 		if (g_mem_dbg)
 			atomic_inc(&g_mem_dbg->ion_dma_cnt);
 		pr_debug("dmabuf %p\n", buf_info->dmabuf_p);
+	}
+
+	ion_info = cam_buf_kernel_sys_vzalloc(sizeof(struct camera_ion_info));
+	if (ion_info) {
+		ion_info->pbuf = buf_info;
+		ret = cam_queue_enqueue(g_ion_buf_q, &ion_info->list);
 	}
 
 	if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0)) {
@@ -591,6 +598,9 @@ int cam_buf_ionbuf_put(struct camera_buf *buf_info)
 {
 	int ret = 0;
 	enum cam_iommudev_type type;
+	struct camera_ion_info *ioninfo = NULL;
+	struct camera_ion_info *ioninfo_next = NULL;
+	unsigned long flags = 0;
 
 	if (!buf_info) {
 		pr_err("fail to get buffer info ptr\n");
@@ -621,7 +631,17 @@ int cam_buf_ionbuf_put(struct camera_buf *buf_info)
 	buf_info->dmabuf_p = NULL;
 	if (g_mem_dbg)
 		atomic_dec(&g_mem_dbg->ion_dma_cnt);
-
+	spin_lock_irqsave(&g_ion_buf_q->lock, flags);
+	list_for_each_entry_safe(ioninfo, ioninfo_next, &g_ion_buf_q->head, list) {
+		if (ioninfo->pbuf != buf_info)
+			continue;
+		list_del(&ioninfo->list);
+		g_ion_buf_q->cnt--;
+		cam_buf_kernel_sys_vfree(ioninfo);
+		ioninfo = NULL;
+		break;
+	}
+	spin_unlock_irqrestore(&g_ion_buf_q->lock, flags);
 exit:
 	buf_info->ionbuf = NULL;
 	buf_info->status = CAM_BUF_ALLOC;

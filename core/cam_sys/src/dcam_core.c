@@ -78,80 +78,10 @@ static void dcamcore_put_fmcu(struct dcam_hw_context *pctx_hw)
 	}
 }
 
-static void dcamcore_offline_irq_proc(struct dcam_hw_context *dcam_hw_ctx,
-		struct dcam_irq_info *irq_info)
-{
-	int i = 0, ret = 0;
-	uint32_t irq_status = 0;
-	struct dcam_irq_proc_desc irq_desc = {0};
-
-	if (!dcam_hw_ctx || !irq_info) {
-		pr_err("fail to get invalid hw_ctx %px %px\n", dcam_hw_ctx, irq_info);
-		return;
-	}
-
-	pr_info("dcam offline node do irq proc\n");
-	/* unbind alway be called in irq proc for offline proc
-	 * no need to wait irq proc done */
-	dcam_hw_ctx->in_irq_proc = 0;
-	irq_status = irq_info->status;
-	for (i = 0; i < irq_info->irq_num; i++) {
-		if (irq_status & BIT(i)) {
-			ret = dcam_int_irq_desc_get(i, &irq_desc);
-			if (ret) {
-				pr_warn("Warning: not to get valid irq desc %d\n", i);
-				irq_status &= ~BIT(i);
-				continue;
-			}
-			if (dcam_hw_ctx->dcam_irq_cb_func)
-				dcam_hw_ctx->dcam_irq_cb_func(&irq_desc, dcam_hw_ctx->dcam_irq_cb_handle);
-		}
-		irq_status &= ~BIT(i);
-		if (!irq_status)
-			break;
-	}
-}
-
-static int dcamcore_irq_proc(void *handle)
-{
-	int ret = 0;
-	struct dcam_hw_context *dcam_hw_ctx = NULL;
-	struct camera_interrupt *irq_status = NULL;
-	struct dcam_irq_info irq_info = {0, 0};
-	dcam_hw_ctx = (struct dcam_hw_context *)handle;
-	if (!dcam_hw_ctx) {
-		pr_warn("warning: dcam hw ctx is null\n");
-		return ret;
-	}
-
-	dcam_hw_ctx->in_irq_proc = 1;
-	irq_status = cam_queue_dequeue(&dcam_hw_ctx->dcam_irq_sts_q, struct camera_interrupt, list);
-	if (unlikely(!irq_status)) {
-		pr_warn("warning: null irq_status from queue: q may clear\n");
-		dcam_hw_ctx->in_irq_proc = 0;
-		return ret;
-	}
-
-	irq_info.irq_num = irq_status->irq_num;
-	irq_info.status = irq_status->int_status;
-	irq_info.status1 = irq_status->int_status1;
-	cam_queue_empty_interrupt_put(irq_status);
-
-	pr_debug("DCAM%d status: %x, status1: %x\n", dcam_hw_ctx->hw_ctx_id, irq_info.status, irq_info.status1);
-	if (dcam_hw_ctx->is_offline_proc)
-		dcamcore_offline_irq_proc(dcam_hw_ctx, &irq_info);
-	else
-		dcamint_dcam_status_rw(irq_info, dcam_hw_ctx);
-
-	dcam_hw_ctx->in_irq_proc = 0;
-	return ret;
-}
-
 static int dcamcore_context_init(struct dcam_pipe_dev *dev)
 {
-	int i = 0, j = 0, ret = 0;
+	int i = 0, ret = 0;
 	struct dcam_hw_context *pctx_hw = NULL;
-	struct cam_thread_info *thrd = NULL;
 
 	if (!dev) {
 		pr_err("fail to get valid input ptr\n");
@@ -173,16 +103,6 @@ static int dcamcore_context_init(struct dcam_pipe_dev *dev)
 		spin_lock_init(&pctx_hw->fbc_lock);
 		spin_lock_init(&pctx_hw->ghist_read_lock);
 
-		cam_queue_init(&pctx_hw->dcam_irq_sts_q, DCAM_INT_PROC_FRM_NUM, cam_queue_empty_interrupt_put);
-		thrd = &pctx_hw->dcam_irq_proc_thrd;
-		sprintf(thrd->thread_name, "dcam%d_irq_proc", pctx_hw->hw_ctx_id);
-		ret = camthread_create(pctx_hw, thrd, dcamcore_irq_proc);
-		if (unlikely(ret != 0)) {
-			pr_err("fail to create dcam online interruption_proc thread\n");
-			ret = -EINVAL;
-			goto thread_creat_fail;
-		}
-
 		pr_debug("register irq for dcam %d. irq_no %d\n", i, dev->hw->ip_dcam[i]->irq_no);
 		ret = dcam_int_irq_request(&dev->hw->pdev->dev, dev->hw->ip_dcam[i]->irq_no, pctx_hw);
 		if (ret)
@@ -192,18 +112,6 @@ static int dcamcore_context_init(struct dcam_pipe_dev *dev)
 	}
 
 	pr_debug("done!\n");
-	return ret;
-
-thread_creat_fail:
-	cam_queue_clear(&pctx_hw->dcam_irq_sts_q, struct camera_frame, list);
-	for (j = 0; j < i; j++) {
-		pctx_hw = &dev->hw_ctx[j];
-		dcamcore_put_fmcu(pctx_hw);
-		dcam_int_irq_free(&dev->hw->pdev->dev, pctx_hw);
-		atomic_set(&pctx_hw->user_cnt, 0);
-		camthread_stop(&pctx_hw->dcam_irq_proc_thrd);
-		cam_queue_clear(&pctx_hw->dcam_irq_sts_q, struct camera_interrupt, list);
-	}
 	return ret;
 }
 
@@ -224,8 +132,6 @@ static int dcamcore_context_deinit(struct dcam_pipe_dev *dev)
 		dcamcore_put_fmcu(pctx_hw);
 		dcam_int_irq_free(&dev->hw->pdev->dev, pctx_hw);
 		atomic_set(&pctx_hw->user_cnt, 0);
-		camthread_stop(&pctx_hw->dcam_irq_proc_thrd);
-		cam_queue_clear(&pctx_hw->dcam_irq_sts_q, struct camera_interrupt, list);
 	}
 	pr_debug("dcam contexts deinit done!\n");
 	return ret;
@@ -349,7 +255,6 @@ exit:
 		pr_err("fail to get hw_ctx_id. mode=%d\n", mode);
 		return -1;
 	}
-	cam_queue_init(&pctx_hw->dcam_irq_sts_q, DCAM_INT_PROC_FRM_NUM, cam_queue_empty_interrupt_put);
 	pctx_hw->node = node;
 	pctx_hw->node_id = node_id;
 	*hw_id = hw_ctx_id;
@@ -359,7 +264,7 @@ exit:
 
 static int dcamcore_ctx_unbind(void *dev_handle, void *node, uint32_t node_id)
 {
-	int i = 0, cnt = 0, loop = 0;
+	int i = 0, cnt = 0;
 	int hw_ctx_id = DCAM_HW_CONTEXT_MAX;
 	struct dcam_pipe_dev *dev = NULL;
 	struct dcam_hw_context *pctx_hw = NULL;
@@ -390,14 +295,6 @@ static int dcamcore_ctx_unbind(void *dev_handle, void *node, uint32_t node_id)
 
 		if (atomic_dec_return(&pctx_hw->user_cnt) == 0) {
 			pr_info("node_id=%d, hw_id=%d unbind success\n", node_id, pctx_hw->hw_ctx_id);
-			cam_queue_clear(&pctx_hw->dcam_irq_sts_q, struct camera_interrupt, list);
-			while (pctx_hw->in_irq_proc && loop < 2000) {
-				pr_debug("ctx % in irq. wait %d", pctx_hw->hw_ctx_id, loop);
-				loop++;
-				udelay(500);
-			};
-			if (loop == 2000)
-				pr_warn("warning: dcam node unind wait irq timeout\n");
 			pctx_hw->node = NULL;
 			pctx_hw->node_id = -1;
 			goto exit;
@@ -426,6 +323,47 @@ static struct dcam_pipe_ops s_dcam_pipe_ops = {
 	.bind = dcamcore_ctx_bind,
 	.unbind = dcamcore_ctx_unbind,
 };
+
+void dcam_core_offline_irq_proc(struct dcam_hw_context *dcam_hw_ctx,
+		struct dcam_irq_info *irq_info)
+{
+	int i = 0, ret = 0;
+	uint32_t irq_status = 0;
+	struct dcam_irq_proc_desc irq_desc = {0};
+
+	if (!dcam_hw_ctx || !irq_info) {
+		pr_err("fail to get invalid hw_ctx %px %px\n", dcam_hw_ctx, irq_info);
+		return;
+	}
+
+	pr_info("dcam offline node do irq proc\n");
+	/* unbind alway be called in irq proc for offline proc
+	 * no need to wait irq proc done */
+	irq_status = irq_info->status;
+	if (irq_status & BIT(DCAM_CAP_SOF)) {
+		/* record SOF timestamp for current frame */
+		struct dcam_offline_node *node = NULL;
+		node = (struct dcam_offline_node *)dcam_hw_ctx->dcam_irq_cb_handle;
+		node->frame_ts_boot[tsid(dcam_hw_ctx->frame_index)] = ktime_get_boottime();
+		ktime_get_ts(&node->frame_ts[tsid(dcam_hw_ctx->frame_index)]);
+	}
+
+	for (i = 0; i < irq_info->irq_num; i++) {
+		if (irq_status & BIT(i)) {
+			ret = dcam_int_irq_desc_get(i, &irq_desc);
+			if (ret) {
+				pr_warn("Warning: not to get valid irq desc %d\n", i);
+				irq_status &= ~BIT(i);
+				continue;
+			}
+			if (dcam_hw_ctx->dcam_irq_cb_func)
+				dcam_hw_ctx->dcam_irq_cb_func(&irq_desc, dcam_hw_ctx->dcam_irq_cb_handle);
+		}
+		irq_status &= ~BIT(i);
+		if (!irq_status)
+			break;
+	}
+}
 
 void *dcam_core_pipe_dev_get(struct cam_hw_info *hw)
 {

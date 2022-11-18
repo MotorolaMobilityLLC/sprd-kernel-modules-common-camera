@@ -311,6 +311,21 @@ void cam_queue_empty_interrupt_free(void *param)
 	interruption = NULL;
 }
 
+void cam_queue_ioninfo_free(void *param)
+{
+	struct camera_ion_info *ioninfo = NULL;
+
+	if (param == NULL) {
+		pr_err("fail to get valid param\n");
+		return;
+	}
+	ioninfo = (struct camera_ion_info *)param;
+
+	cam_buf_ionbuf_put(ioninfo->pbuf);
+	cam_buf_kernel_sys_vfree(ioninfo);
+	ioninfo = NULL;
+}
+
 int cam_queue_recycle_blk_param(struct camera_queue *q, struct camera_frame *param_pframe)
 {
 	int ret = 0;

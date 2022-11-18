@@ -873,7 +873,7 @@ static inline struct camera_frame *
 
 	if (hw_ctx->slw_idx == 0) {
 		out_frame = dcamonline_port_frame_cycle(dcam_port, hw_ctx);
-		goto exit;
+		return out_frame;
 	}
 	switch (port_id) {
 	case PORT_RAW_OUT:
@@ -898,16 +898,6 @@ static inline struct camera_frame *
 		}
 		break;
 	}
-
-exit:
-	if (IS_ERR(out_frame))
-		return ERR_PTR(-ENOMEM);
-	atomic_inc(&dcam_port->set_frm_cnt);
-
-	out_frame->fid = hw_ctx->base_fid + hw_ctx->index_to_set + hw_ctx->slw_idx;
-	out_frame->need_pyr_dec = 0;
-	out_frame->need_pyr_rec = 0;
-	out_frame->pyr_status = PYR_OFF;
 
 	return out_frame;
 }
@@ -1005,6 +995,16 @@ static int dcamonline_port_slw_store_set(void *handle, void *param)
 		return ret;
 
 	out_frame = dcamonline_port_slw_frame_cycle(dcam_port, hw_ctx);
+	if (IS_ERR_OR_NULL(out_frame))
+		return PTR_ERR(out_frame);
+
+	atomic_inc(&dcam_port->set_frm_cnt);
+
+	out_frame->fid = hw_ctx->base_fid + hw_ctx->index_to_set + hw_ctx->slw_idx;
+	out_frame->need_pyr_dec = 0;
+	out_frame->need_pyr_rec = 0;
+	out_frame->pyr_status = PYR_OFF;
+
 	path_id = dcamonline_portid_convert_to_pathid(port_id);
 	if (out_frame->is_compressed) {
 		struct compressed_addr fbc_addr;

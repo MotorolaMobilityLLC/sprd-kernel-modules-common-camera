@@ -111,6 +111,7 @@ static uint32_t output_img_fmt[] = {
 	IMG_PIX_FMT_GREY,
 };
 
+struct camera_queue *g_ion_buf_q;
 struct camera_queue *g_empty_frm_q;
 struct camera_queue *g_empty_interruption_q;
 
@@ -292,6 +293,7 @@ struct camera_module {
 	struct mutex buf_lock[CAM_CH_MAX];
 
 	struct completion frm_com;
+	struct camera_queue put_queue;/* store user frame to put*/
 	struct camera_queue frm_queue;/* frame message queue for user*/
 	struct camera_queue alloc_queue;/* alloc data queue or user*/
 
@@ -342,6 +344,7 @@ struct camera_group {
 
 	struct miscdevice *md;
 	struct platform_device *pdev;
+	struct camera_queue ion_buf_q;
 	struct camera_queue empty_frm_q;
 	struct camera_queue empty_interruption_q;
 	struct sprd_cam_sec_cfg camsec_cfg;
@@ -631,6 +634,20 @@ static void camcore_k_frame_put(void *param)
 			cam_buf_iommu_unmap(&frame->buf);
 		cam_buf_free(&frame->buf);
 	}
+	cam_queue_empty_frame_put(frame);
+}
+
+static void camcore_ion_frame_put(void *param)
+{
+	struct camera_frame *frame = NULL;
+
+	if (!param) {
+		pr_err("fail to get valid param\n");
+		return;
+	}
+
+	frame = (struct camera_frame *)param;
+	cam_buf_ionbuf_put(&frame->buf);
 	cam_queue_empty_frame_put(frame);
 }
 
@@ -1511,12 +1528,10 @@ static int camcore_pipeline_callback(enum cam_cb_type type, void *param, void *p
 	case CAM_CB_DCAM_CLEAR_BUF:
 		if (atomic_read(&module->state) != CAM_RUNNING) {
 			pr_info("stream off cmd %d put frame %px, state:%d\n", type, pframe, module->state);
-			if (pframe->buf.type == CAM_BUF_KERNEL) {
+			if (pframe->buf.type == CAM_BUF_KERNEL)
 				cam_queue_enqueue(&channel->share_buf_queue, &pframe->list);
-			} else {
-				cam_buf_ionbuf_put(&pframe->buf);
-				cam_queue_empty_frame_put(pframe);
-			}
+			else
+				cam_queue_enqueue(&module->put_queue, &pframe->list);
 			return ret;
 		}
 
@@ -1637,6 +1652,9 @@ static int camcore_pipeline_callback(enum cam_cb_type type, void *param, void *p
 		}
 		break;
 	case CAM_CB_DCAM_RET_SRC_BUF:
+		pr_info("user buf return type:%d mfd %d\n", type, pframe->buf.mfd);
+		cam_queue_enqueue(&module->put_queue, &pframe->list);
+		break;
 	case CAM_CB_ISP_SCALE_RET_ISP_BUF:
 		pr_info("user buf return type:%d mfd %d\n", type, pframe->buf.mfd);
 		cam_buf_ionbuf_put(&pframe->buf);
@@ -3827,6 +3845,7 @@ static int camcore_module_init(struct camera_module *module)
 	}
 
 	camcore_timer_init(&module->cam_timer, (unsigned long)module);
+	cam_queue_init(&module->put_queue, CAM_FRAME_Q_LEN, camcore_ion_frame_put);
 	cam_queue_init(&module->frm_queue, CAM_FRAME_Q_LEN, camcore_empty_frame_put);
 	cam_queue_init(&module->alloc_queue, CAM_ALLOC_Q_LEN, camcore_empty_frame_put);
 
@@ -3841,6 +3860,7 @@ static int camcore_module_deinit(struct camera_module *module)
 	struct channel_context *channel = NULL;
 
 	put_cam_flash_handle(module->flash_core_handle);
+	cam_queue_clear(&module->put_queue, struct camera_frame, list);
 	cam_queue_clear(&module->frm_queue, struct camera_frame, list);
 	cam_queue_clear(&module->alloc_queue, struct camera_frame, list);
 
@@ -4159,6 +4179,17 @@ rewait:
 			}
 		}
 
+		while (1) {
+			pframe = cam_queue_dequeue(&module->put_queue,
+				struct camera_frame, list);
+			if (pframe) {
+				cam_buf_ionbuf_put(&pframe->buf);
+				cam_queue_empty_frame_put(pframe);
+			} else {
+				break;
+			}
+		}
+
 		pchannel = NULL;
 		pframe = cam_queue_dequeue(&module->frm_queue,
 			struct camera_frame, list);
@@ -4463,6 +4494,9 @@ static int camcore_open(struct inode *node, struct file *file)
 		spin_lock_irqsave(&grp->module_lock, flag);
 		rwlock_init(&grp->hw_info->soc_dcam->cam_ahb_lock);
 
+		g_ion_buf_q = &grp->ion_buf_q;
+		cam_queue_init(g_ion_buf_q, CAM_EMP_Q_LEN_MAX, cam_queue_ioninfo_free);
+
 		g_empty_frm_q = &grp->empty_frm_q;
 		cam_queue_init(g_empty_frm_q, CAM_EMP_Q_LEN_MAX, cam_queue_empty_frame_free);
 
@@ -4621,6 +4655,8 @@ static int camcore_release(struct inode *node, struct file *file)
 
 		/* g_leak_debug_cnt should be 0 after clr, or else memory leak */
 		cam_queue_clear(&group->mul_share_buf_q, struct camera_frame, list);
+		cam_queue_clear(g_ion_buf_q, struct camera_ion_info, list);
+		g_ion_buf_q = NULL;
 		cam_queue_clear(g_empty_frm_q, struct camera_frame, list);
 		g_empty_frm_q = NULL;
 		cam_queue_clear(g_empty_interruption_q, struct camera_interrupt, list);
