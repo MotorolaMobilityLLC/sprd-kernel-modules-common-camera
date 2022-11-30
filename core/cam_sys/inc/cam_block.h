@@ -17,6 +17,14 @@
 #include "cam_buf.h"
 #include "dcam_blkparam.h"
 
+#if defined (PROJ_QOGIRN6L)
+#define FORMAT_FRGB_PITCH              6
+#define FORMAT_FRGB_VAL                3
+#else
+#define FORMAT_FRGB_PITCH              8
+#define FORMAT_FRGB_VAL                2
+#endif
+
 struct isp_blkparam_adapt {
 	uint32_t new_width;
 	uint32_t new_height;
@@ -341,7 +349,7 @@ uint32_t cam_pack_bits(uint32_t raw_out_fmt);
 uint32_t cam_is_pack(uint32_t dcam_out_fmt);
 uint32_t cam_format_get(uint32_t img_pix_fmt);
 int camcore_raw_fmt_get(uint32_t fmt);
-int dcampath_outpitch_get(uint32_t w, uint32_t dcam_out_fmt);
+uint32_t dcampath_outpitch_get(uint32_t w, uint32_t dcam_out_fmt);
 int dcampath_bin_scaler_get(struct img_size crop, struct img_size dst,
 		uint32_t *scaler_sel, uint32_t *bin_ratio);
 int cam_block_valid_fmt_get(int32_t *fmt, uint32_t default_value);

@@ -235,9 +235,9 @@ int camcore_raw_fmt_get(uint32_t fmt)
 		return 0;
 }
 
-int dcampath_outpitch_get(uint32_t w, uint32_t dcam_out_fmt)
+uint32_t dcampath_outpitch_get(uint32_t w, uint32_t dcam_out_fmt)
 {
-	int outpitch = 0;
+	uint32_t outpitch = 0;
 
 	switch (dcam_out_fmt) {
 	case CAM_RAW_PACK_10:
@@ -256,7 +256,7 @@ int dcampath_outpitch_get(uint32_t w, uint32_t dcam_out_fmt)
 		outpitch = cal_sprd_yuv_pitch(w, cam_data_bits(dcam_out_fmt), cam_is_pack(dcam_out_fmt));
 		break;
 	case CAM_FULL_RGB14:
-		outpitch = w * 8;
+		outpitch = w * FORMAT_FRGB_PITCH;
 		break;
 	default :
 		pr_err("fail to support dcam_out_fmt %d  w %d\n", dcam_out_fmt, w);

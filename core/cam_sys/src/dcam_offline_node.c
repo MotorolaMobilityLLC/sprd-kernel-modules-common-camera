@@ -307,7 +307,7 @@ static int dcamoffline_hw_frame_param_set(struct dcam_hw_context *hw_ctx)
 
 	/* bypass all blks and then set all blks to current pm */
 	hw->dcam_ioctl(hw, DCAM_HW_CFG_BLOCKS_SETSTATIS, hw_ctx->blk_pm);
- 	hw->dcam_ioctl(hw, DCAM_HW_CFG_BLOCKS_SETALL, hw_ctx->blk_pm);
+	hw->dcam_ioctl(hw, DCAM_HW_CFG_BLOCKS_SETALL, hw_ctx->blk_pm);
 
 	hw_ctx->fid++;
 	ret = hw->dcam_ioctl(hw, DCAM_HW_CFG_FETCH_SET, &hw_ctx->hw_fetch);
@@ -780,6 +780,7 @@ int dcam_offline_node_port_insert(struct dcam_offline_node *node, void *param)
 
 	if (!is_exist)
 		cam_queue_enqueue(&node->port_queue, &new_port->list);
+
 	return 0;
 }
 
@@ -797,7 +798,7 @@ struct dcam_offline_port *dcam_offline_node_port_get(struct dcam_offline_node *n
 			return dcam_port;
 	}
 
-	pr_err("fail to get dcam port %s\n", cam_port_name_get(port_id));
+	pr_err("fail to get dcam port %s\n", cam_port_dcam_offline_out_id_name_get(port_id));
 	return NULL;
 }
 

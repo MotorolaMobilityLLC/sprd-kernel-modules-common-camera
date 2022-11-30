@@ -252,6 +252,8 @@ struct cam_port_desc {
 	struct dcam_online_port_desc *dcam_online;
 	struct dcam_offline_port_desc *dcam_offline;
 	struct dcam_offline_port_desc *dcam_offline_bpcraw;
+	struct dcam_offline_port_desc *dcam_offline_raw2frgb;
+	struct dcam_offline_port_desc *dcam_offline_frgb2yuv;
 	struct isp_port_desc *isp_offline;
 	struct isp_scaler_port_desc *isp_offline_scaler;
 	struct cam_port_topology *port_graph;

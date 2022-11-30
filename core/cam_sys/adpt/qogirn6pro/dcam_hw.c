@@ -962,7 +962,7 @@ static int dcamhw_fetch_set(void *handle, void *arg)
 		else
 			bwu_shift = 0;
 	} else if (fetch->fetch_info->fmt == CAM_FULL_RGB14) {
-		fetch_pitch = fetch->fetch_info->size.w * 8 * 8 / 128;
+		fetch_pitch = fetch->fetch_info->size.w * FORMAT_FRGB_PITCH * 8 / 128;
 		bwu_shift = 0;
 	}
 
@@ -991,7 +991,7 @@ static int dcamhw_fetch_set(void *handle, void *arg)
 		else
 			val = 1;
 	} else if (fetch->fetch_info->fmt == CAM_FULL_RGB14)
-		val = 2;
+		val = FORMAT_FRGB_VAL;
 	else
 		pr_err("fail to get valid fmt ,not support\n");
 
@@ -1008,8 +1008,10 @@ static int dcamhw_fetch_set(void *handle, void *arg)
 	DCAM_REG_WR(fetch->idx, DCAM_YUV444TO420_IMAGE_WIDTH, fetch->fetch_info->trim.size_x);
 	DCAM_REG_MWR(fetch->idx, DCAM_YUV444TOYUV420_PARAM, BIT_0, 0);
 
-	if (fetch->fetch_info->fmt == CAM_FULL_RGB14)
+	if (fetch->fetch_info->fmt == CAM_FULL_RGB14) {
 		DCAM_REG_MWR(fetch->idx, DCAM_PATH_SEL, BIT_1, 1 << 1);
+		DCAM_REG_MWR(fetch->idx, DCAM_GTM_GLB_CTRL, BIT_0, 1);
+	}
 
 	pr_info("done.\n");
 	return ret;

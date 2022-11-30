@@ -238,6 +238,8 @@ static int camport_cfg_param(void *handle, enum cam_port_cfg_cmd cmd, void *para
 		break;
 	case CAM_NODE_TYPE_DCAM_OFFLINE:
 	case CAM_NODE_TYPE_DCAM_OFFLINE_BPC_RAW:
+	case CAM_NODE_TYPE_DCAM_OFFLINE_RAW2FRGB:
+	case CAM_NODE_TYPE_DCAM_OFFLINE_FRGB2YUV:
 		ret = dcam_offline_port_param_cfg(port->handle, cmd, param);
 		break;
 	case CAM_NODE_TYPE_ISP_OFFLINE:
@@ -268,6 +270,8 @@ int cam_port_static_portlist_get(struct cam_port_topology *param,
 		break;
 	case CAM_NODE_TYPE_DCAM_OFFLINE:
 	case CAM_NODE_TYPE_DCAM_OFFLINE_BPC_RAW:
+	case CAM_NODE_TYPE_DCAM_OFFLINE_RAW2FRGB:
+	case CAM_NODE_TYPE_DCAM_OFFLINE_FRGB2YUV:
 		camport_dcamoffline_port_get(param, node_type, transfer_type);
 		break;
 	case CAM_NODE_TYPE_ISP_OFFLINE:
@@ -382,6 +386,18 @@ void *cam_port_creat(struct cam_port_desc *param, uint32_t node_id)
 		param->dcam_offline_bpcraw->data_cb_handle = param->data_cb_handle;
 		port->handle = dcam_offline_port_get(port->port_graph->id, param->dcam_offline_bpcraw);
 		break;
+	case CAM_NODE_TYPE_DCAM_OFFLINE_RAW2FRGB:
+		param->dcam_offline_raw2frgb->port_dev = (void *)&nodes_dev->dcam_offline_raw2frgb_out_port_dev[port->port_graph->id];
+		param->dcam_offline_raw2frgb->data_cb_func = param->data_cb_func;
+		param->dcam_offline_raw2frgb->data_cb_handle = param->data_cb_handle;
+		port->handle = dcam_offline_port_get(port->port_graph->id, param->dcam_offline_raw2frgb);
+		break;
+	case CAM_NODE_TYPE_DCAM_OFFLINE_FRGB2YUV:
+		param->dcam_offline_frgb2yuv->port_dev = (void *)&nodes_dev->dcam_offline_frgb2yuv_out_port_dev[port->port_graph->id];
+		param->dcam_offline_frgb2yuv->data_cb_func = param->data_cb_func;
+		param->dcam_offline_frgb2yuv->data_cb_handle = param->data_cb_handle;
+		port->handle = dcam_offline_port_get(port->port_graph->id, param->dcam_offline_frgb2yuv);
+		break;
 	case CAM_NODE_TYPE_ISP_OFFLINE:
 		if (param->port_graph->transfer_type == PORT_TRANSFER_IN)
 			param->isp_offline->port_dev = (void *)&nodes_dev->isp_in_port_dev[node_id][port->port_graph->id];
@@ -426,6 +442,8 @@ void cam_port_destory(struct cam_port *port)
 		break;
 	case CAM_NODE_TYPE_DCAM_OFFLINE:
 	case CAM_NODE_TYPE_DCAM_OFFLINE_BPC_RAW:
+	case CAM_NODE_TYPE_DCAM_OFFLINE_RAW2FRGB:
+	case CAM_NODE_TYPE_DCAM_OFFLINE_FRGB2YUV:
 		dcam_offline_port_put(port->handle);
 		break;
 	case CAM_NODE_TYPE_ISP_OFFLINE:

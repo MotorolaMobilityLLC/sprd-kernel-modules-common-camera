@@ -57,6 +57,7 @@ static const char *_CAM_PIPELINE_NAMES[CAM_PIPELINE_TYPE_MAX] = {
 	[CAM_PIPELINE_VCH_SENSOR_RAW] = "CAM_PIPELINE_VCH_SENSOR_RAW",
 	[CAM_PIPELINE_ONLINE_NORMAL2YUV_OR_RAW2USER2YUV] = "CAM_PIPELINE_ONLINE_NORMAL2YUV_OR_RAW2USER2YUV",
 	[CAM_PIPELINE_ONLINE_NORMALZSLCAPTURE_OR_RAW2USER2YUV] = "CAM_PIPELINE_ONLINE_NORMALZSLCAPTURE_OR_RAW2USER2YUV",
+	[CAM_PIPELINE_OFFLINE_RAW2FRGB_OFFLINE_FRGB2YUV] = "CAM_PIPELINE_OFFLINE_RAW2FRGB_OFFLINE_FRGB2YUV",
 };
 
 const char *cam_pipeline_name_get(enum cam_pipeline_type type)
@@ -1083,6 +1084,88 @@ static void campipeline_online_normalzslcapture_or_raw2user2yuv_get(struct cam_p
 	cur_node->outport[PORT_CAP_OUT].link.node_type = CAM_NODE_TYPE_USER;
 }
 
+static void campipeline_offline_raw2frgb_offline_frgb2yuv(struct cam_pipeline_topology *param, uint32_t path_id,
+		uint32_t pyrdec_support)
+{
+	int i = 0;
+	uint32_t dcam_offline_port_id = 0;
+	struct cam_node_topology *cur_node = NULL;
+
+	cur_node = &param->nodes[0];
+	if (pyrdec_support) {
+		uint32_t node_list_type[] = {
+			CAM_NODE_TYPE_DCAM_OFFLINE_RAW2FRGB,
+			CAM_NODE_TYPE_DUMP,
+			CAM_NODE_TYPE_DCAM_OFFLINE_FRGB2YUV,
+			CAM_NODE_TYPE_DUMP,
+			CAM_NODE_TYPE_PYR_DEC,
+			CAM_NODE_TYPE_DUMP,
+			CAM_NODE_TYPE_ISP_OFFLINE,
+		};
+		param->node_cnt = sizeof(node_list_type) / sizeof(node_list_type[0]);
+		for (i = 0; i < param->node_cnt; i++, cur_node++)
+			cam_node_static_nodelist_get(cur_node, node_list_type[i]);
+	} else {
+		uint32_t node_list_type[] = {
+			CAM_NODE_TYPE_DCAM_OFFLINE_RAW2FRGB,
+			CAM_NODE_TYPE_DUMP,
+			CAM_NODE_TYPE_DCAM_OFFLINE_FRGB2YUV,
+			CAM_NODE_TYPE_DUMP,
+			CAM_NODE_TYPE_ISP_OFFLINE,
+		};
+		param->node_cnt = sizeof(node_list_type) / sizeof(node_list_type[0]);
+		for (i = 0; i < param->node_cnt; i++, cur_node++)
+			cam_node_static_nodelist_get(cur_node, node_list_type[i]);
+	}
+
+	dcam_offline_port_id = dcamoffline_pathid_convert_to_portid(path_id);
+	/* cfg port link between dcam offline & isp offline node */
+	cur_node = &param->nodes[0];
+	cur_node->id = DCAM_OFFLINE_NODE_ID;
+	cur_node->outport[dcam_offline_port_id].link_state = PORT_LINK_NORMAL;
+	cur_node->outport[dcam_offline_port_id].link.node_type = CAM_NODE_TYPE_DCAM_OFFLINE_FRGB2YUV;
+	cur_node->outport[dcam_offline_port_id].link.node_id = DCAM_OFFLINE_NODE_ID;
+	cur_node->outport[dcam_offline_port_id].link.port_id = PORT_DCAM_OFFLINE_IN;
+	cur_node->outport[dcam_offline_port_id].dump_node_id = CAM_DUMP_NODE_ID_0;
+	for (i = PORT_OFFLINE_AEM_OUT; i < PORT_OFFLINE_GTM_HIST_OUT; i++) {
+		cur_node->outport[i].link_state = PORT_LINK_NORMAL;
+		cur_node->outport[i].link.node_type = CAM_NODE_TYPE_USER;
+	}
+	cur_node++;
+	cur_node->id = CAM_DUMP_NODE_ID_0;
+	cur_node++;
+	cur_node->id = DCAM_OFFLINE_NODE_ID;
+	cur_node->outport[dcam_offline_port_id].link_state = PORT_LINK_NORMAL;
+	cur_node->outport[dcam_offline_port_id].dump_node_id = CAM_DUMP_NODE_ID_1;
+	cur_node->outport[PORT_OFFLINE_GTM_HIST_OUT].link_state = PORT_LINK_NORMAL;
+	cur_node->outport[PORT_OFFLINE_GTM_HIST_OUT].link.node_type = CAM_NODE_TYPE_USER;
+	if (pyrdec_support) {
+		cur_node->outport[dcam_offline_port_id].link.node_type = CAM_NODE_TYPE_PYR_DEC;
+		cur_node->outport[dcam_offline_port_id].link.node_id = PYR_DEC_NODE_ID;
+		cur_node++;
+		cur_node->id = CAM_DUMP_NODE_ID_1;
+		cur_node++;
+		cur_node->id = PYR_DEC_NODE_ID;
+		cur_node->dump_node_id = CAM_DUMP_NODE_ID_2;
+		cur_node++;
+		cur_node->id = CAM_DUMP_NODE_ID_2;
+	} else {
+		cur_node->outport[dcam_offline_port_id].link.node_type = CAM_NODE_TYPE_ISP_OFFLINE;
+		cur_node->outport[dcam_offline_port_id].link.node_id = ISP_NODE_MODE_CAP_ID;
+		cur_node->outport[dcam_offline_port_id].link.port_id = PORT_ISP_OFFLINE_IN;
+		cur_node++;
+		cur_node->id = CAM_DUMP_NODE_ID_1;
+	}
+	cur_node++;
+	cur_node->id = ISP_NODE_MODE_CAP_ID;
+	cur_node->inport[PORT_ISP_OFFLINE_IN].link_state = PORT_LINK_NORMAL;
+	cur_node->inport[PORT_ISP_OFFLINE_IN].link.node_type = CAM_NODE_TYPE_DCAM_OFFLINE;
+	cur_node->inport[PORT_ISP_OFFLINE_IN].link.node_id = DCAM_OFFLINE_NODE_ID;
+	cur_node->inport[PORT_ISP_OFFLINE_IN].link.port_id = dcam_offline_port_id;
+	cur_node->outport[PORT_CAP_OUT].link_state = PORT_LINK_NORMAL;
+	cur_node->outport[PORT_CAP_OUT].link.node_type = CAM_NODE_TYPE_USER;
+}
+
 static struct cam_node *campipeline_linked_node_get(
 		struct cam_pipeline *pipeline, struct camera_frame *frame)
 {
@@ -1514,6 +1597,8 @@ static uint32_t campipeline_dump_en_cfg_get(uint32_t pipeline_type,
 		case CAM_NODE_TYPE_DCAM_ONLINE:
 		case CAM_NODE_TYPE_DCAM_OFFLINE:
 		case CAM_NODE_TYPE_DCAM_OFFLINE_BPC_RAW:
+		case CAM_NODE_TYPE_DCAM_OFFLINE_RAW2FRGB:
+		case CAM_NODE_TYPE_DCAM_OFFLINE_FRGB2YUV:
 			for (j = 0; j < CAM_NODE_PORT_OUT_NUM; j++) {
 				if (node_graph->outport[j].link_state != PORT_LINK_NORMAL)
 					continue;
@@ -1595,6 +1680,7 @@ int cam_pipeline_static_pipelinelist_get(struct cam_pipeline_topology *param, ui
 		CAM_PIPELINE_ONLINE_NORMAL2YUV_OR_RAW2USER2YUV,
 		CAM_PIPELINE_VCH_SENSOR_RAW,
 		CAM_PIPELINE_ONLINE_NORMALZSLCAPTURE_OR_RAW2USER2YUV,
+		CAM_PIPELINE_OFFLINE_RAW2FRGB_OFFLINE_FRGB2YUV,
 	};
 
 	if (!param || !hw_info) {
@@ -1673,6 +1759,10 @@ int cam_pipeline_static_pipelinelist_get(struct cam_pipeline_topology *param, ui
 			param->type = CAM_PIPELINE_ONLINE_NORMALZSLCAPTURE_OR_RAW2USER2YUV;
 			campipeline_online_normalzslcapture_or_raw2user2yuv_get(param, raw2yuv_path_id, pyrdec_support);
 			break;
+		case CAM_PIPELINE_OFFLINE_RAW2FRGB_OFFLINE_FRGB2YUV:
+			param->type = CAM_PIPELINE_OFFLINE_RAW2FRGB_OFFLINE_FRGB2YUV;
+			campipeline_offline_raw2frgb_offline_frgb2yuv(param, raw2yuv_path_id, pyrdec_support);
+			break;
 		default:
 			break;
 		}
@@ -1736,6 +1826,8 @@ void *cam_pipeline_creat(struct cam_pipeline_desc *param)
 	node_desc.dcam_online_desc = &param->dcam_online_desc;
 	node_desc.dcam_offline_desc = &param->dcam_offline_desc;
 	node_desc.dcam_offline_bpcraw_desc = &param->dcam_offline_bpcraw_desc;
+	node_desc.dcam_offline_raw2frgb_desc = &param->dcam_offline_raw2frgb_desc;
+	node_desc.dcam_offline_frgb2yuv_desc = &param->dcam_offline_frgb2yuv_desc;
 	node_desc.dcam_fetch_desc = &param->dcam_fetch_desc;
 	node_desc.isp_node_description = &param->isp_node_description;
 	node_desc.frame_cache_desc = &param->frame_cache_desc;

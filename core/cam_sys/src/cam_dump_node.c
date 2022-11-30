@@ -152,6 +152,8 @@ static void camdump_node_port_type_get(uint8_t *type_name, struct camera_frame *
 		strcat(type_name, tmp_str);
 		break;
 	case CAM_NODE_TYPE_DCAM_OFFLINE:
+	case CAM_NODE_TYPE_DCAM_OFFLINE_RAW2FRGB:
+	case CAM_NODE_TYPE_DCAM_OFFLINE_FRGB2YUV:
 		sprintf(tmp_str, "%s_", cam_port_dcam_offline_out_id_name_get(frame->link_from.port_id));
 		strcat(type_name, tmp_str);
 		break;
@@ -273,20 +275,19 @@ static void camdump_node_frame_name_get(struct camera_frame *frame,
 
 static void camdump_node_frame_size_get(struct camera_frame *frame, struct cam_dump_msg *msg, int cur_layer)
 {
-	if (camcore_raw_fmt_get(frame->cam_fmt))
-		msg->size = cal_sprd_pitch(frame->width, frame->cam_fmt) * frame->height;
-	else if (frame->cam_fmt == CAM_FULL_RGB14)
-		msg->size = frame->width * frame->height;
-	else if (IS_STATIS_PORT(frame->link_from.port_id))
+	uint32_t outpitch = 0;
+
+	if (IS_STATIS_PORT(frame->link_from.port_id))
 		msg->size = frame->buf.size;
-	else {
-		if (cur_layer == 0)
-			msg->size = cal_sprd_pitch(frame->width, frame->cam_fmt) * frame->height;
-		else
-			msg->size = cal_sprd_pitch(msg->align_w, frame->cam_fmt) * msg->align_h;
+	else if (cur_layer != 0) {
+		outpitch = cal_sprd_pitch(msg->align_w, frame->cam_fmt);
+		msg->size = outpitch * msg->align_h;
+	} else {
+		outpitch = cal_sprd_pitch(frame->width, frame->cam_fmt);
+		msg->size = outpitch * frame->height;
 	}
 
-	pr_debug("dump frame buf_size %d cal_size %d fmt %s\n", frame->buf.size, msg->size, camport_fmt_name_get(frame->img_fmt));
+	pr_debug("dump frame buf_size %d cal_size %d fmt %s\n", frame->buf.size, msg->size, camport_fmt_name_get(frame->cam_fmt));
 }
 
 static void camdump_node_frame_file_write(struct camera_frame *frame,

@@ -16,6 +16,8 @@
 
 #ifdef CAM_IOCTL_LAYER
 
+extern g_dbg_raw2frgb_switch;
+
 #define IS_XTM_CONFLICT_SCENE(scene) ({\
 	uint32_t __s = scene;          \
 	(__s == CAPTURE_FDR            \
@@ -185,7 +187,11 @@ static int camioctl_statis_buf_set(struct camera_module *module,
 				if (ch->enable && is_raw_cap) {
 					statis_param.statis_cmd = DCAM_IOCTL_CFG_STATIS_BUF;
 					statis_param.param = &statis_buf;
-					ret = CAM_PIPEINE_DCAM_OFFLINE_NODE_CFG(ch, CAM_PIPELINE_CFG_STATIS_BUF, &statis_param);
+					if (g_dbg_raw2frgb_switch == DEBUG_FRGB_MODE) {
+						ret = CAM_PIPEINE_DCAM_OFFLINE_RAW2FRGB_NODE_CFG(ch, CAM_PIPELINE_CFG_STATIS_BUF, &statis_param);
+						ret = CAM_PIPEINE_DCAM_OFFLINE_FRGB2YUV_NODE_CFG(ch, CAM_PIPELINE_CFG_STATIS_BUF, &statis_param);
+					} else
+						ret = CAM_PIPEINE_DCAM_OFFLINE_NODE_CFG(ch, CAM_PIPELINE_CFG_STATIS_BUF, &statis_param);
 				}
 			}
 
@@ -409,9 +415,14 @@ static int camioctl_param_cfg(struct camera_module *module, unsigned long arg)
 		if (for_capture && (module->capture_type == CAM_CAPTURE_RAWPROC
 			|| module->cam_uinfo.dcam_slice_mode || module->cam_uinfo.is_4in1
 			|| (param.scene_id == PM_SCENE_OFFLINE_BPC)
-			|| (param.scene_id == PM_SCENE_OFFLINE_CAP)))
-			ret = CAM_PIPEINE_DCAM_OFFLINE_NODE_CFG(channel, CAM_PIPELINE_CFG_BLK_PARAM, &param);
-		else
+			|| (param.scene_id == PM_SCENE_OFFLINE_CAP)
+			|| (param.scene_id == PM_SCENE_SFNR))) {
+			if (g_dbg_raw2frgb_switch == DEBUG_FRGB_MODE) {
+				ret = CAM_PIPEINE_DCAM_OFFLINE_RAW2FRGB_NODE_CFG(channel, CAM_PIPELINE_CFG_BLK_PARAM, &param);
+				ret = CAM_PIPEINE_DCAM_OFFLINE_FRGB2YUV_NODE_CFG(channel, CAM_PIPELINE_CFG_BLK_PARAM, &param);
+			} else
+				ret = CAM_PIPEINE_DCAM_OFFLINE_NODE_CFG(channel, CAM_PIPELINE_CFG_BLK_PARAM, &param);
+		} else
 			ret = CAM_PIPEINE_DCAM_ONLINE_NODE_CFG(channel, CAM_PIPELINE_CFG_BLK_PARAM, &param);
 		break;
 	case ISP_BLOCK_TYPE:
@@ -1998,17 +2009,32 @@ static int camioctl_raw_proc(struct camera_module *module,
 		return -EFAULT;
 	}
 
-	if (proc_info.cmd == RAW_PROC_PRE) {
-		ret = camcore_raw_pre_proc(module, &proc_info);
-	} else if (proc_info.cmd == RAW_PROC_POST) {
-		ret = camcore_raw_post_proc(module, &proc_info);
-	} else if (proc_info.cmd == RAW_PROC_DONE) {
-		ret = camcore_raw_proc_done(module);
-	} else if (proc_info.cmd == VIRTUAL_SENSOR_PROC) {
+	switch (proc_info.cmd) {
+	case RAW_PROC_PRE:
+		if (g_dbg_raw2frgb_switch == DEBUG_RAWCAP_MODE)
+			ret = camrawcap_raw_pre_proc(module, &proc_info);
+		else
+			ret = camrawcap_storeccm_frgb_pre_proc(module, &proc_info);
+		break;
+	case RAW_PROC_POST:
+		if (g_dbg_raw2frgb_switch == DEBUG_RAWCAP_MODE)
+			ret = camrawcap_raw_post_proc(module, &proc_info);
+		else
+			ret = camrawcap_storeccm_frgb_post_proc(module, &proc_info);
+		break;
+	case RAW_PROC_DONE:
+		if (g_dbg_raw2frgb_switch == DEBUG_RAWCAP_MODE)
+			ret = camrawcap_raw_proc_done(module);
+		else
+			ret = camrawcap_storeccm_frgb_proc_done(module);
+		break;
+	case VIRTUAL_SENSOR_PROC:
 		ret = camcore_virtual_sensor_proc(module, &proc_info);
-	} else {
+		break;
+	default:
 		pr_err("fail to get correct cmd %d\n", proc_info.cmd);
 		ret = -EINVAL;
+		break;
 	}
 
 	return ret;

@@ -44,6 +44,12 @@ enum dcam_recovery_switch {
 	DEBUG_DCAM_RECOVERY_MAX,
 };
 
+enum dbg_rawcap_frgb_switch {
+	DEBUG_RAWCAP_MODE,
+	DEBUG_FRGB_MODE,
+	DEBUG_MODE_MAX,
+};
+
 /* compression override setting */
 struct compression_override {
 	uint32_t enable;
@@ -59,6 +65,13 @@ struct camera_debugger {
 	struct compression_override compression[CAM_ID_MAX];
 	struct cam_hw_info *hw;
 };
+
+#define CAM_DEBUGGER_IF_GET_CORRECT_KEY(val)  ({ \
+		if (!val) { \
+			pr_err("fail to get correct key\n"); \
+			return -EFAULT; \
+		} \
+})
 
 int cam_debugger_init(struct camera_debugger *debugger);
 int cam_debugger_deinit(void);

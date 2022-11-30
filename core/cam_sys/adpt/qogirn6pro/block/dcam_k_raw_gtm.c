@@ -130,8 +130,7 @@ int dcam_k_raw_gtm_block(struct dcam_isp_k_block *param)
 		DCAM_REG_MWR(idx, DCAM_GTM_GLB_CTRL, BIT_3, BIT_3);
 		DCAM_REG_MWR(idx, GTM_HIST_CTRL0, BIT_0, 0);
 		DCAM_REG_MWR(idx, GTM_HIST_CTRL1, BIT_0, 0);
-	}
-	else {
+	} else {
 		DCAM_REG_MWR(idx, DCAM_GTM_GLB_CTRL, BIT_2, 0);
 		DCAM_REG_MWR(idx, DCAM_GTM_GLB_CTRL, BIT_3, BIT_3);
 		DCAM_REG_MWR(idx, GTM_HIST_CTRL0, BIT_0, BIT_0);

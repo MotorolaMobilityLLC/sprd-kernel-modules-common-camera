@@ -143,7 +143,7 @@ static inline uint32_t cal_sprd_raw_pitch(uint32_t w, uint32_t pack_bits)
 
 static inline int dcamhw_valid_fmt_get(uint32_t fmt)
 {
-	if (CAM_RAW_PACK_10 <= fmt <= CAM_RAW_8)
+	if (fmt >= CAM_RAW_PACK_10 && fmt <= CAM_RAW_8)
 		return 1;
 	return 0;
 }

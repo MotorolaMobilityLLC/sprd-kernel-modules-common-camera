@@ -54,6 +54,7 @@ uint32_t g_dbg_recovery = DEBUG_DCAM_RECOVERY_IDLE;
 uint32_t g_dbg_fbc_control = 0;
 uint32_t contr_cap_eof = 1;
 uint32_t g_dbg_debug_control = 0;
+uint32_t g_dbg_raw2frgb_switch = DEBUG_RAWCAP_MODE;
 uint32_t g_pipeline_type = CAM_PIPELINE_TYPE_MAX;
 extern struct isp_pipe_dev *s_isp_dev;
 extern struct dcam_pipe_dev *s_dcam_dev;
@@ -97,10 +98,7 @@ static ssize_t camdebugger_dcam_bypass_write(struct file *filp,
 	if (i >= sizeof(buf))
 		i = sizeof(buf) - 1; /* last one for \0 */
 
-	if (!g_dbg_debug_control) {
-		pr_err("fail to get correct key\n");
-		return -EFAULT;
-	}
+	CAM_DEBUGGER_IF_GET_CORRECT_KEY(g_dbg_debug_control);
 
 	if (copy_from_user(buf, buffer, i)) {
 		pr_err("fail to get user info\n");
@@ -180,10 +178,7 @@ static int camdebugger_dcam_bypass_read(struct seq_file *s, void *unused)
 		return -EFAULT;
 	}
 
-	if (!g_dbg_debug_control) {
-		pr_err("fail to get correct key\n");
-		return -EFAULT;
-	}
+	CAM_DEBUGGER_IF_GET_CORRECT_KEY(g_dbg_debug_control);
 
 	debug_bypass = (struct cam_debug_bypass *)s->private;
 	idx = debug_bypass->idx;
@@ -242,10 +237,7 @@ static int camdebugger_dcam_reg_show(struct seq_file *s,
 	uint32_t addr = 0;
 	const uint32_t addr_end[] = {0x400, 0x400, 0x110, 0x110, 0x100, 0x100};
 
-	if (!g_dbg_debug_control) {
-		pr_err("fail to get correct key\n");
-		return -EFAULT;
-	}
+	CAM_DEBUGGER_IF_GET_CORRECT_KEY(g_dbg_debug_control);
 
 	if (idx >= 3 && idx < 5) {
 		seq_printf(s, "-----dcam axi%d and fetch----\n", idx - 3);
@@ -298,10 +290,7 @@ static ssize_t camdebugger_zoom_mode_show(struct file *filp,
 	char buf[256] = {0};
 	const char *desc = "0: bypass, 1: bin2, 2: bin4, 3: scaler";
 
-	if (!g_dbg_debug_control) {
-		pr_err("fail to get correct key\n");
-		return -EFAULT;
-	}
+	CAM_DEBUGGER_IF_GET_CORRECT_KEY(g_dbg_debug_control);
 
 	if (g_camctrl.dcam_zoom_mode >= ZOOM_DEBUG_DEFAULT)
 		snprintf(buf, sizeof(buf), "%d(%s)\n%s\n", g_camctrl.dcam_zoom_mode,
@@ -324,10 +313,7 @@ static ssize_t camdebugger_zoom_mode_write(struct file *filp,
 	if (count > 2)
 		return -EINVAL;
 
-	if (!g_dbg_debug_control) {
-		pr_err("fail to get correct key\n");
-		return -EFAULT;
-	}
+	CAM_DEBUGGER_IF_GET_CORRECT_KEY(g_dbg_debug_control);
 
 	ret = copy_from_user(msg, (void __user *)buffer, count);
 	if (ret) {
@@ -392,10 +378,7 @@ static int camdebugger_fbc_control_read(struct seq_file *s, void *unused)
 	const char *desc = "bit 0:bin 1:full 2:raw\n";
 	char buf[48] = {0};
 
-	if (!g_dbg_debug_control) {
-		pr_err("fail to get correct key\n");
-		return -EFAULT;
-	}
+	CAM_DEBUGGER_IF_GET_CORRECT_KEY(g_dbg_debug_control);
 
 	snprintf(buf, sizeof(buf), "%u\n\n%s\n", g_dbg_fbc_control, desc);
 
@@ -419,10 +402,7 @@ static ssize_t camdebugger_fbc_control_write(struct file *filp,
 {
 	int ret = 0;
 
-	if (!g_dbg_debug_control) {
-		pr_err("fail to get correct key\n");
-		return -EFAULT;
-	}
+	CAM_DEBUGGER_IF_GET_CORRECT_KEY(g_dbg_debug_control);
 
 	ret = camdebugger_userparam_set(buffer, count, &g_dbg_fbc_control);
 	if (ret < 0) {
@@ -446,10 +426,7 @@ static ssize_t camdebugger_recovery_show(struct file *filp,
 	const char *desc = "0: idle, 1: bypass 2:enable recovery\n";
 	char buf[48] = {0};
 
-	if (!g_dbg_debug_control) {
-		pr_err("fail to get correct key\n");
-		return -EFAULT;
-	}
+	CAM_DEBUGGER_IF_GET_CORRECT_KEY(g_dbg_debug_control);
 
 	snprintf(buf, sizeof(buf), "%u\n\n%s\n", g_dbg_recovery, desc);
 
@@ -463,10 +440,7 @@ static ssize_t camdebugger_recovery_write(struct file *filp,
 {
 	int ret = 0;
 
-	if (!g_dbg_debug_control) {
-		pr_err("fail to get correct key\n");
-		return -EFAULT;
-	}
+	CAM_DEBUGGER_IF_GET_CORRECT_KEY(g_dbg_debug_control);
 
 	ret = camdebugger_userparam_set(buffer, count, &g_dbg_recovery);
 	if (ret < 0) {
@@ -486,10 +460,7 @@ static const struct file_operations recovery_ops = {
 
 static int camdebugger_replace_control_read(struct seq_file *s, void *unused)
 {
-	if (!g_dbg_debug_control) {
-		pr_err("fail to get correct key\n");
-		return -EFAULT;
-	}
+	CAM_DEBUGGER_IF_GET_CORRECT_KEY(g_dbg_debug_control);
 
 	seq_printf(s, "\nUsage:\n");
 	seq_printf(s, "  The different bits represent replace pipeline, node, port, state\n");
@@ -534,10 +505,7 @@ static ssize_t camdebugger_replace_control_write(struct file *filp,
 	if (count > 7)
 		return -EINVAL;
 
-	if (!g_dbg_debug_control) {
-		pr_err("fail to get correct key\n");
-		return -EFAULT;
-	}
+	CAM_DEBUGGER_IF_GET_CORRECT_KEY(g_dbg_debug_control);
 
 	ret = copy_from_user(msg, (void __user *)buffer, count);
 	if (ret) {
@@ -574,10 +542,7 @@ static ssize_t camdebugger_replace_file_fmt_set(struct file *filp,
 	if (count > 7)
 		return -EINVAL;
 
-	if (!g_dbg_debug_control) {
-		pr_err("fail to get correct key\n");
-		return -EFAULT;
-	}
+	CAM_DEBUGGER_IF_GET_CORRECT_KEY(g_dbg_debug_control);
 
 	ret = copy_from_user(msg, (void __user *)buffer, count);
 	if (ret) {
@@ -611,10 +576,7 @@ static ssize_t camdebugger_replaceswitch_show(struct file *filp,
 	const char *desc = "PREV/VIDEO pipeline dump 0: disable, 1: enable\n";
 	char buf[48] = {0};
 
-	if (!g_dbg_debug_control) {
-		pr_err("fail to get correct key\n");
-		return -EFAULT;
-	}
+	CAM_DEBUGGER_IF_GET_CORRECT_KEY(g_dbg_debug_control);
 
 	snprintf(buf, sizeof(buf), "%u\n\n%s\n", g_dbg_replace_switch, desc);
 
@@ -626,10 +588,7 @@ static ssize_t camdebugger_replaceswitch_write(struct file *filp,
 {
 	int ret = 0;
 
-	if (!g_dbg_debug_control) {
-		pr_err("fail to get correct key\n");
-		return -EFAULT;
-	}
+	CAM_DEBUGGER_IF_GET_CORRECT_KEY(g_dbg_debug_control);
 
 	ret = camdebugger_userparam_set(buffer, count, &g_dbg_replace_switch);
 	if (ret < 0) {
@@ -653,10 +612,7 @@ static ssize_t camdebugger_dumpswitch_show(struct file *filp,
 	const char *desc = "PREV/VIDEO pipeline dump 0: disable, 1: enable\n";
 	char buf[48] = {0};
 
-	if (!g_dbg_debug_control) {
-		pr_err("fail to get correct key\n");
-		return -EFAULT;
-	}
+	CAM_DEBUGGER_IF_GET_CORRECT_KEY(g_dbg_debug_control);
 
 	snprintf(buf, sizeof(buf), "%u\n\n%s\n", g_dbg_dumpswitch, desc);
 
@@ -668,10 +624,7 @@ static ssize_t camdebugger_dumpswitch_write(struct file *filp,
 {
 	int ret = 0;
 
-	if (!g_dbg_debug_control) {
-		pr_err("fail to get correct key\n");
-		return -EFAULT;
-	}
+	CAM_DEBUGGER_IF_GET_CORRECT_KEY(g_dbg_debug_control);
 
 	ret = camdebugger_userparam_set(buffer, count, &g_dbg_dumpswitch);
 	if (ret < 0) {
@@ -691,10 +644,7 @@ static const struct file_operations dumpswitch_ops = {
 
 static int camdebugger_dump_control_read(struct seq_file *s, void *unused)
 {
-	if (!g_dbg_debug_control) {
-		pr_err("fail to get correct key\n");
-		return -EFAULT;
-	}
+	CAM_DEBUGGER_IF_GET_CORRECT_KEY(g_dbg_debug_control);
 
 	seq_printf(s, "\nUsage:\n");
 	seq_printf(s, "  The different bits represent dump pipeline, node, port, state\n");
@@ -734,10 +684,7 @@ static ssize_t camdebugger_dump_control_write(struct file *filp,
 	if (count > 7)
 		return -EINVAL;
 
-	if (!g_dbg_debug_control) {
-		pr_err("fail to get correct key\n");
-		return -EFAULT;
-	}
+	CAM_DEBUGGER_IF_GET_CORRECT_KEY(g_dbg_debug_control);
 
 	ret = copy_from_user(msg, (void __user *)buffer, count);
 	if (ret) {
@@ -769,10 +716,7 @@ static ssize_t camdebugger_dump_count_write(struct file *filp,
 {
 	int ret = 0;
 
-	if (!g_dbg_debug_control) {
-		pr_err("fail to get correct key\n");
-		return -EFAULT;
-	}
+	CAM_DEBUGGER_IF_GET_CORRECT_KEY(g_dbg_debug_control);
 
 	ret = camdebugger_userparam_set(buffer, count, &g_dbg_dumpcount);
 	if (ret < 0) {
@@ -801,10 +745,7 @@ static ssize_t camdebugger_csi_switch_write(struct file *filp,
 		return -EFAULT;
 	}
 
-	if (!g_dbg_debug_control) {
-		pr_err("fail to get correct key\n");
-		return -EFAULT;
-	}
+	CAM_DEBUGGER_IF_GET_CORRECT_KEY(g_dbg_debug_control);
 
 	ret = copy_from_user(msg, (void __user *)buffer, count);
 	if (ret) {
@@ -830,10 +771,7 @@ static ssize_t camdebugger_pyr_dec_show(struct file *filp,
 	char buf[64] = {0};
 	char *str = "Example: echo 1 > pyr_dec_bypass";
 
-	if (!g_dbg_debug_control) {
-		pr_err("fail to get correct key\n");
-		return -EFAULT;
-	}
+	CAM_DEBUGGER_IF_GET_CORRECT_KEY(g_dbg_debug_control);
 
 	snprintf(buf, sizeof(buf), "%u\n\n%s\n\n%s\n\n", g_pyr_dec_online_bypass, desc ,str);
 
@@ -850,10 +788,7 @@ static ssize_t camdebugger_pyr_dec_bypass(struct file *filp,
 	if (count > 2)
 		return -EINVAL;
 
-	if (!g_dbg_debug_control) {
-		pr_err("fail to get correct key\n");
-		return -EFAULT;
-	}
+	CAM_DEBUGGER_IF_GET_CORRECT_KEY(g_dbg_debug_control);
 
 	ret = copy_from_user(msg, (void __user *)buffer, count);
 	if (ret) {
@@ -886,10 +821,7 @@ static ssize_t camdebugger_dcam_raw_src_read(struct file *filp,
 {
 	char buf[16] = {0};
 
-	if (!g_dbg_debug_control) {
-		pr_err("fail to get correct key\n");
-		return -EFAULT;
-	}
+	CAM_DEBUGGER_IF_GET_CORRECT_KEY(g_dbg_debug_control);
 
 	if (g_dcam_raw_src == ORI_RAW_SRC_SEL)
 		snprintf(buf, sizeof(buf), "%s\n", "sensor");
@@ -917,10 +849,7 @@ static ssize_t camdebugger_dcam_raw_src_set(struct file *filp,
 	if (count > 7)
 		return -EINVAL;
 
-	if (!g_dbg_debug_control) {
-		pr_err("fail to get correct key\n");
-		return -EFAULT;
-	}
+	CAM_DEBUGGER_IF_GET_CORRECT_KEY(g_dbg_debug_control);
 
 	ret = copy_from_user(msg, (void __user *)buffer, count);
 	if (ret) {
@@ -960,10 +889,7 @@ static ssize_t camdebugger_dcamint_eof_read(struct file *filp,
 {
 	char buf[16] = {0};
 
-	if (!g_dbg_debug_control) {
-		pr_err("fail to get correct key\n");
-		return -EFAULT;
-	}
+	CAM_DEBUGGER_IF_GET_CORRECT_KEY(g_dbg_debug_control);
 
 	snprintf(buf, sizeof(buf), "%d\n", contr_cap_eof);
 	return simple_read_from_buffer(
@@ -981,10 +907,7 @@ static ssize_t camdebugger_dcamint_eof_write(struct file *filp,
 	if (count > 8)
 		return -EINVAL;
 
-	if (!g_dbg_debug_control) {
-		pr_err("fail to get correct key\n");
-		return -EFAULT;
-	}
+	CAM_DEBUGGER_IF_GET_CORRECT_KEY(g_dbg_debug_control);
 
 	ret = copy_from_user(msg, (void __user *)buffer, count);
 	for (x = 0; x < count-1; x++) {
@@ -1046,10 +969,7 @@ static ssize_t camdebugger_memory_leak_write(struct file *filp,
 {
 	int ret = 0;
 
-	if (!g_dbg_debug_control) {
-		pr_err("fail to get correct key\n");
-		return -EFAULT;
-	}
+	CAM_DEBUGGER_IF_GET_CORRECT_KEY(g_dbg_debug_control);
 
 	ret = camdebugger_userparam_set(buffer, count, &g_mem_dbg->g_dbg_memory_leak_ctrl);
 	if (ret < 0) {
@@ -1057,7 +977,6 @@ static ssize_t camdebugger_memory_leak_write(struct file *filp,
 		return ret;
 	}
 	pr_info("set memory_leak %u\n", g_mem_dbg->g_dbg_memory_leak_ctrl);
-
 	return count;
 }
 
@@ -1067,8 +986,61 @@ static const struct file_operations memory_leak_ops = {
 	.write = camdebugger_memory_leak_write,
 };
 
+static ssize_t camdebugger_rawcap_frgb_read(struct file *filp,
+	char __user *buffer, size_t count, loff_t *ppos)
+{
+	const char *desc = "0: rawcap mode, 1: frgb mode";
+	char buf[64] = {0};
+	char *str = "Example: echo 1 > rawcap_frgb_switch";
+
+	CAM_DEBUGGER_IF_GET_CORRECT_KEY(g_dbg_debug_control);
+
+	snprintf(buf, sizeof(buf), "%u\n\n%s\n\n%s\n\n", g_dbg_raw2frgb_switch, desc ,str);
+
+	return simple_read_from_buffer(buffer, count, ppos, buf, strlen(buf));
+}
+
+static ssize_t camdebugger_rawcap_frgb_write(struct file *filp,
+	const char __user *buffer, size_t count, loff_t *ppos)
+{
+	int ret = 0;
+	char msg[8] = {0};
+	uint32_t val = {0};
+
+	if (count > 2)
+		return -EINVAL;
+
+	CAM_DEBUGGER_IF_GET_CORRECT_KEY(g_dbg_debug_control);
+
+	ret = copy_from_user(msg, (void __user *)buffer, count);
+	if (ret) {
+		pr_err("fail to copy_from_user\n");
+		return -EFAULT;
+	}
+
+	msg[count] = '\0';
+	ret = kstrtouint(msg, 10, &val);
+	if (ret < 0) {
+		pr_err("fail to convert '%s', ret %n", msg, ret);
+		return ret;
+	}
+
+	g_dbg_raw2frgb_switch = val;
+	pr_info("set raw2frgb_switch %u\n", g_dbg_raw2frgb_switch);
+
+	return count;
+}
+
+static const struct file_operations rawcap_frgb_switch_ops = {
+	.owner = THIS_MODULE,
+	.open = simple_open,
+	.read = camdebugger_rawcap_frgb_read,
+	.write = camdebugger_rawcap_frgb_write,
+};
+
 static int camdebugger_pipeline_log_read(struct seq_file *s, void *unused)
 {
+	CAM_DEBUGGER_IF_GET_CORRECT_KEY(g_dbg_debug_control);
 
 	seq_printf(s, "\n Example: open Preview Pipeline Log\n");
 	seq_printf(s, "\n echo 0 > open_pipeline_log\n");
@@ -1109,10 +1081,7 @@ static ssize_t camdebugger_pipeline_log_write(struct file *filp,
 	if (count > 7)
 		return -EINVAL;
 
-	if (!g_dbg_debug_control) {
-		pr_err("fail to get correct key\n");
-		return -EFAULT;
-	}
+	CAM_DEBUGGER_IF_GET_CORRECT_KEY(g_dbg_debug_control);
 
 	ret = copy_from_user(msg, (void __user *)buffer, count);
 	if (ret) {
@@ -1127,6 +1096,7 @@ static ssize_t camdebugger_pipeline_log_write(struct file *filp,
 		return ret;
 	}
 	pr_info("set pipeline log type %d\n", g_pipeline_type);
+
 	return count;
 }
 
@@ -1230,9 +1200,12 @@ static int camdebugger_dcam_init(struct camera_debugger *debugger)
 	if (!debugfs_create_file("memory_leak_control", 0664,
 		pd, debugger, &memory_leak_ops))
 		ret |= BIT(22);
+	if (!debugfs_create_file("rawcap_frgb_switch", 0664,
+		pd, debugger, &rawcap_frgb_switch_ops))
+		ret |= BIT(23);
 	if (!debugfs_create_file("debug_log_switch", 0664,
 		pd, debugger, &pipeline_log_ops))
-		ret |= BIT(23);
+		ret |= BIT(24);
 
 	if (ret)
 		ret = -ENOMEM;
@@ -1267,10 +1240,7 @@ static int camdebugger_dcam_deinit(void)
 #ifdef DBG_REGISTER
 static int camdebugger_reg_buf_show(struct seq_file *s, void *unused)
 {
-	if (!g_dbg_debug_control) {
-		pr_err("fail to get correct key\n");
-		return -EFAULT;
-	}
+	CAM_DEBUGGER_IF_GET_CORRECT_KEY(g_dbg_debug_control);
 
 	isp_cfg_ctx_reg_buf_debug_show((void *)s);
 	return 0;
@@ -1308,10 +1278,7 @@ static int camdebugger_isp_bypass_read(struct seq_file *s,
 		return -EFAULT;
 	}
 
-	if (!g_dbg_debug_control) {
-		pr_err("fail to get correct key\n");
-		return -EFAULT;
-	}
+	CAM_DEBUGGER_IF_GET_CORRECT_KEY(g_dbg_debug_control);
 
 	debug_bypass = (struct cam_debug_bypass *)s->private;
 	idx = debug_bypass->idx;
@@ -1377,10 +1344,7 @@ static ssize_t camdebugger_isp_bypass_write(struct file *filp,
 	if (i >= sizeof(buf))
 		i = sizeof(buf) - 1; /* last one for \0 */
 
-	if (!g_dbg_debug_control) {
-		pr_err("fail to get correct key\n");
-		return -EFAULT;
-	}
+	CAM_DEBUGGER_IF_GET_CORRECT_KEY(g_dbg_debug_control);
 
 	if (copy_from_user(buf, buffer, i)) {
 		pr_err("fail to get user info\n");
@@ -1488,10 +1452,7 @@ static ssize_t camdebugger_work_mode_show(struct file *filp,
 	char buf[64] = {0};
 	const char *desc = "0: ISP_CFG_MODE, 1: ISP_AP_MODE";
 
-	if (!g_dbg_debug_control) {
-		pr_err("fail to get correct key\n");
-		return -EFAULT;
-	}
+	CAM_DEBUGGER_IF_GET_CORRECT_KEY(g_dbg_debug_control);
 
 	snprintf(buf, sizeof(buf), "%d(%s)\n%s\n\n", s_dbg_work_mode,
 		work_mode_string[s_dbg_work_mode&1], desc);
@@ -1512,10 +1473,7 @@ static ssize_t camdebugger_work_mode_write(struct file *filp,
 	if (count > WORK_MODE_SLEN)
 		return -EINVAL;
 
-	if (!g_dbg_debug_control) {
-		pr_err("fail to get correct key\n");
-		return -EFAULT;
-	}
+	CAM_DEBUGGER_IF_GET_CORRECT_KEY(g_dbg_debug_control);
 
 	ret = copy_from_user(msg, (void __user *)buffer, count);
 	if (ret) {
@@ -1554,10 +1512,7 @@ static ssize_t camdebugger_iommu_mode_show(struct file *filp,
 {
 	char buf[64] = {0};
 
-	if (!g_dbg_debug_control) {
-		pr_err("fail to get correct key\n");
-		return -EFAULT;
-	}
+	CAM_DEBUGGER_IF_GET_CORRECT_KEY(g_dbg_debug_control);
 
 	snprintf(buf, sizeof(buf), "cur: %d(%s), next: %d(%s)\n",
 		g_dbg_iommu_mode,
@@ -1581,10 +1536,7 @@ static ssize_t camdebugger_iommu_mode_write(struct file *filp,
 	if (count > WORK_MODE_SLEN)
 		return -EINVAL;
 
-	if (!g_dbg_debug_control) {
-		pr_err("fail to get correct key\n");
-		return -EFAULT;
-	}
+	CAM_DEBUGGER_IF_GET_CORRECT_KEY(g_dbg_debug_control);
 
 	ret = copy_from_user(msg, (void __user *)buffer, count);
 	if (ret) {
@@ -1623,10 +1575,7 @@ static ssize_t camdebugger_lbuf_len_show(struct file *filp,
 {
 	char buf[16] = {0};
 
-	if (!g_dbg_debug_control) {
-		pr_err("fail to get correct key\n");
-		return -EFAULT;
-	}
+	CAM_DEBUGGER_IF_GET_CORRECT_KEY(g_dbg_debug_control);
 
 	snprintf(buf, sizeof(buf), "%d\n", s_dbg_linebuf_len);
 
@@ -1646,10 +1595,7 @@ static ssize_t camdebugger_lbuf_len_write(struct file *filp,
 	if (count > LBUF_LEN_SLEN)
 		return -EINVAL;
 
-	if (!g_dbg_debug_control) {
-		pr_err("fail to get correct key\n");
-		return -EFAULT;
-	}
+	CAM_DEBUGGER_IF_GET_CORRECT_KEY(g_dbg_debug_control);
 
 	ret = copy_from_user(msg, (void __user *)buffer, count);
 	if (ret) {
@@ -1679,10 +1625,7 @@ static ssize_t camdebugger_isp_pyr_dec_show(struct file *filp,
 	char buf[60] = {0};
 	char *str = "Example: echo 1 > offline_dec_bypass";
 
-	if (!g_dbg_debug_control) {
-		pr_err("fail to get correct key\n");
-		return -EFAULT;
-	}
+	CAM_DEBUGGER_IF_GET_CORRECT_KEY(g_dbg_debug_control);
 
 	snprintf(buf, sizeof(buf), "%u\n\n%s\n\n%s\n\n", g_pyr_dec_offline_bypass, desc ,str);
 
@@ -1701,10 +1644,7 @@ static ssize_t camdebugger_isp_pyr_dec_bypass(struct file *filp,
 	if (count > 2)
 		return -EINVAL;
 
-	if (!g_dbg_debug_control) {
-		pr_err("fail to get correct key\n");
-		return -EFAULT;
-	}
+	CAM_DEBUGGER_IF_GET_CORRECT_KEY(g_dbg_debug_control);
 
 	ret = copy_from_user(msg, (void __user *)buffer, count);
 	if (ret) {
@@ -1739,10 +1679,7 @@ static int camdebugger_fbc_ctrl_read(struct seq_file *s, void *unused)
 
 	override = (struct compression_override *)s->private;
 
-	if (!g_dbg_debug_control) {
-		pr_err("fail to get correct key\n");
-		return -EFAULT;
-	}
+	CAM_DEBUGGER_IF_GET_CORRECT_KEY(g_dbg_debug_control);
 
 	for (i = 0; i < CAM_ID_MAX; i++, override++) {
 		seq_printf(s, "\n===== CAM%d override %u =====\n",
@@ -1801,10 +1738,7 @@ static ssize_t camdebugger_fbc_ctrl_write(struct file *filp,
 		return -EINVAL;
 	}
 
-	if (!g_dbg_debug_control) {
-		pr_err("fail to get correct key\n");
-		return -EFAULT;
-	}
+	CAM_DEBUGGER_IF_GET_CORRECT_KEY(g_dbg_debug_control);
 
 	ret = copy_from_user(buf, (void __user *)buffer, count);
 	if (ret) {
@@ -2008,3 +1942,4 @@ int cam_debugger_deinit(void)
 
 	return 0;
 }
+

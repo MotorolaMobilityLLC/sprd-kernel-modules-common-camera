@@ -31,6 +31,8 @@ enum cam_node_type {
 	CAM_NODE_TYPE_DCAM_ONLINE,
 	CAM_NODE_TYPE_DCAM_OFFLINE,
 	CAM_NODE_TYPE_DCAM_OFFLINE_BPC_RAW,
+	CAM_NODE_TYPE_DCAM_OFFLINE_RAW2FRGB,
+	CAM_NODE_TYPE_DCAM_OFFLINE_FRGB2YUV,
 	CAM_NODE_TYPE_ISP_OFFLINE,
 	CAM_NODE_TYPE_FRAME_CACHE,
 	CAM_NODE_TYPE_ISP_YUV_SCALER,
@@ -166,6 +168,8 @@ struct cam_node_desc {
 	struct dcam_online_node_desc *dcam_online_desc;
 	struct dcam_offline_node_desc *dcam_offline_desc;
 	struct dcam_offline_node_desc *dcam_offline_bpcraw_desc;
+	struct dcam_offline_node_desc *dcam_offline_raw2frgb_desc;
+	struct dcam_offline_node_desc *dcam_offline_frgb2yuv_desc;
 	struct dcam_fetch_node_desc *dcam_fetch_desc;
 	struct isp_node_desc *isp_node_description;
 	struct isp_yuv_scaler_node_desc *isp_yuv_scaler_desc;
@@ -212,6 +216,10 @@ struct cam_nodes_dev {
 	struct dcam_offline_port *dcam_offline_out_port_dev[PORT_DCAM_OUT_MAX];
 	struct dcam_offline_node *dcam_offline_node_bpcraw_dev;
 	struct dcam_offline_port *dcam_offline_bpcraw_out_port_dev[PORT_DCAM_OUT_MAX];
+	struct dcam_offline_node *dcam_offline_node_raw2frgb_dev;
+	struct dcam_offline_port *dcam_offline_raw2frgb_out_port_dev[PORT_DCAM_OUT_MAX];
+	struct dcam_offline_node *dcam_offline_node_frgb2yuv_dev;
+	struct dcam_offline_port *dcam_offline_frgb2yuv_out_port_dev[PORT_DCAM_OUT_MAX];
 	struct isp_node *isp_node_dev[ISP_NODE_MODE_MAX_ID];
 	struct isp_port *isp_out_port_dev[ISP_NODE_MODE_MAX_ID][PORT_ISP_OUT_MAX];
 	struct isp_port *isp_in_port_dev[ISP_NODE_MODE_MAX_ID][PORT_ISP_IN_MAX];

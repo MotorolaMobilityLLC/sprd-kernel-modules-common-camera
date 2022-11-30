@@ -39,6 +39,7 @@ enum cam_pipeline_type {
 	CAM_PIPELINE_ONLINE_NORMAL2YUV_OR_RAW2USER2YUV,
 	CAM_PIPELINE_VCH_SENSOR_RAW,
 	CAM_PIPELINE_ONLINE_NORMALZSLCAPTURE_OR_RAW2USER2YUV,
+	CAM_PIPELINE_OFFLINE_RAW2FRGB_OFFLINE_FRGB2YUV,
 	CAM_PIPELINE_TYPE_MAX,
 };
 
@@ -103,6 +104,8 @@ struct cam_pipeline_desc {
 	struct dcam_online_node_desc dcam_online_desc;
 	struct dcam_offline_node_desc dcam_offline_desc;
 	struct dcam_offline_node_desc dcam_offline_bpcraw_desc;
+	struct dcam_offline_node_desc dcam_offline_raw2frgb_desc;
+	struct dcam_offline_node_desc dcam_offline_frgb2yuv_desc;
 	struct dcam_fetch_node_desc dcam_fetch_desc;
 	struct isp_node_desc isp_node_description;
 	struct frame_cache_node_desc frame_cache_desc;
@@ -206,6 +209,34 @@ struct cam_pipeline {
 	struct cam_pipeline_cfg_param param_cfg = {0}; \
 	int ret = 0; \
 	param_cfg.node_type = CAM_NODE_TYPE_DCAM_OFFLINE; \
+	param_cfg.node_param.param = (par); \
+	if ((channel)->pipeline_handle) \
+		ret = (channel)->pipeline_handle->ops.cfg_param((channel)->pipeline_handle, (cmd), &param_cfg); \
+	else { \
+		pr_warn("warning: current channel not contain pipeline\n"); \
+		ret = -EFAULT; \
+	} \
+	ret; \
+})
+
+#define CAM_PIPEINE_DCAM_OFFLINE_RAW2FRGB_NODE_CFG(channel, cmd, par)  ({ \
+	struct cam_pipeline_cfg_param param_cfg = {0}; \
+	int ret = 0; \
+	param_cfg.node_type = CAM_NODE_TYPE_DCAM_OFFLINE_RAW2FRGB; \
+	param_cfg.node_param.param = (par); \
+	if ((channel)->pipeline_handle) \
+		ret = (channel)->pipeline_handle->ops.cfg_param((channel)->pipeline_handle, (cmd), &param_cfg); \
+	else { \
+		pr_warn("warning: current channel not contain pipeline\n"); \
+		ret = -EFAULT; \
+	} \
+	ret; \
+})
+
+#define CAM_PIPEINE_DCAM_OFFLINE_FRGB2YUV_NODE_CFG(channel, cmd, par)  ({ \
+	struct cam_pipeline_cfg_param param_cfg = {0}; \
+	int ret = 0; \
+	param_cfg.node_type = CAM_NODE_TYPE_DCAM_OFFLINE_FRGB2YUV; \
 	param_cfg.node_param.param = (par); \
 	if ((channel)->pipeline_handle) \
 		ret = (channel)->pipeline_handle->ops.cfg_param((channel)->pipeline_handle, (cmd), &param_cfg); \
