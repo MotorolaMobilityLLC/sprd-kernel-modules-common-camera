@@ -998,6 +998,8 @@ static int camcore_pipeline_callback(enum cam_cb_type type, void *param, void *p
 	struct camera_module *module = NULL;
 	struct channel_context *channel = NULL;
 	struct cam_hw_info *hw = NULL;
+	struct dcam_online_node *dcam_online_node_dev = NULL;
+	struct cam_hw_reg_trace trace = {0};
 
 	if (!param || !priv_data) {
 		pr_err("fail to get valid param %p %p\n", param, priv_data);
@@ -1020,6 +1022,14 @@ static int camcore_pipeline_callback(enum cam_cb_type type, void *param, void *p
 
 	if (unlikely(type == CAM_CB_ISP_DEV_ERR)) {
 		pr_err("fail to fatal err may not do anything\n");
+		if (module->nodes_dev.dcam_online_node_dev) {
+			trace.type = ABNORMAL_REG_TRACE;
+			dcam_online_node_dev = module->nodes_dev.dcam_online_node_dev;
+			if (dcam_online_node_dev->hw_ctx_id != DCAM_HW_CONTEXT_MAX) {
+				trace.idx = dcam_online_node_dev->hw_ctx_id;
+				hw->isp_ioctl(hw, ISP_HW_CFG_REG_TRACE, &trace);
+			}
+		}
 		return 0;
 	}
 

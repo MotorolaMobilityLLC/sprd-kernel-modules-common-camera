@@ -19,6 +19,7 @@
 #include "cam_types.h"
 
 #define CAM_PIPELINE_NODE_NUM       CAM_NODE_TYPE_MAX
+extern uint32_t g_pipeline_type;
 
 enum cam_pipeline_type {
 	CAM_PIPELINE_PREVIEW,
@@ -124,6 +125,7 @@ struct cam_pipeline {
 	struct cam_pipeline_topology *pipeline_graph;
 	struct cam_node *node_list[CAM_PIPELINE_NODE_NUM];
 	struct cam_pipeline_ops ops;
+	uint32_t debug_log_switch;
 };
 
 #define CAM_PIPEINE_ISP_NODE_CFG(channel, cmd, par)  ({ \

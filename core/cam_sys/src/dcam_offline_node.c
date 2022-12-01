@@ -17,6 +17,7 @@
 #include "dcam_offline_node.h"
 #include "cam_node.h"
 #include "cam_offline_statis.h"
+#include "cam_pipeline.h"
 
 #ifdef pr_fmt
 #undef pr_fmt
@@ -918,6 +919,8 @@ int dcam_offline_node_request_proc(struct dcam_offline_node *node, void *param)
 	struct cam_node_cfg_param *node_param = NULL;
 	struct camera_frame *pframe = NULL;
 	struct camera_buf_get_desc buf_desc = {0};
+	struct cam_pipeline *pipeline = NULL;
+	struct cam_node *cam_node = NULL;
 
 	if (!node || !param) {
 		pr_err("fail to get valid param %px %px\n", node, param);
@@ -928,6 +931,14 @@ int dcam_offline_node_request_proc(struct dcam_offline_node *node, void *param)
 	pframe = (struct camera_frame *)node_param->param;
 	pframe->priv_data = node;
 	buf_desc.buf_ops_cmd = CAM_BUF_STATUS_MOVE_TO_ION;
+	cam_node = (struct cam_node *)node->data_cb_handle;
+	pipeline = (struct cam_pipeline *)cam_node->data_cb_handle;
+
+	if (pipeline->debug_log_switch)
+		pr_info("pipeline_type %s, fid %d, ch_id %d, buf %x, w %d, h %d, pframe->is_reserved %d, compress_en %d\n",
+			cam_pipeline_name_get(pipeline->pipeline_graph->type), pframe->fid, pframe->channel_id, pframe->buf.mfd,
+			pframe->width, pframe->height, pframe->is_reserved, pframe->is_compressed);
+
 	ret = cam_buf_manager_buf_enqueue(&node->in_pool, pframe, &buf_desc);
 	if (ret == 0)
 		complete(&node->thread.thread_com);

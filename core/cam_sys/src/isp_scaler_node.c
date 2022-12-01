@@ -26,6 +26,7 @@
 #include "isp_scaler_node.h"
 #include "isp_scaler_port.h"
 #include "isp_slice.h"
+#include "cam_pipeline.h"
 
 #ifdef pr_fmt
 #undef pr_fmt
@@ -95,6 +96,8 @@ int isp_scaler_node_request_proc(struct isp_yuv_scaler_node *node, void *param)
 	struct camera_frame *pframe = NULL;
 	struct camera_frame *pframe1 = NULL;
 	struct isp_scaler_port *port = NULL;
+	struct cam_pipeline *pipeline = NULL;
+	struct cam_node *cam_node = NULL;
 	int ret = 0;
 
 	if (!node || !param) {
@@ -105,10 +108,17 @@ int isp_scaler_node_request_proc(struct isp_yuv_scaler_node *node, void *param)
 	pr_debug("node %px node->node_id %d cfg_id %d\n",node,node->node_id,node->cfg_id);
 	pframe = (struct camera_frame *)param;
 	pframe->priv_data = node;
+	cam_node = (struct cam_node *)node->data_cb_handle;
+	pipeline = (struct cam_pipeline *)cam_node->data_cb_handle;
 	/*buffer is transing from isp_port_out_of_queue to isp_scaler_port out_of_queue*/
 	pframe1 =(struct camera_frame *)pframe->pframe_data;
 	pframe1->is_reserved = 0;
 	pframe1->priv_data = port;
+
+	if (pipeline->debug_log_switch)
+		pr_info("pipeline_type %s, fid %d, ch_id %d, buf %x, w %d, h %d, pframe->is_reserved %d, compress_en %d\n",
+			cam_pipeline_name_get(pipeline->pipeline_graph->type), pframe->fid, pframe->channel_id, pframe->buf.mfd,
+			pframe->width, pframe->height, pframe->is_reserved, pframe->is_compressed);
 
 	list_for_each_entry(port, &node->port_queue.head, list) {
 		ret = cam_queue_enqueue(&port->out_buf_queue, &pframe1->list);

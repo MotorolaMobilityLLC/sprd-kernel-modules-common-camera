@@ -14,6 +14,7 @@
 #include <linux/vmalloc.h>
 #include "frame_cache_node.h"
 #include "cam_node.h"
+#include "cam_pipeline.h"
 
 #ifdef pr_fmt
 #undef pr_fmt
@@ -231,6 +232,8 @@ int frame_cache_node_request_proc(struct frame_cache_node *node, void *param)
 	int ret = 0;
 	enum frame_cache_type type = FRAME_CACHE_NORMAL_TYPE;
 	struct camera_frame *pframe = NULL;
+	struct cam_pipeline *pipeline = NULL;
+	struct cam_node *cam_node = NULL;
 
 	if (!node || !param) {
 		pr_err("fail to get valid param %px %px\n", node, param);
@@ -238,6 +241,14 @@ int frame_cache_node_request_proc(struct frame_cache_node *node, void *param)
 	}
 
 	pframe = (struct camera_frame *)param;
+	cam_node = (struct cam_node *)node->data_cb_handle;
+	pipeline = (struct cam_pipeline *)cam_node->data_cb_handle;
+
+	if (pipeline->debug_log_switch)
+		pr_info("pipeline_type %s, fid %d, ch_id %d, buf %x, w %d, h %d, pframe->is_reserved %d, compress_en %d\n",
+			cam_pipeline_name_get(pipeline->pipeline_graph->type), pframe->fid, pframe->channel_id, pframe->buf.mfd,
+			pframe->width, pframe->height, pframe->is_reserved, pframe->is_compressed);
+
 	if (node->need_dual_sync)
 		type = FRAME_CACHE_DUAL_SYNC_TYPE;
 

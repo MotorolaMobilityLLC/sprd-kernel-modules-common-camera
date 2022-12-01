@@ -23,6 +23,7 @@
 #include "dcam_core.h"
 #include "isp_cfg.h"
 #include "isp_reg.h"
+#include "cam_pipeline.h"
 
 #ifdef pr_fmt
 #undef pr_fmt
@@ -53,6 +54,7 @@ uint32_t g_dbg_recovery = DEBUG_DCAM_RECOVERY_IDLE;
 uint32_t g_dbg_fbc_control = 0;
 uint32_t contr_cap_eof = 1;
 uint32_t g_dbg_debug_control = 0;
+uint32_t g_pipeline_type = CAM_PIPELINE_TYPE_MAX;
 extern struct isp_pipe_dev *s_isp_dev;
 extern struct dcam_pipe_dev *s_dcam_dev;
 extern uint32_t s_dbg_linebuf_len;
@@ -1065,6 +1067,76 @@ static const struct file_operations memory_leak_ops = {
 	.write = camdebugger_memory_leak_write,
 };
 
+static int camdebugger_pipeline_log_read(struct seq_file *s, void *unused)
+{
+
+	seq_printf(s, "\n Example: open Preview Pipeline Log\n");
+	seq_printf(s, "\n echo 0 > open_pipeline_log\n");
+	seq_printf(s, "\n Pipeline Type ID\n");
+	seq_printf(s, " 0: CAM_PIPELINE_PREVIEW\n");
+	seq_printf(s, " 1: CAM_PIPELINE_VIDEO\n");
+	seq_printf(s, " 2: CAM_PIPELINE_CAPTURE\n");
+	seq_printf(s, " 3: CAM_PIPELINE_ZSL_CAPTURE\n");
+	seq_printf(s, " 4: CAM_PIPELINE_THUMBNAIL_PREV\n");
+	seq_printf(s, " 5: CAM_PIPELINE_THUMBNAIL_CAP\n");
+	seq_printf(s, " 6: CAM_PIPELINE_VIDEO_CAPTURE\n");
+	seq_printf(s, " 7: CAM_PIPELINE_SENSOR_RAW\n");
+	seq_printf(s, " 8: CAM_PIPELINE_SCALER_YUV\n");
+	seq_printf(s, " 9: CAM_PIPELINE_OFFLINE_RAW2YUV\n");
+	seq_printf(s, " 10: CAM_PIPELINE_ONLINERAW_2_OFFLINEYUV\n");
+	seq_printf(s, " 11: CAM_PIPELINE_ONLINERAW_2_USER_2_OFFLINEYUV\n");
+	seq_printf(s, " 12: CAM_PIPELINE_ONLINERAW_2_BPCRAW_2_USER_2_OFFLINEYUV\n");
+	seq_printf(s, " 13: CAM_PIPELINE_ONLINERAW_2_USER_2_BPCRAW_2_USER_2_OFFLINEYUV\n");
+	seq_printf(s, " 14: CAM_PIPELINE_ONLINE_NORMAL2YUV_OR_RAW2USER2YUV\n");
+	seq_printf(s, " 15: CAM_PIPELINE_VCH_SENSOR_RAW\n");
+	seq_printf(s, " 16: CAM_PIPELINE_ONLINE_NORMALZSLCAPTURE_OR_RAW2USER2YUV\n");
+	seq_printf(s, " 17: Close Pipeline Log\n");
+
+	return 0;
+}
+
+static int camdebugger_pipeline_log_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, camdebugger_pipeline_log_read, inode->i_private);
+}
+
+static ssize_t camdebugger_pipeline_log_write(struct file *filp,
+	const char __user *buffer, size_t count, loff_t *ppos)
+{
+	int ret = 0;
+	char msg[8];
+
+	if (count > 7)
+		return -EINVAL;
+
+	if (!g_dbg_debug_control) {
+		pr_err("fail to get correct key\n");
+		return -EFAULT;
+	}
+
+	ret = copy_from_user(msg, (void __user *)buffer, count);
+	if (ret) {
+		pr_err("fail to copy_from_user\n");
+		return -EFAULT;
+	}
+
+	msg[count] = '\0';
+	ret = kstrtouint(msg, 10, &g_pipeline_type);
+	if (ret < 0) {
+		pr_err("fail to convert '%s', ret %d", msg, ret);
+		return ret;
+	}
+	pr_info("set pipeline log type %d\n", g_pipeline_type);
+	return count;
+}
+
+static const struct file_operations pipeline_log_ops = {
+	.owner = THIS_MODULE,
+	.open = camdebugger_pipeline_log_open,
+	.read = seq_read,
+	.write = camdebugger_pipeline_log_write,
+};
+
 /* /sys/kernel/debug/sprd_dcam/
  * dcam0_reg, dcam1_reg, dcam2_reg, dcam_axi_reg
  * dcam0/1/2_reg,dcam_axi_reg: cat .....(no echo > )
@@ -1158,6 +1230,9 @@ static int camdebugger_dcam_init(struct camera_debugger *debugger)
 	if (!debugfs_create_file("memory_leak_control", 0664,
 		pd, debugger, &memory_leak_ops))
 		ret |= BIT(22);
+	if (!debugfs_create_file("debug_log_switch", 0664,
+		pd, debugger, &pipeline_log_ops))
+		ret |= BIT(23);
 
 	if (ret)
 		ret = -ENOMEM;

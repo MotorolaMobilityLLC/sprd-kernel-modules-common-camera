@@ -13,6 +13,7 @@
 
 #include "cam_node.h"
 #include "cam_copy_node.h"
+#include "cam_pipeline.h"
 
 #ifdef pr_fmt
 #undef pr_fmt
@@ -141,6 +142,8 @@ int cam_copy_node_request_proc(struct cam_copy_node *node, void *param)
 	int ret = 0;
 	struct cam_node_cfg_param *node_param = NULL;
 	struct camera_frame *pframe = NULL;
+	struct cam_pipeline *pipeline = NULL;
+	struct cam_node *cam_node = NULL;
 
 	if (!node || !param) {
 		pr_err("fail to get valid param %px %px\n", node, param);
@@ -150,7 +153,15 @@ int cam_copy_node_request_proc(struct cam_copy_node *node, void *param)
 	pframe = (struct camera_frame *)node_param->param;
 	pframe->priv_data = node;
 
+	cam_node = (struct cam_node *)node->copy_cb_handle;
+	pipeline = (struct cam_pipeline *)cam_node->data_cb_handle;
+
 	if (node->copy_flag) {
+		if (pipeline->debug_log_switch)
+			pr_info("pipeline_type %s, fid %d, ch_id %d, buf %x, w %d, h %d, pframe->is_reserved %d, compress_en %d\n",
+				cam_pipeline_name_get(pipeline->pipeline_graph->type), pframe->fid, pframe->channel_id, pframe->buf.mfd,
+				pframe->width, pframe->height, pframe->is_reserved, pframe->is_compressed);
+
 		ret = cam_queue_enqueue(&node->in_queue, &pframe->list);
 		if (ret == 0)
 			complete(&node->thread.thread_com);

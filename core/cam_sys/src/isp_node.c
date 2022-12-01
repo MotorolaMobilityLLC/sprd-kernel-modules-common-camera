@@ -29,6 +29,7 @@
 #include "isp_pyr_rec.h"
 #include "isp_gtm.h"
 #include "cam_zoom.h"
+#include "cam_pipeline.h"
 
 #ifdef pr_fmt
 #undef pr_fmt
@@ -1298,16 +1299,22 @@ int isp_node_request_proc(struct isp_node *node, void *param)
 	int ret = 0;
 	struct camera_frame *pframe = NULL;
 	struct isp_port *port = NULL;
+	struct cam_pipeline *pipeline = NULL;
+	struct cam_node *cam_node = NULL;
 	if (!node || !param) {
 		pr_err("fail to get valid param %px %px\n", node, param);
 		return -EFAULT;
 	}
 	node = VOID_PTR_TO(node, struct isp_node);
 	pframe = VOID_PTR_TO(param, struct camera_frame);
-	CAM_ZOOM_DEBUG("cam%d ctx %d, fid %d, ch_id %d, buf %d, 3dnr %d, w %d, h %d, pframe->is_reserved %d, compress_en %d\n",
-		node->attach_cam_id, node->node_id, pframe->fid,
-		pframe->channel_id, pframe->buf.mfd, node->uinfo.mode_3dnr,
-		pframe->width, pframe->height, pframe->is_reserved, pframe->is_compressed);
+	cam_node = (struct cam_node *)node->data_cb_handle;
+	pipeline = (struct cam_pipeline *)cam_node->data_cb_handle;
+
+	if (pipeline->debug_log_switch)
+		pr_info("pipeline_type %s, fid %d, ch_id %d, buf %x, w %d, h %d, pframe->is_reserved %d, compress_en %d\n",
+			cam_pipeline_name_get(pipeline->pipeline_graph->type), pframe->fid, pframe->channel_id, pframe->buf.mfd,
+			pframe->width, pframe->height, pframe->is_reserved, pframe->is_compressed);
+
 	list_for_each_entry(port, &node->port_queue.head, list) {
 		if (port->type == PORT_TRANSFER_IN && atomic_read(&port->user_cnt) > 0) {
 			ret = isp_port_param_cfg(port, PORT_BUFFER_CFG_SET, pframe);

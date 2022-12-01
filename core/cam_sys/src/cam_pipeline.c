@@ -1111,6 +1111,11 @@ static struct cam_node *campipeline_linked_node_get(
 		link.node_id = frame->copy_node_id;
 	}
 
+	if (g_pipeline_type != CAM_PIPELINE_TYPE_MAX && frame->link_from.node_type == CAM_NODE_TYPE_DCAM_ONLINE) {
+		if (pipeline->pipeline_graph->type == g_pipeline_type)
+			pipeline->debug_log_switch = 1;
+	}
+
 	if (link.node_type == CAM_NODE_TYPE_USER ||
 		link.node_id == CAM_LINK_DEFAULT_NODE_ID)
 		return NULL;
