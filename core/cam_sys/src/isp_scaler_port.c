@@ -19,7 +19,7 @@
 #include "isp_port.h"
 #include "isp_drv.h"
 #include "isp_scaler_node.h"
-
+#include "dcam_core.h"
 #ifdef pr_fmt
 #undef pr_fmt
 #endif
@@ -118,7 +118,7 @@ int ispscaler_port_fetch_normal_get(void *cfg_in, void *cfg_out, struct camera_f
 		break;
 	case CAM_RAW_HALFWORD_10:
 	case CAM_RAW_14:
-		fetch->pitch.pitch_ch0 = cal_sprd_raw_pitch(src->w, cam_pack_bits(pipe_src->in_fmt));
+		fetch->pitch.pitch_ch0 = cal_sprd_pitch(src->w, pipe_src->in_fmt);
 		trim_offset[0] = intrim->start_y * fetch->pitch.pitch_ch0 + intrim->start_x * 2;
 		break;
 	case CAM_YUV422_2FRAME:
@@ -185,7 +185,7 @@ int ispscaler_port_fetch_normal_get(void *cfg_in, void *cfg_out, struct camera_f
 			- mipi_word_num_start[(start_col + 1) & 0xF] + 1;
 		fetch->mipi_byte_rel_pos = mipi_byte_info;
 		fetch->mipi_word_num = mipi_word_info;
-		fetch->pitch.pitch_ch0 = cal_sprd_raw_pitch(src->w, 0);
+		fetch->pitch.pitch_ch0 = cal_sprd_pitch(src->w, CAM_RAW_PACK_10);
 		/* same as slice starts */
 		trim_offset[0] = start_row * fetch->pitch.pitch_ch0 + (start_col >> 2) * 5 + (start_col & 0x3);
 		break;

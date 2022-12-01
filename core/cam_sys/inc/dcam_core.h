@@ -216,6 +216,92 @@ struct dcam_csi_reset_param {
 	void *param;
 };
 
+static inline uint32_t cal_sprd_pitch(uint32_t w, uint32_t fmt)
+{
+	uint32_t pitchsize = 0;
+
+	switch (fmt) {
+	case CAM_YUV422_2FRAME:
+	case CAM_YVU422_2FRAME:
+	case CAM_YUV420_2FRAME:
+	case CAM_YVU420_2FRAME:
+	case CAM_YUV422_3FRAME:
+	case CAM_YUV420_3FRAME:
+	case CAM_YUYV_1FRAME:
+	case CAM_UYVY_1FRAME:
+	case CAM_YVYU_1FRAME:
+	case CAM_VYUY_1FRAME:
+		pitchsize = w;
+		break;
+	case CAM_RAW_14:
+	case CAM_RAW_8:
+	case CAM_RAW_HALFWORD_10:
+		pitchsize = CAL_UNPACK_PITCH(w);
+		break;
+	case CAM_YUV420_2FRAME_10:
+	case CAM_YVU420_2FRAME_10:
+		pitchsize = (w * 16 + 127) / 128 * 128 / 8;
+		break;
+	case CAM_RAW_PACK_10:
+		pitchsize = CAL_PACK_PITCH(w);
+		break;
+	case CAM_YUV420_2FRAME_MIPI:
+	case CAM_YVU420_2FRAME_MIPI:
+		pitchsize = (w * 10 + 127) / 128 * 128 / 8;
+		break;
+	case CAM_FULL_RGB14:
+		pitchsize = CAL_FULLRGB14_PITCH(w);
+		break;
+	default :
+		pr_err("fail to get fmt : %d\n", fmt);
+		break;
+	}
+
+	return pitchsize;
+}
+
+static inline uint32_t cal_sprd_size(uint32_t w, uint32_t h, uint32_t fmt)
+{
+	uint32_t size = 0;
+
+	switch (fmt) {
+	case CAM_YUV420_2FRAME:
+	case CAM_YVU420_2FRAME:
+	case CAM_YUV420_2FRAME_MIPI:
+	case CAM_YVU420_2FRAME_MIPI:
+	case CAM_YUV420_3FRAME:
+		size = cal_sprd_pitch(w, fmt) * h * 3 / 2;
+		break;
+	case CAM_RAW_14:
+	case CAM_RAW_8:
+	case CAM_RAW_HALFWORD_10:
+	case CAM_RAW_PACK_10:
+	case CAM_RGB_BASE:
+	case CAM_FULL_RGB10:
+	case CAM_FULL_RGB14:
+		size = cal_sprd_pitch(w, fmt) * h;
+		break;
+	case CAM_YUV422_2FRAME:
+	case CAM_YVU422_2FRAME:
+	case CAM_YUV422_3FRAME:
+	case CAM_YUYV_1FRAME:
+	case CAM_UYVY_1FRAME:
+	case CAM_YVYU_1FRAME:
+	case CAM_VYUY_1FRAME:
+		size = cal_sprd_pitch(w, fmt) * h * 2;
+		break;
+	case CAM_YVU420_2FRAME_10:
+	case CAM_YUV420_2FRAME_10:
+		size = w * h * 3;
+		break;
+	default :
+		pr_err("fail to get fmt : %d\n", fmt);
+		break;
+	}
+
+	return size;
+}
+
 static inline uint32_t cal_sprd_yuv_pitch(uint32_t w, uint32_t dcam_out_bits, uint32_t is_pack)
 {
 	if (dcam_out_bits != CAM_8_BITS) {

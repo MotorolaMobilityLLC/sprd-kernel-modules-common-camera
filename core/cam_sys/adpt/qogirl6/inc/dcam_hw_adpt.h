@@ -43,7 +43,9 @@
 #define DCAM_SCALER_MAX_WIDTH          0xFFFFFFFF
 #define DCAM_FRAME_TIMESTAMP_COUNT     0x100
 #define GTM_HIST_VALUE_SIZE            1
-
+#define CAL_PACK_PITCH(w)              (((w) * 10 + 127) / 128 * 128 / 8)
+#define CAL_UNPACK_PITCH(w)            (((w) * 16 + 127) / 128 * 128 / 8)
+#define CAL_FULLRGB14_PITCH(w)         (0)
 /*
  *DCAM_CONTROL register bit map id
  * for force_cpy/auto_cpy control

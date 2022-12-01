@@ -256,14 +256,14 @@ static void camdump_node_frame_name_get(struct camera_frame *frame,
 static void camdump_node_frame_size_get(struct camera_frame *frame, struct cam_dump_msg *msg, int cur_layer)
 {
 	if (camcore_raw_fmt_get(frame->cam_fmt))
-		msg->size = cal_sprd_raw_pitch(frame->width, frame->cam_fmt) * frame->height;
+		msg->size = cal_sprd_pitch(frame->width, frame->cam_fmt) * frame->height;
 	else if (frame->cam_fmt == CAM_FULL_RGB14)
 		msg->size = frame->width * frame->height;
 	else {
 		if (cur_layer == 0)
-			msg->size = cal_sprd_yuv_pitch(frame->width, frame->cam_fmt, cam_is_pack(frame->cam_fmt)) * frame->height;
+			msg->size = cal_sprd_pitch(frame->width, frame->cam_fmt) * frame->height;
 		else
-			msg->size = cal_sprd_yuv_pitch(msg->align_w, frame->cam_fmt, cam_is_pack(frame->cam_fmt)) * msg->align_h;
+			msg->size = cal_sprd_pitch(msg->align_w, frame->cam_fmt) * msg->align_h;
 	}
 
 	pr_debug("dump frame buf_size %d cal_size %d fmt %s\n", frame->buf.size, msg->size, camport_fmt_name_get(frame->img_fmt));

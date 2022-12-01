@@ -39,6 +39,12 @@
 #define GTM_HIST_ITEM_NUM                       0
 #define GTM_HIST_VALUE_SIZE                     1
 #define DUMP_SharkL5
+#define CAL_PACK_PITCH(w)  ({ \
+	uint32_t mod16_len[16] = {0, 8, 8, 8, 8, 12, 12, 12, 12, 16, 16, 16, 16, 20, 20, 20}; \
+	((w) >> 4) * 20 + (mod16_len[(w) & 0xf]); \
+})
+#define CAL_UNPACK_PITCH(w)                     ((w) * 2)
+#define CAL_FULLRGB14_PITCH(w)                  (0)
 /*
  *DCAM_CONTROL register bit map id
  * for force_cpy/auto_cpy control

@@ -795,7 +795,7 @@ static int ispport_fetch_normal_get(void *cfg_in, void *cfg_out,
 		break;
 	case CAM_RAW_HALFWORD_10:
 	case CAM_RAW_14:
-		fetch->pitch.pitch_ch0 = cal_sprd_raw_pitch(src->w, cam_pack_bits(port->fmt));
+		fetch->pitch.pitch_ch0 = cal_sprd_pitch(src->w, port->fmt);
 		trim_offset[0] = intrim->start_y * fetch->pitch.pitch_ch0 + intrim->start_x * 2;
 		break;
 	case CAM_YUV422_2FRAME:
@@ -871,7 +871,7 @@ static int ispport_fetch_normal_get(void *cfg_in, void *cfg_out,
 			- mipi_word_num_start[(start_col + 1) & 0xF] + 1;
 		fetch->mipi_byte_rel_pos = mipi_byte_info;
 		fetch->mipi_word_num = mipi_word_info;
-		fetch->pitch.pitch_ch0 = cal_sprd_raw_pitch(src->w, 0);
+		fetch->pitch.pitch_ch0 = cal_sprd_pitch(src->w, fetch->fetch_fmt);
 		/* same as slice starts */
 		trim_offset[0] = start_row * fetch->pitch.pitch_ch0 + (start_col >> 2) * 5 + (start_col & 0x3);
 		break;

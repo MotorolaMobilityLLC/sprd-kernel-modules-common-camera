@@ -673,7 +673,7 @@ static int camcore_resframe_set(struct camera_module *module)
 			if (ch->ch_uinfo.dst_fmt != IMG_PIX_FMT_GREY)
 				out_size = ch->ch_uinfo.dst_size.w *ch->ch_uinfo.dst_size.h * 3 / 2;
 			else
-				out_size = cal_sprd_raw_pitch(ch->ch_uinfo.dst_size.w, ch->ch_uinfo.dcam_raw_fmt)
+				out_size = cal_sprd_pitch(ch->ch_uinfo.dst_size.w, ch->ch_uinfo.dcam_raw_fmt)
 					* ch->ch_uinfo.dst_size.h;
 
 			if (ch->compress_en) {
@@ -685,10 +685,9 @@ static int camcore_resframe_set(struct camera_module *module)
 			} else if (ch->ch_uinfo.sn_fmt != IMG_PIX_FMT_GREY)
 				in_size = src_w * src_h * 3 / 2;
 			else if (camcore_raw_fmt_get(ch->dcam_out_fmt))
-				in_size = cal_sprd_raw_pitch(src_w, ch->ch_uinfo.dcam_raw_fmt) * src_h;
-			else if ((ch->dcam_out_fmt == CAM_YUV420_2FRAME) || (ch->dcam_out_fmt == CAM_YVU420_2FRAME) || (ch->dcam_out_fmt == CAM_YUV420_2FRAME_MIPI))
-				in_size = cal_sprd_yuv_pitch(src_w, cam_data_bits(ch->dcam_out_fmt), cam_is_pack(ch->ch_uinfo.dcam_out_fmt))
-					* src_h * 3 / 2;
+				in_size = cal_sprd_size(src_w, src_h, ch->ch_uinfo.dcam_raw_fmt);
+			else
+				in_size = cal_sprd_size(src_w, src_h, ch->dcam_out_fmt);
 
 			if (module->cam_uinfo.is_pyr_rec && ch->ch_id != CAM_CH_CAP)
 				in_size += dcam_if_cal_pyramid_size(src_w, src_h, cam_data_bits(ch->ch_uinfo.pyr_out_fmt), cam_is_pack(ch->ch_uinfo.pyr_out_fmt), 1, DCAM_PYR_DEC_LAYER_NUM);
@@ -995,9 +994,9 @@ static int camcore_buffers_alloc(void *param)
 	int ret = 0;
 	int hw_ctx_id = 0;
 	int i = 0, total = 0, iommu_enable = 0;
-	uint32_t width = 0, height = 0, size = 0, block_size = 0, pack_bits = 0, pitch = 0;
+	uint32_t width = 0, height = 0, block_size = 0;
 	uint32_t postproc_w = 0, postproc_h = 0;
-	uint32_t is_super_size = 0, sec_mode = 0, is_pack = 0;
+	uint32_t is_super_size = 0, sec_mode = 0;
 	struct camera_module *module = NULL;
 	struct camera_frame *pframe = NULL;
 	struct channel_context *channel = NULL;
@@ -1005,14 +1004,11 @@ static int camcore_buffers_alloc(void *param)
 	struct camera_debugger *debugger = NULL;
 	struct cam_hw_info *hw = NULL;
 	struct camera_frame *alloc_buf = NULL;
-	struct dcam_compress_info fbc_info = {0};
-	struct dcam_compress_cal_para cal_fbc = {0};
 	struct camera_group *grp = NULL;
 	struct camera_queue *cap_buf_q = NULL;
 	struct camera_frame *pframe_dec = NULL;
 	struct camera_frame *pframe_rec = NULL;
 	struct cam_buf_alloc_desc alloc_param = {0};
-	enum cam_pipeline_type pipeline_type = CAM_PIPELINE_TYPE_MAX;
 
 	pr_info("enter.\n");
 
@@ -1045,44 +1041,6 @@ static int camcore_buffers_alloc(void *param)
 		width = channel->swap_size.w;
 		height = channel->swap_size.h;
 	}
-
-	pipeline_type = channel->pipeline_handle->pipeline_graph->type;
-	if (pipeline_type == CAM_PIPELINE_SENSOR_RAW || pipeline_type == CAM_PIPELINE_ONLINERAW_2_OFFLINEYUV
-		|| pipeline_type == CAM_PIPELINE_ONLINERAW_2_USER_2_OFFLINEYUV
-		|| pipeline_type == CAM_PIPELINE_ONLINERAW_2_BPCRAW_2_USER_2_OFFLINEYUV)
-		pack_bits = cam_pack_bits(channel->ch_uinfo.sensor_raw_fmt);
-	else
-		pack_bits = cam_pack_bits(channel->ch_uinfo.dcam_raw_fmt);
-
-	if ((channel->ch_id == CAM_CH_CAP) && module->cam_uinfo.is_4in1)
-		pack_bits = cam_pack_bits(channel->ch_uinfo.dcam_raw_fmt);
-	is_pack = 0;
-	is_pack = cam_is_pack(channel->dcam_out_fmt);
-
-	if (channel->compress_en) {
-		cal_fbc.data_bits = cam_data_bits(channel->dcam_out_fmt);
-		cal_fbc.fbc_info = &fbc_info;
-		cal_fbc.fmt = channel->dcam_out_fmt;
-		cal_fbc.height = height;
-		cal_fbc.width = width;
-		size = dcam_if_cal_compressed_size (&cal_fbc);
-		pr_info("dcam fbc buffer size %u\n", size);
-	} else if (camcore_raw_fmt_get(channel->dcam_out_fmt)){
-		size = cal_sprd_raw_pitch(width, pack_bits) * height;
-	} else if ((channel->dcam_out_fmt == CAM_YUV420_2FRAME) || (channel->dcam_out_fmt == CAM_YVU420_2FRAME) || (channel->dcam_out_fmt == CAM_YUV420_2FRAME_MIPI)) {
-		pitch = cal_sprd_yuv_pitch(width, cam_data_bits(channel->dcam_out_fmt), is_pack);
-		size = pitch * height * 3 / 2;
-		pr_info("ch%d, dcam yuv size %d\n", channel->ch_id, size);
-	} else {
-		size = width * height * 3;
-	}
-
-	if (module->cam_uinfo.is_pyr_rec && channel->ch_id != CAM_CH_CAP)
-		size += dcam_if_cal_pyramid_size(width, height, cam_data_bits(channel->ch_uinfo.pyr_out_fmt), cam_is_pack(channel->ch_uinfo.pyr_out_fmt), 1, DCAM_PYR_DEC_LAYER_NUM);
-	size = ALIGN(size, CAM_BUF_ALIGN_SIZE);
-	pr_debug("cam%d, ch_id %d, camsec=%d, buffer size: %u (%u x %u), num %d\n",
-		module->idx, channel->ch_id, sec_mode,
-		size, width, height, total);
 
 	alloc_param.ch_id = channel->ch_id;
 	alloc_param.cam_idx = module->idx;
@@ -3404,7 +3362,7 @@ static int camcore_raw_post_proc(struct camera_module *module,
 		height = proc_info->src_size.height;
 
 		if (proc_info->src_format == IMG_PIX_FMT_GREY)
-			size = cal_sprd_raw_pitch(width, pack_bits) * height;
+			size = cal_sprd_pitch(width, pack_bits) * height;
 		else
 			size = width * height * 3;
 		size = ALIGN(size, CAM_BUF_ALIGN_SIZE);
