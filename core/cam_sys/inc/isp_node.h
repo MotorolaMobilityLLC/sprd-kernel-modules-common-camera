@@ -145,14 +145,12 @@ struct isp_node {
 	struct dcam_isp_k_block *isp_using_param;
 
 	struct cam_thread_info thread;
-	struct cam_thread_info isp_interrupt_thread;
 	struct completion frm_done;
 	struct completion *fast_stop_done;
 	/* lock block param to avoid acrossing frame */
 	struct mutex blkpm_lock;
 	struct camera_queue param_share_queue;
 	struct camera_queue param_buf_queue;
-	struct camera_queue isp_interrupt_queue;
 	struct mutex blkpm_q_lock;
 
 	struct camera_buf statis_buf_array[STATIS_TYPE_MAX][STATIS_BUF_NUM_MAX];

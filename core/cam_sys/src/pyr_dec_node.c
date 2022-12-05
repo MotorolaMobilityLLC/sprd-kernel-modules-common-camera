@@ -863,30 +863,6 @@ static int pyr_dec_node_irq_request(struct pyrdec_pipe_dev *dev)
 	return ret;
 }
 
-static int pyr_dec_node_interruption_proc(void *priv)
-{
-	int ret = 0;
-	uint32_t irq_line = 0;
-	struct camera_interrupt *irq_status = NULL;
-	struct pyrdec_pipe_dev *ctx = (struct pyrdec_pipe_dev *)priv;
-
-	irq_status = cam_queue_dequeue(&ctx->pyrdec_irq_sts_q, struct camera_interrupt, list);
-	if (unlikely(!irq_status)) {
-		pr_warn("warning: null irq_status from queue: q may clear\n");
-		return ret;
-	}
-
-	irq_line = irq_status->int_status;
-	cam_queue_empty_interrupt_put(irq_status);
-
-	if (irq_line) {
-		if (ctx->irq_proc_func)
-			ctx->irq_proc_func(ctx);
-	}
-
-	return ret;
-}
-
 static void *pyrdecnode_dev_bind(void *node)
 {
 	int ret = -1;
@@ -945,7 +921,6 @@ static uint32_t pyrdecnode_dev_unbind(void *node)
 
 	if (pnode == dec_dev->node) {
 		if (atomic_dec_return(&dec_dev->user_cnt) == 0) {
-			cam_queue_clear(&dec_dev->pyrdec_irq_sts_q, struct camera_frame, list);
 			pr_debug("pnode dec unbind success node:%x \n", pnode);
 			dec_dev->node = NULL;
 			pnode->is_bind = 0;
@@ -971,8 +946,6 @@ static int pyr_dec_node_irq_proc(void *handle)
 
 	pyrdec = (struct pyrdec_pipe_dev *)handle;
 	node = (struct pyr_dec_node *)pyrdec->pyrdec_node[pyrdec->cur_node_id];
-
-	cam_queue_clear(&pyrdec->pyrdec_irq_sts_q, struct camera_frame, list);
 
 	pyrdec->in_irq_handler = 1;
 	pyrdecnode_dev_unbind(node);
@@ -1260,7 +1233,6 @@ static int pyr_dec_node_start_proc(void *handle)
 		goto calc_err;
 	}
 
-	cam_queue_init(&dec_dev->pyrdec_irq_sts_q, PYR_DEC_INT_PROC_FRM_NUM, cam_queue_empty_interrupt_put);
 	pframe->blkparam_info.update = 0;
 	pframe->blkparam_info.param_block = NULL;
 	pframe->blkparam_info.blk_param_node = NULL;
@@ -1583,7 +1555,6 @@ void *pyrdec_dev_get(void *isp_handle, void *hw)
 	struct pyrdec_pipe_dev *dec_dev = NULL;
 	struct isp_fmcu_ctx_desc *fmcu = NULL;
 	struct pyrdec_hw_k_blk_func irq_func = {0};
-	struct cam_thread_info *thrd = NULL;
 
 	dec_dev = cam_buf_kernel_sys_vzalloc(sizeof(struct pyrdec_pipe_dev));
 	if (!dec_dev) {
@@ -1599,18 +1570,10 @@ void *pyrdec_dev_get(void *isp_handle, void *hw)
 		irq_func.k_blk_func(dec_dev);
 
 	spin_lock_init(&dec_dev->ctx_lock);
-	thrd = &dec_dev->pyrdec_irq_proc_thrd;
-	sprintf(thrd->thread_name, "pyrdec interrupt");
-	ret = camthread_create(dec_dev, thrd, pyr_dec_node_interruption_proc);
-	if (ret) {
-		pr_err("fail to get pyrdec interruption_proc thread.\n");
-		goto irq_err;
-	}
-
 	ret = pyr_dec_node_irq_request(dec_dev);
 	if (unlikely(ret != 0)) {
 		pr_err("fail to request irq for isp pyr dec\n");
-		goto thread_err;
+		goto irq_err;
 	}
 	fmcu = isp_fmcu_dec_ctx_get(hw);
 	if (fmcu && fmcu->ops) {
@@ -1630,8 +1593,6 @@ void *pyrdec_dev_get(void *isp_handle, void *hw)
 	pr_info("pyrdec dev get success\n");
 	return dec_dev;
 
-thread_err:
-	camthread_stop(&dec_dev->pyrdec_irq_proc_thrd);
 irq_err:
 	if (dec_dev) {
 		cam_buf_kernel_sys_vfree(dec_dev);
@@ -1654,8 +1615,6 @@ void pyrdec_dev_put(void *dec_handle)
 
 	/* irq disable */
 	pyr_dec_node_irq_free(dec_dev);
-	camthread_stop(&dec_dev->pyrdec_irq_proc_thrd);
-	cam_queue_clear(&dec_dev->pyrdec_irq_sts_q, struct camera_frame, list);
 	fmcu = (struct isp_fmcu_ctx_desc *)dec_dev->fmcu_handle;
 	if (fmcu) {
 		fmcu->ops->ctx_deinit(fmcu);

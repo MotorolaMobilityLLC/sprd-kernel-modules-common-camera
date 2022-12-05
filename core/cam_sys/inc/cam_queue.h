@@ -373,10 +373,6 @@ struct camera_frame *cam_queue_empty_frame_get(void);
 int cam_queue_empty_frame_put(struct camera_frame *pframe);
 void cam_queue_empty_frame_free(void *param);
 
-struct camera_interrupt *cam_queue_empty_interrupt_get(void);
-void cam_queue_empty_interrupt_put(void *param);
-void cam_queue_empty_interrupt_free(void *param);
-
 void cam_queue_ioninfo_free(void *param);
 struct cam_zoom_frame *cam_queue_empty_zoom_get(void);
 int cam_queue_empty_zoom_put(struct cam_zoom_frame *pframe);

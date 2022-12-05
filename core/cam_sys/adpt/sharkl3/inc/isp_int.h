@@ -95,7 +95,7 @@ struct isp_int_ctxs_com {
 	const uint32_t *irq_vect;
 };
 
-struct ispint_isr_root {
+struct ispint_isr_irq {
 	uint32_t irq_line;
 	uint32_t irq_line1;
 };
@@ -107,7 +107,5 @@ int isp_int_irq_request(struct device *p_dev,
 int isp_int_irq_sw_cnt_reset(int ctx_id);
 int isp_int_irq_sw_cnt_trace(int ctx_id);
 int isp_int_irq_free(struct device *p_dev, void *isp_handle);
-int isp_int_interruption_proc(void *node);
-int isp_int_yuv_scaler_interruption_proc(void *node);
 
 #endif

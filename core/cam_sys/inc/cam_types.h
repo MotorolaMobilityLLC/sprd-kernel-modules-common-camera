@@ -390,7 +390,6 @@ enum shutoff_type {
 extern struct camera_queue *g_ion_buf_q;
 extern struct camera_queue *g_empty_zoom_q;
 extern struct camera_queue *g_empty_frm_q;
-extern struct camera_queue *g_empty_interruption_q;
 
 typedef int(*isp_dev_callback)(enum cam_cb_type type, void *param,
 				void *priv_data);

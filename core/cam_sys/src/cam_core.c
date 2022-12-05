@@ -59,7 +59,6 @@ spinlock_t g_reg_wr_lock;
 struct camera_queue *g_ion_buf_q;
 struct camera_queue *g_empty_zoom_q;
 struct camera_queue *g_empty_frm_q;
-struct camera_queue *g_empty_interruption_q;
 
 struct cam_global_ctrl g_camctrl = {
 	ZOOM_BINNING2,
@@ -1136,8 +1135,7 @@ static int camcore_pipeline_callback(enum cam_cb_type type, void *param, void *p
 		} else {
 			if (pframe->buf.type == CAM_BUF_USER) {
 				pr_info("dcam src buf return mfd %d\n", pframe->buf.mfd);
-				cam_buf_ionbuf_put(&pframe->buf);
-				cam_queue_empty_frame_put(pframe);
+				cam_queue_enqueue(&module->put_queue, &pframe->list);
 			} else
 				ret = camcore_dcam_online_buf_cfg(channel, pframe, module);
 		}
@@ -1156,14 +1154,12 @@ static int camcore_pipeline_callback(enum cam_cb_type type, void *param, void *p
 			}
 			ret = cam_queue_enqueue(&module->frm_queue, &pframe->list);
 			if (ret) {
-				cam_buf_ionbuf_put(&pframe->buf);
-				cam_queue_empty_frame_put(pframe);
+				cam_queue_enqueue(&module->put_queue, &pframe->list);
 			} else {
 				complete(&module->frm_com);
 			}
 		} else {
-			cam_buf_ionbuf_put(&pframe->buf);
-			cam_queue_empty_frame_put(pframe);
+			cam_queue_enqueue(&module->put_queue, &pframe->list);
 		}
 		break;
 	case CAM_CB_DCAM_RET_SRC_BUF:
@@ -1172,8 +1168,7 @@ static int camcore_pipeline_callback(enum cam_cb_type type, void *param, void *p
 		break;
 	case CAM_CB_ISP_SCALE_RET_ISP_BUF:
 		pr_info("user buf return type:%d mfd %d\n", type, pframe->buf.mfd);
-		cam_buf_ionbuf_put(&pframe->buf);
-		cam_queue_empty_frame_put(pframe);
+		cam_queue_enqueue(&module->put_queue, &pframe->list);
 		break;
 	default:
 		pr_err("fail to get cb cmd: %d\n", type);
@@ -2829,10 +2824,6 @@ static int camcore_open(struct inode *node, struct file *file)
 		g_empty_frm_q = &grp->empty_frm_q;
 		cam_queue_init(g_empty_frm_q, CAM_EMP_Q_LEN_MAX, cam_queue_empty_frame_free);
 
-		g_empty_interruption_q = &grp->empty_interruption_q;
-		cam_queue_init(g_empty_interruption_q, CAM_INT_EMP_Q_LEN_MAX,
-			cam_queue_empty_interrupt_free);
-
 		g_empty_zoom_q = &grp->empty_zoom_q;
 		cam_queue_init(g_empty_zoom_q, CAM_ZOOM_EMP_Q_LEN_MAX, cam_queue_empty_zoom_free);
 
@@ -2991,8 +2982,6 @@ static int camcore_release(struct inode *node, struct file *file)
 		g_ion_buf_q = NULL;
 		cam_queue_clear(g_empty_frm_q, struct camera_frame, list);
 		g_empty_frm_q = NULL;
-		cam_queue_clear(g_empty_interruption_q, struct camera_interrupt, list);
-		g_empty_interruption_q = NULL;
 		cam_queue_clear(g_empty_zoom_q, struct cam_zoom_frame, list);
 		g_empty_zoom_q = NULL;
 

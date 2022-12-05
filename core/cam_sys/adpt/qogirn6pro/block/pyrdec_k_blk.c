@@ -27,8 +27,6 @@ static irqreturn_t pyrdec_isr_root(int irq, void *priv)
 {
 	uint32_t irq_line = 0;
 	uint32_t err_mask = 0;
-	int ret = 0;
-	struct camera_interrupt *irq_desc = NULL;
 	struct pyrdec_pipe_dev *ctx = (struct pyrdec_pipe_dev *)priv;
 
 	if (!ctx) {
@@ -52,15 +50,10 @@ static irqreturn_t pyrdec_isr_root(int irq, void *priv)
 		return IRQ_HANDLED;
 	}
 
-	irq_desc = cam_queue_empty_interrupt_get();
-	irq_desc->int_status = irq_line;
-	ret = cam_queue_enqueue(&ctx->pyrdec_irq_sts_q, &irq_desc->list);
-	if (ret) {
-		pr_err("fail to pyydec enqueue irq_status_q.\n");
-		cam_queue_empty_interrupt_put(irq_desc);
-		return IRQ_NONE;
-	} else
-		complete(&ctx->pyrdec_irq_proc_thrd.thread_com);
+	if (irq_line) {
+		if (ctx->irq_proc_func)
+			ctx->irq_proc_func(ctx);
+	}
 
 	return IRQ_HANDLED;
 }

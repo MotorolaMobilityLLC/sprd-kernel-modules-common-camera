@@ -34,7 +34,6 @@
 #define ISP_PYRDEC_BUF_Q_LEN            8
 #define ISP_GTMHIST_BUF_Q_LEN           16
 #define ISP_HIST2_BUF_Q_LEN             16
-#define ISP_IRQ_Q_LEN                   256
 #define ISP_CONTEXT_TIMEOUT             msecs_to_jiffies(2000)
 
 enum isp_context_id {

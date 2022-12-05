@@ -377,16 +377,16 @@ static void ispint_iommu_regs_dump(void)
 		ISP_HREG_RD(ISP_STORE_THUMB_BASE + ISP_STORE_SLICE_V_ADDR));
 }
 
-static struct ispint_isr_root ispint_isr_root_readint(uint32_t irq_offset)
+static struct ispint_isr_irq ispint_isr_root_readint(uint32_t irq_offset)
 {
-	struct ispint_isr_root com = {0};
+	struct ispint_isr_irq com = {0};
 
 	com.irq_line = ISP_HREG_RD(irq_offset + ISP_INT_INT0);
 
 	return com;
 }
 
-static void ispint_isr_root_writeint(uint32_t irq_offset, struct ispint_isr_root com)
+static void ispint_isr_root_writeint(uint32_t irq_offset, struct ispint_isr_irq com)
 {
 
 	ISP_HREG_WR(irq_offset + ISP_INT_CLR0, com.irq_line);
@@ -405,7 +405,7 @@ static struct isp_int_ctxs_com ispint_ctxs_rd(int c_id)
 	return com;
 }
 
-static int ispint_isr_root_unlikely(int c_id, struct ispint_isr_root com, struct isp_int_ctxs_com ctxs_com, void *priv)
+static int ispint_isr_root_unlikely(int c_id, struct ispint_isr_irq com, struct isp_int_ctxs_com ctxs_com, void *priv)
 {
 	uint32_t val = 0;
 	struct isp_pipe_dev *isp_handle = (struct isp_pipe_dev *)priv;
@@ -432,7 +432,7 @@ static int ispint_isr_root_unlikely(int c_id, struct ispint_isr_root com, struct
 	return 0;
 }
 
-static void ispint_isr_root_handle(int c_id, struct ispint_isr_root *com, struct isp_int_ctxs_com ctxs_com, void *priv)
+static void ispint_isr_root_handle(int c_id, struct ispint_isr_irq *com, struct isp_int_ctxs_com ctxs_com, void *priv)
 {
 	uint32_t k = 0;
 	struct isp_pipe_dev *isp_handle = (struct isp_pipe_dev *)priv;
@@ -457,12 +457,11 @@ static irqreturn_t ispint_isr_root(int irq, void *priv)
 	uint32_t iid = 0, sid = 0;
 	enum isp_context_hw_id pctx_hw_id;
 	struct isp_pipe_dev *isp_handle = (struct isp_pipe_dev *)priv;
-	struct ispint_isr_root com = {0};
+	struct ispint_isr_irq com = {0};
 	struct isp_int_ctxs_com ctxs_com = {0};
 	struct isp_hw_context *hw_ctx = NULL;
 	struct isp_node *node = NULL;
 	struct isp_yuv_scaler_node *yuv_scaler_node = NULL;
-	struct camera_interrupt *interruption = NULL;
 
 	if (!isp_handle) {
 		pr_err("fail to get valid dev\n");
@@ -507,18 +506,12 @@ static irqreturn_t ispint_isr_root(int irq, void *priv)
 			yuv_scaler_node->ctxs_com.err_mask = ctxs_com.err_mask;
 			yuv_scaler_node->ctxs_com.irq_numbers = ctxs_com.irq_numbers;
 			yuv_scaler_node->ctxs_com.irq_vect = ctxs_com.irq_vect;
-			interruption = cam_queue_empty_interrupt_get();
-			interruption->int_status = com.irq_line;
-			interruption->int_status1 = com.irq_line1;
-
-			ret = cam_queue_enqueue(&yuv_scaler_node->yuv_scaler_interrupt_queue, &interruption->list);
-			if (ret) {
-				pr_err("fail to enqueue int queue cnt %d max%d.\n",
-					yuv_scaler_node->yuv_scaler_interrupt_queue.cnt, yuv_scaler_node->yuv_scaler_interrupt_queue.max);
-				cam_queue_empty_interrupt_put(interruption);
-				return IRQ_NONE;
-			} else
-				complete(&yuv_scaler_node->yuv_scaler_interrupt_thread.thread_com);
+			/* isp interrupt unlikely */
+			ret = ispint_isr_root_unlikely(pctx_hw_id, com, yuv_scaler_node->ctxs_com, isp_handle);
+			if (unlikely(ret != 0))
+				return EFAULT;
+			/* isp interrupt handle */
+			ispint_isr_root_handle(pctx_hw_id, &com, yuv_scaler_node->ctxs_com, isp_handle);
 		} else {
 			node = (struct isp_node *)hw_ctx->node;
 			if (!node) {
@@ -530,22 +523,17 @@ static irqreturn_t ispint_isr_root(int irq, void *priv)
 			node->ctxs_com.err_mask = ctxs_com.err_mask;
 			node->ctxs_com.irq_numbers = ctxs_com.irq_numbers;
 			node->ctxs_com.irq_vect = ctxs_com.irq_vect;
-			interruption = cam_queue_empty_interrupt_get();
-			interruption->int_status = com.irq_line;
-			interruption->int_status1 = com.irq_line1;
 
 			/* read yhist statics */
-			if (interruption->int_status & (1 << ISP_INT_HIST_CAL_DONE))
+			if (com.irq_line & (1 << ISP_INT_HIST_CAL_DONE))
 				ispint_hist_value_read(hw_ctx);
 
-			ret = cam_queue_enqueue(&node->isp_interrupt_queue, &interruption->list);
-			if (ret) {
-				pr_err("fail to enqueue int queue cnt %d max%d.\n",
-					node->isp_interrupt_queue.cnt, node->isp_interrupt_queue.max);
-				cam_queue_empty_interrupt_put(interruption);
-				return IRQ_NONE;
-			} else
-				complete(&node->isp_interrupt_thread.thread_com);
+			/*isp interrupt unlikely*/
+			ret = ispint_isr_root_unlikely(pctx_hw_id, com, node->ctxs_com, isp_handle);
+			if (unlikely(ret != 0))
+				return EFAULT;
+			/*isp interrupt handle*/
+			ispint_isr_root_handle(pctx_hw_id, &com, node->ctxs_com, isp_handle);
 		}
 	}
 	return IRQ_HANDLED;
@@ -598,40 +586,6 @@ int isp_int_irq_hw_cnt_trace(int ctx_id)
 		}
 	}
 #endif
-	return 0;
-}
-
-int isp_int_interruption_proc(void *node)
-{
-	int ret = 0;
-	enum isp_context_hw_id pctx_hw_id;
-	struct isp_node *inode = NULL;
-	struct isp_pipe_dev *isp_handle = NULL;
-	struct camera_interrupt *interruption = NULL;
-	struct ispint_isr_root com = {0, 0};
-
-	inode = VOID_PTR_TO(node, struct isp_node);
-	if (atomic_read(&inode->user_cnt) < 1) {
-		pr_err("fail to init isp node\n");
-		return EFAULT;
-	}
-	pctx_hw_id = inode->pctx_hw_id;
-	isp_handle = inode->dev;
-	interruption = cam_queue_dequeue(&inode->isp_interrupt_queue, struct camera_interrupt, list);
-	 if (interruption) {
-		com.irq_line = interruption->int_status;
-		com.irq_line1 = interruption->int_status1;
-		cam_queue_empty_interrupt_put(interruption);
-		/*isp interrupt unlikely*/
-		ret = ispint_isr_root_unlikely(pctx_hw_id, com, inode->ctxs_com, isp_handle);
-		if(unlikely(ret != 0))
-			return EFAULT;
-		/*isp interrupt handle*/
-		ispint_isr_root_handle(pctx_hw_id, &com, inode->ctxs_com, isp_handle);
-	} else
-		pr_err("fail to dequeue from isp_interrupt_queue cnt %d max %d",
-			inode->isp_interrupt_queue.cnt, inode->isp_interrupt_queue.max);
-
 	return 0;
 }
 
@@ -703,40 +657,6 @@ int isp_int_irq_free(struct device *p_dev, void *isp_handle)
 
 	devm_free_irq(p_dev, ispdev->irq_no[0], (void *)ispdev);
 	devm_free_irq(p_dev, ispdev->irq_no[1], (void *)ispdev);
-
-	return 0;
-}
-
-int isp_int_yuv_scaler_interruption_proc(void *node)
-{
-	int ret = 0;
-	enum isp_context_hw_id pctx_hw_id;
-	struct isp_yuv_scaler_node *inode = NULL;
-	struct isp_pipe_dev *isp_handle = NULL;
-	struct camera_interrupt *interruption = NULL;
-	struct ispint_isr_root com = {0, 0};
-
-	inode = VOID_PTR_TO(node, struct isp_yuv_scaler_node);
-	if (atomic_read(&inode->user_cnt) < 1) {
-		pr_err("fail to init isp node\n");
-		return EFAULT;
-	}
-	pctx_hw_id = inode->pctx_hw_id;
-	isp_handle = inode->dev;
-	interruption = cam_queue_dequeue(&inode->yuv_scaler_interrupt_queue, struct camera_interrupt, list);
-	 if (interruption) {
-		com.irq_line = interruption->int_status;
-		com.irq_line1 = interruption->int_status1;
-		cam_queue_empty_interrupt_put(interruption);
-		/* isp interrupt unlikely */
-		ret = ispint_isr_root_unlikely(pctx_hw_id, com, inode->ctxs_com, isp_handle);
-		if(unlikely(ret != 0))
-			return EFAULT;
-		/* isp interrupt handle */
-		ispint_isr_root_handle(pctx_hw_id, &com, inode->ctxs_com, isp_handle);
-	} else
-		pr_err("fail to dequeue from isp_interrupt_queue cnt %d max %d\n",
-			inode->yuv_scaler_interrupt_queue.cnt, inode->yuv_scaler_interrupt_queue.max);
 
 	return 0;
 }

@@ -233,88 +233,6 @@ void cam_queue_empty_frame_free(void *param)
 	pframe = NULL;
 }
 
-struct camera_interrupt *cam_queue_empty_interrupt_get(void)
-{
-	int ret = 0;
-	uint32_t i = 0;
-	struct camera_interrupt *interruption = NULL;
-
-	pr_debug("Enter.\n");
-	do {
-		interruption = cam_queue_dequeue(g_empty_interruption_q, struct camera_interrupt, list);
-		if (interruption == NULL) {
-			if (in_interrupt()) {
-				/* fast alloc and return for irq handler */
-				interruption = cam_buf_kernel_sys_kzalloc(sizeof(*interruption), GFP_ATOMIC);
-				if (interruption)
-					atomic_inc(&g_mem_dbg->empty_interruption_cnt);
-				else
-					pr_err("fail to alloc memory\n");
-				return interruption;
-			}
-
-			for (i = 0; i < CAM_INT_EMP_Q_LEN_INC; i++) {
-				interruption = cam_buf_kernel_sys_kzalloc(sizeof(*interruption), GFP_KERNEL);
-				if (interruption == NULL) {
-					pr_err("fail to alloc memory, retry\n");
-					continue;
-				}
-				atomic_inc(&g_mem_dbg->empty_interruption_cnt);
-				pr_debug("alloc frame %p\n", interruption);
-				ret = cam_queue_enqueue(g_empty_interruption_q, &interruption->list);
-				if (ret) {
-					/* q full, return pframe directly here */
-					break;
-				}
-				interruption = NULL;
-			}
-			pr_info("alloc %d empty frames, cnt %d\n",
-				i, atomic_read(&g_mem_dbg->empty_interruption_cnt));
-		}
-	} while (interruption == NULL);
-
-	pr_debug("Done. get frame %p\n", interruption);
-	return interruption;
-}
-
-void cam_queue_empty_interrupt_put(void *param)
-{
-	int ret = 0;
-	struct camera_interrupt *interruption = NULL;
-
-	interruption = (struct camera_interrupt *)param;
-	if (interruption == NULL) {
-		pr_err("fail to get valid param\n");
-		return ;
-	}
-
-	memset(interruption, 0, sizeof(struct camera_interrupt));
-	ret = cam_queue_enqueue(g_empty_interruption_q, &interruption->list);
-	if (ret) {
-		pr_info("queue should be enlarged\n");
-		atomic_dec(&g_mem_dbg->empty_interruption_cnt);
-		cam_buf_kernel_sys_kfree(interruption);
-	}
-	return ;
-}
-
-void cam_queue_empty_interrupt_free(void *param)
-{
-	struct camera_interrupt *interruption = NULL;
-
-	interruption = (struct camera_interrupt *)param;
-	if (interruption == NULL) {
-		pr_err("fail to get valid param\n");
-		return ;
-	}
-
-	atomic_dec(&g_mem_dbg->empty_interruption_cnt);
-	pr_debug("free frame %p, cnt %d\n", interruption,
-		atomic_read(&g_mem_dbg->empty_interruption_cnt));
-	cam_buf_kernel_sys_kfree(interruption);
-	interruption = NULL;
-}
-
 void cam_queue_ioninfo_free(void *param)
 {
 	int ret = 0;
@@ -433,14 +351,8 @@ int cam_queue_recycle_blk_param(struct camera_queue *q, struct camera_frame *par
 	param_pframe->fid = 0xffff;
 	param_pframe->blkparam_info.param_block = NULL;
 
-	if (param_pframe->buf.addr_k) {
+	if (param_pframe->buf.addr_k)
 		memset((void *)param_pframe->buf.addr_k, 0, sizeof(struct dcam_isp_k_block));
-		ret = cam_buf_kunmap(&param_pframe->buf);
-		if(ret) {
-			pr_err("fail to unmap param node %px\n", param_pframe);
-			goto error;
-		}
-	}
 	ret = cam_queue_enqueue(q, &param_pframe->list);
 	if(ret) {
 		pr_err("fail to recycle param node %px\n", param_pframe);
@@ -468,6 +380,10 @@ struct camera_frame * cam_queue_empty_blk_param_get(struct camera_queue *q)
 
 	param_frame = cam_queue_dequeue(q, struct camera_frame, list);
 	if (param_frame) {
+		if ((param_frame->buf.mapping_state & CAM_BUF_MAPPING_KERNEL)) {
+			param_frame->blkparam_info.param_block = (void *)param_frame->buf.addr_k;
+			return param_frame;
+		}
 		ret = cam_buf_kmap(&param_frame->buf);
 		param_frame->blkparam_info.param_block = (void *)param_frame->buf.addr_k;
 		if (ret) {

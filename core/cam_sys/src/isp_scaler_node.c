@@ -1138,7 +1138,6 @@ void *isp_yuv_scaler_node_get (uint32_t node_id, struct isp_yuv_scaler_node_desc
 	cam_queue_init(&node->in_queue, ISP_IN_Q_LEN, isp_scaler_node_src_frame_ret);
 	cam_queue_init(&node->proc_queue, ISP_PROC_Q_LEN, isp_scaler_node_src_frame_ret);
 	cam_queue_init(&node->port_queue, PORT_ISP_MAX, NULL);
-	cam_queue_init(&node->yuv_scaler_interrupt_queue, ISP_IRQ_Q_LEN, cam_queue_empty_interrupt_put);
 
 	thrd = &node->thread;
 	thrd->data_cb_func = node->data_cb_func;
@@ -1146,17 +1145,6 @@ void *isp_yuv_scaler_node_get (uint32_t node_id, struct isp_yuv_scaler_node_desc
 	thrd->error_type = CAM_CB_ISP_DEV_ERR;
 	sprintf(thrd->thread_name, "isp scaler node %d_offline", node->node_id);
 	ret = camthread_create(node, thrd, isp_yuv_scaler_node_start_proc);
-	if (ret) {
-		pr_err("fail to get isp node nterruption_proc thread.\n");
-		return NULL;
-	}
-
-	thrd = &node->yuv_scaler_interrupt_thread;
-	thrd->data_cb_func = node->data_cb_func;
-	thrd->data_cb_handle = node->data_cb_handle;
-	thrd->error_type = CAM_CB_ISP_DEV_ERR;
-	sprintf(thrd->thread_name, "isp scaler interrupt %d_interrupt", node->node_id);
-	ret = camthread_create(node, thrd, isp_int_yuv_scaler_interruption_proc);
 	if (ret) {
 		pr_err("fail to get isp node nterruption_proc thread.\n");
 		return NULL;
@@ -1200,12 +1188,10 @@ void isp_yuv_scaler_node_put (struct isp_yuv_scaler_node *node)
 	if (atomic_dec_return(&node->user_cnt) == 0) {
 		mutex_destroy(&node->blkpm_lock);
 		camthread_stop(&node->thread);
-		camthread_stop(&node->yuv_scaler_interrupt_thread);
 		node->data_cb_func = NULL;
 		node->resbuf_get_cb = NULL;
 		if (node->slice_ctx)
 			isp_slice_ctx_put(&node->slice_ctx);
-		cam_queue_clear(&node->yuv_scaler_interrupt_queue, struct camera_interrupt, list);
 		atomic_dec(&((struct isp_cfg_ctx_desc *)(node->dev->cfg_handle))->scaler_node_cnt);
 
 		pr_info("isp yuv scaler node %d put success\n", node->node_id);

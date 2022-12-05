@@ -121,8 +121,6 @@ struct isp_yuv_scaler_node {
 	uint32_t regular_mode;
 	void *slice_ctx;
 	uint32_t valid_slc_num;
-	struct cam_thread_info yuv_scaler_interrupt_thread;
-	struct camera_queue yuv_scaler_interrupt_queue;
 	uint32_t pctx_hw_id;
 	struct isp_int_ctxs_com ctxs_com;
 };

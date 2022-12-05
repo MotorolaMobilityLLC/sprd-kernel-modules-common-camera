@@ -1467,21 +1467,9 @@ void *isp_node_get(uint32_t node_id, struct isp_node_desc *param)
 		goto proc_thread_err;
 	}
 
-	thrd = &node->isp_interrupt_thread;
-	thrd->data_cb_func = node->data_cb_func;
-	thrd->data_cb_handle = node->data_cb_handle;
-	thrd->error_type = CAM_CB_ISP_DEV_ERR;
-	sprintf(thrd->thread_name, "isp_node%d_interrupt", node_id);
-	ret = camthread_create(node, thrd, isp_int_interruption_proc);
-	if (ret) {
-		pr_err("fail to get isp node interruption_proc thread.\n");
-		ret = -ENOMEM;
-		goto int_thread_err;
-	}
 	mutex_init(&node->blkpm_q_lock);
 	cam_queue_init(&node->param_share_queue, param->blkparam_node_num, isp_node_param_buf_destroy);
 	cam_queue_init(&node->param_buf_queue, param->blkparam_node_num, isp_node_param_buf_destroy);
-	cam_queue_init(&node->isp_interrupt_queue, ISP_IRQ_Q_LEN, cam_queue_empty_interrupt_put);
 	for (i = 0; i < param->blkparam_node_num; i++) {
 		pframe_param = cam_queue_empty_frame_get();
 		ret = ispnode_param_buf_init(pframe_param);
@@ -1531,8 +1519,6 @@ map_error:
 			cam_queue_empty_frame_put(pframe_param);
 		}
 	} while (loop-- > 0);
-	camthread_stop(&node->isp_interrupt_thread);
-int_thread_err:
 	camthread_stop(&node->thread);
 proc_thread_err:
 	if (node->rec_handle && node->dev->isp_hw->ip_isp->pyr_rec_support) {
@@ -1607,7 +1593,6 @@ void isp_node_put(struct isp_node *node)
 
 		cam_queue_clear(&node->hist2_result_queue, struct camera_frame, list);
 		cam_queue_clear(&node->gtmhist_result_queue, struct camera_frame, list);
-		cam_queue_clear(&node->isp_interrupt_queue, struct camera_interrupt, list);
 
 		node->data_cb_func = NULL;
 		isp_int_irq_sw_cnt_trace(node->cfg_id);
@@ -1636,7 +1621,6 @@ void isp_node_close(struct isp_node *node)
 			pr_err("fail to wait node %d, timeout.\n", node->node_id);
 		else
 			pr_info("wait time %d ms\n", ret);
-		camthread_stop(&node->isp_interrupt_thread);
 		node->dev->isp_ops->unbind(node);
 		/* make sure irq handler exit to avoid crash */
 		while (node->in_irq_postproc && loop < 1000) {

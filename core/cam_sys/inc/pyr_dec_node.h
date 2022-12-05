@@ -224,8 +224,6 @@ struct pyrdec_pipe_dev {
 	struct cam_hw_info *hw;
 	pyrdec_irq_proc_func irq_proc_func;
 	struct pyr_dec_node *pyrdec_node[PYR_DEC_NODE_NUM_MAX];
-	struct cam_thread_info pyrdec_irq_proc_thrd;
-	struct camera_queue pyrdec_irq_sts_q;
 };
 
 struct pyr_dec_node {

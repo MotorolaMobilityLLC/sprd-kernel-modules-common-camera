@@ -298,7 +298,6 @@ struct camera_group {
 	struct camera_queue ion_buf_q;
 	struct camera_queue empty_zoom_q;
 	struct camera_queue empty_frm_q;
-	struct camera_queue empty_interruption_q;
 	struct sprd_cam_sec_cfg camsec_cfg;
 	struct camera_debugger debugger;
 	struct cam_hw_info *hw_info;
