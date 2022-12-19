@@ -670,10 +670,6 @@ static int isppyrrec_cfg_param(void *handle,
 	case ISP_REC_CFG_FMCU_HANDLE:
 		rec_ctx->fmcu_handle = param;
 		break;
-	case ISP_REC_CFG_DEWARPING_EB:
-		rec_ctx->dewarp_eb = *(uint32_t *)param;
-		pr_debug("dewarp eb %d\n", rec_ctx->dewarp_eb);
-		break;
 	default:
 		pr_err("fail to get known cmd: %d\n", cmd);
 		ret = -EFAULT;

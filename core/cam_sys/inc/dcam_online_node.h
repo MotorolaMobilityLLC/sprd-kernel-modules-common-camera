@@ -58,14 +58,11 @@ struct dcam_online_node_desc {
 	uint32_t is_raw;
 	uint32_t raw_cap;
 	uint32_t is_4in1;
-	uint32_t is_ebd;
 	struct img_size input_size;
 	struct img_trim input_trim;
 	struct img_size output_size;
 	cam_data_cb data_cb_func;
 	void *data_cb_handle;
-	share_buf_get_cb sharebuf_get_cb;
-	void *sharebuf_cb_data;
 	void **node_dev;
 	struct dcam_mipi_info cap_info;
 	struct dcam_online_port_desc port_desc[PORT_DCAM_OUT_MAX];
@@ -78,10 +75,8 @@ struct dcam_online_node_desc {
 	void *shutoff_cfg_cb_handle;
 	uint32_t is_pyr_rec;
 	uint32_t dcam_idx;
-	uint32_t dcam_slice_mode_temp;/*TEMP:need delete later*/
 	uint32_t raw_alg_type;
 	uint32_t param_frame_sync;
-	struct sprd_ebd_control ebd_param;
 	struct dcam_isp_k_block *blk_pm;
 };
 
@@ -96,18 +91,14 @@ struct dcam_online_node {
 	uint32_t is_3dnr;
 	uint32_t is_4in1;
 	uint32_t slowmotion_count;
-	uint32_t is_ebd;
 	uint32_t is_pyr_rec;
 	uint32_t csi_connect_stat;
-	uint32_t dcam_slice_mode_temp/*TEMP:need delete later*/;
+	uint32_t in_irq_proc;
 	enum dcam_slowmotion_type slw_type;
-	struct sprd_ebd_control ebd_param;
 
 	struct camera_queue port_queue;
 	void *data_cb_handle;
 	cam_data_cb data_cb_func;
-	share_buf_get_cb sharebuf_get_cb;
-	void *sharebuf_cb_data;
 	reserved_buf_get_cb resbuf_get_cb;
 	void *resbuf_cb_data;
 	port_cfg_cb port_cfg_cb_func;

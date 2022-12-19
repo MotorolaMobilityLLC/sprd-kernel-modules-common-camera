@@ -93,7 +93,7 @@ static int dcamcore_context_init(struct dcam_pipe_dev *dev)
 	for (i = 0; i < DCAM_HW_CONTEXT_MAX; i++) {
 		pctx_hw = &dev->hw_ctx[i];
 		pctx_hw->hw_ctx_id = i;
-		pctx_hw->node_id = -1;
+		pctx_hw->node_id = 0xFFFFFFFF;
 		pctx_hw->node = NULL;
 		pctx_hw->hw = dev->hw;
 		atomic_set(&pctx_hw->user_cnt, 0);
@@ -252,7 +252,7 @@ static int dcamcore_ctx_bind(void *dev_handle, void *node, uint32_t node_id,
 	}
 exit:
 	if (hw_ctx_id == DCAM_HW_CONTEXT_MAX) {
-		pr_err("fail to get hw_ctx_id. mode=%d\n", mode);
+		pr_warn("warning: get hw_ctx_id fail. mode=%d\n", mode);
 		return -1;
 	}
 	pctx_hw->node = node;
@@ -264,7 +264,7 @@ exit:
 
 static int dcamcore_ctx_unbind(void *dev_handle, void *node, uint32_t node_id)
 {
-	int i = 0, cnt = 0;
+	int i = 0, cnt = 0, loop = 0;
 	int hw_ctx_id = DCAM_HW_CONTEXT_MAX;
 	struct dcam_pipe_dev *dev = NULL;
 	struct dcam_hw_context *pctx_hw = NULL;
@@ -291,12 +291,21 @@ static int dcamcore_ctx_unbind(void *dev_handle, void *node, uint32_t node_id)
 	for (i = 0; i < DCAM_HW_CONTEXT_MAX; i++) {
 		pctx_hw = &dev->hw_ctx[i];
 		if ((node_id != pctx_hw->node_id) || (node != pctx_hw->node))
-				continue;
+			continue;
 
 		if (atomic_dec_return(&pctx_hw->user_cnt) == 0) {
 			pr_info("node_id=%d, hw_id=%d unbind success\n", node_id, pctx_hw->hw_ctx_id);
+			if (!pctx_hw->is_offline_proc) {
+				while (pctx_hw->in_irq_proc && loop < 2000) {
+					pr_debug("ctx % in irq. wait %d\n", pctx_hw->hw_ctx_id, loop);
+					loop++;
+					udelay(500);
+				};
+				if (loop == 2000)
+					pr_warn("warning: dcam node unind wait irq timeout\n");
+			}
 			pctx_hw->node = NULL;
-			pctx_hw->node_id = -1;
+			pctx_hw->node_id = 0xFFFFFFFF;
 			goto exit;
 		}
 

@@ -19,11 +19,87 @@
 #include "dcam_online_node.h"
 #include "dcam_reg.h"
 #include "cam_node.h"
+#include "cam_zoom.h"
 
 #ifdef pr_fmt
 #undef pr_fmt
 #endif
 #define pr_fmt(fmt) "DCAM_ONLINE_PORT: %d %d %s : " fmt, current->pid, __LINE__, __func__
+
+#define DCAM_ONLINE_PORT_DECI_FAC_MAX            4
+#define DCAM_PIXEL_ALIGN_WIDTH                   4
+#define DCAM_PIXEL_ALIGN_HEIGHT                  2
+
+static uint32_t dcamonline_port_deci_factor_get(uint32_t src_size, uint32_t dst_size)
+{
+	uint32_t factor = 0;
+
+	if (!src_size || !dst_size)
+		return factor;
+
+	/* factor: 0 - 1/2, 1 - 1/4, 2 - 1/8, 3 - 1/16 */
+	for (factor = 0; factor < DCAM_ONLINE_PORT_DECI_FAC_MAX; factor++) {
+		if (src_size < (uint32_t) (dst_size * (1 << (factor + 1))))
+			break;
+	}
+
+	return factor;
+}
+
+static int dcamonline_port_scaler_param_calc(struct img_trim *in_trim,
+	struct img_size *out_size, struct yuv_scaler_info *scaler,
+	struct img_deci_info *deci)
+{
+	int ret = 0;
+	uint32_t tmp_dstsize = 0, align_size = 0, d_max = DCAM_SCALE_DOWN_MAX;
+
+	pr_debug("dcam scaler in_trim_size_x:%d, in_trim_size_y:%d, out_size_w:%d,out_size_h:%d\n",
+		in_trim->size_x, in_trim->size_y, out_size->w, out_size->h);
+
+	scaler->scaler_factor_in = in_trim->size_x;
+	scaler->scaler_ver_factor_in = in_trim->size_y;
+	/* Down scaling should not be smaller then 1/10 */
+	if (in_trim->size_x > out_size->w * d_max) {
+		tmp_dstsize = out_size->w * d_max;
+		deci->deci_x = dcamonline_port_deci_factor_get(in_trim->size_x, tmp_dstsize);
+		deci->deci_x_eb = 1;
+		align_size = (1 << (deci->deci_x + 1)) * DCAM_PIXEL_ALIGN_WIDTH;
+		in_trim->size_x = (in_trim->size_x) & ~(align_size - 1);
+		in_trim->start_x = (in_trim->start_x) & ~(align_size - 1);
+		scaler->scaler_factor_in = in_trim->size_x >> (deci->deci_x + 1);
+		pr_debug("deci x %d %d, intrim x %d %d, align %d, in %d\n",
+			deci->deci_x_eb, deci->deci_x, in_trim->start_x, in_trim->size_x,
+			align_size, scaler->scaler_factor_in);
+	} else {
+		deci->deci_x = 0;
+		deci->deci_x_eb = 0;
+	}
+
+	if (in_trim->size_y > out_size->h * d_max) {
+		tmp_dstsize = out_size->h * d_max;
+		deci->deci_y = dcamonline_port_deci_factor_get(in_trim->size_y, tmp_dstsize);
+		deci->deci_y_eb = 1;
+		align_size = (1 << (deci->deci_y + 1)) * DCAM_PIXEL_ALIGN_HEIGHT;
+		in_trim->size_y = (in_trim->size_y) & ~(align_size - 1);
+		in_trim->start_y = (in_trim->start_y) & ~(align_size - 1);
+		scaler->scaler_ver_factor_in = in_trim->size_y >> (deci->deci_y + 1);
+		pr_debug("deci y %d %d, intrim y %d %d, align %d, in %d\n",
+			deci->deci_y_eb, deci->deci_y, in_trim->start_y, in_trim->size_y,
+			align_size, scaler->scaler_ver_factor_in);
+	} else {
+		deci->deci_y = 0;
+		deci->deci_y_eb = 0;
+	}
+	pr_debug("dcam scaler out_size  w %d, h %d, deci eb %d %d\n",
+		out_size->w, out_size->h, deci->deci_x_eb, deci->deci_y_eb);
+
+	scaler->scaler_factor_out = out_size->w;
+	scaler->scaler_ver_factor_out = out_size->h;
+	scaler->scaler_out_width = out_size->w;
+	scaler->scaler_out_height = out_size->h;
+
+	return ret;
+}
 
 static void dcamonline_port_check_status(struct dcam_online_port *dcam_port,
 	struct dcam_hw_context *hw_ctx, struct dcam_isp_k_block *blk_dcam_pm)
@@ -36,9 +112,9 @@ static void dcamonline_port_check_status(struct dcam_online_port *dcam_port,
 		return;
 
 	buf_desc.q_ops_cmd = CAM_QUEUE_DEL_TAIL;
-	if (blk_dcam_pm->gtm[DCAM_GTM_PARAM_PRE].gtm_info.bypass_info.gtm_hist_stat_bypass)
+	if (blk_dcam_pm->gtm.gtm_info.bypass_info.gtm_hist_stat_bypass)
 		recycle = 1;
-	if (blk_dcam_pm->rgb_gtm[DCAM_GTM_PARAM_PRE].rgb_gtm_info.bypass_info.gtm_hist_stat_bypass)
+	if (blk_dcam_pm->rgb_gtm.rgb_gtm_info.bypass_info.gtm_hist_stat_bypass)
 		recycle = 1;
 	if (g_dcam_bypass[hw_ctx->hw_ctx_id] & (1 << _E_GTM))
 		recycle = 1;
@@ -91,6 +167,10 @@ int dcamonline_port_buffer_cfg(void *handle, void *param)
 	else
 		pool_id.private_pool_idx = dcam_online_port->unprocess_pool.private_pool_idx;
 
+	if (pframe->zoom_data) {
+		cam_zoom_frame_free(pframe->zoom_data);
+		pframe->zoom_data = NULL;
+	}
 	ret = cam_buf_manager_buf_enqueue(&pool_id, pframe, &buf_desc);
 	if (ret) {
 		pr_err("fail to enqueue frame of online port %d\n", cam_port_name_get(dcam_online_port->port_id));
@@ -104,195 +184,70 @@ int dcamonline_port_buffer_cfg(void *handle, void *param)
 	return ret;
 }
 
-static int dcamonline_port_size_cfg(void *handle, void *param)
+int dcamonline_port_buffer_reset_cfg(void *handle, void *param)
 {
 	int ret = 0;
-	uint32_t invalid = 0;
-	unsigned long flag = 0;
-	struct img_size dst_size = {0};
-	struct img_size crop_size = {0};
 	struct dcam_online_port *dcam_online_port = NULL;
-	struct dcam_path_cfg_param  *ch_desc = NULL;
+	struct camera_frame *pframe = NULL;
+	struct cam_buf_pool_id pool_id = {0};
+	struct camera_buf_get_desc buf_desc = {0};
 
 	if (!handle || !param) {
 		pr_err("fail to get valid input ptr %px %px\n", handle, param);
 		return -EFAULT;
 	}
-
 	dcam_online_port = (struct dcam_online_port *)handle;
-	ch_desc = (struct dcam_path_cfg_param *)param;
-	if (ch_desc->is_csi_connect)
-		dcam_online_port->size_update = 0;
+	pframe = (struct camera_frame *)param;
 
-	switch (dcam_online_port->port_id) {
-	case PORT_RAW_OUT:
-	case PORT_FULL_OUT:
-		spin_lock_irqsave(&dcam_online_port->size_lock, flag);
-		if (dcam_online_port->size_update) {
-			spin_unlock_irqrestore(&dcam_online_port->size_lock, flag);
-			return -EFAULT;
+	buf_desc.q_ops_cmd = CAM_QUEUE_DEL_TAIL;
+	pframe = cam_buf_manager_buf_dequeue(&dcam_online_port->result_pool, &buf_desc);
+	while (pframe) {
+		pr_debug("port %s fid %u\n", cam_port_name_get(dcam_online_port->port_id), pframe->fid);
+		/* Need add recovery size config */
+		if ((pframe)->zoom_data) {
+			cam_zoom_frame_free(pframe->zoom_data);
+			pframe->zoom_data = NULL;
 		}
-		dcam_online_port->in_size = ch_desc->input_size;
-		dcam_online_port->in_trim = ch_desc->input_trim;
-		invalid |= ((dcam_online_port->in_size.w == 0) || (dcam_online_port->in_size.h == 0));
-		invalid |= ((dcam_online_port->in_trim.start_x + dcam_online_port->in_trim.size_x) > dcam_online_port->in_size.w);
-		invalid |= ((dcam_online_port->in_trim.start_y + dcam_online_port->in_trim.size_y) > dcam_online_port->in_size.h);
+		if (pframe->is_reserved)
+			ret = dcam_online_port_reserved_buf_set(dcam_online_port, pframe);
+		else {
+			if (dcam_online_port->port_id == PORT_BIN_OUT) {
+				buf_desc.buf_ops_cmd = CAM_BUF_STATUS_GET_IOVA;
+				buf_desc.mmu_type = CAM_IOMMUDEV_DCAM;
+			} else if (dcam_online_port->port_id == PORT_FULL_OUT || dcam_online_port->port_id == PORT_RAW_OUT || dcam_online_port->port_id == PORT_VCH2_OUT)
+				buf_desc.buf_ops_cmd = CAM_BUF_STATUS_MOVE_TO_ION;
 
-		if (invalid) {
-			spin_unlock_irqrestore(&dcam_online_port->size_lock, flag);
-			pr_err("fail to get valid size, size:%d %d, trim %d %d %d %d\n",
-				dcam_online_port->in_size.w, dcam_online_port->in_size.h,
-				dcam_online_port->in_trim.start_x, dcam_online_port->in_trim.start_y,
-				dcam_online_port->in_trim.size_x,
-				dcam_online_port->in_trim.size_y);
-			return -EINVAL;
+			buf_desc.q_ops_cmd = CAM_QUEUE_FRONT;
+			pframe->is_reserved = 0;
+			pframe->not_use_isp_reserved_buf = 0;
+			pframe->priv_data = dcam_online_port;
+			if (pframe->pyr_status == ONLINE_DEC_ON)
+				pframe->need_pyr_rec = 1;
+			else if (pframe->pyr_status == OFFLINE_DEC_ON)
+				pframe->need_pyr_dec = 1;
+
+			if (dcam_online_port->share_full_path)
+				pool_id.tag_id = CAM_BUF_POOL_SHARE_FULL_PATH;
+			else
+				pool_id.private_pool_idx = dcam_online_port->unprocess_pool.private_pool_idx;
+
+			if (pframe->zoom_data) {
+				cam_zoom_frame_free(pframe->zoom_data);
+				pframe->zoom_data = NULL;
+			}
+			ret = cam_buf_manager_buf_enqueue(&pool_id, pframe, &buf_desc);
+			if (ret) {
+				pr_err("fail to enqueue frame of online port %d\n", cam_port_name_get(dcam_online_port->port_id));
+				cam_buf_destory(pframe);
+				return ret;
+			}
+
+			pr_debug("out_buf_queue cnt:%d, port id:%d, addr:%x.\n", cam_buf_manager_pool_cnt(&pool_id),
+					dcam_online_port->port_id, pframe->buf.iova);
 		}
-		if ((dcam_online_port->in_size.w > dcam_online_port->in_trim.size_x) ||
-			(dcam_online_port->in_size.h > dcam_online_port->in_trim.size_y)) {
-			dcam_online_port->out_size.w = dcam_online_port->in_trim.size_x;
-			dcam_online_port->out_size.h = dcam_online_port->in_trim.size_y;
-		} else {
-			dcam_online_port->out_size.w = dcam_online_port->in_size.w;
-			dcam_online_port->out_size.h = dcam_online_port->in_size.h;
-		}
-
-		dcam_online_port->out_pitch = dcampath_outpitch_get(dcam_online_port->out_size.w, dcam_online_port->dcamout_fmt);
-		dcam_online_port->priv_size_data = ch_desc->priv_size_data;
-		dcam_online_port->size_update = 1;
-		spin_unlock_irqrestore(&dcam_online_port->size_lock, flag);
-
-		pr_info("cfg %s path done. size %d %d %d %d\n",
-			dcam_online_port->port_id == PORT_RAW_OUT ? "raw" : "full", dcam_online_port->in_size.w, dcam_online_port->in_size.h,
-			dcam_online_port->out_size.w, dcam_online_port->out_size.h);
-
-		pr_info("sel %d. trim %d %d %d %d\n", dcam_online_port->raw_src,
-			dcam_online_port->in_trim.start_x, dcam_online_port->in_trim.start_y,
-			dcam_online_port->in_trim.size_x, dcam_online_port->in_trim.size_y);
-		break;
-
-	case PORT_BIN_OUT:
-		/* lock here to keep all size parameters updating is atomic.
-		 * because the rds coeff caculation may be time-consuming,
-		 * we should not disable irq here, or else may cause irq missed.
-		 * Just trylock set_next_frame in irq handling to avoid deadlock
-		 * If last updating has not been applied yet, will return error.
-		 * error may happen if too frequent zoom ratio updateing,
-		 * but should not happen for first time cfg before stream on,
-		 * if error return, caller can discard updating
-		 * or try cfg_size again after while.
-		 */
-		spin_lock_irqsave(&dcam_online_port->size_lock, flag);
-		if (dcam_online_port->size_update) {
-			spin_unlock_irqrestore(&dcam_online_port->size_lock, flag);
-			pr_warn("warning: Previous port size updating pending\n");
-			return -EFAULT;
-		}
-
-		dcam_online_port->in_size = ch_desc->input_size;
-		dcam_online_port->in_trim = ch_desc->input_trim;
-		dcam_online_port->total_in_trim = ch_desc->total_input_trim;
-		dcam_online_port->out_size = ch_desc->output_size;
-		dcam_online_port->dst_crop_w = ch_desc->zoom_ratio_base.w;
-
-		invalid = 0;
-		invalid |= ((dcam_online_port->in_size.w == 0) || (dcam_online_port->in_size.h == 0));
-		/* trim should not be out range of source */
-		invalid |= ((dcam_online_port->in_trim.start_x +
-				dcam_online_port->in_trim.size_x) > dcam_online_port->in_size.w);
-		invalid |= ((dcam_online_port->in_trim.start_y +
-				dcam_online_port->in_trim.size_y) > dcam_online_port->in_size.h);
-
-		/* output size should not be larger than trim ROI */
-		invalid |= dcam_online_port->in_trim.size_x < dcam_online_port->out_size.w;
-		invalid |= dcam_online_port->in_trim.size_y < dcam_online_port->out_size.h;
-
-		/* Down scaling should not be smaller then 1/4*/
-		invalid |= dcam_online_port->in_trim.size_x >
-				(dcam_online_port->out_size.w * DCAM_SCALE_DOWN_MAX);
-		invalid |= dcam_online_port->in_trim.size_y >
-				(dcam_online_port->out_size.h * DCAM_SCALE_DOWN_MAX);
-
-		if (invalid) {
-			spin_unlock_irqrestore(&dcam_online_port->size_lock, flag);
-			pr_err("fail to get valid size, size:%d %d, trim %d %d %d %d, dst %d %d\n",
-				dcam_online_port->in_size.w, dcam_online_port->in_size.h,
-				dcam_online_port->in_trim.start_x, dcam_online_port->in_trim.start_y,
-				dcam_online_port->in_trim.size_x, dcam_online_port->in_trim.size_y,
-				dcam_online_port->out_size.w, dcam_online_port->out_size.h);
-			return -EINVAL;
-		}
-		crop_size.w = dcam_online_port->in_trim.size_x;
-		crop_size.h = dcam_online_port->in_trim.size_y;
-		dst_size = dcam_online_port->out_size;
-		dcam_online_port->out_pitch = dcampath_outpitch_get(dcam_online_port->out_size.w, dcam_online_port->dcamout_fmt);
-
-		switch (dcam_online_port->dcamout_fmt) {
-			case CAM_YUV_BASE:
-			case CAM_YUV422_2FRAME:
-			case CAM_YVU422_2FRAME:
-			case CAM_YUV420_2FRAME:
-			case CAM_YVU420_2FRAME:
-			case CAM_YUV420_2FRAME_MIPI:
-			case CAM_YVU420_2FRAME_MIPI:
-				if ((crop_size.w == dst_size.w) && (crop_size.h == dst_size.h)) {
-					dcam_online_port->scaler_sel = PORT_SCALER_BYPASS;
-					break;
-				}
-				if (dst_size.w > DCAM_SCALER_MAX_WIDTH || dcam_online_port->in_trim.size_x > (dst_size.w * DCAM_SCALE_DOWN_MAX)) {
-					pr_err("fail to support scaler, in width %d, out width %d\n",
-						dcam_online_port->in_trim.size_x, dst_size.w);
-					ret = -1;
-				}
-				dcam_online_port->scaler_sel = PORT_SCALER_BY_YUVSCALER;
-				dcam_online_port->scaler_info.scaler_factor_in = dcam_online_port->in_trim.size_x;
-				dcam_online_port->scaler_info.scaler_factor_out = dst_size.w;
-				dcam_online_port->scaler_info.scaler_ver_factor_in = dcam_online_port->in_trim.size_y;
-				dcam_online_port->scaler_info.scaler_ver_factor_out = dst_size.h;
-				dcam_online_port->scaler_info.scaler_out_width = dst_size.w;
-				dcam_online_port->scaler_info.scaler_out_height = dst_size.h;
-
-				dcam_online_port->scaler_info.work_mode = 2;
-				dcam_online_port->scaler_info.scaler_bypass = 0;
-				ret = cam_scaler_coeff_calc_ex(&dcam_online_port->scaler_info);
-				if (ret)
-					pr_err("fail to calc scaler coeff\n");
-				break;
-			case CAM_RAW_PACK_10:
-			case CAM_RAW_HALFWORD_10:
-			case CAM_RAW_14:
-			case CAM_RAW_8:
-			case CAM_FULL_RGB14:
-				dcampath_bin_scaler_get(crop_size, dst_size, &dcam_online_port->scaler_sel, &dcam_online_port->bin_ratio);
-				break;
-
-			default:
-				pr_err("fail to get path->out_fmt:%s\n", camport_fmt_name_get(dcam_online_port->dcamout_fmt));
-				break;
-		}
-
-		if (dcam_online_port->priv_size_data) {
-			cam_buf_kernel_sys_vfree(dcam_online_port->priv_size_data);
-			dcam_online_port->priv_size_data = NULL;
-		}
-		dcam_online_port->priv_size_data = ch_desc->priv_size_data;
-		dcam_online_port->size_update = 1;
-		spin_unlock_irqrestore(&dcam_online_port->size_lock, flag);
-
-		pr_info("cfg bin path done. size %d %d  dst %d %d\n",
-			dcam_online_port->in_size.w, dcam_online_port->in_size.h,
-			dcam_online_port->out_size.w, dcam_online_port->out_size.h);
-		pr_info("scaler %d. trim %d %d %d %d\n", dcam_online_port->scaler_sel,
-			dcam_online_port->in_trim.start_x, dcam_online_port->in_trim.start_y,
-			dcam_online_port->in_trim.size_x, dcam_online_port->in_trim.size_y);
-		break;
-	default:
-		if (dcam_online_port->port_id == PORT_VCH2_OUT && dcam_online_port->raw_src)
-			return ret;
-
-		pr_err("fail to get known path %d\n", dcam_online_port->port_id);
-		ret = -EFAULT;
-		break;
+		pframe = cam_buf_manager_buf_dequeue(&dcam_online_port->result_pool, &buf_desc);
 	}
+
 	return ret;
 }
 
@@ -314,12 +269,147 @@ dcamonline_port_reserved_buf_get(struct dcam_online_port *dcam_port)
 	return frame;
 }
 
+int dcamonline_port_zoom_cfg(struct dcam_online_port *dcam_port, struct cam_zoom_base *zoom_base)
+{
+	int ret = 0;
+	uint32_t invalid = 0;
+	struct img_size dst_size = {0};
+	struct img_size crop_size = {0};
+
+	if (!dcam_port || !zoom_base) {
+		pr_err("fail to get valid %px %px\n", dcam_port, zoom_base);
+		return -EFAULT;
+	}
+
+	switch (dcam_port->port_id) {
+	case PORT_RAW_OUT:
+	case PORT_FULL_OUT:
+		dcam_port->in_size = zoom_base->src;
+		dcam_port->in_trim = zoom_base->crop;
+		invalid |= ((dcam_port->in_size.w == 0) || (dcam_port->in_size.h == 0));
+		invalid |= ((dcam_port->in_trim.start_x + dcam_port->in_trim.size_x) > dcam_port->in_size.w);
+		invalid |= ((dcam_port->in_trim.start_y + dcam_port->in_trim.size_y) > dcam_port->in_size.h);
+
+		if (invalid) {
+			pr_err("fail to get valid size, size:%d %d, trim %d %d %d %d\n",
+				dcam_port->in_size.w, dcam_port->in_size.h,
+				dcam_port->in_trim.start_x, dcam_port->in_trim.start_y,
+				dcam_port->in_trim.size_x, dcam_port->in_trim.size_y);
+			return -EINVAL;
+		}
+		if ((dcam_port->in_size.w > dcam_port->in_trim.size_x) ||
+			(dcam_port->in_size.h > dcam_port->in_trim.size_y)) {
+			dcam_port->out_size.w = dcam_port->in_trim.size_x;
+			dcam_port->out_size.h = dcam_port->in_trim.size_y;
+		} else {
+			dcam_port->out_size.w = dcam_port->in_size.w;
+			dcam_port->out_size.h = dcam_port->in_size.h;
+		}
+		dcam_port->out_pitch = dcampath_outpitch_get(dcam_port->out_size.w, dcam_port->dcamout_fmt);
+
+		CAM_ZOOM_DEBUG("cfg %s path done. size %d %d %d %d\n",
+			dcam_port->port_id == PORT_RAW_OUT ? "raw" : "full", dcam_port->in_size.w, dcam_port->in_size.h,
+			dcam_port->out_size.w, dcam_port->out_size.h);
+		CAM_ZOOM_DEBUG("sel %d. trim %d %d %d %d\n", dcam_port->raw_src,
+			dcam_port->in_trim.start_x, dcam_port->in_trim.start_y,
+			dcam_port->in_trim.size_x, dcam_port->in_trim.size_y);
+		break;
+	case PORT_BIN_OUT:
+		dcam_port->in_size = zoom_base->src;
+		dcam_port->in_trim = zoom_base->crop;
+		dcam_port->out_size = zoom_base->dst;
+		dcam_port->zoom_ratio_w = zoom_base->ratio_width;
+		dcam_port->total_zoom_crop_w = zoom_base->total_crop_width;
+
+		invalid = 0;
+		invalid |= ((dcam_port->in_size.w == 0) || (dcam_port->in_size.h == 0));
+		invalid |= ((dcam_port->in_trim.start_x +
+				dcam_port->in_trim.size_x) > dcam_port->in_size.w);
+		invalid |= ((dcam_port->in_trim.start_y +
+				dcam_port->in_trim.size_y) > dcam_port->in_size.h);
+		invalid |= dcam_port->in_trim.size_x < dcam_port->out_size.w;
+		invalid |= dcam_port->in_trim.size_y < dcam_port->out_size.h;
+
+		if (invalid) {
+			pr_err("fail to get valid size, size:%d %d, trim %d %d %d %d, dst %d %d\n",
+				dcam_port->in_size.w, dcam_port->in_size.h,
+				dcam_port->in_trim.start_x, dcam_port->in_trim.start_y,
+				dcam_port->in_trim.size_x, dcam_port->in_trim.size_y,
+				dcam_port->out_size.w, dcam_port->out_size.h);
+			return -EINVAL;
+		}
+		crop_size.w = dcam_port->in_trim.size_x;
+		crop_size.h = dcam_port->in_trim.size_y;
+		dst_size = dcam_port->out_size;
+		dcam_port->out_pitch = dcampath_outpitch_get(dcam_port->out_size.w, dcam_port->dcamout_fmt);
+
+		switch (dcam_port->dcamout_fmt) {
+			case CAM_YUV_BASE:
+			case CAM_YUV422_2FRAME:
+			case CAM_YVU422_2FRAME:
+			case CAM_YUV420_2FRAME:
+			case CAM_YVU420_2FRAME:
+			case CAM_YUV420_2FRAME_MIPI:
+			case CAM_YVU420_2FRAME_MIPI:
+				if ((crop_size.w == dst_size.w) && (crop_size.h == dst_size.h)) {
+					dcam_port->scaler_sel = PORT_SCALER_BYPASS;
+					break;
+				}
+				if (dst_size.w > DCAM_SCALER_MAX_WIDTH) {
+					pr_err("fail to support scaler, in width %d, out width %d\n",
+						dcam_port->in_trim.size_x, dst_size.w);
+					ret = -1;
+				}
+				dcam_port->scaler_sel = PORT_SCALER_BY_YUVSCALER;
+				ret = dcamonline_port_scaler_param_calc(&dcam_port->in_trim, &dst_size,
+						&dcam_port->scaler_info, &dcam_port->deci);
+				if (ret) {
+					pr_err("fail to calc scaler param.\n");
+					return ret;
+				}
+
+				dcam_port->scaler_info.work_mode = 2;
+				dcam_port->scaler_info.scaler_bypass = 0;
+				ret = cam_scaler_coeff_calc_ex(&dcam_port->scaler_info);
+				if (ret)
+					pr_err("fail to calc scaler coeff\n");
+				break;
+			case CAM_RAW_PACK_10:
+			case CAM_RAW_HALFWORD_10:
+			case CAM_RAW_14:
+			case CAM_RAW_8:
+			case CAM_FULL_RGB14:
+				dcampath_bin_scaler_get(crop_size, dst_size, &dcam_port->scaler_sel, &dcam_port->bin_ratio);
+				break;
+
+			default:
+				pr_err("fail to get path->out_fmt :%d\n", dcam_port->dcamout_fmt);
+				break;
+		}
+
+		CAM_ZOOM_DEBUG("cfg bin path done. size %d %d  dst %d %d\n",
+			dcam_port->in_size.w, dcam_port->in_size.h,
+			dcam_port->out_size.w, dcam_port->out_size.h);
+		CAM_ZOOM_DEBUG("scaler %d. trim %d %d %d %d\n", dcam_port->scaler_sel,
+			dcam_port->in_trim.start_x, dcam_port->in_trim.start_y,
+			dcam_port->in_trim.size_x, dcam_port->in_trim.size_y);
+		break;
+	default:
+		pr_err("fail to get known path %d\n", dcam_port->port_id);
+		ret = -EFAULT;
+		break;
+	}
+	return ret;
+}
+
 static inline struct camera_frame *dcamonline_port_frame_cycle(struct dcam_online_port *dcam_port, struct dcam_hw_context *hw_ctx)
 {
 	int ret = 0;
 	struct camera_frame *frame = NULL;
 	struct cam_buf_pool_id pool_id = {0};
 	struct camera_buf_get_desc buf_desc = {0};
+	struct cam_zoom_base zoom_base = {0};
+	struct cam_zoom_index zoom_index = {0};
 
 	if (!dcam_port || !hw_ctx) {
 		pr_err("fail to get null pointer.\n");
@@ -347,6 +437,31 @@ static inline struct camera_frame *dcamonline_port_frame_cycle(struct dcam_onlin
 		frame->is_compressed = 1;
 	hw_ctx->fid = frame->fid;
 	frame->cam_fmt = dcam_port->dcamout_fmt;
+	if (dcam_port->port_id == PORT_FULL_OUT ||
+		dcam_port->port_id == PORT_BIN_OUT ||
+		dcam_port->port_id == PORT_RAW_OUT) {
+		if (frame->zoom_data) {
+			cam_queue_empty_zoom_put(frame->zoom_data);
+			frame->zoom_data = NULL;
+		}
+		frame->zoom_data = dcam_port->zoom_cb_func(dcam_port->zoom_cb_handle);
+		if (frame->zoom_data) {
+			zoom_index.node_type = CAM_NODE_TYPE_DCAM_ONLINE;
+			zoom_index.node_id = DCAM_ONLINE_PRE_NODE_ID;
+			zoom_index.port_type = PORT_TRANSFER_OUT;
+			zoom_index.port_id = dcam_port->port_id;
+			zoom_index.zoom_data = frame->zoom_data;
+			ret = cam_zoom_frame_base_get(&zoom_base, &zoom_index);
+			if (!ret)
+				dcamonline_port_zoom_cfg(dcam_port, &zoom_base);
+		}
+	}
+
+	if (frame->is_reserved && frame->zoom_data) {
+		cam_queue_empty_zoom_put(frame->zoom_data);
+		frame->zoom_data = NULL;
+	}
+
 	ret = cam_buf_manager_buf_enqueue(&dcam_port->result_pool, frame, NULL);
 	if (ret) {
 		pr_err("fail to set next frm buffer, pool %d, %s\n", dcam_port->result_pool.private_pool_idx, cam_port_name_get(dcam_port->port_id));
@@ -371,28 +486,23 @@ static void dcamonline_port_update_path_size(struct dcam_online_port *dcam_port,
 
 	hw = hw_ctx->hw;
 
-	if (dcam_port->size_update) {
-		path_size.path_id = dcamonline_portid_convert_to_pathid(dcam_port->port_id);
-		path_size.idx = idx;
-		path_size.size_x = hw_ctx->cap_info.cap_size.size_x;
-		path_size.size_y = hw_ctx->cap_info.cap_size.size_y;
-		path_size.src_sel = dcam_port->src_sel;
-		path_size.bin_ratio = dcam_port->bin_ratio;
-		path_size.scaler_sel = dcam_port->scaler_sel;
-		path_size.in_size = dcam_port->in_size;
-		path_size.in_trim = dcam_port->in_trim;
-		path_size.out_size = dcam_port->out_size;
-		path_size.out_pitch= dcam_port->out_pitch;
-		path_size.compress_info = frame->fbc_info;
-		path_size.scaler_info = &dcam_port->scaler_info;
-		frame->param_data = dcam_port->priv_size_data;
-		hw->dcam_ioctl(hw, DCAM_HW_CFG_PATH_SIZE_UPDATE, &path_size);
-
-		dcam_port->size_update = 0;
-		dcam_port->priv_size_data = NULL;
-		if (!hw_ctx->is_virtualsensor_proc)
-			dcam_port->base_update = 0;
-	}
+	path_size.path_id = dcamonline_portid_convert_to_pathid(dcam_port->port_id);
+	path_size.idx = idx;
+	path_size.size_x = hw_ctx->cap_info.cap_size.size_x;
+	path_size.size_y = hw_ctx->cap_info.cap_size.size_y;
+	path_size.src_sel = dcam_port->src_sel;
+	path_size.bin_ratio = dcam_port->bin_ratio;
+	path_size.scaler_sel = dcam_port->scaler_sel;
+	path_size.in_size = dcam_port->in_size;
+	path_size.in_trim = dcam_port->in_trim;
+	path_size.out_size = dcam_port->out_size;
+	path_size.out_pitch= dcam_port->out_pitch;
+	path_size.compress_info = frame->fbc_info;
+	path_size.deci = dcam_port->deci;
+	path_size.scaler_info = &dcam_port->scaler_info;
+	hw->dcam_ioctl(hw, DCAM_HW_CFG_PATH_SIZE_UPDATE, &path_size);
+	if (!hw_ctx->is_virtualsensor_proc)
+		dcam_port->base_update = 0;
 }
 
 static int dcamonline_port_pyr_dec_cfg(struct dcam_online_port *dcam_port,
@@ -610,13 +720,10 @@ static void dcamonline_port_update_addr_and_size(struct dcam_online_port *dcam_p
 			if (frame->pyr_status == ONLINE_DEC_ON)
 				dcamonline_port_pyr_dec_cfg(dcam_port, frame, hw_ctx, idx);
 			dcamonline_port_update_path_size(dcam_port, frame, hw_ctx, idx);
-			if (!dcam_port->size_update) {
-				dcam_port->size_update = 0;
-				hw_ctx->next_roi = dcam_port->in_trim;
-				hw_ctx->zoom_ratio = ZOOM_RATIO_DEFAULT * dcam_port->dst_crop_w / dcam_port->in_trim.size_x;
-				hw_ctx->total_zoom = ZOOM_RATIO_DEFAULT *dcam_port->in_size.w / dcam_port->total_in_trim.size_x;
-				pr_debug("total_zoom %d, zoom_ratio %d\n",hw_ctx->total_zoom, hw_ctx->zoom_ratio);
-			}
+			hw_ctx->next_roi = dcam_port->in_trim;
+			hw_ctx->zoom_ratio = ZOOM_RATIO_DEFAULT * dcam_port->zoom_ratio_w / dcam_port->in_trim.size_x;
+			hw_ctx->total_zoom = ZOOM_RATIO_DEFAULT * dcam_port->in_size.w / dcam_port->total_zoom_crop_w;
+			pr_debug("total_zoom %d, zoom_ratio %d\n",hw_ctx->total_zoom, hw_ctx->zoom_ratio);
 		}
 		frame->width = dcam_port->out_size.w;
 		frame->height = dcam_port->out_size.h;
@@ -916,14 +1023,10 @@ static int dcamonline_port_base_cfg(struct dcam_online_port *port, struct dcam_o
 		port->data_cb_func = param->data_cb_func;
 		port->data_cb_handle = param->data_cb_handle;
 	}
-	if (port->resbuf_get_cb == NULL) {
-		port->resbuf_get_cb = param->resbuf_get_cb;
-		port->resbuf_cb_data = param->resbuf_cb_data;
-	}
 
-	if (port->sharebuf_get_cb == NULL) {
-		port->sharebuf_get_cb = param->sharebuf_get_cb;
-		port->sharebuf_cb_data = param->sharebuf_cb_data;
+	if (port->zoom_cb_func == NULL) {
+		port->zoom_cb_func = param->zoom_cb_func;
+		port->zoom_cb_handle = param->zoom_cb_handle;
 	}
 
 	port->frm_skip = param->frm_skip;
@@ -1151,6 +1254,9 @@ static int dcamonline_port_cfg_callback(void *param, uint32_t cmd, void *handle)
 	case DCAM_PORT_RES_BUF_CFG_SET:
 		ret = dcam_online_port_reserved_buf_set(dcam_port, param);
 		break;
+	case DCAM_PORT_BUF_RESET_CFG_SET:
+		ret = dcamonline_port_buffer_reset_cfg(dcam_port, param);
+		break;
 	default:
 		pr_err("fail to support port type %d\n", cmd);
 		ret = -EFAULT;
@@ -1187,8 +1293,8 @@ int dcam_online_port_param_cfg(void *handle, enum cam_port_cfg_cmd cmd, void *pa
 	case PORT_BUFFER_CFG_SET:
 		ret = dcamonline_port_buffer_cfg(dcam_port, param);
 		break;
-	case PORT_SIZE_CFG_SET:
-		ret = dcamonline_port_size_cfg(dcam_port, param);
+	case PORT_ZOOM_CFG_SET:
+		ret = dcamonline_port_zoom_cfg(dcam_port, param);
 		break;
 	default:
 		pr_err("fail to support port type %d\n", cmd);
@@ -1222,7 +1328,7 @@ int dcam_online_port_skip_num_set(void *dcam_ctx_handle, uint32_t hw_id,
 int dcam_online_port_buf_alloc(void *handle, struct cam_buf_alloc_desc *param)
 {
 	int ret = 0;
-	uint32_t i = 0, total = 0, size = 0, pitch = 0, width = 0, height = 0, ch_id = 0, iommu_enable = 0;
+	uint32_t i = 0, alloc_cnt = 0, total = 0, size = 0, pitch = 0, width = 0, height = 0, ch_id = 0, iommu_enable = 0;
 	uint32_t dcam_out_bits = 0, pyr_data_bits = 0, pyr_is_pack = 0, is_pack = 0, pack_bits = 0;
 	struct dcam_online_port *port = (struct dcam_online_port *)handle;
 	struct camera_frame *pframe = NULL;
@@ -1243,13 +1349,13 @@ int dcam_online_port_buf_alloc(void *handle, struct cam_buf_alloc_desc *param)
 		pyr_is_pack = cam_is_pack(port->pyr_out_fmt);
 	}
 	if (param->compress_en) {
-		 cal_fbc.data_bits = dcam_out_bits;
-		 cal_fbc.fbc_info = &fbc_info;
-		 cal_fbc.fmt = port->dcamout_fmt;
-		 cal_fbc.height = height;
-		 cal_fbc.width = width;
-		 size = dcam_if_cal_compressed_size (&cal_fbc);
-		 pr_debug("dcam fbc buffer size %u\n", size);
+		cal_fbc.data_bits = dcam_out_bits;
+		cal_fbc.fbc_info = &fbc_info;
+		cal_fbc.fmt = port->dcamout_fmt;
+		cal_fbc.height = height;
+		cal_fbc.width = width;
+		size = dcam_if_cal_compressed_size (&cal_fbc);
+		pr_debug("dcam fbc buffer size %u\n", size);
 	} else if (camcore_raw_fmt_get(port->dcamout_fmt)) {
 		size = cal_sprd_raw_pitch(width, pack_bits) * height;
 		pr_debug("channel %d, raw size %d\n", ch_id, size);
@@ -1286,6 +1392,8 @@ int dcam_online_port_buf_alloc(void *handle, struct cam_buf_alloc_desc *param)
 		buf_desc.mmu_type = CAM_IOMMUDEV_DCAM;
 	}
 
+	if ((total == 0) && param->stream_on_buf_com)
+		complete(param->stream_on_buf_com);
 	for (i = 0; i < total; i++) {
 		pframe = cam_queue_empty_frame_get();
 		pframe->channel_id = ch_id;
@@ -1319,6 +1427,9 @@ int dcam_online_port_buf_alloc(void *handle, struct cam_buf_alloc_desc *param)
 			pr_err("fail to enq, port %d, buffer i=%d\n", port->port_id, i);
 			cam_buf_destory(pframe);
 		}
+		alloc_cnt++;
+		if ((alloc_cnt == param->stream_on_need_buf_num) && param->stream_on_buf_com)
+			complete(param->stream_on_buf_com);
 	}
 
 	return ret;
@@ -1402,8 +1513,6 @@ exit:
 void dcam_online_port_put(struct dcam_online_port *port)
 {
 	uint32_t port_id = 0;
-	struct isp_offline_param *cur = NULL;
-	struct isp_offline_param *prev = NULL;
 
 	if (!port) {
 		pr_err("fail to get invalid port ptr\n");
@@ -1412,25 +1521,6 @@ void dcam_online_port_put(struct dcam_online_port *port)
 
 	if (atomic_dec_return(&port->user_cnt) == 0) {
 		port_id = port->port_id;
-		if (port->isp_updata) {
-			cur = (struct isp_offline_param *)port->isp_updata;
-			port->isp_updata = NULL;
-			while (cur) {
-				prev = (struct isp_offline_param *)cur->prev;
-				cam_buf_kernel_sys_vfree(cur);
-				cur = prev;
-			}
-		}
-
-		if (port->priv_size_data) {
-			cur = (struct isp_offline_param *)port->priv_size_data;
-			port->priv_size_data = NULL;
-			while (cur) {
-				prev = (struct isp_offline_param *)cur->prev;
-				cam_buf_kernel_sys_vfree(cur);
-				cur = prev;
-			}
-		}
 		if (port->share_full_path) {
 			struct cam_buf_pool_id pool_id = {0};
 			struct camera_buf_get_desc buf_desc = {0};
@@ -1456,9 +1546,8 @@ void dcam_online_port_put(struct dcam_online_port *port)
 		}
 
 		port->data_cb_func = NULL;
-		port->resbuf_get_cb = NULL;
-		port->sharebuf_get_cb = NULL;
 		port->port_cfg_cb_func = NULL;
+		port->zoom_cb_func = NULL;
 		cam_buf_manager_pool_unreg(&port->unprocess_pool);
 		pr_info("unreg unprocess_pool_id %d\n", port->unprocess_pool.private_pool_idx);
 		cam_buf_manager_pool_unreg(&port->result_pool);

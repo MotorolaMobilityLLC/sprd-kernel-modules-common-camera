@@ -481,7 +481,7 @@ int dcam_k_pdaf(struct dcam_isp_k_block *p)
 		val = (ppe_ppc_info->ppc_l_gain_map[i] & 0x3FFF);
 		val <<= 16;
 		val |= (ppe_ppc_info->ppc_r_gain_map[i] & 0x3FFF);
-		DCAM_REG_WR(idx, offset, val);
+		DCAM_REG_BWR(idx, offset, val);
 		offset += 4;
 	}
 

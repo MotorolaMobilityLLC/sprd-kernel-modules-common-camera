@@ -45,6 +45,7 @@ enum cam_pipeline_cfg_cmd {
 	CAM_PIPELINE_CFG_BUF,
 	CAM_PIPELINE_CFG_CAP_PARAM,
 	CAM_PIPELINE_CFG_SIZE,
+	CAM_PIPELINE_CFG_ZOOM,
 	CAM_PIPELINE_CFG_BASE,
 	CAM_PIPELINE_CLR_CACHE_BUF,
 	CAM_PIPELINE_DUAL_SYNC_BUF_GET,
@@ -95,6 +96,7 @@ struct cam_pipeline_topology {
 
 struct cam_pipeline_desc {
 	void *nodes_dev;
+	cam_zoom_get_cb zoom_cb_func;
 	cam_data_cb data_cb_func;
 	void *data_cb_handle;
 	struct dcam_online_node_desc dcam_online_desc;
@@ -116,6 +118,7 @@ struct cam_pipeline_ops {
 };
 
 struct cam_pipeline {
+	cam_zoom_get_cb zoom_cb_func;
 	cam_data_cb data_cb_func;
 	void *data_cb_handle;
 	struct cam_pipeline_topology *pipeline_graph;

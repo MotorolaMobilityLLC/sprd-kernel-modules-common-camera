@@ -134,9 +134,11 @@ static int ispfmcu_start(void *handle)
 		pr_err("fail to get fmcu%d cmdq, overflow.\n", fmcu_ctx->fid);
 		return -EFAULT;
 	}
-	cmd_num = (int) fmcu_ctx->cmdq_pos[fmcu_ctx->cur_buf_id] / 2;
 
+	spin_lock(&fmcu_ctx->lock);
+	cmd_num = (int) fmcu_ctx->cmdq_pos[fmcu_ctx->cur_buf_id] / 2;
 	ispfmcu_cmd_debug(fmcu_ctx);
+
 	startarg.fid = fmcu_ctx->fid;
 	startarg.hw_addr = fmcu_ctx->hw_addr[fmcu_ctx->cur_buf_id];
 	startarg.cmd_num = cmd_num;
@@ -145,6 +147,7 @@ static int ispfmcu_start(void *handle)
 		(uint32_t)fmcu_ctx->cmdq_pos[fmcu_ctx->cur_buf_id] * 4);
 
 	fmcu_ctx->cur_buf_id = !(fmcu_ctx->cur_buf_id);
+	spin_unlock(&fmcu_ctx->lock);
 	return ret;
 }
 
@@ -179,6 +182,7 @@ static int ispfmcu_ctx_init(void *handle)
 
 	fmcu_ctx = (struct isp_fmcu_ctx_desc *)handle;
 	fmcu_ctx->cmdq_size = ISP_FMCU_CMDQ_SIZE;
+	fmcu_ctx->lock = __SPIN_LOCK_UNLOCKED(&fmcu_ctx->lock);
 
 	/*alloc cmd queue buffer*/
 	for (i = 0; i < MAX_BUF; i++) {

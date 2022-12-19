@@ -75,6 +75,7 @@ struct isp_fmcu_ctx_desc {
 	unsigned long hw_addr[MAX_BUF];
 	size_t cmdq_size;
 	size_t cmdq_pos[MAX_BUF];
+	spinlock_t lock;
 	atomic_t user_cnt;
 	struct list_head list;
 	struct isp_fmcu_ops *ops;

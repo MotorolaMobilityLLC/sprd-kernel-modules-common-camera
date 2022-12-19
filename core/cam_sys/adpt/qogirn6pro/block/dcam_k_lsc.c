@@ -172,10 +172,10 @@ int dcam_init_lsc(void *in, uint32_t online)
 	for (i = 0; i < dst_w_num_x; i++) {
 		val = (((uint32_t)w_buff_x[i * 3 + 0]) & 0xFFFF) |
 			((((uint32_t)w_buff_x[i * 3 + 1]) & 0xFFFF) << 16);
-		DCAM_REG_WR(idx, buf_addr_x, val);
+		DCAM_REG_BWR(idx, buf_addr_x, val);
 		buf_addr_x += 4;
 		val = (((uint32_t)w_buff_x[i * 3 + 2]) & 0xFFFF);
-		DCAM_REG_WR(idx, buf_addr_x, val);
+		DCAM_REG_BWR(idx, buf_addr_x, val);
 		buf_addr_x += 4;
 	}
 
@@ -184,10 +184,10 @@ int dcam_init_lsc(void *in, uint32_t online)
 	for (i = 0; i < dst_w_num_y; i++) {
 		val = (((uint32_t)w_buff_y[i * 3 + 0]) & 0xFFFF) |
 			((((uint32_t)w_buff_y[i * 3 + 1]) & 0xFFFF) << 16);
-		DCAM_REG_WR(idx, buf_addr_y, val);
+		DCAM_REG_BWR(idx, buf_addr_y, val);
 		buf_addr_y += 4;
 		val = (((uint32_t)w_buff_y[i * 3 + 2]) & 0xFFFF);
-		DCAM_REG_WR(idx, buf_addr_y, val);
+		DCAM_REG_BWR(idx, buf_addr_y, val);
 		buf_addr_y += 4;
 	}
 	pr_debug("write weight tab done\n");
@@ -358,10 +358,10 @@ int dcam_update_lsc(void *in)
 		for (i = 0; i < dst_w_num_x; i++) {
 			val = (((uint32_t)w_buff_x[i * 3 + 0]) & 0xFFFF) |
 				((((uint32_t)w_buff_x[i * 3 + 1]) & 0xFFFF) << 16);
-			DCAM_REG_WR(idx, buf_addr_x, val);
+			DCAM_REG_BWR(idx, buf_addr_x, val);
 			buf_addr_x += 4;
 			val = (((uint32_t)w_buff_x[i * 3 + 2]) & 0xFFFF);
-			DCAM_REG_WR(idx, buf_addr_x, val);
+			DCAM_REG_BWR(idx, buf_addr_x, val);
 			buf_addr_x += 4;
 		}
 		dst_w_num_y = (info->grid_width_y >> 1) + 1;
@@ -369,10 +369,10 @@ int dcam_update_lsc(void *in)
 		for (i = 0; i < dst_w_num_y; i++) {
 			val = (((uint32_t)w_buff_y[i * 3 + 0]) & 0xFFFF) |
 				((((uint32_t)w_buff_y[i * 3 + 1]) & 0xFFFF) << 16);
-			DCAM_REG_WR(idx, buf_addr_y, val);
+			DCAM_REG_BWR(idx, buf_addr_y, val);
 			buf_addr_y += 4;
 			val = (((uint32_t)w_buff_y[i * 3 + 2]) & 0xFFFF);
-			DCAM_REG_WR(idx, buf_addr_y, val);
+			DCAM_REG_BWR(idx, buf_addr_y, val);
 			buf_addr_y += 4;
 		}
 		pr_debug("update weight tab done\n");

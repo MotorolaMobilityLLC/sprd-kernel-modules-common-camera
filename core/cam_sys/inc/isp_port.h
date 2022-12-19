@@ -35,7 +35,7 @@
 #define ISP_DIV_ALIGN_H(_a, _b)    (((_a) / (_b)) & ~(ISP_PIXEL_ALIGN_HEIGHT - 1))
 
 enum isp_port_cfg_callback {
-	ISP_PORT_SIZE_UPDATA,
+	ISP_PORT_SIZE_UPDATE,
 	ISP_PORT_IRQ_POSTPORC,
 	ISP_PORT_UFRAME_FID_GET,
 	ISP_PORT_FRAME_CYCLE,
@@ -59,6 +59,7 @@ struct isp_port_blksize_desc {
 };
 
 struct isp_port_cfg {
+	uint32_t node_id;
 	uint32_t scaler_coeff_ex;
 	uint32_t scaler_bypass_ctrl;
 	uint32_t cfg_id;

@@ -22,6 +22,7 @@
 #include "cam_node.h"
 #include "cam_statis.h"
 #include "cam_debugger.h"
+#include "cam_zoom.h"
 
 #ifdef pr_fmt
 #undef pr_fmt
@@ -203,8 +204,9 @@ static struct camera_frame *dcamonline_frame_prepare(struct dcam_online_node *no
 	atomic_dec(&dcam_port->set_frm_cnt);
 
 	if (unlikely(frame->is_reserved)) {
-		pr_info_ratelimited("DCAM%u %s use reserved buffer\n",
-			hw_ctx->hw_ctx_id, cam_port_name_get(dcam_port->port_id));
+		if (!node->slowmotion_count)
+			pr_info_ratelimited("DCAM%u %s use reserved buffer\n",
+				hw_ctx->hw_ctx_id, cam_port_name_get(dcam_port->port_id));
 		dcam_online_port_reserved_buf_set(dcam_port, frame);
 		return NULL;
 	}
@@ -238,42 +240,22 @@ static struct camera_frame *dcamonline_frame_prepare(struct dcam_online_node *no
 
 static void dcamonline_frame_dispatch(void *param, void *handle)
 {
+	uint32_t ret = 0;
 	struct dcam_online_node *node = NULL;
 	struct dcam_online_port *dcam_port = NULL;
 	struct dcam_irq_proc *irq_proc = NULL;
 	struct camera_frame *frame = NULL;
-	uint32_t ret = 0;
-	timespec cur_ts = {0};
 
 	node = (struct dcam_online_node *)handle;
 	irq_proc = (struct dcam_irq_proc *)param;
 	frame = (struct camera_frame *)irq_proc->param;
 
-	if (unlikely(!node || !frame || !is_port_id(irq_proc->dcam_port_id))) {
+	if (unlikely(!node || !frame || !IS_VALID_DCAM_PORT_ID(irq_proc->dcam_port_id))) {
 		pr_err("fail to get valid param %px %px %d\n", node, frame, irq_proc->dcam_port_id);
 		return;
 	}
 
-	ktime_get_ts(&cur_ts);
-	frame->time.tv_sec = cur_ts.tv_sec;
-	frame->time.tv_usec = cur_ts.tv_nsec / NSEC_PER_USEC;
-	frame->boot_time = ktime_get_boottime();
-	pr_debug("DCAM%u port %d: time %06d.%06d\n", node->hw_ctx_id, irq_proc->dcam_port_id,
-		(int)frame->time.tv_sec, (int)frame->time.tv_usec);
-
 	dcam_port = dcam_online_node_port_get(node, irq_proc->dcam_port_id);
-	if (dcam_port->isp_updata) {
-		struct isp_offline_param *cur = NULL;
-		pr_debug("next %p,  prev %p\n", frame->param_data, dcam_port->isp_updata);
-		if (frame->param_data) {
-			cur = (struct isp_offline_param *)frame->param_data;
-			cur->prev = dcam_port->isp_updata;
-		} else {
-			frame->param_data = dcam_port->isp_updata;
-		}
-		dcam_port->isp_updata = NULL;
-		pr_debug("cur %p\n", frame->param_data);
-	}
 	frame->link_from.node_type = CAM_NODE_TYPE_DCAM_ONLINE;
 	frame->link_from.port_id = irq_proc->dcam_port_id;
 	if (irq_proc->type == CAM_CB_DCAM_DATA_DONE) {
@@ -699,12 +681,13 @@ dispatch_sof:
 	copyarg.idx = node->hw_ctx_id;
 	copyarg.glb_reg_lock = hw_ctx->glb_reg_lock;
 	hw->dcam_ioctl(hw, DCAM_HW_CFG_AUTO_COPY, &copyarg);
+	hw->dcam_ioctl(hw, DCAM_HW_CFG_RECORD_ADDR, hw_ctx);
 
 	if (!node->slowmotion_count
 		|| !(hw_ctx->frame_index % node->slowmotion_count)) {
 		dcamonline_sof_event_dispatch(node, hw_ctx);
 	}
-	hw_ctx->iommu_status = (uint32_t)(-1);
+	hw_ctx->iommu_status = 0xffffffff;
 	hw_ctx->frame_index++;
 }
 
@@ -775,7 +758,7 @@ static int dcamonline_done_proc(void *param, void *handle, struct dcam_hw_contex
 		list_for_each_entry(dcam_port, &node->port_queue.head, list) {
 			if (!dcam_port)
 				continue;
-			if (atomic_read(&dcam_port->user_cnt) < 1 || atomic_read(&dcam_port->is_shutoff) > 0)
+			if (atomic_read(&dcam_port->is_work) < 1 || atomic_read(&dcam_port->is_shutoff) > 0)
 				continue;
 			if ((frame = dcamonline_frame_prepare(node, dcam_port, hw_ctx))) {
 				if (dcam_port->port_id <= PORT_FULL_OUT) {
@@ -808,6 +791,8 @@ static int dcamonline_done_proc(void *param, void *handle, struct dcam_hw_contex
 			dcam_port = dcam_online_node_port_get(node, PORT_FULL_OUT);
 			frame = dcamonline_frame_prepare(node, dcam_port, hw_ctx);
 			if (frame == NULL) {
+				node->nr3_me.full_path_mv_ready = 0;
+				node->nr3_me.full_path_cnt = 0;
 				return ret;
 			}
 			dcamonline_nr3_mv_get(hw_ctx, frame);
@@ -823,6 +808,8 @@ static int dcamonline_done_proc(void *param, void *handle, struct dcam_hw_contex
 			dcam_port = dcam_online_node_port_get(node, PORT_BIN_OUT);
 			frame = dcamonline_frame_prepare(node, dcam_port, hw_ctx);
 			if (frame == NULL) {
+				node->nr3_me.bin_path_mv_ready = 0;
+				node->nr3_me.bin_path_cnt = 0;
 				return ret;
 			}
 			dcamonline_nr3_mv_get(hw_ctx, frame);
@@ -848,8 +835,11 @@ static int dcamonline_done_proc(void *param, void *handle, struct dcam_hw_contex
 					return ret;
 				} else if (mv_ready == 1) {
 					frame = dcamonline_frame_prepare(node, dcam_port, hw_ctx);
-					if (frame == NULL)
+					if (frame == NULL) {
+						node->nr3_me.full_path_mv_ready = 0;
+						node->nr3_me.full_path_cnt = 0;
 						return ret;
+					}
 
 					dcamonline_nr3_mv_get(hw_ctx, frame);
 					node->nr3_me.full_path_mv_ready = 0;
@@ -893,6 +883,8 @@ static int dcamonline_done_proc(void *param, void *handle, struct dcam_hw_contex
 				} else if (mv_ready == 1) {
 					frame = dcamonline_frame_prepare(node, dcam_port, hw_ctx);
 					if (frame == NULL) {
+						node->nr3_me.bin_path_mv_ready = 0;
+						node->nr3_me.bin_path_cnt = 0;
 						return ret;
 					}
 					dcamonline_nr3_mv_get(hw_ctx, frame);
@@ -1033,7 +1025,7 @@ static int dcamonline_ctx_bind(struct dcam_online_node *node)
 	ret = node->dev->dcam_pipe_ops->bind(node->dev, node, node->node_id, node->dcam_idx,
 			slw_cnt, &node->hw_ctx_id, &node->slw_type);
 	if (ret) {
-		pr_err("fail to bind ctx %d\n", node->node_id);
+		pr_warn("warning: bind ctx %d fail\n", node->node_id);
 		goto exit;
 	}
 
@@ -1041,7 +1033,6 @@ static int dcamonline_ctx_bind(struct dcam_online_node *node)
 	node->hw_ctx->slowmotion_count = node->slowmotion_count;
 	node->hw_ctx->cap_info = node->cap_info;
 	node->hw_ctx->is_pyr_rec = node->is_pyr_rec;
-	node->hw_ctx->dcam_slice_mode_temp = node->dcam_slice_mode_temp;
 	node->hw_ctx_id = node->hw_ctx->hw_ctx_id;
 	node->blk_pm.idx = node->hw_ctx_id;
 	node->hw_ctx->dcam_irq_cb_func = dcam_online_node_irq_proc;
@@ -1197,7 +1188,6 @@ static int dcamonline_dev_start(struct dcam_online_node *node, void *param)
 	struct dcam_hw_context *hw_ctx = NULL;
 	struct dcam_online_port *port = NULL;
 	struct dcam_switch_param csi_switch = {0};
-	struct dcam_hw_ebd_set ebd_set = {0};
 	struct cam_node_shutoff_ctrl node_shutoff = {0};
 
 	if (!node) {
@@ -1248,18 +1238,9 @@ static int dcamonline_dev_start(struct dcam_online_node *node, void *param)
 		if (hw->ip_dcam[node->hw_ctx_id]->lbuf_share_support)
 			ret = hw->dcam_ioctl(hw, DCAM_HW_CFG_LBUF_SHARE_SET, &camarg);
 		ret = hw->dcam_ioctl(hw, DCAM_HW_CFG_RESET, &hw_ctx->hw_ctx_id);
-
-		if (start_param->param)
-			pm->non_zsl_cap = *((uint32_t *)start_param->param);
 	} else {
 		is_csi_connect = 1;
 		node->csi_connect_stat = DCAM_CSI_RESUME;
-	}
-
-	if (node->is_ebd) {
-		ebd_set.idx = node->hw_ctx_id;
-		ebd_set.p = &node->ebd_param;
-		ret = node->dev->hw->dcam_ioctl(node->dev->hw, DCAM_HW_CFG_EBD_SET, &ebd_set);
 	}
 
 	if (hw->csi_connect_type == DCAM_BIND_DYNAMIC && node->csi_connect_stat != DCAM_CSI_RESUME) {
@@ -1311,10 +1292,9 @@ static int dcamonline_dev_start(struct dcam_online_node *node, void *param)
 	if (hw->ip_isp->frbg_hist_support)
 		DCAMONLINE_STATIS_WORK_SET(pm->hist_roi.hist_roi_info.bypass, node, PORT_FRGB_HIST_OUT);
 	DCAMONLINE_STATIS_WORK_SET(pm->pdaf.bypass, node, PORT_PDAF_OUT);
-	DCAMONLINE_STATIS_WORK_SET(!node->is_ebd, node, PORT_VCH2_OUT);
-	if ((pm->gtm[DCAM_GTM_PARAM_PRE].gtm_calc_mode == GTM_SW_CALC) && (hw_ctx->hw->ip_isp->rgb_gtm_support == 0))
+	if ((pm->gtm.gtm_calc_mode == GTM_SW_CALC) && (hw_ctx->hw->ip_isp->rgb_gtm_support == 0))
 		DCAMONLINE_STATIS_WORK_SET(0, node, PORT_GTM_HIST_OUT);
-	if ((pm->rgb_gtm[DCAM_GTM_PARAM_PRE].gtm_calc_mode == GTM_SW_CALC) && (hw_ctx->hw->ip_isp->rgb_gtm_support == 0))
+	if ((pm->rgb_gtm.gtm_calc_mode == GTM_SW_CALC) && (hw_ctx->hw->ip_isp->rgb_gtm_support == 0))
 		DCAMONLINE_STATIS_WORK_SET(0, node, PORT_GTM_HIST_OUT);
 
 	hw_ctx->base_fid = pm->frm_idx;
@@ -1378,7 +1358,6 @@ static int dcamonline_dev_start(struct dcam_online_node *node, void *param)
 				}
 				spin_unlock_irqrestore(&port->state_lock, flag);
 			}
-			port->size_update = 1;
 			/* online ctx use fmcu means slowmotion */
 			if ((node->slw_type != DCAM_SLW_FMCU) && (port->port_cfg_cb_func))
 				port->port_cfg_cb_func(hw_ctx, DCAM_PORT_STORE_SET, port);
@@ -1405,6 +1384,7 @@ static int dcamonline_dev_start(struct dcam_online_node *node, void *param)
 		}
 	}
 
+	hw->dcam_ioctl(hw, DCAM_HW_CFG_RECORD_ADDR, hw_ctx);
 	ret = dcam_init_lsc(pm, 1);
 	if (ret < 0) {
 		pr_err("fail to init lsc\n");
@@ -1509,10 +1489,6 @@ static int dcamonline_dev_stop(struct dcam_online_node *node, enum dcam_stop_cmd
 		pm->hist_roi.hist_roi_info.bypass = 1;
 		pm->lscm.bypass = 1;
 		pm->pdaf.bypass = 1;
-		pm->gtm[DCAM_GTM_PARAM_PRE].update_en = 1;
-		pm->gtm[DCAM_GTM_PARAM_CAP].update_en = 1;
-		pm->rgb_gtm[DCAM_GTM_PARAM_PRE].update_en = 1;
-		pm->rgb_gtm[DCAM_GTM_PARAM_CAP].update_en = 1;
 		pm->frm_idx = 0;
 		pr_info("stop all\n");
 
@@ -1589,6 +1565,7 @@ int dcam_online_node_irq_proc(void *param, void *handle)
 		return ret;
 	}
 	hw_ctx = node->hw_ctx;
+	node->in_irq_proc = 1;
 
 	switch (irq_proc->of) {
 	case CAP_START_OF_FRAME:
@@ -1635,6 +1612,7 @@ int dcam_online_node_irq_proc(void *param, void *handle)
 	default:
 		break;
 	}
+	node->in_irq_proc = 0;
 	pr_debug("irq proc done\n");
 	return ret;
 }
@@ -1714,8 +1692,7 @@ void dcam_online_node_pmctx_update(struct dcam_isp_k_block *node_pm,
 	memcpy((void *)&node_pm->hist, (void *)&input_pm->hist, sizeof(struct dcam_dev_hist_param));
 	memcpy((void *)&node_pm->aem, (void *)&input_pm->aem, sizeof(struct dcam_dev_aem_param));
 	memcpy((void *)&node_pm->rgb, (void *)&input_pm->rgb, sizeof(struct dcam_dev_rgb_param));
-	memcpy((void *)&node_pm->rgb_gtm[DCAM_GTM_PARAM_PRE], (void *)&input_pm->rgb_gtm[DCAM_GTM_PARAM_PRE],
-		sizeof(struct dcam_dev_rgb_gtm_param));
+	memcpy((void *)&node_pm->rgb_gtm, (void *)&input_pm->rgb_gtm, sizeof(struct dcam_dev_rgb_gtm_param));
 	memcpy((void *)&node_pm->lscm, (void *)&input_pm->lscm, sizeof(struct dcam_dev_lscm_param));
 	memcpy((void *)&node_pm->hist_roi, (void *)&input_pm->hist_roi, sizeof(struct dcam_dev_hist_roi_param));
 }
@@ -1959,12 +1936,11 @@ int dcam_online_share_buf(void *handle, void *param)
 int dcam_online_node_reset(struct dcam_online_node *node, void *param)
 {
 	int ret = 0;
+	uint32_t mode = 0;
 	struct cam_hw_info *hw = NULL;
 	struct dcam_hw_context *hw_ctx = NULL;
 	struct dcam_switch_param csi_switch = {0};
 	struct camera_frame *frame = NULL;
-	struct isp_offline_param *in_param = NULL;
-	uint32_t mode = 0;
 	struct dcam_csi_reset_param *csi_p = NULL;
 	struct dcam_online_port *dcam_port = NULL;
 
@@ -2004,35 +1980,7 @@ int dcam_online_node_reset(struct dcam_online_node *node, void *param)
 
 	/* reset result q */
 	list_for_each_entry(dcam_port, &node->port_queue.head, list) {
-		dcam_port->port_cfg_cb_func((void *)&frame, DCAM_PORT_BUFFER_CFG_GET, dcam_port);
-		while (frame) {
-			pr_debug("port %s fid %u\n", cam_port_name_get(dcam_port->port_id), frame->fid);
-
-			in_param = (struct isp_offline_param *)frame->param_data;
-			if (in_param) {
-				if (mode == CAM_CSI_RECOVERY_SWITCH && dcam_port->port_id == PORT_BIN_OUT) {
-					in_param->prev = dcam_port->isp_updata;
-					dcam_port->isp_updata = in_param;
-					frame->param_data = NULL;
-					pr_debug("store:  cur %p   prev %p\n", in_param, csi_p->param);
-				} else {
-					struct isp_offline_param *prev = NULL;
-					while (in_param) {
-						prev = (struct isp_offline_param *)in_param->prev;
-						cam_buf_kernel_sys_vfree(in_param);
-						in_param = prev;
-					}
-					frame->param_data = NULL;
-				}
-			}
-
-			if (frame->is_reserved)
-				dcam_port->port_cfg_cb_func((void *)frame, DCAM_PORT_RES_BUF_CFG_SET, dcam_port);
-			else
-				dcam_port->port_cfg_cb_func(frame, DCAM_PORT_BUFFER_CFG_SET, dcam_port);
-
-			dcam_port->port_cfg_cb_func((void *)&frame, DCAM_PORT_BUFFER_CFG_GET, dcam_port);
-		}
+		dcam_port->port_cfg_cb_func((void *)&frame, DCAM_PORT_BUF_RESET_CFG_SET, dcam_port);
 	}
 
 	if (node->nr3_frm) {
@@ -2071,7 +2019,7 @@ int dcam_online_node_request_proc(struct dcam_online_node *node, void *param)
 			}
 		}
 		if (port_id_match == 0) {
-			if (in_ptr->port_id == -1)
+			if (in_ptr->port_id == 0xffffffff)
 				pr_debug("in stream_on process dcamonline_dev started\n");
 			else
 				pr_err("fail to current port id no match %d\n", in_ptr->port_id);
@@ -2151,14 +2099,11 @@ void *dcam_online_node_get(uint32_t node_id, struct dcam_online_node_desc *param
 	node->nr3_frm = NULL;
 	node->cap_info = param->cap_info;
 	node->is_pyr_rec = param->is_pyr_rec;
-	node->dcam_slice_mode_temp = param->dcam_slice_mode_temp;
 	node->dcam_idx = param->dcam_idx;
 	node->dev = param->dev;
 	node->hw_ctx_id = DCAM_HW_CONTEXT_MAX;
 	node->raw_alg_type = param->raw_alg_type;
 	node->param_frame_sync = param->param_frame_sync;
-	node->is_ebd = param->is_ebd;
-	memcpy((void*)&node->ebd_param, (void*)&param->ebd_param, sizeof(struct sprd_ebd_control));
 
 	cam_queue_init(&node->port_queue, PORT_DCAM_OUT_MAX, NULL);
 	node->node_id = node_id;
@@ -2166,10 +2111,6 @@ void *dcam_online_node_get(uint32_t node_id, struct dcam_online_node_desc *param
 	if (node->data_cb_func == NULL) {
 		node->data_cb_func = param->data_cb_func;
 		node->data_cb_handle = param->data_cb_handle;
-	}
-	if (node->sharebuf_get_cb == NULL) {
-		node->sharebuf_get_cb = param->sharebuf_get_cb;
-		node->sharebuf_cb_data = param->sharebuf_cb_data;
 	}
 	if (node->resbuf_get_cb == NULL) {
 		node->resbuf_get_cb = param->resbuf_get_cb;
@@ -2200,10 +2141,19 @@ exit:
 
 void dcam_online_node_put(struct dcam_online_node *node)
 {
+	int loop = 0;
 	if (!node) {
 		pr_err("fail to get invalid node ptr\n");
 		return;
 	}
+
+	while (node->in_irq_proc && loop < 1000) {
+		pr_debug("ctx % in irq. wait %d\n", node->node_id, loop);
+		loop++;
+		udelay(1000);
+	};
+	if (loop == 1000)
+		pr_warn("warning: dcam node put wait irq timeout\n");
 
 	cam_queue_clear(&node->port_queue, struct dcam_online_port, list);
 	if (atomic_dec_return(&node->user_cnt) == 0) {
@@ -2212,8 +2162,6 @@ void dcam_online_node_put(struct dcam_online_node *node)
 			dcam_online_node_pmctx_deinit(node);
 		node->data_cb_func = NULL;
 		node->data_cb_handle = NULL;
-		node->sharebuf_get_cb = NULL;
-		node->sharebuf_cb_data = NULL;
 		node->resbuf_get_cb = NULL;
 		node->resbuf_cb_data = NULL;
 		node->port_cfg_cb_func = NULL;

@@ -49,6 +49,7 @@ enum cam_dump_node_id {
 	CAM_DUMP_NODE_ID_0,
 	CAM_DUMP_NODE_ID_1,
 	CAM_DUMP_NODE_ID_2,
+	CAM_DUMP_NODE_ID_3,
 	CAM_DUMP_NODE_ID_MAX,
 };
 

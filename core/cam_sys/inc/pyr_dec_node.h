@@ -18,6 +18,7 @@
 #include "cam_queue.h"
 #include "isp_slice.h"
 #include "sprd_isp_2v6.h"
+#include "cam_buf_manager.h"
 
 #ifdef PYR_DEC_DEBUG_ON
 #define PYR_DEC_DEBUG pr_info
@@ -275,9 +276,9 @@ struct pyr_dec_node {
 	struct pyr_dec_overlap_info overlap_dec_info[MAX_PYR_DEC_LAYER_NUM];
 	struct isp_fbd_yuv_info yuv_afbd_info;
 
-	struct camera_queue in_queue;
-	struct camera_queue proc_queue;
-	struct camera_queue pyrdec_buf_queue;
+	struct cam_buf_pool_id fetch_unprocess_pool;
+	struct cam_buf_pool_id fetch_result_pool;
+	struct cam_buf_pool_id store_result_pool;
 
 	void *data_cb_handle;
 	cam_data_cb data_cb_func;

@@ -58,10 +58,10 @@ static int load_vst_ivst_buf(struct dcam_isp_k_block *p)
 		for (i = 0; i < DCAM_VST_IVST_NUM; i++) {
 			if (i == DCAM_VST_IVST_NUM - 1) {
 				val = ((vst_ivst_buf[i * 2] & 0x3fff) << 16) | (vst_ivst_buf[i * 2] & 0x3fff);
-				DCAM_REG_WR(idx, DCAM_VST_TABLE + i * 4, val);
+				DCAM_REG_BWR(idx, DCAM_VST_TABLE + i * 4, val);
 			} else {
 				val = ((vst_ivst_buf[i * 2 + 1] & 0x3fff) << 16) | (vst_ivst_buf[i * 2] & 0x3fff);
-				DCAM_REG_WR(idx, DCAM_VST_TABLE + i * 4, val);
+				DCAM_REG_BWR(idx, DCAM_VST_TABLE + i * 4, val);
 			}
 		}
 
@@ -80,10 +80,10 @@ static int load_vst_ivst_buf(struct dcam_isp_k_block *p)
 		for (i = 0; i < DCAM_VST_IVST_NUM; i++) {
 			if (i == DCAM_VST_IVST_NUM - 1) {
 				val = ((vst_ivst_buf[i * 2] & 0x3fff) << 16) | (vst_ivst_buf[i * 2] & 0x3fff);
-				DCAM_REG_WR(idx, DCAM_IVST_TABLE + i * 4, val);
+				DCAM_REG_BWR(idx, DCAM_IVST_TABLE + i * 4, val);
 			} else {
 				val = ((vst_ivst_buf[i * 2 + 1] & 0x3fff) << 16) | (vst_ivst_buf[i * 2] & 0x3fff);
-				DCAM_REG_WR(idx, DCAM_IVST_TABLE + i * 4, val);
+				DCAM_REG_BWR(idx, DCAM_IVST_TABLE + i * 4, val);
 			}
 		}
 

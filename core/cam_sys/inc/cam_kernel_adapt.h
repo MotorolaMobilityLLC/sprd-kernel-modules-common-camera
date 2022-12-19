@@ -29,8 +29,6 @@
 /* #include "ion_priv.h" */
 #endif
 
-#include "cam_buf.h"
-
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0))
 typedef struct timespec64 timespec;
 #define ktime_get_ts ktime_get_ts64
@@ -39,6 +37,8 @@ typedef struct __kernel_old_timeval timeval;
 typedef struct timespec timespec;
 typedef struct timeval timeval;
 #endif
+
+#include "cam_buf.h"
 
 struct camera_buf;
 
@@ -64,6 +64,7 @@ struct regmap *cam_syscon_regmap_lookup_by_name(
 
 timespec cam_timespec_sub(timespec lhs, timespec rhs);
 timeval cam_ktime_to_timeval(const ktime_t kt);
+void cam_kernel_timer_stop(struct timer_list *cam_timer);
 
 struct dma_heap *cam_dmaheap_find(const char *name);
 struct dma_buf *cam_dma_alloc(struct dma_heap *heap, size_t len,

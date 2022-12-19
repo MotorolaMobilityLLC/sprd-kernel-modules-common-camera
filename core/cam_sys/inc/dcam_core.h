@@ -47,6 +47,8 @@
 #define DCAM_OFFLINE_TIMEOUT              msecs_to_jiffies(2000)
 #define DCAM_OFFLINE_SLC_MAX              3
 
+#define DCAM_ADDR_RECORD_FRAME_NUM        5
+
 /* get index of timestamp from frame index */
 #define tsid(x)                           ((x) & (DCAM_FRAME_TIMESTAMP_COUNT - 1))
 #define DCAM_FETCH_TWICE(p)               (p->raw_fetch_num > 1)
@@ -145,7 +147,6 @@ struct dcam_hw_context {
 	uint32_t handled_bits_on_int1;
 	uint32_t in_irq_proc;
 	uint32_t dcam_slice_mode;
-	uint32_t dcam_slice_mode_temp;/*TEMP:need delete later*/
 	uint32_t slowmotion_count;
 	spinlock_t glb_reg_lock;
 	void *node;
@@ -177,6 +178,7 @@ struct dcam_hw_context {
 	dcam_irq_proc_cb dcam_irq_cb_func;
 	spinlock_t ghist_read_lock;
 	uint32_t gtm_hist_value[GTM_HIST_VALUE_SIZE];
+	uint32_t frame_addr[DCAM_ADDR_RECORD_FRAME_NUM][DCAM_RECORD_PORT_INFO_MAX];
 };
 
 struct dcam_pipe_dev {

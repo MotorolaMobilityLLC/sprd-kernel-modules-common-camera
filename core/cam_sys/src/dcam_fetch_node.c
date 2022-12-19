@@ -114,42 +114,22 @@ static struct camera_frame *dcamfetch_frame_prepare(struct dcam_online_node *nod
 
 static void dcamfetch_frame_dispatch(void *param, void *handle)
 {
+	uint32_t ret = 0;
 	struct dcam_online_node *node = NULL;
 	struct dcam_online_port *dcam_port = NULL;
 	struct dcam_irq_proc *irq_proc = NULL;
 	struct camera_frame *frame = NULL;
-	uint32_t ret = 0;
-	timespec cur_ts = {0};
 
 	node = (struct dcam_online_node *)handle;
 	irq_proc = (struct dcam_irq_proc *)param;
 	frame = (struct camera_frame *)irq_proc->param;
 
-	if (unlikely(!node || !frame || !is_port_id(irq_proc->dcam_port_id))) {
+	if (unlikely(!node || !frame || !IS_VALID_DCAM_PORT_ID(irq_proc->dcam_port_id))) {
 		pr_err("fail to get valid param %px %px %d\n", node, frame, irq_proc->dcam_port_id);
 		return;
 	}
 
-	ktime_get_ts(&cur_ts);
-	frame->time.tv_sec = cur_ts.tv_sec;
-	frame->time.tv_usec = cur_ts.tv_nsec / NSEC_PER_USEC;
-	frame->boot_time = ktime_get_boottime();
-	pr_debug("DCAM%u port %d: time %06d.%06d\n", node->hw_ctx_id, irq_proc->dcam_port_id,
-		(int)frame->time.tv_sec, (int)frame->time.tv_usec);
-
 	dcam_port = dcam_online_node_port_get(node, irq_proc->dcam_port_id);
-	if (dcam_port->isp_updata) {
-		struct isp_offline_param *cur = NULL;
-		pr_debug("next %p,  prev %p\n", frame->param_data, dcam_port->isp_updata);
-		if (frame->param_data) {
-			cur = (struct isp_offline_param *)frame->param_data;
-			cur->prev = dcam_port->isp_updata;
-		} else {
-			frame->param_data = dcam_port->isp_updata;
-		}
-		dcam_port->isp_updata = NULL;
-		pr_debug("cur %p\n", frame->param_data);
-	}
 	frame->link_from.node_type = CAM_NODE_TYPE_DCAM_ONLINE;
 	frame->link_from.port_id = irq_proc->dcam_port_id;
 	if (irq_proc->type == CAM_CB_DCAM_DATA_DONE) {
@@ -749,6 +729,9 @@ int dcam_fetch_node_stop_proc(struct dcam_fetch_node *node, void *param)
 	}
 
 	node->hw_ctx->is_virtualsensor_proc = 0;
+	node->hw_ctx->dcam_irq_cb_func = NULL;
+	node->hw_ctx->dcam_irq_cb_handle = NULL;
+
 	ret = dcam_online_node_stop_proc(&node->online_node, param);
 
 	return ret;
@@ -800,14 +783,11 @@ void *dcam_fetch_node_get(uint32_t node_id, struct dcam_fetch_node_desc *param)
 	node->online_node.nr3_frm = NULL;
 	node->online_node.cap_info = param->online_node_desc->cap_info;
 	node->online_node.is_pyr_rec = param->online_node_desc->is_pyr_rec;
-	node->online_node.dcam_slice_mode_temp = param->online_node_desc->dcam_slice_mode_temp;
 	node->online_node.dcam_idx = param->online_node_desc->dcam_idx;
 	node->online_node.dev = param->online_node_desc->dev;
 	node->online_node.hw_ctx_id = DCAM_HW_CONTEXT_MAX;
 	node->online_node.raw_alg_type = param->online_node_desc->raw_alg_type;
 	node->online_node.param_frame_sync = param->online_node_desc->param_frame_sync;
-	node->online_node.is_ebd = param->online_node_desc->is_ebd;
-	memcpy((void*)&node->online_node.ebd_param, (void*)&param->online_node_desc->ebd_param, sizeof(struct sprd_ebd_control));
 
 	cam_queue_init(&node->online_node.port_queue, PORT_DCAM_OUT_MAX, NULL);
 	node->online_node.node_id = node_id;
@@ -828,10 +808,6 @@ void *dcam_fetch_node_get(uint32_t node_id, struct dcam_fetch_node_desc *param)
 	if (node->online_node.data_cb_func == NULL) {
 		node->online_node.data_cb_func = param->online_node_desc->data_cb_func;
 		node->online_node.data_cb_handle = param->online_node_desc->data_cb_handle;
-	}
-	if (node->online_node.sharebuf_get_cb == NULL) {
-		node->online_node.sharebuf_get_cb = param->online_node_desc->sharebuf_get_cb;
-		node->online_node.sharebuf_cb_data = param->online_node_desc->sharebuf_cb_data;
 	}
 	if (node->online_node.resbuf_get_cb == NULL) {
 		node->online_node.resbuf_get_cb = param->online_node_desc->resbuf_get_cb;
@@ -877,8 +853,6 @@ void dcam_fetch_node_put(struct dcam_fetch_node *node)
 			dcam_online_node_pmctx_deinit(&node->online_node);
 		node->online_node.data_cb_func = NULL;
 		node->online_node.data_cb_handle = NULL;
-		node->online_node.sharebuf_get_cb = NULL;
-		node->online_node.sharebuf_cb_data = NULL;
 		node->online_node.resbuf_get_cb = NULL;
 		node->online_node.resbuf_cb_data = NULL;
 		node->online_node.port_cfg_cb_func = NULL;

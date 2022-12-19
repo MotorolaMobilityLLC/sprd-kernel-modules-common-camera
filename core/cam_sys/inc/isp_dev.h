@@ -57,6 +57,8 @@ struct isp_pipe_dev {
 	atomic_t pd_clk_rdy;
 	atomic_t enable;
 	struct mutex path_mutex;
+	struct mutex dev_lock;
+	struct completion frm_done;
 	spinlock_t ctx_lock;
 	enum isp_work_mode wmode;
 	enum sprd_cam_sec_mode sec_mode;

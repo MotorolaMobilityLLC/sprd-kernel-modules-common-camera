@@ -53,19 +53,19 @@ int dcam_k_gamma_block(struct dcam_isp_k_block *param)
 	DCAM_REG_MWR(idx, DCAM_BUF_CTRL, 0x300, 0 << 8);
 	for (i = 0; i < ISP_FRGB_GAMMA_PT_NUM_V1 - 1; i++) {
 		val = ((p->gain_r[i] & 0x3FF) << 10) | (p->gain_r[i + 1] & 0x3FF);
-		DCAM_REG_WR(idx, DCAM_FGAMMA10_TABLE + i * 4, val);
+		DCAM_REG_BWR(idx, DCAM_FGAMMA10_TABLE + i * 4, val);
 	}
 
 	DCAM_REG_MWR(idx, DCAM_BUF_CTRL, 0x300, 1 << 8);
 	for (i = 0; i < ISP_FRGB_GAMMA_PT_NUM_V1 - 1; i++) {
 		val = ((p->gain_g[i] & 0x3FF) << 10) | (p->gain_g[i + 1] & 0x3FF);
-		DCAM_REG_WR(idx, DCAM_FGAMMA10_TABLE + i * 4, val);
+		DCAM_REG_BWR(idx, DCAM_FGAMMA10_TABLE + i * 4, val);
 	}
 
 	DCAM_REG_MWR(idx, DCAM_BUF_CTRL, 0x300, 2 << 8);
 	for (i = 0; i < ISP_FRGB_GAMMA_PT_NUM_V1 - 1; i++) {
 		val = ((p->gain_b[i] & 0x3FF) << 10) | (p->gain_b[i + 1] & 0x3FF);
-		DCAM_REG_WR(idx, DCAM_FGAMMA10_TABLE + i * 4, val);
+		DCAM_REG_BWR(idx, DCAM_FGAMMA10_TABLE + i * 4, val);
 	}
 
 	val = DCAM_REG_RD(idx, DCAM_BUF_CTRL);

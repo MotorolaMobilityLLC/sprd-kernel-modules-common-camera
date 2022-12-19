@@ -18,18 +18,20 @@
 #include <linux/list.h>
 #include <linux/spinlock.h>
 
-#include "cam_types.h"
-#include "cam_buf.h"
 #include "cam_block.h"
-#include "isp_interface.h"
+#include "cam_buf.h"
 #include "cam_link.h"
+#include "cam_types.h"
 #include "dcam_interface.h"
+#include "isp_interface.h"
 
-
+#define CAM_ZOOM_EMP_Q_LEN_MAX          128
 #define CAM_EMP_Q_LEN_INC               16
 #define CAM_EMP_Q_LEN_MAX               3072
 #define CAM_INT_EMP_Q_LEN_INC           48
 #define CAM_INT_EMP_Q_LEN_MAX           256
+#define NODE_ZOOM_CNT_MAX               5
+#define PORT_ZOOM_CNT_MAX               5
 
 enum {
 	CAM_Q_INIT,
@@ -42,6 +44,31 @@ enum pyr_status {
 	PYR_OFF,
 	ONLINE_DEC_ON,
 	OFFLINE_DEC_ON
+};
+
+struct cam_zoom_base {
+	uint32_t ratio_width;
+	uint32_t total_crop_width;
+	struct img_size src;
+	struct img_trim crop;
+	struct img_size dst;
+};
+
+struct cam_zoom_port {
+	uint32_t port_type;
+	uint32_t port_id;
+	struct cam_zoom_base zoom_base;
+};
+
+struct cam_zoom_node {
+	uint32_t node_type;
+	uint32_t node_id;
+	struct cam_zoom_port zoom_port[PORT_ZOOM_CNT_MAX];
+};
+
+struct cam_zoom_frame {
+	struct list_head list;
+	struct cam_zoom_node zoom_node[NODE_ZOOM_CNT_MAX];
 };
 
 struct blk_param_info {
@@ -71,6 +98,8 @@ struct camera_frame {
 	struct cam_linkage link_to;
 	uint32_t dump_en;
 	uint32_t dump_node_id;
+	uint32_t replace_en;
+	uint32_t replace_node_id;
 	uint32_t copy_en;
 	uint32_t copy_node_id;
 	uint32_t fid;
@@ -94,24 +123,15 @@ struct camera_frame {
 	/*use for isp ltm ctrl*/
 	struct isp_xtm_conflict_info xtm_conflict;
 	uint32_t data_src_dec;
-	uint32_t dec_ctx_id;
-	uint32_t need_dewarp;
 	uint32_t not_use_isp_reserved_buf;
 	uint32_t user_fid;
-	uint32_t dcam_idx;
 	uint32_t zoom_ratio;
 	uint32_t total_zoom;
 	uint32_t bpc_raw_flag;
-	uint32_t is_raw_alg;
-	struct img_trim slice_trim;
 	struct dcam_compress_info fbc_info;
 	struct sprd_img_rect zoom_crop;
 	struct sprd_img_rect total_zoom_crop;
 	void *priv_data;
-	/* for more param extend especially in offline process */
-	void *param_data;
-	timeval time;/* time without suspend @ISP DONE */
-	ktime_t boot_time;/* ns from boot @ISP DONE */
 	timeval sensor_time;/* time without suspend @SOF */
 	ktime_t boot_sensor_time;/* ns from boot @SOF */
 	int64_t frame_interval_time;/* dual frame diff @SOF */
@@ -125,9 +145,9 @@ struct camera_frame {
 	struct img_trim in_crop;
 	struct img_size out[ISP_SPATH_NUM];
 	struct img_trim out_crop[ISP_SPATH_NUM];
-	struct img_size dst;
 	uint32_t in_fmt;
 	void *pframe_data;
+	void *zoom_data;
 	uint32_t is_flash_status;
 };
 
@@ -145,8 +165,6 @@ struct isp_stream_ctrl {
 	struct list_head list;
 	enum isp_stream_state state;
 	enum isp_stream_buf_type buf_type[ISP_SPATH_NUM];
-	enum isp_stream_data_src data_src;
-	enum isp_stream_frame_type frame_type;
 	struct img_size in;
 	struct img_trim in_crop;
 	struct img_size out[ISP_SPATH_NUM];
@@ -360,6 +378,9 @@ void cam_queue_empty_interrupt_put(void *param);
 void cam_queue_empty_interrupt_free(void *param);
 
 void cam_queue_ioninfo_free(void *param);
+struct cam_zoom_frame *cam_queue_empty_zoom_get(void);
+int cam_queue_empty_zoom_put(struct cam_zoom_frame *pframe);
+void cam_queue_empty_zoom_free(void *param);
 
 int cam_queue_recycle_blk_param(struct camera_queue *q, struct camera_frame *param_pframe);
 struct camera_frame * cam_queue_empty_blk_param_get(struct camera_queue *q);

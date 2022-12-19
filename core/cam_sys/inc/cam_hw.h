@@ -165,6 +165,7 @@ enum dcam_hw_cfg_cmd {
 	DCAM_HW_CFG_STOP,
 	DCAM_HW_CFG_STOP_CAP_EB,
 	DCAM_HW_CFG_FETCH_START,
+	DCAM_HW_CFG_RECORD_ADDR,
 	DCAM_HW_CFG_AUTO_COPY,
 	DCAM_HW_CFG_FORCE_COPY,
 	DCAM_HW_CFG_PATH_START,
@@ -174,7 +175,6 @@ enum dcam_hw_cfg_cmd {
 	DCAM_HW_CFG_MIPI_CAP_SET,
 	DCAM_HW_CFG_FETCH_SET,
 	DCAM_HW_CFG_FETCH_BLOCK_SET,
-	DCAM_HW_CFG_EBD_SET,
 	DCAM_HW_CFG_BINNING_4IN1_SET,
 	DCAM_HW_CFG_SRAM_CTRL_SET,
 	DCAM_HW_CFG_LBUF_SHARE_SET,
@@ -620,6 +620,7 @@ struct dcam_hw_path_size {
 	struct img_size in_size;
 	struct img_trim in_trim;
 	struct img_size out_size;
+	struct img_deci_info deci;
 	struct dcam_compress_info compress_info;
 	struct yuv_scaler_info *scaler_info;
 };
@@ -738,11 +739,6 @@ struct dcam_hw_path_ctrl {
 	uint32_t path_id;
 	uint32_t idx;
 	enum dcam_path_ctrl type;
-};
-
-struct dcam_hw_ebd_set {
-	struct sprd_ebd_control *p;
-	uint32_t idx;
 };
 
 typedef int (*func_isp_cfg_block_param)(

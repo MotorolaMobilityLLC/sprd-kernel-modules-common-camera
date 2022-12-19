@@ -46,7 +46,6 @@ struct slice_dyn_calc_param{
 	uint32_t verison;
 	uint32_t path_en[ISP_SPATH_NUM];
 	uint32_t pyr_layer_num;
-	uint32_t need_dewarping;
 	struct img_size src;
 	struct img_trim crop;
 	struct isp_hw_path_scaler *path_scaler[ISP_SPATH_NUM];

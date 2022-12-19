@@ -20,7 +20,10 @@
 
 #include "cam_kernel_adapt.h"
 
-#define CAM_BUF_CAHCED           (1 << 31)
+#define CAM_BUF_CAHCED                     (1 << 31)
+#define CAM_BUF_MAP_CALC_Q_LEN              4000
+#define CAM_BUF_MEMORY_ALLOC_Q_LEN          4000
+#define CAM_BUF_EMPTY_MEMORY_ALLOC_Q_LEN    4000
 
 enum cam_buf_type {
 	CAM_BUF_NONE,
@@ -67,15 +70,43 @@ enum cam_buf_status {
 	CAM_BUF_STATUS_NUM,
 };
 
-struct camera_ion_info {
+struct cam_buf_memalloc_info {
+	void *addr;
+	timeval time;
 	struct list_head list;
-	struct camera_buf *pbuf;
+};
+
+struct cam_buf_map_info {
+	uint32_t buf_memcyp;
+	uint32_t kmap_counts;
+	uint32_t dcam_iommumap_counts;
+	uint32_t isp_iommumap_counts;
+	timeval buf_time;
+	timeval map_time;
+	struct camera_buf *buf_info;
+	struct list_head list;
+};
+
+enum cam_buf_source {
+	CAM_BUF_SOURCE_ALLOC_GET,
+	CAM_BUF_SOURCE_MEMCPY,
+	CAM_BUF_SOURCE_MAX,
+};
+
+enum cam_buf_map_type {
+	CAM_BUF_DCAM_IOMMUMAP,
+	CAM_BUF_DCAM_IOMMUUNMAP,
+	CAM_BUF_ISP_IOMMUMAP,
+	CAM_BUF_ISP_IOMMUUNMAP,
+	CAM_BUF_KMAP,
+	CAM_BUF_KUNMAP,
+	CAM_BUF_MAP_MAX,
 };
 
 struct camera_buf {
 	bool buf_sec;
 	/* user buffer info */
-	int32_t mfd;
+	uint32_t mfd;
 	struct dma_buf *dmabuf_p;
 	void *ionbuf;/* for iommu map */
 	uint32_t offset[3];
@@ -92,6 +123,11 @@ struct camera_buf {
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0))
 	struct dma_buf_map map;/* for k515 dambuf */
 #endif
+};
+
+struct camera_ion_info {
+	struct list_head list;
+	struct camera_buf ionbuf_copy;
 };
 
 int cam_buf_iommudev_reg(struct device *dev,
@@ -119,6 +155,9 @@ void *cam_buf_kernel_sys_kzalloc(unsigned long size, gfp_t flags);
 void cam_buf_kernel_sys_kfree(const void *mem);
 void *cam_buf_kernel_sys_vzalloc(unsigned long size);
 void cam_buf_kernel_sys_vfree(const void *mem);
+void cam_buf_memory_leak_queue_deinit(void);
+void cam_buf_memory_leak_queue_init(void);
+void cam_buf_memory_leak_queue_check(void);
 
 int cam_buf_mdbg_check(void);
 #endif/* _CAM_BUF_H_ */

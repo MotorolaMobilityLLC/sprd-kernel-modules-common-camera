@@ -21,7 +21,10 @@
 #include "cam_scaler.h"
 #include "cam_buf_manager.h"
 
-#define is_port_id(id) ((id) >= PORT_RAW_OUT && (id) < PORT_DCAM_OUT_MAX)
+#define IS_VALID_DCAM_PORT_ID(id) ((id) >= PORT_RAW_OUT && (id) < PORT_DCAM_OUT_MAX)
+#define IS_VALID_ISP_PORT_ID(id) ((id) >= PORT_PRE_OUT && (id) < PORT_ISP_OUT_MAX)
+#define IS_VALID_DCAM_IMG_PORT(id) ((id) >= PORT_RAW_OUT && (id) < PORT_AEM_OUT)
+#define IS_VALID_ISP_IMG_PORT(id) ((id) >= PORT_PRE_OUT && (id) < PORT_YUV_HIST_OUT)
 #define PORT_ISP_MAX  (PORT_ISP_IN_MAX + PORT_ISP_OUT_MAX)
 
 enum cam_port_dcam_online_in_id {
@@ -138,6 +141,7 @@ enum cam_port_buf_type {
 };
 
 enum cam_port_cfg_cmd {
+	PORT_ZOOM_CFG_SET,
 	PORT_SIZE_CFG_SET,
 	PORT_BUFFER_CFG_SET,
 	PORT_PARAM_CFG_GET,
@@ -225,6 +229,8 @@ struct cam_port_topology {
 	uint32_t id;
 	uint32_t dump_en;
 	uint32_t dump_node_id;
+	uint32_t replace_en;
+	uint32_t replace_node_id;
 	uint32_t copy_en;
 	uint32_t copy_node_id;
 	uint32_t dynamic_link_en;
@@ -237,8 +243,10 @@ struct cam_port_topology {
 struct cam_port_desc {
 	void *nodes_dev;
 	void **port_dev;
+	zoom_get_cb zoom_cb_func;
 	cam_data_cb data_cb_func;
 	void *data_cb_handle;
+	void *zoom_cb_handle;
 	shutoff_cb shutoff_cb_func;
 	void *shutoff_cb_handle;
 	struct dcam_online_port_desc *dcam_online;

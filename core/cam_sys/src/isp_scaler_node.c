@@ -32,19 +32,6 @@
 #endif
 #define pr_fmt(fmt) "ISP_YUV_SCALER_NODE: %d %d %s : " fmt, current->pid, __LINE__, __func__
 
-void isp_scaler_node_offline_pararm_free(void *param)
-{
-	struct isp_offline_param *cur, *prev;
-
-	cur = (struct isp_offline_param *)param;
-	while (cur) {
-		prev = (struct isp_offline_param *)cur->prev;
-		pr_info("free %p\n", cur);
-		cam_buf_kernel_sys_vfree(cur);
-		cur = prev;
-	}
-}
-
 static uint32_t isp_yuv_scaler_node_insert_port(struct isp_yuv_scaler_node* node, void *param)
 {
 	struct isp_scaler_port *q_port = NULL;
@@ -494,13 +481,11 @@ int isp_yuv_scaler_slice_fmcu_cmds_set(void *fmcu_handle, void *node, struct isp
 
 static int isp_yuv_scaler_node_postproc_irq(void *handle, uint32_t hw_idx, enum isp_postproc_type type)
 {
-	timespec cur_ts = {0};
-	struct isp_pipe_dev *dev;
+	int hw_path_id= 0;
+	struct isp_pipe_dev *dev = NULL;
 	struct isp_yuv_scaler_node *inode = NULL;
 	struct camera_frame *pframe = NULL;
 	struct isp_scaler_port *port = NULL;
-	ktime_t boot_time;
-	int hw_path_id= 0;
 
 	if (!handle || type >= POSTPROC_MAX) {
 		pr_err("fail to get valid input handle %p, type %d\n",
@@ -522,8 +507,6 @@ static int isp_yuv_scaler_node_postproc_irq(void *handle, uint32_t hw_idx, enum 
 
 	isp_scaler_node_context_unbind(inode);
 	complete(&inode->frm_done);
-	boot_time = ktime_get_boottime();
-	ktime_get_ts(&cur_ts);
 
 	pframe = cam_queue_dequeue(&inode->proc_queue, struct camera_frame, list);
 	if (pframe) {
@@ -543,18 +526,11 @@ static int isp_yuv_scaler_node_postproc_irq(void *handle, uint32_t hw_idx, enum 
 					inode->node_id, hw_path_id);
 				continue;
 			}
-			pframe->boot_time = boot_time;
-			pframe->time.tv_sec = cur_ts.tv_sec;
-			pframe->time.tv_usec = cur_ts.tv_nsec / NSEC_PER_USEC;
 
 			pr_debug("scaler node  %d hw_path_id %d, ch_id %d, fid %d, mfd 0x%x, queue cnt:%d, is_reserved %d\n",
 				inode->node_id, hw_path_id, pframe->channel_id, pframe->fid, pframe->buf.mfd,
 				port->result_queue.cnt, pframe->is_reserved);
-			pr_debug("time_sensor %03d.%6d, time_isp %03d.%06d\n",
-				(uint32_t)pframe->sensor_time.tv_sec,
-				(uint32_t)pframe->sensor_time.tv_usec,
-				(uint32_t)pframe->time.tv_sec,
-				(uint32_t)pframe->time.tv_usec);
+			pr_debug("time_sensor %03d.%6d\n", (uint32_t)pframe->sensor_time.tv_sec, (uint32_t)pframe->sensor_time.tv_usec);
 			if (unlikely(pframe->is_reserved)) {
 				inode->resbuf_get_cb(RESERVED_BUF_SET_CB, pframe, inode->resbuf_cb_data);
 			} else {
@@ -853,16 +829,15 @@ static int isp_yuv_scaler_node_offline_param_cfg(struct isp_yuv_scaler_node *ino
 	return ret;
 }
 
-int isp_yuv_scaler_node_offline_param_set(struct isp_yuv_scaler_node *inode, struct isp_hw_context *pctx_hw, struct camera_frame *pframe)
+int isp_yuv_scaler_node_offline_param_set(struct isp_yuv_scaler_node *inode, struct isp_hw_context *pctx_hw)
 {
 	int hw_path_id = 0;
 	struct isp_scaler_port *port = NULL;
 	struct isp_pipe_info *pipe_in = NULL;
 	struct isp_scaler_uinfo *pipe_src = NULL;
 
-	if (!inode || !pctx_hw || !pframe) {
-		pr_err("fail to get input ptr, node %p, pctx_hw %p, pframe %p tmp %p\n",
-			inode, pctx_hw, pframe);
+	if (!inode || !pctx_hw) {
+		pr_err("fail to get input ptr, node %p, pctx_hw %p\n", inode, pctx_hw);
 		return -EFAULT;
 	}
 
@@ -953,7 +928,7 @@ static int isp_yuv_scaler_node_start_proc(void *node)
 		goto dequeue;
 	}
 
-	ret = isp_yuv_scaler_node_offline_param_set(inode, pctx_hw, pframe);
+	ret = isp_yuv_scaler_node_offline_param_set(inode, pctx_hw);
 	if (ret) {
 		pr_err("fail to set offline param.\n");
 		ret = -EINVAL;
@@ -1008,7 +983,7 @@ static int isp_yuv_scaler_node_start_proc(void *node)
 		goto dequeue;
 	}
 
-	pctx_hw->iommu_status = (uint32_t)(-1);
+	pctx_hw->iommu_status = 0xffffffff;
 	inode->started = 1;
 	pctx_hw->fmcu_used = use_fmcu;
 
@@ -1024,7 +999,8 @@ static int isp_yuv_scaler_node_start_proc(void *node)
 		ret = cfg_desc->ops->hw_cfg(cfg_desc, inode->cfg_id, pctx_hw->hw_ctx_id, kick_fmcu);
 		mutex_unlock(&inode->blkpm_lock);
 		if (kick_fmcu) {
-			pr_info("isp scaler node %d fid %d w %d h %d fmcu start\n", inode->cfg_id,pframe->fid, inode->pipe_src.crop.size_x, inode->pipe_src.crop.size_y);
+			pr_info("isp scaler node %d fid %d w %d h %d fmcu start\n",
+				inode->cfg_id, pframe->fid, inode->pipe_src.crop.size_x, inode->pipe_src.crop.size_y);
 			ret = fmcu->ops->hw_start(fmcu);
 		} else {
 			pr_debug("cfg start. fid %d\n", pframe->fid);
@@ -1090,8 +1066,6 @@ static void isp_scaler_node_src_frame_ret(void *param)
 	}
 
 	pr_debug("frame %p, ch_id %d, buf_fd %d\n", frame, frame->channel_id, frame->buf.mfd);
-	isp_scaler_node_offline_pararm_free(frame->param_data);
-	frame->param_data = NULL;
 	if (frame->buf.mapping_state & CAM_BUF_MAPPING_DEV)
 		cam_buf_iommu_unmap(&frame->buf);
 }

@@ -89,6 +89,11 @@ struct cam_mem_dbg_info {
 	atomic_t empty_interruption_cnt;
 	atomic_t mem_kzalloc_cnt;
 	atomic_t mem_vzalloc_cnt;
+	atomic_t empty_zoom_cnt;
+	struct camera_queue *empty_memory_alloc_queue;
+	struct camera_queue *memory_alloc_queue;
+	struct camera_queue *buf_map_calc_queue;
+	uint32_t g_dbg_memory_leak_ctrl;
 };
 extern struct cam_mem_dbg_info *g_mem_dbg;
 
@@ -320,6 +325,7 @@ struct cam_capture_param {
 	uint32_t cap_scene;
 	atomic_t cap_cnt;
 	int64_t cap_timestamp;
+	struct sprd_img_rect cap_user_crop;
 };
 
 struct cam_buf_alloc_desc {
@@ -341,6 +347,8 @@ struct cam_buf_alloc_desc {
 	uint32_t sensor_img_ptn;
 	uint32_t share_buffer;
 	uint32_t iommu_enable;
+	uint32_t stream_on_need_buf_num;
+	struct completion *stream_on_buf_com;
 };
 
 enum cam_user_data_type {
@@ -380,6 +388,7 @@ enum shutoff_type {
 };
 
 extern struct camera_queue *g_ion_buf_q;
+extern struct camera_queue *g_empty_zoom_q;
 extern struct camera_queue *g_empty_frm_q;
 extern struct camera_queue *g_empty_interruption_q;
 
@@ -397,6 +406,7 @@ typedef int(*dual_slave_frame_set_cb)(void *param, void *cb_handle);
 typedef int(*port_cfg_cb)(void *param, uint32_t cmd, void *cb_handle);
 typedef int(*shutoff_cfg_cb)(void *cb_handle, uint32_t cmd, void *param);
 typedef int(*dcam_irq_proc_cb)(void *param, void *cb_handle);
-typedef void(*dcam_dispatch_cb)(void *param, void *cb_handle);
+typedef void *(*zoom_get_cb)(void *cb_handle);
+typedef void *(*cam_zoom_get_cb)(uint32_t param, void *cb_handle);
 
 #endif/* _CAM_TYPES_H_ */

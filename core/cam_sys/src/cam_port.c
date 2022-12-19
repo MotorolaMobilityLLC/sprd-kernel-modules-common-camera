@@ -74,7 +74,7 @@ static const char *_DCAM_PORT_NAMES[PORT_DCAM_OUT_MAX] = {
 
 const char *cam_port_name_get(enum cam_port_dcam_online_out_id port_id)
 {
-	return is_port_id(port_id) ? _DCAM_PORT_NAMES[port_id] : "(null)";
+	return IS_VALID_DCAM_PORT_ID(port_id) ? _DCAM_PORT_NAMES[port_id] : "(null)";
 }
 
 static const char *_DCAM_PORT_DCAM_OFFLINE_OUT_NAMES[PORT_DCAM_OFFLINE_OUT_MAX] = {
@@ -283,6 +283,7 @@ int cam_port_static_portlist_get(struct cam_port_topology *param,
 	case CAM_NODE_TYPE_PYR_DEC:
 	case CAM_NODE_TYPE_DATA_COPY:
 	case CAM_NODE_TYPE_DUMP:
+	case CAM_NODE_TYPE_REPLACE:
 		break;
 	default:
 		pr_err("fail to support node type %s\n", cam_node_name_get(node_type));
@@ -361,6 +362,8 @@ void *cam_port_creat(struct cam_port_desc *param, uint32_t node_id)
 	switch (port->port_graph->node_type) {
 	case CAM_NODE_TYPE_DCAM_ONLINE:
 		param->dcam_online->port_dev = (void *)&nodes_dev->dcam_online_out_port_dev[port->port_graph->id];
+		param->dcam_online->zoom_cb_func = param->zoom_cb_func;
+		param->dcam_online->zoom_cb_handle = param->zoom_cb_handle;
 		param->dcam_online->data_cb_func = param->data_cb_func;
 		param->dcam_online->data_cb_handle = param->data_cb_handle;
 		param->dcam_online->shutoff_cb_func = param->shutoff_cb_func;

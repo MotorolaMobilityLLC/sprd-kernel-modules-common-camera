@@ -201,6 +201,7 @@ int frame_cache_cfg_param(void *handle, uint32_t cmd, void *param)
 		node->cap_param.cap_type = cap_param->cap_type;
 		node->cap_param.cap_cnt = cap_param->cap_cnt;
 		node->cap_param.cap_timestamp = cap_param->cap_timestamp;
+		node->cap_param.cap_user_crop = cap_param->cap_user_crop;
 		pr_info("cap type %d, cnt %d, time %lld\n", node->cap_param.cap_type,
 			atomic_read(&node->cap_param.cap_cnt), node->cap_param.cap_timestamp);
 		break;

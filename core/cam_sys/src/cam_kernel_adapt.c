@@ -18,8 +18,12 @@
 #ifdef pr_fmt
 #undef pr_fmt
 #endif
-#define pr_fmt(fmt) "cam_porting: %d %d %s : "\
-	fmt, current->pid, __LINE__, __func__
+#define pr_fmt(fmt) "cam_kernel_adapt: %d %d %s : " fmt, current->pid, __LINE__, __func__
+
+void cam_kernel_timer_stop(struct timer_list *cam_timer)
+{
+	del_timer_sync(cam_timer);
+}
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0))
 timeval cam_ktime_to_timeval(const ktime_t kt)

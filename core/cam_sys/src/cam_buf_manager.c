@@ -41,16 +41,13 @@ static struct camera_queue *cambufmanager_pool_handle_get(struct cam_buf_pool_id
 	if (IS_PRIVATE_ID_VALID(pool_id->private_pool_idx) &&
 		global_buf_manager->private_buf_pool[pool_id->private_pool_idx]) {
 		ret = global_buf_manager->private_buf_pool[pool_id->private_pool_idx];
-	}
-	else if (IS_TAG_ID_VALID(pool_id->tag_id) &&
+	} else if (IS_TAG_ID_VALID(pool_id->tag_id) &&
 		global_buf_manager->tag_pool[pool_id->tag_id]) {
 		ret = global_buf_manager->tag_pool[pool_id->tag_id];
-	}
-	else if (IS_RESERVED_ID_VALID(pool_id->reserved_pool_id) &&
+	} else if (IS_RESERVED_ID_VALID(pool_id->reserved_pool_id) &&
 		global_buf_manager->reserve_buf_pool[pool_id->reserved_pool_id]) {
 		ret = global_buf_manager->reserve_buf_pool[pool_id->reserved_pool_id];
-	}
-	else {
+	} else {
 		pr_debug("get valid pool id tag%d private%d reserved id %d\n",
 			pool_id->tag_id, pool_id->private_pool_idx, pool_id->reserved_pool_id);
 	}
@@ -86,7 +83,7 @@ static uint32_t s_status_switch_table[CAM_BUF_STATUS_NUM][CAM_BUF_STATUS_NUM] = 
 	[CAM_BUF_WITH_IOVA_K_ADDR][CAM_BUF_ALLOC] = CAM_BUF_STATUS_K_IOVA_2_ALLOC,
 	[CAM_BUF_WITH_IOVA_K_ADDR][CAM_BUF_WITH_ION] = CAM_BUF_STATUS_K_IOVA_2_ION,
 	[CAM_BUF_WITH_IOVA_K_ADDR][CAM_BUF_WITH_IOVA] = CAM_BUF_STATUS_K_IOVA_2_IOVA,
-	[CAM_BUF_WITH_IOVA_K_ADDR][CAM_BUF_WITH_IOVA] = CAM_BUF_STATUS_K_IOVA_2_K,
+	[CAM_BUF_WITH_IOVA_K_ADDR][CAM_BUF_WITH_K_ADDR] = CAM_BUF_STATUS_K_IOVA_2_K,
 };
 
 static int inline cambufmanager_alloc_2_ion(struct camera_buf *buf)
@@ -366,7 +363,7 @@ void cambufmanager_reserve_q_cnt_check(struct camera_queue *reserve_heap)
 			j++;
 		}
 	}
-	pr_info("reserved pool %px, cnd %d\n", reserve_heap, reserve_heap->cnt);
+	pr_info("reserved pool %px, cnt %d\n", reserve_heap, reserve_heap->cnt);
 }
 
 int inline cam_buf_manager_buf_status_change(struct camera_buf *buf,
@@ -593,26 +590,20 @@ void cam_buf_manager_buf_clear(struct cam_buf_pool_id *pool_id)
 	do {
 		pframe = cam_queue_dequeue(heap, struct camera_frame, list);
 		if (pframe) {
-			if (pframe->param_data) {
-				struct isp_offline_param *cur, *prev;
-
-				cur = (struct isp_offline_param *)pframe->param_data;
-				pframe->param_data = NULL;
-				while (cur) {
-					prev = (struct isp_offline_param *)cur->prev;
-					cam_buf_kernel_sys_vfree(cur);
-					cur = prev;
-				}
-			}
-
 			if (pframe->is_reserved == CAM_RESERVED_BUFFER_COPY)
 				cam_buf_manager_buf_status_change(&pframe->buf, CAM_BUF_WITH_ION, CAM_IOMMUDEV_MAX);
 			else
 				cam_buf_manager_buf_status_change(&pframe->buf, CAM_BUF_ALLOC, CAM_IOMMUDEV_MAX);
 
-			if (pframe->buf.type == CAM_BUF_KERNEL)
-				cam_buf_free(&pframe->buf);
-			cam_queue_empty_frame_put(pframe);
+			if (pframe->data_src_dec == 0) {
+				if (pframe->buf.type == CAM_BUF_KERNEL)
+					cam_buf_free(&pframe->buf);
+				cam_queue_empty_frame_put(pframe);
+			}
+			if (pframe->zoom_data) {
+				cam_queue_empty_zoom_put(pframe->zoom_data);
+				pframe->zoom_data = NULL;
+			}
 		}
 	} while (pframe);
 }
@@ -620,7 +611,6 @@ void cam_buf_manager_buf_clear(struct cam_buf_pool_id *pool_id)
 int cam_buf_manager_pool_reg(struct cam_buf_pool_id *pool_id, uint32_t length)
 {
 	int idx = 0;
-	uint32_t new_tag_pool = 0;
 	struct camera_queue *tmp_p = NULL;
 
 	mutex_lock(&global_buf_manager->pool_lock);
@@ -629,37 +619,41 @@ int cam_buf_manager_pool_reg(struct cam_buf_pool_id *pool_id, uint32_t length)
 			pr_info("already reg tag pool %d\n", pool_id->tag_id);
 			mutex_unlock(&global_buf_manager->pool_lock);
 			return 0;
-		} else
-			new_tag_pool = 1;
-	}
-
-	for (idx = 1; idx < PRIVATE_POOL_NUM_MAX; idx ++)
-		if (!global_buf_manager->private_buf_pool[idx])
-			break;
-	if ( (!new_tag_pool) && (idx == PRIVATE_POOL_NUM_MAX)) {
-		pr_err("fail to get pool idx, full\n");
-		mutex_unlock(&global_buf_manager->pool_lock);
-		return -1;
-	}
-	tmp_p = cam_buf_kernel_sys_vzalloc(sizeof(struct camera_queue));
-	if (IS_ERR_OR_NULL(tmp_p)) {
-		pr_err("fail to alloc pool\n");
-		mutex_unlock(&global_buf_manager->pool_lock);
-		return -1;
-	}
-
-	if (new_tag_pool) {
-		global_buf_manager->tag_pool[pool_id->tag_id] = tmp_p;
-		pr_debug("reg tag pool %d %px, cd:%pS\n", pool_id->tag_id, tmp_p, __builtin_return_address(0));
+		} else {
+			tmp_p = cam_buf_kernel_sys_vzalloc(sizeof(struct camera_queue));
+			if (IS_ERR_OR_NULL(tmp_p)) {
+				pr_err("fail to alloc pool\n");
+				mutex_unlock(&global_buf_manager->pool_lock);
+				return -1;
+			}
+			global_buf_manager->tag_pool[pool_id->tag_id] = tmp_p;
+			pr_debug("reg tag pool %d %px, cd:%pS\n", pool_id->tag_id, tmp_p, __builtin_return_address(0));
+			mutex_unlock(&global_buf_manager->pool_lock);
+			cam_queue_init(tmp_p, length, NULL);
+			return 0;
+		}
 	} else {
-		global_buf_manager->private_buf_pool[idx] = tmp_p;
-		pr_debug("reg pool %d %px, cd:%pS\n", idx, tmp_p, __builtin_return_address(0));
+		for (idx = 1; idx < PRIVATE_POOL_NUM_MAX; idx ++)
+			if (!global_buf_manager->private_buf_pool[idx])
+				break;
+		if(idx == PRIVATE_POOL_NUM_MAX) {
+			pr_err("fail to get pool idx, full\n");
+			mutex_unlock(&global_buf_manager->pool_lock);
+			return -1;
+		} else{
+			tmp_p = cam_buf_kernel_sys_vzalloc(sizeof(struct camera_queue));
+			if (IS_ERR_OR_NULL(tmp_p)) {
+				pr_err("fail to alloc pool\n");
+				mutex_unlock(&global_buf_manager->pool_lock);
+				return -1;
+			}
+			global_buf_manager->private_buf_pool[idx] = tmp_p;
+			pr_debug("reg pool %d %px, cd:%pS\n", idx, tmp_p, __builtin_return_address(0));
+			mutex_unlock(&global_buf_manager->pool_lock);
+			cam_queue_init(tmp_p, length, NULL);
+			return idx;
+		}
 	}
-
-	mutex_unlock(&global_buf_manager->pool_lock);
-	cam_queue_init(tmp_p, length, NULL);
-
-	return idx;
 }
 
 int cam_buf_manager_pool_unreg(struct cam_buf_pool_id *pool_id)

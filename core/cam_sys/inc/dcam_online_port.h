@@ -32,6 +32,7 @@ enum dcam_port_cfg_callback {
 	DCAM_PORT_NEXT_FRM_BUF_GET,
 	DCAM_PORT_SHUTOFF_CFG_SET,
 	DCAM_PORT_RES_BUF_CFG_SET,
+	DCAM_PORT_BUF_RESET_CFG_SET,
 };
 
 struct dcam_port_size_info {
@@ -55,8 +56,10 @@ struct dcam_port_size_info {
 
 struct dcam_online_port_desc {
 	void **port_dev;
+	zoom_get_cb zoom_cb_func;
 	cam_data_cb data_cb_func;
 	void *data_cb_handle;
+	void *zoom_cb_handle;
 	shutoff_cb shutoff_cb_func;
 	void *shutoff_cb_handle;
 	uint32_t dcam_path_id;
@@ -70,10 +73,6 @@ struct dcam_online_port_desc {
 	uint32_t compress_en;
 	uint32_t reserved_pool_id;
 	uint32_t share_full_path;
-	reserved_buf_get_cb resbuf_get_cb;
-	void *resbuf_cb_data;
-	share_buf_get_cb sharebuf_get_cb;
-	void *sharebuf_cb_data;
 	void *dev;
 };
 
@@ -102,20 +101,16 @@ struct dcam_online_port {
 	uint32_t raw_src;
 	enum cam_format dcamout_fmt;
 	enum cam_port_dcam_online_out_id port_id;
-	/* path size info */
-	void *priv_size_data;
 	uint32_t bin_ratio;
-	uint32_t size_update;
 	uint32_t out_pitch;
 	uint32_t scaler_sel;/* 0: bining, 1: RDS, 2&3: bypass */
-	uint32_t zoom_ratio;
-	uint32_t total_zoom;
-	uint32_t dst_crop_w;
+	uint32_t zoom_ratio_w;
+	uint32_t total_zoom_crop_w;
 	struct img_trim next_roi;
 	struct img_size in_size;
 	struct img_trim in_trim;
 	struct img_size out_size;
-	struct img_trim total_in_trim;
+	struct img_deci_info deci;
 	struct dcam_hw_dec_store_cfg dec_store_info;
 	struct yuv_scaler_info scaler_info;
 	/* queue info */
@@ -123,15 +118,11 @@ struct dcam_online_port {
 	struct cam_buf_pool_id unprocess_pool;
 	struct cam_buf_pool_id reserved_pool;
 
+	zoom_get_cb zoom_cb_func;
+	void *zoom_cb_handle;
 	cam_data_cb data_cb_func;
 	void *data_cb_handle;
-	share_buf_get_cb sharebuf_get_cb;
-	void *sharebuf_cb_data;
-	reserved_buf_get_cb resbuf_get_cb;
-	void *resbuf_cb_data;
 	port_cfg_cb port_cfg_cb_func;
-	/* to store isp offline param data if frame is discarded. */
-	void *isp_updata;
 	shutoff_cb shutoff_cb_func;
 	void *shutoff_cb_handle;
 };

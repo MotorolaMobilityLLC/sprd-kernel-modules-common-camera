@@ -356,7 +356,7 @@ abnormal_reg_trace:
 	}
 
 normal_reg_trace:
-	val_mmu = DCAM_MMU_RD(MMU_EN);
+	val_mmu = DCAM_MMU_RD(DCAM_MMU_EN);
 	cnt = sizeof(cam_reg_trace_tab) /
 		sizeof(cam_reg_trace_tab[0]);
 	pr_info("dcam%d: 0x%08x, cnt %d\n", trace->idx, val_mmu, cnt);

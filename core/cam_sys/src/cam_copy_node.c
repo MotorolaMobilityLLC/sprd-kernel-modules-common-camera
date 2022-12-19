@@ -105,6 +105,7 @@ static int camcopy_node_frame_start(void *param)
 			return -EFAULT;
 		}
 		if (cam_buf_kmap(&raw_frame->buf)) {
+			cam_buf_kunmap(&pframe->buf);
 			pr_err("fail to kmap raw buf\n");
 			return -EFAULT;
 		}

@@ -340,7 +340,7 @@ static int cam_statis_isp_q_init(void *isp_handle, void *node,
 			pframe->channel_id = inode->ch_id;
 			pframe->irq_property = stats_type;
 			pframe->buf = *ion_buf;
-
+			pframe->buf.type = CAM_BUF_NONE;
 			ret = cam_queue_enqueue(statis_q, &pframe->list);
 			if (ret) {
 				pr_info("statis %d overflow\n", stats_type);
@@ -420,6 +420,7 @@ int cam_statis_isp_buffer_cfg(void *isp_handle, void *node,
 	pframe->channel_id = inode->ch_id;
 	pframe->irq_property = input->type;
 	pframe->buf = *ion_buf;
+	pframe->buf.type = CAM_BUF_NONE;
 	ret = cam_queue_enqueue(statis_q, &pframe->list);
 	if (ret) {
 		pr_info("statis %d overflow\n", input->type);

@@ -135,14 +135,15 @@ static void camdump_node_port_type_get(uint8_t *type_name, struct camera_frame *
 	switch (frame->link_from.node_type) {
 	case CAM_NODE_TYPE_DCAM_ONLINE:
 		sprintf(tmp_str, "%s_", cam_port_name_get(frame->link_from.port_id));
+		strcat(type_name, tmp_str);
 		break;
 	case CAM_NODE_TYPE_DCAM_OFFLINE:
 		sprintf(tmp_str, "%s_", cam_port_dcam_offline_out_id_name_get(frame->link_from.port_id));
+		strcat(type_name, tmp_str);
 		break;
 	default:
 		break;
 	}
-	strcat(type_name, tmp_str);
 }
 
 static int camdump_node_compress_set(struct camera_frame *pframe, struct cam_dump_msg *msg, uint8_t* file_name)

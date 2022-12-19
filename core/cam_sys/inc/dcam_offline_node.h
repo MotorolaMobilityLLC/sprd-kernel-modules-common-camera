@@ -77,6 +77,7 @@ struct dcam_offline_node {
 	uint32_t port_id;
 	uint32_t dcam_idx;
 	uint32_t hw_ctx_id;
+	uint32_t in_irq_proc;
 	struct dcam_pipe_dev *dev;
 	struct dcam_hw_context *hw_ctx;
 	struct dcam_isp_k_block *pm;

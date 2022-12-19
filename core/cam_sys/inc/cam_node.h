@@ -39,6 +39,7 @@ enum cam_node_type {
 	CAM_NODE_TYPE_DUMP,
 	CAM_NODE_TYPE_DATA_COPY,
 	CAM_NODE_TYPE_USER,
+	CAM_NODE_TYPE_REPLACE,
 	CAM_NODE_TYPE_MAX,
 };
 
@@ -52,6 +53,7 @@ enum cam_node_cfg_cmd {
 	CAM_NODE_CFG_BUF,
 	CAM_NODE_CFG_CAP_PARAM,
 	CAM_NODE_CFG_SIZE,
+	CAM_NODE_CFG_ZOOM,
 	CAM_NODE_CFG_BASE,
 	CAM_NODE_CLR_CACHE_BUF,
 	CAM_NODE_DUAL_SYNC_BUF_GET,
@@ -149,6 +151,8 @@ struct cam_node_topology {
 	uint32_t dump_node_id;
 	uint32_t id;
 	uint32_t buf_type;
+	uint32_t replace_en;
+	uint32_t replace_node_id;
 	struct cam_port_topology inport[CAM_NODE_PORT_IN_NUM];
 	struct cam_port_topology outport[CAM_NODE_PORT_OUT_NUM];
 };
@@ -156,6 +160,7 @@ struct cam_node_topology {
 /* the node necessary info for creat a new node */
 struct cam_node_desc {
 	void *nodes_dev;
+	zoom_get_cb zoom_cb_func;
 	cam_data_cb data_cb_func;
 	void *data_cb_handle;
 	struct dcam_online_node_desc *dcam_online_desc;
@@ -183,6 +188,7 @@ struct cam_node_ops {
 struct cam_node {
 	struct cam_node_topology *node_graph;
 	void *handle;
+	zoom_get_cb zoom_cb_func;
 	cam_data_cb data_cb_func;
 	void *data_cb_handle;
 	struct cam_port *inport_list[CAM_NODE_PORT_IN_NUM];
@@ -215,7 +221,7 @@ struct cam_nodes_dev {
 };
 
 const char *cam_node_name_get(enum cam_node_type type);
-int cam_node_work_state_get(struct cam_node_topology *param, uint32_t g_dump_en);
+int cam_node_work_state_get(struct cam_node_topology *param, uint32_t g_dump_en, uint32_t *g_replace_en);
 int cam_node_static_nodelist_get(struct cam_node_topology *param, uint32_t type);
 int cam_node_buffer_alloc(void *handle, struct cam_buf_alloc_desc *param);
 void *cam_node_creat(struct cam_node_desc *param);

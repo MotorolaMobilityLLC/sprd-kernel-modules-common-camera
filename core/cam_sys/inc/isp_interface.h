@@ -118,18 +118,6 @@ enum isp_stream_buf_type {
 	ISP_STREAM_BUF_MAX,
 };
 
-enum isp_stream_data_src {
-	ISP_STREAM_SRC_DCAM,
-	ISP_STREAM_SRC_ISP,
-	ISP_STREAM_SRC_MAX,
-};
-
-enum isp_stream_frame_type {
-	ISP_STREAM_SIGNLE,
-	ISP_STREAM_MULTI,
-	ISP_STRESM_MAX,
-};
-
 struct isp_size_desc {
 	struct img_size size;
 	struct img_trim trim;
@@ -259,12 +247,5 @@ static inline uint32_t isp_rec_small_layer_h(uint32_t h, uint32_t layer_num)
 
 	return height;
 }
-
-struct isp_offline_param {
-	uint32_t valid;
-	struct img_scaler_info src_info;
-	struct img_trim trim_path[ISP_SPATH_NUM];
-	void *prev;
-};
 
 #endif

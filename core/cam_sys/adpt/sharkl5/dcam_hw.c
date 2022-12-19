@@ -371,6 +371,60 @@ static int dcamhw_cap_disable(void *handle, void *arg)
 	return ret;
 }
 
+static int dcamhw_record_addr(void *handle, void *arg)
+{
+	struct dcam_hw_context *hw_ctx = NULL;
+	uint32_t count = 0, idx = DCAM_HW_CONTEXT_MAX;
+
+	if (unlikely(!arg)) {
+		pr_err("fail to get valid arg\n");
+		return -EFAULT;
+	}
+
+	hw_ctx= (struct dcam_hw_context *)arg;
+	idx = hw_ctx->hw_ctx_id;
+	if (idx >= DCAM_HW_CONTEXT_MAX) {
+		pr_err("fail to get dev idx 0x%x exceed DCAM_ID_MAX\n", idx);
+		return -EFAULT;
+	}
+
+	if (hw_ctx->is_offline_proc) {
+		count = hw_ctx->frame_addr[0][DCAM_RECORD_FRAME_CNT_SUM];
+		count = count % DCAM_ADDR_RECORD_FRAME_NUM;
+		hw_ctx->frame_addr[count][DCAM_RECORD_FRAME_CUR_COUNT] = hw_ctx->frame_addr[0][DCAM_RECORD_FRAME_CNT_SUM];
+		hw_ctx->frame_addr[count][DCAM_RECORD_PORT_IMG_FETCH] = DCAM_AXIM_RD(IMG_FETCH_RADDR);
+		hw_ctx->frame_addr[0][DCAM_RECORD_FRAME_CNT_SUM] += 1;
+	} else {
+		count = DCAM_REG_RD(idx, DCAM_CAP_FRM_CLR) & 0x3F;
+		if (hw_ctx->slowmotion_count)
+			count = count / hw_ctx->slowmotion_count;
+		count = count % DCAM_ADDR_RECORD_FRAME_NUM;
+		hw_ctx->frame_addr[count][DCAM_RECORD_FRAME_CUR_COUNT] = DCAM_REG_RD(idx, DCAM_CAP_FRM_CLR) & 0x3F;
+	}
+	hw_ctx->frame_addr[count][DCAM_RECORD_PORT_FULL] = DCAM_REG_RD(idx, DCAM_FULL_BASE_WADDR);
+	hw_ctx->frame_addr[count][DCAM_RECORD_PORT_BIN] = DCAM_REG_RD(idx, DCAM_BIN_BASE_WADDR0);
+	hw_ctx->frame_addr[count][DCAM_RECORD_PORT_BIN_1] = DCAM_REG_RD(idx, DCAM_BIN_BASE_WADDR1);
+	hw_ctx->frame_addr[count][DCAM_RECORD_PORT_BIN_2] = DCAM_REG_RD(idx, DCAM_BIN_BASE_WADDR2);
+	hw_ctx->frame_addr[count][DCAM_RECORD_PORT_BIN_3] = DCAM_REG_RD(idx, DCAM_BIN_BASE_WADDR3);
+	hw_ctx->frame_addr[count][DCAM_RECORD_PORT_PDAF] = DCAM_REG_RD(idx, DCAM_PDAF_BASE_WADDR);
+	hw_ctx->frame_addr[count][DCAM_RECORD_PORT_VCH2] = DCAM_REG_RD(idx, DCAM_VCH2_BASE_WADDR);
+	hw_ctx->frame_addr[count][DCAM_RECORD_PORT_VCH3] = DCAM_REG_RD(idx, DCAM_VCH3_BASE_WADDR);
+	hw_ctx->frame_addr[count][DCAM_RECORD_PORT_LENS] = DCAM_REG_RD(idx, DCAM_LENS_BASE_RADDR);
+	hw_ctx->frame_addr[count][DCAM_RECORD_PORT_AEM] = DCAM_REG_RD(idx, DCAM_AEM_BASE_WADDR);
+	hw_ctx->frame_addr[count][DCAM_RECORD_PORT_AEM_SHORT] = DCAM_REG_RD(idx, DCAM_AEM_SHORT_WADDR);
+	hw_ctx->frame_addr[count][DCAM_RECORD_PORT_HIST] = DCAM_REG_RD(idx, DCAM_HIST_BASE_WADDR);
+	hw_ctx->frame_addr[count][DCAM_RECORD_PORT_PPE] = DCAM_REG_RD(idx, DCAM_PPE_RIGHT_WADDR);
+	hw_ctx->frame_addr[count][DCAM_RECORD_PORT_AFL_GLB] = DCAM_REG_RD(idx, ISP_AFL_GLB_WADDR);
+	hw_ctx->frame_addr[count][DCAM_RECORD_PORT_AFL_REGION] = DCAM_REG_RD(idx, ISP_AFL_REGION_WADDR);
+	hw_ctx->frame_addr[count][DCAM_RECORD_PORT_BPC_MAP] = DCAM_REG_RD(idx, ISP_BPC_MAP_ADDR);
+	hw_ctx->frame_addr[count][DCAM_RECORD_PORT_BPC_OUT] = DCAM_REG_RD(idx, ISP_BPC_OUT_ADDR);
+	hw_ctx->frame_addr[count][DCAM_RECORD_PORT_AFM] = DCAM_REG_RD(idx, ISP_AFM_BASE_WADDR);
+	hw_ctx->frame_addr[count][DCAM_RECORD_PORT_NR3] = DCAM_REG_RD(idx, ISP_NR3_WADDR);
+
+	pr_debug("DCAM%u copy addr done.\n", idx);
+	return 0;
+}
+
 static int dcamhw_auto_copy(void *handle, void *arg)
 {
 	struct dcam_hw_auto_copy *copyarg = NULL;
@@ -834,7 +888,7 @@ static int dcamhw_path_start(void *handle, void *arg)
 		 * nr3_mv_bypass: 0
 		 * nr3_channel_sel: 0
 		 * nr3_project_mode: 0
-		 * nr3_sub_me_bypass: 0x1
+		 * nr3_sub_me_bypass: 0
 		 * nr3_out_en: 0
 		 * nr3_ping_pong_en: 0
 		 * nr3_bypass: 0
@@ -852,7 +906,7 @@ static int dcamhw_path_start(void *handle, void *arg)
 				rect.x, rect.y, rect.w, rect.h);
 			break;
 		}
-		DCAM_REG_WR(patharg->idx, NR3_FAST_ME_PARAM, 0x8);
+		DCAM_REG_WR(patharg->idx, NR3_FAST_ME_PARAM, 0);
 		dcam_k_3dnr_set_roi(rect, 0/* project_mode=0 */, patharg->idx);
 		break;
 	case DCAM_PATH_PDAF:
@@ -1100,26 +1154,6 @@ static int dcamhw_lbuf_share_set(void *handle, void *arg)
 	return ret;
 }
 
-static int dcamhw_ebd_set(void *handle, void *arg)
-{
-	struct dcam_hw_ebd_set *ebd = NULL;
-
-	if (!arg) {
-		pr_err("fail to get valid arg\n");
-		return -EFAULT;
-	}
-
-	ebd = (struct dcam_hw_ebd_set *)arg;
-	pr_info("mode:0x%x, vc:0x%x, dt:0x%x\n", ebd->p->mode,
-			ebd->p->image_vc, ebd->p->image_dt);
-	DCAM_REG_WR(ebd->idx, DCAM_VC2_CONTROL,
-		((ebd->p->image_vc & 0x3) << 16) |
-		((ebd->p->image_dt & 0x3F) << 8) |
-		(ebd->p->mode & 0x3));
-
-	return 0;
-}
-
 static int dcamhw_binning_4in1_set(void *handle, void *arg)
 {
 	struct dcam_hw_binning_4in1 *binning = NULL;
@@ -1361,6 +1395,7 @@ static struct hw_io_ctrl_fun dcam_hw_ioctl_fun_tab[] = {
 	{DCAM_HW_CFG_STOP,                  dcamhw_stop},
 	{DCAM_HW_CFG_STOP_CAP_EB,           dcamhw_cap_disable},
 	{DCAM_HW_CFG_FETCH_START,           dcamhw_fetch_start},
+	{DCAM_HW_CFG_RECORD_ADDR,           dcamhw_record_addr},
 	{DCAM_HW_CFG_AUTO_COPY,             dcamhw_auto_copy},
 	{DCAM_HW_CFG_FORCE_COPY,            dcamhw_force_copy},
 	{DCAM_HW_CFG_PATH_START,            dcamhw_path_start},
@@ -1369,7 +1404,6 @@ static struct hw_io_ctrl_fun dcam_hw_ioctl_fun_tab[] = {
 	{DCAM_HW_CFG_PATH_SIZE_UPDATE,      dcamhw_path_size_update},
 	{DCAM_HW_CFG_MIPI_CAP_SET,          dcamhw_mipi_cap_set},
 	{DCAM_HW_CFG_FETCH_SET,             dcamhw_fetch_set},
-	{DCAM_HW_CFG_EBD_SET,               dcamhw_ebd_set},
 	{DCAM_HW_CFG_BINNING_4IN1_SET,      dcamhw_binning_4in1_set},
 	{DCAM_HW_CFG_SRAM_CTRL_SET,         dcamhw_sram_ctrl_set},
 	{DCAM_HW_CFG_LBUF_SHARE_SET,        dcamhw_lbuf_share_set},

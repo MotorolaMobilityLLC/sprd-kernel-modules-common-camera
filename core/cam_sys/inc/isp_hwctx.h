@@ -17,6 +17,8 @@
 #include "cam_hw.h"
 #include "isp_interface.h"
 
+#define ISP_HIST_VALUE_SIZE             256
+
 enum isp_postproc_type {
 	POSTPROC_FRAME_DONE,
 	POSTPROC_SLOWMOTION_FRAMEDONE,
@@ -65,11 +67,14 @@ struct isp_hw_context {
 	enum isp_work_mode wmode;
 	isp_irq_postproc postproc_func;
 	uint32_t scaler_debug;
+	spinlock_t yhist_read_lock;
+	uint32_t yhist_value[ISP_HIST_VALUE_SIZE + 1]; /* 256+1 */
 };
 
 struct isp_start_param {
 	struct mutex *blkpm_lock;
 	uint32_t type;
+	uint32_t is_dual;
 	uint32_t *slw_state;
 	struct camera_queue *param_share_queue;
 	struct dcam_isp_k_block **isp_using_param;
@@ -85,7 +90,7 @@ uint32_t isp_hwctx_fmcu_reset(void *handle);
 int isp_hwctx_slice_ctx_init(struct isp_hw_context *pctx_hw, struct isp_pipe_info *pipe_info);
 int isp_hwctx_slice_fmcu(struct isp_hw_context *pctx_hw, struct slice_cfg_input *slc_cfg);
 int isp_hwctx_slices_proc(struct isp_hw_context *pctx_hw, void *dev_handle, struct isp_start_param *param);
-uint32_t isp_hwctx_hist2_frame_prepare(void *buf, uint32_t hw_idx, void *isp_handle);
+int isp_hwctx_hist2_frame_prepare(void *buf, uint32_t hw_idx, void *isp_handle);
 int isp_hwctx_store_frm_set(struct isp_pipe_info *pipe_info, uint32_t path_id, struct camera_frame *frame);
 int isp_hwctx_fetch_frm_set(void *dev_handle, struct isp_hw_fetch_info *fetch, struct camera_frame *frame);
 int isp_hwctx_gtm_hist_result_get(void *buf, uint32_t hw_idx, void *dev,

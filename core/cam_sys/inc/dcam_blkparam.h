@@ -16,12 +16,6 @@
 
 #include "isp_hw.h"
 
-enum dcam_gtm_param_type {
-	DCAM_GTM_PARAM_PRE,
-	DCAM_GTM_PARAM_CAP,
-	DCAM_GTM_PARAM_MAX,
-};
-
 struct dcam_dev_lsc_param {
 	uint32_t update;
 	uint32_t load_trigger;
@@ -117,13 +111,11 @@ struct dcam_dev_afm_param {
 };
 
 struct dcam_dev_gtm_param {
-	uint32_t update_en;
 	uint32_t gtm_calc_mode;
 	struct dcam_dev_raw_gtm_block_info gtm_info;
 };
 
 struct dcam_dev_rgb_gtm_param {
-	uint32_t update_en;
 	uint32_t gtm_calc_mode;
 	struct dcam_dev_rgb_gtm_block_info rgb_gtm_info;
 };

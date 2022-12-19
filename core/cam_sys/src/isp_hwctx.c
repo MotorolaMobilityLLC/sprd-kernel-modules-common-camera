@@ -147,6 +147,14 @@ uint32_t isp_hwctx_hw_start(struct isp_hw_context *pctx_hw, void *dev_handle, st
 		*param->isp_using_param = NULL;
 		pctx_hw->isp_using_param = NULL;
 
+		/* Tmp to solve camera dismiss in refocus continue capture scene */
+		if (param->is_dual) {
+			mutex_lock(&dev->dev_lock);
+			ret = wait_for_completion_timeout(&dev->frm_done, ISP_CONTEXT_TIMEOUT);
+			if (!ret)
+				pr_warn("warning:wait isp hw ctx %d, timeout.\n", pctx_hw->hw_ctx_id);
+			mutex_unlock(&dev->dev_lock);
+		}
 		if (pctx_hw->fmcu_handle) {
 			fmcu = (struct isp_fmcu_ctx_desc *)pctx_hw->fmcu_handle;
 			if (*(param->slw_state) == CAM_SLOWMOTION_ON) {
@@ -183,7 +191,6 @@ static int isphwctx_init_dyn_ov_param(struct slice_cfg_input *slc_cfg_in,
 	}
 
 	slc_cfg_in->calc_dyn_ov.pyr_layer_num = pctx_hw->pyr_layer_num;
-	slc_cfg_in->calc_dyn_ov.need_dewarping = pctx_hw->is_dewarping;
 	slc_cfg_in->calc_dyn_ov.src.w = pipe_info->fetch.src.w;
 	slc_cfg_in->calc_dyn_ov.src.h = pipe_info->fetch.src.h;
 	slc_cfg_in->calc_dyn_ov.crop.start_x = pipe_info->fetch.in_trim.start_x;
@@ -348,19 +355,31 @@ exit:
 	return ret;
 }
 
-uint32_t isp_hwctx_hist2_frame_prepare(void *buf, uint32_t hw_idx, void *isp_handle)
+int isp_hwctx_hist2_frame_prepare(void *buf, uint32_t hw_idx, void *isp_handle)
 {
 	struct isp_pipe_dev *dev;
 	struct isp_hw_context *pctx_hw;
 	struct camera_frame *pframe;
+	uint32_t sum = 0;
+	unsigned long flag = 0;
 
 	pframe = VOID_PTR_TO(buf, struct camera_frame);
 	dev = (struct isp_pipe_dev *)isp_handle;
 	pctx_hw = &dev->hw_ctx[hw_idx];
 
-	pctx_hw->hw->isp_ioctl(pctx_hw->hw, ISP_HW_CFG_HIST_GET, (uint32_t *)pframe->buf.addr_k);
+	if (!(uint32_t *)pframe->buf.addr_k)
+		return -1;
+	buf = (uint32_t *)pframe->buf.addr_k;
+	spin_lock_irqsave(&pctx_hw->yhist_read_lock, flag);
+	memcpy(buf, pctx_hw->yhist_value, sizeof(uint32_t) * ISP_HIST_VALUE_SIZE);
+	sum = pctx_hw->yhist_value[ISP_HIST_VALUE_SIZE];
+	spin_unlock_irqrestore(&pctx_hw->yhist_read_lock, flag);
 	pframe->width = pctx_hw->pipe_info.fetch.in_trim.size_x;
 	pframe->height = pctx_hw->pipe_info.fetch.in_trim.size_y;
+	if (sum != (pframe->width * pframe->height)) {
+		pr_debug("pixel num check wrong, sum %d, should be %d\n", sum, pframe->width * pframe->height);
+		return -1;
+	}
 
 	return 0;
 }

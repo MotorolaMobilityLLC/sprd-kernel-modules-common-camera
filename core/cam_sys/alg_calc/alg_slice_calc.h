@@ -428,9 +428,6 @@ struct alg_slice_drv_overlap {
 	int layerNum;
 
 	//yuv
-	int dewarping_bypass;
-	int dewarping_width;
-	int dewarping_height;
 	int post_cnr_bypass;
 	int nr3d_bd_bypass;
 	int nr3d_bd_FBC_en;

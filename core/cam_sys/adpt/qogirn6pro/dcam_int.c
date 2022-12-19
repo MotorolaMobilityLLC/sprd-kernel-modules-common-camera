@@ -43,6 +43,44 @@ static char *dcam_dev_name[] = {"DCAM0",
 				"DCAM2"
 				};
 
+static const char *_DCAM_ADDR_NAME[DCAM_RECORD_PORT_INFO_MAX] = {
+	[DCAM_RECORD_PORT_FBC_BIN] = "fbc_bin",
+	[DCAM_RECORD_PORT_FBC_FULL] = "fbc_full",
+	[DCAM_RECORD_PORT_FULL_Y] = "full_y",
+	[DCAM_RECORD_PORT_FULL_U] = "full_u",
+	[DCAM_RECORD_PORT_BIN_Y] = "bin_y",
+	[DCAM_RECORD_PORT_BIN_U] = "bin_u",
+	[DCAM_RECORD_PORT_RAW] = "raw",
+	[DCAM_RECORD_PORT_DEC_L1_Y] = "dec_l1_y",
+	[DCAM_RECORD_PORT_DEC_L1_U] = "dec_l1_u",
+	[DCAM_RECORD_PORT_DEC_L2_Y] = "dec_l2_y",
+	[DCAM_RECORD_PORT_DEC_L2_U] = "dec_l2_u",
+	[DCAM_RECORD_PORT_DEC_L3_Y] = "dec_l3_y",
+	[DCAM_RECORD_PORT_DEC_L3_U] = "dec_l3_u",
+	[DCAM_RECORD_PORT_DEC_L4_Y] = "dec_l4_y",
+	[DCAM_RECORD_PORT_DEC_L4_U] = "dec_l4_u",
+	[DCAM_RECORD_PORT_PDAF] = "pdaf",
+	[DCAM_RECORD_PORT_VCH2] = "vch2",
+	[DCAM_RECORD_PORT_VCH3] = "vch3",
+	[DCAM_RECORD_PORT_LENS] = "lens",
+	[DCAM_RECORD_PORT_LSCM] = "lscm",
+	[DCAM_RECORD_PORT_AEM] = "aem",
+	[DCAM_RECORD_PORT_BAYER_HIST] = "bayer_hist",
+	[DCAM_RECORD_PORT_PPE] = "ppe",
+	[DCAM_RECORD_PORT_AFL_DDR_INIT] = "afl_ddr_init",
+	[DCAM_RECORD_PORT_AFL_REGION] = "afl_region",
+	[DCAM_RECORD_PORT_BPC_MAP] = "bpc_map",
+	[DCAM_RECORD_PORT_BPC_OUT] = "bpc_out",
+	[DCAM_RECORD_PORT_AFM] = "afm",
+	[DCAM_RECORD_PORT_NR3] = "nr3",
+	[DCAM_RECORD_PORT_HIST_ROI] = "hist_roi",
+};
+
+const char *dcamint_addr_name_get(uint32_t type)
+{
+	return (type < DCAM_RECORD_PORT_IMG_FETCH) ? _DCAM_ADDR_NAME[type] : "(null)";
+}
+
 static void dcamint_iommu_regs_dump(struct dcam_hw_context *dcam_hw_ctx);
 
 static inline void dcamint_dcam_int_record(uint32_t idx, uint32_t status, uint32_t status1)
@@ -550,8 +588,8 @@ static void dcamint_nr3_port_done(void *param)
 
 	fid = dcam_hw_ctx->fid - 1;
 	i = fid % DCAM_NR3_MV_MAX;
-	dcam_hw_ctx->nr3_mv_ctrl[i].sub_me_bypass = (nr3_done_com.p >> 8) & 0x1;
-	dcam_hw_ctx->nr3_mv_ctrl[i].project_mode = (nr3_done_com.p >> 4) & 0x1;
+	dcam_hw_ctx->nr3_mv_ctrl[i].sub_me_bypass = (nr3_done_com.p >> 3) & 0x1;
+	dcam_hw_ctx->nr3_mv_ctrl[i].project_mode = (nr3_done_com.p >> 4) & 0x3;
 	/* currently ping-pong is disabled, mv will always be stored in ping */
 	dcam_hw_ctx->nr3_mv_ctrl[i].mv_x = (nr3_done_com.out0 >> 8) & 0xff;
 	dcam_hw_ctx->nr3_mv_ctrl[i].mv_y = nr3_done_com.out0 & 0xff;
@@ -703,8 +741,8 @@ static const struct {
 
 static void dcamint_iommu_regs_dump(struct dcam_hw_context *dcam_hw_ctx)
 {
-	uint32_t reg = 0;
-	uint32_t val[4];
+	uint32_t i = 0, j = 0, cnt = 0, mask = 0xf;
+	uint8_t val = 0xff, dcam_id = DCAM_HW_CONTEXT_MAX;
 
 	if (!dcam_hw_ctx) {
 		pr_err("fail to get valid input hw_ctx\n");
@@ -712,49 +750,83 @@ static void dcamint_iommu_regs_dump(struct dcam_hw_context *dcam_hw_ctx)
 	}
 
 	if (dcam_hw_ctx->err_count) {
-		for (reg = DCAM_MMU_VERSION; reg <= DCAM_MMU_INT_RAW; reg += 16) {
-			val[0] = DCAM_MMU_RD(reg);
-			val[1] = DCAM_MMU_RD(reg + 4);
-			val[2] = DCAM_MMU_RD(reg + 8);
-			val[3] = DCAM_MMU_RD(reg + 12);
-			pr_err("fail to handle,offset=0x%04x: %08x %08x %08x %08x\n",
-					reg, val[0], val[1], val[2], val[3]);
+		for (i = 0; i <= 28; i += 4, mask <<= 4) {
+			val = (DCAM_MMU_RD(DCAM_MMU_DEBUG_USER) & mask) >> i;
+			if (val == 0 && cnt != 7) {
+				cnt++;
+				continue;
+			}
+			dcam_id = (val < DCAM1_RAW_PATH_D0) ? DCAM_HW_CONTEXT_0 : DCAM_HW_CONTEXT_1;
+			switch (val) {
+			case DCAM0_RAW_PATH_D0:
+			case DCAM1_RAW_PATH_D0:
+				pr_err("fail to handle dcam%d port_raw addr\n", dcam_id);
+				break;
+			case DCAM0_BIN_DEC_PATH_D0:
+			case DCAM1_BIN_DEC_PATH_D0:
+				pr_err("fail to handle dcam%d port_bin/dec addr\n", dcam_id);
+				break;
+			case DCAM0_FULL_PATH_D0:
+			case DCAM1_FULL_PATH_D0:
+				pr_err("fail to handle dcam%d port_full addr\n", dcam_id);
+				break;
+			case DCAM0_FULL_FBC_PATH_D0:
+			case DCAM1_FULL_FBC_PATH_D0:
+				pr_err("fail to handle dcam%d port_full/raw addr\n", dcam_id);
+				break;
+			case DCAM0_BLOCK_PATH_D0:
+			case DCAM1_BLOCK_PATH_D0:
+				pr_err("fail to handle dcam%d port: aem/lscm/afl/pdaf/afm/rgb/"
+					"hist/nr3/pos/vch2/vch3 addr\n", dcam_id);
+				break;
+			default:
+				dcam_id = DCAM_HW_CONTEXT_MAX;
+				break;
+			}
 		}
 
-		pr_err("fail to handle,bin fbc %08x full fbc %08x full y %08x u %08x bin y %08x u %08x raw:%08x\n",
-				DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, DCAM_YUV_FBC_SCAL_SLICE_PLOAD_BASE_ADDR),
-				DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, DCAM_FBC_RAW_SLICE_Y_ADDR),
-				DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, DCAM_STORE4_SLICE_Y_ADDR),
-				DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, DCAM_STORE4_SLICE_U_ADDR),
-				DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, DCAM_STORE0_SLICE_Y_ADDR),
-				DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, DCAM_STORE0_SLICE_U_ADDR),
-				DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, DCAM_RAW_PATH_BASE_WADDR));
-		pr_err("fail to handle,dec layer1 y %08x u %08x layer2 y %08x u %08x\n",
-				DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, DCAM_STORE_DEC_L1_BASE + DCAM_STORE_DEC_SLICE_Y_ADDR),
-				DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, DCAM_STORE_DEC_L1_BASE + DCAM_STORE_DEC_SLICE_U_ADDR),
-				DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, DCAM_STORE_DEC_L2_BASE + DCAM_STORE_DEC_SLICE_Y_ADDR),
-				DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, DCAM_STORE_DEC_L2_BASE + DCAM_STORE_DEC_SLICE_U_ADDR));
-		pr_err("fail to handle,dec layer3 y %08x u %08x layer4 y %08x u %08x\n",
-				DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, DCAM_STORE_DEC_L3_BASE + DCAM_STORE_DEC_SLICE_Y_ADDR),
-				DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, DCAM_STORE_DEC_L3_BASE + DCAM_STORE_DEC_SLICE_U_ADDR),
-				DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, DCAM_STORE_DEC_L4_BASE + DCAM_STORE_DEC_SLICE_Y_ADDR),
-				DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, DCAM_STORE_DEC_L4_BASE + DCAM_STORE_DEC_SLICE_U_ADDR));
-		pr_err("fail to handle,pdaf %08x vch2 %08x vch3 %08x lsc %08x lscm %08x aem %08x "
-				"hist %08x\n", DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, DCAM_PDAF_BASE_WADDR),
-				DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, DCAM_VCH2_BASE_WADDR),
-				DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, DCAM_VCH3_BASE_WADDR),
-				DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, DCAM_LENS_BASE_RADDR),
-				DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, DCAM_LSCM_BASE_WADDR),
-				DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, DCAM_AEM_BASE_WADDR),
-				DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, DCAM_BAYER_HIST_BASE_WADDR));
-		pr_err("fail to handle,ppe %08x afl %08x %08x bpc %08x %08x afm %08x nr3 %08x\n",
-				DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, DCAM_PPE_RIGHT_WADDR),
-				DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, ISP_AFL_DDR_INIT_ADDR),
-				DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, ISP_AFL_REGION_WADDR),
-				DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, DCAM_BPC_MAP_ADDR),
-				DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, DCAM_BPC_OUT_ADDR),
-				DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, DCAM_AFM_LUM_FV_BASE_WADDR),
-				DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, DCAM_NR3_WADDR));
+		if (dcam_hw_ctx->is_offline_proc)
+			pr_err("fail to handle offline dcam frame_cnt=%d, MMU_DEBUG_USER: %08x, "
+				"MMU_INT_STS: %08x, MMU_INT_RAW: %08x\n", dcam_hw_ctx->frame_addr[0][DCAM_RECORD_FRAME_CNT_SUM],
+				DCAM_MMU_RD(DCAM_MMU_DEBUG_USER), DCAM_MMU_RD(DCAM_MMU_INT_STS), DCAM_MMU_RD(DCAM_MMU_INT_RAW));
+		else
+			pr_err("fail to handle frame_cnt=%d, MMU_DEBUG_USER: %08x, MMU_INT_STS: %08x, "
+				"MMU_INT_RAW: %08x\n",
+				DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, DCAM_CAP_FRM_CLR) & 0xFF,
+				DCAM_MMU_RD(DCAM_MMU_DEBUG_USER), DCAM_MMU_RD(DCAM_MMU_INT_STS), DCAM_MMU_RD(DCAM_MMU_INT_RAW));
+
+		if (DCAM_MMU_RD(DCAM_MMU_INT_RAW) & BIT_0)
+			pr_err("fail to handle, MMU_OR_ADDR_RD: %08x\n", DCAM_MMU_RD(DCAM_MMU_OR_ADDR_RD));
+		if (DCAM_MMU_RD(DCAM_MMU_INT_RAW) & BIT_1)
+			pr_err("fail to handle, MMU_OR_ADDR_WR: %08x\n", DCAM_MMU_RD(DCAM_MMU_OR_ADDR_WR));
+		if (DCAM_MMU_RD(DCAM_MMU_INT_RAW) & BIT_2)
+			pr_err("fail to handle, MMU_INV_ADDR_RD: %08x\n", DCAM_MMU_RD(DCAM_MMU_INV_ADDR_RD));
+		if (DCAM_MMU_RD(DCAM_MMU_INT_RAW) & BIT_3)
+			pr_err("fail to handle, MMU_INV_ADDR_WR: %08x\n", DCAM_MMU_RD(DCAM_MMU_INV_ADDR_WR));
+		if (DCAM_MMU_RD(DCAM_MMU_INT_RAW) & BIT_4)
+			pr_err("fail to handle, MMU_UNS_ADDR_RD: %08x\n", DCAM_MMU_RD(DCAM_MMU_UNS_ADDR_RD));
+		if (DCAM_MMU_RD(DCAM_MMU_INT_RAW) & BIT_5)
+			pr_err("fail to handle, MMU_UNS_ADDR_WR: %08x\n", DCAM_MMU_RD(DCAM_MMU_UNS_ADDR_WR));
+		if (DCAM_MMU_RD(DCAM_MMU_INT_RAW) & BIT_6)
+			pr_err("fail to handle, MMU_VPN_PAOR_RD: %08x, MMU_PPN_PAOR_RD: %08x\n",
+				DCAM_MMU_RD(DCAM_MMU_VPN_PAOR_RD), DCAM_MMU_RD(DCAM_MMU_PPN_PAOR_RD));
+		if (DCAM_MMU_RD(DCAM_MMU_INT_RAW) & BIT_7)
+			pr_err("fail to handle, MMU_VPN_PAOR_WR: %08x, MMU_PPN_PAOR_WR: %08x\n",
+				DCAM_MMU_RD(DCAM_MMU_VPN_PAOR_WR), DCAM_MMU_RD(DCAM_MMU_PPN_PAOR_WR));
+
+		for (i = 0; i < DCAM_ADDR_RECORD_FRAME_NUM; i++) {
+			for (j = DCAM_RECORD_PORT_FBC_BIN; j < DCAM_RECORD_PORT_IMG_FETCH; j += 5) {
+				pr_err("fail to handle used frame_cnt%d, %s: %08x, %s: %08x, %s: %08x,"
+					" %s: %08x, %s: %08x\n", dcam_hw_ctx->frame_addr[i][DCAM_RECORD_FRAME_CUR_COUNT],
+					dcamint_addr_name_get(j), dcam_hw_ctx->frame_addr[i][j],
+					dcamint_addr_name_get(j + 1), dcam_hw_ctx->frame_addr[i][j + 1],
+					dcamint_addr_name_get(j + 2), dcam_hw_ctx->frame_addr[i][j + 2],
+					dcamint_addr_name_get(j + 3), dcam_hw_ctx->frame_addr[i][j + 3],
+					dcamint_addr_name_get(j + 4), dcam_hw_ctx->frame_addr[i][j + 4]);
+			}
+			if (dcam_hw_ctx->is_offline_proc)
+				pr_err("fail to handle used frame_cnt%d, offline fetch %08x\n", dcam_hw_ctx->frame_addr[i][DCAM_RECORD_PORT_IMG_FETCH]);
+		}
 		dcam_hw_ctx->err_count -= 1;
 	}
 }

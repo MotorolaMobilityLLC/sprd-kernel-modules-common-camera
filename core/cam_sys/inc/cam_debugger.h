@@ -16,6 +16,7 @@
 
 #include "dcam_interface.h"
 #include "cam_dump_node.h"
+#include "cam_replace_node.h"
 
 enum {
 	CH_PRE = 0,

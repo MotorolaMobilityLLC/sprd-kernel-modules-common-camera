@@ -40,14 +40,9 @@ int init_dcam_pm(struct dcam_isp_k_block *blk_pm_ctx)
 	blk_pm_ctx->afm.bypass = 1;
 	blk_pm_ctx->lscm.bypass = 1;
 	blk_pm_ctx->pdaf.bypass = 1;
-	blk_pm_ctx->gtm[0].update_en = 1;
-	blk_pm_ctx->gtm[0].gtm_info.bypass_info.gtm_mod_en = 0;
-	blk_pm_ctx->gtm[0].gtm_info.bypass_info.gtm_map_bypass = 1;
-	blk_pm_ctx->gtm[0].gtm_info.bypass_info.gtm_hist_stat_bypass = 1;
-	blk_pm_ctx->gtm[1].update_en = 1;
-	blk_pm_ctx->gtm[1].gtm_info.bypass_info.gtm_mod_en = 0;
-	blk_pm_ctx->gtm[1].gtm_info.bypass_info.gtm_map_bypass = 1;
-	blk_pm_ctx->gtm[1].gtm_info.bypass_info.gtm_hist_stat_bypass = 1;
+	blk_pm_ctx->gtm.gtm_info.bypass_info.gtm_mod_en = 0;
+	blk_pm_ctx->gtm.gtm_info.bypass_info.gtm_map_bypass = 1;
+	blk_pm_ctx->gtm.gtm_info.bypass_info.gtm_hist_stat_bypass = 1;
 
 	return 0;
 }

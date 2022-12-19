@@ -49,14 +49,9 @@ int init_dcam_pm(struct dcam_isp_k_block *blk_pm_ctx)
 	blk_pm_ctx->nlm_info_base.vst_bypass = 1;
 	blk_pm_ctx->nlm_info_base.bypass = 1;
 	blk_pm_ctx->imbalance_info_base2.nlm_imblance_bypass = 1;
-	blk_pm_ctx->rgb_gtm[0].update_en = 1;
-	blk_pm_ctx->rgb_gtm[0].rgb_gtm_info.bypass_info.gtm_mod_en = 0;
-	blk_pm_ctx->rgb_gtm[0].rgb_gtm_info.bypass_info.gtm_map_bypass = 1;
-	blk_pm_ctx->rgb_gtm[0].rgb_gtm_info.bypass_info.gtm_hist_stat_bypass = 1;
-	blk_pm_ctx->rgb_gtm[1].update_en = 1;
-	blk_pm_ctx->rgb_gtm[1].rgb_gtm_info.bypass_info.gtm_mod_en = 0;
-	blk_pm_ctx->rgb_gtm[1].rgb_gtm_info.bypass_info.gtm_map_bypass = 1;
-	blk_pm_ctx->rgb_gtm[1].rgb_gtm_info.bypass_info.gtm_hist_stat_bypass = 1;
+	blk_pm_ctx->rgb_gtm.rgb_gtm_info.bypass_info.gtm_mod_en = 0;
+	blk_pm_ctx->rgb_gtm.rgb_gtm_info.bypass_info.gtm_map_bypass = 1;
+	blk_pm_ctx->rgb_gtm.rgb_gtm_info.bypass_info.gtm_hist_stat_bypass = 1;
 
 	return 0;
 }

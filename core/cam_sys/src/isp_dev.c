@@ -100,6 +100,8 @@ static int ispdev_context_init(struct isp_pipe_dev *dev)
 		bind_fmcu = 0;
 		pctx_hw->postproc_func = NULL;
 		init_completion(&pctx_hw->slice_done);
+		spin_lock_init(&pctx_hw->yhist_read_lock);
+		memset(pctx_hw->yhist_value, 0, sizeof(uint32_t) * (ISP_HIST_VALUE_SIZE + 1));
 		if (unlikely(dev->wmode == ISP_AP_MODE)) {
 			/* for AP mode, multi-context is not supported */
 			if (i != ISP_CONTEXT_HW_P0) {
@@ -163,7 +165,7 @@ static int ispdev_context_deinit(struct isp_pipe_dev *dev)
 		if (pctx_hw->slice_ctx)
 			isp_slice_ctx_put(&pctx_hw->slice_ctx);
 		atomic_set(&pctx_hw->user_cnt, 0);
-		isp_int_isp_irq_cnt_trace(i);
+		isp_int_irq_hw_cnt_trace(i);
 	}
 	pr_info("isp contexts deinit done!\n");
 
@@ -219,6 +221,7 @@ static int ispdev_open(void *isp_handle, void *param)
 
 		dev->isp_hw = hw;
 		mutex_init(&dev->path_mutex);
+		mutex_init(&dev->dev_lock);
 		spin_lock_init(&dev->ctx_lock);
 		spin_lock_init(&hw->isp_cfg_lock);
 
@@ -281,6 +284,7 @@ static int ispdev_close(void *isp_handle)
 		atomic_set(&dev->pd_clk_rdy, 0);
 		ret = isp_drv_hw_deinit(dev);
 		mutex_destroy(&dev->path_mutex);
+		mutex_destroy(&dev->dev_lock);
 	}
 
 	pr_info("isp dev disable done\n");
@@ -396,15 +400,11 @@ static void *ispnode_context_bind(void *node, int slice_need, isp_irq_postproc p
 		}
 	}
 
-	/* force fmcu used, we will retry */
-	if (use_fmcu & FMCU_IS_MUST)
-		goto exit;
-
 exit:
-	spin_unlock_irqrestore(&dev->ctx_lock, flag);
-
-	if (hw_ctx_id == -1)
+	if (hw_ctx_id == -1) {
+		spin_unlock_irqrestore(&dev->ctx_lock, flag);
 		return NULL;
+	}
 
 	pctx_hw->node = inode;
 	pctx_hw->node_id = inode->node_id;
@@ -414,6 +414,7 @@ exit:
 	pr_debug("sw %d, hw %d %d, fmcu_need %d ptr 0x%lx\n",
 		inode->node_id, hw_ctx_id, pctx_hw->hw_ctx_id,
 		use_fmcu, (unsigned long)pctx_hw->fmcu_handle);
+	spin_unlock_irqrestore(&dev->ctx_lock, flag);
 
 	return pctx_hw;
 }
@@ -528,7 +529,8 @@ void *isp_core_pipe_dev_get(void)
 
 	atomic_set(&dev->user_cnt, 1);
 	atomic_set(&dev->enable, 0);
-
+	init_completion(&dev->frm_done);
+	complete(&dev->frm_done);
 	dev->isp_ops = &isp_ops;
 
 	s_isp_dev = dev;

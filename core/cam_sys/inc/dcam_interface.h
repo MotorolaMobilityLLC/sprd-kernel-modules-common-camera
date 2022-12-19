@@ -101,7 +101,6 @@ enum dcam_stop_cmd {
 };
 
 struct dcam_path_cfg_param {
-	uint32_t is_csi_connect;
 	uint32_t offline;
 	uint32_t dcam_path_id;
 	uint32_t slowmotion_count;
@@ -114,7 +113,6 @@ struct dcam_path_cfg_param {
 	uint32_t frm_deci;
 	uint32_t frm_skip;
 	uint32_t pyr_out_fmt;
-	void *priv_size_data;
 	uint32_t endian;
 	struct img_size input_size;
 	struct img_trim input_trim;
@@ -123,8 +121,6 @@ struct dcam_path_cfg_param {
 	struct dcam_mipi_info cap_info;
 	cam_data_cb data_cb_func;
 	void *data_cb_handle;
-	share_buf_get_cb sharebuf_get_cb;
-	void *sharebuf_cb_data;
 	struct sprd_img_rect zoom_ratio_base;
 	reserved_buf_get_cb resbuf_get_cb;
 	void *resbuf_cb_data;

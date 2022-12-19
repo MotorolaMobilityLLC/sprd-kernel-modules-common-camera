@@ -23,6 +23,7 @@
 #include "isp_slice.h"
 #include "cam_node.h"
 #include "cam_buf_manager.h"
+#include "cam_zoom.h"
 
 #ifdef pr_fmt
 #undef pr_fmt
@@ -60,8 +61,10 @@ static void ispport_frame_ret(void *param)
 			pr_err("fail to unmap buffer\n");
 	}
 
-	isp_node_offline_pararm_free(pframe->param_data);
-	pframe->param_data = NULL;
+	if (pframe->zoom_data) {
+		cam_queue_empty_zoom_put(pframe->zoom_data);
+		pframe->zoom_data = NULL;
+	}
 	port->data_cb_func(CAM_CB_ISP_RET_SRC_BUF, pframe, port->data_cb_handle);
 }
 
@@ -115,8 +118,9 @@ static uint32_t ispport_size_cfg(struct isp_port *port, void *param)
 		port->zoom_conflict_with_ltm = cfg_in->zoom_conflict_with_ltm;
 	}
 
-	pr_debug("port %d size %d %d trim %d %d %d %d\n", port->port_id,
-		port->size.w, port->size.h, port->trim.start_x, port->trim.start_y, port->trim.size_x, port->trim.size_y);
+	pr_debug("port %d size %d %d trim %d %d %d %d\n",
+		port->port_id, port->size.w, port->size.h,
+		port->trim.start_x, port->trim.start_y, port->trim.size_x, port->trim.size_y);
 	return 0;
 }
 
@@ -170,56 +174,42 @@ static uint32_t ispport_reserved_buf_set(struct isp_port *port, void *param)
 	return 0;
 }
 
-static int ispport_size_update(struct isp_port *port, void *param)
+static int ispport_zoom_size_update(struct isp_port *port, void *param)
 {
-	struct isp_offline_param *in_param = NULL;
+	int ret = 0;
+	struct isp_port_cfg *port_cfg = NULL;
 	struct camera_frame *pframe = NULL;
-	struct isp_size_desc cfg;
-	uint32_t update[ISP_SPATH_NUM] = {
-	ISP_PATH0_TRIM, ISP_PATH1_TRIM, ISP_PATH2_TRIM};
-	struct img_trim path_trim;
+	struct cam_zoom_base zoom_base = {0};
+	struct cam_zoom_index zoom_index = {0};
 
-	pframe = VOID_PTR_TO(param, struct camera_frame);
-	in_param = (struct isp_offline_param*)pframe->param_data;
+	port_cfg = VOID_PTR_TO(param, struct isp_port_cfg);
 	if (atomic_read(&port->user_cnt) < 1)
 		return 0;
 
-	if (port->type == PORT_TRANSFER_IN) {
-		if(in_param->valid & ISP_SRC_SIZE) {
-			memcpy(&port->original, &in_param->src_info,
-				sizeof(port->original));
-			cfg.size = in_param->src_info.dst_size;
-			cfg.trim.start_x = 0;
-			cfg.trim.start_y = 0;
-			cfg.trim.size_x = cfg.size.w;
-			cfg.trim.size_y = cfg.size.h;
-			port->size = cfg.size;
-			port->trim = cfg.trim;
-			pr_debug("isp sw %d update size: %d %d\n",
-				port->port_id, cfg.size.w, cfg.size.h);
+	pframe = port_cfg->src_frame;
+	if (pframe && pframe->zoom_data) {
+		zoom_index.node_type = CAM_NODE_TYPE_ISP_OFFLINE;
+		zoom_index.node_id = port_cfg->node_id;
+		zoom_index.port_type = port->type;
+		zoom_index.port_id = port->port_id;
+		zoom_index.zoom_data = pframe->zoom_data;
+		ret = cam_zoom_frame_base_get(&zoom_base, &zoom_index);
+		if (!ret) {
+			port->size = zoom_base.dst;
+			port->trim = zoom_base.crop;
+		}
+		if (port->type == PORT_TRANSFER_IN) {
 			if (pframe->blkparam_info.param_block) {
 				pframe->blkparam_info.param_block->src_w = port->size.w;
 				pframe->blkparam_info.param_block->src_h = port->size.h;
 			}
 		}
+		CAM_ZOOM_DEBUG("frame %d ret %d type %d id %d size %d %d trim %d %d %d %d\n", pframe->fid,
+			ret, port->type, port->port_id, port->size.w, port->size.h, port->trim.start_x,
+			port->trim.start_y, port->trim.size_x, port->trim.size_y);
 	}
 
-	if (port->type == PORT_TRANSFER_OUT && (port->port_id == PORT_PRE_OUT || port->port_id == PORT_VID_OUT)) {
-		if (in_param->valid & update[port->port_id])
-			path_trim = in_param->trim_path[port->port_id];
-		else if (in_param->valid & ISP_SRC_SIZE) {
-			path_trim.start_x = path_trim.start_y = 0;
-			path_trim.size_x = in_param->src_info.dst_size.w;
-			path_trim.size_y = in_param->src_info.dst_size.h;
-		} else
-			return 0;
-
-		port->trim = path_trim;
-		pr_debug("update isp port%d trim %d %d %d %d\n",
-			port->port_id, path_trim.start_x, path_trim.start_y,
-			path_trim.size_x, path_trim.size_y);
-	}
-	return 0;
+	return ret;
 }
 
 static int ispport_fetchport_postproc(struct isp_port *port, void *param)
@@ -245,6 +235,10 @@ static int ispport_fetchport_postproc(struct isp_port *port, void *param)
 		post_param->total_zoom = pframe->total_zoom;
 		if (pframe->buf.mapping_state & CAM_BUF_MAPPING_DEV)
 			cam_buf_manager_buf_status_change(&pframe->buf, CAM_BUF_WITH_ION, CAM_IOMMUDEV_MAX);
+		if (pframe->zoom_data) {
+			cam_queue_empty_zoom_put(pframe->zoom_data);
+			pframe->zoom_data = NULL;
+		}
 		port->data_cb_func(CAM_CB_ISP_RET_SRC_BUF, pframe, port->data_cb_handle);
 		pr_debug("port %d, ch_id %d, fid:%d, mfd:%d\n",
 			port->port_id, pframe->channel_id, pframe->fid, pframe->buf.mfd);
@@ -267,19 +261,12 @@ static int ispport_storeport_postproc(struct isp_port *port, void *param)
 		pr_err("fail to get frame from queue. port:%d, path:%d\n", port->port_id);
 		return 0;
 	}
-	pframe->boot_time = *(post_param->boot_time);
-	pframe->time.tv_sec = post_param->cur_ts->tv_sec;
-	pframe->time.tv_usec = post_param->cur_ts->tv_nsec / NSEC_PER_USEC;
 	pframe->zoom_ratio = post_param->zoom_ratio;
 	pframe->total_zoom = post_param->total_zoom;
 
 	pr_debug("port%d, ch_id %d, fid %d, mfd 0x%x, is_reserved %d\n",
 		port->port_id, pframe->channel_id, pframe->fid, pframe->buf.mfd, pframe->is_reserved);
-	pr_debug("time_sensor %03d.%6d, time_isp %03d.%06d\n",
-		(uint32_t)pframe->sensor_time.tv_sec,
-		(uint32_t)pframe->sensor_time.tv_usec,
-		(uint32_t)pframe->time.tv_sec,
-		(uint32_t)pframe->time.tv_usec);
+	pr_debug("time_sensor %03d.%6d\n", (uint32_t)pframe->sensor_time.tv_sec, (uint32_t)pframe->sensor_time.tv_usec);
 
 	if (unlikely(pframe->is_reserved)) {
 		port->resbuf_get_cb(RESERVED_BUF_SET_CB, pframe, port->resbuf_cb_data);
@@ -516,7 +503,7 @@ static int ispport_store_frameproc(struct isp_port *port, struct camera_frame *o
 	}
 
 	if (ret) {
-		isp_int_isp_irq_cnt_trace(port_cfg->hw_ctx_id);
+		isp_int_irq_hw_cnt_trace(port_cfg->hw_ctx_id);
 		pr_err("fail to enqueue, hw %d, port %d\n", port_cfg->hw_ctx_id, port->port_id);
 		/* ret frame to original queue */
 		if (out_frame->is_reserved) {
@@ -767,8 +754,8 @@ static int ispport_fetch_normal_get(void *cfg_in, void *cfg_out,
 
 	port = VOID_PTR_TO(cfg_in, struct isp_port);
 	fetch = (struct isp_hw_fetch_info *)cfg_out;
-	src = &frame->in;
-	intrim = &frame->in_crop;
+	src = &port->size;
+	intrim = &port->trim;
 	pframe_data = (struct camera_frame *)frame->pframe_data;
 	fetch->src = *src;
 	fetch->in_trim = *intrim;
@@ -918,8 +905,8 @@ static int ispport_fbdfetch_yuv_get(void *cfg_in, void *cfg_out, struct camera_f
 	port = VOID_PTR_TO(cfg_in, struct isp_port);
 
 	fbd_yuv->fetch_fbd_bypass = 0;
-	fbd_yuv->slice_size = frame->in;
-	fbd_yuv->trim = frame->in_crop;
+	fbd_yuv->slice_size = port->size;
+	fbd_yuv->trim = port->trim;
 	tile_col = (fbd_yuv->slice_size.w + ISP_FBD_TILE_WIDTH - 1) / ISP_FBD_TILE_WIDTH;
 	tile_row =(fbd_yuv->slice_size.h + ISP_FBD_TILE_HEIGHT - 1) / ISP_FBD_TILE_HEIGHT;
 
@@ -948,9 +935,9 @@ static int ispport_fbdfetch_yuv_get(void *cfg_in, void *cfg_out, struct camera_f
 	fbd_yuv->data_bits = cal_fbc.data_bits;
 
 	pr_debug("fetch_fbd: iova:%x, fid %u 0x%x 0x%x, 0x%x, size %u %u, channel_id:%d, tile_col:%d\n",
-		 frame->buf.iova, frame->fid, fbd_yuv->hw_addr.addr0,
-		 fbd_yuv->hw_addr.addr1, fbd_yuv->hw_addr.addr2,
-		fbd_yuv->slice_size.w, fbd_yuv->slice_size.h, frame->channel_id, fbd_yuv->tile_num_pitch);
+			frame->buf.iova, frame->fid, fbd_yuv->hw_addr.addr0,
+			fbd_yuv->hw_addr.addr1, fbd_yuv->hw_addr.addr2,
+			fbd_yuv->slice_size.w, fbd_yuv->slice_size.h, frame->channel_id, fbd_yuv->tile_num_pitch);
 
 	return 0;
 }
@@ -1215,8 +1202,8 @@ static int ispport_fetch_pipeinfo_get(struct isp_port *port, struct isp_port_cfg
 		pr_err("fail to get pipe fetch info\n");
 		return -EFAULT;
 	}
-	port_cfg->src_size = port_cfg->src_frame->in;
-	port_cfg->src_crop = port_cfg->src_frame->in_crop;
+	port_cfg->src_size = port->size;
+	port_cfg->src_crop = port->trim;
 	return ret;
 }
 
@@ -1244,7 +1231,7 @@ static int ispport_store_pipeinfo_get(struct isp_port *port, struct isp_port_cfg
 		pipe_in->scaler[path_id].in_trim.size_x = port_cfg->src_crop.size_x;
 		pipe_in->scaler[path_id].in_trim.size_y = port_cfg->src_crop.size_y;
 	} else {
-		pipe_in->scaler[path_id].in_trim = port_cfg->src_frame->out_crop[path_id];
+		pipe_in->scaler[path_id].in_trim = port->trim;
 	}
 
 	port->scaler_coeff_ex = port_cfg->scaler_coeff_ex;
@@ -1374,13 +1361,14 @@ static int ispport_start_error(struct isp_port *port, void *param)
 				port->data_cb_func(CAM_CB_DCAM_RET_SRC_BUF, pframe_data, port->data_cb_handle);
 			}
 
-			isp_node_offline_pararm_free(pframe->param_data);
-			pframe->param_data = NULL;
+			if (pframe->zoom_data) {
+				cam_queue_empty_zoom_put(pframe->zoom_data);
+				pframe->zoom_data = NULL;
+			}
 			if (port_cfg->param_share_queue)
 				cam_queue_blk_param_unbind(port_cfg->param_share_queue, pframe);
 			port->data_cb_func(CAM_CB_ISP_RET_SRC_BUF, pframe, port->data_cb_handle);
 		}
-
 	}
 
 	if (port->type == PORT_TRANSFER_OUT) {
@@ -1523,8 +1511,8 @@ static int ispport_cfg_callback(void *param, uint32_t cmd, void *handle)
 
 	port = VOID_PTR_TO(handle, struct isp_port);
 	switch (cmd) {
-	case ISP_PORT_SIZE_UPDATA:
-		ret = ispport_size_update(port, param);
+	case ISP_PORT_SIZE_UPDATE:
+		ret = ispport_zoom_size_update(port, param);
 		break;
 	case ISP_PORT_IRQ_POSTPORC:
 		ret = ispport_port_postproc(port, param);

@@ -220,6 +220,26 @@ static int ispint_err_pre_proc(enum isp_context_hw_id hw_idx, void *isp_handle)
 	return 0;
 }
 
+static void ispint_hist_value_read(struct isp_hw_context *hw_ctx)
+{
+	uint32_t i = 0;
+	uint32_t sum = 0;
+	unsigned long flag = 0;
+
+	if (!hw_ctx) {
+		pr_err("fail to get hw ctx\n");
+		return;
+	}
+
+	spin_lock_irqsave(&hw_ctx->yhist_read_lock, flag);
+	for (i = 0; i < ISP_HIST_VALUE_SIZE; i++) {
+		hw_ctx->yhist_value[i] = ISP_HREG_RD(ISP_HIST_BUF0_CH0 + i * 4);
+		sum += hw_ctx->yhist_value[i];
+	}
+	hw_ctx->yhist_value[i] = sum;
+	spin_unlock_irqrestore(&hw_ctx->yhist_read_lock, flag);
+}
+
 static void ispint_hist_cal_done(enum isp_context_hw_id hw_idx, void *isp_handle)
 {
 	struct isp_pipe_dev *dev = NULL;
@@ -465,6 +485,10 @@ static irqreturn_t ispint_isr_root(int irq, void *priv)
 			interruption->int_status = com.irq_line;
 			interruption->int_status1 = com.irq_line1;
 
+			/* read yhist statics */
+			if (interruption->int_status & (1 << ISP_INT_HIST_CAL_DONE))
+				ispint_hist_value_read(hw_ctx);
+
 			ret = cam_queue_enqueue(&node->isp_interrupt_queue, &interruption->list);
 			if (ret) {
 				pr_err("fail to enqueue int queue cnt %d max%d.\n",
@@ -478,7 +502,21 @@ static irqreturn_t ispint_isr_root(int irq, void *priv)
 	return IRQ_HANDLED;
 }
 
-int isp_int_isp_irq_cnt_trace(int ctx_id)
+int isp_int_irq_hw_cnt_reset(int ctx_id)
+{
+	if (ctx_id < ISP_CONTEXT_HW_NUM)
+		memset(irq_done[ctx_id], 0, sizeof(irq_done[ctx_id]));
+
+#ifdef ISP_INT_RECORD
+	if (ctx_id < ISP_CONTEXT_HW_NUM) {
+		memset(isp_int_recorder[ctx_id][0], 0, sizeof(isp_int_recorder) / ISP_CONTEXT_HW_NUM);
+		memset(int_index[ctx_id], 0, sizeof(int_index) / ISP_CONTEXT_HW_NUM);
+	}
+#endif
+	return 0;
+}
+
+int isp_int_irq_hw_cnt_trace(int ctx_id)
 {
 	int i;
 
@@ -583,7 +621,7 @@ int isp_int_irq_request(struct device *p_dev,
 	return ret;
 }
 
-int isp_int_isp_irq_sw_cnt_reset(int ctx_id)
+int isp_int_irq_sw_cnt_reset(int ctx_id)
 {
 	if (ctx_id < ISP_CONTEXT_SW_NUM)
 		memset(irq_done_sw[ctx_id], 0, sizeof(irq_done_sw[ctx_id]));
@@ -591,7 +629,7 @@ int isp_int_isp_irq_sw_cnt_reset(int ctx_id)
 	return 0;
 }
 
-int isp_int_isp_irq_sw_cnt_trace(int ctx_id)
+int isp_int_irq_sw_cnt_trace(int ctx_id)
 {
 	int i;
 

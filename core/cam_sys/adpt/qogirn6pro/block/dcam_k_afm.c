@@ -98,7 +98,7 @@ int dcam_k_afm_block(struct dcam_isp_k_block *param)
 	if (p->afm_enhanced_lum.afm_gamma_en) {
 		for (i = 0; i < RGB_AFM_GAMMA_POINT_NUM - 1; i++) {
 			val = ((p->afm_enhanced_lum.afm_gamma_curve[i+1] & 0x3FF) | (p->afm_enhanced_lum.afm_gamma_curve[i] & 0x3FF) << 10);
-			DCAM_REG_WR(idx, DCAM_AFM_FGAMMA_TABLE + i * 4, val);
+			DCAM_REG_BWR(idx, DCAM_AFM_FGAMMA_TABLE + i * 4, val);
 		}
 		val = DCAM_REG_RD(idx, DCAM_BUF_CTRL) & BIT_21;
 		DCAM_REG_MWR(idx, DCAM_BUF_CTRL, BIT_21, ~val);

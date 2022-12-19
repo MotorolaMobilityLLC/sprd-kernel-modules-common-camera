@@ -41,7 +41,6 @@ static int dcamoffline_port_size_cfg(void *handle, void *param)
 	port->in_trim = ch_desc->input_trim;
 	port->out_size = ch_desc->output_size;
 	port->out_pitch = dcampath_outpitch_get(port->out_size.w, port->out_fmt);
-	port->priv_size_data = ch_desc->priv_size_data;
 
 	switch (port->port_id) {
 	case PORT_OFFLINE_RAW_OUT:
@@ -195,6 +194,7 @@ static int dcamoffline_port_param_get(void *handle, void *param)
 	}
 
 	frame->link_from.port_id = dcam_port->port_id;
+	frame->cam_fmt = dcam_port->out_fmt;
 	ret = cam_buf_manager_buf_enqueue(&dcam_port->result_pool, frame, NULL);
 	if (ret) {
 		pr_err("fail to enqueue dcam offline port %s frame\n", cam_port_dcam_offline_out_id_name_get(dcam_port->port_id));
@@ -254,7 +254,6 @@ static int dcamoffline_port_param_get(void *handle, void *param)
 	hw_fbc_ctrl->data_bits = cam_data_bits(dcam_port->out_fmt);
 	hw_fbc_ctrl->compress_en = dcam_port->compress_en;
 
-	frame->param_data = dcam_port->priv_size_data;
 	frame->width = dcam_port->out_size.w;
 	frame->height = dcam_port->out_size.h;
 	hw_ctx->hw_path[path_id].need_update = 1;

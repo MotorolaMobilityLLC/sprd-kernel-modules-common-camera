@@ -79,22 +79,6 @@ enum isp_mmu_irq {
 	(1 << RAW_INVALID_ID_R) |             \
 	(1 << RAW_INVALID_ID_W))
 
-#define ISP_INT_LINE_MASK                     \
-	((1 << ISP_INT_ISP_ALL_DONE) |        \
-	(1 << ISP_INT_SHADOW_DONE) |          \
-	(1 << ISP_INT_DISPATCH_DONE) |        \
-	(1 << ISP_INT_STORE_DONE_OUT) |       \
-	(1 << ISP_INT_STORE_DONE_PRE) |       \
-	(1 << ISP_INT_STORE_DONE_VID) |       \
-	(1 << ISP_INT_STORE_DONE_VID_SKIP) |  \
-	(1 << ISP_INT_NR3_ALL_DONE) |         \
-	(1 << ISP_INT_NR3_SHADOW_DONE) |      \
-	(1 << ISP_INT_FMCU_LOAD_DONE) |       \
-	(1 << ISP_INT_FMCU_CMD_X) |           \
-	(1 << ISP_INT_FMCU_SHADOW_DONE) |     \
-	(1 << ISP_INT_FMCU_STORE_DONE) |      \
-	(1 << ISP_INT_HIST_CAL_DONE))
-
 #define ISP_INT_LINE_FMCU_MASK                \
 	((1 << ISP_INT_FMCU_LOAD_DONE) |      \
 	(1 << ISP_INT_FMCU_CONFIG_DONE) |     \
@@ -116,11 +100,12 @@ struct ispint_isr_root {
 	uint32_t irq_line1;
 };
 
-int isp_int_isp_irq_cnt_trace(int ctx_id);
+int isp_int_irq_hw_cnt_reset(int ctx_id);
+int isp_int_irq_hw_cnt_trace(int ctx_id);
 int isp_int_irq_request(struct device *p_dev,
 		uint32_t *irq_no, void *isp_handle);
-int isp_int_isp_irq_sw_cnt_reset(int ctx_id);
-int isp_int_isp_irq_sw_cnt_trace(int ctx_id);
+int isp_int_irq_sw_cnt_reset(int ctx_id);
+int isp_int_irq_sw_cnt_trace(int ctx_id);
 int isp_int_irq_free(struct device *p_dev, void *isp_handle);
 int isp_int_interruption_proc(void *node);
 int isp_int_yuv_scaler_interruption_proc(void *node);

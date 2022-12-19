@@ -70,7 +70,6 @@ struct isp_node_uinfo {
 	uint32_t mode_gtm;
 	uint32_t mode_3dnr;
 	uint32_t slw_state;
-	uint32_t is_dewarping;
 	uint32_t enable_slowmotion;
 	uint32_t slowmotion_240fp_count;
 	uint32_t slowmotion_count;
@@ -85,6 +84,7 @@ struct isp_node_uinfo {
 };
 
 struct isp_node_desc {
+	uint32_t is_dual;
 	uint32_t node_type;
 	uint32_t mode_3dnr;
 	uint32_t mode_ltm;
@@ -123,6 +123,7 @@ struct isp_node {
 	uint32_t node_id;
 	atomic_t user_cnt;
 	uint32_t is_bind;
+	uint32_t is_dual;
 	cam_data_cb data_cb_func;
 	void *data_cb_handle;
 	uint32_t pctx_hw_id;
@@ -176,6 +177,5 @@ void isp_node_close(struct isp_node *node);
 int isp_node_request_proc(struct isp_node *node, void *param);
 uint32_t isp_node_config(void *node, enum isp_node_cfg_cmd cmd, void *param);
 int isp_node_prepare_blk_param(struct isp_node *inode, uint32_t target_fid, struct blk_param_info *out);
-void isp_node_offline_pararm_free(void *param);
 void isp_node_param_buf_destroy(void *param);
 #endif

@@ -23,6 +23,7 @@
 #include "pyr_dec_node.h"
 #include "isp_scaler_node.h"
 #include "dcam_fetch_node.h"
+#include "cam_replace_node.h"
 
 #ifdef pr_fmt
 #undef pr_fmt
@@ -45,12 +46,28 @@ static const char *_CAM_NODE_NAMES[CAM_NODE_TYPE_MAX] = {
 	[CAM_NODE_TYPE_PYR_REC] = "CAM_NODE_TYPE_PYR_REC",
 	[CAM_NODE_TYPE_DUMP] = "CAM_NODE_TYPE_DUMP",
 	[CAM_NODE_TYPE_USER] = "CAM_NODE_TYPE_USER",
+	[CAM_NODE_TYPE_REPLACE] = "CAM_NODE_TYPE_REPLACE",
 	[CAM_NODE_TYPE_DATA_COPY] = "CAM_NODE_TYPE_DATA_COPY",
 };
 
 const char *cam_node_name_get(enum cam_node_type type)
 {
 	return IS_CAM_NODE(type) ? _CAM_NODE_NAMES[type] : "(null)";
+}
+
+static bool camnode_capture_skip_condition(struct camera_frame *pframe,
+	struct cam_capture_param *cap_param)
+{	/* TBD： other scene need cover*/
+	if ((cap_param->cap_scene == CAPTURE_MFSR ||
+		cap_param->cap_scene == CAPTURE_SW3DNR ||
+		cap_param->cap_scene == CAPTURE_HDR) &&
+		(cap_param->cap_user_crop.w != pframe->width ||
+		cap_param->cap_user_crop.h != pframe->height)) {
+		pr_info("cap type[%d], fid %d, frame width %d, latest user crop %d, cap frame %d\n",
+			cap_param->cap_scene, pframe->fid, pframe->width, cap_param->cap_user_crop.w, cap_param->cap_cnt);
+		return false;
+	}
+	return true;
 }
 
 static int camnode_dynamic_link_update(struct cam_node *node, struct camera_frame *pframe)
@@ -70,21 +87,23 @@ static int camnode_dynamic_link_update(struct cam_node *node, struct camera_fram
 	cap_new_link = node->node_graph->outport[cur_port_id].switch_link;
 	cap_param = &node->cap_param;
 
-	pr_debug("node type %s id %d cap type %d, cnt %d, time %lld frame time %lld cur_port_id %d\n",
+	pr_debug("node type %s id %d cap type %d, cnt %d, time %lld frame time %lld cur_port_id %d w %d h %d\n",
 			cam_node_name_get(node->node_graph->type), node->node_graph->id, node->cap_param.cap_type,
 			atomic_read(&node->cap_param.cap_cnt), node->cap_param.cap_timestamp,
-			pframe->boot_sensor_time, cur_port_id);
+			pframe->boot_sensor_time, cur_port_id, pframe->width, pframe->height);
 	switch (node->cap_param.cap_type) {
 	case CAM_CAPTURE_START:
 	case CAM_CAPTURE_START_3DNR:
-		if (pframe->boot_sensor_time >= cap_param->cap_timestamp)
+		if (pframe->boot_sensor_time >= cap_param->cap_timestamp &&
+			camnode_capture_skip_condition(pframe, cap_param))
 			pframe->link_to = cap_new_link;
 		else
 			pframe->link_to = cap_ori_link;
 		break;
 	case CAM_CAPTURE_START_FROM_NEXT_SOF:
 		if (pframe->boot_sensor_time >= cap_param->cap_timestamp &&
-				atomic_read(&cap_param->cap_cnt) > 0) {
+			atomic_read(&cap_param->cap_cnt) > 0 &&
+			camnode_capture_skip_condition(pframe, cap_param)) {
 			pframe->link_to = cap_new_link;
 			atomic_dec(&cap_param->cap_cnt);
 		} else {
@@ -302,6 +321,9 @@ static int camnode_cfg_node_param_dcam_online(void *handle, enum cam_node_cfg_cm
 	in_param = (struct cam_node_cfg_param *)param;
 
 	switch (cmd) {
+	case CAM_NODE_CFG_ZOOM:
+		ret = node->ops.cfg_port_param(node, PORT_ZOOM_CFG_SET, param);
+		break;
 	case CAM_NODE_CFG_BUF:
 		ret = node->ops.cfg_port_param(node, PORT_BUFFER_CFG_SET, param);
 		break;
@@ -314,6 +336,7 @@ static int camnode_cfg_node_param_dcam_online(void *handle, enum cam_node_cfg_cm
 		node->cap_param.cap_cnt = cap_param->cap_cnt;
 		node->cap_param.cap_timestamp = cap_param->cap_timestamp;
 		node->cap_param.cap_scene = cap_param->cap_scene;
+		node->cap_param.cap_user_crop = cap_param->cap_user_crop;
 		pr_info("node: %s id %d cap K_type %d, scene %d, cnt %d, time %lld\n", cam_node_name_get(node->node_graph->type),
 			node->node_graph->id, node->cap_param.cap_type, node->cap_param.cap_scene, atomic_read(&node->cap_param.cap_cnt),
 			node->cap_param.cap_timestamp);
@@ -451,6 +474,7 @@ static int camnode_cfg_node_param_dcam_fetch(void *handle, enum cam_node_cfg_cmd
 		node->cap_param.cap_cnt = cap_param->cap_cnt;
 		node->cap_param.cap_timestamp = cap_param->cap_timestamp;
 		node->cap_param.cap_scene = cap_param->cap_scene;
+		node->cap_param.cap_user_crop = cap_param->cap_user_crop;
 		pr_info("node: %s id %d cap K_type %d, scene %d, cnt %d, time %lld\n", cam_node_name_get(node->node_graph->type),
 			node->node_graph->id, node->cap_param.cap_type, node->cap_param.cap_scene, atomic_read(&node->cap_param.cap_cnt),
 			node->cap_param.cap_timestamp);
@@ -633,6 +657,7 @@ static int camnode_cfg_node_param_frame_cache(void *handle, enum cam_node_cfg_cm
 		node->cap_param.cap_cnt = cap_param->cap_cnt;
 		node->cap_param.cap_timestamp = cap_param->cap_timestamp;
 		node->cap_param.cap_scene = cap_param->cap_scene;
+		node->cap_param.cap_user_crop = cap_param->cap_user_crop;
 		pr_info("node type %s id %d cap type %d, scene %d, cnt %d, time %lld\n", cam_node_name_get(node->node_graph->type),
 			node->node_graph->id, node->cap_param.cap_type, node->cap_param.cap_scene, atomic_read(&node->cap_param.cap_cnt),
 			node->cap_param.cap_timestamp);
@@ -858,6 +883,9 @@ static int camnode_request_proc(void *handle, void *in_param)
 	case CAM_NODE_TYPE_DUMP:
 		ret = cam_dump_node_request_proc(node->handle, node_param);
 		break;
+	case CAM_NODE_TYPE_REPLACE:
+		ret = cam_replace_node_request_proc(node->handle, node_param);
+		break;
 	case CAM_NODE_TYPE_PYR_DEC:
 		ret = pyr_dec_node_request_proc(node->handle, node_param->param);
 		break;
@@ -934,6 +962,19 @@ static int camnode_outbuf_back(void *handle, void *in_param)
 	return ret;
 }
 
+static void *camnode_zoom_callback(void *priv_data)
+{
+	struct cam_node *node = NULL;
+
+	if (!priv_data) {
+		pr_err("fail to get valid param\n");
+		return NULL;
+	}
+
+	node = (struct cam_node *)priv_data;
+	return node->zoom_cb_func(node->data_cb_handle);
+}
+
 static int camnode_data_callback(enum cam_cb_type type, void *param, void *priv_data)
 {
 	int ret = 0;
@@ -972,6 +1013,10 @@ static int camnode_data_callback(enum cam_cb_type type, void *param, void *priv_
 				pframe->dump_en = 1;
 				pframe->dump_node_id = node->node_graph->outport[cur_port_id].dump_node_id;
 			}
+			if (node->node_graph->outport[cur_port_id].replace_en) {
+				pframe->replace_en = 1;
+				pframe->replace_node_id = node->node_graph->outport[cur_port_id].replace_node_id;
+			}
 		}
 		break;
 	case CAM_CB_ISP_RET_SRC_BUF:
@@ -992,6 +1037,10 @@ static int camnode_data_callback(enum cam_cb_type type, void *param, void *priv_
 		if (node->node_graph->dump_en) {
 			pframe->dump_en = 1;
 			pframe->dump_node_id = node->node_graph->dump_node_id;
+		}
+		if (node->node_graph->replace_en) {
+			pframe->replace_en = 1;
+			pframe->replace_node_id = node->node_graph->replace_node_id;
 		}
 		break;
 	default :
@@ -1065,7 +1114,7 @@ exit:
 	return ret;
 }
 
-int cam_node_work_state_get(struct cam_node_topology *param, uint32_t g_dump_en)
+int cam_node_work_state_get(struct cam_node_topology *param, uint32_t g_dump_en, uint32_t *g_replace_en)
 {
 	int is_work = 0;
 
@@ -1083,12 +1132,15 @@ int cam_node_work_state_get(struct cam_node_topology *param, uint32_t g_dump_en)
 			is_work = 1;
 			g_dump_en = 0;
 		}
+		if (param->type == CAM_NODE_TYPE_REPLACE && *g_replace_en) {
+			is_work = 1;
+			*g_replace_en = 0;
+		}
 		break;
 	default :
 		pr_err("fail to get valid state %d\n", param->state);
 		break;
 	}
-
 	return is_work;
 };
 
@@ -1103,6 +1155,8 @@ int cam_node_buffer_alloc(void *handle, struct cam_buf_alloc_desc *param)
 		return -EFAULT;
 	}
 
+	if (node->node_graph->buf_type == CAM_NODE_BUF_USER)
+		return 0;
 	for (i = 0; i < CAM_NODE_PORT_OUT_NUM; i++) {
 		if (!node->outport_list[i])
 			continue;
@@ -1127,7 +1181,7 @@ int cam_node_static_nodelist_get(struct cam_node_topology *param, uint32_t type)
 
 	param->type = type;
 	param->state = CAM_NODE_STATE_WORK;
-	if (type == CAM_NODE_TYPE_DUMP)
+	if (type == CAM_NODE_TYPE_DUMP || type == CAM_NODE_TYPE_REPLACE)
 		param->state = CAM_NODE_STATE_IDLE;
 	cur_inport = &param->inport[0];
 	cur_outport = &param->outport[0];
@@ -1167,6 +1221,7 @@ void *cam_node_creat(struct cam_node_desc *param)
 	node->need_fetch = param->dcam_fetch_desc->virtualsensor;
 	node->data_cb_handle = param->data_cb_handle;
 	node->data_cb_func = param->data_cb_func;
+	node->zoom_cb_func = param->zoom_cb_func;
 	node->ops.cfg_node_param = camnode_cfg_node_param;
 	node->ops.cfg_port_param = camnode_cfg_port_param;
 	node->ops.request_proc = camnode_request_proc;
@@ -1233,6 +1288,9 @@ void *cam_node_creat(struct cam_node_desc *param)
 	case CAM_NODE_TYPE_DUMP:
 		node->handle = cam_dump_node_get(node->node_graph->id, camnode_data_callback, node);
 		break;
+	case CAM_NODE_TYPE_REPLACE:
+		node->handle = cam_replace_node_get(node->node_graph->id, camnode_data_callback, node);
+		break;
 	case CAM_NODE_TYPE_PYR_DEC:
 		param->pyr_dec_desc->data_cb_func = camnode_data_callback;
 		param->pyr_dec_desc->data_cb_handle = node;
@@ -1257,6 +1315,8 @@ void *cam_node_creat(struct cam_node_desc *param)
 	port_desc.dcam_offline_bpcraw = &param->dcam_offline_bpcraw_desc->port_desc;
 	port_desc.isp_offline_scaler = &param->isp_yuv_scaler_desc->port_desc;
 	port_desc.nodes_dev = param->nodes_dev;
+	port_desc.zoom_cb_func = camnode_zoom_callback;
+	port_desc.zoom_cb_handle = node;
 	port_desc.data_cb_func = camnode_data_callback;
 	port_desc.data_cb_handle = node;
 	port_desc.shutoff_cb_func = camnode_shutoff_callback;
@@ -1353,6 +1413,9 @@ void cam_node_destory(struct cam_node *node)
 		break;
 	case CAM_NODE_TYPE_DUMP:
 		cam_dump_node_put(node->handle);
+		break;
+	case CAM_NODE_TYPE_REPLACE:
+		cam_replace_node_put(node->handle);
 		break;
 	case CAM_NODE_TYPE_PYR_DEC:
 		pyr_dec_node_put(node->handle);

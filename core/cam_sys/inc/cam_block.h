@@ -43,7 +43,6 @@ struct dcam_isp_k_block {
 	uint32_t offline;
 	uint32_t frm_idx;
 	uint32_t is_high_fps;
-	uint32_t non_zsl_cap;
 	uint32_t seed0_for_mode1;
 	uint32_t yrandom_mode;
 	uint32_t gtm_calc_mode;
@@ -66,9 +65,9 @@ struct dcam_isp_k_block {
 	struct dcam_dev_3dnr_param nr3;
 	struct dcam_dev_afm_param afm;
 	struct dcam_dev_gamma_param_v1 gamma_info_v1;
-	struct dcam_dev_gtm_param gtm[DCAM_GTM_PARAM_MAX];
+	struct dcam_dev_gtm_param gtm;
 	/* qogirn6pro rgb_gtm blocks*/
-	struct dcam_dev_rgb_gtm_param rgb_gtm[DCAM_GTM_PARAM_MAX];
+	struct dcam_dev_rgb_gtm_param rgb_gtm;
 	/* qogirn6pro bpc blocks*/
 	struct dcam_dev_n6pro_bpc_param bpc_n6pro;
 	struct dcam_dev_lscm_param lscm;
@@ -144,7 +143,7 @@ int dcam_init_lsc(void *param, uint32_t online);
 int dcam_update_lsc(void *param);
 int dcam_k_cfg_blc(struct isp_io_param *param, struct dcam_isp_k_block *p);
 int dcam_k_cfg_raw_gtm(struct isp_io_param *param, struct dcam_isp_k_block *p);
-int dcam_k_raw_gtm_block(uint32_t gtm_param_idx, struct dcam_isp_k_block *p);
+int dcam_k_raw_gtm_block(struct dcam_isp_k_block *p);
 int dcam_k_raw_gtm_slice(uint32_t idx, struct dcam_dev_gtm_slice_info *gtm_slice);
 int dcam_k_gtm_bypass(struct dcam_isp_k_block *param, struct dcam_dev_raw_gtm_bypass *bypass_info);
 int dcam_k_cfg_rgb_gain(struct isp_io_param *param, struct dcam_isp_k_block *p);

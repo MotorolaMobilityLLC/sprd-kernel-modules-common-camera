@@ -14,6 +14,7 @@
 #ifdef CAM_HW_ADPT_LAYER
 
 #include "pyr_dec_int.h"
+#include "isp_int.h"
 
 #define ISP_AXI_STOP_TIMEOUT           1000
 #define COEF_HOR_Y_SIZE                32
@@ -301,8 +302,13 @@ static uint32_t cam_reg_trace_tab[] = {
 static int isphw_reg_trace(void *handle, void *arg)
 {
 	unsigned long addr = 0;
-	uint32_t val_mmu, val[8], i, j, n, cnt;
+	uint32_t j = 0, n = 0, cnt = 0;
+	uint32_t val_mmu = 0, val[8] = {0}, i = 0;
 	struct cam_hw_reg_trace *trace = NULL;
+	uint32_t isp_int_base[ISP_CONTEXT_HW_NUM] = {
+		ISP_P0_INT_BASE, ISP_C0_INT_BASE,
+		ISP_P1_INT_BASE, ISP_C1_INT_BASE,
+	};
 
 	if (arg == NULL) {
 		pr_err("fail to get arg\n");
@@ -377,18 +383,20 @@ abnormal_reg_trace:
 	}
 
 	pr_info("ISP: Register list\n");
-	for (addr = ISP_INT_EN0; addr <= ISP_INT_ALL_DONE_SRC_CTRL;
-		addr += 16) {
-		pr_info("0x%lx: 0x%x 0x%x 0x%x 0x%x\n",
-			addr,
-			ISP_HREG_RD(addr),
-			ISP_HREG_RD(addr + 4),
-			ISP_HREG_RD(addr + 8),
-			ISP_HREG_RD(addr + 12));
+	for (i = 0; i < ISP_CONTEXT_HW_NUM; i++) {
+		for (addr = isp_int_base[i] + ISP_INT_EN0; addr <= isp_int_base[i] + ISP_INT_ALL_DONE_SRC_CTRL;
+			addr += 16) {
+			pr_info("0x%lx: 0x%x 0x%x 0x%x 0x%x\n",
+				addr,
+				ISP_HREG_RD(addr),
+				ISP_HREG_RD(addr + 4),
+				ISP_HREG_RD(addr + 8),
+				ISP_HREG_RD(addr + 12));
+		}
 	}
 
 	pr_info("ISP: Common Register list\n");
-	for (addr = 0x988; addr <= 0x998; addr += 16) {
+	for (addr = 0x988; addr <= 0x9ac; addr += 16) {
 		pr_info("0x%lx: 0x%x 0x%x 0x%x 0x%x\n",
 			addr,
 			ISP_HREG_RD(addr),
@@ -766,7 +774,8 @@ static int isphw_reset(void *handle, void *arg)
 static int isphw_irq_enable(void *handle, void *arg)
 {
 	uint32_t ctx_id;
-	uint32_t mask = ~0;
+	uint32_t mask0 = ISP_INT_LINE_MASK0;
+	uint32_t mask1 = ISP_INT_LINE_MASK1;
 
 	if (!arg) {
 		pr_err("fail to get valid hw\n");
@@ -779,8 +788,8 @@ static int isphw_irq_enable(void *handle, void *arg)
 		return -EFAULT;
 	}
 
-	ISP_HREG_MWR(irq_base[ctx_id] + ISP_INT_EN0, mask, mask);
-	ISP_HREG_MWR(irq_base[ctx_id] + ISP_INT_EN1, mask, mask);
+	ISP_HREG_MWR(irq_base[ctx_id] + ISP_INT_EN0, mask0, mask0);
+	ISP_HREG_MWR(irq_base[ctx_id] + ISP_INT_EN1, mask1, mask1);
 	ISP_HREG_WR(ISP_DEC_INT_BASE + ISP_INT_EN0, PYR_DEC_INT_LINE_MASK);
 
 	return 0;

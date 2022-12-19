@@ -3350,7 +3350,6 @@ void alg_slice_calc_drv_overlap(struct alg_slice_drv_overlap *param_ptr)
 	struct isp_block_drv_t ynr_param;
 	struct isp_block_drv_t cnr_param;
 	struct isp_block_drv_t pyramid_rec_param;
-	struct isp_block_drv_t dewarping_param;
 	struct isp_block_drv_t post_cnr_param;
 	struct isp_block_drv_t nr3d_param;
 	struct isp_block_drv_t yuv420_to_rgb10_param;
@@ -3418,14 +3417,6 @@ void alg_slice_calc_drv_overlap(struct alg_slice_drv_overlap *param_ptr)
 	ov_pipe.ov_right = 0;
 	ov_pipe.ov_up = 0;
 	ov_pipe.ov_down = 0;
-
-	core_drv_dewarping_init_block(&dewarping_param);//dewarping
-	if(0 == param_ptr->dewarping_bypass) {
-		ov_pipe.ov_left = (dewarping_param.left * param_ptr->dewarping_width + 5183) / 5184; // 20M width£º5184
-		ov_pipe.ov_right = (dewarping_param.right * param_ptr->dewarping_width + 5183) / 5184;// 20M width£º5184
-		ov_pipe.ov_up = (dewarping_param.up * param_ptr->dewarping_height + 5183) / 5184; // 20M width£º5184
-		ov_pipe.ov_down = (dewarping_param.down * param_ptr->dewarping_height + 5183) / 5184;// 20M width£º5184
-	}
 
 	core_drv_cnr_init_block(&post_cnr_param);//post_cnr
 	CAL_OVERLAP(param_ptr->post_cnr_bypass, post_cnr_param);

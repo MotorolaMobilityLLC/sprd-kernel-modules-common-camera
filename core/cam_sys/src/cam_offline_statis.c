@@ -201,8 +201,7 @@ int camoffline_statis_dcam_port_buffer_cfg(
 				ion_buf->type = CAM_BUF_USER;
 				ion_buf->status = CAM_BUF_ALLOC;
 
-				pr_debug("stats %d, mfd %d, off %d\n",
-					stats_type, mfd, ion_buf->offset[0]);
+				pr_debug("stats %d, mfd %d, off %d\n", stats_type, mfd, ion_buf->offset[0]);
 			}
 		}
 		pr_info("done\n");
@@ -228,8 +227,7 @@ int camoffline_statis_dcam_port_buffer_cfg(
 		}
 
 		if (ion_buf == NULL) {
-			pr_err("fail to get statis buf %d, type %d\n",
-					input->type, input->mfd);
+			pr_err("fail to get statis buf %d, type %d\n", input->type, input->mfd);
 			ret = -EINVAL;
 			goto exit;
 		}

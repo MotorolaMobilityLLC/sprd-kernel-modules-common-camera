@@ -2330,8 +2330,6 @@ int isp_init_param_for_overlap_v2(
 	slice_overlap->input_layer_id = layer_num;
 	slice_overlap->img_src_w = slice_overlap->img_w;
 	slice_overlap->img_src_h = slice_overlap->img_h;
-	slice_overlap->uw_sensor = slice_input->calc_dyn_ov.need_dewarping;
-	ISP_OVERLAP_DEBUG("uw_sensor %d\n", slice_overlap->uw_sensor);
 
 	crop_region_w = slice_input->calc_dyn_ov.crop.start_x + slice_input->calc_dyn_ov.crop.size_x;
 	crop_region_h = slice_input->calc_dyn_ov.crop.start_y + slice_input->calc_dyn_ov.crop.size_y;
@@ -2390,21 +2388,14 @@ int isp_init_param_for_overlap_v2(
 	ISP_OVERLAP_DEBUG("isp pyr rec bypass %d layer num %d\n", slice_overlap->pyramid_rec_bypass,
 		slice_overlap->layerNum);
 	/* yuv */
-	slice_overlap->dewarping_bypass = !slice_input->calc_dyn_ov.need_dewarping;
 	if (slice_overlap->pyramid_rec_bypass) {
-		slice_overlap->dewarping_width = slice_overlap->img_w;
-		slice_overlap->dewarping_height = slice_overlap->img_h;
 		slice_overlap->ynr_bypass = 1;
 		slice_overlap->cnr_bypass = 1;
-	} else {
-		slice_overlap->dewarping_width = slice_overlap->img_src_w;
-		slice_overlap->dewarping_height = slice_overlap->img_src_h;
 	}
 
-	ISP_OVERLAP_DEBUG("ltm %d ynr %d ee %d cnr %d dewarp %d cnr_new %d post-cnr %d\n",
+	ISP_OVERLAP_DEBUG("ltm %d ynr %d ee %d cnr %d cnr_new %d post-cnr %d\n",
 		slice_overlap->ltm_sat.bypass, slice_overlap->ynr_bypass, slice_overlap->ee_bypass, slice_overlap->cnr_bypass,
-		slice_overlap->dewarping_bypass, slice_overlap->cnr_new_bypass, slice_overlap->post_cnr_bypass);
-	ISP_OVERLAP_DEBUG("dewarping w %d h %d\n", slice_overlap->dewarping_width, slice_overlap->dewarping_height);
+		slice_overlap->cnr_new_bypass, slice_overlap->post_cnr_bypass);
 
 	/* TBD: 3dnr fbc just temp close */
 	slice_overlap->nr3d_bd_FBC_en = 0;

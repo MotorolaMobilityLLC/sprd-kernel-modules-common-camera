@@ -214,16 +214,26 @@ static void ispint_rgb_ltm_hists_done(enum isp_context_hw_id hw_idx, void *isp_h
 
 static int ispint_err_pre_proc(enum isp_context_hw_id hw_idx, void *isp_handle)
 {
+	uint32_t idx = 0;
 	unsigned long addr = 0;
 	struct isp_pipe_dev *dev = NULL;
 	struct isp_hw_context *pctx_hw = NULL;
+	uint32_t isp_int_base[ISP_CONTEXT_HW_NUM] = {
+		ISP_P0_INT_BASE, ISP_C0_INT_BASE,
+		ISP_P1_INT_BASE, ISP_C1_INT_BASE,
+	};
 
 	dev = (struct isp_pipe_dev *)isp_handle;
 	pctx_hw = &dev->hw_ctx[hw_idx];
+	idx = pctx_hw->cfg_id;
+	if ((idx < 0) || (idx > ISP_CONTEXT_SUPERZOOM)) {
+		pr_err("fail to get sw_id:%d for hw_idx=%d\n", idx, hw_idx);
+		return 0;
+	}
 
 	pr_info("isp hw %d, cfg id:%d\n", hw_idx, pctx_hw->cfg_id);
 	pr_info("ISP: INT Register list\n");
-	for (addr = 0x0; addr <= 0x3C; addr += 16) {
+	for (addr = isp_int_base[hw_idx]; addr <= isp_int_base[hw_idx] + 0x3C; addr += 16) {
 		pr_info("0x%lx: 0x%x 0x%x 0x%x 0x%x\n",
 			addr,
 			ISP_HREG_RD(addr),
@@ -286,10 +296,10 @@ static int ispint_err_pre_proc(enum isp_context_hw_id hw_idx, void *isp_handle)
 
 		pr_info("0x%lx: 0x%x 0x%x 0x%x 0x%x\n",
 			addr,
-			ISP_REG_RD(0, addr),
-			ISP_REG_RD(0, addr + 4),
-			ISP_REG_RD(0, addr + 8),
-			ISP_REG_RD(0, addr + 12));
+			ISP_REG_RD(idx, addr),
+			ISP_REG_RD(idx, addr + 4),
+			ISP_REG_RD(idx, addr + 8),
+			ISP_REG_RD(idx, addr + 12));
 	}
 
 	pr_info("ISP fbd fetch:reg list\n");
@@ -303,10 +313,10 @@ static int ispint_err_pre_proc(enum isp_context_hw_id hw_idx, void *isp_handle)
 
 		pr_info("0x%lx: 0x%x 0x%x 0x%x 0x%x\n",
 			addr,
-			ISP_REG_RD(0, addr),
-			ISP_REG_RD(0, addr + 4),
-			ISP_REG_RD(0, addr + 8),
-			ISP_REG_RD(0, addr + 12));
+			ISP_REG_RD(idx, addr),
+			ISP_REG_RD(idx, addr + 4),
+			ISP_REG_RD(idx, addr + 8),
+			ISP_REG_RD(idx, addr + 12));
 	}
 
 	pr_info("ISP dispatch: register list\n");
@@ -320,10 +330,10 @@ static int ispint_err_pre_proc(enum isp_context_hw_id hw_idx, void *isp_handle)
 			ISP_HREG_RD(addr + 12));
 		pr_info("0x%lx: 0x%x 0x%x 0x%x 0x%x\n",
 			addr,
-			ISP_REG_RD(0, addr),
-			ISP_REG_RD(0, addr + 4),
-			ISP_REG_RD(0, addr + 8),
-			ISP_REG_RD(0, addr + 12));
+			ISP_REG_RD(idx, addr),
+			ISP_REG_RD(idx, addr + 4),
+			ISP_REG_RD(idx, addr + 8),
+			ISP_REG_RD(idx, addr + 12));
 	}
 
 	pr_info("ISP axi: register list\n");
@@ -346,10 +356,10 @@ static int ispint_err_pre_proc(enum isp_context_hw_id hw_idx, void *isp_handle)
 			ISP_HREG_RD(addr + 12));
 		pr_info("0x%lx: 0x%x 0x%x 0x%x 0x%x\n",
 			addr,
-			ISP_REG_RD(0, addr),
-			ISP_REG_RD(0, addr + 4),
-			ISP_REG_RD(0, addr + 8),
-			ISP_REG_RD(0, addr + 12));
+			ISP_REG_RD(idx, addr),
+			ISP_REG_RD(idx, addr + 4),
+			ISP_REG_RD(idx, addr + 8),
+			ISP_REG_RD(idx, addr + 12));
 	}
 
 	for (addr = (ISP_SCALER_VID_BASE + ISP_SCALER_CFG); addr <= (ISP_SCALER_VID_BASE + ISP_SCALER_RES);
@@ -362,10 +372,10 @@ static int ispint_err_pre_proc(enum isp_context_hw_id hw_idx, void *isp_handle)
 			ISP_HREG_RD(addr + 12));
 		pr_info("0x%lx: 0x%x 0x%x 0x%x 0x%x\n",
 			addr,
-			ISP_REG_RD(0, addr),
-			ISP_REG_RD(0, addr + 4),
-			ISP_REG_RD(0, addr + 8),
-			ISP_REG_RD(0, addr + 12));
+			ISP_REG_RD(idx, addr),
+			ISP_REG_RD(idx, addr + 4),
+			ISP_REG_RD(idx, addr + 8),
+			ISP_REG_RD(idx, addr + 12));
 	}
 
 	pr_info("ISP store: register list\n");
@@ -379,10 +389,10 @@ static int ispint_err_pre_proc(enum isp_context_hw_id hw_idx, void *isp_handle)
 			ISP_HREG_RD(addr + 12));
 		pr_info("0x%lx: 0x%x 0x%x 0x%x 0x%x\n",
 			addr,
-			ISP_REG_RD(0, addr),
-			ISP_REG_RD(0, addr + 4),
-			ISP_REG_RD(0, addr + 8),
-			ISP_REG_RD(0, addr + 12));
+			ISP_REG_RD(idx, addr),
+			ISP_REG_RD(idx, addr + 4),
+			ISP_REG_RD(idx, addr + 8),
+			ISP_REG_RD(idx, addr + 12));
 	}
 
 	pr_info("ISP store: register list\n");
@@ -396,10 +406,10 @@ static int ispint_err_pre_proc(enum isp_context_hw_id hw_idx, void *isp_handle)
 			ISP_HREG_RD(addr + 12));
 		pr_info("0x%lx: 0x%x 0x%x 0x%x 0x%x\n",
 			addr,
-			ISP_REG_RD(0, addr),
-			ISP_REG_RD(0, addr + 4),
-			ISP_REG_RD(0, addr + 8),
-			ISP_REG_RD(0, addr + 12));
+			ISP_REG_RD(idx, addr),
+			ISP_REG_RD(idx, addr + 4),
+			ISP_REG_RD(idx, addr + 8),
+			ISP_REG_RD(idx, addr + 12));
 	}
 
 	pr_info("ISP 3dnr: register list\n");
@@ -412,10 +422,10 @@ static int ispint_err_pre_proc(enum isp_context_hw_id hw_idx, void *isp_handle)
 			ISP_HREG_RD(addr + 12));
 		pr_info("0x%lx: 0x%x 0x%x 0x%x 0x%x\n",
 			addr,
-			ISP_REG_RD(0, addr),
-			ISP_REG_RD(0, addr + 4),
-			ISP_REG_RD(0, addr + 8),
-			ISP_REG_RD(0, addr + 12));
+			ISP_REG_RD(idx, addr),
+			ISP_REG_RD(idx, addr + 4),
+			ISP_REG_RD(idx, addr + 8),
+			ISP_REG_RD(idx, addr + 12));
 	}
 
 	pr_info("ISP 3dnr store: register list\n");
@@ -428,10 +438,10 @@ static int ispint_err_pre_proc(enum isp_context_hw_id hw_idx, void *isp_handle)
 			ISP_HREG_RD(addr + 12));
 		pr_info("0x%lx: 0x%x 0x%x 0x%x 0x%x\n",
 			addr,
-			ISP_REG_RD(0, addr),
-			ISP_REG_RD(0, addr + 4),
-			ISP_REG_RD(0, addr + 8),
-			ISP_REG_RD(0, addr + 12));
+			ISP_REG_RD(idx, addr),
+			ISP_REG_RD(idx, addr + 4),
+			ISP_REG_RD(idx, addr + 8),
+			ISP_REG_RD(idx, addr + 12));
 	}
 
 	pr_info("ISP 3dnr crop: register list\n");
@@ -444,10 +454,10 @@ static int ispint_err_pre_proc(enum isp_context_hw_id hw_idx, void *isp_handle)
 			ISP_HREG_RD(addr + 12));
 		pr_info("0x%lx: 0x%x 0x%x 0x%x 0x%x\n",
 			addr,
-			ISP_REG_RD(0, addr),
-			ISP_REG_RD(0, addr + 4),
-			ISP_REG_RD(0, addr + 8),
-			ISP_REG_RD(0, addr + 12));
+			ISP_REG_RD(idx, addr),
+			ISP_REG_RD(idx, addr + 4),
+			ISP_REG_RD(idx, addr + 8),
+			ISP_REG_RD(idx, addr + 12));
 	}
 
 	return 0;
@@ -722,7 +732,7 @@ static irqreturn_t ispint_isr_root(int irq, void *priv)
 	return IRQ_HANDLED;
 }
 
-int isp_int_isp_irq_cnt_reset(int ctx_id)
+int isp_int_irq_hw_cnt_reset(int ctx_id)
 {
 	if (ctx_id < ISP_CONTEXT_HW_NUM)
 		memset(irq_done[ctx_id], 0, sizeof(irq_done[ctx_id]));
@@ -736,7 +746,7 @@ int isp_int_isp_irq_cnt_reset(int ctx_id)
 	return 0;
 }
 
-int isp_int_isp_irq_cnt_trace(int ctx_id)
+int isp_int_irq_hw_cnt_trace(int ctx_id)
 {
 	int i;
 
@@ -843,7 +853,7 @@ int isp_int_irq_request(struct device *p_dev,
 	return ret;
 }
 
-int isp_int_isp_irq_sw_cnt_reset(int ctx_id)
+int isp_int_irq_sw_cnt_reset(int ctx_id)
 {
 	if (ctx_id < ISP_CONTEXT_SW_NUM)
 		memset(irq_done_sw[ctx_id], 0, sizeof(irq_done_sw[ctx_id]));
@@ -851,7 +861,7 @@ int isp_int_isp_irq_sw_cnt_reset(int ctx_id)
 	return 0;
 }
 
-int isp_int_isp_irq_sw_cnt_trace(int ctx_id)
+int isp_int_irq_sw_cnt_trace(int ctx_id)
 {
 	int i;
 

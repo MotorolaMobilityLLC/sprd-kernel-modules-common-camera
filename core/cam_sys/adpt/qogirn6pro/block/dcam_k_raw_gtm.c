@@ -64,8 +64,7 @@ int dcam_k_raw_gtm_slice(uint32_t idx, struct dcam_dev_gtm_slice_info *gtm_slice
 	return ret;
 }
 
-int dcam_k_raw_gtm_block(uint32_t gtm_param_idx,
-	struct dcam_isp_k_block *param)
+int dcam_k_raw_gtm_block(struct dcam_isp_k_block *param)
 {
 	int ret = 0;
 	unsigned int i = 0;
@@ -76,7 +75,7 @@ int dcam_k_raw_gtm_block(uint32_t gtm_param_idx,
 	struct dcam_hw_context *hw_ctx = NULL;
 	struct dcam_dev_rgb_gtm_param *gtm = NULL;
 
-	gtm = &param->rgb_gtm[gtm_param_idx];
+	gtm = &param->rgb_gtm;
 	dev = (struct dcam_pipe_dev *)param->dev;
 	hw_ctx = &dev->hw_ctx[idx];
 	p = &(gtm->rgb_gtm_info);
@@ -84,8 +83,8 @@ int dcam_k_raw_gtm_block(uint32_t gtm_param_idx,
 	if (idx >= DCAM_HW_CONTEXT_MAX)
 		return 0;
 
-	pr_debug("dcam%d gtm_param_idx %d update_en %d map_bypass %d stat_bypass %d\n",
-		idx, gtm_param_idx, gtm->update_en, p->bypass_info.gtm_map_bypass, p->bypass_info.gtm_hist_stat_bypass);
+	pr_debug("dcam%d map_bypass %d stat_bypass %d\n",
+		idx, p->bypass_info.gtm_map_bypass, p->bypass_info.gtm_hist_stat_bypass);
 
 	if (g_dcam_bypass[idx] & (1 << _E_GTM)) {
 		p->bypass_info.gtm_map_bypass = 1;
@@ -207,7 +206,7 @@ int dcam_k_raw_gtm_block(uint32_t gtm_param_idx,
 
 	for (i = 0; i < GTM_HIST_XPTS_CNT / 2; i += 2) {
 		val = ((p->tm_hist_xpts[i] & 0x3FFF) << 16) | (p->tm_hist_xpts[i + 1] & 0x3FFF);
-		DCAM_REG_WR(idx, GTM_HIST_XPTS_0 + i * 2, val);
+		DCAM_REG_BWR(idx, GTM_HIST_XPTS_0 + i * 2, val);
 	}
 
 	/* for slice */
@@ -285,7 +284,6 @@ int dcam_k_gtm_bypass(struct dcam_isp_k_block *param, struct dcam_dev_raw_gtm_by
 int dcam_k_cfg_raw_gtm(struct isp_io_param *param, struct dcam_isp_k_block *p)
 {
 	int ret = 0;
-	uint32_t gtm_param_idx = DCAM_GTM_PARAM_MAX;
 	struct dcam_dev_rgb_gtm_block_info *gtm_block = NULL;
 	struct cam_gtm_mapping map_param = {0};
 	struct dcam_dev_raw_gtm_bypass *gtm_bypass = NULL;
@@ -293,16 +291,7 @@ int dcam_k_cfg_raw_gtm(struct isp_io_param *param, struct dcam_isp_k_block *p)
 
 	switch (param->property) {
 	case DCAM_PRO_GTM_BLOCK:
-		if (param->scene_id == PM_SCENE_CAP) {
-			gtm_param_idx = DCAM_GTM_PARAM_CAP;
-			gtm_block = &p->rgb_gtm[DCAM_GTM_PARAM_CAP].rgb_gtm_info;
-		} else if (param->scene_id == PM_SCENE_PRE || param->scene_id == PM_SCENE_VID) {
-			gtm_param_idx = DCAM_GTM_PARAM_PRE;
-			gtm_block = &p->rgb_gtm[DCAM_GTM_PARAM_PRE].rgb_gtm_info;
-		} else {
-			pr_debug("gtm block do not support, scene id %d\n", param->scene_id);
-			break;
-		}
+		gtm_block = &p->rgb_gtm.rgb_gtm_info;
 		if (p->offline == 0) {
 			ret = copy_from_user((void *)(gtm_block), param->property_param, sizeof(struct dcam_dev_rgb_gtm_block_info));
 			if (ret) {
@@ -315,7 +304,7 @@ int dcam_k_cfg_raw_gtm(struct isp_io_param *param, struct dcam_isp_k_block *p)
 			if (p->idx == DCAM_HW_CONTEXT_MAX)
 				return 0;
 
-			dcam_k_raw_gtm_block(gtm_param_idx, p);
+			dcam_k_raw_gtm_block(p);
 		} else {
 			mutex_lock(&p->param_lock);
 			ret = copy_from_user((void *)(gtm_block), param->property_param, sizeof(struct dcam_dev_rgb_gtm_block_info));
@@ -331,15 +320,7 @@ int dcam_k_cfg_raw_gtm(struct isp_io_param *param, struct dcam_isp_k_block *p)
 		}
 		break;
 	case DCAM_PRO_GTM_MAPPING:
-		if (param->scene_id == PM_SCENE_CAP) {
-			gtm_block = &p->rgb_gtm[DCAM_GTM_PARAM_CAP].rgb_gtm_info;
-		} else if (param->scene_id == PM_SCENE_PRE || param->scene_id == PM_SCENE_VID) {
-			gtm_block = &p->rgb_gtm[DCAM_GTM_PARAM_PRE].rgb_gtm_info;
-		} else {
-			pr_debug("gtm mapping do not support, scene id %d\n", param->scene_id);
-			break;
-		}
-
+		gtm_block = &p->rgb_gtm.rgb_gtm_info;
 		pr_debug("get mapping info, scene_id %d, offline %d\n", param->scene_id, p->offline);
 
 		ret = copy_from_user((void *)&map_param, param->property_param, sizeof(struct cam_gtm_mapping));
@@ -365,17 +346,7 @@ int dcam_k_cfg_raw_gtm(struct isp_io_param *param, struct dcam_isp_k_block *p)
 
 		break;
 	case DCAM_PRO_GTM_BYPASS:
-		if (param->scene_id == PM_SCENE_CAP) {
-			gtm_param_idx = DCAM_GTM_PARAM_CAP;
-			gtm_bypass = &p->rgb_gtm[DCAM_GTM_PARAM_CAP].rgb_gtm_info.bypass_info;
-		} else if (param->scene_id == PM_SCENE_PRE || param->scene_id == PM_SCENE_VID) {
-			gtm_param_idx = DCAM_GTM_PARAM_PRE;
-			gtm_bypass = &p->rgb_gtm[DCAM_GTM_PARAM_PRE].rgb_gtm_info.bypass_info;
-		} else {
-			pr_debug("gtm block do not support, scene id %d\n", param->scene_id);
-			break;
-		}
-
+		gtm_bypass = &p->rgb_gtm.rgb_gtm_info.bypass_info;
 		ret = copy_from_user((void *)gtm_bypass, param->property_param, sizeof(struct dcam_dev_raw_gtm_bypass));
 		if (ret) {
 			pr_err("fail to copy, ret=0x%x\n", (unsigned int)ret);
@@ -389,15 +360,7 @@ int dcam_k_cfg_raw_gtm(struct isp_io_param *param, struct dcam_isp_k_block *p)
 		dcam_k_gtm_bypass(p, gtm_bypass);
 		break;
 	case DCAM_PRO_GTM_CALC_MODE:
-		if (param->scene_id == PM_SCENE_CAP) {
-			calc_mode = &p->rgb_gtm[DCAM_GTM_PARAM_CAP].gtm_calc_mode;
-		} else if (param->scene_id == PM_SCENE_PRE || param->scene_id == PM_SCENE_VID) {
-			calc_mode = &p->rgb_gtm[DCAM_GTM_PARAM_PRE].gtm_calc_mode;
-		} else {
-			pr_debug("gtm block do not support, scene id %d\n", param->scene_id);
-			break;
-		}
-
+		calc_mode = &p->rgb_gtm.gtm_calc_mode;
 		ret = copy_from_user((void *)calc_mode, param->property_param, sizeof(uint32_t));
 		if (ret) {
 			pr_err("fail to copy, ret=0x%x\n", (unsigned int)ret);

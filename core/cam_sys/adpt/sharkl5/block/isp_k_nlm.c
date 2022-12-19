@@ -335,7 +335,7 @@ int isp_k_cfg_nlm(struct isp_io_param *param,
 		isp_k_param->nlm_info_base.isupdate = 1;
 		break;
 	case ISP_PRO_NLM_IMBLANCE:
-		ret = copy_from_user((void *)&imblance_info,
+		ret = copy_from_user((void *)imblance_info,
 			(void __user *)param->property_param,
 			sizeof(struct isp_dev_nlm_imblance));
 		if (ret != 0) {

@@ -840,12 +840,23 @@ extern const unsigned long slowmotion_store_addr[3][4];
 #define DCAM_DUMMY_SLAVE_CFG                            (MM_DCAM_AXIMMU_BASE + 0x00ACUL)
 
 /* DCAM AXIM registers define 2 */
-#define DCAM_MMU_VERSION                         (0x0000UL)
-#define DCAM_MMU_EN                              (0x0004UL)
-#define DCAM_MMU_INT_EN                          (0x00A0UL)
-#define DCAM_MMU_INT_CLR                         (0x00A4UL)
-#define DCAM_MMU_INT_STS                         (0x00A8UL)
-#define DCAM_MMU_INT_RAW                         (0x00ACUL)
+#define DCAM_MMU_VERSION                                (0x0000UL)
+#define DCAM_MMU_EN                                     (0x0004UL)
+#define DCAM_MMU_VPN_PAOR_RD                            (0x0044UL)
+#define DCAM_MMU_VPN_PAOR_WR                            (0x0048UL)
+#define DCAM_MMU_PPN_PAOR_RD                            (0x004CUL)
+#define DCAM_MMU_PPN_PAOR_WR                            (0x0050UL)
+#define DCAM_MMU_OR_ADDR_RD                             (0x0054UL)
+#define DCAM_MMU_OR_ADDR_WR                             (0x0058UL)
+#define DCAM_MMU_INV_ADDR_RD                            (0x005CUL)
+#define DCAM_MMU_INV_ADDR_WR                            (0x0060UL)
+#define DCAM_MMU_UNS_ADDR_RD                            (0x0064UL)
+#define DCAM_MMU_UNS_ADDR_WR                            (0x0068UL)
+#define DCAM_MMU_DEBUG_USER                             (0x0074UL)
+#define DCAM_MMU_INT_EN                                 (0x00A0UL)
+#define DCAM_MMU_INT_CLR                                (0x00A4UL)
+#define DCAM_MMU_INT_STS                                (0x00A8UL)
+#define DCAM_MMU_INT_RAW                                (0x00ACUL)
 
 /* buffer addr map */
 #define GTM_HIST_XPTS                                   (0x0600UL)
@@ -958,96 +969,98 @@ extern const unsigned long slowmotion_store_addr[3][4];
 #define DCAM_PHYS_ADDR(idx)                             (g_dcam_phys_base[idx])
 #define DCAM_GET_REG(idx, reg)                          (DCAM_PHYS_ADDR(idx) + (reg))
 
-#define DCAM_REG_WR(idx, reg, val) ({                                                \
-	unsigned long __flags;                                                       \
-	spin_lock_irqsave(&g_reg_wr_lock, __flags);                                  \
-	(REG_WR(DCAM_BASE(idx)+(reg), (val)));                                   \
-	spin_unlock_irqrestore(&g_reg_wr_lock, __flags);                                 \
+#define DCAM_REG_WR(idx, reg, val) ({                                    \
+	unsigned long __flags;                                               \
+	spin_lock_irqsave(&g_reg_wr_lock, __flags);                          \
+	(REG_WR(DCAM_BASE(idx)+(reg), (val)));                               \
+	spin_unlock_irqrestore(&g_reg_wr_lock, __flags);                     \
 })
 
-#define DCAM_REG_RD(idx, reg) ({                                          \
-	unsigned long __flags;                                                       \
-	uint32_t val;                                                       \
-	spin_lock_irqsave(&g_reg_wr_lock, __flags);                                  \
-	val = (REG_RD(DCAM_BASE(idx)+(reg)));                                          \
-	spin_unlock_irqrestore(&g_reg_wr_lock, __flags);                                 \
-	val;                                        \
+#define DCAM_REG_BWR(idx, reg, val)                  (REG_WR(DCAM_BASE(idx)+(reg), (val)));
+
+#define DCAM_REG_RD(idx, reg) ({                                         \
+	uint32_t val;                                                        \
+	unsigned long __flags;                                               \
+	spin_lock_irqsave(&g_reg_wr_lock, __flags);                          \
+	val = (REG_RD(DCAM_BASE(idx)+(reg)));                                \
+	spin_unlock_irqrestore(&g_reg_wr_lock, __flags);                     \
+	val;                                                                 \
 })
 
-#define DCAM_REG_MWR(idx, reg, msk, val) ({                               \
-	unsigned long __flags;                                                       \
-	spin_lock_irqsave(&g_reg_wr_lock, __flags);                                  \
-	(REG_WR(DCAM_BASE(idx)+(reg), ((val) & (msk)) | (REG_RD(DCAM_BASE(idx)+(reg)) & (~(msk)))));            \
-	spin_unlock_irqrestore(&g_reg_wr_lock, __flags);                                 \
+#define DCAM_REG_MWR(idx, reg, msk, val) ({                              \
+	unsigned long __flags;                                               \
+	spin_lock_irqsave(&g_reg_wr_lock, __flags);                          \
+	(REG_WR(DCAM_BASE(idx)+(reg), ((val) & (msk)) | (REG_RD(DCAM_BASE(idx)+(reg)) & (~(msk)))));    \
+	spin_unlock_irqrestore(&g_reg_wr_lock, __flags);                     \
 })
 
-#define DCAM_AXIM_WR(id, reg, val) ({                                 \
-	unsigned long __flags;                                                       \
-	spin_lock_irqsave(&g_reg_wr_lock, __flags);                                  \
+#define DCAM_AXIM_WR(id, reg, val) ({                                    \
+	unsigned long __flags;                                               \
+	spin_lock_irqsave(&g_reg_wr_lock, __flags);                          \
 	(REG_WR(DCAM_AXIM_BASE(id)+(reg), (val)));                           \
-	spin_unlock_irqrestore(&g_reg_wr_lock, __flags);                                 \
+	spin_unlock_irqrestore(&g_reg_wr_lock, __flags);                     \
 })
 
 #define DCAM_AXIM_RD(id, reg) ({                                         \
-	unsigned long __flags;                                                       \
-	uint32_t val;                                                       \
-	spin_lock_irqsave(&g_reg_wr_lock, __flags);                                  \
-	val = (REG_RD(DCAM_AXIM_BASE(id) + (reg)));                                          \
-	spin_unlock_irqrestore(&g_reg_wr_lock, __flags);                                 \
-	val;                                        \
+	uint32_t val;                                                        \
+	unsigned long __flags;                                               \
+	spin_lock_irqsave(&g_reg_wr_lock, __flags);                          \
+	val = (REG_RD(DCAM_AXIM_BASE(id) + (reg)));                          \
+	spin_unlock_irqrestore(&g_reg_wr_lock, __flags);                     \
+	val;                                                                 \
 })
 
-#define DCAM_AXIM_MWR(id, reg, msk, val) ({                               \
-	unsigned long __flags;                                                       \
-	spin_lock_irqsave(&g_reg_wr_lock, __flags);                                  \
-	(REG_WR(DCAM_AXIM_BASE(id)+(reg), ((val) & (msk)) | (REG_RD(DCAM_AXIM_BASE(id)+(reg)) & (~(msk)))));            \
-	spin_unlock_irqrestore(&g_reg_wr_lock, __flags);                                 \
+#define DCAM_AXIM_MWR(id, reg, msk, val) ({                              \
+	unsigned long __flags;                                               \
+	spin_lock_irqsave(&g_reg_wr_lock, __flags);                          \
+	(REG_WR(DCAM_AXIM_BASE(id)+(reg), ((val) & (msk)) | (REG_RD(DCAM_AXIM_BASE(id)+(reg)) & (~(msk)))));    \
+	spin_unlock_irqrestore(&g_reg_wr_lock, __flags);                     \
 })
 
-#define DCAM_MMU_WR(reg, val) ({                                          \
-	unsigned long __flags;                                                       \
-	spin_lock_irqsave(&g_reg_wr_lock, __flags);                                  \
-	(REG_WR(DCAM_MMU_BASE+(reg), (val)));                           \
-	spin_unlock_irqrestore(&g_reg_wr_lock, __flags);                                 \
+#define DCAM_MMU_WR(reg, val) ({                                         \
+	unsigned long __flags;                                               \
+	spin_lock_irqsave(&g_reg_wr_lock, __flags);                          \
+	(REG_WR(DCAM_MMU_BASE+(reg), (val)));                                \
+	spin_unlock_irqrestore(&g_reg_wr_lock, __flags);                     \
 })
 
-#define DCAM_MMU_RD(reg) ({                                        \
-	unsigned long __flags;                                                       \
-	uint32_t val;                                                       \
-	spin_lock_irqsave(&g_reg_wr_lock, __flags);                                  \
-	val = (REG_RD(DCAM_MMU_BASE + (reg)));                                          \
-	spin_unlock_irqrestore(&g_reg_wr_lock, __flags);                                 \
-	val;                                        \
+#define DCAM_MMU_RD(reg) ({                                              \
+	uint32_t val;                                                        \
+	unsigned long __flags;                                               \
+	spin_lock_irqsave(&g_reg_wr_lock, __flags);                          \
+	val = (REG_RD(DCAM_MMU_BASE + (reg)));                               \
+	spin_unlock_irqrestore(&g_reg_wr_lock, __flags);                     \
+	val;                                                                 \
 })
 
-#define DCAM_MMU_MWR(reg, msk, val) ({                             \
-	unsigned long __flags;                                                       \
-	spin_lock_irqsave(&g_reg_wr_lock, __flags);                                  \
-	(REG_WR(DCAM_MMU_BASE+(reg), ((val) & (msk)) | (REG_RD(DCAM_MMU_BASE+(reg)) & (~(msk)))));            \
-	spin_unlock_irqrestore(&g_reg_wr_lock, __flags);                                 \
+#define DCAM_MMU_MWR(reg, msk, val) ({                                   \
+	unsigned long __flags;                                               \
+	spin_lock_irqsave(&g_reg_wr_lock, __flags);                          \
+	(REG_WR(DCAM_MMU_BASE+(reg), ((val) & (msk)) | (REG_RD(DCAM_MMU_BASE+(reg)) & (~(msk)))));    \
+	spin_unlock_irqrestore(&g_reg_wr_lock, __flags);                     \
 })
 
-#define DCAM_FMCU_WR(reg, val) ({                                \
-	unsigned long __flags;                                                       \
-	spin_lock_irqsave(&g_reg_wr_lock, __flags);                                  \
-	(REG_WR(DCAM_FMCU_BASE+(reg), (val)));                           \
-	spin_unlock_irqrestore(&g_reg_wr_lock, __flags);                                 \
+#define DCAM_FMCU_WR(reg, val) ({                                        \
+	unsigned long __flags;                                               \
+	spin_lock_irqsave(&g_reg_wr_lock, __flags);                          \
+	(REG_WR(DCAM_FMCU_BASE+(reg), (val)));                               \
+	spin_unlock_irqrestore(&g_reg_wr_lock, __flags);                     \
 })
 
-#define DCAM_FMCU_RD(reg) ({                                              \
-	unsigned long __flags;                                                       \
-	uint32_t val;                                                       \
-	spin_lock_irqsave(&g_reg_wr_lock, __flags);                                     \
-	val = (REG_RD(DCAM_FMCU_BASE + (reg)));                                          \
-	spin_unlock_irqrestore(&g_reg_wr_lock, __flags);                                 \
-	val;                                        \
+#define DCAM_FMCU_RD(reg) ({                                             \
+	uint32_t val;                                                        \
+	unsigned long __flags;                                               \
+	spin_lock_irqsave(&g_reg_wr_lock, __flags);                          \
+	val = (REG_RD(DCAM_FMCU_BASE + (reg)));                              \
+	spin_unlock_irqrestore(&g_reg_wr_lock, __flags);                     \
+	val;                                                                 \
 })
 
-#define DCAM_FMCU_MWR(reg, msk, val) ({                             \
-	unsigned long __flags;                                                       \
-	spin_lock_irqsave(&g_reg_wr_lock, __flags);                                  \
-	(REG_WR(DCAM_FMCU_BASE+(reg), ((val) & (msk)) | (REG_RD(DCAM_FMCU_BASE+(reg)) & (~(msk)))));            \
-	spin_unlock_irqrestore(&g_reg_wr_lock, __flags);                                 \
+#define DCAM_FMCU_MWR(reg, msk, val) ({                                  \
+	unsigned long __flags;                                               \
+	spin_lock_irqsave(&g_reg_wr_lock, __flags);                          \
+	(REG_WR(DCAM_FMCU_BASE+(reg), ((val) & (msk)) | (REG_RD(DCAM_FMCU_BASE+(reg)) & (~(msk)))));    \
+	spin_unlock_irqrestore(&g_reg_wr_lock, __flags);                     \
 })
 
 /* TODO: add DCAM0/1 lsc grid table mapping */

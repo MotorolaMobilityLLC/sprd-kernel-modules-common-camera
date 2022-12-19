@@ -20,8 +20,7 @@
 #ifdef pr_fmt
 #undef pr_fmt
 #endif
-#define pr_fmt(fmt) "cam_queue: %d %d %s : "\
-	fmt, current->pid, __LINE__, __func__
+#define pr_fmt(fmt) "CAM_QUEUE: %d %d %s : " fmt, current->pid, __LINE__, __func__
 
 int cam_queue_enqueue_front(struct camera_queue *q, struct list_head *list)
 {
@@ -206,6 +205,11 @@ int cam_queue_empty_frame_put(struct camera_frame *pframe)
 		return -EINVAL;
 	}
 
+	if (pframe->zoom_data) {
+		cam_queue_empty_zoom_put(pframe->zoom_data);
+		pframe->zoom_data = NULL;
+	}
+
 	memset(pframe, 0, sizeof(struct camera_frame));
 	ret = cam_queue_enqueue(g_empty_frm_q, &pframe->list);
 	if (ret) {
@@ -313,17 +317,107 @@ void cam_queue_empty_interrupt_free(void *param)
 
 void cam_queue_ioninfo_free(void *param)
 {
+	int ret = 0;
 	struct camera_ion_info *ioninfo = NULL;
+	struct dma_buf *dmabuf_p = NULL;
 
 	if (param == NULL) {
 		pr_err("fail to get valid param\n");
 		return;
 	}
 	ioninfo = (struct camera_ion_info *)param;
+	dmabuf_p = ioninfo->ionbuf_copy.dmabuf_p;
 
-	cam_buf_ionbuf_put(ioninfo->pbuf);
+	if (!IS_ERR_OR_NULL(dmabuf_p->file) && virt_addr_valid(dmabuf_p->file)) {
+		pr_warn("warning:ion_buf leak, mfd=%d, dmabuf_p=%p\n", ioninfo->ionbuf_copy.mfd, dmabuf_p);
+		while (dmabuf_p->vmapping_counter > 0) {
+			pr_warn("warning:kmap_buf leak\n");
+			ret = cam_buf_kunmap(&ioninfo->ionbuf_copy);
+			if (ret) {
+				pr_err("fail to unmap\n");
+				break;
+			}
+		}
+		cam_buf_ionbuf_put(&ioninfo->ionbuf_copy);
+	}
+	pr_debug("free ioninfo %p\n", ioninfo);
 	cam_buf_kernel_sys_vfree(ioninfo);
 	ioninfo = NULL;
+}
+
+struct cam_zoom_frame *cam_queue_empty_zoom_get(void)
+{
+	int ret = 0;
+	uint32_t i = 0;
+	struct cam_zoom_frame *pframe = NULL;
+
+	pr_debug("Enter.\n");
+	do {
+		pframe = cam_queue_dequeue(g_empty_zoom_q, struct cam_zoom_frame, list);
+		if (pframe == NULL) {
+			if (in_interrupt()) {
+				/* fast alloc and return for irq handler */
+				pframe = cam_buf_kernel_sys_kzalloc(sizeof(*pframe), GFP_ATOMIC);
+				if (pframe)
+					atomic_inc(&g_mem_dbg->empty_zoom_cnt);
+				else
+					pr_err("fail to alloc memory\n");
+				return pframe;
+			}
+
+			for (i = 0; i < CAM_EMP_Q_LEN_INC; i++) {
+				pframe = cam_buf_kernel_sys_kzalloc(sizeof(*pframe), GFP_KERNEL);
+				if (pframe == NULL) {
+					pr_err("fail to alloc memory, retry\n");
+					continue;
+				}
+				atomic_inc(&g_mem_dbg->empty_zoom_cnt);
+				pr_debug("alloc frame %p\n", pframe);
+				ret = cam_queue_enqueue(g_empty_zoom_q, &pframe->list);
+				if (ret) {
+					/* q full, return pframe directly here */
+					break;
+				}
+				pframe = NULL;
+			}
+			pr_info("alloc %d empty zoom frames, cnt %d\n",
+				i, atomic_read(&g_mem_dbg->empty_zoom_cnt));
+		}
+	} while (pframe == NULL);
+
+	pr_debug("Done. get zoom frame %p\n", pframe);
+	return pframe;
+}
+
+int cam_queue_empty_zoom_put(struct cam_zoom_frame *pframe)
+{
+	int ret = 0;
+	if (pframe == NULL) {
+		pr_err("fail to get valid param\n");
+		return -EINVAL;
+	}
+
+	memset(pframe, 0, sizeof(struct cam_zoom_frame));
+	ret = cam_queue_enqueue(g_empty_zoom_q, &pframe->list);
+	if (ret) {
+		pr_info("queue should be enlarged\n");
+		atomic_dec(&g_mem_dbg->empty_zoom_cnt);
+		cam_buf_kernel_sys_kfree(pframe);
+	}
+	return 0;
+}
+
+void cam_queue_empty_zoom_free(void *param)
+{
+	struct cam_zoom_frame *pframe = NULL;
+
+	pframe = (struct cam_zoom_frame *)param;
+
+	atomic_dec(&g_mem_dbg->empty_zoom_cnt);
+	pr_debug("free zoom frame %p, cnt %d\n", pframe,
+		atomic_read(&g_mem_dbg->empty_zoom_cnt));
+	cam_buf_kernel_sys_kfree(pframe);
+	pframe = NULL;
 }
 
 int cam_queue_recycle_blk_param(struct camera_queue *q, struct camera_frame *param_pframe)
