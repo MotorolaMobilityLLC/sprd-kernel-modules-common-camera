@@ -34,6 +34,7 @@
 #else
 #include <linux/pm_runtime.h>
 #include <linux/pm_domain.h>
+#include <sprd_camsys_domain.h>
 
 extern int sprd_cam_pw_on(struct generic_pm_domain *domain);
 extern int sprd_cam_pw_off(struct generic_pm_domain *domain);
@@ -784,7 +785,8 @@ static int sprd_sensor_file_open(struct inode *node, struct file *file)
 		}
 		sprd_cam_domain_eb();
 #else
-		ret = pm_runtime_get_sync(&p_dev->i2c_info->dev);
+		ret = sprd_glb_mm_pw_on_cfg();
+		pm_runtime_get_sync(&p_dev->i2c_info->dev);
 #endif
 		__pm_stay_awake(p_mod->ws);
 /*		wake_lock(&p_mod->wakelock);*/
@@ -855,6 +857,7 @@ static int sprd_sensor_file_release(struct inode *node, struct file *file)
 		sprd_cam_domain_disable();
 		sprd_cam_pw_off();
 #else
+		sprd_glb_mm_pw_off_cfg();
 		pm_runtime_put_sync(&p_dev->i2c_info->dev);
 #endif
 		__pm_relax(p_mod->ws);

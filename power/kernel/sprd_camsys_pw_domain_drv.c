@@ -27,6 +27,7 @@
 #define pr_fmt(fmt) "sprd_campd: %d %d %s : "\
 	fmt, current->pid, __LINE__, __func__
 
+struct camsys_power_info *pw_info;
 
 static BLOCKING_NOTIFIER_HEAD(mmsys_chain);
 
@@ -59,64 +60,87 @@ static int check_drv_init(struct camsys_power_info *pw_info)
 	return ret;
 }
 
-static int sprd_cam_pw_on(struct generic_pm_domain *domain)
+int sprd_glb_mm_pw_on_cfg(void)
 {
 	int ret = 0;
-	struct camsys_power_info *pw_info;
 
-	pw_info = container_of(domain, struct camsys_power_info, pd);
 	ret = check_drv_init(pw_info);
 	if (ret) {
 		pr_err("fail to check drv init. cb: %p, ret %d\n",
 			__builtin_return_address(0), ret);
 		return -ENODEV;
 	}
+
+	pr_info("power on state %d, cb %p\n", atomic_read(&pw_info->users_pw),
+		__builtin_return_address(0));
+
 	mutex_lock(&pw_info->mlock);
-	ret = pw_info->ops->sprd_cam_pw_on(pw_info);
-	if (ret) {
-		mutex_unlock(&pw_info->mlock);
-		return ret;
-	}
+	if (atomic_inc_return(&pw_info->users_pw) == 1) {
+		ret = pw_info->ops->sprd_cam_pw_on(pw_info);
+		if (ret) {
+			atomic_dec_return(&pw_info->users_pw);
+			mutex_unlock(&pw_info->mlock);
+			return ret;
+		}
 
-	ret  = pw_info->ops->sprd_cam_domain_eb(pw_info);
-	if (ret) {
-		mutex_unlock(&pw_info->mlock);
-		return ret;
-	}
+		ret = pw_info->ops->sprd_cam_domain_eb(pw_info);
+		if (ret) {
+			atomic_dec_return(&pw_info->users_pw);
+			mutex_unlock(&pw_info->mlock);
+			return ret;
+		}
 
-	mmsys_notifier_call_chain(_E_PW_ON, NULL);
+		mmsys_notifier_call_chain(_E_PW_ON, NULL);
+	}
 	mutex_unlock(&pw_info->mlock);
+
 	return ret;
+}
+EXPORT_SYMBOL(sprd_glb_mm_pw_on_cfg);
+
+int sprd_glb_mm_pw_off_cfg(void)
+{
+	int ret = 0;
+
+	ret = check_drv_init(pw_info);
+	if (ret) {
+		pr_err("fail to check drv init. cb: %p, ret %d\n",
+			__builtin_return_address(0), ret);
+		return -ENODEV;
+	}
+
+	pr_info("power off state %d, cb %p\n", atomic_read(&pw_info->users_pw),
+		__builtin_return_address(0));
+
+	mutex_lock(&pw_info->mlock);
+	if (atomic_dec_return(&pw_info->users_pw) == 0) {
+		mmsys_notifier_call_chain(_E_PW_OFF, NULL);
+		ret = pw_info->ops->sprd_cam_domain_disable(pw_info);
+		if (ret) {
+			mutex_unlock(&pw_info->mlock);
+			return ret;
+		}
+
+		ret = pw_info->ops->sprd_cam_pw_off(pw_info);
+		if (ret) {
+			mutex_unlock(&pw_info->mlock);
+			return ret;
+		}
+	}
+	mutex_unlock(&pw_info->mlock);
+
+	return ret;
+}
+EXPORT_SYMBOL(sprd_glb_mm_pw_off_cfg);
+
+static int sprd_cam_pw_on(struct generic_pm_domain *domain)
+{
+	return 0;
 }
 
 static int sprd_cam_pw_off(struct generic_pm_domain *domain)
 {
-	int ret = 0;
-	struct camsys_power_info *pw_info;
-
-	pw_info = container_of(domain, struct camsys_power_info, pd);
-	ret = check_drv_init(pw_info);
-	if (ret) {
-		pr_err("fail to check drv init. cb: %p, ret %d\n",
-			__builtin_return_address(0), ret);
-		return -ENODEV;
-	}
-
-	mutex_lock(&pw_info->mlock);
-	mmsys_notifier_call_chain(_E_PW_OFF, NULL);
-	ret = pw_info->ops->sprd_cam_domain_disable(pw_info);
-	if (ret) {
-		mutex_unlock(&pw_info->mlock);
-		return ret;
-	}
-
-	ret = pw_info->ops->sprd_cam_pw_off(pw_info);
-	if (ret) {
-		mutex_unlock(&pw_info->mlock);
-		return ret;
-	}
-	mutex_unlock(&pw_info->mlock);
-	return ret;
+	return 0;
 }
 
 static const struct of_device_id sprd_campw_match_table[] = {
@@ -150,7 +174,6 @@ static const struct of_device_id sprd_campw_match_table[] = {
 static int sprd_campw_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
-	struct camsys_power_info *pw_info;
 	struct camsys_power_ops *ops = NULL;
 
 	pw_info = devm_kzalloc(&pdev->dev, sizeof(*pw_info), GFP_KERNEL);
@@ -176,6 +199,7 @@ static int sprd_campw_probe(struct platform_device *pdev)
 	of_genpd_add_provider_simple(np, &pw_info->pd);
 	mutex_init(&pw_info->mlock);
 	atomic_set(&pw_info->inited, 1);
+
 	return 0;
 }
 

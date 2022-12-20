@@ -40,6 +40,8 @@
 #include <linux/pm_runtime.h>
 #include <linux/ion.h>
 #endif
+#include <sprd_camsys_domain.h>
+
 #define ROT_DEVICE_NAME "sprd_rotation"
 #define ROT_TIMEOUT      msecs_to_jiffies(5000) /*5000 *//*ms*/
 #define ROTATION_MINOR MISC_DYNAMIC_MINOR
@@ -117,6 +119,7 @@ static int rot_k_open(struct inode *node, struct file *file)
 		goto exit;
 	}
 	#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0))
+	sprd_glb_mm_pw_on_cfg();
 	pm_runtime_get(&rot_private->pdev->dev);
 	#endif
 	fd = vzalloc(sizeof(*fd));
@@ -158,6 +161,7 @@ static int rot_k_release(struct inode *node, struct file *file)
 	wait_for_completion(&rot_private->start_com);
 	complete(&rot_private->start_com);
 	#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0))
+	sprd_glb_mm_pw_off_cfg();
 	pm_runtime_put_autosuspend(&rot_private->pdev->dev);
 	#endif
 

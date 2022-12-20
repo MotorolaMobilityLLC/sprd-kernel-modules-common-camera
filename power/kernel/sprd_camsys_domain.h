@@ -51,6 +51,7 @@ struct camsys_power_ops {
 
 struct camsys_power_info {
 	atomic_t inited;
+	atomic_t users_pw;
 	struct mutex mlock;
 	struct generic_pm_domain pd;
 	struct camsys_power_ops *ops;
@@ -204,4 +205,8 @@ extern  struct camsys_power_ops camsys_power_ops_qogirn6l;
 
 int sprd_mm_pw_notify_register(struct notifier_block *nb);
 int sprd_mm_pw_notify_unregister(struct notifier_block *nb);
+
+int sprd_glb_mm_pw_on_cfg(void);
+int sprd_glb_mm_pw_off_cfg(void);
+
 #endif

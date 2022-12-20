@@ -35,7 +35,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/ion.h>
 #endif
-
+#include <sprd_camsys_domain.h>
 #include "dcam_core.h"
 #include "dcam_buf.h"
 #include "sprd_sensor_drv.h"
@@ -2379,7 +2379,8 @@ static int sprd_img_k_open(struct inode *node, struct file *file)
 
 	camerafile->grp = md->this_device->platform_data;
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0))
-	ret = pm_runtime_get_sync(&camerafile->grp->pdev->dev);
+	ret = sprd_glb_mm_pw_on_cfg();
+	pm_runtime_get_sync(&camerafile->grp->pdev->dev);
 #endif
 	file->private_data = (void *)camerafile;
 	count = camerafile->grp->dcam_count;
@@ -2479,6 +2480,7 @@ static int sprd_img_k_release(struct inode *node, struct file *file)
 	file->private_data = NULL;
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0))
+	sprd_glb_mm_pw_off_cfg();
 	ret = pm_runtime_put_sync(&group->pdev->dev);
 #endif
 

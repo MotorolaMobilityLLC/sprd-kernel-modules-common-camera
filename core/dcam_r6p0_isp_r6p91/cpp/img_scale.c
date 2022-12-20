@@ -35,6 +35,8 @@
 #include <linux/pm_runtime.h>
 #include <linux/ion.h>
 #endif
+#include <sprd_camsys_domain.h>
+
 #define SCALE_DEVICE_NAME "sprd_scale"
 #define SCALE_TIMEOUT             msecs_to_jiffies(5000)/*ms*/
 #define SCALE_MINOR MISC_DYNAMIC_MINOR
@@ -88,6 +90,7 @@ static int scale_k_open(struct inode *node, struct file *file)
 	}
 
 	#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0))
+		sprd_glb_mm_pw_on_cfg();
 		pm_runtime_get(&scale_private->pdev->dev);
 	#endif
 	fd = vzalloc(sizeof(*fd));
@@ -143,6 +146,7 @@ static int scale_k_release(struct inode *node, struct file *file)
 	wait_for_completion(&scale_private->start_com);
 	complete(&scale_private->start_com);
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0))
+	sprd_glb_mm_pw_off_cfg();
 	pm_runtime_put_autosuspend(&scale_private->pdev->dev);
 #endif
 fd_free:

@@ -51,6 +51,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/ion.h>
 #endif
+#include <sprd_camsys_domain.h>
 
 #ifdef pr_fmt
 #undef pr_fmt
@@ -2914,7 +2915,8 @@ static int sprd_img_k_open(struct inode *node, struct file *file)
 	int                      ret = 0;
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0))
-	ret = pm_runtime_get(md->this_device->platform_data);
+	sprd_glb_mm_pw_on_cfg();
+	pm_runtime_get(md->this_device->platform_data);
 #endif
 	if (atomic_read(&s_dcam_cnt) >= 1)
 		return -EBADFD;
@@ -3025,7 +3027,8 @@ static int sprd_img_k_release(struct inode *node, struct file *file)
 	file->private_data = NULL;
 	atomic_dec(&s_dcam_cnt);
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0))
-	ret = pm_runtime_put_autosuspend(md->this_device->platform_data);
+	sprd_glb_mm_pw_off_cfg();
+	pm_runtime_put_autosuspend(md->this_device->platform_data);
 #endif
 exit:
 	pr_info("%s end\n", __func__);

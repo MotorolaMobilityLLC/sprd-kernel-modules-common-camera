@@ -35,6 +35,7 @@ ccflags-y += -I$(srctree)/drivers/staging/android/ion
 # Final Objects
 #
 obj-m := $(KO_MODULE_NAME).o
+EXTRA_CFLAGS += -I$(KO_MODULE_PATH)/../power/kernel
 # Comment it if the only object file has the same name with module
 $(KO_MODULE_NAME)-y := $(patsubst $(src)/%.c,%.o,$(KO_MODULE_SRC))
 

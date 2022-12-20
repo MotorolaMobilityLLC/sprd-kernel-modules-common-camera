@@ -48,6 +48,7 @@
 #include "pyr_dec_node.h"
 #include "sprd_img.h"
 #include "sprd_sensor_drv.h"
+#include <sprd_camsys_domain.h>
 
 #ifdef pr_fmt
 #undef pr_fmt
@@ -4345,7 +4346,8 @@ static int camcore_open(struct inode *node, struct file *file)
 	}
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0))
-	ret = pm_runtime_get_sync(&grp->hw_info->pdev->dev);
+	ret = sprd_glb_mm_pw_on_cfg();
+	pm_runtime_get_sync(&grp->hw_info->pdev->dev);
 #endif
 
 	pr_info("sprd_img: the camera opened count %d, camsec_mode %d\n",
@@ -4463,6 +4465,7 @@ exit:
 	atomic_dec(&grp->camera_opened);
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0))
+	sprd_glb_mm_pw_off_cfg();
 	pm_runtime_put_sync(&grp->hw_info->pdev->dev);
 #endif
 
@@ -4594,7 +4597,8 @@ static int camcore_release(struct inode *node, struct file *file)
 		camthread_stop(&group->recovery_thrd);
 	}
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0))
-	ret = pm_runtime_put_sync(&group->hw_info->pdev->dev);
+	ret = sprd_glb_mm_pw_off_cfg();
+	pm_runtime_put_sync(&group->hw_info->pdev->dev);
 #endif
 	cam_buf_manager_deinit(idx);
 

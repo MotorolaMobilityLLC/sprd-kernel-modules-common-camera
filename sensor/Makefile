@@ -14,6 +14,9 @@ KO_MODULE_KBUILD := $(CURDIR)/Kbuild
 KBUILD_EXTRA_SYMBOLS += $(BSP_MODULES_OUT)/sprd_camera_pd/Module.symvers
 export KBUILD_EXTRA_SYMBOLS
 
+KBUILD_EXTRA_SYMBOLS += $(BSP_MODULES_OUT)/sprd_camsys_pw_domain/Module.symvers
+export KBUILD_EXTRA_SYMBOLS
+
 .PHONY: modules modules_install clean
 
 modules:

@@ -39,6 +39,8 @@
 #include "cpp_reg.h"
 #include "cpp_hw.h"
 
+#include <sprd_camsys_domain.h>
+
 #ifdef pr_fmt
 #undef pr_fmt
 #endif
@@ -118,6 +120,7 @@ static void cppcore_module_disable(struct cpp_device *dev)
 	sprd_cam_domain_disable();
 	sprd_cam_pw_off();
 #else
+	sprd_glb_mm_pw_off_cfg();
 	pm_runtime_put_sync(&dev->pdev->dev);
 	__pm_relax(dev->ws);
 #endif
@@ -199,7 +202,8 @@ static int cppcore_open(struct inode *node, struct file *file)
 	}
 	sprd_cam_domain_eb();
 #else
-	ret = pm_runtime_get_sync(&dev->pdev->dev);
+	ret = sprd_glb_mm_pw_on_cfg();
+	pm_runtime_get_sync(&dev->pdev->dev);
 	if (ret) {
 		pr_err("%s fail to power on cpp\n", __func__);
 		goto fail;

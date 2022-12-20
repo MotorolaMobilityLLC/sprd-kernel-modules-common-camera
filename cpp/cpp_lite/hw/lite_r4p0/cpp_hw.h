@@ -68,7 +68,7 @@ static const char * const syscon_name[] = {
 	"dma_rst"
 };
 
-struct register_gpr {
+struct register_gprr {
 	struct regmap *gpr;
 	uint32_t reg;
 	uint32_t mask;
@@ -86,7 +86,7 @@ struct cpp_hw_soc_info {
 
 	struct clk *clk_mm_vsp_eb;
 
-	struct register_gpr syscon_regs[ARRAY_SIZE(syscon_name)];
+	struct register_gprr syscon_regs[ARRAY_SIZE(syscon_name)];
 };
 
 struct cpp_hw_ip_info {

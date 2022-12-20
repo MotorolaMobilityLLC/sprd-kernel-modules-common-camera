@@ -58,7 +58,7 @@ static const char * const syscon_name[] = {
 	"cpp_rst"
 };
 
-struct register_gpr {
+struct register_gprr {
 	struct regmap *gpr;
 	unsigned int reg;
 	unsigned int mask;
@@ -74,7 +74,7 @@ struct cpp_hw_soc_info {
 	struct clk *cpp_axi_eb;
 	struct clk *clk_mm_eb;
 
-	struct register_gpr syscon_regs[ARRAY_SIZE(syscon_name)];
+	struct register_gprr syscon_regs[ARRAY_SIZE(syscon_name)];
 	//uint32_t awrqos;
 };
 

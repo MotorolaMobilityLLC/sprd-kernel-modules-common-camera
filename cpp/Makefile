@@ -27,6 +27,9 @@ KBUILD_EXTRA_SYMBOLS += $(BSP_MODULES_OUT)/sprd-ion/Module.symvers
 export KBUILD_EXTRA_SYMBOLS
 endif
 
+KBUILD_EXTRA_SYMBOLS += $(BSP_MODULES_OUT)/sprd_camsys_pw_domain/Module.symvers
+export KBUILD_EXTRA_SYMBOLS
+
 .PHONY: modules modules_install clean
 
 modules:
