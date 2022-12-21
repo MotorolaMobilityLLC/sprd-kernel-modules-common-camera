@@ -25,6 +25,18 @@
 /* #include "ion_priv.h" */
 #endif
 
+#ifndef KERNEL_515_TIME_COMPAT
+#define KERNEL_515_TIME_COMPAT
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0))
+typedef struct timespec64 timespec;
+#define ktime_get_ts ktime_get_ts64
+typedef struct __kernel_old_timeval timeval;
+#else
+typedef struct timespec timespec;
+typedef struct timeval timeval;
+#endif
+#endif // ifndef KERNEL_515_TIME_COMPAT
+
 struct dma_buf * cam_ion_alloc(size_t len, unsigned int heap_id_mask,
 					unsigned int flags);
 void cam_ion_free(struct dma_buf *dmabuf);
@@ -44,8 +56,7 @@ int cam_syscon_get_args_by_name(struct device_node *np,
 struct regmap *cam_syscon_regmap_lookup_by_name(
 					struct device_node *np,
 					const char *name);
-struct timespec cam_timespec_sub(struct timespec lhs,
-					struct timespec rhs);
+timespec cam_timespec_sub(timespec lhs, timespec rhs);
 
 
 #endif

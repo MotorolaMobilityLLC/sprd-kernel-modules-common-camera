@@ -14,6 +14,8 @@
 #ifndef _DCAM_CORE_HEADER_
 #define _DCAM_CORE_HEADER_
 
+#include <linux/version.h>
+
 #include "sprd_img.h"
 #include "sprd_mm.h"
 #include "sprd_isp_hw.h"
@@ -35,6 +37,18 @@
 #define CAMERA_HEIGHT(h)                ((h) & ~(CAMERA_PIXEL_ALIGNED - 1))
 
 #define DCAM_TIMEOUT                    1500
+
+#ifndef KERNEL_515_TIME_COMPAT
+#define KERNEL_515_TIME_COMPAT
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0))
+typedef struct timespec64 timespec;
+#define ktime_get_ts ktime_get_ts64
+typedef struct __kernel_old_timeval timeval;
+#else
+typedef struct timespec timespec;
+typedef struct timeval timeval;
+#endif
+#endif // ifndef KERNEL_515_TIME_COMPAT
 
 enum {
 	PATH_IDLE = 0x00,
@@ -69,7 +83,7 @@ struct camera_node {
 	uint32_t frame_id;
 	uint32_t mfd[3];
 	uint32_t reserved[2];
-	struct timeval time;
+	timeval time;
 	ktime_t boot_time;
 	struct sprd_img_vcm_dac_info dac_info;
 };
@@ -191,7 +205,7 @@ struct camera_info {
 	uint32_t frame_index;
 	uint32_t after_af;
 	uint32_t is_smooth_zoom;
-	struct timeval timestamp;
+	timeval timestamp;
 	uint32_t scene_mode;
 	uint32_t is_slow_motion;
 	struct camera_pulse_type pulse_info;
@@ -256,7 +270,7 @@ struct camera_file {
 	uint32_t private_key;
 };
 
-int img_get_timestamp(struct timeval *tv);
+int img_get_timestamp(timeval *tv);
 void gen_frm_timestamp(struct frm_timestamp *pts);
 int sprd_img_start_flash(struct camera_frame *frame, void *param);
 int sprd_camera_stream_off(struct camera_group *group, enum dcam_id idx);

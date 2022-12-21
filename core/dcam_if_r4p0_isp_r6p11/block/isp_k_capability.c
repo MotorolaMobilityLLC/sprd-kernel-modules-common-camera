@@ -12,6 +12,7 @@
  */
 
 #include <linux/uaccess.h>
+#include <linux/version.h>
 
 #include "sprd_mm.h"
 #include "sprd_isp_hw.h"
@@ -25,6 +26,18 @@
 
 #define ISP_MAX_SLICE_WIDTH       4640
 #define ISP_MAX_SLICE_HEIGHT      3488
+
+#ifndef KERNEL_515_TIME_COMPAT
+#define KERNEL_515_TIME_COMPAT
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0))
+typedef struct timespec64 timespec;
+#define ktime_get_ts ktime_get_ts64
+typedef struct __kernel_old_timeval timeval;
+#else
+typedef struct timespec timespec;
+typedef struct timeval timeval;
+#endif
+#endif // ifndef KERNEL_515_TIME_COMPAT
 
 static int isp_k_capability_continue_size(struct isp_capability *param)
 {
@@ -48,7 +61,7 @@ static int isp_k_capability_time(struct isp_capability *param)
 {
 	int ret = 0;
 	struct isp_time time;
-	struct timespec ts;
+	timespec ts;
 
 	ktime_get_ts(&ts);
 	time.sec = ts.tv_sec;

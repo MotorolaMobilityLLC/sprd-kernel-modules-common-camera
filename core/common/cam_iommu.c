@@ -17,9 +17,12 @@
 #include <linux/slab.h>
 #include <linux/sprd_iommu.h>
 #include <linux/sprd_ion.h>
+#include <linux/version.h>
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0))
+#include <uapi/linux/sprd_dmabuf.h>
+#endif
 
 #include "cam_iommu.h"
-
 
 struct fd_map_dma {
 	struct list_head list;
@@ -79,10 +82,17 @@ int pfiommu_get_sg_table(struct pfiommu_info *pfinfo)
 
 	for (i = 0; i < 2; i++) {
 		if (pfinfo->mfd[i] > 0) {
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0))
+			ret = sprd_dmabuf_get_sysbuffer(pfinfo->mfd[i],
+						    NULL,
+						    &pfinfo->buf[i],
+						    &pfinfo->size[i]);
+#else
 			ret = sprd_ion_get_buffer(pfinfo->mfd[i],
 						    NULL,
 						    &pfinfo->buf[i],
 						    &pfinfo->size[i]);
+#endif
 			if (ret) {
 				pr_err("fail to get sg table %d mfd 0x%x\n",
 					i, pfinfo->mfd[i]);
@@ -136,9 +146,15 @@ int pfiommu_get_addr(struct pfiommu_info *pfinfo)
 
 			pfinfo->iova[i] = iommu_data.iova_addr;
 		} else {
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0))
+			ret = sprd_dmabuf_get_phys_addr(-1, pfinfo->dmabuf_p[i],
+					       &pfinfo->iova[i],
+					       &pfinfo->size[i]);
+#else
 			ret = sprd_ion_get_phys_addr(-1, pfinfo->dmabuf_p[i],
 					       &pfinfo->iova[i],
 					       &pfinfo->size[i]);
+#endif
 			pfinfo->iova[i] += pfinfo->offset[i];
 		}
 	}

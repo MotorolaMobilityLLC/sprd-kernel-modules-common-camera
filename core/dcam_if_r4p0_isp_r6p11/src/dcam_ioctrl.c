@@ -1011,7 +1011,7 @@ static int dcamio_get_time(struct camera_file *camerafile, unsigned long arg,
                            uint32_t cmd)
 {
 	int ret = 0;
-	struct timeval time;
+	timeval time;
 	struct sprd_img_time utime;
 
 	DCAM_TRACE("get time\n");

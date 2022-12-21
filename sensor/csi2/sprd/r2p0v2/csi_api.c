@@ -24,6 +24,7 @@
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/mfd/syscon.h>
+#include <linux/version.h>
 
 #include "sprd_mm.h"
 #include "csi_api.h"
@@ -124,7 +125,11 @@ int csi_api_dt_node_init(struct device *dev, struct device_node *dn,
 
 	/* read address */
 	of_address_to_resource(dn, 0, &res);
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0))
+	reg_base = devm_ioremap(dev, res.start, resource_size(&res));
+#else
 	reg_base = devm_ioremap_nocache(dev, res.start, resource_size(&res));
+#endif
 	if (IS_ERR(reg_base))
 		return PTR_ERR(reg_base);
 	csi_info->reg_base = (unsigned long)reg_base;

@@ -53,6 +53,15 @@
 #endif
 #include <sprd_camsys_domain.h>
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0))
+typedef struct timespec64 timespec;
+#define ktime_get_ts ktime_get_ts64
+typedef struct __kernel_old_timeval timeval;
+#else
+typedef struct timespec timespec;
+typedef struct timeval timeval;
+#endif
+
 #ifdef pr_fmt
 #undef pr_fmt
 #endif
@@ -116,7 +125,7 @@ struct dcam_node {
 	uint32_t irq_property;
 	uint32_t frame_id;
 	uint32_t invalid_flag;
-	struct timeval time;
+	timeval time;
 	uint32_t reserved;
 	uint32_t mfd[3];
 };
@@ -203,7 +212,7 @@ struct dcam_info {
 	struct sprd_img_set_flash  set_flash;
 	uint32_t                   after_af;
 	uint32_t                   is_smooth_zoom;
-	struct timeval             timestamp;
+	timeval             timestamp;
 };
 
 struct dcam_dev {
@@ -339,9 +348,9 @@ static struct dcam_format dcam_img_fmt[] = {
 
 #define DISCARD_FRAME_TIME (10000)
 
-static int img_get_timestamp(struct timeval *tv)
+static int img_get_timestamp(timeval *tv)
 {
-	struct timespec ts;
+	timespec ts;
 
 	ktime_get_ts(&ts);
 	tv->tv_sec = ts.tv_sec;
@@ -532,7 +541,7 @@ static int sprd_img_discard_frame(struct camera_frame *frame, void *param)
 	int                                  ret = DCAM_RTN_PARA_ERR;
 	struct dcam_dev          *dev = (struct dcam_dev *)param;
 	struct dcam_info         *info = NULL;
-	struct timeval           timestamp;
+	timeval           timestamp;
 	uint32_t                 flag = 0;
 
 	info = &dev->dcam_cxt;
@@ -3522,7 +3531,7 @@ static long sprd_img_k_ioctl(struct file *file, unsigned int cmd,
 
 	case SPRD_IMG_IO_GET_TIME:
 	{
-		struct timeval           time;
+		timeval           time;
 		struct sprd_img_time     utime;
 
 		DCAM_TRACE("SPRD_IMG_IO_GET_TIME.\n");

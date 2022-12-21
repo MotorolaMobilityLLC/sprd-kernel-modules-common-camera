@@ -22,6 +22,12 @@
 #define pr_fmt(fmt) "cam_porting: %d %d %s : "\
 	fmt, current->pid, __LINE__, __func__
 
+/*kernal 5.15 file operation need import namespace*/
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0))
+#ifdef CONFIG_SPRD_DCAM_DEBUG_RAW
+MODULE_IMPORT_NS(VFS_internal_I_am_really_a_filesystem_and_am_NOT_a_driver);
+#endif
+#endif
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0))
 struct dma_buf * cam_ion_alloc(size_t len, unsigned int heap_id_mask,
@@ -100,12 +106,15 @@ struct regmap *cam_syscon_regmap_lookup_by_name(
 }
 EXPORT_SYMBOL(cam_syscon_regmap_lookup_by_name);
 
-struct timespec cam_timespec_sub(struct timespec lhs,
-					struct timespec rhs)
+timespec cam_timespec_sub(timespec lhs, timespec rhs)
 {
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0))
+	return timespec64_sub(lhs, rhs);
+#else
 	return timespec64_to_timespec(timespec64_sub(
 				timespec_to_timespec64(lhs),
 				timespec_to_timespec64(rhs)));
+#endif
 }
 
 #else
@@ -175,8 +184,7 @@ struct regmap *cam_syscon_regmap_lookup_by_name(
 }
 EXPORT_SYMBOL(cam_syscon_regmap_lookup_by_name);
 
-struct timespec cam_timespec_sub(struct timespec lhs,
-					struct timespec rhs)
+timespec cam_timespec_sub(timespec lhs, timespec rhs)
 {
 	return timespec_sub(lhs, rhs);
 }

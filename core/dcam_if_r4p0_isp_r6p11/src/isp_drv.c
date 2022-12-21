@@ -30,6 +30,9 @@
 #include <video/sprd_mmsys_pw_domain.h>
 #include "ion.h"
 #endif
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0))
+#include <uapi/linux/sprd_dmabuf.h>
+#endif
 #include <linux/mfd/syscon.h>
 #include "cam_porting.h"
 #include "sprd_mm.h"
@@ -654,6 +657,10 @@ static int sprd_isp_stop_nolock(void *isp_handle, int is_post_stop)
 	if (pfiommu_free_addr(&isp_k_param->fetch_pfinfo))
 		pr_err("fail to free isp_k_param->fetch_pfinfo\n");
 	memset(&isp_k_param->fetch_pfinfo, 0, sizeof(struct pfiommu_info));
+
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0))
+	sprd_dmabuf_unmap_kernel(statis_module->img_statis_buf.pfinfo.dmabuf_p[0], &statis_module->img_statis_buf.pfinfo.map);
+#endif
 
 	isp_offline_buf_iommu_unmap(&module->off_desc, ISP_OFF_BUF_BIN);
 	isp_offline_buf_iommu_unmap(&module->off_desc, ISP_OFF_BUF_FULL);
@@ -4517,6 +4524,9 @@ int isp_path_cap_with_vid_set_next_frm(struct isp_pipe_dev *dev)
 	struct isp_buf_queue *p_buf_queue = NULL;
 	int size = 0;
 	void *kaddr;
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0))
+	struct dma_buf_map map;
+#endif
 
 	module = &dev->module_info;
 	path = &module->isp_path[ISP_SCL_CAP];
@@ -4528,7 +4538,12 @@ int isp_path_cap_with_vid_set_next_frm(struct isp_pipe_dev *dev)
 		path->output_frame_count--;
 	}
 	if (frame.pfinfo.buf[0] != NULL) {
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0))
+		sprd_dmabuf_map_kernel(frame.pfinfo.dmabuf_p[0], &map);
+		kaddr = map.vaddr;
+#else
 		kaddr = sprd_ion_map_kernel(frame.pfinfo.dmabuf_p[0], 0);
+#endif
 		size = ((struct ion_buffer *)(frame.pfinfo.buf[0]))->size;
 		if (IS_ERR_OR_NULL(kaddr))
 			pr_err("fail to map kernel memory, err:%ld",

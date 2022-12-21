@@ -77,7 +77,11 @@ int isp_gen_buf_alloc(struct isp_buf_info *buf_info);
 int isp_gen_buf_free(struct isp_buf_info *buf_info);
 int isp_gen_buf_hw_map(struct isp_buf_info *buf_info);
 int isp_gen_buf_hw_unmap(struct isp_buf_info *buf_info);
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0))
+void *isp_buf_get_kaddr(int fd, struct dma_buf_map *map);
+#else
 void *isp_buf_get_kaddr(int fd);
+#endif
 int isp_block_buf_alloc(struct isp_pipe_dev *dev);
 int isp_block_buf_free(struct isp_pipe_dev *dev);
 #endif

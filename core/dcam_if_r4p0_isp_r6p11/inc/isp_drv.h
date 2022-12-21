@@ -19,6 +19,10 @@
 #include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/types.h>
+#include <linux/version.h>
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0))
+#include <uapi/linux/sprd_dmabuf.h>
+#endif
 
 #include "sprd_img.h"
 #include "sprd_isp_hw.h"
@@ -411,6 +415,9 @@ struct isp_buf_info {
 	char name[ISP_BUF_SHORT_NAME_LEN+1];
 	size_t size;
 	struct dma_buf *dmabuf_p;
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0))
+	struct dma_buf_map map;
+#endif
 	void *buf;
 	size_t buf_size;
 	void *sw_addr;
@@ -557,6 +564,9 @@ struct offline_ion_buf {
 	void *buf;
 	size_t buf_size;
 	struct camera_addr addr;
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0))
+	struct dma_buf_map map;
+#endif
 	void *kva; /* kernel virtual address */
 };
 

@@ -26,6 +26,9 @@
 #include <video/sprd_mmsys_pw_domain.h>
 #include "ion.h"
 #endif
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0))
+#include <uapi/linux/sprd_dmabuf.h>
+#endif
 
 #ifdef pr_fmt
 #undef pr_fmt
@@ -632,6 +635,10 @@ int isp_offline_get_buf(struct isp_offline_desc *off_desc, uint8_t off_type)
 	struct camera_frame frame = {0};
 	uint32_t frm_q_len;
 	int heap_t;
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0))
+	const char *heap_name = NULL;
+	struct dma_heap *dmaheap = NULL;
+#endif
 
 	if (!off_desc || get_off_frm_q_len(off_desc, &frm_q_len)) {
 		pr_err("fail to get offline buf is NULL\n");
@@ -670,7 +677,24 @@ int isp_offline_get_buf(struct isp_offline_desc *off_desc, uint8_t off_type)
 			ION_HEAP_ID_MASK_MM :
 			ION_HEAP_ID_MASK_SYSTEM;
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0))
+		if (heap_t == ION_HEAP_ID_MASK_SYSTEM) {
+			heap_name = "system-uncached";
+		} else {
+			heap_name = "carveout_mm";
+		}
+
+		dmaheap = dma_heap_find(heap_name);
+		if (dmaheap == NULL) {
+			pr_err("fail to get dmaheap\n");
+			ret = -ENOMEM;
+			return ret;
+		}
+
+		ion_buf->dmabuf_p = dma_heap_buffer_alloc(dmaheap, buf_desc->buf_len, O_RDWR | O_CLOEXEC, 0);
+#else
 		ion_buf->dmabuf_p = cam_ion_alloc(buf_desc->buf_len, heap_t, 0);
+#endif
 		if (IS_ERR_OR_NULL(ion_buf->dmabuf_p)) {
 			pr_err("fail to alloc ion buf size = 0x%x %ld\n",
 				(int)buf_desc->buf_len,
@@ -678,8 +702,13 @@ int isp_offline_get_buf(struct isp_offline_desc *off_desc, uint8_t off_type)
 			goto err_alloc;
 		}
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0))
+		ret = sprd_dmabuf_get_sysbuffer(-1, ion_buf->dmabuf_p, &ion_buf->buf,
+					  &ion_buf->buf_size);
+#else
 		ret = sprd_ion_get_buffer(-1, ion_buf->dmabuf_p, &ion_buf->buf,
 					  &ion_buf->buf_size);
+#endif
 		if (ret) {
 			pr_err("fail to get ion buf for kernel buffer %p\n",
 				ion_buf->dmabuf_p);
@@ -689,15 +718,28 @@ int isp_offline_get_buf(struct isp_offline_desc *off_desc, uint8_t off_type)
 		pr_debug("dmabuf_p[%p], size 0x%x, heap %d\n",
 			ion_buf->dmabuf_p, (int)buf_desc->buf_len, heap_t);
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0))
+		memset(&ion_buf->map, 0, sizeof(struct dma_buf_map));
+		ret = sprd_dmabuf_map_kernel(ion_buf->dmabuf_p, &ion_buf->map);
+		ion_buf->kva = ion_buf->map.vaddr;
+#else
 		ion_buf->kva = sprd_ion_map_kernel(ion_buf->dmabuf_p, 0);
+#endif
 		if (!ion_buf->kva)
 			goto err_map_kernel;
 
 		if (sprd_iommu_attach_device(&s_isp_pdev->dev)) {
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0))
+			ret = sprd_dmabuf_get_phys_addr(-1,
+			                   ion_buf->dmabuf_p,
+							   &phys_addr,
+							   &buf_len);
+#else
 			ret = sprd_ion_get_phys_addr(-1,
 			                   ion_buf->dmabuf_p,
 							   &phys_addr,
 							   &buf_len);
+#endif
 			if (ret) {
 				pr_err("fail to get phys addr\n");
 				goto err_get_phyaddr;
@@ -727,11 +769,19 @@ int isp_offline_get_buf(struct isp_offline_desc *off_desc, uint8_t off_type)
 err_q_w:
 err_get_phyaddr:
 	ion_buf = &buf_desc->ion_buf[num];
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0))
+	sprd_dmabuf_unmap_kernel(ion_buf->dmabuf_p, 0);
+#else
 	sprd_ion_unmap_kernel(ion_buf->dmabuf_p, 0);
+#endif
 err_map_kernel:
 err_get_buf:
 	ion_buf = &buf_desc->ion_buf[num];
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0))
+	dma_heap_buffer_free(ion_buf->dmabuf_p);
+#else
 	cam_ion_free(ion_buf->dmabuf_p);
+#endif
 	ion_buf->dmabuf_p = NULL;
 	ion_buf->buf = NULL;
 	ion_buf->buf_size = 0;
@@ -739,8 +789,13 @@ err_get_buf:
 err_alloc:
 	for (i = 0; i < num; i++) {
 		ion_buf = &buf_desc->ion_buf[i];
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0))
+		sprd_dmabuf_unmap_kernel(ion_buf->dmabuf_p, 0);
+		dma_heap_buffer_free(ion_buf->dmabuf_p);
+#else
 		sprd_ion_unmap_kernel(ion_buf->dmabuf_p, 0);
 		cam_ion_free(ion_buf->dmabuf_p);
+#endif
 		ion_buf->dmabuf_p = NULL;
 		ion_buf->buf = NULL;
 		ion_buf->buf_size = 0;
@@ -771,8 +826,13 @@ int isp_offline_put_buf(struct isp_offline_desc *off_desc,
 		ion_buf = &buf_desc->ion_buf[num];
 		if (IS_ERR_OR_NULL(ion_buf->dmabuf_p))
 			continue;
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0))
+		sprd_dmabuf_unmap_kernel(ion_buf->dmabuf_p, 0);
+		dma_heap_buffer_free(ion_buf->dmabuf_p);
+#else
 		sprd_ion_unmap_kernel(ion_buf->dmabuf_p, 0);
 		cam_ion_free(ion_buf->dmabuf_p);
+#endif
 		ion_buf->dmabuf_p = NULL;
 		ion_buf->buf = NULL;
 		ion_buf->buf_size = 0;
@@ -1029,6 +1089,10 @@ int isp_gen_buf_alloc(struct isp_buf_info *buf_info)
 	char name[16+ISP_BUF_SHORT_NAME_LEN+1];
 	int iommu_enabled = 0;
 	int heap_type;
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0))
+	const char *heap_name = NULL;
+	struct dma_heap *dmaheap = NULL;
+#endif
 
 	if (!buf_info) {
 		pr_err("fail to get valid buffer info\n");
@@ -1045,7 +1109,24 @@ int isp_gen_buf_alloc(struct isp_buf_info *buf_info)
 			ION_HEAP_ID_MASK_MM :
 			ION_HEAP_ID_MASK_SYSTEM;
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0))
+	if (heap_type == ION_HEAP_ID_MASK_SYSTEM) {
+		heap_name = "system-uncached";
+	} else {
+		heap_name = "carveout_mm";
+	}
+
+	dmaheap = dma_heap_find(heap_name);
+	if (dmaheap == NULL) {
+		pr_err("fail to get dmaheap\n");
+		ret = -ENOMEM;
+		return ret;
+	}
+
+	buf_info->dmabuf_p = dma_heap_buffer_alloc(dmaheap, buf_info->size, O_RDWR | O_CLOEXEC, 0);
+#else
 	buf_info->dmabuf_p = cam_ion_alloc(buf_info->size, heap_type, 0);
+#endif
 	if (IS_ERR_OR_NULL(buf_info->dmabuf_p)) {
 		pr_err("fail to alloc ion buf size = 0x%x %ld\n",
 			(int)buf_info->size,
@@ -1053,10 +1134,17 @@ int isp_gen_buf_alloc(struct isp_buf_info *buf_info)
 		return -ENOMEM;
 	}
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0))
+	ret = sprd_dmabuf_get_sysbuffer(-1,
+			buf_info->dmabuf_p,
+			&buf_info->buf,
+			&buf_info->buf_size);
+#else
 	ret = sprd_ion_get_buffer(-1,
 			buf_info->dmabuf_p,
 			&buf_info->buf,
 			&buf_info->buf_size);
+#endif
 	if (ret) {
 		pr_err("fail to get ion buf for kernel buffer %p\n",
 			buf_info->dmabuf_p);
@@ -1068,7 +1156,13 @@ int isp_gen_buf_alloc(struct isp_buf_info *buf_info)
 		(int)buf_info->size, heap_type);
 
 	if (sprd_iommu_attach_device(&s_isp_pdev->dev)== 0) {
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0))
+		memset(&buf_info->map, 0, sizeof(struct dma_buf_map));
+		ret = sprd_dmabuf_map_kernel(buf_info->dmabuf_p, &buf_info->map);
+		buf_info->sw_addr = buf_info->map.vaddr;
+#else
 		buf_info->sw_addr = sprd_ion_map_kernel(buf_info->dmabuf_p, 0);
+#endif
 		if (IS_ERR_OR_NULL(buf_info->sw_addr)) {
 			pr_err("fail to map kernel virtual address\n");
 			ret = -EFAULT;
@@ -1078,10 +1172,17 @@ int isp_gen_buf_alloc(struct isp_buf_info *buf_info)
 		unsigned long phys_addr;
 		size_t size;
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0))
+		ret = sprd_dmabuf_get_phys_addr(-1,
+		        buf_info->dmabuf_p,
+				&phys_addr,
+				&size);
+#else
 		ret = sprd_ion_get_phys_addr(-1,
 		        buf_info->dmabuf_p,
 				&phys_addr,
 				&size);
+#endif
 		if (ret) {
 			pr_err("fail to get phys addr\n");
 			ret = -EFAULT;
@@ -1090,7 +1191,13 @@ int isp_gen_buf_alloc(struct isp_buf_info *buf_info)
 			buf_info->hw_addr = (void *)(phys_addr - MM_ION_OFFSET);
 		}
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0))
+		memset(&buf_info->map, 0, sizeof(struct dma_buf_map));
+		ret = sprd_dmabuf_map_kernel(buf_info->dmabuf_p, &buf_info->map);
+		buf_info->sw_addr = buf_info->map.vaddr;
+#else
 		buf_info->sw_addr = sprd_ion_map_kernel(buf_info->dmabuf_p, 0);
+#endif
 		if (IS_ERR_OR_NULL(buf_info->sw_addr)) {
 			pr_err("fail to map kernel virtual address\n");
 			ret = -EFAULT;
@@ -1101,10 +1208,18 @@ int isp_gen_buf_alloc(struct isp_buf_info *buf_info)
 	return 0;
 
 map_failed:
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0))
+	sprd_dmabuf_unmap_kernel(buf_info->dmabuf_p, 0);
+#else
 	sprd_ion_unmap_kernel(buf_info->dmabuf_p, 0);
+#endif
 
 failed:
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0))
+	dma_heap_buffer_free(buf_info->dmabuf_p);
+#else
 	cam_ion_free(buf_info->dmabuf_p);
+#endif
 	buf_info->dmabuf_p = NULL;
 	buf_info->buf = NULL;
 	buf_info->buf_size = 0;
@@ -1120,10 +1235,14 @@ int isp_gen_buf_free(struct isp_buf_info *buf_info)
 		return -EINVAL;
 	}
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0))
+	sprd_dmabuf_unmap_kernel(buf_info->dmabuf_p, &buf_info->map);
+	dma_heap_buffer_free(buf_info->dmabuf_p);
+#else
 	sprd_ion_unmap_kernel(buf_info->dmabuf_p, 0);
-	buf_info->sw_addr = NULL;
-
 	cam_ion_free(buf_info->dmabuf_p);
+#endif
+	buf_info->sw_addr = NULL;
 	buf_info->dmabuf_p = NULL;
 	buf_info->buf = NULL;
 	buf_info->buf_size = 0;
@@ -1243,7 +1362,11 @@ failed:
 	return ret;
 }
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0))
+void *isp_buf_get_kaddr(int fd, struct dma_buf_map *map)
+#else
 void *isp_buf_get_kaddr(int fd)
+#endif
 {
 	struct dma_buf *dmabuf_p;
 	void *kaddr = NULL;
@@ -1257,7 +1380,13 @@ void *isp_buf_get_kaddr(int fd)
 		return NULL;
 	}
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0))
+	memset(map, 0, sizeof(struct dma_buf_map));
+	sprd_dmabuf_map_kernel(dmabuf_p, &map);
+	kaddr = map->vaddr;
+#else
 	kaddr = sprd_ion_map_kernel(dmabuf_p, 0);
+#endif
 	if (IS_ERR_OR_NULL(kaddr)) {
 		pr_err("fail to map kernel vir_addr\n");
 	}

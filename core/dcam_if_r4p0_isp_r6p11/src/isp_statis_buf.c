@@ -249,7 +249,11 @@ int sprd_isp_cfg_statis_buf(struct isp_pipe_dev *dev,
 	frm_statis_isp.buf_property = frm_statis_dcam.buf_property
 		= parm->buf_property;
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0))
+	kaddr1 = (unsigned long)isp_buf_get_kaddr(parm->mfd, &frm_statis_isp.pfinfo.map);
+#else
 	kaddr1 = (unsigned long)isp_buf_get_kaddr(parm->mfd);
+#endif
 	pr_info("kaddr = 0x%lx\n", kaddr1);
 
 #ifdef CONFIG_64BIT

@@ -140,9 +140,9 @@ int sprd_camera_stream_off(struct camera_group *group,
 				  enum dcam_id idx);
 
 /* Internal Function Implementation */
-int img_get_timestamp(struct timeval *tv)
+int img_get_timestamp(timeval *tv)
 {
-	struct timespec ts;
+	timespec ts;
 
 	ktime_get_ts(&ts);
 	tv->tv_sec = ts.tv_sec;
@@ -154,7 +154,7 @@ int img_get_timestamp(struct timeval *tv)
 /* Internal Function Implementation */
 void gen_frm_timestamp(struct frm_timestamp *pts)
 {
-	struct timespec ts;
+	timespec ts;
 
 	ktime_get_ts(&ts);
 //	pts->boot_time = timespec_to_ktime(ts);
@@ -1906,7 +1906,7 @@ next_aem_frm:
 static int sprd_img_pulse_line_tx_done(struct camera_frame *frame, void *param)
 {
 	struct camera_dev *dev = (struct camera_dev *)param;
-	struct timeval time;
+	timeval time;
 	struct camera_info *info = NULL;
 
 	if (!dev) {
@@ -1964,7 +1964,7 @@ static int sprd_img_pulse_line_done(struct camera_info *info)
 static void sprd_img_handle_pulse_line(struct work_struct *work)
 {
 	int ret = 0;
-	struct timeval time;
+	timeval time;
 	struct camera_pulse_type *pulse =
 		container_of(work, struct camera_pulse_type, pulse_work);
 	struct camera_info *info =

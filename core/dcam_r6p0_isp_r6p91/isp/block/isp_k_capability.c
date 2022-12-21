@@ -12,9 +12,19 @@
  */
 
 #include <linux/uaccess.h>
+#include <linux/version.h>
 #include <sprd_mm.h>
 #include "sprd_isp_r6p91.h"
 #include "isp_reg.h"
+
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0))
+typedef struct timespec64 timespec;
+#define ktime_get_ts ktime_get_ts64
+typedef struct __kernel_old_timeval timeval;
+#else
+typedef struct timespec timespec;
+typedef struct timeval timeval;
+#endif
 
 #if defined(CONFIG_ARCH_SCX35LT8) || defined(CONFIG_ARCH_WHALE)
 #define ISP_MAX_WIDTH             4416
@@ -148,7 +158,7 @@ static int32_t isp_k_capability_time(struct isp_capability *param)
 {
 	int32_t ret = 0;
 	struct isp_time time;
-	struct timespec ts;
+	timespec ts;
 
 	ktime_get_ts(&ts);
 	time.sec = ts.tv_sec;

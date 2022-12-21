@@ -12,6 +12,7 @@
  */
 
 #include <linux/clk.h>
+#include <linux/version.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
@@ -283,7 +284,11 @@ static void dphy_testclr_db_init(void)
 	unsigned int val = 0;
 	void __iomem *ana_apb = NULL;
 
-	ana_apb = ioremap_nocache(REG_CPHY_TEST_CTRL, 0x4);
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0))
+        ana_apb = ioremap(REG_CPHY_TEST_CTRL, 0x4);
+#else
+        ana_apb = ioremap_nocache(REG_CPHY_TEST_CTRL, 0x4);
+#endif
 	if (ana_apb == NULL) {
 		pr_err("fail to ioremap\n");
 		return;

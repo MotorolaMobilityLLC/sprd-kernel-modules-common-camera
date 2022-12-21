@@ -15,11 +15,24 @@
 #define _DCAM_DRV_H_
 
 #include <linux/platform_device.h>
+#include <linux/version.h>
 
 #include "sprd_img.h"
 #include "sprd_isp_hw.h"
 #include "dcam_reg.h"
 #include "cam_iommu.h"
+
+#ifndef KERNEL_515_TIME_COMPAT
+#define KERNEL_515_TIME_COMPAT
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0))
+typedef struct timespec64 timespec;
+#define ktime_get_ts ktime_get_ts64
+typedef struct __kernel_old_timeval timeval;
+#else
+typedef struct timespec timespec;
+typedef struct timeval timeval;
+#endif
+#endif // ifndef KERNEL_515_TIME_COMPAT
 
 /* #define DCAM_DEBUG */
 #ifdef DCAM_DEBUG
@@ -347,7 +360,7 @@ struct camera_deci {
 };
 
 struct frm_timestamp {
-	struct timeval time; /* time without suspend */
+	timeval time; /* time without suspend */
 	ktime_t boot_time; /* time from boot, including suspend */
 };
 

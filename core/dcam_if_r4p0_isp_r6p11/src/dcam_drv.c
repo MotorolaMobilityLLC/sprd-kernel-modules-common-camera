@@ -336,8 +336,8 @@ static const int s_dcam_time_logger;
 
 static inline void dcam_print_time(char *str, int type)
 {
-	struct timespec t;
-	static struct timespec old_t;
+	timespec t;
+	static timespec old_t;
 	struct tm broken;
 	long total, old_total;
 
@@ -988,7 +988,7 @@ static inline void find_delta_helper(enum dcam_id idx, int *delta)
 	struct dcam_path_desc *path_other =
 		DCAM_ADDR_INVALID(s_p_dcam_mod[idx_other]) ? NULL :
 			&s_p_dcam_mod[idx_other]->dcam_full_path;
-	struct timeval temp_t;
+	timeval temp_t;
 
 	if (!path_other || !delta)
 		return;
@@ -4567,7 +4567,7 @@ uint32_t cal_bin_ratio(struct camera_size src, struct camera_size dst)
 	 */
 	if (dst.w <= _WIDTH_NO_1_4_BINNING && tmp_ratio == 2) {
 		tmp_ratio = 1;
-		pr_warning("no 1/4 binning, (%d, %d) -> (%d, %d)\n",
+		pr_info("no 1/4 binning, (%d, %d) -> (%d, %d)\n",
 			src.w, src.h, dst.w, dst.h);
 	}
 
