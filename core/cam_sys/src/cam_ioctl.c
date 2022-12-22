@@ -329,8 +329,7 @@ static int camioctl_param_cfg(struct camera_module *module, unsigned long arg)
 	hw = dev->hw;
 
 	if ((param.scene_id == PM_SCENE_OFFLINE_CAP) ||
-		(param.scene_id == PM_SCENE_OFFLINE_BPC) ||
-		(param.scene_id == PM_SCENE_SFNR))
+		(param.scene_id == PM_SCENE_OFFLINE_BPC))
 		for_fdr = 1;
 	for_capture = (param.scene_id == PM_SCENE_CAP ? 1 : 0) | for_fdr;
 
@@ -410,8 +409,7 @@ static int camioctl_param_cfg(struct camera_module *module, unsigned long arg)
 		if (for_capture && (module->capture_type == CAM_CAPTURE_RAWPROC
 			|| module->cam_uinfo.dcam_slice_mode || module->cam_uinfo.is_4in1
 			|| (param.scene_id == PM_SCENE_OFFLINE_BPC)
-			|| (param.scene_id == PM_SCENE_OFFLINE_CAP)
-			|| (param.scene_id == PM_SCENE_SFNR)))
+			|| (param.scene_id == PM_SCENE_OFFLINE_CAP)))
 			ret = CAM_PIPEINE_DCAM_OFFLINE_NODE_CFG(channel, CAM_PIPELINE_CFG_BLK_PARAM, &param);
 		else
 			ret = CAM_PIPEINE_DCAM_ONLINE_NODE_CFG(channel, CAM_PIPELINE_CFG_BLK_PARAM, &param);
