@@ -229,6 +229,12 @@ int cam_statis_dcam_port_buffer_cfg(
 		}
 
 		dcam_port = dcam_online_node_port_get(dcam_node, port_id);
+		if (!dcam_port) {
+			pr_err("fail to find dcam port, statis: %d\n", input->type);
+			ret = -EINVAL;
+			goto exit;
+		}
+
 		if (port_id == PORT_VCH2_OUT && dcam_port->raw_src)
 			goto exit;
 

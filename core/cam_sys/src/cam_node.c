@@ -1019,6 +1019,12 @@ static int camnode_data_callback(enum cam_cb_type type, void *param, void *priv_
 			}
 		}
 		break;
+	case CAM_CB_DCAM_STATIS_DONE:
+		if (node->node_graph->outport[cur_port_id].dump_en) {
+			pframe->dump_en = 1;
+			pframe->dump_node_id = node->node_graph->outport[cur_port_id].dump_node_id;
+		}
+		break;
 	case CAM_CB_ISP_RET_SRC_BUF:
 		cfg_param.param = pframe;
 		node->ops.cfg_node_param(node, CAM_NODE_RECYCLE_BLK_PARAM, &cfg_param);
@@ -1155,8 +1161,6 @@ int cam_node_buffer_alloc(void *handle, struct cam_buf_alloc_desc *param)
 		return -EFAULT;
 	}
 
-	if (node->node_graph->buf_type == CAM_NODE_BUF_USER)
-		return 0;
 	for (i = 0; i < CAM_NODE_PORT_OUT_NUM; i++) {
 		if (!node->outport_list[i])
 			continue;

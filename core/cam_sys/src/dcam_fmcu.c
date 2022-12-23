@@ -282,6 +282,9 @@ static int dcamfmcu_ctx_init(void *handle)
 			ret = -EFAULT;
 			goto err_alloc_fmcu;
 		}
+	}
+	for (i = 0; i < DCAM_FMCU_BUF_MAX; i++) {
+		ion_buf = &fmcu_ctx->ion_pool[i];
 		ret = cam_buf_kmap(ion_buf);
 		if (ret) {
 			pr_err("fail to kmap fmcu buffer\n");

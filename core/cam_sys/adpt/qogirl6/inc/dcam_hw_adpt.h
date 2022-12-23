@@ -41,6 +41,7 @@
 #define FBC_HEADER_REDUNDANT           64
 #define DCAM_SCALE_DOWN_MAX            4
 #define DCAM_SCALER_MAX_WIDTH          0xFFFFFFFF
+#define DCAM_SCALER_DECI_MAX_WIDTH     0xFFFFFFFF
 #define DCAM_FRAME_TIMESTAMP_COUNT     0x100
 #define GTM_HIST_VALUE_SIZE            1
 #define CAL_PACK_PITCH(w)              (((w) * 10 + 127) / 128 * 128 / 8)

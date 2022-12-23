@@ -797,7 +797,7 @@ static int camioctl_output_size_set(struct camera_module *module,
 		pr_debug("cam_virtual_cap: dst %d %d\n", dst->vir_channel[1].dst_size.w, dst->vir_channel[1].dst_size.h);
 	}
 	/* for AF zoom_ratio cal*/
-	camcore_crop_size_align(module, &dst->zoom_ratio_base, channel->ch_id);
+	cam_zoom_crop_size_align(module, &dst->zoom_ratio_base, channel->ch_id);
 
 	pr_info("cam_channel: ch_id %d high fps %u %u. aux %d %d %d %d\n",
 		channel->ch_id, dst->is_high_fps, dst->high_fps_skip_num,
@@ -960,7 +960,7 @@ static int camioctl_crop_set(struct camera_module *module,
 	pr_debug("cam%d total,set ch%d crop %d %d %d %d.\n",
 		module->idx, channel_id,
 		total_crop.x, total_crop.y, total_crop.w, total_crop.h);
-	camcore_crop_size_align(module, &crop, channel_id);
+	cam_zoom_crop_size_align(module, &crop, channel_id);
 
 	/* CAM_RUNNING: for zoom update
 	 * only crop rect size can be re-configured during zoom
@@ -1318,14 +1318,6 @@ static int camioctl_stream_off(struct camera_module *module,
 				ret = ch->pipeline_handle->ops.streamoff(ch->pipeline_handle, &pipe_param);
 				if (ret)
 					pr_err("fail to stop module %d dcam online ret:%d\n", module->idx, ret);
-				if (ch->ch_id == CAM_CH_PRE || (ch->ch_id == CAM_CH_CAP
-					&& module->cam_uinfo.is_longexp)) {
-					statis_param.statis_cmd = DCAM_IOCTL_DEINIT_STATIS_Q;
-					statis_param.param = NULL;
-					ret = CAM_PIPEINE_DCAM_ONLINE_NODE_CFG(ch, CAM_PIPELINE_CFG_STATIS_BUF, &statis_param);
-					if (ret)
-						pr_err("fail to deinit statis q %d\n", ret);
-				}
 			}
 		}
 	}
@@ -1349,7 +1341,14 @@ static int camioctl_stream_off(struct camera_module *module,
 			}
 			mutex_unlock(&module->buf_lock[ch->ch_id]);
 		}
-
+		if (ch->ch_id == CAM_CH_PRE || (ch->ch_id == CAM_CH_CAP
+			&& module->cam_uinfo.is_longexp)) {
+			statis_param.statis_cmd = DCAM_IOCTL_DEINIT_STATIS_Q;
+			statis_param.param = NULL;
+			ret = CAM_PIPEINE_DCAM_ONLINE_NODE_CFG(ch, CAM_PIPELINE_CFG_STATIS_BUF, &statis_param);
+			if (ret)
+				pr_err("fail to deinit statis q %d\n", ret);
+		}
 		camcore_pipeline_deinit(module, ch);
 		if (ch->ch_id == CAM_CH_CAP) {
 			pool_id.tag_id = CAM_BUF_POOL_CAM0_SENSOR_RAW_OUT + module->idx;
@@ -1499,8 +1498,8 @@ static int camioctl_stream_on(struct camera_module *module, unsigned long arg)
 	module->is_flash_status = 0;
 	module->simu_fid = 0;
 
-	ret = camcore_channels_size_init(module);
-	camcore_channel_size_calc(module);
+	ret = cam_zoom_channels_size_init(module);
+	cam_zoom_channel_size_calc(module);
 
 	ch_pre = &module->channel[CAM_CH_PRE];
 	for (i = 0; i < CAM_CH_MAX; i++) {
@@ -1512,8 +1511,9 @@ static int camioctl_stream_on(struct camera_module *module, unsigned long arg)
 		cam_queue_init(&ch->zoom_param_q, CAM_ZOOM_COEFF_Q_LEN, camcore_empty_zoom_put);
 		if (i == CAM_CH_CAP && module->cam_uinfo.dcam_slice_mode
 			&& !module->cam_uinfo.is_4in1)
-			camcore_channel_bigsize_config(module, ch);
-		camcore_channel_size_config(module, ch);
+			cam_zoom_channel_bigsize_config(module, ch);
+		camcore_buffer_channel_config(module, ch);
+		cam_zoom_channel_size_config(module, ch);
 	}
 
 	camcore_resframe_set(module);
@@ -1615,7 +1615,7 @@ static int camioctl_cam_res_get(struct camera_module *module,
 
 	thrd = &module->zoom_thrd;
 	sprintf(thrd->thread_name, "cam%d_zoom", module->idx);
-	ret = camthread_create(module, thrd, camcore_zoom_proc);
+	ret = camthread_create(module, thrd, cam_zoom_start_proc);
 	if (ret)
 		goto stop_thrd;
 
@@ -1889,7 +1889,7 @@ static int camioctl_capture_start(struct camera_module *module,
 	/* 4in1: report 1 frame for remosaic */
 	if (module->cam_uinfo.is_4in1) {
 		atomic_set(&module->capture_frames_dcam, CAP_NUM_COMMON);
-		camcore_4in1_channel_size_config(module);
+		cam_zoom_4in1_channel_size_config(module);
 	}
 
 	need_cfg_shutoff = camcore_shutoff_param_prepare(module, &pipeline_shutoff);
@@ -2023,6 +2023,7 @@ static int camioctl_cam_post_proc(struct camera_module *module,
 	uint32_t scene_mode = 0, user_fid = 0, index = 0, reserved[4] = {0};
 	struct channel_context *ch = NULL;
 	struct isp_size_desc size_cfg = {0};
+	struct isp_size_desc size_cfg_tmp = {0};
 	struct sprd_img_size dst_size = {0};
 	struct sprd_img_parm __user *uparam = NULL;
 	struct cam_pipeline_cfg_param param = {0};
@@ -2111,6 +2112,7 @@ static int camioctl_cam_post_proc(struct camera_module *module,
 			pfrm_isp->width = ch->ch_uinfo.dst_size.w;
 			pfrm_isp->height = ch->ch_uinfo.dst_size.h;
 		}
+
 		size_cfg.size.w = pfrm_isp->width;
 		size_cfg.size.h = pfrm_isp->height;
 		size_cfg.trim.size_x = pfrm_isp->width;
@@ -2124,9 +2126,14 @@ static int camioctl_cam_post_proc(struct camera_module *module,
 			pr_err("fail to cfg isp out buffer.\n");
 			goto exit;
 		}
-		ch_desc.input_trim= ch->trim_dcam;
+		ch_desc.input_trim = ch->trim_dcam;
 		ch_desc.output_size.w = ch_desc.input_trim.size_x;
 		ch_desc.output_size.h = ch_desc.input_trim.size_y;
+		/* TBD: remove after offline zoom update */
+		size_cfg_tmp.trim = ch->trim_isp;
+		size_cfg_tmp.size.w = size_cfg_tmp.trim.size_x;
+		size_cfg_tmp.size.h = size_cfg_tmp.trim.size_y;
+		ret = CAM_PIPEINE_ISP_IN_PORT_CFG(ch, PORT_ISP_OFFLINE_IN, CAM_PIPELINE_CFG_SIZE, &size_cfg_tmp);
 	}
 
 	ret = CAM_PIPEINE_DCAM_OFFLINE_OUT_PORT_CFG(ch, param.node_param.port_id, CAM_PIPELINE_CFG_SIZE, &ch_desc, param.node_type);
@@ -2219,7 +2226,10 @@ static int camioctl_4in1_raw_addr_set(struct camera_module *module,
 			module->reserved_buf_fd = pframe->buf.mfd;
 			pframe->is_reserved = CAM_RESERVED_BUFFER_ORI;
 			pframe->buf.size = cal_sprd_size(ch->ch_uinfo.src_size.w, ch->ch_uinfo.src_size.h, ch->ch_uinfo.dcam_raw_fmt);
-			camcore_reserved_buf_cfg(RESERVED_BUF_SET_CB, pframe, module);
+			cam_scene_reserved_buf_cfg(RESERVED_BUF_SET_CB, pframe, module);
+			pframe->buf.size = cal_sprd_raw_pitch(ch->ch_uinfo.src_size.w, ch->ch_uinfo.dcam_raw_fmt)
+					* ch->ch_uinfo.src_size.h;
+			cam_scene_reserved_buf_cfg(RESERVED_BUF_SET_CB, pframe, module);
 			module->res_frame = pframe;
 		} else {
 			ret = camcore_dcam_online_buf_cfg(ch, pframe, module);

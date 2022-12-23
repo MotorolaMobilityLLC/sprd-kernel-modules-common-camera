@@ -34,6 +34,7 @@
 #define CAM_FACEID_SEC
 #define DCAM_SCALE_DOWN_MAX            4
 #define DCAM_SCALER_MAX_WIDTH          0xFFFFFFFF
+#define DCAM_SCALER_DECI_MAX_WIDTH     0xFFFFFFFF
 
 #define DCAM_PATH_CROP_ALIGN           8
 #define DCAM_FBC_TILE_WIDTH            64

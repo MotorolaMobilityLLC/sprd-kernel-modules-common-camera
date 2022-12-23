@@ -215,7 +215,11 @@ int camoffline_statis_dcam_port_buffer_cfg(
 		}
 
 		dcam_port = dcam_offline_node_port_get(dcam_node, port_id);
-
+		if (!dcam_port) {
+			pr_err("fail to find dcam port, statis: %d\n", input->type);
+			ret = -EINVAL;
+			goto exit;
+		}
 		for (j = 0; j < STATIS_BUF_NUM_MAX; j++) {
 			mfd = dcam_node->statis_buf_array[input->type][j].mfd;
 			offset = dcam_node->statis_buf_array[input->type][j].offset[0];

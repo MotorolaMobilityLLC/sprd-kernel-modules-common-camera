@@ -51,19 +51,7 @@
 
 /* get index of timestamp from frame index */
 #define tsid(x)                           ((x) & (DCAM_FRAME_TIMESTAMP_COUNT - 1))
-#define DCAM_FETCH_TWICE(p)               (p->raw_fetch_num > 1)
-#define DCAM_FIRST_FETCH(p)               (p->raw_fetch_count == 1)
-#define DCAM_LAST_FETCH(p)                (p->raw_fetch_count == 2)
-
 #define DCAM_NR3_MV_MAX                   10
-
-enum dcam_context_id {
-	DCAM_CTX_0,
-	DCAM_CTX_1,
-	DCAM_CTX_2,
-	DCAM_CTX_3,
-	DCAM_CTX_NUM,
-};
 
 enum dcam_scaler_type {
 	DCAM_SCALER_BINNING = 0,

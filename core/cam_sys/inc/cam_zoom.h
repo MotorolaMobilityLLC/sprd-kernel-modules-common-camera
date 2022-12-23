@@ -14,6 +14,7 @@
 #ifndef _CAM_ZOOM_H_
 #define _CAM_ZOOM_H_
 
+#include "cam_core.h"
 #include "cam_port.h"
 
 #ifdef CAM_ZOOM_DEBUG_ON
@@ -49,6 +50,19 @@ struct cam_zoom_desc {
 	struct img_size dcam_isp[ZOOM_PORT_ISP_MAX];
 };
 
+void cam_zoom_diff_trim_get(struct sprd_img_rect *orig,
+	uint32_t ratio16, struct img_trim *trim0, struct img_trim *trim1);
+int cam_zoom_crop_size_align(struct camera_module *module,
+	struct sprd_img_rect *crop, uint32_t channel_id);
+int cam_zoom_channels_size_init(struct camera_module *module);
+int cam_zoom_channel_size_calc(struct camera_module *module);
+int cam_zoom_channel_size_config(
+	struct camera_module *module, struct channel_context *channel);
+int cam_zoom_4in1_channel_size_config(struct camera_module *module);
+int cam_zoom_channel_bigsize_config(
+	struct camera_module *module, struct channel_context *channel);
+int cam_zoom_start_proc(void *param);
+int cam_zoom_stream_state_get(struct isp_node *node, struct camera_frame *pframe);
 int cam_zoom_param_set(struct cam_zoom_desc *zoom_info);
 int cam_zoom_frame_base_get(struct cam_zoom_base *zoom_base, struct cam_zoom_index *zoom_index);
 void cam_zoom_frame_free(void *param);

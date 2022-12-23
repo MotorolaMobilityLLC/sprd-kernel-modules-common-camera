@@ -119,7 +119,6 @@ struct isp_port {
 	uint32_t type;
 	int32_t reserved_buf_fd;
 	size_t reserve_buf_size;
-	uint32_t zoom_conflict_with_ltm;
 	uint32_t fmt;
 	uint32_t bind_type;
 	uint32_t regular_mode;
@@ -129,7 +128,6 @@ struct isp_port {
 	uint32_t data_endian;
 	struct img_size size;
 	struct img_trim trim;
-	struct img_size ori_src;
 	struct img_size sn_size;/* sensor size */
 	struct img_scaler_info original;
 	enum cam_format pyr_out_fmt;

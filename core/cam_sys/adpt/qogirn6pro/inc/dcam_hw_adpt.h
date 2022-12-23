@@ -37,6 +37,7 @@
 #define DCAM_PATH_CROP_ALIGN           8
 #define DCAM_SCALE_DOWN_MAX            10
 #define DCAM_SCALER_MAX_WIDTH          3840
+#define DCAM_SCALER_DECI_MAX_WIDTH     3872
 #define DCAM_FRAME_TIMESTAMP_COUNT     0x100
 #define GTM_HIST_ITEM_NUM              128
 #define GTM_HIST_VALUE_SIZE            174

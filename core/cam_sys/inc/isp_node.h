@@ -159,7 +159,6 @@ struct isp_node {
 	struct camera_queue hist2_result_queue;
 	struct camera_queue gtmhist_result_queue;
 	struct isp_int_ctxs_com ctxs_com;
-	uint32_t zoom_conflict_with_ltm;
 
 	void *rgb_ltm_handle;
 	void *rgb_gtm_handle;

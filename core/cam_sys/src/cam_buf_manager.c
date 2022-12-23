@@ -595,14 +595,14 @@ void cam_buf_manager_buf_clear(struct cam_buf_pool_id *pool_id)
 			else
 				cam_buf_manager_buf_status_change(&pframe->buf, CAM_BUF_ALLOC, CAM_IOMMUDEV_MAX);
 
+			if (pframe->zoom_data) {
+				cam_queue_empty_zoom_put(pframe->zoom_data);
+				pframe->zoom_data = NULL;
+			}
 			if (pframe->data_src_dec == 0) {
 				if (pframe->buf.type == CAM_BUF_KERNEL)
 					cam_buf_free(&pframe->buf);
 				cam_queue_empty_frame_put(pframe);
-			}
-			if (pframe->zoom_data) {
-				cam_queue_empty_zoom_put(pframe->zoom_data);
-				pframe->zoom_data = NULL;
 			}
 		}
 	} while (pframe);

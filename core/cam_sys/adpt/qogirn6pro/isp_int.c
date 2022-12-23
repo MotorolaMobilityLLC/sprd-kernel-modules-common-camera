@@ -226,7 +226,7 @@ static int ispint_err_pre_proc(enum isp_context_hw_id hw_idx, void *isp_handle)
 	dev = (struct isp_pipe_dev *)isp_handle;
 	pctx_hw = &dev->hw_ctx[hw_idx];
 	idx = pctx_hw->cfg_id;
-	if ((idx < 0) || (idx > ISP_CONTEXT_SUPERZOOM)) {
+	if (idx > ISP_CONTEXT_SUPERZOOM) {
 		pr_err("fail to get sw_id:%d for hw_idx=%d\n", idx, hw_idx);
 		return 0;
 	}

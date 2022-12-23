@@ -113,11 +113,6 @@ static uint32_t ispport_size_cfg(struct isp_port *port, void *param)
 	if (cfg_in->trim.size_x > 0 && cfg_in->trim.size_y > 0)
 		port->trim = cfg_in->trim;
 
-	if (port->type == PORT_TRANSFER_IN) {
-		port->ori_src = cfg_in->size;
-		port->zoom_conflict_with_ltm = cfg_in->zoom_conflict_with_ltm;
-	}
-
 	pr_debug("port %d size %d %d trim %d %d %d %d\n",
 		port->port_id, port->size.w, port->size.h,
 		port->trim.start_x, port->trim.start_y, port->trim.size_x, port->trim.size_y);
@@ -131,25 +126,12 @@ static uint32_t ispport_buf_set(struct isp_port *port, void *param)
 	struct camera_buf_get_desc buf_desc = {0};
 
 	pframe = VOID_PTR_TO(param, struct camera_frame);
-	if (port->type == PORT_TRANSFER_IN && pframe->pyr_status == OFFLINE_DEC_ON) {
-		port->fetch_path_sel = ISP_FETCH_PATH_NORMAL;
-		port->size.w = pframe->width;
-		port->size.h = pframe->height;
-		port->trim.start_x = 0;
-		port->trim.start_y = 0;
-		port->trim.size_x = pframe->width;
-		port->trim.size_y = pframe->height;
-	}
-	/* close ltm map when zoom > 1x*/
-	pr_debug("isp%d, conflict %d, ori size %dx%d, now size %dx%d\n", port->port_id, port->zoom_conflict_with_ltm,
-		port->ori_src.w, port->ori_src.h, port->size.w, port->size.h);
-	if (port->type == PORT_TRANSFER_IN && port->zoom_conflict_with_ltm && ((port->size.w != port->ori_src.w) || port->size.h != port->ori_src.h))
-		pframe->xtm_conflict.need_ltm_map = 0;
-
 	pframe->is_reserved = 0;
 	pframe->priv_data = port;
 
 	if (port->type == PORT_TRANSFER_IN) {
+		if (pframe->pyr_status == OFFLINE_DEC_ON)
+			port->fetch_path_sel = ISP_FETCH_PATH_NORMAL;
 		ret = cam_buf_manager_buf_enqueue(&port->fetch_unprocess_pool, pframe, NULL);
 		if (ret)
 			pr_err("fail to enqueue output buffer,type:%d port_id %d.\n", port->type, port->port_id);

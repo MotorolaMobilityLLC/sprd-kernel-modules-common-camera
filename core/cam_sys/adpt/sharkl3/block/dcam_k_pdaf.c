@@ -441,15 +441,13 @@ int dcam_k_cfg_pdaf(struct isp_io_param *param, struct dcam_isp_k_block *p)
 int dcam_k_pdaf(struct dcam_isp_k_block *p)
 {
 	uint32_t val = 0;
-	uint32_t ret = 0;
 	uint32_t idx = p->idx;
 	uint32_t bypass = p->pdaf.bypass;
 	uint32_t mode = p->pdaf.mode;
 	uint32_t skip_num = p->pdaf.skip_num;
 	struct dev_dcam_vc2_control *vch2_info = &p->pdaf.vch2_info;
 	struct pdaf_roi_info *roi_info = &p->pdaf.roi_info;
-	struct isp_dev_pdaf_info *pdaf_info = &p->pdaf.pdaf_info;
-	struct pdaf_ppi_info ppi_info;
+	struct pdaf_ppi_info *ppi_info = &p->pdaf.ppi_info;
 
 	if (bypass) {
 		pr_debug("dcam%d pdaf bypass\n", idx);
@@ -474,38 +472,6 @@ int dcam_k_pdaf(struct dcam_isp_k_block *p)
 		/* skip num */
 		DCAM_REG_MWR(idx, DCAM_PDAF_SKIP_FRM, 0xf0, skip_num << 4);
 
-		val = !pdaf_info->bypass;
-
-		DCAM_REG_MWR(idx, DCAM_CFG, BIT_3, val);
-		DCAM_REG_MWR(idx, DCAM_CFG, BIT_4, val);
-
-		val = ((pdaf_info->block_size.height & 0x3) << 3) |
-			((pdaf_info->block_size.width & 0x3) << 1);
-		DCAM_REG_MWR(idx, DCAM_PDAF_EXTR_CTRL, 0x1E, val);
-
-		val = ((pdaf_info->win.start_y & 0x1FFF) << 13) |
-			(pdaf_info->win.start_x & 0x1FFF);
-		DCAM_REG_WR(idx, DCAM_PDAF_EXTR_ROI_ST, val);
-
-		val = (((pdaf_info->win.end_y - pdaf_info->win.start_y) & 0x1FFF) << 13) |
-			((pdaf_info->win.end_x - pdaf_info->win.start_x) & 0x1FFF);
-		DCAM_REG_WR(idx, DCAM_PDAF_EXTR_ROI_SIZE, val);
-
-		ret = pd_info_to_ppi_info(pdaf_info, &ppi_info);
-		if (!ret)
-			write_pd_table(&ppi_info, idx);
-
-		DCAM_REG_MWR(idx, DCAM_PDAF_SKIP_FRM, 0xf0,
-			pdaf_info->skip_num << 4);
-		DCAM_REG_MWR(idx, DCAM_PDAF_SKIP_FRM, BIT_2,
-			pdaf_info->mode_sel << 2);
-
-		if (pdaf_info->mode_sel)
-			DCAM_REG_MWR(idx, DCAM_PDAF_SKIP_FRM, BIT_3,
-				(0x1 << 3));
-		else
-			DCAM_REG_MWR(idx, DCAM_PDAF_SKIP_FRM1, BIT_0, 0x1);
-
 		/* pdaf type */
 		DCAM_REG_MWR(idx, DCAM_CFG, BIT_4, 0x1 << 4);
 		DCAM_REG_MWR(idx, DCAM_VC2_CONTROL, BIT_1 | BIT_0, 0);
@@ -520,6 +486,12 @@ int dcam_k_pdaf(struct dcam_isp_k_block *p)
 		val = (((roi_info->win.end_y - roi_info->win.start_y) & 0x1FFF) << 13) |
 			((roi_info->win.end_x - roi_info->win.start_x) & 0x1FFF);
 		DCAM_REG_WR(idx, DCAM_PDAF_EXTR_ROI_SIZE, val);
+		/*ppi info*/
+		val = ((ppi_info->block_size.height & 0x3) << 3)
+			| ((ppi_info->block_size.width & 0x3) << 1);
+			DCAM_REG_MWR(idx, DCAM_PDAF_EXTR_CTRL, 0x1E, val);
+		write_pd_table(ppi_info, idx);
+
 		DCAM_REG_MWR(idx, DCAM_PDAF_CONTROL, BIT_1 | BIT_0, 0x3);
 		DCAM_REG_MWR(idx, DCAM_VC2_CONTROL, BIT_1 | BIT_0, 0);
 

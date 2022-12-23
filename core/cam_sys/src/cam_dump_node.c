@@ -19,6 +19,7 @@
 #endif
 
 #define pr_fmt(fmt) "CAM_DUMP_NODE: %d %d %s : " fmt, current->pid, __LINE__, __func__
+#define IS_STATIS_PORT(port) (((port) > PORT_FULL_OUT) && ((port) < PORT_DCAM_OUT_MAX))
 
 #define CAM_DUMP_NODE_PATH "/data/ylog/"
 #define BYTE_PER_ONCE                   4096
@@ -71,13 +72,25 @@ static void camdump_node_write_data_to_file(uint8_t *buffer,
 	pr_debug("write image done, total=%d\n", (uint32_t)total);
 }
 
-static int camdump_node_format_name_get(struct cam_dump_msg *msg, uint8_t *file_name,
+static int camdump_node_format_name_get(struct cam_dump_msg *msg, struct camera_frame *frame, uint8_t *file_name,
 	uint8_t *file_name1, uint32_t format)
 {
 	int data_bits = 0, is_pack = 0, ret = 0;
 
 	data_bits = cam_data_bits(format);
 	is_pack = cam_is_pack(format);
+
+	if (frame->link_from.port_id == PORT_PDAF_OUT) {
+		strcat(file_name1, file_name);
+		strcat(file_name, "_left.yuv");
+		strcat(file_name1, "_right.yuv");
+		return 0;
+	}
+
+	if (IS_STATIS_PORT(frame->link_from.port_id)) {
+		strcat(file_name, ".yuv");
+		return 0;
+	}
 
 	switch(format) {
 	case CAM_RAW_PACK_10:
@@ -242,6 +255,10 @@ static void camdump_node_frame_name_get(struct camera_frame *frame,
 	}
 	sprintf(tmp_str, "_No%d", frame->fid);
 	strcat(file_name, tmp_str);
+	if (IS_STATIS_PORT(frame->link_from.port_id)) {
+		camdump_node_format_name_get(msg, frame, file_name, file_name1, frame->cam_fmt);
+		return;
+	}
 	if (msg->is_compressed) {
 		sprintf(tmp_str, "_compress");
 		strcat(file_name, tmp_str);
@@ -249,7 +266,7 @@ static void camdump_node_frame_name_get(struct camera_frame *frame,
 		return;
 	}
 
-	camdump_node_format_name_get(msg, file_name, file_name1, frame->cam_fmt);
+	camdump_node_format_name_get(msg, frame, file_name, file_name1, frame->cam_fmt);
 
 }
 
@@ -259,6 +276,8 @@ static void camdump_node_frame_size_get(struct camera_frame *frame, struct cam_d
 		msg->size = cal_sprd_pitch(frame->width, frame->cam_fmt) * frame->height;
 	else if (frame->cam_fmt == CAM_FULL_RGB14)
 		msg->size = frame->width * frame->height;
+	else if (IS_STATIS_PORT(frame->link_from.port_id))
+		msg->size = frame->buf.size;
 	else {
 		if (cur_layer == 0)
 			msg->size = cal_sprd_pitch(frame->width, frame->cam_fmt) * frame->height;
@@ -272,24 +291,33 @@ static void camdump_node_frame_size_get(struct camera_frame *frame, struct cam_d
 static void camdump_node_frame_file_write(struct camera_frame *frame,
 		struct cam_dump_msg *msg, uint8_t *name, uint8_t *name1)
 {
-	unsigned long  addr = 0;
+	unsigned long addr = 0;
 
-	if (cam_buf_kmap(&frame->buf)) {
-		pr_err("fail to kmap dump buf\n");
-		return;
+	if (!IS_STATIS_PORT(frame->link_from.port_id) || frame->link_from.port_id == PORT_PDAF_OUT) {
+		if (cam_buf_kmap(&frame->buf)) {
+			pr_err("fail to kmap dump buf\n");
+			return;
+		}
 	}
 
 	addr = frame->buf.addr_k + msg->offset;
-	if (frame->cam_fmt >= CAM_YUV_BASE && frame->cam_fmt <= CAM_YVU420_2FRAME_MIPI) {
+	if (frame->cam_fmt >= CAM_YUV_BASE && frame->cam_fmt <= CAM_YVU420_2FRAME_MIPI && !IS_STATIS_PORT(frame->link_from.port_id)) {
 		camdump_node_write_data_to_file((uint8_t *)addr, msg->size, name);
 		addr += msg->size;
 		msg->size = msg->size / 2;
 		camdump_node_write_data_to_file((uint8_t *)addr, msg->size, name1);
 		msg->offset += msg->size * 3;
+	} else if (frame->link_from.port_id == PORT_PDAF_OUT) {
+		addr = frame->buf.addr_k;
+		msg->size = msg->size / 2;
+		camdump_node_write_data_to_file((uint8_t *)addr, msg->size, name);
+		addr += msg->size;
+		camdump_node_write_data_to_file((uint8_t *)addr, msg->size, name1);
 	} else
 		camdump_node_write_data_to_file((uint8_t *)addr, msg->size, name);
 
-	cam_buf_kunmap(&frame->buf);
+	if (!IS_STATIS_PORT(frame->link_from.port_id) || frame->link_from.port_id == PORT_PDAF_OUT)
+		cam_buf_kunmap(&frame->buf);
 }
 
 static void camdump_node_param_cfg(struct cam_dump_msg *msg, struct camera_frame *pframe)
@@ -372,7 +400,11 @@ static int camdump_node_frame_start(void *param)
 	}
 	pframe->dump_en = 0;
 	pr_debug("cam dump node %d frame start, count = %d\n", node->node_id, node->dump_cnt);
-	node->dump_cb_func(CAM_CB_DUMP_DATA_DONE, pframe, node->dump_cb_handle);
+
+	if (IS_STATIS_PORT(pframe->link_from.port_id))
+		node->dump_cb_func(CAM_CB_DUMP_STATIS_DONE, pframe, node->dump_cb_handle);
+	else
+		node->dump_cb_func(CAM_CB_DUMP_DATA_DONE, pframe, node->dump_cb_handle);
 
 	return ret;
 }

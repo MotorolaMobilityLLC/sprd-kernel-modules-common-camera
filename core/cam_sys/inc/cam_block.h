@@ -344,6 +344,7 @@ int camcore_raw_fmt_get(uint32_t fmt);
 int dcampath_outpitch_get(uint32_t w, uint32_t dcam_out_fmt);
 int dcampath_bin_scaler_get(struct img_size crop, struct img_size dst,
 		uint32_t *scaler_sel, uint32_t *bin_ratio);
+int cam_block_valid_fmt_get(int32_t *fmt, uint32_t default_value);
 
 uint32_t dcamonline_portid_convert_to_pathid(uint32_t port_id);
 uint32_t dcamoffline_portid_convert_to_pathid(uint32_t port_id);

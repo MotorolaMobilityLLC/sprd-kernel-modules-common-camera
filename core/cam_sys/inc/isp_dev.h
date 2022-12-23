@@ -13,6 +13,7 @@
 
 #ifndef _ISP_DEV_H_
 #define _ISP_DEV_H_
+
 #include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/sprd_ion.h>

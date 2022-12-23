@@ -202,20 +202,25 @@ static int ispfmcu_ctx_init(void *handle)
 			ret = -EFAULT;
 			goto err_alloc_fmcu;
 		}
-
+	}
+	for (i = 0; i < MAX_BUF; i++) {
+		ion_buf = &fmcu_ctx->ion_pool[i];
 		ret = cam_buf_kmap(ion_buf);
 		if (ret) {
 			pr_err("fail to kmap fmcu buffer\n");
 			ret = -EFAULT;
 			goto err_kmap_fmcu;
 		}
+		fmcu_ctx->cmd_buf[i] = (uint32_t *)ion_buf->addr_k;
+	}
+	for (i = 0; i < MAX_BUF; i++) {
+		ion_buf = &fmcu_ctx->ion_pool[i];
 		ret = cam_buf_iommu_map(ion_buf, CAM_IOMMUDEV_ISP);
 		if (ret) {
 			pr_err("fail to map fmcu buffer\n");
 			ret = -EFAULT;
 			goto err_hwmap_fmcu;
 		}
-		fmcu_ctx->cmd_buf[i] = (uint32_t *)ion_buf->addr_k;
 		fmcu_ctx->hw_addr[i] = ion_buf->iova;
 		fmcu_ctx->cmdq_pos[i] = 0;
 		pr_info("fmcu%d cmd buf hw_addr:0x%lx, sw_addr:%p, size:%zd\n",
