@@ -1327,7 +1327,7 @@ int dcam_online_port_skip_num_set(void *dcam_ctx_handle, uint32_t hw_id,
 int dcam_online_port_buf_alloc(void *handle, struct cam_buf_alloc_desc *param)
 {
 	int ret = 0;
-	uint32_t i = 0, total = 0, size = 0, width = 0, height = 0, ch_id = 0, iommu_enable = 0;
+	uint32_t i = 0, alloc_cnt = 0, total = 0, size = 0, width = 0, height = 0, ch_id = 0, iommu_enable = 0;
 	uint32_t dcam_out_bits = 0, pyr_data_bits = 0, pyr_is_pack = 0;
 	struct dcam_online_port *port = (struct dcam_online_port *)handle;
 	struct camera_frame *pframe = NULL;
