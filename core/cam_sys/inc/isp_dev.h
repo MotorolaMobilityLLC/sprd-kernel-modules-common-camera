@@ -18,7 +18,7 @@
 #include <linux/platform_device.h>
 #include <linux/sprd_ion.h>
 
-#include "sprd_img.h"
+#include "sprd_camsys.h"
 #include "isp_hwctx.h"
 #include "cam_hw.h"
 #include "isp_interface.h"

@@ -15,7 +15,7 @@
 #define _CAM_TYPES_H_
 
 #include <linux/completion.h>
-#include "sprd_img.h"
+#include "sprd_camsys.h"
 #include "cam_kernel_adapt.h"
 #include <linux/spinlock.h>
 #include "cam_thread.h"

@@ -15,7 +15,7 @@
 #define _SPRD_CAM_TEST_H_
 #define DRV_PATH_NUM 2
 
-#include "sprd_img.h"
+#include "sprd_camsys.h"
 
 #define ISP_HW_MAX_COUNT (4)
 
