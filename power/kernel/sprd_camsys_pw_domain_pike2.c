@@ -221,9 +221,8 @@ err_pw_off:
 static int sprd_cam_pw_on(struct camsys_power_info *pw_info)
 {
 	int ret = 0;
-	unsigned int power_state1;
-	unsigned int read_count = 0;
-	unsigned int val = 0;
+	unsigned int power_state = 0;
+	unsigned int i = 0, j = 0, cnt = 0;
 
 
 	/* cam domain power on */
@@ -238,36 +237,35 @@ static int sprd_cam_pw_on(struct camsys_power_info *pw_info)
 			   ~(unsigned int)
 			   MASK_PMU_APB_PD_MM_TOP_FORCE_SHUTDOWN);
 
-	do {
+	for (i = 0; i < 30; i++) {
 		cpu_relax();
 		usleep_range(300, 350);
-		read_count++;
+		cnt = 0;
 
-		ret = regmap_read(pw_info->u.pike2.pmu_apb_gpr,
-				  REG_PMU_APB_PWR_STATUS0_DBG, &val);
-		if (ret)
-			goto err_pw_on;
-		power_state1 = val & BIT_PMU_APB_PD_MM_SYS_STATE(0xf);
+		for (j = 0; j < 5; j++) {
+			ret = regmap_read(pw_info->u.pike2.pmu_apb_gpr, REG_PMU_APB_PWR_STATUS0_DBG, &power_state);
+			if (ret == 0 && !(power_state & BIT_PMU_APB_PD_MM_SYS_STATE(0xf)))
+				cnt++;
+			else
+				cnt = 0;
+		}
+		if (cnt == 5)
+			break;
 
-	} while (power_state1 && read_count < 10);
+	}
 
-	if (power_state1) {
-		pr_err("cam domain pw on failed 0x%x\n", power_state1);
+	if (cnt < 5) {
+		pr_err("fail to pw on mm domain \n");
 		ret = -1;
-		goto err_pw_on;
+		return ret;
 	}
 
 	/* mm bus enable */
 	clk_prepare_enable(pw_info->u.pike2.cam_mm_eb);
 	udelay(50);
 	sprd_mm_lpc_ctrl(pw_info);
-	pr_info("cam_pw_domain:cam_pw_on set OK.\n");
-
+	pr_info("Done, i %d\n", i);
 	return 0;
-err_pw_on:
-	pr_info("cam domain, failed to power on\n");
-
-	return ret;
 }
 
 static long sprd_cam_pw_domain_init(struct platform_device *pdev, struct camsys_power_info *pw_info)

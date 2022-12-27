@@ -203,10 +203,9 @@ static int sprd_cam_pw_off(struct camsys_power_info *pw_info)
 static int sprd_cam_pw_on(struct camsys_power_info *pw_info)
 {
 	int ret = 0;
-	unsigned int power_state1 = 0;
-	unsigned int read_count = 0;
-	unsigned int val = 0;
+	unsigned int power_state = 0;
 	unsigned int pmu_mm_bit = 0, pmu_mm_state = 0;
+	unsigned int cnt = 0, i = 0, j = 0;
 	struct register_gpr *preg_gpr;
 
 	pmu_mm_bit = 27;
@@ -230,26 +229,29 @@ static int sprd_cam_pw_on(struct camsys_power_info *pw_info)
 			preg_gpr->mask,
 			~preg_gpr->mask);
 
-	do {
+	for (i = 0; i < 30; i++) {
 		usleep_range(300, 350);
-		read_count++;
 		preg_gpr = &pw_info->u.l3.syscon_regs[CAMSYS_PWR_STATUS0];
+		cnt = 0;
 
-		ret = regmap_read(preg_gpr->gpr, preg_gpr->reg, &val);
-		if (ret) {
-			pr_err("fail to read state reg\n");
-			return ret;
+		for (j = 0; j < 5; j++) {
+		ret = regmap_read(preg_gpr->gpr, preg_gpr->reg, &power_state);
+			if (ret == 0 && !(power_state & (pmu_mm_state << pmu_mm_bit)))
+				cnt++;
+			else
+				cnt = 0;
 		}
-		power_state1 = val & (pmu_mm_state << pmu_mm_bit);
-	} while ((power_state1 && read_count < 10));
+		if (cnt == 5)
+			break;
 
-	if (power_state1) {
-		pr_err("fail to get power state 0x%x\n", power_state1);
+	}
+
+	if (cnt < 5) {
+		pr_err("fail to power on mm domain\n");
 		ret = -1;
 		return ret;
 	}
-	pr_info("Done, read count %d, cb: %pS\n",
-		read_count, __builtin_return_address(0));
+	pr_info("Done, i %d\n", i);
 	return 0;
 }
 

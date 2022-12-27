@@ -211,49 +211,38 @@ static int sprd_cam_pw_off(struct camsys_power_info *pw_info)
 static int sprd_cam_pw_on(struct camsys_power_info *pw_info)
 {
 	int ret = 0;
-	unsigned int power_state1= 0;
-	unsigned int power_state2= 0;
-	unsigned int power_state3= 0;
-	unsigned int read_count = 0;
+	unsigned int power_state = 0;
+	unsigned int cnt = 0, i = 0, j = 0;
 
 	/* clear force shutdown */
 	regmap_update_bits_mmsys(&pw_info->u.l5.syscon_regs[_e_force_shutdown], 0);
 	/* power on */
 	regmap_update_bits_mmsys(&pw_info->u.l5.syscon_regs[_e_auto_shutdown], 0);
 
-	do {
+	for (i = 0; i < 30; i++) {
 		cpu_relax();
 		usleep_range(300, 350);
-		read_count++;
+		cnt = 0;
 
-		ret = regmap_read_mmsys(&pw_info->u.l5.syscon_regs[_e_power_state],
-				&power_state1);
-		if (ret)
-			pr_info("cam domain, failed to power on, ret = %d\n", ret);
-
-
-		ret = regmap_read_mmsys(&pw_info->u.l5.syscon_regs[_e_power_state],
-				&power_state2);
-		if (ret)
-			pr_info("cam domain, failed to power on, ret = %d\n", ret);
-
-		ret = regmap_read_mmsys(&pw_info->u.l5.syscon_regs[_e_power_state],
-				&power_state3);
-		if (ret)
-			pr_info("cam domain, failed to power on, ret = %d\n", ret);
-
-	} while ((power_state1 && read_count < 10) ||
-			(power_state1 != power_state2) ||
-			(power_state2 != power_state3));
-
-	if (power_state1) {
-		pr_err("cam domain pw on failed 0x%x\n", power_state1);
-		ret = -1;
-		pr_info("cam domain, failed to power on, ret = %d\n", ret);
+		for (j = 0; j < 5; j++) {
+			ret = regmap_read_mmsys(&pw_info->u.l5.syscon_regs[_e_power_state], &power_state);
+			if (ret == 0 && !(power_state))
+				cnt++;
+			else
+				cnt = 0;
+		}
+		if (cnt == 5)
+			break;
 
 	}
-	pr_info("Done, read count %d, cb: %pS\n",
-		read_count, __builtin_return_address(0));
+
+	if (cnt < 5) {
+		pr_err("fail to power on cam domain\n");
+		ret = -1;
+		return ret;
+
+	}
+	pr_info("Done, i %d\n", i);
 
 	return 0;
 }

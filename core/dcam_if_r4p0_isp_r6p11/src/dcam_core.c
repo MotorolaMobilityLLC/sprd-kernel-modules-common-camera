@@ -2380,6 +2380,10 @@ static int sprd_img_k_open(struct inode *node, struct file *file)
 	camerafile->grp = md->this_device->platform_data;
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0))
 	ret = sprd_glb_mm_pw_on_cfg();
+	if (ret) {
+		pr_err("fail to power on mm domain\n");
+		return ret;
+	}
 	pm_runtime_get_sync(&camerafile->grp->pdev->dev);
 #endif
 	file->private_data = (void *)camerafile;

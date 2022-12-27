@@ -2370,6 +2370,11 @@ static int camcore_open(struct inode *node, struct file *file)
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0))
 	ret = sprd_glb_mm_pw_on_cfg();
+	if (ret) {
+		pr_err("fail to power on mm domain\n");
+		atomic_dec(&grp->camera_opened);
+		return -EMFILE;
+	}
 	pm_runtime_get_sync(&grp->hw_info->pdev->dev);
 #endif
 

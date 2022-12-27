@@ -119,7 +119,11 @@ static int rot_k_open(struct inode *node, struct file *file)
 		goto exit;
 	}
 	#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0))
-	sprd_glb_mm_pw_on_cfg();
+	ret = sprd_glb_mm_pw_on_cfg();
+	if (ret) {
+		pr_err("fail to power on mm domain\n");
+		return ret;
+	}
 	pm_runtime_get(&rot_private->pdev->dev);
 	#endif
 	fd = vzalloc(sizeof(*fd));

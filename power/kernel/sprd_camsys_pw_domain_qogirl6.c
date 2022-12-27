@@ -177,35 +177,36 @@ err_pw_off:
 static int sprd_cam_pw_on(struct camsys_power_info *pw_info)
 {
 	int ret = 0;
-	unsigned int power_state;
-	unsigned int read_count = 0;
+	unsigned int power_state = 0;
+	unsigned int cnt = 0, i = 0, j = 0;
 
 	/* clear force shutdown */
 	regmap_update_bits_mmsys(&pw_info->u.qogirl6.regs[FORCE_SHUTDOWN], 0);
 	/* power on */
 	regmap_update_bits_mmsys(&pw_info->u.qogirl6.regs[SHUTDOWN_EN], 0);
 
-	do {
+	for (i = 0; i < 30; i++) {
 		usleep_range(300, 350);
-		read_count++;
+		cnt = 0;
 
-		ret = regmap_read_mmsys(&pw_info->u.qogirl6.regs[PWR_STATUS0],
-				&power_state);
-		if (ret)
-			goto err_pw_on;
-	} while ((power_state && read_count < 30));
+		for (j = 0; j < 5; j++) {
+			ret = regmap_read_mmsys(&pw_info->u.qogirl6.regs[PWR_STATUS0], &power_state);
+			if (ret == 0 && !(power_state))
+				cnt++;
+			else
+				cnt = 0;
+		}
+		if (cnt == 5)
+			break;
 
-	if (power_state) {
-		pr_err("fail to pw on cam domain. power_state : 0x%x\n", power_state);
+	}
+
+	if (cnt < 5) {
+		pr_err("fail to pw on cam domain\n");
 		ret = -EIO;
 		return ret;
 	}
-	/* if count != 0, other using */
-	pr_info("Done, read count %d, cb: %pS\n",
-		read_count, __builtin_return_address(0));
-	return ret;
-err_pw_on:
-	pr_err("fail to power on, ret = %d\n", ret);
+	pr_info("Done, i %d\n", i);
 	return ret;
 }
 

@@ -288,10 +288,8 @@ err_pw_off:
 static int sprd_cam_pw_on(struct camsys_power_info *pw_info)
 {
 	int ret = 0;
-	unsigned int power_state1 = 0;
-	unsigned int power_state2 = 0;
-	unsigned int power_state3 = 0;
-	unsigned int read_count = 0;
+	unsigned int power_state = 0;
+	unsigned int cnt = 0, i = 0, j = 0, k = 0, l = 0;
 
 	pr_info("power on state %d, cb %pS\n",
 		atomic_read(&pw_info->u.qogirn6l.users_pw),
@@ -300,35 +298,24 @@ static int sprd_cam_pw_on(struct camsys_power_info *pw_info)
 	/* clear force shutdown */
 	regmap_update_bits_mmsys(&pw_info->u.qogirn6l.regs[CAMSYS_SHUTDOWN_EN], 0);
 	regmap_update_bits_mmsys(&pw_info->u.qogirn6l.regs[CAMSYS_FORCE_SHUTDOWN], 0);
-	do {
+	for (i = 0; i < 30; i++) {
 		usleep_range(300, 350);
-		read_count++;
+		cnt = 0;
 
-		ret = regmap_read_mmsys(
-			&pw_info->u.qogirn6l.regs[CAMSYS_PWR_STATUS],
-			&power_state1);
-		if (ret)
-			pr_err("fail to power on cam sys\n");
-		ret = regmap_read_mmsys(
-			&pw_info->u.qogirn6l.regs[CAMSYS_PWR_STATUS],
-			&power_state2);
-		if (ret)
-			pr_err("fail to power on cam sys\n");
-		ret = regmap_read_mmsys(
-			&pw_info->u.qogirn6l.regs[CAMSYS_PWR_STATUS],
-			&power_state3);
-		if (ret)
-			pr_err("fail to power on cam sys\n");
+		for (j = 0; j < 5; j++) {
+			ret = regmap_read_mmsys(&pw_info->u.qogirn6l.regs[CAMSYS_PWR_STATUS], &power_state);
+			if (ret == 0 && !(power_state))
+				cnt++;
+			else
+				cnt = 0;
+		}
+		if (cnt == 5)
+			break;
 
-		pr_info("cam pw status, %x, %x, %x\n",
-			power_state1, power_state2, power_state3);
-	} while ((power_state1 && (read_count < 30)) ||
-		(power_state1 != power_state2) ||
-		(power_state2 != power_state3));
+	}
 
-	if (power_state1) {
-		pr_err("fail to get power state 0x%x\n",
-				power_state1);
+	if (cnt < 5) {
+		pr_err("fail to pw on cam domain\n");
 		ret = -1;
 		goto err_pw_on;
 	}
@@ -336,74 +323,54 @@ static int sprd_cam_pw_on(struct camsys_power_info *pw_info)
 	/* dcam domain power on */
 	regmap_update_bits_mmsys(&pw_info->u.qogirn6l.regs[CAMSYS_DCAM_SHUTDOWN_EN], 0);
 	regmap_update_bits_mmsys(&pw_info->u.qogirn6l.regs[CAMSYS_DCAM_FORCE_SHUTDOWN], 0);
-	do {
+
+	for (k = 0; k < 30; k++) {
 		usleep_range(300, 350);
-		read_count++;
+		cnt = 0;
 
-		ret = regmap_read_mmsys(
-			&pw_info->u.qogirn6l.regs[CAMSYS_DCAM_STATUS],
-			&power_state1);
-		if (ret)
-			pr_err("fail to power on dcam sys\n");
-		ret = regmap_read_mmsys(
-			&pw_info->u.qogirn6l.regs[CAMSYS_DCAM_STATUS],
-			&power_state2);
-		if (ret)
-			pr_err("fail to power on dcam sys\n");
-		ret = regmap_read_mmsys(
-			&pw_info->u.qogirn6l.regs[CAMSYS_DCAM_STATUS],
-			&power_state3);
-		if (ret)
-			pr_err("fail to power on dcam sys\n");
+		for (j = 0; j < 5; j++) {
+			ret = regmap_read_mmsys(&pw_info->u.qogirn6l.regs[CAMSYS_DCAM_STATUS], &power_state);
+			if (ret == 0 && !(power_state))
+				cnt++;
+			else
+				cnt = 0;
+		}
+		if (cnt == 5)
+			break;
 
-		pr_info("dcam pw status, %x, %x, %x\n",
-			power_state1, power_state2, power_state3);
-	} while ((power_state1 && (read_count < 30)) ||
-		(power_state1 != power_state2) ||
-		(power_state2 != power_state3));
+	}
 
-	if (power_state1) {
-		pr_err("fail to get dcam power state 0x%x\n",
-				power_state1);
+	if (cnt < 5) {
+		pr_err("fail to pw on dcam domain\n");
 		ret = -1;
 		goto err_pw_on;
 	}
 	/* isp domain power on */
 	regmap_update_bits_mmsys(&pw_info->u.qogirn6l.regs[CAMSYS_ISP_SHUTDOWN_EN], 0);
 	regmap_update_bits_mmsys(&pw_info->u.qogirn6l.regs[CAMSYS_ISP_FORCE_SHUTDOWN], 0);
-	do {
+
+	for (l = 0; l < 30; l++) {
 		usleep_range(300, 350);
-		read_count++;
+		cnt = 0;
 
-		ret = regmap_read_mmsys(
-			&pw_info->u.qogirn6l.regs[CAMSYS_ISP_STATUS],
-			&power_state1);
-		if (ret)
-			pr_err("fail to power on isp sys\n");
-		ret = regmap_read_mmsys(
-			&pw_info->u.qogirn6l.regs[CAMSYS_ISP_STATUS],
-			&power_state2);
-		if (ret)
-			pr_err("fail to power on isp sys\n");
-		ret = regmap_read_mmsys(
-			&pw_info->u.qogirn6l.regs[CAMSYS_ISP_STATUS],
-			&power_state3);
-		if (ret)
-			pr_err("fail to power on isp sys\n");
+		for (j = 0; j < 5; j++) {
+			ret = regmap_read_mmsys(&pw_info->u.qogirn6l.regs[CAMSYS_ISP_STATUS], &power_state);
+			if (ret == 0 && !(power_state))
+				cnt++;
+			else
+				cnt = 0;
+		}
+		if (cnt == 5)
+			break;
 
-		pr_info("icam pw status, %x, %x, %x\n",
-			power_state1, power_state2, power_state3);
-	} while ((power_state1 && (read_count < 30)) ||
-		(power_state1 != power_state2) ||
-		(power_state2 != power_state3));
+	}
 
-	if (power_state1) {
-		pr_err("fail to get isp power state 0x%x\n",
-				power_state1);
+	if (cnt < 5) {
+		pr_err("fail to pw on isp domain\n");
 		ret = -1;
 		goto err_pw_on;
 	}
-
+	pr_info("Done, i %d k %d l %d\n", i, k, l);
 	return 0;
 
 err_pw_on:

@@ -2915,7 +2915,11 @@ static int sprd_img_k_open(struct inode *node, struct file *file)
 	int                      ret = 0;
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0))
-	sprd_glb_mm_pw_on_cfg();
+	ret = sprd_glb_mm_pw_on_cfg();
+	if (ret) {
+		pr_err("fail to power on mm domain\n");
+		return ret;
+	}
 	pm_runtime_get(md->this_device->platform_data);
 #endif
 	if (atomic_read(&s_dcam_cnt) >= 1)
