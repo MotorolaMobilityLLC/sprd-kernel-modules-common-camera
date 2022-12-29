@@ -335,7 +335,8 @@ static int camioctl_param_cfg(struct camera_module *module, unsigned long arg)
 	hw = dev->hw;
 
 	if ((param.scene_id == PM_SCENE_OFFLINE_CAP) ||
-		(param.scene_id == PM_SCENE_OFFLINE_BPC))
+		(param.scene_id == PM_SCENE_OFFLINE_BPC) ||
+		(param.scene_id == PM_SCENE_SFNR))
 		for_fdr = 1;
 	for_capture = (param.scene_id == PM_SCENE_CAP ? 1 : 0) | for_fdr;
 
