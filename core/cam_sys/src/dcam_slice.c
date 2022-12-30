@@ -16,7 +16,7 @@
 
 #include "dcam_core.h"
 #include "cam_queue.h"
-#include "sprd_camsys.h"
+#include "sprd_cam.h"
 #include "dcam_hw_adpt.h"
 
 #ifdef pr_fmt

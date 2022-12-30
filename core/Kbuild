@@ -95,6 +95,10 @@ else ifeq ($(ADAPT_DIR), qogirn6pro)
 ccflags-y += -DPROJ_QOGIRN6PRO
 else ifeq ($(ADAPT_DIR), qogirn6l)
 ccflags-y += -DPROJ_QOGIRN6L
+else ifeq ($(ISP_DIR), dcam_r6p0_isp_r6p91)
+ccflags-y += -DPROJ_PIKE2
+else ifeq ($(ISP_DIR), dcam_if_r4p0_isp_r6p11)
+ccflags-y += -DPROJ_SHARKLE
 endif
 
 #

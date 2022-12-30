@@ -46,7 +46,7 @@
 #include "isp_interface.h"
 #include "isp_scaler_node.h"
 #include "pyr_dec_node.h"
-#include "sprd_camsys.h"
+#include "sprd_cam.h"
 #include "sprd_sensor_drv.h"
 #include <sprd_camsys_domain.h>
 

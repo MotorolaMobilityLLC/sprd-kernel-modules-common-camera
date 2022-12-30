@@ -14,7 +14,7 @@
 #ifndef _DCAM_CORE_H_
 #define _DCAM_CORE_H_
 
-#include "sprd_camsys.h"
+#include "sprd_cam.h"
 #include <linux/sprd_ion.h>
 
 #include "cam_types.h"
