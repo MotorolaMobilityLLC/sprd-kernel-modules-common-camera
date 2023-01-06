@@ -526,8 +526,10 @@ struct cam_frame *cam_buf_manager_buf_dequeue(struct cam_buf_pool_id *pool_id, s
 	struct cam_buf_pool_id pool_id_normal = {0};
 	struct cam_buf_manager *buf_manager = (struct cam_buf_manager *)buf_manager_handle;
 
-	if (!pool_id || !buf_manager_handle)
+	if (!pool_id || !buf_manager_handle) {
+		pr_err("fail to get input handle pool_id:%px, buf_handle:%px.\n", pool_id, buf_manager_handle);
 		return NULL;
+	}
 
 	pool_id_normal = *pool_id;
 	pool_id_normal.reserved_pool_id = 0;

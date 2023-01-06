@@ -1232,10 +1232,10 @@ int dcam_online_port_param_cfg(void *handle, enum cam_port_cfg_cmd cmd, void *pa
 	dcam_port = (struct dcam_online_port *)handle;
 
 	switch (cmd) {
-	case PORT_BUFFER_CFG_SET:
+	case PORT_CFG_BUFFER_SET:
 		ret = dcam_online_port_buffer_cfg(dcam_port, param);
 		break;
-	case PORT_ZOOM_CFG_SET:
+	case PORT_CFG_ZOOM_SET:
 		ret = dcamonline_port_zoom_cfg(dcam_port, param);
 		break;
 	default:

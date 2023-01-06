@@ -830,7 +830,7 @@ int cam_zoom_channel_size_config(
 	raw_zoom_base.crop.size_x = ch_uinfo->src_size.w;
 	raw_zoom_base.crop.size_y = ch_uinfo->src_size.h;
 	if (channel->ch_id == CAM_CH_RAW || channel->dcam_port_id == PORT_RAW_OUT
-		|| module->cam_uinfo.raw_alg_type || module->cam_uinfo.is_4in1) {
+		|| module->cam_uinfo.algs_type || module->cam_uinfo.is_4in1) {
 		need_raw_port = 1;
 	}
 
@@ -851,7 +851,7 @@ int cam_zoom_channel_size_config(
 	if (need_raw_port && IS_VALID_DCAM_IMG_PORT(raw_port_id)) {
 		zoom_info.dcam_crop[raw_port_id] = raw_zoom_base.crop;
 		zoom_info.dcam_dst[raw_port_id] = raw_zoom_base.dst;
-		if ((module->cam_uinfo.is_4in1 || module->cam_uinfo.raw_alg_type ||
+		if ((module->cam_uinfo.is_4in1 || module->cam_uinfo.algs_type ||
 			(channel->ch_id == CAM_CH_CAP && module->cam_uinfo.dcam_slice_mode && !module->cam_uinfo.is_4in1))
 			&& IS_VALID_DCAM_IMG_PORT(raw2yuv_port_id)) {
 			zoom_info.dcam_crop[raw2yuv_port_id] = channel->trim_dcam;

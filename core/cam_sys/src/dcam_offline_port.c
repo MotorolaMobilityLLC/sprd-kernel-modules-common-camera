@@ -265,6 +265,18 @@ static int dcamoffline_port_param_get(void *handle, void *param)
 	return ret;
 }
 
+static uint32_t dcamoffline_port_bufq_clr(struct dcam_offline_port *port, void *param)
+{
+	struct cam_frame *pframe = NULL;
+	struct camera_buf_get_desc buf_desc = {0};
+
+	buf_desc.buf_ops_cmd = CAM_BUF_STATUS_MOVE_TO_ALLOC;
+	pframe = cam_buf_manager_buf_dequeue(&port->unprocess_pool, &buf_desc, port->buf_manager_handle);
+
+	pr_debug("port:0x%px, port_id:%d.\n", port, port->port_id);
+	return 0;
+}
+
 int dcam_offline_port_param_cfg(void *handle, enum cam_port_cfg_cmd cmd, void *param)
 {
 	int ret = 0;
@@ -280,7 +292,7 @@ int dcam_offline_port_param_cfg(void *handle, enum cam_port_cfg_cmd cmd, void *p
 
 	dcam_port = (struct dcam_offline_port *)handle;
 	switch (cmd) {
-	case PORT_BUFFER_CFG_SET:
+	case PORT_CFG_BUFFER_SET:
 		pframe = (struct cam_frame *)param;
 		buf_desc.buf_ops_cmd = CAM_BUF_STATUS_GET_IOVA;
 		buf_desc.mmu_type = CAM_BUF_IOMMUDEV_DCAM;
@@ -292,16 +304,19 @@ int dcam_offline_port_param_cfg(void *handle, enum cam_port_cfg_cmd cmd, void *p
 		}
 		pr_info("config dcam offline path %s output buffer.\n", cam_port_dcam_offline_out_id_name_get(dcam_port->port_id));
 		break;
-	case PORT_PARAM_CFG_GET:
+	case PORT_CFG_PARAM_GET:
 		ret = dcamoffline_port_param_get(dcam_port, param);
 		break;
-	case PORT_BUFFER_CFG_GET:
+	case PORT_CFG_BUFFER_GET:
 		frame = (struct cam_frame **)param;
 		*frame = cam_buf_manager_buf_dequeue(&dcam_port->result_pool, NULL, dcam_port->buf_manager_handle);
 		if (*frame == NULL) {
 			pr_err("fail to available dcamoffline result buf %s\n", cam_port_dcam_offline_out_id_name_get(dcam_port->port_id));
 			ret = -EFAULT;
 		}
+		break;
+	case PORT_CFG_BUFFER_CLR:
+		ret = dcamoffline_port_bufq_clr(dcam_port, param);
 		break;
 	default:
 		pr_err("fail to support port cfg cmd %d\n", cmd);

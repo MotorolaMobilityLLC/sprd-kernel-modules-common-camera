@@ -410,7 +410,7 @@ int cam_buf_ionbuf_get(struct camera_buf *buf_info)
 		return 0;
 	}
 
-	pr_debug("enter. user buf:  %d\n", buf_info->mfd);
+	pr_debug("enter. user buf:  %d, sec:%d\n", buf_info->mfd, buf_info->buf_sec);
 	ret = cambuf_adapt_ion_get_buffer(buf_info->mfd, buf_info->buf_sec, NULL, &buf_info->ionbuf, &buf_info->size);
 	if (ret) {
 		pr_err("fail to get ionbuf for user buffer %d\n", buf_info->mfd);

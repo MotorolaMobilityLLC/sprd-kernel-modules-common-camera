@@ -43,6 +43,12 @@
 /* TODO: need to pass the num to driver by hal */
 #define CAP_NUM_COMMON                  1
 
+#define COMPAT_SPRD_ISP_IO_CFG_PARAM \
+	_IOWR(SPRD_IMG_IO_MAGIC, 41, struct compat_isp_io_param)
+
+#define COMPAT_SPRD_IMG_IO_POST_FDR \
+	_IOW(SPRD_IMG_IO_MAGIC, 71, struct compat_sprd_img_postproc_param)
+
 enum camera_module_state {
 	CAM_INIT = 0,
 	CAM_IDLE,
@@ -68,14 +74,25 @@ static uint32_t output_img_fmt[] = {
 	IMG_PIX_FMT_GREY,
 };
 
-#define COMPAT_SPRD_ISP_IO_CFG_PARAM \
-	_IOWR(SPRD_IMG_IO_MAGIC, 41, struct compat_isp_io_param)
-
 struct compat_isp_io_param {
 	uint32_t scene_id;
 	uint32_t sub_block;
 	uint32_t property;
-	u32 property_param;
+	uint32_t property_param;
+};
+
+struct compat_sprd_img_postproc_param {
+	enum cam_postproc_scene scene_mode;
+	uint32_t channel_id;
+	uint32_t index;
+	struct sprd_img_size src_size;
+	struct sprd_img_size dst_size;
+	uint32_t fd_array[SPRD_IMG_POSTPROC_BUF_CNT];
+	uint32_t blk_param;
+	uint32_t src_imgfmt;
+	uint32_t dst_imgfmt;
+	struct sprd_img_frm_addr frame_addr_vir_array[SPRD_IMG_POSTPROC_BUF_CNT];
+	uint32_t reserved[4];
 };
 
 struct camera_uchannel {
@@ -131,7 +148,7 @@ struct camera_uinfo {
 	uint32_t zoom_conflict_with_ltm;
 	/* for raw alg*/
 	enum en_status is_raw_alg;
-	enum raw_alg_types raw_alg_type;
+	enum alg_types algs_type;
 	uint32_t param_frame_sync;
 	/* for dcam raw*/
 	enum en_status need_dcam_raw;
@@ -228,6 +245,7 @@ struct camera_module {
 	struct mutex buf_lock[CAM_CH_MAX];
 
 	struct completion frm_com;
+	struct completion postproc_done;
 	struct camera_queue frm_queue;/* frame message queue for user*/
 	struct camera_queue alloc_queue;/* alloc data queue or user*/
 

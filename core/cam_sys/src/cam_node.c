@@ -348,10 +348,10 @@ static int camnode_cfg_node_param_dcam_online(void *handle, enum cam_node_cfg_cm
 
 	switch (cmd) {
 	case CAM_NODE_CFG_ZOOM:
-		ret = node->ops.cfg_port_param(node, PORT_ZOOM_CFG_SET, param);
+		ret = node->ops.cfg_port_param(node, PORT_CFG_ZOOM_SET, param);
 		break;
 	case CAM_NODE_CFG_BUF:
-		ret = node->ops.cfg_port_param(node, PORT_BUFFER_CFG_SET, param);
+		ret = node->ops.cfg_port_param(node, PORT_CFG_BUFFER_SET, param);
 		break;
 	case CAM_NODE_CFG_CAP_PARAM:
 		cap_param = (struct cam_capture_param *)in_param->param;
@@ -412,7 +412,7 @@ static int camnode_cfg_node_param_dcam_offline(void *handle, enum cam_node_cfg_c
 
 	switch (cmd) {
 	case CAM_NODE_CFG_BUF:
-		ret = node->ops.cfg_port_param(node, PORT_BUFFER_CFG_SET, param);
+		ret = node->ops.cfg_port_param(node, PORT_CFG_BUFFER_SET, param);
 		break;
 	case CAM_NODE_CFG_BLK_PARAM:
 		ret = dcam_offline_node_blk_param_set(node->handle, in_param->param);
@@ -454,7 +454,7 @@ static int camnode_cfg_node_param_dcam_offline_bpc(void *handle, enum cam_node_c
 
 	switch (cmd) {
 	case CAM_NODE_CFG_BUF:
-		ret = node->ops.cfg_port_param(node, PORT_BUFFER_CFG_SET, param);
+		ret = node->ops.cfg_port_param(node, PORT_CFG_BUFFER_SET, param);
 		break;
 	case CAM_NODE_CFG_BLK_PARAM:
 		ret = dcam_offline_node_blk_param_set(node->handle, in_param->param);
@@ -487,7 +487,7 @@ static int camnode_cfg_node_param_dcam_offline_raw2frgb(void *handle, enum cam_n
 
 	switch (cmd) {
 	case CAM_NODE_CFG_BUF:
-		ret = node->ops.cfg_port_param(node, PORT_BUFFER_CFG_SET, param);
+		ret = node->ops.cfg_port_param(node, PORT_CFG_BUFFER_SET, param);
 		break;
 	case CAM_NODE_CFG_BLK_PARAM:
 		ret = dcam_offline_node_blk_param_set(node->handle, in_param->param);
@@ -523,7 +523,7 @@ static int camnode_cfg_node_param_dcam_offline_frgb2yuv(void *handle, enum cam_n
 
 	switch (cmd) {
 	case CAM_NODE_CFG_BUF:
-		ret = node->ops.cfg_port_param(node, PORT_BUFFER_CFG_SET, param);
+		ret = node->ops.cfg_port_param(node, PORT_CFG_BUFFER_SET, param);
 		break;
 	case CAM_NODE_CFG_BLK_PARAM:
 		ret = dcam_offline_node_blk_param_set(node->handle, in_param->param);
@@ -611,10 +611,13 @@ static int camnode_cfg_node_param_isp_offline(void *handle, enum cam_node_cfg_cm
 
 	switch (cmd) {
 	case CAM_NODE_CFG_BUF:
-		ret = node->ops.cfg_port_param(node, PORT_BUFFER_CFG_SET, param);
+		ret = node->ops.cfg_port_param(node, PORT_CFG_BUFFER_SET, param);
+		break;
+	case CAM_NODE_CFG_BUF_CLR:
+		ret = node->ops.cfg_port_param(node, PORT_CFG_BUFFER_CLR, param);
 		break;
 	case CAM_NODE_CFG_BASE:
-		ret = node->ops.cfg_port_param(node, PORT_CFG_BASE, param);
+		ret = node->ops.cfg_port_param(node, PORT_CFG_BASE_SET, param);
 		break;
 	case CAM_NODE_CFG_BLK_PARAM:
 		ret = isp_node_config(node->handle, ISP_NODE_CFG_BLK_PATAM, in_param->param);
@@ -623,13 +626,13 @@ static int camnode_cfg_node_param_isp_offline(void *handle, enum cam_node_cfg_cm
 		if (in_param->port_type == PORT_TRANSFER_IN)
 			ret = isp_node_config(node->handle, ISP_NODE_CFG_PORT_UFRAME, in_param->param);
 		if (in_param->port_type == PORT_TRANSFER_OUT)
-			ret = node->ops.cfg_port_param(node, PORT_UFRAME_CFG, param);
+			ret = node->ops.cfg_port_param(node, PORT_CFG_UFRAME_SET, param);
 		break;
 	case CAM_NODE_CFG_STATIS:
 		ret = isp_node_config(node->handle, ISP_NODE_CFG_STATIS, in_param->param);
 		break;
 	case CAM_NODE_CFG_RESERVE_BUF:
-		ret = node->ops.cfg_port_param(node, PORT_RESERVERD_BUF_CFG, param);
+		ret = node->ops.cfg_port_param(node, PORT_CFG_RESBUF_SET, param);
 		break;
 	case CAM_NODE_CFG_INSERT_PORT:
 		ret = isp_node_config(node->handle, ISP_NODE_CFG_INSERT_PORT, in_param->param);
@@ -642,6 +645,9 @@ static int camnode_cfg_node_param_isp_offline(void *handle, enum cam_node_cfg_cm
 		break;
 	case CAM_NODE_CFG_PARAM_SWITCH:
 		ret = isp_node_config(node->handle, ISP_NODE_CFG_PARAM_SWITCH, in_param->param);
+		break;
+	case CAM_NODE_CFG_POSTPROC_PARAM:
+		ret = isp_node_config(node->handle, ISP_NODE_CFG_POSTPROC_PARAM, in_param->param);
 		break;
 	case CAM_NODE_CFG_PARAM_Q_CLEAR:
 		ret = isp_node_config(node->handle, ISP_NODE_CFG_PARAM_Q_CLEAR, in_param->param);
@@ -674,7 +680,7 @@ static int camnode_cfg_node_param_isp_yuv_scaler(void *handle, enum cam_node_cfg
 
 	switch (cmd) {
 	case CAM_NODE_CFG_BUF:
-		ret = node->ops.cfg_port_param(node, PORT_BUFFER_CFG_SET, param);
+		ret = node->ops.cfg_port_param(node, PORT_CFG_BUFFER_SET, param);
 		break;
 	case CAM_NODE_CFG_UFRAME:
 		ret = isp_scaler_node_cfg_param(node->handle, in_param->port_id, ISP_YUV_SCALER_NODE_CFG_PORT_UFRAME, in_param->param);
@@ -735,7 +741,7 @@ static int camnode_cfg_node_param_frame_cache(void *handle, enum cam_node_cfg_cm
 	case CAM_NODE_CFG_PRE_RAW_FLAG:
 		ret = frame_cache_node_set_pre_raw_flag(node->handle, in_param->param);
 		break;
-	case CAM_NODE_GET_CAP_FRAME:
+	case CAM_NODE_CFG_GET_CAP_FRAME:
 		ret = frame_cache_node_get_cap_frame(node->handle, in_param->param);
 		break;
 	default:
@@ -772,6 +778,12 @@ static int camnode_cfg_node_param_pyr_dec(void *handle, enum cam_node_cfg_cmd cm
 		break;
 	case CAM_NODE_CFG_PARAM_SWITCH:
 		ret = pyr_dec_node_param_buf_cfg(node->handle, in_param->param);
+		break;
+	case CAM_NODE_CFG_POSTPROC_PARAM:
+		ret = pyr_dec_node_postproc_param_cfg(node->handle, in_param->param);
+		break;
+	case CAM_NODE_CFG_BASE:
+		ret = pyr_dec_node_base_cfg(node->handle, in_param->param);
 		break;
 	case CAM_NODE_CFG_INSERT_PORT:
 		break;
@@ -1025,22 +1037,22 @@ static int camnode_outbuf_back(void *handle, void *in_param)
 	switch (node->node_graph->type) {
 	case CAM_NODE_TYPE_DCAM_ONLINE:
 	case CAM_NODE_TYPE_DATA_COPY:
-		ret = node->ops.cfg_port_param(node, PORT_BUFFER_CFG_SET, node_param);
+		ret = node->ops.cfg_port_param(node, PORT_CFG_BUFFER_SET, node_param);
 		break;
 	case CAM_NODE_TYPE_DCAM_OFFLINE:
 	case CAM_NODE_TYPE_DCAM_OFFLINE_BPC_RAW:
 	case CAM_NODE_TYPE_DCAM_OFFLINE_RAW2FRGB:
 	case CAM_NODE_TYPE_DCAM_OFFLINE_FRGB2YUV:
-		ret = node->ops.cfg_port_param(node, PORT_BUFFER_CFG_SET, node_param);
+		ret = node->ops.cfg_port_param(node, PORT_CFG_BUFFER_SET, node_param);
 		break;
 	case CAM_NODE_TYPE_ISP_OFFLINE:
-		ret = node->ops.cfg_port_param(node, PORT_BUFFER_CFG_SET, node_param);
+		ret = node->ops.cfg_port_param(node, PORT_CFG_BUFFER_SET, node_param);
 		break;
 	case CAM_NODE_TYPE_FRAME_CACHE:
 		ret = frame_cache_outbuf_back(node->handle, node_param->param);
 		break;
 	case CAM_NODE_TYPE_PYR_DEC:
-		ret = node->ops.cfg_port_param(node, PORT_BUFFER_CFG_SET, node_param);
+		ret = node->ops.cfg_port_param(node, PORT_CFG_BUFFER_SET, node_param);
 		break;
 	default:
 		pr_err("fail to support node type %s\n", cam_node_name_get(node->node_graph->type));
@@ -1152,7 +1164,7 @@ static int camnode_port_cfg_callback(void *param, uint32_t cmd, void *cb_handle)
 
 	node = (struct cam_node *)cb_handle;
 	switch (cmd) {
-	case PORT_PARAM_CFG_GET:
+	case PORT_CFG_PARAM_GET:
 		for (i = 0; i < CAM_NODE_PORT_OUT_NUM; i++) {
 			port = node->outport_list[i];
 			if (!port || port->port_graph->link_state != PORT_LINK_NORMAL)
@@ -1164,8 +1176,8 @@ static int camnode_port_cfg_callback(void *param, uint32_t cmd, void *cb_handle)
 			}
 		}
 		break;
-	case PORT_BUFFER_CFG_SET:
-	case PORT_BUFFER_CFG_ALLOC:
+	case PORT_CFG_BUFFER_SET:
+	case PORT_CFG_BUFFER_ALLOC:
 		node_param = (struct cam_node_cfg_param *)param;
 		port = node->outport_list[node_param->port_id];
 		if (!port) {
@@ -1178,8 +1190,8 @@ static int camnode_port_cfg_callback(void *param, uint32_t cmd, void *cb_handle)
 			goto exit;
 		}
 		break;
-	case PORT_BUFFER_CFG_GET:
-	case PORT_BUFFER_CFG_CYCLE:
+	case PORT_CFG_BUFFER_GET:
+	case PORT_CFG_BUFFER_CYCLE:
 		node_param = (struct cam_node_cfg_param *)param;
 		port = node->outport_list[node_param->port_id];
 		if (!port) {
@@ -1268,9 +1280,8 @@ int cam_node_buffer_alloc(void *handle, struct cam_buf_alloc_desc *param)
 			if (!node->outport_list[i])
 				continue;
 			ret = cam_port_buffers_alloc(node->outport_list[i], node->node_graph->id, param);
-			if (ret) {
+			if (ret)
 				pr_err("fail to alloc buf %d\n", i);
-			}
 		}
 		if (param->share_buffer)
 			mutex_unlock(&dec_node->dev->pyr_mulshare_dec_lock);
