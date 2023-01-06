@@ -40,11 +40,13 @@ enum cam_pipeline_cfg_cmd {
 	CAM_PIPELINE_CFG_GTM_LTM,
 	CAM_PIPELINE_CFG_RESET,
 	CAM_PIPELINE_CFG_XTM_EN,
+	CAM_PIPELINE_CFG_BUF_CLR,
 	/*TEMP:for cfg isp cur_ctx_id to pyrdecnode*/
 	CAM_PIPELINE_CFG_CTXID,
 	CAM_PIPELINE_CFG_3DNR_MODE,
 	CAM_PIPELINE_CFG_GTM,
 	CAM_PIPELINE_CFG_PARAM_SWITCH,
+	CAM_PIPELINE_CFG_POSTPROC_PARAM,
 	CAM_PIPRLINE_CFG_PARAM_Q_CLEAR,
 	CAM_PIPELINE_CFG_FAST_STOP,
 	CAM_PIPELINE_CFG_PRE_RAW_FLAG,
@@ -62,8 +64,8 @@ enum cam_pipeline_buffer_num {
 };
 
 struct cam_pipeline_cfg_param {
-	enum cam_node_type node_type;
 	uint32_t node_id;
+	enum cam_node_type node_type;
 	struct cam_node_cfg_param node_param;
 };
 
@@ -140,6 +142,21 @@ struct cam_pipeline {
 	ret; \
 })
 
+#define CAM_PIPEINE_NR_ISP_NODE_CFG(channel, cmd, par)  ({ \
+	struct cam_pipeline_cfg_param param_cfg = {0}; \
+	int ret = 0; \
+	param_cfg.node_id = ISP_NODE_MODE_CAP_ID; \
+	param_cfg.node_type = CAM_NODE_TYPE_ISP_OFFLINE; \
+	param_cfg.node_param.param = (par); \
+	if ((channel)->pipeline_handle) \
+		ret = (channel)->pipeline_handle->ops.cfg_param((channel)->pipeline_handle, (cmd), &param_cfg); \
+	else { \
+		pr_warn("warning: current channel not contain pipeline\n"); \
+		ret = -EFAULT; \
+	} \
+	ret; \
+})
+
 #define CAM_PIPEINE_ISP_IN_PORT_CFG(channel, portid, cmd, nodeid, par)  ({ \
 	struct cam_pipeline_cfg_param param_cfg = {0}; \
 	int ret = 0; \
@@ -157,6 +174,23 @@ struct cam_pipeline {
 	ret; \
 })
 
+#define CAM_PIPEINE_NR_ISP_IN_PORT_CFG(channel, portid, cmd, par)  ({ \
+	struct cam_pipeline_cfg_param param_cfg = {0}; \
+	int ret = 0; \
+	param_cfg.node_id = ISP_NODE_MODE_CAP_ID; \
+	param_cfg.node_type = CAM_NODE_TYPE_ISP_OFFLINE; \
+	param_cfg.node_param.param = (par); \
+	param_cfg.node_param.port_type = PORT_TRANSFER_IN; \
+	param_cfg.node_param.port_id = (portid); \
+	if ((channel)->pipeline_handle) \
+		ret = (channel)->pipeline_handle->ops.cfg_param((channel)->pipeline_handle, (cmd), &param_cfg); \
+	else { \
+		pr_warn("warning: current channel not contain pipeline\n"); \
+		ret = -EFAULT; \
+	} \
+	ret; \
+})
+
 #define CAM_PIPEINE_ISP_OUT_PORT_CFG(channel, portid, cmd, nodeid, par)  ({ \
 	struct cam_pipeline_cfg_param param_cfg = {0}; \
 	int ret = 0; \
@@ -165,6 +199,23 @@ struct cam_pipeline {
 	param_cfg.node_param.port_type = PORT_TRANSFER_OUT; \
 	param_cfg.node_param.port_id = (portid); \
 	param_cfg.node_id = (nodeid); \
+	if ((channel)->pipeline_handle) \
+		ret = (channel)->pipeline_handle->ops.cfg_param((channel)->pipeline_handle, (cmd), &param_cfg); \
+	else { \
+		pr_warn("warning: current channel not contain pipeline\n"); \
+		ret = -EFAULT; \
+	} \
+	ret; \
+})
+
+#define CAM_PIPEINE_NR_ISP_OUT_PORT_CFG(channel, portid, cmd, par)  ({ \
+	struct cam_pipeline_cfg_param param_cfg = {0}; \
+	int ret = 0; \
+	param_cfg.node_id = ISP_NODE_MODE_CAP_ID; \
+	param_cfg.node_type = CAM_NODE_TYPE_ISP_OFFLINE; \
+	param_cfg.node_param.param = (par); \
+	param_cfg.node_param.port_type = PORT_TRANSFER_OUT; \
+	param_cfg.node_param.port_id = (portid); \
 	if ((channel)->pipeline_handle) \
 		ret = (channel)->pipeline_handle->ops.cfg_param((channel)->pipeline_handle, (cmd), &param_cfg); \
 	else { \

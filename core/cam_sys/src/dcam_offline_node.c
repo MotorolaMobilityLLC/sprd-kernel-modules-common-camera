@@ -231,7 +231,7 @@ static int dcamoffline_irq_proc(void *param, void *handle)
 
 	if (node->port_cfg_cb_func) {
 		node_param.port_id = irq_desc->dcam_port_id;
-		ret = node->port_cfg_cb_func(&node_param, PORT_BUFFER_CFG_GET, node->port_cfg_cb_handle);
+		ret = node->port_cfg_cb_func(&node_param, PORT_CFG_BUFFER_GET, node->port_cfg_cb_handle);
 		if (ret)
 			pr_err("fail to get dcam offline port param\n");
 		frame = (struct cam_frame *)(node_param.param);
@@ -644,7 +644,7 @@ static int dcamoffline_node_frame_start(void *param)
 	dcam_slice_info_cal(slice, pframe, lbuf_width);
 	ret = dcamoffline_hw_statis_work_set(node);
 	if (node->port_cfg_cb_func)
-		ret = node->port_cfg_cb_func(node->hw_ctx, PORT_PARAM_CFG_GET, node->port_cfg_cb_handle);
+		ret = node->port_cfg_cb_func(node->hw_ctx, PORT_CFG_PARAM_GET, node->port_cfg_cb_handle);
 	if (ret) {
 		pr_err("fail to get dcam offline port param\n");
 		goto return_buf;
@@ -907,7 +907,7 @@ static int dcamoffline_recovery(void *handle)
 	complete(&node->slice_done);
 	CAM_QUEUE_FOR_EACH_ENTRY(dcam_port, &node->port_queue.head, list) {
 		node_param.port_id = dcam_port->port_id;
-		ret = node->port_cfg_cb_func(&node_param, PORT_BUFFER_CFG_GET, node->port_cfg_cb_handle);
+		ret = node->port_cfg_cb_func(&node_param, PORT_CFG_BUFFER_GET, node->port_cfg_cb_handle);
 		if (ret)
 			pr_err("fail to get dcam offline port param\n");
 		frame = (struct cam_frame *)(node_param.param);

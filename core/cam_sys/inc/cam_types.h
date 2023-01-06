@@ -211,6 +211,13 @@ enum cam_frame_scene {
 	CAM_FRAME_ORIGINAL_RAW,
 };
 
+enum cam_postproc_mode {
+	CAM_POSTPROC_DEFAULT,
+	CAM_POSTPROC_SERIAL,
+	CAM_POSTPROC_PARALLEL,
+	CAM_POSTPROC_TYPE_MAX,
+};
+
 struct img_addr {
 	uint32_t addr_ch0;
 	uint32_t addr_ch1;
@@ -246,6 +253,11 @@ struct img_scaler_info {
 	struct img_size src_size;
 	struct img_trim src_trim;
 	struct img_size dst_size;
+};
+
+struct cam_postproc_blkpm {
+	uint32_t fid;
+	void __user *blk_property;
 };
 
 enum reserved_buf_cb_type {

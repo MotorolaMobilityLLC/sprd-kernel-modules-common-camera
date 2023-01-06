@@ -15,6 +15,7 @@
 #define _SPRD_CAMSYS_H_
 
 #include <linux/ioctl.h>
+#include "sprd_isp_2v6.h"
 
 /* SPRD_IMG_IO_CHECK_FMT fourcc Four-character-code(FOURCC) */
 #define img_fourcc(a, b, c, d)\
@@ -57,6 +58,8 @@
 #define SPRD_FLASH_MAX_CELL  40
 
 #define IMG_PATH_BUFFER_COUNT 64
+
+#define SPRD_IMG_POSTPROC_BUF_CNT 3
 
 #define VIR_CH_NUM 2
 
@@ -266,12 +269,29 @@ enum capture_scene {
 	CAPTURE_FROM_TIMESTAMP,
 };
 
+enum cam_postproc_scene {
+	CAM_POSTPROC_CAP_PROC_RAW = 0,
+	CAM_POSTPROC_CAP_PIPELINE,
+	CAM_POSTPROC_VID_NOISE_RD,
+	CAM_POSTPROC_MAX,
+};
+
 enum FDR_POST_SCENE {
 	FDR_POST_LOW = 0,
 	FDR_POST_HIGH,
 	FDR_POST_PRE,
 	FDR_POST_DRC,
 	FDR_POST_MERGE,
+};
+
+enum alg_types {
+	ALG_TYPE_DEFAULT,
+	ALG_TYPE_CAP_FDR_V1,
+	ALG_TYPE_CAP_FDR_V2,
+	ALG_TYPE_CAP_AI_SFNR,
+	ALG_TYPE_CAP_MFNR,
+	ALG_TYPE_VID_DR,
+	ALG_TYPE_MAX,
 };
 
 enum raw_alg_types {
@@ -485,6 +505,22 @@ struct sprd_vir_ch_info {
 	enum dev_out_fmt dump_isp_out_fmt;
 	struct sprd_img_size dst_size;
 };
+
+#pragma pack(push, 4)
+struct sprd_img_postproc_param {
+	enum cam_postproc_scene scene_mode;
+	uint32_t channel_id;
+	uint32_t index;
+	struct sprd_img_size src_size;
+	struct sprd_img_size dst_size;
+	uint32_t fd_array[SPRD_IMG_POSTPROC_BUF_CNT];
+	void __user *blk_param;
+	uint32_t src_imgfmt;
+	uint32_t dst_imgfmt;
+	struct sprd_img_frm_addr frame_addr_vir_array[SPRD_IMG_POSTPROC_BUF_CNT];
+	uint32_t reserved[4];
+};
+#pragma pack(pop)
 
 struct sprd_img_parm {
 	uint32_t                  channel_id;

@@ -327,4 +327,6 @@ void pyr_dec_dev_put(void *dec_handle);
 int pyr_dec_node_fast_stop_cfg(void *handle, void *param);
 int pyr_dec_node_close(void *handle);
 int pyr_dec_node_param_buf_cfg(void *handle, void *param);
+int pyr_dec_node_base_cfg(void *handle, void *param);
+int pyr_dec_node_postproc_param_cfg(void *handle, void *param);
 #endif

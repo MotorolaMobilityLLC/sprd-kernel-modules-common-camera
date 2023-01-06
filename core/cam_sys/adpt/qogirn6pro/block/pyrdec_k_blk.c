@@ -279,6 +279,10 @@ static int pyrdec_cfg_store(struct pyr_dec_node *node, uint32_t store_block)
 		color_format = 0x5;
 		data_10b = 0;
 		break;
+	case CAM_YUV420_2FRAME:
+		color_format = 0x4;
+		data_10b = 0;
+		break;
 	default:
 		data_10b = 0;
 		pr_err("fail to support color foramt %d.\n", store->color_format);
@@ -290,7 +294,7 @@ static int pyrdec_cfg_store(struct pyr_dec_node *node, uint32_t store_block)
 		((store->speed2x & 0x1) << 2) |
 		((store->mirror_en & 0x1) <<3) |
 		((color_format & 0xf) << 4) |
-		((store->mipi_en& 0x1) << 7) |
+		((store->mipi_en & 0x1) << 7) |
 		((store->endian & 0x3) << 8) |
 		((store->mono_en & 0x1) << 10) |
 		((data_10b & 0x1) << 11) |

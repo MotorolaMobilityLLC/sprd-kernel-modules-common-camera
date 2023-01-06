@@ -224,6 +224,9 @@ static int campipeline_cfg_param(void *handle, enum cam_pipeline_cfg_cmd cmd, vo
 	case CAM_PIPELINE_CFG_BUF:
 		node_cmd = CAM_NODE_CFG_BUF;
 		break;
+	case CAM_PIPELINE_CFG_BUF_CLR:
+		node_cmd = CAM_NODE_CFG_BUF_CLR;
+		break;
 	case CAM_PIPELINE_CFG_CAP_PARAM:
 		node_cmd = CAM_NODE_CFG_CAP_PARAM;
 		break;
@@ -266,6 +269,9 @@ static int campipeline_cfg_param(void *handle, enum cam_pipeline_cfg_cmd cmd, vo
 	case CAM_PIPELINE_CFG_PARAM_SWITCH:
 		node_cmd = CAM_NODE_CFG_PARAM_SWITCH;
 		break;
+	case CAM_PIPELINE_CFG_POSTPROC_PARAM:
+		node_cmd = CAM_NODE_CFG_POSTPROC_PARAM;
+		break;
 	case CAM_PIPRLINE_CFG_PARAM_Q_CLEAR:
 		node_cmd = CAM_NODE_CFG_PARAM_Q_CLEAR;
 		break;
@@ -297,7 +303,7 @@ static int campipeline_cfg_param(void *handle, enum cam_pipeline_cfg_cmd cmd, vo
 		node_cmd = CAM_NODE_CFG_OPT_SCENE_SWITCH;
 		break;
 	case CAM_PIPELINE_GET_CAP_FRAME:
-		node_cmd = CAM_NODE_GET_CAP_FRAME;
+		node_cmd = CAM_NODE_CFG_GET_CAP_FRAME;
 		break;
 	default:
 		pr_err("fail to support cfg cmd %d\n", cmd);
@@ -339,7 +345,7 @@ static int campipeline_stream_on(void *handle, void *param)
 		}
 	}
 	if (!is_valid_node || !cur_node) {
-		pr_err("fail to get node \n");
+		pr_err("fail to get node:is valid node:%d, cur_node:0x%p \n", is_valid_node, cur_node);
 		return -EFAULT;
 	}
 

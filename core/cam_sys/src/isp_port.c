@@ -63,6 +63,18 @@ static uint32_t ispport_base_cfg(struct isp_port *port, void *param)
 	return 0;
 }
 
+static uint32_t ispport_bufq_clr(struct isp_port *port, void *param)
+{
+	struct cam_frame *pframe = NULL;
+	struct camera_buf_get_desc buf_desc = {0};
+
+	buf_desc.buf_ops_cmd = CAM_BUF_STATUS_MOVE_TO_ALLOC;
+	pframe = cam_buf_manager_buf_dequeue(&port->store_unprocess_pool, &buf_desc, port->buf_manager_handle);
+
+	pr_debug("port_type:%d, port_id:%d\n", port->type, port->port_id);
+	return 0;
+}
+
 static uint32_t ispport_buf_set(struct isp_port *port, void *param)
 {
 	uint32_t ret = 0;
@@ -1490,19 +1502,27 @@ int isp_port_param_cfg(void *handle, enum cam_port_cfg_cmd cmd, void *param)
 	int ret = 0;
 	struct isp_port *port = NULL;
 
+	if (!handle || !param) {
+		pr_err("fail to get input param:handle:0x%p, param:0x%p.\n", handle, param);
+		return -1;
+	}
+
 	port = VOID_PTR_TO(handle, struct isp_port);
 	switch (cmd) {
-	case PORT_UFRAME_CFG:
+	case PORT_CFG_UFRAME_SET:
 		port->uframe_sync |= *(uint32_t *)param;
 		break;
-	case PORT_BUFFER_CFG_SET:
+	case PORT_CFG_BUFFER_SET:
 		ret = ispport_buf_set(port, param);
 		break;
-	case PORT_RESERVERD_BUF_CFG:
+	case PORT_CFG_RESBUF_SET:
 		ispport_reserved_buf_set(port, param);
 		break;
-	case PORT_CFG_BASE:
+	case PORT_CFG_BASE_SET:
 		ret = ispport_base_cfg(port, param);
+		break;
+	case PORT_CFG_BUFFER_CLR:
+		ret = ispport_bufq_clr(port, param);
 		break;
 	default:
 		pr_err("fail to support port type %d\n", cmd);

@@ -567,13 +567,12 @@ static int camcore_cap_frame_status(uint32_t param, void *priv_data)
 	return ret;
 }
 
-static uint32_t camcore_frame_start_proc(struct camera_module *module, struct cam_frame *pframe, enum cam_node_type node_type)
+static uint32_t camcore_frame_start_proc(struct camera_module *module, struct cam_frame *pframe,
+		enum cam_node_type node_type, struct channel_context *ch)
 {
 	int ret = 0;
-	struct channel_context *ch = NULL;
 	struct cam_pipeline_cfg_param param = {0};
 
-	ch = &module->channel[CAM_CH_CAP];
 	param.node_type = node_type;
 	param.node_param.param = pframe;
 	param.node_param.port_id = ch->dcam_port_id;
@@ -790,21 +789,26 @@ static int camcore_pipeline_callback(enum cam_cb_type type, void *param, void *p
 		break;
 	case CAM_CB_ISP_RET_DST_BUF:
 		if (atomic_read(&module->state) == CAM_RUNNING) {
-			pframe->common.priv_data = module;
-			pframe->common.evt = IMG_TX_DONE;
-			if (module->capture_type == CAM_CAPTURE_RAWPROC) {
-				pr_info("raw proc return dst frame %px\n", pframe);
-				cam_buf_ionbuf_put(&pframe->common.buf);
-				pframe->common.irq_type = CAMERA_IRQ_DONE;
-				pframe->common.irq_property = IRQ_RAW_PROC_DONE;
+			if (pframe->common.proc_mode == CAM_POSTPROC_SERIAL) {
+				cam_buf_manager_buf_status_cfg(&pframe->common.buf, CAM_BUF_STATUS_MOVE_TO_ALLOC, CAM_BUF_IOMMUDEV_MAX);
+				cam_queue_empty_frame_put(pframe);
+				complete(&module->postproc_done);
 			} else {
-				pframe->common.irq_type = CAMERA_IRQ_IMG;
-			}
-			ret = CAM_QUEUE_ENQUEUE(&module->frm_queue, &pframe->list);
-			if (ret) {
-				cam_buf_manager_buf_enqueue(&recycle_pool, pframe, NULL, (void *)module->grp->global_buf_manager);
-			} else {
-				complete(&module->frm_com);
+				pframe->common.priv_data = module;
+				pframe->common.evt = IMG_TX_DONE;
+				if (module->capture_type == CAM_CAPTURE_RAWPROC) {
+					pr_info("raw proc return dst frame %px\n", pframe);
+					cam_buf_ionbuf_put(&pframe->common.buf);
+					pframe->common.irq_type = CAMERA_IRQ_DONE;
+					pframe->common.irq_property = IRQ_RAW_PROC_DONE;
+				} else {
+					pframe->common.irq_type = CAMERA_IRQ_IMG;
+				}
+				ret = CAM_QUEUE_ENQUEUE(&module->frm_queue, &pframe->list);
+				if (ret)
+					cam_buf_manager_buf_enqueue(&recycle_pool, pframe, NULL, (void *)module->grp->global_buf_manager);
+				else
+					complete(&module->frm_com);
 			}
 		} else
 			cam_buf_manager_buf_enqueue(&recycle_pool, pframe, NULL, (void *)module->grp->global_buf_manager);
@@ -986,6 +990,8 @@ static int camcore_pipeline_init(struct camera_module *module,
 
 		isp_port_id = PORT_PRE_OUT;
 		pipeline_type = CAM_PIPELINE_PREVIEW;
+		if (module->cam_uinfo.algs_type == ALG_TYPE_VID_DR)
+			pipeline_type = CAM_PIPELINE_ONLINEYUV_2_USER_2_OFFLINEYUV_2_NR;
 		break;
 	case CAM_CH_VID:
 		if (channel_prev->enable) {
@@ -1009,7 +1015,7 @@ static int camcore_pipeline_init(struct camera_module *module,
 			module->auto_3dnr = channel->uinfo_3dnr = 0;
 		}
 		if (module->cam_uinfo.is_raw_alg) {
-			if (module->cam_uinfo.raw_alg_type == RAW_ALG_AI_SFNR) {
+			if (module->cam_uinfo.algs_type == ALG_TYPE_CAP_AI_SFNR) {
 				pipeline_type = CAM_PIPELINE_ONLINE_NORMAL2YUV_OR_RAW2USER2YUV;
 				if (module->cam_uinfo.zsl_num != 0)
 					pipeline_type = CAM_PIPELINE_ONLINE_NORMALZSLCAPTURE_OR_RAW2USER2YUV;
@@ -1038,7 +1044,7 @@ static int camcore_pipeline_init(struct camera_module *module,
 
 		channel_cap = &module->channel[CAM_CH_CAP];
 		module->cam_uinfo.is_raw_alg = 0;
-		module->cam_uinfo.raw_alg_type = 0;
+		module->cam_uinfo.algs_type = 0;
 		module->auto_3dnr = channel->uinfo_3dnr = 0;
 		isp_port_id = -1;
 		pipeline_type = CAM_PIPELINE_SENSOR_RAW;
@@ -1463,6 +1469,7 @@ static int camcore_module_init(struct camera_module *module)
 	mutex_init(&module->ioctl_lock);
 	mutex_init(&module->zoom_lock);
 	init_completion(&module->frm_com);
+	init_completion(&module->postproc_done);
 
 	module->capture_type = CAM_CAPTURE_STOP;
 	module->raw_cap_fetch_fmt = CAM_FORMAT_MAX;
@@ -1503,6 +1510,45 @@ static int camcore_module_deinit(struct camera_module *module)
 	mutex_destroy(&module->zoom_lock);
 	mutex_destroy(&module->ioctl_lock);
 	return 0;
+}
+
+static int camcore_postproc_zoom_param_get(struct camera_module *module, struct channel_context *channel,
+	struct cam_zoom_frame *zoom_data, struct cam_zoom_index *zoom_index)
+{
+	uint32_t i = 0, j = 0, ret = 0;
+	struct cam_zoom_port *zoom_port = NULL;
+	struct cam_zoom_node *zoom_node = NULL;
+
+	if (!module || !channel || !zoom_data || !zoom_index) {
+		pr_err("fail to get input handle module:%px, channel:%px, zoom_data:%px, zoom_index:%px.\n",
+			module, channel, zoom_data, zoom_index);
+		return -EFAULT;
+	}
+
+	ret = camcore_zoom_param_get_callback(channel->pipeline_type, module,  zoom_data);
+	if (ret)
+		pr_warn("Warning: Not get postproc zoom data info.\n");
+
+	for (i = 0; i < NODE_ZOOM_CNT_MAX; i++) {
+		zoom_node = &zoom_data->zoom_node[i];
+		if (zoom_index->node_type == zoom_node->node_type
+			&& zoom_index->node_id == zoom_node->node_id) {
+			for (j = 0; j < PORT_ZOOM_CNT_MAX; j++) {
+				zoom_port = &zoom_node->zoom_port[j];
+				if (zoom_index->port_id == zoom_port->port_id
+					&& zoom_index->port_type == zoom_port->port_type) {
+					zoom_port->zoom_base.dst.w = channel->ch_uinfo.dst_size.w;
+					zoom_port->zoom_base.dst.h = channel->ch_uinfo.dst_size.h;
+					zoom_port->zoom_base.crop.start_x = 0;
+					zoom_port->zoom_base.crop.start_y = 0;
+					zoom_port->zoom_base.crop.size_x= channel->ch_uinfo.dst_size.w;
+					zoom_port->zoom_base.crop.size_y= channel->ch_uinfo.dst_size.h;
+				}
+			}
+		}
+	}
+
+	return ret;
 }
 
 #define CAM_RAWCAP
@@ -1596,8 +1642,7 @@ static long camcore_ioctl(struct file *file, unsigned int cmd,
 
 	ioctl_cmd_p = &ioctl_cmds_table[nr];
 	if (unlikely((ioctl_cmd_p->cmd != cmd) || (ioctl_cmd_p->cmd_proc == NULL))) {
-		pr_debug("unsupported cmd_k: 0x%x, cmd_u: 0x%x, nr: %d\n",
-			ioctl_cmd_p->cmd, cmd, nr);
+		pr_debug("unsupported cmd_k: 0x%x, cmd_u: 0x%x, nr: %d\n", ioctl_cmd_p->cmd, cmd, nr);
 		return 0;
 	}
 
@@ -1609,8 +1654,7 @@ static long camcore_ioctl(struct file *file, unsigned int cmd,
 	if (cmd == SPRD_IMG_IO_SET_KEY || module->private_key == 1) {
 		ret = ioctl_cmd_p->cmd_proc(module, arg);
 		if (ret) {
-			pr_debug("fail to ioctl cmd:%x, nr:%d, func %ps\n",
-				cmd, nr, ioctl_cmd_p->cmd_proc);
+			pr_debug("fail to ioctl cmd:%x, nr:%d, func %ps\n", cmd, nr, ioctl_cmd_p->cmd_proc);
 			goto exit;
 		}
 	} else
@@ -1647,8 +1691,10 @@ static long camcore_ioctl_compat(struct file *file,
 
 	switch (cmd) {
 	case COMPAT_SPRD_ISP_IO_CFG_PARAM:
-		ret = file->f_op->unlocked_ioctl(file, SPRD_ISP_IO_CFG_PARAM,
-			(unsigned long)data32);
+		ret = file->f_op->unlocked_ioctl(file, SPRD_ISP_IO_CFG_PARAM, (unsigned long)data32);
+		break;
+	case COMPAT_SPRD_IMG_IO_POST_FDR:;
+		ret = file->f_op->unlocked_ioctl(file, SPRD_IMG_IO_POST_FDR, (unsigned long)data32);
 		break;
 	default:
 		ret = file->f_op->unlocked_ioctl(file, cmd, (unsigned long)data32);
@@ -1874,17 +1920,15 @@ rewait:
 				read_op.parm.frame.uaddr = pframe->common.buf.offset[1];
 				read_op.parm.frame.vaddr = pframe->common.buf.offset[2];
 				read_op.parm.frame.is_flash_status = pframe->common.is_flash_status;
-
-				if (pframe->common.irq_type == CAMERA_IRQ_RAW_IMG) {
-					pr_info("FDR %d ch %d, evt %d, fid %d, buf_fd %d,  time  %06d.%06d\n",
-						pframe->common.irq_type,  read_op.parm.frame.channel_id, read_op.evt,
-						read_op.parm.frame.real_index, read_op.parm.frame.mfd,
-						read_op.parm.frame.sec, read_op.parm.frame.usec);
-				}
 				/* for statis buffer address below. */
 				read_op.parm.frame.addr_offset = pframe->common.buf.offset[0];
 				read_op.parm.frame.zoom_ratio = pframe->common.zoom_ratio;
 				read_op.parm.frame.total_zoom = pframe->common.total_zoom;
+
+				pr_debug("Send usr buf %d ch %d, evt %d, fid %d, buf_fd %d, time %06d.%06d\n",
+					pframe->common.irq_type, read_op.parm.frame.channel_id, read_op.evt,
+					read_op.parm.frame.real_index, read_op.parm.frame.mfd,
+					read_op.parm.frame.sec, read_op.parm.frame.usec);
 			} else {
 				pr_err("fail to get correct event %d\n", pframe->common.evt);
 				csi_api_reg_trace();

@@ -29,7 +29,7 @@
 #define CAM_EMP_Q_LEN_MAX               3072
 #define CAM_INT_EMP_Q_LEN_INC           48
 #define CAM_INT_EMP_Q_LEN_MAX           256
-#define NODE_ZOOM_CNT_MAX               5
+#define NODE_ZOOM_CNT_MAX               6
 #define PORT_ZOOM_CNT_MAX               5
 #define CAM_EMP_ARRAY_LEN_MAX           1200
 #define CAM_EMP_ARRAY_INIT_LEN          120
@@ -57,6 +57,7 @@ enum cam_pipeline_type {
 	CAM_PIPELINE_VCH_SENSOR_RAW,
 	CAM_PIPELINE_ONLINE_NORMALZSLCAPTURE_OR_RAW2USER2YUV,
 	CAM_PIPELINE_OFFLINE_RAW2FRGB_OFFLINE_FRGB2YUV,
+	CAM_PIPELINE_ONLINEYUV_2_USER_2_OFFLINEYUV_2_NR,
 	CAM_PIPELINE_TYPE_MAX,
 };
 
@@ -175,6 +176,7 @@ struct camera_frame {
 	enum cam_ch_id channel_id;
 	uint32_t irq_type;
 	uint32_t irq_property;
+	enum cam_postproc_mode proc_mode;
 	enum cam_reserved_buf_type is_reserved;
 	enum en_status is_compressed;
 	enum en_status pyr_status;

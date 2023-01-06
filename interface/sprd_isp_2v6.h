@@ -2583,6 +2583,13 @@ struct isp_raw_proc_info {
 	enum raw_proc_scene scene;
 };
 
+/********** which blocks need open in postproc process *************/
+struct cam_blk_nr_param {
+	struct isp_dev_post_cnr_h_info post_cnr_h_info;
+	struct isp_dev_ynr_info_v3 ynr_info_v3;
+	struct isp_dev_cnr_h_info cnr_info;
+	struct isp_dev_dct_info dct_info;
+};
 
 /************  for test only below ************** */
 enum ch_property {

@@ -40,7 +40,7 @@ int pyr_dec_port_param_cfg(void *handle, enum cam_port_cfg_cmd cmd, void *param)
 		pool_id = port->unprocess_pool;
 
 	switch (cmd) {
-	case PORT_BUFFER_CFG_SET:
+	case PORT_CFG_BUFFER_SET:
 		pframe = (struct cam_frame *)param;
 		ret = cam_buf_manager_buf_enqueue(&pool_id, pframe, NULL, port->buf_manager_handle);
 		if (ret) {
@@ -48,7 +48,7 @@ int pyr_dec_port_param_cfg(void *handle, enum cam_port_cfg_cmd cmd, void *param)
 			ret = -EFAULT;
 		}
 		break;
-	case PORT_BUFFER_CFG_CYCLE:
+	case PORT_CFG_BUFFER_CYCLE:
 		frame = (struct cam_frame **)param;
 		*frame = cam_buf_manager_buf_dequeue(&pool_id, NULL, port->buf_manager_handle);
 		if (*frame) {
@@ -59,7 +59,7 @@ int pyr_dec_port_param_cfg(void *handle, enum cam_port_cfg_cmd cmd, void *param)
 			}
 		}
 		break;
-	case PORT_BUFFER_CFG_GET:
+	case PORT_CFG_BUFFER_GET:
 		frame = (struct cam_frame **)param;
 		*frame = cam_buf_manager_buf_dequeue(&port->result_pool, NULL, port->buf_manager_handle);
 		if (*frame == NULL) {
@@ -67,7 +67,7 @@ int pyr_dec_port_param_cfg(void *handle, enum cam_port_cfg_cmd cmd, void *param)
 			ret = -EFAULT;
 		}
 		break;
-	case PORT_BUFFER_CFG_ALLOC:
+	case PORT_CFG_BUFFER_ALLOC:
 		alloc_param = (struct cam_buf_alloc_desc *)param;
 		ret = pyr_dec_port_buf_alloc(port, alloc_param);
 		break;
@@ -94,7 +94,7 @@ int pyr_dec_port_buf_alloc(void *handle, struct cam_buf_alloc_desc *param)
 		return -EFAULT;
 	}
 
-	if (!param->is_pyr_dec || param->ch_id != CAM_CH_CAP)
+	if (!param->is_pyr_dec)
 		return 0;
 
 	port = (struct pyr_dec_port *)handle;

@@ -1344,14 +1344,15 @@ int isp_node_buffers_alloc(void *handle, struct cam_buf_alloc_desc *param)
 uint32_t isp_node_config(void *node, enum isp_node_cfg_cmd cmd, void *param)
 {
 	int ret = 0;
-	struct isp_node *inode = NULL;
-	struct cam_hw_gtm_ltm_dis dis = {0};
-	struct cam_hw_gtm_ltm_eb eb = {0};
-	struct isp_hw_gtm_func *gtm_func = NULL;
-	struct cfg_param_status *param_status = NULL;
+	struct cam_postproc_blkpm *blkpm = NULL;
 	struct isp_port_cfg port_cfg = {0};
+	struct cam_hw_gtm_ltm_eb eb = {0};
+	struct cam_hw_gtm_ltm_dis dis = {0};
 	struct isp_port *port = NULL;
+	struct isp_node *inode = NULL;
+	struct isp_hw_gtm_func *gtm_func = NULL;
 	struct cam_frame *param_frame = NULL;
+	struct cfg_param_status *param_status = NULL;
 
 	inode = VOID_PTR_TO(node, struct isp_node);
 	switch (cmd) {
@@ -1374,7 +1375,7 @@ uint32_t isp_node_config(void *node, enum isp_node_cfg_cmd cmd, void *param)
 		inode->uinfo.uframe_sync |= *(uint32_t *)param;
 		break;
 	case ISP_NODE_CFG_3DNR_MODE:
-		inode->uinfo.mode_3dnr |= *(uint32_t *)param;
+		inode->uinfo.mode_3dnr = *(uint32_t *)param;
 		break;
 	case ISP_NODE_CFG_GTM:
 		gtm_func = VOID_PTR_TO(param, struct isp_hw_gtm_func);
@@ -1392,6 +1393,40 @@ uint32_t isp_node_config(void *node, enum isp_node_cfg_cmd cmd, void *param)
 			gtm_func->k_blk_func(&inode->cfg_id);
 			break;
 		default:;
+		}
+		break;
+	case ISP_NODE_CFG_POSTPROC_PARAM:
+		blkpm = (struct cam_postproc_blkpm *)param;
+		param_frame = cam_queue_empty_blk_param_get(&inode->param_share_queue);
+		if (param_frame) {
+			param_frame->isp_blk.fid = blkpm->fid;
+
+			/* Temp get param from mw by do offset on base addr, need to discuss
+				param & image buf share set way in offline proc scene. */
+			ret |= copy_from_user((void *)&param_frame->isp_blk.param_block->post_cnr_h_info,
+				blkpm->blk_property, sizeof(struct isp_dev_post_cnr_h_info));
+			param_frame->isp_blk.param_block->post_cnr_h_info.isupdate = 1;
+
+			blkpm->blk_property += sizeof(struct isp_dev_post_cnr_h_info);
+			ret |= copy_from_user((void *)&param_frame->isp_blk.param_block->ynr_info_v3,
+				blkpm->blk_property, sizeof(struct isp_dev_ynr_info_v3));
+			param_frame->isp_blk.param_block->ynr_info_v3.isupdate = 1;
+
+			blkpm->blk_property += sizeof(struct isp_dev_ynr_info_v3);
+			ret |= copy_from_user((void *)&param_frame->isp_blk.param_block->cnr_info,
+				blkpm->blk_property, sizeof(struct isp_dev_cnr_h_info));
+			param_frame->isp_blk.param_block->cnr_info.isupdate = 1;
+			param_frame->isp_blk.update = 1;
+			if (ret)
+				pr_warn("Warning:Not get the isp nr block param.\n");
+			ret = CAM_QUEUE_ENQUEUE(&inode->param_buf_queue, &param_frame->list);
+			if (ret) {
+				pr_err("fail to enquene cap param_buf_queue\n");
+				cam_queue_recycle_blk_param(&inode->param_share_queue, param_frame);
+			}
+		} else {
+			pr_err("fail to recive param, scene %d fid %d\n", param_status->scene_id, param_status->frame_id);
+			return -EFAULT;
 		}
 		break;
 	case ISP_NODE_CFG_PARAM_SWITCH:
@@ -1513,7 +1548,7 @@ int isp_node_request_proc(struct isp_node *node, void *param)
 
 	CAM_QUEUE_FOR_EACH_ENTRY(port, &node->port_queue.head, list) {
 		if (port->type == PORT_TRANSFER_IN && atomic_read(&port->user_cnt) > 0) {
-			ret = isp_port_param_cfg(port, PORT_BUFFER_CFG_SET, pframe);
+			ret = isp_port_param_cfg(port, PORT_CFG_BUFFER_SET, pframe);
 			if (ret) {
 				pr_warn("warning: isp node proc in q may full\n");
 				return ret;
@@ -1702,7 +1737,7 @@ void *isp_node_get(uint32_t node_id, struct isp_node_desc *param)
 	*param->node_dev = node;
 	uinfo->slw_state = param->slw_state;
 
-	pr_info("node id %d cur_ctx_id %d cfg_id %d\n", node_id, node->pctx_hw_id, node->cfg_id);
+	pr_info("node id %d cur_ctx_id %d cfg_id %d blkparam_node_num:%d\n", node_id, node->pctx_hw_id, node->cfg_id, param->blkparam_node_num);
 
 exit:
 	if (param->is_high_fps) {
