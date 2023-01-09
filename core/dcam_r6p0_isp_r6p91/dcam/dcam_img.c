@@ -3031,13 +3031,20 @@ static int dcam_get_sg(struct sprd_img_iova *data)
 {
 	int ret = 0;
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0))
+    ret = sprd_dmabuf_get_sysbuffer(data->fd, NULL,
+					&(data->sg_table),
+					&(data->size));
+#else
 	ret = sprd_ion_get_buffer(data->fd, NULL,
 					&(data->sg_table),
 					&(data->size));
+#endif
 	if (ret) {
 		pr_err("iommu get_sg_table failed, ret %d, fd 0x%x sg %p\n",
 			ret, data->fd, data->sg_table);
 	}
+
 	return ret;
 }
 

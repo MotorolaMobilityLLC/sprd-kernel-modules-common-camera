@@ -18,6 +18,7 @@
 #include <linux/list.h>
 #include <linux/mutex.h>
 #include <linux/slab.h>
+#include <linux/version.h>
 
 #define DCAM_MAX_OUT_SIZE                              ((4160*3120*3)>>1)
 
@@ -75,14 +76,22 @@ void dma_buffer_list_clear(void)
 
 int pfiommu_get_sg_table(struct pfiommu_info *pfinfo)
 {
-	int i, ret;
+	int i;
+	int ret = 0;
 
 	for (i = 0; i < 2; i++) {
 		if (pfinfo->mfd[i] > 0) {
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0))
+			ret = sprd_dmabuf_get_sysbuffer(pfinfo->mfd[i],
+						    NULL,
+						    &pfinfo->buf[i],
+						    &pfinfo->size[i]);
+#else
 			ret = sprd_ion_get_buffer(pfinfo->mfd[i],
 						    NULL,
 						    &pfinfo->buf[i],
 						    &pfinfo->size[i]);
+#endif
 			if (ret) {
 				pr_err("failed to get sg table %d mfd 0x%x\n",
 					i, pfinfo->mfd[i]);
@@ -143,9 +152,15 @@ int pfiommu_get_single_page_addr(struct pfiommu_info *pfinfo)
 
 			pfinfo->iova[i] = iommu_data.iova_addr;
 		} else {
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0))
+			ret = sprd_dmabuf_get_phys_addr(-1, pfinfo->dmabuf_p[i],
+					       &pfinfo->iova[i],
+					       &pfinfo->size[i]);
+#else
 			ret = sprd_ion_get_phys_addr(-1, pfinfo->dmabuf_p[i],
 					       &pfinfo->iova[i],
 					       &pfinfo->size[i]);
+#endif
 			pfinfo->iova[i] += pfinfo->offset[i];
 		}
 	}
@@ -179,9 +194,15 @@ int pfiommu_get_addr(struct pfiommu_info *pfinfo)
 
 			pfinfo->iova[i] = iommu_data.iova_addr;
 		} else {
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0))
+			ret = sprd_dmabuf_get_phys_addr(-1, pfinfo->dmabuf_p[i],
+					       &pfinfo->iova[i],
+					       &pfinfo->size[i]);
+#else
 			ret = sprd_ion_get_phys_addr(-1, pfinfo->dmabuf_p[i],
 					       &pfinfo->iova[i],
 					       &pfinfo->size[i]);
+#endif
 			pfinfo->iova[i] += pfinfo->offset[i];
 		}
 	}
@@ -192,12 +213,18 @@ int pfiommu_get_addr(struct pfiommu_info *pfinfo)
 unsigned int pfiommu_get_kaddr(struct pfiommu_info *pfinfo)
 {
 	unsigned int kaddr = 0;
+	int ret = 0;
 
 	if (pfinfo->size[0] <= 0)
 		return 0;
 
 	if (sprd_iommu_attach_device(pfinfo->dev) == 0) {
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0))
+		ret = sprd_dmabuf_map_kernel(pfinfo->dmabuf_p[0], &pfinfo->map);
+		kaddr = (unsigned int)pfinfo->map.vaddr;
+#else
 		kaddr = (unsigned int) sprd_ion_map_kernel(pfinfo->dmabuf_p[0], 0);
+#endif
 	} else {
 		kaddr = pfinfo->iova[0];
 	}
@@ -232,6 +259,7 @@ int pfiommu_free_addr(struct pfiommu_info *pfinfo)
 
 	pr_debug("%s, cb: %pS, iova 0x%lx\n",
 		 __func__, __builtin_return_address(0), pfinfo->iova[0]);
+
 	for (i = 0; i < 2; i++) {
 		if (pfinfo->size[i] <= 0 || pfinfo->iova[i] == 0)
 			continue;
@@ -265,6 +293,13 @@ int pfiommu_free_addr_with_id(struct pfiommu_info *pfinfo,
 
 	pr_debug("%s, cb: %pS, iova 0x%lx\n",
 		 __func__, __builtin_return_address(0), pfinfo->iova[0]);
+
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0))
+	if (sprd_iommu_attach_device(pfinfo->dev) == 0) {
+		ret = sprd_dmabuf_unmap_kernel(pfinfo->dmabuf_p[0], &pfinfo->map);
+	}
+#endif
+
 	for (i = 0; i < 2; i++) {
 		if (pfinfo->size[i] <= 0 || pfinfo->iova[i] == 0)
 			continue;

@@ -16,6 +16,10 @@
 
 #include <linux/types.h>
 #include <linux/sprd_iommu.h>
+#include <linux/version.h>
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0))
+#include <uapi/linux/sprd_dmabuf.h>
+#endif
 
 struct pfiommu_info {
 	struct device *dev;
@@ -26,6 +30,9 @@ struct pfiommu_info {
 	unsigned long iova[3];
 	struct dma_buf *dmabuf_p[3];
 	unsigned int offset[3];
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0))
+	struct dma_buf_map map;
+#endif
 };
 
 int pfiommu_get_sg_table(struct pfiommu_info *pfinfo);
