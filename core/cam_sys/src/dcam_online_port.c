@@ -640,6 +640,31 @@ static void dcamonline_port_update_addr_and_size(struct dcam_online_port *dcam_p
 		frame->common.width = dcam_port->out_size.w;
 		frame->common.height = dcam_port->out_size.h;
 		break;
+	case PORT_AEM_OUT:
+		frame->common.aem_info.skip_num = blk_dcam_pm->aem.skip_num;
+		frame->common.aem_info.win = blk_dcam_pm->aem.win_info;
+		break;
+	case PORT_AFM_OUT:
+		frame->common.afm_info.skip_num = blk_dcam_pm->afm.skip_num;
+		frame->common.afm_info.crop_eb = blk_dcam_pm->afm.crop_eb;
+		frame->common.afm_info.crop_size = blk_dcam_pm->afm.crop_size;
+		frame->common.afm_info.win = blk_dcam_pm->afm.win;
+		frame->common.afm_info.win_num = blk_dcam_pm->afm.win_num;
+		frame->common.afm_info.iir_info = blk_dcam_pm->afm.af_iir_info;
+		break;
+	case PORT_PDAF_OUT:
+		frame->common.pdaf_info.skip_num = blk_dcam_pm->pdaf.skip_num;
+		frame->common.pdaf_info.roi_info = blk_dcam_pm->pdaf.roi_info;
+		break;
+	case PORT_BAYER_HIST_OUT:
+		frame->common.bayerhist_info.roi_info.stx = blk_dcam_pm->hist.bayerHist_info.bayer_hist_stx;
+		frame->common.bayerhist_info.roi_info.sty = blk_dcam_pm->hist.bayerHist_info.bayer_hist_sty;
+		frame->common.bayerhist_info.roi_info.endx = blk_dcam_pm->hist.bayerHist_info.bayer_hist_endx;
+		frame->common.bayerhist_info.roi_info.endy = blk_dcam_pm->hist.bayerHist_info.bayer_hist_endy;
+		break;
+	case PORT_LSCM_OUT:
+		frame->common.lscm_info = blk_dcam_pm->lscm;
+		break;
 	default:
 		break;
 	}
@@ -651,25 +676,11 @@ static void dcamonline_port_update_addr_and_size(struct dcam_online_port *dcam_p
 static void dcamonline_port_aem_update_statis_head(struct dcam_online_port *dcam_port,
 	struct cam_frame *frame, struct dcam_hw_context *hw_ctx, struct dcam_isp_k_block *blk_dcam_pm)
 {
-	struct dcam_dev_aem_win *win;
-	struct sprd_img_rect *zoom_rect;
 	unsigned long flags = 0;
 
 	/* Re-config aem win if it is updated */
 	spin_lock_irqsave(&blk_dcam_pm->aem.aem_win_lock, flags);
 	dcam_k_aem_win(blk_dcam_pm);
-
-	if (frame->common.buf.addr_k) {
-		win = (struct dcam_dev_aem_win *)(frame->common.buf.addr_k);
-		pr_debug("kaddr %lx\n", frame->common.buf.addr_k);
-		memcpy(win, &blk_dcam_pm->aem.win_info, sizeof(struct dcam_dev_aem_win));
-		win++;
-		zoom_rect = (struct sprd_img_rect *)win;
-		zoom_rect->x = hw_ctx->next_roi.start_x;
-		zoom_rect->y = hw_ctx->next_roi.start_y;
-		zoom_rect->w = hw_ctx->next_roi.size_x;
-		zoom_rect->h = hw_ctx->next_roi.size_y;
-	}
 	spin_unlock_irqrestore(&blk_dcam_pm->aem.aem_win_lock, flags);
 }
 
@@ -684,12 +695,6 @@ static void dcamonline_port_hist_update_statis_head(struct dcam_online_port *dca
 	/* Re-config hist win if it is updated */
 	spin_lock_irqsave(&blk_dcam_pm->hist.param_update_lock, flags);
 	hw->dcam_ioctl(hw, DCAM_HW_CFG_HIST_ROI_UPDATE, blk_dcam_pm);
-	if (frame->common.buf.addr_k) {
-		struct dcam_dev_hist_info *info = NULL;
-		info = (struct dcam_dev_hist_info *)frame->common.buf.addr_k;
-		memcpy(info, &blk_dcam_pm->hist.bayerHist_info,
-			sizeof(struct dcam_dev_hist_info));
-	}
 	spin_unlock_irqrestore(&blk_dcam_pm->hist.param_update_lock, flags);
 
 }

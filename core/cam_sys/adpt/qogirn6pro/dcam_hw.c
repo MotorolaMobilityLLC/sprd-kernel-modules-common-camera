@@ -2502,10 +2502,10 @@ static int dcamhw_set_store_addr(void *handle, void *arg)
 		DCAM_REG_WR(idx, DCAM_RAW_PATH_BASE_WADDR, param->frame_addr[0]);
 		break;
 	case DCAM_PATH_AEM:
-		DCAM_REG_WR(idx, DCAM_AEM_BASE_WADDR, param->frame_addr[0] + STATIS_AEM_HEADER_SIZE);
+		DCAM_REG_WR(idx, DCAM_AEM_BASE_WADDR, param->frame_addr[0]);
 		break;
 	case DCAM_PATH_HIST:
-		DCAM_REG_WR(idx, DCAM_BAYER_HIST_BASE_WADDR, param->frame_addr[0] + STATIS_HIST_HEADER_SIZE);
+		DCAM_REG_WR(idx, DCAM_BAYER_HIST_BASE_WADDR, param->frame_addr[0]);
 		break;
 	case DCAM_PATH_AFM:
 		DCAM_REG_WR(idx, DCAM_AFM_LUM_FV_BASE_WADDR, param->frame_addr[0]);
@@ -2795,12 +2795,12 @@ static int dcamhw_slw_fmcu_cmds(void *handle, void *arg)
 			break;
 		case DCAM_PATH_AEM:
 			addr = DCAM_GET_REG(fmcu->hw_ctx_id, DCAM_AEM_BASE_WADDR);
-			cmd = slw->store_info[i].store_addr.addr_ch0 + STATIS_AEM_HEADER_SIZE;
+			cmd = slw->store_info[i].store_addr.addr_ch0;
 			DCAM_FMCU_PUSH(fmcu, addr, cmd);
 			break;
 		case DCAM_PATH_HIST:
 			addr = DCAM_GET_REG(fmcu->hw_ctx_id, DCAM_BAYER_HIST_BASE_WADDR);
-			cmd = slw->store_info[i].store_addr.addr_ch0 + STATIS_HIST_HEADER_SIZE;
+			cmd = slw->store_info[i].store_addr.addr_ch0;
 			DCAM_FMCU_PUSH(fmcu, addr, cmd);
 			break;
 		case DCAM_PATH_AFM:

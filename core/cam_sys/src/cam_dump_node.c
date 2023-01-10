@@ -276,7 +276,7 @@ static void camdump_node_frame_file_write(struct camera_frame *frame,
 {
 	unsigned long addr = 0;
 
-	if (!IS_STATIS_PORT(frame->link_from.port_id) || frame->link_from.port_id == PORT_PDAF_OUT) {
+	if (frame->link_from.port_id != PORT_GTM_HIST_OUT) {
 		if (cam_buf_kmap(&frame->buf)) {
 			pr_err("fail to kmap dump buf\n");
 			return;
@@ -299,7 +299,7 @@ static void camdump_node_frame_file_write(struct camera_frame *frame,
 	} else
 		camdump_node_write_data_to_file((uint8_t *)addr, msg->size, name);
 
-	if (!IS_STATIS_PORT(frame->link_from.port_id) || frame->link_from.port_id == PORT_PDAF_OUT)
+	if (frame->link_from.port_id != PORT_GTM_HIST_OUT)
 		cam_buf_kunmap(&frame->buf);
 }
 
