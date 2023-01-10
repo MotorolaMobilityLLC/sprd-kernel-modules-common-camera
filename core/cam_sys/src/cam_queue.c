@@ -417,8 +417,6 @@ struct cam_frame * cam_queue_empty_blk_param_get(struct camera_queue *q)
 	}
 
 	param_frame = CAM_QUEUE_DEQUEUE(q, struct cam_frame, list);
-	if (param_frame)
-		pr_debug("param_frame %px, block:%px\n",param_frame, param_frame->common.blkparam_info.param_block);
 
 	return param_frame;
 }

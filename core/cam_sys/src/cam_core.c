@@ -790,7 +790,6 @@ static int camcore_pipeline_callback(enum cam_cb_type type, void *param, void *p
 	case CAM_CB_ISP_RET_DST_BUF:
 		if (atomic_read(&module->state) == CAM_RUNNING) {
 			if (pframe->common.proc_mode == CAM_POSTPROC_SERIAL) {
-				cam_buf_manager_buf_status_cfg(&pframe->common.buf, CAM_BUF_STATUS_MOVE_TO_ALLOC, CAM_BUF_IOMMUDEV_MAX);
 				cam_queue_empty_frame_put(pframe);
 				complete(&module->postproc_done);
 			} else {
@@ -1920,6 +1919,14 @@ rewait:
 				read_op.parm.frame.uaddr = pframe->common.buf.offset[1];
 				read_op.parm.frame.vaddr = pframe->common.buf.offset[2];
 				read_op.parm.frame.is_flash_status = pframe->common.is_flash_status;
+
+				/*statis info*/
+				read_op.parm.frame.aem_info = pframe->common.aem_info;
+				read_op.parm.frame.bayerhist_info = pframe->common.bayerhist_info;
+				read_op.parm.frame.afm_info = pframe->common.afm_info;
+				read_op.parm.frame.pdaf_info = pframe->common.pdaf_info;
+				read_op.parm.frame.lscm_info = pframe->common.lscm_info;
+
 				/* for statis buffer address below. */
 				read_op.parm.frame.addr_offset = pframe->common.buf.offset[0];
 				read_op.parm.frame.zoom_ratio = pframe->common.zoom_ratio;

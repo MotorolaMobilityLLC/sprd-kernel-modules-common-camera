@@ -1425,7 +1425,7 @@ uint32_t isp_node_config(void *node, enum isp_node_cfg_cmd cmd, void *param)
 				cam_queue_recycle_blk_param(&inode->param_share_queue, param_frame);
 			}
 		} else {
-			pr_err("fail to recive param, scene %d fid %d\n", param_status->scene_id, param_status->frame_id);
+			pr_err("fail to recive param, fid %d\n", blkpm->fid);
 			return -EFAULT;
 		}
 		break;

@@ -1497,10 +1497,10 @@ static int dcamhw_set_store_addr(void *handle, void *arg)
 		DCAM_REG_WR(idx, DCAM_FULL_BASE_WADDR, param->frame_addr[0]);
 		break;
 	case DCAM_PATH_AEM:
-		DCAM_REG_WR(idx, DCAM_AEM_BASE_WADDR, param->frame_addr[0] + STATIS_AEM_HEADER_SIZE);
+		DCAM_REG_WR(idx, DCAM_AEM_BASE_WADDR, param->frame_addr[0]);
 		break;
 	case DCAM_PATH_HIST:
-		DCAM_REG_WR(idx, DCAM_HIST_BASE_WADDR, param->frame_addr[0] + STATIS_HIST_HEADER_SIZE);
+		DCAM_REG_WR(idx, DCAM_HIST_BASE_WADDR, param->frame_addr[0]);
 		break;
 	case DCAM_PATH_AFL:
 		DCAM_REG_WR(idx, ISP_AFL_GLB_WADDR, param->frame_addr[0]);
