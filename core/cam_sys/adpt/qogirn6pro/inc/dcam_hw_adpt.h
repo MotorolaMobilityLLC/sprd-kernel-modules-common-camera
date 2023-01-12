@@ -63,13 +63,6 @@
 
 #define FBC_HEADER_REDUNDANT           0
 #define FBC_TILE_ADDR_ALIGN            1
-#define CAL_PACK_PITCH(w)              (((w) * 10 + 127) / 128 * 128 / 8)
-#define CAL_UNPACK_PITCH(w)            (((w) * 16 + 127) / 128 * 128 / 8)
-#if defined (PROJ_QOGIRN6L)
-#define CAL_FULLRGB14_PITCH(w)         ((w) * 6)
-#else
-#define CAL_FULLRGB14_PITCH(w)         ((w) * 8)
-#endif
 
 enum dcam_ctrl_id {
 	DCAM_CTRL_CAP = (1 << 0),

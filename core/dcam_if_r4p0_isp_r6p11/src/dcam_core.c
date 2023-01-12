@@ -2423,8 +2423,11 @@ static int sprd_img_k_open(struct inode *node, struct file *file)
 	init_completion(&camerafile->grp->dualcam_recovery_com);
 	is_dual_cam_dore = 0;
 	dual_cam_cap_sta = 0;
-
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0)
+	__pm_stay_awake(Camera_Sys_Wakelock);
+#else
 	__pm_stay_awake(&camerafile->grp->ws);
+#endif
 	pr_info("sprd_img: open end!\n");
 
 	return 0;
@@ -2477,7 +2480,11 @@ static int sprd_img_k_release(struct inode *node, struct file *file)
 		}
 
 		mutex_destroy(&camerafile->grp->camera_dualcam_mutex);
+ #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0))
+		__pm_relax(Camera_Sys_Wakelock);
+ #else
 		__pm_relax(&camerafile->grp->ws);
+ #endif
 	}
 
 	vfree(camerafile);

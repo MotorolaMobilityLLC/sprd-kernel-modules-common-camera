@@ -2250,11 +2250,9 @@ static int camioctl_4in1_raw_addr_set(struct camera_module *module,
 		if (is_reserved_buf) {
 			module->reserved_buf_fd = pframe->buf.mfd;
 			pframe->is_reserved = CAM_RESERVED_BUFFER_ORI;
-			pframe->buf.size = cal_sprd_size(ch->ch_uinfo.src_size.w, ch->ch_uinfo.src_size.h, ch->ch_uinfo.dcam_raw_fmt);
-			cam_scene_reserved_buf_cfg(RESERVED_BUF_SET_CB, pframe, module);
 			pframe->buf.size = cal_sprd_raw_pitch(ch->ch_uinfo.src_size.w, ch->ch_uinfo.dcam_raw_fmt)
 					* ch->ch_uinfo.src_size.h;
-			cam_scene_reserved_buf_cfg(RESERVED_BUF_SET_CB, pframe, module);
+			camcore_reserved_buf_cfg(RESERVED_BUF_SET_CB, pframe, module);
 			module->res_frame = pframe;
 		} else {
 			ret = camcore_dcam_online_buf_cfg(ch, pframe, module);

@@ -467,8 +467,13 @@ void print_isp_regs(void)
 	if (ISP_BASE_ADDR == 0) {
 		for (j = 0; j < ARRAY_SIZE(g_isp_reg_info); j++) {
 			addr_base = (unsigned long)
-				ioremap_nocache(0x60a00000 +
-				g_isp_reg_info[j].base, g_isp_reg_info[j].len);
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0))
+                                ioremap(0x60a00000 +
+                                    g_isp_reg_info[j].base, g_isp_reg_info[j].len);
+#else
+                                ioremap_nocache(0x60a00000 +
+                                    g_isp_reg_info[j].base, g_isp_reg_info[j].len);
+#endif
 			for (i = 0; i < g_isp_reg_info[j].len/10; i++) {
 				pr_info("0x%.3x: 0x%.8x 0x%.8x 0x%.8x 0x%.8x\n",
 				0x60a00000 + g_isp_reg_info[j].base + 0x10*i,
@@ -4725,8 +4730,13 @@ int sprd_dcam_parse_regbase(struct platform_device *pdev)
 	if (!res)
 		return -ENODEV;
 
-	reg_base = devm_ioremap_nocache(&pdev->dev, res->start,
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0))
+	reg_base = devm_ioremap(&pdev->dev, res->start,
 					resource_size(res));
+#else
+	reg_base = devm_ioremap_nocache(&pdev->dev, res->start,
+			                resource_size(res));
+#endif
 	if (IS_ERR(reg_base))
 		return PTR_ERR(reg_base);
 	s_dcam_regbase = (unsigned long)reg_base;

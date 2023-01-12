@@ -85,6 +85,7 @@ int cpp_k_dma_dev_cfg(void *arg)
 	CPP_REG_MWR(CPP_AXIM_CHN_SET, CPP_PATH2_OUT_ENDIAN, p->cfg_parm.dst_endian << 19);
 	CPP_REG_MWR(CPP_AXIM_CHN_SET, CPP_AXIM_CHN_SET_QOS_MASK, (0x1 << 24));
 	spin_unlock_irqrestore(p->hw_lock, flags);
+
 	return 0;
 }
 
@@ -137,7 +138,7 @@ int cpp_k_dma_reg_trace(void *arg)
 	p = (struct dma_drv_private *) arg;
 
 	CPP_TRACE("CPP:DMA Register list");
-	for (addr = CPP_DMA_SRC_ADDR; addr <= CPP_DMA_PATH_CFG;
+	for (addr = CPP_DMA_SRC_ADDR; addr <= CPP_DMA_DES_ADDR;
 		addr += 16) {
 		CPP_TRACE("0x%lx: 0x%8x 0x%8x 0x%8x 0x%8x\n", addr,
 			CPP_REG_RD(addr), CPP_REG_RD(addr + 4),

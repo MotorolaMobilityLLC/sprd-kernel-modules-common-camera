@@ -15,7 +15,7 @@
 #include "cam_types.h"
 #include "dcam_core.h"
 #include "isp_hw.h"
-#include "sprd_cam.h"
+#include "sprd_img.h"
 #include <sprd_mm.h>
 
 #include "dcam_reg.h"

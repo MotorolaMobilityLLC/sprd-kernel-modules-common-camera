@@ -72,16 +72,12 @@ int cam_statis_dcam_port_bufferq_deinit(void *dcam_handle)
 	enum isp_statis_buf_type stats_type = STATIS_INIT;
 	struct camera_buf *ion_buf = NULL;
 	struct dcam_online_node *dcam_node = NULL;
-	struct dcam_online_port *dcam_port = NULL;
 
 	dcam_node = (struct dcam_online_node *)dcam_handle;
 	for (i = 0; i < ARRAY_SIZE(s_statis_port_info_all); i++) {
 		port_id = s_statis_port_info_all[i].port_id;
 		stats_type = s_statis_port_info_all[i].buf_type;
-		dcam_port = dcam_online_node_port_get(dcam_node, port_id);
-		if (!stats_type || !dcam_port)
-			continue;
-		if (port_id == PORT_VCH2_OUT && dcam_port->raw_src)
+		if (!stats_type)
 			continue;
 
 		for (j = 0; j < STATIS_BUF_NUM_MAX; j++) {

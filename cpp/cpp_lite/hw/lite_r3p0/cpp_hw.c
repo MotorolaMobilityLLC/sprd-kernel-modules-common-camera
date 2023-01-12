@@ -17,6 +17,7 @@
 #include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/interrupt.h>
+#include <linux/version.h>
 
 #include "cpp_drv.h"
 #include "cpp_reg.h"
@@ -379,8 +380,13 @@ int cpphw_probe(struct platform_device *pdev, struct cpp_hw_info * hw_info)
 	if (!res)
 		return -ENODEV;
 
-	ip_cpp->io_base = devm_ioremap_nocache(&pdev->dev, res->start,
-				resource_size(res));
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0))
+        ip_cpp->io_base = devm_ioremap(&pdev->dev, res->start,
+                                       resource_size(res));
+#else
+        ip_cpp->io_base = devm_ioremap_nocache(&pdev->dev, res->start,
+                                       resource_size(res));
+#endif
 	if (IS_ERR(ip_cpp->io_base))
 		return PTR_ERR(ip_cpp->io_base);
 	g_cpp_base = (unsigned long)ip_cpp->io_base;

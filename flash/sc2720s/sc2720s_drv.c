@@ -24,7 +24,7 @@
 #include <linux/i2c.h>
 #include <linux/delay.h>
 
-#include "sprd_cam.h"
+#include "sprd_img.h"
 #include "flash_drv.h"
 #include "sc2720s_reg.h"
 

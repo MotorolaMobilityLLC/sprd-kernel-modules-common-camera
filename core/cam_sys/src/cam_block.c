@@ -266,16 +266,6 @@ uint32_t dcampath_outpitch_get(uint32_t w, uint32_t dcam_out_fmt)
 	return outpitch;
 }
 
-int cam_block_valid_fmt_get(int32_t *fmt, uint32_t default_value)
-{
-	if ((*fmt < CAM_RAW_PACK_10) || (*fmt >= CAM_FORMAT_MAX)) {
-		*fmt = default_value;
-		return 1;
-	}
-
-	return 0;
-}
-
 int dcampath_bin_scaler_get(struct img_size crop, struct img_size dst,
 		uint32_t *scaler_sel, uint32_t *bin_ratio)
 {

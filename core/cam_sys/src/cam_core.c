@@ -46,7 +46,7 @@
 #include "isp_interface.h"
 #include "isp_scaler_node.h"
 #include "pyr_dec_node.h"
-#include "sprd_cam.h"
+#include "sprd_img.h"
 #include "sprd_sensor_drv.h"
 #include <sprd_camsys_domain.h>
 
@@ -66,6 +66,65 @@ struct cam_global_ctrl g_camctrl = {
 	ISP_MAX_LINE_WIDTH
 };
 
+static int camcore_reserved_buf_cfg(enum reserved_buf_cb_type type,
+		void *param, void *priv_data)
+{
+	int ret = 0, j = 0;
+	struct camera_frame *pframe = NULL;
+	struct camera_frame **frame = NULL;
+	struct camera_frame *newfrm = NULL;
+	struct camera_module *module = NULL;
+	struct cam_buf_pool_id pool_id = {0};
+	struct camera_buf_get_desc buf_desc = {0};
+	if (!priv_data) {
+		pr_err("fail to get valid param %p\n", priv_data);
+		return -EFAULT;
+	}
+
+	module = (struct camera_module *)priv_data;
+	pool_id.reserved_pool_id = module->reserved_pool_id;
+	switch (type) {
+	case RESERVED_BUF_GET_CB:
+		frame = (struct camera_frame **)param;
+		do {
+			*frame = cam_buf_manager_buf_dequeue(&pool_id, NULL);
+			if (*frame == NULL) {
+				pframe = module->res_frame;
+				while (j < CAM_RESERVE_BUF_Q_LEN) {
+					newfrm = cam_queue_empty_frame_get();
+					if (newfrm) {
+						newfrm->is_reserved = CAM_RESERVED_BUFFER_COPY;
+						newfrm->channel_id = pframe->channel_id;
+						newfrm->pyr_status = pframe->pyr_status;
+						memcpy(&newfrm->buf, &pframe->buf, sizeof(struct camera_buf));
+						newfrm->buf.iova = 0;
+						newfrm->buf.mapping_state &= ~(CAM_BUF_MAPPING_DEV);
+						cam_buf_manager_buf_enqueue(&pool_id, newfrm, NULL);
+						j++;
+					}
+				}
+			}
+		} while (*frame == NULL);
+
+		pr_debug("Done. cam %d get reserved_pool_id %d frame %p buf_info %p\n", module->idx, pool_id.reserved_pool_id, *frame, (*frame)->buf);
+		break;
+	case RESERVED_BUF_SET_CB:
+		pframe = (struct camera_frame *)param;
+		buf_desc.buf_ops_cmd = CAM_BUF_STATUS_MOVE_TO_ION;
+		if (pframe->is_reserved) {
+			pframe->priv_data = NULL;
+			ret = cam_buf_manager_buf_enqueue(&pool_id, pframe, &buf_desc);
+			pr_debug("cam %d dcam %d set reserved_pool_id %d frame id %d\n", module->idx, pool_id.reserved_pool_id, pframe->fid);
+		}
+		break;
+	default:
+		pr_err("fail to get invalid %d\n", type);
+		break;
+	}
+
+	return ret;
+}
+
 static int camcore_dcam_online_buf_cfg(struct channel_context *ch,
 		struct camera_frame *pframe, struct camera_module *module)
 {
@@ -78,6 +137,34 @@ static int camcore_dcam_online_buf_cfg(struct channel_context *ch,
 
 	cam_queue_frame_flag_reset(pframe);
 	ret = CAM_PIPEINE_DCAM_ONLINE_OUT_PORT_CFG(ch, ch->dcam_port_id, CAM_PIPELINE_CFG_BUF, pframe);
+	return ret;
+}
+
+static int camcore_cap_info_set(struct camera_module *module,
+		struct dcam_mipi_info *cap_info)
+{
+	int ret = 0;
+	struct camera_uinfo *info = &module->cam_uinfo;
+	struct sprd_img_sensor_if *sensor_if = &info->sensor_if;
+
+	cap_info->mode = info->capture_mode;
+	cap_info->frm_skip = info->capture_skip;
+	cap_info->is_4in1 = info->is_4in1;
+	cap_info->dcam_slice_mode = info->dcam_slice_mode;
+	cap_info->sensor_if = sensor_if->if_type;
+	cap_info->format = sensor_if->img_fmt;
+	cap_info->pattern = sensor_if->img_ptn;
+	cap_info->frm_deci = sensor_if->frm_deci;
+	cap_info->is_cphy = sensor_if->if_spec.mipi.is_cphy;
+	if (cap_info->sensor_if == DCAM_CAP_IF_CSI2) {
+		cap_info->href = sensor_if->if_spec.mipi.use_href;
+		cap_info->data_bits = sensor_if->if_spec.mipi.bits_per_pxl;
+	}
+	cap_info->cap_size.start_x = info->sn_rect.x;
+	cap_info->cap_size.start_y = info->sn_rect.y;
+	cap_info->cap_size.size_x = info->sn_rect.w;
+	cap_info->cap_size.size_y = info->sn_rect.h;
+
 	return ret;
 }
 
@@ -192,7 +279,7 @@ static int camcore_resframe_set(struct camera_module *module)
 			if (ch->ch_uinfo.dst_fmt != IMG_PIX_FMT_GREY)
 				out_size = ch->ch_uinfo.dst_size.w *ch->ch_uinfo.dst_size.h * 3 / 2;
 			else
-				out_size = cal_sprd_pitch(ch->ch_uinfo.dst_size.w, ch->ch_uinfo.dcam_raw_fmt)
+				out_size = cal_sprd_raw_pitch(ch->ch_uinfo.dst_size.w, ch->ch_uinfo.dcam_raw_fmt)
 					* ch->ch_uinfo.dst_size.h;
 
 			if (ch->compress_en) {
@@ -204,9 +291,10 @@ static int camcore_resframe_set(struct camera_module *module)
 			} else if (ch->ch_uinfo.sn_fmt != IMG_PIX_FMT_GREY)
 				in_size = src_w * src_h * 3 / 2;
 			else if (camcore_raw_fmt_get(ch->dcam_out_fmt))
-				in_size = cal_sprd_size(src_w, src_h, ch->ch_uinfo.dcam_raw_fmt);
-			else
-				in_size = cal_sprd_size(src_w, src_h, ch->dcam_out_fmt);
+				in_size = cal_sprd_raw_pitch(src_w, ch->ch_uinfo.dcam_raw_fmt) * src_h;
+			else if ((ch->dcam_out_fmt == CAM_YUV420_2FRAME) || (ch->dcam_out_fmt == CAM_YVU420_2FRAME) || (ch->dcam_out_fmt == CAM_YUV420_2FRAME_MIPI))
+				in_size = cal_sprd_yuv_pitch(src_w, cam_data_bits(ch->dcam_out_fmt), cam_is_pack(ch->ch_uinfo.dcam_out_fmt))
+					* src_h * 3 / 2;
 
 			if (module->cam_uinfo.is_pyr_rec && ch->ch_id != CAM_CH_CAP)
 				in_size += dcam_if_cal_pyramid_size(src_w, src_h, cam_data_bits(ch->ch_uinfo.pyr_out_fmt), cam_is_pack(ch->ch_uinfo.pyr_out_fmt), 1, DCAM_PYR_DEC_LAYER_NUM);
@@ -260,7 +348,7 @@ static int camcore_resframe_set(struct camera_module *module)
 			}
 		}
 	}
-	cam_scene_reserved_buf_cfg(RESERVED_BUF_SET_CB, pframe, module);
+	camcore_reserved_buf_cfg(RESERVED_BUF_SET_CB, pframe, module);
 	module->res_frame = pframe;
 
 	return ret;
@@ -506,6 +594,48 @@ exit:
 	return ret;
 }
 
+static int camcore_buffers_alloc_num(struct channel_context *channel,
+		struct camera_module *module)
+{
+	int num = NORMAL_ALLOC_BUF_NUM;
+
+	if (channel->ch_id == CAM_CH_CAP) {
+		channel->zsl_skip_num = module->cam_uinfo.zsk_skip_num;
+		channel->zsl_buffer_num = module->cam_uinfo.zsl_num;
+		num += channel->zsl_buffer_num;
+		if (module->cam_uinfo.is_pyr_dec)
+			num += 1;
+	}
+
+	if (channel->ch_id == CAM_CH_CAP && module->cam_uinfo.is_dual)
+		num = DUAL_CAM_ALLOC_BUF_NUM;
+
+	if (channel->ch_id == CAM_CH_CAP && module->cam_uinfo.is_dual && module->master_flag) /*for dual hdr*/
+		num += 3;
+	if (channel->ch_id == CAM_CH_CAP && !module->cam_uinfo.is_dual && !channel->zsl_buffer_num)
+		num += 3;
+	/* 4in1 non-zsl capture for single frame */
+	if (module->cam_uinfo.dcam_slice_mode
+		&& channel->ch_id == CAM_CH_CAP &&
+		module->channel[CAM_CH_PRE].enable == 0 &&
+		module->channel[CAM_CH_VID].enable == 0)
+		num = 1;
+
+	if (module->cam_uinfo.is_4in1)
+		num = 0;
+
+	/* extend buffer queue for slow motion */
+	if (channel->ch_uinfo.is_high_fps)
+		num = channel->ch_uinfo.high_fps_skip_num * 4;
+
+	if (channel->ch_id == CAM_CH_PRE &&
+		module->grp->camsec_cfg.camsec_mode != SEC_UNABLE) {
+		num = 4;
+	}
+
+	return num;
+}
+
 static int camcore_faceid_secbuf(uint32_t sec, struct camera_buf *buf)
 {
 	int ret = 0;
@@ -533,9 +663,9 @@ static int camcore_buffers_alloc(void *param)
 	int ret = 0;
 	int hw_ctx_id = 0;
 	int i = 0, total = 0, iommu_enable = 0;
-	uint32_t width = 0, height = 0, block_size = 0;
+	uint32_t width = 0, height = 0, size = 0, block_size = 0, pack_bits = 0, pitch = 0;
 	uint32_t postproc_w = 0, postproc_h = 0;
-	uint32_t is_super_size = 0, sec_mode = 0;
+	uint32_t is_super_size = 0, sec_mode = 0, is_pack = 0;
 	struct camera_module *module = NULL;
 	struct camera_frame *pframe = NULL;
 	struct channel_context *channel = NULL;
@@ -543,11 +673,14 @@ static int camcore_buffers_alloc(void *param)
 	struct camera_debugger *debugger = NULL;
 	struct cam_hw_info *hw = NULL;
 	struct camera_frame *alloc_buf = NULL;
+	struct dcam_compress_info fbc_info = {0};
+	struct dcam_compress_cal_para cal_fbc = {0};
 	struct camera_group *grp = NULL;
 	struct camera_queue *cap_buf_q = NULL;
 	struct camera_frame *pframe_dec = NULL;
 	struct camera_frame *pframe_rec = NULL;
 	struct cam_buf_alloc_desc alloc_param = {0};
+	enum cam_pipeline_type pipeline_type = CAM_PIPELINE_TYPE_MAX;
 
 	pr_info("enter.\n");
 
@@ -569,7 +702,7 @@ static int camcore_buffers_alloc(void *param)
 	channel_vid = &module->channel[CAM_CH_VID];
 	sec_mode = module->grp->camsec_cfg.camsec_mode;
 
-	total = cam_scene_buffers_alloc_num(channel, module);
+	total = camcore_buffers_alloc_num(channel, module);
 	if (camcore_mulsharebuf_verif(channel, &module->cam_uinfo)) {
 		cap_buf_q = &grp->mul_share_buf_q;
 		width = grp->mul_sn_max_size.w;
@@ -580,6 +713,44 @@ static int camcore_buffers_alloc(void *param)
 		width = channel->swap_size.w;
 		height = channel->swap_size.h;
 	}
+
+	pipeline_type = channel->pipeline_handle->pipeline_graph->type;
+	if (pipeline_type == CAM_PIPELINE_SENSOR_RAW || pipeline_type == CAM_PIPELINE_ONLINERAW_2_OFFLINEYUV
+		|| pipeline_type == CAM_PIPELINE_ONLINERAW_2_USER_2_OFFLINEYUV
+		|| pipeline_type == CAM_PIPELINE_ONLINERAW_2_BPCRAW_2_USER_2_OFFLINEYUV)
+		pack_bits = cam_pack_bits(channel->ch_uinfo.sensor_raw_fmt);
+	else
+		pack_bits = cam_pack_bits(channel->ch_uinfo.dcam_raw_fmt);
+
+	if ((channel->ch_id == CAM_CH_CAP) && module->cam_uinfo.is_4in1)
+		pack_bits = cam_pack_bits(channel->ch_uinfo.dcam_raw_fmt);
+	is_pack = 0;
+	is_pack = cam_is_pack(channel->dcam_out_fmt);
+
+	if (channel->compress_en) {
+		cal_fbc.data_bits = cam_data_bits(channel->dcam_out_fmt);
+		cal_fbc.fbc_info = &fbc_info;
+		cal_fbc.fmt = channel->dcam_out_fmt;
+		cal_fbc.height = height;
+		cal_fbc.width = width;
+		size = dcam_if_cal_compressed_size (&cal_fbc);
+		pr_info("dcam fbc buffer size %u\n", size);
+	} else if (camcore_raw_fmt_get(channel->dcam_out_fmt)){
+		size = cal_sprd_raw_pitch(width, pack_bits) * height;
+	} else if ((channel->dcam_out_fmt == CAM_YUV420_2FRAME) || (channel->dcam_out_fmt == CAM_YVU420_2FRAME) || (channel->dcam_out_fmt == CAM_YUV420_2FRAME_MIPI)) {
+		pitch = cal_sprd_yuv_pitch(width, cam_data_bits(channel->dcam_out_fmt), is_pack);
+		size = pitch * height * 3 / 2;
+		pr_info("ch%d, dcam yuv size %d\n", channel->ch_id, size);
+	} else {
+		size = width * height * 3;
+	}
+
+	if (module->cam_uinfo.is_pyr_rec && channel->ch_id != CAM_CH_CAP)
+		size += dcam_if_cal_pyramid_size(width, height, cam_data_bits(channel->ch_uinfo.pyr_out_fmt), cam_is_pack(channel->ch_uinfo.pyr_out_fmt), 1, DCAM_PYR_DEC_LAYER_NUM);
+	size = ALIGN(size, CAM_BUF_ALIGN_SIZE);
+	pr_debug("cam%d, ch_id %d, camsec=%d, buffer size: %u (%u x %u), num %d\n",
+		module->idx, channel->ch_id, sec_mode,
+		size, width, height, total);
 
 	alloc_param.ch_id = channel->ch_id;
 	alloc_param.cam_idx = module->idx;
@@ -1216,6 +1387,292 @@ static int camcore_vir_channel_config(
 	return 0;
 }
 
+static int camcore_valid_fmt_get(int32_t *fmt, uint32_t default_value)
+{
+	if ((*fmt < CAM_RAW_PACK_10) || (*fmt >= CAM_FORMAT_MAX)) {
+		*fmt = default_value;
+		return 1;
+	}
+
+	return 0;
+}
+
+static int camcore_dcamonline_desc_get(struct camera_module *module,
+		struct channel_context *channel, uint32_t pipeline_type,
+		struct dcam_online_node_desc *dcam_online_desc)
+{
+	int ret = 0, i = 0;
+	struct cam_hw_info *hw = NULL;
+	struct cam_port_topology *outport_graph = NULL;
+
+	hw = module->grp->hw_info;
+	dcam_online_desc->blk_pm = &channel->blk_pm;
+	dcam_online_desc->resbuf_get_cb = camcore_reserved_buf_cfg;
+	dcam_online_desc->resbuf_cb_data = module;
+	camcore_cap_info_set(module, &dcam_online_desc->cap_info);
+	dcam_online_desc->is_4in1 = module->cam_uinfo.is_4in1;
+	dcam_online_desc->offline = 0;
+	dcam_online_desc->slowmotion_count = channel->ch_uinfo.high_fps_skip_num;
+	dcam_online_desc->enable_3dnr = (module->auto_3dnr | channel->uinfo_3dnr);
+	dcam_online_desc->dev = module->dcam_dev_handle;
+	if ((module->grp->hw_info->prj_id == SHARKL3) && module->cam_uinfo.virtualsensor)
+		dcam_online_desc->dcam_idx = 0;
+	else
+		dcam_online_desc->dcam_idx = module->dcam_idx;
+	dcam_online_desc->raw_alg_type = module->cam_uinfo.raw_alg_type;
+	dcam_online_desc->param_frame_sync = module->cam_uinfo.param_frame_sync;
+
+	if (module->cam_uinfo.is_pyr_rec && (!channel->ch_uinfo.is_high_fps))
+		dcam_online_desc->is_pyr_rec = 1;
+	else
+		dcam_online_desc->is_pyr_rec = 0;
+
+	for (i = 0; i < PORT_DCAM_OUT_MAX; i++) {
+		outport_graph = &module->static_topology->pipeline_list[pipeline_type].nodes[CAM_NODE_TYPE_DCAM_ONLINE].outport[i];
+		if (outport_graph->link_state != PORT_LINK_NORMAL)
+			continue;
+		dcam_online_desc->port_desc[i].raw_src = PROCESS_RAW_SRC_SEL;
+		dcam_online_desc->port_desc[i].endian = ENDIAN_LITTLE;
+		dcam_online_desc->port_desc[i].bayer_pattern = module->cam_uinfo.sensor_if.img_ptn;
+		dcam_online_desc->port_desc[i].pyr_out_fmt = hw->ip_dcam[0]->store_pyr_fmt;
+		dcam_online_desc->port_desc[i].reserved_pool_id = module->reserved_pool_id;
+		if (i == PORT_FULL_OUT)
+			dcam_online_desc->port_desc[i].share_full_path = module->cam_uinfo.need_share_buf;
+		camcore_valid_fmt_get(&channel->ch_uinfo.dcam_raw_fmt, hw->ip_dcam[0]->raw_fmt_support[0]);
+		dcam_online_desc->port_desc[i].dcam_out_fmt = channel->dcam_out_fmt;
+		dcam_online_desc->port_desc[i].compress_en = channel->compress_en;
+		if (pipeline_type == CAM_PIPELINE_SENSOR_RAW
+			|| pipeline_type == CAM_PIPELINE_ONLINERAW_2_OFFLINEYUV
+			|| pipeline_type == CAM_PIPELINE_VCH_SENSOR_RAW
+			|| pipeline_type == CAM_PIPELINE_ONLINERAW_2_USER_2_OFFLINEYUV
+			|| pipeline_type == CAM_PIPELINE_ONLINERAW_2_BPCRAW_2_USER_2_OFFLINEYUV) {
+			dcam_online_desc->port_desc[i].is_raw = 1;
+			camcore_valid_fmt_get(&channel->ch_uinfo.sensor_raw_fmt, hw->ip_dcam[0]->sensor_raw_fmt);
+			dcam_online_desc->port_desc[i].dcam_out_fmt = channel->ch_uinfo.sensor_raw_fmt;
+			if (module->cam_uinfo.raw_alg_type)
+				dcam_online_desc->port_desc[i].dcam_out_fmt = CAM_RAW_14;
+			if (module->cam_uinfo.need_dcam_raw && hw->ip_dcam[0]->bpc_raw_support) {
+				dcam_online_desc->port_desc[i].is_raw = 0;
+				dcam_online_desc->port_desc[i].raw_src = BPC_RAW_SRC_SEL;
+			}
+		} else if (pipeline_type == CAM_PIPELINE_ONLINERAW_2_USER_2_BPCRAW_2_USER_2_OFFLINEYUV
+				|| pipeline_type == CAM_PIPELINE_ONLINE_NORMAL2YUV_OR_RAW2USER2YUV
+				|| pipeline_type == CAM_PIPELINE_ONLINE_NORMALZSLCAPTURE_OR_RAW2USER2YUV) {
+			if (outport_graph->id == PORT_RAW_OUT) {
+				dcam_online_desc->port_desc[i].is_raw = 1;
+				dcam_online_desc->port_desc[i].dcam_out_fmt = CAM_RAW_14;
+			}
+		}
+	}
+
+	return ret;
+}
+
+static int camcore_ispoffline_desc_get(struct camera_module *module, struct channel_context *channel,
+	struct isp_node_desc *isp_node_description)
+{
+	int ret = 0;
+	uint32_t format = 0, temp_format = 0;
+	struct cam_hw_info *hw = NULL;
+
+	hw = module->grp->hw_info;
+	format = module->cam_uinfo.sensor_if.img_fmt;
+	isp_node_description->resbuf_get_cb = camcore_reserved_buf_cfg;
+	isp_node_description->resbuf_cb_data = module;
+
+	if (format == DCAM_CAP_MODE_YUV)
+		isp_node_description->in_fmt = cam_format_get(channel->ch_uinfo.dst_fmt);
+	else {
+		isp_node_description->in_fmt = channel->dcam_out_fmt;
+		if (module->cam_uinfo.raw_alg_type && channel->ch_id == CAM_CH_CAP)
+			isp_node_description->in_fmt = CAM_YUV420_2FRAME_MIPI;
+	}
+	isp_node_description->pyr_out_fmt = hw->ip_dcam[0]->store_pyr_fmt;;
+	isp_node_description->store_3dnr_fmt = hw->ip_dcam[0]->store_3dnr_fmt[0];
+	temp_format = channel->ch_uinfo.dcam_raw_fmt;
+	if (camcore_valid_fmt_get(&channel->ch_uinfo.dcam_raw_fmt, hw->ip_dcam[0]->raw_fmt_support[0])) {
+		if (hw->ip_dcam[0]->save_band_for_bigsize)
+			temp_format = CAM_RAW_PACK_10;
+	}
+	if ((hw->ip_isp->fetch_raw_support == 0) || (format == DCAM_CAP_MODE_YUV))
+		channel->ch_uinfo.dcam_out_fmt = isp_node_description->in_fmt;
+	else {
+		channel->ch_uinfo.dcam_out_fmt = temp_format;
+		isp_node_description->in_fmt = temp_format;
+	}
+
+	if (channel->compress_en)
+		isp_node_description->fetch_path_sel = ISP_FETCH_PATH_FBD;
+	else
+		isp_node_description->fetch_path_sel = ISP_FETCH_PATH_NORMAL;
+	isp_node_description->nr3_fbc_fbd = channel->compress_3dnr;
+
+	isp_node_description->is_dual = module->cam_uinfo.is_dual;
+	isp_node_description->bayer_pattern = module->cam_uinfo.sensor_if.img_ptn;
+	isp_node_description->enable_slowmotion = channel->ch_uinfo.is_high_fps;
+	isp_node_description->slowmotion_count = channel->ch_uinfo.high_fps_skip_num;
+	isp_node_description->slw_state = CAM_SLOWMOTION_OFF;
+	isp_node_description->ch_id = channel->ch_id;
+	isp_node_description->sn_size = module->cam_uinfo.sn_size;
+	if (channel->ch_uinfo.is_high_fps)
+		isp_node_description->blkparam_node_num = CAM_SHARED_BUF_NUM / channel->ch_uinfo.high_fps_skip_num;
+	else
+		isp_node_description->blkparam_node_num = camcore_buffers_alloc_num(channel, module) + 1;
+
+	isp_node_description->mode_3dnr = MODE_3DNR_OFF;
+	channel->type_3dnr = CAM_3DNR_OFF;
+	if (module->auto_3dnr || channel->uinfo_3dnr) {
+		channel->type_3dnr = CAM_3DNR_HW;
+		if (channel->uinfo_3dnr) {
+			if (channel->ch_id == CAM_CH_CAP)
+				isp_node_description->mode_3dnr = MODE_3DNR_CAP;
+			else
+				isp_node_description->mode_3dnr = MODE_3DNR_PRE;
+		}
+	}
+
+	isp_node_description->mode_ltm = MODE_LTM_OFF;
+	if (module->cam_uinfo.is_rgb_ltm) {
+		if (channel->ch_id == CAM_CH_CAP) {
+			isp_node_description->mode_ltm = MODE_LTM_CAP;
+		} else if (channel->ch_id == CAM_CH_PRE) {
+			isp_node_description->mode_ltm = MODE_LTM_PRE;
+		}
+	}
+	channel->mode_ltm = isp_node_description->mode_ltm;
+
+	isp_node_description->mode_gtm = MODE_GTM_OFF;
+	if (module->cam_uinfo.is_rgb_gtm) {
+		if (channel->ch_id == CAM_CH_CAP) {
+			isp_node_description->mode_gtm = MODE_GTM_CAP;
+		} else if (channel->ch_id == CAM_CH_PRE) {
+			isp_node_description->mode_gtm = MODE_GTM_PRE;
+		}
+	}
+	channel->mode_gtm = isp_node_description->mode_gtm;
+
+	isp_node_description->ltm_rgb = module->cam_uinfo.is_rgb_ltm;
+	channel->ltm_rgb = isp_node_description->ltm_rgb;
+	isp_node_description->gtm_rgb = module->cam_uinfo.is_rgb_gtm;
+	channel->gtm_rgb = isp_node_description->gtm_rgb;
+	isp_node_description->is_high_fps = channel->ch_uinfo.is_high_fps;
+	isp_node_description->cam_id = module->idx;
+	isp_node_description->dev = module->isp_dev_handle;
+	isp_node_description->port_desc.out_fmt = cam_format_get(channel->ch_uinfo.dst_fmt);
+	isp_node_description->port_desc.endian = ENDIAN_LITTLE;
+	isp_node_description->port_desc.output_size = channel->ch_uinfo.dst_size;
+	isp_node_description->port_desc.regular_mode = channel->ch_uinfo.regular_desc.regular_mode;
+	isp_node_description->port_desc.resbuf_get_cb = isp_node_description->resbuf_get_cb;
+	isp_node_description->port_desc.resbuf_cb_data = isp_node_description->resbuf_cb_data;
+	isp_node_description->port_desc.in_fmt = isp_node_description->in_fmt;
+	isp_node_description->port_desc.bayer_pattern = isp_node_description->bayer_pattern;
+	isp_node_description->port_desc.pyr_out_fmt = isp_node_description->pyr_out_fmt;
+	isp_node_description->port_desc.store_3dnr_fmt = isp_node_description->store_3dnr_fmt;
+	isp_node_description->port_desc.sn_size = isp_node_description->sn_size;
+	isp_node_description->port_desc.is_high_fps = isp_node_description->is_high_fps;
+	isp_node_description->port_desc.fetch_path_sel = isp_node_description->fetch_path_sel;
+	isp_node_description->port_desc.hw = hw;
+	if (channel->ch_uinfo.slave_img_en) {
+		isp_node_description->port_desc.slave_type = ISP_PATH_MASTER;
+		isp_node_description->port_desc.slave_path_id = ISP_SPATH_VID;
+	}
+
+	if (channel->ch_uinfo.is_high_fps) {
+		isp_node_description->fps960_info.slowmotion_stage_a_num = channel->ch_uinfo.slowmotion_stage_a_num;
+		isp_node_description->fps960_info.slowmotion_stage_a_valid_num = channel->ch_uinfo.slowmotion_stage_a_valid_num;
+		isp_node_description->fps960_info.slowmotion_stage_b_num = channel->ch_uinfo.slowmotion_stage_b_num;
+	}
+	return ret;
+}
+
+static camcore_framecache_desc_get(struct camera_module *module,
+		struct frame_cache_node_desc *frame_cache_desc)
+{
+	int ret = 0;
+	uint32_t real_cache_num = 0;
+
+	real_cache_num = module->cam_uinfo.zsl_num;
+	if (module->cam_uinfo.is_dual)
+		real_cache_num = 3;
+	frame_cache_desc->cache_real_num = real_cache_num;
+	frame_cache_desc->cache_skip_num = module->cam_uinfo.zsk_skip_num;
+	frame_cache_desc->is_share_buf = module->cam_uinfo.need_share_buf;
+	frame_cache_desc->need_dual_sync = module->cam_uinfo.is_dual;
+	frame_cache_desc->dual_sync_func = camcore_dual_frame_deal;
+	frame_cache_desc->dual_slave_frame_set = camcore_dual_slave_frame_set;
+	frame_cache_desc->dual_sync_cb_data = module;
+
+	return ret;
+}
+
+static camcore_dcamoffline_desc_get(struct camera_module *module,
+		struct channel_context *channel, uint32_t pipeline_type, struct dcam_offline_node_desc *dcam_offline_desc)
+{
+	int ret = 0;
+	uint32_t dcam_idx = 0;
+	struct cam_hw_info *hw = NULL;
+
+	hw = module->grp->hw_info;
+
+	for (dcam_idx = 0; dcam_idx < DCAM_HW_CONTEXT_MAX; dcam_idx++) {
+		if (dcam_idx != module->dcam_idx) {
+			dcam_offline_desc->dcam_idx = dcam_idx;
+			break;
+		}
+	}
+	dcam_offline_desc->dev = module->dcam_dev_handle;
+	dcam_offline_desc->port_desc.endian = ENDIAN_LITTLE;
+	dcam_offline_desc->port_desc.src_sel = PROCESS_RAW_SRC_SEL;
+	camcore_valid_fmt_get(&channel->ch_uinfo.sensor_raw_fmt, hw->ip_dcam[0]->sensor_raw_fmt);
+	dcam_offline_desc->fetch_fmt = channel->ch_uinfo.sensor_raw_fmt;
+	camcore_valid_fmt_get(&channel->ch_uinfo.dcam_raw_fmt, hw->ip_dcam[0]->raw_fmt_support[0]);
+	dcam_offline_desc->port_desc.dcam_out_fmt = channel->ch_uinfo.dcam_raw_fmt;
+	if (module->cam_uinfo.dcam_slice_mode)
+		dcam_offline_desc->port_desc.compress_en = channel->compress_offline;
+	if (module->cam_uinfo.dcam_slice_mode && hw->ip_dcam[0]->save_band_for_bigsize)
+		dcam_offline_desc->port_desc.dcam_out_fmt = CAM_RAW_PACK_10;
+	if (hw->ip_isp->fetch_raw_support == 0)
+		dcam_offline_desc->port_desc.dcam_out_fmt = CAM_YUV420_2FRAME_MIPI;
+	channel->dcam_out_fmt = dcam_offline_desc->port_desc.dcam_out_fmt;
+	if (pipeline_type == CAM_PIPELINE_ONLINERAW_2_USER_2_BPCRAW_2_USER_2_OFFLINEYUV
+		|| pipeline_type == CAM_PIPELINE_ONLINE_NORMAL2YUV_OR_RAW2USER2YUV
+		|| pipeline_type == CAM_PIPELINE_ONLINE_NORMALZSLCAPTURE_OR_RAW2USER2YUV) {
+		if (module->cam_uinfo.raw_alg_type)
+			dcam_offline_desc->fetch_fmt = CAM_RAW_14;
+		dcam_offline_desc->port_desc.dcam_out_fmt = CAM_YUV420_2FRAME_MIPI;
+	} else if (pipeline_type == CAM_PIPELINE_ONLINERAW_2_USER_2_OFFLINEYUV) {
+		if (module->cam_uinfo.raw_alg_type) {
+			dcam_offline_desc->fetch_fmt = CAM_RAW_14;
+			dcam_offline_desc->port_desc.dcam_out_fmt = CAM_YUV420_2FRAME_MIPI;
+		}
+		if (module->cam_uinfo.is_4in1)
+			dcam_offline_desc->fetch_fmt = channel->ch_uinfo.dcam_raw_fmt;
+	}
+	channel->ch_uinfo.dcam_raw_fmt = dcam_offline_desc->port_desc.dcam_out_fmt;
+
+	return ret;
+}
+
+static int camcore_dcamoffline_bpcraw_desc_get(struct camera_module *module,
+		struct channel_context *channel, struct dcam_offline_node_desc *dcam_offline_desc)
+{
+	int ret = 0;
+	struct cam_hw_info *hw = NULL;
+
+	hw = module->grp->hw_info;
+
+	dcam_offline_desc->dev = module->dcam_dev_handle;
+	dcam_offline_desc->dcam_idx = DCAM_HW_CONTEXT_1;
+	dcam_offline_desc->port_desc.endian = ENDIAN_LITTLE;
+	dcam_offline_desc->port_desc.src_sel = BPC_RAW_SRC_SEL;
+	camcore_valid_fmt_get(&channel->ch_uinfo.sensor_raw_fmt, hw->ip_dcam[0]->sensor_raw_fmt);
+	dcam_offline_desc->fetch_fmt = CAM_RAW_14;
+	camcore_valid_fmt_get(&channel->ch_uinfo.dcam_raw_fmt, hw->ip_dcam[0]->raw_fmt_support[0]);
+	dcam_offline_desc->port_desc.dcam_out_fmt = CAM_RAW_14;
+
+	return ret;
+}
+
 static int camcore_dcamoffline_bpcraw_cfg(struct camera_module *module,
 		struct channel_context *channel)
 {
@@ -1267,7 +1724,7 @@ static int camcore_pyrdec_desc_get(struct camera_module *module,
 	pyr_dec_desc->pyr_out_fmt = hw->ip_dcam[0]->store_pyr_fmt;
 	/*NEED check if necessary*/
 	temp_format = channel->ch_uinfo.dcam_raw_fmt;
-	if (cam_block_valid_fmt_get(&channel->ch_uinfo.dcam_raw_fmt, hw->ip_dcam[0]->raw_fmt_support[0])) {
+	if (camcore_valid_fmt_get(&channel->ch_uinfo.dcam_raw_fmt, hw->ip_dcam[0]->raw_fmt_support[0])) {
 		if (hw->ip_dcam[0]->save_band_for_bigsize)
 			temp_format = CAM_RAW_PACK_10;
 	}
@@ -1287,21 +1744,31 @@ static int camcore_pyrdec_ctxid_cfg(struct channel_context *channel, void *isp_n
 	return ret;
 }
 
-static int camcore_framecache_desc_get(struct camera_module *module, struct frame_cache_node_desc *frame_cache_desc)
+static int camcore_isp_yuv_scaler_desc_get(struct camera_module *module,
+		struct channel_context *channel, struct isp_yuv_scaler_node_desc *isp_yuv_scaler_desc)
 {
 	int ret = 0;
-	uint32_t real_cache_num = 0;
+	uint32_t uframe_sync = 0;
+	if (!module || !channel || !isp_yuv_scaler_desc) {
+		pr_err("fail to get valid inptr %p %p %p\n", module, channel, isp_yuv_scaler_desc);
+		return -EINVAL;
+	}
 
-	real_cache_num = module->cam_uinfo.zsl_num;
-	if (module->cam_uinfo.is_dual)
-		real_cache_num = 3;
-	frame_cache_desc->cache_real_num = real_cache_num;
-	frame_cache_desc->cache_skip_num = module->cam_uinfo.zsk_skip_num;
-	frame_cache_desc->is_share_buf = module->cam_uinfo.need_share_buf;
-	frame_cache_desc->need_dual_sync = module->cam_uinfo.is_dual;
-	frame_cache_desc->dual_sync_func = camcore_dual_frame_deal;
-	frame_cache_desc->dual_slave_frame_set = camcore_dual_slave_frame_set;
-	frame_cache_desc->dual_sync_cb_data = module;
+	uframe_sync = channel->ch_id != CAM_CH_CAP;
+	if (channel->ch_uinfo.frame_sync_close)
+		uframe_sync = 0;
+	isp_yuv_scaler_desc->uframe_sync = uframe_sync;
+	isp_yuv_scaler_desc->dev = module->isp_dev_handle;
+	isp_yuv_scaler_desc->resbuf_get_cb = camcore_reserved_buf_cfg;
+	isp_yuv_scaler_desc->resbuf_cb_data = module;
+	isp_yuv_scaler_desc->ch_id = channel->ch_id;
+	isp_yuv_scaler_desc->cam_id = module->idx;
+	isp_yuv_scaler_desc->out_fmt = cam_format_get(channel->ch_uinfo.dst_fmt);
+	isp_yuv_scaler_desc->endian = ENDIAN_LITTLE;
+	isp_yuv_scaler_desc->output_size = channel->ch_uinfo.dst_size;
+	isp_yuv_scaler_desc->regular_mode = channel->ch_uinfo.regular_desc.regular_mode;
+	isp_yuv_scaler_desc->port_desc.resbuf_get_cb = camcore_reserved_buf_cfg;
+	isp_yuv_scaler_desc->port_desc.resbuf_cb_data = module;
 
 	return ret;
 }
@@ -1436,7 +1903,7 @@ static int camcore_pipeline_init(struct camera_module *module,
 
 	if (cam_scene_pipeline_need_dcamonline(pipeline_type)) {
 		dcam_online_desc = &pipeline_desc.dcam_online_desc;
-		cam_scene_dcamonline_desc_get(module, channel, pipeline_type, dcam_online_desc);
+		camcore_dcamonline_desc_get(module, channel, pipeline_type, dcam_online_desc);
 		if (module->cam_uinfo.virtualsensor) {
 			dcam_fetch_desc = &pipeline_desc.dcam_fetch_desc;
 			dcam_fetch_desc->online_node_desc = dcam_online_desc;
@@ -1448,17 +1915,17 @@ static int camcore_pipeline_init(struct camera_module *module,
 
 	if (cam_scene_pipeline_need_dcamoffline(pipeline_type)) {
 		dcam_offline_desc = &pipeline_desc.dcam_offline_desc;
-		cam_scene_dcamoffline_desc_get(module, channel, pipeline_type, dcam_offline_desc);
+		camcore_dcamoffline_desc_get(module, channel, pipeline_type, dcam_offline_desc);
 	}
 
 	if (cam_scene_pipeline_need_dcamoffline_bpcraw(pipeline_type)) {
 		dcam_offline_bpcraw_desc = &pipeline_desc.dcam_offline_bpcraw_desc;
-		cam_scene_dcamoffline_bpcraw_desc_get(module, channel, dcam_offline_bpcraw_desc);
+		camcore_dcamoffline_bpcraw_desc_get(module, channel, dcam_offline_bpcraw_desc);
 	}
 
 	if (cam_scene_pipeline_need_ispoffline(pipeline_type)) {
 		isp_node_description = &pipeline_desc.isp_node_description;
-		cam_scene_ispoffline_desc_get(module, channel, isp_node_description);
+		camcore_ispoffline_desc_get(module, channel, isp_node_description);
 	}
 
 	if (cam_scene_pipeline_need_framecache(pipeline_type)) {
@@ -1475,7 +1942,7 @@ static int camcore_pipeline_init(struct camera_module *module,
 	if (cam_scene_pipeline_need_yuv_scaler(pipeline_type)) {
 		isp_yuv_scaler_desc = &pipeline_desc.isp_yuv_scaler_desc;
 		isp_yuv_scaler_desc->hw_path_id = isp_port_id_switch(isp_port_id);
-		cam_scene_isp_yuv_scaler_desc_get(module, channel, isp_yuv_scaler_desc);
+		camcore_isp_yuv_scaler_desc_get(module, channel, isp_yuv_scaler_desc);
 	}
 
 	if (module->cam_uinfo.need_share_buf && (channel->ch_id == CAM_CH_CAP)) {

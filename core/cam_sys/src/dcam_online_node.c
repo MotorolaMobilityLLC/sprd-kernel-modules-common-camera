@@ -1222,6 +1222,7 @@ static int dcamonline_dev_start(struct dcam_online_node *node, void *param)
 	hw = node->dev->hw;
 	pm = &node->blk_pm;
 	pm->in_size = node->cap_info.cap_size;
+	memset(&node->nr3_me, 0, sizeof(struct nr3_me_data));
 
 	if (param) {
 		start_param = (struct dcam_online_start_param *)param;

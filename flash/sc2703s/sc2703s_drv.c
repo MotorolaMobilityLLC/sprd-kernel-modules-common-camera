@@ -25,7 +25,7 @@
 #include <linux/usb/charger.h>
 #include <linux/delay.h>
 
-#include "sprd_cam.h"
+#include "sprd_img.h"
 #include "flash_drv.h"
 #include "sc2703s_reg.h"
 

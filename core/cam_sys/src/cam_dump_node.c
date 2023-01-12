@@ -280,10 +280,10 @@ static void camdump_node_frame_size_get(struct camera_frame *frame, struct cam_d
 	if (IS_STATIS_PORT(frame->link_from.port_id))
 		msg->size = frame->buf.size;
 	else if (cur_layer != 0) {
-		outpitch = cal_sprd_pitch(msg->align_w, frame->cam_fmt);
+		outpitch = dcampath_outpitch_get(msg->align_w, frame->cam_fmt);
 		msg->size = outpitch * msg->align_h;
 	} else {
-		outpitch = cal_sprd_pitch(frame->width, frame->cam_fmt);
+		outpitch = dcampath_outpitch_get(frame->width, frame->cam_fmt);
 		msg->size = outpitch * frame->height;
 	}
 

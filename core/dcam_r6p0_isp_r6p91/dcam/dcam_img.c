@@ -53,6 +53,15 @@
 #endif
 #include <sprd_camsys_domain.h>
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0))
+typedef struct timespec64 timespec;
+#define ktime_get_ts ktime_get_ts64
+typedef struct __kernel_old_timeval timeval;
+#else
+typedef struct timespec timespec;
+typedef struct timeval timeval;
+#endif
+
 #ifdef pr_fmt
 #undef pr_fmt
 #endif
@@ -116,7 +125,7 @@ struct dcam_node {
 	uint32_t irq_property;
 	uint32_t frame_id;
 	uint32_t invalid_flag;
-	struct timeval time;
+	timeval time;
 	uint32_t reserved;
 	uint32_t mfd[3];
 };
@@ -203,7 +212,7 @@ struct dcam_info {
 	struct sprd_img_set_flash  set_flash;
 	uint32_t                   after_af;
 	uint32_t                   is_smooth_zoom;
-	struct timeval             timestamp;
+	timeval             timestamp;
 };
 
 struct dcam_dev {
@@ -339,9 +348,9 @@ static struct dcam_format dcam_img_fmt[] = {
 
 #define DISCARD_FRAME_TIME (10000)
 
-static int img_get_timestamp(struct timeval *tv)
+static int img_get_timestamp(timeval *tv)
 {
-	struct timespec ts;
+	timespec ts;
 
 	ktime_get_ts(&ts);
 	tv->tv_sec = ts.tv_sec;
@@ -532,7 +541,7 @@ static int sprd_img_discard_frame(struct camera_frame *frame, void *param)
 	int                                  ret = DCAM_RTN_PARA_ERR;
 	struct dcam_dev          *dev = (struct dcam_dev *)param;
 	struct dcam_info         *info = NULL;
-	struct timeval           timestamp;
+	timeval           timestamp;
 	uint32_t                 flag = 0;
 
 	info = &dev->dcam_cxt;
@@ -2935,14 +2944,14 @@ static int sprd_img_k_open(struct inode *node, struct file *file)
 
 	mutex_init(&dev->dcam_mutex);
 	init_completion(&dev->irq_com);
-	ret = dcam_module_en(md->this_device->of_node);
+
+	ret = sprd_init_timer(&dev->dcam_timer, (unsigned long)dev);
 	if (unlikely(ret != 0)) {
-		pr_err("Failed to enable dcam module.\n");
-		ret = -EIO;
+		pr_err("Failed to init timer.\n");
+		ret = -EINVAL;
 		goto exit;
 	}
 
-	ret = sprd_init_timer(&dev->dcam_timer, (unsigned long)dev);
 	ret = sprd_init_handle(dev);
 	if (unlikely(ret != 0)) {
 		pr_err("Failed to init queue.\n");
@@ -2966,15 +2975,6 @@ static int sprd_img_k_open(struct inode *node, struct file *file)
 		goto exit;
 	}
 
-	ret = sprd_isp_dev_init(&dev->isp_dev_handle);
-	if (unlikely(ret != 0)) {
-		pr_err("sprd_img:fail to init isp dev\n");
-		ret = -EINVAL;
-		goto exit;
-	}
-	dcam_reset(DCAM_RST_ALL);
-	isp_reset();
-
 	dev->driver_data = (void *)md;
 	file->private_data = (void *)dev;
 	atomic_inc(&s_dcam_cnt);
@@ -2982,11 +2982,8 @@ static int sprd_img_k_open(struct inode *node, struct file *file)
 exit:
 	if (unlikely(ret)) {
 		pr_err("sprd_img_k_open failed!\n");
-		dcam_module_dis(md->this_device->of_node);
 		dcam_stop_flash_thread(dev);
 		sprd_img_stop_zoom_thread(dev);
-		if (dev->isp_dev_handle)
-			sprd_isp_dev_deinit(dev->isp_dev_handle);
 		vfree(dev);
 	}
 
@@ -3121,6 +3118,7 @@ static long sprd_img_k_ioctl(struct file *file, unsigned int cmd,
 {
 	struct dcam_dev          *dev = NULL;
 	struct dcam_info         *info = NULL;
+	struct miscdevice        *md = NULL;
 	uint32_t                 channel_id;
 	uint32_t                 mode;
 	uint32_t                 skip_num;
@@ -3526,7 +3524,7 @@ static long sprd_img_k_ioctl(struct file *file, unsigned int cmd,
 
 	case SPRD_IMG_IO_GET_TIME:
 	{
-		struct timeval           time;
+		timeval           time;
 		struct sprd_img_time     utime;
 
 		DCAM_TRACE("SPRD_IMG_IO_GET_TIME.\n");
@@ -3769,7 +3767,28 @@ static long sprd_img_k_ioctl(struct file *file, unsigned int cmd,
 			pr_err("fail to copy from user, ret %d\n", ret);
 			return -EFAULT;
 		}
+
 		if (param == CAM_IOCTL_PRIVATE_KEY) {
+			md = (struct miscdevice *)dev->driver_data;
+			ret = dcam_module_en(md->this_device->of_node);
+			if (unlikely(ret != 0)) {
+				pr_err("Failed to enable dcam module.\n");
+				dcam_module_dis(md->this_device->of_node);
+				return -EFAULT;
+			}
+
+			ret = sprd_isp_dev_init(&dev->isp_dev_handle);
+			if (unlikely(ret != 0)) {
+				pr_err("sprd_img:fail to init isp dev.\n");
+				dcam_module_dis(md->this_device->of_node);
+				if (dev->isp_dev_handle)
+					sprd_isp_dev_deinit(dev->isp_dev_handle);
+				return -EFAULT;
+			}
+
+			dcam_reset(DCAM_RST_ALL);
+			isp_reset();
+
 			dev->private_key = 1;
 		}
 		pr_info("cam%d get ioctrl permission %d\n", dev->idx, dev->private_key);
@@ -3805,7 +3824,7 @@ static ssize_t sprd_img_read(struct file *file, char __user *u_data,
 	if (!dev)
 		return -EFAULT;
 
-	if (cnt < sizeof(struct sprd_img_read_op)) {
+	if (cnt != sizeof(struct sprd_img_read_op)) {
 		/*pr_err("sprd_img_read: error, cnt %ld read_op %ld.\n",
 		*		cnt, sizeof(struct sprd_img_read_op));
 		*/
@@ -3976,7 +3995,7 @@ static ssize_t sprd_img_write(struct file *file, const char __user *u_data,
 		return -EFAULT;
 	info = &dev->dcam_cxt;
 
-	if (cnt < sizeof(struct sprd_img_write_op)) {
+	if (cnt != sizeof(struct sprd_img_write_op)) {
 		pr_err("sprd_img_write: error cnt %d.\n", cnt);
 		return -EIO;
 	}

@@ -678,7 +678,8 @@ static int ispnode_start_proc(void *node)
 		pr_err("fail to get pctx_hw");
 		return EFAULT;
 	}
-
+	/*TBD: other hw info need to check*/
+	memset(&pctx_hw->pipe_info, 0, sizeof(struct isp_pipe_info));
 	port_cfg.valid_out_frame = 0;
 	port_cfg.hw_ctx_id = pctx_hw->hw_ctx_id;
 	memcpy(&inode->pipe_src, &inode->uinfo, sizeof(inode->uinfo));

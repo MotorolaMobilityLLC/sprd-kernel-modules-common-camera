@@ -21,7 +21,7 @@
 #include "cam_buf.h"
 #include "cam_test.h"
 #include "sprd_cam_test.h"
-#include "dcam_core.h"
+
 #ifdef pr_fmt
 #undef pr_fmt
 #endif
@@ -566,7 +566,7 @@ int dcamt_start(struct camt_info *info)
 		info->crop_rect.w, info->crop_rect.h, info->output_size.w,
 		info->output_size.h);
 	info->is_loose = 0;
-	info->pitch = cal_sprd_pitch(info->input_size.w, CAM_RAW_PACK_10);
+	info->pitch = cal_sprd_raw_pitch(info->input_size.w, info->is_loose);
 	info->endian.y_endian = ENDIAN_LITTLE;
 
 	if (!info->test_mode) {

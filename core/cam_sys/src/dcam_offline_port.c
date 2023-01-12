@@ -40,7 +40,7 @@ static int dcamoffline_port_size_cfg(void *handle, void *param)
 	port->in_size = ch_desc->input_size;
 	port->in_trim = ch_desc->input_trim;
 	port->out_size = ch_desc->output_size;
-	port->out_pitch = cal_sprd_pitch(port->out_size.w, port->out_fmt);
+	port->out_pitch = dcampath_outpitch_get(port->out_size.w, port->out_fmt);
 
 	switch (port->port_id) {
 	case PORT_OFFLINE_RAW_OUT:
@@ -350,9 +350,13 @@ int dcam_offline_port_buf_alloc(void *handle, struct cam_buf_alloc_desc *param)
 		cal_fbc.height = height;
 		cal_fbc.width = width;
 		size = dcam_if_cal_compressed_size (&cal_fbc);
-	} else {
-		size = cal_sprd_size(width, height, out_fmt);
-	}
+	} else if (camcore_raw_fmt_get(out_fmt))
+		size = cal_sprd_raw_pitch(width, cam_pack_bits(out_fmt)) * height;
+	else if (out_fmt == CAM_YUV420_2FRAME ||
+			out_fmt == CAM_YVU420_2FRAME ||
+			out_fmt == CAM_YUV420_2FRAME_MIPI)
+		size = cal_sprd_yuv_pitch(width, cam_data_bits(out_fmt),
+				cam_is_pack(out_fmt)) * height * 3 / 2;
 
 	size = ALIGN(size, CAM_BUF_ALIGN_SIZE);
 

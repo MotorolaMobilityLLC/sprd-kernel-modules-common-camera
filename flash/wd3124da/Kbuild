@@ -15,7 +15,6 @@ KO_MODULE_NAME := flash_ic_wd3124da
 KO_MODULE_PATH := $(src)
 KO_MODULE_SRC  :=
 
-ISP_DIR   := $(BSP_BOARD_CAMERA_MODULE_ISP_VERSION)
 KO_MODULE_SRC += $(wildcard $(KO_MODULE_PATH)/*.c)
 
 #
@@ -23,12 +22,6 @@ KO_MODULE_SRC += $(wildcard $(KO_MODULE_PATH)/*.c)
 #
 ccflags-y += -I$(KO_MODULE_PATH)/../flash_drv
 ccflags-y += -I$(KO_MODULE_PATH)/../../interface
-
-ifeq ($(ISP_DIR), dcam_r6p0_isp_r6p91)
-ccflags-y += -DPROJ_PIKE2
-else ifeq ($(ISP_DIR), dcam_if_r4p0_isp_r6p11)
-ccflags-y += -DPROJ_SHARKLE
-endif
 
 #
 # Final Objects

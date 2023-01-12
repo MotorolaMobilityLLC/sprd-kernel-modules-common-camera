@@ -17,16 +17,21 @@
 #include <linux/mfd/syscon.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
+#include <linux/spinlock.h>
 #include <linux/regmap.h>
+#include <linux/interrupt.h>
 #include <sprd_mm.h>
 #include "isp_reg.h"
+#include "isp_int.h"
+#include "cam_scaler.h"
 #include "isp_node.h"
 #include "isp_drv.h"
 
 #ifdef pr_fmt
 #undef pr_fmt
 #endif
-#define pr_fmt(fmt) "ISP_DRV: %d %d %s : " fmt, current->pid, __LINE__, __func__
+#define pr_fmt(fmt) "ISP_DRV: %d %d %s : "\
+	fmt, current->pid, __LINE__, __func__
 
 uint32_t s_isp_irq_no[ISP_LOGICAL_COUNT];
 unsigned long s_isp_regbase[ISP_MAX_COUNT];
@@ -83,6 +88,7 @@ int isp_drv_trim_deci_info_cal(uint32_t src, uint32_t dst,
 	}
 	return 0;
 }
+
 
 int isp_drv_dt_parse(struct device_node *dn,
 		struct cam_hw_info *hw_info)

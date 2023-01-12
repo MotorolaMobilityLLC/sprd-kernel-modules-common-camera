@@ -14,7 +14,7 @@
 #ifndef _CAM_TRUSTY_H_
 #define _CAM_TRUSTY_H_
 
-#include "sprd_cam.h"
+#include "sprd_img.h"
 
 #define TA_RESP_BIT		1 <<  31
 

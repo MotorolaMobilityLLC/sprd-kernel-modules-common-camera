@@ -36,7 +36,7 @@
 #include <linux/pwm.h>
 #include <linux/clk.h>
 
-#include "sprd_cam.h"
+#include "sprd_img.h"
 #include "flash_drv.h"
 
 #ifdef pr_fmt

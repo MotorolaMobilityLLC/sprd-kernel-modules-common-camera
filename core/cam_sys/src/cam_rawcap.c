@@ -57,9 +57,9 @@ int camrawcap_raw_pre_proc(struct camera_module *module,
 	dcam_offline_desc->port_desc.endian = ENDIAN_LITTLE;
 	dcam_offline_desc->port_desc.src_sel = PROCESS_RAW_SRC_SEL;
 	dcam_offline_desc->statis_en = 1;
-	cam_block_valid_fmt_get(&module->raw_cap_fetch_fmt, hw->ip_dcam[0]->sensor_raw_fmt);
+	camcore_valid_fmt_get(&module->raw_cap_fetch_fmt, hw->ip_dcam[0]->sensor_raw_fmt);
 	dcam_offline_desc->fetch_fmt = module->raw_cap_fetch_fmt;
-	cam_block_valid_fmt_get(&ch->ch_uinfo.dcam_raw_fmt, hw->ip_dcam[0]->raw_fmt_support[0]);
+	camcore_valid_fmt_get(&ch->ch_uinfo.dcam_raw_fmt, hw->ip_dcam[0]->raw_fmt_support[0]);
 	dcam_offline_desc->port_desc.dcam_out_fmt = ch->ch_uinfo.dcam_raw_fmt;
 	if (module->cam_uinfo.dcam_slice_mode && hw->ip_dcam[0]->save_band_for_bigsize)
 		dcam_offline_desc->port_desc.dcam_out_fmt = CAM_RAW_PACK_10;
@@ -448,7 +448,7 @@ int camrawcap_storeccm_frgb_pre_proc(struct camera_module *module,
 	dcam_offline_raw2frgb_desc->dev = module->dcam_dev_handle;
 	dcam_offline_raw2frgb_desc->dcam_idx = module->dcam_idx;
 	dcam_offline_raw2frgb_desc->port_desc.endian = ENDIAN_LITTLE;
-	cam_block_valid_fmt_get(&module->raw_cap_fetch_fmt, hw->ip_dcam[0]->sensor_raw_fmt);
+	camcore_valid_fmt_get(&module->raw_cap_fetch_fmt, hw->ip_dcam[0]->sensor_raw_fmt);
 	dcam_offline_raw2frgb_desc->fetch_fmt = module->raw_cap_fetch_fmt;
 	dcam_offline_raw2frgb_desc->port_desc.dcam_out_fmt = CAM_FULL_RGB14;
 

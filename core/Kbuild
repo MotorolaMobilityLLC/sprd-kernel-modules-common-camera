@@ -19,8 +19,12 @@ ISP_DIR   := $(BSP_BOARD_CAMERA_MODULE_ISP_VERSION)
 CSI_DIR   := $(BSP_BOARD_CAMERA_MODULE_CSI_VERSION)
 ADAPT_DIR := $(BSP_BOARD_CAMERA_MODULE_ISP_ADAPT_VERSION)
 
-ifneq ($(findstring $(strip $(BSP_KERNEL_VERSION)), kernel5.15 kernel5.4),)
+ifeq ($(strip $(BSP_KERNEL_VERSION)), kernel5.15)
 ISP_DIR := cam_sys
+endif
+
+ifeq ($(strip $(BSP_BOARD_CAMERA_MODULE_ISP_VERSION)), dcam_r6p0_isp_r6p91)
+ISP_DIR := $(BSP_BOARD_CAMERA_MODULE_ISP_VERSION)
 endif
 
 ifeq ($(ISP_DIR),dcam_r6p0_isp_r6p91)
@@ -31,7 +35,7 @@ KO_MODULE_SRC += \
   ifeq ($(ISP_DIR),dcam_if_r4p0_isp_r6p11)
   KO_MODULE_SRC += $(wildcard $(KO_MODULE_PATH)/common/*.c)
   endif
-  ifeq ($(strip $(ISP_DIR)), cam_sys)
+  ifneq ($(findstring $(strip $(ISP_DIR)), isp2.6 cam_sys),)
     ifeq ($(ADAPT_DIR),qogirn6l)
     KO_MODULE_SRC += $(wildcard $(KO_MODULE_PATH)/$(ISP_DIR)/adpt/qogirn6pro/block/*.c)
     KO_MODULE_SRC += $(wildcard $(KO_MODULE_PATH)/$(ISP_DIR)/adpt/qogirn6pro/*.c)
@@ -73,7 +77,7 @@ ifeq ($(ISP_DIR),dcam_r6p0_isp_r6p91)
 ccflags-y += -I$(KO_MODULE_PATH)/$(ISP_DIR)/common
 endif
 
-ifeq ($(strip $(ISP_DIR)), cam_sys)
+ifneq ($(findstring $(strip $(ISP_DIR)), isp2.6 cam_sys),)
   ifeq ($(ADAPT_DIR),qogirn6l)
   ccflags-y += -I$(KO_MODULE_PATH)/$(ISP_DIR)/adpt/qogirn6pro/inc
   else
@@ -95,10 +99,6 @@ else ifeq ($(ADAPT_DIR), qogirn6pro)
 ccflags-y += -DPROJ_QOGIRN6PRO
 else ifeq ($(ADAPT_DIR), qogirn6l)
 ccflags-y += -DPROJ_QOGIRN6L
-else ifeq ($(ISP_DIR), dcam_r6p0_isp_r6p91)
-ccflags-y += -DPROJ_PIKE2
-else ifeq ($(ISP_DIR), dcam_if_r4p0_isp_r6p11)
-ccflags-y += -DPROJ_SHARKLE
 endif
 
 #

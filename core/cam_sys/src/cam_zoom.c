@@ -649,7 +649,7 @@ int cam_zoom_channel_size_calc(struct camera_module *module)
 
 			if (camzoom_deci_enable_get(trim_pv.size_x, trim_pv.size_y, dcam_out.w, dcam_out.h)) {
 				dcam_out.w = trim_pv.size_x / DCAM_SCALE_DOWN_MAX;
-				dcam_out.h = dcam_out.w * trim_pv.size_y / trim_pv.size_x;
+				dcam_out.h = (dcam_out.w * trim_pv.size_y + trim_pv.size_x - 1) / trim_pv.size_x;
 				dcam_out.w = ALIGN(dcam_out.w, 4);
 				dcam_out.h = ALIGN(dcam_out.h, 2);
 				if (ch_prev->compress_en)

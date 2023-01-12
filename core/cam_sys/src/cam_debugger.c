@@ -1021,7 +1021,7 @@ static ssize_t camdebugger_rawcap_frgb_write(struct file *filp,
 	msg[count] = '\0';
 	ret = kstrtouint(msg, 10, &val);
 	if (ret < 0) {
-		pr_err("fail to convert '%s', ret %n", msg, ret);
+		pr_err("fail to convert '%s', ret %d\n", msg, ret);
 		return ret;
 	}
 
@@ -1942,4 +1942,3 @@ int cam_debugger_deinit(void)
 
 	return 0;
 }
-

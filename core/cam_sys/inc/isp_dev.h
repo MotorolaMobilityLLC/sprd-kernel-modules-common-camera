@@ -13,12 +13,11 @@
 
 #ifndef _ISP_DEV_H_
 #define _ISP_DEV_H_
-
 #include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/sprd_ion.h>
 
-#include "sprd_cam.h"
+#include "sprd_img.h"
 #include "isp_hwctx.h"
 #include "cam_hw.h"
 #include "isp_interface.h"

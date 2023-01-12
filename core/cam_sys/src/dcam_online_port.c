@@ -305,7 +305,7 @@ int dcamonline_port_zoom_cfg(struct dcam_online_port *dcam_port, struct cam_zoom
 			dcam_port->out_size.w = dcam_port->in_size.w;
 			dcam_port->out_size.h = dcam_port->in_size.h;
 		}
-		dcam_port->out_pitch = cal_sprd_pitch(dcam_port->out_size.w, dcam_port->dcamout_fmt);
+		dcam_port->out_pitch = dcampath_outpitch_get(dcam_port->out_size.w, dcam_port->dcamout_fmt);
 
 		CAM_ZOOM_DEBUG("cfg %s path done. size %d %d %d %d\n",
 			dcam_port->port_id == PORT_RAW_OUT ? "raw" : "full", dcam_port->in_size.w, dcam_port->in_size.h,
@@ -341,7 +341,7 @@ int dcamonline_port_zoom_cfg(struct dcam_online_port *dcam_port, struct cam_zoom
 		crop_size.w = dcam_port->in_trim.size_x;
 		crop_size.h = dcam_port->in_trim.size_y;
 		dst_size = dcam_port->out_size;
-		dcam_port->out_pitch = cal_sprd_pitch(dcam_port->out_size.w, dcam_port->dcamout_fmt);
+		dcam_port->out_pitch = dcampath_outpitch_get(dcam_port->out_size.w, dcam_port->dcamout_fmt);
 
 		switch (dcam_port->dcamout_fmt) {
 			case CAM_YUV_BASE:
@@ -633,7 +633,8 @@ static int dcamonline_port_update_pyr_dec_addr(struct dcam_online_port *dcam_por
 		dec_store->cur_layer = i;
 		dec_store->size_t[i].w = align_w / align;
 		dec_store->size_t[i].h = align_h / align;
-		dec_store->pitch_t[i].pitch_ch0 = cal_sprd_pitch(dec_store->size_t[i].w, dcam_port->pyr_out_fmt);
+		dec_store->pitch_t[i].pitch_ch0 = cal_sprd_yuv_pitch(dec_store->size_t[i].w,
+			cam_data_bits(dcam_port->pyr_out_fmt), cam_is_pack(dcam_port->pyr_out_fmt));
 		dec_store->pitch_t[i].pitch_ch1 = dec_store->pitch_t[i].pitch_ch0;
 		size = dec_store->pitch_t[i].pitch_ch0 * dec_store->size_t[i].h;
 		dec_store->addr[0] = frame->buf.iova + offset;
@@ -1327,8 +1328,8 @@ int dcam_online_port_skip_num_set(void *dcam_ctx_handle, uint32_t hw_id,
 int dcam_online_port_buf_alloc(void *handle, struct cam_buf_alloc_desc *param)
 {
 	int ret = 0;
-	uint32_t i = 0, alloc_cnt = 0, total = 0, size = 0, width = 0, height = 0, ch_id = 0, iommu_enable = 0;
-	uint32_t dcam_out_bits = 0, pyr_data_bits = 0, pyr_is_pack = 0;
+	uint32_t i = 0, alloc_cnt = 0, total = 0, size = 0, pitch = 0, width = 0, height = 0, ch_id = 0, iommu_enable = 0;
+	uint32_t dcam_out_bits = 0, pyr_data_bits = 0, pyr_is_pack = 0, is_pack = 0, pack_bits = 0;
 	struct dcam_online_port *port = (struct dcam_online_port *)handle;
 	struct camera_frame *pframe = NULL;
 	struct dcam_compress_info fbc_info = {0};
@@ -1337,8 +1338,10 @@ int dcam_online_port_buf_alloc(void *handle, struct cam_buf_alloc_desc *param)
 	struct cam_buf_pool_id share_buffer_q = {0};
 
 	dcam_out_bits = cam_data_bits(port->dcamout_fmt);
+	pack_bits = cam_pack_bits(port->dcamout_fmt);
 	height = param->height;
 	width = param->width;
+	is_pack = cam_is_pack(port->dcamout_fmt);
 	ch_id = param->ch_id;
 	iommu_enable = param->iommu_enable;
 	if (param->is_pyr_rec) {
@@ -1346,16 +1349,23 @@ int dcam_online_port_buf_alloc(void *handle, struct cam_buf_alloc_desc *param)
 		pyr_is_pack = cam_is_pack(port->pyr_out_fmt);
 	}
 	if (param->compress_en) {
-		 cal_fbc.data_bits = dcam_out_bits;
-		 cal_fbc.fbc_info = &fbc_info;
-		 cal_fbc.fmt = port->dcamout_fmt;
-		 cal_fbc.height = height;
-		 cal_fbc.width = width;
-		 size = dcam_if_cal_compressed_size (&cal_fbc);
-		 pr_debug("dcam fbc buffer size %u\n", size);
-	} else {
-		size = cal_sprd_size(width, height, port->dcamout_fmt);
-	}
+		cal_fbc.data_bits = dcam_out_bits;
+		cal_fbc.fbc_info = &fbc_info;
+		cal_fbc.fmt = port->dcamout_fmt;
+		cal_fbc.height = height;
+		cal_fbc.width = width;
+		size = dcam_if_cal_compressed_size (&cal_fbc);
+		pr_debug("dcam fbc buffer size %u\n", size);
+	} else if (camcore_raw_fmt_get(port->dcamout_fmt)) {
+		size = cal_sprd_raw_pitch(width, pack_bits) * height;
+		pr_debug("channel %d, raw size %d\n", ch_id, size);
+	} else if ((port->dcamout_fmt == CAM_YUV420_2FRAME) || (port->dcamout_fmt == CAM_YVU420_2FRAME) ||
+		(port->dcamout_fmt == CAM_YUV420_2FRAME_MIPI)) {
+		pitch = cal_sprd_yuv_pitch(width, dcam_out_bits, is_pack);
+		size = pitch * height * 3 / 2;
+		pr_debug("ch%d, dcam yuv size %d\n", ch_id, size);
+	} else
+		size = width * height * 3;
 
 	if (param->is_pyr_rec && port->port_id == PORT_BIN_OUT)
 		size += dcam_if_cal_pyramid_size(width, height,

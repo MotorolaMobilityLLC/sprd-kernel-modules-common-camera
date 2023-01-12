@@ -47,6 +47,16 @@ struct statis_path_buf_info {
 	uint32_t buf_type;
 };
 
+enum dcam_path_cfg_cmd {
+	DCAM_PATH_CFG_CTX_BASE = 0,
+	DCAM_PATH_CFG_BASE = 0,
+	DCAM_PATH_CFG_OUTPUT_BUF,
+	DCAM_PATH_CFG_SIZE,
+	DCAM_PATH_CFG_SHUTOFF,
+	DCAM_PATH_CFG_STATE,
+	DCAM_PATH_CLR_OUTPUT_SHARE_BUF,
+};
+
 static inline uint32_t dcam_if_cal_pyramid_size(uint32_t w, uint32_t h,
 		uint32_t out_bits, uint32_t is_pack, uint32_t start_layer, uint32_t layer_num)
 {
