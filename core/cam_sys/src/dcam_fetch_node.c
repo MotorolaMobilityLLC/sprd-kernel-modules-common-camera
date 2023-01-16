@@ -578,8 +578,8 @@ static int dcamfetch_node_frame_start(void *param)
 	if (!pframe)
 		goto fetch_input_err;
 
-	node->hw_ctx->index_to_set = pframe->fid - node->hw_ctx->base_fid;
-	dev_fid = node->hw_ctx->index_to_set;
+	node->hw_ctx->index_to_set = pframe->fid - node->hw_ctx->base_fid + 1;
+	dev_fid = pframe->fid - node->hw_ctx->base_fid;
 	if (pframe->sensor_time.tv_sec || pframe->sensor_time.tv_usec) {
 		online_node->frame_ts[tsid(dev_fid)].tv_sec = pframe->sensor_time.tv_sec;
 		online_node->frame_ts[tsid(dev_fid)].tv_nsec = pframe->sensor_time.tv_usec * NSEC_PER_USEC;
