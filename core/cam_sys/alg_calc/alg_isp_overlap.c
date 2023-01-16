@@ -14,14 +14,8 @@
 #include <linux/slab.h>
 #include <sprd_mm.h>
 
-#include "cam_hw.h"
-#include "cam_types.h"
-#include "isp_interface.h"
-#include "alg_isp_overlap.h"
-#include "isp_slice.h"
-#include "cam_scaler.h"
-#include "alg_slice_calc.h"
 #include "cam_port.h"
+#include "isp_slice.h"
 
 #ifdef pr_fmt
 #undef pr_fmt
@@ -2532,7 +2526,6 @@ int isp_init_param_for_overlap_v2(
 	slice_overlap->scaler2.scaler_y_ver_tap = slice_input->calc_dyn_ov.path_scaler[ISP_SPATH_VID]->scaler.scaler_y_ver_tap;
 	slice_overlap->scaler2.scaler_uv_ver_tap = slice_input->calc_dyn_ov.path_scaler[ISP_SPATH_VID]->scaler.scaler_uv_ver_tap;
 
-	/* TBD: thumbnail scaler need to debug */
 	slice_overlap->thumbnailscaler.bypass = slice_input->calc_dyn_ov.thumb_scaler->scaler_bypass;
 	slice_overlap->thumbnailscaler.trim0_en = 1;
 	slice_overlap->thumbnailscaler.trim0_start_x = slice_input->calc_dyn_ov.thumb_scaler->y_trim.start_x;

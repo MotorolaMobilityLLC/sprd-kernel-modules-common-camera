@@ -13,12 +13,10 @@
 
 #include <linux/uaccess.h>
 #include <sprd_mm.h>
-#include "isp_hw.h"
-#include "isp_reg.h"
+
 #include "cam_block.h"
 #include "isp_ltm.h"
-#include "sprd_isp_2v6.h"
-#include "cam_queue.h"
+#include "isp_reg.h"
 
 #ifdef pr_fmt
 #undef pr_fmt
@@ -46,20 +44,19 @@ static void isp_ltm_config_hists(uint32_t idx, struct isp_ltm_hists *hists)
 		((hists->channel_sel & 0x1) << 4) |
 		((hists->buf_full_mode & 0x1) << 3) |
 		((hists->region_est_en & 0x1) << 2) |
-		((hists->binning_en    & 0x1) << 1) |
-		(hists->bypass        & 0x1);
+		((hists->binning_en & 0x1) << 1) |
+		(hists->bypass & 0x1);
 	ISP_REG_WR(idx, base + ISP_LTM_HIST_PARAM, val);
 
 	val = ((hists->roi_start_y & 0x1FFF) << 16) |
 		(hists->roi_start_x & 0x1FFF);
-	ISP_REG_WR(idx, base + ISP_LTM_ROI_START, val); /* slice */
+	ISP_REG_WR(idx, base + ISP_LTM_ROI_START, val);
 
-	/* tile_num_y tile_num_x HOW TODO */
-	val = ((hists->tile_num_y_minus & 0x7)   << 28) |
-		((hists->tile_height      & 0x1FF) << 16) |
-		((hists->tile_num_x_minus & 0x7)   << 12) |
-		(hists->tile_width       & 0x1FF);
-	ISP_REG_WR(idx, base + ISP_LTM_TILE_RANGE, val); /* slice */
+	val = ((hists->tile_num_y_minus & 0x7) << 28) |
+		((hists->tile_height & 0x1FF) << 16) |
+		((hists->tile_num_x_minus & 0x7) << 12) |
+		(hists->tile_width & 0x1FF);
+	ISP_REG_WR(idx, base + ISP_LTM_TILE_RANGE, val);
 
 	val = ((hists->clip_limit_min & 0xFFFF) << 16) |
 		(hists->clip_limit     & 0xFFFF);
@@ -69,11 +66,11 @@ static void isp_ltm_config_hists(uint32_t idx, struct isp_ltm_hists *hists)
 	ISP_REG_WR(idx, base + ISP_LTM_THRES, val);
 
 	val = hists->addr;
-	ISP_REG_WR(idx, base + ISP_LTM_ADDR, val); /* slice */
+	ISP_REG_WR(idx, base + ISP_LTM_ADDR, val);
 
 	val = ((hists->wr_num & 0x1FF) << 16) |
 		(hists->pitch & 0xFFFF);
-	ISP_REG_WR(idx, base + ISP_LTM_PITCH, val); /* slice */
+	ISP_REG_WR(idx, base + ISP_LTM_PITCH, val);
 
 	if (hists->buf_sel == ISP_LTM_HIST_BUF0)
 		buf_addr = buf_addr_0;
@@ -96,29 +93,29 @@ static void isp_ltm_config_map(uint32_t idx, struct isp_ltm_map *map)
 		return;
 
 	val = ((map->fetch_wait_line & 0x1) << 4) |
-		((map->fetch_wait_en   & 0x1) << 3) |
-		((map->hist_error_en   & 0x1) << 2) |
-		((map->burst8_en       & 0x1) << 1) |
-		(map->bypass          & 0x1);
+		((map->fetch_wait_en & 0x1) << 3) |
+		((map->hist_error_en & 0x1) << 2) |
+		((map->burst8_en & 0x1) << 1) |
+		(map->bypass & 0x1);
 	ISP_REG_WR(idx, base + ISP_LTM_MAP_PARAM0, val);
 
-	val = ((map->tile_y_num  & 0x7)   << 28) |
-		((map->tile_x_num  & 0x7)   << 24) |
+	val = ((map->tile_y_num  & 0x7) << 28) |
+		((map->tile_x_num  & 0x7) << 24) |
 		((map->tile_height & 0x7FF) << 12) |
 		(map->tile_width  & 0x7FF);
-	ISP_REG_WR(idx, base + ISP_LTM_MAP_PARAM1, val); /* slice */
+	ISP_REG_WR(idx, base + ISP_LTM_MAP_PARAM1, val);
 
 	val = map->tile_size_pro & 0x3FFFFF;
 	ISP_REG_WR(idx, base + ISP_LTM_MAP_PARAM2, val);
 
 	val = ((map->tile_right_flag & 0x1)   << 31) |
-		((map->tile_start_y    & 0xFFF) << 16) |
-		((map->tile_left_flag  & 0x1)   << 15) |
-		(map->tile_start_x    & 0xFFF);
-	ISP_REG_WR(idx, base + ISP_LTM_MAP_PARAM3, val); /* slice */
+		((map->tile_start_y & 0xFFF) << 16) |
+		((map->tile_left_flag  & 0x1) << 15) |
+		(map->tile_start_x & 0xFFF);
+	ISP_REG_WR(idx, base + ISP_LTM_MAP_PARAM3, val);
 
 	val = map->mem_init_addr;
-	ISP_REG_WR(idx, base + ISP_LTM_MAP_PARAM4, val); /* slice */
+	ISP_REG_WR(idx, base + ISP_LTM_MAP_PARAM4, val);
 
 	val = (map->hist_pitch & 0x7) << 24;
 	ISP_REG_WR(idx, base + ISP_LTM_MAP_PARAM5, val);

@@ -12,7 +12,6 @@
  */
 
 #include "cam_thread.h"
-#include "cam_types.h"
 
 #ifdef pr_fmt
 #undef pr_fmt

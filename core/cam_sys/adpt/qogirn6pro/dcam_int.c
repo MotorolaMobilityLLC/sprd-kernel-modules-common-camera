@@ -14,15 +14,11 @@
 #include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/interrupt.h>
-#include "isp_hw.h"
-#include "sprd_img.h"
 #include <sprd_mm.h>
 
-#include "dcam_reg.h"
-#include "dcam_int.h"
 #include "dcam_core.h"
-#include "cam_queue.h"
-#include "cam_types.h"
+#include "dcam_dummy.h"
+#include "dcam_reg.h"
 
 #ifdef pr_fmt
 #undef pr_fmt
@@ -115,6 +111,31 @@ static inline void dcamint_dcam_int_record(uint32_t idx, uint32_t status, uint32
 #endif
 }
 
+static inline int dcamint_dummy_callback(struct dcam_hw_context *dcam_hw_ctx, struct dcam_irq_proc *irq_proc)
+{
+	uint32_t dummy_status = 0;
+
+	if (dcam_hw_ctx->dummy_slave) {
+		dummy_status = atomic_read(&dcam_hw_ctx->dummy_slave->status);
+		if (dummy_status == DCAM_DUMMY_TRIGGER || dummy_status == DCAM_DUMMY_DONE) {
+			irq_proc->hw_ctx = dcam_hw_ctx;
+			switch (irq_proc->of) {
+			case CAP_START_OF_FRAME:
+				dcam_hw_ctx->dummy_slave->dummy_ops->dummyint_callback(dcam_hw_ctx->dummy_slave, DCAM_DUMMY_CALLBACK_CAP_SOF, irq_proc);
+				break;
+			case CAP_DATA_DONE:
+				dcam_hw_ctx->dummy_slave->dummy_ops->dummyint_callback(dcam_hw_ctx->dummy_slave, DCAM_DUMMY_CALLBACK_PATH_DONE, irq_proc);
+				break;
+			default:
+				pr_debug("warning irq_proc of:%d\n", irq_proc->of);
+			}
+			return 1;
+		} else
+			return 0;
+	}
+	return 0;
+}
+
 static void dcamint_irq_cap_eof(void *param)
 {
 	struct dcam_hw_context *dcam_hw_ctx = (struct dcam_hw_context *)param;
@@ -138,7 +159,8 @@ static void dcamint_irq_cap_sof(void *param)
 	irq_proc.full_addr_value = DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, DCAM_STORE4_SLICE_Y_ADDR);
 	irq_proc.handled_bits = DCAMINT_INT0_TX_DONE;
 	irq_proc.handled_bits_on_int1 = DCAMINT_INT1_TX_DONE;
-	dcam_hw_ctx->dcam_irq_cb_func(&irq_proc, dcam_hw_ctx->dcam_irq_cb_handle);
+	if (!dcamint_dummy_callback(dcam_hw_ctx, &irq_proc))
+		dcam_hw_ctx->dcam_irq_cb_func(&irq_proc, dcam_hw_ctx->dcam_irq_cb_handle);
 }
 
 static void dcamint_irq_sensor_sof(void *param)
@@ -173,7 +195,8 @@ static void dcamint_raw_port_done(void *param)
 	pr_debug("dcamint_raw_path_done\n");
 	irq_proc.of = CAP_DATA_DONE;
 	irq_proc.dcam_port_id = PORT_RAW_OUT;
-	dcam_hw_ctx->dcam_irq_cb_func(&irq_proc, dcam_hw_ctx->dcam_irq_cb_handle);
+	if (!dcamint_dummy_callback(dcam_hw_ctx, &irq_proc))
+		dcam_hw_ctx->dcam_irq_cb_func(&irq_proc, dcam_hw_ctx->dcam_irq_cb_handle);
 }
 
 static void dcamint_full_port_done(void *param)
@@ -194,14 +217,14 @@ static void dcamint_full_port_done(void *param)
 	pr_debug("dcamint_full_path_done\n");
 	irq_proc.of = CAP_DATA_DONE;
 	irq_proc.dcam_port_id = PORT_FULL_OUT;
-	dcam_hw_ctx->dcam_irq_cb_func(&irq_proc, dcam_hw_ctx->dcam_irq_cb_handle);
+	if (!dcamint_dummy_callback(dcam_hw_ctx, &irq_proc))
+		dcam_hw_ctx->dcam_irq_cb_func(&irq_proc, dcam_hw_ctx->dcam_irq_cb_handle);
 }
 
 static void dcamint_bin_port_done(void *param)
 {
 	struct dcam_hw_context *dcam_hw_ctx = (struct dcam_hw_context *)param;
 	struct dcam_irq_proc irq_proc = {0};
-
 	pr_debug("bin_path_done hw id:%d\n", dcam_hw_ctx->hw_ctx_id);
 
 	if (dcam_hw_ctx->dcam_irq_cb_func == NULL) {
@@ -212,14 +235,14 @@ static void dcamint_bin_port_done(void *param)
 	dcam_hw_ctx->dec_layer0_done = 1;
 	irq_proc.of = CAP_DATA_DONE;
 	irq_proc.dcam_port_id = PORT_BIN_OUT;
-	dcam_hw_ctx->dcam_irq_cb_func(&irq_proc, dcam_hw_ctx->dcam_irq_cb_handle);
+	if (!dcamint_dummy_callback(dcam_hw_ctx, &irq_proc))
+		dcam_hw_ctx->dcam_irq_cb_func(&irq_proc, dcam_hw_ctx->dcam_irq_cb_handle);
 }
 
 static void dcamint_vch2_port_done(void *param)
 {
 	struct dcam_hw_context *dcam_hw_ctx = (struct dcam_hw_context *)param;
 	struct dcam_irq_proc irq_proc = {0};
-
 	pr_debug("dcamint_vch2_path_done hw_ctx_id = %d\n", dcam_hw_ctx->hw_ctx_id);
 
 	if (dcam_hw_ctx->dcam_irq_cb_func == NULL) {
@@ -229,7 +252,8 @@ static void dcamint_vch2_port_done(void *param)
 
 	irq_proc.of = CAP_DATA_DONE;
 	irq_proc.dcam_port_id = PORT_VCH2_OUT;
-	dcam_hw_ctx->dcam_irq_cb_func(&irq_proc, dcam_hw_ctx->dcam_irq_cb_handle);
+	if (!dcamint_dummy_callback(dcam_hw_ctx, &irq_proc))
+		dcam_hw_ctx->dcam_irq_cb_func(&irq_proc, dcam_hw_ctx->dcam_irq_cb_handle);
 }
 
 static void dcamint_vch3_port_done(void *param)
@@ -244,7 +268,8 @@ static void dcamint_vch3_port_done(void *param)
 
 	irq_proc.of = CAP_DATA_DONE;
 	irq_proc.dcam_port_id = PORT_PDAF_OUT;
-	dcam_hw_ctx->dcam_irq_cb_func(&irq_proc, dcam_hw_ctx->dcam_irq_cb_handle);
+	if (!dcamint_dummy_callback(dcam_hw_ctx, &irq_proc))
+		dcam_hw_ctx->dcam_irq_cb_func(&irq_proc, dcam_hw_ctx->dcam_irq_cb_handle);
 }
 
 struct nr3_done dcamint_nr3_done_rd(uint32_t idx)
@@ -275,7 +300,8 @@ static void dcamint_frgb_hist_done(void *param)
 
 	irq_proc.of = CAP_DATA_DONE;
 	irq_proc.dcam_port_id = PORT_FRGB_HIST_OUT;
-	dcam_hw_ctx->dcam_irq_cb_func(&irq_proc, dcam_hw_ctx->dcam_irq_cb_handle);
+	if (!dcamint_dummy_callback(dcam_hw_ctx, &irq_proc))
+		dcam_hw_ctx->dcam_irq_cb_func(&irq_proc, dcam_hw_ctx->dcam_irq_cb_handle);
 }
 
 static void dcamint_dec_done(void *param)
@@ -298,7 +324,8 @@ static void dcamint_dec_done(void *param)
 	if (dcam_hw_ctx->dec_layer0_done) {
 		irq_proc.of = CAP_DATA_DONE;
 		irq_proc.dcam_port_id = PORT_BIN_OUT;
-		dcam_hw_ctx->dcam_irq_cb_func(&irq_proc, dcam_hw_ctx->dcam_irq_cb_handle);
+		if (!dcamint_dummy_callback(dcam_hw_ctx, &irq_proc))
+			dcam_hw_ctx->dcam_irq_cb_func(&irq_proc, dcam_hw_ctx->dcam_irq_cb_handle);
 		dcam_hw_ctx->dec_all_done = 0;
 		dcam_hw_ctx->dec_layer0_done = 0;
 	}
@@ -314,6 +341,7 @@ static void dcamint_fmcu_config_done(void *param)
 	struct dcam_hw_context *dcam_hw_ctx = (struct dcam_hw_context *)param;
 	int i = 0;
 	struct dcam_irq_proc irq_proc = {0};
+
 	if (!dcam_hw_ctx) {
 		pr_err("fail to get valid inptr\n", dcam_hw_ctx);
 		return;
@@ -449,7 +477,8 @@ static void dcamint_gtm_port_done(void *param)
 
 	irq_proc.of = CAP_DATA_DONE;
 	irq_proc.dcam_port_id = PORT_GTM_HIST_OUT;
-	dcam_hw_ctx->dcam_irq_cb_func(&irq_proc, dcam_hw_ctx->dcam_irq_cb_handle);
+	if (!dcamint_dummy_callback(dcam_hw_ctx, &irq_proc))
+		dcam_hw_ctx->dcam_irq_cb_func(&irq_proc, dcam_hw_ctx->dcam_irq_cb_handle);
 }
 
 static void dcamint_irq_preview_sof(void *param)
@@ -492,7 +521,8 @@ static void dcamint_lscm_port_done(void *param)
 
 	irq_proc.of = CAP_DATA_DONE;
 	irq_proc.dcam_port_id = PORT_LSCM_OUT;
-	dcam_hw_ctx->dcam_irq_cb_func(&irq_proc, dcam_hw_ctx->dcam_irq_cb_handle);
+	if (!dcamint_dummy_callback(dcam_hw_ctx, &irq_proc))
+		dcam_hw_ctx->dcam_irq_cb_func(&irq_proc, dcam_hw_ctx->dcam_irq_cb_handle);
 }
 
 static void dcamint_aem_port_done(void *param)
@@ -507,7 +537,8 @@ static void dcamint_aem_port_done(void *param)
 
 	irq_proc.of = CAP_DATA_DONE;
 	irq_proc.dcam_port_id = PORT_AEM_OUT;
-	dcam_hw_ctx->dcam_irq_cb_func(&irq_proc, dcam_hw_ctx->dcam_irq_cb_handle);
+	if (!dcamint_dummy_callback(dcam_hw_ctx, &irq_proc))
+		dcam_hw_ctx->dcam_irq_cb_func(&irq_proc, dcam_hw_ctx->dcam_irq_cb_handle);
 }
 
 static void dcamint_pdaf_port_done(void *param)
@@ -522,7 +553,8 @@ static void dcamint_pdaf_port_done(void *param)
 
 	irq_proc.of = CAP_DATA_DONE;
 	irq_proc.dcam_port_id = PORT_PDAF_OUT;
-	dcam_hw_ctx->dcam_irq_cb_func(&irq_proc, dcam_hw_ctx->dcam_irq_cb_handle);
+	if (!dcamint_dummy_callback(dcam_hw_ctx, &irq_proc))
+		dcam_hw_ctx->dcam_irq_cb_func(&irq_proc, dcam_hw_ctx->dcam_irq_cb_handle);
 }
 
 static void dcamint_afm_port_done(void *param)
@@ -537,7 +569,8 @@ static void dcamint_afm_port_done(void *param)
 
 	irq_proc.of = CAP_DATA_DONE;
 	irq_proc.dcam_port_id = PORT_AFM_OUT;
-	dcam_hw_ctx->dcam_irq_cb_func(&irq_proc, dcam_hw_ctx->dcam_irq_cb_handle);
+	if (!dcamint_dummy_callback(dcam_hw_ctx, &irq_proc))
+		dcam_hw_ctx->dcam_irq_cb_func(&irq_proc, dcam_hw_ctx->dcam_irq_cb_handle);
 }
 
 static void dcamint_afl_port_done(void *param)
@@ -552,7 +585,8 @@ static void dcamint_afl_port_done(void *param)
 
 	irq_proc.of = CAP_DATA_DONE;
 	irq_proc.dcam_port_id = PORT_AFL_OUT;
-	dcam_hw_ctx->dcam_irq_cb_func(&irq_proc, dcam_hw_ctx->dcam_irq_cb_handle);
+	if (!dcamint_dummy_callback(dcam_hw_ctx, &irq_proc))
+		dcam_hw_ctx->dcam_irq_cb_func(&irq_proc, dcam_hw_ctx->dcam_irq_cb_handle);
 }
 
 static void dcamint_hist_port_done(void *param)
@@ -567,7 +601,8 @@ static void dcamint_hist_port_done(void *param)
 
 	irq_proc.of = CAP_DATA_DONE;
 	irq_proc.dcam_port_id = PORT_BAYER_HIST_OUT;
-	dcam_hw_ctx->dcam_irq_cb_func(&irq_proc, dcam_hw_ctx->dcam_irq_cb_handle);
+	if (!dcamint_dummy_callback(dcam_hw_ctx, &irq_proc))
+		dcam_hw_ctx->dcam_irq_cb_func(&irq_proc, dcam_hw_ctx->dcam_irq_cb_handle);
 }
 
 static void dcamint_nr3_port_done(void *param)
@@ -640,23 +675,25 @@ static const dcam_isr _DCAM_ISRS1[] = {
 
 static const int _DCAM0_SEQUENCE[] = {
 	DCAM_IF_IRQ_INT0_SENSOR_SOF,
-	DCAM_IF_IRQ_INT0_CAP_SOF,/* must */
 	DCAM_IF_IRQ_INT0_CAP_EOF,
 	DCAM_IF_IRQ_INT0_PREIEW_SOF,
-	DCAM_IF_IRQ_INT0_SENSOR_EOF,/* TODO: why for flash */
-	DCAM_IF_IRQ_INT0_NR3_TX_DONE,/* for 3dnr, before data path */
-	DCAM_IF_IRQ_INT0_RAW_PATH_TX_DONE,/* for raw path */
-	DCAM_IF_IRQ_INT0_PREVIEW_PATH_TX_DONE,/* for bin path */
-	DCAM_IF_IRQ_INT0_CAPTURE_PATH_TX_DONE,/* for full path */
-	DCAM_IF_IRQ_INT0_AEM_PATH_TX_DONE,/* for aem statis */
-	DCAM_IF_IRQ_INT0_BAYER_HIST_PATH_TX_DONE,/* for hist statis */
-	/* for afm statis, not sure 0 or 1 */
-	DCAM_IF_IRQ_INT0_AFM_INTREQ1,/* TODO: which afm interrupt to use */
-	DCAM_IF_IRQ_INT0_AFL_TX_DONE,/* for afl statis */
-	DCAM_IF_IRQ_INT0_PDAF_PATH_TX_DONE,/* for pdaf data */
-	DCAM_IF_IRQ_INT0_VCH2_PATH_TX_DONE,/* for vch2 data */
-	DCAM_IF_IRQ_INT0_VCH3_PATH_TX_DONE,/* for vch3 data */
-	DCAM_IF_IRQ_INT0_LSCM_TX_DONE,/* for lscm statis */
+	DCAM_IF_IRQ_INT0_SENSOR_EOF,
+	DCAM_IF_IRQ_INT0_NR3_TX_DONE,
+	DCAM_IF_IRQ_INT0_RAW_PATH_TX_DONE,
+	DCAM_IF_IRQ_INT0_PREVIEW_PATH_TX_DONE,
+	DCAM_IF_IRQ_INT0_CAPTURE_PATH_TX_DONE,
+	DCAM_IF_IRQ_INT0_AEM_PATH_TX_DONE,
+	DCAM_IF_IRQ_INT0_BAYER_HIST_PATH_TX_DONE,
+	/* AFM INT0 is some tile done, INT1 is all tile done,
+	 * INT0 can use to triger AF ALG eaglier, but the specific time
+	 * is not sure, so INT1 is suggested to use now.
+	 */
+	DCAM_IF_IRQ_INT0_AFM_INTREQ1,
+	DCAM_IF_IRQ_INT0_AFL_TX_DONE,
+	DCAM_IF_IRQ_INT0_PDAF_PATH_TX_DONE,
+	DCAM_IF_IRQ_INT0_VCH2_PATH_TX_DONE,
+	DCAM_IF_IRQ_INT0_VCH3_PATH_TX_DONE,
+	DCAM_IF_IRQ_INT0_LSCM_TX_DONE,
 	DCAM_IF_IRQ_INT0_GTM_DONE,
 };
 
@@ -674,22 +711,24 @@ static const int _DCAM0_SEQUENCE_INT1[] = {
 
 static const int _DCAM1_SEQUENCE[] = {
 	DCAM_IF_IRQ_INT0_SENSOR_SOF,
-	DCAM_IF_IRQ_INT0_CAP_SOF,/* must */
 	DCAM_IF_IRQ_INT0_CAP_EOF,
-	DCAM_IF_IRQ_INT0_SENSOR_EOF,/* TODO: why for flash */
-	DCAM_IF_IRQ_INT0_NR3_TX_DONE,/* for 3dnr, before data path */
-	DCAM_IF_IRQ_INT0_RAW_PATH_TX_DONE,/* for raw path */
-	DCAM_IF_IRQ_INT0_PREVIEW_PATH_TX_DONE,/* for bin path */
-	DCAM_IF_IRQ_INT0_CAPTURE_PATH_TX_DONE,/* for full path */
-	DCAM_IF_IRQ_INT0_AEM_PATH_TX_DONE,/* for aem statis */
-	DCAM_IF_IRQ_INT0_BAYER_HIST_PATH_TX_DONE,/* for hist statis */
-	/* for afm statis, not sure 0 or 1 */
-	DCAM_IF_IRQ_INT0_AFM_INTREQ1,/* TODO: which afm interrupt to use */
-	DCAM_IF_IRQ_INT0_AFL_TX_DONE,/* for afl statis */
-	DCAM_IF_IRQ_INT0_PDAF_PATH_TX_DONE,/* for pdaf data */
-	DCAM_IF_IRQ_INT0_VCH2_PATH_TX_DONE,/* for vch2 data */
-	DCAM_IF_IRQ_INT0_VCH3_PATH_TX_DONE,/* for vch3 data */
-	DCAM_IF_IRQ_INT0_LSCM_TX_DONE,/* for lscm statis */
+	DCAM_IF_IRQ_INT0_SENSOR_EOF,
+	DCAM_IF_IRQ_INT0_NR3_TX_DONE,
+	DCAM_IF_IRQ_INT0_RAW_PATH_TX_DONE,
+	DCAM_IF_IRQ_INT0_PREVIEW_PATH_TX_DONE,
+	DCAM_IF_IRQ_INT0_CAPTURE_PATH_TX_DONE,
+	DCAM_IF_IRQ_INT0_AEM_PATH_TX_DONE,
+	DCAM_IF_IRQ_INT0_BAYER_HIST_PATH_TX_DONE,
+	/* AFM INT0 is some tile done, INT1 is all tile done,
+	 * INT0 can use to triger AF ALG eaglier, but the specific time
+	 * is not sure, so INT1 is suggested to use now.
+	 */
+	DCAM_IF_IRQ_INT0_AFM_INTREQ1,
+	DCAM_IF_IRQ_INT0_AFL_TX_DONE,
+	DCAM_IF_IRQ_INT0_PDAF_PATH_TX_DONE,
+	DCAM_IF_IRQ_INT0_VCH2_PATH_TX_DONE,
+	DCAM_IF_IRQ_INT0_VCH3_PATH_TX_DONE,
+	DCAM_IF_IRQ_INT0_LSCM_TX_DONE,
 	DCAM_IF_IRQ_INT0_GTM_DONE,
 };
 
@@ -703,14 +742,6 @@ static const int _DCAM1_SEQUENCE_INT1[] = {
 	DCAM_IF_IRQ_INT1_FMCU_INT2,
 	DCAM_IF_IRQ_INT1_FMCU_INT1,
 	DCAM_IF_IRQ_INT1_DUMMY_DONE,
-};
-
-static const int _DCAM2_SEQUENCE[] = {
-	DCAM_IF_IRQ_INT0_SENSOR_SOF,
-	DCAM_IF_IRQ_INT0_CAP_SOF,/* must */
-	DCAM_IF_IRQ_INT0_SENSOR_EOF,/* TODO: why for flash */
-	DCAM_IF_IRQ_INT0_PREVIEW_PATH_TX_DONE,/* for bin path */
-	DCAM_IF_IRQ_INT0_CAPTURE_PATH_TX_DONE,/* for full path */
 };
 
 static const struct {
@@ -833,9 +864,9 @@ static void dcamint_iommu_regs_dump(struct dcam_hw_context *dcam_hw_ctx)
 
 static irqreturn_t dcamint_error_handler_param(struct dcam_hw_context *dcam_hw_ctx, uint32_t status)
 {
-	struct dcam_irq_proc irq_proc = {0};
 	enum dcam_state state = STATE_INIT;
-
+	struct dcam_irq_proc_desc irq_desc = {0};
+	struct dcam_irq_proc irq_proc = {0};
 	const char *tb_ovr[2] = {"", ", overflow"};
 	const char *tb_lne[2] = {"", ", line error"};
 	const char *tb_frm[2] = {"", ", frame error"};
@@ -872,7 +903,8 @@ static irqreturn_t dcamint_error_handler_param(struct dcam_hw_context *dcam_hw_c
 	}
 
 	if (dcam_hw_ctx->is_offline_proc) {
-		pr_err("fail to offline int error,status:%x \n", status);
+		irq_desc.dcam_cb_type = CAM_CB_DCAM_DEV_ERR;
+		dcam_hw_ctx->dcam_irq_cb_func(&irq_desc, dcam_hw_ctx->dcam_irq_cb_handle);
 		return IRQ_HANDLED;
 	}
 
@@ -971,9 +1003,9 @@ void dcamint_dcam_status_rw(struct dcam_irq_info irq_info, void *priv)
 	}
 
 	/* TODO ignore DCAM_AFM_INTREQ0 now */
-	irq_info.status &= ~(BIT(DCAM_IF_IRQ_INT0_AFM_INTREQ0) | BIT(DCAM_IF_IRQ_INT0_GTM_DONE));
+	irq_info.status &= ~BIT(DCAM_IF_IRQ_INT0_GTM_DONE);
 
-	if (unlikely(irq_info.status))
+	if (unlikely(irq_info.status && irq_info.status != BIT(DCAM_IF_IRQ_INT0_CAP_SOF)))
 		pr_warn("warning: DCAM%u unhandled int0 bit0x%x\n", dcam_hw_ctx->hw_ctx_id, irq_info.status);
 
 	for (i = 0; i < DCAM_SEQUENCES[dcam_hw_ctx->hw_ctx_id][1].count; i++) {
@@ -996,7 +1028,20 @@ void dcamint_dcam_status_rw(struct dcam_irq_info irq_info, void *priv)
 
 	if (unlikely(irq_info.status1))
 		pr_warn("warning: DCAM%u unhandled int1 bit0x%x\n", dcam_hw_ctx->hw_ctx_id, irq_info.status1);
+	if (irq_info.status & BIT(DCAM_IF_IRQ_INT0_CAP_SOF))
+		_DCAM_ISR_IRQ[DCAM_IF_IRQ_INT0_CAP_SOF](dcam_hw_ctx);
+}
 
+static void dcamint_dcam_dummy_proc(struct dcam_irq_info *irq_info, void *priv)
+{
+	struct dcam_hw_context *dcam_hw_ctx = (struct dcam_hw_context *)priv;
+
+	if (dcam_hw_ctx->dummy_slave) {
+		if (irq_info->status1 & BIT(DCAM_IF_IRQ_INT1_DUMMY_START))
+			dcam_hw_ctx->dummy_slave->dummy_ops->dummyint_callback(dcam_hw_ctx->dummy_slave, DCAM_DUMMY_CALLBACK_DUMMY_START, dcam_hw_ctx);
+		if (irq_info->status1 & BIT(DCAM_IF_IRQ_INT1_DUMMY_DONE))
+			dcam_hw_ctx->dummy_slave->dummy_ops->dummyint_callback(dcam_hw_ctx->dummy_slave, DCAM_DUMMY_CALLBACK_DUMMY_DONE, dcam_hw_ctx);
+	}
 }
 
 irqreturn_t dcamint_isr_root(int irq, void *priv)
@@ -1046,6 +1091,8 @@ irqreturn_t dcamint_isr_root(int irq, void *priv)
 		if (irq_status.status & BIT(DCAM_IF_IRQ_INT0_GTM_DONE))
 		dcamint_gtm_hist_value_read(dcam_hw_ctx);
 	}
+
+	dcamint_dcam_dummy_proc(&irq_status, dcam_hw_ctx);
 
 	if (dcam_hw_ctx->is_offline_proc) {
 		dcam_core_offline_irq_proc(dcam_hw_ctx, &irq_status);

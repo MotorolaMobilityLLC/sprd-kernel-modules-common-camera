@@ -481,7 +481,7 @@ extern const unsigned long slowmotion_store_addr[3][4];
 
 #define DCAM_BASE(idx)                    (g_dcam_regbase[idx])
 #define DCAM_AXIM_BASE                    (g_dcam_aximbase[0])
-/* TODO: implement mmu */
+
 #define DCAM_MMU_BASE                     (g_dcam_mmubase)
 #define DCAM_PHYS_ADDR(idx)               (g_dcam_phys_base[idx])
 #define DCAM_GET_REG(idx, reg)            (DCAM_PHYS_ADDR(idx) + (reg))
@@ -500,6 +500,5 @@ extern const unsigned long slowmotion_store_addr[3][4];
 
 /*for dcam IT*/
 #define DCAM_CHECK_LASE_STATUS            DCAM_RDS_DES_SIZE
-/* TODO: add DCAM0/1 lsc grid table mapping */
 
 #endif /* _DCAM_REG_H_ */

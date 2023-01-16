@@ -11,25 +11,14 @@
  * GNU General Public License for more details.
  */
 
-#include <linux/sched.h>
-#include <linux/vmalloc.h>
 #include <linux/delay.h>
-#include <linux/kthread.h>
-#include <linux/slab.h>
 
-#include "cam_node.h"
 #include "cam_statis.h"
-#include "isp_fmcu.h"
-#include "isp_drv.h"
-#include "isp_slice.h"
-#include "isp_cfg.h"
-#include "isp_node.h"
-#include "isp_int.h"
-#include "cam_port.h"
-#include "isp_pyr_rec.h"
-#include "isp_gtm.h"
 #include "cam_zoom.h"
-#include "cam_pipeline.h"
+#include "isp_cfg.h"
+#include "isp_gtm.h"
+#include "isp_int_common.h"
+#include "isp_pyr_rec.h"
 
 #ifdef pr_fmt
 #undef pr_fmt
@@ -50,14 +39,8 @@ static uint32_t ispnode_slice_needed(struct isp_node *node)
 static int ispnode_postproc_frame_return(struct isp_node *inode)
 {
 	struct isp_port *port = NULL;
-	ktime_t boot_time;
-	timespec cur_ts = {0};
 	struct isp_node_postproc_param post_param = {0};
 
-	boot_time = ktime_get_boottime();
-	ktime_get_ts(&cur_ts);
-	post_param.boot_time = &boot_time;
-	post_param.cur_ts = &cur_ts;
 	list_for_each_entry(port, &inode->port_queue.head, list) {
 		if (atomic_read(&port->user_cnt) > 0 && atomic_read(&port->is_work) > 0)
 			port->port_cfg_cb_func(&post_param, ISP_PORT_IRQ_POSTPORC, port);
@@ -81,20 +64,20 @@ static void ispnode_rgb_gtm_hist_done_process(struct isp_node *inode, uint32_t h
 	}
 
 	if (gtm_ctx->calc_mode == GTM_SW_CALC) {
-		frame  = cam_queue_dequeue(&inode->gtmhist_result_queue, struct camera_frame, list);
+		frame  = cam_buf_manager_buf_dequeue(&inode->gtmhist_pool, NULL);
 		if (!frame) {
 			pr_warn("isp ctx_id[%d] gtmhist_result_queue buffer \n", gtm_ctx->ctx_id);
 			return;
 		} else {
 			buf = (uint32_t *)frame->buf.addr_k;
 			if (!buf) {
-				cam_queue_enqueue(&inode->gtmhist_result_queue, &frame->list);
+				cam_buf_manager_buf_enqueue(&inode->gtmhist_pool, frame, NULL);
 				return;
 			} else {
 				hist_total= gtm_ctx->src.w * gtm_ctx->src.h;
 				ret = isp_hwctx_gtm_hist_result_get(frame, hw_idx, dev, hist_total, gtm_ctx->fid);
 				if (ret) {
-					cam_queue_enqueue(&inode->gtmhist_result_queue, &frame->list);
+					cam_buf_manager_buf_enqueue(&inode->gtmhist_pool, frame, NULL);
 					return;
 				}
 				inode->data_cb_func(CAM_CB_ISP_STATIS_DONE, frame, inode->data_cb_handle);
@@ -107,6 +90,56 @@ static void ispnode_rgb_gtm_hist_done_process(struct isp_node *inode, uint32_t h
 		if (wait_fid)
 			gtm_ctx->gtm_ops.sync_completion_done(gtm_ctx);
 	}
+}
+
+static int ispnode_node_ts_cal(struct isp_node *inode, struct isp_hw_context *pctx_hw)
+{
+	uint32_t sec = 0, usec = 0;
+	timespec consume_ts = {0};
+	struct isp_pipe_dev *dev = NULL;
+
+	dev = inode->dev;
+	ktime_get_ts(&inode->end_ts);
+	dev->hw_ctx[pctx_hw->hw_ctx_id].hw_start_ts = inode->end_ts;
+	consume_ts = cam_kernel_adapt_timespec_sub(inode->end_ts, inode->start_ts);
+	sec = consume_ts.tv_sec;
+	usec = consume_ts.tv_nsec / NSEC_PER_USEC;
+	if ((sec * USEC_PER_SEC + usec) > ISP_NODE_TIME)
+		pr_warn("Warning: ispnode process too long. consume_time %d.%06d\n", sec, usec);
+
+	PERFORMANCE_DEBUG("ispnode: cur_time %d.%06d, consume_time %d.%06d\n",
+		inode->end_ts.tv_sec, inode->end_ts.tv_nsec / NSEC_PER_USEC,
+		consume_ts.tv_sec, consume_ts.tv_nsec / NSEC_PER_USEC);
+
+	return 0;
+}
+
+static int ispnode_hw_ts_cal(struct isp_node *inode)
+{
+	timespec consume_ts = {0};
+	timespec cur_ts = {0};
+	uint32_t sec = 0, usec = 0;
+	uint32_t size = 0, time_ratio = 0;
+	struct isp_pipe_dev *dev = NULL;
+
+	dev = inode->dev;
+	if (inode->ch_id == CAM_CH_CAP) {
+		ktime_get_ts(&cur_ts);
+		consume_ts = cam_kernel_adapt_timespec_sub(cur_ts, dev->hw_ctx[inode->pctx_hw_id].hw_start_ts);
+		sec = consume_ts.tv_sec;
+		usec = consume_ts.tv_nsec / NSEC_PER_USEC;
+		size = inode->src.w * inode->src.h;
+		time_ratio = TIME_SIZE_RATIO * (sec * USEC_PER_SEC + usec) / size;
+		if ((sec * USEC_PER_SEC + usec) > ISP_HW_TIME && time_ratio > ISP_HW_TIME_RATIO)
+			pr_warn("Warning: isp hw process too long. size: %d %d, consume_time %d.%06d\n",
+				inode->src.w, inode->src.h, sec, usec);
+
+		PERFORMANCE_DEBUG("isp_hw: size %d %d, cur_time %d.%06d, consume_time %d.%06d\n",
+			inode->src.w, inode->src.h, cur_ts.tv_sec, cur_ts.tv_nsec / NSEC_PER_USEC,
+			consume_ts.tv_sec, consume_ts.tv_nsec / NSEC_PER_USEC);
+	}
+
+	return 0;
 }
 
 static int ispnode_postproc_irq(void *handle, uint32_t hw_idx, enum isp_postproc_type type)
@@ -131,6 +164,9 @@ static int ispnode_postproc_irq(void *handle, uint32_t hw_idx, enum isp_postproc
 		inode->in_irq_postproc = 0;
 		return 0;
 	}
+
+	ispnode_hw_ts_cal(inode);
+
 	switch (type) {
 	case POSTPROC_FRAME_DONE:
 		if (inode->uinfo.enable_slowmotion == 0) {
@@ -182,7 +218,7 @@ static int ispnode_postproc_irq(void *handle, uint32_t hw_idx, enum isp_postproc
 			ret = -EFAULT;
 			goto exit;
 		}
-		pframe = cam_queue_dequeue(&inode->hist2_result_queue, struct camera_frame, list);
+		pframe = cam_buf_manager_buf_dequeue(&inode->hist2_pool, NULL);
 		if (!pframe) {
 			pr_debug("isp ctx_id[%d] hist2_result_queue unavailable\n", inode->node_id);
 			ret = -EFAULT;
@@ -190,7 +226,7 @@ static int ispnode_postproc_irq(void *handle, uint32_t hw_idx, enum isp_postproc
 		}
 		ret = isp_hwctx_hist2_frame_prepare(pframe, hw_idx, dev);
 		if (ret) {
-			cam_queue_enqueue(&inode->hist2_result_queue, &pframe->list);
+			cam_buf_manager_buf_enqueue(&inode->hist2_pool, pframe, NULL);
 			goto exit;
 		}
 		inode->data_cb_func(CAM_CB_ISP_STATIS_DONE, pframe, inode->data_cb_handle);
@@ -510,6 +546,8 @@ static int ispnode_rec_frame_process(struct isp_node *inode, struct isp_hw_conte
 
 	rec_ctx->ops.cfg_param(rec_ctx, ISP_REC_CFG_FMCU_HANDLE, pctx_hw->fmcu_handle);
 	rec_ctx->ops.cfg_param(rec_ctx, ISP_REC_CFG_LAYER_NUM, &inode->uinfo.pyr_layer_num);
+	if (inode->share_buffer)
+		rec_ctx->ops.cfg_param(rec_ctx, ISP_REC_CFG_SHARE_BUFFER, &inode->share_buffer);
 	if (port_cfg->src_frame->need_pyr_rec) {
 		rec_ctx->ops.cfg_param(rec_ctx, ISP_REC_CFG_WORK_MODE, &inode->dev->wmode);
 		rec_ctx->ops.cfg_param(rec_ctx, ISP_REC_CFG_HW_CTX_IDX, &pctx_hw->hw_ctx_id);
@@ -648,6 +686,10 @@ static int ispnode_start_proc(void *node)
 		}
 		return 0;
 	}
+	if (inode->ch_id == CAM_CH_CAP) {
+		ktime_get_ts(&inode->start_ts);
+		PERFORMANCE_DEBUG("node_start_time %03d.%06d", inode->start_ts.tv_sec, inode->start_ts.tv_nsec / NSEC_PER_USEC);
+	}
 
 	port_cfg.node_id = inode->node_id;
 	list_for_each_entry(port, &inode->port_queue.head, list) {
@@ -692,7 +734,7 @@ static int ispnode_start_proc(void *node)
 		pr_info(" inode type:%d node_id:%d, cfg_id %d, fid %d, ch_id %d, buf_fd %d iova 0x%08x\n",
 			inode->node_type, inode->node_id, inode->cfg_id,
 			port_cfg.src_frame->fid, port_cfg.src_frame->channel_id,
-			port_cfg.src_frame->buf.mfd, port_cfg.src_frame->buf.iova);
+			port_cfg.src_frame->buf.mfd, port_cfg.src_frame->buf.iova[CAM_BUF_IOMMUDEV_ISP]);
 	ispnode_hist_roi_update(inode->dev->isp_hw, inode->cfg_id, &pctx_hw->pipe_info.fetch);
 	/*update NR param for crop/scaling image */
 	ispnode_blkparam_adapt(inode);
@@ -803,6 +845,9 @@ static int ispnode_start_proc(void *node)
 		start_param.is_dual = inode->is_dual;
 		isp_hwctx_hw_start(pctx_hw, inode->dev, &start_param);
 	}
+
+	if (inode->ch_id == CAM_CH_CAP)
+		ispnode_node_ts_cal(inode, pctx_hw);
 
 	pr_debug("isp start done node:%x", inode);
 	return 0;
@@ -958,7 +1003,7 @@ static int ispnode_param_buf_init(struct camera_frame *cfg_frame)
 	size_t size = 0;
 
 	/*alloc cfg context buffer*/
-	if (cam_buf_iommu_status_get(CAM_IOMMUDEV_ISP) == 0) {
+	if (cam_buf_iommu_status_get(CAM_BUF_IOMMUDEV_ISP) == 0) {
 		pr_debug("isp iommu enable\n");
 		iommu_enable = 1;
 	} else {
@@ -972,6 +1017,12 @@ static int ispnode_param_buf_init(struct camera_frame *cfg_frame)
 		ret = -EFAULT;
 	}
 
+	ret = cam_buf_kmap(&cfg_frame->buf);
+	if (ret) {
+		pr_err("fail to kmap param buf\n");
+		cam_buf_free(&cfg_frame->buf);
+		ret = -EFAULT;
+	}
 	return ret;
 }
 
@@ -1108,12 +1159,175 @@ capture_param:
 	return param_update;
 }
 
+int isp_node_postproc_buffer_alloc(void *handle, struct cam_buf_alloc_desc *param)
+{
+	int ret = 0;
+	struct isp_node *inode = NULL;
+	struct camera_frame *pframe = NULL;
+	uint32_t postproc_w = 0, postproc_h = 0, block_size = 0;
+
+	inode = (struct isp_node *)handle;
+
+	postproc_w = param->dst_size.w / ISP_SCALER_UP_MAX;
+	postproc_h = param->dst_size.h / ISP_SCALER_UP_MAX;
+
+	if (param->ch_id != CAM_CH_CAP && param->ch_vid_enable) {
+		postproc_w = MAX(param->dst_size.w,
+			param->chvid_dst_size.w) / ISP_SCALER_UP_MAX;
+		postproc_h = MAX(param->dst_size.h,
+			param->chvid_dst_size.h) / ISP_SCALER_UP_MAX;
+	}
+
+	block_size = ((postproc_w + 1) & (~1)) * postproc_h * 3 / 2;
+	block_size = ALIGN(block_size, CAM_BUF_ALIGN_SIZE);
+
+	pframe = cam_queue_empty_frame_get();
+	if (!pframe) {
+		pr_err("fail to superzoom no empty frame.\n");
+		ret = -EINVAL;
+	}
+	pframe->channel_id = param->ch_id;
+
+	ret = cam_buf_alloc(&pframe->buf, block_size, param->iommu_enable);
+	if (ret) {
+		pr_err("fail to alloc superzoom buf\n");
+		cam_queue_empty_frame_put(pframe);
+	}
+
+	inode->postproc_buf = pframe;
+	pr_info("node_id %d, superzoom w %d, h %d, buf %p\n",
+		inode->node_id, postproc_w, postproc_h, pframe);
+
+	return ret;
+}
+
+int isp_node_buffers_alloc(void *handle, struct cam_buf_alloc_desc *param)
+{
+	int ret = 0;
+	uint32_t i = 0, width = 0, height = 0, block_size = 0;
+	struct isp_3dnr_ctx_desc *nr3_ctx = NULL;
+	struct isp_ltm_ctx_desc *rgb_ltm = NULL;
+	struct cam_hw_info *hw = NULL;
+	struct isp_node *inode = NULL;
+
+	if(!handle || !param) {
+		pr_err("fail to get valid inptr %p, %p\n", handle, param);
+		return -EFAULT;
+	}
+
+	inode = (struct isp_node *)handle;
+	hw = inode->dev->isp_hw;
+
+	if (hw->ip_dcam[0]->superzoom_support && !param->is_super_size) {
+		ret = isp_node_postproc_buffer_alloc(inode, param);
+		if(ret) {
+			pr_err("fail to alloc postproc buffer.\n");
+			return ret;
+		}
+	}
+
+	if ((param->is_pyr_rec && param->ch_id != CAM_CH_CAP)
+		|| (param->is_pyr_dec && param->ch_id == CAM_CH_CAP)) {
+		ret = isp_pyr_rec_buffer_alloc(inode->rec_handle, param);
+		if(ret) {
+			pr_err("fail to alloc rec buffer.\n");
+			return ret;
+		}
+	}
+
+	if (param->nr3_enable) {
+		nr3_ctx = (struct isp_3dnr_ctx_desc *)inode->nr3_handle;
+		width = param->width;
+		height = param->height;
+		if (param->compress_3dnr)
+			block_size = isp_3dnr_cal_compressed_size(width, height);
+		else {
+			if ((param->dcam_out_fmt == CAM_YUV420_2FRAME)
+				|| (param->dcam_out_fmt == CAM_YVU420_2FRAME)
+				|| (param->dcam_out_fmt == CAM_YUV420_2FRAME_MIPI)) {
+				block_size = ((width + 1) & (~1)) * height * 3;
+				block_size = ALIGN(block_size, CAM_BUF_ALIGN_SIZE);
+			} else {
+				block_size = ((width + 1) & (~1)) * height * 3 / 2;
+				block_size = ALIGN(block_size, CAM_BUF_ALIGN_SIZE);
+			}
+		}
+
+		pr_info("ch %d width %d height %d 3dnr buffer size: %u.\n", param->ch_id, width, height, block_size);
+		for (i = 0; i < ISP_NR3_BUF_NUM; i++) {
+
+			ret = cam_buf_alloc(&nr3_ctx->nr3_frame[i].buf, block_size, param->iommu_enable);
+			if (ret) {
+				pr_err("fail to alloc 3dnr buf: %d ch %d\n", i, param->ch_id);
+				return -1;
+			}
+
+			ret = cam_buf_iommu_map(&nr3_ctx->nr3_frame[i].buf, CAM_BUF_IOMMUDEV_ISP);
+			if (ret) {
+				pr_err("fail to map isp 3dnr iommu buf.\n");
+				cam_buf_free(&nr3_ctx->nr3_frame[i].buf);
+				return -1;
+			}
+
+			pr_debug("3DNR CFGB[%d][0x%p] = 0x%lx\n",i, nr3_ctx->nr3_frame[i], nr3_ctx->nr3_frame[i].buf.iova);
+		}
+	}
+
+	if (param->ltm_mode != MODE_LTM_OFF && param->ltm_buf_mode != MODE_LTM_BUF_OFF) {
+		/* todo: ltm buffer size needs to be refined.*/
+		/* size = ((width + 1) & (~1)) * height * 3 / 2; */
+		/*
+		 * sizeof histo from 1 tile: 128 * 16 bit
+		 * MAX tile num: 8 * 8
+		 */
+		block_size = 64 * 128 * 2;
+		block_size = ALIGN(block_size, CAM_BUF_ALIGN_SIZE);
+
+		pr_info("ch %d ltm buffer size: %u ltm_rgb_enable %d.\n", param->ch_id, block_size, param->ltm_rgb_enable);
+		if (param->ltm_rgb_enable) {
+			rgb_ltm = (struct isp_ltm_ctx_desc *)inode->rgb_ltm_handle;
+			if (!rgb_ltm) {
+				pr_err("fail to get rgb ltm.\n");
+				return -1;
+			}
+			rgb_ltm->ltm_buf_mod = param->ltm_buf_mode;
+			if (param->ltm_buf_mode == MODE_LTM_BUF_SET) {
+				for (i = 0; i < ISP_LTM_BUF_NUM; i++) {
+					ret = cam_buf_alloc(&rgb_ltm->ltm_frame[i].buf, block_size, param->iommu_enable);
+					if (ret) {
+						pr_err("fail to alloc ltm buf: %d ch %d\n", i, param->ch_id);
+						return -1;
+					}
+
+					ret = cam_buf_iommu_map(&rgb_ltm->ltm_frame[i].buf, CAM_BUF_IOMMUDEV_ISP);
+					if (ret) {
+						pr_err("fail to map isp ltm iommu buf.\n");
+						cam_buf_free(&rgb_ltm->ltm_frame[i].buf);
+						return -1;
+					}
+					pr_debug("ctx id %d, LTM CFGB[%d][0x%p] = 0x%lx\n", rgb_ltm->ctx_id, i, rgb_ltm->ltm_frame[i], rgb_ltm->ltm_frame[i].buf.iova);
+				}
+
+				ret = rgb_ltm->ltm_ops.core_ops.cfg_param(rgb_ltm, ISP_LTM_CFG_SET_BUF, &rgb_ltm->ltm_frame[i]);
+				if (ret)
+					pr_err("fail to set isp ctx %d rgb ltm buffers.\n", inode->node_id);
+			}
+
+			if (param->ltm_buf_mode == MODE_LTM_BUF_GET) {
+				ret = rgb_ltm->ltm_ops.core_ops.cfg_param(rgb_ltm, ISP_LTM_CFG_GET_BUF, &rgb_ltm->ltm_frame[i]);
+				if (ret)
+					pr_err("fail to get isp ctx %d rgb ltm buffers.\n", inode->node_id);
+			}
+		}
+	}
+
+	return ret;
+}
+
 uint32_t isp_node_config(void *node, enum isp_node_cfg_cmd cmd, void *param)
 {
 	int ret = 0;
 	struct isp_node *inode = NULL;
-	struct isp_ltm_ctx_desc *rgb_ltm = NULL;
-	struct isp_3dnr_ctx_desc *nr3_ctx = NULL;
 	struct isp_rec_ctx_desc *rec_ctx = NULL;
 	struct cam_hw_gtm_ltm_dis dis = {0};
 	struct cam_hw_gtm_ltm_eb eb = {0};
@@ -1136,14 +1350,6 @@ uint32_t isp_node_config(void *node, enum isp_node_cfg_cmd cmd, void *param)
 		}
 		ret = cam_statis_isp_buffer_cfg(inode->dev, inode, param);
 		break;
-	case ISP_NODE_CFG_LTM_BUF:
-		rgb_ltm = (struct isp_ltm_ctx_desc *)inode->rgb_ltm_handle;
-		if (!rgb_ltm)
-			return 0;
-		ret = rgb_ltm->ltm_ops.core_ops.cfg_param(rgb_ltm, ISP_LTM_CFG_BUF, param);
-		if (ret)
-			pr_err("fail to set isp ctx %d rgb ltm buffers.\n", inode->node_id);
-		break;
 	case ISP_NODE_CFG_INSERT_PORT:
 		ispnode_insert_port(inode, param);
 		break;
@@ -1155,27 +1361,11 @@ uint32_t isp_node_config(void *node, enum isp_node_cfg_cmd cmd, void *param)
 	case ISP_NODE_CFG_3DNR_MODE:
 		inode->uinfo.mode_3dnr |= *(uint32_t *)param;
 		break;
-	case ISP_NODE_CFG_3DNR_BUF:
-		nr3_ctx = (struct isp_3dnr_ctx_desc *)inode->nr3_handle;
-		ret = nr3_ctx->ops.cfg_param(nr3_ctx, ISP_3DNR_CFG_BUF, param);
-		if (ret) {
-			pr_err("fail to set isp node %d nr3 buffers.\n", inode->node_id);
-		}
-		break;
 	case ISP_NODE_CFG_REC_LEYER_NUM:
 		inode->uinfo.pyr_layer_num = *(uint32_t *)param;
 		rec_ctx = (struct isp_rec_ctx_desc *)inode->rec_handle;
 		if (rec_ctx)
 			rec_ctx->ops.cfg_param(rec_ctx, ISP_REC_CFG_LAYER_NUM, &inode->uinfo.pyr_layer_num);
-		break;
-	case ISP_NODE_CFG_REC_BUF:
-		rec_ctx = (struct isp_rec_ctx_desc *)inode->rec_handle;
-		if (!rec_ctx)
-			return 0;
-		ret = rec_ctx->ops.cfg_param(rec_ctx, ISP_REC_CFG_BUF, param);
-		if (ret) {
-			pr_err("fail to set isp node %d rec buffer.\n", inode->node_id);
-		}
 		break;
 	case ISP_NODE_CFG_GTM:
 		gtm_func = VOID_PTR_TO(param, struct isp_hw_gtm_func);
@@ -1281,9 +1471,6 @@ uint32_t isp_node_config(void *node, enum isp_node_cfg_cmd cmd, void *param)
 				port->port_cfg_cb_func(&port_cfg, ISP_PORT_FAST_STOP, port);
 		}
 		break;
-	case ISP_NODE_CFG_SUPERZOOM_BUF:
-		inode->postproc_buf = (struct camera_frame *)param;
-		break;
 	case ISP_NODE_CFG_RECYCLE_BLK_PARAM:
 		cam_queue_blk_param_unbind(&inode->param_share_queue, param);
 		break;
@@ -1310,7 +1497,8 @@ int isp_node_request_proc(struct isp_node *node, void *param)
 	pframe = VOID_PTR_TO(param, struct camera_frame);
 	cam_node = (struct cam_node *)node->data_cb_handle;
 	pipeline = (struct cam_pipeline *)cam_node->data_cb_handle;
-
+	node->src.w = pframe->width;
+	node->src.h = pframe->height;
 	if (pipeline->debug_log_switch)
 		pr_info("pipeline_type %s, fid %d, ch_id %d, buf %x, w %d, h %d, pframe->is_reserved %d, compress_en %d\n",
 			cam_pipeline_name_get(pipeline->pipeline_graph->type), pframe->fid, pframe->channel_id, pframe->buf.mfd,
@@ -1379,8 +1567,17 @@ void *isp_node_get(uint32_t node_id, struct isp_node_desc *param)
 	node->is_dual = param->is_dual;
 	node->attach_cam_id = param->cam_id;
 	node->uinfo.enable_slowmotion = 0;
-	cam_queue_init(&node->hist2_result_queue, ISP_HIST2_BUF_Q_LEN, cam_statis_isp_buf_destroy);
-	cam_queue_init(&node->gtmhist_result_queue, ISP_GTMHIST_BUF_Q_LEN, cam_statis_isp_buf_destroy);
+	ret = cam_buf_manager_pool_reg(NULL, ISP_HIST2_BUF_Q_LEN);
+	if (ret <= 0)
+		goto rgb_ltm_err;
+	node->hist2_pool.private_pool_idx = ret;
+
+	ret = cam_buf_manager_pool_reg(NULL, ISP_GTMHIST_BUF_Q_LEN);
+	if (ret <= 0) {
+		cam_buf_manager_pool_unreg(&node->hist2_pool);
+		goto rgb_ltm_err;
+	}
+	node->gtmhist_pool.private_pool_idx = ret;
 
 	cam_queue_init(&node->port_queue, PORT_ISP_MAX, NULL);
 	if (param->is_high_fps)
@@ -1446,7 +1643,7 @@ void *isp_node_get(uint32_t node_id, struct isp_node_desc *param)
 	node->nr3_blend_cnt = 0;
 
 	if (node->rec_handle == NULL && node->dev->isp_hw->ip_isp->pyr_rec_support) {
-		node->rec_handle = isp_pyr_rec_ctx_get(node->cfg_id, node->dev->isp_hw);
+		node->rec_handle = isp_pyr_rec_ctx_get(node->cfg_id, node->dev);
 		if (!node->rec_handle) {
 			pr_err("fail to get memory for rec_ctx.\n");
 			ret = -ENOMEM;
@@ -1489,8 +1686,9 @@ void *isp_node_get(uint32_t node_id, struct isp_node_desc *param)
 		}
 	}
 
-	isp_int_irq_sw_cnt_reset(node->cfg_id);
+	isp_int_common_irq_sw_cnt_reset(node->cfg_id);
 	node->ch_id = param->ch_id;
+	node->share_buffer = param->share_buffer;
 	node->node_id = node_id;
 	node->node_type = param->node_type;
 	*param->node_dev = node;
@@ -1576,8 +1774,7 @@ void isp_node_put(struct isp_node *node)
 		}
 
 		if (node->postproc_buf) {
-			if (node->postproc_buf->buf.mapping_state & CAM_BUF_MAPPING_DEV)
-				cam_buf_iommu_unmap(&node->postproc_buf->buf);
+			cam_buf_destory(node->postproc_buf);
 			node->postproc_buf = NULL;
 			pr_debug("cfg_id %d, postproc out buffer unmap\n", node->cfg_id);
 		}
@@ -1592,11 +1789,11 @@ void isp_node_put(struct isp_node *node)
 		cam_queue_clear(&node->param_buf_queue, struct camera_frame, list);
 		mutex_unlock(&node->blkpm_q_lock);
 
-		cam_queue_clear(&node->hist2_result_queue, struct camera_frame, list);
-		cam_queue_clear(&node->gtmhist_result_queue, struct camera_frame, list);
+		cam_buf_manager_pool_unreg(&node->hist2_pool);
+		cam_buf_manager_pool_unreg(&node->gtmhist_pool);
 
 		node->data_cb_func = NULL;
-		isp_int_irq_sw_cnt_trace(node->cfg_id);
+		isp_int_common_irq_sw_cnt_trace(node->cfg_id);
 		cam_statis_isp_buffer_unmap(node->dev, node);
 		atomic_dec(&((struct isp_cfg_ctx_desc *)(node->dev->cfg_handle))->node_cnt);
 

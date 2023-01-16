@@ -12,22 +12,18 @@
  */
 
 #include <linux/clk.h>
+#include <linux/mfd/syscon.h>
+#include <linux/of_address.h>
 #include <linux/regmap.h>
 #include <linux/spinlock.h>
 #include <sprd_mm.h>
-#include <linux/mfd/syscon.h>
-#include <linux/of_address.h>
 
 #include "cam_trusty.h"
-#include "dcam_reg.h"
-#include "dcam_hw_adpt.h"
-#include "dcam_int.h"
 #include "dcam_core.h"
-
-#include "isp_reg.h"
-#include "isp_hw_adpt.h"
-#include "isp_slice.h"
+#include "dcam_reg.h"
 #include "isp_cfg.h"
+#include "isp_reg.h"
+#include "isp_slice.h"
 
 #ifdef pr_fmt
 #undef pr_fmt
@@ -130,7 +126,7 @@ static int camhw_get_all_rst(void *handle, void *arg)
 
 	hw = (struct cam_hw_info *)handle;
 
-	ret = cam_syscon_get_args_by_name(dn, "dcam_all_reset", ARRAY_SIZE(args), args);
+	ret = cam_kernel_adapt_syscon_get_args_by_name(dn, "dcam_all_reset", ARRAY_SIZE(args), args);
 	if (ret) {
 		pr_err("fail to get dcam all reset syscon\n");
 		return -EINVAL;
@@ -447,6 +443,7 @@ static struct cam_hw_ip_info dcam[DCAM_ID_MAX] = {
 		.dcam_output_fmt[0] = CAM_RAW_BASE,
 		.store_pyr_fmt = CAM_FORMAT_MAX,
 		.store_3dnr_fmt[0] = CAM_YUV420_2FRAME,
+		.dummy_slave_support = 0,
 	},
 	[DCAM_ID_1] = {
 		.aux_dcam_path = DCAM_PATH_FULL,
@@ -473,6 +470,7 @@ static struct cam_hw_ip_info dcam[DCAM_ID_MAX] = {
 		.dcam_output_fmt[0] = CAM_RAW_BASE,
 		.store_pyr_fmt = CAM_FORMAT_MAX,
 		.store_3dnr_fmt[0] = CAM_YUV420_2FRAME,
+		.dummy_slave_support = 0,
 	},
 	[DCAM_ID_2] = {
 		.aux_dcam_path = DCAM_PATH_FULL,
@@ -498,6 +496,7 @@ static struct cam_hw_ip_info dcam[DCAM_ID_MAX] = {
 		.dcam_output_fmt[0] = CAM_RAW_BASE,
 		.store_pyr_fmt = CAM_FORMAT_MAX,
 		.store_3dnr_fmt[0] = CAM_YUV420_2FRAME,
+		.dummy_slave_support = 0,
 	},
 };
 static struct cam_hw_ip_info isp = {

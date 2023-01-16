@@ -16,6 +16,7 @@
 
 #include <linux/bitops.h>
 #include <linux/device.h>
+
 #include "cam_types.h"
 
 /* interrupt bits for DCAM0 or DCAM1 */
@@ -136,32 +137,11 @@ enum {
 	DCAM_RECORD_PORT_INFO_MAX
 };
 
-/*
- * error bits
- * same in DCAM0/1/2
- */
-#define DCAMINT_ALL_ERROR                         \
-	(BIT(DCAM_DCAM_OVF) |                     \
-	BIT(DCAM_CAP_LINE_ERR) |                  \
-	BIT(DCAM_CAP_FRM_ERR) |                   \
-	BIT(DCAM_MMU_INT))
+#define DCAMINT_FATAL_ERROR \
+	(BIT(DCAM_DCAM_OVF) | BIT(DCAM_CAP_LINE_ERR) | BIT(DCAM_CAP_FRM_ERR))
 
-/*
- * fatal error bits
- */
-#define DCAMINT_FATAL_ERROR                       \
-	(BIT(DCAM_DCAM_OVF) |                     \
-	BIT(DCAM_CAP_LINE_ERR) |                  \
-	BIT(DCAM_CAP_FRM_ERR))
-
-/*
- * SOF bits
- * some bits is reserved in DCAM2
- */
-#define DCAMINT_ALL_SOF                           \
-	(BIT(DCAM_SENSOR_SOF) |                   \
-	BIT(DCAM_CAP_SOF) |                       \
-	BIT(DCAM_PREVIEW_SOF))
+#define DCAMINT_ALL_ERROR \
+	(DCAMINT_FATAL_ERROR | BIT(DCAM_MMU_INT))
 
 /*
  * TX DONE bits
@@ -170,50 +150,31 @@ enum {
  */
 #define DCAMINT_ALL_TX_DONE                       \
 	(BIT(DCAM_FULL_PATH_TX_DONE) |            \
-	BIT(DCAM_PREV_PATH_TX_DONE) |             \
-	BIT(DCAM_PDAF_PATH_TX_DONE) |             \
-	BIT(DCAM_VCH2_PATH_TX_DONE) |             \
-	BIT(DCAM_VCH3_PATH_TX_DONE) |             \
-	BIT(DCAM_AEM_TX_DONE) |                   \
-	BIT(DCAM_HIST_TX_DONE) |                  \
-	BIT(DCAM_AFL_TX_DONE) |                   \
-	BIT(DCAM_BPC_MAP_DONE) |                  \
-	BIT(DCAM_BPC_POS_DONE) |                  \
-	BIT(DCAM_AFM_INTREQ0) |                   \
-	BIT(DCAM_AFM_INTREQ1) |                   \
-	BIT(DCAM_LSCM_TX_DONE) |                  \
-	BIT(DCAM_NR3_TX_DONE) |                   \
-	BIT(DCAM_GTM_TX_DONE))
+		BIT(DCAM_PREV_PATH_TX_DONE) |             \
+		BIT(DCAM_PDAF_PATH_TX_DONE) |             \
+		BIT(DCAM_VCH2_PATH_TX_DONE) |             \
+		BIT(DCAM_VCH3_PATH_TX_DONE) |             \
+		BIT(DCAM_AEM_TX_DONE) |                   \
+		BIT(DCAM_HIST_TX_DONE) |                  \
+		BIT(DCAM_AFL_TX_DONE) |                   \
+		BIT(DCAM_BPC_MAP_DONE) |                  \
+		BIT(DCAM_BPC_POS_DONE) |                  \
+		BIT(DCAM_AFM_INTREQ1) |                   \
+		BIT(DCAM_LSCM_TX_DONE) |                  \
+		BIT(DCAM_NR3_TX_DONE) |                   \
+		BIT(DCAM_GTM_TX_DONE))
 
-/*
- * all currently useful bits on irq line
- */
 #define DCAMINT_IRQ_LINE_MASK                     \
 	(DCAMINT_ALL_ERROR | DCAMINT_ALL_TX_DONE |\
-	BIT(DCAM_CAP_SOF) |                       \
-	BIT(DCAM_SENSOR_SOF) |                    \
-	BIT(DCAM_SENSOR_EOF) |                    \
-	BIT(DCAM_PREVIEW_SOF))
+		BIT(DCAM_CAP_SOF) |                       \
+		BIT(DCAM_SENSOR_SOF) |                    \
+		BIT(DCAM_SENSOR_EOF) |                    \
+		BIT(DCAM_PREVIEW_SOF))
 
-/* enabled interrupt source in normal scene */
 #define DCAMINT_IRQ_LINE_EN_NORMAL                \
 	(DCAMINT_ALL_ERROR | DCAMINT_ALL_TX_DONE |\
-	BIT(DCAM_CAP_SOF) |                       \
-	BIT(DCAM_SENSOR_EOF))
-
-/*
- * enabled interrupt source in slow motion scene
- *
- * Note: this one is deprecated as we have a design defect in current DCAM IP.
- * The address written into slow motion register in DCAM_PREVIEW_SOF cannot be
- * applied by hardware because DCAM will only shadow registers at the first one
- * of four frames in slow motion mode. In order to make DCAM_PREVIEW_SOF work,
- * software has to set auto copy at the last DCAM_CAP_SOF of four frames. So we
- * just use DCAM_CAP_SOF to do all the work.
- */
-#define DCAMINT_IRQ_LINE_EN_SLM                   \
-	(DCAMINT_ALL_ERROR | DCAMINT_ALL_TX_DONE |\
-	BIT(DCAM_PREVIEW_SOF))
+		BIT(DCAM_CAP_SOF) |                       \
+		BIT(DCAM_SENSOR_EOF))
 
 struct nr3_done {
 	uint32_t hw_ctx;

@@ -11,9 +11,6 @@
  * GNU General Public License for more details.
  */
 
-#include <linux/vmalloc.h>
-#include "frame_cache_node.h"
-#include "cam_node.h"
 #include "cam_pipeline.h"
 
 #ifdef pr_fmt
@@ -43,16 +40,8 @@ static void framecache_frame_put(void *param)
 	node = (struct frame_cache_node *)frame->priv_data;
 	if (node && node->is_share_buf) {
 		node->data_cb_func(CAM_CB_FRAME_CACHE_CLEAR_BUF, frame, node->data_cb_handle);
-	} else {
-		if (frame->buf.type == CAM_BUF_USER)
-			cam_buf_ionbuf_put(&frame->buf);
-		else {
-			if (frame->buf.mapping_state)
-				cam_buf_kunmap(&frame->buf);
-			cam_buf_free(&frame->buf);
-		}
-		cam_queue_empty_frame_put(frame);
-	}
+	} else
+		cam_buf_destory(frame);
 }
 
 static struct camera_frame *framecache_capframe_get(struct frame_cache_node *node,

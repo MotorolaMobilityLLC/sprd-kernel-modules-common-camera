@@ -11,15 +11,13 @@
  * GNU General Public License for more details.
  */
 
-#include "isp_3dnr.h"
-#include "alg_nr3_calc.h"
 #include "cam_port.h"
+#include "isp_3dnr.h"
 
 #ifdef pr_fmt
 #undef pr_fmt
 #endif
 #define pr_fmt(fmt) "ISP_3DNR: %d %d %s : "fmt, current->pid, __LINE__, __func__
-
 
 static int isp3dnr_calc_img_pitch(enum cam_format fmt, uint32_t w)
 {
@@ -106,15 +104,11 @@ static int alg_nr3_memctrl_base_on_mv_update_ver0(struct isp_3dnr_ctx_desc *ctx)
 	}
 
 	pr_debug("3DNR ft_luma=0x%lx,ft_chroma=0x%lx, mv_x=%d,mv_y=%d\n",
-		mem_ctrl->ft_luma_addr,
-		mem_ctrl->ft_chroma_addr,
-		ctx->mv.mv_x,
-		ctx->mv.mv_y);
+		mem_ctrl->ft_luma_addr, mem_ctrl->ft_chroma_addr,
+		ctx->mv.mv_x, ctx->mv.mv_y);
 	pr_debug("3DNR ft_y_h=%d, ft_uv_h=%d, ft_y_w=%d, ft_uv_w=%d\n",
-		mem_ctrl->ft_y_height,
-		mem_ctrl->ft_uv_height,
-		mem_ctrl->ft_y_width,
-		mem_ctrl->ft_uv_width);
+		mem_ctrl->ft_y_height, mem_ctrl->ft_uv_height,
+		mem_ctrl->ft_y_width, mem_ctrl->ft_uv_width);
 
 	return 0;
 }
@@ -187,15 +181,11 @@ static int alg_nr3_memctrl_base_on_mv_update_ver1(struct isp_3dnr_ctx_desc *ctx)
 	}
 
 	pr_debug("3DNR ft_luma=0x%lx,ft_chroma=0x%lx, mv_x=%d,mv_y=%d\n",
-		mem_ctrl->ft_luma_addr,
-		mem_ctrl->ft_chroma_addr,
-		ctx->mv.mv_x,
-		ctx->mv.mv_y);
+		mem_ctrl->ft_luma_addr, mem_ctrl->ft_chroma_addr,
+		ctx->mv.mv_x, ctx->mv.mv_y);
 	pr_debug("3DNR ft_y_h=%d, ft_uv_h=%d, ft_y_w=%d, ft_uv_w=%d\n",
-		mem_ctrl->ft_y_height,
-		mem_ctrl->ft_uv_height,
-		mem_ctrl->ft_y_width,
-		mem_ctrl->ft_uv_width);
+		mem_ctrl->ft_y_height, mem_ctrl->ft_uv_height,
+		mem_ctrl->ft_y_width, mem_ctrl->ft_uv_width);
 
 	return 0;
 }
@@ -249,22 +239,19 @@ static int isp3dnr_store_config_gen(struct isp_3dnr_ctx_desc *ctx)
 	store->store_res = 1;
 
 	if (ctx->blending_cnt % 2 != 1) {
-		store->st_luma_addr = ctx->buf_info[0]->iova;
-		store->st_chroma_addr = ctx->buf_info[0]->iova +
+		store->st_luma_addr = ctx->nr3_frame[0].buf.iova[CAM_BUF_IOMMUDEV_ISP];
+		store->st_chroma_addr = ctx->nr3_frame[0].buf.iova[CAM_BUF_IOMMUDEV_ISP] +
 			(store->st_pitch * ctx->height);
 	} else {
-		store->st_luma_addr = ctx->buf_info[1]->iova;
-		store->st_chroma_addr = ctx->buf_info[1]->iova +
+		store->st_luma_addr = ctx->nr3_frame[1].buf.iova[CAM_BUF_IOMMUDEV_ISP];
+		store->st_chroma_addr = ctx->nr3_frame[1].buf.iova[CAM_BUF_IOMMUDEV_ISP] +
 			(store->st_pitch * ctx->height);
 	}
 
 	pr_debug("3DNR nr3store st_luma=0x%lx, st_chroma=0x%lx\n",
 		store->st_luma_addr, store->st_chroma_addr);
 	pr_debug("3DNR nr3store w=%d,h=%d,frame_w=%d,frame_h=%d\n",
-		store->img_width,
-		store->img_height,
-		ctx->width,
-		ctx->height);
+		store->img_width, store->img_height, ctx->width, ctx->height);
 
 	return ret;
 }
@@ -343,12 +330,12 @@ static int isp3dnr_memctrl_config_gen(struct isp_3dnr_ctx_desc *ctx)
 	mem_ctrl->mv_y = ctx->mv.mv_y;
 
 	if (ctx->blending_cnt % 2 == 1) {
-		mem_ctrl->ft_luma_addr = ctx->buf_info[0]->iova;
-		mem_ctrl->ft_chroma_addr = ctx->buf_info[0]->iova +
+		mem_ctrl->ft_luma_addr = ctx->nr3_frame[0].buf.iova[CAM_BUF_IOMMUDEV_ISP];
+		mem_ctrl->ft_chroma_addr = ctx->nr3_frame[0].buf.iova[CAM_BUF_IOMMUDEV_ISP] +
 			(mem_ctrl->ft_pitch * ctx->height);
 	} else {
-		mem_ctrl->ft_luma_addr = ctx->buf_info[1]->iova;
-		mem_ctrl->ft_chroma_addr = ctx->buf_info[1]->iova +
+		mem_ctrl->ft_luma_addr = ctx->nr3_frame[1].buf.iova[CAM_BUF_IOMMUDEV_ISP];
+		mem_ctrl->ft_chroma_addr = ctx->nr3_frame[1].buf.iova[CAM_BUF_IOMMUDEV_ISP] +
 			(mem_ctrl->ft_pitch * ctx->height);
 	}
 	mem_ctrl->frame_addr.addr_ch0 = mem_ctrl->ft_luma_addr;
@@ -441,13 +428,13 @@ static int isp3dnr_fbd_fetch_config_gen(struct isp_3dnr_ctx_desc *ctx)
 
 	if (ctx->blending_cnt % 2 == 1) {
 		isp_3dnr_cal_compressed_addr(cur_width, cur_height,
-			ctx->buf_info[0]->iova, &out_addr);
+			ctx->nr3_frame[0].buf.iova[CAM_BUF_IOMMUDEV_ISP], &out_addr);
 		fbd_fetch->y_header_addr_init = out_addr.addr1;
 		fbd_fetch->y_tile_addr_init_x256 = out_addr.addr1;
 		fbd_fetch->c_header_addr_init = out_addr.addr2;
 		fbd_fetch->c_tile_addr_init_x256 = out_addr.addr2;
 		/*This is for N6pro*/
-		cal_fbc.in = ctx->buf_info[0]->iova;
+		cal_fbc.in = ctx->nr3_frame[0].buf.iova[CAM_BUF_IOMMUDEV_ISP];
 		dcam_if_cal_compressed_addr(&cal_fbc);
 		fbd_fetch->frame_header_base_addr = fbd_fetch->hw_addr.addr0;
 		fbd_fetch->slice_start_header_addr = fbd_fetch->frame_header_base_addr +
@@ -455,13 +442,13 @@ static int isp3dnr_fbd_fetch_config_gen(struct isp_3dnr_ctx_desc *ctx)
 			(unsigned long)fbd_fetch->slice_start_pxl_xpt / ISP_FBD_TILE_WIDTH) * 16;
 	} else {
 		isp_3dnr_cal_compressed_addr(cur_width, cur_height,
-			ctx->buf_info[1]->iova, &out_addr);
+			ctx->nr3_frame[1].buf.iova[CAM_BUF_IOMMUDEV_ISP], &out_addr);
 		fbd_fetch->y_header_addr_init   = out_addr.addr1;
 		fbd_fetch->y_tile_addr_init_x256 = out_addr.addr1;
 		fbd_fetch->c_header_addr_init = out_addr.addr2;
 		fbd_fetch->c_tile_addr_init_x256 = out_addr.addr2;
 		/*This is for N6pro*/
-		cal_fbc.in = ctx->buf_info[1]->iova;
+		cal_fbc.in = ctx->nr3_frame[1].buf.iova[CAM_BUF_IOMMUDEV_ISP];
 		dcam_if_cal_compressed_addr(&cal_fbc);
 		fbd_fetch->frame_header_base_addr = fbd_fetch->hw_addr.addr0;
 		fbd_fetch->slice_start_header_addr = fbd_fetch->frame_header_base_addr +
@@ -551,16 +538,12 @@ static int isp3dnr_fbd_fetch_config_gen(struct isp_3dnr_ctx_desc *ctx)
 	}
 
 	pr_debug("3dnr mv_x 0x%x, mv_y 0x%x\n", mv_x, mv_y);
-
 	pr_debug("3dnr fbd y_header_addr_init 0x%x, c_header_addr_init 0x%x\n",
 		fbd_fetch->y_header_addr_init, fbd_fetch->c_header_addr_init);
-
 	pr_debug("3dnr fbd y_tile_addr_init_x256 0x%x, c_tile_addr_init_x256 0x%x\n",
 		fbd_fetch->y_tile_addr_init_x256, fbd_fetch->c_tile_addr_init_x256);
-
 	pr_debug("3dnr fbd y_pixel_start_in_hor 0x%x, y_pixel_start_in_ver 0x%x\n",
 		fbd_fetch->y_pixel_start_in_hor, fbd_fetch->y_pixel_start_in_ver);
-
 	pr_debug("3dnr fbd c_pixel_start_in_hor 0x%x, c_pixel_start_in_ver 0x%x\n",
 		fbd_fetch->c_pixel_start_in_hor, fbd_fetch->c_pixel_start_in_ver);
 
@@ -626,13 +609,13 @@ static int isp3dnr_fbc_store_config_gen(struct isp_3dnr_ctx_desc *ctx)
 
 	if (ctx->blending_cnt % 2 != 1) {
 		isp_3dnr_cal_compressed_addr(cur_width, cur_height,
-			ctx->buf_info[0]->iova, &out_addr);
+			ctx->nr3_frame[0].buf.iova[CAM_BUF_IOMMUDEV_ISP], &out_addr);
 		fbc_store->y_header_addr_init = out_addr.addr1;
 		fbc_store->y_tile_addr_init_x256 = out_addr.addr1;
 		fbc_store->c_header_addr_init = out_addr.addr2;
 		fbc_store->c_tile_addr_init_x256 = out_addr.addr2;
 		/*This is for N6pro*/
-		cal_fbc.in = ctx->buf_info[0]->iova;
+		cal_fbc.in = ctx->nr3_frame[0].buf.iova[CAM_BUF_IOMMUDEV_ISP];
 		dcam_if_cal_compressed_addr(&cal_fbc);
 		fbc_store->tile_number_pitch = cal_fbc.fbc_info->tile_col;
 		fbc_store->slice_header_base_addr = fbc_store->hw_addr.addr0;
@@ -640,13 +623,13 @@ static int isp3dnr_fbc_store_config_gen(struct isp_3dnr_ctx_desc *ctx)
 		fbc_store->slice_payload_offset_addr_init = fbc_store->hw_addr.addr1 - fbc_store->hw_addr.addr0;
 	} else {
 		isp_3dnr_cal_compressed_addr(cur_width, cur_height,
-			ctx->buf_info[1]->iova, &out_addr);
+			ctx->nr3_frame[1].buf.iova[CAM_BUF_IOMMUDEV_ISP], &out_addr);
 		fbc_store->y_header_addr_init = out_addr.addr1;
 		fbc_store->y_tile_addr_init_x256 = out_addr.addr1;
 		fbc_store->c_header_addr_init = out_addr.addr2;
 		fbc_store->c_tile_addr_init_x256 = out_addr.addr2;
 		/*This is for N6pro*/
-		cal_fbc.in = ctx->buf_info[1]->iova;
+		cal_fbc.in = ctx->nr3_frame[1].buf.iova[CAM_BUF_IOMMUDEV_ISP];
 		dcam_if_cal_compressed_addr(&cal_fbc);
 		fbc_store->tile_number_pitch = cal_fbc.fbc_info->tile_col;
 		fbc_store->slice_header_base_addr = fbc_store->hw_addr.addr0;
@@ -843,10 +826,8 @@ static int isp3dnr_cfg_param(void *handle,
 		enum isp_3dnr_cfg_cmd cmd, void *param)
 {
 	int ret = 0;
-	uint32_t i = 0;
 	uint32_t nr3_compress_eb = 0;
 	struct img_trim *crop = NULL;
-	struct camera_frame *pframe = NULL;
 	struct isp_3dnr_ctx_desc *nr3_ctx = NULL;
 	struct isp_hw_fetch_info *fetch_info = NULL;
 
@@ -857,31 +838,6 @@ static int isp3dnr_cfg_param(void *handle,
 
 	nr3_ctx = (struct isp_3dnr_ctx_desc *)handle;
 	switch (cmd) {
-	case ISP_3DNR_CFG_BUF:
-		pframe = (struct camera_frame *)param;
-		ret = cam_buf_iommu_map(&pframe->buf, CAM_IOMMUDEV_ISP);
-		if (ret) {
-			pr_err("fail to map isp 3dnr iommu buf.\n");
-			ret = -EINVAL;
-			goto exit;
-		}
-		for (i = 0; i < ISP_NR3_BUF_NUM; i++) {
-			if (nr3_ctx->buf_info[i] == NULL) {
-				nr3_ctx->buf_info[i] = &pframe->buf;
-				pr_debug("3DNR CFGB[%d][0x%p] = 0x%lx\n",
-					i, pframe, nr3_ctx->buf_info[i]->iova);
-				break;
-			} else {
-				pr_debug("3DNR CFGB[%d][0x%p][0x%p] failed\n",
-					i, pframe, nr3_ctx->buf_info[i]);
-			}
-		}
-		if (i == 2) {
-			pr_err("fail to set isp nr3 buffers.\n");
-			cam_buf_iommu_unmap(&pframe->buf);
-			goto exit;
-		}
-		break;
 	case ISP_3DNR_CFG_MODE:
 		nr3_ctx->mode = *(uint32_t *)param;
 		pr_debug("3DNR mode %d\n", nr3_ctx->mode);
@@ -938,7 +894,6 @@ static int isp3dnr_cfg_param(void *handle,
 		break;
 	}
 
-exit:
 	return ret;
 }
 
@@ -960,7 +915,6 @@ void *isp_3dnr_ctx_get(uint32_t idx)
 void isp_3dnr_ctx_put(void *nr3_handle)
 {
 	struct isp_3dnr_ctx_desc *nr3_ctx = NULL;
-	struct camera_buf *buf_info = NULL;
 	uint32_t i = 0;
 
 	if (!nr3_handle) {
@@ -970,10 +924,9 @@ void isp_3dnr_ctx_put(void *nr3_handle)
 
 	nr3_ctx = (struct isp_3dnr_ctx_desc *)nr3_handle;
 	for (i = 0; i < ISP_NR3_BUF_NUM; i++) {
-		buf_info = nr3_ctx->buf_info[i];
-		if (buf_info && buf_info->mapping_state & CAM_BUF_MAPPING_DEV) {
-			cam_buf_iommu_unmap(buf_info);
-			buf_info = NULL;
+		if (nr3_ctx->nr3_frame[i].buf.mapping_state & CAM_BUF_MAPPING_ISP) {
+			cam_buf_iommu_unmap(&nr3_ctx->nr3_frame[i].buf, CAM_BUF_IOMMUDEV_ISP);
+			cam_buf_free(&nr3_ctx->nr3_frame[i].buf);
 		}
 	}
 

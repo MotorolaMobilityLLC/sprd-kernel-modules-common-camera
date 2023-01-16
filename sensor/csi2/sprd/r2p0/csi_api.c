@@ -12,7 +12,6 @@
  */
 
 #include <linux/clk.h>
-#include <linux/version.h>
 #include <linux/delay.h>
 #include <linux/io.h>
 #include <linux/interrupt.h>
@@ -198,11 +197,7 @@ int csi_api_dt_node_init(struct device *dev, struct device_node *dn,
 		return -EINVAL;
 	}
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0))
-        reg_base = devm_ioremap(dev, res.start, resource_size(&res));
-#else
-        reg_base = devm_ioremap_nocache(dev, res.start, resource_size(&res));
-#endif
+	reg_base = devm_ioremap_nocache(dev, res.start, resource_size(&res));
 	if (IS_ERR(reg_base)) {
 		pr_err("csi_dt_init: get csi regbase error\n");
 		return PTR_ERR(reg_base);

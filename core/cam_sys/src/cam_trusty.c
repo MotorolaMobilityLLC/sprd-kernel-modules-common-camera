@@ -11,15 +11,16 @@
  * GNU General Public License for more details.
  */
 
-#include <linux/module.h>
-#include <linux/kernel.h>
-#include <linux/init.h>
 #include <linux/err.h>
+#include <linux/init.h>
+#include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/slab.h>
-#include <linux/wait.h>
 #include <linux/sched.h>
-#include  "cam_trusty.h"
-#include  "dcam_hw_adpt.h"
+#include <linux/wait.h>
+
+#include "cam_trusty.h"
+
 #ifdef pr_fmt
 #undef pr_fmt
 #endif
@@ -180,16 +181,7 @@ void cam_trusty_disconnect(void)
 	cam_ca_free_msg_buf_list(&ca->rx_msg_queue);
 	spin_unlock_irqrestore(&ca->queue_lock, flag);
 	ca->con_init = false;
-
-	/* todo for Stability test
-	 * tipc_chan_shutdown(ca->chan);
-	 */
-
 	ca->chanel_state = TIPC_CHANNEL_DISCONNECTED;
-
-	/* todo for Stability test
-	 * tipc_chan_destroy(ca->chan);
-	 */
 
 	pr_info("disconnect\n");
 }

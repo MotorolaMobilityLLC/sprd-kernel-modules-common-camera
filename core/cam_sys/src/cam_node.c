@@ -13,16 +13,10 @@
 
 #include <linux/vmalloc.h>
 #include <linux/sched.h>
-#include "cam_node.h"
-#include "dcam_online_node.h"
-#include "isp_node.h"
-#include "cam_queue.h"
-#include "dcam_core.h"
-#include "cam_dump_node.h"
+
 #include "cam_copy_node.h"
-#include "pyr_dec_node.h"
-#include "isp_scaler_node.h"
-#include "dcam_fetch_node.h"
+#include "cam_dump_node.h"
+#include "cam_node.h"
 #include "cam_replace_node.h"
 
 #ifdef pr_fmt
@@ -278,9 +272,29 @@ static int camnode_cfg_shutoff_config(void *handle, void *param)
 	return ret;
 }
 
+static int camnode_cfg_shutoff_reconfig(struct cam_node *node, uint32_t port_id)
+{
+	struct cam_port_shutoff_ctrl *outport_shutoff = NULL;
+	struct cam_node_shutoff_ctrl node_shutoff = {0};
+	uint32_t frame_cycle = 0;
+
+	outport_shutoff = &node->node_shutoff.outport_shutoff[port_id];
+	if (outport_shutoff->shutoff_scene != SHUTOFF_SCENE_MAX) {
+		if (atomic_inc_return(&outport_shutoff->cap_cnt) == 1) {
+			atomic_inc(&outport_shutoff->cap_cnt);
+			NODE_SHUTOFF_PARAM_INIT(node_shutoff);
+			node_shutoff.outport_shutoff[port_id].port_id = port_id;
+			node_shutoff.outport_shutoff[port_id].shutoff_type = SHUTOFF_RESUME;
+			dcam_online_set_shutoff(node->handle, &node_shutoff, port_id);
+			frame_cycle = 1;
+		}
+	}
+	return frame_cycle;
+}
+
 static int camnode_cfg_shutoff(void *handle, uint32_t cmd, void *param)
 {
-	int ret = 0;
+	int ret = 0, port_id = 0;
 	struct cam_node *node = NULL;
 	struct cam_node_shutoff_ctrl *node_shutoff = NULL;
 
@@ -290,14 +304,18 @@ static int camnode_cfg_shutoff(void *handle, uint32_t cmd, void *param)
 	}
 
 	node = (struct cam_node *)handle;
-	node_shutoff = (struct cam_node_shutoff_ctrl *)param;
 
 	switch (cmd) {
 	case CAM_NODE_SHUTOFF_INIT:
 		camnode_cfg_shutoff_init(node);
 		break;
 	case CAM_NODE_SHUTOFF_CONFIG:
+		node_shutoff = (struct cam_node_shutoff_ctrl *)param;
 		camnode_cfg_shutoff_config(node, node_shutoff);
+		break;
+	case CAM_NODE_SHUTOFF_RECONFIG:
+		port_id = *(uint32_t *)param;
+		ret = camnode_cfg_shutoff_reconfig(node, port_id);
 		break;
 	default:
 		pr_err("fail to support cmd %d\n", cmd);
@@ -621,9 +639,6 @@ static int camnode_cfg_node_param_isp_offline(void *handle, enum cam_node_cfg_cm
 	case CAM_NODE_CFG_STATIS:
 		ret = isp_node_config(node->handle, ISP_NODE_CFG_STATIS, in_param->param);
 		break;
-	case CAM_NODE_CFG_LTM_BUF:
-		ret = isp_node_config(node->handle, ISP_NODE_CFG_LTM_BUF, in_param->param);
-		break;
 	case CAM_NODE_CFG_RESERVE_BUF:
 		ret = node->ops.cfg_port_param(node, PORT_RESERVERD_BUF_CFG, param);
 		break;
@@ -633,14 +648,8 @@ static int camnode_cfg_node_param_isp_offline(void *handle, enum cam_node_cfg_cm
 	case CAM_NODE_CFG_3DNR_MODE:
 		ret = isp_node_config(node->handle, ISP_NODE_CFG_3DNR_MODE, in_param->param);
 		break;
-	case CAM_NODE_CFG_3DNR_BUF:
-		ret = isp_node_config(node->handle, ISP_NODE_CFG_3DNR_BUF, in_param->param);
-		break;
 	case CAM_NODE_CFG_REC_LEYER_NUM:
 		ret = isp_node_config(node->handle, ISP_NODE_CFG_REC_LEYER_NUM, in_param->param);
-		break;
-	case CAM_NODE_CFG_REC_BUF:
-		ret = isp_node_config(node->handle, ISP_NODE_CFG_REC_BUF, in_param->param);
 		break;
 	case CAM_NODE_CFG_GTM:
 		ret = isp_node_config(node->handle, ISP_NODE_CFG_GTM, in_param->param);
@@ -653,9 +662,6 @@ static int camnode_cfg_node_param_isp_offline(void *handle, enum cam_node_cfg_cm
 		break;
 	case CAM_NODE_CFG_FAST_STOP:
 		ret = isp_node_config(node->handle, ISP_NODE_CFG_FAST_STOP, in_param->param);
-		break;
-	case CAM_NODE_CFG_SUPERZOOM_BUF:
-		ret = isp_node_config(node->handle, ISP_NODE_CFG_SUPERZOOM_BUF, in_param->param);
 		break;
 	case CAM_NODE_RECYCLE_BLK_PARAM:
 		if (node->handle)
@@ -772,9 +778,6 @@ static int camnode_cfg_node_param_pyr_dec(void *handle, enum cam_node_cfg_cmd cm
 	in_param = (struct cam_node_cfg_param *)param;
 
 	switch (cmd) {
-	case CAM_NODE_CFG_PYRDEC_BUF:
-		ret = pyr_dec_node_buffer_cfg(node->handle, in_param->param);
-		break;
 	case CAM_NODE_CFG_BLK_PARAM:
 		ret = pyr_dec_node_blk_param_set(node->handle, in_param->param);
 		break;
@@ -1054,17 +1057,20 @@ static int camnode_outbuf_back(void *handle, void *in_param)
 	return ret;
 }
 
-static void *camnode_zoom_callback(void *priv_data)
+static int camnode_zoom_callback(void *priv_data, void *param)
 {
+	int ret = 0;
 	struct cam_node *node = NULL;
 
-	if (!priv_data) {
-		pr_err("fail to get valid param\n");
-		return NULL;
+	if (!priv_data || !param) {
+		pr_err("fail to get valid param priv_data:%p, param:%p\n", priv_data, param);
+		return -1;
 	}
 
 	node = (struct cam_node *)priv_data;
-	return node->zoom_cb_func(node->data_cb_handle);
+	ret = node->zoom_cb_func(node->data_cb_handle, param);
+
+	return ret;
 }
 
 static int camnode_data_callback(enum cam_cb_type type, void *param, void *priv_data)
@@ -1253,13 +1259,30 @@ int cam_node_buffer_alloc(void *handle, struct cam_buf_alloc_desc *param)
 		return -EFAULT;
 	}
 
-	for (i = 0; i < CAM_NODE_PORT_OUT_NUM; i++) {
-		if (!node->outport_list[i])
-			continue;
-		ret = cam_port_buffers_alloc(node->outport_list[i], node->node_graph->id, param);
-		if (ret) {
-			pr_err("fail to alloc buf\n");
+	switch (node->node_graph->type) {
+	case CAM_NODE_TYPE_DCAM_ONLINE:
+	case CAM_NODE_TYPE_DCAM_OFFLINE:
+		for (i = 0; i < CAM_NODE_PORT_OUT_NUM; i++) {
+			if (!node->outport_list[i])
+				continue;
+			ret = cam_port_buffers_alloc(node->outport_list[i], node->node_graph->id, param);
+			if (ret) {
+				pr_err("fail to alloc buf\n");
+			}
 		}
+		break;
+	case CAM_NODE_TYPE_PYR_DEC:
+		ret = pyr_dec_node_buffer_alloc(node->handle, param);
+		if (ret)
+			pr_err("fail to alloc pyr dec buf\n");
+		break;
+	case CAM_NODE_TYPE_ISP_OFFLINE:
+		ret = isp_node_buffers_alloc(node->handle, param);
+		if (ret)
+			pr_err("fail to alloc isp node buf\n");
+		break;
+	default:
+		break;
 	}
 
 	return ret;
@@ -1486,7 +1509,7 @@ void cam_node_close(struct cam_node *node)
 		isp_node_close(node->handle);
 		break;
 	case CAM_NODE_TYPE_PYR_DEC:
-		pyrdec_node_close(node->handle);
+		pyr_dec_node_close(node->handle);
 		break;
 	case CAM_NODE_TYPE_DCAM_OFFLINE_BPC_RAW:
 	case CAM_NODE_TYPE_DCAM_OFFLINE:

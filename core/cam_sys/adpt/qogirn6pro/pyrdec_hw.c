@@ -14,6 +14,7 @@
 #ifdef CAM_HW_ADPT_LAYER
 #include <linux/uaccess.h>
 #include <sprd_mm.h>
+
 #include "pyr_dec_node.h"
 
 #ifdef pr_fmt

@@ -23,7 +23,7 @@ KBUILD_EXTRA_SYMBOLS += $(BSP_MODULES_OUT)/sprd-dmabuf/Module.symvers
 export KBUILD_EXTRA_SYMBOLS
 endif
 
-ifneq ($(findstring $(strip $(BSP_KERNEL_VERSION)), kernel5.4 kernel5.15),)
+ifeq ($(strip $(BSP_KERNEL_VERSION)), kernel5.4)
 KBUILD_EXTRA_SYMBOLS += $(BSP_MODULES_OUT)/sprd-ion/Module.symvers
 export KBUILD_EXTRA_SYMBOLS
 endif

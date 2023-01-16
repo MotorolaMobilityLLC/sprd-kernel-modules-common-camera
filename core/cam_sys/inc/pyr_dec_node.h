@@ -32,6 +32,11 @@
 #define PYR_DEC_NODE_NUM_MAX        4
 #define PYR_DEC_INT_PROC_FRM_NUM    256
 
+ /*dec limit hw: 30ms, && 3000us(3ms)/M, node:50ms*/
+#define DEC_HW_TIME_RATIO           3000
+#define DEC_HW_TIME                 30000
+#define DEC_NODE_TIME               50000
+
 enum pyr_dec_node_id {
 	PYR_DEC_NODE_ID,
 	PYR_DEC_MAX_NODE_ID,
@@ -218,6 +223,7 @@ struct pyrdec_pipe_dev {
 	atomic_t user_cnt;
 	irq_handler_t isr_func;
 	uint32_t in_irq_handler;
+	timespec hw_start_ts;
 
 	void *fmcu_handle;
 	struct pyr_dec_node *node;
@@ -237,6 +243,7 @@ struct pyr_dec_node {
 	uint32_t is_4in1;
 	uint32_t is_rawcap;
 	uint32_t is_bind;
+	uint32_t share_buffer;
 	uint32_t is_fast_stop;
 	struct completion *fast_stop_done;
 	struct completion frm_done;
@@ -247,6 +254,8 @@ struct pyr_dec_node {
 	struct cam_thread_info thread;
 	/* lock block param to avoid acrossing frame */
 	struct mutex blkpm_lock;
+	timespec start_ts;
+	timespec end_ts;
 
 	uint32_t layer_num;
 	uint32_t slice_num;
@@ -297,6 +306,7 @@ struct pyr_dec_node_desc {
 	uint32_t dcam_slice_mode;
 	uint32_t is_4in1;
 	uint32_t is_rawcap;
+	uint32_t share_buffer;
 	struct img_size sn_size;
 
 	cam_data_cb data_cb_func;
@@ -305,6 +315,7 @@ struct pyr_dec_node_desc {
 	void *buf_cb_priv_data;
 };
 
+int pyr_dec_node_buffer_alloc(void *handle, struct cam_buf_alloc_desc *param);
 int pyr_dec_node_buffer_cfg(void *handle, void *param);
 int pyr_dec_node_blk_param_set(void *handle, void *param);
 void *pyr_dec_node_get(uint32_t node_id, struct pyr_dec_node_desc *param);
@@ -312,8 +323,8 @@ void pyr_dec_node_put(struct pyr_dec_node *node);
 int pyr_dec_node_outbuf_get(void *param, void *priv_data);
 int pyr_dec_node_request_proc(struct pyr_dec_node *node, void *param);
 int pyr_dec_node_ctxid_cfg(void *handle, void *param);
-void *pyrdec_dev_get(void *isp_handle, void *hw);
-void pyrdec_dev_put(void *dec_handle);
+void *pyr_dec_dev_get(void *isp_handle, void *hw);
+void pyr_dec_dev_put(void *dec_handle);
 int pyr_dec_node_fast_stop_cfg(void *handle, void *param);
-int pyrdec_node_close(void *handle);
+int pyr_dec_node_close(void *handle);
 #endif

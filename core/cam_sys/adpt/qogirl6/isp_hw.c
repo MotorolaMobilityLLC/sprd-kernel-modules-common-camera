@@ -11,7 +11,6 @@
  * GNU General Public License for more details.
  */
 
-#include "isp_hw.h"
 #include "isp_gtm.h"
 #ifdef CAM_HW_ADPT_LAYER
 

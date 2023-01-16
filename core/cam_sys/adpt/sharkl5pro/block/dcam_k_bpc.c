@@ -13,11 +13,9 @@
 
 #include <linux/uaccess.h>
 #include <sprd_mm.h>
-#include "isp_hw.h"
 
-#include "dcam_reg.h"
-#include "dcam_interface.h"
 #include "cam_block.h"
+#include "dcam_reg.h"
 
 #ifdef pr_fmt
 #undef pr_fmt

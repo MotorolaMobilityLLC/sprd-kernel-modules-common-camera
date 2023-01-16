@@ -12,7 +12,8 @@
  */
 
 #include <linux/compat.h>
-#include "cam_buf_manager.h"
+
+#include "cam_buf_monitor.h"
 
 #ifdef CAM_IOCTL_LAYER
 
@@ -118,7 +119,7 @@ static int camioctl_iommu_status_get(struct camera_module *module,
 	struct device *dcam_dev = NULL;
 
 	dcam_dev = &module->grp->pdev->dev;
-	if (cam_buf_iommu_status_get(CAM_IOMMUDEV_DCAM) == 0)
+	if (cam_buf_iommu_status_get(CAM_BUF_IOMMUDEV_DCAM) == 0)
 		iommu_enable = 1;
 	else
 		iommu_enable = 0;
@@ -792,7 +793,6 @@ static int camioctl_output_size_set(struct camera_module *module,
 			&uparam->aux_img.dst_size, sizeof(struct img_size));
 	ret |= get_user(dst->frame_sync_close, &uparam->reserved[3]);
 
-	dst->scene = scene_mode;
 	if (cap_type == CAM_CAP_RAW_FULL && dst->is_high_fps)
 		dst->is_high_fps = 0;
 
@@ -925,8 +925,8 @@ static int camioctl_crop_set(struct camera_module *module,
 	struct channel_context *ch = NULL, *ch_vid = NULL;
 	struct sprd_img_rect crop = {0};
 	struct sprd_img_rect total_crop = {0};
-	struct camera_frame *first = NULL;
-	struct camera_frame *zoom_param = NULL;
+	struct camera_frame first_param = {0};
+	struct camera_zoom_frame zoom_param = {0};
 	struct sprd_img_parm __user *uparam = NULL;
 
 	if ((atomic_read(&module->state) != CAM_CFG_CH) &&
@@ -983,21 +983,17 @@ static int camioctl_crop_set(struct camera_module *module,
 			pr_err("fail to zoom during 3DNR capture\n");
 			goto exit;
 		}
-		zoom_param = cam_queue_empty_frame_get();
-		zoom_param->zoom_crop = crop;
-		zoom_param->total_zoom_crop = total_crop;
+		zoom_param.zoom_crop = crop;
+		zoom_param.total_zoom_crop = total_crop;
 		ch->latest_user_crop = crop;
-
-		if (cam_queue_enqueue(&ch->zoom_user_crop_q, &zoom_param->list)) {
+		if (cam_queue_enqueue_new(&ch->zoom_user_crop_q, struct camera_zoom_frame, &zoom_param)) {
 			/* if zoom queue overflow, discard first one node in queue*/
-			pr_warn("warning: ch %d zoom q overflow\n", channel_id);
-			first = cam_queue_dequeue(&ch->zoom_user_crop_q, struct camera_frame, list);
-			if (first)
-				cam_queue_empty_frame_put(first);
-			cam_queue_enqueue(&ch->zoom_user_crop_q, &zoom_param->list);
+			pr_warn("warning: ch %d zoom q overflow cnt:%d, state:%d, max:%d\n", channel_id, ch->zoom_user_crop_q.cnt,
+				ch->zoom_user_crop_q.state, ch->zoom_user_crop_q.max);
+			cam_queue_dequeue_new(&ch->zoom_user_crop_q, struct camera_frame, list, &first_param);
+			if (cam_queue_enqueue_new(&ch->zoom_user_crop_q, struct camera_zoom_frame, &zoom_param))
+				goto exit;
 		}
-		zoom_param = NULL;
-
 		if (ch_vid->enable && channel_id == CAM_CH_PRE) {
 			pr_debug("ch_vid->enable %d channel_id %d\n", ch_vid->enable, channel_id);
 			goto exit;
@@ -1010,9 +1006,6 @@ static int camioctl_crop_set(struct camera_module *module,
 	}
 
 exit:
-	if (zoom_param)
-		cam_queue_empty_frame_put(zoom_param);
-
 	return ret;
 }
 
@@ -1054,7 +1047,7 @@ static int camioctl_fmt_check(struct camera_module *module,
 {
 	int ret = 0;
 	enum cam_ch_id channel_id = 0;
-	struct sprd_img_format img_format = {0};
+	struct sprd_img_parm __user *uparam = NULL;
 	struct channel_context *channel = NULL;
 
 	if (atomic_read(&module->state) != CAM_CFG_CH) {
@@ -1063,9 +1056,10 @@ static int camioctl_fmt_check(struct camera_module *module,
 	}
 
 	pr_debug("check fmt\n");
-	ret = copy_from_user(&img_format, (void __user *)arg, sizeof(struct sprd_img_format));
+	uparam = (struct sprd_img_parm __user *)arg;
+	ret |= get_user(channel_id, &uparam->channel_id);
 	if (ret) {
-		pr_err("fail to get img_format\n");
+		pr_err("fail to get channel_id\n");
 		return -EFAULT;
 	}
 
@@ -1075,11 +1069,9 @@ static int camioctl_fmt_check(struct camera_module *module,
 		return -EFAULT;
 	}
 
-	channel_id = (enum cam_ch_id)img_format.channel_id;
 	channel = &module->channel[channel_id];
 
 	if (atomic_read(&module->state) == CAM_CFG_CH) {
-		/* to do: check & set channel format / param before stream on */
 		pr_info("chk_fmt ch %d\n", channel_id);
 		ret = camcore_pipeline_init(module, channel);
 		if (ret) {
@@ -1089,12 +1081,6 @@ static int camioctl_fmt_check(struct camera_module *module,
 		}
 	}
 
-	ret = copy_to_user((void __user *)arg, &img_format, sizeof(struct sprd_img_format));
-	if (ret) {
-		ret = -EFAULT;
-		pr_err("fail to copy to user\n");
-		goto exit;
-	}
 exit:
 	return ret;
 }
@@ -1315,7 +1301,7 @@ static int camioctl_stream_off(struct camera_module *module,
 
 	atomic_set(&module->state, CAM_STREAM_OFF);
 	module->capture_type = CAM_CAPTURE_STOP;
-	cam_kernel_timer_stop(&module->cam_timer);
+	camcore_timer_stop(&module->cam_timer);
 
 	hw = module->grp->hw_info;
 
@@ -1338,10 +1324,8 @@ static int camioctl_stream_off(struct camera_module *module,
 		ch = &module->channel[i];
 		if (!ch->enable)
 			continue;
-
-		cam_queue_clear(&ch->zoom_user_crop_q, struct camera_frame, list);
-		cam_queue_clear(&ch->zoom_param_q, struct cam_zoom_frame, list);
-
+		cam_queue_deinit(&ch->zoom_user_crop_q, struct camera_zoom_frame, list);
+		cam_queue_deinit(&ch->zoom_param_q, struct cam_zoom_frame, list);
 		if ((ch->ch_id == CAM_CH_PRE) || (ch->ch_id == CAM_CH_CAP)) {
 			mutex_lock(&module->buf_lock[ch->ch_id]);
 			if (ch->alloc_start) {
@@ -1360,88 +1344,12 @@ static int camioctl_stream_off(struct camera_module *module,
 				pr_err("fail to deinit statis q %d\n", ret);
 		}
 		camcore_pipeline_deinit(module, ch);
-		if (ch->ch_id == CAM_CH_CAP) {
-			pool_id.tag_id = CAM_BUF_POOL_CAM0_SENSOR_RAW_OUT + module->idx;
-			cam_buf_manager_pool_unreg(&pool_id);
-		}
 	}
 
 	for (i = 0; i < CAM_CH_MAX; i++) {
 		ch = &module->channel[i];
-		if (ch->ch_id == CAM_CH_CAP && module->grp->is_mul_buf_share) {
-			struct camera_frame *pframe = NULL;
-			struct camera_buf_get_desc buf_desc = {0};
-			pool_id.tag_id = CAM_BUF_POOL_SHARE_FULL_PATH;
-			buf_desc.buf_ops_cmd = CAM_BUF_STATUS_PUT_IOVA;
-			do {
-				pframe = cam_queue_dequeue(&ch->share_buf_queue,
-					struct camera_frame, list);
-				if (pframe == NULL)
-					break;
-				cam_buf_manager_buf_enqueue(&pool_id, pframe, &buf_desc);
-			} while (pframe);
-		} else
-			cam_queue_clear(&ch->share_buf_queue, struct camera_frame, list);
-
-		for (j = 0; j < ISP_NR3_BUF_NUM; j++) {
-			if (ch->nr3_bufs[j]) {
-				camcore_k_frame_put(ch->nr3_bufs[j]);
-				ch->nr3_bufs[j] = NULL;
-			}
-		}
-
-		if (module->cam_uinfo.is_rgb_ltm) {
-			for (j = 0; j < ISP_LTM_BUF_NUM; j++) {
-				if (ch->ltm_bufs[j]) {
-					if (ch->ch_id == CAM_CH_PRE)
-						camcore_k_frame_put(ch->ltm_bufs[j]);
-					ch->ltm_bufs[j] = NULL;
-				}
-			}
-		}
-
-		if (ch->postproc_buf) {
-			camcore_k_frame_put(ch->postproc_buf);
-			ch->postproc_buf = NULL;
-		}
-
-		if (ch->ch_id == CAM_CH_CAP && module->grp->is_mul_buf_share) {
-			if (ch->pyr_rec_buf) {
-				cam_queue_empty_frame_put(ch->pyr_rec_buf);
-				ch->pyr_rec_buf = NULL;
-			}
-			if (ch->pyr_dec_buf) {
-				cam_queue_empty_frame_put(ch->pyr_dec_buf);
-				ch->pyr_dec_buf = NULL;
-			}
-		} else {
-			if ((module->cam_uinfo.is_pyr_rec && ch->ch_id != CAM_CH_CAP)
-				|| (module->cam_uinfo.is_pyr_dec && ch->ch_id == CAM_CH_CAP)) {
-				if (ch->pyr_rec_buf) {
-					camcore_k_frame_put(ch->pyr_rec_buf);
-					ch->pyr_rec_buf = NULL;
-				}
-			}
-
-			if (module->cam_uinfo.is_pyr_dec && ch->ch_id == CAM_CH_CAP) {
-				if (ch->pyr_dec_buf) {
-					camcore_k_frame_put(ch->pyr_dec_buf);
-					ch->pyr_dec_buf = NULL;
-				}
-			}
-		}
-
 		memset(ch, 0, sizeof(struct channel_context));
-		ch->ch_id = i;
-		ch->dcam_port_id = -1;
-		ch->aux_dcam_port_id = -1;
-		ch->ch_uinfo.dcam_raw_fmt = -1;
-		ch->ch_uinfo.sensor_raw_fmt = -1;
-		ch->blk_pm.idx = DCAM_HW_CONTEXT_MAX;
-		init_dcam_pm(&ch->blk_pm);
-		init_completion(&ch->alloc_com);
-		init_completion(&ch->stream_on_buf_com);
-		init_completion(&ch->fast_stop);
+		camcore_channel_default_param_set(ch, i);
 	}
 	mutex_unlock(&module->zoom_lock);
 
@@ -1468,7 +1376,7 @@ static int camioctl_stream_off(struct camera_module *module,
 			camcore_k_frame_put(module->dual_frame);
 			module->dual_frame = NULL;
 		}
-		cam_queue_clear(&module->remosaic_queue, struct camera_frame, list);
+		cam_queue_clear_new(&module->remosaic_queue);
 		/* default 0, hal set 1 when needed */
 		module->auto_3dnr = 0;
 	}
@@ -1477,9 +1385,11 @@ static int camioctl_stream_off(struct camera_module *module,
 	pool_id.private_pool_idx = 0;
 	pool_id.reserved_pool_id = module->reserved_pool_id;
 	cam_buf_manager_buf_clear(&pool_id);
+	pool_id.tag_id = CAM_BUF_POOL_ABNORAM_RECYCLE;
+	cam_buf_manager_buf_clear(&pool_id);
 	atomic_set(&module->state, CAM_IDLE);
 
-	ret = cam_buf_mdbg_check();
+	ret = cam_buf_monitor_mdbg_check();
 	pr_info("cam %d stream off done.\n", module->idx);
 
 	return ret;
@@ -1518,9 +1428,12 @@ static int camioctl_stream_on(struct camera_module *module, unsigned long arg)
 			continue;
 		if (i == CAM_CH_VID && ch_pre->enable)
 			continue;
-		cam_queue_init(&ch->zoom_param_q, CAM_ZOOM_COEFF_Q_LEN, camcore_empty_zoom_put);
-		if (i == CAM_CH_CAP && module->cam_uinfo.dcam_slice_mode
-			&& !module->cam_uinfo.is_4in1)
+		ret = cam_queue_init_new(&ch->zoom_param_q, struct cam_zoom_frame, CAM_ZOOM_COEFF_Q_LEN, NULL);
+		if (ret) {
+			pr_err("fail to init zoom param crop q.\n");
+			goto exit;
+		}
+		if (i == CAM_CH_CAP && module->cam_uinfo.dcam_slice_mode && !module->cam_uinfo.is_4in1)
 			cam_zoom_channel_bigsize_config(module, ch);
 		camcore_buffer_channel_config(module, ch);
 		cam_zoom_channel_size_config(module, ch);
@@ -1538,7 +1451,12 @@ static int camioctl_stream_on(struct camera_module *module, unsigned long arg)
 		CAM_PIPEINE_ISP_IN_PORT_CFG(ch, PORT_ISP_OFFLINE_IN, CAM_PIPELINE_CFG_UFRAME, &uframe_sync);
 		CAM_PIPEINE_ISP_OUT_PORT_CFG(ch, ch->isp_port_id, CAM_PIPELINE_CFG_UFRAME, &uframe_sync);
 
-		cam_queue_init(&ch->zoom_user_crop_q, CAM_ZOOM_COEFF_Q_LEN, camcore_empty_frame_put);
+		ret = cam_queue_init_new(&ch->zoom_user_crop_q, struct camera_zoom_frame, CAM_ZOOM_COEFF_Q_LEN, camcore_buffer_status_put);
+		if (ret) {
+			pr_err("fail to init zoom user crop q.\n");
+			goto exit;
+		}
+
 		if (i == CAM_CH_PRE || (i == CAM_CH_VID && !module->channel[CAM_CH_PRE].enable) || (i == CAM_CH_CAP && !module->channel[CAM_CH_PRE].enable)) {
 			ret = camcore_buffer_path_cfg(module, i);
 			if (ret) {
@@ -1546,15 +1464,7 @@ static int camioctl_stream_on(struct camera_module *module, unsigned long arg)
 				goto exit;
 			}
 		}
-		ret = camcore_buffer_ltm_cfg(module, i);
-		if (ret) {
-			pr_err("fail to cfg ltm buffer\n");
-			goto exit;
-		}
 	}
-
-	/* no need release buffer, only release camera_frame */
-	cam_queue_init(&module->remosaic_queue, CAM_IRQ_Q_LEN, camcore_camera_frame_release);
 	module->dual_frame = NULL;
 
 	/* dcam online node stream on */
@@ -1577,6 +1487,7 @@ static int camioctl_stream_on(struct camera_module *module, unsigned long arg)
 	}
 	module->dcam_ctx_bind_state = 1;
 	atomic_set(&module->timeout_flag, 1);
+	module->timeout_num = 0;
 
 	if (module->cam_uinfo.is_longexp)
 		timer = CAMERA_LONGEXP_TIMEOUT;
@@ -1588,7 +1499,7 @@ static int camioctl_stream_on(struct camera_module *module, unsigned long arg)
 	atomic_inc(&module->grp->runner_nr);
 
 	pr_info("stream on done cam%d csi %d.\n", module->idx, module->dcam_idx);
-	cam_buf_mdbg_check();
+	cam_buf_monitor_mdbg_check();
 	return 0;
 
 exit:
@@ -2086,6 +1997,7 @@ static int camioctl_cam_post_proc(struct camera_module *module,
 		pframe->height = ch->ch_uinfo.src_size.h;
 		pframe->user_fid = user_fid;
 		pframe->fid = index;
+		pframe->zoom_data.zoom_mode = CAM_ZOOM_MODE_OLD;
 		pframe->sensor_time.tv_sec = reserved[0];
 		pframe->sensor_time.tv_usec = reserved[1];
 		pframe->boot_sensor_time = reserved[3];
@@ -2093,7 +2005,7 @@ static int camioctl_cam_post_proc(struct camera_module *module,
 		pframe->buf.type = CAM_BUF_USER;
 		pframe->link_from.node_type = CAM_NODE_TYPE_USER;
 		pframe->link_from.node_id = CAM_LINK_DEFAULT_NODE_ID;
-		ret |= get_user(pframe->buf.mfd,&uparam->fd_array[i]);
+		ret |= get_user(pframe->buf.mfd, &uparam->fd_array[i]);
 		ret |= get_user(pframe->buf.offset[0], &uparam->frame_addr_array[i].y);
 		ret |= get_user(pframe->buf.offset[1], &uparam->frame_addr_array[i].u);
 		ret |= get_user(pframe->buf.offset[2], &uparam->frame_addr_array[i].v);
@@ -2250,9 +2162,8 @@ static int camioctl_4in1_raw_addr_set(struct camera_module *module,
 		if (is_reserved_buf) {
 			module->reserved_buf_fd = pframe->buf.mfd;
 			pframe->is_reserved = CAM_RESERVED_BUFFER_ORI;
-			pframe->buf.size = cal_sprd_raw_pitch(ch->ch_uinfo.src_size.w, ch->ch_uinfo.dcam_raw_fmt)
-					* ch->ch_uinfo.src_size.h;
-			camcore_reserved_buf_cfg(RESERVED_BUF_SET_CB, pframe, module);
+			pframe->buf.size = cal_sprd_size(ch->ch_uinfo.src_size.w, ch->ch_uinfo.src_size.h, ch->ch_uinfo.dcam_raw_fmt);
+			cam_scene_reserved_buf_cfg(RESERVED_BUF_SET_CB, pframe, module);
 			module->res_frame = pframe;
 		} else {
 			ret = camcore_dcam_online_buf_cfg(ch, pframe, module);
@@ -2278,14 +2189,13 @@ static int camioctl_4in1_post_proc(struct camera_module *module,
 	int ret = 0;
 	int iommu_enable = 0;
 	struct channel_context *channel = NULL;
-	struct camera_frame *pframe = NULL;
+	struct camera_frame pframe = {0};
 	uint32_t index = 0, reserved1 = 0, reserved2 = 0, fd_array = 0;
 	int i = 0;
 	ktime_t sensor_time = {0};
 
 	if ((atomic_read(&module->state) != CAM_RUNNING)) {
-		pr_info("cam%d state: %d\n", module->idx,
-				atomic_read(&module->state));
+		pr_info("cam%d state: %d\n", module->idx, atomic_read(&module->state));
 		return -EFAULT;
 	}
 
@@ -2316,46 +2226,41 @@ static int camioctl_4in1_post_proc(struct camera_module *module,
 	/* get frame: 1:check id;2:check time;3:get first,4:get new */
 	i = cam_queue_cnt_get(&module->remosaic_queue);
 	while (i--) {
-		pframe = cam_queue_dequeue(&module->remosaic_queue,
-			struct camera_frame, list);
+		ret = cam_queue_dequeue_new(&module->remosaic_queue, struct camera_frame, list, &pframe);
 		/* check frame id */
-		if (pframe == NULL)
+		if (ret || (pframe.fid == index) || (pframe.boot_sensor_time == sensor_time))
 			break;
-		if (pframe->fid == index)
-			break;
-		if (pframe->boot_sensor_time == sensor_time)
-			break;
-		cam_queue_enqueue(&module->remosaic_queue, &pframe->list);
-		pframe = NULL;
+		cam_queue_enqueue_new(&module->remosaic_queue, struct camera_frame, &pframe);
+		ret = -1;
 	}
-	if (pframe == NULL) {
+	if (ret) {
 		pr_info("Can't find frame in the queue, get new one\n");
-		pframe = cam_queue_empty_frame_get();
-		pframe->boot_sensor_time = sensor_time;
-		pframe->sensor_time = cam_ktime_to_timeval(ktime_sub(
-			pframe->boot_sensor_time, ktime_sub(
+		pframe.boot_sensor_time = sensor_time;
+		pframe.sensor_time = cam_kernel_adapt_ktime_to_timeval(ktime_sub(
+			pframe.boot_sensor_time, ktime_sub(
 			ktime_get_boottime(), ktime_get())));
-		pframe->fid = index;
+		pframe.fid = index;
 	}
-	pframe->endian = ENDIAN_LITTLE;
-	pframe->pattern = module->cam_uinfo.sensor_if.img_ptn;
-	pframe->width = channel->ch_uinfo.src_size.w;
-	pframe->height = channel->ch_uinfo.src_size.h;
-	pframe->buf.type = CAM_BUF_USER;
-	pframe->buf.mfd = fd_array;
-	ret |= get_user(pframe->buf.addr_vir[0],&uparam->frame_addr_vir_array[0].y);
-	ret |= get_user(pframe->buf.addr_vir[1],&uparam->frame_addr_vir_array[0].u);
-	ret |= get_user(pframe->buf.addr_vir[2],&uparam->frame_addr_vir_array[0].v);
-	pframe->channel_id = channel->ch_id;
+	pframe.endian = ENDIAN_LITTLE;
+	pframe.pattern = module->cam_uinfo.sensor_if.img_ptn;
+	pframe.width = channel->ch_uinfo.src_size.w;
+	pframe.height = channel->ch_uinfo.src_size.h;
+	pframe.buf.type = CAM_BUF_USER;
+	pframe.buf.mfd = fd_array;
+	pframe.zoom_data.zoom_mode = CAM_ZOOM_MODE_OLD;
+	ret |= get_user(pframe.buf.addr_vir[0],&uparam->frame_addr_vir_array[0].y);
+	ret |= get_user(pframe.buf.addr_vir[1],&uparam->frame_addr_vir_array[0].u);
+	ret |= get_user(pframe.buf.addr_vir[2],&uparam->frame_addr_vir_array[0].v);
+	pframe.channel_id = channel->ch_id;
 
 	pr_info("frame[%d] fd %d addr_vir[0]=0x%lx iova=0x%lx\n",
-		pframe->fid, pframe->buf.mfd, pframe->buf.addr_vir[0],
-		pframe->buf.iova);
+		pframe.fid, pframe.buf.mfd, pframe.buf.addr_vir[0],
+		pframe.buf.iova[CAM_BUF_IOMMUDEV_DCAM]);
 
-	ret = camcore_frame_start_proc(module, pframe, CAM_NODE_TYPE_DCAM_OFFLINE);
+	ret = camcore_frame_start_proc(module, &pframe, CAM_NODE_TYPE_DCAM_OFFLINE);
 	if (ret) {
 		pr_err("fail to start dcam for raw proc\n");
-		cam_buf_destory(pframe);
+		cam_buf_destory(&pframe);
 		return -EFAULT;
 	}
 

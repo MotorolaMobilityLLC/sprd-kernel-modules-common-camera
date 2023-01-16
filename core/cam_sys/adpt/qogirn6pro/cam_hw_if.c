@@ -12,24 +12,19 @@
  */
 
 #include <linux/clk.h>
+#include <linux/mfd/syscon.h>
+#include <linux/of_address.h>
 #include <linux/regmap.h>
 #include <linux/spinlock.h>
 #include <sprd_mm.h>
 
-#include <linux/mfd/syscon.h>
-#include <linux/of_address.h>
-
 #include "cam_trusty.h"
-#include "dcam_reg.h"
-#include "dcam_int.h"
 #include "dcam_core.h"
-#include "dcam_hw_adpt.h"
-
-#include "isp_reg.h"
-#include "isp_hw_adpt.h"
-#include "isp_slice.h"
+#include "dcam_dummy.h"
+#include "dcam_reg.h"
 #include "isp_cfg.h"
-#include "isp_fmcu.h"
+#include "isp_slice.h"
+#include "isp_reg.h"
 
 #ifdef pr_fmt
 #undef pr_fmt
@@ -161,7 +156,7 @@ static int camhw_get_all_rst(void *handle, void *arg)
 	hw = (struct cam_hw_info *)handle;
 
 #if defined (PROJ_QOGIRN6L)
-	ret = cam_syscon_get_args_by_name(dn, "dcam0_mipi_reset", ARRAY_SIZE(args), args);
+	ret = cam_kernel_adapt_syscon_get_args_by_name(dn, "dcam0_mipi_reset", ARRAY_SIZE(args), args);
 	if (ret) {
 		pr_err("fail to get dcam0 mipi reset syscon\n");
 		return -EINVAL;
@@ -169,7 +164,7 @@ static int camhw_get_all_rst(void *handle, void *arg)
 	dcam_info = hw->ip_dcam[0];
 	dcam_info->syscon.rst_mipi_mask = args[1];
 
-	ret = cam_syscon_get_args_by_name(dn, "dcam1_mipi_reset", ARRAY_SIZE(args), args);
+	ret = cam_kernel_adapt_syscon_get_args_by_name(dn, "dcam1_mipi_reset", ARRAY_SIZE(args), args);
 	if (ret) {
 		pr_err("fail to get dcam1 mipi reset syscon\n");
 		return -EINVAL;
@@ -177,7 +172,7 @@ static int camhw_get_all_rst(void *handle, void *arg)
 	dcam_info = hw->ip_dcam[1];
 	dcam_info->syscon.rst_mipi_mask = args[1];
 
-	ret = cam_syscon_get_args_by_name(dn, "dcam01_fmcu_soft_reset", ARRAY_SIZE(args), args);
+	ret = cam_kernel_adapt_syscon_get_args_by_name(dn, "dcam01_fmcu_soft_reset", ARRAY_SIZE(args), args);
 	if (ret) {
 		pr_err("fail to get dcam01 fmcu reset syscon\n");
 		return -EINVAL;
@@ -188,7 +183,7 @@ static int camhw_get_all_rst(void *handle, void *arg)
 	dcam_info->syscon.rst_fmcu_mask = args[1];
 #endif
 
-	ret = cam_syscon_get_args_by_name(dn, "dcam01_axi_reset", ARRAY_SIZE(args), args);
+	ret = cam_kernel_adapt_syscon_get_args_by_name(dn, "dcam01_axi_reset", ARRAY_SIZE(args), args);
 	if (ret) {
 		pr_err("fail to get dcam axi reset syscon\n");
 		return -EINVAL;
@@ -199,7 +194,7 @@ static int camhw_get_all_rst(void *handle, void *arg)
 	dcam_info = hw->ip_dcam[1];
 	dcam_info->syscon.axi_rst_mask= args[1];
 
-	ret = cam_syscon_get_args_by_name(dn, "dcam01_all_reset", ARRAY_SIZE(args), args);
+	ret = cam_kernel_adapt_syscon_get_args_by_name(dn, "dcam01_all_reset", ARRAY_SIZE(args), args);
 	if (ret) {
 		pr_err("fail to get dcam all reset syscon\n");
 		return -EINVAL;
@@ -547,12 +542,14 @@ static struct cam_hw_ip_info dcam[DCAM_ID_MAX] = {
 		.dcam_raw_fbc_support = 0,
 		.dcam_offline_fbc_support = 0,
 		.dcam_output_strategy = IMG_QUALITY_PRI,
+		.dummy_slave_support = DCAM_DUMMY_SW_NEW_FRAME,
 #elif defined (PROJ_QOGIRN6PRO)
 		.dcam_full_fbc_support = 1,
 		.dcam_bin_fbc_support = 1,
 		.dcam_raw_fbc_support = 0,
 		.dcam_offline_fbc_support = 0,
 		.dcam_output_strategy = IMG_POWER_CONSUM_PRI,
+		.dummy_slave_support = 0,
 #endif
 		.dcam_raw_path_id = DCAM_PATH_RAW,
 		.bpc_raw_support = 1,
@@ -592,12 +589,14 @@ static struct cam_hw_ip_info dcam[DCAM_ID_MAX] = {
 		.dcam_raw_fbc_support = 0,
 		.dcam_offline_fbc_support = 0,
 		.dcam_output_strategy = IMG_QUALITY_PRI,
+		.dummy_slave_support = DCAM_DUMMY_SW_NEW_FRAME,
 #elif defined (PROJ_QOGIRN6PRO)
 		.dcam_full_fbc_support = 1,
 		.dcam_bin_fbc_support = 1,
 		.dcam_raw_fbc_support = 0,
 		.dcam_offline_fbc_support = 0,
 		.dcam_output_strategy = IMG_POWER_CONSUM_PRI,
+		.dummy_slave_support = 0,
 #endif
 		.dcam_raw_path_id = DCAM_PATH_RAW,
 		.bpc_raw_support = 1,

@@ -15,9 +15,6 @@
 #include <sprd_mm.h>
 
 #include "dcam_core.h"
-#include "cam_queue.h"
-#include "sprd_img.h"
-#include "dcam_hw_adpt.h"
 
 #ifdef pr_fmt
 #undef pr_fmt
@@ -81,8 +78,7 @@ int dcamslice_num_info_get(struct img_size *src, struct img_size *dst)
 			slice_w = (max_w + slice_num - 1) / slice_num;
 		} while (slice_w >= slice_max_w);
 	}
-	pr_debug("input_w %d, slice_num %d, slice_w %d\n",
-		max_w, slice_num, slice_w);
+	pr_debug("input_w %d, slice_num %d, slice_w %d\n", max_w, slice_num, slice_w);
 
 	/* based output */
 	max_w = output_w;
@@ -158,7 +154,8 @@ slices:
 	return ret;
 }
 
-int dcamslice_trim_info_get(uint32_t width, uint32_t heigth, uint32_t slice_num, uint32_t slice_no, struct img_trim *slice_trim)
+int dcamslice_trim_info_get(uint32_t width, uint32_t heigth, uint32_t slice_num,
+		uint32_t slice_no, struct img_trim *slice_trim)
 {
 	int ret = 0;
 	uint32_t slice_w = 0, slice_h = 0;

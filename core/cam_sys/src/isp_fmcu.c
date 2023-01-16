@@ -11,16 +11,9 @@
  * GNU General Public License for more details.
  */
 
-#include <linux/types.h>
-#include <linux/delay.h>
-#include <linux/sprd_iommu.h>
-#include <linux/sprd_ion.h>
-#include <sprd_mm.h>
-
-#include "cam_types.h"
-#include "isp_reg.h"
-#include "isp_fmcu.h"
 #include "cam_hw.h"
+#include "isp_fmcu.h"
+#include "isp_reg.h"
 
 #ifdef pr_fmt
 #undef pr_fmt
@@ -189,7 +182,7 @@ static int ispfmcu_ctx_init(void *handle)
 		ion_buf = &fmcu_ctx->ion_pool[i];
 		memset(ion_buf, 0, sizeof(fmcu_ctx->ion_pool[i]));
 
-		if (cam_buf_iommu_status_get(CAM_IOMMUDEV_ISP) == 0) {
+		if (cam_buf_iommu_status_get(CAM_BUF_IOMMUDEV_ISP) == 0) {
 			pr_debug("isp iommu enable\n");
 			iommu_enable = 1;
 		} else {
@@ -215,13 +208,13 @@ static int ispfmcu_ctx_init(void *handle)
 	}
 	for (i = 0; i < MAX_BUF; i++) {
 		ion_buf = &fmcu_ctx->ion_pool[i];
-		ret = cam_buf_iommu_map(ion_buf, CAM_IOMMUDEV_ISP);
+		ret = cam_buf_iommu_map(ion_buf, CAM_BUF_IOMMUDEV_ISP);
 		if (ret) {
 			pr_err("fail to map fmcu buffer\n");
 			ret = -EFAULT;
 			goto err_hwmap_fmcu;
 		}
-		fmcu_ctx->hw_addr[i] = ion_buf->iova;
+		fmcu_ctx->hw_addr[i] = ion_buf->iova[CAM_BUF_IOMMUDEV_ISP];
 		fmcu_ctx->cmdq_pos[i] = 0;
 		pr_info("fmcu%d cmd buf hw_addr:0x%lx, sw_addr:%p, size:%zd\n",
 			i, fmcu_ctx->hw_addr[i], fmcu_ctx->cmd_buf[i],
@@ -234,7 +227,7 @@ err_hwmap_fmcu:
 	for (i = 0; i < MAX_BUF; i++) {
 		ion_buf = &fmcu_ctx->ion_pool[i];
 		if (ion_buf)
-			cam_buf_iommu_unmap(ion_buf);
+			cam_buf_iommu_unmap(ion_buf, CAM_BUF_IOMMUDEV_ISP);
 	}
 err_kmap_fmcu:
 	for (i = 0; i < MAX_BUF; i++) {
@@ -266,7 +259,7 @@ static int ispfmcu_ctx_deinit(void *handle)
 	fmcu_ctx = (struct isp_fmcu_ctx_desc *)handle;
 	for (i = 0; i < MAX_BUF; i++) {
 		ion_buf = &fmcu_ctx->ion_pool[i];
-		cam_buf_iommu_unmap(ion_buf);
+		cam_buf_iommu_unmap(ion_buf, CAM_BUF_IOMMUDEV_ISP);
 		cam_buf_kunmap(ion_buf);
 		cam_buf_free(ion_buf);
 	}

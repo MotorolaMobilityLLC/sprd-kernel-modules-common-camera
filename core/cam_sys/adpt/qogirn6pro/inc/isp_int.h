@@ -17,9 +17,10 @@
 #include <linux/bitops.h>
 #include <linux/device.h>
 #include <linux/platform_device.h>
-#include "cam_types.h"
+
 #include "isp_dev.h"
-#include "isp_interface.h"
+
+typedef void(*isp_int_isr)(enum isp_context_hw_id idx, void *param);
 
 enum isp_irq_id {
 	ISP_INT_ISP_ALL_DONE,
@@ -71,7 +72,8 @@ enum isp_irq_id {
 	(1 << ISP_INT_NR3_FBD_ERR) |         \
 	(1 << ISP_INT_AXI_TIMEOUT) |         \
 	(1 << ISP_INT_REC_FIFO_ERR) |         \
-	(1 << ISP_INT_FBC_ERR))
+	(1 << ISP_INT_FBC_ERR) |         \
+	(1 << ISP_INT_CFG_ERR))
 
 #define ISP_INT_LINE_MASK_MMU                (1 << ISP_INT_MMU_ERR)
 
@@ -86,6 +88,7 @@ enum isp_irq_id {
 	(1 << ISP_INT_AXI_TIMEOUT) |         \
 	(1 << ISP_INT_REC_FIFO_ERR) |         \
 	(1 << ISP_INT_FBC_ERR) |         \
+	(1 << ISP_INT_CFG_ERR) |         \
 	(1 << ISP_INT_MMU_ERR))
 
 #define ISP_INT_LINE_MASK1     0
@@ -95,19 +98,15 @@ struct isp_int_ctxs_com {
 	uint32_t err_mask;
 	uint32_t irq_numbers;
 	const uint32_t *irq_vect;
-};
-
-struct ispint_isr_irq {
 	uint32_t irq_line;
 	uint32_t irq_line1;
+	isp_int_isr *isp_isr_handler;
+	uint32_t mmu_irq_line;
 };
 
-int isp_int_irq_hw_cnt_reset(int ctx_id);
-int isp_int_irq_hw_cnt_trace(int ctx_id);
-int isp_int_irq_request(struct device *p_dev,
-		uint32_t *irq_no, void *isp_handle);
-int isp_int_irq_sw_cnt_reset(int ctx_id);
-int isp_int_irq_sw_cnt_trace(int ctx_id);
-int isp_int_irq_free(struct device *p_dev, void *isp_handle);
+void ispint_iommu_regs_dump(void);
+int ispint_err_pre_proc(enum isp_context_hw_id hw_idx, void *isp_handle);
+struct isp_int_ctxs_com isp_int_reg_handle(int c_id);
+uint32_t isp_int_get_mmu_irq_line(struct isp_int_ctxs_com ctxs_com);
 
 #endif

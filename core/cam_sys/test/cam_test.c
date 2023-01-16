@@ -11,8 +11,8 @@
  * GNU General Public License for more details.
  */
 
-#include <linux/uaccess.h>
 #include <linux/fs.h>
+#include <linux/uaccess.h>
 
 #include "cam_test.h"
 
@@ -40,7 +40,7 @@ void camt_write_image_to_file(unsigned char *buffer,
 	unsigned int per = BYTE_PER_ONCE;
 	struct file *wfp;
 
-	wfp = cam_filp_open(file, O_CREAT|O_RDWR, 0666);
+	wfp = cam_kernel_adapt_filp_open(file, O_CREAT|O_RDWR, 0666);
 	if (IS_ERR_OR_NULL(wfp)) {
 		pr_err("fail to open file %s\n", file);
 		return;
@@ -49,7 +49,7 @@ void camt_write_image_to_file(unsigned char *buffer,
 	pr_info("write image buf=%p, size=%d\n", buffer, left);
 	do {
 		cur = min(left, per);
-		result = cam_kernel_write(wfp, buffer, cur, &wfp->f_pos);
+		result = cam_kernel_adapt_write(wfp, buffer, cur, &wfp->f_pos);
 		if (result > 0) {
 			left -= result;
 			buffer += result;
@@ -69,7 +69,7 @@ void read_image_from_file(unsigned char *buffer,
 	unsigned int per = BYTE_PER_ONCE;
 	struct file *fp;
 
-	fp = cam_filp_open(file, O_RDONLY, 0);
+	fp = cam_kernel_adapt_filp_open(file, O_RDONLY, 0);
 	if (IS_ERR_OR_NULL(fp)) {
 		pr_err("fail to open file %s\n", file);
 		return;
@@ -79,7 +79,7 @@ void read_image_from_file(unsigned char *buffer,
 	pr_info("read image buf=%p, size=%d\n", buffer, left);
 	do {
 		cur = min(left, per);
-		result = cam_kernel_read(fp, buffer, cur, &fp->f_pos);
+		result = cam_kernel_adapt_read(fp, buffer, cur, &fp->f_pos);
 		if (result > 0) {
 			left -= result;
 			buffer += result;

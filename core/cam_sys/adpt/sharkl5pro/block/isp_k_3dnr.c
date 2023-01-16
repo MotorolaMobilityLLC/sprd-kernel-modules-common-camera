@@ -13,11 +13,9 @@
 
 #include <linux/uaccess.h>
 #include <sprd_mm.h>
-#include  "cam_trusty.h"
 
-#include "isp_hw.h"
+#include "cam_trusty.h"
 #include "isp_reg.h"
-#include "cam_block.h"
 #include "isp_3dnr.h"
 
 #ifdef pr_fmt

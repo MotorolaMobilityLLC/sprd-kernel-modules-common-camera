@@ -13,11 +13,9 @@
 
 #include <linux/uaccess.h>
 #include <sprd_mm.h>
-#include  "cam_trusty.h"
 
-#include "isp_hw.h"
+#include "cam_trusty.h"
 #include "isp_reg.h"
-#include "cam_block.h"
 #include "isp_3dnr.h"
 
 #ifdef pr_fmt
@@ -95,12 +93,6 @@ static void isp_3dnr_config_mem_ctrl(uint32_t idx,
 		(mem_ctrl->blend_y_en_start_row & 0x1FFF);
 	ISP_REG_WR(idx, ISP_3DNR_MEM_CTRL_PARAM8, val);
 
-	/*
-	 * following code in minicode ? How TODO
-	 *
-	 * val = (((mem_ctrl->img_height - 1) & 0xFFF) << 16)    |
-	 *        ((mem_ctrl->img_width - 1) & 0xFFF);
-	 */
 	val = ((mem_ctrl->blend_y_en_end_col & 0x1FFF) << 16) |
 	       (mem_ctrl->blend_y_en_end_row & 0x1FFF);
 	ISP_REG_WR(idx, ISP_3DNR_MEM_CTRL_PARAM9, val);
@@ -109,12 +101,6 @@ static void isp_3dnr_config_mem_ctrl(uint32_t idx,
 	       (mem_ctrl->blend_uv_en_start_row & 0x1FFF);
 	ISP_REG_WR(idx, ISP_3DNR_MEM_CTRL_PARAM10, val);
 
-	/*
-	 * following code in minicode ? How TODO
-	 *
-	 * val = (((mem_ctrl->img_height/2 - 1) & 0xFFF) << 16)    |
-	 *        ((mem_ctrl->img_width - 1) & 0xFFF);
-	 */
 	val = ((mem_ctrl->blend_uv_en_end_col & 0x1FFF) << 16) |
 	       (mem_ctrl->blend_uv_en_end_row & 0x1FFF);
 	ISP_REG_WR(idx, ISP_3DNR_MEM_CTRL_PARAM11, val);
@@ -370,9 +356,6 @@ static int isp_k_3dnr_block(struct isp_io_param *param,
 	return ret;
 }
 
-/*
- * global function
- */
 void isp_3dnr_bypass_config(uint32_t idx)
 {
 	ISP_REG_MWR(idx, ISP_3DNR_MEM_CTRL_PARAM0, BIT_0, 1);
@@ -421,7 +404,6 @@ void isp_3dnr_config_param(struct isp_3dnr_ctx_desc *ctx)
 		(blend->y_pixel_noise_threshold & 0xFF);
 	ISP_REG_WR(idx, ISP_3DNR_BLEND_CFG1, val);
 }
-
 
 int isp_k_update_3dnr(uint32_t idx,
 	struct dcam_isp_k_block *isp_k_param,

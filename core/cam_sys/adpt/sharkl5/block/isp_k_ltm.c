@@ -14,11 +14,9 @@
 #include <linux/uaccess.h>
 #include <sprd_mm.h>
 
-#include "isp_reg.h"
 #include "cam_block.h"
 #include "isp_ltm.h"
-#include "sprd_isp_2v6.h"
-#include "cam_queue.h"
+#include "isp_reg.h"
 
 #ifdef pr_fmt
 #undef pr_fmt
@@ -46,14 +44,13 @@ static void isp_ltm_config_hists(uint32_t idx, struct isp_ltm_hists *hists)
 
 	val = ((hists->roi_start_y & 0x1FFF) << 16) |
 		(hists->roi_start_x & 0x1FFF);
-	ISP_REG_WR(idx, base + ISP_LTM_ROI_START, val); /* slice */
+	ISP_REG_WR(idx, base + ISP_LTM_ROI_START, val);
 
-	/* tile_num_y tile_num_x HOW TODO */
-	val = ((hists->tile_num_y_minus & 0x7)   << 28) |
-		((hists->tile_height      & 0x1FF) << 16) |
-		((hists->tile_num_x_minus & 0x7)   << 12) |
-		(hists->tile_width       & 0x1FF);
-	ISP_REG_WR(idx, base + ISP_LTM_TILE_RANGE, val); /* slice */
+	val = ((hists->tile_num_y_minus & 0x7) << 28) |
+		((hists->tile_height & 0x1FF) << 16) |
+		((hists->tile_num_x_minus & 0x7) << 12) |
+		(hists->tile_width & 0x1FF);
+	ISP_REG_WR(idx, base + ISP_LTM_TILE_RANGE, val);
 
 	val = ((hists->clip_limit_min & 0xFFFF) << 16) |
 		(hists->clip_limit     & 0xFFFF);
@@ -64,11 +61,11 @@ static void isp_ltm_config_hists(uint32_t idx, struct isp_ltm_hists *hists)
 	ISP_REG_WR(idx, base + ISP_LTM_THRES, val);
 
 	val = hists->addr;
-	ISP_REG_WR(idx, base + ISP_LTM_ADDR, val); /* slice */
+	ISP_REG_WR(idx, base + ISP_LTM_ADDR, val);
 
 	val = ((hists->wr_num & 0x1FF) << 16) |
 		(hists->pitch & 0xFFFF);
-	ISP_REG_WR(idx, base + ISP_LTM_PITCH, val); /* slice */
+	ISP_REG_WR(idx, base + ISP_LTM_PITCH, val);
 
 }
 

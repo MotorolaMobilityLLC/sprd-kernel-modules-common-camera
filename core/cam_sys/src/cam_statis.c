@@ -14,8 +14,6 @@
 #include <linux/slab.h>
 
 #include "cam_statis.h"
-#include "isp_dev.h"
-#include "isp_node.h"
 
 #ifdef pr_fmt
 #undef pr_fmt
@@ -88,8 +86,8 @@ int cam_statis_dcam_port_bufferq_deinit(void *dcam_handle)
 
 			pr_debug("stats %d,  j %d,  mfd %d, offset %d\n",
 				stats_type, j, mfd, ion_buf->offset[0]);
-			cam_buf_manager_buf_status_change(ion_buf, CAM_BUF_ALLOC, CAM_IOMMUDEV_DCAM);
-			ion_buf->iova = 0UL;
+			cam_buf_manager_buf_status_cfg(ion_buf, CAM_BUF_STATUS_MOVE_TO_ALLOC, CAM_BUF_IOMMUDEV_DCAM);
+			ion_buf->iova[CAM_BUF_IOMMUDEV_DCAM] = 0UL;
 			ion_buf->addr_k = 0UL;
 		}
 	}
@@ -130,9 +128,9 @@ int cam_statis_dcam_port_bufferq_init(void *dcam_handle)
 				continue;
 
 			if (stats_type != STATIS_PDAF)
-				ret = cam_buf_manager_buf_status_change(ion_buf, CAM_BUF_WITH_IOVA_K_ADDR, CAM_IOMMUDEV_DCAM);
+				ret = cam_buf_manager_buf_status_cfg(ion_buf, CAM_BUF_STATUS_GET_IOVA_K_ADDR, CAM_BUF_IOMMUDEV_DCAM);
 			else
-				ret = cam_buf_manager_buf_status_change(ion_buf, CAM_BUF_WITH_IOVA, CAM_IOMMUDEV_DCAM);
+				ret = cam_buf_manager_buf_status_cfg(ion_buf, CAM_BUF_STATUS_GET_IOVA, CAM_BUF_IOMMUDEV_DCAM);
 			if (ret)
 				continue;
 
@@ -150,7 +148,7 @@ int cam_statis_dcam_port_bufferq_init(void *dcam_handle)
 
 			pr_debug("dcam%d statis %d buf %d kaddr 0x%lx iova 0x%08x, size %x\n",
 				dcam_node->hw_ctx_id, stats_type, ion_buf->mfd,
-				ion_buf->addr_k, (uint32_t)ion_buf->iova , ion_buf->size);
+				ion_buf->addr_k, (uint32_t)ion_buf->iova[CAM_BUF_IOMMUDEV_DCAM], ion_buf->size);
 			if (ion_buf->size > res_buf_size)
 				res_buf_size = (uint32_t)ion_buf->size;
 		}
@@ -259,7 +257,7 @@ int cam_statis_dcam_port_buffer_cfg(
 		ret = cam_buf_manager_buf_enqueue(&dcam_port->unprocess_pool, pframe, NULL);
 		pr_debug("statis %d, mfd %d, off %d, iova 0x%08x,  kaddr 0x%lx\n",
 			input->type, mfd, offset,
-			(uint32_t)pframe->buf.iova, pframe->buf.addr_k);
+			(uint32_t)pframe->buf.iova[CAM_BUF_IOMMUDEV_DCAM], pframe->buf.addr_k);
 
 		if (ret)
 			cam_queue_empty_frame_put(pframe);
@@ -301,7 +299,7 @@ static int cam_statis_isp_q_init(void *isp_handle, void *node,
 	struct isp_node *inode = NULL;
 	struct camera_buf *ion_buf = NULL;
 	struct camera_frame *pframe = NULL;
-	struct camera_queue *statis_q = NULL;
+	struct cam_buf_pool_id *statis_q = NULL;
 
 	dev = (struct isp_pipe_dev *)isp_handle;
 	inode = (struct isp_node *)node;
@@ -312,9 +310,9 @@ static int cam_statis_isp_q_init(void *isp_handle, void *node,
 		if ((stats_type == STATIS_GTMHIST) && (inode->dev->isp_hw->ip_isp->rgb_gtm_support == 0))
 			continue;
 		if (stats_type == STATIS_HIST2)
-			statis_q = &inode->hist2_result_queue;
+			statis_q = &inode->hist2_pool;
 		else if (stats_type == STATIS_GTMHIST)
-			statis_q = &inode->gtmhist_result_queue;
+			statis_q = &inode->gtmhist_pool;
 		else
 			continue;
 		for (j = 0; j < STATIS_BUF_NUM_MAX; j++) {
@@ -325,25 +323,16 @@ static int cam_statis_isp_q_init(void *isp_handle, void *node,
 			ion_buf->mfd = mfd;
 			ion_buf->offset[0] = input->offset_array[stats_type][j];
 			ion_buf->type = CAM_BUF_USER;
-			ret = cam_buf_ionbuf_get(ion_buf);
-			if (ret) {
-				memset(ion_buf, 0, sizeof(struct camera_buf));
+			ion_buf->status = CAM_BUF_ALLOC;
+			ret = cam_buf_manager_buf_status_cfg(ion_buf, CAM_BUF_STATUS_GET_IOVA_K_ADDR, CAM_BUF_IOMMUDEV_ISP);
+			if (ret)
 				continue;
-			}
-
-			ret = cam_buf_kmap(ion_buf);
-			if (ret) {
-				cam_buf_ionbuf_put(ion_buf);
-				memset(ion_buf, 0, sizeof(struct camera_buf));
-				continue;
-			}
-
 			pframe = cam_queue_empty_frame_get();
 			pframe->channel_id = inode->ch_id;
 			pframe->irq_property = stats_type;
 			pframe->buf = *ion_buf;
 			pframe->buf.type = CAM_BUF_NONE;
-			ret = cam_queue_enqueue(statis_q, &pframe->list);
+			ret = cam_buf_manager_buf_enqueue(statis_q, pframe, NULL);
 			if (ret) {
 				pr_info("statis %d overflow\n", stats_type);
 				cam_queue_empty_frame_put(pframe);
@@ -351,7 +340,7 @@ static int cam_statis_isp_q_init(void *isp_handle, void *node,
 
 			pr_debug("buf_num %d, buf %d, off %d, kaddr 0x%lx iova 0x%08x\n",
 				j, ion_buf->mfd, ion_buf->offset[0],
-				ion_buf->addr_k, (uint32_t)ion_buf->iova);
+				ion_buf->addr_k, (uint32_t)ion_buf->iova[CAM_BUF_IOMMUDEV_ISP]);
 		}
 	}
 
@@ -369,7 +358,7 @@ int cam_statis_isp_buffer_cfg(void *isp_handle, void *node,
 	struct isp_node *inode = NULL;
 	struct camera_buf *ion_buf = NULL;
 	struct camera_frame *pframe = NULL;
-	struct camera_queue *statis_q = NULL;
+	struct cam_buf_pool_id *statis_q = NULL;
 
 	if (!isp_handle || !node || !input) {
 		pr_info("isp_handle=%p, cxt_id=%d\n", isp_handle, node);
@@ -393,9 +382,9 @@ int cam_statis_isp_buffer_cfg(void *isp_handle, void *node,
 		return 0;
 
 	if (input->type == STATIS_HIST2)
-		statis_q = &inode->hist2_result_queue;
+		statis_q = &inode->hist2_pool;
 	else if (input->type == STATIS_GTMHIST)
-		statis_q = &inode->gtmhist_result_queue;
+		statis_q = &inode->gtmhist_pool;
 	else {
 		pr_warn("statis type %d not support\n");
 		return 0;
@@ -423,14 +412,14 @@ int cam_statis_isp_buffer_cfg(void *isp_handle, void *node,
 	pframe->irq_property = input->type;
 	pframe->buf = *ion_buf;
 	pframe->buf.type = CAM_BUF_NONE;
-	ret = cam_queue_enqueue(statis_q, &pframe->list);
+	ret = cam_buf_manager_buf_enqueue(statis_q, pframe, NULL);
 	if (ret) {
 		pr_info("statis %d overflow\n", input->type);
 		cam_queue_empty_frame_put(pframe);
 	}
 	pr_debug("buf %d, off %d, kaddr 0x%lx iova 0x%08x\n",
 		ion_buf->mfd, ion_buf->offset[0],
-		ion_buf->addr_k, (uint32_t)ion_buf->iova);
+		ion_buf->addr_k, (uint32_t)ion_buf->iova[CAM_BUF_IOMMUDEV_ISP]);
 	return 0;
 }
 
@@ -460,26 +449,12 @@ int cam_statis_isp_buffer_unmap(void *isp_handle, void *node)
 
 			pr_info("ctx %d free buf %d, off %d, kaddr 0x%lx iova 0x%08x\n",
 				inode->node_id, ion_buf->mfd, ion_buf->offset[0],
-				ion_buf->addr_k, (uint32_t)ion_buf->iova);
+				ion_buf->addr_k, (uint32_t)ion_buf->iova[CAM_BUF_IOMMUDEV_ISP]);
 
-			cam_buf_kunmap(ion_buf);
-			cam_buf_ionbuf_put(ion_buf);
+			cam_buf_manager_buf_status_cfg(ion_buf, CAM_BUF_STATUS_MOVE_TO_ALLOC, CAM_BUF_IOMMUDEV_ISP);
 			memset(ion_buf, 0, sizeof(struct camera_buf));
 		}
 	}
 	pr_debug("done.\n");
 	return ret;
-}
-
-void cam_statis_isp_buf_destroy(void *param)
-{
-	struct camera_frame *frame = NULL;
-
-	if (!param) {
-		pr_err("fail to get input ptr.\n");
-		return;
-	}
-
-	frame = (struct camera_frame *)param;
-	cam_queue_empty_frame_put(frame);
 }

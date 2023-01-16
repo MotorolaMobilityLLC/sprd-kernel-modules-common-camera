@@ -594,25 +594,20 @@ static int dcamhw_fetch_set(void *handle, void *arg)
 		fetch_pitch = (fetch->fetch_info->size.w * 10 + 127) / 128;
 	pr_info("size [%d %d], start %d, pitch %d, 0x%x fmt %s\n",
 		fetch->fetch_info->trim.size_x, fetch->fetch_info->trim.size_y,
-		fetch->fetch_info->trim.start_x, fetch_pitch, fetch->fetch_info->addr.addr_ch0, camport_fmt_name_get(fetch->fetch_info->fmt));
-	/* (bitfile)unit 32b,(spec)64b */
+		fetch->fetch_info->trim.start_x, fetch_pitch, fetch->fetch_info->addr.addr_ch0,
+		camport_fmt_name_get(fetch->fetch_info->fmt));
 
 	DCAM_REG_MWR(fetch->idx, DCAM_INT_CLR,
 		DCAMINT_IRQ_LINE_MASK, DCAMINT_IRQ_LINE_MASK);
 	DCAM_REG_MWR(fetch->idx, DCAM_INT_EN,
 		DCAMINT_IRQ_LINE_MASK, DCAMINT_IRQ_LINE_MASK);
-	DCAM_REG_MWR(fetch->idx,
-		DCAM_MIPI_CAP_CFG, BIT_12, 0x1 << 12);
-	DCAM_REG_MWR(fetch->idx,
-		DCAM_MIPI_CAP_CFG, BIT_1, 0x1 << 1);
-	DCAM_REG_MWR(fetch->idx,
-		DCAM_MIPI_CAP_CFG, BIT_3, 0x0 << 3);
+	DCAM_REG_MWR(fetch->idx, DCAM_MIPI_CAP_CFG, BIT_12, 0x1 << 12);
+	DCAM_REG_MWR(fetch->idx, DCAM_MIPI_CAP_CFG, BIT_1, 0x1 << 1);
+	DCAM_REG_MWR(fetch->idx, DCAM_MIPI_CAP_CFG, BIT_3, 0x0 << 3);
 	DCAM_REG_MWR(fetch->idx, DCAM_BAYER_INFO_CFG,
 		BIT_5 | BIT_4, (fetch->fetch_info->pattern & 3) << 4);
-	DCAM_AXIM_MWR(IMG_FETCH_CTRL,
-		BIT_1 | BIT_0, pack_bits);
-	DCAM_AXIM_MWR(IMG_FETCH_CTRL,
-		BIT_3 | BIT_2, fetch->fetch_info->endian << 2);
+	DCAM_AXIM_MWR(IMG_FETCH_CTRL, BIT_1 | BIT_0, pack_bits);
+	DCAM_AXIM_MWR(IMG_FETCH_CTRL, BIT_3 | BIT_2, fetch->fetch_info->endian << 2);
 	DCAM_AXIM_WR(IMG_FETCH_SIZE,
 		(fetch->fetch_info->trim.size_y << 16) | (fetch->fetch_info->trim.size_x & 0xffff));
 	DCAM_AXIM_WR(IMG_FETCH_X,
@@ -1040,7 +1035,7 @@ static int dcamhw_lbuf_share_set(void *handle, void *arg)
 	struct cam_hw_lbuf_share *camarg = (struct cam_hw_lbuf_share *)arg;
 	uint32_t dcam0_mipi_en = 0, dcam1_mipi_en = 0;
 
-	cam_kproperty_get("auto/efuse",buf, "-1");
+	cam_kernel_adapt_kproperty_get("auto/efuse",buf, "-1");
 	/*0: T606 1:T616*/
 	if(strncmp(buf, "T616", strlen("T616")) == 0) {
 		if (camarg->width > DCAM_48M_WIDTH)

@@ -13,11 +13,12 @@
 
 #ifndef _ISP_DEV_H_
 #define _ISP_DEV_H_
+
 #include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/sprd_ion.h>
 
-#include "sprd_img.h"
+#include "sprd_cam.h"
 #include "isp_hwctx.h"
 #include "cam_hw.h"
 #include "isp_interface.h"
@@ -56,6 +57,10 @@ struct isp_pipe_dev {
 	atomic_t user_cnt;
 	atomic_t pd_clk_rdy;
 	atomic_t enable;
+	atomic_t pyr_mulshare_dec_alloced;
+	atomic_t pyr_mulshare_rec_alloced;
+	struct mutex pyr_mulshare_dec_lock;
+	struct mutex pyr_mulshare_rec_lock;
 	struct mutex path_mutex;
 	struct mutex dev_lock;
 	struct completion frm_done;

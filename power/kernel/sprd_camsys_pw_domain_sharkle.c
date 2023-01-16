@@ -47,7 +47,8 @@ static const char * const syscon_name[] = {
 	"force_shutdown",
 	"pd_mm_state",
 	"anlg_apb_eb",
-	"qos_threshold_mm"
+	"qos_threshold_mm",
+	"aon-apb-mm-eb"
 };
 
 enum  {
@@ -55,7 +56,8 @@ enum  {
 	CAMSYS_FORCE_SHUTDOWN,
 	CAMSYS_PD_MM_STATE,
 	CAMSYS_ANLG_APB_EB,
-	CAMSYS_QOS_THRESHOLD_MM
+	CAMSYS_QOS_THRESHOLD_MM,
+	CAMSYS_AON_APB_MM_EB
 };
 
 static int sprd_cam_domain_eb(struct camsys_power_info *pw_info)
@@ -222,6 +224,7 @@ static long sprd_campw_init(struct platform_device *pdev, struct camsys_power_in
 	const char *pname;
 	struct regmap *tregmap;
 	uint32_t i, args[2];
+	struct register_gpr *preg_gpr;
 
 	pw_info->u.le.cam_clk_cphy_cfg_gate_eb =
 		devm_clk_get(&pdev->dev, "clk_cphy_cfg_gate_eb");
@@ -265,6 +268,26 @@ static long sprd_campw_init(struct platform_device *pdev, struct camsys_power_in
 			pw_info->u.le.syscon_regs[i].reg,
 			pw_info->u.le.syscon_regs[i].mask);
 	}
+
+	
+	preg_gpr = &pw_info->u.le.syscon_regs[CAMSYS_AON_APB_MM_EB];
+		regmap_update_bits(preg_gpr->gpr,
+					preg_gpr->reg,
+					preg_gpr->mask,
+					~preg_gpr->mask);
+	
+	
+		preg_gpr = &pw_info->u.le.syscon_regs[CAMSYS_SHUTDOWN_EN];
+		regmap_update_bits(preg_gpr->gpr,
+			preg_gpr->reg,
+			preg_gpr->mask,
+			~preg_gpr->mask);
+		preg_gpr = &pw_info->u.le.syscon_regs[CAMSYS_FORCE_SHUTDOWN];
+		regmap_update_bits(preg_gpr->gpr,
+			preg_gpr->reg,
+			preg_gpr->mask,
+			preg_gpr->mask);
+		
 	return 0;
 }
 

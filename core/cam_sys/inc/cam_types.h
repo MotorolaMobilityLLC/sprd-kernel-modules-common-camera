@@ -15,7 +15,7 @@
 #define _CAM_TYPES_H_
 
 #include <linux/completion.h>
-#include "sprd_img.h"
+#include "sprd_cam.h"
 #include "cam_kernel_adapt.h"
 #include <linux/spinlock.h>
 #include "cam_thread.h"
@@ -29,15 +29,20 @@
 
 #define ZOOM_RATIO_DEFAULT              1000
 #define CAM_BUF_ALIGN_SIZE              4
-#define ALIGN_OFFSET                    16
 #define PYR_DEC_WIDTH_ALIGN             4
 #define PYR_DEC_HEIGHT_ALIGN            2
+#define TIME_SIZE_RATIO                 1000000
+
+#ifdef PERFORMANCE_DEBUG_ON
+#define PERFORMANCE_DEBUG pr_info
+#else
+#define PERFORMANCE_DEBUG pr_debug
+#endif
+
 /* To avoid rec fifo err, isp fetch burst_lens = 8, then MIN_PYR_WIDTH >= 128;
  isp fetch burst_lens = 16, then MIN_PYR_WIDTH >= 256. */
 #define MIN_PYR_WIDTH                   128
 #define MIN_PYR_HEIGHT                  16
-#define PYR_IS_PACK                     1
-#define IS_PACK_3DNR                    1
 #define ALIGN_UP(a, x)                  (((a) + (x) - 1) & (~((x) - 1)))
 
 /*************** for global debug starts********************/
@@ -86,10 +91,8 @@ struct cam_mem_dbg_info {
 	atomic_t ion_dma_cnt;
 	atomic_t iommu_map_cnt[6];
 	atomic_t empty_frm_cnt;
-	atomic_t empty_interruption_cnt;
 	atomic_t mem_kzalloc_cnt;
 	atomic_t mem_vzalloc_cnt;
-	atomic_t empty_zoom_cnt;
 	struct camera_queue *empty_memory_alloc_queue;
 	struct camera_queue *memory_alloc_queue;
 	struct camera_queue *buf_map_calc_queue;
@@ -234,12 +237,6 @@ struct img_scaler_info {
 	struct img_size dst_size;
 };
 
-enum share_buf_cb_type {
-	SHARE_BUF_GET_CB,
-	SHARE_BUF_SET_CB,
-	SHARE_BUF_MAX_CB,
-};
-
 enum reserved_buf_cb_type {
 	RESERVED_BUF_GET_CB,
 	RESERVED_BUF_SET_CB,
@@ -340,33 +337,25 @@ struct cam_buf_alloc_desc {
 	uint32_t is_pyr_rec;
 	uint32_t is_pyr_dec;
 	uint32_t pyr_out_fmt;
+	uint32_t pyr_layer_num;
 	uint32_t cam_idx;
-	uint32_t sec_mode;
 	uint32_t dcamonline_buf_alloc_num;
 	uint32_t dcamoffline_buf_alloc_num;
 	uint32_t sensor_img_ptn;
 	uint32_t share_buffer;
 	uint32_t iommu_enable;
+	uint32_t is_super_size;
+	uint32_t ch_vid_enable;
+	struct img_size dst_size;
+	struct img_size chvid_dst_size;
 	uint32_t stream_on_need_buf_num;
 	struct completion *stream_on_buf_com;
-};
-
-enum cam_user_data_type {
-	CAM_USERDATA_PREVIEW,
-	CAM_USERDATA_VIDEO,
-	CAM_USERDATA_CAPTURE,
-	CAM_USERDATA_THUMBNAIL,
-	CAM_USERDATA_AEM,
-	CAM_USERDATA_AFM,
-	CAM_USERDATA_PDAF,
-	CAM_USERDATA_AFL,
-	CAM_USERDATA_LSCM,
-	CAM_USERDATA_3DNRME,
-	CAM_USERDATA_BAYERHIST,
-	CAM_USERDATA_HIST2,
-	CAM_USERDATA_GTMHIST,
-	CAM_USERDATA_LTMHIST,
-	CAM_USERDATA_TYPE_NUM,
+	uint32_t nr3_enable;
+	uint32_t compress_3dnr;
+	uint32_t dcam_out_fmt;
+	uint32_t ltm_mode;
+	uint32_t ltm_rgb_enable;
+	uint32_t ltm_buf_mode;
 };
 
 struct slowmotion_960fps_info {
@@ -388,16 +377,25 @@ enum shutoff_type {
 };
 
 extern struct camera_queue *g_ion_buf_q;
-extern struct camera_queue *g_empty_zoom_q;
 extern struct camera_queue *g_empty_frm_q;
 
-typedef int(*isp_dev_callback)(enum cam_cb_type type, void *param,
-				void *priv_data);
-typedef int(*dcam_dev_callback)(enum cam_cb_type type, void *param,
-				void *priv_data);
-typedef int (*pyr_dec_buf_cb)(void *param, void *cb_handle);
-typedef int(*share_buf_get_cb)(enum share_buf_cb_type type, void *param,
-				void *cb_handle);
+uint32_t cam_data_bits(uint32_t dcam_out_fmt);
+uint32_t cam_pack_bits(uint32_t raw_out_fmt);
+uint32_t cam_is_pack(uint32_t dcam_out_fmt);
+uint32_t cam_format_get(uint32_t img_pix_fmt);
+int cam_raw_fmt_get(uint32_t fmt);
+int dcampath_outpitch_get(uint32_t w, uint32_t dcam_out_fmt);
+int dcampath_bin_scaler_get(struct img_size crop, struct img_size dst,
+		uint32_t *scaler_sel, uint32_t *bin_ratio);
+int cam_valid_fmt_get(int32_t *fmt, uint32_t default_value);
+
+uint32_t dcamonline_portid_convert_to_pathid(uint32_t port_id);
+uint32_t dcamoffline_portid_convert_to_pathid(uint32_t port_id);
+uint32_t dcamoffline_pathid_convert_to_portid(uint32_t path_id);
+uint32_t dcamonline_pathid_convert_to_portid(uint32_t path_id);
+
+
+typedef int(*pyr_dec_buf_cb)(void *param, void *cb_handle);
 typedef int(*reserved_buf_get_cb)(enum reserved_buf_cb_type type, void *param,
 				void *cb_handle);
 typedef struct camera_frame *(*dual_frame_sync_cb)(void *param, void *cb_handle, int *flag);
@@ -405,7 +403,7 @@ typedef int(*dual_slave_frame_set_cb)(void *param, void *cb_handle);
 typedef int(*port_cfg_cb)(void *param, uint32_t cmd, void *cb_handle);
 typedef int(*shutoff_cfg_cb)(void *cb_handle, uint32_t cmd, void *param);
 typedef int(*dcam_irq_proc_cb)(void *param, void *cb_handle);
-typedef void *(*zoom_get_cb)(void *cb_handle);
-typedef void *(*cam_zoom_get_cb)(uint32_t param, void *cb_handle);
+typedef int(*zoom_get_cb)(void *cb_handle, void *param);
+typedef int(*cam_zoom_get_cb)(uint32_t param, void *cb_handle, void *zoom_param);
 
 #endif/* _CAM_TYPES_H_ */

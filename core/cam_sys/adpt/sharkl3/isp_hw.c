@@ -11,7 +11,6 @@
  * GNU General Public License for more details.
  */
 
-#include "isp_hw.h"
 #ifdef CAM_HW_ADPT_LAYER
 
 #define ISP_AXI_STOP_TIMEOUT            1000

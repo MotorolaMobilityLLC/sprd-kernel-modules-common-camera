@@ -13,7 +13,7 @@
 
 #include <linux/err.h>
 #include <linux/vmalloc.h>
-#include "cam_queue.h"
+
 #include "cam_buf_manager.h"
 
 #ifdef pr_fmt
@@ -95,7 +95,7 @@ static int inline cambufmanager_alloc_2_ion(struct camera_buf *buf)
 	return 0;
 }
 
-static int inline cambufmanager_alloc_2_iova(struct camera_buf *buf, enum cam_iommudev_type type)
+static int inline cambufmanager_alloc_2_iova(struct camera_buf *buf, enum cam_buf_iommudev_type type)
 {
 	int ret = 0;
 	if ((buf->type == CAM_BUF_USER) && (!buf->dmabuf_p))
@@ -109,7 +109,7 @@ static int inline cambufmanager_alloc_2_iova(struct camera_buf *buf, enum cam_io
 	return ret;
 }
 
-static int inline cambufmanager_alloc_2_single_page_iova(struct camera_buf *buf, enum cam_iommudev_type type)
+static int inline cambufmanager_alloc_2_single_page_iova(struct camera_buf *buf, enum cam_buf_iommudev_type type)
 {
 	int ret = 0;
 	if ((buf->type == CAM_BUF_USER) && (!buf->dmabuf_p))
@@ -135,7 +135,7 @@ static int inline cambufmanager_alloc_2_kmap(struct camera_buf *buf)
 	return ret;
 }
 
-static int inline cambufmanager_alloc_2_k_iova(struct camera_buf *buf, enum cam_iommudev_type type)
+static int inline cambufmanager_alloc_2_k_iova(struct camera_buf *buf, enum cam_buf_iommudev_type type)
 {
 	int ret = 0;
 
@@ -152,7 +152,7 @@ static int inline cambufmanager_alloc_2_k_iova(struct camera_buf *buf, enum cam_
 	if (ret ) {
 		if (buf->type == CAM_BUF_USER)
 			cam_buf_ionbuf_put(buf);
-		cam_buf_iommu_unmap(buf);
+		cam_buf_iommu_unmap(buf, type);
 	}
 	return ret;
 }
@@ -166,12 +166,12 @@ static int inline cambufmanager_ion_2_alloc(struct camera_buf *buf)
 	return 0;
 }
 
-static int inline cambufmanager_ion_2_iova(struct camera_buf *buf, enum cam_iommudev_type type)
+static int inline cambufmanager_ion_2_iova(struct camera_buf *buf, enum cam_buf_iommudev_type type)
 {
 	return cam_buf_iommu_map(buf, type);
 }
 
-static int inline cambufmanager_ion_2_single_page_iova(struct camera_buf *buf, enum cam_iommudev_type type)
+static int inline cambufmanager_ion_2_single_page_iova(struct camera_buf *buf, enum cam_buf_iommudev_type type)
 {
 	return cam_buf_iommu_single_page_map(buf, type);
 }
@@ -181,7 +181,7 @@ static int inline cambufmanager_ion_2_kmap(struct camera_buf *buf)
 	return cam_buf_kmap(buf);
 }
 
-static int inline cambufmanager_ion_2_k_iova(struct camera_buf *buf, enum cam_iommudev_type type)
+static int inline cambufmanager_ion_2_k_iova(struct camera_buf *buf, enum cam_buf_iommudev_type type)
 {
 	int ret = 0;
 
@@ -190,7 +190,7 @@ static int inline cambufmanager_ion_2_k_iova(struct camera_buf *buf, enum cam_io
 		return ret;
 	ret = cam_buf_kmap(buf);
 	if (ret )
-		cam_buf_iommu_unmap(buf);
+		cam_buf_iommu_unmap(buf, type);
 
 	return ret;
 }
@@ -198,7 +198,11 @@ static int inline cambufmanager_ion_2_k_iova(struct camera_buf *buf, enum cam_io
 static int inline cambufmanager_iova_2_alloc(struct camera_buf *buf)
 {
 	int ret = 0;
-	ret = cam_buf_iommu_unmap(buf);
+	enum cam_buf_iommudev_type i = 0;
+
+	for (i = CAM_BUF_IOMMUDEV_ISP; i < CAM_BUF_IOMMUDEV_MAX; i++)
+		if (buf->mapping_state & (1 << i))
+			ret |= cam_buf_iommu_unmap(buf, i);
 	if (buf->type == CAM_BUF_USER)
 		ret |= cam_buf_ionbuf_put(buf);
 	else
@@ -208,7 +212,13 @@ static int inline cambufmanager_iova_2_alloc(struct camera_buf *buf)
 
 static int inline cambufmanager_iova_2_ion(struct camera_buf *buf)
 {
-	return cam_buf_iommu_unmap(buf);
+	int ret = 0;
+	enum cam_buf_iommudev_type i = 0;
+
+	for (i = CAM_BUF_IOMMUDEV_ISP; i < CAM_BUF_IOMMUDEV_MAX; i++)
+		if (buf->mapping_state & (1 << i))
+			ret |= cam_buf_iommu_unmap(buf, i);
+	return ret;
 }
 
 static int inline cambufmanager_iova_2_kmap(struct camera_buf *buf)
@@ -237,12 +247,16 @@ static int inline cambufmanager_kmap_2_ion(struct camera_buf *buf)
 	return cam_buf_kunmap(buf);
 }
 
-static int inline cambufmanager_kmap_2_iova(struct camera_buf *buf, enum cam_iommudev_type type)
+static int inline cambufmanager_kmap_2_iova(struct camera_buf *buf, enum cam_buf_iommudev_type type)
 {
-	return cam_buf_iommu_map(buf, type);
+	int ret = 0;
+
+	ret = cam_buf_kunmap(buf);
+	ret |= cam_buf_iommu_map(buf, type);
+	return ret;
 }
 
-static int inline cambufmanager_k_2_k_iova(struct camera_buf *buf, enum cam_iommudev_type type)
+static int inline cambufmanager_k_2_k_iova(struct camera_buf *buf, enum cam_buf_iommudev_type type)
 {
 	return cam_buf_iommu_map(buf, type);
 }
@@ -254,13 +268,23 @@ static int inline cambufmanager_k_iova_2_iova(struct camera_buf *buf)
 
 static int inline cambufmanager_k_iova_2_k(struct camera_buf *buf)
 {
-	return cam_buf_iommu_unmap(buf);
+	int ret = 0;
+	enum cam_buf_iommudev_type i = 0;
+
+	for (i = CAM_BUF_IOMMUDEV_ISP; i < CAM_BUF_IOMMUDEV_MAX; i++)
+		if (buf->mapping_state & (1 << i))
+			ret |= cam_buf_iommu_unmap(buf, i);
+	return ret;
 }
 
 static int inline cambufmanager_k_iova_2_ion(struct camera_buf *buf)
 {
 	int ret = 0;
-	ret = cam_buf_iommu_unmap(buf);
+	enum cam_buf_iommudev_type i = 0;
+
+	for (i = CAM_BUF_IOMMUDEV_ISP; i < CAM_BUF_IOMMUDEV_MAX; i++)
+		if (buf->mapping_state & (1 << i))
+			ret |= cam_buf_iommu_unmap(buf, i);
 	ret |= cam_buf_kunmap(buf);
 	return ret;
 }
@@ -268,7 +292,11 @@ static int inline cambufmanager_k_iova_2_ion(struct camera_buf *buf)
 static int inline cambufmanager_k_iova_2_alloc(struct camera_buf *buf)
 {
 	int ret = 0;
-	ret = cam_buf_iommu_unmap(buf);
+	enum cam_buf_iommudev_type i = 0;
+
+	for (i = CAM_BUF_IOMMUDEV_ISP; i < CAM_BUF_IOMMUDEV_MAX; i++)
+		if (buf->mapping_state & (1 << i))
+			ret |= cam_buf_iommu_unmap(buf, i);
 	ret |= cam_buf_kunmap(buf);
 	if (buf->type == CAM_BUF_USER)
 		ret |= cam_buf_ionbuf_put(buf);
@@ -277,98 +305,9 @@ static int inline cambufmanager_k_iova_2_alloc(struct camera_buf *buf)
 	return ret;
 }
 
-static int cambufmanager_buf_status_cfg(struct camera_frame *pframe, enum cambufmanager_status_ops_cmd cmd, enum cam_iommudev_type type)
-{
-	int ret = 0;
-	enum cam_buf_status dst_status = 0;
-	enum cam_buf_status src_status = 0;
-
-	if (!pframe || (pframe->buf.status == 0)) {
-		pr_debug("fail to get buffer, frame %px\n", pframe);
-		return 0;
-	}
-
-	src_status = pframe->buf.status;
-
-	if (cmd >= CAM_BUF_STATUS_OPS_CMD_NUM || cmd == 0)
-		return 0;
-	if (pframe->buf.type == CAM_BUF_NONE)
-		return 0;
-	if ((pframe->is_reserved) && (cmd == CAM_BUF_STATUS_GET_IOVA))
-		cmd = CAM_BUF_STATUS_GET_SINGLE_PAGE_IOVA;
-
-	switch (cmd) {
-	case CAM_BUF_STATUS_MOVE_TO_ALLOC:
-		dst_status = CAM_BUF_ALLOC;
-		break;
-	case CAM_BUF_STATUS_MOVE_TO_ION:
-		dst_status = CAM_BUF_WITH_ION;
-		break;
-	case CAM_BUF_STATUS_GET_IOVA:
-		dst_status =  (src_status & 0xfc) | CAM_BUF_WITH_IOVA;
-		break;
-	case CAM_BUF_STATUS_GET_SINGLE_PAGE_IOVA:
-		dst_status = (src_status & 0xfc) | CAM_BUF_WITH_SINGLE_PAGE_IOVA;
-		break;
-	case CAM_BUF_STATUS_GET_K_ADDR:
-		dst_status = (src_status & 0xfc) | CAM_BUF_WITH_K_ADDR;
-		break;
-	case CAM_BUF_STATUS_PUT_IOVA:
-		dst_status = src_status & (~CAM_BUF_WITH_IOVA);
-		dst_status = dst_status & (~CAM_BUF_WITH_SINGLE_PAGE_IOVA);
-		if (!dst_status)
-			dst_status = CAM_BUF_WITH_ION;
-		break;
-	case CAM_BUF_STATUS_PUT_K_ADDR:
-		dst_status = src_status & (~CAM_BUF_WITH_K_ADDR);
-		if (!dst_status)
-			dst_status = CAM_BUF_WITH_ION;
-		break;
-	default:
-		pr_warn("not support cmd %d\n", cmd);
-		return 0;
-	}
-
-	if (src_status == dst_status)
-		return 0;
-
-	ret = cam_buf_manager_buf_status_change(&pframe->buf, dst_status, type);
-	if ((pframe->buf.status != dst_status) || ret)
-		pr_err("fail to change status, frame %px status %d not right, %d -> %d, cmd %d\n", pframe, pframe->buf.status, src_status, dst_status, cmd);
-	return ret;
-}
-
-void cambufmanager_reserve_q_cnt_check(struct camera_queue *reserve_heap)
-{
-	struct camera_frame *newfrm = NULL;
-	struct camera_frame *ori = NULL;
-	int j = 0;
-
-	if (reserve_heap->cnt > 1)
-		return;
-
-	ori = cam_queue_dequeue_peek(reserve_heap, struct camera_frame, list);
-	if (!ori)
-		return;
-	while (j < CAM_RESERVE_BUF_Q_LEN) {
-		newfrm = cam_queue_empty_frame_get();
-		if (newfrm) {
-			newfrm->is_reserved = CAM_RESERVED_BUFFER_COPY;
-			newfrm->channel_id = ori->channel_id;
-			newfrm->pyr_status = ori->pyr_status;
-			memcpy(&newfrm->buf, &ori->buf, sizeof(struct camera_buf));
-			newfrm->buf.iova = 0;
-			newfrm->buf.mapping_state &= ~(CAM_BUF_MAPPING_DEV);
-			cam_queue_enqueue(reserve_heap, &newfrm->list);
-			j++;
-		}
-	}
-	pr_info("reserved pool %px, cnt %d\n", reserve_heap, reserve_heap->cnt);
-}
-
-int inline cam_buf_manager_buf_status_change(struct camera_buf *buf,
+static int inline cambufmanager_buf_status_change(struct camera_buf *buf,
 		enum cam_buf_status dst_status,
-		enum cam_iommudev_type type)
+		enum cam_buf_iommudev_type type)
 {
 	int ret = 0;
 	enum cambufmanager_status_cmd switch_cmd;
@@ -454,6 +393,120 @@ int inline cam_buf_manager_buf_status_change(struct camera_buf *buf,
 	return ret;
 }
 
+static void cambufmanager_reserve_q_cnt_check(struct camera_queue *reserve_heap)
+{
+	struct camera_frame *newfrm = NULL;
+	struct camera_frame *ori = NULL;
+	int j = 0;
+
+	if (reserve_heap->cnt > 1)
+		return;
+
+	ori = cam_queue_dequeue_peek(reserve_heap, struct camera_frame, list);
+	if (!ori)
+		return;
+	while (j < CAM_RESERVE_BUF_Q_LEN) {
+		newfrm = cam_queue_empty_frame_get();
+		if (newfrm) {
+			newfrm->is_reserved = CAM_RESERVED_BUFFER_COPY;
+			newfrm->channel_id = ori->channel_id;
+			newfrm->pyr_status = ori->pyr_status;
+			newfrm->user_fid = ori->user_fid;
+			memcpy(&newfrm->buf, &ori->buf, sizeof(struct camera_buf));
+			newfrm->buf.type = CAM_BUF_NONE;
+			cam_queue_enqueue(reserve_heap, &newfrm->list);
+			j++;
+		}
+	}
+	pr_info("reserved pool %px, cnt %d\n", reserve_heap, reserve_heap->cnt);
+}
+
+int cam_buf_manager_buf_status_cfg(struct camera_buf *buf, enum cambufmanager_status_ops_cmd cmd, enum cam_buf_iommudev_type type)
+{
+	int ret = 0;
+	enum cam_buf_status dst_status = 0;
+	enum cam_buf_status src_status = 0;
+	uint32_t map_dev = 0;
+
+	if (!buf || (buf->status == CAM_BUF_EMPTY)) {
+		pr_debug("fail to get buffer, frame %px\n", buf);
+		return 0;
+	}
+
+	src_status = buf->status;
+
+	if (cmd >= CAM_BUF_STATUS_OPS_CMD_NUM || !cmd)
+		return 0;
+	if (buf->type == CAM_BUF_NONE)
+		return 0;
+	if (buf->bypass_iova_ops &&
+		(cmd == CAM_BUF_STATUS_GET_IOVA ||
+		cmd == CAM_BUF_STATUS_GET_SINGLE_PAGE_IOVA ||
+		cmd == CAM_BUF_STATUS_PUT_IOVA))
+		return 0;
+
+	switch (cmd) {
+	case CAM_BUF_STATUS_MOVE_TO_ALLOC:
+		dst_status = CAM_BUF_ALLOC;
+		break;
+	case CAM_BUF_STATUS_MOVE_TO_ION:
+		dst_status = CAM_BUF_WITH_ION;
+		break;
+	case CAM_BUF_STATUS_GET_IOVA:
+		dst_status =  (src_status & 0xfc) | CAM_BUF_WITH_IOVA;
+		if (src_status == dst_status && (buf->mapping_state & (1 << type)) == 0)
+			ret = cam_buf_iommu_map(buf, type);
+		break;
+	case CAM_BUF_STATUS_GET_SINGLE_PAGE_IOVA:
+		dst_status = (src_status & 0xfc) | CAM_BUF_WITH_SINGLE_PAGE_IOVA;
+		if (src_status == dst_status && (buf->mapping_state & (1 << type)) == 0)
+			ret = cam_buf_iommu_single_page_map(buf, type);
+		break;
+	case CAM_BUF_STATUS_GET_K_ADDR:
+		dst_status = (src_status & 0xfc) | CAM_BUF_WITH_K_ADDR;
+		break;
+	case CAM_BUF_STATUS_PUT_IOVA:
+		dst_status = src_status;
+		if ((buf->mapping_state & (1 << type)) == 0)
+			break;
+		map_dev = buf->mapping_state & (~(1 << type));
+		if (map_dev != CAM_BUF_MAPPING_NULL) {
+			ret = cam_buf_iommu_unmap(buf, type);
+			break;
+		}
+		dst_status = src_status & (~CAM_BUF_WITH_IOVA);
+		dst_status = dst_status & (~CAM_BUF_WITH_SINGLE_PAGE_IOVA);
+		if (!dst_status)
+			dst_status = CAM_BUF_WITH_ION;
+		break;
+	case CAM_BUF_STATUS_PUT_K_ADDR:
+		dst_status = src_status & (~CAM_BUF_WITH_K_ADDR);
+		if (!dst_status)
+			dst_status = CAM_BUF_WITH_ION;
+		break;
+	case CAM_BUF_STATUS_GET_IOVA_K_ADDR:
+		dst_status = CAM_BUF_WITH_IOVA_K_ADDR;
+		break;
+	case CAM_BUF_STATUS_PUT_IOVA_K_ADDR:
+		dst_status = CAM_BUF_WITH_ION;
+		break;
+	default:
+		pr_warn("not support cmd %d\n", cmd);
+		return 0;
+	}
+
+	if (ret)
+		return ret;
+
+	if (src_status == dst_status)
+		return 0;
+
+	ret = cambufmanager_buf_status_change(buf, dst_status, type);
+	if ((buf->status != dst_status) || ret)
+		pr_err("fail to change status, buf %px status %d not right, %d -> %d, cmd %d, cb: %pS\n", buf, buf->status, src_status, dst_status, cmd, __builtin_return_address(0));
+	return ret;
+}
+
 struct camera_frame *cam_buf_manager_buf_dequeue(struct cam_buf_pool_id *pool_id, struct camera_buf_get_desc *buf_desc)
 {
 	int ret = 0;
@@ -519,7 +572,9 @@ struct camera_frame *cam_buf_manager_buf_dequeue(struct cam_buf_pool_id *pool_id
 	if (!buf_desc || !tmp)
 		goto exit;
 
-	ret = cambufmanager_buf_status_cfg(tmp, buf_desc->buf_ops_cmd, buf_desc->mmu_type);
+	if (buf_desc->buf_ops_cmd == CAM_BUF_STATUS_GET_IOVA)
+		buf_desc->buf_ops_cmd = CAM_BUF_GET_IOVA_METHOD(tmp);
+	ret = cam_buf_manager_buf_status_cfg(&tmp->buf, buf_desc->buf_ops_cmd, buf_desc->mmu_type);
 	if (ret) {
 		pr_err("fail to cfg buf status, (p %d, t %d, r %d), ori %d, cmd %d\n", pool_id->private_pool_idx, pool_id->tag_id, pool_id->reserved_pool_id, tmp->buf.status, buf_desc->buf_ops_cmd);
 		if (src)
@@ -537,7 +592,6 @@ int cam_buf_manager_buf_enqueue(struct cam_buf_pool_id *pool_id,
 	struct camera_frame *pframe, struct camera_buf_get_desc *buf_desc)
 {
 	struct camera_queue *heap = NULL;
-	uint32_t ori_status = pframe->buf.status;
 	int ret = 0;
 
 	if (!pframe) {
@@ -550,8 +604,11 @@ int cam_buf_manager_buf_enqueue(struct cam_buf_pool_id *pool_id,
 		return -1;
 	}
 
+	if (buf_desc && buf_desc->buf_ops_cmd == CAM_BUF_STATUS_GET_IOVA)
+		buf_desc->buf_ops_cmd = CAM_BUF_GET_IOVA_METHOD(pframe);
+
 	if (buf_desc)
-		ret = cambufmanager_buf_status_cfg(pframe, buf_desc->buf_ops_cmd, buf_desc->mmu_type);
+		ret = cam_buf_manager_buf_status_cfg(&pframe->buf, buf_desc->buf_ops_cmd, buf_desc->mmu_type);
 	if (ret) {
 		pr_err("fail to cfg buffer\n");
 		return -1;
@@ -564,8 +621,6 @@ int cam_buf_manager_buf_enqueue(struct cam_buf_pool_id *pool_id,
 
 	if (ret) {
 		pr_err("fail to enq, (p %d, t %d, r%d) frame %px\n", pool_id->private_pool_idx, pool_id->tag_id, pool_id->reserved_pool_id, pframe);
-		if (buf_desc)
-			cam_buf_manager_buf_status_change(&pframe->buf, ori_status, buf_desc->mmu_type);
 		return -1;
 	}
 
@@ -591,19 +646,12 @@ void cam_buf_manager_buf_clear(struct cam_buf_pool_id *pool_id)
 		pframe = cam_queue_dequeue(heap, struct camera_frame, list);
 		if (pframe) {
 			if (pframe->is_reserved == CAM_RESERVED_BUFFER_COPY)
-				cam_buf_manager_buf_status_change(&pframe->buf, CAM_BUF_WITH_ION, CAM_IOMMUDEV_MAX);
+				cambufmanager_buf_status_change(&pframe->buf, CAM_BUF_WITH_ION, CAM_BUF_IOMMUDEV_MAX);
 			else
-				cam_buf_manager_buf_status_change(&pframe->buf, CAM_BUF_ALLOC, CAM_IOMMUDEV_MAX);
-
-			if (pframe->zoom_data) {
-				cam_queue_empty_zoom_put(pframe->zoom_data);
-				pframe->zoom_data = NULL;
-			}
-			if (pframe->data_src_dec == 0) {
-				if (pframe->buf.type == CAM_BUF_KERNEL)
-					cam_buf_free(&pframe->buf);
-				cam_queue_empty_frame_put(pframe);
-			}
+				cambufmanager_buf_status_change(&pframe->buf, CAM_BUF_ALLOC, CAM_BUF_IOMMUDEV_MAX);
+			if (pframe->buf.type == CAM_BUF_KERNEL)
+				cam_buf_free(&pframe->buf);
+			cam_queue_empty_frame_put(pframe);
 		}
 	} while (pframe);
 }

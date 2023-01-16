@@ -278,7 +278,6 @@ struct nr3_slice_for_blending {
 };
 
 enum isp_3dnr_cfg_cmd {
-	ISP_3DNR_CFG_BUF,
 	ISP_3DNR_CFG_MODE,
 	ISP_3DNR_CFG_BLEND_CNT,
 	ISP_3DNR_CFG_FBC_FBD_INFO,
@@ -316,7 +315,7 @@ struct isp_3dnr_ctx_desc {
 	struct dcam_compress_info fbc_info;
 	struct isp_3dnr_fbc_store nr3_fbc_store;
 	struct isp_3dnr_fbd_fetch nr3_fbd_fetch;
-	struct camera_buf *buf_info[ISP_NR3_BUF_NUM];
+	struct camera_frame nr3_frame[ISP_NR3_BUF_NUM];
 	struct ImageRegion_Info image_region_info[MAX_SLICE_NUM];
 
 	enum sprd_cam_sec_mode nr3_sec_mode;

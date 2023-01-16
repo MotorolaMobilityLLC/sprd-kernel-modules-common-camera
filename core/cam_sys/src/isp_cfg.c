@@ -11,21 +11,20 @@
  * GNU General Public License for more details.
  */
 
-#include <linux/types.h>
-#include <sprd_mm.h>
 #include <linux/sprd_iommu.h>
 #include <linux/sprd_ion.h>
 #include <linux/seq_file.h>
+#include <linux/types.h>
+#include <sprd_mm.h>
 
-#include "isp_reg.h"
-#include "isp_cfg.h"
 #include "cam_debugger.h"
+#include "isp_cfg.h"
+#include "isp_reg.h"
 
 #ifdef pr_fmt
 #undef pr_fmt
 #endif
-#define pr_fmt(fmt) "ISP_CFG: %d: %d %s:" \
-	fmt, current->pid, __LINE__, __func__
+#define pr_fmt(fmt) "ISP_CFG: %d: %d %s:" fmt, current->pid, __LINE__, __func__
 
 static DEFINE_MUTEX(buf_mutex);
 
@@ -50,7 +49,7 @@ static void ispcfg_cctx_page_hw_buf_aligned(struct isp_cfg_ctx_desc *cfg_ctx,
 	struct camera_buf *ion_buf = &cfg_ctx->ion_pool;
 
 	kaddr = (void *)ion_buf->addr_k;
-	iova = ion_buf->iova;
+	iova = ion_buf->iova[CAM_BUF_IOMMUDEV_ISP];
 
 	if (!IS_ERR_OR_NULL(kaddr) && iova) {
 		if (IS_ALIGNED(iova, ALIGN_PADDING_SIZE)) {
@@ -167,7 +166,7 @@ static int ispcfg_cctx_buf_init(struct isp_cfg_ctx_desc *cfg_ctx)
 	ion_buf = &cfg_ctx->ion_pool;
 	memset(ion_buf, 0, sizeof(cfg_ctx->ion_pool));
 
-	if (cam_buf_iommu_status_get(CAM_IOMMUDEV_ISP) == 0) {
+	if (cam_buf_iommu_status_get(CAM_BUF_IOMMUDEV_ISP) == 0) {
 		pr_debug("isp iommu enable\n");
 		iommu_enable = 1;
 	} else {
@@ -189,7 +188,7 @@ static int ispcfg_cctx_buf_init(struct isp_cfg_ctx_desc *cfg_ctx)
 		goto err_kmap_cfg;
 	}
 
-	ret = cam_buf_iommu_map(ion_buf, CAM_IOMMUDEV_ISP);
+	ret = cam_buf_iommu_map(ion_buf, CAM_BUF_IOMMUDEV_ISP);
 	if (ret) {
 		pr_err("fail to map cfg buffer\n");
 		ret = -EFAULT;
@@ -230,7 +229,7 @@ static int ispcfg_cctx_buf_init(struct isp_cfg_ctx_desc *cfg_ctx)
 err_kmap_cfg1:
 	cam_buf_free(ion_buf_cached);
 err_alloc_cfg1:
-	cam_buf_iommu_unmap(ion_buf);
+	cam_buf_iommu_unmap(ion_buf, CAM_BUF_IOMMUDEV_ISP);
 err_hwmap_cfg:
 	cam_buf_kunmap(ion_buf);
 err_kmap_cfg:
@@ -248,7 +247,7 @@ static int ispcfg_cctx_buf_deinit(struct isp_cfg_ctx_desc *cfg_ctx)
 	ispcfg_cctx_regbuf_addr_deinit(cfg_ctx);
 	ispcfg_cctx_page_buf_addr_deinit(cfg_ctx);
 
-	cam_buf_iommu_unmap(ion_buf);
+	cam_buf_iommu_unmap(ion_buf, CAM_BUF_IOMMUDEV_ISP);
 	cam_buf_kunmap(ion_buf);
 	cam_buf_free(ion_buf);
 

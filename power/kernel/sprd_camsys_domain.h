@@ -116,7 +116,7 @@ struct camsys_power_info {
 			struct clk *cam_ahb_clk_default;
 			struct clk *cam_ahb_clk_parent;
 
-			struct register_gpr syscon_regs[5];
+			struct register_gpr syscon_regs[6];
 		} le;
 		struct {
 			struct clk *cam_mm_eb;

@@ -17,11 +17,7 @@
 
 #include "cam_copy_node.h"
 #include "cam_dump_node.h"
-#include "cam_node.h"
 #include "cam_pipeline.h"
-#include "cam_queue.h"
-#include "dcam_offline_node.h"
-#include "isp_scaler_node.h"
 #include "cam_replace_node.h"
 
 #ifdef pr_fmt
@@ -101,7 +97,7 @@ static void campipeline_preview_get(struct cam_pipeline_topology *param, uint32_
 		CAM_NODE_TYPE_ISP_OFFLINE,
 		CAM_NODE_TYPE_ISP_YUV_SCALER,
 	};
-
+	param->buf_num = CAM_NORMAL_ALLOC_BUF_NUM;
 	outport_type = campipeline_outport_type_get(type);
 	cur_node = &param->nodes[0];
 	param->node_cnt = sizeof(node_list_type) / sizeof(node_list_type[0]);
@@ -190,6 +186,7 @@ static void campipeline_capture_get(struct cam_pipeline_topology *param, uint32_
 			CAM_NODE_TYPE_ISP_OFFLINE,
 			CAM_NODE_TYPE_ISP_YUV_SCALER,
 		};
+		param->buf_num = CAM_NONZSL_DEC_ALLOC_BUF_NUM;
 		param->node_cnt = sizeof(node_list_type) / sizeof(node_list_type[0]);
 		for (i = 0; i < param->node_cnt; i++, cur_node++)
 			cam_node_static_nodelist_get(cur_node, node_list_type[i]);
@@ -202,6 +199,7 @@ static void campipeline_capture_get(struct cam_pipeline_topology *param, uint32_
 			CAM_NODE_TYPE_ISP_OFFLINE,
 			CAM_NODE_TYPE_ISP_YUV_SCALER,
 		};
+		param->buf_num = CAM_NONZSL_ALLOC_BUF_NUM;
 		param->node_cnt = sizeof(node_list_type) / sizeof(node_list_type[0]);
 		for (i = 0; i < param->node_cnt; i++, cur_node++)
 			cam_node_static_nodelist_get(cur_node, node_list_type[i]);
@@ -308,13 +306,16 @@ static void campipeline_zsl_capture_get(struct cam_pipeline_topology *param, uin
 		uint32_t node_list_type[] = {
 			CAM_NODE_TYPE_DCAM_ONLINE,
 			CAM_NODE_TYPE_DUMP,
+			CAM_NODE_TYPE_REPLACE,
 			CAM_NODE_TYPE_FRAME_CACHE,
 			CAM_NODE_TYPE_DATA_COPY,
 			CAM_NODE_TYPE_PYR_DEC,
 			CAM_NODE_TYPE_DUMP,
+			CAM_NODE_TYPE_REPLACE,
 			CAM_NODE_TYPE_ISP_OFFLINE,
 			CAM_NODE_TYPE_ISP_YUV_SCALER,
 		};
+		param->buf_num = CAM_DEC_ALLOC_BUF_NUM;
 		param->node_cnt = sizeof(node_list_type) / sizeof(node_list_type[0]);
 		for (i = 0; i < param->node_cnt; i++, cur_node++)
 			cam_node_static_nodelist_get(cur_node, node_list_type[i]);
@@ -322,11 +323,13 @@ static void campipeline_zsl_capture_get(struct cam_pipeline_topology *param, uin
 		uint32_t node_list_type[] = {
 			CAM_NODE_TYPE_DCAM_ONLINE,
 			CAM_NODE_TYPE_DUMP,
+			CAM_NODE_TYPE_REPLACE,
 			CAM_NODE_TYPE_FRAME_CACHE,
 			CAM_NODE_TYPE_DATA_COPY,
 			CAM_NODE_TYPE_ISP_OFFLINE,
 			CAM_NODE_TYPE_ISP_YUV_SCALER,
 		};
+		param->buf_num = CAM_NORMAL_ALLOC_BUF_NUM;
 		param->node_cnt = sizeof(node_list_type) / sizeof(node_list_type[0]);
 		for (i = 0; i < param->node_cnt; i++, cur_node++)
 			cam_node_static_nodelist_get(cur_node, node_list_type[i]);
@@ -336,6 +339,7 @@ static void campipeline_zsl_capture_get(struct cam_pipeline_topology *param, uin
 	cur_node = &param->nodes[0];
 	cur_node->id = DCAM_ONLINE_PRE_NODE_ID;
 	cur_node->outport[PORT_FULL_OUT].dump_node_id = CAM_DUMP_NODE_ID_0;
+	cur_node->outport[PORT_FULL_OUT].replace_node_id = CAM_REPLACE_NODE_ID_0;
 	cur_node->outport[PORT_FULL_OUT].link_state = PORT_LINK_NORMAL;
 	cur_node->outport[PORT_FULL_OUT].link.node_type = CAM_NODE_TYPE_FRAME_CACHE;
 	cur_node->outport[PORT_FULL_OUT].link.node_id = FRAME_CACHE_CAP_NODE_ID;
@@ -347,6 +351,8 @@ static void campipeline_zsl_capture_get(struct cam_pipeline_topology *param, uin
 	}
 	cur_node++;
 	cur_node->id = CAM_DUMP_NODE_ID_0;
+	cur_node++;
+	cur_node->id = CAM_REPLACE_NODE_ID_0;
 	cur_node++;
 	cur_node->id = FRAME_CACHE_CAP_NODE_ID;
 	cur_node->outport[PORT_FRAME_CACHE_OUT].dynamic_link_en = 1;
@@ -362,8 +368,11 @@ static void campipeline_zsl_capture_get(struct cam_pipeline_topology *param, uin
 		cur_node++;
 		cur_node->id = PYR_DEC_NODE_ID;
 		cur_node->dump_node_id = CAM_DUMP_NODE_ID_1;
+		cur_node->replace_node_id = CAM_REPLACE_NODE_ID_1;
 		cur_node++;
 		cur_node->id = CAM_DUMP_NODE_ID_1;
+		cur_node++;
+		cur_node->id = CAM_REPLACE_NODE_ID_1;
 	} else {
 		cur_node->outport[PORT_FRAME_CACHE_OUT].switch_link.node_type = CAM_NODE_TYPE_ISP_OFFLINE;
 		cur_node->outport[PORT_FRAME_CACHE_OUT].switch_link.node_id = ISP_NODE_MODE_CAP_ID;
@@ -786,6 +795,7 @@ static void campipeline_onlineraw_2_user_2_bpcraw_2_user_2_offlineyuv_get(
 			CAM_NODE_TYPE_DUMP,
 			CAM_NODE_TYPE_ISP_OFFLINE,
 		};
+		param->buf_num = CAM_NONZSL_DEC_ALLOC_BUF_NUM;
 		param->node_cnt = sizeof(node_list_type) / sizeof(node_list_type[0]);
 		for (i = 0; i < param->node_cnt; i++, cur_node++)
 			cam_node_static_nodelist_get(cur_node, node_list_type[i]);
@@ -799,6 +809,7 @@ static void campipeline_onlineraw_2_user_2_bpcraw_2_user_2_offlineyuv_get(
 			CAM_NODE_TYPE_DUMP,
 			CAM_NODE_TYPE_ISP_OFFLINE,
 		};
+		param->buf_num = CAM_NONZSL_ALLOC_BUF_NUM;
 		param->node_cnt = sizeof(node_list_type) / sizeof(node_list_type[0]);
 		for (i = 0; i < param->node_cnt; i++, cur_node++)
 			cam_node_static_nodelist_get(cur_node, node_list_type[i]);
@@ -875,12 +886,16 @@ static void campipeline_online_normal2yuv_or_raw2user2yuv_get(struct cam_pipelin
 		uint32_t node_list_type[] = {
 			CAM_NODE_TYPE_DCAM_ONLINE,
 			CAM_NODE_TYPE_DUMP,
+			CAM_NODE_TYPE_REPLACE,
 			CAM_NODE_TYPE_DCAM_OFFLINE,
 			CAM_NODE_TYPE_DUMP,
+			CAM_NODE_TYPE_REPLACE,
 			CAM_NODE_TYPE_PYR_DEC,
 			CAM_NODE_TYPE_DUMP,
+			CAM_NODE_TYPE_REPLACE,
 			CAM_NODE_TYPE_ISP_OFFLINE,
 		};
+		param->buf_num = CAM_NONZSL_DEC_ALLOC_BUF_NUM;
 		param->node_cnt = sizeof(node_list_type) / sizeof(node_list_type[0]);
 		for (i = 0; i < param->node_cnt; i++, cur_node++)
 			cam_node_static_nodelist_get(cur_node, node_list_type[i]);
@@ -888,10 +903,13 @@ static void campipeline_online_normal2yuv_or_raw2user2yuv_get(struct cam_pipelin
 		uint32_t node_list_type[] = {
 			CAM_NODE_TYPE_DCAM_ONLINE,
 			CAM_NODE_TYPE_DUMP,
+			CAM_NODE_TYPE_REPLACE,
 			CAM_NODE_TYPE_DCAM_OFFLINE,
 			CAM_NODE_TYPE_DUMP,
+			CAM_NODE_TYPE_REPLACE,
 			CAM_NODE_TYPE_ISP_OFFLINE,
 		};
+		param->buf_num = CAM_NONZSL_ALLOC_BUF_NUM;
 		param->node_cnt = sizeof(node_list_type) / sizeof(node_list_type[0]);
 		for (i = 0; i < param->node_cnt; i++, cur_node++)
 			cam_node_static_nodelist_get(cur_node, node_list_type[i]);
@@ -899,7 +917,7 @@ static void campipeline_online_normal2yuv_or_raw2user2yuv_get(struct cam_pipelin
 
 	/* cfg port link between dcam online & user node */
 	cur_node = &param->nodes[0];
-	cur_node->id = DCAM_ONLINE_PRE_NODE_ID;;
+	cur_node->id = DCAM_ONLINE_PRE_NODE_ID;
 	cur_node->outport[PORT_RAW_OUT].dynamic_link_en = 1;
 	cur_node->outport[PORT_RAW_OUT].link_state = PORT_LINK_NORMAL;
 	cur_node->outport[PORT_RAW_OUT].link.node_type = CAM_NODE_TYPE_DCAM_ONLINE;
@@ -907,6 +925,7 @@ static void campipeline_online_normal2yuv_or_raw2user2yuv_get(struct cam_pipelin
 	cur_node->outport[PORT_RAW_OUT].link.port_id = PORT_RAW_OUT;
 	cur_node->outport[PORT_RAW_OUT].switch_link.node_type = CAM_NODE_TYPE_USER;
 	cur_node->outport[PORT_FULL_OUT].dump_node_id = CAM_DUMP_NODE_ID_0;
+	cur_node->outport[PORT_FULL_OUT].replace_node_id = CAM_REPLACE_NODE_ID_0;
 	cur_node->outport[PORT_FULL_OUT].dynamic_link_en = 1;
 	cur_node->outport[PORT_FULL_OUT].link_state = PORT_LINK_NORMAL;
 	cur_node->outport[PORT_FULL_OUT].link.node_type = CAM_NODE_TYPE_DCAM_ONLINE;
@@ -922,10 +941,13 @@ static void campipeline_online_normal2yuv_or_raw2user2yuv_get(struct cam_pipelin
 	cur_node++;
 	cur_node->id = CAM_DUMP_NODE_ID_0;
 	cur_node++;
+	cur_node->id = CAM_REPLACE_NODE_ID_0;
+	cur_node++;
 	dcam_offline_port_id = dcamoffline_pathid_convert_to_portid(path_id);
 	cur_node->id = DCAM_OFFLINE_NODE_ID;
 	cur_node->buf_type = CAM_NODE_BUF_USER;
 	cur_node->outport[dcam_offline_port_id].dump_node_id = CAM_DUMP_NODE_ID_1;
+	cur_node->outport[dcam_offline_port_id].replace_node_id = CAM_REPLACE_NODE_ID_1;
 	cur_node->outport[dcam_offline_port_id].link_state = PORT_LINK_NORMAL;
 	if (pyrdec_support) {
 		cur_node->outport[dcam_offline_port_id].link.node_type = CAM_NODE_TYPE_PYR_DEC;
@@ -933,16 +955,23 @@ static void campipeline_online_normal2yuv_or_raw2user2yuv_get(struct cam_pipelin
 		cur_node++;
 		cur_node->id = CAM_DUMP_NODE_ID_1;
 		cur_node++;
+		cur_node->id = CAM_REPLACE_NODE_ID_1;
+		cur_node++;
 		cur_node->id = PYR_DEC_NODE_ID;
 		cur_node->dump_node_id = CAM_DUMP_NODE_ID_2;
+		cur_node->replace_node_id = CAM_REPLACE_NODE_ID_2;
 		cur_node++;
 		cur_node->id = CAM_DUMP_NODE_ID_2;
+		cur_node++;
+		cur_node->id = CAM_REPLACE_NODE_ID_2;
 	} else {
 		cur_node->outport[dcam_offline_port_id].link.node_type = CAM_NODE_TYPE_ISP_OFFLINE;
 		cur_node->outport[dcam_offline_port_id].link.node_id = ISP_NODE_MODE_CAP_ID;
 		cur_node->outport[dcam_offline_port_id].link.port_id = PORT_ISP_OFFLINE_IN;
 		cur_node++;
 		cur_node->id = CAM_DUMP_NODE_ID_1;
+		cur_node++;
+		cur_node->id = CAM_REPLACE_NODE_ID_1;
 	}
 	cur_node++;
 	cur_node->id = ISP_NODE_MODE_CAP_ID;
@@ -1244,19 +1273,22 @@ static int campipeline_src_cb_proc(enum cam_cb_type type,
 	return ret;
 }
 
-static void *campipeline_zoom_callback(void *priv_data)
+static int campipeline_zoom_callback(void *priv_data, void *param)
 {
+	int ret = 0;
 	uint32_t type = 0;
 	struct cam_pipeline *pipeline = NULL;
 
-	if (!priv_data) {
-		pr_err("fail to get valid param\n");
-		return NULL;
+	if (!priv_data || !param) {
+		pr_err("fail to get valid param priv_data:%p, param:%p\n", priv_data, param);
+		return -1;
 	}
 
 	pipeline = (struct cam_pipeline *)priv_data;
 	type = pipeline->pipeline_graph->type;
-	return pipeline->zoom_cb_func(type, pipeline->data_cb_handle);
+	ret = pipeline->zoom_cb_func(type, pipeline->data_cb_handle, param);
+
+	return ret;
 }
 
 static int campipeline_callback(enum cam_cb_type type, void *param, void *priv_data)
@@ -1395,26 +1427,14 @@ static int campipeline_cfg_param(void *handle, enum cam_pipeline_cfg_cmd cmd, vo
 	case CAM_PIPILINE_CFG_SHARE_BUF:
 		node_cmd = CAM_NODE_CFG_SHARE_BUF;
 		break;
-	case CAM_PIPILINE_CFG_PYRDEC_BUF:
-		node_cmd = CAM_NODE_CFG_PYRDEC_BUF;
-		break;
 	case CAM_PIPELINE_CFG_CTXID:
 		node_cmd = CAM_NODE_CFG_CTXID;
-		break;
-	case CAM_PIPELINE_CFG_LTM_BUF:
-		node_cmd = CAM_NODE_CFG_LTM_BUF;
 		break;
 	case CAM_PIPELINE_CFG_3DNR_MODE:
 		node_cmd = CAM_NODE_CFG_3DNR_MODE;
 		break;
-	case CAM_PIPELINE_CFG_3DNR_BUF:
-		node_cmd = CAM_NODE_CFG_3DNR_BUF;
-		break;
 	case CAM_PIPELINE_CFG_REC_LEYER_NUM:
 		node_cmd = CAM_NODE_CFG_REC_LEYER_NUM;
-		break;
-	case CAM_PIPELINE_CFG_REC_BUF:
-		node_cmd = CAM_NODE_CFG_REC_BUF;
 		break;
 	case CAM_PIPELINE_CFG_GTM:
 		node_cmd = CAM_NODE_CFG_GTM;
@@ -1442,9 +1462,6 @@ static int campipeline_cfg_param(void *handle, enum cam_pipeline_cfg_cmd cmd, vo
 		break;
 	case CAM_PIPELINE_CFG_PARAM_FID:
 		node_cmd = CAM_NODE_CFG_PARAM_FID;
-		break;
-	case CAM_PIPELINE_CFG_SUPERZOOM_BUF:
-		node_cmd = CAM_NODE_CFG_SUPERZOOM_BUF;
 		break;
 	case CAM_PIPELINE_RESET_PARAM_PTR:
 		node_cmd = CAM_NODE_RESET_PARAM_PTR;
@@ -1635,6 +1652,8 @@ static uint32_t campipeline_replace_en_cfg_get(uint32_t pipeline_type,
 
 	switch (node_graph->type) {
 	case CAM_NODE_TYPE_DCAM_ONLINE:
+	case CAM_NODE_TYPE_DCAM_OFFLINE:
+	case CAM_NODE_TYPE_DCAM_OFFLINE_BPC_RAW:
 		for (j = 0; j < CAM_NODE_PORT_OUT_NUM; j++) {
 			if (node_graph->outport[j].link_state != PORT_LINK_NORMAL)
 				continue;
@@ -1776,10 +1795,11 @@ int cam_pipeline_buffer_alloc(struct cam_pipeline *pipe, struct cam_buf_alloc_de
 {
 	int ret = 0, i = 0;
 
-	if (!pipe) {
-		pr_err("fail to get pipe\n");
+	if (!pipe || !param) {
+		pr_err("fail to get valid param %p %p\n", pipe, param);
 		return -1;
 	}
+
 	for (i = CAM_PIPELINE_NODE_NUM - 1; i >= 0; i--) {
 		if (!pipe->node_list[i])
 			continue;

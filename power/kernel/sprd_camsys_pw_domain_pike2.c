@@ -215,7 +215,7 @@ int sprd_cam_pw_off(struct camsys_power_info *pw_info)
 err_pw_off:
 	pr_err("cam domain pw off failed, ret: %d, count: %d!\n",
 	       ret, read_count);
-	return 0;
+	return ret;
 }
 
 static int sprd_cam_pw_on(struct camsys_power_info *pw_info)

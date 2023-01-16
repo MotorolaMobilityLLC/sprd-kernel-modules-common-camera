@@ -964,7 +964,6 @@ extern const unsigned long slowmotion_store_addr[3][4];
 #define DCAM_BASE(idx)                                  (g_dcam_regbase[idx])
 #define DCAM_AXIM_BASE(idx)                             (g_dcam_aximbase[idx])
 #define DCAM_FMCU_BASE                                  (g_dcam_fmcubase)
-/* TODO: implement mmu */
 #define DCAM_MMU_BASE                                   (g_dcam_mmubase)
 #define DCAM_PHYS_ADDR(idx)                             (g_dcam_phys_base[idx])
 #define DCAM_GET_REG(idx, reg)                          (DCAM_PHYS_ADDR(idx) + (reg))
@@ -1062,7 +1061,5 @@ extern const unsigned long slowmotion_store_addr[3][4];
 	(REG_WR(DCAM_FMCU_BASE+(reg), ((val) & (msk)) | (REG_RD(DCAM_FMCU_BASE+(reg)) & (~(msk)))));    \
 	spin_unlock_irqrestore(&g_reg_wr_lock, __flags);                     \
 })
-
-/* TODO: add DCAM0/1 lsc grid table mapping */
 
 #endif /* _DCAM_REG_H_ */

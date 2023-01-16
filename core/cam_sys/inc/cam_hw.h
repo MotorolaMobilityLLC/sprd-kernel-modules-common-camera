@@ -210,6 +210,8 @@ enum dcam_hw_cfg_cmd {
 	DCAM_HW_CFG_ALL_RESET,
 	DCAM_HW_CFG_IRQ_DISABLE,
 	DCAM_HW_CFG_SLW_ADDR,
+	DCAM_HW_CFG_DUMMY_SET,
+	DCAM_HW_CFG_DUMMY_ENABLE,
 	DCAM_HW_CFG_MAX
 };
 
@@ -1016,6 +1018,15 @@ struct dcam_hw_start_fetch {
 	uint32_t idx;
 };
 
+struct dcam_hw_dummy_param {
+	uint32_t idx;
+	uint32_t clr_mode;
+	uint32_t skip_num;
+	uint32_t dfifo_lvl;
+	uint32_t cfifo_lvl;
+	uint32_t enable;
+};
+
 struct dcam_hw_cfg_bin_path {
 	uint32_t idx;
 	uint32_t start_x;
@@ -1226,6 +1237,7 @@ struct cam_hw_ip_info {
 	uint32_t dcam_output_fmt[CAM_FORMAT_MAX];
 	uint32_t store_pyr_fmt;
 	uint32_t store_3dnr_fmt[CAM_FORMAT_MAX];
+	uint32_t dummy_slave_support;
 
 	/* For isp support info */
 	uint32_t slm_cfg_support;

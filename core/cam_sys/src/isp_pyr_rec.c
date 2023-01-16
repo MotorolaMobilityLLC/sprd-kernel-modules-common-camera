@@ -11,8 +11,8 @@
  * GNU General Public License for more details.
  */
 
-#include "isp_pyr_rec.h"
 #include "cam_port.h"
+#include "isp_pyr_rec.h"
 
 #ifdef pr_fmt
 #undef pr_fmt
@@ -57,7 +57,7 @@ static void cal_max_dist(struct pyr_ynr_alg_cal *ynr_param, int layer_id,
 	uint16_t CenterY = ynr_param->imgCenterY[0];
 	uint16_t Radius = ynr_param->Radius[0];
 
-	for(i = 1; i <= layer_id; i++) {
+	for (i = 1; i <= layer_id; i++) {
 		int layer_frame_W = layer0_frame_W >> i;
 		int layer_frame_H = layer0_frame_H >> i;
 
@@ -70,19 +70,19 @@ static void cal_max_dist(struct pyr_ynr_alg_cal *ynr_param, int layer_id,
 		ynr_param->imgCenterX[i] = centerX ;
 		ynr_param->imgCenterY[i]= centerY;
 
-		if(centerX > layer_frame_W / 2)
+		if (centerX > layer_frame_W / 2)
 			x_cor = 0;
 		else
 			x_cor = layer_frame_W;
 
-		if(centerY > layer_frame_H / 2)
+		if (centerY > layer_frame_H / 2)
 			y_cor = 0;
 		else
 			y_cor = layer_frame_H;
 
 		cal_radius_distance_octagon_func(&ynr_param->max_dist[i - 1], y_cor, x_cor, centerX, centerY);
 
-		if(radius > ynr_param->max_dist[i - 1])
+		if (radius > ynr_param->max_dist[i - 1])
 			radius = ynr_param->max_dist[i - 1];
 		ynr_param->Radius[i] = radius;
 	}
@@ -487,7 +487,6 @@ static int isppyrrec_cnr_get(struct isp_rec_ctx_desc *ctx, uint32_t idx)
 	return ret;
 }
 
-
 static int isppyrrec_store_get(struct isp_rec_ctx_desc *ctx, uint32_t idx)
 {
 	int ret = 0, i = 0;
@@ -623,12 +622,92 @@ static int isppyrrec_block_cfg_get(struct isp_rec_ctx_desc *ctx, uint32_t idx)
 	return ret;
 }
 
+int isp_pyr_rec_buffer_alloc(void *handle, struct cam_buf_alloc_desc *param)
+{
+	int ret = 0;
+	uint32_t width = 0, height = 0, buffer_size = 0;
+	struct camera_frame * pframe = NULL;
+	struct isp_rec_ctx_desc *rec_ctx = NULL;
+	struct cam_buf_pool_id pool_id = {0};
+
+	if (!handle || !param) {
+		pr_err("fail to get valid input ptr %p param %p\n", handle, param);
+		return -EFAULT;
+	}
+
+	rec_ctx = (struct isp_rec_ctx_desc *)handle;
+
+	if (param->share_buffer) {
+		mutex_lock(&rec_ctx->dev->pyr_mulshare_rec_lock);
+		if (atomic_inc_return(&rec_ctx->dev->pyr_mulshare_rec_alloced) > 1)
+			goto exit;
+		pool_id.tag_id = CAM_BUF_POOL_SHARE_REC_BUF;
+	} else
+		pool_id = rec_ctx->store_result_pool;
+
+	width = isp_rec_layer0_width(param->width, param->pyr_layer_num);
+	height = isp_rec_layer0_heigh(param->height, param->pyr_layer_num);
+	/* rec temp buf max size is equal to layer1 size: w/2 * h/2 */
+	buffer_size = dcam_if_cal_pyramid_size(width, height, cam_data_bits(param->pyr_out_fmt),
+			cam_is_pack(param->pyr_out_fmt), 1, param->pyr_layer_num - 1);
+	buffer_size = ALIGN(buffer_size, CAM_BUF_ALIGN_SIZE);
+
+	pframe = cam_queue_empty_frame_get();
+	pframe->width = width;
+	pframe->height = height;
+	pframe->channel_id = param->ch_id;
+	ret = cam_buf_alloc(&pframe->buf, buffer_size, param->iommu_enable);
+	if (ret) {
+		pr_err("fail to alloc rec buf\n");
+		cam_queue_empty_frame_put(pframe);
+	}
+
+	ret = cam_buf_manager_buf_enqueue(&pool_id, pframe, NULL);
+	if (ret) {
+		pr_err("fail to enq pyrrec buffer\n");
+		cam_buf_destory(pframe);
+	}
+
+exit:
+	if (param->share_buffer)
+		mutex_unlock(&rec_ctx->dev->pyr_mulshare_rec_lock);
+
+	return ret;
+}
+
+static int isppyrrec_outbuf_get(void *handle, void *param)
+{
+	int ret = 0;
+	struct isp_rec_ctx_desc *rec_ctx = NULL;
+	struct camera_frame **frame = NULL;
+	struct cam_buf_pool_id pool_id = {0};
+	struct camera_buf_get_desc buf_desc = {0};
+
+	if (!handle) {
+		pr_err("fail to get valid handle %p\n", handle);
+		return -EFAULT;
+	}
+
+	rec_ctx = (struct isp_rec_ctx_desc *)handle;
+	frame = (struct camera_frame **)param;
+
+	if (rec_ctx->share_buffer)
+		pool_id.tag_id = CAM_BUF_POOL_SHARE_REC_BUF;
+	else
+		pool_id = rec_ctx->store_result_pool;
+
+	buf_desc.q_ops_cmd = CAM_QUEUE_DEQ_PEEK;
+
+	*frame = cam_buf_manager_buf_dequeue(&pool_id, &buf_desc);
+
+	return ret;
+}
+
 static int isppyrrec_cfg_param(void *handle,
 		enum isp_rec_cfg_cmd cmd, void *param)
 {
 	int ret = 0;
 	struct isp_rec_ctx_desc *rec_ctx = NULL;
-	struct camera_frame * pframe = NULL;
 
 	if (!handle || !param) {
 		pr_err("fail to get valid input ptr %p cmd%d\n", handle, cmd);
@@ -637,24 +716,6 @@ static int isppyrrec_cfg_param(void *handle,
 
 	rec_ctx = (struct isp_rec_ctx_desc *)handle;
 	switch (cmd) {
-	case ISP_REC_CFG_BUF:
-		pframe = (struct camera_frame *)param;
-		ret = cam_buf_iommu_map(&pframe->buf, CAM_IOMMUDEV_ISP);
-		if (ret) {
-			pr_err("fail to map isp pyr rec iommu buf.\n");
-			ret = -EINVAL;
-			goto exit;
-		}
-
-		if (rec_ctx->buf_info == NULL) {
-			rec_ctx->buf_info = pframe;
-			pr_debug("REC buf 0x%p = 0x%lx\n", pframe,
-				rec_ctx->buf_info->buf.iova);
-			break;
-		} else
-			pr_debug("REC buf 0x%p = 0x%lx\n", pframe,
-				rec_ctx->buf_info->buf.iova);
-		break;
 	case ISP_REC_CFG_LAYER_NUM:
 		rec_ctx->layer_num = *(uint32_t *)param;
 		pr_debug("layer num %d\n", rec_ctx->layer_num);
@@ -670,13 +731,15 @@ static int isppyrrec_cfg_param(void *handle,
 	case ISP_REC_CFG_FMCU_HANDLE:
 		rec_ctx->fmcu_handle = param;
 		break;
+	case ISP_REC_CFG_SHARE_BUFFER:
+		rec_ctx->share_buffer = *(uint32_t *)param;
+		break;
 	default:
 		pr_err("fail to get known cmd: %d\n", cmd);
 		ret = -EFAULT;
 		break;
 	}
 
-exit:
 	return ret;
 }
 
@@ -685,6 +748,7 @@ static int isppyrrec_pipe_proc(void *handle, void *param)
 	int ret = 0;
 	uint32_t i = 0, j = 0, layer_num = 0;
 	uint32_t offset = 0, offset1 = 0, align = 1, size = 0, pitch = 0;
+	struct camera_frame *out_frame = NULL;
 	struct isp_rec_ctx_desc *rec_ctx = NULL;
 	struct isp_pyr_rec_in *in_ptr = NULL;
 	struct isp_rec_slice_desc *cur_slc = NULL;
@@ -708,6 +772,13 @@ static int isppyrrec_pipe_proc(void *handle, void *param)
 			in_ptr->src.w, in_ptr->src.h);
 		layer_num--;
 	}
+
+	rec_ctx->ops.buf_cb_func(rec_ctx, (void *)&out_frame);
+	if (!out_frame) {
+		pr_err("fail to get rec outframe\n");
+		return -EFAULT;
+	}
+
 	rec_ctx->layer_num = layer_num;
 	/* calc multi layer pyramid dec input addr & size */
 	pitch = isppyrrec_pitch_get(in_ptr->in_fmt, in_ptr->src.w);
@@ -719,6 +790,11 @@ static int isppyrrec_pipe_proc(void *handle, void *param)
 	rec_ctx->rec_cnr_radius = in_ptr->pyr_cnr_radius;
 	rec_ctx->in_fmt = in_ptr->in_fmt;
 	rec_ctx->out_fmt = in_ptr->in_fmt;
+	rec_ctx->buf_info = out_frame;
+	ret = cam_buf_manager_buf_status_cfg(&rec_ctx->buf_info->buf, CAM_BUF_STATUS_GET_IOVA, CAM_BUF_IOMMUDEV_ISP);
+	if (ret)
+		pr_err("fail to map rec buf to ISP iommu.\n");
+
 	rec_ctx->fetch_addr[0] = in_ptr->in_addr;
 	if (in_ptr->in_addr_dcam_out.addr_ch0)
 		rec_ctx->fetch_addr[0] = in_ptr->in_addr_dcam_out;
@@ -726,7 +802,7 @@ static int isppyrrec_pipe_proc(void *handle, void *param)
 	rec_ctx->pyr_layer_size[0].h = isp_rec_layer0_heigh(in_ptr->src.h, layer_num);
 	rec_ctx->pyr_padding_size.w = rec_ctx->pyr_layer_size[0].w - in_ptr->src.w;
 	rec_ctx->pyr_padding_size.h = rec_ctx->pyr_layer_size[0].h - in_ptr->src.h;
-	rec_ctx->store_addr[0].addr_ch0 = rec_ctx->buf_info->buf.iova;
+	rec_ctx->store_addr[0].addr_ch0 = rec_ctx->buf_info->buf.iova[CAM_BUF_IOMMUDEV_ISP];
 	rec_ctx->store_addr[0].addr_ch1 = rec_ctx->store_addr[0].addr_ch0 + size;
 
 	ISP_PYR_DEBUG("isp %d rec layer num %d\n", rec_ctx->ctx_id, layer_num);
@@ -745,7 +821,7 @@ static int isppyrrec_pipe_proc(void *handle, void *param)
 		pitch = isppyrrec_pitch_get(rec_ctx->pyr_fmt, rec_ctx->pyr_layer_size[i].w);
 		size = pitch * rec_ctx->pyr_layer_size[i].h;
 		if (i < layer_num) {
-			rec_ctx->store_addr[i].addr_ch0 = rec_ctx->buf_info->buf.iova + offset1;
+			rec_ctx->store_addr[i].addr_ch0 = rec_ctx->buf_info->buf.iova[CAM_BUF_IOMMUDEV_ISP] + offset1;
 			rec_ctx->store_addr[i].addr_ch1 = rec_ctx->store_addr[i].addr_ch0 + size;
 		}
 		offset1 += (size * 3 / 2);
@@ -817,16 +893,35 @@ static int isppyrrec_pipe_proc(void *handle, void *param)
 
 void *isp_pyr_rec_ctx_get(uint32_t idx, void *hw)
 {
+	int ret = 0;
+	struct isp_pipe_dev *dev = NULL;
 	struct isp_rec_ctx_desc *rec_ctx = NULL;
+
+	if (!hw) {
+		pr_err("fail to get valid param.\n");
+		return NULL;
+	}
+
+	dev = (struct isp_pipe_dev *)hw;
 
 	rec_ctx = cam_buf_kernel_sys_vzalloc(sizeof(struct isp_rec_ctx_desc));
 	if (!rec_ctx)
 		return NULL;
 
+	rec_ctx->dev = dev;
+	rec_ctx->hw = dev->isp_hw;
 	rec_ctx->ctx_id = idx;
-	rec_ctx->hw = hw;
 	rec_ctx->ops.cfg_param = isppyrrec_cfg_param;
 	rec_ctx->ops.pipe_proc = isppyrrec_pipe_proc;
+	rec_ctx->ops.buf_cb_func = isppyrrec_outbuf_get;
+
+	ret = cam_buf_manager_pool_reg(NULL, PYR_DEC_REC_BUF_Q_LEN);
+	if (ret < 0) {
+		pr_err("fail to reg pool for rec ctx id %d\n", rec_ctx->ctx_id);
+		cam_buf_kernel_sys_vfree(rec_ctx);
+		return NULL;
+	}
+	rec_ctx->store_result_pool.private_pool_idx = ret;
 
 	return rec_ctx;
 }
@@ -842,12 +937,13 @@ void isp_pyr_rec_ctx_put(void *rec_handle)
 	}
 
 	rec_ctx = (struct isp_rec_ctx_desc *)rec_handle;
+
+	cam_buf_manager_pool_unreg(&rec_ctx->store_result_pool);
+
 	if (rec_ctx->buf_info) {
 		buf_info = &rec_ctx->buf_info->buf;
-		if (buf_info && buf_info->mapping_state & CAM_BUF_MAPPING_DEV) {
-			cam_buf_iommu_unmap(buf_info);
-			buf_info = NULL;
-		}
+		cam_buf_manager_buf_status_cfg(buf_info, CAM_BUF_STATUS_PUT_IOVA, CAM_BUF_IOMMUDEV_ISP);
+		buf_info = NULL;
 	}
 
 	if (rec_ctx)

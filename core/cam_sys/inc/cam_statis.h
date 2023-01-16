@@ -34,6 +34,5 @@ int cam_statis_dcam_port_buffer_cfg(void *dcam_handle, struct isp_statis_buf_inp
 int cam_statis_dcam_port_buffer_skip_cfg(void *dcam_handle, struct camera_frame *pframe);
 int cam_statis_isp_buffer_cfg(void *isp_handle, void *node, struct isp_statis_buf_input *input);
 int cam_statis_isp_buffer_unmap(void *isp_handle, void *node);
-void cam_statis_isp_buf_destroy(void *param);
 
 #endif

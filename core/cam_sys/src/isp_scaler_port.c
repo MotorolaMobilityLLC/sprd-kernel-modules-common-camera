@@ -12,12 +12,10 @@
  */
 
 #include <linux/vmalloc.h>
-#include "isp_scaler_port.h"
-#include "cam_port.h"
-#include "isp_interface.h"
-#include "isp_dev.h"
-#include "isp_port.h"
+
+#include "dcam_core.h"
 #include "isp_drv.h"
+#include "isp_port.h"
 #include "isp_scaler_node.h"
 
 #ifdef pr_fmt
@@ -39,14 +37,8 @@ struct camera_frame *ispscaler_port_reserved_buf_get(reserved_buf_get_cb resbuf_
 
 	if (resbuf_get_cb)
 		resbuf_get_cb(RESERVED_BUF_GET_CB, (void *)&frame, cb_data);
-	if (frame != NULL) {
+	if (frame != NULL)
 		frame->priv_data = path;
-		if (cam_buf_iommu_single_page_map(&frame->buf, CAM_IOMMUDEV_ISP)) {
-			pr_err("fail to iommu map\n");
-			resbuf_get_cb(RESERVED_BUF_SET_CB, frame, cb_data);
-			frame = NULL;
-		}
-	}
 	return frame;
 }
 
@@ -90,13 +82,13 @@ int ispscaler_port_fetch_normal_get(void *cfg_in, void *cfg_out, struct camera_f
 	fetch->in_trim = *intrim;
 	fetch->fetch_fmt = pipe_src->in_fmt;
 	fetch->bayer_pattern = pipe_src->bayer_pattern;
-	if (camcore_raw_fmt_get(pipe_src->in_fmt))
+	if (cam_raw_fmt_get(pipe_src->in_fmt))
 		fetch->dispatch_color = 0;
 	else if (pipe_src->in_fmt == CAM_FULL_RGB10)
 		fetch->dispatch_color = 1;
 	else
 		fetch->dispatch_color = 2;
-	fetch->addr.addr_ch0 = frame->buf.iova;
+	fetch->addr.addr_ch0 = frame->buf.iova[CAM_BUF_IOMMUDEV_ISP];
 
 	switch (fetch->fetch_fmt) {
 	case CAM_YUV422_3FRAME:
@@ -118,7 +110,7 @@ int ispscaler_port_fetch_normal_get(void *cfg_in, void *cfg_out, struct camera_f
 		break;
 	case CAM_RAW_HALFWORD_10:
 	case CAM_RAW_14:
-		fetch->pitch.pitch_ch0 = cal_sprd_raw_pitch(src->w, cam_pack_bits(pipe_src->in_fmt));
+		fetch->pitch.pitch_ch0 = cal_sprd_pitch(src->w, pipe_src->in_fmt);
 		trim_offset[0] = intrim->start_y * fetch->pitch.pitch_ch0 + intrim->start_x * 2;
 		break;
 	case CAM_YUV422_2FRAME:
@@ -185,7 +177,7 @@ int ispscaler_port_fetch_normal_get(void *cfg_in, void *cfg_out, struct camera_f
 			- mipi_word_num_start[(start_col + 1) & 0xF] + 1;
 		fetch->mipi_byte_rel_pos = mipi_byte_info;
 		fetch->mipi_word_num = mipi_word_info;
-		fetch->pitch.pitch_ch0 = cal_sprd_raw_pitch(src->w, 0);
+		fetch->pitch.pitch_ch0 = cal_sprd_pitch(src->w, CAM_RAW_PACK_10);
 		/* same as slice starts */
 		trim_offset[0] = start_row * fetch->pitch.pitch_ch0 + (start_col >> 2) * 5 + (start_col & 0x3);
 		break;
@@ -633,8 +625,8 @@ static void isp_scaler_port_frame_ret(void *param)
 	if (pframe->is_reserved)
 		port->resbuf_get_cb(RESERVED_BUF_SET_CB, pframe, port->resbuf_cb_data);
 	else {
-		if (pframe->buf.mapping_state & CAM_BUF_MAPPING_DEV)
-			cam_buf_iommu_unmap(&pframe->buf);
+		if (pframe->buf.mapping_state & CAM_BUF_MAPPING_ISP)
+			cam_buf_iommu_unmap(&pframe->buf, CAM_BUF_IOMMUDEV_ISP);
 		port->data_cb_func(CAM_CB_ISP_RET_DST_BUF, pframe, port->data_cb_handle);
 	}
 

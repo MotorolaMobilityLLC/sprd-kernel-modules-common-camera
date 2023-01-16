@@ -42,46 +42,14 @@ typedef struct timeval timeval;
 
 struct camera_buf;
 
-struct dma_buf * cam_ion_alloc(size_t len, unsigned int heap_id_mask,
-					unsigned int flags);
-void cam_ion_free(struct dma_buf *dmabuf);
-
-struct file *cam_filp_open(const char *, int, umode_t);
-int cam_filp_close(struct file *, fl_owner_t id);
-
-ssize_t cam_kernel_read(struct file *, void *, size_t, loff_t *);
-ssize_t cam_kernel_write(struct file *, void *, size_t, loff_t *);
-
-void cam_kproperty_get(const char *key, char *value,
-	const char *default_value);
-int cam_syscon_get_args_by_name(struct device_node *np,
-				const char *name,
-				int arg_count,
-				unsigned int *out_args);
-struct regmap *cam_syscon_regmap_lookup_by_name(
-					struct device_node *np,
-					const char *name);
-
-timespec cam_timespec_sub(timespec lhs, timespec rhs);
-timeval cam_ktime_to_timeval(const ktime_t kt);
-void cam_kernel_timer_stop(struct timer_list *cam_timer);
-
-struct dma_heap *cam_dmaheap_find(const char *name);
-struct dma_buf *cam_dma_alloc(struct dma_heap *heap, size_t len,
-					unsigned int fd_flags,
-					unsigned int heap_flags);
-void cam_dma_free(struct dma_buf *dmabuf);
-
-int cam_buf_map_kernel(struct camera_buf *buf_info, int i);
-int cam_buf_unmap_kernel(struct camera_buf *buf_info, int i);
-
-int cam_buffer_alloc(struct camera_buf *buf_info,
-	size_t size, unsigned int iommu_enable, unsigned int flag);
-void cam_buffer_free(struct dma_buf *dmabuf);
-
-int cam_ion_get_buffer(int fd, bool buf_sec, struct dma_buf *dmabuf,
-		void **buf, size_t *size);
-int cam_buf_get_phys_addr(int fd, struct dma_buf *dmabuf,
-		unsigned long *phys_addr, size_t *size);
+struct file *cam_kernel_adapt_filp_open(const char *, int, umode_t);
+int cam_kernel_adapt_filp_close(struct file *, fl_owner_t id);
+ssize_t cam_kernel_adapt_read(struct file *, void *, size_t, loff_t *);
+ssize_t cam_kernel_adapt_write(struct file *, void *, size_t, loff_t *);
+void cam_kernel_adapt_kproperty_get(const char *key, char *value, const char *default_value);
+int cam_kernel_adapt_syscon_get_args_by_name(struct device_node *np, const char *name, int arg_count, unsigned int *out_args);
+struct regmap *cam_kernel_adapt_syscon_regmap_lookup_by_name(struct device_node *np, const char *name);
+timespec cam_kernel_adapt_timespec_sub(timespec lhs, timespec rhs);
+timeval cam_kernel_adapt_ktime_to_timeval(const ktime_t kt);
 
 #endif

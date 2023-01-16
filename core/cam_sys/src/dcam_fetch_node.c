@@ -11,16 +11,9 @@
  * GNU General Public License for more details.
  */
 
-#include <linux/list.h>
-#include <linux/slab.h>
-#include <linux/vmalloc.h>
 #include <linux/delay.h>
-#include <linux/uaccess.h>
-#include "dcam_fetch_node.h"
-#include "dcam_interface.h"
-#include "dcam_core.h"
+
 #include "cam_node.h"
-#include "cam_debugger.h"
 #include "dcam_slice.h"
 
 #ifdef pr_fmt
@@ -133,13 +126,15 @@ static void dcamfetch_frame_dispatch(void *param, void *handle)
 	frame->link_from.node_type = CAM_NODE_TYPE_DCAM_ONLINE;
 	frame->link_from.port_id = irq_proc->dcam_port_id;
 	if (irq_proc->type == CAM_CB_DCAM_DATA_DONE) {
-		ret = cam_buf_manager_buf_status_change(&frame->buf, CAM_BUF_WITH_ION, CAM_IOMMUDEV_DCAM);
+		ret = cam_buf_manager_buf_status_cfg(&frame->buf, CAM_BUF_STATUS_PUT_IOVA, CAM_BUF_IOMMUDEV_DCAM);
 		if (ret) {
 			pr_err("fail ro unmap path:%d buffer.\n", irq_proc->dcam_port_id);
 			ret = dcam_port->data_cb_func(CAM_CB_DCAM_RET_SRC_BUF, frame, dcam_port->data_cb_handle);
 			if (ret) {
+				struct cam_buf_pool_id pool_id = {0};
+				pool_id.tag_id = CAM_BUF_POOL_ABNORAM_RECYCLE;
+				cam_buf_manager_buf_enqueue(&pool_id, frame, NULL);
 				pr_err("fail to enqueue path:%d frame, q_cnt:%d.\n", irq_proc->dcam_port_id, cam_buf_manager_pool_cnt(&dcam_port->unprocess_pool));
-				cam_buf_destory(frame);
 			}
 			return;
 		}
@@ -210,7 +205,7 @@ static int dcamfetch_done_proc(void *param, void *handle, struct dcam_hw_context
 			}
 			frame = cam_queue_dequeue(&node->proc_queue, struct camera_frame, list);
 			if (frame) {
-				cam_buf_iommu_unmap(&frame->buf);
+				cam_buf_iommu_unmap(&frame->buf, CAM_BUF_IOMMUDEV_DCAM);
 				if (online_node->data_cb_func)
 					online_node->data_cb_func(CAM_CB_DCAM_RET_SRC_BUF, frame, online_node->data_cb_handle);
 			}
@@ -276,7 +271,7 @@ static int dcamfetch_done_proc(void *param, void *handle, struct dcam_hw_context
 			if (!node->virtualsensor_cap_en) {
 				frame = cam_queue_dequeue(&node->proc_queue, struct camera_frame, list);
 				if (frame) {
-					cam_buf_iommu_unmap(&frame->buf);
+					cam_buf_iommu_unmap(&frame->buf, CAM_BUF_IOMMUDEV_DCAM);
 					if (online_node->data_cb_func)
 						online_node->data_cb_func(CAM_CB_DCAM_RET_SRC_BUF, frame, online_node->data_cb_handle);
 				}
@@ -376,7 +371,7 @@ static void dcamfetch_src_frame_ret(void *param)
 	pr_debug("frame %p, ch_id %d, buf_fd %d\n",
 		frame, frame->channel_id, frame->buf.mfd);
 
-	cam_buf_iommu_unmap(&frame->buf);
+	cam_buf_manager_buf_status_cfg(&frame->buf, CAM_BUF_STATUS_PUT_IOVA, CAM_BUF_IOMMUDEV_DCAM);
 	node->online_node.data_cb_func(CAM_CB_DCAM_RET_SRC_BUF, frame, node->online_node.data_cb_handle);
 }
 
@@ -401,7 +396,7 @@ static struct camera_frame *dcamfetch_cycle_frame(struct dcam_fetch_node *node)
 	pr_debug("size %d %d,  endian %d, pattern %d\n",
 			pframe->width, pframe->height, pframe->endian, pframe->pattern);
 
-	ret = cam_buf_iommu_map(&pframe->buf, CAM_IOMMUDEV_DCAM);
+	ret = cam_buf_iommu_map(&pframe->buf, CAM_BUF_IOMMUDEV_DCAM);
 	if (ret) {
 		pr_err("fail to map buf to DCAM iommu. ctx %d\n", node->online_node.node_id);
 		goto map_err;
@@ -425,7 +420,7 @@ static struct camera_frame *dcamfetch_cycle_frame(struct dcam_fetch_node *node)
 	return pframe;
 
 inq_overflow:
-	cam_buf_iommu_unmap(&pframe->buf);
+	cam_buf_manager_buf_status_cfg(&pframe->buf, CAM_BUF_STATUS_PUT_IOVA, CAM_BUF_IOMMUDEV_DCAM);
 
 map_err:
 	node->online_node.data_cb_func(CAM_CB_DCAM_RET_SRC_BUF, pframe, node->online_node.data_cb_handle);
@@ -448,7 +443,7 @@ static int dcamfetch_param_get(struct dcam_fetch_node *node,
 	fetch->trim.start_y = 0;
 	fetch->trim.size_x = pframe->width;
 	fetch->trim.size_y = pframe->height;
-	fetch->addr.addr_ch0 = (uint32_t)pframe->buf.iova;
+	fetch->addr.addr_ch0 = (uint32_t)pframe->buf.iova[CAM_BUF_IOMMUDEV_DCAM];
 
 	node->online_node.hw_ctx->hw_fetch.idx = node->online_node.hw_ctx_id;
 	node->online_node.hw_ctx->hw_fetch.virtualsensor_pre_sof = 1;
@@ -609,7 +604,7 @@ static int dcamfetch_node_frame_start(void *param)
 
 fetch_return_buf:
 	pframe = cam_queue_dequeue(&node->proc_queue, struct camera_frame, list);
-	cam_buf_iommu_unmap(&pframe->buf);
+	cam_buf_manager_buf_status_cfg(&pframe->buf, CAM_BUF_STATUS_PUT_IOVA, CAM_BUF_IOMMUDEV_DCAM);
 	online_node->data_cb_func(CAM_CB_DCAM_RET_SRC_BUF, pframe, online_node->data_cb_handle);
 fetch_input_err:
 	complete(&node->slice_done);

@@ -40,6 +40,17 @@
 #define GTM_HIST_ITEM_NUM                       0
 #define GTM_HIST_VALUE_SIZE                     1
 #define DUMP_SharkL3
+#define CAL_PACK_PITCH(w)  ({ \
+	uint32_t mod16_len[16] = {0, 8, 8, 8, 8, 12, 12, 12, 12, 16, 16, 16, 16, 20, 20, 20}; \
+	((w) >> 4) * 20 + (mod16_len[(w) & 0xf]); \
+})
+#define CAL_UNPACK_PITCH(w)                     ((w) * 2)
+#define CAL_FULLRGB14_PITCH(w)                  (0)
+
+ /* dcamoffline limit hw: 0xFFFFFFFF/M, node:0xFFFFFFFF*/
+#define DCAMOFFLINE_HW_TIME_RATIO               0xFFFFFFFF
+#define DCAMOFFLINE_NODE_TIME                   0xFFFFFFFF
+
 /*
  *DCAM_CONTROL register bit map id
  * for force_cpy/auto_cpy control

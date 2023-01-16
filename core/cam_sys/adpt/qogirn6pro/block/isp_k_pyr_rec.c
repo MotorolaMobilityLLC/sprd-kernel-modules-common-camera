@@ -14,9 +14,8 @@
 #include <linux/uaccess.h>
 #include <sprd_mm.h>
 
-#include "isp_reg.h"
 #include "isp_pyr_rec.h"
-#include "isp_slice.h"
+#include "isp_reg.h"
 
 #ifdef pr_fmt
 #undef pr_fmt

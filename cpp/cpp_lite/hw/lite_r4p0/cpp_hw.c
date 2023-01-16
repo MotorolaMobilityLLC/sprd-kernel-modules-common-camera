@@ -446,12 +446,12 @@ int cpphw_probe(struct platform_device *pdev, struct cpp_hw_info * hw_info)
 	/* read global register */
 	for (i = 0; i < ARRAY_SIZE(syscon_name); i++) {
 		pname = syscon_name[i];
-		tregmap =  cam_syscon_regmap_lookup_by_name(np, pname);
+		tregmap = cam_kernel_adapt_syscon_regmap_lookup_by_name(np, pname);
 		if (IS_ERR_OR_NULL(tregmap)) {
 			pr_err("fail to read %s regmap\n", pname);
 			continue;
 		}
-		if (cam_syscon_get_args_by_name(np, pname, 2, args)) {
+		if (cam_kernel_adapt_syscon_get_args_by_name(np, pname, 2, args)) {
 			pr_err("fail to read %s args, ret %d\n",
 				pname, ret);
 			continue;

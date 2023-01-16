@@ -618,17 +618,12 @@ static int ispltm_histo_config_gen(struct isp_ltm_ctx_desc *ctx,
 		return 0;
 	}
 
-	if (!ctx->buf_info[idx]) {
-		pr_err("fail to ctx id %d, buf_id %d\n", ctx->ctx_id, ctx->buf_info[idx]);
-		return -1;
-	}
-
 	idx = ctx->fid % ISP_LTM_BUF_NUM;
 	hists->clip_limit = param->clipLimit;
 	hists->clip_limit_min = param->clipLimit_min;
 	hists->texture_proportion = param->text_proportion;
 	hists->text_point_thres = param->text_point_thres;
-	hists->addr = ctx->buf_info[idx]->iova;
+	hists->addr = ctx->ltm_frame[idx].buf.iova[CAM_BUF_IOMMUDEV_ISP];
 	hists->pitch = param->tile_num_x - 1;
 	hists->wr_num = param->tile_num_x * 32;
 
@@ -790,9 +785,9 @@ static int ispltm_map_config_gen(struct isp_ltm_ctx_desc *ctx,
 	if (tuning->ltm_map_video_mode) {
 		if (idx == 0)
 			idx = ISP_LTM_BUF_NUM;
-		map->mem_init_addr = ctx->buf_info[idx - 1]->iova;
+		map->mem_init_addr = ctx->ltm_frame[idx - 1].buf.iova[CAM_BUF_IOMMUDEV_ISP];
 	} else
-		map->mem_init_addr = ctx->buf_info[idx]->iova;
+		map->mem_init_addr = ctx->ltm_frame[idx].buf.iova[CAM_BUF_IOMMUDEV_ISP];
 
 	pr_debug("tile_width[%d], tile_height[%d], tile_x_num[%d], tile_y_num[%d]\n",
 		map->tile_width, map->tile_height, map->tile_x_num, map->tile_y_num);
@@ -931,9 +926,8 @@ static int ispltm_cfg_param(void *handle,
 		enum isp_ltm_cfg_cmd cmd, void *param)
 {
 	int ret = 0;
-	uint32_t i = 0, fid = 0;
+	uint32_t i = 0, fid = 0, cam_id = 0;
 	struct isp_ltm_ctx_desc *ltm_ctx = NULL;
-	struct camera_frame * pframe = NULL;
 	struct img_trim *crop = NULL;
 
 	if (!handle || !param) {
@@ -950,28 +944,6 @@ static int ispltm_cfg_param(void *handle,
 	case ISP_LTM_CFG_MODE:
 		ltm_ctx->mode = *(uint32_t *)param;
 		pr_debug("ctx_id %d, LTM mode %d\n", ltm_ctx->ctx_id,ltm_ctx->mode);
-		break;
-	case ISP_LTM_CFG_BUF:
-		pframe = (struct camera_frame *)param;
-		if ((pframe->buf.mapping_state & CAM_BUF_MAPPING_DEV) == 0) {
-			ret = cam_buf_iommu_map(&pframe->buf, CAM_IOMMUDEV_ISP);
-			if (ret) {
-				pr_err("fail to map isp ltm iommu buf.\n");
-				ret = -EINVAL;
-				goto exit;
-			}
-		}
-
-		for (i = 0; i < ISP_LTM_BUF_NUM; i++) {
-			if (ltm_ctx->buf_info[i] == NULL) {
-				ltm_ctx->buf_info[i] = &pframe->buf;
-				pr_debug("ctx id %d, LTM CFGB[%d][0x%p] = 0x%lx\n", ltm_ctx->ctx_id, i, pframe, ltm_ctx->buf_info[i]->iova);
-				break;
-			}
-		}
-
-		if (i == ISP_LTM_BUF_NUM)
-			pr_err("fail to get ltm frame buffer, ctx_id %d, mode %d\n", ltm_ctx->ctx_id, ltm_ctx->mode);
 		break;
 	case ISP_LTM_CFG_FRAME_ID:
 		fid = *(uint32_t *)param;
@@ -1003,13 +975,26 @@ static int ispltm_cfg_param(void *handle,
 		ltm_ctx->map.bypass = !(*(uint32_t *)param);
 		pr_debug("LTM frame id %d, map bypass %d\n", ltm_ctx->fid, ltm_ctx->map.bypass);
 		break;
+	case ISP_LTM_CFG_SET_BUF:
+		cam_id = ltm_ctx->cam_id;
+		for (i = 0; i < ISP_LTM_BUF_NUM; i++) {
+			s_rgb_ltm_sync[cam_id].ltm_frame[i] = ltm_ctx->ltm_frame[i];
+			pr_debug("ctx id %d, set LTM CFGB[%d][0x%p] = 0x%lx\n", ltm_ctx->ctx_id, i, ltm_ctx->ltm_frame[i], ltm_ctx->ltm_frame[i].buf.iova[CAM_BUF_IOMMUDEV_ISP]);
+		}
+		break;
+	case ISP_LTM_CFG_GET_BUF:
+		cam_id = ltm_ctx->cam_id;
+		for (i = 0; i < ISP_LTM_BUF_NUM; i++) {
+			ltm_ctx->ltm_frame[i] = s_rgb_ltm_sync[cam_id].ltm_frame[i];
+			pr_debug("ctx id %d, get LTM CFGB[%d][0x%p] = 0x%lx\n", ltm_ctx->ctx_id, i, ltm_ctx->ltm_frame[i], ltm_ctx->ltm_frame[i].buf.iova[CAM_BUF_IOMMUDEV_ISP]);
+		}
+		break;
 	default:
 		pr_err("fail to get known cmd: %d\n", cmd);
 		ret = -EFAULT;
 		break;
 	}
 
-exit:
 	return ret;
 }
 
@@ -1041,7 +1026,6 @@ static void ispltm_ctx_deinit(void *handle)
 {
 	uint32_t i = 0;
 	struct isp_ltm_ctx_desc *ltm_ctx = NULL;
-	struct camera_buf *buf_info = NULL;
 
 	if (!handle) {
 		pr_err("fail to get valid ltm handle\n");
@@ -1049,25 +1033,18 @@ static void ispltm_ctx_deinit(void *handle)
 	}
 
 	ltm_ctx = (struct isp_ltm_ctx_desc *)handle;
-	if (ltm_ctx->enable && ltm_ctx->mode == MODE_LTM_PRE) {
-		ltm_ctx->ltm_ops.sync_ops.clear_status(ltm_ctx);
-		ltm_ctx->ltm_ops.sync_ops.do_completion(ltm_ctx);
-		for (i = 0; i < ISP_LTM_BUF_NUM; i++) {
-			buf_info = ltm_ctx->buf_info[i];
-			pr_debug("ctx id %d, LTM CFGB[%d], frame_buf 0x%p, iova 0x%lx\n", ltm_ctx->ctx_id, i, buf_info, ltm_ctx->buf_info[i]->iova);
-			if (buf_info && buf_info->mapping_state & CAM_BUF_MAPPING_DEV) {
-				cam_buf_iommu_unmap(buf_info);
-				buf_info = NULL;
-			}
-		}
-	}
 
 	if (ltm_ctx->enable && ltm_ctx->mode == MODE_LTM_PRE) {
 		ltm_ctx->ltm_ops.sync_ops.clear_status(ltm_ctx);
+		ltm_ctx->ltm_ops.sync_ops.do_completion(ltm_ctx);
+	}
+
+	if (ltm_ctx->ltm_buf_mod == MODE_LTM_BUF_SET) {
 		for (i = 0; i < ISP_LTM_BUF_NUM; i++) {
-			buf_info = ltm_ctx->buf_info[i];
-			if (buf_info)
-				buf_info = NULL;
+			if (ltm_ctx->ltm_frame[i].buf.mapping_state & CAM_BUF_MAPPING_ISP) {
+				cam_buf_iommu_unmap(&ltm_ctx->ltm_frame[i].buf, CAM_BUF_IOMMUDEV_ISP);
+				cam_buf_free(&ltm_ctx->ltm_frame[i].buf);
+			}
 		}
 	}
 

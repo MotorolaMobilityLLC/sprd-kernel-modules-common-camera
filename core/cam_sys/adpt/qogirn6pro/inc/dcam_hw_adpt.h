@@ -45,6 +45,10 @@
 /*Total lbuf DCAM0+DCAM1: 5184+5184 */
 #define DCAM_TOTAL_LBUF                10368
 
+ /* dcamoffline limit hw: 1500us(1.5ms)/M, node:30ms*/
+#define DCAMOFFLINE_HW_TIME_RATIO      1500
+#define DCAMOFFLINE_NODE_TIME          30000
+
 /*
  * dcam_if fbc capability limit
  * modification to these values may cause some function in isp_slice.c not
@@ -63,6 +67,13 @@
 
 #define FBC_HEADER_REDUNDANT           0
 #define FBC_TILE_ADDR_ALIGN            1
+#define CAL_PACK_PITCH(w)              (((w) * 10 + 127) / 128 * 128 / 8)
+#define CAL_UNPACK_PITCH(w)            (((w) * 16 + 127) / 128 * 128 / 8)
+#if defined (PROJ_QOGIRN6L)
+#define CAL_FULLRGB14_PITCH(w)         ((w) * 6)
+#else
+#define CAL_FULLRGB14_PITCH(w)         ((w) * 8)
+#endif
 
 enum dcam_ctrl_id {
 	DCAM_CTRL_CAP = (1 << 0),

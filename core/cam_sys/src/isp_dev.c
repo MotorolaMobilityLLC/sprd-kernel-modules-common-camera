@@ -11,15 +11,13 @@
  * GNU General Public License for more details.
  */
 
-#include "isp_dev.h"
 #include "isp_cfg.h"
-#include "isp_node.h"
-#include "isp_int.h"
-#include "isp_pyr_rec.h"
-#include "isp_reg.h"
 #include "isp_drv.h"
-#include "pyr_dec_node.h"
 #include "isp_gtm.h"
+#include "isp_int_common.h"
+#include "isp_node.h"
+#include "isp_reg.h"
+#include "pyr_dec_node.h"
 
 #ifdef pr_fmt
 #undef pr_fmt
@@ -165,7 +163,7 @@ static int ispdev_context_deinit(struct isp_pipe_dev *dev)
 		if (pctx_hw->slice_ctx)
 			isp_slice_ctx_put(&pctx_hw->slice_ctx);
 		atomic_set(&pctx_hw->user_cnt, 0);
-		isp_int_irq_hw_cnt_trace(i);
+		isp_int_common_irq_hw_cnt_trace(i);
 	}
 	pr_info("isp contexts deinit done!\n");
 
@@ -222,13 +220,15 @@ static int ispdev_open(void *isp_handle, void *param)
 		dev->isp_hw = hw;
 		mutex_init(&dev->path_mutex);
 		mutex_init(&dev->dev_lock);
+		mutex_init(&dev->pyr_mulshare_dec_lock);
+		mutex_init(&dev->pyr_mulshare_rec_lock);
 		spin_lock_init(&dev->ctx_lock);
 		spin_lock_init(&hw->isp_cfg_lock);
 
 		ret = isp_drv_hw_init(dev);
 		atomic_set(&dev->pd_clk_rdy, 1);
 		if (dev->pyr_dec_handle == NULL && hw->ip_isp->pyr_dec_support) {
-			dev->pyr_dec_handle = pyrdec_dev_get(dev, hw);
+			dev->pyr_dec_handle = pyr_dec_dev_get(dev, hw);
 			if (!dev->pyr_dec_handle) {
 				pr_err("fail to get memory for dec_dev.\n");
 				ret = -ENOMEM;
@@ -248,7 +248,7 @@ static int ispdev_open(void *isp_handle, void *param)
 
 dec_err:
 	if (dev->pyr_dec_handle && hw->ip_isp->pyr_dec_support) {
-		pyrdec_dev_put(dev->pyr_dec_handle);
+		pyr_dec_dev_put(dev->pyr_dec_handle);
 		dev->pyr_dec_handle = NULL;
 	}
 err_init:
@@ -256,6 +256,9 @@ err_init:
 	atomic_set(&dev->pd_clk_rdy, 0);
 	isp_drv_hw_deinit(dev);
 	mutex_destroy(&dev->path_mutex);
+	mutex_destroy(&dev->dev_lock);
+	mutex_destroy(&dev->pyr_mulshare_dec_lock);
+	mutex_destroy(&dev->pyr_mulshare_rec_lock);
 	atomic_dec(&dev->enable);
 	pr_err("fail to open isp dev!\n");
 	return ret;
@@ -278,13 +281,15 @@ static int ispdev_close(void *isp_handle)
 		ret = hw->isp_ioctl(hw, ISP_HW_CFG_STOP, NULL);
 		ret = ispdev_context_deinit(dev);
 		if (dev->pyr_dec_handle && hw->ip_isp->pyr_dec_support) {
-			pyrdec_dev_put(dev->pyr_dec_handle);
+			pyr_dec_dev_put(dev->pyr_dec_handle);
 			dev->pyr_dec_handle = NULL;
 		}
 		atomic_set(&dev->pd_clk_rdy, 0);
 		ret = isp_drv_hw_deinit(dev);
 		mutex_destroy(&dev->path_mutex);
 		mutex_destroy(&dev->dev_lock);
+		mutex_destroy(&dev->pyr_mulshare_dec_lock);
+		mutex_destroy(&dev->pyr_mulshare_rec_lock);
 	}
 
 	pr_info("isp dev disable done\n");
@@ -566,6 +571,8 @@ int isp_core_pipe_dev_put(void *isp_handle)
 	}
 
 	if (atomic_dec_return(&dev->user_cnt) == 0) {
+		atomic_set(&dev->pyr_mulshare_dec_alloced, 0);
+		atomic_set(&dev->pyr_mulshare_rec_alloced, 0);
 		pr_info("free isp pipe dev %p\n", dev);
 		cam_buf_kernel_sys_vfree(dev);
 		dev = NULL;

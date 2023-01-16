@@ -77,6 +77,12 @@ enum isp_ltm_mode {
 	MODE_LTM_MAX
 };
 
+enum isp_ltm_buf_mode {
+	MODE_LTM_BUF_OFF,
+	MODE_LTM_BUF_SET,
+	MODE_LTM_BUF_GET,
+};
+
 enum isp_gtm_mode {
 	MODE_GTM_OFF,
 	MODE_GTM_PRE,
@@ -88,13 +94,6 @@ enum isp_path_binding_type {
 	ISP_PATH_ALONE = 0,
 	ISP_PATH_MASTER,
 	ISP_PATH_SLAVE,
-};
-
-enum isp_offline_param_valid {
-	ISP_SRC_SIZE = (1 << 0),
-	ISP_PATH0_TRIM = (1 << 1),
-	ISP_PATH1_TRIM = (1 << 2),
-	ISP_PATH2_TRIM = (1 << 3),
 };
 
 enum isp_ioctrl_cmd {
@@ -120,12 +119,6 @@ enum isp_stream_buf_type {
 struct isp_size_desc {
 	struct img_size size;
 	struct img_trim trim;
-	uint32_t zoom_conflict_with_ltm;
-};
-
-struct isp_ctx_size_desc {
-	struct img_size src;
-	struct img_trim crop;
 	uint32_t zoom_conflict_with_ltm;
 };
 

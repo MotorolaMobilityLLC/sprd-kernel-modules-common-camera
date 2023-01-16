@@ -14,12 +14,9 @@
 #include <linux/uaccess.h>
 #include <sprd_mm.h>
 
-#include "isp_hw.h"
-#include "isp_reg.h"
 #include "cam_block.h"
 #include "isp_ltm.h"
-#include "sprd_isp_2v6.h"
-#include "cam_queue.h"
+#include "isp_reg.h"
 
 #ifdef pr_fmt
 #undef pr_fmt
@@ -52,10 +49,9 @@ static void isp_ltm_config_hists(uint32_t idx, struct isp_ltm_hists *hists)
 		(hists->roi_start_x & 0x1FFF);
 	ISP_REG_WR(idx, ISP_LTM_ROI_START, val);
 
-	/* tile_num_y tile_num_x HOW TODO */
-	val = ((hists->tile_num_y_minus & 0x7)   << 28) |
+	val = ((hists->tile_num_y_minus & 0x7) << 28) |
 		((hists->tile_height & 0x1FF) << 16) |
-		((hists->tile_num_x_minus & 0x7)   << 12) |
+		((hists->tile_num_x_minus & 0x7) << 12) |
 		(hists->tile_width & 0x1FF);
 	ISP_REG_WR(idx, ISP_LTM_TILE_RANGE, val);
 

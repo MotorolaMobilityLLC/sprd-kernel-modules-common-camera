@@ -14,11 +14,8 @@
 #include <linux/uaccess.h>
 #include <sprd_mm.h>
 
-#include "isp_hw.h"
-#include "isp_reg.h"
-#include "cam_types.h"
 #include "cam_block.h"
-#include "cam_queue.h"
+#include "isp_reg.h"
 
 #ifdef pr_fmt
 #undef pr_fmt
@@ -28,7 +25,7 @@
 int isp_k_yrandom_block(struct dcam_isp_k_block *isp_k_param, uint32_t idx)
 {
 	int ret = 0;
-	uint32_t val;
+	uint32_t val = 0;
 	struct isp_dev_yrandom_info *yrandom_info = NULL;
 	if (isp_k_param->yrandom_info.isupdate == 0)
 		return ret;

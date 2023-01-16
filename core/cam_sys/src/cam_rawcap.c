@@ -22,7 +22,7 @@ int camrawcap_raw_pre_proc(struct camera_module *module,
 	uint32_t pyrdec_support = 0;
 	struct cam_hw_info *hw = NULL;
 	struct channel_context *ch = NULL;
-	struct cam_pipeline_desc pipeline_desc = {0};
+	struct cam_pipeline_desc *pipeline_desc = NULL;
 	struct dcam_offline_node_desc *dcam_offline_desc = NULL;
 	struct isp_node_desc *isp_node_description = NULL;
 	struct pyr_dec_node_desc *pyr_dec_desc = NULL;
@@ -41,13 +41,18 @@ int camrawcap_raw_pre_proc(struct camera_module *module,
 	ch->ch_uinfo.dcam_raw_fmt = -1;
 	ch->ch_uinfo.sensor_raw_fmt = -1;
 	pipeline_type = CAM_PIPELINE_OFFLINE_RAW2YUV;
-	dcam_offline_desc = &pipeline_desc.dcam_offline_desc;
-	isp_node_description = &pipeline_desc.isp_node_description;
-	pyr_dec_desc = &pipeline_desc.pyr_dec_desc;
-	pipeline_desc.pipeline_graph = &module->static_topology->pipeline_list[pipeline_type];
-	pipeline_desc.nodes_dev = &module->nodes_dev;
-	pipeline_desc.data_cb_handle = module;
-	pipeline_desc.data_cb_func = camcore_pipeline_callback;
+	pipeline_desc = cam_buf_kernel_sys_vzalloc(sizeof(struct cam_pipeline_desc));
+	if (!pipeline_desc) {
+		pr_err("fail to alloc pipeline_des\n");
+		return -ENOMEM;
+	}
+	dcam_offline_desc = &pipeline_desc->dcam_offline_desc;
+	isp_node_description = &pipeline_desc->isp_node_description;
+	pyr_dec_desc = &pipeline_desc->pyr_dec_desc;
+	pipeline_desc->pipeline_graph = &module->static_topology->pipeline_list[pipeline_type];
+	pipeline_desc->nodes_dev = &module->nodes_dev;
+	pipeline_desc->data_cb_handle = module;
+	pipeline_desc->data_cb_func = camcore_pipeline_callback;
 
 	dcam_offline_desc->dev = module->dcam_dev_handle;
 	if (module->grp->hw_info->prj_id == SHARKL3)
@@ -57,9 +62,9 @@ int camrawcap_raw_pre_proc(struct camera_module *module,
 	dcam_offline_desc->port_desc.endian = ENDIAN_LITTLE;
 	dcam_offline_desc->port_desc.src_sel = PROCESS_RAW_SRC_SEL;
 	dcam_offline_desc->statis_en = 1;
-	camcore_valid_fmt_get(&module->raw_cap_fetch_fmt, hw->ip_dcam[0]->sensor_raw_fmt);
+	cam_valid_fmt_get(&module->raw_cap_fetch_fmt, hw->ip_dcam[0]->sensor_raw_fmt);
 	dcam_offline_desc->fetch_fmt = module->raw_cap_fetch_fmt;
-	camcore_valid_fmt_get(&ch->ch_uinfo.dcam_raw_fmt, hw->ip_dcam[0]->raw_fmt_support[0]);
+	cam_valid_fmt_get(&ch->ch_uinfo.dcam_raw_fmt, hw->ip_dcam[0]->raw_fmt_support[0]);
 	dcam_offline_desc->port_desc.dcam_out_fmt = ch->ch_uinfo.dcam_raw_fmt;
 	if (module->cam_uinfo.dcam_slice_mode && hw->ip_dcam[0]->save_band_for_bigsize)
 		dcam_offline_desc->port_desc.dcam_out_fmt = CAM_RAW_PACK_10;
@@ -105,10 +110,11 @@ int camrawcap_raw_pre_proc(struct camera_module *module,
 	pyr_dec_desc->buf_cb_func = pyr_dec_node_outbuf_get;
 	pyr_dec_desc->in_fmt = dcam_offline_desc->port_desc.dcam_out_fmt;
 	pyr_dec_desc->pyr_out_fmt = hw->ip_dcam[0]->store_pyr_fmt;
-	ch->pipeline_handle = cam_pipeline_creat(&pipeline_desc);
+	ch->pipeline_handle = cam_pipeline_creat(pipeline_desc);
 	if (!ch->pipeline_handle) {
 		pr_err("fail to get cam pipeline.\n");
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto fail;
 	}
 	ch->enable = 1;
 	ch->dcam_port_id = dcamoffline_pathid_convert_to_portid(hw->ip_dcam[DCAM_HW_CONTEXT_0]->aux_dcam_path);
@@ -150,6 +156,9 @@ int camrawcap_raw_pre_proc(struct camera_module *module,
 	if (module->cam_uinfo.is_pyr_dec)
 		CAM_PIPEINE_ISP_NODE_CFG(ch, CAM_PIPELINE_CFG_REC_LEYER_NUM, &pyr_layer_num);
 
+fail:
+	cam_buf_kernel_sys_vfree(pipeline_desc);
+
 	return ret;
 }
 
@@ -157,15 +166,18 @@ int camrawcap_raw_post_proc(struct camera_module *module,
 		struct isp_raw_proc_info *proc_info)
 {
 	int ret = 0;
-	uint32_t width = 0, height = 0, size = 0;
-	uint32_t pack_bits = 0, dcam_out_bits = 0;
+	uint32_t width = 0, height = 0;
+	uint32_t pack_bits = 0, size = 0;
 	struct channel_context *ch = NULL;
+	struct isp_node *isp_node = NULL;
+	struct pyr_dec_node *pyrdec_node = NULL;
+	struct isp_rec_ctx_desc *rec_ctx = NULL;
 	struct camera_frame *src_frame = NULL;
 	struct camera_frame *mid_frame = NULL;
 	struct camera_frame *dst_frame = NULL;
-	struct camera_frame *pframe = NULL;
 	struct dcam_pipe_dev *dev = NULL;
 	struct dcam_statis_param statis_param = {0};
+	struct cam_buf_alloc_desc alloc_param = {0};
 	timespec cur_ts = {0};
 	memset(&cur_ts, 0, sizeof(timespec));
 	pr_info("start\n");
@@ -177,6 +189,8 @@ int camrawcap_raw_post_proc(struct camera_module *module,
 		pr_err("fail to get channel enable state\n");
 		return -EFAULT;
 	}
+
+	isp_node = module->nodes_dev.isp_node_dev[ISP_NODE_MODE_CAP_ID];
 
 	statis_param.statis_cmd = DCAM_IOCTL_INIT_STATIS_Q;
 	CAM_PIPEINE_DCAM_OFFLINE_NODE_CFG(ch, CAM_PIPELINE_CFG_STATIS_BUF, &statis_param);
@@ -200,6 +214,7 @@ int camrawcap_raw_post_proc(struct camera_module *module,
 	src_frame->sensor_time.tv_usec = cur_ts.tv_nsec / NSEC_PER_USEC;
 	src_frame->boot_sensor_time = ktime_get_boottime();
 	src_frame->buf.status = CAM_BUF_ALLOC;
+	src_frame->zoom_data.zoom_mode = CAM_ZOOM_MODE_OLD;
 
 	dst_frame = cam_queue_empty_frame_get();
 	dst_frame->buf.type = CAM_BUF_USER;
@@ -263,52 +278,22 @@ int camrawcap_raw_post_proc(struct camera_module *module,
 	}
 
 	pr_info("raw proc, src %px, mid %px, dst %px\n", src_frame, mid_frame, dst_frame);
-	cam_queue_init(&ch->share_buf_queue, CAM_SHARED_BUF_NUM, camcore_k_frame_put);
 	atomic_set(&module->state, CAM_RUNNING);
 
 	if (module->cam_uinfo.is_pyr_dec) {
-		/* dec out buf for raw capture */
-		width = proc_info->src_size.width;
-		height = proc_info->src_size.height;
-		dcam_out_bits = cam_data_bits(module->grp->hw_info->ip_dcam[0]->dcam_output_fmt[0]);
-		size = dcam_if_cal_pyramid_size(width, height, dcam_out_bits, 1, 0, ISP_PYR_DEC_LAYER_NUM);
-		size = ALIGN(size, CAM_BUF_ALIGN_SIZE);
-		pframe = cam_queue_empty_frame_get();
-		pframe->width = width;
-		pframe->height = height;
-		pframe->channel_id = ch->ch_id;
-		pframe->data_src_dec = 1;
-		ret = cam_buf_alloc(&pframe->buf, size, module->iommu_enable);
-		if (ret) {
-			pr_err("fail to alloc raw dec buf\n");
-			cam_queue_empty_frame_put(pframe);
-			goto dst_fail;
-		}
-		ch->pyr_dec_buf = pframe;
-		pr_debug("pyr_dec size %d, buf %p, w %d h %d\n", size, pframe, width, height);
-		ret = CAM_PIPEINE_PYR_DEC_NODE_CFG(ch, CAM_PIPILINE_CFG_PYRDEC_BUF, ch->pyr_dec_buf);
+		pyrdec_node = module->nodes_dev.pyr_dec_node_dev;
+		rec_ctx = (struct isp_rec_ctx_desc *)isp_node->rec_handle;
 
-		/* rec temp buf for raw capture */
-		width = proc_info->src_size.width;
-		height = proc_info->src_size.height;
-		width = isp_rec_layer0_width(width, ISP_PYR_DEC_LAYER_NUM);
-		height = isp_rec_layer0_heigh(height, ISP_PYR_DEC_LAYER_NUM);
-		dcam_out_bits = module->cam_uinfo.sensor_if.if_spec.mipi.bits_per_pxl;
-		size = dcam_if_cal_pyramid_size(width, height, dcam_out_bits, 1, 1, ISP_PYR_DEC_LAYER_NUM - 1);
-		size = ALIGN(size, CAM_BUF_ALIGN_SIZE);
-		pframe = cam_queue_empty_frame_get();
-		pframe->width = width;
-		pframe->height = height;
-		ret = cam_buf_alloc(&pframe->buf, size, module->iommu_enable);
-		if (ret) {
-			pr_err("fail to alloc rec buf\n");
-			cam_queue_empty_frame_put(pframe);
-			atomic_inc(&ch->err_status);
-			goto dec_fail;
-		}
-		ch->pyr_rec_buf = pframe;
-		pr_debug("pyr_rec w %d, h %d, buf %p\n", width, height, pframe);
-		CAM_PIPEINE_ISP_NODE_CFG(ch, CAM_PIPELINE_CFG_REC_BUF, ch->pyr_rec_buf);
+		alloc_param.ch_id = ch->ch_id;
+		alloc_param.width = proc_info->src_size.width;
+		alloc_param.height = proc_info->src_size.height;
+		alloc_param.iommu_enable = module->iommu_enable;
+		alloc_param.is_pyr_dec = module->cam_uinfo.is_pyr_dec;
+		alloc_param.pyr_out_fmt = module->grp->hw_info->ip_dcam[0]->dcam_output_fmt[0];
+		alloc_param.pyr_layer_num = ISP_PYR_DEC_LAYER_NUM;
+
+		pyr_dec_node_buffer_alloc(pyrdec_node, &alloc_param);
+		isp_pyr_rec_buffer_alloc(rec_ctx, &alloc_param);
 	}
 
 	ret = camcore_frame_start_proc(module, src_frame, CAM_NODE_TYPE_DCAM_OFFLINE);
@@ -324,18 +309,6 @@ int camrawcap_raw_post_proc(struct camera_module *module,
 	return ret;
 
 src_fail:
-	if (ch->pyr_rec_buf) {
-		if (ch->pyr_rec_buf->buf.dmabuf_p)
-			cam_buf_free(&ch->pyr_rec_buf->buf);
-		cam_queue_empty_frame_put(ch->pyr_rec_buf);
-	}
-dec_fail:
-	if (ch->pyr_dec_buf) {
-		if (ch->pyr_dec_buf->buf.dmabuf_p)
-			cam_buf_free(&ch->pyr_dec_buf->buf);
-		cam_queue_empty_frame_put(ch->pyr_dec_buf);
-	}
-dst_fail:
 	cam_buf_ionbuf_put(&dst_frame->buf);
 dcam_out_fail:
 	if (mid_frame->buf.type == CAM_BUF_USER)
@@ -370,7 +343,7 @@ int camrawcap_raw_proc_done(struct camera_module *module)
 	nodes_dev = &module->nodes_dev;
 	ch = &module->channel[CAM_CH_CAP];
 
-	cam_kernel_timer_stop(&module->cam_timer);
+	camcore_timer_stop(&module->cam_timer);
 
 	if (ch->enable) {
 		statis_param.statis_cmd = DCAM_IOCTL_DEINIT_STATIS_Q;
@@ -383,27 +356,13 @@ int camrawcap_raw_proc_done(struct camera_module *module)
 	ch->aux_dcam_port_id = -1;
 	ch->ch_uinfo.dcam_raw_fmt = -1;
 	ch->ch_uinfo.sensor_raw_fmt = -1;
-
-	cam_queue_clear(&ch->share_buf_queue, struct camera_frame, list);
-	module->cam_uinfo.dcam_slice_mode = CAM_SLICE_NONE;
 	module->cam_uinfo.slice_num = 0;
+	module->cam_uinfo.dcam_slice_mode = CAM_SLICE_NONE;
 
 	atomic_set(&module->state, CAM_IDLE);
 	camcore_pipeline_deinit(module, ch);
 
-	if (module->cam_uinfo.is_pyr_dec) {
-		if (ch->pyr_dec_buf) {
-			camcore_k_frame_put(ch->pyr_dec_buf);
-			ch->pyr_dec_buf = NULL;
-		}
-		if (ch->pyr_rec_buf) {
-			camcore_k_frame_put(ch->pyr_rec_buf);
-			ch->pyr_rec_buf = NULL;
-		}
-	}
-
 	pr_info("camera%d rawproc done.\n", module->idx);
-
 	return ret;
 }
 
@@ -416,7 +375,7 @@ int camrawcap_storeccm_frgb_pre_proc(struct camera_module *module,
 	uint32_t pyr_layer_num = ISP_PYR_DEC_LAYER_NUM;
 	struct cam_hw_info *hw = NULL;
 	struct channel_context *ch = NULL;
-	struct cam_pipeline_desc pipeline_desc = {0};
+	struct cam_pipeline_desc *pipeline_desc = NULL;
 	struct dcam_offline_node_desc *dcam_offline_raw2frgb_desc = NULL;
 	struct dcam_offline_node_desc *dcam_offline_frgb2yuv_desc = NULL;
 	struct isp_node_desc *isp_node_description = NULL;
@@ -435,20 +394,25 @@ int camrawcap_storeccm_frgb_pre_proc(struct camera_module *module,
 	ch->ch_uinfo.dcam_raw_fmt = -1;
 	ch->ch_uinfo.sensor_raw_fmt = -1;
 	pipeline_type = CAM_PIPELINE_OFFLINE_RAW2FRGB_OFFLINE_FRGB2YUV;
-	dcam_offline_raw2frgb_desc = &pipeline_desc.dcam_offline_raw2frgb_desc;
-	dcam_offline_frgb2yuv_desc = &pipeline_desc.dcam_offline_frgb2yuv_desc;
-	isp_node_description = &pipeline_desc.isp_node_description;
-	pyr_dec_desc = &pipeline_desc.pyr_dec_desc;
-	pipeline_desc.pipeline_graph = &module->static_topology->pipeline_list[pipeline_type];
-	pipeline_desc.nodes_dev = &module->nodes_dev;
-	pipeline_desc.data_cb_handle = module;
-	pipeline_desc.data_cb_func = camcore_pipeline_callback;
+	pipeline_desc = cam_buf_kernel_sys_vzalloc(sizeof(struct cam_pipeline_desc));
+	if (!pipeline_desc) {
+		pr_err("fail to alloc pipeline_des\n");
+		return -ENOMEM;
+	}
+	dcam_offline_raw2frgb_desc = &pipeline_desc->dcam_offline_raw2frgb_desc;
+	dcam_offline_frgb2yuv_desc = &pipeline_desc->dcam_offline_frgb2yuv_desc;
+	isp_node_description = &pipeline_desc->isp_node_description;
+	pyr_dec_desc = &pipeline_desc->pyr_dec_desc;
+	pipeline_desc->pipeline_graph = &module->static_topology->pipeline_list[pipeline_type];
+	pipeline_desc->nodes_dev = &module->nodes_dev;
+	pipeline_desc->data_cb_handle = module;
+	pipeline_desc->data_cb_func = camcore_pipeline_callback;
 
 	/* dcam offline raw2frgb desc */
 	dcam_offline_raw2frgb_desc->dev = module->dcam_dev_handle;
 	dcam_offline_raw2frgb_desc->dcam_idx = module->dcam_idx;
 	dcam_offline_raw2frgb_desc->port_desc.endian = ENDIAN_LITTLE;
-	camcore_valid_fmt_get(&module->raw_cap_fetch_fmt, hw->ip_dcam[0]->sensor_raw_fmt);
+	cam_valid_fmt_get(&module->raw_cap_fetch_fmt, hw->ip_dcam[0]->sensor_raw_fmt);
 	dcam_offline_raw2frgb_desc->fetch_fmt = module->raw_cap_fetch_fmt;
 	dcam_offline_raw2frgb_desc->port_desc.dcam_out_fmt = CAM_FULL_RGB14;
 
@@ -497,10 +461,11 @@ int camrawcap_storeccm_frgb_pre_proc(struct camera_module *module,
 	isp_node_description->port_desc.store_3dnr_fmt = isp_node_description->store_3dnr_fmt;
 	isp_node_description->port_desc.sn_size = isp_node_description->sn_size;
 
-	ch->pipeline_handle = cam_pipeline_creat(&pipeline_desc);
+	ch->pipeline_handle = cam_pipeline_creat(pipeline_desc);
 	if (!ch->pipeline_handle) {
 		pr_err("fail to get cam pipeline.\n");
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto fail;
 	}
 	ch->enable = 1;
 	ch->dcam_port_id = dcamoffline_pathid_convert_to_portid(hw->ip_dcam[DCAM_HW_CONTEXT_0]->aux_dcam_path);
@@ -544,6 +509,8 @@ int camrawcap_storeccm_frgb_pre_proc(struct camera_module *module,
 
 	if (module->cam_uinfo.is_pyr_dec)
 		CAM_PIPEINE_ISP_NODE_CFG(ch, CAM_PIPELINE_CFG_REC_LEYER_NUM, &pyr_layer_num);
+fail:
+	cam_buf_kernel_sys_vfree(pipeline_desc);
 
 	return ret;
 }
@@ -553,14 +520,16 @@ int camrawcap_storeccm_frgb_post_proc(struct camera_module *module,
 {
 	int ret = 0;
 	uint32_t width = 0, height = 0, size = 0;
-	uint32_t dcam_out_bits = 0;
 	struct channel_context *ch = NULL;
+	struct isp_node *isp_node = NULL;
+	struct pyr_dec_node *pyrdec_node = NULL;
+	struct isp_rec_ctx_desc *rec_ctx = NULL;
 	struct camera_frame *src_frame = NULL;
 	struct camera_frame *mid_frame = NULL;
 	struct camera_frame *dst_frame = NULL;
 	struct camera_frame *mid_frgb_frame = NULL;
-	struct camera_frame *pframe = NULL;
 	struct dcam_pipe_dev *dev = NULL;
+	struct cam_buf_alloc_desc alloc_param = {0};
 	timespec cur_ts = {0};
 	memset(&cur_ts, 0, sizeof(timespec));
 	pr_info("start\n");
@@ -572,6 +541,8 @@ int camrawcap_storeccm_frgb_post_proc(struct camera_module *module,
 		pr_err("fail to get channel enable state\n");
 		return -EFAULT;
 	}
+
+	isp_node = module->nodes_dev.isp_node_dev[ISP_NODE_MODE_CAP_ID];
 
 	pr_info("src %d 0x%x, mid %d 0x%x, dst %d 0x%x\n",
 		proc_info->fd_src, proc_info->src_offset,
@@ -591,6 +562,7 @@ int camrawcap_storeccm_frgb_post_proc(struct camera_module *module,
 	src_frame->sensor_time.tv_sec = cur_ts.tv_sec;
 	src_frame->sensor_time.tv_usec = cur_ts.tv_nsec / NSEC_PER_USEC;
 	src_frame->boot_sensor_time = ktime_get_boottime();
+	src_frame->zoom_data.zoom_mode = CAM_ZOOM_MODE_OLD;
 	ret = cam_buf_ionbuf_get(&src_frame->buf);
 	if (ret)
 		goto src_fail;
@@ -604,8 +576,6 @@ int camrawcap_storeccm_frgb_post_proc(struct camera_module *module,
 	dst_frame->sensor_time = src_frame->sensor_time;
 	dst_frame->boot_sensor_time = src_frame->boot_sensor_time;
 	ret = cam_buf_ionbuf_get(&dst_frame->buf);
-	if (ret)
-		goto dst_fail;
 
 	mid_frgb_frame = cam_queue_empty_frame_get();
 	mid_frgb_frame->channel_id = ch->ch_id;
@@ -615,8 +585,6 @@ int camrawcap_storeccm_frgb_post_proc(struct camera_module *module,
 	size = width * height * FORMAT_FRGB_PITCH;
 	size = ALIGN(size, CAM_BUF_ALIGN_SIZE);
 	ret = cam_buf_alloc(&mid_frgb_frame->buf, (size_t)size, module->iommu_enable);
-	if (ret)
-		goto mid_frgb_fail;
 
 	mid_frgb_frame->sensor_time = src_frame->sensor_time;
 	mid_frgb_frame->boot_sensor_time = src_frame->boot_sensor_time;
@@ -675,53 +643,21 @@ int camrawcap_storeccm_frgb_post_proc(struct camera_module *module,
 
 	pr_info("frgb proc, src %px, mid %px, dst %px\n", src_frame, mid_frame, dst_frame);
 
-	cam_queue_init(&ch->share_buf_queue, CAM_SHARED_BUF_NUM, camcore_k_frame_put);
 	atomic_set(&module->state, CAM_RUNNING);
-
 	if (module->cam_uinfo.is_pyr_dec) {
-		/* dec out buf for frgb capture */
-		width = proc_info->src_size.width;
-		height = proc_info->src_size.height;
-		dcam_out_bits = cam_data_bits(module->grp->hw_info->ip_dcam[0]->dcam_output_fmt[0]);
-		size = dcam_if_cal_pyramid_size(width, height, dcam_out_bits, 1, 0, ISP_PYR_DEC_LAYER_NUM);
-		size = ALIGN(size, CAM_BUF_ALIGN_SIZE);
-		pframe = cam_queue_empty_frame_get();
-		pframe->width = width;
-		pframe->height = height;
-		pframe->channel_id = ch->ch_id;
-		pframe->data_src_dec = 1;
-		ret = cam_buf_alloc(&pframe->buf, size, module->iommu_enable);
-		if (ret) {
-			pr_err("fail to alloc raw dec buf\n");
-			cam_queue_empty_frame_put(pframe);
-			goto dcam_out_fail;
-		}
-		ch->pyr_dec_buf = pframe;
-		pr_info("pyr_dec size %d, buf %p, w %d h %d\n",
-			size, pframe, width, height);
-		ret = CAM_PIPEINE_PYR_DEC_NODE_CFG(ch, CAM_PIPILINE_CFG_PYRDEC_BUF, ch->pyr_dec_buf);
+		pyrdec_node = module->nodes_dev.pyr_dec_node_dev;
+		rec_ctx = (struct isp_rec_ctx_desc *)isp_node->rec_handle;
 
-		/* rec temp buf for frgb capture */
-		width = proc_info->src_size.width;
-		height = proc_info->src_size.height;
-		width = isp_rec_layer0_width(width, ISP_PYR_DEC_LAYER_NUM);
-		height = isp_rec_layer0_heigh(height, ISP_PYR_DEC_LAYER_NUM);
-		dcam_out_bits = module->cam_uinfo.sensor_if.if_spec.mipi.bits_per_pxl;
-		size = dcam_if_cal_pyramid_size(width, height, dcam_out_bits, 1, 1, ISP_PYR_DEC_LAYER_NUM - 1);
-		size = ALIGN(size, CAM_BUF_ALIGN_SIZE);
-		pframe = cam_queue_empty_frame_get();
-		pframe->width = width;
-		pframe->height = height;
-		ret = cam_buf_alloc(&pframe->buf, size, module->iommu_enable);
-		if (ret) {
-			pr_err("fail to alloc rec buf\n");
-			cam_queue_empty_frame_put(pframe);
-			atomic_inc(&ch->err_status);
-			goto dec_fail;
-		}
-		ch->pyr_rec_buf = pframe;
-		pr_info("pyr_rec w %d, h %d, buf %p\n", width, height, pframe);
-		CAM_PIPEINE_ISP_NODE_CFG(ch, CAM_PIPELINE_CFG_REC_BUF, ch->pyr_rec_buf);
+		alloc_param.ch_id = ch->ch_id;
+		alloc_param.width = proc_info->src_size.width;
+		alloc_param.height = proc_info->src_size.height;
+		alloc_param.iommu_enable = module->iommu_enable;
+		alloc_param.is_pyr_dec = module->cam_uinfo.is_pyr_dec;
+		alloc_param.pyr_out_fmt = module->grp->hw_info->ip_dcam[0]->dcam_output_fmt[0];
+		alloc_param.pyr_layer_num = ISP_PYR_DEC_LAYER_NUM;
+
+		pyr_dec_node_buffer_alloc(pyrdec_node, &alloc_param);
+		isp_pyr_rec_buffer_alloc(rec_ctx, &alloc_param);
 	}
 
 	ret = camcore_frame_start_proc(module, src_frame, CAM_NODE_TYPE_DCAM_OFFLINE_RAW2FRGB);
@@ -733,32 +669,25 @@ int camrawcap_storeccm_frgb_post_proc(struct camera_module *module,
 
 	return ret;
 
-dec_fail:
-	if (ch->pyr_dec_buf) {
-		if (ch->pyr_dec_buf->buf.dmabuf_p)
-			cam_buf_free(&ch->pyr_dec_buf->buf);
-		cam_queue_empty_frame_put(ch->pyr_dec_buf);
-	}
+src_fail:
+	cam_buf_ionbuf_put(&dst_frame->buf);
+dcam_out_fail:
+	if (mid_frame->buf.type == CAM_BUF_USER)
+		cam_buf_ionbuf_put(&mid_frame->buf);
+	else
+		cam_buf_free(&mid_frame->buf);
 mid_fail:
 	cam_queue_empty_frame_put(mid_frame);
-	cam_buf_ionbuf_put(&mid_frame->buf);
-dcam_out_fail:
-	cam_buf_free(&mid_frgb_frame->buf);
-mid_frgb_fail:
-	cam_queue_empty_frame_put(mid_frgb_frame);
-	cam_buf_ionbuf_put(&dst_frame->buf);
-dst_fail:
 	cam_queue_empty_frame_put(dst_frame);
-	cam_buf_ionbuf_put(&src_frame->buf);
-src_fail:
 	cam_queue_empty_frame_put(src_frame);
-	pr_err("fail to call post raw proc\n");
+	pr_err("fail to call post frgb proc\n");
+
 	return ret;
 }
 
 int camrawcap_storeccm_frgb_proc_done(struct camera_module *module)
 {
-	int ret = 0, j = 0, i = 0;
+	int ret = 0;
 	struct channel_context *ch = NULL;
 	struct dcam_pipe_dev *dev = NULL;
 	struct cam_nodes_dev *nodes_dev = NULL;
@@ -774,18 +703,7 @@ int camrawcap_storeccm_frgb_proc_done(struct camera_module *module)
 	nodes_dev = &module->nodes_dev;
 	ch = &module->channel[CAM_CH_CAP];
 
-	cam_kernel_timer_stop(&module->cam_timer);
-
-	if (module->cam_uinfo.is_pyr_dec) {
-		if (ch->pyr_dec_buf) {
-			camcore_k_frame_put(ch->pyr_dec_buf);
-			ch->pyr_dec_buf = NULL;
-		}
-		if (ch->pyr_rec_buf) {
-			camcore_k_frame_put(ch->pyr_rec_buf);
-			ch->pyr_rec_buf = NULL;
-		}
-	}
+	camcore_timer_stop(&module->cam_timer);
 
 	ch->enable = 0;
 	ch->dcam_port_id = -1;
@@ -794,30 +712,13 @@ int camrawcap_storeccm_frgb_proc_done(struct camera_module *module)
 	ch->ch_uinfo.dcam_raw_fmt = -1;
 	ch->ch_uinfo.sensor_raw_fmt = -1;
 
-	cam_queue_clear(&ch->share_buf_queue, struct camera_frame, list);
 	module->cam_uinfo.dcam_slice_mode = CAM_SLICE_NONE;
 	module->cam_uinfo.slice_num = 0;
 
 	atomic_set(&module->state, CAM_IDLE);
 	pr_info("camera%d frgbproc done.\n", module->idx);
 
-	cam_pipeline_destory(ch->pipeline_handle);
-	nodes_dev->dcam_offline_node_dev = NULL;
-	nodes_dev->dcam_offline_node_raw2frgb_dev = NULL;
-	nodes_dev->dcam_offline_node_frgb2yuv_dev = NULL;
-	for (i = 0; i < ISP_NODE_MODE_MAX_ID; i++) {
-		nodes_dev->isp_node_dev[i] = NULL;
-		for (j = 0; j < PORT_ISP_IN_MAX; j++)
-			nodes_dev->isp_in_port_dev[i][j] = NULL;
-		for (j = 0; j < PORT_ISP_OUT_MAX; j++)
-			nodes_dev->isp_out_port_dev[i][j] = NULL;
-	}
-	for (j = 0; j < PORT_DCAM_OUT_MAX; j++) {
-		nodes_dev->dcam_offline_out_port_dev[j] = NULL;
-		nodes_dev->dcam_offline_raw2frgb_out_port_dev[j] = NULL;
-		nodes_dev->dcam_offline_frgb2yuv_out_port_dev[j] = NULL;
-	}
-
+	camcore_pipeline_deinit(module, ch);
 	return ret;
 }
 #endif

@@ -12,17 +12,13 @@
  */
 
 #include <linux/delay.h>
-#include "sprd_mm.h"
-#include "dcam_hw_adpt.h"
-#include "isp_hw_adpt.h"
-#include "cam_buf.h"
-#include "cam_test.h"
-#include "cam_port.h"
 
-#include "isp_reg.h"
-#include "isp_int.h"
+#include "dcam_core.h"
 #include "isp_cfg.h"
+#include "isp_int.h"
+#include "isp_reg.h"
 #include "sprd_cam_test.h"
+#include "sprd_mm.h"
 
 #ifdef pr_fmt
 #undef pr_fmt
@@ -149,7 +145,6 @@ static const unsigned int isp_irq_process[] = {
 	ISP_INT_ISP_ALL_DONE,
 };
 
-
 static isp_isr isp_isr_handler[32] = {
 	[ISP_INT_ISP_ALL_DONE] = isp_all_done,
 	[ISP_INT_FMCU_STORE_DONE] = isp_fmcu_store_done,
@@ -230,15 +225,12 @@ static irqreturn_t isp_isr_root(int irq, void *priv)
 		if (unlikely(err_mask & irq_line)) {
 			pr_err("fail to handle,isp ctx%d status 0x%x\n", c_id, irq_line);
 			/*handle the error here*/
-			//TODO:
 		}
 
 		mmu_irq_line = ISP_MMU_RD(ISP_MMU_INT_STS);
 		if (unlikely(ISP_INT_LINE_MASK_MMU & mmu_irq_line)) {
 			pr_info("isp ctx%d status 0x%x\n", c_id, irq_line);
 			val = ISP_MMU_RD(ISP_MMU_INT_STS);
-			//TODO:
-
 			ISP_MMU_WR(ISP_MMU_INT_CLR, mmu_irq_line);
 		}
 
@@ -336,7 +328,7 @@ static int camt_isp_cfg_init(struct ispt_context *ctx, struct camt_info *info)
 	ion_buf = &ctx->cfg_buf;
 	memset(ion_buf, 0, sizeof(ctx->cfg_buf));
 
-	if (cam_buf_iommu_status_get(CAM_IOMMUDEV_ISP) == 0) {
+	if (cam_buf_iommu_status_get(CAM_BUF_IOMMUDEV_ISP) == 0) {
 		pr_debug("isp iommu enable\n");
 		iommu_enable = 1;
 	} else {
@@ -358,7 +350,7 @@ static int camt_isp_cfg_init(struct ispt_context *ctx, struct camt_info *info)
 		goto err_kmap_cfg;
 	}
 
-	ret = cam_buf_iommu_map(ion_buf, CAM_IOMMUDEV_ISP);
+	ret = cam_buf_iommu_map(ion_buf, CAM_BUF_IOMMUDEV_ISP);
 	if (ret) {
 		pr_err("fail to map cfg buffer\n");
 		ret = -EFAULT;
@@ -366,7 +358,7 @@ static int camt_isp_cfg_init(struct ispt_context *ctx, struct camt_info *info)
 	}
 
 	sw_addr = (void *)ion_buf->addr_k;
-	hw_addr = ion_buf->iova;
+	hw_addr = ion_buf->iova[CAM_BUF_IOMMUDEV_ISP];
 	if (!IS_ERR_OR_NULL(sw_addr) && hw_addr) {
 		if (!IS_ALIGNED(hw_addr, CAMT_CFG_SIZE)) {
 			aligned_addr = ALIGN(hw_addr, CAMT_CFG_SIZE);
@@ -455,7 +447,7 @@ static int camt_isp_cfg_fetch(struct ispt_context *ctx,
 	case CAM_VYUY_1FRAME:
 	case CAM_RAW_HALFWORD_10:
 	case CAM_RAW_14:
-		fetch->pitch.pitch_ch0 = cal_sprd_raw_pitch(info->input_size.w, 1);
+		cal_sprd_pitch(info->input_size.w, CAM_RAW_HALFWORD_10);
 		trim_offset[0] = 0;
 		break;
 	case CAM_YUV422_2FRAME:
@@ -485,7 +477,7 @@ static int camt_isp_cfg_fetch(struct ispt_context *ctx,
 			- mipi_word_num_start[(start_col + 1) & 0xF] + 1;
 		fetch->mipi_byte_rel_pos = mipi_byte_info;
 		fetch->mipi_word_num = mipi_word_info;
-		fetch->pitch.pitch_ch0 = cal_sprd_raw_pitch(info->input_size.w, 0);
+		fetch->pitch.pitch_ch0 = cal_sprd_pitch(info->input_size.w, CAM_RAW_PACK_10);
 		/* same as slice starts */
 		trim_offset[0] = start_row * fetch->pitch.pitch_ch0
 					+ (start_col >> 2) * 5
@@ -501,7 +493,7 @@ static int camt_isp_cfg_fetch(struct ispt_context *ctx,
 	fetch->trim_off.addr_ch1 = trim_offset[1];
 	fetch->trim_off.addr_ch2 = trim_offset[2];
 
-	if (cam_buf_iommu_status_get(CAM_IOMMUDEV_ISP) == 0) {
+	if (cam_buf_iommu_status_get(CAM_BUF_IOMMUDEV_ISP) == 0) {
 		pr_debug("isp iommu enable\n");
 		iommu_enable = 1;
 	} else {
@@ -518,14 +510,14 @@ static int camt_isp_cfg_fetch(struct ispt_context *ctx,
 		goto exit;
 	}
 
-	ret = cam_buf_iommu_map(in_buf, CAM_IOMMUDEV_ISP);
+	ret = cam_buf_iommu_map(in_buf, CAM_BUF_IOMMUDEV_ISP);
 	if (ret) {
 		pr_err("fail to map to iommu\n");
 		cam_buf_ionbuf_put(in_buf);
 		goto exit;
 	}
 
-	fetch->addr_hw.addr_ch0 = in_buf->iova;
+	fetch->addr_hw.addr_ch0 = in_buf->iova[CAM_BUF_IOMMUDEV_ISP];
 	fetch->addr_hw.addr_ch0 += fetch->trim_off.addr_ch0;
 	fetch->addr_hw.addr_ch1 += fetch->trim_off.addr_ch1;
 	fetch->addr_hw.addr_ch2 += fetch->trim_off.addr_ch2;
@@ -590,7 +582,7 @@ static int camt_isp_cfg_store(struct ispt_context *ctx,
 		break;
 	}
 
-	if (cam_buf_iommu_status_get(CAM_IOMMUDEV_ISP) == 0) {
+	if (cam_buf_iommu_status_get(CAM_BUF_IOMMUDEV_ISP) == 0) {
 		pr_debug("isp iommu enable\n");
 		iommu_enable = 1;
 	} else {
@@ -608,14 +600,14 @@ static int camt_isp_cfg_store(struct ispt_context *ctx,
 		goto exit;
 	}
 
-	ret = cam_buf_iommu_map(out_buf, CAM_IOMMUDEV_ISP);
+	ret = cam_buf_iommu_map(out_buf, CAM_BUF_IOMMUDEV_ISP);
 	if (ret) {
 		pr_err("fail to map to iommu\n");
 		cam_buf_ionbuf_put(out_buf);
 		goto exit;
 	}
 
-	store->addr.addr_ch0 = out_buf->iova;
+	store->addr.addr_ch0 = out_buf->iova[CAM_BUF_IOMMUDEV_ISP];
 	store->addr.addr_ch1 = store->addr.addr_ch0 + size;
 
 	return ret;
@@ -748,11 +740,11 @@ int ispt_start(struct camt_info *info)
 	ret = wait_for_completion_interruptible(&ctx->frame_done);
 	pr_info("wait done\n");
 
-	cam_buf_iommu_unmap(&ctx->in_buf);
+	cam_buf_iommu_unmap(&ctx->in_buf, CAM_BUF_IOMMUDEV_ISP);
 	cam_buf_ionbuf_put(&ctx->in_buf);
 	memset(&ctx->in_buf, 0, sizeof(struct camera_buf));
 
-	cam_buf_iommu_unmap(&ctx->out_buf);
+	cam_buf_iommu_unmap(&ctx->out_buf, CAM_BUF_IOMMUDEV_ISP);
 	cam_buf_ionbuf_put(&ctx->out_buf);
 	memset(&ctx->out_buf, 0, sizeof(struct camera_buf));
 
@@ -778,7 +770,7 @@ int ispt_stop(void)
 		isp_cfg_poll_addr[i] = NULL;
 	}
 
-	cam_buf_iommu_unmap(ion_buf);
+	cam_buf_iommu_unmap(ion_buf, CAM_BUF_IOMMUDEV_ISP);
 	cam_buf_kunmap(ion_buf);
 	cam_buf_free(ion_buf);
 

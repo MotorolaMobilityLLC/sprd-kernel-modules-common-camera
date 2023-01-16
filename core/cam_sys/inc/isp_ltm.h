@@ -150,16 +150,18 @@ struct isp_ltm_sync {
 	atomic_t wait_completion;
 	struct completion share_comp;
 	struct mutex share_mutex;
+	struct camera_frame ltm_frame[ISP_LTM_BUF_NUM];
 };
 
 enum isp_ltm_cfg_cmd {
 	ISP_LTM_CFG_EB,
 	ISP_LTM_CFG_MODE,
-	ISP_LTM_CFG_BUF,
 	ISP_LTM_CFG_SIZE_INFO,
 	ISP_LTM_CFG_FRAME_ID,
 	ISP_LTM_CFG_HIST_BYPASS,
 	ISP_LTM_CFG_MAP_BYPASS,
+	ISP_LTM_CFG_SET_BUF,
+	ISP_LTM_CFG_GET_BUF,
 	ISP_LTM_CFG_MAX,
 };
 
@@ -187,6 +189,7 @@ struct isp_ltm_ctx_desc {
 	uint32_t mode;
 	uint32_t ctx_id;
 	uint32_t cam_id;
+	uint32_t ltm_buf_mod;
 
 	uint32_t fid;
 	uint32_t frame_width;
@@ -196,7 +199,7 @@ struct isp_ltm_ctx_desc {
 
 	struct isp_ltm_hists hists;
 	struct isp_ltm_map map;
-	struct camera_buf *buf_info[ISP_LTM_BUF_NUM];
+	struct camera_frame ltm_frame[ISP_LTM_BUF_NUM];
 
 	struct isp_ltm_sync *sync;
 	struct isp_ltm_ops ltm_ops;

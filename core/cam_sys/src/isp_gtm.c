@@ -12,16 +12,15 @@
  */
 
 #include <linux/uaccess.h>
-#include <sprd_mm.h>
 #include <linux/mutex.h>
+#include <sprd_mm.h>
+
 #include "isp_gtm.h"
-#include "isp_hw.h"
 
  #ifdef pr_fmt
 #undef pr_fmt
 #endif
-#define pr_fmt(fmt) "ISP_GTM: %d %d %s : "\
-	fmt, current->pid, __LINE__, __func__
+#define pr_fmt(fmt) "ISP_GTM: %d %d %s : " fmt, current->pid, __LINE__, __func__
 
 static struct isp_gtm_sync s_rgb_gtm_sync[GTM_ID_MAX];
 

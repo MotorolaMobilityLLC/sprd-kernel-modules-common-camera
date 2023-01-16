@@ -13,12 +13,10 @@
 
 #include <linux/uaccess.h>
 #include <sprd_mm.h>
-#include "isp_hw.h"
-#include "cam_types.h"
+
 #include "cam_block.h"
 #include "isp_gtm.h"
 #include "isp_reg.h"
-#include "cam_queue.h"
 
 #ifdef pr_fmt
 #undef pr_fmt

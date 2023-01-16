@@ -17,21 +17,17 @@
 #include <linux/mfd/syscon.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
-#include <linux/spinlock.h>
 #include <linux/regmap.h>
-#include <linux/interrupt.h>
 #include <sprd_mm.h>
-#include "isp_reg.h"
-#include "isp_int.h"
-#include "cam_scaler.h"
+
+#include "isp_int_common.h"
 #include "isp_node.h"
-#include "isp_drv.h"
+#include "isp_reg.h"
 
 #ifdef pr_fmt
 #undef pr_fmt
 #endif
-#define pr_fmt(fmt) "ISP_DRV: %d %d %s : "\
-	fmt, current->pid, __LINE__, __func__
+#define pr_fmt(fmt) "ISP_DRV: %d %d %s : " fmt, current->pid, __LINE__, __func__
 
 uint32_t s_isp_irq_no[ISP_LOGICAL_COUNT];
 unsigned long s_isp_regbase[ISP_MAX_COUNT];
@@ -89,7 +85,6 @@ int isp_drv_trim_deci_info_cal(uint32_t src, uint32_t dst,
 	return 0;
 }
 
-
 int isp_drv_dt_parse(struct device_node *dn,
 		struct cam_hw_info *hw_info)
 {
@@ -102,11 +97,6 @@ int isp_drv_dt_parse(struct device_node *dn,
 	struct device_node *iommu_node = NULL;
 	struct resource res = {0};
 	uint32_t args[2];
-
-	/* todo: should update according to SharkL5/ROC1 dts
-	 * or set value for required variables with hard-code
-	 * for quick bringup
-	 */
 
 	if (!dn || !hw_info) {
 		pr_err("fail to get dn %p hw info %p\n", dn, hw_info);
@@ -195,7 +185,7 @@ int isp_drv_dt_parse(struct device_node *dn,
 			return PTR_ERR(soc_isp->cam_ahb_gpr);
 		}
 
-		if (!cam_syscon_get_args_by_name(isp_node, "reset",
+		if (!cam_kernel_adapt_syscon_get_args_by_name(isp_node, "reset",
 			ARRAY_SIZE(args), args)) {
 			ip_isp->syscon.rst = args[0];
 			ip_isp->syscon.rst_mask = args[1];
@@ -204,15 +194,15 @@ int isp_drv_dt_parse(struct device_node *dn,
 			return -EINVAL;
 		}
 
-		if (!cam_syscon_get_args_by_name(isp_node, "isp_ahb_reset",
+		if (!cam_kernel_adapt_syscon_get_args_by_name(isp_node, "isp_ahb_reset",
 			ARRAY_SIZE(args), args))
 			ip_isp->syscon.rst_ahb_mask = args[1];
 
-		if (!cam_syscon_get_args_by_name(isp_node, "isp_vau_reset",
+		if (!cam_kernel_adapt_syscon_get_args_by_name(isp_node, "isp_vau_reset",
 			ARRAY_SIZE(args), args))
 			ip_isp->syscon.rst_vau_mask = args[1];
 
-		if (!cam_syscon_get_args_by_name(isp_node, "sys_h2p_db_soft_rst",
+		if (!cam_kernel_adapt_syscon_get_args_by_name(isp_node, "sys_h2p_db_soft_rst",
 			ARRAY_SIZE(args), args)) {
 			ip_isp->syscon.sys_soft_rst = args[0];
 			ip_isp->syscon.sys_h2p_db_soft_rst = args[1];
@@ -288,7 +278,7 @@ int isp_drv_hw_init(void *arg)
 	if (ret)
 		goto reset_fail;
 
-	ret = isp_int_irq_request(&hw->pdev->dev, s_isp_irq_no, arg);
+	ret = isp_int_common_irq_request(&hw->pdev->dev, s_isp_irq_no, arg);
 	if (ret)
 		goto reset_fail;
 
@@ -328,7 +318,7 @@ int isp_drv_hw_deinit(void *arg)
 	ret = hw->isp_ioctl(hw, ISP_HW_CFG_RESET, &reset_flag);
 	if (ret)
 		pr_err("fail to reset isp\n");
-	ret = isp_int_irq_free(&hw->pdev->dev, arg);
+	ret = isp_int_common_irq_free(&hw->pdev->dev, arg);
 	if (ret)
 		pr_err("fail to free isp irq\n");
 	ret = hw->isp_ioctl(hw, ISP_HW_CFG_DISABLE_CLK, NULL);

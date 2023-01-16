@@ -11,22 +11,10 @@
  * GNU General Public License for more details.
  */
 
-#include <linux/sched.h>
-#include <linux/vmalloc.h>
 #include <linux/delay.h>
-#include <linux/kthread.h>
-#include <linux/slab.h>
-#include "cam_node.h"
-#include "cam_hw.h"
-#include "isp_cfg.h"
-#include "isp_dev.h"
-#include "isp_drv.h"
-#include "isp_fmcu.h"
-#include "isp_hwctx.h"
-#include "isp_scaler_node.h"
-#include "isp_scaler_port.h"
-#include "isp_slice.h"
+
 #include "cam_pipeline.h"
+#include "isp_cfg.h"
 
 #ifdef pr_fmt
 #undef pr_fmt
@@ -128,7 +116,7 @@ int isp_scaler_node_request_proc(struct isp_yuv_scaler_node *node, void *param)
 		}
 	}
 
-	cam_buf_iommu_unmap(&pframe->buf);
+	cam_buf_iommu_unmap(&pframe->buf, CAM_BUF_IOMMUDEV_ISP);
 	cam_queue_enqueue(&node->in_queue, &pframe->list);
 	if (ret) {
 		pr_err("fail to enqueue node in_queue %d.\n");
@@ -521,7 +509,7 @@ static int isp_yuv_scaler_node_postproc_irq(void *handle, uint32_t hw_idx, enum 
 	pframe = cam_queue_dequeue(&inode->proc_queue, struct camera_frame, list);
 	if (pframe) {
 		pr_debug("isp cfg_id %d post proc, do not need to return frame\n", inode->cfg_id);
-		cam_buf_iommu_unmap(&pframe->buf);
+		cam_buf_iommu_unmap(&pframe->buf, CAM_BUF_IOMMUDEV_ISP);
 	} else {
 		pr_err("fail to get src frame  sw_idx=%d  proc_queue.cnt:%d\n",
 			inode->node_id, inode->proc_queue.cnt);
@@ -541,10 +529,11 @@ static int isp_yuv_scaler_node_postproc_irq(void *handle, uint32_t hw_idx, enum 
 				inode->node_id, hw_path_id, pframe->channel_id, pframe->fid, pframe->buf.mfd,
 				port->result_queue.cnt, pframe->is_reserved);
 			pr_debug("time_sensor %03d.%6d\n", (uint32_t)pframe->sensor_time.tv_sec, (uint32_t)pframe->sensor_time.tv_usec);
+
 			if (unlikely(pframe->is_reserved)) {
 				inode->resbuf_get_cb(RESERVED_BUF_SET_CB, pframe, inode->resbuf_cb_data);
 			} else {
-				cam_buf_iommu_unmap(&pframe->buf);
+				cam_buf_iommu_unmap(&pframe->buf, CAM_BUF_IOMMUDEV_ISP);
 				if (inode->is_fast_stop) {
 					ispyuv_node_fast_stop_cfg(inode);
 					port->data_cb_func(CAM_CB_ISP_SCALE_RET_ISP_BUF, pframe, port->data_cb_handle);
@@ -581,13 +570,13 @@ int isp_scaler_port_store_frm_set(struct isp_pipe_info *pipe_info, struct isp_sc
 	else
 		planes = 2;
 
-	if (frame->buf.iova == 0) {
+	if (frame->buf.iova[CAM_BUF_IOMMUDEV_ISP] == 0) {
 		pr_err("fail to get valid iova address, fd = 0x%x\n",
 			frame->buf.mfd);
 		return -EINVAL;
 	}
 
-	yuv_addr[0] = frame->buf.iova;
+	yuv_addr[0] = frame->buf.iova[CAM_BUF_IOMMUDEV_ISP];
 
 	pr_debug("fmt %s, planes %d addr %lx %lx %lx, pitch:%d\n",
 		camport_fmt_name_get(store->color_fmt), planes, yuv_addr[0], yuv_addr[1], yuv_addr[2], store->pitch.pitch_ch0);
@@ -707,9 +696,9 @@ static struct camera_frame *isp_yuv_scaler_node_path_out_frame_get(struct isp_yu
 		out_frame = ispscaler_port_reserved_buf_get(inode->resbuf_get_cb, inode->resbuf_cb_data, port);
 
 	if (out_frame != NULL) {
-		if (out_frame->is_reserved == 0 && (out_frame->buf.mapping_state & CAM_BUF_MAPPING_DEV) == 0) {
-			ret = cam_buf_iommu_map(&out_frame->buf, CAM_IOMMUDEV_ISP);
-			pr_debug("map output buffer %08x\n", (uint32_t)out_frame->buf.iova);
+		if (out_frame->is_reserved == 0 && (out_frame->buf.mapping_state & CAM_BUF_MAPPING_ISP) == 0) {
+			ret = cam_buf_iommu_map(&out_frame->buf, CAM_BUF_IOMMUDEV_ISP);
+			pr_debug("map output buffer %08x\n", (uint32_t)out_frame->buf.iova[CAM_BUF_IOMMUDEV_ISP]);
 			if (ret) {
 				cam_queue_enqueue(&port->out_buf_queue, &out_frame->list);
 				out_frame = NULL;
@@ -796,18 +785,18 @@ static int isp_yuv_scaler_node_offline_param_cfg(struct isp_yuv_scaler_node *ino
 			if (inode->ch_id == CAM_CH_CAP)
 				pr_info("isp scaler node %d is_reserved %d iova 0x%x, user_fid: %x mfd 0x%x\n",
 					inode->node_id, out_frame->is_reserved,
-					(uint32_t)out_frame->buf.iova, out_frame->user_fid,
+					(uint32_t)out_frame->buf.iova[CAM_BUF_IOMMUDEV_ISP], out_frame->user_fid,
 					out_frame->buf.mfd);
 			else
 				pr_debug("isp scaler node %d, path%d is_reserved %d iova 0x%x, user_fid: %x mfd 0x%x fid: %d\n",
 					inode->node_id, hw_path_id, out_frame->is_reserved,
-					(uint32_t)out_frame->buf.iova, out_frame->user_fid,
+					(uint32_t)out_frame->buf.iova[CAM_BUF_IOMMUDEV_ISP], out_frame->user_fid,
 					out_frame->buf.mfd, out_frame->fid);
 
 			/* config store buffer */
 			ret = isp_scaler_port_store_frm_set(pipe_info, port, out_frame);
 			if (ret) {
-				cam_buf_iommu_unmap(&out_frame->buf);
+				cam_buf_iommu_unmap(&out_frame->buf, CAM_BUF_IOMMUDEV_ISP);
 				cam_buf_ionbuf_put(&out_frame->buf);
 				cam_queue_empty_frame_put(out_frame);
 				pr_err("fail to set store buffer\n");
@@ -829,7 +818,7 @@ static int isp_yuv_scaler_node_offline_param_cfg(struct isp_yuv_scaler_node *ino
 				if (out_frame->is_reserved) {
 					inode->resbuf_get_cb(RESERVED_BUF_SET_CB, out_frame, inode->resbuf_cb_data);
 				} else {
-					cam_buf_iommu_unmap(&out_frame->buf);
+					cam_buf_iommu_unmap(&out_frame->buf, CAM_BUF_IOMMUDEV_ISP);
 					cam_queue_enqueue(&port->out_buf_queue, &out_frame->list);
 				}
 				return -EINVAL;
@@ -905,7 +894,7 @@ static int isp_yuv_scaler_node_start_proc(void *node)
 		ispyuv_node_fast_stop_cfg(inode);
 		goto input_err;
 	}
-	ret = cam_buf_iommu_map(&pframe->buf, CAM_IOMMUDEV_ISP);
+	ret = cam_buf_iommu_map(&pframe->buf, CAM_BUF_IOMMUDEV_ISP);
 	if (ret) {
 		pr_err("fail to map buf to ISP iommu. ctx %d\n");
 		ret = -EINVAL;
@@ -1033,7 +1022,7 @@ dequeue:
 	pframe = cam_queue_dequeue_tail(&inode->proc_queue, struct camera_frame, list);
 inq_overflow:
 	if (pframe)
-		cam_buf_iommu_unmap(&pframe->buf);
+		cam_buf_iommu_unmap(&pframe->buf, CAM_BUF_IOMMUDEV_ISP);
 map_err:
 input_err:
 	list_for_each_entry(port, &inode->port_queue.head, list) {
@@ -1043,8 +1032,8 @@ input_err:
 			else
 				pframe = cam_queue_dequeue_tail(&port->out_buf_queue, struct camera_frame, list);
 			if (pframe) {
-				if (pframe->buf.mapping_state & CAM_BUF_MAPPING_DEV)
-					cam_buf_iommu_unmap(&pframe->buf);
+				if (pframe->buf.mapping_state & CAM_BUF_MAPPING_ISP)
+					cam_buf_iommu_unmap(&pframe->buf, CAM_BUF_IOMMUDEV_ISP);
 				if (pframe->is_reserved)
 					port->resbuf_get_cb(RESERVED_BUF_SET_CB, pframe, port->resbuf_cb_data);
 				else
@@ -1076,8 +1065,8 @@ static void isp_scaler_node_src_frame_ret(void *param)
 	}
 
 	pr_debug("frame %p, ch_id %d, buf_fd %d\n", frame, frame->channel_id, frame->buf.mfd);
-	if (frame->buf.mapping_state & CAM_BUF_MAPPING_DEV)
-		cam_buf_iommu_unmap(&frame->buf);
+	if (frame->buf.mapping_state & CAM_BUF_MAPPING_ISP)
+		cam_buf_iommu_unmap(&frame->buf, CAM_BUF_IOMMUDEV_ISP);
 }
 
 void *isp_yuv_scaler_node_get (uint32_t node_id, struct isp_yuv_scaler_node_desc *param)

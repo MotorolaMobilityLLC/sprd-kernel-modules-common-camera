@@ -14,13 +14,14 @@
 #include <linux/clk.h>
 #include <linux/err.h>
 #include <linux/mfd/syscon.h>
-#include <linux/platform_device.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
+#include <linux/platform_device.h>
 #include <linux/regmap.h>
-#include "dcam_core.h"
 #include <sprd_mm.h>
+
+#include "dcam_core.h"
 
 #ifdef pr_fmt
 #undef pr_fmt
@@ -162,7 +163,7 @@ static int dcam_drv_lite_dt_parse(struct device_node *dn, struct cam_hw_info *hw
 		if (ret)
 			pr_err("fail to parse dcamlite clk\n");
 
-		ret = cam_syscon_get_args_by_name(lite_node, "lite_all_reset", ARRAY_SIZE(all_rst), all_rst);
+		ret = cam_kernel_adapt_syscon_get_args_by_name(lite_node, "lite_all_reset", ARRAY_SIZE(all_rst), all_rst);
 		if (ret) {
 			pr_err("fail to get lite all reset syscon\n");
 			goto err_vau_unmap;
@@ -203,7 +204,7 @@ static int dcam_drv_lite_dt_parse(struct device_node *dn, struct cam_hw_info *hw
 				irq_res.name, ip_dcam->irq_no);
 
 			sprintf(dcam_name, "lite%d_reset", i);
-			if (!cam_syscon_get_args_by_name(lite_node, dcam_name,
+			if (!cam_kernel_adapt_syscon_get_args_by_name(lite_node, dcam_name,
 				ARRAY_SIZE(args), args)) {
 				ip_dcam->syscon.rst = args[0];
 				ip_dcam->syscon.rst_mask = args[1];
@@ -213,7 +214,7 @@ static int dcam_drv_lite_dt_parse(struct device_node *dn, struct cam_hw_info *hw
 			}
 			#if defined (PROJ_QOGIRN6L)
 			sprintf(dcam_name, "lite%d_mipi_reset", i);
-			if (!cam_syscon_get_args_by_name(lite_node, dcam_name,
+			if (!cam_kernel_adapt_syscon_get_args_by_name(lite_node, dcam_name,
 				ARRAY_SIZE(args), args)) {
 				ip_dcam->syscon.rst_mipi_mask = args[1];
 			} else {
@@ -405,7 +406,7 @@ int dcam_drv_dt_parse(struct platform_device *pdev,
 			irq_res.name, ip_dcam->irq_no);
 
 		sprintf(dcam_name, "dcam%d_reset", i);
-		if (!cam_syscon_get_args_by_name(dn, dcam_name,
+		if (!cam_kernel_adapt_syscon_get_args_by_name(dn, dcam_name,
 			ARRAY_SIZE(args), args)) {
 			ip_dcam->syscon.rst = args[0];
 			ip_dcam->syscon.rst_mask = args[1];

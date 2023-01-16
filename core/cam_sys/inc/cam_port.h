@@ -237,7 +237,6 @@ struct cam_port_topology {
 	enum export_type depend_type;
 	struct cam_linkage link;
 	struct cam_linkage switch_link;
-	uint32_t buf_num;
 };
 
 struct cam_port_desc {

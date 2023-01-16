@@ -12,16 +12,9 @@
  */
 
 #include <linux/delay.h>
-#include "cam_types.h"
-#include "dcam_core.h"
-#include "isp_hw.h"
-#include "sprd_img.h"
-#include <sprd_mm.h>
 
-#include "dcam_reg.h"
-#include "dcam_int.h"
-#include "cam_queue.h"
-#include "cam_types.h"
+#include "dcam_core.h"
+#include "dcam_dummy.h"
 
 #ifdef pr_fmt
 #undef pr_fmt
@@ -78,6 +71,63 @@ static void dcamcore_put_fmcu(struct dcam_hw_context *pctx_hw)
 	}
 }
 
+static void dcamcore_get_dummy_slave(struct dcam_hw_context *pctx_hw)
+{
+	struct dcam_dummy_slave *dummy_slave = NULL;
+	uint32_t hw_ctx_id = pctx_hw->hw_ctx_id;
+
+	if (!pctx_hw) {
+		pr_err("fail to get valid input ptr\n");
+		return;
+	}
+
+	if(pctx_hw->hw->ip_dcam[hw_ctx_id]->dummy_slave_support) {
+		dummy_slave = dcam_dummy_ctx_desc_get(pctx_hw->hw, DCAM_DUMMY_0);
+		if (dummy_slave && dummy_slave->dummy_ops) {
+			pctx_hw->dummy_slave = dummy_slave;
+			dummy_slave->hw_ctx[hw_ctx_id] = pctx_hw;
+		} else
+			pr_debug("no more dummy or ops\n");
+	}
+}
+
+static void dcamcore_put_dummy_slave(struct dcam_hw_context *pctx_hw)
+{
+	struct dcam_dummy_slave *dummy_slave = NULL;
+
+	if (!pctx_hw) {
+		pr_err("fail to get valid input ptr\n");
+		return;
+	}
+	dummy_slave = (struct dcam_dummy_slave *)pctx_hw->dummy_slave;
+	if (dummy_slave) {
+		dcam_dummy_ctx_desc_put(dummy_slave);
+		pctx_hw->dummy_slave = NULL;
+	}
+}
+
+static int dcamcore_dummy_config(void *ctx, void *para)
+{
+	struct dcam_dummy_slave *dummy_slave = NULL;
+	struct dcam_hw_context *dcam_hw_ctx = NULL;
+	struct dcam_dummy_param *dummy_param = NULL;
+	uint32_t param = 0;
+
+	dcam_hw_ctx = VOID_PTR_TO(ctx, struct dcam_hw_context);
+	dummy_param = VOID_PTR_TO(para, struct dcam_dummy_param);
+	dummy_slave = dcam_hw_ctx->dummy_slave;
+	param = DCAM_DUMMY_MODE_HW_AUTO;
+	dummy_slave->dummy_ops->cfg_param(dummy_slave, DCAM_DUMMY_CFG_HW_MODE, &param);
+	param = dcam_hw_ctx->hw->ip_dcam[dcam_hw_ctx->hw_ctx_id]->dummy_slave_support;
+	dummy_slave->dummy_ops->cfg_param(dummy_slave, DCAM_DUMMY_CFG_SW_MODE, &param);
+	param = DCAM_DUMMY_SLAVE_SKIP_NUM;
+	dummy_slave->dummy_ops->cfg_param(dummy_slave, DCAM_DUMMY_CFG_SKIP_NUM, &param);
+	dummy_slave->dummy_ops->cfg_param(dummy_slave, DCAM_DUMMY_CFG_RESERVED_BUF, dummy_param);
+	dummy_param->hw_ctx_id = dcam_hw_ctx->hw_ctx_id;
+	dummy_slave->dummy_ops->dummy_enable(dummy_slave, dummy_param);
+	return 0;
+}
+
 static int dcamcore_context_init(struct dcam_pipe_dev *dev)
 {
 	int i = 0, ret = 0;
@@ -109,6 +159,7 @@ static int dcamcore_context_init(struct dcam_pipe_dev *dev)
 			pr_err("fail to register irq for hw_ctx %d\n", i);
 
 		dcamcore_get_fmcu(pctx_hw);
+		dcamcore_get_dummy_slave(pctx_hw);
 	}
 
 	pr_debug("done!\n");
@@ -129,6 +180,7 @@ static int dcamcore_context_deinit(struct dcam_pipe_dev *dev)
 
 	for (i = 0; i < DCAM_HW_CONTEXT_MAX; i++) {
 		pctx_hw = &dev->hw_ctx[i];
+		dcamcore_put_dummy_slave(pctx_hw);
 		dcamcore_put_fmcu(pctx_hw);
 		dcam_int_irq_free(&dev->hw->pdev->dev, pctx_hw);
 		atomic_set(&pctx_hw->user_cnt, 0);
@@ -201,6 +253,22 @@ static int dcamcore_dev_close(void *dcam_handle)
 	pr_info("dcam dev disable done enable %d\n",atomic_read(&dev->enable));
 	return ret;
 
+}
+
+static void dcamcore_dev_recovery(void *dcam_handle)
+{
+	int recovery_id = 0, i = 0;
+	struct dcam_pipe_dev *dev = NULL;
+	struct dcam_hw_context *hw_ctx = NULL;
+
+	dev = (struct dcam_pipe_dev *)dcam_handle;
+	dev->hw->dcam_ioctl(dev->hw, DCAM_HW_CFG_ALL_RESET, &recovery_id);
+	cam_buf_iommu_restore(CAM_BUF_IOMMUDEV_DCAM);
+	for (i = 0; i < DCAM_HW_CONTEXT_MAX; i++) {
+		hw_ctx = &dev->hw_ctx[i];
+		if (hw_ctx->is_offline_proc)
+			dcam_core_offline_reset(hw_ctx);
+	}
 }
 
 static int dcamcore_ctx_bind(void *dev_handle, void *node, uint32_t node_id,
@@ -331,13 +399,25 @@ static struct dcam_pipe_ops s_dcam_pipe_ops = {
 	.close = dcamcore_dev_close,
 	.bind = dcamcore_ctx_bind,
 	.unbind = dcamcore_ctx_unbind,
+	.dummy_cfg = dcamcore_dummy_config,
+	.recovery = dcamcore_dev_recovery,
 };
+
+inline void dcam_core_offline_reset(struct dcam_hw_context *hw_ctx)
+{
+	struct dcam_irq_proc_desc irq_desc = {0};
+
+	if (hw_ctx->is_offline_proc && hw_ctx->dcam_irq_cb_func) {
+		irq_desc.dcam_cb_type = CAM_CB_DCAM_DEV_ERR;
+		hw_ctx->dcam_irq_cb_func(&irq_desc, hw_ctx->dcam_irq_cb_handle);
+	}
+}
 
 void dcam_core_offline_irq_proc(struct dcam_hw_context *dcam_hw_ctx,
 		struct dcam_irq_info *irq_info)
 {
 	int i = 0, ret = 0;
-	uint32_t irq_status = 0;
+	uint32_t irq_status = 0, dummy_status = 0;
 	struct dcam_irq_proc_desc irq_desc = {0};
 
 	if (!dcam_hw_ctx || !irq_info) {
@@ -356,7 +436,11 @@ void dcam_core_offline_irq_proc(struct dcam_hw_context *dcam_hw_ctx,
 		node->frame_ts_boot[tsid(dcam_hw_ctx->frame_index)] = ktime_get_boottime();
 		ktime_get_ts(&node->frame_ts[tsid(dcam_hw_ctx->frame_index)]);
 	}
-
+	if (dcam_hw_ctx->dummy_slave) {
+		dummy_status = atomic_read(&dcam_hw_ctx->dummy_slave->status);
+		if (dummy_status == DCAM_DUMMY_TRIGGER || dummy_status == DCAM_DUMMY_DONE)
+			return;
+	}
 	for (i = 0; i < irq_info->irq_num; i++) {
 		if (irq_status & BIT(i)) {
 			ret = dcam_int_irq_desc_get(i, &irq_desc);

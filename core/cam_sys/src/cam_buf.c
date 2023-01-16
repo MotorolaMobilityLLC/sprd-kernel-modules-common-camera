@@ -11,18 +11,17 @@
  * GNU General Public License for more details.
  */
 
+#include <linux/device.h>
+#include <linux/dma-mapping.h>
 #include <linux/err.h>
 #include <linux/list.h>
 #include <linux/mutex.h>
-#include <linux/slab.h>
-#include <linux/device.h>
 #include <linux/of.h>
+#include <linux/slab.h>
 #include <linux/sprd_iommu.h>
 #include <linux/sprd_ion.h>
-#include <linux/dma-mapping.h>
 
-#include "cam_types.h"
-#include "cam_buf.h"
+#include "cam_buf_monitor.h"
 #include "cam_queue.h"
 
 #ifdef pr_fmt
@@ -30,75 +29,21 @@
 #endif
 #define pr_fmt(fmt) "CAM_BUF: %d %d %s : " fmt, current->pid, __LINE__, __func__
 
-static struct cam_mem_dbg_info s_mem_dbg;
-struct cam_mem_dbg_info *g_mem_dbg = &s_mem_dbg;
-static struct camera_queue s_buf_map_calc_queue;
-static struct camera_queue s_memory_alloc_queue;
-static struct camera_queue s_empty_memory_alloc_queue;
-
 static atomic_t s_dev_cnt;
 struct iommudev_info {
-	enum cam_iommudev_type type;
+	enum cam_buf_iommudev_type type;
 	int32_t iommu_en;
 	struct device *dev;
 };
-static struct iommudev_info s_iommudevs[CAM_IOMMUDEV_MAX];
+static struct iommudev_info s_iommudevs[CAM_BUF_IOMMUDEV_MAX];
 
-/*************** some static interface only for cam_buf ****************/
-static void cambuf_empty_memory_alloc_queue_get(void)
-{
-	int ret = 0;
-	int i = 0;
-	struct cam_buf_memalloc_info *memalloc_info = NULL;
-
-	for (i = 0; i < CAM_BUF_EMPTY_MEMORY_ALLOC_Q_LEN; i++) {
-		memalloc_info = vzalloc(sizeof(struct cam_buf_memalloc_info));
-		if (memalloc_info == NULL) {
-			pr_err("fail to vzalloc memalloc_info\n");
-			continue;
-		}
-		ret = cam_queue_enqueue(g_mem_dbg->empty_memory_alloc_queue, &memalloc_info->list);
-		if (ret) {
-			pr_err("fail to enque empty_memory_alloc_queue\n");
-			vfree(memalloc_info);
-			memalloc_info = NULL;
-		}
-	}
-}
-
-static void cambuf_memory_alloc_queue_destory(void *param)
-{
-	if (!param) {
-		pr_err("fail to get valid param\n");
-		return;
-	}
-	vfree(param);
-}
-
-static void cambuf_map_calc_queue_destory(void *param)
-{
-	if (!param) {
-		pr_err("fail to get valid param\n");
-		return;
-	}
-	cam_buf_kernel_sys_kfree(param);
-}
-
-static int cambuf_mdbg_init(void)
-{
-	memset(g_mem_dbg, 0, sizeof(struct cam_mem_dbg_info));
-	pr_info("reset to 0\n");
-	return 0;
-}
-
-static struct iommudev_info *cambuf_iommu_dev_get(
-	enum cam_iommudev_type type, struct device *dev)
+static struct iommudev_info *cambuf_iommudev_get(enum cam_buf_iommudev_type type, struct device *dev)
 {
 	uint32_t i = 0;
 	struct iommudev_info *cur = NULL;
 
 	if (dev == NULL) {
-		if (type >= CAM_IOMMUDEV_MAX)
+		if (type >= CAM_BUF_IOMMUDEV_MAX)
 			return NULL;
 
 		cur = &s_iommudevs[type];
@@ -106,7 +51,7 @@ static struct iommudev_info *cambuf_iommu_dev_get(
 			return cur;
 
 	} else {
-		for (i = 0; i < CAM_IOMMUDEV_MAX; i++) {
+		for (i = 0; i < CAM_BUF_IOMMUDEV_MAX; i++) {
 			cur = &s_iommudevs[i];
 			if (cur->dev == dev)
 				return cur;
@@ -116,336 +61,149 @@ static struct iommudev_info *cambuf_iommu_dev_get(
 	return NULL;
 }
 
-static void cambuf_mapinfo_dequeue(struct camera_buf *buf_info)
+struct dma_buf * cambuf_adapt_ion_alloc(size_t len, unsigned int heap_id_mask,
+					unsigned int flags)
 {
-	unsigned long flags = 0;
-	struct cam_buf_map_info *map_info = NULL;
-	struct cam_buf_map_info *map_info_next = NULL;
-
-	spin_lock_irqsave(&g_mem_dbg->buf_map_calc_queue->lock, flags);
-	list_for_each_entry_safe(map_info, map_info_next, &g_mem_dbg->buf_map_calc_queue->head, list) {
-		if (!map_info)
-			continue;
-		if (map_info->buf_info == buf_info) {
-			if (map_info->kmap_counts || map_info->dcam_iommumap_counts || map_info->isp_iommumap_counts)
-				pr_err("fail to unmap buf_info :%p, kmap_counts %d, dcam_iommumap_counts %d, isp_iommumap_counts %d, buf_time %06d.%06d, map_time %06d.%06d\n",
-					buf_info, map_info->kmap_counts, map_info->dcam_iommumap_counts, map_info->isp_iommumap_counts,
-					(int)map_info->buf_time.tv_sec, (int)map_info->buf_time.tv_usec, (int)map_info->map_time.tv_sec, (int)map_info->map_time.tv_usec);
-			list_del(&map_info->list);
-			g_mem_dbg->buf_map_calc_queue->cnt--;
-			cam_buf_kernel_sys_kfree(map_info);
-			map_info = NULL;
-			pr_debug("buf_info %p\n", buf_info);
-			break;
-		}
-	}
-	spin_unlock_irqrestore(&g_mem_dbg->buf_map_calc_queue->lock, flags);
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0))
+	return ion_alloc(len, heap_id_mask, flags);
+#else
+	return ion_new_alloc(len, heap_id_mask, flags);
+#endif
 }
 
-static int cambuf_mapinfo_enqueue(struct camera_buf *buf_info, enum cam_buf_source buf_source)
+static void cambuf_adapt_ion_free(struct dma_buf *dmabuf)
 {
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0))
+	/*dma_buf_put encapsulation calls ion_free to release*/
+	dma_buf_put(dmabuf);
+#else
+	ion_free(dmabuf);
+#endif
+}
+
+static int cambuf_adapt_buffer_alloc(struct camera_buf *buf_info,
+	size_t size, unsigned int iommu_enable, unsigned int flag)
+{
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0))
 	int ret = 0;
-	unsigned long flags = 0;
-	timespec cur_ts = {0};
-	struct cam_buf_map_info *map_info = NULL;
-	/*
-	 * If memcopy buf_info is enqueued to buf_map_calc_queue,
-	 * it will not be dequeued.
-	 * buf_alloc and ion_buf_get may enqueue same buf_info to buf_map_calc_queue,
-	 * so dequeue first.
-	 */
-	if (buf_source == CAM_BUF_SOURCE_ALLOC_GET) {
-		cambuf_mapinfo_dequeue(buf_info);
-	} else {
-		spin_lock_irqsave(&g_mem_dbg->buf_map_calc_queue->lock, flags);
-		list_for_each_entry(map_info, &g_mem_dbg->buf_map_calc_queue->head, list) {
-			if (!map_info)
-				continue;
-			if (map_info->buf_info == buf_info) {
-				spin_unlock_irqrestore(&g_mem_dbg->buf_map_calc_queue->lock, flags);
-				return -1;
-			}
-		}
-		spin_unlock_irqrestore(&g_mem_dbg->buf_map_calc_queue->lock, flags);
+	const char *heap_name = NULL;
+	struct dma_heap *dmaheap = NULL;
+
+	if (buf_info->buf_sec)
+		heap_name = "carveout_fd";
+	else {
+		if (iommu_enable)
+			if(flag)
+				heap_name = "system";
+			else
+				heap_name = "system-uncached";
+		else
+			heap_name = "carveout_mm";
 	}
 
-	map_info = cam_buf_kernel_sys_kzalloc(sizeof(struct cam_buf_map_info), GFP_ATOMIC);
-	if (map_info == NULL) {
-		pr_err("fail to alloc map_info\n");
-		return -1;
-	}
-
-	if (buf_source == CAM_BUF_SOURCE_MEMCPY)
-		map_info->buf_memcyp = 1;
-	else
-		map_info->buf_memcyp = 0;
-	map_info->buf_info = buf_info;
-
-	ktime_get_ts(&cur_ts);
-	map_info->buf_time.tv_sec = cur_ts.tv_sec;
-	map_info->buf_time.tv_usec = cur_ts.tv_nsec / NSEC_PER_USEC;
-	ret = cam_queue_enqueue(g_mem_dbg->buf_map_calc_queue, &map_info->list);
-	if (ret) {
-		pr_err("fail to enque g_cam_buf_queue\n");
-		cam_buf_kernel_sys_kfree(map_info);
-		map_info = NULL;
-	}
-
-	return ret;
-}
-
-static void cambuf_map_counts_calc(struct camera_buf *buf_info, enum cam_buf_map_type type)
-{
-	unsigned long flags = 0;
-	timespec cur_ts = {0};
-	struct cam_buf_map_info *map_info = NULL;
-
-	spin_lock_irqsave(&g_mem_dbg->buf_map_calc_queue->lock, flags);
-	list_for_each_entry(map_info, &g_mem_dbg->buf_map_calc_queue->head, list) {
-		if (!map_info)
-			continue;
-		if (map_info->buf_info == buf_info) {
-			ktime_get_ts(&cur_ts);
-			map_info->map_time.tv_sec = cur_ts.tv_sec;
-			map_info->map_time.tv_usec = cur_ts.tv_nsec / NSEC_PER_USEC;
-			switch (type) {
-			case CAM_BUF_DCAM_IOMMUMAP:
-				map_info->dcam_iommumap_counts++;
-				break;
-			case CAM_BUF_DCAM_IOMMUUNMAP:
-				map_info->dcam_iommumap_counts--;
-				break;
-			case CAM_BUF_ISP_IOMMUMAP:
-				map_info->isp_iommumap_counts++;
-				break;
-			case CAM_BUF_ISP_IOMMUUNMAP:
-				map_info->isp_iommumap_counts--;
-				break;
-			case CAM_BUF_KMAP:
-				map_info->kmap_counts++;
-				break;
-			case CAM_BUF_KUNMAP:
-				map_info->kmap_counts--;
-				break;
-			default :
-				pr_err("fail to support type %d\n", type);
-				break;
-			}
-		}
-	}
-	spin_unlock_irqrestore(&g_mem_dbg->buf_map_calc_queue->lock, flags);
-}
-
-/*************** some externel interface only for camera driver ****************/
-int cam_buf_mdbg_check(void)
-{
-	int val[11] = {0};
-
-	val[0] = atomic_read(&g_mem_dbg->ion_alloc_cnt);
-	val[1] = atomic_read(&g_mem_dbg->ion_kmap_cnt);
-	val[2] = atomic_read(&g_mem_dbg->ion_dma_cnt);
-	val[3] = atomic_read(&g_mem_dbg->empty_frm_cnt);
-	val[4] = atomic_read(&g_mem_dbg->empty_interruption_cnt);
-	val[5] = atomic_read(&g_mem_dbg->empty_zoom_cnt);
-	val[6] = atomic_read(&g_mem_dbg->iommu_map_cnt[0]);
-	val[7] = atomic_read(&g_mem_dbg->iommu_map_cnt[1]);
-	val[8] = atomic_read(&g_mem_dbg->mem_kzalloc_cnt);
-	val[9] = atomic_read(&g_mem_dbg->mem_vzalloc_cnt);
-	val[10] = atomic_read(&g_mem_dbg->ion_alloc_size);
-
-	pr_info("mdbg info: k_alloc_cnt: %d, k_map_cnt: %d, u_ion_cnt: %d, "
-			"frm_cnt: %d, irq_cnt: %d, zoom_cnt: %d, isp_map_cnt: %d, "
-			"dcam_map_cnt: %d kzalloc_cnt: %d vzalloc_cnt: %d k_alloc_size: %d Bytes\n",
-			val[0], val[1], val[2], val[3], val[4], val[5], val[6], val[7], val[8], val[9], val[10]);
-	return 0;
-}
-
-int cam_buf_iommu_single_page_map(struct camera_buf *buf_info,
-	enum cam_iommudev_type type)
-{
-	int ret = 0;
-	void *ionbuf = NULL;
-	struct iommudev_info *dev_info = NULL;
-	struct sprd_iommu_map_data iommu_data = {0};
-	enum cam_buf_map_type map_type = 0;
-
-	dev_info = cambuf_iommu_dev_get(type, NULL);
-	if (!buf_info || !dev_info) {
-		pr_err("fail to get valid param %p %p\n", buf_info, dev_info);
-		return -EFAULT;
-	}
-
-	if (buf_info->ionbuf == NULL) {
-		pr_err("fail to map, ionbuf is NULL\n");
-		return -EFAULT;
-	}
-
-	pr_debug("enter.\n");
-	ionbuf = buf_info->ionbuf;
-
-	if (dev_info->iommu_en && !buf_info->buf_sec) {
-		memset(&iommu_data, 0,
-			sizeof(struct sprd_iommu_map_data));
-		iommu_data.buf = ionbuf;
-		iommu_data.iova_size = buf_info->size;
-		iommu_data.ch_type = SPRD_IOMMU_FM_CH_RW;
-		pr_debug("start map buf: %p, size: %d\n",
-				ionbuf, (int)iommu_data.iova_size);
-		ret = sprd_iommu_map_single_page(dev_info->dev, &iommu_data);
-		if (ret) {
-			pr_err("fail to get iommu kaddr\n");
-			ret = -EFAULT;
-			goto failed;
-		}
-
-		if (g_mem_dbg) {
-			atomic_inc(&g_mem_dbg->iommu_map_cnt[type]);
-			if (g_mem_dbg->g_dbg_memory_leak_ctrl) {
-				if ((type == CAM_IOMMUDEV_DCAM) || (type == CAM_IOMMUDEV_ISP)) {
-					cambuf_mapinfo_enqueue(buf_info, CAM_BUF_SOURCE_MEMCPY);
-					if (type == CAM_IOMMUDEV_DCAM)
-						map_type = CAM_BUF_DCAM_IOMMUMAP;
-					else
-						map_type = CAM_BUF_ISP_IOMMUMAP;
-					cambuf_map_counts_calc(buf_info, map_type);
-				}
-			}
-		}
-		buf_info->iova = iommu_data.iova_addr;
-		pr_debug("buf_info %p, mfd %d, kaddr %p, iova: 0x%08x, size 0x%x\n",
-			buf_info, buf_info->mfd, (void *)buf_info->addr_k, (uint32_t)buf_info->iova, (uint32_t)buf_info->size);
-	} else {
-		ret = cam_buf_get_phys_addr(-1,
-				buf_info->dmabuf_p,
-				&buf_info->iova,
-				&buf_info->size);
-		if (ret) {
-			pr_err("fail to get iommu kaddr\n");
-			ret = -EFAULT;
-			goto failed;
-		}
-		pr_debug("mfd %d, kaddr %p, iova: 0x%08x, size 0x%x\n",
-				buf_info->mfd,
-				(void *)buf_info->addr_k,
-				(uint32_t)buf_info->iova,
-				(uint32_t)buf_info->size);
-	}
-	buf_info->dev = dev_info->dev;
-	buf_info->mapping_state |= CAM_BUF_MAPPING_DEV;
-	buf_info->status &= 0xfc;
-	buf_info->status |= CAM_BUF_WITH_SINGLE_PAGE_IOVA;
-	return 0;
-
-failed:
-	if (buf_info->size <= 0 || buf_info->iova == 0)
+	dmaheap = dma_heap_find(heap_name);
+	if (dmaheap == NULL) {
+		pr_err("fail to get dmaheap\n");
+		ret = -ENOMEM;
 		return ret;
-
-	if (dev_info->iommu_en) {
-		struct sprd_iommu_unmap_data unmap_data;
-
-		unmap_data.iova_addr = buf_info->iova;
-		unmap_data.iova_size = buf_info->size;
-		unmap_data.ch_type = SPRD_IOMMU_FM_CH_RW;
-		unmap_data.table = NULL;
-		unmap_data.buf = NULL;
-		ret = sprd_iommu_unmap(dev_info->dev, &unmap_data);
-		if (ret)
-			pr_err("fail to free iommu\n");
 	}
-	buf_info->iova = 0;
-
+	buf_info->dmabuf_p = dma_heap_buffer_alloc(dmaheap, size, O_RDWR | O_CLOEXEC, 0);
 	return ret;
+#else
+	int ret = 0;
+	int heap_type = 0;
+
+	if (buf_info->buf_sec)
+		heap_type = ION_HEAP_ID_MASK_CAM;
+	else
+		heap_type = iommu_enable ?
+				ION_HEAP_ID_MASK_SYSTEM :
+				ION_HEAP_ID_MASK_MM;
+
+	buf_info->dmabuf_p = cambuf_adapt_ion_alloc(size, heap_type, flag);
+	return ret;
+#endif
 }
 
-int cam_buf_kmap(struct camera_buf *buf_info)
+static void cambuf_adapt_buffer_free(struct dma_buf *dmabuf)
 {
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0))
+	dma_heap_buffer_free(dmabuf);
+#else
+	cambuf_adapt_ion_free(dmabuf);
+#endif
+}
+
+static int cambuf_adapt_ion_get_buffer(int fd, bool buf_sec, struct dma_buf *dmabuf,
+		void **buf, size_t *size)
+{
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0))
 	int ret = 0;
 
-	if (!buf_info) {
-		pr_err("fail to get buffer info ptr\n");
-		return -EFAULT;
-	}
+	if (buf_sec)
+		ret = sprd_dmabuf_get_carvebuffer(fd, dmabuf, buf, size);
+	else
+		ret = sprd_dmabuf_get_sysbuffer(fd, dmabuf, buf, size);
 
-	if ((buf_info->mapping_state & CAM_BUF_MAPPING_KERNEL)) {
-		pr_warn("warning: buf type %d status: 0x%x\n",
-			buf_info->type, buf_info->mapping_state);
-		return -EFAULT;
-	}
-
-	if ((buf_info->size <= 0) || (buf_info->dmabuf_p == NULL)) {
-		pr_err("fail to kmap, size %d, dmabuf %p\n", buf_info->size, buf_info->dmabuf_p);
-		return -EFAULT;
-	}
-
-	ret = cam_buf_map_kernel(buf_info, 0);
-	if (IS_ERR_OR_NULL((void *)buf_info->addr_k)) {
-		pr_err("fail to map k_addr %p for dmabuf[%p]\n",
-			(void *)buf_info->addr_k, buf_info->dmabuf_p);
-		buf_info->addr_k = 0;
-		ret = -EINVAL;
-		goto map_fail;
-	}
-	buf_info->addr_k += buf_info->offset[0];
-
-	pr_debug("buf_info %p, addr_k %p, dmabuf[%p]\n", buf_info, (void *)buf_info->addr_k, buf_info->dmabuf_p);
-	if (g_mem_dbg) {
-		atomic_inc(&g_mem_dbg->ion_kmap_cnt);
-		if (g_mem_dbg->g_dbg_memory_leak_ctrl) {
-			cambuf_mapinfo_enqueue(buf_info, CAM_BUF_SOURCE_MEMCPY);
-			cambuf_map_counts_calc(buf_info, CAM_BUF_KMAP);
-		}
-	}
-	buf_info->mapping_state |= CAM_BUF_MAPPING_KERNEL;
-	buf_info->status &= 0xfc;
-	buf_info->status |= CAM_BUF_WITH_K_ADDR;
-	pr_debug("done: %p\n", (void *)buf_info->addr_k);
-	return 0;
-
-map_fail:
-	cam_buf_unmap_kernel(buf_info, 0);
-	buf_info->addr_k = 0;
 	return ret;
-}
-
-int cam_buf_kunmap(struct camera_buf *buf_info)
-{
+#else
 	int ret = 0;
 
-	if (!buf_info) {
-		pr_err("fail to get buffer info ptr\n");
-		return -EFAULT;
-	}
-
-	if (!(buf_info->mapping_state & CAM_BUF_MAPPING_KERNEL)) {
-		pr_warn("warning: buf type %d status: 0x%x\n",
-			buf_info->type, buf_info->mapping_state);
-		return -EFAULT;
-	}
-
-	if ((buf_info->size <= 0) || (buf_info->dmabuf_p == NULL)) {
-		pr_err("fail to kunmap, size %d, dmabuf %p\n", buf_info->size, buf_info->dmabuf_p);
-		return -EFAULT;
-	}
-
-	pr_debug("buf_info %p, addr_k %p, dmabuf[%p]\n", buf_info, (void *)buf_info->addr_k, buf_info->dmabuf_p);
-
-	ret = cam_buf_unmap_kernel(buf_info, 0);
-	buf_info->addr_k = 0;
-	if (g_mem_dbg) {
-		atomic_dec(&g_mem_dbg->ion_kmap_cnt);
-		if (g_mem_dbg->g_dbg_memory_leak_ctrl)
-			cambuf_map_counts_calc(buf_info, CAM_BUF_KUNMAP);
-	}
-
-	buf_info->mapping_state &= ~CAM_BUF_MAPPING_KERNEL;
-	buf_info->status &= (~CAM_BUF_WITH_K_ADDR);
-	if (!buf_info->status)
-		buf_info->status = CAM_BUF_WITH_ION;
+	ret = sprd_ion_get_buffer(fd, dmabuf, buf, size);
 	return ret;
+#endif
 }
 
-int cam_buf_alloc(struct camera_buf *buf_info,
-		size_t size, unsigned int iommu_enable)
+static int cambuf_adapt_phys_get_addr(int fd, struct dma_buf *dmabuf,
+		unsigned long *phys_addr, size_t *size)
+{
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0))
+	int ret = 0;
+
+	ret = sprd_dmabuf_get_phys_addr(fd, dmabuf, phys_addr, size);
+	return ret;
+#else
+	int ret = 0;
+
+	ret = sprd_ion_get_phys_addr(fd, dmabuf, phys_addr, size);
+	return ret;
+#endif
+}
+
+static int cambuf_adapt_buf_kmap(struct camera_buf *buf_info)
+{
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0))
+	int ret = 0;
+
+	ret = sprd_dmabuf_map_kernel(buf_info->dmabuf_p, &buf_info->map);
+	buf_info->addr_k = (unsigned long)buf_info->map.vaddr;
+
+	return ret;
+#else
+	int ret = 0;
+
+	buf_info->addr_k = (unsigned long)
+		sprd_ion_map_kernel(buf_info->dmabuf_p, 0);
+	return ret;
+#endif
+}
+
+static int cambuf_adapt_buf_kunmap(struct camera_buf *buf_info)
+{
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0))
+	int ret = 0;
+
+	ret = sprd_dmabuf_unmap_kernel(buf_info->dmabuf_p, &buf_info->map);
+	return ret;
+#else
+	int ret = 0;
+
+	ret = sprd_ion_unmap_kernel(buf_info->dmabuf_p, 0);
+	return ret;
+#endif
+}
+
+int cam_buf_alloc(struct camera_buf *buf_info, size_t size, unsigned int iommu_enable)
 {
 	int ret = 0;
 	unsigned int flag = 0;
@@ -463,44 +221,40 @@ int cam_buf_alloc(struct camera_buf *buf_info,
 	/* force reserved memory during bringup. */
 	iommu_enable = 0;
 #endif
-	ret = cam_buffer_alloc(buf_info, size, iommu_enable, flag);
+	ret = cambuf_adapt_buffer_alloc(buf_info, size, iommu_enable, flag);
 	if (IS_ERR_OR_NULL(buf_info->dmabuf_p)) {
 		pr_err("fail to alloc ion buf size = 0x%x\n", (int)size);
 		ret = -ENOMEM;
 		return ret;
 	}
 
-	ret = cam_ion_get_buffer(-1, buf_info->buf_sec,
-			buf_info->dmabuf_p,
-			&buf_info->ionbuf,
-			&buf_info->size);
+	ret = cambuf_adapt_ion_get_buffer(-1, buf_info->buf_sec, buf_info->dmabuf_p, &buf_info->ionbuf, &buf_info->size);
 	if (ret) {
-		pr_err("fail to get ionbuf for kernel buffer %p\n",
-				buf_info->dmabuf_p);
+		pr_err("fail to get ionbuf for kernel buffer %p\n", buf_info->dmabuf_p);
 		ret = -EFAULT;
 		goto failed;
 	}
 
-	pr_debug("dmabuf_p[%p], ionbuf[%p], size %d\n",
-		buf_info->dmabuf_p,
-		buf_info->ionbuf, (int)buf_info->size);
+	pr_debug("dmabuf_p[%p], ionbuf[%p], size %d\n", buf_info->dmabuf_p, buf_info->ionbuf, (int)buf_info->size);
 
 	buf_info->type = CAM_BUF_KERNEL;
+	buf_info->status = CAM_BUF_ALLOC;
+	pr_debug("alloc done. %p\n", buf_info);
+
 	if (g_mem_dbg) {
 		atomic_inc(&g_mem_dbg->ion_alloc_cnt);
 		atomic_add((int)buf_info->size, &g_mem_dbg->ion_alloc_size);
 		if (g_mem_dbg->g_dbg_memory_leak_ctrl) {
-			ret = cambuf_mapinfo_enqueue(buf_info, CAM_BUF_SOURCE_ALLOC_GET);
+			ret = cam_buf_monitor_mapinfo_enqueue(buf_info, CAM_BUF_SOURCE_ALLOC_GET);
 			if (ret)
 				pr_err("fail to enqueue g_cam_buf_queue\n");
 		}
 	}
-	buf_info->status = CAM_BUF_ALLOC;
-	pr_debug("alloc done. %p\n", buf_info);
+
 	return 0;
 
 failed:
-	cam_ion_free(buf_info->dmabuf_p);
+	cambuf_adapt_ion_free(buf_info->dmabuf_p);
 	buf_info->dmabuf_p = NULL;
 	buf_info->ionbuf = NULL;
 	buf_info->size = 0;
@@ -509,8 +263,7 @@ failed:
 
 int cam_buf_free(struct camera_buf *buf_info)
 {
-	int rtn = 0;
-	int size = 0;
+	int rtn = 0, size = 0;
 	struct dma_buf *dmabuf = NULL;
 
 	if (!buf_info) {
@@ -524,13 +277,15 @@ int cam_buf_free(struct camera_buf *buf_info)
 	}
 
 	if (buf_info->mapping_state != CAM_BUF_MAPPING_NULL) {
-		pr_err("fail to get correct mapping state %x. maybe addr leak.\n",
-				buf_info->mapping_state);
+		pr_err("fail to get correct mapping state %x. maybe iova leak.\n", buf_info->mapping_state);
 	}
+
+	if (buf_info->status & CAM_BUF_WITH_K_ADDR)
+		pr_err("fail to get correct status %x. maybe kaddr leak.\n", buf_info->status);
 
 	dmabuf = buf_info->dmabuf_p;
 	if (dmabuf) {
-		cam_buffer_free(dmabuf);
+		cambuf_adapt_buffer_free(dmabuf);
 		size = (int)buf_info->size;
 		buf_info->dmabuf_p = NULL;
 		buf_info->mfd = 0;
@@ -540,7 +295,7 @@ int cam_buf_free(struct camera_buf *buf_info)
 			atomic_dec(&g_mem_dbg->ion_alloc_cnt);
 			atomic_sub(size, &g_mem_dbg->ion_alloc_size);
 			if (g_mem_dbg->g_dbg_memory_leak_ctrl)
-				cambuf_mapinfo_dequeue(buf_info);
+				cam_buf_monitor_mapinfo_dequeue(buf_info);
 		}
 	}
 
@@ -549,254 +304,86 @@ int cam_buf_free(struct camera_buf *buf_info)
 	return rtn;
 }
 
-void cam_buf_memory_leak_queue_init(void)
-{
-	g_mem_dbg->buf_map_calc_queue = &s_buf_map_calc_queue;
-	g_mem_dbg->memory_alloc_queue = &s_memory_alloc_queue;
-	g_mem_dbg->empty_memory_alloc_queue = &s_empty_memory_alloc_queue;
-	cam_queue_init(g_mem_dbg->buf_map_calc_queue, CAM_BUF_MAP_CALC_Q_LEN,
-		cambuf_map_calc_queue_destory);
-	cam_queue_init(g_mem_dbg->memory_alloc_queue, CAM_BUF_MEMORY_ALLOC_Q_LEN,
-		cambuf_memory_alloc_queue_destory);
-	cam_queue_init(g_mem_dbg->empty_memory_alloc_queue, CAM_BUF_EMPTY_MEMORY_ALLOC_Q_LEN,
-		cambuf_memory_alloc_queue_destory);
-
-	cambuf_empty_memory_alloc_queue_get();
-}
-
-void cam_buf_memory_leak_queue_deinit(void)
-{
-	cam_queue_clear(g_mem_dbg->buf_map_calc_queue, struct cam_buf_map_info, list);
-	g_mem_dbg->buf_map_calc_queue = NULL;
-	cam_queue_clear(g_mem_dbg->memory_alloc_queue, struct cam_buf_memalloc_info, list);
-	g_mem_dbg->memory_alloc_queue = NULL;
-	cam_queue_clear(g_mem_dbg->empty_memory_alloc_queue, struct cam_buf_memalloc_info, list);
-	g_mem_dbg->empty_memory_alloc_queue = NULL;
-}
-
-void cam_buf_memory_leak_queue_check(void)
-{
-	struct cam_buf_map_info *map_info = NULL;
-	struct cam_buf_map_info *map_info_next = NULL;
-	struct cam_buf_memalloc_info *memalloc_info = NULL;
-
-	list_for_each_entry_safe(map_info, map_info_next, &g_mem_dbg->buf_map_calc_queue->head, list) {
-		if (!map_info)
-			continue;
-		if (map_info->buf_memcyp) {
-			if (map_info->kmap_counts || map_info->dcam_iommumap_counts || map_info->isp_iommumap_counts)
-				pr_err("fail to unmap buf_info :%p, kmap_counts %d, dcam_iommumap_counts %d, isp_iommumap_counts %d, buf_time %06d.%06d, map_time %06d.%06d\n",
-					map_info->buf_info, map_info->kmap_counts, map_info->dcam_iommumap_counts, map_info->isp_iommumap_counts,
-					(int)map_info->buf_time.tv_sec, (int)map_info->buf_time.tv_usec, (int)map_info->map_time.tv_sec, (int)map_info->map_time.tv_usec);
-			list_del(&map_info->list);
-			g_mem_dbg->buf_map_calc_queue->cnt--;
-			cam_buf_kernel_sys_kfree(map_info);
-			map_info = NULL;
-		} else {
-			pr_err("fail to buf_free buf_info: %p, buf_time %06d.%06d, map_time %06d.%06d\n",
-				map_info->buf_info, (int)map_info->buf_time.tv_sec, (int)map_info->buf_time.tv_usec, (int)map_info->map_time.tv_sec, (int)map_info->map_time.tv_usec);
-		}
-	}
-
-	list_for_each_entry(memalloc_info, &g_mem_dbg->memory_alloc_queue->head, list) {
-		if (!map_info)
-			continue;
-		pr_err("fail to free memory addr: %p, alloc_time %06d.%06d\n",
-			memalloc_info->addr, (int)memalloc_info->time.tv_sec, (int)memalloc_info->time.tv_usec);
-	}
-}
-
-void *cam_buf_kernel_sys_kzalloc(unsigned long size, gfp_t flags)
+int cam_buf_kmap(struct camera_buf *buf_info)
 {
 	int ret = 0;
-	void *mem = NULL;
-	timespec cur_ts = {0};
-	struct cam_buf_memalloc_info *memalloc_info = NULL;
 
-	mem = kzalloc(size, flags);
-	if (mem) {
-		if (g_mem_dbg) {
-			atomic_inc(&g_mem_dbg->mem_kzalloc_cnt);
-			pr_debug("kzalloc done: %p, mem_count %d\n", mem, g_mem_dbg->mem_kzalloc_cnt);
+	if (!buf_info) {
+		pr_err("fail to get buffer info ptr\n");
+		return -EFAULT;
+	}
 
-			if (g_mem_dbg->g_dbg_memory_leak_ctrl) {
-				memalloc_info = cam_queue_dequeue(g_mem_dbg->empty_memory_alloc_queue, struct cam_buf_memalloc_info, list);
-				if (!memalloc_info) {
-					pr_err("fail to deque empty_memory_alloc_queue\n");
-					return mem;
-				}
-				ktime_get_ts(&cur_ts);
-				memalloc_info->time.tv_sec = cur_ts.tv_sec;
-				memalloc_info->time.tv_usec = cur_ts.tv_nsec / NSEC_PER_USEC;
-				memalloc_info->addr = mem;
-				ret = cam_queue_enqueue(g_mem_dbg->memory_alloc_queue, &memalloc_info->list);
-				if (ret)
-					pr_err("fail to enque g_mem_alloc_queue\n");
-			}
-		}
-	} else
-		pr_err("fail to kzalloc memory\n");
-	return mem;
-}
+	if (buf_info->status & CAM_BUF_WITH_K_ADDR) {
+		pr_warn("warning: buf type %d status: 0x%x\n", buf_info->type, buf_info->status);
+		return 0;
+	}
 
-void cam_buf_kernel_sys_kfree(const void *mem)
-{
-	int ret = 0;
-	unsigned long flags = 0;
-	struct cam_buf_memalloc_info *memalloc_info = NULL;
-	struct cam_buf_memalloc_info *memalloc_info_next = NULL;
+	if ((buf_info->size <= 0) || (buf_info->dmabuf_p == NULL)) {
+		pr_err("fail to kmap, size %d, dmabuf %p\n", buf_info->size, buf_info->dmabuf_p);
+		return -EFAULT;
+	}
 
-	kfree(mem);
+	ret = cambuf_adapt_buf_kmap(buf_info);
+	if (IS_ERR_OR_NULL((void *)buf_info->addr_k)) {
+		pr_err("fail to map k_addr %p for dmabuf[%p]\n", (void *)buf_info->addr_k, buf_info->dmabuf_p);
+		buf_info->addr_k = 0;
+		ret = -EINVAL;
+		goto map_fail;
+	}
+	buf_info->addr_k += buf_info->offset[0];
+	pr_debug("buf_info %p, addr_k %p, dmabuf[%p]\n", buf_info, (void *)buf_info->addr_k, buf_info->dmabuf_p);
+
+	buf_info->status &= 0xfc;
+	buf_info->status |= CAM_BUF_WITH_K_ADDR;
+	pr_debug("done: %p\n", (void *)buf_info->addr_k);
+
 	if (g_mem_dbg) {
-		atomic_dec(&g_mem_dbg->mem_kzalloc_cnt);
+		atomic_inc(&g_mem_dbg->ion_kmap_cnt);
 		if (g_mem_dbg->g_dbg_memory_leak_ctrl) {
-			spin_lock_irqsave(&g_mem_dbg->memory_alloc_queue->lock, flags);
-			list_for_each_entry_safe(memalloc_info, memalloc_info_next, &g_mem_dbg->memory_alloc_queue->head, list) {
-				if (!memalloc_info)
-					continue;
-				if (memalloc_info->addr == mem) {
-					list_del(&memalloc_info->list);
-					g_mem_dbg->memory_alloc_queue->cnt--;
-					ret = cam_queue_enqueue(g_mem_dbg->empty_memory_alloc_queue, &memalloc_info->list);
-					if (ret)
-						pr_err("fail to enque g_mem_alloc_queue\n");
-					break;
-				}
-			}
-			spin_unlock_irqrestore(&g_mem_dbg->memory_alloc_queue->lock, flags);
+			cam_buf_monitor_mapinfo_enqueue(buf_info, CAM_BUF_SOURCE_MEMCPY);
+			cam_buf_monitor_map_counts_calc(buf_info, CAM_BUF_KMAP);
 		}
-	}
-	pr_debug("kfree done. mem_count %d mem %p\n", g_mem_dbg->mem_kzalloc_cnt, mem);
-}
-
-void *cam_buf_kernel_sys_vzalloc(unsigned long size)
-{
-	int ret = 0;
-	void *mem = NULL;
-	timespec cur_ts = {0};
-	struct cam_buf_memalloc_info *memalloc_info = NULL;
-
-	mem = vzalloc(size);
-	if (mem) {
-		if (g_mem_dbg) {
-			atomic_inc(&g_mem_dbg->mem_vzalloc_cnt);
-			pr_debug("vzalloc done: %p, mem_count %d\n", mem, g_mem_dbg->mem_vzalloc_cnt);
-
-			if (g_mem_dbg->g_dbg_memory_leak_ctrl) {
-				memalloc_info = cam_queue_dequeue(g_mem_dbg->empty_memory_alloc_queue, struct cam_buf_memalloc_info, list);
-				if (!memalloc_info) {
-					pr_err("fail to deque empty_memory_alloc_queue\n");
-					return mem;
-				}
-				ktime_get_ts(&cur_ts);
-				memalloc_info->time.tv_sec = cur_ts.tv_sec;
-				memalloc_info->time.tv_usec = cur_ts.tv_nsec / NSEC_PER_USEC;
-				memalloc_info->addr = mem;
-				ret = cam_queue_enqueue(g_mem_dbg->memory_alloc_queue, &memalloc_info->list);
-				if (ret)
-					pr_err("fail to enque g_mem_alloc_queue\n");
-			}
-		}
-	} else
-		pr_err("fail to vzalloc memory\n");
-	return mem;
-}
-
-void cam_buf_kernel_sys_vfree(const void *mem)
-{
-	int ret = 0;
-	unsigned long flags = 0;
-	struct cam_buf_memalloc_info *memalloc_info = NULL;
-	struct cam_buf_memalloc_info *memalloc_info_next = NULL;
-
-	vfree(mem);
-	if (g_mem_dbg) {
-		atomic_dec(&g_mem_dbg->mem_vzalloc_cnt);
-		if (g_mem_dbg->g_dbg_memory_leak_ctrl) {
-			spin_lock_irqsave(&g_mem_dbg->memory_alloc_queue->lock, flags);
-			list_for_each_entry_safe(memalloc_info, memalloc_info_next, &g_mem_dbg->memory_alloc_queue->head, list) {
-				if (!memalloc_info)
-					continue;
-				if (memalloc_info->addr == mem) {
-					list_del(&memalloc_info->list);
-					g_mem_dbg->memory_alloc_queue->cnt--;
-					ret = cam_queue_enqueue(g_mem_dbg->empty_memory_alloc_queue, &memalloc_info->list);
-					if (ret)
-						pr_err("fail to enque g_mem_alloc_queue\n");
-					break;
-				}
-			}
-			spin_unlock_irqrestore(&g_mem_dbg->memory_alloc_queue->lock, flags);
-		}
-	}
-	pr_debug("vfree done. mem_count %d mem %p\n", g_mem_dbg->mem_vzalloc_cnt, mem);
-}
-
-/*************** some externel interface not only for camera driver ****************/
-int cam_buf_iommudev_reg(struct device *dev,
-	enum cam_iommudev_type type)
-{
-	if (type < CAM_IOMMUDEV_MAX) {
-
-		s_iommudevs[type].type = type;
-		s_iommudevs[type].dev = dev;
-		s_iommudevs[type].iommu_en = 0;
-
-		if (atomic_inc_return(&s_dev_cnt) == 1)
-			cambuf_mdbg_init();
-
-		/* change mode when camera open */
-		if (type == CAM_IOMMUDEV_DCAM)
-			g_dbg_iommu_mode = g_dbg_set_iommu_mode;
-
-		if (g_dbg_iommu_mode == IOMMU_AUTO) {
-			if (sprd_iommu_attach_device(dev) == 0)
-				s_iommudevs[type].iommu_en = 1;
-		} else if (g_dbg_iommu_mode == IOMMU_OFF) {
-			s_iommudevs[type].iommu_en = 0;
-		} else {
-			s_iommudevs[type].iommu_en = 1;
-		}
-		pr_info("dev %d, iommu_mode %d iommu_hw_en %d\n",
-			type, g_dbg_iommu_mode, s_iommudevs[type].iommu_en);
 	}
 
 	return 0;
+
+map_fail:
+	cambuf_adapt_buf_kunmap(buf_info);
+	buf_info->addr_k = 0;
+	return ret;
 }
 
-int cam_buf_iommudev_unreg(enum cam_iommudev_type type)
+int cam_buf_kunmap(struct camera_buf *buf_info)
 {
-	if (type < CAM_IOMMUDEV_MAX) {
-		if (!s_iommudevs[type].dev)
-			return 0;
-		atomic_dec(&s_dev_cnt);
-		s_iommudevs[type].type = CAM_IOMMUDEV_MAX;
-		s_iommudevs[type].dev = NULL;
-		s_iommudevs[type].iommu_en = 0;
+	int ret = 0;
+
+	if (!buf_info) {
+		pr_err("fail to get buffer info ptr\n");
+		return -EFAULT;
 	}
-	return 0;
-}
 
-int cam_buf_iommu_status_get(enum cam_iommudev_type type)
-{
-	int ret = -ENODEV;
-	struct iommudev_info *cur = NULL;
+	if (!(buf_info->status & CAM_BUF_WITH_K_ADDR)) {
+		pr_warn("warning: buf type %d status: 0x%x\n", buf_info->type, buf_info->status);
+		return 0;
+	}
 
-	if (type >= CAM_IOMMUDEV_MAX)
-		return ret;
+	if ((buf_info->size <= 0) || (buf_info->dmabuf_p == NULL)) {
+		pr_err("fail to kunmap, size %d, dmabuf %p\n", buf_info->size, buf_info->dmabuf_p);
+		return -EFAULT;
+	}
 
-	cur = &s_iommudevs[type];
-	if ((cur->type == type) && (cur->dev != NULL)) {
-		int enable;
+	pr_debug("buf_info %p, addr_k %p, dmabuf[%p]\n", buf_info, (void *)buf_info->addr_k, buf_info->dmabuf_p);
 
-		if (g_dbg_iommu_mode == IOMMU_AUTO)
-			ret = cur->iommu_en ? 0 : -1;
-		else if (g_dbg_iommu_mode == IOMMU_ON)
-			ret = 0;
-		else
-			ret = -1;
-		enable = (ret == 0) ? 1 : 0;
-		pr_debug("dev %d, iommu_mode %d en %d\n", type, g_dbg_iommu_mode, enable);
+	ret = cambuf_adapt_buf_kunmap(buf_info);
+	buf_info->addr_k = 0;
+	buf_info->status &= (~CAM_BUF_WITH_K_ADDR);
+	if (!buf_info->status)
+		buf_info->status = CAM_BUF_WITH_ION;
+
+	if (g_mem_dbg) {
+		atomic_dec(&g_mem_dbg->ion_kmap_cnt);
+		if (g_mem_dbg->g_dbg_memory_leak_ctrl)
+			cam_buf_monitor_map_counts_calc(buf_info, CAM_BUF_KUNMAP);
 	}
 
 	return ret;
@@ -805,10 +392,9 @@ int cam_buf_iommu_status_get(enum cam_iommudev_type type)
 int cam_buf_ionbuf_get(struct camera_buf *buf_info)
 {
 	int ret = 0;
-	void *ionbuf = NULL;
-	enum cam_iommudev_type type;
+	enum cam_buf_iommudev_type type = CAM_BUF_IOMMUDEV_MAX;
 	struct iommudev_info *dev_info = NULL;
-	struct camera_ion_info *ion_info = NULL;
+	struct camera_buf_ion_info *ion_info = NULL;
 
 	if (!buf_info) {
 		pr_err("fail to get buffer info ptr\n");
@@ -825,15 +411,12 @@ int cam_buf_ionbuf_get(struct camera_buf *buf_info)
 	}
 
 	pr_debug("enter. user buf:  %d\n", buf_info->mfd);
-	ret = cam_ion_get_buffer(buf_info->mfd, buf_info->buf_sec,
-			NULL, &ionbuf, &buf_info->size);
+	ret = cambuf_adapt_ion_get_buffer(buf_info->mfd, buf_info->buf_sec, NULL, &buf_info->ionbuf, &buf_info->size);
 	if (ret) {
-		pr_err("fail to get ionbuf for user buffer %d\n",
-				buf_info->mfd);
+		pr_err("fail to get ionbuf for user buffer %d\n", buf_info->mfd);
 		goto failed;
 	}
-	buf_info->ionbuf = ionbuf;
-	pr_debug("size %d, ionbuf %p\n", (int)buf_info->size, ionbuf);
+	pr_debug("size %d, ionbuf %p\n", (int)buf_info->size, buf_info->ionbuf);
 	/*
 	 * get dambuf to avoid ion buf is freed during
 	 * hardware access it.
@@ -856,20 +439,20 @@ int cam_buf_ionbuf_get(struct camera_buf *buf_info)
 		if (g_mem_dbg) {
 			atomic_inc(&g_mem_dbg->ion_dma_cnt);
 			if (g_mem_dbg->g_dbg_memory_leak_ctrl)
-				cambuf_mapinfo_enqueue(buf_info, CAM_BUF_SOURCE_ALLOC_GET);
+				cam_buf_monitor_mapinfo_enqueue(buf_info, CAM_BUF_SOURCE_ALLOC_GET);
 		}
 		pr_debug("buf_info %p, dmabuf %p\n", buf_info, buf_info->dmabuf_p);
 	}
 
-	ion_info = cam_buf_kernel_sys_vzalloc(sizeof(struct camera_ion_info));
+	ion_info = cam_buf_kernel_sys_vzalloc(sizeof(struct camera_buf_ion_info));
 	if (ion_info) {
 		memcpy(&ion_info->ionbuf_copy, buf_info, sizeof(struct camera_buf));
 		ret = cam_queue_enqueue(g_ion_buf_q, &ion_info->list);
 	}
 
 	if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0)) {
-		for (type = CAM_IOMMUDEV_ISP; type < CAM_IOMMUDEV_MAX; type++) {
-			dev_info = cambuf_iommu_dev_get(type, NULL);
+		for (type = CAM_BUF_IOMMUDEV_ISP; type < CAM_BUF_IOMMUDEV_MAX; type++) {
+			dev_info = cambuf_iommudev_get(type, NULL);
 			if (!dev_info)
 				continue;
 			if (dma_set_mask(dev_info->dev, DMA_BIT_MASK(64))) {
@@ -896,7 +479,7 @@ int cam_buf_ionbuf_get(struct camera_buf *buf_info)
 	return 0;
 
 map_attachment_failed:
-	for (type = CAM_IOMMUDEV_ISP; type < CAM_IOMMUDEV_MAX; type++) {
+	for (type = CAM_BUF_IOMMUDEV_ISP; type < CAM_BUF_IOMMUDEV_MAX; type++) {
 		if (!IS_ERR_OR_NULL(buf_info->attachment[type]))
 			dma_buf_detach(buf_info->dmabuf_p, buf_info->attachment[type]);
 	}
@@ -907,7 +490,7 @@ failed:
 		if (g_mem_dbg) {
 			atomic_dec(&g_mem_dbg->ion_dma_cnt);
 			if (g_mem_dbg->g_dbg_memory_leak_ctrl)
-				cambuf_mapinfo_dequeue(buf_info);
+				cam_buf_monitor_mapinfo_dequeue(buf_info);
 		}
 	}
 	buf_info->ionbuf = NULL;
@@ -917,10 +500,9 @@ failed:
 int cam_buf_ionbuf_put(struct camera_buf *buf_info)
 {
 	int ret = 0;
-	enum cam_iommudev_type type;
-	struct camera_ion_info *ioninfo = NULL;
-	struct camera_ion_info *ioninfo_next = NULL;
 	unsigned long flags = 0;
+	enum cam_buf_iommudev_type type = CAM_BUF_IOMMUDEV_MAX;
+	struct camera_buf_ion_info *ioninfo = NULL, *ioninfo_next = NULL;
 
 	if (!buf_info) {
 		pr_err("fail to get buffer info ptr\n");
@@ -939,7 +521,7 @@ int cam_buf_ionbuf_put(struct camera_buf *buf_info)
 	if (IS_ERR_OR_NULL(buf_info->dmabuf_p))
 		goto exit;
 
-	for (type = CAM_IOMMUDEV_ISP; type < CAM_IOMMUDEV_MAX; type++) {
+	for (type = CAM_BUF_IOMMUDEV_ISP; type < CAM_BUF_IOMMUDEV_MAX; type++) {
 		if (!IS_ERR_OR_NULL(buf_info->table[type]))
 			dma_buf_unmap_attachment(buf_info->attachment[type], buf_info->table[type], DMA_BIDIRECTIONAL);
 		if (!IS_ERR_OR_NULL(buf_info->attachment[type]))
@@ -952,7 +534,7 @@ int cam_buf_ionbuf_put(struct camera_buf *buf_info)
 	if (g_mem_dbg) {
 		atomic_dec(&g_mem_dbg->ion_dma_cnt);
 		if (g_mem_dbg->g_dbg_memory_leak_ctrl)
-			cambuf_mapinfo_dequeue(buf_info);
+			cam_buf_monitor_mapinfo_dequeue(buf_info);
 	}
 
 	spin_lock_irqsave(&g_ion_buf_q->lock, flags);
@@ -973,27 +555,14 @@ exit:
 	return ret;
 }
 
-int cam_buf_iommu_restore(enum cam_iommudev_type type)
-{
-	struct iommudev_info *dev_info = NULL;
-	uint32_t ret = 0;
-	dev_info = cambuf_iommu_dev_get(type, NULL);
-	ret = sprd_iommu_restore(dev_info->dev);
-	if (ret != 0)
-		pr_info("fail to iommu enable\n");
-	return ret;
-}
-
-int cam_buf_iommu_map(struct camera_buf *buf_info,
-	enum cam_iommudev_type type)
+int cam_buf_iommu_map(struct camera_buf *buf_info, enum cam_buf_iommudev_type type)
 {
 	int ret = 0;
-	void *ionbuf = NULL;
 	struct iommudev_info *dev_info = NULL;
 	struct sprd_iommu_map_data iommu_data = {0};
-	enum cam_buf_map_type map_type = 0;
+	enum cam_buf_map_type map_type = CAM_BUF_DCAM_IOMMUMAP;
 
-	dev_info = cambuf_iommu_dev_get(type, NULL);
+	dev_info = cambuf_iommudev_get(type, NULL);
 	if (!buf_info || !dev_info) {
 		pr_err("fail to get valid param %p %p\n", buf_info, dev_info);
 		return -EFAULT;
@@ -1005,15 +574,13 @@ int cam_buf_iommu_map(struct camera_buf *buf_info,
 	}
 
 	pr_debug("enter.\n");
-	ionbuf = buf_info->ionbuf;
+
 	if (dev_info->iommu_en && !buf_info->buf_sec) {
-		memset(&iommu_data, 0,
-			sizeof(struct sprd_iommu_map_data));
-		iommu_data.buf = ionbuf;
+		memset(&iommu_data, 0, sizeof(struct sprd_iommu_map_data));
+		iommu_data.buf = buf_info->ionbuf;
 		iommu_data.iova_size = buf_info->size;
 		iommu_data.ch_type = SPRD_IOMMU_FM_CH_RW;
-		pr_debug("start map buf: %p, size: %d\n",
-				ionbuf, (int)iommu_data.iova_size);
+		pr_debug("start map buf: %p, size: %d\n", buf_info->ionbuf, (int)iommu_data.iova_size);
 		ret = sprd_iommu_map(dev_info->dev, &iommu_data);
 		if (ret) {
 			pr_err("fail to get iommu kaddr\n");
@@ -1021,59 +588,53 @@ int cam_buf_iommu_map(struct camera_buf *buf_info,
 			goto failed;
 		}
 
+		buf_info->iova[type] = iommu_data.iova_addr;
+		buf_info->iova[type] += buf_info->offset[0];
+		pr_debug("buf_info %p, mfd %d, dmap %px, addr_k %px, iova: 0x%08x, off 0x%x, size 0x%x\n",
+			buf_info, buf_info->mfd, (void *)buf_info->dmabuf_p, (void *)buf_info->addr_k,
+			(uint32_t)buf_info->iova[type], (uint32_t)buf_info->offset[0], (uint32_t)buf_info->size);
+
 		if (g_mem_dbg) {
 			atomic_inc(&g_mem_dbg->iommu_map_cnt[type]);
 			if (g_mem_dbg->g_dbg_memory_leak_ctrl) {
-				if ((type == CAM_IOMMUDEV_DCAM) || (type == CAM_IOMMUDEV_ISP)) {
-					cambuf_mapinfo_enqueue(buf_info, CAM_BUF_SOURCE_MEMCPY);
-					if (type == CAM_IOMMUDEV_DCAM)
+				if ((type == CAM_BUF_IOMMUDEV_DCAM) || (type == CAM_BUF_IOMMUDEV_ISP)) {
+					cam_buf_monitor_mapinfo_enqueue(buf_info, CAM_BUF_SOURCE_MEMCPY);
+					if (type == CAM_BUF_IOMMUDEV_DCAM)
 						map_type = CAM_BUF_DCAM_IOMMUMAP;
 					else
 						map_type = CAM_BUF_ISP_IOMMUMAP;
-					cambuf_map_counts_calc(buf_info, map_type);
+					cam_buf_monitor_map_counts_calc(buf_info, map_type);
 				}
 			}
 		}
-		buf_info->iova = iommu_data.iova_addr;
-		buf_info->iova += buf_info->offset[0];
-		pr_debug("buf_info %p, mfd %d, dmap %px, addr_k %px, iova: 0x%08x, off 0x%x, size 0x%x\n",
-			buf_info, buf_info->mfd, (void *)buf_info->dmabuf_p, (void *)buf_info->addr_k,
-			(uint32_t)buf_info->iova, (uint32_t)buf_info->offset[0], (uint32_t)buf_info->size);
 	} else {
-		ret = cam_buf_get_phys_addr(-1,
-				buf_info->dmabuf_p,
-				&buf_info->iova,
-				&buf_info->size);
+		ret = cambuf_adapt_phys_get_addr(-1, buf_info->dmabuf_p, &buf_info->iova[type], &buf_info->size);
 		if (ret) {
 			pr_err("fail to get iommu kaddr\n");
 			ret = -EFAULT;
 			goto failed;
 		}
-		buf_info->iova += buf_info->offset[0];
+		buf_info->iova[type] += buf_info->offset[0];
 		pr_debug("mfd %d, kaddr %p, iova: 0x%08x, off 0x%x, size 0x%x\n",
-				buf_info->mfd,
-				(void *)buf_info->addr_k,
-				(uint32_t)buf_info->iova,
-				(uint32_t)buf_info->offset[0],
-				(uint32_t)buf_info->size);
+				buf_info->mfd, (void *)buf_info->addr_k,(uint32_t)buf_info->iova[type],
+				(uint32_t)buf_info->offset[0], (uint32_t)buf_info->size);
 	}
-	buf_info->dev = dev_info->dev;
-	buf_info->mapping_state |= CAM_BUF_MAPPING_DEV;
+	buf_info->mapping_state |= 1 << type;
 
 	buf_info->status &= 0xfc;
 	buf_info->status |= CAM_BUF_WITH_IOVA;
 	return 0;
 
 failed:
-	if (buf_info->size <= 0 || buf_info->iova == 0) {
-		buf_info->iova = 0;
+	if (buf_info->size <= 0 || buf_info->iova[type] == 0) {
+		buf_info->iova[type] = 0;
 		return ret;
 	}
 
 	if (dev_info->iommu_en) {
 		struct sprd_iommu_unmap_data unmap_data;
 
-		unmap_data.iova_addr = buf_info->iova - buf_info->offset[0];
+		unmap_data.iova_addr = buf_info->iova[type] - buf_info->offset[0];
 		unmap_data.iova_size = buf_info->size;
 		unmap_data.ch_type = SPRD_IOMMU_FM_CH_RW;
 		unmap_data.table = NULL;
@@ -1082,49 +643,46 @@ failed:
 		if (ret)
 			pr_err("fail to free iommu\n");
 	}
-	buf_info->iova = 0;
+	buf_info->iova[type] = 0;
 	return ret;
 }
 
-int cam_buf_iommu_unmap(struct camera_buf *buf_info)
+int cam_buf_iommu_unmap(struct camera_buf *buf_info, enum cam_buf_iommudev_type type)
 {
 	int ret = 0;
 	struct iommudev_info *dev_info = NULL;
 	struct sprd_iommu_unmap_data unmap_data = {0};
-	enum cam_buf_map_type map_type = 0;
+	enum cam_buf_map_type map_type = CAM_BUF_DCAM_IOMMUMAP;
 
 	if (!buf_info) {
 		pr_err("fail to get buffer info ptr\n");
 		return -EFAULT;
 	}
 
-	if (!buf_info->dev ||
-		((buf_info->mapping_state & CAM_BUF_MAPPING_DEV) == 0)) {
-		pr_info("buf dev %p, may not be mapping %d\n",
-			buf_info->dev, buf_info->mapping_state);
+	if ((buf_info->mapping_state & (1 << type)) == 0) {
+		pr_info("buf may not be mapping %d\n", buf_info->mapping_state);
 		return ret;
 	}
 
-	dev_info = cambuf_iommu_dev_get(CAM_IOMMUDEV_MAX, buf_info->dev);
+	dev_info = cambuf_iommudev_get(type, NULL);
 	if (!dev_info) {
 		pr_err("fail to get matched iommu dev.\n");
 		return -EFAULT;
 	}
 
-	if (buf_info->size <= 0 || buf_info->iova == 0) {
-		pr_err("fail to unmap, size %d, iova 0x%08x\n",
-				buf_info->size, (uint32_t)buf_info->iova);
+	if (buf_info->size <= 0 || buf_info->iova[type] == 0) {
+		pr_err("fail to unmap, size %d, iova 0x%08x\n", buf_info->size, (uint32_t)buf_info->iova[type]);
 		return -EFAULT;
 	}
 
 	if (dev_info->iommu_en && !buf_info->buf_sec) {
-		unmap_data.iova_addr = buf_info->iova - buf_info->offset[0];
+		unmap_data.iova_addr = buf_info->iova[type] - buf_info->offset[0];
 		unmap_data.iova_size = buf_info->size;
 		unmap_data.ch_type = SPRD_IOMMU_FM_CH_RW;
 		unmap_data.table = NULL;
 		unmap_data.buf = NULL;
 		pr_debug("upmap buf addr: %lx\n", unmap_data.iova_addr);
-		ret = sprd_iommu_unmap(buf_info->dev, &unmap_data);
+		ret = sprd_iommu_unmap(dev_info->dev, &unmap_data);
 		if (ret) {
 			pr_err("fail to free iommu\n");
 			goto exit;
@@ -1132,25 +690,320 @@ int cam_buf_iommu_unmap(struct camera_buf *buf_info)
 		if (g_mem_dbg && !ret) {
 			atomic_dec(&g_mem_dbg->iommu_map_cnt[dev_info->type]);
 			if (g_mem_dbg->g_dbg_memory_leak_ctrl) {
-				if ((dev_info->type == CAM_IOMMUDEV_DCAM) || (dev_info->type == CAM_IOMMUDEV_ISP)) {
-					if (dev_info->type == CAM_IOMMUDEV_DCAM)
+				if ((dev_info->type == CAM_BUF_IOMMUDEV_DCAM) || (dev_info->type == CAM_BUF_IOMMUDEV_ISP)) {
+					if (dev_info->type == CAM_BUF_IOMMUDEV_DCAM)
 						map_type = CAM_BUF_DCAM_IOMMUUNMAP;
 					else
 						map_type = CAM_BUF_ISP_IOMMUUNMAP;
-					cambuf_map_counts_calc(buf_info, map_type);
+					cam_buf_monitor_map_counts_calc(buf_info, map_type);
 				}
 			}
 		}
 	}
-	buf_info->iova = 0;
+	buf_info->iova[type] = 0;
 exit:
-	buf_info->dev = NULL;
-	buf_info->mapping_state &= ~(CAM_BUF_MAPPING_DEV);
+	buf_info->mapping_state &= ~(1 << type);
 
-	buf_info->status &= (~CAM_BUF_WITH_IOVA);
-	buf_info->status &= (~CAM_BUF_WITH_SINGLE_PAGE_IOVA);
-	if (!buf_info->status)
-		buf_info->status = CAM_BUF_WITH_ION;
+	if (buf_info->mapping_state == CAM_BUF_MAPPING_NULL) {
+		buf_info->status &= (~CAM_BUF_WITH_IOVA);
+		buf_info->status &= (~CAM_BUF_WITH_SINGLE_PAGE_IOVA);
+		if (!buf_info->status)
+			buf_info->status = CAM_BUF_WITH_ION;
+	}
 	pr_debug("buf_info %p unmap done.\n", buf_info);
 	return ret;
+}
+
+int cam_buf_iommu_single_page_map(struct camera_buf *buf_info, enum cam_buf_iommudev_type type)
+{
+	int ret = 0;
+	struct iommudev_info *dev_info = NULL;
+	struct sprd_iommu_map_data iommu_data = {0};
+	enum cam_buf_map_type map_type = CAM_BUF_DCAM_IOMMUMAP;
+
+	dev_info = cambuf_iommudev_get(type, NULL);
+	if (!buf_info || !dev_info) {
+		pr_err("fail to get valid param %p %p\n", buf_info, dev_info);
+		return -EFAULT;
+	}
+
+	if (buf_info->ionbuf == NULL) {
+		pr_err("fail to map, ionbuf is NULL\n");
+		return -EFAULT;
+	}
+
+	pr_debug("enter.\n");
+
+	if (dev_info->iommu_en && !buf_info->buf_sec) {
+		memset(&iommu_data, 0, sizeof(struct sprd_iommu_map_data));
+		iommu_data.buf = buf_info->ionbuf;
+		iommu_data.iova_size = buf_info->size;
+		iommu_data.ch_type = SPRD_IOMMU_FM_CH_RW;
+		pr_debug("start map buf: %p, size: %d\n", buf_info->ionbuf, (int)iommu_data.iova_size);
+		ret = sprd_iommu_map_single_page(dev_info->dev, &iommu_data);
+		if (ret) {
+			pr_err("fail to get iommu kaddr\n");
+			ret = -EFAULT;
+			goto failed;
+		}
+
+		buf_info->iova[type] = iommu_data.iova_addr;
+		pr_debug("buf_info %p, mfd %d, kaddr %p, iova: 0x%08x, size 0x%x\n",
+			buf_info, buf_info->mfd, (void *)buf_info->addr_k, (uint32_t)buf_info->iova[type], (uint32_t)buf_info->size);
+
+		if (g_mem_dbg) {
+			atomic_inc(&g_mem_dbg->iommu_map_cnt[type]);
+			if (g_mem_dbg->g_dbg_memory_leak_ctrl) {
+				if ((type == CAM_BUF_IOMMUDEV_DCAM) || (type == CAM_BUF_IOMMUDEV_ISP)) {
+					cam_buf_monitor_mapinfo_enqueue(buf_info, CAM_BUF_SOURCE_MEMCPY);
+					if (type == CAM_BUF_IOMMUDEV_DCAM)
+						map_type = CAM_BUF_DCAM_IOMMUMAP;
+					else
+						map_type = CAM_BUF_ISP_IOMMUMAP;
+					cam_buf_monitor_map_counts_calc(buf_info, map_type);
+				}
+			}
+		}
+	} else {
+		ret = cambuf_adapt_phys_get_addr(-1, buf_info->dmabuf_p, &buf_info->iova[type], &buf_info->size);
+		if (ret) {
+			pr_err("fail to get iommu kaddr\n");
+			ret = -EFAULT;
+			goto failed;
+		}
+		pr_debug("mfd %d, kaddr %p, iova: 0x%08x, off 0x%x, size 0x%x\n",
+				buf_info->mfd, (void *)buf_info->addr_k,(uint32_t)buf_info->iova[type],
+				(uint32_t)buf_info->offset[0], (uint32_t)buf_info->size);
+	}
+	buf_info->mapping_state |= (1 << type);
+	buf_info->status &= 0xfc;
+	buf_info->status |= CAM_BUF_WITH_SINGLE_PAGE_IOVA;
+	return 0;
+
+failed:
+	if (buf_info->size <= 0 || buf_info->iova[type] == 0)
+		return ret;
+
+	if (dev_info->iommu_en) {
+		struct sprd_iommu_unmap_data unmap_data = {0};
+
+		unmap_data.iova_addr = buf_info->iova[type];
+		unmap_data.iova_size = buf_info->size;
+		unmap_data.ch_type = SPRD_IOMMU_FM_CH_RW;
+		unmap_data.table = NULL;
+		unmap_data.buf = NULL;
+		ret = sprd_iommu_unmap(dev_info->dev, &unmap_data);
+		if (ret)
+			pr_err("fail to free iommu\n");
+	}
+	buf_info->iova[type] = 0;
+
+	return ret;
+}
+
+int cam_buf_iommu_restore(enum cam_buf_iommudev_type type)
+{
+	int ret = 0;
+	struct iommudev_info *dev_info = NULL;
+
+	dev_info = cambuf_iommudev_get(type, NULL);
+	ret = sprd_iommu_restore(dev_info->dev);
+	if (ret != 0)
+		pr_info("fail to iommu enable\n");
+
+	return ret;
+}
+
+int cam_buf_iommu_status_get(enum cam_buf_iommudev_type type)
+{
+	int ret = -ENODEV;
+	struct iommudev_info *cur = NULL;
+
+	if (type >= CAM_BUF_IOMMUDEV_MAX)
+		return ret;
+
+	cur = &s_iommudevs[type];
+	if ((cur->type == type) && (cur->dev != NULL)) {
+		int enable;
+
+		if (g_dbg_iommu_mode == IOMMU_AUTO)
+			ret = cur->iommu_en ? 0 : -1;
+		else if (g_dbg_iommu_mode == IOMMU_ON)
+			ret = 0;
+		else
+			ret = -1;
+		enable = (ret == 0) ? 1 : 0;
+		pr_debug("dev %d, iommu_mode %d en %d\n", type, g_dbg_iommu_mode, enable);
+	}
+
+	return ret;
+}
+
+int cam_buf_iommudev_reg(struct device *dev, enum cam_buf_iommudev_type type)
+{
+	if (type < CAM_BUF_IOMMUDEV_MAX) {
+
+		s_iommudevs[type].type = type;
+		s_iommudevs[type].dev = dev;
+		s_iommudevs[type].iommu_en = 0;
+
+		if (atomic_inc_return(&s_dev_cnt) == 1) {
+			memset(g_mem_dbg, 0, sizeof(struct cam_mem_dbg_info));
+			pr_info("reset to 0\n");
+		}
+
+		/* change mode when camera open */
+		if (type == CAM_BUF_IOMMUDEV_DCAM)
+			g_dbg_iommu_mode = g_dbg_set_iommu_mode;
+
+		if (g_dbg_iommu_mode == IOMMU_AUTO) {
+			if (sprd_iommu_attach_device(dev) == 0)
+				s_iommudevs[type].iommu_en = 1;
+		} else if (g_dbg_iommu_mode == IOMMU_OFF) {
+			s_iommudevs[type].iommu_en = 0;
+		} else {
+			s_iommudevs[type].iommu_en = 1;
+		}
+		pr_info("dev %d, iommu_mode %d iommu_hw_en %d\n",
+			type, g_dbg_iommu_mode, s_iommudevs[type].iommu_en);
+	}
+
+	return 0;
+}
+
+int cam_buf_iommudev_unreg(enum cam_buf_iommudev_type type)
+{
+	if (type < CAM_BUF_IOMMUDEV_MAX) {
+		if (!s_iommudevs[type].dev)
+			return 0;
+		atomic_dec(&s_dev_cnt);
+		s_iommudevs[type].type = CAM_BUF_IOMMUDEV_MAX;
+		s_iommudevs[type].dev = NULL;
+		s_iommudevs[type].iommu_en = 0;
+	}
+	return 0;
+}
+
+void *cam_buf_kernel_sys_kzalloc(unsigned long size, gfp_t flags)
+{
+	int ret = 0;
+	void *mem = NULL;
+	timespec cur_ts = {0};
+	struct cam_buf_alloc_info *alloc_info = NULL;
+
+	mem = kzalloc(size, flags);
+	if (mem) {
+		if (g_mem_dbg) {
+			atomic_inc(&g_mem_dbg->mem_kzalloc_cnt);
+			pr_debug("kzalloc done: %p, mem_count %d\n", mem, g_mem_dbg->mem_kzalloc_cnt);
+
+			if (g_mem_dbg->g_dbg_memory_leak_ctrl) {
+				alloc_info = cam_queue_dequeue(g_mem_dbg->empty_memory_alloc_queue, struct cam_buf_alloc_info, list);
+				if (!alloc_info) {
+					pr_err("fail to deque empty_memory_alloc_queue\n");
+					return mem;
+				}
+				ktime_get_ts(&cur_ts);
+				alloc_info->time.tv_sec = cur_ts.tv_sec;
+				alloc_info->time.tv_usec = cur_ts.tv_nsec / NSEC_PER_USEC;
+				alloc_info->addr = mem;
+				ret = cam_queue_enqueue(g_mem_dbg->memory_alloc_queue, &alloc_info->list);
+				if (ret)
+					pr_err("fail to enque g_mem_alloc_queue\n");
+			}
+		}
+	} else
+		pr_err("fail to kzalloc memory\n");
+	return mem;
+}
+
+void cam_buf_kernel_sys_kfree(const void *mem)
+{
+	int ret = 0;
+	unsigned long flags = 0;
+	struct cam_buf_alloc_info *alloc_info = NULL, *alloc_info_next = NULL;
+
+	kfree(mem);
+	if (g_mem_dbg) {
+		atomic_dec(&g_mem_dbg->mem_kzalloc_cnt);
+		if (g_mem_dbg->g_dbg_memory_leak_ctrl) {
+			spin_lock_irqsave(&g_mem_dbg->memory_alloc_queue->lock, flags);
+			list_for_each_entry_safe(alloc_info, alloc_info_next, &g_mem_dbg->memory_alloc_queue->head, list) {
+				if (!alloc_info)
+					continue;
+				if (alloc_info->addr == mem) {
+					list_del(&alloc_info->list);
+					g_mem_dbg->memory_alloc_queue->cnt--;
+					ret = cam_queue_enqueue(g_mem_dbg->empty_memory_alloc_queue, &alloc_info->list);
+					if (ret)
+						pr_err("fail to enque g_mem_alloc_queue\n");
+					break;
+				}
+			}
+			spin_unlock_irqrestore(&g_mem_dbg->memory_alloc_queue->lock, flags);
+		}
+	}
+	pr_debug("kfree done. mem_count %d mem %p\n", g_mem_dbg->mem_kzalloc_cnt, mem);
+}
+
+void *cam_buf_kernel_sys_vzalloc(unsigned long size)
+{
+	int ret = 0;
+	void *mem = NULL;
+	timespec cur_ts = {0};
+	struct cam_buf_alloc_info *alloc_info = NULL;
+
+	mem = vzalloc(size);
+	if (mem) {
+		if (g_mem_dbg) {
+			atomic_inc(&g_mem_dbg->mem_vzalloc_cnt);
+			pr_debug("vzalloc done: %p, mem_count %d\n", mem, g_mem_dbg->mem_vzalloc_cnt);
+
+			if (g_mem_dbg->g_dbg_memory_leak_ctrl) {
+				alloc_info = cam_queue_dequeue(g_mem_dbg->empty_memory_alloc_queue, struct cam_buf_alloc_info, list);
+				if (!alloc_info) {
+					pr_err("fail to deque empty_memory_alloc_queue\n");
+					return mem;
+				}
+				ktime_get_ts(&cur_ts);
+				alloc_info->time.tv_sec = cur_ts.tv_sec;
+				alloc_info->time.tv_usec = cur_ts.tv_nsec / NSEC_PER_USEC;
+				alloc_info->addr = mem;
+				ret = cam_queue_enqueue(g_mem_dbg->memory_alloc_queue, &alloc_info->list);
+				if (ret)
+					pr_err("fail to enque g_mem_alloc_queue\n");
+			}
+		}
+	} else
+		pr_err("fail to vzalloc memory\n");
+	return mem;
+}
+
+void cam_buf_kernel_sys_vfree(const void *mem)
+{
+	int ret = 0;
+	unsigned long flags = 0;
+	struct cam_buf_alloc_info *alloc_info = NULL, *alloc_info_next = NULL;
+
+	vfree(mem);
+	if (g_mem_dbg) {
+		atomic_dec(&g_mem_dbg->mem_vzalloc_cnt);
+		if (g_mem_dbg->g_dbg_memory_leak_ctrl) {
+			spin_lock_irqsave(&g_mem_dbg->memory_alloc_queue->lock, flags);
+			list_for_each_entry_safe(alloc_info, alloc_info_next, &g_mem_dbg->memory_alloc_queue->head, list) {
+				if (!alloc_info)
+					continue;
+				if (alloc_info->addr == mem) {
+					list_del(&alloc_info->list);
+					g_mem_dbg->memory_alloc_queue->cnt--;
+					ret = cam_queue_enqueue(g_mem_dbg->empty_memory_alloc_queue, &alloc_info->list);
+					if (ret)
+						pr_err("fail to enque g_mem_alloc_queue\n");
+					break;
+				}
+			}
+			spin_unlock_irqrestore(&g_mem_dbg->memory_alloc_queue->lock, flags);
+		}
+	}
+	pr_debug("vfree done. mem_count %d mem %p\n", g_mem_dbg->mem_vzalloc_cnt, mem);
 }

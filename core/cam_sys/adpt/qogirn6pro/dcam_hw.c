@@ -481,6 +481,7 @@ static int dcamhw_stop(void *handle, void *arg)
 	struct dcam_hw_context *hw_ctx = NULL;
 	struct cam_hw_reg_trace trace;
 	unsigned long flag = 0;
+	struct dcam_dummy_param dummy_param = {0};
 
 	if (!arg) {
 		pr_err("fail to get valid arg\n");
@@ -493,6 +494,12 @@ static int dcamhw_stop(void *handle, void *arg)
 
 	DCAM_REG_MWR(idx, DCAM_MIPI_CAP_CFG, BIT_0, 0);
 	DCAM_REG_WR(idx, DCAM_PATH_STOP, 0x7FFFF);
+
+	if (!hw_ctx->is_offline_proc && hw_ctx->dummy_slave) {
+		dummy_param.hw_ctx_id = hw_ctx->hw_ctx_id;
+		dummy_param.enable = 0;
+		hw_ctx->dummy_slave->dummy_ops->dummy_enable(hw_ctx->dummy_slave, &dummy_param);
+	}
 
 	/* wait for AHB path busy cleared */
 	while (time_out) {
@@ -1049,7 +1056,7 @@ static int dcamhw_mipi_cap_set(void *handle, void *arg)
 			cap_info->sensor_if);
 		return -EINVAL;
 	}
-	cam_kproperty_get("auto/chipid", chip_type, "-1");
+	cam_kernel_adapt_kproperty_get("auto/chipid", chip_type, "-1");
 
 	/* data format */
 	if (cap_info->format == DCAM_CAP_MODE_RAWRGB) {
@@ -3061,6 +3068,41 @@ static int dcamhw_fetch_sts_get(void *handle, void *arg)
 	return time_out;
 }
 
+static int dcamhw_dummy_set(void *handle, void *arg)
+{
+	struct dcam_hw_dummy_param *param = NULL;
+
+	if (!arg) {
+		pr_err("fail to get valid handle or arg\n");
+		return -1;
+	}
+	param = (struct dcam_hw_dummy_param *)arg;
+	DCAM_AXIM_MWR(param->idx, DCAM_DUMMY_SLAVE, BIT_30, param->clr_mode << 30);
+	if (param->clr_mode == DCAM_DUMMY_MODE_HW_AUTO)
+		DCAM_AXIM_WR(param->idx, DCAM_DUMMY_SLAVE_CFG, param->skip_num);
+	if (param->dfifo_lvl || param->cfifo_lvl) {
+		DCAM_AXIM_MWR(param->idx, DCAM_DUMMY_SLAVE, BIT_29, 0x1 << 29);
+		if (param->dfifo_lvl)
+			DCAM_AXIM_MWR(param->idx, DCAM_DUMMY_SLAVE, 0x1fff, param->dfifo_lvl);
+		if (param->cfifo_lvl)
+			DCAM_AXIM_MWR(param->idx, DCAM_DUMMY_SLAVE, 0x7ff << 16, param->cfifo_lvl << 16);
+	}
+	return 0;
+}
+
+static int dcamhw_dummy_enable(void *handle, void *arg)
+{
+	struct dcam_hw_dummy_param *param = NULL;
+
+	if (!arg) {
+		pr_err("fail to get valid handle or arg\n");
+		return -1;
+	}
+	param = (struct dcam_hw_dummy_param *)arg;
+	DCAM_AXIM_MWR(param->idx, DCAM_DUMMY_SLAVE, BIT_28, param->enable << 28);
+	return 0;
+}
+
 static struct hw_io_ctrl_fun dcam_ioctl_fun_tab[] = {
 	{DCAM_HW_CFG_ENABLE_CLK,            dcamhw_clk_eb},
 	{DCAM_HW_CFG_DISABLE_CLK,           dcamhw_clk_dis},
@@ -3114,7 +3156,9 @@ static struct hw_io_ctrl_fun dcam_ioctl_fun_tab[] = {
 	{DCAM_HW_CFG_ALL_RESET,             dcamhw_axi_reset},
 	{DCAM_HW_CFG_IRQ_DISABLE,           dcamhw_irq_disable},
 	{DCAM_HW_CFG_SLW_ADDR,              dcamhw_set_slw_addr},
-	{DCAM_HW_FETCH_STATUS_GET,          dcamhw_fetch_sts_get}
+	{DCAM_HW_FETCH_STATUS_GET,          dcamhw_fetch_sts_get},
+	{DCAM_HW_CFG_DUMMY_SET,             dcamhw_dummy_set},
+	{DCAM_HW_CFG_DUMMY_ENABLE,          dcamhw_dummy_enable},
 };
 
 static hw_ioctl_fun dcamhw_ioctl_fun_get(enum dcam_hw_cfg_cmd cmd)

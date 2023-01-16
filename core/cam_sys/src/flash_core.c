@@ -15,12 +15,10 @@
 #include <linux/delay.h>
 #include <linux/slab.h>
 #include <sprd_mm.h>
-#include "sprd_img.h"
 
 #include "cam_types.h"
-#include "flash_interface.h"
-
 #include "flash_drv.h"
+#include "flash_interface.h"
 
 #ifdef pr_fmt
 #undef pr_fmt

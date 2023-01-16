@@ -11,8 +11,8 @@
  * GNU General Public License for more details.
  */
 
-#include "cam_node.h"
 #include "cam_dump_node.h"
+#include "cam_node.h"
 #include "cam_pipeline.h"
 
 #ifdef pr_fmt
@@ -35,14 +35,7 @@ static void camdump_frame_put(void *param)
 	}
 
 	frame = (struct camera_frame *)param;
-	if (frame->buf.type == CAM_BUF_USER)
-		cam_buf_ionbuf_put(&frame->buf);
-	else {
-		if (frame->buf.mapping_state)
-			cam_buf_kunmap(&frame->buf);
-		cam_buf_free(&frame->buf);
-	}
-	cam_queue_empty_frame_put(frame);
+	cam_buf_destory(frame);
 }
 
 static void camdump_node_write_data_to_file(uint8_t *buffer,
@@ -51,7 +44,7 @@ static void camdump_node_write_data_to_file(uint8_t *buffer,
 	ssize_t result = 0, total = 0, writ = 0;
 	struct file *wfp = NULL;
 
-	wfp = cam_filp_open(file, O_CREAT | O_RDWR | O_APPEND, 0666);
+	wfp = cam_kernel_adapt_filp_open(file, O_CREAT | O_RDWR | O_APPEND, 0666);
 	if (IS_ERR_OR_NULL(wfp)) {
 		pr_err("fail to open file %s\n", file);
 		return;
@@ -59,7 +52,7 @@ static void camdump_node_write_data_to_file(uint8_t *buffer,
 	pr_debug("write image buf=%p, size=%d\n", buffer, (uint32_t)size);
 	do {
 		writ = (BYTE_PER_ONCE < size) ? BYTE_PER_ONCE : size;
-		result = cam_kernel_write(wfp, buffer, writ, &wfp->f_pos);
+		result = cam_kernel_adapt_write(wfp, buffer, writ, &wfp->f_pos);
 		pr_debug("write result: %d, size: %d, pos: %d\n",
 		(uint32_t)result,  (uint32_t)size, (uint32_t)wfp->f_pos);
 
@@ -69,7 +62,7 @@ static void camdump_node_write_data_to_file(uint8_t *buffer,
 		}
 		total += result;
 	} while ((result > 0) && (size > 0));
-	cam_filp_close(wfp, NULL);
+	cam_kernel_adapt_filp_close(wfp, NULL);
 	pr_debug("write image done, total=%d\n", (uint32_t)total);
 }
 
@@ -280,10 +273,10 @@ static void camdump_node_frame_size_get(struct camera_frame *frame, struct cam_d
 	if (IS_STATIS_PORT(frame->link_from.port_id))
 		msg->size = frame->buf.size;
 	else if (cur_layer != 0) {
-		outpitch = dcampath_outpitch_get(msg->align_w, frame->cam_fmt);
+		outpitch = cal_sprd_pitch(msg->align_w, frame->cam_fmt);
 		msg->size = outpitch * msg->align_h;
 	} else {
-		outpitch = dcampath_outpitch_get(frame->width, frame->cam_fmt);
+		outpitch = cal_sprd_pitch(frame->width, frame->cam_fmt);
 		msg->size = outpitch * frame->height;
 	}
 

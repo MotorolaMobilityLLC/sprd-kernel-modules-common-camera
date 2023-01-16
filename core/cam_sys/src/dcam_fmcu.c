@@ -11,16 +11,9 @@
  * GNU General Public License for more details.
  */
 
-#include <linux/types.h>
-#include <linux/delay.h>
-#include <linux/sprd_iommu.h>
-#include <linux/sprd_ion.h>
-#include <sprd_mm.h>
-
-#include "cam_types.h"
-#include "dcam_reg.h"
-#include "dcam_fmcu.h"
 #include "cam_hw.h"
+#include "dcam_fmcu.h"
+#include "dcam_reg.h"
 
 #define DCAM_FMCU_STOP_TIMEOUT             2000
 
@@ -129,8 +122,7 @@ static int dcamfmcu_cmd_ready(void *handle)
 	fmcu_ctx->hw->dcam_ioctl(fmcu_ctx->hw, DCAM_HW_CFG_FMCU_CMD, &cmdarg);
 
 	pr_debug("fmcu%d start done, cmdq len %d\n",
-		fmcu_ctx->fid,
-		(uint32_t)fmcu_ctx->cmdq_pos[fmcu_ctx->cur_buf_id] * 4);
+		fmcu_ctx->fid, (uint32_t)fmcu_ctx->cmdq_pos[fmcu_ctx->cur_buf_id] * 4);
 
 	fmcu_ctx->cur_buf_id = !(fmcu_ctx->cur_buf_id);
 
@@ -204,14 +196,14 @@ static int dcamfmcu_buf_map(void *handle)
 	for (i = 0; i < DCAM_FMCU_BUF_MAX; i++) {
 		ion_buf = &fmcu_ctx->ion_pool[i];
 
-		ret = cam_buf_iommu_map(ion_buf, CAM_IOMMUDEV_DCAM);
+		ret = cam_buf_iommu_map(ion_buf, CAM_BUF_IOMMUDEV_DCAM);
 		if (ret) {
 			pr_err("fail to map fmcu buffer\n");
 			ret = -EFAULT;
 			goto err_hwmap_fmcu;
 		}
 
-		fmcu_ctx->hw_addr[i] = ion_buf->iova;
+		fmcu_ctx->hw_addr[i] = ion_buf->iova[CAM_BUF_IOMMUDEV_DCAM];
 		fmcu_ctx->cmdq_pos[i] = 0;
 
 		pr_info("fmcu%d cmd buf hw_addr:0x%lx, sw_addr:%p, size:%zd\n",
@@ -224,7 +216,7 @@ err_hwmap_fmcu:
 	for (i = 0; i < DCAM_FMCU_BUF_MAX; i++) {
 		ion_buf = &fmcu_ctx->ion_pool[i];
 		if (ion_buf)
-			cam_buf_iommu_unmap(ion_buf);
+			cam_buf_iommu_unmap(ion_buf, CAM_BUF_IOMMUDEV_DCAM);
 	}
 	pr_err("fail to map fmcu%d.\n", fmcu_ctx->fid);
 	return ret;
@@ -244,7 +236,7 @@ static int dcamfmcu_buf_unmap(void *handle)
 	fmcu_ctx = (struct dcam_fmcu_ctx_desc *)handle;
 	for (i = 0; i < DCAM_FMCU_BUF_MAX; i++) {
 		ion_buf = &fmcu_ctx->ion_pool[i];
-		cam_buf_iommu_unmap(ion_buf);
+		cam_buf_iommu_unmap(ion_buf, CAM_BUF_IOMMUDEV_DCAM);
 	}
 	pr_debug("fmcu buf unmap done\n");
 	return ret;
@@ -269,7 +261,7 @@ static int dcamfmcu_ctx_init(void *handle)
 		ion_buf = &fmcu_ctx->ion_pool[i];
 		memset(ion_buf, 0, sizeof(fmcu_ctx->ion_pool[i]));
 
-		if (cam_buf_iommu_status_get(CAM_IOMMUDEV_DCAM) == 0) {
+		if (cam_buf_iommu_status_get(CAM_BUF_IOMMUDEV_DCAM) == 0) {
 			pr_debug("dcam iommu enable\n");
 			iommu_enable = 1;
 		} else {

@@ -40,4 +40,10 @@
 #define ISP_FBD_TILE_HEIGHT                     4
 
 #define ISP_LTM_ALIGNMENT                       2
+
+ /* isp limit hw: 0xFFFFFFFFms, && 0xFFFFFFFFus, node:0xFFFFFFFFms*/
+#define ISP_HW_TIME_RATIO                       0xFFFFFFFF
+#define ISP_HW_TIME                             0xFFFFFFFF
+#define ISP_NODE_TIME                           0xFFFFFFFF
+
 #endif

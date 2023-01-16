@@ -35,24 +35,18 @@ enum isp_node_cfg_cmd {
 	ISP_NODE_CFG_PORT_UFRAME,
 	ISP_NODE_CFG_PORT_BUF,
 	ISP_NODE_CFG_STATIS,
-	ISP_NODE_CFG_LTM_BUF,
 	ISP_NODE_CFG_RESERVE_BUF,
 	ISP_NODE_CFG_3DNR_MODE,
-	ISP_NODE_CFG_3DNR_BUF,
 	ISP_NODE_CFG_REC_LEYER_NUM,
-	ISP_NODE_CFG_REC_BUF,
 	ISP_NODE_CFG_GTM,
 	ISP_NODE_CFG_PARAM_SWITCH,
 	ISP_NODE_CFG_PARAM_Q_CLEAR,
 	ISP_NODE_CFG_FAST_STOP,
-	ISP_NODE_CFG_SUPERZOOM_BUF,
 	ISP_NODE_CFG_RECYCLE_BLK_PARAM,
 	ISP_NODE_CFG_CMD_MAX,
 };
 
 struct isp_node_postproc_param {
-	ktime_t *boot_time;
-	timespec *cur_ts;
 	uint32_t zoom_ratio;
 	uint32_t total_zoom;
 };
@@ -99,6 +93,7 @@ struct isp_node_desc {
 	uint32_t pyr_out_fmt;
 	uint32_t store_3dnr_fmt;
 	uint32_t nr3_fbc_fbd;
+	uint32_t share_buffer;
 	enum isp_fetch_path_select fetch_path_sel;
 	enum cam_ch_id ch_id;
 	struct img_size sn_size;
@@ -132,8 +127,12 @@ struct isp_node {
 	uint32_t slw_frm_cnt;
 	uint32_t is_fast_stop;
 	uint32_t iommu_status;
+	uint32_t share_buffer;
 	enum camera_id attach_cam_id;
 	enum cam_ch_id ch_id;
+	struct img_size src;
+	timespec start_ts;
+	timespec end_ts;
 
 	struct isp_node_uinfo uinfo;
 	struct isp_node_uinfo pipe_src;
@@ -154,8 +153,8 @@ struct isp_node {
 	struct mutex blkpm_q_lock;
 
 	struct camera_buf statis_buf_array[STATIS_TYPE_MAX][STATIS_BUF_NUM_MAX];
-	struct camera_queue hist2_result_queue;
-	struct camera_queue gtmhist_result_queue;
+	struct cam_buf_pool_id hist2_pool;
+	struct cam_buf_pool_id gtmhist_pool;
 	struct isp_int_ctxs_com ctxs_com;
 
 	void *rgb_ltm_handle;
@@ -175,4 +174,5 @@ int isp_node_request_proc(struct isp_node *node, void *param);
 uint32_t isp_node_config(void *node, enum isp_node_cfg_cmd cmd, void *param);
 int isp_node_prepare_blk_param(struct isp_node *inode, uint32_t target_fid, struct blk_param_info *out);
 void isp_node_param_buf_destroy(void *param);
+int isp_node_buffers_alloc(void *handle, struct cam_buf_alloc_desc *param);
 #endif

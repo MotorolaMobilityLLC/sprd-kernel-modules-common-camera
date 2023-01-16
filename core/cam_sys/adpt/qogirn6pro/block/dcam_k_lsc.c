@@ -15,10 +15,9 @@
 #include <linux/uaccess.h>
 #include <linux/vmalloc.h>
 #include <sprd_mm.h>
-#include "isp_hw.h"
 
-#include "dcam_reg.h"
 #include "dcam_core.h"
+#include "dcam_reg.h"
 
 #ifdef pr_fmt
 #undef pr_fmt
@@ -159,7 +158,7 @@ int dcam_init_lsc(void *in, uint32_t online)
 	w_buff_x = (uint16_t *)param->weight_tab_x;
 	w_buff_y = (uint16_t *)param->weight_tab_y;
 	gain_tab = (uint16_t *)param->buf.addr_k;
-	hw_addr = (uint32_t)param->buf.iova;
+	hw_addr = (uint32_t)param->buf.iova[CAM_BUF_IOMMUDEV_DCAM];
 	if (!w_buff_x || !w_buff_y || !gain_tab || !hw_addr || info->grid_width_x >= LSC_WEI_TABLE_MAX_NUM || info->grid_width_y >= LSC_WEI_TABLE_MAX_NUM) {
 		pr_err("fail to get buf %px %px %px %x grid_width_x %x grid_width_y %x\n", w_buff_x, w_buff_y, gain_tab, hw_addr, info->grid_width_x, info->grid_width_y);
 		ret = -EPERM;
@@ -325,7 +324,7 @@ int dcam_update_lsc(void *in)
 	w_buff_x = (uint16_t *)param->weight_tab_x;
 	w_buff_y = (uint16_t *)param->weight_tab_y;
 	gain_tab = (uint16_t *)param->buf.addr_k;
-	hw_addr = (uint32_t)param->buf.iova;
+	hw_addr = (uint32_t)param->buf.iova[CAM_BUF_IOMMUDEV_DCAM];
 	if (!w_buff_x || !w_buff_y || !gain_tab || !hw_addr || info->grid_width_x >= LSC_WEI_TABLE_MAX_NUM || info->grid_width_y >= LSC_WEI_TABLE_MAX_NUM) {
 		pr_err("fail to get buf %px %px %px %x grid_width_x %x grid_width_y %x\n", w_buff_x, w_buff_y, gain_tab, hw_addr, info->grid_width_x, info->grid_width_y);
 		ret = -EPERM;

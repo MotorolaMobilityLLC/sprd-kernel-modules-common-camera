@@ -55,14 +55,18 @@ struct dcam_offline_node {
 	uint32_t node_type;
 	uint32_t node_id;
 	atomic_t user_cnt;
+	atomic_t status;
 	uint32_t statis_en;
 	cam_data_cb data_cb_func;
 	void *data_cb_handle;
 	port_cfg_cb port_cfg_cb_func;
 	void *port_cfg_cb_handle;
 	struct cam_thread_info thread;
+	struct cam_thread_info recovery_thread;
 	timespec frame_ts[DCAM_FRAME_TIMESTAMP_COUNT];
 	ktime_t frame_ts_boot[DCAM_FRAME_TIMESTAMP_COUNT];
+	timespec start_ts ;
+	timespec end_ts;
 
 	struct dcam_fetch_info fetch;
 	struct dcam_pm_context pm_ctx;

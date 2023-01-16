@@ -14,15 +14,10 @@
 #include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/interrupt.h>
-#include "isp_hw.h"
-#include "sprd_img.h"
 #include <sprd_mm.h>
 
-#include "dcam_reg.h"
-#include "dcam_int.h"
 #include "dcam_core.h"
-#include "cam_queue.h"
-#include "cam_types.h"
+#include "dcam_reg.h"
 
 #ifdef pr_fmt
 #undef pr_fmt
@@ -378,59 +373,68 @@ static const dcam_isr _DCAM_ISR_IRQ[] = {
 };
 
 static const int _DCAM0_SEQUENCE[] = {
-	DCAM_CAP_SOF,/* must */
+	DCAM_CAP_SOF,
 	DCAM_SENSOR_SOF,
 	DCAM_PREVIEW_SOF,
-	DCAM_SENSOR_EOF,/* TODO: why for flash */
-	DCAM_NR3_TX_DONE,/* for 3dnr, before data path */
-	DCAM_PREV_PATH_TX_DONE,/* for bin path */
-	DCAM_FULL_PATH_TX_DONE,/* for full path */
-	DCAM_AEM_TX_DONE,/* for aem statis */
-	DCAM_HIST_TX_DONE,/* for hist statis */
-	/* for afm statis, not sure 0 or 1 */
-	DCAM_AFM_INTREQ1,/* TODO: which afm interrupt to use */
-	DCAM_AFL_TX_DONE,/* for afl statis */
-	DCAM_PDAF_PATH_TX_DONE,/* for pdaf data */
-	DCAM_VCH2_PATH_TX_DONE,/* for vch2 data */
-	DCAM_VCH3_PATH_TX_DONE,/* for vch3 data */
-	DCAM_LSCM_TX_DONE,/* for lscm statis */
+	DCAM_SENSOR_EOF,
+	DCAM_NR3_TX_DONE,
+	DCAM_PREV_PATH_TX_DONE,
+	DCAM_FULL_PATH_TX_DONE,
+	DCAM_AEM_TX_DONE,
+	DCAM_HIST_TX_DONE,
+	/* AFM INT0 is some tile done, INT1 is all tile done,
+	 * INT0 can use to triger AF ALG eaglier, but the specific time
+	 * is not sure, so INT1 is suggested to use now.
+	 */
+	DCAM_AFM_INTREQ1,
+	DCAM_AFL_TX_DONE,
+	DCAM_PDAF_PATH_TX_DONE,
+	DCAM_VCH2_PATH_TX_DONE,
+	DCAM_VCH3_PATH_TX_DONE,
+	DCAM_LSCM_TX_DONE,
 };
 
 static const int _DCAM1_SEQUENCE[] = {
-	DCAM_CAP_SOF,/* must */
+	DCAM_CAP_SOF,
 	DCAM_SENSOR_SOF,
-	DCAM_SENSOR_EOF,/* TODO: why for flash */
-	DCAM_NR3_TX_DONE,/* for 3dnr, before data path */
-	DCAM_PREV_PATH_TX_DONE,/* for bin path */
-	DCAM_FULL_PATH_TX_DONE,/* for full path */
-	DCAM_AEM_TX_DONE,/* for aem statis */
-	DCAM_HIST_TX_DONE,/* for hist statis */
-	/* for afm statis, not sure 0 or 1 */
-	DCAM_AFM_INTREQ1,/* TODO: which afm interrupt to use */
-	DCAM_AFL_TX_DONE,/* for afl statis */
-	DCAM_PDAF_PATH_TX_DONE,/* for pdaf data */
-	DCAM_VCH2_PATH_TX_DONE,/* for vch2 data */
-	DCAM_VCH3_PATH_TX_DONE,/* for vch3 data */
-	DCAM_LSCM_TX_DONE,/* for lscm statis */
+	DCAM_SENSOR_EOF,
+	DCAM_NR3_TX_DONE,
+	DCAM_PREV_PATH_TX_DONE,
+	DCAM_FULL_PATH_TX_DONE,
+	DCAM_AEM_TX_DONE,
+	DCAM_HIST_TX_DONE,
+	/* AFM INT0 is some tile done, INT1 is all tile done,
+	 * INT0 can use to triger AF ALG eaglier, but the specific time
+	 * is not sure, so INT1 is suggested to use now.
+	 */
+	DCAM_AFM_INTREQ1,
+	DCAM_AFL_TX_DONE,
+	DCAM_PDAF_PATH_TX_DONE,
+	DCAM_VCH2_PATH_TX_DONE,
+	DCAM_VCH3_PATH_TX_DONE,
+	DCAM_LSCM_TX_DONE,
 };
 
 static const int _DCAM2_SEQUENCE[] = {
-	DCAM_CAP_SOF,/* must */
+	DCAM_CAP_SOF,
 	DCAM_SENSOR_SOF,
 	DCAM_PREVIEW_SOF,
-	DCAM_SENSOR_EOF,/* TODO: why for flash */
-	DCAM_NR3_TX_DONE,/* for 3dnr, before data path */
-	DCAM_PREV_PATH_TX_DONE,/* for bin path */
-	DCAM_FULL_PATH_TX_DONE,/* for full path */
-	DCAM_AEM_TX_DONE,/* for aem statis */
-	DCAM_HIST_TX_DONE,/* for hist statis */
-	/* for afm statis, not sure 0 or 1 */
-	DCAM_AFM_INTREQ1,/* TODO: which afm interrupt to use */
-	DCAM_AFL_TX_DONE,/* for afl statis */
-	DCAM_PDAF_PATH_TX_DONE,/* for pdaf data */
-	DCAM_VCH2_PATH_TX_DONE,/* for vch2 data */
-	DCAM_VCH3_PATH_TX_DONE,/* for vch3 data */
-	DCAM_LSCM_TX_DONE,/* for lscm statis */
+	DCAM_SENSOR_EOF,
+	DCAM_NR3_TX_DONE,
+	DCAM_PREV_PATH_TX_DONE,
+	DCAM_FULL_PATH_TX_DONE,
+	DCAM_AEM_TX_DONE,
+	DCAM_HIST_TX_DONE,
+	/* AFM INT0 is some tile done, INT1 is all tile done,
+	 * INT0 can use to triger AF ALG eaglier, but the specific time
+	 * is not sure, so INT1 is suggested to use now.
+	 */
+	DCAM_AFM_INTREQ1,
+	DCAM_AFL_TX_DONE,
+	DCAM_PDAF_PATH_TX_DONE,
+	DCAM_VCH2_PATH_TX_DONE,
+	DCAM_VCH3_PATH_TX_DONE,
+	DCAM_LSCM_TX_DONE,
 };
 
 static const struct {
@@ -606,9 +610,6 @@ void dcamint_dcam_status_rw(struct dcam_irq_info irq_info, void *priv)
 				break;
 		}
 	}
-
-	/* TODO ignore DCAM_AFM_INTREQ0 now */
-	irq_info.status &= ~BIT(DCAM_AFM_INTREQ0);
 
 	if (unlikely(irq_info.status))
 		pr_warn("warning: DCAM%u unhandled int 0x%x\n", dcam_hw_ctx->hw_ctx_id, irq_info.status);

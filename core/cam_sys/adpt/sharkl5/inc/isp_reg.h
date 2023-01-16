@@ -17,7 +17,7 @@
 #define ISP_MAX_COUNT                           1
 #define ISP_LOGICAL_COUNT                       2
 #define ISP_CONTEXT_MAX                         4
-#define  ISP_CONTEXT_SW_MAX                     9
+#define ISP_CONTEXT_SW_MAX                      9
 
 extern uint32_t s_isp_irq_no[ISP_LOGICAL_COUNT];
 extern unsigned long s_isp_regbase[ISP_MAX_COUNT];

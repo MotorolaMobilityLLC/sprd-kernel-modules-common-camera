@@ -23,7 +23,7 @@
 #include <linux/slab.h>
 #include <linux/delay.h>
 
-#include "sprd_img.h"
+#include "sprd_cam.h"
 #include "flash_drv.h"
 
 

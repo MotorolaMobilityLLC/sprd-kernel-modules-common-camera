@@ -12,12 +12,11 @@
  */
 
 #include <linux/delay.h>
-#include <linux/slab.h>
-#include "dcam_slice.h"
-#include "dcam_offline_node.h"
-#include "cam_node.h"
+
 #include "cam_offline_statis.h"
 #include "cam_pipeline.h"
+#include "dcam_dummy.h"
+#include "dcam_slice.h"
 
 #ifdef pr_fmt
 #undef pr_fmt
@@ -38,6 +37,7 @@ static int dcamoffline_ctx_unbind(struct dcam_offline_node *node)
 {
 	int ret = 0, i = 0;
 	unsigned long flag = 0;
+	struct dcam_dummy_param dummy_param = {0};
 
 	if (!node) {
 		pr_err("fail to get valid dcam offline node\n");
@@ -49,6 +49,11 @@ static int dcamoffline_ctx_unbind(struct dcam_offline_node *node)
 	if (ret) {
 		pr_err("fail to context_unbind\n");
 		goto exit;
+	}
+	if (node->hw_ctx->dummy_slave) {
+		dummy_param.hw_ctx_id = node->hw_ctx->hw_ctx_id;
+		dummy_param.enable = false;
+		node->hw_ctx->dummy_slave->dummy_ops->dummy_enable(node->hw_ctx->dummy_slave, &dummy_param);
 	}
 	node->hw_ctx->is_offline_proc = 0;
 	node->hw_ctx->dcam_irq_cb_func = NULL;
@@ -63,6 +68,81 @@ exit:
 	spin_unlock_irqrestore(&node->dev->ctx_lock, flag);
 	return ret;
 }
+
+static int dcamoffline_node_ts_cal(struct dcam_offline_node *node)
+{
+	uint32_t sec = 0, usec = 0;
+	timespec consume_ts = {0};
+	timespec node_end_ts = {0};
+	struct dcam_offline_slice_info *slice = NULL;
+	struct dcam_hw_context *hw_ctx = NULL;
+
+	hw_ctx = node->hw_ctx;
+	slice = &hw_ctx->slice_info;
+	ktime_get_ts(&slice->slice_start_ts[tsid(slice->slice_num - slice->slice_count)]);
+
+	if (slice->slice_num - slice->slice_count == 0) {
+		node_end_ts = slice->slice_start_ts[tsid(slice->slice_num - slice->slice_count)];
+		consume_ts = cam_kernel_adapt_timespec_sub(node_end_ts, node->start_ts);
+		sec = consume_ts.tv_sec;
+		usec = consume_ts.tv_nsec / NSEC_PER_USEC;
+		if ((sec * USEC_PER_SEC + usec) > DCAMOFFLINE_NODE_TIME)
+			pr_warn("Warning: dcamoffline node process too long. consume_time %d.%06d\n", sec, usec);
+
+		PERFORMANCE_DEBUG("dcamoffline_node: cur_time %d.%06d, consume_time %d.%06d\n",
+			node_end_ts.tv_sec, node_end_ts.tv_nsec / NSEC_PER_USEC,
+			consume_ts.tv_sec, consume_ts.tv_nsec / NSEC_PER_USEC);
+	}
+	return 0;
+}
+
+ static int dcamoffline_hw_ts_cal(struct dcam_offline_node *node)
+ {
+	int cur_slice_count = 0;
+ 	timespec consume_ts = {0};
+ 	int64_t sec = 0, usec = 0;
+ 	int64_t size = 0, time_ratio = 0;
+	timespec slice_end_ts = {0};
+	timespec slice_start_ts = {0};
+	struct dcam_offline_slice_info *slice = NULL;
+	struct dcam_hw_context *hw_ctx = NULL;
+
+	hw_ctx = node->hw_ctx;
+	slice = &hw_ctx->slice_info;
+	cur_slice_count = slice->slice_num - slice->slice_count;
+	ktime_get_ts(&slice->slice_end_ts[tsid(cur_slice_count)]);
+
+	slice_start_ts = slice->slice_start_ts[tsid(cur_slice_count)];
+	slice_end_ts = slice->slice_end_ts[tsid(cur_slice_count)];
+
+	consume_ts = cam_kernel_adapt_timespec_sub(slice_end_ts, slice_start_ts);
+ 	sec = consume_ts.tv_sec;
+ 	usec = consume_ts.tv_nsec / NSEC_PER_USEC;
+
+	size = slice->slice_trim[cur_slice_count].size_x * slice->slice_trim[cur_slice_count].size_y;
+ 	time_ratio = TIME_SIZE_RATIO * (sec * USEC_PER_SEC + usec) / size;
+ 	if (time_ratio > DCAMOFFLINE_HW_TIME_RATIO)
+		pr_warn("Warning: slice%d process too long. consume_time %d.%06d.\n", cur_slice_count, sec, usec);
+
+	PERFORMANCE_DEBUG("dcamoffline_hw: slice%d, cur_time %d.%06d, consume_time %d.%06d\n",
+		cur_slice_count, slice_end_ts.tv_sec, slice_end_ts.tv_nsec / NSEC_PER_USEC,
+ 		consume_ts.tv_sec, consume_ts.tv_nsec / NSEC_PER_USEC);
+
+	if (slice->slice_count - 1 == 0) {
+		consume_ts = cam_kernel_adapt_timespec_sub(slice_end_ts, slice->slice_start_ts[tsid(0)]);
+		sec = consume_ts.tv_sec;
+		usec = consume_ts.tv_nsec / NSEC_PER_USEC;
+		size =  node->fetch.size.w * node->fetch.size.h;
+		time_ratio = TIME_SIZE_RATIO * (sec * USEC_PER_SEC + usec) / size;
+		if (time_ratio > DCAMOFFLINE_HW_TIME_RATIO)
+			pr_warn("Warning: dcamoffline hw process too long. consume_time %d.%06d\n", sec, usec);
+
+		PERFORMANCE_DEBUG("dcamoffline_hw: id %d, cur_time %d.%06d, consume_time %d.%06d\n",
+			node->hw_ctx_id, slice_end_ts.tv_sec, slice_end_ts.tv_nsec / NSEC_PER_USEC,
+			consume_ts.tv_sec, consume_ts.tv_nsec / NSEC_PER_USEC);
+	}
+ 	return 0;
+ }
 
 static int dcamoffline_irq_proc(void *param, void *handle)
 {
@@ -83,8 +163,14 @@ static int dcamoffline_irq_proc(void *param, void *handle)
 
 	node = (struct dcam_offline_node *)handle;
 	irq_desc = (struct dcam_irq_proc_desc *)param;
+
 	slice_info = &node->hw_ctx->slice_info;
 	hw = node->dev->hw;
+	if (irq_desc->dcam_cb_type == CAM_CB_DCAM_DEV_ERR) {
+		hw->dcam_ioctl(hw, DCAM_HW_CFG_RESET, &node->hw_ctx->hw_ctx_id);
+		complete(&node->recovery_thread.thread_com);
+		return 0;
+	}
 	port_id = irq_desc->dcam_port_id;
 	is_frm_port = (port_id == PORT_OFFLINE_FULL_OUT || port_id == PORT_OFFLINE_BIN_OUT || port_id == PORT_OFFLINE_RAW_OUT);
 
@@ -92,7 +178,9 @@ static int dcamoffline_irq_proc(void *param, void *handle)
 	pr_debug("dcam offline irq proc\n");
 	if (slice_info->slice_num > 0 && is_frm_port) {
 		pr_debug("dcam%d offline slice%d done.\n", node->hw_ctx_id,
-					(slice_info->slice_num - slice_info->slice_count));
+			(slice_info->slice_num - slice_info->slice_count));
+		if (irq_desc->dcam_cb_type == CAM_CB_DCAM_DATA_DONE)
+			dcamoffline_hw_ts_cal(node);
 		slice_info->slice_count--;
 		complete(&node->slice_done);
 		if (slice_info->slice_count > 0)
@@ -106,7 +194,7 @@ static int dcamoffline_irq_proc(void *param, void *handle)
 			pr_err("fail to get dcam offline port param\n");
 		frame = (struct camera_frame *)(node_param.param);
 		if (frame && is_frm_port)
-			cam_buf_iommu_unmap(&frame->buf);
+			cam_buf_manager_buf_status_cfg(&frame->buf, CAM_BUF_STATUS_PUT_IOVA, CAM_BUF_IOMMUDEV_DCAM);
 		if (frame && node->data_cb_func) {
 			frame->link_from.node_type = node->node_type;
 			frame->link_from.node_id = node->node_id;
@@ -130,8 +218,7 @@ static int dcamoffline_irq_proc(void *param, void *handle)
 			pr_warn("Warning:dcam fetch status is busy.\n");
 		frame = cam_buf_manager_buf_dequeue(&node->proc_pool, NULL);
 		if (frame) {
-			frame->zoom_data = NULL;
-			cam_buf_manager_buf_status_change(&frame->buf, CAM_BUF_WITH_ION, CAM_IOMMUDEV_DCAM);
+			cam_buf_manager_buf_status_cfg(&frame->buf, CAM_BUF_STATUS_PUT_IOVA, CAM_BUF_IOMMUDEV_DCAM);
 			if (node->data_cb_func)
 				node->data_cb_func(CAM_CB_DCAM_RET_SRC_BUF, frame, node->data_cb_handle);
 		}
@@ -195,7 +282,7 @@ static struct camera_frame *dcamoffline_cycle_frame(struct dcam_offline_node *no
 			pframe->width, pframe->height, pframe->endian, pframe->pattern);
 
 	buf_desc.buf_ops_cmd = CAM_BUF_STATUS_GET_IOVA;
-	buf_desc.mmu_type = CAM_IOMMUDEV_DCAM;
+	buf_desc.mmu_type = CAM_BUF_IOMMUDEV_DCAM;
 
 	loop = 0;
 	do {
@@ -235,7 +322,7 @@ static int dcamoffline_fetch_param_get(struct dcam_offline_node *node,
 	fetch->trim.start_y = 0;
 	fetch->trim.size_x = pframe->width;
 	fetch->trim.size_y = pframe->height;
-	fetch->addr.addr_ch0 = (uint32_t)pframe->buf.iova;
+	fetch->addr.addr_ch0 = (uint32_t)pframe->buf.iova[CAM_BUF_IOMMUDEV_DCAM];
 
 	node->hw_ctx->hw_fetch.idx = node->hw_ctx_id;
 	node->hw_ctx->hw_fetch.fetch_info = &node->fetch;
@@ -357,7 +444,10 @@ static int dcamoffline_slice_proc(struct dcam_offline_node *node, struct dcam_is
 			hw->isp_ioctl(hw, ISP_HW_CFG_REG_TRACE, &trace);
 			return -EFAULT;
 		}
-
+		if (atomic_read(&node->status) == STATE_ERROR) {
+			pr_info("warning dcam offline slice%d/%d\n", i, slice->slice_num);
+			return 0;
+		}
 		slice->cur_slice = &slice->slice_trim[i];
 		pr_info("slice%d/%d proc start\n", i, slice->slice_num);
 
@@ -402,6 +492,7 @@ static int dcamoffline_slice_proc(struct dcam_offline_node *node, struct dcam_is
 			hw->isp_ioctl(hw, ISP_HW_CFG_REG_TRACE, &trace);
 		}
 
+		dcamoffline_node_ts_cal(node);
 		/* start fetch */
 		hw->dcam_ioctl(hw, DCAM_HW_CFG_FETCH_START, hw);
 	}
@@ -442,6 +533,7 @@ static int dcamoffline_node_frame_start(void *param)
 	struct dcam_pm_context *pm_pctx = NULL;
 	struct dcam_offline_slice_info *slice = NULL;
 	uint32_t lbuf_width = 0;
+	struct dcam_dummy_param dummy_param = {0};
 
 	node = (struct dcam_offline_node *)param;
 	if (!node) {
@@ -462,6 +554,9 @@ static int dcamoffline_node_frame_start(void *param)
 		node->data_cb_func(CAM_CB_DCAM_RET_SRC_BUF, pframe, node->data_cb_handle);
 		return ret;
 	}
+
+	ktime_get_ts(&node->start_ts);
+	PERFORMANCE_DEBUG("node_start_time %d.%06d", node->start_ts.tv_sec, node->start_ts.tv_nsec / NSEC_PER_USEC);
 
 	loop = 0;
 	do {
@@ -497,10 +592,10 @@ static int dcamoffline_node_frame_start(void *param)
 			pm = &pm_pctx->blk_pm;
 	}
 	pm->dev = node->dev;
-	if ((pm->lsc.buf.mapping_state & CAM_BUF_MAPPING_DEV) == 0) {
-		ret = cam_buf_iommu_map(&pm->lsc.buf, CAM_IOMMUDEV_DCAM);
+	if ((pm->lsc.buf.mapping_state & CAM_BUF_MAPPING_DCAM) == 0) {
+		ret = cam_buf_iommu_map(&pm->lsc.buf, CAM_BUF_IOMMUDEV_DCAM);
 		if (ret)
-			pm->lsc.buf.iova = 0L;
+			pm->lsc.buf.iova[CAM_BUF_IOMMUDEV_DCAM] = 0L;
 	}
 
 	if (pframe->sensor_time.tv_sec || pframe->sensor_time.tv_usec) {
@@ -528,6 +623,12 @@ static int dcamoffline_node_frame_start(void *param)
 	}
 
 	dcamoffline_hw_frame_param_set(node->hw_ctx);
+	atomic_set(&node->status, STATE_RUNNING);
+
+	if (node->hw_ctx->dummy_slave) {
+		dummy_param.enable = true;
+		node->dev->dcam_pipe_ops->dummy_cfg(node->hw_ctx, &dummy_param);
+	}
 
 	ret = dcamoffline_slice_proc(node, pm);
 	pr_debug("done\n");
@@ -537,7 +638,7 @@ static int dcamoffline_node_frame_start(void *param)
 return_buf:
 	pframe = cam_buf_manager_buf_dequeue(&node->proc_pool, NULL);
 	if (pframe) {
-		cam_buf_manager_buf_status_change(&pframe->buf, CAM_BUF_WITH_ION, CAM_IOMMUDEV_MAX);
+		cam_buf_manager_buf_status_cfg(&pframe->buf, CAM_BUF_STATUS_PUT_IOVA, CAM_BUF_IOMMUDEV_DCAM);
 		node->data_cb_func(CAM_CB_DCAM_RET_SRC_BUF, pframe, node->data_cb_handle);
 	}
 input_err:
@@ -559,7 +660,7 @@ static int dcamoffline_pmctx_init(struct dcam_offline_node *node)
 	blk_pm = &pm_ctx->blk_pm;
 	pa = &blk_pm->lsc;
 	memset(blk_pm, 0, sizeof(struct dcam_isp_k_block));
-	if (cam_buf_iommu_status_get(CAM_IOMMUDEV_DCAM) == 0)
+	if (cam_buf_iommu_status_get(CAM_BUF_IOMMUDEV_DCAM) == 0)
 		iommu_enable = 1;
 	ret = cam_buf_alloc(&blk_pm->lsc.buf, DCAM_LSC_BUF_SIZE, iommu_enable);
 	if (ret)
@@ -626,8 +727,8 @@ static int dcamoffline_pmctx_deinit(struct dcam_offline_node *node)
 	mutex_destroy(&blk_pm->param_lock);
 	mutex_destroy(&blk_pm->lsc.lsc_lock);
 
-	if (blk_pm->lsc.buf.mapping_state & CAM_BUF_MAPPING_DEV)
-		cam_buf_iommu_unmap(&blk_pm->lsc.buf);
+	if (blk_pm->lsc.buf.mapping_state & CAM_BUF_MAPPING_DCAM)
+		cam_buf_iommu_unmap(&blk_pm->lsc.buf, CAM_BUF_IOMMUDEV_DCAM);
 	cam_buf_kunmap(&blk_pm->lsc.buf);
 	cam_buf_free(&blk_pm->lsc.buf);
 	if(blk_pm->lsc.weight_tab) {
@@ -664,7 +765,7 @@ static int dcamoffline_pmbuf_init(struct dcam_offline_node *node)
 		param_frm->fid = 0xffff;
 		if (param_frm->blkparam_info.param_block) {
 			init_dcam_pm(param_frm->blkparam_info.param_block);
-			if (cam_buf_iommu_status_get(CAM_IOMMUDEV_DCAM) == 0)
+			if (cam_buf_iommu_status_get(CAM_BUF_IOMMUDEV_DCAM) == 0)
 				iommu_enable = 1;
 
 			ret = cam_buf_alloc(&param_frm->blkparam_info.param_block->lsc.buf, DCAM_LSC_BUF_SIZE, iommu_enable);
@@ -742,8 +843,8 @@ static void dcamoffline_pmbuf_destroy(void *param)
 	mutex_destroy(&param_frm->blkparam_info.param_block->param_lock);
 	mutex_destroy(&param_frm->blkparam_info.param_block->lsc.lsc_lock);
 
-	if (param_frm->blkparam_info.param_block->lsc.buf.mapping_state & CAM_BUF_MAPPING_DEV)
-		cam_buf_iommu_unmap(&param_frm->blkparam_info.param_block->lsc.buf);
+	if (param_frm->blkparam_info.param_block->lsc.buf.mapping_state & CAM_BUF_MAPPING_DCAM)
+		cam_buf_iommu_unmap(&param_frm->blkparam_info.param_block->lsc.buf, CAM_BUF_IOMMUDEV_DCAM);
 	cam_buf_kunmap(&param_frm->blkparam_info.param_block->lsc.buf);
 	cam_buf_free(&param_frm->blkparam_info.param_block->lsc.buf);
 	if(param_frm->blkparam_info.param_block->lsc.weight_tab) {
@@ -761,6 +862,51 @@ static void dcamoffline_pmbuf_destroy(void *param)
 	cam_buf_kernel_sys_vfree(param_frm->blkparam_info.param_block);
 	param_frm->blkparam_info.param_block = NULL;
 	cam_queue_empty_frame_put(param_frm);
+}
+
+static int dcamoffline_recovery(void *handle)
+{
+	struct cam_node_cfg_param node_param = {0};
+	struct camera_buf_get_desc buf_desc = {0};
+	struct dcam_offline_port *dcam_port = NULL;
+	struct camera_frame *frame = NULL;
+	struct dcam_offline_node *node = NULL;
+	int ret = 0, is_frm_port = 0;
+
+	node = VOID_PTR_TO(handle, struct dcam_offline_node);
+	pr_info("offline node recovery start\n");
+
+	atomic_set(&node->status, STATE_ERROR);
+	if (node->hw_ctx->slice_info.slice_num > 0 && node->hw_ctx->slice_info.slice_count > 1)
+		complete(&node->slice_done);
+	complete(&node->slice_done);
+	list_for_each_entry(dcam_port, &node->port_queue.head, list) {
+		node_param.port_id = dcam_port->port_id;
+		ret = node->port_cfg_cb_func(&node_param, PORT_BUFFER_CFG_GET, node->port_cfg_cb_handle);
+		if (ret)
+			pr_err("fail to get dcam offline port param\n");
+		frame = (struct camera_frame *)(node_param.param);
+		is_frm_port = (dcam_port->port_id == PORT_OFFLINE_FULL_OUT || dcam_port->port_id == PORT_OFFLINE_BIN_OUT || dcam_port->port_id == PORT_OFFLINE_RAW_OUT);
+		if (frame && is_frm_port)
+			cam_buf_manager_buf_status_cfg(&frame->buf, CAM_BUF_STATUS_PUT_IOVA, CAM_BUF_IOMMUDEV_DCAM);
+		buf_desc.buf_ops_cmd = CAM_BUF_STATUS_GET_IOVA;
+		buf_desc.mmu_type = CAM_BUF_IOMMUDEV_DCAM;
+		buf_desc.q_ops_cmd = CAM_QUEUE_FRONT;
+		ret = cam_buf_manager_buf_enqueue(&dcam_port->unprocess_pool, frame, &buf_desc);
+	}
+
+	frame = cam_buf_manager_buf_dequeue(&node->proc_pool, NULL);
+	if (frame)
+		cam_buf_manager_buf_status_cfg(&frame->buf, CAM_BUF_STATUS_PUT_IOVA, CAM_BUF_IOMMUDEV_DCAM);
+	buf_desc.buf_ops_cmd = CAM_BUF_STATUS_MOVE_TO_ION;
+	buf_desc.q_ops_cmd = CAM_QUEUE_FRONT;
+	ret = cam_buf_manager_buf_enqueue(&node->in_pool, frame, &buf_desc);
+	dcamoffline_ctx_unbind(node);
+	complete(&node->frm_done);
+	if (ret == 0)
+		complete(&node->thread.thread_com);
+	pr_info("offline node recovery done\n");
+	return 0;
 }
 
 int dcam_offline_node_port_insert(struct dcam_offline_node *node, void *param)
@@ -918,7 +1064,8 @@ int dcam_offline_node_request_proc(struct dcam_offline_node *node, void *param)
 {
 	int ret = 0;
 	struct cam_node_cfg_param *node_param = NULL;
-	struct camera_frame *pframe = NULL;
+	struct camera_frame *dst_frame = NULL;
+	struct camera_frame *src_frame = NULL;
 	struct camera_buf_get_desc buf_desc = {0};
 	struct cam_pipeline *pipeline = NULL;
 	struct cam_node *cam_node = NULL;
@@ -929,23 +1076,32 @@ int dcam_offline_node_request_proc(struct dcam_offline_node *node, void *param)
 	}
 
 	node_param = (struct cam_node_cfg_param *)param;
-	pframe = (struct camera_frame *)node_param->param;
-	pframe->priv_data = node;
+	/* Temp change for cam buf manage change not ready, need change back later */
+	src_frame = (struct camera_frame *)node_param->param;
+	if (src_frame->irq_type == CAMERA_IRQ_4IN1_DONE) {
+		dst_frame = cam_queue_empty_frame_get();
+		memcpy(dst_frame, src_frame, sizeof(struct camera_frame));
+	} else
+		dst_frame = src_frame;
+	dst_frame->priv_data = node;
 	buf_desc.buf_ops_cmd = CAM_BUF_STATUS_MOVE_TO_ION;
 	cam_node = (struct cam_node *)node->data_cb_handle;
 	pipeline = (struct cam_pipeline *)cam_node->data_cb_handle;
 
 	if (pipeline->debug_log_switch)
 		pr_info("pipeline_type %s, fid %d, ch_id %d, buf %x, w %d, h %d, pframe->is_reserved %d, compress_en %d\n",
-			cam_pipeline_name_get(pipeline->pipeline_graph->type), pframe->fid, pframe->channel_id, pframe->buf.mfd,
-			pframe->width, pframe->height, pframe->is_reserved, pframe->is_compressed);
+			cam_pipeline_name_get(pipeline->pipeline_graph->type), dst_frame->fid, dst_frame->channel_id, dst_frame->buf.mfd,
+			dst_frame->width, dst_frame->height, dst_frame->is_reserved, dst_frame->is_compressed);
 
-	ret = cam_buf_manager_buf_enqueue(&node->in_pool, pframe, &buf_desc);
+	ret = cam_buf_manager_buf_enqueue(&node->in_pool, dst_frame, &buf_desc);
 	if (ret == 0)
 		complete(&node->thread.thread_com);
-	else
+	else {
+		if (dst_frame->buf_type == CAM_BUF_USER)
+			cam_buf_manager_buf_status_cfg(&dst_frame->buf, CAM_BUF_STATUS_MOVE_TO_ALLOC, CAM_BUF_IOMMUDEV_MAX);
+		cam_queue_empty_frame_put(dst_frame);
 		pr_err("fail to enqueue dcam offline frame\n");
-
+	}
 	return ret;
 }
 
@@ -961,6 +1117,7 @@ void dcam_offline_node_close(void *handle)
 	node = (struct dcam_offline_node *)handle;
 	if (node->thread.thread_task) {
 		camthread_stop(&node->thread);
+		camthread_stop(&node->recovery_thread);
 		/* wait for last frame done */
 		ret = wait_for_completion_timeout(&node->frm_done, ISP_CONTEXT_TIMEOUT);
 		if (ret == 0)
@@ -1053,6 +1210,13 @@ void *dcam_offline_node_get(uint32_t node_id, struct dcam_offline_node_desc *par
 		pr_err("fail to create dcam offline node thread\n");
 		return NULL;
 	}
+	thrd = &node->recovery_thread;
+	sprintf(thrd->thread_name, "dcam_offline_recovery%d", node->node_id);
+	ret = camthread_create(node, thrd, dcamoffline_recovery);
+	if (unlikely(ret != 0)) {
+		pr_err("fail to create dcam offline node thread\n");
+		return NULL;
+	}
 	*param->node_dev = node;
 
 exit:
@@ -1079,8 +1243,10 @@ void dcam_offline_node_put(struct dcam_offline_node *node)
 		loop++;
 		udelay(1000);
 	};
-	if (loop == 1000 && node->hw_ctx)
+	if (node->hw_ctx) {
 		pr_warn("warning: offline node unbind or still in_irq_proc %d\n", node->in_irq_proc);
+		dcamoffline_ctx_unbind(node);
+	}
 	dcamoffline_pmctx_deinit(node);
 	mutex_destroy(&node->blkpm_dcam_lock);
 	cam_queue_clear(&node->blk_param_queue, struct camera_frame, list);

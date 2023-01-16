@@ -14,8 +14,6 @@
 #include <linux/slab.h>
 
 #include "cam_offline_statis.h"
-#include "isp_dev.h"
-#include "isp_node.h"
 
 #ifdef pr_fmt
 #undef pr_fmt
@@ -87,8 +85,8 @@ int camoffline_statis_dcam_port_bufferq_deinit(void *dcam_handle)
 
 			pr_debug("stats %d,  j %d,  mfd %d, offset %d\n",
 				stats_type, j, mfd, ion_buf->offset[0]);
-			cam_buf_manager_buf_status_change(ion_buf, CAM_BUF_ALLOC, CAM_IOMMUDEV_DCAM);
-			ion_buf->iova = 0UL;
+			cam_buf_manager_buf_status_cfg(ion_buf, CAM_BUF_STATUS_MOVE_TO_ALLOC, CAM_BUF_IOMMUDEV_DCAM);
+			ion_buf->iova[CAM_BUF_IOMMUDEV_DCAM] = 0UL;
 			ion_buf->addr_k = 0UL;
 		}
 	}
@@ -126,9 +124,9 @@ int camoffline_statis_dcam_port_bufferq_init(void *dcam_handle)
 				continue;
 
 			if (stats_type != STATIS_PDAF)
-				ret = cam_buf_manager_buf_status_change(ion_buf, CAM_BUF_WITH_IOVA_K_ADDR, CAM_IOMMUDEV_DCAM);
+				ret = cam_buf_manager_buf_status_cfg(ion_buf, CAM_BUF_STATUS_GET_IOVA_K_ADDR, CAM_BUF_IOMMUDEV_DCAM);
 			else
-				ret = cam_buf_manager_buf_status_change(ion_buf, CAM_BUF_WITH_IOVA, CAM_IOMMUDEV_DCAM);
+				ret = cam_buf_manager_buf_status_cfg(ion_buf, CAM_BUF_STATUS_GET_IOVA, CAM_BUF_IOMMUDEV_DCAM);
 			if (ret)
 				continue;
 			pframe = cam_queue_empty_frame_get();
@@ -145,7 +143,7 @@ int camoffline_statis_dcam_port_bufferq_init(void *dcam_handle)
 
 			pr_debug("dcam%d statis %d buf %d kaddr 0x%lx iova 0x%08x\n",
 				dcam_node->hw_ctx_id, stats_type, ion_buf->mfd,
-				ion_buf->addr_k, (uint32_t)ion_buf->iova);
+				ion_buf->addr_k, (uint32_t)ion_buf->iova[CAM_BUF_IOMMUDEV_DCAM]);
 			if (ion_buf->size > res_buf_size)
 				res_buf_size = (uint32_t)ion_buf->size;
 		}
@@ -243,7 +241,7 @@ int camoffline_statis_dcam_port_buffer_cfg(
 		ret = cam_buf_manager_buf_enqueue(&dcam_port->unprocess_pool, pframe, NULL);
 		pr_debug("statis %d, mfd %d, off %d, iova 0x%08x,  kaddr 0x%lx\n",
 			input->type, mfd, offset,
-			(uint32_t)pframe->buf.iova, pframe->buf.addr_k);
+			(uint32_t)pframe->buf.iova[CAM_BUF_IOMMUDEV_DCAM], pframe->buf.addr_k);
 
 		if (ret)
 			cam_queue_empty_frame_put(pframe);

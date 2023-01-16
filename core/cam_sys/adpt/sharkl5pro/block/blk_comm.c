@@ -13,7 +13,6 @@
 
 #include <linux/uaccess.h>
 
-#include "cam_types.h"
 #include "cam_block.h"
 
 #ifdef pr_fmt

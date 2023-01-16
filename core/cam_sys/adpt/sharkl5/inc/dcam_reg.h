@@ -436,36 +436,8 @@ extern const unsigned long slowmotion_store_addr[3][4];
 #define LSC_GRID_BUF_START1                    (0x8000UL)
 #define LSC_GRID_BUF_SIZE                      (0x4000UL)
 
-/*
- * DCAM register map range
- *
- * 0x0000 ~ 0x0fff(1K):                DCAM0
- *        |-------- 0x0000 ~ 0x03ff:   common config
- *        |-------- 0x0400 ~ 0x04bf:   rds coef table
- *        |-------- 0x0800 ~ 0x0bff:   lsc weight table
- *        |-------- 0x0e00 ~ 0x0fff:   pdaf corr table
- *
- * 0x1000 ~ 0x1fff(1K):                DCAM1
- *        |-------- 0x1000 ~ 0x13ff:   common config
- *        |-------- 0x1400 ~ 0x14bf:   rds coef table
- *        |-------- 0x1800 ~ 0x1bff:   lsc weight table
- *        |-------- 0x1e00 ~ 0x1fff:   pdaf corr table
- *
- * 0x2000 ~ 0x2fff(1K):                DCAM2
- *
- * 0x3000 ~ 0x3fff(1K):                AXIM
- *
- * 0x4000 ~ 0x7fff(4K):                DCAM0 lsc grid table
- *
- * 0x8000 ~ 0xbfff(4K):                DCAM1 lsc grid table
- *
- * 0xc000 ~ 0xcfff(1K):                MMU
- *
- */
-
 #define DCAM_BASE(idx)                         (g_dcam_regbase[idx])
 #define DCAM_AXIM_BASE                         (g_dcam_aximbase[0])
-/* TODO: implement mmu */
 #define DCAM_MMU_BASE                          (g_dcam_mmubase)
 #define DCAM_PHYS_ADDR(idx)                    (g_dcam_phys_base[idx])
 #define DCAM_GET_REG(idx, reg)                 (DCAM_PHYS_ADDR(idx) + (reg))
@@ -483,5 +455,5 @@ extern const unsigned long slowmotion_store_addr[3][4];
 #define DCAM_MMU_MWR(reg, msk, val)            DCAM_MMU_WR((reg), ((val) & (msk)) | (DCAM_MMU_RD(reg) & (~(msk))))
 /*for dcam IT*/
 #define DCAM_CHECK_LASE_STATUS                 DCAM_RDS_DES_SIZE
-/* TODO: add DCAM0/1 lsc grid table mapping */
+
 #endif /* _DCAM_REG_H_ */

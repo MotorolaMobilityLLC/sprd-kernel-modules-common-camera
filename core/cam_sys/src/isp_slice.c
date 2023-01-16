@@ -11,23 +11,14 @@
  * GNU General Public License for more details.
  */
 
-#include <linux/kernel.h>
-#include <linux/vmalloc.h>
-#include <sprd_mm.h>
-
-#include "alg_isp_overlap.h"
-#include "isp_reg.h"
-#include "isp_slice.h"
-#include "isp_pyr_rec.h"
-#include "alg_nr3_calc.h"
-#include "isp_node.h"
-#include "isp_slice.h"
 #include "isp_gtm.h"
+#include "isp_node.h"
+#include "isp_pyr_rec.h"
+
 #ifdef pr_fmt
 #undef pr_fmt
 #endif
-#define pr_fmt(fmt) "ISP_SLICE: %d %d %s : "\
-	fmt, current->pid, __LINE__, __func__
+#define pr_fmt(fmt) "ISP_SLICE: %d %d %s : " fmt, current->pid, __LINE__, __func__
 
 struct isp_scaler_slice_tmp {
 	uint32_t slice_row_num;

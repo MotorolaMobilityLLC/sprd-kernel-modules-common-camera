@@ -14,11 +14,8 @@
 #include <linux/uaccess.h>
 #include <sprd_mm.h>
 
-#include "isp_hw.h"
-#include "isp_reg.h"
-#include "cam_types.h"
 #include "cam_block.h"
-#include "cam_queue.h"
+#include "isp_reg.h"
 #include "pyr_dec_node.h"
 
 #ifdef pr_fmt

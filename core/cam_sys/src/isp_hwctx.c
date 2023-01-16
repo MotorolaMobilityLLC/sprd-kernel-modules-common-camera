@@ -11,14 +11,11 @@
  * GNU General Public License for more details.
  */
 
-#include "isp_hw.h"
-#include "cam_trusty.h"
-#include "isp_hwctx.h"
-#include "isp_fmcu.h"
-#include "isp_cfg.h"
-#include "isp_dev.h"
-#include "isp_slice.h"
 #include "cam_port.h"
+#include "cam_trusty.h"
+#include "isp_cfg.h"
+#include "isp_hw.h"
+#include "isp_slice.h"
 
 #ifdef pr_fmt
 #undef pr_fmt
@@ -427,7 +424,7 @@ int isp_hwctx_fetch_frm_set(void *dev_handle, struct isp_hw_fetch_info *fetch, s
 		else
 			planes = 1;
 
-		yuv_addr[0] = frame->buf.iova;
+		yuv_addr[0] = frame->buf.iova[CAM_BUF_IOMMUDEV_ISP];
 
 		if (planes > 1) {
 			offset_u = fetch->pitch.pitch_ch0 * fetch->src.h;
@@ -450,7 +447,7 @@ int isp_hwctx_fetch_frm_set(void *dev_handle, struct isp_hw_fetch_info *fetch, s
 		fetch->addr_hw.addr_ch1 = yuv_addr[1];
 		fetch->addr_hw.addr_ch2 = yuv_addr[2];
 	} else {
-		fetch->addr_hw.addr_ch0 = frame->buf.iova;
+		fetch->addr_hw.addr_ch0 = frame->buf.iova[CAM_BUF_IOMMUDEV_ISP];
 		fetch->addr_hw.addr_ch1 = fetch->addr_hw.addr_ch0;
 	}
 	if (dev->sec_mode == SEC_SPACE_PRIORITY)
@@ -483,13 +480,13 @@ int isp_hwctx_store_frm_set(struct isp_pipe_info *pipe_info, uint32_t path_id, s
 	else
 		planes = 2;
 
-	if (frame->buf.iova == 0) {
+	if (frame->buf.iova[CAM_BUF_IOMMUDEV_ISP] == 0) {
 		pr_err("fail to get valid iova address, fd = 0x%x\n",
 			frame->buf.mfd);
 		return -EINVAL;
 	}
 
-	yuv_addr[0] = frame->buf.iova;
+	yuv_addr[0] = frame->buf.iova[CAM_BUF_IOMMUDEV_ISP];
 
 	pr_debug("fmt %s, planes %d addr %lx %lx %lx, pitch:%d\n",
 		camport_fmt_name_get(store->color_fmt), planes, yuv_addr[0], yuv_addr[1], yuv_addr[2], store->pitch.pitch_ch0);

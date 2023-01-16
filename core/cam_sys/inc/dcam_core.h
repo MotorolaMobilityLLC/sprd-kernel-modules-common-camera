@@ -14,7 +14,7 @@
 #ifndef _DCAM_CORE_H_
 #define _DCAM_CORE_H_
 
-#include "sprd_img.h"
+#include "sprd_cam.h"
 #include <linux/sprd_ion.h>
 
 #include "cam_types.h"
@@ -28,20 +28,8 @@
 #include "dcam_offline_node.h"
 #include "dcam_fetch_node.h"
 
-#define DCAM_IN_Q_LEN                     12
-#define DCAM_PROC_Q_LEN                   12
-#define DCAM_IRQ_Q_LEN                    256
-#define DCAM_FULL_MV_Q_LEN                12
-#define DCAM_BIN_MV_Q_LEN                 12
-#define DCAM_MIDDLE_Q_LEN                 50
-
-/* TODO: extend these for slow motion dev */
-#define DCAM_RESULT_Q_LEN                 50
 #define DCAM_OUT_BUF_Q_LEN                50
-#define DCAM_RESERVE_BUF_Q_LEN            50
-
 #define DCAM_LSC_BUF_SIZE                 0x3000
-#define DCAM_INT_PROC_FRM_NUM             256
 #define DCAM_LSC_WEIGHT_TAB_SIZE          774
 
 #define DCAM_OFFLINE_TIMEOUT              msecs_to_jiffies(2000)
@@ -51,19 +39,7 @@
 
 /* get index of timestamp from frame index */
 #define tsid(x)                           ((x) & (DCAM_FRAME_TIMESTAMP_COUNT - 1))
-#define DCAM_FETCH_TWICE(p)               (p->raw_fetch_num > 1)
-#define DCAM_FIRST_FETCH(p)               (p->raw_fetch_count == 1)
-#define DCAM_LAST_FETCH(p)                (p->raw_fetch_count == 2)
-
 #define DCAM_NR3_MV_MAX                   10
-
-enum dcam_context_id {
-	DCAM_CTX_0,
-	DCAM_CTX_1,
-	DCAM_CTX_2,
-	DCAM_CTX_3,
-	DCAM_CTX_NUM,
-};
 
 enum dcam_scaler_type {
 	DCAM_SCALER_BINNING = 0,
@@ -109,6 +85,8 @@ struct dcam_offline_slice_info {
 	uint32_t fetch_fmt;
 	struct img_trim *cur_slice;
 	struct img_trim slice_trim[DCAM_OFFLINE_SLC_MAX];
+	timespec slice_start_ts[DCAM_FRAME_TIMESTAMP_COUNT];
+	timespec slice_end_ts[DCAM_FRAME_TIMESTAMP_COUNT];
 };
 
 struct dcam_online_start_param {
@@ -132,7 +110,7 @@ struct dcam_hw_context {
 	uint32_t is_offline_proc;
 	uint32_t is_virtualsensor_proc;
 	uint32_t fid;
-	uint32_t base_fid;
+	int base_fid;
 	uint32_t frame_index;
 	uint32_t index_to_set;
 	uint32_t slw_idx;
@@ -150,6 +128,7 @@ struct dcam_hw_context {
 	uint32_t slowmotion_count;
 	spinlock_t glb_reg_lock;
 	void *node;
+	timespec hw_start_ts;
 
 	uint32_t zoom_ratio;
 	uint32_t total_zoom;
@@ -173,6 +152,7 @@ struct dcam_hw_context {
 	struct dcam_hw_slw_fmcu_cmds slw;
 	struct dcam_mipi_info cap_info;
 	struct nr3_me_data nr3_mv_ctrl[DCAM_NR3_MV_MAX];
+	struct dcam_dummy_slave *dummy_slave;
 
 	void *dcam_irq_cb_handle;
 	dcam_irq_proc_cb dcam_irq_cb_func;
@@ -216,6 +196,98 @@ struct dcam_csi_reset_param {
 	void *param;
 };
 
+static inline uint32_t cal_sprd_pitch(uint32_t w, uint32_t fmt)
+{
+	uint32_t pitchsize = 0;
+
+	switch (fmt) {
+	case CAM_YUV422_2FRAME:
+	case CAM_YVU422_2FRAME:
+	case CAM_YUV420_2FRAME:
+	case CAM_YVU420_2FRAME:
+	case CAM_YUV422_3FRAME:
+	case CAM_YUV420_3FRAME:
+	case CAM_YUYV_1FRAME:
+	case CAM_UYVY_1FRAME:
+	case CAM_YVYU_1FRAME:
+	case CAM_VYUY_1FRAME:
+		pitchsize = w;
+		break;
+	case CAM_RAW_14:
+	case CAM_RAW_8:
+	case CAM_RAW_HALFWORD_10:
+		pitchsize = CAL_UNPACK_PITCH(w);
+		break;
+	case CAM_YUV420_2FRAME_10:
+	case CAM_YVU420_2FRAME_10:
+		pitchsize = (w * 16 + 127) / 128 * 128 / 8;
+		break;
+	case CAM_RAW_PACK_10:
+		pitchsize = CAL_PACK_PITCH(w);
+		break;
+	case CAM_YUV420_2FRAME_MIPI:
+	case CAM_YVU420_2FRAME_MIPI:
+		pitchsize = (w * 10 + 127) / 128 * 128 / 8;
+		break;
+	case CAM_FULL_RGB14:
+		pitchsize = CAL_FULLRGB14_PITCH(w);
+		break;
+	default :
+		pr_err("fail to get fmt : %d\n", fmt);
+		break;
+	}
+
+	return pitchsize;
+}
+
+static inline uint32_t cal_sprd_size(uint32_t w, uint32_t h, uint32_t fmt)
+{
+	uint32_t size = 0;
+
+	switch (fmt) {
+	case CAM_YUV420_2FRAME:
+	case CAM_YVU420_2FRAME:
+	case CAM_YUV420_2FRAME_MIPI:
+	case CAM_YVU420_2FRAME_MIPI:
+	case CAM_YUV420_3FRAME:
+		size = cal_sprd_pitch(w, fmt) * h * 3 / 2;
+		break;
+	case CAM_RAW_14:
+	case CAM_RAW_8:
+	case CAM_RAW_HALFWORD_10:
+	case CAM_RAW_PACK_10:
+	case CAM_RGB_BASE:
+	case CAM_FULL_RGB10:
+	case CAM_FULL_RGB14:
+		size = cal_sprd_pitch(w, fmt) * h;
+		break;
+	case CAM_YUV422_2FRAME:
+	case CAM_YVU422_2FRAME:
+	case CAM_YUV422_3FRAME:
+	case CAM_YUYV_1FRAME:
+	case CAM_UYVY_1FRAME:
+	case CAM_YVYU_1FRAME:
+	case CAM_VYUY_1FRAME:
+		size = cal_sprd_pitch(w, fmt) * h * 2;
+		break;
+	case CAM_YVU420_2FRAME_10:
+	case CAM_YUV420_2FRAME_10:
+		size = w * h * 3;
+		break;
+	default :
+		pr_err("fail to get fmt : %d\n", fmt);
+		break;
+	}
+
+	return size;
+}
+struct dcam_dummy_param {
+	uint32_t hw_ctx_id;
+	bool enable;
+	reserved_buf_get_cb resbuf_get_cb;
+	void *resbuf_cb_data;
+};
+
 static inline uint32_t cal_sprd_yuv_pitch(uint32_t w, uint32_t dcam_out_bits, uint32_t is_pack)
 {
 	if (dcam_out_bits != CAM_8_BITS) {
@@ -229,5 +301,5 @@ static inline uint32_t cal_sprd_yuv_pitch(uint32_t w, uint32_t dcam_out_bits, ui
 }
 void dcam_core_offline_irq_proc(struct dcam_hw_context *dcam_hw_ctx,
 		struct dcam_irq_info *irq_info);
-
+inline void dcam_core_offline_reset(struct dcam_hw_context *hw_ctx);
 #endif

@@ -11,7 +11,6 @@
  * GNU General Public License for more details.
  */
 
-#include "cam_node.h"
 #include "cam_copy_node.h"
 #include "cam_pipeline.h"
 
@@ -33,14 +32,7 @@ static void camcopy_frame_put(void *param)
 	}
 
 	frame = (struct camera_frame *)param;
-	if (frame->buf.type == CAM_BUF_USER)
-		cam_buf_ionbuf_put(&frame->buf);
-	else {
-		if (frame->buf.mapping_state)
-			cam_buf_kunmap(&frame->buf);
-		cam_buf_free(&frame->buf);
-	}
-	cam_queue_empty_frame_put(frame);
+	cam_buf_destory(frame);
 }
 
 int cam_copy_node_buffer_cfg(void *handle, void *param)

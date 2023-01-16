@@ -44,6 +44,14 @@
 #define DCAM_FRAME_TIMESTAMP_COUNT     0x100
 #define GTM_HIST_ITEM_NUM              128
 #define GTM_HIST_VALUE_SIZE            129
+#define CAL_PACK_PITCH(w)              (((w) * 10 + 127) / 128 * 128 / 8)
+#define CAL_UNPACK_PITCH(w)            (((w) * 16 + 127) / 128 * 128 / 8)
+#define CAL_FULLRGB14_PITCH(w)         (0)
+
+ /* dcamoffline limit hw: 1500us(2.0ms)/M, node:3ms*/
+#define DCAMOFFLINE_HW_TIME_RATIO      2000
+#define DCAMOFFLINE_NODE_TIME          3000
+
 /*
  *DCAM_CONTROL register bit map id
  * for force_cpy/auto_cpy control

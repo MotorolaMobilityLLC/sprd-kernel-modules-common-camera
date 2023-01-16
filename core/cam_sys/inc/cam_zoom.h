@@ -65,6 +65,5 @@ int cam_zoom_start_proc(void *param);
 int cam_zoom_stream_state_get(struct isp_node *node, struct camera_frame *pframe);
 int cam_zoom_param_set(struct cam_zoom_desc *zoom_info);
 int cam_zoom_frame_base_get(struct cam_zoom_base *zoom_base, struct cam_zoom_index *zoom_index);
-void cam_zoom_frame_free(void *param);
 
 #endif

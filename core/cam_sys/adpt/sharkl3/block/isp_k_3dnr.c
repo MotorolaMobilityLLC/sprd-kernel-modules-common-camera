@@ -13,11 +13,9 @@
 
 #include <linux/uaccess.h>
 #include <sprd_mm.h>
-#include "cam_trusty.h"
 
-#include "isp_hw.h"
+#include "cam_trusty.h"
 #include "isp_reg.h"
-#include "cam_block.h"
 #include "isp_3dnr.h"
 
 #ifdef pr_fmt
@@ -353,9 +351,6 @@ static int isp_k_3dnr_block(struct isp_io_param *param,
 	return ret;
 }
 
-/*
- * global function
- */
 void isp_3dnr_bypass_config(uint32_t idx)
 {
 	ISP_REG_MWR(idx, ISP_3DNR_MEM_CTRL_PARAM0, BIT_0, 1);

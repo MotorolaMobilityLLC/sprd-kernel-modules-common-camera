@@ -344,19 +344,6 @@ int isp_k_gtm_mapping_set(void *param);
 int isp_k_gtm_mapping_get(void *param);
 int isp_k_gtm_sw_map_set(void *param);
 int isp_k_rgb_gtm_bypass(void *param);
-uint32_t cam_data_bits(uint32_t dcam_out_fmt);
-uint32_t cam_pack_bits(uint32_t raw_out_fmt);
-uint32_t cam_is_pack(uint32_t dcam_out_fmt);
-uint32_t cam_format_get(uint32_t img_pix_fmt);
-int camcore_raw_fmt_get(uint32_t fmt);
-uint32_t dcampath_outpitch_get(uint32_t w, uint32_t dcam_out_fmt);
-int dcampath_bin_scaler_get(struct img_size crop, struct img_size dst,
-		uint32_t *scaler_sel, uint32_t *bin_ratio);
-
-uint32_t dcamonline_portid_convert_to_pathid(uint32_t port_id);
-uint32_t dcamoffline_portid_convert_to_pathid(uint32_t port_id);
-uint32_t dcamoffline_pathid_convert_to_portid(uint32_t path_id);
-uint32_t dcamonline_pathid_convert_to_portid(uint32_t path_id);
 
 /* for bypass dcam,isp sub-block */
 enum block_bypass {

@@ -20,7 +20,6 @@
 
 #include "cam_debugger.h"
 #include "dcam_reg.h"
-#include "dcam_core.h"
 #include "isp_cfg.h"
 #include "isp_reg.h"
 #include "cam_pipeline.h"
@@ -553,7 +552,7 @@ static ssize_t camdebugger_replace_file_fmt_set(struct file *filp,
 	msg[count - 1] = '\0';
 	if (strcmp(msg, "yuv") == 0)
 		val = REPLACE_IMG_YUV;
-	else if (strcmp(msg, "mipiraw") == 0)
+	else if (strcmp(msg, "mipi") == 0)
 		val = REPLACE_IMG_MIPIRAW;
 	else if (strcmp(msg, "raw") == 0)
 		val = REPLACE_IMG_RAW;
@@ -1021,7 +1020,7 @@ static ssize_t camdebugger_rawcap_frgb_write(struct file *filp,
 	msg[count] = '\0';
 	ret = kstrtouint(msg, 10, &val);
 	if (ret < 0) {
-		pr_err("fail to convert '%s', ret %d\n", msg, ret);
+		pr_err("fail to convert '%s', ret %n", msg, ret);
 		return ret;
 	}
 
@@ -1189,7 +1188,7 @@ static int camdebugger_dcam_init(struct camera_debugger *debugger)
 		pd, debugger, &replace_control_ops))
 		ret |= BIT(18);
 	if (!debugfs_create_file("replace_file_fmt", 0664,
-		pd, debugger, &replace_file_fmt_ops))
+		pd, NULL, &replace_file_fmt_ops))
 		ret |= BIT(19);
 	if (!debugfs_create_file("replace_switch", 0664,
 		pd, NULL, &replaceswitch_ops))
@@ -1942,3 +1941,4 @@ int cam_debugger_deinit(void)
 
 	return 0;
 }
+

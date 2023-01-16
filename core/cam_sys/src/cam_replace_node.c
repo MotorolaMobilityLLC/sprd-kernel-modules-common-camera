@@ -11,9 +11,10 @@
  * GNU General Public License for more details.
  */
 
+#include "cam_dump_node.h"
 #include "cam_node.h"
-#include "cam_replace_node.h"
 #include "cam_pipeline.h"
+#include "cam_replace_node.h"
 
 #ifdef pr_fmt
 #undef pr_fmt
@@ -34,23 +35,16 @@ static void camreplace_frame_put(void *param)
 	}
 
 	frame = (struct camera_frame *)param;
-	if (frame->buf.type == CAM_BUF_USER)
-		cam_buf_ionbuf_put(&frame->buf);
-	else {
-		if (frame->buf.mapping_state)
-			cam_buf_kunmap(&frame->buf);
-		cam_buf_free(&frame->buf);
-	}
-	cam_queue_empty_frame_put(frame);
+	cam_buf_destory(frame);
 }
 
 static void camreplace_node_read_data_to_buf(uint8_t *buffer,
-		ssize_t size, const char *file)
+		ssize_t size, const char *file, loff_t offset)
 {
 	ssize_t result = 0, total = 0, read = 0;
 	struct file *wfp = NULL;
 
-	wfp = cam_filp_open(file, O_RDONLY, 0666);
+	wfp = cam_kernel_adapt_filp_open(file, O_RDONLY, 0666);
 	if (IS_ERR_OR_NULL(wfp)) {
 		pr_err("fail to open file %s\n", file);
 		return;
@@ -58,9 +52,9 @@ static void camreplace_node_read_data_to_buf(uint8_t *buffer,
 	pr_debug("read image buf=%p, size=%d\n", buffer, (uint32_t)size);
 	do {
 		read = (BYTE_PER_ONCE < size) ? BYTE_PER_ONCE : size;
-		result = cam_kernel_read(wfp, buffer, read, &wfp->f_pos);
+		result = cam_kernel_adapt_read(wfp, buffer, read, &offset);
 		pr_debug("read result: %d, size: %d, pos: %d\n",
-		(uint32_t)result,  (uint32_t)size, (uint32_t)wfp->f_pos);
+		(uint32_t)result,  (uint32_t)size, (uint32_t)offset);
 
 		if (result > 0) {
 			size -= result;
@@ -68,14 +62,14 @@ static void camreplace_node_read_data_to_buf(uint8_t *buffer,
 		}
 		total += result;
 	} while ((result > 0) && (size > 0));
-	cam_filp_close(wfp, NULL);
+	cam_kernel_adapt_filp_close(wfp, NULL);
 
 	pr_debug("read image done, total=%d\n", (uint32_t)total);
 }
 
 static void camreplace_node_frame_size_get(struct camera_frame *frame, struct cam_replace_msg *msg, int cur_layer)
 {
-	if (camcore_raw_fmt_get(frame->cam_fmt))
+	if (cam_raw_fmt_get(frame->cam_fmt))
 		msg->size = cal_sprd_raw_pitch(frame->width, frame->cam_fmt) * frame->height;
 	else if (frame->cam_fmt == CAM_FULL_RGB14)
 		msg->size = frame->width * frame->height;
@@ -113,6 +107,7 @@ static void camreplace_node_frame_file_read(struct camera_frame *frame,
 		struct cam_replace_msg *msg, uint8_t *name, uint8_t *name1)
 {
 	unsigned long  addr = 0;
+	loff_t offset = 0;
 
 	if (cam_buf_kmap(&frame->buf)) {
 		pr_err("fail to kmap replace buf\n");
@@ -121,15 +116,37 @@ static void camreplace_node_frame_file_read(struct camera_frame *frame,
 
 	addr = frame->buf.addr_k + msg->offset;
 	if (frame->cam_fmt >= CAM_YUV_BASE && frame->cam_fmt <= CAM_YVU420_2FRAME_MIPI) {
-		camreplace_node_read_data_to_buf((uint8_t *)addr, msg->size, name);
+		camreplace_node_read_data_to_buf((uint8_t *)addr, msg->size, name, offset);
 		addr += msg->size;
 		msg->size = msg->size / 2;
-		camreplace_node_read_data_to_buf((uint8_t *)addr, msg->size, name1);
+		camreplace_node_read_data_to_buf((uint8_t *)addr, msg->size, name1, offset);
 		msg->offset += msg->size * 3;
 	} else
-		camreplace_node_read_data_to_buf((uint8_t *)addr, msg->size, name);
+		camreplace_node_read_data_to_buf((uint8_t *)addr, msg->size, name, offset);
 
 	cam_buf_kunmap(&frame->buf);
+}
+
+static int camreplace_node_compress_get(struct camera_frame *pframe, struct cam_replace_msg *msg, uint8_t* file_name)
+{
+	/* size of fbc header file */
+	loff_t offset = sizeof(struct cam_dump_fbc_header);
+
+	if (pframe->cam_fmt == CAM_RAW_14 || pframe->cam_fmt == CAM_RAW_HALFWORD_10)
+		strcat(file_name, ".raw");
+	else
+		strcat(file_name, ".mipi_raw");
+
+	if (cam_buf_kmap(&pframe->buf)) {
+		pr_err("fail to kmap dump buf\n");
+		return -EFAULT;
+	}
+
+	camreplace_node_read_data_to_buf((char *)pframe->buf.addr_k, pframe->fbc_info.buffer_size, file_name, offset);
+	msg->offset += pframe->fbc_info.buffer_size;
+	cam_buf_kunmap(&pframe->buf);
+
+	return 0;
 }
 
 int camreplace_node_image_name_get(struct camera_frame *frame, struct cam_replace_msg *msg,
@@ -145,6 +162,12 @@ int camreplace_node_image_name_get(struct camera_frame *frame, struct cam_replac
 
 	switch (g_dbg_replace_src) {
 	case REPLACE_IMG_MIPIRAW:
+		if (msg->is_compressed) {
+			sprintf(tmp_str, "_compress");
+			strcat(file_name, tmp_str);
+			camreplace_node_compress_get(frame, msg, file_name);
+			return ret;
+		}
 		strcat(file_name, ".mipi_raw");
 		break;
 	case REPLACE_IMG_YUV:

@@ -13,8 +13,8 @@
 
 #ifdef CAM_HW_ADPT_LAYER
 
-#include "pyr_dec_int.h"
 #include "isp_int.h"
+#include "pyr_dec_int.h"
 
 #define ISP_AXI_STOP_TIMEOUT           1000
 #define COEF_HOR_Y_SIZE                32
@@ -723,7 +723,7 @@ static int isphw_reset(void *handle, void *arg)
 		udelay(1000);
 	}
 
-	cam_kproperty_get("auto/chipid", chip_type, "-1");
+	cam_kernel_adapt_kproperty_get("auto/chipid", chip_type, "-1");
 	if (time_out >= ISP_AXI_STOP_TIMEOUT) {
 		pr_info("ISP reset timeout %d\n", time_out);
 	} else {

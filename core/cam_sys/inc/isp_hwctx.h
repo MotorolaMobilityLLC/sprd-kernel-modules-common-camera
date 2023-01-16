@@ -53,6 +53,7 @@ struct isp_hw_context {
 	struct isp_pipe_info pipe_info;
 	struct dcam_isp_k_block *isp_k_param;
 	struct dcam_isp_k_block *isp_using_param;
+	timespec hw_start_ts;
 	void *slice_ctx;
 	void *rec_handle;
 	uint32_t is_last_slice;

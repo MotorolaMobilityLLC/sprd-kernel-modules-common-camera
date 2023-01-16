@@ -12,8 +12,6 @@
  */
 
 #include "dcam_offline_port.h"
-#include "cam_block.h"
-#include "dcam_interface.h"
 #include "dcam_core.h"
 
 #ifdef pr_fmt
@@ -40,7 +38,7 @@ static int dcamoffline_port_size_cfg(void *handle, void *param)
 	port->in_size = ch_desc->input_size;
 	port->in_trim = ch_desc->input_trim;
 	port->out_size = ch_desc->output_size;
-	port->out_pitch = dcampath_outpitch_get(port->out_size.w, port->out_fmt);
+	port->out_pitch = cal_sprd_pitch(port->out_size.w, port->out_fmt);
 
 	switch (port->port_id) {
 	case PORT_OFFLINE_RAW_OUT:
@@ -186,7 +184,7 @@ static int dcamoffline_port_param_get(void *handle, void *param)
 	hw_fbc_ctrl = &hw_ctx->hw_path[path_id].hw_fbc;
 
 	buf_desc.buf_ops_cmd = CAM_BUF_STATUS_GET_IOVA;
-	buf_desc.mmu_type = CAM_IOMMUDEV_DCAM;
+	buf_desc.mmu_type = CAM_BUF_IOMMUDEV_DCAM;
 	frame = cam_buf_manager_buf_dequeue(&dcam_port->unprocess_pool, &buf_desc);
 	if (!frame) {
 		pr_err("fail to get dcam offline port %s frame\n", cam_port_dcam_offline_out_id_name_get(dcam_port->port_id));
@@ -203,7 +201,7 @@ static int dcamoffline_port_param_get(void *handle, void *param)
 	if (dcam_port->compress_en) {
 		cal_fbc.data_bits = cam_data_bits(dcam_port->out_fmt);
 		cal_fbc.fbc_info = &frame->fbc_info;
-		cal_fbc.in = frame->buf.iova;
+		cal_fbc.in = frame->buf.iova[CAM_BUF_IOMMUDEV_DCAM];
 		cal_fbc.fmt = dcam_port->out_fmt;
 		cal_fbc.height = dcam_port->out_size.h;
 		cal_fbc.width = dcam_port->out_size.w;
@@ -217,7 +215,7 @@ static int dcamoffline_port_param_get(void *handle, void *param)
 	}
 
 	hw_store->idx = hw_ctx->hw_ctx_id;
-	hw_store->frame_addr[0] = frame->buf.iova;
+	hw_store->frame_addr[0] = frame->buf.iova[CAM_BUF_IOMMUDEV_DCAM];
 	hw_store->frame_addr[1] = 0;
 	hw_store->path_id= path_id;
 	hw_store->out_fmt = dcam_port->out_fmt;
@@ -280,7 +278,7 @@ int dcam_offline_port_param_cfg(void *handle, enum cam_port_cfg_cmd cmd, void *p
 	case PORT_BUFFER_CFG_SET:
 		pframe = (struct camera_frame *)param;
 		buf_desc.buf_ops_cmd = CAM_BUF_STATUS_GET_IOVA;
-		buf_desc.mmu_type = CAM_IOMMUDEV_DCAM;
+		buf_desc.mmu_type = CAM_BUF_IOMMUDEV_DCAM;
 		pframe->priv_data = dcam_port;
 		if (pframe->pyr_status == OFFLINE_DEC_ON) {
 			while (isp_rec_small_layer_w(dcam_port->out_size.w, layer_num) < MIN_PYR_WIDTH ||
@@ -350,13 +348,9 @@ int dcam_offline_port_buf_alloc(void *handle, struct cam_buf_alloc_desc *param)
 		cal_fbc.height = height;
 		cal_fbc.width = width;
 		size = dcam_if_cal_compressed_size (&cal_fbc);
-	} else if (camcore_raw_fmt_get(out_fmt))
-		size = cal_sprd_raw_pitch(width, cam_pack_bits(out_fmt)) * height;
-	else if (out_fmt == CAM_YUV420_2FRAME ||
-			out_fmt == CAM_YVU420_2FRAME ||
-			out_fmt == CAM_YUV420_2FRAME_MIPI)
-		size = cal_sprd_yuv_pitch(width, cam_data_bits(out_fmt),
-				cam_is_pack(out_fmt)) * height * 3 / 2;
+	} else {
+		size = cal_sprd_size(width, height, out_fmt);
+	}
 
 	size = ALIGN(size, CAM_BUF_ALIGN_SIZE);
 

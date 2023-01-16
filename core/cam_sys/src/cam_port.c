@@ -13,10 +13,9 @@
 
 #include <linux/vmalloc.h>
 #include <linux/sched.h>
-#include "cam_port.h"
+
 #include "cam_node.h"
-#include "dcam_online_port.h"
-#include "isp_port.h"
+#include "cam_port.h"
 
 #ifdef pr_fmt
 #undef pr_fmt

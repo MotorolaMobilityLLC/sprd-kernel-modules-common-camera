@@ -12,15 +12,11 @@
  */
 
 #include <linux/delay.h>
-#include "sprd_mm.h"
-#include "dcam_hw_adpt.h"
-#include "isp_hw_adpt.h"
+
+#include "dcam_core.h"
 #include "dcam_reg.h"
-#include "dcam_int.h"
-#include "dcam_interface.h"
-#include "cam_buf.h"
-#include "cam_test.h"
 #include "sprd_cam_test.h"
+#include "sprd_mm.h"
 
 #ifdef pr_fmt
 #undef pr_fmt
@@ -234,7 +230,6 @@ static int cfg_dcam_path_size(struct dcamt_context *cxt, struct camt_info *test_
 			pr_debug("RDS used. in %d %d, out %d %d\n",
 				crop_size.w, crop_size.h, dst_size.w,
 				dst_size.h);
-			//TODO: for sharkl5pro
 		}
 
 		pr_info("cfg dcam bin path done. size %d %d dst %d %d\n",
@@ -271,7 +266,7 @@ static int set_dcam_path_store_addr(struct dcamt_context *cxt, struct camt_info 
 	idx = cxt->dcam_idx;
 
 	path_id = cxt->path_id[i];
-	if (cam_buf_iommu_status_get(CAM_IOMMUDEV_DCAM) == 0)
+	if (cam_buf_iommu_status_get(CAM_BUF_IOMMUDEV_DCAM) == 0)
 		iommu_enable = 1;
 	size = test_info->pitch * test_info->input_size.h;
 	out_buf = &cxt->comm_info[i].out_buf;
@@ -283,7 +278,7 @@ static int set_dcam_path_store_addr(struct dcamt_context *cxt, struct camt_info 
 		goto exit;
 	}
 
-	ret = cam_buf_iommu_map(out_buf, CAM_IOMMUDEV_DCAM);
+	ret = cam_buf_iommu_map(out_buf, CAM_BUF_IOMMUDEV_DCAM);
 	if (ret) {
 		pr_err("fail to map to iommu\n");
 		cam_buf_ionbuf_put(out_buf);
@@ -291,7 +286,7 @@ static int set_dcam_path_store_addr(struct dcamt_context *cxt, struct camt_info 
 	}
 
 	store_arg.idx = idx;
-	store_arg.frame_addr[0] = out_buf->iova;
+	store_arg.frame_addr[0] = out_buf->iova[CAM_BUF_IOMMUDEV_DCAM];
 	store_arg.frame_addr[1] = 0;
 	store_arg.path_id= path_id;
 	hw->dcam_ioctl(hw, DCAM_HW_CFG_STORE_ADDR, &store_arg);
@@ -313,24 +308,24 @@ static const dcam_isr _DCAM_ISRS[] = {
  * interested interrupt bits in DCAM0
  */
 static const int _DCAM0_SEQUENCE[] = {
-	DCAM_PREV_PATH_TX_DONE,/* for bin path */
-	DCAM_FULL_PATH_TX_DONE,/* for full path */
+	DCAM_PREV_PATH_TX_DONE,
+	DCAM_FULL_PATH_TX_DONE,
 };
 
 /*
  * interested interrupt bits in DCAM1
  */
 static const int _DCAM1_SEQUENCE[] = {
-	DCAM_PREV_PATH_TX_DONE,/* for bin path */
-	DCAM_FULL_PATH_TX_DONE,/* for full path */
+	DCAM_PREV_PATH_TX_DONE,
+	DCAM_FULL_PATH_TX_DONE,
 };
 
 /*
  * interested interrupt bits in DCAM2
  */
 static const int _DCAM2_SEQUENCE[] = {
-	DCAM2_SENSOR_EOF,/* TODO: why for flash */
-	DCAM2_FULL_PATH_TX_DONE,/* for path data */
+	DCAM2_SENSOR_EOF,
+	DCAM2_FULL_PATH_TX_DONE,
 };
 
 /*
@@ -566,7 +561,7 @@ int dcamt_start(struct camt_info *info)
 		info->crop_rect.w, info->crop_rect.h, info->output_size.w,
 		info->output_size.h);
 	info->is_loose = 0;
-	info->pitch = cal_sprd_raw_pitch(info->input_size.w, info->is_loose);
+	info->pitch = cal_sprd_pitch(info->input_size.w, CAM_RAW_PACK_10);
 	info->endian.y_endian = ENDIAN_LITTLE;
 
 	if (!info->test_mode) {
@@ -605,7 +600,7 @@ int dcamt_start(struct camt_info *info)
 		hw->dcam_ioctl(hw, DCAM_HW_CFG_PATH_START, &patharg);
 	}
 
-	if (cam_buf_iommu_status_get(CAM_IOMMUDEV_DCAM) == 0)
+	if (cam_buf_iommu_status_get(CAM_BUF_IOMMUDEV_DCAM) == 0)
 		iommu_enable = 1;
 
 	size = info->pitch * info->input_size.h;
@@ -618,7 +613,7 @@ int dcamt_start(struct camt_info *info)
 		goto exit;
 	}
 
-	ret = cam_buf_iommu_map(in_buf, CAM_IOMMUDEV_DCAM);
+	ret = cam_buf_iommu_map(in_buf, CAM_BUF_IOMMUDEV_DCAM);
 	if (ret) {
 		pr_err("fail to map to iommu\n");
 		cam_buf_ionbuf_put(in_buf);
@@ -635,7 +630,7 @@ int dcamt_start(struct camt_info *info)
 	fetch.trim.start_y = 0;
 	fetch.trim.size_x = cxt->in_size.w;
 	fetch.trim.size_y = cxt->in_size.h;
-	fetch.addr.addr_ch0 = (uint32_t)in_buf->iova;
+	fetch.addr.addr_ch0 = (uint32_t)in_buf->iova[CAM_BUF_IOMMUDEV_DCAM];
 	fetcharg.idx = cxt->dcam_idx;
 	fetcharg.fetch_info = &fetch;
 	ret = hw->dcam_ioctl(hw, DCAM_HW_CFG_FETCH_SET, &fetcharg);
@@ -663,12 +658,12 @@ int dcamt_start(struct camt_info *info)
 
 	pr_info("wait done\n");
 
-	cam_buf_iommu_unmap(&cxt->in_buf);
+	cam_buf_iommu_unmap(&cxt->in_buf, CAM_BUF_IOMMUDEV_DCAM);
 	cam_buf_ionbuf_put(&cxt->in_buf);
 	memset(&cxt->in_buf, 0, sizeof(struct camera_buf));
 
 	for(i = 0; i < DRV_PATH_NUM; i++) {
-		cam_buf_iommu_unmap(&cxt->comm_info[i].out_buf);
+		cam_buf_iommu_unmap(&cxt->comm_info[i].out_buf, CAM_BUF_IOMMUDEV_DCAM);
 		cam_buf_ionbuf_put(&cxt->comm_info[i].out_buf);
 		memset(&cxt->comm_info[i].out_buf, 0, sizeof(struct camera_buf));
 	}

@@ -465,46 +465,8 @@ extern const unsigned long slowmotion_store_addr[3][4];
 #define LSC_GRID_BUF_START2                   (0xc000UL)
 #define LSC_GRID_BUF_SIZE2                    (0x3000UL)
 
-/*
- * DCAM register map range of sharkl5pro
- *
- * 0x0000 ~ 0x0fff(1K):                DCAM0
- *        |-------- 0x0000 ~ 0x05ff:   common config
- *        |-------- 0x0600 ~ 0x06ff:   gtm hist xpts
- *        |-------- 0x0700 ~ 0x08ff:   gtm hist cnt
- *        |-------- 0x0900 ~ 0x0cff:   lsc weight table
- *        |-------- 0x0d40 ~ 0x0dff:   rds coef table
- *        |-------- 0x0e00 ~ 0x0fff:   pdaf corr tables
- *
- * 0x1000 ~ 0x1fff(1K):                DCAM1
- *        |-------- 0x1000 ~ 0x15ff:   common config
- *        |-------- 0x1600 ~ 0x16ff:   gtm hist xpts
- *        |-------- 0x1700 ~ 0x18ff:   gtm hist cnt
- *        |-------- 0x1900 ~ 0x1cff:   lsc weight table
- *        |-------- 0x1d40 ~ 0x1dff:   rds coef table
- *        |-------- 0x1e00 ~ 0x1fff:   pdaf corr tables
- *
- * 0x2000 ~ 0x2fff(1K):                DCAM2
- *        |-------- 0x2000 ~ 0x25ff:   common config
- *        |-------- 0x2600 ~ 0x26ff:   gtm hist xpts
- *        |-------- 0x2700 ~ 0x28ff:   gtm hist cnt
- *        |-------- 0x2900 ~ 0x2cff:   lsc weight table
- *        |-------- 0x2d40 ~ 0x2dff:   rds coef table
- *        |-------- 0x2e00 ~ 0x2fff:   pdaf corr tables
- *
- * 0x3000 ~ 0x3fff(1K):                AXIM
- *
- * 0x4000 ~ 0x7fff(4K):                DCAM0 lsc grid table
- *
- * 0x8000 ~ 0xbfff(4K):                DCAM1 lsc grid table
- *
- * 0xc000 ~ 0xefff(3K):                DCAM2 lsc grid table
- *
- */
-
 #define DCAM_BASE(idx)                        (g_dcam_regbase[idx])
 #define DCAM_AXIM_BASE                        (g_dcam_aximbase[0])
-/* TODO: implement mmu */
 #define DCAM_MMU_BASE                         (g_dcam_mmubase)
 #define DCAM_PHYS_ADDR(idx)                   (g_dcam_phys_base[idx])
 #define DCAM_GET_REG(idx, reg)                (DCAM_PHYS_ADDR(idx) + (reg))
@@ -523,6 +485,5 @@ extern const unsigned long slowmotion_store_addr[3][4];
 
 /*for dcam IT*/
 #define DCAM_CHECK_LASE_STATUS                DCAM_RDS_DES_SIZE
-/* TODO: add DCAM0/1 lsc grid table mapping */
 
 #endif /* _DCAM_REG_H_ */

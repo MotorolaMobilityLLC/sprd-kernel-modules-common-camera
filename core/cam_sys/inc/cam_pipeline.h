@@ -56,12 +56,10 @@ enum cam_pipeline_cfg_cmd {
 	CAM_PIPELINE_RESET_PARAM_PTR,
 	CAM_PIPELINE_CFG_UFRAME,
 	CAM_PIPELINE_CFG_STATIS_BUF,
-	CAM_PIPELINE_CFG_LTM_BUF,
 	CAM_PIPILINE_CFG_RESEVER_BUF,
 	CAM_PIPILINE_CFG_SHARE_BUF,
 	CAM_PIPELINE_CFG_PATH_PAUSE,
 	CAM_PIPELINE_CFG_PATH_RESUME,
-	CAM_PIPILINE_CFG_PYRDEC_BUF,
 	CAM_PIPELINE_RECT_GET,
 	CAM_PIPELINE_CFG_GTM_LTM,
 	CAM_PIPELINE_RESET,
@@ -69,15 +67,20 @@ enum cam_pipeline_cfg_cmd {
 	/*TEMP:for cfg isp cur_ctx_id to pyrdecnode*/
 	CAM_PIPELINE_CFG_CTXID,
 	CAM_PIPELINE_CFG_3DNR_MODE,
-	CAM_PIPELINE_CFG_3DNR_BUF,
 	CAM_PIPELINE_CFG_REC_LEYER_NUM,
-	CAM_PIPELINE_CFG_REC_BUF,
 	CAM_PIPELINE_CFG_GTM,
 	CAM_PIPELINE_CFG_PARAM_SWITCH,
 	CAM_PIPRLINE_CFG_PARAM_Q_CLEAR,
 	CAM_PIPELINE_CFG_FAST_STOP,
-	CAM_PIPELINE_CFG_SUPERZOOM_BUF,
 	CAM_PIPELINE_CFG_MAX,
+};
+
+enum cam_pipeline_buffer_num {
+	CAM_NORMAL_ALLOC_BUF_NUM = 5,
+	CAM_DEC_ALLOC_BUF_NUM,
+	CAM_DUAL_ALLOC_BUF_NUM,
+	CAM_NONZSL_ALLOC_BUF_NUM,
+	CAM_NONZSL_DEC_ALLOC_BUF_NUM,
 };
 
 struct cam_pipeline_cfg_param {
@@ -94,6 +97,7 @@ struct cam_pipeline_topology {
 	enum cam_pipeline_type type;
 	uint32_t node_cnt;
 	struct cam_node_topology nodes[CAM_PIPELINE_NODE_NUM];
+	uint32_t buf_num;
 };
 
 struct cam_pipeline_desc {
@@ -220,31 +224,31 @@ struct cam_pipeline {
 })
 
 #define CAM_PIPEINE_DCAM_OFFLINE_RAW2FRGB_NODE_CFG(channel, cmd, par)  ({ \
-		struct cam_pipeline_cfg_param param_cfg = {0}; \
-		int ret = 0; \
-		param_cfg.node_type = CAM_NODE_TYPE_DCAM_OFFLINE_RAW2FRGB; \
-		param_cfg.node_param.param = (par); \
-		if ((channel)->pipeline_handle) \
-			ret = (channel)->pipeline_handle->ops.cfg_param((channel)->pipeline_handle, (cmd), &param_cfg); \
-		else { \
-			pr_warn("warning: current channel not contain pipeline\n"); \
-			ret = -EFAULT; \
-		} \
-		ret; \
+	struct cam_pipeline_cfg_param param_cfg = {0}; \
+	int ret = 0; \
+	param_cfg.node_type = CAM_NODE_TYPE_DCAM_OFFLINE_RAW2FRGB; \
+	param_cfg.node_param.param = (par); \
+	if ((channel)->pipeline_handle) \
+		ret = (channel)->pipeline_handle->ops.cfg_param((channel)->pipeline_handle, (cmd), &param_cfg); \
+	else { \
+		pr_warn("warning: current channel not contain pipeline\n"); \
+		ret = -EFAULT; \
+	} \
+	ret; \
 })
 
 #define CAM_PIPEINE_DCAM_OFFLINE_FRGB2YUV_NODE_CFG(channel, cmd, par)  ({ \
-		struct cam_pipeline_cfg_param param_cfg = {0}; \
-		int ret = 0; \
-		param_cfg.node_type = CAM_NODE_TYPE_DCAM_OFFLINE_FRGB2YUV; \
-		param_cfg.node_param.param = (par); \
-		if ((channel)->pipeline_handle) \
-			ret = (channel)->pipeline_handle->ops.cfg_param((channel)->pipeline_handle, (cmd), &param_cfg); \
-		else { \
-			pr_warn("warning: current channel not contain pipeline\n"); \
-			ret = -EFAULT; \
-		} \
-		ret; \
+	struct cam_pipeline_cfg_param param_cfg = {0}; \
+	int ret = 0; \
+	param_cfg.node_type = CAM_NODE_TYPE_DCAM_OFFLINE_FRGB2YUV; \
+	param_cfg.node_param.param = (par); \
+	if ((channel)->pipeline_handle) \
+		ret = (channel)->pipeline_handle->ops.cfg_param((channel)->pipeline_handle, (cmd), &param_cfg); \
+	else { \
+		pr_warn("warning: current channel not contain pipeline\n"); \
+		ret = -EFAULT; \
+	} \
+	ret; \
 })
 
 #define CAM_PIPEINE_DCAM_ONLINE_OUT_PORT_CFG(channel, portid, cmd, par)  ({ \

@@ -12,7 +12,6 @@
  */
 
 #include "cam_zoom.h"
-#include "cam_pipeline.h"
 
 #ifdef pr_fmt
 #undef pr_fmt
@@ -386,28 +385,26 @@ static int camzoom_port_info_cfg(struct cam_zoom_port *zoom_port,
 	return valid;
 }
 
-static struct cam_zoom_frame *camzoom_frame_param_cfg(struct cam_zoom_desc *param)
+static void camzoom_frame_param_cfg(struct cam_zoom_desc *param, struct cam_zoom_frame *zoom_param)
 {
 	int ret = 0, i = 0, j = 0, m = 0, n = 0;
-	struct cam_zoom_frame *pframe = NULL;
 	struct cam_pipeline_topology *graph = NULL;
 
 	graph = param->pipeline_graph;
-	pframe = cam_queue_empty_zoom_get();
 	for (i = 0; i < graph->node_cnt; i++) {
 		n = 0;
 		if (graph->nodes[i].state != CAM_NODE_STATE_WORK ||
 			graph->nodes[i].type == CAM_NODE_TYPE_DATA_COPY ||
 			graph->nodes[i].type == CAM_NODE_TYPE_FRAME_CACHE)
 			continue;
-		pframe->zoom_node[m].node_type = graph->nodes[i].type;
-		pframe->zoom_node[m].node_id = graph->nodes[i].id;
+		zoom_param->zoom_node[m].node_type = graph->nodes[i].type;
+		zoom_param->zoom_node[m].node_id = graph->nodes[i].id;
 		for (j = 0; j < CAM_NODE_PORT_IN_NUM; j++) {
 			if (graph->nodes[i].inport[j].link_state != PORT_LINK_NORMAL)
 				continue;
-			pframe->zoom_node[m].zoom_port[n].port_type = graph->nodes[i].inport[j].transfer_type;
-			pframe->zoom_node[m].zoom_port[n].port_id = graph->nodes[i].inport[j].id;
-			ret = camzoom_port_info_cfg(&pframe->zoom_node[m].zoom_port[n],
+			zoom_param->zoom_node[m].zoom_port[n].port_type = graph->nodes[i].inport[j].transfer_type;
+			zoom_param->zoom_node[m].zoom_port[n].port_id = graph->nodes[i].inport[j].id;
+			ret = camzoom_port_info_cfg(&zoom_param->zoom_node[m].zoom_port[n],
 				graph->nodes[i].type, graph->nodes[i].id, param);
 			if (!ret)
 				continue;
@@ -419,9 +416,9 @@ static struct cam_zoom_frame *camzoom_frame_param_cfg(struct cam_zoom_desc *para
 		for (j = 0; j < CAM_NODE_PORT_OUT_NUM; j++) {
 			if (graph->nodes[i].outport[j].link_state != PORT_LINK_NORMAL)
 				continue;
-			pframe->zoom_node[m].zoom_port[n].port_type = graph->nodes[i].outport[j].transfer_type;
-			pframe->zoom_node[m].zoom_port[n].port_id = graph->nodes[i].outport[j].id;
-			ret = camzoom_port_info_cfg(&pframe->zoom_node[m].zoom_port[n],
+			zoom_param->zoom_node[m].zoom_port[n].port_type = graph->nodes[i].outport[j].transfer_type;
+			zoom_param->zoom_node[m].zoom_port[n].port_id = graph->nodes[i].outport[j].id;
+			ret = camzoom_port_info_cfg(&zoom_param->zoom_node[m].zoom_port[n],
 				graph->nodes[i].type, graph->nodes[i].id, param);
 			if (!ret)
 				continue;
@@ -433,8 +430,6 @@ static struct cam_zoom_frame *camzoom_frame_param_cfg(struct cam_zoom_desc *para
 		if (m >= NODE_ZOOM_CNT_MAX)
 			break;
 	}
-
-	return pframe;
 }
 
 void cam_zoom_diff_trim_get(struct sprd_img_rect *orig,
@@ -465,7 +460,7 @@ int cam_zoom_crop_size_align(struct camera_module *module,
 		max_size.w >>= 1;
 		max_size.h >>= 1;
 	}
-	/* Sharkl5pro crop align need to do research*/
+
 	crop->w = ALIGN_UP(crop->w, DCAM_PATH_CROP_ALIGN);
 	crop->h = ALIGN_UP(crop->h, DCAM_PATH_CROP_ALIGN);
 	if (max_size.w > crop->w)
@@ -917,46 +912,39 @@ int cam_zoom_channel_bigsize_config(
 
 int cam_zoom_start_proc(void *param)
 {
-	int update_pv = 0, update_c = 0;
+	int update_pv = 0, update_c = 0, ret = 0;
 	struct camera_module *module = NULL;
 	struct channel_context *ch_prev = NULL, *ch_vid = NULL, *ch_cap = NULL;
-	struct camera_frame *pre_zoom_coeff = NULL;
-	struct camera_frame *vid_zoom_coeff = NULL;
-	struct camera_frame *cap_zoom_coeff = NULL;
+	struct camera_zoom_frame pre_zoom_coeff = {0};
+	struct camera_zoom_frame vid_zoom_coeff = {0};
+	struct camera_zoom_frame cap_zoom_coeff = {0};
 
 	module = (struct camera_module *)param;
 	ch_prev = &module->channel[CAM_CH_PRE];
 	ch_cap = &module->channel[CAM_CH_CAP];
 	ch_vid = &module->channel[CAM_CH_VID];
 next:
-	pre_zoom_coeff = vid_zoom_coeff = cap_zoom_coeff = NULL;
 	update_pv = update_c = 0;
 	/* Get node from the preview/video/cap coef queue if exist */
 	if (ch_prev->enable)
-		pre_zoom_coeff = cam_queue_dequeue(&ch_prev->zoom_user_crop_q,
-			struct camera_frame, list);
-	if (pre_zoom_coeff) {
-		ch_prev->ch_uinfo.src_crop = pre_zoom_coeff->zoom_crop;
-		ch_prev->ch_uinfo.total_src_crop = pre_zoom_coeff->total_zoom_crop;
-		cam_queue_empty_frame_put(pre_zoom_coeff);
+		ret = cam_queue_dequeue_new(&ch_prev->zoom_user_crop_q, struct camera_zoom_frame, list, &pre_zoom_coeff);
+	if (!ret) {
+		ch_prev->ch_uinfo.src_crop = pre_zoom_coeff.zoom_crop;
+		ch_prev->ch_uinfo.total_src_crop = pre_zoom_coeff.total_zoom_crop;
 		update_pv |= 1;
 	}
 
 	if (ch_vid->enable)
-		vid_zoom_coeff = cam_queue_dequeue(&ch_vid->zoom_user_crop_q,
-			struct camera_frame, list);
-	if (vid_zoom_coeff) {
-		ch_vid->ch_uinfo.src_crop = vid_zoom_coeff->zoom_crop;
-		cam_queue_empty_frame_put(vid_zoom_coeff);
+		ret = cam_queue_dequeue_new(&ch_vid->zoom_user_crop_q, struct camera_zoom_frame, list, &vid_zoom_coeff);
+	if (!ret) {
+		ch_vid->ch_uinfo.src_crop = vid_zoom_coeff.zoom_crop;
 		update_pv |= 1;
 	}
 
 	if (ch_cap->enable)
-		cap_zoom_coeff = cam_queue_dequeue(&ch_cap->zoom_user_crop_q,
-			struct camera_frame, list);
-	if (cap_zoom_coeff) {
-		ch_cap->ch_uinfo.src_crop = cap_zoom_coeff->zoom_crop;
-		cam_queue_empty_frame_put(cap_zoom_coeff);
+		ret = cam_queue_dequeue_new(&ch_cap->zoom_user_crop_q, struct camera_zoom_frame, list, &cap_zoom_coeff);
+	if (!ret) {
+		ch_cap->ch_uinfo.src_crop = cap_zoom_coeff.zoom_crop;
 		update_c |= 1;
 	}
 
@@ -974,6 +962,7 @@ next:
 		}
 		goto next;
 	}
+
 	return 0;
 }
 
@@ -1173,7 +1162,7 @@ int cam_zoom_param_set(struct cam_zoom_desc *in_ptr)
 {
 	int ret = 0, i = 0;
 	unsigned long flag = 0;
-	struct cam_zoom_frame *cur_zoom = NULL;
+	struct cam_zoom_frame cur_zoom = {0};
 	struct cam_zoom_frame *latest_zoom = NULL;
 	struct camera_queue *zoom_q = NULL;
 
@@ -1190,20 +1179,17 @@ int cam_zoom_param_set(struct cam_zoom_desc *in_ptr)
 	}
 
 	if (in_ptr->pipeline_type < CAM_PIPELINE_TYPE_MAX) {
-		cur_zoom = camzoom_frame_param_cfg(in_ptr);
-		if (cur_zoom) {
-			pr_debug("set cur_zoom %px\n", cur_zoom);
-			ret = cam_queue_enqueue(zoom_q, &cur_zoom->list);
-			if (ret) {
-				pr_err("fail to enq zoom cnt %d\n", zoom_q->cnt);
-				cam_queue_empty_zoom_put(cur_zoom);
-				return ret;
-			}
-			spin_lock_irqsave(in_ptr->zoom_lock, flag);
-			for (i = 0; i < NODE_ZOOM_CNT_MAX; i++)
-				latest_zoom->zoom_node[i] = cur_zoom->zoom_node[i];
-			spin_unlock_irqrestore(in_ptr->zoom_lock, flag);
+		camzoom_frame_param_cfg(in_ptr, &cur_zoom);
+		pr_debug("set cur_zoom %px\n", cur_zoom);
+		ret = cam_queue_enqueue_new(zoom_q, struct cam_zoom_frame, &cur_zoom);
+		if (ret) {
+			pr_err("fail to enq zoom cnt %d, state:%d\n", zoom_q->cnt, zoom_q->state);
+			return ret;
 		}
+		spin_lock_irqsave(in_ptr->zoom_lock, flag);
+		for (i = 0; i < NODE_ZOOM_CNT_MAX; i++)
+			latest_zoom->zoom_node[i] = cur_zoom.zoom_node[i];
+		spin_unlock_irqrestore(in_ptr->zoom_lock, flag);
 	} else {
 		pr_err("fail to support pipeline type %d\n", in_ptr->pipeline_type);
 	}
@@ -1249,20 +1235,3 @@ int cam_zoom_frame_base_get(struct cam_zoom_base *zoom_base, struct cam_zoom_ind
 
 	return ret;
 }
-
-void cam_zoom_frame_free(void *param)
-{
-	struct cam_zoom_frame *zoom_frame = NULL;
-
-	if (!param) {
-		pr_err("fail to get valid param\n");
-		return;
-	}
-
-	zoom_frame = (struct cam_zoom_frame *)param;
-	if (zoom_frame) {
-		cam_queue_empty_zoom_put(zoom_frame);
-		zoom_frame = NULL;
-	}
-}
-

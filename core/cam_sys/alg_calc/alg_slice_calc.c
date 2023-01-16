@@ -12,7 +12,6 @@
  */
 
 #include "alg_slice_calc.h"
-#include "alg_common_calc.h"
 
 #ifdef pr_fmt
 #undef pr_fmt

@@ -20,6 +20,7 @@ extern "C" {
 
 #include "cam_queue.h"
 #include "isp_slice.h"
+#include "cam_buf_manager.h"
 
 #ifdef ISP_PYR_DEBUG_ON
 #define ISP_PYR_DEBUG pr_info
@@ -79,7 +80,7 @@ struct isp_rec_ynr_info {
 	uint32_t layer_num;
 	struct img_size img;
 	struct img_size start;
-	struct rec_ynr_layer_cfg ynr_cfg_layer[5];
+	struct rec_ynr_layer_cfg ynr_cfg_layer[ISP_PYR_DEC_LAYER_NUM];
 	struct isp_dev_ynr_info_v3 *pyr_ynr;
 };
 
@@ -145,17 +146,18 @@ struct isp_pyr_rec_info {
 };
 
 enum isp_rec_cfg_cmd {
-	ISP_REC_CFG_BUF,
 	ISP_REC_CFG_LAYER_NUM,
 	ISP_REC_CFG_WORK_MODE,
 	ISP_REC_CFG_HW_CTX_IDX,
 	ISP_REC_CFG_FMCU_HANDLE,
+	ISP_REC_CFG_SHARE_BUFFER,
 	ISP_REC_CFG_MAX,
 };
 
 struct isp_rec_ops {
 	int (*cfg_param)(void *rec_handle, enum isp_rec_cfg_cmd cmd, void *param);
 	int (*pipe_proc)(void *rec_handle, void *param);
+	int (*buf_cb_func)(void *rec_handle, void *param);
 };
 
 struct isp_pyr_rec_in {
@@ -195,6 +197,7 @@ struct isp_rec_ctx_desc {
 	uint32_t hw_ctx_id;
 	uint32_t layer_num;
 	uint32_t dewarp_eb;
+	uint32_t share_buffer;
 	uint32_t cur_slice_id;
 	uint32_t rec_ynr_radius;
 	uint32_t rec_cnr_radius;
@@ -207,6 +210,7 @@ struct isp_rec_ctx_desc {
 	struct img_size pyr_padding_size;
 	struct camera_frame *buf_info;
 	void *fmcu_handle;
+	struct isp_pipe_dev *dev;
 
 	/* cur frame fetch: big size use rec fetch */
 	struct isp_rec_fetch_info cur_fetch;
@@ -217,8 +221,8 @@ struct isp_rec_ctx_desc {
 	struct isp_rec_cnr_info rec_cnr;
 	struct isp_pyr_rec_info pyr_rec;
 	struct isp_rec_store_info rec_store;
-
 	struct isp_rec_slice_desc slices[SLICE_NUM_MAX];
+	struct cam_buf_pool_id store_result_pool;
 
 	struct isp_rec_ops ops;
 	struct cam_hw_info *hw;
@@ -226,6 +230,7 @@ struct isp_rec_ctx_desc {
 
 void *isp_pyr_rec_ctx_get(uint32_t idx, void *hw);
 void isp_pyr_rec_ctx_put(void *ctx);
+int isp_pyr_rec_buffer_alloc(void *handle, struct cam_buf_alloc_desc *param);
 
 #ifdef __cplusplus
 }

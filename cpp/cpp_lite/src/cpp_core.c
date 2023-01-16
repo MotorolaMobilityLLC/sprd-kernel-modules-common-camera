@@ -32,7 +32,6 @@
 #include <sprd_mm.h>
 #include "cam_types.h"
 #include "sprd_cpp.h"
-#include "sprd_img.h"
 
 #include "cpp_int.h"
 #include "cpp_drv.h"

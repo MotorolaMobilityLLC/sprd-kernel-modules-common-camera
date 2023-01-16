@@ -20,6 +20,7 @@
 
 #define IMG_DEVICE_NAME                 "sprd_image"
 #define CAMERA_TIMEOUT                  5000
+#define CAMERA_WATCHDOG_TIMEOUT         1000
 #define CAMERA_RECOVERY_TIMEOUT         100
 #define CAMERA_LONGEXP_TIMEOUT          50000
 #define THREAD_STOP_TIMEOUT             3000
@@ -27,12 +28,11 @@
 
 #define CAM_COUNT                       CAM_ID_MAX
 #define CAM_SHARED_BUF_NUM              50
-#define CAM_FRAME_Q_LEN                 96
+#define CAM_FRAME_Q_LEN                 60
 #define CAM_IRQ_Q_LEN                   16
 #define CAM_STATIS_Q_LEN                16
 #define CAM_ZOOM_COEFF_Q_LEN            64
-#define CAM_ALLOC_Q_LEN                 48
-#define CAM_RESERVE_BUF_Q_LEN           50
+#define CAM_ALLOC_Q_LEN                 24
 #define CAM_RESERVE_BUF_Q_MAX           500
 #define CAM_FRAME_DEAL                  1
 #define CAM_FRAME_NO_DEAL               0
@@ -42,8 +42,6 @@
 
 /* TODO: need to pass the num to driver by hal */
 #define CAP_NUM_COMMON                  1
-#define NORMAL_ALLOC_BUF_NUM            5
-#define DUAL_CAM_ALLOC_BUF_NUM          7
 
 enum camera_module_state {
 	CAM_INIT = 0,
@@ -100,7 +98,6 @@ struct camera_uchannel {
 	struct sprd_img_rect src_crop;
 	struct sprd_img_rect total_src_crop;
 	struct img_size dst_size;
-	uint32_t scene;
 
 	/* for binding small picture */
 	uint32_t slave_img_en;
@@ -196,19 +193,10 @@ struct channel_context {
 	uint32_t pyr_layer_num;
 	uint32_t mode_gtm;
 	uint32_t gtm_rgb;
-	struct camera_frame *postproc_buf;
-	struct camera_frame *nr3_bufs[ISP_NR3_BUF_NUM];
-	struct camera_frame *ltm_bufs[ISP_LTM_BUF_NUM];
-	struct camera_frame *pyr_rec_buf;
-	struct camera_frame *pyr_rec_buf_alg;
-	struct camera_frame *pyr_dec_buf;
-	struct camera_frame *pyr_dec_buf_alg;
 	struct cam_zoom_frame latest_zoom_param;
 	struct sprd_img_rect latest_user_crop;/*use to compare with current crop*/
 	spinlock_t lastest_zoom_lock;
 
-	/* dcam/isp shared frame buffer for full path */
-	struct camera_queue share_buf_queue;
 	struct camera_queue zoom_user_crop_q;/* channel specific coef queue */
 	struct camera_queue zoom_param_q;
 	struct dcam_isp_k_block blk_pm;
@@ -218,6 +206,7 @@ struct camera_module {
 	uint32_t idx;
 	atomic_t state;
 	atomic_t timeout_flag;
+	uint32_t timeout_num;
 	struct mutex ioctl_lock;
 	uint32_t master_flag; /* master cam capture flag */
 	uint32_t compat_flag;
@@ -244,7 +233,6 @@ struct camera_module {
 	struct mutex buf_lock[CAM_CH_MAX];
 
 	struct completion frm_com;
-	struct camera_queue put_queue;/* store user frame to put*/
 	struct camera_queue frm_queue;/* frame message queue for user*/
 	struct camera_queue alloc_queue;/* alloc data queue or user*/
 
@@ -290,25 +278,19 @@ struct camera_group {
 
 	spinlock_t dual_deal_lock;
 	uint32_t dcam_count;/*dts cfg dcam count*/
-
 	atomic_t runner_nr; /*running camera num*/
+	atomic_t mul_buf_alloced;
+	struct mutex mulshare_buf_lock;
 
 	struct miscdevice *md;
 	struct platform_device *pdev;
 	struct camera_queue ion_buf_q;
-	struct camera_queue empty_zoom_q;
 	struct camera_queue empty_frm_q;
 	struct sprd_cam_sec_cfg camsec_cfg;
 	struct camera_debugger debugger;
 	struct cam_hw_info *hw_info;
 	struct img_size mul_sn_max_size;
-	atomic_t mul_buf_alloced;
-	atomic_t mul_pyr_buf_alloced;
 	uint32_t is_mul_buf_share;
-	struct camera_queue mul_share_buf_q;
-	struct camera_frame *mul_share_pyr_dec_buf;
-	struct camera_frame *mul_share_pyr_rec_buf;
-	struct mutex pyr_mulshare_lock;
 	struct wakeup_source *ws;
 
 	atomic_t recovery_state;
