@@ -487,7 +487,7 @@ int reg_mwr(unsigned int reg, unsigned int msk, unsigned int value)
 {
 	void __iomem *reg_base = NULL;
 
-	reg_base = ioremap_nocache(reg, 0x4);
+	reg_base = ioremap(reg, 0x4);
 	if (!reg_base) {
 		pr_info("0x%x: ioremap failed\n", reg);
 		return -1;
@@ -502,7 +502,7 @@ int reg_wr(unsigned int reg, unsigned int value)
 {
 	void __iomem *reg_base = NULL;
 
-	reg_base = ioremap_nocache(reg, 0x4);
+	reg_base = ioremap(reg, 0x4);
 	if (!reg_base) {
 		pr_info("0x%x: ioremap failed\n", reg);
 		return -1;
@@ -518,7 +518,7 @@ int reg_rd(unsigned int reg)
 	void __iomem *reg_base = NULL;
 	int val = 0;
 
-	reg_base = ioremap_nocache(reg, 0x4);
+	reg_base = ioremap(reg, 0x4);
 	if (!reg_base) {
 		pr_info("0x%x: ioremap failed\n", reg);
 		return -1;
