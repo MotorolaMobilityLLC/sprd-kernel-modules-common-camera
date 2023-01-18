@@ -861,7 +861,7 @@ static int camcore_vir_channel_config(
 
 	if (channel_prev->enable) {
 		/*TODO: out_fmt need to follow hal fmt adjust*/
-		path_desc.out_fmt = CAM_YUV420_2FRAME_MIPI;
+		path_desc.out_fmt = CAM_YVU420_2FRAME_MIPI;
 		path_desc.endian = ENDIAN_LITTLE;
 		path_desc.output_size.w = ch_uinfo->vir_channel[0].dst_size.w;
 		path_desc.output_size.h = ch_uinfo->vir_channel[0].dst_size.h;
@@ -872,7 +872,7 @@ static int camcore_vir_channel_config(
 	}
 	if (channel_cap->enable) {
 		/*TODO: out_fmt need to follow hal fmt adjust*/
-		path_desc.out_fmt = CAM_YUV420_2FRAME_MIPI;
+		path_desc.out_fmt = CAM_YVU420_2FRAME_MIPI;
 		path_desc.endian = ENDIAN_LITTLE;
 		path_desc.output_size.w = ch_uinfo->vir_channel[1].dst_size.w;
 		path_desc.output_size.h = ch_uinfo->vir_channel[1].dst_size.h;
@@ -1095,7 +1095,7 @@ static int camcore_pipeline_init(struct camera_module *module,
 	camcore_compression_cal(module);
 	if ((hw->ip_isp->fetch_raw_support == 0 && channel->ch_id != CAM_CH_RAW)
 		|| (module->cam_uinfo.sensor_if.img_fmt == DCAM_CAP_MODE_YUV))
-		channel->dcam_out_fmt = CAM_YUV420_2FRAME_MIPI;
+		channel->dcam_out_fmt = CAM_YVU420_2FRAME_MIPI;
 	else
 		channel->dcam_out_fmt = channel->ch_uinfo.dcam_raw_fmt;
 	channel->isp_port_id = isp_port_id;

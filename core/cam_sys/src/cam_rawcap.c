@@ -69,7 +69,7 @@ int camrawcap_raw_pre_proc(struct camera_module *module,
 	if (module->cam_uinfo.dcam_slice_mode && hw->ip_dcam[0]->save_band_for_bigsize)
 		dcam_offline_desc->port_desc.dcam_out_fmt = CAM_RAW_PACK_10;
 	if (hw->ip_isp->fetch_raw_support == 0)
-		dcam_offline_desc->port_desc.dcam_out_fmt = CAM_YUV420_2FRAME_MIPI;
+		dcam_offline_desc->port_desc.dcam_out_fmt = CAM_YVU420_2FRAME_MIPI;
 
 	/* isp offline param desc */
 	isp_node_description->in_fmt = dcam_offline_desc->port_desc.dcam_out_fmt;
@@ -421,7 +421,7 @@ int camrawcap_storeccm_frgb_pre_proc(struct camera_module *module,
 	dcam_offline_frgb2yuv_desc->dcam_idx = module->dcam_idx;
 	dcam_offline_frgb2yuv_desc->port_desc.endian = ENDIAN_LITTLE;
 	dcam_offline_frgb2yuv_desc->fetch_fmt = CAM_FULL_RGB14;
-	dcam_offline_frgb2yuv_desc->port_desc.dcam_out_fmt = CAM_YUV420_2FRAME_MIPI;
+	dcam_offline_frgb2yuv_desc->port_desc.dcam_out_fmt = CAM_YVU420_2FRAME_MIPI;
 
 	/* pyrdec param desc */
 	pyr_dec_desc->hw = hw;

@@ -1165,8 +1165,8 @@ static int dcamonline_port_store_reconfig(struct dcam_online_port *dcam_port, vo
 	frame = cam_buf_manager_buf_dequeue(&dcam_port->result_pool, NULL);
 	if (IS_ERR_OR_NULL(frame))
 		return PTR_ERR(frame);
-
 	cam_buf_manager_buf_enqueue(&dcam_port->result_pool, frame, NULL);
+
 	return dcamonline_port_frm_set(dcam_port, frame, hw_ctx);
 }
 

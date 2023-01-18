@@ -837,6 +837,7 @@ struct sprd_img_capture_param {
 	uint32_t cap_cnt;/* frame num for DCAM_CAPTURE_START_FROM_NEXT_SOF */
 	int64_t  timestamp;
 	enum capture_scene cap_scene;
+	uint32_t skip_first_num;
 };
 #pragma pack(pop)
 

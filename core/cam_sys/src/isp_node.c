@@ -1244,7 +1244,8 @@ int isp_node_buffers_alloc(void *handle, struct cam_buf_alloc_desc *param)
 		else {
 			if ((param->dcam_out_fmt == CAM_YUV420_2FRAME)
 				|| (param->dcam_out_fmt == CAM_YVU420_2FRAME)
-				|| (param->dcam_out_fmt == CAM_YUV420_2FRAME_MIPI)) {
+				|| (param->dcam_out_fmt == CAM_YUV420_2FRAME_MIPI)
+				|| (param->dcam_out_fmt == CAM_YVU420_2FRAME_MIPI)) {
 				block_size = ((width + 1) & (~1)) * height * 3;
 				block_size = ALIGN(block_size, CAM_BUF_ALIGN_SIZE);
 			} else {

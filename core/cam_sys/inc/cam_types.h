@@ -323,6 +323,7 @@ struct cam_capture_param {
 	atomic_t cap_cnt;
 	int64_t cap_timestamp;
 	struct sprd_img_rect cap_user_crop;
+	uint32_t skip_first_num;
 };
 
 struct cam_buf_alloc_desc {

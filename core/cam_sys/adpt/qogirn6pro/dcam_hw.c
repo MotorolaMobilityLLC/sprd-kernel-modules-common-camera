@@ -2141,7 +2141,8 @@ static int dcamhw_fbc_ctrl(void *handle, void *arg)
 			afbc_mode = 9;
 		else
 			afbc_mode = 0xC;
-	} else if ((fbc_arg->fmt == CAM_YUV420_2FRAME) || (fbc_arg->fmt == CAM_YVU420_2FRAME) || (fbc_arg->fmt == CAM_YUV420_2FRAME_MIPI)) {
+	} else if ((fbc_arg->fmt == CAM_YUV420_2FRAME) || (fbc_arg->fmt == CAM_YVU420_2FRAME) ||
+				(fbc_arg->fmt == CAM_YVU420_2FRAME_MIPI) || (fbc_arg->fmt == CAM_YVU420_2FRAME_MIPI)) {
 		if (fbc_arg->data_bits == CAM_8_BITS)
 			afbc_mode = 5;
 		else
@@ -2153,7 +2154,7 @@ static int dcamhw_fbc_ctrl(void *handle, void *arg)
 			afbc_mode = 0xC;
 	}
 
-	if ((fbc_arg->fmt == CAM_YVU420_2FRAME) || (fbc_arg->fmt == CAM_YUV420_2FRAME_MIPI))
+	if ((fbc_arg->fmt == CAM_YVU420_2FRAME) || (fbc_arg->fmt == CAM_YVU420_2FRAME_MIPI))
 		color_format = 4;
 	else
 		color_format = 5;

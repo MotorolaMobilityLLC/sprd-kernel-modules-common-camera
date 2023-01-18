@@ -1343,6 +1343,7 @@ int pyr_dec_node_blk_param_set(void *handle, void *param)
 {
 	int ret = 0, index = 0;
 	struct pyr_dec_node *node = NULL;
+	struct isp_node *isp_node = NULL;
 	struct isp_io_param *blk_param = NULL;
 	func_cam_cfg_param cfg_fun_ptr = NULL;
 	struct cam_hw_block_func_get fucarg = {0};
@@ -1358,6 +1359,7 @@ int pyr_dec_node_blk_param_set(void *handle, void *param)
 	blk_param = (struct isp_io_param *)param;
 	hw = node->hw;
 	dev = node->dev;
+	isp_node = (struct isp_node *)node->isp_node;
 
 	mutex_lock(&dev->path_mutex);
 	if (atomic_read(&node->user_cnt) < 1) {
@@ -1382,7 +1384,7 @@ int pyr_dec_node_blk_param_set(void *handle, void *param)
 		goto exit;
 	}
 
-	ret = cfg_fun_ptr(blk_param, &node->isp_k_param);
+	ret = cfg_fun_ptr(blk_param, &isp_node->isp_k_param);
 
 	mutex_unlock(&node->blkpm_lock);
 	mutex_unlock(&dev->path_mutex);

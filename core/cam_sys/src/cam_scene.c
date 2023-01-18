@@ -261,7 +261,7 @@ int cam_scene_ispoffline_desc_get(void *module_ptr, void *channel_ptr,
 	else {
 		isp_node_description->in_fmt = channel->dcam_out_fmt;
 		if (module->cam_uinfo.raw_alg_type && channel->ch_id == CAM_CH_CAP)
-			isp_node_description->in_fmt = CAM_YUV420_2FRAME_MIPI;
+			isp_node_description->in_fmt = CAM_YVU420_2FRAME_MIPI;
 	}
 	isp_node_description->pyr_out_fmt = hw->ip_dcam[0]->store_pyr_fmt;;
 	isp_node_description->store_3dnr_fmt = hw->ip_dcam[0]->store_3dnr_fmt[0];
@@ -394,18 +394,18 @@ int cam_scene_dcamoffline_desc_get(void *module_ptr, void *channel_ptr,
 	if (module->cam_uinfo.dcam_slice_mode && hw->ip_dcam[0]->save_band_for_bigsize)
 		dcam_offline_desc->port_desc.dcam_out_fmt = CAM_RAW_PACK_10;
 	if (hw->ip_isp->fetch_raw_support == 0)
-		dcam_offline_desc->port_desc.dcam_out_fmt = CAM_YUV420_2FRAME_MIPI;
+		dcam_offline_desc->port_desc.dcam_out_fmt = CAM_YVU420_2FRAME_MIPI;
 	channel->dcam_out_fmt = dcam_offline_desc->port_desc.dcam_out_fmt;
 	if (pipeline_type == CAM_PIPELINE_ONLINERAW_2_USER_2_BPCRAW_2_USER_2_OFFLINEYUV
 		|| pipeline_type == CAM_PIPELINE_ONLINE_NORMAL2YUV_OR_RAW2USER2YUV
 		|| pipeline_type == CAM_PIPELINE_ONLINE_NORMALZSLCAPTURE_OR_RAW2USER2YUV) {
 		if (module->cam_uinfo.raw_alg_type)
 			dcam_offline_desc->fetch_fmt = CAM_RAW_14;
-		dcam_offline_desc->port_desc.dcam_out_fmt = CAM_YUV420_2FRAME_MIPI;
+		dcam_offline_desc->port_desc.dcam_out_fmt = CAM_YVU420_2FRAME_MIPI;
 	} else if (pipeline_type == CAM_PIPELINE_ONLINERAW_2_USER_2_OFFLINEYUV) {
 		if (module->cam_uinfo.raw_alg_type) {
 			dcam_offline_desc->fetch_fmt = CAM_RAW_14;
-			dcam_offline_desc->port_desc.dcam_out_fmt = CAM_YUV420_2FRAME_MIPI;
+			dcam_offline_desc->port_desc.dcam_out_fmt = CAM_YVU420_2FRAME_MIPI;
 		}
 		if (module->cam_uinfo.is_4in1)
 			dcam_offline_desc->fetch_fmt = channel->ch_uinfo.dcam_raw_fmt;

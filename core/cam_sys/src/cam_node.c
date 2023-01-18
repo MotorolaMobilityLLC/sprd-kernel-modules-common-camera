@@ -63,7 +63,12 @@ static bool camnode_capture_skip_condition(struct camera_frame *pframe,
 			cap_param->cap_scene, pframe->fid, pframe->width, cap_param->cap_user_crop.w, cap_param->cap_cnt);
 		return false;
 	}
+
+	if (cap_param->skip_first_num && pframe->fid < 1)
+		return false;
+
 	return true;
+
 }
 
 static int camnode_dynamic_link_update(struct cam_node *node, struct camera_frame *pframe)
@@ -357,9 +362,11 @@ static int camnode_cfg_node_param_dcam_online(void *handle, enum cam_node_cfg_cm
 		node->cap_param.cap_timestamp = cap_param->cap_timestamp;
 		node->cap_param.cap_scene = cap_param->cap_scene;
 		node->cap_param.cap_user_crop = cap_param->cap_user_crop;
-		pr_info("node: %s id %d cap K_type %d, scene %d, cnt %d, time %lld\n", cam_node_name_get(node->node_graph->type),
-			node->node_graph->id, node->cap_param.cap_type, node->cap_param.cap_scene, atomic_read(&node->cap_param.cap_cnt),
-			node->cap_param.cap_timestamp);
+		node->cap_param.skip_first_num = cap_param->skip_first_num;
+		pr_info("node: %s id %d cap K_type %d, scene %d, cnt %d, skip first_frame %d time %lld\n",
+			cam_node_name_get(node->node_graph->type), node->node_graph->id, node->cap_param.cap_type,
+			node->cap_param.cap_scene, atomic_read(&node->cap_param.cap_cnt),
+			node->cap_param.skip_first_num, node->cap_param.cap_timestamp);
 		break;
 	case CAM_NODE_RECT_GET:
 	case CAM_NODE_CFG_STATIS:
