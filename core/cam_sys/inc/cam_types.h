@@ -145,6 +145,12 @@ enum cam_ch_id {
 	CAM_CH_MAX,
 };
 
+enum pre_raw_status {
+	PRE_RAW_CACHE = 0,
+	PRE_RAW_DEAL,
+	PRE_RAW_MAX,
+};
+
 enum dump_channel_type {
 	DUMP_CH_RES = 0,
 	DUMP_CH_PRE,
@@ -322,6 +328,7 @@ struct cam_capture_param {
 	uint32_t cap_scene;
 	atomic_t cap_cnt;
 	int64_t cap_timestamp;
+	uint32_t cap_opt_frame_scene;
 	struct sprd_img_rect cap_user_crop;
 	uint32_t skip_first_num;
 };
@@ -401,6 +408,7 @@ typedef int(*reserved_buf_get_cb)(enum reserved_buf_cb_type type, void *param,
 				void *cb_handle);
 typedef struct camera_frame *(*dual_frame_sync_cb)(void *param, void *cb_handle, int *flag);
 typedef int(*dual_slave_frame_set_cb)(void *param, void *cb_handle);
+typedef int(*cap_frame_status_cb)(uint32_t param, void *cb_handle);
 typedef int(*port_cfg_cb)(void *param, uint32_t cmd, void *cb_handle);
 typedef int(*shutoff_cfg_cb)(void *cb_handle, uint32_t cmd, void *param);
 typedef int(*dcam_irq_proc_cb)(void *param, void *cb_handle);

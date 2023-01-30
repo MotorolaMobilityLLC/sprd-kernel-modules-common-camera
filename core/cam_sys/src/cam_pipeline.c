@@ -1466,6 +1466,15 @@ static int campipeline_cfg_param(void *handle, enum cam_pipeline_cfg_cmd cmd, vo
 	case CAM_PIPELINE_RESET_PARAM_PTR:
 		node_cmd = CAM_NODE_RESET_PARAM_PTR;
 		break;
+	case CAM_PIPELINE_CFG_PRE_RAW_FLAG:
+		node_cmd = CAM_NODE_CFG_PRE_RAW_FLAG;
+		break;
+	case CAM_PIPELINE_CFG_OPT_SCENE_SWITCH:
+		node_cmd = CAM_NODE_CFG_OPT_SCENE_SWITCH;
+		break;
+	case CAM_PIPELINE_GET_CAP_FRAME:
+		node_cmd = CAM_NODE_GET_CAP_FRAME;
+		break;
 	default:
 		pr_err("fail to support cfg cmd %d\n", cmd);
 		ret = -EFAULT;

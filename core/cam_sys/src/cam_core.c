@@ -589,8 +589,28 @@ static struct camera_frame *camcore_dual_frame_deal(void *param, void *priv_data
 	return pframe;
 }
 
-static uint32_t camcore_frame_start_proc(struct camera_module *module, struct camera_frame *pframe,
-		enum cam_node_type node_type)
+static int camcore_cap_frame_status(uint32_t param, void *priv_data)
+{
+	struct camera_module *module = NULL;
+	struct channel_context *ch_pre = NULL;
+	int ret = 0;
+
+	if (!priv_data) {
+		pr_err("fail to get valid ptr\n");
+		return -EFAULT;
+	}
+
+	module = (struct camera_module *)priv_data;
+	ch_pre = &module->channel[CAM_CH_PRE];
+
+	ret = CAM_PIPEINE_DATA_COPY_NODE_CFG(ch_pre, CAM_PIPELINE_CFG_PRE_RAW_FLAG, &param);
+	if(ret)
+		pr_err("fail to update pre status\n");
+
+	return ret;
+}
+
+static uint32_t camcore_frame_start_proc(struct camera_module *module, struct camera_frame *pframe, enum cam_node_type node_type)
 {
 	int ret = 0;
 	struct channel_context *ch = NULL;
@@ -971,6 +991,7 @@ static int camcore_framecache_desc_get(struct camera_module *module, struct fram
 	frame_cache_desc->need_dual_sync = module->cam_uinfo.is_dual;
 	frame_cache_desc->dual_sync_func = camcore_dual_frame_deal;
 	frame_cache_desc->dual_slave_frame_set = camcore_dual_slave_frame_set;
+	frame_cache_desc->cap_frame_status = camcore_cap_frame_status;
 	frame_cache_desc->dual_sync_cb_data = module;
 
 	return ret;
@@ -1588,6 +1609,7 @@ static struct cam_ioctl_cmd ioctl_cmds_table[] = {
 	[_IOC_NR(SPRD_IMG_IO_SET_KEY)]              = {SPRD_IMG_IO_SET_KEY,              camioctl_key_set},
 	[_IOC_NR(SPRD_IMG_IO_SET_960FPS_PARAM)]     = {SPRD_IMG_IO_SET_960FPS_PARAM,     camioctl_960fps_param_set},
 	[_IOC_NR(SPRD_IMG_IO_CFG_PARAM_STATUS)]     = {SPRD_IMG_IO_CFG_PARAM_STATUS,     camioctl_cfg_param_start_end},
+	[_IOC_NR(SPRD_IMG_IO_SET_PRE_RAW_FLAG)]     = {SPRD_IMG_IO_SET_PRE_RAW_FLAG,     camioctl_pre_raw_flag_set},
 };
 
 static long camcore_ioctl(struct file *file, unsigned int cmd,

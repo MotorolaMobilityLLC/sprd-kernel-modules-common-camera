@@ -102,7 +102,7 @@ static int camnode_dynamic_link_update(struct cam_node *node, struct camera_fram
 			pframe->link_to = cap_ori_link;
 		break;
 	case CAM_CAPTURE_START_FROM_NEXT_SOF:
-		if (pframe->boot_sensor_time >= cap_param->cap_timestamp &&
+		if ((pframe->boot_sensor_time >= cap_param->cap_timestamp || cap_param->cap_opt_frame_scene) &&
 			atomic_read(&cap_param->cap_cnt) > 0 &&
 			camnode_capture_skip_condition(pframe, cap_param)) {
 			pframe->link_to = cap_new_link;
@@ -363,10 +363,11 @@ static int camnode_cfg_node_param_dcam_online(void *handle, enum cam_node_cfg_cm
 		node->cap_param.cap_scene = cap_param->cap_scene;
 		node->cap_param.cap_user_crop = cap_param->cap_user_crop;
 		node->cap_param.skip_first_num = cap_param->skip_first_num;
-		pr_info("node: %s id %d cap K_type %d, scene %d, cnt %d, skip first_frame %d time %lld\n",
+		node->cap_param.cap_opt_frame_scene = cap_param->cap_opt_frame_scene;
+		pr_info("node: %s id %d cap K_type %d, scene %d, cnt %d, skip first_frame %d time %lld, opt_scene %d\n",
 			cam_node_name_get(node->node_graph->type), node->node_graph->id, node->cap_param.cap_type,
 			node->cap_param.cap_scene, atomic_read(&node->cap_param.cap_cnt),
-			node->cap_param.skip_first_num, node->cap_param.cap_timestamp);
+			node->cap_param.skip_first_num, node->cap_param.cap_timestamp,  node->cap_param.cap_opt_frame_scene);
 		break;
 	case CAM_NODE_RECT_GET:
 	case CAM_NODE_CFG_STATIS:
@@ -751,9 +752,10 @@ static int camnode_cfg_node_param_frame_cache(void *handle, enum cam_node_cfg_cm
 		node->cap_param.cap_timestamp = cap_param->cap_timestamp;
 		node->cap_param.cap_scene = cap_param->cap_scene;
 		node->cap_param.cap_user_crop = cap_param->cap_user_crop;
-		pr_info("node type %s id %d cap type %d, scene %d, cnt %d, time %lld\n", cam_node_name_get(node->node_graph->type),
+		node->cap_param.cap_opt_frame_scene = cap_param->cap_opt_frame_scene;
+		pr_info("node type %s id %d cap type %d, scene %d, cnt %d, time %lld opt_frame %d\n", cam_node_name_get(node->node_graph->type),
 			node->node_graph->id, node->cap_param.cap_type, node->cap_param.cap_scene, atomic_read(&node->cap_param.cap_cnt),
-			node->cap_param.cap_timestamp);
+			node->cap_param.cap_timestamp, node->cap_param.cap_opt_frame_scene);
 		ret = frame_cache_cfg_param(node->handle, cmd, in_param->param);
 		break;
 	case CAM_NODE_CLR_CACHE_BUF:
@@ -761,6 +763,12 @@ static int camnode_cfg_node_param_frame_cache(void *handle, enum cam_node_cfg_cm
 		ret = frame_cache_cfg_param(node->handle, cmd, in_param->param);
 		break;
 	case CAM_NODE_INSERT_PORT:
+		break;
+	case CAM_NODE_CFG_PRE_RAW_FLAG:
+		ret = frame_cache_node_set_pre_raw_flag(node->handle, in_param->param);
+		break;
+	case CAM_NODE_GET_CAP_FRAME:
+		ret = frame_cache_node_get_cap_frame(node->handle, in_param->param);
 		break;
 	default:
 		pr_err("fail to support node: %s cmd: %d\n", cam_node_name_get(node->node_graph->type), cmd);
@@ -820,6 +828,12 @@ static int camnode_cfg_node_param_copy(void *handle, enum cam_node_cfg_cmd cmd, 
 	switch (cmd) {
 	case CAM_NODE_CFG_BUF:
 		ret = cam_copy_node_buffer_cfg(node->handle, in_param->param);
+		break;
+	case CAM_NODE_CFG_PRE_RAW_FLAG:
+		ret = cam_copy_node_set_pre_raw_flag(node->handle, in_param->param);
+		break;
+	case CAM_NODE_CFG_OPT_SCENE_SWITCH:
+		ret = cam_copy_node_set_opt_scene(node->handle, in_param->param);
 		break;
 	default:
 		pr_err("fail to support node: %s cmd: %d\n", cam_node_name_get(node->node_graph->type), cmd);

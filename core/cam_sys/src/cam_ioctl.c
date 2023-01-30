@@ -464,6 +464,7 @@ static int camioctl_function_mode_set(struct camera_module *module,
 	ret |= get_user(module->cam_uinfo.need_dcam_raw, &uparam->need_dcam_raw);
 	ret |= get_user(module->master_flag, &uparam->master_flag);
 	ret |= get_user(module->cam_uinfo.virtualsensor, &uparam->virtualsensor);
+	ret |= get_user(module->cam_uinfo.opt_buffer_num, &uparam->opt_buffer_num);
 	module->cam_uinfo.is_rgb_ltm = hw->ip_isp->rgb_ltm_support;
 	module->cam_uinfo.is_rgb_gtm = hw->ip_isp->rgb_gtm_support;
 	if (g_pyr_dec_offline_bypass || module->channel[CAM_CH_CAP].ch_uinfo.is_high_fps
@@ -476,7 +477,7 @@ static int camioctl_function_mode_set(struct camera_module *module,
 		module->cam_uinfo.is_pyr_rec = 0;
 	else
 		module->cam_uinfo.is_pyr_rec = hw->ip_dcam[0]->pyramid_support;
-	pr_info("4in1:[%d], rgb_ltm[%d], gtm[%d], dual[%d], dec %d, raw_alg_type:%d, zoom_conflict_with_ltm %d, %d. dcam_raw %d, master_flag:%d,virtualsensor %d\n",
+	pr_info("4in1:[%d], rgb_ltm[%d], gtm[%d], dual[%d], dec %d, raw_alg_type:%d, zoom_conflict_with_ltm %d, %d. dcam_raw %d, master_flag:%d,virtualsensor %d pre buffer num %d\n",
 		module->cam_uinfo.is_4in1,module->cam_uinfo.is_rgb_ltm,
 		module->cam_uinfo.is_rgb_gtm,
 		module->cam_uinfo.is_dual, module->cam_uinfo.is_pyr_dec,
@@ -485,7 +486,8 @@ static int camioctl_function_mode_set(struct camera_module *module,
 		module->cam_uinfo.is_raw_alg,
 		module->cam_uinfo.need_dcam_raw,
 		module->master_flag,
-		module->cam_uinfo.virtualsensor);
+		module->cam_uinfo.virtualsensor,
+		module->cam_uinfo.opt_buffer_num);
 
 	if (unlikely(ret)) {
 		pr_err("fail to copy from user, ret %d\n", ret);
@@ -1439,6 +1441,8 @@ static int camioctl_stream_on(struct camera_module *module, unsigned long arg)
 		cam_zoom_channel_size_config(module, ch);
 	}
 
+	if (module->cam_uinfo.opt_buffer_num)
+		CAM_PIPEINE_DATA_COPY_NODE_CFG(ch_pre, CAM_PIPELINE_CFG_OPT_SCENE_SWITCH, &module->cam_uinfo.opt_buffer_num);
 	camcore_resframe_set(module);
 	for (i = 0; i < CAM_CH_MAX; i++) {
 		ch = &module->channel[i];
@@ -1711,6 +1715,39 @@ static int camioctl_cam_res_put(struct camera_module *module,
 	return ret;
 }
 
+static int camioctl_pre_raw_flag_set(struct camera_module *module, unsigned long arg)
+{
+	int ret = 0;
+	uint32_t param = 0;
+	struct channel_context *ch_pre = NULL;
+	struct channel_context *ch_cap = NULL;
+
+	if (!module) {
+		pr_err("fail to get valid param\n");
+		return -EFAULT;
+	}
+
+	ch_pre = &module->channel[CAM_CH_PRE];
+	ch_cap = &module->channel[CAM_CH_CAP];
+	param = PRE_RAW_DEAL;
+
+	ret = CAM_PIPEINE_DATA_COPY_NODE_CFG(ch_pre, CAM_PIPELINE_CFG_PRE_RAW_FLAG, &param);
+	if (ret) {
+		pr_err("fail to notify copy node pre status\n");
+		return -EFAULT;
+	}
+	if (module->cam_uinfo.zsl_num) {
+		ret = CAM_PIPEINE_FRAME_CACHE_NODE_CFG(ch_cap, CAM_PIPELINE_CFG_PRE_RAW_FLAG, &param);
+		if (ret) {
+			pr_err("fail to notify cache node pre status\n");
+			return -EFAULT;
+		}
+	}
+	pr_info("cam%d pre raw flag set\n", module->idx);
+
+	return ret;
+}
+
 static int camioctl_capture_start(struct camera_module *module,
 		unsigned long arg)
 {
@@ -1739,9 +1776,14 @@ static int camioctl_capture_start(struct camera_module *module,
 	hw = module->grp->hw_info;
 	start_time = ktime_get_boottime();
 	module->capture_times = start_time;
+	module->opt_frame_fid = param.opt_frame_fid;
 	ch = &module->channel[CAM_CH_CAP];
 	if (!ch->enable)
 		goto exit;
+	if (module->opt_frame_fid && module->cam_uinfo.zsl_num) {
+		cap_param.cap_opt_frame_scene = 1;
+		CAM_PIPEINE_FRAME_CACHE_NODE_CFG(ch, CAM_PIPELINE_GET_CAP_FRAME, &module->opt_frame_fid);
+	}
 	if(ch) {
 		mutex_lock(&module->buf_lock[ch->ch_id]);
 		if (ch->alloc_start) {
@@ -1834,9 +1876,9 @@ static int camioctl_capture_start(struct camera_module *module,
 	if (ch_pre->enable)
 		ret = CAM_PIPEINE_DCAM_ONLINE_NODE_CFG(ch_pre, CAM_PIPELINE_CFG_CAP_PARAM, &cap_param);
 
-	pr_info("cam %d start capture U_type %d, scene %d, cnt %d, time %lld, capture num:%d\n",
+	pr_info("cam %d start capture U_type %d, scene %d, cnt %d, time %lld, capture num:%d, opt_frame_fid %d\n",
 		module->idx, param.type, module->capture_scene, param.cap_cnt,
-		module->capture_times, module->capture_frames_dcam);
+		module->capture_times, module->capture_frames_dcam, param.opt_frame_fid);
 
 exit:
 	return ret;
@@ -1872,6 +1914,12 @@ static int camioctl_capture_stop(struct camera_module *module,
 
 	module->capture_scene = CAPTURE_COMMON;
 	module->is_flash_status = 0;
+
+	if (module->cam_uinfo.zsl_num) {
+		cap_param.cap_opt_frame_scene = 0;
+		module->opt_frame_fid = 0;
+		CAM_PIPEINE_FRAME_CACHE_NODE_CFG(ch, CAM_PIPELINE_GET_CAP_FRAME, &module->opt_frame_fid);
+	}
 
 	cap_param.cap_type = module->capture_type;
 	cap_param.cap_scene = module->capture_scene;

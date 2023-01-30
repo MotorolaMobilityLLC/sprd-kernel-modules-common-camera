@@ -52,7 +52,10 @@ static struct camera_frame *framecache_capframe_get(struct frame_cache_node *nod
 	pframe->priv_data = node;
 	cam_queue_enqueue(&node->cache_buf_queue, &pframe->list);
 	if (node->cache_buf_queue.cnt > node->cache_real_num && node->cache_real_num) {
-		pframe = cam_queue_dequeue(&node->cache_buf_queue, struct camera_frame, list);
+		if (node->pre_raw_flag)
+			pframe = cam_queue_del_tail(&node->cache_buf_queue, struct camera_frame, list);
+		else
+			pframe = cam_queue_dequeue(&node->cache_buf_queue, struct camera_frame, list);
 		node->data_cb_func(CAM_CB_FRAME_CACHE_RET_SRC_BUF, pframe, node->data_cb_handle);
 	}
 
@@ -60,10 +63,30 @@ static struct camera_frame *framecache_capframe_get(struct frame_cache_node *nod
 		pftmp = cam_queue_dequeue(&node->cache_buf_queue, struct camera_frame, list);
 		if (!pftmp)
 			return NULL;
-		if (pftmp->boot_sensor_time < node->cap_param.cap_timestamp) {
-			node->data_cb_func(CAM_CB_FRAME_CACHE_RET_SRC_BUF, pftmp, node->data_cb_handle);
+		if (node->opt_frame_fid) {
+			if (node->pre_raw_flag == PRE_RAW_CACHE) {
+				node->data_cb_func(CAM_CB_FRAME_CACHE_RET_SRC_BUF, pftmp, node->data_cb_handle);
+				return 0;
+			}
+			if (node->opt_frame_fid != pftmp->fid) {
+				if (atomic_read(&node->opt_frame_done) == 0 && node->opt_frame_fid < pftmp->fid) {
+					node->pre_raw_flag = PRE_RAW_CACHE;
+					atomic_set(&node->opt_frame_done, 1);
+					node->cap_frame_status(node->pre_raw_flag, node->dual_sync_cb_data);
+					break;
+				} else
+					node->data_cb_func(CAM_CB_FRAME_CACHE_RET_SRC_BUF, pftmp, node->data_cb_handle);
+			} else {
+				node->pre_raw_flag = PRE_RAW_CACHE;
+				node->cap_frame_status(node->pre_raw_flag, node->dual_sync_cb_data);
+				break;
+			}
 		} else {
-			break;
+			if (pftmp->boot_sensor_time < node->cap_param.cap_timestamp) {
+				node->data_cb_func(CAM_CB_FRAME_CACHE_RET_SRC_BUF, pftmp, node->data_cb_handle);
+			} else {
+				break;
+			}
 		}
 	} while (pftmp);
 
@@ -78,6 +101,10 @@ static int framecache_normal_proc(struct frame_cache_node *node,
 	pr_debug("frame id %d cache_skip_num %d cache_num %d buf cnt %d\n", pframe->fid,
 			node->cache_skip_num, node->cache_real_num, node->cache_buf_queue.cnt);
 	if (node->cap_param.cap_type == DCAM_CAPTURE_STOP) {
+		if (node->pre_raw_flag == PRE_RAW_DEAL) {
+			node->data_cb_func(CAM_CB_FRAME_CACHE_RET_SRC_BUF, pframe, node->data_cb_handle);
+			return 0;
+		}
 		if (node->cur_cache_skip_num == node->cache_skip_num) {
 			if (node->cur_cache_skip_num)
 				node->cur_cache_skip_num --;
@@ -147,6 +174,43 @@ static int framecache_dual_sync_proc(struct frame_cache_node *node,
 		pframe = cam_queue_dequeue(&node->cache_buf_queue, struct camera_frame, list);
 		node->data_cb_func(CAM_CB_FRAME_CACHE_RET_SRC_BUF, pframe, node->data_cb_handle);
 	}
+
+	return ret;
+}
+
+int frame_cache_node_set_pre_raw_flag(void *handle, void *param)
+{
+	int ret = 0;
+	struct frame_cache_node *node = NULL;
+	uint32_t flag = 0;
+
+	if (!handle || !param) {
+		pr_err("fail to get valid inptr %p, %p\n", handle, param);
+		return -EFAULT;
+	}
+
+	flag = *(uint32_t *)param;
+	node = (struct frame_cache_node *)handle;
+	node->pre_raw_flag = flag;
+
+	return ret;
+}
+
+int frame_cache_node_get_cap_frame(void *handle, void *param)
+{
+	int ret = 0;
+	struct frame_cache_node *node = NULL;
+	uint32_t opt_frame_fid = 0;
+
+	if (!handle || !param) {
+		pr_err("fail to get valid inptr %p, %p\n", handle, param);
+		return -EFAULT;
+	}
+
+	opt_frame_fid = *(uint32_t *)param;
+	node = (struct frame_cache_node *)handle;
+	node->opt_frame_fid = opt_frame_fid;
+	atomic_set(&node->opt_frame_done, 0);
 
 	return ret;
 }
@@ -278,6 +342,9 @@ void *frame_cache_node_get(uint32_t node_id, struct frame_cache_node_desc *param
 	node->cur_cache_skip_num = param->cache_skip_num;
 	node->is_share_buf = param->is_share_buf;
 	node->need_dual_sync = param->need_dual_sync;
+	node->cap_frame_status = param->cap_frame_status;
+	node->pre_raw_flag = PRE_RAW_CACHE;
+	node->opt_frame_fid = 0;
 	if (node->data_cb_func == NULL) {
 		node->data_cb_func = param->data_cb_func;
 		node->data_cb_handle = param->data_cb_handle;

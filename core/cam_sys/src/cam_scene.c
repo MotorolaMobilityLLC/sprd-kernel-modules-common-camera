@@ -144,6 +144,9 @@ uint32_t cam_scene_dcamonline_buffers_alloc_num(void *channel_ptr, void *module_
 	if (channel->ch_uinfo.is_high_fps)
 		num = channel->ch_uinfo.high_fps_skip_num * 4;
 
+	if (module->cam_uinfo.need_dcam_raw && channel->ch_id == CAM_CH_PRE)
+		num += module->cam_uinfo.opt_buffer_num;
+
 	return num;
 }
 

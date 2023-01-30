@@ -41,7 +41,7 @@ int cam_copy_node_buffer_cfg(void *handle, void *param)
 	struct cam_copy_node *node = NULL;
 	struct camera_frame *pframe = NULL;
 
-	if(!handle || !param) {
+	if (!handle || !param) {
 		pr_err("fail to get valid inptr %p, %p\n", handle, param);
 		return -EFAULT;
 	}
@@ -62,69 +62,147 @@ int cam_copy_node_buffer_cfg(void *handle, void *param)
 	return ret;
 }
 
-static int camcopy_node_frame_start(void *param)
+int cam_copy_node_set_pre_raw_flag(void *handle, void *param)
 {
 	int ret = 0;
+	uint32_t pre_raw_flag = 0;
 	struct cam_copy_node *node = NULL;
+
+	if (!handle || !param) {
+		pr_err("fail to get valid inptr %p, %p\n", handle, param);
+		return -EFAULT;
+	}
+
+	pre_raw_flag = *(uint32_t *)param;
+	node = (struct cam_copy_node *)handle;
+	node->pre_raw_flag = pre_raw_flag;
+	atomic_set(&node->opt_frame_done, 0);
+
+	return ret;
+}
+
+int cam_copy_node_set_opt_scene(void *handle, void *param)
+{
+	int ret = 0;
+	uint32_t opt_buffer_num = 0;
+	struct cam_copy_node *node = NULL;
+
+	if (!handle || !param) {
+		pr_err("fail to get valid inptr %p, %p\n", handle, param);
+		return -EFAULT;
+	}
+
+	opt_buffer_num = *(uint32_t *)param;
+	node = (struct cam_copy_node *)handle;
+	node->copy_flag = COPY_ENABLE;
+	node->opt_buffer_num = opt_buffer_num;
+
+	return ret;
+}
+
+static int camcopy_node_copy_frame(struct cam_copy_node *node, int loop_num)
+{
+	int i = 0, ret = 0;
 	struct camera_frame *pframe = NULL, *raw_frame = NULL;
 
-	node = (struct cam_copy_node *)param;
-	if (!node) {
+	for (i = 0; i < loop_num; i++) {
+		pframe = cam_queue_dequeue(&node->in_queue, struct camera_frame, list);
+		if (pframe == NULL) {
+			pr_err("fail to get input frame for dump node %d\n", node->node_id);
+			goto get_pframe_fail;
+		}
+		raw_frame = cam_queue_dequeue(&node->out_queue, struct camera_frame, list);
+		if (raw_frame == NULL) {
+			pr_debug("raw path no get out frame\n");
+			pframe->copy_en = 0;
+			node->copy_cb_func(CAM_CB_COPY_SRC_BUFFER, pframe, node->copy_cb_handle);
+		} else {
+			pr_debug("start copy src frame data\n");
+			if (pframe->buf.size > raw_frame->buf.size) {
+				pr_err("fail to raw buf is small, frame buf size %d and raw buf size %d\n",
+						pframe->buf.size, raw_frame->buf.size);
+				goto raw_buffer_smaller_fail;
+			}
+			if (cam_buf_kmap(&pframe->buf)) {
+				pr_err("fail to kmap temp buf\n");
+				goto pframe_kmap_fail;
+			}
+			if (cam_buf_kmap(&raw_frame->buf)) {
+				pr_err("fail to kmap raw buf\n");
+				goto raw_frame_kmap_fail;
+			}
+			memcpy((char *)raw_frame->buf.addr_k, (char *)pframe->buf.addr_k, pframe->buf.size);
+			/* use SOF time instead of ISP time for better accuracy */
+			raw_frame->width = pframe->width;
+			raw_frame->height = pframe->height;
+			raw_frame->fid = pframe->fid;
+			raw_frame->sensor_time.tv_sec = pframe->sensor_time.tv_sec;
+			raw_frame->sensor_time.tv_usec = pframe->sensor_time.tv_usec;
+			raw_frame->boot_sensor_time = pframe->boot_sensor_time;
+			/* end copy, out src buf*/
+			cam_buf_kunmap(&pframe->buf);
+			pframe->copy_en = 0;
+			node->copy_cb_func(CAM_CB_COPY_SRC_BUFFER, pframe, node->copy_cb_handle);
+
+			cam_buf_kunmap(&raw_frame->buf);
+			raw_frame->evt = IMG_TX_DONE;
+			raw_frame->irq_type = CAMERA_IRQ_IMG;
+			raw_frame->priv_data = node;
+			raw_frame->channel_id = CAM_CH_RAW;
+			raw_frame->link_to.node_type = CAM_NODE_TYPE_USER;
+			raw_frame->link_to.node_id = CAM_LINK_DEFAULT_NODE_ID;
+			pr_debug("get out raw frame fd 0x%x raw fram fid %d\n", raw_frame->buf.mfd, raw_frame->fid);
+			node->copy_cb_func(CAM_CB_DCAM_DATA_DONE, raw_frame, node->copy_cb_handle);
+		}
+	}
+
+	return ret;
+
+raw_frame_kmap_fail:
+	cam_buf_kunmap(&pframe->buf);
+pframe_kmap_fail:
+raw_buffer_smaller_fail:
+	pframe->copy_en = 0;
+	node->copy_cb_func(CAM_CB_COPY_SRC_BUFFER, pframe, node->copy_cb_handle);
+	cam_queue_enqueue(&node->out_queue, &raw_frame->list);
+get_pframe_fail:
+
+	return -EFAULT;
+}
+
+static int camcopy_node_frame_start(void *param)
+{
+	int ret = 0, loop_num = 1;
+	struct cam_copy_node *node = NULL;
+	struct camera_frame *pframe = NULL;
+
+	if (!param) {
 		pr_err("fail to get valid param\n");
 		return -EFAULT;
 	}
+	node = (struct cam_copy_node *)param;
 
-	pframe = cam_queue_dequeue(&node->in_queue, struct camera_frame, list);
-	if (pframe == NULL) {
-		pr_err("fail to get input frame for dump node %d\n", node->node_id);
-		return -EFAULT;
-	}
-	raw_frame = cam_queue_dequeue(&node->out_queue, struct camera_frame, list);
-	if (raw_frame == NULL) {
-		pr_debug("raw path no get out queue\n");
-		pframe->copy_en = 0;
-		node->copy_cb_func(CAM_CB_COPY_SRC_BUFFER, pframe, node->copy_cb_handle);
-	} else {
-		pr_debug("start copy src queue data\n");
-		if (pframe->buf.size > raw_frame->buf.size) {
-			pr_err("fail to raw buff is small, frame buf size %d and raw buf size %d\n",
-				pframe->buf.size, raw_frame->buf.size);
+	if (node->record_channel_id == CAM_CH_PRE && node->opt_buffer_num) {
+		if (node->pre_raw_flag == PRE_RAW_CACHE) {
+			if (node->in_queue.cnt > node->opt_buffer_num) {
+				pframe = cam_queue_dequeue(&node->in_queue, struct camera_frame, list);
+				pframe->copy_en = 0;
+				ret = node->copy_cb_func(CAM_CB_COPY_SRC_BUFFER, pframe, node->copy_cb_handle);
+			}
+			return ret;
+		} else if (atomic_read(&node->opt_frame_done) == 0 && node->pre_raw_flag == PRE_RAW_DEAL) {
+			if (node->in_queue.cnt < node->opt_buffer_num)
+				return ret;
+			atomic_set(&node->opt_frame_done, 1);
+			loop_num = node->opt_buffer_num;
+		} else {
+			pframe = cam_queue_del_tail(&node->in_queue, struct camera_frame, list);
 			pframe->copy_en = 0;
-			node->copy_cb_func(CAM_CB_COPY_SRC_BUFFER, pframe, node->copy_cb_handle);
-			return -EFAULT;
+			ret = node->copy_cb_func(CAM_CB_COPY_SRC_BUFFER, pframe, node->copy_cb_handle);
+			return ret;
 		}
-		if (cam_buf_kmap(&pframe->buf)) {
-			pr_err("fail to kmap temp buf\n");
-			return -EFAULT;
-		}
-		if (cam_buf_kmap(&raw_frame->buf)) {
-			cam_buf_kunmap(&pframe->buf);
-			pr_err("fail to kmap raw buf\n");
-			return -EFAULT;
-		}
-		memcpy((char *)raw_frame->buf.addr_k, (char *)pframe->buf.addr_k, pframe->buf.size);
-		/* use SOF time instead of ISP time for better accuracy */
-		raw_frame->width = pframe->width;
-		raw_frame->height = pframe->height;
-		raw_frame->fid = pframe->fid;
-		raw_frame->sensor_time.tv_sec = pframe->sensor_time.tv_sec;
-		raw_frame->sensor_time.tv_usec = pframe->sensor_time.tv_usec;
-		raw_frame->boot_sensor_time = pframe->boot_sensor_time;
-		/* end copy, out src buf*/
-		cam_buf_kunmap(&pframe->buf);
-		pframe->copy_en = 0;
-		node->copy_cb_func(CAM_CB_COPY_SRC_BUFFER, pframe, node->copy_cb_handle);
-
-		cam_buf_kunmap(&raw_frame->buf);
-		raw_frame->evt = IMG_TX_DONE;
-		raw_frame->irq_type = CAMERA_IRQ_IMG;
-		raw_frame->priv_data = node;
-		raw_frame->channel_id = CAM_CH_RAW;
-		raw_frame->link_to.node_type = CAM_NODE_TYPE_USER;
-		raw_frame->link_to.node_id = CAM_LINK_DEFAULT_NODE_ID;
-		pr_debug("get out raw frame fd 0x%x raw fram fid %d\n", raw_frame->buf.mfd, raw_frame->fid);
-		node->copy_cb_func(CAM_CB_DCAM_DATA_DONE, raw_frame, node->copy_cb_handle);
 	}
+	ret = camcopy_node_copy_frame(node, loop_num);
 
 	return ret;
 }
@@ -154,6 +232,7 @@ int cam_copy_node_request_proc(struct cam_copy_node *node, void *param)
 				cam_pipeline_name_get(pipeline->pipeline_graph->type), pframe->fid, pframe->channel_id, pframe->buf.mfd,
 				pframe->width, pframe->height, pframe->is_reserved, pframe->is_compressed);
 
+		node->record_channel_id = pframe->channel_id;
 		ret = cam_queue_enqueue(&node->in_queue, &pframe->list);
 		if (ret == 0)
 			complete(&node->thread.thread_com);
@@ -193,6 +272,8 @@ void *cam_copy_node_get(uint32_t node_id, cam_data_cb cb_func, void *priv_data)
 	cam_queue_init(&node->out_queue, COPY_NODE_Q_LEN, camcopy_frame_put);
 	node->node_id = node_id;
 	node->copy_flag = COPY_DISENABLE;
+	node->pre_raw_flag = PRE_RAW_CACHE;
+	node->opt_buffer_num = 0;
 
 	thrd = &node->thread;
 	sprintf(thrd->thread_name, "cam_copy_node%d", node->node_id);

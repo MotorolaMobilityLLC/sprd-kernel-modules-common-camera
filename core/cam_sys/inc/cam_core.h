@@ -140,6 +140,7 @@ struct camera_uinfo {
 	/* for dcam raw*/
 	uint32_t need_dcam_raw;
 	uint32_t virtualsensor;/* 1: virtual sensor 0: normal */
+	uint32_t opt_buffer_num;
 };
 
 struct sprd_img_flash_info {
@@ -238,6 +239,8 @@ struct camera_module {
 
 	struct cam_thread_info zoom_thrd;
 	struct cam_thread_info buf_thrd;
+
+	uint32_t opt_frame_fid;/* mul_frame opt frame fid*/
 
 	struct timer_list cam_timer;
 

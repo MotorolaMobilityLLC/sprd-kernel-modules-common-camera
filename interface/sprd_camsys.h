@@ -548,6 +548,7 @@ struct sprd_img_function_mode {
 	uint32_t param_frame_sync;
 	uint32_t virtualsensor;/* 1: virtual sensor 0: normal */
 	uint32_t master_flag;/* master cam capture flag */
+	uint32_t opt_buffer_num;/* pre raw malloc and cache buffer num */
 };
 #pragma pack(pop)
 
@@ -836,6 +837,7 @@ struct sprd_img_capture_param {
 	uint32_t type;
 	uint32_t cap_cnt;/* frame num for DCAM_CAPTURE_START_FROM_NEXT_SOF */
 	int64_t  timestamp;
+	uint32_t opt_frame_fid;/* optimized frame fid */
 	enum capture_scene cap_scene;
 	uint32_t skip_first_num;
 };
@@ -977,6 +979,7 @@ struct sprd_cfg_param_status {
 #define SPRD_IMG_IO_SET_KEY              _IOW(SPRD_IMG_IO_MAGIC, 82, uint32_t)
 #define SPRD_IMG_IO_SET_960FPS_PARAM     _IOW(SPRD_IMG_IO_MAGIC, 83, struct sprd_slowmotion_960fps_param)
 #define SPRD_IMG_IO_CFG_PARAM_STATUS     _IOW(SPRD_IMG_IO_MAGIC, 84, struct sprd_cfg_param_status)
+#define SPRD_IMG_IO_SET_PRE_RAW_FLAG     _IOW(SPRD_IMG_IO_MAGIC, 85, uint32_t)
 
 /*
  * Dump dcam register.
