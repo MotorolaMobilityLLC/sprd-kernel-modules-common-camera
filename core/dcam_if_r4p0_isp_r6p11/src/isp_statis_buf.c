@@ -171,6 +171,9 @@ int isp_statis_dequeue(struct isp_statis_frm_queue *queue,
 	return 0;
 }
 
+/* statis_kaddr_arry[3A_BLOCK_ID_NUM: 11][STATIS_BUF_NUM: 4] */
+static unsigned long statis_kaddr_arry[11][4];
+
 static void set_buffer_queue(struct isp_queue_param *queue_prm,
 			     uint32_t *offset, uint32_t buf_num)
 {
@@ -197,6 +200,7 @@ static void set_buffer_queue(struct isp_queue_param *queue_prm,
 	frm_statis.buf_property = queue_prm->frm_statis->buf_property;
 	frm_statis.addr_offset = *offset;
 	for (cnt = 0; cnt < buf_num; cnt++) {
+		statis_kaddr_arry[frm_statis.buf_property][cnt] = kaddr;
 		isp_statis_queue_write(queue_prm->statis_queue,
 						&frm_statis);
 		frm_statis.phy_addr += buf_size;
@@ -423,6 +427,16 @@ int sprd_isp_cfg_statis_buf(struct isp_pipe_dev *dev,
 	return ret;
 }
 
+bool is_in_kaddr_list(int buf_property, unsigned long kaddr) {
+	int idx = 0;
+	for (idx = 0; idx < 4; idx++){
+		if(kaddr == statis_kaddr_arry[buf_property][idx])
+			return true;
+	}
+	pr_info("buf_property %d, kaddr[0] 0x%lx has been unmap, skip it\n", buf_property, kaddr);
+	return false;
+}
+
 int sprd_isp_set_statis_addr(struct isp_pipe_dev *dev,
 			     struct dcam_statis_module *dcam_module,
 			     struct isp_statis_buf_input *parm)
@@ -432,6 +446,10 @@ int sprd_isp_set_statis_addr(struct isp_pipe_dev *dev,
 	struct isp_statis_module *module = NULL;
 	struct isp_statis_buf_queue *statis_queue = NULL;
 	int select_device = 0;
+
+	if (!is_in_kaddr_list(parm->buf_property, parm->kaddr[0])){
+		return ret;
+	}
 
 	module = &dev->statis_module_info;
 
