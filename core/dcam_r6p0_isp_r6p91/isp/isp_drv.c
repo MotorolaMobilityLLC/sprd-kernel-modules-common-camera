@@ -53,7 +53,8 @@
 #ifdef pr_fmt
 #undef pr_fmt
 #endif
-#define pr_fmt(fmt) "ISP_DRV %d:" fmt,  __LINE__
+#define pr_fmt(fmt) "ISP_DRV: %d %d %s : " \
+	fmt, current->pid, __LINE__, __func__
 
 #define ISP_TIME_OUT_MAX (500)
 

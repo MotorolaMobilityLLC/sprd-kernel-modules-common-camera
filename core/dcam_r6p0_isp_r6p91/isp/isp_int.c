@@ -25,7 +25,8 @@
 #ifdef pr_fmt
 #undef pr_fmt
 #endif
-#define pr_fmt(fmt) "ISP_INT %d : " fmt, __LINE__
+#define pr_fmt(fmt) "ISP_INT: %d %d %s : " \
+	fmt, current->pid, __LINE__, __func__
 
 
 static isp_isr_func p_user_func[ISP_IMG_MAX];

@@ -46,7 +46,8 @@
 #ifdef pr_fmt
 #undef pr_fmt
 #endif
-#define pr_fmt(fmt) "DCAM_DRV: %d " fmt, __LINE__
+#define pr_fmt(fmt)  "DCAM_DRV: %d %d %s : " \
+	fmt, current->pid, __LINE__, __func__
 
 #define DCAM_LOWEST_ADDR                               0x800
 #define DCAM_ADDR_INVALID(addr)       ((unsigned long)(addr) < DCAM_LOWEST_ADDR)

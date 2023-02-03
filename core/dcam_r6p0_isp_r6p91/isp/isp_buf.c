@@ -16,7 +16,8 @@
 #ifdef pr_fmt
 #undef pr_fmt
 #endif
-#define pr_fmt(fmt) "ISP_BUF: %d : " fmt, __LINE__
+#define pr_fmt(fmt) "ISP_BUF: %d %d %s : " \
+	fmt, current->pid, __LINE__, __func__
 
 #define STATIS_QUEUE_LENGTH		8
 #define ISP_IMG_QUEUE_LEN		8
@@ -380,11 +381,19 @@ int sprd_isp_cfg_statis_buf(struct isp_pipe_dev *dev,
 	return ret;
 }
 
+bool is_dma_buf_map_null(const struct dma_buf_map *map)
+{
+	if (map->is_iomem)
+		return !map->vaddr_iomem;
+	return !map->vaddr;
+}
+
 int sprd_isp_clr_statis_buf(void *isp_pipe_dev_handle)
 {
 	struct isp_pipe_dev *dev = NULL;
 	struct isp_k_block *isp_k_param = NULL;
 	struct isp_statis_module *statis_module_info = NULL;
+	struct pfiommu_info *pfinfo = NULL;
 
 	if (!isp_pipe_dev_handle) {
 		pr_err("%s input handle is NULL\n", __func__);
@@ -425,6 +434,14 @@ int sprd_isp_clr_statis_buf(void *isp_pipe_dev_handle)
 	isp_statis_frm_queue_clear(
 		&statis_module_info->binning_statis_frm_queue);
 	isp_statis_frm_queue_clear(&statis_module_info->hist_statis_frm_queue);
+
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0))
+	pfinfo = &statis_module_info->img_statis_buf.pfinfo;
+	if (sprd_iommu_attach_device(pfinfo->dev) == 0 && !is_dma_buf_map_null(&pfinfo->dmabuf_p[0]->vmap_ptr)) {
+		pr_info("dmabuf unmap kaddr 0x%x", (unsigned int)pfinfo->map.vaddr);
+		sprd_dmabuf_unmap_kernel(pfinfo->dmabuf_p[0], &pfinfo->map);
+	}
+#endif
 
 	pfiommu_free_addr_with_id(&statis_module_info->img_statis_buf.pfinfo,
 				SPRD_IOMMU_EX_CH_WRITE, STATIS_WR_CH_ID);
