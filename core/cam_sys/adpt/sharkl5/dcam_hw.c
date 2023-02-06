@@ -224,6 +224,8 @@ static int dcamhw_axi_reset(void *handle, void *arg)
 	idx = *(uint32_t *)arg;
 	soc = hw->soc_dcam;
 	write_lock(&soc->cam_ahb_lock);
+	for (i = DCAM_ID_0; i <= DCAM_ID_2; i++)
+		DCAM_REG_WR(i, DCAM_CFG, 0);/* disable all path */
 	/* firstly, stop AXI writing. */
 	DCAM_AXIM_MWR(AXIM_CTRL, BIT_24 | BIT_23, (0x3 << 23));
 
@@ -256,7 +258,7 @@ static int dcamhw_axi_reset(void *handle, void *arg)
 	/* the end, enable AXI writing */
 	DCAM_AXIM_MWR(AXIM_CTRL, BIT_24 | BIT_23, (0x0 << 23));
 
-	for(i = DCAM_ID_0; i <= DCAM_ID_2; i++) {
+	for (i = DCAM_ID_0; i <= DCAM_ID_2; i++) {
 		DCAM_REG_MWR(i, DCAM_INT_CLR,
 			DCAMINT_IRQ_LINE_MASK, DCAMINT_IRQ_LINE_MASK);
 		DCAM_REG_MWR(i, DCAM_INT_EN,
