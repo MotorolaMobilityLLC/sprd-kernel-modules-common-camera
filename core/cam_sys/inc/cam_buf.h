@@ -75,7 +75,7 @@ struct camera_buf {
 	uint32_t mfd;
 	struct dma_buf *dmabuf_p;
 	void *ionbuf;/* for iommu map */
-	uint32_t offset[3];
+	unsigned long offset[3];
 	size_t size;
 	unsigned long addr_vir[3];
 	unsigned long addr_k;

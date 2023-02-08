@@ -1896,9 +1896,9 @@ rewait:
 				read_op.parm.frame.sec = pframe.sensor_time.tv_sec;
 				read_op.parm.frame.usec = pframe.sensor_time.tv_usec;
 				read_op.parm.frame.monoboottime = pframe.boot_sensor_time;
-				read_op.parm.frame.yaddr_vir = (uint32_t)pframe.buf.addr_vir[0];
-				read_op.parm.frame.uaddr_vir = (uint32_t)pframe.buf.addr_vir[1];
-				read_op.parm.frame.vaddr_vir = (uint32_t)pframe.buf.addr_vir[2];
+				read_op.parm.frame.yaddr_vir = pframe.buf.addr_vir[0];
+				read_op.parm.frame.uaddr_vir = pframe.buf.addr_vir[1];
+				read_op.parm.frame.vaddr_vir = pframe.buf.addr_vir[2];
 				read_op.parm.frame.mfd = pframe.buf.mfd;
 				read_op.parm.frame.yaddr = pframe.buf.offset[0];
 				read_op.parm.frame.uaddr = pframe.buf.offset[1];

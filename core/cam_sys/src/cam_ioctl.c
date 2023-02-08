@@ -1175,14 +1175,14 @@ static int camioctl_frame_addr_set(struct camera_module *module,
 		if (unlikely(ret))
 			break;
 
-		pr_debug("cam%d ch %d, mfd 0x%x, off 0x%x 0x%x 0x%x, reserved %d user_fid[%d]\n",
+		pr_debug("cam%d ch %d, mfd 0x%x, off 0x%lx 0x%lx 0x%lx, reserved %d user_fid[%d]\n",
 			module->idx, pframe->channel_id, pframe->buf.mfd,
 			pframe->buf.offset[0], pframe->buf.offset[1],
 			pframe->buf.offset[2], is_reserved_buf,
 			pframe->user_fid);
 
 		if (channel_id == CAM_CH_CAP)
-			pr_info("ch %d, mfd 0x%x, off 0x%x 0x%x 0x%x, size 0x%x, reserved %d, buffer_cnt %d, bpc flag:%d\n",
+			pr_info("ch %d, mfd 0x%x, off 0x%lx 0x%lx 0x%lx, size 0x%x, reserved %d, buffer_cnt %d, bpc flag:%d\n",
 				pframe->channel_id, pframe->buf.mfd,
 				pframe->buf.offset[0],pframe->buf.offset[1], pframe->buf.offset[2],
 				(uint32_t)pframe->buf.size, is_reserved_buf, buffer_count, pframe->bpc_raw_flag);
@@ -2140,7 +2140,7 @@ static int camioctl_cam_post_proc(struct camera_module *module,
 		pr_err("fail to start pipeline or cfg dcam out buffer.\n");
 		goto exit;
 	}
-	pr_info("scene %d, frm fd (%d 0x%x), (%d 0x%x), (%d 0x%x)\n",
+	pr_info("scene %d, frm fd (%d 0x%lx), (%d 0x%lx), (%d 0x%lx)\n",
 		scene_mode, pfrm[0]->buf.mfd, pfrm[0]->buf.offset[0],
 		pfrm[1]->buf.mfd, pfrm[1]->buf.offset[0],
 		pfrm[2]->buf.mfd, pfrm[2]->buf.offset[0]);
