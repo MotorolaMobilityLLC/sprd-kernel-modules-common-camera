@@ -47,7 +47,7 @@ struct cam_zoom_desc {
 	struct img_size dcam_dst[ZOOM_PORT_DCAM_MAX];
 	struct img_size isp_src_size;
 	struct img_trim isp_crop[ZOOM_PORT_ISP_MAX];
-	struct img_size dcam_isp[ZOOM_PORT_ISP_MAX];
+	struct img_size isp_dst[ZOOM_PORT_ISP_MAX];
 };
 
 void cam_zoom_diff_trim_get(struct sprd_img_rect *orig,

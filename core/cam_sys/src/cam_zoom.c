@@ -364,7 +364,7 @@ static int camzoom_port_info_cfg(struct cam_zoom_port *zoom_port,
 			|| zoom_port->port_id == PORT_CAP_OUT || zoom_port->port_id == PORT_THUMB_OUT)) {
 			zoom_base->src = param->isp_src_size;
 			zoom_base->crop = param->isp_crop[zoom_port->port_id];
-			zoom_base->dst = param->dcam_isp[zoom_port->port_id];
+			zoom_base->dst = param->isp_dst[zoom_port->port_id];
 			valid = 1;
 			CAM_ZOOM_DEBUG("isp id %d size %d %d trim %d %d %d %d dst %d %d\n",
 				zoom_port->port_id, zoom_base->src.w, zoom_base->src.h,
@@ -754,6 +754,7 @@ int cam_zoom_channel_size_config(
 	int ret = 0;
 	uint32_t need_raw_port = 0, raw_port_id = 0;
 	struct channel_context *ch_vid = NULL;
+	struct channel_context *ch_vir = NULL;
 	struct camera_uchannel *ch_uinfo = NULL;
 	struct cam_hw_info *hw = NULL;
 	struct cam_zoom_desc zoom_info = {0};
@@ -766,6 +767,7 @@ int cam_zoom_channel_size_config(
 
 	ch_uinfo = &channel->ch_uinfo;
 	ch_vid = &module->channel[CAM_CH_VID];
+	ch_vir = &module->channel[CAM_CH_VIRTUAL];
 	hw = module->grp->hw_info;
 
 	raw_port_id = hw->ip_dcam[0]->dcam_raw_path_id;
@@ -799,12 +801,24 @@ int cam_zoom_channel_size_config(
 	}
 	zoom_info.isp_src_size = channel->dst_dcam;
 	if (IS_VALID_ISP_IMG_PORT(channel->isp_port_id)) {
-		zoom_info.dcam_isp[channel->isp_port_id] = channel->ch_uinfo.dst_size;
+		zoom_info.isp_dst[channel->isp_port_id] = channel->ch_uinfo.dst_size;
 		zoom_info.isp_crop[channel->isp_port_id] = channel->trim_isp;
 	}
 	if (ch_vid->enable) {
 		zoom_info.isp_crop[PORT_VID_OUT] = ch_vid->trim_isp;
-		zoom_info.dcam_isp[PORT_VID_OUT] = ch_vid->ch_uinfo.dst_size;
+		zoom_info.isp_dst[PORT_VID_OUT] = ch_vid->ch_uinfo.dst_size;
+	}
+	if (ch_vir->enable && channel->ch_id == CAM_CH_PRE) {
+		zoom_info.isp_crop[PORT_VID_OUT].size_x = ch_vir->ch_uinfo.vir_channel[0].dst_size.w;
+		zoom_info.isp_crop[PORT_VID_OUT].size_y = ch_vir->ch_uinfo.vir_channel[0].dst_size.h;
+		zoom_info.isp_dst[PORT_VID_OUT].h = ch_vir->ch_uinfo.vir_channel[0].dst_size.h;
+		zoom_info.isp_dst[PORT_VID_OUT].w = ch_vir->ch_uinfo.vir_channel[0].dst_size.w;
+	}
+	if (ch_vir->enable && channel->ch_id == CAM_CH_CAP) {
+		zoom_info.isp_crop[PORT_VID_OUT].size_x = ch_vir->ch_uinfo.vir_channel[1].dst_size.w;
+		zoom_info.isp_crop[PORT_VID_OUT].size_y = ch_vir->ch_uinfo.vir_channel[1].dst_size.h;
+		zoom_info.isp_dst[PORT_VID_OUT].h = ch_vir->ch_uinfo.vir_channel[1].dst_size.h;
+		zoom_info.isp_dst[PORT_VID_OUT].w = ch_vir->ch_uinfo.vir_channel[1].dst_size.w;
 	}
 	ret = cam_zoom_param_set(&zoom_info);
 
