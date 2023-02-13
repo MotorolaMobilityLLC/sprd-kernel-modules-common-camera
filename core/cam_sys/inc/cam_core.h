@@ -65,6 +65,12 @@ enum camera_recovery_state {
 	CAM_RECOVERY_MAX,
 };
 
+enum camera_raw_scene {
+	CAM_SENSOR_RAW = 0,
+	CAM_DCAM_RAW,
+	CAM_SCENE_RAW_MAX,
+};
+
 /* Static Variables Declaration */
 static uint32_t output_img_fmt[] = {
 	/* CAM_YUV420_2FRAME */
@@ -269,6 +275,7 @@ struct camera_module {
 	struct sprd_img_flash_info flash_info;
 	uint32_t flash_skip_fid;
 	enum dcam_path_state path_state;
+	enum en_status icap_scene;
 
 	enum en_status raw_callback;
 	struct mutex zoom_lock;

@@ -1106,6 +1106,8 @@ int dcam_online_port_buffer_cfg(void *handle, void *param)
 	pframe = (struct cam_frame *)param;
 
 	buf_desc.buf_ops_cmd = CAM_BUF_STATUS_GET_IOVA;
+	if (pframe->common.buf.type== CAM_BUF_USER)
+		buf_desc.buf_ops_cmd = CAM_BUF_STATUS_MOVE_TO_ION;
 	buf_desc.mmu_type = CAM_BUF_IOMMUDEV_DCAM;
 	pframe->common.is_reserved = 0;
 	pframe->common.not_use_isp_reserved_buf = 0;

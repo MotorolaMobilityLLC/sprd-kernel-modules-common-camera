@@ -503,6 +503,8 @@ void *cam_port_creat(struct cam_port_desc *param, uint32_t node_id)
 		param->pyr_dec->buf_manager_handle = param->buf_manager_handle;
 		port->handle = pyr_dec_port_get(port->port_graph->id, param->pyr_dec);
 		break;
+	case CAM_NODE_TYPE_DATA_COPY:
+		break;
 	default:
 		pr_err("fail to support node type %s port id %d\n",
 			cam_node_name_get(port->port_graph->node_type), port->port_graph->id);

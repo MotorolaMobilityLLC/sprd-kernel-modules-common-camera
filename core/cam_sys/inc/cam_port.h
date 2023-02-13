@@ -140,6 +140,21 @@ enum cam_port_dec_out_id {
 	PORT_DEC_OUT_MAX,
 };
 
+enum cam_port_copy_in_id {
+	PORT_COPY_IN,
+	PORT_COPY_IN_MAX,
+};
+
+enum cam_port_copy_out_id {
+	PORT_COPY_OUT,
+	PORT_COPY_OUT_MAX,
+};
+
+enum cam_port_user_in_id {
+	PORT_USER_IN,
+	PORT_USER_IN_MAX,
+};
+
 enum cam_port_buf_type {
 	PORT_BUFFER_NORMAL,
 	PORT_BUFFER_RESERVED,
@@ -157,6 +172,7 @@ enum cam_port_cfg_cmd {
 	PORT_CFG_UFRAME_SET,
 	PORT_CFG_RESBUF_SET,
 	PORT_CFG_BUFFER_CLR,
+	PORT_CFG_FMT_SET,
 	PORT_CFG_PARAM_MAX,
 };
 
@@ -197,6 +213,7 @@ struct cam_port_topology {
 	enum en_status copy_en;
 	uint32_t copy_node_id;
 	enum en_status dynamic_link_en;
+	enum en_status to_user_en;
 	enum export_type depend_type;
 	struct cam_port_linkage link;
 	struct cam_port_linkage switch_link;

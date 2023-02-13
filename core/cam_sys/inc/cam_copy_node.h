@@ -25,18 +25,28 @@ enum cam_copy_node_id {
 	CAM_COPY_NODE_ID_MAX,
 };
 
+enum cam_copy_scene {
+	CAM_COPY_NORMAL_SCENE,
+	CAM_COPY_OPT_SCENE,
+	CAM_COPY_ICAP_SCENE,
+	CAM_COPY_MAX_SCENE,
+};
+
 struct cam_copy_node {
 	uint32_t node_id;
 	enum en_status copy_flag;
+	enum cam_copy_scene scene_id;
 	enum pre_raw_status pre_raw_flag;
 	uint32_t opt_buffer_num;
 	atomic_t opt_frame_done;
 	uint32_t record_channel_id;
 	void *copy_cb_handle;
 	cam_data_cb copy_cb_func;
+	uint32_t cache_num;
 	struct camera_queue in_queue;
 	struct camera_queue out_queue;
 	struct cam_thread_info thread;
+	struct cam_capture_param cap_param;
 };
 
 int cam_copy_node_request_proc(struct cam_copy_node *node, void *param);
@@ -45,5 +55,9 @@ void cam_copy_node_put(struct cam_copy_node *node);
 int cam_copy_node_buffer_cfg(void *handle, void *param);
 int cam_copy_node_set_pre_raw_flag(void *handle, void *param);
 int cam_copy_node_set_opt_scene(void *handle, void *param);
+int cam_copy_node_set_icap_scene(void *handle, void *param);
+int cam_copy_node_buffers_alloc(void *handle, struct cam_buf_alloc_desc *param);
+int cam_copy_outbuf_back(void *handle, void *param);
+int cam_copy_cfg_param(void *handle, void *param);
 
 #endif

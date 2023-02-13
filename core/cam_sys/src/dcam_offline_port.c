@@ -297,6 +297,8 @@ int dcam_offline_port_param_cfg(void *handle, enum cam_port_cfg_cmd cmd, void *p
 	case PORT_CFG_BUFFER_SET:
 		pframe = (struct cam_frame *)param;
 		buf_desc.buf_ops_cmd = CAM_BUF_STATUS_GET_IOVA;
+		if (pframe->common.buf.type== CAM_BUF_USER)
+			buf_desc.buf_ops_cmd = CAM_BUF_STATUS_MOVE_TO_ION;
 		buf_desc.mmu_type = CAM_BUF_IOMMUDEV_DCAM;
 		pframe->common.priv_data = dcam_port;
 		ret = cam_buf_manager_buf_enqueue(&dcam_port->unprocess_pool, pframe, &buf_desc, dcam_port->buf_manager_handle);
@@ -319,6 +321,9 @@ int dcam_offline_port_param_cfg(void *handle, enum cam_port_cfg_cmd cmd, void *p
 		break;
 	case PORT_CFG_BUFFER_CLR:
 		ret = dcamoffline_port_bufq_clr(dcam_port, param);
+		break;
+	case PORT_CFG_FMT_SET:
+		dcam_port->out_fmt = *(uint32_t *)param;
 		break;
 	default:
 		pr_err("fail to support port cfg cmd %d\n", cmd);
@@ -361,8 +366,8 @@ int dcam_offline_port_buf_alloc(void *handle, struct cam_buf_alloc_desc *param)
 	size = ALIGN(size, CAM_BUF_ALIGN_SIZE);
 
 	total = param->dcamoffline_buf_alloc_num;
-	pr_info("ch %d alloc shared buffer size: %u (w %u h %u), num %d\n",
-		param->ch_id, size, width, height, total);
+	pr_info("ch %d alloc shared buffer size: %u (w %u h %u), fmt %s, num %d\n",
+		param->ch_id, size, width, height, camport_fmt_name_get(port->out_fmt), total);
 
 	for (i = 0; i < total; i++) {
 		do {

@@ -24,10 +24,6 @@
 #define pr_fmt(fmt) "LSC: %d %d %s : " fmt, current->pid, __LINE__, __func__
 
 #define LENS_LOAD_TIMEOUT 1000
-enum {
-	_UPDATE_INFO = BIT(0),
-	_UPDATE_GAIN = BIT(1),
-};
 
 int dcam_init_lsc_slice(void *in, uint32_t online)
 {
@@ -59,11 +55,6 @@ int dcam_init_lsc(void *in, uint32_t online)
 	copyarg.id = DCAM_CTRL_BIN;
 	copyarg.idx = hw_ctx->hw_ctx_id;
 	copyarg.glb_reg_lock = hw_ctx->glb_reg_lock;
-	if (!param->update) {
-		/* need, because other block need coef */
-		hw->dcam_ioctl(hw, DCAM_HW_CFG_FORCE_COPY, &copyarg);
-		return 0;
-	}
 
 	idx = hw_ctx->hw_ctx_id;
 	if (idx == DCAM_ID_1 && (blk_dcam_pm->raw_fetch_count == 1)) {
@@ -72,7 +63,6 @@ int dcam_init_lsc(void *in, uint32_t online)
 	}
 
 	info = &param->lens_info;
-	param->update = 0;
 
 	/* debugfs bypass, not return, need force copy */
 	if (idx == DCAM_HW_CONTEXT_MAX || g_dcam_bypass[idx] & (1 << _E_LSC))
@@ -184,7 +174,6 @@ int dcam_update_lsc(void *in)
 {
 	int ret = 0;
 	uint32_t idx, i = 0;
-	uint32_t update;
 	uint32_t dst_w_num = 0;
 	uint32_t val, lens_load_flag;
 	uint32_t buf_sel, offset, hw_addr;
@@ -202,13 +191,9 @@ int dcam_update_lsc(void *in)
 	hw = dev->hw;
 	param = &blk_dcam_pm->lsc;
 	hw_ctx = &dev->hw_ctx[blk_dcam_pm->idx];
-	if (!param->update)
-		return 0;
 
 	idx = hw_ctx->hw_ctx_id;
 	info = &param->lens_info;
-	update = param->update;
-	param->update = 0;
 	if (idx == DCAM_HW_CONTEXT_MAX || g_dcam_bypass[idx] & (1 << _E_LSC))
 		return 0;
 	if (info->bypass) {
@@ -228,20 +213,18 @@ int dcam_update_lsc(void *in)
 	}
 
 	/* step1:  load weight tab */
-	if (update & _UPDATE_INFO) {
-		dst_w_num = (info->grid_width >> 1) + 1;
-		offset = LSC_WEI_TABLE_START;
-		for (i = 0; i < dst_w_num; i++) {
-			val = (((uint32_t)w_buff[i * 3 + 0]) & 0xFFFF) |
-				((((uint32_t)w_buff[i * 3 + 1]) & 0xFFFF) << 16);
-			DCAM_REG_WR(idx, offset, val);
-			offset += 4;
-			val = (((uint32_t)w_buff[i * 3 + 2]) & 0xFFFF);
-			DCAM_REG_WR(idx, offset, val);
-			offset += 4;
-		}
-		pr_debug("update weight tab done\n");
+	dst_w_num = (info->grid_width >> 1) + 1;
+	offset = LSC_WEI_TABLE_START;
+	for (i = 0; i < dst_w_num; i++) {
+		val = (((uint32_t)w_buff[i * 3 + 0]) & 0xFFFF) |
+			((((uint32_t)w_buff[i * 3 + 1]) & 0xFFFF) << 16);
+		DCAM_REG_WR(idx, offset, val);
+		offset += 4;
+		val = (((uint32_t)w_buff[i * 3 + 2]) & 0xFFFF);
+		DCAM_REG_WR(idx, offset, val);
+		offset += 4;
 	}
+	pr_debug("update weight tab done\n");
 
 	/* step2: load grid table */
 	DCAM_REG_WR(idx, DCAM_LENS_BASE_RADDR, hw_addr);
@@ -254,14 +237,12 @@ int dcam_update_lsc(void *in)
 	DCAM_REG_MWR(idx, DCAM_LENS_LOAD_ENABLE, BIT_0, 0);
 
 	/* step3: config grid x y */
-	if (update & _UPDATE_INFO) {
-		val = ((info->grid_width & 0x1ff) << 16) |
-				((info->grid_y_num & 0xff) << 8) |
-				(info->grid_x_num & 0xff);
-		DCAM_REG_WR(idx, DCAM_LENS_GRID_SIZE, val);
-		pr_debug("update grid %d x %d y %d\n", info->grid_width,
-				info->grid_x_num, info->grid_y_num);
-	}
+	val = ((info->grid_width & 0x1ff) << 16) |
+			((info->grid_y_num & 0xff) << 8) |
+			(info->grid_x_num & 0xff);
+	DCAM_REG_WR(idx, DCAM_LENS_GRID_SIZE, val);
+	pr_debug("update grid %d x %d y %d\n", info->grid_width,
+			info->grid_x_num, info->grid_y_num);
 
 	/* step 4:  polling lens_load_flag done. */
 	i = 0;
@@ -315,16 +296,14 @@ int dcam_k_lsc_block(struct dcam_isp_k_block *p)
 		goto exit;
 	}
 
-	if (param->update & _UPDATE_INFO) {
-		w_buff = (uint16_t *)param->weight_tab;
-		wtab_uaddr = (unsigned long)info->weight_tab_addr;
-		ret = copy_from_user((void *)w_buff,
-				(void __user *)wtab_uaddr, info->weight_num);
-		if (ret != 0) {
-			pr_err("fail to copy from user, ret = %d\n", ret);
-			ret = -EPERM;
-			goto exit;
-		}
+	w_buff = (uint16_t *)param->weight_tab;
+	wtab_uaddr = (unsigned long)info->weight_tab_addr;
+	ret = copy_from_user((void *)w_buff,
+			(void __user *)wtab_uaddr, info->weight_num);
+	if (ret != 0) {
+		pr_err("fail to copy from user, ret = %d\n", ret);
+		ret = -EPERM;
+		goto exit;
 	}
 
 	gain_tab = (uint16_t *)param->buf.addr_k;
@@ -350,8 +329,6 @@ exit:
 int dcam_k_cfg_lsc(struct isp_io_param *param, struct dcam_isp_k_block *p)
 {
 	int ret = 0;
-	uint32_t bit_update = _UPDATE_GAIN;
-	struct dcam_dev_lsc_info __user *p_ulsc;
 
 	switch (param->property) {
 	case DCAM_PRO_LSC_BLOCK:
@@ -369,15 +346,9 @@ int dcam_k_cfg_lsc(struct isp_io_param *param, struct dcam_isp_k_block *p)
 		pr_err("fail to copy from user. ret %d\n", ret);
 		return ret;
 	}
-	pr_debug("update all %d\n", p->lsc.lens_info.update_all);
-	if (p->lsc.lens_info.update_all)
-		bit_update |= _UPDATE_INFO;
-	p->lsc.update |= bit_update;
-	ret = dcam_k_lsc_block(p);
+	pr_debug("update all\n");
 
-	p->lsc.lens_info.update_all = 0;
-	p_ulsc = (struct dcam_dev_lsc_info __user *)param->property_param;
-	put_user(p->lsc.lens_info.update_all, &p_ulsc->update_all);
+	ret = dcam_k_lsc_block(p);
 
 	return ret;
 }

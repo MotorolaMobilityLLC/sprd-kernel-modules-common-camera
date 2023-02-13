@@ -28,6 +28,7 @@
 #define DCAM_OFFLINE_NODE_NUM     4
 #define ISP_OFFLINE_NODE_NUM      8
 #define IS_CAM_NODE(type) ((type) >= CAM_NODE_TYPE_DCAM_ONLINE && (type) < CAM_NODE_TYPE_MAX)
+#define IS_VALID_PORT_ID(id) (id < CAM_NODE_PORT_OUT_NUM)
 
 static const char *CAM_NODE_NAMES[CAM_NODE_TYPE_MAX] = {
 	[CAM_NODE_TYPE_DCAM_ONLINE] = "CAM_NODE_TYPE_DCAM_ONLINE",
@@ -425,6 +426,9 @@ static int camnode_cfg_node_param_dcam_offline(void *handle, enum cam_node_cfg_c
 	case CAM_NODE_CFG_BUF:
 		ret = node->ops.cfg_port_param(node, PORT_CFG_BUFFER_SET, param);
 		break;
+	case CAM_NODE_CFG_FMT:
+		ret = node->ops.cfg_port_param(node, PORT_CFG_FMT_SET, param);
+		break;
 	case CAM_NODE_CFG_BLK_PARAM:
 		ret = dcam_offline_node_blk_param_set(node->handle, in_param->param);
 		break;
@@ -643,6 +647,9 @@ static int camnode_cfg_node_param_isp_offline(void *handle, enum cam_node_cfg_cm
 	case CAM_NODE_CFG_BUF_CLR:
 		ret = node->ops.cfg_port_param(node, PORT_CFG_BUFFER_CLR, param);
 		break;
+	case CAM_NODE_CFG_FMT:
+		ret = node->ops.cfg_port_param(node, PORT_CFG_FMT_SET, param);
+		break;
 	case CAM_NODE_CFG_BASE:
 		ret = node->ops.cfg_port_param(node, PORT_CFG_BASE_SET, param);
 		break;
@@ -833,6 +840,7 @@ static int camnode_cfg_node_param_copy(void *handle, enum cam_node_cfg_cmd cmd, 
 	int ret = 0;
 	struct cam_node *node = NULL;
 	struct cam_node_cfg_param *in_param = NULL;
+	struct cam_capture_param *cap_param = NULL;
 
 	if (!handle || !param) {
 		pr_err("fail to get valid input ptr %px %px\n", handle, param);
@@ -850,6 +858,27 @@ static int camnode_cfg_node_param_copy(void *handle, enum cam_node_cfg_cmd cmd, 
 		break;
 	case CAM_NODE_CFG_OPT_SCENE_SWITCH:
 		ret = cam_copy_node_set_opt_scene(node->handle, in_param->param);
+		break;
+	case CAM_NODE_CFG_ICAP_SCENE_SWITCH:
+		ret = cam_copy_node_set_icap_scene(node->handle, in_param->param);
+		break;
+	case CAM_NODE_CFG_CAP_PARAM:
+		cap_param = (struct cam_capture_param *)in_param->param;
+		node->cap_param.cap_type = cap_param->cap_type;
+		node->cap_param.cap_cnt = cap_param->cap_cnt;
+		node->cap_param.cap_timestamp = cap_param->cap_timestamp;
+		node->cap_param.cap_scene = cap_param->cap_scene;
+		node->cap_param.cap_user_crop = cap_param->cap_user_crop;
+		node->cap_param.need_skip_scene = cap_param->need_skip_scene;
+		node->cap_param.skip_first_num = cap_param->skip_first_num;
+		node->cap_param.cap_opt_frame_scene = cap_param->cap_opt_frame_scene;
+		pr_info("node: %s id %d cap K_type %d, scene %d, cnt %d, skip first_frame %d time %lld, opt_scene %d\n",
+			cam_node_name_get(node->node_graph->type), node->node_graph->id, node->cap_param.cap_type,
+			node->cap_param.cap_scene, atomic_read(&node->cap_param.cap_cnt),
+			node->cap_param.skip_first_num, node->cap_param.cap_timestamp,  node->cap_param.cap_opt_frame_scene);
+		ret = cam_copy_cfg_param(node->handle, in_param->param);
+		break;
+	case CAM_NODE_CFG_INSERT_PORT:
 		break;
 	default:
 		pr_err("fail to support node: %s cmd: %d\n", cam_node_name_get(node->node_graph->type), cmd);
@@ -1066,10 +1095,8 @@ static int camnode_outbuf_back(void *handle, void *in_param)
 
 	node = (struct cam_node *)handle;
 	node_param = (struct cam_node_cfg_param *)in_param;
-	pr_debug("node type %s\n", cam_node_name_get(node->node_graph->type));
 	switch (node->node_graph->type) {
 	case CAM_NODE_TYPE_DCAM_ONLINE:
-	case CAM_NODE_TYPE_DATA_COPY:
 		ret = node->ops.cfg_port_param(node, PORT_CFG_BUFFER_SET, node_param);
 		break;
 	case CAM_NODE_TYPE_DCAM_OFFLINE:
@@ -1086,6 +1113,9 @@ static int camnode_outbuf_back(void *handle, void *in_param)
 		break;
 	case CAM_NODE_TYPE_PYR_DEC:
 		ret = node->ops.cfg_port_param(node, PORT_CFG_BUFFER_SET, node_param);
+		break;
+	case CAM_NODE_TYPE_DATA_COPY:
+		ret = cam_copy_outbuf_back(node->handle, node_param->param);
 		break;
 	default:
 		pr_err("fail to support node type %s\n", cam_node_name_get(node->node_graph->type));
@@ -1115,7 +1145,7 @@ static int camnode_zoom_callback(void *priv_data, void *param)
 static int camnode_data_callback(enum cam_cb_type type, void *param, void *priv_data)
 {
 	int ret = 0;
-	uint32_t cur_port_id = 0;
+	uint32_t cur_port_id = 0, cur_to_port_id = 0;
 	struct cam_node *node = NULL;
 	struct cam_frame *pframe = NULL;
 
@@ -1131,17 +1161,17 @@ static int camnode_data_callback(enum cam_cb_type type, void *param, void *priv_
 
 	pframe = (struct cam_frame *)param;
 	cur_port_id = pframe->common.link_from.port_id;
-	if (cur_port_id >= CAM_NODE_PORT_OUT_NUM) {
-		pr_err("fail to get valid cur port id %d\n", cur_port_id);
-		return -EFAULT;
-	}
-
+	cur_to_port_id = pframe->common.link_to.port_id;
 	switch (type) {
 	case CAM_CB_DCAM_DATA_DONE:
 	case CAM_CB_ISP_RET_PYR_DEC_BUF:
 	case CAM_CB_FRAME_CACHE_DATA_DONE:
 	case CAM_CB_YUV_SCALER_DATA_DONE:
 		camnode_frame_flag_update(node, pframe);
+		if (!IS_VALID_PORT_ID(cur_port_id)) {
+			pr_err("fail to get valid cur port id %d\n", cur_port_id);
+			return -EFAULT;
+		}
 		if (node->node_graph->outport[cur_port_id].link_state == PORT_LINK_NORMAL) {
 			pframe->common.link_to = node->node_graph->outport[cur_port_id].link;
 			if (node->node_graph->outport[cur_port_id].dynamic_link_en)
@@ -1157,6 +1187,10 @@ static int camnode_data_callback(enum cam_cb_type type, void *param, void *priv_
 		}
 		break;
 	case CAM_CB_DCAM_STATIS_DONE:
+		if (!IS_VALID_PORT_ID(cur_port_id)) {
+			pr_err("fail to get valid cur port id %d\n", cur_port_id);
+			return -EFAULT;
+		}
 		if (node->node_graph->outport[cur_port_id].dump_en) {
 			pframe->common.dump_en = ENABLE;
 			pframe->common.dump_node_id = node->node_graph->outport[cur_port_id].dump_node_id;
@@ -1167,11 +1201,20 @@ static int camnode_data_callback(enum cam_cb_type type, void *param, void *priv_
 	case CAM_CB_FRAME_CACHE_RET_SRC_BUF:
 	case CAM_CB_PYRDEC_RET_SRC_BUF:
 	case CAM_CB_ISP_SCALE_RET_ISP_BUF:
+	case CAM_CB_ICAP_COPY_SRC_BUFFER:
+		if (!IS_VALID_PORT_ID(cur_to_port_id)) {
+			pr_err("fail to get valid cur port id %d\n", cur_to_port_id);
+			return -EFAULT;
+		}
 		CAM_QUEUE_FRAME_FLAG_RESET(&pframe->common);
-		pframe->common.link_to = pframe->common.link_from;
-		if (node->node_graph->inport[PORT_ISP_OFFLINE_IN].copy_en) {
+		if (node->node_graph->inport[cur_to_port_id].to_user_en) {
+			pframe->common.link_to.node_type = CAM_NODE_TYPE_USER;
+			type = CAM_CB_USER_BUF_DONE;
+		} else
+			pframe->common.link_to = pframe->common.link_from;
+		if (node->node_graph->inport[cur_to_port_id].copy_en) {
 			pframe->common.copy_en = 1;
-			pframe->common.copy_node_id = node->node_graph->inport[PORT_ISP_OFFLINE_IN].copy_node_id;
+			pframe->common.copy_node_id = node->node_graph->inport[cur_to_port_id].copy_node_id;
 		}
 		break;
 	default :
@@ -1318,6 +1361,12 @@ int cam_node_buffer_alloc(void *handle, struct cam_buf_alloc_desc *param)
 		}
 		if (param->share_buffer)
 			mutex_unlock(&dec_node->dev->pyr_mulshare_dec_lock);
+		break;
+	case CAM_NODE_TYPE_DATA_COPY:
+		if (param->cam_copy_buf_alloc_num)
+			ret = cam_copy_node_buffers_alloc(node->handle, param);
+		if (ret)
+			pr_err("fail to alloc copy node buf %s\n", cam_node_name_get(node->node_graph->type));
 		break;
 	case CAM_NODE_TYPE_ISP_OFFLINE:
 		ret = isp_node_buffers_alloc(node->handle, param);

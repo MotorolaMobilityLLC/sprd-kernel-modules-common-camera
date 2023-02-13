@@ -648,6 +648,7 @@ static uint32_t ISP_CFG_MAP[] __aligned(8) = {
 	0x00300110,/*0x110   - 0x13C  , 12  , FETCH*/
 	0x00300210,/*0x210   - 0x23C  , 12  , STORE*/
 	0x001C0310,/*0x310   - 0x328  , 7   , DISPATCH*/
+	0x00080410,/*0x410   - 0x414  , 2   , ENDIAN_TYPE_CONTROL*/
 	0x05A18000,/*0x18000 - 0x1859C, 360 , ISP_HSV_BUF0_CH0*/
 	0x10019000,/*0x19000 - 0x19FFC, 1024, ISP_VST_BUF0_CH0*/
 	0x1001A000,/*0x1A000 - 0x1AFFC, 1024, ISP_IVST_BUF0_CH0*/
@@ -986,6 +987,10 @@ static int isphw_fetch_set(void *handle, void *arg)
 	ISP_REG_WR(idx, ISP_DISPATCH_CH0_SIZE,
 		fetch->in_trim.size_x | (fetch->in_trim.size_y << 16));
 	ISP_REG_WR(idx, ISP_DISPATCH_CH0_BAYER, fetch->bayer_pattern);
+	/* l3 has special in hardword_raw_10 scene */
+	if (fetch->fetch_fmt == CAM_RAW_HALFWORD_10)
+		ISP_REG_MWR(idx, ISP_ARBITER_ENDIAN0, BIT_1 | BIT_0, 2);
+	ISP_REG_MWR(idx, ISP_ARBITER_ENDIAN_COMM, BIT_2 | BIT_1 | BIT_0, 7);
 
 	return 0;
 }

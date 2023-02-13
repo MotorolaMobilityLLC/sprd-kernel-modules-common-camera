@@ -224,6 +224,14 @@ static int dcamoffline_irq_proc(void *param, void *handle)
 		if (frame && is_frm_port)
 			cam_buf_manager_buf_status_cfg(&frame->common.buf, CAM_BUF_STATUS_PUT_IOVA, CAM_BUF_IOMMUDEV_DCAM);
 		if (frame && node->data_cb_func) {
+			if (is_frm_port) {
+				buf_desc.q_ops_cmd = CAM_QUEUE_DEQ_PEEK;
+				frame1 = cam_buf_manager_buf_dequeue(&node->proc_pool, &buf_desc, node->buf_manager_handle);
+				if (frame1) {
+					frame->common.zoom_data = frame1->common.zoom_data;
+					frame->common.fid = frame1->common.fid;
+				}
+			}
 			frame->common.link_from.node_type = node->node_type;
 			frame->common.link_from.node_id = node->node_id;
 			if (is_frm_port) {
@@ -313,7 +321,6 @@ static struct cam_frame *dcamoffline_cycle_frame(struct dcam_offline_node *node)
 
 	pr_debug("frame %p, dcam%d ch_id %d, buf_fd %d, size %d %d\n", pframe, node->hw_ctx_id,
 		pframe->common.channel_id, pframe->common.buf.mfd, pframe->common.width, pframe->common.height);
-
 	CAM_QUEUE_FOR_EACH_ENTRY(port, &node->port_queue.head, list) {
 		cnt = atomic_read(&port->is_work);
 		if (port->type == PORT_TRANSFER_OUT && atomic_read(&port->user_cnt) > 0)
@@ -396,6 +403,11 @@ static int dcamoffline_hw_statis_work_set(struct dcam_offline_node *node)
 		pm->aem.bypass = 1;
 		pm->hist.bayerHist_info.hist_bypass = 1;
 		pm->lscm.bypass = 1;
+		pm->afm.bypass = 1;
+		pm->pdaf.bypass = 1;
+		pm->afl.afl_info.bypass = 1;
+		if (hw->ip_isp->isphw_abt->frbg_hist_support)
+			pm->hist_roi.hist_roi_info.bypass = 1;
 	}
 	return ret;
 }

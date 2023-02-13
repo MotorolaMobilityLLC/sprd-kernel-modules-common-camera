@@ -521,6 +521,7 @@ static struct dcam_hw_abt dcamhw_ability = {
 	.offline_slice_support = 0,
 	.dcam_offline_fbc_support = 0,
 	.vch3_output_pdaf_support = 0,
+	.mul_raw_output_support = 0,
 	.sensor_raw_fmt = CAM_RAW_PACK_10,
 	.store_pyr_fmt = CAM_FORMAT_MAX,
 	.store_3dnr_fmt[0] = CAM_YUV420_2FRAME,

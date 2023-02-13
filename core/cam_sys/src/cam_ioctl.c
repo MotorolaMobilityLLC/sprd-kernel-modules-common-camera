@@ -432,8 +432,14 @@ static int camioctl_param_cfg(struct camera_module *module, unsigned long arg)
 				ret = CAM_PIPEINE_DCAM_OFFLINE_FRGB2YUV_NODE_CFG(channel, CAM_PIPELINE_CFG_BLK_PARAM, &param);
 			} else
 				ret = CAM_PIPEINE_DCAM_OFFLINE_NODE_CFG(channel, CAM_PIPELINE_CFG_BLK_PARAM, &param);
-		} else
+		} else {
 			ret = CAM_PIPEINE_DCAM_ONLINE_NODE_CFG(channel, CAM_PIPELINE_CFG_BLK_PARAM, &param);
+			if (module->icap_scene) {
+				ret = CAM_PIPEINE_DCAM_OFFLINE_NODE_CFG(&module->channel[CAM_CH_CAP], CAM_PIPELINE_CFG_BLK_PARAM, &param);
+				if (ret)
+					pr_err("fail to cap offline scene cfg abnormal\n");
+			}
+		}
 		break;
 	case ISP_BLOCK_TYPE:
 		if (blk_type.sub_block == ISP_BLOCK_RGB_GTM)
@@ -1222,6 +1228,9 @@ static int camioctl_frame_addr_set(struct camera_module *module,
 					pframe->common.irq_property = CAM_FRAME_PROCESS_RAW;
 				ret = CAM_PIPEINE_DCAM_ONLINE_OUT_PORT_CFG(ch, dcamonline_pathid_convert_to_portid(DCAM_PATH_RAW),
 					CAM_PIPELINE_CFG_BUF, pframe);
+			} else if (module->icap_scene) {
+				/* only for sharkl3 icap scene */
+				ret = camcore_icap_buffer_set(module, ch, pframe);
 			} else if (ch->ch_id == CAM_CH_RAW && module->cam_uinfo.need_dcam_raw && hw->ip_isp->isphw_abt->fetch_raw_support && ch_cap->enable){
 				if (ch->ch_uinfo.dst_size.w == ch_cap->ch_uinfo.dst_size.w) {
 					pr_debug("cap path copy\n");
@@ -1430,6 +1439,10 @@ static int camioctl_stream_on(struct camera_module *module, unsigned long arg)
 	module->flash_skip_fid = 0;
 	module->is_flash_status = 0;
 	module->simu_fid = 0;
+
+	if (module->icap_scene)
+		camcore_icap_scene_config(module);
+
 	ret = cam_zoom_channels_size_init(module);
 	cam_zoom_channel_size_calc(module);
 
@@ -1859,6 +1872,9 @@ static int camioctl_capture_start(struct camera_module *module,
 	if (ch_pre->enable)
 		ret = CAM_PIPEINE_DCAM_ONLINE_NODE_CFG(ch_pre, CAM_PIPELINE_CFG_CAP_PARAM, &cap_param);
 
+	if (module->icap_scene)
+		ret = CAM_PIPEINE_DATA_COPY_NODE_CFG(ch, CAM_PIPELINE_CFG_CAP_PARAM, &cap_param);
+
 	pr_info("cam %d start capture U_type %d, scene %d, cnt %d, time %lld, capture num:%d, opt_frame_fid %d\n",
 		module->idx, param.type, module->cap_scene, param.cap_cnt,
 		module->capture_times, module->capture_frames_dcam, param.opt_frame_fid);
@@ -1915,6 +1931,9 @@ static int camioctl_capture_stop(struct camera_module *module,
 	ch_pre = &module->channel[CAM_CH_PRE];
 	if (ch_pre->enable)
 		ret = CAM_PIPEINE_DCAM_ONLINE_NODE_CFG(ch_pre, CAM_PIPELINE_CFG_CAP_PARAM, &cap_param);
+
+	if (module->icap_scene)
+		ret = CAM_PIPEINE_DATA_COPY_NODE_CFG(ch, CAM_PIPELINE_CFG_CAP_PARAM, &cap_param);
 
 	if (hw->ip_isp->isphw_abt->pyr_dec_support) {
 		CAM_PIPEINE_PYR_DEC_NODE_CFG(ch, CAM_PIPELINE_CFG_FAST_STOP, &ch->fast_stop);

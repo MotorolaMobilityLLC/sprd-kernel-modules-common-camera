@@ -384,6 +384,7 @@ struct cam_buf_alloc_desc {
 	uint32_t cam_idx;
 	uint32_t dcamonline_buf_alloc_num;
 	uint32_t dcamoffline_buf_alloc_num;
+	uint32_t cam_copy_buf_alloc_num;
 	uint32_t share_buffer;
 	uint32_t iommu_enable;
 	uint32_t is_super_size;

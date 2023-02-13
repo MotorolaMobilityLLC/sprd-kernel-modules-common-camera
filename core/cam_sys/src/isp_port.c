@@ -1534,6 +1534,9 @@ int isp_port_param_cfg(void *handle, enum cam_port_cfg_cmd cmd, void *param)
 	case PORT_CFG_BUFFER_CLR:
 		ret = ispport_bufq_clr(port, param);
 		break;
+	case PORT_CFG_FMT_SET:
+		port->fmt = *(uint32_t *)param;
+		break;
 	default:
 		pr_err("fail to support port type %d\n", cmd);
 		ret = -EFAULT;

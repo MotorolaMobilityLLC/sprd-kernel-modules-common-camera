@@ -1262,6 +1262,7 @@ struct dcam_hw_abt {
 	uint32_t offline_slice_support;
 	uint32_t dcam_offline_fbc_support;
 	uint32_t vch3_output_pdaf_support;
+	uint32_t mul_raw_output_support;
 	uint32_t sensor_raw_fmt;
 	uint32_t store_pyr_fmt;
 	uint32_t store_3dnr_fmt[CAM_FORMAT_MAX];

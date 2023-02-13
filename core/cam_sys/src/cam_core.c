@@ -386,6 +386,8 @@ static int camcore_buffers_alloc(void *param)
 	alloc_param.dcamonline_buf_alloc_num = dcamonline_buf_num;
 	alloc_param.dcamoffline_buf_alloc_num = dcamoffline_buf_num;
 	alloc_param.stream_on_buf_com = &channel->stream_on_buf_com;
+	if (module->icap_scene && channel->ch_id == CAM_CH_CAP)
+		alloc_param.cam_copy_buf_alloc_num = 3;
 	if (channel->ch_id == CAM_CH_PRE || channel->ch_id == CAM_CH_VID) {
 		if (channel->ch_uinfo.is_high_fps)
 			alloc_param.stream_on_need_buf_num = channel->ch_uinfo.high_fps_skip_num;
@@ -677,6 +679,7 @@ static int camcore_pipeline_callback(enum cam_cb_type type, void *param, void *p
 	case CAM_CB_DUMP_DATA_DONE:
 	case CAM_CB_REPLACE_DATA_DONE:
 	case CAM_CB_FRAME_CACHE_DATA_DONE:
+	case CAM_CB_USER_BUF_DONE:
 		if (atomic_read(&module->state) != CAM_RUNNING) {
 			pr_info("stream off cmd %d put frame %px, state:%d\n", type, pframe, module->state);
 			if (pframe->common.buf.type == CAM_BUF_KERNEL) {
@@ -824,6 +827,131 @@ static int camcore_pipeline_callback(enum cam_cb_type type, void *param, void *p
 	default:
 		pr_err("fail to get cb cmd: %d\n", type);
 		break;
+	}
+
+	return ret;
+}
+
+static int camcore_icap_buffer_set(struct camera_module *module, struct channel_context *channel, void *param)
+{
+	int ret = 0, aux_dcam_path = 0;
+	struct cam_frame *pframe = NULL;
+	struct channel_context *ch_cap = NULL;
+
+	pframe = (struct cam_frame *)param;
+	ch_cap = &module->channel[CAM_CH_CAP];
+	if (channel->ch_id == CAM_CH_RAW) {
+		aux_dcam_path = module->grp->hw_info->ip_dcam[0]->dcamhw_abt->aux_dcam_path;
+		ret = CAM_PIPEINE_DCAM_OFFLINE_OUT_PORT_CFG(ch_cap, dcamoffline_pathid_convert_to_portid(aux_dcam_path),
+				CAM_PIPELINE_CFG_BUF, pframe, CAM_NODE_TYPE_DCAM_OFFLINE);
+	} else if (channel->ch_id == CAM_CH_DCAM_VCH)
+		ret = CAM_PIPEINE_DCAM_ONLINE_OUT_PORT_CFG(ch_cap, PORT_FULL_OUT, CAM_PIPELINE_CFG_BUF, pframe);
+	else {
+		pr_err("fail to set output buffer for ch%d.\n", channel->ch_id);
+		ret = -EFAULT;
+	}
+
+	return ret;
+}
+
+static int camcore_link_change(struct camera_module *module, enum camera_raw_scene type)
+{
+	struct cam_pipeline_topology *pipeline_graph = NULL;
+	struct cam_node_topology *node_graph = NULL;
+	struct cam_port_topology *port_graph = NULL;
+	uint32_t dcam_online_raw_port_id = 0;
+	uint32_t dcam_offline_port_id = 0;
+	uint32_t need_pyr_dec = 0;
+	struct cam_hw_info *hw = NULL;
+	int i = 0, ret = 0;
+
+	hw = module->grp->hw_info;
+	dcam_online_raw_port_id = dcamonline_pathid_convert_to_portid(hw->ip_dcam[0]->dcamhw_abt->dcam_raw_path_id);
+	dcam_offline_port_id = dcamoffline_pathid_convert_to_portid(hw->ip_dcam[0]->dcamhw_abt->aux_dcam_path);
+	need_pyr_dec = hw->ip_isp->isphw_abt->pyr_dec_support;
+
+	pipeline_graph = &module->static_topology->pipeline_list[CAM_PIPELINE_ONLINERAW_2_COPY_2_USER_2_OFFLINEYUV];
+
+	switch (type) {
+	case CAM_DCAM_RAW:
+		if (need_pyr_dec) {
+			/* dec_node */
+			for (i = 0; i < pipeline_graph->node_cnt; i++) {
+				if (pipeline_graph->nodes[i].type == CAM_NODE_TYPE_PYR_DEC)
+					break;
+			}
+			node_graph = &pipeline_graph->nodes[i];
+			port_graph = &node_graph->inport[PORT_DEC_IN];
+		} else {
+			/* ispoffline_node */
+			for (i = 0; i < pipeline_graph->node_cnt; i++) {
+				if (pipeline_graph->nodes[i].type == CAM_NODE_TYPE_ISP_OFFLINE)
+					break;
+			}
+			node_graph = &pipeline_graph->nodes[i];
+			port_graph = &node_graph->inport[PORT_ISP_OFFLINE_IN];
+		}
+		port_graph->to_user_en = ENABLE;
+		break;
+	case CAM_SENSOR_RAW:
+		/* cam_copy_node */
+		for (i = 0; i < pipeline_graph->node_cnt; i++) {
+			if (pipeline_graph->nodes[i].type == CAM_NODE_TYPE_DATA_COPY)
+				break;
+		}
+		node_graph = &pipeline_graph->nodes[i];
+		port_graph = &node_graph->inport[PORT_COPY_IN];
+		port_graph->to_user_en = ENABLE;
+		break;
+	default:
+		pr_err("fail to get type %d\n", type);
+		ret = -EFAULT;
+		break;
+	}
+
+	return ret;
+}
+
+static int camcore_icap_scene_config(struct camera_module *module)
+{
+	int ret = 0;
+	uint32_t fmt = 0, icap_buffer_num = 0;
+	struct cam_hw_info *hw = NULL;
+	struct channel_context *ch_cap = NULL;
+	struct channel_context *ch_raw = NULL;
+	struct channel_context *ch_vch = NULL;
+
+	ch_cap = &module->channel[CAM_CH_CAP];
+	ch_raw = &module->channel[CAM_CH_RAW];
+	ch_vch = &module->channel[CAM_CH_DCAM_VCH];
+	hw = module->grp->hw_info;
+
+	/* temp edition, finally cache num by hal control, from module->cam_uinfo.icap_buffer_num*/
+	icap_buffer_num = 3;
+	ret = CAM_PIPEINE_DATA_COPY_NODE_CFG(ch_cap, CAM_PIPELINE_CFG_ICAP_SCENE_SWITCH, &icap_buffer_num);
+	if (ret)
+		pr_err("fail to cfg copy node icap scene\n");
+
+	ret = camcore_link_change(module, CAM_SENSOR_RAW);
+	if (ret)
+		pr_err("fail to cfg sesnor raw scene\n");
+
+	if (ch_raw->enable) {
+		fmt = ch_raw->ch_uinfo.dcam_raw_fmt;
+		ret = camcore_link_change(module, CAM_DCAM_RAW);
+		if (ret)
+			pr_err("fail to cfg dcam raw scene\n");
+
+		/* update dcamoffline scene store fmt */
+		ret = CAM_PIPEINE_DCAM_OFFLINE_OUT_PORT_CFG(ch_cap, dcamoffline_pathid_convert_to_portid(hw->ip_dcam[0]->dcamhw_abt->aux_dcam_path),
+				CAM_PIPELINE_CFG_FMT, &fmt, CAM_NODE_TYPE_DCAM_OFFLINE);
+		if (ret)
+			pr_err("fail to cfg dcamoffline fmt\n");
+
+		/* update ispoffline scene fetch fmt */
+		ret = CAM_PIPEINE_ISP_IN_PORT_CFG(ch_cap, PORT_ISP_OFFLINE_IN, CAM_PIPELINE_CFG_FMT, ISP_NODE_MODE_CAP_ID, &fmt);
+		if (ret)
+			pr_err("fail to cfg isp fetch fmt\n");
 	}
 
 	return ret;
@@ -985,6 +1113,13 @@ static void camcore_cap_pipeline_info_get(struct camera_module *module, struct c
 		*dcam_port_id = dcamoffline_pathid_convert_to_portid(hw->ip_dcam[0]->dcamhw_abt->dcam_raw_path_id);
 		module->auto_3dnr = channel->uinfo_3dnr = 0;
 	}
+	/* only for sharkl3 icap scene */
+	if (module->channel[CAM_CH_DCAM_VCH].enable && hw->ip_dcam[0]->dcamhw_abt->mul_raw_output_support == 0) {
+		*pipeline_type = CAM_PIPELINE_ONLINERAW_2_COPY_2_USER_2_OFFLINEYUV;
+		*dcam_port_id = dcamoffline_pathid_convert_to_portid(hw->ip_dcam[0]->dcamhw_abt->dcam_raw_path_id);
+		module->icap_scene = ENABLE;
+		module->auto_3dnr = channel->uinfo_3dnr = 0;
+	}
 }
 
 static int camcore_pipeline_init(struct camera_module *module,
@@ -1083,6 +1218,8 @@ static int camcore_pipeline_init(struct camera_module *module,
 		isp_port_id = -1;
 		pipeline_type = CAM_PIPELINE_SENSOR_RAW;
 		camscene_onlineraw_ports_enable(module, dcam_port_id);
+		if (hw->ip_dcam[0]->dcamhw_abt->mul_raw_output_support == 0)
+			goto fail;
 		break;
 	default:
 		pr_err("fail to get channel id %d\n", channel->ch_id);
