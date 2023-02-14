@@ -120,7 +120,7 @@ static int dcamfmcu_cmd_ready(void *handle)
 	cmd_num = (int) fmcu_ctx->cmdq_pos[fmcu_ctx->cur_buf_id] / 2;
 	cmdarg.hw_addr = fmcu_ctx->hw_addr[fmcu_ctx->cur_buf_id];
 	cmdarg.cmd_num = cmd_num;
-	fmcu_ctx->hw->dcam_ioctl(fmcu_ctx->hw, DCAM_HW_CFG_FMCU_CMD, &cmdarg);
+	fmcu_ctx->hw->dcam_ioctl(fmcu_ctx->hw, fmcu_ctx->hw_ctx_id, DCAM_HW_CFG_FMCU_CMD, &cmdarg);
 
 	pr_debug("fmcu%d start done, cmdq len %d\n",
 		fmcu_ctx->fid, (uint32_t)fmcu_ctx->cmdq_pos[fmcu_ctx->cur_buf_id] * 4);
@@ -155,7 +155,7 @@ static int dcamfmcu_start(void *handle)
 	dcamfmcu_cmd_debug(fmcu_ctx);
 	startarg.hw_addr = fmcu_ctx->hw_addr[fmcu_ctx->cur_buf_id];
 	startarg.cmd_num = cmd_num;
-	fmcu_ctx->hw->dcam_ioctl(fmcu_ctx->hw, DCAM_HW_CFG_FMCU_START, &startarg);
+	fmcu_ctx->hw->dcam_ioctl(fmcu_ctx->hw, fmcu_ctx->hw_ctx_id, DCAM_HW_CFG_FMCU_START, &startarg);
 
 	pr_debug("fmcu%d start done, cmdq len %d\n",
 		fmcu_ctx->fid, (uint32_t)fmcu_ctx->cmdq_pos[fmcu_ctx->cur_buf_id] * 4);
@@ -335,7 +335,7 @@ int dcam_fmcu_ctx_desc_put(struct dcam_fmcu_ctx_desc *fmcu)
 			hw = fmcu->hw;
 			fmcu_enable.enable = 0;
 			fmcu_enable.idx = fmcu->hw_ctx_id;
-			hw->dcam_ioctl(hw, DCAM_HW_CFG_FMCU_EBABLE, &fmcu_enable);
+			hw->dcam_ioctl(hw, fmcu->hw_ctx_id, DCAM_HW_CFG_FMCU_EBABLE, &fmcu_enable);
 			fmcu->hw_ctx_id = DCAM_HW_CONTEXT_MAX;
 			fmcu->hw = NULL;
 			break;

@@ -2299,7 +2299,7 @@ static ssize_t camcore_read(struct file *file, char __user *u_data,
 	case SPRD_IMG_GET_SCALE_CAP:
 		hw = module->grp->hw_info;
 		for (i = 0; i < DCAM_ID_MAX; i++) {
-			if (hw->ip_dcam[i]->dcamhw_abt->superzoom_support) {
+			if (hw->ip_dcam[i]->dcamhw_abt && hw->ip_dcam[i]->dcamhw_abt->superzoom_support) {
 				superzoom_val = 1;
 				break;
 			}
@@ -2561,7 +2561,7 @@ static int camcore_power_on(struct camera_group *grp)
 	ret = sprd_cam_domain_eb();
 #endif
 	if (atomic_read(&grp->camera_opened) == 1) {
-		grp->hw_info->dcam_ioctl(grp->hw_info, DCAM_HW_CFG_ENABLE_CLK, NULL);
+		grp->hw_info->dcam_ioctl(grp->hw_info, DCAM_HW_CONTEXT_0, DCAM_HW_CFG_ENABLE_CLK, NULL);
 		grp->hw_info->isp_ioctl(grp->hw_info, ISP_HW_CFG_ENABLE_CLK, NULL);
 	}
 	sprd_iommu_restore(&grp->hw_info->soc_dcam->pdev->dev);
@@ -2575,7 +2575,7 @@ static int camcore_power_off(struct camera_group *grp)
 
 	if (atomic_read(&grp->camera_opened) == 0) {
 		grp->hw_info->isp_ioctl(grp->hw_info, ISP_HW_CFG_DISABLE_CLK, NULL);
-		grp->hw_info->dcam_ioctl(grp->hw_info, DCAM_HW_CFG_DISABLE_CLK, NULL);
+		grp->hw_info->dcam_ioctl(grp->hw_info, DCAM_HW_CONTEXT_0, DCAM_HW_CFG_DISABLE_CLK, NULL);
 	}
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0))
 	ret = sprd_glb_mm_pw_off_cfg();

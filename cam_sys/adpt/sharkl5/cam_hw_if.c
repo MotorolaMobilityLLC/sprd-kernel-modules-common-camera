@@ -376,8 +376,7 @@ static hw_ioctl_fun camhw_ioctl_fun_get(enum cam_hw_cfg_cmd cmd)
 
 #undef CAM_HW_ADPT_LAYER
 
-static int camhwif_dcam_ioctl(void *handle,
-	enum dcam_hw_cfg_cmd cmd, void *arg)
+static int camhwif_dcam_ioctl(void *handle, enum dcam_hw_context_id hw_idx, enum dcam_hw_cfg_cmd cmd, void *arg)
 {
 	int ret = 0;
 	hw_ioctl_fun hw_ctrl = NULL;

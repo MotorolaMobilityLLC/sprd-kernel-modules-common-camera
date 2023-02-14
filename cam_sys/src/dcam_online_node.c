@@ -685,13 +685,13 @@ static void dcamonline_cap_sof(struct dcam_online_node *node, void *param,
 					path_ctrl.idx = node->hw_ctx_id;
 					path_ctrl.path_id = DCAM_PATH_FULL;
 					path_ctrl.type = HW_DCAM_PATH_PAUSE;
-					hw->dcam_ioctl(hw, DCAM_HW_CFG_PATH_CTRL, &path_ctrl);
+					hw->dcam_ioctl(hw, node->hw_ctx_id, DCAM_HW_CFG_PATH_CTRL, &path_ctrl);
 				} else if (dcam_port->port_state == DCAM_PORT_RESUME
 					&& dcam_port->state_update) {
 					path_ctrl.idx = node->hw_ctx_id;
 					path_ctrl.path_id = DCAM_PATH_FULL;
 					path_ctrl.type = HW_DCAM_PATH_RESUME;
-					hw->dcam_ioctl(hw, DCAM_HW_CFG_PATH_CTRL, &path_ctrl);
+					hw->dcam_ioctl(hw, node->hw_ctx_id, DCAM_HW_CFG_PATH_CTRL, &path_ctrl);
 				}
 				dcam_port->state_update = 0;
 				if (dcam_port->port_state == DCAM_PATH_PAUSE) {
@@ -710,8 +710,8 @@ dispatch_sof:
 	copyarg.id = DCAM_CTRL_ALL;
 	copyarg.idx = node->hw_ctx_id;
 	copyarg.glb_reg_lock = hw_ctx->glb_reg_lock;
-	hw->dcam_ioctl(hw, DCAM_HW_CFG_AUTO_COPY, &copyarg);
-	hw->dcam_ioctl(hw, DCAM_HW_CFG_RECORD_ADDR, hw_ctx);
+	hw->dcam_ioctl(hw, node->hw_ctx_id, DCAM_HW_CFG_AUTO_COPY, &copyarg);
+	hw->dcam_ioctl(hw, node->hw_ctx_id, DCAM_HW_CFG_RECORD_ADDR, hw_ctx);
 
 	if (!irq_proc->not_dispatch && (!node->slowmotion_count
 		|| !(hw_ctx->fid % node->slowmotion_count))) {
@@ -1137,7 +1137,7 @@ static int dcamonline_done_proc(void *param, void *handle, struct dcam_hw_contex
 
 			gtm_hist.idx = hw_ctx->hw_ctx_id;
 			gtm_hist.value = buf;
-			hw->dcam_ioctl(hw, DCAM_HW_CFG_GTM_HIST_GET, &gtm_hist);
+			hw->dcam_ioctl(hw, gtm_hist.idx, DCAM_HW_CFG_GTM_HIST_GET, &gtm_hist);
 
 			sum = buf[GTM_HIST_ITEM_NUM];
 			w = hw_ctx->cap_info.cap_size.size_x;
@@ -1304,7 +1304,7 @@ static int dcamonline_dev_start(struct dcam_online_node *node, void *param)
 	do {
 		ret = dcamonline_ctx_bind(node);
 		if (!ret) {
-			if (node->hw_ctx_id >= DCAM_HW_CONTEXT_MAX)
+			if (node->hw_ctx_id >= DCAM_HW_CONTEXT_BIND_MAX)
 				pr_err("fail to get hw_ctx_id\n");
 			break;
 		}
@@ -1312,7 +1312,7 @@ static int dcamonline_dev_start(struct dcam_online_node *node, void *param)
 		usleep_range(600, 800);
 	} while (++loop < 5000);
 
-	if (loop == 5000 || node->hw_ctx_id == DCAM_HW_CONTEXT_MAX) {
+	if (loop == 5000 || node->hw_ctx_id == DCAM_HW_CONTEXT_BIND_MAX) {
 		pr_err("fail to connect. dcam %d\n", node->hw_ctx_id);
 		return -1;
 	}
@@ -1335,15 +1335,15 @@ static int dcamonline_dev_start(struct dcam_online_node *node, void *param)
 		camarg.idx = node->hw_ctx_id;
 		camarg.offline_flag =lbuf_info->is_offline;
 		pr_info("dcam %d pdaf type%d\n", node->hw_ctx_id, node->blk_pm.pdaf.pdaf_type);
-		if (hw->ip_dcam[node->hw_ctx_id]->dcamhw_abt->lbuf_share_support) {
-			ret = hw->dcam_ioctl(hw, DCAM_HW_CFG_LBUF_SHARE_SET, &camarg);
+		if (hw->ip_dcam[node->hw_ctx_id]->dcamhw_abt && hw->ip_dcam[node->hw_ctx_id]->dcamhw_abt->lbuf_share_support) {
+			ret = hw->dcam_ioctl(hw, node->hw_ctx_id, DCAM_HW_CFG_LBUF_SHARE_SET, &camarg);
 			if (ret) {
 				pr_err("fail to set share lbuf\n");
 				dcamonline_ctx_unbind(node);
 				return -1;
 			}
 		}
-		ret = hw->dcam_ioctl(hw, DCAM_HW_CFG_RESET, &hw_ctx->hw_ctx_id);
+		ret = hw->dcam_ioctl(hw, node->hw_ctx_id, DCAM_HW_CFG_RESET, &hw_ctx->hw_ctx_id);
 	} else {
 		is_csi_connect = 1;
 		node->csi_connect_stat = DCAM_CSI_RESUME;
@@ -1354,7 +1354,7 @@ static int dcamonline_dev_start(struct dcam_online_node *node, void *param)
 		csi_switch.dcam_id= node->hw_ctx_id;
 		pr_info("csi_switch.csi_id = %d, csi_switch.dcam_id = %d\n", csi_switch.csi_id, csi_switch.dcam_id);
 		/* switch connect */
-		hw->dcam_ioctl(hw, DCAM_HW_CFG_FORCE_EN_CSI, &csi_switch);
+		hw->dcam_ioctl(hw, node->hw_ctx_id, DCAM_HW_CFG_FORCE_EN_CSI, &csi_switch);
 		if (ret)
 			pr_err("fail to force en csi%d\n", node->hw_ctx_id);
 		node->csi_connect_stat = DCAM_CSI_RESUME;
@@ -1388,7 +1388,7 @@ static int dcamonline_dev_start(struct dcam_online_node *node, void *param)
 	if (hw->ip_isp->isphw_abt->frbg_hist_support)
 		DCAMONLINE_STATIS_WORK_SET(pm->hist_roi.hist_roi_info.bypass, node, PORT_FRGB_HIST_OUT);
 	DCAMONLINE_STATIS_WORK_SET(pm->pdaf.bypass, node, PORT_PDAF_OUT);
-	if (hw_ctx->hw->ip_dcam[node->hw_ctx_id]->dcamhw_abt->rgb_gtm_support == CAM_ENABLE)
+	if (hw_ctx->hw->ip_dcam[node->hw_ctx_id]->dcamhw_abt && hw_ctx->hw->ip_dcam[node->hw_ctx_id]->dcamhw_abt->rgb_gtm_support == CAM_ENABLE)
 		DCAMONLINE_STATIS_WORK_SET(0, node, PORT_GTM_HIST_OUT);
 
 	hw_ctx->fid = pm->recovery_fid ? pm->recovery_fid : 0;
@@ -1402,7 +1402,7 @@ static int dcamonline_dev_start(struct dcam_online_node *node, void *param)
 	caparg.idx = node->hw_ctx_id;
 	caparg.cap_info = node->cap_info;
 	caparg.slowmotion_count = node->slowmotion_count;
-	ret = hw->dcam_ioctl(hw, DCAM_HW_CFG_MIPI_CAP_SET, &caparg);
+	ret = hw->dcam_ioctl(hw, node->hw_ctx_id, DCAM_HW_CFG_MIPI_CAP_SET, &caparg);
 	if (ret < 0) {
 		pr_err("fail to set DCAM%u mipi cap\n", node->hw_ctx_id);
 		return ret;
@@ -1446,7 +1446,7 @@ static int dcamonline_dev_start(struct dcam_online_node *node, void *param)
 			if (port->port_id == PORT_FULL_OUT) {
 				spin_lock_irqsave(&port->state_lock, flag);
 				if (port->port_state == DCAM_PORT_PAUSE) {
-					hw->dcam_ioctl(hw, DCAM_HW_CFG_PATH_START, &patharg);
+					hw->dcam_ioctl(hw, node->hw_ctx_id, DCAM_HW_CFG_PATH_START, &patharg);
 					pause.idx = node->hw_ctx_id;
 					pause.path_id = dcamonline_portid_convert_to_pathid(port->port_id);
 					if (patharg.path_id >= DCAM_PATH_MAX) {
@@ -1454,7 +1454,7 @@ static int dcamonline_dev_start(struct dcam_online_node *node, void *param)
 						continue;
 					}
 					pause.type = HW_DCAM_PATH_PAUSE;
-					hw->dcam_ioctl(hw, DCAM_HW_CFG_PATH_CTRL, &pause);
+					hw->dcam_ioctl(hw, node->hw_ctx_id, DCAM_HW_CFG_PATH_CTRL, &pause);
 					spin_unlock_irqrestore(&port->state_lock, flag);
 					continue;
 				}
@@ -1465,7 +1465,7 @@ static int dcamonline_dev_start(struct dcam_online_node *node, void *param)
 				port->port_cfg_cb_func(hw_ctx, DCAM_PORT_STORE_SET, port);
 
 			if ((atomic_read(&port->set_frm_cnt) > 0) || (node->slw_type == DCAM_SLW_FMCU)) {
-				hw->dcam_ioctl(hw, DCAM_HW_CFG_PATH_START, &patharg);
+				hw->dcam_ioctl(hw, node->hw_ctx_id, DCAM_HW_CFG_PATH_START, &patharg);
 				if (port->compress_en) {
 					fbc_arg.idx = node->hw_ctx_id;
 					fbc_arg.path_id = dcamonline_portid_convert_to_pathid(port->port_id);
@@ -1476,7 +1476,7 @@ static int dcamonline_dev_start(struct dcam_online_node *node, void *param)
 					fbc_arg.fmt = port->dcamout_fmt;
 					fbc_arg.data_bits = cam_data_bits(port->dcamout_fmt);
 					fbc_arg.compress_en = port->compress_en;
-					hw->dcam_ioctl(hw, DCAM_HW_CFG_FBC_CTRL, &fbc_arg);
+					hw->dcam_ioctl(hw, node->hw_ctx_id, DCAM_HW_CFG_FBC_CTRL, &fbc_arg);
 				}
 			}
 
@@ -1490,7 +1490,7 @@ static int dcamonline_dev_start(struct dcam_online_node *node, void *param)
 		}
 	}
 
-	hw->dcam_ioctl(hw, DCAM_HW_CFG_RECORD_ADDR, hw_ctx);
+	hw->dcam_ioctl(hw, node->hw_ctx_id, DCAM_HW_CFG_RECORD_ADDR, hw_ctx);
 	ret = dcam_init_lsc(pm, 1);
 	if (ret < 0) {
 		pr_err("fail to init lsc\n");
@@ -1529,19 +1529,19 @@ static int dcamonline_dev_start(struct dcam_online_node *node, void *param)
 	if (node->slw_type == DCAM_SLW_FMCU) {
 		fmcu_enable.enable = 1;
 		fmcu_enable.idx = node->hw_ctx_id;
-		hw->dcam_ioctl(hw, DCAM_HW_CFG_FMCU_EBABLE, &fmcu_enable);
+		hw->dcam_ioctl(hw, node->hw_ctx_id, DCAM_HW_CFG_FMCU_EBABLE, &fmcu_enable);
 		hw_ctx->fmcu->ops->hw_start(hw_ctx->fmcu);
 	} else {
 		parm.idx = node->hw_ctx_id;
 		parm.cap_info = node->cap_info;
 		parm.glb_reg_lock = hw_ctx->glb_reg_lock;
 		pr_debug("idx %d  raw_callback %d x %d\n", parm.idx, parm.raw_callback, node->cap_info.cap_size.size_x);
-		hw->dcam_ioctl(hw, DCAM_HW_CFG_START, &parm);
+		hw->dcam_ioctl(hw, node->hw_ctx_id, DCAM_HW_CFG_START, &parm);
 	}
 
 	sramarg.sram_ctrl_en = 1;
 	sramarg.idx = node->hw_ctx_id;
-	hw->dcam_ioctl(hw, DCAM_HW_CFG_SRAM_CTRL_SET, &sramarg);
+	hw->dcam_ioctl(hw, node->hw_ctx_id, DCAM_HW_CFG_SRAM_CTRL_SET, &sramarg);
 
 	trace.type = NORMAL_REG_TRACE;
 	trace.idx = node->hw_ctx_id;
@@ -1552,7 +1552,7 @@ static int dcamonline_dev_start(struct dcam_online_node *node, void *param)
 		/* switch connect */
 		csi_switch.csi_id = node->csi_controller_idx;
 		csi_switch.dcam_id= node->hw_ctx_id;
-		hw->dcam_ioctl(hw, DCAM_HW_CFG_CONECT_CSI, &csi_switch);
+		hw->dcam_ioctl(hw, node->hw_ctx_id, DCAM_HW_CFG_CONECT_CSI, &csi_switch);
 		pr_info("Connect csi_id = %d, dcam_id = %d\n", csi_switch.csi_id, csi_switch.dcam_id);
 	}
 	pr_info("dcam%d done state = %d\n", node->hw_ctx_id, atomic_read(&node->state));
@@ -1598,9 +1598,9 @@ static int dcamonline_dev_stop(struct dcam_online_node *node, enum dcam_stop_cmd
 	atomic_set(&node->state, STATE_IDLE);
 	if (hw_ctx_id != DCAM_HW_CONTEXT_MAX && pause != DCAM_RECOVERY) {
 		if (pause == DCAM_FORCE_STOP)
-			hw->dcam_ioctl(hw, DCAM_HW_CFG_DISCONECT_CSI, &csi_switch);
-		hw->dcam_ioctl(hw, DCAM_HW_CFG_STOP, hw_ctx);
-		hw->dcam_ioctl(hw, DCAM_HW_CFG_RESET, &hw_ctx_id);
+			hw->dcam_ioctl(hw, hw_ctx->hw_ctx_id, DCAM_HW_CFG_DISCONECT_CSI, &csi_switch);
+		hw->dcam_ioctl(hw, hw_ctx->hw_ctx_id, DCAM_HW_CFG_STOP, hw_ctx);
+		hw->dcam_ioctl(hw, hw_ctx->hw_ctx_id, DCAM_HW_CFG_RESET, &hw_ctx_id);
 		dcam_int_common_tracker_dump(hw_ctx_id);
 		dcam_int_common_tracker_reset(hw_ctx_id);
 	}
@@ -1645,7 +1645,7 @@ static int dcamonline_dev_stop(struct dcam_online_node *node, enum dcam_stop_cmd
 
 	if (node->slw_type == DCAM_SLW_FMCU) {
 		if (pause != DCAM_RECOVERY) {
-			ret = hw->dcam_ioctl(hw, DCAM_HW_CFG_FMCU_RESET, &hw_ctx_id);
+			ret = hw->dcam_ioctl(hw, hw_ctx_id, DCAM_HW_CFG_FMCU_RESET, &hw_ctx_id);
 			if (ret)
 				pr_err("fail to reset fmcu dcam%d ret:%d\n", hw_ctx_id, ret);
 		}
@@ -1740,7 +1740,7 @@ int dcam_online_node_set_shutoff(void *handle, void *param, uint32_t port_id)
 			pr_err("fail to get correct path id\n");
 			return -EFAULT;
 		}
-		node->dev->hw->dcam_ioctl(node->dev->hw, DCAM_HW_CFG_PATH_CTRL, &path_ctrl);
+		node->dev->hw->dcam_ioctl(node->dev->hw, node->hw_ctx_id, DCAM_HW_CFG_PATH_CTRL, &path_ctrl);
 		CAM_QUEUE_FOR_EACH_ENTRY(dcam_port, &node->port_queue.head, list) {
 			if (dcam_port->port_id == port_id)
 				atomic_set(&dcam_port->is_shutoff, shutoff);
@@ -1756,7 +1756,7 @@ int dcam_online_node_set_shutoff(void *handle, void *param, uint32_t port_id)
 			pr_err("fail to get correct path id\n");
 			return -EFAULT;
 		}
-		node->dev->hw->dcam_ioctl(node->dev->hw, DCAM_HW_CFG_PATH_CTRL, &path_ctrl);
+		node->dev->hw->dcam_ioctl(node->dev->hw, node->hw_ctx_id, DCAM_HW_CFG_PATH_CTRL, &path_ctrl);
 		CAM_QUEUE_FOR_EACH_ENTRY(dcam_port, &node->port_queue.head, list) {
 			if (dcam_port->port_id == port_id)
 				atomic_set(&dcam_port->is_shutoff, shutoff);
@@ -1820,8 +1820,8 @@ int dcam_online_node_irq_proc(void *param, void *handle)
 	case DCAM_INT_ERROR:
 		if (unlikely(atomic_read(&node->state) == STATE_INIT) || unlikely(atomic_read(&node->state) == STATE_IDLE)) {
 			hw = node->dev->hw;
-			hw->dcam_ioctl(hw, DCAM_HW_CFG_STOP, hw_ctx);
-			hw->dcam_ioctl(hw, DCAM_HW_CFG_RESET, &hw_ctx->hw_ctx_id);
+			hw->dcam_ioctl(hw, hw_ctx->hw_ctx_id, DCAM_HW_CFG_STOP, hw_ctx);
+			hw->dcam_ioctl(hw, hw_ctx->hw_ctx_id, DCAM_HW_CFG_RESET, &hw_ctx->hw_ctx_id);
 			break;
 		}
 		atomic_set(&node->state, STATE_ERROR);
@@ -1831,12 +1831,12 @@ int dcam_online_node_irq_proc(void *param, void *handle)
 		if ((g_dbg_recovery == DEBUG_DCAM_RECOVERY_IDLE
 			&& (node->dev->hw->ip_dcam[0]->dcamhw_abt->recovery_support & irq_proc->status))
 			|| g_dbg_recovery == DEBUG_DCAM_RECOVERY_OPEN) {
-			node->dev->hw->dcam_ioctl(node->dev->hw, DCAM_HW_CFG_IRQ_DISABLE, &node->hw_ctx_id);
+			node->dev->hw->dcam_ioctl(node->dev->hw, node->hw_ctx_id, DCAM_HW_CFG_IRQ_DISABLE, &node->hw_ctx_id);
 			/* force copy must be after first load done and load clear */
 			copyarg.id = DCAM_CTRL_ALL;
 			copyarg.idx = node->hw_ctx_id;
 			copyarg.glb_reg_lock = hw_ctx->glb_reg_lock;
-			node->dev->hw->dcam_ioctl(node->dev->hw, DCAM_HW_CFG_FORCE_COPY, &copyarg);
+			node->dev->hw->dcam_ioctl(node->dev->hw, node->hw_ctx_id, DCAM_HW_CFG_FORCE_COPY, &copyarg);
 			disable_irq_nosync(hw_ctx->irq);
 			hw_ctx->irq_enable = 0;
 			is_recovery = 1;
@@ -1972,11 +1972,11 @@ int dcam_online_node_xtm_disable(struct dcam_online_node *node, void *param)
 		struct cam_hw_gtm_ltm_eb enable;
 		enable.dcam_idx = node->hw_ctx_id;
 		enable.dcam_param = &node->blk_pm;
-		hw->dcam_ioctl(hw, DCAM_HW_CFG_GTM_LTM_EB, &enable);
+		hw->dcam_ioctl(hw, node->hw_ctx_id, DCAM_HW_CFG_GTM_LTM_EB, &enable);
 	} else {
 		struct cam_hw_gtm_ltm_dis dis;
 		dis.dcam_idx = node->hw_ctx_id;
-		hw->dcam_ioctl(hw, DCAM_HW_CFG_GTM_LTM_DIS, &dis);
+		hw->dcam_ioctl(hw, node->hw_ctx_id, DCAM_HW_CFG_GTM_LTM_DIS, &dis);
 	}
 	return 0;
 }
@@ -2199,11 +2199,11 @@ int dcam_online_node_reset(struct dcam_online_node *node, void *param)
 		csi_switch.is_recovery = 1;
 
 	if (atomic_read(&hw_ctx->user_cnt) > 0) {
-		hw->dcam_ioctl(hw, DCAM_HW_CFG_DISCONECT_CSI, &csi_switch);
+		hw->dcam_ioctl(hw, node->hw_ctx_id, DCAM_HW_CFG_DISCONECT_CSI, &csi_switch);
 		/* reset */
-		hw->dcam_ioctl(hw, DCAM_HW_CFG_STOP, hw_ctx);
+		hw->dcam_ioctl(hw, hw_ctx->hw_ctx_id, DCAM_HW_CFG_STOP, hw_ctx);
 		if (!csi_switch.is_recovery)
-			hw->dcam_ioctl(hw, DCAM_HW_CFG_RESET, &node->hw_ctx_id);
+			hw->dcam_ioctl(hw, node->hw_ctx_id, DCAM_HW_CFG_RESET, &node->hw_ctx_id);
 	} else {
 		pr_err("fail to get DCAM%d valid user cnt %d\n", node->hw_ctx_id, atomic_read(&hw_ctx->user_cnt));
 		return -1;

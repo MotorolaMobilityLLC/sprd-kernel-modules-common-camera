@@ -31,8 +31,7 @@
 unsigned long g_dcam_regbase[DCAM_ID_MAX];
 unsigned long g_dcam_aximbase[DCAM_ID_MAX];
 unsigned long g_dcam_phys_base[DCAM_ID_MAX];
-unsigned long g_dcam_mmubase;
-unsigned long g_dcam_lite_mmubase;
+unsigned long g_dcam_mmubase[DCAM_ID_MAX];
 unsigned long g_dcam_fmcubase;
 
 static int dcam_drv_lite_dt_parse(struct device_node *dn, struct cam_hw_info *hw_info)
@@ -74,19 +73,6 @@ static int dcam_drv_lite_dt_parse(struct device_node *dn, struct cam_hw_info *hw
 			return -EINVAL;
 		}
 		soc_dcam_lite->count = count;
-		iommu_node = of_parse_phandle(lite_node, "iommus", 0);
-		if (iommu_node) {
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 4, 0))
-			reg_base = of_iomap(iommu_node, 0);
-#else
-			reg_base = of_iomap(iommu_node, 1);
-#endif
-			if (!reg_base)
-				pr_err("fail to map DCAM LITE IOMMU base\n");
-			else
-				g_dcam_lite_mmubase = (unsigned long)reg_base;
-		}
-		pr_info("DCAM LITE IOMMU Base  0x%lx\n", g_dcam_lite_mmubase);
 
 		soc_dcam_lite->core_eb = of_clk_get_by_name(lite_node, "dcam_lite_eb");
 		ret |= IS_ERR_OR_NULL(soc_dcam_lite->core_eb);
@@ -112,11 +98,11 @@ static int dcam_drv_lite_dt_parse(struct device_node *dn, struct cam_hw_info *hw
 		ret = cam_kernel_adapt_syscon_get_args_by_name(lite_node, "lite_all_reset", ARRAY_SIZE(all_rst), all_rst);
 		if (ret) {
 			pr_err("fail to get lite all reset syscon\n");
-			goto err_vau_unmap;
+			return -EINVAL;
 		}
 
 		soc_dcam = hw_info->soc_dcam;
-		dcam_if_count =  soc_dcam->count;
+		dcam_if_count = soc_dcam->count;
 		for (i = 0; i < count; i++) {
 			ip_dcam = hw_info->ip_dcam[i + dcam_if_count];
 			ip_dcam->idx = i + dcam_if_count;
@@ -124,14 +110,14 @@ static int dcam_drv_lite_dt_parse(struct device_node *dn, struct cam_hw_info *hw
 			irq = of_irq_to_resource(lite_node, i, &irq_res);
 			if (irq <= 0) {
 				pr_err("fail to get DCAM%d irq, error: %d\n", i + dcam_if_count, irq);
-				goto err_vau_unmap;
+				return -EINVAL;
 			}
 			ip_dcam->irq_no = (uint32_t) irq;
 
 			/* DCAM register mapping */
 			if (of_address_to_resource(lite_node, i, &reg_res)) {
 				pr_err("fail to get DCAM%d phy addr\n", i + dcam_if_count);
-				goto err_vau_unmap;
+				return -EINVAL;
 			}
 			ip_dcam->phy_base = (unsigned long) reg_res.start;
 			g_dcam_phys_base[i + dcam_if_count] = ip_dcam->phy_base;
@@ -140,7 +126,7 @@ static int dcam_drv_lite_dt_parse(struct device_node *dn, struct cam_hw_info *hw
 			reg_base = ioremap(reg_res.start, reg_res.end - reg_res.start + 1);
 			if (!reg_base) {
 				pr_err("fail to map DCAM%d reg base\n", i + dcam_if_count);
-				goto err_vau_unmap;
+				return -EINVAL;
 			}
 			ip_dcam->reg_base = (unsigned long) reg_base;
 			g_dcam_regbase[i + dcam_if_count] = (unsigned long)reg_base;
@@ -156,7 +142,7 @@ static int dcam_drv_lite_dt_parse(struct device_node *dn, struct cam_hw_info *hw
 				ip_dcam->syscon.rst_mask = args[1];
 			} else {
 				pr_err("fail to get dcam_lite%d reset syscon\n", i + dcam_if_count);
-				goto err_vau_unmap;
+				return -EINVAL;
 			}
 			#if defined (PROJ_QOGIRN6L)
 			sprintf(dcam_name, "lite%d_mipi_reset", i);
@@ -165,7 +151,7 @@ static int dcam_drv_lite_dt_parse(struct device_node *dn, struct cam_hw_info *hw
 				ip_dcam->syscon.rst_mipi_mask = args[1];
 			} else {
 				pr_err("fail to get dcam_lite_mipi%d reset syscon\n", i + dcam_if_count);
-				goto err_vau_unmap;
+				return -EINVAL;
 			}
 			#endif
 			ip_dcam->syscon.all_rst = all_rst[0];
@@ -174,28 +160,32 @@ static int dcam_drv_lite_dt_parse(struct device_node *dn, struct cam_hw_info *hw
 
 		if (of_address_to_resource(lite_node, i, &reg_res)) {
 			pr_err("fail to get AXIM phy addr\n");
-			goto err_vau_unmap;
+			return -EINVAL;
 		}
 
 		reg_base = ioremap(reg_res.start, reg_res.end - reg_res.start + 1);
 		if (!reg_base) {
 			pr_err("fail to map AXIM reg base\n");
-			goto err_vau_unmap;
+			return -EINVAL;
 		}
 		soc_dcam_lite->axi_reg_base = (unsigned long)reg_base;
+		pr_info("dcam_lite axi_reg_base 0x%lx, count %d\n",soc_dcam_lite->axi_reg_base,count);
 		for (j = 0; j < count; j++)
 			g_dcam_aximbase[j + dcam_if_count] = (unsigned long)reg_base;
 
+		iommu_node = of_parse_phandle(lite_node, "iommus", 0);
+		if (iommu_node) {
+			reg_base = of_iomap(iommu_node, 1);
+			if (!reg_base)
+				pr_err("fail to map DCAM LITE IOMMU base\n");
+			else {
+				for (j = 0; j < count; j++)
+					g_dcam_mmubase[j + dcam_if_count] = (unsigned long)reg_base;
+			}
+		}
+		pr_info("DCAM LITE IOMMU Base  0x%lx\n", (unsigned long)reg_base);
 	}
 	return ret;
-
-err_vau_unmap:
-	for (i = i - 1; i >= 0; i--)
-		iounmap((void __iomem *)(hw_info->ip_dcam[i]->reg_base));
-	iounmap((void __iomem *)g_dcam_lite_mmubase);
-	g_dcam_lite_mmubase = 0;
-	return -EINVAL;
-
 }
 
 int dcam_drv_dt_parse(struct platform_device *pdev,
@@ -268,10 +258,12 @@ int dcam_drv_dt_parse(struct platform_device *pdev,
 #endif
 		if (!reg_base)
 			pr_err("fail to map DCAM IOMMU base\n");
-		else
-			g_dcam_mmubase = (unsigned long)reg_base;
+		else {
+			for (i = 0; i < count; i++)
+				g_dcam_mmubase[i] = (unsigned long)reg_base;
+		}
 	}
-	pr_info("DCAM IOMMU Base 0x%lx\n", g_dcam_mmubase);
+	pr_info("DCAM IOMMU Base 0x%lx\n", g_dcam_mmubase[0]);
 
 	/* Start dcam soc related dt parse */
 	soc_dcam = hw_info->soc_dcam;
@@ -371,6 +363,7 @@ int dcam_drv_dt_parse(struct platform_device *pdev,
 		goto err_iounmap;
 
 	if (hw_info->soc_dcam_lite) {
+		hw_info->soc_dcam_lite->cam_ahb_gpr = ahb_map;
 		dcam_drv_lite_dt_parse(dn, hw_info);
 		*dcam_count = count + hw_info->soc_dcam_lite->count;
 	} else
@@ -381,8 +374,9 @@ int dcam_drv_dt_parse(struct platform_device *pdev,
 err_iounmap:
 	for (i = i - 1; i >= 0; i--)
 		iounmap((void __iomem *)(hw_info->ip_dcam[i]->reg_base));
-	iounmap((void __iomem *)g_dcam_mmubase);
-	g_dcam_mmubase = 0;
+	iounmap((void __iomem *)g_dcam_mmubase[0]);
+	for(i = 0; i < count; i++)
+		g_dcam_mmubase[i] = 0;
 
 	return -ENXIO;
 }

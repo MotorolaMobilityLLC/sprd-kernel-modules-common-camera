@@ -455,6 +455,7 @@ extern const unsigned long slowmotion_store_addr[3][4];
 #define DCAM_MMU_WR(reg, val)                  (REG_WR(DCAM_MMU_BASE+(reg), (val)))
 #define DCAM_MMU_RD(reg)                       (REG_RD(DCAM_MMU_BASE+(reg)))
 #define DCAM_MMU_MWR(reg, msk, val)            DCAM_MMU_WR((reg), ((val) & (msk)) | (DCAM_MMU_RD(reg) & (~(msk))))
+#define DCAM_IOMMU_RD(idx, reg)                DCAM_MMU_RD(reg)
 /*for dcam IT*/
 #define DCAM_CHECK_LASE_STATUS                 DCAM_RDS_DES_SIZE
 

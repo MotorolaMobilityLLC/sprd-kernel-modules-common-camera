@@ -155,7 +155,7 @@ static int dcamhw_axi_init(void *handle, void *arg)
 	}
 
 	write_unlock(&soc->cam_ahb_lock);
-	hw->dcam_ioctl(hw, DCAM_HW_CFG_SET_QOS, NULL);
+	hw->dcam_ioctl(hw, idx, DCAM_HW_CFG_SET_QOS, NULL);
 	/* the end, enable AXI writing */
 	DCAM_AXIM_MWR(AXIM_CTRL, BIT_24 | BIT_23, (0x0 << 23));
 
@@ -245,7 +245,7 @@ static int dcamhw_axi_reset(void *handle, void *arg)
 	}
 
 	write_unlock(&soc->cam_ahb_lock);
-	hw->dcam_ioctl(hw, DCAM_HW_CFG_SET_QOS, NULL);
+	hw->dcam_ioctl(hw, idx, DCAM_HW_CFG_SET_QOS, NULL);
 	/* the end, enable AXI writing */
 	DCAM_AXIM_MWR(AXIM_CTRL, BIT_24 | BIT_23, (0x0 << 23));
 

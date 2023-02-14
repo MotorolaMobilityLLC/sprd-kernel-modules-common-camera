@@ -281,7 +281,7 @@ static int dcamoffline_irq_proc(void *param, void *handle)
 	slice_info = &node->hw_ctx->slice_info;
 	hw = node->dev->hw;
 	if (irq_desc->dcam_cb_type == CAM_CB_DCAM_DEV_ERR) {
-		hw->dcam_ioctl(hw, DCAM_HW_CFG_RESET, &node->hw_ctx->hw_ctx_id);
+		hw->dcam_ioctl(hw, node->hw_ctx->hw_ctx_id, DCAM_HW_CFG_RESET, &node->hw_ctx->hw_ctx_id);
 		complete(&node->recovery_thread.thread_com);
 		return 0;
 	}
@@ -303,7 +303,7 @@ static int dcamoffline_irq_proc(void *param, void *handle)
 			slice_info->slice_count--;
 			complete(&node->slice_done);
 		}
-		time_out = hw->dcam_ioctl(hw, DCAM_HW_CFG_FETCH_STATUS_GET, &node->hw_ctx_id);
+		time_out = hw->dcam_ioctl(hw, node->hw_ctx_id, DCAM_HW_CFG_FETCH_STATUS_GET, &node->hw_ctx_id);
 		if (time_out > DCAM_OFFLINE_AXI_STOP_TIMEOUT)
 			pr_warn("Warning:dcam fetch status is busy. timeout %d\n", time_out);
 
@@ -318,7 +318,7 @@ static int dcamoffline_irq_proc(void *param, void *handle)
 		pr_err("fail to data cb, slice_num %d, port %s\n", slice_info->slice_num, cam_port_dcam_offline_out_id_name_get(port_id));
 
 	if (is_frm_port && slice_info->slice_count == 0) {
-		time_out = hw->dcam_ioctl(hw, DCAM_HW_CFG_FETCH_STATUS_GET, &node->hw_ctx_id);
+		time_out = hw->dcam_ioctl(hw, node->hw_ctx_id, DCAM_HW_CFG_FETCH_STATUS_GET, &node->hw_ctx_id);
 		if (time_out > DCAM_OFFLINE_AXI_STOP_TIMEOUT)
 			pr_warn("Warning:dcam fetch status is busy.\n");
 		frame = cam_buf_manager_buf_dequeue(&node->proc_pool, NULL, node->buf_manager_handle);
@@ -507,7 +507,7 @@ static int dcamoffline_hw_frame_param_set(struct dcam_hw_context *hw_ctx)
 
 	hw_ctx->fid++;
 	ret = dcam_hwctx_fetch_set(hw_ctx);
-	hw->dcam_ioctl(hw, DCAM_HW_CFG_RECORD_ADDR, hw_ctx);
+	hw->dcam_ioctl(hw, hw_ctx->hw_ctx_id, DCAM_HW_CFG_RECORD_ADDR, hw_ctx);
 
 	return ret;
 }

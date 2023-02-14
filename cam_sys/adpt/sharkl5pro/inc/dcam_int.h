@@ -19,8 +19,6 @@
 
 #include "cam_types.h"
 
-typedef void (*dcam_int_isr)(void *param);
-
 /* interrupt bits for DCAM0 DCAM1 DCAM2 */
 enum {
 	DCAM_SENSOR_SOF         = 0,
@@ -140,31 +138,9 @@ enum {
 		BIT(DCAM_CAP_SOF) |                       \
 		BIT(DCAM_SENSOR_EOF))
 
-struct nr3_done {
-	uint32_t hw_ctx;
-	uint32_t p;
-	uint32_t out0;
-	uint32_t out1;
-};
-
-struct dcam_sequences{
-	size_t count;
-	const int *bits;
-};
-
-struct dcam_irq_info {
-	uint32_t irq_num;
-	uint32_t status;
-	uint32_t status1;
-	const dcam_int_isr (*_DCAM_ISR_IRQ)[DCAM_IRQ_NUMBER];
-	const struct dcam_sequences (*DCAM_SEQUENCES)[1];
-};
-
 int dcam_int_irq_desc_get(uint32_t index, void *param);
 struct nr3_done dcam_int_nr3_done_rd(void *param, uint32_t idx);
 void dcam_int_iommu_regs_dump(void *param);
-void dcam_int_status_warning(void *param, uint32_t status, uint32_t status1);
-struct dcam_irq_info dcam_int_isr_handle(void *param);
-struct dcam_irq_info dcam_int_mask_clr(uint32_t idx);
+void dcam_int_irq_init(void *dcam_hw_ctx);
 
 #endif

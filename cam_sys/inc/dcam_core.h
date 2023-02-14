@@ -28,6 +28,7 @@
 #include "dcam_online_node.h"
 #include "dcam_offline_node.h"
 #include "dcam_fetch_node.h"
+#include "dcam_int_common.h"
 
 #define DCAM_OUT_BUF_Q_LEN                50
 #define DCAM_LSC_BUF_SIZE                 0x3000
@@ -155,6 +156,7 @@ struct dcam_hw_context {
 	struct nr3_me_data nr3_mv_ctrl[DCAM_NR3_MV_MAX];
 	struct dcam_dummy_slave *dummy_slave;
 	struct dcam_hw_binning_4in1 binning;
+	struct dcam_irq_ops irq_ops;
 
 	void *dcam_irq_cb_handle;
 	dcam_irq_proc_cb dcam_irq_cb_func;

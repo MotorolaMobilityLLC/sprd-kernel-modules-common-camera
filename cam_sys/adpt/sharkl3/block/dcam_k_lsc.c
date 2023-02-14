@@ -70,7 +70,7 @@ int dcam_init_lsc(void *in, uint32_t online)
 	if (info->bypass) {
 		pr_debug("bypass\n");
 		DCAM_REG_MWR(idx, DCAM_LENS_LOAD_ENABLE, BIT_0, 1);
-		hw->dcam_ioctl(hw, DCAM_HW_CFG_FORCE_COPY, &copyarg);
+		hw->dcam_ioctl(hw, idx, DCAM_HW_CFG_FORCE_COPY, &copyarg);
 		return 0;
 	}
 
@@ -130,7 +130,7 @@ int dcam_init_lsc(void *in, uint32_t online)
 	DCAM_REG_MWR(idx, DCAM_LENS_LOAD_ENABLE, BIT_0, 0);
 
 	/* force copy for init */
-	hw->dcam_ioctl(hw, DCAM_HW_CFG_FORCE_COPY, &copyarg);
+	hw->dcam_ioctl(hw, idx, DCAM_HW_CFG_FORCE_COPY, &copyarg);
 
 	/* step3: config grid x y */
 	val = ((info->grid_width & 0x1ff) << 16) |
@@ -158,14 +158,14 @@ int dcam_init_lsc(void *in, uint32_t online)
 	DCAM_REG_MWR(idx, DCAM_LENS_LOAD_ENABLE, BIT_1, buf_sel << 1);
 	pr_info("buf_sel %d\n", buf_sel);
 
-	hw->dcam_ioctl(hw, DCAM_HW_CFG_FORCE_COPY, &copyarg);
+	hw->dcam_ioctl(hw, idx, DCAM_HW_CFG_FORCE_COPY, &copyarg);
 
 	return 0;
 
 exit:
 	/* bypass lsc if there is exception */
 	DCAM_REG_MWR(idx, DCAM_LENS_LOAD_ENABLE, BIT_0, 1);
-	hw->dcam_ioctl(hw, DCAM_HW_CFG_FORCE_COPY, &copyarg);
+	hw->dcam_ioctl(hw, idx, DCAM_HW_CFG_FORCE_COPY, &copyarg);
 
 	return ret;
 }
@@ -265,7 +265,7 @@ int dcam_update_lsc(void *in)
 		copyarg.id = DCAM_CTRL_BIN;
 		copyarg.idx = idx;
 		copyarg.glb_reg_lock = hw_ctx->glb_reg_lock;
-		hw->dcam_ioctl(hw, DCAM_HW_CFG_AUTO_COPY, &copyarg);
+		hw->dcam_ioctl(hw, idx, DCAM_HW_CFG_AUTO_COPY, &copyarg);
 	}
 
 	DCAM_REG_MWR(idx, DCAM_LENS_LOAD_CLR, BIT_1, (1 << 1));

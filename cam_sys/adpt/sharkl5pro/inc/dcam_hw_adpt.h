@@ -93,6 +93,7 @@ enum dcam_hw_context_id {
 	DCAM_HW_CONTEXT_2,
 	DCAM_HW_CONTEXT_MAX,
 };
+#define DCAM_HW_CONTEXT_BIND_MAX DCAM_HW_CONTEXT_MAX
 
 enum dcam_id {
 	DCAM_ID_0 = 0,

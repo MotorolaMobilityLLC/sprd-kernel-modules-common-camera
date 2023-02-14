@@ -18,7 +18,7 @@
 
 extern unsigned long g_dcam_regbase[];
 extern unsigned long g_dcam_aximbase[];
-extern unsigned long g_dcam_mmubase;
+extern unsigned long g_dcam_mmubase[];
 extern unsigned long g_dcam_phys_base[];
 
 /* DCAM0/DCAM1 module registers define */
@@ -482,7 +482,7 @@ extern const unsigned long slowmotion_store_addr[3][4];
 #define DCAM_BASE(idx)                    (g_dcam_regbase[idx])
 #define DCAM_AXIM_BASE                    (g_dcam_aximbase[0])
 
-#define DCAM_MMU_BASE                     (g_dcam_mmubase)
+#define DCAM_MMU_BASE                     (g_dcam_mmubase[0])
 #define DCAM_PHYS_ADDR(idx)               (g_dcam_phys_base[idx])
 #define DCAM_GET_REG(idx, reg)            (DCAM_PHYS_ADDR(idx) + (reg))
 
@@ -497,7 +497,7 @@ extern const unsigned long slowmotion_store_addr[3][4];
 #define DCAM_MMU_WR(reg, val)             (REG_WR(DCAM_MMU_BASE+(reg), (val)))
 #define DCAM_MMU_RD(reg)                  (REG_RD(DCAM_MMU_BASE+(reg)))
 #define DCAM_MMU_MWR(reg, msk, val)       DCAM_MMU_WR((reg), ((val) & (msk)) | (DCAM_MMU_RD(reg) & (~(msk))))
-
+#define DCAM_IOMMU_RD(idx, reg)           DCAM_MMU_RD(reg)
 /*for dcam IT*/
 #define DCAM_CHECK_LASE_STATUS            DCAM_RDS_DES_SIZE
 

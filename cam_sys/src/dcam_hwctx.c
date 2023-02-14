@@ -186,7 +186,7 @@ int dcam_hwctx_offline_reset(struct dcam_hw_context *hw_ctx)
 
 	hw = hw_ctx->hw;
 	hw_ctx->fid = 0;
-	ret = hw->dcam_ioctl(hw, DCAM_HW_CFG_RESET, &hw_ctx->hw_ctx_id);
+	ret = hw->dcam_ioctl(hw, hw_ctx->hw_ctx_id, DCAM_HW_CFG_RESET, &hw_ctx->hw_ctx_id);
 	if (ret)
 		pr_err("fail to reset dcam%d\n", hw_ctx->hw_ctx_id);
 	return ret;
@@ -201,7 +201,7 @@ void dcam_hwctx_nr3_store_addr(struct dcam_hw_context *hw_ctx, struct cam_frame 
 	store_arg.idx = hw_ctx->hw_ctx_id;
 	store_arg.frame_addr[0] = frame->common.buf.iova[CAM_BUF_IOMMUDEV_DCAM];
 	store_arg.path_id = DCAM_PATH_3DNR;
-	hw->dcam_ioctl(hw, DCAM_HW_CFG_STORE_ADDR, &store_arg);
+	hw->dcam_ioctl(hw, hw_ctx->hw_ctx_id, DCAM_HW_CFG_STORE_ADDR, &store_arg);
 }
 
 void dcam_hwctx_binning_4in1_set(struct dcam_hw_context *hw_ctx)
@@ -210,15 +210,15 @@ void dcam_hwctx_binning_4in1_set(struct dcam_hw_context *hw_ctx)
 	hw = hw_ctx->hw;
 	hw_ctx->binning.binning_4in1_en = 0;
 	hw_ctx->binning.idx = hw_ctx->hw_ctx_id;
-	hw->dcam_ioctl(hw, DCAM_HW_CFG_BINNING_4IN1_SET, &hw_ctx->binning);
+	hw->dcam_ioctl(hw, hw_ctx->hw_ctx_id, DCAM_HW_CFG_BINNING_4IN1_SET, &hw_ctx->binning);
 }
 
 void dcam_hwctx_block_set(struct dcam_hw_context *hw_ctx)
 {
 	struct cam_hw_info *hw = NULL;
 	hw = hw_ctx->hw;
-	hw->dcam_ioctl(hw, DCAM_HW_CFG_BLOCKS_SETSTATIS, hw_ctx->blk_pm);
-	hw->dcam_ioctl(hw, DCAM_HW_CFG_BLOCKS_SETALL, hw_ctx->blk_pm);
+	hw->dcam_ioctl(hw, hw_ctx->hw_ctx_id, DCAM_HW_CFG_BLOCKS_SETSTATIS, hw_ctx->blk_pm);
+	hw->dcam_ioctl(hw, hw_ctx->hw_ctx_id, DCAM_HW_CFG_BLOCKS_SETALL, hw_ctx->blk_pm);
 }
 
 void dcam_hwctx_frame_param_set(struct dcam_hw_context *hw_ctx)
@@ -232,14 +232,14 @@ void dcam_hwctx_frame_param_set(struct dcam_hw_context *hw_ctx)
 			continue;
 		pr_debug("dcam path id %d update, compress_en %d\n", i, hw_ctx->hw_path[i].hw_fbc.compress_en);
 		if (hw_ctx->hw_path[i].hw_fbc.compress_en)
-			hw->dcam_ioctl(hw, DCAM_HW_CFG_FBC_ADDR_SET, &hw_ctx->hw_path[i].hw_fbc_store);
+			hw->dcam_ioctl(hw, hw_ctx->hw_ctx_id, DCAM_HW_CFG_FBC_ADDR_SET, &hw_ctx->hw_path[i].hw_fbc_store);
 		else
-			hw->dcam_ioctl(hw, DCAM_HW_CFG_STORE_ADDR, &hw_ctx->hw_path[i].hw_store);
+			hw->dcam_ioctl(hw, hw_ctx->hw_ctx_id, DCAM_HW_CFG_STORE_ADDR, &hw_ctx->hw_path[i].hw_store);
 
-		hw->dcam_ioctl(hw, DCAM_HW_CFG_PATH_SIZE_UPDATE, &hw_ctx->hw_path[i].hw_size);
-		hw->dcam_ioctl(hw, DCAM_HW_CFG_PATH_START, &hw_ctx->hw_path[i].hw_start);
+		hw->dcam_ioctl(hw, hw_ctx->hw_ctx_id, DCAM_HW_CFG_PATH_SIZE_UPDATE, &hw_ctx->hw_path[i].hw_size);
+		hw->dcam_ioctl(hw, hw_ctx->hw_ctx_id, DCAM_HW_CFG_PATH_START, &hw_ctx->hw_path[i].hw_start);
 		if (hw_ctx->hw_path[i].hw_fbc.compress_en)
-			hw->dcam_ioctl(hw, DCAM_HW_CFG_FBC_CTRL, &hw_ctx->hw_path[i].hw_fbc);
+			hw->dcam_ioctl(hw, hw_ctx->hw_ctx_id, DCAM_HW_CFG_FBC_CTRL, &hw_ctx->hw_path[i].hw_fbc);
 	}
 }
 
@@ -249,7 +249,7 @@ int dcam_hwctx_fetch_set(struct dcam_hw_context *hw_ctx)
 	struct cam_hw_info *hw = NULL;
 
 	hw = hw_ctx->hw;
-	ret = hw->dcam_ioctl(hw, DCAM_HW_CFG_FETCH_SET, &hw_ctx->hw_fetch);
+	ret = hw->dcam_ioctl(hw, hw_ctx->hw_ctx_id, DCAM_HW_CFG_FETCH_SET, &hw_ctx->hw_fetch);
 	return ret;
 }
 
@@ -279,8 +279,8 @@ void dcam_hwctx_slice_set(struct dcam_hw_context *hw_ctx, struct dcam_fetch_info
 		ratio = fetch->trim.size_x / hw_ctx->hw_path[slicearg.path_id].hw_size.out_size.w;
 		dcamhwctx_slice_store_param_get(hw_ctx, &slicearg, &slicearg.bin_scaler, &slicearg.bin_store, ratio);
 	}
-	hw->dcam_ioctl(hw, DCAM_HW_CFG_SLICE_FETCH_SET, &slicearg);
-	hw->dcam_ioctl(hw, DCAM_HW_CFG_SLICE_STORE_SET, &slicearg);
+	hw->dcam_ioctl(hw, hw_ctx->hw_ctx_id, DCAM_HW_CFG_SLICE_FETCH_SET, &slicearg);
+	hw->dcam_ioctl(hw, hw_ctx->hw_ctx_id, DCAM_HW_CFG_SLICE_STORE_SET, &slicearg);
 }
 
 void dcam_hwctx_slice_force_copy(struct dcam_hw_context *hw_ctx, int x)
@@ -294,7 +294,7 @@ void dcam_hwctx_slice_force_copy(struct dcam_hw_context *hw_ctx, int x)
 	copyarg.id = force_ids;
 	copyarg.idx = hw_ctx->hw_ctx_id;
 	copyarg.glb_reg_lock = hw_ctx->glb_reg_lock;
-	hw->dcam_ioctl(hw, DCAM_HW_CFG_FORCE_COPY, &copyarg);
+	hw->dcam_ioctl(hw, hw_ctx->hw_ctx_id, DCAM_HW_CFG_FORCE_COPY, &copyarg);
 	os_adapt_time_udelay(500);
 	if (x == 0) {
 		trace.type = NORMAL_REG_TRACE;
@@ -305,7 +305,7 @@ void dcam_hwctx_slice_force_copy(struct dcam_hw_context *hw_ctx, int x)
 
 void dcam_hwctx_cfg_fetch_start(struct cam_hw_info *hw)
 {
-	hw->dcam_ioctl(hw, DCAM_HW_CFG_FETCH_START, hw);
+	hw->dcam_ioctl(hw, 0, DCAM_HW_CFG_FETCH_START, hw);
 }
 
 int dcam_hwctx_slw_fmcu_set(struct dcam_hw_context *hw_ctx, uint32_t hw_ctx_id, int j)
@@ -326,7 +326,7 @@ int dcam_hwctx_slw_fmcu_set(struct dcam_hw_context *hw_ctx, uint32_t hw_ctx_id, 
 		hw_ctx->slw.is_first_cycle = 1;
 	else
 		hw_ctx->slw.is_first_cycle = 0;
-	ret = hw->dcam_ioctl(hw, DCAM_HW_CFG_SLW_FMCU_CMDS, &hw_ctx->slw);
+	ret = hw->dcam_ioctl(hw, hw_ctx->hw_ctx_id, DCAM_HW_CFG_SLW_FMCU_CMDS, &hw_ctx->slw);
 	return ret;
 }
 
@@ -352,7 +352,7 @@ void dcam_hwctx_update_path_size(struct dcam_online_port *dcam_port,
 	path_size.compress_info = frame->common.fbc_info;
 	path_size.deci = dcam_port->deci;
 	path_size.scaler_info = &dcam_port->scaler_info;
-	hw->dcam_ioctl(hw, DCAM_HW_CFG_PATH_SIZE_UPDATE, &path_size);
+	hw->dcam_ioctl(hw, hw_ctx->hw_ctx_id, DCAM_HW_CFG_PATH_SIZE_UPDATE, &path_size);
 }
 
 int dcam_hwctx_pyr_dec_cfg(struct dcam_online_port *dcam_port,
@@ -389,7 +389,7 @@ int dcam_hwctx_pyr_dec_cfg(struct dcam_online_port *dcam_port,
 	dec_online.flust_width = dcam_port->out_size.w;
 	dec_online.flush_hblank_num = dec_online.hor_padding_num + 20;
 	dec_online.flush_line_num = dec_online.ver_padding_num + 20;
-	hw->dcam_ioctl(hw, DCAM_HW_CFG_DEC_ONLINE, &dec_online);
+	hw->dcam_ioctl(hw, hw_ctx->hw_ctx_id, DCAM_HW_CFG_DEC_ONLINE, &dec_online);
 
 	dec_store.idx = idx;
 	dec_store.bypass = 1;
@@ -422,7 +422,7 @@ int dcam_hwctx_pyr_dec_cfg(struct dcam_online_port *dcam_port,
 		/* when zoom, if necessary size update may set with path size udapte
 		 thus, the dec_store need remember on path or ctx, and calc & reg set
 		 need separate too, now just */
-		hw->dcam_ioctl(hw, DCAM_HW_CFG_DEC_SIZE_UPDATE, &dec_store);
+		hw->dcam_ioctl(hw, hw_ctx->hw_ctx_id, DCAM_HW_CFG_DEC_SIZE_UPDATE, &dec_store);
 
 		pr_debug("dcam %d dec_layer %d w %d h %d\n", idx, i, dec_store.width, dec_store.height);
 	}

@@ -34,6 +34,7 @@
 #define CAM_HW_ADPT_LAYER
 
 #include "dcam_hw.c"
+#include "dcamlite_hw.c"
 #include "isp_hw.c"
 #include "pyrdec_hw.c"
 
@@ -470,12 +471,15 @@ static uint32_t isp_ctx_fmcu_support[ISP_CONTEXT_HW_NUM] = {
 	[ISP_CONTEXT_HW_C1] = 1,
 };
 
-static int camhwif_dcam_ioctl(void *handle, enum dcam_hw_cfg_cmd cmd, void *arg)
+static int camhwif_dcam_ioctl(void *handle, enum dcam_hw_context_id hw_idx, enum dcam_hw_cfg_cmd cmd, void *arg)
 {
 	int ret = 0;
 	hw_ioctl_fun hw_ctrl = NULL;
 
-	hw_ctrl = dcamhw_ioctl_fun_get(cmd);
+	if (hw_idx <= DCAM_HW_CONTEXT_1)
+		hw_ctrl = dcamhw_ioctl_fun_get(cmd);
+	else
+		hw_ctrl = dcamlitehw_ioctl_fun_get(cmd);
 	if (hw_ctrl != NULL)
 		ret = hw_ctrl(handle, arg);
 	else

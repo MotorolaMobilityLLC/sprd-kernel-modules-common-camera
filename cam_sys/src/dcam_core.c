@@ -36,7 +36,7 @@ static void dcamcore_get_fmcu(struct dcam_hw_context *pctx_hw)
 	hw = pctx_hw->hw;
 	hw_ctx_id = pctx_hw->hw_ctx_id;
 
-	if(hw->ip_dcam[hw_ctx_id]->dcamhw_abt->fmcu_support) {
+	if(hw->ip_dcam[hw_ctx_id]->dcamhw_abt && hw->ip_dcam[hw_ctx_id]->dcamhw_abt->fmcu_support) {
 		fmcu_info = dcam_fmcu_ctx_desc_get(hw, hw_ctx_id);
 		if (fmcu_info && fmcu_info->ops) {
 			ret = fmcu_info->ops->ctx_init(fmcu_info);
@@ -79,7 +79,7 @@ static void dcamcore_get_dummy_slave(struct dcam_hw_context *pctx_hw)
 	}
 
 	hw_ctx_id = pctx_hw->hw_ctx_id;
-	if(pctx_hw->hw->ip_dcam[hw_ctx_id]->dcamhw_abt->dummy_slave_support) {
+	if(pctx_hw->hw->ip_dcam[hw_ctx_id]->dcamhw_abt && pctx_hw->hw->ip_dcam[hw_ctx_id]->dcamhw_abt->dummy_slave_support) {
 		dummy_slave = dcam_dummy_ctx_desc_get(pctx_hw->hw, DCAM_DUMMY_0);
 		if (dummy_slave && dummy_slave->dummy_ops) {
 			pctx_hw->dummy_slave = dummy_slave;
@@ -155,6 +155,7 @@ static int dcamcore_context_init(struct dcam_pipe_dev *dev)
 		ret = dcam_int_common_irq_request(&dev->hw->pdev->dev, dev->hw->ip_dcam[i]->irq_no, pctx_hw);
 		if (ret)
 			pr_err("fail to register irq for hw_ctx %d\n", i);
+		dcam_int_irq_init(pctx_hw);
 
 		dcamcore_get_fmcu(pctx_hw);
 		dcamcore_get_dummy_slave(pctx_hw);
@@ -190,7 +191,7 @@ static int dcamcore_context_deinit(struct dcam_pipe_dev *dev)
 static int dcamcore_dev_open(void *dcam_handle)
 {
 	int ret = 0;
-	int hw_ctx_id = 0;
+	int hw_ctx_id = DCAM_HW_CONTEXT_0;
 	struct dcam_pipe_dev *dev = (struct dcam_pipe_dev *)dcam_handle;
 
 	pr_info("enter.\n");
@@ -201,7 +202,7 @@ static int dcamcore_dev_open(void *dcam_handle)
 
 	mutex_lock(&dev->ctx_mutex);
 	if (atomic_inc_return(&dev->enable) == 1) {
-		dev->hw->dcam_ioctl(dev->hw, DCAM_HW_CFG_INIT_AXI, &hw_ctx_id);
+		dev->hw->dcam_ioctl(dev->hw, hw_ctx_id, DCAM_HW_CFG_INIT_AXI, &hw_ctx_id);
 
 		ret = dcamcore_context_init(dev);
 		if (ret) {
@@ -246,12 +247,12 @@ static int dcamcore_dev_close(void *dcam_handle)
 
 static void dcamcore_dev_recovery(void *dcam_handle)
 {
-	int recovery_id = 0, i = 0;
+	int recovery_id = DCAM_HW_CONTEXT_0, i = 0;
 	struct dcam_pipe_dev *dev = NULL;
 	struct dcam_hw_context *hw_ctx = NULL;
 
 	dev = (struct dcam_pipe_dev *)dcam_handle;
-	dev->hw->dcam_ioctl(dev->hw, DCAM_HW_CFG_ALL_RESET, &recovery_id);
+	dev->hw->dcam_ioctl(dev->hw, recovery_id, DCAM_HW_CFG_ALL_RESET, &recovery_id);
 	cam_buf_iommu_restore(CAM_BUF_IOMMUDEV_DCAM);
 	for (i = 0; i < DCAM_HW_CONTEXT_MAX; i++) {
 		hw_ctx = &dev->hw_ctx[i];
@@ -264,7 +265,7 @@ static int dcamcore_ctx_bind(void *dev_handle, void *node, uint32_t node_id,
 		uint32_t csi_controller_idx, uint32_t slw_cnt, uint32_t *hw_id, uint32_t *slw_type)
 {
 	int i = 0;
-	uint32_t hw_ctx_id = DCAM_HW_CONTEXT_MAX, mode = 0;
+	uint32_t hw_ctx_id = DCAM_HW_CONTEXT_BIND_MAX, mode = 0;
 	struct dcam_pipe_dev *dev = NULL;
 	struct dcam_hw_context *pctx_hw = NULL;
 
@@ -285,7 +286,7 @@ static int dcamcore_ctx_bind(void *dev_handle, void *node, uint32_t node_id,
 		}
 		atomic_dec(&pctx_hw->user_cnt);
 	} else if (mode == DCAM_BIND_DYNAMIC) {
-		for (i = 0; i < DCAM_HW_CONTEXT_MAX; i++) {
+		for (i = 0; i < DCAM_HW_CONTEXT_BIND_MAX; i++) {
 			pctx_hw = &dev->hw_ctx[i];
 			if (node_id == pctx_hw->node_id && pctx_hw->node == node) {
 				atomic_inc(&pctx_hw->user_cnt);
@@ -294,11 +295,11 @@ static int dcamcore_ctx_bind(void *dev_handle, void *node, uint32_t node_id,
 				return 0;
 			}
 		}
-		for (i = 0; i < DCAM_HW_CONTEXT_MAX; i++) {
+		for (i = 0; i < DCAM_HW_CONTEXT_BIND_MAX; i++) {
 			pctx_hw = &dev->hw_ctx[i];
 			if (atomic_inc_return(&pctx_hw->user_cnt) == 1) {
 				hw_ctx_id = pctx_hw->hw_ctx_id;
-				if (slw_cnt && dev->hw->ip_dcam[i]->dcamhw_abt->fmcu_support) {
+				if (slw_cnt && dev->hw->ip_dcam[i]->dcamhw_abt && dev->hw->ip_dcam[i]->dcamhw_abt->fmcu_support) {
 					*slw_type = DCAM_SLW_FMCU;
 					if (!pctx_hw->fmcu)
 						continue;
@@ -309,7 +310,7 @@ static int dcamcore_ctx_bind(void *dev_handle, void *node, uint32_t node_id,
 		}
 	}
 exit:
-	if (hw_ctx_id == DCAM_HW_CONTEXT_MAX) {
+	if (hw_ctx_id == DCAM_HW_CONTEXT_BIND_MAX) {
 		pr_warn("warning: get hw_ctx_id fail. mode=%d\n", mode);
 		return -1;
 	}
