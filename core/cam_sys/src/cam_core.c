@@ -672,10 +672,11 @@ static int camcore_pipeline_callback(enum cam_cb_type type, void *param, void *p
 	case CAM_CB_FRAME_CACHE_CLEAR_BUF:
 		camcore_dcam_online_buf_cfg(channel, pframe, module);
 		break;
+	case CAM_CB_DCAM_CLEAR_BUF:
 	case CAM_CB_DCAM_DATA_DONE:
 	case CAM_CB_DUMP_DATA_DONE:
 	case CAM_CB_REPLACE_DATA_DONE:
-	case CAM_CB_DCAM_CLEAR_BUF:
+	case CAM_CB_FRAME_CACHE_DATA_DONE:
 		if (atomic_read(&module->state) != CAM_RUNNING) {
 			pr_info("stream off cmd %d put frame %px, state:%d\n", type, pframe, module->state);
 			if (pframe->common.buf.type == CAM_BUF_KERNEL) {
@@ -942,6 +943,50 @@ static int camcore_framecache_desc_get(struct camera_module *module, struct fram
 	return ret;
 }
 
+static void camcore_cap_pipeline_info_get(struct camera_module *module, struct channel_context *channel,
+		uint32_t *pipeline_type, int *dcam_port_id)
+{
+	struct cam_hw_info *hw = NULL;
+
+	if (!module || !pipeline_type || !dcam_port_id || !channel)
+		pr_err("fail to get input handle:module:%p, pipeline_type:%p, dcam_port_id:%p, channel:%p.\n",
+			module, pipeline_type, dcam_port_id, channel);
+
+	hw = module->grp->hw_info;
+	if (module->cam_uinfo.zsl_num != 0 || module->cam_uinfo.is_dual)
+		*pipeline_type = CAM_PIPELINE_ZSL_CAPTURE;
+
+	if (module->cam_uinfo.is_4in1) {
+		*pipeline_type = CAM_PIPELINE_ONLINERAW_2_USER_2_OFFLINEYUV;
+		*dcam_port_id = dcamoffline_pathid_convert_to_portid(hw->ip_dcam[0]->dcamhw_abt->dcam_raw_path_id);
+		module->auto_3dnr = channel->uinfo_3dnr = 0;
+	}
+
+	if (module->cam_uinfo.is_raw_alg) {
+		if (module->cam_uinfo.alg_type == ALG_TYPE_CAP_AI_SFNR) {
+			*pipeline_type = CAM_PIPELINE_ONLINE_NORMAL2YUV_OR_RAW2USER2YUV;
+			if (module->cam_uinfo.zsl_num != 0)
+				*pipeline_type = CAM_PIPELINE_ONLINE_NORMALZSLCAPTURE_OR_RAW2USER2YUV;
+			if (module->cam_uinfo.param_frame_sync) {
+				*dcam_port_id = dcamoffline_pathid_convert_to_portid(hw->ip_dcam[0]->dcamhw_abt->dcam_raw_path_id);
+				*pipeline_type = CAM_PIPELINE_ONLINERAW_2_USER_2_OFFLINEYUV;
+			}
+		} else if (module->cam_uinfo.alg_type == ALG_TYPE_CAP_MFNR) {
+			*dcam_port_id = dcamoffline_pathid_convert_to_portid(hw->ip_dcam[0]->dcamhw_abt->dcam_raw_path_id);
+			*pipeline_type = CAM_PIPELINE_ONLINERAW_2_USER_2_BPCRAW_2_USER_2_OFFLINEYUV;
+		} else {
+			*dcam_port_id = dcamoffline_pathid_convert_to_portid(hw->ip_dcam[0]->dcamhw_abt->dcam_raw_path_id);
+			*pipeline_type = CAM_PIPELINE_ONLINEBPCRAW_2_USER_2_OFFLINEYUV;
+		}
+	}
+
+	if (module->cam_uinfo.dcam_slice_mode && !module->cam_uinfo.is_4in1) {
+		*pipeline_type = CAM_PIPELINE_ONLINERAW_2_OFFLINEYUV;
+		*dcam_port_id = dcamoffline_pathid_convert_to_portid(hw->ip_dcam[0]->dcamhw_abt->dcam_raw_path_id);
+		module->auto_3dnr = channel->uinfo_3dnr = 0;
+	}
+}
+
 static int camcore_pipeline_init(struct camera_module *module,
 		struct channel_context *channel)
 {
@@ -989,7 +1034,7 @@ static int camcore_pipeline_init(struct camera_module *module,
 
 		isp_port_id = PORT_PRE_OUT;
 		pipeline_type = CAM_PIPELINE_PREVIEW;
-		if (module->cam_uinfo.algs_type == ALG_TYPE_VID_DR)
+		if (module->cam_uinfo.alg_type == ALG_TYPE_VID_DR)
 			pipeline_type = CAM_PIPELINE_ONLINEYUV_2_USER_2_OFFLINEYUV_2_NR;
 		break;
 	case CAM_CH_VID:
@@ -1006,32 +1051,7 @@ static int camcore_pipeline_init(struct camera_module *module,
 		dcam_port_id = PORT_FULL_OUT;
 		isp_port_id = PORT_CAP_OUT;
 		pipeline_type = CAM_PIPELINE_CAPTURE;
-		if (module->cam_uinfo.zsl_num != 0 || module->cam_uinfo.is_dual)
-			pipeline_type = CAM_PIPELINE_ZSL_CAPTURE;
-		if (module->cam_uinfo.is_4in1) {
-			pipeline_type = CAM_PIPELINE_ONLINERAW_2_USER_2_OFFLINEYUV;
-			dcam_port_id = dcamoffline_pathid_convert_to_portid(hw->ip_dcam[0]->dcamhw_abt->dcam_raw_path_id);
-			module->auto_3dnr = channel->uinfo_3dnr = 0;
-		}
-		if (module->cam_uinfo.is_raw_alg) {
-			if (module->cam_uinfo.algs_type == ALG_TYPE_CAP_AI_SFNR) {
-				pipeline_type = CAM_PIPELINE_ONLINE_NORMAL2YUV_OR_RAW2USER2YUV;
-				if (module->cam_uinfo.zsl_num != 0)
-					pipeline_type = CAM_PIPELINE_ONLINE_NORMALZSLCAPTURE_OR_RAW2USER2YUV;
-				if (module->cam_uinfo.param_frame_sync) {
-					dcam_port_id = dcamoffline_pathid_convert_to_portid(hw->ip_dcam[0]->dcamhw_abt->dcam_raw_path_id);
-					pipeline_type = CAM_PIPELINE_ONLINERAW_2_USER_2_OFFLINEYUV;
-				}
-			} else {
-				dcam_port_id = dcamoffline_pathid_convert_to_portid(hw->ip_dcam[0]->dcamhw_abt->dcam_raw_path_id);
-				pipeline_type = CAM_PIPELINE_ONLINERAW_2_USER_2_BPCRAW_2_USER_2_OFFLINEYUV;
-			}
-		}
-		if (module->cam_uinfo.dcam_slice_mode && !module->cam_uinfo.is_4in1) {
-			pipeline_type = CAM_PIPELINE_ONLINERAW_2_OFFLINEYUV;
-			dcam_port_id = dcamoffline_pathid_convert_to_portid(hw->ip_dcam[0]->dcamhw_abt->dcam_raw_path_id);
-			module->auto_3dnr = channel->uinfo_3dnr = 0;
-		}
+		camcore_cap_pipeline_info_get(module, channel, &pipeline_type, &dcam_port_id);
 		break;
 	case CAM_CH_RAW:
 		if ((module->grp->hw_info->prj_id == SHARKL5pro &&
@@ -1043,7 +1063,7 @@ static int camcore_pipeline_init(struct camera_module *module,
 
 		channel_cap = &module->channel[CAM_CH_CAP];
 		module->cam_uinfo.is_raw_alg = 0;
-		module->cam_uinfo.algs_type = 0;
+		module->cam_uinfo.alg_type = 0;
 		module->auto_3dnr = channel->uinfo_3dnr = 0;
 		isp_port_id = -1;
 		pipeline_type = CAM_PIPELINE_SENSOR_RAW;

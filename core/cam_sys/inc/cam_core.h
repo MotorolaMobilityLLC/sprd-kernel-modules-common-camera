@@ -148,7 +148,8 @@ struct camera_uinfo {
 	uint32_t zoom_conflict_with_ltm;
 	/* for raw alg*/
 	enum en_status is_raw_alg;
-	enum alg_types algs_type;
+	enum alg_types alg_type;
+	enum cam_rawdata_src rawdata_src;
 	uint32_t param_frame_sync;
 	/* for dcam raw*/
 	enum en_status need_dcam_raw;

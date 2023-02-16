@@ -465,7 +465,7 @@ static int camioctl_function_mode_set(struct camera_module *module,
 	ret |= get_user(module->cam_uinfo.is_4in1, &uparam->need_4in1);
 	ret |= get_user(module->cam_uinfo.is_dual, &uparam->dual_cam);
 	ret |= get_user(module->cam_uinfo.is_raw_alg, &uparam->is_raw_alg);
-	ret |= get_user(module->cam_uinfo.algs_type, &uparam->raw_alg_type);
+	ret |= get_user(module->cam_uinfo.alg_type, &uparam->raw_alg_type);
 	ret |= get_user(module->cam_uinfo.param_frame_sync, &uparam->param_frame_sync);
 	ret |= get_user(module->cam_uinfo.zoom_conflict_with_ltm, &uparam->zoom_conflict_with_ltm);
 	ret |= get_user(module->cam_uinfo.need_dcam_raw, &uparam->need_dcam_raw);
@@ -494,7 +494,7 @@ static int camioctl_function_mode_set(struct camera_module *module,
 		module->cam_uinfo.is_4in1,module->cam_uinfo.is_rgb_ltm,
 		module->cam_uinfo.is_rgb_gtm,
 		module->cam_uinfo.is_dual, module->cam_uinfo.is_pyr_dec,
-		module->cam_uinfo.algs_type,
+		module->cam_uinfo.alg_type,
 		module->cam_uinfo.zoom_conflict_with_ltm,
 		module->cam_uinfo.is_raw_alg,
 		module->cam_uinfo.need_dcam_raw,
@@ -1213,6 +1213,8 @@ static int camioctl_frame_addr_set(struct camera_module *module,
 				pframe->common.img_fmt = pixel_fmt;
 			if (module->cam_uinfo.is_raw_alg && channel_id != CAM_CH_DCAM_VCH) {
 				pframe->common.irq_property = CAM_FRAME_ORIGINAL_RAW;
+				if (module->cam_uinfo.alg_type == ALG_TYPE_CAP_XDR)
+					pframe->common.irq_property = CAM_FRAME_PROCESS_RAW;
 				ret = CAM_PIPEINE_DCAM_ONLINE_OUT_PORT_CFG(ch, dcamonline_pathid_convert_to_portid(DCAM_PATH_RAW),
 					CAM_PIPELINE_CFG_BUF, pframe);
 			} else if (ch->ch_id == CAM_CH_RAW && module->cam_uinfo.need_dcam_raw && hw->ip_isp->isphw_abt->fetch_raw_support && ch_cap->enable){
@@ -1850,6 +1852,8 @@ static int camioctl_capture_start(struct camera_module *module,
 	cap_param.cap_scene = module->cap_scene;
 	cap_param.cap_user_crop = ch->latest_user_crop;
 	cap_param.skip_first_num = param.skip_first_num;
+	cap_param.zsl_num = param.zsl_num;
+	cap_param.frm_sel_mode = param.frm_sel_mode;
 
 	if (module->cam_uinfo.is_4in1 || module->cam_uinfo.dcam_slice_mode || module->cam_uinfo.is_longexp)
 		cap_param.need_skip_scene = 1;
