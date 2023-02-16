@@ -646,13 +646,13 @@ struct dcam_hw_auto_copy {
 struct dcam_hw_path_stop {
 	uint32_t idx;
 	uint32_t path_id;
-	enum alg_types algs_type;
+	enum alg_types alg_type;
 };
 
 struct dcam_hw_path_restart {
 	uint32_t idx;
 	uint32_t path_id;
-	enum alg_types algs_type;
+	enum alg_types alg_type;
 };
 
 struct dcam_fetch_info {

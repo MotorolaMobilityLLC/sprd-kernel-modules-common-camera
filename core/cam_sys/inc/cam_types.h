@@ -351,6 +351,8 @@ struct cam_capture_param {
 	uint32_t cap_opt_frame_scene;
 	struct sprd_img_rect cap_user_crop;
 	uint32_t skip_first_num;
+	uint32_t zsl_num;
+	enum cam_node_frmsel_mode frm_sel_mode;
 };
 
 struct cam_buf_alloc_desc {

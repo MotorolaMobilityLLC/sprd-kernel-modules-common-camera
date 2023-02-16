@@ -82,7 +82,7 @@ struct dcam_online_node_desc {
 	void *shutoff_cfg_cb_handle;
 	enum en_status is_pyr_rec;
 	uint32_t dcam_idx;
-	enum alg_types algs_type;
+	enum alg_types alg_type;
 	uint32_t param_frame_sync;
 	struct dcam_isp_k_block *blk_pm;
 };
@@ -124,7 +124,7 @@ struct dcam_online_node {
 	timespec frame_ts[DCAM_FRAME_TIMESTAMP_COUNT];
 	ktime_t frame_ts_boot[DCAM_FRAME_TIMESTAMP_COUNT];
 	struct dcam_isp_k_block blk_pm;
-	enum alg_types algs_type;
+	enum alg_types alg_type;
 	uint32_t param_frame_sync;
 
 	shutoff_cfg_cb shutoff_cfg_cb_func;

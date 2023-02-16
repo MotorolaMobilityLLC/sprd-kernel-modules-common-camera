@@ -44,11 +44,39 @@ static void framecache_frame_put(void *param)
 		cam_queue_empty_frame_put(frame);
 }
 
+static void framecache_capzslframe_deal(struct frame_cache_node *node)
+{
+	struct cam_frame *pframe = NULL;
+
+	if (!node)
+		pr_err("fail to get input handle:%p.\n", node);
+
+	do {
+		pframe = CAM_QUEUE_DEQUEUE_TAIL(&node->cache_buf_queue, struct cam_frame, list);
+		if (!pframe) {
+			pr_warn("warning:q status:%d, cnt:%d.\n", node->cache_buf_queue.state, node->cache_buf_queue.cnt);
+			return;
+		}
+		if (node->cap_param.zsl_num) {
+			node->link_info = pframe->common.link_from;
+			pframe->common.link_from.node_type = CAM_NODE_TYPE_FRAME_CACHE;
+			pframe->common.link_from.port_id = PORT_FRAME_CACHE_OUT;
+			node->data_cb_func(CAM_CB_FRAME_CACHE_DATA_DONE, pframe, node->data_cb_handle);
+			node->cap_param.zsl_num--;
+		} else
+			node->data_cb_func(CAM_CB_FRAME_CACHE_RET_SRC_BUF, pframe, node->data_cb_handle);
+	} while (pframe);
+}
+
 static struct cam_frame *framecache_capframe_get(struct frame_cache_node *node,
 		struct cam_frame *pframe)
 {
 	struct cam_frame *pftmp = NULL;
 
+	if (node->cap_param.frm_sel_mode == CAM_NODE_FRAME_NO_SEL &&
+		pframe->common.boot_sensor_time >= node->cap_param.cap_timestamp) {
+		framecache_capzslframe_deal(node);
+	}
 	pframe->common.priv_data = node;
 	CAM_QUEUE_ENQUEUE(&node->cache_buf_queue, &pframe->list);
 	if (node->cache_buf_queue.cnt > node->cache_real_num && node->cache_real_num) {
@@ -59,6 +87,10 @@ static struct cam_frame *framecache_capframe_get(struct frame_cache_node *node,
 		node->data_cb_func(CAM_CB_FRAME_CACHE_RET_SRC_BUF, pframe, node->data_cb_handle);
 	}
 
+	if (node->cap_param.frm_sel_mode == CAM_NODE_FRAME_NO_SEL &&
+		pframe->common.boot_sensor_time < node->cap_param.cap_timestamp)
+		return NULL;
+
 	do {
 		pftmp = CAM_QUEUE_DEQUEUE(&node->cache_buf_queue, struct cam_frame, list);
 		if (!pftmp)
@@ -66,7 +98,7 @@ static struct cam_frame *framecache_capframe_get(struct frame_cache_node *node,
 		if (node->opt_frame_fid) {
 			if (node->pre_raw_flag == PRE_RAW_CACHE) {
 				node->data_cb_func(CAM_CB_FRAME_CACHE_RET_SRC_BUF, pftmp, node->data_cb_handle);
-				return 0;
+				return NULL;
 			}
 			if (node->opt_frame_fid != pftmp->common.fid) {
 				if (atomic_read(&node->opt_frame_done) == 0 && node->opt_frame_fid < pftmp->common.fid) {
@@ -256,8 +288,11 @@ int frame_cache_cfg_param(void *handle, uint32_t cmd, void *param)
 		node->cap_param.cap_cnt = cap_param->cap_cnt;
 		node->cap_param.cap_timestamp = cap_param->cap_timestamp;
 		node->cap_param.cap_user_crop = cap_param->cap_user_crop;
-		pr_info("cap type %d, cnt %d, time %lld\n", node->cap_param.cap_type,
-			atomic_read(&node->cap_param.cap_cnt), node->cap_param.cap_timestamp);
+		node->cap_param.zsl_num = cap_param->zsl_num;
+		node->cap_param.frm_sel_mode = cap_param->frm_sel_mode;
+		pr_info("cap type %d, cnt %d, time %lld, frm_sel_mode:%d, zsl_num:%d\n", node->cap_param.cap_type,
+			atomic_read(&node->cap_param.cap_cnt), node->cap_param.cap_timestamp, cap_param->frm_sel_mode,
+			cap_param->zsl_num);
 		break;
 	case CAM_NODE_CFG_CLR_CACHE_BUF:
 		do {

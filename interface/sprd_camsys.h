@@ -291,6 +291,7 @@ enum alg_types {
 	ALG_TYPE_CAP_AI_SFNR,
 	ALG_TYPE_CAP_MFNR,
 	ALG_TYPE_VID_DR,
+	ALG_TYPE_CAP_XDR,
 	ALG_TYPE_MAX,
 };
 
@@ -300,7 +301,24 @@ enum raw_alg_types {
 	RAW_ALG_FDR_V2,
 	RAW_ALG_AI_SFNR,
 	RAW_ALG_MFNR,
+	RAW_ALG_XDR,
 	RAW_ALG_TYPE_MAX,
+};
+
+enum cam_rawdata_src {
+	CAM_RAW_SEL_DEFAULT,
+	CAM_ORI_RAW_SEL,
+	CAM_PROCESS_RAW_SEL,
+	CAM_LSC_RAW_SEL,
+	CAM_BPC_RAW_SEL,
+	CAM_NLM_RAW_SEL,
+	CAM_RAW_SEL_MAX
+};
+
+enum cam_node_frmsel_mode {
+	CAM_NODE_FRAME_SEL,
+	CAM_NODE_FRAME_NO_SEL,
+	CAM_NODE_FRAME_SEL_MAX,
 };
 
 enum {
@@ -620,6 +638,7 @@ struct sprd_img_function_mode {
 	uint32_t virtualsensor;/* 1: virtual sensor 0: normal */
 	uint32_t master_flag;/* master cam capture flag */
 	uint32_t opt_buffer_num;/* pre raw malloc and cache buffer num */
+	uint32_t rawdata_src;
 };
 #pragma pack(pop)
 
@@ -917,6 +936,8 @@ struct sprd_img_capture_param {
 	uint32_t opt_frame_fid;/* optimized frame fid */
 	enum capture_scene cap_scene;
 	uint32_t skip_first_num;
+	uint32_t zsl_num;
+	uint32_t frm_sel_mode;
 };
 #pragma pack(pop)
 

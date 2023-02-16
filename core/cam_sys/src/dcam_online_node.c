@@ -1285,7 +1285,7 @@ static int dcamonline_dev_start(struct dcam_online_node *node, void *param)
 
 	CAM_QUEUE_FOR_EACH_ENTRY(port, &node->port_queue.head, list) {
 		if (atomic_read(&port->user_cnt) > 0) {
-			if (port->port_id == PORT_RAW_OUT && node->algs_type == ALG_TYPE_CAP_AI_SFNR && !node->param_frame_sync)
+			if (port->port_id == PORT_RAW_OUT && node->alg_type == ALG_TYPE_CAP_AI_SFNR && !node->param_frame_sync)
 				atomic_set(&port->is_shutoff, 0);
 
 			patharg.path_id = dcamonline_portid_convert_to_pathid(port->port_id);
@@ -1340,7 +1340,7 @@ static int dcamonline_dev_start(struct dcam_online_node *node, void *param)
 				}
 			}
 
-			if (port->port_id == PORT_RAW_OUT && node->algs_type == ALG_TYPE_CAP_AI_SFNR && !node->param_frame_sync) {
+			if (port->port_id == PORT_RAW_OUT && node->alg_type == ALG_TYPE_CAP_AI_SFNR && !node->param_frame_sync) {
 				CAM_NODE_SHUTOFF_PARAM_INIT(node_shutoff);
 				node_shutoff.outport_shutoff[port->port_id].port_id = port->port_id;
 				node_shutoff.outport_shutoff[port->port_id].shutoff_type = SHUTOFF_PAUSE;
@@ -2174,7 +2174,7 @@ void *dcam_online_node_get(uint32_t node_id, struct dcam_online_node_desc *param
 	node->dcam_idx = param->dcam_idx;
 	node->dev = param->dev;
 	node->hw_ctx_id = DCAM_HW_CONTEXT_MAX;
-	node->algs_type = param->algs_type;
+	node->alg_type = param->alg_type;
 	node->param_frame_sync = param->param_frame_sync;
 	node->buf_manager_handle = param->buf_manager_handle;
 

@@ -75,19 +75,22 @@ static enum en_status camnode_capture_skip_condition(struct cam_frame *pframe, s
 static int camnode_dynamic_link_update(struct cam_node *node, struct cam_frame *pframe)
 {
 	int ret = 0;
-	uint32_t cur_port_id = 0;
+	uint32_t cur_port_id = 0, node_type = 0;
 	struct cam_port_linkage cap_new_link = {0}, cap_ori_link = {0};
 	struct cam_capture_param *cap_param = NULL;
+	struct frame_cache_node *frame_cache_node = NULL;
 
 	if (!node || !pframe) {
 		pr_err("fail to get valid param %p %p\n", node, pframe);
 		return -EFAULT;
 	}
 
+	node_type = node->node_graph->type;
 	cur_port_id = pframe->common.link_from.port_id;
 	cap_ori_link = node->node_graph->outport[cur_port_id].link;
 	cap_new_link = node->node_graph->outport[cur_port_id].switch_link;
 	cap_param = &node->cap_param;
+	frame_cache_node = (struct frame_cache_node *)node->handle;
 
 	pr_debug("node type %s id %d cap type %d, cnt %d, time %lld frame time %lld cur_port_id %d w %d h %d\n",
 			cam_node_name_get(node->node_graph->type), node->node_graph->id, node->cap_param.cap_type,
@@ -103,13 +106,21 @@ static int camnode_dynamic_link_update(struct cam_node *node, struct cam_frame *
 			pframe->common.link_to = cap_ori_link;
 		break;
 	case CAM_CAPTURE_START_FROM_NEXT_SOF:
-		if ((pframe->common.boot_sensor_time >= cap_param->cap_timestamp || cap_param->cap_opt_frame_scene) &&
-			atomic_read(&cap_param->cap_cnt) > 0 &&
-			camnode_capture_skip_condition(pframe, cap_param)) {
-			pframe->common.link_to = cap_new_link;
-			atomic_dec(&cap_param->cap_cnt);
+		if (node_type == CAM_NODE_TYPE_FRAME_CACHE &&
+			frame_cache_node->cap_param.frm_sel_mode == CAM_NODE_FRAME_NO_SEL) {
+			if (atomic_read(&cap_param->cap_cnt) > 0 && camnode_capture_skip_condition(pframe, cap_param)) {
+				pframe->common.link_to = cap_new_link;
+				atomic_dec(&cap_param->cap_cnt);
+			} else
+				pframe->common.link_to = cap_ori_link;
 		} else {
-			pframe->common.link_to = cap_ori_link;
+			if ((pframe->common.boot_sensor_time >= cap_param->cap_timestamp || cap_param->cap_opt_frame_scene) &&
+				atomic_read(&cap_param->cap_cnt) > 0 &&
+				camnode_capture_skip_condition(pframe, cap_param)) {
+				pframe->common.link_to = cap_new_link;
+				atomic_dec(&cap_param->cap_cnt);
+			} else
+				pframe->common.link_to = cap_ori_link;
 		}
 		break;
 	case CAM_CAPTURE_START_WITH_TIMESTAMP:
