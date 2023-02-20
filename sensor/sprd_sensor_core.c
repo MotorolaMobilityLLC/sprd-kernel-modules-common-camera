@@ -488,7 +488,7 @@ static int sprd_sensor_io_grc_write_i2c(struct sprd_sensor_file_tag *p_file,
 	ret = copy_from_user(&i2c_tab, (struct sensor_i2c_tag *)arg,
 			     sizeof(i2c_tab));
 	if (ret == 0)
-		ret = sprd_sensor_write_i2c(&i2c_tab, p_file->sensor_id);
+		ret = sprd_sensor_write_i2c(&i2c_tab, p_file->sensor_id, 1);
 
 	return ret;
 }
@@ -590,7 +590,7 @@ static long sprd_sensor_file_ioctl(struct file *file, unsigned int cmd,
 		ret = sprd_sensor_io_set_private_key(p_file, arg);
           	return ret;
 	}
-  
+
 	if(p_file->private_key != 1) {
 		pr_info("sensor match private key failed, permission deny!\n");
 		return ret;

@@ -1592,7 +1592,7 @@ exit:
 }
 
 int sprd_sensor_write_i2c(struct sensor_i2c_tag *i2c_tab,
-				int sensor_id)
+				int sensor_id, bool is_user_data)
 {
 	uint8_t cmd[64] = { 0 };
 	struct i2c_msg msg_w;
@@ -1613,11 +1613,14 @@ int sprd_sensor_write_i2c(struct sensor_i2c_tag *i2c_tab,
 		return -EINVAL;
 	}
 
-	ret = copy_from_user(cmd, (void __user *)i2c_tab->i2c_data, cnt);
-
-	if (ret) {
-		pr_err("sensor W I2C ERR: copy user fail, size %d\n", cnt);
-		goto exit;
+	if (is_user_data){
+	    ret = copy_from_user(cmd,(void __user *) i2c_tab->i2c_data, cnt);
+	    if (ret) {
+	        pr_err("sensor W I2C ERR: copy user fail, size %d\n", cnt);
+	        goto exit;
+	    }
+	} else {
+	    memcpy(cmd, (void __user *)i2c_tab->i2c_data, cnt);
 	}
 
 	msg_w.addr = i2c_tab->slave_addr;
