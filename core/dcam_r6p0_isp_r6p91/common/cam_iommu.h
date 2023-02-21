@@ -33,6 +33,7 @@ struct pfiommu_info {
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0))
 	struct dma_buf_map map;
 #endif
+	int is_secure;
 };
 
 int pfiommu_get_sg_table(struct pfiommu_info *pfinfo);

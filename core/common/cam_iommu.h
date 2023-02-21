@@ -33,6 +33,7 @@ struct pfiommu_info {
 	struct dma_buf_map map;
 #endif
 	unsigned int offset[3];
+	uint32_t is_secure;
 };
 
 int pfiommu_get_sg_table(struct pfiommu_info *pfinfo);

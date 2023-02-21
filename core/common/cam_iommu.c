@@ -77,14 +77,19 @@ void dma_buffer_list_clear(void)
 int pfiommu_get_sg_table(struct pfiommu_info *pfinfo)
 {
 	int i, ret;
-
 	for (i = 0; i < 2; i++) {
 		if (pfinfo->mfd[i] > 0) {
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0))
-			ret = sprd_dmabuf_get_sysbuffer(pfinfo->mfd[i],
-						    NULL,
-						    &pfinfo->buf[i],
-						    &pfinfo->size[i]);
+			if (pfinfo->is_secure)
+				ret = sprd_dmabuf_get_carvebuffer(pfinfo->mfd[i],
+							NULL,
+							&pfinfo->buf[i],
+							&pfinfo->size[i]);
+			else
+				ret = sprd_dmabuf_get_sysbuffer(pfinfo->mfd[i],
+							NULL,
+							&pfinfo->buf[i],
+							&pfinfo->size[i]);
 #else
 			ret = sprd_ion_get_buffer(pfinfo->mfd[i],
 						    NULL,
@@ -123,12 +128,16 @@ int pfiommu_get_addr(struct pfiommu_info *pfinfo)
 	int i;
 	int ret = 0;
 	struct sprd_iommu_map_data iommu_data;
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0))
+	enum sprd_iommu_buftype buftype = SPRD_IOMMU_BUFTYPE_SYSTEM;
+	if (pfinfo->is_secure)
+		buftype = SPRD_IOMMU_BUFTYPE_CARVEOUT;
+#endif
 	pr_debug("%s, cb: %pS\n", __func__, __builtin_return_address(0));
 
 	for (i = 0; i < 2; i++) {
 		if (pfinfo->size[i] <= 0)
 			continue;
-
 		if (sprd_iommu_attach_device(pfinfo->dev) == 0) {
 			memset(&iommu_data, 0x00, sizeof(iommu_data));
 			iommu_data.buf = pfinfo->buf[i];
@@ -136,7 +145,11 @@ int pfiommu_get_addr(struct pfiommu_info *pfinfo)
 			iommu_data.ch_type = SPRD_IOMMU_FM_CH_RW;
 			iommu_data.sg_offset = pfinfo->offset[i];
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0))
+			ret = sprd_iommu_map_v2(pfinfo->dev, &iommu_data, buftype);
+#else
 			ret = sprd_iommu_map(pfinfo->dev, &iommu_data);
+#endif
 			if (ret) {
 				pr_err("fail to get iommu kaddr %d\n", i);
 				return -EFAULT;
