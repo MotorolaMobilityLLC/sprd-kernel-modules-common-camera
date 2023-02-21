@@ -64,6 +64,7 @@ static void scale_k_file_init(struct scale_k_file *fd,
 	init_completion(&fd->scale_done_com);
 
 	fd->drv_private.scale_fd = (void *)fd;
+	memset(&fd->drv_private.path_info, 0, sizeof(struct scale_path_info));
 	fd->drv_private.path_info.coeff_addr = scale_private->coeff_addr;
 
 	spin_lock_init(&fd->drv_private.scale_drv_lock);

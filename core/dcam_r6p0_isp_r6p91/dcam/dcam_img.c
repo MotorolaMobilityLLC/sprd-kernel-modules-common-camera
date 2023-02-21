@@ -1563,6 +1563,7 @@ static int sprd_img_path_cfg_output_addr(path_cfg_func path_cfg,
 		frm_addr.mfd_y = cur_node->frm_addr.mfd_y;
 		frm_addr.mfd_u = cur_node->frm_addr.mfd_u;
 		frm_addr.mfd_v = cur_node->frm_addr.mfd_v;
+		frm_addr.is_secure = cur_node->frm_addr.is_secure;
 		ret = path_cfg(DCAM_PATH_OUTPUT_ADDR, &frm_addr);
 		if (unlikely(ret)) {
 			pr_err("%s err, code %d", __func__, ret);
@@ -2577,6 +2578,7 @@ static int sprd_img_set_frame_addr(struct file *file,
 		ret = -EINVAL;
 		goto exit;
 	}
+
 	get_user(buffer_count, &uparam->buffer_count);
 	get_user(buf_flag, &uparam->buf_flag);
 	if (is_reserved_buf == 1) {
@@ -2589,6 +2591,7 @@ static int sprd_img_set_frame_addr(struct file *file,
 		get_user(path->frm_reserved_addr.mfd_y, &uparam->fd_array[0]);
 		get_user(path->frm_reserved_addr.mfd_u, &uparam->fd_array[0]);
 		get_user(path->frm_reserved_addr.mfd_v, &uparam->fd_array[0]);
+		get_user(path->frm_reserved_addr.is_secure, &uparam->img_statis_info.sec);
 		/*pr_info("frame buf, reserved path%d, fd 0x%x\n",
 		*	p->channel_id, p->fd_array[0]);
 		*/
@@ -2615,6 +2618,7 @@ static int sprd_img_set_frame_addr(struct file *file,
 				get_user(frame_addr.mfd_y, &uparam->fd_array[i]);
 				get_user(frame_addr.mfd_u, &uparam->fd_array[i]);
 				get_user(frame_addr.mfd_v, &uparam->fd_array[i]);
+				get_user(frame_addr.is_secure, &uparam->img_statis_info.sec);
 				/*pr_info("buf, running path%d, fd 0x%x\n",
 				*	p->channel_id, p->fd_array[i]);
 				*/
@@ -2636,15 +2640,17 @@ static int sprd_img_set_frame_addr(struct file *file,
 						ret = -EINVAL;
 						goto exit;
 					}
-				get_user(buf_addr.frm_addr.yaddr, &uparam->frame_addr_array[i].y);
-				get_user(buf_addr.frm_addr.uaddr, &uparam->frame_addr_array[i].u);
-				get_user(buf_addr.frm_addr.vaddr, &uparam->frame_addr_array[i].v);
-				get_user(buf_addr.frm_addr_vir.yaddr, &uparam->frame_addr_vir_array[i].y);
-				get_user(buf_addr.frm_addr_vir.uaddr, &uparam->frame_addr_vir_array[i].u);
-				get_user(buf_addr.frm_addr_vir.vaddr, &uparam->frame_addr_vir_array[i].v);
-				get_user(buf_addr.frm_addr.mfd_y, &uparam->fd_array[i]);
-				get_user(buf_addr.frm_addr.mfd_u, &uparam->fd_array[i]);
-				get_user(buf_addr.frm_addr.mfd_v, &uparam->fd_array[i]);
+					get_user(buf_addr.frm_addr.yaddr, &uparam->frame_addr_array[i].y);
+					get_user(buf_addr.frm_addr.uaddr, &uparam->frame_addr_array[i].u);
+					get_user(buf_addr.frm_addr.vaddr, &uparam->frame_addr_array[i].v);
+					get_user(buf_addr.frm_addr_vir.yaddr, &uparam->frame_addr_vir_array[i].y);
+					get_user(buf_addr.frm_addr_vir.uaddr, &uparam->frame_addr_vir_array[i].u);
+					get_user(buf_addr.frm_addr_vir.vaddr, &uparam->frame_addr_vir_array[i].v);
+					get_user(buf_addr.frm_addr_vir.is_secure, &uparam->img_statis_info.sec);
+					get_user(buf_addr.frm_addr.mfd_y, &uparam->fd_array[i]);
+					get_user(buf_addr.frm_addr.mfd_u, &uparam->fd_array[i]);
+					get_user(buf_addr.frm_addr.mfd_v, &uparam->fd_array[i]);
+					get_user(buf_addr.frm_addr.is_secure, &uparam->img_statis_info.sec);
 					/*pr_info("buf init path%d, fd 0x%x\n",
 					*	p->channel_id, p->fd_array[i]);
 					*/

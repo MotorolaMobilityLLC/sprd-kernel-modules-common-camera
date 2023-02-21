@@ -135,6 +135,7 @@ static int rot_k_open(struct inode *node, struct file *file)
 	fd->rot_private = rot_private;
 	fd->drv_private.rot_fd = (void *)fd;
 	fd->dn = md->this_device->of_node;
+	memset(&fd->drv_private.cfg, 0, sizeof(struct rot_param_tag));
 
 	spin_lock_init(&fd->drv_private.rot_drv_lock);
 

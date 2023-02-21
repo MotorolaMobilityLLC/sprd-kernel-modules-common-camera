@@ -381,20 +381,23 @@ int sprd_isp_cfg_statis_buf(struct isp_pipe_dev *dev,
 	return ret;
 }
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0))
 bool is_dma_buf_map_null(const struct dma_buf_map *map)
 {
 	if (map->is_iomem)
 		return !map->vaddr_iomem;
 	return !map->vaddr;
 }
+#endif
 
 int sprd_isp_clr_statis_buf(void *isp_pipe_dev_handle)
 {
 	struct isp_pipe_dev *dev = NULL;
 	struct isp_k_block *isp_k_param = NULL;
 	struct isp_statis_module *statis_module_info = NULL;
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0))
 	struct pfiommu_info *pfinfo = NULL;
-
+#endif
 	if (!isp_pipe_dev_handle) {
 		pr_err("%s input handle is NULL\n", __func__);
 		return -EINVAL;
@@ -437,7 +440,8 @@ int sprd_isp_clr_statis_buf(void *isp_pipe_dev_handle)
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0))
 	pfinfo = &statis_module_info->img_statis_buf.pfinfo;
-	if (sprd_iommu_attach_device(pfinfo->dev) == 0 && !is_dma_buf_map_null(&pfinfo->dmabuf_p[0]->vmap_ptr)) {
+	if (!pfinfo->is_secure && sprd_iommu_attach_device(pfinfo->dev) == 0
+			&& !is_dma_buf_map_null(&pfinfo->dmabuf_p[0]->vmap_ptr)) {
 		pr_info("dmabuf unmap kaddr 0x%x", (unsigned int)pfinfo->map.vaddr);
 		sprd_dmabuf_unmap_kernel(pfinfo->dmabuf_p[0], &pfinfo->map);
 	}

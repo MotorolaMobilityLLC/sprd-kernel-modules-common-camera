@@ -82,14 +82,29 @@ int pfiommu_get_sg_table(struct pfiommu_info *pfinfo)
 {
 	int i;
 	int ret = 0;
-
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0))
+	if(pfinfo->is_secure) {
+		// only for pike in faceid unlock mode need bypass dcam iommu
+		ret = sprd_iommu_set_cam_bypass(true);
+		if (unlikely(ret)) {
+			pr_err("fail to enable vaor bypass mode, ret %d\n", ret);
+			return -EFAULT;
+		}
+	}
+#endif
 	for (i = 0; i < 2; i++) {
 		if (pfinfo->mfd[i] > 0) {
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0))
-			ret = sprd_dmabuf_get_sysbuffer(pfinfo->mfd[i],
-						    NULL,
-						    &pfinfo->buf[i],
-						    &pfinfo->size[i]);
+			if (pfinfo->is_secure)
+				ret = sprd_dmabuf_get_carvebuffer(pfinfo->mfd[i],
+							NULL,
+							&pfinfo->buf[i],
+							&pfinfo->size[i]);
+			else
+				ret = sprd_dmabuf_get_sysbuffer(pfinfo->mfd[i],
+							NULL,
+							&pfinfo->buf[i],
+							&pfinfo->size[i]);
 #else
 			ret = sprd_ion_get_buffer(pfinfo->mfd[i],
 						    NULL,
@@ -141,7 +156,7 @@ int pfiommu_get_single_page_addr(struct pfiommu_info *pfinfo)
 		if (pfinfo->size[i] <= 0)
 			continue;
 
-		if (sprd_iommu_attach_device(pfinfo->dev) == 0) {
+		if (!pfinfo->is_secure && sprd_iommu_attach_device(pfinfo->dev) == 0) {
 			memset(&iommu_data, 0x00, sizeof(iommu_data));
 			iommu_data.buf = pfinfo->buf[i];
 			iommu_data.iova_size = pfinfo->size[i];
@@ -183,7 +198,7 @@ int pfiommu_get_addr(struct pfiommu_info *pfinfo)
 		if (pfinfo->size[i] <= 0)
 			continue;
 
-		if (sprd_iommu_attach_device(pfinfo->dev) == 0) {
+		if (!pfinfo->is_secure && sprd_iommu_attach_device(pfinfo->dev) == 0) {
 			memset(&iommu_data, 0x00, sizeof(iommu_data));
 			iommu_data.buf = pfinfo->buf[i];
 			iommu_data.iova_size = pfinfo->size[i];
@@ -217,14 +232,13 @@ int pfiommu_get_addr(struct pfiommu_info *pfinfo)
 unsigned int pfiommu_get_kaddr(struct pfiommu_info *pfinfo)
 {
 	unsigned int kaddr = 0;
-	int ret = 0;
 
 	if (pfinfo->size[0] <= 0)
 		return 0;
 
-	if (sprd_iommu_attach_device(pfinfo->dev) == 0) {
+	if (!pfinfo->is_secure && sprd_iommu_attach_device(pfinfo->dev) == 0) {
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0))
-		ret = sprd_dmabuf_map_kernel(pfinfo->dmabuf_p[0], &pfinfo->map);
+		sprd_dmabuf_map_kernel(pfinfo->dmabuf_p[0], &pfinfo->map);
 		kaddr = (unsigned int)pfinfo->map.vaddr;
 		pr_info("dmabuf map kaddr 0x%x", kaddr);
 #else
@@ -269,7 +283,7 @@ int pfiommu_free_addr(struct pfiommu_info *pfinfo)
 		if (pfinfo->size[i] <= 0 || pfinfo->iova[i] == 0)
 			continue;
 
-		if (sprd_iommu_attach_device(pfinfo->dev) == 0) {
+		if (!pfinfo->is_secure && sprd_iommu_attach_device(pfinfo->dev) == 0) {
 			iommu_data.iova_addr = pfinfo->iova[i];
 			iommu_data.table = pfinfo->table[i];
 			iommu_data.iova_size = pfinfo->size[i];
@@ -303,7 +317,7 @@ int pfiommu_free_addr_with_id(struct pfiommu_info *pfinfo,
 		if (pfinfo->size[i] <= 0 || pfinfo->iova[i] == 0)
 			continue;
 
-		if (sprd_iommu_attach_device(pfinfo->dev) == 0) {
+		if (!pfinfo->is_secure && sprd_iommu_attach_device(pfinfo->dev) == 0) {
 			iommu_data.iova_addr = pfinfo->iova[i];
 			iommu_data.iova_size = pfinfo->size[i];
 			iommu_data.ch_type = ctype;

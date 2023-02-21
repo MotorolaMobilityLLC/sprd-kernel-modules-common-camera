@@ -818,8 +818,8 @@ static int32_t _dcam_path_set_next_frm(enum dcam_path_index path_index,
 		memcpy(&frame, reserved_frame, sizeof(struct camera_frame));
 	}
 
-	DCAM_TRACE("y 0x%x mfd 0x%x path_index %d\n",
-		frame.yaddr, frame.pfinfo.mfd[0], path_index);
+	DCAM_TRACE("y 0x%x mfd 0x%x path_index %d secure %d\n",
+		frame.yaddr, frame.pfinfo.mfd[0], path_index, frame.pfinfo.is_secure);
 
 	if (pfiommu_check_addr(&frame.pfinfo)) {
 		pr_err("the frame has been broken!\n");
@@ -1966,9 +1966,10 @@ int32_t dcam_path_cfg(enum dcam_path_index path_index,
 			frame.pfinfo.mfd[0] = p_addr->mfd_y;
 			frame.pfinfo.mfd[1] = p_addr->mfd_u;
 			frame.pfinfo.mfd[2] = p_addr->mfd_v;
-			DCAM_TRACE("addr,i=%d,mfd[0]=0x%x,mfd[1]=0x%x\n",
+			frame.pfinfo.is_secure = p_addr->is_secure;
+			DCAM_TRACE("addr,i=%d,mfd[0]=0x%x,mfd[1]=0x%x  secure=%d\n",
 				path->output_frame_count, frame.pfinfo.mfd[0],
-				frame.pfinfo.mfd[1]);
+				frame.pfinfo.mfd[1], frame.pfinfo.is_secure);
 			/*may need update iommu here*/
 			rtn = pfiommu_get_sg_table(&frame.pfinfo);
 			DCAM_TRACE("addr,size[0]=0x%x, size[1]=0x%x.\n",
@@ -2014,10 +2015,12 @@ int32_t dcam_path_cfg(enum dcam_path_index path_index,
 			frame->pfinfo.mfd[0] = p_addr->mfd_y;
 			frame->pfinfo.mfd[1] = p_addr->mfd_u;
 			frame->pfinfo.mfd[2] = p_addr->mfd_v;
-			DCAM_TRACE("addr,i=%d,mfd[0]=0x%x,mfd[1]=0x%x\n",
+			frame->pfinfo.is_secure = p_addr->is_secure;
+			DCAM_TRACE("addr,i=%d,mfd[0]=0x%x,mfd[1]=0x%x secure=%d\n",
 				path->output_frame_count,
 				frame->pfinfo.mfd[0],
-				frame->pfinfo.mfd[1]);
+				frame->pfinfo.mfd[1],
+				frame->pfinfo.is_secure);
 			/*may need update iommu here*/
 			rtn = pfiommu_get_sg_table(&frame->pfinfo);
 			if (rtn) {

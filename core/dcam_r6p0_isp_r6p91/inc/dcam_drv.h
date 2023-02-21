@@ -26,7 +26,7 @@
 /*#define DCAM_DEBUG*/
 
 #ifdef DCAM_DEBUG
-	#define DCAM_TRACE             printk
+	#define DCAM_TRACE(fmt, ...)             printk( "%s, %d: tid:%d " fmt ,  __func__, __LINE__, current->pid, ##__VA_ARGS__)
 #else
 	#define DCAM_TRACE             pr_debug
 #endif
@@ -435,6 +435,7 @@ struct dcam_addr {
 	unsigned int mfd_y;
 	unsigned int mfd_u;
 	unsigned int mfd_v;
+	uint32_t is_secure;
 
 };
 

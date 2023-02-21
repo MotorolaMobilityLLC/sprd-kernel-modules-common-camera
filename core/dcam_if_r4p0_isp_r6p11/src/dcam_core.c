@@ -3784,6 +3784,7 @@ static int sprd_img_set_frame_addr(struct camera_file *camerafile,
 		get_user(path->frm_reserved_addr.mfd_y, &uparam->fd_array[0]);
 		get_user(path->frm_reserved_addr.mfd_u, &uparam->fd_array[0]);
 		get_user(path->frm_reserved_addr.mfd_v, &uparam->fd_array[0]);
+		get_user(path->frm_reserved_addr.is_secure, &uparam->img_statis_info.sec);
 	} else {
 		struct camera_addr frame_addr = {0};
 		struct camera_img_buf_addr buf_addr = {0};;
@@ -3807,10 +3808,12 @@ static int sprd_img_set_frame_addr(struct camera_file *camerafile,
 				get_user(frame_addr.mfd_u, &uparam->fd_array[i]);
 				get_user(frame_addr.mfd_v, &uparam->fd_array[i]);
 				get_user(frame_addr.user_fid, &uparam->user_fid);
-				pr_debug("after stream_on phy:0x%08x, 0x%08x, 0x%08x\n",
+				get_user(frame_addr.is_secure, &uparam->img_statis_info.sec);
+				pr_debug("after stream_on phy:0x%08x, 0x%08x, 0x%08x secure:%d\n",
 						frame_addr.yaddr,
 						frame_addr.uaddr,
-						frame_addr.vaddr);
+						frame_addr.vaddr,
+						frame_addr.is_secure);
 				pr_debug("a chn_id %d, user_fid %d, vir:0x%08x, 0x%08x, 0x%08x\n",
 						channel_id,
 						frame_addr.user_fid,
@@ -3859,11 +3862,13 @@ static int sprd_img_set_frame_addr(struct camera_file *camerafile,
 				get_user(buf_addr.frm_addr.mfd_u, &uparam->fd_array[i]);
 				get_user(buf_addr.frm_addr.mfd_v, &uparam->fd_array[i]);
 				get_user(buf_addr.frm_addr.user_fid, &uparam->user_fid);
+				get_user(buf_addr.frm_addr.is_secure, &uparam->img_statis_info.sec);
 
-				pr_debug("before stream_on, phy:0x%08x, 0x%08x, 0x%08x\n",
+				pr_debug("before stream_on, phy:0x%08x, 0x%08x, 0x%08x secure:%d\n",
 						buf_addr.frm_addr.yaddr,
 						buf_addr.frm_addr.uaddr,
-						buf_addr.frm_addr.vaddr);
+						buf_addr.frm_addr.vaddr,
+						buf_addr.frm_addr.is_secure);
 				pr_debug("b chn_id %d, user_fid %d, vir:0x%08x, 0x%08x, 0x%08x\n",
 						channel_id,
 						buf_addr.frm_addr.user_fid,

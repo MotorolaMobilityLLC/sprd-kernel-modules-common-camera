@@ -345,6 +345,7 @@ struct camera_addr {
 	uint32_t mfd_u;
 	uint32_t mfd_v;
 	uint32_t user_fid;
+	uint32_t is_secure;
 };
 
 struct camera_sc_tap {

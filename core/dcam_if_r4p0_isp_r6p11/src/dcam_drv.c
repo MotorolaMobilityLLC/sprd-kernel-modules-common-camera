@@ -2805,6 +2805,7 @@ int set_dcam_raw_path_cfg(enum dcam_id idx, enum dcam_cfg_id id, void *param)
 			frame.pfinfo.mfd[0] = p_addr->mfd_y;
 			frame.pfinfo.mfd[1] = p_addr->mfd_u;
 			frame.pfinfo.mfd[2] = p_addr->mfd_u;
+			frame.pfinfo.is_secure = p_addr->is_secure;
 			/*may need update iommu here*/
 			rtn = pfiommu_get_sg_table(&frame.pfinfo);
 			if (rtn) {
@@ -2854,6 +2855,7 @@ int set_dcam_raw_path_cfg(enum dcam_id idx, enum dcam_cfg_id id, void *param)
 			frame->pfinfo.mfd[0] = p_addr->mfd_y;
 			frame->pfinfo.mfd[1] = p_addr->mfd_u;
 			frame->pfinfo.mfd[2] = p_addr->mfd_u;
+			frame->pfinfo.is_secure = p_addr->is_secure;
 			/*may need update iommu here*/
 			rtn = pfiommu_get_sg_table(&frame->pfinfo);
 			if (rtn) {
@@ -3303,6 +3305,7 @@ int set_dcam_pdaf_path_cfg(enum dcam_id idx, enum dcam_cfg_id id, void *param)
 			frame.pfinfo.mfd[0] = p_addr->mfd_y;
 			frame.pfinfo.mfd[1] = p_addr->mfd_u;
 			frame.pfinfo.mfd[2] = p_addr->mfd_u;
+			frame.pfinfo.is_secure = p_addr->is_secure;
 			/* may need update iommu here */
 			rtn = pfiommu_get_sg_table(&frame.pfinfo);
 			if (rtn) {
@@ -3353,6 +3356,7 @@ int set_dcam_pdaf_path_cfg(enum dcam_id idx, enum dcam_cfg_id id, void *param)
 			frame->pfinfo.mfd[0] = p_addr->mfd_y;
 			frame->pfinfo.mfd[1] = p_addr->mfd_u;
 			frame->pfinfo.mfd[2] = p_addr->mfd_u;
+			frame->pfinfo.is_secure = p_addr->is_secure;
 			/* may need update iommu here */
 			rtn = pfiommu_get_sg_table(&frame->pfinfo);
 			if (rtn) {

@@ -3424,6 +3424,7 @@ int set_isp_path_cfg(void *isp_handle, enum isp_path_index path_index,
 			frame.pfinfo.mfd[0] = p_addr->mfd_y;
 			frame.pfinfo.mfd[1] = p_addr->mfd_u;
 			frame.pfinfo.mfd[2] = p_addr->mfd_u;
+			frame.pfinfo.is_secure = p_addr->is_secure;
 			/*may need update iommu here*/
 			rtn = pfiommu_get_sg_table(&frame.pfinfo);
 			if (rtn) {
@@ -3440,10 +3441,10 @@ int set_isp_path_cfg(void *isp_handle, enum isp_path_index path_index,
 						 &frame))
 				path->output_frame_count++;
 
-			pr_debug("path %d, frame user_fid:%u y=0x%x u=0x%x v=0x%x mfd=0x%x 0x%x",
+			pr_debug("path %d, frame user_fid:%u y=0x%x u=0x%x v=0x%x mfd=0x%x 0x%x secure:%d",
 				 path_id, p_addr->user_fid,
 				 p_addr->yaddr, p_addr->uaddr, p_addr->vaddr,
-				 frame.pfinfo.mfd[0], frame.pfinfo.mfd[1]);
+				 frame.pfinfo.mfd[0], frame.pfinfo.mfd[1], frame.pfinfo.is_secure);
 		}
 		break;
 	case ISP_PATH_OUTPUT_RESERVED_ADDR:
@@ -3472,6 +3473,7 @@ int set_isp_path_cfg(void *isp_handle, enum isp_path_index path_index,
 			frame->pfinfo.mfd[0] = p_addr->mfd_y;
 			frame->pfinfo.mfd[1] = p_addr->mfd_u;
 			frame->pfinfo.mfd[2] = p_addr->mfd_u;
+			frame->pfinfo.is_secure = p_addr->is_secure;
 			/*may need update iommu here*/
 			rtn = pfiommu_get_sg_table(&frame->pfinfo);
 			if (rtn) {
@@ -3937,6 +3939,9 @@ static int isp_module_init(struct isp_module *module_info, enum isp_id iid)
 	}
 
 	ret = isp_coeff_queue_init(module_info->scl_array);
+
+	for (i = ISP_SCL_0; i < ISP_SCL_MAX; i++)
+		memset(&module_info->path_reserved_frame[i].pfinfo, 0, sizeof(struct pfiommu_info));
 
 	return ret;
 }
