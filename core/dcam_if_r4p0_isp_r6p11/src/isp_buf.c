@@ -1363,7 +1363,7 @@ failed:
 }
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0))
-void *isp_buf_get_kaddr(int fd, struct dma_buf_map *map)
+void *isp_buf_get_kaddr(int fd, struct dma_statis_buf *buf)
 #else
 void *isp_buf_get_kaddr(int fd)
 #endif
@@ -1374,6 +1374,13 @@ void *isp_buf_get_kaddr(int fd)
 	if (fd <= 0)
 		return 0;
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0))
+	if (buf->fd == fd) {
+		kaddr = buf->map.vaddr;
+		goto exit;
+	}
+#endif
+
 	dmabuf_p = dma_buf_get(fd);
 	if (IS_ERR_OR_NULL(dmabuf_p)) {
 		pr_err("fail to get dma buf %p\n", dmabuf_p);
@@ -1381,9 +1388,11 @@ void *isp_buf_get_kaddr(int fd)
 	}
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0))
-	memset(map, 0, sizeof(struct dma_buf_map));
-	sprd_dmabuf_map_kernel(dmabuf_p, &map);
-	kaddr = map->vaddr;
+	sprd_dmabuf_map_kernel(dmabuf_p, &buf->map);
+	pr_info("dma_statis_buf map fd = %d, dmabuf_p = %p %p, kaddr = %p", fd, buf->dmabuf_p, dmabuf_p, buf->map.vaddr);
+	buf->dmabuf_p = dmabuf_p;
+	buf->fd = fd;
+	kaddr = buf->map.vaddr;
 #else
 	kaddr = sprd_ion_map_kernel(dmabuf_p, 0);
 #endif
@@ -1393,6 +1402,7 @@ void *isp_buf_get_kaddr(int fd)
 
 	dma_buf_put(dmabuf_p);
 
+exit:
 	return kaddr;
 }
 

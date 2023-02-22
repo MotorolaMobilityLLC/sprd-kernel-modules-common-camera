@@ -658,10 +658,6 @@ static int sprd_isp_stop_nolock(void *isp_handle, int is_post_stop)
 		pr_err("fail to free isp_k_param->fetch_pfinfo\n");
 	memset(&isp_k_param->fetch_pfinfo, 0, sizeof(struct pfiommu_info));
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0))
-	sprd_dmabuf_unmap_kernel(statis_module->img_statis_buf.pfinfo.dmabuf_p[0], &statis_module->img_statis_buf.pfinfo.map);
-#endif
-
 	isp_offline_buf_iommu_unmap(&module->off_desc, ISP_OFF_BUF_BIN);
 	isp_offline_buf_iommu_unmap(&module->off_desc, ISP_OFF_BUF_FULL);
 
@@ -4220,6 +4216,10 @@ int sprd_isp_dev_init(void **isp_pipe_dev_handle, enum isp_id iid)
 	isp_statis_frm_queue_init(&statis_module->binning_statis_frm_queue);
 	isp_statis_frm_queue_init(&statis_module->hist_statis_frm_queue);
 	isp_statis_frm_queue_init(&statis_module->hist2_statis_frm_queue);
+
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0))
+	statis_module->statis_buf.fd = -1;
+#endif
 
 	statis_module->afl_int_done = 1;
 	statis_module->binning_int_done = 1;

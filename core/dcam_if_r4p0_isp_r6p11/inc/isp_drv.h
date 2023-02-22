@@ -641,6 +641,14 @@ struct isp_module {
 	struct isp_sc_array *scl_array;
 };
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0))
+struct dma_statis_buf {
+	struct dma_buf *dmabuf_p;
+	struct dma_buf_map map;
+	int fd;
+};
+#endif
+
 struct isp_statis_module {
 	uint32_t statis_valid;
 	struct isp_statis_frm_queue afl_statis_frm_queue;
@@ -669,6 +677,9 @@ struct isp_statis_module {
 	struct isp_statis_buf_queue hist2_statis_queue; /*for irq read*/
 	struct camera_frame afm_frame_info;
 	struct isp_statis_buf img_statis_buf;
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0))
+	struct dma_statis_buf statis_buf;
+#endif
 };
 
 

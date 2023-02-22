@@ -31,6 +31,9 @@ int isp_statis_queue_init(struct isp_statis_buf_queue *queue);
 int isp_statis_queue_read(struct isp_statis_buf_queue *queue,
 	struct isp_statis_buf *buf);
 void isp_statis_frm_queue_init(struct isp_statis_frm_queue *queue);
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0))
+int sprd_isp_release_statis_buf(struct isp_pipe_dev *dev);
+#endif
 int sprd_isp_cfg_statis_buf(struct isp_pipe_dev *dev,
 	struct dcam_statis_module *dcam_module,
 	struct isp_statis_buf_input *parm);
