@@ -116,10 +116,10 @@ static int ispnode_node_ts_cal(struct isp_node *inode, struct isp_hw_context *pc
 
 static int ispnode_hw_ts_cal(struct isp_node *inode)
 {
+	uint32_t size = 0;
+	int64_t sec = 0, usec = 0, time_ratio = 0;
 	timespec consume_ts = {0};
 	timespec cur_ts = {0};
-	uint32_t sec = 0, usec = 0;
-	uint32_t size = 0, time_ratio = 0;
 	struct isp_pipe_dev *dev = NULL;
 
 	dev = inode->dev;
@@ -129,7 +129,7 @@ static int ispnode_hw_ts_cal(struct isp_node *inode)
 		sec = consume_ts.tv_sec;
 		usec = consume_ts.tv_nsec / NSEC_PER_USEC;
 		size = inode->src.w * inode->src.h;
-		time_ratio = TIME_SIZE_RATIO * (sec * USEC_PER_SEC + usec) / size;
+		time_ratio = div_s64(TIME_SIZE_RATIO * (sec * USEC_PER_SEC + usec), size);
 		if ((sec * USEC_PER_SEC + usec) > ISP_HW_TIME && time_ratio > ISP_HW_TIME_RATIO)
 			pr_warn("Warning: isp hw process too long. size: %d %d, consume_time %d.%06d\n",
 				inode->src.w, inode->src.h, sec, usec);

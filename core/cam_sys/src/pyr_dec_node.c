@@ -881,11 +881,11 @@ static int pyrdec_node_ts_cal(struct pyr_dec_node *node, struct pyrdec_pipe_dev 
 
 static int pyrdec_node_hw_ts_cal(struct pyr_dec_node *node)
 {
-	struct pyrdec_pipe_dev *dec_dev = NULL;
+	uint32_t size = 0;
+	int64_t sec = 0, usec = 0, time_ratio = 0;
 	timespec consume_ts = {0};
 	timespec cur_ts = {0};
-	uint32_t sec = 0, usec = 0;
-	uint32_t size = 0, time_ratio = 0;
+	struct pyrdec_pipe_dev *dec_dev = NULL;
 
 	dec_dev = node->pyrdec_dev;
 	ktime_get_ts(&cur_ts);
@@ -893,7 +893,7 @@ static int pyrdec_node_hw_ts_cal(struct pyr_dec_node *node)
 	sec = consume_ts.tv_sec;
 	usec = consume_ts.tv_nsec / NSEC_PER_USEC;
 	size = node->src.w * node->src.h;
-	time_ratio = TIME_SIZE_RATIO * (sec * USEC_PER_SEC + usec) / size;
+	time_ratio = div_s64(TIME_SIZE_RATIO * (sec * USEC_PER_SEC + usec), size);
 	if ((sec * USEC_PER_SEC + usec) > DEC_HW_TIME && time_ratio > DEC_HW_TIME_RATIO)
 		pr_warn("Warning: pyrdec hw process too long. consume_time %d.%06d\n", sec, usec);
 

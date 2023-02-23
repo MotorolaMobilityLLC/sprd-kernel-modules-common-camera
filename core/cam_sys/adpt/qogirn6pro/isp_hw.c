@@ -2337,7 +2337,7 @@ static int isphw_slice_fetch(void *handle, void *arg)
 	ISP_REG_WR(fetch->ctx_id, ISP_3DNR_MEM_CTRL_PARAM4,
 		fetch->fetch_info->size.w | (fetch->fetch_info->size.h << 16));
 	ISP_REG_WR(fetch->ctx_id, ISP_3DNR_MEM_CTRL_PARAM5,
-		fetch->fetch_info->size.w | (fetch->fetch_info->size.h << 15) & 0xffff0000);
+		fetch->fetch_info->size.w | (fetch->fetch_info->size.h << 16));
 
 	return 0;
 }

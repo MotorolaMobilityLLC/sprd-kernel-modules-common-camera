@@ -98,10 +98,10 @@ static int dcamoffline_node_ts_cal(struct dcam_offline_node *node)
 
  static int dcamoffline_hw_ts_cal(struct dcam_offline_node *node)
  {
+	uint32_t  size = 0;
+	int64_t sec = 0, usec = 0, time_ratio = 0;
 	int cur_slice_count = 0;
  	timespec consume_ts = {0};
- 	int64_t sec = 0, usec = 0;
- 	int64_t size = 0, time_ratio = 0;
 	timespec slice_end_ts = {0};
 	timespec slice_start_ts = {0};
 	struct dcam_offline_slice_info *slice = NULL;
@@ -120,8 +120,8 @@ static int dcamoffline_node_ts_cal(struct dcam_offline_node *node)
  	usec = consume_ts.tv_nsec / NSEC_PER_USEC;
 
 	size = slice->slice_trim[cur_slice_count].size_x * slice->slice_trim[cur_slice_count].size_y;
- 	time_ratio = TIME_SIZE_RATIO * (sec * USEC_PER_SEC + usec) / size;
- 	if (time_ratio > DCAMOFFLINE_HW_TIME_RATIO)
+	time_ratio = div_s64(TIME_SIZE_RATIO * (sec * USEC_PER_SEC + usec), size);
+	if (time_ratio > DCAMOFFLINE_HW_TIME_RATIO)
 		pr_warn("Warning: slice%d process too long. consume_time %d.%06d.\n", cur_slice_count, sec, usec);
 
 	PERFORMANCE_DEBUG("dcamoffline_hw: slice%d, cur_time %d.%06d, consume_time %d.%06d\n",
@@ -133,7 +133,7 @@ static int dcamoffline_node_ts_cal(struct dcam_offline_node *node)
 		sec = consume_ts.tv_sec;
 		usec = consume_ts.tv_nsec / NSEC_PER_USEC;
 		size =  node->fetch.size.w * node->fetch.size.h;
-		time_ratio = TIME_SIZE_RATIO * (sec * USEC_PER_SEC + usec) / size;
+		time_ratio = div_s64(TIME_SIZE_RATIO * (sec * USEC_PER_SEC + usec), size);
 		if (time_ratio > DCAMOFFLINE_HW_TIME_RATIO)
 			pr_warn("Warning: dcamoffline hw process too long. consume_time %d.%06d\n", sec, usec);
 
