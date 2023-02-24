@@ -176,8 +176,6 @@ struct isp_int_ctxs_com isp_int_reg_handle(int c_id)
 	ISP_HREG_WR(ctxs_com.irq_offset + ISP_INT_CLR0, ctxs_com.irq_line);
 
 	ctxs_com.isp_isr_handler = isp_isr_handler;
-	ctxs_com.mmu_irq_line = ISP_MMU_RD(ISP_MMU_INT_STS);
-	ctxs_com.irq_line = ctxs_com.irq_line & (ctxs_com.mmu_irq_line << 24);
 
 	return ctxs_com;
 }
