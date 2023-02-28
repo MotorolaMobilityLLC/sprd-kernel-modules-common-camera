@@ -770,7 +770,7 @@ err_q_w:
 err_get_phyaddr:
 	ion_buf = &buf_desc->ion_buf[num];
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0))
-	sprd_dmabuf_unmap_kernel(ion_buf->dmabuf_p, 0);
+	sprd_dmabuf_unmap_kernel(ion_buf->dmabuf_p, &ion_buf->map);
 #else
 	sprd_ion_unmap_kernel(ion_buf->dmabuf_p, 0);
 #endif
@@ -790,7 +790,7 @@ err_alloc:
 	for (i = 0; i < num; i++) {
 		ion_buf = &buf_desc->ion_buf[i];
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0))
-		sprd_dmabuf_unmap_kernel(ion_buf->dmabuf_p, 0);
+		sprd_dmabuf_unmap_kernel(ion_buf->dmabuf_p, &ion_buf->map);
 		dma_heap_buffer_free(ion_buf->dmabuf_p);
 #else
 		sprd_ion_unmap_kernel(ion_buf->dmabuf_p, 0);
@@ -827,7 +827,7 @@ int isp_offline_put_buf(struct isp_offline_desc *off_desc,
 		if (IS_ERR_OR_NULL(ion_buf->dmabuf_p))
 			continue;
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0))
-		sprd_dmabuf_unmap_kernel(ion_buf->dmabuf_p, 0);
+		sprd_dmabuf_unmap_kernel(ion_buf->dmabuf_p, &ion_buf->map);
 		dma_heap_buffer_free(ion_buf->dmabuf_p);
 #else
 		sprd_ion_unmap_kernel(ion_buf->dmabuf_p, 0);

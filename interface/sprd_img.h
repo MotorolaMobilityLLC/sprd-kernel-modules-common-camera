@@ -350,9 +350,9 @@ struct sprd_img_rect {
 };
 
 struct sprd_img_frm_addr {
-	uint32_t y;
-	uint32_t u;
-	uint32_t v;
+	uint64_t y;
+	uint64_t u;
+	uint64_t v;
 };
 
 union dcam_regular_value {
@@ -450,10 +450,10 @@ struct sprd_img_vcm_dac_info {
 struct sprd_img_statis_info {
 	uint32_t irq_type;
 	uint32_t irq_property;
-	uint32_t phy_addr;
-	uint32_t vir_addr;
+	uint64_t phy_addr;
+	uint64_t vir_addr;
 	uint32_t addr_offset;
-	uint32_t kaddr[2];
+	uint64_t kaddr[2];
 	uint32_t buf_size;
 	uint32_t mfd;
 	uint32_t sec;
@@ -607,18 +607,18 @@ struct sprd_img_frm_info {
 	uint32_t index;
 	uint32_t real_index;
 	uint32_t img_fmt;
-	uint32_t yaddr;
-	uint32_t uaddr;
-	uint32_t vaddr;
-	uint32_t yaddr_vir;
-	uint32_t uaddr_vir;
-	uint32_t vaddr_vir;
+	uint64_t yaddr;
+	uint64_t uaddr;
+	uint64_t vaddr;
+	uint64_t yaddr_vir;
+	uint64_t uaddr_vir;
+	uint64_t vaddr_vir;
 	uint32_t irq_type;
 	uint32_t irq_property;
 	uint32_t frame_id;
 	uint32_t phy_addr;
 	uint32_t vir_addr;
-	uint32_t addr_offset;
+	uint64_t addr_offset;
 	uint32_t kaddr[2];
 	uint32_t buf_size;
 	int64_t  monoboottime;
@@ -837,6 +837,7 @@ struct sprd_img_capture_param {
 	uint32_t cap_cnt;/* frame num for DCAM_CAPTURE_START_FROM_NEXT_SOF */
 	int64_t  timestamp;
 	enum capture_scene cap_scene;
+	uint32_t skip_first_num;
 };
 #pragma pack(pop)
 

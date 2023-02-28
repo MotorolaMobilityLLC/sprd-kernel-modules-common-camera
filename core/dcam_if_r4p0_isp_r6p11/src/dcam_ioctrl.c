@@ -153,44 +153,46 @@ static int dcamio_set_frame_id_base(struct camera_file *camerafile,
 				    unsigned long arg, uint32_t cmd)
 {
 	int ret = 0;
-	struct sprd_img_parm parm;
+	uint32_t channel_id = 0, frame_base_id = 0;
 	struct camera_dev *dev = NULL;
 	struct camera_info *info = NULL;
+	struct sprd_img_parm __user *uparam = NULL;
 
 	ret = sprd_img_get_dcam_dev(camerafile, &dev, &info);
 	if (ret) {
 		pr_err("fail to get dcam dev\n");
 		goto exit;
 	}
-	ret = copy_from_user(&parm, (void __user *)arg,
-			     sizeof(struct sprd_img_parm));
+
+	uparam = (struct sprd_img_parm __user *)arg;
+	get_user(channel_id, &uparam->channel_id);
+	ret = get_user(frame_base_id, &uparam->frame_base_id);
 	if (unlikely(ret)) {
 		pr_err("fail to get user info, SET_FRM_ID_BASE\n");
 		ret = -EFAULT;
 		goto exit;
 	}
 
-	switch (parm.channel_id) {
+	switch (channel_id) {
 	case CAMERA_RAW_PATH:
 	case CAMERA_PRE_PATH:
 	case CAMERA_VID_PATH:
 	case CAMERA_CAP_PATH:
 	case CAMERA_PDAF_PATH:
 	case CAMERA_AEM_PATH:
-		info->dcam_path[parm.channel_id].frm_id_base =
-			parm.frame_base_id;
+		info->dcam_path[channel_id].frm_id_base = frame_base_id;
 		break;
 	default:
 		pr_info("%d: wrong channel ID, %d\n",
 			camerafile->idx,
-			parm.channel_id);
+			channel_id);
 		goto exit;
 	}
 	/* set every frame */
 	DCAM_TRACE_INT("%d: channel %d, base id 0x%x\n",
 		       camerafile->idx,
-		       parm.channel_id,
-		       parm.frame_base_id);
+		       channel_id,
+		       frame_base_id);
 
 exit:
 	return ret;
@@ -200,25 +202,20 @@ static int dcamio_set_crop(struct camera_file *camerafile,
 			   unsigned long arg, uint32_t cmd)
 {
 	int ret = 0;
-	struct sprd_img_parm parm;
 	struct camera_dev *dev = NULL;
 	struct camera_info *info = NULL;
+	struct sprd_img_parm __user *uparam = NULL;
 
 	ret = sprd_img_get_dcam_dev(camerafile, &dev, &info);
 	if (ret) {
 		pr_err("fail to get dcam dev\n");
 		goto exit;
 	}
-	ret = copy_from_user(&parm, (void __user *)arg,
-			     sizeof(struct sprd_img_parm));
-	DCAM_TRACE("crop %u %u %u %u\n", parm.crop_rect.x,
-		parm.crop_rect.y, parm.crop_rect.w, parm.crop_rect.h);
-	if (unlikely(ret)) {
-		pr_err("fail to get user info, SET_CROP\n");
-		ret = -EFAULT;
-		goto exit;
-	}
-	ret = sprd_img_set_crop(camerafile, &parm);
+
+	uparam = (struct sprd_img_parm __user *)arg;
+
+	ret = sprd_img_set_crop(camerafile, uparam);
+
 exit:
 	return ret;
 }
@@ -281,11 +278,11 @@ static int dcamio_set_output_size(struct camera_file *camerafile,
 				  unsigned long arg, uint32_t cmd)
 {
 	int ret = 0;
-	struct sprd_img_parm parm;
 	struct camera_dev *dev = NULL;
 	struct camera_info *info = NULL;
 	enum dcam_id idx = DCAM_ID_0;
 	struct camera_group *group = NULL;
+	struct sprd_img_parm __user *uparam = NULL;
 	enum isp_work_mode mid;
 
 	ret = sprd_img_get_dcam_dev(camerafile, &dev, &info);
@@ -297,30 +294,20 @@ static int dcamio_set_output_size(struct camera_file *camerafile,
 	group = camerafile->grp;
 	idx = camerafile->idx;
 
-	ret = copy_from_user(&parm, (void __user *)arg,
-			     sizeof(struct sprd_img_parm));
-	DCAM_TRACE("%d:dst_size:%u %u\n", idx, parm.dst_size.w,
-			parm.dst_size.h);
-	if (unlikely(ret)) {
-		pr_err("fail to get user info, SET_OUTPUT_SIZE\n");
-		ret = -EFAULT;
-		goto exit;
-	}
-	info->dst_size.w = parm.dst_size.w;
-	info->dst_size.h = parm.dst_size.h;
-	info->pxl_fmt = parm.pixel_fmt;
-	info->need_isp_tool = parm.need_isp_tool;
-	info->raw_callback = parm.raw_callback;
-	info->need_isp = parm.need_isp;
-	info->rt_refocus = parm.rt_refocus;
-	info->path_input_rect.x = parm.crop_rect.x;
-	info->path_input_rect.y = parm.crop_rect.y;
-	info->path_input_rect.w = parm.crop_rect.w;
-	info->path_input_rect.h = parm.crop_rect.h;
-	info->scene_mode = parm.scene_mode;
-	info->is_slow_motion = parm.slowmotion;
+	uparam = (struct sprd_img_parm __user *)arg;
+	get_user(info->pxl_fmt, &uparam->pixel_fmt);
+	get_user(info->need_isp_tool, &uparam->need_isp_tool);
+	get_user(info->raw_callback, &uparam->raw_callback);
+	get_user(info->need_isp, &uparam->need_isp);
+	get_user(info->rt_refocus, &uparam->rt_refocus);
+	get_user(info->scene_mode, &uparam->scene_mode);
+	get_user(info->is_slow_motion, &uparam->slowmotion);
+	ret = copy_from_user(&info->path_input_rect,
+		     &uparam->crop_rect, sizeof(struct sprd_img_rect));
+	ret = copy_from_user(&info->dst_size,
+		     &uparam->dst_size, sizeof(struct sprd_img_size));
 	pr_debug("SPRD_IMG_IO_SET_OUTPUT_SIZE, scene_mode %d, slowmotion %d\n",
-		 parm.scene_mode, parm.slowmotion);
+		 info->scene_mode, info->is_slow_motion);
 
 	if (info->pxl_fmt == IMG_PIX_FMT_GREY && info->need_isp_tool != 1)
 		info->raw_callback = 1;
@@ -793,23 +780,19 @@ static int dcamio_set_frame_addr(struct camera_file *camerafile,
 				 unsigned long arg, uint32_t cmd)
 {
 	int ret = 0;
-	struct sprd_img_parm parm;
 	struct camera_dev *dev = NULL;
 	struct camera_info *info = NULL;
+	struct sprd_img_parm __user *uparam = NULL;
 
 	ret = sprd_img_get_dcam_dev(camerafile, &dev, &info);
 	if (ret) {
 		pr_err("fail to get dcam dev\n");
 		goto exit;
 	}
-	ret = copy_from_user(&parm, (void __user *)arg,
-			     sizeof(struct sprd_img_parm));
-	if (unlikely(ret)) {
-		pr_err("fail to get user info. SET_FRAME_ADDR\n");
-		ret = -EFAULT;
-		goto exit;
-	}
-	ret = sprd_img_set_frame_addr(camerafile, &parm);
+
+	uparam = (struct sprd_img_parm __user *)arg;
+
+	ret = sprd_img_set_frame_addr(camerafile, uparam);
 
 exit:
 	return ret;
@@ -819,27 +802,30 @@ static int dcamio_set_path_frame_deci(struct camera_file *camerafile,
 				      unsigned long arg, uint32_t cmd)
 {
 	int ret = 0;
-	struct sprd_img_parm parm;
+	uint32_t channel_id = 0, deci = 0;
 	struct camera_dev *dev = NULL;
 	struct camera_info *info = NULL;
 	struct camera_path_spec *path = NULL;
+	struct sprd_img_parm  __user *uparam;
 
 	ret = sprd_img_get_dcam_dev(camerafile, &dev, &info);
 	if (ret) {
 		pr_err("fail to get dcam dev\n");
 		goto exit;
 	}
-	ret = copy_from_user(&parm, (void __user *)arg,
-			     sizeof(struct sprd_img_parm));
+
+	uparam = (struct sprd_img_parm __user *)arg;
+	get_user(channel_id, &uparam->channel_id);
+	ret = get_user(deci, &uparam->deci);
 	if (unlikely(ret)) {
 		pr_err("fail to get user info, PATH_FRM_DECI\n");
 		ret = -EFAULT;
 		goto exit;
 	}
 	DCAM_TRACE("isp path channel id: %d frame deci: %d\n",
-		   parm.channel_id, parm.deci);
-	path = &info->dcam_path[parm.channel_id];
-	path->path_frm_deci = parm.deci; /* deci on raw_path or isp path */
+		   channel_id, deci);
+	path = &info->dcam_path[channel_id];
+	path->path_frm_deci = deci; /* deci on raw_path or isp path */
 
 exit:
 	return ret;
@@ -1065,27 +1051,30 @@ static int dcamio_set_shrink(struct camera_file *camerafile, unsigned long arg,
 			     uint32_t cmd)
 {
 	int ret = 0;
-	struct sprd_img_parm parm;
+	uint32_t channel_id = 0;
 	struct camera_dev *dev = NULL;
 	struct camera_info *info = NULL;
 	struct camera_path_spec *path = NULL;
+    struct sprd_img_parm __user *uparam = NULL;
 
 	ret = sprd_img_get_dcam_dev(camerafile, &dev, &info);
 	if (ret) {
 		pr_err("fail to get dcam dev\n");
 		goto exit;
 	}
-	ret = copy_from_user(&parm, (void __user *)arg,
-			     sizeof(struct sprd_img_parm));
+
+	uparam = (struct sprd_img_parm __user *)arg;
+	get_user(channel_id, &uparam->channel_id);
+	path = &info->dcam_path[channel_id];
+	ret = copy_from_user(&path->regular_desc,
+		   &uparam->regular_desc, sizeof(struct dcam_regular_desc));
 	if (unlikely(ret)) {
 		pr_err("fail to get user info, SET_SHRINK\n");
 		ret = -EFAULT;
 		goto exit;
 	}
-	path = &info->dcam_path[parm.channel_id];
-	path->regular_desc = parm.regular_desc;
 	DCAM_TRACE("channel %d, regular mode %d\n",
-		   parm.channel_id, path->regular_desc.regular_mode);
+		   channel_id, path->regular_desc.regular_mode);
 
 exit:
 	return ret;
@@ -1127,30 +1116,27 @@ static int dcamio_pdaf_ctrl(struct camera_file *camerafile, unsigned long arg,
 			    uint32_t cmd)
 {
 	int ret = 0;
-	struct sprd_img_parm parm;
+	uint32_t channel_id = 0;
 	struct camera_dev *dev = NULL;
 	struct camera_info *info = NULL;
 	struct camera_path_spec *path = NULL;
+	struct sprd_img_parm __user *uparam = NULL;
 
 	ret = sprd_img_get_dcam_dev(camerafile, &dev, &info);
 	if (ret) {
 		pr_err("fail to get dcam dev\n");
 		goto exit;
 	}
-	ret = copy_from_user(&parm, (void __user *)arg,
-			     sizeof(struct sprd_img_parm));
-	if (unlikely(ret)) {
-		pr_err("fail to get user info, PDAF_CONTROL\n");
-		ret = -EFAULT;
-		goto exit;
-	}
+
 	path = &info->dcam_path[CAMERA_PDAF_PATH];
-	memcpy(&(path->pdaf_ctrl), &(parm.pdaf_ctrl),
-		sizeof(struct sprd_pdaf_control));
+	uparam = (struct sprd_img_parm __user *)arg;
+	get_user(channel_id, &uparam->channel_id);
+	ret = copy_from_user(&(path->pdaf_ctrl),
+		   &uparam->pdaf_ctrl, sizeof(struct sprd_pdaf_control));
 	if (path->pdaf_ctrl.mode != 0)
 		path->is_work = 1; /*can be changed */
 	DCAM_TRACE("channel %d, pdaf mode %d type %d\n",
-		   parm.channel_id, path->pdaf_ctrl.mode,
+		   channel_id, path->pdaf_ctrl.mode,
 		   path->pdaf_ctrl.phase_data_type);
 exit:
 	return ret;
@@ -1540,26 +1526,27 @@ static int dcamio_set_path_skip_num(struct camera_file *camerafile,
 				    unsigned long arg, uint32_t cmd)
 {
 	int ret = 0;
-	struct sprd_img_parm parm;
+	uint32_t channel_id = 0;
 	struct camera_dev *dev = NULL;
 	struct camera_info *info = NULL;
+	struct sprd_img_parm __user *uparam = NULL;
 
 	ret = sprd_img_get_dcam_dev(camerafile, &dev, &info);
 	if (ret) {
 		pr_err("fail to get dcam dev\n");
 		goto exit;
 	}
-	ret = copy_from_user(&parm,
-			     (void __user *)arg,
-			     sizeof(struct sprd_img_parm));
+
+	uparam = (struct sprd_img_parm __user *)arg;
+	get_user(channel_id, &uparam->channel_id);
+	ret = get_user(info->skip_number, &uparam->skip_num);
 	if (ret) {
 		pr_err("fail to get user info\n");
 		ret = -EFAULT;
 		goto exit;
 	}
-	info->skip_number = parm.skip_num;
-	DCAM_TRACE("path %d skip number %d\n", parm.channel_id,
-		   parm.skip_num);
+	DCAM_TRACE("path %d skip number %d\n", channel_id,
+		   info->skip_number);
 
 exit:
 	return ret;
@@ -1686,26 +1673,26 @@ static int dcamio_core_ebd_ctrl(struct camera_file *camerafile,
 				unsigned long arg, uint32_t cmd)
 {
 	int ret = 0;
-	struct sprd_img_parm parm;
 	struct camera_dev *dev = NULL;
 	struct camera_info *info = NULL;
 	struct camera_path_spec *path = NULL;
+	struct sprd_img_parm __user *uparam = NULL;
 
 	ret = sprd_img_get_dcam_dev(camerafile, &dev, &info);
 	if (ret) {
 		pr_err("fail to get dcam dev\n");
 		goto exit;
 	}
-	ret = copy_from_user(&parm, (void __user *)arg,
-			     sizeof(struct sprd_img_parm));
+
+	path = &info->dcam_path[CAMERA_EBD_PATH];
+	uparam = (struct sprd_img_parm __user *)arg;
+	ret = copy_from_user(&path->ebd_ctrl,
+            &uparam->ebd_ctrl, sizeof(struct sprd_ebd_control));
 	if (unlikely(ret)) {
 		pr_err("fail to get user info\n");
 		ret = -EFAULT;
 		goto exit;
 	}
-	path = &info->dcam_path[CAMERA_EBD_PATH];
-	memcpy(&(path->ebd_ctrl), &(parm.ebd_ctrl),
-		sizeof(path->ebd_ctrl));
 	if (path->ebd_ctrl.mode != 0)
 		path->is_work = 1;
 	else

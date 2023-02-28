@@ -3512,14 +3512,15 @@ exit:
 
 
 static int sprd_img_set_crop(struct camera_file *camerafile,
-			     struct sprd_img_parm *p)
+			     struct sprd_img_parm __user *uparam)
 {
-	int ret = 0;
+	int ret = 0, channel_id = 0;
 	struct camera_dev *dev = NULL;
 	struct camera_group *group = NULL;
 	enum dcam_id idx = DCAM_ID_0;
 	struct camera_rect *input_rect;
 	struct camera_size *input_size;
+	struct sprd_img_rect crop_rect;
 
 	if (!camerafile) {
 		ret = -EFAULT;
@@ -3527,9 +3528,18 @@ static int sprd_img_set_crop(struct camera_file *camerafile,
 		goto exit;
 	}
 
-	if (!p) {
+	if (!uparam) {
 		ret = -EFAULT;
 		pr_err("fail to get img parm NULL\n");
+		goto exit;
+	}
+
+	get_user(channel_id, &uparam->channel_id);
+	ret = copy_from_user(&crop_rect,
+		&uparam->crop_rect, sizeof(struct sprd_img_rect));
+	if (unlikely(ret)) {
+		pr_err("fail to get user info, SET_CROP\n");
+		ret = -EFAULT;
 		goto exit;
 	}
 
@@ -3553,12 +3563,12 @@ static int sprd_img_set_crop(struct camera_file *camerafile,
 		goto exit;
 	}
 
-	if (p->crop_rect.x + p->crop_rect.w > dev->dcam_cxt.cap_in_size.w ||
-	    p->crop_rect.y + p->crop_rect.h > dev->dcam_cxt.cap_in_size.h) {
+	if (crop_rect.x + crop_rect.w > dev->dcam_cxt.cap_in_size.w ||
+	    crop_rect.y + crop_rect.h > dev->dcam_cxt.cap_in_size.h) {
 		ret = -EINVAL;
 		pr_err("fail to set crop_rect, window %d %d %d %d\n",
-		       p->crop_rect.x, p->crop_rect.y,
-		       p->crop_rect.w, p->crop_rect.h);
+		       crop_rect.x, crop_rect.y,
+		       crop_rect.w, crop_rect.h);
 		goto exit;
 	}
 #if 0
@@ -3586,34 +3596,34 @@ static int sprd_img_set_crop(struct camera_file *camerafile,
 	/* end */
 #endif
 	DCAM_TRACE("dcam%d: set crop, window %d %d %d %d\n", idx,
-		   p->crop_rect.x, p->crop_rect.y,
-		   p->crop_rect.w, p->crop_rect.h);
+		   crop_rect.x, crop_rect.y,
+		   crop_rect.w, crop_rect.h);
 
-	switch (p->channel_id) {
+	switch (channel_id) {
 	case CAMERA_RAW_PATH:
 	case CAMERA_PRE_PATH:
 	case CAMERA_VID_PATH:
 	case CAMERA_CAP_PATH:
 	case CAMERA_PDAF_PATH:
 	case CAMERA_AEM_PATH:
-		input_size = &dev->dcam_cxt.dcam_path[p->channel_id].in_size;
-		input_rect = &dev->dcam_cxt.dcam_path[p->channel_id].in_rect;
+		input_size = &dev->dcam_cxt.dcam_path[channel_id].in_size;
+		input_rect = &dev->dcam_cxt.dcam_path[channel_id].in_rect;
 		break;
 	default:
 		pr_err("dcam%d: fail to get right channel id %d\n",
-		       idx, p->channel_id);
+		       idx, channel_id);
 		ret = -EINVAL;
 		goto exit;
 	}
 
 	input_size->w = dev->dcam_cxt.cap_out_size.w;
 	input_size->h = dev->dcam_cxt.cap_out_size.h;
-	input_rect->x = p->crop_rect.x;
-	input_rect->y = p->crop_rect.y;
-	input_rect->w = p->crop_rect.w;
-	input_rect->h = p->crop_rect.h;
+	input_rect->x = crop_rect.x;
+	input_rect->y = crop_rect.y;
+	input_rect->w = crop_rect.w;
+	input_rect->h = crop_rect.h;
 	DCAM_TRACE("path %d, in %d %d, rect %d %d %d %d\n",
-		p->channel_id, input_size->w, input_size->h,
+		channel_id, input_size->w, input_size->h,
 		input_rect->x, input_rect->y, input_rect->w, input_rect->h);
 
 exit:
@@ -3692,10 +3702,11 @@ exit:
 }
 
 static int sprd_img_set_frame_addr(struct camera_file *camerafile,
-				   struct sprd_img_parm *p)
+				   struct sprd_img_parm *uparam)
 {
 	int ret = 0;
-	uint32_t i = 0;
+	uint32_t i = 0, channel_id = 0, is_reserved_buf = 0;
+	uint32_t fd_array = 0, buffer_count = 0;
 	struct camera_dev *dev = NULL;
 	struct camera_group *group = NULL;
 	enum dcam_id idx = DCAM_ID_0;
@@ -3708,7 +3719,7 @@ static int sprd_img_set_frame_addr(struct camera_file *camerafile,
 		goto exit;
 	}
 
-	if (!p) {
+	if (!uparam) {
 		ret = -EFAULT;
 		pr_err("fail to get img parm NULL\n");
 		goto exit;
@@ -3734,84 +3745,78 @@ static int sprd_img_set_frame_addr(struct camera_file *camerafile,
 		goto exit;
 	}
 
-	switch (p->channel_id) {
+	get_user(channel_id, &uparam->channel_id);
+	get_user(is_reserved_buf, &uparam->is_reserved_buf);
+	switch (channel_id) {
 	case CAMERA_RAW_PATH:
 	case CAMERA_PRE_PATH:
 	case CAMERA_VID_PATH:
 	case CAMERA_CAP_PATH:
 	case CAMERA_PDAF_PATH:
-		path = &dev->dcam_cxt.dcam_path[p->channel_id];
+		path = &dev->dcam_cxt.dcam_path[channel_id];
 		break;
 	default:
-		pr_err("fail to get valid channel %d\n", p->channel_id);
+		pr_err("fail to get valid channel %d\n", channel_id);
 		ret = -EINVAL;
 		goto exit;
 	}
 
 	pr_debug("set path%d frame addr,status %d cnt %d reserved_buf %d\n",
-		p->channel_id, path->status, path->frm_cnt_act,
-		p->is_reserved_buf);
+		channel_id, path->status, path->frm_cnt_act, is_reserved_buf);
 
-	if (unlikely(p->fd_array[0] == 0)) {
+	get_user(fd_array, &uparam->fd_array[0]);
+	if (unlikely(fd_array == 0)) {
 		pr_err("fail to get fd 0\n");
 		ret = -EINVAL;
 		goto exit;
 	}
 
-	if (p->is_reserved_buf == 1) {
-		path->frm_reserved_addr.yaddr = p->frame_addr_array[0].y;
-		path->frm_reserved_addr.uaddr = p->frame_addr_array[0].u;
-		path->frm_reserved_addr.vaddr = p->frame_addr_array[0].v;
-		path->frm_reserved_addr_vir.yaddr =
-						p->frame_addr_vir_array[0].y;
-		path->frm_reserved_addr_vir.uaddr =
-						p->frame_addr_vir_array[0].u;
-		path->frm_reserved_addr_vir.vaddr =
-						p->frame_addr_vir_array[0].v;
-		path->frm_reserved_addr.mfd_y = p->fd_array[0];
-		path->frm_reserved_addr.mfd_u = p->fd_array[0];
-		path->frm_reserved_addr.mfd_v = p->fd_array[0];
+	get_user(buffer_count, &uparam->buffer_count);
+	if (is_reserved_buf == 1) {
+		get_user(path->frm_reserved_addr.yaddr, &uparam->frame_addr_array[0].y);
+		get_user(path->frm_reserved_addr.uaddr, &uparam->frame_addr_array[0].u);
+		get_user(path->frm_reserved_addr.vaddr, &uparam->frame_addr_array[0].v);
+		get_user(path->frm_reserved_addr_vir.yaddr, &uparam->frame_addr_vir_array[0].y);
+		get_user(path->frm_reserved_addr_vir.uaddr, &uparam->frame_addr_vir_array[0].u);
+		get_user(path->frm_reserved_addr_vir.vaddr, &uparam->frame_addr_vir_array[0].v);
+		get_user(path->frm_reserved_addr.mfd_y, &uparam->fd_array[0]);
+		get_user(path->frm_reserved_addr.mfd_u, &uparam->fd_array[0]);
+		get_user(path->frm_reserved_addr.mfd_v, &uparam->fd_array[0]);
 	} else {
 		struct camera_addr frame_addr;
 		struct camera_img_buf_addr buf_addr;
 
 		if (atomic_read(&dev->stream_on) == 1 &&
 			path->status == PATH_RUN) {
-			path_index = sprd_img_get_path_index(p->channel_id);
-			for (i = 0; i < p->buffer_count; i++) {
-				if (p->fd_array[0] == 0) {
+			path_index = sprd_img_get_path_index(channel_id);
+			for (i = 0; i < buffer_count; i++) {
+				if (fd_array == 0) {
 					pr_info("no fd\n");
 					ret = -EINVAL;
 					goto exit;
 				}
-				frame_addr.yaddr =
-					p->frame_addr_array[i].y;
-				frame_addr.uaddr =
-					p->frame_addr_array[i].u;
-				frame_addr.vaddr =
-					p->frame_addr_array[i].v;
-				frame_addr.yaddr_vir =
-					p->frame_addr_vir_array[i].y;
-				frame_addr.uaddr_vir =
-					p->frame_addr_vir_array[i].u;
-				frame_addr.vaddr_vir =
-					p->frame_addr_vir_array[i].v;
-				frame_addr.mfd_y = p->fd_array[i];
-				frame_addr.mfd_u = p->fd_array[i];
-				frame_addr.mfd_v = p->fd_array[i];
-				frame_addr.user_fid = p->user_fid;
+				get_user(frame_addr.yaddr, &uparam ->frame_addr_array[i].y);
+				get_user(frame_addr.uaddr, &uparam->frame_addr_array[i].u);
+				get_user(frame_addr.vaddr, &uparam->frame_addr_array[i].v);
+				get_user(frame_addr.yaddr_vir, &uparam->frame_addr_vir_array[i].y);
+				get_user(frame_addr.uaddr_vir, &uparam->frame_addr_vir_array[i].u);
+				get_user(frame_addr.vaddr_vir, &uparam->frame_addr_vir_array[i].v);
+				get_user(frame_addr.mfd_y, &uparam->fd_array[i]);
+				get_user(frame_addr.mfd_u, &uparam->fd_array[i]);
+				get_user(frame_addr.mfd_v, &uparam->fd_array[i]);
+				get_user(frame_addr.user_fid, &uparam->user_fid);
 				pr_debug("after stream_on phy:0x%08x, 0x%08x, 0x%08x\n",
 						frame_addr.yaddr,
 						frame_addr.uaddr,
 						frame_addr.vaddr);
 				pr_debug("a chn_id %d, user_fid %d, vir:0x%08x, 0x%08x, 0x%08x\n",
-						p->channel_id,
-						p->user_fid,
+						channel_id,
+						frame_addr.user_fid,
 						frame_addr.yaddr_vir,
 						frame_addr.uaddr_vir,
 						frame_addr.vaddr_vir);
 
-				switch (p->channel_id) {
+				switch (channel_id) {
 				case CAMERA_RAW_PATH:
 					ret = set_dcam_raw_path_cfg(idx,
 						DCAM_PATH_OUTPUT_ADDR,
@@ -3831,45 +3836,39 @@ static int sprd_img_set_frame_addr(struct camera_file *camerafile,
 				}
 				if (unlikely(ret)) {
 					pr_err("fail to isp cfg channel %d,ret %d",
-						p->channel_id, ret);
+						channel_id, ret);
 					goto exit;
 				}
 			}
 		} else {
-			for (i = 0; i < p->buffer_count; i++) {
-				if (unlikely(p->fd_array[0] == 0)) {
+			for (i = 0; i < buffer_count; i++) {
+				if (unlikely(fd_array == 0)) {
 					pr_info("no fd\n");
 					ret = -EINVAL;
 					goto exit;
 				}
-				buf_addr.frm_addr.yaddr =
-						p->frame_addr_array[i].y;
-				buf_addr.frm_addr.uaddr =
-						p->frame_addr_array[i].u;
-				buf_addr.frm_addr.vaddr =
-						p->frame_addr_array[i].v;
-				buf_addr.frm_addr_vir.yaddr =
-						p->frame_addr_vir_array[i].y;
-				buf_addr.frm_addr_vir.uaddr =
-						p->frame_addr_vir_array[i].u;
-				buf_addr.frm_addr_vir.vaddr =
-						p->frame_addr_vir_array[i].v;
-				buf_addr.frm_addr.mfd_y = p->fd_array[i];
-				buf_addr.frm_addr.mfd_u = p->fd_array[i];
-				buf_addr.frm_addr.mfd_v = p->fd_array[i];
-				buf_addr.frm_addr.user_fid = p->user_fid;
+				get_user(buf_addr.frm_addr.yaddr, &uparam->frame_addr_array[i].y);
+				get_user(buf_addr.frm_addr.uaddr, &uparam->frame_addr_array[i].u);
+				get_user(buf_addr.frm_addr.vaddr, &uparam->frame_addr_array[i].v);
+				get_user(buf_addr.frm_addr_vir.yaddr, &uparam->frame_addr_vir_array[i].y);
+				get_user(buf_addr.frm_addr_vir.uaddr, &uparam->frame_addr_vir_array[i].u);
+				get_user(buf_addr.frm_addr_vir.vaddr, &uparam->frame_addr_vir_array[i].v);
+				get_user(buf_addr.frm_addr.mfd_y, &uparam->fd_array[i]);
+				get_user(buf_addr.frm_addr.mfd_u, &uparam->fd_array[i]);
+				get_user(buf_addr.frm_addr.mfd_v, &uparam->fd_array[i]);
+				get_user(buf_addr.frm_addr.user_fid, &uparam->user_fid);
 
 				pr_debug("before stream_on, phy:0x%08x, 0x%08x, 0x%08x\n",
 						buf_addr.frm_addr.yaddr,
 						buf_addr.frm_addr.uaddr,
 						buf_addr.frm_addr.vaddr);
 				pr_debug("b chn_id %d, user_fid %d, vir:0x%08x, 0x%08x, 0x%08x\n",
-						p->channel_id,
-						p->user_fid,
+						channel_id,
+						buf_addr.frm_addr.user_fid,
 						buf_addr.frm_addr_vir.yaddr,
 						buf_addr.frm_addr_vir.uaddr,
 						buf_addr.frm_addr_vir.vaddr);
-				if(p->user_fid!=-1 && p->channel_id ==2 && atomic_read(&dev->stream_on) == 0){
+				if(buf_addr.frm_addr.user_fid!=-1 && channel_id ==2 && atomic_read(&dev->stream_on) == 0){
 				    goto exit;
 				}
 				ret = sprd_img_buf_queue_write(
