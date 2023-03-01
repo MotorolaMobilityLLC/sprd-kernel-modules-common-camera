@@ -648,7 +648,7 @@ static int ispltm_histo_config_gen(struct isp_ltm_ctx_desc *ctx,
 static int ispltm_map_config_gen(struct isp_ltm_ctx_desc *ctx,
 			struct isp_ltm_map_info *tuning, int type)
 {
-	int idx = 0;
+	int idx = 0, pre_fid = 0;
 
 	struct isp_ltm_hist_param map_param;
 	struct isp_ltm_hist_param *param = &map_param;
@@ -657,6 +657,7 @@ static int ispltm_map_config_gen(struct isp_ltm_ctx_desc *ctx,
 
 	struct isp_ltm_hists *hists = &ctx->hists;
 	struct isp_ltm_map *map = &ctx->map;
+	struct isp_ltm_sync *sync = NULL;
 
 	struct isp_ltm_tile_num_minus1 mnum;
 	struct isp_ltm_tile_size ts;
@@ -781,6 +782,11 @@ static int ispltm_map_config_gen(struct isp_ltm_ctx_desc *ctx,
 	map->tile_right_flag = prtl->tile_right_flag_rtl;
 	map->hist_pitch = mnum.tile_num_x - 1;
 	idx = ctx->fid % ISP_LTM_BUF_NUM;
+	if (ctx->mode == MODE_LTM_CAP) {
+		sync = ctx->sync;
+		pre_fid = atomic_read(&sync->pre_fid);
+		idx = pre_fid % ISP_LTM_BUF_NUM;
+	}
 
 	if (tuning->ltm_map_video_mode) {
 		if (idx == 0)
