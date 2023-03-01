@@ -1932,7 +1932,7 @@ static void sprd_img_set_vcm_pos(struct sprd_img_vcm_param *vcm_info)
 	struct sensor_i2c_tag i2c_tab;
 
 	pr_debug("i2c set vcm pos %d\n", vcm_info->next_vcm_pos);
-	i2c_tab.i2c_data = vcm_info->vcm_i2c_data;
+	i2c_tab.i2c_data = (uint64_t)vcm_info->vcm_i2c_data;
 	i2c_tab.i2c_count = vcm_info->vcm_i2c_count;
 	i2c_tab.slave_addr = vcm_info->vcm_slave_addr;
 
