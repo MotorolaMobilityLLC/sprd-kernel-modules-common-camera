@@ -4514,54 +4514,6 @@ int sprd_isp_parse_dt(struct device_node *dn, uint32_t *isp_count)
 	return 0;
 }
 
-int isp_path_cap_with_vid_set_next_frm(struct isp_pipe_dev *dev)
-{
-	enum isp_drv_rtn rtn = 0;
-	struct isp_module *module = NULL;
-	struct isp_path_desc *path = NULL;
-	struct isp_frm_queue *p_heap = NULL;
-	struct camera_frame frame;
-	struct isp_buf_queue *p_buf_queue = NULL;
-	int size = 0;
-	void *kaddr;
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0))
-	struct dma_buf_map map;
-#endif
-
-	module = &dev->module_info;
-	path = &module->isp_path[ISP_SCL_CAP];
-	p_heap = &path->frame_queue;
-	p_buf_queue = &path->buf_queue;
-
-	if (isp_buf_queue_read(p_buf_queue, &frame) == 0 &&
-	    (frame.pfinfo.mfd[0] != 0)) {
-		path->output_frame_count--;
-	}
-	if (frame.pfinfo.buf[0] != NULL) {
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0))
-		sprd_dmabuf_map_kernel(frame.pfinfo.dmabuf_p[0], &map);
-		kaddr = map.vaddr;
-#else
-		kaddr = sprd_ion_map_kernel(frame.pfinfo.dmabuf_p[0], 0);
-#endif
-		size = ((struct ion_buffer *)(frame.pfinfo.buf[0]))->size;
-		if (IS_ERR_OR_NULL(kaddr))
-			pr_err("fail to map kernel memory, err:%ld",
-			       PTR_ERR(kaddr));
-		else {
-			memset(kaddr, 0, size);
-			vunmap((const void *)kaddr);
-		}
-	}
-	if (isp_frame_enqueue(p_heap, &frame) == 0)
-		pr_debug("success to enq frame buf\n");
-	else {
-		rtn = -EFAULT;
-		pr_err("fail to enq frame buf\n");
-	}
-	return rtn;
-}
-
 void isp_handle_dcam_err(void *data)
 {
 	struct camera_dev *dev = (struct camera_dev *)data;

@@ -806,7 +806,6 @@ uint32_t isp_k_fetch_get_raw_info(uint32_t *width,
 	uint32_t *height);
 
 int sprd_isp_external_unmap(void *isp_handle);
-int isp_path_cap_with_vid_set_next_frm(struct isp_pipe_dev *dev);
 void sprd_isp_glb_reg_awr(uint32_t idx, unsigned long addr,
                           uint32_t val, uint32_t reg_id);
 void sprd_isp_glb_reg_owr(uint32_t idx, unsigned long addr,

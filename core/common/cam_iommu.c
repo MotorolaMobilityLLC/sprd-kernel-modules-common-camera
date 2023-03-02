@@ -51,7 +51,6 @@ static int dma_buffer_list_add(int fd, void *buf)
 	mutex_lock(&dma_buffer_lock);
 	list_add_tail(&fd_dma->list, g_dma_buffer_list);
 	mutex_unlock(&dma_buffer_lock);
-	dma_buf_get(fd_dma->fd);
 	pr_info("%s, add 0x%x 0x%p\n", __func__, fd_dma->fd,
 		((struct dma_buf *)fd_dma->dma_buf));
 
@@ -68,7 +67,6 @@ void dma_buffer_list_clear(void)
 		mutex_lock(&dma_buffer_lock);
 		list_del(&fd_dma->list);
 		mutex_unlock(&dma_buffer_lock);
-		dma_buf_put(fd_dma->dma_buf);
 		pr_info("%s, del: 0x%x 0x%p\n", __func__,
 			fd_dma->fd,
 		((struct dma_buf *)fd_dma->dma_buf));
