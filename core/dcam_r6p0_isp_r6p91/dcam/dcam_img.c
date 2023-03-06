@@ -3138,11 +3138,14 @@ static long sprd_img_k_ioctl(struct file *file, unsigned int cmd,
 	uint32_t                 led1_status;
 	uint32_t                 iommu_enable;
 	uint32_t                 param;
-	struct sprd_img_parm     parm;
+	uint32_t                 reserved;
+	uint32_t                 frame_base_id;
+	uint32_t                 deci;
 	struct sprd_img_size     size;
 	struct sprd_img_rect     rect;
 	struct dcam_path_spec    *path = NULL;
 	int                      ret = DCAM_RTN_SUCCESS;
+	struct sprd_img_parm __user *uparam = NULL;
 
 	DCAM_TRACE("sprd_img_k_ioctl: cmd: 0x%x.\n", cmd);
 
@@ -3251,43 +3254,44 @@ static long sprd_img_k_ioctl(struct file *file, unsigned int cmd,
 
 	case SPRD_IMG_IO_SET_FRM_ID_BASE:
 		mutex_lock(&dev->dcam_mutex);
-		ret = copy_from_user(&parm, (void __user *)arg,
-			sizeof(struct sprd_img_parm));
-		if (ret) {
-			pr_err("sprd_img_k_ioctl: fail to get user info.\n");
-			mutex_unlock(&dev->dcam_mutex);
+
+		uparam = (struct sprd_img_parm __user *)arg;
+		get_user(channel_id, &uparam->channel_id);
+		ret = get_user(frame_base_id, &uparam->frame_base_id);
+		if (unlikely(ret)) {
+			pr_err("fail to get user info, SET_FRM_ID_BASE\n");
+			ret = -EFAULT;
 			goto exit;
 		}
-		switch (parm.channel_id) {
+
+		switch (channel_id) {
 		case DCAM_PATH0:
 		case DCAM_PATH1:
 		case DCAM_PATH2:
-			dev->dcam_cxt.dcam_path[parm.channel_id].frm_id_base =
-				parm.frame_base_id;
+			dev->dcam_cxt.dcam_path[channel_id].frm_id_base =
+				frame_base_id;
 			break;
 		default:
 			pr_err("Wrong channel ID, %d .\n",
-				parm.channel_id);
+				channel_id);
 			mutex_unlock(&dev->dcam_mutex);
 			ret = -EFAULT;
 			goto exit;
 		}
 		mutex_unlock(&dev->dcam_mutex);
 		DCAM_TRACE("channel %d, base id 0x%x.\n",
-			parm.channel_id,
-			parm.frame_base_id);
+			channel_id, frame_base_id);
 		break;
 
 	case SPRD_IMG_IO_SET_CROP:
 		mutex_lock(&dev->dcam_mutex);
-		ret = copy_from_user(&parm, (void __user *)arg,
-				sizeof(struct sprd_img_parm));
+		uparam = (struct sprd_img_parm __user *)arg;
+
+		ret = sprd_img_set_crop(file, uparam);
 		if (ret) {
-			pr_err("sprd_img_k_ioctl: fail to get user info.\n");
-			mutex_unlock(&dev->dcam_mutex);
+			pr_err("fail to set crop\n");
 			goto exit;
 		}
-		ret = sprd_img_set_crop(file, &parm);
 
 		mutex_unlock(&dev->dcam_mutex);
 		break;
@@ -3328,23 +3332,24 @@ static long sprd_img_k_ioctl(struct file *file, unsigned int cmd,
 	case SPRD_IMG_IO_SET_OUTPUT_SIZE:
 		DCAM_TRACE("set output size.\n");
 		mutex_lock(&dev->dcam_mutex);
-		ret = copy_from_user(&parm, (void __user *)arg,
-				sizeof(struct sprd_img_parm));
+		uparam = (struct sprd_img_parm __user *)arg;
+		get_user(info->pxl_fmt, &uparam->pixel_fmt);
+		get_user(info->need_isp_tool, &uparam->need_isp_tool);
+		get_user(info->need_isp, &uparam->need_isp);
+		ret = copy_from_user(&info->path_input_rect,
+				&uparam->crop_rect, sizeof(struct sprd_img_rect));
 		if (ret) {
-			pr_err("sprd_img_k_ioctl: fail to get user info.\n");
+			pr_err("sprd_img_k_ioctl: fail to get user info of path_input_rect.\n");
 			mutex_unlock(&dev->dcam_mutex);
 			goto exit;
 		}
-		dev->dcam_cxt.dst_size.w = parm.dst_size.w;
-		dev->dcam_cxt.dst_size.h = parm.dst_size.h;
-		dev->dcam_cxt.pxl_fmt = parm.pixel_fmt;
-		dev->dcam_cxt.need_isp_tool = parm.need_isp_tool;
-		dev->dcam_cxt.need_isp = parm.need_isp;
-		/*dev->dcam_cxt.need_shrink = parm.shrink;*/
-		dev->dcam_cxt.path_input_rect.x = parm.crop_rect.x;
-		dev->dcam_cxt.path_input_rect.y = parm.crop_rect.y;
-		dev->dcam_cxt.path_input_rect.w = parm.crop_rect.w;
-		dev->dcam_cxt.path_input_rect.h = parm.crop_rect.h;
+		ret = copy_from_user(&info->dst_size,
+				&uparam->dst_size, sizeof(struct sprd_img_size));
+		if (ret) {
+			pr_err("sprd_img_k_ioctl: fail to get user info of dst_size.\n");
+			mutex_unlock(&dev->dcam_mutex);
+			goto exit;
+		}
 		mutex_unlock(&dev->dcam_mutex);
 		break;
 
@@ -3384,57 +3389,56 @@ static long sprd_img_k_ioctl(struct file *file, unsigned int cmd,
 	case SPRD_IMG_IO_SET_FRAME_ADDR:
 		DCAM_TRACE("set frame addr.\n");
 		mutex_lock(&dev->dcam_mutex);
-		ret = copy_from_user(&parm, (void __user *)arg,
-				sizeof(struct sprd_img_parm));
+
+		uparam = (struct sprd_img_parm __user *)arg;
+
+		ret = sprd_img_set_frame_addr(file, uparam);
 		if (ret) {
-			pr_err("sprd_img_k_ioctl: fail to get user info.\n");
-			mutex_unlock(&dev->dcam_mutex);
+			pr_err("fail to set frame addr\n");
 			goto exit;
 		}
-		ret = sprd_img_set_frame_addr(file, &parm);
 		mutex_unlock(&dev->dcam_mutex);
 		break;
 
 	case SPRD_IMG_IO_PATH_FRM_DECI:
 		mutex_lock(&dev->dcam_mutex);
-		ret = copy_from_user(&parm, (void __user *)arg,
-				sizeof(struct sprd_img_parm));
+		uparam = (struct sprd_img_parm __user *)arg;
+		get_user(channel_id, &uparam->channel_id);
+		ret = get_user(deci, &uparam->deci);
 		if (ret) {
 			pr_err("sprd_img_k_ioctl: fail to get user info.\n");
 			mutex_unlock(&dev->dcam_mutex);
 			goto exit;
 		}
-		path = &dev->dcam_cxt.dcam_path[parm.channel_id];
-		path->path_frm_deci = parm.deci;
+		path = &dev->dcam_cxt.dcam_path[channel_id];
+		path->path_frm_deci = deci;
 		mutex_unlock(&dev->dcam_mutex);
 		DCAM_TRACE("channel %d, frm_deci=%d.\n",
-			parm.channel_id, path->path_frm_deci);
+			channel_id, deci);
 		break;
 
 	case SPRD_IMG_IO_SET_SHRINK:
 		mutex_lock(&dev->dcam_mutex);
-		ret = copy_from_user(&parm, (void __user *)arg,
-				sizeof(struct sprd_img_parm));
+		uparam = (struct sprd_img_parm __user *)arg;
+		get_user(channel_id, &uparam->channel_id);
+		path = &info->dcam_path[channel_id];
+		ret = copy_from_user(&path->regular_desc,
+			&uparam->regular_desc, sizeof(struct dcam_regular_desc));
 		if (ret) {
 			pr_err("sprd_img_k_ioctl: fail to get user info.\n");
 			mutex_unlock(&dev->dcam_mutex);
 			goto exit;
 		}
-		path = &dev->dcam_cxt.dcam_path[parm.channel_id];
-		path->regular_desc = parm.regular_desc;
 		mutex_unlock(&dev->dcam_mutex);
 		DCAM_TRACE("channel %d, shrink=%d.\n",
-			parm.channel_id, path->regular_desc.regular_mode);
+			channel_id, path->regular_desc.regular_mode);
 		break;
 
 	case SPRD_IMG_IO_PATH_PAUSE:
-		ret = copy_from_user(&parm, (void __user *)arg,
-					sizeof(struct sprd_img_parm));
-		if (ret) {
-			pr_err("sprd_img_k_ioctl: fail to get user info.\n");
-			goto exit;
-		}
-		sprd_img_streampause(file, parm.channel_id, parm.reserved[0]);
+		uparam = (struct sprd_img_parm __user *)arg;
+		get_user(channel_id, &uparam->channel_id);
+		get_user(reserved, &uparam->reserved[0]);
+		sprd_img_streampause(file, channel_id, reserved);
 		break;
 
 	case SPRD_IMG_IO_PATH_RESUME:
@@ -3644,20 +3648,21 @@ static long sprd_img_k_ioctl(struct file *file, unsigned int cmd,
 	 *yuv422: image_vc:1    image_dt: 0x1e
 	 */
 		mutex_lock(&dev->dcam_mutex);
-		ret = copy_from_user(&parm, (void __user *)arg,
-				sizeof(struct sprd_img_parm));
+
+		uparam = (struct sprd_img_parm __user *)arg;
+		get_user(channel_id, &uparam->channel_id);
+
+		path = &info->dcam_path[channel_id];
+		ret = copy_from_user(&(path->pdaf_ctrl),
+			&uparam->pdaf_ctrl, sizeof(struct sprd_pdaf_control));
 		if (ret) {
-			pr_err("failed to get user info.\n");
-			mutex_unlock(&dev->dcam_mutex);
+			pr_err("fail to get user info\n");
 			goto exit;
 		}
-		path = &info->dcam_path[parm.channel_id];
-		path->pdaf_ctrl.mode = parm.pdaf_ctrl.mode;
-		path->pdaf_ctrl.image_vc = parm.pdaf_ctrl.image_vc;
-		path->pdaf_ctrl.image_dt = parm.pdaf_ctrl.image_dt;
+
 		mutex_unlock(&dev->dcam_mutex);
 		DCAM_TRACE("channel %d, pdaf mode %d type %x %x.\n",
-			   parm.channel_id, path->pdaf_ctrl.mode,
+			   channel_id, path->pdaf_ctrl.mode,
 			   path->pdaf_ctrl.image_vc,
 			   path->pdaf_ctrl.image_dt);
 
