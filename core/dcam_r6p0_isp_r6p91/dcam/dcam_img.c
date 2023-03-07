@@ -2350,7 +2350,7 @@ static int sprd_init_handle(struct dcam_dev *dev)
 	return 0;
 }
 
-static int sprd_img_set_crop(struct file *file, struct sprd_img_parm *p)
+static int sprd_img_set_crop(struct file *file, struct sprd_img_parm __user *uparam)
 {
 	int ret = 0;
 	int ratio = 0;
@@ -2358,6 +2358,20 @@ static int sprd_img_set_crop(struct file *file, struct sprd_img_parm *p)
 	struct dcam_dev *dev = NULL;
 	struct camera_rect *input_rect;
 	struct camera_size *input_size;
+	struct sprd_img_rect crop_rect;
+	int channel_id = 0;
+
+	if (!file) {
+		ret = -EFAULT;
+		pr_err("fail to get file NULL\n");
+		goto exit;
+	}
+
+	if (!uparam) {
+		ret = -EFAULT;
+		pr_err("fail to get img parm NULL\n");
+		goto exit;
+	}
 
 	dev = file->private_data;
 	if (!dev) {
@@ -2368,69 +2382,76 @@ static int sprd_img_set_crop(struct file *file, struct sprd_img_parm *p)
 
 	info = &dev->dcam_cxt;
 
+	get_user(channel_id, &uparam->channel_id);
+	ret = copy_from_user(&crop_rect,
+		&uparam->crop_rect, sizeof(struct sprd_img_rect));
+	if (unlikely(ret)) {
+		pr_err("fail to get user info, SET_CROP\n");
+		ret = -EFAULT;
+		goto exit;
+	}
 	if (!sprd_get_ver_id()) {
-		if (p->crop_rect.x == 0 && p->crop_rect.y == 0
-			&& p->channel_id != DCAM_PATH0) {
-			ratio = p->crop_rect.w * 100 / p->crop_rect.h;
+		if (crop_rect.x == 0 && crop_rect.y == 0
+			&& channel_id != DCAM_PATH0) {
+			ratio = crop_rect.w * 100 / crop_rect.h;
 			if (ratio == 133) {
-				p->crop_rect.x = 8;
-				p->crop_rect.y = 6;
-				p->crop_rect.w -= 16;
-				p->crop_rect.h -= 12;
+				crop_rect.x = 8;
+				crop_rect.y = 6;
+				crop_rect.w -= 16;
+				crop_rect.h -= 12;
 			} else if (ratio == 177) {
-				p->crop_rect.x = 16;
-				p->crop_rect.y = 9;
-				p->crop_rect.w -= 32;
-				p->crop_rect.h -= 18;
+				crop_rect.x = 16;
+				crop_rect.y = 9;
+				crop_rect.w -= 32;
+				crop_rect.h -= 18;
 			} else {
-				p->crop_rect.x = 2;
-				p->crop_rect.y = 2;
-				p->crop_rect.w -= 4;
-				p->crop_rect.h -= 4;
+				crop_rect.x = 2;
+				crop_rect.y = 2;
+				crop_rect.w -= 4;
+				crop_rect.h -= 4;
 			}
 			pr_info("crop window %d %d %d %d.\n",
-				p->crop_rect.x, p->crop_rect.y,
-				p->crop_rect.w, p->crop_rect.h);
+				crop_rect.x, crop_rect.y,
+				crop_rect.w, crop_rect.h);
 		}
 	}
 
-	if (unlikely(p->crop_rect.x + p->crop_rect.w >
+	if (unlikely(crop_rect.x + crop_rect.w >
 		info->cap_in_size.w ||
-		p->crop_rect.y + p->crop_rect.h >
+		crop_rect.y + crop_rect.h >
 		info->cap_in_size.h)) {
 		ret = -EINVAL;
 		goto exit;
 	}
 
 	DCAM_TRACE("SPRD_IMG_IO_SET_CROP, window %d %d %d %d.\n",
-		p->crop_rect.x, p->crop_rect.y,
-		p->crop_rect.w, p->crop_rect.h);
+		crop_rect.x, crop_rect.y,
+		crop_rect.w, crop_rect.h);
 
-	switch (p->channel_id) {
+	switch (channel_id) {
 	case DCAM_PATH0:
 	case DCAM_PATH1:
 	case DCAM_PATH2:
-		input_size = &dev->dcam_cxt.dcam_path[p->channel_id].in_size;
-		input_rect = &dev->dcam_cxt.dcam_path[p->channel_id].in_rect;
+		input_size = &dev->dcam_cxt.dcam_path[channel_id].in_size;
+		input_rect = &dev->dcam_cxt.dcam_path[channel_id].in_rect;
 		break;
 	default:
-		pr_err("Wrong channel ID, %d .\n", p->channel_id);
+		pr_err("Wrong channel ID, %d .\n", channel_id);
 		goto exit;
 	}
 
 	input_size->w = info->cap_out_size.w;
 	input_size->h = info->cap_out_size.h;
-	input_rect->x = p->crop_rect.x;
-	input_rect->y = p->crop_rect.y;
-	input_rect->w = p->crop_rect.w;
-	input_rect->h = p->crop_rect.h;
+	input_rect->x = crop_rect.x;
+	input_rect->y = crop_rect.y;
+	input_rect->w = crop_rect.w;
+	input_rect->h = crop_rect.h;
 
 	DCAM_TRACE("%s: Path %d, cap_rect %d %d %d %d, cap_out:%d %d.\n",
-			__func__, p->channel_id,
+			__func__, channel_id,
 			input_rect->x, input_rect->y,
 			input_rect->w, input_rect->h,
 			input_size->w, input_size->h);
-
 exit:
 	return ret;
 }
@@ -2496,20 +2517,35 @@ exit:
 
 
 static int sprd_img_set_frame_addr(struct file *file,
-				   struct sprd_img_parm *p)
+				   struct sprd_img_parm __user *uparam)
 {
 	int ret = 0;
-	unsigned int i = 0;
+	uint32_t i = 0, channel_id = 0, is_reserved_buf = 0;
+	uint32_t fd_array = 0, buffer_count = 0, buf_flag = 0;
 	uint32_t                 path_cnt;
 	struct dcam_info *info = NULL;
 	struct dcam_dev *dev = NULL;
 	struct dcam_path_spec    *path = NULL;
 	path_cfg_func            path_cfg;
 
+	if (!file) {
+		ret = -EFAULT;
+		pr_err("fail to get camerafile NULL\n");
+		goto exit;
+	}
+
+	if (!uparam) {
+		ret = -EFAULT;
+		pr_err("fail to get img parm NULL\n");
+		goto exit;
+	}
+
 	dev = file->private_data;
 	info = &dev->dcam_cxt;
 
-	switch (p->channel_id) {
+	get_user(channel_id, &uparam->channel_id);
+	get_user(is_reserved_buf, &uparam->is_reserved_buf);
+	switch (channel_id) {
 	case DCAM_PATH0:
 		path = &info->dcam_path[DCAM_PATH0];
 		path_cnt = DCAM_PATH_0_FRM_CNT_MAX;
@@ -2526,7 +2562,7 @@ static int sprd_img_set_frame_addr(struct file *file,
 		path_cfg = dcam_path2_cfg;
 		break;
 	default:
-		pr_err("SET_FRAME_ADDR, path 0x%x.\n", p->channel_id);
+		pr_err("SET_FRAME_ADDR, path 0x%x.\n", channel_id);
 		mutex_unlock(&dev->dcam_mutex);
 		return -EINVAL;
 	}
@@ -2535,25 +2571,24 @@ static int sprd_img_set_frame_addr(struct file *file,
 	DCAM_TRACE("SPRD_IMG_IO_SET_FRAME_ADDR, status %d, frm_cnt_act %d.\n",
 		path->status, path->frm_cnt_act);
 
-	if (unlikely(p->fd_array[0] == 0)) {
+	get_user(fd_array, &uparam->fd_array[0]);
+	if (unlikely(fd_array == 0)) {
 		pr_info("fail to get fd\n");
 		ret = -EINVAL;
 		goto exit;
 	}
-
-	if (p->is_reserved_buf == 1) {
-		path->frm_reserved_addr.yaddr = p->frame_addr_array[0].y;
-		path->frm_reserved_addr.uaddr = p->frame_addr_array[0].u;
-		path->frm_reserved_addr.vaddr = p->frame_addr_array[0].v;
-		path->frm_reserved_addr_vir.yaddr =
-						p->frame_addr_vir_array[0].y;
-		path->frm_reserved_addr_vir.uaddr =
-						p->frame_addr_vir_array[0].u;
-		path->frm_reserved_addr_vir.vaddr =
-						p->frame_addr_vir_array[0].v;
-		path->frm_reserved_addr.mfd_y = p->fd_array[0];
-		path->frm_reserved_addr.mfd_u = p->fd_array[0];
-		path->frm_reserved_addr.mfd_v = p->fd_array[0];
+	get_user(buffer_count, &uparam->buffer_count);
+	get_user(buf_flag, &uparam->buf_flag);
+	if (is_reserved_buf == 1) {
+		get_user(path->frm_reserved_addr.yaddr, &uparam->frame_addr_array[0].y);
+		get_user(path->frm_reserved_addr.uaddr, &uparam->frame_addr_array[0].u);
+		get_user(path->frm_reserved_addr.vaddr, &uparam->frame_addr_array[0].v);
+		get_user(path->frm_reserved_addr_vir.yaddr, &uparam->frame_addr_vir_array[0].y);
+		get_user(path->frm_reserved_addr_vir.uaddr, &uparam->frame_addr_vir_array[0].u);
+		get_user(path->frm_reserved_addr_vir.vaddr, &uparam->frame_addr_vir_array[0].v);
+		get_user(path->frm_reserved_addr.mfd_y, &uparam->fd_array[0]);
+		get_user(path->frm_reserved_addr.mfd_u, &uparam->fd_array[0]);
+		get_user(path->frm_reserved_addr.mfd_v, &uparam->fd_array[0]);
 		/*pr_info("frame buf, reserved path%d, fd 0x%x\n",
 		*	p->channel_id, p->fd_array[0]);
 		*/
@@ -2563,29 +2598,23 @@ static int sprd_img_set_frame_addr(struct file *file,
 
 		if (atomic_read(&dev->stream_on) == 1
 			&& path->status == PATH_RUN
-			&& p->buf_flag == IMG_BUF_FLAG_RUNNING) {
+			&& buf_flag == IMG_BUF_FLAG_RUNNING) {
 
-			for (i = 0; i < p->buffer_count; i++) {
-				if (p->fd_array[i] == 0) {
+			for (i = 0; i < buffer_count; i++) {
+				if (fd_array == 0) {
 					pr_info("DCAM: get fd[%d] fail\n", i);
 					ret = -EINVAL;
 					goto exit;
 				}
-				frame_addr.yaddr =
-					p->frame_addr_array[i].y;
-				frame_addr.uaddr =
-					p->frame_addr_array[i].u;
-				frame_addr.vaddr =
-					p->frame_addr_array[i].v;
-				frame_addr.yaddr_vir =
-					p->frame_addr_vir_array[i].y;
-				frame_addr.uaddr_vir =
-					p->frame_addr_vir_array[i].u;
-				frame_addr.vaddr_vir =
-					p->frame_addr_vir_array[i].v;
-				frame_addr.mfd_y = p->fd_array[i];
-				frame_addr.mfd_u = p->fd_array[i];
-				frame_addr.mfd_v = p->fd_array[i];
+				get_user(frame_addr.yaddr, &uparam->frame_addr_array[i].y);
+				get_user(frame_addr.uaddr, &uparam->frame_addr_array[i].u);
+				get_user(frame_addr.vaddr, &uparam->frame_addr_array[i].v);
+				get_user(frame_addr.yaddr_vir, &uparam->frame_addr_vir_array[i].y);
+				get_user(frame_addr.uaddr_vir, &uparam->frame_addr_vir_array[i].u);
+				get_user(frame_addr.vaddr_vir, &uparam->frame_addr_vir_array[i].v);
+				get_user(frame_addr.mfd_y, &uparam->fd_array[i]);
+				get_user(frame_addr.mfd_u, &uparam->fd_array[i]);
+				get_user(frame_addr.mfd_v, &uparam->fd_array[i]);
 				/*pr_info("buf, running path%d, fd 0x%x\n",
 				*	p->channel_id, p->fd_array[i]);
 				*/
@@ -2593,38 +2622,29 @@ static int sprd_img_set_frame_addr(struct file *file,
 						&frame_addr);
 				if (unlikely(ret)) {
 					pr_err("fail to cfg path%d output addr\n",
-						p->channel_id);
+						channel_id);
 					goto exit;
 				}
 			}
 		} else {
-			if (p->buf_flag == IMG_BUF_FLAG_INIT) {
+			if (buf_flag == IMG_BUF_FLAG_INIT) {
 
-				for (i = 0; i < p->buffer_count; i++) {
-					if (unlikely(p->fd_array[i] == 0)) {
+				for (i = 0; i < buffer_count; i++) {
+					if (unlikely(fd_array == 0)) {
 						pr_info("get init fd[%d] fail\n",
 							i);
 						ret = -EINVAL;
 						goto exit;
 					}
-					buf_addr.frm_addr.yaddr =
-						p->frame_addr_array[i].y;
-					buf_addr.frm_addr.uaddr =
-						p->frame_addr_array[i].u;
-					buf_addr.frm_addr.vaddr =
-						p->frame_addr_array[i].v;
-					buf_addr.frm_addr_vir.yaddr =
-						p->frame_addr_vir_array[i].y;
-					buf_addr.frm_addr_vir.uaddr =
-						p->frame_addr_vir_array[i].u;
-					buf_addr.frm_addr_vir.vaddr =
-						p->frame_addr_vir_array[i].v;
-					buf_addr.frm_addr.mfd_y =
-						p->fd_array[i];
-					buf_addr.frm_addr.mfd_u =
-						p->fd_array[i];
-					buf_addr.frm_addr.mfd_v =
-						p->fd_array[i];
+				get_user(buf_addr.frm_addr.yaddr, &uparam->frame_addr_array[i].y);
+				get_user(buf_addr.frm_addr.uaddr, &uparam->frame_addr_array[i].u);
+				get_user(buf_addr.frm_addr.vaddr, &uparam->frame_addr_array[i].v);
+				get_user(buf_addr.frm_addr_vir.yaddr, &uparam->frame_addr_vir_array[i].y);
+				get_user(buf_addr.frm_addr_vir.uaddr, &uparam->frame_addr_vir_array[i].u);
+				get_user(buf_addr.frm_addr_vir.vaddr, &uparam->frame_addr_vir_array[i].v);
+				get_user(buf_addr.frm_addr.mfd_y, &uparam->fd_array[i]);
+				get_user(buf_addr.frm_addr.mfd_u, &uparam->fd_array[i]);
+				get_user(buf_addr.frm_addr.mfd_v, &uparam->fd_array[i]);
 					/*pr_info("buf init path%d, fd 0x%x\n",
 					*	p->channel_id, p->fd_array[i]);
 					*/
@@ -3260,6 +3280,7 @@ static long sprd_img_k_ioctl(struct file *file, unsigned int cmd,
 		ret = get_user(frame_base_id, &uparam->frame_base_id);
 		if (unlikely(ret)) {
 			pr_err("fail to get user info, SET_FRM_ID_BASE\n");
+			mutex_unlock(&dev->dcam_mutex);
 			ret = -EFAULT;
 			goto exit;
 		}
@@ -3290,6 +3311,7 @@ static long sprd_img_k_ioctl(struct file *file, unsigned int cmd,
 		ret = sprd_img_set_crop(file, uparam);
 		if (ret) {
 			pr_err("fail to set crop\n");
+			mutex_unlock(&dev->dcam_mutex);
 			goto exit;
 		}
 
@@ -3395,6 +3417,7 @@ static long sprd_img_k_ioctl(struct file *file, unsigned int cmd,
 		ret = sprd_img_set_frame_addr(file, uparam);
 		if (ret) {
 			pr_err("fail to set frame addr\n");
+			mutex_unlock(&dev->dcam_mutex);
 			goto exit;
 		}
 		mutex_unlock(&dev->dcam_mutex);
@@ -3657,6 +3680,7 @@ static long sprd_img_k_ioctl(struct file *file, unsigned int cmd,
 			&uparam->pdaf_ctrl, sizeof(struct sprd_pdaf_control));
 		if (ret) {
 			pr_err("fail to get user info\n");
+			mutex_unlock(&dev->dcam_mutex);
 			goto exit;
 		}
 
