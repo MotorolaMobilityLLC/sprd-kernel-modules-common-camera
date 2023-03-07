@@ -54,13 +54,15 @@ const char *cam_node_name_get(enum cam_node_type type)
 static bool camnode_capture_skip_condition(struct camera_frame *pframe,
 	struct cam_capture_param *cap_param)
 {	/* TBD： other scene need cover*/
-	if ((cap_param->cap_scene == CAPTURE_MFSR ||
+	if (((cap_param->cap_scene == CAPTURE_COMMON && !cap_param->need_skip_scene) ||
+		cap_param->cap_scene == CAPTURE_MFSR ||
 		cap_param->cap_scene == CAPTURE_SW3DNR ||
 		cap_param->cap_scene == CAPTURE_HDR) &&
 		(cap_param->cap_user_crop.w != pframe->width ||
 		cap_param->cap_user_crop.h != pframe->height)) {
-		pr_info("cap type[%d], fid %d, frame width %d, latest user crop %d, cap frame %d\n",
-			cap_param->cap_scene, pframe->fid, pframe->width, cap_param->cap_user_crop.w, cap_param->cap_cnt);
+		pr_info("cap type[%d], fid %d, frame width %d %d, latest user crop %d %d, cap frame %d %d\n",
+			cap_param->cap_scene, pframe->fid, pframe->width, pframe->height,
+			cap_param->cap_user_crop.w, cap_param->cap_user_crop.h, cap_param->cap_cnt);
 		return false;
 	}
 
@@ -364,6 +366,7 @@ static int camnode_cfg_node_param_dcam_online(void *handle, enum cam_node_cfg_cm
 		node->cap_param.cap_user_crop = cap_param->cap_user_crop;
 		node->cap_param.skip_first_num = cap_param->skip_first_num;
 		node->cap_param.cap_opt_frame_scene = cap_param->cap_opt_frame_scene;
+		node->cap_param.need_skip_scene = cap_param->need_skip_scene;
 		pr_info("node: %s id %d cap K_type %d, scene %d, cnt %d, skip first_frame %d time %lld, opt_scene %d\n",
 			cam_node_name_get(node->node_graph->type), node->node_graph->id, node->cap_param.cap_type,
 			node->cap_param.cap_scene, atomic_read(&node->cap_param.cap_cnt),

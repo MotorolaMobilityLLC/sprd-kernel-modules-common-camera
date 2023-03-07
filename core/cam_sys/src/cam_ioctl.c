@@ -1866,6 +1866,8 @@ static int camioctl_capture_start(struct camera_module *module,
 	cap_param.cap_user_crop = ch->latest_user_crop;
 	cap_param.skip_first_num = param.skip_first_num;
 
+	if (module->cam_uinfo.is_4in1 || module->cam_uinfo.dcam_slice_mode || module->cam_uinfo.is_longexp)
+		cap_param.need_skip_scene = 1;
 	if ((!module->cam_uinfo.dcam_slice_mode && module->cam_uinfo.zsl_num != 0
 		&& !module->cam_uinfo.is_4in1 && (module->capture_scene != CAPTURE_AI_SFNR)) || module->cam_uinfo.is_dual)
 		ret = CAM_PIPEINE_FRAME_CACHE_NODE_CFG(ch, CAM_PIPELINE_CFG_CAP_PARAM, &cap_param);
